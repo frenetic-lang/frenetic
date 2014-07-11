@@ -4790,23 +4790,901 @@ end
 module Error = struct
 
   type t = {
-    typ : int16;
-    code : int16;
+    err : errorTyp;
+    data : bytes;
   }
 
   cstruct ofp_error_msg {
     uint16_t typ;
     uint16_t code
   } as big_endian
-  
-  (* page 95 of OF 1.3.1 *)
+
+  cenum ofp_error_type {
+    OFPET_HELLO_FAILED = 0;
+    OFPET_BAD_REQUEST = 1;
+    OFPET_BAD_ACTION = 2;
+    OFPET_BAD_INSTRUCTION = 3;
+    OFPET_BAD_MATCH = 4;
+    OFPET_FLOW_MOD_FAILED = 5;
+    OFPET_GROUP_MOD_FAILED = 6;
+    OFPET_PORT_MOD_FAILED = 7;
+    OFPET_TABLE_MOD_FAILED = 8;
+    OFPET_QUEUE_OP_FAILED = 9;
+    OFPET_SWITCH_CONFIG_FAILED = 10;
+    OFPET_ROLE_REQUEST_FAILED = 11;
+    OFPET_METER_MOD_FAILED = 12;
+    OFPET_TABLE_FEATURES_FAILED = 13;
+    OFPET_EXPERIMENTER = 0xffff
+  } as uint16_t
+
+  module HelloFailed = struct 
+    
+    cenum ofp_hello_failed_code {
+      OFPHFC_INCOMPATIBLE = 0;
+      OFPHFC_EPERM = 1
+    } as uint16_t
+
+    type t = helloFailed
+
+    let to_string (cod : helloFailed) =
+      match cod with
+        | HelloIncompatible -> "No Compatible version"
+        | HelloPermError -> "Permission Error"
+
+    let marshal (cod : helloFailed) : int =
+      match cod with
+        | HelloIncompatible -> ofp_hello_failed_code_to_int OFPHFC_INCOMPATIBLE
+        | HelloPermError -> ofp_hello_failed_code_to_int OFPHFC_EPERM
+
+    let parse t : helloFailed =
+      match int_to_ofp_hello_failed_code t with
+        | Some OFPHFC_INCOMPATIBLE -> HelloIncompatible
+        | Some OFPHFC_EPERM -> HelloPermError
+        | None -> raise (Unparsable (sprintf "malfomed hello_failed code"))
+
+  end
+
+  module BadRequest = struct
+
+    cenum ofp_bad_request_code {
+      OFPBRC_BAD_VERSION = 0;
+      OFPBRC_BAD_TYPE = 1;
+      OFPBRC_BAD_MULTIPART = 2;
+      OFPBRC_BAD_EXPERIMENTER = 3;
+      OFPBRC_BAD_EXP_TYPE = 4;
+      OFPBRC_EPERM = 5;
+      OFPBRC_BAD_LEN = 6;
+      OFPBRC_BUFFER_EMPTY = 7;
+      OFPBRC_BUFFER_UNKNOWN = 8;
+      OFPBRC_BAD_TABLE_ID = 9;
+      OFPBRC_IS_SLAVE = 10;
+      OFPBRC_BAD_PORT = 11;
+      OFPBRC_BAD_PACKET = 12;
+      OFPBRC_MULTIPART_BUFFER_OVERFLOW = 13
+    } as uint16_t
+
+    type t = badRequest
+
+    let to_string (cod : badRequest) : string =
+      match cod with
+        | ReqBadVersion -> "OF version not supported"
+        | ReqBadType -> "OF type not supported"
+        | ReqBadMultipart -> "OF multipart type not supported"
+        | ReqBadExp -> "Experimenter ID not supported"
+        | ReqBadExpType -> "Experimenter Type not supported"
+        | ReqPermError -> "Permission error"
+        | ReqBadLen -> "Wrong request length type"
+        | ReqBufferEmpty -> "Specified buffer has already been used"
+        | ReqBufferUnknown -> "Specified buffer does not exist"
+        | ReqBadTableId -> "Specified table id invalid or does not exist"
+        | ReqIsSlave -> "Denied: controller is slave"
+        | ReqBadPort -> "Invalid port"
+        | ReqBadPacket -> "Invalid packet in packet out"
+        | ReqMultipartBufOverflow -> "Multipart request overflow the current buffer"
+
+    let marshal (cod : badRequest) : int =
+      match cod with
+        | ReqBadVersion -> ofp_bad_request_code_to_int OFPBRC_BAD_VERSION
+        | ReqBadType -> ofp_bad_request_code_to_int OFPBRC_BAD_TYPE
+        | ReqBadMultipart -> ofp_bad_request_code_to_int OFPBRC_BAD_MULTIPART
+        | ReqBadExp -> ofp_bad_request_code_to_int OFPBRC_BAD_EXPERIMENTER
+        | ReqBadExpType -> ofp_bad_request_code_to_int OFPBRC_BAD_EXP_TYPE
+        | ReqPermError -> ofp_bad_request_code_to_int OFPBRC_EPERM
+        | ReqBadLen -> ofp_bad_request_code_to_int OFPBRC_BAD_LEN
+        | ReqBufferEmpty -> ofp_bad_request_code_to_int OFPBRC_BUFFER_EMPTY
+        | ReqBufferUnknown -> ofp_bad_request_code_to_int OFPBRC_BUFFER_UNKNOWN
+        | ReqBadTableId -> ofp_bad_request_code_to_int OFPBRC_BAD_TABLE_ID
+        | ReqIsSlave -> ofp_bad_request_code_to_int OFPBRC_IS_SLAVE
+        | ReqBadPort -> ofp_bad_request_code_to_int OFPBRC_BAD_PORT
+        | ReqBadPacket -> ofp_bad_request_code_to_int OFPBRC_BAD_PACKET
+        | ReqMultipartBufOverflow -> ofp_bad_request_code_to_int OFPBRC_MULTIPART_BUFFER_OVERFLOW
+
+    let parse t : badRequest = 
+      match int_to_ofp_bad_request_code t with
+        | Some OFPBRC_BAD_VERSION -> ReqBadVersion
+        | Some OFPBRC_BAD_TYPE -> ReqBadType
+        | Some OFPBRC_BAD_MULTIPART -> ReqBadMultipart
+        | Some OFPBRC_BAD_EXPERIMENTER -> ReqBadExp
+        | Some OFPBRC_BAD_EXP_TYPE -> ReqBadExpType
+        | Some OFPBRC_EPERM -> ReqPermError
+        | Some OFPBRC_BAD_LEN -> ReqBadLen
+        | Some OFPBRC_BUFFER_EMPTY -> ReqBufferEmpty
+        | Some OFPBRC_BUFFER_UNKNOWN -> ReqBufferUnknown
+        | Some OFPBRC_BAD_TABLE_ID -> ReqBadTableId
+        | Some OFPBRC_IS_SLAVE -> ReqIsSlave
+        | Some OFPBRC_BAD_PORT -> ReqBadPort
+        | Some OFPBRC_BAD_PACKET -> ReqBadPacket
+        | Some OFPBRC_MULTIPART_BUFFER_OVERFLOW -> ReqMultipartBufOverflow
+        | None -> raise (Unparsable (sprintf "malfomed bad_request code"))
+
+  end
+
+  module BadAction = struct
+
+    cenum ofp_bad_action_code {
+      OFPBAC_BAD_TYPE = 0;
+      OFPBAC_BAD_LEN = 1;
+      OFPBAC_BAD_EXPERIMENTER = 2;
+      OFPBAC_BAD_EXP_TYPE = 3;
+      OFPBAC_BAD_OUT_PORT = 4;
+      OFPBAC_BAD_ARGUMENT = 5;
+      OFPBAC_EPERM = 6;
+      OFPBAC_TOO_MANY = 7;
+      OFPBAC_BAD_QUEUE = 8;
+      OFPBAC_BAD_OUT_GROUP = 9;
+      OFPBAC_MATCH_INCONSISTENT = 10;
+      OFPBAC_UNSUPPORTED_ORDER = 11;
+      OFPBAC_BAD_TAG = 12;
+      OFPBAC_BAD_SET_TYPE = 13;
+      OFPBAC_BAD_SET_LEN = 14;
+      OFPBAC_BAD_SET_ARGUMENT = 15
+    } as uint16_t
+
+    type t = badAction
+
+    let to_string (cod : badAction) : string =
+      match cod with
+        | ActBadType -> "Unknown or unsupported type"
+        | ActBadLen -> "Lengh problem in action"
+        | ActBadExp -> "Unknown experimenter id specified"
+        | ActBadExpType -> "Unknown action for experimenter id"
+        | ActBadOutPort -> "Problem validating output port"
+        | ActBadArg -> "bad action argument"
+        | ActPermError -> "Permission error"
+        | ActTooMany -> "Can't handle this many actions"
+        | ActBadQueue ->  "Problem validating output queue"
+        | ActBadOutGroup ->  "Invalid group id in forward action"
+        | ActMatchInconsistent -> "Action can't apply for this match or set-field missing prerequisite"
+        | ActUnsupportedOrder -> "Action order is unsupported for the action list in a Apply-Action instruction"
+        | ActBadTag -> "Action use an unsupported tag/encap"
+        | ActBadSetTyp -> "Unsupported type set-field action"
+        | ActBadSetLen -> "Length problem in set-field action"
+        | ActBadSetArg -> "Bad argument in set-field action"
+
+    let marshal (cod : badAction) : int =
+      match cod with
+        | ActBadType -> ofp_bad_action_code_to_int OFPBAC_BAD_TYPE
+        | ActBadLen -> ofp_bad_action_code_to_int OFPBAC_BAD_LEN
+        | ActBadExp -> ofp_bad_action_code_to_int OFPBAC_BAD_EXPERIMENTER
+        | ActBadExpType -> ofp_bad_action_code_to_int OFPBAC_BAD_EXP_TYPE
+        | ActBadOutPort -> ofp_bad_action_code_to_int OFPBAC_BAD_OUT_PORT
+        | ActBadArg -> ofp_bad_action_code_to_int OFPBAC_BAD_ARGUMENT
+        | ActPermError -> ofp_bad_action_code_to_int OFPBAC_EPERM
+        | ActTooMany -> ofp_bad_action_code_to_int OFPBAC_TOO_MANY
+        | ActBadQueue -> ofp_bad_action_code_to_int OFPBAC_BAD_QUEUE
+        | ActBadOutGroup -> ofp_bad_action_code_to_int OFPBAC_BAD_OUT_GROUP
+        | ActMatchInconsistent -> ofp_bad_action_code_to_int OFPBAC_MATCH_INCONSISTENT
+        | ActUnsupportedOrder -> ofp_bad_action_code_to_int OFPBAC_UNSUPPORTED_ORDER
+        | ActBadTag -> ofp_bad_action_code_to_int OFPBAC_BAD_TAG
+        | ActBadSetTyp -> ofp_bad_action_code_to_int OFPBAC_BAD_SET_TYPE
+        | ActBadSetLen -> ofp_bad_action_code_to_int OFPBAC_BAD_SET_LEN
+        | ActBadSetArg -> ofp_bad_action_code_to_int OFPBAC_BAD_SET_ARGUMENT
+
+    let parse t : badAction =
+      match int_to_ofp_bad_action_code t with
+        | Some OFPBAC_BAD_TYPE -> ActBadType
+        | Some OFPBAC_BAD_LEN -> ActBadLen
+        | Some OFPBAC_BAD_EXPERIMENTER -> ActBadExp
+        | Some OFPBAC_BAD_EXP_TYPE -> ActBadExpType
+        | Some OFPBAC_BAD_OUT_PORT -> ActBadOutPort
+        | Some OFPBAC_BAD_ARGUMENT -> ActBadArg
+        | Some OFPBAC_EPERM -> ActPermError
+        | Some OFPBAC_TOO_MANY -> ActTooMany
+        | Some OFPBAC_BAD_QUEUE -> ActBadQueue
+        | Some OFPBAC_BAD_OUT_GROUP -> ActBadOutGroup
+        | Some OFPBAC_MATCH_INCONSISTENT -> ActMatchInconsistent
+        | Some OFPBAC_UNSUPPORTED_ORDER -> ActUnsupportedOrder
+        | Some OFPBAC_BAD_TAG -> ActBadTag
+        | Some OFPBAC_BAD_SET_TYPE -> ActBadSetTyp
+        | Some OFPBAC_BAD_SET_LEN -> ActBadSetLen
+        | Some OFPBAC_BAD_SET_ARGUMENT -> ActBadSetArg
+        | None -> raise (Unparsable (sprintf "malfomed bad_action code"))
+
+  end
+
+  module BadInstruction = struct
+
+    cenum ofp_bad_instruction_code {
+      OFPBIC_UNKNOWN_INST = 0;
+      OFPBIC_UNSUP_INST = 1;
+      OFPBIC_BAD_TABLE_ID = 2;
+      OFPBIC_UNSUP_METADATA = 3;
+      OFPBIC_UNSUP_METADATA_MASK = 4;
+      OFPBIC_BAD_EXPERIMENTER = 5;
+      OFPBIC_BAD_EXP_TYPE = 6;
+      OFPBIC_BAD_LEN = 7;
+      OFPBIC_EPERM = 8
+    } as uint16_t
+
+    type t = badInstruction
+
+    let to_string (cod : badInstruction) : string =
+      match cod with
+        | InstUnknownInst -> "Unknwon instruction"
+        | InstUnsupInst -> "Switch or table does not support the instruction"
+        | InstBadTableId -> "Invalid table-id specified"
+        | InstUnsupMeta -> "Metadata unsupported by datapath"
+        | InstUnsupMetaMask -> "Metadata mask value unsupported by datapath"
+        | InstBadExp -> "Unknown experimenter id specified"
+        | InstBadExpTyp -> "Unknown instruction for experimenter id"
+        | InstBadLen -> "Length problem in instruction"
+        | InstPermError -> "Permission error"
+
+     let marshal (cod : badInstruction) : int =
+      match cod with
+        | InstUnknownInst -> ofp_bad_instruction_code_to_int OFPBIC_UNKNOWN_INST
+        | InstBadTableId -> ofp_bad_instruction_code_to_int OFPBIC_BAD_TABLE_ID
+        | InstUnsupInst -> ofp_bad_instruction_code_to_int OFPBIC_UNSUP_INST
+        | InstUnsupMeta -> ofp_bad_instruction_code_to_int OFPBIC_UNSUP_METADATA
+        | InstUnsupMetaMask -> ofp_bad_instruction_code_to_int OFPBIC_UNSUP_METADATA_MASK
+        | InstBadExp -> ofp_bad_instruction_code_to_int OFPBIC_BAD_EXPERIMENTER
+        | InstBadExpTyp -> ofp_bad_instruction_code_to_int OFPBIC_BAD_EXP_TYPE
+        | InstBadLen -> ofp_bad_instruction_code_to_int OFPBIC_BAD_LEN
+        | InstPermError -> ofp_bad_instruction_code_to_int OFPBIC_EPERM
+
+    let parse t : badInstruction =
+      match int_to_ofp_bad_instruction_code t with
+        | Some OFPBIC_UNKNOWN_INST -> InstUnknownInst
+        | Some OFPBIC_BAD_TABLE_ID -> InstBadTableId
+        | Some OFPBIC_UNSUP_INST -> InstUnsupInst
+        | Some OFPBIC_UNSUP_METADATA -> InstUnsupMeta
+        | Some OFPBIC_UNSUP_METADATA_MASK -> InstUnsupMetaMask
+        | Some OFPBIC_BAD_EXPERIMENTER -> InstBadExp
+        | Some OFPBIC_BAD_EXP_TYPE -> InstBadExpTyp
+        | Some OFPBIC_BAD_LEN -> InstBadLen
+        | Some OFPBIC_EPERM -> InstPermError
+        | None -> raise (Unparsable (sprintf "malfomed bad_instruction code"))
+
+  end
+
+  module BadMatch = struct
+
+    cenum ofp_bad_match_code {
+      OFPBMC_BAD_TYPE = 0;
+      OFPBMC_BAD_LEN = 1;
+      OFPBMC_BAD_TAG = 2;
+      OFPBMC_BAD_DL_ADDR_MASK = 3;
+      OFPBMC_BAD_NW_ADDR_MASK = 4;
+      OFPBMC_BAD_WILDCARDS = 5;
+      OFPBMC_BAD_FIELD = 6;
+      OFPBMC_BAD_VALUE = 7;
+      OFPBMC_BAD_MASK = 8;
+      OFPBMC_BAD_PREREQ = 9;
+      OFPBMC_DUP_FIELD = 10;
+      OFPBMC_EPERM = 11
+    } as uint16_t
+
+    type t = badMatch
+
+    let to_string (cod : badMatch) : string =
+      match cod with
+        | MatBadTyp -> "Unsupported match type"
+        | MatBadLen -> "Length problem in match"
+        | MatBadTag -> "Match uses an unsupported tag/encap"
+        | MatBadDlAddrMask -> "Unsupported datalink addr mask - switch does not support arbitrary datalink address mask"
+        | MatBadNwAddrMask -> "Unsupported network addr mask - switch does not support arbitrary network address mask"
+        | MatBadWildcards -> "Unsupported combination of fields masked or omitted in the match"
+        | MatBadField -> "Unsupported field in the match"
+        | MatBadValue -> "Unsupported value in match field"
+        | MatBadMask -> "Unsupported mask specified in the match, field is not  dl-address or nw-adress"
+        | MatBadPrereq -> "A prerequisite was not met"
+        | MatDupField -> "A field type was duplicated"
+        | MatPermError -> "Permission error"
+
+    let marshal (cod : badMatch) : int =
+      match cod with
+        | MatBadTyp -> ofp_bad_match_code_to_int OFPBMC_BAD_TYPE
+        | MatBadLen -> ofp_bad_match_code_to_int OFPBMC_BAD_LEN
+        | MatBadTag -> ofp_bad_match_code_to_int OFPBMC_BAD_TAG
+        | MatBadDlAddrMask -> ofp_bad_match_code_to_int OFPBMC_BAD_DL_ADDR_MASK
+        | MatBadNwAddrMask -> ofp_bad_match_code_to_int OFPBMC_BAD_NW_ADDR_MASK
+        | MatBadWildcards -> ofp_bad_match_code_to_int OFPBMC_BAD_WILDCARDS
+        | MatBadField -> ofp_bad_match_code_to_int OFPBMC_BAD_FIELD
+        | MatBadValue -> ofp_bad_match_code_to_int OFPBMC_BAD_VALUE
+        | MatBadMask -> ofp_bad_match_code_to_int OFPBMC_BAD_MASK
+        | MatBadPrereq -> ofp_bad_match_code_to_int OFPBMC_BAD_PREREQ
+        | MatDupField -> ofp_bad_match_code_to_int OFPBMC_DUP_FIELD
+        | MatPermError -> ofp_bad_match_code_to_int OFPBMC_EPERM
+
+    let parse t : badMatch =
+      match int_to_ofp_bad_match_code t with
+        | Some OFPBMC_BAD_TYPE -> MatBadTyp
+        | Some OFPBMC_BAD_LEN -> MatBadLen
+        | Some OFPBMC_BAD_TAG -> MatBadTag
+        | Some OFPBMC_BAD_DL_ADDR_MASK -> MatBadDlAddrMask
+        | Some OFPBMC_BAD_NW_ADDR_MASK -> MatBadNwAddrMask
+        | Some OFPBMC_BAD_WILDCARDS -> MatBadWildcards
+        | Some OFPBMC_BAD_FIELD -> MatBadField
+        | Some OFPBMC_BAD_VALUE -> MatBadValue
+        | Some OFPBMC_BAD_MASK -> MatBadMask
+        | Some OFPBMC_BAD_PREREQ -> MatBadPrereq
+        | Some OFPBMC_DUP_FIELD -> MatDupField
+        | Some OFPBMC_EPERM -> MatPermError
+        | None -> raise (Unparsable (sprintf "malfomed bad_match code"))
+
+  end
+
+  module FlowModFailed = struct 
+
+    cenum ofp_flow_mod_failed_code {
+      OFPFMFC_UNKNOWN = 0;
+      OFPFMFC_TABLE_FULL = 1;
+      OFPFMFC_BAD_TABLE_ID = 2;
+      OFPFMFC_OVERLAP = 3;
+      OFPFMFC_EPERM = 4;
+      OFPFMFC_BAD_TIMEOUT = 5;
+      OFPFMFC_BAD_COMMAND = 6;
+      OFPFMFC_BAD_FLAGS = 7
+    } as uint16_t
+
+    type t = flowModFailed
+
+    let to_string (cod : flowModFailed) : string =
+      match cod with
+        | FlUnknown -> "Unspecified error"
+        | FlTableFull -> "Flow not added because table was full"
+        | FlBadTableId -> "Table does not exist"
+        | FlOverlap -> "Attempted to add overlapping flow with CHECK_OVERLAP flag set"
+        | FlPermError -> "Permission error"
+        | FlBadTimeout -> "Flow not added because of unsupported idle/hard timeout"
+        | FlBadCommand -> "Unsupported or unknown command"
+        | FlBadFlags  -> "Unsupported or unknwon flags"
+
+    let marshal (cod : flowModFailed) : int =
+      match cod with
+        | FlUnknown -> ofp_flow_mod_failed_code_to_int OFPFMFC_UNKNOWN
+        | FlTableFull -> ofp_flow_mod_failed_code_to_int OFPFMFC_TABLE_FULL
+        | FlBadTableId -> ofp_flow_mod_failed_code_to_int OFPFMFC_BAD_TABLE_ID
+        | FlOverlap -> ofp_flow_mod_failed_code_to_int OFPFMFC_OVERLAP
+        | FlPermError -> ofp_flow_mod_failed_code_to_int OFPFMFC_EPERM
+        | FlBadTimeout -> ofp_flow_mod_failed_code_to_int OFPFMFC_BAD_TIMEOUT
+        | FlBadCommand -> ofp_flow_mod_failed_code_to_int OFPFMFC_BAD_COMMAND
+        | FlBadFlags  -> ofp_flow_mod_failed_code_to_int OFPFMFC_BAD_FLAGS
+
+    let parse t : flowModFailed = 
+      match int_to_ofp_flow_mod_failed_code t with
+        | Some OFPFMFC_UNKNOWN -> FlUnknown
+        | Some OFPFMFC_TABLE_FULL -> FlTableFull
+        | Some OFPFMFC_BAD_TABLE_ID -> FlBadTableId
+        | Some OFPFMFC_OVERLAP -> FlOverlap
+        | Some OFPFMFC_EPERM -> FlPermError
+        | Some OFPFMFC_BAD_TIMEOUT -> FlBadTimeout
+        | Some OFPFMFC_BAD_COMMAND -> FlBadCommand
+        | Some OFPFMFC_BAD_FLAGS -> FlBadFlags
+        | None -> raise (Unparsable (sprintf "malfomed flow mod failed code"))
+
+  end
+
+  module GroupModFailed = struct
+
+    cenum ofp_group_mod_failed_code {
+      OFPGMFC_GROUP_EXISTS = 0;
+      OFPGMFC_INVALID_GROUP = 1;
+      OFPGMFC_WEIGHT_UNSUPPORTED = 2;
+      OFPGMFC_OUT_OF_GROUPS = 3;
+      OFPGMFC_OUT_OF_BUCKETS = 4;
+      OFPGMFC_CHAINING_UNSUPPORTED = 5;
+      OFPGMFC_WATCH_UNSUPPORTED = 6;
+      OFPGMFC_LOOP = 7;
+      OFPGMFC_UNKNOWN_GROUP = 8;
+      OFPGMFC_CHAINED_GROUP = 9;
+      OFPGMFC_BAD_TYPE = 10;
+      OFPGMFC_BAD_COMMAND = 11;
+      OFPGMFC_BAD_BUCKET = 12;
+      OFPGMFC_BAD_WATCH = 13;
+      OFPGMFC_EPERM = 14
+    } as uint16_t
+
+    type t = groupModFailed
+
+    let to_string (cod : groupModFailed) : string =
+      match cod with
+        | GrGroupExists -> "Group not added because a group ADD attempted to replace an already-present group"
+        | GrIvalidGroup -> "Group not added because Group specified is invalid"
+        | GrWeightUnsupported -> "Switch does not support unequal load sharing with select groups"
+        | GrOutOfGroups -> "The group table is full"
+        | GrOutOfBuckets -> "The maximum number of action buckets for a group has been exceeded"
+        | GrChainingUnsupported -> "Switch does not support groups that forward to groups"
+        | GrWatcHUnsupported -> "This group cannot watch the watch_port or watch_group specified"
+        | GrLoop -> "Group entry would cause a loop"
+        | GrUnknownGroup -> "Group not modified because a group MODIFY attempted to modify a non-existent group"
+        | GrChainedGroup -> "Group not deleted because another group is forwarding to it"
+        | GrBadTyp -> "Unsupported or unknown group type"
+        | GrBadCommand -> "Unsupported or unknown command"
+        | GrBadBucket -> "Error in bucket"
+        | GrBadWatch -> "Error in watch port/group"
+        | GrPermError -> "Permissions error"
+   
+    let marshal (cod : groupModFailed) : int =
+      match cod with
+        | GrGroupExists -> ofp_group_mod_failed_code_to_int OFPGMFC_GROUP_EXISTS
+        | GrIvalidGroup -> ofp_group_mod_failed_code_to_int OFPGMFC_INVALID_GROUP
+        | GrWeightUnsupported -> ofp_group_mod_failed_code_to_int OFPGMFC_WEIGHT_UNSUPPORTED
+        | GrOutOfGroups -> ofp_group_mod_failed_code_to_int OFPGMFC_OUT_OF_GROUPS
+        | GrOutOfBuckets -> ofp_group_mod_failed_code_to_int OFPGMFC_OUT_OF_BUCKETS
+        | GrChainingUnsupported -> ofp_group_mod_failed_code_to_int OFPGMFC_CHAINING_UNSUPPORTED
+        | GrWatcHUnsupported -> ofp_group_mod_failed_code_to_int OFPGMFC_WATCH_UNSUPPORTED
+        | GrLoop -> ofp_group_mod_failed_code_to_int OFPGMFC_LOOP
+        | GrUnknownGroup -> ofp_group_mod_failed_code_to_int OFPGMFC_UNKNOWN_GROUP
+        | GrChainedGroup -> ofp_group_mod_failed_code_to_int OFPGMFC_CHAINED_GROUP
+        | GrBadTyp -> ofp_group_mod_failed_code_to_int OFPGMFC_BAD_TYPE
+        | GrBadCommand -> ofp_group_mod_failed_code_to_int OFPGMFC_BAD_COMMAND
+        | GrBadBucket -> ofp_group_mod_failed_code_to_int OFPGMFC_BAD_BUCKET
+        | GrBadWatch -> ofp_group_mod_failed_code_to_int OFPGMFC_BAD_WATCH
+        | GrPermError -> ofp_group_mod_failed_code_to_int OFPGMFC_EPERM
+
+    let parse t : groupModFailed =
+      match int_to_ofp_group_mod_failed_code t with
+        | Some OFPGMFC_GROUP_EXISTS -> GrGroupExists
+        | Some OFPGMFC_INVALID_GROUP -> GrIvalidGroup
+        | Some OFPGMFC_WEIGHT_UNSUPPORTED -> GrWeightUnsupported
+        | Some OFPGMFC_OUT_OF_GROUPS -> GrOutOfGroups
+        | Some OFPGMFC_OUT_OF_BUCKETS -> GrOutOfBuckets
+        | Some OFPGMFC_CHAINING_UNSUPPORTED -> GrChainingUnsupported
+        | Some OFPGMFC_WATCH_UNSUPPORTED -> GrWatcHUnsupported
+        | Some OFPGMFC_LOOP -> GrLoop
+        | Some OFPGMFC_UNKNOWN_GROUP -> GrUnknownGroup
+        | Some OFPGMFC_CHAINED_GROUP -> GrChainedGroup
+        | Some OFPGMFC_BAD_TYPE -> GrBadTyp
+        | Some OFPGMFC_BAD_COMMAND -> GrBadCommand
+        | Some OFPGMFC_BAD_BUCKET -> GrBadBucket
+        | Some OFPGMFC_BAD_WATCH -> GrBadWatch
+        | Some OFPGMFC_EPERM -> GrPermError
+        | None -> raise (Unparsable (sprintf "malfomed group mod failed code"))
+
+  end
+
+  module PortModFailed = struct
+
+    cenum ofp_port_mod_failed_code {
+      OFPPMFC_BAD_PORT = 0;
+      OFPPMFC_BAD_HW_ADDR = 1;
+      OFPPMFC_BAD_CONFIG = 2;
+      OFPPMFC_BAD_ADVERTISE = 3;
+      OFPPMFC_EPERM = 4
+    } as uint16_t
+
+    type t = portModFailed
+
+    let to_string (cod : portModFailed) : string =
+      match cod with 
+        | PoBadPort -> "Specified port number does not exist"
+        | PoBadHwAddr -> "Specified hardware address does not match the port number"
+        | PoBadConfig -> "Specified config is invalid"
+        | PoBadAdvertise -> "Specified advertise is invalid"
+        | PoPermError -> "Permission Error"
+
+    let marshal (cod : portModFailed) : int =
+      match cod with 
+        | PoBadPort -> ofp_port_mod_failed_code_to_int OFPPMFC_BAD_PORT
+        | PoBadHwAddr -> ofp_port_mod_failed_code_to_int OFPPMFC_BAD_HW_ADDR
+        | PoBadConfig -> ofp_port_mod_failed_code_to_int OFPPMFC_BAD_CONFIG
+        | PoBadAdvertise -> ofp_port_mod_failed_code_to_int OFPPMFC_BAD_ADVERTISE
+        | PoPermError -> ofp_port_mod_failed_code_to_int OFPPMFC_EPERM
+
+    let parse t : portModFailed = 
+      match int_to_ofp_port_mod_failed_code t with
+        | Some OFPPMFC_BAD_PORT -> PoBadPort
+        | Some OFPPMFC_BAD_HW_ADDR -> PoBadHwAddr
+        | Some OFPPMFC_BAD_CONFIG -> PoBadConfig
+        | Some OFPPMFC_BAD_ADVERTISE -> PoBadAdvertise
+        | Some OFPPMFC_EPERM -> PoPermError
+        | None -> raise (Unparsable (sprintf "malfomed port mod failed code"))
+
+  end
+
+  module TableModFailed = struct
+
+    cenum ofp_table_mod_failed_code {
+      OFPTMFC_BAD_TABLE = 0;
+      OFPTMFC_BAD_CONFIG = 1;
+      OFPTMFC_EPERM = 2
+    } as uint16_t
+
+    type t = tableModFailed
+
+    let to_string (cod : tableModFailed) : string =
+      match cod with
+        | TaBadTable -> "Specified table does not exist"
+        | TaBadConfig -> "Specified config is invalid"
+        | TaPermError -> "Permission Error"
+
+    let marshal (cod : tableModFailed) : int =
+      match cod with
+        | TaBadTable -> ofp_table_mod_failed_code_to_int OFPTMFC_BAD_TABLE
+        | TaBadConfig -> ofp_table_mod_failed_code_to_int OFPTMFC_BAD_CONFIG
+        | TaPermError -> ofp_table_mod_failed_code_to_int OFPTMFC_EPERM
+
+    let parse t : tableModFailed = 
+      match int_to_ofp_table_mod_failed_code t with
+        | Some OFPTMFC_BAD_TABLE -> TaBadTable
+        | Some OFPTMFC_BAD_CONFIG -> TaBadConfig
+        | Some OFPTMFC_EPERM -> TaPermError
+        | None -> raise (Unparsable (sprintf "malfomed table mod failed code"))
+
+  end
+
+  module QueueOpFailed = struct
+
+    cenum ofp_queue_op_failed_code {
+      OFPQOFC_BAD_PORT = 0;
+      OFPQOFC_BAD_QUEUE = 1;
+      OFPQOFC_EPERM = 2
+    } as uint16_t
+
+    type t = queueOpFailed
+
+    let to_string (cod : queueOpFailed) : string =
+      match cod with
+        | QuBadPort -> "Invalid port (or port does not exist)"
+        | QuBadQUeue -> "Queue does not exist"
+        | QuPermError -> "Permission Error"
+
+    let marshal (cod : queueOpFailed) : int =
+      match cod with
+        | QuBadPort -> ofp_queue_op_failed_code_to_int OFPQOFC_BAD_PORT
+        | QuBadQUeue -> ofp_queue_op_failed_code_to_int OFPQOFC_BAD_QUEUE
+        | QuPermError -> ofp_queue_op_failed_code_to_int OFPQOFC_EPERM
+
+    let parse t : queueOpFailed = 
+      match int_to_ofp_queue_op_failed_code t with
+        | Some OFPQOFC_BAD_PORT -> QuBadPort
+        | Some OFPQOFC_BAD_QUEUE -> QuBadQUeue
+        | Some OFPQOFC_EPERM -> QuPermError
+        | None -> raise (Unparsable (sprintf "malfomed queue op failed code"))
+
+  end 
+
+  module SwitchConfigFailed = struct
+
+    cenum ofp_switch_config_failed_code {
+      OFPSCFC_BAD_FLAGS = 0;
+      OFPSCFC_BAD_LEN = 1;
+      OFPSCFC_EPERM = 2
+    } as uint16_t
+
+    type t = switchConfigFailed
+
+    let to_string (cod : switchConfigFailed) : string =
+      match cod with 
+        | ScBadFlags ->  "Specified flags is invalid"
+        | ScBadLen -> "Specified len is invalid"
+        | ScPermError -> "Permission Error"
+
+    let marshal (cod : switchConfigFailed) : int =
+      match cod with 
+        | ScBadFlags ->  ofp_switch_config_failed_code_to_int OFPSCFC_BAD_FLAGS
+        | ScBadLen -> ofp_switch_config_failed_code_to_int OFPSCFC_BAD_LEN
+        | ScPermError -> ofp_switch_config_failed_code_to_int OFPSCFC_EPERM
+
+    let parse t : switchConfigFailed =
+      match int_to_ofp_switch_config_failed_code t with
+        | Some OFPSCFC_BAD_FLAGS -> ScBadFlags
+        | Some OFPSCFC_BAD_LEN -> ScBadLen
+        | Some OFPSCFC_EPERM -> ScPermError
+        | None -> raise (Unparsable (sprintf "malfomed switch config failed code"))
+
+  end
+
+  module RoleReqFailed = struct
+
+    cenum ofp_role_request_failed_code {
+      OFPRRFC_STALE = 0;
+      OFPRRFC_UNSUP = 1;
+      OFPRRFC_BAD_ROLE = 2
+    } as uint16_t
+
+    type t = roleReqFailed
+
+    let to_string (cod : roleReqFailed) : string =
+      match cod with
+        | RoStale -> "Stale Message: old generation_id"
+        | RoUnsup -> "Controller role change unsupported"
+        | RoBadRole -> "Invalid role"
+
+    let marshal (cod : roleReqFailed) : int =
+      match cod with
+        | RoStale -> ofp_role_request_failed_code_to_int OFPRRFC_STALE
+        | RoUnsup -> ofp_role_request_failed_code_to_int OFPRRFC_UNSUP
+        | RoBadRole -> ofp_role_request_failed_code_to_int OFPRRFC_BAD_ROLE
+
+    let parse t : roleReqFailed =
+      match int_to_ofp_role_request_failed_code t with
+        | Some OFPRRFC_STALE -> RoStale
+        | Some OFPRRFC_UNSUP -> RoUnsup
+        | Some OFPRRFC_BAD_ROLE -> RoBadRole
+        | None -> raise (Unparsable (sprintf "malfomed role request failed code"))
+
+  end
+
+  module MeterModFailed = struct
+
+    cenum ofp_meter_mod_failed_code {
+      OFPMMFC_UNKNOWN = 0;
+      OFPMMFC_METER_EXISTS = 1;
+      OFPMMFC_INVALID_METER = 2;
+      OFPMMFC_UNKNOWN_METER = 3;
+      OFPMMFC_BAD_COMMAND = 4;
+      OFPMMFC_BAD_FLAGS = 5;
+      OFPMMFC_BAD_RATE = 6;
+      OFPMMFC_BAD_BURST = 7;
+      OFPMMFC_BAD_BAND = 8;
+      OFPMMFC_BAD_BAND_VALUE = 9;
+      OFPMMFC_OUT_OF_METERS = 10;
+      OFPMMFC_OUT_OF_BANDS = 11
+    } as uint16_t
+
+    type t = meterModFailed
+
+    let to_string (cod : meterModFailed) : string =
+      match cod with
+        | MeUnknown -> "Unspecified error"
+        | MeMeterExists -> "Meter not added because a Meter ADD attempted to replace an existing Meter"
+        | MeInvalidMeter -> "Meter not added because Meter specified is invalid, or invalid meter in meter action"
+        | MeUnknownMeter -> " Meter not modified because a Meter MODIFY attempted to modify a non-existent Meter, or bad meter in meter action"
+        | MeBadCommand -> "Unsupported or unknown command"
+        | MeBadFlags -> "Flag configuration unsupported"
+        | MeBadRate -> "Rate unsupported"
+        | MeBadBurst -> "Burst size unsupported"
+        | MeBadBand -> "Band unsupported"
+        | MeBadBandValue -> "Band value unsupported"
+        | MeOutOfMeters -> "No more meters available"
+        | MeOutOfBands -> "The maximum number of properties for a meter has been exceeded"
+
+    let marshal (cod : meterModFailed) : int =
+      match cod with
+        | MeUnknown -> ofp_meter_mod_failed_code_to_int OFPMMFC_UNKNOWN
+        | MeMeterExists -> ofp_meter_mod_failed_code_to_int OFPMMFC_METER_EXISTS
+        | MeInvalidMeter -> ofp_meter_mod_failed_code_to_int OFPMMFC_INVALID_METER
+        | MeUnknownMeter -> ofp_meter_mod_failed_code_to_int OFPMMFC_UNKNOWN_METER
+        | MeBadCommand -> ofp_meter_mod_failed_code_to_int OFPMMFC_BAD_COMMAND
+        | MeBadFlags -> ofp_meter_mod_failed_code_to_int OFPMMFC_BAD_FLAGS
+        | MeBadRate -> ofp_meter_mod_failed_code_to_int OFPMMFC_BAD_RATE
+        | MeBadBurst -> ofp_meter_mod_failed_code_to_int OFPMMFC_BAD_BURST
+        | MeBadBand -> ofp_meter_mod_failed_code_to_int OFPMMFC_BAD_BAND
+        | MeBadBandValue -> ofp_meter_mod_failed_code_to_int OFPMMFC_BAD_BAND_VALUE
+        | MeOutOfMeters -> ofp_meter_mod_failed_code_to_int OFPMMFC_OUT_OF_METERS
+        | MeOutOfBands -> ofp_meter_mod_failed_code_to_int OFPMMFC_OUT_OF_BANDS
+
+    let parse t : meterModFailed = 
+      match int_to_ofp_meter_mod_failed_code t with
+        | Some OFPMMFC_UNKNOWN -> MeUnknown
+        | Some OFPMMFC_METER_EXISTS -> MeMeterExists
+        | Some OFPMMFC_INVALID_METER -> MeInvalidMeter
+        | Some OFPMMFC_UNKNOWN_METER -> MeUnknownMeter
+        | Some OFPMMFC_BAD_COMMAND -> MeBadCommand
+        | Some OFPMMFC_BAD_FLAGS -> MeBadFlags
+        | Some OFPMMFC_BAD_RATE -> MeBadRate
+        | Some OFPMMFC_BAD_BURST -> MeBadBurst
+        | Some OFPMMFC_BAD_BAND -> MeBadBand
+        | Some OFPMMFC_BAD_BAND_VALUE -> MeBadBandValue
+        | Some OFPMMFC_OUT_OF_METERS -> MeOutOfMeters
+        | Some OFPMMFC_OUT_OF_BANDS -> MeOutOfBands
+        | None -> raise (Unparsable (sprintf "malfomed meter mod failed code"))
+
+  end
+
+  module TableFeatFailed = struct
+
+    cenum ofp_table_features_failed_code {
+      OFPTFFC_BAD_TABLE = 0;
+      OFPTFFC_BAD_METADATA = 1;
+      OFPTFFC_BAD_TYPE = 2;
+      OFPTFFC_BAD_LEN = 3;
+      OFPTFFC_BAD_ARGUMENT = 4;
+      OFPTFFC_EPERM = 5
+    } as uint16_t 
+
+    type t = tableFeatFailed
+
+    let to_string (cod : tableFeatFailed) : string =
+      match cod with
+        | TfBadTable -> "Specified table does not exist"
+        | TfBadMeta -> "Invalid metadata mask"
+        | TfBadType -> "Unknown property type"
+        | TfBadLen -> "Length problem in properties"
+        | TfBadArg -> "Unsupported property value"
+        | TfPermError -> "Permission Error"
+
+    let marshal (cod : tableFeatFailed) : int =
+      match cod with
+        | TfBadTable -> ofp_table_features_failed_code_to_int OFPTFFC_BAD_TABLE
+        | TfBadMeta -> ofp_table_features_failed_code_to_int OFPTFFC_BAD_METADATA
+        | TfBadType -> ofp_table_features_failed_code_to_int OFPTFFC_BAD_TYPE
+        | TfBadLen -> ofp_table_features_failed_code_to_int OFPTFFC_BAD_LEN
+        | TfBadArg -> ofp_table_features_failed_code_to_int OFPTFFC_BAD_ARGUMENT
+        | TfPermError -> ofp_table_features_failed_code_to_int OFPTFFC_EPERM
+
+    let parse t : tableFeatFailed = 
+      match int_to_ofp_table_features_failed_code t with
+        | Some OFPTFFC_BAD_TABLE -> TfBadTable
+        | Some OFPTFFC_BAD_METADATA -> TfBadMeta
+        | Some OFPTFFC_BAD_TYPE -> TfBadType
+        | Some OFPTFFC_BAD_LEN -> TfBadLen
+        | Some OFPTFFC_BAD_ARGUMENT -> TfBadArg
+        | Some OFPTFFC_EPERM -> TfPermError
+        | None -> raise (Unparsable (sprintf "malfomed table features failed code"))
+
+  end
+
+  cstruct ofp_error_experimenter_msg {
+    uint16_t typ;
+    uint16_t exp_type;
+    uint32_t experimenter
+  } as big_endian
+
+  let experimenterFailed_to_string (exp : experimenterFailed) : string =
+    Format.sprintf "Exp type : %u; exp ID: %lu"
+    exp.exp_typ
+    exp.exp_id
+
+  let to_string (t : t) : string =
+    match t.err with
+      | HelloFailed h -> Format.sprintf "Hello Failed error, code: %s" (HelloFailed.to_string h)
+      | BadRequest br -> Format.sprintf "Bad Request error, code: %s" (BadRequest.to_string br)
+      | BadAction ba -> Format.sprintf "Bad Action error, code: %s" (BadAction.to_string ba)
+      | BadInstruction bi -> Format.sprintf "Bad Instruction error, code: %s" (BadInstruction.to_string bi)
+      | BadMatch bm -> Format.sprintf "Bad Match error, code: %s" (BadMatch.to_string bm)
+      | FlowModFailed fm -> Format.sprintf "Flow Mod Failed error, code: %s" (FlowModFailed.to_string fm)
+      | GroupModFailed gm -> Format.sprintf "Group Mod Failed error, code: %s" (GroupModFailed.to_string gm)
+      | PortModFailed pm -> Format.sprintf "Port Mod Failed error, code: %s" (PortModFailed.to_string pm)
+      | TableModFailed tm -> Format.sprintf "Table Mod Failed error, code: %s" (TableModFailed.to_string tm)
+      | QueueOpFailed qo -> Format.sprintf "Queue Op Failed error, code: %s" (QueueOpFailed.to_string qo)
+      | SwitchConfigFailed sc -> Format.sprintf "Switch Config Failed error, code: %s" (SwitchConfigFailed.to_string sc)
+      | RoleReqFailed rr -> Format.sprintf "Role Request Failed error, code: %s" (RoleReqFailed.to_string rr)
+      | MeterModFailed mm -> Format.sprintf "Meter Mod Failed error, code: %s" (MeterModFailed.to_string mm)
+      | TableFeatFailed tf -> Format.sprintf "Table Features Failed error, code: %s" (TableFeatFailed.to_string tf)
+      | ExperimenterFailed e -> Format.sprintf "Experimenter Failed error, code: %s" (experimenterFailed_to_string e)
+
+  let sizeof (t : t) : int =
+    match t.err with
+      | ExperimenterFailed _ -> sizeof_ofp_error_experimenter_msg + (Cstruct.len t.data)
+      | _ -> sizeof_ofp_error_msg + (Cstruct.len t.data)
+
+  let marshal (buf : Cstruct.t) (t : t) : int =
+    match t.err with
+      | HelloFailed h ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_HELLO_FAILED);
+        set_ofp_error_msg_code buf (HelloFailed.marshal h);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | BadRequest br ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_BAD_REQUEST);
+        set_ofp_error_msg_code buf (BadRequest.marshal br);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | BadAction ba ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_BAD_ACTION);
+        set_ofp_error_msg_code buf (BadAction.marshal ba);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | BadInstruction bi ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_BAD_INSTRUCTION);
+        set_ofp_error_msg_code buf (BadInstruction.marshal bi);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | BadMatch bm ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_BAD_MATCH);
+        set_ofp_error_msg_code buf (BadMatch.marshal bm);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | FlowModFailed fm ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_FLOW_MOD_FAILED);
+        set_ofp_error_msg_code buf (FlowModFailed.marshal fm);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | GroupModFailed gm ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_GROUP_MOD_FAILED);
+        set_ofp_error_msg_code buf (GroupModFailed.marshal gm);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | PortModFailed pm ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_PORT_MOD_FAILED);
+        set_ofp_error_msg_code buf (PortModFailed.marshal pm);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | TableModFailed tm ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_TABLE_MOD_FAILED);
+        set_ofp_error_msg_code buf (TableModFailed.marshal tm);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | QueueOpFailed qo ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_QUEUE_OP_FAILED);
+        set_ofp_error_msg_code buf (QueueOpFailed.marshal qo);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | SwitchConfigFailed sc -> 
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_SWITCH_CONFIG_FAILED);
+        set_ofp_error_msg_code buf (SwitchConfigFailed.marshal sc);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | RoleReqFailed rr -> 
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_ROLE_REQUEST_FAILED);
+        set_ofp_error_msg_code buf (RoleReqFailed.marshal rr);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | MeterModFailed mm -> 
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_METER_MOD_FAILED);
+        set_ofp_error_msg_code buf (MeterModFailed.marshal mm);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | TableFeatFailed tf -> 
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_TABLE_FEATURES_FAILED);
+        set_ofp_error_msg_code buf (TableFeatFailed.marshal tf);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | ExperimenterFailed e -> 
+        set_ofp_error_experimenter_msg_typ buf (ofp_error_type_to_int OFPET_EXPERIMENTER);
+        set_ofp_error_experimenter_msg_exp_type buf e.exp_typ;
+        set_ofp_error_experimenter_msg_experimenter buf e.exp_id;
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_experimenter_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_experimenter_msg + (Cstruct.len t.data)
+
   let parse (bits : Cstruct.t) : t =
     let typ = get_ofp_error_msg_typ bits in
     let code = get_ofp_error_msg_code bits in
-    { typ; code }
-
-  let to_string (error : t) : string =
-    Format.sprintf "error type=%d, code=%d" error.typ error.code
+    let err =  match int_to_ofp_error_type typ with
+      | Some OFPET_HELLO_FAILED -> HelloFailed (HelloFailed.parse code)
+      | Some OFPET_BAD_REQUEST -> BadRequest (BadRequest.parse code)
+      | Some OFPET_BAD_ACTION -> BadAction (BadAction.parse code)
+      | Some OFPET_BAD_INSTRUCTION -> BadInstruction (BadInstruction.parse code)
+      | Some OFPET_BAD_MATCH -> BadMatch (BadMatch.parse code)
+      | Some OFPET_FLOW_MOD_FAILED -> FlowModFailed (FlowModFailed.parse code)
+      | Some OFPET_GROUP_MOD_FAILED -> GroupModFailed (GroupModFailed.parse code)
+      | Some OFPET_PORT_MOD_FAILED -> PortModFailed (PortModFailed.parse code)
+      | Some OFPET_TABLE_MOD_FAILED -> TableModFailed (TableModFailed.parse code)
+      | Some OFPET_QUEUE_OP_FAILED -> QueueOpFailed (QueueOpFailed.parse code)
+      | Some OFPET_SWITCH_CONFIG_FAILED -> SwitchConfigFailed (SwitchConfigFailed.parse code)
+      | Some OFPET_ROLE_REQUEST_FAILED -> RoleReqFailed (RoleReqFailed.parse code)
+      | Some OFPET_METER_MOD_FAILED -> MeterModFailed (MeterModFailed.parse code)
+      | Some OFPET_TABLE_FEATURES_FAILED -> TableFeatFailed (TableFeatFailed.parse code)
+      | Some OFPET_EXPERIMENTER -> (
+        let exp_typ = get_ofp_error_experimenter_msg_exp_type bits in
+        let exp_id = get_ofp_error_experimenter_msg_experimenter bits in
+        ExperimenterFailed ({exp_typ; exp_id}) )
+      | None -> raise (Unparsable (sprintf "malfomed type error")) in
+    let err_bits = match err with 
+      | ExperimenterFailed _ -> Cstruct.shift bits sizeof_ofp_error_experimenter_msg
+      | _ -> Cstruct.shift bits sizeof_ofp_error_msg in
+    let data = Cstruct.create (Cstruct.len err_bits) in
+    (* create a new Cstruct to set the offset to 0 *)
+    Cstruct.blit err_bits 0 data 0 (Cstruct.len err_bits);
+    { err; data }
 
 end
 
@@ -4949,7 +5827,8 @@ module Message = struct
         Header.size + PacketIn.marshal out pi
       | PortStatusMsg ps -> 
         Header.size + PortStatus.marshal out ps
-      | Error _ -> failwith "NYI: marshall Error"
+      | Error err -> 
+        Header.size + Error.marshal out err
 
 
   let header_of xid msg =
