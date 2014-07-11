@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 72ea415a4e801a171896c8a2a1b11c2d)
+# DO NOT EDIT (digest: e841dae195b3a4dde01d54b7e83088dd)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -124,6 +124,19 @@
 "examples/Learning_Switch.byte": package(threads)
 "examples/Learning_Switch.byte": use_async
 "examples/Learning_Switch.byte": use_openflow
+# Executable learning_switch0x04
+"examples/Learning_Switch0x04.byte": package(async)
+"examples/Learning_Switch0x04.byte": package(core)
+"examples/Learning_Switch0x04.byte": package(cstruct)
+"examples/Learning_Switch0x04.byte": package(cstruct.async)
+"examples/Learning_Switch0x04.byte": package(cstruct.syntax)
+"examples/Learning_Switch0x04.byte": package(packet)
+"examples/Learning_Switch0x04.byte": package(sexplib)
+"examples/Learning_Switch0x04.byte": package(sexplib.syntax)
+"examples/Learning_Switch0x04.byte": package(str)
+"examples/Learning_Switch0x04.byte": package(threads)
+"examples/Learning_Switch0x04.byte": use_async
+"examples/Learning_Switch0x04.byte": use_openflow
 <examples/*.ml{,i}>: package(async)
 <examples/*.ml{,i}>: package(core)
 <examples/*.ml{,i}>: package(cstruct)
