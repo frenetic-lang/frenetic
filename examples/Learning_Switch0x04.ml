@@ -31,6 +31,7 @@ let switch
     let rec findPort oxmMatch = 
       match oxmMatch with
         | [] -> failwith "no PhysicalPort"
+        | (OxmInPort t)::q
         | (OxmInPhyPort t)::q -> t
         | t::q -> findPort q in
     let eth, port = pkt.Packet.dlSrc, (findPort pi.pi_ofp_match) in
@@ -77,6 +78,7 @@ let switch
     let rec findPort oxmMatch = 
       match oxmMatch with
         | [] -> failwith "no PhysicalPort"
+        | (OxmInPort t)::q
         | (OxmInPhyPort t)::q -> t
         | t::q -> findPort q in
     let port = findPort pi.pi_ofp_match in
