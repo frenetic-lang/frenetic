@@ -1098,3 +1098,227 @@ module PacketIn = struct
   let size_of = PacketIn.sizeof
 
 end
+
+module Error = struct
+
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = Error.t
+
+  let arbitrary_helloFailed =
+    oneof [
+      ret_gen HelloIncompatible;
+      ret_gen HelloPermError
+    ]
+
+  let arbitrary_badRequest =
+    oneof [
+      ret_gen ReqBadVersion;
+      ret_gen ReqBadType;
+      ret_gen ReqBadMultipart;
+      ret_gen ReqBadExp;
+      ret_gen ReqBadExpType;
+      ret_gen ReqPermError;
+      ret_gen ReqBadLen;
+      ret_gen ReqBufferEmpty;
+      ret_gen ReqBufferUnknown;
+      ret_gen ReqBadTableId;
+      ret_gen ReqIsSlave;
+      ret_gen ReqBadPort;
+      ret_gen ReqBadPacket;
+      ret_gen ReqMultipartBufOverflow
+    ]
+
+  let arbitrary_badAction = 
+    oneof [
+      ret_gen ActBadType;
+      ret_gen ActBadLen;
+      ret_gen ActBadExp;
+      ret_gen ActBadExpType;
+      ret_gen ActBadOutPort;
+      ret_gen ActBadArg;
+      ret_gen ActPermError;
+      ret_gen ActTooMany;
+      ret_gen ActBadQueue;
+      ret_gen ActBadOutGroup;
+      ret_gen ActMatchInconsistent;
+      ret_gen ActUnsupportedOrder;
+      ret_gen ActBadTag;
+      ret_gen ActBadSetTyp;
+      ret_gen ActBadSetLen;
+      ret_gen ActBadSetArg
+    ]
+
+  let arbitrary_badInstruction =
+    oneof [
+      ret_gen InstUnknownInst;
+      ret_gen InstBadTableId;
+      ret_gen InstUnsupInst;
+      ret_gen InstUnsupMeta;
+      ret_gen InstUnsupMetaMask;
+      ret_gen InstBadExp;
+      ret_gen InstBadExpTyp;
+      ret_gen InstBadLen;
+      ret_gen InstPermError
+    ]
+
+  let arbitrary_badMatch = 
+    oneof [
+      ret_gen MatBadTyp;
+      ret_gen MatBadLen;
+      ret_gen MatBadTag;
+      ret_gen MatBadDlAddrMask;
+      ret_gen MatBadNwAddrMask;
+      ret_gen MatBadWildcards;
+      ret_gen MatBadField;
+      ret_gen MatBadValue;
+      ret_gen MatBadMask;
+      ret_gen MatBadPrereq;
+      ret_gen MatDupField;
+      ret_gen MatPermError
+    ]
+
+  let arbitrary_flowModFailed =
+    oneof [
+      ret_gen FlUnknown;
+      ret_gen FlTableFull;
+      ret_gen FlBadTableId;
+      ret_gen FlOverlap;
+      ret_gen FlPermError;
+      ret_gen FlBadTimeout;
+      ret_gen FlBadCommand;
+      ret_gen FlBadFlags
+    ]
+
+  let arbitrary_groupModFailed = 
+    oneof [
+      ret_gen GrGroupExists;
+      ret_gen GrIvalidGroup;
+      ret_gen GrWeightUnsupported;
+      ret_gen GrOutOfGroups;
+      ret_gen GrOutOfBuckets;
+      ret_gen GrChainingUnsupported;
+      ret_gen GrWatcHUnsupported;
+      ret_gen GrLoop;
+      ret_gen GrUnknownGroup;
+      ret_gen GrChainedGroup;
+      ret_gen GrBadTyp;
+      ret_gen GrBadCommand;
+      ret_gen GrBadBucket;
+      ret_gen GrBadWatch;
+      ret_gen GrPermError
+    ]
+
+  let arbitrary_portModFailed = 
+    oneof [
+      ret_gen PoBadPort;
+      ret_gen PoBadHwAddr;
+      ret_gen PoBadConfig;
+      ret_gen PoBadAdvertise;
+      ret_gen PoPermError
+    ]
+
+  let arbitrary_tableModFailed = 
+    oneof [
+      ret_gen TaBadTable;
+      ret_gen TaBadConfig;
+      ret_gen TaPermError
+    ]
+
+  let arbitrary_queueOpFailed =
+    oneof [
+      ret_gen QuBadPort;
+      ret_gen QuBadQUeue;
+      ret_gen QuPermError
+    ]
+
+  let arbitrary_switchConfigFailed =
+    oneof [
+      ret_gen ScBadFlags;
+      ret_gen ScBadLen;
+      ret_gen ScPermError
+    ]
+
+  let arbitrary_roleReqFailed =
+    oneof [
+      ret_gen RoStale;
+      ret_gen RoUnsup;
+      ret_gen RoBadRole;
+    ]
+
+  let arbitrary_meterModFailed =
+    oneof [
+      ret_gen MeUnknown;
+      ret_gen MeMeterExists;
+      ret_gen MeInvalidMeter;
+      ret_gen MeUnknownMeter;
+      ret_gen MeBadCommand;
+      ret_gen MeBadFlags;
+      ret_gen MeBadRate;
+      ret_gen MeBadBurst;
+      ret_gen MeBadBand;
+      ret_gen MeBadBandValue;
+      ret_gen MeOutOfMeters;
+      ret_gen MeOutOfBands
+    ]
+
+  let arbitrary_tableFeatFailed = 
+    oneof [
+      ret_gen TfBadTable;
+      ret_gen TfBadMeta;
+      ret_gen TfBadType;
+      ret_gen TfBadLen;
+      ret_gen TfBadArg;
+      ret_gen TfPermError
+    ]
+
+  let arbitrary_exp = 
+    arbitrary_uint16 >>= fun exp_typ ->
+    arbitrary_uint32 >>= fun exp_id -> 
+    ret_gen {exp_typ; exp_id}
+
+  let arbitrary_err = 
+    oneof [
+      arbitrary_helloFailed >>= (fun n -> ret_gen (HelloFailed n));
+      arbitrary_badRequest >>= (fun n -> ret_gen (BadRequest n));
+      arbitrary_badAction >>= (fun n -> ret_gen (BadAction n));
+      arbitrary_badInstruction >>= (fun n -> ret_gen (BadInstruction n));
+      arbitrary_badMatch >>= (fun n -> ret_gen (BadMatch n));
+      arbitrary_flowModFailed >>= (fun n -> ret_gen (FlowModFailed n));
+      arbitrary_groupModFailed >>= (fun n -> ret_gen (GroupModFailed n));
+      arbitrary_portModFailed >>= (fun n -> ret_gen (PortModFailed n));
+      arbitrary_tableModFailed >>= (fun n -> ret_gen (TableModFailed n));
+      arbitrary_queueOpFailed >>= (fun n -> ret_gen (QueueOpFailed n));
+      arbitrary_switchConfigFailed >>= (fun n -> ret_gen (SwitchConfigFailed n));
+      arbitrary_roleReqFailed >>= (fun n -> ret_gen (RoleReqFailed n));
+      arbitrary_meterModFailed >>= (fun n -> ret_gen (MeterModFailed n));
+      arbitrary_tableFeatFailed >>= (fun n -> ret_gen (TableFeatFailed n));
+      arbitrary_exp >>= (fun n -> ret_gen (ExperimenterFailed n));
+    ]
+
+  let arbitrary_len =
+      (choose_int (64, 150)) >>= fun a ->
+       ret_gen a
+
+  let arbitrary_byte n =
+  (* construct an arbitrary byte of length n*)
+      arbitrary_stringN n  >>= fun a ->
+      let byte = Cstruct.create n in
+      Cstruct.blit_from_string a 0 byte 0 n;
+      ret_gen (byte)
+      
+  let arbitrary = 
+    arbitrary_len >>= fun len ->
+    arbitrary_byte len >>= fun data ->
+    arbitrary_err >>= fun err ->
+    ret_gen {
+      Error.err = err;
+      Error.data = data}
+
+  let marshal = Error.marshal
+  let parse = Error.parse
+  let to_string = Error.to_string
+  let size_of = Error.sizeof
+
+end
