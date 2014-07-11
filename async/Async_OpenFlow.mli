@@ -177,6 +177,10 @@ module OpenFlow0x01 : sig
     val switch_id_of_client : t -> Client_id.t -> SDN_Types.switchId option
     val client_id_of_switch : t -> SDN_Types.switchId -> Client_id.t option
 
+    val set_monitor_interval : t -> Time.Span.t -> unit
+    val set_idle_wait : t -> Time.Span.t -> unit
+    val set_kill_wait : t -> Time.Span.t -> unit
+
     val features : (t, e, f) Stage.t
   end
 

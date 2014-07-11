@@ -72,6 +72,15 @@ module Controller = struct
   let switch_id_of_client t c_id = ClientMap.find t.switches c_id
   let client_id_of_switch t sw_id = SwitchMap.find t.clients sw_id
 
+  let set_monitor_interval (t:t) (s:Time.Span.t) : unit =
+    ChunkController.set_monitor_interval t.sub s
+
+  let set_idle_wait (t:t) (s:Time.Span.t) : unit =
+    ChunkController.set_idle_wait t.sub s
+
+  let set_kill_wait (t:t) (s:Time.Span.t) : unit =
+    ChunkController.set_kill_wait t.sub s
+
   let create ?max_pending_connections
       ?verbose
       ?log_disconnects
