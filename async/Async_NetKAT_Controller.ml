@@ -445,15 +445,17 @@ module PerPacketConsistent = struct
       incr ver
 
   let bring_up_switch (t : t) (sw_id : switchId) (pol : NetKAT_Types.policy) =
-    match Controller.client_id_of_switch t.ctl sw_id with
-      | Some(c_id) ->
-        BestEffort.delete_flows_for t.ctl c_id >>= fun () ->
-        internal_install_policy_for t !ver pol sw_id >>= fun () ->
-        edge_install_policy_for t !ver pol sw_id
-      | None ->
+    Monitor.try_with ~name:"PerPacketConsistent.bring_up_switch" (fun () ->
+      let c_id = Controller.client_id_of_switch_exn t.ctl sw_id in
+      BestEffort.delete_flows_for t.ctl c_id >>= fun () ->
+      internal_install_policy_for t !ver pol sw_id >>= fun () ->
+      edge_install_policy_for t !ver pol sw_id)
+    >>= function
+      | Ok x -> return ()
+      | Error _exn ->
         Log.debug ~tags
           "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
-        Log.flushed ()
+        Log.flushed () >>| fun () -> Printf.eprintf "%s\n%!" (Exn.to_string _exn)
 
 end
 
