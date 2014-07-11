@@ -806,19 +806,7 @@ end
 module MultipartReply = struct
   open Gen
   open OpenFlow0x04_Core
-  module PortsDescriptionReply = struct
-    type t = PortsDescriptionReply.t
     
-    let arbitrary =
-        list1 PortDesc.arbitrary >>= fun v ->
-        ret_gen v
-    
-    let marshal = PortsDescriptionReply.marshal
-    let parse = PortsDescriptionReply.parse
-    let to_string = PortsDescriptionReply.to_string
-    let size_of = PortsDescriptionReply.sizeof
-  end
-  
   module FlowStats = struct
     type t = FlowStats.t
 
@@ -836,7 +824,7 @@ module MultipartReply = struct
         fmf_no_byt_counts
         }
 
-    let arbitrary_flow =
+    let arbitrary =
         Instructions.arbitrary >>= fun instructions ->
         arbitrary_uint8 >>= fun table_id ->
         list1 OfpMatch.Oxm.arbitrary >>= fun ofp_match ->
@@ -861,11 +849,7 @@ module MultipartReply = struct
                 ; byte_count
                 ; ofp_match
                 ; instructions}
-    
-    let arbitrary =
-        list1 arbitrary_flow >>= fun v ->
-        ret_gen v
-    
+
     let marshal = FlowStats.marshal
     let parse = FlowStats.parse
     let to_string = FlowStats.to_string
@@ -894,7 +878,7 @@ module MultipartReply = struct
   module TableStats = struct
     type t = TableStats.t
     
-    let arbitrary_table =
+    let arbitrary =
         arbitrary_uint8 >>= fun table_id ->
         arbitrary_uint32 >>= fun active_count ->
         arbitrary_uint64 >>= fun lookup_count ->
@@ -905,11 +889,7 @@ module MultipartReply = struct
             lookup_count;
             matched_count
         }
-    
-    let arbitrary = 
-        list1 arbitrary_table >>= fun v ->
-        ret_gen v
-    
+
     let marshal = TableStats.marshal
     let parse = TableStats.parse
     let to_string = TableStats.to_string
@@ -920,7 +900,7 @@ module MultipartReply = struct
 
     type t = PortStats.t
     
-    let arbitrary_portStats =
+    let arbitrary =
         arbitrary_uint32 >>= fun psPort_no ->
         arbitrary_uint64 >>= fun rx_packets ->
         arbitrary_uint64 >>= fun tx_packets ->
@@ -953,11 +933,7 @@ module MultipartReply = struct
             duration_sec;
             duration_nsec
         }
-    
-    let arbitrary = 
-        list1 arbitrary_portStats >>= fun v ->
-        ret_gen v
-    
+
     let marshal = PortStats.marshal
     let parse = PortStats.parse
     let to_string = PortStats.to_string
@@ -989,7 +965,7 @@ module MultipartReply = struct
 
     type t = QueueStats.t
 
-    let arbitrary_queueStats =
+    let arbitrary =
         arbitrary_uint32 >>= fun qsPort_no ->
         arbitrary_uint32 >>= fun queue_id ->
         arbitrary_uint64 >>= fun tx_bytes ->
@@ -1007,10 +983,6 @@ module MultipartReply = struct
             duration_nsec
         }
 
-    let arbitrary =
-        list1 arbitrary_queueStats >>= fun v ->
-        ret_gen v
-
     let marshal = QueueStats.marshal
     let parse = QueueStats.parse
     let to_string = QueueStats.to_string
@@ -1025,14 +997,10 @@ module MultipartReply = struct
 
         type t = GroupStats.BucketStats.t
 
-        let arbitrary_bucketStats =
+        let arbitrary =
             arbitrary_uint64 >>= fun packet_count ->
             arbitrary_uint64 >>= fun byte_count ->
             ret_gen {packet_count; byte_count}
-
-        let arbitrary =
-            list1 arbitrary_bucketStats >>= fun v ->
-            ret_gen v
 
         let marshal = GroupStats.BucketStats.marshal
         let parse = GroupStats.BucketStats.parse
@@ -1044,16 +1012,16 @@ module MultipartReply = struct
 
     let calc_length bs =
         (* sizeof_ofp_group_stats = 40*)
-        ret_gen (40+(BucketStats.size_of bs))
+        ret_gen (40+(sum (List.map BucketStats.size_of bs)))
 
-    let arbitrary_groupStats =
+    let arbitrary =
         arbitrary_uint32 >>= fun group_id ->
         arbitrary_uint32 >>= fun ref_count ->
         arbitrary_uint64 >>= fun packet_count ->
         arbitrary_uint64 >>= fun byte_count ->
         arbitrary_uint32 >>= fun duration_sec ->
         arbitrary_uint32 >>= fun duration_nsec ->
-        BucketStats.arbitrary >>= fun bucket_stats ->
+        list1 BucketStats.arbitrary >>= fun bucket_stats ->
         calc_length bucket_stats >>= fun length ->
         ret_gen {
             length;
@@ -1064,10 +1032,6 @@ module MultipartReply = struct
             duration_sec;
             duration_nsec;
             bucket_stats}
-
-    let arbitrary =
-        list1 arbitrary_groupStats >>= fun v ->
-        ret_gen v
 
     let marshal = GroupStats.marshal
     let parse = GroupStats.parse
@@ -1260,7 +1224,7 @@ module MultipartReply = struct
       (* sizeof_ofp_meter_config = 8*)
       ret_gen (8 + sum (List.map MeterBand.size_of bands))
 
-    let arbitrary_meterConfig = 
+    let arbitrary = 
       arbitrary_meterFlagsMap >>= fun flags ->
       arbitrary_uint32 >>= fun meter_id ->
       list1 MeterBand.arbitrary >>= fun bands ->
@@ -1271,11 +1235,6 @@ module MultipartReply = struct
         meter_id;
         bands
       }
-      
-
-    let arbitrary = 
-      list1 arbitrary_meterConfig >>= fun v ->
-      ret_gen v
 
     let marshal = MeterConfig.marshal
     let parse = MeterConfig.parse
@@ -1330,18 +1289,18 @@ module MultipartReply = struct
   let arbitrary =
       arbitrary_bool >>= fun flags ->
       oneof [
-          PortsDescriptionReply.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (PortsDescReply n); mpreply_flags = flags});
+          list1 PortDesc.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (PortsDescReply n); mpreply_flags = flags});
           SwitchDescriptionReply.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (SwitchDescReply n); mpreply_flags = flags});
-          FlowStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (FlowStatsReply n); mpreply_flags = flags});
+          list1 FlowStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (FlowStatsReply n); mpreply_flags = flags});
           AggregateStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (AggregateReply n); mpreply_flags = flags});
-          TableStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (TableReply n); mpreply_flags = flags});
-          PortStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (PortStatsReply n); mpreply_flags = flags});
-          QueueStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (QueueStatsReply n);  mpreply_flags = flags});
-          GroupStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (GroupStatsReply n);  mpreply_flags = flags});
+          list1 TableStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (TableReply n); mpreply_flags = flags});
+          list1 PortStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (PortStatsReply n); mpreply_flags = flags});
+          list1 QueueStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (QueueStatsReply n);  mpreply_flags = flags});
+          list1 GroupStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (GroupStatsReply n);  mpreply_flags = flags});
           GroupFeatures.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (GroupFeaturesReply n);  mpreply_flags = flags});
           list1 GroupDesc.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (GroupDescReply n);  mpreply_flags = flags});
           list1 MeterStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterReply n);  mpreply_flags = flags});
-          MeterConfig.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterConfig n);  mpreply_flags = flags});
+          list1 MeterConfig.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterConfig n);  mpreply_flags = flags});
           MeterFeaturesStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterFeaturesReply n);  mpreply_flags = flags});
           ]
 

@@ -349,45 +349,31 @@ module MultipartReq : sig
 
 end
 
-module PortsDescriptionReply : sig
-
-  type t = portDesc list
-
-  val sizeof : portDesc list -> int
-
-  val to_string : portDesc list -> string
-
-  val marshal : Cstruct.t ->  portDesc list -> int
-
-  val parse : Cstruct.t ->  portDesc list
-
-end
-
 module GroupStats : sig
 
   module BucketStats : sig
   
-    type t = bucketStats list
+    type t = bucketStats
 
-    val sizeof : bucketStats list -> int
+    val sizeof : bucketStats -> int
 
-    val to_string : bucketStats list -> string
+    val to_string : bucketStats -> string
       
-    val marshal : Cstruct.t -> bucketStats list -> int
+    val marshal : Cstruct.t -> bucketStats -> int
 
-    val parse : Cstruct.t -> bucketStats list
+    val parse : Cstruct.t -> bucketStats
 
   end
   
-  type t = groupStats list
+  type t = groupStats
 
-  val sizeof : groupStats list -> int
+  val sizeof : groupStats -> int
 
-  val to_string : groupStats list -> string
+  val to_string : groupStats -> string
 
-  val marshal : Cstruct.t ->  groupStats list -> int
+  val marshal : Cstruct.t ->  groupStats -> int
 
-  val parse : Cstruct.t ->  groupStats list
+  val parse : Cstruct.t ->  groupStats
 end
 
 module SwitchDescriptionReply : sig
@@ -407,15 +393,15 @@ end
 
 module FlowStats : sig
 
-  type t = flowStats list
+  type t = flowStats
 
-  val sizeof : flowStats list -> int
+  val sizeof : flowStats -> int
 
-  val to_string : flowStats list -> string
+  val to_string : flowStats -> string
 
-  val marshal : Cstruct.t -> flowStats list -> int
+  val marshal : Cstruct.t -> flowStats -> int
 
-  val parse : Cstruct.t -> flowStats list
+  val parse : Cstruct.t -> flowStats
 
 end
 
@@ -436,43 +422,43 @@ end
 
 module TableStats : sig
 
-  type t = tableStats list
+  type t = tableStats
 
-  val sizeof : tableStats list -> int
+  val sizeof : tableStats -> int
 
-  val to_string : tableStats list -> string
+  val to_string : tableStats -> string
 
-  val marshal : Cstruct.t -> tableStats list -> int
+  val marshal : Cstruct.t -> tableStats -> int
 
-  val parse : Cstruct.t -> tableStats list
+  val parse : Cstruct.t -> tableStats
 
 end
 
 module PortStats : sig
  
-  type t = portStats list
+  type t = portStats
 
-  val sizeof : portStats list-> int
+  val sizeof : portStats-> int
 
-  val to_string : portStats list -> string
+  val to_string : portStats -> string
 
-  val marshal : Cstruct.t -> portStats list -> int
+  val marshal : Cstruct.t -> portStats -> int
 
-  val parse : Cstruct.t -> portStats list
+  val parse : Cstruct.t -> portStats
 
 end
 
 module QueueStats : sig
 
-  type t = queueStats list
+  type t = queueStats
 
-  val sizeof : queueStats list -> int
+  val sizeof : queueStats -> int
 
-  val to_string : queueStats list -> string
+  val to_string : queueStats -> string
 
-  val marshal : Cstruct.t -> queueStats list -> int
+  val marshal : Cstruct.t -> queueStats -> int
 
-  val parse : Cstruct.t -> queueStats list 
+  val parse : Cstruct.t -> queueStats 
 
 end
 
@@ -520,15 +506,15 @@ end
 
 module MeterConfig : sig
 
-  type t = meterConfig list
+  type t = meterConfig
 
-  val sizeof : meterConfig list -> int
+  val sizeof : meterConfig -> int
 
-  val to_string : meterConfig list -> string
+  val to_string : meterConfig -> string
 
-  val marshal : Cstruct.t -> meterConfig list -> int
+  val marshal : Cstruct.t -> meterConfig -> int
 
-  val parse : Cstruct.t -> meterConfig list
+  val parse : Cstruct.t -> meterConfig
 
 end
 
