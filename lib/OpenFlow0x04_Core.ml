@@ -189,6 +189,17 @@ let delete_all_flows =
   ; mfOfp_match = match_all
   ; mfInstructions = [] }
 
+let parse_payload = function
+  | Buffered (_, b)
+  | NotBuffered b -> 
+    Packet.parse b
+
+let marshal_payload buffer pkt =
+  let payload = Packet.marshal pkt in
+  match buffer with
+    | Some b -> Buffered (b, payload)
+    | None -> NotBuffered payload
+
 type packetInReason =
 | NoMatch
 | ExplicitSend
