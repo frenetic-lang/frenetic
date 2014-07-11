@@ -334,14 +334,13 @@ module PerPacketConsistent = struct
     match Controller.client_id_of_switch t sw_id with
       | None ->
         Log.info ~tags "switch %Lu: disconnected while clearing flows for ver %d... skipping" sw_id ver;
-        Log.flushed ()
+        return ()
       | Some(c_id) ->
         Controller.send t c_id (5l, clear_version_message)
-        >>= (function
-          | `Sent _    -> return ()
+        >>| (function
+          | `Sent _    -> ()
           | `Drop exn_ ->
-            Log.error ~tags "switch %Lu: Failed to delete flows for ver %d" sw_id ver;
-            Log.flushed ())
+            Log.error ~tags "switch %Lu: Failed to delete flows for ver %d" sw_id ver)
 
   let internal_install_policy_for (t : t) (ver : int) pol (sw_id : switchId) =
     let table0 = NetKAT_LocalCompiler.(to_table (compile sw_id pol)) in
@@ -349,21 +348,19 @@ module PerPacketConsistent = struct
       ver (TUtil.internal_ports !(t.nib) sw_id) table0 in
     assert (List.length table1 > 0);
     match Controller.client_id_of_switch t.ctl sw_id with
+      | None ->
+        Log.debug ~tags "switch %Lu: disconnected before installing internal table for ver %d... skipping" sw_id ver;
+        return ()
       | Some(c_id) ->
         BestEffort.install_flows_for t.ctl c_id table1
         >>= barrier t c_id
-        >>= (function
+        >>| (function
           | `Complete ->
             Log.debug ~tags
               "switch %Lu: installed internal table for ver %d" sw_id ver;
-            Log.flushed ()
           | `Disconnect exn_ ->
             Log.debug ~tags
-              "switch %Lu: disconnected while installing internal table for ver %d... skipping" sw_id ver;
-            Log.flushed ())
-      | None ->
-        Log.debug ~tags "switch %Lu: disconnected before installing internal table for ver %d... skipping" sw_id ver;
-        Log.flushed ()
+              "switch %Lu: disconnected while installing internal table for ver %d... skipping" sw_id ver)
 
   (* Comparison should be made based on patterns only, not actions *)
   (* Assumes both FT are sorted in descending order by priority *)
@@ -412,19 +409,17 @@ module PerPacketConsistent = struct
     Log.debug ~tags
       "switch %Lu: Installing edge table for ver %d" sw_id ver;
     match Controller.client_id_of_switch t.ctl sw_id with
+      | None ->
+        Log.debug ~tags "switch %Lu: disconnected before installing edge table for ver %d... skipping" sw_id ver;
+        return ()
       | Some(c_id) ->
         swap_update_for t sw_id c_id edge_table
         >>= barrier t c_id
-        >>= (function
+        >>| (function
           | `Complete ->
-            Log.debug ~tags "switch %Lu: installed edge table for ver %d" sw_id ver;
-            Log.flushed ()
+            Log.debug ~tags "switch %Lu: installed edge table for ver %d" sw_id ver
           | `Disconnect exn_ ->
-            Log.debug ~tags "switch %Lu: disconnected while installing edge table for ver %d... skipping" sw_id ver;
-            Log.flushed ())
-      | None ->
-        Log.debug ~tags "switch %Lu: disconnected before installing edge table for ver %d... skipping" sw_id ver;
-        Log.flushed ()
+            Log.debug ~tags "switch %Lu: disconnected while installing edge table for ver %d... skipping" sw_id ver)
 
 
   let ver = ref 1
