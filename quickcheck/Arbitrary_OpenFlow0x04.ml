@@ -1112,13 +1112,11 @@ module Hello = struct
       open OpenFlow0x04_Core
       
       type t = Hello.Element.VersionBitMap.t
-
-      let lower a b =
-        a > b
         
       let arbitrary = 
-        choose_int (1,60) >>= fun a ->
-        ret_gen [a]
+        choose_int (20,120) >>= fun a ->
+	choose_int (1,15) >>= fun b ->
+        ret_gen [a;b]
       
       let marshal = Hello.Element.VersionBitMap.marshal
       let parse = Hello.Element.VersionBitMap.parse
