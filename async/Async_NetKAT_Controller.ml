@@ -331,36 +331,32 @@ module PerPacketConsistent = struct
       ; idle_timeout = Permanent
       ; hard_timeout = Permanent
       } with command = DeleteFlow } in
-    match Controller.client_id_of_switch t sw_id with
-      | None ->
-        Log.info ~tags "switch %Lu: disconnected while clearing flows for ver %d... skipping" sw_id ver;
-        return ()
-      | Some(c_id) ->
-        Controller.send t c_id (5l, clear_version_message)
-        >>| (function
-          | `Sent _    -> ()
-          | `Drop exn_ ->
-            Log.error ~tags "switch %Lu: Failed to delete flows for ver %d" sw_id ver)
+    Monitor.try_with ~name:"PerPacketConsistent.clear_policy_for" (fun () ->
+      let c_id = Controller.client_id_of_switch_exn t sw_id in
+      Controller.send t c_id (5l, clear_version_message))
+    >>| function
+      | Ok (`Sent _)    -> ()
+      | Ok (`Drop _exn)
+      | Error _exn      ->
+        Log.error ~tags "switch %Lu: Failed to delete flows for ver %d" sw_id ver
 
   let internal_install_policy_for (t : t) (ver : int) pol (sw_id : switchId) =
-    let table0 = NetKAT_LocalCompiler.(to_table (compile sw_id pol)) in
-    let table1 = specialize_internal_to
-      ver (TUtil.internal_ports !(t.nib) sw_id) table0 in
-    assert (List.length table1 > 0);
-    match Controller.client_id_of_switch t.ctl sw_id with
-      | None ->
-        Log.debug ~tags "switch %Lu: disconnected before installing internal table for ver %d... skipping" sw_id ver;
-        return ()
-      | Some(c_id) ->
-        BestEffort.install_flows_for t.ctl c_id table1
-        >>= barrier t c_id
-        >>| (function
-          | `Complete ->
-            Log.debug ~tags
-              "switch %Lu: installed internal table for ver %d" sw_id ver;
-          | `Disconnect exn_ ->
-            Log.debug ~tags
-              "switch %Lu: disconnected while installing internal table for ver %d... skipping" sw_id ver)
+    Monitor.try_with ~name:"PerPacketConsistent.internal_install_policy_for" (fun () ->
+      let table0 = NetKAT_LocalCompiler.(to_table (compile sw_id pol)) in
+      let table1 = specialize_internal_to
+        ver (TUtil.internal_ports !(t.nib) sw_id) table0 in
+      assert (List.length table1 > 0);
+      let c_id = Controller.client_id_of_switch_exn t.ctl sw_id in
+      BestEffort.install_flows_for t.ctl c_id table1
+      >>= barrier t c_id)
+    >>| function
+      | Ok `Complete ->
+        Log.debug ~tags
+          "switch %Lu: installed internal table for ver %d" sw_id ver;
+      | Ok (`Disconnect _)
+      | Error _ ->
+        Log.debug ~tags
+          "switch %Lu: disconnected while installing internal table for ver %d... skipping" sw_id ver
 
   (* Comparison should be made based on patterns only, not actions *)
   (* Assumes both FT are sorted in descending order by priority *)
@@ -403,28 +399,30 @@ module PerPacketConsistent = struct
     >>| fun () -> t.edge <- SwitchMap.add t.edge sw_id new_table
 
   let edge_install_policy_for (t : t) ver pol (sw_id : switchId) : unit Deferred.t =
-    let table = NetKAT_LocalCompiler.(to_table (compile sw_id pol)) in
-    let edge_table = specialize_edge_to
-      ver (TUtil.internal_ports !(t.nib) sw_id) table in
-    Log.debug ~tags
-      "switch %Lu: Installing edge table for ver %d" sw_id ver;
-    match Controller.client_id_of_switch t.ctl sw_id with
-      | None ->
-        Log.debug ~tags "switch %Lu: disconnected before installing edge table for ver %d... skipping" sw_id ver;
-        return ()
-      | Some(c_id) ->
-        swap_update_for t sw_id c_id edge_table
-        >>= barrier t c_id
-        >>| (function
-          | `Complete ->
-            Log.debug ~tags "switch %Lu: installed edge table for ver %d" sw_id ver
-          | `Disconnect exn_ ->
-            Log.debug ~tags "switch %Lu: disconnected while installing edge table for ver %d... skipping" sw_id ver)
-
+    Monitor.try_with ~name:"PerPacketConsistent.edge_install_policy_for" (fun () ->
+      let table = NetKAT_LocalCompiler.(to_table (compile sw_id pol)) in
+      let edge_table = specialize_edge_to
+        ver (TUtil.internal_ports !(t.nib) sw_id) table in
+      Log.debug ~tags
+        "switch %Lu: Installing edge table for ver %d" sw_id ver;
+      let c_id = Controller.client_id_of_switch_exn t.ctl sw_id in
+      swap_update_for t sw_id c_id edge_table
+      >>= barrier t c_id)
+    >>| function
+      | Ok `Complete ->
+        Log.debug ~tags "switch %Lu: installed edge table for ver %d" sw_id ver
+      | Ok (`Disconnect _)
+      | Error _ ->
+        Log.debug ~tags "switch %Lu: disconnected while installing edge table for ver %d... skipping" sw_id ver
 
   let ver = ref 1
 
   let implement_policy (t : t) pol : unit Deferred.t =
+    (* XXX(seliopou): It might be better to iterate over client ids rather than
+     * switch ids. A client id is guaranteed to be unique within a run of a
+     * program, whereas a switch id may be reused across client ids, i.e., a
+     * switch connects, disconnects, and connects again. Due to this behavior,
+     * it may be possible to get into an inconsistent state below. Maybe. *)
     let switches = TUtil.switch_ids !(t.nib) in
     let ver_num = !ver + 1 in
     (* Install internal update *)
