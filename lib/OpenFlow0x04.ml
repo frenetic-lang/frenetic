@@ -800,7 +800,7 @@ let compare_uint32 a b =
     a' <= b'
 
 let set_ofp_uint48_value (buf : Cstruct.t) (value : uint48) =
-  let high = Int32.of_int ((Int64.to_int value) lsr 16) in
+  let high = Int64.to_int32 (Int64.shift_right_logical  value 16) in
     let low = ((Int64.to_int value) land 0xffff) in
       set_ofp_uint48_high buf high;
       set_ofp_uint48_low buf low
@@ -3006,7 +3006,7 @@ module PacketIn = struct
     pi.pi_total_len + (OfpMatch.sizeof pi.pi_ofp_match) + sizeof_ofp_packet_in + 2 (*2 bytes of pad*)
 
   let to_string (pi: packetIn) : string =
-    Format.sprintf "Total Len: %u\nReason: %s\nTable ID:%u\nCookie:%Lu\nOfmPatch:%s\nPayload:%s"
+    Format.sprintf "Total Len: %u\nReason: %s\nTable ID:%u\nCookie:%Lu\nOfmPatch:%s\nBuffered:%s"
     pi.pi_total_len
     (match pi.pi_reason with
       | NoMatch -> "NO_MATCH"
@@ -3016,8 +3016,8 @@ module PacketIn = struct
     pi.pi_cookie
     (OfpMatch.to_string pi.pi_ofp_match)
     (match pi.pi_payload with 
-      | Buffered (n,bytes) -> Format.sprintf "Buffered %lu:%s, len:%u" n (Cstruct.to_string bytes) (Cstruct.len bytes)
-      | NotBuffered bytes -> Format.sprintf "NotBuffered: %s, len: %u" (Cstruct.to_string bytes) (Cstruct.len bytes))
+      | Buffered (n,_) -> Format.sprintf "Buffered %lu" n 
+      | NotBuffered _ -> "NotBuffered")
     
 
 
@@ -3110,8 +3110,8 @@ module PacketOut = struct
   let to_string (po : packetOut) = 
     Format.sprintf "Payload: %s\nPort id: %s\nActions: %s"
     (match po.po_payload with 
-      | Buffered (n,bytes) -> Format.sprintf "Buffered %lu:%s, len:%u" n (Cstruct.to_string bytes) (Cstruct.len bytes)
-      | NotBuffered bytes -> Format.sprintf "NotBuffered: %s, len: %u" (Cstruct.to_string bytes) (Cstruct.len bytes))
+      | Buffered (n,_) -> Format.sprintf "Buffered %lu" n
+      | NotBuffered _ -> "NotBuffered")
     (match po.po_port_id with
       | Some n -> Int32.to_string n
       | None -> "No Port")
