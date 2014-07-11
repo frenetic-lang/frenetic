@@ -60,9 +60,10 @@ module Controller = struct
   let create ?max_pending_connections
       ?verbose
       ?log_disconnects
-      ?buffer_age_limit ~port () =
+      ?buffer_age_limit
+      ?monitor_connections ~port () =
     ChunkController.create ?max_pending_connections ?verbose ?log_disconnects
-      ?buffer_age_limit ~port ()
+      ?buffer_age_limit ?monitor_connections ~port ()
     >>| function t -> { sub = t }
 
   let listen t =

@@ -168,9 +168,10 @@ module Controller = struct
   let create ?max_pending_connections
       ?verbose
       ?log_disconnects
-      ?buffer_age_limit ~port () =
+      ?buffer_age_limit
+      ?(monitor_connections=false) ~port () =
     Platform.create ?max_pending_connections ?verbose ?log_disconnects
-      ?buffer_age_limit ~port ()
+      ?buffer_age_limit ~monitor_connections ~port ()
     >>| function t ->
       let ctl = {
         platform = t;
@@ -179,8 +180,10 @@ module Controller = struct
         idle_wait = Time.Span.of_sec 5.0;
         kill_wait = Time.Span.of_sec 3.0;
       } in
-      Mon.mark_idle ctl;
-      Mon.kill_idle ctl;
+      if monitor_connections then begin
+        Mon.mark_idle ctl;
+        Mon.kill_idle ctl
+      end;
       ctl
 
   let listen t = Platform.listen t.platform

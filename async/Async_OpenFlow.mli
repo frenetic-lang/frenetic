@@ -49,6 +49,7 @@ module Platform : sig
       -> ?verbose:bool
       -> ?log_disconnects:bool
       -> ?buffer_age_limit:[ `At_most of Time.Span.t | `Unlimited ]
+      -> ?monitor_connections:bool
       -> port:int
       -> unit
       -> t Deferred.t
