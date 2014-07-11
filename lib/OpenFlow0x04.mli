@@ -33,6 +33,8 @@ end
 
 module Oxm : sig
 
+  type t = oxm
+
   val field_name : oxm -> string
 
   val sizeof : oxm -> int 
