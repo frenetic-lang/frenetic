@@ -14,7 +14,9 @@ let sym_num = ref 0
 
 let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
 
+type uint128 = int64*int64
 type uint48 = uint64
+type uint24 = int32
 type uint12 = uint16
 type switchId = OpenFlow0x04_Core.switchId
 
@@ -762,6 +764,11 @@ cstruct ofp_uint16 {
   uint16_t value
 } as big_endian
 
+cstruct ofp_uint24 {
+  uint16_t high;
+  uint8_t low
+} as big_endian
+
 cstruct ofp_uint32 {
   uint32_t value
 } as big_endian
@@ -773,6 +780,11 @@ cstruct ofp_uint48 {
 
 cstruct ofp_uint64 {
   uint64_t value
+} as big_endian
+
+cstruct ofp_uint128 {
+  uint64_t high;
+  uint64_t low
 } as big_endian
 
 let max_uint32 = 4294967296L (* = 2^32*)
@@ -803,6 +815,24 @@ let get_ofp_uint48_value (buf : Cstruct.t) : uint48 =
   let low = Int64.of_int (get_ofp_uint48_low buf) in
   Int64.logor low high
 
+let get_ofp_uint24_value (buf : Cstruct.t) : uint24 =
+  let high = Int32.shift_left (Int32.of_int (get_ofp_uint24_high buf)) 8 in
+  let low = Int32.of_int (get_ofp_uint24_low buf )in
+  Int32.logor high low
+
+let set_ofp_uint24_value (buf : Cstruct.t) (value : uint24) =
+  let high = (Int32.to_int value) lsr 8 in
+  let low = (Int32.to_int value) land 0xff in
+    set_ofp_uint24_high buf high;
+    set_ofp_uint24_low buf low
+
+let set_ofp_uint128_value (buf : Cstruct.t) ((h,l) : uint128) =
+  set_ofp_uint128_high buf h;
+  set_ofp_uint128_low buf l
+
+let get_ofp_uint128_value (buf : Cstruct.t) : uint128 =
+  (get_ofp_uint128_high buf, get_ofp_uint128_low buf)
+
 let rec marshal_fields (buf: Cstruct.t) (fields : 'a list) (marshal_func : Cstruct.t -> 'a -> int ): int =
   if (fields = []) then 0
   else let size = marshal_func buf (List.hd fields) in
@@ -832,6 +862,8 @@ let test_bit16 (n:int) (x:int) : bool =
 
 module Oxm = struct
 
+  type t = oxm
+
   let field_length (oxm : oxm) : int = match oxm with
     | OxmInPort _ -> 4
     | OxmInPhyPort _ -> 4
@@ -857,14 +889,8 @@ module Oxm = struct
       (match ipaddr.m_mask with
         | None -> 4
         | Some _ -> 8)
-    | OxmTCPSrc tcpPort ->
-      (match tcpPort.m_mask with
-        | None -> 2
-        | Some _ -> 4)
-    | OxmTCPDst tcpPort ->
-      (match tcpPort.m_mask with
-        | None -> 2
-        | Some _ -> 4)
+    | OxmTCPSrc _ -> 2
+    | OxmTCPDst _ -> 2
     | OxmARPOp _ -> 2
     | OxmARPSpa t->
       (match t.m_mask with
@@ -897,6 +923,39 @@ module Oxm = struct
       (match t.m_mask with
         | None -> 8
         | Some _ -> 16)
+    | OxmUDPSrc _ -> 2
+    | OxmUDPDst _ -> 2
+    | OxmSCTPSrc _ -> 2
+    | OxmSCTPDst _ -> 2
+    | OxmIPv6Src t ->
+      (match t.m_mask with
+        | None -> 16
+        | Some _ -> 32)
+    | OxmIPv6Dst t ->
+      (match t.m_mask with
+        | None -> 16
+        | Some _ -> 32)
+    | OxmIPv6FLabel t ->
+      (match t.m_mask with
+        | None -> 4
+        | Some _ -> 8)
+    | OxmICMPv6Type _ -> 1
+    | OxmICMPv6Code _ -> 1
+    | OxmIPv6NDTarget t ->
+      (match t.m_mask with
+        | None -> 16
+        | Some _ -> 32)
+    | OxmIPv6NDSll _ -> 6
+    | OxmIPv6NDTll _ -> 6
+    | OxmMPLSBos _ -> 1
+    | OxmPBBIsid t ->
+      (match t.m_mask with
+        | None -> 3
+        | Some _ -> 6)
+    | OxmIPv6ExtHdr t ->
+      (match t.m_mask with
+        | None -> 2
+        | Some _ -> 4)
 
   let field_name (oxm : oxm) : string = match oxm with
     | OxmInPort _ -> "InPort"
@@ -923,14 +982,8 @@ module Oxm = struct
       (match ipaddr.m_mask with
         | None -> "IPDst"
         | Some _ -> "IPDst/mask")
-    | OxmTCPSrc tcpPort ->
-      (match tcpPort.m_mask with
-        | None -> "TCPSrc"
-        | Some _ -> "TCPSrc/mask")
-    | OxmTCPDst tcpPort ->
-      (match tcpPort.m_mask with
-        | None -> "TCPDst"
-        | Some _ -> "TCPDst/mask")
+    | OxmTCPSrc _ -> "TCPSrc"
+    | OxmTCPDst _ -> "TCPDst"
     | OxmARPOp _ -> "ARPOp"
     | OxmARPSpa t->
       (match t.m_mask with
@@ -963,6 +1016,39 @@ module Oxm = struct
       (match t.m_mask with
         | None -> "Tunnel ID"
         | Some _ -> "Tunnel ID/mask")
+    | OxmUDPSrc _ -> "UDPSrc"
+    | OxmUDPDst _ -> "UDPDst"
+    | OxmSCTPSrc _ -> "SCTPSrc"
+    | OxmSCTPDst _ -> "SCTPDst"
+    | OxmIPv6Src t ->
+      (match t.m_mask with
+        | None -> "IPv6Src"
+        | Some _ -> "IPv6Src/mask")
+    | OxmIPv6Dst t ->
+      (match t.m_mask with
+        | None -> "IPv6Dst"
+        | Some _ -> "IPv6Dst/mask")
+    | OxmIPv6FLabel t ->
+      (match t.m_mask with
+        | None -> "IPv6FlowLabel"
+        | Some _ -> "IPv6FlowLabel/mask")
+    | OxmICMPv6Type _ -> "ICMPv6Type"
+    | OxmICMPv6Code _ -> "IPCMPv6Code"
+    | OxmIPv6NDTarget t ->
+      (match t.m_mask with
+        | None -> "IPv6NeighborDiscoveryTarget"
+        | Some _ -> "IPv6NeighborDiscoveryTarget/mask")
+    | OxmIPv6NDSll _ -> "IPv6NeighborDiscoverySourceLink"
+    | OxmIPv6NDTll _ -> "IPv6NeighborDiscoveryTargetLink"
+    | OxmMPLSBos _ -> "MPLSBoS"
+    | OxmPBBIsid t ->
+      (match t.m_mask with
+        | None -> "PBBIsid"
+        | Some _ -> "PBBIsid/mask")
+    | OxmIPv6ExtHdr t ->
+      (match t.m_mask with
+        | None -> "IPv6ExtHdr"
+        | Some _ -> "IPv6ExtHdr/mask")
 
   let sizeof (oxm : oxm) : int =
     sizeof_ofp_oxm + field_length oxm
@@ -977,12 +1063,12 @@ module Oxm = struct
     | OxmEthType  e -> Format.sprintf "EthType : %X " e
     | OxmEthDst ethaddr ->
       (match ethaddr.m_mask with
-        | None -> Format.sprintf "EthDst : %LX" ethaddr.m_value
-        | Some m -> Format.sprintf "EthDst : %LX/%LX" ethaddr.m_value m)
+        | None -> Format.sprintf "EthDst : %s" (string_of_mac ethaddr.m_value)
+        | Some m -> Format.sprintf "EthDst : %s/%s" (string_of_mac ethaddr.m_value) (string_of_mac m))
     | OxmEthSrc ethaddr ->
       (match ethaddr.m_mask with
-        | None -> Format.sprintf "EthSrc : %LX" ethaddr.m_value
-        | Some m -> Format.sprintf "EthSrc : %LX/%LX" ethaddr.m_value m)
+        | None -> Format.sprintf "EthSrc : %s" (string_of_mac ethaddr.m_value)
+        | Some m -> Format.sprintf "EthSrc : %s/%s" (string_of_mac ethaddr.m_value) (string_of_mac m))
     | OxmVlanVId vid ->
       (match vid.m_mask with
         | None -> Format.sprintf "VlanVId : %u" vid.m_value
@@ -998,12 +1084,8 @@ module Oxm = struct
         | None -> Format.sprintf "IPDst : %s" (string_of_ip ipaddr.m_value)
         | Some m -> Format.sprintf "IPDst : %s/%s" (string_of_ip ipaddr.m_value)
                                                    (string_of_ip m))
-    | OxmTCPSrc v -> (match v.m_mask with
-        | None -> Format.sprintf "TCPSrc : %u" v.m_value
-        | Some m -> Format.sprintf "TCPSrc : %u/%u" v.m_value m)
-    | OxmTCPDst v -> (match v.m_mask with
-        | None -> Format.sprintf "TCPDst : %u" v.m_value
-        | Some m -> Format.sprintf "TCPDst : %u/%u" v.m_value m)
+    | OxmTCPSrc v -> Format.sprintf "TCPSrc : %u" v
+    | OxmTCPDst v -> Format.sprintf "TCPDst : %u" v
     | OxmMPLSLabel v -> Format.sprintf "MPLSLabel : %lu" v
     | OxmMPLSTc v -> Format.sprintf "MplsTc : %u" v 
     | OxmMetadata v ->
@@ -1036,6 +1118,39 @@ module Oxm = struct
       (match v.m_mask with
         | None -> Format.sprintf "Tunnel ID : %Lu" v.m_value
         | Some m -> Format.sprintf "Tunnel ID : %Lu/%Lu" v.m_value m)
+    | OxmUDPSrc v -> Format.sprintf "UDPSrc: %u" v
+    | OxmUDPDst v -> Format.sprintf "UDPDst: %u" v
+    | OxmSCTPSrc v -> Format.sprintf "SCTPSrc: %u" v
+    | OxmSCTPDst v -> Format.sprintf "SCTPDst: %u" v
+    | OxmIPv6Src t ->
+      (match t.m_mask with
+        | None -> Format.sprintf "IPv6Src: %s" (string_of_ipv6 t.m_value)
+        | Some m -> Format.sprintf "IPv6Src/mask: %s/%s" (string_of_ipv6 t.m_value) (string_of_ipv6 m))
+    | OxmIPv6Dst t ->
+      (match t.m_mask with
+        | None -> Format.sprintf "IPv6Dst: %s" (string_of_ipv6 t.m_value)
+        | Some m -> Format.sprintf "IPv6Dst/mask: %s/%s" (string_of_ipv6 t.m_value) (string_of_ipv6 m))
+    | OxmIPv6FLabel t ->
+      (match t.m_mask with
+        | None -> Format.sprintf "IPv6FlowLabel: %lu" t.m_value
+        | Some m -> Format.sprintf "IPv6FlowLabel/mask: %lu/%lu" t.m_value m)
+    | OxmICMPv6Type v -> Format.sprintf "ICMPv6Type: %u" v
+    | OxmICMPv6Code v -> Format.sprintf "IPCMPv6Code: %u" v
+    | OxmIPv6NDTarget t ->
+      (match t.m_mask with
+        | None -> Format.sprintf "IPv6NeighborDiscoveryTarget: %s" (string_of_ipv6 t.m_value)
+        | Some m -> Format.sprintf "IPv6NeighborDiscoveryTarget/mask: %s/%s" (string_of_ipv6 t.m_value) (string_of_ipv6 m))
+    | OxmIPv6NDSll v -> Format.sprintf "IPv6NeighborDiscoverySourceLink: %Lu" v
+    | OxmIPv6NDTll v -> Format.sprintf "IPv6NeighborDiscoveryTargetLink: %Lu" v
+    | OxmMPLSBos v -> Format.sprintf "MPLSBoS: %u" v
+    | OxmPBBIsid t ->
+      (match t.m_mask with
+        | None -> Format.sprintf "PBBIsid: %lu" t.m_value
+        | Some m -> Format.sprintf "PBBIsid/mask: %lu/%lu" t.m_value m)
+    | OxmIPv6ExtHdr t ->
+      (match t.m_mask with
+        | None -> Format.sprintf "IPv6ExtHdr: %u" t.m_value
+        | Some m -> Format.sprintf "IPv6ExtHdr/mask: %u/%u" t.m_value m)
 
   let set_ofp_oxm (buf : Cstruct.t) (c : ofp_oxm_class) (f : oxm_ofb_match_fields) (hm : int) (l : int) = 
     let value = (0x7f land (oxm_ofb_match_fields_to_int f)) lsl 1 in
@@ -1153,27 +1268,13 @@ module Oxm = struct
               set_ofp_uint8_value buf2 ipecn;
               sizeof_ofp_oxm + l
             | OxmTCPSrc port ->
-              set_ofp_oxm buf ofc OFPXMT_OFB_TCP_SRC  (match port.m_mask with None -> 0 | _ -> 1)  l;
-              set_ofp_uint16_value buf2 port.m_value;
-              begin match port.m_mask with
-                | None ->
-                  sizeof_ofp_oxm + l
-                | Some mask ->
-                  let buf3 = Cstruct.shift buf2 (l/2) in
-                    set_ofp_uint16_value buf3 mask;
-                    sizeof_ofp_oxm + l
-              end
+              set_ofp_oxm buf ofc OFPXMT_OFB_TCP_SRC 0 l;
+              set_ofp_uint16_value buf2 port;
+              sizeof_ofp_oxm + l
             | OxmTCPDst port ->
-              set_ofp_oxm buf ofc OFPXMT_OFB_TCP_DST  (match port.m_mask with None -> 0 | _ -> 1)  l;
-              set_ofp_uint16_value buf2 port.m_value;
-              begin match port.m_mask with
-                | None ->
-                  sizeof_ofp_oxm + l
-                | Some mask ->
-                  let buf3 = Cstruct.shift buf2 (l/2) in
-                    set_ofp_uint16_value buf3 mask;
-                    sizeof_ofp_oxm + l
-              end
+              set_ofp_oxm buf ofc OFPXMT_OFB_TCP_DST 0 l;
+              set_ofp_uint16_value buf2 port;
+              sizeof_ofp_oxm + l
             | OxmARPOp arp ->
               set_ofp_oxm buf ofc OFPXMT_OFB_ARP_OP 0 l;
               set_ofp_uint16_value buf2 arp;
@@ -1241,6 +1342,108 @@ module Oxm = struct
                     set_ofp_uint64_value buf3 mask;
                     sizeof_ofp_oxm + l
               end
+            | OxmUDPSrc port ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_UDP_SRC 0 l;
+              set_ofp_uint16_value buf2 port;
+              sizeof_ofp_oxm + l
+            | OxmUDPDst port ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_UDP_DST 0 l;
+              set_ofp_uint16_value buf2 port;
+              sizeof_ofp_oxm + l
+            | OxmSCTPSrc port ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_SCTP_SRC 0 l;
+              set_ofp_uint16_value buf2 port;
+              sizeof_ofp_oxm + l
+            | OxmSCTPDst port ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_SCTP_DST 0 l;
+              set_ofp_uint16_value buf2 port;
+              sizeof_ofp_oxm + l
+            | OxmIPv6Src addr ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_SRC (match addr.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint128_value buf2 addr.m_value;
+              begin match addr.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint128_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmIPv6Dst addr ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_DST (match addr.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint128_value buf2 addr.m_value;
+              begin match addr.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint128_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmIPv6FLabel label ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_FLABEL (match label.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint32_value buf2 label.m_value;
+              begin match label.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint32_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmICMPv6Type typ ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_ICMPV6_TYPE 0 l;
+              set_ofp_uint8_value buf2 typ;
+              sizeof_ofp_oxm + l
+            | OxmICMPv6Code cod ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_ICMPV6_CODE 0 l;
+              set_ofp_uint8_value buf2 cod;
+              sizeof_ofp_oxm + l
+            | OxmIPv6NDTarget addr ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_ND_TARGET (match addr.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint128_value buf2 addr.m_value;
+              begin match addr.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint128_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmIPv6NDSll sll ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_ND_SLL 0 l;
+              set_ofp_uint48_value buf2 sll;
+              sizeof_ofp_oxm + l
+            | OxmIPv6NDTll tll ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_ND_TLL 0 l;
+              set_ofp_uint48_value buf2 tll;
+              sizeof_ofp_oxm + l
+            | OxmMPLSBos boS ->
+              set_ofp_oxm buf ofc OFPXMT_OFP_MPLS_BOS 0 l;
+              set_ofp_uint8_value buf2 boS;
+              sizeof_ofp_oxm + l
+            | OxmPBBIsid sid ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_PBB_ISID (match sid.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint24_value buf2 sid.m_value;
+              begin match sid.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint24_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmIPv6ExtHdr hdr ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_EXTHDR (match hdr.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint16_value buf2 hdr.m_value;
+              begin match hdr.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint16_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
 
   let marshal_header (buf : Cstruct.t) (oxm : oxm) : int = 
   (* Same as marshal, but without the payload *)
@@ -1293,10 +1496,10 @@ module Oxm = struct
             set_ofp_oxm buf ofc OFPXMT_OFB_IP_ECN 0 l;
             sizeof_ofp_oxm
           | OxmTCPSrc port ->
-            set_ofp_oxm buf ofc OFPXMT_OFB_TCP_SRC  (match port.m_mask with None -> 0 | _ -> 1)  l;
+            set_ofp_oxm buf ofc OFPXMT_OFB_TCP_SRC 0 l;
             sizeof_ofp_oxm
           | OxmTCPDst port ->
-            set_ofp_oxm buf ofc OFPXMT_OFB_TCP_DST  (match port.m_mask with None -> 0 | _ -> 1)  l;
+            set_ofp_oxm buf ofc OFPXMT_OFB_TCP_DST 0 l;
             sizeof_ofp_oxm
           | OxmARPOp arp ->
             set_ofp_oxm buf ofc OFPXMT_OFB_ARP_OP 0 l;
@@ -1322,6 +1525,53 @@ module Oxm = struct
           | OxmTunnelId tun ->
             set_ofp_oxm buf ofc OFPXMT_OFB_TUNNEL_ID  (match tun.m_mask with None -> 0 | _ -> 1)  l;
             sizeof_ofp_oxm
+          | OxmUDPSrc port ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_UDP_SRC 0 l;
+            sizeof_ofp_oxm
+          | OxmUDPDst port ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_UDP_DST 0 l;
+            sizeof_ofp_oxm
+          | OxmSCTPSrc port ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_SCTP_SRC 0 l;
+            sizeof_ofp_oxm
+          | OxmSCTPDst port ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_SCTP_DST 0 l;
+            sizeof_ofp_oxm
+          | OxmIPv6Src addr ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_SRC (match addr.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+          | OxmIPv6Dst addr ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_DST (match addr.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+          | OxmIPv6FLabel label ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_FLABEL (match label.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+          | OxmICMPv6Type typ ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_ICMPV6_TYPE 0 l;
+            sizeof_ofp_oxm
+          | OxmICMPv6Code cod ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_ICMPV6_CODE 0 l;
+            sizeof_ofp_oxm
+          | OxmIPv6NDTarget addr ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_ND_TARGET (match addr.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+          | OxmIPv6NDSll sll ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_ND_SLL 0 l;
+            sizeof_ofp_oxm
+          | OxmIPv6NDTll tll ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_ND_TLL 0 l;
+            sizeof_ofp_oxm
+          | OxmMPLSBos boS ->
+            set_ofp_oxm buf ofc OFPXMT_OFP_MPLS_BOS 0 l;
+            sizeof_ofp_oxm
+          | OxmPBBIsid sid ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_PBB_ISID (match sid.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+          | OxmIPv6ExtHdr hdr ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_EXTHDR (match hdr.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+
+
 
   let parse (bits : Cstruct.t) : oxm * Cstruct.t =
     (* printf "class= %d\n" (get_ofp_oxm_oxm_class bits); *)
@@ -1464,20 +1714,10 @@ module Oxm = struct
 	  (OxmICMPCode value, bits2)
       | OFPXMT_OFB_TCP_DST ->
     let value = get_ofp_uint16_value bits in
-	if hm = 1 then
-	  let bits = Cstruct.shift bits 2 in
-	  let mask = get_ofp_uint16_value bits in
-	  (OxmTCPDst {m_value = value; m_mask = (Some mask)}, bits2)
-	else
-	  (OxmTCPDst {m_value = value; m_mask = None}, bits2)
+	  (OxmTCPDst value, bits2)
       | OFPXMT_OFB_TCP_SRC ->
     let value = get_ofp_uint16_value bits in
-	if hm = 1 then
-	  let bits = Cstruct.shift bits 2 in
-	  let mask = get_ofp_uint16_value bits in
-	  (OxmTCPSrc {m_value = value; m_mask = (Some mask)}, bits2)
-	else
-	  (OxmTCPSrc {m_value = value; m_mask = None}, bits2)
+	  (OxmTCPSrc value, bits2)
       | OFPXMT_OFB_MPLS_LABEL ->
     let value = get_ofp_uint32_value bits in
 	  (OxmMPLSLabel value, bits2)
@@ -1495,7 +1735,81 @@ module Oxm = struct
       | OFPXMT_OFB_MPLS_TC ->
     let value = get_ofp_uint8_value bits in
 	  (OxmMPLSTc value, bits2)
-      | _ -> raise (Unparsable (sprintf "malformed packet in oxm %d\n" (value lsr 1)))
+      | OFPXMT_OFB_UDP_SRC ->
+    let value = get_ofp_uint16_value bits in
+      (OxmUDPSrc value, bits2)
+      | OFPXMT_OFB_UDP_DST ->
+    let value = get_ofp_uint16_value bits in
+      (OxmUDPDst value, bits2)
+      | OFPXMT_OFB_SCTP_SRC ->
+    let value = get_ofp_uint16_value bits in
+      (OxmSCTPSrc value, bits2)
+      | OFPXMT_OFB_SCTP_DST ->
+    let value = get_ofp_uint16_value bits in
+      (OxmSCTPDst value, bits2)
+      | OFPXMT_OFB_IPV6_SRC ->
+    let value = get_ofp_uint128_value bits in
+    if hm = 1 then
+      let bits = Cstruct.shift bits 16 in
+      let mask = get_ofp_uint128_value bits in
+      (OxmIPv6Src {m_value = value; m_mask = (Some mask)}, bits2)
+    else
+      (OxmIPv6Src {m_value = value; m_mask = None}, bits2)
+      | OFPXMT_OFB_IPV6_DST ->
+    let value = get_ofp_uint128_value bits in
+    if hm = 1 then
+      let bits = Cstruct.shift bits 16 in
+      let mask = get_ofp_uint128_value bits in
+      (OxmIPv6Dst {m_value = value; m_mask = (Some mask)}, bits2)
+    else
+      (OxmIPv6Dst {m_value = value; m_mask = None}, bits2)
+      | OFPXMT_OFB_IPV6_FLABEL ->
+    let value = get_ofp_uint32_value bits in
+    if hm = 1 then
+      let bits = Cstruct.shift bits 4 in
+      let mask = get_ofp_uint32_value bits in
+      (OxmIPv6FLabel {m_value = value; m_mask = (Some mask)}, bits2)
+    else
+      (OxmIPv6FLabel {m_value = value; m_mask = None}, bits2)
+      | OFPXMT_OFB_ICMPV6_TYPE ->
+    let value = get_ofp_uint8_value bits in
+      (OxmICMPv6Type value, bits2)
+      | OFPXMT_OFB_ICMPV6_CODE ->
+    let value = get_ofp_uint8_value bits in
+      (OxmICMPv6Code value, bits2)
+      | OFPXMT_OFB_IPV6_ND_TARGET ->
+    let value = get_ofp_uint128_value bits in
+    if hm = 1 then
+      let bits = Cstruct.shift bits 16 in
+      let mask = get_ofp_uint128_value bits in
+      (OxmIPv6NDTarget {m_value = value; m_mask = (Some mask)}, bits2)
+    else
+      (OxmIPv6NDTarget {m_value = value; m_mask = None}, bits2)
+      | OFPXMT_OFB_IPV6_ND_SLL ->
+    let value = get_ofp_uint48_value bits in
+      (OxmIPv6NDSll value, bits2)
+      | OFPXMT_OFB_IPV6_ND_TLL ->
+    let value = get_ofp_uint48_value bits in
+      (OxmIPv6NDTll value, bits2)
+      | OFPXMT_OFP_MPLS_BOS ->
+    let value = get_ofp_uint8_value bits in
+      (OxmMPLSBos (value land 1), bits2)
+      | OFPXMT_OFB_PBB_ISID ->
+    let value = get_ofp_uint24_value bits in
+    if hm = 1 then
+      let bits = Cstruct.shift bits 3 in
+      let mask = get_ofp_uint24_value bits in
+      (OxmPBBIsid {m_value = value; m_mask = (Some mask)}, bits2)
+    else
+      (OxmPBBIsid {m_value = value; m_mask = None}, bits2)
+      | OFPXMT_OFB_IPV6_EXTHDR ->
+    let value = get_ofp_uint16_value bits in
+    if hm = 1 then
+      let bits = Cstruct.shift bits 2 in
+      let mask = get_ofp_uint16_value bits in
+      (OxmIPv6ExtHdr {m_value = value; m_mask = (Some mask)}, bits2)
+    else
+      (OxmIPv6ExtHdr {m_value = value; m_mask = None}, bits2)
 
     let parse_header (bits : Cstruct.t) : oxm * Cstruct.t =
     (* parse Oxm header function for TableFeatureProp. Similar to parse, but without
@@ -1591,15 +1905,9 @@ module Oxm = struct
         |   OFPXMT_OFB_ICMPV4_CODE ->
             (OxmICMPCode 0, bits2)
         | OFPXMT_OFB_TCP_DST ->
-          if hm = 1 then
-            (OxmTCPDst {m_value = 0; m_mask = (Some 0)}, bits2)
-          else
-            (OxmTCPDst {m_value = 0; m_mask = None}, bits2)
+            (OxmTCPDst 0, bits2)
         | OFPXMT_OFB_TCP_SRC ->
-          if hm = 1 then
-            (OxmTCPSrc {m_value = 0; m_mask = (Some 0)}, bits2)
-          else
-            (OxmTCPSrc {m_value = 0; m_mask = None}, bits2)
+            (OxmTCPSrc 0, bits2)
         | OFPXMT_OFB_MPLS_LABEL ->
             (OxmMPLSLabel 0l, bits2)
         | OFPXMT_OFB_VLAN_PCP ->
@@ -1611,7 +1919,54 @@ module Oxm = struct
             (OxmVlanVId {m_value = 0; m_mask = None}, bits2)
         | OFPXMT_OFB_MPLS_TC ->
             (OxmMPLSTc 0, bits2)
-        | _ -> raise (Unparsable (sprintf "malformed packet in oxm %d\n" (value lsr 1)))
+        | OFPXMT_OFB_UDP_SRC ->
+      (OxmUDPSrc 0, bits2)
+      | OFPXMT_OFB_UDP_DST ->
+      (OxmUDPDst 0, bits2)
+      | OFPXMT_OFB_SCTP_SRC ->
+      (OxmSCTPSrc 0, bits2)
+      | OFPXMT_OFB_SCTP_DST ->
+      (OxmSCTPDst 0, bits2)
+      | OFPXMT_OFB_IPV6_SRC ->
+        if hm = 1 then
+      (OxmIPv6Src {m_value = (0L,0L); m_mask = (Some (0L,0L))}, bits2)
+        else
+      (OxmIPv6Src {m_value = (0L,0L); m_mask = None}, bits2)
+      | OFPXMT_OFB_IPV6_DST ->
+        if hm = 1 then
+      (OxmIPv6Dst {m_value = (0L,0L); m_mask = (Some (0L,0L))}, bits2)
+        else
+      (OxmIPv6Dst {m_value = (0L,0L); m_mask = None}, bits2)
+      | OFPXMT_OFB_IPV6_FLABEL ->
+        if hm = 1 then
+      (OxmIPv6FLabel {m_value = 0l; m_mask = (Some 0l)}, bits2)
+        else
+      (OxmIPv6FLabel {m_value = 0l; m_mask = None}, bits2)
+      | OFPXMT_OFB_ICMPV6_TYPE ->
+      (OxmICMPv6Type 0, bits2)
+      | OFPXMT_OFB_ICMPV6_CODE ->
+      (OxmICMPv6Code 0, bits2)
+      | OFPXMT_OFB_IPV6_ND_TARGET ->
+        if hm = 1 then
+      (OxmIPv6NDTarget {m_value = (0L,0L); m_mask = (Some (0L,0L))}, bits2)
+        else
+      (OxmIPv6NDTarget {m_value = (0L,0L); m_mask = None}, bits2)
+      | OFPXMT_OFB_IPV6_ND_SLL ->
+      (OxmIPv6NDSll 0L, bits2)
+      | OFPXMT_OFB_IPV6_ND_TLL ->
+      (OxmIPv6NDTll 0L, bits2)
+      | OFPXMT_OFP_MPLS_BOS ->
+      (OxmMPLSBos 0, bits2)
+      | OFPXMT_OFB_PBB_ISID ->
+        if hm = 1 then
+      (OxmPBBIsid {m_value = 0l; m_mask = (Some 0l)}, bits2)
+        else
+      (OxmPBBIsid {m_value = 0l; m_mask = None}, bits2)
+      | OFPXMT_OFB_IPV6_EXTHDR ->
+        if hm = 1 then
+      (OxmIPv6ExtHdr {m_value = 0; m_mask = (Some 0)}, bits2)
+        else
+      (OxmIPv6ExtHdr {m_value = 0; m_mask = None}, bits2)
 
     let rec parse_headers (bits : Cstruct.t) : oxmMatch*Cstruct.t = 
       if Cstruct.len bits < sizeof_ofp_oxm then ([], bits)
@@ -2746,11 +3101,23 @@ module PacketOut = struct
                                        (Only meaningful if buffer_id == -1.) *)
   } as big_endian
 
+  type t = packetOut
+
   let sizeof (po : packetOut) =
     sizeof_ofp_packet_out + sum (map Action.sizeof po.po_actions) +
     (match po.po_payload with
       | Buffered _ -> 0
       | NotBuffered bytes -> Cstruct.len bytes)
+
+  let to_string (po : packetOut) = 
+    Format.sprintf "Payload: %s\nPort id: %s\nActions: %s"
+    (match po.po_payload with 
+      | Buffered (n,bytes) -> Format.sprintf "Buffered %lu:%s, len:%u" n (Cstruct.to_string bytes) (Cstruct.len bytes)
+      | NotBuffered bytes -> Format.sprintf "NotBuffered: %s, len: %u" (Cstruct.to_string bytes) (Cstruct.len bytes))
+    (match po.po_port_id with
+      | Some n -> Int32.to_string n
+      | None -> "No Port")
+    (String.concat "\n" (map Action.to_string po.po_actions))
 
   let marshal (buf : Cstruct.t) (po : packetOut) : int =
     let size = sizeof po in
@@ -2776,6 +3143,27 @@ module PacketOut = struct
       | NotBuffered pkt_buf ->
         Cstruct.blit pkt_buf 0 buf act_size (Cstruct.len pkt_buf);
         size
+
+  let parse (bits : Cstruct.t) : packetOut =
+    let bufId = match get_ofp_packet_out_buffer_id bits with
+      | -1l -> None
+      | n -> Some n in
+    let po_port_id = match get_ofp_packet_out_in_port bits with 
+      | 0l -> None
+      | n -> Some n in
+    let actions_size = get_ofp_packet_out_actions_len bits in
+    let bits = Cstruct.shift bits sizeof_ofp_packet_out in
+    let po_actions = Action.parse_sequence (Cstruct.sub bits 0 actions_size) in
+    let po_payload = match bufId with
+      | None -> 
+        let data_bits = Cstruct.shift bits actions_size in
+        let final_bits = Cstruct.create (Cstruct.len data_bits) in
+        Cstruct.blit data_bits 0 final_bits 0 (Cstruct.len data_bits);
+        NotBuffered final_bits
+      | Some n -> 
+        let final_bits = Cstruct.create 0 in
+        Buffered (n,final_bits) in
+    { po_payload; po_port_id; po_actions }
 
 end
 
@@ -4712,6 +5100,7 @@ module Message = struct
       | ECHO_RESP -> EchoReply body_bits
       | FEATURES_RESP -> FeaturesReply (SwitchFeatures.parse body_bits)
       | PACKET_IN -> PacketInMsg (PacketIn.parse body_bits)
+      | PACKET_OUT -> PacketOutMsg (PacketOut.parse body_bits)
       | ECHO_REQ -> EchoRequest body_bits
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
       | MULTIPART_REQ -> MultipartReq (MultipartReq.parse body_bits)
