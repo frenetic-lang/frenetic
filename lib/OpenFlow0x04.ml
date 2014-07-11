@@ -1958,6 +1958,8 @@ end
 
 module Bucket = struct
 
+  type t = bucket
+
   let sizeof (bucket : bucket) : int =
     let n = sizeof_ofp_bucket + sum (map Action.sizeof bucket.bu_actions) in
     pad_to_64bits n
@@ -2784,6 +2786,8 @@ module MeterBand = struct
     OFPMBT_DSCP_REMARK = 2;
     OFPMBT_EXPERIMENTER = 0xffff
   } as uint16_t
+
+  type t = meterBand
 
   let sizeof (mb : meterBand) : int =
     match mb with

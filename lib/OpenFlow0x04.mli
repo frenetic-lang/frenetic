@@ -96,6 +96,8 @@ end
 
 module Bucket : sig
 
+  type t = bucket
+
   val sizeof : bucket -> int
 
   val to_string : bucket -> string
@@ -254,6 +256,8 @@ module PacketOut : sig
 end
 
 module MeterBand : sig
+
+  type t = meterBand
 
   val sizeof : meterBand -> int
 
