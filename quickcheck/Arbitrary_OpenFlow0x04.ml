@@ -186,20 +186,28 @@ module PortDesc = struct
     let open Gen in
     let open PortDesc in
     arbitrary_uint32 >>= fun port_no ->
+    arbitrary_uint48 >>= fun hw_addr ->
+    arbitrary_stringN 16 >>= fun name ->
     PortConfig.arbitrary >>= fun config ->
     PortState.arbitrary >>= fun state ->
     PortFeatures.arbitrary >>= fun curr ->
     PortFeatures.arbitrary >>= fun advertised ->
     PortFeatures.arbitrary >>= fun supported ->
     PortFeatures.arbitrary >>= fun peer ->
+    arbitrary_uint32 >>= fun curr_speed ->
+    arbitrary_uint32 >>= fun max_speed ->
     ret_gen {
         port_no;
+        hw_addr;
+        name;
         config;
         state;
         curr;
         advertised;
         supported; 
-        peer
+        peer;
+        curr_speed;
+        max_speed
     }
   
   let to_string = PortDesc.to_string
@@ -623,11 +631,16 @@ module Bucket = struct
     (5, arbitrary_uint32 >>= (fun v -> ret_gen (Some v)))
     ]
 
+  let no_output act = 
+    match act with
+      | Output _ -> false
+      | _ -> true
+
   let arbitrary =
     arbitrary_uint16 >>= fun bu_weight ->
     arbitrary_option >>= fun bu_watch_port ->
     arbitrary_option >>= fun bu_watch_group ->
-    list1 Action.arbitrary >>= fun bu_actions ->
+    list1 (such_that no_output Action.arbitrary) >>= fun bu_actions ->
     ret_gen {
        bu_weight; 
        bu_watch_port; 
@@ -647,7 +660,7 @@ module MultipartReq = struct
   module TableFeatures = struct
     module TableFeatureProp = struct
       
-      type t = OpenFlow0x04_Core.tableFeatureProp
+      type t = TableFeatureProp.t
       
       let arbitrary = 
         oneof [
@@ -672,7 +685,7 @@ module MultipartReq = struct
     end
     
     module TableFeature = struct
-      type t = OpenFlow0x04_Core.tableFeatures
+      type t = TableFeature.t
 
       let arbitrary_config =
         ret_gen Deprecated
@@ -709,7 +722,7 @@ module MultipartReq = struct
       let size_of = TableFeature.sizeof
     end
 
-    type t = OpenFlow0x04_Core.tableFeatures list
+    type t = TableFeatures.t
 
     let arbitrary =
         list1 TableFeature.arbitrary >>= fun v ->
@@ -721,7 +734,7 @@ module MultipartReq = struct
   end
 
   module FlowRequest = struct
-    type t = OpenFlow0x04_Core.flowRequest
+    type t = FlowRequest.t
     
     let arbitrary =
         arbitrary_uint8 >>= fun fr_table_id ->
@@ -743,7 +756,7 @@ module MultipartReq = struct
   end
 
   module QueueRequest = struct
-    type t = OpenFlow0x04_Core.queueRequest
+    type t = QueueRequest.t
 
     let arbitrary = 
         arbitrary_uint32 >>= fun port_number ->
@@ -759,7 +772,7 @@ module MultipartReq = struct
     let size_of = QueueRequest.sizeof
   end
   
-  type t = OpenFlow0x04_Core.multipartRequest
+  type t = MultipartReq.t
   
   let arbitrary_option =
      frequency [
@@ -801,21 +814,9 @@ end
 module MultipartReply = struct
   open Gen
   open OpenFlow0x04_Core
-  module PortsDescriptionReply = struct
-    type t = OpenFlow0x04_Core.portDesc list
     
-    let arbitrary =
-        list1 PortDesc.arbitrary >>= fun v ->
-        ret_gen v
-    
-    let marshal = PortsDescriptionReply.marshal
-    let parse = PortsDescriptionReply.parse
-    let to_string = PortsDescriptionReply.to_string
-    let size_of = PortsDescriptionReply.sizeof
-  end
-  
   module FlowStats = struct
-    type t = OpenFlow0x04_Core.flowStats list
+    type t = FlowStats.t
 
     let arbitrary_flags =
         arbitrary_bool >>= fun fmf_send_flow_rem ->
@@ -831,7 +832,7 @@ module MultipartReply = struct
         fmf_no_byt_counts
         }
 
-    let arbitrary_flow =
+    let arbitrary =
         Instructions.arbitrary >>= fun instructions ->
         arbitrary_uint8 >>= fun table_id ->
         list1 OfpMatch.Oxm.arbitrary >>= fun ofp_match ->
@@ -856,11 +857,7 @@ module MultipartReply = struct
                 ; byte_count
                 ; ofp_match
                 ; instructions}
-    
-    let arbitrary =
-        list1 arbitrary_flow >>= fun v ->
-        ret_gen v
-    
+
     let marshal = FlowStats.marshal
     let parse = FlowStats.parse
     let to_string = FlowStats.to_string
@@ -868,7 +865,7 @@ module MultipartReply = struct
   end
   
   module AggregateStats = struct
-    type t = OpenFlow0x04_Core.aggregStats
+    type t = AggregateStats.t
     
     let arbitrary =
         arbitrary_uint64 >>= fun packet_count ->
@@ -887,9 +884,9 @@ module MultipartReply = struct
   end
   
   module TableStats = struct
-        type t = OpenFlow0x04_Core.tableStats list
+    type t = TableStats.t
     
-    let arbitrary_table =
+    let arbitrary =
         arbitrary_uint8 >>= fun table_id ->
         arbitrary_uint32 >>= fun active_count ->
         arbitrary_uint64 >>= fun lookup_count ->
@@ -900,11 +897,7 @@ module MultipartReply = struct
             lookup_count;
             matched_count
         }
-    
-    let arbitrary = 
-        list1 arbitrary_table >>= fun v ->
-        ret_gen v
-    
+
     let marshal = TableStats.marshal
     let parse = TableStats.parse
     let to_string = TableStats.to_string
@@ -912,9 +905,10 @@ module MultipartReply = struct
   end
 
   module PortStats = struct
-        type t = OpenFlow0x04_Core.portStats list
+
+    type t = PortStats.t
     
-    let arbitrary_portStats =
+    let arbitrary =
         arbitrary_uint32 >>= fun psPort_no ->
         arbitrary_uint64 >>= fun rx_packets ->
         arbitrary_uint64 >>= fun tx_packets ->
@@ -947,11 +941,7 @@ module MultipartReply = struct
             duration_sec;
             duration_nsec
         }
-    
-    let arbitrary = 
-        list1 arbitrary_portStats >>= fun v ->
-        ret_gen v
-    
+
     let marshal = PortStats.marshal
     let parse = PortStats.parse
     let to_string = PortStats.to_string
@@ -959,7 +949,7 @@ module MultipartReply = struct
   end
 
   module SwitchDescriptionReply = struct
-    type t = OpenFlow0x04_Core.switchDesc
+    type t = SwitchDescriptionReply.t
     
     let arbitrary = 
         arbitrary_stringl 256 >>= fun mfr_desc ->
@@ -981,9 +971,9 @@ module MultipartReply = struct
 
   module QueueStats = struct
 
-    type t = OpenFlow0x04_Core.queueStats list
+    type t = QueueStats.t
 
-    let arbitrary_queueStats =
+    let arbitrary =
         arbitrary_uint32 >>= fun qsPort_no ->
         arbitrary_uint32 >>= fun queue_id ->
         arbitrary_uint64 >>= fun tx_bytes ->
@@ -1001,10 +991,6 @@ module MultipartReply = struct
             duration_nsec
         }
 
-    let arbitrary =
-        list1 arbitrary_queueStats >>= fun v ->
-        ret_gen v
-
     let marshal = QueueStats.marshal
     let parse = QueueStats.parse
     let to_string = QueueStats.to_string
@@ -1017,16 +1003,12 @@ module MultipartReply = struct
 
     module BucketStats = struct
 
-        type t = OpenFlow0x04_Core.bucketStats list
+        type t = GroupStats.BucketStats.t
 
-        let arbitrary_bucketStats =
+        let arbitrary =
             arbitrary_uint64 >>= fun packet_count ->
             arbitrary_uint64 >>= fun byte_count ->
             ret_gen {packet_count; byte_count}
-
-        let arbitrary =
-            list1 arbitrary_bucketStats >>= fun v ->
-            ret_gen v
 
         let marshal = GroupStats.BucketStats.marshal
         let parse = GroupStats.BucketStats.parse
@@ -1034,20 +1016,20 @@ module MultipartReply = struct
         let size_of = GroupStats.BucketStats.sizeof
     end
   
-    type t = OpenFlow0x04_Core.groupStats list
+    type t = GroupStats.t
 
     let calc_length bs =
         (* sizeof_ofp_group_stats = 40*)
-        ret_gen (40+(BucketStats.size_of bs))
+        ret_gen (40+(sum (List.map BucketStats.size_of bs)))
 
-    let arbitrary_groupStats =
+    let arbitrary =
         arbitrary_uint32 >>= fun group_id ->
         arbitrary_uint32 >>= fun ref_count ->
         arbitrary_uint64 >>= fun packet_count ->
         arbitrary_uint64 >>= fun byte_count ->
         arbitrary_uint32 >>= fun duration_sec ->
         arbitrary_uint32 >>= fun duration_nsec ->
-        BucketStats.arbitrary >>= fun bucket_stats ->
+        list1 BucketStats.arbitrary >>= fun bucket_stats ->
         calc_length bucket_stats >>= fun length ->
         ret_gen {
             length;
@@ -1059,10 +1041,6 @@ module MultipartReply = struct
             duration_nsec;
             bucket_stats}
 
-    let arbitrary =
-        list1 arbitrary_groupStats >>= fun v ->
-        ret_gen v
-
     let marshal = GroupStats.marshal
     let parse = GroupStats.parse
     let to_string = GroupStats.to_string
@@ -1071,7 +1049,7 @@ module MultipartReply = struct
 
   module GroupDesc = struct
   
-    type t = OpenFlow0x04_Core.groupDesc list
+    type t = GroupDesc.t
 
     let arbitrary_groupTyp =
       oneof [
@@ -1084,7 +1062,7 @@ module MultipartReply = struct
       (* ofp_group_desc = 8*)
       ret_gen (8+ sum (List.map Bucket.size_of bucket))
       
-    let arbitrary_groupDesc =
+    let arbitrary =
       arbitrary_uint32 >>= fun group_id ->
       arbitrary_groupTyp >>= fun typ ->
       list1 Bucket.arbitrary >>= fun bucket ->
@@ -1096,9 +1074,6 @@ module MultipartReply = struct
         bucket
       }
 
-    let arbitrary = 
-      list1 arbitrary_groupDesc >>= fun v ->
-      ret_gen v
     let marshal = GroupDesc.marshal
     let parse = GroupDesc.parse
     let to_string = GroupDesc.to_string
@@ -1106,7 +1081,7 @@ module MultipartReply = struct
   end
   module GroupFeatures = struct
   
-    type t = OpenFlow0x04_Core.groupFeatures 
+    type t = GroupFeatures.t
     
     let arbitrary_groupTypeMap =
       arbitrary_bool >>= fun all ->
@@ -1201,7 +1176,7 @@ module MultipartReply = struct
   
   module MeterStats = struct
   
-    type t = OpenFlow0x04_Core.meterStats list
+    type t = MeterStats.t
 
     let calc_length band =
       (* sizeof_ofp_meter_stats = 40*)
@@ -1212,7 +1187,7 @@ module MultipartReply = struct
       arbitrary_uint64 >>= fun byte_band_count ->
       ret_gen { packet_band_count; byte_band_count }
 
-    let arbitrary_meterStats =
+    let arbitrary =
       arbitrary_uint32 >>= fun meter_id ->
       arbitrary_uint32 >>= fun flow_count ->
       arbitrary_uint64 >>= fun packet_in_count ->
@@ -1232,10 +1207,6 @@ module MultipartReply = struct
         band
       }
 
-    let arbitrary = 
-      list1 arbitrary_meterStats >>= fun v ->
-      ret_gen v
-
     let marshal = MeterStats.marshal
     let parse = MeterStats.parse
     let to_string = MeterStats.to_string
@@ -1243,7 +1214,7 @@ module MultipartReply = struct
   end
 
   module MeterConfig = struct
-    type t = OpenFlow0x04_Core.meterConfig list
+    type t = MeterConfig.t
 
     let arbitrary_meterFlagsMap =
       arbitrary_bool >>= fun kbps ->
@@ -1261,7 +1232,7 @@ module MultipartReply = struct
       (* sizeof_ofp_meter_config = 8*)
       ret_gen (8 + sum (List.map MeterBand.size_of bands))
 
-    let arbitrary_meterConfig = 
+    let arbitrary = 
       arbitrary_meterFlagsMap >>= fun flags ->
       arbitrary_uint32 >>= fun meter_id ->
       list1 MeterBand.arbitrary >>= fun bands ->
@@ -1272,11 +1243,6 @@ module MultipartReply = struct
         meter_id;
         bands
       }
-      
-
-    let arbitrary = 
-      list1 arbitrary_meterConfig >>= fun v ->
-      ret_gen v
 
     let marshal = MeterConfig.marshal
     let parse = MeterConfig.parse
@@ -1285,7 +1251,7 @@ module MultipartReply = struct
   end
 
   module MeterFeaturesStats = struct
-    type t = OpenFlow0x04_Core.meterFeaturesStats 
+    type t = MeterFeaturesStats.t
     
     let arbitrary_meterBandMaps =
       arbitrary_bool >>= fun drop ->
@@ -1326,22 +1292,23 @@ module MultipartReply = struct
     let size_of = MeterFeaturesStats.sizeof
   end
 
-  type t = OpenFlow0x04_Core.multipartReply
+  type t = MultipartReply.t
 
   let arbitrary =
       arbitrary_bool >>= fun flags ->
       oneof [
-          PortsDescriptionReply.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (PortsDescReply n); mpreply_flags = flags});
+          list1 PortDesc.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (PortsDescReply n); mpreply_flags = flags});
           SwitchDescriptionReply.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (SwitchDescReply n); mpreply_flags = flags});
-          FlowStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (FlowStatsReply n); mpreply_flags = flags});
+          list1 FlowStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (FlowStatsReply n); mpreply_flags = flags});
           AggregateStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (AggregateReply n); mpreply_flags = flags});
-          TableStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (TableReply n); mpreply_flags = flags});
-          PortStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (PortStatsReply n); mpreply_flags = flags});
-          QueueStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (QueueStatsReply n);  mpreply_flags = flags});
-          GroupStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (GroupStatsReply n);  mpreply_flags = flags});
+          list1 TableStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (TableReply n); mpreply_flags = flags});
+          list1 PortStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (PortStatsReply n); mpreply_flags = flags});
+          list1 QueueStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (QueueStatsReply n);  mpreply_flags = flags});
+          list1 GroupStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (GroupStatsReply n);  mpreply_flags = flags});
           GroupFeatures.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (GroupFeaturesReply n);  mpreply_flags = flags});
-          MeterStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterReply n);  mpreply_flags = flags});
-          MeterConfig.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterConfig n);  mpreply_flags = flags});
+          list1 GroupDesc.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (GroupDescReply n);  mpreply_flags = flags});
+          list1 MeterStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterReply n);  mpreply_flags = flags});
+          list1 MeterConfig.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterConfig n);  mpreply_flags = flags});
           MeterFeaturesStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterFeaturesReply n);  mpreply_flags = flags});
           ]
 
