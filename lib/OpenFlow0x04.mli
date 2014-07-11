@@ -98,8 +98,11 @@ module Bucket : sig
 
   val sizeof : bucket -> int
 
+  val to_string : bucket -> string
+
   val marshal : Cstruct.t -> bucket -> int
-   
+
+  val parse : Cstruct.t -> bucket  
 end
 
 module FlowModCommand : sig
@@ -120,7 +123,11 @@ module GroupType : sig
     
   type t = groupType
 
+  val to_string : t -> string
+
   val marshal : t -> int
+
+  val parse : int -> t
 
 end
 
@@ -246,64 +253,91 @@ module PacketOut : sig
 
 end
 
+module MeterBand : sig
+
+  val sizeof : meterBand -> int
+
+  val to_string : meterBand -> string
+
+  val marshal : Cstruct.t -> meterBand -> int
+
+  val parse : Cstruct.t -> meterBand
+
+end
+
 module FlowRequest : sig
 
-    val sizeof : flowRequest -> int
+  type t = flowRequest
 
-    val to_string : flowRequest -> string
+  val sizeof : flowRequest -> int
 
-    val marshal : Cstruct.t -> flowRequest -> int
+  val to_string : flowRequest -> string
 
-    val parse : Cstruct.t -> flowRequest
+  val marshal : Cstruct.t -> flowRequest -> int
+
+  val parse : Cstruct.t -> flowRequest
 
 end
 
 module QueueRequest : sig
 
-    val marshal : Cstruct.t -> queueRequest -> int
+  type t = queueRequest
+    
+  val marshal : Cstruct.t -> queueRequest -> int
 
-    val parse : Cstruct.t -> queueRequest
+  val parse : Cstruct.t -> queueRequest
 
-    val sizeof : queueRequest -> int
-    val to_string : queueRequest -> string
+  val sizeof : queueRequest -> int
+
+  val to_string : queueRequest -> string
+
 end
 
 module TableFeatureProp : sig
 
-    val marshal : Cstruct.t -> tableFeatureProp -> int
-     
-    val parse : Cstruct.t -> tableFeatureProp
+  type t = tableFeatureProp
 
-    val sizeof : tableFeatureProp -> int
-    val to_string : tableFeatureProp -> string
+  val marshal : Cstruct.t -> tableFeatureProp -> int
+
+  val parse : Cstruct.t -> tableFeatureProp
+
+  val sizeof : tableFeatureProp -> int
+
+  val to_string : tableFeatureProp -> string
 
 end
 
 module TableFeature : sig
 
-    val sizeof : tableFeatures -> int
+  type t = tableFeatures
 
-    val marshal : Cstruct.t -> tableFeatures -> int
+  val sizeof : tableFeatures -> int
 
-    val parse : Cstruct.t -> tableFeatures*Cstruct.t
+  val marshal : Cstruct.t -> tableFeatures -> int
 
-    val to_string : tableFeatures -> string
+  val parse : Cstruct.t -> tableFeatures*Cstruct.t
+
+  val to_string : tableFeatures -> string
 
 end
 
-module TableFeaturesRequest : sig
+module TableFeatures : sig
 
-    val sizeof : tableFeaturesRequest -> int
+  type t = tableFeatures list
 
-    val marshal : Cstruct.t -> tableFeaturesRequest -> int
+  val sizeof : tableFeatures list -> int
 
-    val parse : Cstruct.t -> tableFeaturesRequest
+  val marshal : Cstruct.t -> tableFeatures list -> int
 
-    val to_string : tableFeaturesRequest -> string
+  val parse : Cstruct.t -> tableFeatures list
+
+  val to_string : tableFeatures list -> string
 
 end
 
 module MultipartReq : sig
+
+  type t = multipartRequest
 
   val sizeof : multipartRequest -> int
 
@@ -315,35 +349,36 @@ module MultipartReq : sig
 
 end
 
-module PortsDescriptionReply : sig
-
-  val sizeof : portDesc list -> int
-  val to_string : portDesc list -> string
-  val marshal : Cstruct.t ->  portDesc list -> int
-
-  val parse : Cstruct.t ->  portDesc list
-
-end
-
 module GroupStats : sig
 
   module BucketStats : sig
+  
+    type t = bucketStats
 
-      val sizeof : bucketStats list -> int
-      val to_string : bucketStats list -> string
-      val marshal : Cstruct.t -> bucketStats list -> int
-      val parse : Cstruct.t -> bucketStats list
+    val sizeof : bucketStats -> int
+
+    val to_string : bucketStats -> string
+      
+    val marshal : Cstruct.t -> bucketStats -> int
+
+    val parse : Cstruct.t -> bucketStats
 
   end
+  
+  type t = groupStats
 
-  val sizeof : groupStats list -> int
-  val to_string : groupStats list -> string
-  val marshal : Cstruct.t ->  groupStats list -> int
+  val sizeof : groupStats -> int
 
-  val parse : Cstruct.t ->  groupStats list
+  val to_string : groupStats -> string
+
+  val marshal : Cstruct.t ->  groupStats -> int
+
+  val parse : Cstruct.t ->  groupStats
 end
 
 module SwitchDescriptionReply : sig
+
+  type t = switchDesc
 
   val sizeof : switchDesc -> int
 
@@ -358,18 +393,25 @@ end
 
 module FlowStats : sig
 
-  val sizeof : flowStats list -> int
-  val to_string : flowStats list -> string
-  val marshal : Cstruct.t -> flowStats list -> int
+  type t = flowStats
 
-  val parse : Cstruct.t -> flowStats list
+  val sizeof : flowStats -> int
+
+  val to_string : flowStats -> string
+
+  val marshal : Cstruct.t -> flowStats -> int
+
+  val parse : Cstruct.t -> flowStats
 
 end
 
 
 module AggregateStats : sig
 
+  type t = aggregStats
+
   val sizeof : aggregStats -> int
+
   val to_string : aggregStats -> string
 
   val marshal : Cstruct.t -> aggregStats -> int
@@ -380,38 +422,120 @@ end
 
 module TableStats : sig
 
-  val sizeof : tableStats list -> int
+  type t = tableStats
 
-  val to_string : tableStats list -> string
+  val sizeof : tableStats -> int
 
-  val marshal : Cstruct.t -> tableStats list -> int
+  val to_string : tableStats -> string
 
-  val parse : Cstruct.t -> tableStats list
+  val marshal : Cstruct.t -> tableStats -> int
+
+  val parse : Cstruct.t -> tableStats
 
 end
 
 module PortStats : sig
  
-  val sizeof : portStats list-> int
+  type t = portStats
 
-  val to_string : portStats list -> string
+  val sizeof : portStats-> int
 
-  val marshal : Cstruct.t -> portStats list -> int
+  val to_string : portStats -> string
 
-  val parse : Cstruct.t -> portStats list
+  val marshal : Cstruct.t -> portStats -> int
+
+  val parse : Cstruct.t -> portStats
 
 end
 
 module QueueStats : sig
 
-  val sizeof : queueStats list -> int
-  val to_string : queueStats list -> string
-  val marshal : Cstruct.t -> queueStats list -> int
-  val parse : Cstruct.t -> queueStats list 
+  type t = queueStats
+
+  val sizeof : queueStats -> int
+
+  val to_string : queueStats -> string
+
+  val marshal : Cstruct.t -> queueStats -> int
+
+  val parse : Cstruct.t -> queueStats 
+
+end
+
+module GroupDesc : sig
+
+  type t = groupDesc
+
+  val sizeof : groupDesc -> int
+
+  val to_string : groupDesc -> string
+
+  val marshal : Cstruct.t -> groupDesc -> int
+
+  val parse : Cstruct.t -> groupDesc
+
+end
+
+module GroupFeatures : sig
+
+  type t = groupFeatures
+
+  val sizeof : groupFeatures -> int
+
+  val to_string : groupFeatures -> string
+
+  val marshal : Cstruct.t -> groupFeatures -> int
+
+  val parse : Cstruct.t -> groupFeatures 
+
+end
+
+module MeterStats : sig
+
+  type t = meterStats
+
+  val sizeof : meterStats -> int
+
+  val to_string : meterStats -> string
+
+  val marshal : Cstruct.t -> meterStats -> int
+
+  val parse : Cstruct.t -> meterStats
+
+end
+
+module MeterConfig : sig
+
+  type t = meterConfig
+
+  val sizeof : meterConfig -> int
+
+  val to_string : meterConfig -> string
+
+  val marshal : Cstruct.t -> meterConfig -> int
+
+  val parse : Cstruct.t -> meterConfig
+
+end
+
+
+module MeterFeaturesStats : sig
+
+  type t = meterFeaturesStats
+
+  val sizeof : meterFeaturesStats -> int
+
+  val to_string : meterFeaturesStats -> string
+
+  val marshal : Cstruct.t -> meterFeaturesStats -> int
+
+  val parse : Cstruct.t -> meterFeaturesStats
 
 end
 
 module MultipartReply : sig
+
+  type t = multipartReply
 
   val sizeof : multipartReply -> int
 

@@ -27,6 +27,8 @@ type tableId = int8
 
 type bufferId = int32
 
+type length = int16
+
 type oxm =
 | OxmInPort of portId
 | OxmInPhyPort of portId
@@ -128,6 +130,7 @@ type groupType =
 type groupMod =
 | AddGroup of groupType * groupId * bucket list
 | DeleteGroup of groupType * groupId
+| ModifyGroup of groupType * groupId * bucket list
 
 type timeout =
 | Permanent
@@ -241,6 +244,19 @@ type packetOut = {
   po_actions : actionSequence
 }
 
+type rate = int32
+
+type burst = int32
+
+type experimenterId = int32
+
+type meterBand =
+  | Drop of (rate*burst)
+  | DscpRemark of (rate*burst*int8)
+  | ExpMeter of (rate*burst*experimenterId)
+
+type meterFlags = { kbps : bool; pktps : bool; burst : bool; stats : bool}
+
 type flowRequest = {fr_table_id : tableId; fr_out_port : portId; 
                     fr_out_group : portId; fr_cookie : int64 mask;
                     fr_match : oxmMatch}
@@ -274,8 +290,6 @@ type tableFeatures = {length : int16;table_id : tableId; name : string;
                       config : tableConfig; max_entries: int32;
                       feature_prop : tableFeatureProp}
 
-type tableFeaturesRequest = tableFeatures list
-
 type multipartType =
   | SwitchDescReq
   | PortsDescReq 
@@ -290,7 +304,7 @@ type multipartType =
   | MeterStatsReq of int32
   | MeterConfReq of int32
   | MeterFeatReq
-  | TableFeatReq of tableFeaturesRequest option
+  | TableFeatReq of (tableFeatures list) option
   | ExperimentReq of experimenter  
 
 type multipartRequest = { mpr_type : multipartType; mpr_flags : bool }
@@ -329,15 +343,54 @@ type groupStats = { length : int16; group_id : int32; ref_count : int32;
                     packet_count : int64; byte_count : int64; duration_sec : int32;
                     duration_nsec : int32; bucket_stats : bucketStats list}
 
+type groupDesc = { length : int16; typ : groupType; group_id : int32; bucket : bucket list}
+
+type groupCapabilities = { select_weight : bool; select_liveness : bool;
+                           chaining : bool; chaining_checks : bool }
+
+type groupTypeMap = { all : bool; select : bool; indirect : bool; ff : bool}
+
+type actionTypeMap = { output : bool; copy_ttl_out : bool; copy_ttl_in : bool;
+                       set_mpls_ttl : bool; dec_mpls_ttl : bool; push_vlan : bool;
+                       pop_vlan : bool; push_mpls : bool; pop_mpls : bool; set_queue : bool;
+                       group : bool; set_nw_ttl : bool; dec_nw_ttl : bool; set_field : bool;
+                       push_pbb : bool; pop_pbb : bool }
+
+type groupFeatures = { typ : groupTypeMap; capabilities : groupCapabilities; 
+                       max_groups_all : int32; max_groups_select : int32; 
+                       max_groups_indirect : int32; max_groups_ff : 
+                       int32; actions_all : actionTypeMap; actions_select : actionTypeMap; 
+                       actions_indirect : actionTypeMap; actions_ff : actionTypeMap }
+
+type meterBandStats = { packet_band_count : int64; byte_band_count : int64 }
+
+type meterStats = { meter_id: int32; len : int16; flow_count : int32; packet_in_count :
+                    int64; byte_in_count : int64; duration_sec : int32; duration_nsec : 
+                    int32; band : meterBandStats list}
+
+type meterConfig = { length : length; flags : meterFlags; meter_id : int32; bands : meterBand list}
+
+type meterBandMaps = { drop : bool; dscpRemark : bool}
+
+type meterFeaturesStats = { max_meter : int32; band_typ : meterBandMaps; 
+                            capabilities : meterFlags; max_band : int8;
+                            max_color : int8 }
+
 type multipartReplyTyp = 
   | PortsDescReply of portDesc list
   | SwitchDescReply of switchDesc
   | FlowStatsReply of flowStats list
   | AggregateReply of aggregStats
   | TableReply of tableStats list
+  | TableFeaturesReply of tableFeatures list
   | PortStatsReply of portStats list
   | QueueStatsReply of queueStats list
   | GroupStatsReply of groupStats list
+  | GroupDescReply of groupDesc list
+  | GroupFeaturesReply of groupFeatures
+  | MeterReply of meterStats list
+  | MeterConfig of meterConfig list
+  | MeterFeaturesReply of meterFeaturesStats
 
 type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool}
 
