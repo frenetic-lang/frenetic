@@ -469,13 +469,11 @@ let send_pkt_out (ctl : Controller.t) (sw_id, pkt_out) =
   Monitor.try_with ~name:"send_pkt_out" (fun () ->
     let c_id = Controller.client_id_of_switch_exn ctl sw_id in
     Controller.send ctl c_id (0l, OpenFlow0x01.Message.PacketOutMsg
-      (SDN_OpenFlow0x01.from_packetOut pkt_out))
-    >>= function
-      | `Sent _   -> return ()
-      | `Drop exn -> raise exn)
+      (SDN_OpenFlow0x01.from_packetOut pkt_out)))
   >>= function
-    | Ok x       -> return x
-    | Error _exn ->
+    | Ok (`Sent x)    -> return ()
+    | Ok (`Drop _exn)
+    | Error _exn      ->
       Log.error ~tags "switch %Lu: Failed to send packet_out" sw_id;
       Log.flushed () >>| fun () ->
         if not (_exn = Not_found) then
