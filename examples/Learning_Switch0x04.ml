@@ -48,8 +48,25 @@ let switch
         | Buffered (b_id, _) -> (false, Some b_id)
         | NotBuffered _ -> (true, None) in
       OF0x04Controller.send ctl c_id
-        (1l, FlowModMsg (add_flow 1 ([OxmEthDst {m_value = eth; m_mask = None}]) ([ApplyActions [Output(PhysicalPort port)]]))
-        )
+        (1l, FlowModMsg (
+        { mfCookie = val_to_mask 0L
+        ; mfTable_id = 0
+        ; mfCommand = AddFlow
+        ; mfIdle_timeout = Permanent
+        ; mfHard_timeout = Permanent
+        ; mfPriority = 1
+        ; mfBuffer_id = buf
+        ; mfOut_port = None
+        ; mfOut_group = None
+        ; mfFlags = { fmf_send_flow_rem = false
+                    ; fmf_check_overlap = false
+                    ; fmf_reset_counts = false
+                    ; fmf_no_pkt_counts = false
+                    ; fmf_no_byt_counts = false }
+        ; mfOfp_match = ([OxmEthDst {m_value = eth; m_mask = None}])
+        ; mfInstructions = ([ApplyActions [Output(PhysicalPort port)]])
+        }
+        ))
         (* XXX(seliopu): can ensure asynchronously if not buffered, or if the
          * buffering is ignored completely.
          * *)
