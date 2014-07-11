@@ -186,20 +186,28 @@ module PortDesc = struct
     let open Gen in
     let open PortDesc in
     arbitrary_uint32 >>= fun port_no ->
+    arbitrary_uint48 >>= fun hw_addr ->
+    arbitrary_stringN 16 >>= fun name ->
     PortConfig.arbitrary >>= fun config ->
     PortState.arbitrary >>= fun state ->
     PortFeatures.arbitrary >>= fun curr ->
     PortFeatures.arbitrary >>= fun advertised ->
     PortFeatures.arbitrary >>= fun supported ->
     PortFeatures.arbitrary >>= fun peer ->
+    arbitrary_uint32 >>= fun curr_speed ->
+    arbitrary_uint32 >>= fun max_speed ->
     ret_gen {
         port_no;
+        hw_addr;
+        name;
         config;
         state;
         curr;
         advertised;
         supported; 
-        peer
+        peer;
+        curr_speed;
+        max_speed
     }
   
   let to_string = PortDesc.to_string

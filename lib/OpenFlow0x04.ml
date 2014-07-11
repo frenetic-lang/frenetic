@@ -2535,51 +2535,59 @@ module PortDesc = struct
     let size = sizeof_ofp_port in
     set_ofp_port_port_no buf desc.port_no;
     set_ofp_port_pad buf 0l;
-    (* set_ofp_port_hw_addr NIY *)
+    set_ofp_port_hw_addr (bytes_of_mac desc.hw_addr) 0 buf;
     set_ofp_port_pad2 buf 0;
     set_ofp_port_pad3 buf 0;
-    (* set_ofp_port_name NIY *)
+    set_ofp_port_name desc.name 0 buf;
     set_ofp_port_config buf (PortConfig.marshal desc.config);
     set_ofp_port_state buf (PortState.marshal desc.state);
     set_ofp_port_curr buf (PortFeatures.marshal desc.curr);
     set_ofp_port_advertised buf (PortFeatures.marshal desc.advertised);
     set_ofp_port_supported buf (PortFeatures.marshal desc.supported);
     set_ofp_port_peer buf (PortFeatures.marshal desc.peer);
-    (* set_ofp_port_curr_speed NIY *)
-    (* set_ofp_port_max_speed NIY *)
+    set_ofp_port_curr_speed buf desc.curr_speed;
+    set_ofp_port_max_speed buf desc.max_speed;
     size
 	    
   let parse (bits : Cstruct.t) : portDesc =
     let port_no = get_ofp_port_port_no bits in
+    let hw_addr = mac_of_bytes (copy_ofp_port_hw_addr bits) in
+    let name = copy_ofp_port_name bits in
     let state = PortState.parse (get_ofp_port_state bits) in
     let config = PortConfig.parse (get_ofp_port_config bits) in
     let curr = PortFeatures.parse (get_ofp_port_curr bits) in
     let advertised = PortFeatures.parse (get_ofp_port_advertised bits) in
     let supported = PortFeatures.parse (get_ofp_port_supported bits) in
     let peer = PortFeatures.parse (get_ofp_port_peer bits) in
+    let curr_speed = get_ofp_port_curr_speed bits in
+    let max_speed = get_ofp_port_max_speed bits in
     { port_no;
-      (* hw_addr; *)
-      (* name; *)
+      hw_addr;
+      name;
       config; 
       state;
       curr;
       advertised;
       supported;
-      peer
-      (* curr_speed; *)
-      (* max_speed *) }
+      peer;
+      curr_speed;
+      max_speed }
 
   let to_string (port : portDesc) =
     Format.sprintf 
-        "port_no:%lu,config:%s,state:%s,curr:%s,advertised:%s\
-        supported:%s,peer:%s"
+        "port_no:%lu,hw_addr:%s,name:%s,config:%s,state:%s,curr:%s,advertised:%s\
+        supported:%s,peer:%s,curr_speed:%lu,max_speed:%lu"
         port.port_no
+        (string_of_mac port.hw_addr)
+        port.name
         (PortConfig.to_string port.config)
         (PortState.to_string port.state)
         (PortFeatures.to_string port.curr)
         (PortFeatures.to_string port.advertised)
         (PortFeatures.to_string port.supported)
         (PortFeatures.to_string port.peer)
+        port.curr_speed
+        port.max_speed
 
   let length_func = (fun buf -> Some sizeof_ofp_port)
 end
