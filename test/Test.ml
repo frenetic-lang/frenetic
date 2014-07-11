@@ -424,6 +424,11 @@ module RoundTripping = struct
       (openflow_quickCheck GenHello.arbitrary
           GenHello.to_string GenHello.parse GenHello.marshal)
 
+  TEST "OpenFlow0x04 Error RoundTrip" =
+      let module GenError = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.Error) in
+      (openflow_quickCheck GenError.arbitrary
+          GenError.to_string GenError.parse GenError.marshal)
+
   TEST "OpenFlow Hello Test 1" = 
     let open Message in 
     let bs = Cstruct.create 101 in

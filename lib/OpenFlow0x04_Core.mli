@@ -26,6 +26,164 @@ type tableId = int8
 
 type bufferId = int32
 
+type helloFailed = 
+ | HelloIncompatible
+ | HelloPermError
+
+type badRequest = 
+ | ReqBadVersion
+ | ReqBadType
+ | ReqBadMultipart
+ | ReqBadExp
+ | ReqBadExpType
+ | ReqPermError
+ | ReqBadLen
+ | ReqBufferEmpty
+ | ReqBufferUnknown
+ | ReqBadTableId
+ | ReqIsSlave
+ | ReqBadPort
+ | ReqBadPacket
+ | ReqMultipartBufOverflow
+
+type badAction = 
+ | ActBadType
+ | ActBadLen
+ | ActBadExp
+ | ActBadExpType
+ | ActBadOutPort
+ | ActBadArg
+ | ActPermError
+ | ActTooMany
+ | ActBadQueue
+ | ActBadOutGroup
+ | ActMatchInconsistent
+ | ActUnsupportedOrder
+ | ActBadTag
+ | ActBadSetTyp
+ | ActBadSetLen
+ | ActBadSetArg
+
+type badInstruction =
+ | InstUnknownInst
+ | InstBadTableId
+ | InstUnsupInst
+ | InstUnsupMeta
+ | InstUnsupMetaMask
+ | InstBadExp
+ | InstBadExpTyp
+ | InstBadLen
+ | InstPermError
+
+type badMatch = 
+ | MatBadTyp
+ | MatBadLen
+ | MatBadTag
+ | MatBadDlAddrMask
+ | MatBadNwAddrMask
+ | MatBadWildcards
+ | MatBadField
+ | MatBadValue
+ | MatBadMask
+ | MatBadPrereq
+ | MatDupField
+ | MatPermError
+
+type flowModFailed =
+ | FlUnknown
+ | FlTableFull
+ | FlBadTableId
+ | FlOverlap
+ | FlPermError
+ | FlBadTimeout
+ | FlBadCommand
+ | FlBadFlags
+
+type groupModFailed =
+ | GrGroupExists
+ | GrIvalidGroup
+ | GrWeightUnsupported
+ | GrOutOfGroups
+ | GrOutOfBuckets
+ | GrChainingUnsupported
+ | GrWatcHUnsupported
+ | GrLoop
+ | GrUnknownGroup
+ | GrChainedGroup
+ | GrBadTyp
+ | GrBadCommand
+ | GrBadBucket
+ | GrBadWatch
+ | GrPermError
+ 
+type portModFailed =
+ | PoBadPort
+ | PoBadHwAddr
+ | PoBadConfig
+ | PoBadAdvertise
+ | PoPermError
+
+type tableModFailed =
+ | TaBadTable
+ | TaBadConfig
+ | TaPermError
+
+type queueOpFailed =
+ | QuBadPort
+ | QuBadQUeue
+ | QuPermError
+
+type switchConfigFailed =
+ | ScBadFlags
+ | ScBadLen
+ | ScPermError
+
+type roleReqFailed = 
+ | RoStale
+ | RoUnsup
+ | RoBadRole
+
+type meterModFailed = 
+ | MeUnknown
+ | MeMeterExists
+ | MeInvalidMeter
+ | MeUnknownMeter
+ | MeBadCommand
+ | MeBadFlags
+ | MeBadRate
+ | MeBadBurst
+ | MeBadBand
+ | MeBadBandValue
+ | MeOutOfMeters
+ | MeOutOfBands
+
+type tableFeatFailed =
+ | TfBadTable
+ | TfBadMeta
+ | TfBadType
+ | TfBadLen
+ | TfBadArg
+ | TfPermError
+
+type experimenterFailed = { exp_typ : int16; exp_id : int32}
+
+type errorTyp = 
+ | HelloFailed of helloFailed
+ | BadRequest of badRequest
+ | BadAction of badAction
+ | BadInstruction of badInstruction
+ | BadMatch of badMatch
+ | FlowModFailed of flowModFailed
+ | GroupModFailed of groupModFailed
+ | PortModFailed of portModFailed
+ | TableModFailed of tableModFailed
+ | QueueOpFailed of queueOpFailed
+ | SwitchConfigFailed of switchConfigFailed
+ | RoleReqFailed of roleReqFailed
+ | MeterModFailed of meterModFailed
+ | TableFeatFailed of tableFeatFailed
+ | ExperimenterFailed of experimenterFailed
+
 type length = int16
 
 type oxm =

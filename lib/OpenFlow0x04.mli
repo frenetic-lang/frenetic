@@ -566,12 +566,13 @@ end
 module Error : sig
 
   type t = {
-    typ : int16;
-    code : int16;
+    err : errorTyp;
+    data : bytes;
   }
 
+  val marshal : Cstruct.t -> t -> int
   val parse : Cstruct.t -> t
-
+  val sizeof : t -> int
   val to_string : t -> string
 
 end
