@@ -55,7 +55,7 @@ let switch
         ; mfCommand = AddFlow
         ; mfIdle_timeout = Permanent
         ; mfHard_timeout = Permanent
-        ; mfPriority = 1
+        ; mfPriority = 5
         ; mfBuffer_id = buf
         ; mfOut_port = None
         ; mfOut_group = None
