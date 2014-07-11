@@ -2744,11 +2744,23 @@ module PacketOut = struct
                                        (Only meaningful if buffer_id == -1.) *)
   } as big_endian
 
+  type t = packetOut
+
   let sizeof (po : packetOut) =
     sizeof_ofp_packet_out + sum (map Action.sizeof po.po_actions) +
     (match po.po_payload with
       | Buffered _ -> 0
       | NotBuffered bytes -> Cstruct.len bytes)
+
+  let to_string (po : packetOut) = 
+    Format.sprintf "Payload: %s\nPort id: %s\nActions: %s"
+    (match po.po_payload with 
+      | Buffered (n,bytes) -> Format.sprintf "Buffered %lu:%s, len:%u" n (Cstruct.to_string bytes) (Cstruct.len bytes)
+      | NotBuffered bytes -> Format.sprintf "NotBuffered: %s, len: %u" (Cstruct.to_string bytes) (Cstruct.len bytes))
+    (match po.po_port_id with
+      | Some n -> Int32.to_string n
+      | None -> "No Port")
+    (String.concat "\n" (map Action.to_string po.po_actions))
 
   let marshal (buf : Cstruct.t) (po : packetOut) : int =
     let size = sizeof po in
@@ -2774,6 +2786,27 @@ module PacketOut = struct
       | NotBuffered pkt_buf ->
         Cstruct.blit pkt_buf 0 buf act_size (Cstruct.len pkt_buf);
         size
+
+  let parse (bits : Cstruct.t) : packetOut =
+    let bufId = match get_ofp_packet_out_buffer_id bits with
+      | -1l -> None
+      | n -> Some n in
+    let po_port_id = match get_ofp_packet_out_in_port bits with 
+      | 0l -> None
+      | n -> Some n in
+    let actions_size = get_ofp_packet_out_actions_len bits in
+    let bits = Cstruct.shift bits sizeof_ofp_packet_out in
+    let po_actions = Action.parse_sequence (Cstruct.sub bits 0 actions_size) in
+    let po_payload = match bufId with
+      | None -> 
+        let data_bits = Cstruct.shift bits actions_size in
+        let final_bits = Cstruct.create (Cstruct.len data_bits) in
+        Cstruct.blit data_bits 0 final_bits 0 (Cstruct.len data_bits);
+        NotBuffered final_bits
+      | Some n -> 
+        let final_bits = Cstruct.create 0 in
+        Buffered (n,final_bits) in
+    { po_payload; po_port_id; po_actions }
 
 end
 
@@ -4591,6 +4624,7 @@ module Message = struct
       | ECHO_RESP -> EchoReply body_bits
       | FEATURES_RESP -> FeaturesReply (SwitchFeatures.parse body_bits)
       | PACKET_IN -> PacketInMsg (PacketIn.parse body_bits)
+      | PACKET_OUT -> PacketOutMsg (PacketOut.parse body_bits)
       | ECHO_REQ -> EchoRequest body_bits
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
       | MULTIPART_REQ -> MultipartReq (MultipartReq.parse body_bits)
