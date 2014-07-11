@@ -352,9 +352,10 @@ type portFeatures = { rate_10mb_hd : bool; rate_10mb_fd : bool;
                       autoneg : bool; pause : bool; pause_asym : bool }     
 
 
-type portDesc = { port_no : portId; config : portConfig; state : portState;
-                  curr : portFeatures; advertised : portFeatures; supported :
-                  portFeatures; peer : portFeatures }
+type portDesc = { port_no : portId; hw_addr : int48; name : string; config : 
+                  portConfig; state : portState; curr : portFeatures; 
+                  advertised : portFeatures; supported : portFeatures; peer :
+                  portFeatures; curr_speed : int32; max_speed : int32}
 
 type portReason =
   | PortAdd
