@@ -108,6 +108,7 @@ Executable katnetic
   MainIs: katnetic.ml
   Build$: flag(async)
   Install: false
+  CompiledObject: native
   BuildDepends:
     async,
     cmdliner,

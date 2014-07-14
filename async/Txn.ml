@@ -39,7 +39,7 @@ let send t c_id (msg : OpenFlow0x01.Message.t) =
       `Drop exn
 
 let send_switch t sw_id (msg : OpenFlow0x01.Message.t) =
-  send t (Controller.client_id_of_switch t.ctl sw_id) msg
+  send t (Controller.client_id_of_switch_exn t.ctl sw_id) msg
 
 (** [create ctl] returns a Transaction.t, which is the ctl object used to
  * interact with the instance.
