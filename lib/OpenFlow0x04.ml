@@ -3096,7 +3096,7 @@ module PacketOut = struct
   let to_string (po : packetOut) = 
     Format.sprintf "{ payload = %s; port_id = %s; actions = %s }"
     (match po.po_payload with 
-      | Buffered (n,bytes) -> Format.sprintf "Buffered<id=%lu> = %s, len = %u" n (Packet.to_string (Packet.parse bytes)) (Cstruct.len bytes)
+      | Buffered (n,_) -> Format.sprintf "Buffered<id=%lu>" n
       | NotBuffered bytes -> Format.sprintf "NotBuffered = %s; len = %u" (Packet.to_string (Packet.parse bytes)) (Cstruct.len bytes))
     (match po.po_port_id with
       | Some n -> Int32.to_string n
