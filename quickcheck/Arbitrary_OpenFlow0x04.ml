@@ -1589,7 +1589,7 @@ module Error = struct
   let arbitrary_groupModFailed = 
     oneof [
       ret_gen GrGroupExists;
-      ret_gen GrIvalidGroup;
+      ret_gen GrInvalidGroup;
       ret_gen GrWeightUnsupported;
       ret_gen GrOutOfGroups;
       ret_gen GrOutOfBuckets;
