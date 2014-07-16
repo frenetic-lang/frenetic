@@ -564,8 +564,6 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
       implement_policy t (Queue.get q (len - 1))
     in
 
-    Pipe.set_size_budget recv.Raw_app.update policy_queue_size;
-
     (* This is the main event handler for the controller. First it sends
      * events to the application callback. Then it checks to see if the event
      * is a SwitchUp event, in which case it's necessary to populate the new
@@ -582,8 +580,10 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
     (* Combine the pkt_out messages receied from the application and those that
      * are generated from evaluating the policy at the controller.
      * *)
-    let open Raw_app in
+    let open Async_NetKAT in
     let pkt_outs = Pipe.interleave [r_pkt_out; recv.pkt_out] in
+
+    Pipe.set_size_budget recv.update policy_queue_size;
 
     (* Kick off the three top-level logical threads of the controller. The
      * first handles incoming events from switches. The second sends pkt_out

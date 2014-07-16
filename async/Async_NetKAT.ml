@@ -58,8 +58,15 @@ type app = (Net.Topology.t ref) Raw_app.t
 
 type update = Raw_app.update
 
-type send = update Raw_app.send
-type recv = policy Raw_app.recv
+type send = {
+  pkt_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t;
+  update  : policy Pipe.Writer.t
+}
+
+type recv = {
+  pkt_out : (switchId * SDN_Types.pktOut) Pipe.Reader.t;
+  update  : policy Pipe.Reader.t
+}
 
 type result = policy option
 type handler
@@ -70,7 +77,7 @@ type handler
 
 type async_handler
   = Net.Topology.t ref
-  -> policy Raw_app.send
+  -> send
   -> unit
   -> event -> result Deferred.t
 
@@ -113,7 +120,8 @@ let default (a : app) : policy =
   a.Raw_app.policy
 
 let run (app : app) (t : Net.Topology.t ref) () : (recv * (event -> unit Deferred.t)) =
-  Raw_app.run app t ()
+  let recv, callback = Raw_app.run app t () in
+  { pkt_out = recv.Raw_app.pkt_out; update = recv.Raw_app.update }, callback
 
 let union ?(how=`Parallel) (app1 : app) (app2 : app) : app =
   Raw_app.combine ~how:how (fun x y -> Union(x, y)) app1 app2
