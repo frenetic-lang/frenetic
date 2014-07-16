@@ -35,7 +35,15 @@ type app
     variant of [update]. *)
 type update = Raw_app.update
 
-type recv = policy Raw_app.recv
+type send = {
+  pkt_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t;
+  update  : policy Pipe.Writer.t
+}
+
+type recv = {
+  pkt_out : (switchId * SDN_Types.pktOut) Pipe.Reader.t;
+  update  : policy Pipe.Reader.t
+}
 
 (** The set of pipe names that an application is listening on. *)
 module PipeSet : Set.S
@@ -58,7 +66,7 @@ type handler
     indicates a partial application point. *)
 type async_handler
   = Net.Topology.t ref
-  -> policy Raw_app.send
+  -> send
   -> unit
   -> event -> result Deferred.t
 
