@@ -9,6 +9,8 @@ type payload =
 
 type xid = OpenFlow_Header.xid
 type int12 = int16
+type int24 = int32
+type int128 = int64 * int64
 
 val val_to_mask : 'a1 -> 'a1 mask
 
@@ -23,6 +25,164 @@ type portId = int32
 type tableId = int8
 
 type bufferId = int32
+
+type helloFailed = 
+ | HelloIncompatible
+ | HelloPermError
+
+type badRequest = 
+ | ReqBadVersion
+ | ReqBadType
+ | ReqBadMultipart
+ | ReqBadExp
+ | ReqBadExpType
+ | ReqPermError
+ | ReqBadLen
+ | ReqBufferEmpty
+ | ReqBufferUnknown
+ | ReqBadTableId
+ | ReqIsSlave
+ | ReqBadPort
+ | ReqBadPacket
+ | ReqMultipartBufOverflow
+
+type badAction = 
+ | ActBadType
+ | ActBadLen
+ | ActBadExp
+ | ActBadExpType
+ | ActBadOutPort
+ | ActBadArg
+ | ActPermError
+ | ActTooMany
+ | ActBadQueue
+ | ActBadOutGroup
+ | ActMatchInconsistent
+ | ActUnsupportedOrder
+ | ActBadTag
+ | ActBadSetTyp
+ | ActBadSetLen
+ | ActBadSetArg
+
+type badInstruction =
+ | InstUnknownInst
+ | InstBadTableId
+ | InstUnsupInst
+ | InstUnsupMeta
+ | InstUnsupMetaMask
+ | InstBadExp
+ | InstBadExpTyp
+ | InstBadLen
+ | InstPermError
+
+type badMatch = 
+ | MatBadTyp
+ | MatBadLen
+ | MatBadTag
+ | MatBadDlAddrMask
+ | MatBadNwAddrMask
+ | MatBadWildcards
+ | MatBadField
+ | MatBadValue
+ | MatBadMask
+ | MatBadPrereq
+ | MatDupField
+ | MatPermError
+
+type flowModFailed =
+ | FlUnknown
+ | FlTableFull
+ | FlBadTableId
+ | FlOverlap
+ | FlPermError
+ | FlBadTimeout
+ | FlBadCommand
+ | FlBadFlags
+
+type groupModFailed =
+ | GrGroupExists
+ | GrInvalidGroup
+ | GrWeightUnsupported
+ | GrOutOfGroups
+ | GrOutOfBuckets
+ | GrChainingUnsupported
+ | GrWatcHUnsupported
+ | GrLoop
+ | GrUnknownGroup
+ | GrChainedGroup
+ | GrBadTyp
+ | GrBadCommand
+ | GrBadBucket
+ | GrBadWatch
+ | GrPermError
+ 
+type portModFailed =
+ | PoBadPort
+ | PoBadHwAddr
+ | PoBadConfig
+ | PoBadAdvertise
+ | PoPermError
+
+type tableModFailed =
+ | TaBadTable
+ | TaBadConfig
+ | TaPermError
+
+type queueOpFailed =
+ | QuBadPort
+ | QuBadQUeue
+ | QuPermError
+
+type switchConfigFailed =
+ | ScBadFlags
+ | ScBadLen
+ | ScPermError
+
+type roleReqFailed = 
+ | RoStale
+ | RoUnsup
+ | RoBadRole
+
+type meterModFailed = 
+ | MeUnknown
+ | MeMeterExists
+ | MeInvalidMeter
+ | MeUnknownMeter
+ | MeBadCommand
+ | MeBadFlags
+ | MeBadRate
+ | MeBadBurst
+ | MeBadBand
+ | MeBadBandValue
+ | MeOutOfMeters
+ | MeOutOfBands
+
+type tableFeatFailed =
+ | TfBadTable
+ | TfBadMeta
+ | TfBadType
+ | TfBadLen
+ | TfBadArg
+ | TfPermError
+
+type experimenterFailed = { exp_typ : int16; exp_id : int32}
+
+type errorTyp = 
+ | HelloFailed of helloFailed
+ | BadRequest of badRequest
+ | BadAction of badAction
+ | BadInstruction of badInstruction
+ | BadMatch of badMatch
+ | FlowModFailed of flowModFailed
+ | GroupModFailed of groupModFailed
+ | PortModFailed of portModFailed
+ | TableModFailed of tableModFailed
+ | QueueOpFailed of queueOpFailed
+ | SwitchConfigFailed of switchConfigFailed
+ | RoleReqFailed of roleReqFailed
+ | MeterModFailed of meterModFailed
+ | TableFeatFailed of tableFeatFailed
+ | ExperimenterFailed of experimenterFailed
 
 type length = int16
 
@@ -40,8 +200,8 @@ type oxm =
 | OxmIPEcn of int8
 | OxmIP4Src of int32 mask
 | OxmIP4Dst of int32 mask
-| OxmTCPSrc of int16 mask
-| OxmTCPDst of int16 mask
+| OxmTCPSrc of int16
+| OxmTCPDst of int16
 | OxmARPOp of int16
 | OxmARPSpa of int32 mask
 | OxmARPTpa of int32 mask
@@ -52,6 +212,21 @@ type oxm =
 | OxmMPLSLabel of int32
 | OxmMPLSTc of int8
 | OxmTunnelId of int64 mask
+| OxmUDPSrc of int16
+| OxmUDPDst of int16
+| OxmSCTPSrc of int16
+| OxmSCTPDst of int16
+| OxmIPv6Src of int128 mask
+| OxmIPv6Dst of int128 mask
+| OxmIPv6FLabel of int32 mask
+| OxmICMPv6Type of int8
+| OxmICMPv6Code of int8
+| OxmIPv6NDTarget of int128 mask
+| OxmIPv6NDSll of int48
+| OxmIPv6NDTll of int48
+| OxmMPLSBos of int8
+| OxmPBBIsid of int24 mask
+| OxmIPv6ExtHdr of int16 mask
 
 type oxmMatch = oxm list
 

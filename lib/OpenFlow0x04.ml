@@ -14,7 +14,9 @@ let sym_num = ref 0
 
 let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
 
+type uint128 = int64*int64
 type uint48 = uint64
+type uint24 = int32
 type uint12 = uint16
 type switchId = OpenFlow0x04_Core.switchId
 
@@ -158,7 +160,7 @@ module PortConfig = struct
     }
 
   let to_string (config : portConfig) = 
-    Format.sprintf "port_down:%b,no_recv:%b,no_fwd:%b,no_packet_in:%b"
+    Format.sprintf "{ port_down = %b; no_recv = %b; no_fwd  = %b; no_packet_in = %b }"
     config.port_down
     config.no_recv
     config.no_fwd
@@ -208,10 +210,10 @@ module PortFeatures = struct
 
   let to_string (feat : portFeatures) =
     Format.sprintf
-      "10mhd:%b,10mfd:%b,100mhd:%b,100mfd:%b,1ghd%b\
-      1gfd:%b,10gfd:%b,40gfd:%b,100gfd:%b,1tfd:%b,\
-      other:%b,copper:%b,fiber:%b,autoneg:%b,pause:%b,\
-      pause_asym:%b"
+      "{ 10mhd = %B; 10mfd  = %B; 100mhd  = %B; 100mfd  = %B; 1ghd%B\
+      1gfd  = %B; 10gfd  = %B; 40gfd  = %B; 100gfd  = %B; 1tfd  = %B; \
+      other  = %B; copper  = %B; fiber  = %B; autoneg  = %B; pause  = %B; \
+      pause_asym  = %B }"
       feat.rate_10mb_hd
       feat.rate_10mb_fd
       feat.rate_100mb_hd
@@ -762,6 +764,11 @@ cstruct ofp_uint16 {
   uint16_t value
 } as big_endian
 
+cstruct ofp_uint24 {
+  uint16_t high;
+  uint8_t low
+} as big_endian
+
 cstruct ofp_uint32 {
   uint32_t value
 } as big_endian
@@ -773,6 +780,11 @@ cstruct ofp_uint48 {
 
 cstruct ofp_uint64 {
   uint64_t value
+} as big_endian
+
+cstruct ofp_uint128 {
+  uint64_t high;
+  uint64_t low
 } as big_endian
 
 let max_uint32 = 4294967296L (* = 2^32*)
@@ -803,6 +815,24 @@ let get_ofp_uint48_value (buf : Cstruct.t) : uint48 =
   let low = Int64.of_int (get_ofp_uint48_low buf) in
   Int64.logor low high
 
+let get_ofp_uint24_value (buf : Cstruct.t) : uint24 =
+  let high = Int32.shift_left (Int32.of_int (get_ofp_uint24_high buf)) 8 in
+  let low = Int32.of_int (get_ofp_uint24_low buf )in
+  Int32.logor high low
+
+let set_ofp_uint24_value (buf : Cstruct.t) (value : uint24) =
+  let high = (Int32.to_int value) lsr 8 in
+  let low = (Int32.to_int value) land 0xff in
+    set_ofp_uint24_high buf high;
+    set_ofp_uint24_low buf low
+
+let set_ofp_uint128_value (buf : Cstruct.t) ((h,l) : uint128) =
+  set_ofp_uint128_high buf h;
+  set_ofp_uint128_low buf l
+
+let get_ofp_uint128_value (buf : Cstruct.t) : uint128 =
+  (get_ofp_uint128_high buf, get_ofp_uint128_low buf)
+
 let rec marshal_fields (buf: Cstruct.t) (fields : 'a list) (marshal_func : Cstruct.t -> 'a -> int ): int =
   if (fields = []) then 0
   else let size = marshal_func buf (List.hd fields) in
@@ -832,6 +862,8 @@ let test_bit16 (n:int) (x:int) : bool =
 
 module Oxm = struct
 
+  type t = oxm
+
   let field_length (oxm : oxm) : int = match oxm with
     | OxmInPort _ -> 4
     | OxmInPhyPort _ -> 4
@@ -857,14 +889,8 @@ module Oxm = struct
       (match ipaddr.m_mask with
         | None -> 4
         | Some _ -> 8)
-    | OxmTCPSrc tcpPort ->
-      (match tcpPort.m_mask with
-        | None -> 2
-        | Some _ -> 4)
-    | OxmTCPDst tcpPort ->
-      (match tcpPort.m_mask with
-        | None -> 2
-        | Some _ -> 4)
+    | OxmTCPSrc _ -> 2
+    | OxmTCPDst _ -> 2
     | OxmARPOp _ -> 2
     | OxmARPSpa t->
       (match t.m_mask with
@@ -897,6 +923,39 @@ module Oxm = struct
       (match t.m_mask with
         | None -> 8
         | Some _ -> 16)
+    | OxmUDPSrc _ -> 2
+    | OxmUDPDst _ -> 2
+    | OxmSCTPSrc _ -> 2
+    | OxmSCTPDst _ -> 2
+    | OxmIPv6Src t ->
+      (match t.m_mask with
+        | None -> 16
+        | Some _ -> 32)
+    | OxmIPv6Dst t ->
+      (match t.m_mask with
+        | None -> 16
+        | Some _ -> 32)
+    | OxmIPv6FLabel t ->
+      (match t.m_mask with
+        | None -> 4
+        | Some _ -> 8)
+    | OxmICMPv6Type _ -> 1
+    | OxmICMPv6Code _ -> 1
+    | OxmIPv6NDTarget t ->
+      (match t.m_mask with
+        | None -> 16
+        | Some _ -> 32)
+    | OxmIPv6NDSll _ -> 6
+    | OxmIPv6NDTll _ -> 6
+    | OxmMPLSBos _ -> 1
+    | OxmPBBIsid t ->
+      (match t.m_mask with
+        | None -> 3
+        | Some _ -> 6)
+    | OxmIPv6ExtHdr t ->
+      (match t.m_mask with
+        | None -> 2
+        | Some _ -> 4)
 
   let field_name (oxm : oxm) : string = match oxm with
     | OxmInPort _ -> "InPort"
@@ -923,14 +982,8 @@ module Oxm = struct
       (match ipaddr.m_mask with
         | None -> "IPDst"
         | Some _ -> "IPDst/mask")
-    | OxmTCPSrc tcpPort ->
-      (match tcpPort.m_mask with
-        | None -> "TCPSrc"
-        | Some _ -> "TCPSrc/mask")
-    | OxmTCPDst tcpPort ->
-      (match tcpPort.m_mask with
-        | None -> "TCPDst"
-        | Some _ -> "TCPDst/mask")
+    | OxmTCPSrc _ -> "TCPSrc"
+    | OxmTCPDst _ -> "TCPDst"
     | OxmARPOp _ -> "ARPOp"
     | OxmARPSpa t->
       (match t.m_mask with
@@ -963,6 +1016,39 @@ module Oxm = struct
       (match t.m_mask with
         | None -> "Tunnel ID"
         | Some _ -> "Tunnel ID/mask")
+    | OxmUDPSrc _ -> "UDPSrc"
+    | OxmUDPDst _ -> "UDPDst"
+    | OxmSCTPSrc _ -> "SCTPSrc"
+    | OxmSCTPDst _ -> "SCTPDst"
+    | OxmIPv6Src t ->
+      (match t.m_mask with
+        | None -> "IPv6Src"
+        | Some _ -> "IPv6Src/mask")
+    | OxmIPv6Dst t ->
+      (match t.m_mask with
+        | None -> "IPv6Dst"
+        | Some _ -> "IPv6Dst/mask")
+    | OxmIPv6FLabel t ->
+      (match t.m_mask with
+        | None -> "IPv6FlowLabel"
+        | Some _ -> "IPv6FlowLabel/mask")
+    | OxmICMPv6Type _ -> "ICMPv6Type"
+    | OxmICMPv6Code _ -> "IPCMPv6Code"
+    | OxmIPv6NDTarget t ->
+      (match t.m_mask with
+        | None -> "IPv6NeighborDiscoveryTarget"
+        | Some _ -> "IPv6NeighborDiscoveryTarget/mask")
+    | OxmIPv6NDSll _ -> "IPv6NeighborDiscoverySourceLink"
+    | OxmIPv6NDTll _ -> "IPv6NeighborDiscoveryTargetLink"
+    | OxmMPLSBos _ -> "MPLSBoS"
+    | OxmPBBIsid t ->
+      (match t.m_mask with
+        | None -> "PBBIsid"
+        | Some _ -> "PBBIsid/mask")
+    | OxmIPv6ExtHdr t ->
+      (match t.m_mask with
+        | None -> "IPv6ExtHdr"
+        | Some _ -> "IPv6ExtHdr/mask")
 
   let sizeof (oxm : oxm) : int =
     sizeof_ofp_oxm + field_length oxm
@@ -972,70 +1058,97 @@ module Oxm = struct
 
   let to_string oxm =
     match oxm with
-    | OxmInPort p -> Format.sprintf "InPort : %lu " p
-    | OxmInPhyPort p -> Format.sprintf "InPhyPort : %lu " p
-    | OxmEthType  e -> Format.sprintf "EthType : %X " e
+    | OxmInPort p -> Format.sprintf "InPort = %lu " p
+    | OxmInPhyPort p -> Format.sprintf "InPhyPort = %lu " p
+    | OxmEthType  e -> Format.sprintf "EthType = %X " e
     | OxmEthDst ethaddr ->
       (match ethaddr.m_mask with
-        | None -> Format.sprintf "EthDst : %LX" ethaddr.m_value
-        | Some m -> Format.sprintf "EthDst : %LX/%LX" ethaddr.m_value m)
+        | None -> Format.sprintf "EthDst = %s" (string_of_mac ethaddr.m_value)
+        | Some m -> Format.sprintf "EthDst = %s/%s" (string_of_mac ethaddr.m_value) (string_of_mac m))
     | OxmEthSrc ethaddr ->
       (match ethaddr.m_mask with
-        | None -> Format.sprintf "EthSrc : %LX" ethaddr.m_value
-        | Some m -> Format.sprintf "EthSrc : %LX/%LX" ethaddr.m_value m)
+        | None -> Format.sprintf "EthSrc = %s" (string_of_mac ethaddr.m_value)
+        | Some m -> Format.sprintf "EthSrc = %s/%s" (string_of_mac ethaddr.m_value) (string_of_mac m))
     | OxmVlanVId vid ->
       (match vid.m_mask with
-        | None -> Format.sprintf "VlanVId : %u" vid.m_value
-        | Some m -> Format.sprintf "VlanVId : %u/%u" vid.m_value m)
-    | OxmVlanPcp vid -> Format.sprintf "VlanPcp : %u" vid
+        | None -> Format.sprintf "VlanVId = %u" vid.m_value
+        | Some m -> Format.sprintf "VlanVId = %u/%u" vid.m_value m)
+    | OxmVlanPcp vid -> Format.sprintf "VlanPcp = %u" vid
     | OxmIP4Src ipaddr ->
       (match ipaddr.m_mask with
-        | None -> Format.sprintf "IPSrc : %s" (string_of_ip ipaddr.m_value)
-        | Some m -> Format.sprintf "IPSrc : %s/%s" (string_of_ip ipaddr.m_value)
-                                                (string_of_ip m))
+        | None -> Format.sprintf "IPSrc = %s" (string_of_ip ipaddr.m_value)
+        | Some m -> Format.sprintf "IPSrc = %s/%s" (string_of_ip ipaddr.m_value) (string_of_ip m))
     | OxmIP4Dst ipaddr -> 
       (match ipaddr.m_mask with
-        | None -> Format.sprintf "IPDst : %s" (string_of_ip ipaddr.m_value)
-        | Some m -> Format.sprintf "IPDst : %s/%s" (string_of_ip ipaddr.m_value)
-                                                   (string_of_ip m))
-    | OxmTCPSrc v -> (match v.m_mask with
-        | None -> Format.sprintf "TCPSrc : %u" v.m_value
-        | Some m -> Format.sprintf "TCPSrc : %u/%u" v.m_value m)
-    | OxmTCPDst v -> (match v.m_mask with
-        | None -> Format.sprintf "TCPDst : %u" v.m_value
-        | Some m -> Format.sprintf "TCPDst : %u/%u" v.m_value m)
-    | OxmMPLSLabel v -> Format.sprintf "MPLSLabel : %lu" v
-    | OxmMPLSTc v -> Format.sprintf "MplsTc : %u" v 
+        | None -> Format.sprintf "IPDst = %s" (string_of_ip ipaddr.m_value)
+        | Some m -> Format.sprintf "IPDst = %s/%s" (string_of_ip ipaddr.m_value) (string_of_ip m))
+    | OxmTCPSrc v -> Format.sprintf "TCPSrc = %u" v
+    | OxmTCPDst v -> Format.sprintf "TCPDst = %u" v
+    | OxmMPLSLabel v -> Format.sprintf "MPLSLabel = %lu" v
+    | OxmMPLSTc v -> Format.sprintf "MplsTc = %u" v 
     | OxmMetadata v ->
       (match v.m_mask with
-        | None -> Format.sprintf "Metadata : %Lu" v.m_value
-        | Some m -> Format.sprintf "Metadata : %Lu/%Lu" v.m_value m)
-    | OxmIPProto v -> Format.sprintf "IPProto : %u" v
-    | OxmIPDscp v -> Format.sprintf "IPDscp : %u" v
-    | OxmIPEcn v -> Format.sprintf "IPEcn : %u" v
-    | OxmARPOp v -> Format.sprintf "ARPOp : %u" v
+        | None -> Format.sprintf "Metadata = %Lu" v.m_value
+        | Some m -> Format.sprintf "Metadata = %Lu/%Lu" v.m_value m)
+    | OxmIPProto v -> Format.sprintf "IPProto = %u" v
+    | OxmIPDscp v -> Format.sprintf "IPDscp = %u" v
+    | OxmIPEcn v -> Format.sprintf "IPEcn = %u" v
+    | OxmARPOp v -> Format.sprintf "ARPOp = %u" v
     | OxmARPSpa v ->
       (match v.m_mask with
-        | None -> Format.sprintf "ARPSpa : %lu" v.m_value
-        | Some m -> Format.sprintf "ARPSpa : %lu/%lu" v.m_value m)
+        | None -> Format.sprintf "ARPSpa = %lu" v.m_value
+        | Some m -> Format.sprintf "ARPSpa = %lu/%lu" v.m_value m)
     | OxmARPTpa v ->
       (match v.m_mask with
-        | None -> Format.sprintf "ARPTpa : %lu" v.m_value
-        | Some m -> Format.sprintf "ARPTpa : %lu/%lu" v.m_value m)
+        | None -> Format.sprintf "ARPTpa = %lu" v.m_value
+        | Some m -> Format.sprintf "ARPTpa = %lu/%lu" v.m_value m)
     | OxmARPSha v ->
       (match v.m_mask with
-        | None -> Format.sprintf "ARPSha : %Lu" v.m_value
-        | Some m -> Format.sprintf "ARPSha : %Lu/%Lu" v.m_value m)
+        | None -> Format.sprintf "ARPSha = %Lu" v.m_value
+        | Some m -> Format.sprintf "ARPSha = %Lu/%Lu" v.m_value m)
     | OxmARPTha v ->
       (match v.m_mask with
-        | None -> Format.sprintf "ARPTha : %Lu" v.m_value
-        | Some m -> Format.sprintf "ARPTha : %Lu/%Lu" v.m_value m)
-    | OxmICMPType v -> Format.sprintf "ICMP Type : %u" v
-    | OxmICMPCode v -> Format.sprintf "ICMP Code : %u" v
+        | None -> Format.sprintf "ARPTha = %Lu" v.m_value
+        | Some m -> Format.sprintf "ARPTha = %Lu/%Lu" v.m_value m)
+    | OxmICMPType v -> Format.sprintf "ICMPType = %u" v
+    | OxmICMPCode v -> Format.sprintf "ICMPCode = %u" v
     | OxmTunnelId v -> 
       (match v.m_mask with
-        | None -> Format.sprintf "Tunnel ID : %Lu" v.m_value
-        | Some m -> Format.sprintf "Tunnel ID : %Lu/%Lu" v.m_value m)
+        | None -> Format.sprintf "TunnelID = %Lu" v.m_value
+        | Some m -> Format.sprintf "TunnelID = %Lu/%Lu" v.m_value m)
+    | OxmUDPSrc v -> Format.sprintf "UDPSrc = %u" v
+    | OxmUDPDst v -> Format.sprintf "UDPDst = %u" v
+    | OxmSCTPSrc v -> Format.sprintf "SCTPSrc = %u" v
+    | OxmSCTPDst v -> Format.sprintf "SCTPDst = %u" v
+    | OxmIPv6Src t ->
+      (match t.m_mask with
+        | None -> Format.sprintf "IPv6Src = %s" (string_of_ipv6 t.m_value)
+        | Some m -> Format.sprintf "IPv6Src = %s/%s" (string_of_ipv6 t.m_value) (string_of_ipv6 m))
+    | OxmIPv6Dst t ->
+      (match t.m_mask with
+        | None -> Format.sprintf "IPv6Dst = %s" (string_of_ipv6 t.m_value)
+        | Some m -> Format.sprintf "IPv6Dst = %s/%s" (string_of_ipv6 t.m_value) (string_of_ipv6 m))
+    | OxmIPv6FLabel t ->
+      (match t.m_mask with
+        | None -> Format.sprintf "IPv6FlowLabel = %lu" t.m_value
+        | Some m -> Format.sprintf "IPv6FlowLabel = %lu/%lu" t.m_value m)
+    | OxmICMPv6Type v -> Format.sprintf "ICMPv6Type = %u" v
+    | OxmICMPv6Code v -> Format.sprintf "IPCMPv6Code = %u" v
+    | OxmIPv6NDTarget t ->
+      (match t.m_mask with
+        | None -> Format.sprintf "IPv6NeighborDiscoveryTarget = %s" (string_of_ipv6 t.m_value)
+        | Some m -> Format.sprintf "IPv6NeighborDiscoveryTarget = %s/%s" (string_of_ipv6 t.m_value) (string_of_ipv6 m))
+    | OxmIPv6NDSll v -> Format.sprintf "IPv6NeighborDiscoverySourceLink = %Lu" v
+    | OxmIPv6NDTll v -> Format.sprintf "IPv6NeighborDiscoveryTargetLink = %Lu" v
+    | OxmMPLSBos v -> Format.sprintf "MPLSBoS = %u" v
+    | OxmPBBIsid t ->
+      (match t.m_mask with
+        | None -> Format.sprintf "PBBIsid = %lu" t.m_value
+        | Some m -> Format.sprintf "PBBIsid = %lu/%lu" t.m_value m)
+    | OxmIPv6ExtHdr t ->
+      (match t.m_mask with
+        | None -> Format.sprintf "IPv6ExtHdr = %u" t.m_value
+        | Some m -> Format.sprintf "IPv6ExtHdr = %u/%u" t.m_value m)
 
   let set_ofp_oxm (buf : Cstruct.t) (c : ofp_oxm_class) (f : oxm_ofb_match_fields) (hm : int) (l : int) = 
     let value = (0x7f land (oxm_ofb_match_fields_to_int f)) lsl 1 in
@@ -1153,27 +1266,13 @@ module Oxm = struct
               set_ofp_uint8_value buf2 ipecn;
               sizeof_ofp_oxm + l
             | OxmTCPSrc port ->
-              set_ofp_oxm buf ofc OFPXMT_OFB_TCP_SRC  (match port.m_mask with None -> 0 | _ -> 1)  l;
-              set_ofp_uint16_value buf2 port.m_value;
-              begin match port.m_mask with
-                | None ->
-                  sizeof_ofp_oxm + l
-                | Some mask ->
-                  let buf3 = Cstruct.shift buf2 (l/2) in
-                    set_ofp_uint16_value buf3 mask;
-                    sizeof_ofp_oxm + l
-              end
+              set_ofp_oxm buf ofc OFPXMT_OFB_TCP_SRC 0 l;
+              set_ofp_uint16_value buf2 port;
+              sizeof_ofp_oxm + l
             | OxmTCPDst port ->
-              set_ofp_oxm buf ofc OFPXMT_OFB_TCP_DST  (match port.m_mask with None -> 0 | _ -> 1)  l;
-              set_ofp_uint16_value buf2 port.m_value;
-              begin match port.m_mask with
-                | None ->
-                  sizeof_ofp_oxm + l
-                | Some mask ->
-                  let buf3 = Cstruct.shift buf2 (l/2) in
-                    set_ofp_uint16_value buf3 mask;
-                    sizeof_ofp_oxm + l
-              end
+              set_ofp_oxm buf ofc OFPXMT_OFB_TCP_DST 0 l;
+              set_ofp_uint16_value buf2 port;
+              sizeof_ofp_oxm + l
             | OxmARPOp arp ->
               set_ofp_oxm buf ofc OFPXMT_OFB_ARP_OP 0 l;
               set_ofp_uint16_value buf2 arp;
@@ -1241,6 +1340,108 @@ module Oxm = struct
                     set_ofp_uint64_value buf3 mask;
                     sizeof_ofp_oxm + l
               end
+            | OxmUDPSrc port ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_UDP_SRC 0 l;
+              set_ofp_uint16_value buf2 port;
+              sizeof_ofp_oxm + l
+            | OxmUDPDst port ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_UDP_DST 0 l;
+              set_ofp_uint16_value buf2 port;
+              sizeof_ofp_oxm + l
+            | OxmSCTPSrc port ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_SCTP_SRC 0 l;
+              set_ofp_uint16_value buf2 port;
+              sizeof_ofp_oxm + l
+            | OxmSCTPDst port ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_SCTP_DST 0 l;
+              set_ofp_uint16_value buf2 port;
+              sizeof_ofp_oxm + l
+            | OxmIPv6Src addr ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_SRC (match addr.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint128_value buf2 addr.m_value;
+              begin match addr.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint128_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmIPv6Dst addr ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_DST (match addr.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint128_value buf2 addr.m_value;
+              begin match addr.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint128_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmIPv6FLabel label ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_FLABEL (match label.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint32_value buf2 label.m_value;
+              begin match label.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint32_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmICMPv6Type typ ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_ICMPV6_TYPE 0 l;
+              set_ofp_uint8_value buf2 typ;
+              sizeof_ofp_oxm + l
+            | OxmICMPv6Code cod ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_ICMPV6_CODE 0 l;
+              set_ofp_uint8_value buf2 cod;
+              sizeof_ofp_oxm + l
+            | OxmIPv6NDTarget addr ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_ND_TARGET (match addr.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint128_value buf2 addr.m_value;
+              begin match addr.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint128_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmIPv6NDSll sll ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_ND_SLL 0 l;
+              set_ofp_uint48_value buf2 sll;
+              sizeof_ofp_oxm + l
+            | OxmIPv6NDTll tll ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_ND_TLL 0 l;
+              set_ofp_uint48_value buf2 tll;
+              sizeof_ofp_oxm + l
+            | OxmMPLSBos boS ->
+              set_ofp_oxm buf ofc OFPXMT_OFP_MPLS_BOS 0 l;
+              set_ofp_uint8_value buf2 boS;
+              sizeof_ofp_oxm + l
+            | OxmPBBIsid sid ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_PBB_ISID (match sid.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint24_value buf2 sid.m_value;
+              begin match sid.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint24_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmIPv6ExtHdr hdr ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_EXTHDR (match hdr.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint16_value buf2 hdr.m_value;
+              begin match hdr.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint16_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
 
   let marshal_header (buf : Cstruct.t) (oxm : oxm) : int = 
   (* Same as marshal, but without the payload *)
@@ -1293,10 +1494,10 @@ module Oxm = struct
             set_ofp_oxm buf ofc OFPXMT_OFB_IP_ECN 0 l;
             sizeof_ofp_oxm
           | OxmTCPSrc port ->
-            set_ofp_oxm buf ofc OFPXMT_OFB_TCP_SRC  (match port.m_mask with None -> 0 | _ -> 1)  l;
+            set_ofp_oxm buf ofc OFPXMT_OFB_TCP_SRC 0 l;
             sizeof_ofp_oxm
           | OxmTCPDst port ->
-            set_ofp_oxm buf ofc OFPXMT_OFB_TCP_DST  (match port.m_mask with None -> 0 | _ -> 1)  l;
+            set_ofp_oxm buf ofc OFPXMT_OFB_TCP_DST 0 l;
             sizeof_ofp_oxm
           | OxmARPOp arp ->
             set_ofp_oxm buf ofc OFPXMT_OFB_ARP_OP 0 l;
@@ -1322,6 +1523,53 @@ module Oxm = struct
           | OxmTunnelId tun ->
             set_ofp_oxm buf ofc OFPXMT_OFB_TUNNEL_ID  (match tun.m_mask with None -> 0 | _ -> 1)  l;
             sizeof_ofp_oxm
+          | OxmUDPSrc port ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_UDP_SRC 0 l;
+            sizeof_ofp_oxm
+          | OxmUDPDst port ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_UDP_DST 0 l;
+            sizeof_ofp_oxm
+          | OxmSCTPSrc port ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_SCTP_SRC 0 l;
+            sizeof_ofp_oxm
+          | OxmSCTPDst port ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_SCTP_DST 0 l;
+            sizeof_ofp_oxm
+          | OxmIPv6Src addr ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_SRC (match addr.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+          | OxmIPv6Dst addr ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_DST (match addr.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+          | OxmIPv6FLabel label ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_FLABEL (match label.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+          | OxmICMPv6Type typ ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_ICMPV6_TYPE 0 l;
+            sizeof_ofp_oxm
+          | OxmICMPv6Code cod ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_ICMPV6_CODE 0 l;
+            sizeof_ofp_oxm
+          | OxmIPv6NDTarget addr ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_ND_TARGET (match addr.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+          | OxmIPv6NDSll sll ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_ND_SLL 0 l;
+            sizeof_ofp_oxm
+          | OxmIPv6NDTll tll ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_ND_TLL 0 l;
+            sizeof_ofp_oxm
+          | OxmMPLSBos boS ->
+            set_ofp_oxm buf ofc OFPXMT_OFP_MPLS_BOS 0 l;
+            sizeof_ofp_oxm
+          | OxmPBBIsid sid ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_PBB_ISID (match sid.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+          | OxmIPv6ExtHdr hdr ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_EXTHDR (match hdr.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+
+
 
   let parse (bits : Cstruct.t) : oxm * Cstruct.t =
     (* printf "class= %d\n" (get_ofp_oxm_oxm_class bits); *)
@@ -1464,20 +1712,10 @@ module Oxm = struct
 	  (OxmICMPCode value, bits2)
       | OFPXMT_OFB_TCP_DST ->
     let value = get_ofp_uint16_value bits in
-	if hm = 1 then
-	  let bits = Cstruct.shift bits 2 in
-	  let mask = get_ofp_uint16_value bits in
-	  (OxmTCPDst {m_value = value; m_mask = (Some mask)}, bits2)
-	else
-	  (OxmTCPDst {m_value = value; m_mask = None}, bits2)
+	  (OxmTCPDst value, bits2)
       | OFPXMT_OFB_TCP_SRC ->
     let value = get_ofp_uint16_value bits in
-	if hm = 1 then
-	  let bits = Cstruct.shift bits 2 in
-	  let mask = get_ofp_uint16_value bits in
-	  (OxmTCPSrc {m_value = value; m_mask = (Some mask)}, bits2)
-	else
-	  (OxmTCPSrc {m_value = value; m_mask = None}, bits2)
+	  (OxmTCPSrc value, bits2)
       | OFPXMT_OFB_MPLS_LABEL ->
     let value = get_ofp_uint32_value bits in
 	  (OxmMPLSLabel value, bits2)
@@ -1495,7 +1733,81 @@ module Oxm = struct
       | OFPXMT_OFB_MPLS_TC ->
     let value = get_ofp_uint8_value bits in
 	  (OxmMPLSTc value, bits2)
-      | _ -> raise (Unparsable (sprintf "malformed packet in oxm %d\n" (value lsr 1)))
+      | OFPXMT_OFB_UDP_SRC ->
+    let value = get_ofp_uint16_value bits in
+      (OxmUDPSrc value, bits2)
+      | OFPXMT_OFB_UDP_DST ->
+    let value = get_ofp_uint16_value bits in
+      (OxmUDPDst value, bits2)
+      | OFPXMT_OFB_SCTP_SRC ->
+    let value = get_ofp_uint16_value bits in
+      (OxmSCTPSrc value, bits2)
+      | OFPXMT_OFB_SCTP_DST ->
+    let value = get_ofp_uint16_value bits in
+      (OxmSCTPDst value, bits2)
+      | OFPXMT_OFB_IPV6_SRC ->
+    let value = get_ofp_uint128_value bits in
+    if hm = 1 then
+      let bits = Cstruct.shift bits 16 in
+      let mask = get_ofp_uint128_value bits in
+      (OxmIPv6Src {m_value = value; m_mask = (Some mask)}, bits2)
+    else
+      (OxmIPv6Src {m_value = value; m_mask = None}, bits2)
+      | OFPXMT_OFB_IPV6_DST ->
+    let value = get_ofp_uint128_value bits in
+    if hm = 1 then
+      let bits = Cstruct.shift bits 16 in
+      let mask = get_ofp_uint128_value bits in
+      (OxmIPv6Dst {m_value = value; m_mask = (Some mask)}, bits2)
+    else
+      (OxmIPv6Dst {m_value = value; m_mask = None}, bits2)
+      | OFPXMT_OFB_IPV6_FLABEL ->
+    let value = get_ofp_uint32_value bits in
+    if hm = 1 then
+      let bits = Cstruct.shift bits 4 in
+      let mask = get_ofp_uint32_value bits in
+      (OxmIPv6FLabel {m_value = value; m_mask = (Some mask)}, bits2)
+    else
+      (OxmIPv6FLabel {m_value = value; m_mask = None}, bits2)
+      | OFPXMT_OFB_ICMPV6_TYPE ->
+    let value = get_ofp_uint8_value bits in
+      (OxmICMPv6Type value, bits2)
+      | OFPXMT_OFB_ICMPV6_CODE ->
+    let value = get_ofp_uint8_value bits in
+      (OxmICMPv6Code value, bits2)
+      | OFPXMT_OFB_IPV6_ND_TARGET ->
+    let value = get_ofp_uint128_value bits in
+    if hm = 1 then
+      let bits = Cstruct.shift bits 16 in
+      let mask = get_ofp_uint128_value bits in
+      (OxmIPv6NDTarget {m_value = value; m_mask = (Some mask)}, bits2)
+    else
+      (OxmIPv6NDTarget {m_value = value; m_mask = None}, bits2)
+      | OFPXMT_OFB_IPV6_ND_SLL ->
+    let value = get_ofp_uint48_value bits in
+      (OxmIPv6NDSll value, bits2)
+      | OFPXMT_OFB_IPV6_ND_TLL ->
+    let value = get_ofp_uint48_value bits in
+      (OxmIPv6NDTll value, bits2)
+      | OFPXMT_OFP_MPLS_BOS ->
+    let value = get_ofp_uint8_value bits in
+      (OxmMPLSBos (value land 1), bits2)
+      | OFPXMT_OFB_PBB_ISID ->
+    let value = get_ofp_uint24_value bits in
+    if hm = 1 then
+      let bits = Cstruct.shift bits 3 in
+      let mask = get_ofp_uint24_value bits in
+      (OxmPBBIsid {m_value = value; m_mask = (Some mask)}, bits2)
+    else
+      (OxmPBBIsid {m_value = value; m_mask = None}, bits2)
+      | OFPXMT_OFB_IPV6_EXTHDR ->
+    let value = get_ofp_uint16_value bits in
+    if hm = 1 then
+      let bits = Cstruct.shift bits 2 in
+      let mask = get_ofp_uint16_value bits in
+      (OxmIPv6ExtHdr {m_value = value; m_mask = (Some mask)}, bits2)
+    else
+      (OxmIPv6ExtHdr {m_value = value; m_mask = None}, bits2)
 
     let parse_header (bits : Cstruct.t) : oxm * Cstruct.t =
     (* parse Oxm header function for TableFeatureProp. Similar to parse, but without
@@ -1591,15 +1903,9 @@ module Oxm = struct
         |   OFPXMT_OFB_ICMPV4_CODE ->
             (OxmICMPCode 0, bits2)
         | OFPXMT_OFB_TCP_DST ->
-          if hm = 1 then
-            (OxmTCPDst {m_value = 0; m_mask = (Some 0)}, bits2)
-          else
-            (OxmTCPDst {m_value = 0; m_mask = None}, bits2)
+            (OxmTCPDst 0, bits2)
         | OFPXMT_OFB_TCP_SRC ->
-          if hm = 1 then
-            (OxmTCPSrc {m_value = 0; m_mask = (Some 0)}, bits2)
-          else
-            (OxmTCPSrc {m_value = 0; m_mask = None}, bits2)
+            (OxmTCPSrc 0, bits2)
         | OFPXMT_OFB_MPLS_LABEL ->
             (OxmMPLSLabel 0l, bits2)
         | OFPXMT_OFB_VLAN_PCP ->
@@ -1611,7 +1917,54 @@ module Oxm = struct
             (OxmVlanVId {m_value = 0; m_mask = None}, bits2)
         | OFPXMT_OFB_MPLS_TC ->
             (OxmMPLSTc 0, bits2)
-        | _ -> raise (Unparsable (sprintf "malformed packet in oxm %d\n" (value lsr 1)))
+        | OFPXMT_OFB_UDP_SRC ->
+      (OxmUDPSrc 0, bits2)
+      | OFPXMT_OFB_UDP_DST ->
+      (OxmUDPDst 0, bits2)
+      | OFPXMT_OFB_SCTP_SRC ->
+      (OxmSCTPSrc 0, bits2)
+      | OFPXMT_OFB_SCTP_DST ->
+      (OxmSCTPDst 0, bits2)
+      | OFPXMT_OFB_IPV6_SRC ->
+        if hm = 1 then
+      (OxmIPv6Src {m_value = (0L,0L); m_mask = (Some (0L,0L))}, bits2)
+        else
+      (OxmIPv6Src {m_value = (0L,0L); m_mask = None}, bits2)
+      | OFPXMT_OFB_IPV6_DST ->
+        if hm = 1 then
+      (OxmIPv6Dst {m_value = (0L,0L); m_mask = (Some (0L,0L))}, bits2)
+        else
+      (OxmIPv6Dst {m_value = (0L,0L); m_mask = None}, bits2)
+      | OFPXMT_OFB_IPV6_FLABEL ->
+        if hm = 1 then
+      (OxmIPv6FLabel {m_value = 0l; m_mask = (Some 0l)}, bits2)
+        else
+      (OxmIPv6FLabel {m_value = 0l; m_mask = None}, bits2)
+      | OFPXMT_OFB_ICMPV6_TYPE ->
+      (OxmICMPv6Type 0, bits2)
+      | OFPXMT_OFB_ICMPV6_CODE ->
+      (OxmICMPv6Code 0, bits2)
+      | OFPXMT_OFB_IPV6_ND_TARGET ->
+        if hm = 1 then
+      (OxmIPv6NDTarget {m_value = (0L,0L); m_mask = (Some (0L,0L))}, bits2)
+        else
+      (OxmIPv6NDTarget {m_value = (0L,0L); m_mask = None}, bits2)
+      | OFPXMT_OFB_IPV6_ND_SLL ->
+      (OxmIPv6NDSll 0L, bits2)
+      | OFPXMT_OFB_IPV6_ND_TLL ->
+      (OxmIPv6NDTll 0L, bits2)
+      | OFPXMT_OFP_MPLS_BOS ->
+      (OxmMPLSBos 0, bits2)
+      | OFPXMT_OFB_PBB_ISID ->
+        if hm = 1 then
+      (OxmPBBIsid {m_value = 0l; m_mask = (Some 0l)}, bits2)
+        else
+      (OxmPBBIsid {m_value = 0l; m_mask = None}, bits2)
+      | OFPXMT_OFB_IPV6_EXTHDR ->
+        if hm = 1 then
+      (OxmIPv6ExtHdr {m_value = 0; m_mask = (Some 0)}, bits2)
+        else
+      (OxmIPv6ExtHdr {m_value = 0; m_mask = None}, bits2)
 
     let rec parse_headers (bits : Cstruct.t) : oxmMatch*Cstruct.t = 
       if Cstruct.len bits < sizeof_ofp_oxm then ([], bits)
@@ -1652,7 +2005,7 @@ module PseudoPort = struct
 
   let to_string (t : t) = 
    match t with
-    | PhysicalPort p -> sprintf "%lu" p
+    | PhysicalPort p -> sprintf "PhysicalPort = %lu" p
     | InPort -> "InPort"
     | Table -> "Table"
     | Normal -> "Normal"
@@ -1699,8 +2052,7 @@ module OfpMatch = struct
     pad_to_64bits n
 
   let to_string om = 
-    let oxmString = String.concat "\n" (map Oxm.to_string om) in
-    Format.sprintf "Match : %s" oxmString
+    "[ " ^ (String.concat "; " (map Oxm.to_string om)) ^ " ]"
 
   let marshal (buf : Cstruct.t) (om : oxmMatch) : int =
     let size = sizeof om in
@@ -1965,7 +2317,7 @@ module Bucket = struct
     pad_to_64bits n
 
   let to_string (bucket : bucket) : string = 
-    Format.sprintf "length: %u\nweight: %u\nwatch port: %s\nwatch group: %sactions:\n%s"
+    Format.sprintf "{ length = %u; weight = %u; watch_port = %s; watch_group = %s; actions = %s }"
     (sizeof bucket)
     bucket.bu_weight
     (match bucket.bu_watch_port with
@@ -2137,18 +2489,18 @@ module Instruction = struct
 
   let to_string ins =
     match ins with
-      | GotoTable t -> Format.sprintf "Go to Table: %u" t
-      | ApplyActions actions -> Format.sprintf "Apply Actions: \n%s"
-                                (String.concat "\n" (map Action.to_string actions))
-      | WriteActions actions -> Format.sprintf "Write Actions: \n%s" 
-                                (String.concat "\n" (map Action.to_string actions))
+      | GotoTable t -> Format.sprintf "Go to Table = %u" t
+      | ApplyActions actions -> Format.sprintf "Apply Actions = %s"
+                                (String.concat ";" (map Action.to_string actions))
+      | WriteActions actions -> Format.sprintf "Write Actions = %s" 
+                                (String.concat ";" (map Action.to_string actions))
       | WriteMetadata meta -> 
         (match meta.m_mask with
-          | None -> Format.sprintf "WriteMeta : %LX" meta.m_value
-          | Some m -> Format.sprintf "WriteMeta : %LX/%LX" meta.m_value m)
+          | None -> Format.sprintf "WriteMeta = %LX" meta.m_value
+          | Some m -> Format.sprintf "WriteMeta = %LX/%LX" meta.m_value m)
       | Clear -> "Clear"
-      | Meter m -> Format.sprintf "Meter : %lu" m
-      | Experimenter e -> Format.sprintf "Experimenter : %lu" e
+      | Meter m -> Format.sprintf "Meter = %lu" m
+      | Experimenter e -> Format.sprintf "Experimenter = %lu" e
 
   let sizeof (ins : instruction) : int =
     match ins with
@@ -2270,8 +2622,8 @@ module Instructions = struct
     (List.append [field] fields, bits3)
 
   let to_string ins =
-    let insString = String.concat "\n" (map Instruction.to_string ins) in
-    insString
+    "[ " ^ (String.concat "; " (map Instruction.to_string ins)) ^ " ]"
+    
 
   let parse (bits : Cstruct.t) : instruction list =
     let field,_ = parse_field bits in
@@ -2302,8 +2654,8 @@ module FlowMod = struct
       }
 
     let to_string f =
-      Format.sprintf "SendFlowRem:%b;CheckOverlap:%b;ResetCount:%b;\
-                     NoPktCount:%b;NoBytCount:%b"
+      Format.sprintf "{ send_flow_rem = %B; check_overlap = %B; reset_counts = %B; \
+                     no_pkt_counts = %B; no_byt_counts = %B }"
                      f.fmf_send_flow_rem
                      f.fmf_check_overlap
                      f.fmf_reset_counts
@@ -2390,19 +2742,9 @@ module FlowMod = struct
       mfOfp_match; mfInstructions}
   
   let to_string (flow : flowMod) =
-    Format.sprintf 
-"cookie:%s;
-table:%u;
-command:%s;
-IdleTimeout:%s;
-HardTimeout:%s;
-priority:%u;
-bufferId:%s;
-outPort:%s;
-outGroup:%s;
-flags:%s;
-match:%s;
-instructions:%s\n"
+    Format.sprintf "{ cookie = %s; table = %u; command = %s; idle_timeout = %s; \
+                      hard_timeout = %s; priority = %u; bufferId = %s; out_port = %s; \
+                      out_group = %s; flags = %s; match = %s; instructions = %s }"
     (match flow.mfCookie.m_mask with
         | None -> Int64.to_string flow.mfCookie.m_value
         | Some m -> Format.sprintf "%LX/%LX" flow.mfCookie.m_value m)
@@ -2441,7 +2783,8 @@ module Capabilities = struct
            (if capa.port_blocked then (Int32.shift_left 1l 7) else 0l))))))
 
   let to_string (cap : capabilities) : string =
-      Format.sprintf "Port Blocked:%B\nQueue Stats:%B\nIP Reasm:%B\nGroup Stats:%B\nPort Stats:%B\nTable Stats:%B\nFlow Stats:%B"
+      Format.sprintf "{ port_blocked = %B; queue_stats = %B; ip_reasm = %B; group_stats = %B; \
+                        port_stats = %B; table_stats = %B; flow_stats = %B }"
       cap.port_blocked
       cap.queue_stats
       cap.ip_reasm
@@ -2472,7 +2815,7 @@ module SwitchFeatures = struct
       sizeof_ofp_switch_features
 
   let to_string (sw : t) : string =
-      Format.sprintf "Datapath ID: %Lu\nNum Buffers: %lu\nNum Tables: %u\nAux ID: %u\nCapabilities: %s"
+      Format.sprintf "{ datapath_id = %Lu; num_buffers = %lu; num_Tables = %u; aux_id = %u; capabilities = %s }"
       sw.datapath_id
       sw.num_buffers
       sw.num_tables
@@ -2522,7 +2865,7 @@ module PortState = struct
     }
 
   let to_string (state : portState) =
-    Format.sprintf "link_down:%b,blocked:%b,live:%b"
+    Format.sprintf "{ link_down = %B; blocked = %B; live = %B }"
     state.link_down
     state.blocked
     state.live
@@ -2576,9 +2919,9 @@ module PortDesc = struct
       max_speed }
 
   let to_string (port : portDesc) =
-    Format.sprintf 
-        "port_no:%lu,hw_addr:%s,name:%s,config:%s,state:%s,curr:%s,advertised:%s\
-        supported:%s,peer:%s,curr_speed:%lu,max_speed:%lu"
+    Format.sprintf " { port_no = %lu; hw_addr = %s; name = %s; config = %s; \
+                       state = %s; curr = %s; advertised = %s; \
+                       supported = %s; peer = %s; curr_speed = %lu; max_speed = %lu }"
         port.port_no
         (string_of_mac port.hw_addr)
         port.name
@@ -2628,7 +2971,7 @@ module PortStatus = struct
         | PortDelete -> "Port Delete"
         | PortModify -> "Port Modify" in
     Format.sprintf 
-        "reason : %s,\ndesc : %s"
+        "{ reason = %s; desc = %s }"
         (reason_to_string t.reason)
         (PortDesc.to_string t.desc)
 end
@@ -2653,7 +2996,7 @@ module PacketIn = struct
     pi.pi_total_len + (OfpMatch.sizeof pi.pi_ofp_match) + sizeof_ofp_packet_in + 2 (*2 bytes of pad*)
 
   let to_string (pi: packetIn) : string =
-    Format.sprintf "Total Len: %u\nReason: %s\nTable ID:%u\nCookie:%Lu\nOfmPatch:%s\nPayload:%s"
+    Format.sprintf "{ total_len = %u; reason = %s; table_id = %u; cookie = %Lu; match = %s; payload = %s }"
     pi.pi_total_len
     (match pi.pi_reason with
       | NoMatch -> "NO_MATCH"
@@ -2663,10 +3006,8 @@ module PacketIn = struct
     pi.pi_cookie
     (OfpMatch.to_string pi.pi_ofp_match)
     (match pi.pi_payload with 
-      | Buffered (n,bytes) -> Format.sprintf "Buffered %lu:%s, len:%u" n (Cstruct.to_string bytes) (Cstruct.len bytes)
-      | NotBuffered bytes -> Format.sprintf "NotBuffered: %s, len: %u" (Cstruct.to_string bytes) (Cstruct.len bytes))
-    
-
+      | Buffered (n,bytes) -> Format.sprintf "Buffered<id=%lu>= %s; len = %u" n (Packet.to_string (Packet.parse bytes)) (Cstruct.len bytes)
+      | NotBuffered bytes -> Format.sprintf "NotBuffered = %s; len = %u"  (Packet.to_string (Packet.parse bytes)) (Cstruct.len bytes))
 
   let marshal (buf : Cstruct.t) (pi : packetIn) : int = 
     let bufMatch = Cstruct.shift buf sizeof_ofp_packet_in in
@@ -2746,11 +3087,23 @@ module PacketOut = struct
                                        (Only meaningful if buffer_id == -1.) *)
   } as big_endian
 
+  type t = packetOut
+
   let sizeof (po : packetOut) =
     sizeof_ofp_packet_out + sum (map Action.sizeof po.po_actions) +
     (match po.po_payload with
       | Buffered _ -> 0
       | NotBuffered bytes -> Cstruct.len bytes)
+
+  let to_string (po : packetOut) = 
+    Format.sprintf "{ payload = %s; port_id = %s; actions = %s }"
+    (match po.po_payload with 
+      | Buffered (n,bytes) -> Format.sprintf "Buffered<id=%lu> = %s, len = %u" n (Packet.to_string (Packet.parse bytes)) (Cstruct.len bytes)
+      | NotBuffered bytes -> Format.sprintf "NotBuffered = %s; len = %u" (Packet.to_string (Packet.parse bytes)) (Cstruct.len bytes))
+    (match po.po_port_id with
+      | Some n -> Int32.to_string n
+      | None -> "No Port")
+    (String.concat "\n" (map Action.to_string po.po_actions))
 
   let marshal (buf : Cstruct.t) (po : packetOut) : int =
     let size = sizeof po in
@@ -2777,6 +3130,27 @@ module PacketOut = struct
         Cstruct.blit pkt_buf 0 buf act_size (Cstruct.len pkt_buf);
         size
 
+  let parse (bits : Cstruct.t) : packetOut =
+    let bufId = match get_ofp_packet_out_buffer_id bits with
+      | -1l -> None
+      | n -> Some n in
+    let po_port_id = match get_ofp_packet_out_in_port bits with 
+      | 0l -> None
+      | n -> Some n in
+    let actions_size = get_ofp_packet_out_actions_len bits in
+    let bits = Cstruct.shift bits sizeof_ofp_packet_out in
+    let po_actions = Action.parse_sequence (Cstruct.sub bits 0 actions_size) in
+    let po_payload = match bufId with
+      | None -> 
+        let data_bits = Cstruct.shift bits actions_size in
+        let final_bits = Cstruct.create (Cstruct.len data_bits) in
+        Cstruct.blit data_bits 0 final_bits 0 (Cstruct.len data_bits);
+        NotBuffered final_bits
+      | Some n -> 
+        let final_bits = Cstruct.create 0 in
+        Buffered (n,final_bits) in
+    { po_payload; po_port_id; po_actions }
+
 end
 
 module MeterBand = struct
@@ -2802,11 +3176,11 @@ module MeterBand = struct
   let to_string (mb : meterBand) : string =
     match mb with
       | Drop (r,b) ->
-        Format.sprintf "Drop; rate:%lu; burst size:%lu" r b
+        Format.sprintf "Drop { rate = %lu; burst_size = %lu }" r b
       | DscpRemark (r,b,p) ->
-        Format.sprintf "Dscp Remark; rate:%lu; burst size:%lu; prec level: %u" r b p
+        Format.sprintf "Dscp Remark { rate = %lu; burst_size = %lu; prec level = %u }" r b p
       | ExpMeter (r,b,e) ->
-        Format.sprintf "Experimetner; rate:%lu; burst size:%lu; experimenter id: %lu" r b e
+        Format.sprintf "Experimetner { rate = %lu; burst_size = %lu; experimenter_id = %lu }" r b e
 
   let marshal (buf : Cstruct.t) (mb : meterBand) : int =
     match mb with
@@ -2863,7 +3237,7 @@ module MeterFlags = struct
     ; stats = test_bit16 3 bits }
 
   let to_string (mfm : meterFlags) : string =
-    Format.sprintf "kpbs: %B; pktps: %B; burst: %B; stats: %B"
+    Format.sprintf "{ kpbs = %B; pktps = %B; burst = %B; stats = %B }"
     mfm.kbps
     mfm.pktps
     mfm.burst
@@ -2889,7 +3263,7 @@ module FlowRequest = struct
     sizeof_ofp_flow_stats_request + (OfpMatch.sizeof fr.fr_match)
 
     let to_string (fr : flowRequest) : string =
-      Format.sprintf "TableID:%u\noutPort:%lu\noutGroup:%lu\ncookie:%s\nmatch:%s"
+      Format.sprintf "{ table_id = %u; out_port = %lu; out_group = %lu; cookie = %s; match = %s }"
       fr.fr_table_id
       fr.fr_out_port
       fr.fr_out_group
@@ -2947,7 +3321,7 @@ module QueueRequest = struct
     let sizeof _ = 
         sizeof_ofp_queue_stats_request
     let to_string qr =
-        Format.sprintf "Port:%lu;Queue:%lu" qr.port_number qr.queue_id
+        Format.sprintf "{ port_no = %lu; queue_id = %lu }" qr.port_number qr.queue_id
 end
 
 module TableFeatureProp = struct
@@ -3119,52 +3493,52 @@ module TableFeatureProp = struct
       | _ -> raise (Unparsable (sprintf "malformed type"))
 
     let to_string tfp =
-      Format.sprintf "type:%s;len:%u"
+      Format.sprintf "{ type = %s; len:%u }"
       (match tfp with
          | TfpInstruction i-> 
-            (Format.sprintf "Instructions : %s" (Instructions.to_string i))
+            (Format.sprintf "Instructions %s" (Instructions.to_string i))
          | TfpInstructionMiss i-> 
-            (Format.sprintf "InstructionMiss : %s" (Instructions.to_string i))
+            (Format.sprintf "InstructionMiss %s" (Instructions.to_string i))
          | TfpNextTable n-> 
-            (Format.sprintf "NextTable : %s" 
+            (Format.sprintf "NextTable %s" 
             (String.concat " " (map string_of_int n)))
          | TfpNextTableMiss n -> 
-            (Format.sprintf "NextTableMiss : %s" 
+            (Format.sprintf "NextTableMiss %s" 
             (String.concat " " (map string_of_int n)))
          | TfpWriteAction a -> 
-            (Format.sprintf "WriteAction: \n%s"
+            (Format.sprintf "WriteAction %s"
             (String.concat "\n" (map Action.to_string a)))
          | TfpWriteActionMiss a -> 
-            (Format.sprintf "WriteActionMiss: \n%s"
+            (Format.sprintf "WriteActionMiss %s"
             (String.concat "\n" (map Action.to_string a)))
          | TfpApplyAction a -> 
-            (Format.sprintf "ApplyActions: \n%s"
+            (Format.sprintf "ApplyActions %s"
             (String.concat "\n" (map Action.to_string a)))
          | TfpApplyActionMiss a -> 
-            (Format.sprintf "ApplyActionsMiss: \n%s"
+            (Format.sprintf "ApplyActionsMiss %s"
             (String.concat "\n" (map Action.to_string a)))
          | TfpMatch s -> 
-            (Format.sprintf "Match : \n%s"
+            (Format.sprintf "Match %s"
             (String.concat "\n" (map Oxm.field_name s)))
          | TfpWildcard s -> 
-            (Format.sprintf "MatchMiss :\n%s"
+            (Format.sprintf "MatchMiss %s"
             (String.concat "\n" (map Oxm.field_name s)))
          | TfpWriteSetField s -> 
-            (Format.sprintf "WriteSetField :\n%s"
+            (Format.sprintf "WriteSetField %s"
             (String.concat "\n" (map Oxm.field_name s)))
          | TfpWriteSetFieldMiss s -> 
-            (Format.sprintf "WriteSetFieldMiss :\n%s"
+            (Format.sprintf "WriteSetFieldMiss %s"
             (String.concat "\n" (map Oxm.field_name s)))
          | TfpApplySetField s -> 
-            (Format.sprintf "ApplySetField :\n%s"
+            (Format.sprintf "ApplySetField %s"
             (String.concat "\n" (map Oxm.field_name s)))
          | TfpApplySetFieldMiss s -> 
-            (Format.sprintf "ApplySetFieldMiss :\n%s"
+            (Format.sprintf "ApplySetFieldMiss %s"
             (String.concat "\n" (map Oxm.field_name s)))
          | TfpExperimenter (e,_)-> 
-            (Format.sprintf "Experimenter:id:%lu;typ:%lu" e.exp_id e.exp_type)
+            (Format.sprintf "Experimenter<id=%lu>; typ = %lu" e.exp_id e.exp_type)
          | TfpExperimenterMiss (e,_)-> 
-            (Format.sprintf "ExperimenterMiss:id:%lu;typ:%lu" e.exp_id e.exp_type)
+            (Format.sprintf "ExperimenterMiss<id=%lu>; typ = %lu" e.exp_id e.exp_type)
            )
       (sizeof tfp)
 
@@ -3222,9 +3596,9 @@ module TableFeature = struct
         feature_prop = featureProp},(Cstruct.shift bits length)
     
     let to_string (tf : tableFeatures) =
-      Format.sprintf "tableId:%u;name:%s;metadata match:%Lu;\
-                      metadata write:%Lu;config%s;max_entries:%lu;
-                      featuresPro:%s"
+      Format.sprintf "{ table_id = %u; name = %s; metadata_match = %Lu; \
+                      metadata_write = %Lu; config = %s; max_entries = %lu;
+                      feature_prop = %s }"
       tf.table_id
       tf.name
       tf.metadata_match
@@ -3260,8 +3634,8 @@ module TableFeatures = struct
       body
 
     let to_string tfr = 
-      let tfrString = String.concat "\n" (map TableFeature.to_string tfr) in
-      tfrString
+      "[ " ^ (String.concat "\n" (map TableFeature.to_string tfr)) ^ " ]"
+      
 end
 
 module MultipartReq = struct
@@ -3316,27 +3690,27 @@ module MultipartReq = struct
        | ExperimentReq _ -> sizeof_ofp_experimenter_multipart_header)
 
   let to_string (mpr : multipartRequest) : string =
-    Format.sprintf "more:%B;typ:%s"
+    Format.sprintf "{ more = %B; typ = %s }"
     mpr.mpr_flags
     (match mpr.mpr_type with
       | SwitchDescReq -> "SwitchDesc Req"
       | PortsDescReq -> "PortDesc Req"
       | FlowStatsReq f -> 
-          Format.sprintf "FlowStats %s Req" (FlowRequest.to_string f)
+          Format.sprintf "FlowStats Req %s" (FlowRequest.to_string f)
       | AggregFlowStatsReq f -> 
           Format.sprintf "AggregFlowStats %s Req" (FlowRequest.to_string f)
       | TableStatsReq -> "TableStats Req"
       | PortStatsReq p -> 
-          Format.sprintf "PortStats %lu Req" p
+          Format.sprintf "PortStats Req %lu" p
       | QueueStatsReq q -> 
-          Format.sprintf "QueueStats Req: %s" (QueueRequest.to_string q)
-      | GroupStatsReq g -> Format.sprintf "GroupStats %lu Req" g
+          Format.sprintf "QueueStats Req %s" (QueueRequest.to_string q)
+      | GroupStatsReq g -> Format.sprintf "GroupStats Req %lu" g
       | GroupDescReq -> "GroupDesc Req"
       | GroupFeatReq -> "GroupFeat Req"
-      | MeterStatsReq m -> Format.sprintf "MeterStats Req: %lu " m
-      | MeterConfReq m -> Format.sprintf "MeterConf Req: %lu" m
+      | MeterStatsReq m -> Format.sprintf "MeterStats Req %lu " m
+      | MeterConfReq m -> Format.sprintf "MeterConf Req %lu" m
       | MeterFeatReq -> "MeterFeat Req"
-      | TableFeatReq t-> Format.sprintf "TableFeat Req: %s" (match t with
+      | TableFeatReq t-> Format.sprintf "TableFeat Req %s" (match t with
         | Some v -> TableFeatures.to_string v
         | None -> "None" )
       | ExperimentReq e-> Format.sprintf "Experimenter Req: id: %lu; type: %lu" e.exp_id e.exp_type)
@@ -3428,7 +3802,7 @@ module SwitchDescriptionReply = struct
     sizeof_ofp_desc
   
   let to_string (sdr : switchDesc) : string =
-    Format.sprintf "Manufacture desc: %s\nHardware desc: %s\nSoftware desc: %s\nSerial Num:%s\n"
+    Format.sprintf "{ mfr_desc = %s; hw_desc = %s; sw_desc = %s; serial_num = %s }"
     sdr.mfr_desc
     sdr.hw_desc
     sdr.sw_desc
@@ -3479,9 +3853,9 @@ module FlowStats = struct
     (Instructions.sizeof fs.instructions)
 
   let to_string f =
-    Format.sprintf "length:%u;\ntableId:%u;\nduration:%lus:%luns\npriority:%u\n\
-    idle_timeout:%s;\nhard_timeout:%s;\nflags:%s;\ncookie:%Lu\npkt_count:%Lu\n\
-    byt_count:%Lu;\nmatch:%s;\ninstructions:%s\n"
+    Format.sprintf "{ length = %u; tableId = %u; duration = %lus/%luns; priority = %u; \
+                      idle_timeout = %s; hard_timeout = %s; flags = %s; cookie = %Lu; pkt_count = %Lu; \
+                      byte_count = %Lu; match = %s; instructions = %s }"
     (sizeof f)
     f.table_id
     f.duration_sec
@@ -3577,7 +3951,7 @@ module AggregateStats = struct
     sizeof_ofp_aggregate_stats_reply
 
   let to_string (ag : aggregStats) =
-    Format.sprintf "packet count:%Lu;\nbyte count:%Lu;\nflow count:%lu\n"
+    Format.sprintf "{ packet_count = %Lu; byte = %Lu; flow_count = %lu }"
     ag.packet_count
     ag.byte_count
     ag.flow_count
@@ -3612,8 +3986,7 @@ module TableStats = struct
 
 
   let to_string (ts : tableStats) =
-    Format.sprintf "table id: %u;\nactive count: %lu;\nlookup count: %Lu;\n\
-    matched count : %Lu;\n"
+    Format.sprintf "{ table_id = %u; active_count = %lu; lookup_count = %Lu; matched_count = %Lu }"
     ts.table_id
     ts.active_count
     ts.lookup_count
@@ -3645,9 +4018,10 @@ module PortStats = struct
     sizeof_ofp_port_stats
   
   let to_string ps =
-    Format.sprintf "PortNo: %lu\nrx/tx pkt: %Lu/%Lu\nrx/tx byt: %Lu/%Lu\n\
-    rx/tx dropped : %Lu/%Lu\nrx/tx error: %Lu/%Lu\nrx frame error: %Lu\nrx over err: \n
-    %Lu \nrx crc err: %Lu\ncollisisions: %Lu\nduration (s/ns): %lu/%lu"
+    Format.sprintf "{ port_no = %lu; rx/tx pkt = %Lu/%Lu; rx/tx byt = %Lu/%Lu; \
+                      rx/tx dropped = %Lu/%Lu; rx/tx error = %Lu/%Lu; rx frame \
+                      erro = %Lu; rx_over_err = %Lu; rx_crc_err = %Lu; \
+                      collisisions = %Lu; duration (s/ns) = %lu/%lu }"
     ps.psPort_no
     ps.rx_packets
     ps.tx_packets
@@ -3723,7 +4097,7 @@ module QueueStats = struct
       sizeof_ofp_queue_stats
 
     let to_string (qs : queueStats) : string =
-      Format.sprintf "Port no:%lu\nQueue ID:%lu\ntx bytes:%Lu\ntx pkt:%Lu\ntx errors:%Lu\nduration (s/ns):%lu/%lu"
+      Format.sprintf "{ port no = %lu; queue_id = %lu; tx bytes = %Lu; tx pkt = %Lu; tx errors = %Lu; duration (s/ns) = %lu/%lu }"
       qs.qsPort_no
       qs.queue_id
       qs.tx_bytes
@@ -3783,7 +4157,7 @@ module GroupStats = struct
       sizeof_ofp_bucket_counter
 
     let to_string (bs : bucketStats) : string =
-      Format.sprintf "Bucket: packet_count: %Lu;byte_count: %Lu"
+      Format.sprintf "{ packet_count = %Lu; byte_count = %Lu }"
       bs.packet_count
       bs.byte_count
 
@@ -3806,8 +4180,8 @@ module GroupStats = struct
     gs.length
 
   let to_string (gs : groupStats) : string =
-    Format.sprintf "length: %u; group id: %lu; ref count: %lu; packet count: %Lu;\
-    byte count: %Lu; duration (s/ns): %lu/%lu;bucket stats:%s"
+    Format.sprintf "{ length =  %u; group_id = %lu; ref_count: = %lu; packet_count = %Lu; \
+                      byte_count = %Lu; duration (s/ns) = %lu/%lu; bucket stats = %s }"
     gs.length
     gs.group_id
     gs.ref_count
@@ -3815,7 +4189,7 @@ module GroupStats = struct
     gs.byte_count
     gs.duration_sec
     gs.duration_nsec
-    (String.concat "\n" (map BucketStats.to_string gs.bucket_stats))
+    ("[ " ^ (String.concat ";" (map BucketStats.to_string gs.bucket_stats)) ^ " ]")
 
   let marshal (buf : Cstruct.t) (gs : groupStats) : int = 
     set_ofp_group_stats_length buf gs.length;
@@ -3859,11 +4233,11 @@ module GroupDesc = struct
     sizeof_ofp_group_desc + sum (map Bucket.sizeof gd.bucket)
 
   let to_string (gd : groupDesc) : string =
-    Format.sprintf "length: %u \nroup Type:%s\ngroup id:%lu\nbucket:%s"
+    Format.sprintf "{ length = %u; group_type = %s; group_id = %lu; bucket = %s }"
     gd.length
     (GroupType.to_string gd.typ)
     gd.group_id
-    (String.concat "\n" (map Bucket.to_string gd.bucket))
+    ( "[ " ^(String.concat "; " (map Bucket.to_string gd.bucket)) ^ " ]")
 
   let marshal (buf : Cstruct.t) (gd : groupDesc) : int =
     set_ofp_group_desc_length buf gd.length;
@@ -3922,7 +4296,7 @@ module GroupFeatures = struct
       ; ff = Bits.test_bit 3 bits }
 
     let to_string (gtm : groupTypeMap) : string =
-      Format.sprintf "all: %B; select: %B; indirect: %B; ff: %B"
+      Format.sprintf "{ all = %B; select = %B; indirect = %B; ff = %B }"
       gtm.all
       gtm.select
       gtm.indirect
@@ -3947,7 +4321,7 @@ module GroupFeatures = struct
       ; chaining_checks = Bits.test_bit 3 bits }
 
     let to_string (gc : groupCapabilities) : string =
-      Format.sprintf "select_weight: %B; select_liveness: %B; chaining: %B; chaining_checks: %B"
+      Format.sprintf "{ select_weight = %B; select_liveness = %B; chaining = %B; chaining_checks = %B }"
       gc.select_weight
       gc.select_liveness
       gc.chaining
@@ -3996,10 +4370,10 @@ module GroupFeatures = struct
       ; pop_pbb = Bits.test_bit 27 bits }
 
     let to_string (atm : actionTypeMap) : string =
-      Format.sprintf "output:%B; copy ttl out:%B; copy ttl in:%B; set mpls ttl:%B; \
-      dec mpls ttl:%B; push vlan:%B; pop vlan:%B; push mpls:%B; pop mpls:%B; \
-      set queue:%B; group:%B; set nw ttl:%B; dec nw ttl:%B set field:%B; \
-      push pbb:%B; pop PBB:%B"
+      Format.sprintf "{ output = %B; copy_ttl_out = %B; copy_ttl_in = %B; set_mpls ttl = %B; \
+      dec_mpls_ttl = %B; push_vlan = %B; pop_vlan = %B; push_mpls = %B; pop_mpls = %B; \
+      set_queue = %B; group = %B; set_nw_ttl = %B; dec_nw_ttl = %B; set_field = %B; \
+      push_pbb = %B; pop_pbb = %B }"
       atm.output
       atm.copy_ttl_out
       atm.copy_ttl_in
@@ -4025,9 +4399,9 @@ module GroupFeatures = struct
     sizeof_ofp_group_features
 
   let to_string (gf : groupFeatures) : string =
-    Format.sprintf "type supported: %s\ncapbailities supported: %s\nmax group:\n\
-    all: %lu; select: %lu; indirect: %lu; fastfailover: %lu\nactions supported:\n
-    all: %s; select: %s; indirect: %s; fastfailover: %s"
+    Format.sprintf "{ type =  %s; capbailities =  %s; max group = {\
+    all =  %lu; select =  %lu; indirect =  %lu; fastfailover =  %lu }; actions = {
+    all =  %s; select =  %s; indirect =  %s; fastfailover =  %s } }"
     (GroupType.to_string gf.typ)
     (Capabilities.to_string gf.capabilities)
     gf.max_groups_all
@@ -4101,7 +4475,7 @@ module MeterStats = struct
       ; byte_band_count = get_ofp_meter_band_stats_byte_band_count bits}
 
     let to_string (mbs : meterBandStats) : string =
-      Format.sprintf "packet count:%Lu; byte count:%Lu"
+      Format.sprintf "{ packet_count:%Lu; byte_count = %Lu }"
       mbs.packet_band_count
       mbs.byte_band_count
 
@@ -4113,8 +4487,8 @@ module MeterStats = struct
     ms.len
 
   let to_string (ms : meterStats) : string =
-    Format.sprintf "meter id:%lu; len:%u; flow count:%lu; packet in count:%Lu\
-    byte in count:%Lu; duration (s/ns):%lu/%lu; band:%s"
+    Format.sprintf "{ meter_id = %lu; len = %u; flow_count = %lu; packet_in_count = %Lu\
+    byte_in_count = %Lu; duration (s/ns) = %lu/%lu; band = %s }"
     ms.meter_id
     ms.len
     ms.flow_count
@@ -4122,7 +4496,7 @@ module MeterStats = struct
     ms.byte_in_count
     ms.duration_sec
     ms.duration_nsec
-    (String.concat "," (map Band.to_string ms.band))
+    ("[ " ^ (String.concat ";" (map Band.to_string ms.band)) ^ " ]")
 
   let marshal (buf : Cstruct.t) (ms : meterStats) =
     set_ofp_meter_stats_meter_id buf ms.meter_id;
@@ -4167,11 +4541,11 @@ module MeterConfig = struct
     sizeof_ofp_meter_config + sum (map MeterBand.sizeof mc.bands)
 
   let to_string (mc : meterConfig) : string =
-    Format.sprintf "len: %u; flags: %s; meter id: %lu; bands:%s"
+    Format.sprintf "{ len = %u; flags = %s; meter_id = %lu; bands = %s }"
     mc.length
     (MeterFlags.to_string mc.flags)
     mc.meter_id
-    (String.concat "\n" (map MeterBand.to_string mc.bands))
+    ( "[ " ^ (String.concat "; " (map MeterBand.to_string mc.bands)) ^ " ]")
 
   let marshal (buf : Cstruct.t) (mc : meterConfig) : int =
     set_ofp_meter_config_length buf mc.length;
@@ -4220,7 +4594,7 @@ module MeterFeaturesStats = struct
       ; dscpRemark = Bits.test_bit 2 bits }
 
     let to_string (mbm : meterBandMaps) : string =
-      Format.sprintf "drop: %B; dscp remark: %B"
+      Format.sprintf "{ drop = %B; dscp_remark =  %B }"
       mbm.drop
       mbm.dscpRemark
 
@@ -4232,7 +4606,7 @@ module MeterFeaturesStats = struct
     sizeof_ofp_meter_features
 
   let to_string (mfs : meterFeaturesStats) : string =
-    Format.sprintf "max meter: %lu; band typ:%s; capabilities: %s; max band: %u; max color: %u"
+    Format.sprintf "{ max_meter = %lu; band_typ = %s; capabilities = %s; max_band = %u; max_color = %u }"
     mfs.max_meter
     (Bands.to_string mfs.band_typ)
     (MeterFlags.to_string mfs.capabilities)
@@ -4282,20 +4656,20 @@ module MultipartReply = struct
 
   let to_string (mpr : multipartReply) =
     match mpr.mpreply_typ with
-      | PortsDescReply pdr -> Format.sprintf "PortsDescReply: %s" (String.concat "\n" (map PortDesc.to_string pdr))
-      | SwitchDescReply sdc -> Format.sprintf "SwitchDescReply: %s" (SwitchDescriptionReply.to_string sdc)
-      | FlowStatsReply fsr -> Format.sprintf "Flow: %s" (String.concat "\n" (map FlowStats.to_string fsr))
-      | AggregateReply ag -> Format.sprintf "Aggregate Flow: %s" (AggregateStats.to_string ag)
-      | TableReply tr -> Format.sprintf "TableReply: %s" (String.concat "\n" (map TableStats.to_string tr))
-      | TableFeaturesReply tf -> Format.sprintf "TableFeatures Reply: %S" (TableFeatures.to_string tf)
-      | PortStatsReply psr -> Format.sprintf "PortStatsReply: %s" (String.concat "\n" (map PortStats.to_string psr))
-      | QueueStatsReply qsr -> Format.sprintf "QueueStats: %s" (String.concat "\n" (map QueueStats.to_string qsr))
-      | GroupStatsReply gs -> Format.sprintf "GroupStats: %s" (String.concat "\n" (map GroupStats.to_string gs))
-      | GroupDescReply gd -> Format.sprintf "GroupSDesc: %s" (String.concat "\n" (map GroupDesc.to_string gd))
-      | GroupFeaturesReply gf -> Format.sprintf "GroupFeatures: %s" (GroupFeatures.to_string gf)
-      | MeterReply mr -> Format.sprintf "MeterStats: %s" (String.concat "\n" (map MeterStats.to_string mr))
-      | MeterConfig mc -> Format.sprintf "MeterConfig: %s" (String.concat "\n" (map MeterConfig.to_string mc))
-      | MeterFeaturesReply mf -> Format.sprintf "MeterFeaturesStats: %s" (MeterFeaturesStats.to_string mf)
+      | PortsDescReply pdr -> Format.sprintf "PortsDescReply { %s }" (String.concat "; " (map PortDesc.to_string pdr))
+      | SwitchDescReply sdc -> Format.sprintf "SwitchDescReply %s" (SwitchDescriptionReply.to_string sdc)
+      | FlowStatsReply fsr -> Format.sprintf "Flow { %s }" (String.concat "; " (map FlowStats.to_string fsr))
+      | AggregateReply ag -> Format.sprintf "Aggregate Flow %s" (AggregateStats.to_string ag)
+      | TableReply tr -> Format.sprintf "TableReply { %s }" (String.concat "; " (map TableStats.to_string tr))
+      | TableFeaturesReply tf -> Format.sprintf "TableFeaturesReply %S" (TableFeatures.to_string tf)
+      | PortStatsReply psr -> Format.sprintf "PortStatsReply %s" (String.concat "; " (map PortStats.to_string psr))
+      | QueueStatsReply qsr -> Format.sprintf "QueueStats %s" (String.concat "; " (map QueueStats.to_string qsr))
+      | GroupStatsReply gs -> Format.sprintf "GroupStats %s" (String.concat "; " (map GroupStats.to_string gs))
+      | GroupDescReply gd -> Format.sprintf "GroupSDesc %s" (String.concat "; " (map GroupDesc.to_string gd))
+      | GroupFeaturesReply gf -> Format.sprintf "GroupFeatures %s" (GroupFeatures.to_string gf)
+      | MeterReply mr -> Format.sprintf "MeterStats %s" (String.concat "; " (map MeterStats.to_string mr))
+      | MeterConfig mc -> Format.sprintf "MeterConfig %s" (String.concat "; " (map MeterConfig.to_string mc))
+      | MeterFeaturesReply mf -> Format.sprintf "MeterFeaturesStats %s" (MeterFeaturesStats.to_string mf)
 
   let marshal (buf : Cstruct.t) (mpr : multipartReply) : int =
     let ofp_body_bits = Cstruct.shift buf sizeof_ofp_multipart_reply in
@@ -4406,23 +4780,901 @@ end
 module Error = struct
 
   type t = {
-    typ : int16;
-    code : int16;
+    err : errorTyp;
+    data : bytes;
   }
 
   cstruct ofp_error_msg {
     uint16_t typ;
     uint16_t code
   } as big_endian
-  
-  (* page 95 of OF 1.3.1 *)
+
+  cenum ofp_error_type {
+    OFPET_HELLO_FAILED = 0;
+    OFPET_BAD_REQUEST = 1;
+    OFPET_BAD_ACTION = 2;
+    OFPET_BAD_INSTRUCTION = 3;
+    OFPET_BAD_MATCH = 4;
+    OFPET_FLOW_MOD_FAILED = 5;
+    OFPET_GROUP_MOD_FAILED = 6;
+    OFPET_PORT_MOD_FAILED = 7;
+    OFPET_TABLE_MOD_FAILED = 8;
+    OFPET_QUEUE_OP_FAILED = 9;
+    OFPET_SWITCH_CONFIG_FAILED = 10;
+    OFPET_ROLE_REQUEST_FAILED = 11;
+    OFPET_METER_MOD_FAILED = 12;
+    OFPET_TABLE_FEATURES_FAILED = 13;
+    OFPET_EXPERIMENTER = 0xffff
+  } as uint16_t
+
+  module HelloFailed = struct 
+    
+    cenum ofp_hello_failed_code {
+      OFPHFC_INCOMPATIBLE = 0;
+      OFPHFC_EPERM = 1
+    } as uint16_t
+
+    type t = helloFailed
+
+    let to_string (cod : helloFailed) =
+      match cod with
+        | HelloIncompatible -> "INCOMPATIBLE"
+        | HelloPermError -> "Permission_Error"
+
+    let marshal (cod : helloFailed) : int =
+      match cod with
+        | HelloIncompatible -> ofp_hello_failed_code_to_int OFPHFC_INCOMPATIBLE
+        | HelloPermError -> ofp_hello_failed_code_to_int OFPHFC_EPERM
+
+    let parse t : helloFailed =
+      match int_to_ofp_hello_failed_code t with
+        | Some OFPHFC_INCOMPATIBLE -> HelloIncompatible
+        | Some OFPHFC_EPERM -> HelloPermError
+        | None -> raise (Unparsable (sprintf "malfomed hello_failed code"))
+
+  end
+
+  module BadRequest = struct
+
+    cenum ofp_bad_request_code {
+      OFPBRC_BAD_VERSION = 0;
+      OFPBRC_BAD_TYPE = 1;
+      OFPBRC_BAD_MULTIPART = 2;
+      OFPBRC_BAD_EXPERIMENTER = 3;
+      OFPBRC_BAD_EXP_TYPE = 4;
+      OFPBRC_EPERM = 5;
+      OFPBRC_BAD_LEN = 6;
+      OFPBRC_BUFFER_EMPTY = 7;
+      OFPBRC_BUFFER_UNKNOWN = 8;
+      OFPBRC_BAD_TABLE_ID = 9;
+      OFPBRC_IS_SLAVE = 10;
+      OFPBRC_BAD_PORT = 11;
+      OFPBRC_BAD_PACKET = 12;
+      OFPBRC_MULTIPART_BUFFER_OVERFLOW = 13
+    } as uint16_t
+
+    type t = badRequest
+
+    let to_string (cod : badRequest) : string =
+      match cod with
+        | ReqBadVersion -> "BadVersion"
+        | ReqBadType -> "BadTyp"
+        | ReqBadMultipart -> "BadMultipart"
+        | ReqBadExp -> "BadExp"
+        | ReqBadExpType -> "BadExpType"
+        | ReqPermError -> "Permission_Error"
+        | ReqBadLen -> "BadLen"
+        | ReqBufferEmpty -> "BufferEmpty"
+        | ReqBufferUnknown -> "BufferUnknown"
+        | ReqBadTableId -> "BadTableId"
+        | ReqIsSlave -> "IsSlave"
+        | ReqBadPort -> "BadPort"
+        | ReqBadPacket -> "BadPacket"
+        | ReqMultipartBufOverflow -> "MultipartBufOverflow"
+
+    let marshal (cod : badRequest) : int =
+      match cod with
+        | ReqBadVersion -> ofp_bad_request_code_to_int OFPBRC_BAD_VERSION
+        | ReqBadType -> ofp_bad_request_code_to_int OFPBRC_BAD_TYPE
+        | ReqBadMultipart -> ofp_bad_request_code_to_int OFPBRC_BAD_MULTIPART
+        | ReqBadExp -> ofp_bad_request_code_to_int OFPBRC_BAD_EXPERIMENTER
+        | ReqBadExpType -> ofp_bad_request_code_to_int OFPBRC_BAD_EXP_TYPE
+        | ReqPermError -> ofp_bad_request_code_to_int OFPBRC_EPERM
+        | ReqBadLen -> ofp_bad_request_code_to_int OFPBRC_BAD_LEN
+        | ReqBufferEmpty -> ofp_bad_request_code_to_int OFPBRC_BUFFER_EMPTY
+        | ReqBufferUnknown -> ofp_bad_request_code_to_int OFPBRC_BUFFER_UNKNOWN
+        | ReqBadTableId -> ofp_bad_request_code_to_int OFPBRC_BAD_TABLE_ID
+        | ReqIsSlave -> ofp_bad_request_code_to_int OFPBRC_IS_SLAVE
+        | ReqBadPort -> ofp_bad_request_code_to_int OFPBRC_BAD_PORT
+        | ReqBadPacket -> ofp_bad_request_code_to_int OFPBRC_BAD_PACKET
+        | ReqMultipartBufOverflow -> ofp_bad_request_code_to_int OFPBRC_MULTIPART_BUFFER_OVERFLOW
+
+    let parse t : badRequest = 
+      match int_to_ofp_bad_request_code t with
+        | Some OFPBRC_BAD_VERSION -> ReqBadVersion
+        | Some OFPBRC_BAD_TYPE -> ReqBadType
+        | Some OFPBRC_BAD_MULTIPART -> ReqBadMultipart
+        | Some OFPBRC_BAD_EXPERIMENTER -> ReqBadExp
+        | Some OFPBRC_BAD_EXP_TYPE -> ReqBadExpType
+        | Some OFPBRC_EPERM -> ReqPermError
+        | Some OFPBRC_BAD_LEN -> ReqBadLen
+        | Some OFPBRC_BUFFER_EMPTY -> ReqBufferEmpty
+        | Some OFPBRC_BUFFER_UNKNOWN -> ReqBufferUnknown
+        | Some OFPBRC_BAD_TABLE_ID -> ReqBadTableId
+        | Some OFPBRC_IS_SLAVE -> ReqIsSlave
+        | Some OFPBRC_BAD_PORT -> ReqBadPort
+        | Some OFPBRC_BAD_PACKET -> ReqBadPacket
+        | Some OFPBRC_MULTIPART_BUFFER_OVERFLOW -> ReqMultipartBufOverflow
+        | None -> raise (Unparsable (sprintf "malfomed bad_request code"))
+
+  end
+
+  module BadAction = struct
+
+    cenum ofp_bad_action_code {
+      OFPBAC_BAD_TYPE = 0;
+      OFPBAC_BAD_LEN = 1;
+      OFPBAC_BAD_EXPERIMENTER = 2;
+      OFPBAC_BAD_EXP_TYPE = 3;
+      OFPBAC_BAD_OUT_PORT = 4;
+      OFPBAC_BAD_ARGUMENT = 5;
+      OFPBAC_EPERM = 6;
+      OFPBAC_TOO_MANY = 7;
+      OFPBAC_BAD_QUEUE = 8;
+      OFPBAC_BAD_OUT_GROUP = 9;
+      OFPBAC_MATCH_INCONSISTENT = 10;
+      OFPBAC_UNSUPPORTED_ORDER = 11;
+      OFPBAC_BAD_TAG = 12;
+      OFPBAC_BAD_SET_TYPE = 13;
+      OFPBAC_BAD_SET_LEN = 14;
+      OFPBAC_BAD_SET_ARGUMENT = 15
+    } as uint16_t
+
+    type t = badAction
+
+    let to_string (cod : badAction) : string =
+      match cod with
+        | ActBadType -> "BadType"
+        | ActBadLen -> "BadLen"
+        | ActBadExp -> "Unknown experimenter id specified"
+        | ActBadExpType -> "BadExp"
+        | ActBadOutPort -> "BadOutPort"
+        | ActBadArg -> "BadArg"
+        | ActPermError -> "Permission_Error"
+        | ActTooMany -> "TooMany"
+        | ActBadQueue ->  "BadQueue"
+        | ActBadOutGroup ->  "BadOutGroup"
+        | ActMatchInconsistent -> "MatchInconsistent"
+        | ActUnsupportedOrder -> "UnsupportedOrder"
+        | ActBadTag -> "BadTag"
+        | ActBadSetTyp -> "BadSetTyp"
+        | ActBadSetLen -> "BadSetLen"
+        | ActBadSetArg -> "BadSetArg"
+
+    let marshal (cod : badAction) : int =
+      match cod with
+        | ActBadType -> ofp_bad_action_code_to_int OFPBAC_BAD_TYPE
+        | ActBadLen -> ofp_bad_action_code_to_int OFPBAC_BAD_LEN
+        | ActBadExp -> ofp_bad_action_code_to_int OFPBAC_BAD_EXPERIMENTER
+        | ActBadExpType -> ofp_bad_action_code_to_int OFPBAC_BAD_EXP_TYPE
+        | ActBadOutPort -> ofp_bad_action_code_to_int OFPBAC_BAD_OUT_PORT
+        | ActBadArg -> ofp_bad_action_code_to_int OFPBAC_BAD_ARGUMENT
+        | ActPermError -> ofp_bad_action_code_to_int OFPBAC_EPERM
+        | ActTooMany -> ofp_bad_action_code_to_int OFPBAC_TOO_MANY
+        | ActBadQueue -> ofp_bad_action_code_to_int OFPBAC_BAD_QUEUE
+        | ActBadOutGroup -> ofp_bad_action_code_to_int OFPBAC_BAD_OUT_GROUP
+        | ActMatchInconsistent -> ofp_bad_action_code_to_int OFPBAC_MATCH_INCONSISTENT
+        | ActUnsupportedOrder -> ofp_bad_action_code_to_int OFPBAC_UNSUPPORTED_ORDER
+        | ActBadTag -> ofp_bad_action_code_to_int OFPBAC_BAD_TAG
+        | ActBadSetTyp -> ofp_bad_action_code_to_int OFPBAC_BAD_SET_TYPE
+        | ActBadSetLen -> ofp_bad_action_code_to_int OFPBAC_BAD_SET_LEN
+        | ActBadSetArg -> ofp_bad_action_code_to_int OFPBAC_BAD_SET_ARGUMENT
+
+    let parse t : badAction =
+      match int_to_ofp_bad_action_code t with
+        | Some OFPBAC_BAD_TYPE -> ActBadType
+        | Some OFPBAC_BAD_LEN -> ActBadLen
+        | Some OFPBAC_BAD_EXPERIMENTER -> ActBadExp
+        | Some OFPBAC_BAD_EXP_TYPE -> ActBadExpType
+        | Some OFPBAC_BAD_OUT_PORT -> ActBadOutPort
+        | Some OFPBAC_BAD_ARGUMENT -> ActBadArg
+        | Some OFPBAC_EPERM -> ActPermError
+        | Some OFPBAC_TOO_MANY -> ActTooMany
+        | Some OFPBAC_BAD_QUEUE -> ActBadQueue
+        | Some OFPBAC_BAD_OUT_GROUP -> ActBadOutGroup
+        | Some OFPBAC_MATCH_INCONSISTENT -> ActMatchInconsistent
+        | Some OFPBAC_UNSUPPORTED_ORDER -> ActUnsupportedOrder
+        | Some OFPBAC_BAD_TAG -> ActBadTag
+        | Some OFPBAC_BAD_SET_TYPE -> ActBadSetTyp
+        | Some OFPBAC_BAD_SET_LEN -> ActBadSetLen
+        | Some OFPBAC_BAD_SET_ARGUMENT -> ActBadSetArg
+        | None -> raise (Unparsable (sprintf "malfomed bad_action code"))
+
+  end
+
+  module BadInstruction = struct
+
+    cenum ofp_bad_instruction_code {
+      OFPBIC_UNKNOWN_INST = 0;
+      OFPBIC_UNSUP_INST = 1;
+      OFPBIC_BAD_TABLE_ID = 2;
+      OFPBIC_UNSUP_METADATA = 3;
+      OFPBIC_UNSUP_METADATA_MASK = 4;
+      OFPBIC_BAD_EXPERIMENTER = 5;
+      OFPBIC_BAD_EXP_TYPE = 6;
+      OFPBIC_BAD_LEN = 7;
+      OFPBIC_EPERM = 8
+    } as uint16_t
+
+    type t = badInstruction
+
+    let to_string (cod : badInstruction) : string =
+      match cod with
+        | InstUnknownInst -> "UnknownInst"
+        | InstUnsupInst -> "UnsupInst"
+        | InstBadTableId -> "BadTableId"
+        | InstUnsupMeta -> "UnsupMeta"
+        | InstUnsupMetaMask -> "UnsupMetaMask"
+        | InstBadExp -> "BadExp"
+        | InstBadExpTyp -> "BadExpTyp"
+        | InstBadLen -> "BadLen"
+        | InstPermError -> "Permission_Error"
+
+     let marshal (cod : badInstruction) : int =
+      match cod with
+        | InstUnknownInst -> ofp_bad_instruction_code_to_int OFPBIC_UNKNOWN_INST
+        | InstBadTableId -> ofp_bad_instruction_code_to_int OFPBIC_BAD_TABLE_ID
+        | InstUnsupInst -> ofp_bad_instruction_code_to_int OFPBIC_UNSUP_INST
+        | InstUnsupMeta -> ofp_bad_instruction_code_to_int OFPBIC_UNSUP_METADATA
+        | InstUnsupMetaMask -> ofp_bad_instruction_code_to_int OFPBIC_UNSUP_METADATA_MASK
+        | InstBadExp -> ofp_bad_instruction_code_to_int OFPBIC_BAD_EXPERIMENTER
+        | InstBadExpTyp -> ofp_bad_instruction_code_to_int OFPBIC_BAD_EXP_TYPE
+        | InstBadLen -> ofp_bad_instruction_code_to_int OFPBIC_BAD_LEN
+        | InstPermError -> ofp_bad_instruction_code_to_int OFPBIC_EPERM
+
+    let parse t : badInstruction =
+      match int_to_ofp_bad_instruction_code t with
+        | Some OFPBIC_UNKNOWN_INST -> InstUnknownInst
+        | Some OFPBIC_BAD_TABLE_ID -> InstBadTableId
+        | Some OFPBIC_UNSUP_INST -> InstUnsupInst
+        | Some OFPBIC_UNSUP_METADATA -> InstUnsupMeta
+        | Some OFPBIC_UNSUP_METADATA_MASK -> InstUnsupMetaMask
+        | Some OFPBIC_BAD_EXPERIMENTER -> InstBadExp
+        | Some OFPBIC_BAD_EXP_TYPE -> InstBadExpTyp
+        | Some OFPBIC_BAD_LEN -> InstBadLen
+        | Some OFPBIC_EPERM -> InstPermError
+        | None -> raise (Unparsable (sprintf "malfomed bad_instruction code"))
+
+  end
+
+  module BadMatch = struct
+
+    cenum ofp_bad_match_code {
+      OFPBMC_BAD_TYPE = 0;
+      OFPBMC_BAD_LEN = 1;
+      OFPBMC_BAD_TAG = 2;
+      OFPBMC_BAD_DL_ADDR_MASK = 3;
+      OFPBMC_BAD_NW_ADDR_MASK = 4;
+      OFPBMC_BAD_WILDCARDS = 5;
+      OFPBMC_BAD_FIELD = 6;
+      OFPBMC_BAD_VALUE = 7;
+      OFPBMC_BAD_MASK = 8;
+      OFPBMC_BAD_PREREQ = 9;
+      OFPBMC_DUP_FIELD = 10;
+      OFPBMC_EPERM = 11
+    } as uint16_t
+
+    type t = badMatch
+
+    let to_string (cod : badMatch) : string =
+      match cod with
+        | MatBadTyp -> "BadTyp"
+        | MatBadLen -> "BadLen"
+        | MatBadTag -> "BadTag"
+        | MatBadDlAddrMask -> "BadDlAddrMask"
+        | MatBadNwAddrMask -> "BadNwAddrMask"
+        | MatBadWildcards -> "BadWildcards"
+        | MatBadField -> "BadField"
+        | MatBadValue -> "BadValue"
+        | MatBadMask -> "BadMask"
+        | MatBadPrereq -> "BadPrereq"
+        | MatDupField -> "DupField"
+        | MatPermError -> "Permission_Error"
+
+    let marshal (cod : badMatch) : int =
+      match cod with
+        | MatBadTyp -> ofp_bad_match_code_to_int OFPBMC_BAD_TYPE
+        | MatBadLen -> ofp_bad_match_code_to_int OFPBMC_BAD_LEN
+        | MatBadTag -> ofp_bad_match_code_to_int OFPBMC_BAD_TAG
+        | MatBadDlAddrMask -> ofp_bad_match_code_to_int OFPBMC_BAD_DL_ADDR_MASK
+        | MatBadNwAddrMask -> ofp_bad_match_code_to_int OFPBMC_BAD_NW_ADDR_MASK
+        | MatBadWildcards -> ofp_bad_match_code_to_int OFPBMC_BAD_WILDCARDS
+        | MatBadField -> ofp_bad_match_code_to_int OFPBMC_BAD_FIELD
+        | MatBadValue -> ofp_bad_match_code_to_int OFPBMC_BAD_VALUE
+        | MatBadMask -> ofp_bad_match_code_to_int OFPBMC_BAD_MASK
+        | MatBadPrereq -> ofp_bad_match_code_to_int OFPBMC_BAD_PREREQ
+        | MatDupField -> ofp_bad_match_code_to_int OFPBMC_DUP_FIELD
+        | MatPermError -> ofp_bad_match_code_to_int OFPBMC_EPERM
+
+    let parse t : badMatch =
+      match int_to_ofp_bad_match_code t with
+        | Some OFPBMC_BAD_TYPE -> MatBadTyp
+        | Some OFPBMC_BAD_LEN -> MatBadLen
+        | Some OFPBMC_BAD_TAG -> MatBadTag
+        | Some OFPBMC_BAD_DL_ADDR_MASK -> MatBadDlAddrMask
+        | Some OFPBMC_BAD_NW_ADDR_MASK -> MatBadNwAddrMask
+        | Some OFPBMC_BAD_WILDCARDS -> MatBadWildcards
+        | Some OFPBMC_BAD_FIELD -> MatBadField
+        | Some OFPBMC_BAD_VALUE -> MatBadValue
+        | Some OFPBMC_BAD_MASK -> MatBadMask
+        | Some OFPBMC_BAD_PREREQ -> MatBadPrereq
+        | Some OFPBMC_DUP_FIELD -> MatDupField
+        | Some OFPBMC_EPERM -> MatPermError
+        | None -> raise (Unparsable (sprintf "malfomed bad_match code"))
+
+  end
+
+  module FlowModFailed = struct 
+
+    cenum ofp_flow_mod_failed_code {
+      OFPFMFC_UNKNOWN = 0;
+      OFPFMFC_TABLE_FULL = 1;
+      OFPFMFC_BAD_TABLE_ID = 2;
+      OFPFMFC_OVERLAP = 3;
+      OFPFMFC_EPERM = 4;
+      OFPFMFC_BAD_TIMEOUT = 5;
+      OFPFMFC_BAD_COMMAND = 6;
+      OFPFMFC_BAD_FLAGS = 7
+    } as uint16_t
+
+    type t = flowModFailed
+
+    let to_string (cod : flowModFailed) : string =
+      match cod with
+        | FlUnknown -> "Unknown"
+        | FlTableFull -> "TableFull"
+        | FlBadTableId -> "BadTableId"
+        | FlOverlap -> "Overlap"
+        | FlPermError -> "Permission_Error"
+        | FlBadTimeout -> "BadTimeout"
+        | FlBadCommand -> "BadCommand"
+        | FlBadFlags  -> "BadFlags"
+
+    let marshal (cod : flowModFailed) : int =
+      match cod with
+        | FlUnknown -> ofp_flow_mod_failed_code_to_int OFPFMFC_UNKNOWN
+        | FlTableFull -> ofp_flow_mod_failed_code_to_int OFPFMFC_TABLE_FULL
+        | FlBadTableId -> ofp_flow_mod_failed_code_to_int OFPFMFC_BAD_TABLE_ID
+        | FlOverlap -> ofp_flow_mod_failed_code_to_int OFPFMFC_OVERLAP
+        | FlPermError -> ofp_flow_mod_failed_code_to_int OFPFMFC_EPERM
+        | FlBadTimeout -> ofp_flow_mod_failed_code_to_int OFPFMFC_BAD_TIMEOUT
+        | FlBadCommand -> ofp_flow_mod_failed_code_to_int OFPFMFC_BAD_COMMAND
+        | FlBadFlags  -> ofp_flow_mod_failed_code_to_int OFPFMFC_BAD_FLAGS
+
+    let parse t : flowModFailed = 
+      match int_to_ofp_flow_mod_failed_code t with
+        | Some OFPFMFC_UNKNOWN -> FlUnknown
+        | Some OFPFMFC_TABLE_FULL -> FlTableFull
+        | Some OFPFMFC_BAD_TABLE_ID -> FlBadTableId
+        | Some OFPFMFC_OVERLAP -> FlOverlap
+        | Some OFPFMFC_EPERM -> FlPermError
+        | Some OFPFMFC_BAD_TIMEOUT -> FlBadTimeout
+        | Some OFPFMFC_BAD_COMMAND -> FlBadCommand
+        | Some OFPFMFC_BAD_FLAGS -> FlBadFlags
+        | None -> raise (Unparsable (sprintf "malfomed flow mod failed code"))
+
+  end
+
+  module GroupModFailed = struct
+
+    cenum ofp_group_mod_failed_code {
+      OFPGMFC_GROUP_EXISTS = 0;
+      OFPGMFC_INVALID_GROUP = 1;
+      OFPGMFC_WEIGHT_UNSUPPORTED = 2;
+      OFPGMFC_OUT_OF_GROUPS = 3;
+      OFPGMFC_OUT_OF_BUCKETS = 4;
+      OFPGMFC_CHAINING_UNSUPPORTED = 5;
+      OFPGMFC_WATCH_UNSUPPORTED = 6;
+      OFPGMFC_LOOP = 7;
+      OFPGMFC_UNKNOWN_GROUP = 8;
+      OFPGMFC_CHAINED_GROUP = 9;
+      OFPGMFC_BAD_TYPE = 10;
+      OFPGMFC_BAD_COMMAND = 11;
+      OFPGMFC_BAD_BUCKET = 12;
+      OFPGMFC_BAD_WATCH = 13;
+      OFPGMFC_EPERM = 14
+    } as uint16_t
+
+    type t = groupModFailed
+
+    let to_string (cod : groupModFailed) : string =
+      match cod with
+        | GrGroupExists -> "GroupExists"
+        | GrInvalidGroup -> "InvalidGroup"
+        | GrWeightUnsupported -> "WeightUnsupported"
+        | GrOutOfGroups -> "OutOfGroups"
+        | GrOutOfBuckets -> "OutOfBuckets"
+        | GrChainingUnsupported -> "ChainingUnsupported"
+        | GrWatcHUnsupported -> "WatcHUnsupported"
+        | GrLoop -> "Loop"
+        | GrUnknownGroup -> "UnknownGroup"
+        | GrChainedGroup -> "ChainedGroup"
+        | GrBadTyp -> "BadTyp"
+        | GrBadCommand -> "BadCommand"
+        | GrBadBucket -> "BadBucket"
+        | GrBadWatch -> "BadWatch"
+        | GrPermError -> "Permission_Error"
+   
+    let marshal (cod : groupModFailed) : int =
+      match cod with
+        | GrGroupExists -> ofp_group_mod_failed_code_to_int OFPGMFC_GROUP_EXISTS
+        | GrInvalidGroup -> ofp_group_mod_failed_code_to_int OFPGMFC_INVALID_GROUP
+        | GrWeightUnsupported -> ofp_group_mod_failed_code_to_int OFPGMFC_WEIGHT_UNSUPPORTED
+        | GrOutOfGroups -> ofp_group_mod_failed_code_to_int OFPGMFC_OUT_OF_GROUPS
+        | GrOutOfBuckets -> ofp_group_mod_failed_code_to_int OFPGMFC_OUT_OF_BUCKETS
+        | GrChainingUnsupported -> ofp_group_mod_failed_code_to_int OFPGMFC_CHAINING_UNSUPPORTED
+        | GrWatcHUnsupported -> ofp_group_mod_failed_code_to_int OFPGMFC_WATCH_UNSUPPORTED
+        | GrLoop -> ofp_group_mod_failed_code_to_int OFPGMFC_LOOP
+        | GrUnknownGroup -> ofp_group_mod_failed_code_to_int OFPGMFC_UNKNOWN_GROUP
+        | GrChainedGroup -> ofp_group_mod_failed_code_to_int OFPGMFC_CHAINED_GROUP
+        | GrBadTyp -> ofp_group_mod_failed_code_to_int OFPGMFC_BAD_TYPE
+        | GrBadCommand -> ofp_group_mod_failed_code_to_int OFPGMFC_BAD_COMMAND
+        | GrBadBucket -> ofp_group_mod_failed_code_to_int OFPGMFC_BAD_BUCKET
+        | GrBadWatch -> ofp_group_mod_failed_code_to_int OFPGMFC_BAD_WATCH
+        | GrPermError -> ofp_group_mod_failed_code_to_int OFPGMFC_EPERM
+
+    let parse t : groupModFailed =
+      match int_to_ofp_group_mod_failed_code t with
+        | Some OFPGMFC_GROUP_EXISTS -> GrGroupExists
+        | Some OFPGMFC_INVALID_GROUP -> GrInvalidGroup
+        | Some OFPGMFC_WEIGHT_UNSUPPORTED -> GrWeightUnsupported
+        | Some OFPGMFC_OUT_OF_GROUPS -> GrOutOfGroups
+        | Some OFPGMFC_OUT_OF_BUCKETS -> GrOutOfBuckets
+        | Some OFPGMFC_CHAINING_UNSUPPORTED -> GrChainingUnsupported
+        | Some OFPGMFC_WATCH_UNSUPPORTED -> GrWatcHUnsupported
+        | Some OFPGMFC_LOOP -> GrLoop
+        | Some OFPGMFC_UNKNOWN_GROUP -> GrUnknownGroup
+        | Some OFPGMFC_CHAINED_GROUP -> GrChainedGroup
+        | Some OFPGMFC_BAD_TYPE -> GrBadTyp
+        | Some OFPGMFC_BAD_COMMAND -> GrBadCommand
+        | Some OFPGMFC_BAD_BUCKET -> GrBadBucket
+        | Some OFPGMFC_BAD_WATCH -> GrBadWatch
+        | Some OFPGMFC_EPERM -> GrPermError
+        | None -> raise (Unparsable (sprintf "malfomed group mod failed code"))
+
+  end
+
+  module PortModFailed = struct
+
+    cenum ofp_port_mod_failed_code {
+      OFPPMFC_BAD_PORT = 0;
+      OFPPMFC_BAD_HW_ADDR = 1;
+      OFPPMFC_BAD_CONFIG = 2;
+      OFPPMFC_BAD_ADVERTISE = 3;
+      OFPPMFC_EPERM = 4
+    } as uint16_t
+
+    type t = portModFailed
+
+    let to_string (cod : portModFailed) : string =
+      match cod with 
+        | PoBadPort -> "BadPort"
+        | PoBadHwAddr -> "BadHwAddr"
+        | PoBadConfig -> "BadConfig"
+        | PoBadAdvertise -> "BadAdvertise"
+        | PoPermError -> "Permission_Error"
+
+    let marshal (cod : portModFailed) : int =
+      match cod with 
+        | PoBadPort -> ofp_port_mod_failed_code_to_int OFPPMFC_BAD_PORT
+        | PoBadHwAddr -> ofp_port_mod_failed_code_to_int OFPPMFC_BAD_HW_ADDR
+        | PoBadConfig -> ofp_port_mod_failed_code_to_int OFPPMFC_BAD_CONFIG
+        | PoBadAdvertise -> ofp_port_mod_failed_code_to_int OFPPMFC_BAD_ADVERTISE
+        | PoPermError -> ofp_port_mod_failed_code_to_int OFPPMFC_EPERM
+
+    let parse t : portModFailed = 
+      match int_to_ofp_port_mod_failed_code t with
+        | Some OFPPMFC_BAD_PORT -> PoBadPort
+        | Some OFPPMFC_BAD_HW_ADDR -> PoBadHwAddr
+        | Some OFPPMFC_BAD_CONFIG -> PoBadConfig
+        | Some OFPPMFC_BAD_ADVERTISE -> PoBadAdvertise
+        | Some OFPPMFC_EPERM -> PoPermError
+        | None -> raise (Unparsable (sprintf "malfomed port mod failed code"))
+
+  end
+
+  module TableModFailed = struct
+
+    cenum ofp_table_mod_failed_code {
+      OFPTMFC_BAD_TABLE = 0;
+      OFPTMFC_BAD_CONFIG = 1;
+      OFPTMFC_EPERM = 2
+    } as uint16_t
+
+    type t = tableModFailed
+
+    let to_string (cod : tableModFailed) : string =
+      match cod with
+        | TaBadTable -> "BadTable"
+        | TaBadConfig -> "BadConfig"
+        | TaPermError -> "Permission_Error"
+
+    let marshal (cod : tableModFailed) : int =
+      match cod with
+        | TaBadTable -> ofp_table_mod_failed_code_to_int OFPTMFC_BAD_TABLE
+        | TaBadConfig -> ofp_table_mod_failed_code_to_int OFPTMFC_BAD_CONFIG
+        | TaPermError -> ofp_table_mod_failed_code_to_int OFPTMFC_EPERM
+
+    let parse t : tableModFailed = 
+      match int_to_ofp_table_mod_failed_code t with
+        | Some OFPTMFC_BAD_TABLE -> TaBadTable
+        | Some OFPTMFC_BAD_CONFIG -> TaBadConfig
+        | Some OFPTMFC_EPERM -> TaPermError
+        | None -> raise (Unparsable (sprintf "malfomed table mod failed code"))
+
+  end
+
+  module QueueOpFailed = struct
+
+    cenum ofp_queue_op_failed_code {
+      OFPQOFC_BAD_PORT = 0;
+      OFPQOFC_BAD_QUEUE = 1;
+      OFPQOFC_EPERM = 2
+    } as uint16_t
+
+    type t = queueOpFailed
+
+    let to_string (cod : queueOpFailed) : string =
+      match cod with
+        | QuBadPort -> "BadPort"
+        | QuBadQUeue -> "BadQUeue"
+        | QuPermError -> "Permission_Error"
+
+    let marshal (cod : queueOpFailed) : int =
+      match cod with
+        | QuBadPort -> ofp_queue_op_failed_code_to_int OFPQOFC_BAD_PORT
+        | QuBadQUeue -> ofp_queue_op_failed_code_to_int OFPQOFC_BAD_QUEUE
+        | QuPermError -> ofp_queue_op_failed_code_to_int OFPQOFC_EPERM
+
+    let parse t : queueOpFailed = 
+      match int_to_ofp_queue_op_failed_code t with
+        | Some OFPQOFC_BAD_PORT -> QuBadPort
+        | Some OFPQOFC_BAD_QUEUE -> QuBadQUeue
+        | Some OFPQOFC_EPERM -> QuPermError
+        | None -> raise (Unparsable (sprintf "malfomed queue op failed code"))
+
+  end 
+
+  module SwitchConfigFailed = struct
+
+    cenum ofp_switch_config_failed_code {
+      OFPSCFC_BAD_FLAGS = 0;
+      OFPSCFC_BAD_LEN = 1;
+      OFPSCFC_EPERM = 2
+    } as uint16_t
+
+    type t = switchConfigFailed
+
+    let to_string (cod : switchConfigFailed) : string =
+      match cod with 
+        | ScBadFlags ->  "BadFlags"
+        | ScBadLen -> "BadLen"
+        | ScPermError -> "Permission_Error"
+
+    let marshal (cod : switchConfigFailed) : int =
+      match cod with 
+        | ScBadFlags ->  ofp_switch_config_failed_code_to_int OFPSCFC_BAD_FLAGS
+        | ScBadLen -> ofp_switch_config_failed_code_to_int OFPSCFC_BAD_LEN
+        | ScPermError -> ofp_switch_config_failed_code_to_int OFPSCFC_EPERM
+
+    let parse t : switchConfigFailed =
+      match int_to_ofp_switch_config_failed_code t with
+        | Some OFPSCFC_BAD_FLAGS -> ScBadFlags
+        | Some OFPSCFC_BAD_LEN -> ScBadLen
+        | Some OFPSCFC_EPERM -> ScPermError
+        | None -> raise (Unparsable (sprintf "malfomed switch config failed code"))
+
+  end
+
+  module RoleReqFailed = struct
+
+    cenum ofp_role_request_failed_code {
+      OFPRRFC_STALE = 0;
+      OFPRRFC_UNSUP = 1;
+      OFPRRFC_BAD_ROLE = 2
+    } as uint16_t
+
+    type t = roleReqFailed
+
+    let to_string (cod : roleReqFailed) : string =
+      match cod with
+        | RoStale -> "Stale"
+        | RoUnsup -> "Unsup"
+        | RoBadRole -> "BadRole"
+
+    let marshal (cod : roleReqFailed) : int =
+      match cod with
+        | RoStale -> ofp_role_request_failed_code_to_int OFPRRFC_STALE
+        | RoUnsup -> ofp_role_request_failed_code_to_int OFPRRFC_UNSUP
+        | RoBadRole -> ofp_role_request_failed_code_to_int OFPRRFC_BAD_ROLE
+
+    let parse t : roleReqFailed =
+      match int_to_ofp_role_request_failed_code t with
+        | Some OFPRRFC_STALE -> RoStale
+        | Some OFPRRFC_UNSUP -> RoUnsup
+        | Some OFPRRFC_BAD_ROLE -> RoBadRole
+        | None -> raise (Unparsable (sprintf "malfomed role request failed code"))
+
+  end
+
+  module MeterModFailed = struct
+
+    cenum ofp_meter_mod_failed_code {
+      OFPMMFC_UNKNOWN = 0;
+      OFPMMFC_METER_EXISTS = 1;
+      OFPMMFC_INVALID_METER = 2;
+      OFPMMFC_UNKNOWN_METER = 3;
+      OFPMMFC_BAD_COMMAND = 4;
+      OFPMMFC_BAD_FLAGS = 5;
+      OFPMMFC_BAD_RATE = 6;
+      OFPMMFC_BAD_BURST = 7;
+      OFPMMFC_BAD_BAND = 8;
+      OFPMMFC_BAD_BAND_VALUE = 9;
+      OFPMMFC_OUT_OF_METERS = 10;
+      OFPMMFC_OUT_OF_BANDS = 11
+    } as uint16_t
+
+    type t = meterModFailed
+
+    let to_string (cod : meterModFailed) : string =
+      match cod with
+        | MeUnknown -> "Unknown"
+        | MeMeterExists -> "MeterExists"
+        | MeInvalidMeter -> "InvalidMeter"
+        | MeUnknownMeter -> "UnknownMeter"
+        | MeBadCommand -> "BadCommand"
+        | MeBadFlags -> "BadFlags"
+        | MeBadRate -> "BadRate"
+        | MeBadBurst -> "BadBurst"
+        | MeBadBand -> "BadBand"
+        | MeBadBandValue -> "BadBandValue"
+        | MeOutOfMeters -> "OutOfMeters"
+        | MeOutOfBands -> "OutOfBands"
+
+    let marshal (cod : meterModFailed) : int =
+      match cod with
+        | MeUnknown -> ofp_meter_mod_failed_code_to_int OFPMMFC_UNKNOWN
+        | MeMeterExists -> ofp_meter_mod_failed_code_to_int OFPMMFC_METER_EXISTS
+        | MeInvalidMeter -> ofp_meter_mod_failed_code_to_int OFPMMFC_INVALID_METER
+        | MeUnknownMeter -> ofp_meter_mod_failed_code_to_int OFPMMFC_UNKNOWN_METER
+        | MeBadCommand -> ofp_meter_mod_failed_code_to_int OFPMMFC_BAD_COMMAND
+        | MeBadFlags -> ofp_meter_mod_failed_code_to_int OFPMMFC_BAD_FLAGS
+        | MeBadRate -> ofp_meter_mod_failed_code_to_int OFPMMFC_BAD_RATE
+        | MeBadBurst -> ofp_meter_mod_failed_code_to_int OFPMMFC_BAD_BURST
+        | MeBadBand -> ofp_meter_mod_failed_code_to_int OFPMMFC_BAD_BAND
+        | MeBadBandValue -> ofp_meter_mod_failed_code_to_int OFPMMFC_BAD_BAND_VALUE
+        | MeOutOfMeters -> ofp_meter_mod_failed_code_to_int OFPMMFC_OUT_OF_METERS
+        | MeOutOfBands -> ofp_meter_mod_failed_code_to_int OFPMMFC_OUT_OF_BANDS
+
+    let parse t : meterModFailed = 
+      match int_to_ofp_meter_mod_failed_code t with
+        | Some OFPMMFC_UNKNOWN -> MeUnknown
+        | Some OFPMMFC_METER_EXISTS -> MeMeterExists
+        | Some OFPMMFC_INVALID_METER -> MeInvalidMeter
+        | Some OFPMMFC_UNKNOWN_METER -> MeUnknownMeter
+        | Some OFPMMFC_BAD_COMMAND -> MeBadCommand
+        | Some OFPMMFC_BAD_FLAGS -> MeBadFlags
+        | Some OFPMMFC_BAD_RATE -> MeBadRate
+        | Some OFPMMFC_BAD_BURST -> MeBadBurst
+        | Some OFPMMFC_BAD_BAND -> MeBadBand
+        | Some OFPMMFC_BAD_BAND_VALUE -> MeBadBandValue
+        | Some OFPMMFC_OUT_OF_METERS -> MeOutOfMeters
+        | Some OFPMMFC_OUT_OF_BANDS -> MeOutOfBands
+        | None -> raise (Unparsable (sprintf "malfomed meter mod failed code"))
+
+  end
+
+  module TableFeatFailed = struct
+
+    cenum ofp_table_features_failed_code {
+      OFPTFFC_BAD_TABLE = 0;
+      OFPTFFC_BAD_METADATA = 1;
+      OFPTFFC_BAD_TYPE = 2;
+      OFPTFFC_BAD_LEN = 3;
+      OFPTFFC_BAD_ARGUMENT = 4;
+      OFPTFFC_EPERM = 5
+    } as uint16_t 
+
+    type t = tableFeatFailed
+
+    let to_string (cod : tableFeatFailed) : string =
+      match cod with
+        | TfBadTable -> "BadTable"
+        | TfBadMeta -> "BadMeta"
+        | TfBadType -> "BadType"
+        | TfBadLen -> "BadLen"
+        | TfBadArg -> "BadArg"
+        | TfPermError -> "Permission_Error"
+
+    let marshal (cod : tableFeatFailed) : int =
+      match cod with
+        | TfBadTable -> ofp_table_features_failed_code_to_int OFPTFFC_BAD_TABLE
+        | TfBadMeta -> ofp_table_features_failed_code_to_int OFPTFFC_BAD_METADATA
+        | TfBadType -> ofp_table_features_failed_code_to_int OFPTFFC_BAD_TYPE
+        | TfBadLen -> ofp_table_features_failed_code_to_int OFPTFFC_BAD_LEN
+        | TfBadArg -> ofp_table_features_failed_code_to_int OFPTFFC_BAD_ARGUMENT
+        | TfPermError -> ofp_table_features_failed_code_to_int OFPTFFC_EPERM
+
+    let parse t : tableFeatFailed = 
+      match int_to_ofp_table_features_failed_code t with
+        | Some OFPTFFC_BAD_TABLE -> TfBadTable
+        | Some OFPTFFC_BAD_METADATA -> TfBadMeta
+        | Some OFPTFFC_BAD_TYPE -> TfBadType
+        | Some OFPTFFC_BAD_LEN -> TfBadLen
+        | Some OFPTFFC_BAD_ARGUMENT -> TfBadArg
+        | Some OFPTFFC_EPERM -> TfPermError
+        | None -> raise (Unparsable (sprintf "malfomed table features failed code"))
+
+  end
+
+  cstruct ofp_error_experimenter_msg {
+    uint16_t typ;
+    uint16_t exp_type;
+    uint32_t experimenter
+  } as big_endian
+
+  let experimenterFailed_to_string (exp : experimenterFailed) : string =
+    Format.sprintf "Exp type : %u; exp ID: %lu"
+    exp.exp_typ
+    exp.exp_id
+
+  let to_string (t : t) : string =
+    match t.err with
+      | HelloFailed h -> Format.sprintf "Hello Failed error, code: %s" (HelloFailed.to_string h)
+      | BadRequest br -> Format.sprintf "Bad Request error, code: %s" (BadRequest.to_string br)
+      | BadAction ba -> Format.sprintf "Bad Action error, code: %s" (BadAction.to_string ba)
+      | BadInstruction bi -> Format.sprintf "Bad Instruction error, code: %s" (BadInstruction.to_string bi)
+      | BadMatch bm -> Format.sprintf "Bad Match error, code: %s" (BadMatch.to_string bm)
+      | FlowModFailed fm -> Format.sprintf "Flow Mod Failed error, code: %s" (FlowModFailed.to_string fm)
+      | GroupModFailed gm -> Format.sprintf "Group Mod Failed error, code: %s" (GroupModFailed.to_string gm)
+      | PortModFailed pm -> Format.sprintf "Port Mod Failed error, code: %s" (PortModFailed.to_string pm)
+      | TableModFailed tm -> Format.sprintf "Table Mod Failed error, code: %s" (TableModFailed.to_string tm)
+      | QueueOpFailed qo -> Format.sprintf "Queue Op Failed error, code: %s" (QueueOpFailed.to_string qo)
+      | SwitchConfigFailed sc -> Format.sprintf "Switch Config Failed error, code: %s" (SwitchConfigFailed.to_string sc)
+      | RoleReqFailed rr -> Format.sprintf "Role Request Failed error, code: %s" (RoleReqFailed.to_string rr)
+      | MeterModFailed mm -> Format.sprintf "Meter Mod Failed error, code: %s" (MeterModFailed.to_string mm)
+      | TableFeatFailed tf -> Format.sprintf "Table Features Failed error, code: %s" (TableFeatFailed.to_string tf)
+      | ExperimenterFailed e -> Format.sprintf "Experimenter Failed error, code: %s" (experimenterFailed_to_string e)
+
+  let sizeof (t : t) : int =
+    match t.err with
+      | ExperimenterFailed _ -> sizeof_ofp_error_experimenter_msg + (Cstruct.len t.data)
+      | _ -> sizeof_ofp_error_msg + (Cstruct.len t.data)
+
+  let marshal (buf : Cstruct.t) (t : t) : int =
+    match t.err with
+      | HelloFailed h ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_HELLO_FAILED);
+        set_ofp_error_msg_code buf (HelloFailed.marshal h);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | BadRequest br ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_BAD_REQUEST);
+        set_ofp_error_msg_code buf (BadRequest.marshal br);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | BadAction ba ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_BAD_ACTION);
+        set_ofp_error_msg_code buf (BadAction.marshal ba);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | BadInstruction bi ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_BAD_INSTRUCTION);
+        set_ofp_error_msg_code buf (BadInstruction.marshal bi);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | BadMatch bm ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_BAD_MATCH);
+        set_ofp_error_msg_code buf (BadMatch.marshal bm);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | FlowModFailed fm ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_FLOW_MOD_FAILED);
+        set_ofp_error_msg_code buf (FlowModFailed.marshal fm);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | GroupModFailed gm ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_GROUP_MOD_FAILED);
+        set_ofp_error_msg_code buf (GroupModFailed.marshal gm);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | PortModFailed pm ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_PORT_MOD_FAILED);
+        set_ofp_error_msg_code buf (PortModFailed.marshal pm);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | TableModFailed tm ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_TABLE_MOD_FAILED);
+        set_ofp_error_msg_code buf (TableModFailed.marshal tm);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | QueueOpFailed qo ->
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_QUEUE_OP_FAILED);
+        set_ofp_error_msg_code buf (QueueOpFailed.marshal qo);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | SwitchConfigFailed sc -> 
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_SWITCH_CONFIG_FAILED);
+        set_ofp_error_msg_code buf (SwitchConfigFailed.marshal sc);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | RoleReqFailed rr -> 
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_ROLE_REQUEST_FAILED);
+        set_ofp_error_msg_code buf (RoleReqFailed.marshal rr);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | MeterModFailed mm -> 
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_METER_MOD_FAILED);
+        set_ofp_error_msg_code buf (MeterModFailed.marshal mm);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | TableFeatFailed tf -> 
+        set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_TABLE_FEATURES_FAILED);
+        set_ofp_error_msg_code buf (TableFeatFailed.marshal tf);
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_msg + (Cstruct.len t.data)
+      | ExperimenterFailed e -> 
+        set_ofp_error_experimenter_msg_typ buf (ofp_error_type_to_int OFPET_EXPERIMENTER);
+        set_ofp_error_experimenter_msg_exp_type buf e.exp_typ;
+        set_ofp_error_experimenter_msg_experimenter buf e.exp_id;
+        let dataBuf = Cstruct.shift buf sizeof_ofp_error_experimenter_msg in
+        Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
+        sizeof_ofp_error_experimenter_msg + (Cstruct.len t.data)
+
   let parse (bits : Cstruct.t) : t =
     let typ = get_ofp_error_msg_typ bits in
     let code = get_ofp_error_msg_code bits in
-    { typ; code }
-
-  let to_string (error : t) : string =
-    Format.sprintf "error type=%d, code=%d" error.typ error.code
+    let err =  match int_to_ofp_error_type typ with
+      | Some OFPET_HELLO_FAILED -> HelloFailed (HelloFailed.parse code)
+      | Some OFPET_BAD_REQUEST -> BadRequest (BadRequest.parse code)
+      | Some OFPET_BAD_ACTION -> BadAction (BadAction.parse code)
+      | Some OFPET_BAD_INSTRUCTION -> BadInstruction (BadInstruction.parse code)
+      | Some OFPET_BAD_MATCH -> BadMatch (BadMatch.parse code)
+      | Some OFPET_FLOW_MOD_FAILED -> FlowModFailed (FlowModFailed.parse code)
+      | Some OFPET_GROUP_MOD_FAILED -> GroupModFailed (GroupModFailed.parse code)
+      | Some OFPET_PORT_MOD_FAILED -> PortModFailed (PortModFailed.parse code)
+      | Some OFPET_TABLE_MOD_FAILED -> TableModFailed (TableModFailed.parse code)
+      | Some OFPET_QUEUE_OP_FAILED -> QueueOpFailed (QueueOpFailed.parse code)
+      | Some OFPET_SWITCH_CONFIG_FAILED -> SwitchConfigFailed (SwitchConfigFailed.parse code)
+      | Some OFPET_ROLE_REQUEST_FAILED -> RoleReqFailed (RoleReqFailed.parse code)
+      | Some OFPET_METER_MOD_FAILED -> MeterModFailed (MeterModFailed.parse code)
+      | Some OFPET_TABLE_FEATURES_FAILED -> TableFeatFailed (TableFeatFailed.parse code)
+      | Some OFPET_EXPERIMENTER -> (
+        let exp_typ = get_ofp_error_experimenter_msg_exp_type bits in
+        let exp_id = get_ofp_error_experimenter_msg_experimenter bits in
+        ExperimenterFailed ({exp_typ; exp_id}) )
+      | None -> raise (Unparsable (sprintf "malfomed type error")) in
+    let err_bits = match err with 
+      | ExperimenterFailed _ -> Cstruct.shift bits sizeof_ofp_error_experimenter_msg
+      | _ -> Cstruct.shift bits sizeof_ofp_error_msg in
+    let data = Cstruct.create (Cstruct.len err_bits) in
+    (* create a new Cstruct to set the offset to 0 *)
+    Cstruct.blit err_bits 0 data 0 (Cstruct.len err_bits);
+    { err; data }
 
 end
 
@@ -4567,7 +5819,8 @@ module Message = struct
         Header.size + PacketIn.marshal out pi
       | PortStatusMsg ps -> 
         Header.size + PortStatus.marshal out ps
-      | Error _ -> failwith "NYI: marshall Error"
+      | Error err -> 
+        Header.size + Error.marshal out err
 
 
   let header_of xid msg =
@@ -4597,6 +5850,7 @@ module Message = struct
       | ECHO_RESP -> EchoReply body_bits
       | FEATURES_RESP -> FeaturesReply (SwitchFeatures.parse body_bits)
       | PACKET_IN -> PacketInMsg (PacketIn.parse body_bits)
+      | PACKET_OUT -> PacketOutMsg (PacketOut.parse body_bits)
       | ECHO_REQ -> EchoRequest body_bits
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
       | MULTIPART_REQ -> MultipartReq (MultipartReq.parse body_bits)

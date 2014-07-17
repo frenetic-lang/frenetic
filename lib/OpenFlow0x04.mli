@@ -33,6 +33,8 @@ end
 
 module Oxm : sig
 
+  type t = oxm
+
   val field_name : oxm -> string
 
   val sizeof : oxm -> int 
@@ -249,9 +251,13 @@ end
 
 module PacketOut : sig
 
+  type t = packetOut
+
   val sizeof : packetOut -> int
+  val to_string : packetOut -> string
 
   val marshal : Cstruct.t -> packetOut -> int
+  val parse : Cstruct.t -> packetOut
 
 end
 
@@ -560,12 +566,13 @@ end
 module Error : sig
 
   type t = {
-    typ : int16;
-    code : int16;
+    err : errorTyp;
+    data : bytes;
   }
 
+  val marshal : Cstruct.t -> t -> int
   val parse : Cstruct.t -> t
-
+  val sizeof : t -> int
   val to_string : t -> string
 
 end
