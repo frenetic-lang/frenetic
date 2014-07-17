@@ -749,7 +749,7 @@ let compare_uint32 a b =
     a' <= b'
 
 let set_ofp_uint48_value (buf : Cstruct.t) (value : uint48) =
-  let high = Int32.of_int ((Int64.to_int value) lsr 16) in
+  let high = Int64.to_int32 (Int64.shift_right_logical  value 16) in  
     let low = ((Int64.to_int value) land 0xffff) in
       set_ofp_uint48_high buf high;
       set_ofp_uint48_low buf low
