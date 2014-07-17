@@ -2346,7 +2346,7 @@ module Bucket = struct
     (match bucket.bu_watch_group with
       | Some n -> Int32.to_string n
       | None -> "None")
-    (String.concat "\n" (map Action.to_string bucket.bu_actions))
+    ( "[ " ^ (String.concat "; " (map Action.to_string bucket.bu_actions)) ^ " ]")
 
   let length_func (buf : Cstruct.t) : int option =
     if Cstruct.len buf < sizeof_ofp_bucket then None
@@ -2522,7 +2522,7 @@ module PortMod = struct
     sizeof_ofp_port_mod
 
   let to_string (pm : portMod) : string =
-    Format.sprintf "port no: %lu; hw addr: %s; config: %s; mask: %s; advertise: %s"
+    Format.sprintf "{ port_no = %lu; hw_addr = %s; config = %s; mask = %s; advertise = %s }"
     pm.mpPortNo
     (string_of_mac pm.mpHw_addr)
     (PortConfig.to_string pm.mpConfig)
@@ -2655,9 +2655,9 @@ module MeterMod = struct
 
     let to_string (t :  meterCommand) = 
       match t with
-        | AddMeter -> "New meter"
-        | ModifyMeter -> "Modify specified meter"
-        | DeleteMeter -> "Delete specified meter"
+        | AddMeter -> "AddMeter"
+        | ModifyMeter -> "ModifyMeter"
+        | DeleteMeter -> "DeleteMmeter"
 
     let marshal (t : meterCommand) : int =
       match t with
@@ -2677,11 +2677,11 @@ module MeterMod = struct
     sizeof_ofp_meter_mod + (sum (map MeterBand.sizeof mm.bands))
 
   let to_string (mm : meterMod) : string =
-    Format.sprintf "command : %s; flags: %s; meter id: %lu; bands: \n%s"
+    Format.sprintf "{ command = %s; flags = %s = meter_id = %lu; bands = %s }"
     (Command.to_string mm.command)
     (MeterFlags.to_string mm.flags)
     mm.meter_id
-    (String.concat "\n" (map MeterBand.to_string mm.bands))
+    ("[ " ^ (String.concat "; " (map MeterBand.to_string mm.bands)) ^ " ]")
 
   let marshal (buf : Cstruct.t) (mm : meterMod) : int =
     set_ofp_meter_mod_commands buf (Command.marshal mm.command);
@@ -2704,9 +2704,9 @@ module Instruction = struct
   let to_string ins =
     match ins with
       | GotoTable t -> Format.sprintf "Go to Table = %u" t
-      | ApplyActions actions -> Format.sprintf "Apply Actions = %s"
+      | ApplyActions actions -> Format.sprintf "Apply Actions = [ %s ]"
                                 (String.concat ";" (map Action.to_string actions))
-      | WriteActions actions -> Format.sprintf "Write Actions = %s" 
+      | WriteActions actions -> Format.sprintf "Write Actions = [ %s ]" 
                                 (String.concat ";" (map Action.to_string actions))
       | WriteMetadata meta -> 
         (match meta.m_mask with
@@ -3294,7 +3294,7 @@ module PacketOut = struct
     (match po.po_port_id with
       | Some n -> Int32.to_string n
       | None -> "No Port")
-    (String.concat "\n" (map Action.to_string po.po_actions))
+    ( "[ " ^ (String.concat "; " (map Action.to_string po.po_actions)) ^ " ]")
 
   let marshal (buf : Cstruct.t) (po : packetOut) : int =
     let size = sizeof po in
@@ -3599,41 +3599,41 @@ module TableFeatureProp = struct
          | TfpInstructionMiss i-> 
             (Format.sprintf "InstructionMiss %s" (Instructions.to_string i))
          | TfpNextTable n-> 
-            (Format.sprintf "NextTable %s" 
-            (String.concat " " (map string_of_int n)))
+            (Format.sprintf "NextTable [ %s ]" 
+            (String.concat "; " (map string_of_int n)))
          | TfpNextTableMiss n -> 
-            (Format.sprintf "NextTableMiss %s" 
-            (String.concat " " (map string_of_int n)))
+            (Format.sprintf "NextTableMiss [ %s ]" 
+            (String.concat "; " (map string_of_int n)))
          | TfpWriteAction a -> 
-            (Format.sprintf "WriteAction %s"
-            (String.concat "\n" (map Action.to_string a)))
+            (Format.sprintf "WriteAction [ %s ]"
+            (String.concat "; " (map Action.to_string a)))
          | TfpWriteActionMiss a -> 
-            (Format.sprintf "WriteActionMiss %s"
-            (String.concat "\n" (map Action.to_string a)))
+            (Format.sprintf "WriteActionMiss [ %s ]"
+            (String.concat "; " (map Action.to_string a)))
          | TfpApplyAction a -> 
-            (Format.sprintf "ApplyActions %s"
-            (String.concat "\n" (map Action.to_string a)))
+            (Format.sprintf "ApplyActions [ %s ]"
+            (String.concat "; " (map Action.to_string a)))
          | TfpApplyActionMiss a -> 
-            (Format.sprintf "ApplyActionsMiss %s"
-            (String.concat "\n" (map Action.to_string a)))
+            (Format.sprintf "ApplyActionsMiss [ %s ]"
+            (String.concat "; " (map Action.to_string a)))
          | TfpMatch s -> 
-            (Format.sprintf "Match %s"
-            (String.concat "\n" (map Oxm.field_name s)))
+            (Format.sprintf "Match [ %s ]"
+            (String.concat "; " (map Oxm.field_name s)))
          | TfpWildcard s -> 
-            (Format.sprintf "MatchMiss %s"
-            (String.concat "\n" (map Oxm.field_name s)))
+            (Format.sprintf "MatchMiss [ %s ]"
+            (String.concat "; " (map Oxm.field_name s)))
          | TfpWriteSetField s -> 
-            (Format.sprintf "WriteSetField %s"
-            (String.concat "\n" (map Oxm.field_name s)))
+            (Format.sprintf "WriteSetField [ %s ]"
+            (String.concat "; " (map Oxm.field_name s)))
          | TfpWriteSetFieldMiss s -> 
-            (Format.sprintf "WriteSetFieldMiss %s"
-            (String.concat "\n" (map Oxm.field_name s)))
+            (Format.sprintf "WriteSetFieldMiss [ %s ]"
+            (String.concat "; " (map Oxm.field_name s)))
          | TfpApplySetField s -> 
-            (Format.sprintf "ApplySetField %s"
-            (String.concat "\n" (map Oxm.field_name s)))
+            (Format.sprintf "ApplySetField [ %s ]"
+            (String.concat "; " (map Oxm.field_name s)))
          | TfpApplySetFieldMiss s -> 
-            (Format.sprintf "ApplySetFieldMiss %s"
-            (String.concat "\n" (map Oxm.field_name s)))
+            (Format.sprintf "ApplySetFieldMiss [ %s ]"
+            (String.concat "; " (map Oxm.field_name s)))
          | TfpExperimenter (e,_)-> 
             (Format.sprintf "Experimenter<id=%lu>; typ = %lu" e.exp_id e.exp_type)
          | TfpExperimenterMiss (e,_)-> 
@@ -4760,8 +4760,8 @@ module MultipartReply = struct
       | FlowStatsReply fsr -> Format.sprintf "Flow { %s }" (String.concat "; " (map FlowStats.to_string fsr))
       | AggregateReply ag -> Format.sprintf "Aggregate Flow %s" (AggregateStats.to_string ag)
       | TableReply tr -> Format.sprintf "TableReply { %s }" (String.concat "; " (map TableStats.to_string tr))
-      | TableFeaturesReply tf -> Format.sprintf "TableFeaturesReply %S" (TableFeatures.to_string tf)
-      | PortStatsReply psr -> Format.sprintf "PortStatsReply %s" (String.concat "; " (map PortStats.to_string psr))
+      | TableFeaturesReply tf -> Format.sprintf "TableFeaturesReply %s" (TableFeatures.to_string tf)
+      | PortStatsReply psr -> Format.sprintf "PortStatsReply  %s" (String.concat "; " (map PortStats.to_string psr))
       | QueueStatsReply qsr -> Format.sprintf "QueueStats %s" (String.concat "; " (map QueueStats.to_string qsr))
       | GroupStatsReply gs -> Format.sprintf "GroupStats %s" (String.concat "; " (map GroupStats.to_string gs))
       | GroupDescReply gd -> Format.sprintf "GroupSDesc %s" (String.concat "; " (map GroupDesc.to_string gd))
