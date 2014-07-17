@@ -154,11 +154,14 @@ module Switch = struct
       t
   end
 
+  let gpred =
+    let open NetKAT_Types in
+    Test(EthSrc Probe.mac)
+
   let guard app =
     let open NetKAT_Types in
     let open Async_NetKAT in
-    let gpol = Filter(And(Neg(Test(EthSrc Probe.mac)),
-                          Neg(Test(EthType Probe.protocol)))) in
+    let gpol = Filter(Neg(gpred)) in
     seq (create_static gpol) app
 
   let create () =
@@ -166,9 +169,7 @@ module Switch = struct
     let open Async_NetKAT in
     (* The default and static policy. This should be installed on all switches
      * and never change. *)
-    let default = Seq(Filter(And(Test(EthType Probe.protocol),
-                                 Test(EthSrc  Probe.mac))),
-                      Mod(Location(Pipe("probe")))) in
+    let default = Seq(Filter(gpred), Mod(Location(Pipe("probe")))) in
     (* A pipe for packet_outs *)
     let o_r, o_w = Pipe.create () in
 
@@ -218,7 +219,7 @@ module Switch = struct
                 "Discovery.handler: not listening to pipe \"%s\"" p));
           let open Packet in
           begin match parse (SDN_Types.payload_bytes payload) with
-            | { nw = Unparsable (dlTyp, bytes) } ->
+            | { nw = Unparsable (dlTyp, bytes) } when dlTyp = Probe.protocol ->
               t := handle_probe !t sw_id pt_id (Probe.parse bytes)
             | _ -> ();
           end;
