@@ -2483,9 +2483,9 @@ module PortStatus = struct
 
     let to_string (pr : portReason) = 
       match pr with
-        | PortAdd -> "Port Add"
-        | PortDelete -> "Port Delete"
-        | PortModify -> "Port Modify"
+        | PortAdd -> "PortAdd"
+        | PortDelete -> "PortDelete"
+        | PortModify -> "PortModify"
 
     let parse t : portReason = 
       match int_to_ofp_port_reason t with
@@ -2689,10 +2689,10 @@ module FlowRemoved = struct
 
     let to_string (t : flowReason) : string =
       match t with
-        | FlowIdleTimeout -> "OFPRR_IDLE_TIMEOUT"
-        | FlowHardTiemout -> "OFPRR_HARD_TIMEOUT"
-        | FlowDelete -> "OFPRR_DELETE"
-        | FlowGroupDelete -> "OFPRR_GROUP_DELETE"
+        | FlowIdleTimeout -> "IDLE_TIMEOUT"
+        | FlowHardTiemout -> "HARD_TIMEOUT"
+        | FlowDelete -> "DELETE"
+        | FlowGroupDelete -> "GROUP_DELETE"
 
     let marshal (t : flowReason) : int8 =
       match t with
@@ -2730,9 +2730,9 @@ module FlowRemoved = struct
     sizeof_ofp_flow_removed + (OfpMatch.sizeof f.oxm)
 
   let to_string (f : flowRemoved) : string =
-   Format.sprintf "cookie: %Lu; priotity: %u; reason: %s; table ID: %u;\
-   duration s/ns: %lu/%lu; idle timeout: %s; hard timeout: %s; packet count: %Lu;\
-   byte count: %Lu; match: %s"
+   Format.sprintf "{ cookie = %Lu; priotity = %u; reason = %s; table_id = %u;\
+   duration s/ns = %lu/%lu; idle_timeout = %s; hard_timeout = %s; packet_count = %Lu;\
+   byte_count = %Lu; match = %s }"
    f.cookie
    f.priority
    (RemovedReason.to_string f.reason)
@@ -4020,9 +4020,9 @@ module AsyncConfig = struct
     sizeof_ofp_async_config
 
   let to_string (async : asyncConfig) : string =
-    Format.sprintf "packet_in Reason (master/slave): %s/%s\n\
-    port_status reason (master/slave): %s/%s\n\
-    flow_removed reason (master/slave): %s/%s"
+    Format.sprintf "{ packet_in reason (master/slave) = %s/%s; \
+    port_status reason (master/slave) = %s/%s; \
+    flow_removed reason (master/slave) = %s/%s }"
     (PacketIn.Reason.to_string async.packet_in.m_master)
     (PacketIn.Reason.to_string async.packet_in.m_slave)
     (PortStatus.Reason.to_string async.port_status.m_master)
