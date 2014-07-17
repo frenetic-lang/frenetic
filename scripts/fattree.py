@@ -34,7 +34,7 @@ def mk_topo(pods, bw):
                     for i in range(num_core_switches + 1,num_core_switches + num_agg_switches+ 1)]
 
     g = nx.DiGraph()
-    g.add_nodes_from(hosts,type='host')
+    g.add_nodes_from(hosts)
     g.add_nodes_from(core_switches)
     g.add_nodes_from(agg_switches)
 
