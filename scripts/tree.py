@@ -28,23 +28,25 @@ def mk_mac(i):
 
 def mk_ip(i):
     # Generate IPs starting at 111.0.0.0
-    ip = IPAddress(i)
+    ip_base = 1862270976
+    ip = IPAddress(ip_base + i)
     return str(ip)
 
 def mk_topo(fanout,depth,bw,mult):
-    ip_base = 1862270976
     num_hosts = fanout ** depth
     num_switches = (1 - (fanout ** depth)) / (1 - fanout)
 
-    switch_ids = [('s' + str(i), {'id':i}) for i in range(1,num_switches + 1)]
-    switches = [swid[0] for swid in switch_ids]
-    hosts = [('h' + str(i), {'mac':mk_mac(i) , 'ip':mk_ip(ip_base + i)})
+    switches = [('s' + str(i), {'type':'switch','id':i})
+                  for i in range(1,num_switches + 1)]
+
+    hosts = [('h' + str(i), {'type':'host', 'mac':mk_mac(i), 'ip':mk_ip(i)})
              for i in range (1, num_hosts + 1)]
+
     nodes = switches + hosts
 
     g = nx.DiGraph()
-    g.add_nodes_from(switch_ids, type='switch')
-    g.add_nodes_from(hosts, type='host')
+    g.add_nodes_from(switches)
+    g.add_nodes_from(hosts)
 
     offset = 0
     parent_offset = 0
