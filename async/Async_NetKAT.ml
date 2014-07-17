@@ -126,7 +126,7 @@ let run (app : app) (t : Net.Topology.t ref) () : (recv * (event -> unit Deferre
 let union ?(how=`Parallel) (app1 : app) (app2 : app) : app =
   Raw_app.combine ~how:how (fun x y -> Union(x, y)) app1 app2
 
-let seq app1 app2 = (* (app1 : app) (app2: app) : app = *)
+let seq (app1 : app) (app2 : app) : app =
   let open Raw_app in
   begin if not PipeSet.(is_empty (inter app1.pipes app2.pipes)) then
     (* In order for the form of composition below, the apps must not be
@@ -136,3 +136,8 @@ let seq app1 app2 = (* (app1 : app) (app2: app) : app = *)
     raise (Sequence_error(app1.pipes, app2.pipes))
   end;
   Raw_app.combine ~how:`Sequential (fun x y -> Seq(x, y)) app1 app2
+
+let slice (pred : pred) (app1 : app) (app2 : app) : app =
+  union ~how:`Parallel
+    (Raw_app.guard pred       app1)
+    (Raw_app.guard (Neg pred) app2)

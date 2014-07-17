@@ -133,3 +133,12 @@ exception Sequence_error of PipeSet.t * PipeSet.t
     will distribute events across the two apps, sequence reactive updates to
     policies, and concatenates the list of [packet_outs] that they produce.  *)
 val seq : app -> app -> app
+
+(** [slice pred app1 app2] returns an application where packets that
+ * satisfy [pred] will be handled by [app1] and packets that do not satisfy
+ * [pred] will be handled by [app2]. In addition the returned application will
+ * enforce the pipes that [app1] and [app2] listen to, so if a packet matches
+ * [pred] but is at a pipe that [app1] is not listening on, the packet will be
+ * dropped.
+ *)
+val slice : pred -> app -> app -> app
