@@ -557,13 +557,13 @@ module TableMod : sig
 
   type t = tableMod
 
-  val sizeof : tableMod -> int
+  val sizeof : t -> int
 
-  val to_string : tableMod -> string
+  val to_string : t -> string
 
-  val marshal : Cstruct.t -> tableMod -> int
+  val marshal : Cstruct.t -> t -> int
 
-  val parse : Cstruct.t -> tableMod
+  val parse : Cstruct.t -> t
 
 end
 
