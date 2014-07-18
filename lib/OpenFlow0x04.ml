@@ -2092,13 +2092,15 @@ module QueueDesc = struct
       uint8_t pad[4]
     } as big_endian
 
-    let sizeof (qp : queueProp) : int =
+    type t = queueProp
+
+    let sizeof (qp : t) : int =
       match qp with
         | MinRateProp _ -> sizeof_ofp_queue_prop_min_rate
         | MaxRateProp _-> sizeof_ofp_queue_prop_max_rate
         | ExperimenterProp _ -> sizeof_ofp_queue_prop_experimenter
 
-    let to_string (qp : queueProp) : string =
+    let to_string (qp : t) : string =
       match qp with
         | MinRateProp rate -> 
           Format.sprintf "MinRate = %s"
@@ -2118,7 +2120,7 @@ module QueueDesc = struct
       if Cstruct.len buf < sizeof_ofp_queue_prop_header then None
       else Some (get_ofp_queue_prop_header_len buf)
 
-    let marshal (buf : Cstruct.t) (qp : queueProp) : int =
+    let marshal (buf : Cstruct.t) (qp : t) : int =
       match qp with 
         | MinRateProp rate ->
           set_ofp_queue_prop_min_rate_property buf (ofp_queue_properties_to_int OFPQT_MIN_RATE);
@@ -2142,7 +2144,7 @@ module QueueDesc = struct
           set_ofp_queue_prop_experimenter_experimenter buf id;
           sizeof_ofp_queue_prop_experimenter
 
-    let parse (bits : Cstruct.t) : queueProp = 
+    let parse (bits : Cstruct.t) : t = 
       let typ = int_to_ofp_queue_properties (get_ofp_queue_prop_header_property bits) in
       match typ with 
         | Some OFPQT_MIN_RATE -> 
@@ -2159,10 +2161,12 @@ module QueueDesc = struct
         | None -> raise (Unparsable (sprintf "malformed property"))
   end
 
-  let sizeof (qd : queueDesc) : int =
+  type t = queueDesc
+
+  let sizeof (qd : t) : int =
     sizeof_ofp_packet_queue + sum (map QueueProp.sizeof qd.properties)
 
-  let to_string (qd : queueDesc) : string =
+  let to_string (qd : t) : string =
     Format.sprintf "{ queue_id = %lu; port = %lu; len = %u; properties = %s }"
     qd.queue_id
     qd.port
@@ -2173,14 +2177,14 @@ module QueueDesc = struct
     if Cstruct.len buf < sizeof_ofp_packet_queue then None
     else Some (get_ofp_packet_queue_len buf)
 
-  let marshal (buf : Cstruct.t) (qd : queueDesc) : int =
+  let marshal (buf : Cstruct.t) (qd : t) : int =
     set_ofp_packet_queue_queue_id buf qd.queue_id;
     set_ofp_packet_queue_port buf qd.port;
     set_ofp_packet_queue_len buf qd.len;
     let propBuf = Cstruct.sub buf sizeof_ofp_packet_queue (qd.len - sizeof_ofp_packet_queue) in
     sizeof_ofp_packet_queue + (marshal_fields propBuf qd.properties QueueProp.marshal)
     
-  let parse (bits : Cstruct.t) : queueDesc = 
+  let parse (bits : Cstruct.t) : t = 
     let queue_id = get_ofp_packet_queue_queue_id bits in
     let port = get_ofp_packet_queue_port bits in
     let len = get_ofp_packet_queue_len bits in
@@ -3448,12 +3452,12 @@ module QueueRequest = struct
 
     type t = queueRequest
 
-    let marshal (buf : Cstruct.t) (qr : queueRequest) : int =
+    let marshal (buf : Cstruct.t) (qr : t) : int =
       set_ofp_queue_stats_request_port_no buf qr.port_number;
       set_ofp_queue_stats_request_queue_id buf qr.queue_id;
       sizeof_ofp_queue_stats_request
 
-    let parse (bits : Cstruct.t) : queueRequest = 
+    let parse (bits : Cstruct.t) : t = 
       let portNumber = get_ofp_queue_stats_request_port_no bits in
       let queueId = get_ofp_queue_stats_request_queue_id bits in
       { port_number = portNumber
@@ -3461,8 +3465,10 @@ module QueueRequest = struct
 
     let sizeof _ = 
         sizeof_ofp_queue_stats_request
+
     let to_string qr =
         Format.sprintf "{ port_no = %lu; queue_id = %lu }" qr.port_number qr.queue_id
+
 end
 
 module TableFeatureProp = struct
@@ -4924,17 +4930,19 @@ module QueueConfReq = struct
     uint8_t pad[4]
   } as big_endian
 
-  let sizeof (qr : queueConfReq) : int = 
+  type t = queueConfReq
+
+  let sizeof (qr : t) : int = 
     sizeof_ofp_queue_get_config_request
 
-  let to_string (qr : queueConfReq) : string =
+  let to_string (qr : t) : string =
     Format.sprintf "{ port = %lu }" qr.port
 
-  let marshal (buf : Cstruct.t) (qr : queueConfReq) : int =
+  let marshal (buf : Cstruct.t) (qr : t) : int =
     set_ofp_queue_get_config_request_port buf qr.port;
     sizeof_ofp_queue_get_config_request
 
-  let parse (bits : Cstruct.t) : queueConfReq = 
+  let parse (bits : Cstruct.t) : t = 
     let port = get_ofp_queue_get_config_request_port bits in
     { port }
 end
@@ -4946,25 +4954,26 @@ module QueueConfReply = struct
     uint8_t pad[4];
   } as big_endian
 
-  let sizeof (qr : queueConfReply) : int = 
+  type t = queueConfReply
+
+  let sizeof (qr : t) : int = 
     sizeof_ofp_queue_get_config_reply + sum (map QueueDesc.sizeof qr.queues)
 
-  let to_string (qr : queueConfReply) : string =
+  let to_string (qr : t) : string =
     Format.sprintf "{ port = %lu; queue = %s }" 
     qr.port 
     ("[ " ^ (String.concat "; " (map QueueDesc.to_string qr.queues)) ^ " ]")
 
-  let marshal (buf : Cstruct.t) (qr : queueConfReply) : int =
+  let marshal (buf : Cstruct.t) (qr : t) : int =
     set_ofp_queue_get_config_reply_port buf qr.port;
     let queueBuf = Cstruct.shift buf sizeof_ofp_queue_get_config_reply in
     sizeof_ofp_queue_get_config_reply + (marshal_fields queueBuf qr.queues QueueDesc.marshal)
 
-  let parse (bits : Cstruct.t) : queueConfReply = 
+  let parse (bits : Cstruct.t) : t = 
     let port = get_ofp_queue_get_config_reply_port bits in
     let queuesBits = Cstruct.shift bits sizeof_ofp_queue_get_config_reply in
     let queues = parse_fields queuesBits QueueDesc.parse QueueDesc.length_func in
     { port; queues}
-    
 
 end
 

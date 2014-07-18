@@ -1501,7 +1501,7 @@ module QueueDesc = struct
   module QueueProp = struct
     open Gen
     open OpenFlow0x04_Core
-    type t = OpenFlow0x04_Core.queueProp
+    type t = QueueDesc.QueueProp.t
     
     let arbitrary_rate = 
       frequency [
@@ -1526,7 +1526,7 @@ module QueueDesc = struct
     let size_of = QueueDesc.QueueProp.sizeof
   end
 
-  type t = OpenFlow0x04_Core.queueDesc
+  type t = QueueDesc.t
 
   let calc_length prop =
     (* sizeof_ofp_packet_queue = 16*)
@@ -1548,7 +1548,7 @@ end
 module QueueConfReq = struct
   open Gen
   open OpenFlow0x04_Core
-  type t = OpenFlow0x04_Core.queueConfReq
+  type t = QueueConfReq.t
 
   let arbitrary = 
     arbitrary_uint32 >>= fun port ->
@@ -1563,7 +1563,7 @@ end
 module QueueConfReply = struct
   open Gen
   open OpenFlow0x04_Core
-  type t = OpenFlow0x04_Core.queueConfReply
+  type t = QueueConfReply.t
 
   let arbitrary = 
     arbitrary_uint32 >>= fun port ->

@@ -70,15 +70,28 @@ end
 module QueueDesc : sig
 
   module QueueProp : sig
-    val sizeof : queueProp -> int
-    val to_string : queueProp -> string
-    val marshal : Cstruct.t -> queueProp -> int
-    val parse : Cstruct.t -> queueProp
+
+    type t = queueProp
+
+    val sizeof : t -> int
+
+    val to_string : t -> string
+
+    val marshal : Cstruct.t -> t -> int
+
+    val parse : Cstruct.t -> t
+
   end
-  val sizeof : queueDesc -> int
-  val to_string : queueDesc -> string
-  val marshal : Cstruct.t -> queueDesc -> int
-  val parse : Cstruct.t -> queueDesc
+
+  type t = queueDesc
+
+  val sizeof : t -> int
+
+  val to_string : t -> string
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
 
 end  
 
@@ -575,17 +588,31 @@ module TableMod : sig
 end
 
 module QueueConfReq : sig
-  val sizeof : queueConfReq -> int
-  val to_string : queueConfReq -> string
-  val marshal : Cstruct.t -> queueConfReq -> int
-  val parse : Cstruct.t -> queueConfReq
+
+  type t = queueConfReq
+
+  val sizeof : t -> int
+
+  val to_string : t -> string
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
+
 end
 
 module QueueConfReply : sig
-  val sizeof : queueConfReply -> int
-  val to_string : queueConfReply -> string
-  val marshal : Cstruct.t -> queueConfReply -> int
-  val parse : Cstruct.t -> queueConfReply
+
+  type t = queueConfReply
+
+  val sizeof : t -> int
+
+  val to_string : t -> string
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
+
 end
 
 module Error : sig
