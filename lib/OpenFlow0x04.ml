@@ -2063,10 +2063,10 @@ module SwitchConfig = struct
 
     let to_string (flags : switchFlags) : string = 
       match flags with
-        | NormalFrag -> "Normal handling"
-        | DropFrag -> "Drop fragments"
+        | NormalFrag -> "NormalHandling"
+        | DropFrag -> "DropFragments"
         | ReasmFrag -> "Reasemble"
-        | MaskFrag -> ""
+        | MaskFrag -> "MaskFrag"
 
     let marshal (flags : switchFlags) : int = 
       match flags with
@@ -2090,7 +2090,7 @@ module SwitchConfig = struct
     sizeof_ofp_switch_config
 
   let to_string (sc : switchConfig) : string = 
-    Format.sprintf "Fragment handling: %s; length to send to ctrl: %u"
+    Format.sprintf "{ flags = %s; miss_send_length = %u }"
     (Flags.to_string sc.flags)
     sc.miss_send_len
 
