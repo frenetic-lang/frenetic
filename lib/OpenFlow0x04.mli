@@ -100,13 +100,13 @@ module Bucket : sig
 
   type t = bucket
 
-  val sizeof : bucket -> int
+  val sizeof : t -> int
 
-  val to_string : bucket -> string
+  val to_string : t -> string
 
-  val marshal : Cstruct.t -> bucket -> int
+  val marshal : Cstruct.t -> t -> int
 
-  val parse : Cstruct.t -> bucket  
+  val parse : Cstruct.t -> t  
 end
 
 module FlowModCommand : sig
@@ -265,13 +265,13 @@ module MeterBand : sig
 
   type t = meterBand
 
-  val sizeof : meterBand -> int
+  val sizeof : t -> int
 
-  val to_string : meterBand -> string
+  val to_string : t -> string
 
-  val marshal : Cstruct.t -> meterBand -> int
+  val marshal : Cstruct.t -> t -> int
 
-  val parse : Cstruct.t -> meterBand
+  val parse : Cstruct.t -> t
 
 end
 
@@ -585,37 +585,37 @@ module Hello : sig
 
       type t = supportedList
 
-      val sizeof : supportedList -> int
+      val sizeof : t -> int
 
-      val to_string : supportedList -> string
+      val to_string : t -> string
 
-      val marshal : Cstruct.t -> supportedList -> int
+      val marshal : Cstruct.t -> t -> int
 
-      val parse : Cstruct.t -> supportedList
+      val parse : Cstruct.t -> t
     
     end
   
     type t = element
 
-    val sizeof : element -> int
+    val sizeof : t -> int
 
-    val to_string : element -> string
+    val to_string : t -> string
 
-    val marshal : Cstruct.t -> element -> int
+    val marshal : Cstruct.t -> t -> int
 
-    val parse : Cstruct.t -> element
+    val parse : Cstruct.t -> t
 
   end
 
   type t = helloElement
 
-  val sizeof : helloElement -> int
+  val sizeof : t -> int
 
-  val to_string : helloElement -> string
+  val to_string : t -> string
 
-  val marshal : Cstruct.t -> helloElement -> int
+  val marshal : Cstruct.t -> t -> int
 
-  val parse : Cstruct.t -> helloElement
+  val parse : Cstruct.t -> t
 
 end
 
