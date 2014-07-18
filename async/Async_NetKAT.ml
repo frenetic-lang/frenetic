@@ -96,7 +96,7 @@ let create_async ?pipes (policy : policy) (handler : async_handler) : app =
   create_primitive ?pipes policy (fun a send () ->
     let r_update, w_update = Pipe.create () in
     Deferred.don't_wait_for
-      (transfer_batch r_update send.update ~f:(fun p -> (Async p : update)));
+      (transfer_batch r_update send.update ~f:(fun p -> (Async p)));
     let callback = handler a { pkt_out = send.pkt_out; update = w_update } () in
     fun e ->
       callback e

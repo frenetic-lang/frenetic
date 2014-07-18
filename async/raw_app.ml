@@ -69,8 +69,8 @@ type update
  *
  * *)
 type state
-  = Async
-  | Event
+  = SAsync
+  | SEvent
 
 (* INTERNAL
  *
@@ -118,7 +118,7 @@ let run (app : 'a t) (a : 'a) () : (policy recv * (event -> unit Deferred.t)) =
      * NOTE: It's assumed that [callback e] will not become determined until
      * either an Event or EventNoop update is written to the update pipe.
      *)
-    let state = ref Async in
+    let state = ref SAsync in
     let send, recv = create_send_recv app in
     let callback = handler a send () in
     let callback' e =
@@ -126,10 +126,10 @@ let run (app : 'a t) (a : 'a) () : (policy recv * (event -> unit Deferred.t)) =
       | PacketIn(p, _, _, _, _) when not (PipeSet.mem app.pipes p) ->
         return ()
       | _ ->
-        state := Event;
+        state := SEvent;
         callback e
         >>| fun () ->
-          state := Async
+          state := SAsync
       end in
     let update' =
       let last_async = ref None in
@@ -138,23 +138,23 @@ let run (app : 'a t) (a : 'a) () : (policy recv * (event -> unit Deferred.t)) =
        * *)
       Pipe.filter_map recv.update ~f:(fun (u : update) ->
         match u, !state with
-        | Async p,   Async  -> assert (!last_async = None);
-                               app.policy <- p;
-                               Some p
-        | Async p,   Event  -> last_async := Some p;
-                               None
-        | Event p,   Event  -> last_async := None;
-                               app.policy <- p;
-                               Some p
-        | EventNoop, Event  -> let result = !last_async in
-                               last_async := None;
-                               begin match result with
-                               | None    -> ()
-                               | Some(p) -> app.policy <- p
-                               end;
-                               result
-        | Event _  , Async
-        | EventNoop, Async  -> assert false) in
+        | Async p,   SAsync -> assert (!last_async = None);
+                              app.policy <- p;
+                              Some p
+        | Async p,   SEvent -> last_async := Some p;
+                              None
+        | Event p,   SEvent -> last_async := None;
+                              app.policy <- p;
+                              Some p
+        | EventNoop, SEvent -> let result = !last_async in
+                              last_async := None;
+                              begin match result with
+                              | None    -> ()
+                              | Some(p) -> app.policy <- p
+                              end;
+                              result
+        | Event _  , SAsync
+        | EventNoop, SAsync -> assert false) in
     { recv with update = update' }, callback'
   | `Composite handler ->
     (* Composite handlers aren't complicated. Most of the complexity has been
