@@ -101,7 +101,7 @@ type flowModFailed =
 
 type groupModFailed =
  | GrGroupExists
- | GrIvalidGroup
+ | GrInvalidGroup
  | GrWeightUnsupported
  | GrOutOfGroups
  | GrOutOfBuckets
