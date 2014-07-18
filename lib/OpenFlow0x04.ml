@@ -4781,7 +4781,7 @@ module TableMod = struct
     sizeof_ofp_table_mod
 
   let to_string (tab : tableMod) : string =
-    Format.sprintf "tabled id: %u, config: %s"
+    Format.sprintf "{ tabled_id = %u; config = %s }"
     tab.table_id
     (TableConfig.to_string tab.config)
 
