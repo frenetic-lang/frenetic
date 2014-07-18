@@ -275,13 +275,13 @@ module FlowRemoved : sig
 
   type t = flowRemoved
 
-  val sizeof : flowRemoved -> int
+  val sizeof : t -> int
 
-  val to_string : flowRemoved -> string
+  val to_string : t -> string
 
-  val marshal : Cstruct.t -> flowRemoved -> int
+  val marshal : Cstruct.t -> t -> int
 
-  val parse : Cstruct.t -> flowRemoved
+  val parse : Cstruct.t -> t
 
 end
 
@@ -591,13 +591,13 @@ module AsyncConfig : sig
 
   type t = asyncConfig
 
-  val sizeof : asyncConfig -> int
+  val sizeof : t -> int
 
-  val to_string : asyncConfig -> string 
+  val to_string : t -> string 
 
-  val marshal : Cstruct.t -> asyncConfig -> int
+  val marshal : Cstruct.t -> t -> int
 
-  val parse : Cstruct.t -> asyncConfig
+  val parse : Cstruct.t -> t
 
 end
 
