@@ -60,9 +60,10 @@ module Controller = struct
   let create ?max_pending_connections
       ?verbose
       ?log_disconnects
-      ?buffer_age_limit ~port () =
+      ?buffer_age_limit
+      ?monitor_connections ~port () =
     ChunkController.create ?max_pending_connections ?verbose ?log_disconnects
-      ?buffer_age_limit ~port ()
+      ?buffer_age_limit ?monitor_connections ~port ()
     >>| function t -> { sub = t }
 
   let listen t =
@@ -77,6 +78,7 @@ module Controller = struct
   let close t = ChunkController.close t.sub
   let has_client_id t = ChunkController.has_client_id t.sub
   let send t s_id msg = ChunkController.send t.sub s_id (Message.marshal' msg)
+  let send_ignore_errors t s_id msg = ChunkController.send_ignore_errors t.sub s_id (Message.marshal' msg)
   let send_to_all t msg = ChunkController.send_to_all t.sub (Message.marshal' msg)
   let client_addr_port t = ChunkController.client_addr_port t.sub
   let listening_port t = ChunkController.listening_port t.sub

@@ -9,6 +9,8 @@ type payload =
 
 type xid = OpenFlow_Header.xid
 type int12 = int16
+type int24 = int32
+type int128 = int64 * int64
 
 val val_to_mask : 'a1 -> 'a1 mask
 
@@ -24,6 +26,166 @@ type tableId = int8
 
 type bufferId = int32
 
+type helloFailed = 
+ | HelloIncompatible
+ | HelloPermError
+
+type badRequest = 
+ | ReqBadVersion
+ | ReqBadType
+ | ReqBadMultipart
+ | ReqBadExp
+ | ReqBadExpType
+ | ReqPermError
+ | ReqBadLen
+ | ReqBufferEmpty
+ | ReqBufferUnknown
+ | ReqBadTableId
+ | ReqIsSlave
+ | ReqBadPort
+ | ReqBadPacket
+ | ReqMultipartBufOverflow
+
+type badAction = 
+ | ActBadType
+ | ActBadLen
+ | ActBadExp
+ | ActBadExpType
+ | ActBadOutPort
+ | ActBadArg
+ | ActPermError
+ | ActTooMany
+ | ActBadQueue
+ | ActBadOutGroup
+ | ActMatchInconsistent
+ | ActUnsupportedOrder
+ | ActBadTag
+ | ActBadSetTyp
+ | ActBadSetLen
+ | ActBadSetArg
+
+type badInstruction =
+ | InstUnknownInst
+ | InstBadTableId
+ | InstUnsupInst
+ | InstUnsupMeta
+ | InstUnsupMetaMask
+ | InstBadExp
+ | InstBadExpTyp
+ | InstBadLen
+ | InstPermError
+
+type badMatch = 
+ | MatBadTyp
+ | MatBadLen
+ | MatBadTag
+ | MatBadDlAddrMask
+ | MatBadNwAddrMask
+ | MatBadWildcards
+ | MatBadField
+ | MatBadValue
+ | MatBadMask
+ | MatBadPrereq
+ | MatDupField
+ | MatPermError
+
+type flowModFailed =
+ | FlUnknown
+ | FlTableFull
+ | FlBadTableId
+ | FlOverlap
+ | FlPermError
+ | FlBadTimeout
+ | FlBadCommand
+ | FlBadFlags
+
+type groupModFailed =
+ | GrGroupExists
+ | GrInvalidGroup
+ | GrWeightUnsupported
+ | GrOutOfGroups
+ | GrOutOfBuckets
+ | GrChainingUnsupported
+ | GrWatcHUnsupported
+ | GrLoop
+ | GrUnknownGroup
+ | GrChainedGroup
+ | GrBadTyp
+ | GrBadCommand
+ | GrBadBucket
+ | GrBadWatch
+ | GrPermError
+ 
+type portModFailed =
+ | PoBadPort
+ | PoBadHwAddr
+ | PoBadConfig
+ | PoBadAdvertise
+ | PoPermError
+
+type tableModFailed =
+ | TaBadTable
+ | TaBadConfig
+ | TaPermError
+
+type queueOpFailed =
+ | QuBadPort
+ | QuBadQUeue
+ | QuPermError
+
+type switchConfigFailed =
+ | ScBadFlags
+ | ScBadLen
+ | ScPermError
+
+type roleReqFailed = 
+ | RoStale
+ | RoUnsup
+ | RoBadRole
+
+type meterModFailed = 
+ | MeUnknown
+ | MeMeterExists
+ | MeInvalidMeter
+ | MeUnknownMeter
+ | MeBadCommand
+ | MeBadFlags
+ | MeBadRate
+ | MeBadBurst
+ | MeBadBand
+ | MeBadBandValue
+ | MeOutOfMeters
+ | MeOutOfBands
+
+type tableFeatFailed =
+ | TfBadTable
+ | TfBadMeta
+ | TfBadType
+ | TfBadLen
+ | TfBadArg
+ | TfPermError
+
+type experimenterFailed = { exp_typ : int16; exp_id : int32}
+
+type errorTyp = 
+ | HelloFailed of helloFailed
+ | BadRequest of badRequest
+ | BadAction of badAction
+ | BadInstruction of badInstruction
+ | BadMatch of badMatch
+ | FlowModFailed of flowModFailed
+ | GroupModFailed of groupModFailed
+ | PortModFailed of portModFailed
+ | TableModFailed of tableModFailed
+ | QueueOpFailed of queueOpFailed
+ | SwitchConfigFailed of switchConfigFailed
+ | RoleReqFailed of roleReqFailed
+ | MeterModFailed of meterModFailed
+ | TableFeatFailed of tableFeatFailed
+ | ExperimenterFailed of experimenterFailed
+
+type length = int16
+
 type oxm =
 | OxmInPort of portId
 | OxmInPhyPort of portId
@@ -38,8 +200,8 @@ type oxm =
 | OxmIPEcn of int8
 | OxmIP4Src of int32 mask
 | OxmIP4Dst of int32 mask
-| OxmTCPSrc of int16 mask
-| OxmTCPDst of int16 mask
+| OxmTCPSrc of int16
+| OxmTCPDst of int16
 | OxmARPOp of int16
 | OxmARPSpa of int32 mask
 | OxmARPTpa of int32 mask
@@ -50,6 +212,21 @@ type oxm =
 | OxmMPLSLabel of int32
 | OxmMPLSTc of int8
 | OxmTunnelId of int64 mask
+| OxmUDPSrc of int16
+| OxmUDPDst of int16
+| OxmSCTPSrc of int16
+| OxmSCTPDst of int16
+| OxmIPv6Src of int128 mask
+| OxmIPv6Dst of int128 mask
+| OxmIPv6FLabel of int32 mask
+| OxmICMPv6Type of int8
+| OxmICMPv6Code of int8
+| OxmIPv6NDTarget of int128 mask
+| OxmIPv6NDSll of int48
+| OxmIPv6NDTll of int48
+| OxmMPLSBos of int8
+| OxmPBBIsid of int24 mask
+| OxmIPv6ExtHdr of int16 mask
 
 type oxmMatch = oxm list
 
@@ -138,6 +315,7 @@ type groupType =
 type groupMod =
 | AddGroup of groupType * groupId * bucket list
 | DeleteGroup of groupType * groupId
+| ModifyGroup of groupType * groupId * bucket list
 
 type timeout =
 | Permanent
@@ -212,13 +390,26 @@ type packetOut = {
   po_actions : actionSequence
 }
 
+type rate = int32
+
+type burst = int32
+
+type experimenterId = int32
+
+type meterBand =
+  | Drop of (rate*burst)
+  | DscpRemark of (rate*burst*int8)
+  | ExpMeter of (rate*burst*experimenterId)
+
+type meterFlags = { kbps : bool; pktps : bool; burst : bool; stats : bool}
+
 type flowRequest = {fr_table_id : tableId; fr_out_port : portId; 
                     fr_out_group : portId; fr_cookie : int64 mask;
                     fr_match : oxmMatch}
 
 type queueRequest = {port_number : portId; queue_id : int32}
 
-type experimenter = {exp_id : int32; exp_type : int32}
+type experimenter = {exp_id : experimenterId; exp_type : int32}
 
 type tableFeatureProp =
   | TfpInstruction of instruction list 
@@ -245,8 +436,6 @@ type tableFeatures = {length : int16; table_id : tableId; name : string;
                       config : tableConfig; max_entries: int32;
                       feature_prop : tableFeatureProp}
 
-type tableFeaturesRequest = tableFeatures list
-
 type multipartType =
   | SwitchDescReq
   | PortsDescReq 
@@ -261,7 +450,7 @@ type multipartType =
   | MeterStatsReq of int32
   | MeterConfReq of int32
   | MeterFeatReq
-  | TableFeatReq of tableFeaturesRequest option
+  | TableFeatReq of (tableFeatures list) option
   | ExperimentReq of experimenter  
 
 type multipartRequest = { mpr_type : multipartType; mpr_flags : bool }
@@ -298,15 +487,54 @@ type groupStats = { length : int16; group_id : int32; ref_count : int32;
                     packet_count : int64; byte_count : int64; duration_sec : int32;
                     duration_nsec : int32; bucket_stats : bucketStats list}
 
+type groupDesc = { length : int16; typ : groupType; group_id : int32; bucket : bucket list}
+
+type groupCapabilities = { select_weight : bool; select_liveness : bool;
+                           chaining : bool; chaining_checks : bool}
+
+type groupTypeMap = { all : bool; select : bool; indirect : bool; ff : bool}
+
+type actionTypeMap = { output : bool; copy_ttl_out : bool; copy_ttl_in : bool;
+                       set_mpls_ttl : bool; dec_mpls_ttl : bool; push_vlan : bool;
+                       pop_vlan : bool; push_mpls : bool; pop_mpls : bool; set_queue : bool;
+                       group : bool; set_nw_ttl : bool; dec_nw_ttl : bool; set_field : bool;
+                       push_pbb : bool; pop_pbb : bool }
+
+type groupFeatures = { typ : groupTypeMap; capabilities : groupCapabilities; 
+                       max_groups_all : int32; max_groups_select : int32; 
+                       max_groups_indirect : int32; max_groups_ff : int32;
+                       actions_all : actionTypeMap; actions_select : actionTypeMap; 
+                       actions_indirect : actionTypeMap; actions_ff : actionTypeMap }
+
+type meterBandStats = { packet_band_count : int64; byte_band_count : int64 }
+
+type meterStats = { meter_id: int32; len : int16; flow_count : int32; packet_in_count :
+                    int64; byte_in_count : int64; duration_sec : int32; duration_nsec : 
+                    int32; band : meterBandStats list}
+
+type meterConfig = { length : length; flags : meterFlags; meter_id : int32; bands : meterBand list}
+
+type meterBandMaps = { drop : bool; dscpRemark : bool}
+
+type meterFeaturesStats = { max_meter : int32; band_typ : meterBandMaps; 
+                            capabilities : meterFlags; max_band : int8;
+                            max_color : int8 }
+
 type multipartReplyTyp = 
   | PortsDescReply of portDesc list
   | SwitchDescReply of switchDesc
   | FlowStatsReply of flowStats list
   | AggregateReply of aggregStats
   | TableReply of tableStats list
+  | TableFeaturesReply of tableFeatures list
   | PortStatsReply of portStats list
   | QueueStatsReply of queueStats list
   | GroupStatsReply of groupStats list
+  | GroupDescReply of groupDesc list
+  | GroupFeaturesReply of groupFeatures
+  | MeterReply of meterStats list
+  | MeterConfig of meterConfig list
+  | MeterFeaturesReply of meterFeaturesStats
 
 type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool}
 

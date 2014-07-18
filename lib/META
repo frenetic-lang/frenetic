@@ -1,6 +1,6 @@
 # OASIS_START
-# DO NOT EDIT (digest: 2e02827bd52fb83f4c7288443e1a31cd)
-version = "0.4.0"
+# DO NOT EDIT (digest: adf89b68ac0ed5e7674e6d8f66515b39)
+version = "0.5.0"
 description = "Serialization library for OpenFlow"
 requires =
 "str cstruct cstruct.syntax packet core sexplib.syntax sexplib threads"
@@ -10,7 +10,7 @@ archive(native) = "openflow.cmxa"
 archive(native, plugin) = "openflow.cmxs"
 exists_if = "openflow.cma"
 package "quickcheck" (
- version = "0.4.0"
+ version = "0.5.0"
  description = "Serialization library for OpenFlow"
  requires = "quickcheck openflow packet.quickcheck"
  archive(byte) = "quickcheck.cma"
@@ -21,7 +21,7 @@ package "quickcheck" (
 )
 
 package "async" (
- version = "0.4.0"
+ version = "0.5.0"
  description = "Serialization library for OpenFlow"
  requires = "async openflow cstruct.async threads sexplib.syntax sexplib"
  archive(byte) = "async.cma"
