@@ -154,22 +154,18 @@ module Switch = struct
       t
   end
 
-  let gpred =
-    let open NetKAT_Types in
-    Test(EthSrc Probe.mac)
+  let pred =
+    NetKAT_Types.(Test(EthSrc Probe.mac))
 
   let guard app =
-    let open NetKAT_Types in
-    let open Async_NetKAT in
-    let gpol = Filter(Neg(gpred)) in
-    seq (create_static gpol) app
+    Async_NetKAT.guard (NetKAT_Types.Neg pred) app
 
   let create () =
     let open NetKAT_Types in
     let open Async_NetKAT in
     (* The default and static policy. This should be installed on all switches
      * and never change. *)
-    let default = Seq(Filter(gpred), Mod(Location(Pipe("probe")))) in
+    let default = Seq(Filter(pred), Mod(Location(Pipe("probe")))) in
     (* A pipe for packet_outs *)
     let o_r, o_w = Pipe.create () in
 
@@ -279,11 +275,13 @@ module Host = struct
   module Log = Async_OpenFlow.Log
   let tags = [("netkat", "topology.host")]
 
+  let pred =
+    NetKAT_Types.(Test(EthType 0x0806))
+
   let create ctl () =
     let open NetKAT_Types in
     let open Async_NetKAT in
-    let default = Seq(Filter(Test(EthType 0x0806)),
-                      Mod(Location(Pipe("host")))) in
+    let default = Seq(Filter(pred), Mod(Location(Pipe("host")))) in
 
     let handler t w () : event -> result Deferred.t = fun e ->
       let open Net.Topology in
@@ -359,7 +357,7 @@ let events t =
 let create () =
   let ctl, switch = Switch.create () in
   let host = Host.create ctl () in
-  (ctl, Async_NetKAT.union host switch)
+  (ctl, Async_NetKAT.slice Host.pred host switch)
 
 let pause t =
   Switch.Ctl.pause t
