@@ -4791,10 +4791,10 @@ module RoleRequest = struct
 
     let to_string (role : controllerRole) : string =
       match role with
-        | NoChangeRole -> "Don't change"
-        | EqualRole -> "Default role"
-        | MasterRole -> "Full access"
-        | SlaveRole -> "Read-Only"
+        | NoChangeRole -> "NOCHANGE"
+        | EqualRole -> "EQUAL"
+        | MasterRole -> "MASTER"
+        | SlaveRole -> "SLAVE"
 
     let marshal (role : controllerRole) : int32 =
       match role with
@@ -4817,7 +4817,7 @@ module RoleRequest = struct
     sizeof_ofp_role_request
 
   let to_string (role : roleRequest) : string =
-    Format.sprintf "role: %s; generation_id: %Lu"
+    Format.sprintf "{ role = %s; generation_id = %Lu }"
     (Role.to_string role.role)
     role.generation_id
 
