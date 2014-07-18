@@ -540,13 +540,13 @@ type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool}
 
 type tableMod = { table_id : tableId; config : tableConfig }
 
-type rate = 
+type rateQueue = 
   | Rate of int
   | Disabled  
 
 type queueProp = 
-  | MinRateProp of rate
-  | MaxRateProp of rate
+  | MinRateProp of rateQueue
+  | MaxRateProp of rateQueue
   | ExperimenterProp of int32
 
 type queueDesc = { queue_id : int32; port : portId; len : int16; properties : queueProp list }

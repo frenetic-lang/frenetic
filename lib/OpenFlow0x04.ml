@@ -2101,17 +2101,17 @@ module QueueDesc = struct
     let to_string (qp : queueProp) : string =
       match qp with
         | MinRateProp rate -> 
-          Format.sprintf "min rate: %s"
+          Format.sprintf "MinRate = %s"
           (match rate with
             | Rate n -> string_of_int n
-            | Disabled -> "disabled")
+            | Disabled -> "Disabled")
         | MaxRateProp rate -> 
-          Format.sprintf "max rate: %s"
+          Format.sprintf "MaxRate = %s"
           (match rate with
             | Rate n -> string_of_int n
-            | Disabled -> "disabled")
+            | Disabled -> "Disabled")
         | ExperimenterProp id -> 
-          Format.sprintf "experimenter queue: id: %lu"
+          Format.sprintf "Experimenter<ID=%lu>"
           id
 
     let length_func (buf : Cstruct.t) : int option =
@@ -2163,11 +2163,11 @@ module QueueDesc = struct
     sizeof_ofp_packet_queue + sum (map QueueProp.sizeof qd.properties)
 
   let to_string (qd : queueDesc) : string =
-    Format.sprintf "queue id: %lu; port: %lu; len: %u; properties:\n%s"
+    Format.sprintf "{ queue_id = %lu; port = %lu; len = %u; properties = %s }"
     qd.queue_id
     qd.port
     qd.len
-    (String.concat "\n" (map QueueProp.to_string qd.properties))
+    ("[ " ^ (String.concat "; " (map QueueProp.to_string qd.properties)) ^ " ]")
 
   let length_func (buf : Cstruct.t) : int option =
     if Cstruct.len buf < sizeof_ofp_packet_queue then None
@@ -4928,7 +4928,7 @@ module QueueConfReq = struct
     sizeof_ofp_queue_get_config_request
 
   let to_string (qr : queueConfReq) : string =
-    Format.sprintf "port: %lu" qr.port
+    Format.sprintf "{ port = %lu }" qr.port
 
   let marshal (buf : Cstruct.t) (qr : queueConfReq) : int =
     set_ofp_queue_get_config_request_port buf qr.port;
@@ -4950,9 +4950,9 @@ module QueueConfReply = struct
     sizeof_ofp_queue_get_config_reply + sum (map QueueDesc.sizeof qr.queues)
 
   let to_string (qr : queueConfReply) : string =
-    Format.sprintf "port: %lu; queue=\n%s" 
+    Format.sprintf "{ port = %lu; queue = %s }" 
     qr.port 
-    (String.concat "\n" (map QueueDesc.to_string qr.queues))
+    ("[ " ^ (String.concat "; " (map QueueDesc.to_string qr.queues)) ^ " ]")
 
   let marshal (buf : Cstruct.t) (qr : queueConfReply) : int =
     set_ofp_queue_get_config_reply_port buf qr.port;
