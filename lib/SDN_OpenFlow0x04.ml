@@ -62,8 +62,8 @@ let from_pattern (pat : AL.Pattern.t) : Core.oxmMatch * Core.portId option =
     ; Misc.map_option (fun x -> Core.(OxmIP4Src (ip_to_mask x))) pat.AL.Pattern.nwSrc
     ; Misc.map_option (fun x -> Core.(OxmIP4Dst (ip_to_mask x))) pat.AL.Pattern.nwDst
     ; Misc.map_option (fun x -> Core.OxmIPProto x) pat.AL.Pattern.nwProto
-    ; Misc.map_option (fun x -> Core.OxmTCPSrc (v_to_m x)) pat.AL.Pattern.tpSrc
-    ; Misc.map_option (fun x -> Core.OxmTCPDst (v_to_m x)) pat.AL.Pattern.tpDst
+    ; Misc.map_option (fun x -> Core.OxmTCPSrc x) pat.AL.Pattern.tpSrc
+    ; Misc.map_option (fun x -> Core.OxmTCPDst x) pat.AL.Pattern.tpDst
     ; Misc.map_option (fun x -> Core.OxmInPort x) pat.AL.Pattern.inPort
     ], pat.AL.Pattern.inPort)
 
@@ -135,8 +135,8 @@ module Common = HighLevelSwitch_common.Make (struct
       | AL.Modify (AL.SetIPProto _) -> raise (Invalid_argument "cannot set IP protocol")
       | AL.Modify (AL.SetIP4Src n) -> (Mod.nwSrc, Core.SetField (OxmIP4Src (v_to_m n)))
       | AL.Modify (AL.SetIP4Dst n) -> (Mod.nwDst, Core.SetField (OxmIP4Dst (v_to_m n)))
-      | AL.Modify (AL.SetTCPSrcPort n) -> (Mod.tpSrc, Core.SetField (OxmTCPSrc (v_to_m n)))
-      | AL.Modify (AL.SetTCPDstPort n) -> (Mod.tpDst, Core.SetField (OxmTCPDst (v_to_m n)))
+      | AL.Modify (AL.SetTCPSrcPort n) -> (Mod.tpSrc, Core.SetField (OxmTCPSrc  n))
+      | AL.Modify (AL.SetTCPDstPort n) -> (Mod.tpDst, Core.SetField (OxmTCPDst  n))
   end)
 
 (* calculates the watch port *)

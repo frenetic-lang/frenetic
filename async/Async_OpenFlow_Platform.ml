@@ -4,6 +4,8 @@ open Core.Std
 module Header = OpenFlow_Header
 module type Message = Async_OpenFlow_Message.Message
 
+exception Flush_closed_writer
+
 module type S = sig
 
   type t 
@@ -22,6 +24,7 @@ module type S = sig
     -> ?verbose:bool
     -> ?log_disconnects:bool
     -> ?buffer_age_limit:[ `At_most of Time.Span.t | `Unlimited ]
+    -> ?monitor_connections:bool
     -> port:int
     -> unit
     -> t Deferred.t
@@ -37,6 +40,8 @@ module type S = sig
     -> Client_id.t
     -> m
     -> [ `Drop of exn | `Sent of Time.t ] Deferred.t
+
+  val send_ignore_errors : t -> Client_id.t -> m -> unit
 
   val send_to_all : t -> m -> unit
 
@@ -69,7 +74,14 @@ module Make(Message : Message) = struct
 
       let close ((_, w) : t) = Writer.close w
 
-      let flushed_time ((_, w) : t) = Writer.flushed_time w
+      let flushed_time ((_, w) : t) =
+        let open Deferred in
+        choose [ choice (Writer.flushed_time  w) (fun x  -> `F x)
+               ; choice (Writer.consumer_left w) (fun () -> `C ())
+               ]
+        >>| function
+          | `F x -> x
+          | `C () -> raise Flush_closed_writer
 
       let read ((r, _) : t) = Serialization.deserialize r
 
@@ -92,7 +104,9 @@ module Make(Message : Message) = struct
   let create ?max_pending_connections
       ?verbose
       ?log_disconnects
-      ?buffer_age_limit ~port () =
+      ?buffer_age_limit
+      ?monitor_connections
+      ~port () =
     Impl.create ?max_pending_connections ?verbose ?log_disconnects
       ?buffer_age_limit ~port ~auth:(fun _ _ _ -> return `Allow) ()
 
@@ -100,16 +114,22 @@ module Make(Message : Message) = struct
     let open Impl.Server_read_result in
     Pipe.map (Impl.listen t)
     ~f:(function
-        | Connect id -> `Connect id
+        | Connect id            -> `Connect id
         | Disconnect (id, sexp) -> `Disconnect (id, sexp)
-        | Denied_access msg -> raise (Invalid_argument "Denied_access should not happen")
-        | Data (id, m) -> `Message (id, m))
+        | Data (id, m)          -> `Message (id, m)
+        | Denied_access msg     -> assert false)
 
   let close = Impl.close
 
   let has_client_id = Impl.has_client_id
 
-  let send = Impl.send
+  let send t c_id m =
+    Monitor.try_with (fun () -> Impl.send t c_id m)
+    >>| function
+      | Ok x       -> x
+      | Error _exn -> `Drop _exn
+
+  let send_ignore_errors = Impl.send_ignore_errors
 
   let send_to_all = Impl.send_to_all
 
