@@ -2518,10 +2518,12 @@ module PortMod = struct
     uint8_t pad3[4]
   } as big_endian
 
+  type t = portMod
+
   let sizeof pm : int =
     sizeof_ofp_port_mod
 
-  let to_string (pm : portMod) : string =
+  let to_string (pm : t) : string =
     Format.sprintf "{ port_no = %lu; hw_addr = %s; config = %s; mask = %s; advertise = %s }"
     pm.mpPortNo
     (string_of_mac pm.mpHw_addr)
@@ -2529,7 +2531,7 @@ module PortMod = struct
     (PortConfig.to_string pm.mpMask)
     (PortState.to_string pm.mpAdvertise)
     
-  let marshal (buf : Cstruct.t) (pm : portMod) : int =
+  let marshal (buf : Cstruct.t) (pm : t) : int =
     set_ofp_port_mod_port_no buf pm.mpPortNo;
     set_ofp_port_mod_hw_addr (bytes_of_mac pm.mpHw_addr) 0 buf;
     set_ofp_port_mod_config buf (PortConfig.marshal pm.mpConfig);
@@ -2537,7 +2539,7 @@ module PortMod = struct
     set_ofp_port_mod_advertise buf (PortState.marshal pm.mpAdvertise);
     sizeof_ofp_port_mod
 
-  let parse (bits : Cstruct.t) : portMod =
+  let parse (bits : Cstruct.t) : t =
     let mpPortNo = get_ofp_port_mod_port_no bits in
     let mpHw_addr = mac_of_bytes (copy_ofp_port_mod_hw_addr bits) in
     let mpConfig = PortConfig.parse (get_ofp_port_mod_config bits) in
@@ -2673,23 +2675,25 @@ module MeterMod = struct
         | None -> raise (Unparsable (sprintf "malformed command"))
   end
 
-  let sizeof (mm : meterMod) : int =
+  type t = meterMod
+
+  let sizeof (mm : t) : int =
     sizeof_ofp_meter_mod + (sum (map MeterBand.sizeof mm.bands))
 
-  let to_string (mm : meterMod) : string =
+  let to_string (mm : t) : string =
     Format.sprintf "{ command = %s; flags = %s = meter_id = %lu; bands = %s }"
     (Command.to_string mm.command)
     (MeterFlags.to_string mm.flags)
     mm.meter_id
     ("[ " ^ (String.concat "; " (map MeterBand.to_string mm.bands)) ^ " ]")
 
-  let marshal (buf : Cstruct.t) (mm : meterMod) : int =
+  let marshal (buf : Cstruct.t) (mm : t) : int =
     set_ofp_meter_mod_commands buf (Command.marshal mm.command);
     set_ofp_meter_mod_flags buf (MeterFlags.marshal mm.flags);
     set_ofp_meter_mod_meter_id buf mm.meter_id;
     sizeof_ofp_meter_mod + (marshal_fields (Cstruct.shift buf sizeof_ofp_meter_mod) mm.bands MeterBand.marshal)
 
-  let parse (bits : Cstruct.t) : meterMod = 
+  let parse (bits : Cstruct.t) : t = 
     let command = Command.parse (get_ofp_meter_mod_commands bits) in
     let flags = MeterFlags.parse (get_ofp_meter_mod_flags bits) in
     let meter_id = get_ofp_meter_mod_meter_id bits in

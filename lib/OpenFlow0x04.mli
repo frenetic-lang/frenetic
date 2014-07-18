@@ -143,18 +143,28 @@ end
 
 module PortMod : sig
 
-  val sizeof : portMod -> int
-  val to_string : portMod -> string
-  val marshal : Cstruct.t -> portMod -> int
-  val parse : Cstruct.t -> portMod
+  type t = portMod
+
+  val sizeof : t -> int
+
+  val to_string : t -> string
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
 
 end
 
 module MeterMod : sig
 
+  type t = meterMod
+
   val sizeof : meterMod -> int
+
   val to_string : meterMod -> string
+
   val marshal : Cstruct.t -> meterMod -> int
+
   val parse : Cstruct.t -> meterMod
 
 end

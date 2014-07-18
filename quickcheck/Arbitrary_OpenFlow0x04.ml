@@ -1498,7 +1498,7 @@ module PortMod = struct
   open Gen
   open OpenFlow0x04_Core
 
-  type t = OpenFlow0x04_Core.portMod
+  type t = PortMod.t
 
   let arbitrary = 
     arbitrary_uint32 >>= fun mpPortNo ->
@@ -1520,7 +1520,7 @@ module MeterMod = struct
   open Gen
   open OpenFlow0x04_Core
 
-  type t = OpenFlow0x04_Core.meterMod
+  type t = MeterMod.t
 
   let arbitrary_command = 
     oneof [
