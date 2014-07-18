@@ -60,31 +60,40 @@ module Controller = struct
   let close t = ChunkController.close t.sub
   let has_client_id t = ChunkController.has_client_id t.sub
   let send t s_id msg = ChunkController.send t.sub s_id (Message.marshal' msg)
+  let send_ignore_errors t s_id msg = ChunkController.send_ignore_errors t.sub s_id (Message.marshal' msg)
   let send_to_all t msg = ChunkController.send_to_all t.sub (Message.marshal' msg)
   let client_addr_port t = ChunkController.client_addr_port t.sub
   let listening_port t = ChunkController.listening_port t.sub
 
   (* XXX(seliopou): Raises `Not_found` if the client is no longer connected. *)
-  let switch_id_of_client t c_id = ClientMap.find_exn t.switches c_id
-  let client_id_of_switch t sw_id = SwitchMap.find_exn t.clients sw_id
+  let switch_id_of_client_exn t c_id = ClientMap.find_exn t.switches c_id
+  let client_id_of_switch_exn t sw_id = SwitchMap.find_exn t.clients sw_id
+
+  let switch_id_of_client t c_id = ClientMap.find t.switches c_id
+  let client_id_of_switch t sw_id = SwitchMap.find t.clients sw_id
+
+  let set_monitor_interval (t:t) (s:Time.Span.t) : unit =
+    ChunkController.set_monitor_interval t.sub s
+
+  let set_idle_wait (t:t) (s:Time.Span.t) : unit =
+    ChunkController.set_idle_wait t.sub s
+
+  let set_kill_wait (t:t) (s:Time.Span.t) : unit =
+    ChunkController.set_kill_wait t.sub s
 
   let create ?max_pending_connections
       ?verbose
       ?log_disconnects
-      ?buffer_age_limit ~port () =
+      ?buffer_age_limit
+      ?monitor_connections ~port () =
     ChunkController.create ?max_pending_connections ?verbose ?log_disconnects
-      ?buffer_age_limit ~port ()
+      ?buffer_age_limit ?monitor_connections ~port ()
     >>| function t ->
         { sub = t
         ; shakes = ClientSet.empty
         ; switches = ClientMap.empty
         ; clients = SwitchMap.empty
         }
-
-  let _send t c_id m =
-    send t c_id (0l, m) >>| function
-      | `Drop exn -> raise exn
-      | `Sent _ -> ()
 
   let openflow0x01 t evt =
     match evt with
@@ -104,15 +113,24 @@ module Controller = struct
   let features t evt =
     match evt with
       | `Connect (c_id) ->
+        assert (not (ClientSet.mem t.shakes c_id));
         t.shakes <- ClientSet.add t.shakes c_id;
-        send t c_id (0l, M.SwitchFeaturesRequest) >>| ChunkController.ensure
+        send t c_id (0l, M.SwitchFeaturesRequest)
+        (* XXX(seliopou): This swallows any errors that might have occurred
+         * while attemping the handshake. Any such error should not be raised,
+         * since as far as the user is concerned the connection never existed.
+         * At the very least, the exception should be logged, which it will be
+         * as long as the log_disconnects option is not disabled when creating
+         * the controller.
+         * *)
+        >>| (function _ -> [])
       | `Message (c_id, (xid, msg)) when ClientSet.mem t.shakes c_id ->
         begin match msg with
           | M.SwitchFeaturesReply fs ->
             let switch_id = fs.OpenFlow0x01.SwitchFeatures.switch_id in
             t.switches <- ClientMap.add t.switches c_id switch_id;
-            t.clients <- SwitchMap.add t.clients switch_id c_id;
-            t.shakes <- ClientSet.remove t.shakes c_id;
+            t.clients  <- SwitchMap.add t.clients switch_id c_id;
+            t.shakes   <- ClientSet.remove t.shakes c_id;
             return [`Connect(c_id, fs)]
           | _ ->
             Log.of_lazy ~tags ~level:`Debug (lazy
@@ -126,11 +144,12 @@ module Controller = struct
         let m_sw_id = ClientMap.find t.switches c_id in
         match m_sw_id with
           | None -> (* features request did not complete *)
+            assert (ClientSet.mem t.shakes c_id);
             t.shakes <- ClientSet.remove t.shakes c_id;
             return []
           | Some(sw_id) -> (* features request did complete *)
-            t.clients <- SwitchMap.remove t.clients sw_id;
             t.switches <- ClientMap.remove t.switches c_id;
+            t.clients  <- SwitchMap.remove t.clients sw_id;
             return [`Disconnect(c_id, sw_id, exn)]
 
   let listen t =
