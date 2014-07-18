@@ -134,11 +134,19 @@ exception Sequence_error of PipeSet.t * PipeSet.t
     policies, and concatenates the list of [packet_outs] that they produce.  *)
 val seq : app -> app -> app
 
+(** [guard pred app] returns an app that is equivalent to [app] except it will
+    drop packets taht doe not satisfy [pred].
+
+    [guard pred app] is equivalent to [seq (create_static (Filter pred)) app]. *)
+val guard : pred -> app -> app
+
 (** [slice pred app1 app2] returns an application where packets that
- * satisfy [pred] will be handled by [app1] and packets that do not satisfy
- * [pred] will be handled by [app2]. In addition the returned application will
- * enforce the pipes that [app1] and [app2] listen to, so if a packet matches
- * [pred] but is at a pipe that [app1] is not listening on, the packet will be
- * dropped.
- *)
+    satisfy [pred] will be handled by [app1] and packets that do not satisfy
+    [pred] will be handled by [app2].
+
+    [slice pred app1 app2] is equivalent to [union (guard pred app1) (guard (Neg pred) app2)].
+
+    The returned application will enforce the pipes that [app1] and [app2]
+    listen to, so if a packet matches [pred] but is at a pipe that [app1] is not
+    listening on, the packet will be dropped. *)
 val slice : pred -> app -> app -> app

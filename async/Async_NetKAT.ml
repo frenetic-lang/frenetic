@@ -137,6 +137,9 @@ let seq (app1 : app) (app2 : app) : app =
   end;
   Raw_app.combine ~how:`Sequential (fun x y -> Seq(x, y)) app1 app2
 
+let guard (pred : pred) (app : app) : app =
+  Raw_app.guard pred app
+
 let slice (pred : pred) (app1 : app) (app2 : app) : app =
   union ~how:`Parallel
     (Raw_app.guard pred       app1)
