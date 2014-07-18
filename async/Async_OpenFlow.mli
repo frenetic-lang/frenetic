@@ -49,6 +49,7 @@ module Platform : sig
       -> ?verbose:bool
       -> ?log_disconnects:bool
       -> ?buffer_age_limit:[ `At_most of Time.Span.t | `Unlimited ]
+      -> ?monitor_connections:bool
       -> port:int
       -> unit
       -> t Deferred.t
@@ -64,6 +65,8 @@ module Platform : sig
       -> Client_id.t
       -> m
       -> [ `Drop of exn | `Sent of Time.t ] Deferred.t
+
+    val send_ignore_errors : t -> Client_id.t -> m -> unit
 
     val send_to_all : t -> m -> unit
 
@@ -144,7 +147,11 @@ module Chunk : sig
       | `Message of Client_id.t * m
     ]
 
-    val echo : (t, e, e) Stage.t
+    val set_monitor_interval : t -> Time.Span.t -> unit
+    val set_idle_wait : t -> Time.Span.t -> unit
+    val set_kill_wait : t -> Time.Span.t -> unit
+
+    val echo : (t, h, h) Stage.t
     val handshake : int -> (t, e, h) Stage.t
   end
 
@@ -165,8 +172,15 @@ module OpenFlow0x01 : sig
       | `Message of Client_id.t * m
     ]
 
-    val switch_id_of_client : t -> Client_id.t -> SDN_Types.switchId
-    val client_id_of_switch : t -> SDN_Types.switchId -> Client_id.t
+    val switch_id_of_client_exn : t -> Client_id.t -> SDN_Types.switchId
+    val client_id_of_switch_exn : t -> SDN_Types.switchId -> Client_id.t
+
+    val switch_id_of_client : t -> Client_id.t -> SDN_Types.switchId option
+    val client_id_of_switch : t -> SDN_Types.switchId -> Client_id.t option
+
+    val set_monitor_interval : t -> Time.Span.t -> unit
+    val set_idle_wait : t -> Time.Span.t -> unit
+    val set_kill_wait : t -> Time.Span.t -> unit
 
     val features : (t, e, f) Stage.t
   end
