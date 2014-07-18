@@ -2,6 +2,8 @@ open Packet
 
 type 'a mask = { m_value : 'a; m_mask : 'a option }
 
+type 'a asyncMask = { m_master : 'a ; m_slave : 'a }
+
 type payload =
   | Buffered of int32 * bytes 
     (** [Buffered (id, buf)] is a packet buffered on a switch. *)
@@ -101,7 +103,7 @@ type flowModFailed =
 
 type groupModFailed =
  | GrGroupExists
- | GrIvalidGroup
+ | GrInvalidGroup
  | GrWeightUnsupported
  | GrOutOfGroups
  | GrOutOfBuckets
@@ -354,6 +356,17 @@ type packetIn = { pi_total_len : int16;
                   pi_cookie : int64; pi_ofp_match : oxmMatch;
                   pi_payload : payload }
 
+type flowReason = 
+  | FlowIdleTimeout
+  | FlowHardTiemout
+  | FlowDelete
+  | FlowGroupDelete
+
+type flowRemoved = { cookie : int64; priority : int16; reason : flowReason;
+                     table_id : tableId; duration_sec : int32; duration_nsec : int32;
+                     idle_timeout : timeout; hard_timeout : timeout; packet_count : int64;
+                     byte_count : int64; oxm : oxmMatch }
+
 type capabilities = { flow_stats : bool; table_stats : bool;
                       port_stats : bool; group_stats : bool; ip_reasm : 
                       bool; queue_stats : bool; port_blocked : bool }
@@ -546,3 +559,8 @@ type element =
   | VersionBitMap of supportedList
 
 type helloElement = element list
+
+type asyncConfig = { packet_in : packetInReason asyncMask; 
+                     port_status : portReason asyncMask;
+                     flow_removed : flowReason asyncMask }
+

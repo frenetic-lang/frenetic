@@ -161,11 +161,16 @@ module PseudoPort = struct
   type s = int * (int option)
   type t = PseudoPort.t
 
+  let arbitrary_physical =
+    let open Gen in
+    let open OpenFlow0x01_Core in
+    choose_int(0,0xff00) >>= (fun p -> ret_gen (PhysicalPort p))
+
   let arbitrary =
     let open Gen in
     let open OpenFlow0x01_Core in
       oneof [
-        choose_int(0,0xff00) >>= (fun p -> ret_gen (PhysicalPort p));
+        arbitrary_physical;
         ret_gen InPort;
         (* ret_gen Table; *)
         ret_gen Normal;
@@ -180,7 +185,7 @@ module PseudoPort = struct
     let open Gen in
     let open OpenFlow0x01_Core in
       oneof [
-        arbitrary_uint16 >>= (fun p -> ret_gen (PhysicalPort p));
+        arbitrary_physical;
         ret_gen InPort;
         (* ret_gen Table; *)
         ret_gen Normal;
