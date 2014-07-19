@@ -154,21 +154,18 @@ module Switch = struct
       t
   end
 
+  let pred =
+    NetKAT_Types.(Test(EthSrc Probe.mac))
+
   let guard app =
-    let open NetKAT_Types in
-    let open Async_NetKAT in
-    let gpol = Filter(And(Neg(Test(EthSrc Probe.mac)),
-                          Neg(Test(EthType Probe.protocol)))) in
-    seq (create_static gpol) app
+    Async_NetKAT.guard (NetKAT_Types.Neg pred) app
 
   let create () =
     let open NetKAT_Types in
     let open Async_NetKAT in
     (* The default and static policy. This should be installed on all switches
      * and never change. *)
-    let default = Seq(Filter(And(Test(EthType Probe.protocol),
-                                 Test(EthSrc  Probe.mac))),
-                      Mod(Location(Pipe("probe")))) in
+    let default = Seq(Filter(pred), Mod(Location(Pipe("probe")))) in
     (* A pipe for packet_outs *)
     let o_r, o_w = Pipe.create () in
 
@@ -218,7 +215,7 @@ module Switch = struct
                 "Discovery.handler: not listening to pipe \"%s\"" p));
           let open Packet in
           begin match parse (SDN_Types.payload_bytes payload) with
-            | { nw = Unparsable (dlTyp, bytes) } ->
+            | { nw = Unparsable (dlTyp, bytes) } when dlTyp = Probe.protocol ->
               t := handle_probe !t sw_id pt_id (Probe.parse bytes)
             | _ -> ();
           end;
@@ -278,11 +275,13 @@ module Host = struct
   module Log = Async_OpenFlow.Log
   let tags = [("netkat", "topology.host")]
 
+  let pred =
+    NetKAT_Types.(Test(EthType 0x0806))
+
   let create ctl () =
     let open NetKAT_Types in
     let open Async_NetKAT in
-    let default = Seq(Filter(Test(EthType 0x0806)),
-                      Mod(Location(Pipe("host")))) in
+    let default = Seq(Filter(pred), Mod(Location(Pipe("host")))) in
 
     let handler t w () : event -> result Deferred.t = fun e ->
       let open Net.Topology in
@@ -358,7 +357,7 @@ let events t =
 let create () =
   let ctl, switch = Switch.create () in
   let host = Host.create ctl () in
-  (ctl, Async_NetKAT.union host switch)
+  (ctl, Async_NetKAT.slice Host.pred host switch)
 
 let pause t =
   Switch.Ctl.pause t
