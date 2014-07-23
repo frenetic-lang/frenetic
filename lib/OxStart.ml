@@ -15,7 +15,7 @@ end
 
 module DefaultTutorialHandlers = struct
 
-  (* I've intentionally omitted packet_in from this structure. *)
+  (* packet_in is intentionally omitted from this structure. *)
 
   let switch_disconnected (sw : switchId) : unit = ()
 
@@ -41,12 +41,20 @@ module Make (Handlers:OXMODULE) = struct
   (* TODO(arjun): IMO, send_to_switch should *never* fail. *)
   let send_pkt_out ctl ((sw, xid, msg) : to_sw) =
     let open Controller in
-    send ctl (client_id_of_switch ctl sw) (xid, msg)
-    >>| function
-      | `Sent _ -> ()
-      | `Drop exn ->
-        Log.error ~tags "unhandled exception sending a message to switch \
-                             %Ld" sw
+    match client_id_of_switch ctl sw with
+    | Some cid ->        
+       begin
+	 send ctl cid (xid, msg) 
+	 >>| function
+	   | `Sent _ -> 
+	      ()
+	   | `Drop exn ->
+              Log.error ~tags "unhandled exception sending a message to switch \
+                               %Ld" sw
+       end
+    | None -> 
+       Log.error ~tags "no such client id %Ld" sw;
+       return ()
 
   let handler ctl e =
     let open Message in
@@ -58,13 +66,18 @@ module Make (Handlers:OXMODULE) = struct
       let sw = feats.SwitchFeatures.switch_id in
       return (Handlers.switch_connected sw feats)
     | `Message (c_id, (xid, msg)) ->
-      let sw = Controller.switch_id_of_client ctl c_id in
-      return begin match msg with
-      | PacketInMsg pktIn -> Handlers.packet_in sw xid pktIn
-      | BarrierReply -> Handlers.barrier_reply sw xid
-      | StatsReplyMsg rep -> Handlers.stats_reply sw xid rep
-      | msg -> Log.info ~tags "ignored a message from %Ld" sw
-      end
+       begin match Controller.switch_id_of_client ctl c_id with
+       | Some sw -> 
+	  return 
+	    (match msg with
+	     | PacketInMsg pktIn -> Handlers.packet_in sw xid pktIn
+	     | BarrierReply -> Handlers.barrier_reply sw xid
+	     | StatsReplyMsg rep -> Handlers.stats_reply sw xid rep
+	     | msg -> Log.info ~tags "ignored a message from %Ld" sw)
+       | None -> 
+	  Log.info "client not connected\n%!";
+	  return ()
+       end
     | `Disconnect (c_id, sw_id, exn) ->
       Log.info "switch %Ld disconnected\n%!" sw_id;
       return ()
