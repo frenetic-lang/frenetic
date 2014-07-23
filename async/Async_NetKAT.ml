@@ -56,8 +56,6 @@ exception Sequence_error of PipeSet.t * PipeSet.t
 
 type app = (Net.Topology.t ref) Raw_app.t
 
-type update = Raw_app.update
-
 type send = {
   pkt_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t;
   update  : policy Pipe.Writer.t

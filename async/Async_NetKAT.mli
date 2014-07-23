@@ -25,16 +25,6 @@ module Net : Network.NETWORK
     parts. *)
 type app
 
-(** [update] represents a policy upate for asychronous applications. When
-    responding to a network event, applications must write either an
-    [Event(pol)] or [EventNoop] [update] before allow the returned
-    [unit Deferred.t] to become determined. A good way to do this is to have
-    that write be in the the return position of your event callback.
-
-    All asychronous policy updates should exclusively use the [Async(pol)]
-    variant of [update]. *)
-type update = Raw_app.update
-
 type send = {
   pkt_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t;
   update  : policy Pipe.Writer.t
