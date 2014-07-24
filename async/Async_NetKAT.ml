@@ -56,15 +56,13 @@ exception Sequence_error of PipeSet.t * PipeSet.t
 
 type app = (Net.Topology.t ref) Raw_app.t
 
-type send = {
-  pkt_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t;
-  update  : policy Pipe.Writer.t
+type 'phantom pipes = {
+  pkt_out : (switchId * SDN_Types.pktOut, 'phantom) Pipe.t;
+  update  : (policy, 'phantom) Pipe.t
 }
 
-type recv = {
-  pkt_out : (switchId * SDN_Types.pktOut) Pipe.Reader.t;
-  update  : policy Pipe.Reader.t
-}
+type send = Pipe.Writer.phantom pipes
+type recv = Pipe.Reader.phantom pipes
 
 type result = policy option
 type handler
