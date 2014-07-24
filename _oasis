@@ -17,7 +17,6 @@ Library ox
   BuildDepends:
     core,
     async,
-    cstruct,
     packet,
     openflow,
     openflow.async,

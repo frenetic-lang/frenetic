@@ -1,8 +1,8 @@
 # OASIS_START
-# DO NOT EDIT (digest: b0470d278f1abb5dd59c632ea0dbde79)
+# DO NOT EDIT (digest: 261344b11da12b8dfb7461a1ea48f299)
 version = "1.1.0"
 description = "A platform for writing OpenFlow controllers"
-requires = "core async cstruct packet openflow openflow.async threads"
+requires = "core async packet openflow openflow.async threads"
 archive(byte) = "ox.cma"
 archive(byte, plugin) = "ox.cma"
 archive(native) = "ox.cmxa"
