@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: a08b0c2dd0c04b71a485b85f04b36922)
+# DO NOT EDIT (digest: 70ffd5326ff3921b682cb5343e0b85cb)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -15,11 +15,10 @@
 "_darcs": not_hygienic
 # Library ox
 "lib/ox.cmxs": use_ox
-<lib/*.ml{,i}>: pkg_core
 <lib/*.ml{,i}>: pkg_async
-<lib/*.ml{,i}>: pkg_cstruct
-<lib/*.ml{,i}>: pkg_packet
+<lib/*.ml{,i}>: pkg_core
 <lib/*.ml{,i}>: pkg_openflow
 <lib/*.ml{,i}>: pkg_openflow.async
+<lib/*.ml{,i}>: pkg_packet
 <lib/*.ml{,i}>: pkg_threads
 # OASIS_STOP
