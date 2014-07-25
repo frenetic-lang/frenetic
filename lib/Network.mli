@@ -70,6 +70,7 @@ module type NETWORK = sig
     val edges : t -> EdgeSet.t
     val neighbors : t -> vertex -> VertexSet.t
     val find_edge : t -> vertex -> vertex -> edge
+    val find_all_edges : t -> vertex -> vertex -> EdgeSet.t
     val vertex_to_ports : t -> vertex -> PortSet.t
     val next_hop : t -> vertex -> port -> edge option
     val edge_src : edge -> (vertex * port)

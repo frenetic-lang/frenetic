@@ -70,6 +70,7 @@ module type NETWORK = sig
     val edges : t -> EdgeSet.t
     val neighbors : t -> vertex -> VertexSet.t
     val find_edge : t -> vertex -> vertex -> edge
+    val find_all_edges : t -> vertex -> vertex -> EdgeSet.t
     val vertex_to_ports : t -> vertex -> PortSet.t
     val next_hop : t -> vertex -> port -> edge option
     val edge_src : edge -> (vertex * port)
@@ -268,6 +269,10 @@ struct
 
     let find_edge (t:t) (src:vertex) (dst:vertex) : edge =
       P.find_edge t.graph src dst
+
+    let find_all_edges (t:t) (src:vertex) (dst:vertex) : EdgeSet.t =
+      let f s e = EdgeSet.add e s in
+      List.fold_left f EdgeSet.empty (P.find_all_edges t.graph src dst)
 
     let vertex_to_string (t:t) (v:vertex) : string =
       VL.to_string v
