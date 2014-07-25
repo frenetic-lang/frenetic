@@ -298,14 +298,3 @@ let combine
           ]
     )
   }
-
-let guard (pred : pred) (app : 'a t) : 'a t =
-  { pipes = app.pipes
-  ; policy = Seq(Filter pred, app.policy)
-  ; handler = `Composite(fun a send () ->
-      let recv, callback = run app a () in
-      Deferred.don't_wait_for (Pipe.transfer_id recv.pkt_out send.pkt_out);
-      Deferred.don't_wait_for (Pipe.transfer    recv.update  send.update
-        ~f:(fun pol -> Seq(Filter pred, pol)));
-      callback)
-  }
