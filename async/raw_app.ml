@@ -179,13 +179,28 @@ let run (app : 'a t) (a : 'a) () : (policy recv * (event -> unit Deferred.t)) =
  *
  * NOTE: The event callback produces by partial application of the handler
  * _must_ write an Event or EventNoop update before its [unit Deferred.t]
- * result becomes determined.
+ * result becomes determined. The one exception to this rule is if the update
+ * pipe has been closed, as in the create_static function below.
  * *)
 let create_primitive ?pipes (policy : policy) (handler : ('a, update) handler) : 'a t =
   let pipes = match pipes with
     | None -> PipeSet.empty
     | Some(pipes) -> pipes in
   { pipes; policy; handler = `Primitive(handler) }
+
+(* INTERNAL
+ *
+ * Create an application that will only ever take on one value. The send/recv
+ * pipes of this app are never used and are therefore immediately closed.
+ * Because of this, the app's handler doesn't need to write any policy updates
+ * to the send.update to avoid deadlocks, as described in the comment for the
+ * `create_primitive` function.
+ * *)
+let create_static (policy : policy) : 'a t =
+  create_primitive policy (fun a send () ->
+    Pipe.close send.pkt_out;
+    Pipe.close send.update;
+    fun e -> return ())
 
 (* INTERNAL
  *

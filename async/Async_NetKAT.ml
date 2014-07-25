@@ -100,8 +100,8 @@ let create_async ?pipes (policy : policy) (handler : async_handler) : app =
         | None    -> Pipe.write send.update EventNoop
         | Some(p) -> Pipe.write send.update (Event p))
 
-let create_static (pol : policy) : app =
-  create pol (fun _ _ () _ -> return None)
+let create_static (policy : policy) : app =
+  Raw_app.create_static policy
 
 let create_from_string (str : string) : app =
   let pol = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string str) in
