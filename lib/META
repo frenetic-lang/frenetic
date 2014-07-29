@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: d44bb7b8705722d14b22e2fbff77836f)
+# DO NOT EDIT (digest: 31b742be1ba90013d095f04c080e13a0)
 version = "3.1.0"
 description = "The Frenetic Compiler and Runtime System"
 requires =
@@ -9,6 +9,17 @@ archive(byte, plugin) = "netkat.cma"
 archive(native) = "netkat.cmxa"
 archive(native, plugin) = "netkat.cmxs"
 exists_if = "netkat.cma"
+package "syntax" (
+ version = "3.1.0"
+ description = "Syntax extension writing NetKAT expressions"
+ requires = "camlp4 ulex ipaddr"
+ archive(syntax, preprocessor) = "ulexing.cma syntax.cma"
+ archive(syntax, toploop) = "syntax.cma"
+ archive(syntax, preprocessor, native) = "ulexing.cmxa syntax.cmxa"
+ archive(syntax, preprocessor, native, plugin) = "syntax.cmxs"
+ exists_if = "syntax.cma"
+)
+
 package "quickcheck" (
  version = "3.1.0"
  description = "The Frenetic Compiler and Runtime System"
