@@ -55,11 +55,24 @@ module Node = struct
              mac : int64 ;
              name : string }
 
+  type partial_t = { partial_dev_type : device option ;
+                     partial_dev_id : int64 option ;
+                     partial_ip : int32 option ;
+                     partial_mac : int64 option ;
+                     partial_name : string option }
+
   let default = { dev_type = Host ;
                   dev_id = 0L ;
-                  name = "" ;
-                  ip = 0l ;
-                  mac = 0L }
+                  name   = "" ;
+                  ip     = 0l ;
+                  mac    = 0L }
+
+  let partial_default = { partial_dev_type = None ;
+                            partial_dev_id = None ;
+                            partial_ip     = None ;
+                            partial_mac    = None ;
+                            partial_name   = None }
+
 
   let create (n:string) (i:int64) (d:device) (ip:int32) (mac:int64) : t =
     { dev_type = d ;
@@ -117,18 +130,59 @@ module Node = struct
       | Dot_ast.String(s) -> Packet.mac_of_string s
       | _ -> failwith "MAC must be represented as a string (in quotes)\n" in
     match k with
-      | Dot_ast.Ident("type") -> {n with dev_type = dev_type_of vo}
-      | Dot_ast.Ident("id") -> {n with dev_id = int64_of_id vo}
-      | Dot_ast.Ident("ip") -> {n with ip = ip_of vo}
-      | Dot_ast.Ident("mac") -> {n with mac = mac_of vo}
+      | Dot_ast.Ident("type") -> {n with partial_dev_type = Some (dev_type_of vo)}
+      | Dot_ast.Ident("id") -> {n with partial_dev_id = Some (int64_of_id vo)}
+      | Dot_ast.Ident("ip") -> {n with partial_ip = Some (ip_of vo)}
+      | Dot_ast.Ident("mac") -> {n with partial_mac = Some (mac_of vo)}
       | _ -> failwith "Unknown node attribute\n"
+
+  (* Take the partial node record and remove the option types, or
+     raise an error if it is not fully filled *)
+  let unbox (p:partial_t) : t =
+    let unbox_host (p:partial_t) =
+      let i = match p.partial_ip with
+        | Some i -> i
+        | None -> failwith "Host must have an IP address" in
+      let m = match p.partial_mac with
+        | Some m -> m
+        | None -> failwith "Host must have a MAC address" in
+      let n = match p.partial_name with
+        | Some n -> n
+        | None -> failwith "Host must have a name" in
+      let id = match p.partial_dev_id with
+        | Some i -> i
+        | None -> m in
+      { dev_type = Host ; dev_id = id ; ip = i ; mac = m ; name = n} in
+
+    let unbox_switch (p:partial_t) =
+      let id = match p.partial_dev_id with
+        | Some i -> i
+        | None -> failwith "Switches must have a unique id" in
+      let n = match p.partial_name with
+        | Some n -> n
+        | None -> failwith "Switch must have a name" in
+      let m = match p.partial_mac with
+        | Some m -> m
+        | None -> 0L in
+      let i = match p.partial_ip with
+        | Some i -> i
+        | None -> 0l in
+      { dev_type = Switch ; dev_id = id ; ip = i ; mac = m ; name = n} in
+
+    match p.partial_dev_type with
+    | Some Host -> unbox_host p
+    | Some Switch -> unbox_switch p
+    | Some Middlebox -> unbox_switch p
+    | _ -> failwith "Must provide valid devide type for all nodes"
+
 
   let parse_dot (i:Dot_ast.node_id) (ats:Dot_ast.attr list) : t =
     let (id, popt) = i in
     let name = string_of_id id in
     let at = List.hd ats in
-    List.fold_left update_dot_attr
-      {default with name = name; ip = 0l; mac = 0L} at
+    let partial = List.fold_left update_dot_attr
+      {partial_default with partial_name = Some name} at in
+    unbox partial
 
   let int64_of_value v = match v with
     | Gml.Int(i) -> Int64.of_int i
