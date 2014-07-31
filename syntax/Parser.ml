@@ -66,9 +66,9 @@ EXTEND Gram
         <:expr<NetKAT_Types.(Test (TCPSrcPort $n$))>>
     | "tcpDstPort"; "="; n = nk_int ->
         <:expr<NetKAT_Types.(Test (TCPDstPort $n$))>>
-    | "ethSrc"; ":="; n = nk_int64 ->
+    | "ethSrc"; "="; n = nk_int64 ->
         <:expr<NetKAT_Types.(Test (EthSrc $n$))>>
-    | "ethDst"; ":="; n = nk_int64 ->
+    | "ethDst"; "="; n = nk_int64 ->
         <:expr<NetKAT_Types.(Test (EthDst $n$))>>
     | "ip4Src"; "="; n = nk_ipv4 ->
         <:expr<NetKAT_Types.(Test (IP4Src ($n$,32l)))>>
