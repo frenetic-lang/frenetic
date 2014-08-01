@@ -60,10 +60,14 @@ Library async
     threads,
     topology,
     sexplib,
-    sexplib.syntax
+    sexplib.syntax,
+    yojson,
+    cohttp,
+    cohttp.async
   InternalModules:
     Discovery,
     Learning,
+    Http_app,
     Raw_app,
     TUtil,
     Txn

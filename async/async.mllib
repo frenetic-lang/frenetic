@@ -1,9 +1,10 @@
 # OASIS_START
-# DO NOT EDIT (digest: ebf962fadd27563b890feee4cb7cd301)
+# DO NOT EDIT (digest: fa61b84f9c16b33ee2932833a9cfc4c6)
 Async_NetKAT
 Async_NetKAT_Controller
 Discovery
 Learning
+Http_app
 Raw_app
 TUtil
 Txn

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: d44bb7b8705722d14b22e2fbff77836f)
+# DO NOT EDIT (digest: b763e8c91a14c5eab0672bb811e40819)
 version = "3.1.0"
 description = "The Frenetic Compiler and Runtime System"
 requires =
@@ -24,7 +24,7 @@ package "async" (
  version = "3.1.0"
  description = "The Frenetic Compiler and Runtime System"
  requires =
- "async core cstruct cstruct.syntax netkat openflow openflow.async packet threads topology sexplib sexplib.syntax"
+ "async core cstruct cstruct.syntax netkat openflow openflow.async packet threads topology sexplib sexplib.syntax yojson cohttp cohttp.async"
  archive(byte) = "async.cma"
  archive(byte, plugin) = "async.cma"
  archive(native) = "async.cmxa"

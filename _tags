@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 86a37c2d7ba9fc150e57257fdb6f504d)
+# DO NOT EDIT (digest: f9d055c458f0a38f7392f07224ae28b3)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -27,6 +27,8 @@
 # Library async
 "async/async.cmxs": use_async
 <async/*.ml{,i}>: package(async)
+<async/*.ml{,i}>: package(cohttp)
+<async/*.ml{,i}>: package(cohttp.async)
 <async/*.ml{,i}>: package(core)
 <async/*.ml{,i}>: package(cstruct)
 <async/*.ml{,i}>: package(cstruct.syntax)
@@ -41,6 +43,7 @@
 <async/*.ml{,i}>: package(str)
 <async/*.ml{,i}>: package(threads)
 <async/*.ml{,i}>: package(topology)
+<async/*.ml{,i}>: package(yojson)
 <async/*.ml{,i}>: use_netkat
 # Library quickcheck
 "quickcheck/quickcheck.cmxs": use_quickcheck
@@ -97,6 +100,8 @@
 # Executable katnetic
 "frenetic/katnetic.native": package(async)
 "frenetic/katnetic.native": package(cmdliner)
+"frenetic/katnetic.native": package(cohttp)
+"frenetic/katnetic.native": package(cohttp.async)
 "frenetic/katnetic.native": package(core)
 "frenetic/katnetic.native": package(cstruct)
 "frenetic/katnetic.native": package(cstruct.syntax)
@@ -111,11 +116,14 @@
 "frenetic/katnetic.native": package(str)
 "frenetic/katnetic.native": package(threads)
 "frenetic/katnetic.native": package(topology)
+"frenetic/katnetic.native": package(yojson)
 "frenetic/katnetic.native": use_async
 "frenetic/katnetic.native": use_netkat
 <frenetic/*.ml{,i}>: package(cmdliner)
 # Executable netkat_test
 "frenetic/netkat_test.byte": package(async)
+"frenetic/netkat_test.byte": package(cohttp)
+"frenetic/netkat_test.byte": package(cohttp.async)
 "frenetic/netkat_test.byte": package(core)
 "frenetic/netkat_test.byte": package(cstruct)
 "frenetic/netkat_test.byte": package(cstruct.syntax)
@@ -130,10 +138,13 @@
 "frenetic/netkat_test.byte": package(str)
 "frenetic/netkat_test.byte": package(threads)
 "frenetic/netkat_test.byte": package(topology)
+"frenetic/netkat_test.byte": package(yojson)
 "frenetic/netkat_test.byte": use_async
 "frenetic/netkat_test.byte": use_netkat
 # Executable test_updates
 "frenetic/test_updates.byte": package(async)
+"frenetic/test_updates.byte": package(cohttp)
+"frenetic/test_updates.byte": package(cohttp.async)
 "frenetic/test_updates.byte": package(core)
 "frenetic/test_updates.byte": package(cstruct)
 "frenetic/test_updates.byte": package(cstruct.syntax)
@@ -148,9 +159,12 @@
 "frenetic/test_updates.byte": package(str)
 "frenetic/test_updates.byte": package(threads)
 "frenetic/test_updates.byte": package(topology)
+"frenetic/test_updates.byte": package(yojson)
 "frenetic/test_updates.byte": use_async
 "frenetic/test_updates.byte": use_netkat
 <frenetic/*.ml{,i}>: package(async)
+<frenetic/*.ml{,i}>: package(cohttp)
+<frenetic/*.ml{,i}>: package(cohttp.async)
 <frenetic/*.ml{,i}>: package(core)
 <frenetic/*.ml{,i}>: package(cstruct)
 <frenetic/*.ml{,i}>: package(cstruct.syntax)
@@ -165,6 +179,7 @@
 <frenetic/*.ml{,i}>: package(str)
 <frenetic/*.ml{,i}>: package(threads)
 <frenetic/*.ml{,i}>: package(topology)
+<frenetic/*.ml{,i}>: package(yojson)
 <frenetic/*.ml{,i}>: use_async
 <frenetic/*.ml{,i}>: use_netkat
 # OASIS_STOP
