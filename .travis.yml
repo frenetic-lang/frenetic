@@ -2,7 +2,7 @@ language: c
 script: bash -ex .travis-ci.sh
 env:
   global:
-    - OPAM_DEPENDS="async cmdliner core cstruct ocamlgraph ounit pa_ounit quickcheck"
+    - OPAM_DEPENDS="async cmdliner core cstruct ocamlgraph ounit pa_ounit quickcheck cohttp cohttp.async yojson"
     - CONFIG_FLAGS="--enable-tests --enable-quickcheck --enable-async"
     - FRENETIC_DEPENDS="ocaml-packet ocaml-openflow ocaml-topology dprle"
   matrix:
