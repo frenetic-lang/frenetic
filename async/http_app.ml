@@ -1,8 +1,9 @@
 module NetKAT = NetKAT_Types
 
 module Event = struct
-  type t = NetKAT.event
   open NetKAT
+
+  type t = event
 
   let to_json (event : t) : Yojson.Safe.json =
     match event with
@@ -55,6 +56,12 @@ module Event = struct
               ("switch_id", `Intlit sw_id);
               ("port_id",   `Intlit pt_id)] ->
       PortDown (Int64.of_string sw_id, Int32.of_string pt_id)
+
+  let of_json_string (str : string) : t =
+    of_json (Yojson.Safe.from_string str)
+
+  let to_json_string (t : t) : string =
+    Yojson.Safe.to_string (to_json t)
 end
 
 let create policy host port =
@@ -62,7 +69,7 @@ let create policy host port =
   let uri = Uri.make ~host ~port () in
   Async_NetKAT.create policy (fun _ _ () e ->
     let open Cohttp_async in
-    let body = Body.of_string (Yojson.Safe.to_string (Event.to_json e)) in
+    let body = Body.of_string (Event.to_json_string e) in
     Client.post ~body uri >>= fun (response, body) ->
     match response.Response.status with
     | `Code 200 ->
