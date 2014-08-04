@@ -71,13 +71,25 @@ let create policy host port =
     let open Cohttp_async in
     let body = Body.of_string (Event.to_json_string e) in
     Client.post ~body uri >>= fun (response, body) ->
-    match response.Response.status with
-    | `Code 200 ->
+    match Cohttp.Code.code_of_status (response.Response.status) with
+    | 200 ->  (* 200 OK           *)
       Body.to_string body
       >>| Lexing.from_string
       >>| NetKAT_Parser.program NetKAT_Lexer.token
       >>| fun pol -> Some pol
-    | `Code 201 ->
+    | 202    (* 202 Accepted      *)
+    | 204 -> (* 204 No Content    *)
       return None
-    | _ ->
-      failwith "error")
+    | code   (* 2xx Sucessful     *)
+        when code >= 200 && code < 300 ->
+      return None
+    | code   (* 1xx Informational *)
+        when code >= 100 && code < 200 ->
+      failwith "unhandled informational"
+    | code   (* 4xx Client Error  *)
+        when code >= 400 && code < 500 ->
+      failwith "client error"
+    | code   (* 5xx Server Error  *)
+        when code >= 500 && code < 600 ->
+      failwith "server error"
+    | _ -> assert false)
