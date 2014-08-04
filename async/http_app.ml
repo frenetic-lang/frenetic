@@ -99,32 +99,46 @@ module Event = struct
     Yojson.Safe.to_string (to_json t)
 end
 
-let create policy host port =
-  let open Async.Std in
-  let uri = Uri.make ~host ~port () in
-  Async_NetKAT.create policy (fun _ _ () e ->
-    let open Cohttp_async in
-    let body = Body.of_string (Event.to_json_string e) in
-    Client.post ~body uri >>= fun (response, body) ->
-    match Cohttp.Code.code_of_status (response.Response.status) with
-    | 200 ->  (* 200 OK           *)
-      Body.to_string body
-      >>| Lexing.from_string
-      >>| NetKAT_Parser.program NetKAT_Lexer.token
-      >>| fun pol -> Some pol
-    | 202    (* 202 Accepted      *)
-    | 204 -> (* 204 No Content    *)
-      return None
-    | code   (* 2xx Sucessful     *)
-        when code >= 200 && code < 300 ->
-      return None
-    | code   (* 1xx Informational *)
-        when code >= 100 && code < 200 ->
-      failwith "unhandled informational"
-    | code   (* 4xx Client Error  *)
-        when code >= 400 && code < 500 ->
-      failwith "client error"
-    | code   (* 5xx Server Error  *)
-        when code >= 500 && code < 600 ->
-      failwith "server error"
-    | _ -> assert false)
+open Async.Std
+open Cohttp_async
+
+let initialize host port path =
+  let uri = Uri.make ~host ~port ~path () in
+  Client.post uri >>| fun (response, body) ->
+    if not (Cohttp.Code.code_of_status (response.Response.status) = 201) then
+      failwith "unexpected response";
+    Cohttp.Header.get response.Response.headers "Location"
+
+let handler uri event =
+  let body = Body.of_string (Event.to_json_string event) in
+  Client.put ~body uri >>= fun (response, body) ->
+  match Cohttp.Code.code_of_status (response.Response.status) with
+  | 200 ->  (* 200 OK           *)
+    Body.to_string body
+    >>| Lexing.from_string
+    >>| NetKAT_Parser.program NetKAT_Lexer.token
+    >>| fun pol -> Some pol
+  | 202    (* 202 Accepted      *)
+  | 204 -> (* 204 No Content    *)
+    return None
+  | code   (* 2xx Sucessful     *)
+      when code >= 200 && code < 300 ->
+    return None
+  | code   (* 1xx Informational *)
+      when code >= 100 && code < 200 ->
+    failwith "unhandled informational"
+  | code   (* 4xx Client Error  *)
+      when code >= 400 && code < 500 ->
+    failwith "client error"
+  | code   (* 5xx Server Error  *)
+      when code >= 500 && code < 600 ->
+    failwith "server error"
+  | _ -> assert false
+
+let create policy host port ?(path="/netkat/app") =
+  initialize host port path
+  >>| function
+    | None       -> failwith "no location provided"
+    | Some(path) ->
+      let uri = Uri.make ~host ~port ~path () in
+      Async_NetKAT.create policy (fun _ _ () -> handler uri)
