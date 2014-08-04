@@ -7,6 +7,26 @@ module Event = struct
 
   let to_json (event : t) : Yojson.Safe.json =
     match event with
+    | PacketIn (pipe, sw_id, pt_id, payload, len) ->
+      let buffer = Cstruct.to_string (SDN_Types.payload_bytes payload) in
+      `Assoc [
+          ("type", `String "packet_in");
+          ("pipe", `String pipe);
+          ("switch_id", `Intlit (Int64.to_string sw_id));
+          ("port_id",   `Intlit (Int32.to_string pt_id));
+          ("payload",   `Assoc [
+              ("buffer", `String buffer);
+              ("id", match payload with
+                | SDN_Types.Buffered(id, _) -> `Intlit (Int32.to_string id)
+                | _                         -> `Null)
+          ]);
+          ("length",    `Intlit (string_of_int len));
+      ]
+    | Query (name, pkt_count, byte_count) ->
+      `Assoc [
+          ("type", `String "query");
+          ("packet_count", `Intlit (Int64.to_string pkt_count));
+          ("byte_count", `Intlit (Int64.to_string byte_count))]
     | SwitchUp sw_id ->
       `Assoc [
           ("type", `String "switch_up");
@@ -39,6 +59,21 @@ module Event = struct
                           ("port_id",   `Intlit (Int32.to_string pt_id1))]);
           ("dst", `Assoc [("switch_id", `Intlit (Int64.to_string sw_id2));
                           ("port_id",   `Intlit (Int32.to_string pt_id2))])]
+    | HostUp ((sw_id, pt_id), (dlAddr, nwAddr)) ->
+      `Assoc [
+          ("type", `String "host_up");
+          ("switch_id", `Intlit (Int64.to_string sw_id));
+          ("port_id",   `Intlit (Int32.to_string pt_id));
+          ("dl_addr",   `String (Packet.string_of_dlAddr dlAddr));
+          ("nw_addr",   `String (Packet.string_of_nwAddr nwAddr))]
+    | HostDown ((sw_id, pt_id), (dlAddr, nwAddr)) ->
+      `Assoc [
+          ("type", `String "host_down");
+          ("switch_id", `Intlit (Int64.to_string sw_id));
+          ("port_id",   `Intlit (Int32.to_string pt_id));
+          ("dl_addr",   `String (Packet.string_of_dlAddr dlAddr));
+          ("nw_addr",   `String (Packet.string_of_nwAddr nwAddr))]
+
 
   let of_json (json : Yojson.Safe.json) : t =
     match json with
