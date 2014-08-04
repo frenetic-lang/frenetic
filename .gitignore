@@ -11,3 +11,4 @@ setup.log
 *~
 .*.sw[po]
 vagrant/.vagrant/*
+*.pyc
