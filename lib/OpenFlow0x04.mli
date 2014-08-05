@@ -604,9 +604,9 @@ module Message : sig
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
-    | GetConfigRequestMsg of switchConfig
-    | GetConfigReplyMsg of switchConfig
-    | SetConfigMsg of switchConfig
+    | GetConfigRequestMsg of SwitchConfig.t
+    | GetConfigReplyMsg of SwitchConfig.t
+    | SetConfigMsg of SwitchConfig.t
     | Error of Error.t
 
   val sizeof : t -> int
