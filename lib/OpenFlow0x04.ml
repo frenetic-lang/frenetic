@@ -136,7 +136,6 @@ cstruct ofp_switch_features {
   uint8_t auxiliary_id;
   uint8_t pad0;
   uint8_t pad1;
-  uint8_t pad2;
   uint32_t capabilities; 
   uint32_t reserved
 } as big_endian 
@@ -2827,7 +2826,6 @@ module SwitchFeatures = struct
     set_ofp_switch_features_auxiliary_id buf features.aux_id;
     set_ofp_switch_features_pad0 buf 0;
     set_ofp_switch_features_pad1 buf 0;
-    set_ofp_switch_features_pad2 buf 0;
     set_ofp_switch_features_capabilities buf (Capabilities.to_int32 features.supported_capabilities); 
     sizeof_ofp_switch_features
 
