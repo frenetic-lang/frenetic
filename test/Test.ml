@@ -414,6 +414,16 @@ module RoundTripping = struct
       (openflow_quickCheck GenSwitchConfig.arbitrary
           GenSwitchConfig.to_string GenSwitchConfig.parse GenSwitchConfig.marshal)
 
+  TEST "OpenFlow0x04 FlowRemoved RoundTrip" =
+      let module GenFlowRemoved = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.FlowRemoved) in
+      (openflow_quickCheck GenFlowRemoved.arbitrary
+          GenFlowRemoved.to_string GenFlowRemoved.parse GenFlowRemoved.marshal)
+
+  TEST "OpenFlow0x04 AsyncConfig RoundTrip" =
+      let module GenAsyncConfig = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.AsyncConfig) in
+      (openflow_quickCheck GenAsyncConfig.arbitrary
+          GenAsyncConfig.to_string GenAsyncConfig.parse GenAsyncConfig.marshal)
+
   TEST "OpenFlow0x04 Error RoundTrip" =
       let module GenError = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.Error) in
       (openflow_quickCheck GenError.arbitrary

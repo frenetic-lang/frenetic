@@ -1501,7 +1501,7 @@ module SwitchConfig = struct
 
   type t = SwitchConfig.t
 
-  let arbitrary_flags = 
+  let arbitrary_flags =
     oneof [
       ret_gen NormalFrag;
       ret_gen DropFrag;
@@ -1509,7 +1509,7 @@ module SwitchConfig = struct
       ret_gen MaskFrag
     ]
 
-  let arbitrary = 
+  let arbitrary =
     arbitrary_flags >>= fun flags ->
     arbitrary_uint16 >>= fun miss_send_len ->
     ret_gen { flags; miss_send_len}
@@ -1518,6 +1518,88 @@ module SwitchConfig = struct
   let parse = SwitchConfig.parse
   let to_string = SwitchConfig.to_string
   let size_of = SwitchConfig.sizeof
+
+end
+
+module FlowRemoved = struct
+
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = FlowRemoved.t
+
+  let arbitrary_reason = 
+    oneof [ 
+      ret_gen FlowIdleTimeout;
+      ret_gen FlowHardTiemout;
+      ret_gen FlowDelete;
+      ret_gen FlowGroupDelete]
+
+  let arbitrary =
+    arbitrary_uint64 >>= fun cookie ->
+    arbitrary_uint16 >>= fun priority ->
+    arbitrary_reason >>= fun reason ->
+    arbitrary_uint8 >>= fun table_id ->
+    arbitrary_uint32 >>= fun duration_sec ->
+    arbitrary_uint32 >>= fun duration_nsec ->
+    arbitrary_timeout >>= fun idle_timeout ->
+    arbitrary_timeout >>= fun hard_timeout ->
+    arbitrary_uint64 >>= fun packet_count ->
+    arbitrary_uint64 >>= fun byte_count ->
+    OfpMatch.arbitrary >>= fun oxm ->
+    ret_gen { cookie; priority; reason; table_id; duration_sec; duration_nsec;
+              idle_timeout; hard_timeout; packet_count; byte_count; oxm }
+
+  let marshal = FlowRemoved.marshal
+  let parse = FlowRemoved.parse
+  let to_string = FlowRemoved.to_string
+  let size_of = FlowRemoved.sizeof
+
+end
+
+module AsyncConfig = struct
+
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = AsyncConfig.t
+
+  let arbitrary_FlowReason = 
+    oneof [ 
+      ret_gen FlowIdleTimeout;
+      ret_gen FlowHardTiemout;
+      ret_gen FlowDelete;
+      ret_gen FlowGroupDelete]
+
+  let arbitrary_PacketInReason =
+      oneof [
+          ret_gen NoMatch;
+          ret_gen ExplicitSend;
+          ret_gen InvalidTTL
+      ]
+
+  let arbitrary_PortStatusReason =
+        oneof [
+            ret_gen PortAdd;
+            ret_gen PortDelete;
+            ret_gen PortModify
+        ]
+
+  let arbitrary_mask arb =
+    arb >>= fun m_master ->
+    arb >>= fun m_slave ->
+    ret_gen { m_master; m_slave }
+
+  let arbitrary = 
+    arbitrary_mask arbitrary_PacketInReason >>= fun packet_in ->
+    arbitrary_mask arbitrary_PortStatusReason >>= fun port_status ->
+    arbitrary_mask arbitrary_FlowReason >>= fun flow_removed ->
+    ret_gen { packet_in; port_status; flow_removed }
+
+  let marshal = AsyncConfig.marshal
+  let parse = AsyncConfig.parse
+  let to_string = AsyncConfig.to_string
+  let size_of = AsyncConfig.sizeof
 
 end
 
