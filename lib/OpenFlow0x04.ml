@@ -2777,7 +2777,7 @@ module Capabilities = struct
        (Int32.logor (if capa.group_stats then (Int32.shift_left 1l 3) else 0l)
         (Int32.logor (if capa.ip_reasm then (Int32.shift_left 1l 5) else 0l)
          (Int32.logor (if capa.queue_stats then (Int32.shift_left 1l 6) else 0l)
-           (if capa.port_blocked then (Int32.shift_left 1l 7) else 0l))))))
+           (if capa.port_blocked then (Int32.shift_left 1l 8) else 0l))))))
 
   let to_string (cap : capabilities) : string =
       Format.sprintf "{ port_blocked = %B; queue_stats = %B; ip_reasm = %B; group_stats = %B; \
@@ -2791,7 +2791,7 @@ module Capabilities = struct
       cap.flow_stats
 
   let parse (bits : int32) : capabilities =
-    { port_blocked = Bits.test_bit 7 bits;
+    { port_blocked = Bits.test_bit 8 bits;
       queue_stats = Bits.test_bit 6 bits;
       ip_reasm = Bits.test_bit 5 bits;
       group_stats = Bits.test_bit 3 bits;
