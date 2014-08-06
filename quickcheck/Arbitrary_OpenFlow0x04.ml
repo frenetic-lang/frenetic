@@ -1507,11 +1507,26 @@ module Hello = struct
       open OpenFlow0x04_Core
       
       type t = Hello.Element.VersionBitMap.t
-        
+
+      let maxi = 300
+
+      let choose_int2 b =
+        choose_int (b,maxi)
+
+      let rec arbitrary_sorted n l acc=
+        match n with
+          | 0 -> (choose_int2 l >>= fun a -> 
+                  ret_gen( a::acc))
+          | n -> choose_int2 l >>= fun li ->
+                 if li = maxi then
+                   ret_gen (li::acc)
+                 else
+                   arbitrary_sorted (n-1) (li+1) (li::acc)
+
       let arbitrary = 
-        choose_int (20,120) >>= fun a ->
-	choose_int (1,15) >>= fun b ->
-        ret_gen [a;b]
+        choose_int(1,30) >>= fun n ->
+        arbitrary_sorted n 0 [] >>= fun l ->
+        ret_gen l
       
       let marshal = Hello.Element.VersionBitMap.marshal
       let parse = Hello.Element.VersionBitMap.parse
