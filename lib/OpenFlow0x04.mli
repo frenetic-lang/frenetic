@@ -161,13 +161,13 @@ module MeterMod : sig
 
   type t = meterMod
 
-  val sizeof : meterMod -> int
+  val sizeof : t -> int
 
-  val to_string : meterMod -> string
+  val to_string : t -> string
 
-  val marshal : Cstruct.t -> meterMod -> int
+  val marshal : Cstruct.t -> t -> int
 
-  val parse : Cstruct.t -> meterMod
+  val parse : Cstruct.t -> t
 
 end
 
