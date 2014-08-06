@@ -862,6 +862,46 @@ let test_bit16 (n:int) (x:int) : bool =
 
 module Oxm = struct
 
+  module IPv6ExtHdr = struct
+  
+    type t = oxmIPv6ExtHdr
+
+    let marshal (hdr : t) : int16 = 
+      (if hdr.noext then 1 lsl 0 else 0) lor
+        (if hdr.esp then 1 lsl 1 else 0) lor
+          (if hdr.auth then 1 lsl 2 else 0) lor
+            (if hdr.dest then 1 lsl 3 else 0) lor
+              (if hdr.frac then 1 lsl 4 else 0) lor
+                (if hdr.router then 1 lsl 5 else 0) lor
+                  (if hdr.hop then 1 lsl 6 else 0) lor
+                    (if hdr.unrep then 1 lsl 7 else 0) lor
+                      (if hdr.unseq then 1 lsl 8 else 0)
+
+    let parse bits : t = 
+      { noext = test_bit16 0 bits
+      ; esp = test_bit16 1 bits
+      ; auth = test_bit16 2 bits
+      ; dest = test_bit16 3 bits
+      ; frac = test_bit16 4 bits
+      ; router = test_bit16 5 bits
+      ; hop = test_bit16 6 bits
+      ; unrep = test_bit16 7 bits
+      ; unseq = test_bit16 8 bits}
+
+    let to_string (t : t) : string = 
+      Format.sprintf "{ noext = %B; esp = %B; auth = %B; dest = %B; frac = %B; router = %B; \
+                        hop = %B; unrep = %B; unseq = %B }"
+      t.noext
+      t.esp
+      t.auth
+      t.dest
+      t.frac
+      t.router
+      t.hop
+      t.unrep
+      t.unseq
+  end
+
   type t = oxm
 
   let field_length (oxm : oxm) : int = match oxm with
@@ -1140,15 +1180,15 @@ module Oxm = struct
         | Some m -> Format.sprintf "IPv6NeighborDiscoveryTarget = %s/%s" (string_of_ipv6 t.m_value) (string_of_ipv6 m))
     | OxmIPv6NDSll v -> Format.sprintf "IPv6NeighborDiscoverySourceLink = %Lu" v
     | OxmIPv6NDTll v -> Format.sprintf "IPv6NeighborDiscoveryTargetLink = %Lu" v
-    | OxmMPLSBos v -> Format.sprintf "MPLSBoS = %u" v
+    | OxmMPLSBos v -> Format.sprintf "MPLSBoS = %B" v
     | OxmPBBIsid t ->
       (match t.m_mask with
         | None -> Format.sprintf "PBBIsid = %lu" t.m_value
         | Some m -> Format.sprintf "PBBIsid = %lu/%lu" t.m_value m)
     | OxmIPv6ExtHdr t ->
       (match t.m_mask with
-        | None -> Format.sprintf "IPv6ExtHdr = %u" t.m_value
-        | Some m -> Format.sprintf "IPv6ExtHdr = %u/%u" t.m_value m)
+        | None -> Format.sprintf "IPv6ExtHdr = %s" (IPv6ExtHdr.to_string t.m_value)
+        | Some m -> Format.sprintf "IPv6ExtHdr = %s/%s" (IPv6ExtHdr.to_string t.m_value) (IPv6ExtHdr.to_string m))
 
   let set_ofp_oxm (buf : Cstruct.t) (c : ofp_oxm_class) (f : oxm_ofb_match_fields) (hm : int) (l : int) = 
     let value = (0x7f land (oxm_ofb_match_fields_to_int f)) lsl 1 in
@@ -1418,7 +1458,9 @@ module Oxm = struct
               sizeof_ofp_oxm + l
             | OxmMPLSBos boS ->
               set_ofp_oxm buf ofc OFPXMT_OFP_MPLS_BOS 0 l;
-              set_ofp_uint8_value buf2 boS;
+              (match boS with 
+                | true -> set_ofp_uint8_value buf2 1
+                | false -> set_ofp_uint8_value buf2 0);
               sizeof_ofp_oxm + l
             | OxmPBBIsid sid ->
               set_ofp_oxm buf ofc OFPXMT_OFB_PBB_ISID (match sid.m_mask with None -> 0 | _ -> 1)  l;
@@ -1433,13 +1475,13 @@ module Oxm = struct
               end
             | OxmIPv6ExtHdr hdr ->
               set_ofp_oxm buf ofc OFPXMT_OFB_IPV6_EXTHDR (match hdr.m_mask with None -> 0 | _ -> 1)  l;
-              set_ofp_uint16_value buf2 hdr.m_value;
+              set_ofp_uint16_value buf2 (IPv6ExtHdr.marshal hdr.m_value);
               begin match hdr.m_mask with
                 | None ->
                   sizeof_ofp_oxm + l
                 | Some mask ->
                   let buf3 = Cstruct.shift buf2 (l/2) in
-                    set_ofp_uint16_value buf3 mask;
+                    set_ofp_uint16_value buf3 (IPv6ExtHdr.marshal mask);
                     sizeof_ofp_oxm + l
               end
 
@@ -1791,7 +1833,7 @@ module Oxm = struct
       (OxmIPv6NDTll value, bits2)
       | OFPXMT_OFP_MPLS_BOS ->
     let value = get_ofp_uint8_value bits in
-      (OxmMPLSBos (value land 1), bits2)
+      (OxmMPLSBos ((value land 1) = 1), bits2)
       | OFPXMT_OFB_PBB_ISID ->
     let value = get_ofp_uint24_value bits in
     if hm = 1 then
@@ -1801,10 +1843,10 @@ module Oxm = struct
     else
       (OxmPBBIsid {m_value = value; m_mask = None}, bits2)
       | OFPXMT_OFB_IPV6_EXTHDR ->
-    let value = get_ofp_uint16_value bits in
+    let value = IPv6ExtHdr.parse (get_ofp_uint16_value bits) in
     if hm = 1 then
       let bits = Cstruct.shift bits 2 in
-      let mask = get_ofp_uint16_value bits in
+      let mask = IPv6ExtHdr.parse (get_ofp_uint16_value bits) in
       (OxmIPv6ExtHdr {m_value = value; m_mask = (Some mask)}, bits2)
     else
       (OxmIPv6ExtHdr {m_value = value; m_mask = None}, bits2)
@@ -1954,17 +1996,18 @@ module Oxm = struct
       | OFPXMT_OFB_IPV6_ND_TLL ->
       (OxmIPv6NDTll 0L, bits2)
       | OFPXMT_OFP_MPLS_BOS ->
-      (OxmMPLSBos 0, bits2)
+      (OxmMPLSBos false, bits2)
       | OFPXMT_OFB_PBB_ISID ->
         if hm = 1 then
       (OxmPBBIsid {m_value = 0l; m_mask = (Some 0l)}, bits2)
         else
       (OxmPBBIsid {m_value = 0l; m_mask = None}, bits2)
       | OFPXMT_OFB_IPV6_EXTHDR ->
+        let nul = {noext = false; esp = false; auth = false; dest = false; frac = false; router = false; hop = false; unrep = false; unseq = false } in
         if hm = 1 then
-      (OxmIPv6ExtHdr {m_value = 0; m_mask = (Some 0)}, bits2)
+      (OxmIPv6ExtHdr {m_value = nul; m_mask = (Some nul)}, bits2)
         else
-      (OxmIPv6ExtHdr {m_value = 0; m_mask = None}, bits2)
+      (OxmIPv6ExtHdr {m_value = nul; m_mask = None}, bits2)
 
     let rec parse_headers (bits : Cstruct.t) : oxmMatch*Cstruct.t = 
       if Cstruct.len bits < sizeof_ofp_oxm then ([], bits)
