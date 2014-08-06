@@ -1561,6 +1561,138 @@ module MeterMod = struct
 
 end
   
+module Hello = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  module Element = struct
+    open Gen
+    open OpenFlow0x04_Core
+
+    module VersionBitMap = struct
+      open Gen
+      open OpenFlow0x04_Core
+      
+      type t = Hello.Element.VersionBitMap.t
+        
+      let arbitrary = 
+        choose_int (20,120) >>= fun a ->
+	choose_int (1,15) >>= fun b ->
+        ret_gen [a;b]
+      
+      let marshal = Hello.Element.VersionBitMap.marshal
+      let parse = Hello.Element.VersionBitMap.parse
+      let to_string = Hello.Element.VersionBitMap.to_string
+      let size_of = Hello.Element.VersionBitMap.sizeof
+    end
+    
+    type t = Hello.Element.t
+
+    let arbitrary = 
+      VersionBitMap.arbitrary >>= fun version ->
+      ret_gen (VersionBitMap version)
+
+    let marshal = Hello.Element.marshal
+    let parse = Hello.Element.parse
+    let to_string = Hello.Element.to_string
+    let size_of = Hello.Element.sizeof
+  end
+  
+  type t = Hello.t
+
+  let arbitrary = 
+    arbitrary_list Element.arbitrary >>= fun element ->
+    ret_gen element
+
+  let marshal = Hello.marshal
+  let parse = Hello.parse
+  let to_string = Hello.to_string
+  let size_of = Hello.sizeof
+
+end
+
+module FlowRemoved = struct
+
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = FlowRemoved.t
+
+  let arbitrary_reason = 
+    oneof [ 
+      ret_gen FlowIdleTimeout;
+      ret_gen FlowHardTiemout;
+      ret_gen FlowDelete;
+      ret_gen FlowGroupDelete]
+
+  let arbitrary =
+    arbitrary_uint64 >>= fun cookie ->
+    arbitrary_uint16 >>= fun priority ->
+    arbitrary_reason >>= fun reason ->
+    arbitrary_uint8 >>= fun table_id ->
+    arbitrary_uint32 >>= fun duration_sec ->
+    arbitrary_uint32 >>= fun duration_nsec ->
+    arbitrary_timeout >>= fun idle_timeout ->
+    arbitrary_timeout >>= fun hard_timeout ->
+    arbitrary_uint64 >>= fun packet_count ->
+    arbitrary_uint64 >>= fun byte_count ->
+    OfpMatch.arbitrary >>= fun oxm ->
+    ret_gen { cookie; priority; reason; table_id; duration_sec; duration_nsec;
+              idle_timeout; hard_timeout; packet_count; byte_count; oxm }
+
+  let marshal = FlowRemoved.marshal
+  let parse = FlowRemoved.parse
+  let to_string = FlowRemoved.to_string
+  let size_of = FlowRemoved.sizeof
+
+end
+
+module AsyncConfig = struct
+
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = AsyncConfig.t
+
+  let arbitrary_FlowReason = 
+    oneof [ 
+      ret_gen FlowIdleTimeout;
+      ret_gen FlowHardTiemout;
+      ret_gen FlowDelete;
+      ret_gen FlowGroupDelete]
+
+  let arbitrary_PacketInReason =
+      oneof [
+          ret_gen NoMatch;
+          ret_gen ExplicitSend;
+          ret_gen InvalidTTL
+      ]
+
+  let arbitrary_PortStatusReason =
+        oneof [
+            ret_gen PortAdd;
+            ret_gen PortDelete;
+            ret_gen PortModify
+        ]
+
+  let arbitrary_mask arb =
+    arb >>= fun m_master ->
+    arb >>= fun m_slave ->
+    ret_gen { m_master; m_slave }
+
+  let arbitrary = 
+    arbitrary_mask arbitrary_PacketInReason >>= fun packet_in ->
+    arbitrary_mask arbitrary_PortStatusReason >>= fun port_status ->
+    arbitrary_mask arbitrary_FlowReason >>= fun flow_removed ->
+    ret_gen { packet_in; port_status; flow_removed }
+
+  let marshal = AsyncConfig.marshal
+  let parse = AsyncConfig.parse
+  let to_string = AsyncConfig.to_string
+  let size_of = AsyncConfig.sizeof
+
+end
+
 module Error = struct
 
   open Gen

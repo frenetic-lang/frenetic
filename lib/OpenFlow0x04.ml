@@ -2332,6 +2332,8 @@ end
 
 module Bucket = struct
 
+  type t = bucket
+
   let sizeof (bucket : bucket) : int =
     let n = sizeof_ofp_bucket + sum (map Action.sizeof bucket.bu_actions) in
     pad_to_64bits n
@@ -2556,6 +2558,8 @@ module MeterBand = struct
     OFPMBT_DSCP_REMARK = 2;
     OFPMBT_EXPERIMENTER = 0xffff
   } as uint16_t
+
+  type t = meterBand
 
   let sizeof (mb : meterBand) : int =
     match mb with
@@ -3137,54 +3141,86 @@ module PortStatus = struct
   let sizeof (_ : portStatus) : int = 
     sizeof_ofp_port_status + sizeof_ofp_port
 
-  let reason_to_int (pr : portReason) : int =
-     match pr with
-      | PortAdd -> ofp_port_reason_to_int OFPPR_ADD
-      | PortDelete -> ofp_port_reason_to_int OFPPR_DELETE
-      | PortModify -> ofp_port_reason_to_int OFPPR_MODIFY
+  module Reason = struct 
+
+    let marshal (pr : portReason) : int =
+       match pr with
+        | PortAdd -> ofp_port_reason_to_int OFPPR_ADD
+        | PortDelete -> ofp_port_reason_to_int OFPPR_DELETE
+        | PortModify -> ofp_port_reason_to_int OFPPR_MODIFY
+
+    let to_string (pr : portReason) = 
+      match pr with
+        | PortAdd -> "PortAdd"
+        | PortDelete -> "PortDelete"
+        | PortModify -> "PortModify"
+
+    let parse t : portReason = 
+      match int_to_ofp_port_reason t with
+        | Some OFPPR_ADD -> PortAdd
+        | Some OFPPR_DELETE -> PortDelete
+        | Some OFPPR_MODIFY -> PortModify
+        | None -> raise (Unparsable (sprintf "unexpected port reason"))
+  end
 
   let marshal (buf : Cstruct.t) (status : portStatus) : int =
-    set_ofp_port_status_reason buf (reason_to_int status.reason);
+    set_ofp_port_status_reason buf (Reason.marshal status.reason);
     let size = sizeof_ofp_port_status + 
         PortDesc.marshal (Cstruct.shift buf sizeof_ofp_port_status) status.desc in
     size
 
   let parse (bits : Cstruct.t) : portStatus =
-    let reason = (match int_to_ofp_port_reason (get_ofp_port_status_reason bits) with
-                    | Some OFPPR_ADD -> PortAdd
-                    | Some OFPPR_DELETE -> PortDelete
-                    | Some OFPPR_MODIFY -> PortModify
-                    | None -> raise (Unparsable (sprintf "unexpected port reason"))) in 
+    let reason = Reason.parse (get_ofp_port_status_reason bits)in 
     let bits = Cstruct.shift bits sizeof_ofp_port_status in
     let desc = PortDesc.parse bits in
     { reason;
       desc }
       
   let to_string (t : portStatus) = 
-    let reason_to_string (reason : portReason) = match reason with
-        | PortAdd -> "Port Add"
-        | PortDelete -> "Port Delete"
-        | PortModify -> "Port Modify" in
     Format.sprintf 
         "{ reason = %s; desc = %s }"
-        (reason_to_string t.reason)
+        (Reason.to_string t.reason)
         (PortDesc.to_string t.desc)
 end
 
 module PacketIn = struct
 
- cenum reasonType {
-   NO_MATCH = 0;
-   ACTION = 1;
-   INVALID_TTL = 2
- } as uint8_t
+  module Reason = struct 
 
- cstruct ofp_packet_in {
-   uint32_t buffer_id;     
-   uint16_t total_len;     
-   uint8_t reason;         
-   uint8_t table_id;
-   uint64_t cookie
+    cenum ofp_packet_in_reason {
+      NO_MATCH = 0;
+      ACTION = 1;
+      INVALID_TTL = 2
+    } as uint8_t
+
+    type t = packetInReason
+
+    let to_string t : string =
+      match t with
+        | NoMatch -> "NO_MATCH"
+        | ExplicitSend -> "ACTION"
+        | InvalidTTL -> "INVALID_TTL"
+
+    let marshal t : int =
+      match t with
+         | NoMatch -> ofp_packet_in_reason_to_int NO_MATCH
+         | ExplicitSend -> ofp_packet_in_reason_to_int ACTION
+         | InvalidTTL -> ofp_packet_in_reason_to_int INVALID_TTL
+
+    let parse t : packetInReason =
+      match int_to_ofp_packet_in_reason t with
+        | Some NO_MATCH -> NoMatch
+        | Some ACTION -> ExplicitSend
+        | Some INVALID_TTL -> InvalidTTL
+        | None -> raise (Unparsable (sprintf "bad reason in packet_in (%d)" t))  
+  end
+
+  cstruct ofp_packet_in {
+    uint32_t buffer_id;     
+    uint16_t total_len;     
+    uint8_t reason;         
+    uint8_t table_id;
+    uint64_t cookie
   } as big_endian
 
   let sizeof (pi : packetIn) : int = 
@@ -3193,10 +3229,7 @@ module PacketIn = struct
   let to_string (pi: packetIn) : string =
     Format.sprintf "{ total_len = %u; reason = %s; table_id = %u; cookie = %Lu; match = %s; payload = %s }"
     pi.pi_total_len
-    (match pi.pi_reason with
-      | NoMatch -> "NO_MATCH"
-      | ExplicitSend -> "ACTION"
-      | InvalidTTL -> "INVALID_TTL")
+    (Reason.to_string pi.pi_reason)
     pi.pi_table_id
     pi.pi_cookie
     (OfpMatch.to_string pi.pi_ofp_match)
@@ -3216,11 +3249,7 @@ module PacketIn = struct
     Cstruct.blit bytes 0 bufMatch (2 + OfpMatch.sizeof pi.pi_ofp_match) pi.pi_total_len;
     set_ofp_packet_in_buffer_id buf buffer_id;
     set_ofp_packet_in_total_len buf pi.pi_total_len;
-    set_ofp_packet_in_reason buf
-      (match pi.pi_reason with
-         | NoMatch -> reasonType_to_int NO_MATCH
-         | ExplicitSend -> reasonType_to_int ACTION
-         | InvalidTTL -> reasonType_to_int INVALID_TTL);
+    set_ofp_packet_in_reason buf (Reason.marshal pi.pi_reason);
     set_ofp_packet_in_table_id buf pi.pi_table_id;
     set_ofp_packet_in_cookie buf pi.pi_cookie;
     size
@@ -3235,11 +3264,7 @@ module PacketIn = struct
       | n -> Some n in
     let total_len = get_ofp_packet_in_total_len bits in
     let reason_code = get_ofp_packet_in_reason bits in
-    let reason = match int_to_reasonType reason_code with
-      | Some NO_MATCH -> NoMatch
-      | Some ACTION -> ExplicitSend
-      | Some INVALID_TTL -> InvalidTTL
-      | None -> raise (Unparsable (sprintf "bad reason in packet_in (%d)" reason_code)) in
+    let reason = Reason.parse (reason_code) in
     let table_id = get_ofp_packet_in_table_id bits in
     let cookie = get_ofp_packet_in_cookie bits in
     let ofp_match_bits = Cstruct.shift bits sizeof_ofp_packet_in in
@@ -3345,6 +3370,121 @@ module PacketOut = struct
         let final_bits = Cstruct.create 0 in
         Buffered (n,final_bits) in
     { po_payload; po_port_id; po_actions }
+
+end
+
+module FlowRemoved = struct
+
+  module RemovedReason = struct
+
+    cenum ofp_flow_removed_reason {
+      OFPRR_IDLE_TIMEOUT = 0;
+      OFPRR_HARD_TIMEOUT = 1;
+      OFPRR_DELETE = 2;
+      OFPRR_GROUP_DELETE = 3
+    } as uint8_t
+
+    type t = flowReason
+
+    let to_string (t : flowReason) : string =
+      match t with
+        | FlowIdleTimeout -> "IDLE_TIMEOUT"
+        | FlowHardTiemout -> "HARD_TIMEOUT"
+        | FlowDelete -> "DELETE"
+        | FlowGroupDelete -> "GROUP_DELETE"
+
+    let marshal (t : flowReason) : int8 =
+      match t with
+        | FlowIdleTimeout -> ofp_flow_removed_reason_to_int OFPRR_IDLE_TIMEOUT
+        | FlowHardTiemout -> ofp_flow_removed_reason_to_int OFPRR_HARD_TIMEOUT
+        | FlowDelete -> ofp_flow_removed_reason_to_int OFPRR_DELETE
+        | FlowGroupDelete -> ofp_flow_removed_reason_to_int OFPRR_GROUP_DELETE
+
+    let parse bits : flowReason =
+      match (int_to_ofp_flow_removed_reason bits) with
+        | Some OFPRR_IDLE_TIMEOUT -> FlowIdleTimeout
+        | Some OFPRR_HARD_TIMEOUT -> FlowHardTiemout
+        | Some OFPRR_DELETE -> FlowDelete
+        | Some OFPRR_GROUP_DELETE -> FlowGroupDelete
+        | None -> raise (Unparsable (sprintf "malformed reason"))
+  
+  end
+
+  cstruct ofp_flow_removed {
+    uint64_t cookie;
+    uint16_t priority;
+    uint8_t reason;
+    uint8_t table_id;
+    uint32_t duration_sec;
+    uint32_t duration_nsec;
+    uint16_t idle_timeout;
+    uint16_t hard_timeout;
+    uint64_t packet_count;
+    uint64_t byte_count
+  } as big_endian
+
+  type t = flowRemoved
+
+  let sizeof (f : flowRemoved) : int =
+    sizeof_ofp_flow_removed + (OfpMatch.sizeof f.oxm)
+
+  let to_string (f : flowRemoved) : string =
+   Format.sprintf "{ cookie = %Lu; priotity = %u; reason = %s; table_id = %u;\
+   duration s/ns = %lu/%lu; idle_timeout = %s; hard_timeout = %s; packet_count = %Lu;\
+   byte_count = %Lu; match = %s }"
+   f.cookie
+   f.priority
+   (RemovedReason.to_string f.reason)
+   f.table_id
+   f.duration_sec
+   f.duration_nsec
+   (match f.idle_timeout with
+      | Permanent -> "Permanent"
+      | ExpiresAfter t-> string_of_int t)
+   (match f.hard_timeout with
+      | Permanent -> "Permanent"
+      | ExpiresAfter t-> string_of_int t)
+   f.packet_count
+   f.byte_count
+   (OfpMatch.to_string f.oxm)
+
+   let marshal (buf : Cstruct.t) (f : flowRemoved) : int =
+     set_ofp_flow_removed_cookie buf f.cookie;
+     set_ofp_flow_removed_priority buf f.priority;
+     set_ofp_flow_removed_reason buf (RemovedReason.marshal f.reason);
+     set_ofp_flow_removed_table_id buf f.table_id;
+     set_ofp_flow_removed_duration_sec buf f.duration_sec;
+     set_ofp_flow_removed_duration_nsec buf f.duration_nsec;
+     set_ofp_flow_removed_idle_timeout buf (match f.idle_timeout with
+                                              | Permanent -> 0
+                                              | ExpiresAfter v -> v);
+     set_ofp_flow_removed_hard_timeout buf (match f.hard_timeout with
+                                              | Permanent -> 0
+                                              | ExpiresAfter v -> v);
+     set_ofp_flow_removed_packet_count buf f.packet_count;
+     set_ofp_flow_removed_byte_count buf f.byte_count;
+     let oxm_buf = Cstruct.shift buf sizeof_ofp_flow_removed in
+     sizeof_ofp_flow_removed + (OfpMatch.marshal oxm_buf f.oxm)
+
+   let parse (bits : Cstruct.t) : flowRemoved = 
+     let cookie = get_ofp_flow_removed_cookie bits in
+     let priority = get_ofp_flow_removed_priority bits in
+     let reason = RemovedReason.parse (get_ofp_flow_removed_reason bits) in
+     let table_id = get_ofp_flow_removed_table_id bits in
+     let duration_sec = get_ofp_flow_removed_duration_sec bits in
+     let duration_nsec = get_ofp_flow_removed_duration_nsec bits in
+     let idle_timeout = match (get_ofp_flow_removed_idle_timeout bits) with
+                         | 0 -> Permanent 
+                         | n -> ExpiresAfter n in
+     let hard_timeout = match (get_ofp_flow_removed_hard_timeout bits) with
+                         | 0 -> Permanent 
+                         | n -> ExpiresAfter n in
+     let packet_count = get_ofp_flow_removed_packet_count bits in
+     let byte_count = get_ofp_flow_removed_byte_count bits in
+     let oxm,_ = OfpMatch.parse (Cstruct.shift bits sizeof_ofp_flow_removed) in
+     { cookie; priority; reason; table_id; duration_sec; duration_nsec; idle_timeout;
+       hard_timeout; packet_count; byte_count; oxm }
+     
 
 end
 
@@ -5781,10 +5921,171 @@ module Error = struct
 
 end
 
+module Hello = struct
+
+  module Element = struct
+
+    cstruct ofp_hello_elem_header {
+      uint16_t typ;
+      uint16_t len
+    } as big_endian
+
+    cenum ofp_hello_elem_type {
+      OFPHET_VERSIONBITMAP = 1
+    } as uint16_t
+
+    module VersionBitMap = struct
+    
+      type t = supportedList
+
+      let sizeof (l : supportedList) : int = 
+        match l with 
+            | [] -> 0
+            | t::q -> ((t / 32 ) + 1 ) * 4
+
+      let to_string (l : supportedList) : string =
+        let rec printVersion ls =
+          match ls with
+            | [] -> ""
+            | t::q -> Format.sprintf "0x%x;%s" t (printVersion q) in
+        printVersion l
+
+      let marshal (buf : Cstruct.t) (t : supportedList) : int =
+        let rec marshal_bitmap (ls : supportedList) acc curr =
+          match ls,curr with 
+            | [],0 -> 
+              set_ofp_uint32_value buf acc;
+            | [],n-> 
+              set_ofp_uint32_value (Cstruct.shift buf (4*n)) acc;
+              marshal_bitmap [] 0l (n-1)
+            | t::q,n -> 
+              if t / 32 <> n then (
+                set_ofp_uint32_value (Cstruct.shift buf (4*n)) acc;
+                marshal_bitmap ls 0l (n-1))
+              else (
+                let acc = Int32.logor (Int32.shift_left 1l (t mod 32)) acc in
+                marshal_bitmap q acc n
+              ) in
+        marshal_bitmap t 0l (List.hd t / 32);
+        ((List.hd t / 32) + 1) * 4
+
+      let parse (bits : Cstruct.t) : supportedList =
+        let rec parse_uint32 (bits : Cstruct.t) index curr (acc : supportedList) : supportedList =
+          if Cstruct.len bits < sizeof_ofp_uint32 then acc
+          else (
+            let acc = if Bits.test_bit index (get_ofp_uint32_value bits) then 
+              (index+(curr*32))::acc
+              else acc in
+            if index = 31 then 
+              parse_uint32 (Cstruct.shift bits 4) 0 (curr+1) acc
+            else
+              parse_uint32 bits (index+1) (curr) acc) in
+        parse_uint32 bits 0 0 []
+
+    end
+    type t = element
+
+    let sizeof (t : element) : int = 
+      let size = sizeof_ofp_hello_elem_header + (
+      match t with
+        | VersionBitMap v ->
+          VersionBitMap.sizeof v) in
+      pad_to_64bits size
+
+    let to_string (t : element) : string =
+      match t with 
+        | VersionBitMap v ->
+          Format.sprintf "version bitmap: %s" (VersionBitMap.to_string v)
+
+    let length_func (buf : Cstruct.t) : int option = 
+      if Cstruct.len buf < sizeof_ofp_hello_elem_header then None
+      else Some (pad_to_64bits (get_ofp_hello_elem_header_len buf))
+
+    let marshal (buf : Cstruct.t) (t : element) : int =
+      match t with
+        | VersionBitMap v ->
+          set_ofp_hello_elem_header_typ buf (ofp_hello_elem_type_to_int OFPHET_VERSIONBITMAP);
+          set_ofp_hello_elem_header_len buf (sizeof_ofp_hello_elem_header + 
+          VersionBitMap.marshal (Cstruct.shift buf sizeof_ofp_hello_elem_header) v);
+          sizeof t
+
+    let parse (bits : Cstruct.t) : element = 
+      let typ = get_ofp_hello_elem_header_typ bits in
+      let len = get_ofp_hello_elem_header_len bits in
+      let payBits = Cstruct.sub bits sizeof_ofp_hello_elem_header (len - sizeof_ofp_hello_elem_header) in
+      match int_to_ofp_hello_elem_type typ with 
+        | Some OFPHET_VERSIONBITMAP -> VersionBitMap (VersionBitMap.parse payBits)
+        | None -> raise (Unparsable (sprintf "malformed type"))
+    
+  end
+
+  type t = helloElement
+
+  let sizeof (t : helloElement) : int =
+    sum (map Element.sizeof t)
+
+  let to_string (t : helloElement) : string =
+    String.concat "\n" (map Element.to_string t)
+
+  let marshal (buf : Cstruct.t) (t : helloElement) : int =
+    marshal_fields buf t Element.marshal
+  
+  let parse (bits : Cstruct.t) : helloElement =
+    parse_fields bits Element.parse Element.length_func 
+
+end
+
+module AsyncConfig = struct
+
+  cstruct ofp_async_config {
+    uint32_t packet_in_mask0;
+    uint32_t packet_in_mask1;
+    uint32_t port_status_mask0;
+    uint32_t port_status_mask1;
+    uint32_t flow_removed_mask0;
+    uint32_t flow_removed_mask1;
+  } as big_endian
+
+  type t = asyncConfig
+
+  let sizeof (async : asyncConfig) : int = 
+    sizeof_ofp_async_config
+
+  let to_string (async : asyncConfig) : string =
+    Format.sprintf "{ packet_in reason (master/slave) = %s/%s; \
+    port_status reason (master/slave) = %s/%s; \
+    flow_removed reason (master/slave) = %s/%s }"
+    (PacketIn.Reason.to_string async.packet_in.m_master)
+    (PacketIn.Reason.to_string async.packet_in.m_slave)
+    (PortStatus.Reason.to_string async.port_status.m_master)
+    (PortStatus.Reason.to_string async.port_status.m_slave)
+    (FlowRemoved.RemovedReason.to_string async.flow_removed.m_master)
+    (FlowRemoved.RemovedReason.to_string async.flow_removed.m_slave)
+
+  let marshal (buf : Cstruct.t) (async : asyncConfig) : int =
+    set_ofp_async_config_packet_in_mask0 buf (Int32.of_int (PacketIn.Reason.marshal async.packet_in.m_master));
+    set_ofp_async_config_packet_in_mask1 buf (Int32.of_int (PacketIn.Reason.marshal async.packet_in.m_slave));
+    set_ofp_async_config_port_status_mask0 buf (Int32.of_int (PortStatus.Reason.marshal async.port_status.m_master));
+    set_ofp_async_config_port_status_mask1 buf (Int32.of_int (PortStatus.Reason.marshal async.port_status.m_slave));
+    set_ofp_async_config_flow_removed_mask0 buf (Int32.of_int (FlowRemoved.RemovedReason.marshal async.flow_removed.m_master));
+    set_ofp_async_config_flow_removed_mask1 buf (Int32.of_int (FlowRemoved.RemovedReason.marshal async.flow_removed.m_slave));
+    sizeof_ofp_async_config
+
+  let parse (bits : Cstruct.t) : asyncConfig = 
+    let packet_in = { m_master = PacketIn.Reason.parse (Int32.to_int (get_ofp_async_config_packet_in_mask0 bits));
+                      m_slave = PacketIn.Reason.parse (Int32.to_int (get_ofp_async_config_packet_in_mask1 bits))} in
+    let port_status = { m_master = PortStatus.Reason.parse (Int32.to_int (get_ofp_async_config_port_status_mask0 bits));
+                        m_slave = PortStatus.Reason.parse (Int32.to_int (get_ofp_async_config_port_status_mask1 bits))} in
+    let flow_removed = { m_master = FlowRemoved.RemovedReason.parse (Int32.to_int (get_ofp_async_config_flow_removed_mask0 bits));
+                         m_slave = FlowRemoved.RemovedReason.parse (Int32.to_int (get_ofp_async_config_flow_removed_mask1 bits))} in
+    { packet_in; port_status; flow_removed }
+  
+end
+
 module Message = struct
 
   type t =
-    | Hello
+    | Hello of element list
     | EchoRequest of bytes
     | EchoReply of bytes
     | FeaturesRequest
@@ -5794,12 +6095,16 @@ module Message = struct
     | PortModMsg of portMod
     | MeterModMsg of meterMod
     | PacketInMsg of packetIn
+    | FlowRemoved of flowRemoved
     | PacketOutMsg of packetOut
     | PortStatusMsg of portStatus
     | MultipartReq of multipartRequest
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
+    | GetAsyncRequest
+    | GetAsyncReply of asyncConfig
+    | SetAsync of asyncConfig
     | Error of Error.t
 
 
@@ -5832,13 +6137,13 @@ module Message = struct
     | ROLE_RESP -> "ROLE_RESP"
     | GET_ASYNC_REQ -> "GET_ASYNC_REQ"
     | GET_ASYNC_REP -> "GET_ASYNC_REP"
-    | SET_ASYNC -> "SEC_ASYNC"
+    | SET_ASYNC -> "SET_ASYNC"
     | METER_MOD -> "METER_MOD"
 
   module Header = OpenFlow_Header
 
   let msg_code_of_message (msg : t) : msg_code = match msg with
-    | Hello -> HELLO
+    | Hello _ -> HELLO
     | EchoRequest _ -> ECHO_REQ
     | EchoReply _ -> ECHO_RESP
     | FeaturesRequest -> FEATURES_REQ
@@ -5848,16 +6153,20 @@ module Message = struct
     | PortModMsg _ -> PORT_MOD
     | MeterModMsg _ -> METER_MOD
     | PacketInMsg _ -> PACKET_IN
+    | FlowRemoved _ -> FLOW_REMOVED
     | PacketOutMsg _ -> PACKET_OUT
     | PortStatusMsg _ ->   PORT_STATUS
     | MultipartReq _ -> MULTIPART_REQ
     | MultipartReply _ -> MULTIPART_RESP
     | BarrierRequest ->   BARRIER_REQ
     | BarrierReply ->   BARRIER_RESP
+    | GetAsyncRequest -> GET_ASYNC_REQ
+    | GetAsyncReply _ -> GET_ASYNC_REP
+    | SetAsync _ -> SET_ASYNC
     | Error _ -> ERROR
 
   let sizeof (msg : t) : int = match msg with
-    | Hello -> Header.size
+    | Hello e -> Header.size + Hello.sizeof e
     | EchoRequest bytes -> Header.size + (String.length (Cstruct.to_string bytes))
     | EchoReply bytes -> Header.size + (String.length (Cstruct.to_string bytes))
     | FeaturesRequest -> Header.size
@@ -5867,16 +6176,20 @@ module Message = struct
     | PortModMsg pm -> Header.size + PortMod.sizeof pm
     | MeterModMsg mm -> Header.size + MeterMod.sizeof mm 
     | PacketInMsg pi -> Header.size + PacketIn.sizeof pi
+    | FlowRemoved fr -> Header.size + FlowRemoved.sizeof fr
     | PacketOutMsg po -> Header.size + PacketOut.sizeof po
     | PortStatusMsg _ -> Header.size + sizeof_ofp_port_status + sizeof_ofp_port
     | MultipartReq req -> Header.size + MultipartReq.sizeof req
     | MultipartReply rep -> Header.size + MultipartReply.sizeof rep
-    | BarrierRequest -> failwith "NYI: sizeof BarrierRequest"
-    | BarrierReply -> failwith "NYI: sizeof BarrierReply"
+    | BarrierRequest -> Header.size
+    | BarrierReply -> Header.size
+    | GetAsyncRequest -> Header.size
+    | GetAsyncReply async -> Header.size + AsyncConfig.sizeof async
+    | SetAsync async -> Header.size + AsyncConfig.sizeof async
     | Error _ -> failwith "NYI: sizeof Error"
 
   let to_string (msg : t) : string = match msg with
-    | Hello -> "Hello"
+    | Hello _ -> "Hello"
     | Error _ -> "Error"
     | EchoRequest _ -> "EchoRequest"
     | EchoReply _ -> "EchoReply"
@@ -5887,12 +6200,16 @@ module Message = struct
     | PortModMsg _ -> "PortMod"
     | MeterModMsg _ -> "MeterMod"
     | PacketInMsg _ -> "PacketIn"
+    | FlowRemoved _ -> "FlowRemoved"
     | PacketOutMsg _ -> "PacketOut"
     | PortStatusMsg _ -> "PortStatus"
     | MultipartReq _ -> "MultipartRequest"
     | MultipartReply _ -> "MultipartReply"
     | BarrierRequest -> "BarrierRequest"
     | BarrierReply -> "BarrierReply"
+    | GetAsyncRequest -> "GetAsyncRequest"
+    | GetAsyncReply _ -> "GetAsyncReply"
+    | SetAsync _ -> "SetAsync"
 
   (* let marshal (buf : Cstruct.t) (msg : message) : int = *)
   (*   let buf2 = (Cstruct.shift buf Header.size) in *)
@@ -5902,8 +6219,8 @@ module Message = struct
 
   let blit_message (msg : t) (out : Cstruct.t) =
     match msg with
-      | Hello ->
-        Header.size
+      | Hello e ->
+        Header.size + Hello.marshal out e
       | EchoRequest bytes
       | EchoReply bytes ->
         Cstruct.blit_from_string (Cstruct.to_string bytes) 0 out 0 (String.length (Cstruct.to_string bytes));
@@ -5924,14 +6241,24 @@ module Message = struct
         Header.size + PacketOut.marshal out po
       | MultipartReq mpr ->
         Header.size + MultipartReq.marshal out mpr
+      | BarrierRequest -> 
+        Header.size
+      | BarrierReply -> 
+        Header.size
       | MultipartReply mpr -> 
         Header.size + MultipartReply.marshal out mpr
-      | BarrierRequest -> failwith "NYI: marshal BarrierRequest"
-      | BarrierReply -> failwith "NYI: marshal BarrierReply"
       | PacketInMsg pi ->
         Header.size + PacketIn.marshal out pi
       | PortStatusMsg ps -> 
         Header.size + PortStatus.marshal out ps
+      | FlowRemoved fr ->
+        Header.size + FlowRemoved.marshal out fr
+      | GetAsyncRequest -> 
+        Header.size
+      | GetAsyncReply async -> 
+        Header.size + AsyncConfig.marshal out async
+      | SetAsync async -> 
+        Header.size + AsyncConfig.marshal out async
       | Error err -> 
         Header.size + Error.marshal out err
 
@@ -5959,7 +6286,7 @@ module Message = struct
       | Some code -> code
       | None -> raise (Unparsable "unknown message code") in
     let msg = match typ with
-      | HELLO -> Hello
+      | HELLO -> Hello (Hello.parse body_bits)
       | ECHO_RESP -> EchoReply body_bits
       | FEATURES_RESP -> FeaturesReply (SwitchFeatures.parse body_bits)
       | FLOW_MOD -> FlowModMsg (FlowMod.parse body_bits)
@@ -5972,7 +6299,13 @@ module Message = struct
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
       | MULTIPART_REQ -> MultipartReq (MultipartReq.parse body_bits)
       | MULTIPART_RESP -> MultipartReply (MultipartReply.parse body_bits)
+      | BARRIER_REQ -> BarrierRequest
+      | BARRIER_RESP -> BarrierReply
       | ERROR -> Error (Error.parse body_bits)
+      | FLOW_REMOVED -> FlowRemoved (FlowRemoved.parse body_bits)
+      | GET_ASYNC_REQ -> GetAsyncRequest 
+      | GET_ASYNC_REP -> GetAsyncReply (AsyncConfig.parse body_bits)
+      | SET_ASYNC -> SetAsync (AsyncConfig.parse body_bits)
       | code -> raise (Unparsable (Printf.sprintf "unexpected message type %s" (string_of_msg_code typ))) in
     (hdr.Header.xid, msg)
 end
