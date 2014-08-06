@@ -418,6 +418,11 @@ module RoundTripping = struct
       (openflow_quickCheck GenPacketIn.arbitrary
           GenPacketIn.to_string GenPacketIn.parse GenPacketIn.marshal)
 
+  TEST "OpenFlow0x04 TableMod RoundTrip" =
+      let module GenTableMod = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.TableMod) in
+      (openflow_quickCheck GenTableMod.arbitrary
+          GenTableMod.to_string GenTableMod.parse GenTableMod.marshal)
+
   TEST "OpenFlow0x04 Hello.Element.VersionBitMap RoundTrip" =
       let module GenVersionBitmap = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.Hello.Element.VersionBitMap) in
       (openflow_quickCheck GenVersionBitmap.arbitrary
