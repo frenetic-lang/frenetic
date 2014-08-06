@@ -6188,7 +6188,7 @@ module Message = struct
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
-    | GetConfigRequestMsg of SwitchConfig.t
+    | GetConfigRequestMsg
     | GetConfigReplyMsg of SwitchConfig.t
     | SetConfigMsg of SwitchConfig.t
     | TableModMsg of tableMod
@@ -6250,7 +6250,7 @@ module Message = struct
     | MultipartReply _ -> MULTIPART_RESP
     | BarrierRequest ->   BARRIER_REQ
     | BarrierReply ->   BARRIER_RESP
-    | GetConfigRequestMsg _ -> GET_CONFIG_REQ
+    | GetConfigRequestMsg -> GET_CONFIG_REQ
     | GetConfigReplyMsg _ -> GET_CONFIG_RESP
     | SetConfigMsg _ -> SET_CONFIG
     | TableModMsg _ -> TABLE_MOD
@@ -6275,7 +6275,7 @@ module Message = struct
     | PortStatusMsg _ -> Header.size + sizeof_ofp_port_status + sizeof_ofp_port
     | MultipartReq req -> Header.size + MultipartReq.sizeof req
     | MultipartReply rep -> Header.size + MultipartReply.sizeof rep
-    | GetConfigRequestMsg conf -> Header.size + SwitchConfig.sizeof conf
+    | GetConfigRequestMsg -> Header.size 
     | GetConfigReplyMsg conf -> Header.size + SwitchConfig.sizeof conf
     | SetConfigMsg conf -> Header.size + SwitchConfig.sizeof conf
     | TableModMsg tm -> Header.size + TableMod.sizeof tm
@@ -6305,7 +6305,7 @@ module Message = struct
     | MultipartReply _ -> "MultipartReply"
     | BarrierRequest -> "BarrierRequest"
     | BarrierReply -> "BarrierReply"
-    | GetConfigRequestMsg _ -> "GetConfigRequest"
+    | GetConfigRequestMsg -> "GetConfigRequest"
     | GetConfigReplyMsg _ -> "GetConfigReply"
     | SetConfigMsg _ -> "SetConfig"
     | TableModMsg _ -> "TableMod"
@@ -6353,8 +6353,8 @@ module Message = struct
         Header.size + PacketIn.marshal out pi
       | PortStatusMsg ps -> 
         Header.size + PortStatus.marshal out ps
-      | GetConfigRequestMsg conf ->
-        Header.size + SwitchConfig.marshal out conf
+      | GetConfigRequestMsg ->
+        Header.size
       | GetConfigReplyMsg conf ->
         Header.size + SwitchConfig.marshal out conf
       | SetConfigMsg conf ->
@@ -6412,7 +6412,6 @@ module Message = struct
       | BARRIER_REQ -> BarrierRequest
       | BARRIER_RESP -> BarrierReply
       | ERROR -> Error (Error.parse body_bits)
-      | GET_CONFIG_REQ -> GetConfigRequestMsg (SwitchConfig.parse body_bits)
       | GET_CONFIG_RESP -> GetConfigReplyMsg (SwitchConfig.parse body_bits)
       | SET_CONFIG -> SetConfigMsg (SwitchConfig.parse body_bits)
       | TABLE_MOD -> TableModMsg (TableMod.parse body_bits)
