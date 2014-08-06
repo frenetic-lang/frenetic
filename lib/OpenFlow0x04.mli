@@ -775,7 +775,7 @@ module Message : sig
     | BarrierReply
     | QueueGetConfigReq of queueConfReq
     | QueueGetConfigReply of queueConfReply
-    | GetConfigRequestMsg of SwitchConfig.t
+    | GetConfigRequestMsg
     | GetConfigReplyMsg of SwitchConfig.t
     | SetConfigMsg of SwitchConfig.t
     | TableModMsg of tableMod
