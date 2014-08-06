@@ -1521,6 +1521,144 @@ module SwitchConfig = struct
 
 end
 
+module TableMod = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = TableMod.t
+
+  let arbitrary_config =
+    ret_gen Deprecated
+
+  let arbitrary = 
+    arbitrary_uint8 >>= fun table_id ->
+    arbitrary_config >>= fun config ->
+    ret_gen { table_id; config }
+
+  let marshal = TableMod.marshal
+  let parse = TableMod.parse
+  let to_string = TableMod.to_string
+  let size_of = TableMod.sizeof
+
+end
+
+module PortMod = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = PortMod.t
+
+  let arbitrary = 
+    arbitrary_uint32 >>= fun mpPortNo ->
+    arbitrary_uint48 >>= fun mpHw_addr ->
+    PortDesc.PortConfig.arbitrary >>= fun mpConfig ->
+    PortDesc.PortConfig.arbitrary >>= fun mpMask ->
+    PortDesc.PortState.arbitrary >>= fun mpAdvertise ->
+    ret_gen { mpPortNo; mpHw_addr; mpConfig; mpMask; mpAdvertise}
+    
+
+  let marshal = PortMod.marshal
+  let parse = PortMod.parse
+  let to_string = PortMod.to_string
+  let size_of = PortMod.sizeof
+
+end
+
+module MeterMod = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = MeterMod.t
+
+  let arbitrary_command = 
+    oneof [
+      ret_gen AddMeter;
+      ret_gen ModifyMeter;
+      ret_gen DeleteMeter
+    ]
+
+      let arbitrary_meterFlagsMap =
+      arbitrary_bool >>= fun kbps ->
+      arbitrary_bool >>= fun pktps ->
+      arbitrary_bool >>= fun burst ->
+      arbitrary_bool >>= fun stats ->
+      ret_gen {
+        kbps;
+        pktps;
+        burst;
+        stats
+      }
+
+  let arbitrary = 
+    arbitrary_command >>= fun command ->
+    arbitrary_meterFlagsMap >>= fun flags ->
+    arbitrary_uint32 >>= fun meter_id ->
+    list1 MeterBand.arbitrary >>= fun bands ->
+    ret_gen {
+      command;
+      flags;
+      meter_id;
+      bands
+    }
+
+  
+  let marshal = MeterMod.marshal
+  let parse = MeterMod.parse
+  let to_string = MeterMod.to_string
+  let size_of = MeterMod.sizeof
+
+end
+  
+module Hello = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  module Element = struct
+    open Gen
+    open OpenFlow0x04_Core
+
+    module VersionBitMap = struct
+      open Gen
+      open OpenFlow0x04_Core
+      
+      type t = Hello.Element.VersionBitMap.t
+        
+      let arbitrary = 
+        choose_int (20,120) >>= fun a ->
+	choose_int (1,15) >>= fun b ->
+        ret_gen [a;b]
+      
+      let marshal = Hello.Element.VersionBitMap.marshal
+      let parse = Hello.Element.VersionBitMap.parse
+      let to_string = Hello.Element.VersionBitMap.to_string
+      let size_of = Hello.Element.VersionBitMap.sizeof
+    end
+    
+    type t = Hello.Element.t
+
+    let arbitrary = 
+      VersionBitMap.arbitrary >>= fun version ->
+      ret_gen (VersionBitMap version)
+
+    let marshal = Hello.Element.marshal
+    let parse = Hello.Element.parse
+    let to_string = Hello.Element.to_string
+    let size_of = Hello.Element.sizeof
+  end
+  
+  type t = Hello.t
+
+  let arbitrary = 
+    arbitrary_list Element.arbitrary >>= fun element ->
+    ret_gen element
+
+  let marshal = Hello.marshal
+  let parse = Hello.parse
+  let to_string = Hello.to_string
+  let size_of = Hello.sizeof
+
+end
+
 module FlowRemoved = struct
 
   open Gen
@@ -1826,3 +1964,4 @@ module Error = struct
   let size_of = Error.sizeof
 
 end
+

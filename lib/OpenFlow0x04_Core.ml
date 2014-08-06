@@ -426,6 +426,9 @@ type portDesc = { port_no : portId;
                   curr_speed : int32;
                   max_speed : int32}
 
+type portMod = { mpPortNo : portId; mpHw_addr : int48; mpConfig : portConfig;
+                 mpMask : portConfig; mpAdvertise : portState }
+
 type portReason =
   | PortAdd 
   | PortDelete
@@ -450,7 +453,15 @@ type meterBand =
   | DscpRemark of (rate*burst*int8)
   | ExpMeter of (rate*burst*experimenterId)
 
+type meterCommand = 
+  | AddMeter
+  | ModifyMeter
+  | DeleteMeter
+
 type meterFlags = { kbps : bool; pktps : bool; burst : bool; stats : bool}
+
+type meterMod = { command : meterCommand; flags : meterFlags; meter_id : int32;
+                  bands : meterBand list}
 
 type flowRequest = {fr_table_id : tableId; fr_out_port : portId; 
                     fr_out_group : portId; fr_cookie : int64 mask;
@@ -590,7 +601,15 @@ type multipartReplyTyp =
 type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool}
 
 type tableMod = { table_id : tableId; config : tableConfig }
+ 
+type supportedList = int list
+ 
+type element = 
+  | VersionBitMap of supportedList
+
+type helloElement = element list
 
 type asyncConfig = { packet_in : packetInReason asyncMask; 
                      port_status : portReason asyncMask;
                      flow_removed : flowReason asyncMask }
+
