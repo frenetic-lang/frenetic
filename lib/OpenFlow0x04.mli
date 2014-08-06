@@ -98,13 +98,15 @@ end
 
 module Bucket : sig
 
-  val sizeof : bucket -> int
+  type t = bucket
 
-  val to_string : bucket -> string
+  val sizeof : t -> int
 
-  val marshal : Cstruct.t -> bucket -> int
+  val to_string : t -> string
 
-  val parse : Cstruct.t -> bucket  
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t  
 end
 
 module FlowModCommand : sig
@@ -138,6 +140,34 @@ module GroupMod : sig
   val sizeof : groupMod -> int
 
   val marshal : Cstruct.t -> groupMod -> int
+
+end
+
+module PortMod : sig
+
+  type t = portMod
+
+  val sizeof : t -> int
+
+  val to_string : t -> string
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
+
+end
+
+module MeterMod : sig
+
+  type t = meterMod
+
+  val sizeof : meterMod -> int
+
+  val to_string : meterMod -> string
+
+  val marshal : Cstruct.t -> meterMod -> int
+
+  val parse : Cstruct.t -> meterMod
 
 end
 
@@ -261,13 +291,29 @@ end
 
 module MeterBand : sig
 
-  val sizeof : meterBand -> int
+  type t = meterBand
 
-  val to_string : meterBand -> string
+  val sizeof : t -> int
 
-  val marshal : Cstruct.t -> meterBand -> int
+  val to_string : t -> string
 
-  val parse : Cstruct.t -> meterBand
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
+
+end
+
+module FlowRemoved : sig
+
+  type t = flowRemoved
+
+  val sizeof : t -> int
+
+  val to_string : t -> string
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
 
 end
 
@@ -581,17 +627,76 @@ module Error : sig
 
 end
 
+module Hello : sig
+
+  module Element : sig
+
+    module VersionBitMap : sig
+
+      type t = supportedList
+
+      val sizeof : t -> int
+
+      val to_string : t -> string
+
+      val marshal : Cstruct.t -> t -> int
+
+      val parse : Cstruct.t -> t
+    
+    end
+  
+    type t = element
+
+    val sizeof : t -> int
+
+    val to_string : t -> string
+
+    val marshal : Cstruct.t -> t -> int
+
+    val parse : Cstruct.t -> t
+
+  end
+
+  type t = helloElement
+
+  val sizeof : t -> int
+
+  val to_string : t -> string
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
+
+end
+
+module AsyncConfig : sig
+
+  type t = asyncConfig
+
+  val sizeof : t -> int
+
+  val to_string : t -> string 
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
+
+end
+
 module Message : sig
 
   type t =
-    | Hello
+    | Hello of element list
     | EchoRequest of bytes
     | EchoReply of bytes
     | FeaturesRequest
     | FeaturesReply of SwitchFeatures.t
     | FlowModMsg of flowMod
     | GroupModMsg of groupMod
+    | PortModMsg of portMod
+    | MeterModMsg of meterMod
     | PacketInMsg of packetIn
+    | FlowRemoved of flowRemoved
     | PacketOutMsg of packetOut
     | PortStatusMsg of portStatus
     | MultipartReq of multipartRequest
@@ -599,6 +704,9 @@ module Message : sig
     | BarrierRequest
     | BarrierReply
     | TableModMsg of tableMod
+    | GetAsyncRequest
+    | GetAsyncReply of asyncConfig
+    | SetAsync of asyncConfig
     | Error of Error.t
 
   val sizeof : t -> int

@@ -294,11 +294,20 @@ module RoundTripping = struct
       (openflow_quickCheck GenInstructions.arbitrary
           GenInstructions.to_string GenInstructions.parse GenInstructions.marshal)
 
+  TEST "OpenFlow0x04 PortMod RoundTrip" =
+      let module GenPortMod = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.PortMod) in
+      (openflow_quickCheck GenPortMod.arbitrary
+          GenPortMod.to_string GenPortMod.parse GenPortMod.marshal)
+
+  TEST "OpenFlow0x04 MeterMod RoundTrip" =
+      let module GenMeterMod = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MeterMod) in
+      (openflow_quickCheck GenMeterMod.arbitrary
+          GenMeterMod.to_string GenMeterMod.parse GenMeterMod.marshal)
+
   TEST "OpenFlow0x04 FlowMod RoundTrip" =
       let module GenFlowMod = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.FlowMod) in
       (openflow_quickCheck GenFlowMod.arbitrary
           GenFlowMod.to_string GenFlowMod.parse GenFlowMod.marshal)
-
   TEST "OpenFlow0x04 FlowMod.FlowModCommand RoundTrip" =
       let module GenFlowModCommand = Gen0x04.FlowMod.FlowModCommand in
       (openflow_quickCheck GenFlowModCommand.arbitrary
@@ -413,6 +422,31 @@ module RoundTripping = struct
       let module GenTableMod = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.TableMod) in
       (openflow_quickCheck GenTableMod.arbitrary
           GenTableMod.to_string GenTableMod.parse GenTableMod.marshal)
+
+  TEST "OpenFlow0x04 Hello.Element.VersionBitMap RoundTrip" =
+      let module GenVersionBitmap = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.Hello.Element.VersionBitMap) in
+      (openflow_quickCheck GenVersionBitmap.arbitrary
+          GenVersionBitmap.to_string GenVersionBitmap.parse GenVersionBitmap.marshal)
+
+  TEST "OpenFlow0x04 Hello.Element RoundTrip" =
+      let module GenElement = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.Hello.Element) in
+      (openflow_quickCheck GenElement.arbitrary
+          GenElement.to_string GenElement.parse GenElement.marshal)
+
+  TEST "OpenFlow0x04 Hello RoundTrip" =
+      let module GenHello = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.Hello) in
+      (openflow_quickCheck GenHello.arbitrary
+          GenHello.to_string GenHello.parse GenHello.marshal)
+
+  TEST "OpenFlow0x04 FlowRemoved RoundTrip" =
+      let module GenFlowRemoved = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.FlowRemoved) in
+      (openflow_quickCheck GenFlowRemoved.arbitrary
+          GenFlowRemoved.to_string GenFlowRemoved.parse GenFlowRemoved.marshal)
+
+  TEST "OpenFlow0x04 AsyncConfig RoundTrip" =
+      let module GenAsyncConfig = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.AsyncConfig) in
+      (openflow_quickCheck GenAsyncConfig.arbitrary
+          GenAsyncConfig.to_string GenAsyncConfig.parse GenAsyncConfig.marshal)
 
   TEST "OpenFlow0x04 Error RoundTrip" =
       let module GenError = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.Error) in
