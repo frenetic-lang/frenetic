@@ -136,7 +136,6 @@ cstruct ofp_switch_features {
   uint8_t auxiliary_id;
   uint8_t pad0;
   uint8_t pad1;
-  uint8_t pad2;
   uint32_t capabilities; 
   uint32_t reserved
 } as big_endian 
@@ -2823,7 +2822,7 @@ module Capabilities = struct
        (Int32.logor (if capa.group_stats then (Int32.shift_left 1l 3) else 0l)
         (Int32.logor (if capa.ip_reasm then (Int32.shift_left 1l 5) else 0l)
          (Int32.logor (if capa.queue_stats then (Int32.shift_left 1l 6) else 0l)
-           (if capa.port_blocked then (Int32.shift_left 1l 7) else 0l))))))
+           (if capa.port_blocked then (Int32.shift_left 1l 8) else 0l))))))
 
   let to_string (cap : capabilities) : string =
       Format.sprintf "{ port_blocked = %B; queue_stats = %B; ip_reasm = %B; group_stats = %B; \
@@ -2837,7 +2836,7 @@ module Capabilities = struct
       cap.flow_stats
 
   let parse (bits : int32) : capabilities =
-    { port_blocked = Bits.test_bit 7 bits;
+    { port_blocked = Bits.test_bit 8 bits;
       queue_stats = Bits.test_bit 6 bits;
       ip_reasm = Bits.test_bit 5 bits;
       group_stats = Bits.test_bit 3 bits;
@@ -2872,7 +2871,6 @@ module SwitchFeatures = struct
     set_ofp_switch_features_auxiliary_id buf features.aux_id;
     set_ofp_switch_features_pad0 buf 0;
     set_ofp_switch_features_pad1 buf 0;
-    set_ofp_switch_features_pad2 buf 0;
     set_ofp_switch_features_capabilities buf (Capabilities.to_int32 features.supported_capabilities); 
     sizeof_ofp_switch_features
 
