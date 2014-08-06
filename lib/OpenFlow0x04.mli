@@ -275,6 +275,20 @@ module MeterBand : sig
 
 end
 
+module FlowRemoved : sig
+
+  type t = flowRemoved
+
+  val sizeof : t -> int
+
+  val to_string : t -> string
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
+
+end
+
 module FlowRequest : sig
 
   type t = flowRequest
@@ -577,6 +591,20 @@ module Error : sig
 
 end
 
+module AsyncConfig : sig
+
+  type t = asyncConfig
+
+  val sizeof : t -> int
+
+  val to_string : t -> string 
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
+
+end
+
 module Message : sig
 
   type t =
@@ -588,12 +616,16 @@ module Message : sig
     | FlowModMsg of flowMod
     | GroupModMsg of groupMod
     | PacketInMsg of packetIn
+    | FlowRemoved of flowRemoved
     | PacketOutMsg of packetOut
     | PortStatusMsg of portStatus
     | MultipartReq of multipartRequest
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
+    | GetAsyncRequest
+    | GetAsyncReply of asyncConfig
+    | SetAsync of asyncConfig
     | Error of Error.t
 
   val sizeof : t -> int
