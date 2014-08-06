@@ -1534,7 +1534,7 @@ module Hello = struct
   type t = Hello.t
 
   let arbitrary = 
-    list1 Element.arbitrary >>= fun element ->
+    arbitrary_list Element.arbitrary >>= fun element ->
     ret_gen element
 
   let marshal = Hello.marshal
