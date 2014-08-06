@@ -6454,7 +6454,7 @@ module Message = struct
     | RoleReply of roleRequest
     | QueueGetConfigReq of queueConfReq
     | QueueGetConfigReply of queueConfReply
-    | GetConfigRequestMsg of SwitchConfig.t
+    | GetConfigRequestMsg
     | GetConfigReplyMsg of SwitchConfig.t
     | SetConfigMsg of SwitchConfig.t
     | TableModMsg of tableMod
@@ -6518,7 +6518,7 @@ module Message = struct
     | BarrierReply ->   BARRIER_RESP
     | QueueGetConfigReq _ -> QUEUE_GET_CONFIG_REQ
     | QueueGetConfigReply _ -> QUEUE_GET_CONFIG_RESP
-    | GetConfigRequestMsg _ -> GET_CONFIG_REQ
+    | GetConfigRequestMsg -> GET_CONFIG_REQ
     | GetConfigReplyMsg _ -> GET_CONFIG_RESP
     | SetConfigMsg _ -> SET_CONFIG
     | TableModMsg _ -> TABLE_MOD
@@ -6547,7 +6547,7 @@ module Message = struct
     | MultipartReply rep -> Header.size + MultipartReply.sizeof rep
     | QueueGetConfigReq qc -> Header.size + QueueConfReq.sizeof qc
     | QueueGetConfigReply qc -> Header.size + QueueConfReply.sizeof qc
-    | GetConfigRequestMsg conf -> Header.size + SwitchConfig.sizeof conf
+    | GetConfigRequestMsg -> Header.size 
     | GetConfigReplyMsg conf -> Header.size + SwitchConfig.sizeof conf
     | SetConfigMsg conf -> Header.size + SwitchConfig.sizeof conf
     | TableModMsg tm -> Header.size + TableMod.sizeof tm
@@ -6583,7 +6583,7 @@ module Message = struct
     | RoleReply _ -> "RoleReply"
     | QueueGetConfigReq _ -> "QueueGetConfigReq"
     | QueueGetConfigReply _ -> "QueueGetConfigReply"
-    | GetConfigRequestMsg _ -> "GetConfigRequest"
+    | GetConfigRequestMsg -> "GetConfigRequest"
     | GetConfigReplyMsg _ -> "GetConfigReply"
     | SetConfigMsg _ -> "SetConfig"
     | TableModMsg _ -> "TableMod"
@@ -6639,8 +6639,8 @@ module Message = struct
         Header.size + RoleRequest.marshal out rr
       | RoleReply rr ->
         Header.size + RoleRequest.marshal out rr
-      | GetConfigRequestMsg conf ->
-        Header.size + SwitchConfig.marshal out conf
+      | GetConfigRequestMsg ->
+        Header.size
       | GetConfigReplyMsg conf ->
         Header.size + SwitchConfig.marshal out conf
       | SetConfigMsg conf ->
@@ -6702,7 +6702,6 @@ module Message = struct
       | ERROR -> Error (Error.parse body_bits)
       | ROLE_REQ -> RoleRequest (RoleRequest.parse body_bits)
       | ROLE_RESP -> RoleReply (RoleRequest.parse body_bits)
-      | GET_CONFIG_REQ -> GetConfigRequestMsg (SwitchConfig.parse body_bits)
       | GET_CONFIG_RESP -> GetConfigReplyMsg (SwitchConfig.parse body_bits)
       | SET_CONFIG -> SetConfigMsg (SwitchConfig.parse body_bits)
       | TABLE_MOD -> TableModMsg (TableMod.parse body_bits)
