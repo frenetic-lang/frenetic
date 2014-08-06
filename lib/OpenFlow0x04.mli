@@ -646,7 +646,7 @@ module Message : sig
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
-    | QueueGetConfigReq	of queueConfReq
+    | QueueGetConfigReq of queueConfReq
     | QueueGetConfigReply of queueConfReply
     | Error of Error.t
 

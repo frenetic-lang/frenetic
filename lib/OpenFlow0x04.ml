@@ -5895,7 +5895,7 @@ module Message = struct
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
-    | QueueGetConfigReq	of queueConfReq
+    | QueueGetConfigReq of queueConfReq
     | QueueGetConfigReply of queueConfReply
     | Error of Error.t
 
@@ -5949,7 +5949,7 @@ module Message = struct
     | MultipartReply _ -> MULTIPART_RESP
     | BarrierRequest ->   BARRIER_REQ
     | BarrierReply ->   BARRIER_RESP
-    | QueueGetConfigReq	_ -> QUEUE_GET_CONFIG_REQ
+    | QueueGetConfigReq _ -> QUEUE_GET_CONFIG_REQ
     | QueueGetConfigReply _ -> QUEUE_GET_CONFIG_RESP
     | Error _ -> ERROR
 
@@ -5968,7 +5968,7 @@ module Message = struct
     | MultipartReply rep -> Header.size + MultipartReply.sizeof rep
     | BarrierRequest -> failwith "NYI: sizeof BarrierRequest"
     | BarrierReply -> failwith "NYI: sizeof BarrierReply"
-    | QueueGetConfigReq	qc -> Header.size + QueueConfReq.sizeof qc
+    | QueueGetConfigReq qc -> Header.size + QueueConfReq.sizeof qc
     | QueueGetConfigReply qc -> Header.size + QueueConfReply.sizeof qc
     | Error _ -> failwith "NYI: sizeof Error"
 
