@@ -2310,6 +2310,8 @@ end
 
 module Bucket = struct
 
+  type t = bucket
+
   let sizeof (bucket : bucket) : int =
     let n = sizeof_ofp_bucket + sum (map Action.sizeof bucket.bu_actions) in
     pad_to_64bits n
@@ -3179,6 +3181,8 @@ module MeterBand = struct
     OFPMBT_DSCP_REMARK = 2;
     OFPMBT_EXPERIMENTER = 0xffff
   } as uint16_t
+
+  type t = meterBand
 
   let sizeof (mb : meterBand) : int =
     match mb with
@@ -5951,8 +5955,8 @@ module Message = struct
     | PortStatusMsg _ -> Header.size + sizeof_ofp_port_status + sizeof_ofp_port
     | MultipartReq req -> Header.size + MultipartReq.sizeof req
     | MultipartReply rep -> Header.size + MultipartReply.sizeof rep
-    | BarrierRequest -> failwith "NYI: sizeof BarrierRequest"
-    | BarrierReply -> failwith "NYI: sizeof BarrierReply"
+    | BarrierRequest -> Header.size
+    | BarrierReply -> Header.size
     | GetAsyncRequest -> Header.size
     | GetAsyncReply async -> Header.size + AsyncConfig.sizeof async
     | SetAsync async -> Header.size + AsyncConfig.sizeof async
@@ -6005,10 +6009,12 @@ module Message = struct
         Header.size + PacketOut.marshal out po
       | MultipartReq mpr ->
         Header.size + MultipartReq.marshal out mpr
+      | BarrierRequest -> 
+        Header.size
+      | BarrierReply -> 
+        Header.size
       | MultipartReply mpr -> 
         Header.size + MultipartReply.marshal out mpr
-      | BarrierRequest -> failwith "NYI: marshal BarrierRequest"
-      | BarrierReply -> failwith "NYI: marshal BarrierReply"
       | PacketInMsg pi ->
         Header.size + PacketIn.marshal out pi
       | PortStatusMsg ps -> 
@@ -6057,6 +6063,8 @@ module Message = struct
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
       | MULTIPART_REQ -> MultipartReq (MultipartReq.parse body_bits)
       | MULTIPART_RESP -> MultipartReply (MultipartReply.parse body_bits)
+      | BARRIER_REQ -> BarrierRequest
+      | BARRIER_RESP -> BarrierReply
       | ERROR -> Error (Error.parse body_bits)
       | FLOW_REMOVED -> FlowRemoved (FlowRemoved.parse body_bits)
       | GET_ASYNC_REQ -> GetAsyncRequest 

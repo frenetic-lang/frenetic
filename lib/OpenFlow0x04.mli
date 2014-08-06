@@ -98,13 +98,15 @@ end
 
 module Bucket : sig
 
-  val sizeof : bucket -> int
+  type t = bucket
 
-  val to_string : bucket -> string
+  val sizeof : t -> int
 
-  val marshal : Cstruct.t -> bucket -> int
+  val to_string : t -> string
 
-  val parse : Cstruct.t -> bucket  
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t  
 end
 
 module FlowModCommand : sig
@@ -261,13 +263,15 @@ end
 
 module MeterBand : sig
 
-  val sizeof : meterBand -> int
+  type t = meterBand
 
-  val to_string : meterBand -> string
+  val sizeof : t -> int
 
-  val marshal : Cstruct.t -> meterBand -> int
+  val to_string : t -> string
 
-  val parse : Cstruct.t -> meterBand
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
 
 end
 
