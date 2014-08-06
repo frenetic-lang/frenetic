@@ -2,6 +2,8 @@ open Packet
 
 type 'a mask = { m_value : 'a; m_mask : 'a option }
 
+type 'a asyncMask = { m_master : 'a ; m_slave : 'a }
+
 type payload =
   | Buffered of int32 * bytes 
     (** [Buffered (id, buf)] is a packet buffered on a switch. *)
@@ -25,6 +27,14 @@ type portId = int32
 type tableId = int8
 
 type bufferId = int32
+
+type switchFlags = 
+  | NormalFrag
+  | DropFrag
+  | ReasmFrag
+  | MaskFrag
+
+type switchConfig = {flags : switchFlags; miss_send_len : int16 }
 
 type helloFailed = 
  | HelloIncompatible
@@ -354,6 +364,17 @@ type packetIn = { pi_total_len : int16;
                   pi_cookie : int64; pi_ofp_match : oxmMatch;
                   pi_payload : payload }
 
+type flowReason = 
+  | FlowIdleTimeout
+  | FlowHardTiemout
+  | FlowDelete
+  | FlowGroupDelete
+
+type flowRemoved = { cookie : int64; priority : int16; reason : flowReason;
+                     table_id : tableId; duration_sec : int32; duration_nsec : int32;
+                     idle_timeout : timeout; hard_timeout : timeout; packet_count : int64;
+                     byte_count : int64; oxm : oxmMatch }
+
 type capabilities = { flow_stats : bool; table_stats : bool;
                       port_stats : bool; group_stats : bool; ip_reasm : 
                       bool; queue_stats : bool; port_blocked : bool }
@@ -376,6 +397,9 @@ type portDesc = { port_no : portId; hw_addr : int48; name : string; config :
                   portConfig; state : portState; curr : portFeatures; 
                   advertised : portFeatures; supported : portFeatures; peer :
                   portFeatures; curr_speed : int32; max_speed : int32}
+
+type portMod = { mpPortNo : portId; mpHw_addr : int48; mpConfig : portConfig;
+                 mpMask : portConfig; mpAdvertise : portState }
 
 type portReason =
   | PortAdd
@@ -401,7 +425,15 @@ type meterBand =
   | DscpRemark of (rate*burst*int8)
   | ExpMeter of (rate*burst*experimenterId)
 
+type meterCommand = 
+  | AddMeter
+  | ModifyMeter
+  | DeleteMeter
+
 type meterFlags = { kbps : bool; pktps : bool; burst : bool; stats : bool}
+
+type meterMod = { command : meterCommand; flags : meterFlags; meter_id : int32;
+                  bands : meterBand list}
 
 type flowRequest = {fr_table_id : tableId; fr_out_port : portId; 
                     fr_out_group : portId; fr_cookie : int64 mask;
@@ -554,3 +586,15 @@ type queueDesc = { queue_id : int32; port : portId; len : int16; properties : qu
 type queueConfReq = { port : portId }
 
 type queueConfReply = { port : portId; queues : queueDesc list }
+ 
+type supportedList = int list
+ 
+type element = 
+  | VersionBitMap of supportedList
+
+type helloElement = element list
+
+type asyncConfig = { packet_in : packetInReason asyncMask; 
+                     port_status : portReason asyncMask;
+                     flow_removed : flowReason asyncMask }
+
