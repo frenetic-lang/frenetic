@@ -1494,6 +1494,362 @@ module PacketIn = struct
 
 end
 
+module RoleRequest = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = OpenFlow0x04_Core.roleRequest
+
+  let arbitrary_role = 
+    oneof [
+      ret_gen NoChangeRole;
+      ret_gen EqualRole;
+      ret_gen MasterRole;
+      ret_gen SlaveRole
+    ]
+
+  let arbitrary = 
+    arbitrary_role >>= fun role ->
+    arbitrary_uint64 >>= fun generation_id -> 
+    ret_gen { role; generation_id }
+
+  let marshal = RoleRequest.marshal
+  let parse = RoleRequest.parse
+  let to_string = RoleRequest.to_string
+  let size_of = RoleRequest.sizeof
+
+end
+
+module QueueDesc = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  module QueueProp = struct
+    open Gen
+    open OpenFlow0x04_Core
+    type t = QueueDesc.QueueProp.t
+    
+    let arbitrary_rate = 
+      frequency [
+        (1, ret_gen Disabled);
+        (10, choose_int (0,1000) >>= fun a ->
+             ret_gen (Rate a))
+      ]
+
+    let arbitrary = 
+      arbitrary_rate >>= fun min_rate ->
+      arbitrary_rate >>= fun max_rate ->
+      arbitrary_uint32 >>= fun exp_id ->
+      oneof [
+        ret_gen (MinRateProp min_rate);
+        ret_gen (MaxRateProp max_rate);
+        ret_gen (ExperimenterProp exp_id)
+      ]
+
+    let marshal = QueueDesc.QueueProp.marshal
+    let parse = QueueDesc.QueueProp.parse
+    let to_string = QueueDesc.QueueProp.to_string
+    let size_of = QueueDesc.QueueProp.sizeof
+  end
+
+  type t = QueueDesc.t
+
+  let calc_length prop =
+    (* sizeof_ofp_packet_queue = 16*)
+    ret_gen (16+sum (List.map QueueProp.size_of prop))
+
+  let arbitrary = 
+    arbitrary_uint32 >>= fun queue_id ->
+    arbitrary_uint32 >>= fun port ->
+    arbitrary_list QueueProp.arbitrary >>= fun properties ->
+    calc_length properties >>= fun len ->
+    ret_gen { queue_id; port; len; properties}
+    
+  let marshal = QueueDesc.marshal
+  let parse = QueueDesc.parse
+  let to_string = QueueDesc.to_string
+  let size_of = QueueDesc.sizeof
+end
+
+module QueueConfReq = struct
+  open Gen
+  open OpenFlow0x04_Core
+  type t = QueueConfReq.t
+
+  let arbitrary = 
+    arbitrary_uint32 >>= fun port ->
+    ret_gen {port}
+
+  let marshal = QueueConfReq.marshal
+  let parse = QueueConfReq.parse
+  let to_string = QueueConfReq.to_string
+  let size_of = QueueConfReq.sizeof
+end
+
+module QueueConfReply = struct
+  open Gen
+  open OpenFlow0x04_Core
+  type t = QueueConfReply.t
+
+  let arbitrary = 
+    arbitrary_uint32 >>= fun port ->
+    arbitrary_list QueueDesc.arbitrary >>= fun queues ->
+    ret_gen {port; queues}
+
+  let marshal = QueueConfReply.marshal
+  let parse = QueueConfReply.parse
+  let to_string = QueueConfReply.to_string
+  let size_of = QueueConfReply.sizeof
+
+end
+
+module SwitchConfig = struct
+
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = SwitchConfig.t
+
+  let arbitrary_flags =
+    oneof [
+      ret_gen NormalFrag;
+      ret_gen DropFrag;
+      ret_gen ReasmFrag;
+      ret_gen MaskFrag
+    ]
+
+  let arbitrary =
+    arbitrary_flags >>= fun flags ->
+    arbitrary_uint16 >>= fun miss_send_len ->
+    ret_gen { flags; miss_send_len}
+
+  let marshal = SwitchConfig.marshal
+  let parse = SwitchConfig.parse
+  let to_string = SwitchConfig.to_string
+  let size_of = SwitchConfig.sizeof
+
+end
+
+module TableMod = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = TableMod.t
+
+  let arbitrary_config =
+    ret_gen Deprecated
+
+  let arbitrary = 
+    arbitrary_uint8 >>= fun table_id ->
+    arbitrary_config >>= fun config ->
+    ret_gen { table_id; config }
+
+  let marshal = TableMod.marshal
+  let parse = TableMod.parse
+  let to_string = TableMod.to_string
+  let size_of = TableMod.sizeof
+
+end
+
+module PortMod = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = PortMod.t
+
+  let arbitrary = 
+    arbitrary_uint32 >>= fun mpPortNo ->
+    arbitrary_uint48 >>= fun mpHw_addr ->
+    PortDesc.PortConfig.arbitrary >>= fun mpConfig ->
+    PortDesc.PortConfig.arbitrary >>= fun mpMask ->
+    PortDesc.PortState.arbitrary >>= fun mpAdvertise ->
+    ret_gen { mpPortNo; mpHw_addr; mpConfig; mpMask; mpAdvertise}
+    
+
+  let marshal = PortMod.marshal
+  let parse = PortMod.parse
+  let to_string = PortMod.to_string
+  let size_of = PortMod.sizeof
+
+end
+
+module MeterMod = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = MeterMod.t
+
+  let arbitrary_command = 
+    oneof [
+      ret_gen AddMeter;
+      ret_gen ModifyMeter;
+      ret_gen DeleteMeter
+    ]
+
+      let arbitrary_meterFlagsMap =
+      arbitrary_bool >>= fun kbps ->
+      arbitrary_bool >>= fun pktps ->
+      arbitrary_bool >>= fun burst ->
+      arbitrary_bool >>= fun stats ->
+      ret_gen {
+        kbps;
+        pktps;
+        burst;
+        stats
+      }
+
+  let arbitrary = 
+    arbitrary_command >>= fun command ->
+    arbitrary_meterFlagsMap >>= fun flags ->
+    arbitrary_uint32 >>= fun meter_id ->
+    list1 MeterBand.arbitrary >>= fun bands ->
+    ret_gen {
+      command;
+      flags;
+      meter_id;
+      bands
+    }
+
+  
+  let marshal = MeterMod.marshal
+  let parse = MeterMod.parse
+  let to_string = MeterMod.to_string
+  let size_of = MeterMod.sizeof
+
+end
+  
+module Hello = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  module Element = struct
+    open Gen
+    open OpenFlow0x04_Core
+
+    module VersionBitMap = struct
+      open Gen
+      open OpenFlow0x04_Core
+      
+      type t = Hello.Element.VersionBitMap.t
+        
+      let arbitrary = 
+        choose_int (20,120) >>= fun a ->
+	choose_int (1,15) >>= fun b ->
+        ret_gen [a;b]
+      
+      let marshal = Hello.Element.VersionBitMap.marshal
+      let parse = Hello.Element.VersionBitMap.parse
+      let to_string = Hello.Element.VersionBitMap.to_string
+      let size_of = Hello.Element.VersionBitMap.sizeof
+    end
+    
+    type t = Hello.Element.t
+
+    let arbitrary = 
+      VersionBitMap.arbitrary >>= fun version ->
+      ret_gen (VersionBitMap version)
+
+    let marshal = Hello.Element.marshal
+    let parse = Hello.Element.parse
+    let to_string = Hello.Element.to_string
+    let size_of = Hello.Element.sizeof
+  end
+  
+  type t = Hello.t
+
+  let arbitrary = 
+    arbitrary_list Element.arbitrary >>= fun element ->
+    ret_gen element
+
+  let marshal = Hello.marshal
+  let parse = Hello.parse
+  let to_string = Hello.to_string
+  let size_of = Hello.sizeof
+
+end
+
+module FlowRemoved = struct
+
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = FlowRemoved.t
+
+  let arbitrary_reason = 
+    oneof [ 
+      ret_gen FlowIdleTimeout;
+      ret_gen FlowHardTiemout;
+      ret_gen FlowDelete;
+      ret_gen FlowGroupDelete]
+
+  let arbitrary =
+    arbitrary_uint64 >>= fun cookie ->
+    arbitrary_uint16 >>= fun priority ->
+    arbitrary_reason >>= fun reason ->
+    arbitrary_uint8 >>= fun table_id ->
+    arbitrary_uint32 >>= fun duration_sec ->
+    arbitrary_uint32 >>= fun duration_nsec ->
+    arbitrary_timeout >>= fun idle_timeout ->
+    arbitrary_timeout >>= fun hard_timeout ->
+    arbitrary_uint64 >>= fun packet_count ->
+    arbitrary_uint64 >>= fun byte_count ->
+    OfpMatch.arbitrary >>= fun oxm ->
+    ret_gen { cookie; priority; reason; table_id; duration_sec; duration_nsec;
+              idle_timeout; hard_timeout; packet_count; byte_count; oxm }
+
+  let marshal = FlowRemoved.marshal
+  let parse = FlowRemoved.parse
+  let to_string = FlowRemoved.to_string
+  let size_of = FlowRemoved.sizeof
+
+end
+
+module AsyncConfig = struct
+
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = AsyncConfig.t
+
+  let arbitrary_FlowReason = 
+    oneof [ 
+      ret_gen FlowIdleTimeout;
+      ret_gen FlowHardTiemout;
+      ret_gen FlowDelete;
+      ret_gen FlowGroupDelete]
+
+  let arbitrary_PacketInReason =
+      oneof [
+          ret_gen NoMatch;
+          ret_gen ExplicitSend;
+          ret_gen InvalidTTL
+      ]
+
+  let arbitrary_PortStatusReason =
+        oneof [
+            ret_gen PortAdd;
+            ret_gen PortDelete;
+            ret_gen PortModify
+        ]
+
+  let arbitrary_mask arb =
+    arb >>= fun m_master ->
+    arb >>= fun m_slave ->
+    ret_gen { m_master; m_slave }
+
+  let arbitrary = 
+    arbitrary_mask arbitrary_PacketInReason >>= fun packet_in ->
+    arbitrary_mask arbitrary_PortStatusReason >>= fun port_status ->
+    arbitrary_mask arbitrary_FlowReason >>= fun flow_removed ->
+    ret_gen { packet_in; port_status; flow_removed }
+
+  let marshal = AsyncConfig.marshal
+  let parse = AsyncConfig.parse
+  let to_string = AsyncConfig.to_string
+  let size_of = AsyncConfig.sizeof
+
+end
+
 module Error = struct
 
   open Gen
@@ -1717,3 +2073,4 @@ module Error = struct
   let size_of = Error.sizeof
 
 end
+
