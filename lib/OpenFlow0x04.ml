@@ -6068,9 +6068,9 @@ module Message = struct
     | PacketOutMsg po -> Header.size + PacketOut.sizeof po
     | PortStatusMsg _ -> Header.size + sizeof_ofp_port_status + sizeof_ofp_port
     | MultipartReq req -> Header.size + MultipartReq.sizeof req
+    | MultipartReply rep -> Header.size + MultipartReply.sizeof rep
     | BarrierRequest -> Header.size
     | BarrierReply -> Header.size
-    | MultipartReply rep -> Header.size + MultipartReply.sizeof rep
     | GetAsyncRequest -> Header.size
     | GetAsyncReply async -> Header.size + AsyncConfig.sizeof async
     | SetAsync async -> Header.size + AsyncConfig.sizeof async
