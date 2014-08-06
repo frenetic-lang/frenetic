@@ -2109,6 +2109,67 @@ module PseudoPort = struct
 
 end
 
+module SwitchConfig = struct
+
+  cstruct ofp_switch_config {
+    uint16_t flags;
+    uint16_t miss_send_len
+  } as big_endian
+
+  module Flags = struct
+
+    cenum ofp_config_flags {
+      OFPC_FRAG_NORMAL = 0;
+      OFPC_FRAG_DROP = 1;
+      OFPC_FRAG_REASM = 2;
+      OFPC_FRAG_MASK = 3
+    } as uint16_t
+
+    let to_string (flags : switchFlags) : string = 
+      match flags with
+        | NormalFrag -> "NormalHandling"
+        | DropFrag -> "DropFragments"
+        | ReasmFrag -> "Reasemble"
+        | MaskFrag -> "MaskFrag"
+
+    let marshal (flags : switchFlags) : int = 
+      match flags with
+        | NormalFrag -> ofp_config_flags_to_int OFPC_FRAG_NORMAL
+        | DropFrag -> ofp_config_flags_to_int OFPC_FRAG_DROP
+        | ReasmFrag -> ofp_config_flags_to_int OFPC_FRAG_REASM
+        | MaskFrag -> ofp_config_flags_to_int OFPC_FRAG_MASK
+
+    let parse t : switchFlags = 
+      match int_to_ofp_config_flags t with
+        | Some OFPC_FRAG_NORMAL -> NormalFrag
+        | Some OFPC_FRAG_DROP -> DropFrag
+        | Some OFPC_FRAG_REASM -> ReasmFrag
+        | Some OFPC_FRAG_MASK -> MaskFrag
+        | None -> raise (Unparsable (sprintf "Malformed flags"))
+  end
+
+  type t = switchConfig
+
+  let sizeof (sc : switchConfig) : int =
+    sizeof_ofp_switch_config
+
+  let to_string (sc : switchConfig) : string = 
+    Format.sprintf "{ flags = %s; miss_send_length = %u }"
+    (Flags.to_string sc.flags)
+    sc.miss_send_len
+
+  let marshal (buf : Cstruct.t) (sc : switchConfig) : int =
+    set_ofp_switch_config_flags buf (Flags.marshal sc.flags);
+    set_ofp_switch_config_miss_send_len buf sc.miss_send_len;
+    sizeof_ofp_switch_config
+
+  let parse (bits : Cstruct.t) : switchConfig = 
+    let flags = Flags.parse (get_ofp_switch_config_flags bits) in
+    let miss_send_len = get_ofp_switch_config_miss_send_len bits in 
+    { flags; miss_send_len }
+    
+end
+
 module OfpMatch = struct
 
   let sizeof (om : oxmMatch) : int =
@@ -6168,6 +6229,9 @@ module Message = struct
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
+    | GetConfigRequestMsg
+    | GetConfigReplyMsg of SwitchConfig.t
+    | SetConfigMsg of SwitchConfig.t
     | TableModMsg of tableMod
     | GetAsyncRequest
     | GetAsyncReply of asyncConfig
@@ -6227,6 +6291,9 @@ module Message = struct
     | MultipartReply _ -> MULTIPART_RESP
     | BarrierRequest ->   BARRIER_REQ
     | BarrierReply ->   BARRIER_RESP
+    | GetConfigRequestMsg -> GET_CONFIG_REQ
+    | GetConfigReplyMsg _ -> GET_CONFIG_RESP
+    | SetConfigMsg _ -> SET_CONFIG
     | TableModMsg _ -> TABLE_MOD
     | GetAsyncRequest -> GET_ASYNC_REQ
     | GetAsyncReply _ -> GET_ASYNC_REP
@@ -6249,8 +6316,9 @@ module Message = struct
     | PortStatusMsg _ -> Header.size + sizeof_ofp_port_status + sizeof_ofp_port
     | MultipartReq req -> Header.size + MultipartReq.sizeof req
     | MultipartReply rep -> Header.size + MultipartReply.sizeof rep
-    | BarrierRequest -> failwith "NYI: sizeof BarrierRequest"
-    | BarrierReply -> failwith "NYI: sizeof BarrierReply"
+    | GetConfigRequestMsg -> Header.size 
+    | GetConfigReplyMsg conf -> Header.size + SwitchConfig.sizeof conf
+    | SetConfigMsg conf -> Header.size + SwitchConfig.sizeof conf
     | TableModMsg tm -> Header.size + TableMod.sizeof tm
     | BarrierRequest -> Header.size
     | BarrierReply -> Header.size
@@ -6278,6 +6346,9 @@ module Message = struct
     | MultipartReply _ -> "MultipartReply"
     | BarrierRequest -> "BarrierRequest"
     | BarrierReply -> "BarrierReply"
+    | GetConfigRequestMsg -> "GetConfigRequest"
+    | GetConfigReplyMsg _ -> "GetConfigReply"
+    | SetConfigMsg _ -> "SetConfig"
     | TableModMsg _ -> "TableMod"
     | GetAsyncRequest -> "GetAsyncRequest"
     | GetAsyncReply _ -> "GetAsyncReply"
@@ -6323,6 +6394,12 @@ module Message = struct
         Header.size + PacketIn.marshal out pi
       | PortStatusMsg ps -> 
         Header.size + PortStatus.marshal out ps
+      | GetConfigRequestMsg ->
+        Header.size
+      | GetConfigReplyMsg conf ->
+        Header.size + SwitchConfig.marshal out conf
+      | SetConfigMsg conf ->
+        Header.size + SwitchConfig.marshal out conf
       | TableModMsg tm ->
         Header.size + TableMod.marshal out tm
       | FlowRemoved fr ->
@@ -6376,6 +6453,8 @@ module Message = struct
       | BARRIER_REQ -> BarrierRequest
       | BARRIER_RESP -> BarrierReply
       | ERROR -> Error (Error.parse body_bits)
+      | GET_CONFIG_RESP -> GetConfigReplyMsg (SwitchConfig.parse body_bits)
+      | SET_CONFIG -> SetConfigMsg (SwitchConfig.parse body_bits)
       | TABLE_MOD -> TableModMsg (TableMod.parse body_bits)
       | FLOW_REMOVED -> FlowRemoved (FlowRemoved.parse body_bits)
       | GET_ASYNC_REQ -> GetAsyncRequest 

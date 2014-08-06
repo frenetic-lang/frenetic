@@ -67,6 +67,20 @@ module PseudoPort : sig
 
 end
 
+module SwitchConfig : sig
+
+  type t = switchConfig
+
+  val sizeof : t -> int
+
+  val to_string : t -> string
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
+
+end
+
 module OfpMatch : sig
 
   val sizeof : oxmMatch -> int
@@ -703,6 +717,9 @@ module Message : sig
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
+    | GetConfigRequestMsg
+    | GetConfigReplyMsg of SwitchConfig.t
+    | SetConfigMsg of SwitchConfig.t
     | TableModMsg of tableMod
     | GetAsyncRequest
     | GetAsyncReply of asyncConfig

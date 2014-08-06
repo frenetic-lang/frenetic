@@ -1503,6 +1503,33 @@ module PacketIn = struct
 
 end
 
+module SwitchConfig = struct
+
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = SwitchConfig.t
+
+  let arbitrary_flags =
+    oneof [
+      ret_gen NormalFrag;
+      ret_gen DropFrag;
+      ret_gen ReasmFrag;
+      ret_gen MaskFrag
+    ]
+
+  let arbitrary =
+    arbitrary_flags >>= fun flags ->
+    arbitrary_uint16 >>= fun miss_send_len ->
+    ret_gen { flags; miss_send_len}
+
+  let marshal = SwitchConfig.marshal
+  let parse = SwitchConfig.parse
+  let to_string = SwitchConfig.to_string
+  let size_of = SwitchConfig.sizeof
+
+end
+
 module TableMod = struct
   open Gen
   open OpenFlow0x04_Core
