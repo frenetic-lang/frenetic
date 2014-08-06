@@ -232,6 +232,28 @@ module PortFeatures = struct
       feat.pause_asym
 end
 
+module PortState = struct
+
+  let state_to_int (state : portState) : int32 =
+    Int32.logor (if state.link_down then (Int32.shift_left 1l 0) else 0l) 
+     (Int32.logor (if state.blocked then (Int32.shift_left 1l 1) else 0l)  
+      (if state.live then (Int32.shift_left 1l 2) else 0l))
+
+  let marshal (ps : portState) : int32 = state_to_int ps
+
+  let parse bits : portState =
+    { link_down = Bits.test_bit 0 bits;
+      blocked = Bits.test_bit 1 bits;
+      live = Bits.test_bit 2 bits
+    }
+
+  let to_string (state : portState) =
+    Format.sprintf "{ link_down = %B; blocked = %B; live = %B }"
+    state.link_down
+    state.blocked
+    state.live
+end
+
 cstruct ofp_port_stats_request {
   uint32_t port_no;
   uint8_t pad[4]
@@ -2045,6 +2067,216 @@ module PseudoPort = struct
 
 end
 
+module QueueDesc = struct
+
+  cstruct ofp_packet_queue {
+    uint32_t queue_id;
+    uint32_t port;
+    uint16_t len;
+    uint8_t pad[6]
+  } as big_endian
+
+  module QueueProp = struct
+
+    cstruct ofp_queue_prop_header {
+      uint16_t property;
+      uint16_t len;
+      uint8_t pad[4]
+    } as big_endian
+    
+    cenum ofp_queue_properties {
+      OFPQT_MIN_RATE = 1;
+      OFPQT_MAX_RATE = 2;
+      OFPQT_EXPERIMENTER = 0xffff
+    } as uint16_t
+
+    cstruct ofp_queue_prop_min_rate {
+      uint16_t property;
+      uint16_t len;
+      uint8_t pad[4];
+      uint16_t rate;
+      uint8_t pad[6]
+    } as big_endian
+
+    cstruct ofp_queue_prop_max_rate {
+      uint16_t property;
+      uint16_t len;
+      uint8_t pad[4];
+      uint16_t rate;
+      uint8_t pad[6]
+    } as big_endian
+
+    cstruct ofp_queue_prop_experimenter {
+      uint16_t property;
+      uint16_t len;
+      uint8_t pad[4];
+      uint32_t experimenter;
+      uint8_t pad[4]
+    } as big_endian
+
+    type t = queueProp
+
+    let sizeof (qp : t) : int =
+      match qp with
+        | MinRateProp _ -> sizeof_ofp_queue_prop_min_rate
+        | MaxRateProp _-> sizeof_ofp_queue_prop_max_rate
+        | ExperimenterProp _ -> sizeof_ofp_queue_prop_experimenter
+
+    let to_string (qp : t) : string =
+      match qp with
+        | MinRateProp rate -> 
+          Format.sprintf "MinRate = %s"
+          (match rate with
+            | Rate n -> string_of_int n
+            | Disabled -> "Disabled")
+        | MaxRateProp rate -> 
+          Format.sprintf "MaxRate = %s"
+          (match rate with
+            | Rate n -> string_of_int n
+            | Disabled -> "Disabled")
+        | ExperimenterProp id -> 
+          Format.sprintf "Experimenter<ID=%lu>"
+          id
+
+    let length_func (buf : Cstruct.t) : int option =
+      if Cstruct.len buf < sizeof_ofp_queue_prop_header then None
+      else Some (get_ofp_queue_prop_header_len buf)
+
+    let marshal (buf : Cstruct.t) (qp : t) : int =
+      match qp with 
+        | MinRateProp rate ->
+          set_ofp_queue_prop_min_rate_property buf (ofp_queue_properties_to_int OFPQT_MIN_RATE);
+          set_ofp_queue_prop_min_rate_len buf 16; (* fixed by specification *)
+          set_ofp_queue_prop_min_rate_rate buf (
+          match rate with
+            | Rate n -> n
+            | Disabled -> 0xffff);
+          sizeof_ofp_queue_prop_min_rate
+        | MaxRateProp rate ->
+          set_ofp_queue_prop_max_rate_property buf (ofp_queue_properties_to_int OFPQT_MAX_RATE);
+          set_ofp_queue_prop_max_rate_len buf 16; (* fixed by specification *)
+          set_ofp_queue_prop_max_rate_rate buf (
+          match rate with
+            | Rate n -> n
+            | Disabled -> 0xffff);
+          sizeof_ofp_queue_prop_max_rate
+        | ExperimenterProp id ->
+          set_ofp_queue_prop_experimenter_property buf (ofp_queue_properties_to_int OFPQT_EXPERIMENTER);
+          set_ofp_queue_prop_experimenter_len buf 16; (* fixed by specification *)
+          set_ofp_queue_prop_experimenter_experimenter buf id;
+          sizeof_ofp_queue_prop_experimenter
+
+    let parse (bits : Cstruct.t) : t = 
+      let typ = int_to_ofp_queue_properties (get_ofp_queue_prop_header_property bits) in
+      match typ with 
+        | Some OFPQT_MIN_RATE -> 
+          let rate = get_ofp_queue_prop_min_rate_rate bits in
+          if rate > 1000 then MinRateProp Disabled
+          else MinRateProp (Rate rate)
+        | Some OFPQT_MAX_RATE ->
+          let rate = get_ofp_queue_prop_max_rate_rate bits in
+          if rate > 1000 then MaxRateProp Disabled
+          else MaxRateProp (Rate rate)
+        | Some OFPQT_EXPERIMENTER ->
+          let exp_id = get_ofp_queue_prop_experimenter_experimenter bits
+          in ExperimenterProp exp_id
+        | None -> raise (Unparsable (sprintf "malformed property"))
+  end
+
+  type t = queueDesc
+
+  let sizeof (qd : t) : int =
+    sizeof_ofp_packet_queue + sum (map QueueProp.sizeof qd.properties)
+
+  let to_string (qd : t) : string =
+    Format.sprintf "{ queue_id = %lu; port = %lu; len = %u; properties = %s }"
+    qd.queue_id
+    qd.port
+    qd.len
+    ("[ " ^ (String.concat "; " (map QueueProp.to_string qd.properties)) ^ " ]")
+
+  let length_func (buf : Cstruct.t) : int option =
+    if Cstruct.len buf < sizeof_ofp_packet_queue then None
+    else Some (get_ofp_packet_queue_len buf)
+
+  let marshal (buf : Cstruct.t) (qd : t) : int =
+    set_ofp_packet_queue_queue_id buf qd.queue_id;
+    set_ofp_packet_queue_port buf qd.port;
+    set_ofp_packet_queue_len buf qd.len;
+    let propBuf = Cstruct.sub buf sizeof_ofp_packet_queue (qd.len - sizeof_ofp_packet_queue) in
+    sizeof_ofp_packet_queue + (marshal_fields propBuf qd.properties QueueProp.marshal)
+    
+  let parse (bits : Cstruct.t) : t = 
+    let queue_id = get_ofp_packet_queue_queue_id bits in
+    let port = get_ofp_packet_queue_port bits in
+    let len = get_ofp_packet_queue_len bits in
+    let propBits = Cstruct.sub bits sizeof_ofp_packet_queue (len - sizeof_ofp_packet_queue) in
+    let properties = parse_fields propBits QueueProp.parse QueueProp.length_func in
+    { queue_id; port; len; properties}
+
+end
+
+module SwitchConfig = struct
+
+  cstruct ofp_switch_config {
+    uint16_t flags;
+    uint16_t miss_send_len
+  } as big_endian
+
+  module Flags = struct
+
+    cenum ofp_config_flags {
+      OFPC_FRAG_NORMAL = 0;
+      OFPC_FRAG_DROP = 1;
+      OFPC_FRAG_REASM = 2;
+      OFPC_FRAG_MASK = 3
+    } as uint16_t
+
+    let to_string (flags : switchFlags) : string = 
+      match flags with
+        | NormalFrag -> "NormalHandling"
+        | DropFrag -> "DropFragments"
+        | ReasmFrag -> "Reasemble"
+        | MaskFrag -> "MaskFrag"
+
+    let marshal (flags : switchFlags) : int = 
+      match flags with
+        | NormalFrag -> ofp_config_flags_to_int OFPC_FRAG_NORMAL
+        | DropFrag -> ofp_config_flags_to_int OFPC_FRAG_DROP
+        | ReasmFrag -> ofp_config_flags_to_int OFPC_FRAG_REASM
+        | MaskFrag -> ofp_config_flags_to_int OFPC_FRAG_MASK
+
+    let parse t : switchFlags = 
+      match int_to_ofp_config_flags t with
+        | Some OFPC_FRAG_NORMAL -> NormalFrag
+        | Some OFPC_FRAG_DROP -> DropFrag
+        | Some OFPC_FRAG_REASM -> ReasmFrag
+        | Some OFPC_FRAG_MASK -> MaskFrag
+        | None -> raise (Unparsable (sprintf "Malformed flags"))
+  end
+
+  type t = switchConfig
+
+  let sizeof (sc : switchConfig) : int =
+    sizeof_ofp_switch_config
+
+  let to_string (sc : switchConfig) : string = 
+    Format.sprintf "{ flags = %s; miss_send_length = %u }"
+    (Flags.to_string sc.flags)
+    sc.miss_send_len
+
+  let marshal (buf : Cstruct.t) (sc : switchConfig) : int =
+    set_ofp_switch_config_flags buf (Flags.marshal sc.flags);
+    set_ofp_switch_config_miss_send_len buf sc.miss_send_len;
+    sizeof_ofp_switch_config
+
+  let parse (bits : Cstruct.t) : switchConfig = 
+    let flags = Flags.parse (get_ofp_switch_config_flags bits) in
+    let miss_send_len = get_ofp_switch_config_miss_send_len bits in 
+    { flags; miss_send_len }
+    
+end
+
 module OfpMatch = struct
 
   let sizeof (om : oxmMatch) : int =
@@ -2310,6 +2542,8 @@ end
 
 module Bucket = struct
 
+  type t = bucket
+
   let sizeof (bucket : bucket) : int =
     let n = sizeof_ofp_bucket + sum (map Action.sizeof bucket.bu_actions) in
     pad_to_64bits n
@@ -2481,6 +2715,206 @@ module GroupMod = struct
         let bucket = parse_fields (Cstruct.shift bits sizeof_ofp_group_mod) Bucket.parse (Bucket.length_func) in
         ModifyGroup (typ,gid,bucket)
       | None -> raise (Unparsable (sprintf "malformed group command"))
+end
+
+module PortMod = struct
+
+  cstruct ofp_port_mod {
+    uint32_t port_no;
+    uint8_t pad[4];
+    uint8_t hw_addr[6];
+    uint8_t pad2[2];
+    uint32_t config;
+    uint32_t mask;
+    uint32_t advertise;
+    uint8_t pad3[4]
+  } as big_endian
+
+  type t = portMod
+
+  let sizeof pm : int =
+    sizeof_ofp_port_mod
+
+  let to_string (pm : t) : string =
+    Format.sprintf "{ port_no = %lu; hw_addr = %s; config = %s; mask = %s; advertise = %s }"
+    pm.mpPortNo
+    (string_of_mac pm.mpHw_addr)
+    (PortConfig.to_string pm.mpConfig)
+    (PortConfig.to_string pm.mpMask)
+    (PortState.to_string pm.mpAdvertise)
+    
+  let marshal (buf : Cstruct.t) (pm : t) : int =
+    set_ofp_port_mod_port_no buf pm.mpPortNo;
+    set_ofp_port_mod_hw_addr (bytes_of_mac pm.mpHw_addr) 0 buf;
+    set_ofp_port_mod_config buf (PortConfig.marshal pm.mpConfig);
+    set_ofp_port_mod_mask buf (PortConfig.marshal pm.mpMask);
+    set_ofp_port_mod_advertise buf (PortState.marshal pm.mpAdvertise);
+    sizeof_ofp_port_mod
+
+  let parse (bits : Cstruct.t) : t =
+    let mpPortNo = get_ofp_port_mod_port_no bits in
+    let mpHw_addr = mac_of_bytes (copy_ofp_port_mod_hw_addr bits) in
+    let mpConfig = PortConfig.parse (get_ofp_port_mod_config bits) in
+    let mpMask = PortConfig.parse (get_ofp_port_mod_mask bits) in
+    let mpAdvertise = PortState.parse (get_ofp_port_mod_advertise bits) in
+    { mpPortNo; mpHw_addr; mpConfig; mpMask; mpAdvertise}
+  
+end
+
+module MeterBand = struct
+
+  cenum ofp_meter_band_type {
+    OFPMBT_DROP = 1;
+    OFPMBT_DSCP_REMARK = 2;
+    OFPMBT_EXPERIMENTER = 0xffff
+  } as uint16_t
+
+  type t = meterBand
+
+  let sizeof (mb : meterBand) : int =
+    match mb with
+      | Drop _ -> sizeof_ofp_meter_band_drop
+      | DscpRemark _ -> sizeof_ofp_meter_band_dscp_remark
+      | ExpMeter _ ->  sizeof_ofp_meter_band_experimenter
+
+  let length_fun (buf : Cstruct.t) : int option =
+    if Cstruct.len buf < sizeof_ofp_meter_band_header then None
+    else Some (get_ofp_meter_band_header_len buf)
+
+  let to_string (mb : meterBand) : string =
+    match mb with
+      | Drop (r,b) ->
+        Format.sprintf "Drop { rate = %lu; burst_size = %lu }" r b
+      | DscpRemark (r,b,p) ->
+        Format.sprintf "Dscp Remark { rate = %lu; burst_size = %lu; prec level = %u }" r b p
+      | ExpMeter (r,b,e) ->
+        Format.sprintf "Experimetner { rate = %lu; burst_size = %lu; experimenter_id = %lu }" r b e
+
+  let marshal (buf : Cstruct.t) (mb : meterBand) : int =
+    match mb with
+      | Drop (r,b) ->
+        set_ofp_meter_band_drop_typ buf 1; (* OFPMBT_DROP *)
+        set_ofp_meter_band_drop_len buf sizeof_ofp_meter_band_drop;
+        set_ofp_meter_band_drop_rate buf r;
+        set_ofp_meter_band_drop_burst_size buf b;
+        sizeof_ofp_meter_band_drop
+      | DscpRemark (r,b,p) ->
+        set_ofp_meter_band_dscp_remark_typ buf 2; (* OFPMBT_DSCP_REMARK *)
+        set_ofp_meter_band_dscp_remark_len buf sizeof_ofp_meter_band_dscp_remark;
+        set_ofp_meter_band_dscp_remark_rate buf r;
+        set_ofp_meter_band_dscp_remark_burst_size buf b;
+        set_ofp_meter_band_dscp_remark_prec_level buf p;
+        sizeof_ofp_meter_band_dscp_remark
+      | ExpMeter (r,b,e) ->
+        set_ofp_meter_band_experimenter_typ buf 0xffff; (* OFPMBT_EXPERIMENTER *)
+        set_ofp_meter_band_experimenter_len buf sizeof_ofp_meter_band_experimenter;
+        set_ofp_meter_band_experimenter_rate buf r;
+        set_ofp_meter_band_experimenter_burst_size buf b;
+        set_ofp_meter_band_experimenter_experimenter buf e;
+        sizeof_ofp_meter_band_experimenter 
+
+  let parse (bits : Cstruct.t) : meterBand =
+    let rate = get_ofp_meter_band_header_rate bits in
+    let burst = get_ofp_meter_band_header_burst_size bits in
+    let typ = get_ofp_meter_band_header_typ bits in
+    match int_to_ofp_meter_band_type typ with 
+      | Some OFPMBT_DROP -> 
+        Drop (rate,burst)
+      | Some OFPMBT_DSCP_REMARK -> 
+        let p = get_ofp_meter_band_dscp_remark_prec_level bits in
+        DscpRemark (rate,burst,p)
+      | Some OFPMBT_EXPERIMENTER -> 
+        let e = get_ofp_meter_band_experimenter_experimenter bits in
+        ExpMeter (rate,burst,e)
+      | None -> raise (Unparsable (sprintf "malformed typ"))
+
+end
+
+module MeterFlags = struct
+
+  let marshal (mfm : meterFlags) : int =
+    (if mfm.kbps then 1 lsl 0 else 0) lor 
+     (if mfm.pktps then 1 lsl 1 else 0) lor
+      (if mfm.burst then 1 lsl 2 else 0) lor
+       (if mfm.stats then 1 lsl 3 else 0)
+
+  let parse bits : meterFlags = 
+    { kbps = test_bit16 0 bits
+    ; pktps = test_bit16 1 bits 
+    ; burst = test_bit16 2 bits 
+    ; stats = test_bit16 3 bits }
+
+  let to_string (mfm : meterFlags) : string =
+    Format.sprintf "{ kpbs = %B; pktps = %B; burst = %B; stats = %B }"
+    mfm.kbps
+    mfm.pktps
+    mfm.burst
+    mfm.stats
+
+end
+
+module MeterMod = struct
+
+  cstruct ofp_meter_mod {
+    uint16_t commands;
+    uint16_t flags;
+    uint32_t meter_id
+  } as big_endian
+
+  module Command = struct
+
+    cenum ofp_meter_mod_command {
+      OFPMC_ADD;
+      OFPMC_MODIFY;
+      OFPMC_DELETE
+    } as uint16_t
+
+    let to_string (t :  meterCommand) = 
+      match t with
+        | AddMeter -> "AddMeter"
+        | ModifyMeter -> "ModifyMeter"
+        | DeleteMeter -> "DeleteMmeter"
+
+    let marshal (t : meterCommand) : int =
+      match t with
+        | AddMeter -> ofp_meter_mod_command_to_int OFPMC_ADD
+        | ModifyMeter -> ofp_meter_mod_command_to_int OFPMC_MODIFY
+        | DeleteMeter -> ofp_meter_mod_command_to_int OFPMC_DELETE
+
+    let parse t : meterCommand =
+      match int_to_ofp_meter_mod_command t with
+        | Some OFPMC_ADD -> AddMeter
+        | Some OFPMC_MODIFY -> ModifyMeter
+        | Some OFPMC_DELETE -> DeleteMeter
+        | None -> raise (Unparsable (sprintf "malformed command"))
+  end
+
+  type t = meterMod
+
+  let sizeof (mm : t) : int =
+    sizeof_ofp_meter_mod + (sum (map MeterBand.sizeof mm.bands))
+
+  let to_string (mm : t) : string =
+    Format.sprintf "{ command = %s; flags = %s = meter_id = %lu; bands = %s }"
+    (Command.to_string mm.command)
+    (MeterFlags.to_string mm.flags)
+    mm.meter_id
+    ("[ " ^ (String.concat "; " (map MeterBand.to_string mm.bands)) ^ " ]")
+
+  let marshal (buf : Cstruct.t) (mm : t) : int =
+    set_ofp_meter_mod_commands buf (Command.marshal mm.command);
+    set_ofp_meter_mod_flags buf (MeterFlags.marshal mm.flags);
+    set_ofp_meter_mod_meter_id buf mm.meter_id;
+    sizeof_ofp_meter_mod + (marshal_fields (Cstruct.shift buf sizeof_ofp_meter_mod) mm.bands MeterBand.marshal)
+
+  let parse (bits : Cstruct.t) : t = 
+    let command = Command.parse (get_ofp_meter_mod_commands bits) in
+    let flags = MeterFlags.parse (get_ofp_meter_mod_flags bits) in
+    let meter_id = get_ofp_meter_mod_meter_id bits in
+    let bandsBits = Cstruct.shift bits sizeof_ofp_meter_mod in
+    let bands = parse_fields bandsBits MeterBand.parse MeterBand.length_fun in
+    { command; flags; meter_id; bands }
+
 end
 
 module Instruction = struct
@@ -2846,29 +3280,6 @@ module SwitchFeatures = struct
 
 end
 
-
-module PortState = struct
-
-  let state_to_int (state : portState) : int32 =
-    Int32.logor (if state.link_down then (Int32.shift_left 1l 0) else 0l) 
-     (Int32.logor (if state.blocked then (Int32.shift_left 1l 1) else 0l)  
-      (if state.live then (Int32.shift_left 1l 2) else 0l))
-
-  let marshal (ps : portState) : int32 = state_to_int ps
-
-  let parse bits : portState =
-    { link_down = Bits.test_bit 0 bits;
-      blocked = Bits.test_bit 1 bits;
-      live = Bits.test_bit 2 bits
-    }
-
-  let to_string (state : portState) =
-    Format.sprintf "{ link_down = %B; blocked = %B; live = %B }"
-    state.link_down
-    state.blocked
-    state.live
-end
-
 module PortDesc = struct
 
   let sizeof (_ : portDesc) =
@@ -2940,54 +3351,86 @@ module PortStatus = struct
   let sizeof (_ : portStatus) : int = 
     sizeof_ofp_port_status + sizeof_ofp_port
 
-  let reason_to_int (pr : portReason) : int =
-     match pr with
-      | PortAdd -> ofp_port_reason_to_int OFPPR_ADD
-      | PortDelete -> ofp_port_reason_to_int OFPPR_DELETE
-      | PortModify -> ofp_port_reason_to_int OFPPR_MODIFY
+  module Reason = struct 
+
+    let marshal (pr : portReason) : int =
+       match pr with
+        | PortAdd -> ofp_port_reason_to_int OFPPR_ADD
+        | PortDelete -> ofp_port_reason_to_int OFPPR_DELETE
+        | PortModify -> ofp_port_reason_to_int OFPPR_MODIFY
+
+    let to_string (pr : portReason) = 
+      match pr with
+        | PortAdd -> "PortAdd"
+        | PortDelete -> "PortDelete"
+        | PortModify -> "PortModify"
+
+    let parse t : portReason = 
+      match int_to_ofp_port_reason t with
+        | Some OFPPR_ADD -> PortAdd
+        | Some OFPPR_DELETE -> PortDelete
+        | Some OFPPR_MODIFY -> PortModify
+        | None -> raise (Unparsable (sprintf "unexpected port reason"))
+  end
 
   let marshal (buf : Cstruct.t) (status : portStatus) : int =
-    set_ofp_port_status_reason buf (reason_to_int status.reason);
+    set_ofp_port_status_reason buf (Reason.marshal status.reason);
     let size = sizeof_ofp_port_status + 
         PortDesc.marshal (Cstruct.shift buf sizeof_ofp_port_status) status.desc in
     size
 
   let parse (bits : Cstruct.t) : portStatus =
-    let reason = (match int_to_ofp_port_reason (get_ofp_port_status_reason bits) with
-                    | Some OFPPR_ADD -> PortAdd
-                    | Some OFPPR_DELETE -> PortDelete
-                    | Some OFPPR_MODIFY -> PortModify
-                    | None -> raise (Unparsable (sprintf "unexpected port reason"))) in 
+    let reason = Reason.parse (get_ofp_port_status_reason bits)in 
     let bits = Cstruct.shift bits sizeof_ofp_port_status in
     let desc = PortDesc.parse bits in
     { reason;
       desc }
       
   let to_string (t : portStatus) = 
-    let reason_to_string (reason : portReason) = match reason with
-        | PortAdd -> "Port Add"
-        | PortDelete -> "Port Delete"
-        | PortModify -> "Port Modify" in
     Format.sprintf 
         "{ reason = %s; desc = %s }"
-        (reason_to_string t.reason)
+        (Reason.to_string t.reason)
         (PortDesc.to_string t.desc)
 end
 
 module PacketIn = struct
 
- cenum reasonType {
-   NO_MATCH = 0;
-   ACTION = 1;
-   INVALID_TTL = 2
- } as uint8_t
+  module Reason = struct 
 
- cstruct ofp_packet_in {
-   uint32_t buffer_id;     
-   uint16_t total_len;     
-   uint8_t reason;         
-   uint8_t table_id;
-   uint64_t cookie
+    cenum ofp_packet_in_reason {
+      NO_MATCH = 0;
+      ACTION = 1;
+      INVALID_TTL = 2
+    } as uint8_t
+
+    type t = packetInReason
+
+    let to_string t : string =
+      match t with
+        | NoMatch -> "NO_MATCH"
+        | ExplicitSend -> "ACTION"
+        | InvalidTTL -> "INVALID_TTL"
+
+    let marshal t : int =
+      match t with
+         | NoMatch -> ofp_packet_in_reason_to_int NO_MATCH
+         | ExplicitSend -> ofp_packet_in_reason_to_int ACTION
+         | InvalidTTL -> ofp_packet_in_reason_to_int INVALID_TTL
+
+    let parse t : packetInReason =
+      match int_to_ofp_packet_in_reason t with
+        | Some NO_MATCH -> NoMatch
+        | Some ACTION -> ExplicitSend
+        | Some INVALID_TTL -> InvalidTTL
+        | None -> raise (Unparsable (sprintf "bad reason in packet_in (%d)" t))  
+  end
+
+  cstruct ofp_packet_in {
+    uint32_t buffer_id;     
+    uint16_t total_len;     
+    uint8_t reason;         
+    uint8_t table_id;
+    uint64_t cookie
   } as big_endian
 
   let sizeof (pi : packetIn) : int = 
@@ -2996,10 +3439,7 @@ module PacketIn = struct
   let to_string (pi: packetIn) : string =
     Format.sprintf "{ total_len = %u; reason = %s; table_id = %u; cookie = %Lu; match = %s; payload = %s }"
     pi.pi_total_len
-    (match pi.pi_reason with
-      | NoMatch -> "NO_MATCH"
-      | ExplicitSend -> "ACTION"
-      | InvalidTTL -> "INVALID_TTL")
+    (Reason.to_string pi.pi_reason)
     pi.pi_table_id
     pi.pi_cookie
     (OfpMatch.to_string pi.pi_ofp_match)
@@ -3019,11 +3459,7 @@ module PacketIn = struct
     Cstruct.blit bytes 0 bufMatch (2 + OfpMatch.sizeof pi.pi_ofp_match) pi.pi_total_len;
     set_ofp_packet_in_buffer_id buf buffer_id;
     set_ofp_packet_in_total_len buf pi.pi_total_len;
-    set_ofp_packet_in_reason buf
-      (match pi.pi_reason with
-         | NoMatch -> reasonType_to_int NO_MATCH
-         | ExplicitSend -> reasonType_to_int ACTION
-         | InvalidTTL -> reasonType_to_int INVALID_TTL);
+    set_ofp_packet_in_reason buf (Reason.marshal pi.pi_reason);
     set_ofp_packet_in_table_id buf pi.pi_table_id;
     set_ofp_packet_in_cookie buf pi.pi_cookie;
     size
@@ -3038,11 +3474,7 @@ module PacketIn = struct
       | n -> Some n in
     let total_len = get_ofp_packet_in_total_len bits in
     let reason_code = get_ofp_packet_in_reason bits in
-    let reason = match int_to_reasonType reason_code with
-      | Some NO_MATCH -> NoMatch
-      | Some ACTION -> ExplicitSend
-      | Some INVALID_TTL -> InvalidTTL
-      | None -> raise (Unparsable (sprintf "bad reason in packet_in (%d)" reason_code)) in
+    let reason = Reason.parse (reason_code) in
     let table_id = get_ofp_packet_in_table_id bits in
     let cookie = get_ofp_packet_in_cookie bits in
     let ofp_match_bits = Cstruct.shift bits sizeof_ofp_packet_in in
@@ -3151,93 +3583,118 @@ module PacketOut = struct
 
 end
 
-module MeterBand = struct
+module FlowRemoved = struct
 
-  cenum ofp_meter_band_type {
-    OFPMBT_DROP = 1;
-    OFPMBT_DSCP_REMARK = 2;
-    OFPMBT_EXPERIMENTER = 0xffff
-  } as uint16_t
+  module RemovedReason = struct
 
-  let sizeof (mb : meterBand) : int =
-    match mb with
-      | Drop _ -> sizeof_ofp_meter_band_drop
-      | DscpRemark _ -> sizeof_ofp_meter_band_dscp_remark
-      | ExpMeter _ ->  sizeof_ofp_meter_band_experimenter
+    cenum ofp_flow_removed_reason {
+      OFPRR_IDLE_TIMEOUT = 0;
+      OFPRR_HARD_TIMEOUT = 1;
+      OFPRR_DELETE = 2;
+      OFPRR_GROUP_DELETE = 3
+    } as uint8_t
 
-  let length_fun (buf : Cstruct.t) : int option =
-    if Cstruct.len buf < sizeof_ofp_meter_band_header then None
-    else Some (get_ofp_meter_band_header_len buf)
+    type t = flowReason
 
-  let to_string (mb : meterBand) : string =
-    match mb with
-      | Drop (r,b) ->
-        Format.sprintf "Drop { rate = %lu; burst_size = %lu }" r b
-      | DscpRemark (r,b,p) ->
-        Format.sprintf "Dscp Remark { rate = %lu; burst_size = %lu; prec level = %u }" r b p
-      | ExpMeter (r,b,e) ->
-        Format.sprintf "Experimetner { rate = %lu; burst_size = %lu; experimenter_id = %lu }" r b e
+    let to_string (t : flowReason) : string =
+      match t with
+        | FlowIdleTimeout -> "IDLE_TIMEOUT"
+        | FlowHardTiemout -> "HARD_TIMEOUT"
+        | FlowDelete -> "DELETE"
+        | FlowGroupDelete -> "GROUP_DELETE"
 
-  let marshal (buf : Cstruct.t) (mb : meterBand) : int =
-    match mb with
-      | Drop (r,b) ->
-        set_ofp_meter_band_drop_typ buf 1; (* OFPMBT_DROP *)
-        set_ofp_meter_band_drop_len buf sizeof_ofp_meter_band_drop;
-        set_ofp_meter_band_drop_rate buf r;
-        set_ofp_meter_band_drop_burst_size buf b;
-        sizeof_ofp_meter_band_drop
-      | DscpRemark (r,b,p) ->
-        set_ofp_meter_band_dscp_remark_typ buf 2; (* OFPMBT_DSCP_REMARK *)
-        set_ofp_meter_band_dscp_remark_len buf sizeof_ofp_meter_band_dscp_remark;
-        set_ofp_meter_band_dscp_remark_rate buf r;
-        set_ofp_meter_band_dscp_remark_burst_size buf b;
-        set_ofp_meter_band_dscp_remark_prec_level buf p;
-        sizeof_ofp_meter_band_dscp_remark
-      | ExpMeter (r,b,e) ->
-        set_ofp_meter_band_experimenter_typ buf 0xffff; (* OFPMBT_EXPERIMENTER *)
-        set_ofp_meter_band_experimenter_len buf sizeof_ofp_meter_band_experimenter;
-        set_ofp_meter_band_experimenter_rate buf r;
-        set_ofp_meter_band_experimenter_burst_size buf b;
-        set_ofp_meter_band_experimenter_experimenter buf e;
-        sizeof_ofp_meter_band_experimenter 
+    let marshal (t : flowReason) : int8 =
+      match t with
+        | FlowIdleTimeout -> ofp_flow_removed_reason_to_int OFPRR_IDLE_TIMEOUT
+        | FlowHardTiemout -> ofp_flow_removed_reason_to_int OFPRR_HARD_TIMEOUT
+        | FlowDelete -> ofp_flow_removed_reason_to_int OFPRR_DELETE
+        | FlowGroupDelete -> ofp_flow_removed_reason_to_int OFPRR_GROUP_DELETE
 
-  let parse (bits : Cstruct.t) : meterBand =
-    let rate = get_ofp_meter_band_header_rate bits in
-    let burst = get_ofp_meter_band_header_burst_size bits in
-    let typ = get_ofp_meter_band_header_typ bits in
-    match int_to_ofp_meter_band_type typ with 
-      | Some OFPMBT_DROP -> 
-        Drop (rate,burst)
-      | Some OFPMBT_DSCP_REMARK -> 
-        let p = get_ofp_meter_band_dscp_remark_prec_level bits in
-        DscpRemark (rate,burst,p)
-      | Some OFPMBT_EXPERIMENTER -> 
-        let e = get_ofp_meter_band_experimenter_experimenter bits in
-        ExpMeter (rate,burst,e)
-      | None -> raise (Unparsable (sprintf "malformed typ"))
+    let parse bits : flowReason =
+      match (int_to_ofp_flow_removed_reason bits) with
+        | Some OFPRR_IDLE_TIMEOUT -> FlowIdleTimeout
+        | Some OFPRR_HARD_TIMEOUT -> FlowHardTiemout
+        | Some OFPRR_DELETE -> FlowDelete
+        | Some OFPRR_GROUP_DELETE -> FlowGroupDelete
+        | None -> raise (Unparsable (sprintf "malformed reason"))
+  
+  end
 
-end
+  cstruct ofp_flow_removed {
+    uint64_t cookie;
+    uint16_t priority;
+    uint8_t reason;
+    uint8_t table_id;
+    uint32_t duration_sec;
+    uint32_t duration_nsec;
+    uint16_t idle_timeout;
+    uint16_t hard_timeout;
+    uint64_t packet_count;
+    uint64_t byte_count
+  } as big_endian
 
-module MeterFlags = struct
+  type t = flowRemoved
 
-  let marshal (mfm : meterFlags) : int =
-    (if mfm.kbps then 1 lsl 0 else 0) lor 
-     (if mfm.pktps then 1 lsl 1 else 0) lor
-      (if mfm.burst then 1 lsl 2 else 0) lor
-       (if mfm.stats then 1 lsl 3 else 0)
+  let sizeof (f : flowRemoved) : int =
+    sizeof_ofp_flow_removed + (OfpMatch.sizeof f.oxm)
 
-  let parse bits : meterFlags = 
-    { kbps = test_bit16 0 bits
-    ; pktps = test_bit16 1 bits 
-    ; burst = test_bit16 2 bits 
-    ; stats = test_bit16 3 bits }
+  let to_string (f : flowRemoved) : string =
+   Format.sprintf "{ cookie = %Lu; priotity = %u; reason = %s; table_id = %u;\
+   duration s/ns = %lu/%lu; idle_timeout = %s; hard_timeout = %s; packet_count = %Lu;\
+   byte_count = %Lu; match = %s }"
+   f.cookie
+   f.priority
+   (RemovedReason.to_string f.reason)
+   f.table_id
+   f.duration_sec
+   f.duration_nsec
+   (match f.idle_timeout with
+      | Permanent -> "Permanent"
+      | ExpiresAfter t-> string_of_int t)
+   (match f.hard_timeout with
+      | Permanent -> "Permanent"
+      | ExpiresAfter t-> string_of_int t)
+   f.packet_count
+   f.byte_count
+   (OfpMatch.to_string f.oxm)
 
-  let to_string (mfm : meterFlags) : string =
-    Format.sprintf "{ kpbs = %B; pktps = %B; burst = %B; stats = %B }"
-    mfm.kbps
-    mfm.pktps
-    mfm.burst
-    mfm.stats
+   let marshal (buf : Cstruct.t) (f : flowRemoved) : int =
+     set_ofp_flow_removed_cookie buf f.cookie;
+     set_ofp_flow_removed_priority buf f.priority;
+     set_ofp_flow_removed_reason buf (RemovedReason.marshal f.reason);
+     set_ofp_flow_removed_table_id buf f.table_id;
+     set_ofp_flow_removed_duration_sec buf f.duration_sec;
+     set_ofp_flow_removed_duration_nsec buf f.duration_nsec;
+     set_ofp_flow_removed_idle_timeout buf (match f.idle_timeout with
+                                              | Permanent -> 0
+                                              | ExpiresAfter v -> v);
+     set_ofp_flow_removed_hard_timeout buf (match f.hard_timeout with
+                                              | Permanent -> 0
+                                              | ExpiresAfter v -> v);
+     set_ofp_flow_removed_packet_count buf f.packet_count;
+     set_ofp_flow_removed_byte_count buf f.byte_count;
+     let oxm_buf = Cstruct.shift buf sizeof_ofp_flow_removed in
+     sizeof_ofp_flow_removed + (OfpMatch.marshal oxm_buf f.oxm)
+
+   let parse (bits : Cstruct.t) : flowRemoved = 
+     let cookie = get_ofp_flow_removed_cookie bits in
+     let priority = get_ofp_flow_removed_priority bits in
+     let reason = RemovedReason.parse (get_ofp_flow_removed_reason bits) in
+     let table_id = get_ofp_flow_removed_table_id bits in
+     let duration_sec = get_ofp_flow_removed_duration_sec bits in
+     let duration_nsec = get_ofp_flow_removed_duration_nsec bits in
+     let idle_timeout = match (get_ofp_flow_removed_idle_timeout bits) with
+                         | 0 -> Permanent 
+                         | n -> ExpiresAfter n in
+     let hard_timeout = match (get_ofp_flow_removed_hard_timeout bits) with
+                         | 0 -> Permanent 
+                         | n -> ExpiresAfter n in
+     let packet_count = get_ofp_flow_removed_packet_count bits in
+     let byte_count = get_ofp_flow_removed_byte_count bits in
+     let oxm,_ = OfpMatch.parse (Cstruct.shift bits sizeof_ofp_flow_removed) in
+     { cookie; priority; reason; table_id; duration_sec; duration_nsec; idle_timeout;
+       hard_timeout; packet_count; byte_count; oxm }
+     
 
 end
 
@@ -3303,12 +3760,12 @@ module QueueRequest = struct
 
     type t = queueRequest
 
-    let marshal (buf : Cstruct.t) (qr : queueRequest) : int =
+    let marshal (buf : Cstruct.t) (qr : t) : int =
       set_ofp_queue_stats_request_port_no buf qr.port_number;
       set_ofp_queue_stats_request_queue_id buf qr.queue_id;
       sizeof_ofp_queue_stats_request
 
-    let parse (bits : Cstruct.t) : queueRequest = 
+    let parse (bits : Cstruct.t) : t = 
       let portNumber = get_ofp_queue_stats_request_port_no bits in
       let queueId = get_ofp_queue_stats_request_queue_id bits in
       { port_number = portNumber
@@ -3316,8 +3773,10 @@ module QueueRequest = struct
 
     let sizeof _ = 
         sizeof_ofp_queue_stats_request
+
     let to_string qr =
         Format.sprintf "{ port_no = %lu; queue_id = %lu }" qr.port_number qr.queue_id
+
 end
 
 module TableFeatureProp = struct
@@ -3540,6 +3999,28 @@ module TableFeatureProp = struct
 
 end
 
+module TableConfig = struct
+
+  cenum ofp_table_config {
+    OFPTC_DEPRECATED_MASK = 3
+  } as uint32_t
+
+  type t = tableConfig
+  let marshal (tc : tableConfig) : int32 =
+    match tc with
+      | Deprecated -> ofp_table_config_to_int OFPTC_DEPRECATED_MASK
+
+  let parse t : tableConfig = 
+    match int_to_ofp_table_config t with
+      | Some OFPTC_DEPRECATED_MASK -> Deprecated
+      | _ -> raise (Unparsable (sprintf "unsupported config "))
+
+  let to_string tc =
+    match tc with
+      | Deprecated -> "Deprecated"
+
+end
+
 module TableFeature = struct
 
     type t = tableFeatures
@@ -3548,14 +4029,6 @@ module TableFeature = struct
       (* should be equal to tf.length *)
       pad_to_64bits (sizeof_ofp_table_features + (TableFeatureProp.sizeof tf.feature_prop))
 
-    let tableConfig_to_int (tc : tableConfig) : int32 =
-      match tc with
-        | Deprecated -> ofp_table_config_to_int OFPTC_DEPRECATED_MASK
-
-    let table_config_to_string tc =
-      match tc with
-        | Deprecated -> "Deprecated"
-
     let marshal (buf : Cstruct.t) (tf : tableFeatures) : int =
       set_ofp_table_features_length buf tf.length;
       set_ofp_table_features_table_id buf tf.table_id;
@@ -3563,7 +4036,7 @@ module TableFeature = struct
       set_ofp_table_features_name tf.name 0 buf;
       set_ofp_table_features_metadata_match buf tf.metadata_match;
       set_ofp_table_features_metadata_write buf tf.metadata_write;
-      set_ofp_table_features_config buf (tableConfig_to_int tf.config);
+      set_ofp_table_features_config buf (TableConfig.marshal tf.config);
       set_ofp_table_features_max_entries buf tf.max_entries;
       sizeof_ofp_table_features + (
         TableFeatureProp.marshal (Cstruct.shift buf sizeof_ofp_table_features) tf.feature_prop)
@@ -3574,12 +4047,7 @@ module TableFeature = struct
       let name = Cstruct.to_string (get_ofp_table_features_name bits) in
       let metadataMatch = get_ofp_table_features_metadata_match bits in
       let metadataWrite = get_ofp_table_features_metadata_write bits in
-      let config = (
-        match int_to_ofp_table_config (get_ofp_table_features_config bits) with
-          | Some OFPTC_DEPRECATED_MASK -> Deprecated
-          | _ -> raise
-            (Unparsable (sprintf "unsupported config "))
-        ) in
+      let config = TableConfig.parse (get_ofp_table_features_config bits) in
       let maxEntries = get_ofp_table_features_max_entries bits in
       let featureProp = TableFeatureProp.parse (Cstruct.sub bits sizeof_ofp_table_features (length-sizeof_ofp_table_features)) in
       { length = length;
@@ -3599,7 +4067,7 @@ module TableFeature = struct
       tf.name
       tf.metadata_match
       tf.metadata_write
-      (table_config_to_string tf.config)
+      (TableConfig.to_string tf.config)
       tf.max_entries
       (TableFeatureProp.to_string tf.feature_prop)
 
@@ -4760,18 +5228,87 @@ end
 
 module TableMod = struct
 
-    cstruct ofp_table_mod {
-      uint8_t table_id;
-      uint8_t pad[3];
-      uint32_t confi
-    } as big_endian
-    
+  cstruct ofp_table_mod {
+    uint8_t table_id;
+    uint8_t pad[3];
+    uint32_t config
+  } as big_endian
 
-    let sizeof (tab : tableMod) : int =
+  type t = tableMod
+
+  let sizeof (tab : tableMod) : int =
     sizeof_ofp_table_mod
+
+  let to_string (tab : tableMod) : string =
+    Format.sprintf "{ tabled_id = %u; config = %s }"
+    tab.table_id
+    (TableConfig.to_string tab.config)
+
+  let marshal (buf : Cstruct.t) (tab : tableMod) : int =
+    set_ofp_table_mod_table_id buf tab.table_id;
+    set_ofp_table_mod_config buf (TableConfig.marshal tab.config);
+    sizeof_ofp_table_mod
+
+  let parse (bits : Cstruct.t) : tableMod =
+    let table_id = get_ofp_table_mod_table_id bits in
+    let config = TableConfig.parse (get_ofp_table_mod_config bits) in
+    { table_id; config }
 
 end
 
+module QueueConfReq = struct
+
+  cstruct ofp_queue_get_config_request {
+    uint32_t port;
+    uint8_t pad[4]
+  } as big_endian
+
+  type t = queueConfReq
+
+  let sizeof (qr : t) : int = 
+    sizeof_ofp_queue_get_config_request
+
+  let to_string (qr : t) : string =
+    Format.sprintf "{ port = %lu }" qr.port
+
+  let marshal (buf : Cstruct.t) (qr : t) : int =
+    set_ofp_queue_get_config_request_port buf qr.port;
+    sizeof_ofp_queue_get_config_request
+
+  let parse (bits : Cstruct.t) : t = 
+    let port = get_ofp_queue_get_config_request_port bits in
+    { port }
+end
+
+module QueueConfReply = struct
+
+  cstruct ofp_queue_get_config_reply {
+    uint32_t port;
+    uint8_t pad[4];
+  } as big_endian
+
+  type t = queueConfReply
+
+  let sizeof (qr : t) : int = 
+    sizeof_ofp_queue_get_config_reply + sum (map QueueDesc.sizeof qr.queues)
+
+  let to_string (qr : t) : string =
+    Format.sprintf "{ port = %lu; queue = %s }" 
+    qr.port 
+    ("[ " ^ (String.concat "; " (map QueueDesc.to_string qr.queues)) ^ " ]")
+
+  let marshal (buf : Cstruct.t) (qr : t) : int =
+    set_ofp_queue_get_config_reply_port buf qr.port;
+    let queueBuf = Cstruct.shift buf sizeof_ofp_queue_get_config_reply in
+    sizeof_ofp_queue_get_config_reply + (marshal_fields queueBuf qr.queues QueueDesc.marshal)
+
+  let parse (bits : Cstruct.t) : t = 
+    let port = get_ofp_queue_get_config_reply_port bits in
+    let queuesBits = Cstruct.shift bits sizeof_ofp_queue_get_config_reply in
+    let queues = parse_fields queuesBits QueueDesc.parse QueueDesc.length_func in
+    { port; queues}
+
+end
 
 module RoleRequest = struct
 
@@ -5732,26 +6269,199 @@ module Error = struct
 
 end
 
+module Hello = struct
+
+  module Element = struct
+
+    cstruct ofp_hello_elem_header {
+      uint16_t typ;
+      uint16_t len
+    } as big_endian
+
+    cenum ofp_hello_elem_type {
+      OFPHET_VERSIONBITMAP = 1
+    } as uint16_t
+
+    module VersionBitMap = struct
+    
+      type t = supportedList
+
+      let sizeof (l : supportedList) : int = 
+        match l with 
+            | [] -> 0
+            | t::q -> ((t / 32 ) + 1 ) * 4
+
+      let to_string (l : supportedList) : string =
+        let rec printVersion ls =
+          match ls with
+            | [] -> ""
+            | t::q -> Format.sprintf "0x%x;%s" t (printVersion q) in
+        printVersion l
+
+      let marshal (buf : Cstruct.t) (t : supportedList) : int =
+        let rec marshal_bitmap (ls : supportedList) acc curr =
+          match ls,curr with 
+            | [],0 -> 
+              set_ofp_uint32_value buf acc;
+            | [],n-> 
+              set_ofp_uint32_value (Cstruct.shift buf (4*n)) acc;
+              marshal_bitmap [] 0l (n-1)
+            | t::q,n -> 
+              if t / 32 <> n then (
+                set_ofp_uint32_value (Cstruct.shift buf (4*n)) acc;
+                marshal_bitmap ls 0l (n-1))
+              else (
+                let acc = Int32.logor (Int32.shift_left 1l (t mod 32)) acc in
+                marshal_bitmap q acc n
+              ) in
+        marshal_bitmap t 0l (List.hd t / 32);
+        ((List.hd t / 32) + 1) * 4
+
+      let parse (bits : Cstruct.t) : supportedList =
+        let rec parse_uint32 (bits : Cstruct.t) index curr (acc : supportedList) : supportedList =
+          if Cstruct.len bits < sizeof_ofp_uint32 then acc
+          else (
+            let acc = if Bits.test_bit index (get_ofp_uint32_value bits) then 
+              (index+(curr*32))::acc
+              else acc in
+            if index = 31 then 
+              parse_uint32 (Cstruct.shift bits 4) 0 (curr+1) acc
+            else
+              parse_uint32 bits (index+1) (curr) acc) in
+        parse_uint32 bits 0 0 []
+
+    end
+    type t = element
+
+    let sizeof (t : element) : int = 
+      let size = sizeof_ofp_hello_elem_header + (
+      match t with
+        | VersionBitMap v ->
+          VersionBitMap.sizeof v) in
+      pad_to_64bits size
+
+    let to_string (t : element) : string =
+      match t with 
+        | VersionBitMap v ->
+          Format.sprintf "version bitmap: %s" (VersionBitMap.to_string v)
+
+    let length_func (buf : Cstruct.t) : int option = 
+      if Cstruct.len buf < sizeof_ofp_hello_elem_header then None
+      else Some (pad_to_64bits (get_ofp_hello_elem_header_len buf))
+
+    let marshal (buf : Cstruct.t) (t : element) : int =
+      match t with
+        | VersionBitMap v ->
+          set_ofp_hello_elem_header_typ buf (ofp_hello_elem_type_to_int OFPHET_VERSIONBITMAP);
+          set_ofp_hello_elem_header_len buf (sizeof_ofp_hello_elem_header + 
+          VersionBitMap.marshal (Cstruct.shift buf sizeof_ofp_hello_elem_header) v);
+          sizeof t
+
+    let parse (bits : Cstruct.t) : element = 
+      let typ = get_ofp_hello_elem_header_typ bits in
+      let len = get_ofp_hello_elem_header_len bits in
+      let payBits = Cstruct.sub bits sizeof_ofp_hello_elem_header (len - sizeof_ofp_hello_elem_header) in
+      match int_to_ofp_hello_elem_type typ with 
+        | Some OFPHET_VERSIONBITMAP -> VersionBitMap (VersionBitMap.parse payBits)
+        | None -> raise (Unparsable (sprintf "malformed type"))
+    
+  end
+
+  type t = helloElement
+
+  let sizeof (t : helloElement) : int =
+    sum (map Element.sizeof t)
+
+  let to_string (t : helloElement) : string =
+    String.concat "\n" (map Element.to_string t)
+
+  let marshal (buf : Cstruct.t) (t : helloElement) : int =
+    marshal_fields buf t Element.marshal
+  
+  let parse (bits : Cstruct.t) : helloElement =
+    parse_fields bits Element.parse Element.length_func 
+
+end
+
+module AsyncConfig = struct
+
+  cstruct ofp_async_config {
+    uint32_t packet_in_mask0;
+    uint32_t packet_in_mask1;
+    uint32_t port_status_mask0;
+    uint32_t port_status_mask1;
+    uint32_t flow_removed_mask0;
+    uint32_t flow_removed_mask1;
+  } as big_endian
+
+  type t = asyncConfig
+
+  let sizeof (async : asyncConfig) : int = 
+    sizeof_ofp_async_config
+
+  let to_string (async : asyncConfig) : string =
+    Format.sprintf "{ packet_in reason (master/slave) = %s/%s; \
+    port_status reason (master/slave) = %s/%s; \
+    flow_removed reason (master/slave) = %s/%s }"
+    (PacketIn.Reason.to_string async.packet_in.m_master)
+    (PacketIn.Reason.to_string async.packet_in.m_slave)
+    (PortStatus.Reason.to_string async.port_status.m_master)
+    (PortStatus.Reason.to_string async.port_status.m_slave)
+    (FlowRemoved.RemovedReason.to_string async.flow_removed.m_master)
+    (FlowRemoved.RemovedReason.to_string async.flow_removed.m_slave)
+
+  let marshal (buf : Cstruct.t) (async : asyncConfig) : int =
+    set_ofp_async_config_packet_in_mask0 buf (Int32.of_int (PacketIn.Reason.marshal async.packet_in.m_master));
+    set_ofp_async_config_packet_in_mask1 buf (Int32.of_int (PacketIn.Reason.marshal async.packet_in.m_slave));
+    set_ofp_async_config_port_status_mask0 buf (Int32.of_int (PortStatus.Reason.marshal async.port_status.m_master));
+    set_ofp_async_config_port_status_mask1 buf (Int32.of_int (PortStatus.Reason.marshal async.port_status.m_slave));
+    set_ofp_async_config_flow_removed_mask0 buf (Int32.of_int (FlowRemoved.RemovedReason.marshal async.flow_removed.m_master));
+    set_ofp_async_config_flow_removed_mask1 buf (Int32.of_int (FlowRemoved.RemovedReason.marshal async.flow_removed.m_slave));
+    sizeof_ofp_async_config
+
+  let parse (bits : Cstruct.t) : asyncConfig = 
+    let packet_in = { m_master = PacketIn.Reason.parse (Int32.to_int (get_ofp_async_config_packet_in_mask0 bits));
+                      m_slave = PacketIn.Reason.parse (Int32.to_int (get_ofp_async_config_packet_in_mask1 bits))} in
+    let port_status = { m_master = PortStatus.Reason.parse (Int32.to_int (get_ofp_async_config_port_status_mask0 bits));
+                        m_slave = PortStatus.Reason.parse (Int32.to_int (get_ofp_async_config_port_status_mask1 bits))} in
+    let flow_removed = { m_master = FlowRemoved.RemovedReason.parse (Int32.to_int (get_ofp_async_config_flow_removed_mask0 bits));
+                         m_slave = FlowRemoved.RemovedReason.parse (Int32.to_int (get_ofp_async_config_flow_removed_mask1 bits))} in
+    { packet_in; port_status; flow_removed }
+  
+end
+
 module Message = struct
 
   type t =
-    | Hello
+    | Hello of element list
     | EchoRequest of bytes
     | EchoReply of bytes
     | FeaturesRequest
     | FeaturesReply of SwitchFeatures.t
     | FlowModMsg of flowMod
     | GroupModMsg of groupMod
+    | PortModMsg of portMod
+    | MeterModMsg of meterMod
     | PacketInMsg of packetIn
+    | FlowRemoved of flowRemoved
     | PacketOutMsg of packetOut
     | PortStatusMsg of portStatus
     | MultipartReq of multipartRequest
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
-    | Error of Error.t
     | RoleRequest of roleRequest
     | RoleReply of roleRequest
+    | QueueGetConfigReq of queueConfReq
+    | QueueGetConfigReply of queueConfReply
+    | GetConfigRequestMsg of SwitchConfig.t
+    | GetConfigReplyMsg of SwitchConfig.t
+    | SetConfigMsg of SwitchConfig.t
+    | TableModMsg of tableMod
+    | GetAsyncRequest
+    | GetAsyncReply of asyncConfig
+    | SetAsync of asyncConfig
+    | Error of Error.t
 
 
   let string_of_msg_code (msg : msg_code) : string = match msg with
@@ -5783,51 +6493,75 @@ module Message = struct
     | ROLE_RESP -> "ROLE_RESP"
     | GET_ASYNC_REQ -> "GET_ASYNC_REQ"
     | GET_ASYNC_REP -> "GET_ASYNC_REP"
-    | SET_ASYNC -> "SEC_ASYNC"
+    | SET_ASYNC -> "SET_ASYNC"
     | METER_MOD -> "METER_MOD"
 
   module Header = OpenFlow_Header
 
   let msg_code_of_message (msg : t) : msg_code = match msg with
-    | Hello -> HELLO
+    | Hello _ -> HELLO
     | EchoRequest _ -> ECHO_REQ
     | EchoReply _ -> ECHO_RESP
     | FeaturesRequest -> FEATURES_REQ
     | FeaturesReply _ -> FEATURES_RESP
     | FlowModMsg _ -> FLOW_MOD
     | GroupModMsg _ -> GROUP_MOD
+    | PortModMsg _ -> PORT_MOD
+    | MeterModMsg _ -> METER_MOD
     | PacketInMsg _ -> PACKET_IN
+    | FlowRemoved _ -> FLOW_REMOVED
     | PacketOutMsg _ -> PACKET_OUT
     | PortStatusMsg _ ->   PORT_STATUS
     | MultipartReq _ -> MULTIPART_REQ
     | MultipartReply _ -> MULTIPART_RESP
     | BarrierRequest ->   BARRIER_REQ
     | BarrierReply ->   BARRIER_RESP
+    | QueueGetConfigReq _ -> QUEUE_GET_CONFIG_REQ
+    | QueueGetConfigReply _ -> QUEUE_GET_CONFIG_RESP
+    | GetConfigRequestMsg _ -> GET_CONFIG_REQ
+    | GetConfigReplyMsg _ -> GET_CONFIG_RESP
+    | SetConfigMsg _ -> SET_CONFIG
+    | TableModMsg _ -> TABLE_MOD
+    | GetAsyncRequest -> GET_ASYNC_REQ
+    | GetAsyncReply _ -> GET_ASYNC_REP
+    | SetAsync _ -> SET_ASYNC
     | Error _ -> ERROR
     | RoleRequest _ -> ROLE_REQ
     | RoleReply _ -> ROLE_RESP
 
   let sizeof (msg : t) : int = match msg with
-    | Hello -> Header.size
+    | Hello e -> Header.size + Hello.sizeof e
     | EchoRequest bytes -> Header.size + (String.length (Cstruct.to_string bytes))
     | EchoReply bytes -> Header.size + (String.length (Cstruct.to_string bytes))
     | FeaturesRequest -> Header.size
     | FeaturesReply _ -> Header.size + sizeof_ofp_switch_features
     | FlowModMsg fm -> Header.size + FlowMod.sizeof fm
     | GroupModMsg gm -> Header.size + GroupMod.sizeof gm
+    | PortModMsg pm -> Header.size + PortMod.sizeof pm
+    | MeterModMsg mm -> Header.size + MeterMod.sizeof mm 
     | PacketInMsg pi -> Header.size + PacketIn.sizeof pi
+    | FlowRemoved fr -> Header.size + FlowRemoved.sizeof fr
     | PacketOutMsg po -> Header.size + PacketOut.sizeof po
     | PortStatusMsg _ -> Header.size + sizeof_ofp_port_status + sizeof_ofp_port
     | MultipartReq req -> Header.size + MultipartReq.sizeof req
     | MultipartReply rep -> Header.size + MultipartReply.sizeof rep
-    | BarrierRequest -> failwith "NYI: sizeof BarrierRequest"
-    | BarrierReply -> failwith "NYI: sizeof BarrierReply"
+    | QueueGetConfigReq qc -> Header.size + QueueConfReq.sizeof qc
+    | QueueGetConfigReply qc -> Header.size + QueueConfReply.sizeof qc
+    | GetConfigRequestMsg conf -> Header.size + SwitchConfig.sizeof conf
+    | GetConfigReplyMsg conf -> Header.size + SwitchConfig.sizeof conf
+    | SetConfigMsg conf -> Header.size + SwitchConfig.sizeof conf
+    | TableModMsg tm -> Header.size + TableMod.sizeof tm
+    | BarrierRequest -> Header.size
+    | BarrierReply -> Header.size
+    | GetAsyncRequest -> Header.size
+    | GetAsyncReply async -> Header.size + AsyncConfig.sizeof async
+    | SetAsync async -> Header.size + AsyncConfig.sizeof async
     | Error _ -> failwith "NYI: sizeof Error"
     | RoleRequest rr -> Header.size + RoleRequest.sizeof rr
     | RoleReply rr -> Header.size + RoleRequest.sizeof rr
 
   let to_string (msg : t) : string = match msg with
-    | Hello -> "Hello"
+    | Hello _ -> "Hello"
     | Error _ -> "Error"
     | EchoRequest _ -> "EchoRequest"
     | EchoReply _ -> "EchoReply"
@@ -5835,7 +6569,10 @@ module Message = struct
     | FeaturesReply _ -> "FeaturesReply"
     | FlowModMsg _ -> "FlowMod"
     | GroupModMsg _ -> "GroupMod"
+    | PortModMsg _ -> "PortMod"
+    | MeterModMsg _ -> "MeterMod"
     | PacketInMsg _ -> "PacketIn"
+    | FlowRemoved _ -> "FlowRemoved"
     | PacketOutMsg _ -> "PacketOut"
     | PortStatusMsg _ -> "PortStatus"
     | MultipartReq _ -> "MultipartRequest"
@@ -5844,6 +6581,15 @@ module Message = struct
     | BarrierReply -> "BarrierReply"
     | RoleRequest _ -> "RoleRequest"
     | RoleReply _ -> "RoleReply"
+    | QueueGetConfigReq _ -> "QueueGetConfigReq"
+    | QueueGetConfigReply _ -> "QueueGetConfigReply"
+    | GetConfigRequestMsg _ -> "GetConfigRequest"
+    | GetConfigReplyMsg _ -> "GetConfigReply"
+    | SetConfigMsg _ -> "SetConfig"
+    | TableModMsg _ -> "TableMod"
+    | GetAsyncRequest -> "GetAsyncRequest"
+    | GetAsyncReply _ -> "GetAsyncReply"
+    | SetAsync _ -> "SetAsync"
 
   (* let marshal (buf : Cstruct.t) (msg : message) : int = *)
   (*   let buf2 = (Cstruct.shift buf Header.size) in *)
@@ -5853,8 +6599,8 @@ module Message = struct
 
   let blit_message (msg : t) (out : Cstruct.t) =
     match msg with
-      | Hello ->
-        Header.size
+      | Hello e ->
+        Header.size + Hello.marshal out e
       | EchoRequest bytes
       | EchoReply bytes ->
         Cstruct.blit_from_string (Cstruct.to_string bytes) 0 out 0 (String.length (Cstruct.to_string bytes));
@@ -5867,14 +6613,24 @@ module Message = struct
         Header.size + FlowMod.marshal out fm
       | GroupModMsg gm ->
         Header.size + GroupMod.marshal out gm
+      | PortModMsg pm ->
+        Header.size + PortMod.marshal out pm
+      | MeterModMsg mm ->
+        Header.size + MeterMod.marshal out mm
       | PacketOutMsg po ->
         Header.size + PacketOut.marshal out po
       | MultipartReq mpr ->
         Header.size + MultipartReq.marshal out mpr
+      | BarrierRequest -> 
+        Header.size
+      | BarrierReply -> 
+        Header.size
       | MultipartReply mpr -> 
         Header.size + MultipartReply.marshal out mpr
-      | BarrierRequest -> failwith "NYI: marshal BarrierRequest"
-      | BarrierReply -> failwith "NYI: marshal BarrierReply"
+      | QueueGetConfigReq qr -> 
+        Header.size + QueueConfReq.marshal out qr
+      | QueueGetConfigReply qr ->
+        Header.size + QueueConfReply.marshal out qr
       | PacketInMsg pi ->
         Header.size + PacketIn.marshal out pi
       | PortStatusMsg ps -> 
@@ -5883,6 +6639,22 @@ module Message = struct
         Header.size + RoleRequest.marshal out rr
       | RoleReply rr ->
         Header.size + RoleRequest.marshal out rr
+      | GetConfigRequestMsg conf ->
+        Header.size + SwitchConfig.marshal out conf
+      | GetConfigReplyMsg conf ->
+        Header.size + SwitchConfig.marshal out conf
+      | SetConfigMsg conf ->
+        Header.size + SwitchConfig.marshal out conf
+      | TableModMsg tm ->
+        Header.size + TableMod.marshal out tm
+      | FlowRemoved fr ->
+        Header.size + FlowRemoved.marshal out fr
+      | GetAsyncRequest -> 
+        Header.size
+      | GetAsyncReply async -> 
+        Header.size + AsyncConfig.marshal out async
+      | SetAsync async -> 
+        Header.size + AsyncConfig.marshal out async
       | Error err -> 
         Header.size + Error.marshal out err
 
@@ -5910,18 +6682,34 @@ module Message = struct
       | Some code -> code
       | None -> raise (Unparsable "unknown message code") in
     let msg = match typ with
-      | HELLO -> Hello
+      | HELLO -> Hello (Hello.parse body_bits)
       | ECHO_RESP -> EchoReply body_bits
       | FEATURES_RESP -> FeaturesReply (SwitchFeatures.parse body_bits)
+      | FLOW_MOD -> FlowModMsg (FlowMod.parse body_bits)
+      | GROUP_MOD -> GroupModMsg (GroupMod.parse body_bits)
+      | PORT_MOD -> PortModMsg (PortMod.parse body_bits)
+      | METER_MOD -> MeterModMsg (MeterMod.parse body_bits)
       | PACKET_IN -> PacketInMsg (PacketIn.parse body_bits)
       | PACKET_OUT -> PacketOutMsg (PacketOut.parse body_bits)
       | ECHO_REQ -> EchoRequest body_bits
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
       | MULTIPART_REQ -> MultipartReq (MultipartReq.parse body_bits)
       | MULTIPART_RESP -> MultipartReply (MultipartReply.parse body_bits)
+      | QUEUE_GET_CONFIG_REQ -> QueueGetConfigReq (QueueConfReq.parse body_bits)
+      | QUEUE_GET_CONFIG_RESP -> QueueGetConfigReply (QueueConfReply.parse body_bits)
+      | BARRIER_REQ -> BarrierRequest
+      | BARRIER_RESP -> BarrierReply
       | ERROR -> Error (Error.parse body_bits)
       | ROLE_REQ -> RoleRequest (RoleRequest.parse body_bits)
       | ROLE_RESP -> RoleReply (RoleRequest.parse body_bits)
+      | GET_CONFIG_REQ -> GetConfigRequestMsg (SwitchConfig.parse body_bits)
+      | GET_CONFIG_RESP -> GetConfigReplyMsg (SwitchConfig.parse body_bits)
+      | SET_CONFIG -> SetConfigMsg (SwitchConfig.parse body_bits)
+      | TABLE_MOD -> TableModMsg (TableMod.parse body_bits)
+      | FLOW_REMOVED -> FlowRemoved (FlowRemoved.parse body_bits)
+      | GET_ASYNC_REQ -> GetAsyncRequest 
+      | GET_ASYNC_REP -> GetAsyncReply (AsyncConfig.parse body_bits)
+      | SET_ASYNC -> SetAsync (AsyncConfig.parse body_bits)
       | code -> raise (Unparsable (Printf.sprintf "unexpected message type %s" (string_of_msg_code typ))) in
     (hdr.Header.xid, msg)
 end
