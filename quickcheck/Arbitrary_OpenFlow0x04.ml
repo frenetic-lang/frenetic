@@ -1503,6 +1503,71 @@ module PacketIn = struct
 
 end
 
+module Hello = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  module Element = struct
+    open Gen
+    open OpenFlow0x04_Core
+
+    module VersionBitMap = struct
+      open Gen
+      open OpenFlow0x04_Core
+      
+      type t = Hello.Element.VersionBitMap.t
+
+      let maxi = 300
+
+      let choose_int2 b =
+        choose_int (b,maxi)
+
+      let rec arbitrary_sorted n l acc=
+        match n with
+          | 0 -> (choose_int2 l >>= fun a -> 
+                  ret_gen( a::acc))
+          | n -> choose_int2 l >>= fun li ->
+                 if li = maxi then
+                   ret_gen (li::acc)
+                 else
+                   arbitrary_sorted (n-1) (li+1) (li::acc)
+
+      let arbitrary = 
+        choose_int(1,30) >>= fun n ->
+        arbitrary_sorted n 0 [] >>= fun l ->
+        ret_gen l
+      
+      let marshal = Hello.Element.VersionBitMap.marshal
+      let parse = Hello.Element.VersionBitMap.parse
+      let to_string = Hello.Element.VersionBitMap.to_string
+      let size_of = Hello.Element.VersionBitMap.sizeof
+    end
+    
+    type t = Hello.Element.t
+
+    let arbitrary = 
+      VersionBitMap.arbitrary >>= fun version ->
+      ret_gen (VersionBitMap version)
+
+    let marshal = Hello.Element.marshal
+    let parse = Hello.Element.parse
+    let to_string = Hello.Element.to_string
+    let size_of = Hello.Element.sizeof
+  end
+  
+  type t = Hello.t
+
+  let arbitrary = 
+    arbitrary_list Element.arbitrary >>= fun element ->
+    ret_gen element
+
+  let marshal = Hello.marshal
+  let parse = Hello.parse
+  let to_string = Hello.to_string
+  let size_of = Hello.sizeof
+
+end
+
 module FlowRemoved = struct
 
   open Gen

@@ -585,7 +585,15 @@ type multipartReplyTyp =
 type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool}
 
 type tableMod = { table_id : tableId; config : tableConfig }
+ 
+type supportedList = int list
+ 
+type element = 
+  | VersionBitMap of supportedList
+
+type helloElement = element list
 
 type asyncConfig = { packet_in : packetInReason asyncMask; 
                      port_status : portReason asyncMask;
                      flow_removed : flowReason asyncMask }
+

@@ -591,6 +591,48 @@ module Error : sig
 
 end
 
+module Hello : sig
+
+  module Element : sig
+
+    module VersionBitMap : sig
+
+      type t = supportedList
+
+      val sizeof : t -> int
+
+      val to_string : t -> string
+
+      val marshal : Cstruct.t -> t -> int
+
+      val parse : Cstruct.t -> t
+    
+    end
+  
+    type t = element
+
+    val sizeof : t -> int
+
+    val to_string : t -> string
+
+    val marshal : Cstruct.t -> t -> int
+
+    val parse : Cstruct.t -> t
+
+  end
+
+  type t = helloElement
+
+  val sizeof : t -> int
+
+  val to_string : t -> string
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
+
+end
+
 module AsyncConfig : sig
 
   type t = asyncConfig
@@ -608,7 +650,7 @@ end
 module Message : sig
 
   type t =
-    | Hello
+    | Hello of element list
     | EchoRequest of bytes
     | EchoReply of bytes
     | FeaturesRequest

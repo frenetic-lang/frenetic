@@ -409,6 +409,21 @@ module RoundTripping = struct
       (openflow_quickCheck GenPacketIn.arbitrary
           GenPacketIn.to_string GenPacketIn.parse GenPacketIn.marshal)
 
+  TEST "OpenFlow0x04 Hello.Element.VersionBitMap RoundTrip" =
+      let module GenVersionBitmap = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.Hello.Element.VersionBitMap) in
+      (openflow_quickCheck GenVersionBitmap.arbitrary
+          GenVersionBitmap.to_string GenVersionBitmap.parse GenVersionBitmap.marshal)
+
+  TEST "OpenFlow0x04 Hello.Element RoundTrip" =
+      let module GenElement = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.Hello.Element) in
+      (openflow_quickCheck GenElement.arbitrary
+          GenElement.to_string GenElement.parse GenElement.marshal)
+
+  TEST "OpenFlow0x04 Hello RoundTrip" =
+      let module GenHello = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.Hello) in
+      (openflow_quickCheck GenHello.arbitrary
+          GenHello.to_string GenHello.parse GenHello.marshal)
+
   TEST "OpenFlow0x04 FlowRemoved RoundTrip" =
       let module GenFlowRemoved = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.FlowRemoved) in
       (openflow_quickCheck GenFlowRemoved.arbitrary
