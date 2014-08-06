@@ -143,6 +143,34 @@ module GroupMod : sig
 
 end
 
+module PortMod : sig
+
+  type t = portMod
+
+  val sizeof : t -> int
+
+  val to_string : t -> string
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
+
+end
+
+module MeterMod : sig
+
+  type t = meterMod
+
+  val sizeof : t -> int
+
+  val to_string : t -> string
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
+
+end
+
 module Instruction : sig
 
   val to_string : instruction -> string
@@ -657,6 +685,8 @@ module Message : sig
     | FeaturesReply of SwitchFeatures.t
     | FlowModMsg of flowMod
     | GroupModMsg of groupMod
+    | PortModMsg of portMod
+    | MeterModMsg of meterMod
     | PacketInMsg of packetIn
     | FlowRemoved of flowRemoved
     | PacketOutMsg of packetOut

@@ -393,6 +393,9 @@ type portDesc = { port_no : portId; hw_addr : int48; name : string; config :
                   advertised : portFeatures; supported : portFeatures; peer :
                   portFeatures; curr_speed : int32; max_speed : int32}
 
+type portMod = { mpPortNo : portId; mpHw_addr : int48; mpConfig : portConfig;
+                 mpMask : portConfig; mpAdvertise : portState }
+
 type portReason =
   | PortAdd
   | PortDelete
@@ -417,7 +420,15 @@ type meterBand =
   | DscpRemark of (rate*burst*int8)
   | ExpMeter of (rate*burst*experimenterId)
 
+type meterCommand = 
+  | AddMeter
+  | ModifyMeter
+  | DeleteMeter
+
 type meterFlags = { kbps : bool; pktps : bool; burst : bool; stats : bool}
+
+type meterMod = { command : meterCommand; flags : meterFlags; meter_id : int32;
+                  bands : meterBand list}
 
 type flowRequest = {fr_table_id : tableId; fr_out_port : portId; 
                     fr_out_group : portId; fr_cookie : int64 mask;

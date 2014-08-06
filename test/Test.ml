@@ -294,11 +294,20 @@ module RoundTripping = struct
       (openflow_quickCheck GenInstructions.arbitrary
           GenInstructions.to_string GenInstructions.parse GenInstructions.marshal)
 
+  TEST "OpenFlow0x04 PortMod RoundTrip" =
+      let module GenPortMod = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.PortMod) in
+      (openflow_quickCheck GenPortMod.arbitrary
+          GenPortMod.to_string GenPortMod.parse GenPortMod.marshal)
+
+  TEST "OpenFlow0x04 MeterMod RoundTrip" =
+      let module GenMeterMod = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MeterMod) in
+      (openflow_quickCheck GenMeterMod.arbitrary
+          GenMeterMod.to_string GenMeterMod.parse GenMeterMod.marshal)
+
   TEST "OpenFlow0x04 FlowMod RoundTrip" =
       let module GenFlowMod = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.FlowMod) in
       (openflow_quickCheck GenFlowMod.arbitrary
           GenFlowMod.to_string GenFlowMod.parse GenFlowMod.marshal)
-
   TEST "OpenFlow0x04 FlowMod.FlowModCommand RoundTrip" =
       let module GenFlowModCommand = Gen0x04.FlowMod.FlowModCommand in
       (openflow_quickCheck GenFlowModCommand.arbitrary
