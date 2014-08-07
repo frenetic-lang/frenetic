@@ -773,8 +773,8 @@ module Message : sig
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
-    | QueueGetConfigReq of queueConfReq
-    | QueueGetConfigReply of queueConfReply
+    | QueueGetConfigReq of QueueConfReq.t
+    | QueueGetConfigReply of QueueConfReply.t
     | GetConfigRequestMsg
     | GetConfigReplyMsg of SwitchConfig.t
     | SetConfigMsg of SwitchConfig.t
