@@ -697,6 +697,20 @@ module Error : sig
 
 end
 
+module RoleRequest : sig
+
+  type t = roleRequest
+
+  val sizeof : t -> int
+
+  val to_string : t -> string
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
+
+end
+
 module Hello : sig
 
   module Element : sig
@@ -773,6 +787,8 @@ module Message : sig
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
+    | RoleRequest of RoleRequest.t
+    | RoleReply of RoleRequest.t
     | QueueGetConfigReq of QueueConfReq.t
     | QueueGetConfigReply of QueueConfReply.t
     | GetConfigRequestMsg

@@ -5351,6 +5351,66 @@ module QueueConfReply = struct
 
 end
 
+module RoleRequest = struct
+
+  cstruct ofp_role_request {
+    uint32_t role;
+    uint8_t pad[4];
+    uint64_t generation_id
+  } as big_endian
+
+  module Role = struct
+    cenum ofp_controller_role {
+      OFPCR_ROLE_NOCHANGE = 0;
+      OFPCR_ROLE_EQUAL = 1;
+      OFPCR_ROLE_MASTER = 2;
+      OFPCR_ROLE_SLAVE = 3
+    } as uint32_t
+
+    let to_string (role : controllerRole) : string =
+      match role with
+        | NoChangeRole -> "NOCHANGE"
+        | EqualRole -> "EQUAL"
+        | MasterRole -> "MASTER"
+        | SlaveRole -> "SLAVE"
+
+    let marshal (role : controllerRole) : int32 =
+      match role with
+        | NoChangeRole -> ofp_controller_role_to_int OFPCR_ROLE_NOCHANGE
+        | EqualRole -> ofp_controller_role_to_int OFPCR_ROLE_EQUAL
+        | MasterRole -> ofp_controller_role_to_int OFPCR_ROLE_MASTER
+        | SlaveRole -> ofp_controller_role_to_int OFPCR_ROLE_SLAVE
+  
+    let parse t : controllerRole = 
+      match int_to_ofp_controller_role t with
+        | Some OFPCR_ROLE_NOCHANGE -> NoChangeRole
+        | Some OFPCR_ROLE_EQUAL -> EqualRole
+        | Some OFPCR_ROLE_MASTER -> MasterRole
+        | Some OFPCR_ROLE_SLAVE -> SlaveRole
+        | None -> raise (Unparsable (sprintf "malformed role"))
+
+  end
+
+  type t = roleRequest
+
+  let sizeof (role : roleRequest) : int =
+    sizeof_ofp_role_request
+
+  let to_string (role : roleRequest) : string =
+    Format.sprintf "{ role = %s; generation_id = %Lu }"
+    (Role.to_string role.role)
+    role.generation_id
+
+  let marshal (buf : Cstruct.t) (role : roleRequest) : int =
+    set_ofp_role_request_role buf (Role.marshal role.role);
+    set_ofp_role_request_generation_id buf role.generation_id;
+    sizeof_ofp_role_request
+
+  let parse (bits : Cstruct.t) : roleRequest = 
+    { role = Role.parse (get_ofp_role_request_role bits)
+    ; generation_id = get_ofp_role_request_generation_id bits }
+end
+
 module Error = struct
 
   type t = {
@@ -6433,6 +6493,8 @@ module Message = struct
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
+    | RoleRequest of RoleRequest.t
+    | RoleReply of RoleRequest.t
     | QueueGetConfigReq of QueueConfReq.t
     | QueueGetConfigReply of QueueConfReply.t
     | GetConfigRequestMsg
@@ -6507,6 +6569,8 @@ module Message = struct
     | GetAsyncReply _ -> GET_ASYNC_REP
     | SetAsync _ -> SET_ASYNC
     | Error _ -> ERROR
+    | RoleRequest _ -> ROLE_REQ
+    | RoleReply _ -> ROLE_RESP
 
   let sizeof (msg : t) : int = match msg with
     | Hello e -> Header.size + Hello.sizeof e
@@ -6536,6 +6600,8 @@ module Message = struct
     | GetAsyncReply async -> Header.size + AsyncConfig.sizeof async
     | SetAsync async -> Header.size + AsyncConfig.sizeof async
     | Error _ -> failwith "NYI: sizeof Error"
+    | RoleRequest rr -> Header.size + RoleRequest.sizeof rr
+    | RoleReply rr -> Header.size + RoleRequest.sizeof rr
 
   let to_string (msg : t) : string = match msg with
     | Hello _ -> "Hello"
@@ -6556,6 +6622,8 @@ module Message = struct
     | MultipartReply _ -> "MultipartReply"
     | BarrierRequest -> "BarrierRequest"
     | BarrierReply -> "BarrierReply"
+    | RoleRequest _ -> "RoleRequest"
+    | RoleReply _ -> "RoleReply"
     | QueueGetConfigReq _ -> "QueueGetConfigReq"
     | QueueGetConfigReply _ -> "QueueGetConfigReply"
     | GetConfigRequestMsg -> "GetConfigRequest"
@@ -6610,6 +6678,10 @@ module Message = struct
         Header.size + PacketIn.marshal out pi
       | PortStatusMsg ps -> 
         Header.size + PortStatus.marshal out ps
+      | RoleRequest rr ->
+        Header.size + RoleRequest.marshal out rr
+      | RoleReply rr ->
+        Header.size + RoleRequest.marshal out rr
       | GetConfigRequestMsg ->
         Header.size
       | GetConfigReplyMsg conf ->
@@ -6671,6 +6743,8 @@ module Message = struct
       | BARRIER_REQ -> BarrierRequest
       | BARRIER_RESP -> BarrierReply
       | ERROR -> Error (Error.parse body_bits)
+      | ROLE_REQ -> RoleRequest (RoleRequest.parse body_bits)
+      | ROLE_RESP -> RoleReply (RoleRequest.parse body_bits)
       | GET_CONFIG_RESP -> GetConfigReplyMsg (SwitchConfig.parse body_bits)
       | SET_CONFIG -> SetConfigMsg (SwitchConfig.parse body_bits)
       | TABLE_MOD -> TableModMsg (TableMod.parse body_bits)

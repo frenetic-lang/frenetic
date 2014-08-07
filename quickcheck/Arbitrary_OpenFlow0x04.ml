@@ -1503,6 +1503,32 @@ module PacketIn = struct
 
 end
 
+module RoleRequest = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = OpenFlow0x04_Core.roleRequest
+
+  let arbitrary_role = 
+    oneof [
+      ret_gen NoChangeRole;
+      ret_gen EqualRole;
+      ret_gen MasterRole;
+      ret_gen SlaveRole
+    ]
+
+  let arbitrary = 
+    arbitrary_role >>= fun role ->
+    arbitrary_uint64 >>= fun generation_id -> 
+    ret_gen { role; generation_id }
+
+  let marshal = RoleRequest.marshal
+  let parse = RoleRequest.parse
+  let to_string = RoleRequest.to_string
+  let size_of = RoleRequest.sizeof
+
+end
+
 module QueueDesc = struct
   open Gen
   open OpenFlow0x04_Core

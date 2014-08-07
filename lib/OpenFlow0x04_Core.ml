@@ -620,6 +620,14 @@ type queueConfReq = { port : portId }
 
 type queueConfReply = { port : portId; queues : queueDesc list }
  
+type controllerRole = 
+  | NoChangeRole
+  | EqualRole
+  | MasterRole
+  | SlaveRole
+
+type roleRequest = { role : controllerRole; generation_id : int64 }
+
 type supportedList = int list
  
 type element = 
