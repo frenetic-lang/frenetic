@@ -2723,6 +2723,21 @@ module GroupMod = struct
       | ModifyGroup (typ, _, buckets) -> 
         sizeof_ofp_group_mod + sum (map Bucket.sizeof buckets)
 
+  let to_string (gm : groupMod) : string = 
+    match gm with 
+      | AddGroup (typ, gid, buckets) -> Format.sprintf "AddGroup { typ = %s; gid = %lu ; bucket = %s }"
+                                        (GroupType.to_string typ)
+                                        gid
+                                        ("[ " ^ (String.concat "; " (map Bucket.to_string buckets)) ^ " ]")
+      | DeleteGroup (typ, gid) -> Format.sprintf "DeleteGroup {type = %s; gid = %lu"
+                                  (GroupType.to_string typ)
+                                  gid
+      | ModifyGroup (typ, gid , buckets) -> Format.sprintf "ModifyGroup { typ = %s; gid = %lu ; bucket = %s }"
+                                            (GroupType.to_string typ)
+                                            gid
+                                            ("[ " ^ (String.concat "; " (map Bucket.to_string buckets)) ^ " ]")
+
+
   let marshal (buf : Cstruct.t) (gm : groupMod) : int =
     match gm with
       | AddGroup (typ, gid, buckets) -> 
@@ -6482,7 +6497,7 @@ module Message = struct
     | FeaturesRequest
     | FeaturesReply of SwitchFeatures.t
     | FlowModMsg of flowMod
-    | GroupModMsg of groupMod
+    | GroupModMsg of GroupMod.t
     | PortModMsg of portMod
     | MeterModMsg of meterMod
     | PacketInMsg of packetIn
