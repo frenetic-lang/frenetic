@@ -2109,6 +2109,155 @@ module PseudoPort = struct
 
 end
 
+module QueueDesc = struct
+
+  cstruct ofp_packet_queue {
+    uint32_t queue_id;
+    uint32_t port;
+    uint16_t len;
+    uint8_t pad[6]
+  } as big_endian
+
+  module QueueProp = struct
+
+    cstruct ofp_queue_prop_header {
+      uint16_t property;
+      uint16_t len;
+      uint8_t pad[4]
+    } as big_endian
+    
+    cenum ofp_queue_properties {
+      OFPQT_MIN_RATE = 1;
+      OFPQT_MAX_RATE = 2;
+      OFPQT_EXPERIMENTER = 0xffff
+    } as uint16_t
+
+    cstruct ofp_queue_prop_min_rate {
+      uint16_t property;
+      uint16_t len;
+      uint8_t pad[4];
+      uint16_t rate;
+      uint8_t pad[6]
+    } as big_endian
+
+    cstruct ofp_queue_prop_max_rate {
+      uint16_t property;
+      uint16_t len;
+      uint8_t pad[4];
+      uint16_t rate;
+      uint8_t pad[6]
+    } as big_endian
+
+    cstruct ofp_queue_prop_experimenter {
+      uint16_t property;
+      uint16_t len;
+      uint8_t pad[4];
+      uint32_t experimenter;
+      uint8_t pad[4]
+    } as big_endian
+
+    type t = queueProp
+
+    let sizeof (qp : t) : int =
+      match qp with
+        | MinRateProp _ -> sizeof_ofp_queue_prop_min_rate
+        | MaxRateProp _-> sizeof_ofp_queue_prop_max_rate
+        | ExperimenterProp _ -> sizeof_ofp_queue_prop_experimenter
+
+    let to_string (qp : t) : string =
+      match qp with
+        | MinRateProp rate -> 
+          Format.sprintf "MinRate = %s"
+          (match rate with
+            | Rate n -> string_of_int n
+            | Disabled -> "Disabled")
+        | MaxRateProp rate -> 
+          Format.sprintf "MaxRate = %s"
+          (match rate with
+            | Rate n -> string_of_int n
+            | Disabled -> "Disabled")
+        | ExperimenterProp id -> 
+          Format.sprintf "Experimenter<ID=%lu>"
+          id
+
+    let length_func (buf : Cstruct.t) : int option =
+      if Cstruct.len buf < sizeof_ofp_queue_prop_header then None
+      else Some (get_ofp_queue_prop_header_len buf)
+
+    let marshal (buf : Cstruct.t) (qp : t) : int =
+      match qp with 
+        | MinRateProp rate ->
+          set_ofp_queue_prop_min_rate_property buf (ofp_queue_properties_to_int OFPQT_MIN_RATE);
+          set_ofp_queue_prop_min_rate_len buf 16; (* fixed by specification *)
+          set_ofp_queue_prop_min_rate_rate buf (
+          match rate with
+            | Rate n -> n
+            | Disabled -> 0xffff);
+          sizeof_ofp_queue_prop_min_rate
+        | MaxRateProp rate ->
+          set_ofp_queue_prop_max_rate_property buf (ofp_queue_properties_to_int OFPQT_MAX_RATE);
+          set_ofp_queue_prop_max_rate_len buf 16; (* fixed by specification *)
+          set_ofp_queue_prop_max_rate_rate buf (
+          match rate with
+            | Rate n -> n
+            | Disabled -> 0xffff);
+          sizeof_ofp_queue_prop_max_rate
+        | ExperimenterProp id ->
+          set_ofp_queue_prop_experimenter_property buf (ofp_queue_properties_to_int OFPQT_EXPERIMENTER);
+          set_ofp_queue_prop_experimenter_len buf 16; (* fixed by specification *)
+          set_ofp_queue_prop_experimenter_experimenter buf id;
+          sizeof_ofp_queue_prop_experimenter
+
+    let parse (bits : Cstruct.t) : t = 
+      let typ = int_to_ofp_queue_properties (get_ofp_queue_prop_header_property bits) in
+      match typ with 
+        | Some OFPQT_MIN_RATE -> 
+          let rate = get_ofp_queue_prop_min_rate_rate bits in
+          if rate > 1000 then MinRateProp Disabled
+          else MinRateProp (Rate rate)
+        | Some OFPQT_MAX_RATE ->
+          let rate = get_ofp_queue_prop_max_rate_rate bits in
+          if rate > 1000 then MaxRateProp Disabled
+          else MaxRateProp (Rate rate)
+        | Some OFPQT_EXPERIMENTER ->
+          let exp_id = get_ofp_queue_prop_experimenter_experimenter bits
+          in ExperimenterProp exp_id
+        | None -> raise (Unparsable (sprintf "malformed property"))
+  end
+
+  type t = queueDesc
+
+  let sizeof (qd : t) : int =
+    sizeof_ofp_packet_queue + sum (map QueueProp.sizeof qd.properties)
+
+  let to_string (qd : t) : string =
+    Format.sprintf "{ queue_id = %lu; port = %lu; len = %u; properties = %s }"
+    qd.queue_id
+    qd.port
+    qd.len
+    ("[ " ^ (String.concat "; " (map QueueProp.to_string qd.properties)) ^ " ]")
+
+  let length_func (buf : Cstruct.t) : int option =
+    if Cstruct.len buf < sizeof_ofp_packet_queue then None
+    else Some (get_ofp_packet_queue_len buf)
+
+  let marshal (buf : Cstruct.t) (qd : t) : int =
+    set_ofp_packet_queue_queue_id buf qd.queue_id;
+    set_ofp_packet_queue_port buf qd.port;
+    set_ofp_packet_queue_len buf qd.len;
+    let propBuf = Cstruct.sub buf sizeof_ofp_packet_queue (qd.len - sizeof_ofp_packet_queue) in
+    sizeof_ofp_packet_queue + (marshal_fields propBuf qd.properties QueueProp.marshal)
+    
+  let parse (bits : Cstruct.t) : t = 
+    let queue_id = get_ofp_packet_queue_queue_id bits in
+    let port = get_ofp_packet_queue_port bits in
+    let len = get_ofp_packet_queue_len bits in
+    let propBits = Cstruct.sub bits sizeof_ofp_packet_queue (len - sizeof_ofp_packet_queue) in
+    let properties = parse_fields propBits QueueProp.parse QueueProp.length_func in
+    { queue_id; port; len; properties}
+
+end
+
 module SwitchConfig = struct
 
   cstruct ofp_switch_config {
@@ -3652,12 +3801,12 @@ module QueueRequest = struct
 
     type t = queueRequest
 
-    let marshal (buf : Cstruct.t) (qr : queueRequest) : int =
+    let marshal (buf : Cstruct.t) (qr : t) : int =
       set_ofp_queue_stats_request_port_no buf qr.port_number;
       set_ofp_queue_stats_request_queue_id buf qr.queue_id;
       sizeof_ofp_queue_stats_request
 
-    let parse (bits : Cstruct.t) : queueRequest = 
+    let parse (bits : Cstruct.t) : t = 
       let portNumber = get_ofp_queue_stats_request_port_no bits in
       let queueId = get_ofp_queue_stats_request_queue_id bits in
       { port_number = portNumber
@@ -3665,8 +3814,10 @@ module QueueRequest = struct
 
     let sizeof _ = 
         sizeof_ofp_queue_stats_request
+
     let to_string qr =
         Format.sprintf "{ port_no = %lu; queue_id = %lu }" qr.port_number qr.queue_id
+
 end
 
 module TableFeatureProp = struct
@@ -5146,6 +5297,59 @@ module TableMod = struct
 
 end
 
+module QueueConfReq = struct
+
+  cstruct ofp_queue_get_config_request {
+    uint32_t port;
+    uint8_t pad[4]
+  } as big_endian
+
+  type t = queueConfReq
+
+  let sizeof (qr : t) : int = 
+    sizeof_ofp_queue_get_config_request
+
+  let to_string (qr : t) : string =
+    Format.sprintf "{ port = %lu }" qr.port
+
+  let marshal (buf : Cstruct.t) (qr : t) : int =
+    set_ofp_queue_get_config_request_port buf qr.port;
+    sizeof_ofp_queue_get_config_request
+
+  let parse (bits : Cstruct.t) : t = 
+    let port = get_ofp_queue_get_config_request_port bits in
+    { port }
+end
+
+module QueueConfReply = struct
+
+  cstruct ofp_queue_get_config_reply {
+    uint32_t port;
+    uint8_t pad[4];
+  } as big_endian
+
+  type t = queueConfReply
+
+  let sizeof (qr : t) : int = 
+    sizeof_ofp_queue_get_config_reply + sum (map QueueDesc.sizeof qr.queues)
+
+  let to_string (qr : t) : string =
+    Format.sprintf "{ port = %lu; queue = %s }" 
+    qr.port 
+    ("[ " ^ (String.concat "; " (map QueueDesc.to_string qr.queues)) ^ " ]")
+
+  let marshal (buf : Cstruct.t) (qr : t) : int =
+    set_ofp_queue_get_config_reply_port buf qr.port;
+    let queueBuf = Cstruct.shift buf sizeof_ofp_queue_get_config_reply in
+    sizeof_ofp_queue_get_config_reply + (marshal_fields queueBuf qr.queues QueueDesc.marshal)
+
+  let parse (bits : Cstruct.t) : t = 
+    let port = get_ofp_queue_get_config_reply_port bits in
+    let queuesBits = Cstruct.shift bits sizeof_ofp_queue_get_config_reply in
+    let queues = parse_fields queuesBits QueueDesc.parse QueueDesc.length_func in
+    { port; queues}
+
+end
 
 module Error = struct
 
@@ -6229,6 +6433,8 @@ module Message = struct
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
+    | QueueGetConfigReq of QueueConfReq.t
+    | QueueGetConfigReply of QueueConfReply.t
     | GetConfigRequestMsg
     | GetConfigReplyMsg of SwitchConfig.t
     | SetConfigMsg of SwitchConfig.t
@@ -6291,6 +6497,8 @@ module Message = struct
     | MultipartReply _ -> MULTIPART_RESP
     | BarrierRequest ->   BARRIER_REQ
     | BarrierReply ->   BARRIER_RESP
+    | QueueGetConfigReq _ -> QUEUE_GET_CONFIG_REQ
+    | QueueGetConfigReply _ -> QUEUE_GET_CONFIG_RESP
     | GetConfigRequestMsg -> GET_CONFIG_REQ
     | GetConfigReplyMsg _ -> GET_CONFIG_RESP
     | SetConfigMsg _ -> SET_CONFIG
@@ -6316,6 +6524,8 @@ module Message = struct
     | PortStatusMsg _ -> Header.size + sizeof_ofp_port_status + sizeof_ofp_port
     | MultipartReq req -> Header.size + MultipartReq.sizeof req
     | MultipartReply rep -> Header.size + MultipartReply.sizeof rep
+    | QueueGetConfigReq qc -> Header.size + QueueConfReq.sizeof qc
+    | QueueGetConfigReply qc -> Header.size + QueueConfReply.sizeof qc
     | GetConfigRequestMsg -> Header.size 
     | GetConfigReplyMsg conf -> Header.size + SwitchConfig.sizeof conf
     | SetConfigMsg conf -> Header.size + SwitchConfig.sizeof conf
@@ -6346,6 +6556,8 @@ module Message = struct
     | MultipartReply _ -> "MultipartReply"
     | BarrierRequest -> "BarrierRequest"
     | BarrierReply -> "BarrierReply"
+    | QueueGetConfigReq _ -> "QueueGetConfigReq"
+    | QueueGetConfigReply _ -> "QueueGetConfigReply"
     | GetConfigRequestMsg -> "GetConfigRequest"
     | GetConfigReplyMsg _ -> "GetConfigReply"
     | SetConfigMsg _ -> "SetConfig"
@@ -6390,6 +6602,10 @@ module Message = struct
         Header.size
       | MultipartReply mpr -> 
         Header.size + MultipartReply.marshal out mpr
+      | QueueGetConfigReq qr -> 
+        Header.size + QueueConfReq.marshal out qr
+      | QueueGetConfigReply qr ->
+        Header.size + QueueConfReply.marshal out qr
       | PacketInMsg pi ->
         Header.size + PacketIn.marshal out pi
       | PortStatusMsg ps -> 
@@ -6450,6 +6666,8 @@ module Message = struct
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
       | MULTIPART_REQ -> MultipartReq (MultipartReq.parse body_bits)
       | MULTIPART_RESP -> MultipartReply (MultipartReply.parse body_bits)
+      | QUEUE_GET_CONFIG_REQ -> QueueGetConfigReq (QueueConfReq.parse body_bits)
+      | QUEUE_GET_CONFIG_RESP -> QueueGetConfigReply (QueueConfReply.parse body_bits)
       | BARRIER_REQ -> BarrierRequest
       | BARRIER_RESP -> BarrierReply
       | ERROR -> Error (Error.parse body_bits)

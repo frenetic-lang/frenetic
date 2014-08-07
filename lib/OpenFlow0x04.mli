@@ -67,6 +67,34 @@ module PseudoPort : sig
 
 end
 
+module QueueDesc : sig
+
+  module QueueProp : sig
+
+    type t = queueProp
+
+    val sizeof : t -> int
+
+    val to_string : t -> string
+
+    val marshal : Cstruct.t -> t -> int
+
+    val parse : Cstruct.t -> t
+
+  end
+
+  type t = queueDesc
+
+  val sizeof : t -> int
+
+  val to_string : t -> string
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
+
+end
+
 module SwitchConfig : sig
 
   type t = switchConfig
@@ -79,7 +107,7 @@ module SwitchConfig : sig
 
   val parse : Cstruct.t -> t
 
-end
+end  
 
 module OfpMatch : sig
 
@@ -627,6 +655,34 @@ module TableMod : sig
 
 end
 
+module QueueConfReq : sig
+
+  type t = queueConfReq
+
+  val sizeof : t -> int
+
+  val to_string : t -> string
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
+
+end
+
+module QueueConfReply : sig
+
+  type t = queueConfReply
+
+  val sizeof : t -> int
+
+  val to_string : t -> string
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
+
+end
+
 module Error : sig
 
   type t = {
@@ -717,6 +773,8 @@ module Message : sig
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
+    | QueueGetConfigReq of QueueConfReq.t
+    | QueueGetConfigReply of QueueConfReply.t
     | GetConfigRequestMsg
     | GetConfigReplyMsg of SwitchConfig.t
     | SetConfigMsg of SwitchConfig.t

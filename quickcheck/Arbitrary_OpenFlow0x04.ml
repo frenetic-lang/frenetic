@@ -1503,6 +1503,89 @@ module PacketIn = struct
 
 end
 
+module QueueDesc = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  module QueueProp = struct
+    open Gen
+    open OpenFlow0x04_Core
+    type t = QueueDesc.QueueProp.t
+    
+    let arbitrary_rate = 
+      frequency [
+        (1, ret_gen Disabled);
+        (10, choose_int (0,1000) >>= fun a ->
+             ret_gen (Rate a))
+      ]
+
+    let arbitrary = 
+      arbitrary_rate >>= fun min_rate ->
+      arbitrary_rate >>= fun max_rate ->
+      arbitrary_uint32 >>= fun exp_id ->
+      oneof [
+        ret_gen (MinRateProp min_rate);
+        ret_gen (MaxRateProp max_rate);
+        ret_gen (ExperimenterProp exp_id)
+      ]
+
+    let marshal = QueueDesc.QueueProp.marshal
+    let parse = QueueDesc.QueueProp.parse
+    let to_string = QueueDesc.QueueProp.to_string
+    let size_of = QueueDesc.QueueProp.sizeof
+  end
+
+  type t = QueueDesc.t
+
+  let calc_length prop =
+    (* sizeof_ofp_packet_queue = 16*)
+    ret_gen (16+sum (List.map QueueProp.size_of prop))
+
+  let arbitrary = 
+    arbitrary_uint32 >>= fun queue_id ->
+    arbitrary_uint32 >>= fun port ->
+    arbitrary_list QueueProp.arbitrary >>= fun properties ->
+    calc_length properties >>= fun len ->
+    ret_gen { queue_id; port; len; properties}
+    
+  let marshal = QueueDesc.marshal
+  let parse = QueueDesc.parse
+  let to_string = QueueDesc.to_string
+  let size_of = QueueDesc.sizeof
+end
+
+module QueueConfReq = struct
+  open Gen
+  open OpenFlow0x04_Core
+  type t = QueueConfReq.t
+
+  let arbitrary = 
+    arbitrary_uint32 >>= fun port ->
+    ret_gen {port}
+
+  let marshal = QueueConfReq.marshal
+  let parse = QueueConfReq.parse
+  let to_string = QueueConfReq.to_string
+  let size_of = QueueConfReq.sizeof
+end
+
+module QueueConfReply = struct
+  open Gen
+  open OpenFlow0x04_Core
+  type t = QueueConfReply.t
+
+  let arbitrary = 
+    arbitrary_uint32 >>= fun port ->
+    arbitrary_list QueueDesc.arbitrary >>= fun queues ->
+    ret_gen {port; queues}
+
+  let marshal = QueueConfReply.marshal
+  let parse = QueueConfReply.parse
+  let to_string = QueueConfReply.to_string
+  let size_of = QueueConfReply.sizeof
+
+end
+
 module SwitchConfig = struct
 
   open Gen
