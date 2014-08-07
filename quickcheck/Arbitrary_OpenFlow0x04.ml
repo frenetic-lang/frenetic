@@ -733,6 +733,36 @@ module Bucket = struct
   let size_of = Bucket.sizeof
 end
 
+module GroupMod = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = GroupMod.t
+
+  let arbitrary_typ = 
+    oneof [
+      ret_gen All;
+      ret_gen Select;
+      ret_gen Indirect;
+      ret_gen FF
+      ]
+
+  let arbitrary = 
+    arbitrary_typ >>= fun typ ->
+    arbitrary_uint32 >>= fun gid ->
+    arbitrary_list Bucket.arbitrary >>= fun buckets ->
+    oneof [
+      ret_gen (AddGroup (typ, gid, buckets));
+      ret_gen (DeleteGroup (typ, gid));
+      ret_gen (ModifyGroup (typ, gid, buckets))
+    ]
+
+  let marshal = GroupMod.marshal
+  let parse = GroupMod.parse
+  let to_string = GroupMod.to_string
+  let size_of = GroupMod.sizeof
+end
+
 module MultipartReq = struct
   open Gen
   open OpenFlow0x04_Core
