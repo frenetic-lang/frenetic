@@ -319,9 +319,6 @@ module OfpMatch = struct
             let arbitrary_ecn = 
             (choose_int (0,3)) >>= fun a ->
               ret_gen a in
-            let arbitrary_bos =
-            (choose_int (0,1)) >>= fun a ->
-              ret_gen a in
             let arbitrary_24mask =
               let open Gen in
               (choose_int (1,24)) >>= fun a ->
@@ -333,6 +330,17 @@ module OfpMatch = struct
                 let hi = shift_left (of_int a) 8 in
                 let lo = of_int b in
                 ret_gen (logor hi lo) in
+            let arbitrary_ipv6hdr =
+              arbitrary_bool >>= fun noext ->
+              arbitrary_bool >>= fun esp ->
+              arbitrary_bool >>= fun auth ->
+              arbitrary_bool >>= fun dest ->
+              arbitrary_bool >>= fun frac ->
+              arbitrary_bool >>= fun router ->
+              arbitrary_bool >>= fun hop ->
+              arbitrary_bool >>= fun unrep ->
+              arbitrary_bool >>= fun unseq ->
+              ret_gen {noext; esp; auth; dest; frac; router; hop; unrep; unseq } in
             arbitrary_uint32 >>= fun portId ->
             arbitrary_uint32 >>= fun portPhyId ->
             arbitrary_masked arbitrary_uint64 arbitrary_64mask >>= fun oxmMetadata ->
@@ -363,8 +371,8 @@ module OfpMatch = struct
             arbitrary_masked arbitrary_uint32 arbitrary_32mask  >>= fun oxmIPv6FLabel ->
             arbitrary_masked arbitrary_uint128 arbitrary_128mask >>= fun oxmIPv6NDTarget ->
             arbitrary_masked arbitrary_uint24 arbitrary_24mask >>= fun oxmPBBIsid ->
-            arbitrary_masked arbitrary_uint16 arbitrary_16mask  >>= fun oxmIPv6ExtHdr ->
-            arbitrary_bos >>= fun oxmMPLSBos ->
+            arbitrary_masked arbitrary_ipv6hdr arbitrary_ipv6hdr  >>= fun oxmIPv6ExtHdr ->
+            arbitrary_bool >>= fun oxmMPLSBos ->
             arbitrary_uint16 >>= fun oxmUDPSrc ->
             arbitrary_uint16 >>= fun oxmUDPDst ->
             arbitrary_uint16 >>= fun oxmSCTPSrc ->
@@ -431,6 +439,7 @@ module OfpMatch = struct
         let arbitrary = 
             let open Gen in
             let open Oxm in
+            let ipv6hdr_nul = {noext = false; esp = false; auth = false; dest = false; frac = false; router = false; hop = false; unrep = false; unseq = false } in
             arbitrary_masked (ret_gen 0L) (ret_gen 0L) >>= fun oxmMetadata ->
             arbitrary_masked (ret_gen 0L) (ret_gen 0L) >>= fun oxmEthDst ->
             arbitrary_masked (ret_gen 0L) (ret_gen 0L) >>= fun oxmEthSrc ->
@@ -447,7 +456,7 @@ module OfpMatch = struct
             arbitrary_masked (ret_gen 0l) (ret_gen 0l) >>= fun oxmIPv6FLabel ->
             arbitrary_masked (ret_gen (0L,0L)) (ret_gen (0L,0L)) >>= fun oxmIPv6NDTarget ->
             arbitrary_masked (ret_gen 0l) (ret_gen 0l) >>= fun oxmPBBIsid ->
-            arbitrary_masked (ret_gen 0) (ret_gen 0) >>= fun oxmIPv6ExtHdr ->
+            arbitrary_masked (ret_gen ipv6hdr_nul) (ret_gen ipv6hdr_nul) >>= fun oxmIPv6ExtHdr ->
             
             oneof [
                 ret_gen (OxmInPort 0l);
@@ -487,7 +496,7 @@ module OfpMatch = struct
                 ret_gen (OxmIPv6NDTarget oxmIPv6NDTarget);
                 ret_gen (OxmIPv6NDSll 0L);
                 ret_gen (OxmIPv6NDTll 0L);
-                ret_gen (OxmMPLSBos 0);
+                ret_gen (OxmMPLSBos false);
                 ret_gen (OxmPBBIsid oxmPBBIsid);
                 ret_gen (OxmIPv6ExtHdr oxmIPv6ExtHdr);
             ]
@@ -1731,11 +1740,26 @@ module Hello = struct
       open OpenFlow0x04_Core
       
       type t = Hello.Element.VersionBitMap.t
-        
+
+      let maxi = 300
+
+      let choose_int2 b =
+        choose_int (b,maxi)
+
+      let rec arbitrary_sorted n l acc=
+        match n with
+          | 0 -> (choose_int2 l >>= fun a -> 
+                  ret_gen( a::acc))
+          | n -> choose_int2 l >>= fun li ->
+                 if li = maxi then
+                   ret_gen (li::acc)
+                 else
+                   arbitrary_sorted (n-1) (li+1) (li::acc)
+
       let arbitrary = 
-        choose_int (20,120) >>= fun a ->
-	choose_int (1,15) >>= fun b ->
-        ret_gen [a;b]
+        choose_int(1,30) >>= fun n ->
+        arbitrary_sorted n 0 [] >>= fun l ->
+        ret_gen l
       
       let marshal = Hello.Element.VersionBitMap.marshal
       let parse = Hello.Element.VersionBitMap.parse
