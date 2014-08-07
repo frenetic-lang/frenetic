@@ -2723,6 +2723,21 @@ module GroupMod = struct
       | ModifyGroup (typ, _, buckets) -> 
         sizeof_ofp_group_mod + sum (map Bucket.sizeof buckets)
 
+  let to_string (gm : groupMod) : string = 
+    match gm with 
+      | AddGroup (typ, gid, buckets) -> Format.sprintf "AddGroup { typ = %s; gid = %lu ; bucket = %s }"
+                                        (GroupType.to_string typ)
+                                        gid
+                                        ("[ " ^ (String.concat "; " (map Bucket.to_string buckets)) ^ " ]")
+      | DeleteGroup (typ, gid) -> Format.sprintf "DeleteGroup {type = %s; gid = %lu }"
+                                  (GroupType.to_string typ)
+                                  gid
+      | ModifyGroup (typ, gid , buckets) -> Format.sprintf "ModifyGroup { typ = %s; gid = %lu ; bucket = %s }"
+                                            (GroupType.to_string typ)
+                                            gid
+                                            ("[ " ^ (String.concat "; " (map Bucket.to_string buckets)) ^ " ]")
+
+
   let marshal (buf : Cstruct.t) (gm : groupMod) : int =
     match gm with
       | AddGroup (typ, gid, buckets) -> 
@@ -2732,13 +2747,13 @@ module GroupMod = struct
         set_ofp_group_mod_group_id buf gid;
         sizeof_ofp_group_mod + (marshal_fields (Cstruct.shift buf sizeof_ofp_group_mod) buckets Bucket.marshal)
       | DeleteGroup (typ, gid) ->
-        set_ofp_group_mod_command buf 2; (* OFPGC_DEL *)
+        set_ofp_group_mod_command buf 1; (* OFPGC_DEL *)
         set_ofp_group_mod_typ buf (GroupType.marshal typ);
         set_ofp_group_mod_pad buf 0;
         set_ofp_group_mod_group_id buf gid;
         sizeof_ofp_group_mod
       | ModifyGroup (typ, gid, buckets) -> 
-        set_ofp_group_mod_command buf 1; (* OFPGC_MODIFY *)
+        set_ofp_group_mod_command buf 2; (* OFPGC_MODIFY *)
         set_ofp_group_mod_typ buf (GroupType.marshal typ);
         set_ofp_group_mod_pad buf 0;
         set_ofp_group_mod_group_id buf gid;
@@ -6482,7 +6497,7 @@ module Message = struct
     | FeaturesRequest
     | FeaturesReply of SwitchFeatures.t
     | FlowModMsg of flowMod
-    | GroupModMsg of groupMod
+    | GroupModMsg of GroupMod.t
     | PortModMsg of portMod
     | MeterModMsg of meterMod
     | PacketInMsg of packetIn

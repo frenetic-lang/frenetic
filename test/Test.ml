@@ -318,6 +318,11 @@ module RoundTripping = struct
       (openflow_quickCheck GenBucket.arbitrary
           GenBucket.to_string GenBucket.parse GenBucket.marshal)
 
+  TEST "OpenFlow0x04 GroupMod RoundTrip" =
+      let module GenGroupMod = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.GroupMod) in
+      (openflow_quickCheck GenGroupMod.arbitrary
+          GenGroupMod.to_string GenGroupMod.parse GenGroupMod.marshal)
+
   TEST "OpenFlow0x04 MultipartReq.TableFeatures.TableFeatureProp RoundTrip" =
       let module GenTableFeatureProp = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReq.TableFeatures.TableFeatureProp) in
       (openflow_quickCheck GenTableFeatureProp.arbitrary

@@ -179,9 +179,15 @@ end
 
 module GroupMod : sig
 
-  val sizeof : groupMod -> int
+  type t = groupMod
 
-  val marshal : Cstruct.t -> groupMod -> int
+  val sizeof : t -> int
+
+  val to_string : t -> string
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
 
 end
 
@@ -776,7 +782,7 @@ module Message : sig
     | FeaturesRequest
     | FeaturesReply of SwitchFeatures.t
     | FlowModMsg of flowMod
-    | GroupModMsg of groupMod
+    | GroupModMsg of GroupMod.t
     | PortModMsg of portMod
     | MeterModMsg of meterMod
     | PacketInMsg of packetIn
