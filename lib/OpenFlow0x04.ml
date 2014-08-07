@@ -2729,7 +2729,7 @@ module GroupMod = struct
                                         (GroupType.to_string typ)
                                         gid
                                         ("[ " ^ (String.concat "; " (map Bucket.to_string buckets)) ^ " ]")
-      | DeleteGroup (typ, gid) -> Format.sprintf "DeleteGroup {type = %s; gid = %lu"
+      | DeleteGroup (typ, gid) -> Format.sprintf "DeleteGroup {type = %s; gid = %lu }"
                                   (GroupType.to_string typ)
                                   gid
       | ModifyGroup (typ, gid , buckets) -> Format.sprintf "ModifyGroup { typ = %s; gid = %lu ; bucket = %s }"
@@ -2747,13 +2747,13 @@ module GroupMod = struct
         set_ofp_group_mod_group_id buf gid;
         sizeof_ofp_group_mod + (marshal_fields (Cstruct.shift buf sizeof_ofp_group_mod) buckets Bucket.marshal)
       | DeleteGroup (typ, gid) ->
-        set_ofp_group_mod_command buf 2; (* OFPGC_DEL *)
+        set_ofp_group_mod_command buf 1; (* OFPGC_DEL *)
         set_ofp_group_mod_typ buf (GroupType.marshal typ);
         set_ofp_group_mod_pad buf 0;
         set_ofp_group_mod_group_id buf gid;
         sizeof_ofp_group_mod
       | ModifyGroup (typ, gid, buckets) -> 
-        set_ofp_group_mod_command buf 1; (* OFPGC_MODIFY *)
+        set_ofp_group_mod_command buf 2; (* OFPGC_MODIFY *)
         set_ofp_group_mod_typ buf (GroupType.marshal typ);
         set_ofp_group_mod_pad buf 0;
         set_ofp_group_mod_group_id buf gid;
