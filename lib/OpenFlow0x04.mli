@@ -699,10 +699,15 @@ end
 
 module RoleRequest : sig
 
-  val sizeof : roleRequest -> int
-  val to_string : roleRequest -> string
-  val marshal : Cstruct.t -> roleRequest -> int
-  val parse : Cstruct.t -> roleRequest
+  type t = roleRequest
+
+  val sizeof : t -> int
+
+  val to_string : t -> string
+
+  val marshal : Cstruct.t -> t -> int
+
+  val parse : Cstruct.t -> t
 
 end
 
@@ -782,8 +787,8 @@ module Message : sig
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
-    | RoleRequest of roleRequest
-    | RoleReply of roleRequest
+    | RoleRequest of RoleRequest.t
+    | RoleReply of RoleRequest.t
     | QueueGetConfigReq of queueConfReq
     | QueueGetConfigReply of queueConfReply
     | GetConfigRequestMsg

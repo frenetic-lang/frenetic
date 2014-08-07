@@ -5350,6 +5350,8 @@ module RoleRequest = struct
 
   end
 
+  type t = roleRequest
+
   let sizeof (role : roleRequest) : int =
     sizeof_ofp_role_request
 
@@ -6450,8 +6452,8 @@ module Message = struct
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
-    | RoleRequest of roleRequest
-    | RoleReply of roleRequest
+    | RoleRequest of RoleRequest.t
+    | RoleReply of RoleRequest.t
     | QueueGetConfigReq of queueConfReq
     | QueueGetConfigReply of queueConfReply
     | GetConfigRequestMsg
