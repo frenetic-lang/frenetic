@@ -8,7 +8,7 @@ A library for working with network topologies.
 Installation
 ------------
 
-You can install the latest release from [OPAM][http://opam.ocamlpro.com/] using
+You can install the latest release from [OPAM](http://opam.ocamlpro.com/) using
 the following command:
 
     $ opam install topology
