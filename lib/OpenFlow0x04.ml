@@ -6614,7 +6614,7 @@ module Message = struct
     | GetAsyncRequest -> Header.size
     | GetAsyncReply async -> Header.size + AsyncConfig.sizeof async
     | SetAsync async -> Header.size + AsyncConfig.sizeof async
-    | Error _ -> failwith "NYI: sizeof Error"
+    | Error err -> Header.size + Error.sizeof err 
     | RoleRequest rr -> Header.size + RoleRequest.sizeof rr
     | RoleReply rr -> Header.size + RoleRequest.sizeof rr
 

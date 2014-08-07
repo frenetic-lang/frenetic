@@ -243,6 +243,14 @@ type oxm =
 
 type oxmMatch = oxm list
 
+(** {2 Convenient Functions} *)
+
+val parse_payload : payload -> Packet.packet
+
+(** [marshal_payload buf pkt] serializes pkt, where [buf] is an optional 
+buffer ID. *)
+val marshal_payload : int32 option -> Packet.packet -> payload
+
 val match_all : oxmMatch
 
 (** A pseudo-port, as described by the [ofp_port_no] enumeration in
