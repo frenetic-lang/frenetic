@@ -1,9 +1,11 @@
+module Int32 = Core.Std.Int32
+
 module AL = SDN_Types
 module Core = OpenFlow0x04_Core
 module Msg = OpenFlow0x04.Message
 
 
-exception Invalid_port of int32
+exception Invalid_port of Int32.t with sexp
 
 let from_portId (pport_id : AL.portId) : Core.portId =
   if pport_id > 0xffffff00l then (* pport_id <= OFPP_MAX *)
