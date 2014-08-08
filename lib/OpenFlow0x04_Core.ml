@@ -258,7 +258,7 @@ type pseudoPort =
   | Any
 
 type actionTyp = 
- | Output
+ | OutputAct
  | CopyTTLOut
  | CopyTTLIn
  | SetMPLSTTL
@@ -267,14 +267,14 @@ type actionTyp =
  | PopVLAN
  | PushMPLS
  | PopMPLS
- | SetQueue
- | Group
+ | SetQueueAct
+ | GroupAct
  | SetNWTTL
  | DecNWTTL
- | SetField
+ | SetFieldAct
  | PushPBB
  | PopPBB
- | Experimenter
+ | ExperimenterAct of int32
   
 type action =
 | Output of pseudoPort
@@ -499,10 +499,10 @@ type tableFeatureProp =
   | TfpInstructionMiss of instructionTyp list
   | TfpNextTable of tableId list
   | TfpNextTableMiss of tableId list
-  | TfpWriteAction of action list
-  | TfpWriteActionMiss of action list
-  | TfpApplyAction of action list
-  | TfpApplyActionMiss of action list
+  | TfpWriteAction of actionTyp list
+  | TfpWriteActionMiss of actionTyp list
+  | TfpApplyAction of actionTyp list
+  | TfpApplyActionMiss of actionTyp list
   | TfpMatch of oxm list
   | TfpWildcard of oxm list
   | TfpWriteSetField of oxm list

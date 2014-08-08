@@ -771,7 +771,7 @@ module MultipartReq = struct
       
       type t = TableFeatureProp.t
 
-      let arbitrary_typ =
+      let arbitrary_ins =
         oneof [
           ret_gen GotoTableTyp;
           ret_gen ApplyActionsTyp;
@@ -781,15 +781,36 @@ module MultipartReq = struct
           ret_gen MeterTyp;
           arbitrary_uint32 >>= (fun n -> ret_gen (ExperimenterTyp n))
         ]
-      
+
+      let arbitrary_act = 
+        oneof [
+          ret_gen OutputAct;
+          ret_gen CopyTTLOut;
+          ret_gen CopyTTLIn;
+          ret_gen SetMPLSTTL;
+          ret_gen DecMPLSTTL;
+          ret_gen PushVLAN;
+          ret_gen PopVLAN;
+          ret_gen PushMPLS;
+          ret_gen PopMPLS;
+          ret_gen SetQueueAct;
+          ret_gen GroupAct;
+          ret_gen SetNWTTL;
+          ret_gen DecNWTTL;
+          ret_gen SetFieldAct;
+          ret_gen PushPBB;
+          ret_gen PopPBB;
+          arbitrary_uint32 >>= (fun n -> ret_gen (ExperimenterAct n))
+        ]
+
       let arbitrary = 
         oneof [
-          list1 arbitrary_typ >>= (fun n -> ret_gen (TfpInstruction n));
-          list1 arbitrary_typ >>= (fun n -> ret_gen (TfpInstructionMiss n));
-          arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpWriteAction n));
-          arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpWriteActionMiss n));
-          arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpApplyAction n));
-          arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpApplyActionMiss n));
+          list1 arbitrary_ins >>= (fun n -> ret_gen (TfpInstruction n));
+          list1 arbitrary_ins >>= (fun n -> ret_gen (TfpInstructionMiss n));
+          arbitrary_list arbitrary_act >>= (fun n -> ret_gen (TfpWriteAction n));
+          arbitrary_list arbitrary_act >>= (fun n -> ret_gen (TfpWriteActionMiss n));
+          arbitrary_list arbitrary_act >>= (fun n -> ret_gen (TfpApplyAction n));
+          arbitrary_list arbitrary_act >>= (fun n -> ret_gen (TfpApplyActionMiss n));
           arbitrary_list OfpMatch.OxmHeader.arbitrary >>= (fun n -> ret_gen (TfpMatch n));
           arbitrary_list OfpMatch.OxmHeader.arbitrary >>= (fun n -> ret_gen (TfpWildcard n));
           arbitrary_list OfpMatch.OxmHeader.arbitrary >>= (fun n -> ret_gen (TfpWriteSetField n));
