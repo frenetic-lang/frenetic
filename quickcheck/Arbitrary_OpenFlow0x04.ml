@@ -801,7 +801,7 @@ module MultipartReq = struct
 
       let calc_length tfp =
         (* sizeof_ofp_table_feature = 64*)
-        ret_gen (64+(TableFeatureProp.size_of tfp))
+        ret_gen (64+sum (List.map TableFeatureProp.size_of tfp))
 
       let arbitrary = 
         arbitrary_uint8 >>= fun table_id ->
@@ -810,7 +810,7 @@ module MultipartReq = struct
         arbitrary_uint64 >>= fun metadata_write ->
         arbitrary_config >>= fun config ->
         arbitrary_uint32 >>= fun max_entries ->
-        TableFeatureProp.arbitrary >>= fun feature_prop ->
+        list1 TableFeatureProp.arbitrary >>= fun feature_prop ->
         calc_length feature_prop>>= fun length ->
         ret_gen {
           length;

@@ -477,7 +477,7 @@ type tableConfig = Deprecated
 type tableFeatures = {length : int16; table_id : tableId; name : string;
                       metadata_match : int64; metadata_write : int64;
                       config : tableConfig; max_entries: int32;
-                      feature_prop : tableFeatureProp}
+                      feature_prop : tableFeatureProp list}
 
 type multipartType =
   | SwitchDescReq

@@ -3846,6 +3846,10 @@ module TableFeatureProp = struct
 
     type t = tableFeatureProp
 
+    let length_func (buf : Cstruct.t) : int option =
+      if Cstruct.len buf < sizeof_ofp_table_feature_prop_header then None
+      else Some (pad_to_64bits (get_ofp_table_feature_prop_header_length buf))
+
     let sizeof tfp : int = 
       let size = sizeof_ofp_table_feature_prop_header + (match tfp with
         | TfpInstruction ins -> 
@@ -4083,7 +4087,7 @@ module TableFeature = struct
 
     let sizeof (tf : tableFeatures) =
       (* should be equal to tf.length *)
-      pad_to_64bits (sizeof_ofp_table_features + (TableFeatureProp.sizeof tf.feature_prop))
+      pad_to_64bits (sizeof_ofp_table_features + sum (map TableFeatureProp.sizeof tf.feature_prop))
 
     let marshal (buf : Cstruct.t) (tf : tableFeatures) : int =
       set_ofp_table_features_length buf tf.length;
@@ -4095,7 +4099,7 @@ module TableFeature = struct
       set_ofp_table_features_config buf (TableConfig.marshal tf.config);
       set_ofp_table_features_max_entries buf tf.max_entries;
       sizeof_ofp_table_features + (
-        TableFeatureProp.marshal (Cstruct.shift buf sizeof_ofp_table_features) tf.feature_prop)
+        marshal_fields (Cstruct.shift buf sizeof_ofp_table_features) tf.feature_prop TableFeatureProp.marshal)
 
     let parse (bits : Cstruct.t) : tableFeatures*Cstruct.t = 
       let length = get_ofp_table_features_length bits in
@@ -4105,7 +4109,7 @@ module TableFeature = struct
       let metadataWrite = get_ofp_table_features_metadata_write bits in
       let config = TableConfig.parse (get_ofp_table_features_config bits) in
       let maxEntries = get_ofp_table_features_max_entries bits in
-      let featureProp = TableFeatureProp.parse (Cstruct.sub bits sizeof_ofp_table_features (length-sizeof_ofp_table_features)) in
+      let featureProp = parse_fields (Cstruct.sub bits sizeof_ofp_table_features (length-sizeof_ofp_table_features)) TableFeatureProp.parse TableFeatureProp.length_func in
       { length = length;
         table_id = tableId;
         name = name;
@@ -4125,7 +4129,7 @@ module TableFeature = struct
       tf.metadata_write
       (TableConfig.to_string tf.config)
       tf.max_entries
-      (TableFeatureProp.to_string tf.feature_prop)
+      ("[ " ^ (String.concat "; " (map TableFeatureProp.to_string tf.feature_prop)) ^ " ]")
 
 end
 
