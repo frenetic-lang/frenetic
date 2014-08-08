@@ -6508,8 +6508,8 @@ module Message = struct
     | FlowRemoved of flowRemoved
     | PacketOutMsg of packetOut
     | PortStatusMsg of portStatus
-    | MultipartReq of multipartRequest
-    | MultipartReply of multipartReply
+    | MultipartReq of MultipartReq.t
+    | MultipartReply of MultipartReply.t
     | BarrierRequest
     | BarrierReply
     | RoleRequest of RoleRequest.t
