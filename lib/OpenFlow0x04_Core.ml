@@ -297,6 +297,15 @@ type action =
 
 type actionSequence = action list
 
+type instructionTyp = 
+ | GotoTableTyp
+ | ApplyActionsTyp
+ | WriteActionsTyp
+ | WriteMetadataTyp
+ | ClearTyp
+ | MeterTyp
+ | ExperimenterTyp of int32
+
 type instruction =
 | GotoTable of tableId
 | ApplyActions of actionSequence
@@ -486,8 +495,8 @@ type queueRequest = {port_number : portId; queue_id : int32}
 type experimenter = {exp_id : int32; exp_type : int32}
 
 type tableFeatureProp =
-  | TfpInstruction of instruction list 
-  | TfpInstructionMiss of instruction list
+  | TfpInstruction of instructionTyp list 
+  | TfpInstructionMiss of instructionTyp list
   | TfpNextTable of tableId list
   | TfpNextTableMiss of tableId list
   | TfpWriteAction of action list

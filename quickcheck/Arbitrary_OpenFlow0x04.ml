@@ -770,11 +770,22 @@ module MultipartReq = struct
     module TableFeatureProp = struct
       
       type t = TableFeatureProp.t
+
+      let arbitrary_typ =
+        oneof [
+          ret_gen GotoTableTyp;
+          ret_gen ApplyActionsTyp;
+          ret_gen WriteActionsTyp;
+          ret_gen WriteMetadataTyp;
+          ret_gen ClearTyp;
+          ret_gen MeterTyp;
+          arbitrary_uint32 >>= (fun n -> ret_gen (ExperimenterTyp n))
+        ]
       
       let arbitrary = 
         oneof [
-          Instructions.arbitrary >>= (fun n -> ret_gen (TfpInstruction n));
-          Instructions.arbitrary >>= (fun n -> ret_gen (TfpInstructionMiss n));
+          list1 arbitrary_typ >>= (fun n -> ret_gen (TfpInstruction n));
+          list1 arbitrary_typ >>= (fun n -> ret_gen (TfpInstructionMiss n));
           arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpWriteAction n));
           arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpWriteActionMiss n));
           arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpApplyAction n));

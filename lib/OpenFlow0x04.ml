@@ -3835,6 +3835,79 @@ module QueueRequest = struct
 
 end
 
+module InstructionTyp = struct
+
+  let sizeof (ins : instructionTyp) =
+    match ins with
+      | GotoTableTyp
+      | ApplyActionsTyp
+      | WriteActionsTyp
+      | WriteMetadataTyp
+      | ClearTyp
+      | MeterTyp -> 4
+      | ExperimenterTyp _ ->  8
+
+  let to_string (ins : instructionTyp) =
+    match ins with
+      | GotoTableTyp -> "Go to Table"
+      | ApplyActionsTyp -> "Apply Actions"
+      | WriteActionsTyp -> "Write Actions" 
+      | WriteMetadataTyp -> "WriteMeta"
+      | ClearTyp -> "Clear"
+      | MeterTyp -> "Meter"
+      | ExperimenterTyp e -> Format.sprintf "Experimenter = %lu" e
+
+  let marshal (buf : Cstruct.t) (ins : instructionTyp) : int =
+    match ins with 
+      | GotoTableTyp -> 
+        set_ofp_instruction_typ buf (ofp_instruction_type_to_int OFPIT_GOTO_TABLE);
+        set_ofp_instruction_len buf 4;
+        sizeof_ofp_instruction
+      | ApplyActionsTyp -> 
+        set_ofp_instruction_typ buf (ofp_instruction_type_to_int OFPIT_APPLY_ACTIONS);
+        set_ofp_instruction_len buf 4;
+        sizeof_ofp_instruction
+      | WriteActionsTyp ->
+        set_ofp_instruction_typ buf (ofp_instruction_type_to_int OFPIT_WRITE_ACTIONS);
+        set_ofp_instruction_len buf 4;
+        sizeof_ofp_instruction
+      | WriteMetadataTyp -> 
+        set_ofp_instruction_typ buf (ofp_instruction_type_to_int OFPIT_WRITE_METADATA);
+        set_ofp_instruction_len buf 4;
+        sizeof_ofp_instruction
+      | ClearTyp -> 
+        set_ofp_instruction_typ buf (ofp_instruction_type_to_int OFPIT_CLEAR_ACTIONS);
+        set_ofp_instruction_len buf 4;
+        sizeof_ofp_instruction
+      | MeterTyp ->
+        set_ofp_instruction_typ buf (ofp_instruction_type_to_int OFPIT_METER);
+        set_ofp_instruction_len buf 4;
+        sizeof_ofp_instruction
+      | ExperimenterTyp e -> 
+        set_ofp_instruction_typ buf (ofp_instruction_type_to_int OFPIT_EXPERIMENTER);
+        set_ofp_instruction_len buf 8;
+        set_ofp_instruction_experimenter_experimenter buf e;
+        sizeof_ofp_instruction_experimenter
+    
+  let parse (bits : Cstruct.t) : instructionTyp =
+    let typ = int_to_ofp_instruction_type (get_ofp_instruction_typ bits) in
+    match typ with 
+      | Some OFPIT_GOTO_TABLE -> GotoTableTyp
+      | Some OFPIT_APPLY_ACTIONS -> ApplyActionsTyp
+      | Some OFPIT_WRITE_ACTIONS -> WriteActionsTyp
+      | Some OFPIT_WRITE_METADATA -> WriteMetadataTyp
+      | Some OFPIT_CLEAR_ACTIONS -> ClearTyp
+      | Some OFPIT_METER -> MeterTyp
+      | Some OFPIT_EXPERIMENTER -> ExperimenterTyp (get_ofp_instruction_experimenter_experimenter bits)
+      | None -> raise (Unparsable (sprintf "malfomed typ"))
+
+  let length_func (buf : Cstruct.t) : int option =
+    if Cstruct.len buf < sizeof_ofp_instruction then None
+    else Some (get_ofp_instruction_len buf)
+
+end
+
+
 module TableFeatureProp = struct
 
     cstruct ofp_table_feature_prop_experimenter {
@@ -3853,9 +3926,9 @@ module TableFeatureProp = struct
     let sizeof tfp : int = 
       let size = sizeof_ofp_table_feature_prop_header + (match tfp with
         | TfpInstruction ins -> 
-            Instructions.sizeof ins
+            sum (map InstructionTyp.sizeof ins)
         | TfpInstructionMiss ins -> 
-            Instructions.sizeof ins
+            sum (map InstructionTyp.sizeof ins)
         | TfpNextTable t -> 
             List.length t
         | TfpNextTableMiss t -> 
@@ -3893,10 +3966,10 @@ module TableFeatureProp = struct
       (match tfp with
         | TfpInstruction ins -> 
           set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_INSTRUCTIONS);
-          Instructions.marshal buf_payload ins
+          marshal_fields buf_payload ins InstructionTyp.marshal
         | TfpInstructionMiss ins -> 
           set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_INSTRUCTIONS_MISS);
-          Instructions.marshal buf_payload ins
+          marshal_fields buf_payload ins InstructionTyp.marshal
         | TfpNextTable t -> 
           set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_NEXT_TABLES);
           let marsh (buf : Cstruct.t) (id : uint8) : int =
@@ -3962,9 +4035,9 @@ module TableFeatureProp = struct
      let tfpPayBits = Cstruct.sub bits sizeof_ofp_table_feature_prop_header (tfpLength - sizeof_ofp_table_feature_prop_header) in
      match int_to_ofp_table_feature_prop_type tfpType with
       | Some OFPTFPT_INSTRUCTIONS -> 
-          TfpInstruction (Instructions.parse tfpPayBits)
+          TfpInstruction (parse_fields tfpPayBits InstructionTyp.parse InstructionTyp.length_func)
       | Some OFPTFPT_INSTRUCTIONS_MISS -> 
-          TfpInstructionMiss (Instructions.parse tfpPayBits)
+          TfpInstructionMiss (parse_fields tfpPayBits InstructionTyp.parse InstructionTyp.length_func)
       | Some OFPTFPT_NEXT_TABLES -> 
       let ids,_ = parse_tables tfpPayBits (tfpLength - sizeof_ofp_table_feature_prop_header) in
           TfpNextTable ids
@@ -4011,9 +4084,9 @@ module TableFeatureProp = struct
       Format.sprintf "{ type = %s; len:%u }"
       (match tfp with
          | TfpInstruction i-> 
-            (Format.sprintf "Instructions %s" (Instructions.to_string i))
+            (Format.sprintf "Instructions [ %s ]" (String.concat "; " (map InstructionTyp.to_string i)))
          | TfpInstructionMiss i-> 
-            (Format.sprintf "InstructionMiss %s" (Instructions.to_string i))
+            (Format.sprintf "InstructionMiss [ %s ]" (String.concat "; " (map InstructionTyp.to_string i)))
          | TfpNextTable n-> 
             (Format.sprintf "NextTable [ %s ]" 
             (String.concat "; " (map string_of_int n)))
