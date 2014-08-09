@@ -6,18 +6,22 @@ module type Message = Async_OpenFlow_Message.Message
 
 exception Flush_closed_writer
 
+type ('id, 'a, 'b) event = [
+  | `Connect    of 'id * 'a
+  | `Disconnect of 'id * Sexp.t
+  | `Message    of 'id * 'b
+]
+
 module type S = sig
 
   type t 
+
+  type c
   type m
 
   module Client_id : Hashable.S
 
-  type e = [
-    | `Connect of Client_id.t
-    | `Disconnect of Client_id.t * Sexp.t
-    | `Message of Client_id.t * m
-  ]
+  type e = (Client_id.t, c, m) event
 
   val create
     :  ?max_pending_connections:int
@@ -92,14 +96,11 @@ module Make(Message : Message) = struct
   end)
 
   type t = Impl.t
+  type c = unit
 
   module Client_id =  Impl.Client_id
 
-  type e = [
-    | `Connect of Client_id.t
-    | `Disconnect of Client_id.t * Sexp.t
-    | `Message of Client_id.t * m
-  ]
+  type e = (Client_id.t, c, m) event
 
   let create ?max_pending_connections
       ?verbose
@@ -114,9 +115,9 @@ module Make(Message : Message) = struct
     let open Impl.Server_read_result in
     Pipe.map (Impl.listen t)
     ~f:(function
-        | Connect id            -> `Connect id
-        | Disconnect (id, sexp) -> `Disconnect (id, sexp)
-        | Data (id, m)          -> `Message (id, m)
+        | Connect id            -> `Connect(id, ())
+        | Disconnect (id, sexp) -> `Disconnect(id, sexp)
+        | Data (id, m)          -> `Message(id, m)
         | Denied_access msg     -> assert false)
 
   let close = Impl.close

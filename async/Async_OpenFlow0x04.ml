@@ -31,16 +31,13 @@ module Controller = struct
 
   module SwitchTable = Map.Make(Client_id)
 
+  type c = unit
   type m = Message.t
   type t = {
     sub : ChunkController.t;
   }
 
-  type e = [
-    | `Connect of Client_id.t
-    | `Disconnect of Client_id.t * Sexp.t
-    | `Message of Client_id.t * m
-  ]
+  type e = (Client_id.t, c, m) Platform.event
 
   let openflow0x04 t evt =
     match evt with
@@ -48,7 +45,7 @@ module Controller = struct
         return [`Message (s_id, Message.parse hdr bits)]
       | `Connect (c_id, version) ->
         if version = 0x04 then
-          return [`Connect c_id]
+          return [`Connect(c_id, ())]
         else begin
           ChunkController.close t.sub c_id;
           raise (ChunkController.Handshake (c_id, Printf.sprintf

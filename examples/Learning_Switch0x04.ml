@@ -26,7 +26,7 @@ let switch
       | `Drop exn -> raise exn
     end in
 
-  let learn c_id pi =
+  let learn sw_id pi =
     let pkt = parse_payload pi.pi_payload in
     let rec findPort oxmMatch = 
       match oxmMatch with
@@ -35,11 +35,11 @@ let switch
         | (OxmInPhyPort t)::q -> t
         | t::q -> findPort q in
     let eth, port = pkt.Packet.dlSrc, (findPort pi.pi_ofp_match) in
-    let tbl', present = match SwitchTable.find tbl c_id with
-      | None -> (SwitchTable.add tbl c_id (EthTable.singleton eth port), false)
+    let tbl', present = match SwitchTable.find tbl sw_id with
+      | None -> (SwitchTable.add tbl sw_id (EthTable.singleton eth port), false)
       | Some e_tbl ->
         match EthTable.find e_tbl eth with
-          | None -> (SwitchTable.add tbl c_id (EthTable.add e_tbl eth port), false)
+          | None -> (SwitchTable.add tbl sw_id (EthTable.add e_tbl eth port), false)
           | Some port' when port = port' -> (tbl, true)
           | _ -> failwith "Inconsistent topology" in (* XXX(seliopou): exn *)
     if present then
@@ -48,7 +48,7 @@ let switch
       let fwd, buf = match pi.pi_payload with
         | Buffered (b_id, _) -> (false, Some b_id)
         | NotBuffered _ -> (true, None) in
-      OF0x04Controller.send ctl c_id
+      OF0x04Controller.send ctl sw_id
         (1l, FlowModMsg (
         { mfCookie = val_to_mask 0L
         ; mfTable_id = 0
@@ -73,7 +73,7 @@ let switch
          * *)
         >>= ensure (fwd, tbl') in
 
-  let forward (tbl : switchTable) c_id t_id pi =
+  let forward (tbl : switchTable) sw_id t_id pi =
     let dst = (parse_payload pi.pi_payload).Packet.dlDst in
     let rec findPort oxmMatch = 
       match oxmMatch with
@@ -83,32 +83,32 @@ let switch
         | t::q -> findPort q in
     let port = findPort pi.pi_ofp_match in
     let out =
-      match EthTable.find (SwitchTable.find_exn tbl c_id) dst with
+      match EthTable.find (SwitchTable.find_exn tbl sw_id) dst with
         | None -> Flood
         | Some(p) -> PhysicalPort(p) in
-    OF0x04Controller.send ctl c_id
+    OF0x04Controller.send ctl sw_id
       (t_id, PacketOutMsg {
           po_payload = pi.pi_payload;
           po_port_id = Some(port);
           po_actions = [ Output(out) ] }) in
 
   begin match evt with
-    | `Connect c_id ->
-      OF0x04Controller.send ctl c_id
+    | `Connect (sw_id, ()) ->
+      OF0x04Controller.send ctl sw_id
         (0l, FlowModMsg (add_flow 1 
             ([])
             ([ApplyActions [Output(Controller 1024)]]))
         )
-      >>= ensure (SwitchTable.add tbl c_id EthTable.empty)
-    | `Disconnect (c_id, _) ->
-      return (SwitchTable.remove tbl c_id)
-    | `Message (c_id, msg) ->
+      >>= ensure (SwitchTable.add tbl sw_id EthTable.empty)
+    | `Disconnect (sw_id, _) ->
+      return (SwitchTable.remove tbl sw_id)
+    | `Message (sw_id, msg) ->
       let t_id, msg = msg in
       begin match msg with
         | PacketInMsg pi ->
-          learn c_id pi
+          learn sw_id pi
             >>= (function
-              | (true , tbl') -> forward tbl' c_id t_id pi >>= ensure tbl'
+              | (true , tbl') -> forward tbl' sw_id t_id pi >>= ensure tbl'
               | (false, tbl') -> return tbl')
         | Error err -> failwith (Error.to_string err)
         | PortStatusMsg ps ->
@@ -116,7 +116,7 @@ let switch
           let port = ps.desc.port_no in
           begin match ps.reason with
             | PortDelete ->
-              let tbl' = SwitchTable.change tbl c_id (function
+              let tbl' = SwitchTable.change tbl sw_id (function
                   | None -> None
                   | Some eth_tbl ->
                     Some(EthTable.filter eth_tbl (fun ~key:_ ~data:v -> v = port))) in

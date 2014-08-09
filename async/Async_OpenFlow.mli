@@ -29,18 +29,21 @@ end
 
 module Platform : sig
 
+  type ('id, 'a, 'b) event = [
+    | `Connect    of 'id * 'a
+    | `Disconnect of 'id * Sexp.t
+    | `Message    of 'id * 'b
+  ]
+
   module type S = sig
 
     type t
+    type c
     type m
 
     module Client_id : Hashable.S
 
-    type e = [
-      | `Connect of Client_id.t
-      | `Disconnect of Client_id.t * Sexp.t
-      | `Message of Client_id.t * m
-    ]
+    type e = (Client_id.t, c, m) event
 
     val create
       :  ?max_pending_connections:int
@@ -77,7 +80,9 @@ module Platform : sig
 
   end
 
-  module Make(Message : Message) : S with type m = Message.t
+  module Make(Message : Message) : S
+    with type m = Message.t
+     and type c = unit
 
 end
 
@@ -163,24 +168,12 @@ module OpenFlow0x01 : sig
   module Controller : sig
     include Platform.S
       with type m = Message.t
-
-    type f = [
-      | `Connect of Client_id.t * OpenFlow0x01.SwitchFeatures.t
-      | `Disconnect of Client_id.t * SDN_Types.switchId * Sexp.t
-      | `Message of Client_id.t * m
-    ]
-
-    val switch_id_of_client_exn : t -> Client_id.t -> SDN_Types.switchId
-    val client_id_of_switch_exn : t -> SDN_Types.switchId -> Client_id.t
-
-    val switch_id_of_client : t -> Client_id.t -> SDN_Types.switchId option
-    val client_id_of_switch : t -> SDN_Types.switchId -> Client_id.t option
+       and type c = OpenFlow0x01.SwitchFeatures.t
+       and type Client_id.t = SDN_Types.switchId
 
     val set_monitor_interval : t -> Time.Span.t -> unit
     val set_idle_wait : t -> Time.Span.t -> unit
     val set_kill_wait : t -> Time.Span.t -> unit
-
-    val features : (t, e, f) Stage.t
   end
 
 end
@@ -192,6 +185,7 @@ module OpenFlow0x04 : sig
 
   module Controller : Platform.S
     with type m = Message.t
+     and type c = unit
 
 end
 

@@ -89,6 +89,7 @@ module Controller = struct
   }
 
   type m = Platform.m
+  type c = unit
   type e = Platform.e
   type h = [
       | `Connect of Client_id.t * int
@@ -219,7 +220,7 @@ module Controller = struct
   let handshake v t evt =
     let open Header in
     match evt with
-      | `Connect c_id ->
+      | `Connect (c_id, ()) ->
         Handler.connect t c_id;
         let header = { version = v; type_code = type_code_hello;
                        length = size; xid = 0l; } in
