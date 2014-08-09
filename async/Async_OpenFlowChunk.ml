@@ -25,9 +25,16 @@ module Controller = struct
   open Async.Std
 
   module Platform = Platform.Make(Message)
-  module Client_id = Platform.Client_id
+  module Client_id = struct
+    module T = struct
+      type t = Platform.Client_id.t with sexp
+      let compare = compare
+      let hash = Hashtbl.hash
+    end
+    include T
+    include Hashable.Make(T)
+  end
 
-  module ClientTbl = Hashtbl.Make(Client_id)
 
   exception Handshake of Client_id.t * string
 
@@ -75,7 +82,7 @@ module Controller = struct
 
   type t = {
     platform : Platform.t;
-    clients  : Conn.t ClientTbl.t;
+    clients  : Conn.t Client_id.Table.t;
     mutable monitor_interval : Time.Span.t;
     mutable idle_wait : Time.Span.t;
     mutable kill_wait : Time.Span.t;
@@ -100,44 +107,44 @@ module Controller = struct
 
   module Handler = struct
     let connect (t:t) (c_id:Client_id.t) =
-      ClientTbl.add_exn t.clients c_id (Conn.create ())
+      Client_id.Table.add_exn t.clients c_id (Conn.create ())
 
     let handshake (t:t) (c_id:Client_id.t) (version:int) =
-      ClientTbl.change t.clients c_id (function
+      Client_id.Table.change t.clients c_id (function
         | None       -> assert false
         | Some(conn) -> Some(Conn.complete_handshake conn version))
 
     let activity (t:t) (c_id:Client_id.t) =
-      ClientTbl.change t.clients c_id (function
+      Client_id.Table.change t.clients c_id (function
         | None       -> assert false
         | Some(conn) -> Some(Conn.activity conn))
 
     let idle (t:t) (c_id:Client_id.t) (span : Time.Span.t) =
-      ClientTbl.change t.clients c_id (function
+      Client_id.Table.change t.clients c_id (function
         | None       -> assert false
         | Some(conn) ->
           let conn', change = Conn.idle conn span in
           if change then begin
-            printf "client %s marked as idle... probing\n%!" (Client_id.to_string c_id);
+            printf "client %s marked as idle... probing\n%!" (Platform.Client_id.to_string c_id);
             let echo_req = echo_request conn'.Conn.version in
             let result = Result.try_with (fun () ->
               Platform.send_ignore_errors t.platform c_id echo_req) in
             match result with
               | Error exn ->
                 printf "client %s write failed: %s\n%!"
-                  (Client_id.to_string c_id) (Exn.to_string exn);
+                  (Platform.Client_id.to_string c_id) (Exn.to_string exn);
                 Platform.close t.platform c_id
               | Ok () -> ()
           end;
           Some(conn'))
 
     let kill (t:t) (c_id:Client_id.t) (span : Time.Span.t) =
-      ClientTbl.change t.clients c_id (function
+      Client_id.Table.change t.clients c_id (function
         | None       -> assert false
         | Some(conn) ->
           let conn', change = Conn.kill conn span in
           if change then begin
-            printf "client %s killed\n%!" (Client_id.to_string c_id);
+            printf "client %s killed\n%!" (Platform.Client_id.to_string c_id);
             Platform.close t.platform c_id;
           end;
           Some(conn'))
@@ -146,7 +153,7 @@ module Controller = struct
   module Mon = struct
     let rec monitor t f =
       after t.monitor_interval >>> fun () ->
-      ClientTbl.iter t.clients (fun ~key:c_id ~data:_ -> f t c_id);
+      Client_id.Table.iter t.clients (fun ~key:c_id ~data:_ -> f t c_id);
       monitor t f
 
     let rec mark_idle t =
@@ -175,7 +182,7 @@ module Controller = struct
     >>| function t ->
       let ctl = {
         platform = t;
-        clients = ClientTbl.create ();
+        clients = Client_id.Table.create ();
         monitor_interval = Time.Span.of_ms 500.0;
         idle_wait = Time.Span.of_sec 5.0;
         kill_wait = Time.Span.of_sec 3.0;
@@ -193,7 +200,7 @@ module Controller = struct
 
   let has_client_id t c_id =
     Platform.has_client_id t.platform c_id &&
-      match ClientTbl.find t.clients c_id with
+      match Client_id.Table.find t.clients c_id with
         | Some({ Conn.version = Some(_) }) -> true
         | _                                -> false
 
@@ -226,7 +233,7 @@ module Controller = struct
          * *)
         >>| (function _ -> [])
       | `Message (c_id, msg) ->
-        begin match ClientTbl.find t.clients c_id with
+        begin match Client_id.Table.find t.clients c_id with
           | None -> assert false
           | Some({ Conn.version = None }) ->
             let hdr, bits = msg in
@@ -245,13 +252,13 @@ module Controller = struct
             return [`Message (c_id, msg)]
         end
       | `Disconnect (c_id, exn) ->
-        begin match ClientTbl.find t.clients c_id with
+        begin match Client_id.Table.find t.clients c_id with
           | None -> assert false
           | Some({ Conn.version = None }) ->
-            ClientTbl.remove t.clients c_id;
+            Client_id.Table.remove t.clients c_id;
             return []
           | Some(_) ->
-            ClientTbl.remove t.clients c_id;
+            Client_id.Table.remove t.clients c_id;
             return [`Disconnect (c_id, exn)]
         end
 

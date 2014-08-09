@@ -34,7 +34,7 @@ module Platform : sig
     type t
     type m
 
-    module Client_id : Unique_id
+    module Client_id : Hashable.S
 
     type e = [
       | `Connect of Client_id.t
