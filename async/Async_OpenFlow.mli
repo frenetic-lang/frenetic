@@ -15,15 +15,13 @@ module Log : sig
 end
 
 module type Message = sig
-  type t
-  include Sexpable with type t := t
+  type t with sexp
 
   val header_of : t -> OpenFlow_Header.t
 
   val parse : OpenFlow_Header.t -> Cstruct.t -> t
 
-  val marshal : t -> Cstruct.t -> unit
-
+  val marshal  : t -> Cstruct.t -> unit
   val marshal' : t -> (OpenFlow_Header.t * Cstruct.t)
 
   val to_string : t -> string
