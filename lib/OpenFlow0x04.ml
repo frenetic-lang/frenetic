@@ -5049,7 +5049,7 @@ module GroupFeatures = struct
 
   end
 
-  module ActionType = struct
+  module ActionTypeMap = struct
 
     type t = actionTypeMap
 
@@ -5128,10 +5128,10 @@ module GroupFeatures = struct
     gf.max_groups_select
     gf.max_groups_indirect
     gf.max_groups_ff
-    (ActionType.to_string gf.actions_all)
-    (ActionType.to_string gf.actions_select)
-    (ActionType.to_string gf.actions_indirect)
-    (ActionType.to_string gf.actions_ff)
+    (ActionTypeMap.to_string gf.actions_all)
+    (ActionTypeMap.to_string gf.actions_select)
+    (ActionTypeMap.to_string gf.actions_indirect)
+    (ActionTypeMap.to_string gf.actions_ff)
 
   let marshal (buf : Cstruct.t) (gf : groupFeatures) : int =
     set_ofp_group_features_typ buf (GroupType.marshal gf.typ);
@@ -5140,10 +5140,10 @@ module GroupFeatures = struct
     set_ofp_group_features_max_groups_select buf gf.max_groups_select;
     set_ofp_group_features_max_groups_indirect buf gf.max_groups_indirect;
     set_ofp_group_features_max_groups_fastfailover buf gf.max_groups_ff;
-    set_ofp_group_features_actions_all buf (ActionType.marshal gf.actions_all);
-    set_ofp_group_features_actions_select buf (ActionType.marshal gf.actions_select);
-    set_ofp_group_features_actions_indirect buf (ActionType.marshal gf.actions_indirect);
-    set_ofp_group_features_actions_fastfailover buf (ActionType.marshal gf.actions_ff);
+    set_ofp_group_features_actions_all buf (ActionTypeMap.marshal gf.actions_all);
+    set_ofp_group_features_actions_select buf (ActionTypeMap.marshal gf.actions_select);
+    set_ofp_group_features_actions_indirect buf (ActionTypeMap.marshal gf.actions_indirect);
+    set_ofp_group_features_actions_fastfailover buf (ActionTypeMap.marshal gf.actions_ff);
     sizeof_ofp_group_features
 
   let parse (bits : Cstruct.t) : groupFeatures =
@@ -5153,10 +5153,10 @@ module GroupFeatures = struct
   ; max_groups_select = get_ofp_group_features_max_groups_select bits
   ; max_groups_indirect = get_ofp_group_features_max_groups_indirect bits
   ; max_groups_ff = get_ofp_group_features_max_groups_fastfailover bits
-  ; actions_all = ActionType.parse (get_ofp_group_features_actions_all bits)
-  ; actions_select = ActionType.parse (get_ofp_group_features_actions_select bits)
-  ; actions_indirect = ActionType.parse (get_ofp_group_features_actions_indirect bits)
-  ; actions_ff = ActionType.parse (get_ofp_group_features_actions_fastfailover bits)
+  ; actions_all = ActionTypeMap.parse (get_ofp_group_features_actions_all bits)
+  ; actions_select = ActionTypeMap.parse (get_ofp_group_features_actions_select bits)
+  ; actions_indirect = ActionTypeMap.parse (get_ofp_group_features_actions_indirect bits)
+  ; actions_ff = ActionTypeMap.parse (get_ofp_group_features_actions_fastfailover bits)
   }
 
 end
