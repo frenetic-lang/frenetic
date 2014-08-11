@@ -257,24 +257,24 @@ type pseudoPort =
   | Local
   | Any
 
-type actionTyp = 
- | OutputAct
- | CopyTTLOut
- | CopyTTLIn
- | SetMPLSTTL
- | DecMPLSTTL
- | PushVLAN
- | PopVLAN
- | PushMPLS
- | PopMPLS
- | SetQueueAct
- | GroupAct
- | SetNWTTL
- | DecNWTTL
- | SetFieldAct
- | PushPBB
- | PopPBB
- | ExperimenterAct of int32
+type actionHdr = 
+  | OutputHdr
+  | GroupHdr
+  | PopVlanHdr
+  | PushVlanHdr
+  | PopMplsHdr
+  | PushMplsHdr
+  | SetFieldHdr
+  | CopyTtlOutHdr
+  | CopyTtlInHdr
+  | SetNwTtlHdr
+  | DecNwTtlHdr
+  | PushPbbHdr
+  | PopPbbHdr
+  | SetMplsTtlHdr
+  | DecMplsTtlHdr
+  | SetQueueHdr
+  | ExperimenterAHdr of int32
   
 type action =
 | Output of pseudoPort
@@ -297,14 +297,14 @@ type action =
 
 type actionSequence = action list
 
-type instructionTyp = 
- | GotoTableTyp
- | ApplyActionsTyp
- | WriteActionsTyp
- | WriteMetadataTyp
- | ClearTyp
- | MeterTyp
- | ExperimenterTyp of int32
+type instructionHdr = 
+ | GotoTableHdr
+ | ApplyActionsHdr
+ | WriteActionsHdr
+ | WriteMetadataHdr
+ | ClearHdr
+ | MeterHdr
+ | ExperimenterHdr of int32
 
 type instruction =
 | GotoTable of tableId
@@ -495,14 +495,14 @@ type queueRequest = {port_number : portId; queue_id : int32}
 type experimenter = {exp_id : int32; exp_type : int32}
 
 type tableFeatureProp =
-  | TfpInstruction of instructionTyp list 
-  | TfpInstructionMiss of instructionTyp list
+  | TfpInstruction of instructionHdr list 
+  | TfpInstructionMiss of instructionHdr list
   | TfpNextTable of tableId list
   | TfpNextTableMiss of tableId list
-  | TfpWriteAction of actionTyp list
-  | TfpWriteActionMiss of actionTyp list
-  | TfpApplyAction of actionTyp list
-  | TfpApplyActionMiss of actionTyp list
+  | TfpWriteAction of actionHdr list
+  | TfpWriteActionMiss of actionHdr list
+  | TfpApplyAction of actionHdr list
+  | TfpApplyActionMiss of actionHdr list
   | TfpMatch of oxm list
   | TfpWildcard of oxm list
   | TfpWriteSetField of oxm list

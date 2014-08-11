@@ -773,34 +773,34 @@ module MultipartReq = struct
 
       let arbitrary_ins =
         oneof [
-          ret_gen GotoTableTyp;
-          ret_gen ApplyActionsTyp;
-          ret_gen WriteActionsTyp;
-          ret_gen WriteMetadataTyp;
-          ret_gen ClearTyp;
-          ret_gen MeterTyp;
-          arbitrary_uint32 >>= (fun n -> ret_gen (ExperimenterTyp n))
+          ret_gen GotoTableHdr;
+          ret_gen ApplyActionsHdr;
+          ret_gen WriteActionsHdr;
+          ret_gen WriteMetadataHdr;
+          ret_gen ClearHdr;
+          ret_gen MeterHdr;
+          arbitrary_uint32 >>= (fun n -> ret_gen (ExperimenterHdr n))
         ]
 
       let arbitrary_act = 
         oneof [
-          ret_gen OutputAct;
-          ret_gen CopyTTLOut;
-          ret_gen CopyTTLIn;
-          ret_gen SetMPLSTTL;
-          ret_gen DecMPLSTTL;
-          ret_gen PushVLAN;
-          ret_gen PopVLAN;
-          ret_gen PushMPLS;
-          ret_gen PopMPLS;
-          ret_gen SetQueueAct;
-          ret_gen GroupAct;
-          ret_gen SetNWTTL;
-          ret_gen DecNWTTL;
-          ret_gen SetFieldAct;
-          ret_gen PushPBB;
-          ret_gen PopPBB;
-          arbitrary_uint32 >>= (fun n -> ret_gen (ExperimenterAct n))
+          ret_gen OutputHdr;
+          ret_gen GroupHdr;
+          ret_gen PopVlanHdr;
+          ret_gen PushVlanHdr;
+          ret_gen PopMplsHdr;
+          ret_gen PushMplsHdr;
+          ret_gen SetFieldHdr;
+          ret_gen CopyTtlOutHdr;
+          ret_gen CopyTtlInHdr;
+          ret_gen SetNwTtlHdr;
+          ret_gen DecNwTtlHdr;
+          ret_gen PushPbbHdr;
+          ret_gen PopPbbHdr;
+          ret_gen SetMplsTtlHdr;
+          ret_gen DecMplsTtlHdr;
+          ret_gen SetQueueHdr;
+          arbitrary_uint32 >>= (fun n -> ret_gen (ExperimenterAHdr n))
         ]
 
       let arbitrary = 

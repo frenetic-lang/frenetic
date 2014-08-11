@@ -3814,70 +3814,72 @@ module QueueRequest = struct
 
 end
 
-module InstructionTyp = struct
+module InstructionHdr = struct
+(* Same as Instruction, but only on ofp_instruction, without additional payload *)
+  type t = instructionHdr
 
-  let sizeof (ins : instructionTyp) =
+  let sizeof (ins : t) =
     match ins with
-      | GotoTableTyp
-      | ApplyActionsTyp
-      | WriteActionsTyp
-      | WriteMetadataTyp
-      | ClearTyp
-      | MeterTyp -> 4
-      | ExperimenterTyp _ ->  8
+      | GotoTableHdr
+      | ApplyActionsHdr
+      | WriteActionsHdr
+      | WriteMetadataHdr
+      | ClearHdr
+      | MeterHdr -> 4
+      | ExperimenterHdr _ ->  8
 
-  let to_string (ins : instructionTyp) =
+  let to_string (ins : t) =
     match ins with
-      | GotoTableTyp -> "Go to Table"
-      | ApplyActionsTyp -> "Apply Actions"
-      | WriteActionsTyp -> "Write Actions" 
-      | WriteMetadataTyp -> "WriteMeta"
-      | ClearTyp -> "Clear"
-      | MeterTyp -> "Meter"
-      | ExperimenterTyp e -> Format.sprintf "Experimenter = %lu" e
+      | GotoTableHdr -> "Go to Table"
+      | ApplyActionsHdr -> "Apply Actions"
+      | WriteActionsHdr -> "Write Actions" 
+      | WriteMetadataHdr -> "WriteMeta"
+      | ClearHdr -> "Clear"
+      | MeterHdr -> "Meter"
+      | ExperimenterHdr e -> Format.sprintf "Experimenter = %lu" e
 
-  let marshal (buf : Cstruct.t) (ins : instructionTyp) : int =
+  let marshal (buf : Cstruct.t) (ins : t) : int =
     match ins with 
-      | GotoTableTyp -> 
+      | GotoTableHdr -> 
         set_ofp_instruction_typ buf (ofp_instruction_type_to_int OFPIT_GOTO_TABLE);
         set_ofp_instruction_len buf 4;
         sizeof_ofp_instruction
-      | ApplyActionsTyp -> 
+      | ApplyActionsHdr -> 
         set_ofp_instruction_typ buf (ofp_instruction_type_to_int OFPIT_APPLY_ACTIONS);
         set_ofp_instruction_len buf 4;
         sizeof_ofp_instruction
-      | WriteActionsTyp ->
+      | WriteActionsHdr ->
         set_ofp_instruction_typ buf (ofp_instruction_type_to_int OFPIT_WRITE_ACTIONS);
         set_ofp_instruction_len buf 4;
         sizeof_ofp_instruction
-      | WriteMetadataTyp -> 
+      | WriteMetadataHdr -> 
         set_ofp_instruction_typ buf (ofp_instruction_type_to_int OFPIT_WRITE_METADATA);
         set_ofp_instruction_len buf 4;
         sizeof_ofp_instruction
-      | ClearTyp -> 
+      | ClearHdr -> 
         set_ofp_instruction_typ buf (ofp_instruction_type_to_int OFPIT_CLEAR_ACTIONS);
         set_ofp_instruction_len buf 4;
         sizeof_ofp_instruction
-      | MeterTyp ->
+      | MeterHdr ->
         set_ofp_instruction_typ buf (ofp_instruction_type_to_int OFPIT_METER);
         set_ofp_instruction_len buf 4;
         sizeof_ofp_instruction
-      | ExperimenterTyp e -> 
+      | ExperimenterHdr e -> 
         set_ofp_instruction_typ buf (ofp_instruction_type_to_int OFPIT_EXPERIMENTER);
         set_ofp_instruction_len buf 8;
         set_ofp_instruction_experimenter_experimenter buf e;
         sizeof_ofp_instruction_experimenter
     
-  let parse (bits : Cstruct.t) : instructionTyp =
+  let parse (bits : Cstruct.t) : t =
     let typ = int_to_ofp_instruction_type (get_ofp_instruction_typ bits) in
     match typ with 
-      | Some OFPIT_GOTO_TABLE -> GotoTableTyp
-      | Some OFPIT_APPLY_ACTIONS -> ApplyActionsTyp
-      | Some OFPIT_WRITE_ACTIONS -> WriteActionsTyp
-      | Some OFPIT_WRITE_METADATA -> WriteMetadataTyp
-      | Some OFPIT_CLEAR_ACTIONS -> ClearTyp
-      | Some OFPIT_METER -> MeterTyp
-      | Some OFPIT_EXPERIMENTER -> ExperimenterTyp (get_ofp_instruction_experimenter_experimenter bits)
+      | Some OFPIT_GOTO_TABLE -> GotoTableHdr
+      | Some OFPIT_APPLY_ACTIONS -> ApplyActionsHdr
+      | Some OFPIT_WRITE_ACTIONS -> WriteActionsHdr
+      | Some OFPIT_WRITE_METADATA -> WriteMetadataHdr
+      | Some OFPIT_CLEAR_ACTIONS -> ClearHdr
+      | Some OFPIT_METER -> MeterHdr
+      | Some OFPIT_EXPERIMENTER -> ExperimenterHdr (get_ofp_instruction_experimenter_experimenter bits)
       | None -> raise (Unparsable (sprintf "malfomed typ"))
 
   let length_func (buf : Cstruct.t) : int option =
@@ -3886,139 +3888,141 @@ module InstructionTyp = struct
 
 end
 
-module ActionTyp = struct
+module ActionHdr = struct
+(* Same as Action, but only on ofp_action_header, without additional payload  *)
+  type t = actionHdr
 
-  let sizeof (act : actionTyp) = 
+  let sizeof (act : t) = 
     match act with
-      | OutputAct
-      | CopyTTLOut
-      | CopyTTLIn
-      | SetMPLSTTL
-      | DecMPLSTTL
-      | PushVLAN
-      | PopVLAN
-      | PushMPLS
-      | PopMPLS
-      | SetQueueAct
-      | GroupAct
-      | SetNWTTL
-      | DecNWTTL
-      | SetFieldAct
-      | PushPBB
-      | PopPBB -> 4
-      | ExperimenterAct _ -> 8
+      | OutputHdr
+      | GroupHdr
+      | PopVlanHdr
+      | PushVlanHdr
+      | PopMplsHdr
+      | PushMplsHdr
+      | SetFieldHdr
+      | CopyTtlOutHdr
+      | CopyTtlInHdr
+      | SetNwTtlHdr
+      | DecNwTtlHdr
+      | PushPbbHdr
+      | PopPbbHdr
+      | SetMplsTtlHdr
+      | DecMplsTtlHdr
+      | SetQueueHdr
+      | ExperimenterAHdr _ -> 8
 
-  let to_string (act : actionTyp) =
+  let to_string (act : t) =
     match act with
-      | OutputAct -> "Output"
-      | CopyTTLOut -> "CopyTTLOut"
-      | CopyTTLIn -> "CopyTTLIn"
-      | SetMPLSTTL -> "SetMplsTtl"
-      | DecMPLSTTL -> "DecMplsTtl"
-      | PushVLAN -> "PushVlan"
-      | PopVLAN -> "PopVlan"
-      | PushMPLS -> "PushMpls"
-      | PopMPLS -> "PopMpls"
-      | SetQueueAct -> "SetQueue"
-      | GroupAct -> "Group"
-      | SetNWTTL -> "SetNwTtl"
-      | DecNWTTL -> "DecMplsTtl"
-      | SetFieldAct -> "SetField"
-      | PushPBB -> "PushPBB"
-      | PopPBB -> "PopPBB"
-      | ExperimenterAct e -> Format.sprintf "Experimenter = %lu" e
-  
-  let marshal (buf : Cstruct.t) (act : actionTyp) : int =
+      | OutputHdr -> "Output"
+      | GroupHdr -> "Group"
+      | PopVlanHdr -> "PopVlan"
+      | PushVlanHdr -> "PushVlan"
+      | PopMplsHdr -> "PopMpls"
+      | PushMplsHdr -> "PushMpls"
+      | SetFieldHdr -> "SetField"
+      | CopyTtlOutHdr -> "CopyTTLOut"
+      | CopyTtlInHdr -> "CopyTTLIn"
+      | SetNwTtlHdr -> "SetNwTtl"
+      | DecNwTtlHdr -> "DecMplsTtl"
+      | PushPbbHdr -> "PushPBB"
+      | PopPbbHdr -> "PopPBB"
+      | SetMplsTtlHdr -> "SetMplsTtl"
+      | DecMplsTtlHdr -> "DecMplsTtl"
+      | SetQueueHdr -> "SetQueue"
+      | ExperimenterAHdr e -> Format.sprintf "Experimenter = %lu" e
+
+  let marshal (buf : Cstruct.t) (act : t) : int =
     match act with
-      | OutputAct ->
+      | OutputHdr ->
         set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_OUTPUT);
         set_ofp_action_header_len buf 4;
         4 (* ofp_action_header without the padding *)
-      | CopyTTLOut ->
+      | CopyTtlOutHdr ->
         set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_COPY_TTL_OUT);
         set_ofp_action_header_len buf 4;
         4
-      | CopyTTLIn ->
+      | CopyTtlInHdr ->
         set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_COPY_TTL_IN);
         set_ofp_action_header_len buf 4;
         4
-      | SetMPLSTTL ->
+      | SetMplsTtlHdr ->
         set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_SET_MPLS_TTL);
         set_ofp_action_header_len buf 4;
         4
-      | DecMPLSTTL ->
+      | DecMplsTtlHdr ->
         set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_DEC_MPLS_TTL);
         set_ofp_action_header_len buf 4;
         4
-      | PushVLAN ->
+      | PushVlanHdr ->
         set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_PUSH_VLAN);
         set_ofp_action_header_len buf 4;
         4
-      | PopVLAN ->
+      | PopVlanHdr ->
         set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_POP_VLAN);
         set_ofp_action_header_len buf 4;
         4
-      | PushMPLS ->
+      | PushMplsHdr ->
         set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_PUSH_MPLS);
         set_ofp_action_header_len buf 4;
         4
-      | PopMPLS ->
+      | PopMplsHdr ->
         set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_POP_MPLS);
         set_ofp_action_header_len buf 4;
         4
-      | SetQueueAct ->
+      | SetQueueHdr ->
         set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_SET_QUEUE);
         set_ofp_action_header_len buf 4;
         4
-      | GroupAct ->
+      | GroupHdr ->
         set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_GROUP);
         set_ofp_action_header_len buf 4;
         4
-      | SetNWTTL ->
+      | SetNwTtlHdr ->
         set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_SET_NW_TTL);
         set_ofp_action_header_len buf 4;
         4
-      | DecNWTTL ->
+      | DecNwTtlHdr ->
         set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_DEC_NW_TTL);
         set_ofp_action_header_len buf 4;
         4
-      | SetFieldAct ->
+      | SetFieldHdr ->
         set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_SET_FIELD);
         set_ofp_action_header_len buf 4;
         4
-      | PushPBB ->
+      | PushPbbHdr ->
         set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_PUSH_PBB);
         set_ofp_action_header_len buf 4;
         4
-      | PopPBB ->
+      | PopPbbHdr ->
         set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_POP_PBB);
         set_ofp_action_header_len buf 4;
         4
-      | ExperimenterAct e ->
+      | ExperimenterAHdr e ->
         set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_EXPERIMENTER);
         set_ofp_action_header_len buf 8;
         set_ofp_action_experimenter_experimenter buf e;
         sizeof_ofp_action_experimenter
 
-  let parse (bits : Cstruct.t) : actionTyp = 
+  let parse (bits : Cstruct.t) : t = 
     match (int_to_ofp_action_type (get_ofp_action_header_typ bits)) with
-      | Some OFPAT_OUTPUT -> OutputAct
-      | Some OFPAT_COPY_TTL_OUT -> CopyTTLOut
-      | Some OFPAT_COPY_TTL_IN -> CopyTTLIn
-      | Some OFPAT_SET_MPLS_TTL -> SetMPLSTTL
-      | Some OFPAT_DEC_MPLS_TTL -> DecMPLSTTL
-      | Some OFPAT_PUSH_VLAN -> PushVLAN
-      | Some OFPAT_POP_VLAN -> PopVLAN
-      | Some OFPAT_PUSH_MPLS -> PushMPLS
-      | Some OFPAT_POP_MPLS -> PopMPLS
-      | Some OFPAT_SET_QUEUE -> SetQueueAct
-      | Some OFPAT_GROUP -> GroupAct
-      | Some OFPAT_SET_NW_TTL -> SetNWTTL
-      | Some OFPAT_DEC_NW_TTL -> DecNWTTL
-      | Some OFPAT_SET_FIELD -> SetFieldAct
-      | Some OFPAT_PUSH_PBB -> PushPBB
-      | Some OFPAT_POP_PBB -> PopPBB
-      | Some OFPAT_EXPERIMENTER -> ExperimenterAct (get_ofp_action_experimenter_experimenter bits)
+      | Some OFPAT_OUTPUT -> OutputHdr
+      | Some OFPAT_COPY_TTL_OUT -> CopyTtlOutHdr
+      | Some OFPAT_COPY_TTL_IN -> CopyTtlInHdr
+      | Some OFPAT_SET_MPLS_TTL -> SetMplsTtlHdr
+      | Some OFPAT_DEC_MPLS_TTL -> DecMplsTtlHdr
+      | Some OFPAT_PUSH_VLAN -> PushVlanHdr
+      | Some OFPAT_POP_VLAN -> PopVlanHdr
+      | Some OFPAT_PUSH_MPLS -> PushMplsHdr
+      | Some OFPAT_POP_MPLS -> PopMplsHdr
+      | Some OFPAT_SET_QUEUE -> SetQueueHdr
+      | Some OFPAT_GROUP -> GroupHdr
+      | Some OFPAT_SET_NW_TTL -> SetNwTtlHdr
+      | Some OFPAT_DEC_NW_TTL -> DecNwTtlHdr
+      | Some OFPAT_SET_FIELD -> SetFieldHdr
+      | Some OFPAT_PUSH_PBB -> PushPbbHdr
+      | Some OFPAT_POP_PBB -> PopPbbHdr
+      | Some OFPAT_EXPERIMENTER -> ExperimenterAHdr (get_ofp_action_experimenter_experimenter bits)
       | None -> failwith "None type"
 
   let length_func (buf : Cstruct.t) : int option =
@@ -4045,21 +4049,21 @@ module TableFeatureProp = struct
     let sizeof tfp : int = 
       let size = sizeof_ofp_table_feature_prop_header + (match tfp with
         | TfpInstruction ins -> 
-            sum (map InstructionTyp.sizeof ins)
+            sum (map InstructionHdr.sizeof ins)
         | TfpInstructionMiss ins -> 
-            sum (map InstructionTyp.sizeof ins)
+            sum (map InstructionHdr.sizeof ins)
         | TfpNextTable t -> 
             List.length t
         | TfpNextTableMiss t -> 
             List.length t
         | TfpWriteAction act -> 
-            sum (map ActionTyp.sizeof act)
+            sum (map ActionHdr.sizeof act)
         | TfpWriteActionMiss act -> 
-            sum (map ActionTyp.sizeof act)
+            sum (map ActionHdr.sizeof act)
         | TfpApplyAction act -> 
-            sum (map ActionTyp.sizeof act)
+            sum (map ActionHdr.sizeof act)
         | TfpApplyActionMiss act -> 
-            sum (map ActionTyp.sizeof act)
+            sum (map ActionHdr.sizeof act)
         | TfpMatch ox -> 
             Oxm.sizeof_header ox
         | TfpWildcard ox -> 
@@ -4085,10 +4089,10 @@ module TableFeatureProp = struct
       (match tfp with
         | TfpInstruction ins -> 
           set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_INSTRUCTIONS);
-          marshal_fields buf_payload ins InstructionTyp.marshal
+          marshal_fields buf_payload ins InstructionHdr.marshal
         | TfpInstructionMiss ins -> 
           set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_INSTRUCTIONS_MISS);
-          marshal_fields buf_payload ins InstructionTyp.marshal
+          marshal_fields buf_payload ins InstructionHdr.marshal
         | TfpNextTable t -> 
           set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_NEXT_TABLES);
           let marsh (buf : Cstruct.t) (id : uint8) : int =
@@ -4103,16 +4107,16 @@ module TableFeatureProp = struct
           marshal_fields buf_payload t marsh
         | TfpWriteAction act -> 
           set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_WRITE_ACTIONS);
-          marshal_fields buf_payload act ActionTyp.marshal
+          marshal_fields buf_payload act ActionHdr.marshal
         | TfpWriteActionMiss act -> 
           set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_WRITE_ACTIONS_MISS);
-          marshal_fields buf_payload act ActionTyp.marshal
+          marshal_fields buf_payload act ActionHdr.marshal
         | TfpApplyAction act -> 
           set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_APPLY_ACTIONS);
-          marshal_fields buf_payload act ActionTyp.marshal
+          marshal_fields buf_payload act ActionHdr.marshal
         | TfpApplyActionMiss act -> 
           set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_APPLY_ACTIONS_MISS);
-          marshal_fields buf_payload act ActionTyp.marshal
+          marshal_fields buf_payload act ActionHdr.marshal
         | TfpMatch ox -> 
           set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_MATCH);
           marshal_fields buf_payload ox Oxm.marshal_header
@@ -4154,9 +4158,9 @@ module TableFeatureProp = struct
      let tfpPayBits = Cstruct.sub bits sizeof_ofp_table_feature_prop_header (tfpLength - sizeof_ofp_table_feature_prop_header) in
      match int_to_ofp_table_feature_prop_type tfpType with
       | Some OFPTFPT_INSTRUCTIONS -> 
-          TfpInstruction (parse_fields tfpPayBits InstructionTyp.parse InstructionTyp.length_func)
+          TfpInstruction (parse_fields tfpPayBits InstructionHdr.parse InstructionHdr.length_func)
       | Some OFPTFPT_INSTRUCTIONS_MISS -> 
-          TfpInstructionMiss (parse_fields tfpPayBits InstructionTyp.parse InstructionTyp.length_func)
+          TfpInstructionMiss (parse_fields tfpPayBits InstructionHdr.parse InstructionHdr.length_func)
       | Some OFPTFPT_NEXT_TABLES -> 
       let ids,_ = parse_tables tfpPayBits (tfpLength - sizeof_ofp_table_feature_prop_header) in
           TfpNextTable ids
@@ -4164,13 +4168,13 @@ module TableFeatureProp = struct
           let ids,_ = parse_tables tfpPayBits (tfpLength - sizeof_ofp_table_feature_prop_header) in
           TfpNextTableMiss ids
       | Some OFPTFPT_WRITE_ACTIONS -> 
-          TfpWriteAction (parse_fields tfpPayBits ActionTyp.parse ActionTyp.length_func)
+          TfpWriteAction (parse_fields tfpPayBits ActionHdr.parse ActionHdr.length_func)
       | Some OFPTFPT_WRITE_ACTIONS_MISS -> 
-          TfpWriteActionMiss (parse_fields tfpPayBits ActionTyp.parse ActionTyp.length_func)
+          TfpWriteActionMiss (parse_fields tfpPayBits ActionHdr.parse ActionHdr.length_func)
       | Some OFPTFPT_APPLY_ACTIONS -> 
-          TfpApplyAction (parse_fields tfpPayBits ActionTyp.parse ActionTyp.length_func)
+          TfpApplyAction (parse_fields tfpPayBits ActionHdr.parse ActionHdr.length_func)
       | Some OFPTFPT_APPLY_ACTIONS_MISS -> 
-          TfpApplyActionMiss (parse_fields tfpPayBits ActionTyp.parse ActionTyp.length_func)
+          TfpApplyActionMiss (parse_fields tfpPayBits ActionHdr.parse ActionHdr.length_func)
       | Some OFPTFPT_MATCH -> 
           let fields,_ = Oxm.parse_headers tfpPayBits in 
           TfpMatch fields
@@ -4203,9 +4207,9 @@ module TableFeatureProp = struct
       Format.sprintf "{ type = %s; len:%u }"
       (match tfp with
          | TfpInstruction i-> 
-            (Format.sprintf "Instructions [ %s ]" (String.concat "; " (map InstructionTyp.to_string i)))
+            (Format.sprintf "Instructions [ %s ]" (String.concat "; " (map InstructionHdr.to_string i)))
          | TfpInstructionMiss i-> 
-            (Format.sprintf "InstructionMiss [ %s ]" (String.concat "; " (map InstructionTyp.to_string i)))
+            (Format.sprintf "InstructionMiss [ %s ]" (String.concat "; " (map InstructionHdr.to_string i)))
          | TfpNextTable n-> 
             (Format.sprintf "NextTable [ %s ]" 
             (String.concat "; " (map string_of_int n)))
@@ -4214,16 +4218,16 @@ module TableFeatureProp = struct
             (String.concat "; " (map string_of_int n)))
          | TfpWriteAction a -> 
             (Format.sprintf "WriteAction [ %s ]"
-            (String.concat "; " (map ActionTyp.to_string a)))
+            (String.concat "; " (map ActionHdr.to_string a)))
          | TfpWriteActionMiss a -> 
             (Format.sprintf "WriteActionMiss [ %s ]"
-            (String.concat "; " (map ActionTyp.to_string a)))
+            (String.concat "; " (map ActionHdr.to_string a)))
          | TfpApplyAction a -> 
             (Format.sprintf "ApplyActions [ %s ]"
-            (String.concat "; " (map ActionTyp.to_string a)))
+            (String.concat "; " (map ActionHdr.to_string a)))
          | TfpApplyActionMiss a -> 
             (Format.sprintf "ApplyActionsMiss [ %s ]"
-            (String.concat "; " (map ActionTyp.to_string a)))
+            (String.concat "; " (map ActionHdr.to_string a)))
          | TfpMatch s -> 
             (Format.sprintf "Match [ %s ]"
             (String.concat "; " (map Oxm.field_name s)))
