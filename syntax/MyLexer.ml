@@ -121,6 +121,7 @@ let illegal c = error c "Illegal character in NetKAT expression"
 
 let rec token c = lexer
   | ">>" -> EOI
+  | eof -> EOI
   | newline -> next_line c; token c c.lexbuf
   | blank+ -> token c c.lexbuf
   | decbyte '.' decbyte '.' decbyte '.' decbyte -> IP4ADDR (L.latin1_lexeme c.lexbuf)
@@ -129,10 +130,10 @@ let rec token c = lexer
   | (hexnum | decnum) 'L' -> INT64 (L.latin1_lexeme c.lexbuf)
   | "$" ident ->
      ANTIQUOT( L.latin1_sub_lexeme c.lexbuf 1 (L.lexeme_length c.lexbuf - 1))
-  | [ "()!+;=*" ] | ":=" | "true" | "false" | "switch" | "port" | "vlan"
+  | [ "()!+;=*+" ] | ":=" | "true" | "false" | "switch" | "port" | "vlan"
     | "vlanPcp" | "ethType" | "ipProto" | "tcpSrcPort" | "tcpDstPort"
     | "ethSrc" | "ethDst" | "ip4Src"| "ip4Dst" | "&&" | "||"  | "id"
-    | "drop" | "if" | "then" | "else" ->
+    | "drop" | "if" | "then" | "else" | "filter" ->
       KEYWORD (L.latin1_lexeme c.lexbuf)
   | _ -> illegal c
 

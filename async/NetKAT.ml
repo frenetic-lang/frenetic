@@ -5,6 +5,8 @@ module Std = struct
 
   type policy = NetKAT_Types.policy
   type pred = NetKAT_Types.pred
+  type packet = Packet.packet
+  type dlAddr = Packet.dlAddr
 
   let run_static (pol : policy) : never_returns =
     Async_NetKAT_Controller.start (Async_NetKAT.create_static pol) ();
