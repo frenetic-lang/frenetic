@@ -107,7 +107,7 @@ module Controller = struct
         | None       -> assert false
         | Some(conn) -> Some(Conn.complete_handshake conn version))
 
-    let activity (t:t) ?ver (c_id:Client_id.t) =
+    let activity (t:t) (c_id:Client_id.t) =
       ClientTbl.change t.clients c_id (function
         | None       -> assert false
         | Some(conn) -> Some(Conn.activity conn))
