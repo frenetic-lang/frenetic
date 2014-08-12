@@ -100,8 +100,8 @@ let create_async ?pipes (policy : policy) (handler : async_handler) : app =
         | None    -> Pipe.write send.update EventNoop
         | Some(p) -> Pipe.write send.update (Event p))
 
-let create_static (pol : policy) : app =
-  create pol (fun _ _ () _ -> return None)
+let create_static (policy : policy) : app =
+  Raw_app.create_static policy
 
 let create_from_string (str : string) : app =
   let pol = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string str) in
@@ -134,9 +134,9 @@ let seq (app1 : app) (app2 : app) : app =
   Raw_app.combine ~how:`Sequential (fun x y -> Seq(x, y)) app1 app2
 
 let guard (pred : pred) (app : app) : app =
-  Raw_app.guard pred app
+  seq (create_static (Filter pred)) app
 
 let slice (pred : pred) (app1 : app) (app2 : app) : app =
   union ~how:`Parallel
-    (Raw_app.guard pred       app1)
-    (Raw_app.guard (Neg pred) app2)
+    (guard pred       app1)
+    (guard (Neg pred) app2)
