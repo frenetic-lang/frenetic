@@ -259,6 +259,7 @@ module Controller = struct
     let open Header in
     match evt with
       | `Message (c_id, (hdr, bytes)) ->
+        Handler.activity t c_id;
         begin if hdr.Header.type_code = type_code_echo_request then
           (* Echo requests get a reply *)
           let hdr = { hdr with type_code = type_code_echo_reply } in
@@ -271,11 +272,10 @@ module Controller = struct
            * the controller.
            * *)
           >>| (function _ -> [])
-        else if hdr.Header.type_code = type_code_echo_reply then begin
-          (* Echo replies get eaten, after recording activity. *)
-          Handler.activity t c_id;
+        else if hdr.Header.type_code = type_code_echo_reply then
+          (* Echo replies get eaten. The activity has been recorded above. *)
           return []
-        end else
+        else
           (* All other messages get forwarded *)
           return [evt]
         end
