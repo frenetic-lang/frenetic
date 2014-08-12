@@ -271,10 +271,11 @@ module Controller = struct
            * the controller.
            * *)
           >>| (function _ -> [])
-        else if hdr.Header.type_code = type_code_echo_reply then
-          (* Echo replies get eaten *)
+        else if hdr.Header.type_code = type_code_echo_reply then begin
+          (* Echo replies get eaten, after recording activity. *)
+          Handler.activity t c_id;
           return []
-        else
+        end else
           (* All other messages get forwarded *)
           return [evt]
         end
