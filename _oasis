@@ -63,8 +63,7 @@ Library async
     sexplib.syntax
   InternalModules:
     Discovery,
-    Learning,
-    Async_NetKAT_Nat
+    Learning
   Modules:
     Async_NetKAT,
     Async_NetKAT_Controller

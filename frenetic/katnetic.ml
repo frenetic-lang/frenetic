@@ -3,12 +3,12 @@ module Run = struct
   open Async.Std
 
 
-  let main create learn filename =
+  let main learn filename =
     let open NetKAT_LocalCompiler in
     let main () =
       let static = Async_NetKAT.create_from_file filename in
       let app = if learn
-        then Async_NetKAT.union static (create ())
+        then Async_NetKAT.union static (Learning.create ())
         else static
       in
       Async_NetKAT_Controller.start app () in
@@ -94,7 +94,7 @@ let run_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
     Arg.(value & flag & info ["learn"] ~doc)
   in
   let doc = "start a controller that will serve the static policy" in
-  Term.(pure (Run.main (fun () -> Async_NetKAT_Nat.create (Packet.ip_of_string "10.0.0.1") 1l 2l)) $ learn $ (policy 0)),
+  Term.(pure Run.main $ learn $ (policy 0)),
   Term.info "run" ~doc
 
 let dump_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =

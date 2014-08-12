@@ -128,7 +128,7 @@ let create public_ip private_phys_port public_phys_port =
     | PacketIn(_, switch_id, port_id, payload, _) ->
       let packet = Packet.parse (SDN_Types.payload_bytes payload) in
       let pol = handle_outgoing_packet packet in
-      let action = SDN_Types.Output(Physical(public_phys_port)) in
+      let action = SDN_Types.(Output(Physical(public_phys_port))) in
       Pipe.write w (switch_id, (payload, Some(port_id), [action])) >>= fun _ ->
       return pol 
     | _ -> 
