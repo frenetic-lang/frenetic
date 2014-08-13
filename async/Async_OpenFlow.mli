@@ -150,12 +150,19 @@ module Chunk : sig
       | `Message of Client_id.t * m
     ]
 
+    val send_txn
+      :  t
+      -> Client_id.t
+      -> m
+      -> [ `Sent of Message.t Ivar.t | `Drop of exn ] Deferred.t
+
     val set_monitor_interval : t -> Time.Span.t -> unit
     val set_idle_wait : t -> Time.Span.t -> unit
     val set_kill_wait : t -> Time.Span.t -> unit
 
     val echo : (t, e, e) Stage.t
     val handshake : int -> (t, e, h) Stage.t
+    val txn : (t, h, h) Stage.t
   end
 
 end

@@ -35,13 +35,19 @@ module Controller = struct
     include Hashable.Make(T)
   end
 
+  module Xid = Int32
+  module XidTbl = Hashtbl.Make(Int32)
 
   exception Handshake of Client_id.t * string
+  exception Duplicate_xid of Xid.t
 
   module Conn = struct
+    type r = [ `Disconnect of Sexp.t | `Result of Message.t ]
+
     type t = {
       state : [ `Active | `Idle | `Kill ];
       version : int option;
+      txns : r Ivar.t XidTbl.t;
       state_entered : Time.t;
       last_activity : Time.t
     }
@@ -50,9 +56,39 @@ module Controller = struct
       let now = Time.now () in
       { state = `Active
       ; version = None
+      ; txns = XidTbl.create ()
       ; state_entered = now
       ; last_activity = now
       }
+
+    let add_txn (t:t) m =
+      let xid = (Message.header_of m).OpenFlow_Header.xid in
+      let ivar = ref None in
+      if not (xid = 0l) then
+        XidTbl.change t.txns xid (function
+          | None    -> let ivar = ref (Some(Ivar.create ())) in !ivar
+          | Some(_) -> None);
+      match !ivar with
+      | Some(ivar) -> ivar
+      | None       -> raise (Duplicate_xid xid)
+
+    let remove_txn (t:t) m =
+      let xid = (Message.header_of m).OpenFlow_Header.xid in
+      XidTbl.remove t.txns xid
+
+    let match_txn (t:t) m =
+      let xid = (Message.header_of m).OpenFlow_Header.xid in
+      match xid, XidTbl.find_and_remove t.txns xid with
+      | 0l, _
+      | _ , None ->
+        `Unmatched
+      | _, Some(ivar) ->
+        Ivar.fill ivar (`Result m);
+        `Matched
+
+    let clear_txns (t:t) exn_ =
+      XidTbl.iter_vals t.txns ~f:(fun ivar -> Ivar.fill ivar (`Disconnect exn_));
+      XidTbl.clear t.txns
 
     let activity (t:t) : t =
       let t = { t with last_activity = Time.now () } in
@@ -211,6 +247,16 @@ module Controller = struct
       | `Sent x -> Handler.activity t c_id; `Sent x
       | `Drop x -> `Drop x
 
+  let send_txn t c_id m =
+    let conn = Client_id.Table.find_exn t.clients c_id in
+    let ivar = Conn.add_txn conn m in
+    send t c_id m
+    >>| function
+      | `Sent _   -> `Sent ivar
+      | `Drop exn ->
+        Conn.remove_txn conn m;
+        `Drop exn
+
   let send_ignore_errors t = Platform.send_ignore_errors t.platform
 
   let send_to_all t = Platform.send_to_all t.platform
@@ -288,4 +334,19 @@ module Controller = struct
           return [evt]
         end
       | _ -> return [evt]
+
+  let txn t evt =
+    match evt with
+      | `Message (c_id, msg) ->
+        let conn = Client_id.Table.find_exn t.clients c_id in
+        begin match Conn.match_txn conn msg with
+        | `Matched   -> return []
+        | `Unmatched -> return [evt]
+        end
+      | `Disconnect(c_id, exn_) ->
+        let conn = Client_id.Table.find_exn t.clients c_id in
+        Conn.clear_txns conn exn_;
+        return [evt]
+      | _ ->
+        return [evt]
 end
