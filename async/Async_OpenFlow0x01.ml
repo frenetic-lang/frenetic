@@ -76,6 +76,10 @@ module Controller = struct
     let c_id = client_id_of_switch_exn t sw_id in
     ChunkController.send t.sub c_id (Message.marshal' msg)
 
+  let send_txn t sw_id msg =
+    let c_id = client_id_of_switch_exn t sw_id in
+    ChunkController.send_txn t.sub c_id (Message.marshal' msg)
+
   let send_ignore_errors t sw_id msg =
     let c_id = client_id_of_switch_exn t sw_id in
     ChunkController.send_ignore_errors t.sub c_id (Message.marshal' msg)
@@ -173,7 +177,7 @@ module Controller = struct
     let open ChunkController in
     let stages =
       (local (fun t -> t.sub)
-        (echo >=> handshake 0x01))
+        (echo >=> txn >=> handshake 0x01))
       >=> openflow0x01
       >=> features
     in

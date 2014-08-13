@@ -178,6 +178,12 @@ module OpenFlow0x01 : sig
        and type c = OpenFlow0x01.SwitchFeatures.t
        and type Client_id.t = SDN_Types.switchId
 
+    val send_txn
+      :  t
+      -> Client_id.t
+      -> m
+      -> [ `Sent of Message.t Ivar.t | `Drop of exn ] Deferred.t
+
     val set_monitor_interval : t -> Time.Span.t -> unit
     val set_idle_wait : t -> Time.Span.t -> unit
     val set_kill_wait : t -> Time.Span.t -> unit
