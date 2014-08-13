@@ -71,7 +71,7 @@ module Controller = struct
     let open ChunkController in
     let stages =
       (local (fun t -> t.sub)
-        (handshake 0x04 >=> echo))
+        (echo >=> handshake 0x04))
       >=> openflow0x04 in
     run stages t (listen t.sub)
 
