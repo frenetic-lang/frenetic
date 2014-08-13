@@ -45,9 +45,11 @@ module Controller = struct
   module ClientSet = ChunkController.Client_id.Hash_set
   module SwitchMap = Client_id.Table
 
+  module OF0x04 = OpenFlow0x04
+
   type state
     = Initialized
-    | AwaitingPorts of OpenFlow0x04.SwitchFeatures.t
+    | AwaitingPorts of OF0x04.SwitchFeatures.t * C.xid option * C.portDesc list
 
   type m = Message.t
   type c = OpenFlow0x04.SwitchFeatures.t * (C.portDesc list)
@@ -141,7 +143,7 @@ module Controller = struct
     | `Message (c_id, (xid, msg)) when ClientMap.mem t.shakes c_id ->
       begin match ClientMap.find_exn t.shakes c_id, msg with
       | Initialized, M.FeaturesReply fs ->
-        ClientMap.replace t.shakes c_id (AwaitingPorts fs);
+        ClientMap.replace t.shakes c_id (AwaitingPorts(fs, None, []));
         let req = (0l, M.MultipartReq C.portDescReq) in
         ChunkController.send t.sub c_id (Message.marshal' req)
         (* XXX(seliopou): This swallows any errors that might have occurred
@@ -152,14 +154,24 @@ module Controller = struct
          * the controller.
          * *)
         >>| (function _ -> [])
-      | AwaitingPorts fs, M.MultipartReply { C.mpreply_typ = C.PortsDescReply ports } ->
-        (* XXX(seliopou): this does not respect the OFPMPF_REPLY_MORE flag. If
-         * more reply messages are waiting, they'll be discarded. *)
-        let sw_id = fs.OpenFlow0x04.SwitchFeatures.datapath_id in
-        ClientMap.add_exn t.c2s c_id sw_id;
-        SwitchMap.add_exn t.s2c sw_id c_id;
-        ClientMap.remove t.shakes c_id;
-        return [`Connect(sw_id, (fs, ports))]
+      | AwaitingPorts(fs, m_xid, ps), M.MultipartReply {
+          C.mpreply_typ = C.PortsDescReply pds;
+          C.mpreply_flags = more } ->
+        let m_xid', ps' = match m_xid with
+          | Some(xid') -> m_xid, if xid = xid' then pds @ ps else ps
+          | None       -> Some(xid), pds @ ps
+        in
+        if more then begin
+          let state' = AwaitingPorts(fs, m_xid', ps') in
+          ClientMap.replace t.shakes c_id state';
+          return []
+        end else begin
+          let sw_id = fs.OpenFlow0x04.SwitchFeatures.datapath_id in
+          ClientMap.add_exn t.c2s c_id sw_id;
+          SwitchMap.add_exn t.s2c sw_id c_id;
+          ClientMap.remove t.shakes c_id;
+          return [`Connect(sw_id, (fs, ps'))]
+        end
       | _, _ ->
         Log.of_lazy ~tags ~level:`Debug (lazy
           (Printf.sprintf "Dropped message during handshake: %s"
