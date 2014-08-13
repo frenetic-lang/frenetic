@@ -3,6 +3,7 @@ open Core.Std
 module Platform = Async_OpenFlow_Platform
 module Header = OpenFlow_Header
 module M = OpenFlow0x04.Message
+module C = OpenFlow0x04_Core
 
 module Message : Platform.Message with type t = (Header.xid * M.t) = struct
 
@@ -26,16 +27,36 @@ include Async_OpenFlow_Message.MakeSerializers (Message)
 module Controller = struct
   open Async.Std
 
+  module Log = Async_OpenFlow_Log
+  let tags = [("openflow", "openflow0x04")]
+
   module ChunkController = Async_OpenFlowChunk.Controller
-  module Client_id = ChunkController.Client_id
+  module Client_id = struct
+    module T = struct
+      type t = SDN_Types.switchId with sexp
+      let compare = compare
+      let hash = Hashtbl.hash
+    end
+    include T
+    include Hashable.Make(T)
+  end
 
-  module SwitchTable = Map.Make(Client_id)
+  module ClientMap = ChunkController.Client_id.Table
+  module ClientSet = ChunkController.Client_id.Hash_set
+  module SwitchMap = Client_id.Table
 
-  type c = unit
+  type state
+    = Initialized
+    | AwaitingPorts of OpenFlow0x04.SwitchFeatures.t
+
   type m = Message.t
-  type t = {
-    sub : ChunkController.t;
-  }
+  type c = OpenFlow0x04.SwitchFeatures.t * (C.portDesc list)
+  type t =
+    { sub : ChunkController.t
+    ; shakes : state ClientMap.t
+    ; c2s : SDN_Types.switchId ClientMap.t
+    ; s2c : ChunkController.Client_id.t SwitchMap.t
+    }
 
   type e = (Client_id.t, c, m) Platform.event
 
@@ -61,7 +82,103 @@ module Controller = struct
       ?monitor_connections ~port () =
     ChunkController.create ?max_pending_connections ?verbose ?log_disconnects
       ?buffer_age_limit ?monitor_connections ~port ()
-    >>| function t -> { sub = t }
+    >>| function t ->
+        { sub = t
+        ; shakes = ClientMap.create ()
+        ; c2s = ClientMap.create ()
+        ; s2c = SwitchMap.create ()
+        }
+
+  (* XXX(seliopou): Raises `Not_found` if the client is no longer connected. *)
+  let switch_id_of_client_exn t c_id = ClientMap.find_exn t.c2s c_id
+  let client_id_of_switch_exn t sw_id = SwitchMap.find_exn t.s2c sw_id
+
+  let switch_id_of_client t c_id = ClientMap.find t.c2s c_id
+  let client_id_of_switch t sw_id = SwitchMap.find t.s2c sw_id
+
+  let close t sw_id =
+    let c_id = client_id_of_switch_exn t sw_id in
+    ChunkController.close t.sub c_id
+
+  let has_client_id t sw_id =
+    let c_id = client_id_of_switch_exn t sw_id in
+    ChunkController.has_client_id t.sub c_id
+
+  let send t sw_id msg =
+    let c_id = client_id_of_switch_exn t sw_id in
+    ChunkController.send t.sub c_id (Message.marshal' msg)
+
+  let send_ignore_errors t sw_id msg =
+    let c_id = client_id_of_switch_exn t sw_id in
+    ChunkController.send_ignore_errors t.sub c_id (Message.marshal' msg)
+
+  let send_to_all t msg = ChunkController.send_to_all t.sub (Message.marshal' msg)
+
+  let client_addr_port t sw_id =
+    let c_id = client_id_of_switch_exn t sw_id in
+    ChunkController.client_addr_port t.sub c_id
+
+  let listening_port t =
+    ChunkController.listening_port t.sub
+
+  let features t evt =
+    match evt with
+    | `Connect(c_id, ()) ->
+      begin match ClientMap.add t.shakes c_id Initialized with
+      | `Duplicate -> assert false
+      | `Ok -> ()
+      end;
+      let req = (0l, M.FeaturesRequest) in
+      ChunkController.send t.sub c_id (Message.marshal' req)
+      (* XXX(seliopou): This swallows any errors that might have occurred
+       * while attemping the handshake. Any such error should not be raised,
+       * since as far as the user is concerned the connection never existed.
+       * At the very least, the exception should be logged, which it will be
+       * as long as the log_disconnects option is not disabled when creating
+       * the controller.
+       * *)
+      >>| (function _ -> [])
+    | `Message (c_id, (xid, msg)) when ClientMap.mem t.shakes c_id ->
+      begin match ClientMap.find_exn t.shakes c_id, msg with
+      | Initialized, M.FeaturesReply fs ->
+        ClientMap.replace t.shakes c_id (AwaitingPorts fs);
+        let req = (0l, M.MultipartReq C.portDescReq) in
+        ChunkController.send t.sub c_id (Message.marshal' req)
+        (* XXX(seliopou): This swallows any errors that might have occurred
+         * while attemping the handshake. Any such error should not be raised,
+         * since as far as the user is concerned the connection never existed.
+         * At the very least, the exception should be logged, which it will be
+         * as long as the log_disconnects option is not disabled when creating
+         * the controller.
+         * *)
+        >>| (function _ -> [])
+      | AwaitingPorts fs, M.MultipartReply { C.mpreply_typ = C.PortsDescReply ports } ->
+        (* XXX(seliopou): this does not respect the OFPMPF_REPLY_MORE flag. If
+         * more reply messages are waiting, they'll be discarded. *)
+        let sw_id = fs.OpenFlow0x04.SwitchFeatures.datapath_id in
+        ClientMap.add_exn t.c2s c_id sw_id;
+        SwitchMap.add_exn t.s2c sw_id c_id;
+        ClientMap.remove t.shakes c_id;
+        return [`Connect(sw_id, (fs, ports))]
+      | _, _ ->
+        Log.of_lazy ~tags ~level:`Debug (lazy
+          (Printf.sprintf "Dropped message during handshake: %s"
+            (Message.to_string (xid, msg))));
+        return []
+      end
+    | `Message (c_id, msg) ->
+      return [`Message(switch_id_of_client_exn t c_id, msg)]
+    | `Disconnect(c_id, exn) ->
+      match switch_id_of_client t c_id with
+        | None -> (* features request did not complete *)
+          begin match ClientMap.find_and_remove t.shakes c_id with
+          | None   -> return []
+          | Some _ -> assert false
+          end
+        | Some(sw_id) -> (* features request did complete *)
+          ClientMap.remove t.c2s c_id;
+          SwitchMap.remove t.s2c sw_id;
+          return [`Disconnect(sw_id, exn)]
 
   let listen t =
     let open Async_OpenFlow_Stage in
@@ -69,14 +186,10 @@ module Controller = struct
     let stages =
       (local (fun t -> t.sub)
         (echo >=> handshake 0x04))
-      >=> openflow0x04 in
+      >=> openflow0x04
+      >=> features
+    in
     run stages t (listen t.sub)
 
-  let close t = ChunkController.close t.sub
-  let has_client_id t = ChunkController.has_client_id t.sub
-  let send t s_id msg = ChunkController.send t.sub s_id (Message.marshal' msg)
-  let send_ignore_errors t s_id msg = ChunkController.send_ignore_errors t.sub s_id (Message.marshal' msg)
-  let send_to_all t msg = ChunkController.send_to_all t.sub (Message.marshal' msg)
-  let client_addr_port t = ChunkController.client_addr_port t.sub
-  let listening_port t = ChunkController.listening_port t.sub
+
 end

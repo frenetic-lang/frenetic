@@ -93,7 +93,7 @@ let switch
           po_actions = [ Output(out) ] }) in
 
   begin match evt with
-    | `Connect (sw_id, ()) ->
+    | `Connect (sw_id, _) ->
       OF0x04Controller.send ctl sw_id
         (0l, FlowModMsg (add_flow 1 
             ([])
