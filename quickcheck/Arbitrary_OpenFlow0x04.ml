@@ -770,15 +770,47 @@ module MultipartReq = struct
     module TableFeatureProp = struct
       
       type t = TableFeatureProp.t
-      
+
+      let arbitrary_ins =
+        oneof [
+          ret_gen GotoTableHdr;
+          ret_gen ApplyActionsHdr;
+          ret_gen WriteActionsHdr;
+          ret_gen WriteMetadataHdr;
+          ret_gen ClearHdr;
+          ret_gen MeterHdr;
+          arbitrary_uint32 >>= (fun n -> ret_gen (ExperimenterHdr n))
+        ]
+
+      let arbitrary_act = 
+        oneof [
+          ret_gen OutputHdr;
+          ret_gen GroupHdr;
+          ret_gen PopVlanHdr;
+          ret_gen PushVlanHdr;
+          ret_gen PopMplsHdr;
+          ret_gen PushMplsHdr;
+          ret_gen SetFieldHdr;
+          ret_gen CopyTtlOutHdr;
+          ret_gen CopyTtlInHdr;
+          ret_gen SetNwTtlHdr;
+          ret_gen DecNwTtlHdr;
+          ret_gen PushPbbHdr;
+          ret_gen PopPbbHdr;
+          ret_gen SetMplsTtlHdr;
+          ret_gen DecMplsTtlHdr;
+          ret_gen SetQueueHdr;
+          arbitrary_uint32 >>= (fun n -> ret_gen (ExperimenterAHdr n))
+        ]
+
       let arbitrary = 
         oneof [
-          Instructions.arbitrary >>= (fun n -> ret_gen (TfpInstruction n));
-          Instructions.arbitrary >>= (fun n -> ret_gen (TfpInstructionMiss n));
-          arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpWriteAction n));
-          arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpWriteActionMiss n));
-          arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpApplyAction n));
-          arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpApplyActionMiss n));
+          list1 arbitrary_ins >>= (fun n -> ret_gen (TfpInstruction n));
+          list1 arbitrary_ins >>= (fun n -> ret_gen (TfpInstructionMiss n));
+          arbitrary_list arbitrary_act >>= (fun n -> ret_gen (TfpWriteAction n));
+          arbitrary_list arbitrary_act >>= (fun n -> ret_gen (TfpWriteActionMiss n));
+          arbitrary_list arbitrary_act >>= (fun n -> ret_gen (TfpApplyAction n));
+          arbitrary_list arbitrary_act >>= (fun n -> ret_gen (TfpApplyActionMiss n));
           arbitrary_list OfpMatch.OxmHeader.arbitrary >>= (fun n -> ret_gen (TfpMatch n));
           arbitrary_list OfpMatch.OxmHeader.arbitrary >>= (fun n -> ret_gen (TfpWildcard n));
           arbitrary_list OfpMatch.OxmHeader.arbitrary >>= (fun n -> ret_gen (TfpWriteSetField n));
@@ -801,7 +833,7 @@ module MultipartReq = struct
 
       let calc_length tfp =
         (* sizeof_ofp_table_feature = 64*)
-        ret_gen (64+(TableFeatureProp.size_of tfp))
+        ret_gen (64+sum (List.map TableFeatureProp.size_of tfp))
 
       let arbitrary = 
         arbitrary_uint8 >>= fun table_id ->
@@ -810,7 +842,7 @@ module MultipartReq = struct
         arbitrary_uint64 >>= fun metadata_write ->
         arbitrary_config >>= fun config ->
         arbitrary_uint32 >>= fun max_entries ->
-        TableFeatureProp.arbitrary >>= fun feature_prop ->
+        list1 TableFeatureProp.arbitrary >>= fun feature_prop ->
         calc_length feature_prop>>= fun length ->
         ret_gen {
           length;

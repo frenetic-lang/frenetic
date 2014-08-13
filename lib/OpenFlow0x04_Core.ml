@@ -257,24 +257,24 @@ type pseudoPort =
   | Local
   | Any
 
-type actionTyp = 
- | Output
- | CopyTTLOut
- | CopyTTLIn
- | SetMPLSTTL
- | DecMPLSTTL
- | PushVLAN
- | PopVLAN
- | PushMPLS
- | PopMPLS
- | SetQueue
- | Group
- | SetNWTTL
- | DecNWTTL
- | SetField
- | PushPBB
- | PopPBB
- | Experimenter
+type actionHdr = 
+  | OutputHdr
+  | GroupHdr
+  | PopVlanHdr
+  | PushVlanHdr
+  | PopMplsHdr
+  | PushMplsHdr
+  | SetFieldHdr
+  | CopyTtlOutHdr
+  | CopyTtlInHdr
+  | SetNwTtlHdr
+  | DecNwTtlHdr
+  | PushPbbHdr
+  | PopPbbHdr
+  | SetMplsTtlHdr
+  | DecMplsTtlHdr
+  | SetQueueHdr
+  | ExperimenterAHdr of int32
   
 type action =
 | Output of pseudoPort
@@ -296,6 +296,15 @@ type action =
 | Experimenter of int32
 
 type actionSequence = action list
+
+type instructionHdr = 
+ | GotoTableHdr
+ | ApplyActionsHdr
+ | WriteActionsHdr
+ | WriteMetadataHdr
+ | ClearHdr
+ | MeterHdr
+ | ExperimenterHdr of int32
 
 type instruction =
 | GotoTable of tableId
@@ -486,14 +495,14 @@ type queueRequest = {port_number : portId; queue_id : int32}
 type experimenter = {exp_id : int32; exp_type : int32}
 
 type tableFeatureProp =
-  | TfpInstruction of instruction list 
-  | TfpInstructionMiss of instruction list
+  | TfpInstruction of instructionHdr list 
+  | TfpInstructionMiss of instructionHdr list
   | TfpNextTable of tableId list
   | TfpNextTableMiss of tableId list
-  | TfpWriteAction of action list
-  | TfpWriteActionMiss of action list
-  | TfpApplyAction of action list
-  | TfpApplyActionMiss of action list
+  | TfpWriteAction of actionHdr list
+  | TfpWriteActionMiss of actionHdr list
+  | TfpApplyAction of actionHdr list
+  | TfpApplyActionMiss of actionHdr list
   | TfpMatch of oxm list
   | TfpWildcard of oxm list
   | TfpWriteSetField of oxm list
@@ -508,7 +517,7 @@ type tableConfig = Deprecated
 type tableFeatures = {length : int16;table_id : tableId; name : string;
                       metadata_match : int64; metadata_write : int64;
                       config : tableConfig; max_entries: int32;
-                      feature_prop : tableFeatureProp}
+                      feature_prop : tableFeatureProp list}
 
 type multipartType =
   | SwitchDescReq
