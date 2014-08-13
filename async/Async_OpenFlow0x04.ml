@@ -77,6 +77,13 @@ module Controller = struct
         end
       | `Disconnect e -> return [`Disconnect e]
 
+  let create_from_chunk t =
+    { sub = t
+    ; shakes = ClientMap.create ()
+    ; c2s = ClientMap.create ()
+    ; s2c = SwitchMap.create ()
+    }
+
   let create ?max_pending_connections
       ?verbose
       ?log_disconnects
@@ -84,12 +91,7 @@ module Controller = struct
       ?monitor_connections ~port () =
     ChunkController.create ?max_pending_connections ?verbose ?log_disconnects
       ?buffer_age_limit ?monitor_connections ~port ()
-    >>| function t ->
-        { sub = t
-        ; shakes = ClientMap.create ()
-        ; c2s = ClientMap.create ()
-        ; s2c = SwitchMap.create ()
-        }
+    >>| create_from_chunk
 
   (* XXX(seliopou): Raises `Not_found` if the client is no longer connected. *)
   let switch_id_of_client_exn t c_id = ClientMap.find_exn t.c2s c_id
@@ -196,15 +198,18 @@ module Controller = struct
           SwitchMap.remove t.s2c sw_id;
           return [`Disconnect(sw_id, exn)]
 
+  let listen_pipe t p =
+    let open Async_OpenFlow_Stage in
+    run (openflow0x04 >=> features) t p
+
   let listen t =
     let open Async_OpenFlow_Stage in
     let open ChunkController in
     let stages =
-      (local (fun t -> t.sub)
-        (echo >=> txn >=> handshake 0x04))
-      >=> openflow0x04
-      >=> features in
-    run stages t (listen t.sub)
+      local (fun t -> t.sub)
+        (echo >=> txn >=> handshake 0x04 >=> txn)
+    in
+    listen_pipe t (run stages t (listen t.sub))
 
 
 end

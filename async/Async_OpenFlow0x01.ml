@@ -102,6 +102,13 @@ module Controller = struct
   let set_kill_wait (t:t) (s:Time.Span.t) : unit =
     ChunkController.set_kill_wait t.sub s
 
+  let create_from_chunk t =
+    { sub = t
+    ; shakes = ClientSet.create ()
+    ; c2s = ClientMap.create ()
+    ; s2c = SwitchMap.create ()
+    }
+
   let create ?max_pending_connections
       ?verbose
       ?log_disconnects
@@ -109,12 +116,7 @@ module Controller = struct
       ?monitor_connections ~port () =
     ChunkController.create ?max_pending_connections ?verbose ?log_disconnects
       ?buffer_age_limit ?monitor_connections ~port ()
-    >>| function t ->
-        { sub = t
-        ; shakes = ClientSet.create ()
-        ; c2s = ClientMap.create ()
-        ; s2c = SwitchMap.create ()
-        }
+    >>| create_from_chunk
 
   let openflow0x01 t evt =
     match evt with
@@ -172,14 +174,16 @@ module Controller = struct
             SwitchMap.remove t.s2c sw_id;
             return [`Disconnect(sw_id, exn)]
 
+  let listen_pipe t p =
+    let open Async_OpenFlow_Stage in
+    run (openflow0x01 >=> features) t p
+
   let listen t =
     let open Async_OpenFlow_Stage in
     let open ChunkController in
     let stages =
-      (local (fun t -> t.sub)
-        (echo >=> txn >=> handshake 0x01))
-      >=> openflow0x01
-      >=> features
+      local (fun t -> t.sub)
+        (echo >=> handshake 0x01 >=> txn)
     in
-    run stages t (listen t.sub)
+    listen_pipe t (run stages t (listen t.sub))
 end
