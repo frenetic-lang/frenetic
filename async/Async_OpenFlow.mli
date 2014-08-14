@@ -196,10 +196,18 @@ module OpenFlow0x04 : sig
   module Message : Message
     with type t = (OpenFlow_Header.xid * OpenFlow0x04.Message.t)
 
-  module Controller : Platform.S
-    with type m = Message.t
-     and type c = OpenFlow0x04.SwitchFeatures.t * (OpenFlow0x04_Core.portDesc list)
-     and type Client_id.t = SDN_Types.switchId
+  module Controller : sig
+    include Platform.S
+      with type m = Message.t
+       and type c = OpenFlow0x04.SwitchFeatures.t * (OpenFlow0x04_Core.portDesc list)
+       and type Client_id.t = SDN_Types.switchId
+
+    val send_txn
+      :  t
+      -> Client_id.t
+      -> m
+      -> [ `Sent of Message.t Ivar.t | `Drop of exn ] Deferred.t
+  end
 
 end
 
