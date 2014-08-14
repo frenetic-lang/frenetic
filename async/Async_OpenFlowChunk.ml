@@ -33,7 +33,7 @@ module Controller = struct
 
   module Conn = struct
     type t = {
-      state : [ `Handshake | `Active | `Idle | `Kill ];
+      state : [ `Active | `Idle | `Kill ];
       version : int option;
       state_entered : Time.t;
       last_activity : Time.t
@@ -41,7 +41,7 @@ module Controller = struct
 
     let create () : t =
       let now = Time.now () in
-      { state = `Handshake
+      { state = `Active
       ; version = None
       ; state_entered = now
       ; last_activity = now
@@ -49,10 +49,10 @@ module Controller = struct
 
     let activity (t:t) : t =
       let t = { t with last_activity = Time.now () } in
-      if t.state = `Active then
-        t
-      else
+      if t.state = `Idle then
         { t with state = `Active; state_entered = t.last_activity }
+      else
+        t
 
     let complete_handshake (t:t) (version:int) : t =
       activity { t with version = Some(version) }
@@ -107,7 +107,7 @@ module Controller = struct
         | None       -> assert false
         | Some(conn) -> Some(Conn.complete_handshake conn version))
 
-    let activity (t:t) ?ver (c_id:Client_id.t) =
+    let activity (t:t) (c_id:Client_id.t) =
       ClientTbl.change t.clients c_id (function
         | None       -> assert false
         | Some(conn) -> Some(Conn.activity conn))
@@ -194,8 +194,8 @@ module Controller = struct
   let has_client_id t c_id =
     Platform.has_client_id t.platform c_id &&
       match ClientTbl.find t.clients c_id with
-        | Some(conn) -> not (conn.Conn.state = `Handshake)
-        | _          -> false
+        | Some({ Conn.version = Some(_) }) -> true
+        | _                                -> false
 
   let send t c_id m =
     Platform.send t.platform c_id m
@@ -228,7 +228,7 @@ module Controller = struct
       | `Message (c_id, msg) ->
         begin match ClientTbl.find t.clients c_id with
           | None -> assert false
-          | Some({ Conn.state = `Handshake }) ->
+          | Some({ Conn.version = None }) ->
             let hdr, bits = msg in
             begin
               if not (hdr.type_code = type_code_hello) then begin
@@ -247,7 +247,7 @@ module Controller = struct
       | `Disconnect (c_id, exn) ->
         begin match ClientTbl.find t.clients c_id with
           | None -> assert false
-          | Some({ Conn.state = `Handshake }) ->
+          | Some({ Conn.version = None }) ->
             ClientTbl.remove t.clients c_id;
             return []
           | Some(_) ->
@@ -259,6 +259,7 @@ module Controller = struct
     let open Header in
     match evt with
       | `Message (c_id, (hdr, bytes)) ->
+        Handler.activity t c_id;
         begin if hdr.Header.type_code = type_code_echo_request then
           (* Echo requests get a reply *)
           let hdr = { hdr with type_code = type_code_echo_reply } in
@@ -272,7 +273,7 @@ module Controller = struct
            * *)
           >>| (function _ -> [])
         else if hdr.Header.type_code = type_code_echo_reply then
-          (* Echo replies get eaten *)
+          (* Echo replies get eaten. The activity has been recorded above. *)
           return []
         else
           (* All other messages get forwarded *)
