@@ -1,4 +1,3 @@
-
 val to_payload : OpenFlow0x04_Core.payload -> SDN_Types.payload
 val from_payload : SDN_Types.payload -> OpenFlow0x04_Core.payload
 val to_reason : OpenFlow0x04_Core.packetInReason -> SDN_Types.packetInReason
@@ -9,9 +8,11 @@ val from_group : OpenFlow0x04_Core.portId option -> GroupTable0x04.t -> SDN_Type
 val from_timeout : SDN_Types.timeout -> OpenFlow0x04_Core.timeout
 val from_flow : GroupTable0x04.t -> int -> SDN_Types.flow -> OpenFlow0x04_Core.flowMod
 
-val fix_vlan_in_flow : SDN_Types.flow -> SDN_Types.flow list
-val fix_vlan_in_table : SDN_Types.flowTable -> SDN_Types.flowTable
-
 module Common : HighLevelSwitch_common.S
   with type of_action = OpenFlow0x04_Core.action
    and type of_portId = OpenFlow0x04_Core.portId
+
+(** These functions are exposed but should not be considered part of the public
+    API at this time. *)
+val fix_vlan_in_flow : SDN_Types.flow -> SDN_Types.flow list
+val fix_vlan_in_table : SDN_Types.flowTable -> SDN_Types.flowTable
