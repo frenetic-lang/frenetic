@@ -1883,26 +1883,24 @@ module AsyncConfig = struct
 
   type t = AsyncConfig.t
 
-  let arbitrary_FlowReason = 
-    oneof [ 
-      ret_gen FlowIdleTimeout;
-      ret_gen FlowHardTiemout;
-      ret_gen FlowDelete;
-      ret_gen FlowGroupDelete]
+  let arbitrary_packetInReasonMap = 
+    arbitrary_bool >>= fun table_miss ->
+    arbitrary_bool >>= fun apply_action ->
+    arbitrary_bool >>= fun invalid_ttl ->
+    ret_gen { table_miss; apply_action; invalid_ttl }
 
-  let arbitrary_PacketInReason =
-      oneof [
-          ret_gen NoMatch;
-          ret_gen ExplicitSend;
-          ret_gen InvalidTTL
-      ]
+  let arbitrary_portStatusReasonMap = 
+    arbitrary_bool >>= fun add ->
+    arbitrary_bool >>= fun delete ->
+    arbitrary_bool >>= fun modify ->
+    ret_gen { add; delete; modify }
 
-  let arbitrary_PortStatusReason =
-        oneof [
-            ret_gen PortAdd;
-            ret_gen PortDelete;
-            ret_gen PortModify
-        ]
+  let arbitrary_flowRemovedReasonMap =
+    arbitrary_bool >>= fun idle_timeout ->
+    arbitrary_bool >>= fun hard_timeout ->
+    arbitrary_bool >>= fun delete ->
+    arbitrary_bool >>= fun group_delete ->
+    ret_gen { idle_timeout; hard_timeout; delete; group_delete }
 
   let arbitrary_mask arb =
     arb >>= fun m_master ->
@@ -1910,9 +1908,9 @@ module AsyncConfig = struct
     ret_gen { m_master; m_slave }
 
   let arbitrary = 
-    arbitrary_mask arbitrary_PacketInReason >>= fun packet_in ->
-    arbitrary_mask arbitrary_PortStatusReason >>= fun port_status ->
-    arbitrary_mask arbitrary_FlowReason >>= fun flow_removed ->
+    arbitrary_mask arbitrary_packetInReasonMap >>= fun packet_in ->
+    arbitrary_mask arbitrary_portStatusReasonMap >>= fun port_status ->
+    arbitrary_mask arbitrary_flowRemovedReasonMap >>= fun flow_removed ->
     ret_gen { packet_in; port_status; flow_removed }
 
   let marshal = AsyncConfig.marshal

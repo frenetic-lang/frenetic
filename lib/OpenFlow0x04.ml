@@ -6636,6 +6636,75 @@ end
 
 module AsyncConfig = struct
 
+  module PacketIn = struct
+    type t = packetInReasonMap
+
+    let to_string (t : t) =
+      Format.sprintf "{ table_miss = %B; apply_action = %B; invalid_ttl = %B }"
+      t.table_miss
+      t.apply_action
+      t.invalid_ttl
+
+    let marshal (t : t) : int8 = 
+      (if t.table_miss then 1 lsl 0 else 0) lor
+        (if t.apply_action then 1 lsl 1 else 0) lor
+          (if t.invalid_ttl then 1 lsl 2 else 0)
+
+    let parse bits : t =
+        { table_miss = test_bit16 0 bits
+        ; apply_action = test_bit16 1 bits
+        ; invalid_ttl = test_bit16 2 bits}
+
+    end
+
+    module PortStatus = struct
+
+      type t = portReasonMap
+
+      let to_string (t : t) =
+        Format.sprintf "{ add  = %B; delete = %B; modify = %B }"
+        t.add
+        t.delete
+        t.modify
+
+      let marshal (t : t) : int8 =
+        (if t.add then 1 lsl 0 else 0) lor
+          (if t.delete then 1 lsl 1 else 0) lor
+            (if t.modify then 1 lsl 2 else 0)
+
+      let parse bits : t =
+        { add = test_bit16 0 bits
+        ; delete = test_bit16 1 bits
+        ; modify = test_bit16 2 bits }
+
+    end
+
+    module FlowRemoved = struct
+
+      type t = flowReasonMask
+
+      let to_string (t : t) = 
+        Format.sprintf "{ idle_timeout = %B; hard_timeout = %B; delete = %B; \
+                         group_delete = %B }"
+        t.idle_timeout
+        t.hard_timeout
+        t.delete
+        t.group_delete
+
+      let marshal (t : t) : int8 =
+        (if t.idle_timeout then 1 lsl 0 else 0) lor
+          (if t.hard_timeout then 1 lsl 1 else 0) lor
+            (if t.delete then 1 lsl 2 else 0) lor
+              (if t.group_delete then 1 lsl 3 else 0)
+
+      let parse bits : t =
+        { idle_timeout = test_bit16 0 bits
+        ; hard_timeout = test_bit16 1 bits
+        ; delete = test_bit16 2 bits
+        ; group_delete = test_bit16 3 bits }
+
+    end
+
   cstruct ofp_async_config {
     uint32_t packet_in_mask0;
     uint32_t packet_in_mask1;
@@ -6654,29 +6723,29 @@ module AsyncConfig = struct
     Format.sprintf "{ packet_in reason (master/slave) = %s/%s; \
     port_status reason (master/slave) = %s/%s; \
     flow_removed reason (master/slave) = %s/%s }"
-    (PacketIn.Reason.to_string async.packet_in.m_master)
-    (PacketIn.Reason.to_string async.packet_in.m_slave)
-    (PortStatus.Reason.to_string async.port_status.m_master)
-    (PortStatus.Reason.to_string async.port_status.m_slave)
-    (FlowRemoved.RemovedReason.to_string async.flow_removed.m_master)
-    (FlowRemoved.RemovedReason.to_string async.flow_removed.m_slave)
+    (PacketIn.to_string async.packet_in.m_master)
+    (PacketIn.to_string async.packet_in.m_slave)
+    (PortStatus.to_string async.port_status.m_master)
+    (PortStatus.to_string async.port_status.m_slave)
+    (FlowRemoved.to_string async.flow_removed.m_master)
+    (FlowRemoved.to_string async.flow_removed.m_slave)
 
   let marshal (buf : Cstruct.t) (async : asyncConfig) : int =
-    set_ofp_async_config_packet_in_mask0 buf (Int32.of_int (PacketIn.Reason.marshal async.packet_in.m_master));
-    set_ofp_async_config_packet_in_mask1 buf (Int32.of_int (PacketIn.Reason.marshal async.packet_in.m_slave));
-    set_ofp_async_config_port_status_mask0 buf (Int32.of_int (PortStatus.Reason.marshal async.port_status.m_master));
-    set_ofp_async_config_port_status_mask1 buf (Int32.of_int (PortStatus.Reason.marshal async.port_status.m_slave));
-    set_ofp_async_config_flow_removed_mask0 buf (Int32.of_int (FlowRemoved.RemovedReason.marshal async.flow_removed.m_master));
-    set_ofp_async_config_flow_removed_mask1 buf (Int32.of_int (FlowRemoved.RemovedReason.marshal async.flow_removed.m_slave));
+    set_ofp_async_config_packet_in_mask0 buf (Int32.of_int (PacketIn.marshal async.packet_in.m_master));
+    set_ofp_async_config_packet_in_mask1 buf (Int32.of_int (PacketIn.marshal async.packet_in.m_slave));
+    set_ofp_async_config_port_status_mask0 buf (Int32.of_int (PortStatus.marshal async.port_status.m_master));
+    set_ofp_async_config_port_status_mask1 buf (Int32.of_int (PortStatus.marshal async.port_status.m_slave));
+    set_ofp_async_config_flow_removed_mask0 buf (Int32.of_int (FlowRemoved.marshal async.flow_removed.m_master));
+    set_ofp_async_config_flow_removed_mask1 buf (Int32.of_int (FlowRemoved.marshal async.flow_removed.m_slave));
     sizeof_ofp_async_config
 
   let parse (bits : Cstruct.t) : asyncConfig = 
-    let packet_in = { m_master = PacketIn.Reason.parse (Int32.to_int (get_ofp_async_config_packet_in_mask0 bits));
-                      m_slave = PacketIn.Reason.parse (Int32.to_int (get_ofp_async_config_packet_in_mask1 bits))} in
-    let port_status = { m_master = PortStatus.Reason.parse (Int32.to_int (get_ofp_async_config_port_status_mask0 bits));
-                        m_slave = PortStatus.Reason.parse (Int32.to_int (get_ofp_async_config_port_status_mask1 bits))} in
-    let flow_removed = { m_master = FlowRemoved.RemovedReason.parse (Int32.to_int (get_ofp_async_config_flow_removed_mask0 bits));
-                         m_slave = FlowRemoved.RemovedReason.parse (Int32.to_int (get_ofp_async_config_flow_removed_mask1 bits))} in
+    let packet_in = { m_master = PacketIn.parse (Int32.to_int (get_ofp_async_config_packet_in_mask0 bits));
+                      m_slave = PacketIn.parse (Int32.to_int (get_ofp_async_config_packet_in_mask1 bits))} in
+    let port_status = { m_master = PortStatus.parse (Int32.to_int (get_ofp_async_config_port_status_mask0 bits));
+                        m_slave = PortStatus.parse (Int32.to_int (get_ofp_async_config_port_status_mask1 bits))} in
+    let flow_removed = { m_master = FlowRemoved.parse (Int32.to_int (get_ofp_async_config_flow_removed_mask0 bits));
+                         m_slave = FlowRemoved.parse (Int32.to_int (get_ofp_async_config_flow_removed_mask1 bits))} in
     { packet_in; port_status; flow_removed }
   
 end

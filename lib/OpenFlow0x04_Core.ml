@@ -655,7 +655,13 @@ type element =
 
 type helloElement = element list
 
-type asyncConfig = { packet_in : packetInReason asyncMask; 
-                     port_status : portReason asyncMask;
-                     flow_removed : flowReason asyncMask }
+type packetInReasonMap =  { table_miss : bool; apply_action : bool; invalid_ttl : bool }
 
+type portReasonMap =  { add : bool; delete : bool; modify : bool }
+
+type flowReasonMask = { idle_timeout : bool; hard_timeout : bool; delete : bool; 
+                        group_delete : bool}
+
+type asyncConfig = { packet_in : packetInReasonMap asyncMask; 
+                     port_status : portReasonMap asyncMask;
+                     flow_removed : flowReasonMask asyncMask }
