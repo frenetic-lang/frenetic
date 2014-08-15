@@ -230,6 +230,7 @@ module Instruction : sig
   val sizeof : t -> int
 
   val marshal : Cstruct.t -> t -> int
+
   val parse : Cstruct.t ->  t
 
   val to_string : t -> string
@@ -243,6 +244,7 @@ module Instructions : sig
   val sizeof : t -> int
 
   val marshal : Cstruct.t -> t -> int
+
   val parse : Cstruct.t -> t
 
   val to_string : t -> string
@@ -292,6 +294,8 @@ end
 
 module PortState : sig
 
+  type t = portState
+
   val marshal : portState -> int32
 
   val parse : int32 -> portState
@@ -302,24 +306,29 @@ end
 
 module PortDesc : sig
 
-  val sizeof : portDesc -> int
+  type t = portDesc
 
-  val marshal : Cstruct.t -> portDesc -> int
+  val sizeof : t -> int
 
-  val parse : Cstruct.t -> portDesc
+  val marshal : Cstruct.t -> t -> int
 
-  val to_string : portDesc -> string
+  val parse : Cstruct.t -> t
+
+  val to_string : t -> string
+
 end
 
 module PortStatus : sig
 
-  val sizeof : portStatus -> int
+  type t = portStatus
 
-  val marshal : Cstruct.t ->  portStatus -> int
+  val sizeof : t -> int
 
-  val parse : Cstruct.t -> portStatus
+  val marshal : Cstruct.t ->  t -> int
 
-  val to_string : portStatus -> string
+  val parse : Cstruct.t -> t
+
+  val to_string : t -> string
 
 end
 
@@ -342,9 +351,11 @@ module PacketOut : sig
   type t = packetOut
 
   val sizeof : t -> int
+
   val to_string : t -> string
 
   val marshal : Cstruct.t -> t -> int
+
   val parse : Cstruct.t -> t
 
 end
@@ -709,8 +720,11 @@ module Error : sig
   }
 
   val marshal : Cstruct.t -> t -> int
+
   val parse : Cstruct.t -> t
+
   val sizeof : t -> int
+
   val to_string : t -> string
 
 end
@@ -793,14 +807,14 @@ module Message : sig
     | EchoReply of bytes
     | FeaturesRequest
     | FeaturesReply of SwitchFeatures.t
-    | FlowModMsg of flowMod
+    | FlowModMsg of FlowMod.t
     | GroupModMsg of GroupMod.t
-    | PortModMsg of portMod
-    | MeterModMsg of meterMod
-    | PacketInMsg of packetIn
-    | FlowRemoved of flowRemoved
-    | PacketOutMsg of packetOut
-    | PortStatusMsg of portStatus
+    | PortModMsg of PortMod.t
+    | MeterModMsg of MeterMod.t
+    | PacketInMsg of PacketIn.t
+    | FlowRemoved of FlowRemoved.t
+    | PacketOutMsg of PacketOut.t
+    | PortStatusMsg of PortStatus.t
     | MultipartReq of MultipartReq.t
     | MultipartReply of MultipartReply.t
     | BarrierRequest
@@ -812,10 +826,10 @@ module Message : sig
     | GetConfigRequestMsg
     | GetConfigReplyMsg of SwitchConfig.t
     | SetConfigMsg of SwitchConfig.t
-    | TableModMsg of tableMod
+    | TableModMsg of TableMod.t
     | GetAsyncRequest
-    | GetAsyncReply of asyncConfig
-    | SetAsync of asyncConfig
+    | GetAsyncReply of AsyncConfig.t
+    | SetAsync of AsyncConfig.t
     | Error of Error.t
 
   val sizeof : t -> int

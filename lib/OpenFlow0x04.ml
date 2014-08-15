@@ -235,20 +235,22 @@ end
 
 module PortState = struct
 
-  let state_to_int (state : portState) : int32 =
+  type t = portState
+
+  let state_to_int (state : t) : int32 =
     Int32.logor (if state.link_down then (Int32.shift_left 1l 0) else 0l) 
      (Int32.logor (if state.blocked then (Int32.shift_left 1l 1) else 0l)  
       (if state.live then (Int32.shift_left 1l 2) else 0l))
 
-  let marshal (ps : portState) : int32 = state_to_int ps
+  let marshal (ps : t) : int32 = state_to_int ps
 
-  let parse bits : portState =
+  let parse bits : t =
     { link_down = Bits.test_bit 0 bits;
       blocked = Bits.test_bit 1 bits;
       live = Bits.test_bit 2 bits
     }
 
-  let to_string (state : portState) =
+  let to_string (state : t) =
     Format.sprintf "{ link_down = %B; blocked = %B; live = %B }"
     state.link_down
     state.blocked
@@ -371,8 +373,6 @@ cstruct ofp_table_feature_prop_header {
   uint16_t typ;
   uint16_t length
 } as big_endian
-
-(* MISSING: ofp_ queues *)
 
 cenum ofp_flow_mod_command {
   OFPFC_ADD            = 0; (* New flow. *)
@@ -6715,14 +6715,14 @@ module Message = struct
     | EchoReply of bytes
     | FeaturesRequest
     | FeaturesReply of SwitchFeatures.t
-    | FlowModMsg of flowMod
+    | FlowModMsg of FlowMod.t
     | GroupModMsg of GroupMod.t
-    | PortModMsg of portMod
-    | MeterModMsg of meterMod
-    | PacketInMsg of packetIn
-    | FlowRemoved of flowRemoved
-    | PacketOutMsg of packetOut
-    | PortStatusMsg of portStatus
+    | PortModMsg of PortMod.t
+    | MeterModMsg of MeterMod.t
+    | PacketInMsg of PacketIn.t
+    | FlowRemoved of FlowRemoved.t
+    | PacketOutMsg of PacketOut.t
+    | PortStatusMsg of PortStatus.t
     | MultipartReq of MultipartReq.t
     | MultipartReply of MultipartReply.t
     | BarrierRequest
@@ -6734,10 +6734,10 @@ module Message = struct
     | GetConfigRequestMsg
     | GetConfigReplyMsg of SwitchConfig.t
     | SetConfigMsg of SwitchConfig.t
-    | TableModMsg of tableMod
+    | TableModMsg of TableMod.t
     | GetAsyncRequest
-    | GetAsyncReply of asyncConfig
-    | SetAsync of asyncConfig
+    | GetAsyncReply of AsyncConfig.t
+    | SetAsync of AsyncConfig.t
     | Error of Error.t
 
 
