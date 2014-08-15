@@ -3,6 +3,7 @@ open Core.Std
 module Platform = Async_OpenFlow_Platform
 module Header = OpenFlow_Header
 module M = OpenFlow0x01.Message
+module C = OpenFlow0x01_Core
 
 module Message : Platform.Message with type t = (OpenFlow0x01.xid * M.t) = struct
 
@@ -75,6 +76,12 @@ module Controller = struct
   let send t sw_id msg =
     let c_id = client_id_of_switch_exn t sw_id in
     ChunkController.send t.sub c_id (Message.marshal' msg)
+
+  let send_result t sw_id msg =
+    send t sw_id msg
+    >>| function
+      | `Sent t   -> Result.Ok ()
+      | `Drop exn -> Result.Error exn
 
   let send_txn t sw_id msg =
     let c_id = client_id_of_switch_exn t sw_id in
@@ -186,4 +193,17 @@ module Controller = struct
         (echo >=> handshake 0x01 >=> txn)
     in
     listen_pipe t (run stages t (listen t.sub))
+
+  let clear_table (t : t) (sw_id : Client_id.t) =
+    send_result t sw_id (0l, M.FlowModMsg (C.delete_all_flows))
+
+  let send_flow_mods ?(clear=true) (t : t) (sw_id : Client_id.t) flow_mods =
+    begin if clear then clear_table t sw_id else return (Result.Ok ()) end
+    >>= function
+      | Result.Error exn -> return (Result.Error exn)
+      | Result.Ok () ->
+        let sends = List.map flow_mods
+          ~f:(fun f -> send_result t sw_id (0l, M.FlowModMsg f))
+        in
+        Deferred.Result.all_ignore sends
 end

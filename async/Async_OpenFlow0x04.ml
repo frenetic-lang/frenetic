@@ -112,6 +112,12 @@ module Controller = struct
     let c_id = client_id_of_switch_exn t sw_id in
     ChunkController.send t.sub c_id (Message.marshal' msg)
 
+  let send_result t sw_id msg =
+    send t sw_id msg
+    >>| function
+      | `Sent t   -> Result.Ok ()
+      | `Drop exn -> Result.Error exn
+
   let send_txn t sw_id msg =
     let c_id = client_id_of_switch_exn t sw_id in
     ChunkController.send_txn t.sub c_id (Message.marshal' msg)
@@ -211,5 +217,19 @@ module Controller = struct
     in
     listen_pipe t (run stages t (listen t.sub))
 
+  let clear_table (t : t) (sw_id : Client_id.t) =
+    let flows = send_result t sw_id (0l, M.FlowModMsg C.delete_all_flows) in
+    let groups = send_result t sw_id (0l, M.GroupModMsg C.delete_all_groups) in
+    Deferred.Result.all_ignore [flows; groups]
+
+  let send_flow_mods ?(clear=true) (t : t) (sw_id : Client_id.t) flow_mods =
+    begin if clear then clear_table t sw_id else return (Result.Ok ()) end
+    >>= function
+      | Result.Error exn -> return (Result.Error exn)
+      | Result.Ok () ->
+        let sends = List.map flow_mods
+          ~f:(fun f -> send_result t sw_id (0l, M.FlowModMsg f))
+        in
+        Deferred.Result.all_ignore sends
 
 end

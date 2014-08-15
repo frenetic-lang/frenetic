@@ -6,3 +6,4 @@ module OpenFlow0x01 = Async_OpenFlow0x01
 module OpenFlow0x04 = Async_OpenFlow0x04
 module Chunk = Async_OpenFlowChunk
 module Highlevel = Async_Highlevel
+module SDN = Async_SDN

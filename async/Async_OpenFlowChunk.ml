@@ -263,6 +263,11 @@ module Controller = struct
   let client_addr_port t = Platform.client_addr_port t.platform
   let listening_port t = Platform.listening_port t.platform
 
+  let client_version t c_id =
+    match (Client_id.Table.find_exn t.clients c_id).Conn.version with
+    | None      -> raise Not_found
+    | Some(ver) -> ver
+
   let handshake v t evt =
     let open Header in
     match evt with

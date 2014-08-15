@@ -150,6 +150,8 @@ module Chunk : sig
       | `Message of Client_id.t * m
     ]
 
+    val client_version : t -> Client_id.t -> int
+
     val send_txn
       :  t
       -> Client_id.t
@@ -208,6 +210,41 @@ module OpenFlow0x04 : sig
       -> m
       -> [ `Sent of Message.t Ivar.t | `Drop of exn ] Deferred.t
   end
+
+end
+
+module SDN : sig
+  type t
+
+  open SDN_Types
+
+  type e = [
+    | `Connect    of switchId * switchFeatures
+    | `Disconnect of switchId * Sexp.t
+    | `PacketIn   of switchId * pktIn
+    | `PortUp     of switchId * portId
+    | `PortDown   of switchId * portId ]
+
+  val create
+    :  ?max_pending_connections:int
+    -> ?verbose:bool (** default is [false] *)
+    -> ?log_disconnects:bool (** default is [true] *)
+    -> ?buffer_age_limit:[ `At_most of Time.Span.t | `Unlimited ]
+    -> ?monitor_connections:bool
+    -> port:int
+    -> unit
+    -> t Deferred.t
+
+  val listen : t -> e Pipe.Reader.t
+
+  val clear_table : t -> switchId -> (unit, exn) Result.t Deferred.t
+
+  val install_flows
+    :  ?clear:bool
+    -> t
+    -> switchId
+    -> flow list
+    -> (unit, exn) Result.t Deferred.t
 
 end
 
