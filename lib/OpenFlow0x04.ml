@@ -4300,11 +4300,11 @@ module TableFeature = struct
 
     type t = tableFeatures
 
-    let sizeof (tf : tableFeatures) =
+    let sizeof (tf : t) =
       (* should be equal to tf.length *)
       pad_to_64bits (sizeof_ofp_table_features + sum (map TableFeatureProp.sizeof tf.feature_prop))
 
-    let marshal (buf : Cstruct.t) (tf : tableFeatures) : int =
+    let marshal (buf : Cstruct.t) (tf : t) : int =
       set_ofp_table_features_length buf tf.length;
       set_ofp_table_features_table_id buf tf.table_id;
       set_ofp_table_features_pad (Cstruct.to_string (Cstruct.create 5)) 0 buf;
@@ -4316,7 +4316,7 @@ module TableFeature = struct
       sizeof_ofp_table_features + (
         marshal_fields (Cstruct.shift buf sizeof_ofp_table_features) tf.feature_prop TableFeatureProp.marshal)
 
-    let parse (bits : Cstruct.t) : tableFeatures*Cstruct.t = 
+    let parse (bits : Cstruct.t) : t = 
       let length = get_ofp_table_features_length bits in
       let tableId = get_ofp_table_features_table_id bits in
       let name = Cstruct.to_string (get_ofp_table_features_name bits) in
@@ -4332,9 +4332,9 @@ module TableFeature = struct
         metadata_write = metadataWrite;
         config = config; 
         max_entries = maxEntries;
-        feature_prop = featureProp},(Cstruct.shift bits length)
+        feature_prop = featureProp}
     
-    let to_string (tf : tableFeatures) =
+    let to_string (tf : t) =
       Format.sprintf "{ table_id = %u; name = %s; metadata_match = %Lu; \
                       metadata_write = %Lu; config = %s; max_entries = %lu;
                       feature_prop = %s }"
@@ -4346,35 +4346,9 @@ module TableFeature = struct
       tf.max_entries
       ("[ " ^ (String.concat "; " (map TableFeatureProp.to_string tf.feature_prop)) ^ " ]")
 
-end
-
-module TableFeatures = struct
-
-    type t = tableFeatures list
-
-    let sizeof (tfr : tableFeatures list) =
-      sum (map TableFeature.sizeof tfr)
-
-    let marshal (buf : Cstruct.t) (tfr : tableFeatures list) =
-      marshal_fields buf tfr TableFeature.marshal
-      
-
-    let rec parse_fields (bits : Cstruct.t) len cumul : tableFeatures list*Cstruct.t = 
-      if len = cumul then [],bits
-      else (
-        let field,nextBits = TableFeature.parse bits in
-        let fields,bits3 = parse_fields nextBits len (cumul + (TableFeature.sizeof field)) in
-        (List.append [field] fields,bits3)
-      )    
-
-    let parse (bits : Cstruct.t) : tableFeatures list = 
-      let length = Cstruct.len bits in
-      let body,_ = parse_fields bits length 0 in
-      body
-
-    let to_string tfr = 
-      "[ " ^ (String.concat "\n" (map TableFeature.to_string tfr)) ^ " ]"
-      
+    let length_func (buf : Cstruct.t) : int option =
+      if Cstruct.len buf < sizeof_ofp_table_features then None
+      else Some (get_ofp_table_features_length buf)
 end
 
 module MultipartReq = struct
@@ -4425,7 +4399,7 @@ module MultipartReq = struct
        | MeterStatsReq _  | MeterConfReq _ -> sizeof_ofp_meter_multipart_request
        | TableFeatReq tfr -> (match tfr with
           | None -> 0
-          | Some t -> TableFeatures.sizeof t)
+          | Some t -> sum (map TableFeature.sizeof t))
        | ExperimentReq _ -> sizeof_ofp_experimenter_multipart_header)
 
   let to_string (mpr : multipartRequest) : string =
@@ -4450,7 +4424,7 @@ module MultipartReq = struct
       | MeterConfReq m -> Format.sprintf "MeterConf Req %lu" m
       | MeterFeatReq -> "MeterFeat Req"
       | TableFeatReq t-> Format.sprintf "TableFeat Req %s" (match t with
-        | Some v -> TableFeatures.to_string v
+        | Some v -> "[ " ^ (String.concat "; " (map TableFeature.to_string v)) ^ " ]"
         | None -> "None" )
       | ExperimentReq e-> Format.sprintf "Experimenter Req: id: %lu; type: %lu" e.exp_id e.exp_type)
 
@@ -4487,7 +4461,7 @@ module MultipartReq = struct
       | TableFeatReq t -> 
         (match t with
           | None -> 0
-          | Some v -> size + (TableFeatures.marshal pay_buf v))
+          | Some v -> size + marshal_fields pay_buf v TableFeature.marshal)
       | ExperimentReq _ -> size
 
   let parse (bits : Cstruct.t) : multipartRequest =
@@ -4520,7 +4494,7 @@ module MultipartReq = struct
       | Some OFPMP_TABLE_FEATURES -> TableFeatReq (
       if Cstruct.len bits <= sizeof_ofp_multipart_request then None
       else Some (
-        TableFeatures.parse (Cstruct.shift bits sizeof_ofp_multipart_request)
+        parse_fields (Cstruct.shift bits sizeof_ofp_multipart_request) TableFeature.parse TableFeature.length_func
       ))
       | Some OFPMP_EXPERIMENTER -> ExperimentReq (
       let exp_bits = Cstruct.shift bits sizeof_ofp_multipart_request in
@@ -5383,7 +5357,7 @@ module MultipartReply = struct
       | FlowStatsReply fsr -> sum (map FlowStats.sizeof fsr)
       | AggregateReply ag -> AggregateStats.sizeof ag
       | TableReply tr -> sum (map TableStats.sizeof tr)
-      | TableFeaturesReply tf -> TableFeatures.sizeof tf
+      | TableFeaturesReply tf -> sum (map TableFeature.sizeof tf)
       | PortStatsReply psr -> sum (map PortStats.sizeof psr)
       | QueueStatsReply qsr -> sum (map QueueStats.sizeof qsr)
       | GroupStatsReply gs -> sum (map GroupStats.sizeof gs)
@@ -5400,7 +5374,7 @@ module MultipartReply = struct
       | FlowStatsReply fsr -> Format.sprintf "Flow { %s }" (String.concat "; " (map FlowStats.to_string fsr))
       | AggregateReply ag -> Format.sprintf "Aggregate Flow %s" (AggregateStats.to_string ag)
       | TableReply tr -> Format.sprintf "TableReply { %s }" (String.concat "; " (map TableStats.to_string tr))
-      | TableFeaturesReply tf -> Format.sprintf "TableFeaturesReply %s" (TableFeatures.to_string tf)
+      | TableFeaturesReply tf -> Format.sprintf "TableFeaturesReply { %s }" (String.concat "; " (map TableFeature.to_string tf))
       | PortStatsReply psr -> Format.sprintf "PortStatsReply { %s }" (String.concat "; " (map PortStats.to_string psr))
       | QueueStatsReply qsr -> Format.sprintf "QueueStats { %s }" (String.concat "; " (map QueueStats.to_string qsr))
       | GroupStatsReply gs -> Format.sprintf "GroupStats { %s }" (String.concat "; " (map GroupStats.to_string gs))
@@ -5434,7 +5408,7 @@ module MultipartReply = struct
           marshal_fields ofp_body_bits tr TableStats.marshal
       | TableFeaturesReply tf ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_TABLE_FEATURES);
-          TableFeatures.marshal ofp_body_bits tf
+          marshal_fields ofp_body_bits tf TableFeature.marshal
       | PortStatsReply psr ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_PORT_STATS);
           marshal_fields ofp_body_bits psr PortStats.marshal
@@ -5475,7 +5449,7 @@ module MultipartReply = struct
       | Some OFPMP_TABLE -> 
           TableReply (parse_fields ofp_body_bits TableStats.parse TableStats.length_func)
       | Some OFPMP_TABLE_FEATURES ->
-          TableFeaturesReply (TableFeatures.parse ofp_body_bits)
+          TableFeaturesReply (parse_fields ofp_body_bits TableFeature.parse TableFeature.length_func)
       | Some OFPMP_PORT_STATS -> 
           PortStatsReply (parse_fields ofp_body_bits PortStats.parse PortStats.length_func)
       | Some OFPMP_QUEUE ->

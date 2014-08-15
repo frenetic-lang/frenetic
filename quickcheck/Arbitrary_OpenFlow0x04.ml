@@ -766,7 +766,7 @@ end
 module MultipartReq = struct
   open Gen
   open OpenFlow0x04_Core
-  module TableFeatures = struct
+  module TableFeature = struct
     module TableFeatureProp = struct
       
       type t = TableFeatureProp.t
@@ -825,53 +825,39 @@ module MultipartReq = struct
       let size_of = TableFeatureProp.sizeof
     end
     
-    module TableFeature = struct
-      type t = TableFeature.t
+    type t = TableFeature.t
 
-      let arbitrary_config =
-        ret_gen Deprecated
+    let arbitrary_config =
+      ret_gen Deprecated
 
-      let calc_length tfp =
-        (* sizeof_ofp_table_feature = 64*)
-        ret_gen (64+sum (List.map TableFeatureProp.size_of tfp))
+    let calc_length tfp =
+      (* sizeof_ofp_table_feature = 64*)
+      ret_gen (64+sum (List.map TableFeatureProp.size_of tfp))
 
-      let arbitrary = 
-        arbitrary_uint8 >>= fun table_id ->
-        arbitrary_stringN 32 >>= fun name ->
-        arbitrary_uint64 >>= fun metadata_match ->
-        arbitrary_uint64 >>= fun metadata_write ->
-        arbitrary_config >>= fun config ->
-        arbitrary_uint32 >>= fun max_entries ->
-        list1 TableFeatureProp.arbitrary >>= fun feature_prop ->
-        calc_length feature_prop>>= fun length ->
-        ret_gen {
-          length;
-          table_id;
-          name;
-          metadata_match;
-          metadata_write;
-          config;
-          max_entries;
-          feature_prop
-        }
-      
-      let marshal = TableFeature.marshal
-      let parse bits= 
-            let p,_ = TableFeature.parse bits in
-            p
-      let to_string = TableFeature.to_string
-      let size_of = TableFeature.sizeof
-    end
-
-    type t = TableFeatures.t
-
-    let arbitrary =
-        list1 TableFeature.arbitrary >>= fun v ->
-        ret_gen v
-    let marshal = TableFeatures.marshal
-    let parse = TableFeatures.parse
-    let to_string = TableFeatures.to_string
-    let size_of = TableFeatures.sizeof
+    let arbitrary = 
+      arbitrary_uint8 >>= fun table_id ->
+      arbitrary_stringN 32 >>= fun name ->
+      arbitrary_uint64 >>= fun metadata_match ->
+      arbitrary_uint64 >>= fun metadata_write ->
+      arbitrary_config >>= fun config ->
+      arbitrary_uint32 >>= fun max_entries ->
+      list1 TableFeatureProp.arbitrary >>= fun feature_prop ->
+      calc_length feature_prop>>= fun length ->
+      ret_gen {
+        length;
+        table_id;
+        name;
+        metadata_match;
+        metadata_write;
+        config;
+        max_entries;
+        feature_prop
+      }
+    
+    let marshal = TableFeature.marshal
+    let parse = TableFeature.parse
+    let to_string = TableFeature.to_string
+    let size_of = TableFeature.sizeof
   end
 
   module FlowRequest = struct
@@ -918,7 +904,7 @@ module MultipartReq = struct
   let arbitrary_option =
      frequency [
     (1, ret_gen None);
-    (3, TableFeatures.arbitrary >>= (fun v -> ret_gen (Some v)))
+    (3, list1 TableFeature.arbitrary >>= (fun v -> ret_gen (Some v)))
     ]
   
   let arbitrary_type = 
