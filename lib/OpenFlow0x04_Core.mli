@@ -374,6 +374,8 @@ val add_flow : int16 -> oxmMatch -> instruction list -> flowMod
 
 val delete_all_flows : flowMod
 
+val delete_all_groups : groupMod
+
 type packetInReason =
 | NoMatch
 | ExplicitSend

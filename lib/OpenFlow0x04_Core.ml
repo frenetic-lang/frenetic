@@ -389,6 +389,9 @@ let delete_all_flows =
   ; mfOfp_match = match_all
   ; mfInstructions = [] }
 
+let delete_all_groups =
+  DeleteGroup (All, 0xfffffffcl)
+
 let parse_payload = function
   | Buffered (_, b)
   | NotBuffered b -> 
