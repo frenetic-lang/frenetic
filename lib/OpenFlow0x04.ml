@@ -6811,7 +6811,7 @@ module Message = struct
     | EchoRequest bytes -> Header.size + (String.length (Cstruct.to_string bytes))
     | EchoReply bytes -> Header.size + (String.length (Cstruct.to_string bytes))
     | FeaturesRequest -> Header.size
-    | FeaturesReply _ -> Header.size + sizeof_ofp_switch_features
+    | FeaturesReply f -> Header.size + SwitchFeatures.sizeof f
     | FlowModMsg fm -> Header.size + FlowMod.sizeof fm
     | GroupModMsg gm -> Header.size + GroupMod.sizeof gm
     | PortModMsg pm -> Header.size + PortMod.sizeof pm
@@ -6819,7 +6819,7 @@ module Message = struct
     | PacketInMsg pi -> Header.size + PacketIn.sizeof pi
     | FlowRemoved fr -> Header.size + FlowRemoved.sizeof fr
     | PacketOutMsg po -> Header.size + PacketOut.sizeof po
-    | PortStatusMsg _ -> Header.size + sizeof_ofp_port_status + sizeof_ofp_port
+    | PortStatusMsg p -> Header.size + PortStatus.sizeof p
     | MultipartReq req -> Header.size + MultipartReq.sizeof req
     | MultipartReply rep -> Header.size + MultipartReply.sizeof rep
     | QueueGetConfigReq qc -> Header.size + QueueConfReq.sizeof qc
@@ -6838,35 +6838,35 @@ module Message = struct
     | RoleReply rr -> Header.size + RoleRequest.sizeof rr
 
   let to_string (msg : t) : string = match msg with
-    | Hello _ -> "Hello"
-    | Error _ -> "Error"
+    | Hello hello -> Format.sprintf "Hello = %s" (Hello.to_string hello)
+    | Error error -> Format.sprintf "Error = %s" (Error.to_string error)
     | EchoRequest _ -> "EchoRequest"
     | EchoReply _ -> "EchoReply"
     | FeaturesRequest -> "FeaturesRequest"
-    | FeaturesReply _ -> "FeaturesReply"
-    | FlowModMsg _ -> "FlowMod"
-    | GroupModMsg _ -> "GroupMod"
-    | PortModMsg _ -> "PortMod"
-    | MeterModMsg _ -> "MeterMod"
-    | PacketInMsg _ -> "PacketIn"
-    | FlowRemoved _ -> "FlowRemoved"
-    | PacketOutMsg _ -> "PacketOut"
-    | PortStatusMsg _ -> "PortStatus"
-    | MultipartReq _ -> "MultipartRequest"
-    | MultipartReply _ -> "MultipartReply"
+    | FeaturesReply features -> Format.sprintf "FeaturesReply = %s" (SwitchFeatures.to_string features)
+    | FlowModMsg flow -> Format.sprintf "FlowMod = %s" (FlowMod.to_string flow)
+    | GroupModMsg group -> Format.sprintf "GroupMod = %s" (GroupMod.to_string group)
+    | PortModMsg port -> Format.sprintf "PortMod = %s" (PortMod.to_string port)
+    | MeterModMsg meter -> Format.sprintf "MeterMod = %s" (MeterMod.to_string meter)
+    | PacketInMsg packet -> Format.sprintf "PacketIn = %s" (PacketIn.to_string packet)
+    | FlowRemoved flow -> Format.sprintf "FlowRemoved = %s" (FlowRemoved.to_string flow)
+    | PacketOutMsg packet -> Format.sprintf "PacketOut = %s" (PacketOut.to_string packet)
+    | PortStatusMsg port -> Format.sprintf "PortStatus = %s" (PortStatus.to_string port)
+    | MultipartReq mult -> Format.sprintf "MultipartRequest = %s" (MultipartReq.to_string mult)
+    | MultipartReply mult -> Format.sprintf "MultipartReply = %s" (MultipartReply.to_string mult)
     | BarrierRequest -> "BarrierRequest"
     | BarrierReply -> "BarrierReply"
-    | RoleRequest _ -> "RoleRequest"
-    | RoleReply _ -> "RoleReply"
-    | QueueGetConfigReq _ -> "QueueGetConfigReq"
-    | QueueGetConfigReply _ -> "QueueGetConfigReply"
+    | RoleRequest role -> Format.sprintf "RoleRequest = %s" (RoleRequest.to_string role)
+    | RoleReply role -> Format.sprintf "RoleReply = %s" (RoleRequest.to_string role)
+    | QueueGetConfigReq queue -> Format.sprintf "QueueGetConfigReq = %s" (QueueConfReq.to_string queue)
+    | QueueGetConfigReply queue -> Format.sprintf "QueueGetConfigReply = %s" (QueueConfReply.to_string queue)
     | GetConfigRequestMsg -> "GetConfigRequest"
-    | GetConfigReplyMsg _ -> "GetConfigReply"
-    | SetConfigMsg _ -> "SetConfig"
-    | TableModMsg _ -> "TableMod"
+    | GetConfigReplyMsg conf -> Format.sprintf "GetConfigReply = %s" (SwitchConfig.to_string conf)
+    | SetConfigMsg conf -> Format.sprintf "SetConfig = %s" (SwitchConfig.to_string conf)
+    | TableModMsg table -> Format.sprintf "TableMod = %s" (TableMod.to_string table)
     | GetAsyncRequest -> "GetAsyncRequest"
-    | GetAsyncReply _ -> "GetAsyncReply"
-    | SetAsync _ -> "SetAsync"
+    | GetAsyncReply async -> Format.sprintf "GetAsyncReply = %s" (AsyncConfig.to_string async)
+    | SetAsync async -> Format.sprintf "SetAsync = %s" (AsyncConfig.to_string async)
 
   (* let marshal (buf : Cstruct.t) (msg : message) : int = *)
   (*   let buf2 = (Cstruct.shift buf Header.size) in *)
