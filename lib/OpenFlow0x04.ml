@@ -1116,8 +1116,8 @@ module Oxm = struct
   let sizeof (oxm : oxm) : int =
     sizeof_ofp_oxm + field_length oxm
 
-  let sizeof_header (oxml : oxm list) : int =
-    (List.length oxml) * 4
+  let sizeof_header (oxml : oxm) : int =
+    sizeof_ofp_oxm
 
   let to_string oxm =
     match oxm with
@@ -4084,17 +4084,17 @@ module TableFeatureProp = struct
         | TfpApplyActionMiss act -> 
             sum (map ActionHdr.sizeof act)
         | TfpMatch ox -> 
-            Oxm.sizeof_header ox
+            sum (map Oxm.sizeof_header ox)
         | TfpWildcard ox -> 
-            Oxm.sizeof_header ox
+            sum (map Oxm.sizeof_header ox)
         | TfpWriteSetField ox-> 
-            Oxm.sizeof_header ox
+            sum (map Oxm.sizeof_header ox)
         | TfpWriteSetFieldMiss ox -> 
-            Oxm.sizeof_header ox
+            sum (map Oxm.sizeof_header ox)
         | TfpApplySetField ox -> 
-            Oxm.sizeof_header ox
+            sum (map Oxm.sizeof_header ox)
         | TfpApplySetFieldMiss ox -> 
-            Oxm.sizeof_header ox
+            sum (map Oxm.sizeof_header ox)
         | TfpExperimenter (_,by) -> 
             Cstruct.len by
         | TfpExperimenterMiss (_,by) -> 
