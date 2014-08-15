@@ -5284,7 +5284,7 @@ module MeterConfig = struct
 
 end
 
-module MeterFeaturesStats = struct
+module MeterFeatures = struct
 
   cstruct ofp_meter_features {
     uint32_t max_meter;
@@ -5313,12 +5313,12 @@ module MeterFeaturesStats = struct
 
   end
 
-  type t = meterFeaturesStats
+  type t = meterFeatures
 
-  let sizeof (mfs : meterFeaturesStats) : int =
+  let sizeof (mfs : t) : int =
     sizeof_ofp_meter_features
 
-  let to_string (mfs : meterFeaturesStats) : string =
+  let to_string (mfs : t) : string =
     Format.sprintf "{ max_meter = %lu; band_typ = %s; capabilities = %s; max_band = %u; max_color = %u }"
     mfs.max_meter
     (Bands.to_string mfs.band_typ)
@@ -5326,7 +5326,7 @@ module MeterFeaturesStats = struct
     mfs.max_band
     mfs.max_color
   
-  let marshal (buf : Cstruct.t) (mfs : meterFeaturesStats) : int =
+  let marshal (buf : Cstruct.t) (mfs : t) : int =
     set_ofp_meter_features_max_meter buf mfs.max_meter;
     set_ofp_meter_features_band_types buf (Bands.marshal mfs.band_typ);
     (* int -> int32 fix, before release of OF1.3.5 *)
@@ -5335,7 +5335,7 @@ module MeterFeaturesStats = struct
     set_ofp_meter_features_max_color buf mfs.max_color;
     sizeof_ofp_meter_features
   
-  let parse (bits : Cstruct.t) : meterFeaturesStats =
+  let parse (bits : Cstruct.t) : t =
     { max_meter = get_ofp_meter_features_max_meter bits
     ; band_typ = Bands.parse (get_ofp_meter_features_band_types bits)
     (* int32 -> int fix, before release of OF1.3.5 *)
@@ -5365,7 +5365,7 @@ module MultipartReply = struct
       | GroupFeaturesReply gf -> GroupFeatures.sizeof gf
       | MeterReply mr -> sum (map MeterStats.sizeof mr)
       | MeterConfig mc -> sum (map MeterConfig.sizeof mc)
-      | MeterFeaturesReply mf -> MeterFeaturesStats.sizeof mf
+      | MeterFeaturesReply mf -> MeterFeatures.sizeof mf
 
   let to_string (mpr : multipartReply) =
     match mpr.mpreply_typ with
@@ -5382,7 +5382,7 @@ module MultipartReply = struct
       | GroupFeaturesReply gf -> Format.sprintf "GroupFeatures %s" (GroupFeatures.to_string gf)
       | MeterReply mr -> Format.sprintf "MeterStats { %s }" (String.concat "; " (map MeterStats.to_string mr))
       | MeterConfig mc -> Format.sprintf "MeterConfig { %s }" (String.concat "; " (map MeterConfig.to_string mc))
-      | MeterFeaturesReply mf -> Format.sprintf "MeterFeaturesStats %s" (MeterFeaturesStats.to_string mf)
+      | MeterFeaturesReply mf -> Format.sprintf "MeterFeaturesStats %s" (MeterFeatures.to_string mf)
 
   let marshal (buf : Cstruct.t) (mpr : multipartReply) : int =
     let ofp_body_bits = Cstruct.shift buf sizeof_ofp_multipart_reply in
@@ -5432,7 +5432,7 @@ module MultipartReply = struct
           marshal_fields ofp_body_bits mc MeterConfig.marshal
       | MeterFeaturesReply mfr ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_METER_FEATURES);
-          MeterFeaturesStats.marshal ofp_body_bits mfr
+          MeterFeatures.marshal ofp_body_bits mfr
           )
     
   let parse (bits : Cstruct.t) : multipartReply =
@@ -5465,7 +5465,7 @@ module MultipartReply = struct
       | Some OFPMP_METER_CONFIG ->
           MeterConfig (parse_fields ofp_body_bits MeterConfig.parse MeterConfig.length_func)
       | Some OFPMP_METER_FEATURES ->
-          MeterFeaturesReply (MeterFeaturesStats.parse ofp_body_bits)
+          MeterFeaturesReply (MeterFeatures.parse ofp_body_bits)
       | _ -> raise (Unparsable (sprintf "NYI: can't parse this multipart reply"))) in
     let flags = (
       match int_to_ofp_multipart_request_flags (get_ofp_multipart_request_flags bits) with

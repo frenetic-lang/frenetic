@@ -601,7 +601,7 @@ type meterConfig = { length : length; flags : meterFlags; meter_id : int32; band
 
 type meterBandMaps = { drop : bool; dscpRemark : bool}
 
-type meterFeaturesStats = { max_meter : int32; band_typ : meterBandMaps; 
+type meterFeatures = { max_meter : int32; band_typ : meterBandMaps; 
                             capabilities : meterFlags; max_band : int8;
                             max_color : int8 }
 
@@ -619,7 +619,7 @@ type multipartReplyTyp =
   | GroupFeaturesReply of groupFeatures
   | MeterReply of meterStats list
   | MeterConfig of meterConfig list
-  | MeterFeaturesReply of meterFeaturesStats
+  | MeterFeaturesReply of meterFeatures
 
 type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool}
 

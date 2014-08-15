@@ -1377,8 +1377,8 @@ module MultipartReply = struct
     let size_of = MeterConfig.sizeof
   end
 
-  module MeterFeaturesStats = struct
-    type t = MeterFeaturesStats.t
+  module MeterFeatures = struct
+    type t = MeterFeatures.t
     
     let arbitrary_meterBandMaps =
       arbitrary_bool >>= fun drop ->
@@ -1413,10 +1413,10 @@ module MultipartReply = struct
         max_color
       }
 
-    let marshal = MeterFeaturesStats.marshal
-    let parse = MeterFeaturesStats.parse
-    let to_string = MeterFeaturesStats.to_string
-    let size_of = MeterFeaturesStats.sizeof
+    let marshal = MeterFeatures.marshal
+    let parse = MeterFeatures.parse
+    let to_string = MeterFeatures.to_string
+    let size_of = MeterFeatures.sizeof
   end
 
   type t = MultipartReply.t
@@ -1436,7 +1436,7 @@ module MultipartReply = struct
           list1 GroupDesc.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (GroupDescReply n);  mpreply_flags = flags});
           list1 MeterStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterReply n);  mpreply_flags = flags});
           list1 MeterConfig.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterConfig n);  mpreply_flags = flags});
-          MeterFeaturesStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterFeaturesReply n);  mpreply_flags = flags});
+          MeterFeatures.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterFeaturesReply n);  mpreply_flags = flags});
           ]
 
   let marshal = MultipartReply.marshal

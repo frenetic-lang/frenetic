@@ -388,8 +388,8 @@ module RoundTripping = struct
       (openflow_quickCheck GenMeterConfigReply.arbitrary
           GenMeterConfigReply.to_string GenMeterConfigReply.parse GenMeterConfigReply.marshal)
 
-  TEST "OpenFlow0x04 MultipartReply.MeterFeaturesStats RoundTrip" =
-      let module GenMeterFeaturesReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.MeterFeaturesStats) in
+  TEST "OpenFlow0x04 MultipartReply.MeterFeatures RoundTrip" =
+      let module GenMeterFeaturesReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.MeterFeatures) in
       (openflow_quickCheck GenMeterFeaturesReply.arbitrary
           GenMeterFeaturesReply.to_string GenMeterFeaturesReply.parse GenMeterFeaturesReply.marshal)
 
