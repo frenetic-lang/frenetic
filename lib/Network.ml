@@ -1,5 +1,6 @@
+open Core.Std
 module type VERTEX = sig
-  type t
+  type t with sexp
 
   val compare : t -> t -> int
   val to_string : t -> string
@@ -10,7 +11,7 @@ module type VERTEX = sig
 end
 
 module type EDGE = sig
-  type t
+  type t with sexp
 
   val compare : t -> t -> int
   val to_string : t -> string
@@ -21,8 +22,8 @@ module type EDGE = sig
 end
 
 module type WEIGHT = sig
-  type t
-  type label
+  type t with sexp
+  type label with sexp
 
   val weight : label -> t
   val compare : t -> t -> int
@@ -41,21 +42,21 @@ module type NETWORK = sig
     module Vertex : VERTEX
     module Edge : EDGE
 
-    module UnitWeight : WEIGHT 
-      with type t = int 
+    module UnitWeight : WEIGHT
+      with type t = int
       and type label = Edge.t
 
     module EdgeSet : Set.S
-      with type elt = edge
+      with type Elt.t = edge
 
     module VertexSet : Set.S
-      with type elt = vertex
+      with type Elt.t = vertex
 
     module VertexHash : Hashtbl.S
       with type key = vertex
 
     module PortSet : Set.S
-      with type elt = port
+      with type Elt.t = port
 
     (* Constructors *)
     val copy : t -> t
@@ -147,7 +148,7 @@ module Make : MAKE =
     functor (Edge:EDGE) ->
 struct
   module Topology = struct
-    type port = int32
+    type port = int32 with sexp
     module PortSet = Set.Make(Int32)
     module PortMap = Map.Make(Int32)
 
@@ -157,7 +158,7 @@ struct
     module VL = struct
       type t =
           { id : int;
-            label : Vertex.t }
+            label : Vertex.t } with sexp
       let compare n1 n2 = Pervasives.compare n1.id n2.id
       let hash n1 = Hashtbl.hash n1.id
       let equal n1 n2 = n1.id = n2.id
@@ -171,7 +172,7 @@ struct
       type t = { id : int;
                  label : Edge.t;
                  src : port;
-                 dst : port }
+                 dst : port } with sexp
       let compare e1 e2 = Pervasives.compare e1.id e2.id
       let hash e1 = Hashtbl.hash e1.id
       let equal e1 e2 = e1.id = e2.id
@@ -184,8 +185,8 @@ struct
     end
 
     module UnitWeight = struct
-      type label = Edge.t
-      type t = int
+      type label = Edge.t with sexp
+      type t = int with sexp
       let weight _ = 1
       let compare = Pervasives.compare
       let add = (+)
@@ -193,7 +194,7 @@ struct
     end
 
     module EdgeSet = Set.Make(struct
-      type t = VL.t * EL.t * VL.t
+      type t = VL.t * EL.t * VL.t  with sexp
       let compare (e1:t) (e2:t) : int =
         let (_,l1,_) = e1 in
         let (_,l2,_) = e2 in
@@ -223,10 +224,10 @@ struct
         next_edge = 0 }
 
     let _node_vertex (t:t) (l:Vertex.t) : vertex =
-      fst (VertexMap.find l t.node_info)
+      fst (VertexMap.find_exn t.node_info l)
 
     let _node_ports (t:t) (l:Vertex.t) : PortSet.t =
-      snd (VertexMap.find l t.node_info)
+      snd (VertexMap.find_exn t.node_info l)
 
     let add_vertex (t:t) (l:Vertex.t) : t * vertex =
       let open VL in
@@ -235,13 +236,13 @@ struct
         let id = t.next_node + 1 in
         let v = { id = id; label = l } in
         let g = P.add_vertex t.graph v in
-        let nl = VertexMap.add l (v, PortSet.empty) t.node_info in
+        let nl = VertexMap.add t.node_info l (v, PortSet.empty) in
         ({ t with graph=g; node_info=nl; next_node = id}, v)
 
     let add_port (t:t) (v:vertex) (p:port) : t =
       let l = v.VL.label in
-      let v, ps = VertexMap.find l t.node_info in
-      let node_info = VertexMap.add l (v, PortSet.add p ps) t.node_info in
+      let v, ps = VertexMap.find_exn t.node_info l in
+      let node_info = VertexMap.add t.node_info l (v, PortSet.add ps p) in
       { t with node_info }
 
     let add_edge (t:t) (v1:vertex) (p1:port) (l:Edge.t) (v2:vertex) (p2:port) : t * edge =
@@ -256,13 +257,13 @@ struct
 
       try
         let es = P.find_all_edges t.graph v1 v2 in
-        let es' = List.filter ( fun (s,l,d) ->
-          l.src = p1 && l.dst = p2 ) es in
+        let es' = List.filter es ( fun (s,l,d) ->
+          l.src = p1 && l.dst = p2 ) in
         match es' with
           | [] -> aux t
           | es ->
-            let graph' = List.fold_left (fun acc e ->
-            P.remove_edge_e acc e) t.graph es in
+            let graph' = List.fold_left es ~init:t.graph ~f:(fun acc e ->
+            P.remove_edge_e acc e) in
             let t' = {t with graph = graph'} in
             aux t'
       with Not_found -> aux t
@@ -275,20 +276,20 @@ struct
       P.nb_edges t.graph
 
     let edges (t:t) : EdgeSet.t =
-      P.fold_edges_e EdgeSet.add t.graph EdgeSet.empty
+      P.fold_edges_e (fun e acc -> EdgeSet.add acc e) t.graph EdgeSet.empty
 
     let vertexes (t:t) : VertexSet.t =
-      P.fold_vertex VertexSet.add t.graph VertexSet.empty
+      P.fold_vertex (fun v acc -> VertexSet.add acc v) t.graph VertexSet.empty
 
     let neighbors (t:t) (v:vertex) : VertexSet.t =
-      P.fold_succ VertexSet.add t.graph v VertexSet.empty
+      P.fold_succ (fun v acc -> VertexSet.add acc v) t.graph v VertexSet.empty
 
     let find_edge (t:t) (src:vertex) (dst:vertex) : edge =
       P.find_edge t.graph src dst
 
     let find_all_edges (t:t) (src:vertex) (dst:vertex) : EdgeSet.t =
-      let f s e = EdgeSet.add e s in
-      List.fold_left f EdgeSet.empty (P.find_all_edges t.graph src dst)
+      List.fold_left (P.find_all_edges t.graph src dst)  ~init:EdgeSet.empty
+	~f:EdgeSet.add
 
     let vertex_to_string (t:t) (v:vertex) : string =
       VL.to_string v
@@ -356,13 +357,13 @@ struct
     (* Mutators *)
     let remove_vertex (t:t) (v:vertex) : t =
       let graph = P.remove_vertex t.graph v in
-      let node_info = VertexMap.remove v.VL.label t.node_info in
+      let node_info = VertexMap.remove t.node_info v.VL.label in
       { t with graph; node_info }
 
     let remove_port (t:t) (v:vertex) (p:port) : t =
-      let v, ps = VertexMap.find v.VL.label t.node_info in
-      let ps = PortSet.remove p ps in
-      let node_info = VertexMap.add v.VL.label (v, ps) t.node_info in
+      let v, ps = VertexMap.find_exn t.node_info v.VL.label in
+      let ps = PortSet.remove ps p in
+      let node_info = VertexMap.add t.node_info v.VL.label (v, ps) in
       { t with node_info }
 
     let remove_edge (t:t) (e:edge) : t =
@@ -376,9 +377,9 @@ struct
         t t
       in
       let v, p = ep in
-      let v, ps = VertexMap.find v.VL.label t.node_info in
-      let ps = PortSet.remove p ps in
-      let node_info = VertexMap.add v.VL.label (v, ps) t.node_info in
+      let v, ps = VertexMap.find_exn t.node_info v.VL.label in
+      let ps = PortSet.remove ps p in
+      let node_info = VertexMap.add t.node_info v.VL.label (v, ps) in
       { t with node_info }
 
    let remove_port (t:t) (v:vertex) (p:port) =
@@ -443,24 +444,24 @@ struct
        the path *)
     let all_shortest_paths (t:Topology.t) (src:vertex) : (vertex VertexHash.t) =
       let size = P.nb_vertex t.graph in
-      let dist = VertexHash.create size in
-      let prev = VertexHash.create size in
-      let admissible = VertexHash.create size in
+      let dist = VertexHash.create () ~size:size in
+      let prev = VertexHash.create () ~size:size in
+      let admissible = VertexHash.create () ~size:size in
       VertexHash.replace dist src Weight.zero;
       let build_cycle_from x0 =
         let rec traverse_parent x ret =
-          let e = VertexHash.find admissible x in
+          let e = VertexHash.find_exn admissible x in
           let s,_ = edge_src e in
-          if s = x0 then e :: ret else traverse_parent s (e :: ret) in 
-        traverse_parent x0 [] in 
+          if s = x0 then e :: ret else traverse_parent s (e :: ret) in
+        traverse_parent x0 [] in
       let find_cycle x0 =
         let rec visit x visited =
-          if VertexSet.mem x visited then
+          if VertexSet.mem visited x then
             build_cycle_from x
           else begin
-            let e = VertexHash.find admissible x in
+            let e = VertexHash.find_exn admissible x in
             let s,_ = edge_src e in
-            visit s (VertexSet.add x visited)
+            visit s (VertexSet.add visited x)
           end
         in
         visit x0 (VertexSet.empty)
@@ -471,10 +472,10 @@ struct
             let ev1,_ = edge_src e in
             let ev2,_ = edge_dst e in
             try begin
-              let dev1 = VertexHash.find dist ev1 in
+              let dev1 = VertexHash.find_exn dist ev1 in
               let dev2 = Weight.add dev1 (Weight.weight (Topology.edge_to_label t e)) in
               let improvement =
-                try Weight.compare dev2 (VertexHash.find dist ev2) < 0
+                try Weight.compare dev2 (VertexHash.find_exn dist ev2) < 0
                 with Not_found -> true
               in
               if improvement then begin
@@ -486,9 +487,9 @@ struct
             end with Not_found -> x) t.graph None in
         match update with
           | Some x ->
-            if i == P.nb_vertex t.graph then raise (NegativeCycle (find_cycle x))
+            if (phys_equal i (P.nb_vertex t.graph)) then raise (NegativeCycle (find_cycle x))
             else relax (i + 1)
-          | None -> prev in 
+          | None -> prev in
       let r = relax 0 in
       r
 
@@ -509,8 +510,8 @@ struct
       let make_matrix (g:Topology.t) =
         let n = P.nb_vertex g.graph in
         let vs = vertexes g in
-        let nodes = Array.make n (VertexSet.choose vs) in
-        let _ = VertexSet.fold (fun v i -> Array.set nodes i v; i+1) vs 0 in
+        let nodes = Array.create ~len:n (VertexSet.choose_exn vs) in
+        let _ = VertexSet.fold vs ~init:0 ~f:(fun i v -> Array.set nodes i v; i+1) in
         (Array.init n
            (fun i -> Array.init n
              (fun j -> if i = j then (Some Weight.zero, [nodes.(i)])
@@ -531,7 +532,7 @@ struct
           for j = 0 to n - 1 do
             let dist_ikj = add_opt (dist i k) (dist k j) in
             if lt_opt dist_ikj (dist i j) then
-              matrix.(i).(j) <- (dist_ikj, path i k @ List.tl (path k j))
+              matrix.(i).(j) <- (dist_ikj, path i k @ List.tl_exn (path k j))
           done
         done
       done;
@@ -572,7 +573,7 @@ struct
           { t with graph = P.remove_edge_e t.graph e }
         let add_vertex t v =
           { t with graph = P.add_vertex t.graph v ;
-            node_info = VertexMap.add v.Topology.VL.label (v, PortSet.empty) t.node_info;
+            node_info = VertexMap.add t.node_info v.Topology.VL.label (v, PortSet.empty) ;
             next_node = v.Topology.VL.id + 1}
         let add_edge t v1 v2 =
           { t with graph = P.add_edge t.graph v1 v2 ; next_edge = t.next_edge + 1}
@@ -664,13 +665,13 @@ struct
               label = Vertex.parse_dot id attrs }
       let edge attrs =
         (* This is a bit of a hack because we only look at the first list of attrs *)
-        let ats = List.hd attrs in
-        let src,dst,rest = List.fold_left (fun (src,dst,acc) (k,v) -> match k with
+        let ats = List.hd_exn attrs in
+        let src,dst,rest = List.fold_left ats ~init:(0l,0l,[])
+	  ~f:(fun (src,dst,acc) (k,v) -> match k with
           | Graph.Dot_ast.Ident("src_port") -> (get_port v,dst,acc)
           | Graph.Dot_ast.Ident("dst_port") -> (src, get_port v, acc)
-          | _ -> (src,dst,(k,v)::acc)
-        ) (0l,0l,[]) ats in
-        let attrs' = rest::(List.tl attrs) in
+          | _ -> (src,dst,(k,v)::acc)) in
+        let attrs' = rest::(List.tl_exn attrs) in
         let open EL in
             { id = next_edge ();
               label = Edge.parse_dot attrs';
@@ -701,15 +702,16 @@ struct
     open Topology
 
     let load_file f =
+      let open In_channel in
       let ic = open_in f in
-      let n = in_channel_length ic in
+      let n = Int64.to_int_exn (length ic) in
       let s = String.create n in
       really_input ic s 0 n;
-      close_in ic;
+      close ic;
       (s)
 
     let to_dot (t:t) =
-      let es = (EdgeSet.fold (fun (s,l,d) acc ->
+      let es = (EdgeSet.fold (edges t) ~init:"" ~f:(fun acc (s,l,d) ->
         let _,src_port = edge_src (s,l,d) in
         let _,dst_port = edge_dst (s,l,d) in
         Printf.sprintf "%s%s%s -> %s {src_port=%lu; dst_port=%lu; %s};"
@@ -719,14 +721,13 @@ struct
           (Vertex.to_string d.VL.label)
           src_port
           dst_port
-          (Edge.to_dot l.EL.label))
-                  (edges t) "") in
-      let vs = (VertexSet.fold (fun v acc ->
+          (Edge.to_dot l.EL.label))) in
+      let vs = (VertexSet.fold (vertexes t) ~init:"" ~f:(fun acc v ->
         Printf.sprintf "%s%s\n%s;"
           acc
           (if acc = "" then "" else "\n")
           (Vertex.to_dot v.VL.label)
-      ) (vertexes t) "") in
+      )) in
       Printf.sprintf "digraph G {\n%s\n%s\n}\n" vs es
 
     let to_string (t:t) : string =
@@ -747,9 +748,9 @@ struct
         let (src,edge,dst) = e in
         let inverse = match inverse_edge t e with
           | None -> false
-          | Some e -> EdgeSet.mem e !seen in
+          | Some e -> EdgeSet.mem !seen e in
         src = dst ||
-        EdgeSet.mem e !seen ||
+        EdgeSet.mem !seen e ||
         inverse
       in
 
@@ -779,7 +780,7 @@ struct
               Printf.sprintf "    net.addLink(%s, %s, %ld, %ld)\n"
                 src dst src_port dst_port
           in
-          seen := EdgeSet.add e !seen;
+          seen := EdgeSet.add !seen e;
           acc ^ add
         )
         t "" in
