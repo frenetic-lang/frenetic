@@ -230,8 +230,6 @@ module Controller = struct
       end;
       ctl
 
-  let listen t = Platform.listen t.platform
-
   let close t c_id =
     Platform.close t.platform c_id
 
@@ -354,4 +352,9 @@ module Controller = struct
         return [evt]
       | _ ->
         return [evt]
+
+  let listen t =
+    let open Async_OpenFlow_Stage in
+    run (echo >=> txn) t (Platform.listen t.platform)
+
 end

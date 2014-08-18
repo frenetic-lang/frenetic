@@ -162,9 +162,7 @@ module Chunk : sig
     val set_idle_wait : t -> Time.Span.t -> unit
     val set_kill_wait : t -> Time.Span.t -> unit
 
-    val echo : (t, e, e) Stage.t
     val handshake : int -> (t, e, h) Stage.t
-    val txn : (t, h, h) Stage.t
   end
 
 end

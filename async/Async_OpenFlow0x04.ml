@@ -211,11 +211,7 @@ module Controller = struct
   let listen t =
     let open Async_OpenFlow_Stage in
     let open ChunkController in
-    let stages =
-      local (fun t -> t.sub)
-        (echo >=> txn >=> handshake 0x04 >=> txn)
-    in
-    listen_pipe t (run stages t (listen t.sub))
+    listen_pipe t (run (handshake 0x04) t.sub (listen t.sub))
 
   let clear_table (t : t) (sw_id : Client_id.t) =
     let flows = send_result t sw_id (0l, M.FlowModMsg C.delete_all_flows) in
