@@ -27,6 +27,17 @@ type e = [
   | `PortUp     of SDN.switchId * SDN.portId
   | `PortDown   of SDN.switchId * SDN.portId ]
 
+
+let set_monitor_interval (t:t) (s:Time.Span.t) : unit =
+  Chunk_Controller.set_monitor_interval t.sub_chunk s
+
+let set_idle_wait (t:t) (s:Time.Span.t) : unit =
+  Chunk_Controller.set_idle_wait t.sub_chunk s
+
+let set_kill_wait (t:t) (s:Time.Span.t) : unit =
+  Chunk_Controller.set_kill_wait t.sub_chunk s
+
+
 let create ?max_pending_connections
     ?verbose
     ?log_disconnects

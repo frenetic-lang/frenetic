@@ -80,6 +80,14 @@ module Platform : sig
 
   end
 
+  module type CTL = sig
+    type t
+
+    val set_monitor_interval : t -> Time.Span.t -> unit
+    val set_idle_wait : t -> Time.Span.t -> unit
+    val set_kill_wait : t -> Time.Span.t -> unit
+  end
+
   module Make(Message : Message) : S
     with type m = Message.t
      and type c = unit
@@ -144,6 +152,9 @@ module Chunk : sig
     include Platform.S
       with type m = Message.t
 
+    include Platform.CTL
+      with type t := t
+
     type h = [
       | `Connect of Client_id.t * int
       | `Disconnect of Client_id.t * Sexp.t
@@ -157,10 +168,6 @@ module Chunk : sig
       -> Client_id.t
       -> m
       -> [ `Sent of Message.t Ivar.t | `Drop of exn ] Deferred.t
-
-    val set_monitor_interval : t -> Time.Span.t -> unit
-    val set_idle_wait : t -> Time.Span.t -> unit
-    val set_kill_wait : t -> Time.Span.t -> unit
 
     val handshake : int -> (t, e, h) Stage.t
   end
@@ -178,15 +185,14 @@ module OpenFlow0x01 : sig
        and type c = OpenFlow0x01.SwitchFeatures.t
        and type Client_id.t = SDN_Types.switchId
 
+    include Platform.CTL
+      with type t := t
+
     val send_txn
       :  t
       -> Client_id.t
       -> m
       -> [ `Sent of Message.t Ivar.t | `Drop of exn ] Deferred.t
-
-    val set_monitor_interval : t -> Time.Span.t -> unit
-    val set_idle_wait : t -> Time.Span.t -> unit
-    val set_kill_wait : t -> Time.Span.t -> unit
   end
 
 end
@@ -202,6 +208,9 @@ module OpenFlow0x04 : sig
        and type c = OpenFlow0x04.SwitchFeatures.t * (OpenFlow0x04_Core.portDesc list)
        and type Client_id.t = SDN_Types.switchId
 
+    include Platform.CTL
+      with type t := t
+
     val send_txn
       :  t
       -> Client_id.t
@@ -212,7 +221,7 @@ module OpenFlow0x04 : sig
 end
 
 module SDN : sig
-  type t
+  include Platform.CTL
 
   open SDN_Types
 

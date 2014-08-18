@@ -58,6 +58,17 @@ module Controller = struct
 
   type e = (Client_id.t, c, m) Platform.event
 
+
+  let set_monitor_interval (t:t) (s:Time.Span.t) : unit =
+    ChunkController.set_monitor_interval t.sub s
+
+  let set_idle_wait (t:t) (s:Time.Span.t) : unit =
+    ChunkController.set_idle_wait t.sub s
+
+  let set_kill_wait (t:t) (s:Time.Span.t) : unit =
+    ChunkController.set_kill_wait t.sub s
+
+
   (* XXX(seliopou): Raises `Not_found` if the client is no longer connected. *)
   let switch_id_of_client_exn t c_id = ClientMap.find_exn t.c2s c_id
   let client_id_of_switch_exn t sw_id = SwitchMap.find_exn t.s2c sw_id
@@ -99,15 +110,6 @@ module Controller = struct
 
   let listening_port t =
     ChunkController.listening_port t.sub
-
-  let set_monitor_interval (t:t) (s:Time.Span.t) : unit =
-    ChunkController.set_monitor_interval t.sub s
-
-  let set_idle_wait (t:t) (s:Time.Span.t) : unit =
-    ChunkController.set_idle_wait t.sub s
-
-  let set_kill_wait (t:t) (s:Time.Span.t) : unit =
-    ChunkController.set_kill_wait t.sub s
 
   let create_from_chunk t =
     { sub = t

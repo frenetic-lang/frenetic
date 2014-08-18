@@ -62,6 +62,17 @@ module Controller = struct
 
   type e = (Client_id.t, c, m) Platform.event
 
+
+  let set_monitor_interval (t:t) (s:Time.Span.t) : unit =
+    ChunkController.set_monitor_interval t.sub s
+
+  let set_idle_wait (t:t) (s:Time.Span.t) : unit =
+    ChunkController.set_idle_wait t.sub s
+
+  let set_kill_wait (t:t) (s:Time.Span.t) : unit =
+    ChunkController.set_kill_wait t.sub s
+
+
   let openflow0x04 t evt =
     match evt with
       | `Message (s_id, (hdr, bits)) ->

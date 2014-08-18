@@ -58,6 +58,13 @@ module type S = sig
 
 end
 
+module type CTL = sig
+  type t
+
+  val set_monitor_interval : t -> Time.Span.t -> unit
+  val set_idle_wait : t -> Time.Span.t -> unit
+  val set_kill_wait : t -> Time.Span.t -> unit
+end
 
 module Make(Message : Message) = struct
 
