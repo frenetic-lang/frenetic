@@ -162,6 +162,7 @@ module Chunk : sig
     ]
 
     val client_version : t -> Client_id.t -> int
+    val client_next_xid : t -> Client_id.t -> int32
 
     val send_txn
       :  t
@@ -191,7 +192,7 @@ module OpenFlow0x01 : sig
     val send_txn
       :  t
       -> Client_id.t
-      -> m
+      -> OpenFlow0x01.Message.t
       -> [ `Sent of Message.t Ivar.t | `Drop of exn ] Deferred.t
   end
 
@@ -214,7 +215,7 @@ module OpenFlow0x04 : sig
     val send_txn
       :  t
       -> Client_id.t
-      -> m
+      -> OpenFlow0x04.Message.t
       -> [ `Sent of Message.t Ivar.t | `Drop of exn ] Deferred.t
   end
 

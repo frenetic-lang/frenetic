@@ -47,6 +47,7 @@ module Controller = struct
     type t = {
       state : [ `Active | `Idle | `Kill ];
       version : int option;
+      mutable xid : int32;
       txns : r Ivar.t XidTbl.t;
       state_entered : Time.t;
       last_activity : Time.t
@@ -56,10 +57,16 @@ module Controller = struct
       let now = Time.now () in
       { state = `Active
       ; version = None
+      ; xid = 1l
       ; txns = XidTbl.create ()
       ; state_entered = now
       ; last_activity = now
       }
+
+    let next_xid (t:t) =
+      let xid = t.xid in
+      t.xid <- Int32.(xid + 1l);
+      xid
 
     let add_txn (t:t) m =
       let xid = (Message.header_of m).OpenFlow_Header.xid in
@@ -265,6 +272,9 @@ module Controller = struct
     match (Client_id.Table.find_exn t.clients c_id).Conn.version with
     | None      -> raise Not_found
     | Some(ver) -> ver
+
+  let client_next_xid t c_id =
+    Conn.next_xid (Client_id.Table.find_exn t.clients c_id)
 
   let handshake v t evt =
     let open Header in

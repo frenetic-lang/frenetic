@@ -96,7 +96,8 @@ module Controller = struct
 
   let send_txn t sw_id msg =
     let c_id = client_id_of_switch_exn t sw_id in
-    ChunkController.send_txn t.sub c_id (Message.marshal' msg)
+    let xid  = ChunkController.client_next_xid t.sub c_id in
+    ChunkController.send_txn t.sub c_id (Message.marshal' (xid, msg))
 
   let send_ignore_errors t sw_id msg =
     let c_id = client_id_of_switch_exn t sw_id in
