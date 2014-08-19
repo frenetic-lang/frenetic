@@ -1,5 +1,7 @@
 """ Representation of NetKAT abstract syntax tree. """
 
+__all__ = [ 'true', 'false', 'test', 'filter', 'mod', 'id', 'drop', 'seq', 'union' ]
+
 class Pred:
     """ A class to represent NetKAT predicates. This class's constructor should
     not be called directly. Instead, the user should construct objects using
