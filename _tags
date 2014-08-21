@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: f9d055c458f0a38f7392f07224ae28b3)
+# DO NOT EDIT (digest: 19a4d0654f2a0206d38a7c764ab17cc4)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -119,6 +119,28 @@
 "frenetic/katnetic.native": package(yojson)
 "frenetic/katnetic.native": use_async
 "frenetic/katnetic.native": use_netkat
+# Executable webkat
+"frenetic/webkat.native": package(async)
+"frenetic/webkat.native": package(cmdliner)
+"frenetic/webkat.native": package(cohttp)
+"frenetic/webkat.native": package(cohttp.async)
+"frenetic/webkat.native": package(core)
+"frenetic/webkat.native": package(cstruct)
+"frenetic/webkat.native": package(cstruct.syntax)
+"frenetic/webkat.native": package(fieldslib)
+"frenetic/webkat.native": package(fieldslib.syntax)
+"frenetic/webkat.native": package(ocamlgraph)
+"frenetic/webkat.native": package(openflow)
+"frenetic/webkat.native": package(openflow.async)
+"frenetic/webkat.native": package(packet)
+"frenetic/webkat.native": package(sexplib)
+"frenetic/webkat.native": package(sexplib.syntax)
+"frenetic/webkat.native": package(str)
+"frenetic/webkat.native": package(threads)
+"frenetic/webkat.native": package(topology)
+"frenetic/webkat.native": package(yojson)
+"frenetic/webkat.native": use_async
+"frenetic/webkat.native": use_netkat
 <frenetic/*.ml{,i}>: package(cmdliner)
 # Executable netkat_test
 "frenetic/netkat_test.byte": package(async)

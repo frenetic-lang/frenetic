@@ -120,6 +120,19 @@ Executable katnetic
     netkat,
     netkat.async
 
+Executable webkat
+  Path: frenetic
+  MainIs: webkat.ml
+  Build$: flag(async)
+  Install: false
+  CompiledObject: native
+  BuildDepends:
+    async,
+    cmdliner,
+    core,
+    netkat,
+    netkat.async
+
 Executable netkat_test
   Path: frenetic
   MainIs: netkat_test.ml

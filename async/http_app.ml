@@ -105,8 +105,9 @@ open Cohttp_async
 let initialize host port path =
   let uri = Uri.make ~host ~port ~path () in
   Client.post uri >>| fun (response, body) ->
-    if not (Cohttp.Code.code_of_status (response.Response.status) = 201) then
-      failwith "unexpected response";
+  let code = Cohttp.Code.code_of_status (response.Response.status) in 
+    if not (code = 201) then
+      failwith (Printf.sprintf "unexpected response: %d" code);
     Cohttp.Header.get response.Response.headers "Location"
 
 let handler uri event =
