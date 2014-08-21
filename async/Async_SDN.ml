@@ -55,13 +55,23 @@ let create ?max_pending_connections
 let listen_of0x01 (t : t) : Chunk_Controller.h Pipe.Writer.t * e Pipe.Reader.t =
   let module OF = OpenFlow0x01 in
   let recv, send = Pipe.create () in
-  let get_port pd = Int32.of_int_exn pd.OF.PortDescription.port_no in
+  let port_useable pd =
+    let open OF.PortDescription in
+    if pd.config.PortConfig.down
+      then false
+      else not (pd.state.PortState.down)
+  in
+  let get_port pd =
+    if port_useable pd
+      then Some(Int32.of_int_exn pd.OF.PortDescription.port_no)
+      else None
+  in
   send, Pipe.filter_map (OF0x01_Controller.listen_pipe t.sub_0x01 recv)
     ~f:(function
         | `Connect(sw_id, fs) ->
           let sdn_fs =
             { SDN.switch_id = sw_id
-            ; SDN.switch_ports = List.map fs.OF.SwitchFeatures.ports ~f:get_port }
+            ; SDN.switch_ports = List.filter_map fs.OF.SwitchFeatures.ports ~f:get_port }
           in
           Some(`Connect(sw_id, sdn_fs))
         | `Disconnect(sw_id, exn) ->
@@ -69,14 +79,9 @@ let listen_of0x01 (t : t) : Chunk_Controller.h Pipe.Writer.t * e Pipe.Reader.t =
         | `Message(sw_id, (xid, OF.Message.PacketInMsg pi)) ->
           Some(`PacketIn(sw_id, SDN_OpenFlow0x01.to_packetIn pi))
         | `Message (sw_id, (xid, OF.Message.PortStatusMsg ps)) ->
-          let open OF.PortDescription in
           let open OF.PortStatus in
-          let useable =
-            if ps.desc.config.PortConfig.down
-              then false
-              else not (ps.desc.state.PortState.down)
-          in
-          begin match ps.reason, useable with
+          let open OF.PortDescription in
+          begin match ps.reason, port_useable ps.desc with
           | ChangeReason.Add, true
           | ChangeReason.Modify, true ->
             let pt_id = Int32.of_int_exn (ps.desc.port_no) in
@@ -92,14 +97,24 @@ let listen_of0x01 (t : t) : Chunk_Controller.h Pipe.Writer.t * e Pipe.Reader.t =
 
 let listen_of0x04 (t : t) : Chunk_Controller.h Pipe.Writer.t * e Pipe.Reader.t =
   let module OF = OpenFlow0x04 in
+  let open OpenFlow0x04_Core in
   let recv, send = Pipe.create () in
-  let get_port pd = pd.OpenFlow0x04_Core.port_no in
+  let port_useable (pd : portDesc) =
+    if pd.config.port_down
+      then false
+      else not (pd.state.link_down)
+  in
+  let get_port pd =
+    if port_useable pd
+      then Some(pd.port_no)
+      else None
+  in
   send, Pipe.filter_map (OF0x04_Controller.listen_pipe t.sub_0x04 recv)
     ~f:(function
         | `Connect(sw_id, (fs, ps)) ->
           let sdn_fs =
             { SDN.switch_id = sw_id
-            ; SDN.switch_ports = List.map ps ~f:get_port }
+            ; SDN.switch_ports = List.filter_map ps ~f:get_port }
           in
           Some(`Connect(sw_id, sdn_fs))
         | `Disconnect(sw_id, exn) ->
@@ -107,13 +122,7 @@ let listen_of0x04 (t : t) : Chunk_Controller.h Pipe.Writer.t * e Pipe.Reader.t =
         | `Message(sw_id, (xid, OF.Message.PacketInMsg pi)) ->
           Some(`PacketIn(sw_id, SDN_OpenFlow0x04.to_packetIn pi))
         | `Message (sw_id, (xid, OF.Message.PortStatusMsg ps)) ->
-          let open OpenFlow0x04_Core in
-          let useable =
-            if ps.desc.config.port_down
-              then false
-              else not (ps.desc.state.link_down)
-          in
-          begin match ps.reason, useable with
+          begin match ps.reason, port_useable ps.desc with
           | PortAdd, true
           | PortModify, true ->
             Some(`PortUp(sw_id, ps.desc.port_no))
