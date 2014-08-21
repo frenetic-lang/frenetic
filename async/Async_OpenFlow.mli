@@ -189,11 +189,11 @@ module OpenFlow0x01 : sig
     include Platform.CTL
       with type t := t
 
-    val send_txn
-      :  t
-      -> Client_id.t
-      -> OpenFlow0x01.Message.t
-      -> [ `Sent of Message.t Ivar.t | `Drop of exn ] Deferred.t
+    (* val clear_flows : t -> SDN.Pattern.t -> Client_id.t -> (unit, exn) Deferred.Result.t *)
+    val clear_table : t -> Client_id.t -> (unit, exn) Deferred.Result.t
+
+    val send_pkt_out : t -> Client_id.t -> OpenFlow0x01_Core.packetOut -> (unit, exn) Deferred.Result.t
+    val barrier : t -> Client_id.t -> (unit, exn) Result.t Deferred.t
   end
 
 end
@@ -212,11 +212,13 @@ module OpenFlow0x04 : sig
     include Platform.CTL
       with type t := t
 
-    val send_txn
-      :  t
-      -> Client_id.t
-      -> OpenFlow0x04.Message.t
-      -> [ `Sent of Message.t Ivar.t | `Drop of exn ] Deferred.t
+
+    (* val clear_flows : t -> Pattern.t -> Client_id.t -> (unit, exn) Deferred.Result.t *)
+    val clear_table : t -> Client_id.t -> (unit, exn) Deferred.Result.t
+
+    val send_pkt_out : t -> Client_id.t -> OpenFlow0x04_Core.packetOut -> (unit, exn) Deferred.Result.t
+    val barrier : t -> Client_id.t -> (unit, exn) Result.t Deferred.t
+
   end
 
 end
@@ -245,13 +247,18 @@ module SDN : sig
 
   val listen : t -> e Pipe.Reader.t
 
-  val clear_table : t -> switchId -> (unit, exn) Result.t Deferred.t
+  (* val clear_flows : t -> Pattern.t -> switchId -> (unit, exn) Deferred.Result.t *)
+  val clear_table : t -> switchId -> (unit, exn) Deferred.Result.t
 
   val install_flows
     :  ?clear:bool
     -> t
     -> switchId
     -> flow list
-    -> (unit, exn) Result.t Deferred.t
+    -> (unit, exn) Deferred.Result.t
+
+  val send_pkt_out : t -> switchId -> pktOut -> (unit, exn) Deferred.Result.t
+
+  val barrier : t -> switchId -> (unit, exn) Deferred.Result.t
 
 end

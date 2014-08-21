@@ -177,6 +177,9 @@ let switch_version (t : t) (sw_id : SDN.switchId) =
     end
   | Some _ -> 0x01
 
+let clear_flows (t : t) (pattern : SDN.Pattern.t) (sw_id : SDN.switchId) =
+  failwith "NYI: SDN.clear_flows"
+
 let clear_table (t : t) (sw_id : SDN.switchId) =
   match switch_version t sw_id with
   | 0x01 -> OF0x01_Controller.clear_table t.sub_0x01 sw_id
@@ -198,4 +201,18 @@ let install_flows ?(clear=true) (t : t) (sw_id : SDN.switchId) flows =
     OF0x04_Controller.send_flow_mods ~clear t.sub_0x04 sw_id flow_mods >>= fun () ->
     let f group = OF0x04_Controller.send_result t.sub_0x04 sw_id (0l, group) in
     Deferred.Result.all_ignore (List.map (GroupTable0x04.commit groups) ~f)
+  | _ -> failwith "Unsupported version"
+
+let send_pkt_out (t : t) (sw_id : SDN.switchId) (pkt_out : SDN.pktOut) =
+  match switch_version t sw_id with
+  | 0x01 -> OF0x01_Controller.send_pkt_out t.sub_0x01 sw_id
+      (SDN_OpenFlow0x01.from_packetOut pkt_out)
+  | 0x04 -> OF0x04_Controller.send_pkt_out t.sub_0x04 sw_id
+      (SDN_OpenFlow0x04.from_packetOut pkt_out)
+  | _ -> failwith "Unsupported version"
+
+let barrier (t : t) (sw_id : SDN.switchId) =
+  match switch_version t sw_id with
+  | 0x01 -> OF0x01_Controller.barrier t.sub_0x01 sw_id
+  | 0x04 -> OF0x04_Controller.barrier t.sub_0x04 sw_id
   | _ -> failwith "Unsupported version"

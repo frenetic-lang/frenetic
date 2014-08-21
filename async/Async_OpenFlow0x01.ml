@@ -193,6 +193,9 @@ module Controller = struct
     let open ChunkController in
     listen_pipe t (run (handshake 0x01) t.sub (listen t.sub))
 
+  let clear_flows (t : t) (pattern : SDN_Types.Pattern.t) (sw_id : Client_id.t) =
+    failwith "NYI: OF0x01.clear_flows"
+
   let clear_table (t : t) (sw_id : Client_id.t) =
     send_result t sw_id (0l, M.FlowModMsg (C.delete_all_flows))
 
@@ -205,4 +208,20 @@ module Controller = struct
           ~f:(fun f -> send_result t sw_id (0l, M.FlowModMsg f))
         in
         Deferred.Result.all_ignore sends
+
+  let send_pkt_out (t : t) (sw_id : Client_id.t) pkt_out =
+    send_result t sw_id (0l, M.PacketOutMsg pkt_out)
+
+  let barrier t sw_id =
+    try begin
+      send_txn t sw_id M.BarrierRequest
+      >>= function
+        | `Sent ivar -> begin Ivar.read ivar
+          >>| function
+            | M.BarrierReply -> Result.Ok ()
+            | _              -> assert false
+          end
+        | `Drop exn  -> return (Result.Error exn)
+    end with Not_found -> return (Result.Error Not_found)
+
 end
