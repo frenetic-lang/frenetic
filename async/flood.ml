@@ -2,7 +2,7 @@ open Core.Std
 open Async.Std
 
 module Log = Async_OpenFlow.Log
-let tags = [("netkat", "arp")]
+let tags = [("netkat", "flood")]
 
 module SwitchMap = Map.Make(Int64)
 
@@ -22,26 +22,30 @@ let create () =
 	 drop
       | Some ports -> 
 	 PortSet.fold ports ~init:drop ~f:(fun acc port_id -> 
-    	   Union(Mod(Location(Physical port_id)), acc)) in 
+	    let acts = 
+	      PortSet.fold ports ~init:drop ~f:(fun acc port_id' -> 
+		if port_id = port_id' then acc
+		else Union(Mod(Location(Physical port_id')), acc)) in 
+	    Union(Seq(Filter(Test(Location(Physical port_id))), acts), acc)) in 
     SwitchMap.fold !state ~init:drop ~f:(fun ~key:switch_id ~data:ports acc ->
-      Union(Seq(Filter(And(Test(Switch switch_id), pred)), flood switch_id), acc)) in 
+      Union(Seq(Filter(Test(Switch switch_id)), flood switch_id), acc)) in 
 
   let default = drop in 
 
   let handler t w () e = match e with
     | SwitchUp(switch_id) ->
        Log.of_lazy ~tags ~level:`Info (lazy (Printf.sprintf 
-         "[arp] ↑ { switch = %Lu }" switch_id));
+         "[flood] ↑ { switch = %Lu }" switch_id));
        state := SwitchMap.add !state ~key:switch_id ~data:PortSet.empty;
       return (Some(gen_pol ()))
     | SwitchDown(switch_id) ->
        Log.of_lazy ~tags ~level:`Info (lazy (Printf.sprintf 
-         "[arp] ↓ { switch = %Lu }" switch_id));
+         "[flood] ↓ { switch = %Lu }" switch_id));
        state := SwitchMap.remove !state switch_id;
        return (Some(gen_pol ()))
     | PortUp(switch_id, port_id) -> 
        Log.of_lazy ~tags ~level:`Info (lazy (Printf.sprintf 
-         "[arp] ↑ { switch = %Lu; port = %lu }" switch_id port_id));
+         "[flood] ↑ { switch = %Lu; port = %lu }" switch_id port_id));
        (match SwitchMap.find !state switch_id with 
 	| None -> 
 	   ()
@@ -50,7 +54,7 @@ let create () =
        return (Some (gen_pol ()))
     | PortDown(switch_id, port_id) -> 
        Log.of_lazy ~tags ~level:`Info (lazy (Printf.sprintf 
-         "[arp] ↓ { switch = %Lu; port = %lu }" switch_id port_id));
+         "[flood] ↓ { switch = %Lu; port = %lu }" switch_id port_id));
        (match SwitchMap.find !state switch_id with 
 	| None -> 
 	   ()

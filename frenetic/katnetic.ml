@@ -3,18 +3,24 @@ module Run = struct
   open Async.Std
 
   let main update learn policy_queue_size filename =
+    let open NetKAT_Types in 
     let open NetKAT_LocalCompiler in
+    let open Async_NetKAT in 
     let main () =
       let static = match filename with
-      | None   -> Async_NetKAT.create_from_string "filter *"
-      | Some f -> Async_NetKAT.create_from_file f
-      in
+	| None   -> create_static id 
+	| Some f -> create_from_file f in 
       let app = 
 	if learn then 
-	  Async_NetKAT.(seq static (union (Arp.create ()) (Learning.create ())))
+	  let arp = 
+	    seq (create_static (Filter (Test(EthType 0x806))))
+		(Flood.create ()) in 
+	  let learning = Learning.create () in 
+	  seq static (union arp learning)
+	  (* JNF: why does this not work? *)
+	  (* seq static (slice (Test (EthType 0x806)) arp learning) *)
         else 
-	  static
-      in
+	  static in 
       Async_NetKAT_Controller.start ~update ?policy_queue_size app () in
     never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ())
 end
