@@ -82,6 +82,7 @@ Library async
     sexplib,
     sexplib.syntax
   InternalModules:
+    Arp, 
     Discovery,
     Learning,
     Raw_app,

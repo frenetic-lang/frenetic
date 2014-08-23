@@ -52,6 +52,10 @@ let create () =
                              Mod(Location(Physical port))),
                          k) in
           let u' = And(Neg(Test(EthSrc mac)), u) in
+	  Log.of_lazy ~tags ~level:`Info (lazy (Printf.sprintf
+              "[learning] known %s" (NetKAT_Pretty.string_of_policy k')));
+	  Log.of_lazy ~tags ~level:`Info (lazy (Printf.sprintf
+              "[learning] unknown %s" (NetKAT_Pretty.string_of_pred u')));
           (k', u')) in
       Union(Seq(Filter(Test(Switch switch_id)),
                 Union(known, Seq(Filter(unknown_pred), default))),
@@ -66,13 +70,21 @@ let create () =
       return (Some(gen_pol ()))
     | PacketIn(_, switch_id, port_id, payload, _) ->
       let packet = Packet.parse (SDN_Types.payload_bytes payload) in
+      Log.of_lazy ~tags ~level:`Info (lazy (Printf.sprintf 
+          "[learning] packet %s" (Packet.to_string packet)));
       let pol = if learn switch_id port_id packet then
          Some(gen_pol ())
       else 
          None in
+      Log.of_lazy ~tags ~level:`Info (lazy (Printf.sprintf 
+          "[learning] policy %s" 
+	    (match pol with 
+	     | None -> "None" 
+	     | Some p -> "Some " ^ NetKAT_Pretty.string_of_policy p)));
       let action = forward switch_id packet in
       Pipe.write w (switch_id, (payload, Some(port_id), [action])) >>= fun _ ->
       return pol 
     | _ -> return None in
       
-  create ~pipes:(PipeSet.singleton "learn") default handler
+  create ~pipes:(PipeSet.singleton "learn") default handler 
+  

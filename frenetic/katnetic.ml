@@ -9,9 +9,11 @@ module Run = struct
       | None   -> Async_NetKAT.create_from_string "filter *"
       | Some f -> Async_NetKAT.create_from_file f
       in
-      let app = if learn
-        then Async_NetKAT.seq static (Learning.create ())
-        else static
+      let app = 
+	if learn then 
+	  Async_NetKAT.(seq static (union (Arp.create ()) (Learning.create ())))
+        else 
+	  static
       in
       Async_NetKAT_Controller.start ~update ?policy_queue_size app () in
     never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ())
