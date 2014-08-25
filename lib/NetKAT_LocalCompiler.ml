@@ -927,6 +927,9 @@ module RunTime = struct
   let expand_rules (x:Pattern.t) (s:Action.Set.t) : flowTable =
     let m : HPT.t = 
       let open HPT in 
+      List.iter x.HPT.location ~f:(function
+        | (Some(NetKAT_Types.Pipe _), _) -> failwith "indetermiate port in pattern"
+        | _                              -> ());
       { location = PTL.(expand x.HPT.location);
         ethSrc = PT48.(expand x.HPT.ethSrc);
         ethDst = PT48.(expand x.HPT.ethDst);
