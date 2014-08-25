@@ -51,10 +51,10 @@ let create () =
           let k' = Union(Seq(Filter(Test(EthDst mac)),
                              Mod(Location(Physical port))),
                          k) in
-          let u' = And(Neg(Test(EthDst mac)), u) in
+          let u' = And(Neg(Test(EthSrc mac)), u) in
           (k', u')) in
       Union(Seq(Filter(Test(Switch switch_id)),
-                Union(known, Seq(Filter(unknown_pred), default))),
+                Union(known, Seq(Filter(Or(Test(EthDst 0xffffffffffffL), unknown_pred)), default))),
             acc)) in
 
   let handler t w () e = match e with
