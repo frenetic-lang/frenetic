@@ -130,6 +130,15 @@ TEST "quickcheck failure on 10/16/2013" =
     (Seq (modSrc 0, Union (Filter (testSrc 2), modDst 2)))
     (Seq (modDst 2, modSrc 0))
 
+(* If a policy has a pipe location in a predicate, it should fail to compile. *)
+TEST "quickcheck failure on 8/25/2014" =
+  let b = "filter port = 0; (ethDst := fb:40:e5:6b:a8:f8; (ipSrc := 126.42.191.208 | ethTyp := 0x1464 | (filter ipDst = 155.173.129.111/22 | id); filter ipDst = 121.178.114.15/11 and port = __))" in
+  try
+    let _ = NetKAT_LocalCompiler.(to_table (of_policy 0L
+      (NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string b)))) in
+    false
+  with _ -> true
+
 TEST "vlan" =
   let test_vlan_none = Test (Vlan 0xFFF) in
   let mod_vlan_none = Mod (Vlan 0xFFF) in
