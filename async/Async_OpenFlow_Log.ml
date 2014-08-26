@@ -46,6 +46,7 @@ let stderr : Log.Output.t =
 
 let log = lazy (Log.create ~level:`Info ~output:[stderr])
 
+let level () = Log.level (Lazy.force log)
 let set_level = Log.set_level (Lazy.force log)
 
 let set_output outputs = current_outputs := outputs;
@@ -56,24 +57,33 @@ let add_output outputs =
   current_outputs := outputs;
   set_output outputs
 
-let raw ?(tags=[]) fmt = Log.raw (Lazy.force log) ~tags fmt
+let raw ?time ?(tags=[]) fmt = Log.raw (Lazy.force log) ?time ~tags fmt
 
-let info ?(tags=[]) fmt = Log.info (Lazy.force log) ~tags fmt
+let info ?time ?(tags=[]) fmt = Log.info (Lazy.force log) ?time ~tags fmt
 
-let error ?(tags=[]) fmt = Log.error (Lazy.force log) ~tags fmt
+let error ?time ?(tags=[]) fmt = Log.error (Lazy.force log) ?time ~tags fmt
 
-let debug ?(tags=[]) fmt = Log.debug (Lazy.force log) ~tags fmt
+let debug ?time ?(tags=[]) fmt = Log.debug (Lazy.force log) ?time ~tags fmt
 
 let flushed () =
   Log.flushed (Lazy.force log)
 
-let printf ?(tags=[]) ?(level=`Debug) fmt =
+let printf ?(level=`Debug) ?time ?(tags=[]) fmt =
   Log.printf (Lazy.force log) ~tags ~level fmt
 
-let of_lazy ?(tags=[]) ?(level=`Debug) lazy_str =
-  Log.of_lazy (Lazy.force log) ~tags ~level lazy_str
+let of_lazy ?(level=`Debug) ?time ?(tags=[]) lazy_str =
+  (* As of core/async.111.25.00, `Log.of_lazy` is no longer part of that
+   * package's public API. In 111.28.00, the `Log.level` call was added,
+   * allowing users of the package to implement `of_lazy` without having to
+   * manage the log level manually.
+   * *)
+  if level = Log.level (Lazy.force log) then
+    Log.printf (Lazy.force log) ~tags ~level "%s" (Lazy.force lazy_str)
 
-let sexp ?(tags=[]) ?(level=`Debug) msg =
-    Log.sexp (Lazy.force log) ~tags ~level msg
+let sexp ?(level=`Debug) ?time ?(tags=[]) msg =
+  Log.sexp (Lazy.force log) ~tags ~level msg
+
+let string ?(level=`Debug) ?time ?(tags=[]) str =
+  Log.string (Lazy.force log) ~tags ~level str
 
 let message = Log.message (Lazy.force log)
