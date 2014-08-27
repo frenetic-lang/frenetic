@@ -48,21 +48,21 @@ let from_pattern (pat : AL.Pattern.t) : Core.pattern =
       | None -> None)
   ; Core.dlVlanPcp = pat.AL.Pattern.dlVlanPcp
   ; Core.nwSrc = (match pat.AL.Pattern.nwSrc with
-    | None   -> None
+    | None -> None
     | Some (p,m) ->
-       let mo = 
-	 if m = 32l then 
-	   None 
-	 else 
+       let mo =
+	 if m = 32l then
+	   None
+	 else
 	   Some (Int32.sub 32l m) in
       Some { Core.m_value = p; Core.m_mask = mo })
   ; Core.nwDst = (match pat.AL.Pattern.nwDst with
-    | None   -> None
+    | None -> None
     | Some (p,m) ->
-       let mo = 
-	 if m = 32l then 
-	   None 
-	 else 
+       let mo =
+	 if m = 32l then
+	   None
+	 else
 	   Some (Int32.sub 32l m) in
        Some { Core.m_value = p; Core.m_mask = mo })
   ; Core.nwProto = pat.AL.Pattern.nwProto
@@ -129,8 +129,10 @@ module Common = HighLevelSwitch_common.Make (struct
         end
       | AL.Modify (AL.SetVlanPcp pcp) ->
         (Mod.dlVlanPcp, SetDlVlanPcp(VInt.(get_int4 (Int4 pcp))))
-      | AL.Modify (AL.SetEthTyp _) -> raise (Invalid_argument "cannot set Ethernet type")
-      | AL.Modify (AL.SetIPProto _) -> raise (Invalid_argument "cannot set IP protocol")
+      | AL.Modify (AL.SetEthTyp _) -> 
+	 raise (Invalid_argument "cannot set Ethernet type")
+      | AL.Modify (AL.SetIPProto _) -> 
+	 raise (Invalid_argument "cannot set IP protocol")
       | AL.Modify (AL.SetIP4Src nwAddr) ->
         (Mod.nwSrc, SetNwSrc nwAddr)
       | AL.Modify (AL.SetIP4Dst nwAddr) ->
@@ -141,11 +143,13 @@ module Common = HighLevelSwitch_common.Make (struct
         (Mod.tpDst, SetTpDst VInt.(get_int16 (Int16 tp)))
 end)
 
-let from_group (inPort : Core.portId option) (group : AL.group) : Core.action list =
+let from_group (inPort : Core.portId option) (group : AL.group)
+  : Core.action list = 
   match group with
   | [] -> []
   | [par] -> Common.flatten_par inPort par
-  | _ -> raise (SDN_Types.Unsupported "OpenFlow 1.0 does not support fast-failover")
+  | _ -> 
+     raise (SDN_Types.Unsupported "OpenFlow 1.0 does not support fast-failover")
       
 let from_timeout (timeout : AL.timeout) : Core.timeout =
   match timeout with
