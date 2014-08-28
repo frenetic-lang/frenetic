@@ -766,7 +766,7 @@ end
 module MultipartReq = struct
   open Gen
   open OpenFlow0x04_Core
-  module TableFeatures = struct
+  module TableFeature = struct
     module TableFeatureProp = struct
       
       type t = TableFeatureProp.t
@@ -825,53 +825,39 @@ module MultipartReq = struct
       let size_of = TableFeatureProp.sizeof
     end
     
-    module TableFeature = struct
-      type t = TableFeature.t
+    type t = TableFeature.t
 
-      let arbitrary_config =
-        ret_gen Deprecated
+    let arbitrary_config =
+      ret_gen Deprecated
 
-      let calc_length tfp =
-        (* sizeof_ofp_table_feature = 64*)
-        ret_gen (64+sum (List.map TableFeatureProp.size_of tfp))
+    let calc_length tfp =
+      (* sizeof_ofp_table_feature = 64*)
+      ret_gen (64+sum (List.map TableFeatureProp.size_of tfp))
 
-      let arbitrary = 
-        arbitrary_uint8 >>= fun table_id ->
-        arbitrary_stringN 32 >>= fun name ->
-        arbitrary_uint64 >>= fun metadata_match ->
-        arbitrary_uint64 >>= fun metadata_write ->
-        arbitrary_config >>= fun config ->
-        arbitrary_uint32 >>= fun max_entries ->
-        list1 TableFeatureProp.arbitrary >>= fun feature_prop ->
-        calc_length feature_prop>>= fun length ->
-        ret_gen {
-          length;
-          table_id;
-          name;
-          metadata_match;
-          metadata_write;
-          config;
-          max_entries;
-          feature_prop
-        }
-      
-      let marshal = TableFeature.marshal
-      let parse bits= 
-            let p,_ = TableFeature.parse bits in
-            p
-      let to_string = TableFeature.to_string
-      let size_of = TableFeature.sizeof
-    end
-
-    type t = TableFeatures.t
-
-    let arbitrary =
-        list1 TableFeature.arbitrary >>= fun v ->
-        ret_gen v
-    let marshal = TableFeatures.marshal
-    let parse = TableFeatures.parse
-    let to_string = TableFeatures.to_string
-    let size_of = TableFeatures.sizeof
+    let arbitrary = 
+      arbitrary_uint8 >>= fun table_id ->
+      arbitrary_stringN 32 >>= fun name ->
+      arbitrary_uint64 >>= fun metadata_match ->
+      arbitrary_uint64 >>= fun metadata_write ->
+      arbitrary_config >>= fun config ->
+      arbitrary_uint32 >>= fun max_entries ->
+      list1 TableFeatureProp.arbitrary >>= fun feature_prop ->
+      calc_length feature_prop>>= fun length ->
+      ret_gen {
+        length;
+        table_id;
+        name;
+        metadata_match;
+        metadata_write;
+        config;
+        max_entries;
+        feature_prop
+      }
+    
+    let marshal = TableFeature.marshal
+    let parse = TableFeature.parse
+    let to_string = TableFeature.to_string
+    let size_of = TableFeature.sizeof
   end
 
   module FlowRequest = struct
@@ -918,7 +904,7 @@ module MultipartReq = struct
   let arbitrary_option =
      frequency [
     (1, ret_gen None);
-    (3, TableFeatures.arbitrary >>= (fun v -> ret_gen (Some v)))
+    (3, list1 TableFeature.arbitrary >>= (fun v -> ret_gen (Some v)))
     ]
   
   let arbitrary_type = 
@@ -1391,8 +1377,8 @@ module MultipartReply = struct
     let size_of = MeterConfig.sizeof
   end
 
-  module MeterFeaturesStats = struct
-    type t = MeterFeaturesStats.t
+  module MeterFeatures = struct
+    type t = MeterFeatures.t
     
     let arbitrary_meterBandMaps =
       arbitrary_bool >>= fun drop ->
@@ -1427,10 +1413,10 @@ module MultipartReply = struct
         max_color
       }
 
-    let marshal = MeterFeaturesStats.marshal
-    let parse = MeterFeaturesStats.parse
-    let to_string = MeterFeaturesStats.to_string
-    let size_of = MeterFeaturesStats.sizeof
+    let marshal = MeterFeatures.marshal
+    let parse = MeterFeatures.parse
+    let to_string = MeterFeatures.to_string
+    let size_of = MeterFeatures.sizeof
   end
 
   type t = MultipartReply.t
@@ -1450,7 +1436,7 @@ module MultipartReply = struct
           list1 GroupDesc.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (GroupDescReply n);  mpreply_flags = flags});
           list1 MeterStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterReply n);  mpreply_flags = flags});
           list1 MeterConfig.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterConfig n);  mpreply_flags = flags});
-          MeterFeaturesStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterFeaturesReply n);  mpreply_flags = flags});
+          MeterFeatures.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterFeaturesReply n);  mpreply_flags = flags});
           ]
 
   let marshal = MultipartReply.marshal
@@ -1897,26 +1883,24 @@ module AsyncConfig = struct
 
   type t = AsyncConfig.t
 
-  let arbitrary_FlowReason = 
-    oneof [ 
-      ret_gen FlowIdleTimeout;
-      ret_gen FlowHardTiemout;
-      ret_gen FlowDelete;
-      ret_gen FlowGroupDelete]
+  let arbitrary_packetInReasonMap = 
+    arbitrary_bool >>= fun table_miss ->
+    arbitrary_bool >>= fun apply_action ->
+    arbitrary_bool >>= fun invalid_ttl ->
+    ret_gen { table_miss; apply_action; invalid_ttl }
 
-  let arbitrary_PacketInReason =
-      oneof [
-          ret_gen NoMatch;
-          ret_gen ExplicitSend;
-          ret_gen InvalidTTL
-      ]
+  let arbitrary_portStatusReasonMap = 
+    arbitrary_bool >>= fun add ->
+    arbitrary_bool >>= fun delete ->
+    arbitrary_bool >>= fun modify ->
+    ret_gen { add; delete; modify }
 
-  let arbitrary_PortStatusReason =
-        oneof [
-            ret_gen PortAdd;
-            ret_gen PortDelete;
-            ret_gen PortModify
-        ]
+  let arbitrary_flowRemovedReasonMap =
+    arbitrary_bool >>= fun idle_timeout ->
+    arbitrary_bool >>= fun hard_timeout ->
+    arbitrary_bool >>= fun delete ->
+    arbitrary_bool >>= fun group_delete ->
+    ret_gen { idle_timeout; hard_timeout; delete; group_delete }
 
   let arbitrary_mask arb =
     arb >>= fun m_master ->
@@ -1924,9 +1908,9 @@ module AsyncConfig = struct
     ret_gen { m_master; m_slave }
 
   let arbitrary = 
-    arbitrary_mask arbitrary_PacketInReason >>= fun packet_in ->
-    arbitrary_mask arbitrary_PortStatusReason >>= fun port_status ->
-    arbitrary_mask arbitrary_FlowReason >>= fun flow_removed ->
+    arbitrary_mask arbitrary_packetInReasonMap >>= fun packet_in ->
+    arbitrary_mask arbitrary_portStatusReasonMap >>= fun port_status ->
+    arbitrary_mask arbitrary_flowRemovedReasonMap >>= fun flow_removed ->
     ret_gen { packet_in; port_status; flow_removed }
 
   let marshal = AsyncConfig.marshal

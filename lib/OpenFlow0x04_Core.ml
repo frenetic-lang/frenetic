@@ -601,7 +601,7 @@ type meterConfig = { length : length; flags : meterFlags; meter_id : int32; band
 
 type meterBandMaps = { drop : bool; dscpRemark : bool}
 
-type meterFeaturesStats = { max_meter : int32; band_typ : meterBandMaps; 
+type meterFeatures = { max_meter : int32; band_typ : meterBandMaps; 
                             capabilities : meterFlags; max_band : int8;
                             max_color : int8 }
 
@@ -619,7 +619,7 @@ type multipartReplyTyp =
   | GroupFeaturesReply of groupFeatures
   | MeterReply of meterStats list
   | MeterConfig of meterConfig list
-  | MeterFeaturesReply of meterFeaturesStats
+  | MeterFeaturesReply of meterFeatures
 
 type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool}
 
@@ -655,7 +655,13 @@ type element =
 
 type helloElement = element list
 
-type asyncConfig = { packet_in : packetInReason asyncMask; 
-                     port_status : portReason asyncMask;
-                     flow_removed : flowReason asyncMask }
+type packetInReasonMap =  { table_miss : bool; apply_action : bool; invalid_ttl : bool }
 
+type portReasonMap =  { add : bool; delete : bool; modify : bool }
+
+type flowReasonMask = { idle_timeout : bool; hard_timeout : bool; delete : bool; 
+                        group_delete : bool}
+
+type asyncConfig = { packet_in : packetInReasonMap asyncMask; 
+                     port_status : portReasonMap asyncMask;
+                     flow_removed : flowReasonMask asyncMask }
