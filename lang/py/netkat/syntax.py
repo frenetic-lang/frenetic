@@ -48,9 +48,9 @@ class Pred:
 
     def _repr(self, parent=None):
         if self._type == self.P_TRUE:
-            return "true"
+            return "*"
         elif self._type == self.P_FALS:
-            return "false"
+            return "<none>"
         elif self._type == self.P_TEST:
             return "%s = %s" % self.args
         elif self._type == self.P_NEG:
