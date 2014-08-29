@@ -61,6 +61,7 @@ module type NETWORK = sig
     val copy : t -> t
     val empty : unit -> t
     val add_vertex : t -> Vertex.t -> (t * vertex)
+    val add_port : t -> vertex -> port -> t
     val add_edge : t -> vertex -> port -> Edge.t -> vertex -> port -> (t * edge)
 
     (* Special Accessors *)
@@ -93,6 +94,7 @@ module type NETWORK = sig
 
     (* Mutators *)
     val remove_vertex : t -> vertex -> t
+    val remove_port : t -> vertex -> port -> t
     val remove_edge : t -> edge -> t
     val remove_endpoint : t -> (vertex * port) -> t
   end
