@@ -3,7 +3,6 @@ module Run = struct
   open Async.Std
 
   let main update learn policy_queue_size filename =
-    let open NetKAT_LocalCompiler in
     let main () =
       let static = match filename with
       | None   -> Async_NetKAT.create_from_string "filter *"
