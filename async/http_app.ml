@@ -140,6 +140,6 @@ let create policy host port ?(path="/netkat/app") =
   initialize host port path
   >>| function
     | None       -> failwith "no location provided"
-    | Some(path) ->
-      let uri = Uri.make ~host ~port ~path () in
+    | Some(loc) ->
+      let uri = Uri.(of_string (pct_decode loc)) in
       Async_NetKAT.create policy (fun _ _ () -> handler uri)

@@ -12,9 +12,9 @@ def create(state, handler, name="netkat"):
     @app.route('/netkat/app', methods=['POST'])
     def _create():
         gs['instances'][gs['counter']] = state()
-        gs['counter'] = counter + 1
+        gs['counter'] = gs['counter'] + 1
         response = make_response("Created", 201)
-        response.headers['Location'] = '/netkat/app/%s' % gs['counter']
+        response.headers['Location'] = '/netkat/app/%s' % (gs['counter'] - 1)
         return response
 
     @app.route('/netkat/app/<int:_id>', methods=['PUT'])

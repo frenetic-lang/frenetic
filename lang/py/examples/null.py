@@ -1,7 +1,7 @@
 import netkat.flaskapp
 from netkat.syntax import *
 
-def state(_):
+def state():
     pass
 
 def handler(_, event):
@@ -9,4 +9,6 @@ def handler(_, event):
     return drop()
 
 if __name__ == '__main__':
-    netkat.flaskapp.create(state, handler).run()
+    app = netkat.flaskapp.create(state, handler)
+    app.debug = True
+    app.run()
