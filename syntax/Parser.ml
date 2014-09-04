@@ -102,26 +102,26 @@ EXTEND Gram
         <:expr<NetKAT_Types.(Mod (Switch $sw$))>>
     | "port"; ":="; n = nk_int32 ->
         <:expr<NetKAT_Types.(Mod (Location (Physical $n$)))>>
+    | "ethSrc"; ":="; n = nk_int64 ->
+        <:expr<NetKAT_Types.(Mod (EthSrc $n$))>>
+    | "ethDst"; ":="; n = nk_int64 ->
+        <:expr<NetKAT_Types.(Mod (EthDst $n$))>>
+    | "ethType"; ":="; n = nk_int ->
+        <:expr<NetKAT_Types.(Mod (EthType $n$))>>
     | "vlan"; ":="; n = nk_int ->
         <:expr<NetKAT_Types.(Mod (Vlan $n$))>>
     | "vlanPcp"; ":="; n = nk_int ->
         <:expr<NetKAT_Types.(Mod (VlanPcp $n$))>>
-    | "ethType"; ":="; n = nk_int ->
-        <:expr<NetKAT_Types.(Mod (EthType $n$))>>
+    | "ip4Src"; ":="; n = nk_ipv4 ->
+        <:expr<NetKAT_Types.(Mod (IP4Src $n$))>>
+    | "ip4Dst"; ":="; n = nk_ipv4 ->
+        <:expr<NetKAT_Types.(Mod (IP4Dst $n$))>>
     | "ipProto"; ":="; n = nk_int ->
         <:expr<NetKAT_Types.(Mod (IPProto $n$))>>
     | "tcpSrcPort"; ":="; n = nk_int ->
         <:expr<NetKAT_Types.(Mod (TCPSrcPort $n$))>>
     | "tcpDstPort"; ":="; n = nk_int ->
         <:expr<NetKAT_Types.(Mod (TCPDstPort $n$))>>
-    | "ethSrc"; ":="; n = nk_int64 ->
-        <:expr<NetKAT_Types.(Mod (EthSrc $n$))>>
-    | "ethDst"; ":="; n = nk_int64 ->
-        <:expr<NetKAT_Types.(Mod (EthDst $n$))>>
-    | "ip4Src"; "="; n = nk_ipv4 ->
-        <:expr<NetKAT_Types.(Mod (IP4Src $n$))>>
-    | "ip4Dst"; "="; n = nk_ipv4 ->
-        <:expr<NetKAT_Types.(Mod (IP4Dst $n$))>>
     | `ANTIQUOT s -> AQ.parse_expr _loc s
   ]];
 
