@@ -19,7 +19,9 @@ let val_to_mask v =
 
 let ip_to_mask (p,m) =
   if m = 32l then { m_value = p; m_mask = None }
-  else { m_value = p; m_mask = Some m }
+  else 
+    let m = Int32.shift_left 0xffffffffl (Int32.to_int (Int32.sub 32l m)) in
+    { m_value = p; m_mask = Some m }
 
 type switchId = int64
 
