@@ -215,22 +215,23 @@ module PrefixTable (F:FIELD) = struct
     x
 
   let obscures (t1:t) (t2:t) : bool =
+    (* Printf.printf *)
+    (*   "OBSCURES\n%s\n%s\n" *)
+    (*   (to_string t1) *)
+    (*   (to_string t2); *)
     (* Does any rule in (expand t1) shadow a rule in t2? *)
     let r,_ = 
-      List.fold_left t2
+      List.fold_right (drop_false t2)
 	~init:(true, expand t1)
-	~f:(fun (ok,t) (x,b) -> 
-	      if not ok then (ok,t) 
-	      else	  
-		let ok' = not (is_shadowed x t) in 
-		let t' = (x,b)::t in 
-		(ok',t')) in 
-    (* Printf.printf *)
-      (* "OBSCURES\n%s\n%s\n%b\n" *)
-      (* (to_string t1) *)
-      (* (to_string t2) *)
-      (* r; *)
-    r
+	~f:(fun (x,b) (nob,t) -> 
+          (* Printf.printf "  X=%s\n" (F.to_string x); *)
+          (* Printf.printf "  T=%s\n" (to_string t); *)
+          (* Printf.printf "  SD=%b\n" (is_shadowed x t); *)
+	  let ok' = nob && not (is_shadowed x t) in 
+	  let t' = (x,b)::t in 
+	  (ok',t')) in 
+    (* Printf.printf "RESULT=%b\n" (not r); *)
+    not r
 end
 
 module OL = Option(NetKAT_Types.LocationHeader)
@@ -1034,23 +1035,40 @@ module RunTime = struct
         | n -> n
 
     let dep_compare (x1,s1) (x2,s2) : int =
-      let ac = Action.Set.compare s1 s2 in
-      if ac = 0 then
-        0
-      else
-        let o1 = Pattern.obscures x1 x2 in
-        let o2 = Pattern.obscures x2 x1 in
-        (* sanity check: no circular dependencies *)
-	if o1 && o2 then 
-	  (Printf.printf "CIRCULAR: %s\n%s\n" 
-	     (Pattern.to_string x1) (Pattern.to_string x2);
-	   assert false);
-        if o1 then -1
-        else if o2 then 1
-        else 0
+      (* Printf.printf "DEP_COMPARE:\n"; *)
+      (* Printf.printf "  x1=%s=>" (Pattern.to_string x1); *)
+      (* Printf.printf "%s\n" (Action.set_to_string s1); *)
+      (* Printf.printf "  x2=%s=>" (Pattern.to_string x2); *)
+      (* Printf.printf "%s\n" (Action.set_to_string s2); *)
+      (* Printf.printf "  o1=%b\n  o2=%b\n" (Pattern.obscures x1 x2) (Pattern.obscures x2 x1); *)
+      let r = 
+        let ac = Action.Set.compare s1 s2 in
+        if ac = 0 then
+          0
+        else
+          let o1 = Pattern.obscures x1 x2 in
+          let o2 = Pattern.obscures x2 x1 in
+          (* sanity check: no circular dependencies *)
+	  if o1 && o2 then 
+            begin
+              Printf.printf "Circular dependency between\n%s => %s\nand\n%s => %s\n" 
+                (Pattern.to_string x1) (Action.set_to_string s1)
+                (Pattern.to_string x2) (Action.set_to_string s2);
+              assert false
+            end;
+          if o1 then -1
+          else if o2 then 1
+          else 0 in 
+      (* Printf.printf "r=%d\n" r; *)
+      r
   end)
 
   let to_table ?(optimize_fall_through=true) (m:i) : flowTable =
+    (* Printf.printf "\nTO_TABLE\n"; *)
+    (* List.iter *)
+    (*   (Dep.sort (Pattern.Map.to_alist m)) *)
+    (*   ~f:(fun (p,a) ->  *)
+    (*        Printf.printf "   %s => %s\n" (Pattern.to_string p) (Action.set_to_string a)); *)
     let annotated_table () : (flow * Pattern.t * Action.Set.t) list =
       (* Returns a flow table with each entry annotated with the Pattern.t
        * from which it was generated. *)
