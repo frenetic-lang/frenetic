@@ -12,7 +12,7 @@ support for OpenFlow 1.3.
 Installation
 ------------
 
-You can install the latest release from [OPAM][http://opam.ocamlpro.com/] using
+You can install the latest release from [OPAM](http://opam.ocamlpro.com/) using
 the following command:
 
     $ opam install openflow
