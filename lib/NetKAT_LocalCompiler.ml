@@ -1064,11 +1064,11 @@ module RunTime = struct
   end)
 
   let to_table ?(optimize_fall_through=true) (m:i) : flowTable =
-    (* Printf.printf "\nTO_TABLE\n"; *)
-    (* List.iter *)
-    (*   (Dep.sort (Pattern.Map.to_alist m)) *)
-    (*   ~f:(fun (p,a) ->  *)
-    (*        Printf.printf "   %s => %s\n" (Pattern.to_string p) (Action.set_to_string a)); *)
+    Printf.printf "\nTO_TABLE\n";
+    List.iter
+      (Dep.sort (Pattern.Map.to_alist m))
+      ~f:(fun (p,a) ->
+           Printf.printf "   %s => %s\n" (Pattern.to_string p) (Action.set_to_string a));
     let annotated_table () : (flow * Pattern.t * Action.Set.t) list =
       (* Returns a flow table with each entry annotated with the Pattern.t
        * from which it was generated. *)
@@ -1135,7 +1135,7 @@ let to_netkat =
 let compile sw p =
   RunTime.compile sw p
 
-let to_table ?(optimize_fall_through=false) t =
+let to_table ?(optimize_fall_through=true) t =
   Local_Optimize.remove_shadowed_rules
     (RunTime.to_table t ~optimize_fall_through:optimize_fall_through)
 
