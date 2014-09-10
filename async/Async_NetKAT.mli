@@ -70,6 +70,22 @@ module Raw : sig
   val create_static : 'a -> ('r, 'a) t
 end
 
+module Pred : sig
+  type t = (Net.Topology.t ref, pred) Raw.t
+
+  type handler = Net.Topology.t -> event -> pred option Deferred.t
+
+  val create : pred -> handler -> t
+
+  val create_static : pred -> t
+  val create_from_string : string -> t
+  val create_from_file : string -> t
+
+  val neg : t -> t
+  val conj : t -> t -> t
+  val disj : t -> t -> t
+end
+
 
 (** [default t] returns the current value of the app
 
@@ -154,18 +170,21 @@ exception Sequence_error of PipeSet.t * PipeSet.t
 val seq : app -> app -> app
 
 (** [guard pred app] returns an app that is equivalent to [app] except it will
-    drop packets taht doe not satisfy [pred].
+    drop packets that do not satisfy [pred]. *)
+val guard  : pred   -> app -> app
+val guard' : Pred.t -> app -> app
 
-    [guard pred app] is equivalent to [seq (create_static (Filter pred)) app]. *)
-val guard : pred -> app -> app
+(** Lift a predicate to the [app] type. [filter p] returns an app that filters
+    packets according to the predicate app. *)
+val filter  : pred   -> app
+val filter' : Pred.t -> app
 
 (** [slice pred app1 app2] returns an application where packets that
     satisfy [pred] will be handled by [app1] and packets that do not satisfy
     [pred] will be handled by [app2].
 
-    [slice pred app1 app2] is equivalent to [union (guard pred app1) (guard (Neg pred) app2)].
-
     The returned application will enforce the pipes that [app1] and [app2]
     listen to, so if a packet matches [pred] but is at a pipe that [app1] is not
     listening on, the packet will be dropped. *)
-val slice : pred -> app -> app -> app
+val slice  : pred   -> app -> app -> app
+val slice' : Pred.t -> app -> app -> app
