@@ -1,7 +1,6 @@
 module Run = struct
   open Core.Std
   open Async.Std
-
   let main update learn policy_queue_size filename =
     let main () =
       let static = match filename with
@@ -14,6 +13,21 @@ module Run = struct
       in
       Async_NetKAT_Controller.start ~update ?policy_queue_size app () in
     never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ())
+end
+
+module Global = struct
+  open Core.Std
+  open Async.Std
+  let main filename = 
+    let pol = 
+      In_channel.with_file filename ~f:(fun chan -> 
+        NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in 
+    let cps_pol = NetKAT_GlobalCompiler.cps pol in 
+    let fmt = Format.formatter_of_out_channel stderr in    
+    Format.fprintf fmt "[global] Parsed: @[%s@]\n" filename;
+    Format.fprintf fmt "[global] Policy:@\n@[%a@]\n" NetKAT_Pretty.format_policy pol;
+    Format.fprintf fmt "[global] CPS Policy:@\n@[%a@]\n" NetKAT_Pretty.format_policy cps_pol;
+    ()
 end
 
 module Dump = struct
@@ -142,12 +156,21 @@ let dump_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.(pure Dump.Local.main $ level $ switch_id $ policy),
   Term.info "dump" ~doc
 
+let global_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
+  let doc = "invoke the global compiler and dump the resulting flow tables" in 
+  let policy =
+    let doc = "file containing a static NetKAT policy" in
+    Arg.(required & (pos 0 (some file) None) & info [] ~docv:"FILE" ~doc)
+  in
+  Term.(pure Global.main $ policy),
+  Term.info "global" ~doc
+
 let default_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   let doc = "an sdn controller platform" in
   Term.(ret (pure (`Help(`Plain, None)))),
   Term.info "katnetic" ~version:"1.6.1" ~doc
 
-let cmds = [run_cmd; dump_cmd]
+let cmds = [run_cmd; dump_cmd; global_cmd]
 
 let () = match Term.eval_choice default_cmd cmds with
   | `Error _ -> exit 1 | _ -> exit 0
