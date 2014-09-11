@@ -46,6 +46,8 @@ end
 
 exception Assertion_failed of string
 
+module Net = Async_NetKAT.Net
+
 module Switch = struct
   module Log = Async_OpenFlow.Log
   let tags = [("netkat", "topology.switch")]
@@ -317,92 +319,101 @@ module Host = struct
   module Log = Async_OpenFlow.Log
   let tags = [("netkat", "topology.host")]
 
-  let pred =
-    NetKAT_Types.(Test(EthType 0x0806))
+  type t = Flip.t
 
-  let create ctl () =
+  let enabled t =
+    t.Flip.enabled
+
+  let stage t = fun nib e ->
+    let open Net.Topology in
     let open NetKAT_Types in
     let open Async_NetKAT in
-    let default = Seq(Filter(pred), Mod(Location(Pipe("host")))) in
-
-    let handler t w () : event -> policy option Deferred.t = fun e ->
-      let open Net.Topology in
-      match e with
-        | PacketIn (_, sw_id, pt_id, payload, len) ->
-          let open Packet in
-          let dlAddr, nwAddr = match parse (SDN_Types.payload_bytes payload) with
-            | { nw = Arp (Arp.Query(dlSrc, nwSrc, _ )) }
-            | { nw = Arp (Arp.Reply(dlSrc, nwSrc, _, _)) } ->
-              (dlSrc, nwSrc)
-            | _ -> assert false in
-          let h = try Some(vertex_of_label !t (Host(dlAddr, nwAddr)))
-            with _ ->  None in
-          begin match Switch.Ctl.is_pending ctl sw_id pt_id, h with
-            | true, None    ->
-              let t', h = add_vertex !t (Host(dlAddr, nwAddr)) in
-              let t', s = add_vertex t' (Switch sw_id) in
-              let t', _ = add_edge t' s pt_id () h 0l in
-              let t', _ = add_edge t' h 0l () s pt_id in
-              t := t';
-              Switch.Ctl.send_event ctl (HostUp((sw_id, pt_id), (dlAddr, nwAddr)));
-              return None
-            | _   , _       -> return None
-          end
-        | PortDown (sw_id, pt_id) ->
-          ignore (Switch.Ctl.remove ctl sw_id pt_id);
-          let v = vertex_of_label !t (Switch sw_id) in
-          let mh = next_hop !t v pt_id in
-          (* Do not put the above line below the below line. The code needs to
-           * read the current view of the network before modifying it. *)
-          begin match mh with
-            | None -> ()
-            | Some(e) ->
-              let (v2, pt_id2) = edge_dst e in
-              begin match vertex_to_label !t v2 with
-                | Switch _ -> ()
-                | Host (dlAddr, nwAddr) ->
-                  t := remove_endpoint !t (v, pt_id);
-                  Switch.Ctl.send_event ctl
-                    (HostDown((sw_id, pt_id), (dlAddr, nwAddr)))
-              end
-          end;
-          return None
-        | HostUp ((sw_id, pt_id), (dlAddr, nwAddr)) ->
+    match e with
+    | PacketIn ("host", sw_id, pt_id, payload, len) when enabled t ->
+      let open Packet in
+      let dlAddr, nwAddr = match parse (SDN_Types.payload_bytes payload) with
+        | { nw = Arp (Arp.Query(dlSrc, nwSrc, _ )) }
+        | { nw = Arp (Arp.Reply(dlSrc, nwSrc, _, _)) } ->
+          (dlSrc, nwSrc)
+        | _ -> assert false in
+      let h = try Some(vertex_of_label !nib (Host(dlAddr, nwAddr)))
+        with _ ->  None in
+      begin match TUtil.in_edge !nib sw_id pt_id, h with
+        | true, None    ->
+          let nib', h = add_vertex !nib (Host(dlAddr, nwAddr)) in
+          let nib', s = add_vertex nib' (Switch sw_id) in
+          let nib', _ = add_edge nib' s pt_id () h 0l in
+          let nib', _ = add_edge nib' h 0l () s pt_id in
+          nib := nib';
           Log.info ~tags "[topology.host] ↑ { switch = %Lu; port %lu }, { ip = %s; mac = %s }"
             sw_id pt_id
             (Packet.string_of_ip nwAddr)
             (Packet.string_of_mac dlAddr);
-          return None
-        | HostDown ((sw_id, pt_id), (dlAddr, nwAddr)) ->
-          Log.info ~tags "[topology.host] ↓ { switch = %Lu; port %lu }, { ip = %s; mac = %s }"
-            sw_id pt_id
-            (Packet.string_of_ip nwAddr)
-            (Packet.string_of_mac dlAddr);
-          return None
-        | SwitchUp _
-        | SwitchDown _
-        | PortUp _
-        | LinkUp _
-        | LinkDown _
-        | Query _ ->
-          return None in
+          return [e; HostUp((sw_id, pt_id), (dlAddr, nwAddr))]
+        | _   , _       -> return [e]
+      end
+    | PortDown (sw_id, pt_id) ->
+      let v = vertex_of_label !nib (Switch sw_id) in
+      let mh = next_hop !nib v pt_id in
+      (* Do not put the above line below the below line. The code needs to
+       * read the current view of the network before modifying it. *)
+      begin match mh with
+        | None -> return [e]
+        | Some(edge) ->
+          let (v2, pt_id2) = edge_dst edge in
+          begin match vertex_to_label !nib v2 with
+            | Switch _ -> return [e]
+            | Host (dlAddr, nwAddr) ->
+              nib := remove_endpoint !nib (v, pt_id);
+              Log.info ~tags "[topology.host] ↓ { switch = %Lu; port %lu }, { ip = %s; mac = %s }"
+                sw_id pt_id
+                (Packet.string_of_ip nwAddr)
+                (Packet.string_of_mac dlAddr);
+              return [e; HostDown((sw_id, pt_id), (dlAddr, nwAddr))]
+          end
+      end
+    | HostUp _ ->
+      assert false
+    | HostDown _ ->
+      assert false
+    | _ -> return [e]
 
-    Policy.create ~pipes:(PipeSet.singleton "host") default handler
+  let create () =
+    let open NetKAT_Types in
+    let open Async_NetKAT in
+    let t, flip = Flip.create (Test(EthType 0x0806)) in
+    let to_host = Policy.create_static (Mod(Location(Pipe "host"))) in
+    t, stage t, guard' flip to_host
+
+  let start t =
+    Flip.enable t
+
+  let stop t =
+    Flip.disable t
+
 end
 
-let guard app =
-  Switch.guard app
-
-let events t =
-  Switch.Ctl.events t
+type s = (Net.Topology.t ref, NetKAT_Types.event, NetKAT_Types.event) Async_OpenFlow.Stage.t
+type t =
+  { (* *)
+    host_ctl : Flip.t;
+    (* *)
+    switch_ctl : Switch.Ctl.t;
+}
 
 let create () =
-  let ctl, switch = Switch.create () in
-  let host = Host.create ctl () in
-  (ctl, Async_NetKAT.slice Host.pred host switch)
+  let switch_ctl, switch = Switch.create () in
+  let host_ctl, host_stage, host = Host.create () in
+  let t = { host_ctl; switch_ctl } in
+  (t, host_stage, Async_NetKAT.union host switch)
 
-let pause t =
-  Switch.Ctl.pause t
+let managed_traffic t =
+  Async_NetKAT.Pred.create_static NetKAT_Types.False
 
-let resume t =
-  Switch.Ctl.resume t
+let start t =
+  Switch.Ctl.resume t.switch_ctl;
+  Host.start t.host_ctl
+
+let stop t =
+  Switch.Ctl.pause t.switch_ctl
+  >>= fun () -> Host.stop t.host_ctl

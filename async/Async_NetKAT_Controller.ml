@@ -480,12 +480,13 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
   let open Stage in
   Controller.create ~max_pending_connections ~port ()
   >>> fun ctl ->
-    (* Build up the application by adding topology discovery into the mix. Make
-     * the evaluation sequential so that the application can benefit from any
-     * topology updates caused by the network event.
-     * *)
-    let d_ctl, topo = Discovery.create () in
-    let app = Async_NetKAT.union ~how:`Sequential topo (Discovery.guard app) in
+    let d_ctl, d_stage, d_app = Discovery.create () in
+    let app =
+      let open Async_NetKAT in
+      let guarded_app = guard' (Discovery.managed_traffic d_ctl) app in
+      union d_app guarded_app
+    in
+    Deferred.don't_wait_for (Discovery.start d_ctl);
 
     (* Create the controller struct to contain all the state of the controller.
      * *)
@@ -515,22 +516,14 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
       let features = local (fun t -> t.ctl) Controller.features in
       let txns     = local (fun t -> t.txn) Txn.stage in
       let events   = to_event s_pkt_out in
-      features >=> txns >=> events in
+      let discover = local (fun t -> t.nib) d_stage in
+      features >=> txns >=> events >=> discover in
 
     (* Initialize the application to produce an event callback and
      * Pipe.Reader.t's for packet out messages and policy updates.
      * *)
     let recv, callback = Async_NetKAT.run app t.nib () in
-
-    (* The discovery application itself will generate events, so the actual
-     * event stream must be a combination of switch events and synthetic
-     * topology discovery events. Pipe.interleave will wait until one of the
-     * pipes is readable, take a batch, and send it along.
-     *
-     * Whatever happens, happens. Can't stop won't stop.
-     * *)
-    let network_events = run stages t (Controller.listen ctl) in
-    let events = Pipe.interleave [Discovery.events d_ctl; network_events] in
+    let events = run stages t (Controller.listen ctl) in
 
     (* Pick a method for updating the network. Each method needs to be able to
      * implement a policy across the entire network as well as handle new
