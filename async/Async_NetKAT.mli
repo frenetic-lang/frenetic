@@ -24,7 +24,7 @@ module Pred : sig
   type t
 
   type handler = Net.Topology.t -> event -> pred option Deferred.t
-  type async_handler = Net.Topology.t -> pred Pipe.Writer.t -> event -> pred option Deferred.t
+  type async_handler = pred Pipe.Writer.t -> unit -> handler
 
   val create : pred -> handler -> t
   val create_async : pred -> async_handler -> t
