@@ -21,16 +21,16 @@ let cps (p : policy) =
     | Filter _ | Mod _ ->
         [seq [match_pc pc; p; set_pc k]]
     | Union (q,r) ->
-        (let pc_q = next_pc () in
-         let pc_r = next_pc () in
-         (seq [match_pc pc ; union [set_pc pc_q; set_pc pc_r]]) :: (cps' q pc_q k) @ (cps' r pc_r k))
+       let pc_q = next_pc () in
+       let pc_r = next_pc () in
+       (seq [match_pc pc ; union [set_pc pc_q; set_pc pc_r]]) :: (cps' q pc_q k) @ (cps' r pc_r k)
     | Seq (q,r) ->
-        (let pc_q = next_pc () in
-         let pc_r = next_pc () in
-         (seq [match_pc pc ; set_pc pc_q] :: (cps' q pc_q pc_r)) @ (cps' r pc_r k))
+       (* TODO: is this correct to inline pc |-> pc of q? *)
+       let pc' = next_pc () in
+       (cps' q pc pc') @ (cps' r pc' k)
     | Star q ->
-        (let pc_q = next_pc () in
-         (seq [match_pc pc ; union [set_pc pc_q; set_pc k]]) :: (cps' q pc_q pc))
+       let pc_q = next_pc () in
+       (seq [match_pc pc ; union [set_pc pc_q; set_pc k]]) :: (cps' q pc_q pc)
     | Link (sw1,pt1,sw2,pt2) -> 
        let pc' = next_pc () in 
        let filter (sw,pt) = Filter (And (Test(Switch sw), Test(Location(Physical(pt))))) in
