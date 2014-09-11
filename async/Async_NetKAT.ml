@@ -101,7 +101,7 @@ module Pred = struct
   type t = (Net.Topology.t ref, pred) Raw_app.t
 
   type handler = Net.Topology.t -> event -> pred option Deferred.t
-  type async_handler = Net.Topology.t -> pred Pipe.Writer.t -> event -> pred option Deferred.t
+  type async_handler = pred Pipe.Writer.t -> unit -> handler
 
   let create (pred : pred) (handler : handler) : t =
     let open Raw_app in
@@ -115,13 +115,14 @@ module Pred = struct
 
   let create_async (pred : pred) (handler : async_handler) : t =
     let open Raw_app in
-    create_primitive pred (fun a send () ->
-      Pipe.close send.pkt_out;
+    create_primitive pred (fun nib send () ->
       let r_update, w_update = Pipe.create () in
+      Pipe.close send.pkt_out;
       Deferred.don't_wait_for
         (transfer_batch r_update send.update ~f:(fun p -> (Async p)));
+      let callback = handler w_update () in
       fun e ->
-        handler !a w_update e
+        callback !nib e
         >>= function
           | None    -> Pipe.write send.update EventNoop
           | Some(p) -> Pipe.write send.update (Event p))
