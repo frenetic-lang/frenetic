@@ -31,3 +31,11 @@ let internal_ports (t : Net.Topology.t) (sw_id : SDN.switchId) =
       end
     | _ -> acc)
   (vertex_to_ports t switch) PortSet.empty
+
+let in_edge (t : Net.Topology.t) (sw_id : SDN.switchId) (pt_id : SDN.portId) =
+  let open Net.Topology in
+  let open Async_NetKAT in
+  let switch = vertex_of_label t (Switch sw_id) in
+  match next_hop t switch pt_id with
+  | None    -> true
+  | Some(_) -> false
