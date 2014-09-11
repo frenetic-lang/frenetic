@@ -40,15 +40,16 @@ EXTEND Gram
 
   nk_ipv4: [[
       n = IP4ADDR ->
-      let net = Ipaddr.V4.Prefix.of_string n in
-      let (ip, mask) = begin match net with
+      let addr = Ipaddr.V4.of_string n in
+      let (ip, mask) = begin match addr with
         | Some x ->
-          let ip = Ipaddr.V4.to_int32 (Ipaddr.V4.Prefix.network x) in
-          let mask = Int32.of_int (Ipaddr.V4.Prefix.bits x) in
-          (ip, mask)
-        | None ->
-          let ip = Ipaddr.V4.(to_int32 (of_string_exn n)) in
+          let ip = Ipaddr.V4.to_int32 x in
           (ip, 32l)
+        | None ->
+          let net = Ipaddr.V4.Prefix.of_string_exn n in
+          let ip = Ipaddr.V4.to_int32 (Ipaddr.V4.Prefix.network net) in
+          let mask = Int32.of_int (Ipaddr.V4.Prefix.bits net) in
+          (ip, mask)
         end in
       <:expr<($`int32:ip$, $`int32:mask$)>>
    | `ANTIQUOT s -> AQ.parse_expr _loc s
