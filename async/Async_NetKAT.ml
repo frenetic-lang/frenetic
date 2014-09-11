@@ -54,7 +54,7 @@ let transfer_batch r w ~f =
 
 exception Sequence_error of PipeSet.t * PipeSet.t
 
-type app = (Net.Topology.t ref) Raw_app.t
+type app = (Net.Topology.t ref, policy) Raw_app.t
 
 type 'phantom pipes = {
   pkt_out : (switchId * SDN_Types.pktOut, 'phantom) Pipe.t;
@@ -113,7 +113,7 @@ let create_from_file (filename : string) : app =
   create_static pol
 
 let default (a : app) : policy =
-  a.Raw_app.policy
+  a.Raw_app.value
 
 let run (app : app) (t : Net.Topology.t ref) () : (recv * (event -> unit Deferred.t)) =
   let recv, callback = Raw_app.run app t () in
