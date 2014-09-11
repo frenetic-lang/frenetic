@@ -107,13 +107,13 @@ module Pred = struct
     recv.Raw_app.update, callback
 
   let neg (t:t) : t =
-    Raw_app.lift (fun p -> Neg p) t
+    Raw_app.lift Optimize.mk_not t
 
   let conj (t1:t) (t2:t) : t =
-    Raw_app.combine ~how:`Parallel (fun a b -> And(a, b)) t1 t2
+    Raw_app.combine ~how:`Parallel Optimize.mk_and t1 t2
 
   let disj (t1:t) (t2:t) : t =
-    Raw_app.combine ~how:`Parallel (fun a b -> Or(a, b)) t1 t2
+    Raw_app.combine ~how:`Parallel Optimize.mk_or t1 t2
 end
 
 exception Sequence_error of PipeSet.t * PipeSet.t
