@@ -1,6 +1,48 @@
 open Core.Std
 open Async.Std
 
+module Flip = struct
+
+  type t =
+    { (* [enabled] is a boolean recording the state of the [Flip] application.
+         When true the application should take on the value of [policy].
+         When false, ti should take on the value [Filter False]. *)
+      mutable enabled : bool;
+      (* [e_value] is the value that the application should use when the app is
+         in an enabled state. *)
+      value: NetKAT_Types.pred;
+      (* [updates] is the write-side of the pipe for pushing value updates for
+         the application. *)
+      updates : NetKAT_Types.pred Pipe.Writer.t;
+    }
+
+  let create (value : 'a) =
+    let open Async_NetKAT in
+    let r_updates, w_updates = Pipe.create () in
+    let app = Pred.create_async NetKAT_Types.False (fun update () ->
+      Deferred.don't_wait_for (Pipe.transfer_id r_updates update);
+      fun nib e -> return None)
+    in
+    { enabled = false; value; updates = w_updates }, app
+
+  let enable t =
+    if t.enabled then
+      return ()
+    else begin
+      t.enabled <- true;
+      Pipe.write t.updates t.value
+      >>= fun () -> Deferred.ignore (Pipe.downstream_flushed t.updates)
+    end
+
+  let disable t =
+    if not t.enabled then
+      return ()
+    else begin
+      t.enabled <- false;
+      Pipe.write t.updates NetKAT_Types.False
+      >>= fun () -> Deferred.ignore (Pipe.downstream_flushed t.updates)
+    end
+end
 
 exception Assertion_failed of string
 
