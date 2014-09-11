@@ -17,7 +17,6 @@ type token =
   | INT32 of string
   | INT64 of string
   | IP4ADDR of string
-  | IP4NET of string
   | ANTIQUOT of string
   | EOI
 
@@ -33,7 +32,6 @@ struct
     match t with
       | KEYWORD s       -> sf "KEYWORD %s" s
       | IP4ADDR s -> sf "IP4ADDR %s" s
-      | IP4NET s -> sf "IP4NET %s" s
       | INT s -> sf "INT %s" s
       | INT32 s -> sf "INT32 %s" s
       | INT64 s -> sf "INT64 %s" s
@@ -119,6 +117,8 @@ let regexp decbyte = (['0'-'9'] ['0'-'9'] ['0'-'9']) | (['0'-'9'] ['0'-'9']) | [
 let regexp newline = ('\010' | '\013' | "\013\010")
 let regexp blank = [' ' '\009']
 
+let regexp mask = ('/' decnum)?
+
 let illegal c = error c "Illegal character in NetKAT expression"
 
 let rec token c = lexer
@@ -126,8 +126,7 @@ let rec token c = lexer
   | eof -> EOI
   | newline -> next_line c; token c c.lexbuf
   | blank+ -> token c c.lexbuf
-  | decbyte '.' decbyte '.' decbyte '.' decbyte -> IP4ADDR (L.latin1_lexeme c.lexbuf)
-  | decbyte '.' decbyte '.' decbyte '.' decbyte '/' decnum -> IP4NET (L.latin1_lexeme c.lexbuf)
+  | decbyte '.' decbyte '.' decbyte '.' decbyte mask -> IP4ADDR (L.latin1_lexeme c.lexbuf)
   | (hexnum | decnum)  -> INT (L.latin1_lexeme c.lexbuf)
   | (hexnum | decnum) 'l' -> INT32 (L.latin1_lexeme c.lexbuf)
   | (hexnum | decnum) 'L' -> INT64 (L.latin1_lexeme c.lexbuf)
