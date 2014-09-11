@@ -34,15 +34,15 @@ EXTEND Gram
   ]];
 
   nk_int: [[
-      n = INT -> <:expr<int_of_string $`str:n$>>
+       n = INT -> <:expr<int_of_string $`str:n$>>
     | `ANTIQUOT s -> AQ.parse_expr _loc s
   ]];
 
   nk_ipv4: [[
-      n = IP4ADDR ->
-      let ip = Ipaddr.V4.(to_int32 (of_string_exn n)) in
-      <:expr<$`int32:ip$>>
-   | `ANTIQUOT s -> AQ.parse_expr _loc s
+        n = IP4ADDR ->
+        let ip = Ipaddr.V4.(to_int32 (of_string_exn n)) in
+        <:expr<$`int32:ip$>>
+      | `ANTIQUOT s -> AQ.parse_expr _loc s
   ]];
 
   nk_pred_atom: [[
@@ -70,8 +70,12 @@ EXTEND Gram
         <:expr<NetKAT_Types.(Test (EthSrc $n$))>>
     | "ethDst"; "="; n = nk_int64 ->
         <:expr<NetKAT_Types.(Test (EthDst $n$))>>
+    | "ip4Src"; "="; n = nk_ipv4; "/"; m = nk_int32 ->
+        <:expr<NetKAT_Types.(Test (IP4Src ($n$, $m$)))>>
     | "ip4Src"; "="; n = nk_ipv4 ->
-        <:expr<NetKAT_Types.(Test (IP4Src ($n$,32l)))>>
+        <:expr<NetKAT_Types.(Test (IP4Src ($n$, 32l)))>>
+    | "ip4Dst"; "="; n = nk_ipv4; "/"; m = nk_int32 ->
+        <:expr<NetKAT_Types.(Test (IP4Dst ($n$, $m$)))>>
     | "ip4Dst"; "="; n = nk_ipv4 ->
         <:expr<NetKAT_Types.(Test (IP4Dst ($n$, 32l)))>>
     | `ANTIQUOT s -> AQ.parse_expr _loc s
@@ -113,9 +117,9 @@ EXTEND Gram
     | "vlanPcp"; ":="; n = nk_int ->
         <:expr<NetKAT_Types.(Mod (VlanPcp $n$))>>
     | "ip4Src"; ":="; n = nk_ipv4 ->
-        <:expr<NetKAT_Types.(Mod (IP4Src $n$))>>
+        <:expr<NetKAT_Types.(Mod (IP4Src($n$,32l)))>>
     | "ip4Dst"; ":="; n = nk_ipv4 ->
-        <:expr<NetKAT_Types.(Mod (IP4Dst $n$))>>
+        <:expr<NetKAT_Types.(Mod (IP4Dst($n$,32l)))>>
     | "ipProto"; ":="; n = nk_int ->
         <:expr<NetKAT_Types.(Mod (IPProto $n$))>>
     | "tcpSrcPort"; ":="; n = nk_int ->
