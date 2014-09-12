@@ -3,7 +3,7 @@ open Async.Std
 
 let main () =
   don't_wait_for 
-    (Http_app.create NetKAT_Types.drop "localhost" 5000 ~path:"/netkat/app/" >>=
+    (Http_app.create NetKAT_Types.drop "localhost" 5000 ~path:"/netkat/app" >>=
     (fun app -> return (Async_NetKAT_Controller.start app ())))
 
 let () = 
