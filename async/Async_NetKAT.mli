@@ -20,48 +20,94 @@ module Net : Network.NETWORK
   with module Topology.Vertex = Node
    and module Topology.Edge = Link
 
-(** [app] is an opaque application type.  The user can use constructors and
-    combinators defined below to build up complex applications from simple
-    parts. *)
-type app
-
-type 'phantom pipes = {
-  pkt_out : (switchId * SDN_Types.pktOut, 'phantom) Pipe.t;
-  update  : (policy, 'phantom) Pipe.t
-}
-
-type send = Pipe.Writer.phantom pipes
-type recv = Pipe.Reader.phantom pipes
-
 (** The set of pipe names that an application is listening on. *)
 module PipeSet : Set.S
   with type Elt.t = string
 
-(** [result] is the result of a handler, which is just an optional policy. *)
-type result = policy option
+type ('phantom, 'a) pipes = {
+  pkt_out : (switchId * SDN_Types.pktOut, 'phantom) Pipe.t;
+  update  : ('a, 'phantom) Pipe.t
+}
+
+type 'a send = (Pipe.Writer.phantom, 'a) pipes
+type 'a recv = (Pipe.Reader.phantom, 'a) pipes
+
+type 'a callback = event -> 'a option Deferred.t
 
 (** A [handler] is a function that's used to both create basic reactive [app]s as
     well as run them. The [unit] argument indicates a partial application point. *)
-type handler
-  = Net.Topology.t ref
-  -> (switchId * SDN_Types.pktOut) Pipe.Writer.t
-  -> unit
-  -> event
-  -> result Deferred.t
+type ('r, 'a) handler
+  =  'r -> (switchId * SDN_Types.pktOut) Pipe.Writer.t -> unit -> 'a callback
 
 (** [asycn_handler] is a function that's used to build reactive [app]s that
-    are also capable of pushing asynchronous policy updates. The [unit] argument
+    are also capable of pushing asynchronous value updates. The [unit] argument
     indicates a partial application point. *)
-type async_handler
-  = Net.Topology.t ref
-  -> send
-  -> unit
-  -> event -> result Deferred.t
+type ('r, 'a) async_handler
+  =  'r -> 'a send -> unit -> 'a callback
+
+module Raw : sig
+
+  (** [t] is an opaque application type.  The user can use constructors and
+      combinators defined below to build up complex applications from simple
+      parts. *)
+  type ('r, 'a) t
+
+  (** [create ?pipes valu handler] returns a [t] that listens to the pipes
+      included in [pipes], uses [val] as the initial default value and [handler]
+      as the function to handle network events. *)
+  val create : ?pipes:PipeSet.t -> 'a -> ('r, 'a) handler -> ('r, 'a) t
+
+  (** [create_async ?pipes val async_handler] returns a [t] that listens to
+      the pipes included in [pipes], uses [val] as the initial value and
+      [async_handler] as the function used to handle network events.
+
+      In addition to a [pktOut] pipe, the [async_handler] is also given an ['a]
+      pipe that it can use to push asychronous value updates. *)
+  val create_async : ?pipes:PipeSet.t -> 'a -> ('r, 'a) async_handler -> ('r, 'a) t
+
+  (** [create_static val] returns a static [t] that will only ever take on the
+       value [val]. *)
+  val create_static : 'a -> ('r, 'a) t
+end
+
+
+(** [default t] returns the current value of the app
+
+    Note that this may not be the same default value used to construct the
+    application. It is the last value that the application generated in
+    response to an event. *)
+val default : ('r, 'a) Raw.t -> 'a
+
+(** [run t] returns a [handler] that implements [t]. The [unit] argument
+ * indicates a partial application point. *)
+val run : ('r, 'a) Raw.t -> 'r -> unit -> ('a recv * (event -> unit Deferred.t))
+
+(** [lift f t] returns a [Raw.t] that will updates its value to [b = f a]
+    whenever [t] updates its value to be [a]. *)
+val lift : ('a -> 'b) -> ('r, 'a) Raw.t -> ('r, 'b) Raw.t
+
+(** [ap t1 t2] returns a [Raw.t] that will update its value whenever [t1] or
+    [t2] update their value. If [t1] has the value [f] and [t2] has the value
+    [a], then the value of the returned [Raw.t] will be [f a]. In other words
+    this is application of function-valued [Raw.t]s.
+
+    The [?how] optional parameter detemrines how the callbacks for each [Raw.t]
+    should be executed. *)
+val ap
+  :  ?how:[`Sequential | `Parallel]
+  -> ('r, 'a -> 'b) Raw.t
+  -> ('r, 'a) Raw.t
+  -> ('r, 'b) Raw.t
+
+(** [app] is an opaque application type.  The user can use constructors and
+    combinators defined below to build up complex applications from simple
+    parts. *)
+type app = (Net.Topology.t ref, policy) Raw.t
 
 (** [create ?pipes pol handler] returns an [app] that listens to the pipes
     included in [pipes], uses [pol] as the initial default policy to install,
     and [handler] as the function to handle network events. *)
-val create : ?pipes:PipeSet.t -> policy -> handler -> app
+val create : ?pipes:PipeSet.t -> policy -> (Net.Topology.t ref, policy) handler -> app
 
 (** [create_async ?pipes pol async_handler] returns an [app] that listens to
     the pipes included in [pipes], uses [pol] as the initial default policy to
@@ -72,7 +118,7 @@ val create : ?pipes:PipeSet.t -> policy -> handler -> app
     the [send.update] pipe. It is very important that you satisfy this
     assumption! Not doing so will cause your application to lock up the
     controller. *)
-val create_async : ?pipes:PipeSet.t -> policy -> async_handler -> app
+val create_async : ?pipes:PipeSet.t -> policy -> (Net.Topology.t ref, policy) async_handler -> app
 
 (** [create_static pol] returns a static app for the NetKAT syntax tree [pol] *)
 val create_static : policy -> app
@@ -83,21 +129,6 @@ val create_from_string : string -> app
 (** [create_from_file f] returns a static app from the NetKAT policy contained
     in the file [f]. *)
 val create_from_file : string -> app
-
-(** [default app] returns the current default policy for the app.
-
-    Note that this may not be the same default policy that the user used to
-    construct the application. It is the last policy that the application
-    generated in response to an event.  *)
-val default : app -> policy
-
-(** [run app] returns a [handler] that implements [app]. The [unit] argument
- * indicates a partial application point. *)
-val run
-  :  app
-  -> Net.Topology.t ref
-  -> unit
-  -> (recv * (event -> unit Deferred.t))
 
 (** [union ?how app1 app2] returns the union of [app1] and [app2].
 

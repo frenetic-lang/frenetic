@@ -203,7 +203,7 @@ module Switch = struct
           Ctl.send_event ctl (LinkUp (e1, e2));
           t in
 
-    let handler t w () : event -> result Deferred.t = fun e ->
+    let handler t w () : event -> policy option Deferred.t = fun e ->
       (* Transfer all packet_outs from the Clt.t to the pipe passed to the
        * handler. *)
       Deferred.don't_wait_for (Pipe.transfer_id o_r w);
@@ -283,7 +283,7 @@ module Host = struct
     let open Async_NetKAT in
     let default = Seq(Filter(pred), Mod(Location(Pipe("host")))) in
 
-    let handler t w () : event -> result Deferred.t = fun e ->
+    let handler t w () : event -> policy option Deferred.t = fun e ->
       let open Net.Topology in
       match e with
         | PacketIn (_, sw_id, pt_id, payload, len) ->
