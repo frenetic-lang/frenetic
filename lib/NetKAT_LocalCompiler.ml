@@ -11,7 +11,7 @@ module type FIELD = sig
   val is_any : t -> bool
   val inter : t -> t -> t option
   val subseteq : t -> t -> bool
-  val combine : t -> t -> t option
+  val join : t -> t -> t option
 end
 
 (* Option functor *)
@@ -47,7 +47,7 @@ struct
     | None,_ -> false
     | Some x1, Some x2 -> 
       H.equal x1 x2
-  let combine o1 o2 = 
+  let join o1 o2 = 
     match o1,o2 with
     | None, _ -> Some None
     | _, None -> Some None
@@ -113,7 +113,7 @@ module PrefixTable (F:FIELD) = struct
       | [] -> 
 	Set.add s y
       | h::t -> 
-	(match F.combine h y with 
+	(match F.join h y with 
 	| Some z -> 
 	  loop z ((S.to_list s) @ t) S.empty
 	| None -> 
@@ -215,22 +215,22 @@ module PrefixTable (F:FIELD) = struct
     x
 
   let obscures (t1:t) (t2:t) : bool =
-    (* Printf.printf *)
-    (*   "OBSCURES\n%s\n%s\n" *)
-    (*   (to_string t1) *)
-    (*   (to_string t2); *)
+    Printf.printf
+      "OBSCURES\n%s\n%s\n"
+      (to_string t1)
+      (to_string t2);
     (* Does any rule in (expand t1) shadow a rule in t2? *)
     let r,_ = 
       List.fold_right (drop_false t2)
 	~init:(true, expand t1)
 	~f:(fun (x,b) (nob,t) -> 
-          (* Printf.printf "  X=%s\n" (F.to_string x); *)
-          (* Printf.printf "  T=%s\n" (to_string t); *)
-          (* Printf.printf "  SD=%b\n" (is_shadowed x t); *)
+          Printf.printf "  X=%s\n" (F.to_string x);
+          Printf.printf "  T=%s\n" (to_string t);
+          Printf.printf "  SD=%b\n" (is_shadowed x t);
 	  let ok' = nob && not (is_shadowed x t) in 
 	  let t' = (x,b)::t in 
 	  (ok',t')) in 
-    (* Printf.printf "RESULT=%b\n" (not r); *)
+    Printf.printf "RESULT=%b\n" (not r);
     not r
 end
 
@@ -1068,7 +1068,7 @@ module RunTime = struct
     List.iter
       (Dep.sort (Pattern.Map.to_alist m))
       ~f:(fun (p,a) ->
-           Printf.printf "   %s => %s\n" (Pattern.to_string p) (Action.set_to_string a));
+           Printf.printf "   %s => %s\n\n" (Pattern.to_string p) (Action.set_to_string a));
     let annotated_table () : (flow * Pattern.t * Action.Set.t) list =
       (* Returns a flow table with each entry annotated with the Pattern.t
        * from which it was generated. *)
@@ -1135,7 +1135,7 @@ let to_netkat =
 let compile sw p =
   RunTime.compile sw p
 
-let to_table ?(optimize_fall_through=true) t =
+let to_table ?(optimize_fall_through=false) t =
   Local_Optimize.remove_shadowed_rules
     (RunTime.to_table t ~optimize_fall_through:optimize_fall_through)
 

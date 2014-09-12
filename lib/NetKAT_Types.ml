@@ -223,7 +223,7 @@ module Int32TupleHeader = struct
    *   combine 0.0.0.2/31 0.0.0.3/32 = Some(0.0.0.2/31)
    *   combine 1.0.0.2/31 2.0.0.2/31 = None
    *)
-  let combine ((p1,m1) as x1:t) ((p2,m2) as x2:t) : t option = 
+  let join ((p1,m1) as x1:t) ((p2,m2) as x2:t) : t option = 
     if equal x1 x2 then
       Some x1
     else if m1 = m2 then
