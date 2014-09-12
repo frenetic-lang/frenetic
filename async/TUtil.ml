@@ -39,3 +39,16 @@ let in_edge (t : Net.Topology.t) (sw_id : SDN.switchId) (pt_id : SDN.portId) =
   match next_hop t switch pt_id with
   | None    -> true
   | Some(_) -> false
+
+let edge (t: Net.Topology.t) =
+  let open Net.Topology in
+  fold_vertexes (fun v acc ->
+    match vertex_to_label t v with
+    | Async_NetKAT.Switch sw_id ->
+      PortSet.fold (fun pt_id acc ->
+        match next_hop t v pt_id with
+        | None   -> (sw_id, pt_id)::acc
+        | Some _ -> acc)
+      (vertex_to_ports t v) acc
+    | _ -> acc)
+  t []
