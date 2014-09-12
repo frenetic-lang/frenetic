@@ -483,7 +483,7 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
     let d_ctl, d_stage, d_app = Discovery.create () in
     let app =
       let open Async_NetKAT in
-      let guarded_app = guard' (Discovery.managed_traffic d_ctl) app in
+      let guarded_app = guard' (neg (Discovery.managed_traffic d_ctl)) app in
       union d_app guarded_app
     in
     Deferred.don't_wait_for (Discovery.start d_ctl);
