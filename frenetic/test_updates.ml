@@ -11,7 +11,7 @@ let create () =
   let open Async_NetKAT in
   let open NetKAT_Types in
 
-  let pol = Async_NetKAT.default (create_from_file "examples/tree-2-2.kat") in
+  let pol = Async_NetKAT.(default (Policy.create_from_file "examples/tree-2-2.kat")) in
 
   let handler t w () e = match e with
     | SwitchUp(switch_id) ->
@@ -20,7 +20,7 @@ let create () =
       return (Some pol)
     | _ -> return (Some pol) in
       
-  create ~pipes:(PipeSet.singleton "updates-test") pol handler
+  Policy.create ~pipes:(PipeSet.singleton "updates-test") pol handler
 
 let _ = 
   let main () =

@@ -144,14 +144,28 @@ module Pred = struct
     | Filter(pred) -> create_static pred
     | _            -> assert false (* XXX(seliopou): raise exception *)
 
-  let neg (t:t) : t =
-    Raw_app.lift Optimize.mk_not t
+end
 
-  let conj (t1:t) (t2:t) : t =
-    Raw_app.combine ~how:`Parallel Optimize.mk_and t1 t2
+module Policy = struct
+  type t = (Net.Topology.t ref, policy) Raw.t
 
-  let disj (t1:t) (t2:t) : t =
-    Raw_app.combine ~how:`Parallel Optimize.mk_or t1 t2
+  let create ?pipes (policy : policy) (handler : (Net.Topology.t ref, policy) handler) : t =
+    Raw.create ?pipes policy handler
+
+  let create_async ?pipes (policy : policy) (handler : (Net.Topology.t ref, policy) async_handler) : t =
+    Raw.create_async ?pipes policy handler
+
+  let create_static (policy : policy) : t =
+    Raw.create_static policy
+
+  let create_from_string (str : string) : t =
+    let pol = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string str) in
+    create_static pol
+
+  let create_from_file (filename : string) : t =
+    let pol = In_channel.with_file filename ~f:(fun chan ->
+      NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in
+    create_static pol
 end
 
 
@@ -168,33 +182,21 @@ let run (t : ('r, 'a) Raw.t) (r : 'r) () : ('a recv * (event -> unit Deferred.t)
   let recv, callback = Raw_app.run t r () in
   { pkt_out = recv.Raw_app.pkt_out; update = recv.Raw_app.update }, callback
 
+let neg (t:Pred.t) : Pred.t =
+  Raw_app.lift Optimize.mk_not t
+
+let conj (t1:Pred.t) (t2:Pred.t) : Pred.t =
+  Raw_app.combine ~how:`Parallel Optimize.mk_and t1 t2
+
+let disj (t1:Pred.t) (t2:Pred.t) : Pred.t =
+  Raw_app.combine ~how:`Parallel Optimize.mk_or t1 t2
+
+let union ?(how=`Parallel) (app1 : Policy.t) (app2 : Policy.t) : Policy.t =
+  Raw_app.combine ~how:how Optimize.mk_union app1 app2
 
 exception Sequence_error of PipeSet.t * PipeSet.t
 
-type app = (Net.Topology.t ref, policy) Raw.t
-
-let create ?pipes (policy : policy) (handler : (Net.Topology.t ref, policy) handler) : app =
-  Raw.create ?pipes policy handler
-
-let create_async ?pipes (policy : policy) (handler : (Net.Topology.t ref, policy) async_handler) : app =
-  Raw.create_async ?pipes policy handler
-
-let create_static (policy : policy) : app =
-  Raw.create_static policy
-
-let create_from_string (str : string) : app =
-  let pol = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string str) in
-  create_static pol
-
-let create_from_file (filename : string) : app =
-  let pol = In_channel.with_file filename ~f:(fun chan ->
-    NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in
-  create_static pol
-
-let union ?(how=`Parallel) (app1 : app) (app2 : app) : app =
-  Raw_app.combine ~how:how Optimize.mk_union app1 app2
-
-let seq (app1 : app) (app2 : app) : app =
+let seq (app1 : Policy.t) (app2 : Policy.t) : Policy.t =
   let open Raw_app in
   begin if not PipeSet.(is_empty (inter app1.pipes app2.pipes)) then
     (* In order for the form of composition below, the apps must not be
@@ -205,24 +207,24 @@ let seq (app1 : app) (app2 : app) : app =
   end;
   Raw_app.combine ~how:`Sequential Optimize.mk_seq app1 app2
 
-let filter (p : pred) : app =
-  create_static (Filter p)
+let filter (p : pred) : Policy.t =
+  Policy.create_static (Filter p)
 
-let filter' (p : Pred.t) : app =
-  Raw_app.lift (fun p -> Filter p) p
+let filter' (p : Pred.t) : Policy.t =
+  lift (fun p -> Filter p) p
 
-let guard (pred : pred) (app : app) : app =
+let guard (pred : pred) (app : Policy.t) : Policy.t =
   seq (filter pred) app
 
-let guard' (pred : Pred.t) (app : app) : app =
+let guard' (pred : Pred.t) (app : Policy.t) : Policy.t =
   seq (filter' pred) app
 
-let slice (pred : pred) (app1 : app) (app2 : app) : app =
+let slice (pred : pred) (app1 : Policy.t) (app2 : Policy.t) : Policy.t =
   union ~how:`Parallel
     (seq (filter pred) app1)
     (seq (filter (Neg pred)) app2)
 
-let slice' (pred : Pred.t) (app1 : app) (app2 : app) : app =
+let slice' (pred : Pred.t) (app1 : Policy.t) (app2 : Policy.t) : Policy.t =
   union ~how:`Parallel
     (seq (filter' pred) app1)
-    (seq (filter' (Pred.neg pred)) app2)
+    (seq (filter' (neg pred)) app2)

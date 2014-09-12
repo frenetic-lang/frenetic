@@ -5,12 +5,13 @@ module Run = struct
   let main update learn policy_queue_size filename =
     let open NetKAT_LocalCompiler in
     let main () =
+      let open Async_NetKAT in
       let static = match filename with
-      | None   -> Async_NetKAT.create_from_string "filter *"
-      | Some f -> Async_NetKAT.create_from_file f
+      | None   -> Policy.create_from_string "filter *"
+      | Some f -> Policy.create_from_file f
       in
       let app = if learn
-        then Async_NetKAT.seq static (Learning.create ())
+        then seq static (Learning.create ())
         else static
       in
       Async_NetKAT_Controller.start ~update ?policy_queue_size app () in

@@ -82,10 +82,36 @@ module Pred : sig
   val create_static : pred -> t
   val create_from_string : string -> t
   val create_from_file : string -> t
+end
 
-  val neg : t -> t
-  val conj : t -> t -> t
-  val disj : t -> t -> t
+module Policy : sig
+  type t = (Net.Topology.t ref, policy) Raw.t
+
+  (** [create ?pipes pol handler] returns an [app] that listens to the pipes
+      included in [pipes], uses [pol] as the initial default policy to install,
+      and [handler] as the function to handle network events. *)
+  val create : ?pipes:PipeSet.t -> policy -> (Net.Topology.t ref, policy) handler -> t
+
+  (** [create_async ?pipes pol async_handler] returns an [app] that listens to
+      the pipes included in [pipes], uses [pol] as the initial default policy to
+      install, and [async_handler] as the function used to handle network events.
+
+      NOTE: It's assumed that [handler nib send () e] will not become determined
+      until either an [Event(pol)] or [EventNoop] [update] has been written to
+      the [send.update] pipe. It is very important that you satisfy this
+      assumption! Not doing so will cause your application to lock up the
+      controller. *)
+  val create_async : ?pipes:PipeSet.t -> policy -> (Net.Topology.t ref, policy) async_handler -> t
+
+  (** [create_static pol] returns a static app for the NetKAT syntax tree [pol] *)
+  val create_static : policy -> t
+
+  (** [create_from_string str] returns a static app for the NetKAT policy [str] *)
+  val create_from_string : string -> t
+
+  (** [create_from_file f] returns a static app from the NetKAT policy contained
+      in the file [f]. *)
+  val create_from_file : string -> t
 end
 
 
@@ -117,36 +143,18 @@ val ap
   -> ('r, 'a) Raw.t
   -> ('r, 'b) Raw.t
 
-(** [app] is an opaque application type.  The user can use constructors and
-    combinators defined below to build up complex applications from simple
-    parts. *)
-type app = (Net.Topology.t ref, policy) Raw.t
 
-(** [create ?pipes pol handler] returns an [app] that listens to the pipes
-    included in [pipes], uses [pol] as the initial default policy to install,
-    and [handler] as the function to handle network events. *)
-val create : ?pipes:PipeSet.t -> policy -> (Net.Topology.t ref, policy) handler -> app
+(** [neg p] returns a [Pred.t] that negates all the [pred]s that [p] produces. *)
+val neg  : Pred.t -> Pred.t
 
-(** [create_async ?pipes pol async_handler] returns an [app] that listens to
-    the pipes included in [pipes], uses [pol] as the initial default policy to
-    install, and [async_handler] as the function used to handle network events.
+(** [conj p1 p2] returns a [Pred.t] that conjoins together all the [pred]s that
+    [p1] and [p2] produce. *)
+val conj : Pred.t -> Pred.t -> Pred.t
 
-    NOTE: It's assumed that [handler nib send () e] will not become determined
-    until either an [Event(pol)] or [EventNoop] [update] has been written to
-    the [send.update] pipe. It is very important that you satisfy this
-    assumption! Not doing so will cause your application to lock up the
-    controller. *)
-val create_async : ?pipes:PipeSet.t -> policy -> (Net.Topology.t ref, policy) async_handler -> app
+(** [conj p1 p2] returns a [Pred.t] that disjoins together all the [pred]s that
+    [p1] and [p2] produce. *)
+val disj : Pred.t -> Pred.t -> Pred.t
 
-(** [create_static pol] returns a static app for the NetKAT syntax tree [pol] *)
-val create_static : policy -> app
-
-(** [create_from_string str] returns a static app for the NetKAT policy [str] *)
-val create_from_string : string -> app
-
-(** [create_from_file f] returns a static app from the NetKAT policy contained
-    in the file [f]. *)
-val create_from_file : string -> app
 
 (** [union ?how app1 app2] returns the union of [app1] and [app2].
 
@@ -158,7 +166,7 @@ val create_from_file : string -> app
     execution using the optional [how] argument to sequence them from left to
     right, or to have them run concurrently.
     *)
-val union : ?how:[ `Parallel | `Sequential ] -> app -> app -> app
+val union : ?how:[ `Parallel | `Sequential ] -> Policy.t -> Policy.t -> Policy.t
 
 exception Sequence_error of PipeSet.t * PipeSet.t
 
@@ -169,17 +177,17 @@ exception Sequence_error of PipeSet.t * PipeSet.t
     will raise a [Sequence_error]. If they are disjoint, then the returned app
     will distribute events across the two apps, sequence reactive updates to
     policies, and concatenates the list of [packet_outs] that they produce.  *)
-val seq : app -> app -> app
+val seq : Policy.t -> Policy.t -> Policy.t
 
 (** [guard pred app] returns an app that is equivalent to [app] except it will
     drop packets that do not satisfy [pred]. *)
-val guard  : pred   -> app -> app
-val guard' : Pred.t -> app -> app
+val guard  : pred   -> Policy.t -> Policy.t
+val guard' : Pred.t -> Policy.t -> Policy.t
 
 (** Lift a predicate to the [app] type. [filter p] returns an app that filters
     packets according to the predicate app. *)
-val filter  : pred   -> app
-val filter' : Pred.t -> app
+val filter  : pred   -> Policy.t
+val filter' : Pred.t -> Policy.t
 
 (** [slice pred app1 app2] returns an application where packets that
     satisfy [pred] will be handled by [app1] and packets that do not satisfy
@@ -188,5 +196,5 @@ val filter' : Pred.t -> app
     The returned application will enforce the pipes that [app1] and [app2]
     listen to, so if a packet matches [pred] but is at a pipe that [app1] is not
     listening on, the packet will be dropped. *)
-val slice  : pred   -> app -> app -> app
-val slice' : Pred.t -> app -> app -> app
+val slice  : pred   -> Policy.t -> Policy.t -> Policy.t
+val slice' : Pred.t -> Policy.t -> Policy.t -> Policy.t

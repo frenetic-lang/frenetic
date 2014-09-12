@@ -9,7 +9,7 @@ module Std = struct
   type dlAddr = Packet.dlAddr
 
   let run_static (pol : policy) : never_returns =
-    Async_NetKAT_Controller.start (Async_NetKAT.create_static pol) ();
+    Async_NetKAT_Controller.start (Async_NetKAT.Policy.create_static pol) ();
     Scheduler.go ()
 
 end

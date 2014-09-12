@@ -267,7 +267,7 @@ module Switch = struct
         | Query _ ->
           return None in
 
-    let app = create ~pipes:(PipeSet.singleton "probe") default handler in
+    let app = Policy.create ~pipes:(PipeSet.singleton "probe") default handler in
     (ctl, app)
 end
 
@@ -345,7 +345,7 @@ module Host = struct
         | Query _ ->
           return None in
 
-    create ~pipes:(PipeSet.singleton "host") default handler
+    Policy.create ~pipes:(PipeSet.singleton "host") default handler
 end
 
 let guard app =
