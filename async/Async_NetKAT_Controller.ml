@@ -486,7 +486,6 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
       let guarded_app = guard' (neg (Discovery.managed_traffic d_ctl)) app in
       union d_app guarded_app
     in
-    Deferred.don't_wait_for (Discovery.start d_ctl);
 
     (* Create the controller struct to contain all the state of the controller.
      * *)
@@ -524,6 +523,11 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
      * *)
     let recv, callback = Async_NetKAT.run app t.nib () in
     let events = run stages t (Controller.listen ctl) in
+
+    (* Enable discovery after the application's been run. It's important to
+     * enable discovery after starting the application, otherwise the initial
+     * policy update won't be received. *)
+    Deferred.don't_wait_for (Discovery.start d_ctl);
 
     (* Pick a method for updating the network. Each method needs to be able to
      * implement a policy across the entire network as well as handle new
