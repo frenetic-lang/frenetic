@@ -11,27 +11,28 @@ module Flip = struct
       (* [e_value] is the value that the application should use when the app is
          in an enabled state. *)
       value: NetKAT_Types.pred;
-      (* [updates] is the write-side of the pipe for pushing value updates for
-         the application. *)
-      updates : NetKAT_Types.pred Pipe.Writer.t;
+      (* [update_bus] is the bus that all instances of the application subscribe
+       * to for asynchronous value updates. *)
+      update_bus : NetKAT_Types.pred Bus.t;
     }
 
   let create (value : 'a) =
     let open Async_NetKAT in
-    let r_updates, w_updates = Pipe.create () in
+    let update_bus = Bus.create ~can_subscribe_after_start:true in
     let app = Pred.create_async NetKAT_Types.False (fun update () ->
-      Deferred.don't_wait_for (Pipe.transfer_id r_updates update);
+      ignore (Bus.subscribe_exn update_bus ~f:(Pipe.write_without_pushback update));
       fun nib e -> return None)
     in
-    { enabled = false; value; updates = w_updates }, app
+    { enabled = false; value; update_bus }, app
 
   let enable t =
     if t.enabled then
       return ()
     else begin
       t.enabled <- true;
-      Pipe.write t.updates t.value
-      >>= fun () -> Deferred.ignore (Pipe.downstream_flushed t.updates)
+      Bus.start t.update_bus;
+      Bus.write t.update_bus t.value;
+      Bus.flushed t.update_bus
     end
 
   let disable t =
@@ -39,8 +40,8 @@ module Flip = struct
       return ()
     else begin
       t.enabled <- false;
-      Pipe.write t.updates NetKAT_Types.False
-      >>= fun () -> Deferred.ignore (Pipe.downstream_flushed t.updates)
+      Bus.write t.update_bus NetKAT_Types.False;
+      Bus.flushed t.update_bus
     end
 end
 
