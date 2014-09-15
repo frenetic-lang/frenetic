@@ -35,6 +35,7 @@ exception Assertion_failed of string
 
 type t = {
   ctl : Controller.t;
+  dis : Discovery.t;
   txn : Txn.t;
   nib : Net.Topology.t ref;
   mutable policy : NetKAT_Types.policy;
@@ -479,7 +480,7 @@ let send_pkt_out (ctl : Controller.t) (sw_id, pkt_out) =
 let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
   let open Stage in
   Controller.create ~max_pending_connections ~port ()
-  >>> fun ctl ->
+  >>= fun ctl ->
     let d_ctl, d_stage, d_app = Discovery.create () in
     let app =
       let open Async_NetKAT in
@@ -491,6 +492,7 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
      * *)
     let t = {
       ctl = ctl;
+      dis = d_ctl;
       txn = Txn.create ctl;
       nib = ref (Net.Topology.empty ());
       policy = Async_NetKAT.default app;
@@ -523,11 +525,6 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
      * *)
     let recv, callback = Async_NetKAT.run app t.nib () in
     let events = run stages t (Controller.listen ctl) in
-
-    (* Enable discovery after the application's been run. It's important to
-     * enable discovery after starting the application, otherwise the initial
-     * policy update won't be received. *)
-    Deferred.don't_wait_for (Discovery.start d_ctl);
 
     (* Pick a method for updating the network. Each method needs to be able to
      * implement a policy across the entire network as well as handle new
@@ -593,4 +590,13 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
     let open Deferred in
     don't_wait_for (Pipe.iter  events      handler);                (* input  *)
     don't_wait_for (Pipe.iter  pkt_outs    (send_pkt_out ctl));     (* output *)
-    don't_wait_for (Pipe.iter' recv.update (implement_policy' t))   (* output *)
+    don't_wait_for (Pipe.iter' recv.update (implement_policy' t));  (* output *)
+
+    return t
+  ;;
+
+let enable_discovery t =
+  Discovery.start t.dis
+
+let disable_discovery t =
+  Discovery.stop t.dis

@@ -137,7 +137,7 @@ module Switch = struct
 
   let loop t =
     Deferred.repeat_until_finished () (fun () ->
-      if t.flip_ctl.Flip.enabled then
+      if enabled t then
         Clock.after t.probe_period
         >>= fun () ->
         print_endline "IM IN THE LOOP\n";
