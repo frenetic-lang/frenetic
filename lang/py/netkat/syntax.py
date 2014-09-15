@@ -1,6 +1,6 @@
 """ Representation of NetKAT abstract syntax tree. """
 
-__all__ = [ 'true', 'false', 'test', 'filter', 'mod', 'id', 'drop', 'seq', 'union' ]
+__all__ = [ 'true', 'false', 'test', 'filter', 'modify', 'id', 'drop', 'seq', 'union' ]
 
 class Pred:
     """ A class to represent NetKAT predicates. This class's constructor should
@@ -119,7 +119,7 @@ class Policy:
         if self._type == self.P_FILTER:
             return "filter %s" % repr(self.args[0])
         elif self._type == self.P_MOD:
-            return "%s := %s" % [repr(p) for p in self.args]
+            return "%s := %s" % self.args
         elif self._type == self.P_UNION:
             strd = " | ".join([p._repr(self.P_UNION) for p in self.args])
             if parent is None or parent == self.P_UNION:
@@ -142,7 +142,7 @@ def filter(pred):
     """ A filter Policy based on a Pred """
     return Policy(Policy.P_FILTER, pred)
 
-def mod(field, value):
+def modify(field, value):
     """ A field modification Policy. The field and the values will be cast to a
     string. """
     return Policy(Policy.P_MOD, field, value)
