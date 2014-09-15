@@ -2,18 +2,6 @@ open Core.Std
 open Sexplib.Conv
 open SDN_Types
 
-module type FIELD = sig
-  type t with sexp
-  val compare : t -> t -> int
-  val equal : t -> t -> bool
-  val to_string : t -> string
-  val top : t
-  val is_top : t -> bool
-  val join : t -> t -> t option
-  val meet : t -> t -> t option
-  val lessthan : t -> t -> bool
-end
-
 (* Option functor *)
 module Option (H:NetKAT_Types.Headers.HEADER) =
 struct
@@ -56,7 +44,7 @@ struct
       else None
 end
 
-module Table (F:FIELD) = struct
+module Table (F:NetKAT_Types.Headers.HEADER) = struct
   type v = F.t with sexp
 
   type t = (v * bool) list with sexp
@@ -74,6 +62,11 @@ module Table (F:FIELD) = struct
         if cmp2 <> 0 then cmp2
         else compare t1 t2
 
+  let equal t1 t2 =
+    compare t1 t2 = 0
+
+  let lessthan = equal 
+
   module Set = Set.Make(struct
     type t = v with sexp
     let compare = F.compare
@@ -90,9 +83,6 @@ module Table (F:FIELD) = struct
 
   let complete (t:t) : t =
     t @ [(F.top, false)]
-
-  let equal t1 t2 =
-    compare t1 t2 = 0
 
   let to_string (t:t) =
     Printf.sprintf "[%s]"
@@ -162,7 +152,7 @@ module Table (F:FIELD) = struct
     let t' = remove_shadowed List.rev (complete t) in
     List.for_all t' ~f:snd
 
-  let inter (t1:t) (t2:t) : t =
+  let join (t1:t) (t2:t) : t option =
     let t1' = complete t1 in
     let t2' = complete t2 in
     let r =
@@ -177,15 +167,10 @@ module Table (F:FIELD) = struct
                   acc
                 | Some p ->
                   (p, b1 && b2)::acc)) in
+    Some (mk (List.rev r))
 
-    let r' = mk (List.rev r) in
-    (* Printf.printf "INTER\n T1: %s\n" (to_string t1); *)
-    (* Printf.printf " T2: %s\n" (to_string t2); *)
-    (* Printf.printf " R': %s\n" (to_string r'); *)
-    r'
-
-  let diff t1 t2 =
-    inter t1 (neg t2)
+  let meet t1 t2 = 
+    if equal t1 t2 then Some t1 else None
 
   let to_netkat_pred (v_to_pred: v -> NetKAT_Types.pred) (t:t) =
     let open NetKAT_Types in
@@ -548,60 +533,72 @@ module Pattern = struct
 
   let seq (x:t) (y:t) : t option =
     let open HPT in
-        let g is_empty inter acc f =
+        let g is_empty join acc f =
           match acc with
             | None ->
               None
             | Some z ->
-              let pn = inter (Field.get f x) (Field.get f y) in
-              if is_empty pn then None
-              else Some (Field.fset f z pn) in
+              match join (Field.get f x) (Field.get f y) with 
+              | None -> None
+              | Some pn -> 
+                if is_empty pn then None
+                else Some (Field.fset f z pn) in
     let r = Fields.fold
         ~init:(Some top)
-        ~location:PTL.(g is_empty inter)
-        ~ethSrc:PT48.(g is_empty inter)
-        ~ethDst:PT48.(g is_empty inter)
-        ~vlan:PT16.(g is_empty inter)
-        ~vlanPcp:PT8.(g is_empty inter)
-        ~ethType:PT16.(g is_empty inter)
-        ~ipProto:PT8.(g is_empty inter)
-        ~ipSrc:PTIp.(g is_empty inter)
-        ~ipDst:PTIp.(g is_empty inter)
-        ~tcpSrcPort:PT16.(g is_empty inter)
-        ~tcpDstPort:PT16.(g is_empty inter) in
+        ~location:PTL.(g is_empty join)
+        ~ethSrc:PT48.(g is_empty join)
+        ~ethDst:PT48.(g is_empty join)
+        ~vlan:PT16.(g is_empty join)
+        ~vlanPcp:PT8.(g is_empty join)
+        ~ethType:PT16.(g is_empty join)
+        ~ipProto:PT8.(g is_empty join)
+        ~ipSrc:PTIp.(g is_empty join)
+        ~ipDst:PTIp.(g is_empty join)
+        ~tcpSrcPort:PT16.(g is_empty join)
+        ~tcpDstPort:PT16.(g is_empty join) in
     (* Printf.printf "SEQ\n X={%s}\n Y={%s}\n R=%s\n" (to_string x) (to_string y) (match r with None -> "None" | Some x -> to_string x); *)
     r
 
   let seq_act (x:t) (a:Action.t) (y:t) : t option =
     let open HPT in
-    let g get is_empty inter singleton acc f =
+    let g get is_empty join singleton acc f =
       match acc with
       | None ->
         None
       | Some z ->
         begin match Field.get f x, get a, Field.get f y with
         | pn1, None, pn2 ->
-          let pn = inter pn1 pn2 in
-          if is_empty pn then None
-          else Some (Field.fset f z pn)
+          begin match join pn1 pn2 with 
+            | None -> 
+              None
+            | Some pn -> 
+              if is_empty pn then None
+              else Some (Field.fset f z pn)
+          end
         | pn1, Some n, pn2 ->
-          if is_empty (inter (singleton n) pn2) then None
-          else Some (Field.fset f z pn1)
+          begin
+            match join (singleton n) pn2 with 
+            | None -> 
+              None
+            | Some pn -> 
+              if is_empty pn then None
+              else Some (Field.fset f z pn1)
+          end
         end in
     let lo f n = f (Some n) in
     HPT.Fields.fold
       ~init:(Some top)
-      ~location:PTL.(g HOV.location is_empty inter (lo singleton))
-      ~ethSrc:PT48.(g HOV.ethSrc is_empty inter (lo singleton))
-      ~ethDst:PT48.(g HOV.ethDst is_empty inter (lo singleton))
-      ~vlan:PT16.(g HOV.vlan is_empty inter (lo singleton))
-      ~vlanPcp:PT8.(g HOV.vlanPcp is_empty inter (lo singleton))
-      ~ethType:PT16.(g HOV.ethType is_empty inter (lo singleton))
-      ~ipProto:PT8.(g HOV.ipProto is_empty inter (lo singleton))
-      ~ipSrc:PTIp.(g HOV.ipSrc is_empty inter singleton)
-      ~ipDst:PTIp.(g HOV.ipDst is_empty inter singleton)
-      ~tcpSrcPort:PT16.(g HOV.tcpSrcPort is_empty inter (lo singleton))
-      ~tcpDstPort:PT16.(g HOV.tcpDstPort is_empty inter (lo singleton))
+      ~location:PTL.(g HOV.location is_empty join (lo singleton))
+      ~ethSrc:PT48.(g HOV.ethSrc is_empty join (lo singleton))
+      ~ethDst:PT48.(g HOV.ethDst is_empty join (lo singleton))
+      ~vlan:PT16.(g HOV.vlan is_empty join (lo singleton))
+      ~vlanPcp:PT8.(g HOV.vlanPcp is_empty join (lo singleton))
+      ~ethType:PT16.(g HOV.ethType is_empty join (lo singleton))
+      ~ipProto:PT8.(g HOV.ipProto is_empty join (lo singleton))
+      ~ipSrc:PTIp.(g HOV.ipSrc is_empty join singleton)
+      ~ipDst:PTIp.(g HOV.ipDst is_empty join singleton)
+      ~tcpSrcPort:PT16.(g HOV.tcpSrcPort is_empty join (lo singleton))
+      ~tcpDstPort:PT16.(g HOV.tcpDstPort is_empty join (lo singleton))
 
   let diff (x:t) (y:t) : Set.t =
     let negged:Set.t = neg y in

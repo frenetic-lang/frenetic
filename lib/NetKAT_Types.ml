@@ -76,9 +76,13 @@ module Headers = struct
   module type HEADER = sig
     type t with sexp
     val compare : t -> t -> int
-    val to_string : t -> string
     val equal : t -> t -> bool
+    val to_string : t -> string
+    val top : t
     val is_top : t -> bool
+    val join : t -> t -> t option
+    val meet : t -> t -> t option
+    val lessthan : t -> t -> bool
   end
 
   module Make =
@@ -174,15 +178,43 @@ module LocationHeader = struct
     match l with
       | Pipe x -> Printf.sprintf "%s" x
       | Physical n -> Printf.sprintf "%lu" n
+  let top = Physical 0l
   let is_top l = false
+  let lessthan l1 l2 = equal l1 l2
+  let meet l1 l2 = 
+    if equal l1 l2 then Some l1 else None
+  let join l1 l2 = 
+    if equal l1 l2 then Some l1 else None    
 end
 module IntHeader = struct
   include Int
+  let top = 0
   let is_top _ = false
+  let lessthan l1 l2 = equal l1 l2
+  let meet l1 l2 = 
+    if equal l1 l2 then Some l1 else None
+  let join l1 l2 = 
+    if equal l1 l2 then Some l1 else None    
 end
 module Int32Header = struct
   include Int32
+  let top = 0l
   let is_top _ = false
+  let lessthan l1 l2 = equal l1 l2
+  let meet l1 l2 = 
+    if equal l1 l2 then Some l1 else None
+  let join l1 l2 = 
+    if equal l1 l2 then Some l1 else None    
+end
+module Int64Header = struct
+  include Int64
+  let top = 0L
+  let is_top _ = false
+  let lessthan l1 l2 = equal l1 l2
+  let meet l1 l2 = 
+    if equal l1 l2 then Some l1 else None
+  let join l1 l2 = 
+    if equal l1 l2 then Some l1 else None    
 end
 module Int32TupleHeader = struct
   (* Represents an (ip_address, mask) tuple. *)
@@ -237,11 +269,6 @@ module Int32TupleHeader = struct
       None
 
   let to_string x = Ip.string_of x
-end
-
-module Int64Header = struct
-  include Int64
-  let is_top _ = false
 end
 
 module HeadersValues =
