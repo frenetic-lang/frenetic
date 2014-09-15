@@ -19,10 +19,10 @@ module Headers = struct
         | Some(p_v) -> Field.get f hdrs = p_v in
     let matches_mask p f =
       match p with
-        | None -> 
-	  true
+        | None ->
+          true
         | Some (x,m) ->
-	  Int32TupleHeader.subseteq (Field.get f hdrs,32l) (x,m) in 
+          Int32TupleHeader.lessthan (Field.get f hdrs,32l) (x,m) in
     let open Pattern in
     HeadersValues.Fields.for_all
       ~location:(fun f ->

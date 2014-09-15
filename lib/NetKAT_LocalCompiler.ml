@@ -7,11 +7,11 @@ module type FIELD = sig
   val compare : t -> t -> int
   val equal : t -> t -> bool
   val to_string : t -> string
-  val any : t
-  val is_any : t -> bool
-  val inter : t -> t -> t option
-  val subseteq : t -> t -> bool
+  val top : t
+  val is_top : t -> bool
   val join : t -> t -> t option
+  val meet : t -> t -> t option
+  val lessthan : t -> t -> bool
 end
 
 (* Option functor *)
@@ -30,18 +30,18 @@ struct
     match o with
       | None -> "None"
       | Some x -> Printf.sprintf "Some(%s)" (H.to_string x)
-  let any =
+  let top =
     None
-  let is_any o =
+  let is_top o =
     o = None
-  let inter o1 o2 =
+  let meet o1 o2 =
     match o1,o2 with
     | None, _ -> Some o2
     | _, None -> Some o1
     | Some x1, Some x2 ->
       if H.equal x1 x2 then Some o1
       else None
-  let subseteq o1 o2 =
+  let lessthan o1 o2 =
     match o1,o2 with
     | _,None -> true
     | None,_ -> false
@@ -79,8 +79,8 @@ module Table (F:FIELD) = struct
     let compare = F.compare
   end)
 
-  let any : t =
-    [ (F.any, true) ]
+  let top : t =
+    [ (F.top, true) ]
 
   let empty : t =
     []
@@ -89,7 +89,7 @@ module Table (F:FIELD) = struct
     [ (x,true) ]
 
   let complete (t:t) : t =
-    t @ [(F.any, false)]
+    t @ [(F.top, false)]
 
   let equal t1 t2 =
     compare t1 t2 = 0
@@ -126,7 +126,7 @@ module Table (F:FIELD) = struct
       | [] -> false
       | (y,_)::rest ->
         let f' = extend_footprint f y in
-        Set.exists f' (F.subseteq x) || loop f' rest in
+        Set.exists f' (F.lessthan x) || loop f' rest in
     loop Set.empty t
 
   let rec drop_false l =
@@ -142,7 +142,7 @@ module Table (F:FIELD) = struct
       | [] ->
         f acc
       | (x,b)::rest ->
-        if Set.exists s (F.subseteq x) then
+        if Set.exists s (F.lessthan x) then
           loop s acc rest
         else
           loop (extend_footprint s x) ((x,b)::acc) rest in
@@ -158,7 +158,7 @@ module Table (F:FIELD) = struct
     let t' = remove_shadowed List.rev (complete t) in
     not (List.exists t' ~f:snd)
 
-  let is_any (t:t) : bool =
+  let is_top (t:t) : bool =
     let t' = remove_shadowed List.rev (complete t) in
     List.for_all t' ~f:snd
 
@@ -172,7 +172,7 @@ module Table (F:FIELD) = struct
           List.fold_left t2'
             ~init:acc
             ~f:(fun acc (p2, b2) ->
-                match F.inter p1 p2 with
+                match F.meet p1 p2 with
                 | None ->
                   acc
                 | Some p ->
@@ -214,8 +214,8 @@ module Table (F:FIELD) = struct
                 b &&
                 Set.exists f1
                   ~f:(fun x1 ->
-                      F.inter x1 x <> None &&
-                      not (Set.exists f2 ~f:(fun x2 -> F.subseteq x1 x2))) in
+                      F.meet x1 x <> None &&
+                      not (Set.exists f2 ~f:(fun x2 -> F.lessthan x1 x2))) in
               (extend_footprint f2 x, osc')) in
     (* Printf.printf "OBSCURES\n"; *)
     (* Printf.printf " T1=%s\n" (to_string t1); *)
@@ -293,7 +293,7 @@ module Action = struct
       ~init:id (* identity policy *)
       ~location:(g (fun v -> Location v))
       ~ethSrc:(g (fun v -> EthSrc v))
-      ~ethDst:(g (fun v ->EthDst v))
+      ~ethDst:(g (fun v -> EthDst v))
       ~vlan:(g (fun v -> Vlan v))
       ~vlanPcp:(g (fun v -> VlanPcp v))
       ~ethType:(g (fun v -> EthType v))
@@ -428,19 +428,19 @@ module Pattern = struct
       ~tcpSrcPort:(g PT16.to_netkat_pred (l (fun v -> TCPSrcPort v)))
       ~tcpDstPort:(g PT16.to_netkat_pred (l (fun v -> TCPDstPort v)))
 
-  let any : t =
+  let top : t =
     let open HPT in
-        { location = PTL.any;
-          ethSrc = PT48.any;
-          ethDst = PT48.any;
-          vlan = PT16.any;
-          vlanPcp = PT8.any;
-          ethType = PT16.any;
-          ipProto = PT8.any;
-          ipSrc = PTIp.any;
-          ipDst = PTIp.any;
-          tcpSrcPort = PT16.any;
-          tcpDstPort = PT16.any }
+        { location = PTL.top;
+          ethSrc = PT48.top;
+          ethDst = PT48.top;
+          vlan = PT16.top;
+          vlanPcp = PT8.top;
+          ethType = PT16.top;
+          ipProto = PT8.top;
+          ipSrc = PTIp.top;
+          ipDst = PTIp.top;
+          tcpSrcPort = PT16.top;
+          tcpDstPort = PT16.top }
 
   let empty : t =
     let open HPT in
@@ -456,20 +456,20 @@ module Pattern = struct
           tcpSrcPort = PT16.empty;
           tcpDstPort = PT16.empty }
 
-  let is_any (x:t) : bool =
-    let g is_any f = is_any (Field.get f x) in
+  let is_top (x:t) : bool =
+    let g is_top f = is_top (Field.get f x) in
     HPT.Fields.for_all
-      ~location:(g PTL.is_any)
-      ~ethSrc:(g PT48.is_any)
-      ~ethDst:(g PT48.is_any)
-      ~vlan:(g PT16.is_any)
-      ~vlanPcp:(g PT8.is_any)
-      ~ethType:(g PT16.is_any)
-      ~ipProto:(g PT8.is_any)
-      ~ipSrc:(g PTIp.is_any)
-      ~ipDst:(g PTIp.is_any)
-      ~tcpSrcPort:(g PT16.is_any)
-      ~tcpDstPort:(g PT16.is_any)
+      ~location:(g PTL.is_top)
+      ~ethSrc:(g PT48.is_top)
+      ~ethDst:(g PT48.is_top)
+      ~vlan:(g PT16.is_top)
+      ~vlanPcp:(g PT8.is_top)
+      ~ethType:(g PT16.is_top)
+      ~ipProto:(g PT8.is_top)
+      ~ipSrc:(g PTIp.is_top)
+      ~ipDst:(g PTIp.is_top)
+      ~tcpSrcPort:(g PT16.is_top)
+      ~tcpDstPort:(g PT16.is_top)
 
   let is_empty (x:t) : bool =
     let g is_empty f = is_empty (Field.get f x) in
@@ -486,17 +486,17 @@ module Pattern = struct
       ~tcpSrcPort:(g PT16.is_empty)
       ~tcpDstPort:(g PT16.is_empty)
 
-  let mk_location l = { any with HPT.location = PTL.singleton (Some l) }
-  let mk_ethSrc n = { any with HPT.ethSrc = PT48.singleton (Some n) }
-  let mk_ethDst n = { any with HPT.ethDst = PT48.singleton (Some n) }
-  let mk_vlan n = { any with HPT.vlan = PT16.singleton (Some n) }
-  let mk_vlanPcp n = { any with HPT.vlanPcp = PT8.singleton (Some n) }
-  let mk_ethType n = { any with HPT.ethType = PT16.singleton (Some n) }
-  let mk_ipProto n = { any with HPT.ipProto = PT16.singleton (Some n) }
-  let mk_ipSrc n = { any with HPT.ipSrc = PTIp.singleton n }
-  let mk_ipDst n = { any with HPT.ipDst = PTIp.singleton n }
-  let mk_tcpSrcPort n = { any with HPT.tcpSrcPort = PT16.singleton (Some n) }
-  let mk_tcpDstPort n = { any with HPT.tcpDstPort = PT16.singleton (Some n) }
+  let mk_location l = { top with HPT.location = PTL.singleton (Some l) }
+  let mk_ethSrc n = { top with HPT.ethSrc = PT48.singleton (Some n) }
+  let mk_ethDst n = { top with HPT.ethDst = PT48.singleton (Some n) }
+  let mk_vlan n = { top with HPT.vlan = PT16.singleton (Some n) }
+  let mk_vlanPcp n = { top with HPT.vlanPcp = PT8.singleton (Some n) }
+  let mk_ethType n = { top with HPT.ethType = PT16.singleton (Some n) }
+  let mk_ipProto n = { top with HPT.ipProto = PT16.singleton (Some n) }
+  let mk_ipSrc n = { top with HPT.ipSrc = PTIp.singleton n }
+  let mk_ipDst n = { top with HPT.ipDst = PTIp.singleton n }
+  let mk_tcpSrcPort n = { top with HPT.tcpSrcPort = PT16.singleton (Some n) }
+  let mk_tcpDstPort n = { top with HPT.tcpDstPort = PT16.singleton (Some n) }
 
   (* A pattern
    *   f1 = c1 ; ... fk = ck
@@ -515,7 +515,7 @@ module Pattern = struct
         let g is_empty neg acc f =
           let z = neg (Field.get f x) in
           if is_empty z then acc
-          else Set.add acc (Field.fset f any z) in
+          else Set.add acc (Field.fset f top z) in
         Fields.fold
           ~init:Set.empty
           ~location:PTL.(g is_empty neg)
@@ -557,7 +557,7 @@ module Pattern = struct
               if is_empty pn then None
               else Some (Field.fset f z pn) in
     let r = Fields.fold
-        ~init:(Some any)
+        ~init:(Some top)
         ~location:PTL.(g is_empty inter)
         ~ethSrc:PT48.(g is_empty inter)
         ~ethDst:PT48.(g is_empty inter)
@@ -590,7 +590,7 @@ module Pattern = struct
         end in
     let lo f n = f (Some n) in
     HPT.Fields.fold
-      ~init:(Some any)
+      ~init:(Some top)
       ~location:PTL.(g HOV.location is_empty inter (lo singleton))
       ~ethSrc:PT48.(g HOV.ethSrc is_empty inter (lo singleton))
       ~ethDst:PT48.(g HOV.ethDst is_empty inter (lo singleton))
@@ -760,7 +760,7 @@ module Local = struct
         acc
       else
         loop acc' psucci in
-    let p0 = Pattern.Map.singleton Pattern.any Action.id in
+    let p0 = Pattern.Map.singleton Pattern.top Action.id in
     let r = loop p0 p0 in
     (* Printf.printf "### STAR ###\n%s\n%s" *)
     (*   (to_string p) *)
@@ -771,9 +771,9 @@ module Local = struct
     let rec loop pr k =
       match pr with
         | NetKAT_Types.True ->
-          k (Pattern.Map.singleton Pattern.any Action.id)
+          k (Pattern.Map.singleton Pattern.top Action.id)
         | NetKAT_Types.False ->
-          k (Pattern.Map.singleton Pattern.any Action.drop)
+          k (Pattern.Map.singleton Pattern.top Action.drop)
         | NetKAT_Types.Neg pr ->
           loop pr (fun (p:t) -> k (neg p))
         | NetKAT_Types.Test hv ->
@@ -849,7 +849,7 @@ module Local = struct
             | NetKAT_Types.TCPDstPort n ->
               Action.mk_tcpDstPort n in
           let s = Action.Set.singleton a in
-          let m = Pattern.Map.singleton Pattern.any s in
+          let m = Pattern.Map.singleton Pattern.top s in
           (* Printf.printf "### MOD (%s) ###\n%s\n" (NetKAT_Pretty.string_of_policy pol) (to_string m);           *)
           k m
         | NetKAT_Types.Union (pol1, pol2) ->
@@ -973,10 +973,10 @@ module RunTime = struct
         ~ethType:(g (fun p o -> { p with HOV.ethType = o }))
         ~ipProto:(g (fun p o -> { p with HOV.ipProto = o }))
         ~ipSrc:(g (fun p o ->
-                     if NetKAT_Types.Int32TupleHeader.is_any o then p
+                     if NetKAT_Types.Int32TupleHeader.is_top o then p
                      else { p with HOV.ipSrc = Some o }))
         ~ipDst:(g (fun p o ->
-                     if NetKAT_Types.Int32TupleHeader.is_any o then p
+                     if NetKAT_Types.Int32TupleHeader.is_top o then p
                      else { p with HOV.ipDst = Some o }))
         ~tcpSrcPort:(g (fun p o -> { p with HOV.tcpSrcPort = o }))
         ~tcpDstPort:(g (fun p o -> { p with HOV.tcpDstPort = o })) in
