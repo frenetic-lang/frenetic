@@ -7,7 +7,7 @@ let seq (ps : policy list) : policy = List.fold_left mk_seq id ps
 
 let or2 (ps : pred list) : pred = List.fold_left mk_or False ps
 
-let plus (p : policy) = seq [p; Star p]
+let plus (p : policy) = mk_seq p (mk_star p)
 
 let match_pc pc = Filter (Test (VlanPcp pc))
 

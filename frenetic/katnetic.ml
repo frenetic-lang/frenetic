@@ -27,7 +27,7 @@ module Global = struct
     let tables = 
       List.map
         (fun sw -> NetKAT_LocalCompiler.compile sw wrapped_cps_pol 
-                   |> NetKAT_LocalCompiler.to_table 
+                   |> NetKAT_LocalCompiler.to_table ~optimize_fall_through:true
                    |> pair sw)
         (NetKAT_GlobalCompiler.switches pol) in
     let print_table (sw, t) =
