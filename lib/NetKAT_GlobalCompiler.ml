@@ -11,8 +11,9 @@ let and2 (ps : pred list) : pred = List.fold_left mk_and True ps
 
 let plus (p : policy) = mk_seq p (mk_star p)
 
-let final_pc = 0
-let initial_pc = final_pc + 1
+let final_local_pc = 0
+let initial_local_pc = final_local_pc + 1
+let initial_global_pc = 0
 
 let match_pc pc = Filter (Test (Vlan pc))
 
@@ -34,13 +35,13 @@ let partition_jump_table t =
 
 let cps (p : policy) =
   let module M = Map.Make (struct type t = int64 * int32 let compare = compare end) in
-  let local_pc_ref = ref final_pc in
+  let local_pc_ref = ref final_local_pc in
   let global_pc_ref = ref M.empty in
   let next_local_pc () =
     (local_pc_ref := (!local_pc_ref + 1); !local_pc_ref) in
   let next_global_pc sw pt =
     let m = !global_pc_ref in
-    let pc = try M.find (sw, pt) m with Not_found -> initial_pc in
+    let pc = try M.find (sw, pt) m with Not_found -> initial_global_pc in
     (global_pc_ref := M.add (sw, pt) (pc+1) m; pc) in
   let filter (sw,pt) = Filter (And (Test(Switch sw), Test(Location(Physical(pt))))) in
   let rec cps' p pc k =
@@ -69,10 +70,10 @@ let cps (p : policy) =
   let egress = [(Int64.of_int 5, Int32.of_int 100); (Int64.of_int 6, Int32.of_int 100)] in
   let match_ingress = union (List.map filter ingress) in
   let match_egress = union (List.map filter egress) in
-  let pre = seq [match_ingress; set_pc initial_pc] in
-  (* TODO: instead of setting the final global pc, the pc should be removed *)
-  let post = seq [match_pc final_pc; match_egress; set_pc final_pc] in
-  let jump_table = cps' p (next_local_pc ()) final_pc in
+  let pre = seq [match_ingress; set_pc initial_local_pc] in
+  (* TODO: remove pc after matching egress *)
+  let post = seq [match_pc final_local_pc; match_egress] in
+  let jump_table = cps' p (next_local_pc ()) final_local_pc in
   let (enter, local, exit) = partition_jump_table jump_table in
   seq [union (pre::enter); mk_star (union local); union (post::exit)]
 
