@@ -54,7 +54,7 @@ let transfer_batch r w ~f =
 
 exception Sequence_error of PipeSet.t * PipeSet.t
 
-type app = (Net.Topology.t ref) Raw_app.t
+type app = (Net.Topology.t ref, policy) Raw_app.t
 
 type 'phantom pipes = {
   pkt_out : (switchId * SDN_Types.pktOut, 'phantom) Pipe.t;
@@ -113,14 +113,14 @@ let create_from_file (filename : string) : app =
   create_static pol
 
 let default (a : app) : policy =
-  a.Raw_app.policy
+  a.Raw_app.value
 
 let run (app : app) (t : Net.Topology.t ref) () : (recv * (event -> unit Deferred.t)) =
   let recv, callback = Raw_app.run app t () in
   { pkt_out = recv.Raw_app.pkt_out; update = recv.Raw_app.update }, callback
 
 let union ?(how=`Parallel) (app1 : app) (app2 : app) : app =
-  Raw_app.combine ~how:how (fun x y -> Union(x, y)) app1 app2
+  Raw_app.combine ~how:how Optimize.mk_union app1 app2
 
 let seq (app1 : app) (app2 : app) : app =
   let open Raw_app in
@@ -131,7 +131,7 @@ let seq (app1 : app) (app2 : app) : app =
      * on a `PacketIn` event. *)
     raise (Sequence_error(app1.pipes, app2.pipes))
   end;
-  Raw_app.combine ~how:`Sequential (fun x y -> Seq(x, y)) app1 app2
+  Raw_app.combine ~how:`Sequential Optimize.mk_seq app1 app2
 
 let guard (pred : pred) (app : app) : app =
   seq (create_static (Filter pred)) app
