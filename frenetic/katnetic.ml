@@ -16,17 +16,31 @@ module Run = struct
 end
 
 module Global = struct
-  open Core.Std
-  open Async.Std
-  let main filename = 
+  let main filename =
+    let fmt = Format.formatter_of_out_channel stderr in
     let pol = 
-      In_channel.with_file filename ~f:(fun chan -> 
+      Core.Std.In_channel.with_file filename ~f:(fun chan -> 
         NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in 
-    let cps_pol = NetKAT_GlobalCompiler.cps pol in 
-    let fmt = Format.formatter_of_out_channel stderr in    
+    let cps_pol = NetKAT_GlobalCompiler.cps pol in
+    let wrapped_cps_pol = NetKAT_GlobalCompiler.wrapped_cps pol in
+    let pair x y = (x, y) in
+    let tables = 
+      List.map
+        (fun sw -> NetKAT_LocalCompiler.compile sw wrapped_cps_pol 
+                   |> NetKAT_LocalCompiler.to_table 
+                   |> pair sw)
+        (NetKAT_GlobalCompiler.switches pol) in
+    let print_table (sw, t) =
+      Format.fprintf fmt "[global] Flowtable for Switch %Ld:@\n@[%a@]\n"
+        sw
+        SDN_Types.format_flowTable t in
     Format.fprintf fmt "[global] Parsed: @[%s@]\n" filename;
     Format.fprintf fmt "[global] Policy:@\n@[%a@]\n" NetKAT_Pretty.format_policy pol;
     Format.fprintf fmt "[global] CPS Policy:@\n@[%a@]\n" NetKAT_Pretty.format_policy cps_pol;
+    Format.fprintf fmt "[global] Wrapped CPS Policy:@\n@[%a@]\n" NetKAT_Pretty.format_policy
+      wrapped_cps_pol;
+    Format.fprintf fmt "[global] Localized CPS Policies:@\n";
+    List.iter print_table tables;
     ()
 end
 
