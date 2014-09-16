@@ -19,6 +19,8 @@ let match_pc pc = Filter (Test (Vlan pc))
 
 let set_pc pc = Mod (Vlan pc)
 
+let match_location (sw,pt) = Filter (And (Test(Switch sw), Test(Location(Physical(pt)))))
+
 let match_entrance sw pt pc =
   let t1 = Test (Vlan pc) in
   let t2 = Test (Switch sw) in
@@ -34,7 +36,7 @@ let partition_jump_table t =
   List.fold_left file_table_row ([],[],[]) t
 
 let cps (ingress : (switchId * portId) list) (egress : (switchId * portId) list) (p : policy) =
-  let module M = Map.Make (struct type t = int64 * int32 let compare = compare end) in
+  let module M = Map.Make (struct type t = switchId * portId let compare = compare end) in
   let local_pc_ref = ref final_local_pc in
   let global_pc_ref = ref M.empty in
   let next_local_pc () =
@@ -43,7 +45,6 @@ let cps (ingress : (switchId * portId) list) (egress : (switchId * portId) list)
     let m = !global_pc_ref in
     let pc = try M.find (sw, pt) m with Not_found -> initial_global_pc in
     (global_pc_ref := M.add (sw, pt) (pc+1) m; pc) in
-  let filter (sw,pt) = Filter (And (Test(Switch sw), Test(Location(Physical(pt))))) in
   let rec cps' p pc k =
     match p with
     | Filter _ | Mod _ ->
@@ -54,19 +55,18 @@ let cps (ingress : (switchId * portId) list) (egress : (switchId * portId) list)
        `Local (seq [match_pc pc ; union [set_pc pc_q; set_pc pc_r]]) ::
        (cps' q pc_q k) @ (cps' r pc_r k)
     | Seq (q,r) ->
-       (* TODO: is this correct to inline pc |-> pc of q? *)
-       let pc' = next_local_pc () in
-       (cps' q pc pc') @ (cps' r pc' k)
+       let pc_q = next_local_pc () in
+       let pc_r = next_local_pc () in
+       `Local (seq [match_pc pc ; set_pc pc_q]) :: (cps' q pc_q pc_r) @ (cps' r pc_r k)
     | Star q ->
        let pc_q = next_local_pc () in
-       `Local (seq [match_pc pc ; union [set_pc pc_q; set_pc k]]) ::
-       (cps' q pc_q pc)
+       `Local (seq [match_pc pc ; union [set_pc pc_q; set_pc k]]) :: (cps' q pc_q pc)
     | Link (sw1,pt1,sw2,pt2) -> 
        let gpc = next_global_pc sw2 pt2 in 
-       [`Exit (seq [match_pc pc; filter (sw1,pt1); set_pc gpc]);
+       [`Exit (seq [match_pc pc; match_location (sw1,pt1); set_pc gpc]);
         `Enter (seq [match_entrance sw2 pt2 gpc; set_pc k]) ] in
-  let match_ingress = union (List.map filter ingress) in
-  let match_egress = union (List.map filter egress) in
+  let match_ingress = union (List.map match_location ingress) in
+  let match_egress = union (List.map match_location egress) in
   let pre = seq [match_ingress; set_pc initial_local_pc] in
   (* TODO: remove pc after matching egress *)
   let post = seq [match_pc final_local_pc; match_egress] in
