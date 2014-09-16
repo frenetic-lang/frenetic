@@ -22,11 +22,10 @@ module Global = struct
       Core.Std.In_channel.with_file filename ~f:(fun chan -> 
         NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in 
     let cps_pol = NetKAT_GlobalCompiler.cps pol in
-    let wrapped_cps_pol = NetKAT_GlobalCompiler.wrapped_cps pol in
     let pair x y = (x, y) in
     let tables = 
       List.map
-        (fun sw -> NetKAT_LocalCompiler.compile sw wrapped_cps_pol 
+        (fun sw -> NetKAT_LocalCompiler.compile sw cps_pol 
                    |> NetKAT_LocalCompiler.to_table ~optimize_fall_through:true
                    |> pair sw)
         (NetKAT_GlobalCompiler.switches pol) in
@@ -37,8 +36,6 @@ module Global = struct
     Format.fprintf fmt "[global] Parsed: @[%s@]\n" filename;
     Format.fprintf fmt "[global] Policy:@\n@[%a@]\n" NetKAT_Pretty.format_policy pol;
     Format.fprintf fmt "[global] CPS Policy:@\n@[%a@]\n" NetKAT_Pretty.format_policy cps_pol;
-    Format.fprintf fmt "[global] Wrapped CPS Policy:@\n@[%a@]\n" NetKAT_Pretty.format_policy
-      wrapped_cps_pol;
     Format.fprintf fmt "[global] Localized CPS Policies:@\n";
     List.iter print_table tables;
     ()
