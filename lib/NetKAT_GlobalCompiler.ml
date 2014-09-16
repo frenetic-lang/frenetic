@@ -33,7 +33,7 @@ let partition_jump_table t =
     | `Exit q -> (enter, local, q::exit) in
   List.fold_left file_table_row ([],[],[]) t
 
-let cps (p : policy) =
+let cps (ingress : (switchId * portId) list) (egress : (switchId * portId) list) (p : policy) =
   let module M = Map.Make (struct type t = int64 * int32 let compare = compare end) in
   let local_pc_ref = ref final_local_pc in
   let global_pc_ref = ref M.empty in
@@ -65,9 +65,6 @@ let cps (p : policy) =
        let gpc = next_global_pc sw2 pt2 in 
        [`Exit (seq [match_pc pc; filter (sw1,pt1); set_pc gpc]);
         `Enter (seq [match_entrance sw2 pt2 gpc; set_pc k]) ] in
-  (*TODO: hard coded ingress & egress for experimentation; turn into parameters *)
-  let ingress = [(Int64.of_int 1, Int32.of_int 1); (Int64.of_int 2, Int32.of_int 2)] in
-  let egress = [(Int64.of_int 5, Int32.of_int 100); (Int64.of_int 6, Int32.of_int 100)] in
   let match_ingress = union (List.map filter ingress) in
   let match_egress = union (List.map filter egress) in
   let pre = seq [match_ingress; set_pc initial_local_pc] in

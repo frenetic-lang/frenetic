@@ -20,8 +20,11 @@ module Global = struct
     let fmt = Format.formatter_of_out_channel stderr in
     let pol = 
       Core.Std.In_channel.with_file filename ~f:(fun chan -> 
-        NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in 
-    let cps_pol = NetKAT_GlobalCompiler.cps pol in
+        NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in
+    (*TODO: hard coded ingress & egress for experimentation; turn into parameters *)
+    let ingress = [(Int64.of_int 1, Int32.of_int 1); (Int64.of_int 2, Int32.of_int 2)] in
+    let egress = [(Int64.of_int 5, Int32.of_int 100); (Int64.of_int 6, Int32.of_int 100)] in
+    let cps_pol = NetKAT_GlobalCompiler.cps ingress egress pol in
     let pair x y = (x, y) in
     let tables = 
       List.map
