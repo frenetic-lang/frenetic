@@ -13,7 +13,7 @@ let plus (p : policy) = mk_seq p (mk_star p)
 
 let final_local_pc = 0
 let initial_local_pc = final_local_pc + 1
-let initial_global_pc = 0
+let initial_global_pc = 0xffff
 
 let match_pc pc = Filter (Test (Vlan pc))
 
@@ -46,7 +46,7 @@ let cps (ingress : (switchId * portId) list) (egress : (switchId * portId) list)
   let next_global_pc sw pt =
     let m = !global_pc_ref in
     let pc = try M.find (sw, pt) m with Not_found -> initial_global_pc in
-    (global_pc_ref := M.add (sw, pt) (pc+1) m; pc) in
+    (global_pc_ref := M.add (sw, pt) (pc-1) m; pc) in
   let rec cps' p pc k =
     match p with
     | Filter _ | Mod _ ->
