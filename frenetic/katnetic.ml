@@ -18,19 +18,19 @@ end
 module Global = struct
   let main filename =
     let fmt = Format.formatter_of_out_channel stderr in
-    let () = Format.pp_set_margin fmt 200 in 
-    let pol = 
-      Core.Std.In_channel.with_file filename ~f:(fun chan -> 
+    let () = Format.pp_set_margin fmt 200 in
+    let pol =
+      Core.Std.In_channel.with_file filename ~f:(fun chan ->
         NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in
     (*TODO: hard coded ingress & egress for experimentation; turn into parameters *)
     let ingress = [(Int64.of_int 1, Int32.of_int 1); (Int64.of_int 2, Int32.of_int 2)] in
     let egress = [(Int64.of_int 5, Int32.of_int 100); (Int64.of_int 6, Int32.of_int 100)] in
     let cps_pol = NetKAT_GlobalCompiler.cps ingress egress pol in
     let pair x y = (x, y) in
-    let tables = 
+    let tables =
       List.map
-        (fun sw -> NetKAT_LocalCompiler.compile sw cps_pol 
-                   |> NetKAT_LocalCompiler.to_table ~optimize_fall_through:true
+        (fun sw -> NetKAT_LocalCompiler.compile sw cps_pol
+                   |> NetKAT_LocalCompiler.to_table
                    |> pair sw)
         (NetKAT_GlobalCompiler.switches pol) in
     let print_table (sw, t) =
@@ -67,7 +67,7 @@ module Dump = struct
 
     let with_compile (sw : SDN_Types.switchId) (p : NetKAT_Types.policy) =
       let open NetKAT_LocalCompiler in
-      let _ = 
+      let _ =
         Format.printf "@[Compiling switch %Ld [size=%d]...@]%!"
           sw (NetKAT_Semantics.size p) in
       let c_time, i = profile (fun () -> compile sw p) in
@@ -171,8 +171,8 @@ let dump_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.(pure Dump.Local.main $ level $ switch_id $ policy),
   Term.info "dump" ~doc
 
-let global_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
-  let doc = "invoke the global compiler and dump the resulting flow tables" in 
+let global_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
+  let doc = "invoke the global compiler and dump the resulting flow tables" in
   let policy =
     let doc = "file containing a static NetKAT policy" in
     Arg.(required & (pos 0 (some file) None) & info [] ~docv:"FILE" ~doc)
