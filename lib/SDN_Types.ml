@@ -46,7 +46,7 @@ let make_string_of formatter x =
   let open Format in
   let buf = Buffer.create 100 in
   let fmt = formatter_of_buffer buf in
-  pp_set_margin fmt 200;
+  pp_set_margin fmt 80;
   formatter fmt x;
   fprintf fmt "@?";
   Buffer.contents buf
