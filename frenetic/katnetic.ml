@@ -19,27 +19,26 @@ module Global = struct
   let main filename =
     let fmt = Format.formatter_of_out_channel stderr in
     let () = Format.pp_set_margin fmt 200 in
-    let pol =
+    let global_pol =
       Core.Std.In_channel.with_file filename ~f:(fun chan ->
         NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in
     (*TODO: hard coded ingress & egress for experimentation; turn into parameters *)
     let ingress = [(Int64.of_int 1, Int32.of_int 1); (Int64.of_int 2, Int32.of_int 2)] in
     let egress = [(Int64.of_int 5, Int32.of_int 100); (Int64.of_int 6, Int32.of_int 100)] in
-    let cps_pol = NetKAT_GlobalCompiler.cps ingress egress pol in
-    let pair x y = (x, y) in
+    let local_pol = NetKAT_GlobalCompiler.compile ingress egress global_pol in
     let tables =
       List.map
-        (fun sw -> NetKAT_LocalCompiler.compile sw cps_pol
+        (fun sw -> NetKAT_LocalCompiler.compile sw local_pol
                    |> NetKAT_LocalCompiler.to_table
-                   |> pair sw)
-        (NetKAT_GlobalCompiler.switches pol) in
+                   |> (fun t -> (sw, t)))
+        (NetKAT_GlobalCompiler.switches global_pol) in
     let print_table (sw, t) =
       Format.fprintf fmt "[global] Flowtable for Switch %Ld:@\n@[%a@]@\n@\n"
         sw
         SDN_Types.format_flowTable t in
     Format.fprintf fmt "[global] Parsed: @[%s@]@\n" filename;
-    Format.fprintf fmt "[global] Policy:@\n@[%a@]@\n" NetKAT_Pretty.format_policy pol;
-    Format.fprintf fmt "[global] CPS Policy:@\n@[%a@]@\n" NetKAT_Pretty.format_policy cps_pol;
+    Format.fprintf fmt "[global] Policy:@\n@[%a@]@\n" NetKAT_Pretty.format_policy global_pol;
+    Format.fprintf fmt "[global] CPS Policy:@\n@[%a@]@\n" NetKAT_Pretty.format_policy local_pol;
     Format.fprintf fmt "[global] Localized CPS Policies:@\n";
     List.iter print_table tables;
     ()
