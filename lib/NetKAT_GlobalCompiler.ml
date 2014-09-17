@@ -19,6 +19,8 @@ let match_pc pc = Filter (Test (Vlan pc))
 
 let set_pc pc = Mod (Vlan pc)
 
+let unset_pc = Mod (Vlan 0xffff)
+
 let match_location (sw,pt) = Filter (And (Test(Switch sw), Test(Location(Physical(pt)))))
 
 let match_entrance sw pt pc =
@@ -67,8 +69,7 @@ let cps (ingress : (switchId * portId) list) (egress : (switchId * portId) list)
   let match_ingress = union (List.map match_location ingress) in
   let match_egress = union (List.map match_location egress) in
   let pre = seq [match_ingress; set_pc initial_local_pc] in
-  (* TODO: remove pc after matching egress *)
-  let post = seq [match_pc final_local_pc; match_egress] in
+  let post = seq [match_pc final_local_pc; match_egress; unset_pc] in
   let jump_table = cps' p (next_local_pc ()) final_local_pc in
   let (enter, local, exit) = partition_jump_table jump_table in
   seq [union (pre::enter); mk_star (union local); union (post::exit)]
