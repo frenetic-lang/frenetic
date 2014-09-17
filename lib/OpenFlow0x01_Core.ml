@@ -205,6 +205,7 @@ module Format = struct
       pktIn.total_len pktIn.port reason pktIn.reason
       payload pktIn.input_payload
 
+  (* TODO(jnf): we have this defined in several places. Consolidate. *)
   let string_of_mk formatter x =
     let buf = Buffer.create 100 in
     let fmt = formatter_of_buffer buf in
