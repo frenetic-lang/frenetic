@@ -55,9 +55,8 @@ let cps (ingress : (switchId * portId) list) (egress : (switchId * portId) list)
        `Local (seq [match_pc pc ; union [set_pc pc_q; set_pc pc_r]]) ::
        (cps' q pc_q k) @ (cps' r pc_r k)
     | Seq (q,r) ->
-       let pc_q = next_local_pc () in
-       let pc_r = next_local_pc () in
-       `Local (seq [match_pc pc ; set_pc pc_q]) :: (cps' q pc_q pc_r) @ (cps' r pc_r k)
+       let pc' = next_local_pc () in
+       (cps' q pc pc') @ (cps' r pc' k)
     | Star q ->
        let pc_q = next_local_pc () in
        `Local (seq [match_pc pc ; union [set_pc pc_q; set_pc k]]) :: (cps' q pc_q pc)
