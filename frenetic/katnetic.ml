@@ -18,6 +18,7 @@ end
 module Global = struct
   let main filename =
     let fmt = Format.formatter_of_out_channel stderr in
+    let () = Format.pp_set_margin fmt 200 in 
     let pol = 
       Core.Std.In_channel.with_file filename ~f:(fun chan -> 
         NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in
@@ -33,12 +34,12 @@ module Global = struct
                    |> pair sw)
         (NetKAT_GlobalCompiler.switches pol) in
     let print_table (sw, t) =
-      Format.fprintf fmt "[global] Flowtable for Switch %Ld:@\n@[%a@]\n"
+      Format.fprintf fmt "[global] Flowtable for Switch %Ld:@\n@[%a@]@\n@\n"
         sw
         SDN_Types.format_flowTable t in
-    Format.fprintf fmt "[global] Parsed: @[%s@]\n" filename;
-    Format.fprintf fmt "[global] Policy:@\n@[%a@]\n" NetKAT_Pretty.format_policy pol;
-    Format.fprintf fmt "[global] CPS Policy:@\n@[%a@]\n" NetKAT_Pretty.format_policy cps_pol;
+    Format.fprintf fmt "[global] Parsed: @[%s@]@\n" filename;
+    Format.fprintf fmt "[global] Policy:@\n@[%a@]@\n" NetKAT_Pretty.format_policy pol;
+    Format.fprintf fmt "[global] CPS Policy:@\n@[%a@]@\n" NetKAT_Pretty.format_policy cps_pol;
     Format.fprintf fmt "[global] Localized CPS Policies:@\n";
     List.iter print_table tables;
     ()

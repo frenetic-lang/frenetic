@@ -23,7 +23,7 @@ let unset_pc = Mod (Vlan 0xffff)
 
 let match_location (sw,pt) = Filter (And (Test(Switch sw), Test(Location(Physical(pt)))))
 
-let match_entrance sw pt pc =
+let match_link_end sw pt pc =
   let t1 = Test (Vlan pc) in
   let t2 = Test (Switch sw) in
   let t3 = Test (Location(Physical(pt))) in
@@ -64,8 +64,8 @@ let cps (ingress : (switchId * portId) list) (egress : (switchId * portId) list)
        `Local (seq [match_pc pc ; union [set_pc pc_q; set_pc k]]) :: (cps' q pc_q pc)
     | Link (sw1,pt1,sw2,pt2) -> 
        let gpc = next_global_pc sw2 pt2 in 
-       [`Exit (seq [match_pc pc; match_location (sw1,pt1); set_pc gpc]);
-        `Enter (seq [match_entrance sw2 pt2 gpc; set_pc k]) ] in
+       [`Exit (seq [match_link_end sw1 pt1 pc; set_pc gpc]);
+        `Enter (seq [match_link_end sw2 pt2 gpc; set_pc k])] in 
   let match_ingress = union (List.map match_location ingress) in
   let match_egress = union (List.map match_location egress) in
   let pre = seq [match_ingress; set_pc initial_local_pc] in
@@ -86,4 +86,3 @@ let switches (p:policy) =
     | Link(sw1,_,sw2,_) -> 
        [sw1;sw2] in
   collect p |> Core.Core_list.of_list |> Core.Core_list.dedup |> Core.Core_list.to_list
-
