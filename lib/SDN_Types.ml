@@ -13,26 +13,35 @@ type portId = int32 with sexp
 type queueId = int32 with sexp
 type bufferId = int32 with sexp
 
-let format_mac (fmt : Format.formatter) (v:int48) =
-  Format.pp_print_string fmt (Packet.string_of_mac v)
-
-let format_ip (fmt : Format.formatter) (v:int32) =
-  Format.pp_print_string fmt (Packet.string_of_ip v)
-
-let format_hex (fmt : Format.formatter) (v:int) =
-  Format.fprintf fmt "0x%x" v
-
+(* general formatters for numeric types *)
 let format_int (fmt : Format.formatter) (v:int) =
   Format.fprintf fmt "%u" v
 
 let format_int32 (fmt : Format.formatter) (v:int32) =
   Format.fprintf fmt "%lu" v
 
-let format_ip_mask (fmt : Format.formatter) ((p,m) : nwAddr * int32) = 
-  Format.fprintf fmt "%a%s" 
-    format_ip p 
+let format_hex (fmt : Format.formatter) (v:int) =
+  Format.fprintf fmt "0x%x" v
+
+(* formatters for packet fields *)
+let format_mac (fmt : Format.formatter) (v:int48) =
+  Format.pp_print_string fmt (Packet.string_of_mac v)
+
+let format_vlan (fmt : Format.formatter) (v:int16) =
+  match v with
+  | 0xffff -> Format.pp_print_string fmt "<none>"
+  | _ -> format_int fmt v
+
+let format_ip (fmt : Format.formatter) (v:int32) =
+  Format.pp_print_string fmt (Packet.string_of_ip v)
+
+let format_ip_mask (fmt : Format.formatter) ((p,m) : nwAddr * int32) =
+  Format.fprintf fmt "%a%s"
+    format_ip p
     (if m = 32l then "" else Printf.sprintf "/%ld" m)
 
+(* convert a formatter to a function that produces a string *)
+(* TODO(jnf): we have this defined in several places. Consolidate. *)
 let make_string_of formatter x =
   let open Format in
   let buf = Buffer.create 100 in
@@ -139,7 +148,7 @@ module Pattern = struct
           begin match m1 with
             | None -> false
             | Some(v1) -> f v1 v2
-          end in 
+          end in
     check (=) p1.dlSrc p2.dlSrc
     && check (=) p1.dlDst p2.dlDst
     && check (=) p1.dlTyp p2.dlTyp
@@ -169,17 +178,17 @@ module Pattern = struct
     && check (=) p1.tpSrc p2.tpSrc
     && check (=) p1.tpDst p2.tpDst
     && check (=) p1.inPort p2.inPort
-    
+
   let eq_join x1 x2 =
-    if x1 = x2 then Some x1 else None 
+    if x1 = x2 then Some x1 else None
 
   let join p1 p2 =
     let joiner m m1 m2 =
       match m1, m2 with
-      | Some v1, Some v2 -> 
+      | Some v1, Some v2 ->
         m v1 v2
-      | _ -> 
-        None in 
+      | _ ->
+        None in
     { dlSrc = joiner eq_join p1.dlSrc p2.dlSrc
     ; dlDst = joiner eq_join p1.dlDst p2.dlDst
     ; dlTyp = joiner eq_join p1.dlTyp p2.dlTyp
@@ -205,7 +214,7 @@ module Pattern = struct
     format_field "ethSrc" format_mac p.dlSrc;
     format_field "ethDst" format_mac p.dlDst;
     format_field "ethTyp" format_hex p.dlTyp;
-    format_field "vlanId" format_int p.dlVlan;
+    format_field "vlanId" format_vlan p.dlVlan;
     format_field "vlanPcp" format_int p.dlVlanPcp;
     format_field "nwProto" format_hex p.nwProto;
     format_field "ipSrc" format_ip_mask p.nwSrc;
@@ -263,10 +272,10 @@ type flow = {
   hard_timeout: timeout
 }
 
-type flowTable = flow list 
+type flowTable = flow list
 
 type payload =
-  | Buffered of bufferId * bytes 
+  | Buffered of bufferId * bytes
   | NotBuffered of bytes
 with sexp
 
@@ -307,11 +316,10 @@ let format_modify (fmt:Format.formatter) (m:modify) : unit =
     Format.fprintf fmt "SetField(ethSrc, %a)" format_mac dlAddr
   | SetEthDst(dlAddr) ->
     Format.fprintf fmt "SetField(ethDst, %a)" format_mac dlAddr
-  | SetVlan(None)
-  | SetVlan(Some(0xffff)) ->
-    Format.fprintf fmt "SetField(vlan, <none>)"
-  | SetVlan(Some(id)) ->
-    Format.fprintf fmt "SetField(vlan, %u)" id
+  | SetVlan(None) ->
+    Format.fprintf fmt "SetField(vlan, %a)" format_vlan 0xffff
+  | SetVlan(Some(vlan_id)) ->
+    Format.fprintf fmt "SetField(vlan, %a)" format_vlan vlan_id
   | SetVlanPcp(pcp) ->
     Format.fprintf fmt "SetField(vlanPcp, %u)" pcp
   | SetEthTyp(dlTyp) ->
@@ -339,10 +347,10 @@ let format_pseudoport (fmt:Format.formatter) (p:pseudoport) : unit =
   | Local -> Format.fprintf fmt "Local"
 
 let format_action (fmt:Format.formatter) (a:action) : unit =
-  match a with         
+  match a with
   | Output(p) ->
     Format.fprintf fmt "Output(%a)" format_pseudoport p
-  | Enqueue(m,n) -> 
+  | Enqueue(m,n) ->
     Format.fprintf fmt "Enqueue(%ld,%ld)" m n
   | Modify(m) ->
     format_modify fmt m
@@ -367,27 +375,27 @@ let rec format_group (fmt : Format.formatter) (group : group) : unit =
   | [par] -> format_par fmt par
   | (par :: par' :: groups) ->
     Format.fprintf fmt "@[%a +@ %a@]" format_par par format_group (par' :: groups)
-  
-let format_timeout (fmt:Format.formatter) (t:timeout) : unit = 
-  match t with 
+
+let format_timeout (fmt:Format.formatter) (t:timeout) : unit =
+  match t with
     | Permanent -> Format.fprintf fmt "Permanent"
     | ExpiresAfter(n) -> Format.fprintf fmt "ExpiresAfter(%d)" n
 
-let format_flow (fmt: Format.formatter) (f : flow) : unit = 
+let format_flow (fmt: Format.formatter) (f : flow) : unit =
   Format.fprintf fmt "@[{pattern=%a,@," Pattern.format f.pattern;
   Format.fprintf fmt "action=%a,@," format_group f.action;
   Format.fprintf fmt "cookie=%s,@," (Int64.to_string f.cookie);
   Format.fprintf fmt "idle_timeout=%a,@," format_timeout f.idle_timeout;
   Format.fprintf fmt "hard_timeout=%a}@]" format_timeout f.hard_timeout
-    
-let format_flowTable (fmt:Format.formatter) (l:flowTable) : unit = 
+
+let format_flowTable (fmt:Format.formatter) (l:flowTable) : unit =
   Format.fprintf fmt "@[[";
-  let _ = 
+  let _ =
     List.fold_left
-      (fun b f -> 
+      (fun b f ->
         if b then Format.fprintf fmt "@ ";
         format_flow fmt f;
-        true) false l in 
+        true) false l in
   Format.fprintf fmt "]@]"
 
 let string_of_action = make_string_of format_action
