@@ -1,8 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: fd9ea53251b73973909ddd57e5cd78e7)
+# DO NOT EDIT (digest: 9024505a9f3bc253fac5e82d1bab646e)
 version = "0.2.0"
 description = "Network topologies"
-requires = "core sexplib sexplib.syntax packet ocamlgraph threads"
+requires =
+"core sexplib sexplib.syntax comparelib comparelib.syntax packet ocamlgraph threads"
 archive(byte) = "topology.cma"
 archive(byte, plugin) = "topology.cma"
 archive(native) = "topology.cmxa"
