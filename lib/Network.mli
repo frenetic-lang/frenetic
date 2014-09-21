@@ -1,7 +1,7 @@
 open Core.Std
 
 module type VERTEX = sig
-  type t with sexp
+  type t with sexp, compare
 
   val compare : t -> t -> int
   val to_string : t -> string
@@ -12,7 +12,7 @@ module type VERTEX = sig
 end
 
 module type EDGE = sig
-  type t with sexp
+  type t with sexp, compare
 
   val compare : t -> t -> int
   val to_string : t -> string
@@ -23,8 +23,8 @@ module type EDGE = sig
 end
 
 module type WEIGHT = sig
-  type t with sexp
-  type label with sexp
+  type t with sexp, compare
+  type label with sexp, compare
 
   val weight : label -> t
   val compare : t -> t -> int
@@ -36,8 +36,8 @@ module type NETWORK = sig
   module Topology : sig
     type t
 
-    type vertex
-    type edge
+    type vertex with sexp, compare
+    type edge with sexp, compare
     type port = int32
 
     module Vertex : VERTEX

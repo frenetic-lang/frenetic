@@ -49,13 +49,13 @@ let capacity_of_id vo = match maybe vo with
 
 module Node = struct
 
-  type device = Switch | Host | Middlebox with sexp
+  type device = Switch | Host | Middlebox with sexp, compare
 
   type t = { dev_type : device ;
              dev_id : int64 ;
              ip : int32 ;
              mac : int64 ;
-             name : string } with sexp
+             name : string } with sexp, compare
 
   type partial_t = { partial_dev_type : device option ;
                      partial_dev_id : int64 option ;
@@ -210,7 +210,7 @@ module Link = struct
 
   type t = { cost : int64 ;
              capacity : int64 ;
-             mutable weight : float } with sexp
+             mutable weight : float } with sexp, compare
 
   let default = { cost = 1L;
                   capacity = Int64.max_int;
@@ -255,8 +255,8 @@ module Link = struct
 end
 
 module Weight = struct
-  type label = Link.t with sexp
-  type t = float with sexp
+  type label = Link.t with sexp, compare
+  type t = float with sexp, compare
   let weight l =
     let open Link in
     l.weight
