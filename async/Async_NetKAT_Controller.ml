@@ -37,7 +37,7 @@ type t = {
   ctl : Controller.t;
   txn : Txn.t;
   nib : Net.Topology.t ref;
-  app : Async_NetKAT.app;
+  mutable policy : NetKAT_Types.policy;
   mutable edge : (SDN_Types.flow*int) list SwitchMap.t;
 }
 
@@ -175,7 +175,7 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
           let port_id = Int32.of_int_exn pi.port in
           let payload = SDN_OpenFlow0x01.to_payload pi.input_payload in
           let local =
-            Optimize.specialize_policy switch_id (Async_NetKAT.default t.app) in
+            Optimize.specialize_policy switch_id t.policy in
           (* Eval the packet to get the list of packets that should go to
            * pipes, and the list of packets that can be forwarded to physical
            * locations.
@@ -493,7 +493,7 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
       ctl = ctl;
       txn = Txn.create ctl;
       nib = ref (Net.Topology.empty ());
-      app = app;
+      policy = Async_NetKAT.default app;
       edge = SwitchMap.empty;
     } in
 
@@ -520,7 +520,7 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
     (* Initialize the application to produce an event callback and
      * Pipe.Reader.t's for packet out messages and policy updates.
      * *)
-    let recv, callback = Async_NetKAT.run t.app t.nib () in
+    let recv, callback = Async_NetKAT.run app t.nib () in
 
     (* The discovery application itself will generate events, so the actual
      * event stream must be a combination of switch events and synthetic
@@ -561,7 +561,8 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
       if policy_queue_size > 0 then
         Log.info ~tags "[policy] Processing queue of size %d" len;
 
-      implement_policy t (Queue.get q (len - 1))
+      t.policy <- Queue.get q (len - 1);
+      implement_policy t t.policy
     in
 
     (* This is the main event handler for the controller. First it sends
@@ -573,7 +574,7 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
       callback e >>= fun () ->
       match e with
       | NetKAT_Types.SwitchUp sw_id ->
-        bring_up_switch t sw_id (Async_NetKAT.default t.app)
+        bring_up_switch t sw_id t.policy
       | _ ->
         return () in
 

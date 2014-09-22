@@ -30,7 +30,7 @@ struct
   let to_string t =
     let sf = Printf.sprintf in
     match t with
-      | KEYWORD s       -> sf "KEYWORD %s" s
+      | KEYWORD s -> sf "KEYWORD %s" s
       | IP4ADDR s -> sf "IP4ADDR %s" s
       | INT s -> sf "INT %s" s
       | INT32 s -> sf "INT32 %s" s
@@ -130,7 +130,7 @@ let rec token c = lexer
   | (hexnum | decnum) 'L' -> INT64 (L.latin1_lexeme c.lexbuf)
   | "$" ident ->
      ANTIQUOT( L.latin1_sub_lexeme c.lexbuf 1 (L.lexeme_length c.lexbuf - 1))
-  | [ "()!+;=*+" ] | ":=" | "true" | "false" | "switch" | "port" | "vlan"
+  | [ "()!+;=*+/" ] | ":=" | "true" | "false" | "switch" | "port" | "vlan"
     | "vlanPcp" | "ethType" | "ipProto" | "tcpSrcPort" | "tcpDstPort"
     | "ethSrc" | "ethDst" | "ip4Src"| "ip4Dst" | "&&" | "||"  | "id"
     | "drop" | "if" | "then" | "else" | "filter" ->
