@@ -65,7 +65,7 @@ module Table (F:NetKAT_Types.Headers.HEADER) = struct
   let equal t1 t2 =
     compare t1 t2 = 0
 
-  let lessthan = equal 
+  let lessthan = equal
 
   module Set = Set.Make(struct
     type t = v with sexp
@@ -169,7 +169,7 @@ module Table (F:NetKAT_Types.Headers.HEADER) = struct
                   (p, b1 && b2)::acc)) in
     Some (mk (List.rev r))
 
-  let meet t1 t2 = 
+  let meet t1 t2 =
     if equal t1 t2 then Some t1 else None
 
   let to_netkat_pred (v_to_pred: v -> NetKAT_Types.pred) (t:t) =
@@ -538,9 +538,9 @@ module Pattern = struct
             | None ->
               None
             | Some z ->
-              match join (Field.get f x) (Field.get f y) with 
+              match join (Field.get f x) (Field.get f y) with
               | None -> None
-              | Some pn -> 
+              | Some pn ->
                 if is_empty pn then None
                 else Some (Field.fset f z pn) in
     let r = Fields.fold
@@ -568,19 +568,19 @@ module Pattern = struct
       | Some z ->
         begin match Field.get f x, get a, Field.get f y with
         | pn1, None, pn2 ->
-          begin match join pn1 pn2 with 
-            | None -> 
+          begin match join pn1 pn2 with
+            | None ->
               None
-            | Some pn -> 
+            | Some pn ->
               if is_empty pn then None
               else Some (Field.fset f z pn)
           end
         | pn1, Some n, pn2 ->
           begin
-            match join (singleton n) pn2 with 
-            | None -> 
+            match join (singleton n) pn2 with
+            | None ->
               None
-            | Some pn -> 
+            | Some pn ->
               if is_empty pn then None
               else Some (Field.fset f z pn1)
           end
