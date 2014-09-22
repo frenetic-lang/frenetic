@@ -76,7 +76,6 @@ module Dump = struct
       local (fun x y -> ()) sw_num p
 
     let main level num_switches filename =
-      Format.set_margin 200;
       match level with
         | All -> with_file (all num_switches) filename
         | Policies -> with_file policy filename
