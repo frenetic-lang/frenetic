@@ -25,5 +25,7 @@ let create () =
 let _ = 
   let main () =
     let app = create () in
-    Async_NetKAT_Controller.start app ~update:`PerPacketConsistent () in
+    Async_NetKAT_Controller.start app ~update:`PerPacketConsistent ()
+    >>> fun t -> ()
+  in
   never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ())

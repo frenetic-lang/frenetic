@@ -17,7 +17,7 @@ module Run = struct
       in
       let open Async_NetKAT_Controller in
       start ~update ?policy_queue_size app ()
-      >>= (fun t -> if discovery then enable_discovery t)
+      >>= (fun t -> if discovery then enable_discovery t else return ())
       >>> fun () -> ()
     in
     never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ())
