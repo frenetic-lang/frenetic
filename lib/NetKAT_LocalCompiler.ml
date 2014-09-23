@@ -1047,7 +1047,7 @@ module RunTime = struct
           end;
         if o1 then 1
         else if o2 then -1
-        else Action.Set.compare s1 s2 in
+        else 0 in 
       (* Printf.printf "r=%d\n" r; *)
       r
 
