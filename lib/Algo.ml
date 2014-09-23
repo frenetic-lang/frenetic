@@ -25,7 +25,7 @@ module Topological(V:DEP_TYPE) = struct
       match l with
         | [] -> acc
         | (x::xs) ->
-          let acc' = List.fold xs ~init:acc ~f:(fun acc y ->              
+          let acc' = List.fold xs ~init:acc ~f:(fun acc y ->
               match V.dep_compare x y with
               | -1 -> (y,x)::acc
               | 1 -> (x,y)::acc
