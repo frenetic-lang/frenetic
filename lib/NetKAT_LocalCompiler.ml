@@ -16,8 +16,8 @@ struct
     compare o1 o2 = 0
   let to_string o =
     match o with
-      | None -> "None"
-      | Some x -> Printf.sprintf "Some(%s)" (H.to_string x)
+      | None -> "*"
+      | Some x -> Printf.sprintf "%s" (H.to_string x)
   let top =
     None
   let is_top o =
@@ -55,12 +55,14 @@ module Table (F:NetKAT_Types.Headers.HEADER) = struct
     | [],_ -> -1
     | _,[] -> 1
     | (p1,b1)::t1, (p2,b2)::t2 ->
-      let cmp1 = F.compare p1 p2 in
-      if cmp1 <> 0 then cmp1
-      else
-        let cmp2 = Pervasives.compare b1 b2 in
-        if cmp2 <> 0 then cmp2
-        else compare t1 t2
+      match F.compare p1 p2 with
+      | 0 -> 
+        begin 
+          match Pervasives.compare b1 b2 with
+          | 0 -> compare t1 t2
+          | n -> n
+        end
+      | n -> n
 
   let equal t1 t2 =
     compare t1 t2 = 0
@@ -89,11 +91,11 @@ module Table (F:NetKAT_Types.Headers.HEADER) = struct
       (List.fold_left t
          ~init:""
          ~f:(fun acc (x,b) ->
-               Printf.sprintf "%s%s(%s:%b)"
+               Printf.sprintf "%s%s%s:%s"
                  acc
-                 (if acc = "" then acc else " ")
+                 (if acc = "" then acc else ",")
                  (F.to_string x)
-                 b))
+                 (if b then "T" else "F")))
 
   let extend_footprint (f:Set.t) (x:F.t) : Set.t =
     let b,f' =
@@ -951,15 +953,13 @@ module RunTime = struct
         tcpDstPort = None;
       } in
       let g h rs f =
-        let l = Field.get f m in
-        List.fold_right
-          l
+        List.fold_right (Field.get f m)
           ~init:[]
           ~f:(fun (o, b) acc ->
             List.fold_right
               rs
               ~init:acc
-              ~f:(fun (p, c) acc -> (h p o, b && c)::acc)) in
+              ~f:(fun (p,c) acc -> (h p o, b && c)::acc)) in
       HPT.Fields.fold
         ~init:[(empty, true)]
         ~location:(g (fun p o -> { p with HOV.location = o }))
@@ -1009,8 +1009,8 @@ module RunTime = struct
     (*      Printf.printf "%s : %b\n" *)
     (*        (HOV.to_string h) b); *)
     let r = go c in
-    (* Printf.printf "FLOWTABLE:\n%s\n"  *)
-    (*   (SDN_Types.string_of_flowTable r); *)
+    (* Format.printf "EXPAND_TABLE: %s => %s\n" (Pattern.to_string x) (Action.set_to_string s); *)
+    (* Format.printf "FLOWTABLE:\n%a\n\n" SDN_Types.format_flowTable r; *)
     r
 
   type i = Local.t
@@ -1026,7 +1026,7 @@ module RunTime = struct
       match Pattern.compare x1 x2 with
         | 0 -> Action.Set.compare s1 s2
         | n -> n
-
+          
     let dep_compare (x1,s1) (x2,s2) : int =
       (* Printf.printf "DEP_COMPARE:\n"; *)
       (* Printf.printf "  x1=%s=>" (Pattern.to_string x1); *)
@@ -1045,56 +1045,29 @@ module RunTime = struct
               (Pattern.to_string x2) (Action.set_to_string s2);
             assert false
           end;
-        if o1 then -1
-        else if o2 then 1
+        if o1 then 1
+        else if o2 then -1
         else Action.Set.compare s1 s2 in
       (* Printf.printf "r=%d\n" r; *)
       r
+
   end)
 
   let to_table ?(optimize_fall_through=true) (m:i) : flowTable =
-    (* Printf.printf "\nTO_TABLE\n"; *)
-    (* List.iter *)
-    (*   (Dep.sort (Pattern.Map.to_alist m)) *)
-    (*   ~f:(fun (p,a) -> *)
-    (*        Printf.printf "   %s => %s\n\n" (Pattern.to_string p) (Action.set_to_string a)); *)
-    let annotated_table () : (flow * Pattern.t * Action.Set.t) list =
-      (* Returns a flow table with each entry annotated with the Pattern.t
-       * from which it was generated. *)
-      List.concat_map
-        ~f:(fun (p,s) -> List.map ~f:(fun x -> (x,p,s)) (expand_rules p s))
-        (Dep.sort (Pattern.Map.to_alist m)) in
-    let patterns_intersect (p: Pattern.t) (q: Pattern.t) : bool =
-      match Pattern.seq p q with
-        Some s -> not (Pattern.is_empty s)
-      | None -> false in
-    let pattern_diff_empty (xp:Pattern.t) (p:Pattern.t) : bool =
-      Set.for_all (Pattern.diff xp p) ~f:Pattern.is_empty in
-    (* A pattern falls through if it is covered by patterns below it in the
-     * table each of which has the same action, and no pattern with a different
-     * action intersects it within the range containing the cover. *)
-    let rec falls_through
-        ((xf,xp,xa): flow * Pattern.t * Action.Set.t)
-        (table: (flow * Pattern.t * Action.Set.t) list) : bool =
-      match table with
-        [] -> false
-      | (f,p,a)::t -> (
-        if Set.equal xa a then (
-          if pattern_diff_empty xp p then true
-          else falls_through (xf,xp,xa) t)
-        else (
-          if patterns_intersect xp p then false
-          else falls_through (xf,xp,xa) t)) in
-    if optimize_fall_through then
-      List.map
-        ~f:(fun (x,_,_) -> x)
-        (List.fold_right
-          ~f:(fun x acc -> if falls_through x acc then acc else (x::acc))
-          ~init:[]
-          (annotated_table ()))
-    else
-      List.concat_map (Dep.sort (Pattern.Map.to_alist m))
-        ~f:(fun (p,s) -> expand_rules p s)
+    let dl = Dep.sort (Pattern.Map.to_alist m) in 
+    let tbl = List.concat_map dl ~f:(fun (p,s) -> expand_rules p s) in 
+    let rec sanity n l = match l with
+      | [] -> ()
+      | (x,s)::t -> 
+        ignore (List.fold t ~init:1 ~f:(fun m (x',s') ->  
+            if Pattern.obscures x x' then 
+              (Format.printf "BAD OBSCURES\n%3d: %s\n%3d: %s\n\n%!" n (Pattern.to_string x) (n+m) (Pattern.to_string x');
+               ignore (List.fold dl ~init:1 ~f:(fun n (x,s) -> Format.printf "%3d: %s => %s\n%!" n (Pattern.to_string x) (Action.set_to_string s); (n+1)));
+               assert false);
+            m + 1));
+        sanity (n+1) t in 
+    sanity 1 dl;
+    tbl
 end
 
 module Local_Optimize = struct

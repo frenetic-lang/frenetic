@@ -23,14 +23,14 @@ module Topological(V:DEP_TYPE) = struct
   let pairs (ns : 'a list) : ('a * 'a) list =
     let rec loop l acc =
       match l with
-        | []      -> acc
+        | [] -> acc
         | (x::xs) ->
-          let acc' = List.fold xs ~init:acc ~f:(fun acc y ->
-            match V.dep_compare x y with
-            | -1 -> (x, y)::acc
-            |  1 -> (y, x)::acc
-            |  0 -> acc
-            |  _ -> assert false) in
+          let acc' = List.fold xs ~init:acc ~f:(fun acc y ->              
+              match V.dep_compare x y with
+              | -1 -> (x,y)::acc
+              |  1 -> (y,x)::acc
+              |  0 -> acc
+              |  _ -> assert false) in
           loop xs acc' in
     loop ns []
 
@@ -39,7 +39,6 @@ module Topological(V:DEP_TYPE) = struct
      * is a vertex that is not involved in any edge. If this step wasn't take,
      * then that vertex would be dropped from the result. *)
     let g = List.fold ns ~init:G.empty ~f:(fun acc n -> G.add_vertex acc n) in
-    let g = List.fold (pairs ns) ~init:g ~f:(fun acc (n, m) ->
-      G.add_edge acc n m) in
-    fold (fun n ns -> n::ns) g []
+    let g = List.fold (pairs ns) ~init:g ~f:(fun acc (n, m) -> G.add_edge acc n m) in
+    List.rev (fold (fun n ns -> n::ns) g [])
 end
