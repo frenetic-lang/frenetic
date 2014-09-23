@@ -25,22 +25,6 @@ let create () =
       true
     end in
 
-  let forward switch_id packet : action =
-    let ethDst = packet.Packet.dlDst in
-    let mac_map = SwitchMap.find_exn !state switch_id in
-    let open SDN_Types in
-    match MacMap.find mac_map ethDst with
-      | None ->
-        Log.of_lazy ~tags ~level:`Info (lazy (Printf.sprintf
-          "[learning] switch %Lu: flood %s"
-              switch_id (Packet.to_string packet)));
-        Output(All)
-      | Some(p) ->
-        Log.of_lazy ~tags ~level:`Info (lazy (Printf.sprintf
-          "[learning] switch %Lu: port %lu %s"
-              switch_id p (Packet.to_string packet)));
-        Output(Physical p) in
-
   let default = Mod(Location(Pipe "learn")) in
   let drop = Filter False in
 
@@ -92,8 +76,6 @@ let create () =
          Some(gen_pol !t)
       else
          None in
-      let action = forward switch_id packet in
-      Pipe.write w (switch_id, (payload, Some(port_id), [action])) >>= fun _ ->
       return pol
     | _ -> return None in
 
