@@ -34,12 +34,13 @@ module Topological(V:DEP_TYPE) = struct
           loop xs acc' in
     loop ns []
 
-  let sort (ns : 'a list) : 'a list =
+  let sort ?(invariant=false) (ns : 'a list) : 'a list =
     (* Add all the vertices to the graph first. This is important in case there
      * is a vertex that is not involved in any edge. If this step wasn't take,
      * then that vertex would be dropped from the result. *)
     let g = List.fold ns ~init:G.empty ~f:(fun acc n -> G.add_vertex acc n) in
     let g = List.fold (pairs ns) ~init:g ~f:(fun acc (n, m) -> G.add_edge acc n m) in
-    assert (not (Dfs.has_cycle g));
+    if invariant then
+      assert (not (Dfs.has_cycle g));
     Topo.fold (fun n ns -> n::ns) g []
 end

@@ -1052,20 +1052,29 @@ module RunTime = struct
 
   end)
 
-  let to_table ?(optimize_fall_through=true) (m:i) : flowTable =
+  let table_invariant dl =
+    let rec loop l =
+      match l with
+      | []             -> true
+      | (n, (x,s))::l' ->
+        List.for_all l' ~f:(fun (m, (x', s')) ->
+          if Pattern.obscures x x' then begin
+            Format.printf "BAD OBSCURES\n%3d: %s\n%3d: %s\n\n%!"
+              n (Pattern.to_string x) (n+m) (Pattern.to_string x');
+            List.iteri dl ~f:(fun n (x, s) ->
+              Format.printf "%3d: %s => %s\n%!"
+                n (Pattern.to_string x) (Action.set_to_string s));
+            false
+          end else
+            true)
+    in
+    loop (List.mapi dl ~f:(fun i x -> (i, x)))
+
+  let to_table ?(invariant=false) ?(optimize_fall_through=true) (m:i) : flowTable =
     let dl = Dep.sort (Pattern.Map.to_alist m) in 
     let tbl = List.concat_map dl ~f:(fun (p,s) -> expand_rules p s) in 
-    let rec sanity n l = match l with
-      | [] -> ()
-      | (x,s)::t -> 
-        ignore (List.fold t ~init:1 ~f:(fun m (x',s') ->  
-            if Pattern.obscures x x' then 
-              (Format.printf "BAD OBSCURES\n%3d: %s\n%3d: %s\n\n%!" n (Pattern.to_string x) (n+m) (Pattern.to_string x');
-               ignore (List.fold dl ~init:1 ~f:(fun n (x,s) -> Format.printf "%3d: %s => %s\n%!" n (Pattern.to_string x) (Action.set_to_string s); (n+1)));
-               assert false);
-            m + 1));
-        sanity (n+1) t in 
-    sanity 1 dl;
+    if invariant then
+      assert (table_invariant dl);
     tbl
 end
 
