@@ -17,8 +17,8 @@ module Topological(V:DEP_TYPE) = struct
      *)
     let hash _ = 0
   end)
-
-  include Graph.Topological.Make(G)
+  module Dfs = Graph.Traverse.Dfs(G)
+  module Topo = Graph.Topological.Make(G)
 
   let pairs (ns : 'a list) : ('a * 'a) list =
     let rec loop l acc =
@@ -27,9 +27,9 @@ module Topological(V:DEP_TYPE) = struct
         | (x::xs) ->
           let acc' = List.fold xs ~init:acc ~f:(fun acc y ->              
               match V.dep_compare x y with
-              | -1 -> (x,y)::acc
-              |  1 -> (y,x)::acc
-              |  0 -> acc
+              | -1 -> (y,x)::acc
+              | 1 -> (x,y)::acc
+              | 0  -> acc
               |  _ -> assert false) in
           loop xs acc' in
     loop ns []
@@ -40,5 +40,6 @@ module Topological(V:DEP_TYPE) = struct
      * then that vertex would be dropped from the result. *)
     let g = List.fold ns ~init:G.empty ~f:(fun acc n -> G.add_vertex acc n) in
     let g = List.fold (pairs ns) ~init:g ~f:(fun acc (n, m) -> G.add_edge acc n m) in
-    List.rev (fold (fun n ns -> n::ns) g [])
+    assert (not (Dfs.has_cycle g));
+    Topo.fold (fun n ns -> n::ns) g []
 end

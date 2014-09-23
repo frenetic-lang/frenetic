@@ -1033,21 +1033,20 @@ module RunTime = struct
       (* Printf.printf "%s\n" (Action.set_to_string s1); *)
       (* Printf.printf "  x2=%s=>" (Pattern.to_string x2); *)
       (* Printf.printf "%s\n" (Action.set_to_string s2); *)
-      let r =
+      let r =        
         let o1 = Pattern.obscures x1 x2 in
         let o2 = Pattern.obscures x2 x1 in
         (* Printf.printf "  o1=%b\n  o2=%b\n" o1 o2; *)
         (* sanity check: no circular dependencies *)
-        if o1 && o2 then
-          begin
-            Printf.printf "Circular dependency between\n%s => %s\nand\n%s => %s\n"
-              (Pattern.to_string x1) (Action.set_to_string s1)
-              (Pattern.to_string x2) (Action.set_to_string s2);
-            assert false
-          end;
-        if o1 then 1
-        else if o2 then -1
-        else 0 in 
+        match o1,o2 with
+        | true, true -> 
+          Printf.printf "Circular dependency between\n%s => %s\nand\n%s => %s\n"
+            (Pattern.to_string x1) (Action.set_to_string s1)
+            (Pattern.to_string x2) (Action.set_to_string s2);
+          assert false
+        | true, false -> 1
+        | false, true -> -1
+        | false, false -> 0 in 
       (* Printf.printf "r=%d\n" r; *)
       r
 
