@@ -25,22 +25,24 @@ let create () =
       true
     end in
 
+  let open Optimize in
+
   let default = Mod(Location(Pipe "learn")) in
   let drop = Filter False in
 
   let all_ports ps = Net.Topology.PortSet.fold (fun p acc ->
-    Union(Mod(Location(Physical p)), acc)) ps drop
+    mk_union (Mod(Location(Physical p))) acc) ps drop
   in
 
   let gen_pol nib =
     SwitchMap.fold !state ~init:drop ~f:(fun ~key:switch_id ~data:mac_map acc ->
       let known_pred, forward, unknown_pred = ref False, ref drop, ref True in
       MacMap.iter mac_map ~f:(fun ~key:mac ~data:port ->
-        known_pred := Or(Test(EthDst mac), !known_pred);
-        unknown_pred := And(Neg(Test(EthSrc mac)), !unknown_pred);
-        forward := Union(Seq(Filter(Test(EthDst mac)),
-                             Mod(Location(Physical port))),
-                         !forward)
+        known_pred := mk_or (Test(EthDst mac)) !known_pred;
+        unknown_pred := mk_and (Neg(Test(EthSrc mac))) !unknown_pred;
+        forward := mk_union (Seq(Filter(Test(EthDst mac)),
+                                Mod(Location(Physical port))))
+                            !forward
       );
       let broadcast =
         let open Net.Topology in
@@ -55,7 +57,8 @@ let create () =
         Seq(Filter(Or(Test(EthDst 0xffffffffffffL), Neg(!known_pred))), ports)
       in
       Union(Seq(Filter(Test(Switch switch_id)),
-                Union(!forward, Union(broadcast,
+                Union(!forward,
+                Union(broadcast,
                       Seq(Filter(!unknown_pred), default)))),
             acc))
   in
