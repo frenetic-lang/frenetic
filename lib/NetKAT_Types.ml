@@ -210,6 +210,7 @@ module Int64Header = struct
   include Int64
   let top = 0L
   let is_top _ = false
+  let to_string = Packet.string_of_mac
   let lessthan l1 l2 = equal l1 l2
   let meet l1 l2 = 
     if equal l1 l2 then Some l1 else None
