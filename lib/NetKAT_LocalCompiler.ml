@@ -621,7 +621,7 @@ module Local = struct
     let open NetKAT_Types in
     Optimize.mk_seq (Filter (Pattern.to_netkat_pred p)) (Action.set_to_netkat a)
 
-  let to_netkat (t:t) : NetKAT_Types.policy =
+  let to_policy (t:t) : NetKAT_Types.policy =
     let open NetKAT_Types in
     Pattern.Map.fold t
       ~init:drop
@@ -1096,14 +1096,11 @@ end
 (* exports *)
 type t = RunTime.i
 
-let of_policy sw pol =
-  Local.of_policy (Optimize.specialize_policy sw pol)
-
-let to_netkat =
-  Local.to_netkat
-
 let compile sw p =
   RunTime.compile sw p
+
+let to_policy =
+  Local.to_policy
 
 let to_table ?(optimize_fall_through=false) t =
   Local_Optimize.remove_shadowed_rules
