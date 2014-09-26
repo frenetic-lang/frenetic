@@ -61,6 +61,7 @@ module type NETWORK = sig
     val copy : t -> t
     val empty : unit -> t
     val add_vertex : t -> Vertex.t -> (t * vertex)
+    val add_port : t -> vertex -> port -> t
     val add_edge : t -> vertex -> port -> Edge.t -> vertex -> port -> (t * edge)
 
     (* Special Accessors *)
@@ -93,6 +94,7 @@ module type NETWORK = sig
 
     (* Mutators *)
     val remove_vertex : t -> vertex -> t
+    val remove_port : t -> vertex -> port -> t
     val remove_edge : t -> edge -> t
     val remove_endpoint : t -> (vertex * port) -> t
   end
@@ -206,7 +208,7 @@ struct
 
     type t =
         { graph : P.t;
-          node_labels : vertex VertexMap.t;
+          node_info : (vertex * PortSet.t) VertexMap.t;
           next_node : int;
           next_edge : int }
 
@@ -216,19 +218,31 @@ struct
 
     let empty () : t =
       { graph = P.empty;
-        node_labels = VertexMap.empty;
+        node_info = VertexMap.empty;
         next_node = 0;
         next_edge = 0 }
 
+    let _node_vertex (t:t) (l:Vertex.t) : vertex =
+      fst (VertexMap.find l t.node_info)
+
+    let _node_ports (t:t) (l:Vertex.t) : PortSet.t =
+      snd (VertexMap.find l t.node_info)
+
     let add_vertex (t:t) (l:Vertex.t) : t * vertex =
       let open VL in
-      try (t, VertexMap.find l t.node_labels)
+      try (t, _node_vertex t l)
       with Not_found ->
         let id = t.next_node + 1 in
         let v = { id = id; label = l } in
         let g = P.add_vertex t.graph v in
-        let nl = VertexMap.add l v t.node_labels in
-        ({ t with graph=g; node_labels=nl; next_node = id}, v)
+        let nl = VertexMap.add l (v, PortSet.empty) t.node_info in
+        ({ t with graph=g; node_info=nl; next_node = id}, v)
+
+    let add_port (t:t) (v:vertex) (p:port) : t =
+      let l = v.VL.label in
+      let v, ps = VertexMap.find l t.node_info in
+      let node_info = VertexMap.add l (v, PortSet.add p ps) t.node_info in
+      { t with node_info }
 
     let add_edge (t:t) (v1:vertex) (p1:port) (l:Edge.t) (v2:vertex) (p2:port) : t * edge =
       let open EL in
@@ -236,6 +250,8 @@ struct
         let id = t.next_edge + 1 in
         let l = { id = id; label = l; src = p1; dst = p2 } in
         let e = (v1,l,v2) in
+        let t = add_port t v1 p1 in
+        let t = add_port t v2 p2 in
         ({ t with graph = P.add_edge_e t.graph e; next_edge = id }, e) in
 
       try
@@ -281,7 +297,7 @@ struct
       v.VL.label
 
     let vertex_of_label (t:t) (l:Vertex.t) : vertex =
-      VertexMap.find l t.node_labels
+      _node_vertex t l
 
     let edge_to_label (t:t) (e:edge) : Edge.t =
       let (_,l,_) = e in
@@ -319,12 +335,7 @@ struct
       loop (P.succ_e t.graph v1)
 
     let vertex_to_ports (t:t) (v1:vertex) : PortSet.t =
-      List.fold_left
-        (fun a e ->
-          let _,l,_ = e in
-          PortSet.add l.EL.src a)
-        PortSet.empty
-        (P.succ_e t.graph v1)
+      _node_ports t v1.VL.label
 
     (* Iterators *)
     let fold_vertexes (f:vertex -> 'a -> 'a) (t:t) (init:'a) : 'a =
@@ -345,18 +356,34 @@ struct
     (* Mutators *)
     let remove_vertex (t:t) (v:vertex) : t =
       let graph = P.remove_vertex t.graph v in
-      let node_labels = VertexMap.remove v.VL.label t.node_labels in
-      { t with graph; node_labels }
+      let node_info = VertexMap.remove v.VL.label t.node_info in
+      { t with graph; node_info }
+
+    let remove_port (t:t) (v:vertex) (p:port) : t =
+      let v, ps = VertexMap.find v.VL.label t.node_info in
+      let ps = PortSet.remove p ps in
+      let node_info = VertexMap.add v.VL.label (v, ps) t.node_info in
+      { t with node_info }
 
     let remove_edge (t:t) (e:edge) : t =
       { t with graph = P.remove_edge_e t.graph e }
 
     let remove_endpoint (t:t) (ep : vertex * port) : t =
-      fold_edges (fun e acc ->
+      let t = fold_edges (fun e acc ->
         if edge_src e = ep || edge_dst e = ep
           then remove_edge acc e
           else acc)
         t t
+      in
+      let v, p = ep in
+      let v, ps = VertexMap.find v.VL.label t.node_info in
+      let ps = PortSet.remove p ps in
+      let node_info = VertexMap.add v.VL.label (v, ps) t.node_info in
+      { t with node_info }
+
+   let remove_port (t:t) (v:vertex) (p:port) =
+     remove_endpoint t (v, p)
+
   end
 
   (* Traversals *)
@@ -545,7 +572,7 @@ struct
           { t with graph = P.remove_edge_e t.graph e }
         let add_vertex t v =
           { t with graph = P.add_vertex t.graph v ;
-            node_labels = VertexMap.add v.Topology.VL.label v t.node_labels;
+            node_info = VertexMap.add v.Topology.VL.label (v, PortSet.empty) t.node_info;
             next_node = v.Topology.VL.id + 1}
         let add_edge t v1 v2 =
           { t with graph = P.add_edge t.graph v1 v2 ; next_edge = t.next_edge + 1}
