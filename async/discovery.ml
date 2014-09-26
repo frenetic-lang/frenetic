@@ -194,10 +194,6 @@ module Switch = struct
           end;
           t
         | None ->
-          let t, v1 = add_vertex t (Switch switch_id) in
-          let t, v2 = add_vertex t (Switch probe.switch_id) in
-          let t, _  = add_edge t v1 port_id () v2 probe.port_id in
-          let t, _  = add_edge t v2 probe.port_id () v1 port_id in
           let e1 = (switch_id, port_id) in
           let e2 = (probe.switch_id, probe.port_id) in
           Ctl.send_event ctl (LinkUp (e1, e2));
@@ -230,12 +226,15 @@ module Switch = struct
           t := remove_vertex !t (vertex_of_label !t (Switch sw_id));
           return None
         | PortUp (sw_id, pt_id) ->
-          Log.info ~tags "[topology.switch] ↑ { switch = %Lu; port = %lu }" sw_id pt_id;
+          Log.info ~tags "[topology.switch] ↑ { switch = %Lu; port = %lu }"
+            sw_id pt_id;
+          t := add_port !t (vertex_of_label !t (Switch sw_id)) pt_id;
           Ctl.add ctl sw_id pt_id
           >>| fun () ->
             None
         | PortDown (sw_id, pt_id) ->
-          Log.info ~tags "[topology.switch] ↓ { switch = %Lu; port = %lu }" sw_id pt_id;
+          Log.info ~tags "[topology.switch] ↓ { switch = %Lu; port = %lu }"
+            sw_id pt_id;
           ignore (Ctl.remove ctl sw_id pt_id);
           let v = vertex_of_label !t (Switch sw_id) in
           let mh = next_hop !t v pt_id in
@@ -246,6 +245,7 @@ module Switch = struct
               begin match vertex_to_label !t v2 with
                 | Switch(sw_id2) ->
                   t := remove_endpoint !t (v, pt_id);
+                  t := remove_port !t v pt_id;
                   Ctl.send_event ctl
                     (LinkDown((sw_id, pt_id), (sw_id2, pt_id2)))
                 | Host _ -> ()
@@ -253,11 +253,22 @@ module Switch = struct
           end;
           return None
         | LinkUp ((sw1, pt1), (sw2, pt2)) ->
+          let t', v1 = add_vertex !t (Switch sw1) in
+          let t', v2 = add_vertex t' (Switch sw2) in
+          let t', _  = add_edge t' v1 pt1 () v2 pt2 in
+          let t', _  = add_edge t' v2 pt2 () v1 pt1 in
+          t := t';
           Log.info ~tags "[topology.switch] ↑ { switch = %Lu; port %lu }, { switch = %Lu; port = %lu }"
             sw1 pt1
             sw2 pt2;
           return None
         | LinkDown ((sw1, pt1), (sw2, pt2)) ->
+          let v1 = vertex_of_label !t (Switch sw1) in
+          let v2 = vertex_of_label !t (Switch sw2) in
+          let t', e1 = add_edge !t v1 pt1 () v2 pt2 in
+          let t', e2 = add_edge t' v2 pt1 () v1 pt1 in
+          t := remove_edge t' e1;
+          t := remove_edge !t e2;
           Log.info ~tags "[topology.switch] ↓ { switch = %Lu; port %lu }, { switch = %Lu; port = %lu }"
             sw1 pt1
             sw2 pt2;
@@ -320,6 +331,7 @@ module Host = struct
                 | Switch _ -> ()
                 | Host (dlAddr, nwAddr) ->
                   t := remove_endpoint !t (v, pt_id);
+                  t := remove_port !t v pt_id;
                   Switch.Ctl.send_event ctl
                     (HostDown((sw_id, pt_id), (dlAddr, nwAddr)))
               end
