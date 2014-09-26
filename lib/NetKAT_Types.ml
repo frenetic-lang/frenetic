@@ -113,22 +113,33 @@ module Headers = struct
         } with sexp, fields
 
     let compare x y =
-      let g c a f =
-        if a <> 0 then a
-        else c (Field.get f x) (Field.get f y) in
-      Fields.fold
-        ~init:0
-        ~location:(g Location.compare)
-        ~ethSrc:(g EthSrc.compare)
-        ~ethDst:(g EthDst.compare)
-        ~vlan:(g Vlan.compare)
-        ~vlanPcp:(g VlanPcp.compare)
-        ~ethType:(g EthType.compare)
-        ~ipProto:(g IpProto.compare)
-        ~ipSrc:(g IpSrc.compare)
-        ~ipDst:(g IpDst.compare)
-        ~tcpSrcPort:(g TcpSrcPort.compare)
-        ~tcpDstPort:(g TcpDstPort.compare)
+      (* N.B. This is intentionally unrolled for performance purposes, as the
+       * comparison should short circuit as soon as possible. In light of that
+       * fact, it may be beneficial to reorder some of these checks in the
+       * future.
+       * *)
+      let c = Location.compare x.location y.location in
+      if c <> 0 then c else
+      let c = EthSrc.compare x.ethSrc y.ethSrc in
+      if c <> 0 then c else
+      let c = EthDst.compare x.ethDst y.ethDst in
+      if c <> 0 then c else
+      let c = Vlan.compare x.vlan y.vlan in
+      if c <> 0 then c else
+      let c = VlanPcp.compare x.vlanPcp y.vlanPcp in
+      if c <> 0 then c else
+      let c = EthType.compare x.ethType y.ethType in
+      if c <> 0 then c else
+      let c = IpProto.compare x.ipProto y.ipProto in
+      if c <> 0 then c else
+      let c = IpSrc.compare x.ipSrc y.ipSrc in
+      if c <> 0 then c else
+      let c = IpDst.compare x.ipDst y.ipDst in
+      if c <> 0 then c else
+      let c = TcpSrcPort.compare x.tcpSrcPort y.tcpSrcPort in
+      if c <> 0 then c else
+      let c = TcpDstPort.compare x.tcpDstPort y.tcpDstPort in
+      c
 
     let to_string ?init:(init="") ?sep:(sep="=") (x:t) : string =
       let g is_top to_string acc f =
@@ -210,6 +221,7 @@ module Int64Header = struct
   include Int64
   let top = 0L
   let is_top _ = false
+  let to_string = Packet.string_of_mac
   let lessthan l1 l2 = equal l1 l2
   let meet l1 l2 = 
     if equal l1 l2 then Some l1 else None
@@ -225,9 +237,8 @@ module Int32TupleHeader = struct
   let equal x1 x2 = Ip.eq x1 x2
 
   let compare ((p,m):t) ((p',m'):t) : int =
-    if Pervasives.compare p p' = 0 then
-      Pervasives.compare m m'
-    else Pervasives.compare p p'
+    let c = Pervasives.compare p p' in
+    if c <> 0 then c else Pervasives.compare m m'
 
   let top = Ip.match_all
 
