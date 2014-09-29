@@ -51,6 +51,7 @@ module PipeSet = Raw_app.PipeSet
  *)
 let transfer_batch r w ~f =
   Pipe.transfer' r w ~f:(fun q -> return (Queue.map q ~f))
+
 exception Sequence_error of PipeSet.t * PipeSet.t
 
 type ('phantom, 'a) pipes = {

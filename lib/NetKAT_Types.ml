@@ -76,9 +76,13 @@ module Headers = struct
   module type HEADER = sig
     type t with sexp
     val compare : t -> t -> int
-    val to_string : t -> string
     val equal : t -> t -> bool
-    val is_any : t -> bool
+    val to_string : t -> string
+    val top : t
+    val is_top : t -> bool
+    val join : t -> t -> t option
+    val meet : t -> t -> t option
+    val lessthan : t -> t -> bool
   end
 
   module Make =
@@ -109,59 +113,70 @@ module Headers = struct
         } with sexp, fields
 
     let compare x y =
-      let g c a f =
-        if a <> 0 then a
-        else c (Field.get f x) (Field.get f y) in
-      Fields.fold
-        ~init:0
-        ~location:(g Location.compare)
-        ~ethSrc:(g EthSrc.compare)
-        ~ethDst:(g EthDst.compare)
-        ~vlan:(g Vlan.compare)
-        ~vlanPcp:(g VlanPcp.compare)
-        ~ethType:(g EthType.compare)
-        ~ipProto:(g IpProto.compare)
-        ~ipSrc:(g IpSrc.compare)
-        ~ipDst:(g IpDst.compare)
-        ~tcpSrcPort:(g TcpSrcPort.compare)
-        ~tcpDstPort:(g TcpDstPort.compare)
+      (* N.B. This is intentionally unrolled for performance purposes, as the
+       * comparison should short circuit as soon as possible. In light of that
+       * fact, it may be beneficial to reorder some of these checks in the
+       * future.
+       * *)
+      let c = Location.compare x.location y.location in
+      if c <> 0 then c else
+      let c = EthSrc.compare x.ethSrc y.ethSrc in
+      if c <> 0 then c else
+      let c = EthDst.compare x.ethDst y.ethDst in
+      if c <> 0 then c else
+      let c = Vlan.compare x.vlan y.vlan in
+      if c <> 0 then c else
+      let c = VlanPcp.compare x.vlanPcp y.vlanPcp in
+      if c <> 0 then c else
+      let c = EthType.compare x.ethType y.ethType in
+      if c <> 0 then c else
+      let c = IpProto.compare x.ipProto y.ipProto in
+      if c <> 0 then c else
+      let c = IpSrc.compare x.ipSrc y.ipSrc in
+      if c <> 0 then c else
+      let c = IpDst.compare x.ipDst y.ipDst in
+      if c <> 0 then c else
+      let c = TcpSrcPort.compare x.tcpSrcPort y.tcpSrcPort in
+      if c <> 0 then c else
+      let c = TcpDstPort.compare x.tcpDstPort y.tcpDstPort in
+      c
 
     let to_string ?init:(init="") ?sep:(sep="=") (x:t) : string =
-      let g is_any to_string acc f =
+      let g is_top to_string acc f =
         let v = Field.get f x in
-        if is_any v then acc
+        if is_top v then acc
         else
           Printf.sprintf "%s%s%s%s"
             (if acc = init then "" else acc ^ "; ")
             (Field.name f) sep (to_string (Field.get f x)) in
       Fields.fold
         ~init:init
-        ~location:Location.(g is_any to_string)
-        ~ethSrc:EthSrc.(g is_any to_string)
-        ~ethDst:EthDst.(g is_any to_string)
-        ~vlan:Vlan.(g is_any to_string)
-        ~vlanPcp:VlanPcp.(g is_any to_string)
-        ~ethType:EthType.(g is_any to_string)
-        ~ipProto:IpProto.(g is_any to_string)
-        ~ipSrc:IpSrc.(g is_any to_string)
-        ~ipDst:IpDst.(g is_any to_string)
-        ~tcpSrcPort:TcpSrcPort.(g is_any to_string)
-        ~tcpDstPort:TcpDstPort.(g is_any to_string)
+        ~location:Location.(g is_top to_string)
+        ~ethSrc:EthSrc.(g is_top to_string)
+        ~ethDst:EthDst.(g is_top to_string)
+        ~vlan:Vlan.(g is_top to_string)
+        ~vlanPcp:VlanPcp.(g is_top to_string)
+        ~ethType:EthType.(g is_top to_string)
+        ~ipProto:IpProto.(g is_top to_string)
+        ~ipSrc:IpSrc.(g is_top to_string)
+        ~ipDst:IpDst.(g is_top to_string)
+        ~tcpSrcPort:TcpSrcPort.(g is_top to_string)
+        ~tcpDstPort:TcpDstPort.(g is_top to_string)
 
-    let is_any (x:t) : bool = 
-      let g is_any f = is_any (Field.get f x) in 
+    let is_top (x:t) : bool =
+      let g is_top f = is_top (Field.get f x) in
       Fields.for_all
-        ~location:Location.(g is_any)
-        ~ethSrc:EthSrc.(g is_any)
-        ~ethDst:EthDst.(g is_any)
-        ~vlan:Vlan.(g is_any)
-        ~vlanPcp:VlanPcp.(g is_any)
-        ~ethType:EthType.(g is_any)
-        ~ipProto:IpProto.(g is_any)
-        ~ipSrc:IpSrc.(g is_any)
-        ~ipDst:IpDst.(g is_any)
-        ~tcpSrcPort:TcpSrcPort.(g is_any)
-        ~tcpDstPort:TcpDstPort.(g is_any)
+        ~location:Location.(g is_top)
+        ~ethSrc:EthSrc.(g is_top)
+        ~ethDst:EthDst.(g is_top)
+        ~vlan:Vlan.(g is_top)
+        ~vlanPcp:VlanPcp.(g is_top)
+        ~ethType:EthType.(g is_top)
+        ~ipProto:IpProto.(g is_top)
+        ~ipSrc:IpSrc.(g is_top)
+        ~ipDst:IpDst.(g is_top)
+        ~tcpSrcPort:TcpSrcPort.(g is_top)
+        ~tcpDstPort:TcpDstPort.(g is_top)
 
   end
 end
@@ -174,15 +189,44 @@ module LocationHeader = struct
     match l with
       | Pipe x -> Printf.sprintf "%s" x
       | Physical n -> Printf.sprintf "%lu" n
-  let is_any l = false
+  let top = Physical 0l
+  let is_top l = false
+  let lessthan l1 l2 = equal l1 l2
+  let meet l1 l2 = 
+    if equal l1 l2 then Some l1 else None
+  let join l1 l2 = 
+    if equal l1 l2 then Some l1 else None    
 end
 module IntHeader = struct
   include Int
-  let is_any _ = false
+  let top = 0
+  let is_top _ = false
+  let lessthan l1 l2 = equal l1 l2
+  let meet l1 l2 = 
+    if equal l1 l2 then Some l1 else None
+  let join l1 l2 = 
+    if equal l1 l2 then Some l1 else None    
 end
 module Int32Header = struct
   include Int32
-  let is_any _ = false
+  let top = 0l
+  let is_top _ = false
+  let lessthan l1 l2 = equal l1 l2
+  let meet l1 l2 =
+    if equal l1 l2 then Some l1 else None
+  let join l1 l2 =
+    if equal l1 l2 then Some l1 else None
+end
+module Int64Header = struct
+  include Int64
+  let top = 0L
+  let is_top _ = false
+  let to_string = Packet.string_of_mac
+  let lessthan l1 l2 = equal l1 l2
+  let meet l1 l2 =
+    if equal l1 l2 then Some l1 else None
+  let join l1 l2 =
+    if equal l1 l2 then Some l1 else None
 end
 module Int32TupleHeader = struct
   (* Represents an (ip_address, mask) tuple. *)
@@ -193,20 +237,19 @@ module Int32TupleHeader = struct
   let equal x1 x2 = Ip.eq x1 x2
 
   let compare ((p,m):t) ((p',m'):t) : int =
-    if Pervasives.compare p p' = 0 then 
-      Pervasives.compare m m'
-    else Pervasives.compare p p'
+    let c = Pervasives.compare p p' in
+    if c <> 0 then c else Pervasives.compare m m'
 
-  let any = Ip.match_all
+  let top = Ip.match_all
 
-  let is_any x1 = equal x1 any
+  let is_top x1 = equal x1 top
 
-  let inter (x1:t) (x2:t) : t option = 
+  let meet (x1:t) (x2:t) : t option =
     Ip.intersect x1 x2
 
-  let subseteq (x1:t) (x2:t) : bool = 
+  let lessthan (x1:t) (x2:t) : bool =
     Ip.less_eq x1 x2
-    
+
   (* Given two Ip.t's x1 and x2, attempt to combine them into a single Ip.t x
    * with the following property:
    *
@@ -223,25 +266,20 @@ module Int32TupleHeader = struct
    *   combine 0.0.0.2/31 0.0.0.3/32 = Some(0.0.0.2/31)
    *   combine 1.0.0.2/31 2.0.0.2/31 = None
    *)
-  let combine ((p1,m1) as x1:t) ((p2,m2) as x2:t) : t option = 
+  let join ((p1,m1) as x1:t) ((p2,m2) as x2:t) : t option =
     if equal x1 x2 then
       Some x1
     else if m1 = m2 then
       let x1', x2' = Int32.(p1, m1 - 1l), Int32.(p2, m2 - 1l) in
       if equal x1' x2' then Some x1' else None
-    else if m1 = Int32.(m2 - 1l) && subseteq x2 x1 then
+    else if m1 = Int32.(m2 - 1l) && lessthan x2 x1 then
       Some(x1)
-    else if m2 = Int32.(m1 - 1l) && subseteq x1 x2 then
+    else if m2 = Int32.(m1 - 1l) && lessthan x1 x2 then
       Some(x2)
     else
       None
 
   let to_string x = Ip.string_of x
-end
-
-module Int64Header = struct
-  include Int64
-  let is_any _ = false
 end
 
 module HeadersValues =

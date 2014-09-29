@@ -5,13 +5,13 @@ open NetKAT_Types
 open NetKAT_Pretty
 
 let test_compile lhs rhs =
-  let tbl = NetKAT_LocalCompiler.compile 0L lhs in 
-  let rhs' = NetKAT_LocalCompiler.to_netkat tbl in       
+  let tbl = NetKAT_LocalCompiler.compile 0L lhs in
+  let rhs' = NetKAT_LocalCompiler.to_policy tbl in
   if rhs' = rhs then
     true
   else
     (Format.printf "compile @,%a@, produced %a@,,@,expected %a\n%!%s\n%!"
-       format_policy lhs format_policy rhs' format_policy rhs 
+       format_policy lhs format_policy rhs' format_policy rhs
        (NetKAT_LocalCompiler.to_string tbl);
      false)
 
@@ -80,16 +80,16 @@ TEST "same field, two values = drop" =
 TEST "par1" =
   test_compile
     (Union(modSrc 1,
-	 ite
-	   (testSrc 1)
-	   (modSrc 2)
-	   (modSrc 3)))
+         ite
+           (testSrc 1)
+           (modSrc 2)
+           (modSrc 3)))
     (ite
        (testSrc 1)
        (Union (modSrc 1,
-	     modSrc 2))
+             modSrc 2))
        (Union (modSrc 1,
-	     modSrc 3)))
+             modSrc 3)))
 
 TEST "star id" =
   test_compile
@@ -109,7 +109,7 @@ TEST "star modify1" =
 TEST "star modify2" =
   test_compile
     (Star (Union (modSrc 0,
-	        ite (testSrc 0) (modSrc 1) (modSrc 2))))
+                ite (testSrc 0) (modSrc 1) (modSrc 2))))
     (ite
        (testSrc 0)
        (Union (Union (Union (Filter True, modSrc 0), modSrc 1), modSrc 2))
@@ -131,10 +131,21 @@ TEST "quickcheck failure on 10/16/2013" =
     (Seq (modDst 2, modSrc 0))
 
 (* If a policy has a pipe location in a predicate, it should fail to compile. *)
-TEST "quickcheck failure on 8/25/2014" =
-  let b = "filter port = 0; (ethDst := fb:40:e5:6b:a8:f8; (ipSrc := 126.42.191.208 | ethTyp := 0x1464 | (filter ipDst = 155.173.129.111/22 | id); filter ipDst = 121.178.114.15/11 and port = __))" in
+(* JNF: unless that pipe is determined elsewhere (here the earlier filter port = 0) *)
+(* TEST "quickcheck failure on 8/25/2014" = *)
+(*   let b = "filter port = 0; (ethDst := fb:40:e5:6b:a8:f8; (ipSrc := 126.42.191.208 | ethTyp := 0x1464 | (filter ipDst = 155.173.129.111/22 | id); filter ipDst = 121.178.114.15/11 and port = __))" in *)
+(*   try *)
+(*     let _ = NetKAT_LocalCompiler.(to_table (compile 0L *)
+(*       (NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string b)))) in *)
+(*     false *)
+(*   with _ -> true *)
+
+(* If a policy has a pipe location in a predicate, it should fail to compile. *)
+(* JNF: unless that pipe is determined elsewhere (here the earlier filter port = 0) *)
+TEST "indeterminate pipe" =
+  let b = "filter port = __; ethDst := fb:40:e5:6b:a8:f8" in
   try
-    let _ = NetKAT_LocalCompiler.(to_table (of_policy 0L
+    let _ = NetKAT_LocalCompiler.(to_table (compile 0L
       (NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string b)))) in
     false
   with _ -> true
@@ -146,10 +157,10 @@ TEST "vlan" =
   let id = Filter True in
   let pol =
     Seq (ite
-	   test_vlan_none
-	   id
-	   (Seq(id, mod_vlan_none)),
-	 mod_port1) in
+           test_vlan_none
+           id
+           (Seq(id, mod_vlan_none)),
+         mod_port1) in
   let pol' =
     ite test_vlan_none
       mod_port1
@@ -255,7 +266,7 @@ end
 let fix_port pol =
   Seq(Filter(Test(Location(Physical 0l))), pol)
 
-let gen_pkt = 
+let gen_pkt =
   let open QuickCheck in
   let open QuickCheck_gen in
   let open NetKAT_Arbitrary in
@@ -315,8 +326,8 @@ let compare_eval_output p q pkt =
 
 let compare_compiler_output p q pkt =
   PacketSet.compare
-    (Flowterp.Packet.eval pkt (NetKAT_LocalCompiler.(to_table (of_policy pkt.switch p))))
-    (Flowterp.Packet.eval pkt (NetKAT_LocalCompiler.(to_table (of_policy pkt.switch q))))
+    (Flowterp.Packet.eval pkt (NetKAT_LocalCompiler.(to_table (compile pkt.switch p))))
+    (Flowterp.Packet.eval pkt (NetKAT_LocalCompiler.(to_table (compile pkt.switch q))))
   = 0
 
 let check gen_fn compare_fn =
@@ -351,11 +362,11 @@ TEST "ip masking compile" =
 TEST "zero mask" =
   let prop_compile_ok (pkt) =
     let pol = Seq(Filter(Test(Location(Physical 0l))),
-		  Filter(Test(IP4Dst(0l,0l)))) in
+                  Filter(Test(IP4Dst(0l,0l)))) in
     PacketSet.compare
       (NetKAT_Semantics.eval pkt (Optimize.specialize_policy pkt.switch pol))
       (Flowterp.Packet.eval pkt
-	 (NetKAT_LocalCompiler.(to_table (of_policy pkt.switch pol)))) = 0 in
+         (NetKAT_LocalCompiler.(to_table (compile pkt.switch pol)))) = 0 in
   check gen_pkt prop_compile_ok
 
 TEST "semantics agree with flowtable" =
@@ -368,7 +379,7 @@ TEST "semantics agree with flowtable" =
     PacketSet.compare
       (NetKAT_Semantics.eval pkt (Optimize.specialize_policy pkt.switch p'))
       (Flowterp.Packet.eval pkt
-        (NetKAT_LocalCompiler.(to_table (of_policy pkt.switch p'))))
+        (NetKAT_LocalCompiler.(to_table (compile pkt.switch p'))))
     = 0 in
   check gen_pol_1 prop_compile_ok
 

@@ -25,54 +25,61 @@ let create () =
       true
     end in
 
-  let forward switch_id packet : action =
-    let ethDst = packet.Packet.dlDst in
-    let mac_map = SwitchMap.find_exn !state switch_id in
-    let open SDN_Types in
-    match MacMap.find mac_map ethDst with
-      | None ->
-        Log.of_lazy ~tags ~level:`Info (lazy (Printf.sprintf
-          "[learning] switch %Lu: flood %s"
-              switch_id (Packet.to_string packet)));
-        Output(All)
-      | Some(p) ->
-        Log.of_lazy ~tags ~level:`Info (lazy (Printf.sprintf
-          "[learning] switch %Lu: port %lu %s"
-              switch_id p (Packet.to_string packet)));
-        Output(Physical p) in
+  let open Optimize in
 
   let default = Mod(Location(Pipe "learn")) in
+  let drop = Filter False in
 
-  let gen_pol () =
-    let drop = Filter False in
+  let all_ports ps = Net.Topology.PortSet.fold (fun p acc ->
+    mk_union (Mod(Location(Physical p))) acc) ps drop
+  in
+
+  let gen_pol nib =
     SwitchMap.fold !state ~init:drop ~f:(fun ~key:switch_id ~data:mac_map acc ->
-      let known, unknown_pred = MacMap.fold mac_map ~init:(drop, True)
-        ~f:(fun ~key:mac ~data:port (k, u) ->
-          let k' = Union(Seq(Filter(Test(EthDst mac)),
-                             Mod(Location(Physical port))),
-                         k) in
-          let u' = And(Neg(Test(EthDst mac)), u) in
-          (k', u')) in
+      let known_pred, forward, unknown_pred = ref False, ref drop, ref True in
+      MacMap.iter mac_map ~f:(fun ~key:mac ~data:port ->
+        known_pred := mk_or (Test(EthDst mac)) !known_pred;
+        unknown_pred := mk_and (Neg(Test(EthSrc mac))) !unknown_pred;
+        forward := mk_union (Seq(Filter(Test(EthDst mac)),
+                                Mod(Location(Physical port))))
+                            !forward
+      );
+      let broadcast =
+        let open Net.Topology in
+        let v  = vertex_of_label nib (Async_NetKAT.Switch switch_id) in
+        let ps = vertex_to_ports nib v in
+        let ports = PortSet.fold (fun p acc ->
+            Union(Seq(Filter(Test(Location(Physical p))),
+                      all_ports (PortSet.remove p ps)),
+                  acc))
+          ps drop
+        in
+        Seq(Filter(Or(Test(EthDst 0xffffffffffffL), Neg(!known_pred))), ports)
+      in
       Union(Seq(Filter(Test(Switch switch_id)),
-                Union(known, Seq(Filter(unknown_pred), default))),
-            acc)) in
+                Union(!forward,
+                Union(broadcast,
+                      Seq(Filter(!unknown_pred), default)))),
+            acc))
+  in
 
   let handler t w () e = match e with
     | SwitchUp(switch_id) ->
       state := SwitchMap.add !state switch_id MacMap.empty;
-      return (Some(gen_pol ()))
+      return (Some(gen_pol !t))
     | SwitchDown(switch_id) ->
       state := SwitchMap.remove !state switch_id;
-      return (Some(gen_pol ()))
+      return (Some(gen_pol !t))
+    | PortUp(switch_id, port_id)
+    | PortDown(switch_id, port_id) ->
+      return (Some(gen_pol !t))
     | PacketIn(_, switch_id, port_id, payload, _) ->
       let packet = Packet.parse (SDN_Types.payload_bytes payload) in
       let pol = if learn switch_id port_id packet then
-         Some(gen_pol ())
-      else 
+         Some(gen_pol !t)
+      else
          None in
-      let action = forward switch_id packet in
-      Pipe.write w (switch_id, (payload, Some(port_id), [action])) >>= fun _ ->
-      return pol 
+      return pol
     | _ -> return None in
       
   Policy.create ~pipes:(PipeSet.singleton "learn") default handler

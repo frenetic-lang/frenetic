@@ -270,7 +270,6 @@ module Switch = struct
   let stop t =
     Deferred.all_ignore [ Flip.disable t.flip_ctl; t.loop ]
     >>| fun () -> t.loop <- return ()
-
 end
 
 module Host = struct
