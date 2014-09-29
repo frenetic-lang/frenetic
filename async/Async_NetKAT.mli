@@ -20,10 +20,26 @@ module Net : Network.NETWORK
   with module Topology.Vertex = Node
    and module Topology.Edge = Link
 
-(** [app] is an opaque application type.  The user can use constructors and
-    combinators defined below to build up complex applications from simple
-    parts. *)
-type app
+module Pred : sig
+  type t
+
+  type handler = Net.Topology.t -> event -> pred option Deferred.t
+  type async_handler = pred Pipe.Writer.t -> unit -> handler
+
+  val create : pred -> handler -> t
+  val create_async : pred -> async_handler -> t
+
+  val create_static : pred -> t
+  val create_from_string : string -> t
+  val create_from_file : string -> t
+
+  val default : t -> pred
+  val run : t -> Net.Topology.t ref -> (pred Pipe.Reader.t * (event -> unit Deferred.t))
+
+  val neg : t -> t
+  val conj : t -> t -> t
+  val disj : t -> t -> t
+end
 
 type 'phantom pipes = {
   pkt_out : (switchId * SDN_Types.pktOut, 'phantom) Pipe.t;
@@ -57,6 +73,11 @@ type async_handler
   -> send
   -> unit
   -> event -> result Deferred.t
+
+(** [app] is an opaque application type.  The user can use constructors and
+    combinators defined below to build up complex applications from simple
+    parts. *)
+type app
 
 (** [create ?pipes pol handler] returns an [app] that listens to the pipes
     included in [pipes], uses [pol] as the initial default policy to install,
@@ -123,18 +144,21 @@ exception Sequence_error of PipeSet.t * PipeSet.t
 val seq : app -> app -> app
 
 (** [guard pred app] returns an app that is equivalent to [app] except it will
-    drop packets taht doe not satisfy [pred].
+    drop packets that do not satisfy [pred]. *)
+val guard  : pred   -> app -> app
+val guard' : Pred.t -> app -> app
 
-    [guard pred app] is equivalent to [seq (create_static (Filter pred)) app]. *)
-val guard : pred -> app -> app
+(** Lift a predicate to the [app] type. [filter p] returns an app that filters
+    packets according to the predicate app. *)
+val filter  : pred   -> app
+val filter' : Pred.t -> app
 
 (** [slice pred app1 app2] returns an application where packets that
     satisfy [pred] will be handled by [app1] and packets that do not satisfy
     [pred] will be handled by [app2].
 
-    [slice pred app1 app2] is equivalent to [union (guard pred app1) (guard (Neg pred) app2)].
-
     The returned application will enforce the pipes that [app1] and [app2]
     listen to, so if a packet matches [pred] but is at a pipe that [app1] is not
     listening on, the packet will be dropped. *)
-val slice : pred -> app -> app -> app
+val slice  : pred   -> app -> app -> app
+val slice' : Pred.t -> app -> app -> app

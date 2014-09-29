@@ -52,6 +52,70 @@ module PipeSet = Raw_app.PipeSet
 let transfer_batch r w ~f =
   Pipe.transfer' r w ~f:(fun q -> return (Queue.map q ~f))
 
+module Pred = struct
+  type t = (Net.Topology.t ref, pred) Raw_app.t
+
+  type handler = Net.Topology.t -> event -> pred option Deferred.t
+  type async_handler = pred Pipe.Writer.t -> unit -> handler
+
+  let create (pred : pred) (handler : handler) : t =
+    let open Raw_app in
+    create_primitive pred (fun nib send () ->
+      Pipe.close send.pkt_out;
+      fun e ->
+        handler !nib e
+        >>= function
+          | None    -> Pipe.write send.update EventNoop
+          | Some(p) -> Pipe.write send.update (Event p))
+
+  let create_async (pred : pred) (handler : async_handler) : t =
+    let open Raw_app in
+    create_primitive pred (fun nib send () ->
+      let r_update, w_update = Pipe.create () in
+      Pipe.close send.pkt_out;
+      Deferred.don't_wait_for
+        (transfer_batch r_update send.update ~f:(fun p -> (Async p)));
+      let callback = handler w_update () in
+      fun e ->
+        callback !nib e
+        >>= function
+          | None    -> Pipe.write send.update EventNoop
+          | Some(p) -> Pipe.write send.update (Event p))
+
+  let create_static (pred : pred) : t =
+    Raw_app.create_static pred
+
+  let create_from_string (str : string) : t =
+    let pol = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string str) in
+    match pol with
+    | Filter(pred) -> create_static pred
+    | _            -> assert false (* XXX(seliopou): raise exception *)
+
+  let create_from_file (filename : string) : t =
+    let pol = In_channel.with_file filename ~f:(fun chan ->
+      NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan))
+    in
+    match pol with
+    | Filter(pred) -> create_static pred
+    | _            -> assert false (* XXX(seliopou): raise exception *)
+
+  let default (t:t) : pred =
+    t.Raw_app.value
+
+  let run (t:t) nib =
+    let recv, callback = Raw_app.run t nib () in
+    recv.Raw_app.update, callback
+
+  let neg (t:t) : t =
+    Raw_app.lift Optimize.mk_not t
+
+  let conj (t1:t) (t2:t) : t =
+    Raw_app.combine ~how:`Parallel Optimize.mk_and t1 t2
+
+  let disj (t1:t) (t2:t) : t =
+    Raw_app.combine ~how:`Parallel Optimize.mk_or t1 t2
+end
+
 exception Sequence_error of PipeSet.t * PipeSet.t
 
 type app = (Net.Topology.t ref, policy) Raw_app.t
@@ -133,10 +197,24 @@ let seq (app1 : app) (app2 : app) : app =
   end;
   Raw_app.combine ~how:`Sequential Optimize.mk_seq app1 app2
 
+let filter (p : pred) : app =
+  create_static (Filter p)
+
+let filter' (p : Pred.t) : app =
+  Raw_app.lift (fun p -> Filter p) p
+
 let guard (pred : pred) (app : app) : app =
-  seq (create_static (Filter pred)) app
+  seq (filter pred) app
+
+let guard' (pred : Pred.t) (app : app) : app =
+  seq (filter' pred) app
 
 let slice (pred : pred) (app1 : app) (app2 : app) : app =
   union ~how:`Parallel
-    (guard pred       app1)
-    (guard (Neg pred) app2)
+    (seq (filter pred) app1)
+    (seq (filter (Neg pred)) app2)
+
+let slice' (pred : Pred.t) (app1 : app) (app2 : app) : app =
+  union ~how:`Parallel
+    (seq (filter' pred) app1)
+    (seq (filter' (Pred.neg pred)) app2)
