@@ -140,7 +140,6 @@ module Switch = struct
       if enabled t then
         Clock.after t.probe_period
         >>= fun () ->
-        print_endline "IM IN THE LOOP\n";
         Deferred.List.iter (Async_NetKAT.default t.edge_app) ~f:(fun (sw_id, pt_id) ->
           Pipe.write t.pkt_outs (to_out sw_id pt_id))
         >>| fun _ -> `Repeat ()
