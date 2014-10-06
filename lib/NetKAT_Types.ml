@@ -212,10 +212,10 @@ module Int32Header = struct
   let top = 0l
   let is_top _ = false
   let lessthan l1 l2 = equal l1 l2
-  let meet l1 l2 = 
+  let meet l1 l2 =
     if equal l1 l2 then Some l1 else None
-  let join l1 l2 = 
-    if equal l1 l2 then Some l1 else None    
+  let join l1 l2 =
+    if equal l1 l2 then Some l1 else None
 end
 module Int64Header = struct
   include Int64
@@ -223,10 +223,10 @@ module Int64Header = struct
   let is_top _ = false
   let to_string = Packet.string_of_mac
   let lessthan l1 l2 = equal l1 l2
-  let meet l1 l2 = 
+  let meet l1 l2 =
     if equal l1 l2 then Some l1 else None
-  let join l1 l2 = 
-    if equal l1 l2 then Some l1 else None    
+  let join l1 l2 =
+    if equal l1 l2 then Some l1 else None
 end
 module Int32TupleHeader = struct
   (* Represents an (ip_address, mask) tuple. *)

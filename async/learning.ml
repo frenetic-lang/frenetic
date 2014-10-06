@@ -81,5 +81,5 @@ let create () =
          None in
       return pol
     | _ -> return None in
-
-  create ~pipes:(PipeSet.singleton "learn") default handler
+      
+  Policy.create ~pipes:(PipeSet.singleton "learn") default handler
