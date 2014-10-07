@@ -233,9 +233,6 @@ module Controller = struct
     let open ChunkController in
     listen_pipe t (run (handshake 0x04) t.sub (listen t.sub))
 
-  let clear_flows (t : t) (pattern : SDN_Types.Pattern.t) (sw_id : Client_id.t) =
-    failwith "NYI: OF0x04.clear_flows"
-
   let clear_table (t : t) (sw_id : Client_id.t) =
     let flows = send_result t sw_id (0l, M.FlowModMsg C.delete_all_flows) in
     let groups = send_result t sw_id (0l, M.GroupModMsg C.delete_all_groups) in
