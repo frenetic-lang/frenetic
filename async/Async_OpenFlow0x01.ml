@@ -99,6 +99,14 @@ module Controller = struct
     let xid  = ChunkController.client_next_xid t.sub c_id in
     ChunkController.send_txn t.sub c_id (Message.marshal' (xid, msg))
 
+  let send_txn_with t sw_id msg f =
+    try begin
+      send_txn t sw_id msg
+      >>= function
+        | `Sent ivar -> Ivar.read ivar >>| f
+        | `Drop exn  -> return (Result.Error exn)
+    end with Not_found -> return (Result.Error Not_found)
+
   let send_ignore_errors t sw_id msg =
     let c_id = client_id_of_switch_exn t sw_id in
     ChunkController.send_ignore_errors t.sub c_id (Message.marshal' msg)
@@ -213,15 +221,7 @@ module Controller = struct
     send_result t sw_id (0l, M.PacketOutMsg pkt_out)
 
   let barrier t sw_id =
-    try begin
-      send_txn t sw_id M.BarrierRequest
-      >>= function
-        | `Sent ivar -> begin Ivar.read ivar
-          >>| function
-            | M.BarrierReply -> Result.Ok ()
-            | _              -> assert false
-          end
-        | `Drop exn  -> return (Result.Error exn)
-    end with Not_found -> return (Result.Error Not_found)
-
+    send_txn_with t sw_id M.BarrierRequest (function
+      | M.BarrierReply -> Result.Ok ()
+      | _              -> assert false)
 end
