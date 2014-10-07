@@ -19,6 +19,7 @@
 %token NOT QMARK
 %token AND OR
 %token TRUE FALSE
+%token PIPE QUERY
 %token ALL FWD STAR
 %token NONE
 %token EQUALS
@@ -77,8 +78,10 @@ int64_value :
 port_value :
   | int32_value
       { Location(Physical $1) }
-  | IDENT
-      { Location(Pipe $1) }
+  | PIPE LPAREN IDENT RPAREN
+      { Location(Pipe $3) }
+  | QUERY LPAREN IDENT RPAREN
+      { Location(Query $3) }
 
 mac_value :
   | MACADDR
