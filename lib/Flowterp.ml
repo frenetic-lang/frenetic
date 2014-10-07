@@ -29,7 +29,7 @@ module Headers = struct
         match Field.get f hdrs, pat.inPort with
          | _, None -> true
          | Physical p1, Some p2 -> p1 = p2
-         | Pipe _, Some _ -> false)
+         | _          , Some _  -> false)
       ~ethSrc:(matches pat.dlSrc)
       ~ethDst:(matches pat.dlDst)
       ~vlan:(matches pat.dlVlan)
