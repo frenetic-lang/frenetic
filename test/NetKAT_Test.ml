@@ -194,7 +194,7 @@ module FromPipe = struct
   end)
 
   let test_from_pipes pol pkt pipes =
-    let ps, _ = NetKAT_Semantics.eval_pipes pkt pol in
+    let ps, _, _ = NetKAT_Semantics.eval_pipes pkt pol in
     PipeSet.(equal (of_list pipes) (of_list (List.map ~f:fst ps)))
 
   let default_headers =

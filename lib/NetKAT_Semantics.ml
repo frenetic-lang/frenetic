@@ -96,9 +96,11 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
     PacketSet.empty (* JNF *)
 
 let eval_pipes (packet:NetKAT_Types.packet) (pol:NetKAT_Types.policy)
-  : (string * NetKAT_Types.packet) list * NetKAT_Types.packet list =
+  : (string * NetKAT_Types.packet) list *
+    (string * NetKAT_Types.packet) list *
+    NetKAT_Types.packet list =
   let open NetKAT_Types in
-  (* Determines the pipes that the packet belongs to. Note that a packet may
+  (* Determines the locations that the packet belongs to. Note that a packet may
    * belong to several pipes for several reasons:
    *
    *   1. Multiple points of a single application wish to inspect the packet;
@@ -115,12 +117,13 @@ let eval_pipes (packet:NetKAT_Types.packet) (pol:NetKAT_Types.policy)
    * Since Local.t is switch-specific, this function assumes but does not
    * check that the packet came from the same switch as the given Local.t *)
   let packets = eval packet pol in
-  PacketSet.fold packets ~init:([],[]) ~f:(fun (pi,phy) pkt ->
+  PacketSet.fold packets ~init:([],[],[]) ~f:(fun (pi,qu,phy) pkt ->
     (* Running the packet through the switch's policy will label the resultant
-     * packets with the pipe they belong to, if any. All that's left to do is
-     * pick out packets in the PacketSet.t that have a pipe location, and return
-     * those packets (with the location cleared) along with the pipe they belong
-     * to. *)
+     * packets with the pipe or query they belong to, if any. All that's left to
+     * do is pick out packets in the PacketSet.t that have a pipe location, and
+     * return those packets (with the location cleared) along with the pipe they
+     * belong to. *)
     match pkt.headers.HeadersValues.location with
-      | Pipe     p -> ((p, pkt) :: pi,        phy)
-      | Physical _ -> (            pi, pkt :: phy))
+      | Physical _ -> (            pi,             qu, pkt :: phy)
+      | Pipe     p -> ((p, pkt) :: pi,             qu,        phy)
+      | Query    q -> (            pi, (q, pkt) :: qu,        phy))

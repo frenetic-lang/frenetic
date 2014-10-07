@@ -190,11 +190,12 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
             (* XXX(seliopou): What if the packet's modified? Should buf_id be
              * exposed to the application?
              * *)
-            let pis, phys = NetKAT_Semantics.eval_pipes pkt0 local in
+            let pis, qus, phys = NetKAT_Semantics.eval_pipes pkt0 local in
             let outs = Deferred.List.iter phys ~f:(fun pkt1 ->
               let acts = headers_to_actions pkt1.headers pkt0.headers in
               let out  = (switch_id, (payload, Some(port_id), acts)) in
               Pipe.write w_out out) in
+            (* XXX(seliopou): queries? *)
             outs >>= fun _ ->
             return (List.map pis ~f:(fun (pipe, pkt2) ->
               let pkt3, changed = packet_sync_headers pkt2 in
