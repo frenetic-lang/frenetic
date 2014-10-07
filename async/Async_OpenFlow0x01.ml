@@ -224,4 +224,15 @@ module Controller = struct
     send_txn_with t sw_id M.BarrierRequest (function
       | M.BarrierReply -> Result.Ok ()
       | _              -> assert false)
+
+  let stats t sw_id pattern =
+    let open OpenFlow0x01_Stats in
+    let msg = AggregateRequest
+      { as_of_match = pattern
+      ; as_table_id = 0xff
+      ; as_out_port = None }
+    in
+    send_txn_with t sw_id (M.StatsRequestMsg msg) (function
+      | M.StatsReplyMsg (AggregateFlowRep r) -> Result.Ok r
+      | _                                    -> assert false)
 end

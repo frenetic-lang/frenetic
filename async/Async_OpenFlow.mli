@@ -201,6 +201,7 @@ module OpenFlow0x01 : sig
 
     val send_pkt_out : t -> Client_id.t -> OpenFlow0x01_Core.packetOut -> (unit, exn) Deferred.Result.t
     val barrier : t -> Client_id.t -> (unit, exn) Result.t Deferred.t
+    val stats : t -> Client_id.t -> OpenFlow0x01_Core.pattern -> (OpenFlow0x01_Stats.aggregateStats, exn) Deferred.Result.t
   end
 
 end
@@ -225,7 +226,6 @@ module OpenFlow0x04 : sig
 
     val send_pkt_out : t -> Client_id.t -> OpenFlow0x04_Core.packetOut -> (unit, exn) Deferred.Result.t
     val barrier : t -> Client_id.t -> (unit, exn) Result.t Deferred.t
-
   end
 
 end
