@@ -72,10 +72,9 @@ let headers_to_actions
       then acc
       else (p (Field.get f h_new))::acc in
   let init = match h_new.NetKAT_Types.HeadersValues.location with
-     | NetKAT_Types.Pipe p ->
-       raise (Assertion_failed (Printf.sprintf
-         "Controller.headers_to_action: impossible pipe location \"%s\"" p))
-     | NetKAT_Types.Physical p -> [Output(Physical(p))] in
+    | NetKAT_Types.Physical p -> [Output(Physical(p))]
+    | _ -> assert false
+  in
   NetKAT_Types.HeadersValues.Fields.fold
     ~init
     ~location:(fun acc f -> acc)
