@@ -862,12 +862,18 @@ module Local = struct
     loop pol (fun p -> p)
 
   let queries (t:t) =
-    Pattern.Map.fold t ~init:[] ~f:(fun ~key ~data acc ->
+    let module Q = Map.Make(String) in
+    let result = Pattern.Map.fold t ~init:Q.empty ~f:(fun ~key ~data acc ->
       Action.Set.fold data ~init:acc ~f:(fun acc act ->
         let open NetKAT_Types in
         match act.HOV.location with
-        | Some(Query q) -> (q, Pattern.to_netkat_pred key) :: acc
-        | _             -> acc))
+        | Some(Query q) -> Q.change acc q (function
+          | None    -> Some(Pattern.to_netkat_pred key)
+          | Some(p) -> Some(Or(p, Pattern.to_netkat_pred key)))
+        | _ -> acc))
+    in
+    Q.to_alist result
+
 end
 
 module RunTime = struct
