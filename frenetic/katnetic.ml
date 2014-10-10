@@ -16,15 +16,18 @@ module Run = struct
 end
 
 module Global = struct
-  let main filename =
+  let main ingress_file egress_file policy_file =
     let fmt = Format.formatter_of_out_channel stderr in
     let () = Format.pp_set_margin fmt 200 in
+    let ingress =
+      Core.Std.In_channel.with_file ingress_file ~f:(fun chan ->
+        NetKAT_Parser.predicate NetKAT_Lexer.token (Lexing.from_channel chan)) in
+    let egress =
+      Core.Std.In_channel.with_file egress_file ~f:(fun chan ->
+        NetKAT_Parser.predicate NetKAT_Lexer.token (Lexing.from_channel chan)) in
     let global_pol =
-      Core.Std.In_channel.with_file filename ~f:(fun chan ->
+      Core.Std.In_channel.with_file policy_file ~f:(fun chan ->
         NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in
-    (*TODO: hard coded ingress & egress for experimentation; turn into parameters *)
-    let ingress = [(Int64.of_int 1, Int32.of_int 1); (Int64.of_int 2, Int32.of_int 2)] in
-    let egress = [(Int64.of_int 5, Int32.of_int 100); (Int64.of_int 6, Int32.of_int 100)] in
     let local_pol = NetKAT_GlobalCompiler.compile ingress egress global_pol in
     let tables =
       List.map
@@ -36,7 +39,7 @@ module Global = struct
       Format.fprintf fmt "[global] Flowtable for Switch %Ld:@\n@[%a@]@\n@\n"
         sw
         SDN_Types.format_flowTable t in
-    Format.fprintf fmt "[global] Parsed: @[%s@]@\n" filename;
+    Format.fprintf fmt "[global] Parsed: @[%s@] @[%s@] @[%s@] @\n" ingress_file egress_file policy_file;
     Format.fprintf fmt "[global] Policy:@\n@[%a@]@\n" NetKAT_Pretty.format_policy global_pol;
     Format.fprintf fmt "[global] CPS Policy:@\n@[%a@]@\n" NetKAT_Pretty.format_policy local_pol;
     Format.fprintf fmt "[global] Localized CPS Policies:@\n";
@@ -172,11 +175,19 @@ let dump_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
 
 let global_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   let doc = "invoke the global compiler and dump the resulting flow tables" in
-  let policy =
-    let doc = "file containing a static NetKAT policy" in
-    Arg.(required & (pos 0 (some file) None) & info [] ~docv:"FILE" ~doc)
+  let ingress_file =
+    let doc = "file containing a NetKAT predicate" in
+    Arg.(required & (pos 0 (some file) None) & info [] ~docv:"INGRESS" ~doc)
   in
-  Term.(pure Global.main $ policy),
+  let egress_file =
+    let doc = "file containing a NetKAT predicate" in
+    Arg.(required & (pos 1 (some file) None) & info [] ~docv:"EGRESS" ~doc)
+  in
+  let policy_file =
+    let doc = "file containing a static global NetKAT policy" in
+    Arg.(required & (pos 2 (some file) None) & info [] ~docv:"POLICY" ~doc)
+  in
+  Term.(pure Global.main $ ingress_file $ egress_file $ policy_file),
   Term.info "global" ~doc
 
 let default_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =

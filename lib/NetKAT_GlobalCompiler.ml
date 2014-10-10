@@ -68,12 +68,10 @@ let split_cps (cps : cps_policy list) =
     | Exit p -> (entrance, local, p::exit) in
   List.fold_left clasify_cps_policy ([],[],[]) cps
 
-let compile (ingress : (switchId * portId) list) (egress : (switchId * portId) list) (p : policy) =
+let compile (ingress : pred) (egress : pred) (p : policy) =
   let (entrance, local, exit) = split_cps (cps p) in
-  let match_ingress = union (List.map match_location ingress) in
-  let match_egress = union (List.map match_location egress) in
-  let pre = seq [match_ingress; set_pc initial_local_pc] in
-  let post = seq [match_pc final_local_pc; match_egress; unset_pc] in
+  let pre = seq [Filter ingress; set_pc initial_local_pc] in
+  let post = seq [match_pc final_local_pc; Filter egress; unset_pc] in
   seq [union (pre::entrance); mk_star (union local); union (post::exit)]
 
 let switches (p:policy) =
