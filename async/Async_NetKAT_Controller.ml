@@ -661,7 +661,7 @@ let enable_discovery t =
 let disable_discovery t =
   Discovery.stop t.dis
 
-let query pred t =
+let query ?(ignore_drops=true) pred t =
   let pkt, byte = (ref 0L, ref 0L) in
   Deferred.List.iter ~how:`Parallel (TUtil.switch_ids !(t.nib)) ~f:(fun sw_id ->
     match Optimize.specialize_pred sw_id pred with
@@ -671,7 +671,10 @@ let query pred t =
         | `Result flows ->
           List.iter flows (fun f ->
             let open OpenFlow0x01_Stats in
-            if pattern_matches_pred f.of_match pred then begin
+            (* When ignore_drops is true, then packet and byte counts of the
+             * flow do not contribute to the total. *)
+            if ((not ignore_drops) || f.actions = []) &&
+                pattern_matches_pred f.of_match pred then begin
               pkt  := Int64.(!pkt + f.packet_count);
               byte := Int64.(!byte + f.byte_count)
             end)
