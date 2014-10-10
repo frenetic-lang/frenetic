@@ -6,6 +6,7 @@ module Net = Async_NetKAT.Net
 module Controller = Async_OpenFlow.OpenFlow0x01.Controller
 module Stage = Async_OpenFlow.Stage
 module SDN = SDN_Types
+module M = OpenFlow0x01.Message
 
 type switchId = SDN_Types.switchId
 
@@ -138,6 +139,19 @@ let send t c_id msg =
     | `Sent _ -> ()
     | `Drop exn -> raise exn
 
+let barrier (t:t) (c_id:Controller.Client_id.t) ()
+  : [`Disconnect of Sexp.t | `Complete ] Deferred.t =
+  Txn.send t.txn c_id M.BarrierRequest
+  >>= function
+    | `Sent ivar ->
+      begin Ivar.read ivar
+      >>| function
+        | `Result M.BarrierReply -> `Complete
+        | `Result _              -> assert false
+        | `Disconnect exn_       -> `Disconnect exn_
+      end
+    | `Drop exn -> raise exn
+
 let port_desc_useable (pd : OpenFlow0x01.PortDescription.t) : bool =
   let open OpenFlow0x01.PortDescription in
   if pd.config.PortConfig.down
@@ -233,8 +247,6 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
       end
 
 module BestEffort = struct
-  module M = OpenFlow0x01.Message
-
   let install_flows_for (t : Controller.t) c_id table =
     let to_flow_mod p f = M.FlowModMsg (SDN_OpenFlow0x01.from_flow p f) in
     let priority = ref 65536 in
@@ -271,7 +283,6 @@ module BestEffort = struct
 end
 
 module PerPacketConsistent = struct
-  module M = OpenFlow0x01.Message
   open SDN_Types
 
   let specialize_action ver internal_ports actions =
@@ -309,19 +320,6 @@ module PerPacketConsistent = struct
       ; action  = List.map flow.action ~f:(fun x ->
           List.map x ~f:(specialize_action ver internal_ports))
       })
-
-  let barrier (t : t) (c_id : Controller.Client_id.t) ()
-    : [`Disconnect of Sexp.t | `Complete ] Deferred.t =
-    Txn.send t.txn c_id M.BarrierRequest
-    >>= function
-      | `Sent ivar ->
-        begin Ivar.read ivar
-        >>| function
-          | `Result M.BarrierReply -> `Complete
-          | `Result _              -> assert false
-          | `Disconnect exn_       -> `Disconnect exn_
-        end
-      | `Drop exn -> raise exn
 
   let clear_policy_for (t : Controller.t) (ver : int) sw_id =
     let open OpenFlow0x01_Core in
@@ -464,7 +462,7 @@ end
 let send_pkt_out (ctl : Controller.t) (sw_id, pkt_out) =
   Monitor.try_with ~name:"send_pkt_out" (fun () ->
     let c_id = Controller.client_id_of_switch_exn ctl sw_id in
-    Controller.send ctl c_id (0l, OpenFlow0x01.Message.PacketOutMsg
+    Controller.send ctl c_id (0l, M.PacketOutMsg
       (SDN_OpenFlow0x01.from_packetOut pkt_out)))
   >>= function
     | Ok (`Sent x)    -> return ()
