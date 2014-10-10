@@ -152,6 +152,23 @@ let barrier (t:t) (c_id:Controller.Client_id.t) ()
       end
     | `Drop exn -> raise exn
 
+let stats (t:t) (c_id:Controller.Client_id.t) () =
+  let open OpenFlow0x01_Stats in
+  let ireq =
+    let open OpenFlow0x01_Core in
+    { is_of_match = match_all; is_table_id = 0xff; is_out_port = None }
+  in
+  Txn.send t.txn c_id (M.StatsRequestMsg (IndividualRequest ireq))
+  >>= function
+    | `Sent ivar ->
+      begin Ivar.read ivar
+      >>| function
+        | `Result (M.StatsReplyMsg (IndividualFlowRep is)) -> `Result is
+        | `Result _             -> assert false
+        | `Disconnect exn_      -> `Disconnect exn_
+      end
+    | `Drop exn -> raise exn
+
 let port_desc_useable (pd : OpenFlow0x01.PortDescription.t) : bool =
   let open OpenFlow0x01.PortDescription in
   if pd.config.PortConfig.down
