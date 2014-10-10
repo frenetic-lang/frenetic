@@ -27,3 +27,7 @@ val enable_discovery  : t -> unit Deferred.t
 
 (** [disable_discovery t] disables host and switch link discovery. *)
 val disable_discovery : t -> unit Deferred.t
+
+(** [query pred t] will query the flows installed on the network that satisfy
+    [pred] and return the sum of packet and byte counts across those flows.  *)
+val query : NetKAT_Types.pred -> t -> (Int64.t * Int64.t) Deferred.t

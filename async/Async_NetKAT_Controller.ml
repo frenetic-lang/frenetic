@@ -133,6 +133,51 @@ let packet_sync_headers (pkt:NetKAT_Types.packet) : NetKAT_Types.packet * bool =
     | SDN_Types.Buffered(n, _) -> SDN_Types.Buffered(n, Packet.marshal packet')
   }, !change)
 
+let pattern_matches_pred pattern pred =
+  let matches v = function
+    | None    -> true
+    | Some(u) -> u = v
+  in
+  let open NetKAT_Types in
+  let rec loop p k =
+    match pred with
+    | True  -> k true
+    | False -> k false
+    | And(p1, p2) -> loop p1 (fun x -> if x then loop p2 k else k false)
+    | Or (p1, p2) -> loop p1 (fun x -> if x then k true else loop p2 k)
+    | Neg p1      -> loop p1 (fun x -> k (not x))
+    | Test hv ->
+      let open OpenFlow0x01_Core in
+      begin match hv, pattern with
+      | Switch              _ , _
+      | Location(Query      _), _
+      | Location(Pipe       _), _ -> assert false
+      | Location(Physical   v), { inPort = mv } ->
+        begin match mv with
+        | None    -> true
+        | Some(u) -> v = Int32.of_int_exn u
+        end
+      | EthSrc              v , { dlSrc = mv } -> matches v mv
+      | EthDst              v , { dlDst = mv } -> matches v mv
+      | EthType             v , { dlTyp = mv } -> matches v mv
+      | Vlan                v , { dlVlan = mv } -> matches (Some v) mv
+      | VlanPcp             v , { dlVlanPcp = mv } -> matches v mv
+      | IPProto             v , { nwProto = mv } -> matches v mv
+      | IP4Src         (v, m) , { nwSrc = mv }
+      | IP4Dst         (v, m) , { nwDst = mv } ->
+        begin match mv with
+        | None -> true
+        | Some(u) ->
+          let n = match u.m_mask with None -> 32l | Some n -> Int32.(32l - m) in
+          let open SDN_Types.Pattern in
+          Ip.less_eq (v, m) (u.m_value, n)
+        end
+      | TCPSrcPort          v , { tpSrc = mv } -> matches v mv
+      | TCPDstPort          v , { tpDst = mv } -> matches v mv
+      end
+  in
+  loop pred (fun x -> x)
+
 let send t c_id msg =
   Controller.send t c_id msg
   >>| function
@@ -615,3 +660,21 @@ let enable_discovery t =
 
 let disable_discovery t =
   Discovery.stop t.dis
+
+let query pred t =
+  let pkt, byte = (ref 0L, ref 0L) in
+  Deferred.List.iter ~how:`Parallel (TUtil.switch_ids !(t.nib)) ~f:(fun sw_id ->
+    match Optimize.specialize_pred sw_id pred with
+    | NetKAT_Types.False -> return ()
+    | pred  -> stats t (Controller.client_id_of_switch_exn t.ctl sw_id) ()
+      >>| function
+        | `Result flows ->
+          List.iter flows (fun f ->
+            let open OpenFlow0x01_Stats in
+            if pattern_matches_pred f.of_match pred then begin
+              pkt  := Int64.(!pkt + f.packet_count);
+              byte := Int64.(!byte + f.byte_count)
+            end)
+        | `Disconnect exn_ ->
+          Log.error ~tags "Unable to complete query: %s" (Sexp.to_string exn_))
+  >>| fun () -> (!pkt, !byte)
