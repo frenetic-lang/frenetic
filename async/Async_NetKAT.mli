@@ -76,40 +76,58 @@ module Pred : sig
   type handler = Net.Topology.t -> event -> pred option Deferred.t
   type async_handler = pred Pipe.Writer.t -> unit -> handler
 
+  (** [create pred handler] returns a [Pred.t] that uses [pred] as a default
+      predicate and [handler] as the network event handler. *)
   val create : pred -> handler -> t
+
+  (** [create pred async_handler] returns a [Pred.t] that uses pred as the
+      default predicate and [async_handler] as the network event handler. The
+      unit argument of the handler indicates a partial application ponit that
+      will only be evaluated once by this constructor. *)
   val create_async : pred -> async_handler -> t
 
+  (** [create_static pred] returns a static [Pred.t] for the NetKAT predicate
+      [pred]. *)
   val create_static : pred -> t
+
+  (** [crate_from_string str] returns a static [Pred.t] for the NetKAT policy
+      [str]. *)
   val create_from_string : string -> t
+
+  (** [create_from_file f] returns a static [Pred.t] from the NetKAT policy
+      contained in the file [f]. *)
   val create_from_file : string -> t
 end
 
 module Policy : sig
   type t = (Net.Topology.t ref, policy) Raw.t
 
-  (** [create ?pipes pol handler] returns an [app] that listens to the pipes
-      included in [pipes], uses [pol] as the initial default policy to install,
-      and [handler] as the function to handle network events. *)
+  (** [create ?pipes pol handler] returns an [Policy.t] that listens to the
+      pipes included in [pipes], uses [pol] as the initial default policy to
+      install, and [handler] as the network event handler. The unit argument of
+      the handler indicates a partial application point that will only be
+      evaluated once by this constructor. *)
   val create : ?pipes:PipeSet.t -> policy -> (Net.Topology.t ref, policy) handler -> t
 
   (** [create_async ?pipes pol async_handler] returns an [app] that listens to
       the pipes included in [pipes], uses [pol] as the initial default policy to
-      install, and [async_handler] as the function used to handle network events.
+      install, and [async_handler] as the network event handler. The unit
+      argument of the handler indicates a partial application point that will
+      only be evaluated once by this constructor.
 
-      NOTE: It's assumed that [handler nib send () e] will not become determined
-      until either an [Event(pol)] or [EventNoop] [update] has been written to
-      the [send.update] pipe. It is very important that you satisfy this
-      assumption! Not doing so will cause your application to lock up the
-      controller. *)
+      This constructor also passes the handler function a [Pipe.t] that can be
+      used to push asynchronous policy updates, i.e., a policy update that's not
+      in response to a network event.
+      *)
   val create_async : ?pipes:PipeSet.t -> policy -> (Net.Topology.t ref, policy) async_handler -> t
 
-  (** [create_static pol] returns a static app for the NetKAT syntax tree [pol] *)
+  (** [create_static pol] returns a static [Policy.t] for the NetKAT syntax tree [pol] *)
   val create_static : policy -> t
 
-  (** [create_from_string str] returns a static app for the NetKAT policy [str] *)
+  (** [create_from_string str] returns a static [Policy.t] for the NetKAT policy [str] *)
   val create_from_string : string -> t
 
-  (** [create_from_file f] returns a static app from the NetKAT policy contained
+  (** [create_from_file f] returns a static [Policy.t] from the NetKAT policy contained
       in the file [f]. *)
   val create_from_file : string -> t
 end
