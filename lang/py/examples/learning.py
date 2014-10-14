@@ -1,3 +1,6 @@
+
+from ryu.lib.packet import packet
+import base64
 import netkat.flaskapp
 from netkat.syntax import *
 
@@ -20,6 +23,7 @@ def forward(in_port, ports):
     return filter(test("port", in_port)) >> reduce(lambda pol, port: pol | modify("port", port), out_ports, drop())
 
 def handler(_, event):
+    print "EVENT: " + str(event)
     typ = event['type']
     if typ  == 'switch_up':
         sw = event['switch_id']
@@ -35,6 +39,11 @@ def handler(_, event):
         pid = event['port_id']
         sw = event['switch_id']
         topo[sw].remove(pid)
+    elif typ == 'packet_in':
+        bits = base64.b64decode(event['payload']['buffer'])
+        pkt = packet.Packet(bits)
+        for p in pkt.protocols:
+            print p            
     else:
         pass
     print event
