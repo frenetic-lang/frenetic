@@ -54,7 +54,7 @@ let transfer_batch r w ~f =
 
 exception Sequence_error of PipeSet.t * PipeSet.t
 
-type app = (Net.Topology.t ref) Raw_app.t
+type app = (Net.Topology.t ref, policy) Raw_app.t
 
 type 'phantom pipes = {
   pkt_out : (switchId * SDN_Types.pktOut, 'phantom) Pipe.t;
@@ -100,8 +100,8 @@ let create_async ?pipes (policy : policy) (handler : async_handler) : app =
         | None    -> Pipe.write send.update EventNoop
         | Some(p) -> Pipe.write send.update (Event p))
 
-let create_static (pol : policy) : app =
-  create pol (fun _ _ () _ -> return None)
+let create_static (policy : policy) : app =
+  Raw_app.create_static policy
 
 let create_from_string (str : string) : app =
   let pol = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string str) in
@@ -113,14 +113,14 @@ let create_from_file (filename : string) : app =
   create_static pol
 
 let default (a : app) : policy =
-  a.Raw_app.policy
+  a.Raw_app.value
 
 let run (app : app) (t : Net.Topology.t ref) () : (recv * (event -> unit Deferred.t)) =
   let recv, callback = Raw_app.run app t () in
   { pkt_out = recv.Raw_app.pkt_out; update = recv.Raw_app.update }, callback
 
 let union ?(how=`Parallel) (app1 : app) (app2 : app) : app =
-  Raw_app.combine ~how:how (fun x y -> Union(x, y)) app1 app2
+  Raw_app.combine ~how:how Optimize.mk_union app1 app2
 
 let seq (app1 : app) (app2 : app) : app =
   let open Raw_app in
@@ -131,12 +131,12 @@ let seq (app1 : app) (app2 : app) : app =
      * on a `PacketIn` event. *)
     raise (Sequence_error(app1.pipes, app2.pipes))
   end;
-  Raw_app.combine ~how:`Sequential (fun x y -> Seq(x, y)) app1 app2
+  Raw_app.combine ~how:`Sequential Optimize.mk_seq app1 app2
 
 let guard (pred : pred) (app : app) : app =
-  Raw_app.guard pred app
+  seq (create_static (Filter pred)) app
 
 let slice (pred : pred) (app1 : app) (app2 : app) : app =
   union ~how:`Parallel
-    (Raw_app.guard pred       app1)
-    (Raw_app.guard (Neg pred) app2)
+    (guard pred       app1)
+    (guard (Neg pred) app2)

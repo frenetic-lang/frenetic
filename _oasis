@@ -8,7 +8,8 @@ License:     LGPL
 Plugins:     META (0.3)
 BuildTools:
   ocamlbuild,
-  ocamldoc
+  ocamldoc,
+  camlp4
 
 Flag quickcheck
   Description: build the frenetic.quickcheck library
@@ -42,7 +43,26 @@ Library netkat
     NetKAT_Parser,
     NetKAT_Pretty,
     NetKAT_Semantics,
-    NetKAT_Types
+    NetKAT_Types,
+    NetKAT_Misc
+
+Library syntax
+  Path: syntax
+  Findlibparent: netkat
+  Findlibname: syntax
+  BuildDepends:
+    camlp4.lib,
+    camlp4.extend,
+    camlp4.quotations.o,
+    ulex,
+    ipaddr
+  Modules:
+    Parser,
+    Quotations,
+    MyLexer
+  XMETAType: syntax
+  XMETARequires: camlp4, ulex, ipaddr
+  XMETADescription: Syntax extension writing NetKAT expressions
 
 Library async
   Findlibparent: netkat
@@ -74,7 +94,8 @@ Library async
     Txn
   Modules:
     Async_NetKAT,
-    Async_NetKAT_Controller
+    Async_NetKAT_Controller,
+    NetKAT
 
 Library quickcheck
   Findlibparent: netkat
@@ -94,7 +115,7 @@ Executable testtool
   MainIs: Test.ml
   Build$: flag(tests)
   Install: false
-  BuildDepends: 
+  BuildDepends:
     netkat,
     netkat.quickcheck,
     oUnit,
