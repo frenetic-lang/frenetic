@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 19a4d0654f2a0206d38a7c764ab17cc4)
+# DO NOT EDIT (digest: 28070c98dc467c20cd03acd3f734a41c)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -15,6 +15,7 @@
 "_darcs": not_hygienic
 # Library netkat
 "lib/netkat.cmxs": use_netkat
+<lib/*.ml{,i}>: package(base64)
 <lib/*.ml{,i}>: package(core)
 <lib/*.ml{,i}>: package(fieldslib)
 <lib/*.ml{,i}>: package(fieldslib.syntax)
@@ -27,6 +28,7 @@
 # Library async
 "async/async.cmxs": use_async
 <async/*.ml{,i}>: package(async)
+<async/*.ml{,i}>: package(base64)
 <async/*.ml{,i}>: package(cohttp)
 <async/*.ml{,i}>: package(cohttp.async)
 <async/*.ml{,i}>: package(core)
@@ -47,6 +49,7 @@
 <async/*.ml{,i}>: use_netkat
 # Library quickcheck
 "quickcheck/quickcheck.cmxs": use_quickcheck
+<quickcheck/*.ml{,i}>: package(base64)
 <quickcheck/*.ml{,i}>: package(core)
 <quickcheck/*.ml{,i}>: package(fieldslib)
 <quickcheck/*.ml{,i}>: package(fieldslib.syntax)
@@ -61,6 +64,7 @@
 <quickcheck/*.ml{,i}>: package(threads)
 <quickcheck/*.ml{,i}>: use_netkat
 # Executable testtool
+"test/Test.byte": package(base64)
 "test/Test.byte": package(core)
 "test/Test.byte": package(fieldslib)
 "test/Test.byte": package(fieldslib.syntax)
@@ -79,6 +83,7 @@
 "test/Test.byte": package(threads)
 "test/Test.byte": use_netkat
 "test/Test.byte": use_quickcheck
+<test/*.ml{,i}>: package(base64)
 <test/*.ml{,i}>: package(core)
 <test/*.ml{,i}>: package(fieldslib)
 <test/*.ml{,i}>: package(fieldslib.syntax)
@@ -99,6 +104,7 @@
 <test/*.ml{,i}>: use_quickcheck
 # Executable katnetic
 "frenetic/katnetic.native": package(async)
+"frenetic/katnetic.native": package(base64)
 "frenetic/katnetic.native": package(cmdliner)
 "frenetic/katnetic.native": package(cohttp)
 "frenetic/katnetic.native": package(cohttp.async)
@@ -121,6 +127,7 @@
 "frenetic/katnetic.native": use_netkat
 # Executable webkat
 "frenetic/webkat.native": package(async)
+"frenetic/webkat.native": package(base64)
 "frenetic/webkat.native": package(cmdliner)
 "frenetic/webkat.native": package(cohttp)
 "frenetic/webkat.native": package(cohttp.async)
@@ -144,6 +151,7 @@
 <frenetic/*.ml{,i}>: package(cmdliner)
 # Executable netkat_test
 "frenetic/netkat_test.byte": package(async)
+"frenetic/netkat_test.byte": package(base64)
 "frenetic/netkat_test.byte": package(cohttp)
 "frenetic/netkat_test.byte": package(cohttp.async)
 "frenetic/netkat_test.byte": package(core)
@@ -165,6 +173,7 @@
 "frenetic/netkat_test.byte": use_netkat
 # Executable test_updates
 "frenetic/test_updates.byte": package(async)
+"frenetic/test_updates.byte": package(base64)
 "frenetic/test_updates.byte": package(cohttp)
 "frenetic/test_updates.byte": package(cohttp.async)
 "frenetic/test_updates.byte": package(core)
@@ -185,6 +194,7 @@
 "frenetic/test_updates.byte": use_async
 "frenetic/test_updates.byte": use_netkat
 <frenetic/*.ml{,i}>: package(async)
+<frenetic/*.ml{,i}>: package(base64)
 <frenetic/*.ml{,i}>: package(cohttp)
 <frenetic/*.ml{,i}>: package(cohttp.async)
 <frenetic/*.ml{,i}>: package(core)

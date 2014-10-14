@@ -8,7 +8,7 @@ module Event = struct
   let to_json (event : t) : Yojson.Safe.json =
     match event with
     | PacketIn (pipe, sw_id, pt_id, payload, len) ->
-      let buffer = Cstruct.to_string (SDN_Types.payload_bytes payload) in
+      let buffer = Base64.encode (Cstruct.to_string (SDN_Types.payload_bytes payload)) in 
       `Assoc [
           ("type", `String "packet_in");
           ("pipe", `String pipe);
@@ -142,4 +142,5 @@ let create policy host port ?(path="/netkat/app") =
     | None       -> failwith "no location provided"
     | Some(loc) ->
       let uri = Uri.(of_string (pct_decode loc)) in
-      Async_NetKAT.create policy (fun _ _ () -> handler uri)
+      let pipes = Async_NetKAT.PipeSet.singleton "python" in 
+      Async_NetKAT.create ~pipes:pipes policy (fun _ _ () -> handler uri)
