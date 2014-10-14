@@ -199,7 +199,10 @@ module Switch = struct
       | PortUp (sw_id, pt_id) ->
         Log.info ~tags "[topology.switch] ↑ { switch = %Lu; port = %lu }" sw_id pt_id;
         nib := add_port !nib (vertex_of_label !nib (Switch sw_id)) pt_id;
-        Pipe.write t.pkt_outs (to_out sw_id pt_id)
+        begin if enabled t
+          then Pipe.write t.pkt_outs (to_out sw_id pt_id)
+          else return ()
+        end
         >>| fun () -> [e]
       | PortDown (sw_id, pt_id) ->
         Log.info ~tags "[topology.switch] ↓ { switch = %Lu; port = %lu }" sw_id pt_id;
