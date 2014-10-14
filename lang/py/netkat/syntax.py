@@ -61,7 +61,7 @@ class Pred:
                 return strd
             else:
                 return "(%s)" % strd
-        elif self._type == self.P_AND:
+        elif self._type == self.P_OR:
             strd = " or ".join(p._repr(self.P_OR) for p in self.args)
             if parent is None or parent == self.P_OR:
                 return strd
