@@ -12,34 +12,54 @@ def state():
 table = {}
 topo = {}
 
-def get_proto(pkt, proto):
+##
+# Helper functions
+##
+def get_ethernet(pkt):
     for p in pkt:
-        if p.protocol_name == proto:
+        if p.protocol_name == 'ethernet':
             return p
+
+def output(pt):
+    return modify("port", pt)
+
+def controller():
+    return modify("port", "python")
 
 def flood(sw):
     ports = topo[sw]
 
     def flood_port(pt):
-        out_ports = [port for port in ports if port != pt]
-        return filter(test("port", pt)) >> reduce(lambda pol, out: pol | modify("port", out), out_ports, drop())
+        outs = [_pt for _pt in ports if _pt != pt]
+        pol_in = filter(test("port", pt))
+        pol_out = reduce(lambda pol, pt: pol | output(pt), [_pt for _pt in ports if pt != _pt], drop ())
+        return pol_in >> pol_out
     
-    pol = reduce(lambda pol, pt: pol | flood_port(pt), ports, drop())
-    return pol
+    return reduce(lambda pol, pt: pol | flood_port(pt), ports, drop())
+
+
+##
+# Learning switch functions
+##
 
 def learn(sw,pkt,pt):
-    src = get_proto(pkt,"ethernet").src
-    table[sw][src] = pt
+    table[sw][get_ethernet(pkt).src] = pt
+
+def switch_policy(sw):
+    def f((known,unknown),mac):
+        src = test("ethSrc", mac)
+        dst = test("ethDst", mac)
+        return (known | filter(dst) >> output(table[sw][mac]), unknown & ~src)
+        
+    (known_pol, unknown_pred) = reduce(f, table[sw].keys(), (drop(), true()))
+    return known_pol | filter(unknown_pred) >> (controller() | flood(sw))
 
 def policy():
-    def switch_policy(sw):
-        known_pol = reduce(lambda pol, mac: pol | (filter(test("ethDst", mac)) >> modify("port", table[sw][mac])), table[sw].keys(), drop())
-        known_pred = reduce(lambda pred, mac: (pred | test("ethSrc", mac)), table[sw].keys(), false())
-        pol = known_pol | (filter(~known_pred) >> (modify("port", "python") | flood(sw)))
-        return pol
-
     return reduce(lambda pol, sw: pol | switch_policy(sw), topo.keys(), drop())
 
+##
+# Main handler
+##
 def handler(_, event):
     print event
     typ = event['type']
