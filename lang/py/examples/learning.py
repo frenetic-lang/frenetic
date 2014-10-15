@@ -31,11 +31,9 @@ def flood(sw):
 
     def flood_port(pt):
         outs = [_pt for _pt in ports if _pt != pt]
-        pol_in = filter(test("port", pt))
-        pol_out = reduce(lambda pol, pt: pol | output(pt), [_pt for _pt in ports if pt != _pt], drop ())
-        return pol_in >> pol_out
+        return filter(test("port", pt)) >> union(output(pt) for pt in outs)
     
-    return reduce(lambda pol, pt: pol | flood_port(pt), ports, drop())
+    return union(flood_port(port) for port in ports)
 
 
 ##
@@ -55,7 +53,7 @@ def switch_policy(sw):
     return known_pol | filter(unknown_pred) >> (controller() | flood(sw))
 
 def policy():
-    return reduce(lambda pol, sw: pol | switch_policy(sw), topo.keys(), drop())
+    return union(switch_policy(sw) for sw in topo.keys())
 
 ##
 # Main handler

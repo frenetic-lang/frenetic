@@ -8,16 +8,15 @@ def state():
 
 topo = {}
 def policy():
-    pol = reduce(lambda pol, sw: pol | sw_policy(sw), topo.keys(), drop())
-    return pol | modify("port", "python")
+    return union(sw_policy(sw) for sw in topo.keys()) | modify("port", "python")
 
 def sw_policy(sw):
     ports = topo[sw]
-    return filter(test("switch", sw)) >> reduce(lambda pol, port: pol | forward(port, ports), ports, drop())
+    return filter(test("switch", sw)) >> union(forward(port, ports) for port in ports)
    
 def forward(in_port, ports):
     out_ports = [port for port in ports if port != in_port]
-    return filter(test("port", in_port)) >> reduce(lambda pol, port: pol | modify("port", port), out_ports, drop())
+    return filter(test("port", in_port)) >> union(modify("port", port) for port in out_ports)
 
 def handler(_, event):
     typ = event['type']
