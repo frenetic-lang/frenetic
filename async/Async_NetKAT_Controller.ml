@@ -673,7 +673,7 @@ let query ?(ignore_drops=true) pred t =
             let open OpenFlow0x01_Stats in
             (* When ignore_drops is true, then packet and byte counts of the
              * flow do not contribute to the total. *)
-            if ((not ignore_drops) || f.actions = []) &&
+            if ((not ignore_drops) || f.actions <> []) &&
                 pattern_matches_pred f.of_match pred then begin
               pkt  := Int64.(!pkt + f.packet_count);
               byte := Int64.(!byte + f.byte_count)
