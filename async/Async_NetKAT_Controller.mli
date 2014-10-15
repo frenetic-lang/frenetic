@@ -1,11 +1,29 @@
 open Core.Std
 open Async.Std
 
-(** Implements a controller for ONF. *)
+type t
 
+(** [start pol ()] starts an OpenFlow 1.0 controller that is capable of
+    implementing the policy application [pol] on the network.
+
+    By default, topology discovery is disabled when the controller starts. *)
 val start
-  : Async_NetKAT.app
+  :  Async_NetKAT.Policy.t
   -> ?port:int
   -> ?update:[`BestEffort | `PerPacketConsistent ]
   -> ?policy_queue_size:int
-  -> unit -> unit
+  -> unit -> t Deferred.t
+
+
+(** [enable_discovery t] enables detection of hosts on the network as well as
+    links between switches. For host discovery, the controller will intercept
+    all ARP packets. For link disocvery, the controller with synthesize
+    packets and periodically send them through all the live ports of each
+    switch, which will then be sent to the controller for analysis.
+
+    Both these methods require modifying the policy that the controller will
+    install on the network. *)
+val enable_discovery  : t -> unit Deferred.t
+
+(** [disable_discovery t] disables host and switch link discovery. *)
+val disable_discovery : t -> unit Deferred.t

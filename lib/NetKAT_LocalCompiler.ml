@@ -16,8 +16,8 @@ struct
     compare o1 o2 = 0
   let to_string o =
     match o with
-      | None -> "None"
-      | Some x -> Printf.sprintf "Some(%s)" (H.to_string x)
+      | None -> "*"
+      | Some x -> Printf.sprintf "%s" (H.to_string x)
   let top =
     None
   let is_top o =
@@ -55,17 +55,19 @@ module Table (F:NetKAT_Types.Headers.HEADER) = struct
     | [],_ -> -1
     | _,[] -> 1
     | (p1,b1)::t1, (p2,b2)::t2 ->
-      let cmp1 = F.compare p1 p2 in
-      if cmp1 <> 0 then cmp1
-      else
-        let cmp2 = Pervasives.compare b1 b2 in
-        if cmp2 <> 0 then cmp2
-        else compare t1 t2
+      match F.compare p1 p2 with
+      | 0 -> 
+        begin 
+          match Pervasives.compare b1 b2 with
+          | 0 -> compare t1 t2
+          | n -> n
+        end
+      | n -> n
 
   let equal t1 t2 =
     compare t1 t2 = 0
 
-  let lessthan = equal 
+  let lessthan = equal
 
   module Set = Set.Make(struct
     type t = v with sexp
@@ -89,11 +91,11 @@ module Table (F:NetKAT_Types.Headers.HEADER) = struct
       (List.fold_left t
          ~init:""
          ~f:(fun acc (x,b) ->
-               Printf.sprintf "%s%s(%s:%b)"
+               Printf.sprintf "%s%s%s:%s"
                  acc
-                 (if acc = "" then acc else " ")
+                 (if acc = "" then acc else ",")
                  (F.to_string x)
-                 b))
+                 (if b then "T" else "F")))
 
   let extend_footprint (f:Set.t) (x:F.t) : Set.t =
     let b,f' =
@@ -169,7 +171,7 @@ module Table (F:NetKAT_Types.Headers.HEADER) = struct
                   (p, b1 && b2)::acc)) in
     Some (mk (List.rev r))
 
-  let meet t1 t2 = 
+  let meet t1 t2 =
     if equal t1 t2 then Some t1 else None
 
   let to_netkat_pred (v_to_pred: v -> NetKAT_Types.pred) (t:t) =
@@ -538,9 +540,9 @@ module Pattern = struct
             | None ->
               None
             | Some z ->
-              match join (Field.get f x) (Field.get f y) with 
+              match join (Field.get f x) (Field.get f y) with
               | None -> None
-              | Some pn -> 
+              | Some pn ->
                 if is_empty pn then None
                 else Some (Field.fset f z pn) in
     let r = Fields.fold
@@ -568,19 +570,19 @@ module Pattern = struct
       | Some z ->
         begin match Field.get f x, get a, Field.get f y with
         | pn1, None, pn2 ->
-          begin match join pn1 pn2 with 
-            | None -> 
+          begin match join pn1 pn2 with
+            | None ->
               None
-            | Some pn -> 
+            | Some pn ->
               if is_empty pn then None
               else Some (Field.fset f z pn)
           end
         | pn1, Some n, pn2 ->
           begin
-            match join (singleton n) pn2 with 
-            | None -> 
+            match join (singleton n) pn2 with
+            | None ->
               None
-            | Some pn -> 
+            | Some pn ->
               if is_empty pn then None
               else Some (Field.fset f z pn1)
           end
@@ -619,7 +621,7 @@ module Local = struct
     let open NetKAT_Types in
     Optimize.mk_seq (Filter (Pattern.to_netkat_pred p)) (Action.set_to_netkat a)
 
-  let to_netkat (t:t) : NetKAT_Types.policy =
+  let to_policy (t:t) : NetKAT_Types.policy =
     let open NetKAT_Types in
     Pattern.Map.fold t
       ~init:drop
@@ -951,15 +953,13 @@ module RunTime = struct
         tcpDstPort = None;
       } in
       let g h rs f =
-        let l = Field.get f m in
-        List.fold_right
-          l
+        List.fold_right (Field.get f m)
           ~init:[]
           ~f:(fun (o, b) acc ->
             List.fold_right
               rs
               ~init:acc
-              ~f:(fun (p, c) acc -> (h p o, b && c)::acc)) in
+              ~f:(fun (p,c) acc -> (h p o, b && c)::acc)) in
       HPT.Fields.fold
         ~init:[(empty, true)]
         ~location:(g (fun p o -> { p with HOV.location = o }))
@@ -1009,8 +1009,8 @@ module RunTime = struct
     (*      Printf.printf "%s : %b\n" *)
     (*        (HOV.to_string h) b); *)
     let r = go c in
-    (* Printf.printf "FLOWTABLE:\n%s\n"  *)
-    (*   (SDN_Types.string_of_flowTable r); *)
+    (* Format.printf "EXPAND_TABLE: %s => %s\n" (Pattern.to_string x) (Action.set_to_string s); *)
+    (* Format.printf "FLOWTABLE:\n%a\n\n" SDN_Types.format_flowTable r; *)
     r
 
   type i = Local.t
@@ -1026,79 +1026,56 @@ module RunTime = struct
       match Pattern.compare x1 x2 with
         | 0 -> Action.Set.compare s1 s2
         | n -> n
-
+          
     let dep_compare (x1,s1) (x2,s2) : int =
       (* Printf.printf "DEP_COMPARE:\n"; *)
       (* Printf.printf "  x1=%s=>" (Pattern.to_string x1); *)
       (* Printf.printf "%s\n" (Action.set_to_string s1); *)
       (* Printf.printf "  x2=%s=>" (Pattern.to_string x2); *)
       (* Printf.printf "%s\n" (Action.set_to_string s2); *)
-      (* Printf.printf "  o1=%b\n  o2=%b\n" (Pattern.obscures x1 x2) (Pattern.obscures x2 x1); *)
-      let r =
-        let ac = Action.Set.compare s1 s2 in
-        if ac = 0 then
-          0
-        else
-          let o1 = Pattern.obscures x1 x2 in
-          let o2 = Pattern.obscures x2 x1 in
-          (* sanity check: no circular dependencies *)
-          if o1 && o2 then
-            begin
-              Printf.printf "Circular dependency between\n%s => %s\nand\n%s => %s\n"
-                (Pattern.to_string x1) (Action.set_to_string s1)
-                (Pattern.to_string x2) (Action.set_to_string s2);
-              assert false
-            end;
-          if o1 then -1
-          else if o2 then 1
-          else 0 in
+      let r =        
+        let o1 = Pattern.obscures x1 x2 in
+        let o2 = Pattern.obscures x2 x1 in
+        (* Printf.printf "  o1=%b\n  o2=%b\n" o1 o2; *)
+        (* sanity check: no circular dependencies *)
+        match o1,o2 with
+        | true, true -> 
+          Printf.printf "Circular dependency between\n%s => %s\nand\n%s => %s\n"
+            (Pattern.to_string x1) (Action.set_to_string s1)
+            (Pattern.to_string x2) (Action.set_to_string s2);
+          assert false
+        | true, false -> 1
+        | false, true -> -1
+        | false, false -> 0 in 
       (* Printf.printf "r=%d\n" r; *)
       r
+
   end)
 
-  let to_table ?(optimize_fall_through=true) (m:i) : flowTable =
-    (* Printf.printf "\nTO_TABLE\n"; *)
-    (* List.iter *)
-    (*   (Dep.sort (Pattern.Map.to_alist m)) *)
-    (*   ~f:(fun (p,a) -> *)
-    (*        Printf.printf "   %s => %s\n\n" (Pattern.to_string p) (Action.set_to_string a)); *)
-    let annotated_table () : (flow * Pattern.t * Action.Set.t) list =
-      (* Returns a flow table with each entry annotated with the Pattern.t
-       * from which it was generated. *)
-      List.concat_map
-        ~f:(fun (p,s) -> List.map ~f:(fun x -> (x,p,s)) (expand_rules p s))
-        (Dep.sort (Pattern.Map.to_alist m)) in
-    let patterns_intersect (p: Pattern.t) (q: Pattern.t) : bool =
-      match Pattern.seq p q with
-        Some s -> not (Pattern.is_empty s)
-      | None -> false in
-    let pattern_diff_empty (xp:Pattern.t) (p:Pattern.t) : bool =
-      Set.for_all (Pattern.diff xp p) ~f:Pattern.is_empty in
-    (* A pattern falls through if it is covered by patterns below it in the
-     * table each of which has the same action, and no pattern with a different
-     * action intersects it within the range containing the cover. *)
-    let rec falls_through
-        ((xf,xp,xa): flow * Pattern.t * Action.Set.t)
-        (table: (flow * Pattern.t * Action.Set.t) list) : bool =
-      match table with
-        [] -> false
-      | (f,p,a)::t -> (
-        if Set.equal xa a then (
-          if pattern_diff_empty xp p then true
-          else falls_through (xf,xp,xa) t)
-        else (
-          if patterns_intersect xp p then false
-          else falls_through (xf,xp,xa) t)) in
-    if optimize_fall_through then
-      List.map
-        ~f:(fun (x,_,_) -> x)
-        (List.fold_right
-          ~f:(fun x acc -> if falls_through x acc then acc else (x::acc))
-          ~init:[]
-          (annotated_table ()))
-    else
-      List.concat_map (Dep.sort (Pattern.Map.to_alist m))
-        ~f:(fun (p,s) -> expand_rules p s)
+  let table_invariant dl =
+    let rec loop l =
+      match l with
+      | []             -> true
+      | (n, (x,s))::l' ->
+        List.for_all l' ~f:(fun (m, (x', s')) ->
+          if Pattern.obscures x x' then begin
+            Format.printf "BAD OBSCURES\n%3d: %s\n%3d: %s\n\n%!"
+              n (Pattern.to_string x) (n+m) (Pattern.to_string x');
+            List.iteri dl ~f:(fun n (x, s) ->
+              Format.printf "%3d: %s => %s\n%!"
+                n (Pattern.to_string x) (Action.set_to_string s));
+            false
+          end else
+            true)
+    in
+    loop (List.mapi dl ~f:(fun i x -> (i, x)))
+
+  let to_table ?(invariant=false) ?(optimize_fall_through=true) (m:i) : flowTable =
+    let dl = Dep.sort (Pattern.Map.to_alist m) in 
+    let tbl = List.concat_map dl ~f:(fun (p,s) -> expand_rules p s) in 
+    if invariant then
+      assert (table_invariant dl);
+    tbl
 end
 
 module Local_Optimize = struct
@@ -1119,14 +1096,11 @@ end
 (* exports *)
 type t = RunTime.i
 
-let of_policy sw pol =
-  Local.of_policy (Optimize.specialize_policy sw pol)
-
-let to_netkat =
-  Local.to_netkat
-
 let compile sw p =
   RunTime.compile sw p
+
+let to_policy =
+  Local.to_policy
 
 let to_table ?(optimize_fall_through=false) t =
   Local_Optimize.remove_shadowed_rules
