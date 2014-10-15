@@ -4,7 +4,7 @@ import base64
 import netkat.flaskapp
 from netkat.syntax import *
 
-"""Repeater for a network with one switch and two hosts"""
+"""Ethernet Learning switch"""
 
 def state():
     pass
@@ -41,7 +41,7 @@ def policy():
     return reduce(lambda pol, sw: pol | switch_policy(sw), topo.keys(), drop())
 
 def handler(_, event):
-    print "EVENT: " + str(event)
+    print event
     typ = event['type']
     if typ  == 'switch_up':
         sw = event['switch_id']
@@ -68,9 +68,6 @@ def handler(_, event):
     else:
         pass
     pol = policy ()
-    print "TOPO: " + str(topo)
-    print "TABLE: " + str(table)
-    print "POLICY: " + str(pol)
     return pol
 
 if __name__ == '__main__':

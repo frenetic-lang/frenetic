@@ -91,6 +91,8 @@ module Event = struct
               ("switch_id", `Intlit sw_id);
               ("port_id",   `Intlit pt_id)] ->
       PortDown (Int64.of_string sw_id, Int32.of_string pt_id)
+    | _ -> 
+      failwith (Printf.sprintf "of_json: unexpected input %s" (Yojson.Safe.to_string json))
 
   let of_json_string (str : string) : t =
     of_json (Yojson.Safe.from_string str)
@@ -136,11 +138,11 @@ let handler uri event =
     failwith "server error"
   | _ -> assert false
 
-let create policy host port ?(path="/netkat/app") =
+let create policy host port ?(path="/netkat/app") () : Async_NetKAT.Policy.t Deferred.t =
   initialize host port path
   >>| function
     | None       -> failwith "no location provided"
     | Some(loc) ->
       let uri = Uri.(of_string (pct_decode loc)) in
       let pipes = Async_NetKAT.PipeSet.singleton "python" in 
-      Async_NetKAT.create ~pipes:pipes policy (fun _ _ () -> handler uri)
+      Async_NetKAT.Policy.create ~pipes:pipes policy (fun _ _ () -> handler uri)
