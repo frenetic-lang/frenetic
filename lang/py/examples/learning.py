@@ -68,6 +68,8 @@ def handler(_, event):
     else:
         pass
     pol = policy ()
+    print "TOPO: " + str(topo)
+    print "TABLE: " + str(table)
     print "POLICY: " + str(pol)
     return pol
 
