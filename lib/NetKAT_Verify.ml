@@ -525,7 +525,7 @@ struct
 	  mk_union 
 	    (mk_seq 
 	       (mk_filter(Test(Switch(i))))
-	       (to_netkat (compile i policy)))
+	       (to_policy (compile i policy)))
 	    tbl))))
       switches NetKAT_Types.drop   
 

@@ -18,14 +18,12 @@ let arbitrary_id =
   choose_int (0, 10) >>= fun l ->
   QuickCheck.arbitrary_listN l chr >>= fun cs ->
     ret_gen (QuickCheck_util.charlist_to_string (c::cs))
-
-
+				    
 let arbitrary_test, arbitrary_mod =
   let open QuickCheck_gen in
   let open NetKAT_Types in
   let shared = [
     map_gen (fun i -> Location (Physical i)) AB.arbitrary_uint32;
-    map_gen (fun s -> Location (Pipe s)) arbitrary_id;
     map_gen (fun i -> EthSrc i) AB.arbitrary_uint48;
     map_gen (fun i -> EthDst i) AB.arbitrary_uint48;
     map_gen (fun i -> EthType i) AB.arbitrary_uint16;
@@ -34,8 +32,6 @@ let arbitrary_test, arbitrary_mod =
      *   vlan, vlanPcp
      * *)
     map_gen (fun i -> IPProto i) AB.arbitrary_uint8;
-    map_gen (fun i -> IP4Src (i,32l)) AB.arbitrary_uint32;
-    map_gen (fun i -> IP4Dst (i,32l)) AB.arbitrary_uint32;
     map_gen (fun i -> TCPSrcPort i) AB.arbitrary_uint16;
     map_gen (fun i -> TCPDstPort i) AB.arbitrary_uint16;
   ] in
@@ -44,8 +40,17 @@ let arbitrary_test, arbitrary_mod =
      * mentioned in a comment below
      * *)
     map_gen (fun i -> Switch i) AB.arbitrary_uint48;
+    (AB.arbitrary_uint32 >>= fun i -> 
+     QuickCheck_gen.choose_int32 (0l, 32l) >>= fun j -> 
+     ret_gen (IP4Src(i,j)));
+    (AB.arbitrary_uint32 >>= fun i -> 
+     QuickCheck_gen.choose_int32 (0l, 32l) >>= fun j -> 
+     ret_gen (IP4Dst(i,j)));
   ] @ shared),
   oneof ([
+    map_gen (fun s -> Location (Pipe s)) arbitrary_id;
+    map_gen (fun i -> IP4Src(i,32l)) AB.arbitrary_uint32;
+    map_gen (fun i -> IP4Dst(i,32l)) AB.arbitrary_uint32;
   ] @ shared))
 
 let arbitrary_portId = Arbitrary_Base.arbitrary_uint32

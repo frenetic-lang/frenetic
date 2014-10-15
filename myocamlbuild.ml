@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: cae37c60cb41d373671ca4c0a8f5b503) *)
+(* DO NOT EDIT (digest: ea96a2597c89edfcbb92f35ef80ee96e) *)
 module OASISGettext = struct
 (* # 22 "src/oasis/OASISGettext.ml" *)
 
@@ -598,6 +598,7 @@ let package_default =
      MyOCamlbuildBase.lib_ocaml =
        [
           ("netkat", ["lib"], []);
+          ("syntax", ["syntax"], []);
           ("async", ["async"], []);
           ("quickcheck", ["quickcheck"], [])
        ];
@@ -624,6 +625,6 @@ let package_default =
 
 let dispatch_default = MyOCamlbuildBase.dispatch_default package_default;;
 
-# 628 "myocamlbuild.ml"
+# 629 "myocamlbuild.ml"
 (* OASIS_STOP *)
 Ocamlbuild_plugin.dispatch dispatch_default;;

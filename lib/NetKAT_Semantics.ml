@@ -43,8 +43,8 @@ let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
       | VlanPcp n -> pkt.headers.vlanPcp = n
       | EthType n -> pkt.headers.ethType = n
       | IPProto n -> pkt.headers.ipProto = n
-      | IP4Src (n,m) -> pkt.headers.ipSrc = n
-      | IP4Dst (n,m) -> pkt.headers.ipDst = n
+      | IP4Src (n,m) -> Int32TupleHeader.lessthan (pkt.headers.ipSrc,32l) (n,m)
+      | IP4Dst (n,m) -> Int32TupleHeader.lessthan (pkt.headers.ipDst,32l) (n,m)
       | TCPSrcPort n -> pkt.headers.tcpSrcPort = n
       | TCPDstPort n -> pkt.headers.tcpDstPort = n
     end

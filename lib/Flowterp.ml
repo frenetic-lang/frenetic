@@ -13,11 +13,17 @@ module Headers = struct
   open SDN_Types
 
   let eval_pattern (hdrs : HeadersValues.t) (pat : Pattern.t) : bool =
-    let open Pattern in 
     let matches p f =
       match p with
         | None -> true
         | Some(p_v) -> Field.get f hdrs = p_v in
+    let matches_mask p f =
+      match p with
+        | None ->
+          true
+        | Some (x,m) ->
+          Int32TupleHeader.lessthan (Field.get f hdrs,32l) (x,m) in
+    let open Pattern in
     HeadersValues.Fields.for_all
       ~location:(fun f ->
         match Field.get f hdrs, pat.inPort with
@@ -30,8 +36,8 @@ module Headers = struct
       ~vlanPcp:(matches pat.dlVlanPcp)
       ~ethType:(matches pat.dlTyp)
       ~ipProto:(matches pat.nwProto)
-      ~ipSrc:(matches pat.nwSrc)
-      ~ipDst:(matches pat.nwDst)
+      ~ipSrc:(matches_mask pat.nwSrc)
+      ~ipDst:(matches_mask pat.nwDst)
       ~tcpSrcPort:(matches pat.tpSrc)
       ~tcpDstPort:(matches pat.tpDst)
 

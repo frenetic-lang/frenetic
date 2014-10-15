@@ -1,14 +1,15 @@
 OASISFormat: 0.3
 OCamlVersion: >= 4.01.0
 Name:        frenetic
-Version:     2.0.0
+Version:     3.1.0
 Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     https://github.com/frenetic-lang/frenetic/contributors
 License:     LGPL
 Plugins:     META (0.3)
 BuildTools:
   ocamlbuild,
-  ocamldoc
+  ocamldoc,
+  camlp4
 
 Flag quickcheck
   Description: build the frenetic.quickcheck library
@@ -46,7 +47,26 @@ Library netkat
     NetKAT_Verify,
     NetKAT_Pretty,
     NetKAT_Semantics,
-    NetKAT_Types
+    NetKAT_Types,
+    NetKAT_Misc
+
+Library syntax
+  Path: syntax
+  Findlibparent: netkat
+  Findlibname: syntax
+  BuildDepends:
+    camlp4.lib,
+    camlp4.extend,
+    camlp4.quotations.o,
+    ulex,
+    ipaddr
+  Modules:
+    Parser,
+    Quotations,
+    MyLexer
+  XMETAType: syntax
+  XMETARequires: camlp4, ulex, ipaddr
+  XMETADescription: Syntax extension writing NetKAT expressions
 
 Library async
   Findlibparent: netkat
@@ -69,10 +89,14 @@ Library async
     sexplib.syntax
   InternalModules:
     Discovery,
-    Learning
+    Learning,
+    Raw_app,
+    TUtil,
+    Txn
   Modules:
     Async_NetKAT,
-    Async_NetKAT_Controller
+    Async_NetKAT_Controller,
+    NetKAT
 
 Library quickcheck
   Findlibparent: netkat
@@ -117,6 +141,7 @@ Executable katnetic
   NativeOpt: -g
   Build$: flag(async)
   Install: false
+  CompiledObject: native
   BuildDepends:
     async,
     cmdliner,
@@ -126,10 +151,9 @@ Executable katnetic
     netkat.async,
     topology
 
-Executable netkat_test
+Executable test_updates
   Path: frenetic
-  MainIs: netkat_test.ml
-  CompiledObject: best
+  MainIs: test_updates.ml
   Build$: flag(async)
   Install: false
   BuildDepends:

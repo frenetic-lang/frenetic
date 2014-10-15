@@ -6,9 +6,9 @@ open Core.Std
 (** {2 Basics} *)
 open Packet
 
-type switchId = SDN_Types.switchId
-type portId = SDN_Types.portId
-type payload = SDN_Types.payload
+type switchId = SDN_Types.switchId with sexp
+type portId = SDN_Types.portId with sexp
+type payload = SDN_Types.payload with sexp
 
 (** {2 Policies} *)
 
@@ -30,6 +30,7 @@ type header_val =
   | IP4Dst of nwAddr * int32
   | TCPSrcPort of tpPort
   | TCPDstPort of tpPort
+  with sexp
 
 type pred =
   | True
@@ -38,6 +39,7 @@ type pred =
   | And of pred * pred
   | Or of pred * pred
   | Neg of pred
+  with sexp
 
 type policy =
   | Filter of pred
@@ -46,6 +48,7 @@ type policy =
   | Seq of policy * policy
   | Star of policy
   | Link of switchId * portId * switchId * portId
+  with sexp
 
 let id = Filter True
 
@@ -73,9 +76,13 @@ module Headers = struct
   module type HEADER = sig
     type t with sexp
     val compare : t -> t -> int
-    val to_string : t -> string
     val equal : t -> t -> bool
-    val is_wild : t -> bool
+    val to_string : t -> string
+    val top : t
+    val is_top : t -> bool
+    val join : t -> t -> t option
+    val meet : t -> t -> t option
+    val lessthan : t -> t -> bool
   end
 
   module Make =
@@ -106,44 +113,71 @@ module Headers = struct
         } with sexp, fields
 
     let compare x y =
-      let g c a f =
-        if a <> 0 then a
-        else c (Field.get f x) (Field.get f y) in
-      Fields.fold
-        ~init:0
-        ~location:(g Location.compare)
-        ~ethSrc:(g EthSrc.compare)
-        ~ethDst:(g EthDst.compare)
-        ~vlan:(g Vlan.compare)
-        ~vlanPcp:(g VlanPcp.compare)
-        ~ethType:(g EthType.compare)
-        ~ipProto:(g IpProto.compare)
-        ~ipSrc:(g IpSrc.compare)
-        ~ipDst:(g IpDst.compare)
-        ~tcpSrcPort:(g TcpSrcPort.compare)
-        ~tcpDstPort:(g TcpDstPort.compare)
+      (* N.B. This is intentionally unrolled for performance purposes, as the
+       * comparison should short circuit as soon as possible. In light of that
+       * fact, it may be beneficial to reorder some of these checks in the
+       * future.
+       * *)
+      let c = Location.compare x.location y.location in
+      if c <> 0 then c else
+      let c = EthSrc.compare x.ethSrc y.ethSrc in
+      if c <> 0 then c else
+      let c = EthDst.compare x.ethDst y.ethDst in
+      if c <> 0 then c else
+      let c = Vlan.compare x.vlan y.vlan in
+      if c <> 0 then c else
+      let c = VlanPcp.compare x.vlanPcp y.vlanPcp in
+      if c <> 0 then c else
+      let c = EthType.compare x.ethType y.ethType in
+      if c <> 0 then c else
+      let c = IpProto.compare x.ipProto y.ipProto in
+      if c <> 0 then c else
+      let c = IpSrc.compare x.ipSrc y.ipSrc in
+      if c <> 0 then c else
+      let c = IpDst.compare x.ipDst y.ipDst in
+      if c <> 0 then c else
+      let c = TcpSrcPort.compare x.tcpSrcPort y.tcpSrcPort in
+      if c <> 0 then c else
+      let c = TcpDstPort.compare x.tcpDstPort y.tcpDstPort in
+      c
 
     let to_string ?init:(init="") ?sep:(sep="=") (x:t) : string =
-      let g is_wild to_string acc f =
+      let g is_top to_string acc f =
         let v = Field.get f x in
-        if is_wild v then acc
+        if is_top v then acc
         else
           Printf.sprintf "%s%s%s%s"
             (if acc = init then "" else acc ^ "; ")
             (Field.name f) sep (to_string (Field.get f x)) in
       Fields.fold
         ~init:init
-        ~location:Location.(g is_wild to_string)
-        ~ethSrc:EthSrc.(g is_wild to_string)
-        ~ethDst:EthDst.(g is_wild to_string)
-        ~vlan:Vlan.(g is_wild to_string)
-        ~vlanPcp:VlanPcp.(g is_wild to_string)
-        ~ethType:EthType.(g is_wild to_string)
-        ~ipProto:IpProto.(g is_wild to_string)
-        ~ipSrc:IpSrc.(g is_wild to_string)
-        ~ipDst:IpDst.(g is_wild to_string)
-        ~tcpSrcPort:TcpSrcPort.(g is_wild to_string)
-        ~tcpDstPort:TcpDstPort.(g is_wild to_string)
+        ~location:Location.(g is_top to_string)
+        ~ethSrc:EthSrc.(g is_top to_string)
+        ~ethDst:EthDst.(g is_top to_string)
+        ~vlan:Vlan.(g is_top to_string)
+        ~vlanPcp:VlanPcp.(g is_top to_string)
+        ~ethType:EthType.(g is_top to_string)
+        ~ipProto:IpProto.(g is_top to_string)
+        ~ipSrc:IpSrc.(g is_top to_string)
+        ~ipDst:IpDst.(g is_top to_string)
+        ~tcpSrcPort:TcpSrcPort.(g is_top to_string)
+        ~tcpDstPort:TcpDstPort.(g is_top to_string)
+
+    let is_top (x:t) : bool =
+      let g is_top f = is_top (Field.get f x) in
+      Fields.for_all
+        ~location:Location.(g is_top)
+        ~ethSrc:EthSrc.(g is_top)
+        ~ethDst:EthDst.(g is_top)
+        ~vlan:Vlan.(g is_top)
+        ~vlanPcp:VlanPcp.(g is_top)
+        ~ethType:EthType.(g is_top)
+        ~ipProto:IpProto.(g is_top)
+        ~ipSrc:IpSrc.(g is_top)
+        ~ipDst:IpDst.(g is_top)
+        ~tcpSrcPort:TcpSrcPort.(g is_top)
+        ~tcpDstPort:TcpDstPort.(g is_top)
+
   end
 end
 
@@ -155,19 +189,97 @@ module LocationHeader = struct
     match l with
       | Pipe x -> Printf.sprintf "%s" x
       | Physical n -> Printf.sprintf "%lu" n
-  let is_wild l = false
+  let top = Physical 0l
+  let is_top l = false
+  let lessthan l1 l2 = equal l1 l2
+  let meet l1 l2 = 
+    if equal l1 l2 then Some l1 else None
+  let join l1 l2 = 
+    if equal l1 l2 then Some l1 else None    
 end
 module IntHeader = struct
   include Int
-  let is_wild _ = false
+  let top = 0
+  let is_top _ = false
+  let lessthan l1 l2 = equal l1 l2
+  let meet l1 l2 = 
+    if equal l1 l2 then Some l1 else None
+  let join l1 l2 = 
+    if equal l1 l2 then Some l1 else None    
 end
 module Int32Header = struct
   include Int32
-  let is_wild _ = false
+  let top = 0l
+  let is_top _ = false
+  let lessthan l1 l2 = equal l1 l2
+  let meet l1 l2 =
+    if equal l1 l2 then Some l1 else None
+  let join l1 l2 =
+    if equal l1 l2 then Some l1 else None
 end
 module Int64Header = struct
   include Int64
-  let is_wild _ = false
+  let top = 0L
+  let is_top _ = false
+  let to_string = Packet.string_of_mac
+  let lessthan l1 l2 = equal l1 l2
+  let meet l1 l2 =
+    if equal l1 l2 then Some l1 else None
+  let join l1 l2 =
+    if equal l1 l2 then Some l1 else None
+end
+module Int32TupleHeader = struct
+  (* Represents an (ip_address, mask) tuple. *)
+  type t = Int32Header.t * Int32Header.t with sexp
+
+  module Ip = SDN_Types.Pattern.Ip
+
+  let equal x1 x2 = Ip.eq x1 x2
+
+  let compare ((p,m):t) ((p',m'):t) : int =
+    let c = Pervasives.compare p p' in
+    if c <> 0 then c else Pervasives.compare m m'
+
+  let top = Ip.match_all
+
+  let is_top x1 = equal x1 top
+
+  let meet (x1:t) (x2:t) : t option =
+    Ip.intersect x1 x2
+
+  let lessthan (x1:t) (x2:t) : bool =
+    Ip.less_eq x1 x2
+
+  (* Given two Ip.t's x1 and x2, attempt to combine them into a single Ip.t x
+   * with the following property:
+   *
+   *   ∀y, subseteq y x <=> subseteq y x1 || subseteq y x2 || eq y x
+   *
+   * In other words, if combine x1 x2 exists, then it is an upper-bound on
+   * x1 and x2 that bounds elements transitively through x1 and x2 and no
+   * other elements, besides itself.
+   *
+   * Examples:
+   *
+   *   combine 0.0.0.0/32 0.0.0.1/32 = Some(0.0.0.0/31)
+   *   combine 0.0.0.2/31 0.0.0.4/31 = Some(0.0.0.0/30)
+   *   combine 0.0.0.2/31 0.0.0.3/32 = Some(0.0.0.2/31)
+   *   combine 1.0.0.2/31 2.0.0.2/31 = None
+   *)
+  let join ((p1,m1) as x1:t) ((p2,m2) as x2:t) : t option =
+    if equal x1 x2 then
+      Some x1
+    else if m1 = m2 then
+      let x1', x2' = Int32.(p1, m1 - 1l), Int32.(p2, m2 - 1l) in
+      if equal x1' x2' then Some x1' else None
+    else if m1 = Int32.(m2 - 1l) && lessthan x2 x1 then
+      Some(x1)
+    else if m2 = Int32.(m1 - 1l) && lessthan x1 x2 then
+      Some(x2)
+    else
+      None
+
+  let to_string x = Ip.string_of x
 end
 
 module HeadersValues =
@@ -209,11 +321,11 @@ end)
 type action = SDN_Types.action
 
 
-type switch_port = switchId * portId
-type host = Packet.dlAddr * Packet.nwAddr
+type switch_port = switchId * portId with sexp
+type host = Packet.dlAddr * Packet.nwAddr with sexp
 
-type bufferId = Int32.t (* XXX(seliopou): different than SDN_Types *)
-type bytes = Packet.bytes
+type bufferId = Int32.t with sexp (* XXX(seliopou): different than SDN_Types *)
+type bytes = Packet.bytes with sexp
 
 type event =
   | PacketIn of string * switchId * portId * payload * int
@@ -226,3 +338,4 @@ type event =
   | LinkDown of switch_port * switch_port
   | HostUp of switch_port * host
   | HostDown of switch_port * host
+  with sexp
