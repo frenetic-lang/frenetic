@@ -56,17 +56,29 @@ class Pred:
         elif self._type == self.P_NEG:
             return "not %s" % self.args[0]._repr(self.P_NEG)
         elif self._type == self.P_AND:
-            strd = " and ".join(p._repr(self.P_AND) for p in self.args)
-            if parent is None or parent == self.P_AND:
-                return strd
+            args = [p._repr(self.P_AND) for p in self.args]
+            if len(args) == 0:
+                return "<none>"
+            elif len(args) == 1:
+                return args[0]
             else:
-                return "(%s)" % strd
+                strd = " and ".join(args)
+                if parent is None or parent == self.P_AND:
+                    return strd
+                else:
+                    return "(%s)" % strd
         elif self._type == self.P_OR:
-            strd = " or ".join(p._repr(self.P_OR) for p in self.args)
-            if parent is None or parent == self.P_OR:
-                return strd
+            args = [p._repr(self.P_OR) for p in self.args]
+            if len(args) == 0:
+                return "*"
+            elif len(args) == 1:
+                return args[0]
             else:
-                return "(%s)" % strd
+                strd = " or ".join()
+                if parent is None or parent == self.P_OR:
+                    return strd
+                else:
+                    return "(%s)" % strd
 
     def __repr__(self):
         return self._repr()
@@ -121,17 +133,29 @@ class Policy:
         elif self._type == self.P_MOD:
             return "%s := %s" % self.args
         elif self._type == self.P_UNION:
-            strd = " | ".join([p._repr(self.P_UNION) for p in self.args])
-            if parent is None or parent == self.P_UNION:
-                return strd
+            args = [p._repr(self.P_UNION) for p in self.args]
+            if len(self.args) == 0:
+                return "filter *"
+            elif len(self.args) == 1:
+                return args[0]
             else:
-                return "(%s)" % strd
+                strd = " | ".join(args)
+                if parent is None or parent == self.P_UNION:
+                    return strd
+                else:
+                    return "(%s)" % strd
         elif self._type == self.P_SEQ:
-            strd = "; ".join([p._repr(self.P_SEQ) for p in self.args])
-            if parent is None or parent == self.P_SEQ:
-                return strd
+            args = [p._repr(self.P_SEQ) for p in self.args]
+            if len(self.args) == 0:
+                return "filter <none>"
+            elif len(self.args) == 1:
+                return args[0]
             else:
-                return "(%s)" % strd
+                strd = "; ".join(args)
+                if parent is None or parent == self.P_SEQ:
+                    return strd
+                else:
+                    return "(%s)" % strd
         elif self._type == self.P_STAR:
             return "(%s)*" % repr(self.args[0])
 
