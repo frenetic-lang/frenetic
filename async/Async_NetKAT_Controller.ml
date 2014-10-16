@@ -655,12 +655,6 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
     return t
   ;;
 
-let enable_discovery t =
-  Discovery.start t.dis
-
-let disable_discovery t =
-  Discovery.stop t.dis
-
 let query ?(ignore_drops=true) pred t =
   let pkt, byte = (ref 0L, ref 0L) in
   Deferred.List.iter ~how:`Parallel (TUtil.switch_ids !(t.nib)) ~f:(fun sw_id ->
@@ -681,3 +675,15 @@ let query ?(ignore_drops=true) pred t =
         | `Disconnect exn_ ->
           Log.error ~tags "Unable to complete query: %s" (Sexp.to_string exn_))
   >>| fun () -> (!pkt, !byte)
+
+let enable_discovery t =
+  Discovery.start t.dis
+
+let disable_discovery t =
+  Discovery.stop t.dis
+
+let enable_host_discovery t =
+  Discovery.(Host.start t.dis.host_ctl)
+
+let disable_host_discovery t =
+  Discovery.(Host.stop t.dis.host_ctl)
