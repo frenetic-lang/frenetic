@@ -600,3 +600,9 @@ let enable_discovery t =
 
 let disable_discovery t =
   Discovery.stop t.dis
+
+let enable_host_discovery t =
+  Discovery.(Host.start t.dis.host_ctl)
+
+let disable_host_discovery t =
+  Discovery.(Host.stop t.dis.host_ctl)

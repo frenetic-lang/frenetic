@@ -16,8 +16,8 @@ val start
 
 
 (** [enable_discovery t] enables detection of hosts on the network as well as
-    links between switches. For host discovery, the controller will intercept
-    all ARP packets. For link disocvery, the controller with synthesize
+    links between switches. For host discovery, the controller will intercept a
+    copy of every ARP packet. For link disocvery, the controller with synthesize
     packets and periodically send them through all the live ports of each
     switch, which will then be sent to the controller for analysis.
 
@@ -27,3 +27,10 @@ val enable_discovery  : t -> unit Deferred.t
 
 (** [disable_discovery t] disables host and switch link discovery. *)
 val disable_discovery : t -> unit Deferred.t
+
+(** [enable_host_discovery t] enables detection of hosts on the network. The
+    controller will intercept a copy of every ARP packet. *)
+val enable_host_discovery : t -> unit Deferred.t
+
+(** [disable_host_discovery t] disables host discovery. *)
+val disable_host_discovery : t -> unit Deferred.t
