@@ -24,6 +24,6 @@ def create(state, handler, name="netkat"):
         if result is None:
             return make_response("", 202)
         else:
-            return make_response(dumps(result), 200)
+            return make_response(result.dumps(), 200)
 
     return app

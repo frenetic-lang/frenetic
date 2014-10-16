@@ -112,7 +112,7 @@ let initialize host port path =
       failwith (Printf.sprintf "unexpected response: %d" code);
     Cohttp.Header.get response.Response.headers "Location"
 
-let handler uri event =
+let handler pktOut uri event =
   let body = Body.of_string (Event.to_json_string event) in
   Client.put ~body uri >>= fun (response, body) ->
   match Cohttp.Code.code_of_status (response.Response.status) with
@@ -122,13 +122,13 @@ let handler uri event =
       let json = Yojson.Safe.from_string str in 
       match json with 
       | `Assoc [
-          ("type", `String "policy");
-          ("data", `String data)] -> 
+          ("data", `String data); 
+          ("type", `String "policy")] -> 
         let lex = Lexing.from_string data in 
-        let pol = NetKATParser.program NetKAT_Lexer.token lex in 
+        let pol = NetKAT_Parser.program NetKAT_Lexer.token lex in 
         return (Some pol)
       | _ -> 
-        failwith "NYI"
+        failwith ("Unexpected response: " ^ Yojson.Safe.pretty_to_string json)
     end
   | 202    (* 202 Accepted      *)
   | 204 -> (* 204 No Content    *)
@@ -154,4 +154,4 @@ let create policy host port ?(path="/netkat/app") () : Async_NetKAT.Policy.t Def
     | Some(loc) ->
       let uri = Uri.(of_string (pct_decode loc)) in
       let pipes = Async_NetKAT.PipeSet.singleton "python" in 
-      Async_NetKAT.Policy.create ~pipes:pipes policy (fun _ _ () -> handler uri)
+      Async_NetKAT.Policy.create ~pipes:pipes policy (fun _ w () -> handler w uri)

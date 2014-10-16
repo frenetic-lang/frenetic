@@ -3,7 +3,7 @@ from ryu.lib.packet import packet
 import base64
 import netkat.flaskapp
 from netkat.syntax import *
-from result import *
+from netkat.result import *
 
 """Ethernet Learning switch"""
 
