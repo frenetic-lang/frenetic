@@ -706,7 +706,7 @@ struct
       let ic = open_in f in
       let n = Int64.to_int_exn (length ic) in
       let s = String.create n in
-      really_input ic s 0 n;
+      let _ = really_input ic s 0 n in
       close ic;
       (s)
 
