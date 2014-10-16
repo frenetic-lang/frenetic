@@ -117,10 +117,19 @@ let handler uri event =
   Client.put ~body uri >>= fun (response, body) ->
   match Cohttp.Code.code_of_status (response.Response.status) with
   | 200 ->  (* 200 OK           *)
-    Body.to_string body
-    >>| Lexing.from_string
-    >>| NetKAT_Parser.program NetKAT_Lexer.token
-    >>| fun pol -> Some pol
+    begin
+      Body.to_string body >>= fun str -> 
+      let json = Yojson.Safe.from_string str in 
+      match json with 
+      | `Assoc [
+          ("type", `String "policy");
+          ("data", `String data)] -> 
+        let lex = Lexing.from_string data in 
+        let pol = NetKATParser.program NetKAT_Lexer.token lex in 
+        return (Some pol)
+      | _ -> 
+        failwith "NYI"
+    end
   | 202    (* 202 Accepted      *)
   | 204 -> (* 204 No Content    *)
     return None

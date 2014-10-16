@@ -3,6 +3,7 @@ from ryu.lib.packet import packet
 import base64
 import netkat.flaskapp
 from netkat.syntax import *
+from result import *
 
 """Ethernet Learning switch"""
 
@@ -85,8 +86,7 @@ def handler(_, event):
         learn(sw, pkt, pt)
     else:
         pass
-    pol = policy ()
-    return pol
+    return PolicyResult(policy())
 
 if __name__ == '__main__':
     app = netkat.flaskapp.create(state, handler)
