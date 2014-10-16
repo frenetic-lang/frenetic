@@ -121,13 +121,21 @@ class Policy:
         elif self._type == self.P_MOD:
             return "%s := %s" % self.args
         elif self._type == self.P_UNION:
-            strd = " | ".join([p._repr(self.P_UNION) for p in self.args])
+            if len(self.args) == 0:
+                strd = "drop"
+            else:
+                strd = " | ".join([p._repr(self.P_UNION) for p in self.args])
+
             if parent is None or parent == self.P_UNION:
                 return strd
             else:
                 return "(%s)" % strd
         elif self._type == self.P_SEQ:
-            strd = "; ".join([p._repr(self.P_SEQ) for p in self.args])
+            if len(self.args) == 0:
+                strd = "filter *"
+            else:
+                strd = "; ".join([p._repr(self.P_SEQ) for p in self.args])
+
             if parent is None or parent == self.P_SEQ:
                 return strd
             else:
