@@ -33,8 +33,6 @@ rule token = parse
   | "=>" { DBLARROW }
   | "true" { TRUE }
   | "false" { FALSE }
-  | "pipe" { PIPE }
-  | "query" { QUERY }
   | "all" { ALL }
   | "fwd" { FWD }
   | "<none>" { NONE }

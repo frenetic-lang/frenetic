@@ -15,7 +15,6 @@ type payload = SDN_Types.payload with sexp
 type location =
   | Physical of int32
   | Pipe of string
-  | Query of string
   with sexp
 
 type header_val =
@@ -188,9 +187,8 @@ module LocationHeader = struct
   let equal = (=)
   let to_string l =
     match l with
+      | Pipe x -> Printf.sprintf "%s" x
       | Physical n -> Printf.sprintf "%lu" n
-      | Pipe x     -> Printf.sprintf "pipe(%s)" x
-      | Query x    -> Printf.sprintf "query(%s)" x
   let top = Physical 0l
   let is_top l = false
   let lessthan l1 l2 = equal l1 l2

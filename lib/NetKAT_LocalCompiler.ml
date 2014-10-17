@@ -860,20 +860,6 @@ module Local = struct
         | NetKAT_Types.Link(sw,pt,sw',pt') ->
           failwith "Not a local policy" in
     loop pol (fun p -> p)
-
-  let queries (t:t) =
-    let module Q = Map.Make(String) in
-    let result = Pattern.Map.fold t ~init:Q.empty ~f:(fun ~key ~data acc ->
-      Action.Set.fold data ~init:acc ~f:(fun acc act ->
-        let open NetKAT_Types in
-        match act.HOV.location with
-        | Some(Query q) -> Q.change acc q (function
-          | None    -> Some(Pattern.to_netkat_pred key)
-          | Some(p) -> Some(Or(p, Pattern.to_netkat_pred key)))
-        | _ -> acc))
-    in
-    Q.to_alist result
-
 end
 
 module RunTime = struct
@@ -902,15 +888,10 @@ module RunTime = struct
      * port must be determined either by the pattern or by the action. The pto
      * is the port determined by the pattern, if it exists. If the port is not
      * determinate, then send it back out the port it came in.
-     *
-     * If an action sets the location to a query, then that entire action should
-     * be turned into a drop, i.e., an empty list of actions.
      * *)
     match HOV.location a, pto with
       | Some (NetKAT_Types.Pipe(_)), _ ->
         [Output(Controller 128)]
-      | Some (NetKAT_Types.Query(_)), _ ->
-        []
       | Some (NetKAT_Types.Physical pt), _
       | None, Some pt ->
         generate [Output(Physical pt)]
@@ -1000,9 +981,10 @@ module RunTime = struct
     (* helper function to generate the actual (pattern * par) rules for the SDN_Types.flowTable *)
     let go (cd : (HOV.t * bool) list) : flowTable =
       let il x = match x with
-        | NetKAT_Types.Physical n -> n
-        | _ -> failwith "indeterminate port"
-      in
+        | NetKAT_Types.Pipe _ ->
+          failwith "indeterminate port"
+        | NetKAT_Types.Physical n ->
+          n in
       List.map cd ~f:(fun (x, b) ->
         let default_port = Core_kernel.Option.map ~f:il x.HOV.location in
         let actions = if b then set_to_action s default_port else [] in
@@ -1116,9 +1098,6 @@ type t = RunTime.i
 
 let compile sw p =
   RunTime.compile sw p
-
-let queries t =
-  Local.queries t
 
 let to_policy =
   Local.to_policy
