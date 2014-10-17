@@ -9,6 +9,8 @@ open NetKAT_Types
 val eval : packet -> policy -> PacketSet.t
 val eval_pipes :  packet
                -> policy
-               -> (string * NetKAT_Types.packet) list * NetKAT_Types.packet list
+               -> (string * NetKAT_Types.packet) list *
+                  (string * NetKAT_Types.packet) list *
+                  NetKAT_Types.packet list
 
 val size: policy -> int
