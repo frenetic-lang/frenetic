@@ -1,6 +1,7 @@
 """Class to represent results produced by Python applications"""
 
 import json
+import base64
 
 class Result:
     def __init__(self):
@@ -26,8 +27,8 @@ class PacketResult(Result):
 
     def dumps(self):
         dict = { 'type' : 'packet_out',
-                 'data' : { 'switch' : repr(self.switch),
-                            'port' : repr(self.port),
+                 'data' : { 'switch_id' : repr(self.switch),
+                            'port_id' : repr(self.port),
                             'packet' : base64.b64encode(self.packet),
                             'actions' : [] }}
         return json.dumps(dict)
