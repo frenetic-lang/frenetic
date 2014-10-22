@@ -127,8 +127,22 @@ let handler pktOut uri event =
         let lex = Lexing.from_string data in 
         let pol = NetKAT_Parser.program NetKAT_Lexer.token lex in 
         return (Some pol)
-      | _ -> 
-        failwith ("Unexpected response: " ^ Yojson.Safe.pretty_to_string json)
+      | `Assoc [
+           ("data", `Assoc [("actions", `List actions);
+			    ("port_id", `String port);
+			    ("switch_id", `String switch);
+			    ("packet", `String packet)]); 	  
+	    ("type", `String "packet_out")] ->
+	 let switch = Int64.of_string switch in
+	 let port = Int32.of_string port in
+	 let packet = SDN_Types.NotBuffered(Cstruct.of_string(Base64.decode packet)) in 
+	 let actions = SDN_Types.([Output Flood]) in 
+	   Printf.printf "Received a packet\n %!";
+	   don't_wait_for 
+	     (Pipe.write pktOut (switch, (packet, Some (port), actions)));
+	   return None
+	 | _ -> 
+            failwith ("Unexpected response: " ^ Yojson.Safe.pretty_to_string json)
     end
   | 202    (* 202 Accepted      *)
   | 204 -> (* 204 No Content    *)
