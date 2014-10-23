@@ -111,7 +111,8 @@ module Controller = struct
     let c_id = client_id_of_switch_exn t sw_id in
     ChunkController.send_ignore_errors t.sub c_id (Message.marshal' msg)
 
-  let send_to_all t msg = ChunkController.send_to_all t.sub (Message.marshal' msg)
+  let send_to_all t msg =
+    ChunkController.send_to_all t.sub (Message.marshal' msg)
 
   let client_addr_port t sw_id =
     let c_id = client_id_of_switch_exn t sw_id in
@@ -222,7 +223,7 @@ module Controller = struct
       | M.BarrierReply -> Result.Ok ()
       | _              -> assert false)
 
-  let stats t sw_id pattern =
+  let aggregate_stats t sw_id pattern =
     let open OpenFlow0x01_Stats in
     let msg = AggregateRequest
       { as_of_match = pattern
@@ -232,4 +233,15 @@ module Controller = struct
     send_txn_with t sw_id (M.StatsRequestMsg msg) (function
       | M.StatsReplyMsg (AggregateFlowRep r) -> Result.Ok r
       | _                                    -> assert false)
+
+  let individual_stats t sw_id pattern =
+    let open OpenFlow0x01_Stats in
+    let msg = IndividualRequest
+      { is_of_match = pattern
+      ; is_table_id = 0xff
+      ; is_out_port = None }
+    in
+    send_txn_with t sw_id (M.StatsRequestMsg msg) (function
+      | M.StatsReplyMsg (IndividualFlowRep r) -> Result.Ok r
+      | _                                     -> assert false)
 end
