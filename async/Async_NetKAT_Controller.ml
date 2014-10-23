@@ -38,7 +38,6 @@ exception Assertion_failed of string
 type t = {
   ctl : Controller.t;
   dis : Discovery.t;
-  txn : Txn.t;
   nib : Net.Topology.t ref;
   mutable repr : LC.t;
   mutable edge : (SDN_Types.flow*int) list SwitchMap.t;
@@ -186,36 +185,6 @@ let send t c_id msg =
     | `Sent _ -> ()
     | `Drop exn -> raise exn
 
-let barrier (t:t) (c_id:Controller.Client_id.t) ()
-  : [`Disconnect of Sexp.t | `Complete ] Deferred.t =
-  Txn.send t.txn c_id M.BarrierRequest
-  >>= function
-    | `Sent ivar ->
-      begin Ivar.read ivar
-      >>| function
-        | `Result M.BarrierReply -> `Complete
-        | `Result _              -> assert false
-        | `Disconnect exn_       -> `Disconnect exn_
-      end
-    | `Drop exn -> raise exn
-
-let stats (t:t) (c_id:Controller.Client_id.t) () =
-  let open OpenFlow0x01_Stats in
-  let ireq =
-    let open OpenFlow0x01_Core in
-    { sr_of_match = match_all; sr_table_id = 0xff; sr_out_port = None }
-  in
-  Txn.send t.txn c_id (M.StatsRequestMsg (IndividualRequest ireq))
-  >>= function
-    | `Sent ivar ->
-      begin Ivar.read ivar
-      >>| function
-        | `Result (M.StatsReplyMsg (IndividualFlowRep is)) -> `Result is
-        | `Result _             -> assert false
-        | `Disconnect exn_      -> `Disconnect exn_
-      end
-    | `Drop exn -> raise exn
-
 let port_desc_useable (pd : OpenFlow0x01.PortDescription.t) : bool =
   let open OpenFlow0x01.PortDescription in
   if pd.config.PortConfig.down
@@ -223,8 +192,7 @@ let port_desc_useable (pd : OpenFlow0x01.PortDescription.t) : bool =
     else not (pd.state.PortState.down)
 
 let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
-  : (t, Controller.f, NetKAT_Types.event) Stage.t =
-  let open NetKAT_Semantics in
+  : (t, Controller.e, NetKAT_Types.event) Stage.t =
   let open NetKAT_Types in
   fun t evt -> match evt with
     | `Connect (c_id, feats) ->
@@ -239,17 +207,17 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
           PortUp(sw_id, pt_id)::acc
         else
           acc)))
-    | `Disconnect (c_id, switch_id, exn) ->
+    | `Disconnect (c_id, exn) ->
       let open Net.Topology in
-      let v  = vertex_of_label !(t.nib) (Async_NetKAT.Switch switch_id) in
+      let v  = vertex_of_label !(t.nib) (Async_NetKAT.Switch c_id) in
       let ps = vertex_to_ports !(t.nib) v in
-      return (PortSet.fold (fun p acc -> (PortDown(switch_id, p))::acc)
-        ps [SwitchDown switch_id])
+      return (PortSet.fold (fun p acc -> (PortDown(c_id, p))::acc)
+        ps [SwitchDown c_id])
     | `Message (c_id, (xid, msg)) ->
       let open OpenFlow0x01.Message in
-      begin match Controller.switch_id_of_client t.ctl c_id, msg with
+      begin match msg with
         (* only process packet_ins from physical ports *)
-        | Some(switch_id), PacketInMsg pi when pi.OpenFlow0x01_Core.port <= 0xff00 ->
+        | PacketInMsg pi when pi.OpenFlow0x01_Core.port <= 0xff00 ->
           let open OpenFlow0x01_Core in
           let port_id = Int32.of_int_exn pi.port in
           let payload = SDN_OpenFlow0x01.to_payload pi.input_payload in
@@ -257,8 +225,9 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
            * pipes, and the list of packets that can be forwarded to physical
            * locations.
            * *)
+          let open NetKAT_Semantics in
           let pkt0 = {
-            switch = switch_id;
+            switch = c_id;
             headers = bytes_to_headers port_id (SDN_Types.payload_bytes payload);
             payload = payload;
           } in
@@ -269,7 +238,7 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
             let pis, qus, phys = NetKAT_LocalCompiler.eval_pipes pkt0 t.repr in
             let outs = Deferred.List.iter phys ~f:(fun pkt1 ->
               let acts = headers_to_actions pkt1.headers pkt0.headers in
-              let out  = (switch_id, (payload, Some(port_id), acts)) in
+              let out  = (c_id, (payload, Some(port_id), acts)) in
               Pipe.write w_out out) in
             (* XXX(seliopou): queries? *)
             outs >>= fun _ ->
@@ -282,50 +251,45 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
                   | SDN_Types.Buffered(buf_id, bytes), false ->
                     SDN_Types.Buffered(buf_id, bytes)
               in
-              PacketIn(pipe, switch_id, port_id, payload, pi.total_len)))
+              PacketIn(pipe, c_id, port_id, payload, pi.total_len)))
           end
-        | Some(switch_id), PortStatusMsg ps ->
+        | PortStatusMsg ps ->
           let open OpenFlow0x01.PortStatus in
           let open OpenFlow0x01.PortDescription in
           begin match ps.reason, port_desc_useable ps.desc with
             | ChangeReason.Add, true
             | ChangeReason.Modify, true ->
               let pt_id = Int32.of_int_exn (ps.desc.port_no) in
-              return [PortUp(switch_id, pt_id)]
+              return [PortUp(c_id, pt_id)]
             | ChangeReason.Delete, _
             | ChangeReason.Modify, false ->
               let pt_id = Int32.of_int_exn (ps.desc.port_no) in
-              return [PortDown(switch_id, pt_id)]
+              return [PortDown(c_id, pt_id)]
             | _ ->
               return []
           end
-        | Some(switch_id), _ ->
-          Log.debug ~tags "switch %Lu: dropped unhandled message: %s" switch_id (to_string msg);
+        | _ ->
+          Log.debug ~tags "switch %Lu: dropped unhandled message: %s" c_id (to_string msg);
           return []
-        | None, _ ->
-          Log.debug ~tags "client %s: dropped message from disconnected client: %s"
-            (Controller.Client_id.to_string c_id) (to_string msg);
-          return []
-
       end
 
 module BestEffort = struct
   let restrict sw_id repr =
     LC.restrict NetKAT_Types.(Switch sw_id) repr
 
-  let install_flows_for (t : Controller.t) c_id table =
+  let install_flows_for (t : Controller.t) sw_id table =
     let to_flow_mod p f = M.FlowModMsg (SDN_OpenFlow0x01.from_flow p f) in
     let priority = ref 65536 in
     Deferred.List.iter table ~f:(fun flow ->
       decr priority;
-      Controller.send t c_id (0l, to_flow_mod !priority flow)
+      Controller.send t sw_id (0l, to_flow_mod !priority flow)
       >>| function
         | `Drop exn -> raise exn
         | `Sent _   -> ())
 
-  let delete_flows_for (t :Controller.t) c_id =
+  let delete_flows_for (t :Controller.t) sw_id =
     let delete_flows = M.FlowModMsg OpenFlow0x01_Core.delete_all_flows in
-    Controller.send t c_id (5l, delete_flows)
+    Controller.send t sw_id (5l, delete_flows)
     >>| function
       | `Drop exn -> raise exn
       | `Sent _   -> ()
@@ -339,9 +303,8 @@ module BestEffort = struct
     | _ ->
       let table = LC.(to_table sw_id new_r) in
       Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
-        let c_id = Controller.client_id_of_switch_exn t sw_id in
-        delete_flows_for t c_id >>= fun () ->
-        install_flows_for t c_id table)
+        delete_flows_for t sw_id >>= fun () ->
+        install_flows_for t sw_id table)
       >>= function
         | Ok x       -> return x
         | Error _exn ->
@@ -403,8 +366,7 @@ module PerPacketConsistent = struct
       ; hard_timeout = Permanent
       } with command = DeleteFlow } in
     Monitor.try_with ~name:"PerPacketConsistent.clear_policy_for" (fun () ->
-      let c_id = Controller.client_id_of_switch_exn t sw_id in
-      Controller.send t c_id (5l, clear_version_message))
+      Controller.send t sw_id (5l, clear_version_message))
     >>| function
       | Ok (`Sent _)    -> ()
       | Ok (`Drop _exn)
@@ -412,19 +374,19 @@ module PerPacketConsistent = struct
         Log.error ~tags "switch %Lu: Failed to delete flows for ver %d" sw_id ver
 
   let internal_install_policy_for (t : t) (ver : int) repr (sw_id : switchId) =
+    begin let open Deferred.Result in
     Monitor.try_with ~name:"PerPacketConsistent.internal_install_policy_for" (fun () ->
       let table0 = LC.(to_table sw_id repr) in
       let table1 = specialize_internal_to
         ver (TUtil.internal_ports !(t.nib) sw_id) table0 in
       assert (List.length table1 > 0);
-      let c_id = Controller.client_id_of_switch_exn t.ctl sw_id in
-      BestEffort.install_flows_for t.ctl c_id table1
-      >>= barrier t c_id)
+      BestEffort.install_flows_for t.ctl sw_id table1)
+    >>= fun () -> Controller.barrier t.ctl sw_id
+    end
     >>| function
-      | Ok `Complete ->
+      | Ok () ->
         Log.debug ~tags
           "switch %Lu: installed internal table for ver %d" sw_id ver;
-      | Ok (`Disconnect _)
       | Error _ ->
         Log.debug ~tags
           "switch %Lu: disconnected while installing internal table for ver %d... skipping" sw_id ver
@@ -470,19 +432,19 @@ module PerPacketConsistent = struct
     >>| fun () -> t.edge <- SwitchMap.add t.edge sw_id new_table
 
   let edge_install_policy_for (t : t) ver repr (sw_id : switchId) : unit Deferred.t =
+    begin let open Deferred.Result in
     Monitor.try_with ~name:"PerPacketConsistent.edge_install_policy_for" (fun () ->
       let table = LC.(to_table sw_id repr) in
       let edge_table = specialize_edge_to
         ver (TUtil.internal_ports !(t.nib) sw_id) table in
       Log.debug ~tags
         "switch %Lu: Installing edge table for ver %d" sw_id ver;
-      let c_id = Controller.client_id_of_switch_exn t.ctl sw_id in
-      swap_update_for t sw_id c_id edge_table
-      >>= barrier t c_id)
+      swap_update_for t sw_id sw_id edge_table)
+    >>= fun () -> Controller.barrier t.ctl sw_id
+    end
     >>| function
-      | Ok `Complete ->
+      | Ok () ->
         Log.debug ~tags "switch %Lu: installed edge table for ver %d" sw_id ver
-      | Ok (`Disconnect _)
       | Error _ ->
         Log.debug ~tags "switch %Lu: disconnected while installing edge table for ver %d... skipping" sw_id ver
 
@@ -515,8 +477,7 @@ module PerPacketConsistent = struct
 
   let bring_up_switch (t : t) (sw_id : switchId) repr =
     Monitor.try_with ~name:"PerPacketConsistent.bring_up_switch" (fun () ->
-      let c_id = Controller.client_id_of_switch_exn t.ctl sw_id in
-      BestEffort.delete_flows_for t.ctl c_id >>= fun () ->
+      BestEffort.delete_flows_for t.ctl sw_id >>= fun () ->
       internal_install_policy_for t !ver repr sw_id >>= fun () ->
       edge_install_policy_for t !ver repr sw_id)
     >>= function
@@ -533,8 +494,7 @@ end
  * *)
 let send_pkt_out (ctl : Controller.t) (sw_id, pkt_out) =
   Monitor.try_with ~name:"send_pkt_out" (fun () ->
-    let c_id = Controller.client_id_of_switch_exn ctl sw_id in
-    Controller.send ctl c_id (0l, M.PacketOutMsg
+    Controller.send ctl sw_id (0l, M.PacketOutMsg
       (SDN_OpenFlow0x01.from_packetOut pkt_out)))
   >>= function
     | Ok (`Sent x)    -> return ()
@@ -563,7 +523,6 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
     let t =
       { ctl = ctl
       ; dis = d_ctl
-      ; txn = Txn.create ctl
       ; nib = ref (Net.Topology.empty ())
       ; repr = LC.compile (Async_NetKAT.default app)
       ; edge = SwitchMap.empty
@@ -585,11 +544,9 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
      * *)
     let r_pkt_out, s_pkt_out = Pipe.create () in
     let stages =
-      let features = local (fun t -> t.ctl) Controller.features in
-      let txns     = local (fun t -> t.txn) Txn.stage in
       let events   = to_event s_pkt_out in
       let discover = local (fun t -> t.nib) d_stage in
-      features >=> txns >=> events >=> discover
+      events >=> discover
     in
 
     (* Initialize the application to produce an event callback and
@@ -681,9 +638,9 @@ let query ?(ignore_drops=true) pred t =
   Deferred.List.iter ~how:`Parallel (TUtil.switch_ids !(t.nib)) ~f:(fun sw_id ->
     match Optimize.specialize_pred sw_id pred with
     | NetKAT_Types.False -> return ()
-    | pred  -> stats t (Controller.client_id_of_switch_exn t.ctl sw_id) ()
+    | pred  -> Controller.individual_stats t.ctl sw_id
       >>| function
-        | `Result flows ->
+        | Result.Ok flows ->
           List.iter flows (fun f ->
             let open OpenFlow0x01_Stats in
             (* When ignore_drops is true, then packet and byte counts of the
@@ -693,8 +650,9 @@ let query ?(ignore_drops=true) pred t =
               pkt  := Int64.(!pkt + f.packet_count);
               byte := Int64.(!byte + f.byte_count)
             end)
-        | `Disconnect exn_ ->
-          Log.error ~tags "Unable to complete query: %s" (Sexp.to_string exn_))
+        | Result.Error exn_ ->
+          Log.error ~tags "Unable to complete query: %s" (Sexp.to_string
+          (Exn.sexp_of_t exn_)))
   >>| fun () -> (!pkt, !byte)
 
 let nib t =

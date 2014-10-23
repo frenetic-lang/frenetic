@@ -85,8 +85,7 @@ Library async
     Discovery,
     Learning,
     Raw_app,
-    TUtil,
-    Txn
+    TUtil
   Modules:
     Async_NetKAT,
     Async_NetKAT_Controller,
