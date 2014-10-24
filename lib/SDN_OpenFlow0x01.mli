@@ -1,10 +1,11 @@
 exception Invalid_port of int32
 
 val to_payload : OpenFlow0x01_Core.payload -> SDN_Types.payload
-val from_payload : SDN_Types.payload -> OpenFlow0x01_Core.payload
 val to_reason : OpenFlow0x01_Core.packetInReason -> SDN_Types.packetInReason
 val to_packetIn : OpenFlow0x01_Core.packetIn -> SDN_Types.pktIn
 val to_flowStats : OpenFlow0x01_Stats.individualStats -> SDN_Types.flowStats
+
+val from_payload : SDN_Types.payload -> OpenFlow0x01_Core.payload
 val from_packetOut : SDN_Types.pktOut -> OpenFlow0x01_Core.packetOut
 val from_pattern : SDN_Types.Pattern.t -> OpenFlow0x01_Core.pattern
 val from_group : OpenFlow0x01_Core.portId option -> SDN_Types.group -> OpenFlow0x01_Core.action list
