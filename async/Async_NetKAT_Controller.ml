@@ -201,7 +201,7 @@ let stats (t:t) (c_id:Controller.Client_id.t) () =
   let open OpenFlow0x01_Stats in
   let ireq =
     let open OpenFlow0x01_Core in
-    { is_of_match = match_all; is_table_id = 0xff; is_out_port = None }
+    { sr_of_match = match_all; sr_table_id = 0xff; sr_out_port = None }
   in
   Txn.send t.txn c_id (M.StatsRequestMsg (IndividualRequest ireq))
   >>= function
