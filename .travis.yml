@@ -4,7 +4,7 @@ env:
   global:
     - OPAM_DEPENDS="async cmdliner core cstruct ocamlgraph ounit pa_ounit quickcheck ulex ipaddr"
     - CONFIG_FLAGS="--enable-tests --enable-quickcheck --enable-async"
-    - FRENETIC_DEPENDS="ocaml-packet ocaml-openflow ocaml-topology dprle"
+    - FRENETIC_DEPENDS="ocaml-packet ocaml-openflow ocaml-topology"
   matrix:
     - OCAML_VERSION=4.01.0 OPAM_VERSION=1.1.0
 notifications:
