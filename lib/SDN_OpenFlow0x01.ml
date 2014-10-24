@@ -37,6 +37,90 @@ let to_packetIn (pktIn : Core.packetIn) : AL.pktIn =
     | { input_payload; total_len; port; reason } ->
       (to_payload input_payload, total_len, Int32.of_int port, to_reason reason)
 
+let to_pattern (p:Core.pattern) : SDN_Types.Pattern.t =
+  let open SDN_Types.Pattern in
+  { dlSrc = p.Core.dlSrc
+  ; dlDst = p.Core.dlDst
+  ; dlTyp = p.Core.dlTyp
+  ; dlVlan = begin match p.Core.dlVlan with
+      | None -> None
+      | Some None -> Some(0xffff)
+      | Some vlan -> vlan
+    end
+  ; dlVlanPcp = p.Core.dlVlanPcp
+  ; nwSrc = begin match p.Core.nwSrc with
+      | None -> None
+      | Some({ Core.m_value; Core.m_mask = None }) ->
+        Some(m_value, 0l)
+      | Some({ Core.m_value; Core.m_mask = Some(m) }) ->
+        Some(m_value, Int32.sub 32l m)
+    end
+  ; nwDst = begin match p.Core.nwDst with
+      | None -> None
+      | Some({ Core.m_value; Core.m_mask = None }) ->
+        Some(m_value, 0l)
+      | Some({ Core.m_value; Core.m_mask = Some(m) }) ->
+        Some(m_value, Int32.sub 32l m)
+    end
+  ; nwProto = p.Core.nwProto
+  ; tpSrc = p.Core.tpSrc
+  ; tpDst = p.Core.tpDst
+  ; inPort = match p.Core.inPort with
+      | None    -> None
+      | Some(n) -> Some(Int32.of_int n)
+  }
+
+let to_pseudoPort (in_port : Core.portId option) pport =
+  let open Core in
+  match pport with
+  | PhysicalPort port ->
+    if Some port = in_port
+      then AL.InPort
+      else AL.Physical (Int32.of_int port)
+  | InPort -> AL.InPort
+  | Table  -> AL.Table
+  | Normal -> AL.Normal
+  | Flood  -> AL.Flood
+  | AllPorts -> AL.All
+  | Controller(buf) -> AL.Controller(buf)
+  | Local -> AL.Local
+
+let to_action (in_port : Core.portId option) (act : Core.action) : AL.action =
+  let open Core in
+  match act with
+  | Output pport -> AL.Output (to_pseudoPort in_port pport)
+  | SetDlVlan dlVlan -> AL.(Modify(SetVlan dlVlan))
+  | SetDlVlanPcp dlVlanPcp -> AL.(Modify(SetVlanPcp dlVlanPcp))
+  | SetDlSrc dlAddr -> AL.(Modify(SetEthSrc dlAddr))
+  | SetDlDst dlAddr -> AL.(Modify(SetEthDst dlAddr))
+  | SetNwSrc nwAddr -> AL.(Modify(SetIP4Src nwAddr))
+  | SetNwDst nwAddr -> AL.(Modify(SetIP4Dst nwAddr))
+  | SetNwTos nwTos -> AL.(Modify(SetIPProto nwTos))
+  | SetTpSrc tpPort -> AL.(Modify(SetTCPDstPort tpPort))
+  | SetTpDst tpPort -> AL.(Modify(SetTCPSrcPort tpPort))
+  | Enqueue _ -> assert false (* XXX(seliopou) raise an exception. It's not
+      possible to implement this without changing the types in SDN_Types. *)
+
+let to_flowStats stats : SDN_Types.flowStats =
+  let open SDN_Types in
+  let open OpenFlow0x01_Stats in
+  let pattern = to_pattern stats.of_match in
+  let inPort = match pattern.Pattern.inPort with
+    | None -> None
+    | Some(x) -> Some(from_portId x)
+  in
+  { flow_table_id = stats.table_id
+  ; flow_pattern = pattern
+  ; flow_duration_sec = stats.duration_sec
+  ; flow_duration_nsec = stats.duration_nsec
+  ; flow_priority = stats.priority
+  ; flow_idle_timeout = stats.idle_timeout
+  ; flow_hard_timeout = stats.hard_timeout
+  ; flow_actions = List.map (to_action inPort) stats.actions
+  ; flow_packet_count = stats.packet_count
+  ; flow_byte_count = stats.byte_count
+  }
+
 let from_pattern (pat : AL.Pattern.t) : Core.pattern =
   { Core.dlSrc = pat.AL.Pattern.dlSrc
   ; Core.dlDst = pat.AL.Pattern.dlDst

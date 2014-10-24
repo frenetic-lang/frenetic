@@ -1713,49 +1713,30 @@ module StatsRequest = struct
     match msg with
     | DescriptionRequest -> sizeof_ofp_stats_request
     | FlowTableStatsRequest -> sizeof_ofp_stats_request
-    | IndividualRequest flow_req ->
-      marshal_flow_stats_request flow_req.is_of_match flow_req.is_out_port flow_req.is_table_id out'
-    | AggregateRequest agg_req ->
-      marshal_flow_stats_request agg_req.as_of_match agg_req.as_out_port agg_req.as_table_id out'
+    | IndividualRequest stats_req
+    | AggregateRequest  stats_req ->
+      marshal_flow_stats_request stats_req.sr_of_match stats_req.sr_out_port stats_req.sr_table_id out'
   
-  let parse_flow_stats_request bits =
-    let is_of_match = Match.parse (get_ofp_flow_stats_request_of_match bits) in
-    let is_table_id = get_ofp_flow_stats_request_table_id bits in
-    let is_out_port =
+  let parse_stats_request bits =
+    let sr_of_match = Match.parse (get_ofp_flow_stats_request_of_match bits) in
+    let sr_table_id = get_ofp_flow_stats_request_table_id bits in
+    let sr_out_port =
       (let open PseudoPort in
       if ofp_port_to_int OFPP_NONE = (get_ofp_flow_stats_request_out_port bits) then
         None
       else
         Some (PhysicalPort (get_ofp_flow_stats_request_out_port bits)))
     in
-    { is_of_match = is_of_match;
-      is_table_id = is_table_id;
-      is_out_port = is_out_port
-    }
+    { sr_of_match; sr_table_id; sr_out_port }
     
-  let parse_aggregate_stats_request bits =
-    let as_of_match = Match.parse (get_ofp_flow_stats_request_of_match bits) in
-    let as_table_id = get_ofp_flow_stats_request_table_id bits in
-    let as_out_port =
-      (let open PseudoPort in
-      if ofp_port_to_int OFPP_NONE = (get_ofp_flow_stats_request_out_port bits) then
-        None
-      else
-        Some (PhysicalPort (get_ofp_flow_stats_request_out_port bits)))
-    in
-    { as_of_match = as_of_match;
-      as_table_id = as_table_id;
-      as_out_port = as_out_port
-    }
-  
   let parse bits =
     let stats_type_code = get_ofp_stats_request_req_type bits in
     let body = Cstruct.shift bits sizeof_ofp_stats_request in
     match int_to_ofp_stats_types stats_type_code with
     | Some OFPST_DESC -> DescriptionRequest
     | Some OFPST_TABLE -> FlowTableStatsRequest
-    | Some OFPST_FLOW -> IndividualRequest (parse_flow_stats_request body)
-    | Some OFPST_AGGREGATE -> AggregateRequest (parse_aggregate_stats_request body)
+    | Some OFPST_FLOW -> IndividualRequest (parse_stats_request body)
+    | Some OFPST_AGGREGATE -> AggregateRequest (parse_stats_request body)
     | Some OFPST_QUEUE -> raise (Unparsable "queue statistics unsupported")
     | Some OFPST_VENDOR -> raise (Unparsable "vendor statistics unsupported")
     | Some OFPST_PORT -> raise (Unparsable "port statistics unsupported")

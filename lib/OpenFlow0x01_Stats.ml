@@ -1,23 +1,17 @@
 open Packet
 open OpenFlow0x01_Core
 
-type individualStatsReq =
-  { is_of_match : pattern
-  ; is_table_id : int8
-  ; is_out_port : pseudoPort option 
-  }
-
-type aggregateStatsReq =
-  { as_of_match : pattern
-  ; as_table_id : int8
-  ; as_out_port : pseudoPort option
+type statsReq =
+  { sr_of_match : pattern
+  ; sr_table_id : int8
+  ; sr_out_port : pseudoPort option
   }
 
 type request =
   | DescriptionRequest
   | FlowTableStatsRequest
-  | IndividualRequest of individualStatsReq
-  | AggregateRequest of aggregateStatsReq
+  | IndividualRequest of statsReq
+  | AggregateRequest of statsReq
 
 type descriptionStats =
     { manufacturer : string

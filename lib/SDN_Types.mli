@@ -195,7 +195,7 @@ type flowStats = {
   flow_priority: int16;
   flow_idle_timeout: int16;
   flow_hard_timeout: int16;
-  flow_action: action;
+  flow_actions: action list;
   flow_packet_count: int64;
   flow_byte_count: int64
 }
