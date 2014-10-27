@@ -88,29 +88,26 @@ module Headers = struct
 
   module Make =
     functor(Location:HEADER) ->
-    functor(EthSrc:HEADER) ->
-    functor(EthDst:HEADER) ->
+    functor(DlAddr:HEADER) ->
     functor(Vlan:HEADER) ->
     functor(VlanPcp:HEADER) ->
-    functor(EthType:HEADER) ->
-    functor(IpProto:HEADER) ->
-    functor(IpSrc:HEADER) ->
-    functor(IpDst:HEADER) ->
-    functor(TcpSrcPort:HEADER) ->
-    functor(TcpDstPort:HEADER) ->
+    functor(DlType:HEADER) ->
+    functor(NwProto:HEADER) ->
+    functor(NwAddr:HEADER) ->
+    functor(TcpPort:HEADER) ->
   struct
     type t =
         { location : Location.t sexp_opaque;
-          ethSrc : EthSrc.t sexp_opaque;
-          ethDst : EthDst.t sexp_opaque;
+          ethSrc : DlAddr.t sexp_opaque;
+          ethDst : DlAddr.t sexp_opaque;
           vlan : Vlan.t sexp_opaque;
           vlanPcp : VlanPcp.t sexp_opaque;
-          ethType : EthType.t sexp_opaque;
-          ipProto : IpProto.t sexp_opaque;
-          ipSrc : IpSrc.t sexp_opaque;
-          ipDst : IpDst.t sexp_opaque;
-          tcpSrcPort : TcpSrcPort.t sexp_opaque;
-          tcpDstPort : TcpDstPort.t sexp_opaque
+          ethType : DlType.t sexp_opaque;
+          ipProto : NwProto.t sexp_opaque;
+          ipSrc : NwAddr.t sexp_opaque;
+          ipDst : NwAddr.t sexp_opaque;
+          tcpSrcPort : TcpPort.t sexp_opaque;
+          tcpDstPort : TcpPort.t sexp_opaque
         } with sexp, fields
 
     let compare x y =
@@ -121,25 +118,25 @@ module Headers = struct
        * *)
       let c = Location.compare x.location y.location in
       if c <> 0 then c else
-      let c = EthSrc.compare x.ethSrc y.ethSrc in
+      let c = DlAddr.compare x.ethSrc y.ethSrc in
       if c <> 0 then c else
-      let c = EthDst.compare x.ethDst y.ethDst in
+      let c = DlAddr.compare x.ethDst y.ethDst in
       if c <> 0 then c else
       let c = Vlan.compare x.vlan y.vlan in
       if c <> 0 then c else
       let c = VlanPcp.compare x.vlanPcp y.vlanPcp in
       if c <> 0 then c else
-      let c = EthType.compare x.ethType y.ethType in
+      let c = DlType.compare x.ethType y.ethType in
       if c <> 0 then c else
-      let c = IpProto.compare x.ipProto y.ipProto in
+      let c = NwProto.compare x.ipProto y.ipProto in
       if c <> 0 then c else
-      let c = IpSrc.compare x.ipSrc y.ipSrc in
+      let c = NwAddr.compare x.ipSrc y.ipSrc in
       if c <> 0 then c else
-      let c = IpDst.compare x.ipDst y.ipDst in
+      let c = NwAddr.compare x.ipDst y.ipDst in
       if c <> 0 then c else
-      let c = TcpSrcPort.compare x.tcpSrcPort y.tcpSrcPort in
+      let c = TcpPort.compare x.tcpSrcPort y.tcpSrcPort in
       if c <> 0 then c else
-      let c = TcpDstPort.compare x.tcpDstPort y.tcpDstPort in
+      let c = TcpPort.compare x.tcpDstPort y.tcpDstPort in
       c
 
     let to_string ?init:(init="") ?sep:(sep="=") (x:t) : string =
@@ -153,31 +150,31 @@ module Headers = struct
       Fields.fold
         ~init:init
         ~location:Location.(g is_top to_string)
-        ~ethSrc:EthSrc.(g is_top to_string)
-        ~ethDst:EthDst.(g is_top to_string)
+        ~ethSrc:DlAddr.(g is_top to_string)
+        ~ethDst:DlAddr.(g is_top to_string)
         ~vlan:Vlan.(g is_top to_string)
         ~vlanPcp:VlanPcp.(g is_top to_string)
-        ~ethType:EthType.(g is_top to_string)
-        ~ipProto:IpProto.(g is_top to_string)
-        ~ipSrc:IpSrc.(g is_top to_string)
-        ~ipDst:IpDst.(g is_top to_string)
-        ~tcpSrcPort:TcpSrcPort.(g is_top to_string)
-        ~tcpDstPort:TcpDstPort.(g is_top to_string)
+        ~ethType:DlType.(g is_top to_string)
+        ~ipProto:NwProto.(g is_top to_string)
+        ~ipSrc:NwAddr.(g is_top to_string)
+        ~ipDst:NwAddr.(g is_top to_string)
+        ~tcpSrcPort:TcpPort.(g is_top to_string)
+        ~tcpDstPort:TcpPort.(g is_top to_string)
 
     let is_top (x:t) : bool =
       let g is_top f = is_top (Field.get f x) in
       Fields.for_all
         ~location:Location.(g is_top)
-        ~ethSrc:EthSrc.(g is_top)
-        ~ethDst:EthDst.(g is_top)
+        ~ethSrc:DlAddr.(g is_top)
+        ~ethDst:DlAddr.(g is_top)
         ~vlan:Vlan.(g is_top)
         ~vlanPcp:VlanPcp.(g is_top)
-        ~ethType:EthType.(g is_top)
-        ~ipProto:IpProto.(g is_top)
-        ~ipSrc:IpSrc.(g is_top)
-        ~ipDst:IpDst.(g is_top)
-        ~tcpSrcPort:TcpSrcPort.(g is_top)
-        ~tcpDstPort:TcpDstPort.(g is_top)
+        ~ethType:DlType.(g is_top)
+        ~ipProto:NwProto.(g is_top)
+        ~ipSrc:NwAddr.(g is_top)
+        ~ipDst:NwAddr.(g is_top)
+        ~tcpSrcPort:TcpPort.(g is_top)
+        ~tcpDstPort:TcpPort.(g is_top)
 
   end
 end
@@ -288,14 +285,11 @@ module HeadersValues =
   Headers.Make
     (LocationHeader)
     (Int64Header)
-    (Int64Header)
     (IntHeader)
     (IntHeader)
     (IntHeader)
     (IntHeader)
     (Int32Header)
-    (Int32Header)
-    (IntHeader)
     (IntHeader)
 
 type packet = {

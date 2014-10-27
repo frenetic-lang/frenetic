@@ -230,28 +230,22 @@ module HeadersOptionalValues =
   NetKAT_Types.Headers.Make
     (OL)
     (O48)
-    (O48)
     (O16)
     (O8)
     (O16)
     (O8)
     (OIp)
-    (OIp)
-    (O16)
     (O16)
 
 module HeadersTable =
   NetKAT_Types.Headers.Make
     (PTL)
     (PT48)
-    (PT48)
     (PT16)
     (PT8)
     (PT16)
     (PT8)
     (PTIp)
-    (PTIp)
-    (PT16)
     (PT16)
 
 (* H to the izz-O, V to the izz-A... *)
