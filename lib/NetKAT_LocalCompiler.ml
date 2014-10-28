@@ -3,7 +3,7 @@ open Sexplib.Conv
 open SDN_Types
 
 (* Option functor *)
-module Option (H:NetKAT_Types.Headers.HEADER) =
+module Option (H:Headers.HEADER) =
 struct
   type t = H.t option with sexp
   let compare o1 o2 =
@@ -44,7 +44,7 @@ struct
       else None
 end
 
-module Table (F:NetKAT_Types.Headers.HEADER) = struct
+module Table (F:Headers.HEADER) = struct
   type v = F.t with sexp
 
   type t = (v * bool) list with sexp
@@ -212,22 +212,22 @@ module Table (F:NetKAT_Types.Headers.HEADER) = struct
     r
 end
 
-module OL = Option(NetKAT_Types.LocationHeader)
-module O48 = Option(NetKAT_Types.Int64Header)
-module O32 = Option(NetKAT_Types.Int32Header)
-module O16 = Option(NetKAT_Types.IntHeader)
-module O8 = Option(NetKAT_Types.IntHeader)
-module OIp = Option(NetKAT_Types.Int32TupleHeader)
+module OL = Option(Headers.LocationHeader)
+module O48 = Option(Headers.Int64Header)
+module O32 = Option(Headers.Int32Header)
+module O16 = Option(Headers.IntHeader)
+module O8 = Option(Headers.IntHeader)
+module OIp = Option(Headers.Int32TupleHeader)
 
 module PTL = Table(OL)
 module PT48 = Table(O48)
 module PT32 = Table(O32)
 module PT16 = Table(O16)
 module PT8 = Table(O8)
-module PTIp = Table(NetKAT_Types.Int32TupleHeader)
+module PTIp = Table(Headers.Int32TupleHeader)
 
 module HeadersOptionalValues =
-  NetKAT_Types.Headers.Make
+  Headers.Make
     (OL)
     (O48)
     (O16)
@@ -238,7 +238,7 @@ module HeadersOptionalValues =
     (O16)
 
 module HeadersTable =
-  NetKAT_Types.Headers.Make
+  Headers.Make
     (PTL)
     (PT48)
     (PT16)
@@ -512,20 +512,20 @@ module Pattern = struct
           ~tcpDstPort:PT16.(g is_empty neg)
 
   let obscures (x:t) (y:t) : bool =
-    let open NetKAT_Types.Headers in
-        let g c f = c (Field.get f x) (Field.get f y) in
-        HPT.Fields.for_all
-          ~location:(g PTL.obscures)
-          ~ethSrc:(g PT48.obscures)
-          ~ethDst:(g PT48.obscures)
-          ~vlan:(g PT16.obscures)
-          ~vlanPcp:(g PT8.obscures)
-          ~ethType:(g PT16.obscures)
-          ~ipProto:(g PT8.obscures)
-          ~ipSrc:(g PTIp.obscures)
-          ~ipDst:(g PTIp.obscures)
-          ~tcpSrcPort:(g PT16.obscures)
-          ~tcpDstPort:(g PT16.obscures)
+    let open Headers in
+    let g c f = c (Field.get f x) (Field.get f y) in
+    HPT.Fields.for_all
+      ~location:(g PTL.obscures)
+      ~ethSrc:(g PT48.obscures)
+      ~ethDst:(g PT48.obscures)
+      ~vlan:(g PT16.obscures)
+      ~vlanPcp:(g PT8.obscures)
+      ~ethType:(g PT16.obscures)
+      ~ipProto:(g PT8.obscures)
+      ~ipSrc:(g PTIp.obscures)
+      ~ipDst:(g PTIp.obscures)
+      ~tcpSrcPort:(g PT16.obscures)
+      ~tcpDstPort:(g PT16.obscures)
 
   let seq (x:t) (y:t) : t option =
     let open HPT in
@@ -983,10 +983,10 @@ module RunTime = struct
         ~ethType:(g (fun p o -> { p with HOV.ethType = o }))
         ~ipProto:(g (fun p o -> { p with HOV.ipProto = o }))
         ~ipSrc:(g (fun p o ->
-                     if NetKAT_Types.Int32TupleHeader.is_top o then p
+                     if Headers.Int32TupleHeader.is_top o then p
                      else { p with HOV.ipSrc = Some o }))
         ~ipDst:(g (fun p o ->
-                     if NetKAT_Types.Int32TupleHeader.is_top o then p
+                     if Headers.Int32TupleHeader.is_top o then p
                      else { p with HOV.ipDst = Some o }))
         ~tcpSrcPort:(g (fun p o -> { p with HOV.tcpSrcPort = o }))
         ~tcpDstPort:(g (fun p o -> { p with HOV.tcpDstPort = o })) in

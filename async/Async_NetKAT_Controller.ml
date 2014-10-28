@@ -46,8 +46,8 @@ type t = {
 let bytes_to_headers
   (port_id : SDN_Types.portId)
   (bytes : Cstruct.t)
-  : NetKAT_Types.HeadersValues.t =
-  let open NetKAT_Types.HeadersValues in
+  : NetKAT_Semantics.HeadersValues.t =
+  let open NetKAT_Semantics.HeadersValues in
   let open Packet in
   let pkt = Packet.parse bytes in
   { location = NetKAT_Types.Physical port_id
@@ -64,19 +64,19 @@ let bytes_to_headers
   }
 
 let headers_to_actions
-  (h_new:NetKAT_Types.HeadersValues.t)
-  (h_old:NetKAT_Types.HeadersValues.t)
+  (h_new:NetKAT_Semantics.HeadersValues.t)
+  (h_old:NetKAT_Semantics.HeadersValues.t)
   : SDN_Types.action list =
   let open SDN_Types in
   let g p acc f =
     if (Field.get f h_new) = (Field.get f h_old)
       then acc
       else (p (Field.get f h_new))::acc in
-  let init = match h_new.NetKAT_Types.HeadersValues.location with
+  let init = match h_new.NetKAT_Semantics.HeadersValues.location with
     | NetKAT_Types.Physical p -> [Output(Physical(p))]
     | _ -> assert false
   in
-  NetKAT_Types.HeadersValues.Fields.fold
+  NetKAT_Semantics.HeadersValues.Fields.fold
     ~init
     ~location:(fun acc f -> acc)
     ~ethSrc:(g (fun v -> Modify(SetEthSrc v)))
@@ -92,11 +92,12 @@ let headers_to_actions
 
 exception Unsupported_mod of string
 
-let packet_sync_headers (pkt:NetKAT_Types.packet) : NetKAT_Types.packet * bool =
+let packet_sync_headers (pkt:NetKAT_Semantics.packet) : NetKAT_Semantics.packet * bool =
+  let open NetKAT_Semantics in
   let open NetKAT_Types in
   let change = ref false in
   let g p q acc f =
-    let v = Field.get f pkt.headers in
+    let v = Field.get f pkt.NetKAT_Semantics.headers in
     if p v acc then
       acc
     else begin
@@ -222,6 +223,7 @@ let port_desc_useable (pd : OpenFlow0x01.PortDescription.t) : bool =
 
 let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
   : (t, Controller.f, NetKAT_Types.event) Stage.t =
+  let open NetKAT_Semantics in
   let open NetKAT_Types in
   fun t evt -> match evt with
     | `Connect (c_id, feats) ->

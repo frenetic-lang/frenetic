@@ -2,7 +2,7 @@ open Core.Std
 (** An interpreter for flowtables *)
 
 module HVSet = Set.Make(struct
-  open NetKAT_Types
+  open NetKAT_Semantics
 
   type t = HeadersValues.t sexp_opaque with sexp
   let compare = HeadersValues.compare
@@ -10,19 +10,21 @@ end)
 
 module Headers = struct
   open NetKAT_Types
+  open NetKAT_Semantics
   open SDN_Types
 
   let eval_pattern (hdrs : HeadersValues.t) (pat : Pattern.t) : bool =
     let matches p f =
       match p with
         | None -> true
-        | Some(p_v) -> Field.get f hdrs = p_v in
-    let matches_mask p f =
+        | Some(p_v) -> Field.get f hdrs = p_v
+    in
+    let matches_mask (p:Pattern.Ip.t option) f =
       match p with
-        | None ->
-          true
+        | None -> true
         | Some (x,m) ->
-          Int32TupleHeader.lessthan (Field.get f hdrs,32l) (x,m) in
+          Headers.Int32TupleHeader.lessthan (Field.get f hdrs,32l) (x,m)
+    in
     let open Pattern in
     HeadersValues.Fields.for_all
       ~location:(fun f ->
@@ -98,23 +100,23 @@ module Headers = struct
 end
 
 module Packet = struct
-  module PacketSet = NetKAT_Types.PacketSet
+  module PacketSet = NetKAT_Semantics.PacketSet
 
   let of_hv_set pkt hv_set : PacketSet.t =
     HVSet.fold hv_set ~init:PacketSet.empty ~f:(fun acc hdrs ->
-      PacketSet.add acc { pkt with NetKAT_Types.headers = hdrs })
+      PacketSet.add acc { pkt with NetKAT_Semantics.headers = hdrs })
 
   let eval_flow
       (port : NetKAT_Types.portId)
-      (pkt : NetKAT_Types.packet)
+      (pkt : NetKAT_Semantics.packet)
       (flow : SDN_Types.flow)
     : PacketSet.t option =
     let open Core.Std in
-    Option.map (Headers.eval_flow port pkt.NetKAT_Types.headers flow) (of_hv_set pkt)
+    Option.map (Headers.eval_flow port pkt.NetKAT_Semantics.headers flow) (of_hv_set pkt)
 
   let eval
-      (pkt : NetKAT_Types.packet)
+      (pkt : NetKAT_Semantics.packet)
       (table : SDN_Types.flowTable)
     : PacketSet.t =
-    of_hv_set pkt (Headers.eval pkt.NetKAT_Types.headers table)
+    of_hv_set pkt (Headers.eval pkt.NetKAT_Semantics.headers table)
 end

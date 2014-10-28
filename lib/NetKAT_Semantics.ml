@@ -1,4 +1,43 @@
+open Core.Std
 open NetKAT_Types
+
+
+module H = Headers.Make
+  (Headers.LocationHeader)
+  (Headers.Int64Header)
+  (Headers.IntHeader)
+  (Headers.IntHeader)
+  (Headers.IntHeader)
+  (Headers.IntHeader)
+  (Headers.Int32Header)
+  (Headers.IntHeader)
+
+(** A map keyed by header names. *)
+module HeadersValues = struct
+  include H
+
+  let to_string x = H.to_string x
+end
+
+type packet = {
+  switch : switchId;
+  headers : HeadersValues.t;
+  payload : payload
+}
+
+module PacketSet = Set.Make (struct
+  type t = packet sexp_opaque with sexp
+
+  (* First compare by headers, then payload. The payload comparison is a
+     little questionable. However, this is safe to use in eval, since
+     all output packets have the same payload as the input packet. *)
+  let compare x y =
+    let cmp = HeadersValues.compare x.headers y.headers in
+    if cmp <> 0 then
+      cmp
+    else
+      Pervasives.compare x.payload y.payload
+end)
 
 (** {2 Semantics}
 
@@ -43,8 +82,8 @@ let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
       | VlanPcp n -> pkt.headers.vlanPcp = n
       | EthType n -> pkt.headers.ethType = n
       | IPProto n -> pkt.headers.ipProto = n
-      | IP4Src (n,m) -> Int32TupleHeader.lessthan (pkt.headers.ipSrc,32l) (n,m)
-      | IP4Dst (n,m) -> Int32TupleHeader.lessthan (pkt.headers.ipDst,32l) (n,m)
+      | IP4Src (n,m) -> Headers.Int32TupleHeader.lessthan (pkt.headers.ipSrc,32l) (n,m)
+      | IP4Dst (n,m) -> Headers.Int32TupleHeader.lessthan (pkt.headers.ipDst,32l) (n,m)
       | TCPSrcPort n -> pkt.headers.tcpSrcPort = n
       | TCPDstPort n -> pkt.headers.tcpDstPort = n
     end
@@ -95,10 +134,10 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
   | Link(sw,pt,sw',pt') ->
     PacketSet.empty (* JNF *)
 
-let eval_pipes (packet:NetKAT_Types.packet) (pol:NetKAT_Types.policy)
-  : (string * NetKAT_Types.packet) list *
-    (string * NetKAT_Types.packet) list *
-    NetKAT_Types.packet list =
+let eval_pipes (packet:packet) (pol:NetKAT_Types.policy)
+  : (string * packet) list *
+    (string * packet) list *
+    packet list =
   let open NetKAT_Types in
   (* Determines the locations that the packet belongs to. Note that a packet may
    * belong to several pipes for several reasons:

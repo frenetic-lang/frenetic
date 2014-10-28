@@ -34,6 +34,7 @@ Library netkat
   InternalModules:
     Algo,
     Flowterp,
+    Headers,
     Optimize,
     Util
   Modules:

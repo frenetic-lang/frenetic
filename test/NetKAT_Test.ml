@@ -198,7 +198,7 @@ module FromPipe = struct
     PipeSet.(equal (of_list pipes) (of_list (List.map ~f:fst ps)))
 
   let default_headers =
-    let open NetKAT_Types.HeadersValues in
+    let open NetKAT_Semantics.HeadersValues in
     { location = Physical 0l;
       ethSrc = 0L;
       ethDst = 0L;
@@ -212,6 +212,7 @@ module FromPipe = struct
       tcpDstPort = 0; }
 
   let default_packet headers =
+    let open NetKAT_Semantics in
     { switch = 0L;
       headers;
       payload = SDN_Types.NotBuffered (Cstruct.create 0)
@@ -235,10 +236,10 @@ TEST "ambiguous pipes" =
                           Mod(Location(Pipe("pipe1")))),
                       Seq(Mod(EthSrc 3L),
                           Mod(Location(Pipe("pipe2")))))) in
-  let open NetKAT_Types.HeadersValues in
-   let pkt = default_packet { default_headers
-                              with ethDst = 2L } in
-   test_from_pipes pol pkt ["pipe2"; "pipe1"]
+  let open NetKAT_Semantics.HeadersValues in
+  let pkt = default_packet { default_headers
+                             with ethDst = 2L } in
+  test_from_pipes pol pkt ["pipe2"; "pipe1"]
 
 TEST "left side" =
   let pol = Union(
@@ -246,7 +247,7 @@ TEST "left side" =
         Mod(Location(Pipe("left")))),
     Seq(Filter(Test(EthSrc 2L)),
         Mod(Location(Pipe("right"))))) in
-  let open NetKAT_Types.HeadersValues in
+  let open NetKAT_Semantics.HeadersValues in
   let pkt = default_packet { default_headers
                              with ethSrc = 1L } in
   test_from_pipes pol pkt ["left"]
@@ -257,7 +258,7 @@ TEST "right side" =
         Mod(Location(Pipe("left")))),
     Seq(Filter(Test(EthSrc 2L)),
         Mod(Location(Pipe("right"))))) in
-  let open NetKAT_Types.HeadersValues in
+  let open NetKAT_Semantics.HeadersValues in
       let pkt = default_packet { default_headers
                                  with ethSrc = 2L } in
       test_from_pipes pol pkt ["right"]
@@ -273,7 +274,7 @@ let gen_pkt =
   let open Arbitrary_Packet in
   let open Packet in
   testable_fun (NetKAT_Arbitrary.arbitrary_tcp >>= fun pkt -> ret_gen pkt)
-    (fun pkt -> NetKAT_Types.(HeadersValues.to_string pkt.headers))
+    (fun pkt -> NetKAT_Semantics.(HeadersValues.to_string pkt.headers))
     testable_bool
 
 let gen_pol_1 =
@@ -325,6 +326,7 @@ let compare_eval_output p q pkt =
   PacketSet.compare (eval pkt p) (eval pkt q) = 0
 
 let compare_compiler_output p q pkt =
+  let open NetKAT_Semantics in
   PacketSet.compare
     (Flowterp.Packet.eval pkt (NetKAT_LocalCompiler.(to_table (compile pkt.switch p))))
     (Flowterp.Packet.eval pkt (NetKAT_LocalCompiler.(to_table (compile pkt.switch q))))
@@ -341,6 +343,7 @@ let get_masking_test =
   let ip2 = Int32.of_int(192 * 256*256*256 + 168 * 256*256 + 0 * 256 + 5 * 1) in
   let filter_pol_of_ip ip =
     Seq(Filter(Test(IP4Src(ip, 24l))), Mod(Location(Physical 1l))) in
+  let open NetKAT_Semantics in
   let headers =
     { HeadersValues.location = NetKAT_Types.Physical 0l
     ; ethSrc = 0L ; ethDst = 0L ; vlan = 0 ; vlanPcp = 0 ; ethType = 0
@@ -363,6 +366,7 @@ TEST "zero mask" =
   let prop_compile_ok (pkt) =
     let pol = Seq(Filter(Test(Location(Physical 0l))),
                   Filter(Test(IP4Dst(0l,0l)))) in
+    let open NetKAT_Semantics in
     PacketSet.compare
       (NetKAT_Semantics.eval pkt (Optimize.specialize_policy pkt.switch pol))
       (Flowterp.Packet.eval pkt
@@ -376,6 +380,7 @@ TEST "semantics agree with flowtable" =
      * problem, set the location to physical port 0 on the way out.
      *)
     let p' = Seq(p, Mod(Location(Physical(0l)))) in
+    let open NetKAT_Semantics in
     PacketSet.compare
       (NetKAT_Semantics.eval pkt (Optimize.specialize_policy pkt.switch p'))
       (Flowterp.Packet.eval pkt

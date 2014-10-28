@@ -158,7 +158,7 @@
 <frenetic/*.ml{,i}>: use_netkat
 # OASIS_STOP
 <test/*.ml>: syntax_camlp4o
-<lib/*.ml>: syntax_camlp4o
+<lib/*.ml{,i}>: syntax_camlp4o
 <async/*.ml>: syntax_camlp4o
 <syntax/*.ml>: syntax_camlp4o
 true: thread
