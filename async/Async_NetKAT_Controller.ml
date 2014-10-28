@@ -676,6 +676,9 @@ let query ?(ignore_drops=true) pred t =
           Log.error ~tags "Unable to complete query: %s" (Sexp.to_string exn_))
   >>| fun () -> (!pkt, !byte)
 
+let nib t =
+  !(t.nib)
+
 let enable_discovery t =
   Discovery.start t.dis
 
