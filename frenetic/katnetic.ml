@@ -34,7 +34,7 @@ module Global = struct
         (fun sw -> NetKAT_LocalCompiler.compile sw local_pol
                    |> NetKAT_LocalCompiler.to_table
                    |> (fun t -> (sw, t)))
-        (NetKAT_GlobalCompiler.switches global_pol) in
+        (NetKAT_Misc.switches_of_policy global_pol) in
     let print_table (sw, t) =
       Format.fprintf fmt "[global] Flowtable for Switch %Ld:@\n@[%a@]@\n@\n"
         sw
