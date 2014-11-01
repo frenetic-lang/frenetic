@@ -1,5 +1,5 @@
-import netkat.flaskapp
 from netkat.syntax import *
+from netkat import webkat
 
 """Repeater for a network with one switch and two hosts"""
 
@@ -18,7 +18,7 @@ def forward(in_port, ports):
     out_ports = [port for port in ports if port != in_port]
     return filter(test("port", in_port)) >> union(modify("port", port) for port in out_ports)
 
-def handler(_, event):
+def handler(event):
     typ = event['type']
     if typ  == 'switch_up':
         sw = event['switch_id']
@@ -38,9 +38,12 @@ def handler(_, event):
         pass
     print event
     print topo
-    return policy()
+    webkat.update(policy())
+    return
+
+def main():
+    while True:
+        handler(webkat.event())
 
 if __name__ == '__main__':
-    app = netkat.flaskapp.create(state, handler)
-    app.debug = True
-    app.run()
+    main ()

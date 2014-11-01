@@ -1,9 +1,7 @@
-
 from ryu.lib.packet import packet
 import base64
-import netkat.flaskapp
+from netkat import webkat
 from netkat.syntax import *
-from netkat.result import *
 
 """Ethernet Learning switch"""
 
@@ -59,7 +57,7 @@ def policy():
 ##
 # Main handler
 ##
-def handler(_, event):
+def handler(event):
     print event
     typ = event['type']
     if typ  == 'switch_up':
@@ -86,9 +84,12 @@ def handler(_, event):
         learn(sw, pkt, pt)
     else:
         pass
-    return PolicyResult(policy())
+    webkat.update(policy())
+    return
+
+def main():
+    while True:
+        handler(webkat.event())
 
 if __name__ == '__main__':
-    app = netkat.flaskapp.create(state, handler)
-    app.debug = True
-    app.run()
+    main()

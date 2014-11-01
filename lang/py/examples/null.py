@@ -1,14 +1,14 @@
-import netkat.flaskapp
+from netkat import webkat
 from netkat.syntax import *
 
-def state():
-    pass
-
-def handler(_, event):
+def handler(event):
     print event
-    return drop()
+    return
+
+def main():
+    webkat.update(drop())
+    while True:
+        handler(webkat.event())
 
 if __name__ == '__main__':
-    app = netkat.flaskapp.create(state, handler)
-    app.debug = True
-    app.run()
+    main ()
