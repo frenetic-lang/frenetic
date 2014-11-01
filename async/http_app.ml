@@ -1,4 +1,5 @@
 module NetKAT = NetKAT_Types
+module Server = Cohttp_async.Server
 
 module Event = struct
   open NetKAT
@@ -8,7 +9,7 @@ module Event = struct
   let to_json (event : t) : Yojson.Safe.json =
     match event with
     | PacketIn (pipe, sw_id, pt_id, payload, len) ->
-      let buffer = Base64.encode (Cstruct.to_string (SDN_Types.payload_bytes payload)) in 
+      let buffer = Base64.encode (Cstruct.to_string (SDN_Types.payload_bytes payload)) in
       `Assoc [
           ("type", `String "packet_in");
           ("pipe", `String pipe);
@@ -91,7 +92,7 @@ module Event = struct
               ("switch_id", `Intlit sw_id);
               ("port_id",   `Intlit pt_id)] ->
       PortDown (Int64.of_string sw_id, Int32.of_string pt_id)
-    | _ -> 
+    | _ ->
       failwith (Printf.sprintf "of_json: unexpected input %s" (Yojson.Safe.to_string json))
 
   let of_json_string (str : string) : t =
@@ -104,68 +105,65 @@ end
 open Async.Std
 open Cohttp_async
 
-let initialize host port path =
-  let uri = Uri.make ~host ~port ~path () in
-  Client.post uri >>| fun (response, body) ->
-  let code = Cohttp.Code.code_of_status (response.Response.status) in 
-    if not (code = 201) then
-      failwith (Printf.sprintf "unexpected response: %d" code);
-    Cohttp.Header.get response.Response.headers "Location"
+let parse_pkt_out body = Body.to_string body >>= fun str ->
+  let json = Yojson.Safe.from_string str in
+  match json with
+    | `Assoc [
+       ("data", `Assoc [("actions", `List actions);
+       ("port_id", `String port);
+       ("switch_id", `String switch);
+       ("packet", `String packet)]);
+       ("type", `String "packet_out")] ->
+        let switch = Int64.of_string switch in
+        let port = Int32.of_string port in
+        let packet = SDN_Types.NotBuffered(Cstruct.of_string(Base64.decode packet)) in
+        let actions = SDN_Types.([Output Flood]) in
+      return (switch, (packet, Some (port), actions))
 
-let handler pktOut uri event =
-  let body = Body.of_string (Event.to_json_string event) in
-  Client.put ~body uri >>= fun (response, body) ->
-  match Cohttp.Code.code_of_status (response.Response.status) with
-  | 200 ->  (* 200 OK           *)
-    begin
-      Body.to_string body >>= fun str -> 
-      let json = Yojson.Safe.from_string str in 
-      match json with 
-      | `Assoc [
-          ("data", `String data); 
-          ("type", `String "policy")] -> 
-        let lex = Lexing.from_string data in 
-        let pol = NetKAT_Parser.program NetKAT_Lexer.token lex in 
-        return (Some pol)
-      | `Assoc [
-           ("data", `Assoc [("actions", `List actions);
-			    ("port_id", `String port);
-			    ("switch_id", `String switch);
-			    ("packet", `String packet)]); 	  
-	    ("type", `String "packet_out")] ->
-	 let switch = Int64.of_string switch in
-	 let port = Int32.of_string port in
-	 let packet = SDN_Types.NotBuffered(Cstruct.of_string(Base64.decode packet)) in 
-	 let actions = SDN_Types.([Output Flood]) in 
-	   Printf.printf "Received a packet\n %!";
-	   don't_wait_for 
-	     (Pipe.write pktOut (switch, (packet, Some (port), actions)));
-	   return None
-	 | _ -> 
-            failwith ("Unexpected response: " ^ Yojson.Safe.pretty_to_string json)
-    end
-  | 202    (* 202 Accepted      *)
-  | 204 -> (* 204 No Content    *)
-    return None
-  | code   (* 2xx Sucessful     *)
-      when code >= 200 && code < 300 ->
-    return None
-  | code   (* 1xx Informational *)
-      when code >= 100 && code < 200 ->
-    failwith "unhandled informational"
-  | code   (* 4xx Client Error  *)
-      when code >= 400 && code < 500 ->
-    failwith "client error"
-  | code   (* 5xx Server Error  *)
-      when code >= 500 && code < 600 ->
-    failwith "server error"
-  | _ -> assert false
+let parse_update body = Body.to_string body >>= fun str ->
+  let json = Yojson.Safe.from_string str in
+  match json with
+  | `Assoc [
+      ("data", `String data);
+      ("type", `String "policy")] ->
+    let lex = Lexing.from_string data in
+    let pol = NetKAT_Parser.program NetKAT_Lexer.token lex in
+    return pol
 
-let create policy host port ?(path="/netkat/app") () : Async_NetKAT.Policy.t Deferred.t =
-  initialize host port path
-  >>| function
-    | None       -> failwith "no location provided"
-    | Some(loc) ->
-      let uri = Uri.(of_string (pct_decode loc)) in
-      let pipes = Async_NetKAT.PipeSet.singleton "python" in 
-      Async_NetKAT.Policy.create ~pipes:pipes policy (fun _ w () -> handler w uri)
+let handle_request
+  (send : NetKAT_Types.policy Async_NetKAT.send)
+  (event_reader : NetKAT_Types.event Pipe.Reader.t)
+  ~(body : Cohttp_async.Body.t)
+  (client_addr : Socket.Address.Inet.t)
+  (request : Request.t) : Cohttp_async.Server.response Deferred.t =
+  match request.meth, (Uri.path request.uri) with
+    | `GET, "/event" ->
+      begin
+        Pipe.read event_reader >>= function
+        | `Eof -> Cohttp_async.Server.respond `Service_unavailable
+        | `Ok evt ->
+          let rsp = Event.to_json_string evt in
+          Cohttp_async.Server.respond_with_string rsp
+      end
+    | `POST, "/pkt_out" ->
+      parse_pkt_out body >>= fun pkt_out ->
+      Pipe.write send.pkt_out pkt_out >>= fun _ ->
+      Cohttp_async.Server.respond `OK
+    | `POST, "/update" ->
+      parse_update body >>= fun pol ->
+      Pipe.write send.update pol >>= fun _ ->
+      Cohttp_async.Server.respond `OK
+    | _, _ -> Cohttp_async.Server.respond `Not_found
+
+let listen ?(port=9000) =
+  let pipes = Async_NetKAT.PipeSet.singleton "http" in
+  Async_NetKAT.Policy.create_async ~pipes:pipes NetKAT_Types.drop
+    (fun topo send () ->
+       let (event_reader, event_writer) = Pipe.create () in
+       let closed = Cohttp_async.Server.create (Tcp.on_port port)
+                      (handle_request send event_reader) in
+       fun event ->
+         (* TODO(arjun): save event so it can be long-polled later *)
+         printf "Adding event to pipe: %s\n%!" (Event.to_json_string event);
+         Pipe.write_without_pushback event_writer event;
+         return None)
