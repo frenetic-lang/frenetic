@@ -1,3 +1,4 @@
+import sys
 import json
 from tornado.httpclient import *
 from tornado.concurrent import Future
@@ -32,15 +33,20 @@ def update(policy):
     
 
 def event(handler):
-    print "EVENT"
     def f(response):
         if response.error:
-            handler(None)
+            print response
         else:
             body = response.body
             handler(json.loads(body))
-    response = client.fetch("http://localhost:9000/event", callback=f)
+    request = HTTPRequest("http://localhost:9000/event",
+                          method='GET', 
+                          request_timeout=float(0))
+    response = client.fetch(request, callback=f)
     return
 
 def start():
     ioloop.IOLoop.instance().start()
+
+def callback(f):
+    ioloop.IOLoop.instance().add_callback(f)
