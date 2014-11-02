@@ -12,3 +12,4 @@ def main():
 
 if __name__ == '__main__':
     main ()
+    ioloop.IOLoop.instance().start()

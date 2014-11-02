@@ -85,11 +85,17 @@ def handler(event):
     else:
         pass
     webkat.update(policy())
-    return
+    main()
+
+def wrap(x):
+    if x is None:
+        webkat.event(wrap)
+    else:
+        handler(x)
 
 def main():
-    while True:
-        handler(webkat.event())
+    webkat.event(wrap)
 
 if __name__ == '__main__':
     main()
+    webkat.start()

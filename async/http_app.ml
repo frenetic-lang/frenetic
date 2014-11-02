@@ -136,6 +136,7 @@ let handle_request
   ~(body : Cohttp_async.Body.t)
   (client_addr : Socket.Address.Inet.t)
   (request : Request.t) : Cohttp_async.Server.response Deferred.t =
+  Printf.printf "Handle: %s\n%!" (Uri.path request.uri);
   match request.meth, (Uri.path request.uri) with
     | `GET, "/event" ->
       begin
