@@ -48,5 +48,15 @@ def event(handler):
 def start():
     ioloop.IOLoop.instance().start()
 
-def callback(f):
-    ioloop.IOLoop.instance().add_callback(f)
+def periodic(f,n):
+    cb = ioloop.PeriodicCallback(f,n * 1000)
+    cb.start()
+    return
+
+def event_loop(handler):
+    def handler_(event) :
+        handler(event)        
+        ioloop.IOLoop.instance().add_callback(loop)
+    def loop():
+        event(handler_)
+    loop()

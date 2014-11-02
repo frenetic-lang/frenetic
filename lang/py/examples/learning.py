@@ -23,7 +23,7 @@ def output(pt):
     return modify("port", pt)
 
 def controller():
-    return modify("port", "python")
+    return modify("port", "http")
 
 def flood(sw):
     ports = topo[sw]
@@ -85,11 +85,8 @@ def handler(event):
     else:
         pass
     webkat.update(policy())
-    webkat.callback(main)
-
-def main():
-    webkat.event(handler)
+    return
 
 if __name__ == '__main__':
-    main()
+    webkat.event_loop(handler)
     webkat.start()
