@@ -8,7 +8,8 @@ import base64
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
-client = AsyncHTTPClient()
+async_client = AsyncHTTPClient()
+sync_client = AsyncHTTPClient()
     
 def pkt_out(switch_id, port_id, packet):
     dict = { 'type' : 'packet_out',
@@ -19,7 +20,7 @@ def pkt_out(switch_id, port_id, packet):
     request = HTTPRequest("http://localhost:9000/pkt_out", 
                           method='POST', 
                           body=json.dumps(dict))
-    response = client.fetch(request)
+    response = async_client.fetch(request)
     return
 
 def update(policy):
@@ -28,7 +29,7 @@ def update(policy):
     request = HTTPRequest("http://localhost:9000/update", 
                           method='POST', 
                           body=json.dumps(dict))
-    response = client.fetch(request)
+    response = async_client.fetch(request)
     return
     
 
@@ -42,7 +43,7 @@ def event(handler):
     request = HTTPRequest("http://localhost:9000/event",
                           method='GET', 
                           request_timeout=float(0))
-    response = client.fetch(request, callback=f)
+    response = sync_client.fetch(request, callback=f)
     return
 
 def start():
