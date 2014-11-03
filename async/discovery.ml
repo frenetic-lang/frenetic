@@ -222,7 +222,7 @@ module Switch = struct
               | Host _ -> []
             end
         end in
-        return es
+        return (es @ [e])
       | LinkUp ((sw1, pt1), (sw2, pt2)) ->
         assert false
       | LinkDown ((sw1, pt1), (sw2, pt2)) ->
