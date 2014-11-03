@@ -30,11 +30,11 @@ Library netkat
     sexplib,
     sexplib.syntax,
     str,
+    tdk,
     threads
   InternalModules:
     Algo,
     Flowterp,
-    Headers,
     Optimize,
     Util
   Modules:

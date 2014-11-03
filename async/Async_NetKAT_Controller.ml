@@ -329,7 +329,7 @@ module BestEffort = struct
       | `Sent _   -> ()
 
   let bring_up_switch (t : Controller.t) (sw_id : SDN.switchId) (policy : NetKAT_Types.policy) =
-    let table = NetKAT_LocalCompiler.(to_table (compile sw_id policy)) in
+    let table = NetKAT_LocalCompiler.(to_table sw_id (compile policy)) in
     Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
       let c_id = Controller.client_id_of_switch_exn t sw_id in
       delete_flows_for t c_id >>= fun () ->
@@ -405,7 +405,7 @@ module PerPacketConsistent = struct
 
   let internal_install_policy_for (t : t) (ver : int) pol (sw_id : switchId) =
     Monitor.try_with ~name:"PerPacketConsistent.internal_install_policy_for" (fun () ->
-      let table0 = NetKAT_LocalCompiler.(to_table (compile sw_id pol)) in
+      let table0 = NetKAT_LocalCompiler.(to_table sw_id (compile pol)) in
       let table1 = specialize_internal_to
         ver (TUtil.internal_ports !(t.nib) sw_id) table0 in
       assert (List.length table1 > 0);
@@ -463,7 +463,7 @@ module PerPacketConsistent = struct
 
   let edge_install_policy_for (t : t) ver pol (sw_id : switchId) : unit Deferred.t =
     Monitor.try_with ~name:"PerPacketConsistent.edge_install_policy_for" (fun () ->
-      let table = NetKAT_LocalCompiler.(to_table (compile sw_id pol)) in
+      let table = NetKAT_LocalCompiler.(to_table sw_id (compile pol)) in
       let edge_table = specialize_edge_to
         ver (TUtil.internal_ports !(t.nib) sw_id) table in
       Log.debug ~tags

@@ -24,7 +24,7 @@ module HeadersValues : sig
     ; ipDst : nwAddr
     ; tcpSrcPort : tpPort
     ; tcpDstPort : tpPort
-    } with fields
+    } with sexp, fields
 
   val compare : t -> t -> int
   val to_string : t -> string

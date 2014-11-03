@@ -23,7 +23,7 @@ module Headers = struct
       match p with
         | None -> true
         | Some (x,m) ->
-          Headers.Int32TupleHeader.lessthan (Field.get f hdrs,32l) (x,m)
+          SDN_Types.Pattern.Ip.less_eq (Field.get f hdrs, 32l) (x, m)
     in
     let open Pattern in
     HeadersValues.Fields.for_all

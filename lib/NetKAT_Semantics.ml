@@ -1,22 +1,77 @@
 open Core.Std
+
 open NetKAT_Types
+open Packet
 
-
-module H = Headers.Make
-  (Headers.LocationHeader)
-  (Headers.Int64Header)
-  (Headers.IntHeader)
-  (Headers.IntHeader)
-  (Headers.IntHeader)
-  (Headers.IntHeader)
-  (Headers.Int32Header)
-  (Headers.IntHeader)
 
 (** A map keyed by header names. *)
 module HeadersValues = struct
-  include H
 
-  let to_string x = H.to_string x
+  type t =
+    { location : location sexp_opaque
+    ; ethSrc : dlAddr
+    ; ethDst : dlAddr
+    ; vlan : int16
+    ; vlanPcp : dlVlanPcp
+    ; ethType : dlTyp
+    ; ipProto : nwProto
+    ; ipSrc : nwAddr
+    ; ipDst : nwAddr
+    ; tcpSrcPort : tpPort
+    ; tcpDstPort : tpPort
+    } with sexp, fields
+
+  let compare x y =
+    (* N.B. This is intentionally unrolled for performance purposes, as the
+     * comparison should short circuit as soon as possible. In light of that
+     * fact, it may be beneficial to reorder some of these checks in the
+     * future.
+     * *)
+    let c = Pervasives.compare x.location y.location in
+    if c <> 0 then c else
+    let c = Int64.compare x.ethSrc y.ethSrc in
+    if c <> 0 then c else
+    let c = Int64.compare x.ethDst y.ethDst in
+    if c <> 0 then c else
+    let c = Int.compare x.vlan y.vlan in
+    if c <> 0 then c else
+    let c = Int.compare x.vlanPcp y.vlanPcp in
+    if c <> 0 then c else
+    let c = Int.compare x.ethType y.ethType in
+    if c <> 0 then c else
+    let c = Int.compare x.ipProto y.ipProto in
+    if c <> 0 then c else
+    let c = Int32.compare x.ipSrc y.ipSrc in
+    if c <> 0 then c else
+    let c = Int32.compare x.ipDst y.ipDst in
+    if c <> 0 then c else
+    let c = Int.compare x.tcpSrcPort y.tcpSrcPort in
+    if c <> 0 then c else
+    let c = Int.compare x.tcpDstPort y.tcpDstPort in
+    c
+
+  let to_string (x:t) : string =
+    let g to_string acc f =
+      Printf.sprintf "%s%s=%s"
+        (if acc = "" then "" else acc ^ "; ")
+        (Field.name f) (to_string (Field.get f x))
+    in
+    Fields.fold
+      ~init:""
+      ~location:(g (function
+        | Physical n -> Printf.sprintf "%lu" n
+        | Pipe x     -> Printf.sprintf "pipe(%s)" x
+        | Query x    -> Printf.sprintf "query(%s)" x))
+      ~ethSrc:Int64.(g to_string)
+      ~ethDst:Int64.(g to_string)
+      ~vlan:Int.(g to_string)
+      ~vlanPcp:Int.(g to_string)
+      ~ethType:Int.(g to_string)
+      ~ipProto:Int.(g to_string)
+      ~ipSrc:Int32.(g to_string)
+      ~ipDst:Int32.(g to_string)
+      ~tcpSrcPort:Int.(g to_string)
+      ~tcpDstPort:Int.(g to_string)
 end
 
 type packet = {
@@ -82,8 +137,10 @@ let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
       | VlanPcp n -> pkt.headers.vlanPcp = n
       | EthType n -> pkt.headers.ethType = n
       | IPProto n -> pkt.headers.ipProto = n
-      | IP4Src (n,m) -> Headers.Int32TupleHeader.lessthan (pkt.headers.ipSrc,32l) (n,m)
-      | IP4Dst (n,m) -> Headers.Int32TupleHeader.lessthan (pkt.headers.ipDst,32l) (n,m)
+      | IP4Src (n, m) ->
+        SDN_Types.Pattern.Ip.less_eq (pkt.headers.ipSrc, 32l) (n, m)
+      | IP4Dst (n, m) ->
+        SDN_Types.Pattern.Ip.less_eq (pkt.headers.ipDst, 32l) (n, m)
       | TCPSrcPort n -> pkt.headers.tcpSrcPort = n
       | TCPDstPort n -> pkt.headers.tcpDstPort = n
     end
