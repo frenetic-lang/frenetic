@@ -14,9 +14,9 @@ from networkx.readwrite import json_graph
 #
 # nib: dictionary with switches as keys and list of ports as values
 #      (jnf): this will have to change obviously when you're reprsenting
-#             the actual graph, and more. 
+#             the actual graph, and more.
 #             consider using networkx?
-## 
+##
 
 PROBE_INTERVAL = 5
 
@@ -26,14 +26,14 @@ nib = nx.DiGraph()
 # Helper functions
 ##
 
-# Extract Ethernet frame from 
+# Extract Ethernet frame from
 # Ryu packet
 def get_ethernet(pkt):
     for p in pkt:
         if p.protocol_name == 'ethernet':
             return p
 
-# NetKAT policy that diverts packets to the controller
+# NetKAT policy that diverts packets to the controllerc
 def controller():
     return modify("port", "http")
 
@@ -41,13 +41,15 @@ def controller():
 # Policy
 ###
 def policy():
-    return controller()
+    return (filter(test("ethTyp", 0x3366)) >> controller()) or (filter(test("ethTyp", 0x806)) >> controller())
 
 ##
 # Emit Probes
 ##
 def probe():
-    print "Sending Probes"
+    for node in nib.nodes():
+        for port in nib.node[node]['ports']:
+            print "sending probe",node,port
     return
 
 ##
@@ -62,6 +64,9 @@ def handler(event):
             pass
         else:
             nib.add_node(sw)
+            nib.node[sw]['ports'] = set()
+    elif typ == 'port_up':
+        nib.node[event['switch_id']]['ports'].add(event['port_id'])
     elif typ == 'switch_down':
         sw = event['switch_id']
         nib.remove_node(sw)
