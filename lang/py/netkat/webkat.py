@@ -26,7 +26,6 @@ def pkt_out(switch_id, port_id, packet):
 def update(policy):
     dict = { 'type' : 'policy',
              'data' : repr(policy) }
-    print "Policy is ", repr(policy)
     request = HTTPRequest("http://localhost:9000/update",
                           method='POST',
                           body=json.dumps(dict))
