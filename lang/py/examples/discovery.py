@@ -41,7 +41,7 @@ def controller():
 # Policy
 ###
 def policy():
-    return (filter(test("ethTyp", 0x3366)) >> controller()) or (filter(test("ethTyp", 0x806)) >> controller())
+    return (filter(test("ethTyp", 0x3366)) >> controller()) | (filter(test("ethTyp", 0x806)) >> controller())
 
 ##
 # Emit Probes
