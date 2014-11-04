@@ -1,6 +1,8 @@
 module NetKAT = NetKAT_Types
 module Server = Cohttp_async.Server
 
+let printf = Printf.printf
+
 module Event = struct
   open NetKAT
 
@@ -136,9 +138,9 @@ let handle_request
   ~(body : Cohttp_async.Body.t)
   (client_addr : Socket.Address.Inet.t)
   (request : Request.t) : Cohttp_async.Server.response Deferred.t =
-  Printf.printf "Handle: %s\n%!" (Uri.path request.uri);
   match request.meth, (Uri.path request.uri) with
     | `GET, "/event" ->
+      printf "GET /event";
       begin
         Pipe.read event_reader >>= function
         | `Eof -> Cohttp_async.Server.respond `Service_unavailable
@@ -148,10 +150,12 @@ let handle_request
       end
     | `POST, "/pkt_out" ->
       parse_pkt_out body >>= fun pkt_out ->
+      printf "POST /pkt_out\n%!";
       Pipe.write send.pkt_out pkt_out >>= fun _ ->
       Cohttp_async.Server.respond `OK
     | `POST, "/update" ->
       parse_update body >>= fun pol ->
+      printf "POST /update\n%s\n%!" (NetKAT_Pretty.string_of_policy pol);
       Pipe.write send.update pol >>= fun _ ->
       Cohttp_async.Server.respond `OK
     | _, _ -> Cohttp_async.Server.respond `Not_found
