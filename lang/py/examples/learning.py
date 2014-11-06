@@ -54,39 +54,25 @@ def switch_policy(sw):
 def policy():
     return union(switch_policy(sw) for sw in topo.keys())
 
-##
-# Main handler
-##
-def handler(event):
-    print event
-    typ = event['type']
-    if typ  == 'switch_up':
-        sw = event['switch_id']
-        topo[sw] = []
-        table[sw] = {}
-    elif typ == 'switch_down':
-        sw = event['switch_id']
-        del topo[sw]
-        del table[sw]
-    elif typ == 'port_up':
-        sw = event['switch_id']
-        pid = event['port_id']
-        topo[sw].append(pid)
-    elif typ == 'port_down':
-        sw = event['switch_id']
-        pid = event['port_id']
-        topo[sw].remove(pid)
-    elif typ == 'packet_in':
-        sw = event['switch_id']
-        pt = event['port_id']
-        bits = base64.b64decode(event['payload']['buffer'])
-        pkt = packet.Packet(bits)        
-        learn(sw, pkt, pt)
-    else:
-        pass
-    webkat.update(policy())
-    return
+class LearningApp(webkat.App):
+    def switch_up(self,switch_id):
+        topo[switch_id] = []
+        table[switch_id] = {}
+        webkat.update(policy())
+    def switch_down(self,switch_id):
+        del topo[switch_id]
+        del table[switch_id]
+        webkat.update(policy())
+    def port_up(self,switch_id, port_id):
+        topo[switch_id].append(port_id)
+        webkat.update(policy())
+    def port_down(self,switch_id, port_id):
+        topo[switch_id].remove(port_id)
+        webkat.update(policy())
+    def packet_in(self,switch_id, port_id, packet):
+        learn(switch_id,packet,port_id)
+        webkat.update(policy())
 
 if __name__ == '__main__':
-    webkat.event_loop(handler)
+    LearningApp().start()
     webkat.start()
