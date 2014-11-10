@@ -5,7 +5,7 @@ open OpenFlow0x04
 open OpenFlow0x04_Core
 open OpenFlow0x04.Message
 
-module OF0x04Controller = Async_OpenFlow0x04.Controller
+module OF0x04Controller = Async_OpenFlow.OpenFlow0x04.Controller
 
 module SwitchTable = Map.Make(OF0x04Controller.Client_id)
 
