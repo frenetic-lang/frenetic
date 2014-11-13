@@ -496,7 +496,7 @@ module Repr = struct
        NOTE that the equality check is not semantic equivalence, so this may not
        terminate when expected. In practice though, it should. *)
     let rec loop acc =
-      let acc' = T.(sum (const Action.one) (prod t acc)) in
+      let acc' = union (T.const Action.one) (seq t acc) in
       if T.equal acc acc'
         then acc
         else loop acc'
