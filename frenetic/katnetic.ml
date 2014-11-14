@@ -7,7 +7,7 @@ module Run = struct
     let main () =
       let open Async_NetKAT in
       let static = match filename with
-      | None   -> Policy.create_from_string "filter *"
+      | None   -> Policy.create_from_string "filter true"
       | Some f -> Policy.create_from_file f
       in
       let host      = not (no_host) in
