@@ -458,7 +458,7 @@ module Repr = struct
     T.const Action.(Par.singleton (Seq.singleton k v))
 
   let restrict hv t =
-    T.restrict (Pattern.of_hv hv) t
+    T.restrict [Pattern.of_hv hv] t
 
   let seq t u =
     (* Compute the sequential composition of [t] and [u] as a fold over [t]. In
@@ -476,9 +476,7 @@ module Repr = struct
     T.fold
       (fun par ->
         Action.Par.fold par ~init:(T.const Action.zero) ~f:(fun acc seq ->
-          let u' = Action.Seq.fold seq ~init:u
-            ~f:(fun ~key ~data acc -> T.restrict (key, data) acc)
-          in
+          let u' = T.restrict Action.Seq.(to_alist seq) u in
           T.(sum (prod (const Action.Par.(singleton seq)) u') acc)))
       (fun v t f ->
         T.(sum (prod (atom v Action.one Action.zero) t)
@@ -599,7 +597,7 @@ let to_table sw_id t =
         { flow with SDN.pattern = guard flow.SDN.pattern })
       in
       t' @ f)
-  Repr.T.(restrict (Field.Switch, Value.Const sw_id) t)
+  Repr.T.(restrict [(Field.Switch, Value.Const sw_id)] t)
 
 let pipes t =
   let module S = Set.Make(String) in
