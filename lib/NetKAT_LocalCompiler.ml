@@ -542,8 +542,14 @@ module Repr = struct
       (fun r -> Action.to_policy r)
       (fun v t f ->
         let p = Pattern.to_pred v in
-        Optimize.(mk_union (mk_seq (mk_filter p) t)
-                           (mk_seq (mk_filter (mk_not p)) f)))
+        let open NetKAT_Types in
+        match t, f with
+        | Filter t, Filter f ->
+          Optimize.(mk_filter (mk_or (mk_and p t)
+                                     (mk_and (mk_not p) f)))
+        | _       , _        ->
+          Optimize.(mk_union (mk_seq (mk_filter p) t)
+                             (mk_seq (mk_filter (mk_not p)) f)))
 
   let equal =
     T.equal
