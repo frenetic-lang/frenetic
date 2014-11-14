@@ -552,25 +552,10 @@ module Repr = struct
     T.to_string
 end
 
-type t = Repr.t
+include Repr
 
-let compile p =
-  Repr.of_policy p
-
-let seq =
-  Repr.seq
-
-let union =
-  Repr.union
-
-let star =
-  Repr.star
-
-let to_policy =
-  Repr.to_policy
-
-let restrict =
-  Repr.restrict
+let compile =
+  of_policy
 
 let to_table sw_id t =
   (* Convert a [t] to a flowtable for switch [sw_id]. This is implemented as a
@@ -642,9 +627,3 @@ let size =
   Repr.T.fold
     (fun r -> 1)
     (fun v t f -> 1 + t + f)
-
-let equal =
-  Repr.equal
-
-let to_string =
-  Repr.to_string
