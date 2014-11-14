@@ -90,7 +90,7 @@ mac_value :
       { $1 }
 
 vlan_value :
-  | INT16
+  | int16_value
       { Int32.to_int $1 }
   | NONE
       { Int32.to_int vlan_none }
