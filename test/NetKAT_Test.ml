@@ -27,7 +27,7 @@ let test_compile_table pol tbl =
      false)
 
 let ite (pred : pred) (then_pol : policy) (else_pol : policy) : policy =
-  Union (Seq (Filter (Neg pred), else_pol), Seq (Filter pred, then_pol))
+  Union (Seq (Filter pred, then_pol), Seq (Filter (Neg pred), else_pol))
 
 let testSrc n = Test (EthSrc (Int64.of_int n))
 let testDst n = Test (EthDst (Int64.of_int n))
@@ -51,7 +51,7 @@ TEST "compile negation of conjunction" =
   let pr = And (pr1, pr2) in
   test_compile
     (Filter (Neg pr))
-    (Union (Filter (Neg pr1), (Filter(And(pr1, Neg pr2)))))
+    (Filter (Or(And(pr1, Neg pr2), Neg pr1)))
 
 TEST "commute test annihilator" =
   test_compile
@@ -86,10 +86,8 @@ TEST "par1" =
            (modSrc 3)))
     (ite
        (testSrc 1)
-       (Union (modSrc 1,
-             modSrc 2))
-       (Union (modSrc 1,
-             modSrc 3)))
+       (Union (modSrc 2, modSrc 1))
+       (Union (modSrc 3, modSrc 1)))
 
 TEST "star id" =
   test_compile
@@ -104,16 +102,13 @@ TEST "star drop" =
 TEST "star modify1" =
   test_compile
     (Star (modSrc 1))
-    (Union (Filter True, modSrc 1))
+    (Union (modSrc 1, Filter True))
 
 TEST "star modify2" =
   test_compile
     (Star (Union (modSrc 0,
                 ite (testSrc 0) (modSrc 1) (modSrc 2))))
-    (ite
-       (testSrc 0)
-       (Union (Union (Union (Filter True, modSrc 0), modSrc 1), modSrc 2))
-       (Union (Union (Union (Filter True, modSrc 0), modSrc 1), modSrc 2)))
+     (Union (modSrc 2, Union(modSrc 1, Union(modSrc 0, Filter True))))
 
 (*
 TEST "policy that caused stack overflow on 10/16/2013" =
@@ -164,7 +159,7 @@ TEST "vlan" =
   let pol' =
     ite test_vlan_none
       mod_port1
-      (Seq (mod_vlan_none, mod_port1)) in
+      (Seq (mod_port1, mod_vlan_none)) in
   test_compile pol pol'
 
 (* Regression test for bug in expand_rules fixed on
