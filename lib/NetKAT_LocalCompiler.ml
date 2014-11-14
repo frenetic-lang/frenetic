@@ -460,6 +460,13 @@ module Repr = struct
   let restrict hv t =
     T.restrict [Pattern.of_hv hv] t
 
+  let cond v t f =
+    if T.equal t f then
+      t
+    else
+      T.(sum (prod (atom v Action.one Action.zero) t)
+             (prod (atom v Action.zero Action.one) f))
+
   let seq t u =
     (* Compute the sequential composition of [t] and [u] as a fold over [t]. In
        the case of a leaf node, each sequence [seq] of modifications is used to
@@ -485,9 +492,7 @@ module Repr = struct
           Action.Par.fold par ~init:(T.const Action.zero) ~f:(fun acc seq ->
             let u' = T.restrict Action.Seq.(to_alist seq) u in
             T.(sum (prod (const Action.Par.(singleton seq)) u') acc)))
-        (fun v t f ->
-          T.(sum (prod (atom v Action.one Action.zero) t)
-                 (prod (atom v Action.zero Action.one) f)))
+        (fun v t f -> cond v t f)
       t
 
   let union t u =
