@@ -126,9 +126,9 @@ upredicate:
 xpredicate:
   | LPAREN predicate RPAREN
       { $2 }
-  | STAR
+  | TRUE
       { True }
-  | NONE 
+  | FALSE
       { False }
   | SWITCH EQUALS int64_value
       { Test(Switch $3) }
