@@ -322,7 +322,7 @@ module Action = struct
 
   let sum (a:t) (b:t) : t =
     (* This implements parallel composition specifically for NetKAT
-       modifications and makes use of NetKAT laws to simplify results.*)
+       modifications. This automatically makes use of NetKAT laws. *)
     if Par.is_empty a then b            (* 0 + p = p *)
     else if Par.is_empty b then a       (* p + 0 = p *)
     else Par.union a b
@@ -473,15 +473,22 @@ module Repr = struct
        In the case of a branch node, the true and false branches are combined so
        that packets satisfying [v] are handled by the true branch, and packets
        not satisfying [v] are handled by the false branch. *)
-    T.fold
-      (fun par ->
-        Action.Par.fold par ~init:(T.const Action.zero) ~f:(fun acc seq ->
-          let u' = T.restrict Action.Seq.(to_alist seq) u in
-          T.(sum (prod (const Action.Par.(singleton seq)) u') acc)))
-      (fun v t f ->
-        T.(sum (prod (atom v Action.one Action.zero) t)
-               (prod (atom v Action.zero Action.one) f)))
-    t
+    match T.peek u with
+    | Some _ -> T.prod t u (* This is an optimization. If [u] is an
+                              [Action.Par.t], then it will compose with [t]
+                              regardless of however [t] modifies packets. None
+                              of the decision variables in [u] need to be
+                              removed because there are none. *)
+    | None   ->
+      T.fold
+        (fun par ->
+          Action.Par.fold par ~init:(T.const Action.zero) ~f:(fun acc seq ->
+            let u' = T.restrict Action.Seq.(to_alist seq) u in
+            T.(sum (prod (const Action.Par.(singleton seq)) u') acc)))
+        (fun v t f ->
+          T.(sum (prod (atom v Action.one Action.zero) t)
+                 (prod (atom v Action.zero Action.one) f)))
+      t
 
   let union t u =
     (* Compute the union of [t] and [u] by using the sum operation. This will
