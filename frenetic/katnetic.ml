@@ -52,7 +52,7 @@ module Dump = struct
         (NetKAT_Semantics.size p)
       in
       let c_time, i = profile (fun () -> compile p) in
-      let _ = Format.printf "@[Done [ctime=%fs, dsize=%d]@\n@]%!"
+      let _ = Format.printf "@[Done [ctime=%fs dsize=%d]@\n@]%!"
         c_time (size i)
       in
       i
@@ -76,7 +76,6 @@ module Dump = struct
 
     let local f num_switches p =
       let i = with_compile p in
-      print_endline (NetKAT_LocalCompiler.to_string i);
       let rec loop switch_id =
         if switch_id > num_switches then ()
         else begin
