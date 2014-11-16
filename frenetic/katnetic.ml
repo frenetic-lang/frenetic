@@ -29,12 +29,14 @@ module Global = struct
       Core.Std.In_channel.with_file policy_file ~f:(fun chan ->
         NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in
     let local_pol = NetKAT_GlobalCompiler.compile ingress egress global_pol in
+    let switches =
+      NetKAT_Misc.switches_of_policy (Optimize.mk_seq (NetKAT_Types.Filter ingress) global_pol) in
     let tables =
       List.map
         (fun sw -> NetKAT_LocalCompiler.compile sw local_pol
                    |> NetKAT_LocalCompiler.to_table
                    |> (fun t -> (sw, t)))
-        (NetKAT_Misc.switches_of_policy global_pol) in
+        switches in
     let print_table (sw, t) =
       Format.fprintf fmt "[global] Flowtable for Switch %Ld:@\n@[%a@]@\n@\n"
         sw
