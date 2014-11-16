@@ -42,7 +42,6 @@ module Global = struct
         sw
         SDN_Types.format_flowTable t in
     Format.fprintf fmt "@\n";
-    Format.fprintf fmt "[global] Parsed: @[%s@] @[%s@] @[%s@] @\n@\n" ingress_file egress_file policy_file;
     Format.fprintf fmt "[global] Ingress:@\n@[%a@]@\n@\n" NetKAT_Pretty.format_pred ingress;
     Format.fprintf fmt "[global] Egress:@\n@[%a@]@\n@\n" NetKAT_Pretty.format_pred egress;
     Format.fprintf fmt "[global] Input Policy:@\n@[%a@]@\n@\n" NetKAT_Pretty.format_policy global_pol;
