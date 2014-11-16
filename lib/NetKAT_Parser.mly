@@ -47,9 +47,9 @@
 
 %type <NetKAT_Types.policy> program
 
-%start predicate
+%start pred_program
 
-%type <NetKAT_Types.pred> predicate
+%type <NetKAT_Types.pred> pred_program
 
 %%
 
@@ -219,8 +219,8 @@ xpolicy:
   | LPAREN policy RPAREN 
       { $2 }
 
-predicate : 
-  | xpredicate EOF  { $1 }
+pred_program : 
+  | predicate EOF  { $1 }
 
 program : 
   | policy EOF  { $1 }

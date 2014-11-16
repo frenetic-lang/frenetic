@@ -21,10 +21,10 @@ module Global = struct
     let () = Format.pp_set_margin fmt 120 in
     let ingress =
       Core.Std.In_channel.with_file ingress_file ~f:(fun chan ->
-        NetKAT_Parser.predicate NetKAT_Lexer.token (Lexing.from_channel chan)) in
+        NetKAT_Parser.pred_program NetKAT_Lexer.token (Lexing.from_channel chan)) in
     let egress =
       Core.Std.In_channel.with_file egress_file ~f:(fun chan ->
-        NetKAT_Parser.predicate NetKAT_Lexer.token (Lexing.from_channel chan)) in
+        NetKAT_Parser.pred_program NetKAT_Lexer.token (Lexing.from_channel chan)) in
     let global_pol =
       Core.Std.In_channel.with_file policy_file ~f:(fun chan ->
         NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in
