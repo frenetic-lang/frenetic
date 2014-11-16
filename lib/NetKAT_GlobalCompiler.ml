@@ -35,24 +35,24 @@ let match_link_end sw pt pc =
   let t3 = Test (Location(Physical(pt))) in
   Filter (mk_big_and [t1; t2; t3])
 
-(** Conceptually, the cps translation transforms a given global program (that may contain links)
-    to a big union of "cps atoms" iterated by the kleene star. A cps atom is a link-free policy that
-    is guarded by a test of the program counter (and is hence only applied to packets with matching
-    program location).
-    After the guard, the atom executes the program identified by the program counter, and finally
-    sets the program counter to the continuation, i.e. the program that immediately succeeds the
-    program encapsulated by the atom.
+(** Conceptually, the CPS translation transforms a given global program (that may contain links)
+    to a big disjoint union of "CPS atoms" iterated by the kleene star. A CPS atom is a link-free
+    policy that is guarded by a test of the program counter (and is hence only applied to packets
+    with matching program location). After the guard, the atom executes the program identified by
+    the program counter, and finally sets the program counter to the continuation, i.e. the program
+    that immediately succeeds the program encapsulated by the atom.
     This conceptual idea is slightly adapted to achieve correctness and to allow for a
     differentiation of local and global programs counters. The big union is partitioned into
-    Entrance, Local, and Exit cps atoms. The Entrance atoms are those executed immediately
+    Entrance, Local, and Exit CPS atoms. The Entrance atoms are those executed immediately
     when entering a switch, the Exit atoms are thosed executed immediately before leaving a switch,
-    and the Local atoms are all those executed in between.
+    and the Local atoms are all those executed in between (basically the local component of the
+    global program).
     An Entrance atom has a global program counter and a continuation with local program
     counter (i.e. a Local atom); a Local atom has a local program counter and a continuation with a
     local program counter (i.e. a Local atom or an Exit atom); and an Exit atom has a local program
     counter and a continuation with a global program counter (i.e. an Entrance atom).
 
-    The cps function computes the sets of Entrance, Local, and Exit atoms.
+    The CPS function computes the sets of Entrance, Local, and Exit atoms.
 
     The compiler returns the policy ENTRANCE; LOCAL*; EXIT, where ENTRANCE, LOCAL, and EXIT denote
     the union of all Entrance, Local, and Exit atoms, respectively. *)
