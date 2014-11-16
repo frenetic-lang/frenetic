@@ -35,6 +35,13 @@ let match_link_end sw pt pc =
   let t3 = Test (Location(Physical(pt))) in
   Filter (mk_big_and [t1; t2; t3])
 
+let rec link_free p =
+  match p with
+  | Filter _ | Mod _ -> true
+  | Union (q,r) | Seq (q,r) -> link_free q && link_free r
+  | Star q -> link_free q
+  | Link _ -> false
+
 (** Conceptually, the CPS translation transforms a given global program (that may contain links)
     to a big disjoint union of "CPS atoms" iterated by the kleene star. A CPS atom is a link-free
     policy that is guarded by a test of the program counter (and is hence only applied to packets
@@ -63,18 +70,19 @@ type cps_policy =
 | Exit of policy
 
 let cps (p : policy) =
-  let module M = Map.Make (struct type t = switchId * portId let compare = compare end) in
+  let module Tbl = Core.Std.Hashtbl.Poly in
   let local_pc_ref = ref final_local_pc in
-  let global_pc_ref = ref M.empty in
+  let global_pc_tbl = Tbl.create () in
   let next_local_pc () =
-    (local_pc_ref := (!local_pc_ref + 1); !local_pc_ref) in
+    local_pc_ref := (!local_pc_ref + 1); !local_pc_ref in
   let next_global_pc sw pt =
-    let m = !global_pc_ref in
-    let pc = try M.find (sw, pt) m with Not_found -> initial_global_pc in
-    (global_pc_ref := M.add (sw, pt) (pc-1) m; pc) in
+    let pc = Tbl.find global_pc_tbl (sw, pt) |> Core.Std.Option.value ~default:initial_global_pc in
+    Tbl.replace global_pc_tbl ~key:(sw, pt) ~data:(pc-1); pc in
   let rec cps' p pc k =
     match p with
     | Filter _ | Mod _ ->
+       [Local (mk_big_seq [match_pc pc; p; set_pc k])]
+    | p when link_free p ->
        [Local (mk_big_seq [match_pc pc; p; set_pc k])]
     | Union (q,r) ->
        let pc_q = next_local_pc () in
