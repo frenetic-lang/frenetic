@@ -498,7 +498,10 @@ module Repr = struct
   let union t u =
     (* Compute the union of [t] and [u] by using the sum operation. This will
        appropriately combine actions for overlapping patterns. *)
-    T.sum t u
+    if T.equal t u then
+      t
+    else
+      T.sum t u
 
   let star t =
     (* Compute [star t] by iterating to a fixed point.
