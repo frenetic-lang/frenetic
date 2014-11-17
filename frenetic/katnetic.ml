@@ -3,7 +3,6 @@ module Run = struct
   open Async.Std
 
   let main update learn no_discovery no_host policy_queue_size filename =
-    let open NetKAT_LocalCompiler in
     let main () =
       let open Async_NetKAT in
       let static = match filename with
@@ -24,6 +23,41 @@ module Run = struct
       >>> fun () -> ()
     in
     never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ())
+end
+
+module Global = struct
+  let main ingress_file egress_file policy_file =
+    let fmt = Format.formatter_of_out_channel stderr in
+    let () = Format.pp_set_margin fmt 120 in
+    let ingress =
+      Core.Std.In_channel.with_file ingress_file ~f:(fun chan ->
+        NetKAT_Parser.pred_program NetKAT_Lexer.token (Lexing.from_channel chan)) in
+    let egress =
+      Core.Std.In_channel.with_file egress_file ~f:(fun chan ->
+        NetKAT_Parser.pred_program NetKAT_Lexer.token (Lexing.from_channel chan)) in
+    let global_pol =
+      Core.Std.In_channel.with_file policy_file ~f:(fun chan ->
+        NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in
+    let local_pol = NetKAT_GlobalCompiler.compile ingress egress global_pol in
+    let switches =
+      NetKAT_Misc.switches_of_policy (Optimize.mk_seq (NetKAT_Types.Filter ingress) global_pol) in
+    let tables =
+      List.map
+        (fun sw -> NetKAT_LocalCompiler.compile sw local_pol
+                   |> NetKAT_LocalCompiler.to_table
+                   |> (fun t -> (sw, t)))
+        switches in
+    let print_table (sw, t) =
+      Format.fprintf fmt "[global] Flowtable for Switch %Ld:@\n@[%a@]@\n@\n"
+        sw
+        SDN_Types.format_flowTable t in
+    Format.fprintf fmt "@\n";
+    Format.fprintf fmt "[global] Ingress:@\n@[%a@]@\n@\n" NetKAT_Pretty.format_pred ingress;
+    Format.fprintf fmt "[global] Egress:@\n@[%a@]@\n@\n" NetKAT_Pretty.format_pred egress;
+    Format.fprintf fmt "[global] Input Policy:@\n@[%a@]@\n@\n" NetKAT_Pretty.format_policy global_pol;
+    Format.fprintf fmt "[global] CPS Policy:@\n@[%a@]@\n@\n" NetKAT_Pretty.format_policy local_pol;
+    List.iter print_table tables;
+    ()
 end
 
 module Dump = struct
@@ -161,12 +195,29 @@ let dump_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.(pure Dump.Local.main $ level $ switch_id $ policy),
   Term.info "dump" ~doc
 
+let global_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
+  let doc = "invoke the global compiler and dump the resulting flow tables" in
+  let ingress_file =
+    let doc = "file containing a NetKAT predicate" in
+    Arg.(required & (pos 0 (some file) None) & info [] ~docv:"INGRESS" ~doc)
+  in
+  let egress_file =
+    let doc = "file containing a NetKAT predicate" in
+    Arg.(required & (pos 1 (some file) None) & info [] ~docv:"EGRESS" ~doc)
+  in
+  let policy_file =
+    let doc = "file containing a static global NetKAT policy" in
+    Arg.(required & (pos 2 (some file) None) & info [] ~docv:"POLICY" ~doc)
+  in
+  Term.(pure Global.main $ ingress_file $ egress_file $ policy_file),
+  Term.info "global" ~doc
+
 let default_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   let doc = "an sdn controller platform" in
   Term.(ret (pure (`Help(`Plain, None)))),
   Term.info "katnetic" ~version:"1.6.1" ~doc
 
-let cmds = [run_cmd; dump_cmd]
+let cmds = [run_cmd; dump_cmd; global_cmd]
 
 let () = match Term.eval_choice default_cmd cmds with
   | `Error _ -> exit 1 | _ -> exit 0

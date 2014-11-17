@@ -933,8 +933,27 @@ module RunTime = struct
     Action.Set.fold s ~f:f ~init:[]
 
   let simpl_flow (p : SDN_Types.Pattern.t) (a : par) : flow =
+    let rec optimize_action (s: seq) : seq = 
+      match s with 
+      | [] -> []
+      | h::t -> 
+        begin 
+          let open SDN_Types.Pattern in 
+          match h with 
+          | Modify (SetEthSrc mac) when p.dlSrc = Some mac -> optimize_action t                                                               
+          | Modify (SetEthDst mac) when p.dlDst = Some mac-> optimize_action t
+          | Modify (SetVlan n) when p.dlVlan = n -> optimize_action t
+          | Modify (SetVlanPcp n) when p.dlVlanPcp = Some n -> optimize_action t
+          | Modify (SetEthTyp n) when p.dlTyp = Some n -> optimize_action t
+          | Modify (SetIPProto n) when p.nwProto = Some n -> optimize_action t
+          | Modify (SetIP4Src ip) when p.nwSrc = Some(ip,32l)-> optimize_action t
+          | Modify (SetIP4Dst ip) when p.nwDst = Some(ip,32l) -> optimize_action t
+          | Modify (SetTCPSrcPort n) when p.tpSrc = Some n -> optimize_action t
+          | Modify (SetTCPDstPort n) when p.tpDst = Some n -> optimize_action t
+          | _ -> h :: optimize_action t 
+        end in 
     { pattern = p;
-      action = [a];
+      action = [List.map a ~f:optimize_action];
       cookie = 0L;
       idle_timeout = Permanent;
       hard_timeout = Permanent }
@@ -1123,9 +1142,20 @@ let queries t =
 let to_policy =
   Local.to_policy
 
+let cheap_fall_through t = 
+  let open SDN_Types in 
+  match List.rev t with 
+  | d::rest when d.action = [[]] -> 
+    let rec loop = function
+      | r::t when r.action = [[]] -> loop t
+      | t -> List.rev (d::t) in 
+    loop rest 
+  | _ -> t 
+    
 let to_table ?(optimize_fall_through=false) t =
-  Local_Optimize.remove_shadowed_rules
-    (RunTime.to_table t ~optimize_fall_through:optimize_fall_through)
+  cheap_fall_through 
+    (Local_Optimize.remove_shadowed_rules
+       (RunTime.to_table t ~optimize_fall_through:optimize_fall_through))
 
 let to_string =
   Local.to_string
