@@ -391,6 +391,15 @@ module Action = struct
         | _, _ -> raise (FieldValue_mismatch(key, data))
       ) :: acc)
 
+  let demod (f, v) t =
+    Par.fold t ~init:zero ~f:(fun acc seq ->
+      let seq' = match Seq.find seq f with
+        | Some(v')
+            when Value.compare v v' = 0 -> Seq.remove seq f
+        | _                             -> seq
+      in
+      sum acc (Par.singleton seq'))
+
   let to_policy t =
     let open NetKAT_Types in
     Par.fold t ~init:drop ~f:(fun acc seq ->
@@ -600,7 +609,7 @@ let to_table sw_id t =
           | (Field.Location, Value.Const p) -> Some(p)
           | _ -> in_port
         in
-        (Pattern.to_sdn v pattern, in_port, action))
+        (Pattern.to_sdn v pattern, in_port, Action.demod v action))
       in
       t' @ f)
     Repr.T.(restrict [(Field.Switch, Value.Const sw_id)] t)
