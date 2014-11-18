@@ -343,18 +343,11 @@ module Action = struct
         in
         Par.union acc r)
 
-  let to_sdn (t:t) : SDN.par =
+  let to_sdn ?(in_port:Int64.t option) (t:t) : SDN.par =
     (* Convert a NetKAT action to an SDN action. At the moment this function
        assumes that fields are assigned to proper bitwidth integers, and does
        no validation along those lines. If the input is derived from a NetKAT
-       surface syntax program, then this assumption likely holds.
-
-       XXX(seliopou): This code does not change physical port actions to in_port
-       actions when the physical port has been matched as the inport. It may be
-       better to do that during the compilation phase rather than table
-       generation. Specifically, the implementation of sequential composition
-       could do this rewrite while eliminating redundant pattern/modifications
-       on the same field and value. *)
+       surface syntax program, then this assumption likely holds. *)
     let to_int = Int64.to_int_exn in
     let to_int32 = Int64.to_int32_exn in
     let t = Par.filter t ~f:(fun seq ->
@@ -364,13 +357,17 @@ module Action = struct
       | Some(Value.Query _) -> false
       | _                   -> true)
     in
+    let to_port p = match in_port with
+      | Some(p') when p = p' -> SDN.InPort
+      | _                    -> SDN.(Physical(to_int32 p))
+    in
     Par.fold t ~init:[] ~f:(fun acc seq ->
       let open Field in
       let open Value in
       let init =
         match Seq.find seq Location with
         | None           -> [SDN.(Output(InPort))]
-        | Some (Const p) -> [SDN.(Output(Physical(to_int32 p)))]
+        | Some (Const p) -> [SDN.(Output(to_port p))]
         | Some (Pipe  _) -> [SDN.(Output(Controller 128))]
         | Some (Query _) -> assert false
         | Some mask      -> raise (FieldValue_mismatch(Location, mask))
@@ -586,24 +583,30 @@ let to_table sw_id t =
      all packets that satisfy [v]. The false branch will therefore only apply to
      packets that don't satisfy [v]. Appending the guarded true table and the
      unguarded false tables will produce a table that will match all packets. *)
-  let all action =
+  let mk_flow pattern action =
     let open SDN in
-    { pattern = Pattern.match_all
+    { pattern
     ; action
     ; cookie = 0L
     ; idle_timeout = Permanent
     ; hard_timeout = Permanent
     }
   in
-  Repr.T.fold
-    (fun r -> [all [Action.to_sdn r]])
+  let ft = Repr.T.fold
+    (fun r -> [(SDN.Pattern.match_all, None, r)])
     (fun v t f ->
-      let guard = Pattern.to_sdn v in
-      let t' = List.map t ~f:(fun flow ->
-        { flow with SDN.pattern = guard flow.SDN.pattern })
+      let t' = List.map t ~f:(fun (pattern, in_port, action) ->
+        let in_port = match v with
+          | (Field.Location, Value.Const p) -> Some(p)
+          | _ -> in_port
+        in
+        (Pattern.to_sdn v pattern, in_port, action))
       in
       t' @ f)
-  Repr.T.(restrict [(Field.Switch, Value.Const sw_id)] t)
+    Repr.T.(restrict [(Field.Switch, Value.Const sw_id)] t)
+  in
+  List.map ft ~f:(fun (pattern, in_port, action) ->
+    mk_flow pattern [Action.to_sdn ?in_port action])
 
 let pipes t =
   let module S = Set.Make(String) in
