@@ -322,7 +322,7 @@ module Action = struct
 
   let sum (a:t) (b:t) : t =
     (* This implements parallel composition specifically for NetKAT
-       modifications. This automatically makes use of NetKAT laws. *)
+       modifications. *)
     if Par.is_empty a then b            (* 0 + p = p *)
     else if Par.is_empty b then a       (* p + 0 = p *)
     else Par.union a b
