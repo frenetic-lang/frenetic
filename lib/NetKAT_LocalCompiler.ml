@@ -343,6 +343,11 @@ module Action = struct
         in
         Par.union acc r)
 
+  let negate t : t =
+    (* This implements negation for the [zero] and [one] actions. Any
+       non-[zero] action will be mapped to [zero] by this function. *)
+    if compare t zero = 0 then one else zero
+
   let to_sdn ?(in_port:Int64.t option) (t:t) : SDN.par =
     (* Convert a NetKAT action to an SDN action. At the moment this function
        assumes that fields are assigned to proper bitwidth integers, and does
@@ -529,12 +534,8 @@ module Repr = struct
     | False     -> T.const Action.zero
     | Test(hv)  -> of_test hv
     | And(p, q) -> T.prod (of_pred p) (of_pred q)
-    | Or (p, q) -> T.sum  (of_pred p) (of_pred q)
-    | Neg(q)    ->
-      let f x =
-        if Action.(compare zero x) = 0 then Action.one else Action.zero
-      in
-      T.map_r f (of_pred q)
+    | Or (p, q) -> T.sum (of_pred p) (of_pred q)
+    | Neg(q)    -> T.map_r Action.negate (of_pred q)
 
   let rec of_policy p =
     let open NetKAT_Types in
