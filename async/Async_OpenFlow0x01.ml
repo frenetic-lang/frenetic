@@ -103,8 +103,8 @@ module Controller = struct
     try begin
       send_txn t sw_id msg
       >>= function
-        | `Sent ivar -> Ivar.read ivar >>| f
-        | `Drop exn  -> return (Result.Error exn)
+        | `Sent def -> def >>| f
+        | `Drop exn -> return (Result.Error exn)
     end with Not_found -> return (Result.Error Not_found)
 
   let send_ignore_errors t sw_id msg =

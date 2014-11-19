@@ -257,7 +257,7 @@ module Controller = struct
     let ivar = Conn.add_txn conn m in
     send t c_id m
     >>| function
-      | `Sent _   -> `Sent ivar
+      | `Sent _   -> `Sent (Ivar.read ivar)
       | `Drop exn ->
         Conn.remove_txn conn m;
         `Drop exn

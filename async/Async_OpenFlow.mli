@@ -175,7 +175,7 @@ module Chunk : sig
       :  t
       -> Client_id.t
       -> m
-      -> [ `Sent of Message.t Ivar.t | `Drop of exn ] Deferred.t
+      -> [ `Sent of Message.t Deferred.t | `Drop of exn ] Deferred.t
 
     val handshake : int -> (t, e, h) Stage.t
   end
