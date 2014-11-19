@@ -177,12 +177,17 @@ let switch_version (t : t) (sw_id : SDN.switchId) =
     end
   | Some _ -> 0x01
 
-let clear_flows (t : t) (pattern : SDN.Pattern.t) (sw_id : SDN.switchId) =
-  failwith "NYI: SDN.clear_flows"
+let clear_flows ?(pattern:SDN.Pattern.t option) (t:t) (sw_id:SDN.switchId) =
+  match switch_version t sw_id with
+  | 0x01 ->
+    let pattern = Option.map pattern ~f:SDN_OpenFlow0x01.from_pattern in
+    OF0x01_Controller.clear_flows ?pattern t.sub_0x01 sw_id
+  | 0x04
+  | _ -> failwith "Unsupported version"
 
 let clear_table (t : t) (sw_id : SDN.switchId) =
   match switch_version t sw_id with
-  | 0x01 -> OF0x01_Controller.clear_table t.sub_0x01 sw_id
+  | 0x01 -> OF0x01_Controller.clear_flows t.sub_0x01 sw_id
   | 0x04 -> OF0x04_Controller.clear_table t.sub_0x04 sw_id
   | _ -> failwith "Unsupported version"
 

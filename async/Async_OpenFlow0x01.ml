@@ -202,20 +202,20 @@ module Controller = struct
     let open ChunkController in
     listen_pipe t (run (handshake 0x01) t.sub (listen t.sub))
 
-  let clear_table (t : t) (sw_id : Client_id.t) =
-    send_result t sw_id (0l, M.FlowModMsg (C.delete_all_flows))
+  let clear_flows ?(pattern=C.match_all) (t:t) (sw_id:Client_id.t) =
+    send_result t sw_id (0l, M.FlowModMsg
+      { C.delete_all_flows with C.pattern = pattern })
 
-  let send_flow_mods ?(clear=true) (t : t) (sw_id : Client_id.t) flow_mods =
-    begin if clear then clear_table t sw_id else return (Result.Ok ()) end
-    >>= function
-      | Result.Error exn -> return (Result.Error exn)
-      | Result.Ok () ->
-        let sends = List.map flow_mods
-          ~f:(fun f -> send_result t sw_id (0l, M.FlowModMsg f))
-        in
-        Deferred.Result.all_ignore sends
+  let send_flow_mods ?(clear=true) (t:t) (sw_id:Client_id.t) flow_mods =
+    let open Deferred.Result in
+    begin if clear then clear_flows t sw_id else return () end
+    >>= fun () ->
+      let sends = List.map flow_mods
+        ~f:(fun f -> send_result t sw_id (0l, M.FlowModMsg f))
+      in
+      all_ignore sends
 
-  let send_pkt_out (t : t) (sw_id : Client_id.t) pkt_out =
+  let send_pkt_out (t:t) (sw_id:Client_id.t) pkt_out =
     send_result t sw_id (0l, M.PacketOutMsg pkt_out)
 
   let barrier t sw_id =
@@ -223,7 +223,7 @@ module Controller = struct
       | M.BarrierReply -> Result.Ok ()
       | _              -> assert false)
 
-  let aggregate_stats t sw_id pattern =
+  let aggregate_stats ?(pattern=C.match_all) (t:t) sw_id =
     let open OpenFlow0x01_Stats in
     let msg = AggregateRequest
       { as_of_match = pattern
@@ -234,7 +234,7 @@ module Controller = struct
       | M.StatsReplyMsg (AggregateFlowRep r) -> Result.Ok r
       | _                                    -> assert false)
 
-  let individual_stats t sw_id pattern =
+  let individual_stats ?(pattern=C.match_all) (t:t) sw_id =
     let open OpenFlow0x01_Stats in
     let msg = IndividualRequest
       { is_of_match = pattern

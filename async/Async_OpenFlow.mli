@@ -199,13 +199,29 @@ module OpenFlow0x01 : sig
     open OpenFlow0x01_Core
     open OpenFlow0x01_Stats
 
-    val clear_table : t -> Client_id.t -> (unit, exn) Deferred.Result.t
-    val send_flow_mods : ?clear:bool -> t -> Client_id.t -> flowMod list -> (unit, exn) Deferred.Result.t
+    val clear_flows
+      :  ?pattern:pattern -> t -> Client_id.t
+      -> (unit, exn) Deferred.Result.t
 
-    val send_pkt_out : t -> Client_id.t -> packetOut -> (unit, exn) Deferred.Result.t
-    val barrier : t -> Client_id.t -> (unit, exn) Result.t Deferred.t
-    val aggregate_stats : t -> Client_id.t -> pattern -> (aggregateStats, exn) Deferred.Result.t
-    val individual_stats : t -> Client_id.t -> pattern -> (individualStats list, exn) Deferred.Result.t
+    val send_flow_mods
+      :  ?clear:bool -> t -> Client_id.t -> flowMod list
+      -> (unit, exn) Deferred.Result.t
+
+    val send_pkt_out
+      :  t -> Client_id.t -> packetOut
+      -> (unit, exn) Deferred.Result.t
+
+    val barrier
+      :  t -> Client_id.t
+      -> (unit, exn) Result.t Deferred.t
+
+    val aggregate_stats
+      :  ?pattern:pattern -> t -> Client_id.t
+      -> (aggregateStats, exn) Deferred.Result.t
+
+    val individual_stats
+      :  ?pattern:pattern -> t -> Client_id.t
+      -> (individualStats list, exn) Deferred.Result.t
   end
 
 end
