@@ -242,11 +242,25 @@ module OpenFlow0x04 : sig
 
     open OpenFlow0x04_Core
 
-    val clear_table : t -> Client_id.t -> (unit, exn) Deferred.Result.t
-    val send_flow_mods : ?clear:bool -> t -> Client_id.t -> flowMod list -> (unit, exn) Deferred.Result.t
+    val clear_flows
+      :  ?pattern:oxmMatch -> t -> Client_id.t
+      -> (unit, exn) Deferred.Result.t
 
-    val send_pkt_out : t -> Client_id.t -> packetOut -> (unit, exn) Deferred.Result.t
-    val barrier : t -> Client_id.t -> (unit, exn) Result.t Deferred.t
+    val clear_groups
+      :  ?pattern:(groupType * groupId) -> t -> Client_id.t
+      -> (unit, exn) Deferred.Result.t
+
+    val send_flow_mods
+      :  ?clear:bool -> t -> Client_id.t -> flowMod list
+      -> (unit, exn) Deferred.Result.t
+
+    val send_pkt_out
+      :  t -> Client_id.t -> packetOut
+      -> (unit, exn) Deferred.Result.t
+
+    val barrier
+      :  t -> Client_id.t
+      -> (unit, exn) Result.t Deferred.t
   end
 
 end
@@ -275,18 +289,19 @@ module SDN : sig
 
   val listen : t -> e Pipe.Reader.t
 
-  (* val clear_flows : t -> Pattern.t -> switchId -> (unit, exn) Deferred.Result.t *)
-  val clear_table : t -> switchId -> (unit, exn) Deferred.Result.t
-
-  val install_flows
-    :  ?clear:bool
-    -> t
-    -> switchId
-    -> flow list
+  val clear_flows
+    :  ?pattern:Pattern.t -> t -> switchId
     -> (unit, exn) Deferred.Result.t
 
-  val send_pkt_out : t -> switchId -> pktOut -> (unit, exn) Deferred.Result.t
+  val install_flows
+    :  ?clear:bool -> t -> switchId -> flow list
+    -> (unit, exn) Deferred.Result.t
 
-  val barrier : t -> switchId -> (unit, exn) Deferred.Result.t
+  val send_pkt_out
+    :  t -> switchId -> pktOut
+    -> (unit, exn) Deferred.Result.t
 
+  val barrier
+    :  t -> switchId
+    -> (unit, exn) Result.t Deferred.t
 end

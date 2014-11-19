@@ -21,9 +21,9 @@ type t =
   }
 
 type e = [
-  | `Connect of SDN.switchId * SDN.switchFeatures
+  | `Connect    of SDN.switchId * SDN.switchFeatures
   | `Disconnect of SDN.switchId * Sexp.t
-  | `PacketIn of SDN.switchId * SDN.pktIn
+  | `PacketIn   of SDN.switchId * SDN.pktIn
   | `PortUp     of SDN.switchId * SDN.portId
   | `PortDown   of SDN.switchId * SDN.portId ]
 
@@ -71,7 +71,9 @@ let listen_of0x01 (t : t) : Chunk_Controller.h Pipe.Writer.t * e Pipe.Reader.t =
         | `Connect(sw_id, fs) ->
           let sdn_fs =
             { SDN.switch_id = sw_id
-            ; SDN.switch_ports = List.filter_map fs.OF.SwitchFeatures.ports ~f:get_port }
+            ; SDN.switch_ports = List.filter_map fs.OF.SwitchFeatures.ports
+                ~f:get_port
+            }
           in
           Some(`Connect(sw_id, sdn_fs))
         | `Disconnect(sw_id, exn) ->
@@ -165,7 +167,7 @@ let listen (t : t) : e Pipe.Reader.t =
     match version with
     | 0x01 -> Pipe.write of0x01_w e
     | 0x04 -> Pipe.write of0x04_w e
-    | _    -> failwith "Unsupported version"));
+    | v -> failwith Printf.(sprintf "SDN.listen: unsupported version: %d" v)));
   Pipe.interleave [of0x01_r; of0x04_r]
 
 let switch_version (t : t) (sw_id : SDN.switchId) =
@@ -182,14 +184,13 @@ let clear_flows ?(pattern:SDN.Pattern.t option) (t:t) (sw_id:SDN.switchId) =
   | 0x01 ->
     let pattern = Option.map pattern ~f:SDN_OpenFlow0x01.from_pattern in
     OF0x01_Controller.clear_flows ?pattern t.sub_0x01 sw_id
-  | 0x04
-  | _ -> failwith "Unsupported version"
-
-let clear_table (t : t) (sw_id : SDN.switchId) =
-  match switch_version t sw_id with
-  | 0x01 -> OF0x01_Controller.clear_flows t.sub_0x01 sw_id
-  | 0x04 -> OF0x04_Controller.clear_table t.sub_0x04 sw_id
-  | _ -> failwith "Unsupported version"
+  | 0x04 ->
+    let pattern = match Option.map pattern ~f:SDN_OpenFlow0x04.from_pattern with
+    | Some(pattern, _) -> Some(pattern)
+    | None             -> None
+    in
+    OF0x04_Controller.clear_flows ?pattern t.sub_0x04 sw_id
+  | v -> failwith Printf.(sprintf "SDN.clear_flows: unsupported version: %d" v)
 
 let install_flows ?(clear=true) (t : t) (sw_id : SDN.switchId) flows =
   let priority = ref 65536 in
@@ -203,10 +204,11 @@ let install_flows ?(clear=true) (t : t) (sw_id : SDN.switchId) flows =
     let f flow = decr priority; SDN_OpenFlow0x04.from_flow groups !priority flow in
     let flow_mods = List.map flows ~f in
     let open Deferred.Result in
+    OF0x04_Controller.clear_groups t.sub_0x04 sw_id >>= fun () ->
     OF0x04_Controller.send_flow_mods ~clear t.sub_0x04 sw_id flow_mods >>= fun () ->
     let f group = OF0x04_Controller.send_result t.sub_0x04 sw_id (0l, group) in
     Deferred.Result.all_ignore (List.map (GroupTable0x04.commit groups) ~f)
-  | _ -> failwith "Unsupported version"
+  | v -> failwith Printf.(sprintf "SDN.install_flows: unsupported version: %d" v)
 
 let send_pkt_out (t : t) (sw_id : SDN.switchId) (pkt_out : SDN.pktOut) =
   match switch_version t sw_id with
@@ -214,10 +216,10 @@ let send_pkt_out (t : t) (sw_id : SDN.switchId) (pkt_out : SDN.pktOut) =
       (SDN_OpenFlow0x01.from_packetOut pkt_out)
   | 0x04 -> OF0x04_Controller.send_pkt_out t.sub_0x04 sw_id
       (SDN_OpenFlow0x04.from_packetOut pkt_out)
-  | _ -> failwith "Unsupported version"
+  | v -> failwith Printf.(sprintf "SDN.send_pkt_out: unsupported version: %d" v)
 
 let barrier (t : t) (sw_id : SDN.switchId) =
   match switch_version t sw_id with
   | 0x01 -> OF0x01_Controller.barrier t.sub_0x01 sw_id
   | 0x04 -> OF0x04_Controller.barrier t.sub_0x04 sw_id
-  | _ -> failwith "Unsupported version"
+  | v -> failwith Printf.(sprintf "SDN.barrier: unsupported version: %d" v)

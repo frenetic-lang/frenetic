@@ -233,20 +233,22 @@ module Controller = struct
     let open ChunkController in
     listen_pipe t (run (handshake 0x04) t.sub (listen t.sub))
 
-  let clear_table (t : t) (sw_id : Client_id.t) =
-    let flows = send_result t sw_id (0l, M.FlowModMsg C.delete_all_flows) in
-    let groups = send_result t sw_id (0l, M.GroupModMsg C.delete_all_groups) in
-    Deferred.Result.all_ignore [flows; groups]
+  let clear_flows ?(pattern=C.match_all) (t:t) (sw_id:Client_id.t) =
+    send_result t sw_id (0l, M.FlowModMsg
+      { C.delete_all_flows with C.mfOfp_match = pattern })
+
+  let clear_groups ?(pattern=C.(All,0xfffffffcl)) (t:t) (sw_id:Client_id.t) =
+    let typ, id = pattern in
+    send_result t sw_id (0l, M.GroupModMsg (C.DeleteGroup(typ, id)))
 
   let send_flow_mods ?(clear=true) (t : t) (sw_id : Client_id.t) flow_mods =
-    begin if clear then clear_table t sw_id else return (Result.Ok ()) end
-    >>= function
-      | Result.Error exn -> return (Result.Error exn)
-      | Result.Ok () ->
-        let sends = List.map flow_mods
-          ~f:(fun f -> send_result t sw_id (0l, M.FlowModMsg f))
-        in
-        Deferred.Result.all_ignore sends
+    let open Deferred.Result in
+    begin if clear then clear_flows t sw_id else return () end
+    >>= fun () ->
+      let sends = List.map flow_mods
+        ~f:(fun f -> send_result t sw_id (0l, M.FlowModMsg f))
+      in
+      all_ignore sends
 
   let send_pkt_out (t : t) (sw_id : Client_id.t) pkt_out =
     send_result t sw_id (0l, M.PacketOutMsg pkt_out)
