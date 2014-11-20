@@ -16,20 +16,17 @@ the following command:
 Development
 -----------
 
-To build from source, first ensure that you've installed all dependencies,
-which are listed in the `_oasis` file under the `Library packet` and `Library
-quickcheck` sections. Then, run the following commands:
+If you want to use the latest development version of this library, you can pin
+this directory in OPAM:
 
-    ./configure --enable-tests --enable-quickcheck
-    $ make
-    $ make test
-    $ make install
+    $ opam pin add packet .
 
-While developing, you may want to install your latest changes for testing with
-other packages. `make install` will fail when trying to reinstall, so use this
-command instead:
+If you make changes to the code, run this command to rebuild the library
+and any other libraries that depend on it (e.g., the `openflow` library):
 
-    $ make reinstall
+    $ opam install packet
+
+If you add/remove any dependencies, be sure to specify them in the `opam` file.
 
 License
 -------
