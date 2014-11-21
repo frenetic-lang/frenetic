@@ -379,6 +379,7 @@ module Action = struct
       in
       Seq.fold (Seq.remove seq Location) ~init ~f:(fun ~key ~data acc ->
         match key, data with
+        | Switch  , Const switch -> raise Non_local
         | Switch  , _ -> raise (FieldValue_mismatch(Switch, data))
         | Location, _ -> assert false
         | EthSrc  , Const dlAddr  -> SDN.(Modify(SetEthSrc dlAddr)) :: acc
