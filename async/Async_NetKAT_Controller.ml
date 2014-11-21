@@ -7,6 +7,7 @@ module Controller = Async_OpenFlow.OpenFlow0x01.Controller
 module Stage = Async_OpenFlow.Stage
 module SDN = SDN_Types
 module M = OpenFlow0x01.Message
+module LC = NetKAT_LocalCompiler
 
 type switchId = SDN_Types.switchId
 
@@ -39,7 +40,7 @@ type t = {
   dis : Discovery.t;
   txn : Txn.t;
   nib : Net.Topology.t ref;
-  mutable policy : NetKAT_Types.policy;
+  mutable repr : LC.t;
   mutable edge : (SDN_Types.flow*int) list SwitchMap.t;
 }
 
@@ -252,8 +253,6 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
           let open OpenFlow0x01_Core in
           let port_id = Int32.of_int_exn pi.port in
           let payload = SDN_OpenFlow0x01.to_payload pi.input_payload in
-          let local =
-            Optimize.specialize_policy switch_id t.policy in
           (* Eval the packet to get the list of packets that should go to
            * pipes, and the list of packets that can be forwarded to physical
            * locations.
@@ -267,7 +266,7 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
             (* XXX(seliopou): What if the packet's modified? Should buf_id be
              * exposed to the application?
              * *)
-            let pis, qus, phys = NetKAT_Semantics.eval_pipes pkt0 local in
+            let pis, qus, phys = NetKAT_LocalCompiler.eval_pipes pkt0 t.repr in
             let outs = Deferred.List.iter phys ~f:(fun pkt1 ->
               let acts = headers_to_actions pkt1.headers pkt0.headers in
               let out  = (switch_id, (payload, Some(port_id), acts)) in
@@ -311,6 +310,9 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
       end
 
 module BestEffort = struct
+  let restrict sw_id repr =
+    LC.restrict NetKAT_Types.(Switch sw_id) repr
+
   let install_flows_for (t : Controller.t) c_id table =
     let to_flow_mod p f = M.FlowModMsg (SDN_OpenFlow0x01.from_flow p f) in
     let priority = ref 65536 in
@@ -328,22 +330,28 @@ module BestEffort = struct
       | `Drop exn -> raise exn
       | `Sent _   -> ()
 
-  let bring_up_switch (t : Controller.t) (sw_id : SDN.switchId) (policy : NetKAT_Types.policy) =
-    let table = NetKAT_LocalCompiler.(to_table sw_id (compile policy)) in
-    Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
-      let c_id = Controller.client_id_of_switch_exn t sw_id in
-      delete_flows_for t c_id >>= fun () ->
-      install_flows_for t c_id table)
-    >>= function
-      | Ok x       -> return x
-      | Error _exn ->
-        Log.debug ~tags
-          "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
-        Log.flushed () >>| fun () -> Printf.eprintf "%s\n%!" (Exn.to_string _exn)
+  let bring_up_switch (t : Controller.t) (sw_id : SDN.switchId) ?old new_r =
+    match old with
+    | Some(old_r) when LC.equal (restrict sw_id old_r) (restrict sw_id new_r) ->
+      Log.debug ~tags
+        "[policy] Skipping identical policy update for swithc %Lu" sw_id ;
+      return ()
+    | _ ->
+      let table = LC.(to_table sw_id new_r) in
+      Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
+        let c_id = Controller.client_id_of_switch_exn t sw_id in
+        delete_flows_for t c_id >>= fun () ->
+        install_flows_for t c_id table)
+      >>= function
+        | Ok x       -> return x
+        | Error _exn ->
+          Log.debug ~tags
+            "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
+          Log.flushed () >>| fun () -> Printf.eprintf "%s\n%!" (Exn.to_string _exn)
 
-  let implement_policy (t : Controller.t) (nib : Net.Topology.t) (policy : NetKAT_Types.policy) =
+  let implement_policy (t : Controller.t) (nib : Net.Topology.t) ?old repr =
     Deferred.List.iter (TUtil.switch_ids nib) (fun sw_id ->
-      bring_up_switch t sw_id policy)
+      bring_up_switch t sw_id ?old repr)
 end
 
 module PerPacketConsistent = struct
@@ -403,9 +411,9 @@ module PerPacketConsistent = struct
       | Error _exn      ->
         Log.error ~tags "switch %Lu: Failed to delete flows for ver %d" sw_id ver
 
-  let internal_install_policy_for (t : t) (ver : int) pol (sw_id : switchId) =
+  let internal_install_policy_for (t : t) (ver : int) repr (sw_id : switchId) =
     Monitor.try_with ~name:"PerPacketConsistent.internal_install_policy_for" (fun () ->
-      let table0 = NetKAT_LocalCompiler.(to_table sw_id (compile pol)) in
+      let table0 = LC.(to_table sw_id repr) in
       let table1 = specialize_internal_to
         ver (TUtil.internal_ports !(t.nib) sw_id) table0 in
       assert (List.length table1 > 0);
@@ -461,9 +469,9 @@ module PerPacketConsistent = struct
       send t.ctl c_id (0l, to_flow_del prio flow))
     >>| fun () -> t.edge <- SwitchMap.add t.edge sw_id new_table
 
-  let edge_install_policy_for (t : t) ver pol (sw_id : switchId) : unit Deferred.t =
+  let edge_install_policy_for (t : t) ver repr (sw_id : switchId) : unit Deferred.t =
     Monitor.try_with ~name:"PerPacketConsistent.edge_install_policy_for" (fun () ->
-      let table = NetKAT_LocalCompiler.(to_table sw_id (compile pol)) in
+      let table = LC.(to_table sw_id repr) in
       let edge_table = specialize_edge_to
         ver (TUtil.internal_ports !(t.nib) sw_id) table in
       Log.debug ~tags
@@ -480,7 +488,7 @@ module PerPacketConsistent = struct
 
   let ver = ref 1
 
-  let implement_policy (t : t) pol : unit Deferred.t =
+  let implement_policy (t : t) repr : unit Deferred.t =
     (* XXX(seliopou): It might be better to iterate over client ids rather than
      * switch ids. A client id is guaranteed to be unique within a run of a
      * program, whereas a switch id may be reused across client ids, i.e., a
@@ -492,25 +500,25 @@ module PerPacketConsistent = struct
     Log.debug ~tags "Installing internal tables for ver %d" ver_num;
     Log.flushed ()
     >>= fun () ->
-    Deferred.List.iter switches (internal_install_policy_for t ver_num pol)
+    Deferred.List.iter switches (internal_install_policy_for t ver_num repr)
     >>= fun () ->
     (Log.debug ~tags "Installing edge tables for ver %d" ver_num;
      Log.flushed ())
     >>= fun () ->
     (* Install edge update *)
-    Deferred.List.iter switches (edge_install_policy_for t ver_num pol)
+    Deferred.List.iter switches (edge_install_policy_for t ver_num repr)
     >>= fun () ->
     (* Delete old rules *)
     Deferred.List.iter switches (clear_policy_for t.ctl (ver_num - 1))
     >>| fun () ->
       incr ver
 
-  let bring_up_switch (t : t) (sw_id : switchId) (pol : NetKAT_Types.policy) =
+  let bring_up_switch (t : t) (sw_id : switchId) repr =
     Monitor.try_with ~name:"PerPacketConsistent.bring_up_switch" (fun () ->
       let c_id = Controller.client_id_of_switch_exn t.ctl sw_id in
       BestEffort.delete_flows_for t.ctl c_id >>= fun () ->
-      internal_install_policy_for t !ver pol sw_id >>= fun () ->
-      edge_install_policy_for t !ver pol sw_id)
+      internal_install_policy_for t !ver repr sw_id >>= fun () ->
+      edge_install_policy_for t !ver repr sw_id)
     >>= function
       | Ok x -> return ()
       | Error _exn ->
@@ -552,14 +560,15 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
 
     (* Create the controller struct to contain all the state of the controller.
      * *)
-    let t = {
-      ctl = ctl;
-      dis = d_ctl;
-      txn = Txn.create ctl;
-      nib = ref (Net.Topology.empty ());
-      policy = Async_NetKAT.default app;
-      edge = SwitchMap.empty;
-    } in
+    let t =
+      { ctl = ctl
+      ; dis = d_ctl
+      ; txn = Txn.create ctl
+      ; nib = ref (Net.Topology.empty ())
+      ; repr = LC.compile (Async_NetKAT.default app)
+      ; edge = SwitchMap.empty
+      }
+    in
 
     (* Setup the controller stages. Use the provides features stage to collect
      * switch features, and sequence that with a stage that will transform
@@ -580,7 +589,8 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
       let txns     = local (fun t -> t.txn) Txn.stage in
       let events   = to_event s_pkt_out in
       let discover = local (fun t -> t.nib) d_stage in
-      features >=> txns >=> events >=> discover in
+      features >=> txns >=> events >=> discover
+    in
 
     (* Initialize the application to produce an event callback and
      * Pipe.Reader.t's for packet out messages and policy updates.
@@ -595,8 +605,8 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
     let implement_policy, bring_up_switch = match update with
       | `BestEffort ->
         BestEffort.(
-          (fun t pol -> implement_policy t.ctl !(t.nib) pol),
-          (fun t sw_id pol -> bring_up_switch t.ctl sw_id pol))
+          (fun t ?old repr -> implement_policy t.ctl !(t.nib) ?old repr),
+          (fun t sw_id ?old repr -> bring_up_switch t.ctl sw_id ?old repr))
       | `PerPacketConsistent ->
         (* XXX(seliopou): budget has to be big, otherwise consistent updates will
          * lead to deadlocks where event processing is blocked on a table update,
@@ -608,7 +618,9 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
          * topo,2,3 and achieve connectivity with --learn enabled.
          *)
         Pipe.set_size_budget events 50;
-        PerPacketConsistent.(implement_policy, bring_up_switch)
+        PerPacketConsistent.(
+          (fun t ?old repr -> implement_policy t repr),
+          (fun t sw_id ?old repr -> bring_up_switch t sw_id repr))
     in
 
     let implement_policy' t q =
@@ -617,8 +629,14 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
       if policy_queue_size > 0 then
         Log.info ~tags "[policy] Processing queue of size %d" len;
 
-      t.policy <- Queue.get q (len - 1);
-      implement_policy t t.policy
+      let old = t.repr in
+      t.repr   <- LC.compile (Queue.get q (len - 1));
+
+      if LC.equal old t.repr then begin
+        Log.debug ~tags "[policy] Skipping identical policy update";
+        return ()
+      end else
+        implement_policy t ~old t.repr
     in
 
     (* This is the main event handler for the controller. First it sends
@@ -630,9 +648,10 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
       callback e >>= fun () ->
       match e with
       | NetKAT_Types.SwitchUp sw_id ->
-        bring_up_switch t sw_id t.policy
+        bring_up_switch t sw_id t.repr
       | _ ->
-        return () in
+        return ()
+    in
 
     (* Combine the pkt_out messages receied from the application and those that
      * are generated from evaluating the policy at the controller.
