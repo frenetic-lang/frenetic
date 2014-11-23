@@ -18,23 +18,17 @@ or after installing the library:
 
 ## Development
 
-To build from source, first ensure that you've installed all dependencies,
-which are listed in the `_oasis` file under the netkat, async, and quickcheck
-`Library` sections. To install dependencies that are part of the Frenetic
-project, you may want to install a custom OPAM repository maintained that the
-Frenetic project maintains.
+If you want to use the latest development version of this library, you can pin
+this directory in OPAM:
 
-    $ opam repository add frenetic https://github.com/frenetic-lang/opam-bleeding.git
-    $ opam update
+    $ opam pin add frenetic .
 
-Once that's done, packages that are part of the Frenetic project will be
-installed from the HEAD of their master branch on github. Install those
-packages and then build and install Frenetic using the following commands:
+If you make changes to the code, run this command to rebuild the library:
 
-    ./configure --enable-tests --enable-quickcheck --enable-async
-    $ make
-    $ make test
-    $ make install
+    $ opam install frenetic
+
+If you have used OPAM to install applications that depend on Frenetic, they
+will be recompiled too.
 
 ## Usage Example
 
