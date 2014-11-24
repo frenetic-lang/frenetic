@@ -645,25 +645,6 @@ let queries t =
     t
   in
   S.to_list qs
-  Local.queries t
-
-let to_policy =
-  Local.to_policy
-
-let cheap_fall_through t = 
-  let open SDN_Types in 
-  match List.rev t with 
-  | d::rest when d.action = [[]] -> 
-    let rec loop = function
-      | r::t when r.action = [[]] -> loop t
-      | t -> List.rev (d::t) in 
-    loop rest 
-  | _ -> t 
-    
-let to_table ?(optimize_fall_through=false) t =
-  cheap_fall_through 
-    (Local_Optimize.remove_shadowed_rules
-       (RunTime.to_table t ~optimize_fall_through:optimize_fall_through))
 
 let size =
   Repr.T.fold
