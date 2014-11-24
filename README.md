@@ -16,17 +16,21 @@ the following command:
 Development
 -----------
 
-If you want to use the latest development version of this library, you can pin
-this directory in OPAM:
+**Note** that this workflow assumes that you have OPAM 1.2 installed.
 
-    $ opam pin add packet .
+To build and install from source, clone this repository and run the following
+command from its root directory:
 
-If you make changes to the code, run this command to rebuild the library
-and any other libraries that depend on it (e.g., the `openflow` library):
+    opam pin add packet .
 
-    $ opam install packet
+If you make changes to the code, run this command to rebuild the library and
+any other libraries that depend on it (e.g., the
+[openflow][http://github.com/frenetic-lang/ocaml-openflow] library):
 
-If you add/remove any dependencies, be sure to specify them in the `opam` file.
+    opam install packet
+
+When you add or remove dependencies, be sure to update both the `_oasis` and
+`opam` files.
 
 License
 -------
