@@ -25,18 +25,20 @@ or after installing the library:
 Development
 -----------
 
+To build and install from source, clone this repository and run the following
+command from its root directory:
 
-If you want to use the latest development version of this library, you can pin
-this directory in OPAM:
+    opam pin add openflow .
 
-    $ opam pin add openflow .
 
-If you make changes to the code, run this command to rebuild the library
-and any other libraries that depend on it (e.g., the `frenetic` library):
+If you make changes to the code, run this command to rebuild the library and
+any other libraries that depend on it (e.g., the
+[frenetic][http://github.com/frenetic-lang/frenetic] library):
 
-    $ opam install openflow
+    opam install openflow
 
-If you add/remove any dependencies, be sure to specify them in the `opam` file.
+When you add or remove dependencies, be sure to specify them both in the
+`_oasis` and `opam` file.
 
 License
 -------
