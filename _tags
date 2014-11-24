@@ -43,4 +43,3 @@
 <test/*.ml{,i}>: pkg_threads
 <test/*.ml{,i}>: use_topology
 # OASIS_STOP
-<test/*.ml>: syntax_camlp4o
