@@ -569,6 +569,29 @@ module Repr = struct
     T.to_string
 end
 
+(** An internal module that implements an interpreter for a [Repr.t]. This
+    interpreter uses [Repr.t] operations to find the [Action.t] that should
+    apply to the packet. Once that's found, it converts the [Action.t] into a
+    NetKAT policy and falls back to the [NetKAT_Semantics] module to process the
+    actions and produce the final [PacketSet.t] *)
+module Interp = struct
+  open NetKAT_Semantics
+
+  let eval_to_action (packet:packet) (t:Repr.t) =
+    let hvs = HeadersValues.to_hvs packet.headers in
+    let sw  = (Field.Switch, Value.of_int64 packet.switch) in
+    let vs  = List.map hvs ~f:Pattern.of_hv in
+    match Repr.T.(peek (restrict (sw :: vs) t)) with
+    | None    -> assert false
+    | Some(r) -> r
+
+  let eval (p:packet) (t:Repr.t) =
+    NetKAT_Semantics.eval p Action.(to_policy (eval_to_action p t))
+
+  let eval_pipes (p:packet) (t:Repr.t) =
+    NetKAT_Semantics.eval_pipes p Action.(to_policy (eval_to_action p t))
+end
+
 include Repr
 
 let compile =
@@ -650,3 +673,9 @@ let size =
   Repr.T.fold
     (fun r -> 1)
     (fun v t f -> 1 + t + f)
+
+let eval =
+  Interp.eval
+
+let eval_pipes =
+  Interp.eval_pipes

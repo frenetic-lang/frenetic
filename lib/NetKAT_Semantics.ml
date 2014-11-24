@@ -72,6 +72,24 @@ module HeadersValues = struct
       ~ipDst:Int32.(g to_string)
       ~tcpSrcPort:Int.(g to_string)
       ~tcpDstPort:Int.(g to_string)
+
+  let to_hvs (t:t) : NetKAT_Types.header_val list =
+    let open NetKAT_Types in
+    let conv to_hv = fun acc f -> (to_hv (Field.get f t)) :: acc in
+    Fields.fold
+      ~init:[]
+      ~location:(conv (fun x -> Location x))
+      ~ethSrc:(conv (fun x -> EthSrc x))
+      ~ethDst:(conv (fun x -> EthDst x))
+      ~vlan:(conv (fun x -> Vlan x))
+      ~vlanPcp:(conv (fun x -> VlanPcp x))
+      ~ethType:(conv (fun x -> EthType x))
+      ~ipProto:(conv (fun x -> IPProto x))
+      ~ipSrc:(conv (fun x -> IP4Src(x, 32l)))
+      ~ipDst:(conv (fun x -> IP4Dst(x, 32l)))
+      ~tcpSrcPort:(conv (fun x -> TCPSrcPort x))
+      ~tcpDstPort:(conv (fun x -> TCPDstPort x))
+
 end
 
 type packet = {
