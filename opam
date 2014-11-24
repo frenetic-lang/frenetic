@@ -1,4 +1,4 @@
-opam-version: "1.2"
+opam-version: "1"
 version: "0.3.2"
 name: "packet"
 maintainer: "Arjun Guha <arjun@cs.umass.edu>"
