@@ -28,14 +28,6 @@ eval `opam config env`
 export CAML_LD_LIBRARY_PATH="$EXTRA_LD_LIBRARY_PATH:$CAML_LD_LIBRARY_PATH"
 opam install ${OPAM_DEPENDS}
 
-for fdep in $FRENETIC_DEPENDS; do
-    echo $fdep HEAD
-    curl "https://api.github.com/repos/frenetic-lang/$fdep/git/refs/heads/master" 2>/dev/null \
-      | grep sha | cut -d\" -f4
-done
-opam repository add frenetic-opam https://github.com/frenetic-lang/opam-bleeding.git
-opam install ${FRENETIC_DEPENDS//ocaml-/}
-
 ocaml setup.ml -configure ${CONFIG_FLAGS}
 make
 make test
