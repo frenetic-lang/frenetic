@@ -152,10 +152,10 @@ let arbitrary_policy = gen_pol gen_atom_pol
 
 let arbitrary_lf_pol = gen_pol gen_lf_atom_pol
 
-let arbitrary_tcp : packet QuickCheck_gen.gen =
+let arbitrary_tcp : NetKAT_Semantics.packet QuickCheck_gen.gen =
   let open QuickCheck_gen in
   let open QuickCheck in
-  let open NetKAT_Types.Headers in
+  let open NetKAT_Semantics in
   let open Packet in
   let module Parb = Arbitrary_Packet in
   let payload = Parb.arbitrary_payload 64 in
@@ -184,7 +184,7 @@ let arbitrary_tcp : packet QuickCheck_gen.gen =
             ; payload = (SDN_Types.NotBuffered payload)
             }
 
-let arbitrary_packet : packet QuickCheck_gen.gen = 
+let arbitrary_packet : NetKAT_Semantics.packet QuickCheck_gen.gen =
   QuickCheck_gen.Gen 
     (fun _ -> failwith "arbitrary_packet: not yet implemented")    
   (* let open QuickCheck_gen in *)

@@ -25,14 +25,13 @@ Library netkat
     core,
     fieldslib,
     fieldslib.syntax,
-    ocamlgraph,
     openflow,
     sexplib,
     sexplib.syntax,
     str,
+    tdk,
     threads
   InternalModules:
-    Algo,
     Flowterp,
     Optimize,
     Util

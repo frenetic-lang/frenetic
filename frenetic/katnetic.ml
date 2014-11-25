@@ -6,7 +6,7 @@ module Run = struct
     let main () =
       let open Async_NetKAT in
       let static = match filename with
-      | None   -> Policy.create_from_string "filter *"
+      | None   -> Policy.create_from_string "filter true"
       | Some f -> Policy.create_from_file f
       in
       let host      = not (no_host) in
@@ -43,8 +43,8 @@ module Global = struct
       NetKAT_Misc.switches_of_policy (Optimize.mk_seq (NetKAT_Types.Filter ingress) global_pol) in
     let tables =
       List.map
-        (fun sw -> NetKAT_LocalCompiler.compile sw local_pol
-                   |> NetKAT_LocalCompiler.to_table
+        (fun sw -> NetKAT_LocalCompiler.compile local_pol
+                   |> NetKAT_LocalCompiler.to_table sw
                    |> (fun t -> (sw, t)))
         switches in
     let print_table (sw, t) =
@@ -80,15 +80,23 @@ module Dump = struct
 
   module Local = struct
 
-    let with_compile (sw : SDN_Types.switchId) (p : NetKAT_Types.policy) =
+    let with_compile p =
       let open NetKAT_LocalCompiler in
-      let _ =
-        Format.printf "@[Compiling switch %Ld [size=%d]...@]%!"
-          sw (NetKAT_Semantics.size p) in
-      let c_time, i = profile (fun () -> compile sw p) in
-      let t_time, t = profile (fun () -> to_table i) in
-      let _ = Format.printf "@[Done [ctime=%fs ttime=%fs tsize=%d]@\n@]%!"
-        c_time t_time (List.length t) in
+      let _ = Format.printf "@[Compiling policy [size=%d]...@]%!"
+        (NetKAT_Semantics.size p)
+      in
+      let c_time, i = profile (fun () -> compile p) in
+      let _ = Format.printf "@[Done [ctime=%fs dsize=%d]@\n@]%!"
+        c_time (size i)
+      in
+      i
+
+    let with_generate (sw : SDN_Types.switchId) i =
+      let open NetKAT_LocalCompiler in
+      let _ = Format.printf "@[Generating table for switch %Ld...@]%!" sw in
+      let t_time, t = profile (fun () -> to_table sw i) in
+      let _ = Format.printf "@[Done [ttime=%fs tsize=%d]@\n@]%!"
+        t_time (List.length t) in
       t
 
     let flowtable (sw : SDN_Types.switchId) t =
@@ -101,15 +109,15 @@ module Dump = struct
       Format.printf "@[%a@\n@\n@]%!" NetKAT_Pretty.format_policy p
 
     let local f num_switches p =
+      let i = with_compile p in
       let rec loop switch_id =
         if switch_id > num_switches then ()
         else begin
-          let swL = Int64.of_int32 switch_id in
-          let sw_p = NetKAT_Types.(Seq(Filter(Test(Switch swL)), p)) in
-          let t = with_compile swL sw_p in
-          f swL t; loop Int32.(switch_id + 1l)
-        end in
-      loop 0l
+          let t = with_generate switch_id i in
+          f switch_id t; loop Int64.(switch_id + 1L)
+        end
+      in
+      loop 0L
 
     let all sw_num p =
       policy p;
@@ -170,7 +178,7 @@ let dump_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   let doc = "dump per-switch compiler results and statistics" in
   let switch_id =
     let doc = "the maximum switch id in the policy" in
-    Arg.(required & (pos 0 (some int32) None) & info [] ~docv:"NUM_SWITCHES" ~doc)
+    Arg.(required & (pos 0 (some int64) None) & info [] ~docv:"NUM_SWITCHES" ~doc)
   in
   let level =
     let doc = "Dump all compiler information (default)" in
