@@ -43,8 +43,8 @@ module Global = struct
       NetKAT_Misc.switches_of_policy (Optimize.mk_seq (NetKAT_Types.Filter ingress) global_pol) in
     let tables =
       List.map
-        (fun sw -> NetKAT_LocalCompiler.compile sw local_pol
-                   |> NetKAT_LocalCompiler.to_table
+        (fun sw -> NetKAT_LocalCompiler.compile local_pol
+                   |> NetKAT_LocalCompiler.to_table sw
                    |> (fun t -> (sw, t)))
         switches in
     let print_table (sw, t) =
