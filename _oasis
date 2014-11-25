@@ -88,7 +88,6 @@ Library async
   InternalModules:
     Discovery,
     Learning,
-    Http_app,
     Raw_app,
     TUtil,
     Txn
@@ -142,11 +141,11 @@ Executable katnetic
     netkat,
     netkat.async
 
-Executable webkat
-  Path: frenetic
-  MainIs: webkat.ml
+Executable frenetic_http
+  Path: http
+  MainIs: Main.ml
   Build$: flag(async)
-  Install: false
+  Install: true
   CompiledObject: native
   BuildDepends:
     async,

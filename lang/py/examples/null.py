@@ -1,15 +1,14 @@
+from ryu.lib.packet import packet
+import base64
 from netkat import webkat
 from netkat.syntax import *
 
-def handler(event):
-    print event
-    return
-
-def main():
+class NullApp(webkat.App):
+  def switch_up(self,switch_id):
     webkat.update(drop())
-    while True:
-        handler(webkat.event())
+
 
 if __name__ == '__main__':
-    main ()
-    ioloop.IOLoop.instance().start()
+    webkat.client_id = "null"
+    NullApp().start()
+    webkat.start()

@@ -110,6 +110,7 @@ def handler(event):
     return
 
 def main():
+    webkat.client_id = "discovery"
     webkat.update(policy())
     webkat.event_loop(handler)
     webkat.periodic(probe,PROBE_INTERVAL)

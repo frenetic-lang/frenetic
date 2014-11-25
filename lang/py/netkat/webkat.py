@@ -11,6 +11,8 @@ AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 async_client = AsyncHTTPClient()
 sync_client = AsyncHTTPClient()
 
+client_id = "default"
+
 def pkt_out(switch_id, port_id, packet):
     dict = { 'type' : 'packet_out',
              'data' : { 'switch_id' : repr(switch_id),
@@ -26,7 +28,7 @@ def pkt_out(switch_id, port_id, packet):
 def update(policy):
     dict = { 'type' : 'policy',
              'data' : repr(policy) }
-    request = HTTPRequest("http://localhost:9000/update",
+    request = HTTPRequest("http://localhost:9000/%s/update" % client_id,
                           method='POST',
                           body=json.dumps(dict))
     response = async_client.fetch(request)
@@ -97,7 +99,7 @@ class App:
                 switch_id = event['switch_id']
                 port_id = event['port_id']
                 # TODO(jnf): this is expensive might not want to
-                # decode and parse the packet here 
+                # decode and parse the packet here
                 bits = base64.b64decode(event['payload']['buffer'])
                 pkt = packet.Packet(bits)
                 self.packet_in(switch_id, port_id, pkt)
