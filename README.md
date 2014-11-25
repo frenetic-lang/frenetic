@@ -16,20 +16,21 @@ the following command:
 Development
 -----------
 
-To build from source, first ensure that you've installed all dependencies,
-which are listed in the `_oasis` file under the `Library packet` and `Library
-quickcheck` sections. Then, run the following commands:
+**Note** that this workflow assumes that you have OPAM 1.2 installed.
 
-    ./configure --enable-tests --enable-quickcheck
-    $ make
-    $ make test
-    $ make install
+To build and install from source, clone this repository and run the following
+command from its root directory:
 
-While developing, you may want to install your latest changes for testing with
-other packages. `make install` will fail when trying to reinstall, so use this
-command instead:
+    opam pin add packet .
 
-    $ make reinstall
+If you make changes to the code, run this command to rebuild the library and
+any other libraries that depend on it (e.g., the
+[openflow][http://github.com/frenetic-lang/ocaml-openflow] library):
+
+    opam install packet
+
+When you add or remove dependencies, be sure to update both the `_oasis` and
+`opam` files.
 
 License
 -------
