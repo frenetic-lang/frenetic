@@ -9,26 +9,27 @@ An open-source SDN controller platform.
 You can install the latest release from [OPAM](http://opam.ocamlpro.com/) using
 the following command:
 
-    $ opam install frenetic
+    opam install frenetic
 
 To install the async subpackage, simply ensure that async is installed before
 or after installing the library:
 
-    $ opam install async
+    opam install async
 
 ## Development
 
-If you want to use the latest development version of this library, you can pin
-this directory in OPAM:
+To build and install from source, clone this repository and run the following
+command from its root directory:
 
-    $ opam pin add frenetic .
+    opam pin add frenetic .
 
-If you make changes to the code, run this command to rebuild the library:
+If you make changes to the code, run this command to rebuild the library and
+any other libraries that depend on it:
 
-    $ opam install frenetic
+    opam install frenetic
 
-If you have used OPAM to install applications that depend on Frenetic, they
-will be recompiled too.
+When you add or remove dependencies, be sure to specify them both in the
+`_oasis` and `opam` file.
 
 ## Usage Example
 
