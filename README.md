@@ -25,20 +25,20 @@ or after installing the library:
 Development
 -----------
 
-To build from source, first ensure that you've installed all dependencies,
-which are listed in the `_oasis` file under the openflow, async, and quickcheck
-`Library` sections. Then, run the following commands:
+To build and install from source, clone this repository and run the following
+command from its root directory:
 
-    ./configure --enable-tests --enable-quickcheck --enable-async
-    $ make
-    $ make test
-    $ make install
+    opam pin add openflow .
 
-While developing, you may want to install your latest changes for testing with
-other packages. `make install` will fail when trying to reinstall, so use this
-command instead:
 
-    $ make reinstall
+If you make changes to the code, run this command to rebuild the library and
+any other libraries that depend on it (e.g., the
+[frenetic][http://github.com/frenetic-lang/frenetic] library):
+
+    opam install openflow
+
+When you add or remove dependencies, be sure to specify them both in the
+`_oasis` and `opam` file.
 
 License
 -------
