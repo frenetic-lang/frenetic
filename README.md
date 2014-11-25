@@ -11,20 +11,24 @@ Installation
 You can install the latest release from [OPAM](http://opam.ocamlpro.com/) using
 the following command:
 
-    $ opam install topology
+    opam install topology
 
-To build from source, first ensure that you've installed all dependencies,
-which are listed in the `_oasis` file under the `Library topology` section.
-Then, run the following commands:
+Development
+-----------
 
-    $ make
-    $ make install
+To build and install from source, clone this repository and run the following
+command from its root directory:
 
-While developing, you may want to install your latest changes for testing with
-other packages. `make install` will fail when trying to reinstall, so use this
-command instead:
+    opam pin add topology .
 
-    $ make reinstall
+If you make changes to the code, run this command to rebuild the library and
+any other libraries that depend on it (e.g., the
+[frenetic][http://github.com/frenetic-lang/frenetic] library):
+
+    opam install topology
+
+When you add or remove dependencies, be sure to specify them both in the
+`_oasis` and `opam` file.
 
 License
 -------
