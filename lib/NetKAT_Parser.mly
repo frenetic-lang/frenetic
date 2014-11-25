@@ -94,7 +94,7 @@ mac_value :
       { $1 }
 
 vlan_value :
-  | INT16
+  | int16_value
       { Int32.to_int $1 }
   | NONE
       { Int32.to_int vlan_none }
@@ -130,9 +130,9 @@ upredicate:
 xpredicate:
   | LPAREN predicate RPAREN
       { $2 }
-  | STAR
+  | TRUE
       { True }
-  | NONE 
+  | FALSE
       { False }
   | SWITCH EQUALS int64_value
       { Test(Switch $3) }
