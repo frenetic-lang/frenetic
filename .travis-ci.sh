@@ -5,6 +5,9 @@ case "$OCAML_VERSION,$OPAM_VERSION" in
 4.00.1,1.1.0) ppa=avsm/ocaml40+opam11 ;;
 4.01.0,1.0.0) ppa=avsm/ocaml41+opam10 ;;
 4.01.0,1.1.0) ppa=avsm/ocaml41+opam11 ;;
+4.01.0,1.2.0) ppa=avsm/ocaml41+opam12 ;;
+4.02.0,1.1.0) ppa=avsm/ocaml42+opam11 ;;
+4.02.0,1.2.0) ppa=avsm/ocaml42+opam12 ;;
 *) echo Unknown $OCAML_VERSION,$OPAM_VERSION; exit 1 ;;
 esac
 
@@ -20,9 +23,10 @@ echo OPAM versions
 opam --version
 opam --git-version
 
-(cd $HOME && curl "https://s3.amazonaws.com/opam-street/opam-street.tar.gz" | tar xz)
+(cd $HOME && curl "https://s3.amazonaws.com/opam-street/opam-street.${OCAML_VERSION}_${OPAM_VERSION}.tar.gz" | tar xz)
 eval `opam config env`
 export CAML_LD_LIBRARY_PATH="$EXTRA_LD_LIBRARY_PATH:$CAML_LD_LIBRARY_PATH"
+export OPAMCRITERIA="-removed,-changed,-notuptodate"
 opam install ${OPAM_DEPENDS}
 
 for fdep in $FRENETIC_DEPENDS; do
