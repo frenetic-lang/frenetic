@@ -252,7 +252,7 @@ module Link = struct
 end
 
 module Weight = struct
-  type label = Link.t
+  type edge = Link.t
   type t = float
   let weight l = 
     let open Link in 

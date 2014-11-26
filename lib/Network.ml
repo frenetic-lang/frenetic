@@ -22,9 +22,9 @@ end
 
 module type WEIGHT = sig
   type t
-  type label
+  type edge
 
-  val weight : label -> t
+  val weight : edge -> t
   val compare : t -> t -> int
   val add : t -> t -> t
   val zero : t
@@ -41,9 +41,9 @@ module type NETWORK = sig
     module Vertex : VERTEX
     module Edge : EDGE
 
-    module UnitWeight : WEIGHT 
-      with type t = int 
-      and type label = Edge.t
+    module UnitWeight : WEIGHT
+      with type t = int
+      and type edge = Edge.t
 
     module EdgeSet : Set.S
       with type elt = edge
@@ -106,18 +106,18 @@ module type NETWORK = sig
   end
 
   (* Paths *)
-  module type PATH = sig 
-    type weight 
+  module type PATH = sig
+    type weight
     type t = Topology.edge list
     exception NegativeCycle of t
-        
+
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
     val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
     val all_pairs_shortest_paths : Topology.t
       -> (weight * Topology.vertex * Topology.vertex * Topology.vertex list) list
   end
 
-  module Path (Weight : WEIGHT with type label = Topology.Edge.t) : 
+  module Path (Weight : WEIGHT with type edge = Topology.Edge.t) :
     PATH with type weight = Weight.t
 
   module UnitPath : PATH
@@ -184,7 +184,7 @@ struct
     end
 
     module UnitWeight = struct
-      type label = Edge.t
+      type edge = Edge.t
       type t = int
       let weight _ = 1
       let compare = Pervasives.compare
@@ -304,7 +304,7 @@ struct
       l.EL.label
 
     let edge_to_string (t:t) (e:edge) : string =
-      let (_,e,_) = e in 
+      let (_,e,_) = e in
       EL.to_string e
 
     let edge_src (e:edge) : (vertex * port) =
@@ -400,30 +400,30 @@ struct
   end
 
   (* Paths *)
-  module type PATH = sig 
-    type weight 
+  module type PATH = sig
+    type weight
     type t = Topology.edge list
     exception NegativeCycle of t
-        
+
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
     val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
     val all_pairs_shortest_paths : Topology.t
       -> (weight * Topology.vertex * Topology.vertex * Topology.vertex list) list
   end
 
-  module Path = functor (Weight : WEIGHT with type label = Topology.Edge.t) ->
+  module Path = functor (Weight : WEIGHT with type edge = Topology.Edge.t) ->
   struct
     open Topology
 
     module WL = struct
       type t = Weight.t
-      type label = EL.t
+      type edge = P.E.t
 
-      let weight l = Weight.weight (l.EL.label)
+      let weight e = Weight.weight ((P.E.label e).EL.label)
       let compare = Weight.compare
       let add = Weight.add
       let zero = Weight.zero
-    end 
+    end
 
     module Dijkstra = Graph.Path.Dijkstra(P)(WL)
 
@@ -451,8 +451,8 @@ struct
         let rec traverse_parent x ret =
           let e = VertexHash.find admissible x in
           let s,_ = edge_src e in
-          if s = x0 then e :: ret else traverse_parent s (e :: ret) in 
-        traverse_parent x0 [] in 
+          if s = x0 then e :: ret else traverse_parent s (e :: ret) in
+        traverse_parent x0 [] in
       let find_cycle x0 =
         let rec visit x visited =
           if VertexSet.mem x visited then
@@ -488,7 +488,7 @@ struct
           | Some x ->
             if i == P.nb_vertex t.graph then raise (NegativeCycle (find_cycle x))
             else relax (i + 1)
-          | None -> prev in 
+          | None -> prev in
       let r = relax 0 in
       r
 
@@ -538,11 +538,11 @@ struct
       let paths = ref [] in
       Array.iteri (fun i array ->
         Array.iteri (fun j elt ->
-          match elt with 
+          match elt with
             | None, _ -> ()
-            | Some w, p -> 
-              paths := (w, vxs.(i), vxs.(j),p) :: !paths) 
-          array;) 
+            | Some w, p ->
+              paths := (w, vxs.(i), vxs.(j),p) :: !paths)
+          array;)
         matrix;
       !paths
   end
