@@ -23,7 +23,7 @@ echo OPAM versions
 opam --version
 opam --git-version
 
-(cd $HOME && curl "https://s3.amazonaws.com/opam-street/opam-street.tar.gz" | tar xz)
+(cd $HOME && curl "https://s3.amazonaws.com/opam-street/opam-street.${OCAML_VERSION}_${OPAM_VERSION}.tar.gz" | tar xz)
 eval `opam config env`
 export CAML_LD_LIBRARY_PATH="$EXTRA_LD_LIBRARY_PATH:$CAML_LD_LIBRARY_PATH"
 opam install ${OPAM_DEPENDS}
