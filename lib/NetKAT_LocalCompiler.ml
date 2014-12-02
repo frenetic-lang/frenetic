@@ -355,12 +355,18 @@ module Action = struct
        surface syntax program, then this assumption likely holds. *)
     let to_int = Int64.to_int_exn in
     let to_int32 = Int64.to_int32_exn in
-    let t = Par.filter t ~f:(fun seq ->
+    let t = Par.filter_map t ~f:(fun seq ->
       (* Queries are equivalent to drop, so remove any [Seq.t]'s from the
-       * [Par.t] that set the location to a query. *)
+       * [Par.t] that set the location to a query.
+       *
+       * Pipe locations are no longer relevant to compilation, so rewrite all
+       * all of them to the empty string. This will allow multiple singleton
+       * [Seq.t]'s of port location assignments in a [Par.t] to be collapsed
+       * into into one. *)
       match Seq.find seq Field.Location with
-      | Some(Value.Query _) -> false
-      | _                   -> true)
+      | Some(Value.Query _) -> None
+      | Some(Value.Pipe  _) -> Some(Seq.add seq Field.Location (Value.Pipe ""))
+      | _                   -> Some(seq))
     in
     let to_port p = match in_port with
       | Some(p') when p = p' -> SDN.InPort
