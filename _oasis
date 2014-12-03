@@ -154,6 +154,19 @@ Executable frenetic_http
     netkat,
     netkat.async
 
+Executable compiler_http
+  Path: http
+  MainIs: Compiler.ml
+  Build$: flag(async)
+  Install: true
+  CompiledObject: native
+  BuildDepends:
+    async,
+    cmdliner,
+    core,
+    netkat,
+    netkat.async
+
 Executable test_updates
   Path: frenetic
   MainIs: test_updates.ml
