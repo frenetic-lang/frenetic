@@ -34,7 +34,6 @@ def update(policy):
     response = async_client.fetch(request)
     return
 
-
 def event(handler):
     def f(response):
         if response.error:

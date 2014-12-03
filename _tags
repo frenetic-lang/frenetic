@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 5534034a348da5fd870524e5365c2c2a)
+# DO NOT EDIT (digest: 2f0fe4fdf08cf2b620f1103b3dd6d54c)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -157,6 +157,29 @@ true: annot, bin_annot
 "http/Main.native": package(yojson)
 "http/Main.native": use_async
 "http/Main.native": use_netkat
+# Executable compiler_http
+"http/Compiler.native": package(async)
+"http/Compiler.native": package(base64)
+"http/Compiler.native": package(cmdliner)
+"http/Compiler.native": package(cohttp)
+"http/Compiler.native": package(cohttp.async)
+"http/Compiler.native": package(core)
+"http/Compiler.native": package(cstruct)
+"http/Compiler.native": package(cstruct.syntax)
+"http/Compiler.native": package(fieldslib)
+"http/Compiler.native": package(fieldslib.syntax)
+"http/Compiler.native": package(ocamlgraph)
+"http/Compiler.native": package(openflow)
+"http/Compiler.native": package(openflow.async)
+"http/Compiler.native": package(packet)
+"http/Compiler.native": package(sexplib)
+"http/Compiler.native": package(sexplib.syntax)
+"http/Compiler.native": package(str)
+"http/Compiler.native": package(threads)
+"http/Compiler.native": package(topology)
+"http/Compiler.native": package(yojson)
+"http/Compiler.native": use_async
+"http/Compiler.native": use_netkat
 <http/*.ml{,i,y}>: package(async)
 <http/*.ml{,i,y}>: package(base64)
 <http/*.ml{,i,y}>: package(cmdliner)

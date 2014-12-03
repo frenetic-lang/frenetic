@@ -79,7 +79,6 @@ class Pred:
     def __repr__(self):
         return self._repr()
 
-
 def true():
     """ The true Pred """
     return Pred(Pred.P_TRUE)
