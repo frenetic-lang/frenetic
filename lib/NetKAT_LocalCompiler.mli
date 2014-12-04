@@ -1,8 +1,14 @@
 open NetKAT_Types
+open NetKAT_Semantics
+
 open SDN_Types
+
 
 type t
 (** The type of the intermediate compiler representation. *)
+
+
+(** {2 Compilation} *)
 
 exception Non_local
 (** The exception that's thrown when the compiler is given a policy with a
@@ -13,6 +19,21 @@ val compile : policy -> t
 (** [compile p] returns the intermediate representation of the policy [p].
     You can generate a flowtable from [t] by passing it to the {!to_table}
     function below. *)
+
+val restrict : header_val -> t -> t
+(** [restrict hv t] returns the fragment of [t] that applies when the assignment
+    [hv] is true. The result will no longer make any reference to the header
+    named in [hv]. This is equivalent to traversing the original NetKAT
+    syntax tree and replacing all occurrences of [Test(hv)] with [True].
+
+    This function is called by {!to_table} to restrict [t] to the portion that
+    should run on a single switch. *)
+
+val to_table : switchId -> t -> flowTable
+(** [to_table sw t] returns a flowtable that implements [t] for switch [sw]. *)
+
+
+(** {2 Composition} *)
 
 val seq : t -> t -> t
 (** [seq p q] returns the sequential composotion of the two intermediate
@@ -31,22 +52,8 @@ val star : t -> t
     is semantically equivalent to the star of the policy from which [p] was
     derived. *)
 
-val to_policy : t -> policy
-(** [to_policy t] returns a NetKAT policy that is semantically equivalent to
-    [t]. If was generated from compiling a policy [p], it is not guarateed that
-    [to_policy t] will be identical to [p]. *)
 
-val restrict : header_val -> t -> t
-(** [restrict hv t] returns the fragment of [t] that applies when the assignment
-    [hv] is true. The result will no longer make any reference to the header
-    named in [hv]. This is equivalent to traversing the original NetKAT
-    syntax tree and replacing all occurrences of [Test(hv)] with [True].
-
-    This function is called by {!to_table} to restrict [t] to the portion that
-    should run on a single switch. *)
-
-val to_table : switchId -> t -> flowTable
-(** [to_table sw t] returns a flowtable that implements [t] for switch [sw]. *)
+(** {2 Utilities} *)
 
 val pipes : t -> string list
 (** [pipes t] returns the list of pipe names that occur in [t]. *)
@@ -68,6 +75,27 @@ val equal : t -> t -> bool
 val size : t -> int
 (** [size t] returns the size of [t]. *)
 
+val to_policy : t -> policy
+(** [to_policy t] returns a NetKAT policy that is semantically equivalent to
+    [t]. If was generated from compiling a policy [p], it is not guarateed that
+    [to_policy t] will be identical to [p]. *)
+
 val to_string : t -> string
 (** [to_string t] returns a string representation of [t]. This will be a
     representation of the Vlr diagram from the tdk package. *)
+
+
+(** {2 Interpreter} *)
+
+val eval : packet -> t -> PacketSet.t
+(** [eval pkt t] returns a [PacketSet.t] that is the result of the packet [pkt]
+    being run through the policy represented by [t]. *)
+
+val eval_pipes
+  : packet -> t -> (string * packet) list * (string * packet) list * packet list
+(** [eval_pipes pkt t] returns the result of running the packet [pkt] through
+    the policy represented by [t], with packets grouped according to the type of
+    location to which the policy assigns them. The result is a triple whose
+    first component is a list of packets and corresponding pipe location, whose
+    second is a list of packets and corresponding query location, and whose
+    third is a list of packets that are at physical locations. *)

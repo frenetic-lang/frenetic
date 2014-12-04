@@ -28,6 +28,7 @@ module HeadersValues : sig
 
   val compare : t -> t -> int
   val to_string : t -> string
+  val to_hvs : t -> header_val list
 end
 
 type packet = {
@@ -39,11 +40,7 @@ type packet = {
 module PacketSet : Set.S
   with type Elt.t = packet
     
-(** {2 Semantics}
- 
-  [eval pkt pol] raises [Not_found] if it tests or updates a header that  [pkt]
-  does not have. This behavior is different from OpenFlow, which fails  silently
-  in both cases. *)
+(** {2 Semantics} *)
   
 val eval : packet -> policy -> PacketSet.t
 val eval_pipes :  packet
