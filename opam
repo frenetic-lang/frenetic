@@ -1,6 +1,6 @@
 opam-version: "1"
 ocaml-version: [ >= "4.01.0" ]
-version: "0.7.0"
+version: "0.8.0"
 name: "openflow"
 maintainer: "Spiros Eliopoulos <seliopou@gmail.com>"
 build: [
