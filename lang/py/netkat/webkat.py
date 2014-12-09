@@ -41,7 +41,7 @@ def event(handler):
         else:
             body = response.body
             handler(json.loads(body))
-    request = HTTPRequest("http://localhost:9000/event",
+    request = HTTPRequest("http://localhost:9000/%s/event" % client_id,
                           method='GET',
                           request_timeout=float(0))
     response = sync_client.fetch(request, callback=f)

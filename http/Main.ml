@@ -4,6 +4,14 @@ open Cohttp_async
 open NetKAT_Types
 module Server = Cohttp_async.Server
 
+type client = {
+  (* Write new policies to this node *)
+  policy_node: (DynGraph.cannot_receive, policy) DynGraph.t;
+  (* Read from this pipe to send events *)
+  event_reader: event Pipe.Reader.t;
+  (* Write to this pipe when new event received from the network *)
+  event_writer: event Pipe.Writer.t
+}
 
 (* Output log messages tagged (http, http) *)
 let _ =
@@ -20,16 +28,20 @@ let unions (pols : policy list) : policy =
 
 let pol : (policy, policy) DynGraph.t = DynGraph.create drop unions
 
-let clients : (string, (DynGraph.cannot_receive, policy) DynGraph.t) Hashtbl.t = Hashtbl.Poly.create ()
+let clients : (string, client) Hashtbl.t = Hashtbl.Poly.create ()
+
+let iter_clients (f : string -> client -> unit) : unit =
+  Hashtbl.iter clients ~f:(fun ~key ~data -> f key data)
 
 (* Gets the client's node in the dataflow graph, or creates it if doesn't exist *)
-let get_client_node (clientId: string): (DynGraph.cannot_receive, policy) DynGraph.t =
+let get_client (clientId: string): client =
   Hashtbl.find_or_add clients clientId
      ~default:(fun () ->
                printf ~level:`Info "New client %s" clientId;
                let node = DynGraph.create_source drop in
                DynGraph.attach node pol;
-               node)
+               let (r, w) = Pipe.create () in
+               { policy_node = node; event_reader = r; event_writer =  w})
 
 
 (* Extract the path, split on slashes, and remove empty strings caused by
@@ -62,14 +74,13 @@ let handle_parse_errors
 
 let handle_request
   (send : policy Async_NetKAT.send)
-  (event_reader : event Pipe.Reader.t)
   ~(body : Cohttp_async.Body.t)
   (client_addr : Socket.Address.Inet.t)
   (request : Request.t) : Server.response Deferred.t =
   match request.meth, extract_path request with
-    | `GET, ["event"] ->
+    | `GET, [clientId; "event"] ->
       printf "GET /event";
-      long_poll event_reader
+      long_poll (get_client clientId).event_reader
       >>= fun evt ->
       Server.respond_with_string (NetKAT_Json.event_to_json_string evt)
     | `POST, ["pkt_out"] ->
@@ -82,8 +93,7 @@ let handle_request
       handle_parse_errors body NetKAT_Json.parse_update
       (fun pol ->
          printf "POST /%s/update\n%s\n%!" clientId (NetKAT_Pretty.string_of_policy pol);
-         let node = get_client_node clientId in
-         DynGraph.push pol node;
+         DynGraph.push pol (get_client clientId).policy_node;
          Cohttp_async.Server.respond `OK)
     | _, _ -> printf "Got garbage from Client"; Cohttp_async.Server.respond `Not_found
 
@@ -95,11 +105,12 @@ let listen ?(port=9000) =
        let _ = Pipe.transfer_id pol_reader send.update in
        let (event_reader, event_writer) = Pipe.create () in
        let closed = Cohttp_async.Server.create (Tcp.on_port port)
-                      (handle_request send event_reader) in
+                      (handle_request send) in
        fun event ->
          (* TODO(arjun): save event so it can be long-polled later (wtf) *)
          printf "Adding event to pipe: %s\n%!" (NetKAT_Json.event_to_json_string event);
-         Pipe.write_without_pushback event_writer event;
+         iter_clients (fun _ client ->
+           Pipe.write_without_pushback client.event_writer event);
          return None)
 
 
