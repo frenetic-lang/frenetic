@@ -488,6 +488,7 @@ module Repr = struct
     let pat  = Pattern.of_hv hv in
     let repr = T.atom pat Action.one Action.zero in
     match pat with
+    | (Field.IPProto, _)
     | (Field.IP4Src, _)
     | (Field.IP4Dst, _) -> ip_guard repr
     | (Field.TCPSrcPort, _)
