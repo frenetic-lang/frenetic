@@ -497,7 +497,14 @@ module Repr = struct
 
   let of_mod hv =
     let k, v = Pattern.of_hv hv in
-    T.const Action.(Par.singleton (Seq.singleton k v))
+    let repr = T.const Action.(Par.singleton (Seq.singleton k v)) in
+    match k with
+    | Field.IPProto
+    | Field.IP4Src
+    | Field.IP4Dst -> ip_guard repr
+    | Field.TCPSrcPort
+    | Field.TCPDstPort -> tcp_guard repr
+    | _ -> repr
 
   let seq t u =
     (* Compute the sequential composition of [t] and [u] as a fold over [t]. In
