@@ -484,27 +484,22 @@ module Repr = struct
   let tcp_guard t =
     cond (Field.IPProto, Value.Const 0x06L) (ip_guard t) (T.const Action.zero)
 
-  let of_test hv =
-    let pat  = Pattern.of_hv hv in
-    let repr = T.atom pat Action.one Action.zero in
-    match pat with
-    | (Field.IPProto, _)
-    | (Field.IP4Src, _)
-    | (Field.IP4Dst, _) -> ip_guard repr
-    | (Field.TCPSrcPort, _)
-    | (Field.TCPDstPort, _) -> tcp_guard repr
-    | _ -> repr
-
-  let of_mod hv =
-    let k, v = Pattern.of_hv hv in
-    let repr = T.const Action.(Par.singleton (Seq.singleton k v)) in
+  let guard k t =
     match k with
     | Field.IPProto
     | Field.IP4Src
-    | Field.IP4Dst -> ip_guard repr
+    | Field.IP4Dst -> ip_guard t
     | Field.TCPSrcPort
-    | Field.TCPDstPort -> tcp_guard repr
-    | _ -> repr
+    | Field.TCPDstPort -> tcp_guard t
+    | _ -> t
+
+  let of_test hv =
+    let k, v  = Pattern.of_hv hv in
+    guard k (T.atom (k, v) Action.one Action.zero)
+
+  let of_mod hv =
+    let k, v = Pattern.of_hv hv in
+    guard k (T.const Action.(Par.singleton (Seq.singleton k v)))
 
   let seq t u =
     (* Compute the sequential composition of [t] and [u] as a fold over [t]. In
