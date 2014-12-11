@@ -25,16 +25,30 @@ module Controller = struct
   open Async.Std
 
   module Platform = Platform.Make(Message)
-  module Client_id = Platform.Client_id
+  module Client_id = struct
+    module T = struct
+      type t = Platform.Client_id.t with sexp
+      let compare = compare
+      let hash = Hashtbl.hash
+    end
+    include T
+    include Hashable.Make(T)
+  end
 
-  module ClientTbl = Hashtbl.Make(Client_id)
+  module Xid = Int32
+  module XidTbl = Hashtbl.Make(Int32)
 
   exception Handshake of Client_id.t * string
+  exception Duplicate_xid of Xid.t
 
   module Conn = struct
+    type r = [ `Disconnect of Sexp.t | `Result of Message.t ]
+
     type t = {
       state : [ `Active | `Idle | `Kill ];
       version : int option;
+      mutable xid : int32;
+      txns : r Ivar.t XidTbl.t;
       state_entered : Time.t;
       last_activity : Time.t
     }
@@ -43,9 +57,45 @@ module Controller = struct
       let now = Time.now () in
       { state = `Active
       ; version = None
+      ; xid = 1l
+      ; txns = XidTbl.create ()
       ; state_entered = now
       ; last_activity = now
       }
+
+    let next_xid (t:t) =
+      let xid = t.xid in
+      t.xid <- Int32.(xid + 1l);
+      xid
+
+    let add_txn (t:t) m =
+      let xid = (Message.header_of m).OpenFlow_Header.xid in
+      let ivar = ref None in
+      if not (xid = 0l) then
+        XidTbl.change t.txns xid (function
+          | None    -> let ivar = ref (Some(Ivar.create ())) in !ivar
+          | Some(_) -> None);
+      match !ivar with
+      | Some(ivar) -> ivar
+      | None       -> raise (Duplicate_xid xid)
+
+    let remove_txn (t:t) m =
+      let xid = (Message.header_of m).OpenFlow_Header.xid in
+      XidTbl.remove t.txns xid
+
+    let match_txn (t:t) m =
+      let xid = (Message.header_of m).OpenFlow_Header.xid in
+      match xid, XidTbl.find_and_remove t.txns xid with
+      | 0l, _
+      | _ , None ->
+        `Unmatched
+      | _, Some(ivar) ->
+        Ivar.fill ivar (`Result m);
+        `Matched
+
+    let clear_txns (t:t) exn_ =
+      XidTbl.iter_vals t.txns ~f:(fun ivar -> Ivar.fill ivar (`Disconnect exn_));
+      XidTbl.clear t.txns
 
     let activity (t:t) : t =
       let t = { t with last_activity = Time.now () } in
@@ -75,13 +125,14 @@ module Controller = struct
 
   type t = {
     platform : Platform.t;
-    clients  : Conn.t ClientTbl.t;
+    clients  : Conn.t Client_id.Table.t;
     mutable monitor_interval : Time.Span.t;
     mutable idle_wait : Time.Span.t;
     mutable kill_wait : Time.Span.t;
   }
 
   type m = Platform.m
+  type c = unit
   type e = Platform.e
   type h = [
       | `Connect of Client_id.t * int
@@ -100,44 +151,44 @@ module Controller = struct
 
   module Handler = struct
     let connect (t:t) (c_id:Client_id.t) =
-      ClientTbl.add_exn t.clients c_id (Conn.create ())
+      Client_id.Table.add_exn t.clients c_id (Conn.create ())
 
     let handshake (t:t) (c_id:Client_id.t) (version:int) =
-      ClientTbl.change t.clients c_id (function
+      Client_id.Table.change t.clients c_id (function
         | None       -> assert false
         | Some(conn) -> Some(Conn.complete_handshake conn version))
 
     let activity (t:t) (c_id:Client_id.t) =
-      ClientTbl.change t.clients c_id (function
+      Client_id.Table.change t.clients c_id (function
         | None       -> assert false
         | Some(conn) -> Some(Conn.activity conn))
 
     let idle (t:t) (c_id:Client_id.t) (span : Time.Span.t) =
-      ClientTbl.change t.clients c_id (function
+      Client_id.Table.change t.clients c_id (function
         | None       -> assert false
         | Some(conn) ->
           let conn', change = Conn.idle conn span in
           if change then begin
-            printf "client %s marked as idle... probing\n%!" (Client_id.to_string c_id);
+            printf "client %s marked as idle... probing\n%!" (Platform.Client_id.to_string c_id);
             let echo_req = echo_request conn'.Conn.version in
             let result = Result.try_with (fun () ->
               Platform.send_ignore_errors t.platform c_id echo_req) in
             match result with
               | Error exn ->
                 printf "client %s write failed: %s\n%!"
-                  (Client_id.to_string c_id) (Exn.to_string exn);
+                  (Platform.Client_id.to_string c_id) (Exn.to_string exn);
                 Platform.close t.platform c_id
               | Ok () -> ()
           end;
           Some(conn'))
 
     let kill (t:t) (c_id:Client_id.t) (span : Time.Span.t) =
-      ClientTbl.change t.clients c_id (function
+      Client_id.Table.change t.clients c_id (function
         | None       -> assert false
         | Some(conn) ->
           let conn', change = Conn.kill conn span in
           if change then begin
-            printf "client %s killed\n%!" (Client_id.to_string c_id);
+            printf "client %s killed\n%!" (Platform.Client_id.to_string c_id);
             Platform.close t.platform c_id;
           end;
           Some(conn'))
@@ -146,7 +197,7 @@ module Controller = struct
   module Mon = struct
     let rec monitor t f =
       after t.monitor_interval >>> fun () ->
-      ClientTbl.iter t.clients (fun ~key:c_id ~data:_ -> f t c_id);
+      Client_id.Table.iter t.clients (fun ~key:c_id ~data:_ -> f t c_id);
       monitor t f
 
     let rec mark_idle t =
@@ -175,7 +226,7 @@ module Controller = struct
     >>| function t ->
       let ctl = {
         platform = t;
-        clients = ClientTbl.create ();
+        clients = Client_id.Table.create ();
         monitor_interval = Time.Span.of_ms 500.0;
         idle_wait = Time.Span.of_sec 5.0;
         kill_wait = Time.Span.of_sec 3.0;
@@ -186,14 +237,12 @@ module Controller = struct
       end;
       ctl
 
-  let listen t = Platform.listen t.platform
-
   let close t c_id =
     Platform.close t.platform c_id
 
   let has_client_id t c_id =
     Platform.has_client_id t.platform c_id &&
-      match ClientTbl.find t.clients c_id with
+      match Client_id.Table.find t.clients c_id with
         | Some({ Conn.version = Some(_) }) -> true
         | _                                -> false
 
@@ -203,16 +252,34 @@ module Controller = struct
       | `Sent x -> Handler.activity t c_id; `Sent x
       | `Drop x -> `Drop x
 
+  let send_txn t c_id m =
+    let conn = Client_id.Table.find_exn t.clients c_id in
+    let ivar = Conn.add_txn conn m in
+    send t c_id m
+    >>| function
+      | `Sent _   -> `Sent (Ivar.read ivar)
+      | `Drop exn ->
+        Conn.remove_txn conn m;
+        `Drop exn
+
   let send_ignore_errors t = Platform.send_ignore_errors t.platform
 
   let send_to_all t = Platform.send_to_all t.platform
   let client_addr_port t = Platform.client_addr_port t.platform
   let listening_port t = Platform.listening_port t.platform
 
+  let client_version t c_id =
+    match (Client_id.Table.find_exn t.clients c_id).Conn.version with
+    | None      -> raise Not_found
+    | Some(ver) -> ver
+
+  let client_next_xid t c_id =
+    Conn.next_xid (Client_id.Table.find_exn t.clients c_id)
+
   let handshake v t evt =
     let open Header in
     match evt with
-      | `Connect c_id ->
+      | `Connect (c_id, ()) ->
         Handler.connect t c_id;
         let header = { version = v; type_code = type_code_hello;
                        length = size; xid = 0l; } in
@@ -226,7 +293,7 @@ module Controller = struct
          * *)
         >>| (function _ -> [])
       | `Message (c_id, msg) ->
-        begin match ClientTbl.find t.clients c_id with
+        begin match Client_id.Table.find t.clients c_id with
           | None -> assert false
           | Some({ Conn.version = None }) ->
             let hdr, bits = msg in
@@ -245,13 +312,13 @@ module Controller = struct
             return [`Message (c_id, msg)]
         end
       | `Disconnect (c_id, exn) ->
-        begin match ClientTbl.find t.clients c_id with
+        begin match Client_id.Table.find t.clients c_id with
           | None -> assert false
           | Some({ Conn.version = None }) ->
-            ClientTbl.remove t.clients c_id;
+            Client_id.Table.remove t.clients c_id;
             return []
           | Some(_) ->
-            ClientTbl.remove t.clients c_id;
+            Client_id.Table.remove t.clients c_id;
             return [`Disconnect (c_id, exn)]
         end
 
@@ -280,4 +347,24 @@ module Controller = struct
           return [evt]
         end
       | _ -> return [evt]
+
+  let txn t evt =
+    match evt with
+      | `Message (c_id, msg) ->
+        let conn = Client_id.Table.find_exn t.clients c_id in
+        begin match Conn.match_txn conn msg with
+        | `Matched   -> return []
+        | `Unmatched -> return [evt]
+        end
+      | `Disconnect(c_id, exn_) ->
+        let conn = Client_id.Table.find_exn t.clients c_id in
+        Conn.clear_txns conn exn_;
+        return [evt]
+      | _ ->
+        return [evt]
+
+  let listen t =
+    let open Async_OpenFlow_Stage in
+    run (echo >=> txn) t (Platform.listen t.platform)
+
 end

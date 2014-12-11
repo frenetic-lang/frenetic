@@ -7,7 +7,7 @@ open Async_OpenFlow
 
 let handle_switch platform (features : switchFeatures) : unit Deferred.t =
   let open Pattern in
-  Highlevel.setup_flow_table platform features.switch_id
+  SDN.install_flows platform features.switch_id
     [{ pattern = { match_all with inPort = Some(1l) };
        action = [ [[Output (Physical 2l)]] ];
        cookie = 0L;
@@ -21,12 +21,18 @@ let handle_switch platform (features : switchFeatures) : unit Deferred.t =
        hard_timeout = Permanent
      }
     ]
-  >>= fun () ->
-  (Printf.printf "Installed switch %Ld\n%!" features.switch_id;
-   return ())
+  >>| function
+    | Result.Ok () -> Printf.printf "Installed switch %Ld\n%!" features.switch_id
+    | Result.Error exn ->
+      Printf.eprintf  "Error: %s\n%!" (Exn.to_string exn)
 
-let () =
-  let _ = Highlevel.create ~port:6633 ()
-          >>= fun platform ->
-          Pipe.iter (Highlevel.accept_switches platform) (handle_switch platform) 
-  in never_returns (Scheduler.go ())
+let main () =
+  SDN.create ~port:6633 ()
+  >>> fun ctl ->
+    Deferred.don't_wait_for (Pipe.iter (SDN.listen ctl) ~f:(function
+      | `Connect(sw_id, features) -> handle_switch ctl features
+      | `Disconnect _
+      | _ ->
+        Printf.printf "Ignoring non-connect event\n%!"; return ()))
+
+let () = never_returns (Scheduler.go_main ~main ())
