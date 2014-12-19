@@ -1,6 +1,86 @@
 """ Representation of NetKAT abstract syntax tree. """
+import base64
 
 __all__ = [ 'true', 'false', 'test', 'filter', 'modify', 'id', 'drop', 'seq', 'union' ]
+
+class action:
+    pass
+
+class pseudoPort:
+    pass
+
+class physical(pseudoPort):
+
+    def __init__(self, port):
+        assert (port >= 1 and port <= 65535)
+        self.port = port
+
+    def to_json(self):
+        return { "type": "physical", "port": self.port }
+
+class output(action):
+
+    def __init__(self, p):
+        assert isinstance(p, pseudoPort)
+        self.pseudoPort = p
+
+    def to_json(self):
+        return { "type": "output", "pseudoport": self.pseudoPort.to_json() }
+
+class payload:
+    pass
+
+    @staticmethod
+    def from_json(json):
+        # TODO(arjun): fix names on the OCaml side
+        if json['id'] == None:
+            return notbuffered(base64.b64decode(json['buffer']))
+        else:
+            # TODO(arjun): may have some bytes. do not discard
+            return buffered(json['id'])
+
+
+class buffered(payload):
+
+    def __init__(self, buffer_id):
+        assert type(buffer_id) == int
+        self.buffer_id = buffer_id
+
+    def to_json(self):
+        return { "type": "buffered", "bufferid": self.buffer_id }
+
+class notbuffered(payload):
+
+    def __init__(self, data):
+        self.data = data
+
+    def to_json(self):
+        return { "type": "notbuffered", "data": base64.b64encode(self.data) }
+
+
+class packet_out():
+
+    def __init__(self, switch, payload, actions, in_port = None):
+        assert type(switch) == int
+        assert in_port == None or type(in_port) == int
+        self.switch = switch
+        self.payload = payload
+        self.actions = actions
+        self.in_port = in_port
+
+    def to_json(self):
+        return { "switch": self.switch,
+                 "in_port": self.in_port,
+                 "actions": [ action.to_json() for action in self.actions ],
+                 "payload": self.payload.to_json() }
+
+class packet_in():
+
+    def __init__(self, json):
+        assert (json['type'] == 'packet_in')
+        self.switch_id = json['switch_id']
+        self.port_id = json['port_id']
+        self.payload = payload.from_json(json['payload'])
 
 class Pred:
     """ A class to represent NetKAT predicates. This class's constructor should
@@ -70,7 +150,7 @@ class Pred:
                 strd = "*"
             else:
                 strd = " or ".join([p._repr(self.P_OR) for p in self.args])
-                
+
             if parent is None or parent == self.P_OR:
                 return strd
             else:

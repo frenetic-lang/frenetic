@@ -5,6 +5,7 @@ from tornado.concurrent import Future
 from tornado import ioloop
 from ryu.lib.packet import packet
 import base64
+from netkat.syntax import packet_in, packet_out
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
@@ -13,15 +14,11 @@ sync_client = AsyncHTTPClient()
 
 client_id = "default"
 
-def pkt_out(switch_id, port_id, packet):
-    dict = { 'type' : 'packet_out',
-             'data' : { 'switch_id' : repr(switch_id),
-                        'port_id' : repr(port_id),
-                        'packet' : base64.b64encode(packet),
-                        'actions' : [] }}
+def pkt_out(switch, payload, actions, in_port = None):
+    msg = packet_out(switch=switch, payload=payload,actions=actions,in_port=in_port)
     request = HTTPRequest("http://localhost:9000/pkt_out",
                           method='POST',
-                          body=json.dumps(dict))
+                          body=json.dumps(msg.to_json()))
     response = async_client.fetch(request)
     return
 
@@ -74,7 +71,7 @@ class App:
         pass
     def port_down(self,switch_id, port_id):
         pass
-    def packet_in(self,switch_id, port_id, packet):
+    def packet_in(self, switch_id, port_id, payload):
         pass
     def start(self):
         def handler(event):
@@ -95,13 +92,8 @@ class App:
                 port_id = event['port_id']
                 self.port_down(switch_id, port_id)
             elif typ == 'packet_in':
-                switch_id = event['switch_id']
-                port_id = event['port_id']
-                # TODO(jnf): this is expensive might not want to
-                # decode and parse the packet here
-                bits = base64.b64decode(event['payload']['buffer'])
-                pkt = packet.Packet(bits)
-                self.packet_in(switch_id, port_id, pkt)
+                pk = packet_in(event)
+                self.packet_in(pk.switch_id, pk.port_id, pk.payload)
             else:
                 pass
             ioloop.IOLoop.instance().add_callback(loop)
