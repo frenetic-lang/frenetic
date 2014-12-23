@@ -1,5 +1,7 @@
+open Core_kernel.Std
+
 module type VERTEX = sig
-  type t
+  type t with sexp
 
   val compare : t -> t -> int
   val to_string : t -> string
@@ -10,7 +12,7 @@ module type VERTEX = sig
 end
 
 module type EDGE = sig
-  type t
+  type t with sexp
 
   val compare : t -> t -> int
   val to_string : t -> string
@@ -21,8 +23,8 @@ module type EDGE = sig
 end
 
 module type WEIGHT = sig
-  type t
-  type label
+  type t with sexp
+  type label with sexp
 
   val weight : label -> t
   val compare : t -> t -> int
@@ -34,8 +36,8 @@ module type NETWORK = sig
   module Topology : sig
     type t
 
-    type vertex
-    type edge
+    type vertex with sexp
+    type edge with sexp
     type port = int32
 
     module Vertex : VERTEX
@@ -46,16 +48,16 @@ module type NETWORK = sig
       and type label = Edge.t
 
     module EdgeSet : Set.S
-      with type elt = edge
+      with type Elt.t = edge
 
     module VertexSet : Set.S
-      with type elt = vertex
+      with type Elt.t = vertex
 
     module VertexHash : Hashtbl.S
       with type key = vertex
 
     module PortSet : Set.S
-      with type elt = port
+      with type Elt.t = port
 
     (* Constructors *)
     val copy : t -> t

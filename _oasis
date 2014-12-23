@@ -11,6 +11,9 @@ BuildTools:
 Library topology
   Path: lib
   BuildDepends:
+    core_kernel,
+    sexplib,
+    sexplib.syntax,
     packet,
     ocamlgraph,
     threads

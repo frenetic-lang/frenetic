@@ -9,4 +9,4 @@ build: [
 remove: [
   ["ocamlfind" "remove" "topology"]
 ]
-depends: ["ocamlfind" "ocamlgraph" "packet"]
+depends: ["ocamlfind" "core_kernel" "sexplib" "ocamlgraph" "packet"]
