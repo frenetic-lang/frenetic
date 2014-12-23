@@ -2,7 +2,7 @@ language: c
 script: bash -ex .travis-ci.sh
 env:
   global:
-    - OPAM_DEPENDS="core comparelib ocamlgraph oUnit pa_ounit "
+    - OPAM_DEPENDS="core_kernel sexplib ocamlgraph oUnit pa_ounit"
     - CONFIG_FLAGS="--enable-tests"
     - FRENETIC_DEPENDS="ocaml-packet"
   matrix:
