@@ -1,7 +1,7 @@
 open Core_kernel.Std
 
 module type VERTEX = sig
-  type t with sexp, compare
+  type t with sexp
 
   val compare : t -> t -> int
   val to_string : t -> string
@@ -12,7 +12,7 @@ module type VERTEX = sig
 end
 
 module type EDGE = sig
-  type t with sexp, compare
+  type t with sexp
 
   val compare : t -> t -> int
   val to_string : t -> string
@@ -23,8 +23,8 @@ module type EDGE = sig
 end
 
 module type WEIGHT = sig
-  type t with sexp, compare
-  type label with sexp, compare
+  type t with sexp
+  type label with sexp
 
   val weight : label -> t
   val compare : t -> t -> int
@@ -36,8 +36,8 @@ module type NETWORK = sig
   module Topology : sig
     type t
 
-    type vertex with sexp, compare
-    type edge with sexp, compare
+    type vertex with sexp
+    type edge with sexp
     type port = int32
 
     module Vertex : VERTEX
@@ -149,7 +149,7 @@ module Make : MAKE =
     functor (Edge:EDGE) ->
 struct
   module Topology = struct
-    type port = int32 with sexp, compare
+    type port = int32 with sexp
     module PortSet = Set.Make(Int32)
     module PortMap = Map.Make(Int32)
 
@@ -159,7 +159,7 @@ struct
     module VL = struct
       type t =
           { id : int;
-            label : Vertex.t } with sexp, compare
+            label : Vertex.t } with sexp
       let compare n1 n2 = Pervasives.compare n1.id n2.id
       let hash n1 = Hashtbl.hash n1.id
       let equal n1 n2 = n1.id = n2.id
@@ -173,7 +173,7 @@ struct
       type t = { id : int;
                  label : Edge.t;
                  src : port;
-                 dst : port } with sexp, compare
+                 dst : port } with sexp
       let compare e1 e2 = Pervasives.compare e1.id e2.id
       let hash e1 = Hashtbl.hash e1.id
       let equal e1 e2 = e1.id = e2.id
@@ -186,8 +186,8 @@ struct
     end
 
     module UnitWeight = struct
-      type label = Edge.t with sexp, compare
-      type t = int with sexp, compare
+      type label = Edge.t with sexp
+      type t = int with sexp
       let weight _ = 1
       let compare = Pervasives.compare
       let add = (+)
@@ -195,7 +195,7 @@ struct
     end
 
     module EdgeSet = Set.Make(struct
-      type t = VL.t * EL.t * VL.t  with sexp, compare
+      type t = VL.t * EL.t * VL.t  with sexp
       let compare (e1:t) (e2:t) : int =
         let (_,l1,_) = e1 in
         let (_,l2,_) = e2 in
@@ -204,9 +204,9 @@ struct
 
     module P = Graph.Persistent.Digraph.ConcreteBidirectionalLabeled(VL)(EL)
 
-    type vertex = VL.t with sexp, compare
+    type vertex = VL.t with sexp
 
-    type edge = vertex * EL.t * vertex with sexp, compare
+    type edge = vertex * EL.t * vertex with sexp
 
     type t =
         { graph : P.t;

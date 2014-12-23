@@ -14,8 +14,6 @@ Library topology
     core_kernel,
     sexplib,
     sexplib.syntax,
-    comparelib,
-    comparelib.syntax,
     packet,
     ocamlgraph,
     threads

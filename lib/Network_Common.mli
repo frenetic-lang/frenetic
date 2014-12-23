@@ -3,7 +3,7 @@ open Network
 
 module Node : sig
   include VERTEX
-  type device = Switch | Host | Middlebox with sexp, compare
+  type device = Switch | Host | Middlebox with sexp
 
   val default : t
   val create : string -> int64 -> device -> int32 -> int64 -> t

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 4e7ee9767064009c1b865be30bd85d0b)
+# DO NOT EDIT (digest: 60803501d65976a49afe38fe419f47b7)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -16,8 +16,6 @@ true: annot, bin_annot
 "_darcs": not_hygienic
 # Library topology
 "lib/topology.cmxs": use_topology
-<lib/*.ml{,i,y}>: pkg_comparelib
-<lib/*.ml{,i,y}>: pkg_comparelib.syntax
 <lib/*.ml{,i,y}>: pkg_core_kernel
 <lib/*.ml{,i,y}>: pkg_ocamlgraph
 <lib/*.ml{,i,y}>: pkg_packet
@@ -25,8 +23,6 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: pkg_sexplib.syntax
 <lib/*.ml{,i,y}>: pkg_threads
 # Executable topotool
-"exe/topology.byte": pkg_comparelib
-"exe/topology.byte": pkg_comparelib.syntax
 "exe/topology.byte": pkg_core_kernel
 "exe/topology.byte": pkg_ocamlgraph
 "exe/topology.byte": pkg_packet
@@ -34,8 +30,6 @@ true: annot, bin_annot
 "exe/topology.byte": pkg_sexplib.syntax
 "exe/topology.byte": pkg_threads
 "exe/topology.byte": use_topology
-<exe/*.ml{,i,y}>: pkg_comparelib
-<exe/*.ml{,i,y}>: pkg_comparelib.syntax
 <exe/*.ml{,i,y}>: pkg_core_kernel
 <exe/*.ml{,i,y}>: pkg_ocamlgraph
 <exe/*.ml{,i,y}>: pkg_packet
@@ -44,8 +38,6 @@ true: annot, bin_annot
 <exe/*.ml{,i,y}>: pkg_threads
 <exe/*.ml{,i,y}>: use_topology
 # Executable unittest
-"test/Test.byte": pkg_comparelib
-"test/Test.byte": pkg_comparelib.syntax
 "test/Test.byte": pkg_core_kernel
 "test/Test.byte": pkg_oUnit
 "test/Test.byte": pkg_ocamlgraph
@@ -56,8 +48,6 @@ true: annot, bin_annot
 "test/Test.byte": pkg_sexplib.syntax
 "test/Test.byte": pkg_threads
 "test/Test.byte": use_topology
-<test/*.ml{,i,y}>: pkg_comparelib
-<test/*.ml{,i,y}>: pkg_comparelib.syntax
 <test/*.ml{,i,y}>: pkg_core_kernel
 <test/*.ml{,i,y}>: pkg_oUnit
 <test/*.ml{,i,y}>: pkg_ocamlgraph
