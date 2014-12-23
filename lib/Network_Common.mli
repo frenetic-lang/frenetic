@@ -1,5 +1,6 @@
-open Core.Std
+open Core_kernel.Std
 open Network
+
 module Node : sig
   include VERTEX
   type device = Switch | Host | Middlebox with sexp, compare

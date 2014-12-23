@@ -11,7 +11,7 @@ BuildTools:
 Library topology
   Path: lib
   BuildDepends:
-    core,
+    core_kernel,
     sexplib,
     sexplib.syntax,
     comparelib,

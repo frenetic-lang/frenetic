@@ -1,4 +1,4 @@
-open Core.Std
+open Core_kernel.Std
 
 module type VERTEX = sig
   type t with sexp, compare
