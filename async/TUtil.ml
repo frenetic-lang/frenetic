@@ -21,16 +21,15 @@ let internal_ports (t : Net.Topology.t) (sw_id : SDN.switchId) =
   let open Net.Topology in
   let open Async_NetKAT in
   let switch = vertex_of_label t (Switch sw_id) in
-  PortSet.fold (fun port acc ->
-    match next_hop t switch port with
+  PortSet.fold  (vertex_to_ports t switch) ~init:PortSet.empty ~f:(fun acc p ->
+    match next_hop t switch p with
     | Some e ->
-      let node, _ = edge_dst e in
-      begin match vertex_to_label t node with
-      | Switch _ -> PortSet.add port acc
-      | _ -> acc
-      end
+       let node, _ = edge_dst e in
+       begin match vertex_to_label t node with
+       | Switch _ -> PortSet.add acc p
+       | _ -> acc
+       end
     | _ -> acc)
-  (vertex_to_ports t switch) PortSet.empty
 
 let in_edge (t : Net.Topology.t) (sw_id : SDN.switchId) (pt_id : SDN.portId) =
   let open Net.Topology in
@@ -45,10 +44,9 @@ let edge (t: Net.Topology.t) =
   fold_vertexes (fun v acc ->
     match vertex_to_label t v with
     | Async_NetKAT.Switch sw_id ->
-      PortSet.fold (fun pt_id acc ->
+      PortSet.fold (vertex_to_ports t v) ~init:acc ~f:(fun acc pt_id ->
         match next_hop t v pt_id with
         | None   -> (sw_id, pt_id)::acc
         | Some _ -> acc)
-      (vertex_to_ports t v) acc
     | _ -> acc)
   t []
