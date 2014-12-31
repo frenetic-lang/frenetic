@@ -99,3 +99,23 @@ val eval_pipes
     first component is a list of packets and corresponding pipe location, whose
     second is a list of packets and corresponding query location, and whose
     third is a list of packets that are at physical locations. *)
+
+module Field : sig
+
+  type t
+    = Switch
+    | Vlan
+    | VlanPcp
+    | EthType
+    | IPProto
+    | EthSrc
+    | EthDst
+    | IP4Src
+    | IP4Dst
+    | TCPSrcPort
+    | TCPDstPort
+    | Location
+
+  val set_order : t list -> unit
+
+end

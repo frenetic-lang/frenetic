@@ -2,7 +2,6 @@ open Core.Std
 
 module SDN = SDN_Types
 
-
 (** Packet field.
 
     Packet fields are the variables that network functions are defined over.
@@ -23,12 +22,13 @@ module Field = struct
     | TCPDstPort
     | Location
     with sexp
+
   (** The type of packet fields. This is an enumeration whose ordering has an
       effect on the performance of Tdk operations, as well as the size of the
       flowtables that the compiler will produce. *)
 
   let hash = Hashtbl.hash
-  let compare = Pervasives.compare
+
   let to_string = function
     | Switch -> "Switch"
     | Location -> "Location"
@@ -42,6 +42,29 @@ module Field = struct
     | IP4Dst -> "IP4Dst"
     | TCPSrcPort -> "TCPSrcPort"
     | TCPDstPort -> "TCPDstPort"
+
+  let num_fields = 12
+
+  let all_fields = [ Switch; Location; EthSrc; EthDst; Vlan; VlanPcp; EthType;
+    IPProto; IP4Src; IP4Dst; TCPSrcPort; TCPDstPort ]
+
+  let is_valid_order (lst : t list) : bool =
+    List.length lst = num_fields &&
+    List.for_all all_fields ~f:(List.mem lst)
+
+  assert (is_valid_order all_fields)
+
+  (* Initial order is the order in which fields appear in this file. *)
+  let order = Array.init num_fields ~f:ident
+
+  let compare (x : t) (y : t) : int =
+    Pervasives.compare order.(Obj.magic x) order.(Obj.magic y)
+
+  let set_order (lst : t list) : unit =
+    assert (is_valid_order lst);
+    List.iteri lst ~f:(fun i fld ->
+      order.(Obj.magic fld) <- i)
+
 end
 
 (** Packet field values.
