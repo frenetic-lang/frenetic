@@ -645,15 +645,21 @@ module Repr = struct
     | Or (p, q) -> T.sum (of_pred p) (of_pred q)
     | Neg(q)    -> T.map_r Action.negate (of_pred q)
 
-  let rec of_policy p =
+  let rec of_policy_k p k =
     let open NetKAT_Types in
     match p with
-    | Filter   p  -> of_pred p
-    | Mod      m  -> of_mod  m
-    | Union(p, q) -> union (of_policy p) (of_policy q)
-    | Seq  (p, q) -> seq   (of_policy p) (of_policy q)
-    | Star p      -> star  (of_policy p)
+    | Filter   p  -> k (of_pred p)
+    | Mod      m  -> k (of_mod  m)
+    | Union (p, q) -> of_policy_k p (fun p' ->
+                        of_policy_k q (fun q' ->
+                          k (union p' q')))
+    | Seq (p, q) -> of_policy_k p (fun p' ->
+                      of_policy_k q (fun q' ->
+                        k (seq p' q')))
+    | Star p -> of_policy_k p (fun p' -> star p')
     | Link _ -> raise Non_local
+
+  let rec of_policy p = of_policy_k p ident
 
   let to_policy =
     T.fold
