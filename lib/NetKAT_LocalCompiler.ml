@@ -722,6 +722,8 @@ let compile ?(order=`Heuristic) pol =
    | `Static flds -> Field.set_order flds);
   of_policy pol
 
+let clear_cache () = Repr.T.clear_cache ()
+
 let to_table sw_id t =
   (* Convert a [t] to a flowtable for switch [sw_id]. This is implemented as a
      fold over the [t]. Leaf nodes emit a single rule flowtable that mach all

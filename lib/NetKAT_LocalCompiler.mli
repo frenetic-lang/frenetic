@@ -129,3 +129,4 @@ val eval_pipes
     second is a list of packets and corresponding query location, and whose
     third is a list of packets that are at physical locations. *)
 
+val clear_cache : unit -> unit
