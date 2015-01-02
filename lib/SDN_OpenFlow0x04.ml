@@ -21,24 +21,24 @@ let to_payload (pay : Core.payload) : AL.payload =
       AL.Buffered (buf_id, ct)
     | NotBuffered ct ->
       AL.NotBuffered ct
-  
+
 let from_payload (pay : AL.payload) : Core.payload =
   let open SDN_Types in
   match pay with
     | Buffered (buf_id, bytes) ->
       Core.Buffered (buf_id, bytes)
     | NotBuffered bytes -> Core.NotBuffered bytes
-      
+
 let to_reason (reason : Core.packetInReason) : AL.packetInReason =
   let open Core in
   match reason with
     | ExplicitSend -> AL.ExplicitSend
     | NoMatch -> AL.NoMatch
     | InvalidTTL -> failwith "InvalidTTL NYI"
-     
+
 let to_packetIn (pktIn : Core.packetIn) : AL.pktIn =
   let open Core in
-  let get_port = 
+  let get_port =
     List.fold_left (fun acc x -> match x with
       | OxmInPort p -> p
       | _ -> acc) Int32.zero
@@ -50,10 +50,10 @@ let to_packetIn (pktIn : Core.packetIn) : AL.pktIn =
 let from_pattern (pat : AL.Pattern.t) : Core.oxmMatch * Core.portId option =
   let v_to_m = Core.val_to_mask in
   (Core_kernel.Core_list.filter_opt
-    [ Misc.map_option (fun x -> Core.OxmEthSrc (v_to_m x)) pat.AL.Pattern.dlSrc
-    ; Misc.map_option (fun x -> Core.OxmEthDst (v_to_m x)) pat.AL.Pattern.dlDst
-    ; Misc.map_option (fun x -> Core.OxmEthType x) pat.AL.Pattern.dlTyp
-    ; Misc.map_option (fun x -> match x with
+    [ OpenFlow_Misc.map_option (fun x -> Core.OxmEthSrc (v_to_m x)) pat.AL.Pattern.dlSrc
+    ; OpenFlow_Misc.map_option (fun x -> Core.OxmEthDst (v_to_m x)) pat.AL.Pattern.dlDst
+    ; OpenFlow_Misc.map_option (fun x -> Core.OxmEthType x) pat.AL.Pattern.dlTyp
+    ; OpenFlow_Misc.map_option (fun x -> match x with
         | -1 ->
           Core.OxmVlanVId { Core.m_value = 0x1000; Core.m_mask = Some 0x1000 }
         | 0xffff ->
@@ -61,13 +61,13 @@ let from_pattern (pat : AL.Pattern.t) : Core.oxmMatch * Core.portId option =
         | _ ->
           Core.OxmVlanVId (v_to_m x))
       pat.AL.Pattern.dlVlan
-    ; Misc.map_option (fun x -> Core.OxmVlanPcp x) pat.AL.Pattern.dlVlanPcp
-    ; Misc.map_option (fun x -> Core.(OxmIP4Src (ip_to_mask x))) pat.AL.Pattern.nwSrc
-    ; Misc.map_option (fun x -> Core.(OxmIP4Dst (ip_to_mask x))) pat.AL.Pattern.nwDst
-    ; Misc.map_option (fun x -> Core.OxmIPProto x) pat.AL.Pattern.nwProto
-    ; Misc.map_option (fun x -> Core.OxmTCPSrc x) pat.AL.Pattern.tpSrc
-    ; Misc.map_option (fun x -> Core.OxmTCPDst x) pat.AL.Pattern.tpDst
-    ; Misc.map_option (fun x -> Core.OxmInPort x) pat.AL.Pattern.inPort
+    ; OpenFlow_Misc.map_option (fun x -> Core.OxmVlanPcp x) pat.AL.Pattern.dlVlanPcp
+    ; OpenFlow_Misc.map_option (fun x -> Core.(OxmIP4Src (ip_to_mask x))) pat.AL.Pattern.nwSrc
+    ; OpenFlow_Misc.map_option (fun x -> Core.(OxmIP4Dst (ip_to_mask x))) pat.AL.Pattern.nwDst
+    ; OpenFlow_Misc.map_option (fun x -> Core.OxmIPProto x) pat.AL.Pattern.nwProto
+    ; OpenFlow_Misc.map_option (fun x -> Core.OxmTCPSrc x) pat.AL.Pattern.tpSrc
+    ; OpenFlow_Misc.map_option (fun x -> Core.OxmTCPDst x) pat.AL.Pattern.tpDst
+    ; OpenFlow_Misc.map_option (fun x -> Core.OxmInPort x) pat.AL.Pattern.inPort
     ], pat.AL.Pattern.inPort)
 
 let from_timeout (timeout : AL.timeout) : Core.timeout =
@@ -150,17 +150,17 @@ let rec auto_watch_port (actionSequence : Core.actionSequence) (inPort : Core.po
   | (Core.Output Core.InPort) :: _ -> inPort
   | _ :: rest -> auto_watch_port rest inPort
 
-let auto_ff_bucket (inPort : Core.portId option) (par : AL.par) : Core.bucket = 
+let auto_ff_bucket (inPort : Core.portId option) (par : AL.par) : Core.bucket =
   let open Core in
   let bu_actions = Common.flatten_par inPort par in
   let bu_watch_port = auto_watch_port bu_actions inPort in
   let bu_watch_group = None in
   let bu_weight = 0 in
   { bu_weight; bu_watch_port; bu_watch_group; bu_actions }
-  
+
 
 let from_group (inPort : Core.portId option) (groupTable : GroupTable0x04.t)
-  (act : AL.group) 
+  (act : AL.group)
   : Core.action list =
   let open SDN_Types in
   match act with
@@ -171,13 +171,13 @@ let from_group (inPort : Core.portId option) (groupTable : GroupTable0x04.t)
     let group_id = GroupTable0x04.add_group groupTable Core.FF buckets in
     [Core.Group group_id]
 
-let from_flow (groupTable : GroupTable0x04.t) (priority : int) (flow : AL.flow) : Core.flowMod = 
+let from_flow (groupTable : GroupTable0x04.t) (priority : int) (flow : AL.flow) : Core.flowMod =
   let open AL in
   match flow with
   | { pattern; action; cookie; idle_timeout; hard_timeout } ->
     let pat,inport = from_pattern pattern in
-    let open Core in 
-    { 
+    let open Core in
+    {
       mfCommand = AddFlow;
       mfOfp_match = pat;
       mfPriority = priority;
@@ -187,7 +187,7 @@ let from_flow (groupTable : GroupTable0x04.t) (priority : int) (flow : AL.flow) 
       mfHard_timeout = from_timeout hard_timeout;
       mfTable_id = 0;
       mfFlags = {
-        fmf_send_flow_rem = false; 
+        fmf_send_flow_rem = false;
         fmf_check_overlap = false;
         fmf_reset_counts = false;
         fmf_no_pkt_counts = false;
@@ -208,19 +208,19 @@ let from_packetOut (pktOut : AL.pktOut) : Core.packetOut =
 
 (* Compiler may generate code that pops vlans w/o matching for vlan
    tags. We have to enforce that pop_vlan is only called on vlan tagged
-   packets 
+   packets
 
    Similarly, we have to push a vlan tag before we set vlan if the
    packet doesn't already have a vlan.
 *)
-let contains_vlan_pop (act : SDN_Types.group) = 
+let contains_vlan_pop (act : SDN_Types.group) =
   let vlan_pop a = match a with
     | AL.Modify (AL.SetVlan None)
     | AL.Modify (AL.SetVlan (Some 0xFFFF)) -> true
     | _ -> false in
   List.exists (List.exists (List.exists vlan_pop)) act
 
-let contains_vlan_mod (act : SDN_Types.group) = 
+let contains_vlan_mod (act : SDN_Types.group) =
   let vlan_mod a = match a with
     | AL.Modify (AL.SetVlan None)
     | AL.Modify (AL.SetVlan (Some 0xFFFF)) -> false

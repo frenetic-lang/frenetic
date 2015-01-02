@@ -30,10 +30,10 @@ Library openflow
     threads
   InternalModules:
     Bits,
-    Misc,
+    OpenFlow_Misc,
     VInt,
     ModComposition,
-    HighLevelSwitch_common    
+    HighLevelSwitch_common
   Modules:
     OpenFlow_Header,
     OpenFlow0x01,
@@ -44,7 +44,7 @@ Library openflow
     SDN_OpenFlow0x01,
     SDN_OpenFlow0x04,
     GroupTable0x04,
-    SDN_Types    
+    SDN_Types
 
 Library async
   Findlibparent: openflow
