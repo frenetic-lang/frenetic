@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: ff8c01285206e4226f9823f25f56261a)
+# DO NOT EDIT (digest: 60803501d65976a49afe38fe419f47b7)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -16,31 +16,46 @@ true: annot, bin_annot
 "_darcs": not_hygienic
 # Library topology
 "lib/topology.cmxs": use_topology
+<lib/*.ml{,i,y}>: pkg_core_kernel
 <lib/*.ml{,i,y}>: pkg_ocamlgraph
 <lib/*.ml{,i,y}>: pkg_packet
+<lib/*.ml{,i,y}>: pkg_sexplib
+<lib/*.ml{,i,y}>: pkg_sexplib.syntax
 <lib/*.ml{,i,y}>: pkg_threads
 # Executable topotool
+"exe/topology.byte": pkg_core_kernel
 "exe/topology.byte": pkg_ocamlgraph
 "exe/topology.byte": pkg_packet
+"exe/topology.byte": pkg_sexplib
+"exe/topology.byte": pkg_sexplib.syntax
 "exe/topology.byte": pkg_threads
 "exe/topology.byte": use_topology
+<exe/*.ml{,i,y}>: pkg_core_kernel
 <exe/*.ml{,i,y}>: pkg_ocamlgraph
 <exe/*.ml{,i,y}>: pkg_packet
+<exe/*.ml{,i,y}>: pkg_sexplib
+<exe/*.ml{,i,y}>: pkg_sexplib.syntax
 <exe/*.ml{,i,y}>: pkg_threads
 <exe/*.ml{,i,y}>: use_topology
 # Executable unittest
+"test/Test.byte": pkg_core_kernel
 "test/Test.byte": pkg_oUnit
 "test/Test.byte": pkg_ocamlgraph
 "test/Test.byte": pkg_pa_ounit
 "test/Test.byte": pkg_pa_ounit.syntax
 "test/Test.byte": pkg_packet
+"test/Test.byte": pkg_sexplib
+"test/Test.byte": pkg_sexplib.syntax
 "test/Test.byte": pkg_threads
 "test/Test.byte": use_topology
+<test/*.ml{,i,y}>: pkg_core_kernel
 <test/*.ml{,i,y}>: pkg_oUnit
 <test/*.ml{,i,y}>: pkg_ocamlgraph
 <test/*.ml{,i,y}>: pkg_pa_ounit
 <test/*.ml{,i,y}>: pkg_pa_ounit.syntax
 <test/*.ml{,i,y}>: pkg_packet
+<test/*.ml{,i,y}>: pkg_sexplib
+<test/*.ml{,i,y}>: pkg_sexplib.syntax
 <test/*.ml{,i,y}>: pkg_threads
 <test/*.ml{,i,y}>: use_topology
 # OASIS_STOP
