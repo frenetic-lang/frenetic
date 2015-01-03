@@ -801,8 +801,14 @@ let size =
     (fun r -> 1)
     (fun v t f -> 1 + t + f)
 
+let compression_ratio t = (Repr.T.compressed_size t, Repr.T.uncompressed_size t)
+
 let eval =
   Interp.eval
 
 let eval_pipes =
   Interp.eval_pipes
+
+let to_dotfile t filename =
+  Out_channel.with_file filename ~f:(fun chan ->
+    Out_channel.output_string chan (Repr.T.to_dot t))
