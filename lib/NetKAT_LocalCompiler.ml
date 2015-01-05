@@ -628,12 +628,12 @@ module Repr = struct
        NOTE that the equality check is not semantic equivalence, so this may not
        terminate when expected. In practice though, it should. *)
     let rec loop acc =
-      let acc' = union (T.const Action.one) (seq t acc) in
+      let acc' = union acc (seq t acc) in
       if T.equal acc acc'
         then acc
         else loop acc'
     in
-    loop t
+    loop (T.const Action.one)
 
   let rec of_pred p =
     let open NetKAT_Types in
