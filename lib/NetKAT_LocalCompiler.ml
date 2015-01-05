@@ -656,7 +656,7 @@ module Repr = struct
     | Seq (p, q) -> of_policy_k p (fun p' ->
                       of_policy_k q (fun q' ->
                         k (seq p' q')))
-    | Star p -> of_policy_k p (fun p' -> star p')
+    | Star p -> of_policy_k p (fun p' -> k (star p'))
     | Link _ -> raise Non_local
 
   let rec of_policy p = of_policy_k p ident
