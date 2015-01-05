@@ -57,13 +57,74 @@ module Field = struct
   (* Initial order is the order in which fields appear in this file. *)
   let order = Array.init num_fields ~f:ident
 
+  let readable_order = ref all_fields
+
   let compare (x : t) (y : t) : int =
     Pervasives.compare order.(Obj.magic x) order.(Obj.magic y)
 
   let set_order (lst : t list) : unit =
     assert (is_valid_order lst);
+    readable_order := lst;
     List.iteri lst ~f:(fun i fld ->
       order.(Obj.magic fld) <- i)
+
+  let get_order () = !readable_order
+
+  let field_of_header_val hv = match hv with
+    | NetKAT_Types.Switch _ -> Switch
+    | NetKAT_Types.Location _ -> Location
+    | NetKAT_Types.EthSrc _ -> EthSrc
+    | NetKAT_Types.EthDst _ -> EthDst
+    | NetKAT_Types.Vlan _ -> Vlan
+    | NetKAT_Types.VlanPcp _ -> VlanPcp
+    | NetKAT_Types.EthType _ -> EthType
+    | NetKAT_Types.IPProto _ -> IPProto
+    | NetKAT_Types.IP4Src _ -> IP4Src
+    | NetKAT_Types.IP4Dst _ -> IP4Dst
+    | NetKAT_Types.TCPSrcPort _ -> TCPSrcPort
+    | NetKAT_Types.TCPDstPort _ -> TCPDstPort
+
+  let auto_order (pol : NetKAT_Types.policy) : unit =
+    let open NetKAT_Types in
+    let count_tbl =
+      match Hashtbl.Poly.of_alist (List.map all_fields ~f:(fun f -> (f, 0))) with
+      | `Ok tbl -> tbl
+      | `Duplicate_key _ -> assert false in
+    let rec f_pred size in_product pred = match pred with
+      | True -> ()
+      | False -> ()
+      | Test hv ->
+        if in_product then
+          let fld = field_of_header_val hv in
+          let n = Hashtbl.Poly.find_exn count_tbl fld in
+          let _ = Hashtbl.Poly.replace count_tbl ~key:fld ~data:(n + size) in
+          ()
+        else
+          ()
+      | Or (a, b) -> f_pred size false a; f_pred size false b
+      | And (a, b) -> f_pred size true a; f_pred size true b
+      | Neg a -> f_pred size in_product a in
+    let rec f_seq' pol lst = match pol with
+      | Mod _ -> (1, lst)
+      | Filter a -> (1, a :: lst)
+      | Seq (p, q) ->
+        let (m, lst) = f_seq' p lst in
+        let (n, lst) = f_seq' q lst in
+        (m * n, lst)
+      | Union _ -> (f_union pol, lst)
+    and f_seq pol =
+      let (size, preds) = f_seq' pol [] in
+      List.iter preds ~f:(f_pred size true);
+      size
+    and f_union pol = match pol with
+      | Mod _ -> 1
+      | Filter _ -> 1
+      | Union (p, q) -> f_union p + f_union q
+      | Seq _ -> f_seq pol in
+    f_seq pol;
+    let cmp (_, x) (_, y) = Pervasives.compare y x in
+    let lst = List.sort ~cmp (Hashtbl.Poly.to_alist count_tbl) in
+    set_order (List.map lst ~f:(fun (fld, _) -> fld))
 
 end
 

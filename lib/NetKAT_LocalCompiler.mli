@@ -118,4 +118,10 @@ module Field : sig
 
   val set_order : t list -> unit
 
+  val get_order : unit -> t list
+
+  val to_string : t -> string
+
+  val auto_order : policy -> unit
+
 end
