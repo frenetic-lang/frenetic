@@ -8,6 +8,7 @@ Most data structures are documented with a pointer to relevent section in the
 OpenFlow 1.0 specification, rather than reproducing the specification here. *)
 
 open Packet
+open Core.Std
 
 (** {2 OpenFlow types}
 
@@ -15,17 +16,17 @@ open Packet
     specification.
 *)
 
-type 'a mask = { m_value : 'a; m_mask : 'a option }
+type 'a mask = { m_value : 'a; m_mask : 'a option } with sexp
 
 (** [switchId] is the type of switch identifiers received as part of
 [SwitchFeature] replies. *)
-type switchId = int64
+type switchId = int64 with sexp
 
 (** [portId] is the type of physical port identifiers (port numbers). *)
-type portId = int16
+type portId = int16 with sexp
 
 (** [queueId] identifies a specific queue for QoS. *)
-type queueId = int32
+type queueId = int32 with sexp
 
 (** Transaction ID of OpenFlow messages. *)
 type xid = OpenFlow_Header.xid
@@ -47,7 +48,7 @@ type pattern =
     ; tpSrc : tpPort option (** TCP/UDP source port. *)
     ; tpDst : tpPort option (** TCP/UDP destination port. *)
     ; inPort : portId option (** Input switch port. *)
-    }
+    } with sexp
 
 (** A pseudo-port, as described by the [ofp_port] enumeration in
     Section 5.2.1 of the OpenFlow 1.0 specification. *)

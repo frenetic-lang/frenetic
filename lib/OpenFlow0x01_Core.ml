@@ -1,12 +1,13 @@
 open Packet
+open Core.Std
 
-type 'a mask = { m_value : 'a; m_mask : 'a option }
+type 'a mask = { m_value : 'a; m_mask : 'a option } with sexp
 
-type switchId = int64
+type switchId = int64 with sexp
 
-type portId = int16
+type portId = int16 with sexp
 
-type queueId = int32
+type queueId = int32 with sexp
 
 type xid = OpenFlow_Header.xid
 
@@ -22,7 +23,7 @@ type pattern =
     ; nwTos : nwTos option
     ; tpSrc : tpPort option
     ; tpDst : tpPort option
-    ; inPort : portId option }
+    ; inPort : portId option } with sexp
 
 type pseudoPort =
   | PhysicalPort of portId
