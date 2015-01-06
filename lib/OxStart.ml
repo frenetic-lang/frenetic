@@ -99,10 +99,11 @@ module Make (Handlers:OXMODULE) = struct
             (Exn.to_string exn);
           exit 1)
 
-  let _ =
+  let run () : unit =
     let open Core.Std in
     (* intentionally on stdout *)
     Format.printf "Ox controller launching...\n%!";
     Sys.catch_break true;
-    never_returns (Scheduler.go_main start_controller ());
+    never_returns (Scheduler.go_main start_controller ())
+
 end

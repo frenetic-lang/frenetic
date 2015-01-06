@@ -45,13 +45,20 @@ module type OXMODULE = sig
   controller loop. *)
   val cleanup : unit -> unit
 
-
 end
 
-(** Given an [OXMODULE] module, build and run (!) an Ox controller
+(** Given an [OXMODULE] module, build an Ox controller
     that, listens on port 6633 for messages from OpenFlow-enabled
     switches.  Messages and network events are passed to the
     appropriate [OXMODULE] callbacks. *)
 module Make : functor (OxModule:OXMODULE) -> sig
+
+   (** [start_controller] is called to start the Ox controller, and return
+    execution to the calling thread. *)     
+   val start_controller : unit -> unit               
+
+   (** [run] is called to start the Ox controller. Note that execution
+    will not be transfered back to the calling thread. *)
+   val run : unit -> unit                          
 
 end
