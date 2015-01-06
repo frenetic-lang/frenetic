@@ -132,12 +132,14 @@ module Field = struct
       let (size, preds) = f_seq' pol [] in
       List.iter preds ~f:(f_pred size true);
       size
-    and f_union pol = match pol with
-      | Mod _ -> 1
-      | Filter _ -> 1
-      | Union (p, q) -> f_union p + f_union q
-      | Seq _ -> f_seq pol
-      | Star _ | Link _ -> 1 (* bad, but it works *) in
+    and f_union' pol k = match pol with
+      | Mod _ -> k 1
+      | Filter _ -> k 1
+      | Union (p, q) ->
+        f_union' p (fun m -> f_union' q (fun n -> k (m + n)))
+      | Seq _ -> k (f_seq pol)
+      | Star _ | Link _ -> k 1 (* bad, but it works *)
+    and f_union pol = f_union' pol (fun n -> n) in
     let _ = f_seq pol in
     let cmp (_, x) (_, y) = Pervasives.compare y x in
     let lst = List.sort ~cmp (Hashtbl.Poly.to_alist count_tbl) in
