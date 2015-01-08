@@ -1,4 +1,4 @@
-OASISFormat: 0.3
+OASISFormat: 0.4
 OCamlVersion: >= 4.01.0
 Name:        frenetic
 Version:     3.1.0
@@ -6,6 +6,8 @@ Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     https://github.com/frenetic-lang/frenetic/contributors
 License:     LGPL
 Plugins:     META (0.3)
+AlphaFeatures: ocamlbuild_more_args
+XOCamlbuildExtraArgs: -cflags -w,-40,-short-paths
 BuildTools:
   ocamlbuild,
   ocamldoc,
