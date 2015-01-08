@@ -105,6 +105,8 @@ let specialize_policy sw pol =
 
 let mk_big_and = List.fold_left mk_and NetKAT_Types.True
 
+let mk_big_or = List.fold_left mk_or NetKAT_Types.False
+
 let mk_big_union = List.fold_left mk_union NetKAT_Types.drop
 
 let mk_big_seq = List.fold_left mk_seq NetKAT_Types.id
