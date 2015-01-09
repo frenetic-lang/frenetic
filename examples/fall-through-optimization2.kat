@@ -1,0 +1,28 @@
+(* Run this example with variable ordering vlanId > vlanPcp > tcpSrcPort
+   to see the effect of fall through optimization.
+
+   BDD:
+   ====
+                    vlanId=1
+                  /          \
+             vlanPcp=1     vlanPcp=1
+            /        \       /   \
+      tcpSrcPort=1   id    drop   id
+        /     \
+       id     drop
+
+  What's going on?
+  ================
+  After eleminating the first (= left-most) leaf, the right and left child of
+  vlanId=1 are identical and can be collapsed. 
+
+
+*)
+
+if vlanId=1 then 
+  if not (vlanPcp=1) then 
+    id 
+  else
+    if tcpSrcPort=1 then id else drop
+else
+  if not (vlanPcp=1) then id else drop
