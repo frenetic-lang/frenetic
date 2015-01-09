@@ -84,6 +84,18 @@ module Field = struct
     | NetKAT_Types.TCPSrcPort _ -> TCPSrcPort
     | NetKAT_Types.TCPDstPort _ -> TCPDstPort
 
+  (* Heuristic to pick a variable order that operates by scoring the fields
+     in a policy. A field receives a high score if, when a test field=X
+     is false, the policy can be shrunk substantially.
+
+     NOTE(arjun): This could be done better, but it seems to work quite well
+     on FatTrees and the SDX benchmarks. Some ideas for improvement:
+
+     - Easy: also account for setting tests field=X suceeded
+     - Harder, but possibly much better: properly calculate the size of the
+       pol for different field assignments. Don't traverse the policy
+       repeatedly. Instead, write a size function that returns map from
+       field assignments to sizes. *)
   let auto_order (pol : NetKAT_Types.policy) : unit =
     let open NetKAT_Types in
     let count_tbl =
@@ -112,6 +124,7 @@ module Field = struct
         let (n, lst) = f_seq' q lst in
         (m * n, lst)
       | Union _ -> (f_union pol, lst)
+      | Star _ | Link _ -> (1, lst) (* bad, but it works *)
     and f_seq pol =
       let (size, preds) = f_seq' pol [] in
       List.iter preds ~f:(f_pred size true);
@@ -120,8 +133,9 @@ module Field = struct
       | Mod _ -> 1
       | Filter _ -> 1
       | Union (p, q) -> f_union p + f_union q
-      | Seq _ -> f_seq pol in
-    f_seq pol;
+      | Seq _ -> f_seq pol
+      | Star _ | Link _ -> 1 (* bad, but it works *) in
+    let _ = f_seq pol in
     let cmp (_, x) (_, y) = Pervasives.compare y x in
     let lst = List.sort ~cmp (Hashtbl.Poly.to_alist count_tbl) in
     set_order (List.map lst ~f:(fun (fld, _) -> fld))
