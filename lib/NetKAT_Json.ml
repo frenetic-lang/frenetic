@@ -1,3 +1,6 @@
+(* NOTE(ARJUN): Core.Std.Int32.of_int_exn will throw an exception if it receives a positive
+   integer value >= 0x1fffffff. However, OpenFlow ports are unsigned integers,
+   so these are legitimate port numbers, IIRC. *)
 let int_to_uint32 = Int32.of_int
 
 open Core.Std
