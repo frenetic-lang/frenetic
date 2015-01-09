@@ -48,8 +48,8 @@ module Field = struct
 
   (* Ensure that these are in the same order in which the variants appear. *)
   let all_fields =
-    [ Switch; Vlan; VlanPcp; EthType; IPProto; EthSrc; EthDst;
-      IP4Src; IP4Dst; TCPSrcPort; TCPDstPort; Location ]
+    [ Switch; Location; EthSrc; EthDst; Vlan; VlanPcp; EthType; IPProto;
+      IP4Src; IP4Dst; TCPSrcPort; TCPDstPort ]
 
   let is_valid_order (lst : t list) : bool =
     List.length lst = num_fields &&
@@ -753,21 +753,17 @@ let to_table sw_id t =
     ; hard_timeout = Permanent
     }
   in
-  let ft = Repr.T.fold
-    (fun r -> [(SDN.Pattern.match_all, None, r)])
-    (fun v t f ->
-      let t' = List.map t ~f:(fun (pattern, in_port, action) ->
-        let in_port = match v with
-          | (Field.Location, Value.Const p) -> Some(p)
-          | _ -> in_port
-        in
-        (Pattern.to_sdn v pattern, in_port, Action.demod v action))
-      in
-      t' @ f)
-    Repr.T.(restrict [(Field.Switch, Value.Const sw_id)] t)
+  let t = Repr.T.(restrict [(Field.Switch, Value.Const sw_id)] t) in
+  let tbl = Repr.T.to_table t in
+  let to_pattern hvs = List.fold_right hvs ~f:Pattern.to_sdn  ~init:SDN.Pattern.match_all in
+  let get_inport' current hv =
+  match hv with
+    | (Field.Location, Value.Const p) -> Some p
+    | _ -> current
   in
-  List.map ft ~f:(fun (pattern, in_port, action) ->
-    mk_flow pattern [Action.to_sdn ?in_port action])
+  let get_inport hvs = List.fold_left hvs ~init:None ~f:get_inport' in
+  let to_action in_port r = Action.to_sdn ?in_port r in
+  List.map tbl ~f:(fun (hvs, r) -> mk_flow (to_pattern hvs) [to_action (get_inport hvs) r])
 
 let pipes t =
   let module S = Set.Make(String) in
