@@ -8,6 +8,7 @@ module SDN = SDN_Types
     This module implements the the [Variable] signature from the Tdk package. *)
 module Field = struct
 
+  (* Do not change the order without reordering all_fields *)
   type t
     = Switch
     | Vlan
@@ -45,8 +46,10 @@ module Field = struct
 
   let num_fields = 12
 
-  let all_fields = [ Switch; Location; EthSrc; EthDst; Vlan; VlanPcp; EthType;
-    IPProto; IP4Src; IP4Dst; TCPSrcPort; TCPDstPort ]
+  (* Ensure that these are in the same order in which the variants appear. *)
+  let all_fields =
+    [ Switch; Vlan; VlanPcp; EthType; IPProto; EthSrc; EthDst;
+      IP4Src; IP4Dst; TCPSrcPort; TCPDstPort; Location ]
 
   let is_valid_order (lst : t list) : bool =
     List.length lst = num_fields &&
@@ -698,8 +701,13 @@ end
 
 include Repr
 
-let compile =
-  of_policy
+let compile ?(auto_order=false) pol =
+  let _ =
+    if auto_order then
+      Field.auto_order pol
+    else
+      Field.set_order Field.all_fields in
+  of_policy pol
 
 let to_table sw_id t =
   (* Convert a [t] to a flowtable for switch [sw_id]. This is implemented as a
