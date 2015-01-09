@@ -2,13 +2,13 @@ open Core.Std
 
 module SDN = SDN_Types
 
-
 (** Packet field.
 
     Packet fields are the variables that network functions are defined over.
     This module implements the the [Variable] signature from the Tdk package. *)
 module Field = struct
 
+  (* Do not change the order without reordering all_fields *)
   type t
     = Switch
     | Vlan
@@ -23,12 +23,13 @@ module Field = struct
     | TCPDstPort
     | Location
     with sexp
+
   (** The type of packet fields. This is an enumeration whose ordering has an
       effect on the performance of Tdk operations, as well as the size of the
       flowtables that the compiler will produce. *)
 
   let hash = Hashtbl.hash
-  let compare = Pervasives.compare
+
   let to_string = function
     | Switch -> "Switch"
     | Location -> "Location"
@@ -42,6 +43,106 @@ module Field = struct
     | IP4Dst -> "IP4Dst"
     | TCPSrcPort -> "TCPSrcPort"
     | TCPDstPort -> "TCPDstPort"
+
+  let num_fields = 12
+
+  (* Ensure that these are in the same order in which the variants appear. *)
+  let all_fields =
+    [ Switch; Vlan; VlanPcp; EthType; IPProto; EthSrc; EthDst;
+      IP4Src; IP4Dst; TCPSrcPort; TCPDstPort; Location ]
+
+  let is_valid_order (lst : t list) : bool =
+    List.length lst = num_fields &&
+    List.for_all all_fields ~f:(List.mem lst)
+
+  assert (is_valid_order all_fields)
+
+  (* Initial order is the order in which fields appear in this file. *)
+  let order = Array.init num_fields ~f:ident
+
+  let readable_order = ref all_fields
+
+  let compare (x : t) (y : t) : int =
+    Pervasives.compare order.(Obj.magic x) order.(Obj.magic y)
+
+  let set_order (lst : t list) : unit =
+    assert (is_valid_order lst);
+    readable_order := lst;
+    List.iteri lst ~f:(fun i fld ->
+      order.(Obj.magic fld) <- i)
+
+  let get_order () = !readable_order
+
+  let field_of_header_val hv = match hv with
+    | NetKAT_Types.Switch _ -> Switch
+    | NetKAT_Types.Location _ -> Location
+    | NetKAT_Types.EthSrc _ -> EthSrc
+    | NetKAT_Types.EthDst _ -> EthDst
+    | NetKAT_Types.Vlan _ -> Vlan
+    | NetKAT_Types.VlanPcp _ -> VlanPcp
+    | NetKAT_Types.EthType _ -> EthType
+    | NetKAT_Types.IPProto _ -> IPProto
+    | NetKAT_Types.IP4Src _ -> IP4Src
+    | NetKAT_Types.IP4Dst _ -> IP4Dst
+    | NetKAT_Types.TCPSrcPort _ -> TCPSrcPort
+    | NetKAT_Types.TCPDstPort _ -> TCPDstPort
+
+  (* Heuristic to pick a variable order that operates by scoring the fields
+     in a policy. A field receives a high score if, when a test field=X
+     is false, the policy can be shrunk substantially.
+
+     NOTE(arjun): This could be done better, but it seems to work quite well
+     on FatTrees and the SDX benchmarks. Some ideas for improvement:
+
+     - Easy: also account for setting tests field=X suceeded
+     - Harder, but possibly much better: properly calculate the size of the
+       pol for different field assignments. Don't traverse the policy
+       repeatedly. Instead, write a size function that returns map from
+       field assignments to sizes. *)
+  let auto_order (pol : NetKAT_Types.policy) : unit =
+    let open NetKAT_Types in
+    let count_tbl =
+      match Hashtbl.Poly.of_alist (List.map all_fields ~f:(fun f -> (f, 0))) with
+      | `Ok tbl -> tbl
+      | `Duplicate_key _ -> assert false in
+    let rec f_pred size in_product pred = match pred with
+      | True -> ()
+      | False -> ()
+      | Test hv ->
+        if in_product then
+          let fld = field_of_header_val hv in
+          let n = Hashtbl.Poly.find_exn count_tbl fld in
+          let _ = Hashtbl.Poly.replace count_tbl ~key:fld ~data:(n + size) in
+          ()
+        else
+          ()
+      | Or (a, b) -> f_pred size false a; f_pred size false b
+      | And (a, b) -> f_pred size true a; f_pred size true b
+      | Neg a -> f_pred size in_product a in
+    let rec f_seq' pol lst = match pol with
+      | Mod _ -> (1, lst)
+      | Filter a -> (1, a :: lst)
+      | Seq (p, q) ->
+        let (m, lst) = f_seq' p lst in
+        let (n, lst) = f_seq' q lst in
+        (m * n, lst)
+      | Union _ -> (f_union pol, lst)
+      | Star _ | Link _ -> (1, lst) (* bad, but it works *)
+    and f_seq pol =
+      let (size, preds) = f_seq' pol [] in
+      List.iter preds ~f:(f_pred size true);
+      size
+    and f_union pol = match pol with
+      | Mod _ -> 1
+      | Filter _ -> 1
+      | Union (p, q) -> f_union p + f_union q
+      | Seq _ -> f_seq pol
+      | Star _ | Link _ -> 1 (* bad, but it works *) in
+    let _ = f_seq pol in
+    let cmp (_, x) (_, y) = Pervasives.compare y x in
+    let lst = List.sort ~cmp (Hashtbl.Poly.to_alist count_tbl) in
+    set_order (List.map lst ~f:(fun (fld, _) -> fld))
+
 end
 
 (** Packet field values.
@@ -600,8 +701,13 @@ end
 
 include Repr
 
-let compile =
-  of_policy
+let compile ?(auto_order=false) pol =
+  let _ =
+    if auto_order then
+      Field.auto_order pol
+    else
+      Field.set_order Field.all_fields in
+  of_policy pol
 
 let to_table sw_id t =
   (* Convert a [t] to a flowtable for switch [sw_id]. This is implemented as a

@@ -15,10 +15,15 @@ exception Non_local
     [Link] term in it. [Link] terms are currently not supported by this
     compiler. *)
 
-val compile : policy -> t
+val compile : ?auto_order:bool -> policy -> t
 (** [compile p] returns the intermediate representation of the policy [p].
     You can generate a flowtable from [t] by passing it to the {!to_table}
-    function below. *)
+    function below.
+
+    The optional [auto_order] flag, if set to true, runs a heuristic to
+    that determines a variable order. If you don't set [auto_order], it uses
+    a default ordering.
+ *)
 
 val restrict : header_val -> t -> t
 (** [restrict hv t] returns the fragment of [t] that applies when the assignment
@@ -99,3 +104,29 @@ val eval_pipes
     first component is a list of packets and corresponding pipe location, whose
     second is a list of packets and corresponding query location, and whose
     third is a list of packets that are at physical locations. *)
+
+module Field : sig
+
+  type t
+    = Switch
+    | Vlan
+    | VlanPcp
+    | EthType
+    | IPProto
+    | EthSrc
+    | EthDst
+    | IP4Src
+    | IP4Dst
+    | TCPSrcPort
+    | TCPDstPort
+    | Location
+
+  val set_order : t list -> unit
+
+  val get_order : unit -> t list
+
+  val to_string : t -> string
+
+  val auto_order : policy -> unit
+
+end
