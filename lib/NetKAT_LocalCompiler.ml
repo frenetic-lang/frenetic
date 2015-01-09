@@ -132,12 +132,14 @@ module Field = struct
       let (size, preds) = f_seq' pol [] in
       List.iter preds ~f:(f_pred size true);
       size
-    and f_union pol = match pol with
-      | Mod _ -> 1
-      | Filter _ -> 1
-      | Union (p, q) -> f_union p + f_union q
-      | Seq _ -> f_seq pol
-      | Star _ | Link _ -> 1 (* bad, but it works *) in
+    and f_union' pol k = match pol with
+      | Mod _ -> k 1
+      | Filter _ -> k 1
+      | Union (p, q) ->
+        f_union' p (fun m -> f_union' q (fun n -> k (m + n)))
+      | Seq _ -> k (f_seq pol)
+      | Star _ | Link _ -> k 1 (* bad, but it works *)
+    and f_union pol = f_union' pol (fun n -> n) in
     let _ = f_seq pol in
     let cmp (_, x) (_, y) = Pervasives.compare y x in
     let lst = List.sort ~cmp (Hashtbl.Poly.to_alist count_tbl) in
@@ -628,12 +630,12 @@ module Repr = struct
        NOTE that the equality check is not semantic equivalence, so this may not
        terminate when expected. In practice though, it should. *)
     let rec loop acc =
-      let acc' = union (T.const Action.one) (seq t acc) in
+      let acc' = union acc (seq t acc) in
       if T.equal acc acc'
         then acc
         else loop acc'
     in
-    loop t
+    loop (T.const Action.one)
 
   let rec of_pred p =
     let open NetKAT_Types in
@@ -645,15 +647,21 @@ module Repr = struct
     | Or (p, q) -> T.sum (of_pred p) (of_pred q)
     | Neg(q)    -> T.map_r Action.negate (of_pred q)
 
-  let rec of_policy p =
+  let rec of_policy_k p k =
     let open NetKAT_Types in
     match p with
-    | Filter   p  -> of_pred p
-    | Mod      m  -> of_mod  m
-    | Union(p, q) -> union (of_policy p) (of_policy q)
-    | Seq  (p, q) -> seq   (of_policy p) (of_policy q)
-    | Star p      -> star  (of_policy p)
+    | Filter   p  -> k (of_pred p)
+    | Mod      m  -> k (of_mod  m)
+    | Union (p, q) -> of_policy_k p (fun p' ->
+                        of_policy_k q (fun q' ->
+                          k (union p' q')))
+    | Seq (p, q) -> of_policy_k p (fun p' ->
+                      of_policy_k q (fun q' ->
+                        k (seq p' q')))
+    | Star p -> of_policy_k p (fun p' -> k (star p'))
     | Link _ -> raise Non_local
+
+  let rec of_policy p = of_policy_k p ident
 
   let to_policy =
     T.fold
