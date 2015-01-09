@@ -37,7 +37,6 @@ Library netkat
     ipaddr
   InternalModules:
     Flowterp,
-    Optimize,
     Util
   Modules:
     NetKAT_Lexer,
@@ -48,7 +47,8 @@ Library netkat
     NetKAT_Semantics,
     NetKAT_Types,
     NetKAT_Misc,
-    NetKAT_Json
+    NetKAT_Json,
+    Optimize
 
 Library syntax
   Path: syntax
