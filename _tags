@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 4d32680b4af71264ce2917630835afb1)
+# DO NOT EDIT (digest: 66868ce7373f61cd8e947bd8ac3c407a)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -19,12 +19,14 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: package(core)
 <lib/*.ml{,i,y}>: package(fieldslib)
 <lib/*.ml{,i,y}>: package(fieldslib.syntax)
+<lib/*.ml{,i,y}>: package(ipaddr)
 <lib/*.ml{,i,y}>: package(openflow)
 <lib/*.ml{,i,y}>: package(sexplib)
 <lib/*.ml{,i,y}>: package(sexplib.syntax)
 <lib/*.ml{,i,y}>: package(str)
 <lib/*.ml{,i,y}>: package(tdk)
 <lib/*.ml{,i,y}>: package(threads)
+<lib/*.ml{,i,y}>: package(yojson)
 # Library syntax
 "syntax/syntax.cmxs": use_syntax
 <syntax/*.ml{,i,y}>: package(camlp4.extend)
@@ -40,6 +42,7 @@ true: annot, bin_annot
 <async/*.ml{,i,y}>: package(cstruct.syntax)
 <async/*.ml{,i,y}>: package(fieldslib)
 <async/*.ml{,i,y}>: package(fieldslib.syntax)
+<async/*.ml{,i,y}>: package(ipaddr)
 <async/*.ml{,i,y}>: package(openflow)
 <async/*.ml{,i,y}>: package(openflow.async)
 <async/*.ml{,i,y}>: package(packet)
@@ -49,12 +52,14 @@ true: annot, bin_annot
 <async/*.ml{,i,y}>: package(tdk)
 <async/*.ml{,i,y}>: package(threads)
 <async/*.ml{,i,y}>: package(topology)
+<async/*.ml{,i,y}>: package(yojson)
 <async/*.ml{,i,y}>: use_netkat
 # Library quickcheck
 "quickcheck/quickcheck.cmxs": use_quickcheck
 <quickcheck/*.ml{,i,y}>: package(core)
 <quickcheck/*.ml{,i,y}>: package(fieldslib)
 <quickcheck/*.ml{,i,y}>: package(fieldslib.syntax)
+<quickcheck/*.ml{,i,y}>: package(ipaddr)
 <quickcheck/*.ml{,i,y}>: package(openflow)
 <quickcheck/*.ml{,i,y}>: package(openflow.quickcheck)
 <quickcheck/*.ml{,i,y}>: package(packet.quickcheck)
@@ -64,11 +69,13 @@ true: annot, bin_annot
 <quickcheck/*.ml{,i,y}>: package(str)
 <quickcheck/*.ml{,i,y}>: package(tdk)
 <quickcheck/*.ml{,i,y}>: package(threads)
+<quickcheck/*.ml{,i,y}>: package(yojson)
 <quickcheck/*.ml{,i,y}>: use_netkat
 # Executable testtool
 "test/Test.byte": package(core)
 "test/Test.byte": package(fieldslib)
 "test/Test.byte": package(fieldslib.syntax)
+"test/Test.byte": package(ipaddr)
 "test/Test.byte": package(oUnit)
 "test/Test.byte": package(openflow)
 "test/Test.byte": package(openflow.quickcheck)
@@ -82,11 +89,13 @@ true: annot, bin_annot
 "test/Test.byte": package(str)
 "test/Test.byte": package(tdk)
 "test/Test.byte": package(threads)
+"test/Test.byte": package(yojson)
 "test/Test.byte": use_netkat
 "test/Test.byte": use_quickcheck
 <test/*.ml{,i,y}>: package(core)
 <test/*.ml{,i,y}>: package(fieldslib)
 <test/*.ml{,i,y}>: package(fieldslib.syntax)
+<test/*.ml{,i,y}>: package(ipaddr)
 <test/*.ml{,i,y}>: package(oUnit)
 <test/*.ml{,i,y}>: package(openflow)
 <test/*.ml{,i,y}>: package(openflow.quickcheck)
@@ -100,6 +109,7 @@ true: annot, bin_annot
 <test/*.ml{,i,y}>: package(str)
 <test/*.ml{,i,y}>: package(tdk)
 <test/*.ml{,i,y}>: package(threads)
+<test/*.ml{,i,y}>: package(yojson)
 <test/*.ml{,i,y}>: use_netkat
 <test/*.ml{,i,y}>: use_quickcheck
 # Executable katnetic
@@ -110,6 +120,7 @@ true: annot, bin_annot
 "frenetic/katnetic.native": package(cstruct.syntax)
 "frenetic/katnetic.native": package(fieldslib)
 "frenetic/katnetic.native": package(fieldslib.syntax)
+"frenetic/katnetic.native": package(ipaddr)
 "frenetic/katnetic.native": package(openflow)
 "frenetic/katnetic.native": package(openflow.async)
 "frenetic/katnetic.native": package(packet)
@@ -119,6 +130,7 @@ true: annot, bin_annot
 "frenetic/katnetic.native": package(tdk)
 "frenetic/katnetic.native": package(threads)
 "frenetic/katnetic.native": package(topology)
+"frenetic/katnetic.native": package(yojson)
 "frenetic/katnetic.native": use_async
 "frenetic/katnetic.native": use_netkat
 <frenetic/*.ml{,i,y}>: package(cmdliner)
@@ -129,6 +141,7 @@ true: annot, bin_annot
 "frenetic/test_updates.byte": package(cstruct.syntax)
 "frenetic/test_updates.byte": package(fieldslib)
 "frenetic/test_updates.byte": package(fieldslib.syntax)
+"frenetic/test_updates.byte": package(ipaddr)
 "frenetic/test_updates.byte": package(openflow)
 "frenetic/test_updates.byte": package(openflow.async)
 "frenetic/test_updates.byte": package(packet)
@@ -138,6 +151,7 @@ true: annot, bin_annot
 "frenetic/test_updates.byte": package(tdk)
 "frenetic/test_updates.byte": package(threads)
 "frenetic/test_updates.byte": package(topology)
+"frenetic/test_updates.byte": package(yojson)
 "frenetic/test_updates.byte": use_async
 "frenetic/test_updates.byte": use_netkat
 <frenetic/*.ml{,i,y}>: package(async)
@@ -146,6 +160,7 @@ true: annot, bin_annot
 <frenetic/*.ml{,i,y}>: package(cstruct.syntax)
 <frenetic/*.ml{,i,y}>: package(fieldslib)
 <frenetic/*.ml{,i,y}>: package(fieldslib.syntax)
+<frenetic/*.ml{,i,y}>: package(ipaddr)
 <frenetic/*.ml{,i,y}>: package(openflow)
 <frenetic/*.ml{,i,y}>: package(openflow.async)
 <frenetic/*.ml{,i,y}>: package(packet)
@@ -155,6 +170,7 @@ true: annot, bin_annot
 <frenetic/*.ml{,i,y}>: package(tdk)
 <frenetic/*.ml{,i,y}>: package(threads)
 <frenetic/*.ml{,i,y}>: package(topology)
+<frenetic/*.ml{,i,y}>: package(yojson)
 <frenetic/*.ml{,i,y}>: use_async
 <frenetic/*.ml{,i,y}>: use_netkat
 # OASIS_STOP

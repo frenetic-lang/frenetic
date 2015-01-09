@@ -1,0 +1,16 @@
+open Core.Std
+open NetKAT_Types
+open SDN_Types
+open Yojson.Basic
+
+val policy_from_json : json -> policy
+(** Note: errors may occur when converting between 64-bit values and
+    JSON-representable integers. *)
+
+val policy_to_json : policy -> json
+
+val policy_from_json_string : string -> policy
+
+val policy_to_json_string : policy -> string
+
+val policy_from_json_channel : In_channel.t -> policy

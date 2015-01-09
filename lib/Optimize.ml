@@ -1,3 +1,6 @@
+open Core.Std
+open NetKAT_Types
+
 let mk_and pr1 pr2 =
   match pr1, pr2 with
     | NetKAT_Types.True, _ ->
@@ -103,8 +106,52 @@ let specialize_policy sw pol =
 	failwith "Not a local policy" in
   loop pol (fun x -> x)
 
-let mk_big_and = List.fold_left mk_and NetKAT_Types.True
+let mk_big_and = List.fold_left ~f:mk_and ~init:NetKAT_Types.True
 
-let mk_big_union = List.fold_left mk_union NetKAT_Types.drop
+let mk_big_or = List.fold_left ~f:mk_or ~init:NetKAT_Types.False
 
-let mk_big_seq = List.fold_left mk_seq NetKAT_Types.id
+let mk_big_union = List.fold_left ~f:mk_union ~init:NetKAT_Types.drop
+
+let mk_big_seq = List.fold_left ~f:mk_seq ~init:NetKAT_Types.id
+
+(* list_of_and flattens a predicate into a list of predicates, each of which
+   is not an And. E.g., list_of_and (And (p, And (q, r))) = [p; q; r], if
+   p, q, and r are not Ands. The other list_of_* functions are similar. *)
+let rec list_of_and (pred : pred) : pred list = match pred with
+  | And (a, b) -> list_of_and a @ list_of_and b
+  | _ -> [pred]
+
+let rec list_of_or (pred : pred) : pred list = match pred with
+  | Or (a, b) -> list_of_or a @ list_of_or b
+  | _ -> [pred]
+
+let rec list_of_seq (pol : policy) : policy list = match pol with
+  | Seq (p, q) -> list_of_seq p @ list_of_seq q
+  | _ -> [pol]
+
+let rec list_of_union (pol : policy) : policy list = match pol with
+  | Union (p, q) -> list_of_union p @ list_of_union q
+  | _ -> [pol]
+
+(* Normalizes predicate so that all nested Ands and Ors are nested on the
+   right-hand side. norm_policy is similar. *)
+let rec norm_pred (pred : pred) : pred = match pred with
+  | True | False | Test _ -> pred
+  | Neg a -> Neg (norm_pred a)
+  | And (a, b) ->
+    let pred' = And (norm_pred a, norm_pred b) in
+    mk_big_and (list_of_and pred')
+  | Or (a, b) ->
+    let pred' = Or (norm_pred a, norm_pred b) in
+    mk_big_or (list_of_or pred')
+
+let rec norm_policy (pol : policy) : policy = match pol with
+  | Mod _ | Link _ -> pol
+  | Filter a -> Filter (norm_pred a)
+  | Star p -> Star (norm_policy p)
+  | Union (p, q) ->
+    let pol' = Union (norm_policy p, norm_policy q) in
+    mk_big_union (list_of_union pol')
+  | Seq (p, q) ->
+    let pol' = Seq (norm_policy p, norm_policy q) in
+    mk_big_seq (list_of_seq pol')

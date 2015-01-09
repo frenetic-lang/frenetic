@@ -32,7 +32,9 @@ Library netkat
     sexplib.syntax,
     str,
     tdk,
-    threads
+    threads,
+    yojson,
+    ipaddr
   InternalModules:
     Flowterp,
     Optimize,
@@ -45,7 +47,8 @@ Library netkat
     NetKAT_Pretty,
     NetKAT_Semantics,
     NetKAT_Types,
-    NetKAT_Misc
+    NetKAT_Misc,
+    NetKAT_Json
 
 Library syntax
   Path: syntax
