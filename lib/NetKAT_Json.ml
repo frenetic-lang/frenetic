@@ -101,6 +101,7 @@ let rec policy_to_json (pol : policy) : json = match pol with
             ("pt2", `Int (Int32.to_int_exn pt2))]
 
 let parse_ipaddr (json : json) : Int32.t =
+  let open Yojson.Basic.Util in
   Ipaddr.V4.to_int32 (Ipaddr.V4.of_string_exn (to_string json))
 
 let from_json_header_val (json : json) : header_val =
@@ -169,3 +170,4 @@ let policy_from_json_string (str : string) : policy =
 
 let policy_from_json_channel (chan : In_channel.t) : policy =
   policy_from_json (from_channel chan)
+
