@@ -1,0 +1,4 @@
+(* Run this example with variable ordering vlanId > vlanPcp > tcpSrcPort
+   to see the effect of fall through optimization.
+*)
+if vlanId=1 and vlanPcp=1 and tcpSrcPort=1 then id else drop
