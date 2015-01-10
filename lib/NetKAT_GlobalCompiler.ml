@@ -94,11 +94,7 @@ let cps (p : policy) =
        let jump_lst = mk_big_union (List.map (fun pc -> set_pc pc) pcs) in
        let rest = List.flatten (List.map2 (fun pol pc -> cps' pol pc k) pols pcs) in
        Local (mk_big_seq [match_pc pc; jump_lst]) :: rest
-(*        let pc_q = next_local_pc () in
-       let pc_r = next_local_pc () in
-       Local (mk_big_seq [match_pc pc ; mk_big_union [set_pc pc_q; set_pc pc_r]]) ::
-       (cps' q pc_q k) @ (cps' r pc_r k)
- *)    | Seq (q,r) ->
+    | Seq (q,r) ->
        let pc' = next_local_pc () in
        (cps' q pc pc') @ (cps' r pc' k)
     | Star q ->
