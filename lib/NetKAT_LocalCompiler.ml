@@ -147,6 +147,11 @@ module Field = struct
 
 end
 
+type order
+  = [ `Default
+    | `Static of Field.t list
+    | `Heuristic ]
+
 (** Packet field values.
 
     Each packet field can take on a certain range of values that in general have
@@ -629,13 +634,14 @@ module Repr = struct
 
        NOTE that the equality check is not semantic equivalence, so this may not
        terminate when expected. In practice though, it should. *)
-    let rec loop acc =
-      let acc' = union acc (seq t acc) in
+    let rec loop acc power =
+      let power' = seq power t in
+      let acc' = union acc power' in
       if T.equal acc acc'
         then acc
-        else loop acc'
+        else loop acc' power'
     in
-    loop (T.const Action.one)
+    loop (T.const Action.one) (T.const Action.one)
 
   let rec of_pred p =
     let open NetKAT_Types in
@@ -709,12 +715,11 @@ end
 
 include Repr
 
-let compile ?(auto_order=false) pol =
-  let _ =
-    if auto_order then
-      Field.auto_order pol
-    else
-      Field.set_order Field.all_fields in
+let compile ?(order=`Heuristic) pol =
+  (match order with
+   | `Heuristic -> Field.auto_order pol
+   | `Default -> Field.set_order Field.all_fields
+   | `Static flds -> Field.set_order flds);
   of_policy pol
 
 let to_table sw_id t =

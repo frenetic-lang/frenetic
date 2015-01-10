@@ -123,7 +123,7 @@ let size_pred (pr:pred) : int =
     match pr with
       | True -> f 1
       | False -> f 1
-      | Test(_) -> f 3
+      | Test(_) -> f 1
       | And(pr1,pr2)
       | Or(pr1,pr2) -> size_pred pr1 (fun spr1 -> size_pred pr2 (fun spr2 -> f (1 + spr1 + spr2)))
       | Neg(pr) -> size_pred pr (fun spr -> f (1 + spr)) in
@@ -133,7 +133,7 @@ let size (pol:policy) : int =
   let rec size (pol:policy) f : int =
     match pol with
       | Filter pr -> f (size_pred pr + 1)
-      | Mod(_) -> f 3
+      | Mod(_) -> f 1
       | Union(pol1, pol2)
       | Seq(pol1, pol2) -> size pol1 (fun spol1 -> size pol2 (fun spol2 -> f (1 + spol1 + spol2)))
       | Star(pol) -> size pol (fun spol -> f (1 + spol))

@@ -69,6 +69,10 @@ type cps_policy =
 | Local of policy
 | Exit of policy
 
+let rec flatten_union (pol : policy) : policy list = match pol with
+  | Union (p, q) -> flatten_union p @ flatten_union q
+  | _ -> [pol]
+
 let cps (p : policy) =
   let module Tbl = Core.Std.Hashtbl.Poly in
   let local_pc_ref = ref final_local_pc in
@@ -84,12 +88,17 @@ let cps (p : policy) =
        [Local (mk_big_seq [match_pc pc; p; set_pc k])]
     | p when link_free p ->
        [Local (mk_big_seq [match_pc pc; p; set_pc k])]
-    | Union (q,r) ->
-       let pc_q = next_local_pc () in
+    | Union _ ->
+       let pols = flatten_union p in
+       let pcs = List.map (fun _ -> next_local_pc ()) pols in
+       let jump_lst = mk_big_union (List.map (fun pc -> set_pc pc) pcs) in
+       let rest = List.flatten (List.map2 (fun pol pc -> cps' pol pc k) pols pcs) in
+       Local (mk_big_seq [match_pc pc; jump_lst]) :: rest
+(*        let pc_q = next_local_pc () in
        let pc_r = next_local_pc () in
        Local (mk_big_seq [match_pc pc ; mk_big_union [set_pc pc_q; set_pc pc_r]]) ::
        (cps' q pc_q k) @ (cps' r pc_r k)
-    | Seq (q,r) ->
+ *)    | Seq (q,r) ->
        let pc' = next_local_pc () in
        (cps' q pc pc') @ (cps' r pc' k)
     | Star q ->
