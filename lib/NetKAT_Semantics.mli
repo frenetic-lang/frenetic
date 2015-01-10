@@ -39,12 +39,14 @@ type packet = {
 
 module PacketSet : Set.S
   with type Elt.t = packet
-    
+
 (** {2 Semantics} *)
-  
+
 val eval : packet -> policy -> PacketSet.t
 val eval_pipes :  packet
                -> policy
                -> (string * packet) list * (string * packet) list * packet list
 
 val size: policy -> int
+
+val switches_of_policy : policy -> switchId list

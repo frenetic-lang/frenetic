@@ -241,3 +241,27 @@ let eval_pipes (packet:packet) (pol:NetKAT_Types.policy)
       | Physical _ -> (            pi,             qu, pkt :: phy)
       | Pipe     p -> ((p, pkt) :: pi,             qu,        phy)
       | Query    q -> (            pi, (q, pkt) :: qu,        phy))
+
+
+let switches_of_policy (pol : policy) : switchId list =
+  let ids : (switchId, unit) Hashtbl.Poly.t = Hashtbl.Poly.create () in
+  let rec count_pred (pred : pred) (k : unit -> 'a) : 'a = match pred with
+    | Test (Switch sw) ->
+      Hashtbl.Poly.set ids ~key:sw ~data:();
+      k ()
+    | True | False | Test _ -> k ()
+    | And (a, b) | Or (a, b) ->
+      count_pred a (fun () -> count_pred b (fun () -> k ()))
+    | Neg a -> count_pred a k in
+  let rec count_pol (pol : policy) (k : unit -> 'a) : 'a = match pol with
+    | Filter a -> count_pred a k
+    | Mod _ -> k ()
+    | Union (p, q) | Seq (p, q) ->
+       count_pol p (fun () -> count_pol q (fun () -> k ()))
+    | Star p -> count_pol p k
+    | Link (sw1, _, sw2, _) ->
+      Hashtbl.Poly.set ids ~key:sw1 ~data:();
+      Hashtbl.Poly.set ids ~key:sw2 ~data:();
+      k () in
+  count_pol pol ident;
+  Hashtbl.Poly.keys ids
