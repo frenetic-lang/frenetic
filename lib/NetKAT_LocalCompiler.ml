@@ -634,10 +634,7 @@ module Repr = struct
 
        NOTE that the equality check is not semantic equivalence, so this may not
        terminate when expected. In practice though, it should. *)
-    let i = ref 0 in
     let rec loop acc power =
-      incr i;
-      printf "Iteration %d\n%!" !i;
       let power' = seq power t in
       let acc' = union acc power' in
       if T.equal acc acc'
