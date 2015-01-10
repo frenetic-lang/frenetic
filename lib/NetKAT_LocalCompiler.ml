@@ -147,6 +147,11 @@ module Field = struct
 
 end
 
+type order
+  = [ `Default
+    | `Static of Field.t list
+    | `Heuristic ]
+
 (** Packet field values.
 
     Each packet field can take on a certain range of values that in general have
@@ -709,12 +714,11 @@ end
 
 include Repr
 
-let compile ?(auto_order=false) pol =
-  let _ =
-    if auto_order then
-      Field.auto_order pol
-    else
-      Field.set_order Field.all_fields in
+let compile ?(order=`Heuristic) pol =
+  (match order with
+   | `Heuristic -> Field.auto_order pol
+   | `Default -> Field.set_order Field.all_fields
+   | `Static flds -> Field.set_order flds);
   of_policy pol
 
 let to_table sw_id t =

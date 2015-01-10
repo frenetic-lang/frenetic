@@ -3,10 +3,35 @@ open NetKAT_Semantics
 
 open SDN_Types
 
+module Field : sig
+
+  type t
+    = Switch
+    | Vlan
+    | VlanPcp
+    | EthType
+    | IPProto
+    | EthSrc
+    | EthDst
+    | IP4Src
+    | IP4Dst
+    | TCPSrcPort
+    | TCPDstPort
+    | Location
+
+  val get_order : unit -> t list
+
+  val to_string : t -> string
+
+end
+
+type order
+  = [ `Default
+    | `Static of Field.t list
+    | `Heuristic ]
 
 type t
 (** The type of the intermediate compiler representation. *)
-
 
 (** {2 Compilation} *)
 
@@ -15,14 +40,13 @@ exception Non_local
     [Link] term in it. [Link] terms are currently not supported by this
     compiler. *)
 
-val compile : ?auto_order:bool -> policy -> t
+val compile : ?order:order -> policy -> t
 (** [compile p] returns the intermediate representation of the policy [p].
     You can generate a flowtable from [t] by passing it to the {!to_table}
     function below.
 
-    The optional [auto_order] flag, if set to true, runs a heuristic to
-    that determines a variable order. If you don't set [auto_order], it uses
-    a default ordering.
+    The optional [order] flag determines the variable order. If unset,
+    it uses a static default ordering.
  *)
 
 val restrict : header_val -> t -> t
@@ -105,28 +129,3 @@ val eval_pipes
     second is a list of packets and corresponding query location, and whose
     third is a list of packets that are at physical locations. *)
 
-module Field : sig
-
-  type t
-    = Switch
-    | Vlan
-    | VlanPcp
-    | EthType
-    | IPProto
-    | EthSrc
-    | EthDst
-    | IP4Src
-    | IP4Dst
-    | TCPSrcPort
-    | TCPDstPort
-    | Location
-
-  val set_order : t list -> unit
-
-  val get_order : unit -> t list
-
-  val to_string : t -> string
-
-  val auto_order : policy -> unit
-
-end

@@ -323,8 +323,8 @@ let compare_eval_output p q pkt =
 let compare_compiler_output p q pkt =
   let open NetKAT_Semantics in
   PacketSet.compare
-    (Flowterp.Packet.eval pkt (NetKAT_LocalCompiler.(to_table pkt.switch (compile ~auto_order:true p))))
-    (Flowterp.Packet.eval pkt (NetKAT_LocalCompiler.(to_table pkt.switch (compile ~auto_order:true q))))
+    (Flowterp.Packet.eval pkt (NetKAT_LocalCompiler.(to_table pkt.switch (compile ~order:`Heuristic p))))
+    (Flowterp.Packet.eval pkt (NetKAT_LocalCompiler.(to_table pkt.switch (compile ~order:`Heuristic q))))
   = 0
 
 let check gen_fn compare_fn =
