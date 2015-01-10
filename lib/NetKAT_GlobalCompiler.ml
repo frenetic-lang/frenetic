@@ -20,7 +20,7 @@ let initial_local_pc = final_local_pc + 1
     program counters *)
 let initial_global_pc = 0xffff
 
-let match_pc pc = Filter (Test (Vlan pc))
+let match_pc (pc : int) (loc : pred) : policy = Filter (And (Test (Vlan pc), loc))
 
 let set_pc pc = Mod (Vlan pc)
 
@@ -73,7 +73,7 @@ let rec flatten_union (pol : policy) : policy list = match pol with
   | Union (p, q) -> flatten_union p @ flatten_union q
   | _ -> [pol]
 
-let cps (p : policy) =
+let cps (ingress : pred) (p : policy) =
   let module Tbl = Core.Std.Hashtbl.Poly in
   let local_pc_ref = ref final_local_pc in
   let global_pc_tbl = Tbl.create () in
@@ -82,29 +82,37 @@ let cps (p : policy) =
   let next_global_pc sw pt =
     let pc = Tbl.find global_pc_tbl (sw, pt) |> Core.Std.Option.value ~default:initial_global_pc in
     Tbl.replace global_pc_tbl ~key:(sw, pt) ~data:(pc-1); pc in
-  let rec cps' p pc k =
+  let rec cps' loc p pc k =
     match p with
     | Filter _ | Mod _ ->
-       [Local (mk_big_seq [match_pc pc; p; set_pc k])]
+       ([Local (mk_big_seq [match_pc pc loc; p; set_pc k])], loc)
     | p when link_free p ->
-       [Local (mk_big_seq [match_pc pc; p; set_pc k])]
+       ([Local (mk_big_seq [match_pc pc loc; p; set_pc k])], loc)
     | Union _ ->
        let pols = flatten_union p in
        let pcs = List.map (fun _ -> next_local_pc ()) pols in
        let jump_lst = mk_big_union (List.map (fun pc -> set_pc pc) pcs) in
-       let rest = List.flatten (List.map2 (fun pol pc -> cps' pol pc k) pols pcs) in
-       Local (mk_big_seq [match_pc pc; jump_lst]) :: rest
+       let (rest, locs) =
+         (List.split
+           (List.map2 (fun pol pc -> cps' loc pol pc k) pols pcs)) in
+       let rest = List.flatten rest in
+       let loc' = mk_big_or locs in
+       (Local (mk_big_seq [match_pc pc loc; jump_lst]) :: rest, loc')
     | Seq (q,r) ->
        let pc' = next_local_pc () in
-       (cps' q pc pc') @ (cps' r pc' k)
+       let (lst1, loc') = cps' loc q pc pc' in
+       let (lst2, loc'') = cps' loc' r pc' k in
+       (lst1 @ lst2, loc'')
     | Star q ->
        let pc_q = next_local_pc () in
-       Local (mk_big_seq [match_pc pc ; mk_big_union [set_pc pc_q; set_pc k]]) :: (cps' q pc_q pc)
+       let (lst, _) = cps' True q pc_q pc in
+       (Local (mk_big_seq [match_pc pc True; mk_big_union [set_pc pc_q; set_pc k]]) :: lst, True)
     | Link (sw1,pt1,sw2,pt2) ->
        let gpc = next_global_pc sw2 pt2 in
-       [Exit (mk_big_seq [match_link_end sw1 pt1 pc; set_pc gpc]);
-        Entrance (mk_big_seq [match_link_end sw2 pt2 gpc; set_pc k])] in
-  cps' p (next_local_pc ()) final_local_pc
+       ([Exit (mk_big_seq [match_link_end sw1 pt1 pc; set_pc gpc]);
+         Entrance (mk_big_seq [match_link_end sw2 pt2 gpc; set_pc k])],
+        (And (Test (Switch sw2), Test (Location (Physical pt2))))) in
+  fst (cps' ingress p (next_local_pc ()) final_local_pc)
 
 let split_cps (cps : cps_policy list) =
   let clasify_cps_policy (entrance, local, exit) = function
@@ -114,7 +122,7 @@ let split_cps (cps : cps_policy list) =
   List.fold_left clasify_cps_policy ([],[],[]) cps
 
 let compile (ingress : pred) (egress : pred) (p : policy) =
-  let (entrance, local, exit) = split_cps (cps p) in
+  let (entrance, local, exit) = split_cps (cps ingress p) in
   let pre = mk_big_seq [Filter ingress; set_pc initial_local_pc] in
-  let post = mk_big_seq [match_pc final_local_pc; Filter egress; unset_pc] in
+  let post = mk_big_seq [match_pc final_local_pc egress; unset_pc] in
   mk_big_seq [mk_big_union (pre::entrance); mk_star (mk_big_union local); mk_big_union (post::exit)]
