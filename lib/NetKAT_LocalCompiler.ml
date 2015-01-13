@@ -181,6 +181,10 @@ module Value = struct
       during flowtable generation, though the syntax of the NetKAT language will
       prevent programs from generating these ill-formed predicates. *)
 
+  (*
+    10.1.0.0 / 16    10.0.0.0 / 8
+    0.0.10.1         0.0.10.0
+   *)
   let subset_eq a b =
     (* A partial order on values that should be reflexive, transitive, and
        antisymmetric. This should also satisfy certain properites related to
@@ -188,7 +192,8 @@ module Value = struct
     let subset_eq_mask a m b n =
       if m < n
         then false
-        else Int64.(shift_right_logical a m) = Int64.(shift_right_logical b m)
+        else
+          Int64.shift_right_logical a (64-n) = Int64.shift_right_logical b (64-n)
     in
     match a, b with
     | Const  a   , Const b
@@ -224,11 +229,7 @@ module Value = struct
       else if gt then
         if (not tight) || (n = (m + 1)) then Some(Mask(b, n)) else None
       else
-        if (not tight) || m = n then
-          let x, y = (Mask(a, m + 1), Mask(b, n + 1)) in
-          if subset_eq x y && subset_eq y x then Some(x) else None
-        else
-          None (* XXX(seliopou): complete definition *)
+        None
     in
     match a, b with
     | Const  a   , Const b
@@ -242,6 +243,7 @@ module Value = struct
     | _          , Query _ -> None
     | Mask(a, m) , Mask(b, n) -> meet_mask a m  b n
     | Const a, Mask(b, n)     -> meet_mask a 64 b n
+
 
   let join ?(tight=false) a b =
     (* Determines the least upper bound of two elements, if one exists. This
@@ -284,7 +286,22 @@ module Value = struct
     | Const a, Mask(b, n)     -> join_mask a 64 b n
 
   let hash = Hashtbl.hash
-  let compare = Pervasives.compare
+
+  let compare x y = match (x, y) with
+    | Const a, Mask (b, 64)
+    | Mask (a, 64), Const b
+    | Const a, Const b -> Pervasives.compare a b
+    | Const _ , _ -> -1
+    | _, Const _ -> 1
+    | Mask(a, m) , Mask(b, n) ->
+      let shift = 64 - min m n in
+      (match Pervasives.compare (Int64.shift_right a shift) (Int64.shift_right b shift) with
+       | 0 -> Pervasives.compare n m
+       | c -> c)
+    | Mask _, _ -> -1
+    | _, Mask _ -> 1
+    | _ -> Pervasives.compare x y
+
   let to_string = function
     | Const(a)   -> Printf.sprintf "Const(%Lu)" a
     | Mask(a, m) -> Printf.sprintf "Mask(%Lu, %d)" a m
@@ -309,8 +326,8 @@ module Pattern = struct
   type t = Field.t * Value.t
 
   let compare a b =
-    let c = Field.compare a b in
-    if c <> 0 then c else Value.compare a b
+    let c = Field.compare (fst a) (fst b) in
+    if c <> 0 then c else Value.compare (snd a) (snd b)
 
   let to_string (f, v) =
     Printf.sprintf "%s = %s" (Field.to_string f) (Value.to_string v)
@@ -608,9 +625,7 @@ module Repr = struct
       f t
 
   let seq t u =
-(*     printf "seq %d %d (%d %d)\n%!" (T.compressed_size t) (T.compressed_size u)
-      (T.uncompressed_size t) (T.uncompressed_size u);
- *)    (* Compute the sequential composition of [t] and [u] as a fold over [t]. In
+    (* Compute the sequential composition of [t] and [u] as a fold over [t]. In
        the case of a leaf node, each sequence [seq] of modifications is used to
        [restrict] the diagram for [u] and produce a new diagram [u'] that
        assumes (but does not explicitly represent) the state of the packet after
