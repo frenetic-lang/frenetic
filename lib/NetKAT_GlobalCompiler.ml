@@ -69,10 +69,6 @@ type cps_policy =
 | Local of policy
 | Exit of policy
 
-let rec flatten_union (pol : policy) : policy list = match pol with
-  | Union (p, q) -> flatten_union p @ flatten_union q
-  | _ -> [pol]
-
 let cps (ingress : pred) (p : policy) =
   let module Tbl = Core.Std.Hashtbl.Poly in
   let local_pc_ref = ref final_local_pc in
