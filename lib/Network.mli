@@ -43,8 +43,8 @@ module type NETWORK = sig
     module Vertex : VERTEX
     module Edge : EDGE
 
-    module UnitWeight : WEIGHT 
-      with type t = int 
+    module UnitWeight : WEIGHT
+      with type t = int
       and type label = Edge.t
 
     module EdgeSet : Set.S
@@ -108,18 +108,20 @@ module type NETWORK = sig
   end
 
   (* Paths *)
-  module type PATH = sig 
-    type weight 
+  module type PATH = sig
+    type weight
     type t = Topology.edge list
     exception NegativeCycle of t
-        
+
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
     val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
-    val all_pairs_shortest_paths : Topology.t
-      -> (weight * Topology.vertex * Topology.vertex * Topology.vertex list) list
+    val all_pairs_shortest_paths :
+        topo:Topology.t ->
+        f:(Topology.vertex -> Topology.vertex -> bool) ->
+       (weight * Topology.vertex * Topology.vertex * Topology.edge list) list
   end
 
-  module Path (Weight : WEIGHT with type label = Topology.Edge.t) : 
+  module Path (Weight : WEIGHT with type label = Topology.Edge.t) :
     PATH with type weight = Weight.t
 
   module UnitPath : PATH
