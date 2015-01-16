@@ -576,13 +576,6 @@ module Repr = struct
 
   type t = T.t
 
-  let of_test hv =
-    T.atom (Pattern.of_hv hv) Action.one Action.zero
-
-  let of_mod hv =
-    let k, v = Pattern.of_hv hv in
-    T.const Action.(Par.singleton (Seq.singleton k v))
-
   let restrict hv t =
     T.restrict [Pattern.of_hv hv] t
 
@@ -592,6 +585,29 @@ module Repr = struct
     else
       T.(sum (prod (atom v Action.one Action.zero) t)
              (prod (atom v Action.zero Action.one) f))
+
+  let ip_guard t =
+    cond (Field.EthType, Value.Const 0x800L) t (T.const Action.zero)
+
+  let tcp_guard t =
+    cond (Field.IPProto, Value.Const 0x06L) (ip_guard t) (T.const Action.zero)
+
+  let guard k t =
+    match k with
+    | Field.IPProto
+    | Field.IP4Src
+    | Field.IP4Dst -> ip_guard t
+    | Field.TCPSrcPort
+    | Field.TCPDstPort -> tcp_guard t
+    | _ -> t
+
+  let of_test hv =
+    let k, v  = Pattern.of_hv hv in
+    guard k (T.atom (k, v) Action.one Action.zero)
+
+  let of_mod hv =
+    let k, v = Pattern.of_hv hv in
+    guard k (T.const Action.(Par.singleton (Seq.singleton k v)))
 
   let seq t u =
     (* Compute the sequential composition of [t] and [u] as a fold over [t]. In
