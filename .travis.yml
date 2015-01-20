@@ -2,7 +2,7 @@ language: c
 script: bash -ex .travis-ci.sh
 env:
   global:
-    - OPAM_DEPENDS="cstruct quickcheck ounit pa_ounit sexplib"
+    - OPAM_DEPENDS="cstruct quickcheck ounit pa_ounit sexplib tcpip"
     - CONFIG_FLAGS="--enable-tests --enable-quickcheck"
     - EXTRA_LD_LIBRARY_PATH="$TRAVIS_BUILD_DIR/_build/lib"
   matrix:
