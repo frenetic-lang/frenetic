@@ -253,7 +253,7 @@ module Tcp = struct
     let length = len pkt in
     let pseudo_header = mk_pseudo_header src dst 0x6 length in
     set_tcp_chksum bits 0;
-    let chksum = Checksum.ones_complement_list
+    let chksum = Tcpip_checksum.ones_complement_list
       (if (length mod 2) = 0
         then [pseudo_header; Cstruct.sub bits 0 length]
         else [pseudo_header; Cstruct.sub bits 0 length; Cstruct.of_string "\x00"]) in
@@ -599,7 +599,7 @@ module Igmp1and2 = struct
     set_igmp1and2_addr bits msg.addr;
     (* ADF: hack since Igmp.sizeof_igmp not defined at this point *)
     let igmp_hdr = Cstruct.sub bits (-1) (1 + sizeof_igmp1and2) in
-    let chksum = Checksum.ones_complement igmp_hdr in
+    let chksum = Tcpip_checksum.ones_complement igmp_hdr in
     set_igmp1and2_chksum bits chksum;
 
 
@@ -700,7 +700,7 @@ module Igmp3 = struct
     ignore (List.fold_left GroupRec.marshal gr_bits msg.grs);
     (* ADF: hack since Igmp.sizeof_igmp not defined at this point *)
     let igmp_hdr = Cstruct.sub bits (-1) (1 + len msg) in
-    let chksum = Checksum.ones_complement igmp_hdr in
+    let chksum = Tcpip_checksum.ones_complement igmp_hdr in
     set_igmp3_chksum bits chksum;
 
 end
@@ -938,7 +938,7 @@ module Ip = struct
     set_ip_dst bits pkt.dst;
     Cstruct.blit pkt.options 0 bits sizeof_ip (Cstruct.len pkt.options);
     set_ip_chksum bits 0;
-    let chksum = Checksum.ones_complement (Cstruct.sub bits 0 header_len) in
+    let chksum = Tcpip_checksum.ones_complement (Cstruct.sub bits 0 header_len) in
     set_ip_chksum bits chksum;
     let bits = Cstruct.shift bits header_len in
     match pkt.tp with

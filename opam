@@ -14,5 +14,6 @@ depends: [
   "ocamlfind"
   "cstruct" {>= "1.0.1"}
   "sexplib" {>= "110.01.00"}
+  "tcpip" {>= "2.0.3"}
 ]
 depopts: ["quickcheck"]
