@@ -1,6 +1,6 @@
 OASISFormat: 0.3
 Name:        packet
-Version:     0.3.1
+Version:     0.3.2
 Synopsis:    Serialization for some common network packets, including
              ethernet frames, IP, TCP, and ARP.
 Authors:     https://github.com/frenetic-lang/ocaml-packet/contributors
@@ -16,11 +16,8 @@ Flag quickcheck
 
 Library packet
   Path: lib
-  BuildDepends: str, cstruct, cstruct.syntax, sexplib, sexplib.syntax
-  Modules: Packet, Checksum
-  CSources: checksum_stubs.c
-  CCOpt: -g
-  ByteOpt: -g
+  BuildDepends: str, cstruct, cstruct.syntax, sexplib, sexplib.syntax, tcpip
+  Modules: Packet
 
 Document doc
   Title: Packet documentation

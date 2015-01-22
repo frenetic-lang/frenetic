@@ -1,8 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: a7c1dc1fdbc77f33d8bd73c38ff713eb)
+# DO NOT EDIT (digest: 12338a8d16369cfcdca49718946af858)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
+true: annot, bin_annot
 <**/.svn>: -traverse
 <**/.svn>: not_hygienic
 ".bzr": -traverse
@@ -15,31 +16,22 @@
 "_darcs": not_hygienic
 # Library packet
 "lib/packet.cmxs": use_packet
-<lib/*.ml{,i}>: oasis_library_packet_ccopt
-"lib/checksum_stubs.c": oasis_library_packet_ccopt
-<lib/packet.{cma,cmxa}>: oasis_library_packet_byte
-<lib/*.ml{,i}>: oasis_library_packet_byte
-"lib/checksum_stubs.c": oasis_library_packet_byte
-<lib/packet.{cma,cmxa}>: use_libpacket_stubs
-<lib/*.ml{,i}>: pkg_cstruct
-<lib/*.ml{,i}>: pkg_cstruct.syntax
-<lib/*.ml{,i}>: pkg_sexplib
-<lib/*.ml{,i}>: pkg_sexplib.syntax
-<lib/*.ml{,i}>: pkg_str
-"lib/checksum_stubs.c": pkg_cstruct
-"lib/checksum_stubs.c": pkg_cstruct.syntax
-"lib/checksum_stubs.c": pkg_sexplib
-"lib/checksum_stubs.c": pkg_sexplib.syntax
-"lib/checksum_stubs.c": pkg_str
+<lib/*.ml{,i,y}>: pkg_cstruct
+<lib/*.ml{,i,y}>: pkg_cstruct.syntax
+<lib/*.ml{,i,y}>: pkg_sexplib
+<lib/*.ml{,i,y}>: pkg_sexplib.syntax
+<lib/*.ml{,i,y}>: pkg_str
+<lib/*.ml{,i,y}>: pkg_tcpip
 # Library quickcheck
 "quickcheck/quickcheck.cmxs": use_quickcheck
-<quickcheck/*.ml{,i}>: pkg_cstruct
-<quickcheck/*.ml{,i}>: pkg_cstruct.syntax
-<quickcheck/*.ml{,i}>: pkg_quickcheck
-<quickcheck/*.ml{,i}>: pkg_sexplib
-<quickcheck/*.ml{,i}>: pkg_sexplib.syntax
-<quickcheck/*.ml{,i}>: pkg_str
-<quickcheck/*.ml{,i}>: use_packet
+<quickcheck/*.ml{,i,y}>: pkg_cstruct
+<quickcheck/*.ml{,i,y}>: pkg_cstruct.syntax
+<quickcheck/*.ml{,i,y}>: pkg_quickcheck
+<quickcheck/*.ml{,i,y}>: pkg_sexplib
+<quickcheck/*.ml{,i,y}>: pkg_sexplib.syntax
+<quickcheck/*.ml{,i,y}>: pkg_str
+<quickcheck/*.ml{,i,y}>: pkg_tcpip
+<quickcheck/*.ml{,i,y}>: use_packet
 # Executable testtool
 "test/Test.byte": pkg_cstruct
 "test/Test.byte": pkg_cstruct.syntax
@@ -50,19 +42,21 @@
 "test/Test.byte": pkg_sexplib
 "test/Test.byte": pkg_sexplib.syntax
 "test/Test.byte": pkg_str
+"test/Test.byte": pkg_tcpip
 "test/Test.byte": use_packet
 "test/Test.byte": use_quickcheck
-<test/*.ml{,i}>: pkg_cstruct
-<test/*.ml{,i}>: pkg_cstruct.syntax
-<test/*.ml{,i}>: pkg_oUnit
-<test/*.ml{,i}>: pkg_pa_ounit
-<test/*.ml{,i}>: pkg_pa_ounit.syntax
-<test/*.ml{,i}>: pkg_quickcheck
-<test/*.ml{,i}>: pkg_sexplib
-<test/*.ml{,i}>: pkg_sexplib.syntax
-<test/*.ml{,i}>: pkg_str
-<test/*.ml{,i}>: use_packet
-<test/*.ml{,i}>: use_quickcheck
+<test/*.ml{,i,y}>: pkg_cstruct
+<test/*.ml{,i,y}>: pkg_cstruct.syntax
+<test/*.ml{,i,y}>: pkg_oUnit
+<test/*.ml{,i,y}>: pkg_pa_ounit
+<test/*.ml{,i,y}>: pkg_pa_ounit.syntax
+<test/*.ml{,i,y}>: pkg_quickcheck
+<test/*.ml{,i,y}>: pkg_sexplib
+<test/*.ml{,i,y}>: pkg_sexplib.syntax
+<test/*.ml{,i,y}>: pkg_str
+<test/*.ml{,i,y}>: pkg_tcpip
+<test/*.ml{,i,y}>: use_packet
+<test/*.ml{,i,y}>: use_quickcheck
 # OASIS_STOP
 <lib/*.ml>: syntax_camlp4o
 <test/*.ml>: syntax_camlp4o
