@@ -108,18 +108,20 @@ module type NETWORK = sig
   end
 
   (* Paths *)
-  module type PATH = sig 
-    type weight 
+  module type PATH = sig
+    type weight
     type t = Topology.edge list
     exception NegativeCycle of t
-        
+
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
     val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
-    val all_pairs_shortest_paths : Topology.t
-      -> (weight * Topology.vertex * Topology.vertex * Topology.vertex list) list
+    val all_pairs_shortest_paths :
+        topo:Topology.t ->
+        f:(Topology.vertex -> Topology.vertex -> bool) ->
+       (weight * Topology.vertex * Topology.vertex * Topology.edge list) list
   end
 
-  module Path (Weight : WEIGHT with type label = Topology.Edge.t) : 
+  module Path (Weight : WEIGHT with type label = Topology.Edge.t) :
     PATH with type weight = Weight.t
 
   module UnitPath : PATH
@@ -306,7 +308,7 @@ struct
       l.EL.label
 
     let edge_to_string (t:t) (e:edge) : string =
-      let (_,e,_) = e in 
+      let (_,e,_) = e in
       EL.to_string e
 
     let edge_src (e:edge) : (vertex * port) =
@@ -402,15 +404,17 @@ struct
   end
 
   (* Paths *)
-  module type PATH = sig 
-    type weight 
+  module type PATH = sig
+    type weight
     type t = Topology.edge list
     exception NegativeCycle of t
-        
+
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
     val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
-    val all_pairs_shortest_paths : Topology.t
-      -> (weight * Topology.vertex * Topology.vertex * Topology.vertex list) list
+    val all_pairs_shortest_paths :
+        topo:Topology.t ->
+        f:(Topology.vertex -> Topology.vertex -> bool) ->
+       (weight * Topology.vertex * Topology.vertex * Topology.edge list) list
   end
 
   module Path = functor (Weight : WEIGHT with type label = Topology.Edge.t) ->
@@ -425,7 +429,7 @@ struct
       let compare = Weight.compare
       let add = Weight.add
       let zero = Weight.zero
-    end 
+    end
 
     module Dijkstra = Graph.Path.Dijkstra(P)(WL)
 
@@ -494,7 +498,9 @@ struct
       let r = relax 0 in
       r
 
-    let all_pairs_shortest_paths (t:Topology.t) : (Weight.t * vertex * vertex * vertex list) list =
+    let all_pairs_shortest_paths
+      ~(topo:Topology.t)
+      ~(f:Topology.vertex -> Topology.vertex -> bool) : (Weight.t * vertex * vertex * edge list) list =
       (* Because Weight does not provide infinity, we lift Weight.t
          using an option: None corresponds to infinity, and Some w
          corresponds to a finite weight. *)
@@ -515,36 +521,50 @@ struct
         let _ = VertexSet.fold vs ~init:0 ~f:(fun i v -> Array.set nodes i v; i+1) in
         (Array.init n
            (fun i -> Array.init n
-             (fun j -> if i = j then (Some Weight.zero, [nodes.(i)])
+             (fun j -> if i = j then (Some Weight.zero, lazy [])
                else
                  try
-                   let l = find_edge g nodes.(i) nodes.(j) in
-                   let w = Weight.weight (Topology.edge_to_label g l) in
-                   (Some w, [nodes.(i); nodes.(j)])
-                 with Not_found -> (None,[]))),
+                   let e = find_edge g nodes.(i) nodes.(j) in
+                   let w = Weight.weight (Topology.edge_to_label g e) in
+                   (Some w, lazy [e])
+                 with Not_found -> (None,lazy []))),
          nodes)
       in
-      let matrix,vxs = make_matrix t in
-      let n = P.nb_vertex t.graph in
+      let matrix,vxs = make_matrix topo in
+      let n = P.nb_vertex topo.graph in
       let dist i j = fst (matrix.(i).(j)) in
-      let path i j = snd (matrix.(i).(j)) in
+      let path i j = Lazy.force (snd (matrix.(i).(j))) in
+      (* Assumes that !(start = mid && stop = mid) *)
+      let path (start : int) (mid : int) (stop : int) =
+        if start = mid then
+          lazy (find_edge topo vxs.(start) vxs.(stop) ::
+                Lazy.force (snd (matrix.(mid).(stop))))
+        else if stop = mid then
+          lazy (Lazy.force (snd (matrix.(start).(mid))) @
+                [find_edge topo vxs.(start) vxs.(stop)])
+        else
+          lazy (Lazy.force (snd matrix.(start).(mid)) @
+                Lazy.force (snd matrix.(mid).(stop))) in
       for k = 0 to n - 1 do
         for i = 0 to n - 1 do
           for j = 0 to n - 1 do
             let dist_ikj = add_opt (dist i k) (dist k j) in
             if lt_opt dist_ikj (dist i j) then
-              matrix.(i).(j) <- (dist_ikj, path i k @ List.tl_exn (path k j))
+              matrix.(i).(j) <- (dist_ikj, path i k j)
           done
         done
       done;
       let paths = ref [] in
       Array.iteri (fun i array ->
         Array.iteri (fun j elt ->
-          match elt with 
-            | None, _ -> ()
-            | Some w, p -> 
-              paths := (w, vxs.(i), vxs.(j),p) :: !paths) 
-          array;) 
+          if (f (vxs.(i)) (vxs.(j))) then
+            (match elt with
+              | None, _ -> ()
+              | Some w, p ->
+                paths := (w, vxs.(i), vxs.(j),Lazy.force p) :: !paths)
+          else
+            ())
+          array;)
         matrix;
       !paths
   end
