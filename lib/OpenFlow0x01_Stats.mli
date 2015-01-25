@@ -19,6 +19,7 @@ type request =
   | FlowTableStatsRequest
   | IndividualRequest of statsReq
   | AggregateRequest of statsReq
+  | PortRequest of pseudoPort option
 
   (** The body of a reply to a description request. *)
 type descriptionStats =
@@ -52,6 +53,22 @@ type aggregateStats =
     ; flow_count : int32 (** Number of flows. *)
     }
 
+type portStats =
+    { port_no : int16
+    ; rx_packets : int64
+    ; tx_packets : int64
+    ; rx_bytes : int64
+    ; tx_bytes : int64
+    ; rx_dropped : int64
+    ; tx_dropped : int64
+    ; rx_errors : int64
+    ; tx_errors : int64
+    ; rx_frame_err : int64
+    ; rx_over_err : int64
+    ; rx_crc_err : int64
+    ; collisions : int64
+    }
+
   (** A statistics reply message.  See Section 5.3.5 of the OpenFlow 1.0 
       specification. *)
 
@@ -59,5 +76,6 @@ type reply =
   | DescriptionRep of descriptionStats
   | IndividualFlowRep of individualStats list
   | AggregateFlowRep of aggregateStats
+  | PortRep of portStats
 
 val reply_to_string : reply -> string
