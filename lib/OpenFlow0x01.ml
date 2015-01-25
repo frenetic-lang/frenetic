@@ -1669,7 +1669,7 @@ module StatsRequest = struct
 
   cstruct ofp_port_stats_request {
     uint16_t port_no;
-    uint8_t pad;
+    uint8_t pad[6];
   } as big_endian
 
   let marshal_flow_stats_request pat port table out =
