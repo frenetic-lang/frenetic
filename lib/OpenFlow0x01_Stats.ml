@@ -82,13 +82,13 @@ module Format = struct
       v.total_packet_count v.total_byte_count v.flow_count
 
   let portStats fmt v =
-    fprintf fmt "@[{@[@port_no=%d@ \
-                       rx_packets=%Ld@ tx_packets=%Ld@ \
-                       rx_bytes=%Ld@ tx_bytes=%Ld@ \
-                       rx_dropped=%Ld@ tx_dropped=%Ld@ \
-                       rx_errors=%Ld@ tx_errors=%Ld@ \
-                       rx_frame_err=%Ld@ rx_over_err=%Ld@ rx_crc_err=%Ld@ \
-                       collisions=%Ld@]}@]"
+    fprintf fmt "@[{@[port_no=%d@ \
+                      rx_packets=%Ld@ tx_packets=%Ld@ \
+                      rx_bytes=%Ld@ tx_bytes=%Ld@ \
+                      rx_dropped=%Ld@ tx_dropped=%Ld@ \
+                      rx_errors=%Ld@ tx_errors=%Ld@ \
+                      rx_frame_err=%Ld@ rx_over_err=%Ld@ rx_crc_err=%Ld@ \
+                      collisions=%Ld@]}@]"
       v.port_no
       v.rx_packets v.tx_packets
       v.rx_bytes v.tx_bytes
