@@ -31,13 +31,13 @@ Library netkat
     sexplib,
     sexplib.syntax,
     str,
-    tdk,
     threads,
     yojson,
     ipaddr
   InternalModules:
     Flowterp,
     NetKAT_FDD,
+    NetKAT_Vlr,
     Util
   Modules:
     NetKAT_Lexer,

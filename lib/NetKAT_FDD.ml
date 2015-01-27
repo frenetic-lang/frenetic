@@ -583,4 +583,4 @@ module Action = struct
     Printf.sprintf "[%s]" (SDN.string_of_par (to_sdn t))
 end
 
-module T = Tdk.Vlr.Make(Field)(Value)(Action)
+module T = NetKAT_Vlr.Make(Field)(Value)(Action)

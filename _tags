@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 66868ce7373f61cd8e947bd8ac3c407a)
+# DO NOT EDIT (digest: e331da94a10e5332d1f8005f2194f569)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -24,7 +24,6 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: package(sexplib)
 <lib/*.ml{,i,y}>: package(sexplib.syntax)
 <lib/*.ml{,i,y}>: package(str)
-<lib/*.ml{,i,y}>: package(tdk)
 <lib/*.ml{,i,y}>: package(threads)
 <lib/*.ml{,i,y}>: package(yojson)
 # Library syntax
@@ -49,7 +48,6 @@ true: annot, bin_annot
 <async/*.ml{,i,y}>: package(sexplib)
 <async/*.ml{,i,y}>: package(sexplib.syntax)
 <async/*.ml{,i,y}>: package(str)
-<async/*.ml{,i,y}>: package(tdk)
 <async/*.ml{,i,y}>: package(threads)
 <async/*.ml{,i,y}>: package(topology)
 <async/*.ml{,i,y}>: package(yojson)
@@ -67,7 +65,6 @@ true: annot, bin_annot
 <quickcheck/*.ml{,i,y}>: package(sexplib)
 <quickcheck/*.ml{,i,y}>: package(sexplib.syntax)
 <quickcheck/*.ml{,i,y}>: package(str)
-<quickcheck/*.ml{,i,y}>: package(tdk)
 <quickcheck/*.ml{,i,y}>: package(threads)
 <quickcheck/*.ml{,i,y}>: package(yojson)
 <quickcheck/*.ml{,i,y}>: use_netkat
@@ -87,7 +84,6 @@ true: annot, bin_annot
 "test/Test.byte": package(sexplib)
 "test/Test.byte": package(sexplib.syntax)
 "test/Test.byte": package(str)
-"test/Test.byte": package(tdk)
 "test/Test.byte": package(threads)
 "test/Test.byte": package(yojson)
 "test/Test.byte": use_netkat
@@ -107,7 +103,6 @@ true: annot, bin_annot
 <test/*.ml{,i,y}>: package(sexplib)
 <test/*.ml{,i,y}>: package(sexplib.syntax)
 <test/*.ml{,i,y}>: package(str)
-<test/*.ml{,i,y}>: package(tdk)
 <test/*.ml{,i,y}>: package(threads)
 <test/*.ml{,i,y}>: package(yojson)
 <test/*.ml{,i,y}>: use_netkat
@@ -127,7 +122,6 @@ true: annot, bin_annot
 "frenetic/katnetic.native": package(sexplib)
 "frenetic/katnetic.native": package(sexplib.syntax)
 "frenetic/katnetic.native": package(str)
-"frenetic/katnetic.native": package(tdk)
 "frenetic/katnetic.native": package(threads)
 "frenetic/katnetic.native": package(topology)
 "frenetic/katnetic.native": package(yojson)
@@ -148,7 +142,6 @@ true: annot, bin_annot
 "frenetic/test_updates.byte": package(sexplib)
 "frenetic/test_updates.byte": package(sexplib.syntax)
 "frenetic/test_updates.byte": package(str)
-"frenetic/test_updates.byte": package(tdk)
 "frenetic/test_updates.byte": package(threads)
 "frenetic/test_updates.byte": package(topology)
 "frenetic/test_updates.byte": package(yojson)
@@ -167,7 +160,6 @@ true: annot, bin_annot
 <frenetic/*.ml{,i,y}>: package(sexplib)
 <frenetic/*.ml{,i,y}>: package(sexplib.syntax)
 <frenetic/*.ml{,i,y}>: package(str)
-<frenetic/*.ml{,i,y}>: package(tdk)
 <frenetic/*.ml{,i,y}>: package(threads)
 <frenetic/*.ml{,i,y}>: package(topology)
 <frenetic/*.ml{,i,y}>: package(yojson)
