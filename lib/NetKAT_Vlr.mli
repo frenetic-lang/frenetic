@@ -179,9 +179,6 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
       applications of [f] to the values that they hold, and branches on
       variables with applications of [g]. *)
 
-  (* SJS: quick and dirty -- this shouldn't be in here *)
-  val to_table : t -> (v list * r) list
-
   val equal : t -> t -> bool
   (** [equal a b] returns whether or not the two diagrams are structurally
       equal.
