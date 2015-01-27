@@ -184,6 +184,19 @@ let mk_flow pattern action =
   ; hard_timeout = Permanent
   }
 
+let get_inport hvs =
+  let get_inport' current hv =
+  match hv with
+    | (Field.Location, Value.Const p) -> Some p
+    | _ -> current
+  in
+  List.fold_left hvs ~init:None ~f:get_inport'
+
+let to_action in_port r = Action.to_sdn ?in_port r
+
+let to_pattern hvs =
+  List.fold_right hvs ~f:Pattern.to_sdn  ~init:SDN.Pattern.match_all
+
 let to_table sw_id t =
   (* Convert a [t] to a flowtable for switch [sw_id]. This is implemented as a
      fold over the [t]. Leaf nodes emit a single rule flowtable that mach all
@@ -206,15 +219,14 @@ let to_table sw_id t =
      unguarded false tables will produce a table that will match all packets. *)
   let t = T.(restrict [(Field.Switch, Value.Const sw_id)] t) in
   let tbl = T.to_table t in
-  let to_pattern hvs = List.fold_right hvs ~f:Pattern.to_sdn  ~init:SDN.Pattern.match_all in
-  let get_inport' current hv =
-  match hv with
-    | (Field.Location, Value.Const p) -> Some p
-    | _ -> current
-  in
-  let get_inport hvs = List.fold_left hvs ~init:None ~f:get_inport' in
-  let to_action in_port r = Action.to_sdn ?in_port r in
+
   List.map tbl ~f:(fun (hvs, r) -> mk_flow (to_pattern hvs) [to_action (get_inport hvs) r])
+
+(* let rec naive_to_table sw_id (t : T.t) =
+  let t = T.(restrict [(Field.Switch, Value.Const sw_id)] t) in
+  let rec dfs tests t = match T.unget t with
+  | Leaf actions ->
+ *)
 
 let pipes t =
   let module S = Set.Make(String) in
