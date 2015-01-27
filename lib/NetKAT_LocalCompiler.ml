@@ -175,6 +175,15 @@ let compile ?(order=`Heuristic) pol =
 
 let clear_cache () = T.clear_cache ()
 
+let mk_flow pattern action =
+  let open SDN in
+  { pattern
+  ; action
+  ; cookie = 0L
+  ; idle_timeout = Permanent
+  ; hard_timeout = Permanent
+  }
+
 let to_table sw_id t =
   (* Convert a [t] to a flowtable for switch [sw_id]. This is implemented as a
      fold over the [t]. Leaf nodes emit a single rule flowtable that mach all
@@ -195,15 +204,6 @@ let to_table sw_id t =
      all packets that satisfy [v]. The false branch will therefore only apply to
      packets that don't satisfy [v]. Appending the guarded true table and the
      unguarded false tables will produce a table that will match all packets. *)
-  let mk_flow pattern action =
-    let open SDN in
-    { pattern
-    ; action
-    ; cookie = 0L
-    ; idle_timeout = Permanent
-    ; hard_timeout = Permanent
-    }
-  in
   let t = T.(restrict [(Field.Switch, Value.Const sw_id)] t) in
   let tbl = T.to_table t in
   let to_pattern hvs = List.fold_right hvs ~f:Pattern.to_sdn  ~init:SDN.Pattern.match_all in
