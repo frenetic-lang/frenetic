@@ -18,7 +18,7 @@ depends: [
   "packet"  {>= "0.3.0" }
   "sexplib"
 ]
-depopts: [ "async" "quickcheck" ]
-conflicts: [
-  "async_extra" { != "111.28.00" }
+depopts: [
+  "async" {>= "112.06.00" }
+  "quickcheck"
 ]

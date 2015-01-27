@@ -3,23 +3,8 @@ open Async.Std
 
 
 (** By default, displays untagged info messages on stderr. *)
-module Log : sig
+module Log : Log.Global_intf
 
-  include Log.Global_intf
-
-  val of_lazy
-    :  ?level:[ `Debug | `Info | `Error ]
-    -> ?time:Time.t
-    -> ?tags:(string * string) list
-    -> string Lazy.t
-    -> unit
-
-  val make_filtered_output : (string * string) list ->
-    Log.Output.t
-
-  val add_output : Log.Output.t list -> unit
-
-end
 
 module type Message = sig
   type t with sexp
