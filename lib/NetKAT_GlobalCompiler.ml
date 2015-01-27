@@ -20,20 +20,18 @@ let initial_local_pc = final_local_pc + 1
     program counters *)
 let initial_global_pc = 0xffff
 
-let match_pc (pc : int) (loc : pred) : policy = Filter (And (Test (Vlan pc), loc))
+let match_pc (pc : int) (loc : pred) : policy = mk_filter (mk_and (Test (Vlan pc)) loc)
 
 let set_pc pc = Mod (Vlan pc)
 
 let unset_pc = Mod (Vlan 0xffff)
-
-let match_location (sw,pt) = Filter (And (Test(Switch sw), Test(Location(Physical(pt)))))
 
 (** link ends are identified by a global program counter modulo a switch and a port *)
 let match_link_end sw pt pc =
   let t1 = Test (Vlan pc) in
   let t2 = Test (Switch sw) in
   let t3 = Test (Location(Physical(pt))) in
-  Filter (mk_big_and [t1; t2; t3])
+  mk_filter (mk_big_and [t1; t2; t3])
 
 let rec link_free p =
   match p with
@@ -41,6 +39,19 @@ let rec link_free p =
   | Union (q,r) | Seq (q,r) -> link_free q && link_free r
   | Star q -> link_free q
   | Link _ -> false
+
+let loc_of_hv hv =
+  match hv with
+  | Switch _ -> Test hv
+  | _ -> True
+
+let rec loc_of_pred pred =
+  match pred with
+  | Test hv -> loc_of_hv hv
+  | And (a,b) -> mk_and (loc_of_pred a) (loc_of_pred b)
+  | Or (a,b) -> mk_or (loc_of_pred a) (loc_of_pred b)
+  | Neg a -> mk_not (loc_of_pred a)
+
 
 (** Conceptually, the CPS translation transforms a given global program (that may contain links)
     to a big disjoint union of "CPS atoms" iterated by the kleene star. A CPS atom is a link-free
@@ -80,10 +91,13 @@ let cps (ingress : pred) (p : policy) =
     Tbl.replace global_pc_tbl ~key:(sw, pt) ~data:(pc-1); pc in
   let rec cps' loc p pc k =
     match p with
-    | Filter _ | Mod _ ->
+    | Filter pred ->
+      ([Local (mk_big_seq [match_pc pc loc; p; set_pc k])], mk_and loc (loc_of_pred pred))
+    | Mod _ ->
        ([Local (mk_big_seq [match_pc pc loc; p; set_pc k])], loc)
-    | p when link_free p ->
-       ([Local (mk_big_seq [match_pc pc loc; p; set_pc k])], loc)
+    (* SJS *)
+(*     | p when link_free p ->
+       ([Local (mk_big_seq [match_pc pc loc; p; set_pc k])], True) *)
     | Union _ ->
        let pols = flatten_union p in
        let pcs = List.map (fun _ -> next_local_pc ()) pols in
@@ -107,8 +121,8 @@ let cps (ingress : pred) (p : policy) =
        let gpc = next_global_pc sw2 pt2 in
        ([Exit (mk_big_seq [match_link_end sw1 pt1 pc; set_pc gpc]);
          Entrance (mk_big_seq [match_link_end sw2 pt2 gpc; set_pc k])],
-        (And (Test (Switch sw2), Test (Location (Physical pt2))))) in
-  fst (cps' ingress p (next_local_pc ()) final_local_pc)
+         (Test (Switch sw2))) in
+  fst (cps' (loc_of_pred ingress) p (next_local_pc ()) final_local_pc)
 
 let split_cps (cps : cps_policy list) =
   let clasify_cps_policy (entrance, local, exit) = function
