@@ -13,9 +13,9 @@ package "syntax" (
  version = "3.1.0"
  description = "Syntax extension writing NetKAT expressions"
  requires = "camlp4 ulex ipaddr"
- archive(syntax, preprocessor) = "ulexing.cma syntax.cma"
+ archive(syntax, preprocessor) = "syntax.cma"
  archive(syntax, toploop) = "syntax.cma"
- archive(syntax, preprocessor, native) = "ulexing.cmxa syntax.cmxa"
+ archive(syntax, preprocessor, native) = "syntax.cmxa"
  archive(syntax, preprocessor, native, plugin) = "syntax.cmxs"
  exists_if = "syntax.cma"
 )

@@ -37,6 +37,7 @@ Library netkat
     ipaddr
   InternalModules:
     Flowterp,
+    NetKAT_FDD,
     Util
   Modules:
     NetKAT_Lexer,
