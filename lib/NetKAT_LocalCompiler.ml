@@ -192,7 +192,9 @@ let get_inport hvs =
   in
   List.fold_left hvs ~init:None ~f:get_inport'
 
-let to_action in_port r = Action.to_sdn ?in_port r
+let to_action in_port r tests =
+  List.fold tests ~init:r ~f:(fun a t -> Action.demod t a)
+  |> Action.to_sdn ?in_port
 
 let to_pattern hvs =
   List.fold_right hvs ~f:Pattern.to_sdn  ~init:SDN.Pattern.match_all
@@ -209,7 +211,7 @@ let opt_to_table sw_id t =
     | Branch (test, t, f) ->
       next_table_row (test::tests) (fun t' -> mk_rest (mk_branch_or_leaf test t' f)) t
     | Leaf actions ->
-      let openflow_instruction = [to_action (get_inport tests) actions] in
+      let openflow_instruction = [to_action (get_inport tests) actions tests] in
       let row = mk_flow (to_pattern tests) openflow_instruction in
       (row, mk_rest None)
   in
@@ -224,7 +226,7 @@ let rec naive_to_table sw_id (t : T.t) =
   let t = T.(restrict [(Field.Switch, Value.Const sw_id)] t) in
   let rec dfs tests t = match T.unget t with
   | Leaf actions ->
-    let openflow_instruction = [to_action (get_inport tests) actions] in
+    let openflow_instruction = [to_action (get_inport tests) actions tests] in
     [mk_flow (to_pattern tests) openflow_instruction]
   | Branch (test, tru, fls) ->
     dfs (test :: tests) tru @ dfs tests fls in
