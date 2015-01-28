@@ -61,20 +61,12 @@ let rec split_pol (pol: policy) : policy * policy * policy =
     (e, d1, d2)
   | Link (sw1,pt1,sw2,pt2) -> (drop, match_location sw1 pt1, match_location sw2 pt2)
 
-let fmt = Format.formatter_of_out_channel stderr
-
 let compile (ingress : pred) (egress : pred) (p : policy) =
   let ingress = mk_filter ingress in
   let egress = mk_filter egress in
   let p = tag_links p in
   let rec loop i e_acc d_acc p =
     let (e, d1, d2) = split_pol p in
-    let _ = begin
-      Printf.printf "Interation %d\n%!" i;
-      Format.fprintf fmt "E = @\n@[%a@]@\n@\n%!" NetKAT_Pretty.format_policy e;
-      Format.fprintf fmt "D1 = @\n@[%a@]@\n@\n%!" NetKAT_Pretty.format_policy d1;
-      Format.fprintf fmt "D2 = @\n@[%a@]@\n@\n%!" NetKAT_Pretty.format_policy d2;
-    end in
     let e_acc = mk_union e_acc e in
     let d_acc = mk_union d_acc d1 in
     if d2 = drop then
