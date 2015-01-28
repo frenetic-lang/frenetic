@@ -199,22 +199,15 @@ let to_action in_port r tests =
 let to_pattern hvs =
   List.fold_right hvs ~f:Pattern.to_sdn  ~init:SDN.Pattern.match_all
 
-let smart_mk_branch (f, n) tru fls =
-  if T.equal tru (T.const Action.zero) then
-  match T.unget fls with
-   | Branch ((f',_),_,_) when f=f' -> fls
-   | _ -> T.mk_branch (f,n) tru fls
-  else T.mk_branch (f,n) tru fls
-
-let remove_phantoms = T.fold T.mk_leaf smart_mk_branch
-
 let mk_branch_or_leaf test t f =
   match t with
   | None -> Some f
-  | Some t -> Some (smart_mk_branch test t f)
+  | Some t -> Some (T.mk_branch test t f)
 
 let opt_to_table sw_id t =
-  let t = T.(restrict [(Field.Switch, Value.Const sw_id)] t) |> remove_phantoms in
+  let t =
+    T.(restrict [(Field.Switch, Value.Const sw_id)] t)
+  in
   let rec next_table_row tests mk_rest t =
     match T.unget t with
     | Branch (test, t, f) ->
