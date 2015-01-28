@@ -83,3 +83,7 @@ let compile (ingress : pred) (egress : pred) (p : policy) =
       loop (i+1) e_acc d_acc d2
   in
   loop 1 drop drop (mk_seq ingress p)
+
+let compile_pol ~(pol : policy) : policy = match pol with
+  | Seq (Filter ingress, Seq (p, Filter egress)) -> compile ingress egress p
+  | _ -> assert false

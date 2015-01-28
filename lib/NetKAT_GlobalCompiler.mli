@@ -10,3 +10,6 @@ val compile : pred -> pred -> policy -> policy
     field. Violating this assumption will result in undefined behavior.
     The compiler uses the vlan field to maintain internal state across links, i.e. the
     policy retuned by the compiler may change the vlan field of a packet in arbitrary ways.  *)
+
+(** The policy must be of the form [Seq (Filter ingress, Seq (pol, Filter egress))] *)
+val compile_pol : pol:policy -> policy
