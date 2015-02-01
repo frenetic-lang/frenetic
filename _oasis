@@ -15,7 +15,7 @@ Library topology
     sexplib,
     sexplib.syntax,
     packet,
-    ocamlgraph (> 1.8.5),
+    ocamlgraph (>= 1.8.6),
     threads
   Modules:
     Network,
