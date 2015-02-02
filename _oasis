@@ -1,6 +1,6 @@
 OASISFormat: 0.3
 Name:        topology
-Version:     0.2.0
+Version:     0.4.0
 Synopsis:    Network topologies
 Authors:     https://github.com/frenetic-lang/ocaml-topology/contributors
 License:     LGPL
@@ -20,7 +20,6 @@ Library topology
   Modules:
     Network,
     Network_Common
-
 
 Executable topotool
   Path: exe
