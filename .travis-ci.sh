@@ -84,7 +84,7 @@ opam install ${pkg} --deps-only -t
 # Compile with optional dependencies
 # pick from $DEPOPTS if set or query OPAM
 depopts=${DEPOPTS:-$(opam show ${pkg} | grep -oP 'depopts: \K(.*)' | sed 's/ | / /g')}
-if [ -n ${depopts} ]l then
+if [ -n ${depopts} ]; then
   opam install ${depopts}
 fi
 
