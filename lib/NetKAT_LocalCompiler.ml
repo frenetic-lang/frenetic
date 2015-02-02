@@ -177,8 +177,36 @@ let compile ?(order=`Heuristic) ?(clear_cache=true) pol =
    | `Static flds -> Field.set_order flds);
   of_policy pol
 
+let check_vlan_pcp pattern =
+  let open SDN.Pattern in
+  if (pattern.dlVlanPcp <> None) && (pattern.dlTyp = None)
+  then { pattern with dlTyp = Some 0x8100 }
+  else pattern
+
+let check_nwProto pattern =
+  let open SDN.Pattern in
+  if (pattern.nwProto <> None) && (pattern.dlTyp = None)
+  then { pattern with dlTyp = Some 0x0800 }
+  else pattern
+
+let check_tcp pattern =
+  let open SDN.Pattern in
+  if pattern.tpSrc <> None && pattern.tpDst <> None && pattern.nwProto = None
+  (* This is okay for TCP. Do we need to worry about UDP? *)
+  then { pattern with nwProto = Some 0x6 }
+  else pattern
 
 let mk_flow pattern action =
+  let open SDN.Pattern in
+  let pattern' = check_nwProto pattern in
+  let pattern'' = check_tcp pattern' in
+  let pattern''' = check_nwProto pattern'' in
+  (* Not entirely sure how to detect the following from the pattern: 
+      - Left out optional ARP packet where dlTyp should be set to 0x0806
+      - Left out UDP where nwProto should be set to 7 
+      - Left out ICMP where nwProto should be set to 1 
+   *)
+  let pattern = pattern''' in
   let open SDN in
   { pattern
   ; action
