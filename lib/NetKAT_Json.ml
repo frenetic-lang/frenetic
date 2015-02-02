@@ -86,8 +86,9 @@ let rec policy_to_json (pol : policy) : json = match pol with
   | Mod h -> `Assoc [("type", `String "mod");
                      ("header", to_json_header h);
                      ("value", to_json_value h)]
-  | Union (p, q) -> `Assoc [("type", `String "union");
-                            ("pols", `List [policy_to_json p; policy_to_json q])]
+  | Union (p, q) ->
+    `Assoc [("type", `String "union");
+            ("pols", `List (flatten_union pol |> List.map ~f:policy_to_json))]
   | Seq (p, q) ->
     `Assoc [("type", `String "seq");
            ("pols", `List [policy_to_json p; policy_to_json q])]

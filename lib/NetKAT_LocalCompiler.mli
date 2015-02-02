@@ -40,13 +40,16 @@ exception Non_local
     [Link] term in it. [Link] terms are currently not supported by this
     compiler. *)
 
-val compile : ?order:order -> policy -> t
+val compile : ?order:order -> ?clear_cache:bool -> policy -> t
 (** [compile p] returns the intermediate representation of the policy [p].
     You can generate a flowtable from [t] by passing it to the {!to_table}
     function below.
 
     The optional [order] flag determines the variable order. If unset,
     it uses a static default ordering.
+
+    The optional [clear_cache] flag determines if the cache should be cleared
+    before compilation. By default, the cache is cleared.
  *)
 
 val restrict : header_val -> t -> t
@@ -58,7 +61,7 @@ val restrict : header_val -> t -> t
     This function is called by {!to_table} to restrict [t] to the portion that
     should run on a single switch. *)
 
-val to_table : switchId -> t -> flowTable
+val to_table : ?opt:bool -> switchId -> t -> flowTable
 (** [to_table sw t] returns a flowtable that implements [t] for switch [sw]. *)
 
 
@@ -104,6 +107,9 @@ val equal : t -> t -> bool
 val size : t -> int
 (** [size t] returns the size of [t]. *)
 
+(* compressed_size / uncompressed_size *)
+val compression_ratio : t -> int * int
+
 val to_policy : t -> policy
 (** [to_policy t] returns a NetKAT policy that is semantically equivalent to
     [t]. If was generated from compiling a policy [p], it is not guarateed that
@@ -129,3 +135,6 @@ val eval_pipes
     second is a list of packets and corresponding query location, and whose
     third is a list of packets that are at physical locations. *)
 
+val clear_cache : unit -> unit
+
+val to_dotfile : t -> string -> unit

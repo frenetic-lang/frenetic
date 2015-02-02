@@ -1,7 +1,7 @@
 OASISFormat: 0.4
-OCamlVersion: >= 4.01.0
+OCamlVersion: >= 4.02.0
 Name:        frenetic
-Version:     3.1.0
+Version:     3.2.0
 Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     https://github.com/frenetic-lang/frenetic/contributors
 License:     LGPL
@@ -13,30 +13,23 @@ BuildTools:
   ocamldoc,
   camlp4
 
-Flag quickcheck
-  Description: build the frenetic.quickcheck library
-  Default: false
-
-Flag async
-    Description: build the netkat.async library
-    Default: false
-
 Library netkat
   Path: lib
   BuildDepends:
     core,
     fieldslib,
     fieldslib.syntax,
-    openflow,
+    openflow (>= 0.8.0),
     sexplib,
     sexplib.syntax,
     str,
-    tdk,
     threads,
     yojson,
     ipaddr
   InternalModules:
     Flowterp,
+    NetKAT_FDD,
+    NetKAT_Vlr,
     Util
   Modules:
     NetKAT_Lexer,
@@ -72,16 +65,15 @@ Library async
   Findlibparent: netkat
   Findlibname: async
   Path: async
-  Build$: flag(async)
   BuildDepends:
     async,
     core,
     cstruct,
     cstruct.syntax,
     netkat,
-    openflow,
-    openflow.async,
-    packet,
+    openflow (>= 0.8.0),
+    openflow.async (>= 0.8.0),
+    packet (>= 0.4.0),
     threads,
     topology,
     sexplib,
@@ -100,7 +92,6 @@ Library quickcheck
   Findlibparent: netkat
   Findlibname: quickcheck
   Path: quickcheck
-  Build$: flag(quickcheck) || flag(tests)
   BuildDepends:
     netkat,
     openflow.quickcheck,
@@ -131,7 +122,6 @@ Test all_tests
 Executable katnetic
   Path: frenetic
   MainIs: katnetic.ml
-  Build$: flag(async)
   Install: false
   CompiledObject: native
   BuildDepends:
@@ -144,7 +134,6 @@ Executable katnetic
 Executable test_updates
   Path: frenetic
   MainIs: test_updates.ml
-  Build$: flag(async)
   Install: false
   BuildDepends:
     async,
