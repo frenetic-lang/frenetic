@@ -126,7 +126,7 @@ module Field = struct
         let (m, lst) = f_seq' p lst in
         let (n, lst) = f_seq' q lst in
         (m * n, lst)
-      | DisjointUnion _ | Union _ -> (f_union pol, lst)
+      | Union _ -> (f_union pol, lst)
       | Star _ | Link _ -> (1, lst) (* bad, but it works *)
     and f_seq pol =
       let (size, preds) = f_seq' pol [] in
@@ -135,7 +135,7 @@ module Field = struct
     and f_union' pol k = match pol with
       | Mod _ -> k 1
       | Filter _ -> k 1
-      | DisjointUnion (p, q) | Union (p, q) ->
+      | Union (p, q) ->
         f_union' p (fun m -> f_union' q (fun n -> k (m + n)))
       | Seq _ -> k (f_seq pol)
       | Star _ | Link _ -> k 1 (* bad, but it works *)
