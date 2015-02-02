@@ -17,11 +17,6 @@ the following command:
 
     $ opam install openflow
 
-To install the async subpackage, simply ensure that async is installed before
-or after installing the library:
-
-    $ opam install async
-
 Development
 -----------
 
