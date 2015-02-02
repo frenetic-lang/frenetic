@@ -1667,6 +1667,11 @@ module StatsRequest = struct
     uint16_t out_port
   } as big_endian
 
+  cstruct ofp_port_stats_request {
+    uint16_t port_no;
+    uint8_t pad[6];
+  } as big_endian
+
   let marshal_flow_stats_request pat port table out =
     let _ = Match.marshal pat out in
     set_ofp_flow_stats_request_table_id out table;
@@ -1680,6 +1685,17 @@ module StatsRequest = struct
     end;
     sizeof_ofp_flow_stats_request
 
+  let marshal_port_stats_request port out =
+    begin match port with
+      | Some port ->
+        set_ofp_port_stats_request_port_no out (PseudoPort.marshal port)
+      | None ->
+        let open PseudoPort in
+        let port_code = ofp_port_to_int OFPP_NONE in
+        set_ofp_port_stats_request_port_no out port_code
+    end;
+    sizeof_ofp_port_stats_request
+
   let to_string msg = match msg with
     | DescriptionRequest ->
       "DescriptionReq"
@@ -1689,6 +1705,8 @@ module StatsRequest = struct
       "IndividualFlowReq "
     | AggregateRequest _ ->
       "AggregateFlowReq "
+    | PortRequest _ ->
+      "PortRequest "
 
   let size_of msg =
     let header_size = sizeof_ofp_stats_request in
@@ -1697,12 +1715,14 @@ module StatsRequest = struct
     | FlowTableStatsRequest -> header_size
     | AggregateRequest _
     | IndividualRequest _ -> header_size + sizeof_ofp_flow_stats_request
+    | PortRequest _ -> header_size + sizeof_ofp_port_stats_request
 
   let ofp_stats_type_of_request req = match req with
     | DescriptionRequest -> OFPST_DESC
     | FlowTableStatsRequest -> OFPST_TABLE
     | IndividualRequest _ -> OFPST_FLOW
     | AggregateRequest _ -> OFPST_AGGREGATE
+    | PortRequest _ -> OFPST_PORT
 
   let marshal (msg : request) (out : Cstruct.t) =
     let req_type = ofp_stats_type_of_request msg in
@@ -1716,6 +1736,8 @@ module StatsRequest = struct
     | IndividualRequest stats_req
     | AggregateRequest  stats_req ->
       marshal_flow_stats_request stats_req.sr_of_match stats_req.sr_out_port stats_req.sr_table_id out'
+    | PortRequest port ->
+      marshal_port_stats_request port out'
 
   let parse_stats_request bits =
     let sr_of_match = Match.parse (get_ofp_flow_stats_request_of_match bits) in
@@ -1729,6 +1751,13 @@ module StatsRequest = struct
     in
     { sr_of_match; sr_table_id; sr_out_port }
 
+  let parse_port_request bits =
+    let open PseudoPort in
+    if ofp_port_to_int OFPP_NONE = (get_ofp_flow_stats_request_out_port bits) then
+      None
+    else
+      Some (PhysicalPort (get_ofp_flow_stats_request_out_port bits))
+
   let parse bits =
     let stats_type_code = get_ofp_stats_request_req_type bits in
     let body = Cstruct.shift bits sizeof_ofp_stats_request in
@@ -1739,7 +1768,7 @@ module StatsRequest = struct
     | Some OFPST_AGGREGATE -> AggregateRequest (parse_stats_request body)
     | Some OFPST_QUEUE -> raise (Unparsable "queue statistics unsupported")
     | Some OFPST_VENDOR -> raise (Unparsable "vendor statistics unsupported")
-    | Some OFPST_PORT -> raise (Unparsable "port statistics unsupported")
+    | Some OFPST_PORT -> PortRequest (parse_port_request body)
     | None ->
       let msg =
         sprintf "bad ofp_stats_type in stats_request (%d)" stats_type_code in
@@ -1763,7 +1792,7 @@ module StatsReply = struct
     } as big_endian
 
     let mkString bits size =
-      let new_string = String.create size in
+      let new_string = Bytes.create size in
       Cstruct.blit_to_string bits 0 new_string 0 size;
       new_string
 
@@ -1872,10 +1901,57 @@ module StatsReply = struct
 
     let parse_aggregate_stats bits =
       { total_packet_count = get_ofp_aggregate_stats_packet_count bits;
-              total_byte_count = get_ofp_aggregate_stats_byte_count bits;
-              flow_count = get_ofp_aggregate_stats_flow_count bits }
+        total_byte_count = get_ofp_aggregate_stats_byte_count bits;
+        flow_count = get_ofp_aggregate_stats_flow_count bits }
 
   (** Reply to an ofp_stats_request of type OFPST_AGGREGATE *)
+
+  cstruct ofp_port_stats {
+    uint16_t port_no;
+    uint8_t pad[6];
+    uint64_t rx_packets;
+    uint64_t tx_packets;
+    uint64_t rx_bytes;
+    uint64_t tx_bytes;
+    uint64_t rx_dropped;
+    uint64_t tx_dropped;
+    uint64_t rx_errors;
+    uint64_t tx_errors;
+    uint64_t rx_frame_err;
+    uint64_t rx_over_err;
+    uint64_t rx_crc_err;
+    uint64_t collisions;
+  } as big_endian
+
+ let parse_port_stats bits =
+   let port_no = get_ofp_port_stats_port_no bits in
+   let rx_packets = get_ofp_port_stats_rx_packets bits in
+   let tx_packets = get_ofp_port_stats_tx_packets bits in
+   let rx_bytes = get_ofp_port_stats_rx_bytes bits in
+   let tx_bytes = get_ofp_port_stats_tx_bytes bits in
+   let rx_dropped = get_ofp_port_stats_rx_dropped bits in
+   let tx_dropped = get_ofp_port_stats_tx_dropped bits in
+   let rx_errors = get_ofp_port_stats_rx_errors bits in
+   let tx_errors = get_ofp_port_stats_tx_errors bits in
+   let rx_frame_err = get_ofp_port_stats_rx_frame_err bits in
+   let rx_over_err = get_ofp_port_stats_rx_over_err bits in
+   let rx_crc_err = get_ofp_port_stats_rx_crc_err bits in
+   let collisions = get_ofp_port_stats_collisions bits in
+    { port_no = port_no
+    ; rx_packets = rx_packets
+    ; tx_packets = tx_packets
+    ; rx_bytes = rx_bytes
+    ; tx_bytes = tx_bytes
+    ; rx_dropped = rx_dropped
+    ; tx_dropped = tx_dropped
+    ; rx_errors = rx_errors
+    ; tx_errors = tx_errors
+    ; rx_frame_err = rx_frame_err
+    ; rx_over_err = rx_over_err
+    ; rx_crc_err = rx_crc_err
+    ; collisions = collisions
+    }
+
   cstruct ofp_stats_reply {
     uint16_t stats_type;
     uint16_t flags
@@ -1893,7 +1969,7 @@ module StatsReply = struct
     | Some OFPST_TABLE -> raise (Unparsable "table statistics unsupported")
     | Some OFPST_QUEUE -> raise (Unparsable "queue statistics unsupported")
     | Some OFPST_VENDOR -> raise (Unparsable "vendor statistics unsupported")
-    | Some OFPST_PORT -> raise (Unparsable "port statistics unsupported")
+    | Some OFPST_PORT -> PortRep (parse_port_stats body)
     | None ->
       let msg =
         sprintf "bad ofp_stats_type in stats_reply (%d)" stats_type_code in
@@ -1939,6 +2015,24 @@ module StatsReply = struct
         end;
         (** TODO: Support the marshaling of multiple action and multiple flows *)
         sizeof_ofp_stats_reply + sizeof_ofp_flow_stats
+      | PortRep rep ->
+        set_ofp_stats_reply_stats_type out (ofp_stats_types_to_int OFPST_PORT);
+        begin let out = Cstruct.shift out sizeof_ofp_stats_reply in
+          set_ofp_port_stats_port_no out (rep.port_no);
+          set_ofp_port_stats_rx_packets out (rep.rx_packets);
+          set_ofp_port_stats_tx_packets out (rep.tx_packets);
+          set_ofp_port_stats_rx_bytes out (rep.rx_bytes);
+          set_ofp_port_stats_tx_bytes out (rep.tx_bytes);
+          set_ofp_port_stats_rx_dropped out (rep.rx_dropped);
+          set_ofp_port_stats_tx_dropped out (rep.tx_dropped);
+          set_ofp_port_stats_rx_errors out (rep.rx_errors);
+          set_ofp_port_stats_tx_errors out (rep.tx_errors);
+          set_ofp_port_stats_rx_frame_err out (rep.rx_frame_err);
+          set_ofp_port_stats_rx_over_err out (rep.rx_over_err);
+          set_ofp_port_stats_rx_crc_err out (rep.rx_crc_err);
+          set_ofp_port_stats_collisions out (rep.collisions);
+        end;
+        sizeof_ofp_stats_reply + sizeof_ofp_port_stats
     end
 
   let to_string (t : t) =
@@ -1948,7 +2042,7 @@ module StatsReply = struct
     | DescriptionRep _ -> sizeof_ofp_stats_reply + sizeof_ofp_desc_stats
     | IndividualFlowRep _ -> sizeof_ofp_stats_reply + sizeof_ofp_flow_stats
     | AggregateFlowRep _ -> sizeof_ofp_stats_reply + sizeof_ofp_aggregate_stats
-
+    | PortRep _ -> sizeof_ofp_stats_reply + sizeof_ofp_port_stats
 end
 
 (* See Section 5.4.4 of the OpenFlow 1.0 specification *)
