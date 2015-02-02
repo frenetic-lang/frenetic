@@ -51,6 +51,7 @@ let rec loc_of_pred pred =
   | And (a,b) -> mk_and (loc_of_pred a) (loc_of_pred b)
   | Or (a,b) -> mk_or (loc_of_pred a) (loc_of_pred b)
   | Neg a -> mk_not (loc_of_pred a)
+  | True | False -> pred
 
 
 (** Conceptually, the CPS translation transforms a given global program (that may contain links)
