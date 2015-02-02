@@ -5,6 +5,7 @@ name: "openflow"
 maintainer: "Arjun Guha <arjun@cs.umass.edu>"
 build: [
   ["./configure" "--%{pa_ounit:enable}%-tests"]
+  [make]
   [make "install"]
 ]
 build-test: [
