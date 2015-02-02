@@ -13,14 +13,6 @@ BuildTools:
   ocamldoc,
   camlp4
 
-Flag quickcheck
-  Description: build the frenetic.quickcheck library
-  Default: false
-
-Flag async
-    Description: build the netkat.async library
-    Default: false
-
 Library netkat
   Path: lib
   BuildDepends:
@@ -73,7 +65,6 @@ Library async
   Findlibparent: netkat
   Findlibname: async
   Path: async
-  Build$: flag(async)
   BuildDepends:
     async,
     core,
@@ -101,7 +92,6 @@ Library quickcheck
   Findlibparent: netkat
   Findlibname: quickcheck
   Path: quickcheck
-  Build$: flag(quickcheck) || flag(tests)
   BuildDepends:
     netkat,
     openflow.quickcheck,
@@ -132,7 +122,6 @@ Test all_tests
 Executable katnetic
   Path: frenetic
   MainIs: katnetic.ml
-  Build$: flag(async)
   Install: false
   CompiledObject: native
   BuildDepends:
@@ -145,7 +134,6 @@ Executable katnetic
 Executable test_updates
   Path: frenetic
   MainIs: test_updates.ml
-  Build$: flag(async)
   Install: false
   BuildDepends:
     async,
