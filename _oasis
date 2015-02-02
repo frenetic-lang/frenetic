@@ -4,7 +4,7 @@ Version:     0.4.0
 Synopsis:    Network topologies
 Authors:     https://github.com/frenetic-lang/ocaml-topology/contributors
 License:     LGPL
-Plugins:     META (0.3)
+Plugins:     META (0.3), DevFiles (0.3)
 BuildTools:
   ocamlbuild
 
