@@ -3,7 +3,7 @@ version: "0.3.2"
 name: "packet"
 maintainer: "Arjun Guha <arjun@cs.umass.edu>"
 build: [
-  ["./configure" "--%{test:enable}%-tests"]
+  ["./configure" "--%{ounit:enable}%-tests"]
   [make "install"]
 ]
 build-test: [
