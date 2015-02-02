@@ -1,7 +1,7 @@
 OASISFormat: 0.4
-OCamlVersion: >= 4.01.0
+OCamlVersion: >= 4.02.0
 Name:        frenetic
-Version:     3.1.0
+Version:     3.2.0
 Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     https://github.com/frenetic-lang/frenetic/contributors
 License:     LGPL
@@ -27,7 +27,7 @@ Library netkat
     core,
     fieldslib,
     fieldslib.syntax,
-    openflow,
+    openflow (>= 0.8.0),
     sexplib,
     sexplib.syntax,
     str,
@@ -80,9 +80,9 @@ Library async
     cstruct,
     cstruct.syntax,
     netkat,
-    openflow,
-    openflow.async,
-    packet,
+    openflow (>= 0.8.0),
+    openflow.async (>= 0.8.0),
+    packet (>= 0.4.0),
     threads,
     topology,
     sexplib,
