@@ -1,9 +1,5 @@
 language: c
 script: bash -ex .travis-ci.sh
-cache:
-  apt: true
-  directories:
-  - ~/.opam
 env:
   matrix:
     - OCAML_VERSION=latest PACKAGE=packet
