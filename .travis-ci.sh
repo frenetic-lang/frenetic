@@ -77,6 +77,15 @@ if [ "$srcext" != "" ]; then
   curl -sL ${srcext} | bash
 fi
 
+# Install the OCaml dependencies and test-dependencies
+echo "opam install ${pkg} --deps-only"
+opam install ${pkg} --deps-only -t
+
+# Compile with optional dependencies
+# pick from $DEPOPTS if set or query OPAM
+depopts=${DEPOPTS:-$(opam show ${pkg} | grep -oP 'depopts: \K(.*)' | sed 's/ | / /g')}
+opam install ${depopts}
+
 ./configure --enable-tests
 make
 make test
