@@ -27,7 +27,6 @@ Library quickcheck
   Findlibparent: packet
   Findlibname: quickcheck
   Path: quickcheck
-  Build$: flag(tests)
   BuildDepends:
     packet,
     quickcheck
