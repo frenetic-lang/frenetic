@@ -1,6 +1,6 @@
 OASISFormat: 0.3
 Name:        packet
-Version:     0.3.2
+Version:     0.4.0
 Synopsis:    Serialization for some common network packets, including
              ethernet frames, IP, TCP, and ARP.
 Authors:     https://github.com/frenetic-lang/ocaml-packet/contributors
@@ -9,10 +9,6 @@ Plugins:     META (0.3), DevFiles (0.3)
 BuildTools:
   ocamlbuild,
   ocamldoc
-
-Flag quickcheck
-  Description: build the packet.quickcheck library
-  Default: false
 
 Library packet
   Path: lib
@@ -31,7 +27,6 @@ Library quickcheck
   Findlibparent: packet
   Findlibname: quickcheck
   Path: quickcheck
-  Build$: flag(tests) || flag(quickcheck)
   BuildDepends:
     packet,
     quickcheck
@@ -54,5 +49,5 @@ Executable testtool
 
 Test all_tests
   Command: $testtool inline-test-runner dummy
-  Run$: flag(tests) && flag(quickcheck)
+  Run$: flag(tests)
   TestTools: testtool

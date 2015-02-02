@@ -1,11 +1,15 @@
-opam-version: "1"
-version: "0.3.2"
+opam-version: "1.2"
+version: "0.4.0"
 name: "packet"
 maintainer: "Arjun Guha <arjun@cs.umass.edu>"
+homepage: "https://github.com/frenetic-lang/ocaml-packet"
 build: [
-  ["ocaml" "setup.ml" "-configure" "--%{quickcheck:enable}%-quickcheck"]
-  ["ocaml" "setup.ml" "-build"]
-  ["ocaml" "setup.ml" "-install"]
+  ["./configure" "--%{pa_ounit:enable}%-tests"]
+  [make]
+  [make "install"]
+]
+build-test: [
+  [make "test"]
 ]
 remove: [
   ["ocamlfind" "remove" "packet"]
@@ -15,5 +19,8 @@ depends: [
   "cstruct" {>= "1.0.1"}
   "sexplib" {>= "110.01.00"}
   "tcpip" {>= "2.0.3"}
+  "quickcheck"
+  "ounit" {test}
+  "pa_ounit" {test}
 ]
-depopts: ["quickcheck"]
+ocaml-version: [>= "4.02.0"]
