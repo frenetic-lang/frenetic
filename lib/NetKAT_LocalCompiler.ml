@@ -166,14 +166,17 @@ end
 
 include Repr
 
-let compile ?(order=`Heuristic) pol =
+let clear_cache () = T.clear_cache ()
+
+let compile ?(order=`Heuristic) ?(clear_cache=true) pol =
+  (if clear_cache then
+     T.clear_cache ());
   (match order with
    | `Heuristic -> Field.auto_order pol
    | `Default -> Field.set_order Field.all_fields
    | `Static flds -> Field.set_order flds);
   of_policy pol
 
-let clear_cache () = T.clear_cache ()
 
 let mk_flow pattern action =
   let open SDN in

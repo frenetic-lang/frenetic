@@ -40,13 +40,16 @@ exception Non_local
     [Link] term in it. [Link] terms are currently not supported by this
     compiler. *)
 
-val compile : ?order:order -> policy -> t
+val compile : ?order:order -> ?clear_cache:bool -> policy -> t
 (** [compile p] returns the intermediate representation of the policy [p].
     You can generate a flowtable from [t] by passing it to the {!to_table}
     function below.
 
     The optional [order] flag determines the variable order. If unset,
     it uses a static default ordering.
+
+    The optional [clear_cache] flag determines if the cache should be cleared
+    before compilation. By default, the cache is cleared.
  *)
 
 val restrict : header_val -> t -> t
