@@ -1,31 +1,41 @@
-all: build
+# OASIS_START
+# DO NOT EDIT (digest: a3c674b4239234cbbe53afe090018954)
 
-ASYNC ?= $(shell if ocamlfind query async >/dev/null 2>&1; then echo --enable-async; else echo --disable-async; fi)
-# Implies --enable-quickcheck
-TESTS ?= $(shell if ocamlfind query quickcheck >/dev/null 2>&1; then echo --enable-tests; else echo --disable-tests; fi)
+SETUP = ocaml setup.ml
 
-NAME=openflow
-J=4
+build: setup.data
+	$(SETUP) -build $(BUILDFLAGS)
 
-setup.ml: _oasis
-	oasis setup
+doc: setup.data build
+	$(SETUP) -doc $(DOCFLAGS)
 
-setup.data: setup.ml
-	ocaml setup.ml -configure $(ASYNC) $(TESTS)
+test: setup.data build
+	$(SETUP) -test $(TESTFLAGS)
 
-build: setup.data setup.ml
-	ocaml setup.ml -build -j $(J)
+all:
+	$(SETUP) -all $(ALLFLAGS)
 
-install: setup.data setup.ml
-	ocaml setup.ml -install
+install: setup.data
+	$(SETUP) -install $(INSTALLFLAGS)
 
-test: setup.ml build
-	_build/test/Test.byte inline-test-runner openflow
+uninstall: setup.data
+	$(SETUP) -uninstall $(UNINSTALLFLAGS)
 
-reinstall: setup.ml
-	ocamlfind remove $(NAME) || true
-	ocaml setup.ml -reinstall
+reinstall: setup.data
+	$(SETUP) -reinstall $(REINSTALLFLAGS)
 
 clean:
-	ocamlbuild -clean
-	rm -f setup.data setup.log
+	$(SETUP) -clean $(CLEANFLAGS)
+
+distclean:
+	$(SETUP) -distclean $(DISTCLEANFLAGS)
+
+setup.data:
+	$(SETUP) -configure $(CONFIGUREFLAGS)
+
+configure:
+	$(SETUP) -configure $(CONFIGUREFLAGS)
+
+.PHONY: build doc test all install uninstall reinstall clean distclean configure
+
+# OASIS_STOP
