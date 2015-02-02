@@ -113,8 +113,11 @@ module Repr = struct
                         of_policy_k q (fun q' ->
                           k (union p' q')))
     | Seq (p, q) -> of_policy_k p (fun p' ->
-                      of_policy_k q (fun q' ->
-                        k (seq p' q')))
+                      if T.equal p' (T.const Action.zero) then
+                        k (T.const Action.zero)
+                      else
+                        of_policy_k q (fun q' ->
+                          k (seq p' q')))
     | Star p -> of_policy_k p (fun p' -> k (star p'))
     | Link (sw1, pt1, sw2, pt2) -> raise Non_local
 
@@ -201,10 +204,10 @@ let mk_flow pattern action =
   let pattern' = check_nwProto pattern in
   let pattern'' = check_tcp pattern' in
   let pattern''' = check_nwProto pattern'' in
-  (* Not entirely sure how to detect the following from the pattern: 
+  (* Not entirely sure how to detect the following from the pattern:
       - Left out optional ARP packet where dlTyp should be set to 0x0806
-      - Left out UDP where nwProto should be set to 7 
-      - Left out ICMP where nwProto should be set to 1 
+      - Left out UDP where nwProto should be set to 7
+      - Left out ICMP where nwProto should be set to 1
    *)
   let pattern = pattern''' in
   let open SDN in
