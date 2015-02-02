@@ -3,7 +3,6 @@ install: wget https://raw.githubusercontent.com/ocaml/ocaml-travisci-skeleton/ma
 script: bash -ex .travis-opam.sh
 env:
   - OCAML_VERSION=latest PACKAGE=packet
-  - OCAML_VERSION=4.01   PACKAGE=mirage-net-xen
 notifications:
   irc:
     channels:
