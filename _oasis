@@ -10,10 +10,6 @@ BuildTools:
   ocamlbuild,
   ocamldoc
 
-Flag quickcheck
-  Description: build the packet.quickcheck library
-  Default: false
-
 Library packet
   Path: lib
   BuildDepends: str, cstruct, cstruct.syntax, sexplib, sexplib.syntax, tcpip
@@ -31,7 +27,7 @@ Library quickcheck
   Findlibparent: packet
   Findlibname: quickcheck
   Path: quickcheck
-  Build$: flag(tests) || flag(quickcheck)
+  Build$: flag(tests)
   BuildDepends:
     packet,
     quickcheck
@@ -54,5 +50,5 @@ Executable testtool
 
 Test all_tests
   Command: $testtool inline-test-runner dummy
-  Run$: flag(tests) && flag(quickcheck)
+  Run$: flag(tests)
   TestTools: testtool
