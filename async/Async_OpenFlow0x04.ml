@@ -205,9 +205,9 @@ module Controller = struct
           return [`Connect(sw_id, (fs, ps'))]
         end
       | _, _ ->
-        Log.of_lazy ~tags ~level:`Debug (lazy
-          (Printf.sprintf "Dropped message during handshake: %s"
-            (Message.to_string (xid, msg))));
+        Log.printf ~tags ~level:`Debug
+          "Dropped message during handshake: %s"
+            (Message.to_string (xid, msg));
         return []
       end
     | `Message (c_id, msg) ->

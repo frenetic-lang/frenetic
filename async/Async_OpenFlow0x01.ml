@@ -175,9 +175,9 @@ module Controller = struct
             Hash_set.remove t.shakes c_id;
             return [`Connect(switch_id, fs)]
           | _ ->
-            Log.of_lazy ~tags ~level:`Debug (lazy
-              (Printf.sprintf "Dropped message during handshake: %s"
-                (Message.to_string (xid, msg))));
+            Log.printf ~tags ~level:`Debug
+              "Dropped message during handshake: %s"
+                (Message.to_string (xid, msg));
             return []
         end
       | `Message (c_id, msg) ->

@@ -24,13 +24,12 @@ module MakeSerializers (M : Message) = struct
     Digest.to_hex (Digest.string buf)
 
   let deserialize ?(tags : (string * string) list = []) ?(label : string = "")
-    (raw_reader : Reader.t) : [ `Eof | `Ok of M.t] Deferred.t = 
-    let log msg = Log.of_lazy ~level:`Debug ~tags:tags msg in
+    (raw_reader : Reader.t) : [ `Eof | `Ok of M.t] Deferred.t =
     let ofhdr_str = String.create Header.size in
     Reader.really_read raw_reader ofhdr_str
     >>= function
-    | `Eof _ -> 
-      log (lazy (sprintf "[%s] EOF reading header" label));
+    | `Eof _ ->
+      Log.printf "[%s] EOF reading header" label;
       return `Eof
     | `Ok ->
       let hdr = Header.parse (Cstruct.of_string ofhdr_str) in
@@ -39,16 +38,13 @@ module MakeSerializers (M : Message) = struct
       Reader.really_read raw_reader body_buf
       >>= function
       | `Eof _ ->
-        log (lazy (sprintf "[%s] EOF reading body (expected %d bytes)" 
-                     label body_len));
+        Log.printf "[%s] EOF reading body (expected %d bytes)" label body_len;
         return `Eof
       | `Ok ->
         let m = M.parse hdr (Cstruct.of_string body_buf) in
         (* extra space left so read and write align in the log *)
-        log (lazy (sprintf "[%s] read  %s hash=%s"
-                     label
-                     (Header.to_string hdr)
-                     (readable_md5 (ofhdr_str ^ body_buf))));
+        Log.printf "[%s] read  %s hash=%s" label (Header.to_string hdr)
+          (readable_md5 (ofhdr_str ^ body_buf));
         return (`Ok m)
 
   let serialize ?(tags : (string * string) list = []) ?(label : string = "")
@@ -58,8 +54,6 @@ module MakeSerializers (M : Message) = struct
     Header.marshal buf hdr;
     let _ = M.marshal m (Cstruct.shift buf Header.size) in
     Async_cstruct.schedule_write raw_writer buf;
-    Log.of_lazy ~level:`Debug ~tags:tags
-      (lazy (sprintf "[%s] wrote %s hash=%s" 
-               label (Header.to_string hdr)
-               (readable_md5 (Cstruct.to_string buf))))
+    Log.printf ~level:`Debug ~tags "[%s] wrote %s hash=%s"
+      label (Header.to_string hdr) (readable_md5 (Cstruct.to_string buf))
 end

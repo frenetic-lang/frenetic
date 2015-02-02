@@ -1,15 +1,8 @@
 language: c
-script: bash -ex .travis-ci.sh
+install: wget https://raw.githubusercontent.com/ocaml/ocaml-travisci-skeleton/master/.travis-opam.sh
+script: bash -ex .travis-opam.sh
 env:
-  global:
-    - OPAM_DEPENDS="cstruct quickcheck ounit pa_ounit core async sexplib"
-    - CONFIG_FLAGS="--enable-tests --enable-quickcheck --enable-async"
-    - FRENETIC_DEPENDS="ocaml-packet"
-  matrix:
-    - OCAML_VERSION=4.01.0 OPAM_VERSION=1.1.0
-    - OCAML_VERSION=4.01.0 OPAM_VERSION=1.2.0
-    - OCAML_VERSION=4.02.0 OPAM_VERSION=1.1.0
-    - OCAML_VERSION=4.02.0 OPAM_VERSION=1.2.0
+  - OCAML_VERSION=latest PACKAGE=openflow
 notifications:
   irc:
     channels:
