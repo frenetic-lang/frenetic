@@ -24,9 +24,9 @@ end
 
 module type WEIGHT = sig
   type t with sexp
-  type label with sexp
+  type edge with sexp
 
-  val weight : label -> t
+  val weight : edge -> t
   val compare : t -> t -> int
   val add : t -> t -> t
   val zero : t
@@ -45,7 +45,7 @@ module type NETWORK = sig
 
     module UnitWeight : WEIGHT
       with type t = int
-      and type label = Edge.t
+      and type edge = Edge.t
 
     module EdgeSet : Set.S
       with type Elt.t = edge
@@ -121,7 +121,7 @@ module type NETWORK = sig
        (weight * Topology.vertex * Topology.vertex * Topology.edge list) list
   end
 
-  module Path (Weight : WEIGHT with type label = Topology.Edge.t) :
+  module Path (Weight : WEIGHT with type edge = Topology.Edge.t) :
     PATH with type weight = Weight.t
 
   module UnitPath : PATH
@@ -188,7 +188,7 @@ struct
     end
 
     module UnitWeight = struct
-      type label = Edge.t with sexp
+      type edge = Edge.t with sexp
       type t = int with sexp
       let weight _ = 1
       let compare = Pervasives.compare
@@ -417,15 +417,15 @@ struct
        (weight * Topology.vertex * Topology.vertex * Topology.edge list) list
   end
 
-  module Path = functor (Weight : WEIGHT with type label = Topology.Edge.t) ->
+  module Path = functor (Weight : WEIGHT with type edge = Topology.Edge.t) ->
   struct
     open Topology
 
     module WL = struct
       type t = Weight.t
-      type label = EL.t
+      type edge = P.E.t
 
-      let weight l = Weight.weight (l.EL.label)
+      let weight e = Weight.weight ((P.E.label e).EL.label)
       let compare = Weight.compare
       let add = Weight.add
       let zero = Weight.zero

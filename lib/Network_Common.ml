@@ -255,9 +255,9 @@ module Link = struct
 end
 
 module Weight = struct
-  type label = Link.t with sexp
+  type edge = Link.t with sexp
   type t = float with sexp
-  let weight l =
+  let weight l = 
     let open Link in
     l.weight
   let compare = compare
