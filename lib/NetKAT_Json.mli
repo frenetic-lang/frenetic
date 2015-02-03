@@ -6,11 +6,13 @@ open Yojson.Basic
 val policy_from_json : json -> policy
 (** Note: errors may occur when converting between 64-bit values and
     JSON-representable integers. *)
-
 val policy_to_json : policy -> json
-
-val policy_from_json_string : string -> policy
-
-val policy_to_json_string : policy -> string
+val event_to_json : event -> json
+val pkt_out_from_json : json -> switchId * pktOut
 
 val policy_from_json_channel : In_channel.t -> policy
+val policy_from_json_string : string -> policy
+val event_to_json_string : event -> string
+val policy_to_json_string : policy -> string
+
+

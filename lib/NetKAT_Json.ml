@@ -172,3 +172,137 @@ let policy_from_json_string (str : string) : policy =
 let policy_from_json_channel (chan : In_channel.t) : policy =
   policy_from_json (from_channel chan)
 
+let event_to_json (event : event) : json =
+  let open Yojson.Basic.Util in
+  match event with
+  | PacketIn (pipe, sw_id, pt_id, payload, len) ->
+    let buffer = SDN_Types.payload_bytes payload |>
+      Cstruct.to_string |>
+      B64.encode in
+    `Assoc [
+        ("type", `String "packet_in");
+        ("pipe", `String pipe);
+        ("switch_id", `Int (Int64.to_int_exn sw_id));
+        ("port_id", `Int (Int32.to_int_exn pt_id));
+        ("payload", `Assoc [
+            ("buffer", `String buffer);
+            ("id", match payload with
+              | SDN_Types.Buffered (id, _) -> `Int (Int32.to_int_exn id)
+              | _  -> `Null)
+        ]);
+        ("length", `Int len)
+    ]
+  | Query (name, pkt_count, byte_count) ->
+    `Assoc [
+      ("type", `String "query");
+      ("packet_count", `Int (Int64.to_int_exn pkt_count));
+      ("byte_count", `Int (Int64.to_int_exn byte_count))
+    ]
+  | SwitchUp sw_id ->
+    `Assoc [
+      ("type", `String "switch_up");
+      ("switch_id", `Int (Int64.to_int_exn sw_id))
+    ]
+  | SwitchDown sw_id ->
+    `Assoc [
+      ("type", `String "switch_down");
+      ("switch_id", `Int (Int64.to_int_exn sw_id))
+    ]
+  | PortUp (sw_id, pt_id) ->
+    `Assoc [
+      ("type", `String "port_up");
+      ("switch_id", `Int (Int64.to_int_exn sw_id));
+      ("port_id", `Int (Int32.to_int_exn pt_id))
+    ]
+  | PortDown (sw_id, pt_id) ->
+    `Assoc [
+      ("type", `String "port_down");
+      ("switch_id", `Int (Int64.to_int_exn sw_id));
+      ("port_id",   `Int (Int32.to_int_exn pt_id))
+    ]
+  | LinkUp ((sw_id1, pt_id1), (sw_id2, pt_id2)) ->
+    `Assoc [
+      ("type", `String "link_up");
+      ("src", `Assoc [("switch_id", `Int (Int64.to_int_exn sw_id1));
+                      ("port_id", `Int (Int32.to_int_exn pt_id1))]);
+      ("dst", `Assoc [("switch_id", `Int (Int64.to_int_exn sw_id2));
+                      ("port_id", `Int (Int32.to_int_exn pt_id2))])
+    ]
+  | LinkDown ((sw_id1, pt_id1), (sw_id2, pt_id2)) ->
+    `Assoc [
+        ("type", `String "link_down");
+        ("src", `Assoc [("switch_id", `Int (Int64.to_int_exn sw_id1));
+                        ("port_id", `Int (Int32.to_int_exn pt_id1))]);
+        ("dst", `Assoc [("switch_id", `Int (Int64.to_int_exn sw_id2));
+                        ("port_id", `Int (Int32.to_int_exn pt_id2))])
+      ]
+  | HostUp ((sw_id, pt_id), (dlAddr, nwAddr)) ->
+    `Assoc [
+      ("type", `String "host_up");
+      ("switch_id", `Int (Int64.to_int_exn sw_id));
+      ("port_id",   `Int (Int32.to_int_exn pt_id));
+      ("dl_addr",   `String (Packet.string_of_dlAddr dlAddr));
+      ("nw_addr",   `String (Packet.string_of_nwAddr nwAddr))
+    ]
+  | HostDown ((sw_id, pt_id), (dlAddr, nwAddr)) ->
+    `Assoc [
+      ("type", `String "host_down");
+      ("switch_id", `Int (Int64.to_int_exn sw_id));
+      ("port_id", `Int (Int32.to_int_exn pt_id));
+      ("dl_addr", `String (Packet.string_of_dlAddr dlAddr));
+      ("nw_addr", `String (Packet.string_of_nwAddr nwAddr))
+    ]
+
+let event_to_json_string (event : event) : string =
+  Yojson.Basic.to_string ~std:true (event_to_json event)
+
+let payload_from_json (json : json) : payload =
+  let open Yojson.Basic.Util in
+  match json |> member "type" |> to_string with
+  | "notbuffered" ->
+     let base64 = json |> member "data" |> to_string in
+     NotBuffered (Cstruct.of_string (B64.decode base64))
+  | "buffered" ->
+    let bufferId = Int32.of_int_exn (json |> member "bufferid" |> to_int) in
+    (* TODO(arjun): Why does Buffered take a second argument. Won't it be ignored
+       if a buffer ID is specified? *)
+    Buffered (bufferId, Cstruct.of_string "")
+  | _ -> failwith "invalid payload"
+
+let int32_option_from_json (json : json) : Int32.t option =
+  let open Yojson.Basic.Util in
+  match to_int_option json with
+    | None -> None
+    | Some n -> Some (Int32.of_int_exn n)
+
+let pseudoport_from_json (json : json) : pseudoport =
+  let open Yojson.Basic.Util in
+  match json |> member "type" |> to_string with
+   | "physical" -> Physical (json |> member "port" |> to_int |> Int32.of_int_exn)
+   | "inport" -> InPort
+   | "table" -> Table
+   | "normal" -> Normal
+   | "flood" -> Flood
+   | "all" -> All
+   | "controller" -> Controller (json |> member "bytes" |> to_int)
+   | "local" -> Local
+   | str -> failwith ("invalid pseudoport type: " ^ str)
+
+let action_from_json (json : json) : action =
+  let open Yojson.Basic.Util in
+  match json |> member "type" |> to_string with
+    | "output" -> Output (json |> member "pseudoport" |> pseudoport_from_json)
+    | "modify" -> failwith "NYI: parsing modify actions from JSON"
+    | "enqueue" -> failwith "NYI: parsing enqueue actions from JSON"
+    | str -> failwith ("invalid action type: " ^ str)
+
+(* Using the Basic module because Basic.Util has several handy parsing
+   functions *)
+let pkt_out_from_json (json : json) : switchId * pktOut =
+  let open Yojson.Basic.Util in
+  let actions = json |> member "actions" |> to_list |>
+    List.map ~f:action_from_json in
+  let in_port = json |> member "in_port" |> int32_option_from_json  in
+  let switch = json |> member "switch" |> to_int |> Int64.of_int in
+  let packet = json |> member "payload" |> payload_from_json in
+  (switch, (packet, in_port, actions))

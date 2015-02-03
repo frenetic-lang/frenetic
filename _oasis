@@ -25,7 +25,8 @@ Library netkat
     str,
     threads,
     yojson,
-    ipaddr
+    ipaddr,
+    base64 (>= 2.0.0)
   InternalModules:
     Flowterp,
     NetKAT_FDD,
