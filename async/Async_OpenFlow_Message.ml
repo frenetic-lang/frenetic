@@ -29,7 +29,7 @@ module MakeSerializers (M : Message) = struct
     Reader.really_read raw_reader ofhdr_str
     >>= function
     | `Eof _ ->
-      Log.printf "[%s] EOF reading header" label;
+      Log.printf ~level:`Debug "[%s] EOF reading header" label;
       return `Eof
     | `Ok ->
       let hdr = Header.parse (Cstruct.of_string ofhdr_str) in
@@ -38,12 +38,12 @@ module MakeSerializers (M : Message) = struct
       Reader.really_read raw_reader body_buf
       >>= function
       | `Eof _ ->
-        Log.printf "[%s] EOF reading body (expected %d bytes)" label body_len;
+        Log.printf ~level:`Debug "[%s] EOF reading body (expected %d bytes)" label body_len;
         return `Eof
       | `Ok ->
         let m = M.parse hdr (Cstruct.of_string body_buf) in
         (* extra space left so read and write align in the log *)
-        Log.printf "[%s] read  %s hash=%s" label (Header.to_string hdr)
+        Log.printf ~level:`Debug  "[%s] read  %s hash=%s" label (Header.to_string hdr)
           (readable_md5 (ofhdr_str ^ body_buf));
         return (`Ok m)
 
