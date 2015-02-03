@@ -1,8 +1,6 @@
 """ Representation of NetKAT abstract syntax tree. """
 import base64
 
-__all__ = [ 'true', 'false', 'test', 'filter', 'modify', 'id', 'drop', 'seq', 'union' ]
-
 class action:
     pass
 
@@ -82,178 +80,266 @@ class packet_in():
         self.port_id = json['port_id']
         self.payload = payload.from_json(json['payload'])
 
-class Pred:
+################################################################################
+#
+# NetKAT Serialization
+#
+# This is based on NetKAT_Json.ml
+################################################################################
+
+class Pred(object):
     """ A class to represent NetKAT predicates. This class's constructor should
     not be called directly. Instead, the user should construct objects using
     the various convenience functions defined in this module, together with the
     class's overloaded operators such as `&`, `|`, and `~` for conjunction,
     disjunction, and negation, respectively. """
 
-    P_TEST = 1
-    P_AND  = 2
-    P_OR   = 3
-    P_NEG  = 4
-
-    P_TRUE = 5
-    P_FALS = 6
-
-    def __init__(self, _type, *args):
-        self._type = _type
-        self.args = args
-
-    def _is_atomic(self):
-        return self._type not in [self.P_AND, self.P_OR, self.P_NEG]
-
-    def _is_basic(self):
-        return self._type not in [self.P_AND, self.P_OR]
-
     def __and__(self, other):
-        if self._is_basic() and other._is_basic():
-            return Pred(self.P_AND, self, other)
-        elif self._type == other._type and self._type == self.P_AND:
-            return Pred(self.P_AND, *(self.args + other.args))
-        else:
-            return Pred(self.P_AND, self, other)
+        return And([self, other])
 
     def __or__(self, other):
-        if self._is_basic() and other._is_basic():
-            return Pred(self.P_OR, self, other)
-        elif self._type == other._type and self._type == self.P_OR:
-            return Pred(self.P_OR, *(self.args + other.args))
-        else:
-            return Pred(self.P_OR, self, other)
+        return Or([self, other])
 
     def __invert__(self):
-        return Pred(self.P_NEG, self)
+        return Not(self)
 
-    def _repr(self, parent=None):
-        if self._type == self.P_TRUE:
-            return "*"
-        elif self._type == self.P_FALS:
-            return "<none>"
-        elif self._type == self.P_TEST:
-            return "%s = %s" % self.args
-        elif self._type == self.P_NEG:
-            return "not %s" % self.args[0]._repr(self.P_NEG)
-        elif self._type == self.P_AND:
-            if len(self.args) == 0:
-                strd = "<none>"
-            else:
-                strd = " and ".join([p._repr(self.P_AND) for p in self.args])
+class And(Pred):
 
-            if parent is None or parent == self.P_AND:
-                return strd
-            else:
-                return "(%s)" % strd
-        elif self._type == self.P_OR:
-            if len(self.args) == 0:
-                strd = "*"
-            else:
-                strd = " or ".join([p._repr(self.P_OR) for p in self.args])
+    def __init__(self, children):
+        self.children = children
 
-            if parent is None or parent == self.P_OR:
-                return strd
-            else:
-                return "(%s)" % strd
+    def to_json(self):
+        return {
+          "type": "and",
+          "preds": [ pred.to_json() for pred in self.children ]
+        }
 
-    def __repr__(self):
-        return self._repr()
+class Or(Pred):
 
-def true():
-    """ The true Pred """
-    return Pred(Pred.P_TRUE)
+    def __init__(self, children):
+        self.children = children
 
-def false():
-    """ The false Pred """
-    return Pred(Pred.P_FALS)
+    def to_json(self):
+        return {
+          "type": "or",
+          "preds": [ pred.to_json() for pred in self.children ]
+        }
 
-def test(field, value):
-    """ A field test Pred. The field and the values will be cast to a string.  """
-    return Pred(Pred.P_TEST, field, value)
+class Not(Pred):
 
-class Policy:
-    P_FILTER = 1
-    P_MOD    = 2
+    def __init__(self, pred):
+        self.children = pred
 
-    P_UNION  = 3
-    P_SEQ    = 4
-    P_STAR   = 5
+    def to_json(self):
+        return {
+          "type": "neg",
+          "pred": pred.to_json
+        }
 
-    def __init__(self, _type, *args):
-        self._type = _type
-        self.args = args
+class True(Pred):
 
-    def _is_basic(self):
-        return self._type not in [self.P_FILTER, self.P_MOD]
+    def to_json(self):
+        return { "type": "true" }
+
+class False(Pred):
+
+    def to_json(self):
+        return { "type": "false" }
+
+class Test(Pred):
+
+    def __init__(self, hv):
+        self.hv = hv
+
+    def to_json(self):
+        return {
+          "type": "test",
+          "header": self.hv.header,
+          "value": self.hv.value_to_json()
+        }
+
+class Policy(object):
 
     def __rshift__(self, other):
-        if self._is_basic() and other._is_basic():
-            return Policy(self.P_SEQ, self, other)
-        elif self._type == other._type and self._type == self.P_SEQ:
-            return Policy(self.P_SEQ, *(self.args + self.other))
-        else:
-            return Policy(self.P_SEQ, self, other)
+        return Seq([self, other])
 
     def __or__(self, other):
-        if self._is_basic() and other._is_basic():
-            return Policy(self.P_UNION, self, other)
-        elif self._type == other._type and self._type == self.P_UNION:
-            return Policy(self.P_UNION, *(self.args + self.other))
-        else:
-            return Policy(self.P_UNION, self, other)
+        return Union([self, other])
 
-    def _repr(self, parent=None):
-        if self._type == self.P_FILTER:
-            return "filter %s" % repr(self.args[0])
-        elif self._type == self.P_MOD:
-            return "%s := %s" % self.args
-        elif self._type == self.P_UNION:
-            if len(self.args) == 0:
-                strd = "drop"
-            else:
-                strd = " | ".join([p._repr(self.P_UNION) for p in self.args])
+class Filter(Policy):
 
-            if parent is None or parent == self.P_UNION:
-                return strd
-            else:
-                return "(%s)" % strd
-        elif self._type == self.P_SEQ:
-            if len(self.args) == 0:
-                strd = "filter *"
-            else:
-                strd = "; ".join([p._repr(self.P_SEQ) for p in self.args])
+    def __init__(self, pred):
+        self.pred = pred
 
-            if parent is None or parent == self.P_SEQ:
-                return strd
-            else:
-                return "(%s)" % strd
-        elif self._type == self.P_STAR:
-            return "(%s)*" % repr(self.args[0])
+    def to_json(self):
+        return { "type": "filter", "pred": self.pred.to_json() }
 
-    def __repr__(self):
-        return self._repr()
+class HeaderAndValue(object):
+    pass
 
-def filter(pred):
-    """ A filter Policy based on a Pred """
-    return Policy(Policy.P_FILTER, pred)
+class Switch(HeaderAndValue):
 
-def modify(field, value):
-    """ A field modification Policy. The field and the values will be cast to a
-    string. """
-    return Policy(Policy.P_MOD, field, value)
+    def __init__(self, value):
+        self.header = "switch"
+        self.value = value
 
-def id():
-    """ The identity Policy leaves packets as they are. """
-    return filter(true())
+    def value_to_json(self):
+        return self.value
 
-def drop():
-    """ The drop Policy does not allow any packets to pass. """
-    return filter(false())
+class Pipe(object):
 
-def seq(pols):
-    """ Sequentially compose two Policies. """
-    return Policy(Policy.P_SEQ, *pols)
+    def __init__(self, name):
+        self.name = name
 
-def union(pols):
-    """ Parallel compose two Policies. """
-    return Policy(Policy.P_UNION, *pols)
+    def to_json(self):
+        return { "type": "pipe", "name": self.name }
+
+class Physical(object):
+
+    def __init__(self, port):
+        self.port = port
+
+    def to_json(self):
+        return { "type": "physical", "port": self.port }
+
+class Location(HeaderAndValue):
+
+    def __init__(self, value):
+        self.header = "location"
+        self.value = value
+
+    def value_to_json(self):
+        return self.value.to_json()
+
+class EthSrc(HeaderAndValue):
+
+    def __init__(self, value):
+        self.header = "ethsrc"
+        self.value = value
+
+    def value_to_json(self):
+        return self.value
+
+class EthDst(HeaderAndValue):
+
+    def __init__(self, value):
+        self.header = "ethdst"
+        self.value = value
+
+    def value_to_json(self):
+        return self.value
+
+class Vlan(HeaderAndValue):
+
+    def __init__(self, value):
+        self.header = "vlan"
+        self.value = value
+
+    def value_to_json(self):
+        return self.value
+
+class VlanPcp(HeaderAndValue):
+
+    def __init__(self, value):
+        self.header = "vlanpcp"
+        self.value = value
+
+    def value_to_json(self):
+        return self.value
+
+class EthType(HeaderAndValue):
+
+    def __init__(self, value):
+        self.header = "ethtype"
+        self.value = value
+
+    def value_to_json(self):
+        return self.value
+
+class IPProto(HeaderAndValue):
+
+    def __init__(self, value):
+        self.header = "iproto"
+        self.value = value
+
+    def value_to_json(self):
+        return self.value
+
+class IP4Src(HeaderAndValue):
+
+    def __init__(self, value):
+        self.header = "ip4src"
+        self.value = value
+
+    def value_to_json(self):
+        return self.value
+
+class IP4Dst(HeaderAndValue):
+
+    def __init__(self, value):
+        self.header = "ip4dst"
+        self.value = value
+
+    def value_to_json(self):
+        return self.value
+
+class TCPSrcPort(HeaderAndValue):
+
+    def __init__(self, value):
+        self.header = "tcpsrcport"
+        self.value = value
+
+    def value_to_json(self):
+        return self.value
+
+class TCPDstPort(HeaderAndValue):
+
+    def __init__(self, value):
+        self.header = "tcpdstport"
+        self.value = value
+
+    def value_to_json(self):
+        return self.value
+
+class Mod(Policy):
+
+    def __init__(self, hv):
+        self.hv = hv
+
+    def to_json(self):
+        return {
+          "type": "mod",
+          "header": self.hv.header,
+          "value": self.hv.value_to_json()
+        }
+
+class Union(Policy):
+
+    def __init__(self, children):
+        self.children = children
+
+    def to_json(self):
+        print self.children
+        return {
+          "type": "union",
+          "pols": [ pol.to_json() for pol in self.children ]
+        }
+
+class Seq(Policy):
+
+    def __init__(self, children):
+        self.children = children
+
+    def to_json(self):
+        return {
+          "type": "seq",
+          "pols": [ pol.to_json() for pol in self.children ]
+        }
+
+# Shorthands
+
+true = True()
+false = False()
+id = Filter(true)
+drop = Filter(false)
+

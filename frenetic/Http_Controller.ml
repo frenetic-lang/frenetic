@@ -61,6 +61,15 @@ let handle_request
            printf "POST /pkt_out";
            Pipe.write send.pkt_out pkt_out >>= fun _ ->
            Cohttp_async.Server.respond `OK)
+    | `POST, [clientId; "update_json"] ->
+      printf "POST /%s/update_json" clientId;
+      handle_parse_errors body
+        (fun body ->
+          Body.to_string body >>= fun str ->
+          return (NetKAT_Json.policy_from_json_string str))
+      (fun pol ->
+         DynGraph.push pol (get_client clientId).policy_node;
+         Cohttp_async.Server.respond `OK)
     | `POST, [clientId; "update" ] ->
       printf "POST /%s/update" clientId;
       handle_parse_errors body parse_update
