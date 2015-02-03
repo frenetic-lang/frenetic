@@ -10,7 +10,7 @@ def other_port(pt):
   else:
     return 1
 
-class SingleApp(app.App):
+class MyApp(app.App):
   def packet_in(self, sw, pt, payload):
     print payload
     app.pkt_out(switch = sw,
@@ -19,9 +19,7 @@ class SingleApp(app.App):
 
 
 print "Run mn --controller=remote --topo=single,2"
-pol = modify("port","http")
-SingleApp().start()
-print repr(pol)
-app.update(pol)
+MyApp().start()
+app.update(Mod(Location(Pipe("http"))))
 app.start()
 

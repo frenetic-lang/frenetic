@@ -1,49 +1,43 @@
-from netkat.syntax import *
-from netkat import webkat
+# A repeater that learns the switches and ports in a network then creates a
+# policy that explicitly sends packets out of all ports, for each port.
 
-"""Repeater for a network with one switch and two hosts"""
-
-def state():
-    pass
+from frenetic import app
+from frenetic.syntax import *
 
 topo = {}
+
 def policy():
-    return union(sw_policy(sw) for sw in topo.keys()) | modify("port", "python")
+    return Union(sw_policy(sw) for sw in topo.keys())
 
 def sw_policy(sw):
     ports = topo[sw]
-    return filter(test("switch", sw)) >> union(forward(port, ports) for port in ports)
-   
-def forward(in_port, ports):
+    p = Union(port_policy(in_port, ports) for in_port in ports)
+    return Filter(Test(Switch(sw))) >> p
+
+def port_policy(in_port, ports):
     out_ports = [port for port in ports if port != in_port]
-    return filter(test("port", in_port)) >> union(modify("port", port) for port in out_ports)
+    p = Union(Mod(Location(Physical(p))) for p in out_ports)
+    return Filter(Test(Location(Physical(in_port)))) >> p
 
-def handler(event):
-    typ = event['type']
-    if typ  == 'switch_up':
-        sw = event['switch_id']
-        topo[sw] = []
-    elif typ == 'switch_down':
-        sw = event['switch_id']
-        del topo[sw]
-    elif typ == 'port_up':
-        pid = event['port_id']
-        sw = event['switch_id']
-        topo[sw].append(pid)
-    elif typ == 'port_down':
-        pid = event['port_id']
-        sw = event['switch_id']
-        topo[sw].remove(pid)
-    else:
-        pass
-    print event
-    print topo
-    webkat.update(policy())
-    return
 
-def main():
-    while True:
-        handler(webkat.event())
+class MyApp(app.App):
 
-if __name__ == '__main__':
-    main ()
+    def switch_up(self,switch_id):
+        topo[switch_id] = []
+        app.update(policy())
+
+    def switch_down(self,switch_id):
+        del topo[switch_id]
+        app.update(policy())
+
+    def port_up(self,switch_id, port_id):
+        topo[switch_id].append(port_id)
+        app.update(policy())
+
+    def port_down(self,switch_id, port_id):
+        topo[switch_id].remove(port_id)
+        app.update(policy())
+
+MyApp().start()
+app.start()
+

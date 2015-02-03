@@ -22,9 +22,10 @@ def pkt_out(switch, payload, actions, in_port = None):
     return
 
 def update(policy):
-    request = HTTPRequest("http://localhost:9000/%s/update" % client_id,
+    pol_json = json.dumps(policy.to_json())
+    request = HTTPRequest("http://localhost:9000/%s/update_json" % client_id,
                           method='POST',
-                          body=repr(policy))
+                          body=pol_json)
     response = async_client.fetch(request)
     return
 
