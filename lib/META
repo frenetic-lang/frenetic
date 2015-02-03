@@ -1,9 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: 7d0741748d99c4be0c0a4dd3d3e18ba5)
+# DO NOT EDIT (digest: b2ba1d21cca3befba3be8cae08038b0e)
 version = "3.2.0"
 description = "The Frenetic Compiler and Runtime System"
 requires =
-"core fieldslib fieldslib.syntax openflow sexplib sexplib.syntax str threads yojson ipaddr"
+"core fieldslib fieldslib.syntax openflow sexplib sexplib.syntax str threads yojson ipaddr base64"
 archive(byte) = "netkat.cma"
 archive(byte, plugin) = "netkat.cma"
 archive(native) = "netkat.cmxa"

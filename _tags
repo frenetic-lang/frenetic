@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: e331da94a10e5332d1f8005f2194f569)
+# DO NOT EDIT (digest: 4151b15df9ffcb34ca528cf3f68d4f52)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -16,6 +16,7 @@ true: annot, bin_annot
 "_darcs": not_hygienic
 # Library netkat
 "lib/netkat.cmxs": use_netkat
+<lib/*.ml{,i,y}>: package(base64)
 <lib/*.ml{,i,y}>: package(core)
 <lib/*.ml{,i,y}>: package(fieldslib)
 <lib/*.ml{,i,y}>: package(fieldslib.syntax)
@@ -36,6 +37,7 @@ true: annot, bin_annot
 # Library async
 "async/async.cmxs": use_async
 <async/*.ml{,i,y}>: package(async)
+<async/*.ml{,i,y}>: package(base64)
 <async/*.ml{,i,y}>: package(core)
 <async/*.ml{,i,y}>: package(cstruct)
 <async/*.ml{,i,y}>: package(cstruct.syntax)
@@ -54,6 +56,7 @@ true: annot, bin_annot
 <async/*.ml{,i,y}>: use_netkat
 # Library quickcheck
 "quickcheck/quickcheck.cmxs": use_quickcheck
+<quickcheck/*.ml{,i,y}>: package(base64)
 <quickcheck/*.ml{,i,y}>: package(core)
 <quickcheck/*.ml{,i,y}>: package(fieldslib)
 <quickcheck/*.ml{,i,y}>: package(fieldslib.syntax)
@@ -69,6 +72,7 @@ true: annot, bin_annot
 <quickcheck/*.ml{,i,y}>: package(yojson)
 <quickcheck/*.ml{,i,y}>: use_netkat
 # Executable testtool
+"test/Test.byte": package(base64)
 "test/Test.byte": package(core)
 "test/Test.byte": package(fieldslib)
 "test/Test.byte": package(fieldslib.syntax)
@@ -88,6 +92,7 @@ true: annot, bin_annot
 "test/Test.byte": package(yojson)
 "test/Test.byte": use_netkat
 "test/Test.byte": use_quickcheck
+<test/*.ml{,i,y}>: package(base64)
 <test/*.ml{,i,y}>: package(core)
 <test/*.ml{,i,y}>: package(fieldslib)
 <test/*.ml{,i,y}>: package(fieldslib.syntax)
@@ -109,6 +114,7 @@ true: annot, bin_annot
 <test/*.ml{,i,y}>: use_quickcheck
 # Executable katnetic
 "frenetic/katnetic.native": package(async)
+"frenetic/katnetic.native": package(base64)
 "frenetic/katnetic.native": package(cmdliner)
 "frenetic/katnetic.native": package(core)
 "frenetic/katnetic.native": package(cstruct)
@@ -130,6 +136,7 @@ true: annot, bin_annot
 <frenetic/*.ml{,i,y}>: package(cmdliner)
 # Executable test_updates
 "frenetic/test_updates.byte": package(async)
+"frenetic/test_updates.byte": package(base64)
 "frenetic/test_updates.byte": package(core)
 "frenetic/test_updates.byte": package(cstruct)
 "frenetic/test_updates.byte": package(cstruct.syntax)
@@ -148,6 +155,7 @@ true: annot, bin_annot
 "frenetic/test_updates.byte": use_async
 "frenetic/test_updates.byte": use_netkat
 <frenetic/*.ml{,i,y}>: package(async)
+<frenetic/*.ml{,i,y}>: package(base64)
 <frenetic/*.ml{,i,y}>: package(core)
 <frenetic/*.ml{,i,y}>: package(cstruct)
 <frenetic/*.ml{,i,y}>: package(cstruct.syntax)
