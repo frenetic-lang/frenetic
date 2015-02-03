@@ -1,7 +1,6 @@
 open Core.Std
 open NetKAT_FDD
 
-
 module Field = NetKAT_FDD.Field
 exception Non_local = NetKAT_FDD.Non_local
 
@@ -169,11 +168,18 @@ end
 
 include Repr
 
-let clear_cache () = T.clear_cache ()
+type cache
+  = [ `Keep
+    | `Empty
+    | `Preserve of t ]
 
-let compile ?(order=`Heuristic) ?(clear_cache=true) pol =
-  (if clear_cache then
-     T.clear_cache ());
+let clear_cache () = T.clear_cache Int.Set.empty
+
+let compile ?(order=`Heuristic) ?(cache=`Empty) pol =
+  (match cache with
+   | `Keep -> ()
+   | `Empty -> T.clear_cache Int.Set.empty
+   | `Preserve fdd -> T.clear_cache (T.refs fdd));
   (match order with
    | `Heuristic -> Field.auto_order pol
    | `Default -> Field.set_order Field.all_fields
