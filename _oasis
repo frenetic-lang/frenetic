@@ -121,6 +121,19 @@ Test all_tests
   Run$: flag(tests)
   TestTools: testtool
 
+Executable frenetic
+  Path: frenetic
+  MainIs: frenetic.ml
+  Install: true
+  CompiledObject: native
+  BuildDepends:
+    async,
+    core,
+    cohttp,
+    cohttp.async,
+    netkat,
+    netkat.async
+
 Executable katnetic
   Path: frenetic
   MainIs: katnetic.ml
