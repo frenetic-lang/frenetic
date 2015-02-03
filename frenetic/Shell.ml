@@ -2,6 +2,8 @@ open Core.Std
 open Async.Std
 open NetKAT_Types
 
+module Log = Async_OpenFlow.Log
+
 let string_of_position (p : Lexing.position) : string =
   sprintf "%s:%d:%d" p.pos_fname p.pos_lnum (p.pos_cnum - p.pos_bol)
 
@@ -62,7 +64,10 @@ let start_controller () : policy Pipe.Writer.t =
      Async_NetKAT_Controller.disable_discovery ctrl) in
   pol_writer
 
+let log_file = "frenetic.log"
+
 let main (args : string list) : unit =
+  Log.set_output [Async.Std.Log.Output.file `Text log_file];
   printf "Frenetic Shell\n%!";
   match args with
   | [] ->
