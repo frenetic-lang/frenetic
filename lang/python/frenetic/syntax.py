@@ -319,7 +319,6 @@ class Union(Policy):
         self.children = children
 
     def to_json(self):
-        print self.children
         return {
           "type": "union",
           "pols": [ pol.to_json() for pol in self.children ]
