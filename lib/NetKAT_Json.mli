@@ -8,7 +8,6 @@ val policy_from_json : json -> policy
     JSON-representable integers. *)
 val policy_to_json : policy -> json
 val event_to_json : event -> json
-val pkt_out_from_json : json -> switchId * pktOut
 
 val policy_from_json_channel : In_channel.t -> policy
 val policy_from_json_string : string -> policy

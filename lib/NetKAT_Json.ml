@@ -1,10 +1,11 @@
-(* NOTE(ARJUN): Core.Std.Int32.of_int_exn will throw an exception if it receives a positive
+(* NOTE(arjun): Core.Std.Int32.of_int_exn will throw an exception if it receives a positive
    integer value >= 0x1fffffff. However, OpenFlow ports are unsigned integers,
    so these are legitimate port numbers, IIRC. *)
 let int_to_uint32 = Int32.of_int
 
+(* NOTE(arjun): Do not open SDN_Types in this module. If you need to serialize
+   one of those types, it should probably go in NetKAT_SDN_Json instead. *)
 open Core.Std
-open SDN_Types
 open NetKAT_Types
 open Yojson.Basic
 open Optimize
@@ -256,53 +257,3 @@ let event_to_json (event : event) : json =
 let event_to_json_string (event : event) : string =
   Yojson.Basic.to_string ~std:true (event_to_json event)
 
-let payload_from_json (json : json) : payload =
-  let open Yojson.Basic.Util in
-  match json |> member "type" |> to_string with
-  | "notbuffered" ->
-     let base64 = json |> member "data" |> to_string in
-     NotBuffered (Cstruct.of_string (B64.decode base64))
-  | "buffered" ->
-    let bufferId = Int32.of_int_exn (json |> member "bufferid" |> to_int) in
-    (* TODO(arjun): Why does Buffered take a second argument. Won't it be ignored
-       if a buffer ID is specified? *)
-    Buffered (bufferId, Cstruct.of_string "")
-  | _ -> failwith "invalid payload"
-
-let int32_option_from_json (json : json) : Int32.t option =
-  let open Yojson.Basic.Util in
-  match to_int_option json with
-    | None -> None
-    | Some n -> Some (Int32.of_int_exn n)
-
-let pseudoport_from_json (json : json) : pseudoport =
-  let open Yojson.Basic.Util in
-  match json |> member "type" |> to_string with
-   | "physical" -> Physical (json |> member "port" |> to_int |> Int32.of_int_exn)
-   | "inport" -> InPort
-   | "table" -> Table
-   | "normal" -> Normal
-   | "flood" -> Flood
-   | "all" -> All
-   | "controller" -> Controller (json |> member "bytes" |> to_int)
-   | "local" -> Local
-   | str -> failwith ("invalid pseudoport type: " ^ str)
-
-let action_from_json (json : json) : action =
-  let open Yojson.Basic.Util in
-  match json |> member "type" |> to_string with
-    | "output" -> Output (json |> member "pseudoport" |> pseudoport_from_json)
-    | "modify" -> failwith "NYI: parsing modify actions from JSON"
-    | "enqueue" -> failwith "NYI: parsing enqueue actions from JSON"
-    | str -> failwith ("invalid action type: " ^ str)
-
-(* Using the Basic module because Basic.Util has several handy parsing
-   functions *)
-let pkt_out_from_json (json : json) : switchId * pktOut =
-  let open Yojson.Basic.Util in
-  let actions = json |> member "actions" |> to_list |>
-    List.map ~f:action_from_json in
-  let in_port = json |> member "in_port" |> int32_option_from_json  in
-  let switch = json |> member "switch" |> to_int |> Int64.of_int in
-  let packet = json |> member "payload" |> payload_from_json in
-  (switch, (packet, in_port, actions))

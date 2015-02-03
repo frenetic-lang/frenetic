@@ -42,6 +42,7 @@ Library netkat
     NetKAT_Types,
     NetKAT_Misc,
     NetKAT_Json,
+    NetKAT_SDN_Json,
     Optimize
 
 Library syntax
