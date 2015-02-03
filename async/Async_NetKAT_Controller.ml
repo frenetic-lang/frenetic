@@ -574,7 +574,8 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
         Log.info ~tags "[policy] Processing queue of size %d" len;
 
       let old = t.repr in
-      t.repr   <- LC.compile (Queue.get q (len - 1));
+      let cache = `Preserve old in
+      t.repr   <- LC.compile ~cache (Queue.get q (len - 1));
 
       if LC.equal old t.repr then begin
         Log.debug ~tags "[policy] Skipping identical policy update";
