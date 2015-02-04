@@ -14,8 +14,6 @@ type ordering =
   | Heuristic
   | Static of Field.t list
 
-let id x = x
-
 let compose f g x = f (g x)
 
 let controller : (Controller.t option) ref = ref None
@@ -114,7 +112,7 @@ let with_error (msg : string)
 let parse_order (line : string) : (Field.t list) option = 
   let fields = String.split line '<' in
   let trimmed = List.map fields (compose String.lstrip String.rstrip) in
-  let orders = List.map trimmed (with_error "Invalid ordering field" id field_from_string) in
+  let orders = List.map trimmed (with_error "Invalid ordering field" ident field_from_string) in
   let rec helper (acc : Field.t list) (rest : (Field.t option) list) =
     match rest with
     | [] -> Some acc
