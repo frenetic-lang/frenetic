@@ -78,27 +78,25 @@ module Make (Handlers:OXMODULE) = struct
       return ()
 
   let start_controller () : unit =
-    Controller.create ~port:6633 () >>>
-    fun ctl ->
-      let events = Controller.listen ctl in
-      Deferred.don't_wait_for
-      (Monitor.try_with ~name:"controller" (fun () ->
-        let pkt_out_d = Pipe.iter pkt_out (send_pkt_out ctl) in
-        let events_d  = Pipe.iter events  (handler ctl) in
-        pkt_out_d >>= fun () -> events_d)
-      >>= function
-        | Ok () ->
-          exit 0
-        | Error exn ->
-          Log.error ~tags "Unexpected exception: %s\n%!"
-            (Exn.to_string exn);
-          exit 1)
+    Controller.create ~port:6633 () >>> fun ctl ->
+      (Deferred.don't_wait_for
+         (Monitor.try_with ~name:"controller" (fun () ->
+           let d1 = Pipe.iter pkt_out (send_pkt_out ctl) in 
+           let d2 = Pipe.iter (Controller.listen ctl) (handler ctl) in 
+           d1 >>= fun () -> d2)
+           >>= function
+             | Ok () ->
+               exit 0
+             | Error exn ->
+               Log.error ~tags "Unexpected exception: %s\n%!"
+                 (Exn.to_string exn);
+               exit 1))
 
   let run () : unit =
     let open Core.Std in
     (* intentionally on stdout *)
     Format.printf "Ox controller launching...\n%!";
     Sys.catch_break true;
-    never_returns (Scheduler.go_main start_controller ())
-
+    ignore (start_controller ());
+    Core.Std.never_returns (Async.Std.Scheduler.go ())
 end
