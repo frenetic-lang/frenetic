@@ -7,8 +7,6 @@ open OpenFlow0x01
 module Log = Async_OpenFlow.Log
 
 let _ = Log.set_level `Info
-let _ = Log.set_output
-          [Log.make_filtered_output [("ox", "toplevel")]]
 
 let tags = [("openflow", "controller")]
 
