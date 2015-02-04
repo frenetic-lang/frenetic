@@ -20,10 +20,13 @@ let parse_policy ?(name = "") (pol_str : string) : (policy, string) Result.t =
 
 type command =
   | Update of policy
+  | Order of header_val list
+  | Exit
   | Help
 
 let parse_command (line : string) : command option = match line with
   | "help" -> Some Help
+  | "exit" -> Some Exit
   | _ -> (match String.lsplit2 line ~on:' ' with
     | Some ("update", pol_str) ->
       (match parse_policy pol_str with
@@ -41,12 +44,15 @@ let rec repl (pol_writer : policy Pipe.Writer.t) : unit Deferred.t =
   match line with
   | `Eof -> return (Shutdown.shutdown 0)
   | `Ok line -> match parse_command line with
-    | Some Help ->
-      print_help () >>= fun () ->
-      repl pol_writer
-    | Some (Update pol) ->
-      (Pipe.write_without_pushback pol_writer pol;
-       repl pol_writer)
+		| Some Exit -> 
+		   Printf.printf "Goodbye!\n";
+		   return (Shutdown.shutdown 0)
+		| Some Help ->
+		   print_help () >>= fun () ->
+		   repl pol_writer
+		| Some (Update pol) ->
+		   (Pipe.write_without_pushback pol_writer pol;
+		    repl pol_writer)
     | None -> repl pol_writer
 
 let start_controller () : policy Pipe.Writer.t =
