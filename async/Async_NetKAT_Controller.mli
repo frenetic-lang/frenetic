@@ -54,4 +54,4 @@ val enable_host_discovery : t -> unit Deferred.t
 val disable_host_discovery : t -> unit Deferred.t
 
 (** [set_order] sets the order flag for the compiler. *)
-val set_order : t -> LC.order -> unit Deferred.t
+val set_order : t -> LC.order -> unit
