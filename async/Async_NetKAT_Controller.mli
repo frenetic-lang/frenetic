@@ -3,6 +3,8 @@ open Async.Std
 
 open Async_NetKAT
 
+module LC = NetKAT_LocalCompiler
+
 type t
 
 (** [start pol ()] starts an OpenFlow 1.0 controller that is capable of
@@ -50,3 +52,6 @@ val enable_host_discovery : t -> unit Deferred.t
 
 (** [disable_host_discovery t] disables host discovery. *)
 val disable_host_discovery : t -> unit Deferred.t
+
+(** [set_order] sets the order flag for the compiler. *)
+val set_order : t -> LC.order -> unit Deferred.t
