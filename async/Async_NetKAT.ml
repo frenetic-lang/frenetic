@@ -7,10 +7,10 @@ exception Assertion_failed of string
 
 type node =
     | Switch of SDN_Types.switchId
-    | Host of Packet.dlAddr * Packet.nwAddr
+    | Host of Packet.dlAddr * Packet.nwAddr with sexp
 
 module Node = struct
-  type t = node
+  type t = node with sexp
 
   let compare = Pervasives.compare
 
@@ -28,7 +28,7 @@ module Node = struct
 end
 
 module Link = struct
-  type t = unit
+  type t = unit with sexp
 
   let compare = Pervasives.compare
 

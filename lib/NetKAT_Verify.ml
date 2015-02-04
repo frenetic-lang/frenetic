@@ -11,7 +11,7 @@ let read_file (fname : string) : string =
 	done; ""
   with End_of_file -> 
 	close_in chan;
-	(intercalate (fun x -> x) "\n" (List.rev !lines))
+	String.concat "\n" (List.rev !lines)
 
 module Dexterize = struct
   open Decide_Ast
@@ -526,7 +526,7 @@ struct
 	  mk_union 
 	    (mk_seq 
 	       (mk_filter(Test(Switch(i))))
-	       (to_policy (compile i policy)))
+	       (to_policy (compile policy)))
 	    tbl))))
       ~init:NetKAT_Types.drop   
 

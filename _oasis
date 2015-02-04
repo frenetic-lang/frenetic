@@ -1,23 +1,17 @@
-OASISFormat: 0.3
-OCamlVersion: >= 4.01.0
+OASISFormat: 0.4
+OCamlVersion: >= 4.02.0
 Name:        frenetic
-Version:     3.1.0
+Version:     3.2.0
 Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     https://github.com/frenetic-lang/frenetic/contributors
 License:     LGPL
 Plugins:     META (0.3)
+AlphaFeatures: ocamlbuild_more_args
+XOCamlbuildExtraArgs: -cflags -w,-40,-short-paths
 BuildTools:
   ocamlbuild,
   ocamldoc,
   camlp4
-
-Flag quickcheck
-  Description: build the frenetic.quickcheck library
-  Default: false
-
-Flag async
-    Description: build the netkat.async library
-    Default: false
 
 Library netkat
   Path: lib
@@ -28,27 +22,31 @@ Library netkat
     fieldslib.syntax,
     netkat_decide,
     ocamlgraph,
-    openflow,
+    openflow (>= 0.8.0),
     sexplib,
     topology,
     sexplib.syntax,
     str,
     threads,
-    yojson
+    yojson,
+    ipaddr
   InternalModules:
-    Algo,
     Flowterp,
-    Optimize,
+    NetKAT_FDD,
+    NetKAT_Vlr,
     Util
   Modules:
     NetKAT_Lexer,
     NetKAT_LocalCompiler,
+    NetKAT_GlobalCompiler,
     NetKAT_Parser,
     NetKAT_Verify,
     NetKAT_Pretty,
     NetKAT_Semantics,
     NetKAT_Types,
-    NetKAT_Misc
+    NetKAT_Misc,
+    NetKAT_Json,
+    Optimize
 
 Library syntax
   Path: syntax
@@ -72,7 +70,6 @@ Library async
   Findlibparent: netkat
   Findlibname: async
   Path: async
-  Build$: flag(async)
   BuildDepends:
     async,
     core,
@@ -80,9 +77,9 @@ Library async
     cstruct.syntax,
     netkat_decide,
     netkat,
-    openflow,
-    openflow.async,
-    packet,
+    openflow (>= 0.8.0),
+    openflow.async (>= 0.8.0),
+    packet (>= 0.4.0),
     threads,
     topology,
     sexplib,
@@ -91,8 +88,7 @@ Library async
     Discovery,
     Learning,
     Raw_app,
-    TUtil,
-    Txn
+    TUtil
   Modules:
     Async_NetKAT,
     Async_NetKAT_Controller,
@@ -102,7 +98,6 @@ Library quickcheck
   Findlibparent: netkat
   Findlibname: quickcheck
   Path: quickcheck
-  Build$: flag(quickcheck) || flag(tests)
   BuildDepends:
     netkat,
     netkat_decide,
@@ -139,7 +134,6 @@ Executable katnetic
   MainIs: katnetic.ml
   CompiledObject: best
   NativeOpt: -g
-  Build$: flag(async)
   Install: false
   CompiledObject: native
   BuildDepends:
@@ -154,7 +148,6 @@ Executable katnetic
 Executable test_updates
   Path: frenetic
   MainIs: test_updates.ml
-  Build$: flag(async)
   Install: false
   BuildDepends:
     async,

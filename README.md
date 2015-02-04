@@ -9,32 +9,22 @@ An open-source SDN controller platform.
 You can install the latest release from [OPAM](http://opam.ocamlpro.com/) using
 the following command:
 
-    $ opam install frenetic
-
-To install the async subpackage, simply ensure that async is installed before
-or after installing the library:
-
-    $ opam install async
+    opam install frenetic
 
 ## Development
 
-To build from source, first ensure that you've installed all dependencies,
-which are listed in the `_oasis` file under the netkat, async, and quickcheck
-`Library` sections. To install dependencies that are part of the Frenetic
-project, you may want to install a custom OPAM repository maintained that the
-Frenetic project maintains.
+To build and install from source, clone this repository and run the following
+command from its root directory:
 
-    $ opam repository add frenetic https://github.com/frenetic-lang/opam-bleeding.git
-    $ opam update
+    opam pin add frenetic .
 
-Once that's done, packages that are part of the Frenetic project will be
-installed from the HEAD of their master branch on github. Install those
-packages and then build and install Frenetic using the following commands:
+If you make changes to the code, run this command to rebuild the library and
+any other libraries that depend on it:
 
-    ./configure --enable-tests --enable-quickcheck --enable-async
-    $ make
-    $ make test
-    $ make install
+    opam install frenetic
+
+When you add or remove dependencies, be sure to specify them both in the
+`_oasis` and `opam` file.
 
 ## Usage Example
 
@@ -46,8 +36,8 @@ open Core.Std
 open Async.Std
 
 let main () =
-  let static = Async_NetKAT.create_from_file "examples/tree-2-2.kat" in
-  Async_NetKAT_Controller.start static () in
+  let static = Async_NetKAT.Policy create_from_file "examples/tree-2-2.kat" in
+  ignore(Async_NetKAT_Controller.start static ()) in
 
 never_returns (Scheduler.go_main ~main ())
 ```

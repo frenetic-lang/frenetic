@@ -1,15 +1,18 @@
 # OASIS_START
-# DO NOT EDIT (digest: c0fd8817082965f27a6f77160172e1e6)
+# DO NOT EDIT (digest: 011b6d829be736b46b54a73bcc2d7faf)
 NetKAT_Lexer
 NetKAT_LocalCompiler
+NetKAT_GlobalCompiler
 NetKAT_Parser
 NetKAT_Verify
 NetKAT_Pretty
 NetKAT_Semantics
 NetKAT_Types
 NetKAT_Misc
-Algo
-Flowterp
+NetKAT_Json
 Optimize
+Flowterp
+NetKAT_FDD
+NetKAT_Vlr
 Util
 # OASIS_STOP

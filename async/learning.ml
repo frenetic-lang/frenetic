@@ -30,8 +30,8 @@ let create () =
   let default = Mod(Location(Pipe "learn")) in
   let drop = Filter False in
 
-  let all_ports ps = Net.Topology.PortSet.fold (fun p acc ->
-    mk_union (Mod(Location(Physical p))) acc) ps drop
+  let all_ports ps = Net.Topology.PortSet.fold ps ~init:drop ~f:(fun acc p ->
+    mk_union (Mod(Location(Physical p))) acc)
   in
 
   let gen_pol nib =
@@ -48,11 +48,10 @@ let create () =
         let open Net.Topology in
         let v  = vertex_of_label nib (Async_NetKAT.Switch switch_id) in
         let ps = vertex_to_ports nib v in
-        let ports = PortSet.fold (fun p acc ->
+        let ports = PortSet.fold ps ~init:drop ~f:(fun acc p ->
             Union(Seq(Filter(Test(Location(Physical p))),
-                      all_ports (PortSet.remove p ps)),
+                      all_ports (PortSet.remove ps p)),
                   acc))
-          ps drop
         in
         Seq(Filter(Or(Test(EthDst 0xffffffffffffL), Neg(!known_pred))), ports)
       in

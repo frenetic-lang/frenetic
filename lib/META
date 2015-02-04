@@ -1,16 +1,16 @@
 # OASIS_START
-# DO NOT EDIT (digest: d0ec0710bb51c15e1580e023f69fc848)
-version = "3.1.0"
+# DO NOT EDIT (digest: 65d45cb0b7e04df4b2184c0faedc922b)
+version = "3.2.0"
 description = "The Frenetic Compiler and Runtime System"
 requires =
-"brx core fieldslib fieldslib.syntax netkat_decide ocamlgraph openflow sexplib topology sexplib.syntax str threads yojson"
+"brx core fieldslib fieldslib.syntax netkat_decide ocamlgraph openflow sexplib topology sexplib.syntax str threads yojson ipaddr"
 archive(byte) = "netkat.cma"
 archive(byte, plugin) = "netkat.cma"
 archive(native) = "netkat.cmxa"
 archive(native, plugin) = "netkat.cmxs"
 exists_if = "netkat.cma"
 package "syntax" (
- version = "3.1.0"
+ version = "3.2.0"
  description = "Syntax extension writing NetKAT expressions"
  requires = "camlp4 ulex ipaddr"
  archive(syntax, preprocessor) = "syntax.cma"
@@ -21,7 +21,7 @@ package "syntax" (
 )
 
 package "quickcheck" (
- version = "3.1.0"
+ version = "3.2.0"
  description = "The Frenetic Compiler and Runtime System"
  requires =
  "netkat netkat_decide topology openflow.quickcheck packet.quickcheck quickcheck"
@@ -33,7 +33,7 @@ package "quickcheck" (
 )
 
 package "async" (
- version = "3.1.0"
+ version = "3.2.0"
  description = "The Frenetic Compiler and Runtime System"
  requires =
  "async core cstruct cstruct.syntax netkat_decide netkat openflow openflow.async packet threads topology sexplib sexplib.syntax"

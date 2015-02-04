@@ -222,7 +222,7 @@ module Switch = struct
               | Host _ -> []
             end
         end in
-        return es
+        return (es @ [e])
       | LinkUp ((sw1, pt1), (sw2, pt2)) ->
         assert false
       | LinkDown ((sw1, pt1), (sw2, pt2)) ->
@@ -237,7 +237,7 @@ module Switch = struct
     let open Async_NetKAT in
     let open NetKAT_Types in
     let flip_ctl, flip_app =
-      Flip.create (And(Test(EthType Probe.protocol), (Test(EthSrc Probe.mac))))
+      Flip.create ((Test(EthSrc Probe.mac)))
     in
     let r_pkt_outs, pkt_outs = Pipe.create () in
     let edge_app = Raw.create [] (fun nib send () ->

@@ -1,4 +1,116 @@
+open Core.Std
+
 open NetKAT_Types
+open Packet
+
+
+(** A map keyed by header names. *)
+module HeadersValues = struct
+
+  type t =
+    { location : location sexp_opaque
+    ; ethSrc : dlAddr
+    ; ethDst : dlAddr
+    ; vlan : int16
+    ; vlanPcp : dlVlanPcp
+    ; ethType : dlTyp
+    ; ipProto : nwProto
+    ; ipSrc : nwAddr
+    ; ipDst : nwAddr
+    ; tcpSrcPort : tpPort
+    ; tcpDstPort : tpPort
+    } with sexp, fields
+
+  let compare x y =
+    (* N.B. This is intentionally unrolled for performance purposes, as the
+     * comparison should short circuit as soon as possible. In light of that
+     * fact, it may be beneficial to reorder some of these checks in the
+     * future.
+     * *)
+    let c = Pervasives.compare x.location y.location in
+    if c <> 0 then c else
+    let c = Int64.compare x.ethSrc y.ethSrc in
+    if c <> 0 then c else
+    let c = Int64.compare x.ethDst y.ethDst in
+    if c <> 0 then c else
+    let c = Int.compare x.vlan y.vlan in
+    if c <> 0 then c else
+    let c = Int.compare x.vlanPcp y.vlanPcp in
+    if c <> 0 then c else
+    let c = Int.compare x.ethType y.ethType in
+    if c <> 0 then c else
+    let c = Int.compare x.ipProto y.ipProto in
+    if c <> 0 then c else
+    let c = Int32.compare x.ipSrc y.ipSrc in
+    if c <> 0 then c else
+    let c = Int32.compare x.ipDst y.ipDst in
+    if c <> 0 then c else
+    let c = Int.compare x.tcpSrcPort y.tcpSrcPort in
+    if c <> 0 then c else
+    let c = Int.compare x.tcpDstPort y.tcpDstPort in
+    c
+
+  let to_string (x:t) : string =
+    let g to_string acc f =
+      Printf.sprintf "%s%s=%s"
+        (if acc = "" then "" else acc ^ "; ")
+        (Field.name f) (to_string (Field.get f x))
+    in
+    Fields.fold
+      ~init:""
+      ~location:(g (function
+        | Physical n -> Printf.sprintf "%lu" n
+        | Pipe x     -> Printf.sprintf "pipe(%s)" x
+        | Query x    -> Printf.sprintf "query(%s)" x))
+      ~ethSrc:Int64.(g to_string)
+      ~ethDst:Int64.(g to_string)
+      ~vlan:Int.(g to_string)
+      ~vlanPcp:Int.(g to_string)
+      ~ethType:Int.(g to_string)
+      ~ipProto:Int.(g to_string)
+      ~ipSrc:Int32.(g to_string)
+      ~ipDst:Int32.(g to_string)
+      ~tcpSrcPort:Int.(g to_string)
+      ~tcpDstPort:Int.(g to_string)
+
+  let to_hvs (t:t) : NetKAT_Types.header_val list =
+    let open NetKAT_Types in
+    let conv to_hv = fun acc f -> (to_hv (Field.get f t)) :: acc in
+    Fields.fold
+      ~init:[]
+      ~location:(conv (fun x -> Location x))
+      ~ethSrc:(conv (fun x -> EthSrc x))
+      ~ethDst:(conv (fun x -> EthDst x))
+      ~vlan:(conv (fun x -> Vlan x))
+      ~vlanPcp:(conv (fun x -> VlanPcp x))
+      ~ethType:(conv (fun x -> EthType x))
+      ~ipProto:(conv (fun x -> IPProto x))
+      ~ipSrc:(conv (fun x -> IP4Src(x, 32l)))
+      ~ipDst:(conv (fun x -> IP4Dst(x, 32l)))
+      ~tcpSrcPort:(conv (fun x -> TCPSrcPort x))
+      ~tcpDstPort:(conv (fun x -> TCPDstPort x))
+
+end
+
+type packet = {
+  switch : switchId;
+  headers : HeadersValues.t;
+  payload : payload
+}
+
+module PacketSet = Set.Make (struct
+  type t = packet sexp_opaque with sexp
+
+  (* First compare by headers, then payload. The payload comparison is a
+     little questionable. However, this is safe to use in eval, since
+     all output packets have the same payload as the input packet. *)
+  let compare x y =
+    let cmp = HeadersValues.compare x.headers y.headers in
+    if cmp <> 0 then
+      cmp
+    else
+      Pervasives.compare x.payload y.payload
+end)
 
 (** {2 Semantics}
 
@@ -11,7 +123,7 @@ let size_pred (pr:pred) : int =
     match pr with
       | True -> f 1
       | False -> f 1
-      | Test(_) -> f 3
+      | Test(_) -> f 1
       | And(pr1,pr2)
       | Or(pr1,pr2) -> size_pred pr1 (fun spr1 -> size_pred pr2 (fun spr2 -> f (1 + spr1 + spr2)))
       | Neg(pr) -> size_pred pr (fun spr -> f (1 + spr)) in
@@ -21,7 +133,7 @@ let size (pol:policy) : int =
   let rec size (pol:policy) f : int =
     match pol with
       | Filter pr -> f (size_pred pr + 1)
-      | Mod(_) -> f 3
+      | Mod(_) -> f 1
       | Union(pol1, pol2)
       | Seq(pol1, pol2) -> size pol1 (fun spol1 -> size pol2 (fun spol2 -> f (1 + spol1 + spol2)))
       | Star(pol) -> size pol (fun spol -> f (1 + spol))
@@ -43,8 +155,10 @@ let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
       | VlanPcp n -> pkt.headers.vlanPcp = n
       | EthType n -> pkt.headers.ethType = n
       | IPProto n -> pkt.headers.ipProto = n
-      | IP4Src (n,m) -> Int32TupleHeader.lessthan (pkt.headers.ipSrc,32l) (n,m)
-      | IP4Dst (n,m) -> Int32TupleHeader.lessthan (pkt.headers.ipDst,32l) (n,m)
+      | IP4Src (n, m) ->
+        SDN_Types.Pattern.Ip.less_eq (pkt.headers.ipSrc, 32l) (n, m)
+      | IP4Dst (n, m) ->
+        SDN_Types.Pattern.Ip.less_eq (pkt.headers.ipDst, 32l) (n, m)
       | TCPSrcPort n -> pkt.headers.tcpSrcPort = n
       | TCPDstPort n -> pkt.headers.tcpDstPort = n
     end
@@ -95,10 +209,12 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
   | Link(sw,pt,sw',pt') ->
     PacketSet.empty (* JNF *)
 
-let eval_pipes (packet:NetKAT_Types.packet) (pol:NetKAT_Types.policy)
-  : (string * NetKAT_Types.packet) list * NetKAT_Types.packet list =
+let eval_pipes (packet:packet) (pol:NetKAT_Types.policy)
+  : (string * packet) list *
+    (string * packet) list *
+    packet list =
   let open NetKAT_Types in
-  (* Determines the pipes that the packet belongs to. Note that a packet may
+  (* Determines the locations that the packet belongs to. Note that a packet may
    * belong to several pipes for several reasons:
    *
    *   1. Multiple points of a single application wish to inspect the packet;
@@ -115,12 +231,37 @@ let eval_pipes (packet:NetKAT_Types.packet) (pol:NetKAT_Types.policy)
    * Since Local.t is switch-specific, this function assumes but does not
    * check that the packet came from the same switch as the given Local.t *)
   let packets = eval packet pol in
-  PacketSet.fold packets ~init:([],[]) ~f:(fun (pi,phy) pkt ->
+  PacketSet.fold packets ~init:([],[],[]) ~f:(fun (pi,qu,phy) pkt ->
     (* Running the packet through the switch's policy will label the resultant
-     * packets with the pipe they belong to, if any. All that's left to do is
-     * pick out packets in the PacketSet.t that have a pipe location, and return
-     * those packets (with the location cleared) along with the pipe they belong
-     * to. *)
+     * packets with the pipe or query they belong to, if any. All that's left to
+     * do is pick out packets in the PacketSet.t that have a pipe location, and
+     * return those packets (with the location cleared) along with the pipe they
+     * belong to. *)
     match pkt.headers.HeadersValues.location with
-      | Pipe     p -> ((p, pkt) :: pi,        phy)
-      | Physical _ -> (            pi, pkt :: phy))
+      | Physical _ -> (            pi,             qu, pkt :: phy)
+      | Pipe     p -> ((p, pkt) :: pi,             qu,        phy)
+      | Query    q -> (            pi, (q, pkt) :: qu,        phy))
+
+
+let switches_of_policy (pol : policy) : switchId list =
+  let ids : (switchId, unit) Hashtbl.Poly.t = Hashtbl.Poly.create () in
+  let rec count_pred (pred : pred) (k : unit -> 'a) : 'a = match pred with
+    | Test (Switch sw) ->
+      Hashtbl.Poly.set ids ~key:sw ~data:();
+      k ()
+    | True | False | Test _ -> k ()
+    | And (a, b) | Or (a, b) ->
+      count_pred a (fun () -> count_pred b (fun () -> k ()))
+    | Neg a -> count_pred a k in
+  let rec count_pol (pol : policy) (k : unit -> 'a) : 'a = match pol with
+    | Filter a -> count_pred a k
+    | Mod _ -> k ()
+    | Union (p, q) | Seq (p, q) ->
+       count_pol p (fun () -> count_pol q (fun () -> k ()))
+    | Star p -> count_pol p k
+    | Link (sw1, _, sw2, _) ->
+      Hashtbl.Poly.set ids ~key:sw1 ~data:();
+      Hashtbl.Poly.set ids ~key:sw2 ~data:();
+      k () in
+  count_pol pol ident;
+  Hashtbl.Poly.keys ids
