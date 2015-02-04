@@ -11,11 +11,6 @@ the following command:
 
     opam install frenetic
 
-To install the async subpackage, simply ensure that async is installed before
-or after installing the library:
-
-    opam install async
-
 ## Development
 
 To build and install from source, clone this repository and run the following
