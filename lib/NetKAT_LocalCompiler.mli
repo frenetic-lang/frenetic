@@ -6,7 +6,7 @@ open SDN_Types
 
 module Field : sig
 
-  type t
+  type t = NetKAT_FDD.Field.t
     = Switch
     | Vlan
     | VlanPcp
