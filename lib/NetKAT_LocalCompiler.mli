@@ -1,3 +1,4 @@
+open Core.Std
 open NetKAT_Types
 open NetKAT_Semantics
 
@@ -30,8 +31,14 @@ type order
     | `Static of Field.t list
     | `Heuristic ]
 
+
 type t
 (** The type of the intermediate compiler representation. *)
+
+type cache
+  = [ `Keep
+    | `Empty
+    | `Preserve of t ]
 
 (** {2 Compilation} *)
 
@@ -40,7 +47,7 @@ exception Non_local
     [Link] term in it. [Link] terms are currently not supported by this
     compiler. *)
 
-val compile : ?order:order -> ?clear_cache:bool -> policy -> t
+val compile : ?order:order -> ?cache:cache -> policy -> t
 (** [compile p] returns the intermediate representation of the policy [p].
     You can generate a flowtable from [t] by passing it to the {!to_table}
     function below.
@@ -48,7 +55,7 @@ val compile : ?order:order -> ?clear_cache:bool -> policy -> t
     The optional [order] flag determines the variable order. If unset,
     it uses a static default ordering.
 
-    The optional [clear_cache] flag determines if the cache should be cleared
+    The optional [cache] flag determines if the cache should be cleared
     before compilation. By default, the cache is cleared.
  *)
 
@@ -134,7 +141,5 @@ val eval_pipes
     first component is a list of packets and corresponding pipe location, whose
     second is a list of packets and corresponding query location, and whose
     third is a list of packets that are at physical locations. *)
-
-val clear_cache : unit -> unit
 
 val to_dotfile : t -> string -> unit

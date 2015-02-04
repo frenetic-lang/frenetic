@@ -100,7 +100,7 @@ end
 
 
 module type TABLE = sig
-  val clear : unit -> unit
+  val clear : Core.Std.Int.Set.t -> unit
   type value
   val get : value -> int
   val unget : int -> value
@@ -131,10 +131,18 @@ module PersistentTable (Value : TABLE_VALUE) : TABLE
 
   let idx = ref 0
 
-  let clear () =
-    T.clear tbl;
-    U.clear untbl;
-    idx := 0
+  let clear (preserve : Core.Std.Int.Set.t) : unit =
+    let open Core.Std in
+    let max_key = ref 0 in
+    T.iter (fun key data ->
+      max_key := max !max_key data;
+      if Int.Set.mem preserve data then
+        ()
+      else
+        (U.remove untbl data;
+         T.remove tbl key))
+      tbl;
+    idx := !max_key + 1
 
   let gensym () =
     let r = !idx in
@@ -205,7 +213,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
       (V.to_string v) (L.to_string l) (to_string t)
       (to_string (T.get f))
  *)
-  let clear_cache () = T.clear ()
+  let clear_cache ~(preserve : Core.Std.Int.Set.t) = T.clear preserve
 
   let mk_leaf r = T.get (Leaf r)
 
@@ -398,5 +406,17 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
       rank;
     fprintf fmt "}@.";
     Buffer.contents buf
+
+  let refs (t : t) : Core.Std.Int.Set.t =
+    let open Core.Std in
+    let rec f (node : t) (seen : Int.Set.t) =
+      if Int.Set.mem seen node then
+        seen
+      else
+        match T.unget node with
+        | Leaf _ -> Int.Set.add seen node
+        | Branch (_, hi, lo) ->
+          Int.Set.add (f lo (f hi seen)) node in
+    f t Int.Set.empty
 
 end
