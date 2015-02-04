@@ -2,6 +2,10 @@ open Core.Std
 open Async.Std
 open NetKAT_Types
 
+module Controller = Async_NetKAT_Controller
+
+module LC = NetKAT_LocalCompiler
+
 module Field = NetKAT_FDD.Field
 
 module Log = Async_OpenFlow.Log
@@ -14,6 +18,12 @@ let id x = x
 
 let compose f g x = f (g x)
 
+let controller : (Controller.t option) ref = ref None
+
+let set_controller (ctl : Controller.t) : Controller.t Deferred.t =
+  controller := Some ctl;
+  return ctl
+
 (* Use heuristic ordering by default *)
 let order : ordering ref = ref Heuristic
 
@@ -23,11 +33,14 @@ let print_order () : unit =
   | Static fields ->
      let strs = List.rev (List.map fields Field.to_string) in
      let cs = String.concat ~sep:" < " strs in
-     Printf.printf "Ordering Mode: %s\n%!" cs
+     printf "Ordering Mode: %s\n%!" cs
 
 let set_order (o : ordering) : unit = 
   match o with
-  | Heuristic -> order := Heuristic; print_order ()
+  | Heuristic -> 
+     order := Heuristic; 
+     Controller.set_order (uw !controller) `Heuristic;
+     print_order ()
   | Static ls ->
      let curr_order = match !order with
                       | Heuristic -> Field.all_fields
@@ -35,7 +48,9 @@ let set_order (o : ordering) : unit =
      in
      let removed = List.filter curr_order (compose not (List.mem ls)) in
      let new_order = List.append ls removed in
-     order := (Static new_order); print_order ()
+     order := (Static new_order); 
+     Controller.set_order (uw !controller) (`Static new_order);
+     print_order ()
   
   
 
@@ -86,7 +101,7 @@ let with_error (msg : string)
   match f x with
   | Some result -> Some result
   | None -> 
-     Printf.printf "%s: %s\n%!" msg (to_string x);
+     printf "%s: %s\n%!" msg (to_string x);
      None
 
 
@@ -106,7 +121,7 @@ let parse_order (line : string) : (Field.t list) option =
     | (None::_) -> None
     | (Some x)::xs -> 
        if (List.mem acc x) 
-       then (Printf.printf "Invalid ordering: %s < %s\n%!" (Field.to_string x) (Field.to_string x); None)
+       then (printf "Invalid ordering: %s < %s\n%!" (Field.to_string x) (Field.to_string x); None)
        else helper (x::acc) xs
   in
   helper [] orders
@@ -160,8 +175,10 @@ let start_controller () : policy Pipe.Writer.t =
          printf "Got network event.\n%!";
          return None) in
   let () = don't_wait_for
-    (Async_NetKAT_Controller.start app () >>= fun ctrl ->
-     Async_NetKAT_Controller.disable_discovery ctrl) in
+    (Async_NetKAT_Controller.start app () >>= 
+       (fun ctrl -> set_controller ctrl >>=
+	    (fun ctrl ->
+	        Async_NetKAT_Controller.disable_discovery ctrl))) in
   pol_writer
 
 let log_file = "frenetic.log"
