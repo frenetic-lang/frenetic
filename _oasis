@@ -132,7 +132,8 @@ Executable frenetic
     cohttp,
     cohttp.async,
     netkat,
-    netkat.async
+    netkat.async,
+    mparser
 
 Executable katnetic
   Path: frenetic

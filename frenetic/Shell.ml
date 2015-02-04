@@ -3,55 +3,48 @@ open Async.Std
 open NetKAT_Types
 
 module Controller = Async_NetKAT_Controller
-
 module LC = NetKAT_LocalCompiler
-
 module Field = NetKAT_FDD.Field
-
 module Log = Async_OpenFlow.Log
-
-type ordering = 
-  | Heuristic
-  | Static of Field.t list
 
 let compose f g x = f (g x)
 
 let controller : (Controller.t option) ref = ref None
 
-let set_controller (ctl : Controller.t) : Controller.t Deferred.t =
-  controller := Some ctl;
-  return ctl
-
 (* Use heuristic ordering by default *)
-let order : ordering ref = ref Heuristic
+let order : LC.order ref = ref `Heuristic
 
 let print_order () : unit =
   match !order with
-  | Heuristic -> print_endline "Ordering Mode: Heuristic"
-  | Static fields ->
+  | `Heuristic -> print_endline "Ordering Mode: Heuristic"
+  | `Default -> print_endline "Ordering Mode: Default"
+  | `Static fields ->
      let strs = List.rev (List.map fields Field.to_string) in
      let cs = String.concat ~sep:" < " strs in
      printf "Ordering Mode: %s\n%!" cs
 
-let set_order (o : ordering) : unit = 
+let set_order (o : LC.order) : unit = 
   match o with
-  | Heuristic -> 
-     order := Heuristic; 
+  | `Heuristic -> 
+     order := `Heuristic; 
      Controller.set_order (uw !controller) `Heuristic;
      print_order ()
-  | Static ls ->
+  | `Default -> 
+     order := `Default;
+     Controller.set_order (uw !controller) `Default;
+     print_order ()
+  | `Static ls ->
      let curr_order = match !order with
-                      | Heuristic -> Field.all_fields
-		      | Static fields -> fields
+                      | `Heuristic -> Field.all_fields
+		      | `Default -> Field.all_fields
+		      | `Static fields -> fields
      in
      let removed = List.filter curr_order (compose not (List.mem ls)) in
      let new_order = List.append ls removed in
-     order := (Static new_order); 
+     order := (`Static new_order); 
      Controller.set_order (uw !controller) (`Static new_order);
      print_order ()
   
-  
-
 let field_from_string (opp_str : string) : Field.t option = 
   match (String.lowercase opp_str) with
   | "switch" -> Some Switch
@@ -87,7 +80,7 @@ type showable =
 
 type command =
   | Update of policy
-  | Order of ordering
+  | Order of LC.order
   | Show of showable
   | Exit
   | Help
@@ -101,7 +94,6 @@ let with_error (msg : string)
   | None -> 
      printf "%s: %s\n%!" msg (to_string x);
      None
-
 
 (* Given a string of the format
    x_0 < x_1 < ... < x_n
@@ -125,16 +117,17 @@ let parse_order (line : string) : (Field.t list) option =
   helper [] orders
 
 let parse_command (line : string) : command option = 
-  match (compose String.lstrip String.rstrip) (String.lowercase line) with
+  match (compose String.lstrip String.rstrip) line with
   | "help" -> Some Help
   | "exit" -> Some Exit
   | "order" -> Some (Show Ordering)
-  | "order default" -> Some (Order (Static []))
-  | "order heuristic" -> Some (Order Heuristic)
+  | "order default" -> Some (Order `Default)
+  | "order heuristic" -> Some (Order `Heuristic)
   | _ -> (match String.lsplit2 line ~on:' ' with
     | Some ("order", order_str) ->
+       (match MParser.parse_string
        (match parse_order order_str with
-	| Some order -> Some (Order (Static order))
+	| Some order -> Some (Order (`Static order))
 	| None -> None)
     | Some ("update", pol_str) ->
       (match parse_policy pol_str with
@@ -174,9 +167,8 @@ let start_controller () : policy Pipe.Writer.t =
          return None) in
   let () = don't_wait_for
     (Async_NetKAT_Controller.start app () >>= 
-       (fun ctrl -> set_controller ctrl >>=
-	    (fun ctrl ->
-	        Async_NetKAT_Controller.disable_discovery ctrl))) in
+       (fun ctrl -> controller := Some ctrl;
+	            Async_NetKAT_Controller.disable_discovery ctrl)) in
   pol_writer
 
 let log_file = "frenetic.log"
@@ -190,3 +182,45 @@ let main (args : string list) : unit =
     let _ = repl pol_writer in
     ()
   | _ -> (printf "Invalid arguments to shell.\n"; Shutdown.shutdown 0)
+
+module Parser = struct
+
+    open MParser
+
+    let field (f : Field.t) : (Field.t, bytes) MParser.t =
+      many blank >>
+      Tokens.symbol (Field.to_string f |> String.lowercase) >>
+      return f
+
+    let any_field : (Field.t, bytes) MParser.t =
+      many blank >> (
+      field Field.Switch <|>
+      field Field.Location <|>
+      field Field.EthSrc <|>
+      field Field.EthDst <|>
+      field Field.Vlan <|>
+      field Field.VlanPcp <|>
+      field Field.EthType <|>
+      field Field.IPProto <|>
+      field Field.IP4Src <|>
+      field Field.IP4Dst <|>
+      field Field.TCPSrcPort <|>
+      field Field.TCPDstPort)
+
+    let ord_symbol : (string, bytes) MParser.t =
+      many blank >>
+      Tokens.symbol "<"
+
+    let ordering : (LC.order, bytes) MParser.t =
+      many blank >>
+      ((Tokens.symbol "heuristic" >> return `Heuristic) <|>
+       (Tokens.symbol "default" >> return `Default) <|>
+       (sep_by1 any_field ord_symbol >>= 
+	  fun fields -> return (`Static fields)))
+
+    let order : (LC.order, bytes) MParser.t =
+      many blank >> 
+      Tokens.symbol "order" >>
+      ordering
+
+end
