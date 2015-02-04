@@ -41,51 +41,46 @@ module Make (Handlers:OXMODULE) = struct
   (* TODO(arjun): IMO, send_to_switch should *never* fail. *)
   let send_pkt_out ctl ((sw, xid, msg) : to_sw) =
     let open Controller in
-    match client_id_of_switch ctl sw with
-    | Some cid ->        
-       begin
-	 send ctl cid (xid, msg) 
-	 >>| function
-	   | `Sent _ -> 
-	      ()
-	   | `Drop exn ->
-              Log.error ~tags "unhandled exception sending a message to switch \
+    if has_client_id ctl sw then
+      begin
+	send ctl sw (xid, msg) 
+	>>| function
+	  | `Sent _ -> 
+	    ()
+	  | `Drop exn ->
+            Log.error ~tags "unhandled exception sending a message to switch \
                                %Ld" sw
-       end
-    | None -> 
-       Log.error ~tags "no such client id %Ld" sw;
-       return ()
+      end
+    else 
+      begin 
+        Log.error ~tags "no such client id %Ld" sw;
+        return ()
+      end
 
   let handler ctl e =
     let open Message in
     let open FlowMod in
     match e with
-    | `Connect (c_id, feats) ->
-      Controller.send ctl c_id (0l, FlowModMsg delete_all_flows) >>= fun _ ->
-      Controller.send ctl c_id (1l, BarrierRequest) >>= fun _ ->
+    | `Connect (sw, feats) ->
+      Controller.send ctl sw (0l, FlowModMsg delete_all_flows) >>= fun _ ->
+      Controller.send ctl sw (1l, BarrierRequest) >>= fun _ ->
       let sw = feats.SwitchFeatures.switch_id in
       return (Handlers.switch_connected sw feats)
-    | `Message (c_id, (xid, msg)) ->
-       begin match Controller.switch_id_of_client ctl c_id with
-       | Some sw -> 
-	  return 
-	    (match msg with
-	     | PacketInMsg pktIn -> Handlers.packet_in sw xid pktIn
-	     | BarrierReply -> Handlers.barrier_reply sw xid
-	     | StatsReplyMsg rep -> Handlers.stats_reply sw xid rep
-	     | msg -> Log.info ~tags "ignored a message from %Ld" sw)
-       | None -> 
-	  Log.info "client not connected\n%!";
-	  return ()
-       end
-    | `Disconnect (c_id, sw_id, exn) ->
-      Log.info "switch %Ld disconnected\n%!" sw_id;
+    | `Message (sw, (xid, msg)) ->
+      return 
+	(match msg with
+	  | PacketInMsg pktIn -> Handlers.packet_in sw xid pktIn
+	  | BarrierReply -> Handlers.barrier_reply sw xid
+	  | StatsReplyMsg rep -> Handlers.stats_reply sw xid rep
+	  | msg -> Log.info ~tags "ignored a message from %Ld" sw)
+    | `Disconnect (sw, exn) ->
+      Log.info "switch %Ld disconnected\n%!" sw;
       return ()
 
   let start_controller () : unit =
     Controller.create ~port:6633 () >>>
     fun ctl ->
-      let events = Stage.run Controller.features ctl (Controller.listen ctl) in
+      let events = Controller.listen ctl in
       Deferred.don't_wait_for
       (Monitor.try_with ~name:"controller" (fun () ->
         let pkt_out_d = Pipe.iter pkt_out (send_pkt_out ctl) in
