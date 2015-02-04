@@ -41,40 +41,40 @@ module Dexterize = struct
     let rec loop pr k = 
       match pr with 
         | NetKAT_Types.True -> 
-          k (make_one ())
+          k one
         | NetKAT_Types.False -> 
-          k (make_zero ())
+          k zero
         | NetKAT_Types.Test(h) -> 
           let x,n = header_value_to_pair h in 
-          k (make_test (Field.of_string x, Value.of_string n))
+          k (test (Field.of_string x) (Value.of_string n))
         | NetKAT_Types.And(pr1,pr2) -> 
-          loop pr1 (fun t1 -> loop pr2 (fun t2 -> k (make_times [t1;t2])))
+          loop pr1 (fun t1 -> loop pr2 (fun t2 -> k (times [t1;t2])))
         | NetKAT_Types.Or(pr1,pr2) -> 
-          loop pr1 (fun t1 -> loop pr2 (fun t2 -> k (make_plus (Decide_Ast.TermSet.of_list [t1;t2]))))
+          loop pr1 (fun t1 -> loop pr2 (fun t2 -> k (plus (Decide_Ast.TermSet.of_list [t1;t2]))))
         | NetKAT_Types.Neg(pr) -> 
-          loop pr (fun t -> k (make_not t)) in 
+          loop pr (fun t -> k (not t)) in 
     loop pr (fun x -> x)
 
-  let policy_to_term ?dup:(dup=true) pol = 
+  let policy_to_term ?dup:(dupl=true) pol = 
     let rec loop pol k = 
       match pol with 
         | NetKAT_Types.Filter(p) -> 
           k (pred_to_term p)
         | NetKAT_Types.Mod(h) -> 
           let x,n = header_value_to_pair h in 
-           k (make_assg (Field.of_string x, Value.of_string n))
+           k (assg (Field.of_string x) (Value.of_string n))
         | NetKAT_Types.Union(p1,p2) -> 
-          loop p1 (fun t1 -> loop p2 (fun t2 -> k (make_plus (Decide_Ast.TermSet.of_list [t1;t2]))))
+          loop p1 (fun t1 -> loop p2 (fun t2 -> k (plus (Decide_Ast.TermSet.of_list [t1;t2]))))
         | NetKAT_Types.Seq(p1,p2) -> 
-          loop p1 (fun t1 -> loop p2 (fun t2 -> k (make_times [t1;t2])))
+          loop p1 (fun t1 -> loop p2 (fun t2 -> k (times [t1;t2])))
         | NetKAT_Types.Star(p) -> 
-          loop p (fun t -> k (make_star t))
+          loop p (fun t -> k (star t))
         | NetKAT_Types.Link(sw1,pt1,sw2,pt2) -> 
-          k (make_times (make_test (Field.of_string "switch", Value.of_string (Int64.to_string sw1)) :: 
-                         make_test (Field.of_string "port", Value.of_string (Int32.to_string pt1)) ::
-                         make_assg (Field.of_string "switch", Value.of_string (Int64.to_string sw2)) :: 
-                         make_assg (Field.of_string "port", Value.of_string (Int32.to_string pt2)) ::
-                         if dup then [make_dup ()] else [])) in 
+          k (times (test (Field.of_string "switch") (Value.of_string (Int64.to_string sw1)) :: 
+                         test (Field.of_string "port") (Value.of_string (Int32.to_string pt1)) ::
+                         assg (Field.of_string "switch") (Value.of_string (Int64.to_string sw2)) :: 
+                         assg (Field.of_string "port") (Value.of_string (Int32.to_string pt2)) ::
+                         if dupl then [dup] else [])) in 
     loop pol (fun x -> x)
 end
 
@@ -467,37 +467,38 @@ struct
   let topology ?hostlimit:(hostlimit=1000000) filename = 
     let topo = Net.Parse.from_dotfile filename in 
     let vertexes = Topology.vertexes topo in 
-    let hosts = Topology.VertexSet.filter (is_host topo) vertexes in 
+    let hosts = Topology.VertexSet.filter vertexes (is_host topo) in 
     let _,hosts = if hostlimit < 1000000 then 
 	(Printf.printf "We are doing the thing!\n%!";
-	  Topology.VertexSet.(fold (fun e (cntr,acc) -> if cntr < hostlimit
-	  then (cntr + 1, add e acc)
-	  else (cntr,acc)) hosts (0,empty)))
+	  Topology.VertexSet.(fold hosts ~f:(fun (cntr,acc) e -> if cntr < hostlimit
+	  then (cntr + 1, add acc e)
+	  else (cntr,acc)) ~init:(0,empty)))
       else (0,hosts) in
-    let switches = Topology.VertexSet.filter (is_switch topo) vertexes in 
+    let switches = Topology.VertexSet.filter vertexes (is_switch topo) in 
     (topo, vertexes, switches, hosts)  
 
   let hosts_ports_switches topo hosts = 
-    Topology.VertexSet.fold
-      (fun h pol -> 
-        let sw = Topology.VertexSet.choose (Topology.neighbors topo h) in 
-        let _,pt = Topology.edge_dst (Topology.find_edge topo h sw) in 
-        (h,pt,sw)::pol)
-      hosts []
+    Topology.VertexSet.fold hosts
+      ~f:(fun pol h -> 
+        match Topology.VertexSet.choose (Topology.neighbors topo h) with
+        | Some sw ->
+          let _,pt = Topology.edge_dst (Topology.find_edge topo h sw) in 
+          (h,pt,sw)::pol
+        | _ -> pol)
+      ~init:[]
 
   let shortest_path_policy topo switches hosts = 
     let h = Hashtbl.create 101 in 
     let () = 
-      Topology.VertexSet.iter
+      Topology.VertexSet.iter hosts
       (fun h1 -> 
-	Topology.VertexSet.iter
+	Topology.VertexSet.iter hosts
 	  (fun h2 -> 	    
 	    match Path.shortest_path topo h1 h2 with 
 	    | Some [] -> ()
 	    | Some p -> Hashtbl.add h (h1,h2) p
-	    | None -> ())
-	  hosts)
-      hosts in 
+	    | None -> ()))
+      in 
     Hashtbl.fold
       (fun (h1,h2) pi (pol,l) -> 
 	let m = Node.mac (Topology.vertex_to_label topo h2) in 
@@ -512,14 +513,14 @@ struct
 		     (mk_filter (mk_and (Test(Switch(i))) (Test(EthDst(m)))))
 		     (Mod(Location(Physical(pt)))))) in
 	      NetKAT_Types.(Optimize.( mk_union inner pol)), 
-	      (Decide_Ast.TermSet.add (Dexterize.policy_to_term inner) l)
+	      (Decide_Ast.TermSet.add l (Dexterize.policy_to_term inner))
 	    | _ -> (pol,l))	      
 	  (pol,l) pi)
       h (NetKAT_Types.drop,Decide_Ast.TermSet.empty)
 
   let shortest_path_table topo switches policy = 
-    Topology.VertexSet.fold
-      (fun sw tbl -> 
+    Topology.VertexSet.fold switches
+      ~f:(fun tbl sw -> 
         let i = Node.id (Topology.vertex_to_label topo sw) in                             
 	NetKAT_Types.(Optimize.(NetKAT_LocalCompiler.(
 	  mk_union 
@@ -527,7 +528,7 @@ struct
 	       (mk_filter(Test(Switch(i))))
 	       (to_policy (compile i policy)))
 	    tbl))))
-      switches NetKAT_Types.drop   
+      ~init:NetKAT_Types.drop   
 
   let connectivity_policy topo hosts = 
     let hps = hosts_ports_switches topo hosts in 
@@ -541,8 +542,8 @@ struct
       NetKAT_Types.(False, drop) hps
       
   let topology_policy topo = 
-    Topology.EdgeSet.fold
-      (fun e tp_pol -> 
+    Topology.EdgeSet.fold (Topology.edges topo)
+      ~f:(fun tp_pol e -> 
         let v1,pt1 = Topology.edge_src e in 
         let v2,pt2 = Topology.edge_dst e in 
         if is_switch topo v1 && is_switch topo v2 then 
@@ -550,7 +551,7 @@ struct
           let n2 = Node.id (Topology.vertex_to_label topo v2) in 
           NetKAT_Types.(Optimize.(mk_union tp_pol (Link(n1,pt1,n2,pt2))))
         else tp_pol)
-      (Topology.edges topo) NetKAT_Types.drop 
+      ~init:NetKAT_Types.drop 
 
   let check_equivalent t1 t2 = 
     let module UnivMap = Decide_Util.SetMapF (Decide_Util.Field) (Decide_Util.Value) in
@@ -641,8 +642,8 @@ struct
     Printf.printf "1\n%!";
     let parsed_pols = List.map parse pols in 
     let dexter_parsed_pols = List.map (Dexterize.policy_to_term ~dup:false) parsed_pols in 
-    let pol = Decide_Ast.Term.make_plus  
-      (List.fold_right Decide_Ast.TermSet.add dexter_parsed_pols Decide_Ast.TermSet.empty) in
+    let pol = Decide_Ast.Term.plus  
+      (List.fold_right (fun a b -> Decide_Ast.TermSet.add b a) dexter_parsed_pols Decide_Ast.TermSet.empty) in
     let edge_pol, _ =  (connectivity_policy topo hosts) in 
     let edge_pol = Dexterize.policy_to_term ~dup:false (NetKAT_Types.(Filter edge_pol)) in 
     let topo_pol = Dexterize.policy_to_term ~dup:false (topology_policy topo) in
@@ -730,7 +731,6 @@ struct
 
 
   let verify_connectivity ?(print=false) ?(hostlimit=1000000) filename = 
-    Decide_Ast.disable_unfolding_opt ();
     let topo, vertexes, switches, hosts = topology ~hostlimit:hostlimit filename in 
     let sw_pol,per_sw_policies = shortest_path_policy topo switches hosts in 
     let cn_pr, cn_pol = connectivity_policy topo hosts in 
