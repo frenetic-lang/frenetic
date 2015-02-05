@@ -7,12 +7,24 @@ module LC = NetKAT_LocalCompiler
 module Field = NetKAT_FDD.Field
 module Log = Async_OpenFlow.Log
 
+type showable =
+  | Ordering
+  | Policy
+
+type command =
+  | Update of policy * string
+  | Order of LC.order
+  | Show of showable
+  | Exit
+  | Help
+
 module Parser = struct
 
     open MParser
 
     let field (f : Field.t) : (Field.t, bytes list) MParser.t =
-      MParser.Tokens.symbol (Field.to_string f |> String.lowercase) >>
+      MParser.Tokens.symbol (Field.to_string f |> String.lowercase) <|>
+      MParser.Tokens.symbol (Field.to_string f) >>
       return f
 
     let any_field : (Field.t, bytes list) MParser.t =
@@ -29,19 +41,52 @@ module Parser = struct
       field Field.TCPSrcPort <|>
       field Field.TCPDstPort
 
-    let ord_symbol : (string, bytes list) MParser.t =
-      Tokens.symbol "<"
-
-    let ordering : (LC.order, bytes list) MParser.t =
-      (Tokens.symbol "heuristic" >> return `Heuristic) <|>
-      (Tokens.symbol "default" >> return `Default) <|>
+    let order : (command, bytes list) MParser.t =
+      Tokens.symbol "order" >> (
+      (eof >> return (Show Ordering)) <|>
+      (Tokens.symbol "heuristic" >> return (Order `Heuristic)) <|>
+      (Tokens.symbol "default" >> return (Order `Default)) <|>
       (sep_by1 any_field (Tokens.symbol "<") >>= 
-	 fun fields -> eof >> return (`Static fields))
+	 fun fields -> eof >> return (Order (`Static fields))))
 
-    let order : (LC.order, bytes list) MParser.t =
-      Tokens.symbol "order" >>
-      ordering
+    let string_of_position (p : Lexing.position) : string =
+      sprintf "%s:%d:%d" p.pos_fname p.pos_lnum (p.pos_cnum - p.pos_bol)
 
+    let parse_policy ?(name = "") (pol_str : string) : (policy, string) Result.t =
+      let lexbuf = Lexing.from_string pol_str in
+      lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = name };
+      try
+	Ok (NetKAT_Parser.program NetKAT_Lexer.token lexbuf)
+      with
+      | Failure "lexing: empty token" ->
+	 Error (sprintf "error lexing policy at %s" (string_of_position lexbuf.lex_curr_p))
+      | Parsing.Parse_error ->
+	 Error (sprintf "error parsing policy at %s" (string_of_position lexbuf.lex_curr_p))
+
+    let update : (command, bytes list) MParser.t =
+      Tokens.symbol "update" >>
+      many_until any_char eof >>=
+	(fun pol_chars ->
+	 let pol_str = String.of_char_list pol_chars in
+	 match parse_policy pol_str with
+	 | Ok pol -> return (Update (pol, pol_str))
+	 | Error msg -> fail msg)
+
+    let help : (command, bytes list) MParser.t =
+      Tokens.symbol "help" >> return Help
+
+    let exit : (command, bytes list) MParser.t =
+      Tokens.symbol "exit" >> return Exit
+
+    let policy : (command, bytes list) MParser.t =
+      Tokens.symbol "policy" >> return (Show Policy)
+
+    let command : (command, bytes list) MParser.t =
+      order <|>
+	update <|>
+	policy <|>
+	help <|>
+	exit
 end
 
 let compose f g x = f (g x)
@@ -81,59 +126,15 @@ let set_order (o : LC.order) : unit =
      order := (`Static new_order); 
      Controller.set_order (uw !controller) (`Static new_order);
      print_order ()
-  
-let string_of_position (p : Lexing.position) : string =
-  sprintf "%s:%d:%d" p.pos_fname p.pos_lnum (p.pos_cnum - p.pos_bol)
 
-let parse_policy ?(name = "") (pol_str : string) : (policy, string) Result.t =
-  let lexbuf = Lexing.from_string pol_str in
-  lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = name };
-  try
-    Ok (NetKAT_Parser.program NetKAT_Lexer.token lexbuf)
-  with
-    | Failure "lexing: empty token" ->
-      Error (sprintf "error lexing policy at %s" (string_of_position lexbuf.lex_curr_p))
-    | Parsing.Parse_error ->
-      Error (sprintf "error parsing policy at %s" (string_of_position lexbuf.lex_curr_p))
-
-type showable =
-  | Ordering
-
-type command =
-  | Update of policy
-  | Order of LC.order
-  | Show of showable
-  | Exit
-  | Help
-
-let with_error (msg : string) 
-	       (to_string : 'a -> string) 
-	       (f : 'a -> 'b option) 
-	       (x : 'a) : 'b option =
-  match f x with
-  | Some result -> Some result
-  | None -> 
-     printf "%s: %s\n%!" msg (to_string x);
-     None
+let policy : string ref = ref "drop"
+let print_policy () =
+  printf "Current policy: %s\n%!" !policy
 
 let parse_command (line : string) : command option = 
-  match (compose String.lstrip String.rstrip) (String.lowercase line) with
-  | "help" -> Some Help
-  | "exit" -> Some Exit
-  | "order" -> Some (Show Ordering)
-  | _ -> (match String.lsplit2 line ~on:' ' with
-    | Some ("order", order_str) ->
-       (match (MParser.parse_string Parser.ordering order_str []) with
-	| Success order -> Some (Order order)
-	| Failed (msg, e) -> (print_endline msg; None))
-(*       (match parse_order order_str with
-	| Some order -> Some (Order (`Static order))
-	| None -> None) *)
-    | Some ("update", pol_str) ->
-      (match parse_policy pol_str with
-       | Ok pol -> Some (Update pol)
-       | Error msg -> (print_endline msg; None))
-    | _ -> None)
+  match (MParser.parse_string Parser.command line []) with
+  | Success command -> Some command
+  | Failed (msg, e) -> (print_endline msg; None)
 
 let print_help () : unit =
   printf "Read source code for help.\n"
@@ -149,8 +150,11 @@ let rec repl (pol_writer : policy Pipe.Writer.t) : unit Deferred.t =
 		     print_endline "Goodbye!";
 		     Shutdown.shutdown 0
 		  | Some (Show Ordering) -> print_order ()
+		  | Some (Show Policy) -> print_policy ()
 		  | Some Help -> print_help ()
-		  | Some (Update pol) -> Pipe.write_without_pushback pol_writer pol
+		  | Some (Update (pol, pol_str)) -> 
+		     policy := pol_str; 
+		     Pipe.write_without_pushback pol_writer pol
 		  | Some (Order order) -> set_order order
 		  | None -> ()
   in handle input; repl pol_writer
