@@ -237,33 +237,55 @@ module Table = struct
       let max_a = max_elt (map actions String.length) (-) |> unwrap in
       (max max_p (String.length "Pattern"), max max_a (String.length "Action"))
 
-    let bar max_p max_a =
-      printf "|%s|\n" (String.make (max_p + max_a + 5) '-')
+	
+    let top max_p max_a : string =
+      let open Char in
+      let fill = String.make (max_p + max_a + 5) '-' in
+      Format.sprintf "+%s+\n" fill
 
-    let title max_p max_a =
+    let bottom max_p max_a : string=
+      let fill = String.make (max_p + max_a + 5) '-' in
+      Format.sprintf "+%s+\n" fill
+
+    let div max_p max_a : string =
+      let fill = String.make (max_p + max_a + 5) '-' in
+      Format.sprintf "|%s|\n" fill
+
+    let title max_p max_a : string =
       let pattern = pad max_p "Pattern" in
       let action = pad max_a "Action" in
-      printf "| %s | %s |\n" pattern action
+      Format.sprintf "| %s | %s |\n" pattern action
 
-    let print_entry (max_p : int) (max_a : int) (e : (string list) * (string list)) : unit =
+    let string_of_entry (max_p : int) (max_a : int) (e : (string list) * (string list)) : string =
       let open List in
       let padded_patterns = map (fst e) (pad max_p) in 
       let padded_actions = map (snd e) (pad max_a) in 
-      let rec helper pats acts =
+      let rec helper pats acts acc =
 	match pats, acts with
-	| [], [] -> ()
-	| (p::ps), [] -> 
-	   printf "| %s | %s |\n" p (String.make max_a ' ');
-	   helper ps []
+	| [], [] -> acc
+	| (p::ps), [] ->
+	   let acc' = (Format.sprintf "| %s | %s |\n" p (String.make max_a ' ')) :: acc in
+	   helper ps [] acc'
 	| [], (a::rest) -> 
-	   printf "| %s | %s |\n" (String.make max_p ' ') a;
-	   helper [] rest
+	   let acc' = (Format.sprintf "| %s | %s |\n" (String.make max_p ' ') a) :: acc in
+	   helper [] rest acc'
 	| (p::ps), (a::rest) -> 
-	   printf "| %s | %s |\n" p a;
-	   helper ps rest 
+	   let acc' = (Format.sprintf "| %s | %s |\n" p a) :: acc in
+	   helper ps rest acc'
       in 
-      bar max_p max_a;
-      helper padded_patterns padded_actions
+      helper padded_patterns padded_actions [(div max_p max_a)]
+      |> rev |> String.concat
+
+    let string_of_table tbl : string =
+      let entries = List.map tbl entry in
+      let (max_p, max_a) = table_size entries in
+      let t = (top max_p max_a) in
+      let l = (title max_p max_a) in
+      let entry_strings = List.map entries (string_of_entry max_p max_a) in
+      let b = bottom max_p max_a in
+      String.concat (t :: l :: (List.append entry_strings [b]))
+      
+      
 
     let print (pol : (policy * string) option) : unit =
       let (p, str) =
@@ -273,14 +295,8 @@ module Table = struct
       in 
       let bdd = LC.compile ~order:!order p in
       let tbl = LC.to_table 0L bdd in
-      let entries = List.map tbl entry in
-      let (max_p, max_a) = table_size entries in
       printf "Policy: %s\n%!" str;
-      bar max_p max_a;
-      title max_p max_a;
-      let _ = List.map entries (print_entry max_p max_a) in
-      bar max_p max_a;
-      printf "%!"
+      printf "%s%!" (string_of_table tbl)
 
 end
 
