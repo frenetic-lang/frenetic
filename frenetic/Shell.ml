@@ -46,11 +46,14 @@ module Parser = struct
 
     open MParser
 
+    (* Parser for field as the to_string function displays it *or*
+     * all lowercase for convenience. *)
     let field (f : Field.t) : (Field.t, bytes list) MParser.t =
       MParser.Tokens.symbol (Field.to_string f |> String.lowercase) <|>
       MParser.Tokens.symbol (Field.to_string f) >>
       return f
 
+    (* Parser for any of the fields *)
     let any_field : (Field.t, bytes list) MParser.t =
       field Field.Switch <|>
       field Field.Location <|>
@@ -65,6 +68,7 @@ module Parser = struct
       field Field.TCPSrcPort <|>
       field Field.TCPDstPort
 
+    (* Parser that produces the Order command or Show Order command *)	    
     let order : (command, bytes list) MParser.t =
       Tokens.symbol "order" >> (
       (eof >> return (Show Ordering)) <|>
@@ -73,9 +77,11 @@ module Parser = struct
       (sep_by1 any_field (Tokens.symbol "<") >>= 
 	 fun fields -> eof >> return (Order (`Static fields))))
 
+    (* Mostly useless error message for parsing policies *)				 
     let string_of_position (p : Lexing.position) : string =
       sprintf "%s:%d:%d" p.pos_fname p.pos_lnum (p.pos_cnum - p.pos_bol)
 
+    (* Use the netkat parser to parse policies *)
     let parse_policy ?(name = "") (pol_str : string) : (policy, string) Result.t =
       let lexbuf = Lexing.from_string pol_str in
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = name };
@@ -86,7 +92,8 @@ module Parser = struct
 	 Error (sprintf "error lexing policy at %s" (string_of_position lexbuf.lex_curr_p))
       | Parsing.Parse_error ->
 	 Error (sprintf "error parsing policy at %s" (string_of_position lexbuf.lex_curr_p))
-
+   
+    (* Parser for netkat policies *)
     let policy' : ((policy * string), bytes list) MParser.t =
       many_until any_char eof >>=
 	(fun pol_chars ->
@@ -95,26 +102,32 @@ module Parser = struct
 	 | Ok pol -> return (pol, pol_str)
 	 | Error msg -> fail msg)      
 
+    (* Parser for the Update command *)
     let update : (command, bytes list) MParser.t =
       Tokens.symbol "update" >> 
 	policy' >>=
 	(fun pol -> return (Update pol))
 
+    (* Parser for the help command *)
     let help : (command, bytes list) MParser.t =
       Tokens.symbol "help" >> return (Show Help)
 
+    (* Parser for the exit command *)
     let exit : (command, bytes list) MParser.t =
       Tokens.symbol "exit" >> return Exit
 
+    (* Parser for the policy command *)
     let policy : (command, bytes list) MParser.t =
       Tokens.symbol "policy" >> return (Show Policy)
 
+    (* Parser for the flow-table command *)
     let flowtable : (command, bytes list) MParser.t =
       Tokens.symbol "flow-table" >>
 	(eof >> return (Show (FlowTable None)) <|>
 	(policy' >>= 
 	   (fun pol -> return (Show (FlowTable (Some pol))))))
 
+   (* Parser for commands *)
     let command : (command, bytes list) MParser.t =
       order <|>
 	update <|>
@@ -124,13 +137,18 @@ module Parser = struct
 	exit
 end
 
+(* For convenience *)
 let compose f g x = f (g x)
 
+(* Reference to the controller, this is set when the controller
+ * is created and never changes. This is entirely for convenience. *)
 let controller : (Controller.t option) ref = ref None
 
-(* Use heuristic ordering by default *)
+(* Reference to the ordering that is currently set.
+ * Use heuristic ordering by default *)
 let order : LC.order ref = ref `Heuristic
 
+(* Prints the current ordering mode. *)
 let print_order () : unit =
   match !order with
   | `Heuristic -> print_endline "Ordering Mode: Heuristic"
@@ -140,6 +158,9 @@ let print_order () : unit =
      let cs = String.concat ~sep:" < " strs in
      printf "Ordering Mode: %s\n%!" cs
 
+(* Convenience function that checks that an ordering doesn't contain
+ * duplicates. This is used in favor of List.contains_dup so a better
+ * error message can be produced *)
 let rec check_duplicates (fs : Field.t list) (acc : Field.t list) : bool =
   match fs with
   | [] -> false
@@ -150,6 +171,9 @@ let rec check_duplicates (fs : Field.t list) (acc : Field.t list) : bool =
 	false)
      else check_duplicates rest (f::acc)
 
+(* Given an ordering, sets the order reference.
+ * If a Static ordering is given with duplicates, the ordering
+ * is not updated and an error message is printed *)
 let set_order (o : LC.order) : unit = 
   match o with
   | `Heuristic -> 
@@ -169,16 +193,21 @@ let set_order (o : LC.order) : unit =
 		      | `Static fields -> fields
      in
      let removed = List.filter curr_order (compose not (List.mem ls)) in
+     (* Tags all specified Fields at the highest priority *)
      let new_order = List.append (List.rev ls) removed in
      order := (`Static new_order); 
      Controller.set_order (uw !controller) (`Static new_order);
      print_order ()
 
+(* A reference to the current policy and the associated string. *)
 let policy : (policy * string) ref = ref (drop, "drop")
+
+(* Prints the current policy *)
 let print_policy () =
   match !policy with
     (_, p) -> printf "Current policy: %s\n%!" p
 
+(* Module for pretty printing flow tables *)
 module Table = struct
     open SDN_Types
     open Packet
@@ -234,6 +263,7 @@ module Table = struct
       | None -> acc
       | Some x' -> (string_of x') :: acc
 
+    (* Builds up a list of strings one for each pattern *)
     let pattern_list (p : SDN_Types.Pattern.t) : string list =
       check ethSrc p.dlSrc [] |>
 	check ethDst p.dlDst |>
@@ -247,23 +277,30 @@ module Table = struct
 	check tcpDstPort p.tpDst |>
 	check inPort p.inPort
 
-    let entry (f : SDN_Types.flow) : (string list) * (string list) =
+    (* Given a flow, return a pair of list of strings where the first list
+     * contains the strings of the pattern and the second list contains
+     * the strings of the actions associated with the pattern. *)
+    let to_entry (f : SDN_Types.flow) : (string list) * (string list) =
       let open SDN_Types in
       let open List in
       let pattern_list = pattern_list f.pattern in
       let action_list = map (concat (concat f.action)) string_of_action in
       (pattern_list, action_list)
 
+    (* Pads a string with spaces so that it is atleast `len` characters. *)
     let pad (len : int) (e : string) : string =
-      let padding_size = len - (String.length e) in
+      let padding_size = max 0 (len - (String.length e)) in
       let padding = String.make padding_size ' ' in
       String.concat [e; padding]
 
+    (* Helper function *)
     let unwrap x = 
       match x with
       | None -> 0
       | Some x -> x
 
+    (* Given a list of entries to be displayed in the table, calculate a pair
+     * containing the max characters in a pattern string and action string *)
     let table_size (entries : ((string list) * (string list)) list) : int * int =
       let open List in
       let patterns = map entries fst |> concat in
@@ -272,25 +309,29 @@ module Table = struct
       let max_a = max_elt (map actions String.length) (-) |> unwrap in
       (max max_p (String.length "Pattern"), max max_a (String.length "Action"))
 
-	
+    (* Create the top edge of the table *)
     let top max_p max_a : string =
       let open Char in
       let fill = String.make (max_p + max_a + 5) '-' in
       Format.sprintf "+%s+\n" fill
 
+    (* Create the bottom edge of the table *)
     let bottom max_p max_a : string=
       let fill = String.make (max_p + max_a + 5) '-' in
       Format.sprintf "+%s+\n" fill
 
+    (* Create a divider between entries *)
     let div max_p max_a : string =
       let fill = String.make (max_p + max_a + 5) '-' in
       Format.sprintf "|%s|\n" fill
 
+    (* Create the columns of the table *)
     let title max_p max_a : string =
       let pattern = pad max_p "Pattern" in
       let action = pad max_a "Action" in
       Format.sprintf "| %s | %s |\n" pattern action
 
+    (* Create a row in the table *)
     let string_of_entry (max_p : int) (max_a : int) (e : (string list) * (string list)) : string =
       let open List in
       let padded_patterns = map (fst e) (pad max_p) in 
@@ -311,8 +352,9 @@ module Table = struct
       helper padded_patterns padded_actions [(div max_p max_a)]
       |> rev |> String.concat
 
-    let string_of_table tbl : string =
-      let entries = List.map tbl entry in
+    (* Given a flowtable, returns a pretty ascii table *)		  
+    let string_of_table (tbl : flowTable) : string =
+      let entries = List.map tbl to_entry in
       let (max_p, max_a) = table_size entries in
       let t = (top max_p max_a) in
       let l = (title max_p max_a) in
@@ -320,8 +362,7 @@ module Table = struct
       let b = bottom max_p max_a in
       String.concat (t :: l :: (List.append entry_strings [b]))
       
-      
-
+    (* Given a policy, print the flowtable *)  
     let print (pol : (policy * string) option) : unit =
       let (p, str) =
 	match pol with
