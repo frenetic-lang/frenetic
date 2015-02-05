@@ -36,7 +36,7 @@ module Parser = struct
       (Tokens.symbol "heuristic" >> return `Heuristic) <|>
       (Tokens.symbol "default" >> return `Default) <|>
       (sep_by1 any_field (Tokens.symbol "<") >>= 
-	 fun fields -> return (`Static fields))
+	 fun fields -> eof >> return (`Static fields))
 
     let order : (LC.order, bytes list) MParser.t =
       Tokens.symbol "order" >>
@@ -82,22 +82,6 @@ let set_order (o : LC.order) : unit =
      Controller.set_order (uw !controller) (`Static new_order);
      print_order ()
   
-let field_from_string (opp_str : string) : Field.t option = 
-  match (String.lowercase opp_str) with
-  | "switch" -> Some Switch
-  | "location" -> Some Location
-  | "ethsrc" -> Some EthSrc
-  | "ethdst" -> Some EthDst
-  | "vlan" -> Some Vlan
-  | "vlanpcp" -> Some VlanPcp
-  | "ethtype" -> Some EthType
-  | "ipproto" -> Some IPProto
-  | "ip4src" -> Some IP4Src
-  | "ip4dst" -> Some IP4Dst
-  | "tcpsrcport" -> Some TCPSrcPort
-  | "tcpdstport" -> Some TCPDstPort
-  | _ -> None
-
 let string_of_position (p : Lexing.position) : string =
   sprintf "%s:%d:%d" p.pos_fname p.pos_lnum (p.pos_cnum - p.pos_bol)
 
