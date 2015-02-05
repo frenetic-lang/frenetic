@@ -8,16 +8,39 @@ module Field = NetKAT_FDD.Field
 module Log = Async_OpenFlow.Log
 
 type showable =
+  (* usage: order
+   * Shows the ordering that will be used on the next update.  *)
   | Ordering
+  (* usage: policy
+   * Shows the policy that is currently active.   *)
   | Policy
+  (* usage: flow-table [policy]
+   * Shows the flow-table produced by the specified policy.
+   * If no policy is specified, the current policy is used. *)
   | FlowTable of (policy * string) option
+  (* usage: help
+   * Displays a helpful message. *)
   | Help
 
 type command =
+  (* usage: update <policy>
+   * Compiles the specified policy using the current ordering
+   * and updates the controller with the new flow-table *)
   | Update of (policy * string)
+  (* usage: order <ordering>
+   * Sets the order which the compiler will select field names when
+   * constructing the BDD.
+   * Valid orderings:
+   *   heuristic - Uses a heuristic to select the order of fields
+   *   default - Uses the default ordering as specified in NetKAT_LocalCompiler
+   *   f_1 < f_2 [ < f_3 < ... < f_n ] - Given two or more fields, ensures the
+   *                                     order of the specified fields is maintained. *)
   | Order of LC.order
-  | Show of showable
+  (* usage: exit
+   * Exits the shell. *)
   | Exit
+  (* See showables for more details *)
+  | Show of showable
 
 module Parser = struct
 
@@ -117,6 +140,16 @@ let print_order () : unit =
      let cs = String.concat ~sep:" < " strs in
      printf "Ordering Mode: %s\n%!" cs
 
+let rec check_duplicates (fs : Field.t list) (acc : Field.t list) : bool =
+  match fs with
+  | [] -> false
+  | (f::rest) -> 
+     if List.mem acc f 
+     then 
+       (printf "Invalid ordering: %s < %s" (Field.to_string f) (Field.to_string f);
+	false)
+     else check_duplicates rest (f::acc)
+
 let set_order (o : LC.order) : unit = 
   match o with
   | `Heuristic -> 
@@ -128,6 +161,8 @@ let set_order (o : LC.order) : unit =
      Controller.set_order (uw !controller) `Default;
      print_order ()
   | `Static ls ->
+     if check_duplicates ls [] then ()
+     else
      let curr_order = match !order with
                       | `Heuristic -> Field.all_fields
 		      | `Default -> Field.all_fields
@@ -305,8 +340,37 @@ let parse_command (line : string) : command option =
   | Success command -> Some command
   | Failed (msg, e) -> (print_endline msg; None)
 
+let help =
+  String.concat ~sep:"\n" [
+  "";
+  "commands:";
+  "  order               - Display the ordering that will be used when compiling.";
+  "  order <ordering>    - Changes the order in which the compiler selects fields.";
+  "";
+  "                        orderings: heuristic";
+  "                                   default";
+  "                                   f_1 < f_2 [ < f_3 < ... < f_n ]";
+  "";
+  "                        fields: Switch, Location, EthSrc, EthDst, Vlan, VlanPcP,";
+  "                                EthType, IPProto, IP4Src, IP4Dst, TCPSrcPort,";
+  "                                TCPDstPort";
+  "";
+  "  policy              - Displays the policy that is currently active.";
+  "";
+  "  flow-table [policy] - Displays the flow-table produced by the specified policy.";
+  "                        If no policy is specified, the current policy is used.";
+  "";
+  "  update <policy>     - Compiles the specified policy using the current ordering";
+  "                        and updates the controller with the resulting flow-table.";
+  "";
+  "  help                - Displays this message.";
+  "";
+  "  exit                - Exits Frenetic Shell.";
+  ""
+  ]
+
 let print_help () : unit =
-  printf "Read source code for help.\n"
+  printf "%s\n%!" help
 
 let rec repl (pol_writer : policy Pipe.Writer.t) : unit Deferred.t =
   printf "frenetic> %!";
@@ -349,7 +413,8 @@ let log_file = "frenetic.log"
 
 let main (args : string list) : unit =
   Log.set_output [Async.Std.Log.Output.file `Text log_file];
-  printf "Frenetic Shell\n%!";
+  printf "Frenetic Shell v 0.0\n%!";
+  printf "Type `help` for a list of commands\n%!";
   match args with
   | [] ->
     let pol_writer = start_controller () in
