@@ -7,6 +7,43 @@ module LC = NetKAT_LocalCompiler
 module Field = NetKAT_FDD.Field
 module Log = Async_OpenFlow.Log
 
+module Parser = struct
+
+    open MParser
+
+    let field (f : Field.t) : (Field.t, bytes list) MParser.t =
+      MParser.Tokens.symbol (Field.to_string f |> String.lowercase) >>
+      return f
+
+    let any_field : (Field.t, bytes list) MParser.t =
+      field Field.Switch <|>
+      field Field.Location <|>
+      field Field.EthSrc <|>
+      field Field.EthDst <|>
+      field Field.Vlan <|>
+      field Field.VlanPcp <|>
+      field Field.EthType <|>
+      field Field.IPProto <|>
+      field Field.IP4Src <|>
+      field Field.IP4Dst <|>
+      field Field.TCPSrcPort <|>
+      field Field.TCPDstPort
+
+    let ord_symbol : (string, bytes list) MParser.t =
+      Tokens.symbol "<"
+
+    let ordering : (LC.order, bytes list) MParser.t =
+      (Tokens.symbol "heuristic" >> return `Heuristic) <|>
+      (Tokens.symbol "default" >> return `Default) <|>
+      (sep_by1 any_field (Tokens.symbol "<") >>= 
+	 fun fields -> return (`Static fields))
+
+    let order : (LC.order, bytes list) MParser.t =
+      Tokens.symbol "order" >>
+      ordering
+
+end
+
 let compose f g x = f (g x)
 
 let controller : (Controller.t option) ref = ref None
@@ -40,7 +77,7 @@ let set_order (o : LC.order) : unit =
 		      | `Static fields -> fields
      in
      let removed = List.filter curr_order (compose not (List.mem ls)) in
-     let new_order = List.append ls removed in
+     let new_order = List.append (List.rev ls) removed in
      order := (`Static new_order); 
      Controller.set_order (uw !controller) (`Static new_order);
      print_order ()
@@ -95,40 +132,19 @@ let with_error (msg : string)
      printf "%s: %s\n%!" msg (to_string x);
      None
 
-(* Given a string of the format
-   x_0 < x_1 < ... < x_n
-   where x_i is an orderable field
-   returns a list containing the fields in order
-   descending order.
- *)
-let parse_order (line : string) : (Field.t list) option = 
-  let fields = String.split line '<' in
-  let trimmed = List.map fields (compose String.lstrip String.rstrip) in
-  let orders = List.map trimmed (with_error "Invalid ordering field" ident field_from_string) in
-  let rec helper (acc : Field.t list) (rest : (Field.t option) list) =
-    match rest with
-    | [] -> Some acc
-    | (None::_) -> None
-    | (Some x)::xs -> 
-       if (List.mem acc x) 
-       then (printf "Invalid ordering: %s < %s\n%!" (Field.to_string x) (Field.to_string x); None)
-       else helper (x::acc) xs
-  in
-  helper [] orders
-
 let parse_command (line : string) : command option = 
-  match (compose String.lstrip String.rstrip) line with
+  match (compose String.lstrip String.rstrip) (String.lowercase line) with
   | "help" -> Some Help
   | "exit" -> Some Exit
   | "order" -> Some (Show Ordering)
-  | "order default" -> Some (Order `Default)
-  | "order heuristic" -> Some (Order `Heuristic)
   | _ -> (match String.lsplit2 line ~on:' ' with
     | Some ("order", order_str) ->
-       (match MParser.parse_string
-       (match parse_order order_str with
+       (match (MParser.parse_string Parser.ordering order_str []) with
+	| Success order -> Some (Order order)
+	| Failed (msg, e) -> (print_endline msg; None))
+(*       (match parse_order order_str with
 	| Some order -> Some (Order (`Static order))
-	| None -> None)
+	| None -> None) *)
     | Some ("update", pol_str) ->
       (match parse_policy pol_str with
        | Ok pol -> Some (Update pol)
@@ -183,44 +199,3 @@ let main (args : string list) : unit =
     ()
   | _ -> (printf "Invalid arguments to shell.\n"; Shutdown.shutdown 0)
 
-module Parser = struct
-
-    open MParser
-
-    let field (f : Field.t) : (Field.t, bytes) MParser.t =
-      many blank >>
-      Tokens.symbol (Field.to_string f |> String.lowercase) >>
-      return f
-
-    let any_field : (Field.t, bytes) MParser.t =
-      many blank >> (
-      field Field.Switch <|>
-      field Field.Location <|>
-      field Field.EthSrc <|>
-      field Field.EthDst <|>
-      field Field.Vlan <|>
-      field Field.VlanPcp <|>
-      field Field.EthType <|>
-      field Field.IPProto <|>
-      field Field.IP4Src <|>
-      field Field.IP4Dst <|>
-      field Field.TCPSrcPort <|>
-      field Field.TCPDstPort)
-
-    let ord_symbol : (string, bytes) MParser.t =
-      many blank >>
-      Tokens.symbol "<"
-
-    let ordering : (LC.order, bytes) MParser.t =
-      many blank >>
-      ((Tokens.symbol "heuristic" >> return `Heuristic) <|>
-       (Tokens.symbol "default" >> return `Default) <|>
-       (sep_by1 any_field ord_symbol >>= 
-	  fun fields -> return (`Static fields)))
-
-    let order : (LC.order, bytes) MParser.t =
-      many blank >> 
-      Tokens.symbol "order" >>
-      ordering
-
-end
