@@ -39,6 +39,10 @@ type command =
   (* usage: exit
    * Exits the shell. *)
   | Exit
+  (* usage: load <filename>
+   * Loads the specified file as a policy and compiles it updating the controller with
+   * the new flow table. *)
+  | Load of string
   (* See showables for more details *)
   | Show of showable
 
@@ -116,6 +120,12 @@ module Parser = struct
     let exit : (command, bytes list) MParser.t =
       Tokens.symbol "exit" >> return Exit
 
+    (* Parser for the load command *)
+    let load : (command, bytes list) MParser.t =
+      Tokens.symbol "load" >>
+	many_until any_char eof >>=
+	(fun filename -> return (Load (String.of_char_list filename)))
+
     (* Parser for the policy command *)
     let policy : (command, bytes list) MParser.t =
       Tokens.symbol "policy" >> return (Show Policy)
@@ -134,6 +144,7 @@ module Parser = struct
 	policy <|>
 	help <|>
 	flowtable <|>
+	load <|>
 	exit
 end
 
@@ -411,6 +422,9 @@ let help =
   "  update <policy>     - Compiles the specified policy using the current ordering";
   "                        and updates the controller with the resulting flow-table.";
   "";
+  "  load <filename>     - Loads a policy from the specified file, compiles it, and";
+  "                        updates the controller with the resulting flow-table.";
+  "";
   "  help                - Displays this message.";
   "";
   "  exit                - Exits Frenetic Shell.";
@@ -419,6 +433,23 @@ let help =
 
 let print_help () : unit =
   printf "%s\n%!" help
+
+(* Loads a policy from a file and updates the controller *)
+let load_file (filename : string) (pol_writer : policy Pipe.Writer.t) : unit =
+  try
+    let open In_channel in
+    let chan = create filename in
+    let policy_string = input_all chan in
+    let pol = Parser.parse_policy policy_string in
+    close chan;
+    match pol with
+    | Ok p -> 
+       policy := (p, policy_string);
+       print_policy ();
+       Pipe.write_without_pushback pol_writer p
+    | Error msg -> print_endline msg
+  with
+  | Sys_error msg -> printf "Load failed: %s\n%!" msg
 
 let rec repl (pol_writer : policy Pipe.Writer.t) : unit Deferred.t =
   printf "frenetic> %!";
@@ -437,6 +468,7 @@ let rec repl (pol_writer : policy Pipe.Writer.t) : unit Deferred.t =
 		  | Some (Update (pol, pol_str)) -> 
 		     policy := (pol, pol_str); 
 		     Pipe.write_without_pushback pol_writer pol
+		  | Some (Load filename) -> load_file filename pol_writer
 		  | Some (Order order) -> set_order order
 		  | None -> ()
   in handle input; repl pol_writer
