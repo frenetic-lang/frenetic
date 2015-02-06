@@ -307,7 +307,7 @@ module Table = struct
       let actions = map entries snd |> concat in
       let max_p =  max_elt (map patterns String.length) (-) |> unwrap in
       let max_a = max_elt (map actions String.length) (-) |> unwrap in
-      (max max_p (String.length "Pattern"), max max_a (String.length "Action"))
+      (max max_p (String.length "     Pattern"), max max_a (String.length "Action"))
 
     (* Create the top edge of the table *)
     let top max_p max_a : string =
@@ -326,8 +326,8 @@ module Table = struct
       Format.sprintf "|%s|\n" fill
 
     (* Create the columns of the table *)
-    let title max_p max_a : string =
-      let pattern = pad max_p "Pattern" in
+    let title sw_id max_p max_a : string =
+      let pattern = pad max_p (Format.sprintf "%Ld | Pattern" sw_id) in
       let action = pad max_a "Action" in
       Format.sprintf "| %s | %s |\n" pattern action
 
@@ -352,27 +352,34 @@ module Table = struct
       helper padded_patterns padded_actions [(div max_p max_a)]
       |> rev |> String.concat
 
-    (* Given a flowtable, returns a pretty ascii table *)		  
-    let string_of_table (tbl : flowTable) : string =
+    (* Given a switch id and a flowTable, returns an ascii flowtable *)
+    let string_of_table (sw_id : switchId) (tbl : flowTable) : string =
       let entries = List.map tbl to_entry in
       let (max_p, max_a) = table_size entries in
       let t = (top max_p max_a) in
-      let l = (title max_p max_a) in
+      let l = (title sw_id max_p max_a) in
       let entry_strings = List.map entries (string_of_entry max_p max_a) in
       let b = bottom max_p max_a in
       String.concat (t :: l :: (List.append entry_strings [b]))
+
+    (* Given a policy, returns a pretty ascii table for each switch *)		  
+    let string_of_policy ?(order=`Heuristic) (pol : policy) : string =
+      let bdd = LC.compile ~order:order pol in
+      (* TODO: Get switch numbers *)
+      let switches = NetKAT_Misc.switches_of_policy pol in
+      let switches' = if List.is_empty switches then [0L] else switches in	
+      let tbls = List.map switches' (fun sw_id -> LC.to_table sw_id bdd |> string_of_table sw_id) in
+      String.concat ~sep:"\n\n" tbls
       
-    (* Given a policy, print the flowtable *)  
+    (* Given a policy, print the flowtables associated with it *)  
     let print (pol : (policy * string) option) : unit =
       let (p, str) =
 	match pol with
 	| None -> !policy
 	| Some x -> x
       in 
-      let bdd = LC.compile ~order:!order p in
-      let tbl = LC.to_table 0L bdd in
-      printf "Policy: %s\n%!" str;
-      printf "%s%!" (string_of_table tbl)
+      printf "Policy: %s\n" str;
+      printf "%s%!" (string_of_policy p)
 
 end
 
