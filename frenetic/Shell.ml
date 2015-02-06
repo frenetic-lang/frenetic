@@ -379,7 +379,9 @@ module Table = struct
 
     (* Given a policy, returns a pretty ascii table for each switch *)		  
     let string_of_policy ?(order=`Heuristic) (pol : policy) : string =
-      let bdd = LC.compile ~order:order pol in
+      (* TODO(jcollard): The cache flag here is actually a problem.
+       *                 Changing ordering won't work as expected. *)
+      let bdd = LC.compile ~order:order ~cache:`Keep pol in
       (* TODO: Get switch numbers *)
       let switches = NetKAT_Misc.switches_of_policy pol in
       let switches' = if List.is_empty switches then [0L] else switches in	
