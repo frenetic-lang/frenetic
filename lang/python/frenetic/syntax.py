@@ -1,13 +1,14 @@
 """ Representation of NetKAT abstract syntax tree. """
 import base64
+import collections
 
-class action:
+class Action:
     pass
 
-class pseudoPort:
+class Pseudoport:
     pass
 
-class physical(pseudoPort):
+class Physical(Pseudoport):
 
     def __init__(self, port):
         assert (port >= 1 and port <= 65535)
@@ -16,57 +17,57 @@ class physical(pseudoPort):
     def to_json(self):
         return { "type": "physical", "port": self.port }
 
-class output(action):
+class Output(Action):
 
     def __init__(self, p):
-        assert isinstance(p, pseudoPort)
-        self.pseudoPort = p
+        assert isinstance(p, Pseudoport)
+        self.Pseudoport = p
 
     def to_json(self):
-        return { "type": "output", "pseudoport": self.pseudoPort.to_json() }
+        return { "type": "output", "Pseudoport": self.pseudoPort.to_json() }
 
-class payload:
+class Payload:
     pass
 
     @staticmethod
     def from_json(json):
         # TODO(arjun): fix names on the OCaml side
         if json['id'] == None:
-            return notbuffered(base64.b64decode(json['buffer']))
+            return NotBuffered(base64.b64decode(json['buffer']))
         else:
             # TODO(arjun): may have some bytes. do not discard
-            return buffered(json['id'])
+            return Buffered(json['id'])
 
 
-class buffered(payload):
+class Buffered(Payload):
 
     def __init__(self, buffer_id):
-        assert type(buffer_id) == int
+        assert type(buffer_id) == int and buffer_id >= 0
         self.buffer_id = buffer_id
 
     def to_json(self):
-        return { "type": "buffered", "bufferid": self.buffer_id }
+        return { "type": "Buffered", "bufferid": self.buffer_id }
 
-class notbuffered(payload):
+class NotBuffered(Payload):
 
     def __init__(self, data):
         assert type(data) == str
         self.data = data
 
     def to_json(self):
-        return { "type": "notbuffered", "data": base64.b64encode(self.data) }
+        return { "type": "NotBuffered", "data": base64.b64encode(self.data) }
 
 
-class packet_out():
+class PacketOut():
 
     def __init__(self, switch, payload, actions, in_port = None):
-        assert type(switch) == int
+        assert type(switch) == int and switch >= 0
         self.switch = switch
-        assert isinstance(payload,buffered) or isinstance(payload,notbuffered)
+        assert isinstance(payload,Buffered) or isinstance(payload,NotBuffered)
         self.payload = payload
         assert isinstance(actions,output)
         self.actions = actions
-        assert in_port == None or type(in_port) == int
+        assert in_port == None or (type(in_port) == int and in_port >= 0)
         self.in_port = in_port
 
     def to_json(self):
@@ -75,15 +76,15 @@ class packet_out():
                  "actions": [ action.to_json() for action in self.actions ],
                  "payload": self.payload.to_json() }
 
-class packet_in():
+class PacketIn():
 
     def __init__(self, json):
         assert (json['type'] == 'packet_in')
-        assert type(json['switch_id']) == int
+        assert type(json['switch_id']) == int and json['switch_id'] >= 0
         self.switch_id = json['switch_id']
-        assert type(json['switch_id']) == int
+        assert type(json['port_id']) == int and json['switch_id'] >= 0
         self.port_id = json['port_id']
-        # TODO: assert isinstance(payload,buffered) or isinstance(payload,notbuffered)
+        # TODO: assert isinstance(payload,Buffered) or isinstance(payload,NotBuffered)
         self.payload = payload.from_json(json['payload'])
 
 ################################################################################
@@ -112,6 +113,7 @@ class Pred(object):
 class And(Pred):
 
     def __init__(self, children):
+        assert isinstance(children,Pred)
         self.children = children
 
     def to_json(self):
@@ -123,6 +125,7 @@ class And(Pred):
 class Or(Pred):
 
     def __init__(self, children):
+        assert isinstance(children,Pred)
         self.children = children
 
     def to_json(self):
@@ -134,6 +137,7 @@ class Or(Pred):
 class Not(Pred):
 
     def __init__(self, pred):
+        assert isinstance(children,Pred)
         self.children = pred
 
     def to_json(self):
@@ -175,6 +179,7 @@ class Policy(object):
 class Filter(Policy):
 
     def __init__(self, pred):
+        assert isinstance(pred,Pred)
         self.pred = pred
 
     def to_json(self):
@@ -187,7 +192,7 @@ class Switch(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "switch"
-        assert(type(value) == int)
+        assert type(value) == int and value >= 0
         self.value = value
 
     def value_to_json(self):
@@ -204,7 +209,7 @@ class Pipe(object):
 class Physical(object):
 
     def __init__(self, port):
-        assert type(port) == int
+        assert type(port) == int and port >= 0
         self.port = port
 
     def to_json(self):
@@ -214,6 +219,7 @@ class Location(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "location"
+        assert isinstance(value,Physical)
         self.value = value
 
     def value_to_json(self):
@@ -243,7 +249,7 @@ class Vlan(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "vlan"
-        assert type(value) == str
+        assert type(value) == int and value >= 0
         self.value = value
 
     def value_to_json(self):
@@ -253,7 +259,7 @@ class VlanPcp(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "vlanpcp"
-        assert type(value) == str
+        assert type(value) == int and value >= 0
         self.value = value
 
     def value_to_json(self):
@@ -263,7 +269,7 @@ class EthType(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "ethtype"
-        assert type(value) == int
+        assert type(value) == int and value >= 0
         self.value = value
 
     def value_to_json(self):
@@ -273,12 +279,13 @@ class IPProto(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "iproto"
-        assert type(value) == int
+        assert type(value) == int and value >= 0
         self.value = value
     
     def value_to_json(self):
         return self.value
 
+# TODO: import ipaddress to check validity?
 class IP4Src(HeaderAndValue):
 
     def __init__(self, value):
@@ -303,7 +310,7 @@ class TCPSrcPort(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "tcpsrcport"
-        assert type(value) == int
+        assert type(value) == int and value >= 0
         self.value = value
 
     def value_to_json(self):
@@ -313,7 +320,7 @@ class TCPDstPort(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "tcpdstport"
-        assert type(value) == int
+        assert type(value) == int and value >= 0
         self.value = value
 
     def value_to_json(self):
@@ -322,8 +329,9 @@ class TCPDstPort(HeaderAndValue):
 class Mod(Policy):
 
     def __init__(self, hv):
+        assert isinstance(hv,HeaderAndValue)
         self.hv = hv
-
+        
     def to_json(self):
         return {
           "type": "mod",
@@ -334,6 +342,8 @@ class Mod(Policy):
 class Union(Policy):
 
     def __init__(self, children):
+        # TODO: Sequence type?
+        assert isinstance(children,collections.Iterable) and (isinstance(pol,Policy) for pol in children)
         self.children = children
 
     def to_json(self):
@@ -345,6 +355,7 @@ class Union(Policy):
 class Seq(Policy):
 
     def __init__(self, children):
+        assert isinstance(children, collections.Iterable) and (isinstance(pol,Policy) for pol in children) 
         self.children = children
 
     def to_json(self):
