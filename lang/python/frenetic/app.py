@@ -4,7 +4,7 @@ from tornado.httpclient import *
 from tornado.concurrent import Future
 from tornado import ioloop
 import base64
-from frenetic.syntax import packet_in, packet_out
+from frenetic.syntax import PacketIn, PacketOut
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
@@ -14,7 +14,7 @@ sync_client = AsyncHTTPClient()
 client_id = "default"
 
 def pkt_out(switch, payload, actions, in_port = None):
-    msg = packet_out(switch=switch, payload=payload,actions=actions,in_port=in_port)
+    msg = PacketOut(switch=switch, payload=payload,actions=actions,in_port=in_port)
     request = HTTPRequest("http://localhost:9000/pkt_out",
                           method='POST',
                           body=json.dumps(msg.to_json()))
@@ -90,8 +90,8 @@ class App:
                 port_id = event['port_id']
                 self.port_down(switch_id, port_id)
             elif typ == 'packet_in':
-                pk = packet_in(event)
-                self.packet_in(pk.switch_id, pk.port_id, pk.payload)
+                pk = PacketIn(event)
+                self.PacketIn(pk.switch_id, pk.port_id, pk.payload)
             else:
                 pass
             ioloop.IOLoop.instance().add_callback(loop)
