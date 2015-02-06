@@ -312,13 +312,13 @@ module Table = struct
 
     (* Given a list of entries to be displayed in the table, calculate a pair
      * containing the max characters in a pattern string and action string *)
-    let table_size (entries : ((string list) * (string list)) list) : int * int =
+    let table_size (sw_id : switchId) (entries : ((string list) * (string list)) list) : int * int =
       let open List in
       let patterns = map entries fst |> concat in
       let actions = map entries snd |> concat in
       let max_p =  max_elt (map patterns String.length) (-) |> unwrap in
       let max_a = max_elt (map actions String.length) (-) |> unwrap in
-      (max max_p (String.length "     Pattern"), max max_a (String.length "Action"))
+      (max max_p ((Int64.to_string sw_id |> String.length) + 3 + (String.length "Pattern")), max max_a (String.length "Action"))
 
     (* Create the top edge of the table *)
     let top max_p max_a : string =
@@ -370,7 +370,7 @@ module Table = struct
     (* Given a switch id and a flowTable, returns an ascii flowtable *)
     let string_of_table (sw_id : switchId) (tbl : flowTable) : string =
       let entries = List.map tbl to_entry in
-      let (max_p, max_a) = table_size entries in
+      let (max_p, max_a) = table_size sw_id entries in
       let t = (top max_p max_a) in
       let l = (title sw_id max_p max_a) in
       let entry_strings = List.map entries (string_of_entry max_p max_a) in
