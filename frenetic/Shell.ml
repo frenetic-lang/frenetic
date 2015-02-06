@@ -216,7 +216,7 @@ let policy : (policy * string) ref = ref (drop, "drop")
 (* Prints the current policy *)
 let print_policy () =
   match !policy with
-    (_, p) -> printf "Current policy: %s\n%!" p
+    (_, p) -> printf "%s\n%!" p
 
 (* Module for pretty printing flow tables *)
 module Table = struct
@@ -347,14 +347,18 @@ module Table = struct
       let open List in
       let padded_patterns = map (fst e) (pad max_p) in 
       let padded_actions = map (snd e) (pad max_a) in 
+      let blank_action = String.make max_a ' ' in
+      let blank_pattern = String.make max_p ' ' in
       let rec helper pats acts acc =
 	match pats, acts with
-	| [], [] -> acc
+	| [], [] -> 
+	   let final = Format.sprintf "| %s | %s |\n" blank_pattern blank_action in
+	   final :: acc
 	| (p::ps), [] ->
-	   let acc' = (Format.sprintf "| %s | %s |\n" p (String.make max_a ' ')) :: acc in
+	   let acc' = (Format.sprintf "| %s | %s |\n" p blank_action) :: acc in
 	   helper ps [] acc'
 	| [], (a::rest) -> 
-	   let acc' = (Format.sprintf "| %s | %s |\n" (String.make max_p ' ') a) :: acc in
+	   let acc' = (Format.sprintf "| %s | %s |\n" blank_pattern a) :: acc in
 	   helper [] rest acc'
 	| (p::ps), (a::rest) -> 
 	   let acc' = (Format.sprintf "| %s | %s |\n" p a) :: acc in
@@ -389,7 +393,6 @@ module Table = struct
 	| None -> !policy
 	| Some x -> x
       in 
-      printf "Policy: %s\n" str;
       printf "%s%!" (string_of_policy p)
 
 end
@@ -445,7 +448,7 @@ let load_file (filename : string) (pol_writer : policy Pipe.Writer.t) : unit =
     match pol with
     | Ok p -> 
        policy := (p, policy_string);
-       print_policy ();
+       printf "%s\n%!" policy_string;
        Pipe.write_without_pushback pol_writer p
     | Error msg -> print_endline msg
   with
