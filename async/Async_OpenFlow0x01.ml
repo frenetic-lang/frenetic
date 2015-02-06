@@ -77,16 +77,21 @@ module Controller = struct
   let client_id_of_switch t sw_id = SwitchMap.find t.s2c sw_id
 
   let close t sw_id =
-    let c_id = client_id_of_switch_exn t sw_id in
-    ChunkController.close t.sub c_id
+    match client_id_of_switch t sw_id with
+    | Some c_id -> ChunkController.close t.sub c_id
+    | None -> Log.printf ~tags ~level:`Debug
+              "Attempted to close connection to unknown switch: %Lu"
+                sw_id
 
   let has_client_id t sw_id =
-    let c_id = client_id_of_switch_exn t sw_id in
-    ChunkController.has_client_id t.sub c_id
+    match client_id_of_switch t sw_id with
+    | Some c_id -> ChunkController.has_client_id t.sub c_id
+    | None -> false
 
   let send t sw_id msg =
-    let c_id = client_id_of_switch_exn t sw_id in
-    ChunkController.send t.sub c_id (Message.marshal' msg)
+    match client_id_of_switch t sw_id with
+    | Some c_id -> ChunkController.send t.sub c_id (Message.marshal' msg)
+    | None -> return (`Drop Not_found)
 
   let send_result t sw_id msg =
     send t sw_id msg
@@ -108,15 +113,19 @@ module Controller = struct
     end with Not_found -> return (Result.Error Not_found)
 
   let send_ignore_errors t sw_id msg =
-    let c_id = client_id_of_switch_exn t sw_id in
-    ChunkController.send_ignore_errors t.sub c_id (Message.marshal' msg)
+    match client_id_of_switch t sw_id with
+    | Some c_id -> ChunkController.send_ignore_errors t.sub c_id (Message.marshal' msg)
+    | None -> Log.printf ~tags ~level:`Debug
+              "Attempted to send (ignoring errors) to unknown switch: %Lu"
+                sw_id
 
   let send_to_all t msg =
     ChunkController.send_to_all t.sub (Message.marshal' msg)
 
   let client_addr_port t sw_id =
-    let c_id = client_id_of_switch_exn t sw_id in
-    ChunkController.client_addr_port t.sub c_id
+    match client_id_of_switch t sw_id with
+    | Some c_id -> ChunkController.client_addr_port t.sub c_id
+    | None -> None
 
   let listening_port t =
     ChunkController.listening_port t.sub
