@@ -218,186 +218,25 @@ let print_policy () =
   match !policy with
     (_, p) -> printf "%s\n%!" p
 
-(* Module for pretty printing flow tables *)
-module Table = struct
-    open SDN_Types
-    open Packet
-
-    let vlan (x : int) : string = 
-      Format.sprintf "Vlan = %d" x
-
-    let vlanpcp (x : dlVlanPcp) : string =
-      Format.sprintf "VlanPcp = %d" x
-
-    let ethType (x : dlTyp) : string =
-      let extra = if x = 0x800 then " (ip)" 
-		  else if x = 0x806 then " (arp)"
-		  else ""
-      in
-      Format.sprintf "EthType = 0x%x%s" x extra
-
-    let ipProto (x : nwProto) : string =
-      let extra = match x with
-	| 0x01 -> " (icmp)"
-	| 0x02 -> " (igmp)"
-	| 0x06 -> " (tcp)"
-	| 0x11 -> " (udp)"
-	| _ -> ""
-      in
-      Format.sprintf "ipProto = 0x%x%s" x extra
-
-    let ethSrc (x : dlAddr) : string =
-      Format.sprintf "EthSrc = %s" (Packet.string_of_mac x)
-
-    let ethDst (x : dlAddr) : string =
-      Format.sprintf "EthDst = %s" (Packet.string_of_mac x)
-
-    let ip4src (x : Pattern.Ip.t) : string =
-      Format.sprintf "IP4Src = %s" (Pattern.Ip.string_of x)
-
-    let ip4dst (x : Pattern.Ip.t) : string =
-      Format.sprintf "IP4Dst = %s" (Pattern.Ip.string_of x)
-
-    let tcpSrcPort (x : tpPort) : string =
-      Format.sprintf "TCPSrcPort = %d" x
-
-    let tcpDstPort (x : tpPort) : string =
-      Format.sprintf "TCPDstPort = %d" x
-
-    let inPort (x : portId) : string =
-      Format.sprintf "In Port = %lu" x
-
-    let check (string_of : 'a -> string) 
-	      (x : 'a option) 
-	      (acc : string list) : string list =
-      match x with
-      | None -> acc
-      | Some x' -> (string_of x') :: acc
-
-    (* Builds up a list of strings one for each pattern *)
-    let pattern_list (p : SDN_Types.Pattern.t) : string list =
-      check ethSrc p.dlSrc [] |>
-	check ethDst p.dlDst |>
-	check ethType p.dlTyp |>
-	check vlan p.dlVlan |>
-	check vlanpcp p.dlVlanPcp |>
-	check ip4src p.nwSrc |>
-	check ip4dst p.nwDst |>
-	check ipProto p.nwProto |>
-	check tcpSrcPort p.tpSrc |>
-	check tcpDstPort p.tpDst |>
-	check inPort p.inPort
-
-    (* Given a flow, return a pair of list of strings where the first list
-     * contains the strings of the pattern and the second list contains
-     * the strings of the actions associated with the pattern. *)
-    let to_entry (f : SDN_Types.flow) : (string list) * (string list) =
-      let open SDN_Types in
-      let open List in
-      let pattern_list = pattern_list f.pattern in
-      let action_list = map (concat (concat f.action)) string_of_action in
-      (pattern_list, action_list)
-
-    (* Pads a string with spaces so that it is atleast `len` characters. *)
-    let pad (len : int) (e : string) : string =
-      let padding_size = max 0 (len - (String.length e)) in
-      let padding = String.make padding_size ' ' in
-      String.concat [e; padding]
-
-    (* Helper function *)
-    let unwrap x = 
-      match x with
-      | None -> 0
-      | Some x -> x
-
-    (* Given a list of entries to be displayed in the table, calculate a pair
-     * containing the max characters in a pattern string and action string *)
-    let table_size (sw_id : switchId) (entries : ((string list) * (string list)) list) : int * int =
-      let open List in
-      let patterns = map entries fst |> concat in
-      let actions = map entries snd |> concat in
-      let max_p =  max_elt (map patterns String.length) (-) |> unwrap in
-      let max_a = max_elt (map actions String.length) (-) |> unwrap in
-      (max max_p ((Int64.to_string sw_id |> String.length) + 3 + (String.length "Pattern")), max max_a (String.length "Action"))
-
-    (* Create the top edge of the table *)
-    let top max_p max_a : string =
-      let open Char in
-      let fill = String.make (max_p + max_a + 5) '-' in
-      Format.sprintf "+%s+\n" fill
-
-    (* Create the bottom edge of the table *)
-    let bottom max_p max_a : string=
-      let fill = String.make (max_p + max_a + 5) '-' in
-      Format.sprintf "+%s+\n" fill
-
-    (* Create a divider between entries *)
-    let div max_p max_a : string =
-      let fill = String.make (max_p + max_a + 5) '-' in
-      Format.sprintf "|%s|\n" fill
-
-    (* Create the columns of the table *)
-    let title sw_id max_p max_a : string =
-      let pattern = pad max_p (Format.sprintf "%Ld | Pattern" sw_id) in
-      let action = pad max_a "Action" in
-      Format.sprintf "| %s | %s |\n" pattern action
-
-    (* Create a row in the table *)
-    let string_of_entry (max_p : int) (max_a : int) (e : (string list) * (string list)) : string =
-      let open List in
-      let padded_patterns = map (fst e) (pad max_p) in 
-      let padded_actions = map (snd e) (pad max_a) in 
-      let blank_action = String.make max_a ' ' in
-      let blank_pattern = String.make max_p ' ' in
-      let rec helper pats acts acc =
-	match pats, acts with
-	| [], [] -> if (length acc) = 1
-		    then (Format.sprintf "| %s | %s |\n" blank_pattern blank_action) :: acc
-		    else acc
-	| (p::ps), [] ->
-	   let acc' = (Format.sprintf "| %s | %s |\n" p blank_action) :: acc in
-	   helper ps [] acc'
-	| [], (a::rest) -> 
-	   let acc' = (Format.sprintf "| %s | %s |\n" blank_pattern a) :: acc in
-	   helper [] rest acc'
-	| (p::ps), (a::rest) -> 
-	   let acc' = (Format.sprintf "| %s | %s |\n" p a) :: acc in
-	   helper ps rest acc'
-      in 
-      helper padded_patterns padded_actions [(div max_p max_a)]
-      |> rev |> String.concat
-
-    (* Given a switch id and a flowTable, returns an ascii flowtable *)
-    let string_of_table (sw_id : switchId) (tbl : flowTable) : string =
-      let entries = List.map tbl to_entry in
-      let (max_p, max_a) = table_size sw_id entries in
-      let t = (top max_p max_a) in
-      let l = (title sw_id max_p max_a) in
-      let entry_strings = List.map entries (string_of_entry max_p max_a) in
-      let b = bottom max_p max_a in
-      String.concat (t :: l :: (List.append entry_strings [b]))
-
-    (* Given a policy, returns a pretty ascii table for each switch *)		  
-    let string_of_policy ?(order=`Heuristic) (pol : policy) : string =
-      (* TODO(jcollard): The cache flag here is actually a problem.
-       *                 Changing ordering won't work as expected. *)
-      let bdd = LC.compile ~order:order ~cache:`Keep pol in
-      (* TODO: Get switch numbers *)
-      let switches = NetKAT_Misc.switches_of_policy pol in
-      let switches' = if List.is_empty switches then [0L] else switches in	
-      let tbls = List.map switches' (fun sw_id -> LC.to_table sw_id bdd |> string_of_table sw_id) in
-      String.concat ~sep:"\n\n" tbls
-      
-    (* Given a policy, print the flowtables associated with it *)  
-    let print (pol : (policy * string) option) : unit =
-      let (p, str) =
-	match pol with
-	| None -> !policy
-	| Some x -> x
-      in 
-      printf "%s%!" (string_of_policy p)
-
-end
+(* Given a policy, returns a pretty ascii table for each switch *)		  
+let string_of_policy ?(order=`Heuristic) (pol : policy) : string =
+  (* TODO(jcollard): The cache flag here is actually a problem.
+   *                 Changing ordering won't work as expected. *)
+  let bdd = LC.compile ~order:order ~cache:`Keep pol in
+  (* TODO: Get switch numbers *)
+  let switches = NetKAT_Misc.switches_of_policy pol in
+  let switches' = if List.is_empty switches then [0L] else switches in	
+  let tbls = List.map switches' (fun sw_id -> LC.to_table sw_id bdd |> SDN_Types.ascii_of_flowTable sw_id) in
+  String.concat ~sep:"\n\n" tbls
+		
+(* Given a policy, print the flowtables associated with it *)  
+let print_policy_table (pol : (policy * string) option) : unit =
+  let (p, str) =
+    match pol with
+    | None -> !policy
+    | Some x -> x
+  in 
+  printf "%s%!" (string_of_policy p)
 
 let parse_command (line : string) : command option = 
   match (MParser.parse_string Parser.command line []) with
@@ -469,7 +308,7 @@ let rec repl (pol_writer : policy Pipe.Writer.t) : unit Deferred.t =
 		  | Some (Show Ordering) -> print_order ()
 		  | Some (Show Policy) -> print_policy ()
 		  | Some (Show Help) -> print_help ()
-		  | Some (Show (FlowTable t)) -> Table.print t
+		  | Some (Show (FlowTable t)) -> print_policy_table t
 		  | Some (Update (pol, pol_str)) -> 
 		     policy := (pol, pol_str); 
 		     Pipe.write_without_pushback pol_writer pol
