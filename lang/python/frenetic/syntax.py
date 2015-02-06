@@ -50,6 +50,7 @@ class buffered(payload):
 class notbuffered(payload):
 
     def __init__(self, data):
+        assert type(data) == str
         self.data = data
 
     def to_json(self):
@@ -60,10 +61,12 @@ class packet_out():
 
     def __init__(self, switch, payload, actions, in_port = None):
         assert type(switch) == int
-        assert in_port == None or type(in_port) == int
         self.switch = switch
+        assert isinstance(payload,buffered) or isinstance(payload,notbuffered)
         self.payload = payload
+        assert isinstance(actions,output)
         self.actions = actions
+        assert in_port == None or type(in_port) == int
         self.in_port = in_port
 
     def to_json(self):
@@ -76,8 +79,11 @@ class packet_in():
 
     def __init__(self, json):
         assert (json['type'] == 'packet_in')
+        assert type(json['switch_id']) == int
         self.switch_id = json['switch_id']
+        assert type(json['switch_id']) == int
         self.port_id = json['port_id']
+        # TODO: assert isinstance(payload,buffered) or isinstance(payload,notbuffered)
         self.payload = payload.from_json(json['payload'])
 
 ################################################################################
@@ -181,6 +187,7 @@ class Switch(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "switch"
+        assert(type(value) == int)
         self.value = value
 
     def value_to_json(self):
@@ -197,6 +204,7 @@ class Pipe(object):
 class Physical(object):
 
     def __init__(self, port):
+        assert type(port) == int
         self.port = port
 
     def to_json(self):
@@ -215,6 +223,7 @@ class EthSrc(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "ethsrc"
+        assert type(value) == str
         self.value = value
 
     def value_to_json(self):
@@ -224,6 +233,7 @@ class EthDst(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "ethdst"
+        assert type(value) == str
         self.value = value
 
     def value_to_json(self):
@@ -233,6 +243,7 @@ class Vlan(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "vlan"
+        assert type(value) == str
         self.value = value
 
     def value_to_json(self):
@@ -242,6 +253,7 @@ class VlanPcp(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "vlanpcp"
+        assert type(value) == str
         self.value = value
 
     def value_to_json(self):
@@ -251,6 +263,7 @@ class EthType(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "ethtype"
+        assert type(value) == int
         self.value = value
 
     def value_to_json(self):
@@ -260,8 +273,9 @@ class IPProto(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "iproto"
+        assert type(value) == int
         self.value = value
-
+    
     def value_to_json(self):
         return self.value
 
@@ -269,6 +283,7 @@ class IP4Src(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "ip4src"
+        assert type(value) == str
         self.value = value
 
     def value_to_json(self):
@@ -278,6 +293,7 @@ class IP4Dst(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "ip4dst"
+        assert type(value) == str
         self.value = value
 
     def value_to_json(self):
@@ -287,6 +303,7 @@ class TCPSrcPort(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "tcpsrcport"
+        assert type(value) == int
         self.value = value
 
     def value_to_json(self):
@@ -296,6 +313,7 @@ class TCPDstPort(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "tcpdstport"
+        assert type(value) == int
         self.value = value
 
     def value_to_json(self):
