@@ -351,9 +351,9 @@ module Table = struct
       let blank_pattern = String.make max_p ' ' in
       let rec helper pats acts acc =
 	match pats, acts with
-	| [], [] -> 
-	   let final = Format.sprintf "| %s | %s |\n" blank_pattern blank_action in
-	   final :: acc
+	| [], [] -> if (length acc) = 1
+		    then (Format.sprintf "| %s | %s |\n" blank_pattern blank_action) :: acc
+		    else acc
 	| (p::ps), [] ->
 	   let acc' = (Format.sprintf "| %s | %s |\n" p blank_action) :: acc in
 	   helper ps [] acc'
