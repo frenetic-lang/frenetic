@@ -25,7 +25,8 @@ Library netkat
     str,
     threads,
     yojson,
-    ipaddr
+    ipaddr,
+    base64 (>= 2.0.0)
   InternalModules:
     Flowterp,
     NetKAT_FDD,
@@ -41,6 +42,7 @@ Library netkat
     NetKAT_Types,
     NetKAT_Misc,
     NetKAT_Json,
+    NetKAT_SDN_Json,
     Optimize
 
 Library syntax
@@ -118,6 +120,20 @@ Test all_tests
   Command: $testtool inline-test-runner netkat
   Run$: flag(tests)
   TestTools: testtool
+
+Executable frenetic
+  Path: frenetic
+  MainIs: frenetic.ml
+  Install: true
+  CompiledObject: native
+  BuildDepends:
+    async,
+    core,
+    cohttp,
+    cohttp.async,
+    netkat,
+    netkat.async,
+    mparser
 
 Executable katnetic
   Path: frenetic
