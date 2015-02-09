@@ -85,7 +85,7 @@ class PacketIn():
         assert type(json['port_id']) == int and json['switch_id'] >= 0
         self.port_id = json['port_id']
         # TODO: assert isinstance(payload,Buffered) or isinstance(payload,NotBuffered)
-        self.payload = payload.from_json(json['payload'])
+        self.payload = Payload.from_json(json['payload'])
 
 ################################################################################
 #
@@ -219,7 +219,7 @@ class Location(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "location"
-        assert isinstance(value,Physical)
+        assert isinstance(value,Physical) or isinstance(value,Pipe)
         self.value = value
 
     def value_to_json(self):
@@ -294,7 +294,11 @@ class IP4Src(HeaderAndValue):
         self.value = value
 
     def value_to_json(self):
-        return self.value
+        #TODO: nb: Should netmask be configurable to user?
+        # If not, I believe it makes sense to instead 'hard-code'
+        # into NetKAT_Json:52
+        # If so, then user should give (addr,mask) tuple parameter
+        return { "addr": self.value, "mask": 32 }
 
 class IP4Dst(HeaderAndValue):
 
@@ -304,7 +308,8 @@ class IP4Dst(HeaderAndValue):
         self.value = value
 
     def value_to_json(self):
-        return self.value
+        #TODO: See :297
+        return { "addr": self.value, "mask": 32 }
 
 class TCPSrcPort(HeaderAndValue):
 
