@@ -664,7 +664,6 @@ let enable_host_discovery t =
 let disable_host_discovery t =
   Discovery.(Host.stop t.dis.host_ctl)
 
-let set_order (t : t) (order : LC.order) : unit Deferred.t =
+let set_order (t : t) (order : LC.order) : unit =
   t.prev_order <- t.order;
-  t.order <- order;
-  return ()
+  t.order <- order

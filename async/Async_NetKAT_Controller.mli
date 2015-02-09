@@ -52,4 +52,4 @@ val enable_host_discovery : t -> unit Deferred.t
 val disable_host_discovery : t -> unit Deferred.t
 
 (** [set_order t] sets the ordering to be used during compilation. *)
-val set_order : t -> NetKAT_LocalCompiler.order -> unit Deferred.t
+val set_order : t -> NetKAT_LocalCompiler.order -> unit
