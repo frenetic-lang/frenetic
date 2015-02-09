@@ -91,7 +91,7 @@ class App:
                 self.port_down(switch_id, port_id)
             elif typ == 'packet_in':
                 pk = PacketIn(event)
-                self.PacketIn(pk.switch_id, pk.port_id, pk.payload)
+                self.packet_in(pk.switch_id, pk.port_id, pk.payload)
             else:
                 pass
             ioloop.IOLoop.instance().add_callback(loop)
