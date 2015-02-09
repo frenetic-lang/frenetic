@@ -402,14 +402,13 @@ let string_of_action = make_string_of format_action
 let string_of_seq = make_string_of format_seq
 let string_of_par = make_string_of format_par
 let string_of_flow = make_string_of format_flow
-let string_of_flowTable = make_string_of format_flowTable
 
 let string_of_vlan (x : int) : string = 
   Format.sprintf "Vlan = %d" x
-
+		 
 let string_of_vlanpcp (x : dlVlanPcp) : string =
   Format.sprintf "VlanPcp = %d" x
-
+		 
 let string_of_ethType (x : dlTyp) : string =
   let extra = if x = 0x800 then " (ip)" 
 	      else if x = 0x806 then " (arp)"
@@ -446,7 +445,7 @@ let string_of_tcpDstPort (x : tpPort) : string =
   Format.sprintf "TCPDstPort = %d" x
 		 
 let string_of_inPort (x : portId) : string =
-  Format.sprintf "In Port = %lu" x
+  Format.sprintf "InPort = %lu" x
 		 
 let check (string_of : 'a -> string) 
 	  (x : 'a option) 
@@ -473,52 +472,66 @@ let pattern_list (p : Pattern.t) : string list =
  * contains the strings of the pattern and the second list contains
  * the strings of the actions associated with the pattern. *)
 let to_entry (f : flow) : (string list) * (string list) =
-  let open Core.Std.List in
+  let open Core.Std in
+  let open List in
   let pattern_list = pattern_list f.pattern in
   let action_list = map (concat (concat f.action)) string_of_action in
   (pattern_list, action_list)
     
 (* Pads a string with spaces so that it is atleast `len` characters. *)
 let pad (len : int) (e : string) : string =
+  let open Core.Std in
   let padding_size = max 0 (len - (String.length e)) in
   let padding = String.make padding_size ' ' in
-  Core.Std.String.concat [e; padding]
+  String.concat [e; padding]
+		
+(* Helper function *)
+let unwrap x = 
+  match x with
+  | None -> 0
+  | Some x -> x
 		
 (* Given a list of entries to be displayed in the table, calculate a pair
  * containing the max characters in a pattern string and action string *)
-let table_size (sw_id : switchId) (entries : ((string list) * (string list)) list) : int * int =
-  let open Core.Std.List in
+let table_size (label : string) (entries : ((string list) * (string list)) list) : int * int =
+  let open Core.Std in
+  let open List in
   let patterns = map entries fst |> concat in
   let actions = map entries snd |> concat in
-  let max_p =  max_elt (map patterns String.length) (-) |> Core.Std.uw in
-  let max_a = max_elt (map actions String.length) (-) |> Core.Std.uw in
-  (max max_p ((Int64.to_string sw_id |> String.length) + 3 + (String.length "Pattern")), max max_a (String.length "Action"))
+  let max_p =  max_elt (map patterns String.length) (-) |> unwrap in
+  let max_a = max_elt (map actions String.length) (-) |> unwrap in
+  (max max_p ((String.length label) + 3 + (String.length "Pattern")), max max_a (String.length "Action"))
     
 (* Create the top edge of the table *)
 let top max_p max_a : string =
+  let open Core.Std in
   let open Char in
   let fill = String.make (max_p + max_a + 5) '-' in
   Format.sprintf "+%s+\n" fill
 		 
 (* Create the bottom edge of the table *)
 let bottom max_p max_a : string=
+  let open Core.Std in
   let fill = String.make (max_p + max_a + 5) '-' in
   Format.sprintf "+%s+\n" fill
 		 
 (* Create a divider between entries *)
 let div max_p max_a : string =
+  let open Core.Std in
   let fill = String.make (max_p + max_a + 5) '-' in
   Format.sprintf "|%s|\n" fill
 		 
 (* Create the columns of the table *)
-let title sw_id max_p max_a : string =
-  let pattern = pad max_p (Format.sprintf "%Ld | Pattern" sw_id) in
+let title label max_p max_a : string =
+  let open Core.Std in
+  let pattern = pad max_p (Format.sprintf "%s | Pattern" label) in
   let action = pad max_a "Action" in
   Format.sprintf "| %s | %s |\n" pattern action
 		 
 (* Create a row in the table *)
 let string_of_entry (max_p : int) (max_a : int) (e : (string list) * (string list)) : string =
-  let open Core.Std.List in
+  let open Core.Std in
+  let open List in
   let padded_patterns = map (fst e) (pad max_p) in 
   let padded_actions = map (snd e) (pad max_a) in 
   let blank_action = String.make max_a ' ' in
@@ -539,14 +552,15 @@ let string_of_entry (max_p : int) (max_a : int) (e : (string list) * (string lis
        helper ps rest acc'
   in 
   helper padded_patterns padded_actions [(div max_p max_a)]
-  |> rev |> Core.Std.String.concat
+  |> rev |> String.concat
 	      
-(* Given a switch id and a flowTable, returns an ascii flowtable *)
-let ascii_of_flowTable (sw_id : switchId) (tbl : flowTable) : string =
-  let entries = Core.Std.List.map tbl to_entry in
-  let (max_p, max_a) = table_size sw_id entries in
+(* Given a label and a flowTable, returns an ascii flowtable *)
+let string_of_flowTable ?(label="") (tbl : flowTable) : string =
+  let open Core.Std in
+  let entries = List.map tbl to_entry in
+  let (max_p, max_a) = table_size label entries in
   let t = (top max_p max_a) in
-  let l = (title sw_id max_p max_a) in
-  let entry_strings = Core.Std.List.map entries (string_of_entry max_p max_a) in
+  let l = (title label max_p max_a) in
+  let entry_strings = List.map entries (string_of_entry max_p max_a) in
   let b = bottom max_p max_a in
-  Core.Std.String.concat (t :: l :: (Core.Std.List.append entry_strings [b]))
+  String.concat (t :: l :: (List.append entry_strings [b]))

@@ -217,5 +217,4 @@ val string_of_action : action -> string
 val string_of_seq : seq -> string
 val string_of_par : par -> string
 val string_of_flow : flow -> string
-val string_of_flowTable : flowTable -> string
-val ascii_of_flowTable : switchId -> flowTable -> string
+val string_of_flowTable : ?label:string -> flowTable -> string
