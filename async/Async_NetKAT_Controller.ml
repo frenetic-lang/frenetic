@@ -26,6 +26,8 @@ type t = {
   ctl : Controller.t;
   dis : Discovery.t;
   nib : Net.Topology.t ref;
+  mutable prev_order : LC.order;
+  mutable order : LC.order;
   mutable repr : LC.t;
   mutable edge : (SDN_Types.flow*int) list SwitchMap.t;
 }
@@ -281,17 +283,19 @@ module BestEffort = struct
       | `Drop exn -> raise exn
       | `Sent _   -> ()
 
-  let bring_up_switch (t : Controller.t) (sw_id : SDN.switchId) ?old new_r =
+  let bring_up_switch (t : t) (sw_id : SDN.switchId) ?old new_r =
     match old with
-    | Some(old_r) when LC.equal (restrict sw_id old_r) (restrict sw_id new_r) ->
+    | Some(old_r) when 
+	   (t.prev_order = t.order &&
+	      LC.equal (restrict sw_id old_r) (restrict sw_id new_r)) ->
       Log.debug ~tags
         "[policy] Skipping identical policy update for swithc %Lu" sw_id ;
       return ()
     | _ ->
       let table = LC.(to_table sw_id new_r) in
       Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
-        delete_flows_for t sw_id >>= fun () ->
-        install_flows_for t sw_id table)
+        delete_flows_for t.ctl sw_id >>= fun () ->
+        install_flows_for t.ctl sw_id table)
       >>= function
         | Ok x       -> return x
         | Error _exn ->
@@ -299,7 +303,7 @@ module BestEffort = struct
             "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
           Log.flushed () >>| fun () -> Printf.eprintf "%s\n%!" (Exn.to_string _exn)
 
-  let implement_policy (t : Controller.t) (nib : Net.Topology.t) ?old repr =
+  let implement_policy (t : t) (nib : Net.Topology.t) ?old repr =
     Deferred.List.iter (TUtil.switch_ids nib) (fun sw_id ->
       bring_up_switch t sw_id ?old repr)
 end
@@ -511,6 +515,8 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
       { ctl = ctl
       ; dis = d_ctl
       ; nib = ref (Net.Topology.empty ())
+      ; prev_order = `Heuristic
+      ; order = `Heuristic
       ; repr = LC.compile (Async_NetKAT.default app)
       ; edge = SwitchMap.empty
       }
@@ -549,8 +555,8 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
     let implement_policy, bring_up_switch = match update with
       | `BestEffort ->
         BestEffort.(
-          (fun t ?old repr -> implement_policy t.ctl !(t.nib) ?old repr),
-          (fun t sw_id ?old repr -> bring_up_switch t.ctl sw_id ?old repr))
+          (fun t ?old repr -> implement_policy t !(t.nib) ?old repr),
+          (fun t sw_id ?old repr -> bring_up_switch t sw_id ?old repr))
       | `PerPacketConsistent ->
         (* XXX(seliopou): budget has to be big, otherwise consistent updates will
          * lead to deadlocks where event processing is blocked on a table update,
@@ -657,3 +663,7 @@ let enable_host_discovery t =
 
 let disable_host_discovery t =
   Discovery.(Host.stop t.dis.host_ctl)
+
+let set_order (t : t) (order : LC.order) : unit =
+  t.prev_order <- t.order;
+  t.order <- order
