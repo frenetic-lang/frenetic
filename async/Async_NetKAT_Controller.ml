@@ -286,8 +286,8 @@ module BestEffort = struct
   let bring_up_switch (t : t) (sw_id : SDN.switchId) ?old new_r =
     match old with
     | Some(old_r) when 
-	   (LC.equal (restrict sw_id old_r) (restrict sw_id new_r) &&
-	    t.prev_order = t.order) ->
+	   (t.prev_order = t.order &&
+	      LC.equal (restrict sw_id old_r) (restrict sw_id new_r)) ->
       Log.debug ~tags
         "[policy] Skipping identical policy update for swithc %Lu" sw_id ;
       return ()
