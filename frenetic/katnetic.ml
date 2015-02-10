@@ -43,14 +43,14 @@ module Global = struct
       NetKAT_Misc.switches_of_policy (Optimize.mk_seq (NetKAT_Types.Filter ingress) global_pol) in
     let tables =
       List.map
-        (fun sw -> NetKAT_LocalCompiler.compile local_pol
-                   |> NetKAT_LocalCompiler.to_table sw
-                   |> (fun t -> (sw, t)))
+        (fun sw -> Optimize.specialize_policy sw local_pol
+                    |> NetKAT_LocalCompiler.compile
+                    |> NetKAT_LocalCompiler.to_table sw
+                    |> (fun t -> (sw, t)))
         switches in
     let print_table (sw, t) =
-      Format.fprintf fmt "[global] Flowtable for Switch %Ld:@\n@[%a@]@\n@\n"
-        sw
-        SDN_Types.format_flowTable t in
+      Format.fprintf fmt "@[%s@]@\n@\n"
+        (SDN_Types.string_of_flowTable ~label:(Int64.to_string sw) t) in
     Format.fprintf fmt "@\n";
     Format.fprintf fmt "[global] Ingress:@\n@[%a@]@\n@\n" NetKAT_Pretty.format_pred ingress;
     Format.fprintf fmt "[global] Egress:@\n@[%a@]@\n@\n" NetKAT_Pretty.format_pred egress;
@@ -101,9 +101,8 @@ module Dump = struct
 
     let flowtable (sw : SDN_Types.switchId) t =
       if List.length t > 0 then
-        Format.printf "@[flowtable for switch %Ld:@\n%a@\n@\n@]%!"
-          sw
-          SDN_Types.format_flowTable t
+        Format.fprintf fmt "@[%s@]@\n@\n"
+          (SDN_Types.string_of_flowTable ~label:(Int64.to_string sw) t)
 
     let policy p =
       Format.printf "@[%a@\n@\n@]%!" NetKAT_Pretty.format_policy p
