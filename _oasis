@@ -79,6 +79,8 @@ Library async
     sexplib,
     sexplib.syntax
   InternalModules:
+    Async_NetKAT_Updates,
+    Async_NetKAT_Controller_Common,
     Discovery,
     Learning,
     Raw_app,

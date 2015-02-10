@@ -1,36 +1,13 @@
 open Core.Std
 open Async.Std
-
-module Net = Async_NetKAT.Net
-
-module Controller = Async_OpenFlow.OpenFlow0x01.Controller
-module Stage = Async_OpenFlow.Stage
-module SDN = SDN_Types
-module M = OpenFlow0x01.Message
-module LC = NetKAT_LocalCompiler
-
-type switchId = SDN_Types.switchId
-
-module SwitchMap = Map.Make(Int64)
-module XidMap = Map.Make(Int32)
-
-module Log = Async_OpenFlow.Log
-
-let max_pending_connections = 64
-
-let tags = [("openflow", "controller")]
+open Async_NetKAT_Controller_Common
+open Async_NetKAT_Updates
 
 exception Assertion_failed of string
 
-type t = {
-  ctl : Controller.t;
-  dis : Discovery.t;
-  nib : Net.Topology.t ref;
-  mutable prev_order : LC.order;
-  mutable order : LC.order;
-  mutable repr : LC.t;
-  mutable edge : (SDN_Types.flow*int) list SwitchMap.t;
-}
+type t = Async_NetKAT_Controller_Common.t
+
+let max_pending_connections = 64
 
 let bytes_to_headers
   (port_id : SDN_Types.portId)
@@ -262,224 +239,6 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
           return []
       end
 
-module BestEffort = struct
-  let restrict sw_id repr =
-    LC.restrict NetKAT_Types.(Switch sw_id) repr
-
-  let install_flows_for (t : Controller.t) sw_id table =
-    let to_flow_mod p f = M.FlowModMsg (SDN_OpenFlow0x01.from_flow p f) in
-    let priority = ref 65536 in
-    Deferred.List.iter table ~f:(fun flow ->
-      decr priority;
-      Controller.send t sw_id (0l, to_flow_mod !priority flow)
-      >>| function
-        | `Drop exn -> raise exn
-        | `Sent _   -> ())
-
-  let delete_flows_for (t :Controller.t) sw_id =
-    let delete_flows = M.FlowModMsg OpenFlow0x01_Core.delete_all_flows in
-    Controller.send t sw_id (5l, delete_flows)
-    >>| function
-      | `Drop exn -> raise exn
-      | `Sent _   -> ()
-
-  let bring_up_switch (t : t) (sw_id : SDN.switchId) ?old new_r =
-    match old with
-    | Some(old_r) when 
-	   (t.prev_order = t.order &&
-	      LC.equal (restrict sw_id old_r) (restrict sw_id new_r)) ->
-      Log.debug ~tags
-        "[policy] Skipping identical policy update for swithc %Lu" sw_id ;
-      return ()
-    | _ ->
-      let table = LC.(to_table sw_id new_r) in
-      Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
-        delete_flows_for t.ctl sw_id >>= fun () ->
-        install_flows_for t.ctl sw_id table)
-      >>= function
-        | Ok x       -> return x
-        | Error _exn ->
-          Log.debug ~tags
-            "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
-          Log.flushed () >>| fun () -> Printf.eprintf "%s\n%!" (Exn.to_string _exn)
-
-  let implement_policy (t : t) (nib : Net.Topology.t) ?old repr =
-    Deferred.List.iter (TUtil.switch_ids nib) (fun sw_id ->
-      bring_up_switch t sw_id ?old repr)
-end
-
-module PerPacketConsistent = struct
-  open SDN_Types
-
-  let specialize_action ver internal_ports actions =
-    List.fold_right actions ~init:[] ~f:(fun action acc ->
-      begin match action with
-      | Output (Physical   pt) ->
-        if not (Net.Topology.PortSet.mem internal_ports pt) then
-          [Modify (SetVlan None)]
-        else
-          [Modify (SetVlan (Some ver))]
-      | Output (Controller n ) ->
-        [Modify (SetVlan None)]
-      | Output _               -> assert false
-      | _                      -> acc
-      end @ (action :: acc))
-
-  let specialize_edge_to (ver : int) internal_ports (table : SDN.flowTable) =
-    let vlan_none = 65535 in
-    List.filter_map table ~f:(fun flow ->
-      begin match flow.pattern.Pattern.inPort with
-      | Some pt when Net.Topology.PortSet.mem internal_ports pt ->
-        None
-      | _ ->
-        Some { flow with
-          pattern = { flow.pattern with Pattern.dlVlan = Some vlan_none }
-        ; action  = List.map flow.action ~f:(fun x ->
-            List.map x ~f:(specialize_action ver internal_ports))
-        }
-      end)
-
-  let specialize_internal_to (ver : int) internal_ports (table : SDN.flowTable) =
-    List.map table ~f:(fun flow ->
-      { flow with
-        pattern = { flow.pattern with Pattern.dlVlan = Some ver }
-      ; action  = List.map flow.action ~f:(fun x ->
-          List.map x ~f:(specialize_action ver internal_ports))
-      })
-
-  let clear_policy_for (t : Controller.t) (ver : int) sw_id =
-    let open OpenFlow0x01_Core in
-    let clear_version_message = M.FlowModMsg { SDN_OpenFlow0x01.from_flow 0
-      { pattern = { Pattern.match_all with Pattern.dlVlan = Some ver }
-      ; action = []
-      ; cookie = 0L
-      ; idle_timeout = Permanent
-      ; hard_timeout = Permanent
-      } with command = DeleteFlow } in
-    Monitor.try_with ~name:"PerPacketConsistent.clear_policy_for" (fun () ->
-      Controller.send t sw_id (5l, clear_version_message))
-    >>| function
-      | Ok (`Sent _)    -> ()
-      | Ok (`Drop _exn)
-      | Error _exn      ->
-        Log.error ~tags "switch %Lu: Failed to delete flows for ver %d" sw_id ver
-
-  let internal_install_policy_for (t : t) (ver : int) repr (sw_id : switchId) =
-    begin let open Deferred.Result in
-    Monitor.try_with ~name:"PerPacketConsistent.internal_install_policy_for" (fun () ->
-      let table0 = LC.(to_table sw_id repr) in
-      let table1 = specialize_internal_to
-        ver (TUtil.internal_ports !(t.nib) sw_id) table0 in
-      assert (List.length table1 > 0);
-      BestEffort.install_flows_for t.ctl sw_id table1)
-    >>= fun () -> Controller.barrier t.ctl sw_id
-    end
-    >>| function
-      | Ok () ->
-        Log.debug ~tags
-          "switch %Lu: installed internal table for ver %d" sw_id ver;
-      | Error _ ->
-        Log.debug ~tags
-          "switch %Lu: disconnected while installing internal table for ver %d... skipping" sw_id ver
-
-  (* Comparison should be made based on patterns only, not actions *)
-  (* Assumes both FT are sorted in descending order by priority *)
-  let rec flowtable_diff (ft1 : (SDN_Types.flow*int) list) (ft2 : (SDN_Types.flow*int) list) =
-    let open SDN_Types in
-    match ft1,ft2 with
-    | (flow1,pri1)::ft1, (flow2,pri2)::ft2 ->
-      if pri1 > pri2 then
-        (flow1, pri1) :: flowtable_diff ft1 ((flow2,pri2)::ft2)
-      else if pri1 = pri2 && flow1.pattern = flow2.pattern then
-        flowtable_diff ft1 ((flow2,pri2)::ft2)
-      else
-        flowtable_diff ((flow1,pri1) :: ft1) ft2
-    | _, [] -> ft1
-    | [], _ -> []
-
-  (* Assumptions:
-     - switch respects priorities when deleting flows
-  *)
-  let swap_update_for (t : t) sw_id c_id new_table : unit Deferred.t =
-    let open OpenFlow0x01_Core in
-    let max_priority = 65535 in
-    let old_table = match SwitchMap.find t.edge sw_id with
-      | Some ft -> ft
-      | None -> [] in
-    let (new_table, _) = List.fold new_table ~init:([], max_priority)
-        ~f:(fun (acc,pri) x -> ((x,pri) :: acc, pri - 1)) in
-    let new_table = List.rev new_table in
-    let del_table = List.rev (flowtable_diff old_table new_table) in
-    let to_flow_mod prio flow =
-      M.FlowModMsg (SDN_OpenFlow0x01.from_flow prio flow) in
-    let to_flow_del prio flow =
-      M.FlowModMsg ({SDN_OpenFlow0x01.from_flow prio flow with command = DeleteStrictFlow}) in
-    (* Install the new table *)
-    Deferred.List.iter new_table ~f:(fun (flow, prio) ->
-      send t.ctl c_id (0l, to_flow_mod prio flow))
-    (* Delete the old table from the bottom up *)
-    >>= fun () -> Deferred.List.iter del_table ~f:(fun (flow, prio) ->
-      send t.ctl c_id (0l, to_flow_del prio flow))
-    >>| fun () -> t.edge <- SwitchMap.add t.edge sw_id new_table
-
-  let edge_install_policy_for (t : t) ver repr (sw_id : switchId) : unit Deferred.t =
-    begin let open Deferred.Result in
-    Monitor.try_with ~name:"PerPacketConsistent.edge_install_policy_for" (fun () ->
-      let table = LC.(to_table sw_id repr) in
-      let edge_table = specialize_edge_to
-        ver (TUtil.internal_ports !(t.nib) sw_id) table in
-      Log.debug ~tags
-        "switch %Lu: Installing edge table for ver %d" sw_id ver;
-      swap_update_for t sw_id sw_id edge_table)
-    >>= fun () -> Controller.barrier t.ctl sw_id
-    end
-    >>| function
-      | Ok () ->
-        Log.debug ~tags "switch %Lu: installed edge table for ver %d" sw_id ver
-      | Error _ ->
-        Log.debug ~tags "switch %Lu: disconnected while installing edge table for ver %d... skipping" sw_id ver
-
-  let ver = ref 1
-
-  let implement_policy (t : t) repr : unit Deferred.t =
-    (* XXX(seliopou): It might be better to iterate over client ids rather than
-     * switch ids. A client id is guaranteed to be unique within a run of a
-     * program, whereas a switch id may be reused across client ids, i.e., a
-     * switch connects, disconnects, and connects again. Due to this behavior,
-     * it may be possible to get into an inconsistent state below. Maybe. *)
-    let switches = TUtil.switch_ids !(t.nib) in
-    let ver_num = !ver + 1 in
-    (* Install internal update *)
-    Log.debug ~tags "Installing internal tables for ver %d" ver_num;
-    Log.flushed ()
-    >>= fun () ->
-    Deferred.List.iter switches (internal_install_policy_for t ver_num repr)
-    >>= fun () ->
-    (Log.debug ~tags "Installing edge tables for ver %d" ver_num;
-     Log.flushed ())
-    >>= fun () ->
-    (* Install edge update *)
-    Deferred.List.iter switches (edge_install_policy_for t ver_num repr)
-    >>= fun () ->
-    (* Delete old rules *)
-    Deferred.List.iter switches (clear_policy_for t.ctl (ver_num - 1))
-    >>| fun () ->
-      incr ver
-
-  let bring_up_switch (t : t) (sw_id : switchId) repr =
-    Monitor.try_with ~name:"PerPacketConsistent.bring_up_switch" (fun () ->
-      BestEffort.delete_flows_for t.ctl sw_id >>= fun () ->
-      internal_install_policy_for t !ver repr sw_id >>= fun () ->
-      edge_install_policy_for t !ver repr sw_id)
-    >>= function
-      | Ok x -> return ()
-      | Error _exn ->
-        Log.debug ~tags
-          "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
-        Log.flushed () >>| fun () -> Printf.eprintf "%s\n%!" (Exn.to_string _exn)
-
-end
-
 (* Send a packet_out message to the specified switch, and log any errors that
  * may occur.
  * *)
@@ -569,8 +328,8 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
          *)
         Pipe.set_size_budget events 50;
         PerPacketConsistent.(
-          (fun t ?old repr -> implement_policy t repr),
-          (fun t sw_id ?old repr -> bring_up_switch t sw_id repr))
+          (fun t ?old repr -> implement_policy t !(t.nib) ?old repr),
+          (fun t sw_id ?old repr -> bring_up_switch t sw_id ?old repr))
     in
 
     let implement_policy' t q =
@@ -625,7 +384,6 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
     don't_wait_for (Pipe.iter' recv.update (implement_policy' t));  (* output *)
 
     return t
-  ;;
 
 let query ?(ignore_drops=true) pred t =
   let pkt, byte = (ref 0L, ref 0L) in
