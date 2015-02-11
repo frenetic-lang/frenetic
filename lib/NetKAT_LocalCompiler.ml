@@ -205,7 +205,7 @@ let check_tcp pattern =
   then { pattern with nwProto = Some 0x6 }
   else pattern
 
-let mk_flow pattern action =
+let mk_flow pattern action queries =
   let open SDN.Pattern in
   let pattern' = check_nwProto pattern in
   let pattern'' = check_tcp pattern' in
@@ -217,12 +217,12 @@ let mk_flow pattern action =
    *)
   let pattern = pattern''' in
   let open SDN in
-  { pattern
-  ; action
-  ; cookie = 0L
-  ; idle_timeout = Permanent
-  ; hard_timeout = Permanent
-  }
+  ({ pattern
+    ; action
+    ; cookie = 0L
+    ; idle_timeout = Permanent
+    ; hard_timeout = Permanent
+    }, queries)
 
 let get_inport hvs =
   let get_inport' current hv =
@@ -254,7 +254,8 @@ let opt_to_table sw_id t =
       next_table_row (test::tests) (fun t' -> mk_rest (mk_branch_or_leaf test t' f)) t
     | Leaf actions ->
       let openflow_instruction = [to_action (get_inport tests) actions tests] in
-      let row = mk_flow (to_pattern tests) openflow_instruction in
+      let queries = Action.get_queries actions in
+      let row = mk_flow (to_pattern tests) openflow_instruction queries in
       (row, mk_rest None)
   in
   let rec loop t acc =
@@ -269,14 +270,17 @@ let rec naive_to_table sw_id (t : T.t) =
   let rec dfs tests t = match T.unget t with
   | Leaf actions ->
     let openflow_instruction = [to_action (get_inport tests) actions tests] in
-    [mk_flow (to_pattern tests) openflow_instruction]
+    let queries = Action.get_queries actions in
+    [mk_flow (to_pattern tests) openflow_instruction queries]
   | Branch (test, tru, fls) ->
     dfs (test :: tests) tru @ dfs tests fls in
   dfs [] t
 
-let to_table ?(opt = true) = match opt with
+let to_table' ?(opt = true) = match opt with
  | true -> opt_to_table
  | false -> naive_to_table
+
+let to_table ?(opt = true) swId t = List.map ~f:fst (to_table' ~opt swId t)
 
 let pipes t =
   let module S = Set.Make(String) in
