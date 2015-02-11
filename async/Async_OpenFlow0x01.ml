@@ -222,7 +222,7 @@ module Controller = struct
 
   let barrier t sw_id =
     send_txn_with t sw_id M.BarrierRequest (function
-      | M.BarrierReply -> Result.Ok ()
+      | `Result (hdr, _) -> Result.Ok () (* assume it is a barrier reply *)
       | _              -> assert false)
 
   let aggregate_stats ?(pattern=C.match_all) (t:t) sw_id =
@@ -233,7 +233,10 @@ module Controller = struct
       ; sr_out_port = None }
     in
     send_txn_with t sw_id (M.StatsRequestMsg msg) (function
-      | M.StatsReplyMsg (AggregateFlowRep r) -> Result.Ok r
+      | `Result (hdr, body) ->
+         (match M.parse hdr (Cstruct.to_string body) with
+          | (_, M.StatsReplyMsg (AggregateFlowRep r)) -> Result.Ok r
+          | _ -> assert false)
       | _                                    -> assert false)
 
   let individual_stats ?(pattern=C.match_all) (t:t) sw_id =
@@ -244,6 +247,9 @@ module Controller = struct
       ; sr_out_port = None }
     in
     send_txn_with t sw_id (M.StatsRequestMsg msg) (function
-      | M.StatsReplyMsg (IndividualFlowRep r) -> Result.Ok r
-      | _                                     -> assert false)
+      | `Result (hdr, body) ->
+        (match M.parse hdr (Cstruct.to_string body) with
+         | (_, M.StatsReplyMsg (IndividualFlowRep r)) -> Result.Ok r
+         | _ -> assert false)
+      | _ -> assert false)
 end

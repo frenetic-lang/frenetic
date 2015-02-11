@@ -156,12 +156,6 @@ module Chunk : sig
     val client_version : t -> Client_id.t -> int
     val client_next_xid : t -> Client_id.t -> int32
 
-    val send_txn
-      :  t
-      -> Client_id.t
-      -> m
-      -> [ `Sent of Message.t Deferred.t | `Drop of exn ] Deferred.t
-
     val handshake : int -> (t, e, h) Stage.t
   end
 

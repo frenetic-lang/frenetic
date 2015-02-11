@@ -3,7 +3,7 @@ open Core.Std
 module Platform = Async_OpenFlow_Platform
 module Header = OpenFlow_Header
 
-module Message : Platform.Message 
+module Message : Platform.Message
   with type t = (Header.t * Cstruct.t) = struct
 
   type t = (Header.t * Cstruct.t) sexp_opaque with sexp
@@ -73,7 +73,7 @@ module Controller = struct
       let ivar = ref None in
       if not (xid = 0l) then
         XidTbl.change t.txns xid (function
-          | None    -> let ivar = ref (Some(Ivar.create ())) in !ivar
+          | None    -> ivar := Some (Ivar.create ()); !ivar
           | Some(_) -> None);
       match !ivar with
       | Some(ivar) -> ivar
@@ -252,7 +252,7 @@ module Controller = struct
       | `Sent x -> Handler.activity t c_id; `Sent x
       | `Drop x -> `Drop x
 
-  let send_txn t c_id m =
+  let send_txn t c_id (m : Message.t) =
     let conn = Client_id.Table.find_exn t.clients c_id in
     let ivar = Conn.add_txn conn m in
     send t c_id m

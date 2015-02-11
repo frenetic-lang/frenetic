@@ -255,7 +255,10 @@ module Controller = struct
 
   let barrier t sw_id =
     send_txn_with t sw_id M.BarrierRequest (function
-      | M.BarrierReply -> Result.Ok ()
+      | `Result (hdr, body) ->
+       (match M.parse hdr (Cstruct.to_string body) with
+        | (_, M.BarrierReply) -> Result.Ok ()
+        | _ -> assert false)
       | _              -> assert false)
 
 end
