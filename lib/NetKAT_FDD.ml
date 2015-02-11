@@ -468,6 +468,12 @@ module Action = struct
        non-[zero] action will be mapped to [zero] by this function. *)
     if compare t zero = 0 then one else zero
 
+  let get_queries (t : t) : string list =
+    Par.fold t ~init:[] ~f:(fun queries seq ->
+      match Seq.find seq Location with
+      | Some (Query str) -> str :: queries
+      | _ -> queries)
+
   let to_sdn ?(in_port:Int64.t option) (t:t) : SDN.par =
     (* Convert a NetKAT action to an SDN action. At the moment this function
        assumes that fields are assigned to proper bitwidth integers, and does
