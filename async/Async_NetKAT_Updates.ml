@@ -4,16 +4,15 @@ open Async_NetKAT_Controller_Common
 
 type edge = (SDN_Types.flow*int) list SwitchMap.t
 
+
 module type UPDATE_ARGS = sig
   val ctl : Controller.t
-  val get_switches : unit -> SDN_Types.switchId list
   val get_order : unit -> LC.order
   val get_prev_order : unit -> LC.order
 end
 
 module type CONSISTENT_UPDATE_ARGS = sig
   val ctl : Controller.t
-  val get_switches : unit -> SDN_Types.switchId list
   val get_order : unit -> LC.order
   val get_prev_order : unit -> LC.order
   val get_nib : unit -> Net.Topology.t
@@ -33,6 +32,46 @@ module type UPDATE = sig
     NetKAT_LocalCompiler.t ->
     unit Deferred.t
 
+end
+
+module BestEffortUpdate = struct
+
+  let restrict sw_id repr =
+    LC.restrict NetKAT_Types.(Switch sw_id) repr
+
+  let install_flows_for ctl sw_id table =
+    let to_flow_mod p f = M.FlowModMsg (SDN_OpenFlow0x01.from_flow p f) in
+    let priority = ref 65536 in
+    Deferred.List.iter table ~f:(fun flow ->
+      decr priority;
+      Controller.send ctl sw_id (0l, to_flow_mod !priority flow)
+      >>| function
+        | `Drop exn -> raise exn
+        | `Sent _   -> ())
+
+  let delete_flows_for ctl sw_id =
+    let delete_flows = M.FlowModMsg OpenFlow0x01_Core.delete_all_flows in
+    Controller.send ctl sw_id (5l, delete_flows)
+    >>| function
+      | `Drop exn -> raise exn
+      | `Sent _   -> ()
+
+  let bring_up_switch ctl (sw_id : SDN.switchId) new_r =
+    let table = LC.to_table sw_id new_r in
+    Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
+      delete_flows_for ctl sw_id >>= fun () ->
+      install_flows_for ctl sw_id table)
+    >>= function
+      | Ok x       -> return x
+      | Error _exn ->
+        Log.debug ~tags
+          "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
+        Log.flushed () >>| fun () ->
+        Printf.eprintf "%s\n%!" (Exn.to_string _exn)
+
+  let implement_policy ctl repr =
+    Deferred.List.iter (Controller.get_switches ctl) (fun sw_id ->
+      bring_up_switch ctl sw_id repr)
 end
 
 module BestEffort (Args : UPDATE_ARGS) : UPDATE = struct
@@ -80,7 +119,7 @@ module BestEffort (Args : UPDATE_ARGS) : UPDATE = struct
           Printf.eprintf "%s\n%!" (Exn.to_string _exn)
 
   let implement_policy ?old repr =
-    Deferred.List.iter (get_switches ()) (fun sw_id ->
+    Deferred.List.iter (Controller.get_switches ctl) (fun sw_id ->
       bring_up_switch sw_id ?old repr)
 end
 
@@ -242,7 +281,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
      * program, whereas a switch id may be reused across client ids, i.e., a
      * switch connects, disconnects, and connects again. Due to this behavior,
      * it may be possible to get into an inconsistent state below. Maybe. *)
-    let switches = get_switches () in
+    let switches = Controller.get_switches ctl in
     let ver_num = !ver + 1 in
     (* Install internal update *)
     Log.debug ~tags "Installing internal tables for ver %d" ver_num;

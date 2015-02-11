@@ -87,6 +87,7 @@ Library async
     TUtil
   Modules:
     Async_NetKAT,
+    NetKAT_Controller,
     Async_NetKAT_Controller,
     NetKAT
 
