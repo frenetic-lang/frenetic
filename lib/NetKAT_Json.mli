@@ -13,5 +13,4 @@ val policy_from_json_channel : In_channel.t -> policy
 val policy_from_json_string : string -> policy
 val event_to_json_string : event -> string
 val policy_to_json_string : policy -> string
-
-
+val stats_to_json_string : Int64.t * Int64.t -> string

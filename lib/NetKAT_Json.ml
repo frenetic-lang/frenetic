@@ -257,3 +257,9 @@ let event_to_json (event : event) : json =
 let event_to_json_string (event : event) : string =
   Yojson.Basic.to_string ~std:true (event_to_json event)
 
+let stats_to_json ((pkts, bytes) : Int64.t * Int64.t) : json =
+  `Assoc [("packets", `Int (Int64.to_int_exn pkts));
+          ("bytes", `Int (Int64.to_int_exn bytes))]
+
+let stats_to_json_string (stats : Int64.t * Int64.t) : string =
+  Yojson.Basic.to_string ~std:true (stats_to_json stats)
