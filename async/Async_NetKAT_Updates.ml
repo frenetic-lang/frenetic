@@ -47,7 +47,7 @@ module BestEffort : UPDATE = struct
         "[policy] Skipping identical policy update for swithc %Lu" sw_id ;
       return ()
     | _ ->
-      let table = LC.(to_table sw_id new_r) in
+      let table = LC.to_table sw_id new_r in
       Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
         delete_flows_for t.ctl sw_id >>= fun () ->
         install_flows_for t.ctl sw_id table)
@@ -139,7 +139,7 @@ module PerPacketConsistent : UPDATE = struct
   let internal_install_policy_for (t : t) (ver : int) repr (sw_id : switchId) =
     begin let open Deferred.Result in
     Monitor.try_with ~name:"PerPacketConsistent.internal_install_policy_for" (fun () ->
-      let table0 = LC.(to_table sw_id repr) in
+      let table0 = LC.to_table sw_id repr in
       let table1 = specialize_internal_to
         ver (TUtil.internal_ports !(t.nib) sw_id) table0 in
       assert (List.length table1 > 0);
@@ -197,7 +197,7 @@ module PerPacketConsistent : UPDATE = struct
   let edge_install_policy_for (t : t) ver repr (sw_id : switchId) : unit Deferred.t =
     begin let open Deferred.Result in
     Monitor.try_with ~name:"PerPacketConsistent.edge_install_policy_for" (fun () ->
-      let table = LC.(to_table sw_id repr) in
+      let table = LC.to_table sw_id repr in
       let edge_table = specialize_edge_to
         ver (TUtil.internal_ports !(t.nib) sw_id) table in
       Log.debug ~tags
