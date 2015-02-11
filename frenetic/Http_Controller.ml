@@ -34,21 +34,22 @@ let get_client (clientId: string): client =
                let (r, w) = Pipe.create () in
                { policy_node = node; event_reader = r; event_writer =  w})
 
-(* Simply blocks indefinitely on a pipe-reader. Hides the EOF exception. *)
-let long_poll (reader : 'a Pipe.Reader.t) : 'a Deferred.t =
-  Pipe.read reader >>= (function
-  | `Ok v -> Deferred.return v
-  | `Eof -> failwith "Eof reading pipe in long_poll")
-
 let handle_request
-  (send : policy Async_NetKAT.send)
+  (event : unit -> event Deferred.t)
+  (send_packet_out : switchId -> SDN_Types.pktOut -> unit Deferred.t)
+  (query : string -> (Int64.t * Int64.t) Deferred.t)
   ~(body : Cohttp_async.Body.t)
   (client_addr : Socket.Address.Inet.t)
   (request : Request.t) : Server.response Deferred.t =
   match request.meth, extract_path request with
+    | `GET, ["query"; name] ->
+      printf "GET /query/%s" name;
+      query name
+      >>= fun stats ->
+      Server.respond_with_string (NetKAT_Json.stats_to_json_string stats)
     | `GET, [clientId; "event"] ->
       printf "GET /event";
-      long_poll (get_client clientId).event_reader
+      event ()
       >>= fun evt ->
       Server.respond_with_string (NetKAT_Json.event_to_json_string evt)
     | `POST, ["pkt_out"] ->
@@ -57,9 +58,10 @@ let handle_request
            Body.to_string body >>= fun str ->
            let json = Yojson.Basic.from_string str in
            return (NetKAT_SDN_Json.pkt_out_from_json json))
-        (fun pkt_out ->
+        (fun (sw_id, pkt_out) ->
            printf "POST /pkt_out";
-           Pipe.write send.pkt_out pkt_out >>= fun _ ->
+           send_packet_out sw_id pkt_out
+           >>= fun () ->
            Cohttp_async.Server.respond `OK)
     | `POST, [clientId; "update_json"] ->
       printf "POST /%s/update_json" clientId;
@@ -79,25 +81,20 @@ let handle_request
     | _, _ -> printf "Got garbage from Client"; Cohttp_async.Server.respond `Not_found
 
 let listen ~port =
-  let pipes = Async_NetKAT.PipeSet.singleton "http" in
-  let http_app = Async_NetKAT.Policy.create_async ~pipes:pipes NetKAT_Types.drop
-    (fun topo send () ->
-       let (_, pol_reader) = DynGraph.to_pipe pol in
-       let _ = Pipe.transfer_id pol_reader send.update in
-       let _ = Cohttp_async.Server.create (Tcp.on_port port)
-                 (handle_request send) in
-       fun event ->
-         (* TODO(arjun): save event so it can be long-polled later (wtf) *)
-         printf "Adding event to pipe: %s\n%!" (NetKAT_Json.event_to_json_string event);
-         iter_clients (fun _ client ->
-           Pipe.write_without_pushback client.event_writer event);
-         return None) in
-  don't_wait_for
-    (Async_NetKAT_Controller.start http_app () >>= fun ctrl ->
-     Async_NetKAT_Controller.disable_discovery ctrl)
+  Async_OpenFlow.OpenFlow0x01.Controller.create ~port:6633 ()
+  >>= fun controller ->
+  let module Controller = NetKAT_Controller.Make (struct
+      let controller = controller
+    end) in
+  let _ = Cohttp_async.Server.create (Tcp.on_port port)
+    (handle_request Controller.event Controller.send_packet_out Controller.query) in
+  let (_, pol_reader) = DynGraph.to_pipe pol in
+  let _ = Pipe.iter pol_reader ~f:(fun pol -> Controller.update_policy pol) in
+  Controller.start ();
+  Deferred.return ()
 
 let main (args : string list) : unit = match args with
   | [ "--app-port"; p ] | [ "-a"; p ] ->
-    listen ~port:(Int.of_string p)
-  | [] -> listen ~port:9000
+    don't_wait_for (listen ~port:(Int.of_string p))
+  | [] -> don't_wait_for (listen ~port:9000)
   |  _ -> (print_endline "Invalid command-line arguments"; Shutdown.shutdown 1)

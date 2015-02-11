@@ -3,6 +3,9 @@ open Async.Std
 open NetKAT_Types
 open Async_NetKAT_Updates
 module Controller = Async_OpenFlow.OpenFlow0x01.Controller
+module Log = Async_OpenFlow.Log
+
+let printf = Log.printf
 
 let bytes_to_headers
   (port_id : SDN_Types.portId)
@@ -120,6 +123,7 @@ module type CONTROLLER = sig
   val send_packet_out : switchId -> SDN_Types.pktOut -> unit Deferred.t
   val event : unit -> event Deferred.t
   val query : string -> (Int64.t * Int64.t) Deferred.t
+  val start : unit -> unit
 
 end
 
@@ -158,6 +162,7 @@ module Make (Args : ARGS) : CONTROLLER = struct
       Pipe.write_without_pushback event_writer netkat_evt);
     match evt with
      | `Connect (sw_id, feats) ->
+       printf ~level:`Info "switch %Ld connected" sw_id;
        BestEffortUpdate.bring_up_switch controller sw_id !fdd
      | _ -> Deferred.return ()
 
@@ -176,20 +181,20 @@ module Make (Args : ARGS) : CONTROLLER = struct
 
   let query (name : string) : (Int64.t * Int64.t) Deferred.t =
     Deferred.List.map ~how:`Parallel
-      (Controller.get_switches controller)
-      ~f:(fun sw_id ->
-          let pats = List.filter_map (get_table sw_id) ~f:(fun (flow, names) ->
-            if List.mem names name then
-              Some flow.pattern
-            else
-              None) in
-          Deferred.List.map ~how:`Parallel pats
-            ~f:(fun pat ->
-              Controller.individual_stats controller sw_id
-              >>| function
-              | Ok [stat] -> (stat.packet_count, stat.byte_count)
-              | Ok _ -> assert false
-              | Error _ -> (0L, 0L)))
+      (Controller.get_switches controller) ~f:(fun sw_id ->
+        let pats = List.filter_map (get_table sw_id) ~f:(fun (flow, names) ->
+          if List.mem names name then
+            Some flow.pattern
+          else
+            None) in
+        Deferred.List.map ~how:`Parallel pats
+          ~f:(fun pat ->
+            printf "Sending 2...";
+            Controller.individual_stats controller sw_id
+            >>| function
+            | Ok [stat] -> (stat.packet_count, stat.byte_count)
+            | Ok _ -> assert false
+            | Error _ -> (0L, 0L)))
     >>| fun stats ->
       List.fold (List.concat stats) ~init:(0L, 0L)
         ~f:(fun (pkts, bytes) (pkts', bytes') ->
