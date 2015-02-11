@@ -84,6 +84,8 @@ module Controller = struct
     let c_id = client_id_of_switch_exn t sw_id in
     ChunkController.has_client_id t.sub c_id
 
+  let get_switches t = SwitchMap.keys t.s2c
+
   let send t sw_id msg =
     let c_id = client_id_of_switch_exn t sw_id in
     ChunkController.send t.sub c_id (Message.marshal' msg)

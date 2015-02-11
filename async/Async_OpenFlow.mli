@@ -184,6 +184,8 @@ module OpenFlow0x01 : sig
     open OpenFlow0x01_Core
     open OpenFlow0x01_Stats
 
+    val get_switches : t -> SDN_Types.switchId list
+
     val clear_flows
       :  ?pattern:pattern -> t -> Client_id.t
       -> (unit, exn) Deferred.Result.t
