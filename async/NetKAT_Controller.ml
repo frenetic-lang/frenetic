@@ -131,6 +131,7 @@ module Make (Args : ARGS) : CONTROLLER = struct
   open Args
 
   let fdd = ref (NetKAT_LocalCompiler.compile drop)
+  let stats : (string, Int64.t * Int64.t) Hashtbl.Poly.t = Hashtbl.Poly.create ()
   let (pol_reader, pol_writer) = Pipe.create ()
   let (pktout_reader, pktout_writer) = Pipe.create ()
   let (event_reader, event_writer) =  Pipe.create ()
@@ -153,7 +154,53 @@ module Make (Args : ARGS) : CONTROLLER = struct
   let get_table (sw_id : switchId) : (SDN_Types.flow * string list) list =
     NetKAT_LocalCompiler.to_table' sw_id !fdd
 
+  let raw_query (name : string) : (Int64.t * Int64.t) Deferred.t =
+    Deferred.List.map ~how:`Parallel
+      (Controller.get_switches controller) ~f:(fun sw_id ->
+        let pats = List.filter_map (get_table sw_id) ~f:(fun (flow, names) ->
+          if List.mem names name then
+            Some flow.pattern
+          else
+            None) in
+        Deferred.List.map ~how:`Parallel pats
+          ~f:(fun pat ->
+            printf "Sending 2...";
+            Controller.individual_stats controller sw_id
+            >>| function
+            | Ok [stat] -> (stat.packet_count, stat.byte_count)
+            | Ok _ -> assert false
+            | Error _ -> (0L, 0L)))
+    >>| fun stats ->
+      List.fold (List.concat stats) ~init:(0L, 0L)
+        ~f:(fun (pkts, bytes) (pkts', bytes') ->
+            Int64.(pkts + pkts', bytes + bytes'))
+
+  let query (name : string) : (Int64.t * Int64.t) Deferred.t =
+    raw_query name
+    >>= fun (pkts, bytes) ->
+    let (pkts', bytes') = Hashtbl.Poly.find_exn stats name in
+    Deferred.return (Int64.(pkts + pkts', bytes + bytes'))
+
   let update_all_switches (pol : policy) : unit Deferred.t =
+    let new_queries = NetKAT_Misc.queries_of_policy pol in
+    (* Discard old queries *)
+    Hashtbl.Poly.filteri_inplace stats
+      ~f:(fun key _ -> List.mem new_queries key);
+    (* Queries that have to be saved. *)
+    let preserved_queries = Hashtbl.Poly.keys stats in
+    (* Initialize new queries to 0 *)
+    List.iter new_queries ~f:(fun query ->
+      if not (Hashtbl.Poly.mem stats query) then
+        Hashtbl.Poly.set stats ~key:query ~data:(0L, 0L));
+    (* Update queries that have been preserved. The query function itself
+       adds the current value of the counters to the cumulative sum. We
+       simply store this in stats. *)
+    Deferred.List.iter preserved_queries ~f:(fun qname ->
+      query qname
+      >>| fun stat ->
+      Hashtbl.Poly.set stats qname stat)
+    >>= fun () ->
+    (* Actually update things *)
     fdd := NetKAT_LocalCompiler.compile pol;
     BestEffortUpdate.implement_policy controller !fdd
 
@@ -179,26 +226,7 @@ module Make (Args : ARGS) : CONTROLLER = struct
     don't_wait_for (Pipe.iter net_reader ~f:handle_event);
     don't_wait_for (Pipe.iter pktout_reader ~f:send_pktout)
 
-  let query (name : string) : (Int64.t * Int64.t) Deferred.t =
-    Deferred.List.map ~how:`Parallel
-      (Controller.get_switches controller) ~f:(fun sw_id ->
-        let pats = List.filter_map (get_table sw_id) ~f:(fun (flow, names) ->
-          if List.mem names name then
-            Some flow.pattern
-          else
-            None) in
-        Deferred.List.map ~how:`Parallel pats
-          ~f:(fun pat ->
-            printf "Sending 2...";
-            Controller.individual_stats controller sw_id
-            >>| function
-            | Ok [stat] -> (stat.packet_count, stat.byte_count)
-            | Ok _ -> assert false
-            | Error _ -> (0L, 0L)))
-    >>| fun stats ->
-      List.fold (List.concat stats) ~init:(0L, 0L)
-        ~f:(fun (pkts, bytes) (pkts', bytes') ->
-            Int64.(pkts + pkts', bytes + bytes'))
+
 
 end
 

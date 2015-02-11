@@ -1,11 +1,20 @@
+open Core.Std
 open NetKAT_Types
 
 let pred_true = True
 
 let pred_false = False
 
+let queries_of_policy (pol : policy) : string list =
+  let rec loop (pol : policy) (acc : string list) : string list = match pol with
+    | Mod (Location (Query str)) ->
+      if List.mem acc str then acc else str :: acc
+    | Filter _ | Mod _ | Link _ -> acc
+    | Union (p, q) | Seq (p, q) -> loop q (loop p acc)
+    | Star p -> loop p acc in
+  loop pol []
+
 let switches_of_policy (p:policy) =
-  let open Core.Core_list in
   let rec collect' a =
     match a with
     | Test (Switch sw) ->
@@ -27,4 +36,4 @@ let switches_of_policy (p:policy) =
        collect q
     | Link(sw1,_,sw2,_) ->
        [sw1;sw2] in
-  to_list (dedup (collect p))
+  List.to_list (List.dedup (collect p))
