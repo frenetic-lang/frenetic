@@ -139,13 +139,13 @@ class Or(Pred):
 class Not(Pred):
 
     def __init__(self, pred):
-        assert isinstance(children,Pred)
-        self.children = pred
+        assert isinstance(pred,Pred)
+        self.pred = pred
 
     def to_json(self):
         return {
           "type": "neg",
-          "pred": pred.to_json
+          "pred": self.pred.to_json()
         }
 
 class True(Pred):
