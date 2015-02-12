@@ -114,7 +114,8 @@ class Pred(object):
 class And(Pred):
 
     def __init__(self, children):
-        assert isinstance(children,Pred)
+        for a in children:
+          assert isinstance(a,Pred)
         self.children = children
 
     def to_json(self):
@@ -126,7 +127,8 @@ class And(Pred):
 class Or(Pred):
 
     def __init__(self, children):
-        assert isinstance(children,Pred)
+        for a in children:
+          assert isinstance(a,Pred)
         self.children = children
 
     def to_json(self):
@@ -138,13 +140,13 @@ class Or(Pred):
 class Not(Pred):
 
     def __init__(self, pred):
-        assert isinstance(children,Pred)
-        self.children = pred
+        assert isinstance(pred,Pred)
+        self.pred = pred
 
     def to_json(self):
         return {
           "type": "neg",
-          "pred": pred.to_json
+          "pred": self.pred.to_json()
         }
 
 class True(Pred):
@@ -199,6 +201,14 @@ class Switch(HeaderAndValue):
     def value_to_json(self):
         return self.value
 
+class Query(object):
+
+    def __init__(self, name):
+        self.name = name
+
+    def to_json(self):
+        return { "type": "query", "name": self.name }
+
 class Pipe(object):
 
     def __init__(self, name):
@@ -220,7 +230,7 @@ class Location(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "location"
-        assert isinstance(value,Physical) or isinstance(value,Pipe)
+        assert isinstance(value,Physical) or isinstance(value,Pipe) or isinstance(value, Query)
         self.value = value
 
     def value_to_json(self):
@@ -282,7 +292,7 @@ class IPProto(HeaderAndValue):
         self.header = "iproto"
         assert type(value) == int and value >= 0
         self.value = value
-    
+
     def value_to_json(self):
         return self.value
 
@@ -332,7 +342,7 @@ class Mod(Policy):
     def __init__(self, hv):
         assert isinstance(hv,HeaderAndValue)
         self.hv = hv
-        
+
     def to_json(self):
         return {
           "type": "mod",
@@ -356,7 +366,7 @@ class Union(Policy):
 class Seq(Policy):
 
     def __init__(self, children):
-        assert isinstance(children, collections.Iterable) and (isinstance(pol,Policy) for pol in children) 
+        assert isinstance(children, collections.Iterable) and (isinstance(pol,Policy) for pol in children)
         self.children = children
 
     def to_json(self):

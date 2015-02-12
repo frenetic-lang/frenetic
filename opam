@@ -29,4 +29,5 @@ depends: [
   "packet"  {>= "0.4.0"}
   "openflow" {>= "0.8.0"}
   "topology"  {>= "0.4.0"}
+  "mparser" {>= "1.0.1"}
 ]

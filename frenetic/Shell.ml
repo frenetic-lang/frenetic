@@ -226,7 +226,9 @@ let string_of_policy ?(order=`Heuristic) (pol : policy) : string =
   (* TODO: Get switch numbers *)
   let switches = NetKAT_Misc.switches_of_policy pol in
   let switches' = if List.is_empty switches then [0L] else switches in	
-  let tbls = List.map switches' (fun sw_id -> LC.to_table sw_id bdd |> SDN_Types.ascii_of_flowTable sw_id) in
+  let tbls = List.map switches' 
+		      (fun sw_id -> LC.to_table sw_id bdd |> 
+				      SDN_Types.string_of_flowTable ~label:(Int64.to_string sw_id)) in
   String.concat ~sep:"\n\n" tbls
 		
 (* Given a policy, print the flowtables associated with it *)  
