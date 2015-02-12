@@ -250,6 +250,8 @@ let opt_to_table sw_id t =
   in
   let rec next_table_row tests mk_rest t =
     match T.unget t with
+    | Branch ((Location, Pipe _), _, f) ->
+      next_table_row tests mk_rest f
     | Branch (test, t, f) ->
       next_table_row (test::tests) (fun t' -> mk_rest (mk_branch_or_leaf test t' f)) t
     | Leaf actions ->
@@ -272,6 +274,7 @@ let rec naive_to_table sw_id (t : T.t) =
     let openflow_instruction = [to_action (get_inport tests) actions tests] in
     let queries = Action.get_queries actions in
     [mk_flow (to_pattern tests) openflow_instruction queries]
+  | Branch ((Location, Pipe _), _, fls) ->dfs tests fls
   | Branch (test, tru, fls) ->
     dfs (test :: tests) tru @ dfs tests fls in
   dfs [] t
