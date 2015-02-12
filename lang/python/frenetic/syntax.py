@@ -301,7 +301,7 @@ class IP4Src(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "ip4src"
-        assert type(value) == str
+        assert type(value) == tuple and type(value[0]) == str and type(value[1]) == int
         self.value = value
 
     def value_to_json(self):
@@ -311,7 +311,7 @@ class IP4Dst(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "ip4dst"
-        assert type(value) == str
+        assert type(value) == tuple and type(value[0]) == str and type(value[1]) == int
         self.value = value
 
     def value_to_json(self):
