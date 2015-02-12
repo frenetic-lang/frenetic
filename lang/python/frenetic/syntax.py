@@ -113,7 +113,8 @@ class Pred(object):
 class And(Pred):
 
     def __init__(self, children):
-        assert isinstance(children,Pred)
+        for a in children:
+          assert isinstance(a,Pred)
         self.children = children
 
     def to_json(self):
@@ -125,7 +126,8 @@ class And(Pred):
 class Or(Pred):
 
     def __init__(self, children):
-        assert isinstance(children,Pred)
+        for a in children:
+          assert isinstance(a,Pred)
         self.children = children
 
     def to_json(self):
