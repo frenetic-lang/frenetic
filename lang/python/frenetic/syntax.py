@@ -20,7 +20,8 @@ class Physical(Pseudoport):
 class Output(Action):
 
     def __init__(self, p):
-        assert isinstance(p, Pseudoport)
+        print type(p)
+        assert issubclass(p, Pseudoport)
         self.Pseudoport = p
 
     def to_json(self):
@@ -294,11 +295,7 @@ class IP4Src(HeaderAndValue):
         self.value = value
 
     def value_to_json(self):
-        #TODO: nb: Should netmask be configurable to user?
-        # If not, I believe it makes sense to instead 'hard-code'
-        # into NetKAT_Json:52
-        # If so, then user should give (addr,mask) tuple parameter
-        return { "addr": self.value, "mask": 32 }
+        return { "addr": self.value[0], "mask": self.value[1] }
 
 class IP4Dst(HeaderAndValue):
 
@@ -308,8 +305,7 @@ class IP4Dst(HeaderAndValue):
         self.value = value
 
     def value_to_json(self):
-        #TODO: See :297
-        return { "addr": self.value, "mask": 32 }
+        return { "addr": self.value[0], "mask": self.value[1] }
 
 class TCPSrcPort(HeaderAndValue):
 
