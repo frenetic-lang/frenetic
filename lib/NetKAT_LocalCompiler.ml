@@ -205,8 +205,15 @@ let check_tcp pattern =
   then { pattern with nwProto = Some 0x6 }
   else pattern
 
+let nw_src_dst_implies (pat : SDN.Pattern.t) =
+  if pat.nwSrc = None && pat.nwDst = None then
+    pat
+  else
+    { pat with dlTyp = Some 0x0800 }
+
 let mk_flow pattern action queries =
   let open SDN.Pattern in
+  let pattern = nw_src_dst_implies pattern in
   let pattern' = check_nwProto pattern in
   let pattern'' = check_tcp pattern' in
   let pattern''' = check_nwProto pattern'' in
