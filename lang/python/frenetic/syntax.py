@@ -20,12 +20,11 @@ class Physical(Pseudoport):
 class Output(Action):
 
     def __init__(self, p):
-        print type(p)
-        assert issubclass(p, Pseudoport)
-        self.Pseudoport = p
+        assert isinstance(p, Physical)
+        self.pseudoport = p
 
     def to_json(self):
-        return { "type": "output", "Pseudoport": self.pseudoPort.to_json() }
+        return { "type": "output", "Pseudoport": self.pseudoport.to_json() }
 
 class Payload:
     pass
@@ -66,7 +65,8 @@ class PacketOut():
         self.switch = switch
         assert isinstance(payload,Buffered) or isinstance(payload,NotBuffered)
         self.payload = payload
-        assert isinstance(actions,output)
+        #TODO: Can this be refined? Currently list<'instance'>
+        assert isinstance(actions,list)
         self.actions = actions
         assert in_port == None or (type(in_port) == int and in_port >= 0)
         self.in_port = in_port

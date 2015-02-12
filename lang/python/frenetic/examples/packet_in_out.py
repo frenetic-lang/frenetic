@@ -12,10 +12,9 @@ def other_port(pt):
 
 class MyApp(app.App):
   def packet_in(self, sw, pt, payload):
-    print payload
     app.pkt_out(switch = sw,
                    payload = payload,
-                   actions = [output(physical(other_port(pt)))])
+                   actions = [Output(Physical(other_port(pt)))])
 
 
 print "Run mn --controller=remote --topo=single,2"
