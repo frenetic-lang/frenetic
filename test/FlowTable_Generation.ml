@@ -17,3 +17,7 @@ TEST "even with IPProto < EthType, should check EthType & IPProto in OpenFlow" =
       IP4Src; IP4Dst; TCPSrcPort; TCPDstPort ]) in
   let tbl2 = to_table 0L (compile ~order:order2 p) in
   tbl1 = tbl2
+
+TEST "Can test locations, even when they are set to pipes" =
+  let p = Filter (Test (Location (Pipe "web"))) in
+  List.length (to_table 0L (compile p)) == 1 (* that drops everything *)
