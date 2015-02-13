@@ -42,7 +42,7 @@ are combined using Frenetic's union operator.
 The HTTP interface supports several other messages. E.g., it can be used
 to query statistics and update the policy in a JSON format.
 
-## Frenetic Python bindings
+## Programming in Python
 
 We have developed Python bindings for Frenetic that use the HTTP interface
 described above. You can install them using pip:
@@ -61,7 +61,27 @@ These examples are included with the `pip` package:
 
     $ python -m frenetic.examples.learning
 
-## Usage Example
+## Using Other Controllers
+
+If you want to use the Frenetic policy language with a different controller,
+you can use the Frenetic compile-server:
+
+    $ frenetic compile-server
+
+In this mode, Frenetic does not run its controller, but makes its compiler
+available over HTTP. The compiler accepts Frenetic policies in JSON format
+and produces flow tables as JSON strings. For example, using the Python
+bindings:
+
+    >>> from frenetic.syntax import *
+    >>> import urllib2
+    >>> import json
+    >>> compiler_url = "http://localhost:9000/compile"
+    >>> pol = Filter(Test(Location(Physical(1)))) >> Mod(Location(Physical(2)))
+    >>> pol_str = json.dumps(pol.to_json())
+    >>> tbls_json = json.loads(urllib2.urlopen(compiler_url, pol_str).read())
+
+## Programming in OCaml
 
 Here's how to create a controller that will do simple forwarding for a tree
 topology with fanout 2 and depth 2:

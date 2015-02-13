@@ -31,3 +31,7 @@ let parse_update body = Body.to_string body >>= fun pol_str ->
   let lexbuf = Lexing.from_string pol_str in
   let pol = NetKAT_Parser.program NetKAT_Lexer.token lexbuf in
   return pol
+
+let parse_update_json body =
+  Body.to_string body >>= fun str ->
+  return (NetKAT_Json.policy_from_json_string str)

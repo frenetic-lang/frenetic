@@ -3,8 +3,8 @@ open Async.Std
 
 
 let main () : unit = match Sys.argv |> Array.to_list with
-  | "compile-server" :: args -> Compile_Server.main args
-  | "http-controller" :: args -> Http_Controller.main args
+  | _ :: "compile-server" :: args -> Compile_Server.main args
+  | _ :: "http-controller" :: args -> Http_Controller.main args
   | _ ->
     printf "Invalid arguments.\n";
     Shutdown.shutdown 0
