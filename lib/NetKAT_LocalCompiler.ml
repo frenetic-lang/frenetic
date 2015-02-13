@@ -211,7 +211,6 @@ let nw_src_dst_implies (pat : SDN.Pattern.t) =
   else
     { pat with dlTyp = Some 0x0800 }
 
-let mk_flow pattern action =
 let mk_flow pattern action queries =
   let open SDN.Pattern in
   let pattern = nw_src_dst_implies pattern in

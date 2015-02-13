@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 4151b15df9ffcb34ca528cf3f68d4f52)
+# DO NOT EDIT (digest: 0667c3002c9f6bef126d489c388f681f)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -112,6 +112,30 @@ true: annot, bin_annot
 <test/*.ml{,i,y}>: package(yojson)
 <test/*.ml{,i,y}>: use_netkat
 <test/*.ml{,i,y}>: use_quickcheck
+# Executable frenetic
+"frenetic/frenetic.native": package(async)
+"frenetic/frenetic.native": package(base64)
+"frenetic/frenetic.native": package(cohttp)
+"frenetic/frenetic.native": package(cohttp.async)
+"frenetic/frenetic.native": package(core)
+"frenetic/frenetic.native": package(cstruct)
+"frenetic/frenetic.native": package(cstruct.syntax)
+"frenetic/frenetic.native": package(fieldslib)
+"frenetic/frenetic.native": package(fieldslib.syntax)
+"frenetic/frenetic.native": package(ipaddr)
+"frenetic/frenetic.native": package(openflow)
+"frenetic/frenetic.native": package(openflow.async)
+"frenetic/frenetic.native": package(packet)
+"frenetic/frenetic.native": package(sexplib)
+"frenetic/frenetic.native": package(sexplib.syntax)
+"frenetic/frenetic.native": package(str)
+"frenetic/frenetic.native": package(threads)
+"frenetic/frenetic.native": package(topology)
+"frenetic/frenetic.native": package(yojson)
+"frenetic/frenetic.native": use_async
+"frenetic/frenetic.native": use_netkat
+<frenetic/*.ml{,i,y}>: package(cohttp)
+<frenetic/*.ml{,i,y}>: package(cohttp.async)
 # Executable katnetic
 "frenetic/katnetic.native": package(async)
 "frenetic/katnetic.native": package(base64)
