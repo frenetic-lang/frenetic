@@ -18,7 +18,7 @@ module Repr = struct
 
   let of_mod hv =
     let k, v = Pattern.of_hv hv in
-    T.const Action.(Par.singleton (Seq.singleton k v))
+    T.atom (k, v) Action.(one) Action.(Par.singleton (Seq.singleton k v))
 
   let restrict hv t =
     T.restrict [Pattern.of_hv hv] t
