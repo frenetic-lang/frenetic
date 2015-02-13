@@ -125,6 +125,8 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   val unget : t -> d
   val mk_branch : v -> t -> t -> t
   val mk_leaf : r -> t
+  val mk_id : unit -> t
+  val mk_drop : unit -> t
 
   val const : r -> t
   (** [const r] creates a constant diagram out of [r]. *)

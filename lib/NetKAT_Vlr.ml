@@ -231,6 +231,10 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     end else
       T.get (Branch((v, l), t, f))
 
+  (* these need to be functions to avoid cache problems *)
+  let mk_id () = mk_leaf (R.one)
+  let mk_drop () = mk_leaf (R.zero)
+
   let rec fold g h t = match T.unget t with
     | Leaf r -> g r
     | Branch((v, l), t, f) ->

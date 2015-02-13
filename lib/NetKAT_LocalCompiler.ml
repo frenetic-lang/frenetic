@@ -63,7 +63,7 @@ module Repr = struct
     | None   ->
       dp_fold
         (fun par ->
-          Action.Par.fold par ~init:(T.const Action.zero) ~f:(fun acc seq ->
+          Action.Par.fold par ~init:(T.mk_drop ()) ~f:(fun acc seq ->
             let u' = T.restrict Action.Seq.(to_alist seq) u in
             T.(sum (prod (const Action.Par.(singleton seq)) u') acc)))
         (fun v t f -> cond v t f)
@@ -89,15 +89,15 @@ module Repr = struct
         then acc
         else loop acc' power'
     in
-    loop (T.const Action.one) lhs
+    loop (T.mk_id ()) lhs
 
-  let star = star' (T.const Action.one)
+  let star = star' (T.mk_id ())
 
   let rec of_pred p =
     let open NetKAT_Types in
     match p with
-    | True      -> T.const Action.one
-    | False     -> T.const Action.zero
+    | True      -> T.mk_id ()
+    | False     -> T.mk_drop ()
     | Test(hv)  -> of_test hv
     | And(p, q) -> T.prod (of_pred p) (of_pred q)
     | Or (p, q) -> T.sum (of_pred p) (of_pred q)
@@ -112,8 +112,8 @@ module Repr = struct
                         of_policy_k q (fun q' ->
                           k (union p' q')))
     | Seq (p, q) -> of_policy_k p (fun p' ->
-                      if T.equal p' (T.const Action.zero) then
-                        k (T.const Action.zero)
+                      if T.equal p' (T.mk_drop ()) then
+                        k (T.mk_drop ())
                       else
                         of_policy_k q (fun q' ->
                           k (seq p' q')))
