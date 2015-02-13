@@ -312,7 +312,7 @@ class IP4Src(HeaderAndValue):
             if self.mask != None:
                 return { "addr": self.value, "mask": self.mask }
         except AttributeError:
-            return { "addr": self.value }
+            return { "addr": self.value, "mask": 32 }
 
 class IP4Dst(HeaderAndValue):
 
@@ -329,7 +329,7 @@ class IP4Dst(HeaderAndValue):
             if self.mask != None:
                 return { "addr": self.value, "mask": self.mask }
         except AttributeError:
-            return { "addr": self.value }
+            return { "addr": self.value, "mask": 32 }
 
 class TCPSrcPort(HeaderAndValue):
 
@@ -395,4 +395,5 @@ true = True()
 false = False()
 id = Filter(true)
 drop = Filter(false)
+
 
