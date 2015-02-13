@@ -299,9 +299,11 @@ class IPProto(HeaderAndValue):
 # TODO: import ipaddress to check validity?
 class IP4Src(HeaderAndValue):
 
-    def __init__(self, value):
+    def __init__(self, value, mask = None):
         self.header = "ip4src"
-        assert type(value) == tuple and type(value[0]) == str and type(value[1]) == int
+        assert type(value) == str
+        if mask != None:
+            assert type(mask) == int
         self.value = value
 
     def value_to_json(self):
@@ -309,9 +311,11 @@ class IP4Src(HeaderAndValue):
 
 class IP4Dst(HeaderAndValue):
 
-    def __init__(self, value):
+    def __init__(self, value, mask = None):
         self.header = "ip4dst"
-        assert type(value) == tuple and type(value[0]) == str and type(value[1]) == int
+        assert type(value) = str
+        if mask != None:
+            assert(mask) == int
         self.value = value
 
     def value_to_json(self):
