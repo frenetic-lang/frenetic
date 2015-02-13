@@ -77,19 +77,19 @@ val to_table' : ?opt:bool -> switchId -> t -> (flow * string list) list
 
 (** {2 Composition} *)
 
-val seq : t -> t -> t
+val seq : t lazy_t -> t lazy_t -> t lazy_t
 (** [seq p q] returns the sequential composotion of the two intermediate
     representations [p] and [q]. The result is semantically equivalent to the
     seqential composition of the two policies from which [p] and [q] were
     derived. *)
 
-val union : t -> t -> t
+val union : t lazy_t -> t lazy_t -> t lazy_t
 (** [union p q] returns the parallel composition of the two intermediate
     representations [p] and [q]. The result is semantically equivalent to the
     parallel composition of the two policies from which [p] and [q] were
     derived. *)
 
-val star : t -> t
+val star : t lazy_t -> t lazy_t
 (** [star p] returns the star of the intermediate representation [p]. The result
     is semantically equivalent to the star of the policy from which [p] was
     derived. *)

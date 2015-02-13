@@ -54,28 +54,45 @@ module Repr = struct
        In the case of a branch node, the true and false branches are combined so
        that packets satisfying [v] are handled by the true branch, and packets
        not satisfying [v] are handled by the false branch. *)
-    match T.peek u with
-    | Some _ -> T.prod t u (* This is an optimization. If [u] is an
-                              [Action.Par.t], then it will compose with [t]
-                              regardless of however [t] modifies packets. None
-                              of the decision variables in [u] need to be
-                              removed because there are none. *)
-    | None   ->
-      dp_fold
-        (fun par ->
-          Action.Par.fold par ~init:(T.mk_drop ()) ~f:(fun acc seq ->
-            let u' = T.restrict Action.Seq.(to_alist seq) u in
-            T.(sum (prod (const Action.Par.(singleton seq)) u') acc)))
-        (fun v t f -> cond v t f)
-      t
+    let drop = T.mk_drop () in
+    if Lazy.is_val t && T.equal (Lazy.force_val t) drop ||
+       Lazy.is_val u && T.equal (Lazy.force_val u) drop
+    then
+      Lazy.from_val drop
+    else
+      lazy begin
+        let t = Lazy.force t in
+        let u = if T.equal t drop then drop else Lazy.force u in
+        match T.peek u with
+        | Some _ -> T.prod t u (* This is an optimization. If [u] is an
+                                  [Action.Par.t], then it will compose with [t]
+                                  regardless of however [t] modifies packets. None
+                                  of the decision variables in [u] need to be
+                                  removed because there are none. *)
+        | None   ->
+          dp_fold
+            (fun par ->
+              Action.Par.fold par ~init:(T.mk_drop ()) ~f:(fun acc seq ->
+                let u' = T.restrict Action.Seq.(to_alist seq) u in
+                T.(sum (prod (const Action.Par.(singleton seq)) u') acc)))
+            (fun v t f -> cond v t f)
+          t
+      end
 
   let union t u =
     (* Compute the union of [t] and [u] by using the sum operation. This will
        appropriately combine actions for overlapping patterns. *)
-    if T.equal t u then
-      t
-    else
-      T.sum t u
+    let drop = T.mk_drop () in
+    if Lazy.is_val t && T.equal (Lazy.force_val t) drop then u else
+    if Lazy.is_val u && T.equal (Lazy.force_val u) drop then t else
+    lazy begin
+      let t = Lazy.force t in
+      let u = Lazy.force u in
+      if T.equal t u then
+        t
+      else
+        T.sum t u
+    end
 
   let star' lhs t =
     (* Compute [star t] by iterating to a fixed point.
@@ -83,44 +100,58 @@ module Repr = struct
        NOTE that the equality check is not semantic equivalence, so this may not
        terminate when expected. In practice though, it should. *)
     let rec loop acc power =
-      let power' = seq power t in
-      let acc' = union acc power' in
+      let power' = seq (Lazy.from_val power) t in
+      let acc' = Lazy.force (union (Lazy.from_val acc) power') in
       if T.equal acc acc'
         then acc
-        else loop acc' power'
+        else loop acc' (Lazy.force power')
     in
-    loop (T.mk_id ()) lhs
+    lazy (loop (T.mk_id ()) lhs)
 
   let star = star' (T.mk_id ())
 
   let rec of_pred p =
     let open NetKAT_Types in
     match p with
-    | True      -> T.mk_id ()
-    | False     -> T.mk_drop ()
-    | Test(hv)  -> of_test hv
-    | And(p, q) -> T.prod (of_pred p) (of_pred q)
-    | Or (p, q) -> T.sum (of_pred p) (of_pred q)
-    | Neg(q)    -> T.map_r Action.negate (of_pred q)
+    | True      -> Lazy.from_val (T.mk_id ())
+    | False     -> Lazy.from_val (T.mk_drop ())
+    | Test(hv)  -> Lazy.from_val (of_test hv)
+    | And(p, q) ->
+      let p = of_pred p in
+      let q = of_pred q in
+      let id = T.mk_id () in
+      let drop = T.mk_drop () in
+      if Lazy.is_val p && T.equal (Lazy.force_val p) id then q else
+      if Lazy.is_val q && T.equal (Lazy.force_val q) id then p else
+      if Lazy.is_val p && T.equal (Lazy.force_val p) drop then Lazy.from_val drop else
+      if Lazy.is_val q && T.equal (Lazy.force_val q) drop then Lazy.from_val drop else
+      if Lazy.is_val p && Lazy.is_val q then
+        let p = Lazy.force_val p in
+        let q = Lazy.force_val q in
+        Lazy.from_val (T.prod p q)
+      else lazy begin
+        let p = Lazy.force p in
+        let q =  if T.equal p drop then drop else Lazy.force q in
+        T.prod p q
+      end
+    | Or (p, q) -> lazy (T.sum (Lazy.force (of_pred p)) (Lazy.force (of_pred q)))
+    | Neg(q)    -> Lazy.from_val (T.map_r Action.negate (Lazy.force (of_pred q)))
 
   let rec of_policy_k p k =
     let open NetKAT_Types in
     match p with
     | Filter   p  -> k (of_pred p)
-    | Mod      m  -> k (of_mod  m)
+    | Mod      m  -> k (Lazy.from_val (of_mod  m))
     | Union (p, q) -> of_policy_k p (fun p' ->
                         of_policy_k q (fun q' ->
                           k (union p' q')))
     | Seq (p, q) -> of_policy_k p (fun p' ->
-                      if T.equal p' (T.mk_drop ()) then
-                        k (T.mk_drop ())
-                      else
                         of_policy_k q (fun q' ->
                           k (seq p' q')))
     | Star p -> of_policy_k p (fun p' -> k (star p'))
     | Link (sw1, pt1, sw2, pt2) -> raise Non_local
 
-  let rec of_policy p = of_policy_k p ident
+  let rec of_policy p = Lazy.force (of_policy_k p ident)
 
   let to_policy =
     T.fold
