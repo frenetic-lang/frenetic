@@ -11,7 +11,7 @@ class Pseudoport:
 class Physical(Pseudoport):
 
     def __init__(self, port):
-        assert (port >= 1 and port <= 65535)
+        assert (type(port) == int and port >= 1 and port <= 65535)
         self.port = port
 
     def to_json(self):

@@ -58,8 +58,14 @@ def event_loop(handler):
         event(handler_)
     loop()
 
-class App:
-    def __init__(self):
+class App(object):
+    def __init__(self, clientid):
+        # TODO: (nb): - Maintains client_id as a global. Nicer way?
+        #             - clientid should be required to prevent issues with
+        #                multiple apps not setting clientid
+        assert type(clientid) == str
+        import app
+        app.client_id = clientid
         pass
     def switch_up(self,switch_id):
         pass
@@ -98,3 +104,7 @@ class App:
         def loop():
             event(handler)
         loop()
+        # TODO: (nb) This removes need to call app.start() from child.
+        # Having separate calls was useful for shortest_path, for instance,
+        #  since discovery (and not shortest_path) required all EVENTs.
+        start()
