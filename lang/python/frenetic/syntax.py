@@ -304,10 +304,15 @@ class IP4Src(HeaderAndValue):
         assert type(value) == str
         if mask != None:
             assert type(mask) == int
+            self.mask = mask
         self.value = value
 
     def value_to_json(self):
-        return { "addr": self.value[0], "mask": self.value[1] }
+        try:
+            if self.mask != None:
+                return { "addr": self.value, "mask": self.mask }
+        except AttributeError:
+            return { "addr": self.value }
 
 class IP4Dst(HeaderAndValue):
 
@@ -316,10 +321,15 @@ class IP4Dst(HeaderAndValue):
         assert type(value) == str
         if mask != None:
             assert(mask) == int
+            self.mask = mask
         self.value = value
 
     def value_to_json(self):
-        return { "addr": self.value[0], "mask": self.value[1] }
+        try:
+            if self.mask != None:
+                return { "addr": self.value, "mask": self.mask }
+        except AttributeError:
+            return { "addr": self.value }
 
 class TCPSrcPort(HeaderAndValue):
 
