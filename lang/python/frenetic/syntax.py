@@ -313,7 +313,7 @@ class IP4Dst(HeaderAndValue):
 
     def __init__(self, value, mask = None):
         self.header = "ip4dst"
-        assert type(value) = str
+        assert type(value) == str
         if mask != None:
             assert(mask) == int
         self.value = value
