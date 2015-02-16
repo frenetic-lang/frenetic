@@ -24,7 +24,7 @@ class Output(Action):
         self.pseudoport = p
 
     def to_json(self):
-        return { "type": "output", "Pseudoport": self.pseudoport.to_json() }
+        return { "type": "output", "pseudoport": self.pseudoport.to_json() }
 
 class Payload:
     pass
@@ -46,7 +46,7 @@ class Buffered(Payload):
         self.buffer_id = buffer_id
 
     def to_json(self):
-        return { "type": "Buffered", "bufferid": self.buffer_id }
+        return { "type": "buffered", "bufferid": self.buffer_id }
 
 class NotBuffered(Payload):
 
@@ -55,7 +55,7 @@ class NotBuffered(Payload):
         self.data = data
 
     def to_json(self):
-        return { "type": "NotBuffered", "data": base64.b64encode(self.data) }
+        return { "type": "notbuffered", "data": base64.b64encode(self.data) }
 
 
 class PacketOut():
