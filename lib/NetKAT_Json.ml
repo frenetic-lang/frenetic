@@ -1,10 +1,11 @@
-(* NOTE(ARJUN): Core.Std.Int32.of_int_exn will throw an exception if it receives a positive
+(* NOTE(arjun): Core.Std.Int32.of_int_exn will throw an exception if it receives a positive
    integer value >= 0x1fffffff. However, OpenFlow ports are unsigned integers,
    so these are legitimate port numbers, IIRC. *)
 let int_to_uint32 = Int32.of_int
 
+(* NOTE(arjun): Do not open SDN_Types in this module. If you need to serialize
+   one of those types, it should probably go in NetKAT_SDN_Json instead. *)
 open Core.Std
-open SDN_Types
 open NetKAT_Types
 open Yojson.Basic
 open Optimize
@@ -172,3 +173,93 @@ let policy_from_json_string (str : string) : policy =
 let policy_from_json_channel (chan : In_channel.t) : policy =
   policy_from_json (from_channel chan)
 
+let event_to_json (event : event) : json =
+  let open Yojson.Basic.Util in
+  match event with
+  | PacketIn (pipe, sw_id, pt_id, payload, len) ->
+    let buffer = SDN_Types.payload_bytes payload |>
+      Cstruct.to_string |>
+      B64.encode in
+    `Assoc [
+        ("type", `String "packet_in");
+        ("pipe", `String pipe);
+        ("switch_id", `Int (Int64.to_int_exn sw_id));
+        ("port_id", `Int (Int32.to_int_exn pt_id));
+        ("payload", `Assoc [
+            ("buffer", `String buffer);
+            ("id", match payload with
+              | SDN_Types.Buffered (id, _) -> `Int (Int32.to_int_exn id)
+              | _  -> `Null)
+        ]);
+        ("length", `Int len)
+    ]
+  | Query (name, pkt_count, byte_count) ->
+    `Assoc [
+      ("type", `String "query");
+      ("packet_count", `Int (Int64.to_int_exn pkt_count));
+      ("byte_count", `Int (Int64.to_int_exn byte_count))
+    ]
+  | SwitchUp sw_id ->
+    `Assoc [
+      ("type", `String "switch_up");
+      ("switch_id", `Int (Int64.to_int_exn sw_id))
+    ]
+  | SwitchDown sw_id ->
+    `Assoc [
+      ("type", `String "switch_down");
+      ("switch_id", `Int (Int64.to_int_exn sw_id))
+    ]
+  | PortUp (sw_id, pt_id) ->
+    `Assoc [
+      ("type", `String "port_up");
+      ("switch_id", `Int (Int64.to_int_exn sw_id));
+      ("port_id", `Int (Int32.to_int_exn pt_id))
+    ]
+  | PortDown (sw_id, pt_id) ->
+    `Assoc [
+      ("type", `String "port_down");
+      ("switch_id", `Int (Int64.to_int_exn sw_id));
+      ("port_id",   `Int (Int32.to_int_exn pt_id))
+    ]
+  | LinkUp ((sw_id1, pt_id1), (sw_id2, pt_id2)) ->
+    `Assoc [
+      ("type", `String "link_up");
+      ("src", `Assoc [("switch_id", `Int (Int64.to_int_exn sw_id1));
+                      ("port_id", `Int (Int32.to_int_exn pt_id1))]);
+      ("dst", `Assoc [("switch_id", `Int (Int64.to_int_exn sw_id2));
+                      ("port_id", `Int (Int32.to_int_exn pt_id2))])
+    ]
+  | LinkDown ((sw_id1, pt_id1), (sw_id2, pt_id2)) ->
+    `Assoc [
+        ("type", `String "link_down");
+        ("src", `Assoc [("switch_id", `Int (Int64.to_int_exn sw_id1));
+                        ("port_id", `Int (Int32.to_int_exn pt_id1))]);
+        ("dst", `Assoc [("switch_id", `Int (Int64.to_int_exn sw_id2));
+                        ("port_id", `Int (Int32.to_int_exn pt_id2))])
+      ]
+  | HostUp ((sw_id, pt_id), (dlAddr, nwAddr)) ->
+    `Assoc [
+      ("type", `String "host_up");
+      ("switch_id", `Int (Int64.to_int_exn sw_id));
+      ("port_id",   `Int (Int32.to_int_exn pt_id));
+      ("dl_addr",   `String (Packet.string_of_dlAddr dlAddr));
+      ("nw_addr",   `String (Packet.string_of_nwAddr nwAddr))
+    ]
+  | HostDown ((sw_id, pt_id), (dlAddr, nwAddr)) ->
+    `Assoc [
+      ("type", `String "host_down");
+      ("switch_id", `Int (Int64.to_int_exn sw_id));
+      ("port_id", `Int (Int32.to_int_exn pt_id));
+      ("dl_addr", `String (Packet.string_of_dlAddr dlAddr));
+      ("nw_addr", `String (Packet.string_of_nwAddr nwAddr))
+    ]
+
+let event_to_json_string (event : event) : string =
+  Yojson.Basic.to_string ~std:true (event_to_json event)
+
+let stats_to_json ((pkts, bytes) : Int64.t * Int64.t) : json =
+  `Assoc [("packets", `Int (Int64.to_int_exn pkts));
+          ("bytes", `Int (Int64.to_int_exn bytes))]
+
+let stats_to_json_string (stats : Int64.t * Int64.t) : string =
+  Yojson.Basic.to_string ~std:true (stats_to_json stats)
