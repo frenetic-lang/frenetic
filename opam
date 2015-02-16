@@ -3,7 +3,7 @@ ocaml-version: [ >= "4.01.0" ]
 version: "3.3.0"
 maintainer: "Arjun Guha <arjun@cs.umass.edu>"
 build: [
-  ["./configure" "--%{pa_ounit:enable}%-tests" ]
+  ["./configure" "--%{pa_ounit:enable}%-tests" "--prefix" prefix ]
   [make]
   [make "install"]
 ]
