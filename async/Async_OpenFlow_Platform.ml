@@ -14,7 +14,7 @@ type ('id, 'a, 'b) event = [
 
 module type S = sig
 
-  type t 
+  type t
 
   type c
   type m
@@ -39,7 +39,7 @@ module type S = sig
 
   val has_client_id : t -> Client_id.t -> bool
 
-  val send 
+  val send
     : t
     -> Client_id.t
     -> m
@@ -49,8 +49,8 @@ module type S = sig
 
   val send_to_all : t -> m -> unit
 
-  val client_addr_port 
-    :  t 
+  val client_addr_port
+    :  t
     -> Client_id.t
     -> (Unix.Inet_addr.t * int) option
 
@@ -66,7 +66,7 @@ module type CTL = sig
   val set_kill_wait : t -> Time.Span.t -> unit
 end
 
-module Make(Message : Message) = struct
+module Make(Message : Message) () = struct
 
   type m = Message.t
 
@@ -99,8 +99,8 @@ module Make(Message : Message) = struct
       let write ((_, w) : t) (m : m) : unit = Serialization.serialize w m
 
     end
-  
-  end)
+
+  end) ()
 
   type t = Impl.t
   type c = unit

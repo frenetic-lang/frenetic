@@ -80,7 +80,7 @@ module Platform : sig
     val set_kill_wait : t -> Time.Span.t -> unit
   end
 
-  module Make(Message : Message) : S
+  module Make(Message : Message) () : S
     with type m = Message.t
      and type c = unit
 

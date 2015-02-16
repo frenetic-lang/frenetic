@@ -24,7 +24,7 @@ end
 module Controller = struct
   open Async.Std
 
-  module Platform = Platform.Make(Message)
+  module Platform = Platform.Make(Message) ()
   module Client_id = struct
     module T = struct
       type t = Platform.Client_id.t with sexp
