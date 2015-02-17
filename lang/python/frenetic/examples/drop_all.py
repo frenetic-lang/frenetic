@@ -1,12 +1,10 @@
 # An application that drops all traffic.
-from frenetic import app
+import frenetic
 from frenetic.syntax import *
 
-
-class MyApp(app.App):
+class MyApp(frenetic.App):
   pass
 
-MyApp().start()
+app = MyApp()
 app.update(drop)
-app.start()
-
+app.start_event_loop()

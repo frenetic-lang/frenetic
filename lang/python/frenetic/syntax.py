@@ -88,6 +88,22 @@ class PacketIn():
         # TODO: assert isinstance(payload,Buffered) or isinstance(payload,NotBuffered)
         self.payload = Payload.from_json(json['payload'])
 
+
+class Stats(object):
+
+    def __init__(self, packets, bytes):
+        self.packets = packets
+        self.bytes = bytes
+
+    @staticmethod
+    def from_json(json):
+        packets = json["packets"]
+        bytes = json["bytes"]
+        Stats(packets, bytes)
+
+    def __str__(self):
+        return "Stats(packets=%s,bytes=%s)" % (self.packets, self.bytes)
+
 ################################################################################
 #
 # NetKAT Serialization
