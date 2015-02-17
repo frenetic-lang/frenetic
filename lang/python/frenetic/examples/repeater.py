@@ -1,43 +1,41 @@
 # A repeater that learns the switches and ports in a network then creates a
 # policy that explicitly sends packets out of all ports, for each port.
-
-from frenetic import app
+import frenetic
 from frenetic.syntax import *
 
-topo = {}
+class MyApp(frenetic.App):
 
-def policy():
-    return Union(sw_policy(sw) for sw in topo.keys())
+    def __init__(self):
+        self.topo = {}
 
-def sw_policy(sw):
-    ports = topo[sw]
-    p = Union(port_policy(in_port, ports) for in_port in ports)
-    return Filter(Test(Switch(sw))) >> p
+    def policy(self):
+        return Union(self.sw_policy(sw) for sw in topo.keys())
 
-def port_policy(in_port, ports):
-    out_ports = [port for port in ports if port != in_port]
-    p = Union(Mod(Location(Physical(p))) for p in out_ports)
-    return Filter(Test(Location(Physical(in_port)))) >> p
+    def sw_policy(self, sw):
+        ports = self.topo[sw]
+        p = Union(self.port_policy(in_port, ports) for in_port in ports)
+        return Filter(Test(Switch(sw))) >> p
 
-
-class MyApp(app.App):
+    def port_policy(self, in_port, ports):
+        out_ports = [port for port in ports if port != in_port]
+        p = Union(Mod(Location(Physical(p))) for p in out_ports)
+        return Filter(Test(Location(Physical(in_port)))) >> p
 
     def switch_up(self,switch_id):
-        topo[switch_id] = []
+        self.topo[switch_id] = []
         app.update(policy())
 
     def switch_down(self,switch_id):
-        del topo[switch_id]
+        del self.topo[switch_id]
         app.update(policy())
 
     def port_up(self,switch_id, port_id):
-        topo[switch_id].append(port_id)
+        self.topo[switch_id].append(port_id)
         app.update(policy())
 
     def port_down(self,switch_id, port_id):
-        topo[switch_id].remove(port_id)
+        self.topo[switch_id].remove(port_id)
         app.update(policy())
 
-MyApp().start()
-app.start()
-
+app = MyApp()
+app.start_event_loop()

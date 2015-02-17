@@ -88,6 +88,22 @@ class PacketIn():
         # TODO: assert isinstance(payload,Buffered) or isinstance(payload,NotBuffered)
         self.payload = Payload.from_json(json['payload'])
 
+
+class Stats(object):
+
+    def __init__(self, packets, bytes):
+        self.packets = packets
+        self.bytes = bytes
+
+    @staticmethod
+    def from_json(json):
+        packets = json["packets"]
+        bytes = json["bytes"]
+        Stats(packets, bytes)
+
+    def __str__(self):
+        return "Stats(packets=%s,bytes=%s)" % (self.packets, self.bytes)
+
 ################################################################################
 #
 # NetKAT Serialization
@@ -240,7 +256,7 @@ class EthSrc(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "ethsrc"
-        assert type(value) == str
+        assert type(value) == str or type(value) == unicode
         self.value = value
 
     def value_to_json(self):
@@ -250,7 +266,7 @@ class EthDst(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "ethdst"
-        assert type(value) == str
+        assert type(value) == str or type(value) == unicode
         self.value = value
 
     def value_to_json(self):
@@ -301,7 +317,7 @@ class IP4Src(HeaderAndValue):
 
     def __init__(self, value, mask = None):
         self.header = "ip4src"
-        assert type(value) == str
+        assert type(value) == str or type(value) == unicode
         if mask != None:
             assert type(mask) == int
             self.mask = mask
@@ -318,7 +334,7 @@ class IP4Dst(HeaderAndValue):
 
     def __init__(self, value, mask = None):
         self.header = "ip4dst"
-        assert type(value) == str
+        assert type(value) == str or type(value) == unicode
         if mask != None:
             assert(mask) == int
             self.mask = mask

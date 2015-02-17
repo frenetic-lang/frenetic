@@ -1,6 +1,6 @@
 # A simple program that sends all packets to the controller. The controller
 # sends packets out on all ports.
-from frenetic import app
+import frenetic
 from frenetic.syntax import *
 
 def other_port(pt):
@@ -10,15 +10,15 @@ def other_port(pt):
   else:
     return 1
 
-class MyApp(app.App):
+class MyApp(frenetic.App):
+
   def packet_in(self, sw, pt, payload):
-    app.pkt_out(switch = sw,
-                   payload = payload,
-                   actions = [Output(Physical(other_port(pt)))])
+    self.pkt_out(switch = sw,
+                 payload = payload,
+                 actions = [Output(Physical(other_port(pt)))])
 
 
 print "Run mn --controller=remote --topo=single,2"
-MyApp().start()
+app = MyApp()
 app.update(Mod(Location(Pipe("http"))))
-app.start()
-
+app.start_event_loop()
