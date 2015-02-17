@@ -256,7 +256,7 @@ class EthSrc(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "ethsrc"
-        assert type(value) == str
+        assert type(value) == str or type(value) == unicode
         self.value = value
 
     def value_to_json(self):
@@ -266,7 +266,7 @@ class EthDst(HeaderAndValue):
 
     def __init__(self, value):
         self.header = "ethdst"
-        assert type(value) == str
+        assert type(value) == str or type(value) == unicode
         self.value = value
 
     def value_to_json(self):
@@ -317,7 +317,7 @@ class IP4Src(HeaderAndValue):
 
     def __init__(self, value, mask = None):
         self.header = "ip4src"
-        assert type(value) == str
+        assert type(value) == str or type(value) == unicode
         if mask != None:
             assert type(mask) == int
             self.mask = mask
@@ -334,7 +334,7 @@ class IP4Dst(HeaderAndValue):
 
     def __init__(self, value, mask = None):
         self.header = "ip4dst"
-        assert type(value) == str
+        assert type(value) == str or type(value) == unicode
         if mask != None:
             assert(mask) == int
             self.mask = mask
