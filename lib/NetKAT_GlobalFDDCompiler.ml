@@ -178,6 +178,20 @@ module Repr = struct
     |> List.map ~f:int_of_val
     |> List.dedup
 
+  let force (forest : t) =
+    let rec loop worklist =
+      match worklist with
+      | [] -> ()
+      | id :: worklist ->
+        let fdk = T.find_exn forest.trees id in
+        if Lazy.is_val fdk then loop worklist
+        else
+          let (_,d) = Lazy.force fdk in
+          loop (conts_of_fdk d @ worklist)
+    in
+    loop [forest.root];
+    forest
+
   let rec split_pol (forest : t) (pol: Pol.policy) : FDK.t * FDK.t * ((int * Pol.policy) list) =
     match pol with
     | Filter pred -> (of_pred pred, FDK.mk_drop (), [])
@@ -225,7 +239,7 @@ module Repr = struct
     let forest = create () in
     let pol = Pol.of_pol pol in
     add_policy forest (forest.root, pol);
-    forest
+    force forest
 
   let pc_unused pc fdd =
     dp_fold
