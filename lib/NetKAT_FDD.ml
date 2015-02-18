@@ -686,6 +686,17 @@ module ActionK = struct
 
   let to_string t =
     assert false
+
+  let to_action (mk_pc : Value.t -> Field.t * Value.t) par =
+    Par.fold par ~init:Action.Par.empty ~f:(fun acc seq ->
+      Seq.to_alist seq
+      |> List.map ~f:(fun (k,v) ->
+        match k with
+        | F f -> (f,v)
+        | K -> mk_pc v)
+      |> Action.Seq.of_alist_exn
+      |> Action.Par.add acc)
+
 end
 
 module T = NetKAT_Vlr.Make(Field)(Value)(Action)

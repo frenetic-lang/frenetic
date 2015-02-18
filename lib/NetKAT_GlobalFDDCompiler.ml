@@ -2,17 +2,9 @@ open Core.Std
 open NetKAT_FDD
 open NetKAT_Types
 
-module Field = NetKAT_FDD.Field
-exception Non_local = NetKAT_FDD.Non_local
-
-type order
-  = [ `Default
-    | `Static of Field.t list
-    | `Heuristic ]
-
 
 module Pol = struct
-  
+
   type policy =
     | Filter of pred
     | Mod of header_val
@@ -74,14 +66,15 @@ module Repr = struct
     let compare = Pervasives.compare
   end)
 
-  type t = 
-    { trees : (FDK.t * FDK.t) Lazy.t T.t; 
+  type t =
+    { trees : (FDK.t * FDK.t) Lazy.t T.t;
+      root : int;
       mutable next_id : int }
 
   let create () =
     let trees = T.create () ~size:10 in
     let root = 0 in
-    ({ trees; next_id = root}, root)
+    { trees; root; next_id = root+1 }
 
   let mk_id forest =
     let id = forest.next_id in
@@ -90,12 +83,18 @@ module Repr = struct
       id
     end
 
+  let int_of_val v =
+    match v with
+    | Value.Const k -> Int64.to_int_exn k
+    | _ -> assert false
+
   let of_test hv =
     FDK.atom (Pattern.of_hv hv) ActionK.one ActionK.zero
 
   let of_mod hv =
     let k, v = Pattern.of_hv hv in
-    FDK.atom (k, v) ActionK.(one) ActionK.(Par.singleton (Seq.singleton (F k) v))
+    FDK.const ActionK.(Par.singleton (Seq.singleton (F k) v))
+    (* FDK.atom (k, v) ActionK.(one) ActionK.(Par.singleton (Seq.singleton (F k) v)) *)
 
   let rec of_pred p =
     match p with
@@ -116,9 +115,9 @@ module Repr = struct
       FDK.(sum (prod (atom v ActionK.one ActionK.zero) t)
              (prod (atom v ActionK.zero ActionK.one) f))
 
-  let dp_fold (g : ActionK.t -> FDK.t)
-              (h : Field.t * Value.t -> FDK.t -> FDK.t -> FDK.t)
-              (t : FDK.t) : FDK.t =
+  let dp_fold (g : ActionK.t -> 'a)
+              (h : Field.t * Value.t -> 'a -> 'a -> 'a)
+              (t : FDK.t) : 'a =
      let tbl = Hashtbl.Poly.create () in
      let rec f t =
        Hashtbl.Poly.find_or_add tbl t ~default:(fun () -> f' t)
@@ -139,8 +138,8 @@ module Repr = struct
         (fun par ->
           ActionK.Par.fold par ~init:(FDK.mk_drop ()) ~f:(fun acc seq ->
             let mods = ActionK.Seq.(to_alist seq) |> List.filter_map ~f:(fun (f,n) ->
-              match f with 
-              | ActionK.F f -> Some (f,n) 
+              match f with
+              | ActionK.F f -> Some (f,n)
               | ActionK.K -> None)
             in
             let u' = FDK.restrict mods u in
@@ -168,6 +167,17 @@ module Repr = struct
 
   let star = star' (FDK.mk_id ())
 
+  let conts_of_fdk fdk =
+    dp_fold
+      (fun par ->
+        ActionK.Par.fold par ~init:[] ~f:(fun acc seq ->
+          ActionK.(Seq.find seq K) :: acc)
+        |> List.filter_opt)
+      (fun _ t f -> t @ f)
+      fdk
+    |> List.map ~f:int_of_val
+    |> List.dedup
+
   let rec split_pol (forest : t) (pol: Pol.policy) : FDK.t * FDK.t * ((int * Pol.policy) list) =
     match pol with
     | Filter pred -> (of_pred pred, FDK.mk_drop (), [])
@@ -180,6 +190,7 @@ module Repr = struct
       let k = k_p @ k_q in
       (e, d, k)
     | Seq (p,q) ->
+      (* TODO: short-circuit *)
       let (e_p, d_p, k_p) = split_pol forest p in
       let (e_q, d_q, k_q) = split_pol forest q in
       let e = seq e_p e_q in
@@ -201,154 +212,81 @@ module Repr = struct
       let k = [(id, Pol.Filter (Pol.match_location sw2 pt2))] in
       (e, d, k)
     | FDK (e,d) -> (e,d,[])
-  
+
   let rec add_policy (forest : t) (id, pol : int * Pol.policy) : unit =
     let f () =
       let (e,d,k) = split_pol forest pol in
       List.iter k ~f:(add_policy forest);
       (e, d)
     in
-    match T.add forest.trees ~key:id ~data:(Lazy.from_fun f) with
-    | `Duplicate -> assert false
-    | `Ok -> ()
+    T.add_exn forest.trees ~key:id ~data:(Lazy.from_fun f)
 
-  let of_policy (pol : NetKAT_Types.policy) : (t * int) =
-    let forest, root = create () in
+  let of_policy (pol : NetKAT_Types.policy) : t =
+    let forest = create () in
     let pol = Pol.of_pol pol in
-    add_policy forest (root, pol);
-    (forest, root)
+    add_policy forest (forest.root, pol);
+    forest
 
-(*   let of_policy (tdks : t) (pol : policy) =
-    ma
-  and split (tdks : t) (pol : policy) *)
+  let pc_unused pc fdd =
+    dp_fold
+      (fun par -> ActionK.Par.for_all par ~f:(fun seq -> not (ActionK.(Seq.mem seq (F pc)))))
+      (fun (f,_) l r -> l && r && f<>pc)
+      fdd
 
-(*   let split (pol : policy) : FDK.t * FDK.t * rich_policy =
-    match pol with
-    match pol with
-  | Filter _ -> (of_test, drop, drop)
-  | Mod _ -> (pol, drop, drop)
-  | Union (p,q) ->
-    let (e_p, d_p, k_p) = split_pol p in
-    let (e_q, d_q, k_q) = split_pol q in
-    (mk_union e_p e_q, mk_union d_p d_q, mk_union k_p k_q)
-  | Seq (p,q) ->
-    let (e_p, d_p, k_p) = split_pol p in
-    let (e_q, d_q, k_q) = split_pol q in
-    let e = mk_seq e_p e_q in
-    (* SJS: loss of precision!!! Sound but not optimal *)
-    let e_p_ind = if e_p = drop then drop else id in
-    let d = mk_union d_p (mk_seq e_p d_q) in
-    let k = mk_union (mk_seq e_p_ind k_q) (mk_seq k_p q) in
-    (* inline fdds into policies to avoid duplication *)
-    (e, d, k)
-  | Star p ->
-    let (e_p, d_p, k_p) = split_pol p in
-    let e = mk_star e_p in
-    let d = mk_seq e d_p in
-    let k = mk_seq k_p (mk_union e d) in
-    (e, d, k)
-  | Link (sw1,pt1,sw2,pt2) -> (drop, match_location sw1 pt1, match_location sw2 pt2)
-
-  let of_policy p =
-    match p with *)
-
-(*   let seq t u =
-    match FDK.peek u with
-    | Some _ -> FDK.prod t u (* This is an optimization. If [u] is an
-                              [ActionK.Par.t], then it will compose with [t]
-                              regardless of however [t] modifies packets. None
-                              of the decision variables in [u] need to be
-                              removed because there are none. *)
-    | None   ->
-      dp_fold
-        (fun par ->
-          ActionK.Par.fold par ~init:(FDK.mk_drop ()) ~f:(fun acc seq ->
-            let mods = ActionK.Seq.(to_alist seq) |> filter_map ~f:(fun (f,n) ->
-              match f with 
-              | F f -> Some (f,n) 
-              | K -> None)
-            let u' = FDK.restrict mods u in
-            FDK.(sum (prod (const ActionK.Par.(singleton seq)) u') acc)))
-        (fun v t f -> cond v t f)
-      t
-
-  let union t u =
-    (* Compute the union of [t] and [u] by using the sum operation. This will
-       appropriately combine actions for overlapping patterns. *)
-    if FDK.equal t u then
-      t
-    else
-      FDK.sum t u
-
-  let star' lhs t =
-    Compute [star t] by iterating to a fixed point.
-
-       NOTE that the equality check is not semantic equivalence, so this may not
-       terminate when expected. In practice though, it should.
-    let rec loop acc power =
-      let power' = seq power t in
-      let acc' = union acc power' in
-      if FDK.equal acc acc'
-        then acc
-        else loop acc' power'
+  let to_local (pc : Field.t) (forest : t) : NetKAT_LocalCompiler.t =
+    (* let next_pc = ref (-1) in
+    let next_pc () = next_pc := !next_pc + 1; !next_pc in
+    let pc_tbl : int T.t = T.create () ~size:10 in *)
+    let get_pc' (id : int) =
+      (* T.find_exn pc_tbl *) id |> Value.of_int
     in
-    loop (FDK.mk_id ()) lhs
+    let mk_pc (v : Value.t) =
+      (* let v = T.find_or_add pc_tbl (int_of_val v) ~default:next_pc |> Value.of_int in *)
+      (pc, v)
+    in
+    let fdk_to_fdd id e d =
+      let guard =
+        if id = forest.root then FDK.mk_id () else
+        FDK.atom (pc, get_pc' id) ActionK.one ActionK.zero
+      in
+      let fdk = seq guard (union e d) in
+      dp_fold
+        (fun par -> ActionK.to_action mk_pc par |> NetKAT_FDD.T.mk_leaf)
+        (* SJS: need to ensure variable order of fdk and fdd agree!! *)
+        (fun v t f -> NetKAT_FDD.T.mk_branch v t f)
+        fdk
+    in
+    let union = NetKAT_LocalCompiler.union in
+    let rec main ks fdd =
+      match ks with
+      | [] -> fdd
+      | k::ks ->
+        begin match T.find_and_remove forest.trees k |> Option.map ~f:Lazy.force with
+        | None -> main ks fdd
+        | Some (e, d) ->
+          let _ = assert (pc_unused pc e && pc_unused pc d) in
+          let ks = conts_of_fdk d @ ks in
+          let kfdd = fdk_to_fdd k e d in
+          let file = Printf.sprintf "fdd-%d.dot" k in
+          let fdd = union fdd kfdd in
+          Out_channel.write_all file ~data:(NetKAT_FDD.T.to_dot kfdd);
+          main ks fdd
+        end
+    in
+    main [forest.root] (NetKAT_FDD.T.mk_drop ())
 
-  let star = star' (FDK.mk_id ())
-
-
-
-  let rec of_pred p =
-    let open NetKAT_Types in
-    match p with
-    | True      -> FDK.mk_id ()
-    | False     -> FDK.mk_drop ()
-    | Test(hv)  -> of_test hv
-    | And(p, q) -> FDK.prod (of_pred p) (of_pred q)
-    | Or (p, q) -> FDK.sum (of_pred p) (of_pred q)
-    | Neg(q)    -> FDK.map_r ActionK.negate (of_pred q)
-
-  let rec of_policy_k p k =
-    let open NetKAT_Types in
-    match p with
-    | Filter   p  -> k (of_pred p)
-    | Mod      m  -> k (of_mod  m)
-    | Union (p, q) -> of_policy_k p (fun p' ->
-                        of_policy_k q (fun q' ->
-                          k (union p' q')))
-    | Seq (p, q) -> of_policy_k p (fun p' ->
-                      if FDK.equal p' (FDK.mk_drop ()) then
-                        k (FDK.mk_drop ())
-                      else
-                        of_policy_k q (fun q' ->
-                          k (seq p' q')))
-    | Star p -> of_policy_k p (fun p' -> k (star p'))
-    | Link (sw1, pt1, sw2, pt2) -> raise Non_local
-
-  let rec of_policy p = of_policy_k p ident *)
-
-(*   let to_policy =
-    FDK.fold
-      (fun r -> ActionK.to_policy r)
-      (fun v t f ->
-        let p = Pattern.to_pred v in
-        let open NetKAT_Types in
-        match t, f with
-        | Filter t, Filter f ->
-          Optimize.(mk_filter (mk_or (mk_and p t)
-                                     (mk_and (mk_not p) f)))
-        | _       , _        ->
-          Optimize.(mk_union (mk_seq (mk_filter p) t)
-                             (mk_seq (mk_filter (mk_not p)) f))) *)
-
-(*   let equal =
-    FDK.equal
-
-  let to_string =
-    FDK.to_string *)
 end
 
-(* 
+include Repr
+
+(*
+
+
+type order
+  = [ `Default
+    | `Static of Field.t list
+    | `Heuristic ]
+
 type cache
   = [ `Keep
     | `Empty
