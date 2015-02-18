@@ -68,18 +68,18 @@ module Repr = struct
 
   type t =
     { trees : (FDK.t * FDK.t) Lazy.t T.t;
-      root : int;
-      mutable next_id : int }
+      rootId : int;
+      mutable nextId : int }
 
   let create () =
     let trees = T.create () ~size:10 in
-    let root = 0 in
-    { trees; root; next_id = root+1 }
+    let rootId = 0 in
+    { trees; rootId; nextId = rootId+1 }
 
   let mk_id forest =
-    let id = forest.next_id in
+    let id = forest.nextId in
     begin
-      forest.next_id <- id + 1;
+      forest.nextId <- id + 1;
       id
     end
 
@@ -189,7 +189,7 @@ module Repr = struct
           let (_,d) = Lazy.force fdk in
           loop (conts_of_fdk d @ worklist)
     in
-    loop [forest.root];
+    loop [forest.rootId];
     forest
 
   let rec split_pol (forest : t) (pol: Pol.policy) : FDK.t * FDK.t * ((int * Pol.policy) list) =
@@ -238,7 +238,7 @@ module Repr = struct
   let of_policy (pol : NetKAT_Types.policy) : t =
     let forest = create () in
     let pol = Pol.of_pol pol in
-    add_policy forest (forest.root, pol);
+    add_policy forest (forest.rootId, pol);
     force forest
 
   let pc_unused pc fdd =
@@ -260,7 +260,7 @@ module Repr = struct
     in
     let fdk_to_fdd id e d =
       let guard =
-        if id = forest.root then FDK.mk_id () else
+        if id = forest.rootId then FDK.mk_id () else
         FDK.atom (pc, get_pc' id) ActionK.one ActionK.zero
       in
       let fdk = seq guard (union e d) in
@@ -287,7 +287,7 @@ module Repr = struct
           main ks fdd
         end
     in
-    main [forest.root] (NetKAT_FDD.T.mk_drop ())
+    main [forest.rootId] (NetKAT_FDD.T.mk_drop ())
 
 end
 
