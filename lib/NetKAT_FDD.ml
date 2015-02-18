@@ -589,4 +589,107 @@ module Action = struct
     Printf.sprintf "[%s]" (SDN.string_of_par (to_sdn t))
 end
 
+(* Packet actions with continuations *)
+module ActionK = struct
+
+  type field_or_cont =
+    | F of Field.t
+    | K
+  with sexp
+
+  let compare_field_or_cont x y =
+    match x,y with
+    | F f1, F f2 -> Field.compare f1 f2
+    | K, K -> 0
+    | F _, K -> 1
+    | K, F _ -> -1
+
+  module Seq = Map.Make(struct
+    type t = field_or_cont with sexp
+    let compare = compare_field_or_cont
+  end)
+
+  module Par = Set.Make(struct
+    type t = Value.t Seq.t with sexp
+    let compare = Seq.compare_direct Value.compare
+  end)
+
+  type t = Par.t with sexp
+
+  let one = Par.singleton Seq.empty
+  let zero = Par.empty
+
+  let sum (a:t) (b:t) : t =
+    (* This implements parallel composition specifically for NetKAT
+       modifications. *)
+    if Par.is_empty a then b            (* 0 + p = p *)
+    else if Par.is_empty b then a       (* p + 0 = p *)
+    else Par.union a b
+
+  let prod (a:t) (b:t) : t =
+    (* This implements sequential composition specifically for NetKAT
+       modifications and makes use of NetKAT laws to simplify results.*)
+    if Par.is_empty a then zero         (* 0; p == 0 *)
+    else if Par.is_empty b then zero    (* p; 0 == 0 *)
+    else if Par.equal a one then b      (* 1; p == p *)
+    else if Par.equal b one then a      (* p; 1 == p *)
+    else
+      Par.fold a ~init:zero ~f:(fun acc seq1 ->
+        (* cannot implement sequential composition of this kind here *)
+        let _ = assert (match Seq.find seq1 K with None -> true | _ -> false) in
+        let r = Par.map b ~f:(fun seq2 ->
+          (* Favor modifications to the right *)
+          Seq.merge seq1 seq2 ~f:(fun ~key m ->
+            match m with | `Both(_, v) | `Left v | `Right v -> Some(v)))
+        in
+        Par.union acc r)
+
+  let negate t : t =
+    (* This implements negation for the [zero] and [one] actions. Any
+       non-[zero] action will be mapped to [zero] by this function. *)
+    if compare t zero = 0 then one else zero
+
+  let to_sdn ?(in_port:Int64.t option) (t:t) : SDN.par =
+    assert false
+
+  let demod (f, v) t =
+    Par.fold t ~init:zero ~f:(fun acc seq ->
+      let seq' = match Seq.find seq (F f) with
+        | Some(v')
+            when Value.compare v v' = 0 -> Seq.remove seq (F f)
+        | _                             -> seq
+      in
+      sum acc (Par.singleton seq'))
+
+  let to_policy t =
+    assert false
+
+  let iter_fv t ~f =
+    assert false
+
+  let pipes t =
+    assert false
+
+  let queries t =
+    assert false
+
+  let hash t =
+    (* XXX(seliopou): Hashtbl.hash does not work because the same set can have
+     * multiple representations. Pick a better hash function. *)
+    Hashtbl.hash (List.map (Par.to_list t) ~f:(fun seq -> Seq.to_alist seq))
+
+  let compare =
+    Par.compare
+
+  let size =
+    Par.fold ~init:0 ~f:(fun acc seq -> acc + (Seq.length seq))
+
+  let to_string t =
+    assert false
+end
+
 module T = NetKAT_Vlr.Make(Field)(Value)(Action)
+module FDK = struct
+  include NetKAT_Vlr.Make(Field)(Value)(ActionK)
+  let cont k = mk_leaf ActionK.(Par.singleton (Seq.singleton K (Value.of_int k)))
+end

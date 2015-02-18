@@ -35,6 +35,7 @@ Library netkat
   Modules:
     NetKAT_Lexer,
     NetKAT_LocalCompiler,
+    NetKAT_GlobalFDDCompiler,
     NetKAT_GlobalCompiler,
     NetKAT_Parser,
     NetKAT_Pretty,
