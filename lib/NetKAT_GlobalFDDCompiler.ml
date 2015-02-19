@@ -76,6 +76,11 @@ module Repr = struct
     let rootId = 0 in
     { trees; rootId; nextId = rootId+1 }
 
+  let copy (forest : t) =
+    { trees = T.copy forest.trees;
+      rootId = forest.rootId;
+      nextId = forest.nextId }
+
   let mk_id forest =
     let id = forest.nextId in
     begin
@@ -179,17 +184,13 @@ module Repr = struct
     |> List.dedup
 
   let force (forest : t) =
-    let rec loop worklist =
-      match worklist with
-      | [] -> ()
-      | id :: worklist ->
-        let fdk = T.find_exn forest.trees id in
-        if Lazy.is_val fdk then loop worklist
-        else
-          let (_,d) = Lazy.force fdk in
-          loop (conts_of_fdk d @ worklist)
+    let rec loop id =
+      let fdk = T.find_exn forest.trees id in
+      if not (Lazy.is_val fdk) then
+        let (_,d) = Lazy.force fdk in
+        List.iter (conts_of_fdk d) ~f:loop
     in
-    loop [forest.rootId];
+    loop forest.rootId;
     forest
 
   let rec split_pol (forest : t) (pol: Pol.policy) : FDK.t * FDK.t * ((int * Pol.policy) list) =
@@ -248,6 +249,8 @@ module Repr = struct
       fdd
 
   let to_local (pc : Field.t) (forest : t) : NetKAT_LocalCompiler.t =
+    (* make copy as we will destroy the forest in the process *)
+    let forest = copy forest in
     (* let next_pc = ref (-1) in
     let next_pc () = next_pc := !next_pc + 1; !next_pc in
     let pc_tbl : int T.t = T.create () ~size:10 in *)
@@ -288,6 +291,64 @@ module Repr = struct
         end
     in
     main [forest.rootId] (NetKAT_FDD.T.mk_drop ())
+
+  (* SJS: horrible hack *)
+  let to_dot (forest : t) =
+    let trees = T.map forest.trees ~f:(fun l ->
+      let (e,d) = Lazy.force l in
+      union e d) in
+    let open Format in
+    let buf = Buffer.create 200 in
+    let fmt = formatter_of_buffer buf in
+    let seen = T.create () ~size:20 in
+    pp_set_margin fmt (1 lsl 29);
+    fprintf fmt "digraph fdk {@\n";
+    let rec node_loop node =
+      if not (T.mem seen node) then begin
+        T.add_exn seen node ();
+        match FDK.unget node with
+        | Leaf par ->
+          let seqId = ref 0 in
+          let edges = ref [] in
+          fprintf fmt "subgraph cluster_%d {@\n" node;
+          fprintf fmt "\trank = sink;@\n" ;
+          fprintf fmt "\tshape = box;@\n" ;
+          fprintf fmt "\t%d [shape = point];@\n" node;
+          ActionK.Par.iter par ~f:(fun seq ->
+            let id = sprintf "\"%dS%d\"" node (!seqId) in
+            let cont = ActionK.Seq.find seq K |> Option.map ~f:(fun v -> T.find_exn trees (int_of_val v)) in
+            let label = Action.to_string (ActionK.to_action_wout_conts (ActionK.Par.singleton seq)) in
+            fprintf fmt "\t%s [shape=box, label=\"%s\"];@\n" id label;
+            Option.iter cont ~f:(fun k ->
+              edges := sprintf "%s -> %d [style=bold, color=blue];@\n" id k :: (!edges));
+            incr seqId;
+          );
+          fprintf fmt "}@\n";
+          List.iter (!edges) ~f:(fprintf fmt "%s")
+        | Branch((f, v), a, b) ->
+          fprintf fmt "%d [label=\"%s = %s\"];@\n"
+            node (Field.to_string f) (Value.to_string v);
+          fprintf fmt "%d -> %d;@\n" node a;
+          fprintf fmt "%d -> %d [style=\"dashed\"];@\n" node b;
+          node_loop a;
+          node_loop b
+      end
+    in
+    let fdks = ref [] in
+    let rec fdk_loop fdkId =
+      let fdk = T.find_exn trees fdkId in
+      let conts = conts_of_fdk fdk in
+      fdks := fdk :: (!fdks);
+      node_loop fdk;
+      List.iter conts ~f:fdk_loop
+    in
+    fdk_loop forest.rootId;
+    fprintf fmt "%d [style=bold, color=red];@\n" (T.find_exn trees forest.rootId);
+    fprintf fmt "{rank=source; ";
+    List.iter (!fdks) ~f:(fun fdk -> fprintf fmt "%d " fdk);
+    fprintf fmt ";}@\n";
+    fprintf fmt "}@.";
+    Buffer.contents buf
 
 end
 

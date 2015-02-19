@@ -649,6 +649,21 @@ module ActionK = struct
        non-[zero] action will be mapped to [zero] by this function. *)
     if compare t zero = 0 then one else zero
 
+  let to_action (mk_pc : Value.t -> Field.t * Value.t) par =
+  Par.fold par ~init:Action.Par.empty ~f:(fun acc seq ->
+    Seq.to_alist seq
+    |> List.map ~f:(fun (k,v) ->
+      match k with
+      | F f -> (f,v)
+      | K -> mk_pc v)
+    |> Action.Seq.of_alist_exn
+    |> Action.Par.add acc)
+
+  let remove_conts par = Par.map par ~f:(fun seq -> Seq.remove seq K)
+
+  let to_action_wout_conts par =
+    to_action (fun _ -> assert false) (remove_conts par)
+
   let to_sdn ?(in_port:Int64.t option) (t:t) : SDN.par =
     assert false
 
@@ -685,17 +700,7 @@ module ActionK = struct
     Par.fold ~init:0 ~f:(fun acc seq -> acc + (Seq.length seq))
 
   let to_string t =
-    assert false
-
-  let to_action (mk_pc : Value.t -> Field.t * Value.t) par =
-    Par.fold par ~init:Action.Par.empty ~f:(fun acc seq ->
-      Seq.to_alist seq
-      |> List.map ~f:(fun (k,v) ->
-        match k with
-        | F f -> (f,v)
-        | K -> mk_pc v)
-      |> Action.Seq.of_alist_exn
-      |> Action.Par.add acc)
+    Action.to_string (to_action_wout_conts t)
 
 end
 

@@ -1,5 +1,3 @@
-open Core.Std
-
 (** The signature for a type that can be compared and hashed *)
 module type HashCmp = sig
   type t
@@ -109,7 +107,7 @@ end
     ordered. *)
 module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
-  type t
+  type t = int
   (** The type of a decision diagram *)
 
   type v  = V.t * L.t
@@ -195,7 +193,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   val to_string : t -> string
   (** [to_string t] returns a string representation of the diagram. *)
 
-  val clear_cache : preserve:Int.Set.t -> unit
+  val clear_cache : preserve:Core.Std.Int.Set.t -> unit
   (** [clear_cache ()] clears the internal cache of diagrams. *)
 
   val compressed_size : t -> int
@@ -209,6 +207,8 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   val map_values : (r -> r) -> t -> t
 
   val refs : t -> Core.Std.Int.Set.t
+
+  module VH : Hashtbl.S with type key = v
 
 end
 
