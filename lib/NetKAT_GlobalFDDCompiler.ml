@@ -67,6 +67,28 @@ end
 
 module Repr = struct
 
+  let dp_fold (g : ActionK.t -> 'a)
+              (h : Field.t * Value.t -> 'a -> 'a -> 'a)
+              (t : FDK.t) : 'a =
+    let tbl = Hashtbl.Poly.create () in
+    let rec f t =
+      Hashtbl.Poly.find_or_add tbl t ~default:(fun () -> f' t)
+    and f' t = match FDK.unget t with
+      | FDK.Leaf r -> g r
+      | FDK.Branch ((v, l), tru, fls) -> h (v,l) (f tru) (f fls) in
+    f t
+
+  let conts_of_fdk fdk =
+    dp_fold
+      (fun par ->
+        ActionK.Par.fold par ~init:[] ~f:(fun acc seq ->
+          ActionK.(Seq.find seq K) :: acc)
+        |> List.filter_opt)
+      (fun _ t f -> t @ f)
+      fdk
+    |> List.map ~f:int_of_val
+    |> List.dedup
+
   module T = Hashtbl.Make(struct
     type t = int with sexp
     let hash n = n
@@ -111,6 +133,39 @@ module Repr = struct
       id
     end
 
+  module S = Set.Make(Int)
+
+  let map_reachable ?(order = `Pre) (forest : t) ~(f: int -> (FDK.t * FDK.t) -> (FDK.t * FDK.t)) : unit =
+    let rec loop seen (id : int) =
+      if not (S.mem seen id) then
+        let seen = S.add seen id in
+        let fdks = T.find_exn forest.trees id in
+        let this () =
+          let fdks = f id fdks in
+          T.replace forest.trees ~key:id ~data:fdks; fdks in
+        let that fdks = List.iter (conts_of_fdk (snd fdks)) ~f:(loop seen) in
+        match order with
+        | `Pre -> () |> this |> that |> ignore
+        | `Post -> fdks |> that |> this |> ignore
+    in
+    loop S.empty forest.rootId
+
+  let fold_reachable ?(order = `Pre) (forest : t) ~(init : 'a) ~(f: 'a -> int -> (FDK.t * FDK.t) -> 'a) =
+    let rec loop seen (acc : 'a) (id : int) =
+      if S.mem seen id then acc else
+        let seen = S.add seen id in
+        let (_,d) as fdks = T.find_exn forest.trees id in
+        let this acc = f acc id fdks in
+        let that acc = List.fold (conts_of_fdk d) ~init:acc ~f:(loop seen) in
+        match order with
+        | `Pre -> acc |> this |> that
+        | `Post -> acc |> that |> this
+    in
+    loop S.empty init forest.rootId
+
+  let iter_reachable ?(order = `Pre) (forest : t) ~(f: int -> (FDK.t * FDK.t) -> unit) : unit =
+    fold_reachable forest ~order ~init:() ~f:(fun _ -> f)
+
   let of_test hv =
     FDK.atom (Pattern.of_hv hv) ActionK.one ActionK.zero
 
@@ -137,17 +192,6 @@ module Repr = struct
     else
       FDK.(sum (prod (atom v ActionK.one ActionK.zero) t)
              (prod (atom v ActionK.zero ActionK.one) f))
-
-  let dp_fold (g : ActionK.t -> 'a)
-              (h : Field.t * Value.t -> 'a -> 'a -> 'a)
-              (t : FDK.t) : 'a =
-     let tbl = Hashtbl.Poly.create () in
-     let rec f t =
-       Hashtbl.Poly.find_or_add tbl t ~default:(fun () -> f' t)
-     and f' t = match FDK.unget t with
-      | FDK.Leaf r -> g r
-      | FDK.Branch ((v, l), tru, fls) -> h (v,l) (f tru) (f fls) in
-      f t
 
   let seq t u =
     match FDK.peek u with
@@ -189,17 +233,6 @@ module Repr = struct
     loop (FDK.mk_id ()) lhs
 
   let star = star' (FDK.mk_id ())
-
-  let conts_of_fdk fdk =
-    dp_fold
-      (fun par ->
-        ActionK.Par.fold par ~init:[] ~f:(fun acc seq ->
-          ActionK.(Seq.find seq K) :: acc)
-        |> List.filter_opt)
-      (fun _ t f -> t @ f)
-      fdk
-    |> List.map ~f:int_of_val
-    |> List.dedup
 
   let t_of_t0 (forest : t0) =
     let t = create_t () in
@@ -270,48 +303,23 @@ module Repr = struct
       fdd
 
   let to_local (pc : Field.t) (forest : t) : NetKAT_LocalCompiler.t =
-    (* make copy as we will destroy the forest in the process *)
-    let forest = copy_t forest in
-    (* let next_pc = ref (-1) in
-    let next_pc () = next_pc := !next_pc + 1; !next_pc in
-    let pc_tbl : int T.t = T.create () ~size:10 in *)
-    let get_pc' (id : int) =
-      (* T.find_exn pc_tbl *) id |> Value.of_int
-    in
-    let mk_pc (v : Value.t) =
-      (* let v = T.find_or_add pc_tbl (int_of_val v) ~default:next_pc |> Value.of_int in *)
-      (pc, v)
-    in
-    let fdk_to_fdd id e d =
-      let guard =
-        if id = forest.rootId then FDK.mk_id () else
-        FDK.atom (pc, get_pc' id) ActionK.one ActionK.zero
-      in
-      let fdk = seq guard (union e d) in
+    let fdk_to_fdd =
       dp_fold
-        (fun par -> ActionK.to_action mk_pc par |> NetKAT_FDD.T.mk_leaf)
+        (fun par -> ActionK.to_action (fun v -> (pc,v)) par |> NetKAT_FDD.T.mk_leaf)
         (* SJS: need to ensure variable order of fdk and fdd agree!! *)
         (fun v t f -> NetKAT_FDD.T.mk_branch v t f)
-        fdk
     in
-    let union = NetKAT_LocalCompiler.union in
-    let rec main ks fdd =
-      match ks with
-      | [] -> fdd
-      | k::ks ->
-        begin match T.find_and_remove forest.trees k with
-        | None -> main ks fdd
-        | Some (e, d) ->
-          let _ = assert (pc_unused pc e && pc_unused pc d) in
-          let ks = conts_of_fdk d @ ks in
-          let kfdd = fdk_to_fdd k e d in
-          let file = Printf.sprintf "fdd-%d.dot" k in
-          let fdd = union fdd kfdd in
-          Out_channel.write_all file ~data:(NetKAT_FDD.T.to_dot kfdd);
-          main ks fdd
-        end
-    in
-    main [forest.rootId] (NetKAT_FDD.T.mk_drop ())
+    fold_reachable forest ~init:(NetKAT_FDD.T.mk_drop ()) ~f:(fun acc id (e,d) ->
+      let _ = assert (pc_unused pc e && pc_unused pc d) in
+      let guard =
+        if id = forest.rootId then FDK.mk_id ()
+        else FDK.atom (pc, Value.of_int id) ActionK.one ActionK.zero in
+      let fdk = seq guard (union e d) in
+      let fdd = fdk_to_fdd fdk in
+      let file = Printf.sprintf "fdd-%d.dot" id in
+      let acc = NetKAT_LocalCompiler.union acc fdd in
+      Out_channel.write_all file ~data:(NetKAT_FDD.T.to_dot fdd);
+      acc)
 
   (* SJS: horrible hack *)
   let to_dot (forest : t) =
