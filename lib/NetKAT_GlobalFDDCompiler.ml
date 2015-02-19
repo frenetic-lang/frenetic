@@ -63,6 +63,12 @@ module Repr = struct
   module T = Hashtbl.Make(struct
     type t = int with sexp
     let hash n = n
+    let compare = Int.compare
+  end)
+
+  module U = Hashtbl.Make(struct
+    type t = (int * int) with sexp
+    let hash (t1, t2) = 617 * t1 +  619 * t2
     let compare = Pervasives.compare
   end)
 
@@ -71,22 +77,47 @@ module Repr = struct
       rootId : int;
       mutable nextId : int }
 
+  type t2 =
+    { trees : (FDK.t * FDK.t) T.t;
+      ids : int U.t;
+      mutable rootId : int;
+      mutable nextId : int }
+
   let create () =
     let trees = T.create () ~size:10 in
     let rootId = 0 in
     { trees; rootId; nextId = rootId+1 }
 
-  let copy (forest : t) =
+  let create_t2 () =
+    let trees = T.create () ~size:10 in
+    let ids = U.create () ~size:10 in
+    let rootId = 0 in
+    { trees; ids; rootId; nextId = rootId+1 }
+
+  let copy (forest : t2) =
     { trees = T.copy forest.trees;
+      ids = U.copy forest.ids;
       rootId = forest.rootId;
       nextId = forest.nextId }
 
-  let mk_id forest =
+  let mk_id (forest : t) =
     let id = forest.nextId in
     begin
       forest.nextId <- id + 1;
       id
     end
+
+  let add t2 fdks =
+    match U.find t2.ids fdks with
+    | Some id -> id
+    | None ->
+      let id = t2.nextId in
+      t2.nextId <- t2.nextId + 1;
+      T.add_exn t2.trees ~key:id ~data:fdks;
+      U.add_exn t2.ids ~key:fdks ~data:id;
+      id
+
+  let get t2 fdks = U.find_exn t2.ids fdks
 
   let int_of_val v =
     match v with
@@ -183,15 +214,22 @@ module Repr = struct
     |> List.map ~f:int_of_val
     |> List.dedup
 
-  let force (forest : t) =
+  let to_t2 (forest : t) =
+    let t2 = create_t2 () in
     let rec loop id =
       let fdk = T.find_exn forest.trees id in
-      if not (Lazy.is_val fdk) then
-        let (_,d) = Lazy.force fdk in
-        List.iter (conts_of_fdk d) ~f:loop
+      let seen = Lazy.is_val fdk in
+      let (e,d) = Lazy.force fdk in
+      if seen then get t2 (e,d)
+      else
+        let d = FDK.map_r (fun par -> ActionK.Par.map par ~f:(fun seq ->
+          ActionK.(Seq.change seq K (function None -> None | Some id ->
+            loop (int_of_val id) |> Value.of_int |> Option.some)))) d in
+        add t2 (e,d)
     in
-    loop forest.rootId;
-    forest
+    let rootId = loop forest.rootId in
+    t2.rootId <- rootId;
+    t2
 
   let rec split_pol (forest : t) (pol: Pol.policy) : FDK.t * FDK.t * ((int * Pol.policy) list) =
     match pol with
@@ -236,11 +274,11 @@ module Repr = struct
     in
     T.add_exn forest.trees ~key:id ~data:(Lazy.from_fun f)
 
-  let of_policy (pol : NetKAT_Types.policy) : t =
+  let of_policy (pol : NetKAT_Types.policy) : t2 =
     let forest = create () in
     let pol = Pol.of_pol pol in
     add_policy forest (forest.rootId, pol);
-    force forest
+    to_t2 forest
 
   let pc_unused pc fdd =
     dp_fold
@@ -248,7 +286,7 @@ module Repr = struct
       (fun (f,_) l r -> l && r && f<>pc)
       fdd
 
-  let to_local (pc : Field.t) (forest : t) : NetKAT_LocalCompiler.t =
+  let to_local (pc : Field.t) (forest : t2) : NetKAT_LocalCompiler.t =
     (* make copy as we will destroy the forest in the process *)
     let forest = copy forest in
     (* let next_pc = ref (-1) in
@@ -278,7 +316,7 @@ module Repr = struct
       match ks with
       | [] -> fdd
       | k::ks ->
-        begin match T.find_and_remove forest.trees k |> Option.map ~f:Lazy.force with
+        begin match T.find_and_remove forest.trees k with
         | None -> main ks fdd
         | Some (e, d) ->
           let _ = assert (pc_unused pc e && pc_unused pc d) in
@@ -293,10 +331,8 @@ module Repr = struct
     main [forest.rootId] (NetKAT_FDD.T.mk_drop ())
 
   (* SJS: horrible hack *)
-  let to_dot (forest : t) =
-    let trees = T.map forest.trees ~f:(fun l ->
-      let (e,d) = Lazy.force l in
-      union e d) in
+  let to_dot (forest : t2) =
+    let trees = T.map forest.trees ~f:(fun (e,d) -> union e d) in
     let open Format in
     let buf = Buffer.create 200 in
     let fmt = formatter_of_buffer buf in
