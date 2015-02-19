@@ -86,24 +86,21 @@ module Repr = struct
 
   type t =
     { trees : (FDK.t * FDK.t) T.t;
-      ids : int U.t;
       mutable rootId : int;
       mutable nextId : int }
 
-  let create_t0 () =
+  let create_t0 () : t0 =
     let trees = T.create () ~size:10 in
     let rootId = 0 in
     { trees; rootId; nextId = rootId+1 }
 
-  let create_t () =
+  let create_t () : t =
     let trees = T.create () ~size:10 in
-    let ids = U.create () ~size:10 in
     let rootId = 0 in
-    { trees; ids; rootId; nextId = rootId+1 }
+    { trees; rootId; nextId = rootId+1 }
 
   let copy_t (forest : t) =
     { trees = T.copy forest.trees;
-      ids = U.copy forest.ids;
       rootId = forest.rootId;
       nextId = forest.nextId }
 
@@ -113,18 +110,6 @@ module Repr = struct
       forest.nextId <- id + 1;
       id
     end
-
-  let add t fdks =
-    match U.find t.ids fdks with
-    | Some id -> id
-    | None ->
-      let id = t.nextId in
-      t.nextId <- t.nextId + 1;
-      T.add_exn t.trees ~key:id ~data:fdks;
-      U.add_exn t.ids ~key:fdks ~data:id;
-      id
-
-  let get t fdks = U.find_exn t.ids fdks
 
   let of_test hv =
     FDK.atom (Pattern.of_hv hv) ActionK.one ActionK.zero
@@ -216,21 +201,17 @@ module Repr = struct
     |> List.map ~f:int_of_val
     |> List.dedup
 
-  let t0_to_t (forest : t0) =
+  let t_of_t0 (forest : t0) =
     let t = create_t () in
-    let rec loop id =
-      let fdk = T.find_exn forest.trees id in
-      let seen = Lazy.is_val fdk in
-      let (e,d) = Lazy.force fdk in
-      if seen then get t (e,d)
-      else
-        let d = FDK.map_r (fun par -> ActionK.Par.map par ~f:(fun seq ->
-          ActionK.(Seq.change seq K (function None -> None | Some id ->
-            loop (int_of_val id) |> Value.of_int |> Option.some)))) d in
-        add t (e,d)
+    let rec add id =
+      let _ = t.nextId <- max t.nextId id in
+      let (_,d) as fdk = Lazy.force (T.find_exn forest.trees id) in
+      match T.add t.trees ~key:id ~data:fdk with
+      | `Duplicate -> () (* already added *)
+      | `Ok -> List.iter (conts_of_fdk d) ~f:add
     in
-    let rootId = loop forest.rootId in
-    t.rootId <- rootId;
+    add forest.rootId;
+    t.rootId <- forest.rootId;
     t
 
   let rec split_pol (forest : t0) (pol: Pol.policy) : FDK.t * FDK.t * ((int * Pol.policy) list) =
@@ -280,7 +261,7 @@ module Repr = struct
     let forest = create_t0 () in
     let pol = Pol.of_pol pol in
     add_policy forest (forest.rootId, pol);
-    t0_to_t forest
+    t_of_t0 forest
 
   let pc_unused pc fdd =
     dp_fold
