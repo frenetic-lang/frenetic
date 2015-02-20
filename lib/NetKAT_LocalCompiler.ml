@@ -141,6 +141,15 @@ module Repr = struct
 
   let to_string =
     T.to_string
+
+  let dedup_local fdd =
+    dp_fold
+      (fun par ->
+        let mods = Action.Par.to_hvs par in
+        List.fold mods ~init:(T.mk_leaf par) ~f:(fun fdd test ->
+          cond test (T.map_r (Action.demod test) fdd) fdd))
+      cond
+      fdd
 end
 
 (** An internal module that implements an interpreter for a [Repr.t]. This
@@ -286,11 +295,13 @@ let rec naive_to_table sw_id (t : T.t) =
     dfs (test :: tests) tru @ dfs tests fls in
   dfs [] t
 
-let to_table' ?(opt = true) = match opt with
- | true -> opt_to_table
- | false -> naive_to_table
+let to_table' ?(dedup = false) ?(opt = true) swId t =
+  let t = if dedup then dedup_local t else t in
+  match opt with
+  | true -> opt_to_table swId t
+  | false -> naive_to_table swId t
 
-let to_table ?(opt = true) swId t = List.map ~f:fst (to_table' ~opt swId t)
+let to_table ?(dedup = false) ?(opt = true) swId t = List.map ~f:fst (to_table' ~dedup ~opt swId t)
 
 let pipes t =
   let module S = Set.Make(String) in

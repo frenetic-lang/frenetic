@@ -254,7 +254,7 @@ module Repr = struct
     t.rootId <- forest.rootId;
     t
 
-  let dedup (forest : t) : unit =
+  let dedup_global (forest : t) : unit =
     let big_union fdks = List.fold fdks ~init:(FDK.mk_drop ()) ~f:union in
     let tbl = S.Table.create () ~size:10 in
     let untbl = Int.Table.create () ~size:10 in
@@ -289,18 +289,7 @@ module Repr = struct
           List.hd_exn group |> ActionK.Seq.add ~key:K ~data:(Value.of_int k))
       |> ActionK.Par.of_list
     in
-    let dedup_fdk ?(precise=false) fdk =
-      if not precise then FDK.map_r dedup_action fdk
-      else
-        dp_fold
-          (fun par ->
-            let par = dedup_action par in
-            let mods = ActionK.Par.to_hvs par in
-            List.fold mods ~init:(FDK.mk_leaf par) ~f:(fun fdk test ->
-              cond test (FDK.map_r (ActionK.demod test) fdk) fdk))
-          cond
-          fdk
-    in
+    let dedup_fdk = FDK.map_r dedup_action in
     map_reachable forest ~order:`Pre ~f:(fun _ (e,d) -> (e, dedup_fdk d))
 
   let rec split_pol (forest : t0) (pol: Pol.policy) : FDK.t * FDK.t * ((int * Pol.policy) list) =
@@ -346,12 +335,12 @@ module Repr = struct
     in
     T.add_exn forest.trees ~key:id ~data:(Lazy.from_fun f)
 
-  let of_policy (pol : NetKAT_Types.policy) ~(deduplicate : bool) : t =
+  let of_policy ?(dedup=true) (pol : NetKAT_Types.policy) : t =
     let forest = create_t0 () in
     let pol = Pol.of_pol pol in
     let () = add_policy forest (forest.rootId, pol) in
     let forest = t_of_t0 forest in
-    let () = if deduplicate then dedup forest in
+    let () = if dedup then dedup_global forest in
     forest
 
   let pc_unused pc fdd =

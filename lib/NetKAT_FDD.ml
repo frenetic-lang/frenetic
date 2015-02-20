@@ -425,15 +425,21 @@ end
    composition of sequential compositions. *)
 module Action = struct
 
-  module Seq = Map.Make(struct
-    type t = Field.t with sexp
-    let compare = Field.compare
-  end)
+  module Seq = struct
+    include Map.Make(struct
+      type t = Field.t with sexp
+      let compare = Field.compare
+    end)
+    let to_hvs = to_alist
+  end
 
-  module Par = Set.Make(struct
-    type t = Value.t Seq.t with sexp
-    let compare = Seq.compare_direct Value.compare
-  end)
+  module Par = struct
+    include Set.Make(struct
+      type t = Value.t Seq.t with sexp
+      let compare = Seq.compare_direct Value.compare
+    end)
+    let to_hvs par = to_list par |> List.concat_map ~f:Seq.to_hvs
+  end
 
   type t = Par.t with sexp
 

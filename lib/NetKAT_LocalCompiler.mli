@@ -68,10 +68,10 @@ val restrict : header_val -> t -> t
     This function is called by {!to_table} to restrict [t] to the portion that
     should run on a single switch. *)
 
-val to_table : ?opt:bool -> switchId -> t -> flow list
+val to_table : ?dedup:bool -> ?opt:bool -> switchId -> t -> flow list
 (** [to_table sw t] returns a flowtable that implements [t] for switch [sw]. *)
 
-val to_table' : ?opt:bool -> switchId -> t -> (flow * string list) list
+val to_table' : ?dedup:bool -> ?opt:bool -> switchId -> t -> (flow * string list) list
 
 
 
@@ -96,6 +96,7 @@ val star : t -> t
 
 
 (** {2 Utilities} *)
+val dedup_local : t -> t
 
 val pipes : t -> string list
 (** [pipes t] returns the list of pipe names that occur in [t]. *)
