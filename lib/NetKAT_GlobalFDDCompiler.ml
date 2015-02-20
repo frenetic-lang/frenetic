@@ -141,7 +141,8 @@ module FDK = struct
     else
       sum t u
 
-  let big_union = List.fold ~init:(mk_drop ()) ~f:union
+  (* Do NOT eta-reduce to avoid caching problems with mk_dup *)
+  let big_union fdds = List.fold ~init:(mk_drop ()) ~f:union fdds
 
   let star' lhs t =
     let rec loop acc power =
