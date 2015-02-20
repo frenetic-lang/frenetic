@@ -133,7 +133,14 @@ module Repr = struct
       id
     end
 
-  module S = Set.Make(Int)
+  module S = struct
+    module T = struct
+      include Set.Make(Int)
+      let hash = Hashtbl.hash
+    end
+    include Hashable.Make(T)
+    include T
+  end
 
   let map_reachable ?(order = `Pre) (forest : t) ~(f: int -> (FDK.t * FDK.t) -> (FDK.t * FDK.t)) : unit =
     let rec loop seen (id : int) =
@@ -237,7 +244,7 @@ module Repr = struct
   let t_of_t0 (forest : t0) =
     let t = create_t () in
     let rec add id =
-      let _ = t.nextId <- max t.nextId id in
+      let _ = t.nextId <- max t.nextId (id + 1) in
       let (_,d) as fdk = Lazy.force (T.find_exn forest.trees id) in
       match T.add t.trees ~key:id ~data:fdk with
       | `Duplicate -> () (* already added *)
@@ -246,6 +253,52 @@ module Repr = struct
     add forest.rootId;
     t.rootId <- forest.rootId;
     t
+
+  let dedup (forest : t) : unit =
+    let big_union fdks = List.fold fdks ~init:(FDK.mk_drop ()) ~f:union in
+    let tbl = S.Table.create () ~size:10 in
+    let untbl = Int.Table.create () ~size:10 in
+    let unmerge k = Int.Table.find untbl k |> Option.value ~default:[k] in
+    let merge ks =
+      let ks = List.concat_map ks ~f:unmerge in
+      let ks_set = S.of_list ks in
+      match S.Table.find tbl ks_set with
+      | Some k -> k
+      | None ->
+        let k = forest.nextId in
+        let (es, ds) =
+          List.map ks ~f:(T.find_exn forest.trees)
+          |> List.unzip in
+        let fdk = (big_union es, big_union ds) in
+        forest.nextId <- forest.nextId + 1;
+        S.Table.add_exn tbl ~key:ks_set ~data:k;
+        Int.Table.add_exn untbl ~key:k ~data:ks;
+        T.add_exn forest.trees ~key:k ~data:fdk;
+        k
+    in
+    let dedup_action par =
+      par
+      |> ActionK.Par.to_list
+      |> List.group ~break:(fun s1 s2 -> not (ActionK.Seq.equal_mod_k s1 s2))
+      |> List.map ~f:(fun group ->
+        let ks = List.map group ~f:(fun s -> ActionK.Seq.find_exn s K |> int_of_val) in
+        let k = merge ks in
+        List.hd_exn group |> ActionK.Seq.add ~key:K ~data:(Value.of_int k))
+      |> ActionK.Par.of_list
+    in
+    let dedup_fdk ?(precise=false) fdk =
+      if not precise then FDK.map_r dedup_action fdk
+      else
+        dp_fold
+          (fun par ->
+            let par = dedup_action par in
+            let mods = ActionK.Par.to_hvs par in
+            List.fold mods ~init:(FDK.mk_leaf par) ~f:(fun fdk test ->
+              cond test (FDK.map_r (ActionK.demod test) fdk) fdk))
+          cond
+          fdk
+    in
+    map_reachable forest ~order:`Pre ~f:(fun _ (e,d) -> (e, dedup_fdk d))
 
   let rec split_pol (forest : t0) (pol: Pol.policy) : FDK.t * FDK.t * ((int * Pol.policy) list) =
     match pol with
@@ -290,11 +343,13 @@ module Repr = struct
     in
     T.add_exn forest.trees ~key:id ~data:(Lazy.from_fun f)
 
-  let of_policy (pol : NetKAT_Types.policy) : t =
+  let of_policy (pol : NetKAT_Types.policy) ~(deduplicate : bool) : t =
     let forest = create_t0 () in
     let pol = Pol.of_pol pol in
-    add_policy forest (forest.rootId, pol);
-    t_of_t0 forest
+    let () = add_policy forest (forest.rootId, pol) in
+    let forest = t_of_t0 forest in
+    let () = if deduplicate then dedup forest in
+    forest
 
   let pc_unused pc fdd =
     dp_fold

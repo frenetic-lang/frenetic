@@ -41,8 +41,9 @@ module Global = struct
       Core.Std.In_channel.with_file policy_file ~f:(fun chan ->
         NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in
     let global_pol = mk_big_seq [mk_filter ingress; global_pol; mk_filter egress] in
-    let fdks = NetKAT_GlobalFDDCompiler.of_policy global_pol in
-    let fdd = NetKAT_GlobalFDDCompiler.to_local NetKAT_FDD.Field.Vlan fdks in
+    let fdks = NetKAT_GlobalFDDCompiler.of_policy global_pol ~deduplicate:false in
+    let fdks_deduped = NetKAT_GlobalFDDCompiler.of_policy global_pol ~deduplicate:true in
+    let fdd = NetKAT_GlobalFDDCompiler.to_local NetKAT_FDD.Field.Vlan fdks_deduped in
     let switches =
       NetKAT_Misc.switches_of_policy (Optimize.mk_seq (NetKAT_Types.Filter ingress) global_pol) in
     let tables =
@@ -58,6 +59,7 @@ module Global = struct
     List.iter tables ~f:print_table;
     Out_channel.write_all "fdd.dot" ~data:(NetKAT_FDD.T.to_dot fdd);
     Out_channel.write_all "fdks.dot" ~data:(NetKAT_GlobalFDDCompiler.to_dot fdks);
+    Out_channel.write_all "fdks-deduped.dot" ~data:(NetKAT_GlobalFDDCompiler.to_dot fdks_deduped);
     ()
 end
 

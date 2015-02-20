@@ -604,15 +604,34 @@ module ActionK = struct
     | F _, K -> 1
     | K, F _ -> -1
 
-  module Seq = Map.Make(struct
-    type t = field_or_cont with sexp
-    let compare = compare_field_or_cont
-  end)
+  module Seq = struct
+    include Map.Make(struct
+      type t = field_or_cont with sexp
+      let compare = compare_field_or_cont
+    end)
 
-  module Par = Set.Make(struct
+    let to_action_seq (mk_pc : Value.t -> Field.t * Value.t) (seq : Value.t t) : Value.t Action.Seq.t =
+      List.map (to_alist seq) ~f:(fun (k,v) ->
+        match k with
+        | F f -> (f,v)
+        | K -> mk_pc v)
+      |> Action.Seq.of_alist_exn
+
+    let equal_mod_k s1 s2 = equal (=) (remove s1 K) (remove s2 K)
+
+    let to_hvs seq =
+      seq |> to_alist |> List.filter_map ~f:(function (F f,v) -> Some (f,v) | _ -> None)
+  end
+
+  module Par = struct
+    include Set.Make(struct
     type t = Value.t Seq.t with sexp
     let compare = Seq.compare_direct Value.compare
-  end)
+    end)
+
+    let to_hvs par =
+      fold par ~init:[] ~f:(fun acc seq -> Seq.to_hvs seq @ acc)
+  end
 
   type t = Par.t with sexp
 
@@ -650,14 +669,8 @@ module ActionK = struct
     if compare t zero = 0 then one else zero
 
   let to_action (mk_pc : Value.t -> Field.t * Value.t) par =
-  Par.fold par ~init:Action.Par.empty ~f:(fun acc seq ->
-    Seq.to_alist seq
-    |> List.map ~f:(fun (k,v) ->
-      match k with
-      | F f -> (f,v)
-      | K -> mk_pc v)
-    |> Action.Seq.of_alist_exn
-    |> Action.Par.add acc)
+    Par.fold par ~init:Action.Par.empty ~f:(fun acc seq ->
+      Seq.to_action_seq mk_pc seq |> Action.Par.add acc)
 
   let remove_conts par = Par.map par ~f:(fun seq -> Seq.remove seq K)
 
