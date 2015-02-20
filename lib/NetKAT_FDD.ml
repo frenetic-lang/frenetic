@@ -306,6 +306,9 @@ module Value = struct
   let of_int   t = Const (Int64.of_int   t)
   let of_int32 t = Const (Int64.of_int32 t)
   let of_int64 t = Const t
+  let to_int_exn = function
+    | Const k -> Int64.to_int_exn k
+    | _ -> assert false
 end
 
 exception FieldValue_mismatch of Field.t * Value.t
@@ -725,6 +728,20 @@ end
 
 module T = NetKAT_Vlr.Make(Field)(Value)(Action)
 module FDK = struct
+
   include NetKAT_Vlr.Make(Field)(Value)(ActionK)
-  let cont k = mk_leaf ActionK.(Par.singleton (Seq.singleton K (Value.of_int k)))
+
+  let mk_cont k = mk_leaf ActionK.(Par.singleton (Seq.singleton K (Value.of_int k)))
+
+  let conts fdk =
+    fold
+      (fun par ->
+        ActionK.Par.fold par ~init:[] ~f:(fun acc seq ->
+          ActionK.(Seq.find seq K) :: acc)
+        |> List.filter_opt)
+      (fun _ t f -> t @ f)
+      fdk
+    |> List.map ~f:Value.to_int_exn
+    |> List.dedup
+
 end
