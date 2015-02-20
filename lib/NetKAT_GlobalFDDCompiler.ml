@@ -260,6 +260,7 @@ module Repr = struct
     let untbl = Int.Table.create () ~size:10 in
     let unmerge k = Int.Table.find untbl k |> Option.value ~default:[k] in
     let merge ks =
+      let () = assert (List.length ks > 1) in
       let ks = List.concat_map ks ~f:unmerge in
       let ks_set = S.of_list ks in
       match S.Table.find tbl ks_set with
@@ -280,10 +281,12 @@ module Repr = struct
       par
       |> ActionK.Par.to_list
       |> List.group ~break:(fun s1 s2 -> not (ActionK.Seq.equal_mod_k s1 s2))
-      |> List.map ~f:(fun group ->
-        let ks = List.map group ~f:(fun s -> ActionK.Seq.find_exn s K |> int_of_val) in
-        let k = merge ks in
-        List.hd_exn group |> ActionK.Seq.add ~key:K ~data:(Value.of_int k))
+      |> List.map ~f:(function
+        | [seq] -> seq
+        | group ->
+          let ks = List.map group ~f:(fun s -> ActionK.Seq.find_exn s K |> int_of_val) in
+          let k = merge ks in
+          List.hd_exn group |> ActionK.Seq.add ~key:K ~data:(Value.of_int k))
       |> ActionK.Par.of_list
     in
     let dedup_fdk ?(precise=false) fdk =
