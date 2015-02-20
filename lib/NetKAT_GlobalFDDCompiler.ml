@@ -11,30 +11,20 @@ module Pol = struct
     | Union of policy * policy
     | Seq of policy * policy
     | Star of policy
-    | Link of switchId * portId * switchId * portId
-    | FDK of FDK.t * FDK.t
+    | Dup (* we can handle all of NetKAT *)
+    | FDK of FDK.t * FDK.t (* FDK injection. E and D matrix. *)
 
   let drop = Filter False
   let id = Filter True
 
-  let rec of_pol (pol : NetKAT_Types.policy) : policy =
-    match pol with
-    | NetKAT_Types.Filter a -> Filter a
-    | NetKAT_Types.Mod hv -> Mod hv
-    | NetKAT_Types.Union (p,q) -> Union (of_pol p, of_pol q)
-    | NetKAT_Types.Seq (p,q) -> Seq (of_pol p, of_pol q)
-    | NetKAT_Types.Star p -> Star (of_pol p)
-    | NetKAT_Types.Link (s1,p1,s2,p2) -> Link (s1,p1,s2,p2)
-
-  let match_location sw pt =
+  let match_loc sw pt =
     let t1 = Test (Switch sw) in
     let t2 = Test (Location (Physical pt)) in
     Optimize.mk_and t1 t2
 
-  let mk_fdk e d =
-    let drop' = FDK.mk_drop () in
-    if FDK.equal e drop' && FDK.equal d drop' then drop
-    else FDK (e, d)
+  let mk_filter pred = Filter pred
+  let filter_loc sw pt = match_loc sw pt |> mk_filter
+  let mk_mod hv = Mod hv
 
   let mk_union pol1 pol2 =
     match pol1, pol2 with
@@ -54,6 +44,27 @@ module Pol = struct
     | Filter True | Filter False -> id
     | Star _ -> pol
     | _ -> Star(pol)
+
+  let mk_fdk e d =
+    let drop' = FDK.mk_drop () in
+    if FDK.equal e drop' && FDK.equal d drop' then drop
+    else FDK (e, d)
+
+  let mk_big_union = List.fold ~init:drop ~f:mk_union
+  let mk_big_seq = List.fold ~init:id ~f:mk_seq
+
+  let rec of_pol (pol : NetKAT_Types.policy) : policy =
+    match pol with
+    | NetKAT_Types.Filter a -> Filter a
+    | NetKAT_Types.Mod hv -> Mod hv
+    | NetKAT_Types.Union (p,q) -> Union (of_pol p, of_pol q)
+    | NetKAT_Types.Seq (p,q) -> Seq (of_pol p, of_pol q)
+    | NetKAT_Types.Star p -> Star (of_pol p)
+    | NetKAT_Types.Link (s1,p1,s2,p2) ->
+      (* SJS: This is not the true sematnics of a link! This is a hack that works for now,
+         but we will need to use the correct encoding once we start doing things like global
+         optimization or deciding equivalence. *)
+      mk_big_seq [filter_loc s1 p1; Dup; filter_loc s2 p2]
 
 end
 
@@ -315,11 +326,11 @@ module FDKG = struct
       let pol' = Pol.mk_fdk e d in
       let k = List.map k_p ~f:(fun (id,k) -> (id, Pol.mk_seq k pol')) in
       (e, d, k)
-    | Link (sw1,pt1,sw2,pt2) ->
+    | Dup ->
       let id = mk_id_t0 forest in
       let e = FDK.mk_drop () in
-      let d = FDK.seq (FDK.of_pred (Pol.match_location sw1 pt1)) (FDK.mk_cont id) in
-      let k = [(id, Pol.Filter (Pol.match_location sw2 pt2))] in
+      let d = FDK.mk_cont id in
+      let k = [(id, Pol.id)] in
       (e, d, k)
     | FDK (e,d) -> (e,d,[])
 
