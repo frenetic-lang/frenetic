@@ -49,9 +49,8 @@ module Global = struct
     let tables =
       List.map switches ~f:(fun sw -> (sw, NetKAT_LocalCompiler.to_table sw fdd)) in
     let print_table (sw, t) =
-      Format.fprintf fmt "[global] Flowtable for Switch %Ld:@\n@[%a@]@\n@\n"
-        sw
-        SDN_Types.format_flowTable t in
+      Format.fprintf fmt "@[%s@]@\n@\n"
+        (SDN_Types.string_of_flowTable ~label:(Int64.to_string sw) t) in
     Format.fprintf fmt "@\n";
     Format.fprintf fmt "[global] Ingress:@\n@[%a@]@\n@\n" NetKAT_Pretty.format_pred ingress;
     Format.fprintf fmt "[global] Egress:@\n@[%a@]@\n@\n" NetKAT_Pretty.format_pred egress;
