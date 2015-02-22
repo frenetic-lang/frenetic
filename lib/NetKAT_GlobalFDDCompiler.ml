@@ -437,3 +437,6 @@ module FDKG = struct
 end
 
 include FDKG
+
+let compile (pol : NetKAT_Types.policy) : NetKAT_LocalCompiler.t =
+  to_local Field.Vlan (of_policy ~dedup:true pol)
