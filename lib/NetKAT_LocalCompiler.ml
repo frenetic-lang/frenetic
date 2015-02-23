@@ -142,10 +142,18 @@ module Repr = struct
   let to_string =
     T.to_string
 
+  module FS = Set.Make(Field)
+
   let dedup_local fdd =
     dp_fold
       (fun par ->
         let mods = Action.Par.to_hvs par in
+        let fields = List.map mods ~f:fst |> FS.of_list in
+        let harmful = Action.Par.fold par ~init:FS.empty ~f:(fun acc seq ->
+          let seq_fields =
+            Action.Seq.to_hvs seq |> List.map ~f:fst |> FS.of_list in
+          FS.union acc (FS.diff fields seq_fields)) in
+        let mods = List.filter mods ~f:(fun (f,_) -> FS.mem harmful f) in
         List.fold mods ~init:(T.mk_leaf par) ~f:(fun fdd test ->
           cond test (T.map_r (Action.demod test) fdd) fdd))
       cond
