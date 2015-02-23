@@ -141,7 +141,7 @@ module FDK = struct
     else
       sum t u
 
-  (* Do NOT eta-reduce to avoid caching problems with mk_dup *)
+  (* Do NOT eta-reduce to avoid caching problems with mk_drop *)
   let big_union fdds = List.fold ~init:(mk_drop ()) ~f:union fdds
 
   let star' lhs t =
@@ -154,7 +154,8 @@ module FDK = struct
     in
     loop (mk_id ()) lhs
 
-  let star = star' (mk_id ())
+  (* Do NOT eta-reduce to avoid caching problems with mk_id *)
+  let star t = star' (mk_id ()) t
 
 end
 
@@ -222,11 +223,11 @@ module FDKG = struct
     let rec loop seen (id : int) =
       if not (S.mem seen id) then
         let seen = S.add seen id in
-        let fdks = T.find_exn forest.trees id in
+        let (_,d) as fdks = T.find_exn forest.trees id in
         let this () =
           let fdks = f id fdks in
           T.replace forest.trees ~key:id ~data:fdks; fdks in
-        let that fdks = List.iter (FDK.conts (snd fdks)) ~f:(loop seen) in
+        let that fdks = List.iter (FDK.conts d) ~f:(loop seen) in
         match order with
         | `Pre -> () |> this |> that |> ignore
         | `Post -> fdks |> that |> this |> ignore
@@ -234,17 +235,17 @@ module FDKG = struct
     loop S.empty forest.rootId
 
   let fold_reachable ?(order = `Pre) (forest : t) ~(init : 'a) ~(f: 'a -> int -> (FDK.t * FDK.t) -> 'a) =
-    let rec loop seen (acc : 'a) (id : int) =
-      if S.mem seen id then acc else
+    let rec loop (acc, seen) (id : int) =
+      if S.mem seen id then (acc, seen) else
         let seen = S.add seen id in
         let (_,d) as fdks = T.find_exn forest.trees id in
-        let this acc = f acc id fdks in
-        let that acc = List.fold (FDK.conts d) ~init:acc ~f:(loop seen) in
+        let this (acc, seen) = (f acc id fdks, seen) in
+        let that (acc, seen) = List.fold (FDK.conts d) ~init:(acc, seen) ~f:loop in
         match order with
-        | `Pre -> acc |> this |> that
-        | `Post -> acc |> that |> this
+        | `Pre -> (acc, seen) |> this |> that
+        | `Post -> (acc, seen) |> that |> this
     in
-    loop S.empty init forest.rootId
+    loop (init, S.empty) forest.rootId |> fst
 
   let iter_reachable ?(order = `Pre) (forest : t) ~(f: int -> (FDK.t * FDK.t) -> unit) : unit =
     fold_reachable forest ~order ~init:() ~f:(fun _ -> f)
