@@ -9,7 +9,7 @@ class App(object):
 
     """This method can be overridden by the application. By default, it simply
        prints the event."""
-    def switch_up(self,switch_id):
+    def switch_up(self,switch_id,ports):
         print "switch_up(switch_id=%s)" % switch_id
 
     """This method can be overridden by the application. By default, it simply
@@ -71,7 +71,8 @@ class App(object):
         typ = event['type']
         if typ == 'switch_up':
             switch_id = event['switch_id']
-            self.switch_up(switch_id)
+            ports = event['ports']
+            self.switch_up(switch_id, ports)
         elif typ == 'switch_down':
             switch_id = event['switch_id']
             self.switch_down(switch_id)

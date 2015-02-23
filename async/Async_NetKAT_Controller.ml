@@ -166,7 +166,8 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
       let sw_id = feats.OpenFlow0x01.SwitchFeatures.switch_id in
       (* Generate a SwitchUp event, and PortUp event for ever port that is
        * useable. *)
-      return ((SwitchUp sw_id) :: (List.fold ports ~init:[] ~f:(fun acc pd ->
+      let ps = List.map ports ~f:(fun desc -> Int32.of_int_exn desc.port_no) in
+      return ((SwitchUp(sw_id, ps)) :: (List.fold ports ~init:[] ~f:(fun acc pd ->
         let open OpenFlow0x01.PortDescription in
         if port_desc_useable pd && pd.port_no < 0xff00 then
           let pt_id = Int32.of_int_exn pd.port_no in
@@ -363,7 +364,7 @@ module Make (MakeUpdate : functor (Args : CONSISTENT_UPDATE_ARGS) -> UPDATE) = s
       let handler e =
         callback e >>= fun () ->
         match e with
-        | NetKAT_Types.SwitchUp sw_id ->
+        | NetKAT_Types.SwitchUp (sw_id, ps) ->
           bring_up_switch sw_id t.repr
         | _ ->
           return ()

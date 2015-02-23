@@ -72,7 +72,13 @@ let packet_sync_headers (pkt:NetKAT_Semantics.packet) : NetKAT_Semantics.packet 
 let of_to_netkat_event fdd (evt : Controller.e) : NetKAT_Types.event list =
   match evt with
   (* TODO(arjun): include switch features in SwitchUp *)
-  | `Connect (sw_id, feats) -> [SwitchUp sw_id]
+  | `Connect (sw_id, feats) -> 
+     (* TODO(joe): Did we just want the port number? Or do we want the entire description? *)
+     let ps = 
+       List.filter 
+	 (List.map feats.ports ~f:(fun desc -> Int32.of_int_exn desc.port_no))
+	 ~f:(fun p -> not (p = 0xFFFEl))
+     in [SwitchUp(sw_id, ps)]
   | `Disconnect (sw_id, exn) -> [SwitchDown sw_id]
   | `Message (sw_id, (xid, PortStatusMsg ps)) ->
     begin match ps.reason, ps.desc.config.down with
@@ -182,6 +188,7 @@ module Make (Args : ARGS) : CONTROLLER = struct
     Deferred.return (Int64.(pkts + pkts', bytes + bytes'))
 
   let update_all_switches (pol : policy) : unit Deferred.t =
+    print_endline (NetKAT_Pretty.string_of_policy pol);
     let new_queries = NetKAT_Misc.queries_of_policy pol in
     (* Discard old queries *)
     Hashtbl.Poly.filteri_inplace stats
