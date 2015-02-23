@@ -373,10 +373,7 @@ module FDKG = struct
         else FDK.atom (pc, Value.of_int id) ActionK.one ActionK.zero in
       let fdk = FDK.seq guard (FDK.union e d) in
       let fdd = fdk_to_fdd fdk in
-      let file = Printf.sprintf "fdd-%d.dot" id in
-      let acc = NetKAT_LocalCompiler.union acc fdd in
-      Out_channel.write_all file ~data:(NetKAT_FDD.T.to_dot fdd);
-      acc)
+      NetKAT_LocalCompiler.union acc fdd)
 
 
   (* SJS: horrible hack *)
