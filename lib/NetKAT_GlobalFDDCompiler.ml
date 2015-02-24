@@ -221,18 +221,18 @@ module FDKG = struct
 
   let map_reachable ?(order = `Pre) (forest : t) ~(f: int -> (FDK.t * FDK.t) -> (FDK.t * FDK.t)) : unit =
     let rec loop seen (id : int) =
-      if not (S.mem seen id) then
+      if S.mem seen id then seen else
         let seen = S.add seen id in
         let fdks = T.find_exn forest.trees id in
-        let this () =
+        let this seen =
           let fdks = f id fdks in
-          T.replace forest.trees ~key:id ~data:fdks; fdks in
-        let that (_,d) = List.iter (FDK.conts d) ~f:(loop seen) in
+          T.replace forest.trees ~key:id ~data:fdks; (seen, fdks) in
+        let that (seen, (_,d)) = List.fold (FDK.conts d) ~init:seen ~f:loop in
         match order with
-        | `Pre -> () |> this |> that |> ignore
-        | `Post -> fdks |> that |> this |> ignore
+        | `Pre -> seen |> this |> that
+        | `Post -> (seen, fdks) |> that |> this |> fst
     in
-    loop S.empty forest.rootId
+    loop S.empty forest.rootId |> ignore
 
   let fold_reachable ?(order = `Pre) (forest : t) ~(init : 'a) ~(f: 'a -> int -> (FDK.t * FDK.t) -> 'a) =
     let rec loop (acc, seen) (id : int) =
