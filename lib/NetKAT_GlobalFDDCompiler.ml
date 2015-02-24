@@ -64,7 +64,7 @@ module Pol = struct
       (* SJS: This is not the true sematnics of a link! This is a hack that works for now,
          but we will need to use the correct encoding once we start doing things like global
          optimization or deciding equivalence. *)
-      mk_big_seq [filter_loc s1 p1; Dup; Test (Switch s2) |> mk_filter]
+      mk_big_seq [filter_loc s1 p1; Dup; filter_loc s2 p2]
 
 end
 
