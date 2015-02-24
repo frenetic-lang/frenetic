@@ -53,18 +53,21 @@ module Pol = struct
   let mk_big_union = List.fold ~init:drop ~f:mk_union
   let mk_big_seq = List.fold ~init:id ~f:mk_seq
 
-  let rec of_pol (pol : NetKAT_Types.policy) : policy =
+  let rec of_pol (ing : NetKAT_Types.pred option) (pol : NetKAT_Types.policy) : policy =
     match pol with
     | NetKAT_Types.Filter a -> Filter a
     | NetKAT_Types.Mod hv -> Mod hv
-    | NetKAT_Types.Union (p,q) -> Union (of_pol p, of_pol q)
-    | NetKAT_Types.Seq (p,q) -> Seq (of_pol p, of_pol q)
-    | NetKAT_Types.Star p -> Star (of_pol p)
+    | NetKAT_Types.Union (p,q) -> Union (of_pol ing p, of_pol ing q)
+    | NetKAT_Types.Seq (p,q) -> Seq (of_pol ing p, of_pol ing q)
+    | NetKAT_Types.Star p -> Star (of_pol ing p)
     | NetKAT_Types.Link (s1,p1,s2,p2) ->
       (* SJS: This is not the true sematnics of a link! This is a hack that works for now,
          but we will need to use the correct encoding once we start doing things like global
          optimization or deciding equivalence. *)
-      mk_big_seq [filter_loc s1 p1; Dup; filter_loc s2 p2]
+      let post_link = match ing with
+        | None -> filter_loc s2 p2
+        | Some ing -> Optimize.mk_and (Test (Switch s2)) (Optimize.mk_not ing) |> mk_filter in
+      mk_big_seq [filter_loc s1 p1; Dup; post_link ]
 
 end
 
@@ -344,9 +347,9 @@ module FDKG = struct
     in
     T.add_exn forest.trees ~key:id ~data:(Lazy.from_fun f)
 
-  let of_policy ?(dedup=true) (pol : NetKAT_Types.policy) : t =
+  let of_policy ?(dedup=true) ?ing (pol : NetKAT_Types.policy) : t =
     let forest = create_t0 () in
-    let pol = Pol.of_pol pol in
+    let pol = Pol.of_pol ing pol in
     let () = add_policy forest (forest.rootId, pol) in
     let forest = t_of_t0 forest in
     let () = if dedup then dedup_global forest in
