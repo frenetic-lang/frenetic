@@ -193,6 +193,7 @@ module FDKG = struct
   (* main FDKG data structure *)
   type t =
     { trees : (FDK.t * FDK.t) T.t;
+      continuations : int U.t;
       mutable rootId : int;
       mutable nextId : int }
 
@@ -209,8 +210,9 @@ module FDKG = struct
 
   let create_t () : t =
     let trees = T.create () ~size:10 in
+    let continuations = U.create () ~size:10 in
     let rootId = 0 in
-    { trees; rootId; nextId = rootId+1 }
+    { trees; continuations; rootId; nextId = rootId+1 }
 
   let mk_id_t0 (forest : t0) =
     let id = forest.nextId in
@@ -221,6 +223,15 @@ module FDKG = struct
     let id = forest.nextId in
     forest.nextId <- id + 1;
     id
+
+  let add_to_t (forest : t) (fdks : (FDK.t * FDK.t)) =
+    match U.find forest.continuations fdks with
+    | Some k -> k
+    | None ->
+      let k = mk_id_t forest in
+      T.add_exn forest.trees ~key:k ~data:fdks;
+      U.add_exn forest.continuations ~key:fdks ~data:k;
+      k
 
   let map_reachable ?(order = `Pre) (forest : t) ~(f: int -> (FDK.t * FDK.t) -> (FDK.t * FDK.t)) : unit =
     let rec loop seen (id : int) =
@@ -278,12 +289,11 @@ module FDKG = struct
       match S.Table.find tbl ks_set with
       | Some k -> k
       | None ->
-        let k = mk_id_t forest in
         let (es, ds) =
           List.map ks ~f:(T.find_exn forest.trees)
           |> List.unzip in
         let fdk = (FDK.big_union es, FDK.big_union ds) in
-        T.add_exn forest.trees ~key:k ~data:fdk;
+        let k = add_to_t forest fdk in
         S.Table.add_exn tbl ~key:ks_set ~data:k;
         Int.Table.add_exn untbl ~key:k ~data:ks;
         k
@@ -302,6 +312,25 @@ module FDKG = struct
     in
     let dedup_fdk = FDK.map_r dedup_action in
     map_reachable forest ~order:`Pre ~f:(fun _ (e,d) -> (e, dedup_fdk d))
+
+
+  let remove_duplicate_fdks (forest : t) =
+    let t = create_t () in
+    let update_k k =
+      Value.to_int_exn k
+      |> T.find_exn forest.trees
+      |> U.find_exn t.continuations
+      (* this will throw an exception if the FDKG has cycles *)
+      |> Value.of_int
+    in
+    iter_reachable forest ~order:`Post ~f:(fun _ (e,d) ->
+      let d =
+        FDK.map_r (fun par -> ActionK.(Par.map par ~f:(fun seq ->
+          Seq.change seq K (function None -> None | Some k -> Some (update_k k)))))
+          d
+      in
+      add_to_t t (e,d) |> ignore);
+    t
 
 
   let rec split_pol (forest : t0) (pol: Pol.policy) : FDK.t * FDK.t * ((int * Pol.policy) list) =
@@ -347,12 +376,13 @@ module FDKG = struct
     in
     T.add_exn forest.trees ~key:id ~data:(Lazy.from_fun f)
 
-  let of_policy ?(dedup=true) ?ing (pol : NetKAT_Types.policy) : t =
+  let of_policy ?(dedup=true) ?ing ?(remove_duplicates=false) (pol : NetKAT_Types.policy) : t =
     let forest = create_t0 () in
     let pol = Pol.of_pol ing pol in
     let () = add_policy forest (forest.rootId, pol) in
     let forest = t_of_t0 forest in
     let () = if dedup then dedup_global forest in
+    let forest = if remove_duplicates then remove_duplicate_fdks forest else forest in
     forest
 
 
