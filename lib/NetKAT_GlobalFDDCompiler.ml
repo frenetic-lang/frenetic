@@ -17,13 +17,7 @@ module Pol = struct
   let drop = Filter False
   let id = Filter True
 
-  let match_loc sw pt =
-    let t1 = Test (Switch sw) in
-    let t2 = Test (Location (Physical pt)) in
-    Optimize.mk_and t1 t2
-
   let mk_filter pred = Filter pred
-  let filter_loc sw pt = match_loc sw pt |> mk_filter
   let mk_mod hv = Mod hv
 
   let mk_union pol1 pol2 =
@@ -52,6 +46,13 @@ module Pol = struct
 
   let mk_big_union = List.fold ~init:drop ~f:mk_union
   let mk_big_seq = List.fold ~init:id ~f:mk_seq
+
+  let match_loc sw pt =
+    let t1 = Test (Switch sw) in
+    let t2 = Test (Location (Physical pt)) in
+    Optimize.mk_and t1 t2
+
+  let filter_loc sw pt = match_loc sw pt |> mk_filter
 
   let rec of_pol (ing : NetKAT_Types.pred option) (pol : NetKAT_Types.policy) : policy =
     match pol with
