@@ -107,6 +107,8 @@ module type NETWORK = sig
     val dfs : (Topology.vertex -> unit) -> Topology.t -> unit
   end
 
+  val spanningtree_from : (Topology.vertex -> 'a list -> 'a) -> Topology.t -> Topology.vertex -> 'a
+
   (* Paths *)
   module type PATH = sig
     type weight

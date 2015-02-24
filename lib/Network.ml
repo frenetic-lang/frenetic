@@ -101,11 +101,14 @@ module type NETWORK = sig
     val remove_endpoint : t -> (vertex * port) -> t
   end
 
+
   (* Traversals *)
   module Traverse : sig
     val bfs : (Topology.vertex -> unit) -> Topology.t -> unit
     val dfs : (Topology.vertex -> unit) -> Topology.t -> unit
   end
+
+  val spanningtree_from : (Topology.vertex -> 'a list -> 'a) -> Topology.t -> Topology.vertex -> 'a
 
   (* Paths *)
   module type PATH = sig
@@ -190,11 +193,13 @@ struct
     module UnitWeight = struct
       type edge = Edge.t with sexp
       type t = int with sexp
+      type label = EL.t
       let weight _ = 1
       let compare = Pervasives.compare
       let add = (+)
       let zero = 0
     end
+
 
     module EdgeSet = Set.Make(struct
       type t = VL.t * EL.t * VL.t  with sexp
@@ -390,6 +395,7 @@ struct
 
   end
 
+
   (* Traversals *)
   module Traverse = struct
     open Topology
@@ -402,6 +408,15 @@ struct
     let dfs (f:vertex -> unit) (t:t) =
       Dfs.prefix f t.graph
   end
+
+  module Prim = Graph.Prim.Make (Topology.P) (Topology.UnitWeight)
+
+  let spanningtree_from f graph vertex =
+    let open Topology.P in
+    let edges = Prim.spanningtree_from graph.Topology.graph vertex in
+    let tree = List.fold_left edges ~init:empty ~f:add_edge_e in
+    let rec loop vx = f vx (List.map (succ tree vx) ~f:loop) in
+    loop vertex
 
   (* Paths *)
   module type PATH = sig
