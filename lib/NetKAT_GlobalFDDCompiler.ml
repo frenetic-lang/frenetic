@@ -223,11 +223,11 @@ module FDKG = struct
     let rec loop seen (id : int) =
       if not (S.mem seen id) then
         let seen = S.add seen id in
-        let (_,d) as fdks = T.find_exn forest.trees id in
+        let fdks = T.find_exn forest.trees id in
         let this () =
           let fdks = f id fdks in
           T.replace forest.trees ~key:id ~data:fdks; fdks in
-        let that fdks = List.iter (FDK.conts d) ~f:(loop seen) in
+        let that (_,d) = List.iter (FDK.conts d) ~f:(loop seen) in
         match order with
         | `Pre -> () |> this |> that |> ignore
         | `Post -> fdks |> that |> this |> ignore
