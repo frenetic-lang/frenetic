@@ -1,8 +1,11 @@
 import frenetic
+import json
 from frenetic.syntax import *
 import single_switch_forwarding
 import array
 from ryu.lib.packet import packet
+
+net_size = 3
 
 def get(pkt,protocol):
     for p in pkt:
@@ -40,7 +43,7 @@ class Trusted(object):
   def external_pred(self):
     return (self.srcs & ~self.dsts) | (~self.srcs & self.dsts)
 
-forwarding_pol = single_switch_forwarding.policy(2)
+forwarding_pol = single_switch_forwarding.policy(net_size)
 
 class Firewall(frenetic.App):
 
@@ -59,12 +62,12 @@ class Firewall(frenetic.App):
 
   def global_policy(self):
     internal = Filter(self.state.trusted.internal_pred()) >> forwarding_pol
-
     external = (Filter(self.state.trusted.external_pred()) >>
       self.firewall_pol() >>
       (Filter(Test(Location(Pipe("http")))) |
        Filter(~Test(Location(Pipe("http")))) >> forwarding_pol))
-    return  Filter(Test(EthType(0x800))) >> (internal | external)
+    gp = Filter(Test(EthType(0x800))) >> (internal | external)
+    return  gp
 
   def packet_in(self, switch_id, port_id, payload):
     pkt = packet.Packet(array.array('b', payload.data))
@@ -79,6 +82,11 @@ class Firewall(frenetic.App):
       return #TODO(arjun): Drop?
     self.state.allow(Allowed(ip.src, tcp.src_port, ip.dst, tcp.dst_port))
     self.update(self.global_policy())
+    pt = 1 if ip.dst == "10.0.0.1" else 2 if ip.dst == "10.0.0.2" else 3 if ip.dst == "10.0.0.3" else 0        
+    print "\n\n\nSending message to %s using port %s\n\n\n" % (ip.dst, str(pt))
+    self.pkt_out(switch = switch_id,
+                 payload = payload,
+                 actions = [Output(Physical(pt))])
     # TODO(arjun): Send packet out
 
 class State(object):
@@ -92,7 +100,7 @@ class State(object):
 
 
 def main():
-    app = Firewall(State(['10.0.0.1']))
+    app = Firewall(State(['10.0.0.1', '10.0.0.2']))
     app.start_event_loop()
 
 if __name__ == '__main__':
