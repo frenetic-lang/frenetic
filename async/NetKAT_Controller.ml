@@ -149,6 +149,7 @@ module Make (Args : ARGS) : CONTROLLER = struct
 
   let send_packet_out (sw_id : switchId)
     (pkt_out : SDN_Types.pktOut) : unit Deferred.t =
+    printf "SENDING PKT_OUT\n\n\n";
     Pipe.write pktout_writer (sw_id, pkt_out)
 
   let event () : event Deferred.t =
@@ -187,8 +188,21 @@ module Make (Args : ARGS) : CONTROLLER = struct
     let (pkts', bytes') = Hashtbl.Poly.find_exn stats name in
     Deferred.return (Int64.(pkts + pkts', bytes + bytes'))
 
+  let string_of_policy ?(order=`Heuristic) (pol : policy) : string =
+    (* TODO(jcollard): The cache flag here is actually a problem.
+     *                 Changing ordering won't work as expected. *)
+    let bdd = NetKAT_LocalCompiler.compile ~order:order ~cache:`Keep pol in
+    (* TODO: Get switch numbers *)
+    let switches = NetKAT_Misc.switches_of_policy pol in
+    let switches' = if List.is_empty switches then [0L] else switches in	
+    let tbls = List.map switches' 
+			(fun sw_id -> NetKAT_LocalCompiler.to_table sw_id bdd |> 
+					SDN_Types.string_of_flowTable ~label:(Int64.to_string sw_id)) in
+    String.concat ~sep:"\n\n" tbls
+
   let update_all_switches (pol : policy) : unit Deferred.t =
     print_endline (NetKAT_Pretty.string_of_policy pol);
+    print_endline (string_of_policy pol);
     let new_queries = NetKAT_Misc.queries_of_policy pol in
     (* Discard old queries *)
     Hashtbl.Poly.filteri_inplace stats
