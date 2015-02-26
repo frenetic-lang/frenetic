@@ -1,4 +1,4 @@
-import frenetic, sys, json
+import frenetic, sys, json, time
 from frenetic.syntax import *
 import single_switch_forwarding
 import array
@@ -26,6 +26,7 @@ class Allowed(object):
     self.untrusted_ip = untrusted_ip
     self.untrusted_port = untrusted_port
     self.query_label = next_query_label()
+    self.last_count = 0
 
   def __eq__(self, other):
     return (isinstance(other, self.__class__) and
@@ -73,6 +74,7 @@ class Firewall(frenetic.App):
     frenetic.App.__init__(self)
     self.state = state
     self.update(self.global_policy())
+    self.last_clean = 0
 
   def allowed_pred(self):
     return Or([x.to_pred() for x in self.state.allowed])
@@ -92,6 +94,10 @@ class Firewall(frenetic.App):
       allowed.ite(
         forwarding_pol | queries,
         Mod(Location(Pipe("http")))))
+
+  def run_clean(self):
+      print "cleaning!"
+      self.last_clean = time.time()
 
   def packet_in_v1(self, switch_id, port_id, payload, src_ip, dst_ip,
                    src_tcp_port, dst_tcp_port):
@@ -131,6 +137,16 @@ class Firewall(frenetic.App):
 
     self.pkt_out(switch_id, payload, [])
 
+  def packet_in_v3(self, switch_id, port_id, payload, src_ip, dst_ip,
+                   src_tcp_port, dst_tcp_port):
+    # Check if we should clean
+    curr_time = time.time()
+    if(curr_time - self.last_clean > 2):
+        self.run_clean()
+    # Then run v2 policy
+    self.packet_in_v2(switch_id, port_id, payload, src_ip, dst_ip,
+                      src_tcp_port, dst_tcp_port)
+
   def packet_in(self, switch_id, port_id, payload):
     pkt = packet.Packet(array.array('b', payload.data))
     p = get(pkt,'ethernet')
@@ -146,6 +162,8 @@ class Firewall(frenetic.App):
       f = self.packet_in_v1
     elif self.state.version == 2:
       f = self.packet_in_v2
+    elif self.state.version == 3:
+      f = self.packet_in_v3
     else:
       assert False
 
