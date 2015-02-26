@@ -11,6 +11,13 @@ def get(pkt,protocol):
         if p.protocol_name == protocol:
             return p
 
+__lbl = 0
+def next_query_label():
+  global __lbl
+  n = str(__lbl)
+  __lbl = __lbl + 1
+  return n
+
 class Allowed(object):
 
   def __init__(self, trusted_ip, trusted_port, untrusted_ip, untrusted_port):
@@ -18,6 +25,7 @@ class Allowed(object):
     self.trusted_port = trusted_port
     self.untrusted_ip = untrusted_ip
     self.untrusted_port = untrusted_port
+    self.query_label = next_query_label()
 
   def __eq__(self, other):
     return (isinstance(other, self.__class__) and
@@ -38,6 +46,9 @@ class Allowed(object):
              Test(TCPSrcPort(self.untrusted_port)) &
              Test(IP4Dst(self.trusted_ip)) &
              Test(TCPDstPort(self.trusted_port))))
+
+  def query_pol(self):
+    return Filter(self.to_pred()) >> Mod(Location(Query(self.query_label)))
 
 class Trusted(object):
 
@@ -73,12 +84,13 @@ class Firewall(frenetic.App):
     internal = self.state.trusted.internal_pred()
     external = self.state.trusted.external_pred()
     allowed = self.allowed_pred()
+    queries = Union([ x.query_pol() for x in self.state.allowed])
 
     return internal.ite(
       forwarding_pol,
       Filter(external) >>
       allowed.ite(
-        forwarding_pol,
+        forwarding_pol | queries,
         Mod(Location(Pipe("http")))))
 
   def packet_in_v1(self, switch_id, port_id, payload, src_ip, dst_ip,

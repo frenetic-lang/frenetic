@@ -72,10 +72,10 @@ let packet_sync_headers (pkt:NetKAT_Semantics.packet) : NetKAT_Semantics.packet 
 let of_to_netkat_event fdd (evt : Controller.e) : NetKAT_Types.event list =
   match evt with
   (* TODO(arjun): include switch features in SwitchUp *)
-  | `Connect (sw_id, feats) -> 
+  | `Connect (sw_id, feats) ->
      (* TODO(joe): Did we just want the port number? Or do we want the entire description? *)
-     let ps = 
-       List.filter 
+     let ps =
+       List.filter
 	 (List.map feats.ports ~f:(fun desc -> Int32.of_int_exn desc.port_no))
 	 ~f:(fun p -> not (p = 0xFFFEl))
      in [SwitchUp(sw_id, ps)]
@@ -171,11 +171,12 @@ module Make (Args : ARGS) : CONTROLLER = struct
             None) in
         Deferred.List.map ~how:`Parallel pats
           ~f:(fun pat ->
-            printf "Sending 2...";
-            Controller.individual_stats controller sw_id
+            let pat0x01 = SDN_OpenFlow0x01.from_pattern pat in
+            Controller.individual_stats ~pattern:pat0x01 controller sw_id
             >>| function
-            | Ok [stat] -> (stat.packet_count, stat.byte_count)
-            | Ok _ -> assert false
+            | Ok stats ->
+              (List.sum (module Int64) stats ~f:(fun stat -> stat.packet_count),
+               List.sum (module Int64) stats ~f:(fun stat -> stat.byte_count))
             | Error _ -> (0L, 0L)))
     >>| fun stats ->
       List.fold (List.concat stats) ~init:(0L, 0L)
@@ -194,9 +195,9 @@ module Make (Args : ARGS) : CONTROLLER = struct
     let bdd = NetKAT_LocalCompiler.compile ~order:order ~cache:`Keep pol in
     (* TODO: Get switch numbers *)
     let switches = NetKAT_Misc.switches_of_policy pol in
-    let switches' = if List.is_empty switches then [0L] else switches in	
-    let tbls = List.map switches' 
-			(fun sw_id -> NetKAT_LocalCompiler.to_table sw_id bdd |> 
+    let switches' = if List.is_empty switches then [0L] else switches in
+    let tbls = List.map switches'
+			(fun sw_id -> NetKAT_LocalCompiler.to_table sw_id bdd |>
 					SDN_Types.string_of_flowTable ~label:(Int64.to_string sw_id)) in
     String.concat ~sep:"\n\n" tbls
 
