@@ -53,11 +53,10 @@ let handle_request
       >>= fun evt ->
       Server.respond_with_string (NetKAT_Json.event_to_json_string evt)
     | `POST, ["pkt_out"] ->
-      handle_parse_errors body
-        (fun body ->
-           Body.to_string body >>= fun str ->
+      handle_parse_errors' body
+        (fun str ->
            let json = Yojson.Basic.from_string str in
-           return (NetKAT_SDN_Json.pkt_out_from_json json))
+           NetKAT_SDN_Json.pkt_out_from_json json)
         (fun (sw_id, pkt_out) ->
            printf "POST /pkt_out";
            send_packet_out sw_id pkt_out
@@ -75,7 +74,8 @@ let handle_request
       (fun pol ->
          DynGraph.push pol (get_client clientId).policy_node;
          Cohttp_async.Server.respond `OK)
-    | _, _ -> printf "Got garbage from Client"; Cohttp_async.Server.respond `Not_found
+    | _, _ ->
+      printf "Got garbage from Client"; Cohttp_async.Server.respond `Not_found
 
 let listen ~port =
   Async_OpenFlow.OpenFlow0x01.Controller.create ~port:6633 ()

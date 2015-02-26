@@ -127,6 +127,9 @@ class Pred(object):
     def __invert__(self):
         return Not(self)
 
+    def ite(self, true_pol, false_pol):
+        return (Filter(self) >> true_pol) | (Filter(~self) >> false_pol)
+
 class And(Pred):
 
     def __init__(self, children):

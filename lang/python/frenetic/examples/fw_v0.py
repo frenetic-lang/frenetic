@@ -1,5 +1,4 @@
-import frenetic
-import json
+import frenetic, sys, json
 from frenetic.syntax import *
 import single_switch_forwarding
 import array
@@ -19,6 +18,16 @@ class Allowed(object):
     self.trusted_port = trusted_port
     self.untrusted_ip = untrusted_ip
     self.untrusted_port = untrusted_port
+
+  def __eq__(self, other):
+    return (isinstance(other, self.__class__) and
+            self.trusted_ip == other.trusted_ip and
+            self.trusted_port == other.trusted_port and
+            self.untrusted_ip == other.untrusted_ip and
+            self.untrusted_port == other.untrusted_port)
+
+  def __hash__(self):
+    return self.trusted_ip.__hash__()
 
   def to_pred(self):
     return ((Test(IP4Src(self.trusted_ip)) &
@@ -54,20 +63,61 @@ class Firewall(frenetic.App):
     self.state = state
     self.update(self.global_policy())
 
-  def firewall_pol(self):
-    allowed = Or([x.to_pred() for x in self.state.allowed])
-    return (Filter(allowed) |
-            (Filter(self.state.trusted.srcs & ~self.state.trusted.dsts & ~allowed) >>
-             Mod(Location(Pipe("http")))))
+  def allowed_pred(self):
+    return Or([x.to_pred() for x in self.state.allowed])
 
   def global_policy(self):
-    internal = Filter(self.state.trusted.internal_pred()) >> forwarding_pol
-    external = (Filter(self.state.trusted.external_pred()) >>
-      self.firewall_pol() >>
-      (Filter(Test(Location(Pipe("http")))) |
-       Filter(~Test(Location(Pipe("http")))) >> forwarding_pol))
-    gp = Filter(Test(EthType(0x800))) >> (internal | external)
-    return  gp
+    # TODO(arjun): This policy floods the controller with packets from outside
+    # going in if they are not allowed. This should be changed for V1. But,
+    # for V2 pending connections will have to be allowed too.
+    internal = self.state.trusted.internal_pred()
+    external = self.state.trusted.external_pred()
+    allowed = self.allowed_pred()
+
+    return internal.ite(
+      forwarding_pol,
+      Filter(external) >>
+      allowed.ite(
+        forwarding_pol,
+        Mod(Location(Pipe("http")))))
+
+  def packet_in_v1(self, switch_id, port_id, payload, src_ip, dst_ip,
+                   src_tcp_port, dst_tcp_port):
+    if not (src_ip in self.state.trusted.ips and not (dst_ip in self.state.trusted.ips)):
+      self.pkt_out(switch_id, payload, [])
+      return
+
+    # Packet is going from trusted to untrusted
+    self.state.allow(Allowed(src_ip, src_tcp_port, dst_ip, dst_tcp_port))
+    self.update(self.global_policy())
+    # TODO(arjun): Should send the packet. API should expose the Freneti
+    # interpreter, or update should allow you to provide a packet to apply the
+    # policy to.
+    return
+
+  def packet_in_v2(self, switch_id, port_id, payload, src_ip, dst_ip,
+                   src_tcp_port, dst_tcp_port):
+    allow_entry = Allowed(src_ip, src_tcp_port, dst_ip, dst_tcp_port)
+
+    if src_ip in self.state.trusted.ips and not (dst_ip in self.state.trusted.ips):
+      self.state.add_pending(allow_entry)
+      # TODO(arjun): Terrible hack
+      pt = 1 if dst_ip == "10.0.0.1" else 2 if dst_ip == "10.0.0.2" else 0
+      self.pkt_out(switch_id, payload, [Output(Physical(pt))])
+      self.update(self.global_policy())
+      return
+
+    # Describes the trusted -> untrusted entry that should have been created
+    reverse_allow_entry = Allowed(dst_ip, dst_tcp_port, src_ip, src_tcp_port)
+    if reverse_allow_entry in self.state.pending:
+      self.state.remove_pending(reverse_allow_entry)
+      self.state.allow(reverse_allow_entry)
+      self.update(self.global_policy())
+      pt = 1 if dst_ip == "10.0.0.1" else 2 if dst_ip == "10.0.0.2" else 0
+      self.pkt_out(switch_id, payload, [Output(Physical(pt))])
+      return
+
+    self.pkt_out(switch_id, payload, [])
 
   def packet_in(self, switch_id, port_id, payload):
     pkt = packet.Packet(array.array('b', payload.data))
@@ -76,33 +126,46 @@ class Firewall(frenetic.App):
     tcp = get(pkt, "tcp")
     print "Packet in: %s" % pkt
     if ip == None or tcp == None:
-      print "Not TCP/IP packet"
-      return # TODO(arjun): Drop?
-    if not (ip.src in self.state.trusted.ips and not (ip.dst in self.state.trusted.ips)):
-      return #TODO(arjun): Drop?
-    self.state.allow(Allowed(ip.src, tcp.src_port, ip.dst, tcp.dst_port))
-    self.update(self.global_policy())
-#    pt = 1 if ip.dst == "10.0.0.1" else 2 if ip.dst == "10.0.0.2" else 0        
-#    print "\n\n\nSending message to %s using port %s\n\n\n" % (ip.dst, str(pt))
-#    self.pkt_out(switch = switch_id,
-#                 payload = payload,
-#                 actions = [Output(Physical(pt))])
-    # TODO(arjun): Send packet out
+      print "Not TCP/IP packet. Dropped."
+      self.pkt_out(switch = switch_id, payload = payload, actions = [])
+      return
+
+    if self.state.version == 1:
+      f = self.packet_in_v1
+    elif self.state.version == 2:
+      f = self.packet_in_v2
+    else:
+      assert False
+
+    f(switch_id, port_id, payload, ip.src, ip.dst, tcp.src_port, tcp.dst_port)
 
 class State(object):
 
-  def __init__(self, trusted_ips):
+  def __init__(self, trusted_ips, version):
+    self.version = version
     self.trusted = Trusted(trusted_ips)
     self.allowed = []
+    # We assume that pending set is always empty in V1
+    self.pending = set()
 
   def allow(self, allowed):
     self.allowed += [allowed]
 
+  def add_pending(self, allowed):
+    self.pending.add(allowed)
 
-def main():
-    app = Firewall(State(['10.0.0.1']))
+  def remove_pending(self, allowed):
+    self.pending.remove(allowed)
+
+
+def main(version):
+    app = Firewall(State(['10.0.0.1'], version))
     app.start_event_loop()
 
 if __name__ == '__main__':
-    main()
+    if len(sys.argv) == 2:
+      main(int(sys.argv[1]))
+    else:
+      print "Running version 1"
+      main(1)
 
