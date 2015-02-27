@@ -1,4 +1,5 @@
 import uuid, sys, json, base64
+from functools import partial
 from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 from tornado.ioloop import IOLoop
 from frenetic.syntax import PacketIn, PacketOut
@@ -42,12 +43,20 @@ class App(object):
                               body=json.dumps(msg.to_json()))
         return self.__http_client.fetch(request)
 
+    def query_helper(self, response, callback):
+      if(hasattr(response, 'buffer')):
+        data = json.loads(response.buffer.getvalue())
+        ps = int(data['packets'])
+        bs = int(data['bytes'])
+        callback(ps, bs)
+
     # label : label to query
     # callback
     def query(self, label, callback):
         url = "http://localhost:9000/query/" + label
         request = HTTPRequest(url, method='GET', request_timeout=0)
-        return self.__http_client.fetch(request, callback)
+        f = partial(self.query_helper, callback=callback)
+        return self.__http_client.fetch(request, f)
 
     def update(self, policy):
         pol_json = json.dumps(policy.to_json())

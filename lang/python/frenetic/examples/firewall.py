@@ -5,8 +5,10 @@ import single_switch_forwarding
 import array
 from ryu.lib.packet import packet
 from tornado.ioloop import PeriodicCallback
+from tornado.concurrent import chain_future
 
 net_size = 2
+clean_delay = 3
 
 def get(pkt,protocol):
     for p in pkt:
@@ -29,6 +31,7 @@ class Allowed(object):
     self.untrusted_port = untrusted_port
     self.query_label = next_query_label()
     self.last_count = 0
+    self.time_created = time.time()
 
   def __eq__(self, other):
     return (isinstance(other, self.__class__) and
@@ -77,7 +80,7 @@ class Firewall(frenetic.App):
     self.state = state
     self.update(self.global_policy())
     if self.state.version == 3:
-      PeriodicCallback(self.run_clean, 3000).start()
+      PeriodicCallback(self.run_clean, clean_delay * 1000).start()
 
   def allowed_pred(self):
     return Or([x.to_pred() for x in self.state.allowed])
@@ -98,28 +101,34 @@ class Firewall(frenetic.App):
         forwarding_pol | queries,
         Mod(Location(Pipe("http")))))
 
-  def clean_callback(self, response, allowed):
-    # TODO(arjun): Have self.query parse the response (i.e., no JSON stuff here)
-    data = json.loads(response.buffer.getvalue())
-    curr_bytes = int(data['bytes'])
+  def clean_callback(self, packets, curr_bytes, allowed):
     # If the connection has become stale remove it
-    print "\n\n\n"
-    print "last count: %s" % str(allowed.last_count)
-    print "curr_bytes: %s" % str(curr_bytes)
-    print "\n\n\n"
     # NOTE(arjun): Should never be greater than, I hope!
-    if(allowed.last_count >= curr_bytes):
+    assert allowed.last_count <= curr_bytes
+    if(allowed.last_count == curr_bytes):
         self.state.allowed.remove(allowed)
         return
     allowed.last_count = curr_bytes
 
+  def find_pending(self, to_remove_set, pending):
+    if(pending.time_created + clean_delay < time.time()):
+      to_remove_set.add(pending)
+    return to_remove_set
+
   def run_clean(self):
+    # Check allowed connections
+    futures = []
     for allowed in self.state.allowed:
       f = partial(self.clean_callback, allowed=allowed)
-      self.query(allowed.query_label, f)
+      futures.append(self.query(allowed.query_label, f))
+    if (len(futures) > 0):
+      future = reduce(chain_future, futures)
+    # Check for expired pending
+    to_remove_set = reduce(self.find_pending, self.state.pending, set())
+    for pending in to_remove_set:
+      self.state.pending.remove(pending)
+      
     # TODO(arjun): Update policy if anything was cleaned
-    # TODO(arjun): Also clean pending connections. (Need to track connection
-    # start time?)
 
   def packet_in_v1(self, switch_id, port_id, payload, src_ip, dst_ip,
                    src_tcp_port, dst_tcp_port):
