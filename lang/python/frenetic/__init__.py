@@ -42,10 +42,12 @@ class App(object):
                               body=json.dumps(msg.to_json()))
         return self.__http_client.fetch(request)
 
-    def query(self, label):
+    # label : label to query
+    # callback
+    def query(self, label, callback):
         url = "http://localhost:9000/query/" + label
         request = HTTPRequest(url, method='GET', request_timeout=0)
-        return self.__htp_client.fetch(request)
+        return self.__http_client.fetch(request, callback)
 
     def update(self, policy):
         pol_json = json.dumps(policy.to_json())

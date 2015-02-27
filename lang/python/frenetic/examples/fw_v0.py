@@ -1,4 +1,5 @@
 import frenetic, sys, json, time
+from functools import partial
 from frenetic.syntax import *
 import single_switch_forwarding
 import array
@@ -95,9 +96,24 @@ class Firewall(frenetic.App):
         forwarding_pol | queries,
         Mod(Location(Pipe("http")))))
 
+  def clean_callback(self, response, allowed):
+    data = json.loads(response.buffer.getvalue())
+    curr_bytes = int(data['bytes'])
+    # If the connection has become stale remove it
+    print "\n\n\n"
+    print "last count: %s" % str(allowed.last_count)
+    print "curr_bytes: %s" % str(curr_bytes)
+    print "\n\n\n"
+    if(allowed.last_count >= curr_bytes):
+        self.state.allowed.remove(allowed)
+        return
+    allowed.last_count = curr_bytes
+
   def run_clean(self):
-      print "cleaning!"
-      self.last_clean = time.time()
+    for allowed in self.state.allowed:
+      f = partial(self.clean_callback, allowed=allowed)
+      self.query(allowed.query_label, f)
+    self.last_clean = time.time()
 
   def packet_in_v1(self, switch_id, port_id, payload, src_ip, dst_ip,
                    src_tcp_port, dst_tcp_port):
