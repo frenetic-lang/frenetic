@@ -164,8 +164,8 @@ module FDK = struct
 end
 
 
-(* A FDKG is a graph of FDKs that may contain cycles. *)
-module FDKG = struct
+(* Symbolic NetKAT Automata *)
+module NetKAT_Automaton = struct
 
   (* table *)
   module T = Hashtbl.Make(struct
@@ -191,99 +191,99 @@ module FDKG = struct
     include S
   end
 
-  (* main FDKG data structure *)
+  (* main data structure of symbolic NetKAT automaton *)
   type t =
-    { trees : (FDK.t * FDK.t) T.t;
-      continuations : int U.t;
-      mutable rootId : int;
-      mutable nextId : int }
+    { states : (FDK.t * FDK.t) T.t;
+      has_state : int U.t;
+      mutable source : int;
+      mutable nextState : int }
 
-  (* lazy intermediate presentation to avoid compiling uncreachable FDKG nodes *)
+  (* lazy intermediate presentation to avoid compiling uncreachable automata states *)
   type t0 =
-    { trees : (FDK.t * FDK.t) Lazy.t T.t;
-      rootId : int;
-      mutable nextId : int }
+    { states : (FDK.t * FDK.t) Lazy.t T.t;
+      source : int;
+      mutable nextState : int }
 
   let create_t0 () : t0 =
-    let trees = T.create () ~size:10 in
-    let rootId = 0 in
-    { trees; rootId; nextId = rootId+1 }
+    let states = T.create () ~size:10 in
+    let source = 0 in
+    { states; source; nextState = source+1 }
 
   let create_t () : t =
-    let trees = T.create () ~size:10 in
-    let continuations = U.create () ~size:10 in
-    let rootId = 0 in
-    { trees; continuations; rootId; nextId = rootId+1 }
+    let states = T.create () ~size:10 in
+    let has_state = U.create () ~size:10 in
+    let source = 0 in
+    { states; has_state; source; nextState = source+1 }
 
-  let mk_id_t0 (forest : t0) =
-    let id = forest.nextId in
-    forest.nextId <- id + 1;
+  let mk_state_t0 (automaton : t0) =
+    let id = automaton.nextState in
+    automaton.nextState <- id + 1;
     id
 
-  let mk_id_t (forest : t) =
-    let id = forest.nextId in
-    forest.nextId <- id + 1;
+  let mk_state_t (automaton : t) =
+    let id = automaton.nextState in
+    automaton.nextState <- id + 1;
     id
 
-  let add_to_t (forest : t) (fdks : (FDK.t * FDK.t)) =
-    match U.find forest.continuations fdks with
+  let add_to_t (automaton : t) (fdks : (FDK.t * FDK.t)) =
+    match U.find automaton.has_state fdks with
     | Some k -> k
     | None ->
-      let k = mk_id_t forest in
-      T.add_exn forest.trees ~key:k ~data:fdks;
-      U.add_exn forest.continuations ~key:fdks ~data:k;
+      let k = mk_state_t automaton in
+      T.add_exn automaton.states ~key:k ~data:fdks;
+      U.add_exn automaton.has_state ~key:fdks ~data:k;
       k
 
-  let map_reachable ?(order = `Pre) (forest : t) ~(f: int -> (FDK.t * FDK.t) -> (FDK.t * FDK.t)) : unit =
+  let map_reachable ?(order = `Pre) (automaton : t) ~(f: int -> (FDK.t * FDK.t) -> (FDK.t * FDK.t)) : unit =
     let rec loop seen (id : int) =
       if S.mem seen id then seen else
         let seen = S.add seen id in
-        let fdks = T.find_exn forest.trees id in
+        let fdks = T.find_exn automaton.states id in
         let this seen =
           let fdks = f id fdks in
-          T.replace forest.trees ~key:id ~data:fdks; (seen, fdks) in
+          T.replace automaton.states ~key:id ~data:fdks; (seen, fdks) in
         let that (seen, (_,d)) = List.fold (FDK.conts d) ~init:seen ~f:loop in
         match order with
         | `Pre -> seen |> this |> that
         | `Post -> (seen, fdks) |> that |> this |> fst
     in
-    loop S.empty forest.rootId |> ignore
+    loop S.empty automaton.source |> ignore
 
-  let fold_reachable ?(order = `Pre) (forest : t) ~(init : 'a) ~(f: 'a -> int -> (FDK.t * FDK.t) -> 'a) =
+  let fold_reachable ?(order = `Pre) (automaton : t) ~(init : 'a) ~(f: 'a -> int -> (FDK.t * FDK.t) -> 'a) =
     let rec loop (acc, seen) (id : int) =
       if S.mem seen id then (acc, seen) else
         let seen = S.add seen id in
-        let (_,d) as fdks = T.find_exn forest.trees id in
+        let (_,d) as fdks = T.find_exn automaton.states id in
         let this (acc, seen) = (f acc id fdks, seen) in
         let that (acc, seen) = List.fold (FDK.conts d) ~init:(acc, seen) ~f:loop in
         match order with
         | `Pre -> (acc, seen) |> this |> that
         | `Post -> (acc, seen) |> that |> this
     in
-    loop (init, S.empty) forest.rootId |> fst
+    loop (init, S.empty) automaton.source |> fst
 
-  let iter_reachable ?(order = `Pre) (forest : t) ~(f: int -> (FDK.t * FDK.t) -> unit) : unit =
-    fold_reachable forest ~order ~init:() ~f:(fun _ -> f)
+  let iter_reachable ?(order = `Pre) (automaton : t) ~(f: int -> (FDK.t * FDK.t) -> unit) : unit =
+    fold_reachable automaton ~order ~init:() ~f:(fun _ -> f)
 
-  let t_of_t0' (forest : t0) =
+  let t_of_t0' (automaton : t0) =
     let t = create_t () in
     let rec add id =
-      if not (T.mem t.trees id) then
-        let _ = t.nextId <- max t.nextId (id + 1) in
-        let (_,d) as fdk = Lazy.force (T.find_exn forest.trees id) in
-        T.add_exn t.trees ~key:id ~data:fdk;
+      if not (T.mem t.states id) then
+        let _ = t.nextState <- max t.nextState (id + 1) in
+        let (_,d) as fdk = Lazy.force (T.find_exn automaton.states id) in
+        T.add_exn t.states ~key:id ~data:fdk;
         List.iter (FDK.conts d) ~f:add
     in
-    add forest.rootId;
-    t.rootId <- forest.rootId;
+    add automaton.source;
+    t.source <- automaton.source;
     t
 
-  let t_of_t0 ?(remove_duplicates=false) (forest : t0) =
-    if not remove_duplicates then t_of_t0' forest else
+  let t_of_t0 ?(remove_duplicates=false) (automaton : t0) =
+    if not remove_duplicates then t_of_t0' automaton else
     let t = create_t () in
     let ktbl = U.create () ~size:10 in
     let rec loop id =
-      let fdk = T.find_exn forest.trees id in
+      let fdk = T.find_exn automaton.states id in
       let seen = Lazy.is_val fdk in
       let (e,d) = Lazy.force fdk in
       if seen then match U.find ktbl (e,d) with
@@ -297,12 +297,12 @@ module FDKG = struct
         U.set ktbl ~key:(e,d) ~data:k;
         k
     in
-    let rootId = loop forest.rootId in
-    t.rootId <- rootId;
+    let source = loop automaton.source in
+    t.source <- source;
     t
 
 
-  let dedup_global (forest : t) : unit =
+  let dedup_global (automaton : t) : unit =
     let tbl = S.Table.create () ~size:10 in
     let untbl = Int.Table.create () ~size:10 in
     let unmerge k = Int.Table.find untbl k |> Option.value ~default:[k] in
@@ -314,10 +314,10 @@ module FDKG = struct
       | Some k -> k
       | None ->
         let (es, ds) =
-          List.map ks ~f:(T.find_exn forest.trees)
+          List.map ks ~f:(T.find_exn automaton.states)
           |> List.unzip in
         let fdk = (FDK.big_union es, FDK.big_union ds) in
-        let k = add_to_t forest fdk in
+        let k = add_to_t automaton fdk in
         S.Table.add_exn tbl ~key:ks_set ~data:k;
         Int.Table.add_exn untbl ~key:k ~data:ks;
         k
@@ -335,61 +335,61 @@ module FDKG = struct
       |> ActionK.Par.of_list
     in
     let dedup_fdk = FDK.map_r dedup_action in
-    map_reachable forest ~order:`Pre ~f:(fun _ (e,d) -> (e, dedup_fdk d))
+    map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) -> (e, dedup_fdk d))
 
 
 
 
-  let rec split_pol (forest : t0) (pol: Pol.policy) : FDK.t * FDK.t * ((int * Pol.policy) list) =
+  let rec split_pol (automaton : t0) (pol: Pol.policy) : FDK.t * FDK.t * ((int * Pol.policy) list) =
     match pol with
     | Filter pred -> (FDK.of_pred pred, FDK.mk_drop (), [])
     | Mod hv -> (FDK.of_mod hv, FDK.mk_drop (), [])
     | Union (p,q) ->
-      let (e_p, d_p, k_p) = split_pol forest p in
-      let (e_q, d_q, k_q) = split_pol forest q in
+      let (e_p, d_p, k_p) = split_pol automaton p in
+      let (e_q, d_q, k_q) = split_pol automaton q in
       let e = FDK.union e_p e_q in
       let d = FDK.union d_p d_q in
       let k = k_p @ k_q in
       (e, d, k)
     | Seq (p,q) ->
       (* TODO: short-circuit *)
-      let (e_p, d_p, k_p) = split_pol forest p in
-      let (e_q, d_q, k_q) = split_pol forest q in
+      let (e_p, d_p, k_p) = split_pol automaton p in
+      let (e_q, d_q, k_q) = split_pol automaton q in
       let e = FDK.seq e_p e_q in
       let d = FDK.union d_p (FDK.seq e_p d_q) in
       let q' = Pol.mk_fdk e_q d_q in
       let k = (List.map k_p ~f:(fun (id,p) -> (id, Pol.mk_seq p q'))) @ k_q in
       (e, d, k)
     | Star p ->
-      let (e_p, d_p, k_p) = split_pol forest p in
+      let (e_p, d_p, k_p) = split_pol automaton p in
       let e = FDK.star e_p in
       let d = FDK.seq e d_p in
       let pol' = Pol.mk_fdk e d in
       let k = List.map k_p ~f:(fun (id,k) -> (id, Pol.mk_seq k pol')) in
       (e, d, k)
     | Dup ->
-      let id = mk_id_t0 forest in
+      let id = mk_state_t0 automaton in
       let e = FDK.mk_drop () in
       let d = FDK.mk_cont id in
       let k = [(id, Pol.id)] in
       (e, d, k)
     | FDK (e,d) -> (e,d,[])
 
-  let rec add_policy (forest : t0) (id, pol : int * Pol.policy) : unit =
+  let rec add_policy (automaton : t0) (id, pol : int * Pol.policy) : unit =
     let f () =
-      let (e,d,k) = split_pol forest pol in
-      List.iter k ~f:(add_policy forest);
+      let (e,d,k) = split_pol automaton pol in
+      List.iter k ~f:(add_policy automaton);
       (e, d)
     in
-    T.add_exn forest.trees ~key:id ~data:(Lazy.from_fun f)
+    T.add_exn automaton.states ~key:id ~data:(Lazy.from_fun f)
 
   let of_policy ?(dedup=true) ?ing ?(remove_duplicates=false) (pol : NetKAT_Types.policy) : t =
-    let forest = create_t0 () in
+    let automaton = create_t0 () in
     let pol = Pol.of_pol ing pol in
-    let () = add_policy forest (forest.rootId, pol) in
-    let forest = t_of_t0 ~remove_duplicates forest in
-    let () = if dedup then dedup_global forest in
-    forest
+    let () = add_policy automaton (automaton.source, pol) in
+    let automaton = t_of_t0 ~remove_duplicates automaton in
+    let () = if dedup then dedup_global automaton in
+    automaton
 
 
   let pc_unused pc fdd =
@@ -398,17 +398,17 @@ module FDKG = struct
       (fun (f,_) l r -> l && r && f<>pc)
       fdd
 
-  let to_local (pc : Field.t) (forest : t) : NetKAT_LocalCompiler.t =
+  let to_local (pc : Field.t) (automaton : t) : NetKAT_LocalCompiler.t =
     let fdk_to_fdd =
       FDK.fold
         (fun par -> ActionK.to_action (fun v -> (pc,v)) par |> NetKAT_FDD.T.mk_leaf)
         (* SJS: using mk_branch here is safe since variable order of fdk and fdd agree *)
         (fun v t f -> NetKAT_FDD.T.mk_branch v t f)
     in
-    fold_reachable forest ~init:(NetKAT_FDD.T.mk_drop ()) ~f:(fun acc id (e,d) ->
+    fold_reachable automaton ~init:(NetKAT_FDD.T.mk_drop ()) ~f:(fun acc id (e,d) ->
       let _ = assert (pc_unused pc e && pc_unused pc d) in
       let guard =
-        if id = forest.rootId then FDK.mk_id ()
+        if id = automaton.source then FDK.mk_id ()
         else FDK.atom (pc, Value.of_int id) ActionK.one ActionK.zero in
       let fdk = FDK.seq guard (FDK.union e d) in
       let fdd = fdk_to_fdd fdk in
@@ -416,8 +416,8 @@ module FDKG = struct
 
 
   (* SJS: horrible hack *)
-  let to_dot (forest : t) =
-    let trees = T.map forest.trees ~f:(fun (e,d) -> FDK.union e d) in
+  let to_dot (automaton : t) =
+    let states = T.map automaton.states ~f:(fun (e,d) -> FDK.union e d) in
     let open Format in
     let buf = Buffer.create 200 in
     let fmt = formatter_of_buffer buf in
@@ -437,7 +437,7 @@ module FDKG = struct
           fprintf fmt "\t%d [shape = point];@\n" node;
           ActionK.Par.iter par ~f:(fun seq ->
             let id = sprintf "\"%dS%d\"" node (!seqId) in
-            let cont = ActionK.Seq.find seq K |> Option.map ~f:(fun v -> T.find_exn trees (Value.to_int_exn v)) in
+            let cont = ActionK.Seq.find seq K |> Option.map ~f:(fun v -> T.find_exn states (Value.to_int_exn v)) in
             let label = Action.to_string (ActionK.to_action_wout_conts (ActionK.Par.singleton seq)) in
             fprintf fmt "\t%s [shape=box, label=\"%s\"];@\n" id label;
             Option.iter cont ~f:(fun k ->
@@ -457,14 +457,14 @@ module FDKG = struct
     in
     let fdks = ref [] in
     let rec fdk_loop fdkId =
-      let fdk = T.find_exn trees fdkId in
+      let fdk = T.find_exn states fdkId in
       let conts = FDK.conts fdk in
       fdks := fdk :: (!fdks);
       node_loop fdk;
       List.iter conts ~f:fdk_loop
     in
-    fdk_loop forest.rootId;
-    fprintf fmt "%d [style=bold, color=red];@\n" (T.find_exn trees forest.rootId);
+    fdk_loop automaton.source;
+    fprintf fmt "%d [style=bold, color=red];@\n" (T.find_exn states automaton.source);
     fprintf fmt "{rank=source; ";
     List.iter (!fdks) ~f:(fun fdk -> fprintf fmt "%d " fdk);
     fprintf fmt ";}@\n";
@@ -473,7 +473,7 @@ module FDKG = struct
 
 end
 
-include FDKG
+include NetKAT_Automaton
 
 let compile (pol : NetKAT_Types.policy) : NetKAT_LocalCompiler.t =
   to_local Field.Vlan (of_policy ~dedup:true pol)
