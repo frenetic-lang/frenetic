@@ -4,6 +4,7 @@ from frenetic.syntax import *
 import single_switch_forwarding
 import array
 from ryu.lib.packet import packet
+from tornado.ioloop import PeriodicCallback
 
 net_size = 2
 
@@ -75,7 +76,8 @@ class Firewall(frenetic.App):
     frenetic.App.__init__(self)
     self.state = state
     self.update(self.global_policy())
-    self.last_clean = 0
+    if self.state.version == 3:
+      PeriodicCallback(self.run_clean, 3000).start()
 
   def allowed_pred(self):
     return Or([x.to_pred() for x in self.state.allowed])
@@ -97,6 +99,7 @@ class Firewall(frenetic.App):
         Mod(Location(Pipe("http")))))
 
   def clean_callback(self, response, allowed):
+    # TODO(arjun): Have self.query parse the response (i.e., no JSON stuff here)
     data = json.loads(response.buffer.getvalue())
     curr_bytes = int(data['bytes'])
     # If the connection has become stale remove it
@@ -104,6 +107,7 @@ class Firewall(frenetic.App):
     print "last count: %s" % str(allowed.last_count)
     print "curr_bytes: %s" % str(curr_bytes)
     print "\n\n\n"
+    # NOTE(arjun): Should never be greater than, I hope!
     if(allowed.last_count >= curr_bytes):
         self.state.allowed.remove(allowed)
         return
@@ -113,7 +117,9 @@ class Firewall(frenetic.App):
     for allowed in self.state.allowed:
       f = partial(self.clean_callback, allowed=allowed)
       self.query(allowed.query_label, f)
-    self.last_clean = time.time()
+    # TODO(arjun): Update policy if anything was cleaned
+    # TODO(arjun): Also clean pending connections. (Need to track connection
+    # start time?)
 
   def packet_in_v1(self, switch_id, port_id, payload, src_ip, dst_ip,
                    src_tcp_port, dst_tcp_port):
@@ -153,16 +159,6 @@ class Firewall(frenetic.App):
 
     self.pkt_out(switch_id, payload, [])
 
-  def packet_in_v3(self, switch_id, port_id, payload, src_ip, dst_ip,
-                   src_tcp_port, dst_tcp_port):
-    # Check if we should clean
-    curr_time = time.time()
-    if(curr_time - self.last_clean > 2):
-        self.run_clean()
-    # Then run v2 policy
-    self.packet_in_v2(switch_id, port_id, payload, src_ip, dst_ip,
-                      src_tcp_port, dst_tcp_port)
-
   def packet_in(self, switch_id, port_id, payload):
     pkt = packet.Packet(array.array('b', payload.data))
     p = get(pkt,'ethernet')
@@ -176,10 +172,8 @@ class Firewall(frenetic.App):
 
     if self.state.version == 1:
       f = self.packet_in_v1
-    elif self.state.version == 2:
+    elif self.state.version == 2 or self.state.version == 3:
       f = self.packet_in_v2
-    elif self.state.version == 3:
-      f = self.packet_in_v3
     else:
       assert False
 
