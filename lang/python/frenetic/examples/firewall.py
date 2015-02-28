@@ -5,7 +5,9 @@ import single_switch_forwarding
 import array
 from ryu.lib.packet import packet
 from tornado.ioloop import PeriodicCallback
-from tornado.concurrent import chain_future
+from tornado.ioloop import IOLoop
+from tornado.concurrent import return_future
+from tornado.gen import sleep
 
 net_size = 2
 clean_delay = 3
@@ -95,13 +97,14 @@ class Firewall(frenetic.App):
         forwarding_pol | queries,
         Mod(Location(Pipe("http")))))
 
-  def clean_callback(self, packets, curr_bytes, allowed):
+  def clean_callback(self, ftr, allowed, results):
+    curr_bytes = ftr.result()[1]
     # If the connection has become stale remove it
     # NOTE(arjun): Should never be greater than, I hope!
     assert allowed.last_count <= curr_bytes
     if(allowed.last_count == curr_bytes):
         self.state.allowed.remove(allowed)
-        return
+        results[0] = True
     allowed.last_count = curr_bytes
 
   def find_pending(self, to_remove_set, pending):
@@ -109,20 +112,27 @@ class Firewall(frenetic.App):
       to_remove_set.add(pending)
     return to_remove_set
 
+  @return_future
+  def clean_up(self, results, callback):
+    if(results[0] == True):
+      self.update(self.global_policy())
+
   def run_clean(self):
     # Check allowed connections
     futures = []
+    results = [False]
     for allowed in self.state.allowed:
-      f = partial(self.clean_callback, allowed=allowed)
-      futures.append(self.query(allowed.query_label, f))
-    if (len(futures) > 0):
-      future = reduce(chain_future, futures)
+      ftr = self.query(allowed.query_label)
+      callback = partial(self.clean_callback, allowed=allowed, results=results)
+      futures.append(ftr)
+      IOLoop.instance().add_future(ftr, callback)
+
+    IOLoop.instance().add_future(self.clean_up(results), lambda x: x)
+
     # Check for expired pending
     to_remove_set = reduce(self.find_pending, self.state.pending, set())
     for pending in to_remove_set:
       self.state.pending.remove(pending)
-
-    # TODO(arjun): Update policy if anything was cleaned
 
   def packet_in_v1(self, switch_id, port_id, payload, src_ip, dst_ip,
                    src_tcp_port, dst_tcp_port):
