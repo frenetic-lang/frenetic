@@ -162,26 +162,27 @@ module Make (Args : ARGS) : CONTROLLER = struct
     NetKAT_LocalCompiler.to_table' sw_id !fdd
 
   let raw_query (name : string) : (Int64.t * Int64.t) Deferred.t =
-    Deferred.List.map ~how:`Parallel
-      (Controller.get_switches controller) ~f:(fun sw_id ->
-        let pats = List.filter_map (get_table sw_id) ~f:(fun (flow, names) ->
-          if List.mem names name then
-            Some flow.pattern
-          else
-            None) in
-        Deferred.List.map ~how:`Parallel pats
-          ~f:(fun pat ->
-            let pat0x01 = SDN_OpenFlow0x01.from_pattern pat in
-            Controller.individual_stats ~pattern:pat0x01 controller sw_id
-            >>| function
-            | Ok stats ->
-              (List.sum (module Int64) stats ~f:(fun stat -> stat.packet_count),
-               List.sum (module Int64) stats ~f:(fun stat -> stat.byte_count))
-            | Error _ -> (0L, 0L)))
+    Controller.get_switches controller
+    >>= Deferred.List.map ~how:`Parallel
+      ~f:(fun sw_id ->
+          let pats = List.filter_map (get_table sw_id) ~f:(fun (flow, names) ->
+              if List.mem names name then
+                Some flow.pattern
+              else
+                None) in
+          Deferred.List.map ~how:`Parallel pats
+            ~f:(fun pat ->
+                let pat0x01 = SDN_OpenFlow0x01.from_pattern pat in
+                Controller.individual_stats ~pattern:pat0x01 controller sw_id
+                >>| function
+                | Ok stats ->
+                  (List.sum (module Int64) stats ~f:(fun stat -> stat.packet_count),
+                   List.sum (module Int64) stats ~f:(fun stat -> stat.byte_count))
+                | Error _ -> (0L, 0L)))
     >>| fun stats ->
-      List.fold (List.concat stats) ~init:(0L, 0L)
-        ~f:(fun (pkts, bytes) (pkts', bytes') ->
-            Int64.(pkts + pkts', bytes + bytes'))
+    List.fold (List.concat stats) ~init:(0L, 0L)
+      ~f:(fun (pkts, bytes) (pkts', bytes') ->
+          Int64.(pkts + pkts', bytes + bytes'))
 
   let query (name : string) : (Int64.t * Int64.t) Deferred.t =
     raw_query name
