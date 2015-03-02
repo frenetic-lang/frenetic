@@ -1,6 +1,7 @@
 open Core.Std
 open Async.Std
 open Async_NetKAT_Controller_Common
+module Log = Async_OpenFlow.Log
 
 type edge = (SDN_Types.flow*int) list SwitchMap.t
 
@@ -58,6 +59,8 @@ module BestEffortUpdate = struct
 
   let bring_up_switch ctl (sw_id : SDN.switchId) new_r =
     let table = LC.to_table sw_id new_r in
+    Log.printf ~level:`Debug "Setting up flow table\n%s"
+      (SDN_Types.string_of_flowTable ~label:(Int64.to_string sw_id) table);
     Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
       delete_flows_for ctl sw_id >>= fun () ->
       install_flows_for ctl sw_id table)
