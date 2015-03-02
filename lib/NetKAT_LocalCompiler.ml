@@ -206,23 +206,30 @@ let check_tcp pattern =
   else pattern
 
 let nw_src_dst_implies (pat : SDN.Pattern.t) =
-  if pat.nwSrc = None && pat.nwDst = None then
-    pat
+  if not (pat.nwSrc = None && pat.nwDst = None) then
+    { pat with nwProto = Some 0x06 }
   else
+    pat
+
+let nw_proto_implies (pat : SDN.Pattern.t) =
+  if pat.nwProto = Some 0x06 then
     { pat with dlTyp = Some 0x0800 }
+  else
+    pat
 
 let mk_flow pattern action queries =
   let open SDN.Pattern in
   let pattern = nw_src_dst_implies pattern in
-  let pattern' = check_nwProto pattern in
-  let pattern'' = check_tcp pattern' in
-  let pattern''' = check_nwProto pattern'' in
+  let pattern = check_nwProto pattern in
+  let pattern = check_tcp pattern in
+  let pattern = check_nwProto pattern in
+  let pattern = nw_proto_implies pattern in
   (* Not entirely sure how to detect the following from the pattern:
       - Left out optional ARP packet where dlTyp should be set to 0x0806
       - Left out UDP where nwProto should be set to 7
       - Left out ICMP where nwProto should be set to 1
    *)
-  let pattern = pattern''' in
+  let pattern = pattern in
   let open SDN in
   ({ pattern
     ; action

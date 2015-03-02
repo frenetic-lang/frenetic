@@ -72,10 +72,10 @@ let packet_sync_headers (pkt:NetKAT_Semantics.packet) : NetKAT_Semantics.packet 
 let of_to_netkat_event fdd (evt : Controller.e) : NetKAT_Types.event list =
   match evt with
   (* TODO(arjun): include switch features in SwitchUp *)
-  | `Connect (sw_id, feats) -> 
+  | `Connect (sw_id, feats) ->
      (* TODO(joe): Did we just want the port number? Or do we want the entire description? *)
-     let ps = 
-       List.filter 
+     let ps =
+       List.filter
 	 (List.map feats.ports ~f:(fun desc -> Int32.of_int_exn desc.port_no))
 	 ~f:(fun p -> not (p = 0xFFFEl))
      in [SwitchUp(sw_id, ps)]
@@ -149,6 +149,7 @@ module Make (Args : ARGS) : CONTROLLER = struct
 
   let send_packet_out (sw_id : switchId)
     (pkt_out : SDN_Types.pktOut) : unit Deferred.t =
+    Log.printf ~level:`Debug "SENDING PKT_OUT";
     Pipe.write pktout_writer (sw_id, pkt_out)
 
   let event () : event Deferred.t =
@@ -170,11 +171,12 @@ module Make (Args : ARGS) : CONTROLLER = struct
             None) in
         Deferred.List.map ~how:`Parallel pats
           ~f:(fun pat ->
-            printf "Sending 2...";
-            Controller.individual_stats controller sw_id
+            let pat0x01 = SDN_OpenFlow0x01.from_pattern pat in
+            Controller.individual_stats ~pattern:pat0x01 controller sw_id
             >>| function
-            | Ok [stat] -> (stat.packet_count, stat.byte_count)
-            | Ok _ -> assert false
+            | Ok stats ->
+              (List.sum (module Int64) stats ~f:(fun stat -> stat.packet_count),
+               List.sum (module Int64) stats ~f:(fun stat -> stat.byte_count))
             | Error _ -> (0L, 0L)))
     >>| fun stats ->
       List.fold (List.concat stats) ~init:(0L, 0L)
@@ -188,7 +190,7 @@ module Make (Args : ARGS) : CONTROLLER = struct
     Deferred.return (Int64.(pkts + pkts', bytes + bytes'))
 
   let update_all_switches (pol : policy) : unit Deferred.t =
-    print_endline (NetKAT_Pretty.string_of_policy pol);
+    Log.printf ~level:`Debug "Installing policy\n%s" (NetKAT_Pretty.string_of_policy pol);
     let new_queries = NetKAT_Misc.queries_of_policy pol in
     (* Discard old queries *)
     Hashtbl.Poly.filteri_inplace stats

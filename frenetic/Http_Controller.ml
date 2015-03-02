@@ -53,11 +53,10 @@ let handle_request
       >>= fun evt ->
       Server.respond_with_string (NetKAT_Json.event_to_json_string evt)
     | `POST, ["pkt_out"] ->
-      handle_parse_errors body
-        (fun body ->
-           Body.to_string body >>= fun str ->
+      handle_parse_errors' body
+        (fun str ->
            let json = Yojson.Basic.from_string str in
-           return (NetKAT_SDN_Json.pkt_out_from_json json))
+           NetKAT_SDN_Json.pkt_out_from_json json)
         (fun (sw_id, pkt_out) ->
            printf "POST /pkt_out";
            send_packet_out sw_id pkt_out
@@ -75,23 +74,21 @@ let handle_request
       (fun pol ->
          DynGraph.push pol (get_client clientId).policy_node;
          Cohttp_async.Server.respond `OK)
-    | _, _ -> printf "Got garbage from Client"; Cohttp_async.Server.respond `Not_found
+    | _, _ ->
+      printf "Got garbage from Client"; Cohttp_async.Server.respond `Not_found
 
-let listen ~port =
-  Async_OpenFlow.OpenFlow0x01.Controller.create ~port:6633 ()
+let listen ~http_port ~openflow_port =
+  Async_OpenFlow.OpenFlow0x01.Controller.create ~port:openflow_port ()
   >>= fun controller ->
   let module Controller = NetKAT_Controller.Make (struct
       let controller = controller
     end) in
-  let _ = Cohttp_async.Server.create (Tcp.on_port port)
+  let _ = Cohttp_async.Server.create (Tcp.on_port http_port)
     (handle_request Controller.event Controller.send_packet_out Controller.query) in
   let (_, pol_reader) = DynGraph.to_pipe pol in
   let _ = Pipe.iter pol_reader ~f:(fun pol -> Controller.update_policy pol) in
   Controller.start ();
   Deferred.return ()
 
-let main (args : string list) : unit = match args with
-  | [ "--app-port"; p ] | [ "-a"; p ] ->
-    don't_wait_for (listen ~port:(Int.of_string p))
-  | [] -> don't_wait_for (listen ~port:9000)
-  |  _ -> (print_endline "Invalid command-line arguments"; Shutdown.shutdown 1)
+let main (http_port : int) (openflow_port : int) () : unit =
+  don't_wait_for (listen ~http_port ~openflow_port)
