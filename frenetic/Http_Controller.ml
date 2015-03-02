@@ -77,21 +77,18 @@ let handle_request
     | _, _ ->
       printf "Got garbage from Client"; Cohttp_async.Server.respond `Not_found
 
-let listen ~port =
-  Async_OpenFlow.OpenFlow0x01.Controller.create ~port:6633 ()
+let listen ~http_port ~openflow_port =
+  Async_OpenFlow.OpenFlow0x01.Controller.create ~port:openflow_port ()
   >>= fun controller ->
   let module Controller = NetKAT_Controller.Make (struct
       let controller = controller
     end) in
-  let _ = Cohttp_async.Server.create (Tcp.on_port port)
+  let _ = Cohttp_async.Server.create (Tcp.on_port http_port)
     (handle_request Controller.event Controller.send_packet_out Controller.query) in
   let (_, pol_reader) = DynGraph.to_pipe pol in
   let _ = Pipe.iter pol_reader ~f:(fun pol -> Controller.update_policy pol) in
   Controller.start ();
   Deferred.return ()
 
-let main (args : string list) : unit = match args with
-  | [ "--app-port"; p ] | [ "-a"; p ] ->
-    don't_wait_for (listen ~port:(Int.of_string p))
-  | [] -> don't_wait_for (listen ~port:9000)
-  |  _ -> (print_endline "Invalid command-line arguments"; Shutdown.shutdown 1)
+let main (http_port : int) (openflow_port : int) () : unit =
+  don't_wait_for (listen ~http_port ~openflow_port)
