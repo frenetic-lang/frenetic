@@ -17,16 +17,30 @@ let verbosity : [ `Debug | `Error | `Info ] Term.t =
   let doc = "Set logging verbosity" in
   value & opt level `Info & info ["verbosity"] ~docv:"LEVEL" ~doc
 
+let log_output : (string * Async.Std.Log.Output.t Lazy.t) Term.t =
+  let open Async.Std in
+  let open Arg in
+  let stderr_output = ("stderr", lazy (Log.Output.stderr ()))  in
+  let a_parser (str : string) = match str with
+    | "stderr" -> `Ok stderr_output
+    | "stdout" -> `Ok ("stdout", lazy (Log.Output.stdout ()))
+    | filename -> `Ok (filename, lazy (Log.Output.file `Text filename)) in
+  let a_printer fmt (str, _) = Format.pp_print_string fmt str in
+  value (opt (a_parser, a_printer) stderr_output (info ["log"]))
+
 (* Starts the async scheduler and sets up the async logger. *)
 let async_init (cmd : (unit -> unit) Term.t) : unit Term.t =
   let open Async.Std in
   let open Term in
-  let cmd' (verbosity : [ `Debug | `Error | `Info ]) (f : unit -> unit) : unit =
+  let cmd' (verbosity : [ `Debug | `Error | `Info ])
+           ((_, log_output) : (string * Log.Output.t Lazy.t))
+           (f : unit -> unit) : unit =
     let main () =
       Async_OpenFlow.Log.set_level verbosity;
+      Async_OpenFlow.Log.set_output [Lazy.force log_output];
       f () in
     never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ()) in
-  pure cmd' $ verbosity $ cmd
+  pure cmd' $ verbosity $ log_output $ cmd
 
 let compile_server : unit Term.t * Term.info =
   let open Term in
