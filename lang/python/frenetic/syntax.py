@@ -168,12 +168,12 @@ class Not(Pred):
           "pred": self.pred.to_json()
         }
 
-class True(Pred):
+class Id(Pred):
 
     def to_json(self):
         return { "type": "true" }
 
-class False(Pred):
+class Drop(Pred):
 
     def to_json(self):
         return { "type": "false" }
@@ -410,7 +410,7 @@ class Seq(Policy):
 
 # Shorthands
 
-true = True()
-false = False()
+true = Id()
+false = Drop()
 id = Filter(true)
 drop = Filter(false)
