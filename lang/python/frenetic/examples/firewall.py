@@ -97,37 +97,59 @@ class Firewall(frenetic.App):
         forwarding_pol | queries,
         Mod(Location(Pipe("http")))))
 
-  def clean_callback(self, ftr, allowed, results):
-    curr_bytes = ftr.result()[1]
-    # If the connection has become stale remove it
-    # NOTE(arjun): Should never be greater than, I hope!
-    assert allowed.last_count <= curr_bytes
-    if(allowed.last_count == curr_bytes):
-        self.state.allowed.remove(allowed)
-        results[0] = True
-    allowed.last_count = curr_bytes
-
   def find_pending(self, to_remove_set, pending):
     if(pending.time_created + clean_delay < time.time()):
       to_remove_set.add(pending)
     return to_remove_set
 
   @return_future
-  def clean_up(self, results, callback):
-    if(results[0] == True):
+  def clean_next(self, allowed_conns, should_clean, callback):
+    # this should never be called with an empty connection list
+    assert allowed_conns
+    # Take the top most connection and schedule it to be checked
+    allowed = allowed_conns.pop()
+    ftr = self.query(allowed.query_label)
+    f = partial(self.clean_callback, 
+                allowed=allowed, 
+                allowed_conns = allowed_conns,
+                clean_next_callback = callback,
+                should_clean = should_clean)
+    # Schedule the next element to be checked for cleaning
+    IOLoop.instance().add_future(ftr, f)
+
+  def clean_callback(self, ftr, allowed, allowed_conns, clean_next_callback, should_clean):
+    curr_bytes = ftr.result()[1]
+    # If the connection has become stale remove it
+    # NOTE(arjun): Should never be greater than, I hope!
+    assert allowed.last_count <= curr_bytes
+    if(allowed.last_count == curr_bytes):
+        # Remove the connection and set the cleaning flag to true
+        self.state.allowed.remove(allowed)
+        should_clean = True
+    allowed.last_count = curr_bytes
+    # Propogate information to see if we are done
+    clean_next_callback([allowed_conns, should_clean])
+    
+  def clean_next_callback(self, ftr):
+    results = ftr.result()
+    allowed_conns = results[0]
+    should_clean = results[1]
+    # If there are more connections to check, schedule the next check threading along the should_clean result
+    if(allowed_conns):
+      IOLoop.instance().add_future(self.clean_next(allowed_conns, should_clean), self.clean_next_callback)
+    elif(should_clean == True):
+      # Otherwise, check if we should update
+      # Note: We've overloaded True / False with the frenetic syntax
+      # So we check == True for now. Very hacky.
       self.update(self.global_policy())
 
   def run_clean(self):
     # Check allowed connections
-    futures = []
-    results = [False]
-    for allowed in self.state.allowed:
-      ftr = self.query(allowed.query_label)
-      callback = partial(self.clean_callback, allowed=allowed, results=results)
-      futures.append(ftr)
-      IOLoop.instance().add_future(ftr, callback)
-
-    IOLoop.instance().add_future(self.clean_up(results), lambda x: x)
+    allowed_conns = list(self.state.allowed)
+    # If there is atleast one allowed connection, check for cleaning
+    if(allowed_conns):
+      ftr = self.clean_next(allowed_conns, False)
+      IOLoop.instance().add_future(ftr, self.clean_next_callback)
 
     # Check for expired pending
     to_remove_set = reduce(self.find_pending, self.state.pending, set())
