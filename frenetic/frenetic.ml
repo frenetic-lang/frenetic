@@ -19,11 +19,12 @@ let verbosity : [ `Debug | `Error | `Info ] Term.t =
 
 let log_output : (string * Async.Std.Log.Output.t Lazy.t) Term.t =
   let open Async.Std in
+  let open Async_extended in
   let open Arg in
-  let stderr_output = ("stderr", lazy (Log.Output.stderr ()))  in
+  let stderr_output = ("stderr", lazy (Extended_log.Console.output (Lazy.force Writer.stderr))) in
   let a_parser (str : string) = match str with
     | "stderr" -> `Ok stderr_output
-    | "stdout" -> `Ok ("stdout", lazy (Log.Output.stdout ()))
+    | "stdout" -> `Ok ("stdout", lazy (Extended_log.Console.output (Lazy.force Writer.stdout)))
     | filename -> `Ok (filename, lazy (Log.Output.file `Text filename)) in
   let a_printer fmt (str, _) = Format.pp_print_string fmt str in
   value (opt (a_parser, a_printer) stderr_output (info ["log"]))

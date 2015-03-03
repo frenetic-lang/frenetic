@@ -136,7 +136,8 @@ Executable frenetic
     cohttp.async,
     netkat,
     netkat.async,
-    cmdliner
+    cmdliner,
+    async_extended
 
 Executable katnetic
   Path: frenetic
