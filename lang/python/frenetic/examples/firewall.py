@@ -15,21 +15,15 @@ def get(pkt,protocol):
         if p.protocol_name == protocol:
             return p
 
-__lbl = 0
-def next_query_label():
-  global __lbl
-  n = str(__lbl)
-  __lbl = __lbl + 1
-  return n
 
 class Allowed(object):
 
-  def __init__(self, trusted_ip, trusted_port, untrusted_ip, untrusted_port):
+  def __init__(self, trusted_ip, trusted_port, untrusted_ip, untrusted_port, query_label):
     self.trusted_ip = trusted_ip
     self.trusted_port = trusted_port
     self.untrusted_ip = untrusted_ip
     self.untrusted_port = untrusted_port
-    self.query_label = next_query_label()
+    self.query_label = query_label
     self.last_count = 0
     self.time_created = time.time()
 
@@ -137,7 +131,7 @@ class Firewall(frenetic.App):
       return
 
     # Packet is going from trusted to untrusted
-    self.state.allow(Allowed(src_ip, src_tcp_port, dst_ip, dst_tcp_port))
+    self.state.allow(Allowed(src_ip, src_tcp_port, dst_ip, dst_tcp_port, self.state.next_query_label()))
     self.update(self.global_policy())
     # TODO(arjun): Should send the packet. API should expose the Freneti
     # interpreter, or update should allow you to provide a packet to apply the
@@ -146,7 +140,7 @@ class Firewall(frenetic.App):
 
   def packet_in_v2(self, switch_id, port_id, payload, src_ip, dst_ip,
                    src_tcp_port, dst_tcp_port):
-    allow_entry = Allowed(src_ip, src_tcp_port, dst_ip, dst_tcp_port)
+    allow_entry = Allowed(src_ip, src_tcp_port, dst_ip, dst_tcp_port, self.state.next_query_label())
 
     if src_ip in self.state.trusted.ips and not (dst_ip in self.state.trusted.ips):
       self.state.add_pending(allow_entry)
@@ -157,7 +151,7 @@ class Firewall(frenetic.App):
       return
 
     # Describes the trusted -> untrusted entry that should have been created
-    reverse_allow_entry = Allowed(dst_ip, dst_tcp_port, src_ip, src_tcp_port)
+    reverse_allow_entry = Allowed(dst_ip, dst_tcp_port, src_ip, src_tcp_port, self.state.next_query_label())
     if reverse_allow_entry in self.state.pending:
       self.state.remove_pending(reverse_allow_entry)
       self.state.allow(reverse_allow_entry)
@@ -196,6 +190,12 @@ class State(object):
     self.allowed = []
     # We assume that pending set is always empty in V1
     self.pending = set()
+    self.__lbl = 0
+
+  def next_query_label(self):
+    n = str(self.__lbl)
+    self.__lbl = self.__lbl + 1
+    return n
 
   def allow(self, allowed):
     self.allowed += [allowed]
