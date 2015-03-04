@@ -1,7 +1,5 @@
-import frenetic, networkx, base64, binascii, array
-from ryu.lib.packet import packet
-from ryu.lib.packet import ethernet
-from ryu.lib.packet import arp
+import frenetic, networkx, base64, binascii, array, struct
+from ryu.lib.packet import packet, packet_base, ethernet, arp
 from frenetic.syntax import *
 from tornado.ioloop import PeriodicCallback
 
@@ -14,16 +12,38 @@ def get(pkt,protocol):
             return p
 
 def to_str(switch_id, port):
-  #TODO(jcollard): really hacky
-  return '00:00:00:00:0' + str(switch_id) + ':0' + str(port)
+  return str(switch_id) + ':' + str(port)
 
 def from_str(src_string):
-  #TODO(jcollard): really hacky
   strs = src_string.split(':')
-  return (int(strs[4]), int(strs[5]))
+  return (int(strs[0]), int(strs[1]))
 
 def port_node(switch_id, port):
   return str(switch_id) + ':' + str(port)
+
+class ProbeData(packet_base.PacketBase):
+
+  _PACK_STR = '!LH'
+  _MIN_LEN = struct.calcsize(_PACK_STR)
+  _TYPE = {
+      'ascii': [
+          'src_switch', 'src_port'
+      ]
+  }
+
+  def __init__(self, src_switch, src_port):
+    self.src_switch = src_switch
+    self.src_port = src_port
+
+  @classmethod
+  def parser(cls, buf):
+      (src_switch, src_port) = struct.unpack_from(cls._PACK_STR, buf)
+      return cls(src_switch, src_port), cls._TYPES.get(probocol), buf[ProbeData._MIN_LEN:]
+
+  def serialize(self, payload, prev):
+      return struct.pack(ProbeData._PACK_STR, self.src_switch, self.src_port)
+
+ProbeData.register_packet_type(ProbeData, probocol)
 
 class SwitchRef(object):
   
@@ -65,7 +85,8 @@ class Discovery(frenetic.App):
       port = probe[1]
       print "Sending probe: (%s, %s)" % (switch_id, port)
       pkt = packet.Packet()
-      pkt.add_protocol(ethernet.ethernet(ethertype=probocol, src=to_str(switch_id, port)))
+      pkt.add_protocol(ethernet.ethernet(ethertype=probocol))
+      pkt.add_protocol(ProbeData(switch_id, port))
       pkt.serialize()
       payload = NotBuffered(binascii.a2b_base64(binascii.b2a_base64(pkt.data)))
       actions = [Output(Physical(port))]
@@ -73,7 +94,7 @@ class Discovery(frenetic.App):
 
   def global_policy(self):
     probe_traffic = Filter(Test(EthType(probocol))) >> Mod(Location(Pipe("http")))
-    pols = Union([flood_switch_policy(ps) for ps in self.state.switches.values()])
+    pols = Filter(Not(Test(EthType(probocol)))) >> Union([flood_switch_policy(ps) for ps in self.state.switches.values()])
     return pols | probe_traffic
 
   def add_switch(self, switch_ref):
@@ -94,6 +115,10 @@ class Discovery(frenetic.App):
     for port in switch_ref.ports:
       self.state.probes.add((switch_ref.id, port))
 
+  def discard_probes(self, switch_ref):
+    for port in switch_ref.ports:
+      self.state.probes.discard((switch_ref.id, port))
+
   def switch_up(self, switch_id, ports):
     print "switch_up(%s, %s)" % (switch_id, ports)
     self.state.switches[switch_id] = SwitchRef(switch_id, ports)
@@ -103,6 +128,7 @@ class Discovery(frenetic.App):
     
   def switch_down(self, switch_id):
     print "switch_down(%s)" % switch_id
+    self.discard_probes(self.state.switches[switch_id])
     self.remove_switch(self.state.switches[switch_id])
     del self.state.switches[switch_id]
     self.update(self.global_policy())
@@ -120,10 +146,8 @@ class Discovery(frenetic.App):
     pkt = packet.Packet(array.array('b', payload.data))
     p = get(pkt, 'ethernet')
     if (p.ethertype == probocol):
-      data = from_str(p.src)
-      src_switch = data[0]
-      src_port = data[1]
-      self.handle_probe(switch_id, port_id, src_switch, src_port)
+      probe_data = get(pkt, 'ProbeData')
+      self.handle_probe(switch_id, port_id, probe_data.src_switch, probe_data.src_port)
 
 
 class State(object):
