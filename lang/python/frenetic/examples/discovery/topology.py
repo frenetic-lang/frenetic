@@ -1,19 +1,17 @@
-import frenetic, networkx, base64, binascii, array, struct
+import struct, frenetic, binascii, array
 from ryu.lib.packet import packet, packet_base, ethernet, arp
 from frenetic.syntax import *
+from state import *
 from tornado.ioloop import PeriodicCallback
+from flood_switch import *
+
+# Packet to be encoded for sending Probes over the probocol
 
 def get(pkt,protocol):
     for p in pkt:
         if p.protocol_name == protocol:
             return p
 
-# Helper function to ensure the string is always the same
-# when creating a node that is a port
-def port_node(switch_id, port):
-  return str(switch_id) + ':' + str(port)
-
-# Packet to be encoded for sending Probes over the probocol
 class ProbeData(packet_base.PacketBase):
 
   PROBOCOL = 0x808
@@ -48,39 +46,13 @@ class ProbeData(packet_base.PacketBase):
 
 ProbeData.register_packet_type(ProbeData, ProbeData.PROBOCOL)
 
-# Helper class to store switch information
-class SwitchRef(object):
-  def __init__(self, id, ports):
-    self.id = id
-    self.ports = ports
+class Topology(frenetic.App):
 
-# Create a policy that given a SwitchRef, floods all input to its ports
-def flood_switch_policy(switch):
-  assert isinstance(switch, SwitchRef)
-  pol = False
-  for src in switch.ports:
-    test = Filter(Test(Location(Physical(src))))
-    actions = False
-    for dst in switch.ports:
-      if src == dst:
-        continue
-      action = test >> Mod(Location(Physical(dst)))
-      if not actions:
-        actions = action
-      else:
-        actions = action | actions
-    if not pol:
-      pol = actions
-    else:
-      pol = actions | pol
-  return Filter(Test(Switch(switch.id))) >> pol
-
-class Discovery(frenetic.App):
+  client_id = "topology"
 
   def __init__(self, state):
     frenetic.App.__init__(self)
     self.state = state
-    self.update(self.global_policy())
     # Every 10 seconds send out probes on ports we don't know about
     PeriodicCallback(self.run_probe, 10000).start()
 
@@ -92,10 +64,9 @@ class Discovery(frenetic.App):
     if not (probe_data in self.state.tentative_edge):
       return False
     # Else we should solidify the edge and stop probing
-    host_ip = self.state.tentative_edge[probe_data]
+    host_id = self.state.tentative_edge[probe_data]
     del self.state.tentative_edge[probe_data]
-    print "Permanent edge: (%s, %s) to %s" % (probe_data.src_switch, probe_data.src_port, host_ip)
-    self.update(self.global_policy())
+    print "Permanent edge: (%s, %s) to %s" % (probe_data.src_switch, probe_data.src_port, host_id)
     return True
 
   def run_probe(self):
@@ -121,35 +92,13 @@ class Discovery(frenetic.App):
     for probe_data in to_remove:
       self.state.probes.discard(probe_data)
 
-  def shortest_path(self, src_host, dst_host):
-    if not networkx.has_path(self.state.network, src_host, dst_host):
-      return Filter(Test(IP4Src(src_host)) and Test(IP4Dst(dst_host)))
-
-  def global_policy(self):
+  def policy(self):
     # All PROBOCOL traffic is sent to the controller, otherwise flood
     probe_traffic = Filter(Test(EthType(ProbeData.PROBOCOL))) >> Mod(Location(Pipe("http")))
     sniff_arp = Filter(Test(EthType(0x806))) >> Mod(Location(Pipe("http")))
-    flood = Filter(Not(Test(EthType(ProbeData.PROBOCOL)))) >> Union([flood_switch_policy(ps) for ps in self.state.switches.values()])
-    refining_filter = Filter(Id())
-    return probe_traffic | sniff_arp | (refining_filter >> flood)
-
-  def add_switch(self, switch_ref):
-    # Add a node for a switch and each of its ports.
-    # Switch Nodes are integer values
-    # Port Nodes are strings '<switch>:<port>' for example switch 3 port 2 would be
-    # the string '3:2'
-    self.state.network.add_node(switch_ref.id)
-    for port in switch_ref.ports:
-      node = port_node(switch_ref.id, port)
-      self.state.network.add_node(node)
-      self.state.network.add_edge(node, switch_ref.id)
-
-  def remove_switch(self, switch_ref):
-    # Remove a switch and each of its ports from the graph
-    self.state.network.remove_node(switch_ref.id)
-    for port in switch_ref.ports:
-      node = port_node(switch_ref.id, port)
-      self.state.network.remove_node(node)
+#    flood = (Filter(Not(Test(EthType(ProbeData.PROBOCOL)))))
+#    refining_filter = Filter(Id())
+    return probe_traffic | sniff_arp
 
   def create_probes(self, switch_ref):
     for port in switch_ref.ports:
@@ -167,40 +116,43 @@ class Discovery(frenetic.App):
     # When a switch comes up, add it to the network and create
     # probes for each of its ports
     print "switch_up(%s, %s)" % (switch_id, ports)
-    self.state.switches[switch_id] = SwitchRef(switch_id, ports)
-    self.add_switch(self.state.switches[switch_id])
-    self.create_probes(self.state.switches[switch_id])
-    self.update(self.global_policy())
+    switch_ref = SwitchRef(switch_id, ports)
+    self.state.add_switch(switch_ref)
+    self.create_probes(switch_ref)
+    self.state.notify()
 
   def switch_down(self, switch_id):
     # When a switch goes down, remove any unresolved probes and remove 
     # it from the network graph
     print "switch_down(%s)" % switch_id
     self.discard_probes(self.state.switches[switch_id])
-    self.remove_switch(self.state.switches[switch_id])
-    del self.state.switches[switch_id]
-    self.update(self.global_policy())
+    self.state.remove_switch(switch_id)
+    self.state.notify()
 
   def remove_tentative_edge(self, probe_data):
     if(probe_data in self.state.tentative_edge):
-      host_ip = self.state.tentative_edge[probe_data]
-      node = port_node(probe_data.src_switch, probe_data.src_port)
+      host_id = self.state.tentative_edge[probe_data]
       del self.state.tentative_edge[probe_data]
-      self.state.network.remove_edge(node, host_ip)
-      print "Removed tentative edge: (%s, %s) to %s" % (probe_data.src_switch, probe_data.src_port, host_ip)
+      self.state.remove_edge(probe_data.src_switch, host_id)
+      self.state.remove_edge(host_id, probe_data.src_switch)
+      self.state.notify()
+      print "Removed tentative edge: (%s, %s) to %s" % (probe_data.src_switch, probe_data.src_port, host_id)
 
   def handle_probe(self, dst_switch, dst_port, src_switch, src_port):
     # When a probe is received, add edges based on where it traveled
     print "Probe received from (%s, %s) to (%s, %s)" % (src_switch, src_port, dst_switch, dst_port)
-    node0 = port_node(dst_switch, dst_port)
-    node1 = port_node(src_switch, src_port)
-    self.state.network.add_edge(node0, node1)
+    self.state.add_edge(dst_switch, src_switch, label=dst_port)
+    self.state.add_edge(src_switch, dst_switch, label=src_port)
     self.state.probes.discard(ProbeData(dst_switch, dst_port))
     self.state.probes.discard(ProbeData(src_switch, src_port))
     self.remove_tentative_edge(ProbeData(src_switch, src_port))
     self.remove_tentative_edge(ProbeData(dst_switch, dst_port))
+    self.state.notify()
       
   def packet_in(self, switch_id, port_id, payload):
+    if(not hasattr(payload, 'data')):
+      print "Payload didn't have data field."
+      return
     pkt = packet.Packet(array.array('b', payload.data))
     p = get(pkt, 'ethernet')
     if (p.ethertype == ProbeData.PROBOCOL):
@@ -209,37 +161,16 @@ class Discovery(frenetic.App):
     if (p.ethertype == 0x806):
 # arp(dst_ip='10.0.0.2',dst_mac='00:00:00:00:00:02',hlen=6,hwtype=1,opcode=2,plen=4,proto=2048,src_ip='10.0.0.1',src_mac='00:00:00:00:00:01')
       arp = get(pkt, 'arp')
-      self.state.hosts.add(arp.src_ip)
-      self.state.hosts.add(arp.dst_ip)
-      self.state.network.add_node(arp.src_ip)
-      self.state.network.add_node(arp.dst_ip)
+      self.state.add_host(arp.src_mac)
+      self.state.add_host(arp.dst_mac)
 
       if(ProbeData(switch_id, port_id) in self.state.probes and
          ProbeData(switch_id, port_id) not in self.state.tentative_edge):
-        print "Tentative edge found from (%s, %s) to %s" % (switch_id, port_id, arp.src_ip)
+        print "Tentative edge found from (%s, %s) to %s" % (switch_id, port_id, arp.src_mac)
         # This switch / ports probe has not been seen
         # We will tentatively assume it is connected to the src host
-        node = port_node(switch_id, port_id)
-        self.state.tentative_edge[ProbeData(switch_id, port_id)] = arp.src_ip
-        self.state.network.add_edge(node, arp.src_ip)
+        self.state.tentative_edge[ProbeData(switch_id, port_id)] = arp.src_mac
+        self.state.add_edge(switch_id, arp.src_mac, label=port_id)
+        self.state.add_edge(arp.src_mac, switch_id)
 
-
-class State(object):
-
-  def __init__(self):
-    self.network = networkx.Graph()
-    self.switches = {}
-    self.probes = set()
-    self.hosts = set()
-    self.probes_sent = {}
-    self.tentative_edge = {}
-
-def packet_in(self, switch_id, port_id, payload):
-  print "Packet in!"
-
-def main(version):
-  app = Discovery(State())
-  app.start_event_loop()
-
-if __name__ == '__main__':
-  main(1)
+      self.state.notify()
