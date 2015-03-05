@@ -18,11 +18,13 @@ An open-source SDN controller platform.
 
 ### Installing an Ubuntu Package
 
-Add the following to the end of `/etc/apt/sources.lists':
+We've packaged Frenetic for Ubuntu 14.04 LTS 64-bit.
+
+To install the Frenetic package, add the following to the end of `/etc/apt/sources.lists`:
 
     deb https://dl.bintray.com/arjunguha/deb trusty main
 
-Run `apt-get update` followed by `apt-get install frenetic`.
+Then, run `apt-get update && apt-get install frenetic`.
 
 ## Frenetic HTTP Controller
 
