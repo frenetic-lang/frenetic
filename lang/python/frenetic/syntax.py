@@ -35,17 +35,20 @@ class Payload:
         if json['id'] == None:
             return NotBuffered(base64.b64decode(json['buffer']))
         else:
-            # TODO(arjun): may have some bytes. do not discard
-            return Buffered(json['id'])
+            return Buffered(json['id'], base64.b64decode(json['buffer']))
 
 
 class Buffered(Payload):
 
-    def __init__(self, buffer_id):
+    def __init__(self, buffer_id, data):
         assert type(buffer_id) == int and buffer_id >= 0
         self.buffer_id = buffer_id
+        self.data = data
 
     def to_json(self):
+        # NOTE(arjun): The data isn't being sent back to OCaml. But, it
+        # doesn't matter, since the buffer ID is all that's needed to process
+        # a buffered packet in a PACKET_OUT message.
         return { "type": "buffered", "bufferid": self.buffer_id }
 
 class NotBuffered(Payload):
