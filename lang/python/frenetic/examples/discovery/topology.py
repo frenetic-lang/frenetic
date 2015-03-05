@@ -148,10 +148,6 @@ class Topology(frenetic.App):
     self.state.notify()
       
   def packet_in(self, switch_id, port_id, payload):
-    if(not hasattr(payload, 'data')):
-      # TODO(jcollard): This appears to happen when the payload is Buffered
-      print "Payload didn't have data field."
-      return
     pkt = packet.Packet(array.array('b', payload.data))
     p = get(pkt, 'ethernet')
     if (p.ethertype == ProbeData.PROBOCOL):
