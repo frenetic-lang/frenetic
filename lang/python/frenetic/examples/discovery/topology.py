@@ -123,7 +123,7 @@ class Topology(frenetic.App):
     # When a switch goes down, remove any unresolved probes and remove 
     # it from the network graph
     print "switch_down(%s)" % switch_id
-    self.discard_probes(self.state.switches[switch_id])
+    self.discard_probes(self.state.switches()[switch_id])
     self.state.remove_switch(switch_id)
     self.state.notify()
 
@@ -146,24 +146,27 @@ class Topology(frenetic.App):
     self.remove_tentative_edge(ProbeData(src_switch, src_port))
     self.remove_tentative_edge(ProbeData(dst_switch, dst_port))
     self.state.notify()
-      
+
+  def handle_arp(self, switch_id, port_id, arp):
+    self.state.add_host(arp.src_mac)
+    if(ProbeData(switch_id, port_id) in self.state.probes and
+       ProbeData(switch_id, port_id) not in self.state.tentative_edge):
+      print "Tentative edge found from (%s, %s) to %s" % (switch_id, port_id, arp.src_mac)
+      # This switch / ports probe has not been seen
+      # We will tentatively assume it is connected to the src host
+      self.state.tentative_edge[ProbeData(switch_id, port_id)] = arp.src_mac
+      self.state.add_edge(switch_id, arp.src_mac, label=port_id)
+      self.state.add_edge(arp.src_mac, switch_id)
+      self.state.notify()
+
   def packet_in(self, switch_id, port_id, payload):
     pkt = packet.Packet(array.array('b', payload.data))
     p = get(pkt, 'ethernet')
+
     if (p.ethertype == ProbeData.PROBOCOL):
       probe_data = get(pkt, 'ProbeData')
       self.handle_probe(switch_id, port_id, probe_data.src_switch, probe_data.src_port)
+
     if (p.ethertype == 0x806):
       arp = get(pkt, 'arp')
-      self.state.add_host(arp.src_mac)
-
-      if(ProbeData(switch_id, port_id) in self.state.probes and
-         ProbeData(switch_id, port_id) not in self.state.tentative_edge):
-        print "Tentative edge found from (%s, %s) to %s" % (switch_id, port_id, arp.src_mac)
-        # This switch / ports probe has not been seen
-        # We will tentatively assume it is connected to the src host
-        self.state.tentative_edge[ProbeData(switch_id, port_id)] = arp.src_mac
-        self.state.add_edge(switch_id, arp.src_mac, label=port_id)
-        self.state.add_edge(arp.src_mac, switch_id)
-      
-      self.state.notify()
+      self.handle_arp(switch_id, port_id, arp)
