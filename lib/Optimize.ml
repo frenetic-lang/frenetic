@@ -155,3 +155,12 @@ let rec norm_policy (pol : policy) : policy = match pol with
   | Seq (p, q) ->
     let pol' = Seq (norm_policy p, norm_policy q) in
     mk_big_seq (list_of_seq pol')
+
+let rec flatten_union_k (pol : policy)
+  (acc : policy list)
+  (k : policy list -> 'a) : 'a = match pol with
+  | Union (p, q) -> flatten_union_k p acc (fun acc ->
+    flatten_union_k q acc k)
+  | _ -> k (pol :: acc)
+
+let flatten_union (pol : policy) : policy list = flatten_union_k pol [] ident

@@ -1,15 +1,8 @@
 language: c
-script: bash -ex .travis-ci.sh
+install: wget https://raw.githubusercontent.com/ocaml/ocaml-travisci-skeleton/master/.travis-opam.sh
+script: bash -ex .travis-opam.sh
 env:
-  global:
-    - OPAM_DEPENDS="async cmdliner core cstruct ounit pa_ounit quickcheck tdk ulex ipaddr yojson"
-    - CONFIG_FLAGS="--enable-tests --enable-quickcheck --enable-async"
-    - FRENETIC_DEPENDS="ocaml-packet ocaml-openflow ocaml-topology"
-  matrix:
-    - OCAML_VERSION=4.01.0 OPAM_VERSION=1.1.0
-    - OCAML_VERSION=4.01.0 OPAM_VERSION=1.2.0
-    - OCAML_VERSION=4.02.0 OPAM_VERSION=1.1.0
-    - OCAML_VERSION=4.02.0 OPAM_VERSION=1.2.0
+  - OCAML_VERSION=latest PACKAGE=frenetic
 notifications:
   irc:
     channels:

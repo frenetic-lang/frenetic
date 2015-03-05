@@ -11,3 +11,7 @@ setup.log
 *~
 .*.sw[po]
 vagrant/.vagrant/*
+
+# Emacs Temp Files
+[#]*
+*[#]

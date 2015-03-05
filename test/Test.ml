@@ -1,5 +1,7 @@
 (* Write tests in independent modules, then just include them here to run them
  *)
+open FDD_Cache
+open FlowTable_Generation
 open NetKAT_Test
 open NetKAT_Pretty_Tests
 

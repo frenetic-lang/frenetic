@@ -188,7 +188,7 @@ module Switch = struct
             return es
           | _ -> return []
         end
-      | SwitchUp sw_id ->
+      | SwitchUp(sw_id, ps) ->
         Log.info ~tags "[topology.switch] ↑ { switch = %Lu }" sw_id;
         nib := fst (add_vertex !nib (Switch sw_id));
         return [e]

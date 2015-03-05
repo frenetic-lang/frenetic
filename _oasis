@@ -1,7 +1,7 @@
 OASISFormat: 0.4
-OCamlVersion: >= 4.01.0
+OCamlVersion: >= 4.02.0
 Name:        frenetic
-Version:     3.1.0
+Version:     3.4.0
 Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     https://github.com/frenetic-lang/frenetic/contributors
 License:     LGPL
@@ -13,30 +13,24 @@ BuildTools:
   ocamldoc,
   camlp4
 
-Flag quickcheck
-  Description: build the frenetic.quickcheck library
-  Default: false
-
-Flag async
-    Description: build the netkat.async library
-    Default: false
-
 Library netkat
   Path: lib
   BuildDepends:
     core,
     fieldslib,
     fieldslib.syntax,
-    openflow,
+    openflow (>= 0.8.0),
     sexplib,
     sexplib.syntax,
     str,
-    tdk,
     threads,
     yojson,
-    ipaddr
+    ipaddr,
+    base64 (>= 2.0.0)
   InternalModules:
     Flowterp,
+    NetKAT_FDD,
+    NetKAT_Vlr,
     Util
   Modules:
     NetKAT_Lexer,
@@ -48,6 +42,7 @@ Library netkat
     NetKAT_Types,
     NetKAT_Misc,
     NetKAT_Json,
+    NetKAT_SDN_Json,
     Optimize
 
 Library syntax
@@ -72,27 +67,29 @@ Library async
   Findlibparent: netkat
   Findlibname: async
   Path: async
-  Build$: flag(async)
   BuildDepends:
     async,
     core,
     cstruct,
     cstruct.syntax,
     netkat,
-    openflow,
-    openflow.async,
-    packet,
+    openflow (>= 0.8.0),
+    openflow.async (>= 0.8.0),
+    packet (>= 0.4.0),
     threads,
     topology,
     sexplib,
     sexplib.syntax
   InternalModules:
+    Async_NetKAT_Updates,
+    Async_NetKAT_Controller_Common,
     Discovery,
     Learning,
     Raw_app,
     TUtil
   Modules:
     Async_NetKAT,
+    NetKAT_Controller,
     Async_NetKAT_Controller,
     NetKAT
 
@@ -100,7 +97,6 @@ Library quickcheck
   Findlibparent: netkat
   Findlibname: quickcheck
   Path: quickcheck
-  Build$: flag(quickcheck) || flag(tests)
   BuildDepends:
     netkat,
     openflow.quickcheck,
@@ -128,10 +124,24 @@ Test all_tests
   Run$: flag(tests)
   TestTools: testtool
 
+Executable frenetic
+  Path: frenetic
+  MainIs: frenetic.ml
+  Install: true
+  CompiledObject: native
+  BuildDepends:
+    async,
+    core,
+    cohttp,
+    cohttp.async,
+    netkat,
+    netkat.async,
+    cmdliner,
+    async_extended
+
 Executable katnetic
   Path: frenetic
   MainIs: katnetic.ml
-  Build$: flag(async)
   Install: false
   CompiledObject: native
   BuildDepends:
@@ -144,7 +154,6 @@ Executable katnetic
 Executable test_updates
   Path: frenetic
   MainIs: test_updates.ml
-  Build$: flag(async)
   Install: false
   BuildDepends:
     async,
