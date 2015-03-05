@@ -96,8 +96,6 @@ class Topology(frenetic.App):
     # All PROBOCOL traffic is sent to the controller, otherwise flood
     probe_traffic = Filter(Test(EthType(ProbeData.PROBOCOL))) >> Mod(Location(Pipe("http")))
     sniff_arp = Filter(Test(EthType(0x806))) >> Mod(Location(Pipe("http")))
-#    flood = (Filter(Not(Test(EthType(ProbeData.PROBOCOL)))))
-#    refining_filter = Filter(Id())
     return probe_traffic | sniff_arp
 
   def create_probes(self, switch_ref):
@@ -151,6 +149,7 @@ class Topology(frenetic.App):
       
   def packet_in(self, switch_id, port_id, payload):
     if(not hasattr(payload, 'data')):
+      # TODO(jcollard): This appears to happen when the payload is Buffered
       print "Payload didn't have data field."
       return
     pkt = packet.Packet(array.array('b', payload.data))
@@ -159,10 +158,8 @@ class Topology(frenetic.App):
       probe_data = get(pkt, 'ProbeData')
       self.handle_probe(switch_id, port_id, probe_data.src_switch, probe_data.src_port)
     if (p.ethertype == 0x806):
-# arp(dst_ip='10.0.0.2',dst_mac='00:00:00:00:00:02',hlen=6,hwtype=1,opcode=2,plen=4,proto=2048,src_ip='10.0.0.1',src_mac='00:00:00:00:00:01')
       arp = get(pkt, 'arp')
       self.state.add_host(arp.src_mac)
-      self.state.add_host(arp.dst_mac)
 
       if(ProbeData(switch_id, port_id) in self.state.probes and
          ProbeData(switch_id, port_id) not in self.state.tentative_edge):
@@ -172,5 +169,5 @@ class Topology(frenetic.App):
         self.state.tentative_edge[ProbeData(switch_id, port_id)] = arp.src_mac
         self.state.add_edge(switch_id, arp.src_mac, label=port_id)
         self.state.add_edge(arp.src_mac, switch_id)
-
+      
       self.state.notify()

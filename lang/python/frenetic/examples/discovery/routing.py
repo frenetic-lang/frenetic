@@ -14,23 +14,35 @@ class Routing(frenetic.App):
     self.topo = topo
 
   def run_update(self):
+    # This function is invoked by State typically when an edge
+    # is added to the graph.
+    # We use the union of the routing policy and the topo discovery
+    # policy.
+    # TODO(jcollard): should we store these in state so that 
+    # Routing doesn't need a reference to Topology?
     self.update(self.policy() | self.topo.policy())
 
-  def build_path(self, node_list, curr_switch, acc):
-    if not node_list:
-      print "acc len: %s" % len(acc)
+  def build_path(self, switch_path, curr_switch, acc):
+    # When there are no more switches to go through, we've
+    # reached the host.
+    if not switch_path:
       return Union(acc)
-    next_switch = node_list.pop()
+    
+    # If there are more switches to go through, get the next one
+    # find the port that connects the current switch to the next
+    # switch, and filter from current switch along the port connecting
+    # to the next_switch.
+    next_switch = switch_path.pop()
     out_port = self.state.network[curr_switch][next_switch]['label']
     pol = Filter(Test(Switch(curr_switch))) >> Mod(Location(Physical(out_port)))
-    print "filter switch = %s; port := %s" % (curr_switch, out_port)
     acc.append(pol)
-    return self.build_path(node_list, next_switch, acc)
+    return self.build_path(switch_path, next_switch, acc)
     
   def policy(self):
     hosts = self.state.hosts()
     paths = []
  
+    # For all (src, dst) pairs, find the shortest path
     for src_host in hosts:
       for dst_host in hosts:
         if src_host == dst_host:
@@ -45,17 +57,23 @@ class Routing(frenetic.App):
         #If no path exists, skip
         if(not networkx.has_path(network_prime, src_host, dst_host)):
           continue
-        # Otherwise, get the path and build that policy
-        node_list = networkx.shortest_path(network_prime, src_host, dst_host)
-        print "Building Path: %s" % node_list
-        node_list.reverse()
-        node_list.pop()
-        test = Filter(Test(EthSrc(src_host)) & Test(EthDst(dst_host)))
-        paths.append(test >> self.build_path(node_list, node_list.pop(), []))
 
+        # Otherwise, get the path and build that policy
+        switch_path = networkx.shortest_path(network_prime, src_host, dst_host)
+        switch_path.reverse()
+        switch_path.pop()
+
+        # Test that we are coming from the src_host and going to the dst_host
+        test = Filter(Test(EthSrc(src_host)) & Test(EthDst(dst_host)))
+        paths.append(test >> self.build_path(switch_path, switch_path.pop(), []))
+
+    # If there exists a path, use it. Otherwise flood the traffic on all ports.
     return (Union(paths) | 
             Union([flood_switch_policy(switch_ref) for switch_ref in self.state.switches().values()]))
 
+  # TODO(jcollard): Seems like each app should get all of the events. However,
+  # the events seem to be passed off in an unspecified order.
+  # For now we just forward events to the topo app.
   def packet_in(self, switch_id, port_id, payload):
     self.topo.packet_in(switch_id, port_id, payload)
 
