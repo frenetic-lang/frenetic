@@ -19,16 +19,22 @@ let handle_request
            Body.to_string body >>= fun str ->
            return (NetKAT_Json.policy_from_json_string str))
         (fun pol ->
-         let fdd = NetKAT_LocalCompiler.compile pol in
-         let sws = NetKAT_Misc.switches_of_policy pol in
-         let sws = if List.length sws = 0 then [0L] else sws in
-         let tbls = List.map sws ~f:(fun sw ->
-          let tbl_json = NetKAT_SDN_Json.flowTable_to_json
-            (NetKAT_LocalCompiler.to_table sw fdd) in
-          `Assoc [("switch_id", `Int (Int64.to_int_exn sw));
-                  ("tbl", tbl_json)]) in
-         let resp = Yojson.Basic.to_string ~std:true (`List tbls) in
-         Cohttp_async.Server.respond_with_string resp)
+           (* Compile pol to tables and time everything. *)
+           let (time, tbls) = profile (fun () ->
+             let fdd = NetKAT_LocalCompiler.compile pol in
+             let sws =
+               let sws = NetKAT_Misc.switches_of_policy pol in
+               if List.length sws = 0 then [0L] else sws in
+               List.map sws ~f:(fun sw ->
+                 (sw, NetKAT_LocalCompiler.to_table sw fdd))) in
+           (* JSON conversion is not timed. *)
+           let json_tbls = List.map tbls ~f:(fun (sw, tbl) ->
+             `Assoc [("switch_id", `Int (Int64.to_int_exn sw));
+                     ("tbl", NetKAT_SDN_Json.flowTable_to_json tbl)]) in
+           let resp = Yojson.Basic.to_string ~std:true (`List json_tbls) in
+           let headers = Cohttp.Header.init_with
+             "X-Compile-Time" (Float.to_string time) in
+           Cohttp_async.Server.respond_with_string ~headers resp)
     | `POST, ["update"] ->
       printf "POST /update";
       handle_parse_errors body parse_update_json

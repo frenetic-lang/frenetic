@@ -2,6 +2,13 @@ open Core.Std
 open Async.Std
 open Cohttp_async
 
+let profile f =
+  let t1 = Unix.gettimeofday () in
+  let r = f () in
+  let t2 = Unix.gettimeofday () in
+  (t2 -. t1, r)
+
+
 let printf ?(level : [ `Debug | `Info | `Error ] = `Info)
   (fmt :  ('a, unit, string, unit) format4) =
   Async_OpenFlow.Log.printf ~level ~tags:[("frenetic", "http")] fmt
