@@ -25,8 +25,8 @@ let handle_request
              let sws =
                let sws = NetKAT_Misc.switches_of_policy pol in
                if List.length sws = 0 then [0L] else sws in
-               List.map sws ~f:(fun sw ->
-                 (sw, NetKAT_LocalCompiler.to_table sw fdd))) in
+             List.map sws ~f:(fun sw ->
+               (sw, NetKAT_LocalCompiler.to_table sw fdd))) in
            (* JSON conversion is not timed. *)
            let json_tbls = List.map tbls ~f:(fun (sw, tbl) ->
              `Assoc [("switch_id", `Int (Int64.to_int_exn sw));
