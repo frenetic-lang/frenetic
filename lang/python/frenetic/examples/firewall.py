@@ -121,7 +121,7 @@ class Firewall(frenetic.App):
     to_remove_set = reduce(self.find_pending, self.state.pending, set())
     for pending in to_remove_set:
       self.state.pending.remove(pending)
-      
+
     # TODO(arjun): Update policy if anything was cleaned
 
   def packet_in_v1(self, switch_id, port_id, payload, src_ip, dst_ip,
@@ -201,6 +201,13 @@ class State(object):
     self.allowed += [allowed]
 
   def add_pending(self, allowed):
+    # Silently doesn't add the flow to pending if it is already allowed.
+    # This may happen if there are two PACKET_IN messages on the wire to the
+    # switch simultaneously and and the first one receives a response that is
+    # processed before the second PACKET_IN is processed. This is totally
+    # normal.
+    if allowed in self.allowed:
+      return
     self.pending.add(allowed)
 
   def remove_pending(self, allowed):
