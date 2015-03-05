@@ -2,10 +2,10 @@
 import base64
 import collections
 
-class Action:
+class Action(object):
     pass
 
-class Pseudoport:
+class Pseudoport(object):
     pass
 
 class Physical(Pseudoport):
@@ -26,7 +26,7 @@ class Output(Action):
     def to_json(self):
         return { "type": "output", "pseudoport": self.pseudoport.to_json() }
 
-class Payload:
+class Payload(object):
     pass
 
     @staticmethod
@@ -61,7 +61,7 @@ class NotBuffered(Payload):
         return { "type": "notbuffered", "data": base64.b64encode(self.data) }
 
 
-class PacketOut():
+class PacketOut(object):
 
     def __init__(self, switch, payload, actions, in_port = None):
         assert type(switch) == int and switch >= 0
@@ -80,7 +80,7 @@ class PacketOut():
                  "actions": [ action.to_json() for action in self.actions ],
                  "payload": self.payload.to_json() }
 
-class PacketIn():
+class PacketIn(object):
 
     def __init__(self, json):
         assert (json['type'] == 'packet_in')
@@ -136,8 +136,8 @@ class Pred(object):
 class And(Pred):
 
     def __init__(self, children):
-        for a in children:
-          assert isinstance(a,Pred)
+        children = list(children)
+        assert (isinstance(pol,Pred) for pol in children)
         self.children = children
 
     def to_json(self):
@@ -149,8 +149,8 @@ class And(Pred):
 class Or(Pred):
 
     def __init__(self, children):
-        for a in children:
-          assert isinstance(a,Pred)
+        children = list(children)
+        assert (isinstance(pol,Pred) for pol in children)
         self.children = children
 
     def to_json(self):
@@ -389,8 +389,8 @@ class Mod(Policy):
 class Union(Policy):
 
     def __init__(self, children):
-        # TODO: Sequence type?
-        assert isinstance(children,collections.Iterable) and (isinstance(pol,Policy) for pol in children)
+        children = list(children)
+        assert (isinstance(pol,Policy) for pol in children)
         self.children = children
 
     def to_json(self):
@@ -402,7 +402,8 @@ class Union(Policy):
 class Seq(Policy):
 
     def __init__(self, children):
-        assert isinstance(children, collections.Iterable) and (isinstance(pol,Policy) for pol in children)
+        children = list(children)
+        assert (isinstance(pol,Policy) for pol in children)
         self.children = children
 
     def to_json(self):
