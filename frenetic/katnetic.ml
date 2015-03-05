@@ -101,7 +101,7 @@ module Dump = struct
 
     let flowtable (sw : SDN_Types.switchId) t =
       if List.length t > 0 then
-        Format.fprintf fmt "@[%s@]@\n@\n"
+        Format.printf "@[%s@]@\n@\n"
           (SDN_Types.string_of_flowTable ~label:(Int64.to_string sw) t)
 
     let policy p =
