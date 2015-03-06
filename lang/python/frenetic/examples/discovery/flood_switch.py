@@ -25,4 +25,6 @@ def flood_switch_policy(switch):
       pol = actions
     else:
       pol = actions | pol
+  if not pol:
+    return Filter(Test(Switch(switch.id))) >> drop
   return Filter(Test(Switch(switch.id))) >> pol

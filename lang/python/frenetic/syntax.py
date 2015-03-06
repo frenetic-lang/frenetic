@@ -390,7 +390,8 @@ class Union(Policy):
 
     def __init__(self, children):
         children = list(children)
-        assert (isinstance(pol,Policy) for pol in children)
+        for pol in children:
+          assert isinstance(pol, Policy)
         self.children = children
 
     def to_json(self):
@@ -403,7 +404,10 @@ class Seq(Policy):
 
     def __init__(self, children):
         children = list(children)
-        assert (isinstance(pol,Policy) for pol in children)
+
+        for pol in children:
+          assert isinstance(pol, Policy)
+
         self.children = children
 
     def to_json(self):
