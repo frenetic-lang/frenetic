@@ -3,6 +3,7 @@ from functools import partial
 from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 from tornado.ioloop import IOLoop
 from frenetic.syntax import PacketIn, PacketOut
+from tornado.concurrent import return_future
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
@@ -28,7 +29,7 @@ class App(object):
     def port_down(self,switch_id, port_id):
         print "port_down(switch_id=%s, port_id=%d)" % (switch_id, port_id)
 
-    """This method can be overridden by the application. By default, it simply
+    """This method can be overridden by the application. By default, it simply 
        prints the event."""
     def packet_in(self, switch_id, port_id, payload):
         print "packet_in(switch_id=%s, port_id=%d, payload=...)" % (switch_id, port_id)
@@ -43,20 +44,26 @@ class App(object):
                               body=json.dumps(msg.to_json()))
         return self.__http_client.fetch(request)
 
-    def query_helper(self, response, callback):
+    def run_response(self, ftr, callback):
+      response = ftr.result()
       if(hasattr(response, 'buffer')):
         data = json.loads(response.buffer.getvalue())
         ps = int(data['packets'])
         bs = int(data['bytes'])
-        callback(ps, bs)
+        callback([ps, bs])
+
+    @return_future
+    def query_helper(self, ftr, callback):
+      f = partial(self.run_response, callback=callback)
+      IOLoop.instance().add_future(ftr, f)
 
     # label : label to query
     # callback
-    def query(self, label, callback):
+    def query(self, label):
         url = "http://localhost:9000/query/" + label
         request = HTTPRequest(url, method='GET', request_timeout=0)
-        f = partial(self.query_helper, callback=callback)
-        return self.__http_client.fetch(request, f)
+        response_future = self.__http_client.fetch(request)
+        return self.query_helper(response_future)
 
     def update(self, policy):
         pol_json = json.dumps(policy.to_json())

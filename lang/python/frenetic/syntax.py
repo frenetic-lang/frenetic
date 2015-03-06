@@ -2,10 +2,10 @@
 import base64
 import collections
 
-class Action:
+class Action(object):
     pass
 
-class Pseudoport:
+class Pseudoport(object):
     pass
 
 class Physical(Pseudoport):
@@ -26,7 +26,7 @@ class Output(Action):
     def to_json(self):
         return { "type": "output", "pseudoport": self.pseudoport.to_json() }
 
-class Payload:
+class Payload(object):
     pass
 
     @staticmethod
@@ -35,17 +35,20 @@ class Payload:
         if json['id'] == None:
             return NotBuffered(base64.b64decode(json['buffer']))
         else:
-            # TODO(arjun): may have some bytes. do not discard
-            return Buffered(json['id'])
+            return Buffered(json['id'], base64.b64decode(json['buffer']))
 
 
 class Buffered(Payload):
 
-    def __init__(self, buffer_id):
+    def __init__(self, buffer_id, data):
         assert type(buffer_id) == int and buffer_id >= 0
         self.buffer_id = buffer_id
+        self.data = data
 
     def to_json(self):
+        # NOTE(arjun): The data isn't being sent back to OCaml. But, it
+        # doesn't matter, since the buffer ID is all that's needed to process
+        # a buffered packet in a PACKET_OUT message.
         return { "type": "buffered", "bufferid": self.buffer_id }
 
 class NotBuffered(Payload):
@@ -58,7 +61,7 @@ class NotBuffered(Payload):
         return { "type": "notbuffered", "data": base64.b64encode(self.data) }
 
 
-class PacketOut():
+class PacketOut(object):
 
     def __init__(self, switch, payload, actions, in_port = None):
         assert type(switch) == int and switch >= 0
@@ -77,7 +80,7 @@ class PacketOut():
                  "actions": [ action.to_json() for action in self.actions ],
                  "payload": self.payload.to_json() }
 
-class PacketIn():
+class PacketIn(object):
 
     def __init__(self, json):
         assert (json['type'] == 'packet_in')
@@ -133,8 +136,8 @@ class Pred(object):
 class And(Pred):
 
     def __init__(self, children):
-        for a in children:
-          assert isinstance(a,Pred)
+        children = list(children)
+        assert (isinstance(pol,Pred) for pol in children)
         self.children = children
 
     def to_json(self):
@@ -146,8 +149,8 @@ class And(Pred):
 class Or(Pred):
 
     def __init__(self, children):
-        for a in children:
-          assert isinstance(a,Pred)
+        children = list(children)
+        assert (isinstance(pol,Pred) for pol in children)
         self.children = children
 
     def to_json(self):
@@ -168,12 +171,12 @@ class Not(Pred):
           "pred": self.pred.to_json()
         }
 
-class True(Pred):
+class Id(Pred):
 
     def to_json(self):
         return { "type": "true" }
 
-class False(Pred):
+class Drop(Pred):
 
     def to_json(self):
         return { "type": "false" }
@@ -386,8 +389,8 @@ class Mod(Policy):
 class Union(Policy):
 
     def __init__(self, children):
-        # TODO: Sequence type?
-        assert isinstance(children,collections.Iterable) and (isinstance(pol,Policy) for pol in children)
+        children = list(children)
+        assert (isinstance(pol,Policy) for pol in children)
         self.children = children
 
     def to_json(self):
@@ -399,7 +402,8 @@ class Union(Policy):
 class Seq(Policy):
 
     def __init__(self, children):
-        assert isinstance(children, collections.Iterable) and (isinstance(pol,Policy) for pol in children)
+        children = list(children)
+        assert (isinstance(pol,Policy) for pol in children)
         self.children = children
 
     def to_json(self):
@@ -410,7 +414,7 @@ class Seq(Policy):
 
 # Shorthands
 
-true = True()
-false = False()
+true = Id()
+false = Drop()
 id = Filter(true)
 drop = Filter(false)
