@@ -66,7 +66,7 @@ let handle_request
 	(* Otherwise, get a new event and enqueue it to all clients *)
 	event () >>= fun evt ->
 	let json = NetKAT_Json.event_to_json_string evt in
-	Hashtbl.map clients (fun client -> Squeue.push client.event_response_queue json);
+	Hashtbl.map clients (fun client -> Squeue.push_uncond client.event_response_queue json);
 	let response = Squeue.pop curr_client.event_response_queue in
 	Server.respond_with_string response
     | `POST, ["pkt_out"] ->
