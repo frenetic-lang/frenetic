@@ -11,7 +11,9 @@ type client = {
   (* Read from this pipe to send events *)
   event_reader: event Pipe.Reader.t;
   (* Write to this pipe when new event received from the network *)
-  event_writer: event Pipe.Writer.t
+  event_writer: event Pipe.Writer.t;
+  (* JSON events that have not been seen queue *)
+  event_response_queue : string Squeue.t
 }
 
 let unions (pols : policy list) : policy =
@@ -24,6 +26,9 @@ let clients : (string, client) Hashtbl.t = Hashtbl.Poly.create ()
 let iter_clients (f : string -> client -> unit) : unit =
   Hashtbl.iter clients ~f:(fun ~key ~data -> f key data)
 
+(* It is slightly annoying that this exists *)
+let max_queue_size = 10000
+
 (* Gets the client's node in the dataflow graph, or creates it if doesn't exist *)
 let get_client (clientId: string): client =
   Hashtbl.find_or_add clients clientId
@@ -32,7 +37,8 @@ let get_client (clientId: string): client =
                let node = DynGraph.create_source drop in
                DynGraph.attach node pol;
                let (r, w) = Pipe.create () in
-               { policy_node = node; event_reader = r; event_writer =  w})
+	       let q = Squeue.create max_queue_size in
+               { policy_node = node; event_reader = r; event_writer =  w; event_response_queue = q})
 
 let handle_request
   (event : unit -> event Deferred.t)
@@ -49,9 +55,20 @@ let handle_request
       Server.respond_with_string (NetKAT_Json.stats_to_json_string stats)
     | `GET, [clientId; "event"] ->
       printf "GET /event";
-      event ()
-      >>= fun evt ->
-      Server.respond_with_string (NetKAT_Json.event_to_json_string evt)
+      let curr_client = get_client clientId in
+      (* Check if there are events that this client has not seen yet *)
+      let size = Squeue.length curr_client.event_response_queue in
+      if size > 0 then
+        let response = Squeue.pop curr_client.event_response_queue in
+	(* Send the next event *)
+	Server.respond_with_string response
+      else 
+	(* Otherwise, get a new event and enqueue it to all clients *)
+	event () >>= fun evt ->
+	let json = NetKAT_Json.event_to_json_string evt in
+	Hashtbl.map clients (fun client -> Squeue.push client.event_response_queue json);
+	let response = Squeue.pop curr_client.event_response_queue in
+	Server.respond_with_string response
     | `POST, ["pkt_out"] ->
       handle_parse_errors' body
         (fun str ->
@@ -90,5 +107,7 @@ let listen ~http_port ~openflow_port =
   Controller.start ();
   Deferred.return ()
 
+
 let main (http_port : int) (openflow_port : int) () : unit =
-  don't_wait_for (listen ~http_port ~openflow_port)
+  don't_wait_for(listen ~http_port ~openflow_port)
+

@@ -70,16 +70,3 @@ class Routing(frenetic.App):
     # If there exists a path, use it. Otherwise flood the traffic on all ports.
     return (Union(paths) | 
             Union([flood_switch_policy(switch_ref) for switch_ref in self.state.switches().values()]))
-
-  # TODO(jcollard): Seems like each app should get all of the events. However,
-  # the events seem to be passed off in an unspecified order.
-  # For now we just forward events to the topo app.
-  def packet_in(self, switch_id, port_id, payload):
-    self.topo.packet_in(switch_id, port_id, payload)
-
-  def switch_up(self, switch_id, ports):
-    self.topo.switch_up(switch_id, ports)
-
-  def switch_down(self, switch_id):
-    self.topo.switch_down(switch_id)
-
