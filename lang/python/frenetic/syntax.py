@@ -308,7 +308,7 @@ class EthType(HeaderAndValue):
 class IPProto(HeaderAndValue):
 
     def __init__(self, value):
-        self.header = "iproto"
+        self.header = "ipproto"
         assert type(value) == int and value >= 0
         self.value = value
 

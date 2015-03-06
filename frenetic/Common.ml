@@ -20,11 +20,13 @@ let handle_parse_errors
   (body_parser : Cohttp_async.Body.t -> 'a Deferred.t)
   (handler : 'a -> Cohttp_async.Server.response Deferred.t) :
   Cohttp_async.Server.response Deferred.t =
+  Body.to_string body
+  >>= fun body_str -> 
   try_with (fun () -> body_parser body)
   >>= function
   | Ok x -> handler x
   | Error exn ->
-      printf ~level:`Error "Invalid message from client";
+      printf ~level:`Error "Invalid message from client:\n|%s|" body_str;
       Cohttp_async.Server.respond `Bad_request
 
 let handle_parse_errors'
@@ -38,7 +40,19 @@ let handle_parse_errors'
   >>= function
   | Ok x -> handler x
   | Error exn ->
-      printf ~level:`Error "Invalid message from client:\n%s" body_str;
+      printf ~level:`Error "Invalid message from client:\n{%s}" body_str;
+      Cohttp_async.Server.respond `Bad_request
+
+let handle_parse_errors''
+  (body_str : string)
+  (body_parser : string -> 'a)
+  (handler : 'a -> Cohttp_async.Server.response Deferred.t) :
+  Cohttp_async.Server.response Deferred.t =
+  try_with (fun () -> return (body_parser body_str))
+  >>= function
+  | Ok x -> handler x
+  | Error exn ->
+      printf ~level:`Error "Invalid message from client:\n{%s}" body_str;
       Cohttp_async.Server.respond `Bad_request
 
 let parse_update body = Body.to_string body >>= fun pol_str ->

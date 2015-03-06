@@ -63,8 +63,10 @@ let handle_request
            >>= fun () ->
            Cohttp_async.Server.respond `OK)
     | `POST, [clientId; "update_json"] ->
-      printf "POST /%s/update_json" clientId;
-      handle_parse_errors body parse_update_json
+      Body.to_string body 
+      >>= fun body_str ->  
+      printf "POST /%s/update_json\n$$$%s$$$" clientId body_str;
+      handle_parse_errors'' body_str NetKAT_Json.policy_from_json_string
       (fun pol ->
          DynGraph.push pol (get_client clientId).policy_node;
          Cohttp_async.Server.respond `OK)
@@ -89,6 +91,10 @@ let listen ~http_port ~openflow_port =
   let _ = Pipe.iter pol_reader ~f:(fun pol -> Controller.update_policy pol) in
   Controller.start ();
   Deferred.return ()
+
+let () = 
+  let str = "{\"pols\": [{\"pols\": [{\"pols\": [{\"pred\": {\"header\": \"location\", \"type\": \"test\", \"value\": {\"type\": \"physical\", \"port\": 2}}, \"type\": \"filter\"}, {\"header\": \"location\", \"type\": \"mod\", \"value\": {\"type\": \"physical\", \"port\": 1}}], \"type\": \"seq\"}, {\"pols\": [{\"pred\": {\"header\": \"location\", \"type\": \"test\", \"value\": {\"type\": \"physical\", \"port\": 3}}, \"type\": \"filter\"}, {\"header\": \"location\", \"type\": \"mod\", \"value\": {\"type\": \"physical\", \"port\": 1}}], \"type\": \"seq\"}], \"type\": \"union\"}, {\"pols\": [{\"pols\": [{\"pred\": {\"preds\": [{\"preds\": [{\"preds\": [{\"preds\": [{\"preds\": [{\"preds\": [{\"header\": \"location\", \"type\": \"test\", \"value\": {\"type\": \"physical\", \"port\": 1}}, {\"header\": \"ethtype\", \"type\": \"test\", \"value\": 2048}], \"type\": \"and\"}, {\"header\": \"ip4src\", \"type\": \"test\", \"value\": {\"mask\": 32, \"addr\": \"10.0.0.1\"}}], \"type\": \"and\"}, {\"header\": \"ip4dst\", \"type\": \"test\", \"value\": {\"mask\": 32, \"addr\": \"10.0.0.2\"}}], \"type\": \"and\"}, {\"header\": \"iproto\", \"type\": \"test\", \"value\": 6}], \"type\": \"and\"}, {\"header\": \"tcpsrcport\", \"type\": \"test\", \"value\": 60437}], \"type\": \"and\"}, {\"header\": \"tcpdstport\", \"type\": \"test\", \"value\": 80}], \"type\": \"and\"}, \"type\": \"filter\"}, {\"header\": \"location\", \"type\": \"mod\", \"value\": {\"type\": \"physical\", \"port\": 2}}], \"type\": \"seq\"}], \"type\": \"union\"}], \"type\": \"union\"}" in 
+  ignore (NetKAT_Json.policy_from_json_string str)
 
 let main (http_port : int) (openflow_port : int) () : unit =
   don't_wait_for (listen ~http_port ~openflow_port)

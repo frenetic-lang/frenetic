@@ -5,8 +5,6 @@ from ryu.lib.packet import packet
 from tornado.ioloop import PeriodicCallback
 from tornado.concurrent import chain_future
 
-net_size = 2
-
 def get(pkt,protocol):
     for p in pkt:
         if p.protocol_name == protocol:
@@ -14,7 +12,7 @@ def get(pkt,protocol):
 
 class LoadBalancer(frenetic.App):
 
-  client_id = "load_balancer"
+  client_id = "loadbalancer"
 
   def __init__(self,internal_port,external_ports):
     frenetic.App.__init__(self)
@@ -59,6 +57,7 @@ class LoadBalancer(frenetic.App):
         print "Flow Pred %s" % flow_pred.to_json()
         if (flow_pred,flow_external) not in self.state:
             self.state.append((flow_pred,flow_external))
+            print "UPDATE |%s|\n" % json.dumps(self.global_policy().to_json())
             self.update(self.global_policy())
             self.pkt_out(switch_id, payload, [Output(Physical(flow_external))])
     else:
