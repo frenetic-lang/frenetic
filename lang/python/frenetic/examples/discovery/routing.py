@@ -7,20 +7,14 @@ class Routing(frenetic.App):
 
   client_id = "routing"
 
-  def __init__(self, state, topo):
+  def __init__(self, state):
     frenetic.App.__init__(self)
     self.state = state
     self.state.register(self)
-    self.topo = topo
 
   def run_update(self):
-    # This function is invoked by State typically when an edge
-    # is added to the graph.
-    # We use the union of the routing policy and the topo discovery
-    # policy.
-    # TODO(jcollard): should we store these in state so that 
-    # Routing doesn't need a reference to Topology?
-    self.update(self.policy() | self.topo.policy())
+    # This function is invoked by State when the network changes
+    self.update(self.policy())
 
   def build_path(self, switch_path, curr_switch, acc):
     # When there are no more switches to go through, we've

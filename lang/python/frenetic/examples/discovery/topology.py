@@ -53,8 +53,13 @@ class Topology(frenetic.App):
   def __init__(self, state):
     frenetic.App.__init__(self)
     self.state = state
+    self.state.register(self)
     # Every 10 seconds send out probes on ports we don't know about
     PeriodicCallback(self.run_probe, 10000).start()
+
+  def run_update(self):
+    # This function is invoked by State when the network changes
+    self.update(self.policy())
 
   def check_host_edge(self, probe_data):
     # If we have not met the probe threshold don't accept any edges
