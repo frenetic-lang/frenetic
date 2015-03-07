@@ -9,11 +9,9 @@ type client = {
   (* Write new policies to this node *)
   policy_node: (DynGraph.cannot_receive, policy) DynGraph.t;
   (* Read from this pipe to send events *)
-  event_reader: event Pipe.Reader.t;
+  event_reader: string Pipe.Reader.t;
   (* Write to this pipe when new event received from the network *)
-  event_writer: event Pipe.Writer.t;
-  (* JSON events that have not been seen queue *)
-  event_response_queue : string Squeue.t
+  event_writer: string Pipe.Writer.t;
 }
 
 let unions (pols : policy list) : policy =
@@ -26,8 +24,13 @@ let clients : (string, client) Hashtbl.t = Hashtbl.Poly.create ()
 let iter_clients (f : string -> client -> unit) : unit =
   Hashtbl.iter clients ~f:(fun ~key ~data -> f key data)
 
-(* It is slightly annoying that this exists *)
-let max_queue_size = 10000
+let rec propogate_events event =
+  event () >>= 
+  fun evt ->
+  let response = NetKAT_Json.event_to_json_string evt in
+  (* TODO(jcollard): Is there a mapM equivalent here? *)
+  Hashtbl.map clients (fun client -> Pipe.write_without_pushback client.event_writer response);
+  propogate_events event
 
 (* Gets the client's node in the dataflow graph, or creates it if doesn't exist *)
 let get_client (clientId: string): client =
@@ -36,9 +39,8 @@ let get_client (clientId: string): client =
                printf ~level:`Info "New client %s" clientId;
                let node = DynGraph.create_source drop in
                DynGraph.attach node pol;
-               let (r, w) = Pipe.create () in
-	       let q = Squeue.create max_queue_size in
-               { policy_node = node; event_reader = r; event_writer =  w; event_response_queue = q})
+	       let (r, w) = Pipe.create () in
+               { policy_node = node; event_reader = r; event_writer =  w })
 
 let handle_request
   (event : unit -> event Deferred.t)
@@ -57,18 +59,10 @@ let handle_request
       printf "GET /event";
       let curr_client = get_client clientId in
       (* Check if there are events that this client has not seen yet *)
-      let size = Squeue.length curr_client.event_response_queue in
-      if size > 0 then
-        let response = Squeue.pop curr_client.event_response_queue in
-	(* Send the next event *)
-	Server.respond_with_string response
-      else 
-	(* Otherwise, get a new event and enqueue it to all clients *)
-	event () >>= fun evt ->
-	let json = NetKAT_Json.event_to_json_string evt in
-	Hashtbl.map clients (fun client -> Squeue.push_uncond client.event_response_queue json);
-	let response = Squeue.pop curr_client.event_response_queue in
-	Server.respond_with_string response
+      Pipe.read curr_client.event_reader
+      >>= (function
+      | `Eof -> assert false
+      | `Ok response -> Server.respond_with_string response)
     | `POST, ["pkt_out"] ->
       handle_parse_errors' body
         (fun str ->
@@ -105,6 +99,7 @@ let listen ~http_port ~openflow_port =
   let (_, pol_reader) = DynGraph.to_pipe pol in
   let _ = Pipe.iter pol_reader ~f:(fun pol -> Controller.update_policy pol) in
   Controller.start ();
+  don't_wait_for(propogate_events Controller.event);
   Deferred.return ()
 
 
