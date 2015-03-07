@@ -5,6 +5,7 @@ _build
 *.out
 *.cmi
 *.cma
+*.ignore
 .DS_Store
 setup.data
 setup.log
@@ -15,3 +16,6 @@ vagrant/.vagrant/*
 # Emacs Temp Files
 [#]*
 *[#]
+
+# Python Build directory
+build
