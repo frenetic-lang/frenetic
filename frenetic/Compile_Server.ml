@@ -42,12 +42,13 @@ let handle_request
          NetKAT_SDN_Json.flowTable_to_json |>
          Yojson.Basic.to_string ~std:true |>
          Cohttp_async.Server.respond_with_string
-    | _, _ ->
-       printf "Malformed request from cilent";
+    | _, l ->
+       printf "Malformed request from client: %s"
+	      (List.fold_left l ~init:"" ~f:(fun s x -> s ^ if s <> "" then "/" else "" ^ x));
        Cohttp_async.Server.respond `Not_found
 
-let listen ?(port=9000) =
+let listen ?(port=9000) () =
   ignore (Cohttp_async.Server.create (Tcp.on_port port) handle_request)
 
-let main (http_port : int) () : unit = listen ~port:http_port
+let main (http_port : int) () : unit = listen ~port:http_port ()
 
