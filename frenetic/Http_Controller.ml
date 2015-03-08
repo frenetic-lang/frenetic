@@ -4,6 +4,7 @@ open Cohttp_async
 open NetKAT_Types
 open Common
 module Server = Cohttp_async.Server
+module Log = Async_OpenFlow.Log
 
 type client = {
   (* Write new policies to this node *)
@@ -44,12 +45,11 @@ let get_client (clientId: string): client =
                { policy_node = node; event_reader = r; event_writer =  w })
 
 let handle_request
-  (event : unit -> event Deferred.t)
-  (send_packet_out : switchId -> SDN_Types.pktOut -> unit Deferred.t)
-  (query : string -> (Int64.t * Int64.t) Deferred.t)
+  (module Controller : NetKAT_Controller.CONTROLLER)
   ~(body : Cohttp_async.Body.t)
   (client_addr : Socket.Address.Inet.t)
   (request : Request.t) : Server.response Deferred.t =
+  let open Controller in
   match request.meth, extract_path request with
     | `GET, ["query"; name] ->
       printf "GET /query/%s" name;
@@ -89,14 +89,20 @@ let handle_request
     | _, _ ->
       printf "Got garbage from Client"; Cohttp_async.Server.respond `Not_found
 
+let print_error addr exn =
+  Log.error "%s" (Exn.to_string exn)
+
 let listen ~http_port ~openflow_port =
   Async_OpenFlow.OpenFlow0x01.Controller.create ~port:openflow_port ()
   >>= fun controller ->
   let module Controller = NetKAT_Controller.Make (struct
       let controller = controller
     end) in
-  let _ = Cohttp_async.Server.create (Tcp.on_port http_port)
-    (handle_request Controller.event Controller.send_packet_out Controller.query) in
+  let on_handler_error = `Call print_error in
+  let _ = Cohttp_async.Server.create
+    ~on_handler_error
+    (Tcp.on_port http_port)
+    (handle_request (module Controller)) in
   let (_, pol_reader) = DynGraph.to_pipe pol in
   let _ = Pipe.iter pol_reader ~f:(fun pol -> Controller.update_policy pol) in
   Controller.start ();
