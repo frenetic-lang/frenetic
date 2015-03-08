@@ -50,9 +50,10 @@ let handle_request
   (client_addr : Socket.Address.Inet.t)
   (request : Request.t) : Server.response Deferred.t =
   let open Controller in
+  Log.info "%s %s" (Cohttp.Code.string_of_method request.meth)
+    (Uri.path request.uri);
   match request.meth, extract_path request with
     | `GET, ["query"; name] ->
-      Log.info "GET /query/%s" name;
       if (is_query name) then
         query name
         >>= fun stats ->
@@ -64,7 +65,6 @@ let handle_request
             (sprintf "query %s is not defined in the current policy\n" name)
         end
     | `GET, [clientId; "event"] ->
-      printf "GET /event";
       let curr_client = get_client clientId in
       (* Check if there are events that this client has not seen yet *)
       Pipe.read curr_client.event_reader
@@ -77,24 +77,22 @@ let handle_request
            let json = Yojson.Basic.from_string str in
            NetKAT_SDN_Json.pkt_out_from_json json)
         (fun (sw_id, pkt_out) ->
-           printf "POST /pkt_out";
            send_packet_out sw_id pkt_out
            >>= fun () ->
            Cohttp_async.Server.respond `OK)
     | `POST, [clientId; "update_json"] ->
-      printf "POST /%s/update_json" clientId;
       handle_parse_errors body parse_update_json
       (fun pol ->
          DynGraph.push pol (get_client clientId).policy_node;
          Cohttp_async.Server.respond `OK)
     | `POST, [clientId; "update" ] ->
-      printf "POST /%s/update" clientId;
       handle_parse_errors body parse_update
       (fun pol ->
          DynGraph.push pol (get_client clientId).policy_node;
          Cohttp_async.Server.respond `OK)
     | _, _ ->
-      printf "Got garbage from Client"; Cohttp_async.Server.respond `Not_found
+      Log.error "Unknown method/path (404 error)";
+      Cohttp_async.Server.respond `Not_found
 
 let print_error addr exn =
   Log.error "%s" (Exn.to_string exn)
