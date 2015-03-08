@@ -60,9 +60,10 @@ let handle_request
         Server.respond_with_string (NetKAT_Json.stats_to_json_string stats)
       else
         begin
-          Log.debug "query %s is not defined in the current policy" name;
-          Server.respond_with_string ~code:`Not_found
-            (sprintf "query %s is not defined in the current policy\n" name)
+          Log.info "query %s is not defined in the current policy" name;
+          let headers = Cohttp.Header.init_with "X-Query-Not-Defined" "true" in
+          Server.respond_with_string ~headers
+            (NetKAT_Json.stats_to_json_string (0L, 0L))
         end
     | `GET, [clientId; "event"] ->
       let curr_client = get_client clientId in
