@@ -129,6 +129,7 @@ module type CONTROLLER = sig
   val send_packet_out : switchId -> SDN_Types.pktOut -> unit Deferred.t
   val event : unit -> event Deferred.t
   val query : string -> (Int64.t * Int64.t) Deferred.t
+  val is_query : string -> bool
   val start : unit -> unit
 
 end
@@ -189,6 +190,8 @@ module Make (Args : ARGS) : CONTROLLER = struct
     let (pkts', bytes') = Hashtbl.Poly.find_exn stats name in
     Deferred.return (Int64.(pkts + pkts', bytes + bytes'))
 
+  let is_query (name : string) : bool = Hashtbl.Poly.mem stats name
+
   let update_all_switches (pol : policy) : unit Deferred.t =
     Log.printf ~level:`Debug "Installing policy\n%s" (NetKAT_Pretty.string_of_policy pol);
     let new_queries = NetKAT_Misc.queries_of_policy pol in
@@ -234,8 +237,6 @@ module Make (Args : ARGS) : CONTROLLER = struct
     don't_wait_for (Pipe.iter pol_reader ~f:update_all_switches);
     don't_wait_for (Pipe.iter net_reader ~f:handle_event);
     don't_wait_for (Pipe.iter pktout_reader ~f:send_pktout)
-
-
 
 end
 

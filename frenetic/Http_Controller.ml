@@ -52,10 +52,17 @@ let handle_request
   let open Controller in
   match request.meth, extract_path request with
     | `GET, ["query"; name] ->
-      printf "GET /query/%s" name;
-      query name
-      >>= fun stats ->
-      Server.respond_with_string (NetKAT_Json.stats_to_json_string stats)
+      Log.info "GET /query/%s" name;
+      if (is_query name) then
+        query name
+        >>= fun stats ->
+        Server.respond_with_string (NetKAT_Json.stats_to_json_string stats)
+      else
+        begin
+          Log.debug "query %s is not defined in the current policy" name;
+          Server.respond_with_string ~code:`Not_found
+            (sprintf "query %s is not defined in the current policy\n" name)
+        end
     | `GET, [clientId; "event"] ->
       printf "GET /event";
       let curr_client = get_client clientId in
