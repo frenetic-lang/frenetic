@@ -90,7 +90,9 @@ class Firewall(frenetic.App):
     allowed = self.allowed_pred()
     queries = Union([ x.query_pol() for x in self.state.allowed])
 
-    return internal.ite(
+    tcp_or_udp = Test(EthType(0x800)) & (Test(IPProto(6)) | Test(IPProto(17)))
+
+    return Filter(tcp_or_udp) >> internal.ite(
       forwarding_pol,
       Filter(external) >>
       allowed.ite(
@@ -109,8 +111,8 @@ class Firewall(frenetic.App):
     # Take the top most connection and schedule it to be checked
     allowed = allowed_conns.pop()
     ftr = self.query(allowed.query_label)
-    f = partial(self.clean_callback, 
-                allowed=allowed, 
+    f = partial(self.clean_callback,
+                allowed=allowed,
                 allowed_conns = allowed_conns,
                 clean_next_callback = callback,
                 should_clean = should_clean)
@@ -129,7 +131,7 @@ class Firewall(frenetic.App):
     allowed.last_count = curr_bytes
     # Propogate information to see if we are done
     clean_next_callback([allowed_conns, should_clean])
-    
+
   def clean_next_callback(self, ftr):
     results = ftr.result()
     allowed_conns = results[0]
