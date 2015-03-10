@@ -1,5 +1,6 @@
 import uuid, sys, json, base64
 from functools import partial
+from tornado import httpclient
 from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 from tornado.ioloop import IOLoop
 from frenetic.syntax import PacketIn, PacketOut
@@ -29,10 +30,13 @@ class App(object):
     def port_down(self,switch_id, port_id):
         print "port_down(switch_id=%s, port_id=%d)" % (switch_id, port_id)
 
-    """This method can be overridden by the application. By default, it simply 
+    """This method can be overridden by the application. By default, it simply
        prints the event."""
     def packet_in(self, switch_id, port_id, payload):
         print "packet_in(switch_id=%s, port_id=%d, payload=...)" % (switch_id, port_id)
+
+    def connected(self):
+        print "established connection to Frenetic controller"
 
     def pkt_out(self, switch, payload, actions, in_port=None):
         msg = PacketOut(switch=switch,
@@ -76,7 +80,25 @@ class App(object):
             self.client_id = uuid.uuid4().hex
             print "No client_id specified. Using %s" % self.client_id
         self.__http_client = AsyncHTTPClient()
-        self.__poll_event()
+        self.__connect()
+
+    def __connect(self):
+        url = "http://localhost:9000/version"
+        req = HTTPRequest(url, method='GET',request_timeout=0)
+        resp_fut = self.__http_client.fetch(req)
+        IOLoop.instance().add_future(resp_fut, self.__handle_connect)
+
+    def __handle_connect(self, response_future):
+        try:
+            response = response_future.result()
+            self.__poll_event()
+            self.connected()
+        except httpclient.HTTPError as e:
+            if e.code == 599:
+                print "Frenetic not running, re-trying...."
+                IOLoop.instance().call_later(1, self.__connect)
+            else:
+                raise e
 
     def start_event_loop(self):
         print "Starting the tornado event loop (does not return)."

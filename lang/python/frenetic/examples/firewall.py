@@ -74,6 +74,8 @@ class Firewall(frenetic.App):
   def __init__(self, state):
     frenetic.App.__init__(self)
     self.state = state
+
+  def connected(self):
     self.update(self.global_policy())
     if self.state.version == 3:
       PeriodicCallback(self.run_clean, clean_delay * 1000).start()

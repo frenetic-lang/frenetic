@@ -53,6 +53,7 @@ let handle_request
   Log.info "%s %s" (Cohttp.Code.string_of_method request.meth)
     (Uri.path request.uri);
   match request.meth, extract_path request with
+    | `GET, ["version"] -> Server.respond_with_string "3"
     | `GET, ["query"; name] ->
       if (is_query name) then
         query name
