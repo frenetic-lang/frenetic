@@ -49,6 +49,10 @@ class Allowed(object):
              Test(IP4Dst(self.trusted_ip)) &
              Test(TCPDstPort(self.trusted_port))))
 
+  def __str__(self):
+    fmt = "Allowed(trusted_ip=%s, trusted_port=%s, untrusted_ip=%s, untrusted_port=%s)"
+    return fmt % (self.trusted_ip, self.trusted_port, self.untrusted_ip, self.untrusted_port)
+
   def query_pol(self):
     return Filter(self.to_pred()) >> Mod(Location(Query(self.query_label)))
 
@@ -128,7 +132,7 @@ class Firewall(frenetic.App):
     assert allowed.last_count <= curr_bytes
     if(allowed.last_count == curr_bytes):
         # Remove the connection and set the cleaning flag to true
-        self.state.allowed.remove(allowed)
+        self.state.remove_allowed(allowed)
         should_clean = True
     allowed.last_count = curr_bytes
     # Propogate information to see if we are done
@@ -169,9 +173,12 @@ class Firewall(frenetic.App):
     # Packet is going from trusted to untrusted
     self.state.allow(Allowed(src_ip, src_tcp_port, dst_ip, dst_tcp_port, self.state.next_query_label()))
     self.update(self.global_policy())
-    # TODO(arjun): Should send the packet. API should expose the Freneti
+    # TODO(arjun): Should send the packet. API should expose the Frenetic
     # interpreter, or update should allow you to provide a packet to apply the
     # policy to.
+    # TODO(arjun): Terrible hack
+    pt = 1 if dst_ip == "10.0.0.1" else 2 if dst_ip == "10.0.0.2" else 0
+    self.pkt_out(switch_id, payload, [Output(Physical(pt))])
     return
 
   def packet_in_v2(self, switch_id, port_id, payload, src_ip, dst_ip,
@@ -183,11 +190,12 @@ class Firewall(frenetic.App):
       # TODO(arjun): Terrible hack
       pt = 1 if dst_ip == "10.0.0.1" else 2 if dst_ip == "10.0.0.2" else 0
       self.pkt_out(switch_id, payload, [Output(Physical(pt))])
-      self.update(self.global_policy())
+      #self.update(self.global_policy())
       return
 
     # Describes the trusted -> untrusted entry that should have been created
     reverse_allow_entry = Allowed(dst_ip, dst_tcp_port, src_ip, src_tcp_port, self.state.next_query_label())
+
     if reverse_allow_entry in self.state.pending:
       self.state.remove_pending(reverse_allow_entry)
       self.state.allow(reverse_allow_entry)
@@ -243,6 +251,9 @@ class State(object):
 
   def allow(self, allowed):
     self.allowed += [allowed]
+
+  def remove_allowed(self, allowed):
+    self.allowed.remove(allowed)
 
   def add_pending(self, allowed):
     # Silently doesn't add the flow to pending if it is already allowed.
