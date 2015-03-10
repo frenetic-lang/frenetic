@@ -261,4 +261,16 @@ module Controller = struct
          | (_, M.StatsReplyMsg (IndividualFlowRep r)) -> Result.Ok r
          | _ -> assert false)
       | _ -> assert false)
+
+  let port_stats (t : t) sw_id pt =
+    let open OpenFlow0x01_Stats in
+    let msg = PortRequest (Some (PhysicalPort pt)) in
+    send_txn_with t sw_id (M.StatsRequestMsg msg) (function
+      | `Result (hdr, body) ->
+        (match M.parse hdr (Cstruct.to_string body) with
+         | (_, M.StatsReplyMsg (PortRep portStats)) -> Result.Ok portStats
+         | _ -> assert false)
+      | _ -> assert false)
+
+
 end

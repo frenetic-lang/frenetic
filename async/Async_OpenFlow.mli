@@ -203,6 +203,8 @@ module OpenFlow0x01 : sig
     val individual_stats
       :  ?pattern:pattern -> t -> Client_id.t
       -> (individualStats list, exn) Deferred.Result.t
+
+    val port_stats : t -> switchId -> portId -> (portStats, exn) Deferred.Result.t
   end
 
 end
