@@ -92,6 +92,7 @@ class App(object):
         try:
             response = response_future.result()
             self.__poll_event()
+            print "Established connection to Frenetic controller."
             self.connected()
         except httpclient.HTTPError as e:
             if e.code == 599:

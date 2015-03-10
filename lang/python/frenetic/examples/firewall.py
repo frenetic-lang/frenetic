@@ -202,8 +202,16 @@ class Firewall(frenetic.App):
     pkt = packet.Packet(array.array('b', payload.data))
     p = get(pkt,'ethernet')
     ip = get(pkt, "ipv4")
-    tcp = get(pkt, "tcp")
-    print "Packet in: %s" % pkt
+
+    if ip.proto == 6:
+      tcp = get(pkt, "tcp")
+    elif ip.proto == 17:
+      tcp = get(pkt, "udp")
+    else:
+      print "Not a TCP or UDP packet. Dropped."
+      self.pkt_out(switch = switch_id, payload = payload, actions = [])
+      return
+
     if ip == None or tcp == None:
       print "Not TCP/IP packet. Dropped."
       self.pkt_out(switch = switch_id, payload = payload, actions = [])
