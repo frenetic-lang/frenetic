@@ -61,13 +61,35 @@ class App(object):
       f = partial(self.run_response, callback=callback)
       IOLoop.instance().add_future(ftr, f)
 
-    # label : label to query
-    # callback
     def query(self, label):
         url = "http://localhost:9000/query/" + label
         request = HTTPRequest(url, method='GET', request_timeout=0)
         response_future = self.__http_client.fetch(request)
         return self.query_helper(response_future)
+
+    def run_port_stats(self, ftr, callback):
+      response = ftr.result()
+      if(hasattr(response, 'buffer')):
+        data = json.loads(response.buffer.getvalue())
+        dataPrime = {}
+        for key in data:
+          dataPrime[key] = int(data[key])
+        callback(data)
+
+    @return_future
+    def port_stats_helper(self, ftr, callback):
+      f = partial(self.run_port_stats, callback=callback)
+      IOLoop.instance().add_future(ftr, f)
+
+    # Returns a Future where the Result is a dictionary with the
+    # following values: port_no, rx_packets, tx_packets, rx_bytes, tx_bytes
+    # rx_dropped, tx_dropped, rx_errors, tx_errors, rx_frame_error, rx_over_err,
+    # rx_crc_err, collisions. All of these values map to an integer
+    def port_stats(self, switch_id, port_id):
+      url = "http://localhost:9000/port_stats/" + switch_id + "/" + port_id
+      request = HTTPRequest(url, method='GET', request_timeout=0)
+      response_future = self.__http_client.fetch(request)
+      return self.port_stats_helper(response_future)
 
     def update(self, policy):
         pol_json = json.dumps(policy.to_json())
