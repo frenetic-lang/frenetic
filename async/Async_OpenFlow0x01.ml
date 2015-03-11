@@ -54,6 +54,7 @@ module Controller = struct
     shakes : ClientSet.t;
     c2s : SDN_Types.switchId ClientMap.t;
     s2c : ChunkController.Client_id.t SwitchMap.t;
+    switch_features : (SDN_Types.switchId, OpenFlow0x01.SwitchFeatures.t) Hashtbl.t
   }
 
   type e = (Client_id.t, c, m) Platform.event
@@ -89,6 +90,9 @@ module Controller = struct
     | None -> false
 
   let get_switches t = SwitchMap.keys t.s2c
+
+  let get_switch_features (t : t) (switch_id : SDN_Types.switchId) =
+    Hashtbl.Poly.find t.switch_features switch_id
 
   let send t sw_id msg =
     match client_id_of_switch t sw_id with
@@ -132,12 +136,13 @@ module Controller = struct
   let listening_port t =
     ChunkController.listening_port t.sub
 
-  let create_from_chunk t =
-    { sub = t
-    ; shakes = ClientSet.create ()
-    ; c2s = ClientMap.create ()
-    ; s2c = SwitchMap.create ()
-    }
+  let create_from_chunk t = {
+    sub = t;
+    shakes = ClientSet.create ();
+    c2s = ClientMap.create ();
+    s2c = SwitchMap.create ();
+    switch_features = Hashtbl.Poly.create ()
+  }
 
   let create ?max_pending_connections
       ?verbose
@@ -183,6 +188,7 @@ module Controller = struct
             let switch_id = fs.OpenFlow0x01.SwitchFeatures.switch_id in
             ClientMap.add_exn t.c2s c_id switch_id;
             SwitchMap.add_exn t.s2c switch_id c_id;
+            Hashtbl.Poly.add_exn t.switch_features ~key:switch_id ~data:fs;
             Hash_set.remove t.shakes c_id;
             return [`Connect(switch_id, fs)]
           | _ ->
@@ -202,6 +208,7 @@ module Controller = struct
           | Some(sw_id) -> (* features request did complete *)
             ClientMap.remove t.c2s c_id;
             SwitchMap.remove t.s2c sw_id;
+            Hashtbl.Poly.remove t.switch_features sw_id;
             return [`Disconnect(sw_id, exn)]
 
   let listen_pipe t p =
