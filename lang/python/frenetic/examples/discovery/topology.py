@@ -1,8 +1,11 @@
 import struct, frenetic, binascii, array
+from functools import partial
 from ryu.lib.packet import packet, packet_base, ethernet, arp
 from frenetic.syntax import *
 from state import *
 from tornado.ioloop import PeriodicCallback
+from tornado.ioloop import IOLoop
+from tornado.concurrent import return_future
 from flood_switch import *
 
 # Packet to be encoded for sending Probes over the probocol
@@ -50,12 +53,64 @@ class Topology(frenetic.App):
 
   client_id = "topology"
 
-  def __init__(self, state):
+  def __init__(self, state, version):
     frenetic.App.__init__(self)
+    self.version = version
     self.state = state
     self.state.register(self)
     # Every 10 seconds send out probes on ports we don't know about
     PeriodicCallback(self.run_probe, 10000).start()
+    if self.version == 2:
+      PeriodicCallback(self.update_weights, 10000).start()
+
+  def update_next_callback(self, ftr):
+    # Pull the edges out of the future and propogate the edges along
+    # Yay for monads in python!
+    edges = ftr.result()
+    self.update_weights_helper(edges)
+
+  def update_callback(self, ftr, edge, edges, callback):
+    # Pull out the current edge weight if it exists
+    curr_weight = 0
+    if 'weight' in self.state.network[edge[0]][edge[1]]:
+      curr_weight = self.state.network[edge[0]][edge[1]]['weight']
+    data = ftr.result()
+    weight = data['rx_bytes'] + data['tx_bytes']
+    # If the weight has changed, update the edge weight and mark the state as dirty
+    if weight != curr_weight:      
+      label = self.state.network[edge[0]][edge[1]]['label']
+      self.state.network.add_edge(edge[0], edge[1], label=label, weight=weight)
+      self.state._clean = False
+    callback(edges)
+
+  @return_future
+  def update_next(self, edges, callback):
+    # This should never be called with an empty edge list
+    assert edges
+    # Take the next edge, pull out the label and ask for the port_stats
+    edge = edges.pop()
+    switch_id = edge[0]
+    dst_id = edge[1]
+    port_id = self.state.network[switch_id][dst_id]['label']
+    ftr = self.port_stats(str(switch_id), str(port_id))
+    f = partial(self.update_callback,
+                edge = edge,
+                edges = edges,
+                callback = callback)
+    IOLoop.instance().add_future(ftr, f)
+                
+  def update_weights_helper(self, edges):
+    # If there are no edges left, call notify.
+    if edges:
+      ftr = self.update_next(edges)
+      IOLoop.instance().add_future(ftr, self.update_next_callback)
+    else:
+      self.state.notify()
+
+  def update_weights(self):
+    edges = networkx.get_edge_attributes(self.state.network, 'label').keys()
+    self.update_weights_helper(edges)
+    
 
   def run_update(self):
     # This function is invoked by State when the network changes
