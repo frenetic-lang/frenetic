@@ -58,8 +58,11 @@ class Topology(frenetic.App):
     self.version = version
     self.state = state
     self.state.register(self)
+
+  def connected(self):
     # Every 10 seconds send out probes on ports we don't know about
     PeriodicCallback(self.run_probe, 10000).start()
+    # In version 2, read port counters every 10 seconds too.
     if self.version == 2:
       PeriodicCallback(self.update_weights, 10000).start()
 
@@ -77,7 +80,7 @@ class Topology(frenetic.App):
     data = ftr.result()
     weight = data['rx_bytes'] + data['tx_bytes']
     # If the weight has changed, update the edge weight and mark the state as dirty
-    if weight != curr_weight:      
+    if weight != curr_weight:
       label = self.state.network[edge[0]][edge[1]]['label']
       self.state.network.add_edge(edge[0], edge[1], label=label, weight=weight)
       self.state._clean = False
@@ -98,7 +101,7 @@ class Topology(frenetic.App):
                 edges = edges,
                 callback = callback)
     IOLoop.instance().add_future(ftr, f)
-                
+
   def update_weights_helper(self, edges):
     # If there are no edges left, call notify.
     if edges:
@@ -110,7 +113,7 @@ class Topology(frenetic.App):
   def update_weights(self):
     edges = networkx.get_edge_attributes(self.state.network, 'label').keys()
     self.update_weights_helper(edges)
-    
+
 
   def run_update(self):
     # This function is invoked by State when the network changes
@@ -163,7 +166,7 @@ class Topology(frenetic.App):
       probe_data = ProbeData(switch_ref.id, port)
       self.state.probes.add(probe_data)
       self.state.probes_sent[probe_data] = 0
-        
+
   def discard_probes(self, switch_ref):
     for port in switch_ref.ports:
       probe_data = ProbeData(switch_ref.id, port)
@@ -180,7 +183,7 @@ class Topology(frenetic.App):
     self.state.notify()
 
   def switch_down(self, switch_id):
-    # When a switch goes down, remove any unresolved probes and remove 
+    # When a switch goes down, remove any unresolved probes and remove
     # it from the network graph
     print "switch_down(%s)" % switch_id
     self.discard_probes(self.state.switches()[switch_id])
