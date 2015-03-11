@@ -228,8 +228,16 @@ class Topology(frenetic.App):
 
     if (p.ethertype == ProbeData.PROBOCOL):
       probe_data = get(pkt, 'ProbeData')
-      self.handle_probe(switch_id, port_id, probe_data.src_switch, probe_data.src_port)
+      self.handle_probe(switch_id, port_id, probe_data.src_switch,
+                        probe_data.src_port)
+      return
 
     if (p.ethertype == 0x806):
       arp = get(pkt, 'arp')
       self.handle_arp(switch_id, port_id, arp)
+      return
+
+    self.pkt_out(payload, switch_id, [])
+
+
+

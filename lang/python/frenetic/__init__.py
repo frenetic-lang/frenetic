@@ -31,9 +31,10 @@ class App(object):
         print "port_down(switch_id=%s, port_id=%d)" % (switch_id, port_id)
 
     """This method can be overridden by the application. By default, it simply
-       prints the event."""
+       prints the event and drops the packet."""
     def packet_in(self, switch_id, port_id, payload):
         print "packet_in(switch_id=%s, port_id=%d, payload=...)" % (switch_id, port_id)
+        self.pkt_out(switch_id, payload, [])
 
     def connected(self):
         print "established connection to Frenetic controller"
