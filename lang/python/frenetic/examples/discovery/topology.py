@@ -1,4 +1,4 @@
-import struct, frenetic, binascii, array
+import struct, frenetic, binascii, array, time
 from functools import partial
 from ryu.lib.packet import packet, packet_base, ethernet, arp
 from frenetic.syntax import *
@@ -8,12 +8,41 @@ from tornado.ioloop import IOLoop
 from tornado.concurrent import return_future
 from flood_switch import *
 
+weight_check_interval = 5000
+num_intervals = 5
+
 # Packet to be encoded for sending Probes over the probocol
 
 def get(pkt,protocol):
     for p in pkt:
         if p.protocol_name == protocol:
             return p
+
+class Count(object):
+  
+  def __init__(self, count):
+    self.timestamp = time.time()
+    self.count = count
+
+  def __repr__(self):
+    return "{ count : %s, timestamp : %s}" % (self.count, self.timestamp)
+
+  @classmethod
+  def moving_average(cls, counts):
+    # ensure the original counts is unmodified
+    counts = list(counts)
+    size = len(counts)
+    assert size > 1
+    start_point = counts.pop()
+    assert isinstance(start_point, Count)
+    average = 0
+    while counts:
+      end_point = counts.pop()
+      assert isinstance(end_point, Count)
+      average = average + ((end_point.count - start_point.count)/(end_point.timestamp - start_point.timestamp))
+      start_point = end_point
+    return average/size
+      
 
 class ProbeData(packet_base.PacketBase):
 
@@ -64,7 +93,7 @@ class Topology(frenetic.App):
     PeriodicCallback(self.run_probe, 10000).start()
     # In version 2, read port counters every 10 seconds too.
     if self.version == 2:
-      PeriodicCallback(self.update_weights, 10000).start()
+      PeriodicCallback(self.update_weights, weight_check_interval).start()
 
     # The controller may already be connected to several switches on startup.
     # This ensures that we probe them too.
@@ -80,17 +109,29 @@ class Topology(frenetic.App):
     self.update_weights_helper(edges)
 
   def update_callback(self, ftr, edge, edges, callback):
-    # Pull out the current edge weight if it exists
-    curr_weight = 0
-    if 'weight' in self.state.network[edge[0]][edge[1]]:
-      curr_weight = self.state.network[edge[0]][edge[1]]['weight']
+    # Get the Counts for this edge
+    counts = []
+    if 'counts' in self.state.network[edge[0]][edge[1]]:
+      counts = self.state.network[edge[0]][edge[1]]['counts']
+
+    # Add the latest count
     data = ftr.result()
-    weight = data['rx_bytes'] + data['tx_bytes']
-    # If the weight has changed, update the edge weight and mark the state as dirty
-    if weight != curr_weight:
-      label = self.state.network[edge[0]][edge[1]]['label']
-      self.state.network.add_edge(edge[0], edge[1], label=label, weight=weight)
-      self.state._clean = False
+    curr_count = Count(data['rx_bytes'] + data['tx_bytes'])
+    counts.append(curr_count)
+
+    # remove older counts
+    while len(counts) > num_intervals + 1:
+      counts.pop(0)
+
+    # Calculate the moving_average
+    weight = 0
+    if len(counts) > 1:
+      weight = Count.moving_average(counts)
+  
+    # Update edge
+    label = self.state.network[edge[0]][edge[1]]['label']
+    self.state.network.add_edge(edge[0], edge[1], label=label, weight=weight, counts=counts)
+    self.state._clean = False
     callback(edges)
 
   @return_future
