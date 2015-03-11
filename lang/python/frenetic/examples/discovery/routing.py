@@ -7,8 +7,9 @@ class Routing(frenetic.App):
 
   client_id = "routing"
 
-  def __init__(self, state):
+  def __init__(self, state, version):
     frenetic.App.__init__(self)
+    self.version = version
     self.state = state
     self.state.register(self)
 
@@ -53,7 +54,7 @@ class Routing(frenetic.App):
           continue
 
         # Otherwise, get the path and build that policy
-        switch_path = networkx.shortest_path(network_prime, src_host, dst_host)
+        switch_path = networkx.shortest_path(network_prime, src_host, dst_host, 'weight')
         switch_path.reverse()
         switch_path.pop()
 
