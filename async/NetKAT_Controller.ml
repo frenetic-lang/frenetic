@@ -129,6 +129,7 @@ module type CONTROLLER = sig
   val send_packet_out : switchId -> SDN_Types.pktOut -> unit Deferred.t
   val event : unit -> event Deferred.t
   val query : string -> (Int64.t * Int64.t) Deferred.t
+  val port_stats : switchId -> portId -> OpenFlow0x01_Stats.portStats Deferred.t					    
   val is_query : string -> bool
   val start : unit -> unit
 
@@ -189,6 +190,12 @@ module Make (Args : ARGS) : CONTROLLER = struct
     >>= fun (pkts, bytes) ->
     let (pkts', bytes') = Hashtbl.Poly.find_exn stats name in
     Deferred.return (Int64.(pkts + pkts', bytes + bytes'))
+
+  let port_stats (sw_id : switchId) (pid : portId) : OpenFlow0x01_Stats.portStats Deferred.t =
+    Controller.port_stats controller sw_id (Int32.to_int_exn pid)
+    >>| function
+    | Ok portStats -> portStats
+    | Error _ -> assert false
 
   let is_query (name : string) : bool = Hashtbl.Poly.mem stats name
 

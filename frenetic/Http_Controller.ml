@@ -54,6 +54,10 @@ let handle_request
     (Uri.path request.uri);
   match request.meth, extract_path request with
     | `GET, ["version"] -> Server.respond_with_string "3"
+    | `GET, ["port_stats"; switch_id; port_id] ->
+       port_stats (Int64.of_string switch_id) (Int32.of_string port_id)
+       >>= fun portStats ->
+       Server.respond_with_string (NetKAT_Json.port_stats_to_json_string portStats)
     | `GET, ["query"; name] ->
       if (is_query name) then
         query name
