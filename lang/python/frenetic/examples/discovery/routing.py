@@ -22,7 +22,7 @@ class Routing(frenetic.App):
     # reached the host.
     if not switch_path:
       return Union(acc)
-    
+
     # If there are more switches to go through, get the next one
     # find the port that connects the current switch to the next
     # switch, and filter from current switch along the port connecting
@@ -32,11 +32,11 @@ class Routing(frenetic.App):
     pol = Filter(Test(Switch(curr_switch))) >> Mod(Location(Physical(out_port)))
     acc.append(pol)
     return self.build_path(switch_path, next_switch, acc)
-    
+
   def policy(self):
     hosts = self.state.hosts()
     paths = []
- 
+
     # For all (src, dst) pairs, find the shortest path
     for src_host in hosts:
       for dst_host in hosts:
@@ -48,7 +48,7 @@ class Routing(frenetic.App):
         for host in self.state.hosts():
           if not (host == src_host or host == dst_host):
             network_prime.remove_node(host)
-          
+
         #If no path exists, skip
         if(not networkx.has_path(network_prime, src_host, dst_host)):
           continue
@@ -63,5 +63,5 @@ class Routing(frenetic.App):
         paths.append(test >> self.build_path(switch_path, switch_path.pop(), []))
 
     # If there exists a path, use it. Otherwise flood the traffic on all ports.
-    return (Union(paths) | 
+    return (Union(paths) |
             Union([flood_switch_policy(switch_ref) for switch_ref in self.state.switches().values()]))

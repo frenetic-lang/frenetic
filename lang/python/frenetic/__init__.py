@@ -5,6 +5,7 @@ from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 from tornado.ioloop import IOLoop
 from frenetic.syntax import PacketIn, PacketOut
 from tornado.concurrent import return_future
+from tornado import gen
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
@@ -91,6 +92,14 @@ class App(object):
       request = HTTPRequest(url, method='GET', request_timeout=0)
       response_future = self.__http_client.fetch(request)
       return self.port_stats_helper(response_future)
+
+    @gen.coroutine
+    def current_switches(self):
+      url = "http://localhost:9000/current_switches"
+      req = HTTPRequest(url, method="GET", request_timeout=0)
+      resp = yield self.__http_client.fetch(req)
+      ret = dict((x["switch_id"], x["ports"]) for x in json.loads(resp.body))
+      raise gen.Return(ret)
 
     def update(self, policy):
         pol_json = json.dumps(policy.to_json())

@@ -66,6 +66,13 @@ class Topology(frenetic.App):
     if self.version == 2:
       PeriodicCallback(self.update_weights, 10000).start()
 
+    # The controller may already be connected to several switches on startup.
+    # This ensures that we probe them too.
+    def handle_current_switches(switches):
+      for switch_id in switches:
+        self.switch_up(switch_id, switches[switch_id])
+    self.current_switches(callback=handle_current_switches)
+
   def update_next_callback(self, ftr):
     # Pull the edges out of the future and propogate the edges along
     # Yay for monads in python!
@@ -113,7 +120,6 @@ class Topology(frenetic.App):
   def update_weights(self):
     edges = networkx.get_edge_attributes(self.state.network, 'label').keys()
     self.update_weights_helper(edges)
-
 
   def run_update(self):
     # This function is invoked by State when the network changes
