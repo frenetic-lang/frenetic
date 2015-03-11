@@ -15,8 +15,11 @@ class PortCount(frenetic.App):
   def __init__(self, state):
     frenetic.App.__init__(self)
     self.state = state
-    PeriodicCallback(self.count_ports, 5000).start()
     self.update(self.global_policy())
+
+  def connected(self):
+    frenetic.App.connected(self)
+    PeriodicCallback(self.count_ports, 5000).start()
 
   def print_count(self, future, switch):
     data = future.result()
