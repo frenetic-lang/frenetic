@@ -13,6 +13,10 @@ class Routing(frenetic.App):
     self.state = state
     self.state.register(self)
 
+  # Supresses the noisy output
+  def packet_in(self, switch_id, port_id, payload):
+    self.pkt_out(switch_id, payload, [])
+
   def run_update(self):
     # This function is invoked by State when the network changes
     self.update(self.policy())
