@@ -40,9 +40,29 @@ class Routing(frenetic.App):
     acc.append(pol)
     return self.build_path(switch_path, next_switch, acc)
 
+  def increase_weights(self, curr_node, remaining_path, network):
+    if not remaining_path:
+      return
+    
+    next_node = remaining_path.pop()
+    # If this edge has a calculated moving average
+    # we will add the moving_average/num_hosts to the networks
+    # edge weight when we add someone to this path
+    if 'weight' in self.state.network[curr_node][next_node]:
+      moving_average = self.state.network[curr_node][next_node]['weight']
+      curr_weight = network[curr_node][next_node]['weight']
+      num_hosts = len(self.state.hosts())
+      update_weight = curr_weight + (moving_average/num_hosts)
+      network.add_edge(curr_node, next_node, weight = update_weight)
+    self.increase_weights(next_node, remaining_path, network)
+
   def policy(self):
     hosts = self.state.hosts()
     paths = []
+
+    no_weight_network = self.state.network.copy()
+    for edge in no_weight_network.edges():
+      no_weight_network.add_edge(edge[0], edge[1], weight=0)
 
     # For all (src, dst) pairs, find the shortest path
     for src_host in hosts:
@@ -51,7 +71,7 @@ class Routing(frenetic.App):
           continue
 
         # Build a copy of the network containing only switches and the relevant hosts
-        network_prime = self.state.network.copy()
+        network_prime = no_weight_network.copy()
         for host in self.state.hosts():
           if not (host == src_host or host == dst_host):
             network_prime.remove_node(host)
@@ -62,6 +82,12 @@ class Routing(frenetic.App):
 
         # Otherwise, get the path and build that policy
         switch_path = networkx.shortest_path(network_prime, src_host, dst_host, 'weight')
+
+        # If we are in version 2, we want to increase the edge weight for the selected path
+        if self.version == 2:
+          path_copy = list(switch_path)
+          path_copy.reverse()
+          self.increase_weights(path_copy.pop(), path_copy, no_weight_network)
 
         print "Found path %s" % switch_path
         switch_path.reverse()
