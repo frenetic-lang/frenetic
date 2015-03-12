@@ -20,6 +20,18 @@ class Routing(frenetic.App):
   def packet_in(self, switch_id, port_id, payload):
     self.pkt_out(switch_id, payload, [])
 
+  def switch_up(self,switch_id,ports):
+    pass
+
+  def switch_down(self,switch_id):
+    pass
+
+  def port_up(self,switch_id, port_id):
+    pass
+
+  def port_down(self,switch_id, port_id):
+    pass
+
   def run_update(self):
     # This function is invoked by State when the network changes
     self.update(self.policy())
@@ -43,7 +55,7 @@ class Routing(frenetic.App):
   def increase_weights(self, curr_node, remaining_path, network):
     if not remaining_path:
       return
-    
+
     next_node = remaining_path.pop()
     # If this edge has a calculated moving average
     # we will add the moving_average/num_hosts to the networks
@@ -62,7 +74,7 @@ class Routing(frenetic.App):
 
     no_weight_network = self.state.network.copy()
     for edge in no_weight_network.edges():
-      no_weight_network.add_edge(edge[0], edge[1], weight=0)
+      no_weight_network.add_edge(edge[0], edge[1], weight=1)
 
     # For all (src, dst) pairs, find the shortest path
     for src_host in hosts:
@@ -70,18 +82,12 @@ class Routing(frenetic.App):
         if src_host == dst_host:
           continue
 
-        # Build a copy of the network containing only switches and the relevant hosts
-        network_prime = no_weight_network.copy()
-        for host in self.state.hosts():
-          if not (host == src_host or host == dst_host):
-            network_prime.remove_node(host)
-
         #If no path exists, skip
-        if(not networkx.has_path(network_prime, src_host, dst_host)):
+        if(not networkx.has_path(no_weight_network, src_host, dst_host)):
           continue
 
         # Otherwise, get the path and build that policy
-        switch_path = networkx.shortest_path(network_prime, src_host, dst_host, 'weight')
+        switch_path = networkx.shortest_path(no_weight_network, src_host, dst_host, 'weight')
 
         # If we are in version 2, we want to increase the edge weight for the selected path
         if self.version == 2:

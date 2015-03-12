@@ -68,11 +68,7 @@ class Topology(frenetic.App):
     self.update(self.policy())
 
     IOLoop.instance().add_timeout(datetime.timedelta(seconds=2), self.run_probe)
-    IOLoop.instance().add_timeout(datetime.timedelta(seconds=6), self.host_discovery)
-
-    # In version 2, read port counters every 10 seconds too.
-    if self.version == 2:
-      PeriodicCallback(self.update_weights, weight_check_interval).start()
+    IOLoop.instance().add_timeout(datetime.timedelta(seconds=4), self.host_discovery)
 
     # The controller may already be connected to several switches on startup.
     # This ensures that we probe them too.
@@ -84,6 +80,9 @@ class Topology(frenetic.App):
   def host_discovery(self):
     print "Internal links finalized. Now ready to discover hosts."
     self.state.set_mode("host_discovery")
+    # In version 2, read port counters every 10 seconds too.
+    if self.version == 2:
+      PeriodicCallback(self.update_weights, weight_check_interval).start()
     self.state.notify()
 
   def update_next_callback(self, ftr):
@@ -127,7 +126,7 @@ class Topology(frenetic.App):
     switch_id = edge[0]
     dst_id = edge[1]
     port_id = self.state.network[switch_id][dst_id]['label']
-    ftr = self.port_stats(str(switch_id), str(port_id))
+    ftr = self.port_stats(switch_id, port_id)
     f = partial(self.update_callback,
                 edge = edge,
                 edges = edges,
