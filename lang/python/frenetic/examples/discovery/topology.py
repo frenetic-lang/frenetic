@@ -65,10 +65,9 @@ class Topology(frenetic.App):
 
   def connected(self):
     # This is necessary to avoid a complete screwup on restart.
-    self.run_update()
+    self.update(self.policy())
 
-    IOLoop.instance().add_timeout(datetime.timedelta(seconds=3), self.run_probe)
-
+    IOLoop.instance().add_timeout(datetime.timedelta(seconds=2), self.run_probe)
     IOLoop.instance().add_timeout(datetime.timedelta(seconds=6), self.host_discovery)
 
     # In version 2, read port counters every 10 seconds too.
@@ -85,7 +84,7 @@ class Topology(frenetic.App):
   def host_discovery(self):
     print "Internal links finalized. Now ready to discover hosts."
     self.state.set_mode("host_discovery")
-    self.run_update()
+    self.state.notify()
 
   def update_next_callback(self, ftr):
     # Pull the edges out of the future and propogate the edges along
@@ -151,47 +150,27 @@ class Topology(frenetic.App):
     # This function is invoked by State when the network changes
     self.update(self.policy())
 
-  def check_host_edge(self, probe_data):
-    # If we have not met the probe threshold don't accept any edges
-    if self.state.probes_sent[probe_data] < ProbeData.NO_RESPONSE_THRESHOLD:
-      return False
-    # If we are past the threshold but no tentative edge exists keep probing
-    if not (probe_data in self.state.tentative_edge):
-      return False
-    # Else we should solidify the edge and stop probing
-    host_id = self.state.tentative_edge[probe_data]
-    self.state.del_tentative_edge(probe_data)
-    print "Permanent edge: (%s, %s) to %s" % (probe_data.src_switch, probe_data.src_port, host_id)
-    return True
-
   def run_probe(self):
     to_remove = set()
-    for probe_data in self.state.probes:
-      # Check if this probe is a host edge
-      if self.check_host_edge(probe_data):
-        to_remove.add(probe_data)
-        continue
+    for switch in self.state.switches().values():
+      switch_id = switch.id
+      for port_id in switch.ports:
+        probe_data = ProbeData(switch_id, port_id)
 
-      # Build a PROBOCOL packet and send it out
-      # print "Sending probe: (%s, %s)" % (probe_data.src_switch, probe_data.src_port)
-      pkt = packet.Packet()
-      pkt.add_protocol(ethernet.ethernet(ethertype=ProbeData.PROBOCOL))
-      pkt.add_protocol(probe_data)
-      pkt.serialize()
-      payload = NotBuffered(binascii.a2b_base64(binascii.b2a_base64(pkt.data)))
-      actions = [Output(Physical(probe_data.src_port))]
-      self.pkt_out(probe_data.src_switch, payload, actions)
-      self.state.probes_sent[probe_data] = self.state.probes_sent[probe_data] + 1
-
-    # Cleanup any host edges we discovered
-    for probe_data in to_remove:
-      self.state.probes_discard(probe_data)
+        # Build a PROBOCOL packet and send it out
+        pkt = packet.Packet()
+        pkt.add_protocol(ethernet.ethernet(ethertype=ProbeData.PROBOCOL))
+        pkt.add_protocol(probe_data)
+        pkt.serialize()
+        # TODO(arjun): OMGWTF
+        payload = NotBuffered(binascii.a2b_base64(binascii.b2a_base64(pkt.data)))
+        self.pkt_out(switch_id, payload, [Output(Physical(port_id))])
 
   def policy(self):
     if self.state.mode == "internal_discovery":
       # All PROBOCOL traffic is sent to the controller, otherwise flood
       probe_traffic = Filter(Test(EthType(ProbeData.PROBOCOL))) >> Mod(Location(Pipe("http")))
-      sniff = Filter(Test(EthType(0x806)) | Test(EthType(0x800))) >> Mod(Location(Pipe("http")))
+      sniff = Filter(Test(EthType(0x806))) >> Mod(Location(Pipe("http")))
       return probe_traffic | sniff
     elif self.state.mode == "host_discovery":
       sniff = Filter(Test(EthType(0x806))) >> Mod(Location(Pipe("http")))
@@ -199,32 +178,17 @@ class Topology(frenetic.App):
     else:
       assert False
 
-  def create_probes(self, switch_ref):
-    for port in switch_ref.ports:
-      probe_data = ProbeData(switch_ref.id, port)
-      self.state.probes_add(probe_data)
-      self.state.probes_sent_init(probe_data)
-
-  def discard_probes(self, switch_ref):
-    for port in switch_ref.ports:
-      probe_data = ProbeData(switch_ref.id, port)
-      self.state.probes_discard(probe_data)
-      self.state.del_tentative_edge(probe_data)
-
   def switch_up(self, switch_id, ports):
     # When a switch comes up, add it to the network and create
     # probes for each of its ports
     print "switch_up(%s, %s)" % (switch_id, ports)
     switch_ref = SwitchRef(switch_id, ports)
     self.state.add_switch(switch_ref)
-    self.create_probes(switch_ref)
-    self.state.notify()
 
   def switch_down(self, switch_id):
     # When a switch goes down, remove any unresolved probes and remove
     # it from the network graph
     print "switch_down(%s)" % switch_id
-    self.discard_probes(self.state.switches()[switch_id])
     self.state.remove_switch(switch_id)
     self.state.notify()
 
@@ -233,10 +197,6 @@ class Topology(frenetic.App):
     print "Internal edge (%s, %s)--(%s, %s)" % (src_switch, src_port, dst_switch, dst_port)
     self.state.add_edge(dst_switch, src_switch, label=dst_port)
     self.state.add_edge(src_switch, dst_switch, label=src_port)
-    self.state.probes_discard(ProbeData(dst_switch, dst_port))
-    self.state.probes_discard(ProbeData(src_switch, src_port))
-
-    self.state.notify()
 
   def handle_sniff(self, switch_id, port_id, pkt, raw_pkt):
     # TODO(arjun): mobility
@@ -247,14 +207,15 @@ class Topology(frenetic.App):
     # with a broadcast source?
     self.state.add_host(pkt.src)
 
-    if not (ProbeData(switch_id, port_id) in self.state.probes and
-            ProbeData(switch_id, port_id) not in self.state.tentative_edge):
-      return
+    for edge in self.state.network.out_edges(switch_id, data=True):
+      if edge[2]["label"] == port_id:
+        print "SANITY ERROR: Received an ARP packet on an internal link."
+        print "Please do not rewire the network."
+        return
 
-    print "Tentative edge found from (%s, %s) to %s" % (switch_id, port_id, pkt.src)
+    print "Edge (%s, %s)--%s" % (switch_id, port_id, pkt.src)
     # This switch / ports probe has not been seen
     # We will tentatively assume it is connected to the src host
-    self.state.set_tentative_edge(ProbeData(switch_id, port_id), pkt.src)
     self.state.add_edge(switch_id, pkt.src, label=port_id)
     self.state.add_edge(pkt.src, switch_id)
     self.state.notify()
@@ -266,7 +227,6 @@ class Topology(frenetic.App):
       dst_switch_id, dst_port_id = loc
       if loc == (switch_id, port_id):
         continue
-      #print "Sending ARP from (%s,%s) to (%s,%s)" % (switch_id, port_id, dst_switch_id, dst_port_id)
       self.pkt_out(switch_id=dst_switch_id,
                    payload=payload,
                    actions=[Output(Physical(dst_port_id))])
@@ -279,20 +239,18 @@ class Topology(frenetic.App):
       probe_data = get(pkt, 'ProbeData')
       self.handle_probe(switch_id, port_id, probe_data.src_switch,
                         probe_data.src_port)
+      self.pkt_out(switch_id, payload, [])
       return
-
-    if (p.ethertype == 0x800):
-      self.handle_sniff(switch_id, port_id, p, pkt)
 
     if (p.ethertype == 0x806):
       self.handle_sniff(switch_id, port_id, p, pkt)
       if (self.state.mode == "host_discovery"):
         self.send_arp(switch_id, port_id, pkt)
-      else:
-        print "Blocking ARP during internal_discovery phase"
+      self.pkt_out(switch_id, payload, [])
       return
 
-    self.pkt_out(payload, switch_id, [])
+    print "ERROR: Received non-ARP / non-PROBOCOL packet: %s" % pkt
+    self.pkt_out(switch_id, payload, [])
 
 
 
