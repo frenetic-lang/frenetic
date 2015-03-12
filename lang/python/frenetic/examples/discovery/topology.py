@@ -261,18 +261,25 @@ class Topology(frenetic.App):
     self.state.notify()
 
   def handle_sniff(self, switch_id, port_id, pkt):
+    # TODO(arjun): mobility
+    if self.state.network.has_node(pkt.src):
+      return
+
     # TODO(arjun): Security vulnerability. What if some idiot sends a packet
     # with a broadcast source?
     self.state.add_host(pkt.src)
-    if(ProbeData(switch_id, port_id) in self.state.probes and
-       ProbeData(switch_id, port_id) not in self.state.tentative_edge):
-      print "Tentative edge found from (%s, %s) to %s" % (switch_id, port_id, pkt.src)
-      # This switch / ports probe has not been seen
-      # We will tentatively assume it is connected to the src host
-      self.state.tentative_edge[ProbeData(switch_id, port_id)] = pkt.src
-      self.state.add_edge(switch_id, pkt.src, label=port_id)
-      self.state.add_edge(pkt.src, switch_id)
-      self.state.notify()
+
+    if not (ProbeData(switch_id, port_id) in self.state.probes and
+            ProbeData(switch_id, port_id) not in self.state.tentative_edge):
+      return
+
+    print "Tentative edge found from (%s, %s) to %s" % (switch_id, port_id, pkt.src)
+    # This switch / ports probe has not been seen
+    # We will tentatively assume it is connected to the src host
+    self.state.tentative_edge[ProbeData(switch_id, port_id)] = pkt.src
+    self.state.add_edge(switch_id, pkt.src, label=port_id)
+    self.state.add_edge(pkt.src, switch_id)
+    self.state.notify()
 
   def packet_in(self, switch_id, port_id, payload):
     pkt = packet.Packet(array.array('b', payload.data))
