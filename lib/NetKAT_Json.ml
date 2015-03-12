@@ -23,7 +23,7 @@ let macaddr_from_string (str : string) : Int64.t =
   let buf = Macaddr.to_bytes (Macaddr.of_string_exn str) in
   let byte n = Int64.of_int (Char.to_int (Bytes.get buf n)) in
   let rec loop n acc =
-    let shift = 8 * n in
+    let shift = 8 * (5 - n) in
     let acc' = Int64.(acc + (shift_left (byte n) shift)) in
     if n = 5 then acc'
     else loop (n + 1) acc' in
@@ -283,4 +283,4 @@ let port_stats_to_json (portStats : OpenFlow0x01_Stats.portStats) : json =
 
 let port_stats_to_json_string (portStats : OpenFlow0x01_Stats.portStats) : string =
   Yojson.Basic.to_string ~std:true (port_stats_to_json portStats)
-	  
+
