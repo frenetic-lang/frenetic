@@ -18,6 +18,15 @@ def get(pkt,protocol):
         if p.protocol_name == protocol:
             return p
 
+def get_src_ip(pkt):
+  ip = get(pkt, "ipv4")
+  if ip is not None:
+    return ip.src
+
+  arp = get(pkt, "arp")
+  if arp is not None:
+    return arp.src_ip
+
 class Count(object):
 
   def __init__(self, count):
@@ -190,7 +199,7 @@ class Topology(frenetic.App):
         continue
 
       # Build a PROBOCOL packet and send it out
-      print "Sending probe: (%s, %s)" % (probe_data.src_switch, probe_data.src_port)
+      # print "Sending probe: (%s, %s)" % (probe_data.src_switch, probe_data.src_port)
       pkt = packet.Packet()
       pkt.add_protocol(ethernet.ethernet(ethertype=ProbeData.PROBOCOL))
       pkt.add_protocol(probe_data)
@@ -208,7 +217,7 @@ class Topology(frenetic.App):
     # All PROBOCOL traffic is sent to the controller, otherwise flood
     probe_traffic = Filter(Test(EthType(ProbeData.PROBOCOL))) >> Mod(Location(Pipe("http")))
 
-    sniff = Filter(Test(EthType(0x806))) >> Mod(Location(Pipe("http")))
+    sniff = Filter(Test(EthType(0x806)) | Test(EthType(0x800))) >> Mod(Location(Pipe("http")))
     return probe_traffic | sniff
 
   def create_probes(self, switch_ref):
@@ -251,7 +260,7 @@ class Topology(frenetic.App):
 
   def handle_probe(self, dst_switch, dst_port, src_switch, src_port):
     # When a probe is received, add edges based on where it traveled
-    print "Probe received from (%s, %s) to (%s, %s)" % (src_switch, src_port, dst_switch, dst_port)
+    # print "Probe received from (%s, %s) to (%s, %s)" % (src_switch, src_port, dst_switch, dst_port)
     self.state.add_edge(dst_switch, src_switch, label=dst_port)
     self.state.add_edge(src_switch, dst_switch, label=src_port)
     self.state.probes.discard(ProbeData(dst_switch, dst_port))
@@ -260,7 +269,25 @@ class Topology(frenetic.App):
     self.remove_tentative_edge(ProbeData(dst_switch, dst_port))
     self.state.notify()
 
-  def handle_sniff(self, switch_id, port_id, pkt):
+  def send_gratuitous_arp(self, switch_id, port_id, src_mac, src_ip):
+    broadcast = 'ff:ff:ff:ff:ff:ff'
+    e = ethernet.ethernet(dst=broadcast, src=src_mac, ethertype=0x806)
+    a = arp.arp(hwtype=1, proto=0x0800, hlen=6, plen=4, opcode=1,
+                src_mac=src_mac, src_ip=src_ip,dst_mac=broadcast, dst_ip=src_ip)
+    p = packet.Packet()
+    p.add_protocol(e)
+    p.add_protocol(a)
+    p.serialize()
+
+    ports = [pt for pt in self.state.network.node[switch_id]["switch_ref"].ports
+             if pt != port_id]
+    print "Sending ARP from %s to %s" % (switch_id, ports)
+    self.pkt_out(switch_id=switch_id,
+                 # TODO(arjun): This conversion should be part of the library
+                 payload=NotBuffered(binascii.a2b_base64(binascii.b2a_base64(p.data))),
+                 actions=[Output(Physical(pt)) for pt in ports])
+
+  def handle_sniff(self, switch_id, port_id, pkt, raw_pkt):
     # TODO(arjun): mobility
     if self.state.network.has_node(pkt.src):
       return
@@ -281,6 +308,9 @@ class Topology(frenetic.App):
     self.state.add_edge(pkt.src, switch_id)
     self.state.notify()
 
+    self.send_gratuitous_arp(switch_id, port_id, pkt.src,
+                             get_src_ip(raw_pkt))
+
   def packet_in(self, switch_id, port_id, payload):
     pkt = packet.Packet(array.array('b', payload.data))
     p = get(pkt, 'ethernet')
@@ -291,9 +321,11 @@ class Topology(frenetic.App):
                         probe_data.src_port)
       return
 
-    if (p.ethertype == 0x806):
-      self.handle_sniff(switch_id, port_id, p)
+    if (p.ethertype == 0x806 or p.ethertype == 0x800):
+      self.handle_sniff(switch_id, port_id, p, pkt)
       return
+
+
 
     self.pkt_out(payload, switch_id, [])
 

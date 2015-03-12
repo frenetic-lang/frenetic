@@ -40,8 +40,8 @@ class App(object):
     def connected(self):
         print "established connection to Frenetic controller"
 
-    def pkt_out(self, switch, payload, actions, in_port=None):
-        msg = PacketOut(switch=switch,
+    def pkt_out(self, switch_id, payload, actions, in_port=None):
+        msg = PacketOut(switch=switch_id,
                         payload=payload,
                         actions=actions,
                         in_port=in_port)
