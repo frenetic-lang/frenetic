@@ -50,10 +50,10 @@ let to_packetIn (pktIn : Core.packetIn) : AL.pktIn =
 let from_pattern (pat : AL.Pattern.t) : Core.oxmMatch * Core.portId option =
   let v_to_m = Core.val_to_mask in
   (Core_kernel.Core_list.filter_opt
-    [ Core.Std.Option.map_option ~f:(fun x -> Core.OxmEthSrc (v_to_m x)) pat.AL.Pattern.dlSrc
-    ; Core.Std.Option.map_option ~f:(fun x -> Core.OxmEthDst (v_to_m x)) pat.AL.Pattern.dlDst
-    ; Core.Std.Option.map_option ~f:(fun x -> Core.OxmEthType x) pat.AL.Pattern.dlTyp
-    ; Core.Std.Option.map_option ~f:(fun x -> match x with
+    [ OpenFlow_Misc.map_option (fun x -> Core.OxmEthSrc (v_to_m x)) pat.AL.Pattern.dlSrc
+    ; OpenFlow_Misc.map_option (fun x -> Core.OxmEthDst (v_to_m x)) pat.AL.Pattern.dlDst
+    ; OpenFlow_Misc.map_option (fun x -> Core.OxmEthType x) pat.AL.Pattern.dlTyp
+    ; OpenFlow_Misc.map_option (fun x -> match x with
         | -1 ->
           Core.OxmVlanVId { Core.m_value = 0x1000; Core.m_mask = Some 0x1000 }
         | 0xffff ->
@@ -61,13 +61,13 @@ let from_pattern (pat : AL.Pattern.t) : Core.oxmMatch * Core.portId option =
         | _ ->
           Core.OxmVlanVId (v_to_m x))
       pat.AL.Pattern.dlVlan
-    ; Core.Std.Option.map_option ~f:(fun x -> Core.OxmVlanPcp x) pat.AL.Pattern.dlVlanPcp
-    ; Core.Std.Option.map_option ~f:(fun x -> Core.(OxmIP4Src (ip_to_mask x))) pat.AL.Pattern.nwSrc
-    ; Core.Std.Option.map_option ~f:(fun x -> Core.(OxmIP4Dst (ip_to_mask x))) pat.AL.Pattern.nwDst
-    ; Core.Std.Option.map_option ~f:(fun x -> Core.OxmIPProto x) pat.AL.Pattern.nwProto
-    ; Core.Std.Option.map_option ~f:(fun x -> Core.OxmTCPSrc x) pat.AL.Pattern.tpSrc
-    ; Core.Std.Option.map_option ~f:(fun x -> Core.OxmTCPDst x) pat.AL.Pattern.tpDst
-    ; Core.Std.Option.map_option ~f:(fun x -> Core.OxmInPort x) pat.AL.Pattern.inPort
+    ; OpenFlow_Misc.map_option (fun x -> Core.OxmVlanPcp x) pat.AL.Pattern.dlVlanPcp
+    ; OpenFlow_Misc.map_option (fun x -> Core.(OxmIP4Src (ip_to_mask x))) pat.AL.Pattern.nwSrc
+    ; OpenFlow_Misc.map_option (fun x -> Core.(OxmIP4Dst (ip_to_mask x))) pat.AL.Pattern.nwDst
+    ; OpenFlow_Misc.map_option (fun x -> Core.OxmIPProto x) pat.AL.Pattern.nwProto
+    ; OpenFlow_Misc.map_option (fun x -> Core.OxmTCPSrc x) pat.AL.Pattern.tpSrc
+    ; OpenFlow_Misc.map_option (fun x -> Core.OxmTCPDst x) pat.AL.Pattern.tpDst
+    ; OpenFlow_Misc.map_option (fun x -> Core.OxmInPort x) pat.AL.Pattern.inPort
     ], pat.AL.Pattern.inPort)
 
 let from_timeout (timeout : AL.timeout) : Core.timeout =
