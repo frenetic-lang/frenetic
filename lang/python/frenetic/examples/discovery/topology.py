@@ -1,4 +1,4 @@
-import struct, frenetic, binascii, array, time
+import struct, frenetic, binascii, array, time, datetime
 from functools import partial
 from ryu.lib.packet import packet, packet_base, ethernet, arp
 from frenetic.syntax import *
@@ -12,6 +12,17 @@ weight_check_interval = 5000
 num_intervals = 5
 
 # Packet to be encoded for sending Probes over the probocol
+
+def make_gratuitous_arp_packet(src_mac, src_ip):
+  broadcast = 'ff:ff:ff:ff:ff:ff'
+  e = ethernet.ethernet(dst=broadcast, src=src_mac, ethertype=0x806)
+  a = arp.arp(hwtype=1, proto=0x0800, hlen=6, plen=4, opcode=1,
+              src_mac=src_mac, src_ip=src_ip,dst_mac=broadcast, dst_ip=src_ip)
+  p = packet.Packet()
+  p.add_protocol(e)
+  p.add_protocol(a)
+  p.serialize()
+  return p
 
 def get(pkt,protocol):
     for p in pkt:
@@ -96,12 +107,16 @@ class Topology(frenetic.App):
     self.version = version
     self.state = state
     self.state.register(self)
+    self.arps = set()
 
   def connected(self):
     # This is necessary to avoid a complete screwup on restart.
-    self.update(drop)
-    # Every 10 seconds send out probes on ports we don't know about
-    PeriodicCallback(self.run_probe, 2000).start()
+    self.run_update()
+
+    IOLoop.instance().add_timeout(datetime.timedelta(seconds=3), self.run_probe)
+
+    IOLoop.instance().add_timeout(datetime.timedelta(seconds=6), self.host_discovery)
+
     # In version 2, read port counters every 10 seconds too.
     if self.version == 2:
       PeriodicCallback(self.update_weights, weight_check_interval).start()
@@ -112,6 +127,22 @@ class Topology(frenetic.App):
       for switch_id in switches:
         self.switch_up(switch_id, switches[switch_id])
     self.current_switches(callback=handle_current_switches)
+
+  def host_discovery(self):
+    print "Internal links finalized. Now ready to discover hosts."
+    self.state.set_mode("host_discovery")
+
+    print self.arps
+    for loc in self.arps:
+      mac,ip =loc
+      pkt = make_gratuitous_arp_packet(mac, ip)
+      payload = NotBuffered(binascii.a2b_base64(binascii.b2a_base64(pkt.data)))
+      for loc in self.state.network_edge():
+        dst_switch_id, dst_port_id = loc
+        self.pkt_out(switch_id=dst_switch_id,
+                     payload=payload,
+                     actions=[Output(Physical(dst_port_id))])
+    self.run_update()
 
   def update_next_callback(self, ftr):
     # Pull the edges out of the future and propogate the edges along
@@ -214,11 +245,16 @@ class Topology(frenetic.App):
       self.state.probes.discard(probe_data)
 
   def policy(self):
-    # All PROBOCOL traffic is sent to the controller, otherwise flood
-    probe_traffic = Filter(Test(EthType(ProbeData.PROBOCOL))) >> Mod(Location(Pipe("http")))
-
-    sniff = Filter(Test(EthType(0x806)) | Test(EthType(0x800))) >> Mod(Location(Pipe("http")))
-    return probe_traffic | sniff
+    if self.state.mode == "internal_discovery":
+      # All PROBOCOL traffic is sent to the controller, otherwise flood
+      probe_traffic = Filter(Test(EthType(ProbeData.PROBOCOL))) >> Mod(Location(Pipe("http")))
+      sniff = Filter(Test(EthType(0x806)) | Test(EthType(0x800))) >> Mod(Location(Pipe("http")))
+      return probe_traffic | sniff
+    elif self.state .mode == "host_discovery":
+      sniff = Filter(Test(EthType(0x806))) >> Mod(Location(Pipe("http")))
+      return sniff
+    else:
+      assert False
 
   def create_probes(self, switch_ref):
     for port in switch_ref.ports:
@@ -249,35 +285,17 @@ class Topology(frenetic.App):
     self.state.remove_switch(switch_id)
     self.state.notify()
 
-  def remove_tentative_edge(self, probe_data):
-    if(probe_data in self.state.tentative_edge):
-      host_id = self.state.tentative_edge[probe_data]
-      del self.state.tentative_edge[probe_data]
-      self.state.remove_edge(probe_data.src_switch, host_id)
-      self.state.remove_edge(host_id, probe_data.src_switch)
-      self.state.notify()
-      print "Removed tentative edge: (%s, %s) to %s" % (probe_data.src_switch, probe_data.src_port, host_id)
-
   def handle_probe(self, dst_switch, dst_port, src_switch, src_port):
     # When a probe is received, add edges based on where it traveled
-    # print "Probe received from (%s, %s) to (%s, %s)" % (src_switch, src_port, dst_switch, dst_port)
+    print "Internal edge (%s, %s)--(%s, %s)" % (src_switch, src_port, dst_switch, dst_port)
     self.state.add_edge(dst_switch, src_switch, label=dst_port)
     self.state.add_edge(src_switch, dst_switch, label=src_port)
     self.state.probes.discard(ProbeData(dst_switch, dst_port))
     self.state.probes.discard(ProbeData(src_switch, src_port))
-    self.remove_tentative_edge(ProbeData(src_switch, src_port))
-    self.remove_tentative_edge(ProbeData(dst_switch, dst_port))
     self.state.notify()
 
   def send_gratuitous_arp(self, switch_id, port_id, src_mac, src_ip):
-    broadcast = 'ff:ff:ff:ff:ff:ff'
-    e = ethernet.ethernet(dst=broadcast, src=src_mac, ethertype=0x806)
-    a = arp.arp(hwtype=1, proto=0x0800, hlen=6, plen=4, opcode=1,
-                src_mac=src_mac, src_ip=src_ip,dst_mac=broadcast, dst_ip=src_ip)
-    p = packet.Packet()
-    p.add_protocol(e)
-    p.add_protocol(a)
-    p.serialize()
+    p = make_gratuitous_arp_packet(src_mac, src_ip)
 
     ports = [pt for pt in self.state.network.node[switch_id]["switch_ref"].ports
              if pt != port_id]
@@ -308,8 +326,17 @@ class Topology(frenetic.App):
     self.state.add_edge(pkt.src, switch_id)
     self.state.notify()
 
-    self.send_gratuitous_arp(switch_id, port_id, pkt.src,
-                             get_src_ip(raw_pkt))
+  def send_arp(self, switch_id, port_id, pkt):
+    # TODO(arjun): conversion should be in library
+    payload = NotBuffered(binascii.a2b_base64(binascii.b2a_base64(pkt.data)))
+    for loc in self.state.network_edge():
+      dst_switch_id, dst_port_id = loc
+      if loc == (switch_id, port_id):
+        continue
+      #print "Sending ARP from (%s,%s) to (%s,%s)" % (switch_id, port_id, dst_switch_id, dst_port_id)
+      self.pkt_out(switch_id=dst_switch_id,
+                   payload=payload,
+                   actions=[Output(Physical(dst_port_id))])
 
   def packet_in(self, switch_id, port_id, payload):
     pkt = packet.Packet(array.array('b', payload.data))
@@ -321,11 +348,19 @@ class Topology(frenetic.App):
                         probe_data.src_port)
       return
 
-    if (p.ethertype == 0x806 or p.ethertype == 0x800):
+    if (p.ethertype == 0x800):
       self.handle_sniff(switch_id, port_id, p, pkt)
+      if (self.state.mode == "internal_discovery"):
+        self.arps.add((p.src, get(pkt, "ipv4").src))
       return
 
-
+    if (p.ethertype == 0x806):
+      self.handle_sniff(switch_id, port_id, p, pkt)
+      if (self.state.mode == "host_discovery"):
+        self.send_arp(switch_id, port_id, pkt)
+      else:
+        print "Blocking ARP during internal_discovery phase"
+      return
 
     self.pkt_out(payload, switch_id, [])
 

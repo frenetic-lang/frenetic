@@ -72,6 +72,4 @@ class Routing(frenetic.App):
         paths.append(test >> self.build_path(switch_path, switch_path.pop(), []))
 
     # If there exists a path, use it.
-    # TODO(arjun): ARP flooding belongs in discovery, perhaps?
-    return ((Filter(Test(EthType(0x800))) >> Union(paths)) |
-            (Filter(Test(EthType(0x806))) >> Union([flood_switch_policy(switch_ref) for switch_ref in self.state.switches().values()])))
+    return ((Filter(Test(EthType(0x800))) >> Union(paths)))

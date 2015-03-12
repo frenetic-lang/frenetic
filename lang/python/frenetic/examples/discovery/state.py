@@ -7,8 +7,26 @@ class State(object):
     self.probes = set()
     self.probes_sent = {}
     self.tentative_edge = {}
+    self.mode = "internal_discovery"
     self._observers = set()
     self._clean = True
+
+  def network_edge(self):
+    edge = set()
+    sws = self.switches()
+    for sw in sws:
+      internal_ports = set(edge[2]["label"]
+                           for edge in self.network.out_edges(sw, data=True)
+                           if "switch_ref" in self.network.node[edge[1]])
+      all_ports = set(sws[sw].ports)
+      external_ports = all_ports - internal_ports
+      for port in external_ports:
+        edge.add((sw, port))
+
+    return edge
+
+  def set_mode(self, mode):
+    self.mode = mode
 
   def switches(self):
     return dict([ (x, self.network.node[x]["switch_ref"])
