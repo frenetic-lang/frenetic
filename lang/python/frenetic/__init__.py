@@ -88,7 +88,7 @@ class App(object):
     # rx_dropped, tx_dropped, rx_errors, tx_errors, rx_frame_error, rx_over_err,
     # rx_crc_err, collisions. All of these values map to an integer
     def port_stats(self, switch_id, port_id):
-      url = "http://localhost:9000/port_stats/" + switch_id + "/" + port_id
+      url = "http://localhost:9000/port_stats/%s/%s" % (switch_id, port_id)
       request = HTTPRequest(url, method='GET', request_timeout=0)
       response_future = self.__http_client.fetch(request)
       return self.port_stats_helper(response_future)
