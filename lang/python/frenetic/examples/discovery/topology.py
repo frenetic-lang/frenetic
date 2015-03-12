@@ -77,6 +77,9 @@ class ProbeData(packet_base.PacketBase):
   def serialize(self, payload, prev):
       return struct.pack(ProbeData._PACK_STR, self.src_switch, self.src_port)
 
+  def to_json(self):
+    return { "src_switch": self.src_switch, "src_port" : self.src_port }
+
   def __eq__(self, other):
     return (isinstance(other, self.__class__) and
             self.src_switch == other.src_switch and
@@ -195,7 +198,7 @@ class Topology(frenetic.App):
       return False
     # Else we should solidify the edge and stop probing
     host_id = self.state.tentative_edge[probe_data]
-    del self.state.tentative_edge[probe_data]
+    self.state.del_tentative_edge(probe_data)
     print "Permanent edge: (%s, %s) to %s" % (probe_data.src_switch, probe_data.src_port, host_id)
     return True
 
@@ -220,7 +223,7 @@ class Topology(frenetic.App):
 
     # Cleanup any host edges we discovered
     for probe_data in to_remove:
-      self.state.probes.discard(probe_data)
+      self.state.probes_discard(probe_data)
 
   def policy(self):
     if self.state.mode == "internal_discovery":
@@ -228,7 +231,7 @@ class Topology(frenetic.App):
       probe_traffic = Filter(Test(EthType(ProbeData.PROBOCOL))) >> Mod(Location(Pipe("http")))
       sniff = Filter(Test(EthType(0x806)) | Test(EthType(0x800))) >> Mod(Location(Pipe("http")))
       return probe_traffic | sniff
-    elif self.state .mode == "host_discovery":
+    elif self.state.mode == "host_discovery":
       sniff = Filter(Test(EthType(0x806))) >> Mod(Location(Pipe("http")))
       return sniff
     else:
@@ -237,14 +240,14 @@ class Topology(frenetic.App):
   def create_probes(self, switch_ref):
     for port in switch_ref.ports:
       probe_data = ProbeData(switch_ref.id, port)
-      self.state.probes.add(probe_data)
-      self.state.probes_sent[probe_data] = 0
+      self.state.probes_add(probe_data)
+      self.state.probes_sent_init(probe_data)
 
   def discard_probes(self, switch_ref):
     for port in switch_ref.ports:
       probe_data = ProbeData(switch_ref.id, port)
-      self.state.probes.discard(probe_data)
-      del self.state.probes_sent[probe_data]
+      self.state.probes_discard(probe_data)
+      self.state.del_tentative_edge(probe_data)
 
   def switch_up(self, switch_id, ports):
     # When a switch comes up, add it to the network and create
@@ -268,8 +271,9 @@ class Topology(frenetic.App):
     print "Internal edge (%s, %s)--(%s, %s)" % (src_switch, src_port, dst_switch, dst_port)
     self.state.add_edge(dst_switch, src_switch, label=dst_port)
     self.state.add_edge(src_switch, dst_switch, label=src_port)
-    self.state.probes.discard(ProbeData(dst_switch, dst_port))
-    self.state.probes.discard(ProbeData(src_switch, src_port))
+    self.state.probes_discard(ProbeData(dst_switch, dst_port))
+    self.state.probes_discard(ProbeData(src_switch, src_port))
+
     self.state.notify()
 
   def handle_sniff(self, switch_id, port_id, pkt, raw_pkt):
@@ -288,7 +292,7 @@ class Topology(frenetic.App):
     print "Tentative edge found from (%s, %s) to %s" % (switch_id, port_id, pkt.src)
     # This switch / ports probe has not been seen
     # We will tentatively assume it is connected to the src host
-    self.state.tentative_edge[ProbeData(switch_id, port_id)] = pkt.src
+    self.state.set_tentative_edge(ProbeData(switch_id, port_id), pkt.src)
     self.state.add_edge(switch_id, pkt.src, label=port_id)
     self.state.add_edge(pkt.src, switch_id)
     self.state.notify()

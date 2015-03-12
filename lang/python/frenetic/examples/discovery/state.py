@@ -95,3 +95,26 @@ class State(object):
     self._clean = False
     self.__cleanup(force_notify)
 
+  def probes_discard(self, probe):
+    self.probes.discard(probe)
+ 
+  def probes_add(self, probe):
+    self.probes.add(probe)
+  
+  def probes_sent_increment(self, probe_data):
+    self.probes_sent[probe_data] = self.probes_sent[probe_data] + 1
+ 
+  def probes_sent_init(self, probe_data):
+    self.probes_sent[probe_data] = 0 
+ 
+  def del_probes_sent(self, probe_data):
+    if probe_data in self.probes_sent:
+      del self.probes_sent[probe_data]
+ 
+  def set_tentative_edge(self, probe_data, mac):
+    self.tentative_edge[probe_data] = mac
+ 
+  def del_tentative_edge(self, probe_data):
+    if probe_data in self.tentative_edge:
+      del self.tentative_edge[probe_data]
+

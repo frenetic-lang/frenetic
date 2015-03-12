@@ -10,6 +10,9 @@ class SwitchRef(object):
     return (isinstance(other, self.__class__) and
             self.id == other.id)
 
+  def to_json(self):
+    return { "id": self.id, "ports" : self.ports }
+
   def __hash__(self):
     return self.id.__hash__()
 
