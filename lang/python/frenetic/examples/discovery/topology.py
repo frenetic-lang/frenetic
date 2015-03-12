@@ -62,7 +62,6 @@ class Topology(frenetic.App):
     self.version = version
     self.state = state
     self.state.register(self)
-    self.arps = set()
 
   def connected(self):
     # This is necessary to avoid a complete screwup on restart.
@@ -284,9 +283,6 @@ class Topology(frenetic.App):
 
     if (p.ethertype == 0x800):
       self.handle_sniff(switch_id, port_id, p, pkt)
-      if (self.state.mode == "internal_discovery"):
-        self.arps.add((p.src, get(pkt, "ipv4").src))
-      return
 
     if (p.ethertype == 0x806):
       self.handle_sniff(switch_id, port_id, p, pkt)
