@@ -13,17 +13,6 @@ num_intervals = 5
 
 # Packet to be encoded for sending Probes over the probocol
 
-def make_gratuitous_arp_packet(src_mac, src_ip):
-  broadcast = 'ff:ff:ff:ff:ff:ff'
-  e = ethernet.ethernet(dst=broadcast, src=src_mac, ethertype=0x806)
-  a = arp.arp(hwtype=1, proto=0x0800, hlen=6, plen=4, opcode=1,
-              src_mac=src_mac, src_ip=src_ip,dst_mac=broadcast, dst_ip=src_ip)
-  p = packet.Packet()
-  p.add_protocol(e)
-  p.add_protocol(a)
-  p.serialize()
-  return p
-
 def get(pkt,protocol):
     for p in pkt:
         if p.protocol_name == protocol:
@@ -131,17 +120,6 @@ class Topology(frenetic.App):
   def host_discovery(self):
     print "Internal links finalized. Now ready to discover hosts."
     self.state.set_mode("host_discovery")
-
-    print self.arps
-    for loc in self.arps:
-      mac,ip =loc
-      pkt = make_gratuitous_arp_packet(mac, ip)
-      payload = NotBuffered(binascii.a2b_base64(binascii.b2a_base64(pkt.data)))
-      for loc in self.state.network_edge():
-        dst_switch_id, dst_port_id = loc
-        self.pkt_out(switch_id=dst_switch_id,
-                     payload=payload,
-                     actions=[Output(Physical(dst_port_id))])
     self.run_update()
 
   def update_next_callback(self, ftr):
@@ -293,17 +271,6 @@ class Topology(frenetic.App):
     self.state.probes.discard(ProbeData(dst_switch, dst_port))
     self.state.probes.discard(ProbeData(src_switch, src_port))
     self.state.notify()
-
-  def send_gratuitous_arp(self, switch_id, port_id, src_mac, src_ip):
-    p = make_gratuitous_arp_packet(src_mac, src_ip)
-
-    ports = [pt for pt in self.state.network.node[switch_id]["switch_ref"].ports
-             if pt != port_id]
-    print "Sending ARP from %s to %s" % (switch_id, ports)
-    self.pkt_out(switch_id=switch_id,
-                 # TODO(arjun): This conversion should be part of the library
-                 payload=NotBuffered(binascii.a2b_base64(binascii.b2a_base64(p.data))),
-                 actions=[Output(Physical(pt)) for pt in ports])
 
   def handle_sniff(self, switch_id, port_id, pkt, raw_pkt):
     # TODO(arjun): mobility
