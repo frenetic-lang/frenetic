@@ -13,6 +13,9 @@ class Routing(frenetic.App):
     self.state = state
     self.state.register(self)
 
+  def connected(self):
+    self.update(drop)
+
   # Supresses the noisy output
   def packet_in(self, switch_id, port_id, payload):
     self.pkt_out(switch_id, payload, [])
@@ -59,6 +62,8 @@ class Routing(frenetic.App):
 
         # Otherwise, get the path and build that policy
         switch_path = networkx.shortest_path(network_prime, src_host, dst_host, 'weight')
+
+        print "Found path %s" % switch_path
         switch_path.reverse()
         switch_path.pop()
 
@@ -66,6 +71,7 @@ class Routing(frenetic.App):
         test = Filter(Test(EthSrc(src_host)) & Test(EthDst(dst_host)))
         paths.append(test >> self.build_path(switch_path, switch_path.pop(), []))
 
-    # If there exists a path, use it. Otherwise flood the traffic on all ports.
-    return (Union(paths) |
-            Union([flood_switch_policy(switch_ref) for switch_ref in self.state.switches().values()]))
+    # If there exists a path, use it.
+    # TODO(arjun): ARP flooding belongs in discovery, perhaps?
+    return ((Filter(Test(EthType(0x800))) >> Union(paths)) |
+            (Filter(Test(EthType(0x806))) >> Union([flood_switch_policy(switch_ref) for switch_ref in self.state.switches().values()])))

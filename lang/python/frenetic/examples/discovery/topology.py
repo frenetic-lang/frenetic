@@ -19,7 +19,7 @@ def get(pkt,protocol):
             return p
 
 class Count(object):
-  
+
   def __init__(self, count):
     self.timestamp = time.time()
     self.count = count
@@ -42,7 +42,7 @@ class Count(object):
       average = average + ((end_point.count - start_point.count)/(end_point.timestamp - start_point.timestamp))
       start_point = end_point
     return average/size
-      
+
 
 class ProbeData(packet_base.PacketBase):
 
@@ -89,8 +89,10 @@ class Topology(frenetic.App):
     self.state.register(self)
 
   def connected(self):
+    # This is necessary to avoid a complete screwup on restart.
+    self.update(drop)
     # Every 10 seconds send out probes on ports we don't know about
-    PeriodicCallback(self.run_probe, 10000).start()
+    PeriodicCallback(self.run_probe, 2000).start()
     # In version 2, read port counters every 10 seconds too.
     if self.version == 2:
       PeriodicCallback(self.update_weights, weight_check_interval).start()
@@ -127,7 +129,7 @@ class Topology(frenetic.App):
     weight = 0
     if len(counts) > 1:
       weight = Count.moving_average(counts)
-  
+
     # Update edge
     label = self.state.network[edge[0]][edge[1]]['label']
     self.state.network.add_edge(edge[0], edge[1], label=label, weight=weight, counts=counts)
@@ -205,8 +207,9 @@ class Topology(frenetic.App):
   def policy(self):
     # All PROBOCOL traffic is sent to the controller, otherwise flood
     probe_traffic = Filter(Test(EthType(ProbeData.PROBOCOL))) >> Mod(Location(Pipe("http")))
-    sniff_arp = Filter(Test(EthType(0x806))) >> Mod(Location(Pipe("http")))
-    return probe_traffic | sniff_arp
+
+    sniff = Filter(Test(EthType(0x806))) >> Mod(Location(Pipe("http")))
+    return probe_traffic | sniff
 
   def create_probes(self, switch_ref):
     for port in switch_ref.ports:
@@ -257,16 +260,18 @@ class Topology(frenetic.App):
     self.remove_tentative_edge(ProbeData(dst_switch, dst_port))
     self.state.notify()
 
-  def handle_arp(self, switch_id, port_id, arp):
-    self.state.add_host(arp.src_mac)
+  def handle_sniff(self, switch_id, port_id, pkt):
+    # TODO(arjun): Security vulnerability. What if some idiot sends a packet
+    # with a broadcast source?
+    self.state.add_host(pkt.src)
     if(ProbeData(switch_id, port_id) in self.state.probes and
        ProbeData(switch_id, port_id) not in self.state.tentative_edge):
-      print "Tentative edge found from (%s, %s) to %s" % (switch_id, port_id, arp.src_mac)
+      print "Tentative edge found from (%s, %s) to %s" % (switch_id, port_id, pkt.src)
       # This switch / ports probe has not been seen
       # We will tentatively assume it is connected to the src host
-      self.state.tentative_edge[ProbeData(switch_id, port_id)] = arp.src_mac
-      self.state.add_edge(switch_id, arp.src_mac, label=port_id)
-      self.state.add_edge(arp.src_mac, switch_id)
+      self.state.tentative_edge[ProbeData(switch_id, port_id)] = pkt.src
+      self.state.add_edge(switch_id, pkt.src, label=port_id)
+      self.state.add_edge(pkt.src, switch_id)
       self.state.notify()
 
   def packet_in(self, switch_id, port_id, payload):
@@ -280,8 +285,7 @@ class Topology(frenetic.App):
       return
 
     if (p.ethertype == 0x806):
-      arp = get(pkt, 'arp')
-      self.handle_arp(switch_id, port_id, arp)
+      self.handle_sniff(switch_id, port_id, p)
       return
 
     self.pkt_out(payload, switch_id, [])
