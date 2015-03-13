@@ -152,8 +152,8 @@ class Topology(frenetic.App):
   def run_probe(self):
     to_remove = set()
     for switch in self.state.switches().values():
-      switch_id = switch.id
-      for port_id in switch.ports:
+      switch_id = switch[0]
+      for port_id in switch[1]:
         probe_data = ProbeData(switch_id, port_id)
 
         # Build a PROBOCOL packet and send it out
@@ -181,8 +181,7 @@ class Topology(frenetic.App):
     # When a switch comes up, add it to the network and create
     # probes for each of its ports
     print "switch_up(%s, %s)" % (switch_id, ports)
-    switch_ref = SwitchRef(switch_id, ports)
-    self.state.add_switch(switch_ref)
+    self.state.add_switch(switch_id, ports)
 
   def switch_down(self, switch_id):
     # When a switch goes down, remove any unresolved probes and remove
@@ -202,10 +201,12 @@ class Topology(frenetic.App):
     if self.state.network.has_node(pkt.src):
       return
 
+    if not switch_id in self.state.switches():
+      return
+
     # TODO(arjun): Security vulnerability. What if some idiot sends a packet
     # with a broadcast source?
     self.state.add_host(pkt.src)
-
     for edge in self.state.network.out_edges(switch_id, data=True):
       if edge[2]["label"] == port_id:
         print "SANITY ERROR: Received an ARP packet on an internal link."

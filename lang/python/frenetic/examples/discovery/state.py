@@ -1,4 +1,5 @@
 import networkx, struct
+from networkx.readwrite import json_graph
 
 class State(object):
 
@@ -8,6 +9,15 @@ class State(object):
     self._observers = set()
     self._clean = True
 
+  def to_json(self):
+    return json_graph.adjacency_data(self.network)
+
+  @classmethod
+  def from_json(cls, json):
+    state = cls()
+    state.network = json_graph.adjacency_graph(json, directed=True)
+    return state
+
   def network_edge(self):
     edge = set()
     sws = self.switches()
@@ -15,7 +25,7 @@ class State(object):
       internal_ports = set(edge[2]["label"]
                            for edge in self.network.out_edges(sw, data=True)
                            if "switch_ref" in self.network.node[edge[1]])
-      all_ports = set(sws[sw].ports)
+      all_ports = set(sws[sw][1])
       external_ports = all_ports - internal_ports
       for port in external_ports:
         edge.add((sw, port))
@@ -50,10 +60,10 @@ class State(object):
     if force_notify:
       self.notify()
 
-  def add_switch(self, switch_ref, force_notify=False):
-    if switch_ref in self.network.nodes_iter():
+  def add_switch(self, switch_id, switch_ports, force_notify=False):
+    if switch_id in self.network.nodes_iter():
       return
-    self.network.add_node(switch_ref.id, switch_ref=switch_ref)
+    self.network.add_node(switch_id, switch_ref=(switch_id, switch_ports))
     self._clean = False
     self.__cleanup(force_notify)
 
