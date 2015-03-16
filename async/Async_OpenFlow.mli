@@ -179,6 +179,7 @@ module OpenFlow0x01 : sig
     open OpenFlow0x01_Stats
 
     val get_switches : t -> SDN_Types.switchId list
+    val get_switch_features : t -> SDN_Types.switchId -> OpenFlow0x01.SwitchFeatures.t option
 
     val clear_flows
       :  ?pattern:pattern -> t -> Client_id.t
@@ -203,6 +204,8 @@ module OpenFlow0x01 : sig
     val individual_stats
       :  ?pattern:pattern -> t -> Client_id.t
       -> (individualStats list, exn) Deferred.Result.t
+
+    val port_stats : t -> switchId -> portId -> (portStats, exn) Deferred.Result.t
   end
 
 end
