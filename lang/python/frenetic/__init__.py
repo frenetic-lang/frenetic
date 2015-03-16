@@ -1,9 +1,11 @@
 import uuid, sys, json, base64
 from functools import partial
+from tornado import httpclient
 from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 from tornado.ioloop import IOLoop
 from frenetic.syntax import PacketIn, PacketOut
 from tornado.concurrent import return_future
+from tornado import gen
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
@@ -29,13 +31,17 @@ class App(object):
     def port_down(self,switch_id, port_id):
         print "port_down(switch_id=%s, port_id=%d)" % (switch_id, port_id)
 
-    """This method can be overridden by the application. By default, it simply 
-       prints the event."""
+    """This method can be overridden by the application. By default, it simply
+       prints the event and drops the packet."""
     def packet_in(self, switch_id, port_id, payload):
         print "packet_in(switch_id=%s, port_id=%d, payload=...)" % (switch_id, port_id)
+        self.pkt_out(switch_id, payload, [])
 
-    def pkt_out(self, switch, payload, actions, in_port=None):
-        msg = PacketOut(switch=switch,
+    def connected(self):
+        print "established connection to Frenetic controller"
+
+    def pkt_out(self, switch_id, payload, actions, in_port=None):
+        msg = PacketOut(switch=switch_id,
                         payload=payload,
                         actions=actions,
                         in_port=in_port)
@@ -57,13 +63,43 @@ class App(object):
       f = partial(self.run_response, callback=callback)
       IOLoop.instance().add_future(ftr, f)
 
-    # label : label to query
-    # callback
     def query(self, label):
         url = "http://localhost:9000/query/" + label
         request = HTTPRequest(url, method='GET', request_timeout=0)
         response_future = self.__http_client.fetch(request)
         return self.query_helper(response_future)
+
+    def run_port_stats(self, ftr, callback):
+      response = ftr.result()
+      if(hasattr(response, 'buffer')):
+        data = json.loads(response.buffer.getvalue())
+        dataPrime = {}
+        for key in data:
+          dataPrime[key] = int(data[key])
+        callback(data)
+
+    @return_future
+    def port_stats_helper(self, ftr, callback):
+      f = partial(self.run_port_stats, callback=callback)
+      IOLoop.instance().add_future(ftr, f)
+
+    # Returns a Future where the Result is a dictionary with the
+    # following values: port_no, rx_packets, tx_packets, rx_bytes, tx_bytes
+    # rx_dropped, tx_dropped, rx_errors, tx_errors, rx_frame_error, rx_over_err,
+    # rx_crc_err, collisions. All of these values map to an integer
+    def port_stats(self, switch_id, port_id):
+      url = "http://localhost:9000/port_stats/%s/%s" % (switch_id, port_id)
+      request = HTTPRequest(url, method='GET', request_timeout=0)
+      response_future = self.__http_client.fetch(request)
+      return self.port_stats_helper(response_future)
+
+    @gen.coroutine
+    def current_switches(self):
+      url = "http://localhost:9000/current_switches"
+      req = HTTPRequest(url, method="GET", request_timeout=0)
+      resp = yield self.__http_client.fetch(req)
+      ret = dict((x["switch_id"], x["ports"]) for x in json.loads(resp.body))
+      raise gen.Return(ret)
 
     def update(self, policy):
         pol_json = json.dumps(policy.to_json())
@@ -76,7 +112,26 @@ class App(object):
             self.client_id = uuid.uuid4().hex
             print "No client_id specified. Using %s" % self.client_id
         self.__http_client = AsyncHTTPClient()
-        self.__poll_event()
+        self.__connect()
+
+    def __connect(self):
+        url = "http://localhost:9000/version"
+        req = HTTPRequest(url, method='GET',request_timeout=0)
+        resp_fut = self.__http_client.fetch(req)
+        IOLoop.instance().add_future(resp_fut, self.__handle_connect)
+
+    def __handle_connect(self, response_future):
+        try:
+            response = response_future.result()
+            self.__poll_event()
+            print "Established connection to Frenetic controller."
+            self.connected()
+        except httpclient.HTTPError as e:
+            if e.code == 599:
+                print "Frenetic not running, re-trying...."
+                IOLoop.instance().call_later(1, self.__connect)
+            else:
+                raise e
 
     def start_event_loop(self):
         print "Starting the tornado event loop (does not return)."

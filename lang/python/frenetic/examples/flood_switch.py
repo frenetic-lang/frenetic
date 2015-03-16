@@ -6,18 +6,6 @@ class SwitchRef(object):
     self.id = id
     self.ports = ports
 
-  def __eq__(self, other):
-    return (isinstance(other, self.__class__) and
-            self.id == other.id)
-
-  def to_json(self):
-    return { "id": self.id, "ports" : self.ports }
-
-  def __hash__(self):
-    return self.id.__hash__()
-
-
-
 # Create a policy that given a SwitchRef, floods all input to its ports
 def flood_switch_policy(switch):
   assert isinstance(switch, SwitchRef)

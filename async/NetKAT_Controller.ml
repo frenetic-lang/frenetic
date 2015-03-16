@@ -1,5 +1,6 @@
 open Core.Std
 open Async.Std
+open OpenFlow0x01
 open NetKAT_Types
 open Async_NetKAT_Updates
 module Controller = Async_OpenFlow.OpenFlow0x01.Controller
@@ -129,8 +130,10 @@ module type CONTROLLER = sig
   val send_packet_out : switchId -> SDN_Types.pktOut -> unit Deferred.t
   val event : unit -> event Deferred.t
   val query : string -> (Int64.t * Int64.t) Deferred.t
+  val port_stats : switchId -> portId -> OpenFlow0x01_Stats.portStats Deferred.t
   val is_query : string -> bool
   val start : unit -> unit
+  val current_switches : unit -> (switchId * portId list) list
 
 end
 
@@ -158,6 +161,19 @@ module Make (Args : ARGS) : CONTROLLER = struct
     >>= function
     | `Eof -> assert false
     | `Ok evt -> Deferred.return evt
+
+  let current_switches () =
+    let features = List.filter_map ~f:(Controller.get_switch_features controller)
+      (Controller.get_switches controller) in
+    let get_switch_and_ports (feats : OpenFlow0x01.SwitchFeatures.t) =
+      (feats.switch_id,
+       List.filter_map ~f:(fun port_desc ->
+         if port_desc.port_no = 0xFFFE then
+           None
+         else
+           Some (Int32.of_int_exn port_desc.port_no))
+         feats.ports) in
+    List.map ~f:get_switch_and_ports features
 
   let get_table (sw_id : switchId) : (SDN_Types.flow * string list) list =
     NetKAT_LocalCompiler.to_table' sw_id !fdd
@@ -189,6 +205,12 @@ module Make (Args : ARGS) : CONTROLLER = struct
     >>= fun (pkts, bytes) ->
     let (pkts', bytes') = Hashtbl.Poly.find_exn stats name in
     Deferred.return (Int64.(pkts + pkts', bytes + bytes'))
+
+  let port_stats (sw_id : switchId) (pid : portId) : OpenFlow0x01_Stats.portStats Deferred.t =
+    Controller.port_stats controller sw_id (Int32.to_int_exn pid)
+    >>| function
+    | Ok portStats -> portStats
+    | Error _ -> assert false
 
   let is_query (name : string) : bool = Hashtbl.Poly.mem stats name
 

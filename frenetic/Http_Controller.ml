@@ -15,6 +15,25 @@ type client = {
   event_writer: string Pipe.Writer.t;
 }
 
+
+(* TODO(arjun):
+
+  <facepalm>
+
+  These are OpenFlow 1.0 types. Everywhere else, we are using SDN_Types. *)
+let port_to_json port = `Int (Int32.to_int_exn port)
+
+let switch_and_ports_to_json (sw, ports) =
+  `Assoc [("switch_id", `Int (Int64.to_int_exn sw));
+          ("ports", `List (List.map ~f:port_to_json ports))]
+
+let current_switches_to_json lst =
+  `List (List.map ~f:switch_and_ports_to_json lst)
+
+let current_switches_to_json_string lst =
+  Yojson.Basic.to_string ~std:true (current_switches_to_json lst)
+(* </facepalm> *)
+
 let unions (pols : policy list) : policy =
   List.fold_left pols ~init:drop ~f:(fun p q -> Union (p, q))
 
@@ -53,6 +72,14 @@ let handle_request
   Log.info "%s %s" (Cohttp.Code.string_of_method request.meth)
     (Uri.path request.uri);
   match request.meth, extract_path request with
+    | `GET, ["version"] -> Server.respond_with_string "3"
+    | `GET, ["port_stats"; switch_id; port_id] ->
+       port_stats (Int64.of_string switch_id) (Int32.of_string port_id)
+       >>= fun portStats ->
+       Server.respond_with_string (NetKAT_Json.port_stats_to_json_string portStats)
+    | `GET, ["current_switches"] ->
+      let switches = current_switches () in
+      Server.respond_with_string (current_switches_to_json_string switches)
     | `GET, ["query"; name] ->
       if (is_query name) then
         query name

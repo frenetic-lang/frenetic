@@ -23,7 +23,7 @@ let macaddr_from_string (str : string) : Int64.t =
   let buf = Macaddr.to_bytes (Macaddr.of_string_exn str) in
   let byte n = Int64.of_int (Char.to_int (Bytes.get buf n)) in
   let rec loop n acc =
-    let shift = 8 * n in
+    let shift = 8 * (5 - n) in
     let acc' = Int64.(acc + (shift_left (byte n) shift)) in
     if n = 5 then acc'
     else loop (n + 1) acc' in
@@ -265,3 +265,22 @@ let stats_to_json ((pkts, bytes) : Int64.t * Int64.t) : json =
 
 let stats_to_json_string (stats : Int64.t * Int64.t) : string =
   Yojson.Basic.to_string ~std:true (stats_to_json stats)
+
+let port_stats_to_json (portStats : OpenFlow0x01_Stats.portStats) : json =
+  `Assoc [("port_no", `Int portStats.port_no);
+	  ("rx_packets", `Int (Int64.to_int_exn portStats.rx_packets));
+	  ("tx_packets", `Int (Int64.to_int_exn portStats.tx_packets));
+	  ("rx_bytes", `Int (Int64.to_int_exn portStats.rx_bytes));
+	  ("tx_bytes", `Int (Int64.to_int_exn portStats.tx_bytes));
+	  ("rx_dropped", `Int (Int64.to_int_exn portStats.rx_dropped));
+	  ("tx_dropped", `Int (Int64.to_int_exn portStats.tx_dropped));
+	  ("rx_errors", `Int (Int64.to_int_exn portStats.rx_errors));
+	  ("tx_errors", `Int (Int64.to_int_exn portStats.tx_errors));
+	  ("rx_fram_err", `Int (Int64.to_int_exn portStats.rx_frame_err));
+	  ("rx_over_err", `Int (Int64.to_int_exn portStats.rx_over_err));
+	  ("rx_crc_err", `Int (Int64.to_int_exn portStats.rx_crc_err));
+	  ("collisions", `Int (Int64.to_int_exn portStats.collisions))]
+
+let port_stats_to_json_string (portStats : OpenFlow0x01_Stats.portStats) : string =
+  Yojson.Basic.to_string ~std:true (port_stats_to_json portStats)
+
