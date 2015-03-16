@@ -33,7 +33,6 @@ class Routing(frenetic.App):
     pass
 
   def run_update(self):
-    print self.state.network.edges(data=True)
     # This function is invoked by State when the network changes
     self.update(self.policy())
 
