@@ -204,8 +204,6 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
       graph description language. The result of this function can be rendered
       using Graphviz or any other program that supports the DOT language. *)
 
-  val map_values : (r -> r) -> t -> t
-
   val refs : t -> Core.Std.Int.Set.t
 
   module VH : Hashtbl.S with type key = v

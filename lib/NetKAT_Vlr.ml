@@ -262,11 +262,6 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
 
   module H = Core.Std.Hashtbl.Poly
 
-  let rec map_values f u = match T.unget u with
-    | Leaf c -> mk_leaf (f c)
-    | Branch ((x, v), tru, fls) ->
-      mk_branch (x, v) (map_values f tru) (map_values f fls)
-
   let rec restrict' ((x1, l1) : v) (is_true : bool) (t : t) : t=
     match unget t with
     | Leaf r -> t
