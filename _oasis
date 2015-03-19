@@ -6,6 +6,8 @@ Synopsis:    Serialization library for OpenFlow
 Authors:     https://github.com/frenetic-lang/ocaml-openflow/contributors
 License:     LGPL
 Plugins:     META (0.3), DevFiles (0.3)
+AlphaFeatures: ocamlbuild_more_args
+XOCamlbuildExtraArgs: -cflags -w,-40,-short-paths
 BuildTools:
   ocamlbuild
 
@@ -29,8 +31,6 @@ Library openflow
   Modules:
     OpenFlow_Header,
     OpenFlow0x01,
-    OpenFlow0x01_Core,
-    OpenFlow0x01_Stats,
     OpenFlow0x04,
     OpenFlow0x04_Core,
     SDN_OpenFlow0x01,

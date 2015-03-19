@@ -1,13 +1,13 @@
 open Core.Std
 
+open OpenFlow0x01
 module Platform = Async_OpenFlow_Platform
 module Header = OpenFlow_Header
 module M = OpenFlow0x01.Message
-module C = OpenFlow0x01_Core
 
-module Message : Platform.Message with type t = (OpenFlow0x01.xid * M.t) = struct
+module Message : Platform.Message with type t = (xid * M.t) = struct
 
-  type t = (OpenFlow0x01.xid * M.t) sexp_opaque with sexp
+  type t = (xid * M.t) sexp_opaque with sexp
 
   let header_of (xid, m) = M.header_of xid m
   let parse hdr buf = M.parse hdr (Cstruct.to_string buf)
@@ -48,13 +48,13 @@ module Controller = struct
   module SwitchMap = Client_id.Table
 
   type m = Message.t
-  type c = OpenFlow0x01.SwitchFeatures.t
+  type c = SwitchFeatures.t
   type t = {
     sub : ChunkController.t;
     shakes : ClientSet.t;
     c2s : SDN_Types.switchId ClientMap.t;
     s2c : ChunkController.Client_id.t SwitchMap.t;
-    switch_features : (SDN_Types.switchId, OpenFlow0x01.SwitchFeatures.t) Hashtbl.t
+    switch_features : (SDN_Types.switchId, SwitchFeatures.t) Hashtbl.t
   }
 
   type e = (Client_id.t, c, m) Platform.event
@@ -185,7 +185,7 @@ module Controller = struct
       | `Message (c_id, (xid, msg)) when Hash_set.mem t.shakes c_id ->
         begin match msg with
           | M.SwitchFeaturesReply fs ->
-            let switch_id = fs.OpenFlow0x01.SwitchFeatures.switch_id in
+            let switch_id = fs.switch_id in
             ClientMap.add_exn t.c2s c_id switch_id;
             SwitchMap.add_exn t.s2c switch_id c_id;
             Hashtbl.Poly.add_exn t.switch_features ~key:switch_id ~data:fs;
@@ -215,14 +215,14 @@ module Controller = struct
     let open Async_OpenFlow_Stage in
     run (openflow0x01 >=> features) t p
 
-  let listen t =
+  let listen t : e Pipe.Reader.t =
     let open Async_OpenFlow_Stage in
     let open ChunkController in
     listen_pipe t (run (handshake 0x01) t.sub (listen t.sub))
 
-  let clear_flows ?(pattern=C.match_all) (t:t) (sw_id:Client_id.t) =
+  let clear_flows ?(pattern=match_all) (t:t) (sw_id:Client_id.t) =
     send_result t sw_id (0l, M.FlowModMsg
-      { C.delete_all_flows with C.pattern = pattern })
+      { delete_all_flows with pattern = pattern })
 
   let send_flow_mods ?(clear=true) (t:t) (sw_id:Client_id.t) flow_mods =
     let open Deferred.Result in
@@ -241,8 +241,7 @@ module Controller = struct
       | `Result (hdr, _) -> Result.Ok () (* assume it is a barrier reply *)
       | _              -> assert false)
 
-  let aggregate_stats ?(pattern=C.match_all) (t:t) sw_id =
-    let open OpenFlow0x01_Stats in
+  let aggregate_stats ?(pattern=match_all) (t:t) sw_id =
     let msg = AggregateRequest
       { sr_of_match = pattern
       ; sr_table_id = 0xff
@@ -255,8 +254,7 @@ module Controller = struct
           | _ -> assert false)
       | _                                    -> assert false)
 
-  let individual_stats ?(pattern=C.match_all) (t:t) sw_id =
-    let open OpenFlow0x01_Stats in
+  let individual_stats ?(pattern=match_all) (t:t) sw_id =
     let msg = IndividualRequest
       { sr_of_match = pattern
       ; sr_table_id = 0xff
@@ -270,7 +268,6 @@ module Controller = struct
       | _ -> assert false)
 
   let port_stats (t : t) sw_id pt =
-    let open OpenFlow0x01_Stats in
     let msg = PortRequest (Some (PhysicalPort pt)) in
     send_txn_with t sw_id (M.StatsRequestMsg msg) (function
       | `Result (hdr, body) ->

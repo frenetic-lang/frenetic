@@ -11,12 +11,11 @@ let arbitrary_32mask =
     ret_gen (Int32.of_int a)
 
 let arbitrary_masked arb arb_mask =
-  let open OpenFlow0x01_Core in
   let open Gen in
   frequency [
-    (1, arb >>= fun v -> ret_gen {OpenFlow0x01_Core.m_value = v; m_mask = None});
+    (1, arb >>= fun v -> ret_gen { m_value = v; m_mask = None});
     (3, arb >>= fun v ->
-        arb_mask >>= fun m -> ret_gen {OpenFlow0x01_Core.m_value = v; m_mask = Some m}) ]
+        arb_mask >>= fun m -> ret_gen {m_value = v; m_mask = Some m}) ]
 
 module type OpenFlow0x01_Arbitrary = sig
 
@@ -114,7 +113,6 @@ module Match = struct
 
   let arbitrary =
     let open Gen in
-    let open OpenFlow0x01_Core in
     arbitrary_option arbitrary_dlAddr >>= fun dlSrc ->
     arbitrary_option arbitrary_dlAddr >>= fun dlDst ->
     arbitrary_option arbitrary_uint16 >>= fun dlTyp ->
@@ -163,12 +161,10 @@ module PseudoPort = struct
 
   let arbitrary_physical =
     let open Gen in
-    let open OpenFlow0x01_Core in
     choose_int(0,0xff00) >>= (fun p -> ret_gen (PhysicalPort p))
 
   let arbitrary =
     let open Gen in
-    let open OpenFlow0x01_Core in
       oneof [
         arbitrary_physical;
         ret_gen InPort;
@@ -183,7 +179,6 @@ module PseudoPort = struct
   (* Use in cases where a `Controller` port is invalid input *)
   let arbitrary_nc =
     let open Gen in
-    let open OpenFlow0x01_Core in
       oneof [
         arbitrary_physical;
         ret_gen InPort;
@@ -203,7 +198,6 @@ module PseudoPort = struct
       in PseudoPort.make p l'
 
   let marshal p =
-    let open OpenFlow0x01_Core in
     let l = match p with
             | Controller i -> Some i
             | _            -> None
@@ -216,7 +210,6 @@ module Action = struct
 
   let arbitrary =
     let open Gen in
-    let open OpenFlow0x01_Core in
     oneof [
       PseudoPort.arbitrary >>= (fun p -> ret_gen (Output p));
       Match.arbitrary_dlVlan >>= (fun dlVal -> ret_gen (SetDlVlan dlVal));
@@ -247,7 +240,6 @@ module Timeout = struct
 
   let arbitrary =
     let open Gen in
-    let open OpenFlow0x01_Core in
     oneof [
       ret_gen Permanent;
       arbitrary_uint16 >>= (fun n -> ret_gen (ExpiresAfter n))
@@ -267,7 +259,6 @@ module FlowMod = struct
 
     let arbitrary =
       let open Gen in
-      let open OpenFlow0x01_Core in
       oneof [
         ret_gen AddFlow;
         ret_gen ModFlow;
@@ -289,7 +280,6 @@ module FlowMod = struct
 
   let arbitrary =
     let open Gen in
-    let open OpenFlow0x01_Core in
       Command.arbitrary >>= fun command ->
       Match.arbitrary >>= fun pattern ->
       arbitrary_uint16 >>= fun priority ->
@@ -330,7 +320,6 @@ module FlowRemoved = struct
 
     let arbitrary =
       let open Gen in
-      let open OpenFlow0x01_Core in
       oneof [
         ret_gen IdleTimeout;
         ret_gen HardTimeout;
@@ -348,7 +337,6 @@ module FlowRemoved = struct
 
   let arbitrary =
     let open Gen in
-    let open OpenFlow0x01_Core in
       Match.arbitrary >>= fun pattern ->
       arbitrary_uint48 >>= fun cookie ->
       arbitrary_uint16 >>= fun priority ->

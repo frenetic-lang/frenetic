@@ -167,16 +167,17 @@ module OpenFlow0x01 : sig
     with type t = (OpenFlow_Header.xid * OpenFlow0x01.Message.t)
 
   module Controller : sig
+
     include Platform.S
       with type m = Message.t
        and type c = OpenFlow0x01.SwitchFeatures.t
        and type Client_id.t = SDN_Types.switchId
 
+    open OpenFlow0x01
+
     include Platform.CTL
       with type t := t
 
-    open OpenFlow0x01_Core
-    open OpenFlow0x01_Stats
 
     val get_switches : t -> SDN_Types.switchId list
     val get_switch_features : t -> SDN_Types.switchId -> OpenFlow0x01.SwitchFeatures.t option
