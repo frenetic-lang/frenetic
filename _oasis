@@ -24,17 +24,12 @@ Library openflow
     threads
   InternalModules:
     Bits,
-    OpenFlow_Misc,
-    VInt,
-    ModComposition,
-    HighLevelSwitch_common
+    OpenFlow_Misc
   Modules:
     OpenFlow_Header,
     OpenFlow0x01,
     OpenFlow0x04,
     OpenFlow0x04_Core,
-    SDN_OpenFlow0x01,
-    SDN_OpenFlow0x04,
     GroupTable0x04,
     SDN_Types
 
@@ -56,8 +51,7 @@ Library async
     Async_OpenFlow_Stage,
     Async_OpenFlow0x01,
     Async_OpenFlow0x04,
-    Async_OpenFlowChunk,
-    Async_SDN
+    Async_OpenFlowChunk
   Modules:
     Async_OpenFlow
 
