@@ -1,4 +1,4 @@
-OASISFormat: 0.3
+OASISFormat: 0.4
 OCamlVersion:     >= 4.01.0
 Name:        openflow
 Version:     0.9.1

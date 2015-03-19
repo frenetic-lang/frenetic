@@ -179,9 +179,53 @@ type reply =
   | AggregateFlowRep of aggregateStats
   | PortRep of portStats
 
-module Format = struct
+type stpState =
+  | Listen
+  | Learn
+  | Forward
+  | Block
 
-  open Format
+type portState = { down : bool; stp_state : stpState }
+
+type portFeatures =
+  { f_10MBHD : bool (* 10 Mb half-duplex rate support. *)
+  ; f_10MBFD : bool (* 10 Mb full-duplex rate support. *)
+  ; f_100MBHD : bool (* 100 Mb half-duplex rate support. *)
+  ; f_100MBFD : bool (* 100 Mb full-duplex rate support. *)
+  ; f_1GBHD : bool (* 1 Gb half-duplex rate support. *)
+  ; f_1GBFD : bool (* 1 Gb full-duplex rate support. *)
+  ; f_10GBFD : bool (* 10 Gb full-duplex rate support. *)
+  ; copper : bool (* Copper medium. *)
+  ; fiber : bool (* Fiber medium. *)
+  ; autoneg : bool (* Auto-negotiation. *)
+  ; pause : bool (* Pause. *)
+  ; pause_asym : bool (* Asymmetric pause. *)
+  }
+
+type portConfig =
+    { down : bool (* Port is administratively down. *)
+  ; no_stp : bool (* Disable 802.1D spanning tree on port. *)
+  ; no_recv : bool (* Drop all packets except 802.1D spanning
+                             * tree packets. *)
+  ; no_recv_stp : bool (* Drop received 802.1D STP packets. *)
+  ; no_flood : bool (* Do not include this port when flooding. *)
+  ; no_fwd : bool (* Drop packets forwarded to port. *)
+  ; no_packet_in : bool (* Do not send packet-in msgs for port. *)
+  }
+
+type portDescription =
+  { port_no : portId
+  ; hw_addr : dlAddr
+  ; name : string
+  ; config : portConfig
+  ; state : portState
+  ; curr : portFeatures
+  ; advertised : portFeatures
+  ; supported : portFeatures
+  ; peer : portFeatures }
+
+
+module Format = struct
 
   open Format
 
@@ -230,7 +274,7 @@ module Format = struct
     fprintf fmt "@[{@[@[packets=%Ld;@]@ @[bytes=%Ld;@]@ @[flows=%ld@]@]}@]"
       v.total_packet_count v.total_byte_count v.flow_count
 
-  let portStats fmt v =
+  let portStats fmt (v : portStats) =
     fprintf fmt "@[{@[port_no=%d@ \
                       rx_packets=%Ld@ tx_packets=%Ld@ \
                       rx_bytes=%Ld@ tx_bytes=%Ld@ \
@@ -352,23 +396,25 @@ cenum ofp_stats_types {
   OFPST_VENDOR = 0xffff
 } as uint16_t
 
+type wildcards = {
+  in_port: bool;
+  dl_vlan: bool;
+  dl_src: bool;
+  dl_dst: bool;
+  dl_type: bool;
+  nw_proto: bool;
+  tp_src: bool;
+  tp_dst: bool;
+  nw_src: int; (* XXX: unsigned *)
+  nw_dst: int; (* XXX: unsigned *)
+  dl_vlan_pcp: bool;
+  nw_tos: bool;
+}
+
 (** Internal module, only used to parse the wildcards bitfield *)
 module Wildcards = struct
 
-  type t = {
-    in_port: bool;
-    dl_vlan: bool;
-    dl_src: bool;
-    dl_dst: bool;
-    dl_type: bool;
-    nw_proto: bool;
-    tp_src: bool;
-    tp_dst: bool;
-    nw_src: int; (* XXX: unsigned *)
-    nw_dst: int; (* XXX: unsigned *)
-    dl_vlan_pcp: bool;
-    nw_tos: bool;
-  }
+
 
   let set_nw_mask (f:int32) (off : int) (v : int) : int32 =
     let value = (0x3f land v) lsl off in
@@ -428,23 +474,23 @@ module Match = struct
 
   type t = pattern
 
-      cstruct ofp_match {
-        uint32_t wildcards;
-        uint16_t in_port;
-        uint8_t dl_src[6];
-        uint8_t dl_dst[6];
-        uint16_t dl_vlan;
-        uint8_t dl_vlan_pcp;
-        uint8_t pad1[1];
-        uint16_t dl_type;
-        uint8_t nw_tos;
-        uint8_t nw_proto;
-        uint8_t pad2[2];
-        uint32_t nw_src;
-        uint32_t nw_dst;
-        uint16_t tp_src;
-        uint16_t tp_dst
-      } as big_endian
+  cstruct ofp_match {
+    uint32_t wildcards;
+    uint16_t in_port;
+    uint8_t dl_src[6];
+    uint8_t dl_dst[6];
+    uint16_t dl_vlan;
+    uint8_t dl_vlan_pcp;
+    uint8_t pad1[1];
+    uint16_t dl_type;
+    uint8_t nw_tos;
+    uint8_t nw_proto;
+    uint8_t pad2[2];
+    uint32_t nw_src;
+    uint32_t nw_dst;
+    uint16_t tp_src;
+    uint16_t tp_dst
+  } as big_endian
 
   let size_of _ = sizeof_ofp_match
 
@@ -458,23 +504,23 @@ module Match = struct
                   | None -> 0 (* WildcardExact *)
                   | Some m -> Int32.to_int_exn m
 
-  let wildcards_of_match (m : t) : Wildcards.t =
-    { Wildcards.in_port = is_none m.inPort;
-      Wildcards.dl_vlan =
+  let wildcards_of_match (m : t) : wildcards =
+    { in_port = is_none m.inPort;
+      dl_vlan =
 	(match m.dlVlan with
 	  | None -> true
 	  | Some None -> false
 	  | Some (Some _) -> false);
-      Wildcards.dl_src = is_none m.dlSrc;
-      Wildcards.dl_dst = is_none m.dlDst;
-      Wildcards.dl_type = is_none m.dlTyp;
-      Wildcards.nw_proto = is_none m.nwProto;
-      Wildcards.tp_src = is_none m.tpSrc;
-      Wildcards.tp_dst = is_none m.tpDst;
-      Wildcards.nw_src = mask_bits m.nwSrc;
-      Wildcards.nw_dst = mask_bits m.nwDst;
-      Wildcards.dl_vlan_pcp = is_none m.dlVlanPcp;
-      Wildcards.nw_tos = is_none m.nwTos;
+      dl_src = is_none m.dlSrc;
+      dl_dst = is_none m.dlDst;
+      dl_type = is_none m.dlTyp;
+      nw_proto = is_none m.nwProto;
+      tp_src = is_none m.tpSrc;
+      tp_dst = is_none m.tpDst;
+      nw_src = mask_bits m.nwSrc;
+      nw_dst = mask_bits m.nwDst;
+      dl_vlan_pcp = is_none m.dlVlanPcp;
+      nw_tos = is_none m.nwTos;
     }
 
   let if_some16 x = match x with
@@ -493,7 +539,7 @@ module Match = struct
     | Some n -> n
     | None -> 0L
 
-  let marshal m bits =
+  let marshal (m : pattern) bits =
     set_ofp_match_wildcards bits (Wildcards.marshal (wildcards_of_match m));
     set_ofp_match_in_port bits (if_some16 m.inPort);
     set_ofp_match_dl_src (bytes_of_mac (if_word48 m.dlSrc)) 0 bits;
@@ -516,19 +562,19 @@ module Match = struct
   let parse bits =
     let w = Wildcards.parse (get_ofp_match_wildcards bits) in
     { dlSrc =
-        if w.Wildcards.dl_src then
+        if w.dl_src then
           None
         else
           Some (mac_of_bytes
                   (Cstruct.to_string (get_ofp_match_dl_src bits)));
       dlDst =
-        if w.Wildcards.dl_dst then
+        if w.dl_dst then
           None
         else
           Some (mac_of_bytes
                   (Cstruct.to_string (get_ofp_match_dl_dst bits)));
       dlVlan =
-        if w.Wildcards.dl_vlan then
+        if w.dl_vlan then
           None
         else
           begin
@@ -539,57 +585,57 @@ module Match = struct
               Some (Some vlan)
           end;
       dlVlanPcp =
-        if w.Wildcards.dl_vlan_pcp then
+        if w.dl_vlan_pcp then
           None
         else
           Some (get_ofp_match_dl_vlan_pcp bits);
       dlTyp =
-        if w.Wildcards.dl_type then
+        if w.dl_type then
           None
         else
           Some (get_ofp_match_dl_type bits);
       nwSrc =
       (* Oversimplified, since we don't support IP prefixes *)
-        if w.Wildcards.nw_src >= 32 then
+        if w.nw_src >= 32 then
           None
         else
-          if w.Wildcards.nw_src = 0 then
+          if w.nw_src = 0 then
             Some {m_value = (get_ofp_match_nw_src bits); m_mask = None}
           else
             Some {m_value = (get_ofp_match_nw_src bits);
-                   m_mask = Some (Int32.of_int_exn w.Wildcards.nw_src)};
+                   m_mask = Some (Int32.of_int_exn w.nw_src)};
       nwDst =
         (* Oversimplified, since we don't support IP prefixes *)
-        if w.Wildcards.nw_dst >= 32 then
+        if w.nw_dst >= 32 then
           None
         else
-          if w.Wildcards.nw_dst = 0 then
+          if w.nw_dst = 0 then
             Some {m_value = (get_ofp_match_nw_dst bits); m_mask = None}
           else
             Some {m_value = (get_ofp_match_nw_dst bits);
-                  m_mask = Some (Int32.of_int_exn w.Wildcards.nw_dst)};
+                  m_mask = Some (Int32.of_int_exn w.nw_dst)};
       nwProto =
-        if w.Wildcards.nw_proto then
+        if w.nw_proto then
           None
         else
           Some (get_ofp_match_nw_proto bits);
       nwTos =
-        if w.Wildcards.nw_tos then
+        if w.nw_tos then
           None
         else
           Some (get_ofp_match_nw_tos bits);
       tpSrc =
-        if w.Wildcards.tp_src then
+        if w.tp_src then
           None
         else
           Some (get_ofp_match_tp_src bits);
       tpDst =
-        if w.Wildcards.tp_dst then
+        if w.tp_dst then
           None
         else
           Some (get_ofp_match_tp_dst bits);
       inPort =
-        if w.Wildcards.in_port then
+        if w.in_port then
           None
         else
           Some (get_ofp_match_in_port bits);
@@ -1362,20 +1408,10 @@ module PacketOut = struct
 
 end
 
+
 module PortDescription = struct
 
   module PortConfig = struct
-
-    type t =
-        { down : bool (* Port is administratively down. *)
-      ; no_stp : bool (* Disable 802.1D spanning tree on port. *)
-      ; no_recv : bool (* Drop all packets except 802.1D spanning
-                                 * tree packets. *)
-      ; no_recv_stp : bool (* Drop received 802.1D STP packets. *)
-      ; no_flood : bool (* Do not include this port when flooding. *)
-      ; no_fwd : bool (* Drop packets forwarded to port. *)
-      ; no_packet_in : bool (* Do not send packet-in msgs for port. *)
-      }
 
     let to_string c = Printf.sprintf
       "{ down = %B; \
@@ -1421,11 +1457,6 @@ module PortDescription = struct
   module PortState = struct
 
     module StpState = struct
-      type t =
-        | Listen
-        | Learn
-        | Forward
-        | Block
 
       let mask = Int32.shift_left 3l 8
 
@@ -1451,12 +1482,8 @@ module PortDescription = struct
           (Printf.sprintf "Unexpected ofp_port_state for STP: %ld" d_masked))
     end
 
-    type t =
-      { down : bool  (* No physical link present. *)
-      ; stp_state : StpState.t } (* The state of the port wrt the spanning tree
-                                    algorithm. *)
 
-    let to_string p = Printf.sprintf
+    let to_string (p : portState) = Printf.sprintf
       "{ down = %B; \
          stp_state = %s }"
       p.down
@@ -1476,21 +1503,6 @@ module PortDescription = struct
   end
 
   module PortFeatures = struct
-
-    type t =
-      { f_10MBHD : bool (* 10 Mb half-duplex rate support. *)
-      ; f_10MBFD : bool (* 10 Mb full-duplex rate support. *)
-      ; f_100MBHD : bool (* 100 Mb half-duplex rate support. *)
-      ; f_100MBFD : bool (* 100 Mb full-duplex rate support. *)
-      ; f_1GBHD : bool (* 1 Gb half-duplex rate support. *)
-      ; f_1GBFD : bool (* 1 Gb full-duplex rate support. *)
-      ; f_10GBFD : bool (* 10 Gb full-duplex rate support. *)
-      ; copper : bool (* Copper medium. *)
-      ; fiber : bool (* Fiber medium. *)
-      ; autoneg : bool (* Auto-negotiation. *)
-      ; pause : bool (* Pause. *)
-      ; pause_asym : bool (* Asymmetric pause. *)
-      }
 
     let to_string p = Printf.sprintf
       "{ f_10MBHD = %B; \
@@ -1534,7 +1546,6 @@ module PortDescription = struct
       ; pause = test_bit 10 bits
       ; pause_asym = test_bit 11 bits }
 
-
     let to_int f =
       let bits = Int32.zero in
       let bits = bit bits 11 f.pause_asym in
@@ -1551,17 +1562,6 @@ module PortDescription = struct
       let bits = bit bits 0 f.f_10MBHD in
       bits
   end
-
-  type t =
-    { port_no : portId
-    ; hw_addr : dlAddr
-    ; name : string
-    ; config : PortConfig.t
-    ; state : PortState.t
-    ; curr : PortFeatures.t
-    ; advertised : PortFeatures.t
-    ; supported : PortFeatures.t
-    ; peer : PortFeatures.t }
 
   cstruct ofp_phy_port {
     uint16_t port_no;
@@ -1590,7 +1590,7 @@ module PortDescription = struct
     (PortFeatures.to_string d.supported)
     (PortFeatures.to_string d.peer)
 
-  let parse (bits : Cstruct.t) : t =
+  let parse (bits : Cstruct.t) : portDescription =
     let portDescPortNo = get_ofp_phy_port_port_no bits in
     let hw_addr = Packet.mac_of_bytes (Cstruct.to_string (get_ofp_phy_port_hw_addr bits)) in
     let name = Cstruct.to_string (get_ofp_phy_port_name bits) in
@@ -1674,7 +1674,7 @@ module PortStatus = struct
 
   type t =
     { reason : ChangeReason.t;
-      desc : PortDescription.t }
+      desc : portDescription }
 
 
   let to_string status = Printf.sprintf
@@ -1853,7 +1853,7 @@ module SwitchFeatures = struct
     ; num_tables : int8
     ; supported_capabilities : Capabilities.t
     ; supported_actions : SupportedActions.t
-    ; ports : PortDescription.t list }
+    ; ports : portDescription list }
 
   cstruct ofp_switch_features {
     uint64_t datapath_id;

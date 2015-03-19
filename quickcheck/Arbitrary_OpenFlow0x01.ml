@@ -61,7 +61,7 @@ module OpenFlow0x01_Unsize(ArbC : OpenFlow0x01_ArbitraryCstruct) = struct
 end
 
 module Wildcards = struct
-  type t = Wildcards.t
+  type t = wildcards
   type s = Int32.t
 
   let arbitrary : t arbitrary =
@@ -101,7 +101,7 @@ module Wildcards = struct
 end
 
 module Match = struct
-  type t = Match.t
+  type t = pattern
   type s = Cstruct.t
 
   let arbitrary_dlAddr = arbitrary_uint48
@@ -157,7 +157,7 @@ module PseudoPort = struct
    * work.
    *)
   type s = int * (int option)
-  type t = PseudoPort.t
+  type t = pseudoPort
 
   let arbitrary_physical =
     let open Gen in
@@ -205,7 +205,7 @@ module PseudoPort = struct
 end
 
 module Action = struct
-  type t = Action.t
+  type t = action
   type s = Cstruct.t
 
   let arbitrary =
@@ -235,7 +235,7 @@ module Action = struct
 end
 
 module Timeout = struct
-  type t = OpenFlow0x01.Timeout.t
+  type t = timeout
   type s = Packet.int16
 
   let arbitrary =
@@ -254,7 +254,7 @@ end
 module FlowMod = struct
 
   module Command = struct
-    type t = FlowMod.Command.t
+    type t = flowModCommand
     type s = Packet.int16
 
     let arbitrary =
@@ -315,7 +315,7 @@ end
 module FlowRemoved = struct
 
   module Reason = struct
-    type t = FlowRemoved.Reason.t
+    type t = flowRemovedReason
     type s = Packet.int8
 
     let arbitrary =
@@ -332,7 +332,7 @@ module FlowRemoved = struct
     let parse = FlowRemoved.Reason.of_int
   end
 
-  type t = FlowRemoved.t
+  type t = flowRemoved
   type s = Cstruct.t
 
   let arbitrary =
@@ -371,7 +371,7 @@ module PortDescription = struct
   module PortConfig = struct
     open PortDescription
 
-    type t = PortConfig.t
+    type t = portConfig
     type s = Int32.t
 
     let arbitrary =
@@ -405,7 +405,7 @@ module PortDescription = struct
         elements StpState.([Listen; Learn; Forward; Block])
     end
 
-    type t = PortState.t
+    type t = portState
     type s = Int32.t
 
     let arbitrary =
@@ -424,7 +424,7 @@ module PortDescription = struct
   module PortFeatures = struct
     open PortDescription
 
-    type t = PortFeatures.t
+    type t = portFeatures
     type s = Int32.t
 
     let arbitrary =
@@ -453,7 +453,7 @@ module PortDescription = struct
     let parse = PortFeatures.of_int
   end
 
-  type t = PortDescription.t
+  type t = portDescription
   type s = Cstruct.t
 
   let arbitrary =

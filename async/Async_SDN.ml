@@ -55,15 +55,14 @@ let create ?max_pending_connections
 let listen_of0x01 (t : t) : Chunk_Controller.h Pipe.Writer.t * e Pipe.Reader.t =
   let module OF = OpenFlow0x01 in
   let recv, send = Pipe.create () in
-  let port_useable pd =
-    let open OF.PortDescription in
-    if pd.config.PortConfig.down
+  let port_useable (pd : OF.portDescription) =
+    if pd.config.down
       then false
-      else not (pd.state.PortState.down)
+      else not (pd.state.down)
   in
   let get_port pd =
     if port_useable pd
-      then Some(Int32.of_int_exn pd.OF.PortDescription.port_no)
+      then Some(Int32.of_int_exn pd.port_no)
       else None
   in
   send, Pipe.filter_map (OF0x01_Controller.listen_pipe t.sub_0x01 recv)
