@@ -16,7 +16,7 @@ module type Message = sig
 
 end
 
-module MakeSerializers (M : Message) = struct
+module Make (M : Message) = struct
 
   (* Uses OCaml's built-in digest module *)
   let readable_md5 (buf : string) : string =
@@ -42,8 +42,6 @@ module MakeSerializers (M : Message) = struct
       | `Ok ->
         let m = M.parse hdr (Cstruct.of_string body_buf) in
         (* extra space left so read and write align in the log *)
-        Log.printf ~level:`Debug  "[%s] read  %s hash=%s" label (Header.to_string hdr)
-          (readable_md5 (ofhdr_str ^ body_buf));
         return (`Ok m)
 
   let serialize ?(tags : (string * string) list = []) ?(label : string = "")
@@ -52,7 +50,5 @@ module MakeSerializers (M : Message) = struct
     let buf = Cstruct.create hdr.Header.length in
     Header.marshal buf hdr;
     let _ = M.marshal m (Cstruct.shift buf Header.size) in
-    Async_cstruct.schedule_write raw_writer buf;
-    Log.printf ~level:`Debug ~tags "[%s] wrote %s hash=%s"
-      label (Header.to_string hdr) (readable_md5 (Cstruct.to_string buf))
+    Async_cstruct.schedule_write raw_writer buf
 end

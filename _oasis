@@ -45,8 +45,7 @@ Library async
     sexplib.syntax,
     sexplib
   InternalModules:
-    Async_OpenFlow_Log,
-    Async_OpenFlow_Message
+    Async_OpenFlow_Log
   Modules:
     Async_OpenFlow0x01_Controller
 
