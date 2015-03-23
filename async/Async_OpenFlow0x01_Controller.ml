@@ -12,13 +12,10 @@ module Serialization = Async_OpenFlow_Message.MakeSerializers (Message)
 
 let (events, events_writer) = Pipe.create ()
 
-type state =
-  | ConenctedAndSentHello
-  | ReceivedHelloAndSentSwitchFeaturesRequest
-  | ReceivedSwitchFeaturesReply
-
 let of_messages (bytes:Reader.t) : Message.t Pipe.Reader.t =
-  let reader,writer = Pipe.create () in
+  let reader,writer = 
+    Pipe.create () in
+
   let rec loop () =
     Serialization.deserialize bytes >>= function
       | `Ok msg ->
@@ -27,9 +24,9 @@ let of_messages (bytes:Reader.t) : Message.t Pipe.Reader.t =
       | `Eof ->
          Pipe.close writer;
          return () in
+
   don't_wait_for (loop ());
   reader
-
 
 type switchState =
   { features : SwitchFeatures.t;
@@ -46,13 +43,11 @@ type state =
 
 type threadState =
   { switchId : switchId;
+    txns : (xid, Message.t list) Hashtbl.t }
 
-
-
-let client_handler (addr:Socket.Address.t)
-  (reader:Reader.t) (writer:Writer.t) : unit Deferred.t =
-  let msgs = of_messages reader in
-  let send msg = Writer.write_without_pushback writer (Serialization.serialize msg) in
+let client_handler (a:Socket.Address.t) (r:Reader.t) (w:Writer.t) : unit Deferred.t =
+  let msgs = of_messages r in
+  let send msg = Writer.write_without_pushback w (Serialization.serialize msg) in
   let send_txn msg = assert false in
   let rec loop state =
     Pipe.read msgs >>= fun msg ->
@@ -66,18 +61,21 @@ let client_handler (addr:Socket.Address.t)
       loop SentSwitchFeatures
     | SentSwitchFeatures, `Ok (SwitchFeaturesReply features) ->
       let switchId = features.switchId in
+      let txns = Hashtbl.Poly.create () in 
+      let threadState = { switchId; txns } in 
       Hashtbl.Poly.add switches ~key:switchId ~data:{ features; send; send_txn };
       Pipe.write_without_pushback events_writer (`Connected switchId);
-      loop (Connected switchId)
-    | Connected switchId, `Eof ->
+      loop (Connected threadState)
+    | Connected threadState, `Eof ->
       (* TODO(jnf): log disconnection *)
-      Pipe.write_without_pushback events_writer (`Disconnected switchId);
+      Pipe.write_without_pushback events_writer (`Disconnected threadState.switchId);
       return ()
     | _, `Eof ->
       (* TODO(jnf): log disconnection *)
       return ()
-    | Connected switchId, `Ok msg ->
-
+    | Connected threadState, `Ok msg ->
+      assert false in 
+  loop Initial
 
 let init ?max_pending_connections
          ?buffer_age_limit
@@ -90,12 +88,10 @@ let init ?max_pending_connections
      (Tcp.on_port port)
      client_handler)
 
-val get_switches : unit -> switchId list
+let get_switches () = assert false
 
-val get_switch_features : switchId -> SwitchFeatures.t option
+let get_switch_features switchId = assert false
 
-val events : event Pipe.Reader.t
+let send switchId msg = assert false
 
-val send : switchId -> Message.t -> unit
-
-val send_txn : switchId -> Message.t -> Message.t Deferred.t
+let send_txn send_txn switchId msg = assert false

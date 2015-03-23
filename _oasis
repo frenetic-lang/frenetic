@@ -46,15 +46,9 @@ Library async
     sexplib
   InternalModules:
     Async_OpenFlow_Log,
-    Async_OpenFlow_Message,
-    Async_OpenFlow_Platform,
-    Async_OpenFlow_Stage,
-    Async_OpenFlow0x01,
-    Async_OpenFlow0x01_Controller,
-    Async_OpenFlow0x04,
-    Async_OpenFlowChunk
+    Async_OpenFlow_Message
   Modules:
-    Async_OpenFlow
+    Async_OpenFlow0x01_Controller
 
 Library quickcheck
     Findlibparent: openflow

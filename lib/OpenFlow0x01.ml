@@ -27,7 +27,8 @@ type pattern =
     ; nwTos : nwTos option
     ; tpSrc : tpPort option
     ; tpDst : tpPort option
-    ; inPort : portId option } with sexp
+    ; inPort : portId option 
+    } with sexp
 
 type pseudoPort =
   | PhysicalPort of portId
@@ -38,6 +39,7 @@ type pseudoPort =
   | AllPorts
   | Controller of int
   | Local
+with sexp
 
 type action =
   | Output of pseudoPort
@@ -51,10 +53,12 @@ type action =
   | SetTpSrc of tpPort
   | SetTpDst of tpPort
   | Enqueue of pseudoPort * queueId
+with sexp
 
 type timeout =
   | Permanent
   | ExpiresAfter of int16
+with sexp
 
 type flowModCommand =
   | AddFlow
@@ -62,6 +66,7 @@ type flowModCommand =
   | ModStrictFlow
   | DeleteFlow
   | DeleteStrictFlow
+with sexp
 
 type flowMod =
     { command : flowModCommand
@@ -75,33 +80,37 @@ type flowMod =
     ; apply_to_packet : int32 option
     ; out_port : pseudoPort option
     ; check_overlap : bool
-    }
+    } with sexp
 
 type payload =
   | Buffered of int32 * bytes
   | NotBuffered of bytes
+with sexp
 
 type packetInReason =
   | NoMatch
   | ExplicitSend
+with sexp
 
 type packetIn =
     { input_payload : payload
     ; total_len : int16
     ; port : portId
     ; reason : packetInReason
-    }
+    } with sexp
 
 type packetOut =
     { output_payload : payload
     ; port_id : portId option
     ; apply_actions : action list
     }
+with sexp
 
 type flowRemovedReason =
   | IdleTimeout
   | HardTimeout
   | Delete
+with sexp
 
 type flowRemoved =
     { pattern : pattern
@@ -113,14 +122,13 @@ type flowRemoved =
     ; idle_timeout : timeout
     ; packet_count : int64
     ; byte_count : int64
-    }
-
+    } with sexp
 
 type statsReq =
   { sr_of_match : pattern
   ; sr_table_id : int8
   ; sr_out_port : pseudoPort option
-  }
+  } with sexp
 
 type request =
   | DescriptionRequest
@@ -128,6 +136,7 @@ type request =
   | IndividualRequest of statsReq
   | AggregateRequest of statsReq
   | PortRequest of pseudoPort option
+with sexp
 
 type descriptionStats =
     { manufacturer : string
@@ -135,7 +144,7 @@ type descriptionStats =
     ; software : string
     ; serial_number : string
     ; datapath : string
-    }
+    } with sexp
 
 type individualStats =
     { table_id : int8
@@ -149,13 +158,13 @@ type individualStats =
     ; packet_count : int64
     ; byte_count : int64
     ; actions : action list
-    }
+    } with sexp
 
 type aggregateStats =
     { total_packet_count : int64
     ; total_byte_count : int64
     ; flow_count : int32
-    }
+    } with sexp
 
 type portStats =
     { port_no : int16
@@ -171,47 +180,51 @@ type portStats =
     ; rx_over_err : int64
     ; rx_crc_err : int64
     ; collisions : int64
-    }
+    } with sexp
 
 type reply =
   | DescriptionRep of descriptionStats
   | IndividualFlowRep of individualStats list
   | AggregateFlowRep of aggregateStats
   | PortRep of portStats
+with sexp
 
 type stpState =
   | Listen
   | Learn
   | Forward
   | Block
+with sexp
 
-type portState = { down : bool; stp_state : stpState }
+type portState = 
+  { down : bool; 
+    stp_state : stpState 
+  } with sexp
 
 type portFeatures =
-  { f_10MBHD : bool (* 10 Mb half-duplex rate support. *)
-  ; f_10MBFD : bool (* 10 Mb full-duplex rate support. *)
-  ; f_100MBHD : bool (* 100 Mb half-duplex rate support. *)
-  ; f_100MBFD : bool (* 100 Mb full-duplex rate support. *)
-  ; f_1GBHD : bool (* 1 Gb half-duplex rate support. *)
-  ; f_1GBFD : bool (* 1 Gb full-duplex rate support. *)
-  ; f_10GBFD : bool (* 10 Gb full-duplex rate support. *)
-  ; copper : bool (* Copper medium. *)
-  ; fiber : bool (* Fiber medium. *)
-  ; autoneg : bool (* Auto-negotiation. *)
-  ; pause : bool (* Pause. *)
-  ; pause_asym : bool (* Asymmetric pause. *)
-  }
+  { f_10MBHD : bool
+  ; f_10MBFD : bool
+  ; f_100MBHD : bool
+  ; f_100MBFD : bool
+  ; f_1GBHD : bool
+  ; f_1GBFD : bool
+  ; f_10GBFD : bool
+  ; copper : bool
+  ; fiber : bool
+  ; autoneg : bool
+  ; pause : bool
+  ; pause_asym : bool
+  } with sexp
 
 type portConfig =
-    { down : bool (* Port is administratively down. *)
-  ; no_stp : bool (* Disable 802.1D spanning tree on port. *)
-  ; no_recv : bool (* Drop all packets except 802.1D spanning
-                             * tree packets. *)
-  ; no_recv_stp : bool (* Drop received 802.1D STP packets. *)
-  ; no_flood : bool (* Do not include this port when flooding. *)
-  ; no_fwd : bool (* Drop packets forwarded to port. *)
-  ; no_packet_in : bool (* Do not send packet-in msgs for port. *)
-  }
+  { down : bool
+  ; no_stp : bool
+  ; no_recv : bool
+  ; no_recv_stp : bool
+  ; no_flood : bool
+  ; no_fwd : bool
+  ; no_packet_in : bool
+  } with sexp
 
 type portDescription =
   { port_no : portId
@@ -222,8 +235,8 @@ type portDescription =
   ; curr : portFeatures
   ; advertised : portFeatures
   ; supported : portFeatures
-  ; peer : portFeatures }
-
+  ; peer : portFeatures 
+  } with sexp
 
 module Format = struct
 
@@ -409,12 +422,10 @@ type wildcards = {
   nw_dst: int; (* XXX: unsigned *)
   dl_vlan_pcp: bool;
   nw_tos: bool;
-}
+} with sexp
 
 (** Internal module, only used to parse the wildcards bitfield *)
 module Wildcards = struct
-
-
 
   let set_nw_mask (f:int32) (off : int) (v : int) : int32 =
     let value = (0x3f land v) lsl off in
@@ -472,7 +483,7 @@ end
 
 module Match = struct
 
-  type t = pattern
+  type t = pattern with sexp
 
   cstruct ofp_match {
     uint32_t wildcards;
@@ -681,7 +692,7 @@ end
 
 module PseudoPort = struct
 
-  type t = pseudoPort
+  type t = pseudoPort with sexp
 
       (* Physical ports are numbered starting from 1. *)
       cenum ofp_port {
@@ -689,20 +700,14 @@ module PseudoPort = struct
         OFPP_MAX = 0xff00;
 
         (*Fake output "ports". *)
-        OFPP_IN_PORT = 0xfff8; (* Send the packet out the input port. This
-                                  virtual port must be explicitly used
-                                  in order to send back out of the input
-                                  port. *)
-        OFPP_TABLE   = 0xfff9; (* Perform actions in flow table.
-                                  NB: This can only be the destination
-                                  port for packet-out messages. *)
-        OFPP_NORMAL  = 0xfffa; (* Process with normal L2/L3 switching. *)
-        OFPP_FLOOD   = 0xfffb; (* All physical porbts except input port and
-                                  those disabled by STP. *)
-        OFPP_ALL     = 0xfffc; (* All physical ports except input port. *)
-        OFPP_CONTROLLER = 0xfffd; (* Send to controller. *)
-        OFPP_LOCAL   = 0xfffe; (* Local openflow "port". *)
-        OFPP_NONE    = 0xffff  (* Not associated with a physical port. *)
+        OFPP_IN_PORT = 0xfff8;
+        OFPP_TABLE   = 0xfff9;
+        OFPP_NORMAL  = 0xfffa;
+        OFPP_FLOOD   = 0xfffb;
+        OFPP_ALL     = 0xfffc;
+        OFPP_CONTROLLER = 0xfffd;
+        OFPP_LOCAL   = 0xfffe;
+        OFPP_NONE    = 0xffff
       } as uint16_t
 
   let size_of _ = 2
@@ -763,7 +768,7 @@ end
 
 module Action = struct
 
-  type t = action
+  type t = action with sexp
 
   type sequence = t list
 
@@ -978,7 +983,7 @@ end
 
 module Timeout = struct
 
-  type t = timeout
+  type t = timeout with sexp
 
   let to_string t = match t with
     | Permanent -> "Permanent"
@@ -999,7 +1004,7 @@ module FlowMod = struct
 
   module Command = struct
 
-    type t = flowModCommand
+    type t = flowModCommand with sexp
 
     cenum ofp_flow_mod_command {
       OFPFC_ADD;
@@ -1038,7 +1043,7 @@ module FlowMod = struct
 
   end
 
-  type t = flowMod
+  type t = flowMod with sexp
 
   cstruct ofp_flow_mod {
     uint64_t cookie;
@@ -1147,7 +1152,7 @@ end
 
 module Payload = struct
 
-  type t = payload
+  type t = payload with sexp
 
   let size_of p = match p with
     | Buffered(_,bytes)
@@ -1176,7 +1181,7 @@ module PacketIn = struct
 
   module Reason = struct
 
-    type t = packetInReason
+    type t = packetInReason with sexp
 
     cenum ofp_reason {
       NO_MATCH = 0;
@@ -1202,7 +1207,7 @@ module PacketIn = struct
 
   end
 
-  type t = packetIn
+  type t = packetIn with sexp
 
   cstruct ofp_packet_in {
     uint32_t buffer_id;
@@ -1254,7 +1259,7 @@ module FlowRemoved = struct
 
   module Reason = struct
 
-    type t = flowRemovedReason
+    type t = flowRemovedReason with sexp
 
     cenum ofp_flow_removed_reason {
       IDLE_TIMEOUT = 0;
@@ -1282,7 +1287,7 @@ module FlowRemoved = struct
 
   end
 
-  type t = flowRemoved
+  type t = flowRemoved with sexp
 
   cstruct ofp_flow_removed {
     uint64_t cookie;
@@ -1350,7 +1355,7 @@ end
 
 module PacketOut = struct
 
-  type t = packetOut
+  type t = packetOut with sexp
 
   cstruct ofp_packet_out {
     uint32_t buffer_id;
@@ -1628,7 +1633,7 @@ end
 module PortStatus = struct
 
   cstruct ofp_port_status {
-      uint8_t reason;               (* One of OFPPR_* *)
+      uint8_t reason; (* One of OFPPR_* *)
       uint8_t pad[7]
   } as big_endian
 
@@ -1638,6 +1643,7 @@ module PortStatus = struct
       | Add
       | Delete
       | Modify
+    with sexp
 
     cenum ofp_port_reason {
       OFPPR_ADD;
@@ -1674,8 +1680,8 @@ module PortStatus = struct
 
   type t =
     { reason : ChangeReason.t;
-      desc : portDescription }
-
+      desc : portDescription 
+    } with sexp
 
   let to_string status = Printf.sprintf
     "{ reason = %s; desc = %s }"
@@ -1713,7 +1719,8 @@ module SwitchFeatures = struct
     ; nwTos : bool
     ; tpSrc : bool
     ; tpDst : bool
-    ; inPort : bool }
+    ; inPort : bool 
+    } with sexp
 
   module Capabilities = struct
 
@@ -1724,7 +1731,8 @@ module SwitchFeatures = struct
       ; stp : bool
       ; ip_reasm : bool
       ; queue_stats : bool
-      ; arp_match_ip : bool }
+      ; arp_match_ip : bool 
+      } with sexp
 
     let size_of _ = 4
 
@@ -1782,6 +1790,7 @@ module SwitchFeatures = struct
       ; set_tp_dst : bool
       ; enqueue : bool
       ; vendor : bool }
+    with sexp
 
     let size_of _ = 4
 
@@ -1854,6 +1863,7 @@ module SwitchFeatures = struct
     ; supported_capabilities : Capabilities.t
     ; supported_actions : SupportedActions.t
     ; ports : portDescription list }
+  with sexp
 
   cstruct ofp_switch_features {
     uint64_t datapath_id;
@@ -1924,6 +1934,7 @@ module SwitchConfig = struct
       | FragNormal
       | FragDrop
       | FragReassemble
+    with sexp
 
     let of_int d = match d with
       | 0 -> FragNormal
@@ -1945,6 +1956,7 @@ module SwitchConfig = struct
 
   type t = { frag_flags : FragFlags.t;
 	     miss_send_len : int }
+  with sexp
 
       cstruct ofp_switch_config {
 	uint16_t flags;
@@ -1978,6 +1990,7 @@ let reply_to_string  = Format.string_of_mk Format.reply
 module StatsRequest = struct
 
   type t = request
+  with sexp
 
   cstruct ofp_stats_request {
     uint16_t req_type;
@@ -2102,6 +2115,7 @@ end
 module StatsReply = struct
 
   type t = reply
+  with sexp
 
   let desc_str_len = 256
   let serial_num_len = 32
@@ -2438,6 +2452,7 @@ module Error = struct
     type t =
       | Incompatible
       | Eperm
+    with sexp
 
     let type_code (a : t) = match a with
       | Incompatible -> OFPHFC_INCOMPATIBLE
@@ -2469,6 +2484,7 @@ module Error = struct
       | BadLen
       | BufferEmpty
       | BufferUnknown
+    with sexp
 
     let type_code (a : t) = match a with
       | BadVersion -> OFPBRC_BAD_VERSION
@@ -2521,6 +2537,7 @@ module Error = struct
       | Eperm
       | TooMany
       | BadQueue
+    with sexp
 
      let type_code (a : t) = match a with
        | BadType -> OFPBAC_BAD_TYPE
@@ -2570,6 +2587,7 @@ module Error = struct
       | BadEmergTimeout
       | BadCommand
       | Unsupported
+    with sexp
 
     let type_code (a : t) = match a with
       | AllTablesFull -> OFPFMFC_ALL_TABLES_FULL
@@ -2606,6 +2624,7 @@ module Error = struct
     type t =
       | BadPort
       | BadHwAddr
+    with sexp
 
     let type_code (a : t) = match a with
       | BadPort -> OFPPMFC_BAD_PORT
@@ -2631,6 +2650,7 @@ module Error = struct
       | BadPort
       | BadQueue
       | Eperm
+    with sexp
 
     let type_code (a : t) = match a with
       | BadPort -> OFPQOFC_BAD_PORT
@@ -2663,9 +2683,11 @@ module Error = struct
     | FlowModFailed of FlowModFailed.t
     | PortModFailed of PortModFailed.t
     | QueueOpFailed of QueueOpFailed.t
+  with sexp
 
   type t =
-    | Error of c * Cstruct.t
+    | Error of c * Cstruct.t sexp_opaque
+  with sexp
 
   let parse bits =
     let error_type = get_ofp_error_msg_error_type bits in
@@ -2738,7 +2760,8 @@ end
 
 module Vendor = struct
 
-  type t = int32 * Cstruct.t
+  type t = int32 * Cstruct.t sexp_opaque
+  with sexp
 
   cstruct ofp_vendor_header {
     uint32_t vendor
@@ -2837,7 +2860,8 @@ module Message = struct
     | SetConfig of SwitchConfig.t
     | ConfigRequestMsg
     | ConfigReplyMsg of SwitchConfig.t
-
+  with sexp
+        
   let parse (hdr : Header.t) (body_buf : string) : (xid * t) =
     let buf = Cstruct.of_string body_buf in
     let code = match int_to_msg_code (hdr.Header.type_code) with

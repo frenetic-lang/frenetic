@@ -2,6 +2,7 @@ open Core.Std
 open Async.Std
 
 module Log = Async_OpenFlow_Log
+
 module Header = OpenFlow_Header
 
 module type Message = sig
@@ -12,7 +13,6 @@ module type Message = sig
   val parse : OpenFlow_Header.t -> Cstruct.t -> t
 
   val marshal  : t -> Cstruct.t -> unit
-  val marshal' : t -> (Header.t * Cstruct.t)
 
   val to_string : t -> string
 end

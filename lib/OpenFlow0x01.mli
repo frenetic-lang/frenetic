@@ -43,6 +43,7 @@ type pseudoPort =
   | AllPorts
   | Controller of int
   | Local
+  with sexp
 
 type action =
   | Output of pseudoPort
@@ -56,10 +57,12 @@ type action =
   | SetTpSrc of tpPort
   | SetTpDst of tpPort
   | Enqueue of pseudoPort * queueId
+with sexp
 
 type timeout =
   | Permanent
   | ExpiresAfter of int16
+with sexp
 
 type flowModCommand =
   | AddFlow
@@ -67,6 +70,7 @@ type flowModCommand =
   | ModStrictFlow
   | DeleteFlow
   | DeleteStrictFlow
+with sexp
 
 type flowMod =
     { command : flowModCommand
@@ -81,26 +85,30 @@ type flowMod =
     ; out_port : pseudoPort option
     ; check_overlap : bool
     }
+with sexp
 
 type payload =
-  | Buffered of int32 * bytes
-  | NotBuffered of bytes
+  | Buffered of int32 * bytes sexp_opaque
+  | NotBuffered of bytes sexp_opaque
+with sexp
 
 type packetInReason =
   | NoMatch
   | ExplicitSend
+with sexp
 
 type packetIn =
     { input_payload : payload
     ; total_len : int16
     ; port : portId
     ; reason : packetInReason
-    }
+    } with sexp
 
 type flowRemovedReason =
   | IdleTimeout
   | HardTimeout
   | Delete
+with sexp
 
 type flowRemoved =
     { pattern : pattern;
@@ -113,18 +121,21 @@ type flowRemoved =
       packet_count : int64;
       byte_count : int64
     }
+with sexp
 
 type packetOut =
     { output_payload : payload
     ; port_id : portId option
     ; apply_actions : action list
     }
+with sexp
 
 type statsReq =
   { sr_of_match : pattern
   ; sr_table_id : int8
   ; sr_out_port : pseudoPort option
   }
+with sexp
 
 type request =
   | DescriptionRequest
@@ -132,6 +143,7 @@ type request =
   | IndividualRequest of statsReq
   | AggregateRequest of statsReq
   | PortRequest of pseudoPort option
+with sexp
 
 type descriptionStats =
     { manufacturer : string
@@ -140,6 +152,7 @@ type descriptionStats =
     ; serial_number : string
     ; datapath : string
     }
+with sexp
 
 type individualStats =
     { table_id : int8
@@ -154,12 +167,14 @@ type individualStats =
     ; byte_count : int64
     ; actions : action list
     }
+with sexp
 
 type aggregateStats =
     { total_packet_count : int64
     ; total_byte_count : int64
     ; flow_count : int32
     }
+with sexp
 
 type portStats =
     { port_no : int16
@@ -176,45 +191,51 @@ type portStats =
     ; rx_crc_err : int64
     ; collisions : int64
     }
+with sexp
 
 type reply =
   | DescriptionRep of descriptionStats
   | IndividualFlowRep of individualStats list
   | AggregateFlowRep of aggregateStats
   | PortRep of portStats
+with sexp
 
-type wildcards = {
-  in_port: bool;
-  dl_vlan: bool;
-  dl_src: bool;
-  dl_dst: bool;
-  dl_type: bool;
-  nw_proto: bool;
-  tp_src: bool;
-  tp_dst: bool;
-  nw_src: int; (* XXX: unsigned *)
-  nw_dst: int; (* XXX: unsigned *)
-  dl_vlan_pcp: bool;
-  nw_tos: bool;
-}
+type wildcards = 
+  { in_port: bool;
+    dl_vlan: bool;
+    dl_src: bool;
+    dl_dst: bool;
+    dl_type: bool;
+    nw_proto: bool;
+    tp_src: bool;
+    tp_dst: bool;
+    nw_src: int; (* XXX: unsigned *)
+    nw_dst: int; (* XXX: unsigned *)
+    dl_vlan_pcp: bool;
+    nw_tos: bool;
+  } with sexp
 
 type portConfig =
-  { down : bool
-  ; no_stp : bool
-  ; no_recv : bool
-  ; no_recv_stp : bool
-  ; no_flood : bool
-  ; no_fwd : bool
-  ; no_packet_in : bool
-  }
+  { down : bool;
+    no_stp : bool;
+    no_recv : bool;
+    no_recv_stp : bool;
+    no_flood : bool;
+    no_fwd : bool;
+    no_packet_in : bool;
+  } with sexp
 
 type stpState =
-  | Listen (** Not learning or relaying frames *)
-  | Learn (** Learning but not relaying frames *)
-  | Forward (** Learning and relaying frames *)
-  | Block (** Not part of the spanning tree *)
-
-type portState = { down : bool;  stp_state : stpState }
+  | Listen
+  | Learn
+  | Forward
+  | Block
+with sexp
+      
+type portState = 
+  { down : bool;
+    stp_state : stpState
+  } with sexp
 
 type portFeatures =
   { f_10MBHD : bool
@@ -229,7 +250,7 @@ type portFeatures =
   ; autoneg : bool
   ; pause : bool
   ; pause_asym : bool
-  }
+  } with sexp
 
 type portDescription =
   { port_no : portId
@@ -241,7 +262,7 @@ type portDescription =
   ; advertised : portFeatures
   ; supported : portFeatures
   ; peer : portFeatures
-  }
+  } with sexp
 
 module Wildcards : sig
   val to_string : wildcards -> string
@@ -290,7 +311,7 @@ module FlowMod : sig
     val to_int : flowModCommand -> int16
     val of_int : int16 -> flowModCommand
   end
-  type t = flowMod
+  type t = flowMod with sexp
   val to_string : flowMod -> string
   val marshal : flowMod -> Cstruct.t -> int
   val parse : Cstruct.t -> flowMod
@@ -349,14 +370,17 @@ module PortStatus : sig
   module ChangeReason : sig
 
     type t =
-      | Add (** The port was added. *)
-      | Delete (** The port was removed. *)
-      | Modify (** Some attribute of the port has changed. *)
+      | Add
+      | Delete
+      | Modify
+    with sexp
 
     val to_string : t -> string
   end
 
-  type t = { reason : ChangeReason.t; desc : portDescription }
+  type t = 
+    { reason : ChangeReason.t; 
+      desc : portDescription } with sexp
 
   val to_string : t -> string
   val parse : Cstruct.t -> t
@@ -382,21 +406,21 @@ module SwitchFeatures : sig
     ; tpSrc : bool
     ; tpDst : bool
     ; inPort : bool }
+  with sexp
 
   (** See the [ofp_capabilities] enumeration in Section 5.3.1 of the OpenFlow
   1.0 specification. *)
   module Capabilities : sig
 
-
     type t =
-      { flow_stats : bool (** Flow statistics. *)
-      ; table_stats : bool (** Table statistics. *)
-      ; port_stats : bool (** Port statistics. *)
-      ; stp : bool (** 802.1D spanning tree. *)
-      ; ip_reasm : bool (** Can reassemble IP fragments. *)
-      ; queue_stats : bool (** Queue statistics. *)
-      ; arp_match_ip : bool (** Match IP addresses in ARP packets. *)
-      }
+      { flow_stats : bool
+      ; table_stats : bool
+      ; port_stats : bool
+      ; stp : bool
+      ; ip_reasm : bool
+      ; queue_stats : bool
+      ; arp_match_ip : bool
+      } with sexp
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -407,19 +431,20 @@ module SwitchFeatures : sig
   module SupportedActions : sig
 
     type t =
-      { output : bool
-      ; set_vlan_id : bool
-      ; set_vlan_pcp : bool
-      ; strip_vlan : bool
-      ; set_dl_src : bool
-      ; set_dl_dst : bool
-      ; set_nw_src : bool
-      ; set_nw_dst : bool
-      ; set_nw_tos : bool
-      ; set_tp_src : bool
-      ; set_tp_dst : bool
-      ; enqueue : bool
-      ; vendor : bool }
+      { output : bool;
+        set_vlan_id : bool;
+        set_vlan_pcp : bool;
+        strip_vlan : bool;
+        set_dl_src : bool;
+        set_dl_dst : bool;
+        set_nw_src : bool;
+        set_nw_dst : bool;
+        set_nw_tos : bool;
+        set_tp_src : bool;
+        set_tp_dst : bool;
+        enqueue : bool;
+        vendor : bool; 
+      } with sexp
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -427,15 +452,13 @@ module SwitchFeatures : sig
   end
 
   type t =
-    { switch_id : switchId (** Datapath unique ID.  The lower 48 bits are for
-                           a MAC address, while the upper 16 bits are
-                           implementer-defined. *)
-    ; num_buffers : int32 (** Max packets buffered at once. *)
-    ; num_tables : int8 (** Number of tables supported by datapath. *)
-    ; supported_capabilities : Capabilities.t
-    ; supported_actions : SupportedActions.t
-    ; ports : portDescription list (** Port definitions. *)
-    }
+    { switch_id : switchId;
+      num_buffers : int32;
+      num_tables : int8;
+      supported_capabilities : Capabilities.t;
+      supported_actions : SupportedActions.t;
+      ports : portDescription list
+    } with sexp
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
@@ -450,24 +473,27 @@ module SwitchConfig : sig
       | FragNormal
       | FragDrop
       | FragReassemble
+    with sexp
 
     val to_string : t -> string
   end
 
-  type t = { frag_flags : FragFlags.t;
-	     miss_send_len : int }
+  type t = 
+    { frag_flags : FragFlags.t;
+      miss_send_len : int 
+    } with sexp
 
   val to_string : t -> string
 end
 
 module StatsRequest : sig
-  type t = request
+  type t = request with sexp
   val to_string : t -> string
 end
 
 module StatsReply : sig
 
-  type t = reply
+  type t = reply with sexp
 
   val parse : Cstruct.t -> t
 
@@ -483,8 +509,9 @@ module Error : sig
   module HelloFailed : sig
 
     type t =
-      | Incompatible (** No compatible version. *)
-      | Eperm (** Permissions error. *)
+      | Incompatible
+      | Eperm
+    with sexp
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -494,15 +521,16 @@ module Error : sig
   module BadRequest : sig
 
     type t =
-      | BadVersion (** [Header] version not supported. *)
-      | BadType (** [Message] type not supported. *)
-      | BadStat (** StatsRequest type not supported. *)
-      | BadVendor (** Vendor not supported. *)
-      | BadSubType (** Vendor subtype not supported. *)
-      | Eperm (** Permissions error. *)
-      | BadLen (** Wrong request length for type. *)
-      | BufferEmpty (** Specified buffer has already been used. *)
-      | BufferUnknown (** Specified buffer does not exist. *)
+      | BadVersion
+      | BadType
+      | BadStat
+      | BadVendor
+      | BadSubType
+      | Eperm
+      | BadLen
+      | BufferEmpty
+      | BufferUnknown
+    with sexp
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -512,15 +540,16 @@ module Error : sig
   module BadAction : sig
 
     type t =
-      | BadType (** Unknown action type. *)
-      | BadLen (** Length problem in actions. *)
-      | BadVendor (** Unknown vendor id specified. *)
-      | BadVendorType (** Unknown action type for vendor id. *)
-      | BadOutPort (** Problem validating output action. *)
-      | BadArgument (** Bad action argument. *)
-      | Eperm (** Permissions error. *)
-      | TooMany (** Can't handle this many actions. *)
-      | BadQueue (** Problem validating output queue. *)
+      | BadType
+      | BadLen
+      | BadVendor
+      | BadVendorType
+      | BadOutPort
+      | BadArgument
+      | Eperm
+      | TooMany
+      | BadQueue
+    with sexp
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -530,14 +559,13 @@ module Error : sig
   module FlowModFailed : sig
 
     type t =
-      | AllTablesFull (** Flow not added because of full tables. *)
-      | Overlap (** Attepted to add overlapping flow with
-                [FlowMod.check_overlap] set. *)
-      | Eperm (** Permissions error. *)
-      | BadEmergTimeout (** Flow not added because of non-zero idle/hard timeout. *)
-      | BadCommand (** Unknown command. *)
-      | Unsupported (** Unsupported action list - cannot process in the order
-                    specified. *)
+      | AllTablesFull
+      | Overlap 
+      | Eperm
+      | BadEmergTimeout
+      | BadCommand
+      | Unsupported
+    with sexp
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -547,8 +575,9 @@ module Error : sig
   module PortModFailed : sig
 
     type t =
-      | BadPort (** Specified port does not exist. *)
-      | BadHwAddr (** Specified hardware address is wrong. *)
+      | BadPort
+      | BadHwAddr
+    with sexp
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -558,42 +587,29 @@ module Error : sig
   module QueueOpFailed : sig
 
     type t =
-      | BadPort (** Invalid port (or port does not exist). *)
-      | BadQueue (** Queue does not exist. *)
-      | Eperm (** Permissions error. *)
+      | BadPort
+      | BadQueue
+      | Eperm
+    with sexp
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
 
-
-
-
   (** Each error is composed of a pair (error_code, data) *)
   type c =
-
-    (** Hello protocol failed. *)
     | HelloFailed of HelloFailed.t
-
-    (** Request was not understood. *)
     | BadRequest of BadRequest.t
-
-    (** Error in action description *)
     | BadAction of BadAction.t
-
-    (** Problem modifying flow entry. *)
     | FlowModFailed of FlowModFailed.t
-
-    (** Port mod request failed. *)
     | PortModFailed of PortModFailed.t
-
-    (** Queue operation failed. *)
     | QueueOpFailed of QueueOpFailed.t
+  with sexp
 
   type t =
-
-    | Error of c * Cstruct.t
+    | Error of c * Cstruct.t sexp_opaque
+  with sexp
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
@@ -603,7 +619,8 @@ end
 (** A VENDOR message.  See Section 5.5.4 of the OpenFlow 1.0 specification. *)
 module Vendor : sig
 
-  type t = int32 * Cstruct.t
+  type t = int32 * Cstruct.t sexp_opaque
+  with sexp
 
   val parse : Cstruct.t -> t
 
@@ -635,6 +652,7 @@ module Message : sig
     | SetConfig of SwitchConfig.t
     | ConfigRequestMsg
     | ConfigReplyMsg of SwitchConfig.t
+  with sexp
 
   (** [size_of msg] returns the size of [msg] in bytes when serialized. *)
   val size_of : t -> int
