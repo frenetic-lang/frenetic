@@ -10,10 +10,6 @@ type event = [
 
 val init:
      ?max_pending_connections:int
-  -> ?verbose:bool
-  -> ?log_disconnects:bool
-  -> ?buffer_age_limit:[ `At_most of Time.Span.t | `Unlimited ]
-  -> ?monitor_connections:bool
   -> port:int
   -> unit Deferred.t
 

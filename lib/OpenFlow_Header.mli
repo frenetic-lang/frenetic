@@ -1,6 +1,6 @@
 open Core.Std
 
-type xid = Int32.t
+type xid = Int32.t with sexp
 
 type t = {
   version: int;

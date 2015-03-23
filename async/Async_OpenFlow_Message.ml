@@ -14,7 +14,6 @@ module type Message = sig
 
   val marshal  : t -> Cstruct.t -> unit
 
-  val to_string : t -> string
 end
 
 module MakeSerializers (M : Message) = struct
