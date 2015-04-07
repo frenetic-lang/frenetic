@@ -2,9 +2,6 @@ open Core.Std
 open NetKAT_FDD
 open NetKAT_Types
 
-module Field = NetKAT_FDD.Field
-exception Non_local = NetKAT_FDD.Non_local
-
 (* internal policy representation that allows to inject fdks into policies *)
 module Pol = struct
 
@@ -163,53 +160,6 @@ module FDK = struct
 
   (* Do NOT eta-reduce to avoid caching problems with mk_id *)
   let star t = star' (mk_id ()) t
-
-  let rec of_local_pol_k p k =
-    match p with
-    | Filter   p  -> k (of_pred p)
-    | Mod      m  -> k (of_mod  m)
-    | Union (p, q) -> of_local_pol_k p (fun p' ->
-                        of_local_pol_k q (fun q' ->
-                          k (union p' q')))
-    | Seq (p, q) -> of_local_pol_k p (fun p' ->
-                      if T.equal p' (T.mk_drop ()) then
-                        k (T.mk_drop ())
-                      else
-                        of_local_pol_k q (fun q' ->
-                          k (seq p' q')))
-    | Star p -> of_local_pol_k p (fun p' -> k (star p'))
-    | Link (sw1, pt1, sw2, pt2) -> raise Non_local
-
-  let rec of_local_pol p = of_local_pol_k p ident
-
-  let to_local_pol =
-    fold
-      (fun r -> ActionK.to_policy r)
-      (fun v t f ->
-        let p = Pattern.to_pred v in
-        match t, f with
-        | Filter t, Filter f ->
-          Optimize.(mk_filter (mk_or (mk_and p t)
-                                     (mk_and (mk_not p) f)))
-        | _       , _        ->
-          Optimize.(mk_union (mk_seq (mk_filter p) t)
-                             (mk_seq (mk_filter (mk_not p)) f)))
-
-  let dedup fdd =
-    let module FS = Set.Make(Field) in
-    dp_fold
-      (fun par ->
-        let mods = ActionK.Par.to_hvs par in
-        let fields = List.map mods ~f:fst |> FS.of_list in
-        let harmful = ActionK.Par.fold par ~init:FS.empty ~f:(fun acc seq ->
-          let seq_fields =
-            ActionK.Seq.to_hvs seq |> List.map ~f:fst |> FS.of_list in
-          FS.union acc (FS.diff fields seq_fields)) in
-        let mods = List.filter mods ~f:(fun (f,_) -> FS.mem harmful f) in
-        List.fold mods ~init:(mk_leaf par) ~f:(fun fdd test ->
-          cond test (map_r (ActionK.demod test) fdd) fdd))
-      cond
-      fdd
 
 end
 
