@@ -1,5 +1,6 @@
 open Core.Std
 open NetKAT_FDD
+open NetKAT_Types
 
 module Field = NetKAT_FDD.Field
 exception Non_local = NetKAT_FDD.Non_local
@@ -11,123 +12,110 @@ type order
 
 module Repr = struct
 
-  type t = T.t
+  include FDK
 
   let of_test hv =
-    T.atom (Pattern.of_hv hv) Action.one Action.zero
+    atom (Pattern.of_hv hv) ActionK.one ActionK.zero
 
   let of_mod hv =
     let k, v = Pattern.of_hv hv in
-    T.const Action.(Par.singleton (Seq.singleton k v))
+    const ActionK.(Par.singleton (Seq.singleton (F k) v))
 
-  let restrict hv t =
-    T.restrict [Pattern.of_hv hv] t
+  let rec of_pred p =
+    match p with
+    | True      -> mk_id ()
+    | False     -> mk_drop ()
+    | Test(hv)  -> of_test hv
+    | And(p, q) -> prod (of_pred p) (of_pred q)
+    | Or (p, q) -> sum (of_pred p) (of_pred q)
+    | Neg(q)    -> map_r ActionK.negate (of_pred q)
 
   let cond v t f =
-    if T.equal t f then
+    if equal t f then
       t
     else
-      T.(sum (prod (atom v Action.one Action.zero) t)
-             (prod (atom v Action.zero Action.one) f))
+      (sum (prod (atom v ActionK.one ActionK.zero) t)
+             (prod (atom v ActionK.zero ActionK.one) f))
 
-  let dp_fold (g : Action.t -> T.t)
-              (h : Field.t * Value.t -> T.t -> T.t -> T.t)
-              (t : T.t) : T.t =
-     let tbl = Hashtbl.Poly.create () in
-     let rec f t =
-       Hashtbl.Poly.find_or_add tbl t ~default:(fun () -> f' t)
-     and f' t = match T.unget t with
-      | T.Leaf r -> g r
-      | T.Branch ((v, l), tru, fls) -> h (v,l) (f tru) (f fls) in
-      f t
+  let dp_fold (g : ActionK.t -> 'a)
+              (h : Field.t * Value.t -> 'a -> 'a -> 'a)
+              (t : t) : 'a =
+    let tbl = Hashtbl.Poly.create () in
+    let rec f t =
+      Hashtbl.Poly.find_or_add tbl t ~default:(fun () -> f' t)
+    and f' t = match unget t with
+      | Leaf r -> g r
+      | Branch ((v, l), tru, fls) -> h (v,l) (f tru) (f fls) in
+    f t
 
   let seq t u =
-    (* Compute the sequential composition of [t] and [u] as a fold over [t]. In
-       the case of a leaf node, each sequence [seq] of modifications is used to
-       [restrict] the diagram for [u] and produce a new diagram [u'] that
-       assumes (but does not explicitly represent) the state of the packet after
-       passing through [t]'s modifications. [seq] and [u'] are then mulitplied as
-       decision diagrams, which will distribute [seq] to all the leaf nodes of
-       [u'] to produce the result. All such [seq]s in the [par] are then summed
-       together.
-
-       In the case of a branch node, the true and false branches are combined so
-       that packets satisfying [v] are handled by the true branch, and packets
-       not satisfying [v] are handled by the false branch. *)
-    match T.peek u with
-    | Some _ -> T.prod t u (* This is an optimization. If [u] is an
-                              [Action.Par.t], then it will compose with [t]
+    match peek u with
+    | Some _ -> prod t u (* This is an optimization. If [u] is an
+                              [ActionK.Par.t], then it will compose with [t]
                               regardless of however [t] modifies packets. None
                               of the decision variables in [u] need to be
                               removed because there are none. *)
     | None   ->
       dp_fold
         (fun par ->
-          Action.Par.fold par ~init:(T.mk_drop ()) ~f:(fun acc seq ->
-            let u' = T.restrict Action.Seq.(to_alist seq) u in
-            T.(sum (prod (const Action.Par.(singleton seq)) u') acc)))
+          ActionK.Par.fold par ~init:(mk_drop ()) ~f:(fun acc seq ->
+            let mods = ActionK.Seq.(to_alist seq) |> List.filter_map ~f:(fun (f,n) ->
+              match f with
+              | ActionK.F f -> Some (f,n)
+              | ActionK.K -> None)
+            in
+            let u' = restrict mods u in
+            (sum (prod (const ActionK.Par.(singleton seq)) u') acc)))
         (fun v t f -> cond v t f)
       t
 
   let union t u =
     (* Compute the union of [t] and [u] by using the sum operation. This will
        appropriately combine actions for overlapping patterns. *)
-    if T.equal t u then
+    if equal t u then
       t
     else
-      T.sum t u
+      sum t u
+
+  (* Do NOT eta-reduce to avoid caching problems with mk_drop *)
+  let big_union fdds = List.fold ~init:(mk_drop ()) ~f:union fdds
 
   let star' lhs t =
-    (* Compute [star t] by iterating to a fixed point.
-
-       NOTE that the equality check is not semantic equivalence, so this may not
-       terminate when expected. In practice though, it should. *)
     let rec loop acc power =
       let power' = seq power t in
       let acc' = union acc power' in
-      if T.equal acc acc'
+      if equal acc acc'
         then acc
         else loop acc' power'
     in
-    loop (T.mk_id ()) lhs
+    loop (mk_id ()) lhs
 
-  let star = star' (T.mk_id ())
+  (* Do NOT eta-reduce to avoid caching problems with mk_id *)
+  let star t = star' (mk_id ()) t
 
-  let rec of_pred p =
-    let open NetKAT_Types in
-    match p with
-    | True      -> T.mk_id ()
-    | False     -> T.mk_drop ()
-    | Test(hv)  -> of_test hv
-    | And(p, q) -> T.prod (of_pred p) (of_pred q)
-    | Or (p, q) -> T.sum (of_pred p) (of_pred q)
-    | Neg(q)    -> T.map_r Action.negate (of_pred q)
-
-  let rec of_policy_k p k =
-    let open NetKAT_Types in
+  let rec of_local_pol_k p k =
     match p with
     | Filter   p  -> k (of_pred p)
     | Mod      m  -> k (of_mod  m)
-    | Union (p, q) -> of_policy_k p (fun p' ->
-                        of_policy_k q (fun q' ->
+    | Union (p, q) -> of_local_pol_k p (fun p' ->
+                        of_local_pol_k q (fun q' ->
                           k (union p' q')))
-    | Seq (p, q) -> of_policy_k p (fun p' ->
+    | Seq (p, q) -> of_local_pol_k p (fun p' ->
                       if T.equal p' (T.mk_drop ()) then
                         k (T.mk_drop ())
                       else
-                        of_policy_k q (fun q' ->
+                        of_local_pol_k q (fun q' ->
                           k (seq p' q')))
-    | Star p -> of_policy_k p (fun p' -> k (star p'))
+    | Star p -> of_local_pol_k p (fun p' -> k (star p'))
     | Link (sw1, pt1, sw2, pt2) -> raise Non_local
 
-  let rec of_policy p = of_policy_k p ident
+  let rec of_local_pol p = of_local_pol_k p ident
 
-  let to_policy =
-    T.fold
-      (fun r -> Action.to_policy r)
+  let to_local_pol =
+    fold
+      (fun r -> ActionK.to_policy r)
       (fun v t f ->
         let p = Pattern.to_pred v in
-        let open NetKAT_Types in
         match t, f with
         | Filter t, Filter f ->
           Optimize.(mk_filter (mk_or (mk_and p t)
@@ -136,28 +124,22 @@ module Repr = struct
           Optimize.(mk_union (mk_seq (mk_filter p) t)
                              (mk_seq (mk_filter (mk_not p)) f)))
 
-  let equal =
-    T.equal
-
-  let to_string =
-    T.to_string
-
-  module FS = Set.Make(Field)
-
-  let dedup_local fdd =
+  let dedup fdd =
+    let module FS = Set.Make(Field) in
     dp_fold
       (fun par ->
-        let mods = Action.Par.to_hvs par in
+        let mods = ActionK.Par.to_hvs par in
         let fields = List.map mods ~f:fst |> FS.of_list in
-        let harmful = Action.Par.fold par ~init:FS.empty ~f:(fun acc seq ->
+        let harmful = ActionK.Par.fold par ~init:FS.empty ~f:(fun acc seq ->
           let seq_fields =
-            Action.Seq.to_hvs seq |> List.map ~f:fst |> FS.of_list in
+            ActionK.Seq.to_hvs seq |> List.map ~f:fst |> FS.of_list in
           FS.union acc (FS.diff fields seq_fields)) in
         let mods = List.filter mods ~f:(fun (f,_) -> FS.mem harmful f) in
-        List.fold mods ~init:(T.mk_leaf par) ~f:(fun fdd test ->
-          cond test (T.map_r (Action.demod test) fdd) fdd))
+        List.fold mods ~init:(mk_leaf par) ~f:(fun fdd test ->
+          cond test (map_r (ActionK.demod test) fdd) fdd))
       cond
       fdd
+
 end
 
 (** An internal module that implements an interpreter for a [Repr.t]. This
@@ -201,7 +183,7 @@ let compile ?(order=`Heuristic) ?(cache=`Empty) pol =
    | `Heuristic -> Field.auto_order pol
    | `Default -> Field.set_order Field.all_fields
    | `Static flds -> Field.set_order flds);
-  of_policy pol
+  of_local_pol pol
 
 let check_vlan_pcp pattern =
   let open SDN.Pattern in
@@ -304,7 +286,7 @@ let rec naive_to_table sw_id (t : T.t) =
   dfs [] t
 
 let to_table' ?(dedup = false) ?(opt = true) swId t =
-  let t = if dedup then dedup_local t else t in
+  let t = if dedup then Repr.dedup t else t in
   match opt with
   | true -> opt_to_table swId t
   | false -> naive_to_table swId t
@@ -354,3 +336,5 @@ let eval_pipes =
 let to_dotfile t filename =
   Out_channel.with_file filename ~f:(fun chan ->
     Out_channel.output_string chan (T.to_dot t))
+
+let restrict hv t = Repr.restrict [Pattern.of_hv hv] t
