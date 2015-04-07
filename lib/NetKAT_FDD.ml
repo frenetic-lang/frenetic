@@ -502,18 +502,6 @@ module Action = struct
        non-[zero] action will be mapped to [zero] by this function. *)
     if compare t zero = 0 then one else zero
 
-  let to_sdn ?(in_port:Int64.t option) (t:t) : SDN.par =
-    assert false
-
-  let demod (f, v) t =
-    Par.fold t ~init:zero ~f:(fun acc seq ->
-      let seq' = match Seq.find seq (F f) with
-        | Some(v')
-            when Value.compare v v' = 0 -> Seq.remove seq (F f)
-        | _                             -> seq
-      in
-      sum acc (Par.singleton seq'))
-
   let get_queries (t : t) : string list =
     Par.fold t ~init:[] ~f:(fun queries seq ->
       match Seq.find seq (F Location) with
@@ -574,6 +562,15 @@ module Action = struct
         | TCPDstPort, Const tpPort -> SDN.(Modify(SetTCPDstPort(to_int tpPort))) :: acc
         | _, _ -> raise (FieldValue_mismatch(key, data))
       ) :: acc)
+
+  let demod (f, v) t =
+    Par.fold t ~init:zero ~f:(fun acc seq ->
+      let seq' = match Seq.find seq (F f) with
+        | Some(v')
+            when Value.compare v v' = 0 -> Seq.remove seq (F f)
+        | _                             -> seq
+      in
+      sum acc (Par.singleton seq'))
 
   let to_policy t =
     let open NetKAT_Types in

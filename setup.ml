@@ -6965,7 +6965,6 @@ let setup_t =
                         [
                            "NetKAT_Lexer";
                            "NetKAT_LocalCompiler";
-                           "NetKAT_GlobalCompiler";
                            "NetKAT_Parser";
                            "NetKAT_Pretty";
                            "NetKAT_Semantics";

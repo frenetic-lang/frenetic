@@ -1,3 +1,5 @@
+open Core.Std
+
 (** The signature for a type that can be compared and hashed *)
 module type HashCmp = sig
   type t
@@ -204,9 +206,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
       graph description language. The result of this function can be rendered
       using Graphviz or any other program that supports the DOT language. *)
 
-  val refs : t -> Core.Std.Int.Set.t
-
-  module VH : Hashtbl.S with type key = v
+  val refs : t -> Int.Set.t
 
 end
 

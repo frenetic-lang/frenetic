@@ -59,12 +59,7 @@ module FDK = struct
       dp_fold
         (fun par ->
           Action.Par.fold par ~init:(mk_drop ()) ~f:(fun acc seq ->
-            let mods = Action.Seq.(to_alist seq) |> List.filter_map ~f:(fun (f,n) ->
-              match f with
-              | Action.F f -> Some (f,n)
-              | Action.K -> None)
-            in
-            let u' = restrict mods u in
+            let u' = restrict (Action.Seq.to_hvs seq) u in
             (sum (prod (const Action.Par.(singleton seq)) u') acc)))
         (fun v t f -> cond v t f)
       t

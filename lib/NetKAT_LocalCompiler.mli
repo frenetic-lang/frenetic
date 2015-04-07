@@ -32,7 +32,7 @@ type order
     | `Heuristic ]
 
 
-type t = NetKAT_FDD.FDK.t
+type t
 (** The type of the intermediate compiler representation. *)
 
 type cache
