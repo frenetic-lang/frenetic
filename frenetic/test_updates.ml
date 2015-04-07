@@ -14,7 +14,7 @@ let create () =
   let pol = Async_NetKAT.(default (Policy.create_from_file "examples/tree-2-2.kat")) in
 
   let handler t w () e = match e with
-    | SwitchUp(switch_id) ->
+    | SwitchUp(switch_id, ps) ->
       return (Some pol)
     | SwitchDown(switch_id) ->
       return (Some pol)

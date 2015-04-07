@@ -27,6 +27,20 @@ let handle_parse_errors
       printf ~level:`Error "Invalid message from client";
       Cohttp_async.Server.respond `Bad_request
 
+let handle_parse_errors'
+  (body : Cohttp_async.Body.t)
+  (body_parser : string -> 'a)
+  (handler : 'a -> Cohttp_async.Server.response Deferred.t) :
+  Cohttp_async.Server.response Deferred.t =
+  Body.to_string body
+  >>= fun body_str ->
+  try_with (fun () -> return (body_parser body_str))
+  >>= function
+  | Ok x -> handler x
+  | Error exn ->
+      printf ~level:`Error "Invalid message from client:\n%s" body_str;
+      Cohttp_async.Server.respond `Bad_request
+
 let parse_update body = Body.to_string body >>= fun pol_str ->
   let lexbuf = Lexing.from_string pol_str in
   let pol = NetKAT_Parser.program NetKAT_Lexer.token lexbuf in

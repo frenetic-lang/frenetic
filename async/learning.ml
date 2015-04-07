@@ -63,7 +63,7 @@ let create () =
   in
 
   let handler t w () e = match e with
-    | SwitchUp(switch_id) ->
+    | SwitchUp(switch_id, ps) ->
       state := SwitchMap.add !state switch_id MacMap.empty;
       return (Some(gen_pol !t))
     | SwitchDown(switch_id) ->

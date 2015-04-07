@@ -199,10 +199,12 @@ let event_to_json (event : event) : json =
       ("packet_count", `Int (Int64.to_int_exn pkt_count));
       ("byte_count", `Int (Int64.to_int_exn byte_count))
     ]
-  | SwitchUp sw_id ->
+  | SwitchUp (sw_id, ports) ->
+     let json_ports = List.map ports (fun port -> `Int (Int32.to_int_exn port)) in
     `Assoc [
       ("type", `String "switch_up");
-      ("switch_id", `Int (Int64.to_int_exn sw_id))
+      ("switch_id", `Int (Int64.to_int_exn sw_id));
+      ("ports", `List json_ports)
     ]
   | SwitchDown sw_id ->
     `Assoc [

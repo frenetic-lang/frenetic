@@ -66,7 +66,7 @@ type bytes = Packet.bytes with sexp
 type event =
   | PacketIn of string * switchId * portId * payload * int
   | Query of string * int64 * int64
-  | SwitchUp of switchId
+  | SwitchUp of switchId * portId list
   | SwitchDown of switchId
   | PortUp of switch_port
   | PortDown of switch_port

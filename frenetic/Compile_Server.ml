@@ -49,8 +49,5 @@ let handle_request
 let listen ?(port=9000) =
   ignore (Cohttp_async.Server.create (Tcp.on_port port) handle_request)
 
-let main (args : string list) : unit = match args with
-  | [ "--port"; p ] | [ "-p"; p ] ->
-    listen ~port:(Int.of_string p)
-  | [] -> listen ~port:9000
-  |  _ -> (print_endline "Invalid command-line arguments"; Shutdown.shutdown 1)
+let main (http_port : int) () : unit = listen ~port:http_port
+
