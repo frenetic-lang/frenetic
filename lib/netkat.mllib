@@ -1,9 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: ef9c212829bca7eb2dfd3a68c8a15582)
+# DO NOT EDIT (digest: bdaeba25fc204b2701fdca2da616f66e)
 NetKAT_FDD
 NetKAT_Lexer
 NetKAT_LocalCompiler
-NetKAT_GlobalFDDCompiler
+NetKAT_Compiler
 NetKAT_Parser
 NetKAT_Pretty
 NetKAT_Semantics
