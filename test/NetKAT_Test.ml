@@ -6,7 +6,7 @@ open NetKAT_Pretty
 
 let test_compile lhs rhs =
   let tbl = NetKAT_LocalCompiler.(restrict (Switch 0L) (compile lhs)) in
-  let rhs' = NetKAT_LocalCompiler.to_policy tbl in
+  let rhs' = NetKAT_LocalCompiler.to_local_pol tbl in
   if rhs' = rhs then
     true
   else

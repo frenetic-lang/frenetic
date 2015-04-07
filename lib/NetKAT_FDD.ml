@@ -423,183 +423,10 @@ end
 (* Packet actions
 
    This module impelements packet actions for NetKAT. They are modeled as a set
-   of maps from fields to values. The inner maps represent a sequential
+   of maps from fields to values/continuations. The inner maps represent a sequential
    composition of field modifications. The outer set represents a parallel
    composition of sequential compositions. *)
 module Action = struct
-
-  module Seq = struct
-    include Map.Make(struct
-      type t = Field.t with sexp
-      let compare = Field.compare
-    end)
-    let to_hvs = to_alist
-  end
-
-  module Par = struct
-    include Set.Make(struct
-      type t = Value.t Seq.t with sexp
-      let compare = Seq.compare_direct Value.compare
-    end)
-    let to_hvs par = to_list par |> List.concat_map ~f:Seq.to_hvs
-  end
-
-  type t = Par.t with sexp
-
-  let one = Par.singleton Seq.empty
-  let zero = Par.empty
-
-  let sum (a:t) (b:t) : t =
-    (* This implements parallel composition specifically for NetKAT
-       modifications. *)
-    if Par.is_empty a then b            (* 0 + p = p *)
-    else if Par.is_empty b then a       (* p + 0 = p *)
-    else Par.union a b
-
-  let prod (a:t) (b:t) : t =
-    (* This implements sequential composition specifically for NetKAT
-       modifications and makes use of NetKAT laws to simplify results.*)
-    if Par.is_empty a then zero         (* 0; p == 0 *)
-    else if Par.is_empty b then zero    (* p; 0 == 0 *)
-    else if Par.equal a one then b      (* 1; p == p *)
-    else if Par.equal b one then a      (* p; 1 == p *)
-    else
-      Par.fold a ~init:zero ~f:(fun acc seq1 ->
-        let r = Par.map b ~f:(fun seq2 ->
-          (* Favor modifications to the right *)
-          Seq.merge seq1 seq2 ~f:(fun ~key m ->
-            match m with | `Both(_, v) | `Left v | `Right v -> Some(v)))
-        in
-        Par.union acc r)
-
-  let negate t : t =
-    (* This implements negation for the [zero] and [one] actions. Any
-       non-[zero] action will be mapped to [zero] by this function. *)
-    if compare t zero = 0 then one else zero
-
-  let get_queries (t : t) : string list =
-    Par.fold t ~init:[] ~f:(fun queries seq ->
-      match Seq.find seq Location with
-      | Some (Query str) -> str :: queries
-      | _ -> queries)
-
-  let to_sdn ?(in_port:Int64.t option) (t:t) : SDN.par =
-    (* Convert a NetKAT action to an SDN action. At the moment this function
-       assumes that fields are assigned to proper bitwidth integers, and does
-       no validation along those lines. If the input is derived from a NetKAT
-       surface syntax program, then this assumption likely holds. *)
-    let to_int = Int64.to_int_exn in
-    let to_int32 = Int64.to_int32_exn in
-    let t = Par.filter_map t ~f:(fun seq ->
-      (* Queries are equivalent to drop, so remove any [Seq.t]'s from the
-       * [Par.t] that set the location to a query.
-       *
-       * Pipe locations are no longer relevant to compilation, so rewrite all
-       * all of them to the empty string. This will allow multiple singleton
-       * [Seq.t]'s of port location assignments in a [Par.t] to be collapsed
-       * into into one. *)
-      match Seq.find seq Field.Location with
-      | Some(Value.Query _) -> None
-      | Some(Value.Pipe  _) -> Some(Seq.add seq Field.Location (Value.Pipe ""))
-      | _                   -> Some(seq))
-    in
-    let to_port p = match in_port with
-      | Some(p') when p = p' -> SDN.InPort
-      | _                    -> SDN.(Physical(to_int32 p))
-    in
-    Par.fold t ~init:[] ~f:(fun acc seq ->
-      let open Field in
-      let open Value in
-      let init =
-        match Seq.find seq Location with
-        | None           -> [SDN.(Output(InPort))]
-        | Some (Const p) -> [SDN.(Output(to_port p))]
-        | Some (Pipe  _) -> [SDN.(Output(Controller 128))]
-        | Some (Query _) -> assert false
-        | Some mask      -> raise (FieldValue_mismatch(Location, mask))
-      in
-      Seq.fold (Seq.remove seq Location) ~init ~f:(fun ~key ~data acc ->
-        match key, data with
-        | Switch  , Const switch -> raise Non_local
-        | Switch  , _ -> raise (FieldValue_mismatch(Switch, data))
-        | Location, _ -> assert false
-        | EthSrc  , Const dlAddr  -> SDN.(Modify(SetEthSrc dlAddr)) :: acc
-        | EthDst  , Const dlAddr  -> SDN.(Modify(SetEthDst dlAddr)) :: acc
-        | Vlan    , Const vlan    -> SDN.(Modify(SetVlan(Some(to_int vlan)))) :: acc
-        | VlanPcp , Const vlanPcp -> SDN.(Modify(SetVlanPcp (to_int vlanPcp))) :: acc
-        | EthType , Const dlTyp   -> SDN.(Modify(SetEthTyp (to_int dlTyp))) :: acc
-        | IPProto , Const nwProto -> SDN.(Modify(SetIPProto (to_int nwProto))) :: acc
-        | IP4Src  , Mask (nwAddr, 64)
-        | IP4Src  , Const nwAddr   -> SDN.(Modify(SetIP4Src(to_int32 nwAddr))) :: acc
-        | IP4Dst  , Mask (nwAddr, 64)
-        | IP4Dst  , Const nwAddr   -> SDN.(Modify(SetIP4Dst(to_int32 nwAddr))) :: acc
-        | TCPSrcPort, Const tpPort -> SDN.(Modify(SetTCPSrcPort(to_int tpPort))) :: acc
-        | TCPDstPort, Const tpPort -> SDN.(Modify(SetTCPDstPort(to_int tpPort))) :: acc
-        | _, _ -> raise (FieldValue_mismatch(key, data))
-      ) :: acc)
-
-  let demod (f, v) t =
-    Par.fold t ~init:zero ~f:(fun acc seq ->
-      let seq' = match Seq.find seq f with
-        | Some(v')
-            when Value.compare v v' = 0 -> Seq.remove seq f
-        | _                             -> seq
-      in
-      sum acc (Par.singleton seq'))
-
-  let to_policy t =
-    let open NetKAT_Types in
-    Par.fold t ~init:drop ~f:(fun acc seq ->
-      let seq' = Seq.fold seq ~init:id ~f:(fun ~key ~data acc ->
-        let hv = match Pattern.to_hv (key, data) with
-          | IP4Src(nwAddr, 32l) -> IP4Src(nwAddr, 32l)
-          | IP4Dst(nwAddr, 32l) -> IP4Dst(nwAddr, 32l)
-          | IP4Src _ | IP4Dst _ -> raise (FieldValue_mismatch(key, data))
-          | hv -> hv
-        in
-        Optimize.mk_seq (Mod(hv)) acc)
-      in
-      Optimize.mk_union seq' acc)
-
-  let iter_fv t ~f =
-    Par.iter t ~f:(fun seq ->
-      Seq.iter seq ~f:(fun ~key ~data -> f key data))
-
-  let pipes t =
-    let module S = Set.Make(String) in
-    let s = ref S.empty in
-    iter_fv t ~f:(fun key data ->
-      match key, data with
-      | Field.Location, Value.Pipe q -> s := S.add !s q
-      | _, _ -> ());
-    !s
-
-  let queries t =
-    let module S = Set.Make(String) in
-    let s = ref S.empty in
-    iter_fv t ~f:(fun key data ->
-      match key, data with
-      | Field.Location, Value.Query q -> s := S.add !s q
-      | _, _ -> ());
-    S.to_list !s
-
-  let hash t =
-    (* XXX(seliopou): Hashtbl.hash does not work because the same set can have
-     * multiple representations. Pick a better hash function. *)
-    Hashtbl.hash (List.map (Par.to_list t) ~f:(fun seq -> Seq.to_alist seq))
-
-  let compare =
-    Par.compare
-
-  let size =
-    Par.fold ~init:0 ~f:(fun acc seq -> acc + (Seq.length seq))
-
-  let to_string t =
-    Printf.sprintf "[%s]" (SDN.string_of_par (to_sdn t))
-end
-
-(* Packet actions with continuations *)
-module ActionK = struct
 
   type field_or_cont =
     | F of Field.t
@@ -619,12 +446,10 @@ module ActionK = struct
       let compare = compare_field_or_cont
     end)
 
-    let to_action_seq (mk_pc : Value.t -> Field.t * Value.t) (seq : Value.t t) : Value.t Action.Seq.t =
-      List.map (to_alist seq) ~f:(fun (k,v) ->
-        match k with
-        | F f -> (f,v)
-        | K -> mk_pc v)
-      |> Action.Seq.of_alist_exn
+    let fold_fields seq ~init ~f =
+      fold seq ~init ~f:(fun ~key ~data acc -> match key with
+        | F key -> f ~key ~data acc
+        | _ -> acc)
 
     let equal_mod_k s1 s2 = equal (=) (remove s1 K) (remove s2 K)
 
@@ -677,15 +502,6 @@ module ActionK = struct
        non-[zero] action will be mapped to [zero] by this function. *)
     if compare t zero = 0 then one else zero
 
-  let to_action (mk_pc : Value.t -> Field.t * Value.t) par =
-    Par.fold par ~init:Action.Par.empty ~f:(fun acc seq ->
-      Seq.to_action_seq mk_pc seq |> Action.Par.add acc)
-
-  let remove_conts par = Par.map par ~f:(fun seq -> Seq.remove seq K)
-
-  let to_action_wout_conts par =
-    to_action (fun _ -> assert false) (remove_conts par)
-
   let to_sdn ?(in_port:Int64.t option) (t:t) : SDN.par =
     assert false
 
@@ -698,17 +514,104 @@ module ActionK = struct
       in
       sum acc (Par.singleton seq'))
 
+  let get_queries (t : t) : string list =
+    Par.fold t ~init:[] ~f:(fun queries seq ->
+      match Seq.find seq (F Location) with
+      | Some (Query str) -> str :: queries
+      | _ -> queries)
+
+  let to_sdn ?(in_port:Int64.t option) (t:t) : SDN.par =
+    (* Convert a NetKAT action to an SDN action. At the moment this function
+       assumes that fields are assigned to proper bitwidth integers, and does
+       no validation along those lines. If the input is derived from a NetKAT
+       surface syntax program, then this assumption likely holds. *)
+    let to_int = Int64.to_int_exn in
+    let to_int32 = Int64.to_int32_exn in
+    let t = Par.filter_map t ~f:(fun seq ->
+      (* Queries are equivalent to drop, so remove any [Seq.t]'s from the
+       * [Par.t] that set the location to a query.
+       *
+       * Pipe locations are no longer relevant to compilation, so rewrite all
+       * all of them to the empty string. This will allow multiple singleton
+       * [Seq.t]'s of port location assignments in a [Par.t] to be collapsed
+       * into into one. *)
+      match Seq.find seq (F Field.Location) with
+      | Some(Value.Query _) -> None
+      | Some(Value.Pipe  _) -> Some(Seq.add seq (F Field.Location) (Value.Pipe ""))
+      | _                   -> Some(seq))
+    in
+    let to_port p = match in_port with
+      | Some(p') when p = p' -> SDN.InPort
+      | _                    -> SDN.(Physical(to_int32 p))
+    in
+    Par.fold t ~init:[] ~f:(fun acc seq ->
+      let open Field in
+      let open Value in
+      let init =
+        match Seq.find seq (F Location) with
+        | None           -> [SDN.(Output(InPort))]
+        | Some (Const p) -> [SDN.(Output(to_port p))]
+        | Some (Pipe  _) -> [SDN.(Output(Controller 128))]
+        | Some (Query _) -> assert false
+        | Some mask      -> raise (FieldValue_mismatch(Location, mask))
+      in
+      Seq.fold_fields (Seq.remove seq (F Location)) ~init ~f:(fun ~key ~data acc ->
+        match key, data with
+        | Switch  , Const switch -> raise Non_local
+        | Switch  , _ -> raise (FieldValue_mismatch(Switch, data))
+        | Location, _ -> assert false
+        | EthSrc  , Const dlAddr  -> SDN.(Modify(SetEthSrc dlAddr)) :: acc
+        | EthDst  , Const dlAddr  -> SDN.(Modify(SetEthDst dlAddr)) :: acc
+        | Vlan    , Const vlan    -> SDN.(Modify(SetVlan(Some(to_int vlan)))) :: acc
+        | VlanPcp , Const vlanPcp -> SDN.(Modify(SetVlanPcp (to_int vlanPcp))) :: acc
+        | EthType , Const dlTyp   -> SDN.(Modify(SetEthTyp (to_int dlTyp))) :: acc
+        | IPProto , Const nwProto -> SDN.(Modify(SetIPProto (to_int nwProto))) :: acc
+        | IP4Src  , Mask (nwAddr, 64)
+        | IP4Src  , Const nwAddr   -> SDN.(Modify(SetIP4Src(to_int32 nwAddr))) :: acc
+        | IP4Dst  , Mask (nwAddr, 64)
+        | IP4Dst  , Const nwAddr   -> SDN.(Modify(SetIP4Dst(to_int32 nwAddr))) :: acc
+        | TCPSrcPort, Const tpPort -> SDN.(Modify(SetTCPSrcPort(to_int tpPort))) :: acc
+        | TCPDstPort, Const tpPort -> SDN.(Modify(SetTCPDstPort(to_int tpPort))) :: acc
+        | _, _ -> raise (FieldValue_mismatch(key, data))
+      ) :: acc)
+
   let to_policy t =
-    assert false
+    let open NetKAT_Types in
+    Par.fold t ~init:drop ~f:(fun acc seq ->
+      let seq' = Seq.fold_fields seq ~init:id ~f:(fun ~key ~data acc ->
+        let hv = match Pattern.to_hv (key, data) with
+          | IP4Src(nwAddr, 32l) -> IP4Src(nwAddr, 32l)
+          | IP4Dst(nwAddr, 32l) -> IP4Dst(nwAddr, 32l)
+          | IP4Src _ | IP4Dst _ -> raise (FieldValue_mismatch(key, data))
+          | hv -> hv
+        in
+        Optimize.mk_seq (Mod(hv)) acc)
+      in
+      Optimize.mk_union seq' acc)
 
   let iter_fv t ~f =
-    assert false
+    Par.iter t ~f:(fun seq ->
+      Seq.iter seq ~f:(fun ~key ~data -> match key with
+        | F key -> f key data
+        | _ -> ()))
 
   let pipes t =
-    assert false
+    let module S = Set.Make(String) in
+    let s = ref S.empty in
+    iter_fv t ~f:(fun key data ->
+      match key, data with
+      | Field.Location, Value.Pipe q -> s := S.add !s q
+      | _, _ -> ());
+    !s
 
   let queries t =
-    assert false
+    let module S = Set.Make(String) in
+    let s = ref S.empty in
+    iter_fv t ~f:(fun key data ->
+      match key, data with
+      | Field.Location, Value.Query q -> s := S.add !s q
+      | _, _ -> ());
+    S.to_list !s
 
   let hash t =
     (* XXX(seliopou): Hashtbl.hash does not work because the same set can have
@@ -722,22 +625,21 @@ module ActionK = struct
     Par.fold ~init:0 ~f:(fun acc seq -> acc + (Seq.length seq))
 
   let to_string t =
-    Action.to_string (to_action_wout_conts t)
+    Printf.sprintf "[%s]" (SDN.string_of_par (to_sdn t))
 
 end
 
-module T = NetKAT_Vlr.Make(Field)(Value)(Action)
 module FDK = struct
 
-  include NetKAT_Vlr.Make(Field)(Value)(ActionK)
+  include NetKAT_Vlr.Make(Field)(Value)(Action)
 
-  let mk_cont k = mk_leaf ActionK.(Par.singleton (Seq.singleton K (Value.of_int k)))
+  let mk_cont k = mk_leaf Action.(Par.singleton (Seq.singleton K (Value.of_int k)))
 
   let conts fdk =
     fold
       (fun par ->
-        ActionK.Par.fold par ~init:[] ~f:(fun acc seq ->
-          ActionK.(Seq.find seq K) :: acc)
+        Action.Par.fold par ~init:[] ~f:(fun acc seq ->
+          Action.(Seq.find seq K) :: acc)
         |> List.filter_opt)
       (fun _ t f -> t @ f)
       fdk

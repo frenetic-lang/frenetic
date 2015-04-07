@@ -32,7 +32,7 @@ type order
     | `Heuristic ]
 
 
-type t = NetKAT_FDD.T.t
+type t = NetKAT_FDD.FDK.t
 (** The type of the intermediate compiler representation. *)
 
 type cache
@@ -58,6 +58,8 @@ val compile : ?order:order -> ?cache:cache -> policy -> t
     The optional [cache] flag determines if the cache should be cleared
     before compilation. By default, the cache is cleared.
  *)
+
+val compile_global : policy -> t
 
 val restrict : header_val -> t -> t
 (** [restrict hv t] returns the fragment of [t] that applies when the assignment
