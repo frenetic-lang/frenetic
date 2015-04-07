@@ -195,7 +195,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   val to_string : t -> string
   (** [to_string t] returns a string representation of the diagram. *)
 
-  val clear_cache : preserve:Core.Std.Int.Set.t -> unit
+  val clear_cache : preserve:Int.Set.t -> unit
   (** [clear_cache ()] clears the internal cache of diagrams. *)
 
   val compressed_size : t -> int
