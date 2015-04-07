@@ -23,7 +23,10 @@ module Node = struct
   let parse_dot _ _ = failwith "NYI: Node.parse_dot"
   let parse_gml _ = failwith "NYI: Node.parse_dot"
 
-  let to_dot _ = failwith "NYI: Node.to_dot"
+  let to_dot t = match t with
+    | Switch(sw_id) -> Printf.sprintf "%s [label=SW%Lu]" (to_string t) sw_id
+    | Host(dlAddr, nwAddr) -> Printf.sprintf "%s [label=%s]" (to_string t) (Packet.string_of_nwAddr nwAddr)
+
   let to_mininet _ = failwith "NYI: Node.to_mininet"
 end
 
@@ -38,7 +41,7 @@ module Link = struct
   let parse_dot _ = failwith "NYI: Link.parse_dot"
   let parse_gml _ = failwith "NYI: Link.parse_dot"
 
-  let to_dot _ = failwith "NYI: Link.to_dot"
+  let to_dot = to_string
   let to_mininet _ = failwith "NYI: Link.to_mininet"
 end
 
