@@ -14,7 +14,7 @@ BuildTools:
   camlp4
 
 Library netkat
-  Path: lib
+  Path: frenetic/lib
   BuildDepends:
     core,
     fieldslib,
@@ -46,7 +46,7 @@ Library netkat
     Optimize
 
 Library syntax
-  Path: syntax
+  Path: frenetic/syntax
   Findlibparent: netkat
   Findlibname: syntax
   BuildDepends:
@@ -66,7 +66,7 @@ Library syntax
 Library async
   Findlibparent: netkat
   Findlibname: async
-  Path: async
+  Path: frenetic/async
   BuildDepends:
     async,
     core,
@@ -96,7 +96,7 @@ Library async
 Library quickcheck
   Findlibparent: netkat
   Findlibname: quickcheck
-  Path: quickcheck
+  Path: frenetic/quickcheck
   BuildDepends:
     netkat,
     openflow.quickcheck,
@@ -106,7 +106,7 @@ Library quickcheck
     NetKAT_Arbitrary
 
 Executable testtool
-  Path: test
+  Path: frenetic/test
   MainIs: Test.ml
   Build$: flag(tests)
   Install: false
@@ -125,7 +125,7 @@ Test all_tests
   TestTools: testtool
 
 Executable frenetic
-  Path: frenetic
+  Path: frenetic/frenetic
   MainIs: frenetic.ml
   Install: true
   CompiledObject: native
@@ -138,25 +138,3 @@ Executable frenetic
     netkat.async,
     cmdliner,
     async_extended
-
-Executable katnetic
-  Path: frenetic
-  MainIs: katnetic.ml
-  Install: false
-  CompiledObject: native
-  BuildDepends:
-    async,
-    cmdliner,
-    core,
-    netkat,
-    netkat.async
-
-Executable test_updates
-  Path: frenetic
-  MainIs: test_updates.ml
-  Install: false
-  BuildDepends:
-    async,
-    core,
-    netkat,
-    netkat.async
