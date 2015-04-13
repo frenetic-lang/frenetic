@@ -13,13 +13,82 @@ BuildTools:
   ocamldoc,
   camlp4
 
+Library packet
+  Path: packet/lib
+  BuildDepends: str, cstruct, cstruct.syntax, sexplib, sexplib.syntax, tcpip
+  Modules: Packet
+
+Library openflow
+  Path: openflow/lib
+  BuildDepends:
+    str,
+    cstruct,
+    cstruct.syntax,
+    packet,
+    core,
+    sexplib.syntax,
+    sexplib,
+    threads
+  InternalModules:
+    Bits,
+    OpenFlow_Misc,
+    VInt,
+    ModComposition,
+    HighLevelSwitch_common
+  Modules:
+    OpenFlow_Header,
+    OpenFlow0x01,
+    OpenFlow0x01_Core,
+    OpenFlow0x01_Stats,
+    OpenFlow0x04,
+    OpenFlow0x04_Core,
+    SDN_OpenFlow0x01,
+    SDN_OpenFlow0x04,
+    GroupTable0x04,
+    SDN_Types
+
+Library openflowasync
+  Findlibname: openflowasync
+  Path: openflow/async
+  BuildDepends:
+    async,
+    openflow,
+    cstruct.async,
+    threads,
+    sexplib.syntax,
+    sexplib
+  InternalModules:
+    Async_OpenFlow_Log,
+    Async_OpenFlow_Message,
+    Async_OpenFlow_Platform,
+    Async_OpenFlow_Stage,
+    Async_OpenFlow0x01,
+    Async_OpenFlow0x04,
+    Async_OpenFlowChunk,
+    Async_SDN
+  Modules:
+    Async_OpenFlow
+
+Library topology
+  Path: topology/lib
+  BuildDepends:
+    core_kernel,
+    sexplib,
+    sexplib.syntax,
+    packet,
+    ocamlgraph (>= 1.8.6),
+    threads
+  Modules:
+    Network,
+    Network_Common
+
 Library netkat
   Path: frenetic/lib
   BuildDepends:
     core,
     fieldslib,
     fieldslib.syntax,
-    openflow (>= 0.8.0),
+    openflow,
     sexplib,
     sexplib.syntax,
     str,
@@ -73,9 +142,9 @@ Library async
     cstruct,
     cstruct.syntax,
     netkat,
-    openflow (>= 0.8.0),
-    openflow.async (>= 0.8.0),
-    packet (>= 0.4.0),
+    openflow,
+    openflowasync,
+    packet,
     threads,
     topology,
     sexplib,
@@ -92,38 +161,7 @@ Library async
     NetKAT_Controller,
     Async_NetKAT_Controller,
     NetKAT
-
-Library quickcheck
-  Findlibparent: netkat
-  Findlibname: quickcheck
-  Path: frenetic/quickcheck
-  BuildDepends:
-    netkat,
-    openflow.quickcheck,
-    packet.quickcheck,
-    quickcheck
-  Modules:
-    NetKAT_Arbitrary
-
-Executable testtool
-  Path: frenetic/test
-  MainIs: Test.ml
-  Build$: flag(tests)
-  Install: false
-  BuildDepends:
-    netkat,
-    netkat.quickcheck,
-    oUnit,
-    packet,
-    pa_ounit,
-    pa_ounit.syntax,
-    quickcheck
-
-Test all_tests
-  Command: $testtool inline-test-runner netkat
-  Run$: flag(tests)
-  TestTools: testtool
-
+ 
 Executable frenetic
   Path: frenetic/frenetic
   MainIs: frenetic.ml

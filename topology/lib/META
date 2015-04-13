@@ -1,7 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: 1047d2f7db54b20d499e72f712d7c8fb)
-version = "0.4.0"
-description = "Network topologies"
+# DO NOT EDIT (digest: 76daf406833b5701803940e9cb86dfe8)
+version = "3.4.1"
+description = "The Frenetic Compiler and Runtime System"
 requires = "core_kernel sexplib sexplib.syntax packet ocamlgraph threads"
 archive(byte) = "topology.cma"
 archive(byte, plugin) = "topology.cma"
