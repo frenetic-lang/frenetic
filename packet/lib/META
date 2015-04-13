@@ -1,0 +1,24 @@
+# OASIS_START
+# DO NOT EDIT (digest: cbb96baf26cb37ae3c440f14bc1bb41c)
+version = "0.4.0"
+description =
+"Serialization for some common network packets, including ethernet frames, IP, TCP, and ARP."
+requires = "str cstruct cstruct.syntax sexplib sexplib.syntax tcpip"
+archive(byte) = "packet.cma"
+archive(byte, plugin) = "packet.cma"
+archive(native) = "packet.cmxa"
+archive(native, plugin) = "packet.cmxs"
+exists_if = "packet.cma"
+package "quickcheck" (
+ version = "0.4.0"
+ description =
+ "Serialization for some common network packets, including ethernet frames, IP, TCP, and ARP."
+ requires = "packet quickcheck"
+ archive(byte) = "quickcheck.cma"
+ archive(byte, plugin) = "quickcheck.cma"
+ archive(native) = "quickcheck.cmxa"
+ archive(native, plugin) = "quickcheck.cmxs"
+ exists_if = "quickcheck.cma"
+)
+# OASIS_STOP
+

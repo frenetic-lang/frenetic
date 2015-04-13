@@ -1,0 +1,53 @@
+OASISFormat: 0.3
+Name:        packet
+Version:     0.4.0
+Synopsis:    Serialization for some common network packets, including
+             ethernet frames, IP, TCP, and ARP.
+Authors:     https://github.com/frenetic-lang/ocaml-packet/contributors
+License:     LGPL
+Plugins:     META (0.3), DevFiles (0.3)
+BuildTools:
+  ocamlbuild,
+  ocamldoc
+
+Library packet
+  Path: lib
+  BuildDepends: str, cstruct, cstruct.syntax, sexplib, sexplib.syntax, tcpip
+  Modules: Packet
+
+Document doc
+  Title: Packet documentation
+  Type: OCamlbuild (0.3)
+  XOCamlBuildPath:
+    lib
+  XOCamlBuildModules:
+    Packet
+
+Library quickcheck
+  Findlibparent: packet
+  Findlibname: quickcheck
+  Path: quickcheck
+  BuildDepends:
+    packet,
+    quickcheck
+  Modules:
+    Arbitrary_Base,
+    Arbitrary_Packet
+
+Executable testtool
+  Path: test
+  Install: false
+  Build$: flag(tests)
+  MainIs: Test.ml
+  BuildDepends:
+    oUnit,
+    pa_ounit,
+    pa_ounit.syntax,
+    packet,
+    packet.quickcheck,
+    quickcheck
+
+Test all_tests
+  Command: $testtool inline-test-runner dummy
+  Run$: flag(tests)
+  TestTools: testtool
