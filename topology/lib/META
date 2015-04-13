@@ -1,0 +1,12 @@
+# OASIS_START
+# DO NOT EDIT (digest: 1047d2f7db54b20d499e72f712d7c8fb)
+version = "0.4.0"
+description = "Network topologies"
+requires = "core_kernel sexplib sexplib.syntax packet ocamlgraph threads"
+archive(byte) = "topology.cma"
+archive(byte, plugin) = "topology.cma"
+archive(native) = "topology.cmxa"
+archive(native, plugin) = "topology.cmxs"
+exists_if = "topology.cma"
+# OASIS_STOP
+

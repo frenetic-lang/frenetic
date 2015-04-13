@@ -1,0 +1,45 @@
+OASISFormat: 0.3
+Name:        topology
+Version:     0.4.0
+Synopsis:    Network topologies
+Authors:     https://github.com/frenetic-lang/ocaml-topology/contributors
+License:     LGPL
+Plugins:     META (0.3), DevFiles (0.3)
+BuildTools:
+  ocamlbuild
+
+Library topology
+  Path: lib
+  BuildDepends:
+    core_kernel,
+    sexplib,
+    sexplib.syntax,
+    packet,
+    ocamlgraph (>= 1.8.6),
+    threads
+  Modules:
+    Network,
+    Network_Common
+
+Executable topotool
+  Path: exe
+  Install: false
+  MainIs: topology.ml
+  BuildDepends:
+    topology
+
+Executable unittest
+  Path: test
+  Install: false
+  Build$: flag(tests)
+  MainIs: Test.ml
+  BuildDepends:
+    packet,
+    oUnit,
+    pa_ounit,
+    pa_ounit.syntax,
+    topology
+
+Test all_tests
+  Command: $unittest inline-test-runner topology
+  Run$: flag(tests)
