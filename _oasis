@@ -29,13 +29,12 @@ Library netkat
     base64 (>= 2.0.0)
   InternalModules:
     Flowterp,
-    NetKAT_FDD,
     NetKAT_Vlr,
+    NetKAT_FDD,
     Util
   Modules:
     NetKAT_Lexer,
     NetKAT_LocalCompiler,
-    NetKAT_GlobalCompiler,
     NetKAT_Parser,
     NetKAT_Pretty,
     NetKAT_Semantics,

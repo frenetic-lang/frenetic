@@ -306,6 +306,9 @@ module Value = struct
   let of_int   t = Const (Int64.of_int   t)
   let of_int32 t = Const (Int64.of_int32 t)
   let of_int64 t = Const t
+  let to_int_exn = function
+    | Const k -> Int64.to_int_exn k
+    | _ -> assert false
 end
 
 exception FieldValue_mismatch of Field.t * Value.t
@@ -420,20 +423,49 @@ end
 (* Packet actions
 
    This module impelements packet actions for NetKAT. They are modeled as a set
-   of maps from fields to values. The inner maps represent a sequential
+   of maps from fields to values/continuations. The inner maps represent a sequential
    composition of field modifications. The outer set represents a parallel
    composition of sequential compositions. *)
 module Action = struct
 
-  module Seq = Map.Make(struct
-    type t = Field.t with sexp
-    let compare = Field.compare
-  end)
+  type field_or_cont =
+    | F of Field.t
+    | K
+  with sexp
 
-  module Par = Set.Make(struct
+  let compare_field_or_cont x y =
+    match x,y with
+    | F f1, F f2 -> Field.compare f1 f2
+    | K, K -> 0
+    | F _, K -> 1
+    | K, F _ -> -1
+
+  module Seq = struct
+    include Map.Make(struct
+      type t = field_or_cont with sexp
+      let compare = compare_field_or_cont
+    end)
+
+    let fold_fields seq ~init ~f =
+      fold seq ~init ~f:(fun ~key ~data acc -> match key with
+        | F key -> f ~key ~data acc
+        | _ -> acc)
+
+    let equal_mod_k s1 s2 = equal (=) (remove s1 K) (remove s2 K)
+
+    let to_hvs seq =
+      seq |> to_alist |> List.filter_map ~f:(function (F f,v) -> Some (f,v) | _ -> None)
+  end
+
+  module Par = struct
+    include Set.Make(struct
     type t = Value.t Seq.t with sexp
     let compare = Seq.compare_direct Value.compare
-  end)
+    end)
+
+    let to_hvs par =
+      fold par ~init:[] ~f:(fun acc seq -> Seq.to_hvs seq @ acc)
+  end
 
   type t = Par.t with sexp
 
@@ -456,6 +488,8 @@ module Action = struct
     else if Par.equal b one then a      (* p; 1 == p *)
     else
       Par.fold a ~init:zero ~f:(fun acc seq1 ->
+        (* cannot implement sequential composition of this kind here *)
+        let _ = assert (match Seq.find seq1 K with None -> true | _ -> false) in
         let r = Par.map b ~f:(fun seq2 ->
           (* Favor modifications to the right *)
           Seq.merge seq1 seq2 ~f:(fun ~key m ->
@@ -470,7 +504,7 @@ module Action = struct
 
   let get_queries (t : t) : string list =
     Par.fold t ~init:[] ~f:(fun queries seq ->
-      match Seq.find seq Location with
+      match Seq.find seq (F Location) with
       | Some (Query str) -> str :: queries
       | _ -> queries)
 
@@ -489,9 +523,9 @@ module Action = struct
        * all of them to the empty string. This will allow multiple singleton
        * [Seq.t]'s of port location assignments in a [Par.t] to be collapsed
        * into into one. *)
-      match Seq.find seq Field.Location with
+      match Seq.find seq (F Field.Location) with
       | Some(Value.Query _) -> None
-      | Some(Value.Pipe  _) -> Some(Seq.add seq Field.Location (Value.Pipe ""))
+      | Some(Value.Pipe  _) -> Some(Seq.add seq (F Field.Location) (Value.Pipe ""))
       | _                   -> Some(seq))
     in
     let to_port p = match in_port with
@@ -502,14 +536,14 @@ module Action = struct
       let open Field in
       let open Value in
       let init =
-        match Seq.find seq Location with
+        match Seq.find seq (F Location) with
         | None           -> [SDN.(Output(InPort))]
         | Some (Const p) -> [SDN.(Output(to_port p))]
         | Some (Pipe  _) -> [SDN.(Output(Controller 128))]
         | Some (Query _) -> assert false
         | Some mask      -> raise (FieldValue_mismatch(Location, mask))
       in
-      Seq.fold (Seq.remove seq Location) ~init ~f:(fun ~key ~data acc ->
+      Seq.fold_fields (Seq.remove seq (F Location)) ~init ~f:(fun ~key ~data acc ->
         match key, data with
         | Switch  , Const switch -> raise Non_local
         | Switch  , _ -> raise (FieldValue_mismatch(Switch, data))
@@ -531,9 +565,9 @@ module Action = struct
 
   let demod (f, v) t =
     Par.fold t ~init:zero ~f:(fun acc seq ->
-      let seq' = match Seq.find seq f with
+      let seq' = match Seq.find seq (F f) with
         | Some(v')
-            when Value.compare v v' = 0 -> Seq.remove seq f
+            when Value.compare v v' = 0 -> Seq.remove seq (F f)
         | _                             -> seq
       in
       sum acc (Par.singleton seq'))
@@ -541,7 +575,7 @@ module Action = struct
   let to_policy t =
     let open NetKAT_Types in
     Par.fold t ~init:drop ~f:(fun acc seq ->
-      let seq' = Seq.fold seq ~init:id ~f:(fun ~key ~data acc ->
+      let seq' = Seq.fold_fields seq ~init:id ~f:(fun ~key ~data acc ->
         let hv = match Pattern.to_hv (key, data) with
           | IP4Src(nwAddr, 32l) -> IP4Src(nwAddr, 32l)
           | IP4Dst(nwAddr, 32l) -> IP4Dst(nwAddr, 32l)
@@ -554,7 +588,9 @@ module Action = struct
 
   let iter_fv t ~f =
     Par.iter t ~f:(fun seq ->
-      Seq.iter seq ~f:(fun ~key ~data -> f key data))
+      Seq.iter seq ~f:(fun ~key ~data -> match key with
+        | F key -> f key data
+        | _ -> ()))
 
   let pipes t =
     let module S = Set.Make(String) in
@@ -587,6 +623,24 @@ module Action = struct
 
   let to_string t =
     Printf.sprintf "[%s]" (SDN.string_of_par (to_sdn t))
+
 end
 
-module T = NetKAT_Vlr.Make(Field)(Value)(Action)
+module FDK = struct
+
+  include NetKAT_Vlr.Make(Field)(Value)(Action)
+
+  let mk_cont k = mk_leaf Action.(Par.singleton (Seq.singleton K (Value.of_int k)))
+
+  let conts fdk =
+    fold
+      (fun par ->
+        Action.Par.fold par ~init:[] ~f:(fun acc seq ->
+          Action.(Seq.find seq K) :: acc)
+        |> List.filter_opt)
+      (fun _ t f -> t @ f)
+      fdk
+    |> List.map ~f:Value.to_int_exn
+    |> List.dedup
+
+end

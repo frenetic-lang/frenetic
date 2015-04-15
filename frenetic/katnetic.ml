@@ -26,6 +26,8 @@ module Run = struct
 end
 
 module Global = struct
+  open Optimize
+  open Core.Std
   let main ingress_file egress_file policy_file =
     let fmt = Format.formatter_of_out_channel stderr in
     let () = Format.pp_set_margin fmt 120 in
@@ -38,16 +40,15 @@ module Global = struct
     let global_pol =
       Core.Std.In_channel.with_file policy_file ~f:(fun chan ->
         NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in
-    let local_pol = NetKAT_GlobalCompiler.compile ingress egress global_pol in
+    let global_pol = mk_big_seq [mk_filter ingress; global_pol; mk_filter egress] in
+(*  let fdks = NetKAT_GlobalFDDCompiler.of_policy global_pol ~dedup:false in
+    let fdks_deduped = NetKAT_GlobalFDDCompiler.of_policy global_pol ~dedup:true in
+    let fdd = NetKAT_GlobalFDDCompiler.to_local NetKAT_FDD.Field.Vlan fdks_deduped in *)
+    let fdk = NetKAT_LocalCompiler.compile_global global_pol in
     let switches =
       NetKAT_Misc.switches_of_policy (Optimize.mk_seq (NetKAT_Types.Filter ingress) global_pol) in
     let tables =
-      List.map
-        (fun sw -> Optimize.specialize_policy sw local_pol
-                    |> NetKAT_LocalCompiler.compile
-                    |> NetKAT_LocalCompiler.to_table sw
-                    |> (fun t -> (sw, t)))
-        switches in
+      List.map switches ~f:(fun sw -> (sw, NetKAT_LocalCompiler.to_table sw fdk)) in
     let print_table (sw, t) =
       Format.fprintf fmt "@[%s@]@\n@\n"
         (SDN_Types.string_of_flowTable ~label:(Int64.to_string sw) t) in
@@ -55,8 +56,10 @@ module Global = struct
     Format.fprintf fmt "[global] Ingress:@\n@[%a@]@\n@\n" NetKAT_Pretty.format_pred ingress;
     Format.fprintf fmt "[global] Egress:@\n@[%a@]@\n@\n" NetKAT_Pretty.format_pred egress;
     Format.fprintf fmt "[global] Input Policy:@\n@[%a@]@\n@\n" NetKAT_Pretty.format_policy global_pol;
-    Format.fprintf fmt "[global] CPS Policy:@\n@[%a@]@\n@\n" NetKAT_Pretty.format_policy local_pol;
-    List.iter print_table tables;
+    List.iter tables ~f:print_table;
+(*  Out_channel.write_all "fdd.dot" ~data:(NetKAT_FDD.T.to_dot fdd);
+    Out_channel.write_all "fdks.dot" ~data:(NetKAT_GlobalFDDCompiler.to_dot fdks);
+    Out_channel.write_all "fdks-deduped.dot" ~data:(NetKAT_GlobalFDDCompiler.to_dot fdks_deduped); *)
     ()
 end
 
@@ -101,8 +104,9 @@ module Dump = struct
 
     let flowtable (sw : SDN_Types.switchId) t =
       if List.length t > 0 then
-        Format.printf "@[%s@]@\n@\n"
-          (SDN_Types.string_of_flowTable ~label:(Int64.to_string sw) t)
+        Format.printf "@[flowtable for switch %Ld:@\n%a@\n@\n@]%!"
+          sw
+          SDN_Types.format_flowTable t
 
     let policy p =
       Format.printf "@[%a@\n@\n@]%!" NetKAT_Pretty.format_policy p

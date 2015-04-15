@@ -59,6 +59,8 @@ val compile : ?order:order -> ?cache:cache -> policy -> t
     before compilation. By default, the cache is cleared.
  *)
 
+val compile_global : policy -> t
+
 val restrict : header_val -> t -> t
 (** [restrict hv t] returns the fragment of [t] that applies when the assignment
     [hv] is true. The result will no longer make any reference to the header
@@ -68,10 +70,10 @@ val restrict : header_val -> t -> t
     This function is called by {!to_table} to restrict [t] to the portion that
     should run on a single switch. *)
 
-val to_table : ?opt:bool -> switchId -> t -> flow list
+val to_table : ?dedup:bool -> ?opt:bool -> switchId -> t -> flow list
 (** [to_table sw t] returns a flowtable that implements [t] for switch [sw]. *)
 
-val to_table' : ?opt:bool -> switchId -> t -> (flow * string list) list
+val to_table' : ?dedup:bool -> ?opt:bool -> switchId -> t -> (flow * string list) list
 
 
 
@@ -96,6 +98,7 @@ val star : t -> t
 
 
 (** {2 Utilities} *)
+val dedup : t -> t
 
 val pipes : t -> string list
 (** [pipes t] returns the list of pipe names that occur in [t]. *)
@@ -120,10 +123,10 @@ val size : t -> int
 (* compressed_size / uncompressed_size *)
 val compression_ratio : t -> int * int
 
-val to_policy : t -> policy
-(** [to_policy t] returns a NetKAT policy that is semantically equivalent to
+val to_local_pol : t -> policy
+(** [to_local_pol t] returns a NetKAT policy that is semantically equivalent to
     [t]. If was generated from compiling a policy [p], it is not guarateed that
-    [to_policy t] will be identical to [p]. *)
+    [to_local_pol t] will be identical to [p]. *)
 
 val to_string : t -> string
 (** [to_string t] returns a string representation of [t]. This will be a
