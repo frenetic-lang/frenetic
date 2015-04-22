@@ -1,18 +1,14 @@
-(** Library for constructing, marshaling and parsing ethernet data packets. *)
+(** Library for constructing, marshaling and parsing data packets. *)
 
 (** {9 Packet types}
 
-    Based on {{:
-    https://openflow.stanford.edu/display/ONL/POX+Wiki#POXWiki-Workingwithpacketspoxlibpacket}
-    the packet library from POX}.
-
-    You can navigate a packet's structure directly from here. But, using
-    {!accs} may be more convenient.
-
+    It is possible to navigate the structure of a packet directly
+    using the types defined here. However, using {!accs} may be more
+    convenient.
 *)
 
-(** [bytes] is the type of arbitrary byte arrays, accessible via the Cstruct
-library. *)
+(** [bytes] is the type of arbitrary byte arrays, as implemented by
+    the [cstruct] library. *)
 type bytes = Cstruct.t with sexp
 
 (** [int8] is the type of 8-bit integers. *)
@@ -30,8 +26,9 @@ type dlAddr = int48 with sexp
 (** [dlTyp] is the type of Ethernet frame types. *)
 type dlTyp = int16 with sexp
 
-(** [dlVlan] is the type of VLAN identifiers.  A value of [None] indicates that
-no 802.1Q (VLAN) header is set, which is distinct from setting the VLAN to 0.
+(** [dlVlan] is the type of VLAN identifiers.  A value of [None]
+    indicates that no 802.1Q (VLAN) header is set, which is distinct from
+    setting the VLAN to 0.
 *)
 type dlVlan = int16 option with sexp
 
@@ -68,14 +65,13 @@ module Tcp : sig
       ; ece : bool (** ECN-Echo. *)
       ; urg : bool (** Indicates the Urgent pointer field is significant. *)
       ; ack : bool (** Indicates that the Acknowledgment field is 
-                   significant. *)
+                       significant. *)
       ; psh : bool (** Asks to push the buffered data to the receiving 
-                   application. *)
+                       application. *)
       ; rst : bool (** Reset the connection. *)
       ; syn : bool (** Synchronize sequence numbers. *)
       ; fin : bool (** No more data from sender. *)
       } with sexp
-
   end
 
   type t = 
@@ -90,7 +86,6 @@ module Tcp : sig
     ; urgent : int8 (** Urgent pointer. *)
     ; payload : bytes (** TCP payload. *)
     } with sexp
-
 end
 
 (** UDP frame of a packet. *)
@@ -102,7 +97,6 @@ module Udp : sig
     ; chksum : int16  (** Checksum. *)
     ; payload : bytes (** UDP payload. *)
     } with sexp
-
 end
 
 (** ICMP frame of a packet. *)
@@ -114,7 +108,6 @@ module Icmp : sig
     ; chksum : int16 (** Checksum. *)
     ; payload : bytes (** ICMP payload. *)
     } with sexp
-
 end
 
 (** Basic DNS packet type. *)
@@ -149,8 +142,8 @@ module Dns : sig
     ; additional : Rr.t list
     } with sexp
 
-  (** [serialize pkt] serializes [pkt] into a bit sequence, suitable
-      for placing in a UDP or TCP payload. *)
+  (** [serialize dns_pkt] serializes [dns_pkt] into a bit sequence,
+      suitable for placing in a UDP or TCP payload. *)
   val serialize : t -> Cstruct.t
 end
 
@@ -180,7 +173,6 @@ module Igmp3 : sig
     chksum : int16; (** Checksum. *)
     grs : GroupRec.t list; (** Group records. *)
   } with sexp
-
 end
 
 (** IGMP frame of a packet. *)
@@ -196,16 +188,16 @@ module Igmp : sig
     ver_and_typ : int8; (** IGMP version/type. *)
     msg : msg (** enclosed IGMP message *)
   } with sexp
-
 end
 
 (** IPv4 frame of a packet. *)
 module Ip : sig
 
-  (** [tp] is the type of protocol, which indicates which protocol is
-  encapsulated in the payload of the IPv4 frame.  At present, only TCP, UDP, ICMP and IGMP
-  are explicitly supported; otherwise, the raw bytes and IPv4 protocol number
-  are provided. *)
+  (** The type [tp] represents packets at the transport protocol
+      level, which are encapsulated within the IPv4 payload. At
+      present, we only support TCP, UDP, ICMP and IGMP explicitly;
+      otherwise, the raw bytes and IPv4 protocol number are
+      provided. *)
   type tp =
     | Tcp of Tcp.t
     | Udp of Udp.t
@@ -215,13 +207,11 @@ module Ip : sig
   with sexp
 
   module Flags : sig
-  (** [Flags] is the type of IPv4 flags. *)
-
+    (** [Flags] is the type of IPv4 flags. *)
     type t =
       { df : bool (** Don't fragment. *)
       ; mf : bool (** More fragments. *)
       } with sexp
-
   end
 
   type t = 
@@ -234,22 +224,19 @@ module Ip : sig
     ; src : nwAddr (** IP source address. *)
     ; dst : nwAddr (** IP destination address. *)
     ; options : bytes (** Uninterpreted IP options. *)
-    ; tp : tp (** Packet payload. *)
+    ; tp : tp (** Transport payload. *)
     } with sexp
-
 end
 
 (** Address resolution protocol (ARP) packet payload. *)
 module Arp : sig
-
   type t =
     | Query of dlAddr * nwAddr * nwAddr
     | Reply of dlAddr * nwAddr * dlAddr * nwAddr
   with sexp
-
 end
 
-(** [nw] is the type of an ethernet frame payload. *)
+(** The type [nw] represents a packet at the network protocol level. *)
 type nw =
   | Ip of Ip.t (** Internet Protocol version 4 (IPv4). *)
   | Arp of Arp.t (** Address Resolution Protocol (ARP). *)
@@ -257,7 +244,7 @@ type nw =
                                   uninterpreted ethernet payload. *)
   with sexp
 
-(** [packet] is the type of ethernet data packets. *)
+(** The type [packet] represents a packet at the ethernet protocol level. *)
 type packet = 
   { dlSrc : dlAddr (** Ethernet source address. *)
   ; dlDst : dlAddr (** Ethernet destination address. *)
@@ -266,7 +253,7 @@ type packet =
                            [dlVlan] is [None] *)
   ; dlVlanPcp : dlVlanPcp (** 802.1Q VLAN priority.  Ignored if [dlVlan] is 
                           [None]. *)
-  ; nw : nw (** Ethernet payload. *)
+  ; nw : nw (** Network payload. *)
   } with sexp
 
 (** {9:accs Accessors} *)
@@ -274,67 +261,78 @@ type packet =
 (** [dlTyp pkt] returns the ethernet frame type of [pkt] *)
 val dlTyp : packet -> dlTyp
 
-(** [nwSrc pkt] returns the source IP address of [pkt].
-@raise Invalid_argument if the packet is not carrying an IP payload. *)
+(** [nwSrc pkt] returns the source IP address of [pkt]. @raise
+    Invalid_argument if the packet is not carrying an IP payload. *)
 val nwSrc : packet -> nwAddr
 
-(** [nwDst pkt] returns the destination IP address of [pkt].
-@raise Invalid_argument if the packet is not carrying an IP payload. *)
+(** [nwDst pkt] returns the destination IP address of [pkt]. @raise
+    Invalid_argument if the packet is not carrying an IP payload. *)
 val nwDst : packet -> nwAddr
 
-(** [nwTos pkt] returns the IPv4 type of service of [pkt].
-@raise Invalid_argument if the packet is not carrying an IP payload. *)
+(** [nwTos pkt] returns the IPv4 type of service of [pkt]. @raise
+    Invalid_argument if the packet is not carrying an IP payload. *)
 val nwTos : packet -> nwTos
 
-(** [nwProto pkt] returns the IP protocol number of [pkt].
-@raise Invalid_argument if the packet is not carrying an IP payload. *)
+(** [nwProto pkt] returns the IP protocol number of [pkt]. @raise
+    Invalid_argument if the packet is not carrying an IP payload. *)
 val nwProto : packet -> nwProto
 
 (** [tpSrc pkt] returns the transport protocol source port of [pkt].
-@raise Invalid_argument if the packet is not carrying a TCP or UDP payload. *)
+    @raise Invalid_argument if the packet is not carrying a TCP or UDP
+    payload. *)
 val tpSrc : packet -> tpPort
 
-(** [tpDst pkt] returns the transport protocol destination port of [pkt].
-@raise Invalid_argument if the packet is not carrying a TCP or UDP payload. *)
+(** [tpDst pkt] returns the transport protocol destination port of
+    [pkt].  @raise Invalid_argument if the packet is not carrying a
+    TCP or UDP payload. *)
 val tpDst : packet -> tpPort
 
 (** [arpOperation pkt] returns the ARP operation code of [pkt].
-@raise Invalid_argument if the packet is not carrying a ARP payload. *)
+    @raise Invalid_argument if the packet is not carrying a ARP
+    payload. *)
 val arpOperation : packet -> int
 
 (** {9 Mutators} *)
 
-(** [setDlSrc pkt addr] sets the ethernet source address of [pkt] to [addr]. *)
+(** [setDlSrc pkt addr] sets the ethernet source address of [pkt] to
+    [addr]. *)
 val setDlSrc : packet -> dlAddr -> packet
 
-(** [setDlDst pkt addr] sets the ethernet destination address of [pkt] to
-[addr]. *)
+(** [setDlDst pkt addr] sets the ethernet destination address of [pkt]
+    to [addr]. *)
 val setDlDst : packet -> dlAddr -> packet
 
-(** [setDlVlan pkt vlan] sets the VLAN identifier of [pkt] to [vlan]. *)
+(** [setDlVlan pkt vlan] sets the VLAN identifier of [pkt] to
+    [vlan]. *)
 val setDlVlan : packet -> dlVlan -> packet
 
-(** [setDlVlanPcp pkt pri] sets the VLAN priority of [pkt] to [pri]. *)
+(** [setDlVlanPcp pkt pri] sets the VLAN priority of [pkt] to
+    [pri]. *)
 val setDlVlanPcp : packet -> dlVlanPcp -> packet
 
-(** [setNwSrc pkt] sets the source IP address of [pkt] if the packet carries an
-IP payload.  Otherwise, it returns the packet unchanged. *)
+(** [setNwSrc pkt] sets the source IP address of [pkt] if the packet
+    carries an IP payload.  Otherwise, it returns the packet
+    unchanged. *)
 val setNwSrc : packet -> nwAddr -> packet
 
-(** [setNwDst pkt] sets the destination IP address of [pkt] if the packet
-carries an IP payload.  Otherwise, it returns the packet unchanged. *)
+(** [setNwDst pkt] sets the destination IP address of [pkt] if the
+    packet carries an IP payload.  Otherwise, it returns the packet
+    unchanged. *)
 val setNwDst : packet -> nwAddr -> packet
 
-(** [setNwTos pkt] sets the IPv4 type of service of [pkt] if the packet
-carries an IP payload.  Otherwise, it returns the packet unchanged. *)
+(** [setNwTos pkt] sets the IPv4 type of service of [pkt] if the
+    packet carries an IP payload.  Otherwise, it returns the packet
+    unchanged. *)
 val setNwTos : packet -> nwTos -> packet
 
-(** [setTpSrc pkt] sets the transport protocol source port of [pkt] if the packet
-carries a TCP or UDP payload.  Otherwise, it returns the packet unchanged. *)
+(** [setTpSrc pkt] sets the transport protocol source port of [pkt] if
+    the packet carries a TCP or UDP payload.  Otherwise, it returns
+    the packet unchanged. *)
 val setTpSrc : packet -> tpPort -> packet
 
-(** [setTpDst pkt] sets the transport protocol destination port of [pkt] if the packet
-carries a TCP or UDP payload.  Otherwise, it returns the packet unchanged. *)
+(** [setTpDst pkt] sets the transport protocol destination port of
+    [pkt] if the packet carries a TCP or UDP payload.  Otherwise, it
+    returns the packet unchanged. *)
 val setTpDst : packet -> tpPort -> packet
 
 (** {9 Pretty Printing} *)
@@ -342,8 +340,8 @@ val setTpDst : packet -> tpPort -> packet
 (** [string_of_mac mac] pretty-prints an ethernet address. *)
 val string_of_mac : dlAddr -> string
 
-(** [mac_of_string string] converts an colon-separated ethernet address to a
-    [dlAddr] **)
+(** [mac_of_string string] converts an colon-separated ethernet
+    address to a [dlAddr] **)
 val mac_of_string : string -> dlAddr
 (* TODO(arjun): IMO it is silly to expose *all* these functions. *)
 
@@ -353,20 +351,22 @@ val string_of_dlAddr : dlAddr -> string
 (** [string_of_dlTyp typ] pretty-prints an ethernet frame type. *)
 val string_of_dlTyp : dlTyp -> string
 
-(** [string_of_dlVlan vlan] pretty-prints an 802.1Q VLAN identifier. *)
+(** [string_of_dlVlan vlan] pretty-prints an 802.1Q VLAN
+    identifier. *)
 val string_of_dlVlan : dlVlan -> string
 
 (** [string_of_dlVlanPcp p] pretty-prints an 802.1Q VLAN priority. *)
 val string_of_dlVlanPcp : dlVlanPcp -> string
 
 (** [string_of_dlVlanDei p] pretty-prints an 802.1Q VLAN Drop Eligible
-Indicator. *)
+    Indicator. *)
 val string_of_dlVlanDei : dlVlanDei -> string
 
 (** [string_of_ip ip] pretty-prints an IPv4 address. *)
 val string_of_ip : nwAddr -> string
 
-(** [ip_of_string string] converts an dot-separated IPv4 address to a [nwAddr] **)
+(** [ip_of_string string] converts an dot-separated IPv4 address to a
+    [nwAddr] **)
 val ip_of_string : string -> nwAddr
 
 (** [string_of_nwAddr addr] is identical to [string_of_ip]. *)
@@ -381,17 +381,21 @@ val string_of_nwTos : nwTos -> string
 (** [string_of_ipv6 t] pretty-prints an IPv6 address. **)
 val string_of_ipv6 : ipv6Addr -> string
 
-(** [string_of_ipv6 t] Converts a colon-separated IPv6 address to ipv6Addr. **)
+(** [string_of_ipv6 t] Converts a colon-separated IPv6 address to
+    ipv6Addr. **)
 val ipv6_of_string : string -> ipv6Addr
 
-(** [string_of_tpPort p] pretty-prints a transport protocol port number. *)
+(** [string_of_tpPort p] pretty-prints a transport protocol port
+    number. *)
 val string_of_tpPort : tpPort -> string
 
-(** [bytes_of_mac mac] returns a bit-string representation of [mac]. *)
+(** [bytes_of_mac mac] returns a bit-string representation of
+    [mac]. *)
 val bytes_of_mac : dlAddr -> string
 
-(** [mac_of_bytes str] constructs a [dlAddr] from a bit-string representation.
-@raise Invalid_argument if the length of the string is not six characters. *)
+(** [mac_of_bytes str] constructs a [dlAddr] from a bit-string
+    representation.  @raise Invalid_argument if the length of the
+    string is not six characters. *)
 val mac_of_bytes : string -> int48
 
 (** {9:marshal Serialization} *)
@@ -405,6 +409,8 @@ val len : packet -> int
 (** [marshal pkt] marshals [pkt] into a bit sequence. *)
 val marshal : packet -> Cstruct.t
 
+(** [to_string pkt] prints [pkt] as a string. *)
 val to_string : packet -> string
 
+(** [format_packet fmt pkt] uses formatter [fmt] to format [pkt]. *)
 val format_packet : Format.formatter -> packet -> unit
