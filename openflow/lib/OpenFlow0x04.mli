@@ -1,4 +1,4 @@
-open Packet
+open Frenetic_Packet
 open OpenFlow0x04_Core
 
 type msg_code =  | HELLO | ERROR | ECHO_REQ | ECHO_RESP | VENDOR | FEATURES_REQ

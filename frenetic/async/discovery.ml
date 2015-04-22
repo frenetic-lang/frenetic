@@ -94,14 +94,14 @@ module Switch = struct
       }
 
     let of_packet p =
-      let open Packet in
+      let open Frenetic_Packet in
       match p.nw with
         | Unparsable(proto, b)
           when proto = protocol -> parse b
         | _ -> raise Wrong_type
 
     let to_packet t =
-      let open Packet in
+      let open Frenetic_Packet in
       { dlSrc = mac
       ; dlDst = 0xffffffffffffL
       ; dlVlan = None
@@ -130,7 +130,7 @@ module Switch = struct
     t.flip_ctl.Flip.enabled
 
   let to_out switch_id port_id =
-    let bytes = Packet.marshal
+    let bytes = Frenetic_Packet.marshal
       Probe.(to_packet { switch_id; port_id = port_id }) in
     let action = SDN_Types.(Output(Physical(port_id))) in
     (switch_id, (SDN_Types.NotBuffered(bytes), Some(port_id), [action]))
@@ -180,7 +180,7 @@ module Switch = struct
     let open Async_NetKAT in
     match e with
       | PacketIn("probe", sw_id, pt_id, payload, len) when enabled t ->
-        let open Packet in
+        let open Frenetic_Packet in
         begin match parse (SDN_Types.payload_bytes payload) with
           | { nw = Unparsable (dlTyp, bytes) } when dlTyp = Probe.protocol ->
             let nib', es =  handle_probe !nib sw_id pt_id (Probe.parse bytes) in
@@ -289,7 +289,7 @@ module Host = struct
     let open Async_NetKAT in
     match e with
     | PacketIn ("host", sw_id, pt_id, payload, len) when enabled t ->
-      let open Packet in
+      let open Frenetic_Packet in
       let dlAddr, nwAddr = match parse (SDN_Types.payload_bytes payload) with
         | { nw = Arp (Arp.Query(dlSrc, nwSrc, _ )) }
         | { nw = Arp (Arp.Reply(dlSrc, nwSrc, _, _)) } ->
@@ -306,8 +306,8 @@ module Host = struct
           nib := nib';
           Log.info ~tags "[topology.host] ↑ { switch = %Lu; port %lu }, { ip = %s; mac = %s }"
             sw_id pt_id
-            (Packet.string_of_ip nwAddr)
-            (Packet.string_of_mac dlAddr);
+            (Frenetic_Packet.string_of_ip nwAddr)
+            (Frenetic_Packet.string_of_mac dlAddr);
           return [e; HostUp((sw_id, pt_id), (dlAddr, nwAddr))]
         | _   , _       -> return [e]
       end
@@ -326,8 +326,8 @@ module Host = struct
               nib := remove_endpoint !nib (v, pt_id);
               Log.info ~tags "[topology.host] ↓ { switch = %Lu; port %lu }, { ip = %s; mac = %s }"
                 sw_id pt_id
-                (Packet.string_of_ip nwAddr)
-                (Packet.string_of_mac dlAddr);
+                (Frenetic_Packet.string_of_ip nwAddr)
+                (Frenetic_Packet.string_of_mac dlAddr);
               return [e; HostDown((sw_id, pt_id), (dlAddr, nwAddr))]
           end
       end

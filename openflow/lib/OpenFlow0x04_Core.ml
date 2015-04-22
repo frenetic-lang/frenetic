@@ -1,4 +1,4 @@
-open Packet
+open Frenetic_Packet
 
 type 'a mask = { m_value : 'a; m_mask : 'a option }
 
@@ -397,10 +397,10 @@ let delete_all_groups =
 let parse_payload = function
   | Buffered (_, b)
   | NotBuffered b -> 
-    Packet.parse b
+    Frenetic_Packet.parse b
 
 let marshal_payload buffer pkt =
-  let payload = Packet.marshal pkt in
+  let payload = Frenetic_Packet.marshal pkt in
   match buffer with
     | Some b -> Buffered (b, payload)
     | None -> NotBuffered payload

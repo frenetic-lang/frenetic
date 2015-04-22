@@ -13,10 +13,18 @@ BuildTools:
   ocamldoc,
   camlp4
 
-Library packet
-  Path: packet/lib
-  BuildDepends: str, cstruct, cstruct.syntax, sexplib, sexplib.syntax, tcpip
-  Modules: Packet
+Library frenetic
+  Path: lib
+  BuildDepends: 
+    str, 
+    cstruct, 
+    cstruct.syntax, 
+    sexplib, 
+    sexplib.syntax, 
+    tcpip
+  Modules: 
+    Frenetic_Bits,
+    Frenetic_Packet
 
 Library openflow
   Path: openflow/lib
@@ -24,8 +32,8 @@ Library openflow
     str,
     cstruct,
     cstruct.syntax,
-    packet,
     core,
+    frenetic,
     sexplib.syntax,
     sexplib,
     threads
@@ -73,9 +81,9 @@ Library topology
   Path: topology/lib
   BuildDepends:
     core_kernel,
+    frenetic,
     sexplib,
     sexplib.syntax,
-    packet,
     ocamlgraph (>= 1.8.6),
     threads
   Modules:
@@ -144,7 +152,6 @@ Library async
     netkat,
     openflow,
     openflowasync,
-    packet,
     threads,
     topology,
     sexplib,

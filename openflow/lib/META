@@ -1,9 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: 5642b0aaa6d989473b06c76f38106291)
+# DO NOT EDIT (digest: dcb1f4d1ce8b9a61727756af1dd8bd60)
 version = "3.4.1"
 description = "The Frenetic Compiler and Runtime System"
 requires =
-"str cstruct cstruct.syntax packet core sexplib.syntax sexplib threads"
+"str cstruct cstruct.syntax core frenetic sexplib.syntax sexplib threads"
 archive(byte) = "openflow.cma"
 archive(byte, plugin) = "openflow.cma"
 archive(native) = "openflow.cmxa"

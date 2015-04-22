@@ -548,8 +548,8 @@ struct
       let matrix,vxs = make_matrix topo in
       let n = P.nb_vertex topo.graph in
       let dist i j = fst (matrix.(i).(j)) in
-      let path i j = Lazy.force (snd (matrix.(i).(j))) in
-      (* Assumes that !(start = mid && stop = mid) *)
+      (* let path i j = Lazy.force (snd (matrix.(i).(j))) in *)
+      (* assumes that !(start = mid && stop = mid) *)
       let path (start : int) (mid : int) (stop : int) =
         if start = mid then
           lazy (find_edge topo vxs.(start) vxs.(stop) ::

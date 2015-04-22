@@ -244,16 +244,16 @@ let event_to_json (event : event) : json =
       ("type", `String "host_up");
       ("switch_id", `Int (Int64.to_int_exn sw_id));
       ("port_id",   `Int (Int32.to_int_exn pt_id));
-      ("dl_addr",   `String (Packet.string_of_dlAddr dlAddr));
-      ("nw_addr",   `String (Packet.string_of_nwAddr nwAddr))
+      ("dl_addr",   `String (Frenetic_Packet.string_of_dlAddr dlAddr));
+      ("nw_addr",   `String (Frenetic_Packet.string_of_nwAddr nwAddr))
     ]
   | HostDown ((sw_id, pt_id), (dlAddr, nwAddr)) ->
     `Assoc [
       ("type", `String "host_down");
       ("switch_id", `Int (Int64.to_int_exn sw_id));
       ("port_id", `Int (Int32.to_int_exn pt_id));
-      ("dl_addr", `String (Packet.string_of_dlAddr dlAddr));
-      ("nw_addr", `String (Packet.string_of_nwAddr nwAddr))
+      ("dl_addr", `String (Frenetic_Packet.string_of_dlAddr dlAddr));
+      ("nw_addr", `String (Frenetic_Packet.string_of_nwAddr nwAddr))
     ]
 
 let event_to_json_string (event : event) : string =

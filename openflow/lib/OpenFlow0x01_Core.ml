@@ -1,4 +1,4 @@
-open Packet
+open Frenetic_Packet
 open Core.Std
 
 type 'a mask = { m_value : 'a; m_mask : 'a option } with sexp
@@ -171,10 +171,10 @@ let delete_all_flows =
 let parse_payload = function
   | Buffered (_, b)
   | NotBuffered b -> 
-    Packet.parse b
+    Frenetic_Packet.parse b
 
 let marshal_payload buffer pkt =
-  let payload = Packet.marshal pkt in
+  let payload = Frenetic_Packet.marshal pkt in
   match buffer with
     | Some b -> Buffered (b, payload)
     | None -> NotBuffered payload
@@ -185,7 +185,7 @@ module Format = struct
 
   let bytes fmt bytes =
     try
-      Packet.format_packet fmt (Packet.parse bytes)
+      Frenetic_Packet.format_packet fmt (Frenetic_Packet.parse bytes)
     with exn -> (* TODO(arjun): should catch right error *)
       fprintf fmt "unparsable packet"        
 

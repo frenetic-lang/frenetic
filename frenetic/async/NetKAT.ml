@@ -5,8 +5,8 @@ module Std = struct
 
   type policy = NetKAT_Types.policy
   type pred = NetKAT_Types.pred
-  type packet = Packet.packet
-  type dlAddr = Packet.dlAddr
+  type packet = Frenetic_Packet.packet
+  type dlAddr = Frenetic_Packet.dlAddr
 
   let run_static (pol : policy) : never_returns =
     let main () =

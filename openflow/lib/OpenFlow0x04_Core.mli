@@ -1,4 +1,4 @@
-open Packet
+open Frenetic_Packet
 
 type 'a mask = { m_value : 'a; m_mask : 'a option }
 
@@ -245,11 +245,11 @@ type oxmMatch = oxm list
 
 (** {2 Convenient Functions} *)
 
-val parse_payload : payload -> Packet.packet
+val parse_payload : payload -> Frenetic_Packet.packet
 
 (** [marshal_payload buf pkt] serializes pkt, where [buf] is an optional 
 buffer ID. *)
-val marshal_payload : int32 option -> Packet.packet -> payload
+val marshal_payload : int32 option -> Frenetic_Packet.packet -> payload
 
 val match_all : oxmMatch
 

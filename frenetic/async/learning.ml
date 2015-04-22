@@ -14,13 +14,13 @@ let create () =
   let state = ref SwitchMap.empty in
 
   let learn switch_id port_id packet =
-    let ethSrc = packet.Packet.dlSrc in
+    let ethSrc = packet.Frenetic_Packet.dlSrc in
     let mac_map = SwitchMap.find_exn !state switch_id in
     if MacMap.mem mac_map ethSrc then
       false
     else begin
       Log.info ~tags "[learning] switch %Lu: learn %s => %Lu@%lu"
-        switch_id (Packet.string_of_mac ethSrc) switch_id port_id;
+        switch_id (Frenetic_Packet.string_of_mac ethSrc) switch_id port_id;
       state := SwitchMap.add !state switch_id (MacMap.add mac_map ethSrc port_id);
       true
     end in
@@ -73,7 +73,7 @@ let create () =
     | PortDown(switch_id, port_id) ->
       return (Some(gen_pol !t))
     | PacketIn(_, switch_id, port_id, payload, _) ->
-      let packet = Packet.parse (SDN_Types.payload_bytes payload) in
+      let packet = Frenetic_Packet.parse (SDN_Types.payload_bytes payload) in
       let pol = if learn switch_id port_id packet then
          Some(gen_pol !t)
       else

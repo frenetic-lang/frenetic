@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: c94d4f3e8b344574a3de1c4e07a0f6eb)
+# DO NOT EDIT (digest: ac57140c4b87e9ccc5adcd18c0e28617)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -14,14 +14,14 @@ true: annot, bin_annot
 ".git": not_hygienic
 "_darcs": -traverse
 "_darcs": not_hygienic
-# Library packet
-"packet/lib/packet.cmxs": use_packet
-<packet/lib/*.ml{,i,y}>: package(cstruct)
-<packet/lib/*.ml{,i,y}>: package(cstruct.syntax)
-<packet/lib/*.ml{,i,y}>: package(sexplib)
-<packet/lib/*.ml{,i,y}>: package(sexplib.syntax)
-<packet/lib/*.ml{,i,y}>: package(str)
-<packet/lib/*.ml{,i,y}>: package(tcpip)
+# Library frenetic
+"lib/frenetic.cmxs": use_frenetic
+<lib/*.ml{,i,y}>: package(cstruct)
+<lib/*.ml{,i,y}>: package(cstruct.syntax)
+<lib/*.ml{,i,y}>: package(sexplib)
+<lib/*.ml{,i,y}>: package(sexplib.syntax)
+<lib/*.ml{,i,y}>: package(str)
+<lib/*.ml{,i,y}>: package(tcpip)
 # Library openflow
 "openflow/lib/openflow.cmxs": use_openflow
 <openflow/lib/*.ml{,i,y}>: package(core)
@@ -32,7 +32,7 @@ true: annot, bin_annot
 <openflow/lib/*.ml{,i,y}>: package(str)
 <openflow/lib/*.ml{,i,y}>: package(tcpip)
 <openflow/lib/*.ml{,i,y}>: package(threads)
-<openflow/lib/*.ml{,i,y}>: use_packet
+<openflow/lib/*.ml{,i,y}>: use_frenetic
 # Library openflowasync
 "openflow/async/openflowasync.cmxs": use_openflowasync
 <openflow/async/*.ml{,i,y}>: package(async)
@@ -45,8 +45,8 @@ true: annot, bin_annot
 <openflow/async/*.ml{,i,y}>: package(str)
 <openflow/async/*.ml{,i,y}>: package(tcpip)
 <openflow/async/*.ml{,i,y}>: package(threads)
+<openflow/async/*.ml{,i,y}>: use_frenetic
 <openflow/async/*.ml{,i,y}>: use_openflow
-<openflow/async/*.ml{,i,y}>: use_packet
 # Library topology
 "topology/lib/topology.cmxs": use_topology
 <topology/lib/*.ml{,i,y}>: package(core_kernel)
@@ -58,7 +58,7 @@ true: annot, bin_annot
 <topology/lib/*.ml{,i,y}>: package(str)
 <topology/lib/*.ml{,i,y}>: package(tcpip)
 <topology/lib/*.ml{,i,y}>: package(threads)
-<topology/lib/*.ml{,i,y}>: use_packet
+<topology/lib/*.ml{,i,y}>: use_frenetic
 # Library netkat
 "frenetic/lib/netkat.cmxs": use_netkat
 <frenetic/lib/*.ml{,i,y}>: package(base64)
@@ -74,8 +74,8 @@ true: annot, bin_annot
 <frenetic/lib/*.ml{,i,y}>: package(tcpip)
 <frenetic/lib/*.ml{,i,y}>: package(threads)
 <frenetic/lib/*.ml{,i,y}>: package(yojson)
+<frenetic/lib/*.ml{,i,y}>: use_frenetic
 <frenetic/lib/*.ml{,i,y}>: use_openflow
-<frenetic/lib/*.ml{,i,y}>: use_packet
 # Library syntax
 "frenetic/syntax/syntax.cmxs": use_syntax
 <frenetic/syntax/*.ml{,i,y}>: package(camlp4.extend)
@@ -102,10 +102,10 @@ true: annot, bin_annot
 <frenetic/async/*.ml{,i,y}>: package(tcpip)
 <frenetic/async/*.ml{,i,y}>: package(threads)
 <frenetic/async/*.ml{,i,y}>: package(yojson)
+<frenetic/async/*.ml{,i,y}>: use_frenetic
 <frenetic/async/*.ml{,i,y}>: use_netkat
 <frenetic/async/*.ml{,i,y}>: use_openflow
 <frenetic/async/*.ml{,i,y}>: use_openflowasync
-<frenetic/async/*.ml{,i,y}>: use_packet
 <frenetic/async/*.ml{,i,y}>: use_topology
 # Executable frenetic
 "frenetic/frenetic/frenetic.native": package(async)
@@ -130,10 +130,10 @@ true: annot, bin_annot
 "frenetic/frenetic/frenetic.native": package(threads)
 "frenetic/frenetic/frenetic.native": package(yojson)
 "frenetic/frenetic/frenetic.native": use_async
+"frenetic/frenetic/frenetic.native": use_frenetic
 "frenetic/frenetic/frenetic.native": use_netkat
 "frenetic/frenetic/frenetic.native": use_openflow
 "frenetic/frenetic/frenetic.native": use_openflowasync
-"frenetic/frenetic/frenetic.native": use_packet
 "frenetic/frenetic/frenetic.native": use_topology
 <frenetic/frenetic/*.ml{,i,y}>: package(async)
 <frenetic/frenetic/*.ml{,i,y}>: package(async_extended)
@@ -157,12 +157,18 @@ true: annot, bin_annot
 <frenetic/frenetic/*.ml{,i,y}>: package(threads)
 <frenetic/frenetic/*.ml{,i,y}>: package(yojson)
 <frenetic/frenetic/*.ml{,i,y}>: use_async
+<frenetic/frenetic/*.ml{,i,y}>: use_frenetic
 <frenetic/frenetic/*.ml{,i,y}>: use_netkat
 <frenetic/frenetic/*.ml{,i,y}>: use_openflow
 <frenetic/frenetic/*.ml{,i,y}>: use_openflowasync
-<frenetic/frenetic/*.ml{,i,y}>: use_packet
 <frenetic/frenetic/*.ml{,i,y}>: use_topology
 # OASIS_STOP
+<packet/lib/*.ml>: syntax_camlp4o
+<packet/test/*.ml>: syntax_camlp4o
+<openflow/lib/*.ml{,i}>: syntax_camlp4o
+<openflow/async/*.ml{,i}>: syntax_camlp4o
+<openflow/test/*.ml{,i}>: syntax_camlp4o
+<openflow/examples/*.ml{,i}>: syntax_camlp4o
 <test/*.ml>: syntax_camlp4o
 <lib/*.ml{,i}>: syntax_camlp4o
 <async/*.ml>: syntax_camlp4o

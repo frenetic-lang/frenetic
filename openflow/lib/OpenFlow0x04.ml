@@ -7,7 +7,7 @@ open Cstruct
 open Cstruct.BE
 open OpenFlow0x04_Core
 open List
-open Packet
+open Frenetic_Packet
 
 exception Unparsable of string
 let sym_num = ref 0
@@ -3498,8 +3498,8 @@ module PacketIn = struct
     pi.pi_cookie
     (OfpMatch.to_string pi.pi_ofp_match)
     (match pi.pi_payload with 
-      | Buffered (n,bytes) -> Format.sprintf "Buffered<id=%lu>= %s; len = %u" n (Packet.to_string (Packet.parse bytes)) (Cstruct.len bytes)
-      | NotBuffered bytes -> Format.sprintf "NotBuffered = %s; len = %u"  (Packet.to_string (Packet.parse bytes)) (Cstruct.len bytes))
+      | Buffered (n,bytes) -> Format.sprintf "Buffered<id=%lu>= %s; len = %u" n (Frenetic_Packet.to_string (Frenetic_Packet.parse bytes)) (Cstruct.len bytes)
+      | NotBuffered bytes -> Format.sprintf "NotBuffered = %s; len = %u"  (Frenetic_Packet.to_string (Frenetic_Packet.parse bytes)) (Cstruct.len bytes))
 
   let marshal (buf : Cstruct.t) (pi : t) : int =
     let bufMatch = Cstruct.shift buf sizeof_ofp_packet_in in
@@ -3583,7 +3583,7 @@ module PacketOut = struct
     Format.sprintf "{ payload = %s; port_id = %s; actions = %s }"
     (match po.po_payload with 
       | Buffered (n,_) -> Format.sprintf "Buffered<id=%lu>" n
-      | NotBuffered bytes -> Format.sprintf "NotBuffered = %s; len = %u" (Packet.to_string (Packet.parse bytes)) (Cstruct.len bytes))
+      | NotBuffered bytes -> Format.sprintf "NotBuffered = %s; len = %u" (Frenetic_Packet.to_string (Frenetic_Packet.parse bytes)) (Cstruct.len bytes))
     (match po.po_port_id with
       | Some n -> Int32.to_string n
       | None -> "No Port")

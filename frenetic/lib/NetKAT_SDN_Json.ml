@@ -72,8 +72,8 @@ let pattern_to_json (p:Pattern.t) : json =
     | None -> `Null
     | Some x -> `Int (f x) in
   `Assoc [
-     ("dlSrc", str_field Packet.string_of_mac p.dlSrc);
-     ("dlDst", str_field Packet.string_of_mac p.dlDst);
+     ("dlSrc", str_field Frenetic_Packet.string_of_mac p.dlSrc);
+     ("dlDst", str_field Frenetic_Packet.string_of_mac p.dlDst);
      ("dlTyp", int_field ident p.dlTyp);
      ("dlVlan", int_field ident p.dlVlan);
      ("dlVlanPcp", int_field ident p.dlVlanPcp);
@@ -86,9 +86,9 @@ let pattern_to_json (p:Pattern.t) : json =
 
 let modify_to_json (m : modify) : json = match m with
   | SetEthSrc m ->
-     `List [`String "SetDlSrc"; `String (Packet.string_of_mac m)]
+     `List [`String "SetDlSrc"; `String (Frenetic_Packet.string_of_mac m)]
   | SetEthDst m ->
-     `List [`String "SetDlDst"; `String (Packet.string_of_mac m)]
+     `List [`String "SetDlDst"; `String (Frenetic_Packet.string_of_mac m)]
   | SetVlan o ->
      `List [`String "SetVlan"; `Int (match o with None -> 0xffff | Some n ->  n)]
   | SetVlanPcp n ->
@@ -98,9 +98,9 @@ let modify_to_json (m : modify) : json = match m with
   | SetIPProto n ->
      `List [`String "SetNwProto"; `Int n]
   | SetIP4Src n ->
-     `List [`String "SetNwSrc"; `String (Packet.string_of_ip n)]
+     `List [`String "SetNwSrc"; `String (Frenetic_Packet.string_of_ip n)]
   | SetIP4Dst n ->
-     `List [`String "SetNwDst"; `String (Packet.string_of_ip n)]
+     `List [`String "SetNwDst"; `String (Frenetic_Packet.string_of_ip n)]
   | SetTCPSrcPort n ->
      `List [`String "SetTpSrc"; `Int n]
   | SetTCPDstPort n ->

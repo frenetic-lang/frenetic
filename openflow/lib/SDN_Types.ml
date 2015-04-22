@@ -4,7 +4,7 @@ open Sexplib.Std
 module OF10 = OpenFlow0x01_Core
 module OF13 = OpenFlow0x04_Core
 
-open Packet
+open Frenetic_Packet
 
 exception Unsupported of string
 
@@ -25,7 +25,7 @@ let format_hex (fmt : Format.formatter) (v:int) =
 
 (* formatters for packet fields *)
 let format_mac (fmt : Format.formatter) (v:int48) =
-  Format.pp_print_string fmt (Packet.string_of_mac v)
+  Format.pp_print_string fmt (Frenetic_Packet.string_of_mac v)
 
 let format_vlan (fmt : Format.formatter) (v:int16) =
   match v with
@@ -33,7 +33,7 @@ let format_vlan (fmt : Format.formatter) (v:int16) =
   | _ -> format_int fmt v
 
 let format_ip (fmt : Format.formatter) (v:int32) =
-  Format.pp_print_string fmt (Packet.string_of_ip v)
+  Format.pp_print_string fmt (Frenetic_Packet.string_of_ip v)
 
 let format_ip_mask (fmt : Format.formatter) ((p,m) : nwAddr * int32) =
   Format.fprintf fmt "%a%s"
@@ -427,10 +427,10 @@ let string_of_ipProto (x : nwProto) : string =
   Format.sprintf "ipProto = 0x%x%s" x extra
 		 
 let string_of_ethSrc (x : dlAddr) : string =
-  Format.sprintf "EthSrc = %s" (Packet.string_of_mac x)
+  Format.sprintf "EthSrc = %s" (Frenetic_Packet.string_of_mac x)
 		 
 let string_of_ethDst (x : dlAddr) : string =
-  Format.sprintf "EthDst = %s" (Packet.string_of_mac x)
+  Format.sprintf "EthDst = %s" (Frenetic_Packet.string_of_mac x)
 		 
 let string_of_ip4src (x : Pattern.Ip.t) : string =
   Format.sprintf "IP4Src = %s" (Pattern.Ip.string_of x)

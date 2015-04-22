@@ -4,7 +4,7 @@ open Sexplib.Conv
 open Core.Std
 
 (** {2 Basics} *)
-open Packet
+open Frenetic_Packet
 
 type switchId = SDN_Types.switchId with sexp
 type portId = SDN_Types.portId with sexp
@@ -66,10 +66,10 @@ let drop = Filter False
 type action = SDN_Types.action
 
 type switch_port = switchId * portId with sexp
-type host = Packet.dlAddr * Packet.nwAddr with sexp
+type host = Frenetic_Packet.dlAddr * Frenetic_Packet.nwAddr with sexp
 
 type bufferId = Int32.t with sexp (* XXX(seliopou): different than SDN_Types *)
-type bytes = Packet.bytes with sexp
+type bytes = Frenetic_Packet.bytes with sexp
 
 type event =
   | PacketIn of string * switchId * portId * payload * int

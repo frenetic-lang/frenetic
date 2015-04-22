@@ -1,4 +1,4 @@
-open Packet
+open Frenetic_Packet
 open OpenFlow0x01_Core
 
 type statsReq =

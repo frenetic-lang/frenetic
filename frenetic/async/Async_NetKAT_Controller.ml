@@ -14,8 +14,8 @@ let bytes_to_headers
   (bytes : Cstruct.t)
   : NetKAT_Semantics.HeadersValues.t =
   let open NetKAT_Semantics.HeadersValues in
-  let open Packet in
-  let pkt = Packet.parse bytes in
+  let open Frenetic_Packet in
+  let pkt = Frenetic_Packet.parse bytes in
   { location = NetKAT_Types.Physical port_id
   ; ethSrc = pkt.dlSrc
   ; ethDst = pkt.dlDst
@@ -71,33 +71,33 @@ let packet_sync_headers (pkt:NetKAT_Semantics.packet) : NetKAT_Semantics.packet 
       q acc v
     end in
   let fail field = (fun _ -> raise (Unsupported_mod field)) in
-  let packet = Packet.parse (SDN_Types.payload_bytes pkt.payload) in
+  let packet = Frenetic_Packet.parse (SDN_Types.payload_bytes pkt.payload) in
   let packet' = HeadersValues.Fields.fold
     ~init:packet
     ~location:(fun acc _ -> acc)
-    ~ethSrc:(g (fun v p -> v = p.Packet.dlSrc) Packet.setDlSrc)
-    ~ethDst:(g (fun v p -> v = p.Packet.dlDst) Packet.setDlDst)
+    ~ethSrc:(g (fun v p -> v = p.Frenetic_Packet.dlSrc) Frenetic_Packet.setDlSrc)
+    ~ethDst:(g (fun v p -> v = p.Frenetic_Packet.dlDst) Frenetic_Packet.setDlDst)
     (* XXX(seliopou): Fix impls of: vlan, vlanPcp *)
     ~vlan:(g (fun _ _ -> true) (fail "vlan"))
     ~vlanPcp:(g (fun _ _ -> true) (fail "vlanPcp"))
     ~ipSrc:(g
-      (fun v p -> try v = Packet.nwSrc p with Invalid_argument(_) -> true)
-      (fun acc nw -> Packet.setNwSrc acc nw))
+      (fun v p -> try v = Frenetic_Packet.nwSrc p with Invalid_argument(_) -> true)
+      (fun acc nw -> Frenetic_Packet.setNwSrc acc nw))
     ~ipDst:(g
-      (fun v p -> try v = Packet.nwDst p with Invalid_argument(_) -> true)
-      (fun acc nw -> Packet.setNwDst acc nw))
+      (fun v p -> try v = Frenetic_Packet.nwDst p with Invalid_argument(_) -> true)
+      (fun acc nw -> Frenetic_Packet.setNwDst acc nw))
     ~tcpSrcPort:(g
-      (fun v p -> try v= Packet.tpSrc p with Invalid_argument(_) -> true)
-      Packet.setTpSrc)
+      (fun v p -> try v= Frenetic_Packet.tpSrc p with Invalid_argument(_) -> true)
+      Frenetic_Packet.setTpSrc)
     ~tcpDstPort:(g
-      (fun v p -> try v = Packet.tpDst p with Invalid_argument(_) -> true)
-      Packet.setTpDst)
+      (fun v p -> try v = Frenetic_Packet.tpDst p with Invalid_argument(_) -> true)
+      Frenetic_Packet.setTpDst)
     (* XXX(seliopou): currently does not support: *)
     ~ethType:(g (fun _ _ -> true) (fail "ethType"))
     ~ipProto:(g (fun _ _ -> true) (fail "ipProto")) in
   ({ pkt with payload = match pkt.payload with
-    | SDN_Types.NotBuffered(_) -> SDN_Types.NotBuffered(Packet.marshal packet')
-    | SDN_Types.Buffered(n, _) -> SDN_Types.Buffered(n, Packet.marshal packet')
+    | SDN_Types.NotBuffered(_) -> SDN_Types.NotBuffered(Frenetic_Packet.marshal packet')
+    | SDN_Types.Buffered(n, _) -> SDN_Types.Buffered(n, Frenetic_Packet.marshal packet')
   }, !change)
 
 let pattern_matches_pred pattern pred =

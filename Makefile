@@ -1,6 +1,5 @@
 all: build
 
-NAME=netkat
 J=4
 
 setup.ml: _oasis
@@ -17,12 +16,14 @@ build: setup.data setup.ml
 install: setup.data setup.ml
 	ocaml setup.ml -install
 
+reinstall: setup.ml
+	ocaml setup.ml -reinstall
+
+uninstall: setup.ml
+	ocaml setup.ml -uninstall
+
 test: setup.ml build
 	_build/test/Test.byte inline-test-runner netkat -verbose
-
-reinstall: setup.ml
-	ocamlfind remove $(NAME) || true
-	ocaml setup.ml -reinstall
 
 clean:
 	ocamlbuild -clean

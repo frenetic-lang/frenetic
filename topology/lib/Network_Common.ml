@@ -101,8 +101,8 @@ module Node = struct
     Printf.sprintf "%s [type=%s, ip=\"%s\", mac=\"%s\", id=%Ld]"
       n.name
       devstr
-      (Packet.string_of_ip n.ip)
-      (Packet.string_of_mac n.mac)
+      (Frenetic_Packet.string_of_ip n.ip)
+      (Frenetic_Packet.string_of_mac n.mac)
       (n.dev_id)
 
   let to_mininet n = match n.dev_type with
@@ -111,7 +111,7 @@ module Node = struct
       let mnname = Str.global_replace (Str.regexp "_") "" n.name in
       Printf.sprintf "%s = net.addHost(\'%s\', mac=\'%s\', ip=\'%s\')\n"
         n.name mnname
-        (Packet.string_of_mac n.mac) (Packet.string_of_ip n.ip)
+        (Frenetic_Packet.string_of_mac n.mac) (Frenetic_Packet.string_of_ip n.ip)
     | _ ->
       Printf.sprintf
         "%s = net.addSwitch(\'s%Ld\')\n" n.name n.dev_id
@@ -126,10 +126,10 @@ module Node = struct
       | s -> failwith (Printf.sprintf "Unknown node type: %s\n" s)
     in
     let ip_of vo = match maybe vo with
-      | Dot_ast.String(s) -> Packet.ip_of_string s
+      | Dot_ast.String(s) -> Frenetic_Packet.ip_of_string s
       | _ -> failwith "IPs must be represented as a string (in quotes)\n" in
     let mac_of vo = match maybe vo with
-      | Dot_ast.String(s) -> Packet.mac_of_string s
+      | Dot_ast.String(s) -> Frenetic_Packet.mac_of_string s
       | _ -> failwith "MAC must be represented as a string (in quotes)\n" in
     match k with
       | Dot_ast.Ident("type") -> {n with partial_dev_type = Some (dev_type_of vo)}
@@ -198,8 +198,8 @@ module Node = struct
     match key with
       | "id" -> {n with dev_id = int64_of_value value}
       | "label" -> {n with name = string_of_value value}
-      | "mac" -> {n with mac = Packet.mac_of_string (string_of_value value)}
-      | "ip" -> {n with ip = Packet.ip_of_string (string_of_value value)}
+      | "mac" -> {n with mac = Frenetic_Packet.mac_of_string (string_of_value value)}
+      | "ip" -> {n with ip = Frenetic_Packet.ip_of_string (string_of_value value)}
       | _ -> n
 
   let parse_gml (vs:Gml.value_list) : t =

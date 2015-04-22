@@ -13,7 +13,6 @@
 
 (** [bytes] is the type of arbitrary byte arrays, accessible via the Cstruct
 library. *)
-(* TODO(cole): Do we really need to expose Cstruct, or could this be opaque? *)
 type bytes = Cstruct.t with sexp
 
 (** [int8] is the type of 8-bit integers. *)

@@ -1,8 +1,7 @@
 open Core.Std
 
 open NetKAT_Types
-open Packet
-
+open Frenetic_Packet
 
 (** A map keyed by header names. *)
 module HeadersValues = struct

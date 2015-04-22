@@ -7,7 +7,7 @@ open NetKAT_Types
     datapath id, or a host with a MAC and IPv4 address. *)
 type node =
   | Switch of SDN_Types.switchId
-  | Host of Packet.dlAddr * Packet.nwAddr
+  | Host of Frenetic_Packet.dlAddr * Frenetic_Packet.nwAddr
 
 module Node : Network.VERTEX
   with type t = node

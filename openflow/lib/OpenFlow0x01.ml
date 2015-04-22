@@ -1,4 +1,4 @@
-open Packet
+open Frenetic_Packet
 open Format
 open OpenFlow0x01_Core
 
@@ -290,18 +290,18 @@ module Match = struct
     let all_fields =
       [ fld_str "dlSrc" string_of_mac x.dlSrc;
         fld_str "dlDst" string_of_mac x.dlDst;
-        fld_str "dlTyp" Packet.string_of_dlTyp x.dlTyp;
+        fld_str "dlTyp" Frenetic_Packet.string_of_dlTyp x.dlTyp;
         (match x.dlVlan with
           | None -> None
           | Some None -> Some "dlVlan = none"
           | Some (Some vlan) -> fld_str "dlVlan" string_of_int (Some vlan));
-        fld_str "dlVlanPcp" Packet.string_of_dlVlanPcp x.dlVlanPcp;
-        fld_str "nwSrc" (mask_pr Packet.string_of_nwAddr Int32.to_string) x.nwSrc;
-        fld_str "nwDst" (mask_pr Packet.string_of_nwAddr Int32.to_string) x.nwDst;
-        fld_str "nwProto" Packet.string_of_nwProto x.nwProto;
-        fld_str "nwTos" Packet.string_of_nwTos x.nwTos;
-        fld_str "tpSrc" Packet.string_of_tpPort x.tpSrc;
-        fld_str "tpDst" Packet.string_of_tpPort x.tpDst;
+        fld_str "dlVlanPcp" Frenetic_Packet.string_of_dlVlanPcp x.dlVlanPcp;
+        fld_str "nwSrc" (mask_pr Frenetic_Packet.string_of_nwAddr Int32.to_string) x.nwSrc;
+        fld_str "nwDst" (mask_pr Frenetic_Packet.string_of_nwAddr Int32.to_string) x.nwDst;
+        fld_str "nwProto" Frenetic_Packet.string_of_nwProto x.nwProto;
+        fld_str "nwTos" Frenetic_Packet.string_of_nwTos x.nwTos;
+        fld_str "tpSrc" Frenetic_Packet.string_of_tpPort x.tpSrc;
+        fld_str "tpDst" Frenetic_Packet.string_of_tpPort x.tpDst;
         fld_str "inPort" string_of_portId x.inPort ] in
     let set_fields =
       List.fold_right
@@ -519,7 +519,7 @@ module Action = struct
       | SetNwTos n -> set_ofp_action_nw_tos_nw_tos bits' n
       | SetDlSrc mac
       | SetDlDst mac ->
-        set_ofp_action_dl_addr_dl_addr (Packet.bytes_of_mac mac) 0 bits'
+        set_ofp_action_dl_addr_dl_addr (Frenetic_Packet.bytes_of_mac mac) 0 bits'
       | Enqueue (pp, qid) ->
 	set_ofp_action_enqueue_port bits' (PseudoPort.marshal pp);
 	set_ofp_action_enqueue_queue_id bits' qid
@@ -792,10 +792,10 @@ module Payload = struct
       | Buffered (buf_id,pk) ->
 	Printf.sprintf "#%s[%s]"
 	  (Int32.to_string buf_id)
-	  (Packet.to_string (Packet.parse pk))
+	  (Frenetic_Packet.to_string (Frenetic_Packet.parse pk))
       | NotBuffered(pk) ->
 	Printf.sprintf "[%s]"
-	  (Packet.to_string (Packet.parse pk))
+	  (Frenetic_Packet.to_string (Frenetic_Packet.parse pk))
 
    let marshal p out =
      let _ = match p with
@@ -1271,7 +1271,7 @@ module PortDescription = struct
 
   let parse (bits : Cstruct.t) : t =
     let portDescPortNo = get_ofp_phy_port_port_no bits in
-    let hw_addr = Packet.mac_of_bytes (Cstruct.to_string (get_ofp_phy_port_hw_addr bits)) in
+    let hw_addr = Frenetic_Packet.mac_of_bytes (Cstruct.to_string (get_ofp_phy_port_hw_addr bits)) in
     let name = Cstruct.to_string (get_ofp_phy_port_name bits) in
     let config = PortConfig.of_int (get_ofp_phy_port_config bits) in
     let state = PortState.of_int (get_ofp_phy_port_state bits) in

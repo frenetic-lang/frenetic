@@ -7,7 +7,7 @@ http://www.openflow.org/documents/openflow-spec-v1.0.0.pdf}
 Most data structures are documented with a pointer to relevent section in the
 OpenFlow 1.0 specification, rather than reproducing the specification here. *)
 
-open Packet
+open Frenetic_Packet
 open Core.Std
 
 (** {2 OpenFlow types}
@@ -172,11 +172,11 @@ type packetOut =
 
 (** {2 Convenient Functions} *)
 
-val parse_payload : payload -> Packet.packet
+val parse_payload : payload -> Frenetic_Packet.packet
 
 (** [marshal_payload buf pkt] serializes pkt, where [buf] is an optional 
 buffer ID. *)
-val marshal_payload : int32 option -> Packet.packet -> payload
+val marshal_payload : int32 option -> Frenetic_Packet.packet -> payload
 
 (** A pattern that matches all packets. (All fields wildcarded.) *)
 val match_all : pattern

@@ -29,7 +29,7 @@
 
 *)
 
-open Packet
+open Frenetic_Packet
 
 type switchId = int64 with sexp
 type portId = int32 with sexp

@@ -57,8 +57,8 @@ let handle_request
        printf "Malformed request from cilent";
        Cohttp_async.Server.respond `Not_found
 
-let listen ?(port=9000) =
+let listen ?(port=9000) () =
   ignore (Cohttp_async.Server.create (Tcp.on_port port) handle_request)
 
-let main (http_port : int) () : unit = listen ~port:http_port
+let main (http_port : int) () : unit = listen ~port:http_port ()
 
