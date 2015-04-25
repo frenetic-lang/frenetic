@@ -1,15 +1,13 @@
 open Async.Std
 
-open Packet
-open OpenFlow0x01_Core
+open Frenetic_Packet
 open OpenFlow0x01
 
-module Log = Async_OpenFlow.Log
+module Log = Async_OpenFlow_Log
 
 let _ = Log.set_level `Info
 
 let tags = [("openflow", "controller")]
-
 
 type to_sw = switchId * xid * Message.t
 

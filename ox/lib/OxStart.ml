@@ -1,13 +1,14 @@
 open Printf
-open Packet
-open OpenFlow0x01_Core
+open Frenetic_Packet
+open OpenFlow_Header
 open OpenFlow0x01
+open Message
 open OxShared
 
 module type OXMODULE = sig
   val switch_connected : switchId -> OpenFlow0x01.SwitchFeatures.t -> unit
   val switch_disconnected : switchId -> unit
-  val packet_in : switchId -> xid -> PacketIn.t -> unit
+  val packet_in : switchId -> xid -> packetIn -> unit
   val barrier_reply : switchId -> xid -> unit
   val stats_reply : switchId -> xid -> StatsReply.t -> unit
   val cleanup : unit -> unit
@@ -34,63 +35,57 @@ module Make (Handlers:OXMODULE) = struct
   open Async.Std
   open Core.Std
 
-  module Controller = Async_OpenFlow.OpenFlow0x01.Controller
+  module Controller = Async_OpenFlow0x01_Controller
   module Log = OxShared.Log
-  module Stage = Async_OpenFlow.Stage
 
-  (* TODO(arjun): IMO, send_to_switch should *never* fail. *)
-  let send_pkt_out ctl ((sw, xid, msg) : to_sw) =
-    let open Controller in
-    if has_client_id ctl sw then
-      begin
-	send ctl sw (xid, msg) 
-	>>| function
-	  | `Sent _ -> 
-	    ()
-	  | `Drop exn ->
-            Log.error ~tags "unhandled exception sending a message to switch \
-                               %Ld" sw
-      end
-    else 
-      begin 
-        Log.error ~tags "no such client id %Ld" sw;
+  let send_pkt_out ((sw, xid, msg) : to_sw) : unit Deferred.t =
+    match Controller.send sw xid msg with 
+      | `Ok  -> 
         return ()
-      end
+      | `Eof -> 
+        Log.error ~tags 
+          "unhandled exception sending message to switch %Ld" sw;
+        return ()
 
-  let handler ctl e =
+  let handler (e:Controller.event) : unit Deferred.t = 
     let open Message in
     let open FlowMod in
+    let open SwitchFeatures in 
     match e with
     | `Connect (sw, feats) ->
-      Controller.send ctl sw (0l, FlowModMsg delete_all_flows) >>= fun _ ->
-      Controller.send ctl sw (1l, BarrierRequest) >>= fun _ ->
-      let sw = feats.SwitchFeatures.switch_id in
-      return (Handlers.switch_connected sw feats)
-    | `Message (sw, (xid, msg)) ->
+      let res1 = Controller.send sw 0l (FlowModMsg delete_all_flows) in 
+      let res2 = Controller.send sw 1l BarrierRequest in 
+      return 
+        (match res1, res2 with 
+          | `Ok, `Ok -> 
+            let sw = feats.switch_id in
+            Handlers.switch_connected sw feats
+          | _ -> ())
+    | `Message (sw,hdr, msg) ->
       return 
 	(match msg with
-	  | PacketInMsg pktIn -> Handlers.packet_in sw xid pktIn
-	  | BarrierReply -> Handlers.barrier_reply sw xid
-	  | StatsReplyMsg rep -> Handlers.stats_reply sw xid rep
+	  | PacketInMsg pktIn -> Handlers.packet_in sw hdr.xid pktIn
+	  | BarrierReply -> Handlers.barrier_reply sw hdr.xid
+	  | StatsReplyMsg rep -> Handlers.stats_reply sw hdr.xid rep
 	  | msg -> Log.info ~tags "ignored a message from %Ld" sw)
-    | `Disconnect (sw, exn) ->
+    | `Disconnect sw -> 
       Log.info "switch %Ld disconnected\n%!" sw;
       return ()
 
   let start_controller () : unit =
-    Controller.create ~port:6633 () >>> fun ctl ->
-      (Deferred.don't_wait_for
-         (Monitor.try_with ~name:"controller" (fun () ->
-           let d1 = Pipe.iter pkt_out (send_pkt_out ctl) in 
-           let d2 = Pipe.iter (Controller.listen ctl) (handler ctl) in 
-           d1 >>= fun () -> d2)
-           >>= function
-             | Ok () ->
-               exit 0
-             | Error exn ->
-               Log.error ~tags "Unexpected exception: %s\n%!"
-                 (Exn.to_string exn);
-               exit 1))
+    Controller.init 6633; 
+    (Deferred.don't_wait_for
+       (Monitor.try_with ~name:"controller" (fun () ->
+         Deferred.both 
+           (Pipe.iter pkt_out send_pkt_out)
+           (Pipe.iter Controller.events handler))
+         >>= function
+           | Ok ((),()) ->
+             exit 0
+           | Error exn ->
+             Log.error ~tags "Unexpected exception: %s\n%!"
+               (Exn.to_string exn);
+             exit 1))
 
   let run () : unit =
     let open Core.Std in

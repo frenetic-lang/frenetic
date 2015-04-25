@@ -1,6 +1,5 @@
 (** Functions that an Ox controller can use to send OpenFlow messages. *)
-open OpenFlow0x01_Core
-open OpenFlow0x01_Stats
+open OpenFlow0x01
 
 (** [send_packet_out sw xid pkt] sends a [packetOut] message with
     transaction ID [xid] to switch [sw]. *)

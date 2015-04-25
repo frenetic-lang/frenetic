@@ -1,8 +1,7 @@
 open Async.Std
 
 open Printf
-open Packet
-open OpenFlow0x01_Core
+open Frenetic_Packet
 open OpenFlow0x01
 open Message
 open OxShared

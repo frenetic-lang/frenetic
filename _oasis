@@ -147,7 +147,22 @@ Library async
   Modules:
     Async_NetKAT_Updates,
     NetKAT_Controller
- 
+
+Library ox
+  Path: ox/lib
+  BuildDepends:
+    core,
+    async,
+    frenetic,
+    openflow,
+    openflowasync,
+    threads
+  InternalModules:
+    OxShared
+  Modules:
+    OxStart,
+    OxPlatform
+
 Executable frenetic
   Path: frenetic/frenetic
   MainIs: frenetic.ml

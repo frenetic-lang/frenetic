@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: ac57140c4b87e9ccc5adcd18c0e28617)
+# DO NOT EDIT (digest: 5b1a0e01c281315af7ed723363b8d6e4)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -107,6 +107,21 @@ true: annot, bin_annot
 <frenetic/async/*.ml{,i,y}>: use_openflow
 <frenetic/async/*.ml{,i,y}>: use_openflowasync
 <frenetic/async/*.ml{,i,y}>: use_topology
+# Library ox
+"ox/lib/ox.cmxs": use_ox
+<ox/lib/*.ml{,i,y}>: package(async)
+<ox/lib/*.ml{,i,y}>: package(core)
+<ox/lib/*.ml{,i,y}>: package(cstruct)
+<ox/lib/*.ml{,i,y}>: package(cstruct.async)
+<ox/lib/*.ml{,i,y}>: package(cstruct.syntax)
+<ox/lib/*.ml{,i,y}>: package(sexplib)
+<ox/lib/*.ml{,i,y}>: package(sexplib.syntax)
+<ox/lib/*.ml{,i,y}>: package(str)
+<ox/lib/*.ml{,i,y}>: package(tcpip)
+<ox/lib/*.ml{,i,y}>: package(threads)
+<ox/lib/*.ml{,i,y}>: use_frenetic
+<ox/lib/*.ml{,i,y}>: use_openflow
+<ox/lib/*.ml{,i,y}>: use_openflowasync
 # Executable frenetic
 "frenetic/frenetic/frenetic.native": package(async)
 "frenetic/frenetic/frenetic.native": package(async_extended)

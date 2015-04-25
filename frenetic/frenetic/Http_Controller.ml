@@ -15,7 +15,6 @@ type client = {
   event_writer: string Pipe.Writer.t;
 }
 
-
 (* TODO(arjun):
 
   <facepalm>

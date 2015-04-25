@@ -1,6 +1,5 @@
 (** Launches an Ox application. *)
-open OpenFlow0x01_Core
-open OpenFlow0x01_Stats
+open OpenFlow0x01
 
 (** Provides default implementations for some advanced event handlers,
     reducing clutter in simple controllers.
