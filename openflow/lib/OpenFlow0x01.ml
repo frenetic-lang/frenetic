@@ -394,8 +394,8 @@ let string_of_switchId = Printf.sprintf "0x%Lx"
 let string_of_portId = string_of_int
 let string_of_queueId =  Int32.to_string
 
-let bit (x : int32) (n : int) (v : bool) : int32 = Bits.bit x n v
-let test_bit (n:int) (x:int32) : bool = Bits.test_bit n x
+let bit (x : int32) (n : int) (v : bool) : int32 = Frenetic_Bits.bit x n v
+let test_bit (n:int) (x:int32) : bool = Frenetic_Bits.test_bit n x
 
 let vlan_none = 0xffff
 
