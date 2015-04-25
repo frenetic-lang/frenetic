@@ -1,7 +1,8 @@
+open Core.Std
 open Sexplib
 open Sexplib.Std
 
-module OF10 = OpenFlow0x01_Core
+module OF10 = OpenFlow0x01
 module OF13 = OpenFlow0x04_Core
 
 open Frenetic_Packet
@@ -59,7 +60,7 @@ module Pattern = struct
     let match_all = (0l, 0l)
 
     let unsafe_shift (p, m) =
-      match Int32.(to_int (sub 32l m)) with
+      match Int32.(to_int_exn (32l - m)) with
       | 32 -> 0l
       | i  -> Int32.shift_right_logical p i
 
@@ -90,7 +91,7 @@ module Pattern = struct
         else if unsafe_shift (p1, m) = unsafe_shift (p2, m) then
           (p1, m)
         else
-          loop Int32.(sub m 1l)
+          loop Int32.(m - 1l)
       in
       let m = min m1 m2 in
       check_mask m;
@@ -391,31 +392,31 @@ let format_flow (fmt: Format.formatter) (f : flow) : unit =
 let format_flowTable (fmt:Format.formatter) (l:flowTable) : unit =
   Format.fprintf fmt "@[[";
   let _ =
-    List.fold_left
-      (fun b f ->
+    List.fold_left l ~init:false
+      ~f:(fun b f ->
         if b then Format.fprintf fmt "@ ";
         format_flow fmt f;
-        true) false l in
+        true) in
   Format.fprintf fmt "]@]"
-		
+
 let string_of_action = make_string_of format_action
 let string_of_seq = make_string_of format_seq
 let string_of_par = make_string_of format_par
 let string_of_flow = make_string_of format_flow
 
-let string_of_vlan (x : int) : string = 
+let string_of_vlan (x : int) : string =
   Format.sprintf "Vlan = %d" x
-		 
+
 let string_of_vlanpcp (x : dlVlanPcp) : string =
   Format.sprintf "VlanPcp = %d" x
-		 
+
 let string_of_ethType (x : dlTyp) : string =
-  let extra = if x = 0x800 then " (ip)" 
+  let extra = if x = 0x800 then " (ip)"
 	      else if x = 0x806 then " (arp)"
 	      else ""
   in
   Format.sprintf "EthType = 0x%x%s" x extra
-		 
+
 let string_of_ipProto (x : nwProto) : string =
   let extra = match x with
     | 0x01 -> " (icmp)"
@@ -425,7 +426,7 @@ let string_of_ipProto (x : nwProto) : string =
     | _ -> ""
   in
   Format.sprintf "ipProto = 0x%x%s" x extra
-		 
+
 let string_of_ethSrc (x : dlAddr) : string =
   Format.sprintf "EthSrc = %s" (Frenetic_Packet.string_of_mac x)
 		 
@@ -434,26 +435,26 @@ let string_of_ethDst (x : dlAddr) : string =
 		 
 let string_of_ip4src (x : Pattern.Ip.t) : string =
   Format.sprintf "IP4Src = %s" (Pattern.Ip.string_of x)
-		 
+
 let string_of_ip4dst (x : Pattern.Ip.t) : string =
   Format.sprintf "IP4Dst = %s" (Pattern.Ip.string_of x)
-		 
+
 let string_of_tcpSrcPort (x : tpPort) : string =
   Format.sprintf "TCPSrcPort = %d" x
-		 
+
 let string_of_tcpDstPort (x : tpPort) : string =
   Format.sprintf "TCPDstPort = %d" x
-		 
+
 let string_of_inPort (x : portId) : string =
   Format.sprintf "InPort = %lu" x
-		 
-let check (string_of : 'a -> string) 
-	  (x : 'a option) 
+
+let check (string_of : 'a -> string)
+	  (x : 'a option)
 	  (acc : string list) : string list =
   match x with
   | None -> acc
   | Some x' -> (string_of x') :: acc
-				   
+
 (* Builds up a list of strings one for each pattern *)
 let pattern_list (p : Pattern.t) : string list =
   check string_of_ethSrc p.dlSrc [] |>
@@ -467,7 +468,7 @@ let pattern_list (p : Pattern.t) : string list =
     check string_of_tcpSrcPort p.tpSrc |>
     check string_of_tcpDstPort p.tpDst |>
     check string_of_inPort p.inPort
-	  
+
 (* Given a flow, return a pair of list of strings where the first list
  * contains the strings of the pattern and the second list contains
  * the strings of the actions associated with the pattern. *)
@@ -477,20 +478,20 @@ let to_entry (f : flow) : (string list) * (string list) =
   let pattern_list = pattern_list f.pattern in
   let action_list = map (concat (concat f.action)) string_of_action in
   (pattern_list, action_list)
-    
+
 (* Pads a string with spaces so that it is atleast `len` characters. *)
 let pad (len : int) (e : string) : string =
   let open Core.Std in
   let padding_size = max 0 (len - (String.length e)) in
   let padding = String.make padding_size ' ' in
   String.concat [e; padding]
-		
+
 (* Helper function *)
-let unwrap x = 
+let unwrap x =
   match x with
   | None -> 0
   | Some x -> x
-		
+
 (* Given a list of entries to be displayed in the table, calculate a pair
  * containing the max characters in a pattern string and action string *)
 let table_size (label : string) (entries : ((string list) * (string list)) list) : int * int =
@@ -501,39 +502,39 @@ let table_size (label : string) (entries : ((string list) * (string list)) list)
   let max_p =  max_elt (map patterns String.length) (-) |> unwrap in
   let max_a = max_elt (map actions String.length) (-) |> unwrap in
   (max max_p ((String.length label) + 3 + (String.length "Pattern")), max max_a (String.length "Action"))
-    
+
 (* Create the top edge of the table *)
 let top max_p max_a : string =
   let open Core.Std in
   let open Char in
   let fill = String.make (max_p + max_a + 5) '-' in
   Format.sprintf "+%s+\n" fill
-		 
+
 (* Create the bottom edge of the table *)
 let bottom max_p max_a : string=
   let open Core.Std in
   let fill = String.make (max_p + max_a + 5) '-' in
   Format.sprintf "+%s+\n" fill
-		 
+
 (* Create a divider between entries *)
 let div max_p max_a : string =
   let open Core.Std in
   let fill = String.make (max_p + max_a + 5) '-' in
   Format.sprintf "|%s|\n" fill
-		 
+
 (* Create the columns of the table *)
 let title label max_p max_a : string =
   let open Core.Std in
   let pattern = pad max_p (Format.sprintf "%s | Pattern" label) in
   let action = pad max_a "Action" in
   Format.sprintf "| %s | %s |\n" pattern action
-		 
+
 (* Create a row in the table *)
 let string_of_entry (max_p : int) (max_a : int) (e : (string list) * (string list)) : string =
   let open Core.Std in
   let open List in
-  let padded_patterns = map (fst e) (pad max_p) in 
-  let padded_actions = map (snd e) (pad max_a) in 
+  let padded_patterns = map (fst e) (pad max_p) in
+  let padded_actions = map (snd e) (pad max_a) in
   let blank_action = String.make max_a ' ' in
   let blank_pattern = String.make max_p ' ' in
   let rec helper pats acts acc =
@@ -544,16 +545,16 @@ let string_of_entry (max_p : int) (max_a : int) (e : (string list) * (string lis
     | (p::ps), [] ->
        let acc' = (Format.sprintf "| %s | %s |\n" p blank_action) :: acc in
        helper ps [] acc'
-    | [], (a::rest) -> 
+    | [], (a::rest) ->
        let acc' = (Format.sprintf "| %s | %s |\n" blank_pattern a) :: acc in
        helper [] rest acc'
-    | (p::ps), (a::rest) -> 
+    | (p::ps), (a::rest) ->
        let acc' = (Format.sprintf "| %s | %s |\n" p a) :: acc in
        helper ps rest acc'
-  in 
+  in
   helper padded_patterns padded_actions [(div max_p max_a)]
   |> rev |> String.concat
-	      
+
 (* Given a label and a flowTable, returns an ascii flowtable *)
 let string_of_flowTable ?(label="") (tbl : flowTable) : string =
   let open Core.Std in
@@ -564,3 +565,152 @@ let string_of_flowTable ?(label="") (tbl : flowTable) : string =
   let entry_strings = List.map entries (string_of_entry max_p max_a) in
   let b = bottom max_p max_a in
   String.concat (t :: l :: (List.append entry_strings [b]))
+
+module To0x01 = struct
+
+exception Invalid_port of int32
+
+let from_portId (pport_id : portId) : OpenFlow0x01.portId =
+  if pport_id > 0xff00l then (* pport_id <= OFPP_MAX *)
+    raise (Invalid_port pport_id)
+  else
+    Int32.to_int_exn pport_id
+
+let from_output (inPort : OpenFlow0x01.portId option) (pseudoport : pseudoport) : OpenFlow0x01.action =
+  match pseudoport with
+    | InPort -> Output InPort
+    | Table -> Output Table
+    | Normal -> Output Normal
+    | Flood -> Output Flood
+    | All -> Output AllPorts
+    | Physical pport_id ->  
+      let pport_id = from_portId pport_id in
+      if Some pport_id = inPort then
+        Output InPort
+      else
+        Output (PhysicalPort pport_id)
+    | Controller n -> 
+      Output (Controller n)
+    | Local ->
+      Output Local
+        
+let from_action (inPort : OpenFlow0x01.portId option) (act : action) : OpenFlow0x01.action = 
+  match act with
+    | Output pseudoport ->
+      from_output inPort pseudoport
+    | Enqueue (pport_id, queue_id) ->
+      let pport_id = from_portId pport_id in
+      if Some pport_id = inPort then
+        Enqueue(InPort, queue_id)
+      else 
+        Enqueue (PhysicalPort pport_id, queue_id)
+    | Modify (SetEthSrc dlAddr) ->
+      SetDlSrc dlAddr
+    | Modify (SetEthDst dlAddr) ->
+      SetDlDst dlAddr
+    | Modify (SetVlan vlan) ->
+      begin match vlan with
+        | None
+        | Some(0xffff) ->
+          SetDlVlan None
+        | Some(n) ->
+          SetDlVlan (Some n)
+      end
+    | Modify (SetVlanPcp pcp) ->
+      SetDlVlanPcp pcp
+    | Modify (SetEthTyp _) ->
+      raise (Invalid_argument "cannot set Ethernet type")
+    | Modify (SetIPProto _) ->
+      raise (Invalid_argument "cannot set IP protocol")
+    | Modify (SetIP4Src nwAddr) ->
+      SetNwSrc nwAddr
+    | Modify (SetIP4Dst nwAddr) ->
+      SetNwDst nwAddr
+    | Modify (SetTCPSrcPort tp) ->
+      SetTpSrc tp
+    | Modify (SetTCPDstPort tp) ->
+      SetTpDst tp
+        
+let from_seq (inPort : OpenFlow0x01.portId option) (seq : seq) : OpenFlow0x01.action list = 
+  List.map seq ~f:(from_action inPort)
+
+let from_par (inPort : OpenFlow0x01.portId option) (par : par) : OpenFlow0x01.action list =
+  List.concat (List.map par ~f:(from_seq inPort))
+
+let from_group (inPort : OpenFlow0x01.portId option) (group : group)
+  : OpenFlow0x01.action list =
+  match group with
+  | [] -> []
+  | [par] -> from_par inPort par
+  | _ ->
+     raise (Unsupported "OpenFlow 1.0 does not support fast-failover")
+
+let from_timeout (timeout : timeout) : OpenFlow0x01.timeout =
+  match timeout with
+    | Permanent -> Permanent
+    | ExpiresAfter n -> ExpiresAfter n
+      
+      
+let from_pattern (pat : Pattern.t) : OpenFlow0x01.pattern =
+  { dlSrc = pat.dlSrc
+  ; dlDst = pat.dlDst
+  ; dlTyp = pat.dlTyp
+  ; dlVlan = (match pat.dlVlan with
+      | Some(0xffff) -> Some None
+      | Some(x) -> Some (Some x)
+      | None -> None)
+  ; dlVlanPcp = pat.dlVlanPcp
+  ; nwSrc = (match pat.nwSrc with
+    | None -> None
+    | Some (p,m) ->
+       let mo =
+         if m = 32l then
+           None
+         else
+           Some (Int32.(32l - m)) in
+       Some { m_value = p; m_mask = mo })
+  ; nwDst = (match pat.nwDst with
+    | None -> None
+    | Some (p,m) ->
+       let mo =
+         if m = 32l then
+           None
+         else
+           Some (Int32.(32l - m)) in
+       Some { m_value = p; m_mask = mo })
+  ; nwProto = pat.nwProto
+  ; nwTos = None
+  ; tpSrc = pat.tpSrc
+  ; tpDst = pat.tpDst
+  ; inPort = Core_kernel.Option.map pat.inPort from_portId
+  }
+
+let from_flow (priority : int) (flow : flow) : OpenFlow0x01.flowMod =
+  match flow with
+    | { pattern; action; cookie; idle_timeout; hard_timeout } ->
+      let pat = from_pattern pattern in
+      { command = AddFlow;
+        pattern = pat;
+        priority = priority;
+        actions = from_group pat.inPort action;
+        cookie = cookie;
+        idle_timeout = from_timeout idle_timeout;
+        hard_timeout = from_timeout hard_timeout;
+        notify_when_removed = false;
+        apply_to_packet = None;
+        out_port = None;
+        check_overlap = false }
+
+let from_payload (pay : payload) : OpenFlow0x01.payload =
+  match pay with
+    | Buffered (buf_id, bytes) ->
+      Buffered (buf_id, bytes)
+    | NotBuffered bytes -> NotBuffered bytes
+      
+let from_packetOut (pktOut : pktOut) : OpenFlow0x01.packetOut =
+  let output_payload, port_id, apply_actions = pktOut in
+  let output_payload = from_payload output_payload in
+  let port_id = Core_kernel.Option.map port_id from_portId in
+  let apply_actions = from_par port_id [apply_actions] in
+  { output_payload; port_id; apply_actions }
+end

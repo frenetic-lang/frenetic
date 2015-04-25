@@ -1,14 +1,394 @@
+open Core.Std
 open Frenetic_Packet
 open Format
-open OpenFlow0x01_Core
 
 exception Unparsable of string
 exception Ignored of string
 
-type switchId = int64
-type portId = int16
-type queueId = int32
-type xid = OpenFlow0x01_Core.xid
+type 'a mask = { m_value : 'a; m_mask : 'a option } with sexp
+
+type switchId = int64 with sexp
+
+type portId = int16 with sexp
+
+type queueId = int32 with sexp
+
+type xid = OpenFlow_Header.xid
+
+type pattern =
+    { dlSrc : dlAddr option
+    ; dlDst : dlAddr option
+    ; dlTyp : dlTyp option
+    ; dlVlan : dlVlan option
+    ; dlVlanPcp : dlVlanPcp option
+    ; nwSrc : nwAddr mask option
+    ; nwDst : nwAddr mask option
+    ; nwProto : nwProto option
+    ; nwTos : nwTos option
+    ; tpSrc : tpPort option
+    ; tpDst : tpPort option
+    ; inPort : portId option 
+    } with sexp
+
+type pseudoPort =
+  | PhysicalPort of portId
+  | InPort
+  | Table
+  | Normal
+  | Flood
+  | AllPorts
+  | Controller of int
+  | Local
+with sexp
+
+type action =
+  | Output of pseudoPort
+  | SetDlVlan of dlVlan
+  | SetDlVlanPcp of dlVlanPcp
+  | SetDlSrc of dlAddr
+  | SetDlDst of dlAddr
+  | SetNwSrc of nwAddr
+  | SetNwDst of nwAddr
+  | SetNwTos of nwTos
+  | SetTpSrc of tpPort
+  | SetTpDst of tpPort
+  | Enqueue of pseudoPort * queueId
+with sexp
+
+type timeout =
+  | Permanent
+  | ExpiresAfter of int16
+with sexp
+
+type flowModCommand =
+  | AddFlow
+  | ModFlow
+  | ModStrictFlow
+  | DeleteFlow
+  | DeleteStrictFlow
+with sexp
+
+type flowMod =
+    { command : flowModCommand
+    ; pattern: pattern
+    ; priority : int16
+    ; actions : action list
+    ; cookie : int64
+    ; idle_timeout : timeout
+    ; hard_timeout : timeout
+    ; notify_when_removed : bool
+    ; apply_to_packet : int32 option
+    ; out_port : pseudoPort option
+    ; check_overlap : bool
+    } with sexp
+
+type payload =
+  | Buffered of int32 * bytes
+  | NotBuffered of bytes
+with sexp
+
+type packetInReason =
+  | NoMatch
+  | ExplicitSend
+with sexp
+
+type packetIn =
+    { input_payload : payload
+    ; total_len : int16
+    ; port : portId
+    ; reason : packetInReason
+    } with sexp
+
+type packetOut =
+    { output_payload : payload
+    ; port_id : portId option
+    ; apply_actions : action list
+    }
+with sexp
+
+type flowRemovedReason =
+  | IdleTimeout
+  | HardTimeout
+  | Delete
+with sexp
+
+type flowRemoved =
+    { pattern : pattern
+    ; cookie : int64
+    ; priority : int16
+    ; reason : flowRemovedReason
+    ; duration_sec : int32
+    ; duration_nsec : int32
+    ; idle_timeout : timeout
+    ; packet_count : int64
+    ; byte_count : int64
+    } with sexp
+
+type statsReq =
+  { sr_of_match : pattern
+  ; sr_table_id : int8
+  ; sr_out_port : pseudoPort option
+  } with sexp
+
+type request =
+  | DescriptionRequest
+  | FlowTableStatsRequest
+  | IndividualRequest of statsReq
+  | AggregateRequest of statsReq
+  | PortRequest of pseudoPort option
+with sexp
+
+type descriptionStats =
+    { manufacturer : string
+    ; hardware : string
+    ; software : string
+    ; serial_number : string
+    ; datapath : string
+    } with sexp
+
+type individualStats =
+    { table_id : int8
+    ; of_match : pattern
+    ; duration_sec : int32
+    ; duration_nsec : int32
+    ; priority : int16
+    ; idle_timeout : int16
+    ; hard_timeout : int16
+    ; cookie : int64
+    ; packet_count : int64
+    ; byte_count : int64
+    ; actions : action list
+    } with sexp
+
+type aggregateStats =
+    { total_packet_count : int64
+    ; total_byte_count : int64
+    ; flow_count : int32
+    } with sexp
+
+type portStats =
+    { port_no : int16
+    ; rx_packets : int64
+    ; tx_packets : int64
+    ; rx_bytes : int64
+    ; tx_bytes : int64
+    ; rx_dropped : int64
+    ; tx_dropped : int64
+    ; rx_errors : int64
+    ; tx_errors : int64
+    ; rx_frame_err : int64
+    ; rx_over_err : int64
+    ; rx_crc_err : int64
+    ; collisions : int64
+    } with sexp
+
+type reply =
+  | DescriptionRep of descriptionStats
+  | IndividualFlowRep of individualStats list
+  | AggregateFlowRep of aggregateStats
+  | PortRep of portStats
+with sexp
+
+type stpState =
+  | Listen
+  | Learn
+  | Forward
+  | Block
+with sexp
+
+type portState = 
+  { down : bool; 
+    stp_state : stpState 
+  } with sexp
+
+type portFeatures =
+  { f_10MBHD : bool
+  ; f_10MBFD : bool
+  ; f_100MBHD : bool
+  ; f_100MBFD : bool
+  ; f_1GBHD : bool
+  ; f_1GBFD : bool
+  ; f_10GBFD : bool
+  ; copper : bool
+  ; fiber : bool
+  ; autoneg : bool
+  ; pause : bool
+  ; pause_asym : bool
+  } with sexp
+
+type portConfig =
+  { down : bool
+  ; no_stp : bool
+  ; no_recv : bool
+  ; no_recv_stp : bool
+  ; no_flood : bool
+  ; no_fwd : bool
+  ; no_packet_in : bool
+  } with sexp
+
+type portDescription =
+  { port_no : portId
+  ; hw_addr : dlAddr
+  ; name : string
+  ; config : portConfig
+  ; state : portState
+  ; curr : portFeatures
+  ; advertised : portFeatures
+  ; supported : portFeatures
+  ; peer : portFeatures 
+  } with sexp
+
+module Format = struct
+
+  open Format
+
+  let bytes fmt bytes =
+    try
+      Frenetic_Packet.format_packet fmt (Frenetic_Packet.parse bytes)
+    with exn -> (* TODO(arjun): should catch right error *)
+      fprintf fmt "unparsable packet"
+
+  let payload fmt payload =
+    match payload with
+      | NotBuffered buf -> bytes fmt buf
+      | Buffered (n, buf) -> fprintf fmt "%a (buffered at %s)" bytes buf
+        (Int32.to_string n)
+
+  let reason fmt = function
+      | NoMatch -> fprintf fmt "NoMatch"
+      | ExplicitSend -> fprintf fmt "ExplicitSend"
+
+  let packetIn fmt pktIn =
+    fprintf fmt
+      "@[packetIn{@;<1 2>@[@[total_len=%d@]@ @[port=%d@]@ @[reason=%a@]@ \
+                    @[payload=%a@]@]@ }@]"
+      pktIn.total_len pktIn.port reason pktIn.reason
+      payload pktIn.input_payload
+
+  (* TODO(jnf): we have this defined in several places. Consolidate. *)
+  let string_of_mk formatter x =
+    let buf = Buffer.create 100 in
+    let fmt = formatter_of_buffer buf in
+    pp_set_margin fmt 80;
+    formatter fmt x;
+    fprintf fmt "@?";
+    Buffer.contents buf
+
+  let descriptionStats fmt v =
+    fprintf fmt "@[{@[@[manufacturer=%s;@]@ @[hardware=%s;@]@ \
+                      @[software=%s;@]@ @[serial=%s;@]@ @[datapath=%s@]@]}@]"
+      v.manufacturer v.hardware v.software v.serial_number v.datapath
+
+  (* TODO(arjun): must fill *)
+  let individualStats fmt v =
+    fprintf fmt "individualStats"
+
+  let aggregateStats fmt v =
+    fprintf fmt "@[{@[@[packets=%Ld;@]@ @[bytes=%Ld;@]@ @[flows=%ld@]@]}@]"
+      v.total_packet_count v.total_byte_count v.flow_count
+
+  let portStats fmt (v : portStats) =
+    fprintf fmt "@[{@[port_no=%d@ \
+                      rx_packets=%Ld@ tx_packets=%Ld@ \
+                      rx_bytes=%Ld@ tx_bytes=%Ld@ \
+                      rx_dropped=%Ld@ tx_dropped=%Ld@ \
+                      rx_errors=%Ld@ tx_errors=%Ld@ \
+                      rx_frame_err=%Ld@ rx_over_err=%Ld@ rx_crc_err=%Ld@ \
+                      collisions=%Ld@]}@]"
+      v.port_no
+      v.rx_packets v.tx_packets
+      v.rx_bytes v.tx_bytes
+      v.rx_dropped v.tx_dropped
+      v.rx_errors v.tx_errors
+      v.rx_frame_err v.rx_over_err v.rx_crc_err
+      v.collisions
+
+  let reply fmt v = match v with
+    | DescriptionRep st -> descriptionStats fmt st
+    | IndividualFlowRep st -> individualStats fmt st
+    | AggregateFlowRep st -> aggregateStats fmt st
+    | PortRep st -> portStats fmt st
+
+  let string_of_mk formatter x =
+    let buf = Buffer.create 100 in
+    let fmt = formatter_of_buffer buf in
+    pp_set_margin fmt 80;
+    formatter fmt x;
+    fprintf fmt "@?";
+    Buffer.contents buf
+
+end
+
+let add_flow prio pat ?(idle_to = Permanent) ?(notify_removed = false) actions =
+  { command = AddFlow;
+    pattern = pat;
+    priority = prio;
+    actions = actions;
+    cookie = 0L;
+    idle_timeout = idle_to;
+    hard_timeout = Permanent;
+    notify_when_removed = notify_removed;
+    out_port =  None;
+    apply_to_packet = None;
+    check_overlap = false
+  }
+
+let delete_flow_strict prio pat port =
+  { command = DeleteStrictFlow
+  ; pattern = pat
+  ; priority = prio
+  ; actions = []
+  ; cookie = 0L
+  ; idle_timeout = Permanent
+  ; hard_timeout = Permanent
+  ; notify_when_removed = false
+  ; apply_to_packet = None
+  ; out_port = port
+  ; check_overlap = false
+  }
+
+let match_all = {
+  dlSrc = None;
+  dlDst = None;
+  dlTyp = None;
+  dlVlan = None;
+  dlVlanPcp = None;
+  nwSrc = None;
+  nwDst = None;
+  nwProto = None;
+  nwTos = None;
+  tpSrc = None;
+  tpDst = None;
+  inPort = None
+}
+
+let delete_all_flows =
+  { command = DeleteFlow
+  ; pattern = match_all
+  ; priority = 0
+  ; actions = []
+  ; cookie = 0L
+  ; idle_timeout = Permanent
+  ; hard_timeout = Permanent
+  ; notify_when_removed = false
+  ; apply_to_packet = None
+  ; out_port = None
+  ; check_overlap = false }
+
+
+let parse_payload = function
+  | Buffered (_, b)
+  | NotBuffered b ->
+    Frenetic_Packet.parse b
+
+let marshal_payload buffer pkt =
+  let payload = Frenetic_Packet.marshal pkt in
+  match buffer with
+    | Some b -> Buffered (b, payload)
+    | None -> NotBuffered payload
+
+
+let packetIn_to_string  = Format.string_of_mk Format.packetIn
 
 let string_of_switchId = Printf.sprintf "0x%Lx"
 let string_of_portId = string_of_int
@@ -16,8 +396,6 @@ let string_of_queueId =  Int32.to_string
 
 let bit (x : int32) (n : int) (v : bool) : int32 = Bits.bit x n v
 let test_bit (n:int) (x:int32) : bool = Bits.test_bit n x
-
-let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
 
 let vlan_none = 0xffff
 
@@ -31,30 +409,30 @@ cenum ofp_stats_types {
   OFPST_VENDOR = 0xffff
 } as uint16_t
 
+type wildcards = {
+  in_port: bool;
+  dl_vlan: bool;
+  dl_src: bool;
+  dl_dst: bool;
+  dl_type: bool;
+  nw_proto: bool;
+  tp_src: bool;
+  tp_dst: bool;
+  nw_src: int; (* XXX: unsigned *)
+  nw_dst: int; (* XXX: unsigned *)
+  dl_vlan_pcp: bool;
+  nw_tos: bool;
+} with sexp
+
 (** Internal module, only used to parse the wildcards bitfield *)
 module Wildcards = struct
 
-  type t = {
-    in_port: bool;
-    dl_vlan: bool;
-    dl_src: bool;
-    dl_dst: bool;
-    dl_type: bool;
-    nw_proto: bool;
-    tp_src: bool;
-    tp_dst: bool;
-    nw_src: int; (* XXX: unsigned *)
-    nw_dst: int; (* XXX: unsigned *)
-    dl_vlan_pcp: bool;
-    nw_tos: bool;
-  }
-
   let set_nw_mask (f:int32) (off : int) (v : int) : int32 =
     let value = (0x3f land v) lsl off in
-    (Int32.logor f (Int32.of_int value))
+    Int32.(bit_or f (of_int_exn value))
 
   let get_nw_mask (f : int32) (off : int) : int =
-    (Int32.to_int (Int32.shift_right f off)) land 0x3f
+    Int32.(to_int_exn (shift_right f off)) land 0x3f
 
   let marshal m =
     let ret = Int32.zero in
@@ -73,7 +451,7 @@ module Wildcards = struct
     ret
 
   let to_string h =
-    Format.sprintf
+    sprintf
       "in_port:%b,dl_vlan:%b,dl_src:%b,dl_dst:%b,dl_type:%b,\
        nw_proto:%b,tp_src:%b,tp_dst:%b,nw_src:%d,nw_dst:%d,\
        dl_vlan_pcp:%b,nw_tos:%b"
@@ -105,25 +483,25 @@ end
 
 module Match = struct
 
-  type t = OpenFlow0x01_Core.pattern
+  type t = pattern with sexp
 
-      cstruct ofp_match {
-        uint32_t wildcards;
-        uint16_t in_port;
-        uint8_t dl_src[6];
-        uint8_t dl_dst[6];
-        uint16_t dl_vlan;
-        uint8_t dl_vlan_pcp;
-        uint8_t pad1[1];
-        uint16_t dl_type;
-        uint8_t nw_tos;
-        uint8_t nw_proto;
-        uint8_t pad2[2];
-        uint32_t nw_src;
-        uint32_t nw_dst;
-        uint16_t tp_src;
-        uint16_t tp_dst
-      } as big_endian
+  cstruct ofp_match {
+    uint32_t wildcards;
+    uint16_t in_port;
+    uint8_t dl_src[6];
+    uint8_t dl_dst[6];
+    uint16_t dl_vlan;
+    uint8_t dl_vlan_pcp;
+    uint8_t pad1[1];
+    uint16_t dl_type;
+    uint8_t nw_tos;
+    uint8_t nw_proto;
+    uint8_t pad2[2];
+    uint32_t nw_src;
+    uint32_t nw_dst;
+    uint16_t tp_src;
+    uint16_t tp_dst
+  } as big_endian
 
   let size_of _ = sizeof_ofp_match
 
@@ -135,25 +513,25 @@ module Match = struct
     | None -> 32 (* WildcardAll *)
     | Some x -> match x.m_mask with
                   | None -> 0 (* WildcardExact *)
-                  | Some m -> Int32.to_int m
+                  | Some m -> Int32.to_int_exn m
 
-  let wildcards_of_match (m : t) : Wildcards.t =
-    { Wildcards.in_port = is_none m.inPort;
-      Wildcards.dl_vlan =
+  let wildcards_of_match (m : t) : wildcards =
+    { in_port = is_none m.inPort;
+      dl_vlan =
 	(match m.dlVlan with
 	  | None -> true
 	  | Some None -> false
 	  | Some (Some _) -> false);
-      Wildcards.dl_src = is_none m.dlSrc;
-      Wildcards.dl_dst = is_none m.dlDst;
-      Wildcards.dl_type = is_none m.dlTyp;
-      Wildcards.nw_proto = is_none m.nwProto;
-      Wildcards.tp_src = is_none m.tpSrc;
-      Wildcards.tp_dst = is_none m.tpDst;
-      Wildcards.nw_src = mask_bits m.nwSrc;
-      Wildcards.nw_dst = mask_bits m.nwDst;
-      Wildcards.dl_vlan_pcp = is_none m.dlVlanPcp;
-      Wildcards.nw_tos = is_none m.nwTos;
+      dl_src = is_none m.dlSrc;
+      dl_dst = is_none m.dlDst;
+      dl_type = is_none m.dlTyp;
+      nw_proto = is_none m.nwProto;
+      tp_src = is_none m.tpSrc;
+      tp_dst = is_none m.tpDst;
+      nw_src = mask_bits m.nwSrc;
+      nw_dst = mask_bits m.nwDst;
+      dl_vlan_pcp = is_none m.dlVlanPcp;
+      nw_tos = is_none m.nwTos;
     }
 
   let if_some16 x = match x with
@@ -172,7 +550,7 @@ module Match = struct
     | Some n -> n
     | None -> 0L
 
-  let marshal m bits =
+  let marshal (m : pattern) bits =
     set_ofp_match_wildcards bits (Wildcards.marshal (wildcards_of_match m));
     set_ofp_match_in_port bits (if_some16 m.inPort);
     set_ofp_match_dl_src (bytes_of_mac (if_word48 m.dlSrc)) 0 bits;
@@ -195,19 +573,19 @@ module Match = struct
   let parse bits =
     let w = Wildcards.parse (get_ofp_match_wildcards bits) in
     { dlSrc =
-        if w.Wildcards.dl_src then
+        if w.dl_src then
           None
         else
           Some (mac_of_bytes
                   (Cstruct.to_string (get_ofp_match_dl_src bits)));
       dlDst =
-        if w.Wildcards.dl_dst then
+        if w.dl_dst then
           None
         else
           Some (mac_of_bytes
                   (Cstruct.to_string (get_ofp_match_dl_dst bits)));
       dlVlan =
-        if w.Wildcards.dl_vlan then
+        if w.dl_vlan then
           None
         else
           begin
@@ -218,57 +596,57 @@ module Match = struct
               Some (Some vlan)
           end;
       dlVlanPcp =
-        if w.Wildcards.dl_vlan_pcp then
+        if w.dl_vlan_pcp then
           None
         else
           Some (get_ofp_match_dl_vlan_pcp bits);
       dlTyp =
-        if w.Wildcards.dl_type then
+        if w.dl_type then
           None
         else
           Some (get_ofp_match_dl_type bits);
       nwSrc =
       (* Oversimplified, since we don't support IP prefixes *)
-        if w.Wildcards.nw_src >= 32 then
+        if w.nw_src >= 32 then
           None
         else
-          if w.Wildcards.nw_src = 0 then
+          if w.nw_src = 0 then
             Some {m_value = (get_ofp_match_nw_src bits); m_mask = None}
           else
             Some {m_value = (get_ofp_match_nw_src bits);
-                   m_mask = Some (Int32.of_int w.Wildcards.nw_src)};
+                   m_mask = Some (Int32.of_int_exn w.nw_src)};
       nwDst =
         (* Oversimplified, since we don't support IP prefixes *)
-        if w.Wildcards.nw_dst >= 32 then
+        if w.nw_dst >= 32 then
           None
         else
-          if w.Wildcards.nw_dst = 0 then
+          if w.nw_dst = 0 then
             Some {m_value = (get_ofp_match_nw_dst bits); m_mask = None}
           else
             Some {m_value = (get_ofp_match_nw_dst bits);
-                  m_mask = Some (Int32.of_int w.Wildcards.nw_dst)};
+                  m_mask = Some (Int32.of_int_exn w.nw_dst)};
       nwProto =
-        if w.Wildcards.nw_proto then
+        if w.nw_proto then
           None
         else
           Some (get_ofp_match_nw_proto bits);
       nwTos =
-        if w.Wildcards.nw_tos then
+        if w.nw_tos then
           None
         else
           Some (get_ofp_match_nw_tos bits);
       tpSrc =
-        if w.Wildcards.tp_src then
+        if w.tp_src then
           None
         else
           Some (get_ofp_match_tp_src bits);
       tpDst =
-        if w.Wildcards.tp_dst then
+        if w.tp_dst then
           None
         else
           Some (get_ofp_match_tp_dst bits);
       inPort =
-        if w.Wildcards.in_port then
+        if w.in_port then
           None
         else
           Some (get_ofp_match_in_port bits);
@@ -305,16 +683,16 @@ module Match = struct
         fld_str "inPort" string_of_portId x.inPort ] in
     let set_fields =
       List.fold_right
-        (fun fo acc -> match fo with None -> acc | Some f -> f :: acc)
-        all_fields [] in
+        ~f:(fun fo acc -> match fo with None -> acc | Some f -> f :: acc)
+        all_fields ~init:[] in
     match set_fields with
       | [] -> "{*}"
-      | _ ->  "{" ^ (String.concat ", " set_fields) ^ "}"
+      | _ ->  "{" ^ (String.concat ~sep:", " set_fields) ^ "}"
 end
 
 module PseudoPort = struct
 
-  type t = pseudoPort
+  type t = pseudoPort with sexp
 
       (* Physical ports are numbered starting from 1. *)
       cenum ofp_port {
@@ -322,20 +700,14 @@ module PseudoPort = struct
         OFPP_MAX = 0xff00;
 
         (*Fake output "ports". *)
-        OFPP_IN_PORT = 0xfff8; (* Send the packet out the input port. This
-                                  virtual port must be explicitly used
-                                  in order to send back out of the input
-                                  port. *)
-        OFPP_TABLE   = 0xfff9; (* Perform actions in flow table.
-                                  NB: This can only be the destination
-                                  port for packet-out messages. *)
-        OFPP_NORMAL  = 0xfffa; (* Process with normal L2/L3 switching. *)
-        OFPP_FLOOD   = 0xfffb; (* All physical porbts except input port and
-                                  those disabled by STP. *)
-        OFPP_ALL     = 0xfffc; (* All physical ports except input port. *)
-        OFPP_CONTROLLER = 0xfffd; (* Send to controller. *)
-        OFPP_LOCAL   = 0xfffe; (* Local openflow "port". *)
-        OFPP_NONE    = 0xffff  (* Not associated with a physical port. *)
+        OFPP_IN_PORT = 0xfff8;
+        OFPP_TABLE   = 0xfff9;
+        OFPP_NORMAL  = 0xfffa;
+        OFPP_FLOOD   = 0xfffb;
+        OFPP_ALL     = 0xfffc;
+        OFPP_CONTROLLER = 0xfffd;
+        OFPP_LOCAL   = 0xfffe;
+        OFPP_NONE    = 0xffff
       } as uint16_t
 
   let size_of _ = 2
@@ -396,7 +768,7 @@ end
 
 module Action = struct
 
-  type t = action
+  type t = action with sexp
 
   type sequence = t list
 
@@ -496,7 +868,7 @@ module Action = struct
         | Enqueue _ -> sizeof_ofp_action_enqueue in
     h + body
 
-  let size_of_sequence acts = List.fold_left (+) 0 (List.map size_of acts)
+  let size_of_sequence acts = List.fold_left ~f:(+) ~init:0 (List.map ~f:size_of acts)
 
   let marshal a bits =
     set_ofp_action_header_typ bits (ofp_action_type_to_int (type_code a));
@@ -531,7 +903,7 @@ module Action = struct
     | _ -> false
 
   let move_controller_last (lst : sequence) : sequence =
-    let (to_ctrl, not_to_ctrl) = List.partition is_to_controller lst in
+    let (to_ctrl, not_to_ctrl) = List.partition_tf ~f:is_to_controller lst in
     not_to_ctrl @ to_ctrl
 
   let to_string (t : t) : string = match t with
@@ -549,7 +921,7 @@ module Action = struct
     | Enqueue(pp,n) -> sprintf "Enqueue %s %s" (PseudoPort.to_string pp) (Int32.to_string n)
 
   let sequence_to_string (lst : sequence) : string =
-    "[" ^ (String.concat "; " (List.map to_string lst)) ^ "]"
+    "[" ^ (String.concat ~sep:"; " (List.map ~f:to_string lst)) ^ "]"
 
   let _parse bits =
     let length = get_ofp_action_header_len bits in
@@ -611,7 +983,7 @@ end
 
 module Timeout = struct
 
-  type t = timeout
+  type t = timeout with sexp
 
   let to_string t = match t with
     | Permanent -> "Permanent"
@@ -632,7 +1004,7 @@ module FlowMod = struct
 
   module Command = struct
 
-    type t = flowModCommand
+    type t = flowModCommand with sexp
 
     cenum ofp_flow_mod_command {
       OFPFC_ADD;
@@ -671,7 +1043,7 @@ module FlowMod = struct
 
   end
 
-  type t = flowMod
+  type t = flowMod with sexp
 
   cstruct ofp_flow_mod {
     uint64_t cookie;
@@ -710,10 +1082,10 @@ module FlowMod = struct
       (if notify_when_removed then 1 lsl 0 else 0)
 
   let check_overlap_of_flags flags =
-    (1 lsl 1) land flags != 0
+    (1 lsl 1) land flags <> 0
 
   let notify_when_removed_of_flags flags =
-    (1 lsl 0) land flags != 0
+    (1 lsl 0) land flags <> 0
 
   let parse bits =
     let pattern = Match.parse bits in
@@ -765,14 +1137,14 @@ module FlowMod = struct
       (flags_to_int msg.check_overlap msg.notify_when_removed);
     let bits = Cstruct.shift bits sizeof_ofp_flow_mod in
     let _ = List.fold_left
-      (fun bits act ->
+      ~f:(fun bits act ->
         begin match act with
           | Output Table ->
             failwith "OFPP_TABLE not allowed in installed flow"
           | _ -> ()
         end;
         Cstruct.shift bits (Action.marshal act bits))
-      bits
+      ~init:bits
       (Action.move_controller_last msg.actions) in
     size_of msg
 
@@ -780,7 +1152,7 @@ end
 
 module Payload = struct
 
-  type t = payload
+  type t = payload with sexp
 
   let size_of p = match p with
     | Buffered(_,bytes)
@@ -809,7 +1181,7 @@ module PacketIn = struct
 
   module Reason = struct
 
-    type t = packetInReason
+    type t = packetInReason with sexp
 
     cenum ofp_reason {
       NO_MATCH = 0;
@@ -835,7 +1207,7 @@ module PacketIn = struct
 
   end
 
-  type t = packetIn
+  type t = packetIn with sexp
 
   cstruct ofp_packet_in {
     uint32_t buffer_id;
@@ -887,7 +1259,7 @@ module FlowRemoved = struct
 
   module Reason = struct
 
-    type t = flowRemovedReason
+    type t = flowRemovedReason with sexp
 
     cenum ofp_flow_removed_reason {
       IDLE_TIMEOUT = 0;
@@ -915,7 +1287,7 @@ module FlowRemoved = struct
 
   end
 
-  type t = flowRemoved
+  type t = flowRemoved with sexp
 
   cstruct ofp_flow_removed {
     uint64_t cookie;
@@ -983,7 +1355,7 @@ end
 
 module PacketOut = struct
 
-  type t = packetOut
+  type t = packetOut with sexp
 
   cstruct ofp_packet_out {
     uint32_t buffer_id;
@@ -1033,28 +1405,18 @@ module PacketOut = struct
     set_ofp_packet_out_actions_len buf
       (Action.size_of_sequence pkt_out.apply_actions);
     let buf = List.fold_left
-      (fun buf act -> Cstruct.shift buf (Action.marshal act buf))
-      (Cstruct.shift buf sizeof_ofp_packet_out)
+      ~f:(fun buf act -> Cstruct.shift buf (Action.marshal act buf))
+      ~init:(Cstruct.shift buf sizeof_ofp_packet_out)
       (Action.move_controller_last pkt_out.apply_actions) in
     let _ = Payload.marshal pkt_out.output_payload buf in
     size_of pkt_out
 
 end
 
+
 module PortDescription = struct
 
   module PortConfig = struct
-
-    type t =
-        { down : bool (* Port is administratively down. *)
-      ; no_stp : bool (* Disable 802.1D spanning tree on port. *)
-      ; no_recv : bool (* Drop all packets except 802.1D spanning
-                                 * tree packets. *)
-      ; no_recv_stp : bool (* Drop received 802.1D STP packets. *)
-      ; no_flood : bool (* Do not include this port when flooding. *)
-      ; no_fwd : bool (* Drop packets forwarded to port. *)
-      ; no_packet_in : bool (* Do not send packet-in msgs for port. *)
-      }
 
     let to_string c = Printf.sprintf
       "{ down = %B; \
@@ -1100,11 +1462,6 @@ module PortDescription = struct
   module PortState = struct
 
     module StpState = struct
-      type t =
-        | Listen
-        | Learn
-        | Forward
-        | Block
 
       let mask = Int32.shift_left 3l 8
 
@@ -1121,7 +1478,7 @@ module PortDescription = struct
           8
 
       let of_int d =
-        let d_masked = Int32.logand d mask in
+        let d_masked = Int32.bit_and d mask in
         if d_masked = to_int Listen then Listen
         else if d_masked = to_int Learn then Learn
         else if d_masked = to_int Forward then Forward
@@ -1130,12 +1487,8 @@ module PortDescription = struct
           (Printf.sprintf "Unexpected ofp_port_state for STP: %ld" d_masked))
     end
 
-    type t =
-      { down : bool  (* No physical link present. *)
-      ; stp_state : StpState.t } (* The state of the port wrt the spanning tree
-                                    algorithm. *)
 
-    let to_string p = Printf.sprintf
+    let to_string (p : portState) = Printf.sprintf
       "{ down = %B; \
          stp_state = %s }"
       p.down
@@ -1155,21 +1508,6 @@ module PortDescription = struct
   end
 
   module PortFeatures = struct
-
-    type t =
-      { f_10MBHD : bool (* 10 Mb half-duplex rate support. *)
-      ; f_10MBFD : bool (* 10 Mb full-duplex rate support. *)
-      ; f_100MBHD : bool (* 100 Mb half-duplex rate support. *)
-      ; f_100MBFD : bool (* 100 Mb full-duplex rate support. *)
-      ; f_1GBHD : bool (* 1 Gb half-duplex rate support. *)
-      ; f_1GBFD : bool (* 1 Gb full-duplex rate support. *)
-      ; f_10GBFD : bool (* 10 Gb full-duplex rate support. *)
-      ; copper : bool (* Copper medium. *)
-      ; fiber : bool (* Fiber medium. *)
-      ; autoneg : bool (* Auto-negotiation. *)
-      ; pause : bool (* Pause. *)
-      ; pause_asym : bool (* Asymmetric pause. *)
-      }
 
     let to_string p = Printf.sprintf
       "{ f_10MBHD = %B; \
@@ -1213,7 +1551,6 @@ module PortDescription = struct
       ; pause = test_bit 10 bits
       ; pause_asym = test_bit 11 bits }
 
-
     let to_int f =
       let bits = Int32.zero in
       let bits = bit bits 11 f.pause_asym in
@@ -1230,17 +1567,6 @@ module PortDescription = struct
       let bits = bit bits 0 f.f_10MBHD in
       bits
   end
-
-  type t =
-    { port_no : portId
-    ; hw_addr : dlAddr
-    ; name : string
-    ; config : PortConfig.t
-    ; state : PortState.t
-    ; curr : PortFeatures.t
-    ; advertised : PortFeatures.t
-    ; supported : PortFeatures.t
-    ; peer : PortFeatures.t }
 
   cstruct ofp_phy_port {
     uint16_t port_no;
@@ -1269,7 +1595,7 @@ module PortDescription = struct
     (PortFeatures.to_string d.supported)
     (PortFeatures.to_string d.peer)
 
-  let parse (bits : Cstruct.t) : t =
+  let parse (bits : Cstruct.t) : portDescription =
     let portDescPortNo = get_ofp_phy_port_port_no bits in
     let hw_addr = Frenetic_Packet.mac_of_bytes (Cstruct.to_string (get_ofp_phy_port_hw_addr bits)) in
     let name = Cstruct.to_string (get_ofp_phy_port_name bits) in
@@ -1307,7 +1633,7 @@ end
 module PortStatus = struct
 
   cstruct ofp_port_status {
-      uint8_t reason;               (* One of OFPPR_* *)
+      uint8_t reason; (* One of OFPPR_* *)
       uint8_t pad[7]
   } as big_endian
 
@@ -1317,6 +1643,7 @@ module PortStatus = struct
       | Add
       | Delete
       | Modify
+    with sexp
 
     cenum ofp_port_reason {
       OFPPR_ADD;
@@ -1353,8 +1680,8 @@ module PortStatus = struct
 
   type t =
     { reason : ChangeReason.t;
-      desc : PortDescription.t }
-
+      desc : portDescription 
+    } with sexp
 
   let to_string status = Printf.sprintf
     "{ reason = %s; desc = %s }"
@@ -1392,7 +1719,8 @@ module SwitchFeatures = struct
     ; nwTos : bool
     ; tpSrc : bool
     ; tpDst : bool
-    ; inPort : bool }
+    ; inPort : bool 
+    } with sexp
 
   module Capabilities = struct
 
@@ -1403,7 +1731,8 @@ module SwitchFeatures = struct
       ; stp : bool
       ; ip_reasm : bool
       ; queue_stats : bool
-      ; arp_match_ip : bool }
+      ; arp_match_ip : bool 
+      } with sexp
 
     let size_of _ = 4
 
@@ -1461,6 +1790,7 @@ module SwitchFeatures = struct
       ; set_tp_dst : bool
       ; enqueue : bool
       ; vendor : bool }
+    with sexp
 
     let size_of _ = 4
 
@@ -1532,7 +1862,8 @@ module SwitchFeatures = struct
     ; num_tables : int8
     ; supported_capabilities : Capabilities.t
     ; supported_actions : SupportedActions.t
-    ; ports : PortDescription.t list }
+    ; ports : portDescription list }
+  with sexp
 
   cstruct ofp_switch_features {
     uint64_t datapath_id;
@@ -1577,7 +1908,7 @@ module SwitchFeatures = struct
 
   let size_of feats =
     sizeof_ofp_switch_features
-    + sum (List.map PortDescription.size_of feats.ports)
+    + List.sum (module Int) ~f:ident (List.map ~f:PortDescription.size_of feats.ports)
 
   let marshal feats out =
     set_ofp_switch_features_datapath_id out feats.switch_id;
@@ -1589,8 +1920,8 @@ module SwitchFeatures = struct
       (SupportedActions.to_int feats.supported_actions);
     let _ =
       List.fold_left
-	(fun out port -> Cstruct.shift out (PortDescription.marshal port out))
-	(Cstruct.shift out sizeof_ofp_switch_features) feats.ports in
+	~f:(fun out port -> Cstruct.shift out (PortDescription.marshal port out))
+	~init:(Cstruct.shift out sizeof_ofp_switch_features) feats.ports in
     size_of feats
 
 end
@@ -1603,6 +1934,7 @@ module SwitchConfig = struct
       | FragNormal
       | FragDrop
       | FragReassemble
+    with sexp
 
     let of_int d = match d with
       | 0 -> FragNormal
@@ -1624,6 +1956,7 @@ module SwitchConfig = struct
 
   type t = { frag_flags : FragFlags.t;
 	     miss_send_len : int }
+  with sexp
 
       cstruct ofp_switch_config {
 	uint16_t flags;
@@ -1650,10 +1983,14 @@ module SwitchConfig = struct
       sc.miss_send_len
 end
 
+
+let reply_to_string  = Format.string_of_mk Format.reply
+
+
 module StatsRequest = struct
 
-  open OpenFlow0x01_Stats
   type t = request
+  with sexp
 
   cstruct ofp_stats_request {
     uint16_t req_type;
@@ -1777,8 +2114,8 @@ end
 
 module StatsReply = struct
 
-  open OpenFlow0x01_Stats
   type t = reply
+  with sexp
 
   let desc_str_len = 256
   let serial_num_len = 32
@@ -1834,8 +2171,8 @@ module StatsReply = struct
          packet_count = %Ld; byte_count = %Ld; actions = %s }"
       stats.table_id
       (Match.to_string stats.of_match)
-      (Int32.to_int stats.duration_sec)
-      (Int32.to_int stats.duration_nsec)
+      (Int32.to_int_exn stats.duration_sec)
+      (Int32.to_int_exn stats.duration_nsec)
       stats.priority
       stats.idle_timeout
       stats.hard_timeout
@@ -2035,8 +2372,7 @@ module StatsReply = struct
         sizeof_ofp_stats_reply + sizeof_ofp_port_stats
     end
 
-  let to_string (t : t) =
-    OpenFlow0x01_Stats.reply_to_string t
+  let to_string (t : t) = reply_to_string t
 
   let size_of (a : t) = match a with
     | DescriptionRep _ -> sizeof_ofp_stats_reply + sizeof_ofp_desc_stats
@@ -2116,6 +2452,7 @@ module Error = struct
     type t =
       | Incompatible
       | Eperm
+    with sexp
 
     let type_code (a : t) = match a with
       | Incompatible -> OFPHFC_INCOMPATIBLE
@@ -2147,6 +2484,7 @@ module Error = struct
       | BadLen
       | BufferEmpty
       | BufferUnknown
+    with sexp
 
     let type_code (a : t) = match a with
       | BadVersion -> OFPBRC_BAD_VERSION
@@ -2199,6 +2537,7 @@ module Error = struct
       | Eperm
       | TooMany
       | BadQueue
+    with sexp
 
      let type_code (a : t) = match a with
        | BadType -> OFPBAC_BAD_TYPE
@@ -2248,6 +2587,7 @@ module Error = struct
       | BadEmergTimeout
       | BadCommand
       | Unsupported
+    with sexp
 
     let type_code (a : t) = match a with
       | AllTablesFull -> OFPFMFC_ALL_TABLES_FULL
@@ -2284,6 +2624,7 @@ module Error = struct
     type t =
       | BadPort
       | BadHwAddr
+    with sexp
 
     let type_code (a : t) = match a with
       | BadPort -> OFPPMFC_BAD_PORT
@@ -2309,6 +2650,7 @@ module Error = struct
       | BadPort
       | BadQueue
       | Eperm
+    with sexp
 
     let type_code (a : t) = match a with
       | BadPort -> OFPQOFC_BAD_PORT
@@ -2341,9 +2683,11 @@ module Error = struct
     | FlowModFailed of FlowModFailed.t
     | PortModFailed of PortModFailed.t
     | QueueOpFailed of QueueOpFailed.t
+  with sexp
 
   type t =
-    | Error of c * Cstruct.t
+    | Error of c * Cstruct.t sexp_opaque
+  with sexp
 
   let parse bits =
     let error_type = get_ofp_error_msg_error_type bits in
@@ -2416,7 +2760,8 @@ end
 
 module Vendor = struct
 
-  type t = int32 * Cstruct.t
+  type t = int32 * Cstruct.t sexp_opaque
+  with sexp
 
   cstruct ofp_vendor_header {
     uint32_t vendor
@@ -2515,7 +2860,8 @@ module Message = struct
     | SetConfig of SwitchConfig.t
     | ConfigRequestMsg
     | ConfigReplyMsg of SwitchConfig.t
-
+  with sexp
+        
   let parse (hdr : Header.t) (body_buf : string) : (xid * t) =
     let buf = Cstruct.of_string body_buf in
     let code = match int_to_msg_code (hdr.Header.type_code) with

@@ -4,14 +4,14 @@
 
 open Core.Std
 
-module Net = Async_NetKAT.Net
+module Net = Async_NetKAT_Net.Net
 module SDN = SDN_Types
 
 let switch_ids (t : Net.Topology.t) : SDN.switchId list =
   let open Net.Topology in
   fold_vertexes (fun v acc ->
     match vertex_to_label t v with
-    | Async_NetKAT.Switch id -> id::acc
+    | Async_NetKAT_Net.Switch id -> id::acc
     | _ -> acc)
   t []
 
@@ -19,7 +19,6 @@ let switch_ids (t : Net.Topology.t) : SDN.switchId list =
    port not connected to a known switch as an edge port *)
 let internal_ports (t : Net.Topology.t) (sw_id : SDN.switchId) =
   let open Net.Topology in
-  let open Async_NetKAT in
   let switch = vertex_of_label t (Switch sw_id) in
   PortSet.fold  (vertex_to_ports t switch) ~init:PortSet.empty ~f:(fun acc p ->
     match next_hop t switch p with
@@ -33,7 +32,6 @@ let internal_ports (t : Net.Topology.t) (sw_id : SDN.switchId) =
 
 let in_edge (t : Net.Topology.t) (sw_id : SDN.switchId) (pt_id : SDN.portId) =
   let open Net.Topology in
-  let open Async_NetKAT in
   let switch = vertex_of_label t (Switch sw_id) in
   match next_hop t switch pt_id with
   | None    -> true
@@ -43,7 +41,7 @@ let edge (t: Net.Topology.t) =
   let open Net.Topology in
   fold_vertexes (fun v acc ->
     match vertex_to_label t v with
-    | Async_NetKAT.Switch sw_id ->
+    | Async_NetKAT_Net.Switch sw_id ->
       PortSet.fold (vertex_to_ports t v) ~init:acc ~f:(fun acc pt_id ->
         match next_hop t v pt_id with
         | None   -> (sw_id, pt_id)::acc

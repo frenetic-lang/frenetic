@@ -11,12 +11,11 @@ let arbitrary_32mask =
     ret_gen (Int32.of_int a)
 
 let arbitrary_masked arb arb_mask =
-  let open OpenFlow0x01_Core in
   let open Gen in
   frequency [
-    (1, arb >>= fun v -> ret_gen {OpenFlow0x01_Core.m_value = v; m_mask = None});
+    (1, arb >>= fun v -> ret_gen { m_value = v; m_mask = None});
     (3, arb >>= fun v ->
-        arb_mask >>= fun m -> ret_gen {OpenFlow0x01_Core.m_value = v; m_mask = Some m}) ]
+        arb_mask >>= fun m -> ret_gen {m_value = v; m_mask = Some m}) ]
 
 module type OpenFlow0x01_Arbitrary = sig
 
@@ -62,7 +61,7 @@ module OpenFlow0x01_Unsize(ArbC : OpenFlow0x01_ArbitraryCstruct) = struct
 end
 
 module Wildcards = struct
-  type t = Wildcards.t
+  type t = wildcards
   type s = Int32.t
 
   let arbitrary : t arbitrary =
@@ -102,7 +101,7 @@ module Wildcards = struct
 end
 
 module Match = struct
-  type t = Match.t
+  type t = pattern
   type s = Cstruct.t
 
   let arbitrary_dlAddr = arbitrary_uint48
@@ -114,7 +113,6 @@ module Match = struct
 
   let arbitrary =
     let open Gen in
-    let open OpenFlow0x01_Core in
     arbitrary_option arbitrary_dlAddr >>= fun dlSrc ->
     arbitrary_option arbitrary_dlAddr >>= fun dlDst ->
     arbitrary_option arbitrary_uint16 >>= fun dlTyp ->
@@ -159,16 +157,14 @@ module PseudoPort = struct
    * work.
    *)
   type s = int * (int option)
-  type t = PseudoPort.t
+  type t = pseudoPort
 
   let arbitrary_physical =
     let open Gen in
-    let open OpenFlow0x01_Core in
     choose_int(0,0xff00) >>= (fun p -> ret_gen (PhysicalPort p))
 
   let arbitrary =
     let open Gen in
-    let open OpenFlow0x01_Core in
       oneof [
         arbitrary_physical;
         ret_gen InPort;
@@ -183,7 +179,6 @@ module PseudoPort = struct
   (* Use in cases where a `Controller` port is invalid input *)
   let arbitrary_nc =
     let open Gen in
-    let open OpenFlow0x01_Core in
       oneof [
         arbitrary_physical;
         ret_gen InPort;
@@ -203,7 +198,6 @@ module PseudoPort = struct
       in PseudoPort.make p l'
 
   let marshal p =
-    let open OpenFlow0x01_Core in
     let l = match p with
             | Controller i -> Some i
             | _            -> None
@@ -211,12 +205,11 @@ module PseudoPort = struct
 end
 
 module Action = struct
-  type t = Action.t
+  type t = action
   type s = Cstruct.t
 
   let arbitrary =
     let open Gen in
-    let open OpenFlow0x01_Core in
     oneof [
       PseudoPort.arbitrary >>= (fun p -> ret_gen (Output p));
       Match.arbitrary_dlVlan >>= (fun dlVal -> ret_gen (SetDlVlan dlVal));
@@ -242,12 +235,11 @@ module Action = struct
 end
 
 module Timeout = struct
-  type t = OpenFlow0x01.Timeout.t
+  type t = timeout
   type s = Packet.int16
 
   let arbitrary =
     let open Gen in
-    let open OpenFlow0x01_Core in
     oneof [
       ret_gen Permanent;
       arbitrary_uint16 >>= (fun n -> ret_gen (ExpiresAfter n))
@@ -262,12 +254,11 @@ end
 module FlowMod = struct
 
   module Command = struct
-    type t = FlowMod.Command.t
+    type t = flowModCommand
     type s = Packet.int16
 
     let arbitrary =
       let open Gen in
-      let open OpenFlow0x01_Core in
       oneof [
         ret_gen AddFlow;
         ret_gen ModFlow;
@@ -289,7 +280,6 @@ module FlowMod = struct
 
   let arbitrary =
     let open Gen in
-    let open OpenFlow0x01_Core in
       Command.arbitrary >>= fun command ->
       Match.arbitrary >>= fun pattern ->
       arbitrary_uint16 >>= fun priority ->
@@ -325,12 +315,11 @@ end
 module FlowRemoved = struct
 
   module Reason = struct
-    type t = FlowRemoved.Reason.t
+    type t = flowRemovedReason
     type s = Packet.int8
 
     let arbitrary =
       let open Gen in
-      let open OpenFlow0x01_Core in
       oneof [
         ret_gen IdleTimeout;
         ret_gen HardTimeout;
@@ -343,12 +332,11 @@ module FlowRemoved = struct
     let parse = FlowRemoved.Reason.of_int
   end
 
-  type t = FlowRemoved.t
+  type t = flowRemoved
   type s = Cstruct.t
 
   let arbitrary =
     let open Gen in
-    let open OpenFlow0x01_Core in
       Match.arbitrary >>= fun pattern ->
       arbitrary_uint48 >>= fun cookie ->
       arbitrary_uint16 >>= fun priority ->
@@ -383,7 +371,7 @@ module PortDescription = struct
   module PortConfig = struct
     open PortDescription
 
-    type t = PortConfig.t
+    type t = portConfig
     type s = Int32.t
 
     let arbitrary =
@@ -417,7 +405,7 @@ module PortDescription = struct
         elements StpState.([Listen; Learn; Forward; Block])
     end
 
-    type t = PortState.t
+    type t = portState
     type s = Int32.t
 
     let arbitrary =
@@ -436,7 +424,7 @@ module PortDescription = struct
   module PortFeatures = struct
     open PortDescription
 
-    type t = PortFeatures.t
+    type t = portFeatures
     type s = Int32.t
 
     let arbitrary =
@@ -465,7 +453,7 @@ module PortDescription = struct
     let parse = PortFeatures.of_int
   end
 
-  type t = PortDescription.t
+  type t = portDescription
   type s = Cstruct.t
 
   let arbitrary =

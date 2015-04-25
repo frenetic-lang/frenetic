@@ -3,8 +3,8 @@ open Async.Std
 open OpenFlow0x01
 open NetKAT_Types
 open Async_NetKAT_Updates
-module Controller = Async_OpenFlow.OpenFlow0x01.Controller
-module Log = Async_OpenFlow.Log
+module Controller = Async_OpenFlow0x01_Controller
+module Log = Async_OpenFlow_Log
 
 let printf = Log.printf
 
@@ -70,7 +70,7 @@ let packet_sync_headers (pkt:NetKAT_Semantics.packet) : NetKAT_Semantics.packet 
     | SDN_Types.Buffered(n, _) -> SDN_Types.Buffered(n, Frenetic_Packet.marshal packet')
   }, !change)
 
-let of_to_netkat_event fdd (evt : Controller.e) : NetKAT_Types.event list =
+let of_to_netkat_event fdd (evt : Controller.event) : NetKAT_Types.event list =
   match evt with
   (* TODO(arjun): include switch features in SwitchUp *)
   | `Connect (sw_id, feats) ->
@@ -80,8 +80,8 @@ let of_to_netkat_event fdd (evt : Controller.e) : NetKAT_Types.event list =
 	 (List.map feats.ports ~f:(fun desc -> Int32.of_int_exn desc.port_no))
 	 ~f:(fun p -> not (p = 0xFFFEl))
      in [SwitchUp(sw_id, ps)]
-  | `Disconnect (sw_id, exn) -> [SwitchDown sw_id]
-  | `Message (sw_id, (xid, PortStatusMsg ps)) ->
+  | `Disconnect (sw_id) -> [SwitchDown sw_id]
+  | `Message (sw_id, hdr, PortStatusMsg ps) ->
     begin match ps.reason, ps.desc.config.down with
       | Add, _
       | Modify, true ->
@@ -92,10 +92,13 @@ let of_to_netkat_event fdd (evt : Controller.e) : NetKAT_Types.event list =
         let pt_id = Int32.of_int_exn (ps.desc.port_no) in
         [PortDown (sw_id, pt_id)]
     end
-  | `Message (sw_id, (xid, PacketInMsg pi)) when pi.port <= 0xff00 ->
-      let open OpenFlow0x01_Core in
+  | `Message (sw_id,hdr,PacketInMsg pi) when pi.port <= 0xff00 ->
+      let open OpenFlow0x01 in
       let port_id = Int32.of_int_exn pi.port in
-      let payload = SDN_OpenFlow0x01.to_payload pi.input_payload in
+      let payload : SDN_Types.payload = 
+        match pi.input_payload with 
+        | Buffered (id,bs) -> Buffered (id,bs) 
+        | NotBuffered bs -> NotBuffered bs in 
       (* Eval the packet to get the list of packets that should go to
        * pipes, and the list of packets that can be forwarded to physical
        * locations.
@@ -119,27 +122,18 @@ let of_to_netkat_event fdd (evt : Controller.e) : NetKAT_Types.event list =
         PacketIn(pipe, sw_id, port_id, payload, pi.total_len))
   | _ -> []
 
-module type ARGS = sig
-
-  val controller : Controller.t
-end
-
 module type CONTROLLER = sig
-
   val update_policy : policy -> unit Deferred.t
   val send_packet_out : switchId -> SDN_Types.pktOut -> unit Deferred.t
   val event : unit -> event Deferred.t
   val query : string -> (Int64.t * Int64.t) Deferred.t
-  val port_stats : switchId -> portId -> OpenFlow0x01_Stats.portStats Deferred.t
+  val port_stats : switchId -> portId -> OpenFlow0x01.portStats Deferred.t
   val is_query : string -> bool
   val start : unit -> unit
   val current_switches : unit -> (switchId * portId list) list
-
 end
 
-module Make (Args : ARGS) : CONTROLLER = struct
-  open Args
-
+module Make : CONTROLLER = struct
   let fdd = ref (NetKAT_LocalCompiler.compile drop)
   let stats : (string, Int64.t * Int64.t) Hashtbl.Poly.t = Hashtbl.Poly.create ()
   let (pol_reader, pol_writer) = Pipe.create ()
@@ -163,8 +157,9 @@ module Make (Args : ARGS) : CONTROLLER = struct
     | `Ok evt -> Deferred.return evt
 
   let current_switches () =
-    let features = List.filter_map ~f:(Controller.get_switch_features controller)
-      (Controller.get_switches controller) in
+    let features = 
+      List.filter_map ~f:Controller.get_switch_features
+        (Controller.get_switches ()) in
     let get_switch_and_ports (feats : OpenFlow0x01.SwitchFeatures.t) =
       (feats.switch_id,
        List.filter_map ~f:(fun port_desc ->
@@ -180,7 +175,7 @@ module Make (Args : ARGS) : CONTROLLER = struct
 
   let raw_query (name : string) : (Int64.t * Int64.t) Deferred.t =
     Deferred.List.map ~how:`Parallel
-      (Controller.get_switches controller) ~f:(fun sw_id ->
+      (Controller.get_switches ()) ~f:(fun sw_id ->
         let pats = List.filter_map (get_table sw_id) ~f:(fun (flow, names) ->
           if List.mem names name then
             Some flow.pattern
@@ -188,13 +183,19 @@ module Make (Args : ARGS) : CONTROLLER = struct
             None) in
         Deferred.List.map ~how:`Parallel pats
           ~f:(fun pat ->
-            let pat0x01 = SDN_OpenFlow0x01.from_pattern pat in
-            Controller.individual_stats ~pattern:pat0x01 controller sw_id
-            >>| function
-            | Ok stats ->
-              (List.sum (module Int64) stats ~f:(fun stat -> stat.packet_count),
-               List.sum (module Int64) stats ~f:(fun stat -> stat.byte_count))
-            | Error _ -> (0L, 0L)))
+            let pat0x01 = SDN_Types.To0x01.from_pattern pat in
+            let req = 
+              IndividualRequest
+                { sr_of_match = pat0x01; sr_table_id = 0xff; sr_out_port = None } in 
+            match Controller.send_txn sw_id (M.StatsRequestMsg req) with 
+              | `Eof -> return (0L,0L)
+              | `Ok l -> begin
+                l >>| function
+                  | [M.StatsReplyMsg (IndividualFlowRep stats)] -> 
+                    (List.sum (module Int64) stats ~f:(fun stat -> stat.packet_count),
+                     List.sum (module Int64) stats ~f:(fun stat -> stat.byte_count))
+                  | _ -> (0L, 0L)
+              end))
     >>| fun stats ->
       List.fold (List.concat stats) ~init:(0L, 0L)
         ~f:(fun (pkts, bytes) (pkts', bytes') ->
@@ -206,11 +207,16 @@ module Make (Args : ARGS) : CONTROLLER = struct
     let (pkts', bytes') = Hashtbl.Poly.find_exn stats name in
     Deferred.return (Int64.(pkts + pkts', bytes + bytes'))
 
-  let port_stats (sw_id : switchId) (pid : portId) : OpenFlow0x01_Stats.portStats Deferred.t =
-    Controller.port_stats controller sw_id (Int32.to_int_exn pid)
-    >>| function
-    | Ok portStats -> portStats
-    | Error _ -> assert false
+  let port_stats (sw_id : switchId) (pid : portId) : OpenFlow0x01.portStats Deferred.t =
+    let pt = Int32.(to_int_exn pid) in 
+    let req = PortRequest (Some (PhysicalPort pt)) in 
+    match Controller.send_txn sw_id (M.StatsRequestMsg req) with 
+      | `Eof -> assert false
+      | `Ok l -> begin
+        l >>| function
+          | [M.StatsReplyMsg (PortRep ps)] -> ps
+          | _ -> assert false
+      end
 
   let is_query (name : string) : bool = Hashtbl.Poly.mem stats name
 
@@ -236,29 +242,27 @@ module Make (Args : ARGS) : CONTROLLER = struct
     >>= fun () ->
     (* Actually update things *)
     fdd := NetKAT_LocalCompiler.compile pol;
-    BestEffortUpdate.implement_policy controller !fdd
+    BestEffortUpdate.implement_policy !fdd
 
-  let handle_event (evt : Controller.e) : unit Deferred.t =
+  let handle_event (evt : Controller.event) : unit Deferred.t =
     List.iter (of_to_netkat_event !fdd evt) ~f:(fun netkat_evt ->
       Pipe.write_without_pushback event_writer netkat_evt);
     match evt with
      | `Connect (sw_id, feats) ->
        printf ~level:`Info "switch %Ld connected" sw_id;
-       BestEffortUpdate.bring_up_switch controller sw_id !fdd
+       BestEffortUpdate.bring_up_switch sw_id !fdd
      | _ -> Deferred.return ()
 
   let send_pktout ((sw_id, pktout) : switchId * SDN_Types.pktOut) : unit Deferred.t =
-    let pktout0x01 = SDN_OpenFlow0x01.from_packetOut pktout in
-    Controller.send_pkt_out controller sw_id pktout0x01
-    >>= function
-    | Ok () -> Deferred.return ()
-    | Error exn -> Deferred.return ()
+    let pktout0x01 = SDN_Types.To0x01.from_packetOut pktout in
+    match Controller.send sw_id 0l (M.PacketOutMsg pktout0x01) with  
+      | `Eof -> return ()
+      | `Ok -> return ()
 
   let start () : unit =
-    let net_reader = Controller.listen controller in
+    Controller.init 6633;
     don't_wait_for (Pipe.iter pol_reader ~f:update_all_switches);
-    don't_wait_for (Pipe.iter net_reader ~f:handle_event);
+    don't_wait_for (Pipe.iter (Controller.events) ~f:handle_event);
     don't_wait_for (Pipe.iter pktout_reader ~f:send_pktout)
-
 end
 

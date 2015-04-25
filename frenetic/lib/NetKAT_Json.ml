@@ -266,7 +266,7 @@ let stats_to_json ((pkts, bytes) : Int64.t * Int64.t) : json =
 let stats_to_json_string (stats : Int64.t * Int64.t) : string =
   Yojson.Basic.to_string ~std:true (stats_to_json stats)
 
-let port_stats_to_json (portStats : OpenFlow0x01_Stats.portStats) : json =
+let port_stats_to_json (portStats : OpenFlow0x01.portStats) : json =
   `Assoc [("port_no", `Int portStats.port_no);
 	  ("rx_packets", `Int (Int64.to_int_exn portStats.rx_packets));
 	  ("tx_packets", `Int (Int64.to_int_exn portStats.tx_packets));
@@ -281,6 +281,6 @@ let port_stats_to_json (portStats : OpenFlow0x01_Stats.portStats) : json =
 	  ("rx_crc_err", `Int (Int64.to_int_exn portStats.rx_crc_err));
 	  ("collisions", `Int (Int64.to_int_exn portStats.collisions))]
 
-let port_stats_to_json_string (portStats : OpenFlow0x01_Stats.portStats) : string =
+let port_stats_to_json_string (portStats : OpenFlow0x01.portStats) : string =
   Yojson.Basic.to_string ~std:true (port_stats_to_json portStats)
 

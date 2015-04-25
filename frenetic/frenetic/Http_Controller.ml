@@ -4,7 +4,7 @@ open Cohttp_async
 open NetKAT_Types
 open Common
 module Server = Cohttp_async.Server
-module Log = Async_OpenFlow.Log
+module Log = Async_OpenFlow_Log
 
 type client = {
   (* Write new policies to this node *)
@@ -126,11 +126,8 @@ let print_error addr exn =
   Log.error "%s" (Exn.to_string exn)
 
 let listen ~http_port ~openflow_port =
-  Async_OpenFlow.OpenFlow0x01.Controller.create ~port:openflow_port ()
-  >>= fun controller ->
-  let module Controller = NetKAT_Controller.Make (struct
-      let controller = controller
-    end) in
+  Async_OpenFlow0x01_Controller.init openflow_port;
+  let module Controller = NetKAT_Controller.Make in
   let on_handler_error = `Call print_error in
   let _ = Cohttp_async.Server.create
     ~on_handler_error
@@ -145,4 +142,3 @@ let listen ~http_port ~openflow_port =
 
 let main (http_port : int) (openflow_port : int) () : unit =
   don't_wait_for(listen ~http_port ~openflow_port)
-

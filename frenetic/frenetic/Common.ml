@@ -11,7 +11,7 @@ let profile f =
 
 let printf ?(level : [ `Debug | `Info | `Error ] = `Info)
   (fmt :  ('a, unit, string, unit) format4) =
-  Async_OpenFlow.Log.printf ~level ~tags:[("frenetic", "http")] fmt
+  Async_OpenFlow_Log.printf ~level ~tags:[("frenetic", "http")] fmt
 
 (* Extract the path, split on slashes, and remove empty strings caused by
    repeated slashes *)

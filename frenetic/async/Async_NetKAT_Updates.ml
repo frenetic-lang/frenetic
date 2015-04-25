@@ -1,19 +1,30 @@
 open Core.Std
 open Async.Std
-open Async_NetKAT_Controller_Common
-module Log = Async_OpenFlow.Log
 
-type edge = (SDN_Types.flow*int) list SwitchMap.t
+module M = OpenFlow0x01.Message
+module Net = Async_NetKAT_Net.Net
+module SDN = SDN_Types
+module Log = Async_OpenFlow_Log
+module Controller = Async_OpenFlow0x01_Controller
+module LC = NetKAT_LocalCompiler
 
+open SDN_Types.To0x01
+
+exception UpdateError
+
+module SwitchMap = Map.Make(struct
+  type t = SDN_Types.switchId with sexp
+  let compare = compare
+end)
+
+type edge = (SDN_Types.flow * int) list SwitchMap.t
 
 module type UPDATE_ARGS = sig
-  val ctl : Controller.t
   val get_order : unit -> LC.order
   val get_prev_order : unit -> LC.order
 end
 
 module type CONSISTENT_UPDATE_ARGS = sig
-  val ctl : Controller.t
   val get_order : unit -> LC.order
   val get_prev_order : unit -> LC.order
   val get_nib : unit -> Net.Topology.t
@@ -40,112 +51,64 @@ module BestEffortUpdate = struct
   let restrict sw_id repr =
     LC.restrict NetKAT_Types.(Switch sw_id) repr
 
-  let install_flows_for ctl sw_id table =
-    let to_flow_mod p f = M.FlowModMsg (SDN_OpenFlow0x01.from_flow p f) in
+  let install_flows_for sw_id table =
+    let to_flow_mod p f = M.FlowModMsg (from_flow p f) in
     let priority = ref 65536 in
     Deferred.List.iter table ~f:(fun flow ->
       decr priority;
-      Controller.send ctl sw_id (0l, to_flow_mod !priority flow)
-      >>| function
-        | `Drop exn -> raise exn
-        | `Sent _   -> ())
+      match Controller.send sw_id 0l (to_flow_mod !priority flow) with 
+        | `Eof -> raise UpdateError
+        | `Ok -> return ())
 
-  let delete_flows_for ctl sw_id =
-    let delete_flows = M.FlowModMsg OpenFlow0x01_Core.delete_all_flows in
-    Controller.send ctl sw_id (5l, delete_flows)
-    >>| function
-      | `Drop exn -> raise exn
-      | `Sent _   -> ()
+  let delete_flows_for sw_id =
+    let delete_flows = M.FlowModMsg OpenFlow0x01.delete_all_flows in
+    match Controller.send sw_id 5l delete_flows with 
+      | `Eof -> raise UpdateError
+      | `Ok -> return ()
 
-  let bring_up_switch ctl (sw_id : SDN.switchId) new_r =
+  let bring_up_switch (sw_id : SDN.switchId) new_r =
     let table = LC.to_table sw_id new_r in
     Log.printf ~level:`Debug "Setting up flow table\n%s"
       (SDN_Types.string_of_flowTable ~label:(Int64.to_string sw_id) table);
     Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
-      delete_flows_for ctl sw_id >>= fun () ->
-      install_flows_for ctl sw_id table)
+      delete_flows_for sw_id >>= fun _ -> 
+      install_flows_for sw_id table)
     >>= function
-      | Ok x       -> return x
+      | Ok x -> return x
       | Error _exn ->
-        Log.debug ~tags
+        Log.debug 
           "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
         Log.flushed () >>| fun () ->
         Printf.eprintf "%s\n%!" (Exn.to_string _exn)
 
-  let implement_policy ctl repr =
-    Deferred.List.iter (Controller.get_switches ctl) (fun sw_id ->
-      bring_up_switch ctl sw_id repr)
-end
-
-module BestEffort (Args : UPDATE_ARGS) : UPDATE = struct
-  open Args
-
-  let restrict sw_id repr =
-    LC.restrict NetKAT_Types.(Switch sw_id) repr
-
-  let install_flows_for sw_id table =
-    let to_flow_mod p f = M.FlowModMsg (SDN_OpenFlow0x01.from_flow p f) in
-    let priority = ref 65536 in
-    Deferred.List.iter table ~f:(fun flow ->
-      decr priority;
-      Controller.send ctl sw_id (0l, to_flow_mod !priority flow)
-      >>| function
-        | `Drop exn -> raise exn
-        | `Sent _   -> ())
-
-  let delete_flows_for sw_id =
-    let delete_flows = M.FlowModMsg OpenFlow0x01_Core.delete_all_flows in
-    Controller.send ctl sw_id (5l, delete_flows)
-    >>| function
-      | `Drop exn -> raise exn
-      | `Sent _   -> ()
-
-  let bring_up_switch (sw_id : SDN.switchId) ?old new_r =
-    match old with
-    | Some(old_r) when
-     (get_prev_order () = get_order ()  &&
-        LC.equal (restrict sw_id old_r) (restrict sw_id new_r)) ->
-      Log.debug ~tags
-        "[policy] Skipping identical policy update for swithc %Lu" sw_id ;
-      return ()
-    | _ ->
-      let table = LC.to_table sw_id new_r in
-      Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
-        delete_flows_for sw_id >>= fun () ->
-        install_flows_for sw_id table)
-      >>= function
-        | Ok x       -> return x
-        | Error _exn ->
-          Log.debug ~tags
-            "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
-          Log.flushed () >>| fun () ->
-          Printf.eprintf "%s\n%!" (Exn.to_string _exn)
-
-  let implement_policy ?old repr =
-    Deferred.List.iter (Controller.get_switches ctl) (fun sw_id ->
-      bring_up_switch sw_id ?old repr)
+  let implement_policy repr =
+    Deferred.List.iter (Controller.get_switches ()) (fun sw_id ->
+      bring_up_switch sw_id repr)
 end
 
 module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
   open SDN_Types
   open Args
 
+  let barrier sw = 
+    match Controller.send_txn sw M.BarrierRequest with 
+      | `Ok dl -> dl >>= fun _ -> return (Ok ())
+      | `Eof -> return (Error UpdateError)
+
   let install_flows_for sw_id ?old table =
-    let to_flow_mod p f = M.FlowModMsg (SDN_OpenFlow0x01.from_flow p f) in
+    let to_flow_mod p f = M.FlowModMsg (from_flow p f) in
     let priority = ref 65536 in
     Deferred.List.iter table ~f:(fun flow ->
       decr priority;
-      Controller.send ctl sw_id (0l, to_flow_mod !priority flow)
-      >>| function
-        | `Drop exn -> raise exn
-        | `Sent _   -> ())
+      match Controller.send sw_id 0l (to_flow_mod !priority flow) with 
+        | `Eof -> raise UpdateError
+        | `Ok -> return ())
 
   let delete_flows_for sw_id =
-    let delete_flows = M.FlowModMsg OpenFlow0x01_Core.delete_all_flows in
-    Controller.send ctl sw_id (5l, delete_flows)
-    >>| function
-      | `Drop exn -> raise exn
-      | `Sent _   -> ()
+    let delete_flows = M.FlowModMsg OpenFlow0x01.delete_all_flows in
+    match Controller.send sw_id 5l delete_flows with 
+      | `Eof -> raise UpdateError 
+      | `Ok -> return ()
 
   let specialize_action ver internal_ports actions =
     List.fold_right actions ~init:[] ~f:(fun action acc ->
@@ -184,8 +147,8 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
       })
 
   let clear_policy_for (ver : int) sw_id =
-    let open OpenFlow0x01_Core in
-    let clear_version_message = M.FlowModMsg { SDN_OpenFlow0x01.from_flow 0
+    let open OpenFlow0x01 in
+    let clear_version_message = M.FlowModMsg { from_flow 0
       { pattern = { Pattern.match_all with Pattern.dlVlan = Some ver }
       ; action = []
       ; cookie = 0L
@@ -193,12 +156,13 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
       ; hard_timeout = Permanent
       } with command = DeleteFlow } in
     Monitor.try_with ~name:"PerPacketConsistent.clear_policy_for" (fun () ->
-      Controller.send ctl sw_id (5l, clear_version_message))
+      match Controller.send sw_id 5l clear_version_message with 
+        | `Eof -> raise UpdateError
+        | `Ok -> return ())
     >>| function
-      | Ok (`Sent _)    -> ()
-      | Ok (`Drop _exn)
-      | Error _exn      ->
-        Log.error ~tags "switch %Lu: Failed to delete flows for ver %d" sw_id ver
+      | Ok (_)    -> ()
+      | Error _exn ->
+        Log.error "switch %Lu: Failed to delete flows for ver %d" sw_id ver
 
   let internal_install_policy_for (ver : int) repr (sw_id : switchId) =
     begin let open Deferred.Result in
@@ -208,14 +172,14 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
         ver (TUtil.internal_ports (get_nib ()) sw_id) table0 in
       assert (List.length table1 > 0);
       install_flows_for  sw_id table1)
-    >>= fun () -> Controller.barrier ctl sw_id
+    >>= fun () -> barrier sw_id
     end
     >>| function
       | Ok () ->
-        Log.debug ~tags
+        Log.debug
           "switch %Lu: installed internal table for ver %d" sw_id ver;
       | Error _ ->
-        Log.debug ~tags
+        Log.debug
           "switch %Lu: disconnected while installing internal table for ver %d... skipping" sw_id ver
 
   (* Comparison should be made based on patterns only, not actions *)
@@ -237,7 +201,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
      - switch respects priorities when deleting flows
   *)
   let swap_update_for sw_id c_id new_table : unit Deferred.t =
-    let open OpenFlow0x01_Core in
+    let open OpenFlow0x01 in
     let max_priority = 65535 in
     let old_table = match SwitchMap.find (get_edge ()) sw_id with
       | Some ft -> ft
@@ -247,15 +211,19 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
     let new_table = List.rev new_table in
     let del_table = List.rev (flowtable_diff old_table new_table) in
     let to_flow_mod prio flow =
-      M.FlowModMsg (SDN_OpenFlow0x01.from_flow prio flow) in
+      M.FlowModMsg (from_flow prio flow) in
     let to_flow_del prio flow =
-      M.FlowModMsg ({SDN_OpenFlow0x01.from_flow prio flow with command = DeleteStrictFlow}) in
+      M.FlowModMsg ({from_flow prio flow with command = DeleteStrictFlow}) in
     (* Install the new table *)
     Deferred.List.iter new_table ~f:(fun (flow, prio) ->
-      send ctl c_id (0l, to_flow_mod prio flow))
+      match Controller.send c_id 0l (to_flow_mod prio flow) with 
+        | `Eof -> raise UpdateError 
+        | `Ok -> return ())
     (* Delete the old table from the bottom up *)
     >>= fun () -> Deferred.List.iter del_table ~f:(fun (flow, prio) ->
-      send ctl c_id (0l, to_flow_del prio flow))
+      match Controller.send c_id 0l (to_flow_del prio flow) with 
+        | `Eof -> raise UpdateError
+        | `Ok -> return ())
     >>| fun () ->
     set_edge (SwitchMap.add (get_edge ()) sw_id new_table)
 
@@ -265,16 +233,16 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
       let table = LC.to_table sw_id repr in
       let edge_table = specialize_edge_to
         ver (TUtil.internal_ports (get_nib ()) sw_id) table in
-      Log.debug ~tags
+      Log.debug
         "switch %Lu: Installing edge table for ver %d" sw_id ver;
       swap_update_for sw_id sw_id edge_table)
-    >>= fun () -> Controller.barrier ctl sw_id
+    >>= fun () -> barrier sw_id
     end
     >>| function
       | Ok () ->
-        Log.debug ~tags "switch %Lu: installed edge table for ver %d" sw_id ver
+        Log.debug "switch %Lu: installed edge table for ver %d" sw_id ver
       | Error _ ->
-        Log.debug ~tags "switch %Lu: disconnected while installing edge table for ver %d... skipping" sw_id ver
+        Log.debug "switch %Lu: disconnected while installing edge table for ver %d... skipping" sw_id ver
 
   let ver = ref 1
 
@@ -284,15 +252,15 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
      * program, whereas a switch id may be reused across client ids, i.e., a
      * switch connects, disconnects, and connects again. Due to this behavior,
      * it may be possible to get into an inconsistent state below. Maybe. *)
-    let switches = Controller.get_switches ctl in
+    let switches = Controller.get_switches () in
     let ver_num = !ver + 1 in
     (* Install internal update *)
-    Log.debug ~tags "Installing internal tables for ver %d" ver_num;
+    Log.debug "Installing internal tables for ver %d" ver_num;
     Log.flushed ()
     >>= fun () ->
     Deferred.List.iter switches (internal_install_policy_for ver_num repr)
     >>= fun () ->
-    (Log.debug ~tags "Installing edge tables for ver %d" ver_num;
+    (Log.debug "Installing edge tables for ver %d" ver_num;
      Log.flushed ())
     >>= fun () ->
     (* Install edge update *)
@@ -311,7 +279,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
     >>= function
       | Ok x -> return ()
       | Error _exn ->
-        Log.debug ~tags
+        Log.debug
           "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
         Log.flushed () >>| fun () ->
         Printf.eprintf "%s\n%!" (Exn.to_string _exn)

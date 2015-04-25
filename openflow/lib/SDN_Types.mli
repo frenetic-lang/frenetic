@@ -218,3 +218,10 @@ val string_of_seq : seq -> string
 val string_of_par : par -> string
 val string_of_flow : flow -> string
 val string_of_flowTable : ?label:string -> flowTable -> string
+
+module To0x01 : sig
+  val from_pattern : Pattern.t -> OpenFlow0x01.pattern
+  val from_flow : int -> flow -> OpenFlow0x01.flowMod
+  val from_payload : payload -> OpenFlow0x01.payload
+  val from_packetOut : pktOut -> OpenFlow0x01.packetOut
+end

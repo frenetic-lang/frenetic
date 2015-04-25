@@ -1,18 +1,11 @@
 # OASIS_START
-# DO NOT EDIT (digest: 8adf436e2afcde49f7feb67b8f90afaa)
+# DO NOT EDIT (digest: 462757e4afa4c085b818ba333427bde7)
 OpenFlow_Header
 OpenFlow0x01
-OpenFlow0x01_Core
-OpenFlow0x01_Stats
 OpenFlow0x04
 OpenFlow0x04_Core
-SDN_OpenFlow0x01
-SDN_OpenFlow0x04
 GroupTable0x04
 SDN_Types
 Bits
 OpenFlow_Misc
-VInt
-ModComposition
-HighLevelSwitch_common
 # OASIS_STOP

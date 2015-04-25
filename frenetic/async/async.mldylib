@@ -1,13 +1,6 @@
 # OASIS_START
-# DO NOT EDIT (digest: fd4814163b228047ab722918365f6ef8)
-Async_NetKAT
-NetKAT_Controller
-Async_NetKAT_Controller
-NetKAT
+# DO NOT EDIT (digest: 40bcdc101a665fb2970c5facce5e8811)
 Async_NetKAT_Updates
-Async_NetKAT_Controller_Common
-Discovery
-Learning
-Raw_app
+NetKAT_Controller
 TUtil
 # OASIS_STOP
