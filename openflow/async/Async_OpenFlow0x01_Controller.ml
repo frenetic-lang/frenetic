@@ -1,28 +1,28 @@
 open Core.Std
 open Async.Std
-open OpenFlow0x01
+open Frenetic_OpenFlow0x01
 
 type event = [
   | `Connect of switchId * SwitchFeatures.t
   | `Disconnect of switchId
-  | `Message of switchId * OpenFlow_Header.t * Message.t
+  | `Message of switchId * Frenetic_OpenFlow_Header.t * Message.t
 ]
 
 let (events, events_writer) = Pipe.create ()
 
-let openflow_events (r:Reader.t) : (OpenFlow_Header.t * Message.t) Pipe.Reader.t =
+let openflow_events (r:Reader.t) : (Frenetic_OpenFlow_Header.t * Message.t) Pipe.Reader.t =
 
   let reader,writer = Pipe.create () in
 
   let rec loop () =
-    let header_str = String.create OpenFlow_Header.size in
+    let header_str = String.create Frenetic_OpenFlow_Header.size in
     Reader.really_read r header_str >>= function 
       | `Eof _ -> 
         Pipe.close writer;
         return ()
       | `Ok -> 
-        let header = OpenFlow_Header.parse (Cstruct.of_string header_str) in
-        let body_len = header.length - OpenFlow_Header.size in
+        let header = Frenetic_OpenFlow_Header.parse (Cstruct.of_string header_str) in
+        let body_len = header.length - Frenetic_OpenFlow_Header.size in
         let body_str = String.create body_len in
         Reader.really_read r body_str >>= function
           | `Eof _ -> 
@@ -58,8 +58,8 @@ let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit De
   let serialize (xid:xid) (msg:Message.t) : unit = 
     let header = Message.header_of xid msg in 
     let buf = Cstruct.create header.length in 
-    OpenFlow_Header.marshal buf header;
-    Message.marshal_body msg (Cstruct.shift buf OpenFlow_Header.size);
+    Frenetic_OpenFlow_Header.marshal buf header;
+    Message.marshal_body msg (Cstruct.shift buf Frenetic_OpenFlow_Header.size);
     Async_cstruct.schedule_write w buf in 
 
   let my_events = openflow_events r in

@@ -1,7 +1,7 @@
 open Async.Std
 
 open Frenetic_Packet
-open OpenFlow0x01
+open Frenetic_OpenFlow0x01
 
 module Log = Async_OpenFlow_Log
 

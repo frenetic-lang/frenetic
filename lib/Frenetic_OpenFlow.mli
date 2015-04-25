@@ -31,6 +31,8 @@
 
 open Frenetic_Packet
 
+module OF10 = Frenetic_OpenFlow0x01
+
 type switchId = int64 with sexp
 type portId = int32 with sexp
 type queueId = int32 with sexp
@@ -220,8 +222,8 @@ val string_of_flow : flow -> string
 val string_of_flowTable : ?label:string -> flowTable -> string
 
 module To0x01 : sig
-  val from_pattern : Pattern.t -> OpenFlow0x01.pattern
-  val from_flow : int -> flow -> OpenFlow0x01.flowMod
-  val from_payload : payload -> OpenFlow0x01.payload
-  val from_packetOut : pktOut -> OpenFlow0x01.packetOut
+  val from_pattern : Pattern.t -> OF10.pattern
+  val from_flow : int -> flow -> OF10.flowMod
+  val from_payload : payload -> OF10.payload
+  val from_packetOut : pktOut -> OF10.packetOut
 end

@@ -1,12 +1,12 @@
 open Printf
 open Frenetic_Packet
-open OpenFlow_Header
-open OpenFlow0x01
+open Frenetic_OpenFlow_Header
+open Frenetic_OpenFlow0x01
 open Message
 open OxShared
 
 module type OXMODULE = sig
-  val switch_connected : switchId -> OpenFlow0x01.SwitchFeatures.t -> unit
+  val switch_connected : switchId -> SwitchFeatures.t -> unit
   val switch_disconnected : switchId -> unit
   val packet_in : switchId -> xid -> packetIn -> unit
   val barrier_reply : switchId -> xid -> unit

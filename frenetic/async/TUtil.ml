@@ -5,7 +5,7 @@
 open Core.Std
 
 module Net = Async_NetKAT_Net.Net
-module SDN = SDN_Types
+module SDN = Frenetic_OpenFlow
 
 let switch_ids (t : Net.Topology.t) : SDN.switchId list =
   let open Net.Topology in

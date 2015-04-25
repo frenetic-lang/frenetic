@@ -6,9 +6,9 @@ open Core.Std
 (** {2 Basics} *)
 open Frenetic_Packet
 
-type switchId = SDN_Types.switchId with sexp
-type portId = SDN_Types.portId with sexp
-type payload = SDN_Types.payload with sexp
+type switchId = Frenetic_OpenFlow.switchId with sexp
+type portId = Frenetic_OpenFlow.portId with sexp
+type payload = Frenetic_OpenFlow.payload with sexp
 
 (** {2 Policies} *)
 
@@ -63,12 +63,12 @@ let drop = Filter False
 
 (** {3 Applications} *)
 
-type action = SDN_Types.action
+type action = Frenetic_OpenFlow.action
 
 type switch_port = switchId * portId with sexp
 type host = Frenetic_Packet.dlAddr * Frenetic_Packet.nwAddr with sexp
 
-type bufferId = Int32.t with sexp (* XXX(seliopou): different than SDN_Types *)
+type bufferId = Int32.t with sexp (* XXX(seliopou): different than Frenetic_OpenFlow *)
 type bytes = Frenetic_Packet.bytes with sexp
 
 type event =

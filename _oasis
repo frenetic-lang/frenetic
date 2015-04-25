@@ -17,6 +17,7 @@ Library frenetic
   Path: lib
   BuildDepends: 
     str, 
+    core,
     cstruct, 
     cstruct.syntax, 
     sexplib, 
@@ -24,7 +25,11 @@ Library frenetic
     tcpip
   Modules: 
     Frenetic_Bits,
-    Frenetic_Packet
+    Frenetic_Packet,
+    Frenetic_OpenFlow,
+    Frenetic_OpenFlow_Header,
+    Frenetic_OpenFlow0x01,
+    Frenetic_Util
 
 Library openflow
   Path: openflow/lib
@@ -40,12 +45,9 @@ Library openflow
   InternalModules:
     OpenFlow_Misc
   Modules:
-    OpenFlow_Header,
-    OpenFlow0x01,
     OpenFlow0x04,
     OpenFlow0x04_Core,
-    GroupTable0x04,
-    SDN_Types
+    GroupTable0x04
 
 Library openflowasync
   Findlibname: openflowasync

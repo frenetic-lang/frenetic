@@ -1,6 +1,6 @@
 open Core.Std
 open Yojson.Basic
-open SDN_Types
+open Frenetic_OpenFlow
 
 let pseudoport_from_json (json : json) : pseudoport =
   let open Yojson.Basic.Util in

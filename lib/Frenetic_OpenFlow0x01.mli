@@ -17,7 +17,7 @@ type portId = int16 with sexp
 
 type queueId = int32 with sexp
 
-type xid = OpenFlow_Header.xid
+type xid = Frenetic_OpenFlow_Header.xid
 
 type pattern =
     { dlSrc : dlAddr option
@@ -657,7 +657,7 @@ module Message : sig
   (** [size_of msg] returns the size of [msg] in bytes when serialized. *)
   val size_of : t -> int
 
-  val header_of : xid -> t -> OpenFlow_Header.t
+  val header_of : xid -> t -> Frenetic_OpenFlow_Header.t
 
   (** [parse hdr bits] parses the body of a message with header [hdr] from
       buffer [bits].
@@ -667,7 +667,7 @@ module Message : sig
       @raise Unparsable if [bits] cannot be parsed.
       @raise Ignored if [bits] contains a valid OpenFlow message that the
              parser does not yet handle. *)
-  val parse : OpenFlow_Header.t -> string -> (xid * t)
+  val parse : Frenetic_OpenFlow_Header.t -> string -> (xid * t)
 
   val marshal_body : t -> Cstruct.t -> unit
 

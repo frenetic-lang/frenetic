@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 5b1a0e01c281315af7ed723363b8d6e4)
+# DO NOT EDIT (digest: 74d89ee882359ea5324318923c8613ab)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -16,6 +16,7 @@ true: annot, bin_annot
 "_darcs": not_hygienic
 # Library frenetic
 "lib/frenetic.cmxs": use_frenetic
+<lib/*.ml{,i,y}>: package(core)
 <lib/*.ml{,i,y}>: package(cstruct)
 <lib/*.ml{,i,y}>: package(cstruct.syntax)
 <lib/*.ml{,i,y}>: package(sexplib)
@@ -49,6 +50,7 @@ true: annot, bin_annot
 <openflow/async/*.ml{,i,y}>: use_openflow
 # Library topology
 "topology/lib/topology.cmxs": use_topology
+<topology/lib/*.ml{,i,y}>: package(core)
 <topology/lib/*.ml{,i,y}>: package(core_kernel)
 <topology/lib/*.ml{,i,y}>: package(cstruct)
 <topology/lib/*.ml{,i,y}>: package(cstruct.syntax)

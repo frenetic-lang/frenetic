@@ -1,5 +1,5 @@
 open Core.Std
-open SDN_Types
+open Frenetic_OpenFlow
 open Yojson.Basic
 
 val pseudoport_to_json : pseudoport -> json

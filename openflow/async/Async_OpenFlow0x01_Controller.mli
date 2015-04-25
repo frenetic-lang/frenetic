@@ -1,11 +1,11 @@
 open Core.Std
 open Async.Std
-open OpenFlow0x01
+open Frenetic_OpenFlow0x01
 
 type event = [
   | `Connect of switchId * SwitchFeatures.t
   | `Disconnect of switchId
-  | `Message of switchId * OpenFlow_Header.t * Message.t 
+  | `Message of switchId * Frenetic_OpenFlow_Header.t * Message.t 
 ]
 val init: int -> unit
 

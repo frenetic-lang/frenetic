@@ -1,5 +1,5 @@
 (** Launches an Ox application. *)
-open OpenFlow0x01
+open Frenetic_OpenFlow0x01
 
 (** Provides default implementations for some advanced event handlers,
     reducing clutter in simple controllers.
@@ -7,7 +7,7 @@ open OpenFlow0x01
     These event handlers simply ignore the messages they receive. *)
 module DefaultTutorialHandlers : sig
 
-  val switch_connected : switchId -> OpenFlow0x01.SwitchFeatures.t -> unit
+  val switch_connected : switchId -> SwitchFeatures.t -> unit
   val switch_disconnected : switchId -> unit
   val barrier_reply : switchId -> xid -> unit
   val stats_reply : switchId -> xid -> reply -> unit
@@ -22,7 +22,7 @@ module type OXMODULE = sig
 
   (** [switch_connected sw] is a callback invoked with [sw] when a switch with
   identifer [sw] connects to the controller. *)
-  val switch_connected : switchId -> OpenFlow0x01.SwitchFeatures.t -> unit
+  val switch_connected : switchId -> SwitchFeatures.t -> unit
 
   (** [switch_disconnected sw] is a callback invoked with [sw] when a switch
   with identifer [sw] disconnects from the controller. *)

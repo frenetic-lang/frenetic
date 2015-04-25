@@ -1,23 +1,24 @@
 open Core.Std
 open Async.Std
 
-module M = OpenFlow0x01.Message
+module OF10 = Frenetic_OpenFlow0x01
+module M = OF10.Message
 module Net = Async_NetKAT_Net.Net
-module SDN = SDN_Types
+module SDN = Frenetic_OpenFlow
 module Log = Async_OpenFlow_Log
 module Controller = Async_OpenFlow0x01_Controller
 module LC = NetKAT_LocalCompiler
 
-open SDN_Types.To0x01
+open Frenetic_OpenFlow.To0x01
 
 exception UpdateError
 
 module SwitchMap = Map.Make(struct
-  type t = SDN_Types.switchId with sexp
+  type t = Frenetic_OpenFlow.switchId with sexp
   let compare = compare
 end)
 
-type edge = (SDN_Types.flow * int) list SwitchMap.t
+type edge = (Frenetic_OpenFlow.flow * int) list SwitchMap.t
 
 module type UPDATE_ARGS = sig
   val get_order : unit -> LC.order
@@ -61,7 +62,7 @@ module BestEffortUpdate = struct
         | `Ok -> return ())
 
   let delete_flows_for sw_id =
-    let delete_flows = M.FlowModMsg OpenFlow0x01.delete_all_flows in
+    let delete_flows = M.FlowModMsg OF10.delete_all_flows in
     match Controller.send sw_id 5l delete_flows with 
       | `Eof -> raise UpdateError
       | `Ok -> return ()
@@ -69,7 +70,7 @@ module BestEffortUpdate = struct
   let bring_up_switch (sw_id : SDN.switchId) new_r =
     let table = LC.to_table sw_id new_r in
     Log.printf ~level:`Debug "Setting up flow table\n%s"
-      (SDN_Types.string_of_flowTable ~label:(Int64.to_string sw_id) table);
+      (Frenetic_OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id) table);
     Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
       delete_flows_for sw_id >>= fun _ -> 
       install_flows_for sw_id table)
@@ -87,7 +88,7 @@ module BestEffortUpdate = struct
 end
 
 module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
-  open SDN_Types
+  open Frenetic_OpenFlow
   open Args
 
   let barrier sw = 
@@ -105,7 +106,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
         | `Ok -> return ())
 
   let delete_flows_for sw_id =
-    let delete_flows = M.FlowModMsg OpenFlow0x01.delete_all_flows in
+    let delete_flows = M.FlowModMsg OF10.delete_all_flows in
     match Controller.send sw_id 5l delete_flows with 
       | `Eof -> raise UpdateError 
       | `Ok -> return ()
@@ -147,7 +148,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
       })
 
   let clear_policy_for (ver : int) sw_id =
-    let open OpenFlow0x01 in
+    let open OF10 in
     let clear_version_message = M.FlowModMsg { from_flow 0
       { pattern = { Pattern.match_all with Pattern.dlVlan = Some ver }
       ; action = []
@@ -184,8 +185,8 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
 
   (* Comparison should be made based on patterns only, not actions *)
   (* Assumes both FT are sorted in descending order by priority *)
-  let rec flowtable_diff (ft1 : (SDN_Types.flow*int) list) (ft2 : (SDN_Types.flow*int) list) =
-    let open SDN_Types in
+  let rec flowtable_diff (ft1 : (Frenetic_OpenFlow.flow*int) list) (ft2 : (Frenetic_OpenFlow.flow*int) list) =
+    let open Frenetic_OpenFlow in
     match ft1,ft2 with
     | (flow1,pri1)::ft1, (flow2,pri2)::ft2 ->
       if pri1 > pri2 then
@@ -201,7 +202,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
      - switch respects priorities when deleting flows
   *)
   let swap_update_for sw_id c_id new_table : unit Deferred.t =
-    let open OpenFlow0x01 in
+    let open OF10 in
     let max_priority = 65535 in
     let old_table = match SwitchMap.find (get_edge ()) sw_id with
       | Some ft -> ft

@@ -155,9 +155,9 @@ let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
       | EthType n -> pkt.headers.ethType = n
       | IPProto n -> pkt.headers.ipProto = n
       | IP4Src (n, m) ->
-        SDN_Types.Pattern.Ip.less_eq (pkt.headers.ipSrc, 32l) (n, m)
+        Frenetic_OpenFlow.Pattern.Ip.less_eq (pkt.headers.ipSrc, 32l) (n, m)
       | IP4Dst (n, m) ->
-        SDN_Types.Pattern.Ip.less_eq (pkt.headers.ipDst, 32l) (n, m)
+        Frenetic_OpenFlow.Pattern.Ip.less_eq (pkt.headers.ipDst, 32l) (n, m)
       | TCPSrcPort n -> pkt.headers.tcpSrcPort = n
       | TCPDstPort n -> pkt.headers.tcpDstPort = n
     end

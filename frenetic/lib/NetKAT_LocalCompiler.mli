@@ -2,7 +2,7 @@ open Core.Std
 open NetKAT_Types
 open NetKAT_Semantics
 
-open SDN_Types
+open Frenetic_OpenFlow
 
 module Field : sig
 

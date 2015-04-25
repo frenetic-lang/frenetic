@@ -2,8 +2,7 @@ open Core.Std
 open Sexplib
 open Sexplib.Std
 
-module OF10 = OpenFlow0x01
-module OF13 = OpenFlow0x04_Core
+module OF10 = Frenetic_OpenFlow0x01
 
 open Frenetic_Packet
 
@@ -570,13 +569,13 @@ module To0x01 = struct
 
 exception Invalid_port of int32
 
-let from_portId (pport_id : portId) : OpenFlow0x01.portId =
+let from_portId (pport_id : portId) : OF10.portId =
   if pport_id > 0xff00l then (* pport_id <= OFPP_MAX *)
     raise (Invalid_port pport_id)
   else
     Int32.to_int_exn pport_id
 
-let from_output (inPort : OpenFlow0x01.portId option) (pseudoport : pseudoport) : OpenFlow0x01.action =
+let from_output (inPort : OF10.portId option) (pseudoport : pseudoport) : OF10.action =
   match pseudoport with
     | InPort -> Output InPort
     | Table -> Output Table
@@ -594,7 +593,7 @@ let from_output (inPort : OpenFlow0x01.portId option) (pseudoport : pseudoport) 
     | Local ->
       Output Local
         
-let from_action (inPort : OpenFlow0x01.portId option) (act : action) : OpenFlow0x01.action = 
+let from_action (inPort : OF10.portId option) (act : action) : OF10.action = 
   match act with
     | Output pseudoport ->
       from_output inPort pseudoport
@@ -631,27 +630,27 @@ let from_action (inPort : OpenFlow0x01.portId option) (act : action) : OpenFlow0
     | Modify (SetTCPDstPort tp) ->
       SetTpDst tp
         
-let from_seq (inPort : OpenFlow0x01.portId option) (seq : seq) : OpenFlow0x01.action list = 
+let from_seq (inPort : OF10.portId option) (seq : seq) : OF10.action list = 
   List.map seq ~f:(from_action inPort)
 
-let from_par (inPort : OpenFlow0x01.portId option) (par : par) : OpenFlow0x01.action list =
+let from_par (inPort : OF10.portId option) (par : par) : OF10.action list =
   List.concat (List.map par ~f:(from_seq inPort))
 
-let from_group (inPort : OpenFlow0x01.portId option) (group : group)
-  : OpenFlow0x01.action list =
+let from_group (inPort : OF10.portId option) (group : group)
+  : OF10.action list =
   match group with
   | [] -> []
   | [par] -> from_par inPort par
   | _ ->
      raise (Unsupported "OpenFlow 1.0 does not support fast-failover")
 
-let from_timeout (timeout : timeout) : OpenFlow0x01.timeout =
+let from_timeout (timeout : timeout) : OF10.timeout =
   match timeout with
     | Permanent -> Permanent
     | ExpiresAfter n -> ExpiresAfter n
       
       
-let from_pattern (pat : Pattern.t) : OpenFlow0x01.pattern =
+let from_pattern (pat : Pattern.t) : OF10.pattern =
   { dlSrc = pat.dlSrc
   ; dlDst = pat.dlDst
   ; dlTyp = pat.dlTyp
@@ -685,7 +684,7 @@ let from_pattern (pat : Pattern.t) : OpenFlow0x01.pattern =
   ; inPort = Core_kernel.Option.map pat.inPort from_portId
   }
 
-let from_flow (priority : int) (flow : flow) : OpenFlow0x01.flowMod =
+let from_flow (priority : int) (flow : flow) : OF10.flowMod =
   match flow with
     | { pattern; action; cookie; idle_timeout; hard_timeout } ->
       let pat = from_pattern pattern in
@@ -701,13 +700,13 @@ let from_flow (priority : int) (flow : flow) : OpenFlow0x01.flowMod =
         out_port = None;
         check_overlap = false }
 
-let from_payload (pay : payload) : OpenFlow0x01.payload =
+let from_payload (pay : payload) : OF10.payload =
   match pay with
     | Buffered (buf_id, bytes) ->
       Buffered (buf_id, bytes)
     | NotBuffered bytes -> NotBuffered bytes
       
-let from_packetOut (pktOut : pktOut) : OpenFlow0x01.packetOut =
+let from_packetOut (pktOut : pktOut) : OF10.packetOut =
   let output_payload, port_id, apply_actions = pktOut in
   let output_payload = from_payload output_payload in
   let port_id = Core_kernel.Option.map port_id from_portId in

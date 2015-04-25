@@ -1,6 +1,6 @@
 open Core.Std
 
-module SDN = SDN_Types
+module SDN = Frenetic_OpenFlow
 
 (** Packet field.
 

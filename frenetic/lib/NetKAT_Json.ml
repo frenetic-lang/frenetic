@@ -3,7 +3,7 @@
    so these are legitimate port numbers, IIRC. *)
 let int_to_uint32 = Int32.of_int
 
-(* NOTE(arjun): Do not open SDN_Types in this module. If you need to serialize
+(* NOTE(arjun): Do not open Frenetic_OpenFlow in this module. If you need to serialize
    one of those types, it should probably go in NetKAT_SDN_Json instead. *)
 open Core.Std
 open NetKAT_Types
@@ -177,7 +177,7 @@ let event_to_json (event : event) : json =
   let open Yojson.Basic.Util in
   match event with
   | PacketIn (pipe, sw_id, pt_id, payload, len) ->
-    let buffer = SDN_Types.payload_bytes payload |>
+    let buffer = Frenetic_OpenFlow.payload_bytes payload |>
       Cstruct.to_string |>
       B64.encode in
     `Assoc [
@@ -188,7 +188,7 @@ let event_to_json (event : event) : json =
         ("payload", `Assoc [
             ("buffer", `String buffer);
             ("id", match payload with
-              | SDN_Types.Buffered (id, _) -> `Int (Int32.to_int_exn id)
+              | Frenetic_OpenFlow.Buffered (id, _) -> `Int (Int32.to_int_exn id)
               | _  -> `Null)
         ]);
         ("length", `Int len)
@@ -266,7 +266,7 @@ let stats_to_json ((pkts, bytes) : Int64.t * Int64.t) : json =
 let stats_to_json_string (stats : Int64.t * Int64.t) : string =
   Yojson.Basic.to_string ~std:true (stats_to_json stats)
 
-let port_stats_to_json (portStats : OpenFlow0x01.portStats) : json =
+let port_stats_to_json (portStats : Frenetic_OpenFlow0x01.portStats) : json =
   `Assoc [("port_no", `Int portStats.port_no);
 	  ("rx_packets", `Int (Int64.to_int_exn portStats.rx_packets));
 	  ("tx_packets", `Int (Int64.to_int_exn portStats.tx_packets));
@@ -281,6 +281,6 @@ let port_stats_to_json (portStats : OpenFlow0x01.portStats) : json =
 	  ("rx_crc_err", `Int (Int64.to_int_exn portStats.rx_crc_err));
 	  ("collisions", `Int (Int64.to_int_exn portStats.collisions))]
 
-let port_stats_to_json_string (portStats : OpenFlow0x01.portStats) : string =
+let port_stats_to_json_string (portStats : Frenetic_OpenFlow0x01.portStats) : string =
   Yojson.Basic.to_string ~std:true (port_stats_to_json portStats)
 
