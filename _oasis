@@ -19,7 +19,6 @@ Library frenetic
     async,
     core,
     cstruct,
-    cstruct.async,
     cstruct.syntax,
     ocamlgraph (>= 1.8.6),
     sexplib,
@@ -34,9 +33,24 @@ Library frenetic
     Frenetic_OpenFlow,
     Frenetic_OpenFlow_Header,
     Frenetic_OpenFlow0x01,
-    Frenetic_OpenFlow0x01_Controller,
-    Frenetic_Ox,
     Frenetic_Util
+
+Library async
+  Findlibparent: frenetic
+  Findlibname: async
+  Path: async
+  BuildDepends:
+    async,
+    core,
+    cstruct,
+    cstruct.async,
+    frenetic,
+    sexplib,
+    sexplib.syntax,
+    str
+  Modules:
+    Frenetic_OpenFlow0x01_Controller,
+    Frenetic_Ox
 
 Library openflow
   Path: openflow/lib
@@ -104,15 +118,17 @@ Library syntax
   XMETARequires: camlp4, ulex, ipaddr
   XMETADescription: Syntax extension writing NetKAT expressions
 
-Library async
+Library async2
   Findlibparent: netkat
-  Findlibname: async
+  Findlibname: async2
   Path: frenetic/async
   BuildDepends:
     async,
     core,
     cstruct,
     cstruct.syntax,
+    frenetic,
+    frenetic.async,
     netkat,
     openflow,
     threads,
@@ -135,6 +151,8 @@ Executable frenetic
     cohttp,
     cohttp.async,
     netkat,
-    netkat.async,
+    netkat.async2,
+    frenetic,
+    frenetic.async,
     cmdliner,
     async_extended

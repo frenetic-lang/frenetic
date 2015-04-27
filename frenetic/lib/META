@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 91f914951cce58fdb5ab6a9324d947be)
+# DO NOT EDIT (digest: 68189df43f9fbcdb058837b9d001d698)
 version = "3.4.1"
 description = "The Frenetic Compiler and Runtime System"
 requires =
@@ -20,16 +20,16 @@ package "syntax" (
  exists_if = "syntax.cma"
 )
 
-package "async" (
+package "async2" (
  version = "3.4.1"
  description = "The Frenetic Compiler and Runtime System"
  requires =
- "async core cstruct cstruct.syntax netkat openflow threads sexplib sexplib.syntax"
- archive(byte) = "async.cma"
- archive(byte, plugin) = "async.cma"
- archive(native) = "async.cmxa"
- archive(native, plugin) = "async.cmxs"
- exists_if = "async.cma"
+ "async core cstruct cstruct.syntax frenetic frenetic.async netkat openflow threads sexplib sexplib.syntax"
+ archive(byte) = "async2.cma"
+ archive(byte, plugin) = "async2.cma"
+ archive(native) = "async2.cmxa"
+ archive(native, plugin) = "async2.cmxs"
+ exists_if = "async2.cma"
 )
 # OASIS_STOP
 
