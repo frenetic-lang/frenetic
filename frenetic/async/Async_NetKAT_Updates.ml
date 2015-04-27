@@ -5,8 +5,8 @@ module OF10 = Frenetic_OpenFlow0x01
 module M = OF10.Message
 module Net = Async_NetKAT_Net.Net
 module SDN = Frenetic_OpenFlow
-module Log = Async_OpenFlow_Log
-module Controller = Async_OpenFlow0x01_Controller
+module Log = Frenetic_Log
+module Controller = Frenetic_OpenFlow0x01_Controller
 module LC = NetKAT_LocalCompiler
 
 open Frenetic_OpenFlow.To0x01

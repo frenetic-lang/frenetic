@@ -5,7 +5,7 @@ open Frenetic_OpenFlow0x01
     reducing clutter in simple controllers.
 
     These event handlers simply ignore the messages they receive. *)
-module DefaultTutorialHandlers : sig
+module DefaultHandlers : sig
 
   val switch_connected : switchId -> SwitchFeatures.t -> unit
   val switch_disconnected : switchId -> unit
@@ -52,12 +52,17 @@ end
     appropriate [OXMODULE] callbacks. *)
 module Make : functor (OxModule:OXMODULE) -> sig
 
-   (** [start_controller] is called to start the Ox controller, and return
-    execution to the calling thread. *)     
-   val start_controller : unit -> unit               
+  module Platform : sig
+    open Frenetic_OpenFlow0x01
+    val send_packet_out : switchId -> xid -> packetOut -> unit
+    val send_flow_mod : switchId -> xid -> flowMod -> unit
+    val send_stats_request : switchId -> xid -> request -> unit
+    val send_barrier_request : switchId -> xid -> unit
+    val timeout : float -> (unit -> unit) -> unit
+  end
 
-   (** [run] is called to start the Ox controller. Note that execution
+   (** [start] is called to start the Ox controller. Note that execution
     will not be transfered back to the calling thread. *)
-   val run : unit -> unit                          
+   val start : unit -> unit                          
 
 end

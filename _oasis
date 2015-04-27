@@ -16,21 +16,26 @@ BuildTools:
 Library frenetic
   Path: lib
   BuildDepends: 
-    str, 
+    async,
     core,
-    cstruct, 
-    cstruct.syntax, 
+    cstruct,
+    cstruct.async,
+    cstruct.syntax,
     ocamlgraph (>= 1.8.6),
-    sexplib, 
-    sexplib.syntax, 
+    sexplib,
+    sexplib.syntax,
+    str, 
     tcpip
   Modules: 
     Frenetic_Bits,
     Frenetic_Packet,
+    Frenetic_Log,
     Frenetic_Network,
     Frenetic_OpenFlow,
     Frenetic_OpenFlow_Header,
     Frenetic_OpenFlow0x01,
+    Frenetic_OpenFlow0x01_Controller,
+    Frenetic_Ox,
     Frenetic_Util
 
 Library openflow
@@ -48,21 +53,6 @@ Library openflow
     OpenFlow0x04,
     OpenFlow0x04_Core,
     GroupTable0x04
-
-Library openflowasync
-  Findlibname: openflowasync
-  Path: openflow/async
-  BuildDepends:
-    async,
-    openflow,
-    cstruct.async,
-    threads,
-    sexplib.syntax,
-    sexplib
-  InternalModules:
-    Async_OpenFlow_Log
-  Modules:
-    Async_OpenFlow0x01_Controller
 
 Library netkat
   Path: frenetic/lib
@@ -125,7 +115,6 @@ Library async
     cstruct.syntax,
     netkat,
     openflow,
-    openflowasync,
     threads,
     sexplib,
     sexplib.syntax
@@ -134,21 +123,6 @@ Library async
   Modules:
     Async_NetKAT_Updates,
     NetKAT_Controller
-
-Library ox
-  Path: ox/lib
-  BuildDepends:
-    core,
-    async,
-    frenetic,
-    openflow,
-    openflowasync,
-    threads
-  InternalModules:
-    OxShared
-  Modules:
-    OxStart,
-    OxPlatform
 
 Executable frenetic
   Path: frenetic/frenetic

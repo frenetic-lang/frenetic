@@ -37,8 +37,8 @@ let async_init (cmd : (unit -> unit) Term.t) : unit Term.t =
            ((_, log_output) : (string * Log.Output.t Lazy.t))
            (f : unit -> unit) : unit =
     let main () =
-      Async_OpenFlow_Log.set_level verbosity;
-      Async_OpenFlow_Log.set_output [Lazy.force log_output];
+      Frenetic_Log.set_level verbosity;
+      Frenetic_Log.set_output [Lazy.force log_output];
       f () in
     never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ()) in
   pure cmd' $ verbosity $ log_output $ cmd

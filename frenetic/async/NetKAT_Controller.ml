@@ -4,8 +4,8 @@ open NetKAT_Types
 open Frenetic_OpenFlow
 
 module OF10 = Frenetic_OpenFlow0x01
-module Controller = Async_OpenFlow0x01_Controller
-module Log = Async_OpenFlow_Log
+module Controller = Frenetic_OpenFlow0x01_Controller
+module Log = Frenetic_Log
 module Upd = Async_NetKAT_Updates
 
 let printf = Log.printf
