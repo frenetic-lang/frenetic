@@ -9,7 +9,7 @@ type payload =
     (** [Buffered (id, buf)] is a packet buffered on a switch. *)
   | NotBuffered of bytes
 
-type xid = OpenFlow_Header.xid
+type xid = Frenetic_OpenFlow_Header.xid
 type int12 = int16
 type int24 = int32
 type int128 = int64 * int64

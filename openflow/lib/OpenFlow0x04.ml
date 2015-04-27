@@ -154,10 +154,10 @@ module PortConfig = struct
 		
 
   let parse bits : t =
-    { port_down     = Bits.test_bit 0 bits;
-      no_recv       = Bits.test_bit 2 bits;
-      no_fwd        = Bits.test_bit 5 bits;
-      no_packet_in  = Bits.test_bit 6 bits
+    { port_down     = Frenetic_Bits.test_bit 0 bits;
+      no_recv       = Frenetic_Bits.test_bit 2 bits;
+      no_fwd        = Frenetic_Bits.test_bit 5 bits;
+      no_packet_in  = Frenetic_Bits.test_bit 6 bits
     }
 
   let to_string (config : t) =
@@ -191,22 +191,22 @@ module PortFeatures = struct
                   (if t.pause_asym then (Int32.shift_left 1l 15) else 0l)))))))))))))))
 
   let parse (bits : int32) : t =
-    { rate_10mb_hd  = Bits.test_bit 0 bits;
-      rate_10mb_fd  = Bits.test_bit 1 bits;
-      rate_100mb_hd = Bits.test_bit 2 bits;
-      rate_100mb_fd = Bits.test_bit 3 bits;
-      rate_1gb_hd   = Bits.test_bit 4 bits;
-      rate_1gb_fd   = Bits.test_bit 5 bits;
-      rate_10gb_fd  = Bits.test_bit 6 bits;
-      rate_40gb_fd  = Bits.test_bit 7 bits;
-      rate_100gb_fd = Bits.test_bit 8 bits;
-      rate_1tb_fd   = Bits.test_bit 9 bits;
-      other         = Bits.test_bit 10 bits;
-      copper        = Bits.test_bit 11 bits;
-      fiber         = Bits.test_bit 12 bits;
-      autoneg       = Bits.test_bit 13 bits;
-      pause         = Bits.test_bit 14 bits;
-      pause_asym    = Bits.test_bit 15 bits
+    { rate_10mb_hd  = Frenetic_Bits.test_bit 0 bits;
+      rate_10mb_fd  = Frenetic_Bits.test_bit 1 bits;
+      rate_100mb_hd = Frenetic_Bits.test_bit 2 bits;
+      rate_100mb_fd = Frenetic_Bits.test_bit 3 bits;
+      rate_1gb_hd   = Frenetic_Bits.test_bit 4 bits;
+      rate_1gb_fd   = Frenetic_Bits.test_bit 5 bits;
+      rate_10gb_fd  = Frenetic_Bits.test_bit 6 bits;
+      rate_40gb_fd  = Frenetic_Bits.test_bit 7 bits;
+      rate_100gb_fd = Frenetic_Bits.test_bit 8 bits;
+      rate_1tb_fd   = Frenetic_Bits.test_bit 9 bits;
+      other         = Frenetic_Bits.test_bit 10 bits;
+      copper        = Frenetic_Bits.test_bit 11 bits;
+      fiber         = Frenetic_Bits.test_bit 12 bits;
+      autoneg       = Frenetic_Bits.test_bit 13 bits;
+      pause         = Frenetic_Bits.test_bit 14 bits;
+      pause_asym    = Frenetic_Bits.test_bit 15 bits
     }
 
   let to_string (feat : t) =
@@ -245,9 +245,9 @@ module PortState = struct
   let marshal (ps : t) : int32 = state_to_int ps
 
   let parse bits : t =
-    { link_down = Bits.test_bit 0 bits;
-      blocked = Bits.test_bit 1 bits;
-      live = Bits.test_bit 2 bits
+    { link_down = Frenetic_Bits.test_bit 0 bits;
+      blocked = Frenetic_Bits.test_bit 1 bits;
+      live = Frenetic_Bits.test_bit 2 bits
     }
 
   let to_string (state : t) =
@@ -3275,13 +3275,13 @@ module Capabilities = struct
       cap.flow_stats
 
   let parse (bits : int32) : t =
-    { port_blocked = Bits.test_bit 8 bits;
-      queue_stats = Bits.test_bit 6 bits;
-      ip_reasm = Bits.test_bit 5 bits;
-      group_stats = Bits.test_bit 3 bits;
-      port_stats = Bits.test_bit 2 bits;
-      table_stats = Bits.test_bit 1 bits;
-      flow_stats = Bits.test_bit 0 bits;
+    { port_blocked = Frenetic_Bits.test_bit 8 bits;
+      queue_stats = Frenetic_Bits.test_bit 6 bits;
+      ip_reasm = Frenetic_Bits.test_bit 5 bits;
+      group_stats = Frenetic_Bits.test_bit 3 bits;
+      port_stats = Frenetic_Bits.test_bit 2 bits;
+      table_stats = Frenetic_Bits.test_bit 1 bits;
+      flow_stats = Frenetic_Bits.test_bit 0 bits;
     }
 
 end
@@ -5003,10 +5003,10 @@ module GroupFeatures = struct
          (if gtm.ff then (Int32.shift_left 1l 3) else 0l)))
 
     let parse bits : groupTypeMap = 
-      { all = Bits.test_bit 0 bits
-      ; select = Bits.test_bit 1 bits
-      ; indirect = Bits.test_bit 2 bits
-      ; ff = Bits.test_bit 3 bits }
+      { all = Frenetic_Bits.test_bit 0 bits
+      ; select = Frenetic_Bits.test_bit 1 bits
+      ; indirect = Frenetic_Bits.test_bit 2 bits
+      ; ff = Frenetic_Bits.test_bit 3 bits }
 
     let to_string (gtm : groupTypeMap) : string =
       Format.sprintf "{ all = %B; select = %B; indirect = %B; ff = %B }"
@@ -5028,10 +5028,10 @@ module GroupFeatures = struct
          (if gc.chaining_checks then (Int32.shift_left 1l 3) else 0l)))
 
     let parse bits : groupCapabilities = 
-      { select_weight = Bits.test_bit 0 bits
-      ; select_liveness = Bits.test_bit 1 bits
-      ; chaining = Bits.test_bit 2 bits
-      ; chaining_checks = Bits.test_bit 3 bits }
+      { select_weight = Frenetic_Bits.test_bit 0 bits
+      ; select_liveness = Frenetic_Bits.test_bit 1 bits
+      ; chaining = Frenetic_Bits.test_bit 2 bits
+      ; chaining_checks = Frenetic_Bits.test_bit 3 bits }
 
     let to_string (gc : groupCapabilities) : string =
       Format.sprintf "{ select_weight = %B; select_liveness = %B; chaining = %B; chaining_checks = %B }"
@@ -5065,22 +5065,22 @@ module GroupFeatures = struct
                      (if atm.pop_pbb then (Int32.shift_left 1l 27) else 0l)))))))))))))))
 
     let parse bits : actionTypeMap = 
-      { output = Bits.test_bit 0 bits
-      ; copy_ttl_out = Bits.test_bit 11 bits
-      ; copy_ttl_in = Bits.test_bit 12 bits
-      ; set_mpls_ttl = Bits.test_bit 15 bits
-      ; dec_mpls_ttl = Bits.test_bit 16 bits
-      ; push_vlan = Bits.test_bit 17 bits
-      ; pop_vlan = Bits.test_bit 18 bits
-      ; push_mpls = Bits.test_bit 19 bits
-      ; pop_mpls = Bits.test_bit 20 bits
-      ; set_queue = Bits.test_bit 21 bits
-      ; group = Bits.test_bit 22 bits
-      ; set_nw_ttl = Bits.test_bit 23 bits
-      ; dec_nw_ttl = Bits.test_bit 24 bits
-      ; set_field = Bits.test_bit 25 bits
-      ; push_pbb = Bits.test_bit 26 bits
-      ; pop_pbb = Bits.test_bit 27 bits }
+      { output = Frenetic_Bits.test_bit 0 bits
+      ; copy_ttl_out = Frenetic_Bits.test_bit 11 bits
+      ; copy_ttl_in = Frenetic_Bits.test_bit 12 bits
+      ; set_mpls_ttl = Frenetic_Bits.test_bit 15 bits
+      ; dec_mpls_ttl = Frenetic_Bits.test_bit 16 bits
+      ; push_vlan = Frenetic_Bits.test_bit 17 bits
+      ; pop_vlan = Frenetic_Bits.test_bit 18 bits
+      ; push_mpls = Frenetic_Bits.test_bit 19 bits
+      ; pop_mpls = Frenetic_Bits.test_bit 20 bits
+      ; set_queue = Frenetic_Bits.test_bit 21 bits
+      ; group = Frenetic_Bits.test_bit 22 bits
+      ; set_nw_ttl = Frenetic_Bits.test_bit 23 bits
+      ; dec_nw_ttl = Frenetic_Bits.test_bit 24 bits
+      ; set_field = Frenetic_Bits.test_bit 25 bits
+      ; push_pbb = Frenetic_Bits.test_bit 26 bits
+      ; pop_pbb = Frenetic_Bits.test_bit 27 bits }
 
     let to_string (atm : actionTypeMap) : string =
       Format.sprintf "{ output = %B; copy_ttl_out = %B; copy_ttl_in = %B; set_mpls ttl = %B; \
@@ -5303,8 +5303,8 @@ module MeterFeatures = struct
        (if mbm.dscpRemark then (Int32.shift_left 1l 2) else 0l)
 
     let parse bits : meterBandMaps = 
-      { drop = Bits.test_bit 1 bits
-      ; dscpRemark = Bits.test_bit 2 bits }
+      { drop = Frenetic_Bits.test_bit 1 bits
+      ; dscpRemark = Frenetic_Bits.test_bit 2 bits }
 
     let to_string (mbm : meterBandMaps) : string =
       Format.sprintf "{ drop = %B; dscp_remark =  %B }"
@@ -6572,7 +6572,7 @@ module Hello = struct
         let rec parse_uint32 (bits : Cstruct.t) index curr (acc : supportedList) : supportedList =
           if Cstruct.len bits < sizeof_ofp_uint32 then acc
           else (
-            let acc = if Bits.test_bit index (get_ofp_uint32_value bits) then 
+            let acc = if Frenetic_Bits.test_bit index (get_ofp_uint32_value bits) then 
               (index+(curr*32))::acc
               else acc in
             if index = 31 then 
@@ -6816,7 +6816,7 @@ module Message = struct
     | SET_ASYNC -> "SET_ASYNC"
     | METER_MOD -> "METER_MOD"
 
-  module Header = OpenFlow_Header
+  module Header = Frenetic_OpenFlow_Header
 
   let msg_code_of_message (msg : t) : msg_code = match msg with
     | Hello _ -> HELLO

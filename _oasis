@@ -42,8 +42,6 @@ Library openflow
     sexplib.syntax,
     sexplib,
     threads
-  InternalModules:
-    OpenFlow_Misc
   Modules:
     OpenFlow0x04,
     OpenFlow0x04_Core,

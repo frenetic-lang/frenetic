@@ -11,7 +11,7 @@ end)
 module Headers = struct
   open NetKAT_Types
   open NetKAT_Semantics
-  open SDN_Types
+  open Frenetic_OpenFlow
 
   let eval_pattern (hdrs : HeadersValues.t) (pat : Pattern.t) : bool =
     let matches p f =
@@ -23,7 +23,7 @@ module Headers = struct
       match p with
         | None -> true
         | Some (x,m) ->
-          SDN_Types.Pattern.Ip.less_eq (Field.get f hdrs, 32l) (x, m)
+          Frenetic_OpenFlow.Pattern.Ip.less_eq (Field.get f hdrs, 32l) (x, m)
     in
     let open Pattern in
     HeadersValues.Fields.for_all
@@ -109,14 +109,14 @@ module Packet = struct
   let eval_flow
       (port : NetKAT_Types.portId)
       (pkt : NetKAT_Semantics.packet)
-      (flow : SDN_Types.flow)
+      (flow : Frenetic_OpenFlow.flow)
     : PacketSet.t option =
     let open Core.Std in
     Option.map (Headers.eval_flow port pkt.NetKAT_Semantics.headers flow) (of_hv_set pkt)
 
   let eval
       (pkt : NetKAT_Semantics.packet)
-      (table : SDN_Types.flowTable)
+      (table : Frenetic_OpenFlow.flowTable)
     : PacketSet.t =
     of_hv_set pkt (Headers.eval pkt.NetKAT_Semantics.headers table)
 end

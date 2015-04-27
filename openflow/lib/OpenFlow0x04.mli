@@ -943,11 +943,11 @@ module Message : sig
 
   val blit_message : t -> Cstruct.t -> int
   
-  val header_of : xid -> t -> OpenFlow_Header.t
+  val header_of : xid -> t -> Frenetic_OpenFlow_Header.t
 
   val marshal : xid -> t -> string
 
-  val parse : OpenFlow_Header.t -> string -> (xid * t)
+  val parse : Frenetic_OpenFlow_Header.t -> string -> (xid * t)
   
   val marshal_body : t -> Cstruct.t -> unit
    
