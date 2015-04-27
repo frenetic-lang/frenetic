@@ -20,12 +20,14 @@ Library frenetic
     core,
     cstruct, 
     cstruct.syntax, 
+    ocamlgraph (>= 1.8.6),
     sexplib, 
     sexplib.syntax, 
     tcpip
   Modules: 
     Frenetic_Bits,
     Frenetic_Packet,
+    Frenetic_Network,
     Frenetic_OpenFlow,
     Frenetic_OpenFlow_Header,
     Frenetic_OpenFlow0x01,
@@ -61,19 +63,6 @@ Library openflowasync
     Async_OpenFlow_Log
   Modules:
     Async_OpenFlow0x01_Controller
-
-Library topology
-  Path: topology/lib
-  BuildDepends:
-    core_kernel,
-    frenetic,
-    sexplib,
-    sexplib.syntax,
-    ocamlgraph (>= 1.8.6),
-    threads
-  Modules:
-    Network,
-    Network_Common
 
 Library netkat
   Path: frenetic/lib
@@ -138,7 +127,6 @@ Library async
     openflow,
     openflowasync,
     threads,
-    topology,
     sexplib,
     sexplib.syntax
   InternalModules:

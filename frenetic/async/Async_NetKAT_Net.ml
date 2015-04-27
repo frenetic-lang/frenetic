@@ -43,4 +43,4 @@ module Link = struct
   let to_mininet _ = failwith "NYI: Link.to_mininet"
 end
 
-module Net = Network.Make(Node)(Link)
+module Net = Frenetic_Network.Make(Node)(Link)
