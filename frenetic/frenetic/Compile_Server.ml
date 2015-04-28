@@ -10,12 +10,12 @@ let policy = ref Frenetic_NetKAT.drop
 let compile_respond pol =
   (* Compile pol to tables and time everything. *)
   let (time, tbls) = profile (fun () ->
-  let fdd = NetKAT_LocalCompiler.compile pol in
+  let fdd = Frenetic_NetKAT_Local_Compiler.compile pol in
   let sws =
     let sws = NetKAT_Misc.switches_of_policy pol in
     if List.length sws = 0 then [0L] else sws in
   List.map sws ~f:(fun sw ->
-    (sw, NetKAT_LocalCompiler.to_table ~opt:false sw fdd))) in
+    (sw, Frenetic_NetKAT_Local_Compiler.to_table ~opt:false sw fdd))) in
   (* JSON conversion is not timed. *)
   let json_tbls = List.map tbls ~f:(fun (sw, tbl) ->
   `Assoc [("switch_id", `Int (Int64.to_int_exn sw));
@@ -48,8 +48,8 @@ let handle_request
            Cohttp_async.Server.respond `OK)
     | `GET, [switchId; "flow_table"] ->
        let sw = Int64.of_string switchId in
-       NetKAT_LocalCompiler.compile !policy |>
-         NetKAT_LocalCompiler.to_table sw |>
+       Frenetic_NetKAT_Local_Compiler.compile !policy |>
+         Frenetic_NetKAT_Local_Compiler.to_table sw |>
          NetKAT_SDN_Json.flowTable_to_json |>
          Yojson.Basic.to_string ~std:true |>
          Cohttp_async.Server.respond_with_string

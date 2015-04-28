@@ -13,8 +13,8 @@ let printf = Log.printf
 let bytes_to_headers
   (port_id : Frenetic_OpenFlow.portId)
   (bytes : Cstruct.t)
-  : NetKAT_Semantics.HeadersValues.t =
-  let open NetKAT_Semantics.HeadersValues in
+  : Frenetic_NetKAT_Semantics.HeadersValues.t =
+  let open Frenetic_NetKAT_Semantics.HeadersValues in
   let open Frenetic_Packet in
   let pkt = Frenetic_Packet.parse bytes in
   { location = Frenetic_NetKAT.Physical port_id
@@ -30,12 +30,12 @@ let bytes_to_headers
   ; tcpDstPort = (try tpDst pkt with Invalid_argument(_) -> 0)
   }
 
-let packet_sync_headers (pkt:NetKAT_Semantics.packet) : NetKAT_Semantics.packet * bool =
-  let open NetKAT_Semantics in
+let packet_sync_headers (pkt:Frenetic_NetKAT_Semantics.packet) : Frenetic_NetKAT_Semantics.packet * bool =
+  let open Frenetic_NetKAT_Semantics in
   let open Frenetic_NetKAT in
   let change = ref false in
   let g p q acc f =
-    let v = Field.get f pkt.NetKAT_Semantics.headers in
+    let v = Field.get f pkt.Frenetic_NetKAT_Semantics.headers in
     if p v acc then
       acc
     else begin
@@ -104,13 +104,13 @@ let of_to_netkat_event fdd (evt : Controller.event) : Frenetic_NetKAT.event list
        * pipes, and the list of packets that can be forwarded to physical
        * locations.
        * *)
-      let open NetKAT_Semantics in
+      let open Frenetic_NetKAT_Semantics in
       let pkt0 = {
         switch = sw_id;
         headers = bytes_to_headers port_id (Frenetic_OpenFlow.payload_bytes payload);
         payload = payload;
       } in
-      let pis, qus, phys = NetKAT_LocalCompiler.eval_pipes pkt0 fdd in
+      let pis, qus, phys = Frenetic_NetKAT_Local_Compiler.eval_pipes pkt0 fdd in
       List.map pis ~f:(fun (pipe, pkt2) ->
         let pkt3, changed = packet_sync_headers pkt2 in
         let payload = match payload, changed with
@@ -135,7 +135,7 @@ module type CONTROLLER = sig
 end
 
 module Make : CONTROLLER = struct
-  let fdd = ref (NetKAT_LocalCompiler.compile drop)
+  let fdd = ref (Frenetic_NetKAT_Local_Compiler.compile drop)
   let stats : (string, Int64.t * Int64.t) Hashtbl.Poly.t = Hashtbl.Poly.create ()
   let (pol_reader, pol_writer) = Pipe.create ()
   let (pktout_reader, pktout_writer) = Pipe.create ()
@@ -172,7 +172,7 @@ module Make : CONTROLLER = struct
     List.map ~f:get_switch_and_ports features
 
   let get_table (sw_id : switchId) : (Frenetic_OpenFlow.flow * string list) list =
-    NetKAT_LocalCompiler.to_table' sw_id !fdd
+    Frenetic_NetKAT_Local_Compiler.to_table' sw_id !fdd
 
   let raw_query (name : string) : (Int64.t * Int64.t) Deferred.t =
     Deferred.List.map ~how:`Parallel
@@ -222,7 +222,7 @@ module Make : CONTROLLER = struct
   let is_query (name : string) : bool = Hashtbl.Poly.mem stats name
 
   let update_all_switches (pol : policy) : unit Deferred.t =
-    Log.printf ~level:`Debug "Installing policy\n%s" (NetKAT_Pretty.string_of_policy pol);
+    Log.printf ~level:`Debug "Installing policy\n%s" (Frenetic_NetKAT_Pretty.string_of_policy pol);
     let new_queries = NetKAT_Misc.queries_of_policy pol in
     (* Discard old queries *)
     Hashtbl.Poly.filteri_inplace stats
@@ -242,7 +242,7 @@ module Make : CONTROLLER = struct
       Hashtbl.Poly.set stats qname stat)
     >>= fun () ->
     (* Actually update things *)
-    fdd := NetKAT_LocalCompiler.compile pol;
+    fdd := Frenetic_NetKAT_Local_Compiler.compile pol;
     Upd.BestEffortUpdate.implement_policy !fdd
 
   let handle_event (evt : Controller.event) : unit Deferred.t =

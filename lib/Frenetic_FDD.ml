@@ -548,9 +548,9 @@ module Action = struct
           | IP4Src _ | IP4Dst _ -> raise (FieldValue_mismatch(key, data))
           | hv -> hv
         in
-        Optimize.mk_seq (Mod(hv)) acc)
+        Frenetic_NetKAT_Optimize.mk_seq (Mod(hv)) acc)
       in
-      Optimize.mk_union seq' acc)
+      Frenetic_NetKAT_Optimize.mk_union seq' acc)
 
   let iter_fv t ~f =
     Par.iter t ~f:(fun seq ->
@@ -589,4 +589,4 @@ module Action = struct
     Printf.sprintf "[%s]" (SDN.string_of_par (to_sdn t))
 end
 
-module T = NetKAT_Vlr.Make(Field)(Value)(Action)
+module T = Frenetic_Vlr.Make(Field)(Value)(Action)

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 8210ba6b8c654c34a7431135d3f27f21)
+# DO NOT EDIT (digest: ac73f84cc0f9b939107077e4a58b277a)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -20,6 +20,8 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: package(core)
 <lib/*.ml{,i,y}>: package(cstruct)
 <lib/*.ml{,i,y}>: package(cstruct.syntax)
+<lib/*.ml{,i,y}>: package(fieldslib)
+<lib/*.ml{,i,y}>: package(fieldslib.syntax)
 <lib/*.ml{,i,y}>: package(ocamlgraph)
 <lib/*.ml{,i,y}>: package(sexplib)
 <lib/*.ml{,i,y}>: package(sexplib.syntax)
@@ -32,6 +34,8 @@ true: annot, bin_annot
 <async/*.ml{,i,y}>: package(cstruct)
 <async/*.ml{,i,y}>: package(cstruct.async)
 <async/*.ml{,i,y}>: package(cstruct.syntax)
+<async/*.ml{,i,y}>: package(fieldslib)
+<async/*.ml{,i,y}>: package(fieldslib.syntax)
 <async/*.ml{,i,y}>: package(ocamlgraph)
 <async/*.ml{,i,y}>: package(sexplib)
 <async/*.ml{,i,y}>: package(sexplib.syntax)
@@ -44,6 +48,8 @@ true: annot, bin_annot
 <openflow/lib/*.ml{,i,y}>: package(core)
 <openflow/lib/*.ml{,i,y}>: package(cstruct)
 <openflow/lib/*.ml{,i,y}>: package(cstruct.syntax)
+<openflow/lib/*.ml{,i,y}>: package(fieldslib)
+<openflow/lib/*.ml{,i,y}>: package(fieldslib.syntax)
 <openflow/lib/*.ml{,i,y}>: package(ocamlgraph)
 <openflow/lib/*.ml{,i,y}>: package(sexplib)
 <openflow/lib/*.ml{,i,y}>: package(sexplib.syntax)

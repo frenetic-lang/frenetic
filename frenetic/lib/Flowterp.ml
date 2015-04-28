@@ -2,16 +2,16 @@ open Core.Std
 (** An interpreter for flowtables *)
 
 module HVSet = Set.Make(struct
-  open NetKAT_Semantics
+  open Frenetic_NetKAT_Semantics
 
   type t = HeadersValues.t sexp_opaque with sexp
   let compare = HeadersValues.compare
 end)
 
 module Headers = struct
-  open Frenetic_NetKAT
-  open NetKAT_Semantics
   open Frenetic_OpenFlow
+  open Frenetic_NetKAT
+  open Frenetic_NetKAT_Semantics
 
   let eval_pattern (hdrs : HeadersValues.t) (pat : Pattern.t) : bool =
     let matches p f =
@@ -100,23 +100,23 @@ module Headers = struct
 end
 
 module Packet = struct
-  module PacketSet = NetKAT_Semantics.PacketSet
+  module PacketSet = Frenetic_NetKAT_Semantics.PacketSet
 
   let of_hv_set pkt hv_set : PacketSet.t =
     HVSet.fold hv_set ~init:PacketSet.empty ~f:(fun acc hdrs ->
-      PacketSet.add acc { pkt with NetKAT_Semantics.headers = hdrs })
+      PacketSet.add acc { pkt with Frenetic_NetKAT_Semantics.headers = hdrs })
 
   let eval_flow
       (port : Frenetic_NetKAT.portId)
-      (pkt : NetKAT_Semantics.packet)
+      (pkt : Frenetic_NetKAT_Semantics.packet)
       (flow : Frenetic_OpenFlow.flow)
     : PacketSet.t option =
     let open Core.Std in
-    Option.map (Headers.eval_flow port pkt.NetKAT_Semantics.headers flow) (of_hv_set pkt)
+    Option.map (Headers.eval_flow port pkt.Frenetic_NetKAT_Semantics.headers flow) (of_hv_set pkt)
 
   let eval
-      (pkt : NetKAT_Semantics.packet)
+      (pkt : Frenetic_NetKAT_Semantics.packet)
       (table : Frenetic_OpenFlow.flowTable)
     : PacketSet.t =
-    of_hv_set pkt (Headers.eval pkt.NetKAT_Semantics.headers table)
+    of_hv_set pkt (Headers.eval pkt.Frenetic_NetKAT_Semantics.headers table)
 end

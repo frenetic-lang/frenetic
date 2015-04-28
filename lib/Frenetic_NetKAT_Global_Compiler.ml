@@ -1,5 +1,5 @@
 open Frenetic_NetKAT
-open Optimize
+open Frenetic_NetKAT_Optimize
 
 let set_pc pc = Mod (Vlan pc)
 let unset_pc = Mod (Vlan 0xffff)

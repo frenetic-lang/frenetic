@@ -1,6 +1,6 @@
 open Core.Std
 open Frenetic_NetKAT
-open NetKAT_Semantics
+open Frenetic_NetKAT_Semantics
 
 open Frenetic_OpenFlow
 

@@ -1,8 +1,8 @@
 open Core.Std
-open NetKAT_FDD
+open Frenetic_FDD
 
-module Field = NetKAT_FDD.Field
-exception Non_local = NetKAT_FDD.Non_local
+module Field = Frenetic_FDD.Field
+exception Non_local = Frenetic_FDD.Non_local
 
 type order
   = [ `Default
@@ -130,11 +130,11 @@ module Repr = struct
         let open Frenetic_NetKAT in
         match t, f with
         | Filter t, Filter f ->
-          Optimize.(mk_filter (mk_or (mk_and p t)
-                                     (mk_and (mk_not p) f)))
+          Frenetic_NetKAT_Optimize.(mk_filter (mk_or (mk_and p t)
+                                                 (mk_and (mk_not p) f)))
         | _       , _        ->
-          Optimize.(mk_union (mk_seq (mk_filter p) t)
-                             (mk_seq (mk_filter (mk_not p)) f)))
+          Frenetic_NetKAT_Optimize.(mk_union (mk_seq (mk_filter p) t)
+                                      (mk_seq (mk_filter (mk_not p)) f)))
 
   let equal =
     T.equal
@@ -149,7 +149,7 @@ end
     NetKAT policy and falls back to the [NetKAT_Semantics] module to process the
     actions and produce the final [PacketSet.t] *)
 module Interp = struct
-  open NetKAT_Semantics
+  open Frenetic_NetKAT_Semantics
 
   let eval_to_action (packet:packet) (t:Repr.t) =
     let hvs = HeadersValues.to_hvs packet.headers in
@@ -160,10 +160,10 @@ module Interp = struct
     | Some(r) -> r
 
   let eval (p:packet) (t:Repr.t) =
-    NetKAT_Semantics.eval p Action.(to_policy (eval_to_action p t))
+    Frenetic_NetKAT_Semantics.eval p Action.(to_policy (eval_to_action p t))
 
   let eval_pipes (p:packet) (t:Repr.t) =
-    NetKAT_Semantics.eval_pipes p Action.(to_policy (eval_to_action p t))
+    Frenetic_NetKAT_Semantics.eval_pipes p Action.(to_policy (eval_to_action p t))
 end
 
 include Repr
@@ -289,7 +289,7 @@ let queries t =
       S.of_list (List.map qs ~f:(fun q -> (q, Frenetic_NetKAT.True))))
     (fun v t f ->
       let p = Pattern.to_pred v in
-      let open Optimize in
+      let open Frenetic_NetKAT_Optimize in
       S.(union (map t ~f:(fun (q, p') -> (q, mk_and p p')))
                (map t ~f:(fun (q, p') -> (q, mk_and (mk_not p) p')))))
     t

@@ -7,7 +7,7 @@ module Net = Async_NetKAT_Net.Net
 module SDN = Frenetic_OpenFlow
 module Log = Frenetic_Log
 module Controller = Frenetic_OpenFlow0x01_Controller
-module LC = NetKAT_LocalCompiler
+module LC = Frenetic_NetKAT_Local_Compiler
 
 open Frenetic_OpenFlow.To0x01
 
@@ -37,12 +37,12 @@ module type UPDATE = sig
 
   val bring_up_switch : SDN.switchId ->
     ?old:LC.t ->
-    NetKAT_LocalCompiler.t ->
+    LC.t ->
     unit Deferred.t
 
   val implement_policy :
     ?old:LC.t ->
-    NetKAT_LocalCompiler.t ->
+    LC.t ->
     unit Deferred.t
 
 end

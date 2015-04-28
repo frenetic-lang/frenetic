@@ -20,6 +20,8 @@ Library frenetic
     core,
     cstruct,
     cstruct.syntax,
+    fieldslib,
+    fieldslib.syntax,
     ocamlgraph (>= 1.8.6),
     sexplib,
     sexplib.syntax,
@@ -27,14 +29,21 @@ Library frenetic
     tcpip
   Modules: 
     Frenetic_Bits,
-    Frenetic_Packet,
+    Frenetic_FDD,
     Frenetic_Log,
     Frenetic_Network,
     Frenetic_NetKAT,
+    Frenetic_NetKAT_Global_Compiler,
+    Frenetic_NetKAT_Local_Compiler,
+    Frenetic_NetKAT_Optimize,
+    Frenetic_NetKAT_Pretty,
+    Frenetic_NetKAT_Semantics,
     Frenetic_OpenFlow,
     Frenetic_OpenFlow_Header,
     Frenetic_OpenFlow0x01,
-    Frenetic_Util
+    Frenetic_Packet,
+    Frenetic_Util,
+    Frenetic_Vlr
 
 Library async
   Findlibparent: frenetic
@@ -73,8 +82,6 @@ Library netkat
   Path: frenetic/lib
   BuildDepends:
     core,
-    fieldslib,
-    fieldslib.syntax,
     openflow,
     sexplib,
     sexplib.syntax,
@@ -84,20 +91,13 @@ Library netkat
     ipaddr,
     base64 (>= 2.0.0)
   InternalModules:
-    Flowterp,
-    NetKAT_FDD,
-    NetKAT_Vlr
+    Flowterp
   Modules:
     NetKAT_Lexer,
-    NetKAT_LocalCompiler,
-    NetKAT_GlobalCompiler,
     NetKAT_Parser,
-    NetKAT_Pretty,
-    NetKAT_Semantics,
     NetKAT_Misc,
     NetKAT_Json,
-    NetKAT_SDN_Json,
-    Optimize
+    NetKAT_SDN_Json
 
 Library syntax
   Path: frenetic/syntax
