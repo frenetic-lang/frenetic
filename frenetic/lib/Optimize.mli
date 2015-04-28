@@ -1,4 +1,4 @@
-open NetKAT_Types
+open Frenetic_NetKAT
 
 val mk_and : pred -> pred -> pred
 val mk_or : pred -> pred -> pred

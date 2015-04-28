@@ -50,7 +50,7 @@ end
 module BestEffortUpdate = struct
 
   let restrict sw_id repr =
-    LC.restrict NetKAT_Types.(Switch sw_id) repr
+    LC.restrict Frenetic_NetKAT.(Switch sw_id) repr
 
   let install_flows_for sw_id table =
     let to_flow_mod p f = M.FlowModMsg (from_flow p f) in

@@ -1,6 +1,6 @@
 open Core.Std
 open Async.Std
-open NetKAT_Types
+open Frenetic_NetKAT
 open Frenetic_OpenFlow
 
 module OF10 = Frenetic_OpenFlow0x01
@@ -17,7 +17,7 @@ let bytes_to_headers
   let open NetKAT_Semantics.HeadersValues in
   let open Frenetic_Packet in
   let pkt = Frenetic_Packet.parse bytes in
-  { location = NetKAT_Types.Physical port_id
+  { location = Frenetic_NetKAT.Physical port_id
   ; ethSrc = pkt.dlSrc
   ; ethDst = pkt.dlDst
   ; vlan = (match pkt.dlVlan with Some (v) -> v | None -> 0)
@@ -32,7 +32,7 @@ let bytes_to_headers
 
 let packet_sync_headers (pkt:NetKAT_Semantics.packet) : NetKAT_Semantics.packet * bool =
   let open NetKAT_Semantics in
-  let open NetKAT_Types in
+  let open Frenetic_NetKAT in
   let change = ref false in
   let g p q acc f =
     let v = Field.get f pkt.NetKAT_Semantics.headers in
@@ -72,7 +72,7 @@ let packet_sync_headers (pkt:NetKAT_Semantics.packet) : NetKAT_Semantics.packet 
     | Frenetic_OpenFlow.Buffered(n, _) -> Frenetic_OpenFlow.Buffered(n, Frenetic_Packet.marshal packet')
   }, !change)
 
-let of_to_netkat_event fdd (evt : Controller.event) : NetKAT_Types.event list =
+let of_to_netkat_event fdd (evt : Controller.event) : Frenetic_NetKAT.event list =
   match evt with
   (* TODO(arjun): include switch features in SwitchUp *)
   | `Connect (sw_id, feats) ->

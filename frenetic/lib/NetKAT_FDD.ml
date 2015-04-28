@@ -74,18 +74,18 @@ module Field = struct
   let get_order () = !readable_order
 
   let field_of_header_val hv = match hv with
-    | NetKAT_Types.Switch _ -> Switch
-    | NetKAT_Types.Location _ -> Location
-    | NetKAT_Types.EthSrc _ -> EthSrc
-    | NetKAT_Types.EthDst _ -> EthDst
-    | NetKAT_Types.Vlan _ -> Vlan
-    | NetKAT_Types.VlanPcp _ -> VlanPcp
-    | NetKAT_Types.EthType _ -> EthType
-    | NetKAT_Types.IPProto _ -> IPProto
-    | NetKAT_Types.IP4Src _ -> IP4Src
-    | NetKAT_Types.IP4Dst _ -> IP4Dst
-    | NetKAT_Types.TCPSrcPort _ -> TCPSrcPort
-    | NetKAT_Types.TCPDstPort _ -> TCPDstPort
+    | Frenetic_NetKAT.Switch _ -> Switch
+    | Frenetic_NetKAT.Location _ -> Location
+    | Frenetic_NetKAT.EthSrc _ -> EthSrc
+    | Frenetic_NetKAT.EthDst _ -> EthDst
+    | Frenetic_NetKAT.Vlan _ -> Vlan
+    | Frenetic_NetKAT.VlanPcp _ -> VlanPcp
+    | Frenetic_NetKAT.EthType _ -> EthType
+    | Frenetic_NetKAT.IPProto _ -> IPProto
+    | Frenetic_NetKAT.IP4Src _ -> IP4Src
+    | Frenetic_NetKAT.IP4Dst _ -> IP4Dst
+    | Frenetic_NetKAT.TCPSrcPort _ -> TCPSrcPort
+    | Frenetic_NetKAT.TCPDstPort _ -> TCPDstPort
 
   (* Heuristic to pick a variable order that operates by scoring the fields
      in a policy. A field receives a high score if, when a test field=X
@@ -99,8 +99,8 @@ module Field = struct
        pol for different field assignments. Don't traverse the policy
        repeatedly. Instead, write a size function that returns map from
        field assignments to sizes. *)
-  let auto_order (pol : NetKAT_Types.policy) : unit =
-    let open NetKAT_Types in
+  let auto_order (pol : Frenetic_NetKAT.policy) : unit =
+    let open Frenetic_NetKAT in
     let count_tbl =
       match Hashtbl.Poly.of_alist (List.map all_fields ~f:(fun f -> (f, 0))) with
       | `Ok tbl -> tbl
@@ -330,7 +330,7 @@ module Pattern = struct
   let to_int = Int64.to_int_exn
   let to_int32 = Int64.to_int32_exn
 
-  module NetKAT = NetKAT_Types
+  module NetKAT = Frenetic_NetKAT
 
   let of_hv hv =
     let open NetKAT in
@@ -375,7 +375,7 @@ module Pattern = struct
     | _, _ -> raise (FieldValue_mismatch(f, v))
 
   let to_pred (f, v) =
-    NetKAT_Types.Test (to_hv (f, v))
+    Frenetic_NetKAT.Test (to_hv (f, v))
 
   let to_sdn (f, v) : SDN.Pattern.t -> SDN.Pattern.t =
     (* Converts a [Pattern.t] into a function that will modify a [SDN.Pattern.t]
@@ -539,7 +539,7 @@ module Action = struct
       sum acc (Par.singleton seq'))
 
   let to_policy t =
-    let open NetKAT_Types in
+    let open Frenetic_NetKAT in
     Par.fold t ~init:drop ~f:(fun acc seq ->
       let seq' = Seq.fold seq ~init:id ~f:(fun ~key ~data acc ->
         let hv = match Pattern.to_hv (key, data) with

@@ -1,4 +1,4 @@
-open NetKAT_Types
+open Frenetic_NetKAT
 
 module Formatting = struct
   open Format

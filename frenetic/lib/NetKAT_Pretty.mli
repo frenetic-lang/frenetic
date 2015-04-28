@@ -1,4 +1,4 @@
-open NetKAT_Types
+open Frenetic_NetKAT
 
 val format_pred : Format.formatter -> pred -> unit
 

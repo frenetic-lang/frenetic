@@ -1,5 +1,5 @@
 open Core.Std
-open NetKAT_Types
+open Frenetic_NetKAT
 open NetKAT_Semantics
 
 open Frenetic_OpenFlow

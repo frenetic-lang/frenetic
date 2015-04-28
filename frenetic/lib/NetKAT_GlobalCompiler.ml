@@ -1,4 +1,4 @@
-open NetKAT_Types
+open Frenetic_NetKAT
 open Optimize
 
 let set_pc pc = Mod (Vlan pc)

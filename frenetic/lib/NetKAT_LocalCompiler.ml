@@ -94,7 +94,7 @@ module Repr = struct
   let star = star' (T.const Action.one)
 
   let rec of_pred p =
-    let open NetKAT_Types in
+    let open Frenetic_NetKAT in
     match p with
     | True      -> T.const Action.one
     | False     -> T.const Action.zero
@@ -104,7 +104,7 @@ module Repr = struct
     | Neg(q)    -> T.map_r Action.negate (of_pred q)
 
   let rec of_policy_k p k =
-    let open NetKAT_Types in
+    let open Frenetic_NetKAT in
     match p with
     | Filter   p  -> k (of_pred p)
     | Mod      m  -> k (of_mod  m)
@@ -127,7 +127,7 @@ module Repr = struct
       (fun r -> Action.to_policy r)
       (fun v t f ->
         let p = Pattern.to_pred v in
-        let open NetKAT_Types in
+        let open Frenetic_NetKAT in
         match t, f with
         | Filter t, Filter f ->
           Optimize.(mk_filter (mk_or (mk_and p t)
@@ -280,13 +280,13 @@ let pipes t =
 
 let queries t =
   let module S = Set.Make(struct
-    type t = string * NetKAT_Types.pred sexp_opaque with sexp
+    type t = string * Frenetic_NetKAT.pred sexp_opaque with sexp
     let compare = Pervasives.compare
   end) in
   let qs = T.fold
     (fun r ->
       let qs = Action.queries r in
-      S.of_list (List.map qs ~f:(fun q -> (q, NetKAT_Types.True))))
+      S.of_list (List.map qs ~f:(fun q -> (q, Frenetic_NetKAT.True))))
     (fun v t f ->
       let p = Pattern.to_pred v in
       let open Optimize in

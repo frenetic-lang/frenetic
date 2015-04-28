@@ -9,7 +9,7 @@ module HVSet = Set.Make(struct
 end)
 
 module Headers = struct
-  open NetKAT_Types
+  open Frenetic_NetKAT
   open NetKAT_Semantics
   open Frenetic_OpenFlow
 
@@ -107,7 +107,7 @@ module Packet = struct
       PacketSet.add acc { pkt with NetKAT_Semantics.headers = hdrs })
 
   let eval_flow
-      (port : NetKAT_Types.portId)
+      (port : Frenetic_NetKAT.portId)
       (pkt : NetKAT_Semantics.packet)
       (flow : Frenetic_OpenFlow.flow)
     : PacketSet.t option =

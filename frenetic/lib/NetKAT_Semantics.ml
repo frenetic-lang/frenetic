@@ -1,6 +1,6 @@
 open Core.Std
 
-open NetKAT_Types
+open Frenetic_NetKAT
 open Frenetic_Packet
 
 (** A map keyed by header names. *)
@@ -72,8 +72,8 @@ module HeadersValues = struct
       ~tcpSrcPort:Int.(g to_string)
       ~tcpDstPort:Int.(g to_string)
 
-  let to_hvs (t:t) : NetKAT_Types.header_val list =
-    let open NetKAT_Types in
+  let to_hvs (t:t) : Frenetic_NetKAT.header_val list =
+    let open Frenetic_NetKAT in
     let conv to_hv = fun acc f -> (to_hv (Field.get f t)) :: acc in
     Fields.fold
       ~init:[]
@@ -208,11 +208,11 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
   | Link(sw,pt,sw',pt') ->
     PacketSet.empty (* JNF *)
 
-let eval_pipes (packet:packet) (pol:NetKAT_Types.policy)
+let eval_pipes (packet:packet) (pol:Frenetic_NetKAT.policy)
   : (string * packet) list *
     (string * packet) list *
     packet list =
-  let open NetKAT_Types in
+  let open Frenetic_NetKAT in
   (* Determines the locations that the packet belongs to. Note that a packet may
    * belong to several pipes for several reasons:
    *

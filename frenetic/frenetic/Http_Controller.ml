@@ -1,7 +1,7 @@
 open Core.Std
 open Async.Std
 open Cohttp_async
-open NetKAT_Types
+open Frenetic_NetKAT
 open Common
 module Server = Cohttp_async.Server
 module Log = Frenetic_Log

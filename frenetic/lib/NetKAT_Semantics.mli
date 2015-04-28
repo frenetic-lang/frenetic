@@ -1,6 +1,6 @@
 open Core.Std
 
-open NetKAT_Types
+open Frenetic_NetKAT
 open Frenetic_Packet
 
 (** {2 Packets}

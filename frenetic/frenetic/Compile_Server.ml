@@ -1,11 +1,11 @@
 open Core.Std
 open Async.Std
 open Cohttp_async
-open NetKAT_Types
+open Frenetic_NetKAT
 module Server = Cohttp_async.Server
 open Common
 
-let policy = ref NetKAT_Types.drop
+let policy = ref Frenetic_NetKAT.drop
 
 let compile_respond pol =
   (* Compile pol to tables and time everything. *)

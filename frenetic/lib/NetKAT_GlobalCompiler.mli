@@ -1,4 +1,4 @@
-open NetKAT_Types
+open Frenetic_NetKAT
 
 val compile : pred -> pred -> policy -> policy
 (** [compile ing eg p] returns a loal policy (containing no links) given a global policy [p]

@@ -1,5 +1,5 @@
 %{
-  open NetKAT_Types
+  open Frenetic_NetKAT
 
   (* Ethernet frame types *)
   let arp : int64  = Int64.of_int 0x806
@@ -46,11 +46,11 @@
 
 %start program
 
-%type <NetKAT_Types.policy> program
+%type <Frenetic_NetKAT.policy> program
 
 %start pred_program
 
-%type <NetKAT_Types.pred> pred_program
+%type <Frenetic_NetKAT.pred> pred_program
 
 %%
 
