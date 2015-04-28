@@ -1,103 +1,25 @@
-(** The signature for a type that can be compared and hashed *)
 module type HashCmp = sig
   type t
 
   val hash : t -> int
-  (** [hash t] assigns an interger to each value of type [t]. This assignment
-      must be consistent with the {!compare} operation in the following way:
-
-          if [compare a b = 0] then [hash a = hash b] *)
-
   val compare : t -> t -> int
-  (** [compare a b] returns one of three values:
-
-      {ul
-      {- [0] when [a] and [b] are equal;}
-      {- [1] when [a] is greater than [b]; and}
-      {- [-1] when [a] is less than [b].}} *)
-
   val to_string : t -> string
-  (** [to_string t] returns a string representation of the value. *)
 end
 
-(** The signature for a type that has a lattice structure. *)
 module type Lattice = sig
   include HashCmp
-
   val subset_eq : t -> t -> bool
-  (** [subset_eq a b] returns [true] if [a] and [b] in the partial ordering of
-      the lattice. This relation should be reflexive, transitive, and
-      antisymmetric. *)
-
   val meet : ?tight:bool -> t -> t -> t option
-  (** [meet ~tight a b] returns the greatest lower bound of the elements [a]
-      and [b], if one exists. This operation should be associative, commutative,
-      and idempotent. If the optional argument [tight] is set to [true], then
-      the result [c] should satisfy the additional property:
-
-          ∀x, [subset_eq c x] <=> [subset_eq a x || subset_eq b x || equal c x].
-
-      In other words, elements related to the greatest lower bound should be
-      related transitively through [a] and [b], or be equal to the greatest
-      lower bound itself. *)
-
   val join : ?tight:bool -> t -> t -> t option
-  (** [join ~tight a b] returns the least upper bound of the elements [a] and
-      [b], if one exists. This operation should be associative, commutative, and
-      idempotent. If the optional argument [tight] is set to [true], then the
-      result [c] should satisfy the additional property:
-
-          ∀x, [subset_eq x c] <=> [subset_eq x a || subset_eq x b || equal x c].
-
-      In other words, elements related to the least upper bound should be
-      related transitively through [a] and [b], or be equal to the least upper
-      bound itself. *)
-
 end
 
-(** The type for a result that has a semi-ring structure *)
 module type Result = sig
   include HashCmp
-
   val sum : t -> t -> t
-  (** An associative and commutative binary operation over the type [t]. The
-      following should hold:
-
-      {ul
-      {- [sum a (sum b c)] = [sum (sum a b) c].}
-      {- [sum a b] = [sum b a].}} *)
-
   val prod : t -> t -> t
-  (** An associative binary operation over the type [t]. The following should
-      hold:
-
-      {ul
-      {- [prod a (prod b c)] = [prod (prod a b) c]. }
-      {- [prod a (sum b c)] = [sum (prod a b) (prod a c)].}} *)
-
   val one : t
-  (** The identity for the [prod] operation. The following should hold:
-
-      {ul
-      {- [prod one t] = [t].}
-      {- [prod t one] = [t].}}
-
-      As an example, if [t] where the type [bool] and [prod] and [sum] were [&&]
-      and [||], respectively, then [one] should be the value [true]. *)
-
   val zero : t
-  (** The identity for the [sum] operation. The following should hold:
-
-      {ul
-      {- [sum zero t] = [t].}
-      {- [sum t zero] = [t].}
-      {- [prod zero t] = [zero].}
-      {- [prod t zero] = [zero].}}
-
-      As an example, if [t] where the type [bool] and [prod] and [sum] were [&&]
-      and [||], respectively, then [zero] should be the value [false]. *)
 end
-
 
 module type TABLE = sig
   val clear : Core.Std.Int.Set.t -> unit
@@ -237,7 +159,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
       h (v, l) (fold g h t) (fold g h f)
 
   let const r = mk_leaf r
-  let atom (v, l) t f = mk_branch (v,l) (const t) (const f)
+  let atom (v,l) t f = mk_branch (v,l) (const t) (const f)
 
   let node_min t1 t2 = match (t1, t2) with
   | Leaf _, Leaf _ -> (t1, t2) (* constants at same rank since they can't be ordered *)
