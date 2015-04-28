@@ -86,8 +86,7 @@ Library netkat
   InternalModules:
     Flowterp,
     NetKAT_FDD,
-    NetKAT_Vlr,
-    Util
+    NetKAT_Vlr
   Modules:
     NetKAT_Lexer,
     NetKAT_LocalCompiler,

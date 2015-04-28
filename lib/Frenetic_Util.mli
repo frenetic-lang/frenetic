@@ -1,3 +1,4 @@
+val make_string_of : (Format.formatter -> 'a -> 'b) -> 'a -> bytes
 
 val string_of_option : ('a -> string) -> 'a option -> string
 
