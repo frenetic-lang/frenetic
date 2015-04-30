@@ -556,8 +556,9 @@ module Action = struct
     Par.iter t ~f:(fun seq ->
       Seq.iter seq ~f:(fun ~key ~data -> f key data))
 
+  (* TODO(jnf): why is this imperative?! *)
   let pipes t =
-    let module S = Set.Make(String) in
+    let module S = Frenetic_Util.StringSet in 
     let s = ref S.empty in
     iter_fv t ~f:(fun key data ->
       match key, data with
@@ -566,7 +567,7 @@ module Action = struct
     !s
 
   let queries t =
-    let module S = Set.Make(String) in
+    let module S = Frenetic_Util.StringSet in 
     let s = ref S.empty in
     iter_fv t ~f:(fun key data ->
       match key, data with

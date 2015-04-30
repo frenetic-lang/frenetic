@@ -1,8 +1,8 @@
 open Core.Std
-open Frenetic_FDD
+open Frenetic_Fdd
 
-module Field = Frenetic_FDD.Field
-exception Non_local = Frenetic_FDD.Non_local
+module Field = Frenetic_Fdd.Field
+exception Non_local = Frenetic_Fdd.Non_local
 
 type order
   = [ `Default
@@ -186,7 +186,7 @@ let compile ?(order=`Heuristic) ?(cache=`Empty) pol =
    | `Static flds -> Field.set_order flds);
   of_policy pol
 
-let is_valid_pattern (pat : SDN.Pattern.t) : bool =
+let is_valid_pattern (pat : Frenetic_OpenFlow.Pattern.t) : bool =
   (Option.is_none pat.dlTyp ==>
      (Option.is_none pat.nwProto &&
       Option.is_none pat.nwSrc &&
@@ -197,8 +197,8 @@ let is_valid_pattern (pat : SDN.Pattern.t) : bool =
 
 let mk_flow pattern action queries =
   if is_valid_pattern pattern then
-    let open SDN.Pattern in
-    let open SDN in
+    let open Frenetic_OpenFlow.Pattern in
+    let open Frenetic_OpenFlow in
     Some ({ pattern
           ; action
           ; cookie = 0L
@@ -221,7 +221,7 @@ let to_action in_port r tests =
   |> Action.to_sdn ?in_port
 
 let to_pattern hvs =
-  List.fold_right hvs ~f:Pattern.to_sdn  ~init:SDN.Pattern.match_all
+  List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_OpenFlow.Pattern.match_all
 
 let mk_branch_or_leaf test t f =
   match t with
@@ -270,13 +270,12 @@ let to_table' ?(opt = true) = match opt with
 let to_table ?(opt = true) swId t = List.map ~f:fst (to_table' ~opt swId t)
 
 let pipes t =
-  let module S = Set.Make(String) in
   let ps = T.fold
     (fun r -> Action.pipes r)
-    (fun _ t f -> S.union t f)
+    (fun _ t f -> Frenetic_Util.StringSet.union t f)
     t
   in
-  S.to_list ps
+  Frenetic_Util.StringSet.to_list ps
 
 let queries t =
   let module S = Set.Make(struct

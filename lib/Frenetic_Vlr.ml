@@ -40,6 +40,7 @@ module PersistentTable (Value : TABLE_VALUE) : TABLE
   module T = Hashtbl.Make (Value)
   (* TODO(arjun): Since these are allocated contiguously, it would be
      better to use a growable array ArrayList<Int> *)
+  (* TODO(jnf): are you suggesting we port Frentic to Java?! *)
   module U = Hashtbl.Make(struct
     type t = int
     let hash n = n
@@ -86,7 +87,41 @@ module PersistentTable (Value : TABLE_VALUE) : TABLE
 
 end
 
-module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
+module type S = sig
+  type t
+  type v
+  type r
+  type d
+    = Leaf of r
+    | Branch of v * t * t
+  val get : d -> t
+  val unget : t -> d
+  val mk_branch : v -> t -> t -> t
+  val mk_leaf : r -> t
+  val const : r -> t
+  val atom : v -> r -> r -> t
+  val restrict : v list -> t -> t
+  val peek : t -> r option
+  val sum : t -> t -> t
+  val sum_generalized : (r -> r -> r) -> r -> t -> t -> t
+  val prod : t -> t -> t
+  val map_r : (r -> r) -> t -> t
+  val fold : (r -> 'a) -> (v -> 'a -> 'a -> 'a) -> t -> 'a
+  val equal : t -> t -> bool
+  val to_string : t -> string
+  val clear_cache : preserve:Core.Std.Int.Set.t -> unit
+  val compressed_size : t -> int
+  val uncompressed_size : t -> int
+  val to_dot : t -> string
+  val map_values : (r -> r) -> t -> t
+  val refs : t -> Core.Std.Int.Set.t
+
+end
+
+
+module Make(V:HashCmp)(L:Lattice)(R:Result) : 
+  S with type v = V.t * L.t and type r = R.t = 
+struct
   type v = V.t * L.t
   type r = R.t
 

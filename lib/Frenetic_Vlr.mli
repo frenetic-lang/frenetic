@@ -100,21 +100,15 @@ module type Result = sig
       and [||], respectively, then [zero] should be the value [false]. *)
 end
 
-(** Variable-Lattice-Result
-
-    This module implements a variant of a binary decision diagrams. Rather than
-    representing boolean-valued functions over boolean variables, this data
-    structure represents functions that take on values in a semi-ring, and whose
-    variables are assigned values from a lattice, i.e., that are partially
-    ordered. *)
-module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
+module type S = sig
 
   type t
   (** The type of a decision diagram *)
 
-  type v  = V.t * L.t
+  type v
   (** The type of a variable in the decision diagram. *)
-  type r = R.t
+
+  type r
   (** The type of the result of a decision diagram *)
 
   type d
@@ -210,3 +204,13 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
 end
 
+
+(** Variable-Lattice-Result
+
+    This module implements a variant of a binary decision diagrams. Rather than
+    representing boolean-valued functions over boolean variables, this data
+    structure represents functions that take on values in a semi-ring, and whose
+    variables are assigned values from a lattice, i.e., that are partially
+    ordered. *)
+module Make(V:HashCmp)(L:Lattice)(R:Result) : S 
+  with type v = V.t * L.t and type r = R.t

@@ -29,7 +29,7 @@ Library frenetic
     tcpip
   Modules: 
     Frenetic_Bits,
-    Frenetic_FDD,
+    Frenetic_Fdd,
     Frenetic_Log,
     Frenetic_Network,
     Frenetic_NetKAT,

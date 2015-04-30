@@ -168,3 +168,4 @@ true: annot, bin_annot
 <async/*.ml>: syntax_camlp4o
 <syntax/*.ml>: syntax_camlp4o
 true: thread
+true: -traverse

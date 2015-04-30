@@ -19,6 +19,9 @@
  * If after all that you're still without the function you need, have at it
  * below.
  *)
+open Core.Std
+
+module StringSet = Set.Make(String) 
 
 let make_string_of formatter x =
   let open Format in
@@ -35,5 +38,5 @@ let string_of_option to_string opt =
   | None -> "None"
 
 let string_of_list to_string l =
-  let strs = List.map to_string l in
-  "[" ^ (String.concat ", " strs) ^ "]"
+  let strs = List.map l to_string in
+  "[" ^ (String.concat ~sep:", " strs) ^ "]"
