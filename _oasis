@@ -90,8 +90,6 @@ Library netkat
     yojson,
     ipaddr,
     base64 (>= 2.0.0)
-  InternalModules:
-    Flowterp
   Modules:
     NetKAT_Lexer,
     NetKAT_Parser,
