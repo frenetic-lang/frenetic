@@ -85,14 +85,15 @@ module BestEffort (Args : UPDATE_ARGS) : UPDATE = struct
     LC.restrict NetKAT_Types.(Switch sw_id) repr
 
   let install_flows_for sw_id table =
-    let to_flow_mod p f = M.FlowModMsg (SDN_OpenFlow0x01.from_flow p f) in
+    let to_flow_mod p f = SDN_OpenFlow0x01.from_flow p f in
     let priority = ref 65536 in
-    Deferred.List.iter table ~f:(fun flow ->
+    let flow_mods = List.map table ~f:(fun flow ->
       decr priority;
-      Controller.send ctl sw_id (0l, to_flow_mod !priority flow)
+      to_flow_mod !priority flow) in
+    Controller.send_flow_mods ctl sw_id flow_mods
       >>| function
-        | `Drop exn -> raise exn
-        | `Sent _   -> ())
+        | Ok () -> ()
+        | Error exn -> raise exn
 
   let delete_flows_for sw_id =
     let delete_flows = M.FlowModMsg OpenFlow0x01_Core.delete_all_flows in
@@ -124,7 +125,7 @@ module BestEffort (Args : UPDATE_ARGS) : UPDATE = struct
 
   let implement_policy ?old repr =
     Controller.get_switches ctl
-    >>= Deferred.List.iter ~f:(fun sw_id ->
+    >>= Deferred.List.iter ~how:`Parallel ~f:(fun sw_id ->
       bring_up_switch sw_id ?old repr)
 end
 
