@@ -102,7 +102,7 @@ let handle_request
       handle_parse_errors' body
         (fun str ->
            let json = Yojson.Basic.from_string str in
-           NetKAT_SDN_Json.pkt_out_from_json json)
+           Frenetic_NetKAT_SDN_Json.pkt_out_from_json json)
         (fun (sw_id, pkt_out) ->
            send_packet_out sw_id pkt_out
            >>= fun () ->

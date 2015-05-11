@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: ac73f84cc0f9b939107077e4a58b277a)
+# DO NOT EDIT (digest: b18fc928dbde174c243dae5b1d61df5f)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -17,6 +17,7 @@ true: annot, bin_annot
 # Library frenetic
 "lib/frenetic.cmxs": use_frenetic
 <lib/*.ml{,i,y}>: package(async)
+<lib/*.ml{,i,y}>: package(base64)
 <lib/*.ml{,i,y}>: package(core)
 <lib/*.ml{,i,y}>: package(cstruct)
 <lib/*.ml{,i,y}>: package(cstruct.syntax)
@@ -27,9 +28,11 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: package(sexplib.syntax)
 <lib/*.ml{,i,y}>: package(str)
 <lib/*.ml{,i,y}>: package(tcpip)
+<lib/*.ml{,i,y}>: package(yojson)
 # Library async
 "async/async.cmxs": use_async
 <async/*.ml{,i,y}>: package(async)
+<async/*.ml{,i,y}>: package(base64)
 <async/*.ml{,i,y}>: package(core)
 <async/*.ml{,i,y}>: package(cstruct)
 <async/*.ml{,i,y}>: package(cstruct.async)
@@ -41,10 +44,12 @@ true: annot, bin_annot
 <async/*.ml{,i,y}>: package(sexplib.syntax)
 <async/*.ml{,i,y}>: package(str)
 <async/*.ml{,i,y}>: package(tcpip)
+<async/*.ml{,i,y}>: package(yojson)
 <async/*.ml{,i,y}>: use_frenetic
 # Library openflow
 "openflow/lib/openflow.cmxs": use_openflow
 <openflow/lib/*.ml{,i,y}>: package(async)
+<openflow/lib/*.ml{,i,y}>: package(base64)
 <openflow/lib/*.ml{,i,y}>: package(core)
 <openflow/lib/*.ml{,i,y}>: package(cstruct)
 <openflow/lib/*.ml{,i,y}>: package(cstruct.syntax)
@@ -56,6 +61,7 @@ true: annot, bin_annot
 <openflow/lib/*.ml{,i,y}>: package(str)
 <openflow/lib/*.ml{,i,y}>: package(tcpip)
 <openflow/lib/*.ml{,i,y}>: package(threads)
+<openflow/lib/*.ml{,i,y}>: package(yojson)
 <openflow/lib/*.ml{,i,y}>: use_frenetic
 # Library netkat
 "frenetic/lib/netkat.cmxs": use_netkat

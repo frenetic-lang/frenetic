@@ -17,6 +17,7 @@ Library frenetic
   Path: lib
   BuildDepends: 
     async,
+    base64 (>= 2.0.0),
     core,
     cstruct,
     cstruct.syntax,
@@ -26,7 +27,8 @@ Library frenetic
     sexplib,
     sexplib.syntax,
     str, 
-    tcpip
+    tcpip,
+    yojson
   Modules: 
     Frenetic_Bits,
     Frenetic_Fdd,
@@ -34,6 +36,7 @@ Library frenetic
     Frenetic_Network,
     Frenetic_NetKAT,
     Frenetic_NetKAT_Global_Compiler,
+    Frenetic_NetKAT_SDN_Json,
     Frenetic_NetKAT_Local_Compiler,
     Frenetic_NetKAT_Optimize,
     Frenetic_NetKAT_Pretty,
@@ -87,16 +90,13 @@ Library netkat
     sexplib.syntax,
     str,
     threads,
-    yojson,
-    ipaddr,
-    base64 (>= 2.0.0)
+    ipaddr
   Modules:
     NetKAT_Lexer,
     NetKAT_Parser,
     NetKAT_Misc,
-    NetKAT_Json,
-    NetKAT_SDN_Json
-
+    NetKAT_Json
+ 
 Library syntax
   Path: frenetic/syntax
   Findlibparent: netkat

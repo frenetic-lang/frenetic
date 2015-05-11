@@ -4,7 +4,7 @@
 let int_to_uint32 = Int32.of_int
 
 (* NOTE(arjun): Do not open Frenetic_OpenFlow in this module. If you need to serialize
-   one of those types, it should probably go in NetKAT_SDN_Json instead. *)
+   one of those types, it should probably go in Frentic_NetKAT_SDN_Json instead. *)
 open Core.Std
 open Yojson.Basic
 open Frenetic_NetKAT
