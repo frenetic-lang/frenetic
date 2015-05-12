@@ -6,13 +6,25 @@ An open-source SDN controller platform.
 
 ## Installation
 
-You can install the latest release from [OPAM](http://opam.ocamlpro.com/) using
-the following command:
+### Installing from OPAM
 
-    $ opam install frenetic
+    You can install the latest release from [OPAM](http://opam.ocamlpro.com/) using
+    the following command:
 
-This installs the Frenetic libraries (using `ocamlfind`) and
-the `frenetic` executable (typically at `~/.opam/system/bin/frentic`).
+        $ opam install frenetic
+
+    This installs the Frenetic libraries (using `ocamlfind`) and
+    the `frenetic` executable (typically at `~/.opam/system/bin/frentic`).
+
+### Installing an Ubuntu Package
+
+We've packaged Frenetic for Ubuntu 14.04 LTS 64-bit.
+
+To install the Frenetic package, add the following to the end of `/etc/apt/sources.lists`:
+
+    deb https://dl.bintray.com/arjunguha/deb trusty main
+
+Then, run `apt-get update && apt-get install frenetic`.
 
 ## Frenetic HTTP Controller
 

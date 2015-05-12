@@ -186,57 +186,27 @@ let compile ?(order=`Heuristic) ?(cache=`Empty) pol =
    | `Static flds -> Field.set_order flds);
   of_policy pol
 
-let check_vlan_pcp pattern =
-  let open SDN.Pattern in
-  if (pattern.dlVlanPcp <> None) && (pattern.dlTyp = None)
-  then { pattern with dlTyp = Some 0x8100 }
-  else pattern
-
-let check_nwProto pattern =
-  let open SDN.Pattern in
-  if (pattern.nwProto <> None) && (pattern.dlTyp = None)
-  then { pattern with dlTyp = Some 0x0800 }
-  else pattern
-
-let check_tcp pattern =
-  let open SDN.Pattern in
-  if pattern.tpSrc <> None && pattern.tpDst <> None && pattern.nwProto = None
-  (* This is okay for TCP. Do we need to worry about UDP? *)
-  then { pattern with nwProto = Some 0x6 }
-  else pattern
-
-let nw_src_dst_implies (pat : SDN.Pattern.t) =
-  if not (pat.nwSrc = None && pat.nwDst = None) then
-    { pat with nwProto = Some 0x06 }
-  else
-    pat
-
-let nw_proto_implies (pat : SDN.Pattern.t) =
-  if pat.nwProto = Some 0x06 then
-    { pat with dlTyp = Some 0x0800 }
-  else
-    pat
+let is_valid_pattern (pat : SDN.Pattern.t) : bool =
+  (Option.is_none pat.dlTyp ==>
+     (Option.is_none pat.nwProto &&
+      Option.is_none pat.nwSrc &&
+      Option.is_none pat.nwDst)) &&
+  (Option.is_none pat.nwProto ==>
+     (Option.is_none pat.tpSrc &&
+      Option.is_none pat.tpDst))
 
 let mk_flow pattern action queries =
-  let open SDN.Pattern in
-  let pattern = nw_src_dst_implies pattern in
-  let pattern = check_nwProto pattern in
-  let pattern = check_tcp pattern in
-  let pattern = check_nwProto pattern in
-  let pattern = nw_proto_implies pattern in
-  (* Not entirely sure how to detect the following from the pattern:
-      - Left out optional ARP packet where dlTyp should be set to 0x0806
-      - Left out UDP where nwProto should be set to 7
-      - Left out ICMP where nwProto should be set to 1
-   *)
-  let pattern = pattern in
-  let open SDN in
-  ({ pattern
-    ; action
-    ; cookie = 0L
-    ; idle_timeout = Permanent
-    ; hard_timeout = Permanent
-    }, queries)
+  if is_valid_pattern pattern then
+    let open SDN.Pattern in
+    let open SDN in
+    Some ({ pattern
+          ; action
+          ; cookie = 0L
+          ; idle_timeout = Permanent
+          ; hard_timeout = Permanent
+          }, queries)
+  else
+   None
 
 let get_inport hvs =
   let get_inport' current hv =
@@ -279,7 +249,7 @@ let opt_to_table sw_id t =
     | (row, None) -> List.rev (row::acc)
     | (row, Some rest) -> loop rest (row::acc)
   in
-  loop t []
+  List.filter_opt (loop t [])
 
 let rec naive_to_table sw_id (t : T.t) =
   let t = T.(restrict [(Field.Switch, Value.Const sw_id)] t) in
@@ -291,7 +261,7 @@ let rec naive_to_table sw_id (t : T.t) =
   | Branch ((Location, Pipe _), _, fls) -> dfs tests fls
   | Branch (test, tru, fls) ->
     dfs (test :: tests) tru @ dfs tests fls in
-  dfs [] t
+  List.filter_opt (dfs [] t)
 
 let to_table' ?(opt = true) = match opt with
  | true -> opt_to_table

@@ -137,10 +137,6 @@ let flow_to_json (n : int) (f : flow) : json =
      ("hard_timeout", timeout_to_json f.hard_timeout)
    ]
 
-let flowTable_to_json (t : flowTable) : json =
-  let l,_ =
-    List.fold_right t
-      ~f:(fun f (acc,i) -> (flow_to_json i f::acc, i - 1))
-      ~init:([],65535) in
-  `List l
-
+let flowTable_to_json (tbl : flowTable) : json =
+  let priorities = List.range ~stride:(-1) 65535 (65535 - List.length tbl) in
+  `List (List.map2_exn ~f:flow_to_json priorities tbl)
