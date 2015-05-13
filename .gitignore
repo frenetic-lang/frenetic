@@ -6,12 +6,16 @@ _build
 *.cmi
 *.cma
 *.ignore
+*.pyc
+*.bak
+*.ba[012]
 .DS_Store
 setup.data
 setup.log
 *~
 .*.sw[po]
 vagrant/.vagrant/*
+
 
 # Emacs Temp Files
 [#]*

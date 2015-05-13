@@ -36,10 +36,11 @@ Library frenetic
     Frenetic_Network,
     Frenetic_NetKAT,
     Frenetic_NetKAT_Global_Compiler,
-    Frenetic_NetKAT_SDN_Json,
+    Frenetic_NetKAT_Json,    
     Frenetic_NetKAT_Local_Compiler,
     Frenetic_NetKAT_Optimize,
     Frenetic_NetKAT_Pretty,
+    Frenetic_NetKAT_SDN_Json,
     Frenetic_NetKAT_Semantics,
     Frenetic_OpenFlow,
     Frenetic_OpenFlow_Header,
@@ -94,8 +95,7 @@ Library netkat
   Modules:
     NetKAT_Lexer,
     NetKAT_Parser,
-    NetKAT_Misc,
-    NetKAT_Json
+    NetKAT_Misc
  
 Library syntax
   Path: frenetic/syntax

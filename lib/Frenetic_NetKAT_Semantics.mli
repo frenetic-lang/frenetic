@@ -49,4 +49,10 @@ val eval_pipes :  packet
 
 val size: policy -> int
 
+(* Apparently not used anymore, whereas the new function, merged from NetKAT_Misc, is...
 val switches_of_policy : policy -> switchId list
+*)
+
+val queries_of_policy: policy -> string list
+
+val switches_of_policy: policy -> switchId list

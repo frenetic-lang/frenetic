@@ -1,10 +1,13 @@
 open Core.Std
 open Frenetic_NetKAT
 
+(* Used only in NetKAT_Parser, and can be removed
 let pred_true = True
 
 let pred_false = False
+*)
 
+(* Moved to Frentic_NetKAT_Semantics *
 let queries_of_policy (pol : policy) : string list =
   let rec loop (pol : policy) (acc : string list) : string list = match pol with
     | Mod (Location (Query str)) ->
@@ -37,3 +40,4 @@ let switches_of_policy (p:policy) =
     | Link(sw1,_,sw2,_) ->
        [sw1;sw2] in
   List.to_list (List.dedup (collect p))
+*)

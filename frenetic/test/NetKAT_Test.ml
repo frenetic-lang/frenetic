@@ -335,7 +335,7 @@ let check gen_fn compare_fn =
 
 
 TEST "quickcheck NetKAT <-> JSON" =
-  let open NetKAT_Json in
+  let open Frenetic_NetKAT_Json in
   let open Optimize in
   let generate_policy_json =
     let open QuickCheck in

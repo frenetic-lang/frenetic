@@ -1,8 +1,6 @@
 # OASIS_START
-# DO NOT EDIT (digest: 36a2a04e81762fa72c591e16e0ad654d)
+# DO NOT EDIT (digest: 2952b795de7d04a3e27d2b857d80226b)
 NetKAT_Lexer
 NetKAT_Parser
 NetKAT_Misc
-NetKAT_Json
-NetKAT_SDN_Json
 # OASIS_STOP

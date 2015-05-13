@@ -223,7 +223,7 @@ module Make : CONTROLLER = struct
 
   let update_all_switches (pol : policy) : unit Deferred.t =
     Log.printf ~level:`Debug "Installing policy\n%s" (Frenetic_NetKAT_Pretty.string_of_policy pol);
-    let new_queries = NetKAT_Misc.queries_of_policy pol in
+    let new_queries = Frenetic_NetKAT_Semantics.queries_of_policy pol in
     (* Discard old queries *)
     Hashtbl.Poly.filteri_inplace stats
       ~f:(fun key _ -> List.mem new_queries key);

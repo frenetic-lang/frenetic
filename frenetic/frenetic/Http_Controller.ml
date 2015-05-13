@@ -46,7 +46,7 @@ let iter_clients (f : string -> client -> unit) : unit =
 let rec propogate_events event =
   event () >>=
   fun evt ->
-  let response = NetKAT_Json.event_to_json_string evt in
+  let response = Frenetic_NetKAT_Json.event_to_json_string evt in
   (* TODO(jcollard): Is there a mapM equivalent here? *)
   Hashtbl.iter clients (fun ~key ~data:client ->
     Pipe.write_without_pushback client.event_writer response);
@@ -75,7 +75,7 @@ let handle_request
     | `GET, ["port_stats"; switch_id; port_id] ->
        port_stats (Int64.of_string switch_id) (Int32.of_string port_id)
        >>= fun portStats ->
-       Server.respond_with_string (NetKAT_Json.port_stats_to_json_string portStats)
+       Server.respond_with_string (Frenetic_NetKAT_Json.port_stats_to_json_string portStats)
     | `GET, ["current_switches"] ->
       let switches = current_switches () in
       Server.respond_with_string (current_switches_to_json_string switches)
@@ -83,13 +83,13 @@ let handle_request
       if (is_query name) then
         query name
         >>= fun stats ->
-        Server.respond_with_string (NetKAT_Json.stats_to_json_string stats)
+        Server.respond_with_string (Frenetic_NetKAT_Json.stats_to_json_string stats)
       else
         begin
           Log.info "query %s is not defined in the current policy" name;
           let headers = Cohttp.Header.init_with "X-Query-Not-Defined" "true" in
           Server.respond_with_string ~headers
-            (NetKAT_Json.stats_to_json_string (0L, 0L))
+            (Frenetic_NetKAT_Json.stats_to_json_string (0L, 0L))
         end
     | `GET, [clientId; "event"] ->
       let curr_client = get_client clientId in

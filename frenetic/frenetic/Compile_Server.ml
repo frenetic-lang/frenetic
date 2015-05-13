@@ -12,7 +12,7 @@ let compile_respond pol =
   let (time, tbls) = profile (fun () ->
   let fdd = Frenetic_NetKAT_Local_Compiler.compile pol in
   let sws =
-    let sws = NetKAT_Misc.switches_of_policy pol in
+    let sws = Frenetic_NetKAT_Semantics.switches_of_policy pol in
     if List.length sws = 0 then [0L] else sws in
   List.map sws ~f:(fun sw ->
     (sw, Frenetic_NetKAT_Local_Compiler.to_table ~opt:false sw fdd))) in
@@ -38,7 +38,7 @@ let handle_request
       handle_parse_errors body
         (fun body ->
            Body.to_string body >>= fun str ->
-           return (NetKAT_Json.policy_from_json_string str))
+           return (Frenetic_NetKAT_Json.policy_from_json_string str))
         compile_respond
     | `POST, ["update"] ->
       printf "POST /update";

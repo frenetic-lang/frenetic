@@ -1,3 +1,5 @@
+(* TODO: Demolish.  Same as Frenetic_Util *)
+
 (*
  *   (¯`·._.·(¯`·._.· PEOPLE, READ THIS BEFORE YOU EDIT ·._.·´¯)·._.·´¯)
  *
@@ -20,6 +22,7 @@
  * below.
  *)
 
+(*
 let make_string_of formatter x =
   let open Format in
   let buf = Buffer.create 100 in
@@ -28,3 +31,4 @@ let make_string_of formatter x =
   formatter fmt x;
   fprintf fmt "@?";
   Buffer.contents buf
+*)

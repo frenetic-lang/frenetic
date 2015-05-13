@@ -40,7 +40,7 @@ module Global = struct
         NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in
     let local_pol = NetKAT_GlobalCompiler.compile ingress egress global_pol in
     let switches =
-      NetKAT_Misc.switches_of_policy (Optimize.mk_seq (NetKAT_Types.Filter ingress) global_pol) in
+      Frentic_NetKAT_Semantics.switches_of_policy (Optimize.mk_seq (NetKAT_Types.Filter ingress) global_pol) in
     let tables =
       List.map
         (fun sw -> Optimize.specialize_policy sw local_pol

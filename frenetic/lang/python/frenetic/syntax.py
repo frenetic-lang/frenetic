@@ -111,7 +111,7 @@ class Stats(object):
 #
 # NetKAT Serialization
 #
-# This is based on NetKAT_Json.ml
+# This is based on Frenetic_NetKAT_Json.ml
 ################################################################################
 
 class Pred(object):
