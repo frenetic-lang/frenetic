@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: b18fc928dbde174c243dae5b1d61df5f)
+# DO NOT EDIT (digest: c6b1b298a44d083d60d85e28c21f3c3b)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -89,28 +89,6 @@ true: annot, bin_annot
 <frenetic/syntax/*.ml{,i,y}>: package(camlp4.quotations.o)
 <frenetic/syntax/*.ml{,i,y}>: package(ipaddr)
 <frenetic/syntax/*.ml{,i,y}>: package(ulex)
-# Library async2
-"frenetic/async/async2.cmxs": use_async2
-<frenetic/async/*.ml{,i,y}>: package(async)
-<frenetic/async/*.ml{,i,y}>: package(base64)
-<frenetic/async/*.ml{,i,y}>: package(core)
-<frenetic/async/*.ml{,i,y}>: package(cstruct)
-<frenetic/async/*.ml{,i,y}>: package(cstruct.async)
-<frenetic/async/*.ml{,i,y}>: package(cstruct.syntax)
-<frenetic/async/*.ml{,i,y}>: package(fieldslib)
-<frenetic/async/*.ml{,i,y}>: package(fieldslib.syntax)
-<frenetic/async/*.ml{,i,y}>: package(ipaddr)
-<frenetic/async/*.ml{,i,y}>: package(ocamlgraph)
-<frenetic/async/*.ml{,i,y}>: package(sexplib)
-<frenetic/async/*.ml{,i,y}>: package(sexplib.syntax)
-<frenetic/async/*.ml{,i,y}>: package(str)
-<frenetic/async/*.ml{,i,y}>: package(tcpip)
-<frenetic/async/*.ml{,i,y}>: package(threads)
-<frenetic/async/*.ml{,i,y}>: package(yojson)
-<frenetic/async/*.ml{,i,y}>: use_async
-<frenetic/async/*.ml{,i,y}>: use_frenetic
-<frenetic/async/*.ml{,i,y}>: use_netkat
-<frenetic/async/*.ml{,i,y}>: use_openflow
 # Executable frenetic
 "frenetic/frenetic/frenetic.native": package(async)
 "frenetic/frenetic/frenetic.native": package(async_extended)
@@ -133,7 +111,6 @@ true: annot, bin_annot
 "frenetic/frenetic/frenetic.native": package(threads)
 "frenetic/frenetic/frenetic.native": package(yojson)
 "frenetic/frenetic/frenetic.native": use_async
-"frenetic/frenetic/frenetic.native": use_async2
 "frenetic/frenetic/frenetic.native": use_frenetic
 "frenetic/frenetic/frenetic.native": use_netkat
 "frenetic/frenetic/frenetic.native": use_openflow
@@ -158,7 +135,6 @@ true: annot, bin_annot
 <frenetic/frenetic/*.ml{,i,y}>: package(threads)
 <frenetic/frenetic/*.ml{,i,y}>: package(yojson)
 <frenetic/frenetic/*.ml{,i,y}>: use_async
-<frenetic/frenetic/*.ml{,i,y}>: use_async2
 <frenetic/frenetic/*.ml{,i,y}>: use_frenetic
 <frenetic/frenetic/*.ml{,i,y}>: use_netkat
 <frenetic/frenetic/*.ml{,i,y}>: use_openflow

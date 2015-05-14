@@ -63,7 +63,7 @@ let get_client (clientId: string): client =
                { policy_node = node; event_reader = r; event_writer =  w })
 
 let handle_request
-  (module Controller : NetKAT_Controller.CONTROLLER)
+  (module Controller : Frenetic_NetKAT_Controller.CONTROLLER)
   ~(body : Cohttp_async.Body.t)
   (client_addr : Socket.Address.Inet.t)
   (request : Request.t) : Server.response Deferred.t =
@@ -126,7 +126,7 @@ let print_error addr exn =
 
 let listen ~http_port ~openflow_port =
   Frenetic_OpenFlow0x01_Controller.init openflow_port;
-  let module Controller = NetKAT_Controller.Make in
+  let module Controller = Frenetic_NetKAT_Controller.Make in
   let on_handler_error = `Call print_error in
   let _ = Cohttp_async.Server.create
     ~on_handler_error

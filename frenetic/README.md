@@ -104,7 +104,7 @@ open Async.Std
 
 let main () =
   let static = Async_NetKAT.Policy create_from_file "examples/tree-2-2.kat" in
-  ignore(Async_NetKAT_Controller.start static ()) in
+  ignore(Frenetic_NetKAT_Controller.start static ()) in
 
 never_returns (Scheduler.go_main ~main ())
 ```

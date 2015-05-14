@@ -1,5 +1,4 @@
 open Core.Std
-open Async.Std
 
 module SDN = Frenetic_OpenFlow
 

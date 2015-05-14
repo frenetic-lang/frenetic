@@ -4,14 +4,14 @@
 
 open Core.Std
 
-module Net = Async_NetKAT_Net.Net
+module Net = Frenetic_NetKAT_Net.Net
 module SDN = Frenetic_OpenFlow
 
 let switch_ids (t : Net.Topology.t) : SDN.switchId list =
   let open Net.Topology in
   fold_vertexes (fun v acc ->
     match vertex_to_label t v with
-    | Async_NetKAT_Net.Switch id -> id::acc
+    | Frenetic_NetKAT_Net.Switch id -> id::acc
     | _ -> acc)
   t []
 
@@ -41,7 +41,7 @@ let edge (t: Net.Topology.t) =
   let open Net.Topology in
   fold_vertexes (fun v acc ->
     match vertex_to_label t v with
-    | Async_NetKAT_Net.Switch sw_id ->
+    | Frenetic_NetKAT_Net.Switch sw_id ->
       PortSet.fold (vertex_to_ports t v) ~init:acc ~f:(fun acc pt_id ->
         match next_hop t v pt_id with
         | None   -> (sw_id, pt_id)::acc

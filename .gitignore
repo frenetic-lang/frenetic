@@ -8,7 +8,7 @@ _build
 *.ignore
 *.pyc
 *.bak
-*.ba[012]
+*.ba[0-9]
 .DS_Store
 setup.data
 setup.log

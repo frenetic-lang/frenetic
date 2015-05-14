@@ -3,7 +3,7 @@ open Async.Std
 
 module OF10 = Frenetic_OpenFlow0x01
 module M = OF10.Message
-module Net = Async_NetKAT_Net.Net
+module Net = Frenetic_NetKAT_Net.Net
 module SDN = Frenetic_OpenFlow
 module Log = Frenetic_Log
 module Controller = Frenetic_OpenFlow0x01_Controller
@@ -34,7 +34,6 @@ module type CONSISTENT_UPDATE_ARGS = sig
 end
 
 module type UPDATE = sig
-
   val bring_up_switch : SDN.switchId ->
     ?old:LC.t ->
     LC.t ->
@@ -44,7 +43,6 @@ module type UPDATE = sig
     ?old:LC.t ->
     LC.t ->
     unit Deferred.t
-
 end
 
 module BestEffortUpdate = struct
@@ -67,7 +65,7 @@ module BestEffortUpdate = struct
       | `Eof -> raise UpdateError
       | `Ok -> return ()
 
-  let bring_up_switch (sw_id : SDN.switchId) new_r =
+  let bring_up_switch (sw_id : SDN.switchId) ?old new_r =
     let table = LC.to_table sw_id new_r in
     Log.printf ~level:`Debug "Setting up flow table\n%s"
       (Frenetic_OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id) table);
@@ -82,7 +80,7 @@ module BestEffortUpdate = struct
         Log.flushed () >>| fun () ->
         Printf.eprintf "%s\n%!" (Exn.to_string _exn)
 
-  let implement_policy repr =
+  let implement_policy ?old repr =
     Deferred.List.iter (Controller.get_switches ()) (fun sw_id ->
       bring_up_switch sw_id repr)
 end
@@ -170,7 +168,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
     Monitor.try_with ~name:"PerPacketConsistent.internal_install_policy_for" (fun () ->
       let table0 = LC.to_table sw_id repr in
       let table1 = specialize_internal_to
-        ver (TUtil.internal_ports (get_nib ()) sw_id) table0 in
+        ver (Frenetic_Topology.internal_ports (get_nib ()) sw_id) table0 in
       assert (List.length table1 > 0);
       install_flows_for  sw_id table1)
     >>= fun () -> barrier sw_id
@@ -233,7 +231,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
     Monitor.try_with ~name:"PerPacketConsistent.edge_install_policy_for" (fun () ->
       let table = LC.to_table sw_id repr in
       let edge_table = specialize_edge_to
-        ver (TUtil.internal_ports (get_nib ()) sw_id) table in
+        ver (Frenetic_Topology.internal_ports (get_nib ()) sw_id) table in
       Log.debug
         "switch %Lu: Installing edge table for ver %d" sw_id ver;
       swap_update_for sw_id sw_id edge_table)
