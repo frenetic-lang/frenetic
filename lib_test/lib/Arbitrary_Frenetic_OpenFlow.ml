@@ -1,4 +1,4 @@
-open SDN_Types
+open Frenetic_OpenFlow
 
 open QuickCheck
 module Gen = QuickCheck_gen
@@ -14,12 +14,12 @@ let arbitrary_payload =
   let open Gen in
   arbitrary_bytes 1024 >>= fun bytes ->
   oneof [
-    arbitrary_bufferId >>= (fun id -> ret_gen (SDN_Types.Buffered (id, bytes)));
-    ret_gen (SDN_Types.NotBuffered bytes)]
+    arbitrary_bufferId >>= (fun id -> ret_gen (Buffered (id, bytes)));
+    ret_gen (NotBuffered bytes)]
 
 let arbitrary_ip_mask = 
   let open Gen in 
-  let open Arbitrary_Packet in 
+  let open Arbitrary_Frenetic_Packet in 
   arbitrary_nwAddr >>= fun p ->
   choose_int32 (0l, 32l) >>= fun m -> 
     ret_gen (p,m)
@@ -27,7 +27,7 @@ let arbitrary_ip_mask =
 let arbitrary_pattern =
   let open Gen in
   let open Pattern in
-  let open Arbitrary_Packet in
+  let open Arbitrary_Frenetic_Packet in
   let opt = Arbitrary_Base.arbitrary_option in
   let arbitrary_inPort = Arbitrary_Base.arbitrary_uint32 in
   opt arbitrary_dlAddr >>= fun dlSrc ->

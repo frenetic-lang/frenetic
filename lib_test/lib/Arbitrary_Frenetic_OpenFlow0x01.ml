@@ -1,4 +1,4 @@
-open OpenFlow0x01
+open Frenetic_OpenFlow0x01
 open Arbitrary_Base
 
 open QuickCheck
@@ -17,7 +17,7 @@ let arbitrary_masked arb arb_mask =
     (3, arb >>= fun v ->
         arb_mask >>= fun m -> ret_gen {m_value = v; m_mask = Some m}) ]
 
-module type OpenFlow0x01_Arbitrary = sig
+module type Frenetic_OpenFlow0x01_Arbitrary = sig
 
     type t
     type s
@@ -31,7 +31,7 @@ module type OpenFlow0x01_Arbitrary = sig
 
 end
 
-module type OpenFlow0x01_ArbitraryCstruct = sig
+module type Frenetic_OpenFlow0x01_ArbitraryCstruct = sig
   type t
 
   val arbitrary : t arbitrary
@@ -45,7 +45,7 @@ module type OpenFlow0x01_ArbitraryCstruct = sig
 
 end
 
-module OpenFlow0x01_Unsize(ArbC : OpenFlow0x01_ArbitraryCstruct) = struct
+module Frenetic_OpenFlow0x01_Unsize(ArbC : Frenetic_OpenFlow0x01_ArbitraryCstruct) = struct
   type t = ArbC.t
   type s = Cstruct.t
 
@@ -236,7 +236,7 @@ end
 
 module Timeout = struct
   type t = timeout
-  type s = Packet.int16
+  type s = Frenetic_Packet.int16
 
   let arbitrary =
     let open Gen in
@@ -245,17 +245,17 @@ module Timeout = struct
       arbitrary_uint16 >>= (fun n -> ret_gen (ExpiresAfter n))
     ]
 
-  let to_string = OpenFlow0x01.Timeout.to_string
+  let to_string = Frenetic_OpenFlow0x01.Timeout.to_string
 
-  let marshal = OpenFlow0x01.Timeout.to_int
-  let parse = OpenFlow0x01.Timeout.of_int
+  let marshal = Frenetic_OpenFlow0x01.Timeout.to_int
+  let parse = Frenetic_OpenFlow0x01.Timeout.of_int
 end
 
 module FlowMod = struct
 
   module Command = struct
     type t = flowModCommand
-    type s = Packet.int16
+    type s = Frenetic_Packet.int16
 
     let arbitrary =
       let open Gen in
@@ -295,7 +295,7 @@ module FlowMod = struct
           command = command;
           pattern = pattern;
           priority = priority;
-          actions = OpenFlow0x01.Action.move_controller_last actions;
+          actions = Frenetic_OpenFlow0x01.Action.move_controller_last actions;
           cookie = cookie;
           idle_timeout = idle_timeout;
           hard_timeout = hard_timeout;
@@ -316,7 +316,7 @@ module FlowRemoved = struct
 
   module Reason = struct
     type t = flowRemovedReason
-    type s = Packet.int8
+    type s = Frenetic_Packet.int8
 
     let arbitrary =
       let open Gen in

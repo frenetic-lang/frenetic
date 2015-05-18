@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: c6b1b298a44d083d60d85e28c21f3c3b)
+# DO NOT EDIT (digest: 3ee8a732dcc89eaf039cab681f4b5692)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -138,6 +138,64 @@ true: annot, bin_annot
 <frenetic/frenetic/*.ml{,i,y}>: use_frenetic
 <frenetic/frenetic/*.ml{,i,y}>: use_netkat
 <frenetic/frenetic/*.ml{,i,y}>: use_openflow
+# Library test_frenetic
+"lib_test/lib/test_frenetic.cmxs": use_test_frenetic
+<lib_test/lib/*.ml{,i,y}>: package(async)
+<lib_test/lib/*.ml{,i,y}>: package(base64)
+<lib_test/lib/*.ml{,i,y}>: package(core)
+<lib_test/lib/*.ml{,i,y}>: package(cstruct)
+<lib_test/lib/*.ml{,i,y}>: package(cstruct.syntax)
+<lib_test/lib/*.ml{,i,y}>: package(fieldslib)
+<lib_test/lib/*.ml{,i,y}>: package(fieldslib.syntax)
+<lib_test/lib/*.ml{,i,y}>: package(ocamlgraph)
+<lib_test/lib/*.ml{,i,y}>: package(quickcheck)
+<lib_test/lib/*.ml{,i,y}>: package(sexplib)
+<lib_test/lib/*.ml{,i,y}>: package(sexplib.syntax)
+<lib_test/lib/*.ml{,i,y}>: package(str)
+<lib_test/lib/*.ml{,i,y}>: package(tcpip)
+<lib_test/lib/*.ml{,i,y}>: package(yojson)
+<lib_test/lib/*.ml{,i,y}>: use_frenetic
+# Executable testtool
+"lib_test/Test.byte": package(async)
+"lib_test/Test.byte": package(base64)
+"lib_test/Test.byte": package(core)
+"lib_test/Test.byte": package(cstruct)
+"lib_test/Test.byte": package(cstruct.async)
+"lib_test/Test.byte": package(cstruct.syntax)
+"lib_test/Test.byte": package(fieldslib)
+"lib_test/Test.byte": package(fieldslib.syntax)
+"lib_test/Test.byte": package(ocamlgraph)
+"lib_test/Test.byte": package(pa_ounit)
+"lib_test/Test.byte": package(pa_ounit.syntax)
+"lib_test/Test.byte": package(quickcheck)
+"lib_test/Test.byte": package(sexplib)
+"lib_test/Test.byte": package(sexplib.syntax)
+"lib_test/Test.byte": package(str)
+"lib_test/Test.byte": package(tcpip)
+"lib_test/Test.byte": package(yojson)
+"lib_test/Test.byte": use_async
+"lib_test/Test.byte": use_frenetic
+"lib_test/Test.byte": use_test_frenetic
+<lib_test/*.ml{,i,y}>: package(async)
+<lib_test/*.ml{,i,y}>: package(base64)
+<lib_test/*.ml{,i,y}>: package(core)
+<lib_test/*.ml{,i,y}>: package(cstruct)
+<lib_test/*.ml{,i,y}>: package(cstruct.async)
+<lib_test/*.ml{,i,y}>: package(cstruct.syntax)
+<lib_test/*.ml{,i,y}>: package(fieldslib)
+<lib_test/*.ml{,i,y}>: package(fieldslib.syntax)
+<lib_test/*.ml{,i,y}>: package(ocamlgraph)
+<lib_test/*.ml{,i,y}>: package(pa_ounit)
+<lib_test/*.ml{,i,y}>: package(pa_ounit.syntax)
+<lib_test/*.ml{,i,y}>: package(quickcheck)
+<lib_test/*.ml{,i,y}>: package(sexplib)
+<lib_test/*.ml{,i,y}>: package(sexplib.syntax)
+<lib_test/*.ml{,i,y}>: package(str)
+<lib_test/*.ml{,i,y}>: package(tcpip)
+<lib_test/*.ml{,i,y}>: package(yojson)
+<lib_test/*.ml{,i,y}>: use_async
+<lib_test/*.ml{,i,y}>: use_frenetic
+<lib_test/*.ml{,i,y}>: use_test_frenetic
 # OASIS_STOP
 <packet/lib/*.ml>: syntax_camlp4o
 <packet/test/*.ml>: syntax_camlp4o

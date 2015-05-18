@@ -1,5 +1,5 @@
-open NetKAT_Types
-open Arbitrary_Packet
+open Frenetic_NetKAT
+open Arbitrary_Frenetic_Packet
 
 module AB = Arbitrary_Base
 
@@ -21,7 +21,7 @@ let arbitrary_id =
 				    
 let arbitrary_test, arbitrary_mod =
   let open QuickCheck_gen in
-  let open NetKAT_Types in
+  let open Frenetic_NetKAT in
   let shared = [
     map_gen (fun i -> Location (Physical i)) AB.arbitrary_uint32;
     map_gen (fun i -> EthSrc i) AB.arbitrary_uint48;
@@ -152,19 +152,19 @@ let arbitrary_policy = gen_pol gen_atom_pol
 
 let arbitrary_lf_pol = gen_pol gen_lf_atom_pol
 
-let arbitrary_tcp : NetKAT_Semantics.packet QuickCheck_gen.gen =
+let arbitrary_tcp : Frenetic_NetKAT_Semantics.packet QuickCheck_gen.gen =
   let open QuickCheck_gen in
   let open QuickCheck in
-  let open NetKAT_Semantics in
-  let open Packet in
-  let module Parb = Arbitrary_Packet in
+  let open Frenetic_NetKAT_Semantics in
+  let open Frenetic_Packet in
+  let module Parb = Arbitrary_Frenetic_Packet in
   let payload = Parb.arbitrary_payload 64 in
-  let tcp = map_gen (fun i -> Packet.Ip.Tcp i) (Parb.arbitrary_tcp payload) in
-  let ip = map_gen (fun i -> Packet.Ip i) (Parb.arbitrary_ip tcp) in
+  let tcp = map_gen (fun i -> Ip.Tcp i) (Parb.arbitrary_tcp payload) in
+  let ip = map_gen (fun i -> Ip i) (Parb.arbitrary_ip tcp) in
   Parb.arbitrary_packet ip >>= fun pkt ->
     arbitrary_int32 >>= fun port_id ->
       let headers =
-        { HeadersValues.location = NetKAT_Types.Physical port_id
+        { HeadersValues.location = Frenetic_NetKAT.Physical port_id
         ; ethSrc = pkt.dlSrc
         ; ethDst = pkt.dlDst
         ; vlan = (match pkt.dlVlan with Some(x) -> x | None -> 0)
@@ -181,10 +181,10 @@ let arbitrary_tcp : NetKAT_Semantics.packet QuickCheck_gen.gen =
           ret_gen
             { switch = switch_id
             ; headers = headers
-            ; payload = (SDN_Types.NotBuffered payload)
+            ; payload = (Frenetic_OpenFlow.NotBuffered payload)
             }
 
-let arbitrary_packet : NetKAT_Semantics.packet QuickCheck_gen.gen =
+let arbitrary_packet : Frenetic_NetKAT_Semantics.packet QuickCheck_gen.gen =
   QuickCheck_gen.Gen 
     (fun _ -> failwith "arbitrary_packet: not yet implemented")    
   (* let open QuickCheck_gen in *)

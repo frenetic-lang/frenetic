@@ -1,8 +1,8 @@
-open OpenFlow0x01
+open Frenetic_OpenFlow0x01
 open QuickCheck
 
 (** A serializable data structure suitable for roundtrip testing *)
-module type OpenFlow0x01_Arbitrary = sig
+module type Frenetic_OpenFlow0x01_Arbitrary = sig
 
     (* The serializable data type. *)
     type t
@@ -23,7 +23,7 @@ module type OpenFlow0x01_Arbitrary = sig
 end
 
 (** A data structure you can serialize to a [Cstruct] *)
-module type OpenFlow0x01_ArbitraryCstruct = sig
+module type Frenetic_OpenFlow0x01_ArbitraryCstruct = sig
   (* The serializable data type. *)
   type t
 
@@ -44,34 +44,34 @@ module type OpenFlow0x01_ArbitraryCstruct = sig
 
 end
 
-module OpenFlow0x01_Unsize : functor (ArbS : OpenFlow0x01_ArbitraryCstruct) ->
-  (OpenFlow0x01_Arbitrary with type t = ArbS.t
+module Frenetic_OpenFlow0x01_Unsize : functor (ArbS : Frenetic_OpenFlow0x01_ArbitraryCstruct) ->
+  (Frenetic_OpenFlow0x01_Arbitrary with type t = ArbS.t
                            and type s = Cstruct.t)
 
-module Wildcards : OpenFlow0x01_Arbitrary
-module Match : OpenFlow0x01_ArbitraryCstruct
-module PseudoPort : OpenFlow0x01_Arbitrary
-module Action : OpenFlow0x01_ArbitraryCstruct
-module Timeout : OpenFlow0x01_Arbitrary
+module Wildcards : Frenetic_OpenFlow0x01_Arbitrary
+module Match : Frenetic_OpenFlow0x01_ArbitraryCstruct
+module PseudoPort : Frenetic_OpenFlow0x01_Arbitrary
+module Action : Frenetic_OpenFlow0x01_ArbitraryCstruct
+module Timeout : Frenetic_OpenFlow0x01_Arbitrary
 
 module FlowMod : sig
-  include OpenFlow0x01_ArbitraryCstruct
+  include Frenetic_OpenFlow0x01_ArbitraryCstruct
 
-  module Command : OpenFlow0x01_Arbitrary
+  module Command : Frenetic_OpenFlow0x01_Arbitrary
 end
 
 module FlowRemoved : sig
-  include OpenFlow0x01_ArbitraryCstruct
+  include Frenetic_OpenFlow0x01_ArbitraryCstruct
 
-  module Reason : OpenFlow0x01_Arbitrary
+  module Reason : Frenetic_OpenFlow0x01_Arbitrary
 end
 
 module PortDescription : sig
-  include OpenFlow0x01_ArbitraryCstruct
+  include Frenetic_OpenFlow0x01_ArbitraryCstruct
 
-  module PortConfig : OpenFlow0x01_Arbitrary
-  module PortState : OpenFlow0x01_Arbitrary
-  module PortFeatures : OpenFlow0x01_Arbitrary
+  module PortConfig : Frenetic_OpenFlow0x01_Arbitrary
+  module PortState : Frenetic_OpenFlow0x01_Arbitrary
+  module PortFeatures : Frenetic_OpenFlow0x01_Arbitrary
 end
 
-module PortStatus : OpenFlow0x01_ArbitraryCstruct
+module PortStatus : Frenetic_OpenFlow0x01_ArbitraryCstruct

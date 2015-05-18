@@ -1,0 +1,12 @@
+# OASIS_START
+# DO NOT EDIT (digest: 04c4d18cf8765ad70b904fb794a0b7c1)
+version = "3.4.1"
+description = "The Frenetic Compiler and Runtime System"
+requires = "frenetic quickcheck"
+archive(byte) = "test_frenetic.cma"
+archive(byte, plugin) = "test_frenetic.cma"
+archive(native) = "test_frenetic.cmxa"
+archive(native, plugin) = "test_frenetic.cmxs"
+exists_if = "test_frenetic.cma"
+# OASIS_STOP
+

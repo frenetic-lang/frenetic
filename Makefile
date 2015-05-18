@@ -23,7 +23,7 @@ uninstall: setup.ml
 	ocaml setup.ml -uninstall
 
 test: setup.ml build
-	_build/test/Test.byte inline-test-runner netkat -verbose
+	ocaml setup.ml -test $(TESTFLAGS)
 
 clean:
 	ocamlbuild -clean

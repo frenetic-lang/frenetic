@@ -7,12 +7,12 @@
    as a flag to camlp4:
 
    https://github.com/janestreet/pa_ounit/blob/master/readme.md#building-and-running-the-tests-outside-of-jane-street
-
+   
    But, this turns out to be hard/impossible to do with ocamlbuild:
-
+   
    http://caml.inria.fr/mantis/view.php?id=6103
-
+   
    The solution below works just fine. *)
 let _ = 
   Pa_ounit_lib.Runtime.unset_lib "dummy";
-  Pa_ounit_lib.Runtime.set_lib "netkat"
+  Pa_ounit_lib.Runtime.set_lib "frenetic"

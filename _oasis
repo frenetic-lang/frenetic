@@ -119,7 +119,6 @@ Library syntax
   XMETARequires: camlp4, ulex, ipaddr
   XMETADescription: Syntax extension writing NetKAT expressions
 
-
 Executable frenetic
   Path: frenetic/frenetic
   MainIs: frenetic.ml
@@ -135,3 +134,26 @@ Executable frenetic
     frenetic.async,
     cmdliner,
     async_extended
+
+Library test_frenetic
+   Path: lib_test/lib
+   BuildDepends:
+     frenetic,
+     quickcheck
+
+Executable testtool
+  Path: lib_test
+  MainIs: Test.ml
+  Install: false
+  Build$: flag(tests)
+  BuildDepends: 
+    pa_ounit,
+    pa_ounit.syntax,
+    test_frenetic,
+    frenetic, 
+    frenetic.async
+
+Test all_tests
+  Run$: flag(tests)
+  Command: $testtool inline-test-runner frenetic
+  TestTools: testtool

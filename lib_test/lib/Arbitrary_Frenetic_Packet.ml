@@ -1,4 +1,4 @@
-open Packet
+open Frenetic_Packet
 open QuickCheck
 module Gen = QuickCheck_gen
 

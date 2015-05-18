@@ -1,4 +1,5 @@
-open Packet
+open OUnitHack
+open Frenetic_Packet
 open QuickCheck
 open Arbitrary_Base
 
@@ -13,7 +14,7 @@ let packet_quickCheck arbitrary pred =
       | Exhausted _ -> failwith "No exhaustion expected"
 
 module RoundTrip = struct
-  module Arb = Arbitrary_Packet
+  module Arb = Arbitrary_Frenetic_Packet
 
   let unparsable_eq (l1, b1) (l2, b2) =
     l1 = l2 && compare (Cstruct.to_string b1) (Cstruct.to_string b2) = 0
@@ -124,4 +125,3 @@ module RoundTrip = struct
 
 end
 
-Pa_ounit_lib.Runtime.summarize ()

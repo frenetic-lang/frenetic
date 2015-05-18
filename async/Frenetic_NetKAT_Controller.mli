@@ -33,4 +33,4 @@ module type CONTROLLER = sig
   val current_switches : unit -> (switchId * portId list) list
 end
 
-(* module Make : CONTROLLER *) 
+module Make : CONTROLLER 
