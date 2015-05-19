@@ -1,13 +1,13 @@
 open Camlp4.PreCast
-open MyLexer
+open Frenetic_NetKAT_Lexer
 module Q = Syntax.Quotation
 
 let nk_eoi = Parser.Gram.Entry.mk "nk_eoi"
 let nkpred_eoi = Parser.Gram.Entry.mk "nkpred_eoi"
 
 EXTEND Parser.Gram
-  nk_eoi: [[ x = Parser.nk_pol; `MyLexer.EOI -> x ]];
-  nkpred_eoi: [[ x = Parser.nk_pred; `MyLexer.EOI -> x ]];
+  nk_eoi: [[ x = Parser.nk_pol; `Frenetic_NetKAT_Lexer.EOI -> x ]];
+  nkpred_eoi: [[ x = Parser.nk_pred; `Frenetic_NetKAT_Lexer.EOI -> x ]];
 END
 
 let parse_netkat loc _ s =

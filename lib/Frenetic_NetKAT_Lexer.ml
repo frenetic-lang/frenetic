@@ -1,4 +1,6 @@
-(* Adapted from https://github.com/jaked/ambassadortothecomputers.blogspot.com/blob/4d1bde223b1788ba52cc0f74b256760d9c059ac4/_code/camlp4-custom-lexers/jq_lexer.ml *)
+(* Adapted from https://github.com/jaked/ambassadortothecomputers.blogspot.com/blob/4d1bde223b1788ba52cc0f74b256760d9c059ac4/_code/camlp4-custom-lexers/jq_lexer.ml 
+   This module is shared by Frenetic_NetKAT_Parser and Frenetic_Syntax_Extension_Parser
+*)
 
 module Loc = Camlp4.PreCast.Loc
 
@@ -17,7 +19,7 @@ type token =
   | INT32 of string
   | INT64 of string
   | IP4ADDR of string
-  | ANTIQUOT of string
+  (* | ANTIQUOT of string *)
   | EOI
 
 module Token =
@@ -35,7 +37,9 @@ struct
       | INT s -> sf "INT %s" s
       | INT32 s -> sf "INT32 %s" s
       | INT64 s -> sf "INT64 %s" s
+      (* TODO: See below on why Antiquotes don't work
       | ANTIQUOT s -> sf "ANTIQUOT %s" s
+    *)
       | EOI             -> sf "EOI"
 
   let print ppf x = Format.pp_print_string ppf (to_string x)
@@ -128,11 +132,13 @@ let rec token c = lexer
   | (hexnum | decnum)  -> INT (L.latin1_lexeme c.lexbuf)
   | (hexnum | decnum) 'l' -> INT32 (L.latin1_lexeme c.lexbuf)
   | (hexnum | decnum) 'L' -> INT64 (L.latin1_lexeme c.lexbuf)
+  (* TODO: Thought this was causing parsing errors, but I was mistaken.  Re-enable.
   | "$" ident ->
      ANTIQUOT( L.latin1_sub_lexeme c.lexbuf 1 (L.lexeme_length c.lexbuf - 1))
-  | [ "()!+;=*+/" ] | ":=" | "true" | "false" | "switch" | "port" | "vlan"
+   *)
+  | [ "()!+;=*+/|" ] | ":=" | "true" | "false" | "switch" | "port" | "vlan"
     | "vlanPcp" | "ethType" | "ipProto" | "tcpSrcPort" | "tcpDstPort"
-    | "ethSrc" | "ethDst" | "ip4Src"| "ip4Dst" | "&&" | "||"  | "id"
+    | "ethSrc" | "ethDst" | "ip4Src"| "ip4Dst" | "and" | "or" | "not" | "id"
     | "drop" | "if" | "then" | "else" | "filter" ->
       KEYWORD (L.latin1_lexeme c.lexbuf)
   | _ -> illegal c

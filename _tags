@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 3ee8a732dcc89eaf039cab681f4b5692)
+# DO NOT EDIT (digest: a27eca2ff15541519c03555c143193f8)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -18,6 +18,9 @@ true: annot, bin_annot
 "lib/frenetic.cmxs": use_frenetic
 <lib/*.ml{,i,y}>: package(async)
 <lib/*.ml{,i,y}>: package(base64)
+<lib/*.ml{,i,y}>: package(camlp4)
+<lib/*.ml{,i,y}>: package(camlp4.extend)
+<lib/*.ml{,i,y}>: package(camlp4.lib)
 <lib/*.ml{,i,y}>: package(core)
 <lib/*.ml{,i,y}>: package(cstruct)
 <lib/*.ml{,i,y}>: package(cstruct.syntax)
@@ -28,11 +31,15 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: package(sexplib.syntax)
 <lib/*.ml{,i,y}>: package(str)
 <lib/*.ml{,i,y}>: package(tcpip)
+<lib/*.ml{,i,y}>: package(ulex)
 <lib/*.ml{,i,y}>: package(yojson)
 # Library async
 "async/async.cmxs": use_async
 <async/*.ml{,i,y}>: package(async)
 <async/*.ml{,i,y}>: package(base64)
+<async/*.ml{,i,y}>: package(camlp4)
+<async/*.ml{,i,y}>: package(camlp4.extend)
+<async/*.ml{,i,y}>: package(camlp4.lib)
 <async/*.ml{,i,y}>: package(core)
 <async/*.ml{,i,y}>: package(cstruct)
 <async/*.ml{,i,y}>: package(cstruct.async)
@@ -44,12 +51,16 @@ true: annot, bin_annot
 <async/*.ml{,i,y}>: package(sexplib.syntax)
 <async/*.ml{,i,y}>: package(str)
 <async/*.ml{,i,y}>: package(tcpip)
+<async/*.ml{,i,y}>: package(ulex)
 <async/*.ml{,i,y}>: package(yojson)
 <async/*.ml{,i,y}>: use_frenetic
 # Library openflow
 "openflow/lib/openflow.cmxs": use_openflow
 <openflow/lib/*.ml{,i,y}>: package(async)
 <openflow/lib/*.ml{,i,y}>: package(base64)
+<openflow/lib/*.ml{,i,y}>: package(camlp4)
+<openflow/lib/*.ml{,i,y}>: package(camlp4.extend)
+<openflow/lib/*.ml{,i,y}>: package(camlp4.lib)
 <openflow/lib/*.ml{,i,y}>: package(core)
 <openflow/lib/*.ml{,i,y}>: package(cstruct)
 <openflow/lib/*.ml{,i,y}>: package(cstruct.syntax)
@@ -61,38 +72,16 @@ true: annot, bin_annot
 <openflow/lib/*.ml{,i,y}>: package(str)
 <openflow/lib/*.ml{,i,y}>: package(tcpip)
 <openflow/lib/*.ml{,i,y}>: package(threads)
+<openflow/lib/*.ml{,i,y}>: package(ulex)
 <openflow/lib/*.ml{,i,y}>: package(yojson)
 <openflow/lib/*.ml{,i,y}>: use_frenetic
-# Library netkat
-"frenetic/lib/netkat.cmxs": use_netkat
-<frenetic/lib/*.ml{,i,y}>: package(async)
-<frenetic/lib/*.ml{,i,y}>: package(base64)
-<frenetic/lib/*.ml{,i,y}>: package(core)
-<frenetic/lib/*.ml{,i,y}>: package(cstruct)
-<frenetic/lib/*.ml{,i,y}>: package(cstruct.syntax)
-<frenetic/lib/*.ml{,i,y}>: package(fieldslib)
-<frenetic/lib/*.ml{,i,y}>: package(fieldslib.syntax)
-<frenetic/lib/*.ml{,i,y}>: package(ipaddr)
-<frenetic/lib/*.ml{,i,y}>: package(ocamlgraph)
-<frenetic/lib/*.ml{,i,y}>: package(sexplib)
-<frenetic/lib/*.ml{,i,y}>: package(sexplib.syntax)
-<frenetic/lib/*.ml{,i,y}>: package(str)
-<frenetic/lib/*.ml{,i,y}>: package(tcpip)
-<frenetic/lib/*.ml{,i,y}>: package(threads)
-<frenetic/lib/*.ml{,i,y}>: package(yojson)
-<frenetic/lib/*.ml{,i,y}>: use_frenetic
-<frenetic/lib/*.ml{,i,y}>: use_openflow
-# Library syntax
-"frenetic/syntax/syntax.cmxs": use_syntax
-<frenetic/syntax/*.ml{,i,y}>: package(camlp4.extend)
-<frenetic/syntax/*.ml{,i,y}>: package(camlp4.lib)
-<frenetic/syntax/*.ml{,i,y}>: package(camlp4.quotations.o)
-<frenetic/syntax/*.ml{,i,y}>: package(ipaddr)
-<frenetic/syntax/*.ml{,i,y}>: package(ulex)
 # Executable frenetic
 "frenetic/frenetic/frenetic.native": package(async)
 "frenetic/frenetic/frenetic.native": package(async_extended)
 "frenetic/frenetic/frenetic.native": package(base64)
+"frenetic/frenetic/frenetic.native": package(camlp4)
+"frenetic/frenetic/frenetic.native": package(camlp4.extend)
+"frenetic/frenetic/frenetic.native": package(camlp4.lib)
 "frenetic/frenetic/frenetic.native": package(cmdliner)
 "frenetic/frenetic/frenetic.native": package(cohttp)
 "frenetic/frenetic/frenetic.native": package(cohttp.async)
@@ -102,21 +91,21 @@ true: annot, bin_annot
 "frenetic/frenetic/frenetic.native": package(cstruct.syntax)
 "frenetic/frenetic/frenetic.native": package(fieldslib)
 "frenetic/frenetic/frenetic.native": package(fieldslib.syntax)
-"frenetic/frenetic/frenetic.native": package(ipaddr)
 "frenetic/frenetic/frenetic.native": package(ocamlgraph)
 "frenetic/frenetic/frenetic.native": package(sexplib)
 "frenetic/frenetic/frenetic.native": package(sexplib.syntax)
 "frenetic/frenetic/frenetic.native": package(str)
 "frenetic/frenetic/frenetic.native": package(tcpip)
-"frenetic/frenetic/frenetic.native": package(threads)
+"frenetic/frenetic/frenetic.native": package(ulex)
 "frenetic/frenetic/frenetic.native": package(yojson)
 "frenetic/frenetic/frenetic.native": use_async
 "frenetic/frenetic/frenetic.native": use_frenetic
-"frenetic/frenetic/frenetic.native": use_netkat
-"frenetic/frenetic/frenetic.native": use_openflow
 <frenetic/frenetic/*.ml{,i,y}>: package(async)
 <frenetic/frenetic/*.ml{,i,y}>: package(async_extended)
 <frenetic/frenetic/*.ml{,i,y}>: package(base64)
+<frenetic/frenetic/*.ml{,i,y}>: package(camlp4)
+<frenetic/frenetic/*.ml{,i,y}>: package(camlp4.extend)
+<frenetic/frenetic/*.ml{,i,y}>: package(camlp4.lib)
 <frenetic/frenetic/*.ml{,i,y}>: package(cmdliner)
 <frenetic/frenetic/*.ml{,i,y}>: package(cohttp)
 <frenetic/frenetic/*.ml{,i,y}>: package(cohttp.async)
@@ -126,22 +115,22 @@ true: annot, bin_annot
 <frenetic/frenetic/*.ml{,i,y}>: package(cstruct.syntax)
 <frenetic/frenetic/*.ml{,i,y}>: package(fieldslib)
 <frenetic/frenetic/*.ml{,i,y}>: package(fieldslib.syntax)
-<frenetic/frenetic/*.ml{,i,y}>: package(ipaddr)
 <frenetic/frenetic/*.ml{,i,y}>: package(ocamlgraph)
 <frenetic/frenetic/*.ml{,i,y}>: package(sexplib)
 <frenetic/frenetic/*.ml{,i,y}>: package(sexplib.syntax)
 <frenetic/frenetic/*.ml{,i,y}>: package(str)
 <frenetic/frenetic/*.ml{,i,y}>: package(tcpip)
-<frenetic/frenetic/*.ml{,i,y}>: package(threads)
+<frenetic/frenetic/*.ml{,i,y}>: package(ulex)
 <frenetic/frenetic/*.ml{,i,y}>: package(yojson)
 <frenetic/frenetic/*.ml{,i,y}>: use_async
 <frenetic/frenetic/*.ml{,i,y}>: use_frenetic
-<frenetic/frenetic/*.ml{,i,y}>: use_netkat
-<frenetic/frenetic/*.ml{,i,y}>: use_openflow
 # Library test_frenetic
 "lib_test/lib/test_frenetic.cmxs": use_test_frenetic
 <lib_test/lib/*.ml{,i,y}>: package(async)
 <lib_test/lib/*.ml{,i,y}>: package(base64)
+<lib_test/lib/*.ml{,i,y}>: package(camlp4)
+<lib_test/lib/*.ml{,i,y}>: package(camlp4.extend)
+<lib_test/lib/*.ml{,i,y}>: package(camlp4.lib)
 <lib_test/lib/*.ml{,i,y}>: package(core)
 <lib_test/lib/*.ml{,i,y}>: package(cstruct)
 <lib_test/lib/*.ml{,i,y}>: package(cstruct.syntax)
@@ -153,11 +142,15 @@ true: annot, bin_annot
 <lib_test/lib/*.ml{,i,y}>: package(sexplib.syntax)
 <lib_test/lib/*.ml{,i,y}>: package(str)
 <lib_test/lib/*.ml{,i,y}>: package(tcpip)
+<lib_test/lib/*.ml{,i,y}>: package(ulex)
 <lib_test/lib/*.ml{,i,y}>: package(yojson)
 <lib_test/lib/*.ml{,i,y}>: use_frenetic
 # Executable testtool
 "lib_test/Test.byte": package(async)
 "lib_test/Test.byte": package(base64)
+"lib_test/Test.byte": package(camlp4)
+"lib_test/Test.byte": package(camlp4.extend)
+"lib_test/Test.byte": package(camlp4.lib)
 "lib_test/Test.byte": package(core)
 "lib_test/Test.byte": package(cstruct)
 "lib_test/Test.byte": package(cstruct.async)
@@ -172,12 +165,16 @@ true: annot, bin_annot
 "lib_test/Test.byte": package(sexplib.syntax)
 "lib_test/Test.byte": package(str)
 "lib_test/Test.byte": package(tcpip)
+"lib_test/Test.byte": package(ulex)
 "lib_test/Test.byte": package(yojson)
 "lib_test/Test.byte": use_async
 "lib_test/Test.byte": use_frenetic
 "lib_test/Test.byte": use_test_frenetic
 <lib_test/*.ml{,i,y}>: package(async)
 <lib_test/*.ml{,i,y}>: package(base64)
+<lib_test/*.ml{,i,y}>: package(camlp4)
+<lib_test/*.ml{,i,y}>: package(camlp4.extend)
+<lib_test/*.ml{,i,y}>: package(camlp4.lib)
 <lib_test/*.ml{,i,y}>: package(core)
 <lib_test/*.ml{,i,y}>: package(cstruct)
 <lib_test/*.ml{,i,y}>: package(cstruct.async)
@@ -192,6 +189,7 @@ true: annot, bin_annot
 <lib_test/*.ml{,i,y}>: package(sexplib.syntax)
 <lib_test/*.ml{,i,y}>: package(str)
 <lib_test/*.ml{,i,y}>: package(tcpip)
+<lib_test/*.ml{,i,y}>: package(ulex)
 <lib_test/*.ml{,i,y}>: package(yojson)
 <lib_test/*.ml{,i,y}>: use_async
 <lib_test/*.ml{,i,y}>: use_frenetic

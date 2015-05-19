@@ -41,18 +41,18 @@ let async_init (cmd : (unit -> unit) Term.t) : unit Term.t =
       Frenetic_Log.set_output [Lazy.force log_output];
       f () in
     never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ()) in
-  pure cmd' $ verbosity $ log_output $ cmd
+  app (app (app (pure cmd') verbosity) log_output) cmd
 
 let compile_server : unit Term.t * Term.info =
   let open Term in
   let doc = "Run the compile server" in
-  (async_init (pure Compile_Server.main $ http_port),
+  (async_init (app (pure Compile_Server.main) http_port),
    info "compile-server" ~doc)
 
 let http_controller : unit Term.t * Term.info =
   let open Term in
   let doc = "Run the HTTP controller" in
-  (async_init (pure Http_Controller.main $ http_port $ openflow_port),
+  (async_init (app (app (pure Http_Controller.main) http_port) openflow_port),
    info "http-controller" ~doc)
 
 (* Add new commands here. *)

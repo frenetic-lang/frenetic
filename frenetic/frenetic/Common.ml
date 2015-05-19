@@ -49,8 +49,7 @@ let handle_parse_errors'
       Cohttp_async.Server.respond `Bad_request
 
 let parse_update body = Body.to_string body >>= fun pol_str ->
-  let lexbuf = Lexing.from_string pol_str in
-  let pol = NetKAT_Parser.program NetKAT_Lexer.token lexbuf in
+  let pol = Frenetic_NetKAT_Parser.policy_from_string pol_str in
   return pol
 
 let parse_update_json body =

@@ -1,8 +1,8 @@
 open Camlp4.PreCast
-open MyLexer
+open Frenetic_NetKAT_Lexer
 module AQ = Syntax.AntiquotSyntax
 
-module Gram = MakeGram(MyLexer)
+module Gram = MakeGram(Frenetic_NetKAT_Lexer)
 
 let nk_pred = Gram.Entry.mk "nk_pred"
 let nk_pred_atom = Gram.Entry.mk "nk_pred_atom"

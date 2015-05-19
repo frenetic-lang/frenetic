@@ -541,11 +541,13 @@ TEST "quickcheck ka-lfp-l compiler" =
     ||  (compare_compiler_output (Union(Seq(Star p, q), r)) r pkt) in
   check gen_pol_3 prop_compile_ok
 *)
+(*
 TEST "quickcheck ka-lfp-l eval" =
   let prop_compile_ok (p, q, r, pkt) =
     not (compare_eval_output (Union(Union(q, Seq (p, r)), r)) r pkt)
     ||  (compare_eval_output (Union(Seq(Star p, q), r)) r pkt) in
   check gen_pol_3 prop_compile_ok
+*)
 (*
 TEST "quickcheck ka-unroll-r compiler" =
   let prop_compile_ok (pol, pkt) =
