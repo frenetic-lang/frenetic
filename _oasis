@@ -137,7 +137,9 @@ Executable frenetic
     netkat,
     netkat.async,
     cmdliner,
-    async_extended
+    async_extended,
+    mparser,
+    mparser.re
 
 Executable katnetic
   Path: frenetic
