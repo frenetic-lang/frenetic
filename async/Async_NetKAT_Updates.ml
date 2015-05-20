@@ -133,16 +133,17 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
   open SDN_Types
   open Args
 
-  let install_flows_for sw_id ?old table =
-    let to_flow_mod p f = M.FlowModMsg (SDN_OpenFlow0x01.from_flow p f) in
+  let install_flows_for sw_id table =
+    let to_flow_mod p f = SDN_OpenFlow0x01.from_flow p f in
     let priority = ref 65536 in
-    Deferred.List.iter table ~f:(fun flow ->
+    let flow_mods = List.map table ~f:(fun flow ->
       decr priority;
-      Controller.send ctl sw_id (0l, to_flow_mod !priority flow)
+      to_flow_mod !priority flow) in
+    Controller.send_flow_mods ctl sw_id flow_mods
       >>| function
-        | `Drop exn -> raise exn
-        | `Sent _   -> ())
-
+        | Ok () -> ()
+        | Error exn -> raise exn
+  
   let delete_flows_for sw_id =
     let delete_flows = M.FlowModMsg OpenFlow0x01_Core.delete_all_flows in
     Controller.send ctl sw_id (5l, delete_flows)
