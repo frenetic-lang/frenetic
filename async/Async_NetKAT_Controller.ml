@@ -268,7 +268,7 @@ module Make (MakeUpdate : functor (Args : CONSISTENT_UPDATE_ARGS) -> UPDATE) = s
 
   let start app ?(port=6633) ?(policy_queue_size=0) () =
     let open Stage in
-    Controller.create ~max_pending_connections ~port ()
+    Controller.create ~max_pending_connections ~port ~log_level:(Log.level ()) ()
     >>= fun ctl ->
       let d_ctl, d_stage, d_app = Discovery.create () in
       let app =

@@ -197,11 +197,22 @@ module Switch = struct
         nib := remove_vertex !nib (vertex_of_label !nib (Switch sw_id));
         return [e]
       | PortUp (sw_id, pt_id) ->
-        Log.info ~tags "[topology.switch] ↑ { switch = %Lu; port = %lu }" sw_id pt_id;
-        nib := add_port !nib (vertex_of_label !nib (Switch sw_id)) pt_id;
-        begin if enabled t
-          then Pipe.write t.pkt_outs (to_out sw_id pt_id)
-          else return ()
+        (* Make sure this isn't a special port *)
+        begin
+          if (pt_id >= 0xff00l)
+          then
+            begin
+              Log.info ~tags "[topology.switch] ↑ { switch = %Lu; port = %lu } (skipping probe packet on invalid port)" sw_id pt_id;
+              return ()
+            end
+          else
+            begin
+              Log.info ~tags "[topology.switch] ↑ { switch = %Lu; port = %lu }" sw_id pt_id;
+              nib := add_port !nib (vertex_of_label !nib (Switch sw_id)) pt_id;
+              if enabled t
+              then Pipe.write t.pkt_outs (to_out sw_id pt_id)
+              else return ()
+            end
         end
         >>| fun () -> [e]
       | PortDown (sw_id, pt_id) ->
