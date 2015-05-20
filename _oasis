@@ -63,6 +63,8 @@ Library async
   Path: async
   BuildDepends:
     async,
+    cohttp,
+    cohttp.async,
     core,
     cstruct,
     cstruct.async,
@@ -70,11 +72,29 @@ Library async
     sexplib,
     sexplib.syntax,
     str
+  InternalModules:
+    Frenetic_Common,
+    Frenetic_DynGraph
   Modules:
+    Frenetic_Compile_Server,
+    Frenetic_Http_Controller,
     Frenetic_NetKAT_Controller,
     Frenetic_NetKAT_Updates,
     Frenetic_OpenFlow0x01_Controller,
     Frenetic_Ox
+
+Executable frenetic
+  Path: frenetic
+  MainIs: frenetic.ml
+  Install: true
+  CompiledObject: native
+  BuildDepends:
+    async,
+    core,
+    frenetic,
+    frenetic.async,
+    cmdliner,
+    async_extended
 
 Library openflow
   Path: openflow/lib
@@ -92,7 +112,7 @@ Library openflow
     OpenFlow0x04_Core,
     GroupTable0x04
 
-# Temporarily commented out.  Currently unused in production.  
+# Temporarily commented out.  
 #Library syntax
 #  Path: frenetic/syntax
 #  Findlibparent: frenetic
@@ -109,21 +129,6 @@ Library openflow
 #  XMETAType: syntax
 #  XMETARequires: camlp4, ulex, ipaddr
 #  XMETADescription: Syntax extension writing NetKAT expressions
-
-Executable frenetic
-  Path: frenetic/frenetic
-  MainIs: frenetic.ml
-  Install: true
-  CompiledObject: native
-  BuildDepends:
-    async,
-    core,
-    cohttp,
-    cohttp.async,
-    frenetic,
-    frenetic.async,
-    cmdliner,
-    async_extended
 
 Library test_frenetic
    Path: lib_test/lib

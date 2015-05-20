@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 430bd9b30de3e5d2cf0d4f0b01fbc610) *)
+(* DO NOT EDIT (digest: 3d6beb27e2e063de242c2901e2c03e0d) *)
 module OASISGettext = struct
 (* # 22 "src/oasis/OASISGettext.ml" *)
 
@@ -621,7 +621,7 @@ let package_default =
           ("openflow/lib", ["lib"]);
           ("lib_test/lib", ["lib"]);
           ("lib_test", ["async"; "lib"; "lib_test/lib"]);
-          ("frenetic/frenetic", ["async"; "lib"]);
+          ("frenetic", ["async"; "lib"]);
           ("async", ["lib"])
        ]
   }

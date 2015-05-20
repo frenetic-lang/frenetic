@@ -1,3 +1,5 @@
+(* TODO: But this in build script as separate executable or toss.*)
+
 open Core.Std
 open Async.Std
 

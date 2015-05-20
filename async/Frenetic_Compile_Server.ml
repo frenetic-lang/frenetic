@@ -3,7 +3,7 @@ open Async.Std
 open Cohttp_async
 open Frenetic_NetKAT
 module Server = Cohttp_async.Server
-open Common
+open Frenetic_Common
 
 let policy = ref Frenetic_NetKAT.drop
 

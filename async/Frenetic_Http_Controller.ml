@@ -2,13 +2,13 @@ open Core.Std
 open Async.Std
 open Cohttp_async
 open Frenetic_NetKAT
-open Common
+open Frenetic_Common
 module Server = Cohttp_async.Server
 module Log = Frenetic_Log
 
 type client = {
   (* Write new policies to this node *)
-  policy_node: (DynGraph.cannot_receive, policy) DynGraph.t;
+  policy_node: (Frenetic_DynGraph.cannot_receive, policy) Frenetic_DynGraph.t;
   (* Read from this pipe to send events *)
   event_reader: string Pipe.Reader.t;
   (* Write to this pipe when new event received from the network *)
@@ -36,7 +36,7 @@ let current_switches_to_json_string lst =
 let unions (pols : policy list) : policy =
   List.fold_left pols ~init:drop ~f:(fun p q -> Union (p, q))
 
-let pol : (policy, policy) DynGraph.t = DynGraph.create drop unions
+let pol : (policy, policy) Frenetic_DynGraph.t = Frenetic_DynGraph.create drop unions
 
 let clients : (string, client) Hashtbl.t = Hashtbl.Poly.create ()
 
@@ -57,8 +57,8 @@ let get_client (clientId: string): client =
   Hashtbl.find_or_add clients clientId
      ~default:(fun () ->
                printf ~level:`Info "New client %s" clientId;
-               let node = DynGraph.create_source drop in
-               DynGraph.attach node pol;
+               let node = Frenetic_DynGraph.create_source drop in
+               Frenetic_DynGraph.attach node pol;
 	       let (r, w) = Pipe.create () in
                { policy_node = node; event_reader = r; event_writer =  w })
 
@@ -110,12 +110,12 @@ let handle_request
     | `POST, [clientId; "update_json"] ->
       handle_parse_errors body parse_update_json
       (fun pol ->
-         DynGraph.push pol (get_client clientId).policy_node;
+         Frenetic_DynGraph.push pol (get_client clientId).policy_node;
          Cohttp_async.Server.respond `OK)
     | `POST, [clientId; "update" ] ->
       handle_parse_errors body parse_update
       (fun pol ->
-         DynGraph.push pol (get_client clientId).policy_node;
+         Frenetic_DynGraph.push pol (get_client clientId).policy_node;
          Cohttp_async.Server.respond `OK)
     | _, _ ->
       Log.error "Unknown method/path (404 error)";
@@ -125,14 +125,13 @@ let print_error addr exn =
   Log.error "%s" (Exn.to_string exn)
 
 let listen ~http_port ~openflow_port =
-  (*Frenetic_OpenFlow0x01_Controller.init openflow_port;*)
   let module Controller = Frenetic_NetKAT_Controller.Make in
   let on_handler_error = `Call print_error in
   let _ = Cohttp_async.Server.create
     ~on_handler_error
     (Tcp.on_port http_port)
     (handle_request (module Controller)) in
-  let (_, pol_reader) = DynGraph.to_pipe pol in
+  let (_, pol_reader) = Frenetic_DynGraph.to_pipe pol in
   let _ = Pipe.iter pol_reader ~f:(fun pol -> Controller.update_policy pol) in
   Controller.start ();
   don't_wait_for(propogate_events Controller.event);
