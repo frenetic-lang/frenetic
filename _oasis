@@ -1,7 +1,7 @@
 OASISFormat: 0.4
 OCamlVersion: >= 4.02.0
 Name:        frenetic
-Version:     3.4.1
+Version:     4.0.0
 Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     https://github.com/frenetic-lang/frenetic/contributors
 License:     LGPL
@@ -112,7 +112,7 @@ Library openflow
     OpenFlow0x04_Core,
     GroupTable0x04
 
-# Temporarily commented out.  
+# Will be reintroduced in summer 2015
 #Library syntax
 #  Path: frenetic/syntax
 #  Findlibparent: frenetic
