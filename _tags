@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 9bed4d1ae810f65b6ec9c4606a5281fd)
+# DO NOT EDIT (digest: 7fbf74111168e5e76491f1fc222cefb1)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -72,6 +72,8 @@ true: annot, bin_annot
 "frenetic/frenetic.native": package(cstruct.syntax)
 "frenetic/frenetic.native": package(fieldslib)
 "frenetic/frenetic.native": package(fieldslib.syntax)
+"frenetic/frenetic.native": package(mparser)
+"frenetic/frenetic.native": package(mparser.re)
 "frenetic/frenetic.native": package(ocamlgraph)
 "frenetic/frenetic.native": package(sexplib)
 "frenetic/frenetic.native": package(sexplib.syntax)
@@ -96,6 +98,8 @@ true: annot, bin_annot
 <frenetic/*.ml{,i,y}>: package(cstruct.syntax)
 <frenetic/*.ml{,i,y}>: package(fieldslib)
 <frenetic/*.ml{,i,y}>: package(fieldslib.syntax)
+<frenetic/*.ml{,i,y}>: package(mparser)
+<frenetic/*.ml{,i,y}>: package(mparser.re)
 <frenetic/*.ml{,i,y}>: package(ocamlgraph)
 <frenetic/*.ml{,i,y}>: package(sexplib)
 <frenetic/*.ml{,i,y}>: package(sexplib.syntax)

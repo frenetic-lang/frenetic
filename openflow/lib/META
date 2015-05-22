@@ -1,6 +1,6 @@
 # OASIS_START
-# DO NOT EDIT (digest: dcb1f4d1ce8b9a61727756af1dd8bd60)
-version = "3.4.1"
+# DO NOT EDIT (digest: 8362816ae9f25d01db849d91b6e00209)
+version = "4.0.0"
 description = "The Frenetic Compiler and Runtime System"
 requires =
 "str cstruct cstruct.syntax core frenetic sexplib.syntax sexplib threads"
