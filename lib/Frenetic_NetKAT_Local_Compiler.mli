@@ -6,7 +6,7 @@ open Frenetic_OpenFlow
 
 module Field : sig
 
-  type t
+  type t = Frenetic_Fdd.Field.t
     = Switch
     | Vlan
     | VlanPcp

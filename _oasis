@@ -94,7 +94,9 @@ Executable frenetic
     frenetic,
     frenetic.async,
     cmdliner,
-    async_extended
+    async_extended,
+    mparser,
+    mparser.re
 
 Library openflow
   Path: openflow/lib
