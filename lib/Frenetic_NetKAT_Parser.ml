@@ -6,6 +6,7 @@
    So IF YOU CHANGE THE GRAMMAR HERE, be sure to change it in Frenetic_Syntax_Extension_Parser as well
 )*)
 
+open Core.Std
 open Camlp4.PreCast
 open Frenetic_NetKAT_Lexer
 module Gram = MakeGram(Frenetic_NetKAT_Lexer)
@@ -61,11 +62,11 @@ EXTEND Gram
       Frenetic_NetKAT.(Test (Switch sw))
     | "port"; "="; n = nk_int32 -> 
       Frenetic_NetKAT.Test (Frenetic_NetKAT.(Location (Physical n)))
-    | "vlan"; "="; n = nk_int -> 
+    | "vlanId"; "="; n = nk_int -> 
       Frenetic_NetKAT.(Test (Vlan n))
     | "vlanPcp"; "="; n = nk_int -> 
       Frenetic_NetKAT.(Test (VlanPcp n))
-    | "ethType"; "="; n = nk_int ->
+    | "ethTyp"; "="; n = nk_int ->
       Frenetic_NetKAT.(Test (EthType n))
     | "ipProto"; "="; n = nk_int ->
       Frenetic_NetKAT.(Test (IPProto n))
@@ -126,9 +127,9 @@ EXTEND Gram
       Frenetic_NetKAT.(Mod (EthSrc n))
     | "ethDst"; ":="; n = nk_int64 ->
       Frenetic_NetKAT.(Mod (EthDst n))
-    | "ethType"; ":="; n = nk_int ->
+    | "ethTyp"; ":="; n = nk_int ->
       Frenetic_NetKAT.(Mod (EthType n))
-    | "vlan"; ":="; n = nk_int ->
+    | "vlanId"; ":="; n = nk_int ->
       Frenetic_NetKAT.(Mod (Vlan n))
     | "vlanPcp"; ":="; n = nk_int ->
       Frenetic_NetKAT.(Mod (VlanPcp n))
@@ -142,6 +143,8 @@ EXTEND Gram
       Frenetic_NetKAT.(Mod (TCPSrcPort n))
     | "tcpDstPort"; ":="; n = nk_int ->
       Frenetic_NetKAT.(Mod (TCPDstPort n))
+    | switch1 = nk_int64; "@"; port1 = nk_int32; "=>"; switch2 = nk_int64; "@"; port2 = nk_int32 ->
+      Frenetic_NetKAT.(Link (switch1, port1, switch2, port2))
   ]];
 
   nk_pol_star : [[
@@ -181,6 +184,5 @@ EXTEND Gram
 
 END
 
-(* TODO: Give more helpful information about parsing location for errors *)
 let policy_from_string s =
-  Gram.parse_string nk_pol (Loc.mk " ") s
+  Gram.parse_string nk_pol (Loc.mk "<string>") s

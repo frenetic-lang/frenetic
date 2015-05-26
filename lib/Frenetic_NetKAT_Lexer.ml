@@ -2,6 +2,8 @@
    This module is shared by Frenetic_NetKAT_Parser and Frenetic_Syntax_Extension_Parser
 *)
 
+open Core.Std
+
 module Loc = Camlp4.PreCast.Loc
 
 module Error =
@@ -80,6 +82,17 @@ type context = {
   enc         : Ulexing.enc ref;
 }
 
+(* TODO: This is the same as in Frenetic_NetKAT_Json ... factor into better place *)
+let macaddr_from_string (str : string) : Int64.t =
+  let buf = Macaddr.to_bytes (Macaddr.of_string_exn str) in
+  let byte n = Int64.of_int (Char.to_int (Bytes.get buf n)) in
+  let rec loop n acc =
+    let shift = 8 * (5 - n) in
+    let acc' = Int64.(acc + (shift_left (byte n) shift)) in
+    if n = 5 then acc'
+    else loop (n + 1) acc' in
+  loop 0 0L
+
 let current_loc c =
   let (fn, bl, bb, bo, el, eb, _, g) = Loc.to_tuple c.loc in
   let bl, bb, bo =
@@ -117,6 +130,7 @@ let regexp hex = ['0'-'9''a'-'f''A'-'F']
 let regexp hexnum = '0' 'x' hex+
 let regexp decnum = ['0'-'9']+
 let regexp decbyte = (['0'-'9'] ['0'-'9'] ['0'-'9']) | (['0'-'9'] ['0'-'9']) | ['0'-'9']
+let regexp hexbyte = hex hex
 
 let regexp newline = ('\010' | '\013' | "\013\010")
 let regexp blank = [' ' '\009']
@@ -129,6 +143,8 @@ let rec token c = lexer
   | newline -> next_line c; token c c.lexbuf
   | blank+ -> token c c.lexbuf
   | decbyte '.' decbyte '.' decbyte '.' decbyte -> IP4ADDR (L.latin1_lexeme c.lexbuf)
+  | hexbyte ':' hexbyte ':' hexbyte ':' hexbyte ':' hexbyte ':' hexbyte ->
+    INT64 (Int64.to_string(macaddr_from_string (L.latin1_lexeme c.lexbuf))) 
   | (hexnum | decnum)  -> INT (L.latin1_lexeme c.lexbuf)
   | (hexnum | decnum) 'l' -> INT32 (L.latin1_lexeme c.lexbuf)
   | (hexnum | decnum) 'L' -> INT64 (L.latin1_lexeme c.lexbuf)
@@ -136,12 +152,23 @@ let rec token c = lexer
   | "$" ident ->
      ANTIQUOT( L.latin1_sub_lexeme c.lexbuf 1 (L.lexeme_length c.lexbuf - 1))
    *)
-  | [ "()!+;=*+/|" ] | ":=" | "true" | "false" | "switch" | "port" | "vlan"
-    | "vlanPcp" | "ethType" | "ipProto" | "tcpSrcPort" | "tcpDstPort"
+  | "(*" -> 
+    set_start_loc c;
+    let _ = comment c lexbuf in
+    token c c.lexbuf 
+  | [ "()!+;=*+/|@" ] | ":=" | "=>" 
+    | "true" | "false" | "switch" | "port" | "vlanId"
+    | "vlanPcp" | "ethTyp" | "ipProto" | "tcpSrcPort" | "tcpDstPort"
     | "ethSrc" | "ethDst" | "ip4Src"| "ip4Dst" | "and" | "or" | "not" | "id"
-    | "drop" | "if" | "then" | "else" | "filter" ->
+    | "drop" | "if" | "then" | "else" | "filter"  ->
       KEYWORD (L.latin1_lexeme c.lexbuf)
   | _ -> illegal c
+
+(* Swallow all characters in comments *)
+and comment c = lexer
+  | eof -> error c "Unterminated comment"
+  | "*)" -> ()
+  | _ -> comment c c.lexbuf
 
 
 let mk () start_loc cs =

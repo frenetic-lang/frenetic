@@ -89,7 +89,13 @@ module Parser = struct
 
     (* Use the netkat parser to parse policies *)
     let parse_policy ?(name = "") (pol_str : string) : (policy, string) Result.t =
+      try
         Ok (Frenetic_NetKAT_Parser.policy_from_string pol_str)
+      with Camlp4.PreCast.Loc.Exc_located (error_loc,x) ->
+        Error (
+          sprintf "Error: %s\n%s" 
+          (Camlp4.PreCast.Loc.to_string error_loc) 
+          (Exn.to_string x))
 
     (* Parser for netkat policies *)
     let policy' : ((policy * string), bytes list) MParser.t =
