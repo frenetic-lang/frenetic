@@ -39,6 +39,9 @@ type command =
   (* usage: exit
    * Exits the shell. *)
   | Exit
+  (* usage: quit
+   * Exits the shell. *)
+  | Quit
   (* usage: load <filename>
    * Loads the specified file as a policy and compiles it updating the controller with
    * the new flow table. *)
@@ -120,6 +123,10 @@ module Parser = struct
     let exit : (command, bytes list) MParser.t =
       Tokens.symbol "exit" >> return Exit
 
+    (* Parser for the exit command *)
+    let quit : (command, bytes list) MParser.t =
+      Tokens.symbol "quit" >> return Quit
+
     (* Parser for the load command *)
     let load : (command, bytes list) MParser.t =
       Tokens.symbol "load" >>
@@ -145,7 +152,8 @@ module Parser = struct
 	help <|>
 	flowtable <|>
 	load <|>
-	exit
+	exit <|>
+  quit
 
 end
 
@@ -268,6 +276,8 @@ let help =
   "  help                - Displays this message.";
   "";
   "  exit                - Exits Frenetic Shell.";
+  "";
+  "  quit                - Exits Frenetic Shell.  Equivalent to CTRL-D";
   ""
   ]
 
@@ -298,7 +308,7 @@ let rec repl () : unit Deferred.t =
     match line with
     | `Eof -> Shutdown.shutdown 0
     | `Ok line -> match parse_command line with
-		  | Some Exit ->
+		  | Some Exit | Some Quit ->
 		     print_endline "Goodbye!";
 		     Shutdown.shutdown 0
 		  | Some (Show Ordering) -> print_order ()

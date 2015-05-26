@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 7fbf74111168e5e76491f1fc222cefb1)
+# DO NOT EDIT (digest: b6e7998d3a7a865c3716b13984139b3b)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -48,6 +48,8 @@ true: annot, bin_annot
 <async/*.ml{,i,y}>: package(cstruct.syntax)
 <async/*.ml{,i,y}>: package(fieldslib)
 <async/*.ml{,i,y}>: package(fieldslib.syntax)
+<async/*.ml{,i,y}>: package(mparser)
+<async/*.ml{,i,y}>: package(mparser.re)
 <async/*.ml{,i,y}>: package(ocamlgraph)
 <async/*.ml{,i,y}>: package(sexplib)
 <async/*.ml{,i,y}>: package(sexplib.syntax)
@@ -165,6 +167,8 @@ true: annot, bin_annot
 "lib_test/Test.byte": package(cstruct.syntax)
 "lib_test/Test.byte": package(fieldslib)
 "lib_test/Test.byte": package(fieldslib.syntax)
+"lib_test/Test.byte": package(mparser)
+"lib_test/Test.byte": package(mparser.re)
 "lib_test/Test.byte": package(ocamlgraph)
 "lib_test/Test.byte": package(pa_ounit)
 "lib_test/Test.byte": package(pa_ounit.syntax)
@@ -191,6 +195,8 @@ true: annot, bin_annot
 <lib_test/*.ml{,i,y}>: package(cstruct.syntax)
 <lib_test/*.ml{,i,y}>: package(fieldslib)
 <lib_test/*.ml{,i,y}>: package(fieldslib.syntax)
+<lib_test/*.ml{,i,y}>: package(mparser)
+<lib_test/*.ml{,i,y}>: package(mparser.re)
 <lib_test/*.ml{,i,y}>: package(ocamlgraph)
 <lib_test/*.ml{,i,y}>: package(pa_ounit)
 <lib_test/*.ml{,i,y}>: package(pa_ounit.syntax)

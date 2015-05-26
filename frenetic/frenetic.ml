@@ -58,7 +58,7 @@ let http_controller : unit Term.t * Term.info =
 let shell : unit Term.t * Term.info =
   let open Term in
   let doc = "Run the Frenetic Shell" in
-  (async_init (app (app (pure Shell.main) http_port) openflow_port),
+  (async_init (app (app (pure Frenetic_Shell.main) http_port) openflow_port),
    info "shell" ~doc)
 
 (* Add new commands here. *)

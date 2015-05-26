@@ -69,6 +69,8 @@ Library async
     cstruct,
     cstruct.async,
     frenetic,
+    mparser,
+    mparser.re,
     sexplib,
     sexplib.syntax,
     str
@@ -94,9 +96,7 @@ Executable frenetic
     frenetic,
     frenetic.async,
     cmdliner,
-    async_extended,
-    mparser,
-    mparser.re
+    async_extended
 
 Library openflow
   Path: openflow/lib

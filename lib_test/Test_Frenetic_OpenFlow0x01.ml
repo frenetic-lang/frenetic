@@ -124,11 +124,11 @@ module RoundTripping = struct
     let open Message in
     let bs' = Cstruct.create 1060 in
     let content = {  
-      manufacturer = String.create 256
-      ; hardware = String.create 256
-      ; software = String.create 256
-      ; serial_number = String.create 32
-      ; datapath = String.create 256} in
+      manufacturer = Bytes.create 256
+      ; hardware = Bytes.create 256
+      ; software = Bytes.create 256
+      ; serial_number = Bytes.create 32
+      ; datapath = Bytes.create 256} in
     let m = DescriptionRep content in
     let _ = StatsReply.marshal m bs' in
     let m' = StatsReply.parse bs' in
