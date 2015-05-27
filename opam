@@ -7,6 +7,7 @@ build: [
   [make]
   [make "install"]
 ]
+build-test: [make "test"]
 remove: [
   ["ocamlfind" "remove" "frenetic"]
   ["ocamlfind" "remove" "openflow"]
@@ -25,7 +26,7 @@ depends: [
   "yojson" {>= "1.2.0"}
   "base64" {>= "2.0.0"}
   "cohttp"
-  "quickcheck"
+  "quickcheck" {test & = "1.0.1"}
   "ounit" {test}
   "pa_ounit" {test}
 ]
