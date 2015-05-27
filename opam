@@ -26,7 +26,10 @@ depends: [
   "yojson" {>= "1.2.0"}
   "base64" {>= "2.0.0"}
   "cohttp"
-  "quickcheck" {test & = "1.0.1"}
+  "tcpip"
+  "mparser"
+  "ocamlgraph" {>= "1.8.6"}
+  "quickcheck" {= "1.0.1"}
   "ounit" {test}
   "pa_ounit" {test}
 ]
