@@ -132,10 +132,11 @@ Library openflow
 #  XMETADescription: Syntax extension writing NetKAT expressions
 
 Library test_frenetic
-   Path: lib_test/lib
-   BuildDepends:
-     frenetic,
-     quickcheck
+  Path: lib_test/lib
+  Build$: flag(tests)
+  BuildDepends:
+    frenetic,
+    quickcheck
 
 Executable testtool
   Path: lib_test

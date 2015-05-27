@@ -7,7 +7,6 @@ build: [
   [make]
   [make "install"]
 ]
-build-test: [make "test"]
 remove: [
   ["ocamlfind" "remove" "frenetic"]
   ["ocamlfind" "remove" "openflow"]
@@ -29,7 +28,7 @@ depends: [
   "tcpip"
   "mparser"
   "ocamlgraph" {>= "1.8.6"}
-  "quickcheck" {= "1.0.1"}
+  "quickcheck" {test}
   "ounit" {test}
   "pa_ounit" {test}
 ]
