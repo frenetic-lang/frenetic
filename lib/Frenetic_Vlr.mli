@@ -2,7 +2,7 @@ open Core.Std
 
 (** The signature for a type that can be compared and hashed *)
 module type HashCmp = sig
-  type t
+  type t 
 
   val hash : t -> int
   (** [hash t] assigns an interger to each value of type [t]. This assignment
@@ -102,7 +102,7 @@ end
 
 module type S = sig
 
-  type t
+  type t = int
   (** The type of a decision diagram *)
 
   type v
@@ -119,6 +119,8 @@ module type S = sig
   val unget : t -> d
   val mk_branch : v -> t -> t -> t
   val mk_leaf : r -> t
+  val mk_id : unit -> t
+  val mk_drop : unit -> t
 
   val const : r -> t
   (** [const r] creates a constant diagram out of [r]. *)
@@ -198,9 +200,7 @@ module type S = sig
       graph description language. The result of this function can be rendered
       using Graphviz or any other program that supports the DOT language. *)
 
-  val map_values : (r -> r) -> t -> t
-
-  val refs : t -> Core.Std.Int.Set.t
+  val refs : t -> Int.Set.t
 
 end
 

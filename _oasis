@@ -39,7 +39,6 @@ Library frenetic
     Frenetic_Log,
     Frenetic_Network,
     Frenetic_NetKAT,
-    Frenetic_NetKAT_Global_Compiler,
     Frenetic_NetKAT_Json,  
     Frenetic_NetKAT_Lexer,  
     Frenetic_NetKAT_Local_Compiler,

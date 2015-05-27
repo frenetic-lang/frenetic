@@ -88,7 +88,7 @@ module PersistentTable (Value : TABLE_VALUE) : TABLE
 end
 
 module type S = sig
-  type t
+  type t = int
   type v
   type r
   type d
@@ -98,6 +98,8 @@ module type S = sig
   val unget : t -> d
   val mk_branch : v -> t -> t -> t
   val mk_leaf : r -> t
+  val mk_id : unit -> t
+  val mk_drop : unit -> t
   val const : r -> t
   val atom : v -> r -> r -> t
   val restrict : v list -> t -> t
@@ -113,7 +115,6 @@ module type S = sig
   val compressed_size : t -> int
   val uncompressed_size : t -> int
   val to_dot : t -> string
-  val map_values : (r -> r) -> t -> t
   val refs : t -> Core.Std.Int.Set.t
 
 end
@@ -188,6 +189,10 @@ struct
     end else
       T.get (Branch((v, l), t, f))
 
+  (* these need to be functions to avoid cache problems *)
+  let mk_id () = mk_leaf (R.one)
+  let mk_drop () = mk_leaf (R.zero)
+
   let rec fold g h t = match T.unget t with
     | Leaf r -> g r
     | Branch((v, l), t, f) ->
@@ -214,11 +219,6 @@ struct
 
 
   module H = Core.Std.Hashtbl.Poly
-
-  let rec map_values f u = match T.unget u with
-    | Leaf c -> mk_leaf (f c)
-    | Branch ((x, v), tru, fls) ->
-      mk_branch (x, v) (map_values f tru) (map_values f fls)
 
   let rec restrict' ((x1, l1) : v) (is_true : bool) (t : t) : t=
     match unget t with

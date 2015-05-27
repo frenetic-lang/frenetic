@@ -1,0 +1,4 @@
+(filter (switch=1 and port=0);
+  port:=3; 1@3=>3@3; port:=4; 3@4=>4@4; port:=5; 4@5 => 5@5; port:=99) |
+(filter (switch=1 and port=0);
+  port:=3; 1@3=>3@3; port:=4; 3@4=>4@4; port:=5; 4@5 => 5@5; port:=99)

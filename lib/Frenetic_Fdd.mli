@@ -1,3 +1,5 @@
+open Core.Std
+
 (* TODO(jnf): why is this exception here, in a module that defines a
    data structure? Seems misplaced... *)
 exception Non_local
@@ -22,6 +24,8 @@ module Field : sig
   val get_order : unit -> t list
   val all_fields : t list
   val to_string : t -> string
+  val compare: t -> t -> int
+  val hash : t -> int
 end
 
 module Value : sig
@@ -31,7 +35,10 @@ module Value : sig
     | Pipe of string
     | Query of string with sexp
 
+  val to_string : t -> string
+  val of_int : int -> t
   val of_int64 : int64 -> t
+  val to_int_exn : t -> int
 end
 
 module Pattern : sig 
@@ -44,15 +51,20 @@ module Pattern : sig
 end
 
 module Action : sig
+  type field_or_cont =
+    | F of Field.t
+    | K
+  with sexp
+
   module Seq : sig
-    type 'a t with sexp
-    val singleton : Field.t -> 'a -> 'a t
-    val to_alist : 'a t -> (Field.t * 'a) list
+    include Map.S with type Key.t = field_or_cont
+    val equal_mod_k : Value.t t -> Value.t t -> bool
+    val to_hvs : Value.t t -> (Field.t * Value.t) list
   end
+
   module Par : sig
-    type t with sexp
-    val singleton : Value.t Seq.t -> t
-    val fold : t -> init:'a -> f:('a -> Value.t Seq.t -> 'a) -> 'a
+    include Set.S with type Elt.t = Value.t Seq.t
+    val to_hvs : t -> (Field.t * Value.t) list
   end
 
   type t = Par.t with sexp
@@ -65,7 +77,11 @@ module Action : sig
   val get_queries : t -> string list
   val pipes : t -> Frenetic_Util.StringSet.t
   val queries : t -> string list
+  val to_string : t -> string
 end
 
-module T : Frenetic_Vlr.S 
-  with type v = Pattern.t and type r = Action.t
+module FDK : sig
+  include Frenetic_Vlr.S with type v = Field.t * Value.t and type r = Action.t
+  val mk_cont : int -> int
+  val conts : t -> t list
+end

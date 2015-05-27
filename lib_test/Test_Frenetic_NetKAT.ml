@@ -6,7 +6,7 @@ open Frenetic_NetKAT_Pretty
 
 let test_compile lhs rhs =
   let tbl = Frenetic_NetKAT_Local_Compiler.(restrict (Switch 0L) (compile lhs)) in
-  let rhs' = Frenetic_NetKAT_Local_Compiler.to_policy tbl in
+  let rhs' = Frenetic_NetKAT_Local_Compiler.to_local_pol tbl in
   if rhs' = rhs then
     true
   else
