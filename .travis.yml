@@ -2,7 +2,7 @@ language: c
 install: wget https://raw.githubusercontent.com/ocaml/ocaml-travisci-skeleton/master/.travis-opam.sh
 script: bash -ex .travis-opam.sh
 env:
-  - OCAML_VERSION=latest PACKAGE=frenetic
+  - OCAML_VERSION=latest PACKAGE=frenetic TESTS=true
 notifications:
   irc:
     channels:
