@@ -62,6 +62,8 @@ let get_client (clientId: string): client =
 	       let (r, w) = Pipe.create () in
                { policy_node = node; event_reader = r; event_writer =  w })
 
+let saved_events = ref []
+
 let handle_request
   (module Controller : Frenetic_NetKAT_Controller.CONTROLLER)
   ~(body : Cohttp_async.Body.t)
@@ -71,7 +73,14 @@ let handle_request
   Log.info "%s %s" (Cohttp.Code.string_of_method request.meth)
     (Uri.path request.uri);
   match request.meth, extract_path request with
-    | `GET, ["version"] -> Server.respond_with_string "3"
+    | `GET, ["version"] ->
+      begin
+        let curr_client = get_client "stateful_firewall" in
+        List.iter (List.rev !saved_events)
+          ~f:(Pipe.write_without_pushback curr_client.event_writer);
+        saved_events := [];
+        Server.respond_with_string "3"
+      end
     | `GET, ["port_stats"; switch_id; port_id] ->
        port_stats (Int64.of_string switch_id) (Int32.of_string port_id)
        >>= fun portStats ->
@@ -97,7 +106,11 @@ let handle_request
       Pipe.read curr_client.event_reader
       >>= (function
       | `Eof -> assert false
-      | `Ok response -> Server.respond_with_string response)
+      | `Ok response ->
+         begin
+           saved_events := response :: !saved_events;
+           Server.respond_with_string response
+         end)
     | `POST, ["pkt_out"] ->
       handle_parse_errors' body
         (fun str ->
