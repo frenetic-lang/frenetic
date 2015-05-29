@@ -154,3 +154,14 @@ Test all_tests
   Run$: flag(tests)
   Command: $testtool inline-test-runner frenetic
   TestTools: testtool
+
+Document frenetic
+  Title: Frenetic API docs
+  Type: ocamlbuild (0.4)
+  BuildTools+: ocamldoc
+  Install: true
+  Format: html
+  Index: index.html
+  XOCamlbuildPath: lib
+  XOCamlbuildLibraries: frenetic
+

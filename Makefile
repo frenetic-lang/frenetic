@@ -32,3 +32,6 @@ clean:
 distclean:
 	ocaml setup.ml -distclean
 	rm -f setup.data setup.log
+
+doc:
+	ocaml setup.ml -doc
