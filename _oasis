@@ -137,6 +137,13 @@ Library test_frenetic
   BuildDepends:
     frenetic,
     quickcheck
+  Modules:
+    Arbitrary_Base,
+    Arbitrary_Frenetic_NetKAT,
+    Arbitrary_Frenetic_OpenFlow,
+    Arbitrary_Frenetic_OpenFlow0x01,
+    Arbitrary_Frenetic_OpenFlow_Header,
+    Arbitrary_Frenetic_Packet
 
 Executable testtool
   Path: lib_test
