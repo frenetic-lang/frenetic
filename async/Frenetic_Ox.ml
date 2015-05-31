@@ -80,7 +80,7 @@ module Make (Handlers:OXMODULE) = struct
   end
     
   let handle_pkt_out ((sw, xid, msg) : to_sw) : unit Deferred.t =
-    match Controller.send sw xid msg with 
+    Controller.send sw xid msg >>= function
       | `Ok  -> 
         return ()
       | `Eof -> 
@@ -96,8 +96,7 @@ module Make (Handlers:OXMODULE) = struct
     | `Connect (sw, feats) ->
       let res1 = Controller.send sw 0l (FlowModMsg delete_all_flows) in 
       let res2 = Controller.send sw 1l BarrierRequest in 
-      return 
-        (match res1, res2 with 
+        (Deferred.both res1 res2 >>| function
           | `Ok, `Ok -> 
             let sw = feats.switch_id in
             Handlers.switch_connected sw feats

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: b6e7998d3a7a865c3716b13984139b3b)
+# DO NOT EDIT (digest: 25d954b2e3490d1254b8ab867359859e)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -36,6 +36,7 @@ true: annot, bin_annot
 # Library async
 "async/async.cmxs": use_async
 <async/*.ml{,i,y}>: package(async)
+<async/*.ml{,i,y}>: package(async_parallel)
 <async/*.ml{,i,y}>: package(base64)
 <async/*.ml{,i,y}>: package(camlp4)
 <async/*.ml{,i,y}>: package(camlp4.extend)
@@ -61,6 +62,7 @@ true: annot, bin_annot
 # Executable frenetic
 "frenetic/frenetic.native": package(async)
 "frenetic/frenetic.native": package(async_extended)
+"frenetic/frenetic.native": package(async_parallel)
 "frenetic/frenetic.native": package(base64)
 "frenetic/frenetic.native": package(camlp4)
 "frenetic/frenetic.native": package(camlp4.extend)
@@ -85,8 +87,37 @@ true: annot, bin_annot
 "frenetic/frenetic.native": package(yojson)
 "frenetic/frenetic.native": use_async
 "frenetic/frenetic.native": use_frenetic
+# Executable openflow
+"frenetic/openflow.native": package(async)
+"frenetic/openflow.native": package(async_extended)
+"frenetic/openflow.native": package(async_parallel)
+"frenetic/openflow.native": package(base64)
+"frenetic/openflow.native": package(camlp4)
+"frenetic/openflow.native": package(camlp4.extend)
+"frenetic/openflow.native": package(camlp4.lib)
+"frenetic/openflow.native": package(cmdliner)
+"frenetic/openflow.native": package(cohttp)
+"frenetic/openflow.native": package(cohttp.async)
+"frenetic/openflow.native": package(core)
+"frenetic/openflow.native": package(cstruct)
+"frenetic/openflow.native": package(cstruct.async)
+"frenetic/openflow.native": package(cstruct.syntax)
+"frenetic/openflow.native": package(fieldslib)
+"frenetic/openflow.native": package(fieldslib.syntax)
+"frenetic/openflow.native": package(mparser)
+"frenetic/openflow.native": package(mparser.re)
+"frenetic/openflow.native": package(ocamlgraph)
+"frenetic/openflow.native": package(sexplib)
+"frenetic/openflow.native": package(sexplib.syntax)
+"frenetic/openflow.native": package(str)
+"frenetic/openflow.native": package(tcpip)
+"frenetic/openflow.native": package(ulex)
+"frenetic/openflow.native": package(yojson)
+"frenetic/openflow.native": use_async
+"frenetic/openflow.native": use_frenetic
 <frenetic/*.ml{,i,y}>: package(async)
 <frenetic/*.ml{,i,y}>: package(async_extended)
+<frenetic/*.ml{,i,y}>: package(async_parallel)
 <frenetic/*.ml{,i,y}>: package(base64)
 <frenetic/*.ml{,i,y}>: package(camlp4)
 <frenetic/*.ml{,i,y}>: package(camlp4.extend)
@@ -155,6 +186,7 @@ true: annot, bin_annot
 <lib_test/lib/*.ml{,i,y}>: use_frenetic
 # Executable testtool
 "lib_test/Test.byte": package(async)
+"lib_test/Test.byte": package(async_parallel)
 "lib_test/Test.byte": package(base64)
 "lib_test/Test.byte": package(camlp4)
 "lib_test/Test.byte": package(camlp4.extend)
@@ -183,6 +215,7 @@ true: annot, bin_annot
 "lib_test/Test.byte": use_frenetic
 "lib_test/Test.byte": use_test_frenetic
 <lib_test/*.ml{,i,y}>: package(async)
+<lib_test/*.ml{,i,y}>: package(async_parallel)
 <lib_test/*.ml{,i,y}>: package(base64)
 <lib_test/*.ml{,i,y}>: package(camlp4)
 <lib_test/*.ml{,i,y}>: package(camlp4.extend)

@@ -30,7 +30,7 @@ module type CONTROLLER = sig
   val port_stats : switchId -> portId -> OF10.portStats Deferred.t
   val is_query : string -> bool
   val start : unit -> unit
-  val current_switches : unit -> (switchId * portId list) list
+  val current_switches : unit -> (switchId * portId list) list Deferred.t
 end
 
 module Make : CONTROLLER 

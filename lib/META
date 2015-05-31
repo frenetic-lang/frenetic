@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: f17902b2814140c00ec0be998286b4cd)
+# DO NOT EDIT (digest: 8b3c86c0860c84cdea5b2ac07ac16eed)
 version = "4.0.0"
 description = "The Frenetic Compiler and Runtime System"
 requires =
@@ -13,7 +13,7 @@ package "async" (
  version = "4.0.0"
  description = "The Frenetic Compiler and Runtime System"
  requires =
- "async cohttp cohttp.async core cstruct cstruct.async frenetic mparser mparser.re sexplib sexplib.syntax str"
+ "async async_parallel cohttp cohttp.async core cstruct cstruct.async frenetic mparser mparser.re sexplib sexplib.syntax str"
  archive(byte) = "async.cma"
  archive(byte, plugin) = "async.cma"
  archive(native) = "async.cmxa"

@@ -19,6 +19,7 @@ depends: [
   "core"
   "async"
   "async_extended"
+  "async_parallel"
   "fieldslib"
   "cmdliner" {>= "0.9.5"}
   "cstruct" {>= "1.0.1"}

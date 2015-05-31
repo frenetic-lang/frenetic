@@ -55,13 +55,13 @@ module BestEffortUpdate = struct
     let priority = ref 65536 in
     Deferred.List.iter table ~f:(fun flow ->
       decr priority;
-      match Controller.send sw_id 0l (to_flow_mod !priority flow) with 
+      Controller.send sw_id 0l (to_flow_mod !priority flow) >>= function
         | `Eof -> raise UpdateError
         | `Ok -> return ())
 
   let delete_flows_for sw_id =
     let delete_flows = M.FlowModMsg OF10.delete_all_flows in
-    match Controller.send sw_id 5l delete_flows with 
+    Controller.send sw_id 5l delete_flows >>= function
       | `Eof -> raise UpdateError
       | `Ok -> return ()
 
@@ -81,7 +81,8 @@ module BestEffortUpdate = struct
         Printf.eprintf "%s\n%!" (Exn.to_string _exn)
 
   let implement_policy ?old repr =
-    Deferred.List.iter (Controller.get_switches ()) (fun sw_id ->
+    (Controller.get_switches ()) >>= fun switches ->
+    Deferred.List.iter switches (fun sw_id ->
       bring_up_switch sw_id repr)
 end
 
@@ -90,7 +91,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
   open Args
 
   let barrier sw = 
-    match Controller.send_txn sw M.BarrierRequest with 
+    Controller.send_txn sw M.BarrierRequest >>= function
       | `Ok dl -> dl >>= fun _ -> return (Ok ())
       | `Eof -> return (Error UpdateError)
 
@@ -99,13 +100,13 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
     let priority = ref 65536 in
     Deferred.List.iter table ~f:(fun flow ->
       decr priority;
-      match Controller.send sw_id 0l (to_flow_mod !priority flow) with 
+      Controller.send sw_id 0l (to_flow_mod !priority flow) >>= function
         | `Eof -> raise UpdateError
         | `Ok -> return ())
 
   let delete_flows_for sw_id =
     let delete_flows = M.FlowModMsg OF10.delete_all_flows in
-    match Controller.send sw_id 5l delete_flows with 
+    Controller.send sw_id 5l delete_flows >>= function
       | `Eof -> raise UpdateError 
       | `Ok -> return ()
 
@@ -155,7 +156,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
       ; hard_timeout = Permanent
       } with command = DeleteFlow } in
     Monitor.try_with ~name:"PerPacketConsistent.clear_policy_for" (fun () ->
-      match Controller.send sw_id 5l clear_version_message with 
+      Controller.send sw_id 5l clear_version_message >>= function
         | `Eof -> raise UpdateError
         | `Ok -> return ())
     >>| function
@@ -215,12 +216,12 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
       M.FlowModMsg ({from_flow prio flow with command = DeleteStrictFlow}) in
     (* Install the new table *)
     Deferred.List.iter new_table ~f:(fun (flow, prio) ->
-      match Controller.send c_id 0l (to_flow_mod prio flow) with 
+      Controller.send c_id 0l (to_flow_mod prio flow) >>= function
         | `Eof -> raise UpdateError 
         | `Ok -> return ())
     (* Delete the old table from the bottom up *)
     >>= fun () -> Deferred.List.iter del_table ~f:(fun (flow, prio) ->
-      match Controller.send c_id 0l (to_flow_del prio flow) with 
+      Controller.send c_id 0l (to_flow_del prio flow) >>= function
         | `Eof -> raise UpdateError
         | `Ok -> return ())
     >>| fun () ->
@@ -251,7 +252,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
      * program, whereas a switch id may be reused across client ids, i.e., a
      * switch connects, disconnects, and connects again. Due to this behavior,
      * it may be possible to get into an inconsistent state below. Maybe. *)
-    let switches = Controller.get_switches () in
+    Controller.get_switches () >>= fun switches ->
     let ver_num = !ver + 1 in
     (* Install internal update *)
     Log.debug "Installing internal tables for ver %d" ver_num;

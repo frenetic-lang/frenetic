@@ -77,7 +77,7 @@ let handle_request
        >>= fun portStats ->
        Server.respond_with_string (Frenetic_NetKAT_Json.port_stats_to_json_string portStats)
     | `GET, ["current_switches"] ->
-      let switches = current_switches () in
+      current_switches () >>= fun switches ->
       Server.respond_with_string (current_switches_to_json_string switches)
     | `GET, ["query"; name] ->
       if (is_query name) then

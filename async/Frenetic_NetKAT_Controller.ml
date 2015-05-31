@@ -131,7 +131,7 @@ module type CONTROLLER = sig
   val port_stats : switchId -> portId -> OF10.portStats Deferred.t
   val is_query : string -> bool
   val start : unit -> unit
-  val current_switches : unit -> (switchId * portId list) list
+  val current_switches : unit -> (switchId * portId list) list Deferred.t
 end
 
 module Make : CONTROLLER = struct
@@ -158,9 +158,9 @@ module Make : CONTROLLER = struct
     | `Ok evt -> Deferred.return evt
 
   let current_switches () =
-    let features = 
-      List.filter_map ~f:Controller.get_switch_features
-        (Controller.get_switches ()) in
+    Controller.get_switches () >>= fun switches ->
+    Deferred.List.filter_map ~f:Controller.get_switch_features
+      switches >>| fun features ->
     let get_switch_and_ports (feats : OF10.SwitchFeatures.t) =
       (feats.switch_id,
        List.filter_map ~f:(fun port_desc ->
@@ -175,8 +175,9 @@ module Make : CONTROLLER = struct
     Frenetic_NetKAT_Local_Compiler.to_table' sw_id !fdd
 
   let raw_query (name : string) : (Int64.t * Int64.t) Deferred.t =
+    Controller.get_switches () >>= fun switches ->
     Deferred.List.map ~how:`Parallel
-      (Controller.get_switches ()) ~f:(fun sw_id ->
+      switches ~f:(fun sw_id ->
         let pats = List.filter_map (get_table sw_id) ~f:(fun (flow, names) ->
           if List.mem names name then
             Some flow.pattern
@@ -188,7 +189,7 @@ module Make : CONTROLLER = struct
             let req = 
               OF10.IndividualRequest
                 { sr_of_match = pat0x01; sr_table_id = 0xff; sr_out_port = None } in 
-            match Controller.send_txn sw_id (OF10.Message.StatsRequestMsg req) with 
+            Controller.send_txn sw_id (OF10.Message.StatsRequestMsg req) >>= function
               | `Eof -> return (0L,0L)
               | `Ok l -> begin
                 l >>| function
@@ -211,7 +212,7 @@ module Make : CONTROLLER = struct
   let port_stats (sw_id : switchId) (pid : portId) : OF10.portStats Deferred.t =
     let pt = Int32.(to_int_exn pid) in 
     let req = OF10.PortRequest (Some (PhysicalPort pt)) in 
-    match Controller.send_txn sw_id (OF10.Message.StatsRequestMsg req) with 
+    Controller.send_txn sw_id (OF10.Message.StatsRequestMsg req) >>= function
       | `Eof -> assert false
       | `Ok l -> begin
         l >>| function
@@ -256,7 +257,7 @@ module Make : CONTROLLER = struct
 
   let send_pktout ((sw_id, pktout) : switchId * Frenetic_OpenFlow.pktOut) : unit Deferred.t =
     let pktout0x01 = To0x01.from_packetOut pktout in
-    match Controller.send sw_id 0l (OF10.Message.PacketOutMsg pktout0x01) with  
+    Controller.send sw_id 0l (OF10.Message.PacketOutMsg pktout0x01) >>= function
       | `Eof -> return ()
       | `Ok -> return ()
 

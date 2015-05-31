@@ -9,12 +9,12 @@ type event = [
 ]
 val init: int -> unit
 
-val get_switches : unit -> switchId list
+val get_switches : unit -> switchId list Deferred.t
 
-val get_switch_features : switchId -> SwitchFeatures.t option
+val get_switch_features : switchId -> SwitchFeatures.t option Deferred.t
 
 val events : event Pipe.Reader.t
 
-val send : switchId -> xid -> Message.t -> [`Ok | `Eof]
+val send : switchId -> xid -> Message.t -> [`Ok | `Eof] Deferred.t
 
-val send_txn : switchId -> Message.t -> [`Ok of (Message.t list) Deferred.t | `Eof]
+val send_txn : switchId -> Message.t -> [`Ok of (Message.t list) Deferred.t | `Eof] Deferred.t

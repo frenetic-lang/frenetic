@@ -62,6 +62,7 @@ Library async
   Path: async
   BuildDepends:
     async,
+    async_parallel,
     cohttp,
     cohttp.async,
     core,
@@ -79,14 +80,27 @@ Library async
   Modules:
     Frenetic_Compile_Server,
     Frenetic_Http_Controller,
+    Frenetic_OpenFlow0x01_Controller,
     Frenetic_NetKAT_Controller,
     Frenetic_NetKAT_Updates,
-    Frenetic_OpenFlow0x01_Controller,
     Frenetic_Ox
 
 Executable frenetic
   Path: frenetic
   MainIs: frenetic.ml
+  Install: true
+  CompiledObject: native
+  BuildDepends:
+    async,
+    core,
+    frenetic,
+    frenetic.async,
+    cmdliner,
+    async_extended
+
+Executable openflow
+  Path: frenetic
+  MainIs: openflow.ml
   Install: true
   CompiledObject: native
   BuildDepends:
