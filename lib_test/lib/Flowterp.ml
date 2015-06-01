@@ -1,8 +1,4 @@
-(* It is unclear whether this module is actually used in production, or just 
-   for testing *)
-
 open Core.Std
-(** An interpreter for flowtables *)
 
 module HVSet = Set.Make(struct
   open Frenetic_NetKAT_Semantics
