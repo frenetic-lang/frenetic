@@ -134,6 +134,7 @@ Library openflow
 Library test_frenetic
   Path: lib_test/lib
   Build$: flag(tests)
+  Install: false
   BuildDepends:
     frenetic,
     quickcheck
