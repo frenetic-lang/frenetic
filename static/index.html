@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>Frenetic Management Console</title>
+  <meta name="description" content="Frenetic Management Console">
+
+  <link rel="stylesheet" href="static/css/style.css?v=1.0">
+  <link href="static/css/themes/github.css" rel="stylesheet" type="text/css">
+  <script src="static/js/rainbow.min.js"></script>
+  <script src="static/js/language/generic.js"></script>
+  <script src="static/js/language/frenetic.js"></script>
+
+  <!--[if lt IE 9]>
+  <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+</head>
+
+<body>
+  <div id="header">
+    <h1>Frenetic Management Console</h1>
+  </div>
+  <div id="content">
+    <div id="canvas"></div>
+    <div id="sidebar">
+      <div id="entity">
+        <h2>Entity Information</h2>
+        <hr />
+        <table>
+        </table>
+      </div>
+    </div>
+    <div class="clear"></div>
+    <div id="footer">
+      <h2>Controller Log</h2>
+      <div id="log">
+      </div>
+    </div>
+  </div>
+  <script src="static/js/d3.v3.min.js"></script>
+  <script>
+      function entity(d) {
+        var entries;
+
+        if (d.type === 'switch') {
+            entries = [['switch', d.id]];
+            d3.json('/switch/' + d.id, function(data) {
+
+	      d3.select('#entity')
+		.selectAll('.policy')
+		.select('#flowtbl')
+		.remove();
+
+	      var policy = data.policy;
+	      console.log(policy);
+              var pol = d3.select('#entity').selectAll('.policy')
+                  .data([policy]);
+              var pdiv = pol.enter().append('div')
+                  .attr('class', 'policy')
+                  .append('pre');
+              Rainbow.color(policy, 'frenetic', function(colored_data) { pol.select('pre').html(colored_data); });
+
+	      var flow = JSON.parse(data.flowtable); 
+	      var flowtable = d3.select('#entity')
+				.selectAll('.policy')
+				.append('table')
+				 .attr('id','flowtbl');
+
+	      var rows = flowtable.selectAll('tr').data(flow);
+	      rows.enter().append('tr');
+	      var cells = rows.selectAll('td')
+			      .data(function(row){
+				return [JSON.stringify(row)];
+				});
+	      cells.enter().append('td').text(function(d){return d;}); 
+            });
+        } else if (d.type === 'host') {
+            entries = [
+                ['MAC', d.mac],
+                ['IP', d.ip],
+                ['Switch Port', d.switch_port]
+            ];
+            d3.select('#entity').selectAll('.policy').remove()
+        } 
+
+        var rows = d3.select('#entity table').selectAll('tr')
+            .data(entries);
+
+        rows.enter().append('tr')
+        var cells = rows.selectAll('td')
+            .data(function(d) { return d })
+
+        cells.enter().append('td');
+        cells
+            .classed('first', function(d, i) { return i === 0; })
+            .text(function(d) { return d; });
+        rows.exit().remove(); 
+      }
+
+      function link_info(l,data){
+	var sw = l.source;
+	if(l.source.type == "host"){
+	    sw = l.target;
+	    if(l.target.type == "host"){
+		console.log(l);
+		return;
+	    }
+	}
+	var sw_id = sw.id;
+	var pt_id = sw.switch_port;
+	d3.text('/switch/' + sw_id + '/port/'+ pt_id, function(data){
+	    console.log(data);
+	})
+      }
+
+      function network() {
+        var width = 800,
+            height = 600,
+            events = {};
+
+        var data = { links : [], nodes : [], picked : null };
+
+        var force = d3.layout.force()
+            .nodes(data.nodes)
+            .links(data.links)
+            .linkDistance(60)
+            .size([width, height])
+            .charge(function(d, i) {
+                return -15 * Math.exp(4, d.weight);
+            })
+            .start();
+
+        function update() {
+            force
+                .size([width, height])
+                .nodes(data.nodes)
+                .links(data.links)
+                .start();
+        }
+
+        function scrub_node(d) {
+            /* Remove properties that were introduced by the force layout */
+            var o = {},
+                e = { x : 1, y : 1, px : 1, py : 1, index : 1, weight : 1 };
+            d3.keys(d).forEach(function(k) { if (!e[k]) { o[k] = d[k]; } });
+            return o;
+        }
+
+        function center(d) {
+            return { x : d.x + 24, y : d.y + 24 };
+        }
+
+        function highlight(selection) {
+            var pick = selection.selectAll('.highlight')
+                .data(function(d) { return d.picked ? [d.picked] : [] });
+
+            pick
+              .enter().append('circle')
+                .attr('class', 'highlight')
+
+            pick
+                .attr('cx', function(d) { return center(d).x; })
+                .attr('cy', function(d) { return center(d).y; })
+                .attr('r', 60)
+                .style('fill', 'rgba(0, 20, 196, 0.0)')
+              .transition()
+                .duration(300)
+                .attr('r', 30)
+                .style('fill', 'rgba(0, 20, 196, 0.3)');
+        }
+
+        var my = function(selection) {
+            var svg = selection.selectAll('svg')
+                .data([data]);
+
+            var svge = svg.enter().append('svg')
+                .attr('width', width)
+                .attr('height', height)
+              .append('g');
+
+            var pick = svg.call(highlight)
+
+            var link = svg.select('g').selectAll('.link')
+                .data(function(d) { return d.links })
+              .enter().append('line')
+                .attr('class', 'link')
+                .style('stroke-width', function(d) {return 100 * d.redundancy;})
+		.on('click', function(d){link_info(d,data)});
+
+            var host = svg.selectAll('.host')
+                .data(function(d) {
+                  return d.nodes.filter(function(d) { return d.type === 'host' })
+                })
+              .enter().append('image')
+                .attr('width', 48)
+                .attr('height', 48)
+                .attr('xlink:href', '/static/terminal.svg')
+                .attr('class', function(d, i) { return 'host ' + 'h-' + i; })
+                .on('click', function(d) {
+                    data.picked = d;
+                    if (events.click) {
+                        events.click(scrub_node(data.picked));
+                    }
+                    svg.call(highlight);
+                });
+
+            var switch_ = svg.selectAll('.switch')
+                .data(function(d) {
+                  return d.nodes.filter(function(d) { return d.type === 'switch' });
+                })
+             .enter().append('image')
+                .attr('width', 48)
+                .attr('height', 48)
+                .attr('xlink:href', '/static/switch.svg')
+                .attr('class', function(d, i) { return 'switch ' + 's-' + i; })
+                .on('click', function(d) {
+                    data.picked = d;
+                    if (events.click) {
+                        events.click(scrub_node(data.picked));
+                    }
+                    svg.call(highlight);
+                });
+
+            force.on('tick', function() {
+                link.attr("x1", function(d) { return center(d.source).x; })
+                    .attr("y1", function(d) { return center(d.source).y; })
+                    .attr("x2", function(d) { return center(d.target).x; })
+                    .attr("y2", function(d) { return center(d.target).y; });
+
+                host.attr('x', function(d) { return d.x; })
+                    .attr('y', function(d) { return d.y; });
+
+                switch_
+                    .attr('x', function(d) { return d.x; })
+                    .attr('y', function(d) { return d.y; })
+
+                svg.selectAll('.highlight')
+                    .attr('cx', function(d) { return center(d).x; })
+                    .attr('cy', function(d) { return center(d).y; })
+            });
+        };
+
+        /* Getter/setter for the links in the topology. */
+        my.links = function(_) {
+            if (!arguments.length) return data.links;
+            data.links = _;
+            update();
+            return my;
+        };
+
+        /* Getter/setter for the nodes in the topology. */
+        my.nodes = function(_) {
+            if (!arguments.length) return data.nodes;
+            data.nodes = _;
+            update();
+            return my;
+        };
+
+        /* Getter/setter for the width of the canvas */
+        my.width = function(_) {
+            if (!arguments.length) return width;
+            width = _;
+            update();
+            return my;
+        };
+
+        /* Getter/setter for the height of the canvas */
+        my.height = function(_) {
+            if (!arguments.length) return height;
+            height = _;
+            update();
+            return my;
+        };
+
+        /* Register event handlers */
+        my.on = function(e, f) {
+            events[e] = f;
+            return my;
+        }
+
+        return my;
+      }
+
+    _network = network()
+        .width(580)
+        .height(580)
+        .on('click', entity);
+
+    d3.json('/topology', function(data) {
+      var nodes = d3.values(data.nodes),
+          links = data.links.map(function(e) {
+            var src = data.nodes[e.src_id],
+                dst = data.nodes[e.dst_id];
+		src.switch_port = e.src_port;
+		dst.switch_port = e.dst_port;
+            return { source : src, target : dst };
+          });
+
+      _network
+          .nodes(nodes)
+          .links(links);
+
+      d3.select('#canvas').call(_network);
+    });
+  </script>
+</body>
+</html>

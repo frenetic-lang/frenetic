@@ -284,3 +284,59 @@ let port_stats_to_json (portStats : Frenetic_OpenFlow0x01.portStats) : json =
 let port_stats_to_json_string (portStats : Frenetic_OpenFlow0x01.portStats) : string =
   Yojson.Basic.to_string ~std:true (port_stats_to_json portStats)
 
+let event_from_json (json : json) : event =
+  let open Yojson.Basic.Util in
+  let payload_from_json (json : json) : payload =
+   let open Yojson.Basic.Util in
+   let bytes = json |> member "buffer" |> to_string |> B64.decode 
+   			 |> Cstruct.of_string in 
+   match json|> member "id" |> to_int_option with 
+    | None -> NotBuffered bytes
+    | Some n -> Buffered (Int32.of_int_exn n, bytes) in 
+
+  match json |> member "type" |> to_string with
+  | "packet_in" ->
+      PacketIn (
+        json |> member "pipe" |> to_string,
+        json |> member "switch_id" |> to_int |> Int64.of_int_exn,
+        json |> member "port_id" |> to_int |> Int32.of_int_exn,
+        json |> member "payload" |> payload_from_json,
+        json |> member "length" |> to_int)
+  | "query" ->
+      Query (
+        "",
+        json |> member "packet_count" |> to_int |> Int64.of_int_exn,
+        json |> member "byte_count" |> to_int |> Int64.of_int_exn)
+  | "switch_up" ->
+      SwitchUp (
+        json |> member "switch_id" |> to_int |> Int64.of_int_exn,
+        json |> member "ports" |> to_list |>
+          (fun jl -> List.map jl
+            (fun portjson -> portjson |> to_int |> Int32.of_int_exn)))
+  | "switch_down" ->
+      SwitchDown (
+        json |>  member "switch_id" |> to_int |> Int64.of_int_exn)
+  | "port_up"
+  | "port_down" as t ->
+      let sw = json |> member "switch_id" |> to_int |> Int64.of_int_exn in
+      let port = json |> member "port_id" |> to_int |> Int32.of_int_exn in
+      if t = "port_up" then PortUp (sw, port) else PortDown (sw, port)
+  | "link_up"
+  | "link_down" as t ->
+      let pluck j =
+        (j |> member "switch_id" |> to_int |> Int64.of_int_exn,
+         j |> member "port_id" |> to_int |> Int32.of_int_exn) in
+      let src = pluck (json |> member "src") in
+      let dst = pluck (json |> member "dst") in
+      if t = "link_up" then LinkUp (src, dst) else LinkDown (src, dst)
+  | "host_up"
+  | "host_down" as t ->
+      let sw = json |> member "switch_id" |> to_int |> Int64.of_int_exn in
+      let port = json |> member "port_id" |> to_int |> Int32.of_int_exn in
+      let dl = json |> member "dl_addr" |> to_string |> Frenetic_Packet.mac_of_string in
+      let nw = json |> member "nw_addr" |> to_string |> Frenetic_Packet.ip_of_string in
+      if t = "host_up" then HostUp ((sw, port), (dl, nw))
+      else HostDown ((sw, port), (dl, nw))
+  | str -> raise (Invalid_argument ("invalid event type " ^ str))
+
+

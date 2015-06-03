@@ -130,8 +130,9 @@ module type CONTROLLER = sig
   val query : string -> (Int64.t * Int64.t) Deferred.t
   val port_stats : switchId -> portId -> OF10.portStats Deferred.t
   val is_query : string -> bool
-  val start : unit -> unit
+  val start : ?port:int -> unit -> unit
   val current_switches : unit -> (switchId * portId list) list
+  val get_table: switchId -> (Frenetic_OpenFlow.flow * string list) list 
 end
 
 module Make : CONTROLLER = struct
@@ -260,8 +261,8 @@ module Make : CONTROLLER = struct
       | `Eof -> return ()
       | `Ok -> return ()
 
-  let start () : unit =
-    Controller.init 6633;
+  let start ?(port=6633) (): unit =
+    Controller.init port;
     don't_wait_for (Pipe.iter pol_reader ~f:update_all_switches);
     don't_wait_for (Pipe.iter (Controller.events) ~f:handle_event);
     don't_wait_for (Pipe.iter pktout_reader ~f:send_pktout)

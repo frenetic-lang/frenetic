@@ -1,0 +1,105 @@
+body {
+    font-family:PT Sans;
+    background-color: #fcfcfc;
+}
+
+h1,
+h2 {
+    margin-left: 20px;
+}
+
+hr {
+    width: 80%;
+}
+
+.clear {
+    clear: both;
+}
+
+div#canvas {
+    float: left;
+    border: 1px dotted rgba(0, 128, 95, 0.3);
+    width: 580px;
+    height: 580px;
+    margin: 10px;
+}
+
+div#sidebar {
+    float: left;
+    background-color: #eef0ee;
+    width: 700px;
+    height: 580px;
+    margin: 10px;
+}
+
+div#footer {
+    width: 1160px;
+    height: 260px;
+    margin: 10px;
+    padding: 0.01px;
+}
+
+#entity table {
+    text-align: left;
+    width: 90%;
+    margin-left: 10%;
+    margin-right: 10%;
+}
+
+table#flowtbl{
+    text-align: left;
+    width:100%;
+    margin-left: 0%;
+    margin-right:0%;
+    display:block;
+    height:300px;
+    overflow-y:scroll;
+}
+
+#flowtbl td{
+    max-width: 500px;
+    word-wrap:break-word;
+}
+
+#entity .policy {
+    margin-top: 20px;
+    width: 90%;
+    height: 400px;
+    margin-left: 5%;
+}
+
+#entity .policy pre {
+    overflow: auto;
+    white-space: pre-wrap;
+    max-height: 400px;
+}
+
+#entity .flows {
+    margin-top: 20px;
+    width:90%;
+    height: 400px;
+    margin-left:5%;
+}
+
+td.first {
+    width: 80px;
+    padding-right: 20px;
+    font-variant: small-caps;
+    font-size: 0.8em;
+    color: grey;
+}
+
+/* Visualization */
+svg {
+    float: left;
+}
+
+line.link {
+  fill: none;
+  stroke: black;
+}
+
+.highlight {
+    fill: rgba(0, 20, 196, 0.1);
+    stroke: grey;
+}

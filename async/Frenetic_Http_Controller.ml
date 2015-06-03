@@ -124,6 +124,34 @@ let handle_request
 let print_error addr exn =
   Log.error "%s" (Exn.to_string exn)
 
+type t = (module Frenetic_NetKAT_Controller.CONTROLLER)
+
+
+let port_stats (t : t) = 
+  let module Controller = (val t) in Controller.port_stats 
+
+let current_switches (t : t) =
+  let module Controller = (val t) in
+  Controller.current_switches () |> return
+
+let query (t : t) name =
+  let module Controller = (val t) in
+  if (Controller.is_query name) then Some (Controller.query name)
+  else None
+
+let event (t : t) clientId =
+  let module Controller = (val t) in
+  (get_client clientId).event_reader |> Pipe.read >>| function
+    | `Eof -> assert false
+    | `Ok response -> response
+
+let pkt_out (t:t) = 
+  let module Controller = (val t) in 
+  Controller.send_packet_out 
+
+let update _ clientId pol = 
+  return (Frenetic_DynGraph.push pol (get_client clientId).policy_node)
+(*
 let listen ~http_port ~openflow_port =
   let module Controller = Frenetic_NetKAT_Controller.Make in
   let on_handler_error = `Call print_error in
@@ -135,8 +163,63 @@ let listen ~http_port ~openflow_port =
   let _ = Pipe.iter pol_reader ~f:(fun pol -> Controller.update_policy pol) in
   Controller.start ();
   don't_wait_for(propogate_events Controller.event);
-  Deferred.return ()
+  Deferred.return () *)
 
+
+let start (http_port : int) (openflow_port : int) () : unit =  
+  let module Controller = Frenetic_NetKAT_Controller.Make in
+  let on_handler_error = `Call print_error in
+  let _ = Cohttp_async.Server.create
+    ~on_handler_error
+    (Tcp.on_port http_port)
+    (handle_request (module Controller)) in
+  let (_, pol_reader) = Frenetic_DynGraph.to_pipe pol in
+  let _ = Pipe.iter pol_reader ~f:(fun pol -> Controller.update_policy pol) in
+  Controller.start ~port:openflow_port ();
+  Log.info "port is: %d" openflow_port;
+  let t:(module Frenetic_NetKAT_Controller.CONTROLLER) = (module Controller) in
+
+  let node_data_string pol flowtable = begin
+    let open Yojson.Basic.Util in 
+    let polstr = Frenetic_NetKAT_Pretty.string_of_policy pol in 
+    let flow_json = Yojson.Basic.to_string(Frenetic_NetKAT_SDN_Json.flowTable_to_json flowtable) in 
+    Yojson.Basic.to_string (`Assoc[("policy",`String polstr);
+		      ("flowtable",`String flow_json)])
+    end  in
+
+  (* initialize discovery *)
+  let discoverclient = get_client "discover" in
+  let discover =
+    (let event_pipe = Pipe.map discoverclient.event_reader
+      ~f:(fun s -> s |> Yojson.Basic.from_string |> Frenetic_NetKAT_Json.event_from_json) in
+    Discoveryapp.Discovery.start event_pipe Controller.update_policy (pkt_out t)) in
+  let _ = update t "discover" discover.policy >>| 
+  fun _ ->   (let routes = [
+    ("/topology", fun _ ->
+      return (Gui_Server.string_handler (Gui_Server.topo_to_json !(discover.nib))));
+    ("/switch/([1-9][0-9]*)", fun g ->
+        let sw_id = Int64.of_string (Array.get g 1) in
+        printf "Requested policy for switch %Lu" sw_id;
+        let pol = discover.policy in
+	let flow_table = List.fold_left (Controller.get_table sw_id) ~f:(fun acc x -> (fst x) :: acc) ~init:[] in
+        return (Gui_Server.string_handler (node_data_string pol flow_table)));
+    ("/switch/([1-9][0-9]*)/port/([1-9][0-9]*)", fun g ->
+	Log.info "matched the link route."; 
+	let sw_id = Int64.of_string (Array.get g 1) in 
+	let pt_id = Int32.of_string (Array.get g 2) in 
+	let toint x = Int64.to_int_exn x in
+	Controller.port_stats sw_id pt_id >>| fun pstats ->
+	  (let rbytes = toint pstats.rx_bytes in 
+	  let tbytes =  toint pstats.tx_bytes in
+	  let rpackets = toint pstats.rx_packets in 
+	  let tpackets = toint pstats.tx_packets in 
+	  let data = Yojson.Basic.to_string (`Assoc[("bytes", `String (Int.to_string (rbytes+tbytes))); ("packets",`String (Int.to_string (tpackets + rpackets)))]) in
+	Gui_Server.string_handler data));] in
+  let _ = Gui_Server.create routes in 
+  don't_wait_for (propogate_events Controller.event)) in
+  ()
 
 let main (http_port : int) (openflow_port : int) () : unit =
-  don't_wait_for(listen ~http_port ~openflow_port)
+  start http_port openflow_port ()
+
+

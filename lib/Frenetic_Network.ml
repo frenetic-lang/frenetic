@@ -1092,6 +1092,6 @@ module Weight = struct
   let zero = 0.
 end
 
-module Net = Make(Node)(Link)
+(* module Net = Make(Node)(Link) 
 
-module NetPath = Net.Path(Weight)
+ module NetPath = Net.Path(Weight)  *)

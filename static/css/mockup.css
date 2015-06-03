@@ -1,0 +1,62 @@
+body {
+    font-family: Helvetica;
+}
+
+h1,
+h2 {
+    margin-left: 20px;
+}
+
+.clear {
+    clear: both;
+}
+
+div#canvas {
+    float: left;
+    background-color: #cc00bb;
+    width: 760px;
+    height: 580px;
+    margin: 10px;
+}
+
+div#sidebar {
+    float: left;
+    background-color: #00ccbb;
+    width: 380px;
+    height: 580px;
+    margin: 10px;
+}
+
+div#log {
+    background-color: #ccbb00;
+    width: 1160px;
+    height: 260px;
+    margin: 10px;
+    padding: 0.1px;
+}
+
+hr {
+    width: 80%;
+}
+
+table#host-table {
+    width: 80%;
+    margin-left: 10%;
+    margin-right: 10%;
+    text-align: left;
+}
+
+table#host-table td {
+    padding-left: 10px;
+    padding-right: 10px;
+}
+table#host-table .first {
+}
+
+pre {
+    width: 80%;
+    margin-left: 10%;
+    height: 200px;
+    background-color: #ddd;
+    padding: 2px;
+}
