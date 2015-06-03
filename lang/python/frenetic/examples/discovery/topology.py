@@ -67,7 +67,7 @@ class Topology(frenetic.App):
     # This is necessary to avoid a complete screwup on restart.
     self.update(self.policy())
 
-    IOLoop.instance().add_timeout(datetime.timedelta(seconds=2), self.run_probe)
+    IOLoop.instance().add_timeout(datetime.timedelta(seconds=3), self.run_probe)
     IOLoop.instance().add_timeout(datetime.timedelta(seconds=4), self.host_discovery)
 
     # The controller may already be connected to several switches on startup.
