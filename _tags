@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: ca2ac01b3b41b7228d498d9d4493bb10)
+# DO NOT EDIT (digest: 3a0ea5196fc399219db1f8e84c64b630)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -125,6 +125,8 @@ true: annot, bin_annot
 "frenetic/frenetic.native": package(fieldslib)
 "frenetic/frenetic.native": package(fieldslib.syntax)
 "frenetic/frenetic.native": package(ipaddr)
+"frenetic/frenetic.native": package(mparser)
+"frenetic/frenetic.native": package(mparser.re)
 "frenetic/frenetic.native": package(openflow)
 "frenetic/frenetic.native": package(openflow.async)
 "frenetic/frenetic.native": package(packet)
@@ -139,6 +141,8 @@ true: annot, bin_annot
 <frenetic/*.ml{,i,y}>: package(async_extended)
 <frenetic/*.ml{,i,y}>: package(cohttp)
 <frenetic/*.ml{,i,y}>: package(cohttp.async)
+<frenetic/*.ml{,i,y}>: package(mparser)
+<frenetic/*.ml{,i,y}>: package(mparser.re)
 # Executable katnetic
 "frenetic/katnetic.native": package(async)
 "frenetic/katnetic.native": package(base64)
