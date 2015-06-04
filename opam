@@ -14,7 +14,8 @@ remove: [
   ["ocamlfind" "remove" "frenetic"]
 ]
 depends: [
-  "ocamlfind"
+  "ocamlfind" {build}
+  "oasis" {build}
   "core"
   "async"
   "async_extended"
