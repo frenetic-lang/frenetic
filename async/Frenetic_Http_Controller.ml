@@ -117,6 +117,7 @@ let handle_request
       (fun pol ->
          Frenetic_DynGraph.push pol (get_client clientId).policy_node;
          Cohttp_async.Server.respond `OK)
+    | `GET, ["policy"] -> Server.respond_with_string (get_policy ())
     | _, _ ->
       Log.error "Unknown method/path (404 error)";
       Cohttp_async.Server.respond `Not_found
@@ -181,9 +182,8 @@ let start (http_port : int) (openflow_port : int) () : unit =
 
   let node_data_string pol flowtable = begin
     let open Yojson.Basic.Util in 
-    let polstr = Frenetic_NetKAT_Pretty.string_of_policy pol in 
     let flow_json = Yojson.Basic.to_string(Frenetic_NetKAT_SDN_Json.flowTable_to_json flowtable) in 
-    Yojson.Basic.to_string (`Assoc[("policy",`String polstr);
+    Yojson.Basic.to_string (`Assoc[("policy",`String pol);
 		      ("flowtable",`String flow_json)])
     end  in
 
@@ -200,7 +200,7 @@ let start (http_port : int) (openflow_port : int) () : unit =
     ("/switch/([1-9][0-9]*)", fun g ->
         let sw_id = Int64.of_string (Array.get g 1) in
         printf "Requested policy for switch %Lu" sw_id;
-        let pol = discover.policy in
+        let pol = Controller.get_policy () in
 	let flow_table = List.fold_left (Controller.get_table sw_id) ~f:(fun acc x -> (fst x) :: acc) ~init:[] in
         return (Gui_Server.string_handler (node_data_string pol flow_table)));
     ("/switch/([1-9][0-9]*)/port/([1-9][0-9]*)", fun g ->

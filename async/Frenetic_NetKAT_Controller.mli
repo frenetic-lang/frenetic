@@ -31,7 +31,8 @@ module type CONTROLLER = sig
   val is_query : string -> bool
   val start : ?port:int -> unit -> unit
   val current_switches : unit -> (switchId * portId list) list
-  val get_table : switchId -> (Frenetic_OpenFlow.flow * string list) list 
+  val get_table : switchId -> (Frenetic_OpenFlow.flow * string list) list
+  val get_policy: unit -> string  
 end
 
 module Make : CONTROLLER 

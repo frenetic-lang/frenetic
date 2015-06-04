@@ -132,7 +132,8 @@ module type CONTROLLER = sig
   val is_query : string -> bool
   val start : ?port:int -> unit -> unit
   val current_switches : unit -> (switchId * portId list) list
-  val get_table: switchId -> (Frenetic_OpenFlow.flow * string list) list 
+  val get_table: switchId -> (Frenetic_OpenFlow.flow * string list) list
+  val get_policy: unit -> string 
 end
 
 module Make : CONTROLLER = struct
@@ -141,6 +142,10 @@ module Make : CONTROLLER = struct
   let (pol_reader, pol_writer) = Pipe.create ()
   let (pktout_reader, pktout_writer) = Pipe.create ()
   let (event_reader, event_writer) =  Pipe.create ()
+
+  let get_policy () =  
+    let pol = Frenetic_NetKAT_Local_Compiler.to_local_pol !fdd in
+    Frenetic_NetKAT_Pretty.string_of_policy pol
 
   (* TODO(arjun,jnfoster): Result should be determined with network is
      updated. *)

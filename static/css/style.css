@@ -52,7 +52,7 @@ table#flowtbl{
     margin-left: 0%;
     margin-right:0%;
     display:block;
-    height:300px;
+    height:200px;
     overflow-y:scroll;
 }
 
@@ -71,7 +71,7 @@ table#flowtbl{
 #entity .policy pre {
     overflow: auto;
     white-space: pre-wrap;
-    max-height: 400px;
+    max-height: 200px;
 }
 
 #entity .flows {
