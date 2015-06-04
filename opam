@@ -12,6 +12,7 @@ build-test: [
 ]
 remove: [
   ["ocamlfind" "remove" "frenetic"]
+  ["ocamlfind" "remove" "openflow"]
 ]
 depends: [
   "ocamlfind" {build}
