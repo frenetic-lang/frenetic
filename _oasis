@@ -157,7 +157,7 @@ Executable testtool
   BuildDepends:
     pa_ounit,
     pa_ounit.syntax,
-    test_frenetic,
+    frenetic.test,
     frenetic,
     frenetic.async
 
