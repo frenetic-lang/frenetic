@@ -107,6 +107,19 @@ class App(object):
         request = HTTPRequest(url,method='POST',body=pol_json)
         return self.__http_client.fetch(request)
 
+    def pause_mux(self, client_ids):
+        cli_json = json.dumps(client_ids)
+        url = "http://localhost:9000/upd_chan_pause"
+        request = HTTPRequest(url,method='POST',body=cli_json)
+        #print ">>>> Sending pause message to mux for " + cli_json
+        return self.__http_client.fetch(request)
+
+    def resume_mux(self):
+        url = "http://localhost:9000/upd_chan_resume"
+        request = HTTPRequest(url,method='POST',body='RESUME')
+        #print ">>>> Sending resume message to mux"
+        return self.__http_client.fetch(request)
+
     def __init__(self):
         if not hasattr(self, 'client_id'):
             self.client_id = uuid.uuid4().hex

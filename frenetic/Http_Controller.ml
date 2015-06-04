@@ -44,6 +44,8 @@ let clients : (string, client) Hashtbl.t = Hashtbl.Poly.create ()
 let iter_clients (f : string -> client -> unit) : unit =
   Hashtbl.iter clients ~f:(fun ~key ~data -> f key data)
 
+let paused = ref None (* TODO where to put this? *)
+
 let rec propogate_events event =
   event () >>=
   fun evt ->
@@ -109,15 +111,39 @@ let handle_request
            >>= fun () ->
            Cohttp_async.Server.respond `OK)
     | `POST, [clientId; "update_json"] ->
-      handle_parse_errors body parse_update_json
-      (fun pol ->
-         DynGraph.push pol (get_client clientId).policy_node;
-         Cohttp_async.Server.respond `OK)
+      (match !paused with
+        | Some x -> 
+          let open Yojson.Basic.Util in
+          let l = filter_string (to_list x) in
+          (match List.exists l (fun x-> x=clientId) with
+            | true -> (*TODO: cache these rules and release when unpaused *)
+                printf ~level:`Error "Currently Paused For Update";
+                Cohttp_async.Server.respond `Bad_request
+            | false -> (* should consolidate with below *)
+                handle_parse_errors body parse_update_json
+                (fun pol ->
+                   DynGraph.push pol (get_client clientId).policy_node;
+                   Cohttp_async.Server.respond `OK))
+        | None ->
+          handle_parse_errors body parse_update_json
+          (fun pol ->
+             DynGraph.push pol (get_client clientId).policy_node;
+             Cohttp_async.Server.respond `OK))
     | `POST, [clientId; "update" ] ->
       handle_parse_errors body parse_update
       (fun pol ->
          DynGraph.push pol (get_client clientId).policy_node;
          Cohttp_async.Server.respond `OK)
+    | `POST, ["upd_chan_pause" ] ->
+      print_endline ">>>>>>>>>>>>MUX: Pausing.";
+      Body.to_string body >>= fun str ->
+      (*print_string str;*)
+      paused := Some (Yojson.Basic.from_string str);
+      Cohttp_async.Server.respond `OK
+    | `POST, ["upd_chan_resume" ] ->
+      paused := None;
+      print_endline ">>>>>>>>>>>>MUX: Resuming.";
+      Cohttp_async.Server.respond `OK
     | _, _ ->
       Log.error "Unknown method/path (404 error)";
       Cohttp_async.Server.respond `Not_found
