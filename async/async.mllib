@@ -1,13 +1,11 @@
 # OASIS_START
-# DO NOT EDIT (digest: fd4814163b228047ab722918365f6ef8)
-Async_NetKAT
-NetKAT_Controller
-Async_NetKAT_Controller
-NetKAT
-Async_NetKAT_Updates
-Async_NetKAT_Controller_Common
-Discovery
-Learning
-Raw_app
-TUtil
+# DO NOT EDIT (digest: 2434ded92935eec79edef4e78279ab62)
+Frenetic_Compile_Server
+Frenetic_Http_Controller
+Frenetic_NetKAT_Controller
+Frenetic_NetKAT_Updates
+Frenetic_OpenFlow0x01_Controller
+Frenetic_Ox
+Frenetic_Common
+Frenetic_DynGraph
 # OASIS_STOP

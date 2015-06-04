@@ -1,17 +1,21 @@
 opam-version: "1.2"
 ocaml-version: [ >= "4.02.0" ]
-version: "3.4.1"
+version: "4.0.0"
 maintainer: "Arjun Guha <arjun@cs.umass.edu>"
 build: [
   ["./configure" "--%{pa_ounit:enable}%-tests" "--prefix" prefix ]
   [make]
   [make "install"]
 ]
+build-test: [
+  [make "test"]
+]
 remove: [
-  ["ocamlfind" "remove" "netkat"]
+  ["ocamlfind" "remove" "frenetic"]
 ]
 depends: [
-  "ocamlfind"
+  "ocamlfind" {build}
+  "oasis" {build}
   "core"
   "async"
   "async_extended"
@@ -24,10 +28,10 @@ depends: [
   "yojson" {>= "1.2.0"}
   "base64" {>= "2.0.0"}
   "cohttp"
+  "tcpip"
+  "mparser"
+  "ocamlgraph" {>= "1.8.6"}
   "quickcheck"
   "ounit" {test}
   "pa_ounit" {test}
-  "packet"  {>= "0.4.0"}
-  "openflow" {>= "0.9.0" & <= "0.10.0"}
-  "topology"  {>= "0.4.0"}
 ]

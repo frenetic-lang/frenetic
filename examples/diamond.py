@@ -5,7 +5,7 @@ import sys
 # Mininet imports
 from mininet.log import lg, info, error, debug, output
 from mininet.util import quietRun
-from mininet.node import  Host, UserSwitch, RemoteController
+from mininet.node import  Host, OVSSwitch, RemoteController
 from mininet.cli import CLI
 from mininet.net import Mininet
 
@@ -17,7 +17,7 @@ def start(ip="127.0.0.1",port=6633):
                                        defaultIP=ip,
                                        port=port, 
                                        inNamespace=False)
-    net = Mininet(switch=UserSwitch, controller=ctrlr, intf=VLANIntf, autoStaticArp=True)
+    net = Mininet(switch=OVSSwitch, controller=ctrlr, intf=VLANIntf, autoStaticArp=True)
     c1 = net.addController('c1')
 
     ####### End of static Mininet prologue ######

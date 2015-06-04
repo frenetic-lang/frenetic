@@ -37,30 +37,29 @@ let async_init (cmd : (unit -> unit) Term.t) : unit Term.t =
            ((_, log_output) : (string * Log.Output.t Lazy.t))
            (f : unit -> unit) : unit =
     let main () =
-      Async_OpenFlow.Log.set_level verbosity;
-      Async_OpenFlow.Log.set_output [Lazy.force log_output];
+      Frenetic_Log.set_level verbosity;
+      Frenetic_Log.set_output [Lazy.force log_output];
       f () in
     never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ()) in
-  pure cmd' $ verbosity $ log_output $ cmd
+  app (app (app (pure cmd') verbosity) log_output) cmd
 
 let compile_server : unit Term.t * Term.info =
   let open Term in
   let doc = "Run the compile server" in
-  (async_init (pure Compile_Server.main $ http_port),
+  (async_init (app (pure Frenetic_Compile_Server.main) http_port),
    info "compile-server" ~doc)
 
 let http_controller : unit Term.t * Term.info =
   let open Term in
   let doc = "Run the HTTP controller" in
-  (async_init (pure Http_Controller.main $ http_port $ openflow_port),
+  (async_init (app (app (pure Frenetic_Http_Controller.main) http_port) openflow_port),
    info "http-controller" ~doc)
 
 let shell : unit Term.t * Term.info =
   let open Term in
   let doc = "Run the Frenetic Shell" in
-  (async_init (pure Shell.main $ http_port $ openflow_port),
+  (async_init (app (app (pure Frenetic_Shell.main) http_port) openflow_port),
    info "shell" ~doc)
-  
 
 (* Add new commands here. *)
 let top_level_commands = [

@@ -67,7 +67,7 @@ To run a Python application, you need to start the Frenetic controller first:
 
 There are several examples in this directory:
 
-  https://github.com/frenetic-lang/frenetic/blob/webkat2/lang/python/frenetic/examples/repeater.py
+  https://github.com/frenetic-lang/frenetic/lang/python/frenetic/examples/repeater.py
 
 These examples are included with the `pip` package:
 
@@ -103,8 +103,8 @@ open Core.Std
 open Async.Std
 
 let main () =
-  let static = Async_NetKAT.Policy create_from_file "examples/tree-2-2.kat" in
-  ignore(Async_NetKAT_Controller.start static ()) in
+  let static = Frenetic_NetKAT.Policy create_from_file "examples/tree-2-2.kat" in
+  ignore(Frenetic_NetKAT_Controller.start static ()) in
 
 never_returns (Scheduler.go_main ~main ())
 ```
