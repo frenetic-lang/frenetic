@@ -2,7 +2,7 @@
 
 An open-source SDN controller platform.
 
-[![Build Status](https://travis-ci.org/frenetic-lang/frenetic.png)](https://travis-ci.org/frenetic-lang/frenetic)
+[![Build Status](https://travis-ci.org/frenetic-lang/frenetic.svg?branch=master)](https://travis-ci.org/frenetic-lang/frenetic)
 
 ## Installation
 
