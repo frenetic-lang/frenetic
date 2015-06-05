@@ -44,7 +44,12 @@ let clients : (string, client) Hashtbl.t = Hashtbl.Poly.create ()
 let iter_clients (f : string -> client -> unit) : unit =
   Hashtbl.iter clients ~f:(fun ~key ~data -> f key data)
 
-let paused = ref None (* TODO where to put this? *)
+type upd_flag =
+  | Blocked of string list
+  | Restart of (string * policy option) list
+  | Normal
+
+let paused = ref Normal (* TODO where to put this? *)
 
 let rec propogate_events event =
   event () >>=
@@ -64,6 +69,13 @@ let get_client (clientId: string): client =
                DynGraph.attach node pol;
 	       let (r, w) = Pipe.create () in
                { policy_node = node; event_reader = r; event_writer =  w })
+
+let normal_resp body pol clientId = 
+  handle_parse_errors body parse_update_json
+  (fun pol ->
+     DynGraph.push pol (get_client clientId).policy_node;
+     Cohttp_async.Server.respond `OK)
+
 
 let handle_request
   (module Controller : NetKAT_Controller.CONTROLLER)
@@ -112,37 +124,59 @@ let handle_request
            Cohttp_async.Server.respond `OK)
     | `POST, [clientId; "update_json"] ->
       (match !paused with
-        | Some x -> 
-          let open Yojson.Basic.Util in
-          let l = filter_string (to_list x) in
-          (match List.exists l (fun x-> x=clientId) with
-            | true -> (*TODO: cache these rules and release when unpaused *)
+        | Blocked x -> 
+          (match List.exists x (fun curr_id-> curr_id=clientId) with
+            | true -> 
                 printf ~level:`Error "Currently Paused For Update";
                 Cohttp_async.Server.respond `Bad_request
-            | false -> (* should consolidate with below *)
-                handle_parse_errors body parse_update_json
-                (fun pol ->
-                   DynGraph.push pol (get_client clientId).policy_node;
-                   Cohttp_async.Server.respond `OK))
-        | None ->
-          handle_parse_errors body parse_update_json
-          (fun pol ->
-             DynGraph.push pol (get_client clientId).policy_node;
-             Cohttp_async.Server.respond `OK))
+            | false -> normal_resp body pol clientId) 
+        | Restart pol_list -> 
+          (match List.exists pol_list (fun (curr_id, _) -> curr_id=clientId) with
+            | true -> 
+                begin
+                  match List.exists pol_list 
+                    (fun (curr_id, p) -> ((curr_id=clientId) && (p=None))) with
+                    | true ->
+                        let tmp = ref None in (*TODO This is an abomination. why can't I fix IO.t???*)
+                        Body.to_string body >>= fun str -> 
+                        tmp := Some (NetKAT_Json.policy_from_json_string str); (* TODO very bad.*)
+                        paused := Restart ((clientId, !tmp):: (*This stores the policy!!!*)
+                        (List.filter pol_list (fun (c,_) -> c<>clientId)));
+                        printf ~level:`Error "(Not error, just wanted red font) Adding policy for __%s__, held for after resume%!"  clientId;
+                          Cohttp_async.Server.respond `OK
+                    | false -> match (List.exists pol_list (fun (_, p) -> p=None)) with
+                        | true ->   (* Waiting for other apps to push their rules*)
+                          printf ~level:`Error "(Not error, just wanted red font) Waiting for other apps to push rules, blocking %s%!" clientId;
+                          Cohttp_async.Server.respond `OK
+                        | false -> 
+                            begin (* have all necessary stored rules. now send them all together*)
+                              printf ~level:`Error "(not error, just red) HERE COMES SOME RULES!!!!%!";
+                              List.iter pol_list (fun (id, pol) -> match pol with
+                                | Some p -> DynGraph.push p (get_client id).policy_node
+                                | _ ->  printf ~level:`Error "Something horribly wrong...");
+                              paused := Normal;  (* Now resume normal execution *)
+                              print_endline ">>>>>>>>>>>>MUX: Sent Rules all in one batch.";
+                              Cohttp_async.Server.respond `OK
+                            end
+                end
+            | false -> normal_resp body pol clientId) 
+        | Normal -> normal_resp body pol clientId )
     | `POST, [clientId; "update" ] ->
       handle_parse_errors body parse_update
       (fun pol ->
          DynGraph.push pol (get_client clientId).policy_node;
          Cohttp_async.Server.respond `OK)
     | `POST, ["upd_chan_pause" ] ->
-      print_endline ">>>>>>>>>>>>MUX: Pausing.";
+      print_endline ">>>>>>>>>>>>MUX: Blocking.";
       Body.to_string body >>= fun str ->
-      (*print_string str;*)
-      paused := Some (Yojson.Basic.from_string str);
+      let open Yojson.Basic.Util in
+      let j = (Yojson.Basic.from_string str) in 
+      paused := Blocked (filter_string (to_list j)) ;
       Cohttp_async.Server.respond `OK
-    | `POST, ["upd_chan_resume" ] ->
-      paused := None;
-      print_endline ">>>>>>>>>>>>MUX: Resuming.";
+    | `POST, ["upd_chan_resume" ] -> (match !paused with
+       | Blocked l -> paused := Restart (List.map l (fun id -> (id, None)))
+       | _ -> printf ~level:`Error "No list to unpause.");
+      print_endline ">>>>>>>>>>>>MUX: Ready to queue up rules, still blocking.";
       Cohttp_async.Server.respond `OK
     | _, _ ->
       Log.error "Unknown method/path (404 error)";
