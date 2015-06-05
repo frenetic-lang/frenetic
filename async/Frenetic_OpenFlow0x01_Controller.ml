@@ -96,6 +96,7 @@ let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit De
         let xid = next_uid () in 
         let ivar = Ivar.create () in 
         Hashtbl.Poly.add_exn txns ~key:xid ~data:(ivar,[]);
+	send xid msg;
         Ivar.read ivar in
       Hashtbl.Poly.add_exn switches ~key:switchId ~data:{ features; send; send_txn };
       Pipe.write_without_pushback events_writer (`Connect (switchId, features));
