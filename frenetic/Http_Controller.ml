@@ -79,12 +79,11 @@ let normal_resp body pol clientId =
 
 (* have all necessary stored rules. now send them all together*)
 let push_stored_pols pol_list = 
-  printf ~level:`Error "(not error, wanted just red) HERE COMES SOME RULES!!!!%!";
   List.iter pol_list (fun (id, pol) -> match pol with
     | Some p -> DynGraph.push p (get_client id).policy_node
     | _ ->  printf ~level:`Error "Something horribly wrong...");
   paused := Normal;  (* Now resume normal execution *)
-  let t1 = Unix.gettimeofday () in  printf ~level:`Error "(Not error, just wanted red font) sent all rules TIMER:%f  %!" t1
+  let t1 = Unix.gettimeofday () in  printf ~level:`Error "(Not error, just wanted red font) sent all rules\nTIMER:%f  %!" t1
 
 let handle_request
   (module Controller : NetKAT_Controller.CONTROLLER)
@@ -146,15 +145,16 @@ let handle_request
                   match List.exists pol_list 
                     (fun (curr_id, p) -> ((curr_id=clientId) && (p=None))) with
                     | true ->
+                        let t1 = Unix.gettimeofday () in
+                        printf ~level:`Error "(Not error, just wanted red font) Adding policy for __%s__, held for after resume\nTIMER:%f %!"  clientId t1;
                         let tmp = ref None in (*TODO This is an abomination. why can't I fix IO.t???*)
                         Body.to_string body >>= fun str -> 
                         tmp := Some (NetKAT_Json.policy_from_json_string str); (* TODO very bad.*)
-                        paused := Restart ((clientId, !tmp):: (*This stores the policy!!!*)
-                        (List.filter pol_list (fun (c,_) -> c<>clientId)));
-                        let t1 = Unix.gettimeofday () in
-                        printf ~level:`Error "(Not error, just wanted red font) Adding policy for __%s__, held for after resume TIMER (%f) %!"  clientId t1;
+                        let updated_list = ((clientId, !tmp):: (*This stores the policy!!!*)
+                        (List.filter pol_list (fun (c,_) -> c<>clientId))) in
+                        paused := Restart (updated_list);
                         (* Check to see if the policy we just received was the last one missing *)
-                        if not (List.exists pol_list (fun (_, p) -> p=None)) then push_stored_pols pol_list;
+                        if not (List.exists updated_list (fun (_, p) -> p=None)) then (push_stored_pols updated_list);
                         Cohttp_async.Server.respond `OK
                     | false -> (match (List.exists pol_list (fun (_, p) -> p=None)) with
                         | true ->   (* Waiting for other apps to push their rules if some pol is still 'None'*)
