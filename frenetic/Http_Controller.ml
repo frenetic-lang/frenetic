@@ -77,6 +77,15 @@ let normal_resp body pol clientId =
      Cohttp_async.Server.respond `OK)
 
 
+(* have all necessary stored rules. now send them all together*)
+let push_stored_pols pol_list = 
+  printf ~level:`Error "(not error, wanted just red) HERE COMES SOME RULES!!!!%!";
+  List.iter pol_list (fun (id, pol) -> match pol with
+    | Some p -> DynGraph.push p (get_client id).policy_node
+    | _ ->  printf ~level:`Error "Something horribly wrong...");
+  paused := Normal;  (* Now resume normal execution *)
+  let t1 = Unix.gettimeofday () in  printf ~level:`Error "(Not error, just wanted red font) sent all rules TIMER:%f  %!" t1
+
 let handle_request
   (module Controller : NetKAT_Controller.CONTROLLER)
   ~(body : Cohttp_async.Body.t)
@@ -142,22 +151,16 @@ let handle_request
                         tmp := Some (NetKAT_Json.policy_from_json_string str); (* TODO very bad.*)
                         paused := Restart ((clientId, !tmp):: (*This stores the policy!!!*)
                         (List.filter pol_list (fun (c,_) -> c<>clientId)));
-                        printf ~level:`Error "(Not error, just wanted red font) Adding policy for __%s__, held for after resume%!"  clientId;
-                          Cohttp_async.Server.respond `OK
-                    | false -> match (List.exists pol_list (fun (_, p) -> p=None)) with
-                        | true ->   (* Waiting for other apps to push their rules*)
+                        let t1 = Unix.gettimeofday () in
+                        printf ~level:`Error "(Not error, just wanted red font) Adding policy for __%s__, held for after resume TIMER (%f) %!"  clientId t1;
+                        (* Check to see if the policy we just received was the last one missing *)
+                        if not (List.exists pol_list (fun (_, p) -> p=None)) then push_stored_pols pol_list;
+                        Cohttp_async.Server.respond `OK
+                    | false -> (match (List.exists pol_list (fun (_, p) -> p=None)) with
+                        | true ->   (* Waiting for other apps to push their rules if some pol is still 'None'*)
                           printf ~level:`Error "(Not error, just wanted red font) Waiting for other apps to push rules, blocking %s%!" clientId;
-                          Cohttp_async.Server.respond `OK
-                        | false -> 
-                            begin (* have all necessary stored rules. now send them all together*)
-                              printf ~level:`Error "(not error, just red) HERE COMES SOME RULES!!!!%!";
-                              List.iter pol_list (fun (id, pol) -> match pol with
-                                | Some p -> DynGraph.push p (get_client id).policy_node
-                                | _ ->  printf ~level:`Error "Something horribly wrong...");
-                              paused := Normal;  (* Now resume normal execution *)
-                              print_endline ">>>>>>>>>>>>MUX: Sent Rules all in one batch.";
-                              Cohttp_async.Server.respond `OK
-                            end
+                        | false -> push_stored_pols pol_list);
+                        Cohttp_async.Server.respond `OK
                 end
             | false -> normal_resp body pol clientId) 
         | Normal -> normal_resp body pol clientId )
