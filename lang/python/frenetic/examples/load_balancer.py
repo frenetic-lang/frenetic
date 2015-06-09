@@ -1,4 +1,5 @@
 import frenetic, sys, json, time
+import os.path
 from functools import partial
 from frenetic.syntax import *
 import single_switch_forwarding
@@ -55,9 +56,13 @@ def to_controller(known_src_ports):
 
 class State(object):
 
-  def __init__(self, connections, max_servers):
+  def __init__(self, filename, connections, max_servers):
     assert max_servers >= 1
-    self.connections = connections
+    self.filename = filename
+    self.connections = {}
+    # Deals with JSON
+    for key in connections:
+      self.connections[int(key)] = connections[key]
     self.max_servers = max_servers
     self.__next_server = 0
 
@@ -69,6 +74,13 @@ class State(object):
   def new_connection(self, src_port):
     if not(src_port in self.connections):
       self.connections[src_port] = self.next_server_port()
+
+    if self.filename != "/dev/null":
+      f = open(self.filename, "w")
+      json.dump(self.connections, f)
+      f.flush()
+      f.close()
+
     return self.connections[src_port]
 
 class LoadBalancer(frenetic.App):
@@ -81,8 +93,7 @@ class LoadBalancer(frenetic.App):
 
   def policy(self):
     conns = self.state.connections
-    pol = (Union(route(src_port, conns[src_port]) >>
-                  address_translation(conns[src_port]) for src_port in conns) |
+    pol = (Union(route(src_port, conns[src_port])  for src_port in conns) |
             to_controller(conns.keys()))
     return Filter(Test(EthType(0x800))) >> pol
 
@@ -90,23 +101,24 @@ class LoadBalancer(frenetic.App):
       self.update(self.policy())
 
   def packet_in(self, switch_id, port_id, payload):
-    print "Got something on port %s" % port_id
-    server_port = self.state.new_connection(packet_src_port(payload))
+    src = packet_src_port(payload)
+    server_port = self.state.new_connection(src)
+    print "Sending traffic from TCP port %s to switch port %s" % (src, server_port)
     self.update(self.policy())
 
-    # We are dropping the first packet of every connection, but the SYN will be
-    # resent.
-    self.pkt_out(switch_id = switch_id, payload = payload, actions = [])
+    # Assumes no address-translation
+    self.pkt_out(switch_id = switch_id, payload = payload, actions = [Output(Physical(server_port))])
 
 
-def main(version):
-    app = LoadBalancer(State({}, 2))
+def main(max_servers, state_filename):
+    if state_filename != "/dev/null" and os.path.isfile(state_filename):
+      f = open(state_filename, "r")
+      conns = json.load(f)
+      f.close()
+    else:
+      conns = {}
+    app = LoadBalancer(State(state_filename, conns, max_servers))
     app.start_event_loop()
 
 if __name__ == '__main__':
-    if len(sys.argv) == 2:
-      main(int(sys.argv[1]))
-    else:
-      print "Running version 1"
-      main(1)
-
+  main(int(sys.argv[1]), sys.argv[2])
