@@ -36,9 +36,10 @@ let signal_read () = read_outstanding := false;
 
 let init port =
   Log.info "Calling create!";
-  let sock_addr = "/var/run/frenetic/openflow0x01.socket" in
+  let sock_port = 8984 in
+  let sock_addr = `Inet (Unix.Inet_addr.localhost, sock_port) in
   let prog = "openflow" in
-  let args = ["-s"; sock_addr;
+  let args = ["-s"; string_of_int sock_port;
               "-p"; string_of_int port;
               "-v"]
              (* @ (match Log.level () with *)
@@ -66,18 +67,23 @@ let init port =
             Reader.read (Process.stdout proc) buf >>| function
             | `Eof -> `Finished ()
             | `Ok n -> `Repeat (Writer.write (Lazy.force Writer.stdout) ~len:n buf)));
-        (* wait for the server to start and create the socket file *)
-        Sys.when_file_exists sock_addr >>= fun () ->
-        Ivar.fill server_sock_addr sock_addr;
         Log.info "Connecting to first OpenFlow server socket";
-        Socket.connect (Socket.create Socket.Type.unix) (`Unix sock_addr)
+        let rec wait_for_server () = 
+          Monitor.try_with ~extract_exn:true (fun () -> Socket.connect (Socket.create Socket.Type.tcp) sock_addr) >>= function
+          | Ok sock -> return sock
+          | Error exn -> Log.info "Failed to open socket to OpenFlow server: %s" (Exn.to_string exn);
+            Log.info "Retrying in 1 second";
+            after (Time.Span.of_sec 1.)
+            >>= wait_for_server in
+        wait_for_server ()
         >>= fun sock ->
+        Ivar.fill server_sock_addr sock_addr;
         Log.info "Successfully connected to first OpenFlow server socket";
         Ivar.fill server_reader (Reader.create (Socket.fd sock));
         Ivar.fill server_writer (Writer.create (Socket.fd sock));
         (* We open a second socket to get the events stream *)
         Log.info "Connecting to second OpenFlow server socket";
-        Socket.connect (Socket.create Socket.Type.unix) (`Unix sock_addr)
+        Socket.connect (Socket.create Socket.Type.tcp) sock_addr
         >>= fun sock ->
         Log.info "Successfully connected to second OpenFlow server socket";
         let reader = Reader.create (Socket.fd sock) in
@@ -148,7 +154,7 @@ let send swid xid msg =
 let send_txn swid msg =
   Ivar.read server_sock_addr
   >>= fun sock_addr ->
-  Socket.connect (Socket.create Socket.Type.unix) (`Unix sock_addr)
+  Socket.connect (Socket.create Socket.Type.tcp) sock_addr
   >>= fun sock ->
   let reader = Reader.create (Socket.fd sock) in
   let writer = Writer.create (Socket.fd sock) in

@@ -155,7 +155,7 @@ let run_server port sock_addr =
        (Tcp.on_port port)
        client_handler >>= fun _ -> 
      return ());
-  Socket.(bind (create Socket.Type.unix) (`Unix sock_addr))
+  Socket.(bind (create Type.tcp) (sock_addr))
   >>| fun sock ->
   let sock = Socket.listen sock in
   Deferred.forever ()
@@ -214,21 +214,21 @@ let spec =
   let open Command.Spec in
   empty
   +> flag "-p" (optional int) ~doc:"int Port to listen on for OpenFlow switches"
-  +> flag "-s" (optional file) ~doc:"file Socket to use for communicating with higher-level controller"
+  +> flag "-s" (optional int) ~doc:"file TCP port to serve on for communicating with higher-level controller"
   +> flag "-v" no_arg ~doc:" enable verbose logging (`Debug level)"
 
 let run =
   Command.basic
     ~summary:"Run OpenFlow0x01 controller"
     spec
-    (fun port sock_addr verbose () ->
+    (fun port sock_port verbose () ->
        Log.set_output [(Async.Std.Log.Output.file `Text "/var/log/frenetic/openflow.log")];
        let port = match port with
          | Some port -> port
          | None -> 6634 in
-       let sock_addr = match sock_addr with
-         | Some sock_addr -> sock_addr
-         | None -> "/var/run/frenetic/openflow0x01.socket" in
+       let sock_addr = match sock_port with
+         | Some sock_port -> `Inet (Unix.Inet_addr.localhost, sock_port)
+         | None -> `Inet (Unix.Inet_addr.localhost, 8984) in
        let log_level = match verbose with
          | true -> Log.info "Setting log_level to Debug";
            `Debug
@@ -239,7 +239,6 @@ let run =
          Signal.(handle terminating
                    ~f:(fun t ->
                        Log.info "Received signal %s" (to_string t);
-                       don't_wait_for (Sys.remove sock_addr);
                        shutdown 0));
          Monitor.try_with (fun () ->
              Unix.(openfile ~close_on_exec:true "/var/run/frenetic/openflow0x01.pid" ~mode:[`Creat; `Trunc; `Wronly])
