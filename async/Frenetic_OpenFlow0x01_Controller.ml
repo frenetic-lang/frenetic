@@ -120,34 +120,28 @@ let ready_to_process () =
 let get_switches () =
   ready_to_process ()
   >>= fun (recv, send) ->
-  Log.debug "get_switches";
   send `Get_switches;
   recv ()
   >>| function
   | `Get_switches_resp resp ->
-    Log.debug "get_switches returned";
-    signal_read (); resp
+      signal_read (); resp
 
 let get_switch_features (switch_id : switchId) =
   ready_to_process ()
   >>= fun (recv, send) ->
-  Log.debug "get_switch_features";
   send (`Get_switch_features switch_id);
   recv ()
   >>| function
   | `Get_switch_features_resp resp ->
-    Log.debug "get_switch_features returned";
     signal_read (); resp
 
 let send swid xid msg =
   ready_to_process ()
   >>= fun (recv, send) ->
-  Log.info "send";
   send (`Send (swid,xid,msg));
   recv ()
   >>| function
   | `Send_resp resp ->
-    Log.debug "send returned";
     signal_read (); resp
 
 (* We open a new socket for each send_txn call so that we can block on the reply *)

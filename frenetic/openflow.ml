@@ -55,6 +55,8 @@ type state =
   | SentSwitchFeatures
   | Connected of threadState
 
+let socket_id = ref 0
+
 let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit Deferred.t =
   let open Message in 
 
@@ -76,17 +78,17 @@ let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit De
       loop state
 
     (* Initial *)
-    | Initial, `Eof -> 
+    | Initial, `Eof ->
       return () 
     | Initial, `Ok (hdr,Hello bytes) ->
       (* TODO(jnf): check version? *)
       serialize 0l SwitchFeaturesRequest;
       loop SentSwitchFeatures
-    | Initial, `Ok(hdr,msg) -> 
+    | Initial, `Ok(hdr,msg) ->
       assert false
 
     (* SentSwitchFeatures *)
-    | SentSwitchFeatures, `Eof -> 
+    | SentSwitchFeatures, `Eof ->
       return ()
     | SentSwitchFeatures, `Ok (hdr, SwitchFeaturesReply features) ->
       let switchId = features.switch_id in
@@ -101,15 +103,19 @@ let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit De
         Hashtbl.Poly.add_exn txns ~key:xid ~data:(ivar,[]);
         Ivar.read ivar in
       Hashtbl.Poly.add_exn switches ~key:switchId ~data:{ features; send; send_txn };
+      Log.debug "Switch %s connected" (string_of_switchId switchId);
       Pipe.write_without_pushback events_writer (`Connect (switchId, features));
       loop (Connected threadState)
-    | SentSwitchFeatures, `Ok (hdr,msg) -> 
-      assert false
+    (* TODO: Queue up these messages and deliver them when we're done connecting *)
+    | SentSwitchFeatures, `Ok (hdr,msg) ->
+      Log.debug "Dropping unexpected msg received before SwitchFeatures response: %s" (Message.to_string msg);
+      loop state   
 
     (* Connected *)
     | Connected threadState, `Eof ->
       (* TODO(jnf): log disconnection *)
       Hashtbl.Poly.remove switches threadState.switchId;
+      Log.debug "Switch %s disconnected" (string_of_switchId threadState.switchId);
       Pipe.write_without_pushback events_writer (`Disconnect threadState.switchId);
       return ()
     | Connected threadState, `Ok (hdr, msg) ->
@@ -147,69 +153,48 @@ let send_txn switchId msg =
   | None -> 
     `Eof
 
-let run_server port sock_addr =
-  Log.debug "Called init!";
-  don't_wait_for 
+let rpc_handler (a:Socket.Address.Inet.t) (reader:Reader.t) (writer:Writer.t) : unit Deferred.t =
+  let read () = Reader.read_marshal reader >>| function
+    | `Eof -> Log.error "Upstream socket closed unexpectedly!";
+      `Finished ()
+    | `Ok a -> a in
+  let write = Writer.write_marshal writer ~flags:[] in
+  Deferred.repeat_until_finished ()
+    (fun () -> read () >>= function
+     | `Finished () -> return (`Finished ())
+     | `Get_switches ->
+       let switches = get_switches () in
+       write (`Get_switches_resp switches);
+       return (`Repeat ())
+     | `Get_switch_features sw_id ->
+       write (`Get_switch_features_resp (get_switch_features sw_id));
+       return (`Repeat ())
+     | `Send (sw_id, xid, msg) ->
+       write (`Send_resp (send sw_id xid msg));
+       return (`Repeat ())
+     | `Events ->
+       Pipe.iter_without_pushback events
+         ~f:(fun evt ->
+             write (`Events_resp evt)) >>| fun () ->
+       Log.error "Event stream stopped unexpectedly!";
+       `Finished ()
+     | `Send_txn (swid, msg) ->
+       write (`Send_txn_resp (send_txn swid msg));
+       return (`Repeat ()))
+
+  
+let run_server port rpc_port =
+  don't_wait_for
     (Tcp.Server.create
        ~on_handler_error:`Raise
        (Tcp.on_port port)
        client_handler >>= fun _ -> 
      return ());
-  Socket.(bind (create Type.tcp) (sock_addr))
-  >>| fun sock ->
-  let sock = Socket.listen sock in
-  Deferred.forever ()
-    (fun () ->
-       Socket.accept sock
-       >>| function
-       | `Socket_closed -> Log.error "Socket closed before we started!";
-         Socket.shutdown sock `Both;
-         failwith "Can not open socket to serve OpenFlow controller interface"
-       | `Ok (socket, _) ->
-         don't_wait_for (
-           begin
-             let fd = Socket.fd socket in
-             let reader = Reader.create fd in
-             let writer = Writer.create fd in
-             let read () = Reader.read_marshal reader >>| function
-               | `Eof -> Log.error "Upstream socket closed unexpectedly!";
-                 Socket.shutdown socket `Both;
-                 `Finished ()
-               | `Ok a -> a in
-             let write = Writer.write_marshal writer ~flags:[] in
-             Deferred.repeat_until_finished () (fun () ->
-                 read ()
-                 >>= function
-                 | `Finished () -> return (`Finished ())
-                 | `Get_switches ->
-                   Log.debug "get_switches";
-                   let switches = get_switches () in
-                   write (`Get_switches_resp switches);
-                   Log.debug "Sent get_switches_resp";
-                   return (`Repeat ())
-                 | `Get_switch_features sw_id ->
-                   Log.debug "get_switch_features";
-                   write (`Get_switch_features_resp (get_switch_features sw_id));
-                   return (`Repeat ())
-                 | `Send (sw_id, xid, msg) ->
-                   Log.debug "send";
-                   write (`Send_resp (send sw_id xid msg));
-                   return (`Repeat ())
-                 | `Events ->
-                   Log.debug "events";
-                   Pipe.iter_without_pushback events
-                     ~f:(fun evt ->
-                         write (`Events_resp evt)) >>| fun () ->
-                   Log.error "Event stream stopped unexpectedly!";
-                   `Finished ()
-                 | `Send_txn (swid, msg) ->
-                   Log.debug "send_txn";
-                   write (`Send_txn_resp (send_txn swid msg));
-                   return (`Repeat ())) >>| fun () ->
-             Log.info "Closing socket";
-             Socket.shutdown socket `Both
-           end))
-
+  Tcp.Server.create
+    ~on_handler_error:`Raise
+    (Tcp.on_port rpc_port)
+    rpc_handler >>= fun _ -> return ()
+  
 let spec =
   let open Command.Spec in
   empty
@@ -226,9 +211,9 @@ let run =
        let port = match port with
          | Some port -> port
          | None -> 6634 in
-       let sock_addr = match sock_port with
-         | Some sock_port -> `Inet (Unix.Inet_addr.localhost, sock_port)
-         | None -> `Inet (Unix.Inet_addr.localhost, 8984) in
+       let rpc_port = match sock_port with
+         | Some sock_port -> sock_port
+         | None -> 8984 in
        let log_level = match verbose with
          | true -> Log.info "Setting log_level to Debug";
            `Debug
@@ -248,7 +233,7 @@ let run =
          | Error exn -> Log.error "Failed to create pid file /var/run/frenetic/openflow0x01.pid: %s" (Exn.to_string exn);
            return ()
          | Ok () -> return ()) >>= fun () ->
-         Monitor.try_with (fun () -> run_server port sock_addr)
+         Monitor.try_with (fun () -> run_server port rpc_port)
          >>| function
          | Error exn -> Log.error "Caught an exception!";
            Log.error "%s" (Exn.to_string exn)
