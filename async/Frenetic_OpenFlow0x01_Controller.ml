@@ -101,8 +101,9 @@ let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit De
       Hashtbl.Poly.add_exn switches ~key:switchId ~data:{ features; send; send_txn };
       Pipe.write_without_pushback events_writer (`Connect (switchId, features));
       loop (Connected threadState)
-    | SentSwitchFeatures, `Ok (hdr,msg) -> 
-      assert false
+    | SentSwitchFeatures, `Ok (hdr,msg) ->
+      (* Ignore messages sent between SwitchFeaturesReq and SwitchFeaturesResp *)
+      loop state
 
     (* Connected *)
     | Connected threadState, `Eof ->
