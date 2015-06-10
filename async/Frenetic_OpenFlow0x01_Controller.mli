@@ -17,4 +17,6 @@ val events : event Pipe.Reader.t
 
 val send : switchId -> xid -> Message.t -> [`Ok | `Eof] Deferred.t
 
+val send_batch : switchId -> xid -> Message.t list -> [`Ok | `Eof] Deferred.t
+
 val send_txn : switchId -> Message.t -> [`Ok of (Message.t list) Deferred.t | `Eof] Deferred.t

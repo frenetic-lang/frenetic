@@ -53,11 +53,12 @@ module BestEffortUpdate = struct
   let install_flows_for sw_id table =
     let to_flow_mod p f = M.FlowModMsg (from_flow p f) in
     let priority = ref 65536 in
-    Deferred.List.iter table ~f:(fun flow ->
-      decr priority;
-      Controller.send sw_id 0l (to_flow_mod !priority flow) >>= function
-        | `Eof -> raise UpdateError
-        | `Ok -> return ())
+    let flows = List.map table ~f:(fun flow ->
+        decr priority;
+        to_flow_mod !priority flow) in
+    Controller.send_batch sw_id 0l flows >>= function
+    | `Eof -> raise UpdateError
+    | `Ok -> return ()
 
   let delete_flows_for sw_id =
     let delete_flows = M.FlowModMsg OF10.delete_all_flows in
@@ -98,11 +99,12 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
   let install_flows_for sw_id ?old table =
     let to_flow_mod p f = M.FlowModMsg (from_flow p f) in
     let priority = ref 65536 in
-    Deferred.List.iter table ~f:(fun flow ->
-      decr priority;
-      Controller.send sw_id 0l (to_flow_mod !priority flow) >>= function
-        | `Eof -> raise UpdateError
-        | `Ok -> return ())
+    let flows = List.map table ~f:(fun flow ->
+        decr priority;
+        to_flow_mod !priority flow) in
+    Controller.send_batch sw_id 0l flows >>= function
+    | `Eof -> raise UpdateError
+    | `Ok -> return ()
 
   let delete_flows_for sw_id =
     let delete_flows = M.FlowModMsg OF10.delete_all_flows in
@@ -215,10 +217,11 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
     let to_flow_del prio flow =
       M.FlowModMsg ({from_flow prio flow with command = DeleteStrictFlow}) in
     (* Install the new table *)
-    Deferred.List.iter new_table ~f:(fun (flow, prio) ->
-      Controller.send c_id 0l (to_flow_mod prio flow) >>= function
+    let new_flows = List.map new_table ~f:(fun (flow, prio) ->
+        to_flow_mod prio flow) in
+    Controller.send_batch c_id 0l new_flows >>= function
         | `Eof -> raise UpdateError 
-        | `Ok -> return ())
+        | `Ok -> return ()
     (* Delete the old table from the bottom up *)
     >>= fun () -> Deferred.List.iter del_table ~f:(fun (flow, prio) ->
       Controller.send c_id 0l (to_flow_del prio flow) >>= function

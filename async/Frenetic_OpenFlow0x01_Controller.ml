@@ -144,6 +144,15 @@ let send swid xid msg =
   | `Send_resp resp ->
     signal_read (); resp
 
+let send_batch swid xid msgs =
+  ready_to_process ()
+  >>= fun (recv, send) ->
+  send (`Send_batch (swid,xid,msgs));
+  recv ()
+  >>| function
+  | `Send_batch_resp resp ->
+    signal_read (); resp
+
 (* We open a new socket for each send_txn call so that we can block on the reply *)
 let send_txn swid msg =
   Ivar.read server_sock_addr

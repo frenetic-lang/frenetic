@@ -146,6 +146,14 @@ let send switchId xid msg =
   | None ->
     `Eof
 
+let send_batch switchId xid msgs = 
+  match Hashtbl.Poly.find switches switchId with
+  | Some switchState ->
+    List.iter msgs ~f:(switchState.send xid);
+    `Ok
+  | None ->
+    `Eof
+
 let send_txn switchId msg = 
   match Hashtbl.Poly.find switches switchId with
   | Some switchState -> 
@@ -171,6 +179,9 @@ let rpc_handler (a:Socket.Address.Inet.t) (reader:Reader.t) (writer:Writer.t) : 
        return (`Repeat ())
      | `Send (sw_id, xid, msg) ->
        write (`Send_resp (send sw_id xid msg));
+       return (`Repeat ())
+     | `Send_batch (sw_id, xid, msgs) ->
+       write (`Send_batch_resp (send_batch sw_id xid msgs));
        return (`Repeat ())
      | `Events ->
        Pipe.iter_without_pushback events
