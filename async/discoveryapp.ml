@@ -231,8 +231,8 @@ module Discovery = struct
       | `Ok evt -> begin
 	  t.nib := Switch.update (Host.update !(t.nib) evt) evt;
 	  let new_pol = Union(Switch.create (), Host.create()) in 
-	  update_pol new_pol >>=
-	  fun b -> loop event_pipe update_pol end
+	  (*update_pol new_pol >>=
+	  fun b ->*) loop event_pipe update_pol end
 	 
 
   let start (event_pipe: event Pipe.Reader.t) (update_pol:policy -> unit Deferred.t)
