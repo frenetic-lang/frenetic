@@ -117,7 +117,9 @@ let handle_request
       (fun pol ->
          Frenetic_DynGraph.push pol (get_client clientId).policy_node;
          Cohttp_async.Server.respond `OK)
-    | `GET, ["policy"] -> Server.respond_with_string (get_policy ())
+    | `GET, ["policy"] -> get_policy () |> 
+	Frenetic_NetKAT_Pretty.string_of_policy |>
+	Server.respond_with_string
     | _, _ ->
       Log.error "Unknown method/path (404 error)";
       Cohttp_async.Server.respond `Not_found
@@ -195,25 +197,27 @@ let start (http_port : int) (openflow_port : int) () : unit =
     Discoveryapp.Discovery.start event_pipe (update t "discover") (pkt_out t)) in
   let _ = update t "discover" discover.policy >>| 
   fun _ ->   
-   let module StatMap = Map.Make(string) in 
+   let module StatMap = Map.Make(String) in 
    let track = ref false in 
    let track_name = ref "" in 
    let stats = ref StatMap.empty in 
-   let collect_stats name = 
-     if (!track) then (
-	Clock.after (Time.Span.of_sec 4.0) >>= fun () ->
+   let rec collect_stats name = 
+     (if (!track) then (
+	Clock.after (Time.Span.of_sec 4.0) >>= fun () ->(
 	  let cur_time = Float.to_int (Unix.gettimeofday ()) in 
-	  let cur_stat = Controller.query name >>= fun stats ->
-	    let statstr = Frenetic_NetKAT_Json.stats_to_json_string stats in
+	  Controller.query name >>= fun data ->(
+	    let statstr = Frenetic_NetKAT_Json.stats_to_json_string data in
 	    stats := StatMap.add !stats statstr cur_time; 
-	    collect_stats name
+	    collect_stats name))
 	)
-     else (return ()) in 
+     else (return ())) in 
    (let routes = [
     ("/topology", fun _ ->
       return (Gui_Server.string_handler (Gui_Server.topo_to_json !(discover.nib))));
-    ("/graph", fun _ ->
-      return (Gui_Server.string_handler "replace with collected data")
+    ("/graph", fun _ ->	
+      let json_stat time dp = `Assoc [("time", `Int time);("stat", `String dp)] in
+      let data = `List (StatMap.fold !stats ~init:[] ~f:(fun ~key:stat ~data:time acc-> (json_stat time stat) :: acc)) in
+      return (Gui_Server.string_handler (Yojson.Basic.to_string data ))
 	);
     ("/query/(.*)/pred/(.*)", fun g -> 
 	let name = Array.get g 1 in
@@ -221,17 +225,17 @@ let start (http_port : int) (openflow_port : int) () : unit =
 	  return (Gui_Server.string_handler "Already Exists.")
 	else (
 	let polstr = Array.get g 2 in 
-	let replace re temp s= Str.global_replace (regexp_string re) temp s in
+	let replace re t s= Str.global_replace (Str.regexp_string re) t s in
 	let polstr = replace "%20" " " polstr |>
 		replace "%3A" ":" |>
 		replace "%7B" ";" in
 	let pol = Frenetic_NetKAT_Parser.policy_from_string polstr in 
-	let query = (Seq pol,(Mod(Location(Query name)))) in 
-	let new_pol = Union (Controller.get_policy , query) in 
+	let query = Seq (pol, (Mod(Location(Query name)))) in 
+	let new_pol = Union (query, Controller.get_policy ()) in 
 	Controller.update_policy new_pol >>= fun _ -> 
 	  return (Gui_Server.string_handler "Ok!"))
 	);
-    ("stats\(.*)", fun g ->
+    ("stats/(.*)", fun g ->
 	let name = Array.get g 1 in 
 	if (Controller.is_query name) then begin
 	  Controller.query name >>= fun stats ->
@@ -239,9 +243,9 @@ let start (http_port : int) (openflow_port : int) () : unit =
 	    return (Gui_Server.string_handler str) 
 	  end
 	else 
-	    return (Gui_Server.string_hanlder "No such query.")
+	    return (Gui_Server.string_handler "No such query.")
 	);
-    ("\track\(.*)", fun g ->
+    ("/track/(.*)", fun g ->
 	let name = Array.get g 1 in 
 	if (Controller.is_query name) then (
 	  if (!track = false) then (
@@ -251,14 +255,14 @@ let start (http_port : int) (openflow_port : int) () : unit =
 	   return (Gui_Server.string_handler "collecting stats."))
 	  else (
 	   track := false; 
-	   return Gui_Server.string_handler ("Stopped tracking" ^ !track_name)))
+	   return (Gui_Server.string_handler ("Stopped tracking" ^ !track_name))))
  	else 
-	   return (Gui_Server.string_hanlder "No such query.")
+	   return (Gui_Server.string_handler "No such query.")
 );
     ("/switch/([1-9][0-9]*)", fun g ->
         let sw_id = Int64.of_string (Array.get g 1) in
         printf "Requested policy for switch %Lu" sw_id;
-        let pol = Controller.get_policy () in
+        let pol = Frenetic_NetKAT_Pretty.string_of_policy (Controller.get_policy ()) in
 	let flow_table = List.fold_left (Controller.get_table sw_id) ~f:(fun acc x -> (fst x) :: acc) ~init:[] in
         return (Gui_Server.string_handler (node_data_string pol flow_table)));
     ("/switch/([1-9][0-9]*)/port/([1-9][0-9]*)", fun g ->

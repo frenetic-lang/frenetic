@@ -30,6 +30,14 @@
         <hr />
         <table>
         </table>
+	<form action=""> 
+	  <input type="text" id="QueryName">Query Name</input> 
+	  <input type="text" id="FilterPolicy">Filter Policy</input>
+	  <button onclick="addQuery()">Add Query</button>
+	  <button onclick="getStats()">Get Stats</button>
+	  <button onclick="track()">Track</button>
+	  <button onclick="graphStats()">Graph</button>
+	</form>
       </div>
     </div>
     <div class="clear"></div>
@@ -41,6 +49,13 @@
   </div>
   <script src="static/js/d3.v3.min.js"></script>
   <script>
+      function addQuery(){
+	var query_name= document.getElementById("QueryName").value;
+	var policy = document.getElementById("FilterPolicy").value;
+	d3.text("/query/"+query_name+"/pred/"+policy, function(data){
+	  console.log(data);
+	});
+      }
       function entity(d) {
         var entries;
 
