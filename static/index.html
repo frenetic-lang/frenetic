@@ -12,6 +12,7 @@
   <script src="static/js/rainbow.min.js"></script>
   <script src="static/js/language/generic.js"></script>
   <script src="static/js/language/frenetic.js"></script>
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 
   <!--[if lt IE 9]>
   <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -28,16 +29,14 @@
       <div id="entity">
         <h2>Entity Information</h2>
         <hr />
-        <table>
-        </table>
-	<form action=""> 
-	  <input type="text" id="QueryName">Query Name</input> 
-	  <input type="text" id="FilterPolicy">Filter Policy</input>
-	  <button onclick="addQuery()">Add Query</button>
-	  <button onclick="getStats()">Get Stats</button>
-	  <button onclick="track()">Track</button>
-	  <button onclick="graphStats()">Graph</button>
-	</form>
+	<input type="text" id="QueryName">Query Name</input> 
+	<input type="text" id="FilterPolicy">Filter Policy</input>
+	<button id="addQuery">Add Query</button>
+	<button id="getStats">Get Stats</button> <br> 
+	<button id="track">Track</button>
+	<button id="graphStats">Graph</button><br>
+	<table>
+	</table>
       </div>
     </div>
     <div class="clear"></div>
@@ -49,112 +48,136 @@
   </div>
   <script src="static/js/d3.v3.min.js"></script>
   <script>
-      function addQuery(){
+
+     function clear_entity(){
+	d3.select('#entity')
+	  .selectAll('.policy')
+	  .select('#flowtbl')
+	  .remove();
+
+	d3.select('#entity table').selectAll('tr').remove();
+	d3.select('#entity svg').remove();
+	d3.select('#entity').selectAll('.policy').remove();
+
+      } 
+
+     $("#addQuery").click(function(){
 	var query_name= document.getElementById("QueryName").value;
 	var policy = document.getElementById("FilterPolicy").value;
 	d3.text("/query/"+query_name+"/pred/"+policy, function(data){
 	  console.log(data);
 	});
-      }
-      function getStats(){
+      });
+
+      $("#getStats").click(function(){
 	var query_name = document.getElementById("QueryName").value;
 	d3.text("stats/"+query_name, function(data){
 	  console.log(data);
 	});
-      }
-      function track(){
+      });
+
+      $("#track").click(function(){
 	var query_name = document.getElementById("QueryName").value;
 	d3.text("track/"+query_name,function(data){
 	  console.log(data);
 	});
-      }
-      function graphStats(){
+      });
+
+      $("#graphStats").click(function(){
 	d3.text("/graph",function(data){
-	  console.log(data);
-	      // Set the dimensions of the canvas / graph
-	console.log("Setting dimension.");
-    var margin = {top: 30, right: 20, bottom: 30, left: 50},
-        width = 400 - margin.left - margin.right,
-        height = 270 - margin.top - margin.bottom;
-	console.log("setting range.");
-    // Set the ranges
-    var x = d3.scale.linear().range([0, width]);
-    var y = d3.scale.linear().range([height, 0]);
+	    clear_entity();
+	    console.log(data);
+	    // Set the dimensions of the canvas / graph
+	    console.log("Setting dimension.");
+	    var margin = {top: 30, right: 20, bottom: 30, left: 50},
+		width = 400 - margin.left - margin.right,
+		height = 270 - margin.top - margin.bottom;
+		console.log("setting range.");
+	    // Set the ranges
+	    var x = d3.scale.linear().range([0, width]);
+	    var y = d3.scale.linear().range([height, 0]);
 
-    // Define the axes
-	console.log("defining axes.");
-    var xAxis = d3.svg.axis().scale(x)
-        .orient("bottom").ticks(5);
+	    // Define the axes
+		console.log("defining axes.");
+	    var xAxis = d3.svg.axis().scale(x)
+		.orient("bottom").ticks(5);
 
-    var yAxis = d3.svg.axis().scale(y)
-        .orient("left").ticks(5);
+	    var yAxis = d3.svg.axis().scale(y)
+		.orient("left").ticks(5);
 
-    console.log("Define the line");
-    var valueline = d3.svg.line()
-        .x(function(d) { return x(d.time_x); })
-        .y(function(d) { return y(d.stat.bytes); });
-        
-    console.log("Adds the svg canvas");
-    var svg = d3.select("body")
-        .append("svg")
-            .attr("width", width + margin.left + margin.right)
-            .attr("height", height + margin.top + margin.bottom)
-        .append("g")
-            .attr("transform", 
-                  "translate(" + margin.left + "," + margin.top + ")");
-    console.log("parsing data");
-    data = JSON.parse(data);
+	    console.log("Define the line");
+	    var valueline = d3.svg.line()
+		.x(function(d) { return x(d.time_x); })
+		.y(function(d) { return y(d.stat.bytes); });
+		
+	    console.log("Adds the svg canvas");
+	    var svg = d3.select("#entity")
+		.append("svg")
+		    .attr("width", width + margin.left + margin.right)
+		    .attr("height", height + margin.top + margin.bottom)
+		.append("g")
+		    .attr("transform", 
+			  "translate(" + margin.left + "," + margin.top + ")");
+	    console.log("parsing data");
+	    data = JSON.parse(data);
 
-    var min_time = d3.min(data,function(d){ return parseInt(d.time) });
+	    var min_time = d3.min(data,function(d){ return parseInt(d.time) });
 
-    console.log("function to do order data.");
-    data.forEach(function(d) {
-        d.time_x = d.time - min_time;
-	console.log(d.time_x);
-	console.log(d.stat.bytes);
-    });
+	    console.log("function to do order data.");
+	    data.forEach(function(d,i) {
+		if(i == data.length-1 ){
+		  d.stat.bytes = 0;
+		  d.stat.packets = 0;
+		} else 
+		{
+		  console.log(i);
+		  d.stat.bytes -= data[i+1].stat.bytes;
+		  d.stat.packets -= data[i+1].stat.packets;
+		}
 
-    console.log(" Scale the range of the data");
-    x.domain(d3.extent(data, function(d) { return d.time_x; }));
-    y.domain([0, d3.max(data, function(d) { return d.stat.bytes; })]);
+		d.time_x = d.time - min_time;
+		console.log(d.time_x);
+		console.log(d.stat.bytes);
+	    });
 
-    console.log("Add the valueline path.");
-    svg.append("path")
-        .attr("class", "line")
-        .attr("d", valueline(data));
+	    console.log(" Scale the range of the data");
+	    x.domain(d3.extent(data, function(d) { return d.time_x; }));
+	    y.domain([0, d3.max(data, function(d) { return d.stat.bytes; })]);
 
-    console.log("Add the scatterplot");
-    svg.selectAll("dot")
-        .data(data)
-      .enter().append("circle")
-        .attr("r", 3.5)
-        .attr("cx", function(d) { return x(d.time_x); })
-        .attr("cy", function(d) { return y(d.stat.bytes); });
+	    console.log("Add the valueline path.");
+	    svg.append("path")
+		.attr("class", "line")
+		.attr("d", valueline(data));
 
-    console.log("Add the X Axis");
-    svg.append("g")
-        .attr("class", "x axis")
-        .attr("transform", "translate(0," + height + ")")
-        .call(xAxis);
+	    console.log("Add the scatterplot");
+	    svg.selectAll("dot")
+		.data(data)
+	      .enter().append("circle")
+		.attr("r", 3.5)
+		.attr("cx", function(d) { return x(d.time_x); })
+		.attr("cy", function(d) { return y(d.stat.bytes); });
 
-    console.log("Add the Y Axis");
-    svg.append("g")
-        .attr("class", "y axis")
-        .call(yAxis);
+	    console.log("Add the X Axis");
+	    svg.append("g")
+		.attr("class", "x axis")
+		.attr("transform", "translate(0," + height + ")")
+		.call(xAxis);
+
+	    console.log("Add the Y Axis");
+	    svg.append("g")
+		.attr("class", "y axis")
+		.call(yAxis);
 
 	});
-      }
+      });
+
       function entity(d) {
         var entries;
 
+	clear_entity();
         if (d.type === 'switch') {
             entries = [['switch', d.id]];
             d3.json('/switch/' + d.id, function(data) {
-
-	      d3.select('#entity')
-		.selectAll('.policy')
-		.select('#flowtbl')
-		.remove();
 
 	      var policy = data.policy;
               var pol = d3.select('#entity').selectAll('.policy')
@@ -184,7 +207,6 @@
                 ['IP', d.ip],
                 ['Switch Port', d.switch_port]
             ];
-            d3.select('#entity').selectAll('.policy').remove()
         } 
 
         var rows = d3.select('#entity table').selectAll('tr')
@@ -202,18 +224,46 @@
       }
 
       function link_info(l,data){
+	clear_entity();
 	var sw = l.source;
+	var sEntry = [],
+	tEntry = [];
 	if(l.source.type == "host"){
+	    sEntry = [['MAC',sw.mac],
+		      ['IP',sw.ip],
+		      ['Switch Port',sw.switch_port]];
 	    sw = l.target;
-	    if(l.target.type == "host"){
-		console.log(l);
-		return;
-	    }
-	}
+	}else
+	    sEntry = [['Switch ID',sw.id]];
+	
+	d = l.target;
+	if(d.type=='host'){
+	    tEntry = [['MAC',d.mac],
+		      ['IP',d.ip],
+		      ['Switch Port',d.switch_port]];	
+	}else
+	    tEntry = [['Switch ID',d.id]];
+	
 	var sw_id = sw.id;
 	var pt_id = sw.switch_port;
-	d3.text('/switch/' + sw_id + '/port/'+ pt_id, function(data){
-	    console.log(data);
+	d3.text('/switch/' + sw_id + '/port/'+ pt_id, function(d){
+	    console.log(d);
+	    d = JSON.parse(d);
+	    var entries = sEntry.concat(tEntry);
+	    entries = entries.concat([['packets',d.packets],['bytes',d.bytes]]);
+	   
+            var rows = d3.select('#entity table').selectAll('tr')
+               .data(entries);
+
+            rows.enter().append('tr')
+            var cells = rows.selectAll('td')
+                .data(function(d) { return d })
+
+            cells.enter().append('td');
+            cells
+                 .classed('first', function(d, i) { return i === 0; })
+                 .text(function(d) { return d; });
+ 
 	})
       }
 
