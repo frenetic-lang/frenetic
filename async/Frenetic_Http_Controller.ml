@@ -197,7 +197,7 @@ let start (http_port : int) (openflow_port : int) () : unit =
     Discoveryapp.Discovery.start event_pipe (update t "discover") (pkt_out t)) in
   let _ = update t "discover" discover.policy >>| 
   fun _ ->   
-   let module StatMap = Map.Make(String) in 
+   let module StatMap = Map.Make(Int) in 
    let track = ref false in 
    let track_name = ref "" in 
    let stats = ref StatMap.empty in 
@@ -206,8 +206,8 @@ let start (http_port : int) (openflow_port : int) () : unit =
 	Clock.after (Time.Span.of_sec 4.0) >>= fun () ->(
 	  let cur_time = Float.to_int (Unix.gettimeofday ()) in 
 	  Controller.query name >>= fun data ->(
-	    let statstr = Frenetic_NetKAT_Json.stats_to_json_string data in
-	    stats := StatMap.add !stats statstr cur_time; 
+	    let statstr = Frenetic_NetKAT_Json.stats_to_json data in
+	    stats := StatMap.add !stats cur_time statstr; 
 	    collect_stats name))
 	)
      else (return ())) in 
@@ -215,8 +215,8 @@ let start (http_port : int) (openflow_port : int) () : unit =
     ("/topology", fun _ ->
       return (Gui_Server.string_handler (Gui_Server.topo_to_json !(discover.nib))));
     ("/graph", fun _ ->	
-      let json_stat time dp = `Assoc [("time", `Int time);("stat", `String dp)] in
-      let data = `List (StatMap.fold !stats ~init:[] ~f:(fun ~key:stat ~data:time acc-> (json_stat time stat) :: acc)) in
+      let json_stat time dp = `Assoc [("time", `Int time);("stat", dp)] in
+      let data = `List (StatMap.fold !stats ~init:[] ~f:(fun ~key:time ~data:stat acc-> (json_stat time stat) :: acc)) in
       return (Gui_Server.string_handler (Yojson.Basic.to_string data ))
 	);
     ("/query/(.*)/pred/(.*)", fun g -> 
@@ -235,7 +235,7 @@ let start (http_port : int) (openflow_port : int) () : unit =
 	Controller.update_policy new_pol >>= fun _ -> 
 	  return (Gui_Server.string_handler "Ok!"))
 	);
-    ("stats/(.*)", fun g ->
+    ("/stats/(.*)", fun g ->
 	let name = Array.get g 1 in 
 	if (Controller.is_query name) then begin
 	  Controller.query name >>= fun stats ->
@@ -251,6 +251,7 @@ let start (http_port : int) (openflow_port : int) () : unit =
 	  if (!track = false) then (
 	   track_name := name;
 	   track := true; 
+	   stats := StatMap.empty;
 	   don't_wait_for (collect_stats name);
 	   return (Gui_Server.string_handler "collecting stats."))
 	  else (

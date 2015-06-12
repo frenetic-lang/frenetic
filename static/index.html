@@ -56,6 +56,94 @@
 	  console.log(data);
 	});
       }
+      function getStats(){
+	var query_name = document.getElementById("QueryName").value;
+	d3.text("stats/"+query_name, function(data){
+	  console.log(data);
+	});
+      }
+      function track(){
+	var query_name = document.getElementById("QueryName").value;
+	d3.text("track/"+query_name,function(data){
+	  console.log(data);
+	});
+      }
+      function graphStats(){
+	d3.text("/graph",function(data){
+	  console.log(data);
+	      // Set the dimensions of the canvas / graph
+	console.log("Setting dimension.");
+    var margin = {top: 30, right: 20, bottom: 30, left: 50},
+        width = 400 - margin.left - margin.right,
+        height = 270 - margin.top - margin.bottom;
+	console.log("setting range.");
+    // Set the ranges
+    var x = d3.scale.linear().range([0, width]);
+    var y = d3.scale.linear().range([height, 0]);
+
+    // Define the axes
+	console.log("defining axes.");
+    var xAxis = d3.svg.axis().scale(x)
+        .orient("bottom").ticks(5);
+
+    var yAxis = d3.svg.axis().scale(y)
+        .orient("left").ticks(5);
+
+    console.log("Define the line");
+    var valueline = d3.svg.line()
+        .x(function(d) { return x(d.time_x); })
+        .y(function(d) { return y(d.stat.bytes); });
+        
+    console.log("Adds the svg canvas");
+    var svg = d3.select("body")
+        .append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+            .attr("transform", 
+                  "translate(" + margin.left + "," + margin.top + ")");
+    console.log("parsing data");
+    data = JSON.parse(data);
+
+    var min_time = d3.min(data,function(d){ return parseInt(d.time) });
+
+    console.log("function to do order data.");
+    data.forEach(function(d) {
+        d.time_x = d.time - min_time;
+	console.log(d.time_x);
+	console.log(d.stat.bytes);
+    });
+
+    console.log(" Scale the range of the data");
+    x.domain(d3.extent(data, function(d) { return d.time_x; }));
+    y.domain([0, d3.max(data, function(d) { return d.stat.bytes; })]);
+
+    console.log("Add the valueline path.");
+    svg.append("path")
+        .attr("class", "line")
+        .attr("d", valueline(data));
+
+    console.log("Add the scatterplot");
+    svg.selectAll("dot")
+        .data(data)
+      .enter().append("circle")
+        .attr("r", 3.5)
+        .attr("cx", function(d) { return x(d.time_x); })
+        .attr("cy", function(d) { return y(d.stat.bytes); });
+
+    console.log("Add the X Axis");
+    svg.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + height + ")")
+        .call(xAxis);
+
+    console.log("Add the Y Axis");
+    svg.append("g")
+        .attr("class", "y axis")
+        .call(yAxis);
+
+	});
+      }
       function entity(d) {
         var entries;
 
@@ -69,7 +157,6 @@
 		.remove();
 
 	      var policy = data.policy;
-	      console.log(policy);
               var pol = d3.select('#entity').selectAll('.policy')
                   .data([policy]);
               var pdiv = pol.enter().append('div')
