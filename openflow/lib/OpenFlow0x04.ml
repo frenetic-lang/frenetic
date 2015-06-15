@@ -2,11 +2,16 @@
 
 (** OpenFlow 1.3 (protocol version 0x04) *)
 
+open Core.Std
 open Printf
 open Cstruct
 open Cstruct.BE
-open List
 open Frenetic_Packet
+
+type uint128 = int64 * int64
+type uint48 = uint64
+type uint24 = int32
+type uint12 = uint16
 
 type 'a mask = { m_value : 'a; m_mask : 'a option }
 
@@ -14,7 +19,6 @@ type 'a asyncMask = { m_master : 'a ; m_slave : 'a }
 
 type payload =
   | Buffered of int32 * bytes
-    (** [Buffered (id, buf)] is a packet buffered on a switch. *)
   | NotBuffered of bytes
 
 type xid = Frenetic_OpenFlow_Header.xid
@@ -28,7 +32,7 @@ let val_to_mask v =
 let ip_to_mask (p,m) =
   if m = 32l then { m_value = p; m_mask = None }
   else
-    let m = Int32.shift_left 0xffffffffl (Int32.to_int (Int32.sub 32l m)) in
+    let m = Int32.shift_left 0xffffffffl (Int32.to_int_exn (Int32.(32l - m))) in
     { m_value = p; m_mask = Some m }
 
 type switchId = int64
@@ -350,69 +354,6 @@ type flowModCommand =
 | DeleteFlow
 | DeleteStrictFlow
 
-type flowModFlags = { fmf_send_flow_rem : bool; fmf_check_overlap : bool;
-                      fmf_reset_counts : bool; fmf_no_pkt_counts : bool;
-                      fmf_no_byt_counts : bool }
-
-type flowMod = { mfCookie : int64 mask; mfTable_id : tableId;
-                 mfCommand : flowModCommand; mfIdle_timeout : timeout;
-                 mfHard_timeout : timeout; mfPriority : int16;
-                 mfBuffer_id : bufferId option;
-                 mfOut_port : pseudoPort option;
-                 mfOut_group : groupId option; mfFlags : flowModFlags;
-                 mfOfp_match : oxmMatch; mfInstructions : instruction list }
-
-let match_all = []
-
-let default_fm_flags =
-  { fmf_send_flow_rem = false
-  ; fmf_check_overlap = false
-  ; fmf_reset_counts = false
-  ; fmf_no_pkt_counts = false
-  ; fmf_no_byt_counts = false }
-
-let add_flow ~tbl ~prio ~pat ~insts =
-  { mfCookie = val_to_mask 0L
-  ; mfTable_id = tbl
-  ; mfCommand = AddFlow
-  ; mfIdle_timeout = Permanent
-  ; mfHard_timeout = Permanent
-  ; mfPriority = prio
-  ; mfBuffer_id = None
-  ; mfOut_port = None
-  ; mfOut_group = None
-  ; mfFlags = default_fm_flags
-  ; mfOfp_match = pat
-  ; mfInstructions = insts }
-
-let delete_all_flows =
-  { mfCookie = val_to_mask 0L
-  ; mfTable_id = 0xff (* OFPTT_ALL *)
-  ; mfCommand = DeleteFlow
-  ; mfIdle_timeout = Permanent
-  ; mfHard_timeout = Permanent
-  ; mfPriority = 0
-  ; mfBuffer_id = None
-  ; mfOut_port = None
-  ; mfOut_group = Some 0xffffffffl (* OFPG_ANY *)
-  ; mfFlags = default_fm_flags
-  ; mfOfp_match = match_all
-  ; mfInstructions = [] }
-
-let delete_all_groups =
-  DeleteGroup (All, 0xfffffffcl)
-
-let parse_payload = function
-  | Buffered (_, b)
-  | NotBuffered b ->
-    Frenetic_Packet.parse b
-
-let marshal_payload buffer pkt =
-  let payload = Frenetic_Packet.marshal pkt in
-  match buffer with
-    | Some b -> Buffered (b, payload)
-    | None -> NotBuffered payload
-
 type packetInReason =
 | NoMatch
 | ExplicitSend
@@ -558,6 +499,10 @@ let portDescReq =
 type switchDesc = { mfr_desc :string ; hw_desc : string; sw_desc : string;
                          serial_num : string }
 
+type flowModFlags = { fmf_send_flow_rem : bool; fmf_check_overlap : bool;
+                      fmf_reset_counts : bool; fmf_no_pkt_counts : bool;
+                      fmf_no_byt_counts : bool }
+
 type flowStats = { table_id : tableId; duration_sec : int32; duration_nsec :
                    int32; priority : int16; idle_timeout : timeout;
                    hard_timeout : timeout; flags : flowModFlags; cookie : int64;
@@ -680,15 +625,73 @@ type asyncConfig = { packet_in : packetInReasonMap asyncMask;
                      flow_removed : flowReasonMask asyncMask }
 
 
+
+type flowMod = { mfCookie : int64 mask; mfTable_id : tableId;
+                 mfCommand : flowModCommand; mfIdle_timeout : timeout;
+                 mfHard_timeout : timeout; mfPriority : int16;
+                 mfBuffer_id : bufferId option;
+                 mfOut_port : pseudoPort option;
+                 mfOut_group : groupId option; mfFlags : flowModFlags;
+                 mfOfp_match : oxmMatch; mfInstructions : instruction list }
+
+let match_all = []
+
+let default_fm_flags =
+  { fmf_send_flow_rem = false
+  ; fmf_check_overlap = false
+  ; fmf_reset_counts = false
+  ; fmf_no_pkt_counts = false
+  ; fmf_no_byt_counts = false }
+
+let add_flow ~tbl ~prio ~pat ~insts =
+  { mfCookie = val_to_mask 0L
+  ; mfTable_id = tbl
+  ; mfCommand = AddFlow
+  ; mfIdle_timeout = Permanent
+  ; mfHard_timeout = Permanent
+  ; mfPriority = prio
+  ; mfBuffer_id = None
+  ; mfOut_port = None
+  ; mfOut_group = None
+  ; mfFlags = default_fm_flags
+  ; mfOfp_match = pat
+  ; mfInstructions = insts }
+
+let delete_all_flows =
+  { mfCookie = val_to_mask 0L
+  ; mfTable_id = 0xff (* OFPTT_ALL *)
+  ; mfCommand = DeleteFlow
+  ; mfIdle_timeout = Permanent
+  ; mfHard_timeout = Permanent
+  ; mfPriority = 0
+  ; mfBuffer_id = None
+  ; mfOut_port = None
+  ; mfOut_group = Some 0xffffffffl (* OFPG_ANY *)
+  ; mfFlags = default_fm_flags
+  ; mfOfp_match = match_all
+  ; mfInstructions = [] }
+
+let delete_all_groups =
+  DeleteGroup (All, 0xfffffffcl)
+
+let parse_payload = function
+  | Buffered (_, b)
+  | NotBuffered b ->
+    Frenetic_Packet.parse b
+
+let marshal_payload buffer pkt =
+  let payload = Frenetic_Packet.marshal pkt in
+  match buffer with
+    | Some b -> Buffered (b, payload)
+    | None -> NotBuffered payload
+
+
+
+
 exception Unparsable of string
 let sym_num = ref 0
 
-let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
-
-type uint128 = int64*int64
-type uint48 = uint64
-type uint24 = int32
-type uint12 = uint16
+let sum (lst : int list) = List.fold_left ~f:(fun x y -> x + y) ~init:0 lst
 
 (* OKAY *)
 cenum msg_code {
@@ -815,9 +818,9 @@ module PortConfig = struct
   type t = portConfig
 
   let config_to_int (config : t) : int32 =
-    Int32.logor (if config.port_down then (Int32.shift_left 1l 0) else 0l)
-     (Int32.logor (if config.no_recv then (Int32.shift_left 1l 2) else 0l)
-      (Int32.logor (if config.no_fwd then (Int32.shift_left 1l 5) else 0l)
+    Int32.bit_or (if config.port_down then (Int32.shift_left 1l 0) else 0l)
+     (Int32.bit_or (if config.no_recv then (Int32.shift_left 1l 2) else 0l)
+      (Int32.bit_or (if config.no_fwd then (Int32.shift_left 1l 5) else 0l)
        (if config.no_packet_in then (Int32.shift_left 1l 6) else 0l)))
 
   let marshal (pc : t) : int32 = config_to_int pc
@@ -843,21 +846,21 @@ module PortFeatures = struct
   type t = portFeatures
 
   let marshal (t : t) : int32 =
-    Int32.logor (if t.rate_10mb_hd then (Int32.shift_left 1l 0) else 0l)
-    (Int32.logor (if t.rate_10mb_fd then (Int32.shift_left 1l 1) else 0l)
-     (Int32.logor (if t.rate_100mb_hd then (Int32.shift_left 1l 2) else 0l)
-      (Int32.logor (if t.rate_100mb_fd then (Int32.shift_left 1l 3) else 0l)
-       (Int32.logor (if t.rate_1gb_hd then (Int32.shift_left 1l 4) else 0l)
-        (Int32.logor (if t.rate_1gb_fd then (Int32.shift_left 1l 5) else 0l)
-         (Int32.logor (if t.rate_10gb_fd then (Int32.shift_left 1l 6) else 0l)
-          (Int32.logor (if t.rate_40gb_fd then (Int32.shift_left 1l 7) else 0l)
-           (Int32.logor (if t.rate_100gb_fd then (Int32.shift_left 1l 8) else 0l)
-            (Int32.logor (if t.rate_1tb_fd then (Int32.shift_left 1l 9) else 0l)
-             (Int32.logor (if t.other then (Int32.shift_left 1l 10) else 0l)
-              (Int32.logor (if t.copper then (Int32.shift_left 1l 11) else 0l)
-               (Int32.logor (if t.fiber then (Int32.shift_left 1l 12) else 0l)
-                (Int32.logor (if t.autoneg then (Int32.shift_left 1l 13) else 0l)
-                 (Int32.logor (if t.pause then (Int32.shift_left 1l 14) else 0l)
+    Int32.bit_or (if t.rate_10mb_hd then (Int32.shift_left 1l 0) else 0l)
+    (Int32.bit_or (if t.rate_10mb_fd then (Int32.shift_left 1l 1) else 0l)
+     (Int32.bit_or (if t.rate_100mb_hd then (Int32.shift_left 1l 2) else 0l)
+      (Int32.bit_or (if t.rate_100mb_fd then (Int32.shift_left 1l 3) else 0l)
+       (Int32.bit_or (if t.rate_1gb_hd then (Int32.shift_left 1l 4) else 0l)
+        (Int32.bit_or (if t.rate_1gb_fd then (Int32.shift_left 1l 5) else 0l)
+         (Int32.bit_or (if t.rate_10gb_fd then (Int32.shift_left 1l 6) else 0l)
+          (Int32.bit_or (if t.rate_40gb_fd then (Int32.shift_left 1l 7) else 0l)
+           (Int32.bit_or (if t.rate_100gb_fd then (Int32.shift_left 1l 8) else 0l)
+            (Int32.bit_or (if t.rate_1tb_fd then (Int32.shift_left 1l 9) else 0l)
+             (Int32.bit_or (if t.other then (Int32.shift_left 1l 10) else 0l)
+              (Int32.bit_or (if t.copper then (Int32.shift_left 1l 11) else 0l)
+               (Int32.bit_or (if t.fiber then (Int32.shift_left 1l 12) else 0l)
+                (Int32.bit_or (if t.autoneg then (Int32.shift_left 1l 13) else 0l)
+                 (Int32.bit_or (if t.pause then (Int32.shift_left 1l 14) else 0l)
                   (if t.pause_asym then (Int32.shift_left 1l 15) else 0l)))))))))))))))
 
   let parse (bits : int32) : t =
@@ -908,8 +911,8 @@ module PortState = struct
   type t = portState
 
   let state_to_int (state : t) : int32 =
-    Int32.logor (if state.link_down then (Int32.shift_left 1l 0) else 0l)
-     (Int32.logor (if state.blocked then (Int32.shift_left 1l 1) else 0l)
+    Int32.bit_or (if state.link_down then (Int32.shift_left 1l 0) else 0l)
+     (Int32.bit_or (if state.blocked then (Int32.shift_left 1l 1) else 0l)
       (if state.live then (Int32.shift_left 1l 2) else 0l))
 
   let marshal (ps : t) : int32 = state_to_int ps
@@ -1480,42 +1483,45 @@ cstruct ofp_uint128 {
   uint64_t low
 } as big_endian
 
+(* TODO(arjun): WTF *)
 let max_uint32 = 4294967296L (* = 2^32*)
 
+(* TODO(arjun): WTF *)
 let compare_uint32 a b =
 (* val compare_uint32 : uint32 -> uint32 -> bool ; return a < b, for a, b uint32  *)
     let a' = if a < 0l then
-                Int64.sub max_uint32 (Int64.of_int32 (Int32.abs a))
+                Int64.(max_uint32 - (of_int32_exn (Int32.abs a)))
              else Int64.of_int32 a in
     let b' = if b < 0l then
-                Int64.sub max_uint32 (Int64.of_int32 (Int32.abs b))
+                Int64.(max_uint32 - (of_int32_exn (Int32.abs b)))
              else Int64.of_int32 b in
     a' <= b'
 
 let set_ofp_uint48_value (buf : Cstruct.t) (value : uint48) =
-  let high = Int64.to_int32 (Int64.shift_right_logical  value 16) in
-    let low = ((Int64.to_int value) land 0xffff) in
-      set_ofp_uint48_high buf high;
-      set_ofp_uint48_low buf low
+  let high = Int64.(to_int32_exn (shift_right_logical value 16)) in
+  let low = Int64.to_int_exn value land 0xffff in
+  set_ofp_uint48_high buf high;
+  set_ofp_uint48_low buf low
 
 let get_ofp_uint48_value (buf : Cstruct.t) : uint48 =
   let highBits = get_ofp_uint48_high buf in
-  let high = Int64.shift_left (
+  let high =
     if highBits < 0l then
-      Int64.sub max_uint32 (Int64.of_int32 (Int32.abs highBits))
+      Int64.(max_uint32 - of_int32 (Int32.abs highBits))
     else
-      Int64.of_int32 highBits) 16 in
-  let low = Int64.of_int (get_ofp_uint48_low buf) in
-  Int64.logor low high
+      Int64.(of_int32 highBits) in
+  let high = Int64.shift_left high 16 in
+  let low = Int64.of_int_exn (get_ofp_uint48_low buf) in
+  Int64.bit_or low high
 
 let get_ofp_uint24_value (buf : Cstruct.t) : uint24 =
-  let high = Int32.shift_left (Int32.of_int (get_ofp_uint24_high buf)) 8 in
-  let low = Int32.of_int (get_ofp_uint24_low buf )in
-  Int32.logor high low
+  let high = Int32.(shift_left (of_int_exn (get_ofp_uint24_high buf)) 8) in
+  let low = Int32.of_int_exn (get_ofp_uint24_low buf) in
+  Int32.bit_or high low
 
 let set_ofp_uint24_value (buf : Cstruct.t) (value : uint24) =
-  let high = (Int32.to_int value) lsr 8 in
-  let low = (Int32.to_int value) land 0xff in
+  let high = (Int32.to_int_exn value) lsr 8 in
+  let low = (Int32.to_int_exn value) land 0xff in
     set_ofp_uint24_high buf high;
     set_ofp_uint24_low buf low
 
@@ -1526,10 +1532,11 @@ let set_ofp_uint128_value (buf : Cstruct.t) ((h,l) : uint128) =
 let get_ofp_uint128_value (buf : Cstruct.t) : uint128 =
   (get_ofp_uint128_high buf, get_ofp_uint128_low buf)
 
+(* TODO(arjun): WTF use pattern-matching *)
 let rec marshal_fields (buf: Cstruct.t) (fields : 'a list) (marshal_func : Cstruct.t -> 'a -> int ): int =
   if (fields = []) then 0
-  else let size = marshal_func buf (List.hd fields) in
-    size + (marshal_fields (Cstruct.shift buf size) (List.tl fields) marshal_func)
+  else let size = marshal_func buf (List.hd_exn fields) in
+    size + (marshal_fields (Cstruct.shift buf size) (List.tl_exn fields) marshal_func)
 
 let parse_fields (bits : Cstruct.t) (parse_func : Cstruct.t -> 'a) (length_func : Cstruct.t -> int option) :'a list =
   let iter =
@@ -2900,14 +2907,14 @@ module QueueDesc = struct
   type t = queueDesc
 
   let sizeof (qd : t) : int =
-    sizeof_ofp_packet_queue + sum (map QueueProp.sizeof qd.properties)
+    sizeof_ofp_packet_queue + sum (List.map ~f:QueueProp.sizeof qd.properties)
 
   let to_string (qd : t) : string =
     Format.sprintf "{ queue_id = %lu; port = %lu; len = %u; properties = %s }"
     qd.queue_id
     qd.port
     qd.len
-    ("[ " ^ (String.concat "; " (map QueueProp.to_string qd.properties)) ^ " ]")
+    ("[ " ^ (String.concat ~sep:"; " (List.map ~f:QueueProp.to_string qd.properties)) ^ " ]")
 
   let length_func (buf : Cstruct.t) : int option =
     if Cstruct.len buf < sizeof_ofp_packet_queue then None
@@ -2996,16 +3003,16 @@ module OfpMatch = struct
   type t = oxmMatch
 
   let sizeof (om : t) : int =
-    let n = sizeof_ofp_match + sum (map Oxm.sizeof om) in
+    let n = sizeof_ofp_match + sum (List.map ~f:Oxm.sizeof om) in
     pad_to_64bits n
 
   let to_string om =
-    "[ " ^ (String.concat "; " (map Oxm.to_string om)) ^ " ]"
+    "[ " ^ (String.concat ~sep:"; " (List.map ~f:Oxm.to_string om)) ^ " ]"
 
   let marshal (buf : Cstruct.t) (om : t) : int =
     let size = sizeof om in
     set_ofp_match_typ buf 1; (* OXPMT_OXM *)
-    set_ofp_match_length buf (sizeof_ofp_match + sum (map Oxm.sizeof om)); (* Length of ofp_match (excluding padding) *)
+    set_ofp_match_length buf (sizeof_ofp_match + sum (List.map ~f:Oxm.sizeof om)); (* Length of ofp_match (excluding padding) *)
     let buf = Cstruct.shift buf sizeof_ofp_match in
     let oxm_size = marshal_fields buf om Oxm.marshal in
     let pad = size - (sizeof_ofp_match + oxm_size) in
@@ -3241,7 +3248,7 @@ module Bucket = struct
   type t = bucket
 
   let sizeof (bucket : bucket) : int =
-    let n = sizeof_ofp_bucket + sum (map Action.sizeof bucket.bu_actions) in
+    let n = sizeof_ofp_bucket + sum (List.map ~f:Action.sizeof bucket.bu_actions) in
     pad_to_64bits n
 
   let to_string (bucket : bucket) : string =
@@ -3254,7 +3261,7 @@ module Bucket = struct
     (match bucket.bu_watch_group with
       | Some n -> Int32.to_string n
       | None -> "None")
-    ("[ " ^ (String.concat "; " (map Action.to_string bucket.bu_actions)) ^ " ]")
+    ("[ " ^ (String.concat ~sep:"; " (List.map ~f:Action.to_string bucket.bu_actions)) ^ " ]")
 
   let length_func (buf : Cstruct.t) : int option =
     if Cstruct.len buf < sizeof_ofp_bucket then None
@@ -3371,25 +3378,25 @@ module GroupMod = struct
   let sizeof (gm: groupMod) : int =
     match gm with
       | AddGroup (typ, gid, buckets) ->
-        sizeof_ofp_group_mod + sum (map Bucket.sizeof buckets)
+        sizeof_ofp_group_mod + sum (List.map ~f:Bucket.sizeof buckets)
       | DeleteGroup (typ, gid) ->
         sizeof_ofp_group_mod
       | ModifyGroup (typ, _, buckets) ->
-        sizeof_ofp_group_mod + sum (map Bucket.sizeof buckets)
+        sizeof_ofp_group_mod + sum (List.map ~f:Bucket.sizeof buckets)
 
   let to_string (gm : groupMod) : string =
     match gm with
       | AddGroup (typ, gid, buckets) -> Format.sprintf "AddGroup { typ = %s; gid = %lu ; bucket = %s }"
                                         (GroupType.to_string typ)
                                         gid
-                                        ("[ " ^ (String.concat "; " (map Bucket.to_string buckets)) ^ " ]")
+                                        ("[ " ^ (String.concat ~sep:"; " (List.map ~f:Bucket.to_string buckets)) ^ " ]")
       | DeleteGroup (typ, gid) -> Format.sprintf "DeleteGroup {type = %s; gid = %lu }"
                                   (GroupType.to_string typ)
                                   gid
       | ModifyGroup (typ, gid , buckets) -> Format.sprintf "ModifyGroup { typ = %s; gid = %lu ; bucket = %s }"
                                             (GroupType.to_string typ)
                                             gid
-                                            ("[ " ^ (String.concat "; " (map Bucket.to_string buckets)) ^ " ]")
+                                            ("[ " ^ (String.concat ~sep:"; " (List.map ~f:Bucket.to_string buckets)) ^ " ]")
 
 
   let marshal (buf : Cstruct.t) (gm : groupMod) : int =
@@ -3603,14 +3610,14 @@ module MeterMod = struct
   type t = meterMod
 
   let sizeof (mm : t) : int =
-    sizeof_ofp_meter_mod + (sum (map MeterBand.sizeof mm.bands))
+    sizeof_ofp_meter_mod + (sum (List.map ~f:MeterBand.sizeof mm.bands))
 
   let to_string (mm : t) : string =
     Format.sprintf "{ command = %s; flags = %s = meter_id = %lu; bands = %s }"
     (Command.to_string mm.command)
     (MeterFlags.to_string mm.flags)
     mm.meter_id
-    ("[ " ^ (String.concat "; " (map MeterBand.to_string mm.bands)) ^ " ]")
+    ("[ " ^ (String.concat ~sep:"; " (List.map ~f:MeterBand.to_string mm.bands)) ^ " ]")
 
   let marshal (buf : Cstruct.t) (mm : t) : int =
     set_ofp_meter_mod_commands buf (Command.marshal mm.command);
@@ -3636,9 +3643,9 @@ module Instruction = struct
     match ins with
       | GotoTable t -> Format.sprintf "Go to Table = %u" t
       | ApplyActions actions -> Format.sprintf "Apply Actions = [ %s ]"
-                                (String.concat "; " (map Action.to_string actions))
+                                (String.concat ~sep:"; " (List.map ~f:Action.to_string actions))
       | WriteActions actions -> Format.sprintf "Write Actions = [ %s ]"
-                                (String.concat "; " (map Action.to_string actions))
+                                (String.concat ~sep:"; " (List.map ~f:Action.to_string actions))
       | WriteMetadata meta ->
         (match meta.m_mask with
           | None -> Format.sprintf "WriteMeta = %LX" meta.m_value
@@ -3652,9 +3659,9 @@ module Instruction = struct
       | GotoTable _ ->
         sizeof_ofp_instruction_goto_table
       | ApplyActions actions ->
-        sizeof_ofp_instruction_actions + sum (map Action.sizeof actions)
+        sizeof_ofp_instruction_actions + sum (List.map ~f:Action.sizeof actions)
       | WriteActions actions ->
-        sizeof_ofp_instruction_actions + sum (map Action.sizeof actions)
+        sizeof_ofp_instruction_actions + sum (List.map ~f:Action.sizeof actions)
       | WriteMetadata _ -> sizeof_ofp_instruction_write_metadata
       | Clear -> sizeof_ofp_instruction_actions
       | Meter _ -> sizeof_ofp_instruction_meter
@@ -3754,7 +3761,7 @@ module Instructions = struct
   type t = instruction list
 
   let sizeof (inss : t) : int =
-    sum (map Instruction.sizeof inss)
+    sum (List.map ~f:Instruction.sizeof inss)
 
   let marshal (buf : Cstruct.t) (inss : t) : int =
     if sizeof inss <> 0 then
@@ -3769,7 +3776,7 @@ module Instructions = struct
     (List.append [field] fields, bits3)
 
   let to_string ins =
-    "[ " ^ (String.concat "; " (map Instruction.to_string ins)) ^ " ]"
+    "[ " ^ (String.concat ~sep:"; " (List.map ~f:Instruction.to_string ins)) ^ " ]"
 
 
   let parse (bits : Cstruct.t) : t =
@@ -3925,12 +3932,12 @@ module Capabilities = struct
   type t = capabilities
 
   let to_int32 (capa : t) : int32 =
-    Int32.logor (if capa.flow_stats then (Int32.shift_left 1l 0) else 0l)
-     (Int32.logor (if capa.table_stats then (Int32.shift_left 1l 1) else 0l)
-      (Int32.logor (if capa.port_stats then (Int32.shift_left 1l 2) else 0l)
-       (Int32.logor (if capa.group_stats then (Int32.shift_left 1l 3) else 0l)
-        (Int32.logor (if capa.ip_reasm then (Int32.shift_left 1l 5) else 0l)
-         (Int32.logor (if capa.queue_stats then (Int32.shift_left 1l 6) else 0l)
+    Int32.bit_or (if capa.flow_stats then (Int32.shift_left 1l 0) else 0l)
+     (Int32.bit_or (if capa.table_stats then (Int32.shift_left 1l 1) else 0l)
+      (Int32.bit_or (if capa.port_stats then (Int32.shift_left 1l 2) else 0l)
+       (Int32.bit_or (if capa.group_stats then (Int32.shift_left 1l 3) else 0l)
+        (Int32.bit_or (if capa.ip_reasm then (Int32.shift_left 1l 5) else 0l)
+         (Int32.bit_or (if capa.queue_stats then (Int32.shift_left 1l 6) else 0l)
            (if capa.port_blocked then (Int32.shift_left 1l 8) else 0l))))))
 
   let to_string (cap : t) : string =
@@ -4244,7 +4251,7 @@ module PacketOut = struct
   type t = packetOut
 
   let sizeof (po : t) =
-    sizeof_ofp_packet_out + sum (map Action.sizeof po.po_actions) +
+    sizeof_ofp_packet_out + sum (List.map ~f:Action.sizeof po.po_actions) +
     (match po.po_payload with
       | Buffered _ -> 0
       | NotBuffered bytes -> Cstruct.len bytes)
@@ -4257,7 +4264,7 @@ module PacketOut = struct
     (match po.po_port_id with
       | Some n -> Int32.to_string n
       | None -> "No Port")
-    ("[ " ^ (String.concat "; " (map Action.to_string po.po_actions)) ^ " ]")
+    ("[ " ^ (String.concat ~sep:"; " (List.map ~f:Action.to_string po.po_actions)) ^ " ]")
 
   let marshal (buf : Cstruct.t) (po : t) : int =
     let size = sizeof po in
@@ -4269,7 +4276,7 @@ module PacketOut = struct
       (match po.po_port_id with
         | None -> 0l
         | Some(port_id) -> port_id);
-    set_ofp_packet_out_actions_len buf (sum (map Action.sizeof po.po_actions));
+    set_ofp_packet_out_actions_len buf (sum (List.map ~f:Action.sizeof po.po_actions));
     set_ofp_packet_out_pad0 buf 0;
     set_ofp_packet_out_pad1 buf 0;
     set_ofp_packet_out_pad2 buf 0;
@@ -4738,33 +4745,33 @@ module TableFeatureProp = struct
     let sizeof tfp : int =
       let size = sizeof_ofp_table_feature_prop_header + (match tfp with
         | TfpInstruction ins ->
-            sum (map InstructionHdr.sizeof ins)
+            sum (List.map ~f:InstructionHdr.sizeof ins)
         | TfpInstructionMiss ins ->
-            sum (map InstructionHdr.sizeof ins)
+            sum (List.map ~f:InstructionHdr.sizeof ins)
         | TfpNextTable t ->
             List.length t
         | TfpNextTableMiss t ->
             List.length t
         | TfpWriteAction act ->
-            sum (map ActionHdr.sizeof act)
+            sum (List.map ~f:ActionHdr.sizeof act)
         | TfpWriteActionMiss act ->
-            sum (map ActionHdr.sizeof act)
+            sum (List.map ~f:ActionHdr.sizeof act)
         | TfpApplyAction act ->
-            sum (map ActionHdr.sizeof act)
+            sum (List.map ~f:ActionHdr.sizeof act)
         | TfpApplyActionMiss act ->
-            sum (map ActionHdr.sizeof act)
+            sum (List.map ~f:ActionHdr.sizeof act)
         | TfpMatch ox ->
-            sum (map Oxm.sizeof_header ox)
+            sum (List.map ~f:Oxm.sizeof_header ox)
         | TfpWildcard ox ->
-            sum (map Oxm.sizeof_header ox)
+            sum (List.map ~f:Oxm.sizeof_header ox)
         | TfpWriteSetField ox->
-            sum (map Oxm.sizeof_header ox)
+            sum (List.map ~f:Oxm.sizeof_header ox)
         | TfpWriteSetFieldMiss ox ->
-            sum (map Oxm.sizeof_header ox)
+            sum (List.map ~f:Oxm.sizeof_header ox)
         | TfpApplySetField ox ->
-            sum (map Oxm.sizeof_header ox)
+            sum (List.map ~f:Oxm.sizeof_header ox)
         | TfpApplySetFieldMiss ox ->
-            sum (map Oxm.sizeof_header ox)
+            sum (List.map ~f:Oxm.sizeof_header ox)
         | TfpExperimenter (_,by) ->
             Cstruct.len by
         | TfpExperimenterMiss (_,by) ->
@@ -4896,45 +4903,45 @@ module TableFeatureProp = struct
       Format.sprintf "{ type = %s; len:%u }"
       (match tfp with
          | TfpInstruction i->
-            (Format.sprintf "Instructions [ %s ]" (String.concat "; " (map InstructionHdr.to_string i)))
+            (Format.sprintf "Instructions [ %s ]" (String.concat ~sep:"; " (List.map ~f:InstructionHdr.to_string i)))
          | TfpInstructionMiss i->
-            (Format.sprintf "InstructionMiss [ %s ]" (String.concat "; " (map InstructionHdr.to_string i)))
+            (Format.sprintf "InstructionMiss [ %s ]" (String.concat ~sep:"; " (List.map ~f:InstructionHdr.to_string i)))
          | TfpNextTable n->
             (Format.sprintf "NextTable [ %s ]"
-            (String.concat "; " (map string_of_int n)))
+            (String.concat ~sep:"; " (List.map ~f:string_of_int n)))
          | TfpNextTableMiss n ->
             (Format.sprintf "NextTableMiss [ %s ]"
-            (String.concat "; " (map string_of_int n)))
+            (String.concat ~sep:"; " (List.map ~f:string_of_int n)))
          | TfpWriteAction a ->
             (Format.sprintf "WriteAction [ %s ]"
-            (String.concat "; " (map ActionHdr.to_string a)))
+            (String.concat ~sep:"; " (List.map ~f:ActionHdr.to_string a)))
          | TfpWriteActionMiss a ->
             (Format.sprintf "WriteActionMiss [ %s ]"
-            (String.concat "; " (map ActionHdr.to_string a)))
+            (String.concat ~sep:"; " (List.map ~f:ActionHdr.to_string a)))
          | TfpApplyAction a ->
             (Format.sprintf "ApplyActions [ %s ]"
-            (String.concat "; " (map ActionHdr.to_string a)))
+            (String.concat ~sep:"; " (List.map ~f:ActionHdr.to_string a)))
          | TfpApplyActionMiss a ->
             (Format.sprintf "ApplyActionsMiss [ %s ]"
-            (String.concat "; " (map ActionHdr.to_string a)))
+            (String.concat ~sep:"; " (List.map ~f:ActionHdr.to_string a)))
          | TfpMatch s ->
             (Format.sprintf "Match [ %s ]"
-            (String.concat "; " (map Oxm.field_name s)))
+            (String.concat ~sep:"; " (List.map ~f:Oxm.field_name s)))
          | TfpWildcard s ->
             (Format.sprintf "MatchMiss [ %s ]"
-            (String.concat "; " (map Oxm.field_name s)))
+            (String.concat ~sep:"; " (List.map ~f:Oxm.field_name s)))
          | TfpWriteSetField s ->
             (Format.sprintf "WriteSetField [ %s ]"
-            (String.concat "; " (map Oxm.field_name s)))
+            (String.concat ~sep:"; " (List.map ~f:Oxm.field_name s)))
          | TfpWriteSetFieldMiss s ->
             (Format.sprintf "WriteSetFieldMiss [ %s ]"
-            (String.concat "; " (map Oxm.field_name s)))
+            (String.concat ~sep:"; " (List.map ~f:Oxm.field_name s)))
          | TfpApplySetField s ->
             (Format.sprintf "ApplySetField [ %s ]"
-            (String.concat "; " (map Oxm.field_name s)))
+            (String.concat ~sep:"; " (List.map ~f:Oxm.field_name s)))
          | TfpApplySetFieldMiss s ->
             (Format.sprintf "ApplySetFieldMiss [ %s ]"
-            (String.concat "; " (map Oxm.field_name s)))
+            (String.concat ~sep:"; " (List.map ~f:Oxm.field_name s)))
          | TfpExperimenter (e,_)->
             (Format.sprintf "Experimenter<id=%lu>; typ = %lu" e.exp_id e.exp_type)
          | TfpExperimenterMiss (e,_)->
@@ -4972,7 +4979,7 @@ module TableFeature = struct
 
     let sizeof (tf : t) =
       (* should be equal to tf.length *)
-      pad_to_64bits (sizeof_ofp_table_features + sum (map TableFeatureProp.sizeof tf.feature_prop))
+      pad_to_64bits (sizeof_ofp_table_features + sum (List.map ~f:TableFeatureProp.sizeof tf.feature_prop))
 
     let marshal (buf : Cstruct.t) (tf : t) : int =
       set_ofp_table_features_length buf tf.length;
@@ -5014,7 +5021,7 @@ module TableFeature = struct
       tf.metadata_write
       (TableConfig.to_string tf.config)
       tf.max_entries
-      ("[ " ^ (String.concat "; " (map TableFeatureProp.to_string tf.feature_prop)) ^ " ]")
+      ("[ " ^ (String.concat ~sep:"; " (List.map ~f:TableFeatureProp.to_string tf.feature_prop)) ^ " ]")
 
     let length_func (buf : Cstruct.t) : int option =
       if Cstruct.len buf < sizeof_ofp_table_features then None
@@ -5069,7 +5076,7 @@ module MultipartReq = struct
        | MeterStatsReq _  | MeterConfReq _ -> sizeof_ofp_meter_multipart_request
        | TableFeatReq tfr -> (match tfr with
           | None -> 0
-          | Some t -> sum (map TableFeature.sizeof t))
+          | Some t -> sum (List.map ~f:TableFeature.sizeof t))
        | ExperimentReq _ -> sizeof_ofp_experimenter_multipart_header)
 
   let to_string (mpr : multipartRequest) : string =
@@ -5094,7 +5101,7 @@ module MultipartReq = struct
       | MeterConfReq m -> Format.sprintf "MeterConf Req %lu" m
       | MeterFeatReq -> "MeterFeat Req"
       | TableFeatReq t-> Format.sprintf "TableFeat Req %s" (match t with
-        | Some v -> "[ " ^ (String.concat "; " (map TableFeature.to_string v)) ^ " ]"
+        | Some v -> "[ " ^ (String.concat ~sep:"; " (List.map ~f:TableFeature.to_string v)) ^ " ]"
         | None -> "None" )
       | ExperimentReq e-> Format.sprintf "Experimenter Req: id: %lu; type: %lu" e.exp_id e.exp_type)
 
@@ -5572,7 +5579,7 @@ module GroupStats = struct
     gs.byte_count
     gs.duration_sec
     gs.duration_nsec
-    ("[ " ^ (String.concat ";" (map BucketStats.to_string gs.bucket_stats)) ^ " ]")
+    ("[ " ^ (String.concat ~sep:";" (List.map ~f:BucketStats.to_string gs.bucket_stats)) ^ " ]")
 
   let marshal (buf : Cstruct.t) (gs : groupStats) : int =
     set_ofp_group_stats_length buf gs.length;
@@ -5613,14 +5620,14 @@ module GroupDesc = struct
   type t = groupDesc
 
   let sizeof (gd : groupDesc) : int =
-    sizeof_ofp_group_desc + sum (map Bucket.sizeof gd.bucket)
+    sizeof_ofp_group_desc + sum (List.map ~f:Bucket.sizeof gd.bucket)
 
   let to_string (gd : groupDesc) : string =
     Format.sprintf "{ length = %u; group_type = %s; group_id = %lu; bucket = %s }"
     gd.length
     (GroupType.to_string gd.typ)
     gd.group_id
-    ( "[ " ^(String.concat "; " (map Bucket.to_string gd.bucket)) ^ " ]")
+    ( "[ " ^(String.concat ~sep:"; " (List.map ~f:Bucket.to_string gd.bucket)) ^ " ]")
 
   let marshal (buf : Cstruct.t) (gd : groupDesc) : int =
     set_ofp_group_desc_length buf gd.length;
@@ -5667,9 +5674,9 @@ module GroupFeatures = struct
     type t = groupTypeMap
 
     let marshal (gtm : groupTypeMap) : int32 =
-      Int32.logor (if gtm.all then (Int32.shift_left 1l 0) else 0l)
-       (Int32.logor (if gtm.select then (Int32.shift_left 1l 1) else 0l)
-        (Int32.logor (if gtm.indirect then (Int32.shift_left 1l 2) else 0l)
+      Int32.bit_or (if gtm.all then (Int32.shift_left 1l 0) else 0l)
+       (Int32.bit_or (if gtm.select then (Int32.shift_left 1l 1) else 0l)
+        (Int32.bit_or (if gtm.indirect then (Int32.shift_left 1l 2) else 0l)
          (if gtm.ff then (Int32.shift_left 1l 3) else 0l)))
 
     let parse bits : groupTypeMap =
@@ -5692,9 +5699,9 @@ module GroupFeatures = struct
     type t = groupCapabilities
 
     let marshal (gc : groupCapabilities) : int32 =
-      Int32.logor (if gc.select_weight then (Int32.shift_left 1l 0) else 0l)
-       (Int32.logor (if gc.select_liveness then (Int32.shift_left 1l 1) else 0l)
-        (Int32.logor (if gc.chaining then (Int32.shift_left 1l 2) else 0l)
+      Int32.bit_or (if gc.select_weight then (Int32.shift_left 1l 0) else 0l)
+       (Int32.bit_or (if gc.select_liveness then (Int32.shift_left 1l 1) else 0l)
+        (Int32.bit_or (if gc.chaining then (Int32.shift_left 1l 2) else 0l)
          (if gc.chaining_checks then (Int32.shift_left 1l 3) else 0l)))
 
     let parse bits : groupCapabilities =
@@ -5717,21 +5724,21 @@ module GroupFeatures = struct
     type t = actionTypeMap
 
     let marshal (atm : actionTypeMap) : int32 =
-      Int32.logor (if atm.output then (Int32.shift_left 1l 0) else 0l)
-       (Int32.logor (if atm.copy_ttl_out then (Int32.shift_left 1l 11) else 0l)
-        (Int32.logor (if atm.copy_ttl_in then (Int32.shift_left 1l 12) else 0l)
-         (Int32.logor (if atm.set_mpls_ttl then (Int32.shift_left 1l 15) else 0l)
-          (Int32.logor (if atm.dec_mpls_ttl then (Int32.shift_left 1l 16) else 0l)
-           (Int32.logor (if atm.push_vlan then (Int32.shift_left 1l 17) else 0l)
-            (Int32.logor (if atm.pop_vlan then (Int32.shift_left 1l 18) else 0l)
-             (Int32.logor (if atm.push_mpls then (Int32.shift_left 1l 19) else 0l)
-              (Int32.logor (if atm.pop_mpls then (Int32.shift_left 1l 20) else 0l)
-               (Int32.logor (if atm.set_queue then (Int32.shift_left 1l 21) else 0l)
-                (Int32.logor (if atm.group then (Int32.shift_left 1l 22) else 0l)
-                 (Int32.logor (if atm.set_nw_ttl then (Int32.shift_left 1l 23) else 0l)
-                  (Int32.logor (if atm.dec_nw_ttl then (Int32.shift_left 1l 24) else 0l)
-                   (Int32.logor (if atm.set_field then (Int32.shift_left 1l 25) else 0l)
-                    (Int32.logor (if atm.push_pbb then (Int32.shift_left 1l 26) else 0l)
+      Int32.bit_or (if atm.output then (Int32.shift_left 1l 0) else 0l)
+       (Int32.bit_or (if atm.copy_ttl_out then (Int32.shift_left 1l 11) else 0l)
+        (Int32.bit_or (if atm.copy_ttl_in then (Int32.shift_left 1l 12) else 0l)
+         (Int32.bit_or (if atm.set_mpls_ttl then (Int32.shift_left 1l 15) else 0l)
+          (Int32.bit_or (if atm.dec_mpls_ttl then (Int32.shift_left 1l 16) else 0l)
+           (Int32.bit_or (if atm.push_vlan then (Int32.shift_left 1l 17) else 0l)
+            (Int32.bit_or (if atm.pop_vlan then (Int32.shift_left 1l 18) else 0l)
+             (Int32.bit_or (if atm.push_mpls then (Int32.shift_left 1l 19) else 0l)
+              (Int32.bit_or (if atm.pop_mpls then (Int32.shift_left 1l 20) else 0l)
+               (Int32.bit_or (if atm.set_queue then (Int32.shift_left 1l 21) else 0l)
+                (Int32.bit_or (if atm.group then (Int32.shift_left 1l 22) else 0l)
+                 (Int32.bit_or (if atm.set_nw_ttl then (Int32.shift_left 1l 23) else 0l)
+                  (Int32.bit_or (if atm.dec_nw_ttl then (Int32.shift_left 1l 24) else 0l)
+                   (Int32.bit_or (if atm.set_field then (Int32.shift_left 1l 25) else 0l)
+                    (Int32.bit_or (if atm.push_pbb then (Int32.shift_left 1l 26) else 0l)
                      (if atm.pop_pbb then (Int32.shift_left 1l 27) else 0l)))))))))))))))
 
     let parse bits : actionTypeMap =
@@ -5879,7 +5886,7 @@ module MeterStats = struct
     ms.byte_in_count
     ms.duration_sec
     ms.duration_nsec
-    ("[ " ^ (String.concat ";" (map Band.to_string ms.band)) ^ " ]")
+    ("[ " ^ (String.concat ~sep:";" (List.map ~f:Band.to_string ms.band)) ^ " ]")
 
   let marshal (buf : Cstruct.t) (ms : meterStats) =
     set_ofp_meter_stats_meter_id buf ms.meter_id;
@@ -5921,14 +5928,14 @@ module MeterConfig = struct
   type t = meterConfig
 
   let sizeof (mc : meterConfig) : int =
-    sizeof_ofp_meter_config + sum (map MeterBand.sizeof mc.bands)
+    sizeof_ofp_meter_config + sum (List.map ~f:MeterBand.sizeof mc.bands)
 
   let to_string (mc : meterConfig) : string =
     Format.sprintf "{ len = %u; flags = %s; meter_id = %lu; bands = %s }"
     mc.length
     (MeterFlags.to_string mc.flags)
     mc.meter_id
-    ( "[ " ^ (String.concat "; " (map MeterBand.to_string mc.bands)) ^ " ]")
+    ( "[ " ^ (String.concat ~sep:"; " (List.map ~f:MeterBand.to_string mc.bands)) ^ " ]")
 
   let marshal (buf : Cstruct.t) (mc : meterConfig) : int =
     set_ofp_meter_config_length buf mc.length;
@@ -5969,7 +5976,7 @@ module MeterFeatures = struct
     type t = meterBandMaps
 
     let marshal (mbm : meterBandMaps) : int32 =
-      Int32.logor (if mbm.drop then (Int32.shift_left 1l 1) else 0l)
+      Int32.bit_or (if mbm.drop then (Int32.shift_left 1l 1) else 0l)
        (if mbm.dscpRemark then (Int32.shift_left 1l 2) else 0l)
 
     let parse bits : meterBandMaps =
@@ -6000,7 +6007,7 @@ module MeterFeatures = struct
     set_ofp_meter_features_max_meter buf mfs.max_meter;
     set_ofp_meter_features_band_types buf (Bands.marshal mfs.band_typ);
     (* int -> int32 fix, before release of OF1.3.5 *)
-    set_ofp_meter_features_capabilities buf (Int32.of_int (MeterFlags.marshal mfs.capabilities));
+    set_ofp_meter_features_capabilities buf (Int32.of_int_exn (MeterFlags.marshal mfs.capabilities));
     set_ofp_meter_features_max_bands buf mfs.max_band;
     set_ofp_meter_features_max_color buf mfs.max_color;
     sizeof_ofp_meter_features
@@ -6009,7 +6016,7 @@ module MeterFeatures = struct
     { max_meter = get_ofp_meter_features_max_meter bits
     ; band_typ = Bands.parse (get_ofp_meter_features_band_types bits)
     (* int32 -> int fix, before release of OF1.3.5 *)
-    ; capabilities = MeterFlags.parse (Int32.to_int (get_ofp_meter_features_capabilities bits))
+    ; capabilities = MeterFlags.parse (Int32.to_int_exn (get_ofp_meter_features_capabilities bits))
     ; max_band = get_ofp_meter_features_max_bands bits
     ; max_color = get_ofp_meter_features_max_color bits
     }
@@ -6022,36 +6029,36 @@ module MultipartReply = struct
   let sizeof (mpr : multipartReply) =
     sizeof_ofp_multipart_reply +
     match mpr.mpreply_typ with
-      | PortsDescReply pdr -> sum (map PortDesc.sizeof pdr)
+      | PortsDescReply pdr -> sum (List.map ~f:PortDesc.sizeof pdr)
       | SwitchDescReply _ -> sizeof_ofp_desc
-      | FlowStatsReply fsr -> sum (map FlowStats.sizeof fsr)
+      | FlowStatsReply fsr -> sum (List.map ~f:FlowStats.sizeof fsr)
       | AggregateReply ag -> AggregateStats.sizeof ag
-      | TableReply tr -> sum (map TableStats.sizeof tr)
-      | TableFeaturesReply tf -> sum (map TableFeature.sizeof tf)
-      | PortStatsReply psr -> sum (map PortStats.sizeof psr)
-      | QueueStatsReply qsr -> sum (map QueueStats.sizeof qsr)
-      | GroupStatsReply gs -> sum (map GroupStats.sizeof gs)
-      | GroupDescReply gd -> sum (map GroupDesc.sizeof gd)
+      | TableReply tr -> sum (List.map ~f:TableStats.sizeof tr)
+      | TableFeaturesReply tf -> sum (List.map ~f:TableFeature.sizeof tf)
+      | PortStatsReply psr -> sum (List.map ~f:PortStats.sizeof psr)
+      | QueueStatsReply qsr -> sum (List.map ~f:QueueStats.sizeof qsr)
+      | GroupStatsReply gs -> sum (List.map ~f:GroupStats.sizeof gs)
+      | GroupDescReply gd -> sum (List.map ~f:GroupDesc.sizeof gd)
       | GroupFeaturesReply gf -> GroupFeatures.sizeof gf
-      | MeterReply mr -> sum (map MeterStats.sizeof mr)
-      | MeterConfig mc -> sum (map MeterConfig.sizeof mc)
+      | MeterReply mr -> sum (List.map ~f:MeterStats.sizeof mr)
+      | MeterConfig mc -> sum (List.map ~f:MeterConfig.sizeof mc)
       | MeterFeaturesReply mf -> MeterFeatures.sizeof mf
 
   let to_string (mpr : multipartReply) =
     match mpr.mpreply_typ with
-      | PortsDescReply pdr -> Format.sprintf "PortsDescReply { %s }" (String.concat "; " (map PortDesc.to_string pdr))
+      | PortsDescReply pdr -> Format.sprintf "PortsDescReply { %s }" (String.concat ~sep:"; " (List.map ~f:PortDesc.to_string pdr))
       | SwitchDescReply sdc -> Format.sprintf "SwitchDescReply %s" (SwitchDescriptionReply.to_string sdc)
-      | FlowStatsReply fsr -> Format.sprintf "Flow { %s }" (String.concat "; " (map FlowStats.to_string fsr))
+      | FlowStatsReply fsr -> Format.sprintf "Flow { %s }" (String.concat ~sep:"; " (List.map ~f:FlowStats.to_string fsr))
       | AggregateReply ag -> Format.sprintf "Aggregate Flow %s" (AggregateStats.to_string ag)
-      | TableReply tr -> Format.sprintf "TableReply { %s }" (String.concat "; " (map TableStats.to_string tr))
-      | TableFeaturesReply tf -> Format.sprintf "TableFeaturesReply { %s }" (String.concat "; " (map TableFeature.to_string tf))
-      | PortStatsReply psr -> Format.sprintf "PortStatsReply { %s }" (String.concat "; " (map PortStats.to_string psr))
-      | QueueStatsReply qsr -> Format.sprintf "QueueStats { %s }" (String.concat "; " (map QueueStats.to_string qsr))
-      | GroupStatsReply gs -> Format.sprintf "GroupStats { %s }" (String.concat "; " (map GroupStats.to_string gs))
-      | GroupDescReply gd -> Format.sprintf "GroupSDesc { %s }" (String.concat "; " (map GroupDesc.to_string gd))
+      | TableReply tr -> Format.sprintf "TableReply { %s }" (String.concat ~sep:"; " (List.map ~f:TableStats.to_string tr))
+      | TableFeaturesReply tf -> Format.sprintf "TableFeaturesReply { %s }" (String.concat ~sep:"; " (List.map ~f:TableFeature.to_string tf))
+      | PortStatsReply psr -> Format.sprintf "PortStatsReply { %s }" (String.concat ~sep:"; " (List.map ~f:PortStats.to_string psr))
+      | QueueStatsReply qsr -> Format.sprintf "QueueStats { %s }" (String.concat ~sep:"; " (List.map ~f:QueueStats.to_string qsr))
+      | GroupStatsReply gs -> Format.sprintf "GroupStats { %s }" (String.concat ~sep:"; " (List.map ~f:GroupStats.to_string gs))
+      | GroupDescReply gd -> Format.sprintf "GroupSDesc { %s }" (String.concat ~sep:"; " (List.map ~f:GroupDesc.to_string gd))
       | GroupFeaturesReply gf -> Format.sprintf "GroupFeatures %s" (GroupFeatures.to_string gf)
-      | MeterReply mr -> Format.sprintf "MeterStats { %s }" (String.concat "; " (map MeterStats.to_string mr))
-      | MeterConfig mc -> Format.sprintf "MeterConfig { %s }" (String.concat "; " (map MeterConfig.to_string mc))
+      | MeterReply mr -> Format.sprintf "MeterStats { %s }" (String.concat ~sep:"; " (List.map ~f:MeterStats.to_string mr))
+      | MeterConfig mc -> Format.sprintf "MeterConfig { %s }" (String.concat ~sep:"; " (List.map ~f:MeterConfig.to_string mc))
       | MeterFeaturesReply mf -> Format.sprintf "MeterFeaturesStats %s" (MeterFeatures.to_string mf)
 
   let marshal (buf : Cstruct.t) (mpr : multipartReply) : int =
@@ -6209,12 +6216,12 @@ module QueueConfReply = struct
   type t = queueConfReply
 
   let sizeof (qr : t) : int =
-    sizeof_ofp_queue_get_config_reply + sum (map QueueDesc.sizeof qr.queues)
+    sizeof_ofp_queue_get_config_reply + sum (List.map ~f:QueueDesc.sizeof qr.queues)
 
   let to_string (qr : t) : string =
     Format.sprintf "{ port = %lu; queue = %s }"
     qr.port
-    ("[ " ^ (String.concat "; " (map QueueDesc.to_string qr.queues)) ^ " ]")
+    ("[ " ^ (String.concat ~sep:"; " (List.map ~f:QueueDesc.to_string qr.queues)) ^ " ]")
 
   let marshal (buf : Cstruct.t) (qr : t) : int =
     set_ofp_queue_get_config_reply_port buf qr.port;
@@ -7232,11 +7239,11 @@ module Hello = struct
                 set_ofp_uint32_value (Cstruct.shift buf (4*n)) acc;
                 marshal_bitmap ls 0l (n-1))
               else (
-                let acc = Int32.logor (Int32.shift_left 1l (t mod 32)) acc in
+                let acc = Int32.bit_or (Int32.shift_left 1l (t mod 32)) acc in
                 marshal_bitmap q acc n
               ) in
-        marshal_bitmap t 0l (List.hd t / 32);
-        ((List.hd t / 32) + 1) * 4
+        marshal_bitmap t 0l (List.hd_exn t / 32);
+        ((List.hd_exn t / 32) + 1) * 4
 
       let parse (bits : Cstruct.t) : supportedList =
         let rec parse_uint32 (bits : Cstruct.t) index curr (acc : supportedList) : supportedList =
@@ -7291,10 +7298,10 @@ module Hello = struct
   type t = helloElement
 
   let sizeof (t : helloElement) : int =
-    sum (map Element.sizeof t)
+    sum (List.map ~f:Element.sizeof t)
 
   let to_string (t : helloElement) : string =
-    String.concat "\n" (map Element.to_string t)
+    String.concat ~sep:"\n" (List.map ~f:Element.to_string t)
 
   let marshal (buf : Cstruct.t) (t : helloElement) : int =
     marshal_fields buf t Element.marshal
@@ -7401,21 +7408,21 @@ module AsyncConfig = struct
     (FlowRemoved.to_string async.flow_removed.m_slave)
 
   let marshal (buf : Cstruct.t) (async : asyncConfig) : int =
-    set_ofp_async_config_packet_in_mask0 buf (Int32.of_int (PacketIn.marshal async.packet_in.m_master));
-    set_ofp_async_config_packet_in_mask1 buf (Int32.of_int (PacketIn.marshal async.packet_in.m_slave));
-    set_ofp_async_config_port_status_mask0 buf (Int32.of_int (PortStatus.marshal async.port_status.m_master));
-    set_ofp_async_config_port_status_mask1 buf (Int32.of_int (PortStatus.marshal async.port_status.m_slave));
-    set_ofp_async_config_flow_removed_mask0 buf (Int32.of_int (FlowRemoved.marshal async.flow_removed.m_master));
-    set_ofp_async_config_flow_removed_mask1 buf (Int32.of_int (FlowRemoved.marshal async.flow_removed.m_slave));
+    set_ofp_async_config_packet_in_mask0 buf (Int32.of_int_exn (PacketIn.marshal async.packet_in.m_master));
+    set_ofp_async_config_packet_in_mask1 buf (Int32.of_int_exn (PacketIn.marshal async.packet_in.m_slave));
+    set_ofp_async_config_port_status_mask0 buf (Int32.of_int_exn (PortStatus.marshal async.port_status.m_master));
+    set_ofp_async_config_port_status_mask1 buf (Int32.of_int_exn (PortStatus.marshal async.port_status.m_slave));
+    set_ofp_async_config_flow_removed_mask0 buf (Int32.of_int_exn (FlowRemoved.marshal async.flow_removed.m_master));
+    set_ofp_async_config_flow_removed_mask1 buf (Int32.of_int_exn (FlowRemoved.marshal async.flow_removed.m_slave));
     sizeof_ofp_async_config
 
   let parse (bits : Cstruct.t) : asyncConfig =
-    let packet_in = { m_master = PacketIn.parse (Int32.to_int (get_ofp_async_config_packet_in_mask0 bits));
-                      m_slave = PacketIn.parse (Int32.to_int (get_ofp_async_config_packet_in_mask1 bits))} in
-    let port_status = { m_master = PortStatus.parse (Int32.to_int (get_ofp_async_config_port_status_mask0 bits));
-                        m_slave = PortStatus.parse (Int32.to_int (get_ofp_async_config_port_status_mask1 bits))} in
-    let flow_removed = { m_master = FlowRemoved.parse (Int32.to_int (get_ofp_async_config_flow_removed_mask0 bits));
-                         m_slave = FlowRemoved.parse (Int32.to_int (get_ofp_async_config_flow_removed_mask1 bits))} in
+    let packet_in = { m_master = PacketIn.parse (Int32.to_int_exn (get_ofp_async_config_packet_in_mask0 bits));
+                      m_slave = PacketIn.parse (Int32.to_int_exn (get_ofp_async_config_packet_in_mask1 bits))} in
+    let port_status = { m_master = PortStatus.parse (Int32.to_int_exn (get_ofp_async_config_port_status_mask0 bits));
+                        m_slave = PortStatus.parse (Int32.to_int_exn (get_ofp_async_config_port_status_mask1 bits))} in
+    let flow_removed = { m_master = FlowRemoved.parse (Int32.to_int_exn (get_ofp_async_config_flow_removed_mask0 bits));
+                         m_slave = FlowRemoved.parse (Int32.to_int_exn (get_ofp_async_config_flow_removed_mask1 bits))} in
     { packet_in; port_status; flow_removed }
 
 end
