@@ -5,6 +5,14 @@ open Frenetic_NetKAT
 let guard (pred: pred) (policy: policy) =
   Seq(Filter pred, policy)
 
+type node = Frenetic_NetKAT_Net.node
+
+type gui_event =
+  | AddNode of node 
+  | DelNode of node
+  | AddLink of node * node 
+  | DelLink of node * node 
+
 module Net = Frenetic_NetKAT_Net.Net
 module Log = Frenetic_Log
 
@@ -194,7 +202,6 @@ module Host = struct
    	end)
 
     | PortUp (sw_id,pt_id) -> (
-      Log.info "Port up event! - maybe host down.";
       let portmap = SwitchMap.find !state sw_id in
       match portmap with
       | None -> nib
@@ -213,6 +220,74 @@ module Host = struct
 
 end
 
+module Events = struct 
+
+  let state = ref []
+
+  let get_state = 
+    let response = !state in
+    state := [];
+    response 
+
+  (*Note: do this before updating other modules in discovery.
+Must process events in reverse order later because appending them.*)
+
+  let update (nib: Net.Topology.t) (evt:event) : unit =
+    let open Net.Topology in  
+    match evt with
+    | SwitchUp(switch_id,port_id) ->
+        state:= (AddNode (Switch switch_id))::!state
+
+    | SwitchDown(switch_id) ->
+        state:= (DelNode (Switch switch_id))::!state
+
+    | PacketIn( "host" ,sw_id,pt_id,payload,len) -> (
+	let open Frenetic_Packet in
+	let dlAddr,nwAddr = (match parse(Frenetic_OpenFlow.payload_bytes payload) with
+ 	| {nw = Arp (Arp.Query(dlSrc,nwSrc,_)) }
+ 	| {nw = Arp (Arp.Reply(dlSrc,nwSrc,_,_)) } ->
+ 		 	   (dlSrc,nwSrc) 
+ 	| _ -> assert false) in
+   	let h = try Some (vertex_of_label nib (Host (dlAddr,nwAddr))) 
+   	  with _ -> None in
+   	match h with 
+   	| None -> 
+   	  state:= (AddNode (Host (dlAddr, nwAddr)))::!state;
+   	  state:= (AddLink ((Host (dlAddr,nwAddr)),Switch sw_id))::!state
+   	| Some host -> ())
+
+    | PacketIn ("probe", sw_id,pt_id,payload,len ) -> (
+        let open Frenetic_Packet in
+        match parse(Frenetic_OpenFlow.payload_bytes payload) with
+        | { nw = Unparsable (dlTyp, bytes) } when dlTyp = Switch.Probe.protocol ->
+            let probe = Switch.Probe.parse bytes in
+            let n1:node = Switch (sw_id) in
+            let n2:node = Switch (probe.switch_id) in 
+            state := (AddLink (n1,n2))::!state
+        | _ -> ())
+
+    | PortUp (sw_id,pt_id) -> (
+    	let n1:node = Switch sw_id in 
+	let node2 = try 
+	    let v1 = vertex_of_label nib (Switch sw_id) in 
+	    let mh = next_hop nib v1 pt_id in 
+	    (match mh with
+	    | None -> None
+	    | Some (edge) -> 
+	        let (v2,pt_id2) = edge_dst edge in 
+		let open Frenetic_NetKAT_Net in 
+	        (match (vertex_to_label nib v2) with
+		    | Switch (sw_id2) -> Some (Switch sw_id2)
+		    | Host (dl,nw) -> Some (Host(dl,nw))))
+	  with _ -> None in 
+	match node2 with
+	| None -> ()
+	| Some n2 -> 
+	    state:=(AddLink (n1,n2)) :: !state)   
+    | _ -> ()
+        
+end 
+
 module Discovery = struct
 
   type t = {
@@ -229,6 +304,7 @@ module Discovery = struct
     Pipe.read event_pipe >>= function
       | `Eof -> return ()
       | `Ok evt -> begin
+	  Events.update !(t.nib) evt;
 	  t.nib := Switch.update (Host.update !(t.nib) evt) evt;
 	  let new_pol = Union(Switch.create (), Host.create()) in 
 	  (*update_pol new_pol >>=

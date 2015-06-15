@@ -229,11 +229,15 @@ let start (http_port : int) (openflow_port : int) () : unit =
 	let polstr = replace "%20" " " polstr |>
 		replace "%3A" ":" |>
 		replace "%7B" ";" in
-	let pol = Frenetic_NetKAT_Parser.policy_from_string polstr in 
+	let policy = try Some (Frenetic_NetKAT_Parser.policy_from_string polstr)
+		with _ -> None in 
+	match policy with 
+	| Some pol -> begin
 	let query = Seq (pol, (Mod(Location(Query name)))) in 
 	let new_pol = Union (query, Controller.get_policy ()) in 
 	Controller.update_policy new_pol >>= fun _ -> 
-	  return (Gui_Server.string_handler "Ok!"))
+	  return (Gui_Server.string_handler "Ok!") end
+	| None -> return (Gui_Server.string_handler "Invalid policy."))
 	);
     ("/stats/(.*)", fun g ->
 	let name = Array.get g 1 in 
