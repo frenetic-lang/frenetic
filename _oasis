@@ -110,7 +110,6 @@ Library openflow
     threads
   Modules:
     OpenFlow0x04,
-    OpenFlow0x04_Core,
     GroupTable0x04
 
 # Will be reintroduced in summer 2015

@@ -1,5 +1,4 @@
 open OpenFlow0x04
-open OpenFlow0x04_Core
 
 type t = {
 	table : (groupId, (groupType * bucket list)) Hashtbl.t;

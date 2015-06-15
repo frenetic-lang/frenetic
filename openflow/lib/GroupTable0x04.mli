@@ -1,6 +1,6 @@
 (** Controller's representation of the group table configuration on an
     OpenFlow 1.3 switch. *)
-
+open OpenFlow0x04
 type t
 
 val create : unit -> t
@@ -8,9 +8,9 @@ val create : unit -> t
 (** Creates a new group, allocating a fresh ID. *)
 val add_group :
      t
-  -> OpenFlow0x04_Core.groupType 
-  -> OpenFlow0x04_Core.bucket list 
-  -> OpenFlow0x04_Core.groupId
+  -> groupType
+  -> bucket list
+  -> groupId
 
 (** Forgets all groups *)
 val clear_groups : t -> unit
