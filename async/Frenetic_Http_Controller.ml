@@ -170,6 +170,11 @@ let listen ~http_port ~openflow_port =
 
 let start (http_port : int) (openflow_port : int) () : unit =  
   let module Controller = Frenetic_NetKAT_Controller.Make in
+  let on_handler_error = `Call print_error in
+  let _ = Cohttp_async.Server.create
+      ~on_handler_error
+      (Tcp.on_port http_port)
+      (handle_request (module Controller)) in
   let (_, pol_reader) = Frenetic_DynGraph.to_pipe pol in
   let _ = Pipe.iter pol_reader ~f:(fun pol -> Controller.update_policy pol) in
   Controller.start ~port:openflow_port ();
@@ -182,11 +187,10 @@ let start (http_port : int) (openflow_port : int) () : unit =
       ~f:(fun s -> s |> Yojson.Basic.from_string |> Frenetic_NetKAT_Json.event_from_json) in
     Discoveryapp.Discovery.start event_pipe (update t "discover") (pkt_out t)) in
   let _ = update t "discover" discover.policy >>| 
-  fun _ ->  (Discoveryapp.Discovery.start_server http_port Controller handle_request);
+  fun _ ->  (Discoveryapp.Discovery.start_server http_port);
    don't_wait_for (propogate_events Controller.event) in 
   ()
 
 let main (http_port : int) (openflow_port : int) () : unit =
   start http_port openflow_port ()
-
 

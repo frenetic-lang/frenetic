@@ -2,7 +2,7 @@ open Core.Std
 open Async.Std
 
 type handler = body:Cohttp_async.Body.t -> Async_extra.Import.Socket.Address.Inet.t -> 
-  Cohttp_async.Request.t -> Cohttp_async.Server.response Deferred.t
+  Cohttp_async.Request.t -> Cohttp_async.Server.response Deferred.t 
 
 type routes = (bytes * (bytes array -> handler Deferred.t)) list
 
@@ -13,7 +13,7 @@ val bytes_handler : bytes -> handler
 val string_handler : string -> handler
 
 val not_found_handler : handler
-
+(*val delta_events_to_json : gui_event list -> Frenetic_NetKAT_Net.Net.Topology.t -> string *)
 val topo_to_json : Frenetic_NetKAT_Net.Net.Topology.t -> bytes
 
 val create :
