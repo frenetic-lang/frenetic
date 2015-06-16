@@ -171,6 +171,7 @@ let listen ~http_port ~openflow_port =
 let start (http_port : int) (openflow_port : int) () : unit =  
   let module Controller = Frenetic_NetKAT_Controller.Make in
   let on_handler_error = `Call print_error in
+  Log.info "Http port is: %d" http_port;
   let _ = Cohttp_async.Server.create
       ~on_handler_error
       (Tcp.on_port http_port)

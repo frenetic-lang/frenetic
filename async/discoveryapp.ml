@@ -323,13 +323,29 @@ module Discovery = struct
     let flow_json = Yojson.Basic.to_string(Frenetic_NetKAT_SDN_Json.flowTable_to_json flowtable) in 
     Yojson.Basic.to_string (`Assoc[("policy",`String pol);
 		      ("flowtable",`String flow_json)])
-    
-  let start_server (http_port : int)  : unit =  
+
+  let show_headers h =
+  Cohttp.Header.iter (fun k v -> List.iter v ~f:(Printf.eprintf "%s: %s\n%!" k)) h
+
+let make_req uri meth' () =
+  let meth = Cohttp.Code.method_of_string meth' in
+  let uri = Uri.of_string uri in
+  let headers = Cohttp.Header.of_list [ "connection", "close" ] in
+  let resp = ref "" in 
+  Client.call meth ~headers uri
+  >>= fun (res, body) ->
+  body
+  |> Body.to_pipe
+  |> Pipe.to_list >>| String.concat
+
+  let start_server (http_port : int) : unit =  
 
     let module StatMap = Map.Make(Int) in 
     let track = ref false in 
     let track_name = ref "" in 
-    let stats = ref StatMap.empty in (**
+    let stats = ref StatMap.empty in 
+    
+    (**
     let rec collect_stats name = 
        (if (!track) then (
   	Clock.after (Time.Span.of_sec 4.0) >>= fun () ->(
@@ -342,7 +358,11 @@ module Discovery = struct
        else (return ())) in *)
 
     let routes = [("/topology", fun _ ->
-      return (Gui_Server.string_handler (Gui_Server.topo_to_json !(t.nib))))] in
+      return (Gui_Server.string_handler (Gui_Server.topo_to_json !(t.nib))));
+      ("/switch/([1-9][0-9]*)", fun _ -> 
+	make_req "http://localhost:9000/policy" "GET" () >>| 
+	fun x -> Log.info "%s" x; (Gui_Server.string_handler "made a request"))
+    ] in
     let _ = Gui_Server.create routes in
     ()
 
