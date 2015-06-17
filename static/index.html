@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCCTYPE html>
 
 <html lang="en">
 <head>
@@ -269,6 +269,19 @@
 	})
       }
 
+
+      function poll(){
+        setTimeout(function(){
+          d3.text("/events",function(d){
+            if(d!=""){
+              console.log(d);
+            }else
+            console.log("No updates to give. ");
+          });
+          poll();
+        },5000);
+      }  
+
       function network() {
         var width = 800,
             height = 600,
@@ -285,6 +298,8 @@
                 return -15 * Math.exp(4, d.weight);
             })
             .start();
+
+	poll();
 
         function update() {
             force
@@ -457,7 +472,11 @@
           .links(links);
 
       d3.select('#canvas').call(_network);
+
+
+
     });
   </script>
 </body>
 </html>
+

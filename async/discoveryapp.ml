@@ -1,4 +1,3 @@
-
 open Core.Std
 open Async.Std
 open Frenetic_NetKAT
@@ -119,11 +118,8 @@ module Switch = struct
       | SwitchDown switch ->
           remove_vertex nib (vertex_of_label nib (Switch switch))
       | PortUp (switch, port) ->
-    Log.info "Port up event received in switch";
           probes := ({switch_id = switch; port_id = port} :: !probes);
           add_port nib (vertex_of_label nib (Switch switch)) port
-      | PortDown (switch, port) ->
-          remove_port nib (vertex_of_label nib (Switch switch)) port
       | _ -> nib
 
   let rec probeloop (sender : switchId -> Frenetic_OpenFlow.pktOut -> unit Deferred.t) =
@@ -225,10 +221,13 @@ module Events = struct
 
   let state = ref []
 
-  let get_state = 
-    let response = !state in
+  let clear_log () = 
+    state:= []
+
+  let get_state () = 
+    let resp = !state in 
     state := [];
-    response 
+    resp
 
   (*Note: do this before updating other modules in discovery.
 Must process events in reverse order later because appending them.*)
@@ -261,30 +260,36 @@ Must process events in reverse order later because appending them.*)
         let open Frenetic_Packet in
         match parse(Frenetic_OpenFlow.payload_bytes payload) with
         | { nw = Unparsable (dlTyp, bytes) } when dlTyp = Switch.Probe.protocol ->
-            let probe = Switch.Probe.parse bytes in
+            (let probe = Switch.Probe.parse bytes in
             let n1:node = Switch (sw_id) in
             let n2:node = Switch (probe.switch_id) in 
-            state := (AddLink (n1,n2))::!state
+	    let v1 = vertex_of_label nib n1 in
+	    let v2 = vertex_of_label nib n2 in
+	    let e = try Some (find_edge nib v1 v2) 
+		with _ -> None in 
+	    match e with 
+	    | None -> state := (AddLink (n1,n2))::!state
+	    | Some x -> ())
         | _ -> ())
 
     | PortUp (sw_id,pt_id) -> (
       let n1:node = Switch sw_id in 
-  let node2 = try 
-      let v1 = vertex_of_label nib (Switch sw_id) in 
-      let mh = next_hop nib v1 pt_id in 
-      (match mh with
-      | None -> None
-      | Some (edge) -> 
+      let node2 = (try 
+        let v1 = vertex_of_label nib (Switch sw_id) in 
+        let mh = next_hop nib v1 pt_id in 
+        (match mh with
+        | None -> None
+        | Some (edge) -> 
           let (v2,pt_id2) = edge_dst edge in 
-    let open Frenetic_NetKAT_Net in 
+          let open Frenetic_NetKAT_Net in 
           (match (vertex_to_label nib v2) with
-        | Switch (sw_id2) -> Some (Switch sw_id2)
-        | Host (dl,nw) -> Some (Host(dl,nw))))
-    with _ -> None in 
-  match node2 with
-  | None -> ()
-  | Some n2 -> 
-      state:=(AddLink (n1,n2)) :: !state)   
+           | Switch (sw_id2) -> Some (Switch sw_id2)
+           | Host (dl,nw) -> Some (Host(dl,nw))))
+      with _ -> None) in 
+      match node2 with
+      | None -> ()
+      | Some n2 -> 
+        state:=(DelLink (n1,n2)) :: !state)   
     | _ -> ()
         
 end
@@ -303,9 +308,8 @@ module Eventjson = struct
                 ("mac", `String (Frenetic_Packet.string_of_mac dladdr));
                 ("ip", `String (Frenetic_Packet.string_of_ip nwaddr))] 
 
-  let vertices_to_json t = `List (Topo.VertexSet.fold (Topo.vertexes t)
-    ~f: (fun acc v -> (vertex_to_json (Topo.vertex_to_label t v))::acc)
-    ~init: []) 
+  let vertices_to_json t: Yojson.Safe.json = 
+    `List (Topo.VertexSet.fold (Topo.vertexes t) ~f: (fun acc v -> (vertex_to_json (Topo.vertex_to_label t v))::acc) ~init: []) 
 
   let vertex_idmap t = 
     let vertices = vertices_to_json t in
@@ -314,7 +318,7 @@ module Eventjson = struct
     let _ = List.iteri vlist ~f: (fun index el-> idmap := VertexMap.add !idmap (Yojson.Basic.to_string el) index;) in
     !idmap 
 
-  let edge_to_json t idmap (e: Topo.edge) = 
+  let edge_to_json t idmap (e: Topo.edge): Yojson.Safe.json = 
       let src, src_port = Topo.edge_src e in
       let dst, dst_port = Topo.edge_dst e in 
       let src = Topo.vertex_to_label t src in 
@@ -327,25 +331,25 @@ module Eventjson = struct
               ("dst_id", `Int dst_id);
               ("dst_port", `Int (Int32.to_int_exn dst_port))] 
 
-  let gui_event_to_json idmap t (evt:gui_event) = 
+  let gui_event_to_json idmap t (evt:gui_event) : Yojson.Safe.json= 
   	match evt with 
   	| AddNode (node) ->
   		let v1 = vertex_to_json node in 
-  		`ASSOC [("type", `String "AddNode");
+  		`Assoc [("type", `String "AddNode");
   				("node", v1)]
   	| DelNode (node) ->
   		let v1 = vertex_to_json node in 
-  		`ASSOC [("type", `String "DelNode");
+  		`Assoc [("type", `String "DelNode");
   				("node", v1)]
   	| AddLink (n1,n2) ->
       let e = Topo.find_edge t (Topo.vertex_of_label t n1) (Topo.vertex_of_label t n2) in 
   		let edg = edge_to_json t idmap e in 
-  		`ASSOC [("type", `String "AddLink");
+  		`Assoc [("type", `String "AddLink");
   		("link", edg)]
   	| DelLink (n1,n2) ->
       let e = Topo.find_edge t (Topo.vertex_of_label t n1) (Topo.vertex_of_label t n2) in 
   		let edg = edge_to_json t idmap e in 
-  		`ASSOC [("type", `String "DelLink");
+  		`Assoc [("type", `String "DelLink");
   		("link", edg)]
 
   let delta_events_to_json (events:gui_event list) 
@@ -429,7 +433,9 @@ let make_req uri meth' () =
        else (return ())) in 
 
     let routes = [
-      ("/topology", fun _ -> return (Gui_Server.string_handler (Eventjson.topo_to_json !(t.nib))));
+      ("/topology", fun _ -> 
+	Events.clear_log ();
+	return (Gui_Server.string_handler (Eventjson.topo_to_json !(t.nib))));
       ("/switch/([1-9][0-9]*)", fun g -> 
         let sw_id = Array.get g 1 in
         make_req "http://localhost:9000/policy" "GET" () >>=
@@ -503,6 +509,11 @@ let make_req uri meth' () =
          let json_stat time dp = `Assoc [("time", `Int time);("stat", dp)] in
          let data = `List (StatMap.fold !stats ~init:[] ~f:(fun ~key:time ~data:stat acc-> (json_stat time stat) :: acc)) in
          return (Gui_Server.string_handler (Yojson.Basic.to_string data )));
+      ("/events", fun _ -> 
+	 let events = Events.get_state () in 
+	 let data = Eventjson.delta_events_to_json events !(t.nib) in
+	 Log.info "events: %s" (Yojson.Safe.to_string data);
+	 return (Gui_Server.string_handler (Yojson.Safe.to_string data)));
     ] in
     let _ = Gui_Server.create routes in
     ()
