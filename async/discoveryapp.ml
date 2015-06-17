@@ -287,9 +287,81 @@ Must process events in reverse order later because appending them.*)
       state:=(AddLink (n1,n2)) :: !state)   
     | _ -> ()
         
-end 
+end
 
-module Discovery = struct
+module Eventjson = struct 
+  module Topo = Frenetic_NetKAT_Net.Net.Topology
+  module VertexMap = Map.Make(String)
+
+  let vertex_to_json (v: Frenetic_NetKAT_Net.node): Yojson.Safe.json =
+    match v with
+    | Switch s_id -> 
+        `Assoc [("type", `String "switch"); 
+                ("id", `Intlit (Int64.to_string s_id))]
+    | Host (dladdr, nwaddr) ->
+        `Assoc [("type", `String "host");
+                ("mac", `String (Frenetic_Packet.string_of_mac dladdr));
+                ("ip", `String (Frenetic_Packet.string_of_ip nwaddr))] 
+
+  let vertices_to_json t = `List (Topo.VertexSet.fold (Topo.vertexes t)
+    ~f: (fun acc v -> (vertex_to_json (Topo.vertex_to_label t v))::acc)
+    ~init: []) 
+
+  let vertex_idmap t = 
+    let vertices = vertices_to_json t in
+    let  vlist = Yojson.Basic.Util.to_list (Yojson.Safe.to_basic vertices) in
+    let idmap = ref VertexMap.empty in
+    let _ = List.iteri vlist ~f: (fun index el-> idmap := VertexMap.add !idmap (Yojson.Basic.to_string el) index;) in
+    !idmap 
+
+  let edge_to_json t idmap (e: Topo.edge) = 
+      let src, src_port = Topo.edge_src e in
+      let dst, dst_port = Topo.edge_dst e in 
+      let src = Topo.vertex_to_label t src in 
+      let dst = Topo.vertex_to_label t dst in
+      let src_id = VertexMap.find_exn idmap (Yojson.Basic.to_string (Yojson.Safe.to_basic (vertex_to_json src)))  in 
+      let dst_id = VertexMap.find_exn idmap (Yojson.Basic.to_string (Yojson.Safe.to_basic (vertex_to_json dst)))  in 
+      `Assoc [("src_id", `Int src_id);
+              ("src_port", `Int (Int32.to_int_exn src_port));
+              ("label", `String "");
+              ("dst_id", `Int dst_id);
+              ("dst_port", `Int (Int32.to_int_exn dst_port))] 
+
+  let gui_event_to_json idmap t (evt:gui_event) = 
+  	match evt with 
+  	| AddNode (node) ->
+  		let v1 = vertex_to_json node in 
+  		`ASSOC [("type", `String "AddNode");
+  				("node", v1)]
+  	| DelNode (node) ->
+  		let v1 = vertex_to_json node in 
+  		`ASSOC [("type", `String "DelNode");
+  				("node", v1)]
+  	| AddLink (n1,n2) ->
+      let e = Topo.find_edge t (Topo.vertex_of_label t n1) (Topo.vertex_of_label t n2) in 
+  		let edg = edge_to_json t idmap e in 
+  		`ASSOC [("type", `String "AddLink");
+  		("link", edg)]
+  	| DelLink (n1,n2) ->
+      let e = Topo.find_edge t (Topo.vertex_of_label t n1) (Topo.vertex_of_label t n2) in 
+  		let edg = edge_to_json t idmap e in 
+  		`ASSOC [("type", `String "DelLink");
+  		("link", edg)]
+
+  let delta_events_to_json (events:gui_event list) 
+  	(t:Frenetic_NetKAT_Net.Net.Topology.t) = 
+  	let idmap = vertex_idmap t in
+	let events = List.rev events in 
+  	`List (List.fold_left events ~init:[] ~f:(fun acc x -> (gui_event_to_json idmap t x)::acc))
+
+  let topo_to_json (t: Frenetic_NetKAT_Net.Net.Topology.t) = 
+  	let idmap = vertex_idmap t in 
+  	let vertices = vertices_to_json t in
+    let edges = `List (Topo.fold_edges (fun e acc -> (edge_to_json t idmap e)::acc) t []) in
+    Yojson.Safe.to_string (`Assoc [("nodes", vertices); ("links", edges);])
+end
+
+module Discovery = struct 
 
   type t = {
     nib : Net.Topology.t ref;
@@ -357,7 +429,7 @@ let make_req uri meth' () =
        else (return ())) in 
 
     let routes = [
-      ("/topology", fun _ -> return (Gui_Server.string_handler (Gui_Server.topo_to_json !(t.nib))));
+      ("/topology", fun _ -> return (Gui_Server.string_handler (Eventjson.topo_to_json !(t.nib))));
       ("/switch/([1-9][0-9]*)", fun g -> 
         let sw_id = Array.get g 1 in
         make_req "http://localhost:9000/policy" "GET" () >>=
