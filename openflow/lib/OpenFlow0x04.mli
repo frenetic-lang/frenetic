@@ -690,6 +690,9 @@ module Oxm : sig
   (** [to_string v] pretty-prints [v] *)
   val to_string : t -> string
 
+  (** [match_to_string v] pretty-prints oxmMatch [v] *)
+  val match_to_string : oxmMatch -> string
+  
   (** [marshal buf t] serializes [t] *)
   val marshal : Cstruct.t -> t -> int
 

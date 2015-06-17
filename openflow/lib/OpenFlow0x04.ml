@@ -13,7 +13,7 @@ type uint48 = uint64
 type uint24 = int32
 type uint12 = uint16
 
-type 'a mask = { m_value : 'a; m_mask : 'a option }
+type 'a mask = { m_value : 'a; m_mask : 'a option } with sexp
 
 type 'a asyncMask = { m_master : 'a ; m_slave : 'a }
 
@@ -22,9 +22,9 @@ type payload =
   | NotBuffered of bytes
 
 type xid = Frenetic_OpenFlow_Header.xid
-type int12 = int16
-type int24 = int32
-type int128 = int64 * int64
+type int12 = int16 with sexp
+type int24 = int32 with sexp
+type int128 = int64 * int64 with sexp
 
 let val_to_mask v =
   { m_value = v; m_mask = None }
@@ -37,11 +37,11 @@ let ip_to_mask (p,m) =
 
 type switchId = int64
 
-type groupId = int32
+type groupId = int32 with sexp
 
-type portId = int32
+type portId = int32 with sexp
 
-type tableId = int8
+type tableId = int8 with sexp
 
 type bufferId = int32
 
@@ -213,8 +213,9 @@ type errorTyp =
 
 type length = int16
 
-type oxmIPv6ExtHdr = { noext : bool; esp : bool; auth : bool; dest : bool; frac : bool;
-                       router : bool; hop : bool; unrep : bool; unseq : bool }
+type oxmIPv6ExtHdr = { noext : bool; esp : bool; auth : bool; 
+                       dest : bool; frac : bool; router : bool; 
+                       hop : bool; unrep : bool; unseq : bool } with sexp
 
 type oxm =
   | OxmInPort of portId
@@ -257,8 +258,9 @@ type oxm =
   | OxmMPLSBos of bool
   | OxmPBBIsid of int24 mask
   | OxmIPv6ExtHdr of oxmIPv6ExtHdr mask
+  with sexp
 
-type oxmMatch = oxm list
+type oxmMatch = oxm list with sexp
 
 type pseudoPort =
   | PhysicalPort of portId
@@ -270,6 +272,7 @@ type pseudoPort =
   | Controller of int16
   | Local
   | Any
+  with sexp
 
 type actionHdr =
   | OutputHdr
@@ -308,8 +311,9 @@ type action =
   | DecMplsTtl
   | SetQueue of int32
   | Experimenter of int32
+  with sexp
 
-type actionSequence = action list
+type actionSequence = action list with sexp
 
 type instructionHdr =
   | GotoTableHdr
@@ -328,6 +332,7 @@ type instruction =
   | Clear
   | Meter of int32
   | Experimenter of int32
+  with sexp
 
 type bucket = { bu_weight : int16; bu_watch_port : portId option;
                 bu_watch_group : groupId option; bu_actions : actionSequence }
@@ -1796,99 +1801,13 @@ module Oxm = struct
   let sizeof_header (oxml : oxm) : int =
     sizeof_ofp_oxm
 
-  let to_string oxm =
-    match oxm with
-    | OxmInPort p -> Format.sprintf "InPort = %lu " p
-    | OxmInPhyPort p -> Format.sprintf "InPhyPort = %lu " p
-    | OxmEthType  e -> Format.sprintf "EthType = %X " e
-    | OxmEthDst ethaddr ->
-      (match ethaddr.m_mask with
-       | None -> Format.sprintf "EthDst = %s" (string_of_mac ethaddr.m_value)
-       | Some m -> Format.sprintf "EthDst = %s/%s" (string_of_mac ethaddr.m_value) (string_of_mac m))
-    | OxmEthSrc ethaddr ->
-      (match ethaddr.m_mask with
-       | None -> Format.sprintf "EthSrc = %s" (string_of_mac ethaddr.m_value)
-       | Some m -> Format.sprintf "EthSrc = %s/%s" (string_of_mac ethaddr.m_value) (string_of_mac m))
-    | OxmVlanVId vid ->
-      (match vid.m_mask with
-       | None -> Format.sprintf "VlanVId = %u" vid.m_value
-       | Some m -> Format.sprintf "VlanVId = %u/%u" vid.m_value m)
-    | OxmVlanPcp vid -> Format.sprintf "VlanPcp = %u" vid
-    | OxmIP4Src ipaddr ->
-      (match ipaddr.m_mask with
-       | None -> Format.sprintf "IPSrc = %s" (string_of_ip ipaddr.m_value)
-       | Some m -> Format.sprintf "IPSrc = %s/%s" (string_of_ip ipaddr.m_value) (string_of_ip m))
-    | OxmIP4Dst ipaddr ->
-      (match ipaddr.m_mask with
-       | None -> Format.sprintf "IPDst = %s" (string_of_ip ipaddr.m_value)
-       | Some m -> Format.sprintf "IPDst = %s/%s" (string_of_ip ipaddr.m_value) (string_of_ip m))
-    | OxmTCPSrc v -> Format.sprintf "TCPSrc = %u" v
-    | OxmTCPDst v -> Format.sprintf "TCPDst = %u" v
-    | OxmMPLSLabel v -> Format.sprintf "MPLSLabel = %lu" v
-    | OxmMPLSTc v -> Format.sprintf "MplsTc = %u" v
-    | OxmMetadata v ->
-      (match v.m_mask with
-       | None -> Format.sprintf "Metadata = %Lu" v.m_value
-       | Some m -> Format.sprintf "Metadata = %Lu/%Lu" v.m_value m)
-    | OxmIPProto v -> Format.sprintf "IPProto = %u" v
-    | OxmIPDscp v -> Format.sprintf "IPDscp = %u" v
-    | OxmIPEcn v -> Format.sprintf "IPEcn = %u" v
-    | OxmARPOp v -> Format.sprintf "ARPOp = %u" v
-    | OxmARPSpa v ->
-      (match v.m_mask with
-       | None -> Format.sprintf "ARPSpa = %lu" v.m_value
-       | Some m -> Format.sprintf "ARPSpa = %lu/%lu" v.m_value m)
-    | OxmARPTpa v ->
-      (match v.m_mask with
-       | None -> Format.sprintf "ARPTpa = %lu" v.m_value
-       | Some m -> Format.sprintf "ARPTpa = %lu/%lu" v.m_value m)
-    | OxmARPSha v ->
-      (match v.m_mask with
-       | None -> Format.sprintf "ARPSha = %Lu" v.m_value
-       | Some m -> Format.sprintf "ARPSha = %Lu/%Lu" v.m_value m)
-    | OxmARPTha v ->
-      (match v.m_mask with
-       | None -> Format.sprintf "ARPTha = %Lu" v.m_value
-       | Some m -> Format.sprintf "ARPTha = %Lu/%Lu" v.m_value m)
-    | OxmICMPType v -> Format.sprintf "ICMPType = %u" v
-    | OxmICMPCode v -> Format.sprintf "ICMPCode = %u" v
-    | OxmTunnelId v ->
-      (match v.m_mask with
-       | None -> Format.sprintf "TunnelID = %Lu" v.m_value
-       | Some m -> Format.sprintf "TunnelID = %Lu/%Lu" v.m_value m)
-    | OxmUDPSrc v -> Format.sprintf "UDPSrc = %u" v
-    | OxmUDPDst v -> Format.sprintf "UDPDst = %u" v
-    | OxmSCTPSrc v -> Format.sprintf "SCTPSrc = %u" v
-    | OxmSCTPDst v -> Format.sprintf "SCTPDst = %u" v
-    | OxmIPv6Src t ->
-      (match t.m_mask with
-       | None -> Format.sprintf "IPv6Src = %s" (string_of_ipv6 t.m_value)
-       | Some m -> Format.sprintf "IPv6Src = %s/%s" (string_of_ipv6 t.m_value) (string_of_ipv6 m))
-    | OxmIPv6Dst t ->
-      (match t.m_mask with
-       | None -> Format.sprintf "IPv6Dst = %s" (string_of_ipv6 t.m_value)
-       | Some m -> Format.sprintf "IPv6Dst = %s/%s" (string_of_ipv6 t.m_value) (string_of_ipv6 m))
-    | OxmIPv6FLabel t ->
-      (match t.m_mask with
-       | None -> Format.sprintf "IPv6FlowLabel = %lu" t.m_value
-       | Some m -> Format.sprintf "IPv6FlowLabel = %lu/%lu" t.m_value m)
-    | OxmICMPv6Type v -> Format.sprintf "ICMPv6Type = %u" v
-    | OxmICMPv6Code v -> Format.sprintf "IPCMPv6Code = %u" v
-    | OxmIPv6NDTarget t ->
-      (match t.m_mask with
-       | None -> Format.sprintf "IPv6NeighborDiscoveryTarget = %s" (string_of_ipv6 t.m_value)
-       | Some m -> Format.sprintf "IPv6NeighborDiscoveryTarget = %s/%s" (string_of_ipv6 t.m_value) (string_of_ipv6 m))
-    | OxmIPv6NDSll v -> Format.sprintf "IPv6NeighborDiscoverySourceLink = %Lu" v
-    | OxmIPv6NDTll v -> Format.sprintf "IPv6NeighborDiscoveryTargetLink = %Lu" v
-    | OxmMPLSBos v -> Format.sprintf "MPLSBoS = %B" v
-    | OxmPBBIsid t ->
-      (match t.m_mask with
-       | None -> Format.sprintf "PBBIsid = %lu" t.m_value
-       | Some m -> Format.sprintf "PBBIsid = %lu/%lu" t.m_value m)
-    | OxmIPv6ExtHdr t ->
-      (match t.m_mask with
-       | None -> Format.sprintf "IPv6ExtHdr = %s" (IPv6ExtHdr.to_string t.m_value)
-       | Some m -> Format.sprintf "IPv6ExtHdr = %s/%s" (IPv6ExtHdr.to_string t.m_value) (IPv6ExtHdr.to_string m))
+  let to_string (oxm : oxm) =
+    sexp_of_oxm oxm
+    |> Sexp.to_string
+
+  let match_to_string (oxmMatch : oxmMatch) =
+    sexp_of_oxmMatch oxmMatch
+    |> Sexp.to_string
 
   let set_ofp_oxm (buf : Cstruct.t) (c : ofp_oxm_class) (f : oxm_ofb_match_fields) (hm : int) (l : int) =
     let value = (0x7f land (oxm_ofb_match_fields_to_int f)) lsl 1 in
@@ -1896,7 +1815,6 @@ module Oxm = struct
     set_ofp_oxm_oxm_class buf (ofp_oxm_class_to_int c);
     set_ofp_oxm_oxm_field_and_hashmask buf value;
     set_ofp_oxm_oxm_length buf l
-
 
   let marshal (buf : Cstruct.t) (oxm : oxm) : int =
     let l = field_length oxm in
@@ -3758,7 +3676,7 @@ end
 
 module Instructions = struct
 
-  type t = instruction list
+  type t = instruction list with sexp
 
   let sizeof (inss : t) : int =
     sum (List.map ~f:Instruction.sizeof inss)
@@ -3775,9 +3693,9 @@ module Instructions = struct
       let fields, bits3 = parse_field bits2 in
       (List.append [field] fields, bits3)
 
-  let to_string ins =
-    "[ " ^ (String.concat ~sep:"; " (List.map ~f:Instruction.to_string ins)) ^ " ]"
-
+  let to_string insts =
+    sexp_of_t insts
+    |> Sexp.to_string
 
   let parse (bits : Cstruct.t) : t =
     let field,_ = parse_field bits in
