@@ -1,3 +1,4 @@
+
 open Core.Std
 open Async.Std
 open Frenetic_NetKAT
@@ -118,7 +119,7 @@ module Switch = struct
       | SwitchDown switch ->
           remove_vertex nib (vertex_of_label nib (Switch switch))
       | PortUp (switch, port) ->
-	  Log.info "Port up event received in switch";
+    Log.info "Port up event received in switch";
           probes := ({switch_id = switch; port_id = port} :: !probes);
           add_port nib (vertex_of_label nib (Switch switch)) port
       | PortDown (switch, port) ->
@@ -163,59 +164,59 @@ module Host = struct
      | SwitchDown(switch_id) ->
        (let portmap = SwitchMap.find !state switch_id in 
        let nib = match portmap with 
-	| None ->  nib
-	| Some map -> 
-	 PortMap.fold map ~init:nib ~f:(fun ~key:pt_id ~data:host acc -> 	 	 let h = try Some (vertex_of_label nib (Host (fst host, snd host))) 
-		 with _ -> None in 
-	 match h with 
-	 | None -> nib
-	 | Some v -> remove_vertex nib v) in 
-	state:= SwitchMap.remove !state switch_id; 
-	nib)	
+  | None ->  nib
+  | Some map -> 
+   PortMap.fold map ~init:nib ~f:(fun ~key:pt_id ~data:host acc ->     let h = try Some (vertex_of_label nib (Host (fst host, snd host))) 
+     with _ -> None in 
+   match h with 
+   | None -> nib
+   | Some v -> remove_vertex nib v) in 
+  state:= SwitchMap.remove !state switch_id; 
+  nib)  
      | PacketIn( "host" ,sw_id,pt_id,payload,len) -> (
-	let open Frenetic_Packet in
-	Log.info "pinged!";
- 	let dlAddr,nwAddr = match parse(Frenetic_OpenFlow.payload_bytes payload) with
- 		 | {nw = Arp (Arp.Query(dlSrc,nwSrc,_)) }
- 		 | {nw = Arp (Arp.Reply(dlSrc,nwSrc,_,_)) } ->
- 		 	   (dlSrc,nwSrc) 
- 		 | _ -> assert false in
-   	let h = try Some (vertex_of_label nib (Host (dlAddr,nwAddr))) 
-   	  	with _ -> None in
-	let s = try Some (vertex_of_label nib (Switch sw_id)) 
-		with _ -> None in 
-   	begin match Frenetic_Topology.in_edge nib sw_id pt_id, h , s with
-   		| true, None, Some sw ->
-		Log.info "Edges before adding this: %d" (num_edges nib);
-   	  	let nib', h = add_vertex nib (Host (dlAddr,nwAddr)) in
-		let module Link = Frenetic_NetKAT_Net.Link in 
-   	  	let nib', _ = add_edge nib' sw pt_id Link.default h Int32.one in
-   	  	let nib', _ = add_edge nib' h Int32.one Link.default sw pt_id in
-		let portmap = SwitchMap.find !state sw_id in 
-		let portmap = (match portmap with 
-		 | Some (map) -> PortMap.add map pt_id (dlAddr,nwAddr)
-		 | None -> PortMap.empty) in
+  let open Frenetic_Packet in
+  Log.info "pinged!";
+  let dlAddr,nwAddr = match parse(Frenetic_OpenFlow.payload_bytes payload) with
+     | {nw = Arp (Arp.Query(dlSrc,nwSrc,_)) }
+     | {nw = Arp (Arp.Reply(dlSrc,nwSrc,_,_)) } ->
+         (dlSrc,nwSrc) 
+     | _ -> assert false in
+    let h = try Some (vertex_of_label nib (Host (dlAddr,nwAddr))) 
+        with _ -> None in
+  let s = try Some (vertex_of_label nib (Switch sw_id)) 
+    with _ -> None in 
+    begin match Frenetic_Topology.in_edge nib sw_id pt_id, h , s with
+      | true, None, Some sw ->
+    Log.info "Edges before adding this: %d" (num_edges nib);
+        let nib', h = add_vertex nib (Host (dlAddr,nwAddr)) in
+    let module Link = Frenetic_NetKAT_Net.Link in 
+        let nib', _ = add_edge nib' sw pt_id Link.default h Int32.one in
+        let nib', _ = add_edge nib' h Int32.one Link.default sw pt_id in
+    let portmap = SwitchMap.find !state sw_id in 
+    let portmap = (match portmap with 
+     | Some (map) -> PortMap.add map pt_id (dlAddr,nwAddr)
+     | None -> PortMap.empty) in
                  state := SwitchMap.add !state sw_id portmap;
-		Log.info "Edges after adding this: %d" (num_edges nib');
-		 nib'
-   	  	| _ , _ , _ -> nib
-   	end)
+    Log.info "Edges after adding this: %d" (num_edges nib');
+     nib'
+        | _ , _ , _ -> nib
+    end)
 
     | PortUp (sw_id,pt_id) -> (
       let portmap = SwitchMap.find !state sw_id in
       match portmap with
       | None -> nib
       | Some (map) -> 
-	  begin
-	    let host = PortMap.find map pt_id in 
-	    match host with 
-	    | None -> nib
-	    | Some h ->
-	    	let portmap = PortMap.remove map pt_id in 
-	    	state := SwitchMap.add !state sw_id portmap;
-		let v2 = vertex_of_label nib (Host (fst h, snd h)) in 
-		remove_vertex nib v2
-	  end)
+    begin
+      let host = PortMap.find map pt_id in 
+      match host with 
+      | None -> nib
+      | Some h ->
+        let portmap = PortMap.remove map pt_id in 
+        state := SwitchMap.add !state sw_id portmap;
+    let v2 = vertex_of_label nib (Host (fst h, snd h)) in 
+    remove_vertex nib v2
+    end)
     | _ -> nib
 
 end
@@ -242,19 +243,19 @@ Must process events in reverse order later because appending them.*)
         state:= (DelNode (Switch switch_id))::!state
 
     | PacketIn( "host" ,sw_id,pt_id,payload,len) -> (
-	let open Frenetic_Packet in
-	let dlAddr,nwAddr = (match parse(Frenetic_OpenFlow.payload_bytes payload) with
- 	| {nw = Arp (Arp.Query(dlSrc,nwSrc,_)) }
- 	| {nw = Arp (Arp.Reply(dlSrc,nwSrc,_,_)) } ->
- 		 	   (dlSrc,nwSrc) 
- 	| _ -> assert false) in
-   	let h = try Some (vertex_of_label nib (Host (dlAddr,nwAddr))) 
-   	  with _ -> None in
-   	match h with 
-   	| None -> 
-   	  state:= (AddNode (Host (dlAddr, nwAddr)))::!state;
-   	  state:= (AddLink ((Host (dlAddr,nwAddr)),Switch sw_id))::!state
-   	| Some host -> ())
+  let open Frenetic_Packet in
+  let dlAddr,nwAddr = (match parse(Frenetic_OpenFlow.payload_bytes payload) with
+  | {nw = Arp (Arp.Query(dlSrc,nwSrc,_)) }
+  | {nw = Arp (Arp.Reply(dlSrc,nwSrc,_,_)) } ->
+         (dlSrc,nwSrc) 
+  | _ -> assert false) in
+    let h = try Some (vertex_of_label nib (Host (dlAddr,nwAddr))) 
+      with _ -> None in
+    match h with 
+    | None -> 
+      state:= (AddNode (Host (dlAddr, nwAddr)))::!state;
+      state:= (AddLink ((Host (dlAddr,nwAddr)),Switch sw_id))::!state
+    | Some host -> ())
 
     | PacketIn ("probe", sw_id,pt_id,payload,len ) -> (
         let open Frenetic_Packet in
@@ -267,23 +268,23 @@ Must process events in reverse order later because appending them.*)
         | _ -> ())
 
     | PortUp (sw_id,pt_id) -> (
-    	let n1:node = Switch sw_id in 
-	let node2 = try 
-	    let v1 = vertex_of_label nib (Switch sw_id) in 
-	    let mh = next_hop nib v1 pt_id in 
-	    (match mh with
-	    | None -> None
-	    | Some (edge) -> 
-	        let (v2,pt_id2) = edge_dst edge in 
-		let open Frenetic_NetKAT_Net in 
-	        (match (vertex_to_label nib v2) with
-		    | Switch (sw_id2) -> Some (Switch sw_id2)
-		    | Host (dl,nw) -> Some (Host(dl,nw))))
-	  with _ -> None in 
-	match node2 with
-	| None -> ()
-	| Some n2 -> 
-	    state:=(AddLink (n1,n2)) :: !state)   
+      let n1:node = Switch sw_id in 
+  let node2 = try 
+      let v1 = vertex_of_label nib (Switch sw_id) in 
+      let mh = next_hop nib v1 pt_id in 
+      (match mh with
+      | None -> None
+      | Some (edge) -> 
+          let (v2,pt_id2) = edge_dst edge in 
+    let open Frenetic_NetKAT_Net in 
+          (match (vertex_to_label nib v2) with
+        | Switch (sw_id2) -> Some (Switch sw_id2)
+        | Host (dl,nw) -> Some (Host(dl,nw))))
+    with _ -> None in 
+  match node2 with
+  | None -> ()
+  | Some n2 -> 
+      state:=(AddLink (n1,n2)) :: !state)   
     | _ -> ()
         
 end 
@@ -304,11 +305,11 @@ module Discovery = struct
     Pipe.read event_pipe >>= function
       | `Eof -> return ()
       | `Ok evt -> begin
-	  Events.update !(t.nib) evt;
-	  t.nib := Switch.update (Host.update !(t.nib) evt) evt;
-	  let new_pol = Union(Switch.create (), Host.create()) in 
-	  (*update_pol new_pol >>=
-	  fun b ->*) loop event_pipe update_pol end 
+    Events.update !(t.nib) evt;
+    t.nib := Switch.update (Host.update !(t.nib) evt) evt;
+    let new_pol = Union(Switch.create (), Host.create()) in 
+    (*update_pol new_pol >>=
+    fun b ->*) loop event_pipe update_pol end 
 
   let start (event_pipe: event Pipe.Reader.t) (update_pol:policy -> unit Deferred.t)
     (packet_send : switchId -> Frenetic_OpenFlow.pktOut -> unit Deferred.t) =
@@ -322,7 +323,7 @@ module Discovery = struct
     let open Yojson.Basic.Util in 
     let flow_json = Yojson.Basic.to_string(Frenetic_NetKAT_SDN_Json.flowTable_to_json flowtable) in 
     Yojson.Basic.to_string (`Assoc[("policy",`String pol);
-		      ("flowtable",`String flow_json)])
+          ("flowtable",`String flow_json)])
 
   let show_headers h =
   Cohttp.Header.iter (fun k v -> List.iter v ~f:(Printf.eprintf "%s: %s\n%!" k)) h
@@ -330,38 +331,106 @@ module Discovery = struct
 let make_req uri meth' () =
   let meth = Cohttp.Code.method_of_string meth' in
   let uri = Uri.of_string uri in
-  let headers = Cohttp.Header.of_list [ "connection", "close" ] in
-  let resp = ref "" in 
+  let headers = Cohttp.Header.of_list [ "connection", "close" ] in 
   Client.call meth ~headers uri
   >>= fun (res, body) ->
   body
   |> Body.to_pipe
   |> Pipe.to_list >>| String.concat
 
-  let start_server (http_port : int) : unit =  
+  let start_server (http_port : int) update_policy : unit =  
 
     let module StatMap = Map.Make(Int) in 
     let track = ref false in 
     let track_name = ref "" in 
     let stats = ref StatMap.empty in 
     
-    (**
     let rec collect_stats name = 
        (if (!track) then (
-  	Clock.after (Time.Span.of_sec 4.0) >>= fun () ->(
-  	  let cur_time = Float.to_int (Unix.gettimeofday ()) in 
-  	  Controller.query name >>= fun data ->(
-  	    let statstr = Frenetic_NetKAT_Json.stats_to_json data in
-  	    stats := StatMap.add !stats cur_time statstr; 
-  	    collect_stats name))
-  	)
-       else (return ())) in *)
+    Clock.after (Time.Span.of_sec 4.0) >>= fun () ->(
+      let cur_time = Float.to_int (Unix.gettimeofday ()) in 
+      make_req ("http://localhost:9000/query/"^name) "GET" ()  >>= fun data ->(
+	let statstr = Yojson.Basic.from_string data in
+        stats := StatMap.add !stats cur_time statstr; 
+        collect_stats name))
+    )
+       else (return ())) in 
 
-    let routes = [("/topology", fun _ ->
-      return (Gui_Server.string_handler (Gui_Server.topo_to_json !(t.nib))));
-      ("/switch/([1-9][0-9]*)", fun _ -> 
-	make_req "http://localhost:9000/policy" "GET" () >>| 
-	fun x -> Log.info "%s" x; (Gui_Server.string_handler "made a request"))
+    let routes = [
+      ("/topology", fun _ -> return (Gui_Server.string_handler (Gui_Server.topo_to_json !(t.nib))));
+      ("/switch/([1-9][0-9]*)", fun g -> 
+        let sw_id = Array.get g 1 in
+        make_req "http://localhost:9000/policy" "GET" () >>=
+        fun pol ->
+	  let pol = Frenetic_NetKAT_Json.policy_from_json_string pol |>
+	  Frenetic_NetKAT_Pretty.string_of_policy in 
+          make_req ("http://localhost:9000/flowtbl/"^sw_id) "GET" () >>=
+          fun flowtbl ->  let data = Yojson.Basic.to_string (`Assoc[("policy",`String pol);
+          ("flowtable",`String flowtbl)]) in 
+          return (Gui_Server.string_handler data));
+      ("/switch/([1-9][0-9]*)/port/([1-9][0-9]*)", fun g ->
+        let sw_id = Array.get g 1 in
+        let pt_id = Array.get g 2 in
+        let uri = "http://localhost:9000/port_stats/" ^ sw_id ^ "/" ^ pt_id in
+        make_req uri "GET" () >>= fun stats ->
+          return (Gui_Server.string_handler stats));
+      ("/query/(.*)/pred/(.*)", fun g -> 
+        let name = Array.get g 1 in 
+        make_req ("http://localhost:9000/is_query/"^name) "GET" () >>= 
+        fun b -> if (b = "true") then 
+          return (Gui_Server.string_handler "Already Exists.")
+        else(
+          let polstr = Array.get g 2 in 
+          let replace re t s= Str.global_replace (Str.regexp_string re) t s in
+          let polstr = replace "%20" " " polstr |>
+                      replace "%3A" ":" |>
+                      replace "%7B" ";" in
+	  Log.info "%s" polstr;
+          let policy = try Some (Frenetic_NetKAT_Parser.policy_from_string polstr)
+                with _ -> None in 
+          match policy with 
+          | Some pol -> begin
+          let query = Seq (pol, (Mod(Location(Query name)))) in 
+          make_req "http://localhost:9000/policy" "GET" () >>= 
+          fun old_polstr -> 
+	    let old_pol = Frenetic_NetKAT_Json.policy_from_json_string old_polstr in
+            Log.info "%s" "No trouble parsing!";
+	    Union (query, old_pol) |> 
+            update_policy  >>= fun _ -> 
+              return (Gui_Server.string_handler "Query added.") 
+            end
+          | None -> return (Gui_Server.string_handler "Invalid policy.")
+        ));
+      ("/stats/(.*)", fun g ->
+        let name = Array.get g 1 in 
+        make_req ("http://localhost:9000/is_query/"^name) "GET" () >>= fun r ->
+          if (r = "true") then begin
+            make_req ("http://localhost:9000/query/"^name) "GET" () >>= fun stats ->
+              return (Gui_Server.string_handler stats)
+            end
+          else 
+            return (Gui_Server.string_handler "No such query.")
+      );
+      ("/track/(.*)", fun g ->
+        let name = Array.get g 1 in 
+        make_req ("http://localhost:9000/is_query/"^name) "GET" () >>= fun re ->
+          if(re = "true") then 
+            if(!track = false ) then (
+              track_name := name;
+              track := true;
+              stats := StatMap.empty;
+              don't_wait_for (collect_stats !track_name);
+              return (Gui_Server.string_handler "collecting stats.")
+            )else(
+              track := false;
+              return (Gui_Server.string_handler ("Stopped tracking"^ !track_name))
+            ) 
+          else 
+            return (Gui_Server.string_handler "No such query!"));
+      ("/graph", fun _ ->
+         let json_stat time dp = `Assoc [("time", `Int time);("stat", dp)] in
+         let data = `List (StatMap.fold !stats ~init:[] ~f:(fun ~key:time ~data:stat acc-> (json_stat time stat) :: acc)) in
+         return (Gui_Server.string_handler (Yojson.Basic.to_string data )));
     ] in
     let _ = Gui_Server.create routes in
     ()

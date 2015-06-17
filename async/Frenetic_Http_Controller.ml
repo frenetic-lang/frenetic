@@ -1,3 +1,4 @@
+
 open Core.Std
 open Async.Std
 open Cohttp_async
@@ -59,7 +60,7 @@ let get_client (clientId: string): client =
                printf ~level:`Info "New client %s" clientId;
                let node = Frenetic_DynGraph.create_source drop in
                Frenetic_DynGraph.attach node pol;
-	       let (r, w) = Pipe.create () in
+         let (r, w) = Pipe.create () in
                { policy_node = node; event_reader = r; event_writer =  w })
 
 let handle_request
@@ -79,6 +80,11 @@ let handle_request
     | `GET, ["current_switches"] ->
       let switches = current_switches () in
       Server.respond_with_string (current_switches_to_json_string switches)
+    | `GET, ["is_query";name] ->
+	if (is_query name) then 
+	  Server.respond_with_string "true"
+	else 
+	  Server.respond_with_string "false"
     | `GET, ["query"; name] ->
       if (is_query name) then
         query name
@@ -118,8 +124,13 @@ let handle_request
          Frenetic_DynGraph.push pol (get_client clientId).policy_node;
          Cohttp_async.Server.respond `OK)
     | `GET, ["policy"] -> get_policy () |> 
-	Frenetic_NetKAT_Pretty.string_of_policy |>
-	Server.respond_with_string
+         Frenetic_NetKAT_Json.policy_to_json_string |>
+         Server.respond_with_string
+    | `GET, ["flowtbl";sw_id] -> 
+         let sw_id = Int64.of_int (int_of_string sw_id) in 
+	 let flowtable =  List.fold_left (get_table sw_id) ~f:(fun acc x -> (fst x) :: acc) ~init:[] in
+         Yojson.Basic.to_string (Frenetic_NetKAT_SDN_Json.flowTable_to_json flowtable) |>
+         Server.respond_with_string 
     | _, _ ->
       Log.error "Unknown method/path (404 error)";
       Cohttp_async.Server.respond `Not_found
@@ -188,7 +199,7 @@ let start (http_port : int) (openflow_port : int) () : unit =
       ~f:(fun s -> s |> Yojson.Basic.from_string |> Frenetic_NetKAT_Json.event_from_json) in
     Discoveryapp.Discovery.start event_pipe (update t "discover") (pkt_out t)) in
   let _ = update t "discover" discover.policy >>| 
-  fun _ ->  (Discoveryapp.Discovery.start_server http_port);
+  fun _ ->  (Discoveryapp.Discovery.start_server http_port Controller.update_policy);
    don't_wait_for (propogate_events Controller.event) in 
   ()
 

@@ -250,7 +250,9 @@
 	    console.log(d);
 	    d = JSON.parse(d);
 	    var entries = sEntry.concat(tEntry);
-	    entries = entries.concat([['packets',d.packets],['bytes',d.bytes]]);
+	    var pkts = d.rx_packets + d.tx_packets;
+	    var bytes = d.rx_bytes + d.tx_bytes;
+	    entries = entries.concat([['packets',pkts],['bytes',bytes]]);
 	   
             var rows = d3.select('#entity table').selectAll('tr')
                .data(entries);
