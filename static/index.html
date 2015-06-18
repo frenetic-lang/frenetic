@@ -278,16 +278,25 @@
               var nodes = _network.nodes();
               var links = _network.links();
 
+	      function equals (n1,n2){
+		if(n1.type == n2.type){
+		  if(n1.type == "switch")
+		    return (n1.id == n2.id);
+		  else
+		    return (n1.ip == n2.ip && n1.mac==n2.mac) 
+		}
+		return false;
+	      }
+
               for (var i in data){
                 var x = data[i];
 		if(x.type == "AddNode"){
-                  nodes.push(x.node);
+                   nodes = [x.node].concat(nodes);
                 }else if(x.type == "DelNode"){
 
                   links = links.filter(function(l){
-                    return (l.source!=x.node && l.target!=x.node)
-                  });
-		  nodes = nodes.filter(function(n){return n!= x.node});
+                    return !(equals(x.node,l.source) || equals(x.node,l.target))		  });
+		  nodes = nodes.filter(function(n){return !equals(x.node,n)});
 
                 }else if (x.type =="AddLink"){
 		  console.log(x.link);
@@ -299,10 +308,11 @@
                   links.push({source : src, target : dst});
 
                 }else if(x.type == "DelLink"){
-                  var src = nodes[x.link.src_id],
-                  dst = nodes[x.link.dst_id];
+                  var src = x.link.source;
+                  dst = x.link.target;
                   links = links.filter(function(l){
-                    return (l!={source : src,target : dst});
+                    return !(equals(l.source,src) && equals(l.target,dst));
+
                   });
                 }
               }
@@ -312,6 +322,8 @@
                   .links(links);
 
 	      console.log(_network.nodes());
+	      console.log(_network.links());
+	     
             }else
             console.log("No updates to give. ");
           });
@@ -465,7 +477,6 @@
         my.nodes = function(_) {
             if (!arguments.length) return data.nodes;
             data.nodes = _;
-	    console.log("calling update");
             update();
             return my;
         };
