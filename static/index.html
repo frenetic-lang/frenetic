@@ -283,19 +283,18 @@
 		if(x.type == "AddNode"){
                   nodes.push(x.node);
                 }else if(x.type == "DelNode"){
-                  nodes = nodes.filter(function(n){ return n != x.node });    
-                  var new_links = [];
 
                   links = links.filter(function(l){
                     return (l.source!=x.node && l.target!=x.node)
                   });
+		  nodes = nodes.filter(function(n){return n!= x.node});
 
                 }else if (x.type =="AddLink"){
 		  console.log(x.link);
                   var src = nodes[x.link.src_id],
                   dst = nodes[x.link.dst_id];
 		  
-                  src.switch_port = x.link.src_port,
+                  src.switch_port = x.link.src_port;
                   dst.switch_port = x.link.dst_port; 
                   links.push({source : src, target : dst});
 
@@ -338,58 +337,12 @@
             .start();
 
         function update() {
-	    console.log("updating.");
-	    var svg = d3.select('#canvas')
-			.selectAll('svg')
-                	.data([data]);
-
-            var link = svg.select('g').selectAll('.link')
-                .data(function(d) { return d.links });
-
-            link.enter().append('line')
-                .attr('class', 'link')
-                .style('stroke-width', function(d) {return 100 * d.redundancy;})
-		.on('click', function(d){link_info(d,data)});
-	    
-            var host = svg.selectAll('.host')
-                .data(function(d) {
-                  return d.nodes.filter(function(d) { return d.type === 'host' })
-                })
-              .enter().append('image')
-                .attr('width', 48)
-                .attr('height', 48)
-                .attr('xlink:href', '/static/terminal.svg')
-                .attr('class', function(d, i) { return 'host ' + 'h-' + i; })
-                .on('click', function(d) {
-                    data.picked = d;
-                    if (events.click) {
-                        events.click(scrub_node(data.picked));
-                    }
-                    svg.call(highlight);
-                });
-            var switch_ = svg.selectAll('.switch')
-                .data(function(d) {
-                  return d.nodes.filter(function(d) { return d.type === 'switch' });
-                })
-             .enter().append('image')
-                .attr('width', 48)
-                .attr('height', 48)
-                .attr('xlink:href', '/static/switch.svg')
-                .attr('class', function(d, i) { return 'switch ' + 's-' + i; })
-                .on('click', function(d) {
-                    data.picked = d;
-                    if (events.click) {
-                        events.click(scrub_node(data.picked));
-                    }
-                    svg.call(highlight);
-                });
-
-
-            force
+	    force
                 .size([width, height])
                 .nodes(data.nodes)
-                .links(data.links)
-                .start();
+                .links(data.links);
+
+            force.start();
         }
 
         function scrub_node(d) {
@@ -424,6 +377,7 @@
         }
 
         var my = function(selection) {
+	    console.log("in MY");
             var svg = selection.selectAll('svg')
                 .data([data]);
 

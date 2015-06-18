@@ -258,9 +258,11 @@ Must process events in reverse order later because appending them.*)
     let h = try Some (vertex_of_label nib (Host (dlAddr,nwAddr))) 
       with _ -> None in
     match h with 
-    | None -> 
-      state:= (AddNode (Host (dlAddr, nwAddr)))::!state;
-      state:= (AddLink ((Host (dlAddr,nwAddr)),Switch sw_id))::!state
+    | None -> (
+      let h1 = Host (dlAddr, nwAddr) in 
+      let s1 = Switch sw_id in
+      state:= (AddNode h1)::!state;
+      state:= (AddLink (s1,h1))::((AddLink (h1,s1))::!state))
     | Some host -> ())
 
     | PacketIn ("probe", sw_id,pt_id,payload,len ) -> (
@@ -275,7 +277,7 @@ Must process events in reverse order later because appending them.*)
 	    let e = try Some (find_edge nib v1 v2) 
 		with _ -> None in 
 	    match e with 
-	    | None -> state := (AddLink (n1,n2))::!state
+	    | None -> state := (AddLink (n2,n1)):: ((AddLink (n1,n2))::!state)
 	    | Some x -> ())
         | _ -> ())
 
@@ -291,12 +293,13 @@ Must process events in reverse order later because appending them.*)
           let open Frenetic_NetKAT_Net in 
           (match (vertex_to_label nib v2) with
            | Switch (sw_id2) -> Some (Switch sw_id2)
-           | Host (dl,nw) -> Some (Host(dl,nw))))
+           | Host (dl,nw) as h -> state:= (DelNode (h))::! state;
+	 			Some (Host(dl,nw))))
       with _ -> None) in 
       match node2 with
       | None -> ()
       | Some n2 -> 
-        state:=(DelLink (n1,n2)) :: !state)   
+        state:= (DelLink (n2,n1)) ::((DelLink (n1,n2)) :: !state))   
     | _ -> ()
         
 end
