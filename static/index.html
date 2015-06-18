@@ -1,4 +1,4 @@
-<!DOCCTYPE html>
+<!DOCTYPE html>
 
 <html lang="en">
 <head>
@@ -29,14 +29,14 @@
       <div id="entity">
         <h2>Entity Information</h2>
         <hr />
-	<input type="text" id="QueryName">Query Name</input> 
-	<input type="text" id="FilterPolicy">Filter Policy</input>
-	<button id="addQuery">Add Query</button>
-	<button id="getStats">Get Stats</button> <br> 
-	<button id="track">Track</button>
-	<button id="graphStats">Graph</button><br>
-	<table>
-	</table>
+  <input type="text" id="QueryName">Query Name</input> 
+  <input type="text" id="FilterPolicy">Filter Policy</input>
+  <button id="addQuery">Add Query</button>
+  <button id="getStats">Get Stats</button> <br> 
+  <button id="track">Track</button>
+  <button id="graphStats">Graph</button><br>
+  <table>
+  </table>
       </div>
     </div>
     <div class="clear"></div>
@@ -50,136 +50,136 @@
   <script>
 
      function clear_entity(){
-	d3.select('#entity')
-	  .selectAll('.policy')
-	  .select('#flowtbl')
-	  .remove();
+  d3.select('#entity')
+    .selectAll('.policy')
+    .select('#flowtbl')
+    .remove();
 
-	d3.select('#entity table').selectAll('tr').remove();
-	d3.select('#entity svg').remove();
-	d3.select('#entity').selectAll('.policy').remove();
+  d3.select('#entity table').selectAll('tr').remove();
+  d3.select('#entity svg').remove();
+  d3.select('#entity').selectAll('.policy').remove();
 
       } 
 
      $("#addQuery").click(function(){
-	var query_name= document.getElementById("QueryName").value;
-	var policy = document.getElementById("FilterPolicy").value;
-	d3.text("/query/"+query_name+"/pred/"+policy, function(data){
-	  console.log(data);
-	});
+  var query_name= document.getElementById("QueryName").value;
+  var policy = document.getElementById("FilterPolicy").value;
+  d3.text("/query/"+query_name+"/pred/"+policy, function(data){
+    console.log(data);
+  });
       });
 
       $("#getStats").click(function(){
-	var query_name = document.getElementById("QueryName").value;
-	d3.text("stats/"+query_name, function(data){
-	  console.log(data);
-	});
+  var query_name = document.getElementById("QueryName").value;
+  d3.text("stats/"+query_name, function(data){
+    console.log(data);
+  });
       });
 
       $("#track").click(function(){
-	var query_name = document.getElementById("QueryName").value;
-	d3.text("track/"+query_name,function(data){
-	  console.log(data);
-	});
+  var query_name = document.getElementById("QueryName").value;
+  d3.text("track/"+query_name,function(data){
+    console.log(data);
+  });
       });
 
       $("#graphStats").click(function(){
-	d3.text("/graph",function(data){
-	    clear_entity();
-	    console.log(data);
-	    // Set the dimensions of the canvas / graph
-	    console.log("Setting dimension.");
-	    var margin = {top: 30, right: 20, bottom: 30, left: 50},
-		width = 400 - margin.left - margin.right,
-		height = 270 - margin.top - margin.bottom;
-		console.log("setting range.");
-	    // Set the ranges
-	    var x = d3.scale.linear().range([0, width]);
-	    var y = d3.scale.linear().range([height, 0]);
+  d3.text("/graph",function(data){
+      clear_entity();
+      console.log(data);
+      // Set the dimensions of the canvas / graph
+      console.log("Setting dimension.");
+      var margin = {top: 30, right: 20, bottom: 30, left: 50},
+    width = 400 - margin.left - margin.right,
+    height = 270 - margin.top - margin.bottom;
+    console.log("setting range.");
+      // Set the ranges
+      var x = d3.scale.linear().range([0, width]);
+      var y = d3.scale.linear().range([height, 0]);
 
-	    // Define the axes
-		console.log("defining axes.");
-	    var xAxis = d3.svg.axis().scale(x)
-		.orient("bottom").ticks(5);
+      // Define the axes
+    console.log("defining axes.");
+      var xAxis = d3.svg.axis().scale(x)
+    .orient("bottom").ticks(5);
 
-	    var yAxis = d3.svg.axis().scale(y)
-		.orient("left").ticks(5);
+      var yAxis = d3.svg.axis().scale(y)
+    .orient("left").ticks(5);
 
-	    console.log("Define the line");
-	    var valueline = d3.svg.line()
-		.x(function(d) { return x(d.time_x); })
-		.y(function(d) { return y(d.stat.bytes); });
-		
-	    console.log("Adds the svg canvas");
-	    var svg = d3.select("#entity")
-		.append("svg")
-		    .attr("width", width + margin.left + margin.right)
-		    .attr("height", height + margin.top + margin.bottom)
-		.append("g")
-		    .attr("transform", 
-			  "translate(" + margin.left + "," + margin.top + ")");
-	    console.log("parsing data");
-	    data = JSON.parse(data);
+      console.log("Define the line");
+      var valueline = d3.svg.line()
+    .x(function(d) { return x(d.time_x); })
+    .y(function(d) { return y(d.stat.bytes); });
+    
+      console.log("Adds the svg canvas");
+      var svg = d3.select("#entity")
+    .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+        .attr("transform", 
+        "translate(" + margin.left + "," + margin.top + ")");
+      console.log("parsing data");
+      data = JSON.parse(data);
 
-	    var min_time = d3.min(data,function(d){ return parseInt(d.time) });
+      var min_time = d3.min(data,function(d){ return parseInt(d.time) });
 
-	    console.log("function to do order data.");
-	    data.forEach(function(d,i) {
-		if(i == data.length-1 ){
-		  d.stat.bytes = 0;
-		  d.stat.packets = 0;
-		} else 
-		{
-		  console.log(i);
-		  d.stat.bytes -= data[i+1].stat.bytes;
-		  d.stat.packets -= data[i+1].stat.packets;
-		}
+      console.log("function to do order data.");
+      data.forEach(function(d,i) {
+    if(i == data.length-1 ){
+      d.stat.bytes = 0;
+      d.stat.packets = 0;
+    } else 
+    {
+      console.log(i);
+      d.stat.bytes -= data[i+1].stat.bytes;
+      d.stat.packets -= data[i+1].stat.packets;
+    }
 
-		d.time_x = d.time - min_time;
-		console.log(d.time_x);
-		console.log(d.stat.bytes);
-	    });
+    d.time_x = d.time - min_time;
+    console.log(d.time_x);
+    console.log(d.stat.bytes);
+      });
 
-	    console.log(" Scale the range of the data");
-	    x.domain(d3.extent(data, function(d) { return d.time_x; }));
-	    y.domain([0, d3.max(data, function(d) { return d.stat.bytes; })]);
+      console.log(" Scale the range of the data");
+      x.domain(d3.extent(data, function(d) { return d.time_x; }));
+      y.domain([0, d3.max(data, function(d) { return d.stat.bytes; })]);
 
-	    console.log("Add the valueline path.");
-	    svg.append("path")
-		.attr("class", "line")
-		.attr("d", valueline(data));
+      console.log("Add the valueline path.");
+      svg.append("path")
+    .attr("class", "line")
+    .attr("d", valueline(data));
 
-	    console.log("Add the scatterplot");
-	    svg.selectAll("dot")
-		.data(data)
-	      .enter().append("circle")
-		.attr("r", 3.5)
-		.attr("cx", function(d) { return x(d.time_x); })
-		.attr("cy", function(d) { return y(d.stat.bytes); });
+      console.log("Add the scatterplot");
+      svg.selectAll("dot")
+    .data(data)
+        .enter().append("circle")
+    .attr("r", 3.5)
+    .attr("cx", function(d) { return x(d.time_x); })
+    .attr("cy", function(d) { return y(d.stat.bytes); });
 
-	    console.log("Add the X Axis");
-	    svg.append("g")
-		.attr("class", "x axis")
-		.attr("transform", "translate(0," + height + ")")
-		.call(xAxis);
+      console.log("Add the X Axis");
+      svg.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + height + ")")
+    .call(xAxis);
 
-	    console.log("Add the Y Axis");
-	    svg.append("g")
-		.attr("class", "y axis")
-		.call(yAxis);
+      console.log("Add the Y Axis");
+      svg.append("g")
+    .attr("class", "y axis")
+    .call(yAxis);
 
-	});
+  });
       });
 
       function entity(d) {
         var entries;
 
-	clear_entity();
+  clear_entity();
         if (d.type === 'switch') {
             entries = [['switch', d.id]];
             d3.json('/switch/' + d.id, function(data) {
 
-	      var policy = data.policy;
+        var policy = data.policy;
               var pol = d3.select('#entity').selectAll('.policy')
                   .data([policy]);
               var pdiv = pol.enter().append('div')
@@ -187,19 +187,19 @@
                   .append('pre');
               Rainbow.color(policy, 'frenetic', function(colored_data) { pol.select('pre').html(colored_data); });
 
-	      var flow = JSON.parse(data.flowtable); 
-	      var flowtable = d3.select('#entity')
-				.selectAll('.policy')
-				.append('table')
-				 .attr('id','flowtbl');
+        var flow = JSON.parse(data.flowtable); 
+        var flowtable = d3.select('#entity')
+        .selectAll('.policy')
+        .append('table')
+         .attr('id','flowtbl');
 
-	      var rows = flowtable.selectAll('tr').data(flow);
-	      rows.enter().append('tr');
-	      var cells = rows.selectAll('td')
-			      .data(function(row){
-				return [JSON.stringify(row)];
-				});
-	      cells.enter().append('td').text(function(d){return d;}); 
+        var rows = flowtable.selectAll('tr').data(flow);
+        rows.enter().append('tr');
+        var cells = rows.selectAll('td')
+            .data(function(row){
+        return [JSON.stringify(row)];
+        });
+        cells.enter().append('td').text(function(d){return d;}); 
             });
         } else if (d.type === 'host') {
             entries = [
@@ -224,36 +224,36 @@
       }
 
       function link_info(l,data){
-	clear_entity();
-	var sw = l.source;
-	var sEntry = [],
-	tEntry = [];
-	if(l.source.type == "host"){
-	    sEntry = [['MAC',sw.mac],
-		      ['IP',sw.ip],
-		      ['Switch Port',sw.switch_port]];
-	    sw = l.target;
-	}else
-	    sEntry = [['Switch ID',sw.id]];
-	
-	d = l.target;
-	if(d.type=='host'){
-	    tEntry = [['MAC',d.mac],
-		      ['IP',d.ip],
-		      ['Switch Port',d.switch_port]];	
-	}else
-	    tEntry = [['Switch ID',d.id]];
-	
-	var sw_id = sw.id;
-	var pt_id = sw.switch_port;
-	d3.text('/switch/' + sw_id + '/port/'+ pt_id, function(d){
-	    console.log(d);
-	    d = JSON.parse(d);
-	    var entries = sEntry.concat(tEntry);
-	    var pkts = d.rx_packets + d.tx_packets;
-	    var bytes = d.rx_bytes + d.tx_bytes;
-	    entries = entries.concat([['packets',pkts],['bytes',bytes]]);
-	   
+  clear_entity();
+  var sw = l.source;
+  var sEntry = [],
+  tEntry = [];
+  if(l.source.type == "host"){
+      sEntry = [['MAC',sw.mac],
+          ['IP',sw.ip],
+          ['Switch Port',sw.switch_port]];
+      sw = l.target;
+  }else
+      sEntry = [['Switch ID',sw.id]];
+  
+  d = l.target;
+  if(d.type=='host'){
+      tEntry = [['MAC',d.mac],
+          ['IP',d.ip],
+          ['Switch Port',d.switch_port]]; 
+  }else
+      tEntry = [['Switch ID',d.id]];
+  
+  var sw_id = sw.id;
+  var pt_id = sw.switch_port;
+  d3.text('/switch/' + sw_id + '/port/'+ pt_id, function(d){
+      console.log(d);
+      d = JSON.parse(d);
+      var entries = sEntry.concat(tEntry);
+      var pkts = d.rx_packets + d.tx_packets;
+      var bytes = d.rx_bytes + d.tx_bytes;
+      entries = entries.concat([['packets',pkts],['bytes',bytes]]);
+     
             var rows = d3.select('#entity table').selectAll('tr')
                .data(entries);
 
@@ -266,19 +266,57 @@
                  .classed('first', function(d, i) { return i === 0; })
                  .text(function(d) { return d; });
  
-	})
-      }
+  })
+}
 
-
-      function poll(){
+     function poll(_network){
         setTimeout(function(){
           d3.text("/events",function(d){
-            if(d!=""){
-              console.log(d);
+            if(d!="[]"){
+              var data = JSON.parse(d);
+	      console.log(data);
+              var nodes = _network.nodes();
+              var links = _network.links();
+
+              for (var i in data){
+                var x = data[i];
+		if(x.type == "AddNode"){
+                  nodes.push(x.node);
+                }else if(x.type == "DelNode"){
+                  nodes = nodes.filter(function(n){ return n != x.node });    
+                  var new_links = [];
+
+                  links = links.filter(function(l){
+                    return (l.source!=x.node && l.target!=x.node)
+                  });
+
+                }else if (x.type =="AddLink"){
+		  console.log(x.link);
+                  var src = nodes[x.link.src_id],
+                  dst = nodes[x.link.dst_id];
+		  
+                  src.switch_port = x.link.src_port,
+                  dst.switch_port = x.link.dst_port; 
+                  links.push({source : src, target : dst});
+
+                }else if(x.type == "DelLink"){
+                  var src = nodes[x.link.src_id],
+                  dst = nodes[x.link.dst_id];
+                  links = links.filter(function(l){
+                    return (l!={source : src,target : dst});
+                  });
+                }
+              }
+
+              _network
+                  .nodes(nodes)
+                  .links(links);
+
+	      console.log(_network.nodes());
             }else
             console.log("No updates to give. ");
           });
-          poll();
+          poll(_network);
         },5000);
       }  
 
@@ -299,9 +337,54 @@
             })
             .start();
 
-	poll();
-
         function update() {
+	    console.log("updating.");
+	    var svg = d3.select('#canvas')
+			.selectAll('svg')
+                	.data([data]);
+
+            var link = svg.select('g').selectAll('.link')
+                .data(function(d) { return d.links });
+
+            link.enter().append('line')
+                .attr('class', 'link')
+                .style('stroke-width', function(d) {return 100 * d.redundancy;})
+		.on('click', function(d){link_info(d,data)});
+	    
+            var host = svg.selectAll('.host')
+                .data(function(d) {
+                  return d.nodes.filter(function(d) { return d.type === 'host' })
+                })
+              .enter().append('image')
+                .attr('width', 48)
+                .attr('height', 48)
+                .attr('xlink:href', '/static/terminal.svg')
+                .attr('class', function(d, i) { return 'host ' + 'h-' + i; })
+                .on('click', function(d) {
+                    data.picked = d;
+                    if (events.click) {
+                        events.click(scrub_node(data.picked));
+                    }
+                    svg.call(highlight);
+                });
+            var switch_ = svg.selectAll('.switch')
+                .data(function(d) {
+                  return d.nodes.filter(function(d) { return d.type === 'switch' });
+                })
+             .enter().append('image')
+                .attr('width', 48)
+                .attr('height', 48)
+                .attr('xlink:href', '/static/switch.svg')
+                .attr('class', function(d, i) { return 'switch ' + 's-' + i; })
+                .on('click', function(d) {
+                    data.picked = d;
+                    if (events.click) {
+                        events.click(scrub_node(data.picked));
+                    }
+                    svg.call(highlight);
+                });
+
+
             force
                 .size([width, height])
                 .nodes(data.nodes)
@@ -356,7 +439,7 @@
               .enter().append('line')
                 .attr('class', 'link')
                 .style('stroke-width', function(d) {return 100 * d.redundancy;})
-		.on('click', function(d){link_info(d,data)});
+                .on('click', function(d){link_info(d,data)});
 
             var host = svg.selectAll('.host')
                 .data(function(d) {
@@ -411,6 +494,11 @@
             });
         };
 
+        my.add_node = function (node){
+          data.nodes.push(node);
+          update();
+        };
+
         /* Getter/setter for the links in the topology. */
         my.links = function(_) {
             if (!arguments.length) return data.links;
@@ -423,6 +511,7 @@
         my.nodes = function(_) {
             if (!arguments.length) return data.nodes;
             data.nodes = _;
+	    console.log("calling update");
             update();
             return my;
         };
@@ -462,8 +551,8 @@
           links = data.links.map(function(e) {
             var src = data.nodes[e.src_id],
                 dst = data.nodes[e.dst_id];
-		src.switch_port = e.src_port;
-		dst.switch_port = e.dst_port;
+                src.switch_port = e.src_port;
+                dst.switch_port = e.dst_port;
             return { source : src, target : dst };
           });
 
@@ -472,11 +561,11 @@
           .links(links);
 
       d3.select('#canvas').call(_network);
-
-
-
+      poll(_network);
     });
+
   </script>
 </body>
 </html>
+
 

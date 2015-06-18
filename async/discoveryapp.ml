@@ -117,9 +117,16 @@ module Switch = struct
           List.fold ports ~init:nib' ~f:(fun nib'' port -> add_port nib'' node port)
       | SwitchDown switch ->
           remove_vertex nib (vertex_of_label nib (Switch switch))
-      | PortUp (switch, port) ->
+      | PortUp (switch, port) ->(
+	  Log.info "%s" "port up received in switch.";
           probes := ({switch_id = switch; port_id = port} :: !probes);
-          add_port nib (vertex_of_label nib (Switch switch)) port
+          try (
+            let v1 = vertex_of_label nib (Switch switch) in 
+            let mh = next_hop nib v1 port in 
+            (match mh with
+             | None -> nib
+             | Some (edg) -> remove_edge nib edg)) 
+     	  with _ -> nib)
       | _ -> nib
 
   let rec probeloop (sender : switchId -> Frenetic_OpenFlow.pktOut -> unit Deferred.t) =
@@ -355,7 +362,6 @@ module Eventjson = struct
   let delta_events_to_json (events:gui_event list) 
   	(t:Frenetic_NetKAT_Net.Net.Topology.t) = 
   	let idmap = vertex_idmap t in
-	let events = List.rev events in 
   	`List (List.fold_left events ~init:[] ~f:(fun acc x -> (gui_event_to_json idmap t x)::acc))
 
   let topo_to_json (t: Frenetic_NetKAT_Net.Net.Topology.t) = 
