@@ -1,3 +1,4 @@
+
 open Core.Std
 open Async.Std
 open Frenetic_NetKAT
@@ -246,7 +247,14 @@ Must process events in reverse order later because appending them.*)
         state:= (AddNode (Switch switch_id))::!state
 
     | SwitchDown(switch_id) ->
-        state:= (DelNode (Switch switch_id))::!state
+	let n:node = Switch switch_id in
+        state:= (DelNode (Switch switch_id))::!state;
+	let v = vertex_of_label nib n in 
+	VertexSet.iter (neighbors nib v) ~f:(fun x ->
+	  match (vertex_to_label nib x) with
+	  | Switch s -> ()
+	  | Host (dl,nw) as h -> state:=(DelNode h)::!state
+	)
 
     | PacketIn( "host" ,sw_id,pt_id,payload,len) -> (
   let open Frenetic_Packet in
@@ -358,11 +366,12 @@ module Eventjson = struct
   		let v1 = vertex_to_json node in 
   		`Assoc [("type", `String "DelNode");
   				("node", v1)]
-  	| AddLink (n1,n2) ->
-      let e = Topo.find_edge t (Topo.vertex_of_label t n1) (Topo.vertex_of_label t n2) in 
+  	| AddLink (n1,n2) ->(
+      	  try (let e = Topo.find_edge t (Topo.vertex_of_label t n1) (Topo.vertex_of_label t n2) in 
   		let edg = edge_to_json t idmap e in 
   		`Assoc [("type", `String "AddLink");
-  		("link", edg)]
+  		("link", edg)])
+	  with _ -> `Null)
   	| DelLink (n1,n2) -> 
       		let v1 = vertex_to_json n1 in 
 		let v2 = vertex_to_json n2 in 

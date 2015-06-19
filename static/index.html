@@ -287,7 +287,7 @@
 		}
 		return false;
 	      }
-
+	      var list_ops = [];
               for (var i in data){
                 var x = data[i];
 		if(x.type == "AddNode"){
@@ -299,23 +299,29 @@
 		  nodes = nodes.filter(function(n){return !equals(x.node,n)});
 
                 }else if (x.type =="AddLink"){
-		  console.log(x.link);
-                  var src = nodes[x.link.src_id],
+		  list_ops.push(x);
+                }else if(x.type == "DelLink"){
+		  list_ops.push(x);
+                }
+              }
+
+	      for (i in list_ops){
+		var x = list_ops[i];
+		if(x.type == "AddLink"){
+		  var src = nodes[x.link.src_id],
                   dst = nodes[x.link.dst_id];
-		  
                   src.switch_port = x.link.src_port;
                   dst.switch_port = x.link.dst_port; 
                   links.push({source : src, target : dst});
-
-                }else if(x.type == "DelLink"){
-                  var src = x.link.source;
+  
+		}else if(x.type =="DelLink"){
+		  var src = x.link.source;
                   dst = x.link.target;
                   links = links.filter(function(l){
                     return !(equals(l.source,src) && equals(l.target,dst));
-
                   });
-                }
-              }
+		}
+	      }
 
               _network
                   .nodes(nodes)
