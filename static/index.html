@@ -27,14 +27,26 @@
     <div id="canvas"></div>
     <div id="sidebar">
       <div id="entity">
-        <h2>Entity Information</h2>
-        <hr />
-  <input type="text" id="QueryName">Query Name</input> 
-  <input type="text" id="FilterPolicy">Filter Policy</input>
-  <button id="addQuery">Add Query</button>
-  <button id="getStats">Get Stats</button> <br> 
-  <button id="track">Track</button>
-  <button id="graphStats">Graph</button><br>
+      <div id="controls">
+	<div id = "forms">
+	<div id = "formline">
+  	  <label for = "QueryName"> Query Name </label>
+  	  <input type="text" id="QueryName" width="40px"></input> 
+	  <label for = "FilterPolicy">Filter Policy </label>
+  	  <input type="text" id="FilterPolicy"></input>
+	</div>
+	<div id = "formline">
+  	  <button id="addQuery">Add Query</button>
+  	  <button id="getStats">Get Stats</button> 
+  	  <button id="track">Track</button>
+  	  <button id="graphStats">Graph</button>
+	</div>
+	</div>
+	<div id = "msg">
+	 <p id="response"> </p>
+	</div>
+      </div>
+      <hr/>
   <table>
   </table>
       </div>
@@ -61,56 +73,54 @@
 
       } 
 
+     function display_msg(data){
+       document.getElementById('response').innerHTML = data;
+     }
+
      $("#addQuery").click(function(){
   var query_name= document.getElementById("QueryName").value;
   var policy = document.getElementById("FilterPolicy").value;
   d3.text("/query/"+query_name+"/pred/"+policy, function(data){
-    console.log(data);
+    display_msg(data);
   });
       });
 
       $("#getStats").click(function(){
   var query_name = document.getElementById("QueryName").value;
   d3.text("stats/"+query_name, function(data){
-    console.log(data);
+    display_msg(data);
   });
       });
 
       $("#track").click(function(){
   var query_name = document.getElementById("QueryName").value;
   d3.text("track/"+query_name,function(data){
-    console.log(data);
+    display_msg(data);
   });
       });
 
       $("#graphStats").click(function(){
   d3.text("/graph",function(data){
       clear_entity();
-      console.log(data);
       // Set the dimensions of the canvas / graph
-      console.log("Setting dimension.");
       var margin = {top: 30, right: 20, bottom: 30, left: 50},
     width = 400 - margin.left - margin.right,
     height = 270 - margin.top - margin.bottom;
-    console.log("setting range.");
       // Set the ranges
       var x = d3.scale.linear().range([0, width]);
       var y = d3.scale.linear().range([height, 0]);
 
       // Define the axes
-    console.log("defining axes.");
       var xAxis = d3.svg.axis().scale(x)
     .orient("bottom").ticks(5);
 
       var yAxis = d3.svg.axis().scale(y)
     .orient("left").ticks(5);
 
-      console.log("Define the line");
       var valueline = d3.svg.line()
     .x(function(d) { return x(d.time_x); })
     .y(function(d) { return y(d.stat.bytes); });
     
-      console.log("Adds the svg canvas");
       var svg = d3.select("#entity")
     .append("svg")
         .attr("width", width + margin.left + margin.right)
@@ -123,14 +133,12 @@
 
       var min_time = d3.min(data,function(d){ return parseInt(d.time) });
 
-      console.log("function to do order data.");
       data.forEach(function(d,i) {
     if(i == data.length-1 ){
       d.stat.bytes = 0;
       d.stat.packets = 0;
     } else 
     {
-      console.log(i);
       d.stat.bytes -= data[i+1].stat.bytes;
       d.stat.packets -= data[i+1].stat.packets;
     }
@@ -140,16 +148,13 @@
     console.log(d.stat.bytes);
       });
 
-      console.log(" Scale the range of the data");
       x.domain(d3.extent(data, function(d) { return d.time_x; }));
       y.domain([0, d3.max(data, function(d) { return d.stat.bytes; })]);
 
-      console.log("Add the valueline path.");
       svg.append("path")
     .attr("class", "line")
     .attr("d", valueline(data));
 
-      console.log("Add the scatterplot");
       svg.selectAll("dot")
     .data(data)
         .enter().append("circle")
@@ -157,13 +162,11 @@
     .attr("cx", function(d) { return x(d.time_x); })
     .attr("cy", function(d) { return y(d.stat.bytes); });
 
-      console.log("Add the X Axis");
       svg.append("g")
     .attr("class", "x axis")
     .attr("transform", "translate(0," + height + ")")
     .call(xAxis);
 
-      console.log("Add the Y Axis");
       svg.append("g")
     .attr("class", "y axis")
     .call(yAxis);
@@ -408,7 +411,7 @@
 
             link.enter().append('line')
                 .attr('class', 'link')
-                .style('stroke-width', function(d) {return 100 * d.redundancy;})
+                .style('stroke-width', function(d) {return 1000 * d.redundancy;})
                 .on('click', function(d){link_info(d,data)});
 	    link.exit().remove();
 

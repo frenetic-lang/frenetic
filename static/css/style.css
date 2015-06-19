@@ -39,11 +39,39 @@ div#footer {
     padding: 0.01px;
 }
 
+div#controls{
+    margin: 10px;
+}
+
+div#forms{
+    float:left;
+    width:460px;  
+    height:60px;
+    margin:4px;
+    margin-bottom:10px;
+}
+
+div #formline{
+    margin:4px;
+}
+
+div #msg{
+    height:60px;
+    width:200px;
+    margin:4px;
+    margin-bottom:10px;
+    float:left;
+}
+
 #entity table {
     text-align: left;
     width: 90%;
     margin-left: 10%;
     margin-right: 10%;
+}
+
+input#QueryName{
+    width:100px;
 }
 
 table#flowtbl{
@@ -52,7 +80,7 @@ table#flowtbl{
     margin-left: 0%;
     margin-right:0%;
     display:block;
-    height:200px;
+    height:150px;
     overflow-y:scroll;
 }
 
@@ -71,7 +99,7 @@ table#flowtbl{
 #entity .policy pre {
     overflow: auto;
     white-space: pre-wrap;
-    max-height: 200px;
+    max-height: 150px;
 }
 
 #entity .flows {
@@ -117,4 +145,9 @@ path {
     stroke: grey;
     stroke-width: 1;
     shape-rendering: crispEdges;
+}
+
+button {
+    width:80px;
+    max-width:80px;
 }
