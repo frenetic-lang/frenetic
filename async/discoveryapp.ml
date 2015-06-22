@@ -119,7 +119,6 @@ module Switch = struct
       | SwitchDown switch ->
           remove_vertex nib (vertex_of_label nib (Switch switch))
       | PortUp (switch, port) ->(
-	  Log.info "%s" "port up received in switch.";
           probes := ({switch_id = switch; port_id = port} :: !probes);
           try (
             let v1 = vertex_of_label nib (Switch switch) in 
@@ -191,7 +190,6 @@ module Host = struct
     with _ -> None in 
     begin match Frenetic_Topology.in_edge nib sw_id pt_id, h , s with
       | true, None, Some sw ->
-    Log.info "Edges before adding this: %d" (num_edges nib);
         let nib', h = add_vertex nib (Host (dlAddr,nwAddr)) in
     let module Link = Frenetic_NetKAT_Net.Link in 
         let nib', _ = add_edge nib' sw pt_id Link.default h Int32.one in
@@ -201,7 +199,6 @@ module Host = struct
      | Some (map) -> PortMap.add map pt_id (dlAddr,nwAddr)
      | None -> PortMap.empty) in
                  state := SwitchMap.add !state sw_id portmap;
-    Log.info "Edges after adding this: %d" (num_edges nib');
      nib'
         | _ , _ , _ -> nib
     end)
@@ -290,7 +287,6 @@ Must process events in reverse order later because appending them.*)
         | _ -> ())
 
     | PortUp (sw_id,pt_id) -> (
-      Log.info "%s" "port up in events.";
       let n1:node = Switch sw_id in 
       let node2 = (try 
         let v1 = vertex_of_label nib (Switch sw_id) in 
@@ -488,7 +484,6 @@ let make_req uri meth' () =
           let polstr = replace "%20" " " polstr |>
                       replace "%3A" ":" |>
                       replace "%7B" ";" in
-	  Log.info "%s" polstr;
           let policy = try Some (Frenetic_NetKAT_Parser.policy_from_string polstr)
                 with _ -> None in 
           match policy with 
@@ -497,7 +492,6 @@ let make_req uri meth' () =
           make_req "http://localhost:9000/policy" "GET" () >>= 
           fun old_polstr -> 
 	    let old_pol = Frenetic_NetKAT_Json.policy_from_json_string old_polstr in
-            Log.info "%s" "No trouble parsing!";
 	    Union (query, old_pol) |> 
             update_policy  >>= fun _ -> 
               return (Gui_Server.string_handler "Query added.") 
@@ -523,10 +517,10 @@ let make_req uri meth' () =
               track := true;
               stats := StatMap.empty;
               don't_wait_for (collect_stats !track_name);
-              return (Gui_Server.string_handler "collecting stats.")
+              return (Gui_Server.string_handler ("collecting stats for " ^ !track_name))
             )else(
               track := false;
-              return (Gui_Server.string_handler ("Stopped tracking"^ !track_name))
+              return (Gui_Server.string_handler ("Stopped tracking "^ !track_name))
             ) 
           else 
             return (Gui_Server.string_handler "No such query!"));
@@ -536,10 +530,7 @@ let make_req uri meth' () =
          return (Gui_Server.string_handler (Yojson.Basic.to_string data )));
       ("/events", fun _ -> 
 	 let events = Events.get_state () in
-	 Log.info "events length: %s" "";
 	 let data = Eventjson.delta_events_to_json events !(t.nib) in
-	 Log.info "%s " "sending json.";
-	 Log.info "events: %s" (Yojson.Safe.to_string data);
 	 return (Gui_Server.string_handler (Yojson.Safe.to_string data)));
     ] in
     let _ = Gui_Server.create routes in
