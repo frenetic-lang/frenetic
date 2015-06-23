@@ -578,8 +578,10 @@ struct
 		Decide_Util.ValueSet.empty
 	  end in   
 	  Decide_Util.all_fields := (fun _ -> UnivDescr.all_fields);
-	  Decide_Util.all_values := (fun _ -> UnivDescr.all_values);
-	  Decide_Bisimulation.check_equivalent t1 t2
+   Decide_Util.all_values := (fun _ -> UnivDescr.all_values);
+   let module Deriv = Decide_Deriv.BDDMixed () in
+   let module Decide_Bisimulation = Decide_Bisimulation.EquivChecker (Deriv) in
+   Decide_Bisimulation.check_equivalent t1 t2
 	end      
       else (
 	Decide_Ast.Term.equal t1 t2) in 
@@ -647,6 +649,8 @@ struct
     let edge_pol, _ =  (connectivity_policy topo hosts) in 
     let edge_pol = Dexterize.policy_to_term ~dup:false (NetKAT_Types.(Filter edge_pol)) in 
     let topo_pol = Dexterize.policy_to_term ~dup:false (topology_policy topo) in
+    let module Deriv = Decide_Deriv.BDDMixed () in
+    let module Decide_Loopfree = Decide_Loopfree.LoopChecker (Deriv) in
     Decide_Loopfree.loop_freedom edge_pol pol topo_pol ()
 
   let sanity_check topo pol = 
@@ -756,7 +760,9 @@ struct
     let tp_pol = topology_policy topo in 
     let ed = Dexterize.policy_to_term ~dup:false (NetKAT_Types.(Optimize.mk_filter edge)) in 
     let p =  Dexterize.policy_to_term ~dup:false sw_pol in 
-    let t = Dexterize.policy_to_term ~dup:false tp_pol in 
+    let t = Dexterize.policy_to_term ~dup:false tp_pol in
+    let module Deriv = Decide_Deriv.BDDMixed () in
+    let module Decide_Loopfree = Decide_Loopfree.LoopChecker (Deriv) in
     let ret = (Decide_Loopfree.loop_freedom ed p t ed) in 
     if not ret then Printf.printf "Edge: %s\nPol: %s\n Topo: %s\n" 
       (Decide_Ast.Term.to_string ed)
