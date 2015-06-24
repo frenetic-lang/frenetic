@@ -265,6 +265,7 @@ let to_table' ?(dedup = false) ?(opt = true) swId t =
 
 let to_table ?(dedup = false) ?(opt = true) swId t = List.map ~f:fst (to_table' ~dedup ~opt swId t)
 
+
 let pipes t =
   let ps = FDK.fold
     (fun r -> Action.pipes r)
@@ -688,3 +689,43 @@ end
 
 let compile_global (pol : Frenetic_NetKAT.policy) : FDK.t =
   NetKAT_Automaton.(to_local Field.Vlan (of_policy ~dedup:true pol))
+
+
+(* multitable *)
+
+(* Fields matched on by a flow table. *)
+type table_fields = Field.t list
+
+(* All flow tables with fields matched by each table. *)
+type flow_layout = table_fields list
+
+(* the root of each subtree of t, and the flowtable location for the subtree *)
+type table_id = int
+type meta_id = int
+type flow_id = table_id * meta_id
+type flow_subtrees = (t, flow_id) Map.Poly.t
+
+(* a flow table row, with the addition of table and meta ids *)
+type multitable_flow = {
+  flow     : Frenetic_OpenFlow.flow;
+  table_id : table_id;
+  meta_id  : meta_id;
+}
+
+(* Make Map of subtrees of t and their corresponding flow table locations *)
+let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
+  let rec add_subtree (fields : table_fields) (t : t) (t_id : table_id)  
+    (m_id : meta_id) (subtrees : flow_subtrees) =
+    match FDK.unget t with
+    | Leaf _                  -> 
+      subtrees
+    | Branch ((field, _), tru, fls) ->
+      if (List.mem fields field) then
+        Map.add subtrees ~key:t ~data:(t_id, m_id)
+      else
+        add_subtree fields tru t_id (m_id + 1) subtrees
+        |> add_subtree fields fls t_id (m_id + 2) 
+  in
+  List.foldi layout ~init:Map.Poly.empty ~f:(fun idx accum fields -> 
+                                               add_subtree fields t idx 0 accum)
+ 

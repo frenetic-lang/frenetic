@@ -150,3 +150,27 @@ val eval_pipes
     third is a list of packets that are at physical locations. *)
 
 val to_dotfile : t -> string -> unit
+
+
+(* multitable support *)
+
+(* Fields matched on by a flow table. *)
+type table_fields = Field.t list
+
+(* All flow tables with fields matched by each table. *)
+type flow_layout = table_fields list
+
+(* the root of each subtree of t, and the flowtable location for the subtree *)
+type table_id = int
+type meta_id = int
+type flow_id = table_id * meta_id
+type flow_subtrees = (t, flow_id) Map.Poly.t
+
+(* a flow table row, with the addition of table and meta ids *)
+type multitable_flow = {
+  flow     : Frenetic_OpenFlow.flow;
+  table_id : table_id;
+  meta_id  : meta_id;
+}
+
+val flow_table_subtrees : flow_layout -> t -> flow_subtrees
