@@ -104,6 +104,7 @@
       let open Net.Topology in
       match evt with
         | PacketIn ("probe", switch, port, payload, len) ->
+	    Log.info "%s" "received a probe.";
             let open Frenetic_Packet in
             begin match parse (Frenetic_OpenFlow.payload_bytes payload) with
             | { nw = Unparsable (dlTyp, bytes) } when dlTyp = Probe.protocol ->
@@ -133,7 +134,7 @@
       Clock.after probe_period >>=
         fun () ->
           (Deferred.List.iter ~how:`Parallel (!probes)
-            ~f:(fun p ->
+            ~f:(fun p -> Log.info "%s" "sending probes.";
               sender p.switch_id (Probe.to_pkt_out p))) >>=
           fun () -> probeloop sender
 
@@ -385,6 +386,10 @@
   end
 
   module Discovery = struct 
+    let queries = ref []
+    let get_query_pols () =
+      let default = Union (Switch.create (), Host.create ()) in
+      List.fold_left !queries ~init:(Union(Switch.create (), Host.create ())) ~f:(fun x acc -> Union(acc,x)) 
 
     type t = {
       nib : Net.Topology.t ref;
@@ -478,15 +483,15 @@
             let polstr = replace "%20" " " polstr |>
               replace "%3A" ":" |>
               replace "%7B" ";" in
+	    let polstr =  "filter " ^ polstr in 
+	    Log.info "%s" polstr;
             let policy = try Some (Frenetic_NetKAT_Parser.policy_from_string polstr)
               with _ -> None in 
             match policy with 
             | Some pol -> begin
-              let query = Seq (pol, (Mod(Location(Query name)))) in 
-              make_req "http://localhost:9000/policy" "GET" () 
-              >>= fun old_polstr -> 
-              let old_pol = Frenetic_NetKAT_Json.policy_from_json_string old_polstr in
-              Union (query, old_pol) |> 
+              let query = Seq (pol, (Mod(Location(Query name)))) in
+	      queries := query::!queries;
+              get_query_pols () |>
               update_policy  >>= fun _ -> 
               return (Gui_Server.string_handler "Query added.") 
               end
