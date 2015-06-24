@@ -715,17 +715,17 @@ type multitable_flow = {
 (* Make Map of subtrees of t and their corresponding flow table locations *)
 let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
   let rec add_subtree (fields : table_fields) (t : t) (t_id : table_id)  
-    (m_id : meta_id) (subtrees : flow_subtrees) =
+    (subtrees : flow_subtrees) : flow_subtrees =
     match FDK.unget t with
     | Leaf _                  -> 
       subtrees
     | Branch ((field, _), tru, fls) ->
       if (List.mem fields field) then
-        Map.add subtrees ~key:t ~data:(t_id, m_id)
+        Map.add subtrees ~key:t ~data:(t_id, t)
       else
-        add_subtree fields tru t_id (m_id + 1) subtrees
-        |> add_subtree fields fls t_id (m_id + 2) 
+        add_subtree fields tru t_id subtrees
+        |> add_subtree fields fls t_id 
   in
   List.foldi layout ~init:Map.Poly.empty ~f:(fun idx accum fields -> 
-                                               add_subtree fields t idx 0 accum)
+                                               add_subtree fields t idx accum)
  
