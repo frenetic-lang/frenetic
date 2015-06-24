@@ -158,7 +158,7 @@
       let tests = SwitchMap.fold !state ~init:default ~f:func in
       Seq(Filter tests, (Mod(Location(Pipe "host")))) 
 
-    let update (nib: Net.Topology.t) (evt:event) : Net.Topology.t  = 
+    let update (nib: Net.Topology.t) (evt:event) pol_update : Net.Topology.t  = 
       let open Net.Topology in
       let open Frenetic_NetKAT in
       match evt with
@@ -176,7 +176,8 @@
           match h with 
           | None -> nib
           | Some v -> remove_vertex nib v) in 
-          state:= SwitchMap.remove !state switch_id; 
+          state:= SwitchMap.remove !state switch_id;
+	  pol_update:= true; 
           nib)  
        | PacketIn( "host" ,sw_id,pt_id,payload,len) -> (
         let open Frenetic_Packet in
@@ -200,6 +201,7 @@
           let portmap = (match portmap with 
             | Some (map) -> PortMap.add map pt_id (dlAddr,nwAddr)
             | None -> PortMap.empty) in
+	  pol_update:= true;
           state := SwitchMap.add !state sw_id portmap;
           nib'
         | _ , _ , _ -> nib
@@ -215,6 +217,7 @@
           | None -> nib
           | Some h ->
             let portmap = PortMap.remove map pt_id in 
+	    pol_update := true;
             state := SwitchMap.add !state sw_id portmap;
             let v2 = vertex_of_label nib (Host (fst h, snd h)) in 
             remove_vertex nib v2
@@ -387,9 +390,11 @@
 
   module Discovery = struct 
     let queries = ref []
+    let pol_update = ref false    
+
     let get_query_pols () =
       let default = Union (Switch.create (), Host.create ()) in
-      List.fold_left !queries ~init:(Union(Switch.create (), Host.create ())) ~f:(fun x acc -> Union(acc,x)) 
+      List.fold_left !queries ~init:default ~f:(fun x acc -> Union(acc,x)) 
 
     type t = {
       nib : Net.Topology.t ref;
@@ -406,10 +411,12 @@
         | `Eof -> return ()
         | `Ok evt -> begin
       Events.update !(t.nib) evt;
-      t.nib := Switch.update (Host.update !(t.nib) evt) evt;
-      let new_pol = Union(Switch.create (), Host.create()) in 
-      (*update_pol new_pol >>=
-      fun b ->*) loop event_pipe update_pol end 
+      t.nib := Switch.update (Host.update !(t.nib) evt pol_update) evt;
+      if(!pol_update = true) then (
+	update_pol (get_query_pols ()) >>=
+        fun b -> loop event_pipe update_pol )
+      else
+	loop event_pipe update_pol end
 
     let start (event_pipe: event Pipe.Reader.t) (update_pol:policy -> unit Deferred.t)
       (packet_send : switchId -> Frenetic_OpenFlow.pktOut -> unit Deferred.t) =
