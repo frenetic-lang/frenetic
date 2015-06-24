@@ -104,7 +104,6 @@
       let open Net.Topology in
       match evt with
         | PacketIn ("probe", switch, port, payload, len) ->
-	    Log.info "%s" "received a probe.";
             let open Frenetic_Packet in
             begin match parse (Frenetic_OpenFlow.payload_bytes payload) with
             | { nw = Unparsable (dlTyp, bytes) } when dlTyp = Probe.protocol ->
@@ -134,7 +133,7 @@
       Clock.after probe_period >>=
         fun () ->
           (Deferred.List.iter ~how:`Parallel (!probes)
-            ~f:(fun p -> Log.info "%s" "sending probes.";
+            ~f:(fun p -> 
               sender p.switch_id (Probe.to_pkt_out p))) >>=
           fun () -> probeloop sender
 
@@ -170,15 +169,17 @@
          let nib = match portmap with 
           | None ->  nib
           | Some map -> 
-            PortMap.fold map ~init:nib ~f:(fun ~key:pt_id ~data:host acc -> 
-              let h = try Some (vertex_of_label nib (Host (fst host, snd host))) 
+	    let topo = ref nib in 
+            PortMap.iter map ~f:(fun ~key:pt_id ~data:host ->
+              let h=try Some (vertex_of_label !topo (Host (fst host, snd host)))
               with _ -> None in 
-          match h with 
-          | None -> nib
-          | Some v -> remove_vertex nib v) in 
-          state:= SwitchMap.remove !state switch_id;
-	  pol_update:= true; 
-          nib)  
+            match h with 
+            | None -> ()
+            | Some v -> topo := (remove_vertex !topo v));
+			!topo in
+         state:= SwitchMap.remove !state switch_id;
+	 pol_update:= true;
+         nib)  
        | PacketIn( "host" ,sw_id,pt_id,payload,len) -> (
         let open Frenetic_Packet in
         Log.info "pinged!";
@@ -413,6 +414,8 @@
       Events.update !(t.nib) evt;
       t.nib := Switch.update (Host.update !(t.nib) evt pol_update) evt;
       if(!pol_update = true) then (
+	pol_update := false;
+	Log.info "%s" "updating policy.";
 	update_pol (get_query_pols ()) >>=
         fun b -> loop event_pipe update_pol )
       else
@@ -502,7 +505,7 @@
               update_policy  >>= fun _ -> 
               return (Gui_Server.string_handler "Query added.") 
               end
-            | None -> return (Gui_Server.string_handler "Invalid policy.")));
+            | None -> return (Gui_Server.string_handler "Invalid predicate")));
         ("/stats/(.*)", fun g ->
           let name = Array.get g 1 in 
           make_req ("http://localhost:9000/is_query/"^name) "GET" () 
