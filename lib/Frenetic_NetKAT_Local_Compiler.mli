@@ -154,23 +154,25 @@ val to_dotfile : t -> string -> unit
 
 (* multitable support *)
 
-(* Fields matched on by a flow table. *)
-type table_fields = Field.t list
+(* Each list of fields represents the fields one flow table can match on *)
+type flow_layout = Field.t list list
 
-(* All flow tables with fields matched by each table. *)
-type flow_layout = table_fields list
-
-(* the root of each subtree of t, and the flowtable location for the subtree *)
+(* Each flow table row has a table location, and a meta value on that table *)
 type table_id = int
 type meta_id = int
 type flow_id = table_id * meta_id
-type flow_subtrees = (t, flow_id) Map.Poly.t
 
-(* a flow table row, with the addition of table and meta ids *)
+(* A flow table row, with multitable support. If goto has a Some value
+ * then the 0x04 row instruction is GotoTable. *)
 type multitable_flow = {
-  flow     : Frenetic_OpenFlow.flow;
-  table_id : table_id;
-  meta_id  : meta_id;
+  pattern      : Frenetic_OpenFlow.Pattern.t;
+  cookie       : int64;
+  idle_timeout : Frenetic_OpenFlow.timeout;
+  hard_timeout : Frenetic_OpenFlow.timeout;
+  action       : Frenetic_OpenFlow.group option;
+  goto         : flow_id option;
+  flow_id      : flow_id;
 }
 
-val flow_table_subtrees : flow_layout -> t -> flow_subtrees
+(* Produce a list of flow table entries for a multitable setup *)
+val to_multitable : switchId -> flow_layout -> t -> multitable_flow list

@@ -693,28 +693,32 @@ let compile_global (pol : Frenetic_NetKAT.policy) : FDK.t =
 
 (* multitable *)
 
-(* Fields matched on by a flow table. *)
-type table_fields = Field.t list
+(* Each list of fields represents the fields one flow table can match on *)
+type flow_layout = Field.t list list
 
-(* All flow tables with fields matched by each table. *)
-type flow_layout = table_fields list
-
-(* the root of each subtree of t, and the flowtable location for the subtree *)
+(* Each flow table row has a table location, and a meta value on that table *)
 type table_id = int
 type meta_id = int
 type flow_id = table_id * meta_id
+
+(* Match subtrees of t with the table location they will be placed *)
 type flow_subtrees = (t, flow_id) Map.Poly.t
 
-(* a flow table row, with the addition of table and meta ids *)
+(* A flow table row, with multitable support. If goto has a Some value
+ * then the 0x04 row instruction is GotoTable. *)
 type multitable_flow = {
-  flow     : Frenetic_OpenFlow.flow;
-  table_id : table_id;
-  meta_id  : meta_id;
+  pattern      : Frenetic_OpenFlow.Pattern.t;
+  cookie       : int64;
+  idle_timeout : Frenetic_OpenFlow.timeout;
+  hard_timeout : Frenetic_OpenFlow.timeout;
+  action       : Frenetic_OpenFlow.group option;
+  goto         : flow_id option;
+  flow_id      : flow_id;
 }
 
 (* Make Map of subtrees of t and their corresponding flow table locations *)
 let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
-  let rec add_subtree (fields : table_fields) (t : t) (t_id : table_id)  
+  let rec add_subtree (fields : Field.t list) (t : t) (t_id : table_id)  
     (subtrees : flow_subtrees) : flow_subtrees =
     match FDK.unget t with
     | Leaf _                  -> 
@@ -728,4 +732,54 @@ let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
   in
   List.foldi layout ~init:Map.Poly.empty ~f:(fun idx accum fields -> 
                                                add_subtree fields t idx accum)
- 
+
+(* make a flow struct that includes the table and meta id of the flow *)
+let mk_multitable_flow (pattern : Frenetic_OpenFlow.Pattern.t) 
+  (action : Frenetic_OpenFlow.group option) (goto : flow_id option) 
+  (flow_id : flow_id) : multitable_flow option =
+  if is_valid_pattern pattern then
+    Some { cookie = 0L; 
+           idle_timeout = Permanent; 
+           hard_timeout = Permanent;
+           pattern; action; goto; flow_id }
+  else
+    None
+
+(* Create flow table rows for one subtree *)
+let subtree_to_table (subtrees : flow_subtrees) (t : t) : multitable_flow list =
+  let rec dfs (tests : (Field.t * Value.t) list) (subtrees : flow_subtrees) 
+  (t : t) (flow_id : flow_id) : multitable_flow option list = 
+    match FDK.unget t with
+    | Leaf actions ->
+      let instruction = [to_action (get_inport tests) actions tests] in
+      [mk_multitable_flow (to_pattern tests) (Some instruction) None flow_id]
+    | Branch ((Location, Pipe _), _, fls) -> 
+      assert false (* not supported *)
+    | Branch (test, tru, fls) ->
+     (match Map.find subtrees t with
+      | Some goto_id ->
+        [mk_multitable_flow (to_pattern tests) None None flow_id]
+      | None -> List.append (dfs (test :: tests) subtrees tru flow_id) 
+                            (dfs tests subtrees fls flow_id))
+  in
+  match Map.find subtrees t with
+  | Some flow_id ->
+   (match FDK.unget t with
+    | Branch (test, tru, fls) ->
+      List.filter_opt (List.append (dfs [] subtrees tru flow_id) 
+                                   (dfs [] subtrees fls flow_id))
+    | _ -> assert false) (* each t in the map should be a branch *)
+  | None -> assert false (* only make a table if t is in the Map *)
+
+(* Collect the flow table rows for each subtree in one list. *)
+let subtrees_to_multitable (subtrees : flow_subtrees) : multitable_flow list =
+  Map.keys subtrees
+  |> List.map ~f:(fun t -> subtree_to_table subtrees t)
+  |> List.concat
+
+(* Produce a list of flow table entries for a multitable setup *)
+let to_multitable (sw_id : switchId) (layout : flow_layout) (t : t) =
+  FDK.(restrict [(Field.Switch, Value.Const sw_id)] t)
+  |> flow_table_subtrees layout
+  |> subtrees_to_multitable
+
