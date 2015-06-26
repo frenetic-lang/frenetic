@@ -178,5 +178,7 @@ type multitable_flow = {
   flowId       : flowId;
 }
 
+val layout_to_string : flow_layout -> string
+
 (* Produce a list of flow table entries for a multitable setup *)
 val to_multitable : switchId -> flow_layout -> t -> multitable_flow list

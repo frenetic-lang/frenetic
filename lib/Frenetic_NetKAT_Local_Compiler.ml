@@ -696,6 +696,11 @@ let compile_global (pol : Frenetic_NetKAT.policy) : FDK.t =
 (* Each list of fields represents the fields one flow table can match on *)
 type flow_layout = Field.t list list
 
+let layout_to_string (layout : flow_layout) : string =
+  List.fold layout ~init:"" ~f:(fun accum fields ->
+    accum ^ "[ " ^ (List.fold fields ~init:"" ~f:(fun accum field ->
+      accum ^ (Field.to_string field) ^ "; ")) ^ "]")
+
 (* Each flow table row has a table location, and a meta value on that table *)
 type tableId = int
 type metaId = int
@@ -780,6 +785,8 @@ let subtrees_to_multitable (subtrees : flow_subtrees) : multitable_flow list =
   |> List.map ~f:(fun t -> subtree_to_table subtrees t)
   |> List.concat
 
+(* TODO(eli): if t does not contain any of the fields matched on by table 0,
+ * then table 0 will drop all *)
 (* Produce a list of flow table entries for a multitable setup *)
 let to_multitable (sw_id : switchId) (layout : flow_layout) (t : t) =
   FDK.(restrict [(Field.Switch, Value.Const sw_id)] t)
