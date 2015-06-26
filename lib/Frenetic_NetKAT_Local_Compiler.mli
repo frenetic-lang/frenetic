@@ -158,9 +158,14 @@ val to_dotfile : t -> string -> unit
 type flow_layout = Field.t list list
 
 (* Each flow table row has a table location, and a meta value on that table *)
-type table_id = int
-type meta_id = int
-type flow_id = table_id * meta_id
+type tableId = int
+type metaId = int
+type flowId = tableId * metaId
+
+(* OpenFlow 1.3+ instruction types *)
+type instruction = 
+  [ `Action of Frenetic_OpenFlow.group 
+  | `GotoTable of flowId ]
 
 (* A flow table row, with multitable support. If goto has a Some value
  * then the 0x04 row instruction is GotoTable. *)
@@ -169,9 +174,8 @@ type multitable_flow = {
   cookie       : int64;
   idle_timeout : Frenetic_OpenFlow.timeout;
   hard_timeout : Frenetic_OpenFlow.timeout;
-  action       : Frenetic_OpenFlow.group option;
-  goto         : flow_id option;
-  flow_id      : flow_id;
+  instruction  : instruction;
+  flowId       : flowId;
 }
 
 (* Produce a list of flow table entries for a multitable setup *)

@@ -697,12 +697,17 @@ let compile_global (pol : Frenetic_NetKAT.policy) : FDK.t =
 type flow_layout = Field.t list list
 
 (* Each flow table row has a table location, and a meta value on that table *)
-type table_id = int
-type meta_id = int
-type flow_id = table_id * meta_id
+type tableId = int
+type metaId = int
+type flowId = tableId * metaId
 
 (* Match subtrees of t with the table location they will be placed *)
-type flow_subtrees = (t, flow_id) Map.Poly.t
+type flow_subtrees = (t, flowId) Map.Poly.t
+
+(* OpenFlow 1.3+ instruction types *)
+type instruction = 
+  [ `Action of Frenetic_OpenFlow.group 
+  | `GotoTable of flowId ]
 
 (* A flow table row, with multitable support. If goto has a Some value
  * then the 0x04 row instruction is GotoTable. *)
@@ -711,14 +716,13 @@ type multitable_flow = {
   cookie       : int64;
   idle_timeout : Frenetic_OpenFlow.timeout;
   hard_timeout : Frenetic_OpenFlow.timeout;
-  action       : Frenetic_OpenFlow.group option;
-  goto         : flow_id option;
-  flow_id      : flow_id;
+  instruction  : instruction;
+  flowId       : flowId;
 }
 
 (* Make Map of subtrees of t and their corresponding flow table locations *)
 let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
-  let rec add_subtree (fields : Field.t list) (t : t) (t_id : table_id)  
+  let rec add_subtree (fields : Field.t list) (t : t) (t_id : tableId)  
     (subtrees : flow_subtrees) : flow_subtrees =
     match FDK.unget t with
     | Leaf _                  -> 
@@ -735,39 +739,38 @@ let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
 
 (* make a flow struct that includes the table and meta id of the flow *)
 let mk_multitable_flow (pattern : Frenetic_OpenFlow.Pattern.t) 
-  (action : Frenetic_OpenFlow.group option) (goto : flow_id option) 
-  (flow_id : flow_id) : multitable_flow option =
+  (instruction : instruction) (flowId : flowId) : multitable_flow option =
   if is_valid_pattern pattern then
     Some { cookie = 0L; 
            idle_timeout = Permanent; 
            hard_timeout = Permanent;
-           pattern; action; goto; flow_id }
+           pattern; instruction; flowId }
   else
     None
 
 (* Create flow table rows for one subtree *)
 let subtree_to_table (subtrees : flow_subtrees) (t : t) : multitable_flow list =
   let rec dfs (tests : (Field.t * Value.t) list) (subtrees : flow_subtrees) 
-  (t : t) (flow_id : flow_id) : multitable_flow option list = 
+  (t : t) (flowId : flowId) : multitable_flow option list = 
     match FDK.unget t with
     | Leaf actions ->
       let instruction = [to_action (get_inport tests) actions tests] in
-      [mk_multitable_flow (to_pattern tests) (Some instruction) None flow_id]
+      [mk_multitable_flow (to_pattern tests) (`Action instruction) flowId]
     | Branch ((Location, Pipe _), _, fls) -> 
       assert false (* not supported *)
     | Branch (test, tru, fls) ->
      (match Map.find subtrees t with
       | Some goto_id ->
-        [mk_multitable_flow (to_pattern tests) None None flow_id]
-      | None -> List.append (dfs (test :: tests) subtrees tru flow_id) 
-                            (dfs tests subtrees fls flow_id))
+        [mk_multitable_flow (to_pattern tests) (`GotoTable goto_id) flowId]
+      | None -> List.append (dfs (test :: tests) subtrees tru flowId) 
+                            (dfs tests subtrees fls flowId))
   in
   match Map.find subtrees t with
-  | Some flow_id ->
+  | Some flowId ->
    (match FDK.unget t with
     | Branch (test, tru, fls) ->
-      List.filter_opt (List.append (dfs [] subtrees tru flow_id) 
-                                   (dfs [] subtrees fls flow_id))
+      List.filter_opt (List.append (dfs [] subtrees tru flowId) 
+                                   (dfs [] subtrees fls flowId))
     | _ -> assert false) (* each t in the map should be a branch *)
   | None -> assert false (* only make a table if t is in the Map *)
 
