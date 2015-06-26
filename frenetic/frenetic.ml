@@ -17,6 +17,23 @@ let verbosity : [ `Debug | `Error | `Info ] Term.t =
   let doc = "Set logging verbosity" in
   value & opt level `Info & info ["verbosity"] ~docv:"LEVEL" ~doc
 
+let policy : string Term.t =
+  let open Arg in
+  let doc = "NetKat policy to apply to the network" in
+  value & pos 0 string "" & info [] ~docv:"POLICY" ~doc
+
+let table : Frenetic_NetKAT_Local_Compiler.flow_layout Term.t =
+  let open Arg in
+  let open Frenetic_Fdd.Field in
+  let doc = "Undocumented 1.3 flag" in
+  let opts = [ ("switch", Switch); ("vlan", Vlan); ("pcp", VlanPcp);
+    ("ethtype", EthType); ("ipproto", IPProto); ("ethsrc", EthSrc);
+    ("ethdst", EthDst); ("ip4src", IP4Src); ("ip4dst", IP4Dst);
+    ("tcpsrc", TCPSrcPort); ("tcpdst", TCPDstPort); ("location", Location) ] in
+  let conv = Arg.list ~sep:';' (Arg.list ~sep:',' (Arg.enum opts)) in
+  let default = [Frenetic_NetKAT_Local_Compiler.Field.get_order ()] in
+  value & opt conv default & info ["table"] ~docv:"TABLE" ~doc
+
 let log_output : (string * Async.Std.Log.Output.t Lazy.t) Term.t =
   let open Async.Std in
   let open Async_extended in
