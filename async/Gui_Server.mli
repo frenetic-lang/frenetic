@@ -14,7 +14,6 @@ val string_handler : string -> handler
 
 val not_found_handler : handler
 (*val delta_events_to_json : gui_event list -> Frenetic_NetKAT_Net.Net.Topology.t -> string *)
-val topo_to_json : Frenetic_NetKAT_Net.Net.Topology.t -> bytes
 
 val create :
   ?max_connections: int ->

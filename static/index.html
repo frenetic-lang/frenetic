@@ -503,7 +503,7 @@ function network() {
 
     link.enter().append('line')
     .attr('class', 'link')
-    .style('stroke-width', function(d) {return 1000 * d.redundancy;})
+    .style('stroke-width', function(d) {return 1.5 })
     .on('click', function(d){link_info(d,data)});
     link.exit().remove();
 
