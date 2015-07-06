@@ -327,7 +327,6 @@ function link_info(l,data){
     sEntry = [['MAC',sw.mac],
     ['IP',sw.ip],
     ['Switch Port',sw.switch_port]];
-    sw = l.target;
   }else
   sEntry = [['Switch ID',sw.id]];
 
@@ -339,14 +338,9 @@ function link_info(l,data){
   }else
   tEntry = [['Switch ID',d.id]];
 
-  var sw_id = sw.id;
-  var pt_id = sw.switch_port;
-  d3.text('/switch/' + sw_id + '/port/'+ pt_id, function(d){
-    console.log(d);
-    d = JSON.parse(d);
     var entries = sEntry.concat(tEntry);
-    var pkts = d.rx_packets + d.tx_packets;
-    var bytes = d.rx_bytes + d.tx_bytes;
+    var pkts = l.portstats.cpackets;
+    var bytes = l.portstats.cbytes;
     entries = entries.concat([['packets',pkts],['bytes',bytes]]);
 
     var rows = d3.select('#entity table').selectAll('tr')
@@ -360,19 +354,15 @@ function link_info(l,data){
     cells
     .classed('first', function(d, i) { return i === 0; })
     .text(function(d) { return d; });
-
-  })
 }
 
 function poll(_network){
   setTimeout(function(){
     d3.text("/events",function(d){
-      if(d!="[]"){
         var data = JSON.parse(d);
         console.log(data);
         var nodes = _network.nodes();
         var links = _network.links();
-
         function equals (n1,n2){
           if(n1.type == n2.type){
             if(n1.type == "switch")
@@ -405,31 +395,59 @@ function poll(_network){
         if(x.type == "AddLink"){
           var src = nodes[x.link.src_id],
           dst = nodes[x.link.dst_id];
-          src.switch_port = x.link.src_port;
-          dst.switch_port = x.link.dst_port; 
-          links.push({source : src, target : dst});
+	  var linkswitch = src;
+	  var srcport = x.link.src_port;
+          if(src.type == "host"){
+	    linkswitch = dst;
+	    srcport = x.link.dst_port;
+	  }
+	  var stats = {cpackets: "NaN",cbytes :"NaN",packets : 0,bytes : 0};
+	  var link = {source:src, target:dst, sw: linkswitch, portstats:stats};
+	  link.srcport = srcport;
+	  return (links.push(link)); 
 
+	  
         }else if(x.type =="DelLink"){
           var src = x.link.source;
           dst = x.link.target;
           links = links.filter(function(l){
             return !(equals(l.source,src) && equals(l.target,dst));
           });
-        }
-      }
+        }}
+    
+      links.forEach(function(link){
+	d3.text("/switch/"+link.sw.id+'/port/'+link.srcport, function(st){
+	  var pdata = JSON.parse(st);
+	  var totalpackets = pdata.tx_packets + pdata.rx_packets;
+	  var totalbytes = pdata.tx_bytes + pdata.rx_bytes;
+	  if(link.portstats.cpackets == "NaN"){
+	    console.log("cpackets in NaN");
+	    link.portstats.cpackets = 0;
+	    link.portstats.cbytes = 0;
+	  }else{
+	    link.portstats.cpackets = totalpackets - link.portstats.packets;
+	    link.portstats.cbytes = totalbytes - link.portstats.bytes;
+	  }
+	  link.portstats.packets = totalpackets;
+	  link.portstats.bytes = totalbytes;
+	  _network.linkdata(links);
+	});
+      });
 
-      _network
-      .nodes(nodes)
-      .links(links);
-      var svg = d3.select('#canvas')
-      .select('svg');
-      _network.update_main(svg);
+      if(d!="[]"){
+	
+        _network
+        .nodes(nodes)
+        .links(links);
 
+        var svg = d3.select('#canvas')
+        .select('svg');
+        _network.update_main(svg);
+	      
       console.log(_network.nodes());
       console.log(_network.links());
-
-    }else
-    console.log("No updates to give. ");
+      }
+   
   });
 poll(_network);
 },5000);
@@ -595,6 +613,11 @@ function network() {
     return my;
   };
 
+ my.linkdata = function(upd){
+    data.links = upd;
+    return my;
+  };
+
   /* Getter/setter for the nodes in the topology. */
   my.nodes = function(_) {
     if (!arguments.length) return data.nodes;
@@ -637,10 +660,18 @@ d3.json('/topology', function(data) {
   var nodes = d3.values(data.nodes),
   links = data.links.map(function(e) {
     var src = data.nodes[e.src_id],
-    dst = data.nodes[e.dst_id];
-    src.switch_port = e.src_port;
-    dst.switch_port = e.dst_port;
-    return { source : src, target : dst };
+    dst = data.nodes[e.dst_id]
+    link = {source:src,target:dst};
+    var linkswitch = src;
+    link.srcport = e.src_port;
+    if(src.type == "host"){
+      linkswitch = dst;
+      link.srcport = e.dst_port;
+    }
+    var stats = {cpackets: "NaN",cbytes :"NaN",packets:0,bytes:0};
+    link.sw = linkswitch;
+    link.portstats = stats;
+    return link;
   });
 
   _network
