@@ -699,7 +699,7 @@ type flow_layout = Field.t list list
 let layout_to_string (layout : flow_layout) : string =
   List.fold layout ~init:"" ~f:(fun accum fields ->
     accum ^ "[ " ^ (List.fold fields ~init:"" ~f:(fun accum field ->
-      accum ^ (Field.to_string field) ^ "; ")) ^ "]")
+      accum ^ (Field.to_string field) ^ " ")) ^ "]")
 
 (* Each flow table row has a table location, and a meta value on that table *)
 type tableId = int
@@ -725,6 +725,7 @@ type multitable_flow = {
   flowId       : flowId;
 }
 
+(* C style x++ for mutable ints *)
 let post (x : int ref) : int =
   x := !x + 1;
   (!x - 1)
@@ -780,7 +781,7 @@ let subtree_to_table (subtrees : flow_subtrees) (t : t) : multitable_flow list =
   | Some flowId ->
    (match FDK.unget t with
     | Branch (test, tru, fls) ->
-        List.filter_opt (List.append (dfs [test] subtrees tru flowId) 
+      List.filter_opt (List.append (dfs [test] subtrees tru flowId) 
                                    (dfs [] subtrees fls flowId))
     | _ -> assert false) (* each t in the map should be a branch *)
   | None -> assert false (* only make a table if t is in the Map *)
@@ -792,7 +793,8 @@ let subtrees_to_multitable (subtrees : flow_subtrees) : multitable_flow list =
   |> List.concat
 
 (* Produce a list of flow table entries for a multitable setup *)
-let to_multitable (sw_id : switchId) (layout : flow_layout) (t : t) =
+let to_multitable (sw_id : switchId) (layout : flow_layout) (t : t) 
+  : multitable_flow list =
   let t = FDK.(restrict [(Field.Switch, Value.Const sw_id)] t) in
   let subtrees = flow_table_subtrees layout t in
   (* Because all packets start at table 0, if the root of the FDD is not on
