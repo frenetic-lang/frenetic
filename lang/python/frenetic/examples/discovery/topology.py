@@ -56,6 +56,9 @@ class Count(object):
 class Topology(frenetic.App):
 
   client_id = "topology"
+  # TODO: Make these settable at command line.  Below are defaults.
+  frenetic_http_host = "localhost"
+  frenetic_http_port = "9000"
 
   def __init__(self, state, version):
     frenetic.App.__init__(self)
@@ -68,7 +71,7 @@ class Topology(frenetic.App):
     self.update(self.policy())
 
     IOLoop.instance().add_timeout(datetime.timedelta(seconds=2), self.run_probe)
-    IOLoop.instance().add_timeout(datetime.timedelta(seconds=4), self.host_discovery)
+    IOLoop.instance().add_timeout(datetime.timedelta(seconds=30), self.host_discovery)
 
     # The controller may already be connected to several switches on startup.
     # This ensures that we probe them too.
@@ -155,7 +158,7 @@ class Topology(frenetic.App):
       switch_id = switch[0]
       for port_id in switch[1]:
         probe_data = ProbeData(switch_id, port_id)
-
+        print "Sending out probe for (%s, %s)" % (switch_id, port_id)
         # Build a PROBOCOL packet and send it out
         pkt = packet.Packet()
         pkt.add_protocol(ethernet.ethernet(ethertype=ProbeData.PROBOCOL))
@@ -234,15 +237,17 @@ class Topology(frenetic.App):
   def packet_in(self, switch_id, port_id, payload):
     pkt = packet.Packet(array.array('b', payload.data))
     p = get(pkt, 'ethernet')
+    # If this is VLan packet, get ethernet type from emebdded header instead
+    ethertype = get(pkt, 'vlan').ethertype if (p.ethertype == 0x8100) else p.ethertype
 
-    if (p.ethertype == ProbeData.PROBOCOL):
+    if (ethertype == ProbeData.PROBOCOL):
       probe_data = get(pkt, 'ProbeData')
       self.handle_probe(switch_id, port_id, probe_data.src_switch,
                         probe_data.src_port)
       self.pkt_out(switch_id, payload, [])
       return
 
-    if (p.ethertype == 0x806):
+    if (ethertype == 0x806):  # = arp
       self.handle_sniff(switch_id, port_id, p, pkt)
       if (self.state.mode == "host_discovery"):
         self.send_arp(switch_id, port_id, pkt)

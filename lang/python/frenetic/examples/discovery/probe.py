@@ -5,7 +5,7 @@ class ProbeData(packet_base.PacketBase):
 
   PROBOCOL = 0x808
   NO_RESPONSE_THRESHOLD = 5
-  _PACK_STR = '!LH'
+  _PACK_STR = '!QH'
   _MIN_LEN = struct.calcsize(_PACK_STR)
   _TYPE = {
       'ascii': [

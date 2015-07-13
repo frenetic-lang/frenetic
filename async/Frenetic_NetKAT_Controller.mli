@@ -27,7 +27,7 @@ module type CONTROLLER = sig
   val send_packet_out : switchId -> Frenetic_OpenFlow.pktOut -> unit Deferred.t
   val event : unit -> event Deferred.t
   val query : string -> (Int64.t * Int64.t) Deferred.t
-  val port_stats : switchId -> portId -> OF10.portStats Deferred.t
+  val port_stats : switchId -> portId -> OF10.portStats list Deferred.t
   val is_query : string -> bool
   val start : unit -> unit
   val current_switches : unit -> (switchId * portId list) list
