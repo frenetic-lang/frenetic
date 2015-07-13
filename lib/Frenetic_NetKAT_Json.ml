@@ -266,21 +266,24 @@ let stats_to_json ((pkts, bytes) : Int64.t * Int64.t) : json =
 let stats_to_json_string (stats : Int64.t * Int64.t) : string =
   Yojson.Basic.to_string ~std:true (stats_to_json stats)
 
-let port_stats_to_json (portStats : Frenetic_OpenFlow0x01.portStats) : json =
-  `Assoc [("port_no", `Int portStats.port_no);
-	  ("rx_packets", `Int (Int64.to_int_exn portStats.rx_packets));
-	  ("tx_packets", `Int (Int64.to_int_exn portStats.tx_packets));
-	  ("rx_bytes", `Int (Int64.to_int_exn portStats.rx_bytes));
-	  ("tx_bytes", `Int (Int64.to_int_exn portStats.tx_bytes));
-	  ("rx_dropped", `Int (Int64.to_int_exn portStats.rx_dropped));
-	  ("tx_dropped", `Int (Int64.to_int_exn portStats.tx_dropped));
-	  ("rx_errors", `Int (Int64.to_int_exn portStats.rx_errors));
-	  ("tx_errors", `Int (Int64.to_int_exn portStats.tx_errors));
-	  ("rx_fram_err", `Int (Int64.to_int_exn portStats.rx_frame_err));
-	  ("rx_over_err", `Int (Int64.to_int_exn portStats.rx_over_err));
-	  ("rx_crc_err", `Int (Int64.to_int_exn portStats.rx_crc_err));
-	  ("collisions", `Int (Int64.to_int_exn portStats.collisions))]
+let port_stat_to_json (portStat: Frenetic_OpenFlow0x01.portStats) : json =
+  `Assoc [("port_no", `Int portStat.port_no);
+    ("rx_packets", `Int (Int64.to_int_exn portStat.rx_packets));
+    ("tx_packets", `Int (Int64.to_int_exn portStat.tx_packets));
+    ("rx_bytes", `Int (Int64.to_int_exn portStat.rx_bytes));
+    ("tx_bytes", `Int (Int64.to_int_exn portStat.tx_bytes));
+    ("rx_dropped", `Int (Int64.to_int_exn portStat.rx_dropped));
+    ("tx_dropped", `Int (Int64.to_int_exn portStat.tx_dropped));
+    ("rx_errors", `Int (Int64.to_int_exn portStat.rx_errors));
+    ("tx_errors", `Int (Int64.to_int_exn portStat.tx_errors));
+    ("rx_fram_err", `Int (Int64.to_int_exn portStat.rx_frame_err));
+    ("rx_over_err", `Int (Int64.to_int_exn portStat.rx_over_err));
+    ("rx_crc_err", `Int (Int64.to_int_exn portStat.rx_crc_err));
+    ("collisions", `Int (Int64.to_int_exn portStat.collisions))]
 
-let port_stats_to_json_string (portStats : Frenetic_OpenFlow0x01.portStats) : string =
+let port_stats_to_json (portStats : Frenetic_OpenFlow0x01.portStats list) : json =
+  `List (List.map portStats ~f:port_stat_to_json)
+
+let port_stats_to_json_string (portStats : Frenetic_OpenFlow0x01.portStats list) : string =
   Yojson.Basic.to_string ~std:true (port_stats_to_json portStats)
 

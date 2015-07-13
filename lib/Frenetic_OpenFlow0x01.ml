@@ -186,7 +186,7 @@ type reply =
   | DescriptionRep of descriptionStats
   | IndividualFlowRep of individualStats list
   | AggregateFlowRep of aggregateStats
-  | PortRep of portStats
+  | PortRep of portStats list
 with sexp
 
 type stpState =
@@ -287,7 +287,7 @@ module Format = struct
     fprintf fmt "@[{@[@[packets=%Ld;@]@ @[bytes=%Ld;@]@ @[flows=%ld@]@]}@]"
       v.total_packet_count v.total_byte_count v.flow_count
 
-  let portStats fmt (v : portStats) =
+  let fmt_one_port_stat fmt (v: portStats) = 
     fprintf fmt "@[{@[port_no=%d@ \
                       rx_packets=%Ld@ tx_packets=%Ld@ \
                       rx_bytes=%Ld@ tx_bytes=%Ld@ \
@@ -302,6 +302,9 @@ module Format = struct
       v.rx_errors v.tx_errors
       v.rx_frame_err v.rx_over_err v.rx_crc_err
       v.collisions
+
+  let portStats fmt (vl : portStats list) =
+    List.iter vl (fmt_one_port_stat fmt)
 
   let reply fmt v = match v with
     | DescriptionRep st -> descriptionStats fmt st
@@ -2260,34 +2263,45 @@ module StatsReply = struct
     uint64_t collisions;
   } as big_endian
 
- let parse_port_stats bits =
-   let port_no = get_ofp_port_stats_port_no bits in
-   let rx_packets = get_ofp_port_stats_rx_packets bits in
-   let tx_packets = get_ofp_port_stats_tx_packets bits in
-   let rx_bytes = get_ofp_port_stats_rx_bytes bits in
-   let tx_bytes = get_ofp_port_stats_tx_bytes bits in
-   let rx_dropped = get_ofp_port_stats_rx_dropped bits in
-   let tx_dropped = get_ofp_port_stats_tx_dropped bits in
-   let rx_errors = get_ofp_port_stats_rx_errors bits in
-   let tx_errors = get_ofp_port_stats_tx_errors bits in
-   let rx_frame_err = get_ofp_port_stats_rx_frame_err bits in
-   let rx_over_err = get_ofp_port_stats_rx_over_err bits in
-   let rx_crc_err = get_ofp_port_stats_rx_crc_err bits in
-   let collisions = get_ofp_port_stats_collisions bits in
-    { port_no = port_no
-    ; rx_packets = rx_packets
-    ; tx_packets = tx_packets
-    ; rx_bytes = rx_bytes
-    ; tx_bytes = tx_bytes
-    ; rx_dropped = rx_dropped
-    ; tx_dropped = tx_dropped
-    ; rx_errors = rx_errors
-    ; tx_errors = tx_errors
-    ; rx_frame_err = rx_frame_err
-    ; rx_over_err = rx_over_err
-    ; rx_crc_err = rx_crc_err
-    ; collisions = collisions
-    }
+ let _parse_port_stats bits =
+    (* get fields *)
+    let port_no = get_ofp_port_stats_port_no bits in
+    let rx_packets = get_ofp_port_stats_rx_packets bits in
+    let tx_packets = get_ofp_port_stats_tx_packets bits in
+    let rx_bytes = get_ofp_port_stats_rx_bytes bits in
+    let tx_bytes = get_ofp_port_stats_tx_bytes bits in
+    let rx_dropped = get_ofp_port_stats_rx_dropped bits in
+    let tx_dropped = get_ofp_port_stats_tx_dropped bits in
+    let rx_errors = get_ofp_port_stats_rx_errors bits in
+    let tx_errors = get_ofp_port_stats_tx_errors bits in
+    let rx_frame_err = get_ofp_port_stats_rx_frame_err bits in
+    let rx_over_err = get_ofp_port_stats_rx_over_err bits in
+    let rx_crc_err = get_ofp_port_stats_rx_crc_err bits in
+    let collisions = get_ofp_port_stats_collisions bits in
+
+    let bits_after_port_stats = Cstruct.shift bits sizeof_ofp_port_stats in
+
+    ( { port_no = port_no
+     ; rx_packets = rx_packets
+     ; tx_packets = tx_packets
+     ; rx_bytes = rx_bytes
+     ; tx_bytes = tx_bytes
+     ; rx_dropped = rx_dropped
+     ; tx_dropped = tx_dropped
+     ; rx_errors = rx_errors
+     ; tx_errors = tx_errors
+     ; rx_frame_err = rx_frame_err
+     ; rx_over_err = rx_over_err
+     ; rx_crc_err = rx_crc_err
+     ; collisions = collisions
+    }, bits_after_port_stats)
+
+  let rec parse_sequence_port_stats bits =
+    if Cstruct.len bits <= 0 then
+      []
+    else
+      let (v, bits') = _parse_port_stats bits in
+      v :: parse_sequence_port_stats bits'
 
   cstruct ofp_stats_reply {
     uint16_t stats_type;
@@ -2306,7 +2320,7 @@ module StatsReply = struct
     | Some OFPST_TABLE -> raise (Unparsable "table statistics unsupported")
     | Some OFPST_QUEUE -> raise (Unparsable "queue statistics unsupported")
     | Some OFPST_VENDOR -> raise (Unparsable "vendor statistics unsupported")
-    | Some OFPST_PORT -> PortRep (parse_port_stats body)
+    | Some OFPST_PORT -> PortRep (parse_sequence_port_stats body)
     | None ->
       let msg =
         sprintf "bad ofp_stats_type in stats_reply (%d)" stats_type_code in
@@ -2354,21 +2368,26 @@ module StatsReply = struct
         sizeof_ofp_stats_reply + sizeof_ofp_flow_stats
       | PortRep rep ->
         set_ofp_stats_reply_stats_type out (ofp_stats_types_to_int OFPST_PORT);
-        begin let out = Cstruct.shift out sizeof_ofp_stats_reply in
-          set_ofp_port_stats_port_no out (rep.port_no);
-          set_ofp_port_stats_rx_packets out (rep.rx_packets);
-          set_ofp_port_stats_tx_packets out (rep.tx_packets);
-          set_ofp_port_stats_rx_bytes out (rep.rx_bytes);
-          set_ofp_port_stats_tx_bytes out (rep.tx_bytes);
-          set_ofp_port_stats_rx_dropped out (rep.rx_dropped);
-          set_ofp_port_stats_tx_dropped out (rep.tx_dropped);
-          set_ofp_port_stats_rx_errors out (rep.rx_errors);
-          set_ofp_port_stats_tx_errors out (rep.tx_errors);
-          set_ofp_port_stats_rx_frame_err out (rep.rx_frame_err);
-          set_ofp_port_stats_rx_over_err out (rep.rx_over_err);
-          set_ofp_port_stats_rx_crc_err out (rep.rx_crc_err);
-          set_ofp_port_stats_collisions out (rep.collisions);
+        begin 
+          let out = Cstruct.shift out sizeof_ofp_stats_reply in
+          match rep with 
+          | [] -> ()  (* DOn't really know yet *)
+          | head :: tail -> 
+            set_ofp_port_stats_port_no out (head.port_no); 
+            set_ofp_port_stats_rx_packets out (head.rx_packets);
+            set_ofp_port_stats_tx_packets out (head.tx_packets);
+            set_ofp_port_stats_rx_bytes out (head.rx_bytes);
+            set_ofp_port_stats_tx_bytes out (head.tx_bytes);
+            set_ofp_port_stats_rx_dropped out (head.rx_dropped);
+            set_ofp_port_stats_tx_dropped out (head.tx_dropped);
+            set_ofp_port_stats_rx_errors out (head.rx_errors);
+            set_ofp_port_stats_tx_errors out (head.tx_errors);
+            set_ofp_port_stats_rx_frame_err out (head.rx_frame_err);
+            set_ofp_port_stats_rx_over_err out (head.rx_over_err);
+            set_ofp_port_stats_rx_crc_err out (head.rx_crc_err);
+            set_ofp_port_stats_collisions out (head.collisions);
         end;
+        (** TODO: Support the marshaling of multiple action and multiple flows *)
         sizeof_ofp_stats_reply + sizeof_ofp_port_stats
     end
 

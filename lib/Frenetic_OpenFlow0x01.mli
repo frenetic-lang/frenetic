@@ -197,7 +197,7 @@ type reply =
   | DescriptionRep of descriptionStats
   | IndividualFlowRep of individualStats list
   | AggregateFlowRep of aggregateStats
-  | PortRep of portStats
+  | PortRep of portStats list
 with sexp
 
 type wildcards = 
