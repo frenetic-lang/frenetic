@@ -45,9 +45,8 @@ class App(object):
                         payload=payload,
                         actions=actions,
                         in_port=in_port)
-        request = HTTPRequest("http://localhost:9000/pkt_out",
-                              method='POST',
-                              body=json.dumps(msg.to_json()))
+        pkt_out_url = "http://%s:%s/pkt_out" % (self.frenetic_http_host, self.frenetic_http_port)
+        request = HTTPRequest(pkt_out_url, method='POST', body=json.dumps(msg.to_json()))
         return self.__http_client.fetch(request)
 
     def run_response(self, ftr, callback):
@@ -64,7 +63,7 @@ class App(object):
       IOLoop.instance().add_future(ftr, f)
 
     def query(self, label):
-        url = "http://localhost:9000/query/" + label
+        url = "http://%s:%s/query/%s" % (self.frenetic_http_host, self.frenetic_http_port, label)
         request = HTTPRequest(url, method='GET', request_timeout=0)
         response_future = self.__http_client.fetch(request)
         return self.query_helper(response_future)
@@ -88,14 +87,14 @@ class App(object):
     # rx_dropped, tx_dropped, rx_errors, tx_errors, rx_frame_error, rx_over_err,
     # rx_crc_err, collisions. All of these values map to an integer
     def port_stats(self, switch_id, port_id):
-      url = "http://localhost:9000/port_stats/%s/%s" % (switch_id, port_id)
+      url = "http://%s:%s/port_stats/%s/%s" % (self.frenetic_http_host, self.frenetic_http_port, switch_id, port_id)
       request = HTTPRequest(url, method='GET', request_timeout=0)
       response_future = self.__http_client.fetch(request)
       return self.port_stats_helper(response_future)
 
     @gen.coroutine
     def current_switches(self):
-      url = "http://localhost:9000/current_switches"
+      url = "http://%s:%s/current_switches" % (self.frenetic_http_host, self.frenetic_http_port)
       req = HTTPRequest(url, method="GET", request_timeout=0)
       resp = yield self.__http_client.fetch(req)
       ret = dict((x["switch_id"], x["ports"]) for x in json.loads(resp.body))
@@ -103,7 +102,7 @@ class App(object):
 
     def update(self, policy):
         pol_json = json.dumps(policy.to_json())
-        url = "http://localhost:9000/%s/update_json" % self.client_id
+        url = "http://%s:%s/%s/update_json" % (self.frenetic_http_host, self.frenetic_http_port, self.client_id)
         request = HTTPRequest(url,method='POST',body=pol_json)
         return self.__http_client.fetch(request)
 
@@ -111,11 +110,15 @@ class App(object):
         if not hasattr(self, 'client_id'):
             self.client_id = uuid.uuid4().hex
             print "No client_id specified. Using %s" % self.client_id
+        if not hasattr(self, 'frenetic_http_host'):
+            self.frenetic_http_host = "localhost"
+        if not hasattr(self, 'frenetic_http_port'):
+            self.frenetic_http_port = "9000"
         self.__http_client = AsyncHTTPClient()
         self.__connect()
 
     def __connect(self):
-        url = "http://localhost:9000/version"
+        url = "http://%s:%s/version" % (self.frenetic_http_host, self.frenetic_http_port)
         req = HTTPRequest(url, method='GET',request_timeout=0)
         resp_fut = self.__http_client.fetch(req)
         IOLoop.instance().add_future(resp_fut, self.__handle_connect)
@@ -137,7 +140,7 @@ class App(object):
         IOLoop.instance().start()
 
     def __poll_event(self):
-        url = "http://localhost:9000/%s/event" % self.client_id
+        url = "http://%s:%s/%s/event" % (self.frenetic_http_host, self.frenetic_http_port, self.client_id)
         req = HTTPRequest(url, method='GET',request_timeout=0)
         resp_fut = self.__http_client.fetch(req)
 
