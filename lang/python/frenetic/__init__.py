@@ -1,4 +1,5 @@
-import uuid, sys, json, base64
+import uuid, sys, json, base64, time
+from datetime import timedelta
 from functools import partial
 from tornado import httpclient
 from tornado.httpclient import AsyncHTTPClient, HTTPRequest
@@ -128,7 +129,8 @@ class App(object):
         except httpclient.HTTPError as e:
             if e.code == 599:
                 print "Frenetic not running, re-trying...."
-                IOLoop.instance().call_later(1, self.__connect)
+                one_second = timedelta(seconds = 1)
+                IOLoop.instance().add_timeout(one_second, self.__connect)
             else:
                 raise e
 
@@ -144,27 +146,40 @@ class App(object):
         IOLoop.instance().add_future(resp_fut, self.__handle_event)
 
     def __handle_event(self, response):
-        event =  json.loads(response.result().body)
-        typ = event['type']
-        if typ == 'switch_up':
-            switch_id = event['switch_id']
-            ports = event['ports']
-            self.switch_up(switch_id, ports)
-        elif typ == 'switch_down':
-            switch_id = event['switch_id']
-            self.switch_down(switch_id)
-        elif typ == 'port_up':
-            switch_id = event['switch_id']
-            port_id = event['port_id']
-            self.port_up(switch_id, port_id)
-        elif typ == 'port_down':
-            switch_id = event['switch_id']
-            port_id = event['port_id']
-            self.port_down(switch_id, port_id)
-        elif typ == 'packet_in':
-            pk = PacketIn(event)
-            self.packet_in(pk.switch_id, pk.port_id, pk.payload)
-        else:
-            print response
+        try: 
+            event =  json.loads(response.result().body)
+ 
+            typ = event['type']
+            if typ == 'switch_up':
+                switch_id = event['switch_id']
+                ports = event['ports']
+                self.switch_up(switch_id, ports)
+            elif typ == 'switch_down':
+                switch_id = event['switch_id']
+                self.switch_down(switch_id)
+            elif typ == 'port_up':
+                switch_id = event['switch_id']
+                port_id = event['port_id']
+                self.port_up(switch_id, port_id)
+            elif typ == 'port_down':
+                switch_id = event['switch_id']
+                port_id = event['port_id']
+                self.port_down(switch_id, port_id)
+            elif typ == 'packet_in':
+                pk = PacketIn(event)
+                self.packet_in(pk.switch_id, pk.port_id, pk.payload)
+            else:
+                print response
 
-        self.__poll_event()
+            self.__poll_event()
+
+        except httpclient.HTTPError as e:
+            if e.code == 599:
+                print time.strftime("%c") + " Frenetic crashed, re-trying in 5 seconds...."
+                five_seconds = timedelta(seconds = 5)
+                # We wait for a connect instead of going through the loop again.
+                IOLoop.instance().add_timeout(five_seconds,self.__connect)
+            else:
+                raise e
+
+ 
