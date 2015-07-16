@@ -216,6 +216,17 @@ let to_action in_port r tests =
 let to_pattern hvs =
   List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_OpenFlow.Pattern.match_all
 
+let remove_local_fields =
+  T.fold
+    (fun r -> T.mk_leaf (Action.Par.map r ~f:(fun s -> Action.Seq.filter s ~f:(fun ~key ~data ->
+      match key with
+      | VPort | VSwitch -> false
+      | _ -> true))))
+    (fun v t f ->
+      match v with
+      | VSwitch, _ | VPort, _ -> failwith "uninitialized local field"
+      | _, _ -> T.mk_branch v t f)
+
 let mk_branch_or_leaf test t f =
   match t with
   | None -> Some f
@@ -224,6 +235,7 @@ let mk_branch_or_leaf test t f =
 let opt_to_table sw_id t =
   let t =
     FDK.(restrict [(Field.Switch, Value.Const sw_id)] t)
+    |> remove_local_fields
   in
   let rec next_table_row tests mk_rest t =
     match FDK.unget t with
@@ -245,7 +257,7 @@ let opt_to_table sw_id t =
   List.filter_opt (loop t [])
 
 let rec naive_to_table sw_id (t : FDK.t) =
-  let t = FDK.(restrict [(Field.Switch, Value.Const sw_id)] t) in
+  let t = FDK.(restrict [(Field.Switch, Value.Const sw_id)] t) |> remove_local_fields in
   let rec dfs tests t = match FDK.unget t with
   | Leaf actions ->
     let openflow_instruction = [to_action (get_inport tests) actions tests] in

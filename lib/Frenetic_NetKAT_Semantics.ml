@@ -136,7 +136,8 @@ let size (pol:policy) : int =
       | Union(pol1, pol2)
       | Seq(pol1, pol2) -> size pol1 (fun spol1 -> size pol2 (fun spol2 -> f (1 + spol1 + spol2)))
       | Star(pol) -> size pol (fun spol -> f (1 + spol))
-      | Link(_,_,_,_) -> f 5 in
+      | Link(_,_,_,_) -> f 5
+      | VLink(_,_,_,_) -> f 5 in
   size pol (fun spol -> spol)
 
 let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
@@ -160,6 +161,7 @@ let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
         Frenetic_OpenFlow.Pattern.Ip.less_eq (pkt.headers.ipDst, 32l) (n, m)
       | TCPSrcPort n -> pkt.headers.tcpSrcPort = n
       | TCPDstPort n -> pkt.headers.tcpDstPort = n
+      | VSwitch n | VPort n -> true (* SJS *)
     end
   | And (pr1, pr2) -> eval_pred pkt pr1 && eval_pred pkt pr2
   | Or (pr1, pr2) -> eval_pred pkt pr1 || eval_pred pkt pr2
@@ -206,7 +208,9 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
       if PacketSet.equal acc acc'' then acc else loop acc'' in
       loop (PacketSet.singleton pkt)
   | Link(sw,pt,sw',pt') ->
-    PacketSet.empty (* JNF *)
+    PacketSet.empty (* TODO(JNF): yeah no *)
+  | VLink(vsw,vpt,vsw',vpt') ->
+    PacketSet.empty (* SJS *)
 
 let eval_pipes (packet:packet) (pol:Frenetic_NetKAT.policy)
   : (string * packet) list *

@@ -2,12 +2,12 @@ open Frenetic_NetKAT
 
 module Formatting = struct
   open Format
-    
+
   (* The type of the immediately surrounding policy_context, which
      guides parenthesis insertion. *)
-    
+
   type predicate_context = OR_L | OR_R | AND_L | AND_R | NEG | PAREN_PR
-      
+
   let format_header_val (fmt : formatter) (hv : header_val) (asgn : string) : unit = match hv with
     | Switch(n) -> fprintf fmt "@[switch %s %Lu@]" asgn n
     | Location(Physical n) -> fprintf fmt "@[port %s %lu@]" asgn n
@@ -25,16 +25,18 @@ module Formatting = struct
     | IP4Dst(n,m) -> fprintf fmt "@[ipDst %s %s/%lu@]" asgn (Frenetic_Packet.string_of_ip n) m
     | TCPSrcPort(n) -> fprintf fmt "@[tcpSrcPort %s %u@]" asgn n
     | TCPDstPort(n) -> fprintf fmt "@[tcpDstPort %s %u@]" asgn n
+    | VSwitch(n) -> fprintf fmt "@[vswitch %s %Lu@]" asgn n
+    | VPort(n) -> fprintf fmt "@[vport %s %Lu@]" asgn n
 
-  let rec pred (cxt : predicate_context) (fmt : formatter) (pr : pred) : unit = 
+  let rec pred (cxt : predicate_context) (fmt : formatter) (pr : pred) : unit =
     match pr with
-      | True -> 
+      | True ->
         fprintf fmt "@[id@]"
-      | False -> 
+      | False ->
         fprintf fmt "@[drop@]"
-      | (Test hv) -> 
+      | (Test hv) ->
         format_header_val fmt hv "="
-      | Neg p' -> 
+      | Neg p' ->
         begin match cxt with
           | PAREN_PR
           | NEG -> fprintf fmt "@[not %a@]" (pred NEG) p'
@@ -94,6 +96,9 @@ module Formatting = struct
       | Link (sw,pt,sw',pt') ->
         fprintf fmt "@[%Lu@@%lu =>@ %Lu@@%lu@]"
           sw pt sw' pt'
+      | VLink (vsw,vpt,vsw',vpt') ->
+        fprintf fmt "@[%Lu@@%Lu =>>@ %Lu@@%Lu@]"
+          vsw vpt vsw' vpt'
 end
   
 let format_policy = Formatting.pol Formatting.PAREN
@@ -108,6 +113,7 @@ let rec pretty_assoc (p : policy) : policy = match p with
   | Filter _ -> p
   | Mod _ -> p
   | Link _ -> p
+  | VLink _ -> p
   | Union (p1, p2) -> pretty_assoc_par p
   | Seq (p1, p2) -> pretty_assoc_seq p
   | Star p' -> Star (pretty_assoc p')

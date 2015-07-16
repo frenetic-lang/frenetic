@@ -9,6 +9,8 @@ open Frenetic_Packet
 type switchId = Frenetic_OpenFlow.switchId with sexp
 type portId = Frenetic_OpenFlow.portId with sexp
 type payload = Frenetic_OpenFlow.payload with sexp
+type vswitchId = int64 with sexp
+type vportId = int64 with sexp
 
 (** {2 Policies} *)
 
@@ -31,6 +33,8 @@ type header_val =
   | IP4Dst of nwAddr * int32
   | TCPSrcPort of tpPort
   | TCPDstPort of tpPort
+  | VSwitch of vswitchId
+  | VPort of vportId
   with sexp
 
 type pred =
@@ -49,6 +53,7 @@ type policy =
   | Seq of policy * policy
   | Star of policy
   | Link of switchId * portId * switchId * portId
+  | VLink of vswitchId * vportId * vswitchId * vportId
   with sexp
 
 let id = Filter True

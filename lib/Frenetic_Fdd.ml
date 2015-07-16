@@ -13,6 +13,8 @@ module Field = struct
     = Switch
     | Vlan
     | VlanPcp
+    | VSwitch
+    | VPort
     | EthType
     | IPProto
     | EthSrc
@@ -32,24 +34,26 @@ module Field = struct
 
   let to_string = function
     | Switch -> "Switch"
-    | Location -> "Location"
-    | EthSrc -> "EthSrc"
-    | EthDst -> "EthDst"
     | Vlan -> "Vlan"
     | VlanPcp -> "VlanPcp"
+    | VSwitch -> "VSwitch"
+    | VPort -> "VPort"
     | EthType -> "EthType"
     | IPProto -> "IPProto"
+    | EthSrc -> "EthSrc"
+    | EthDst -> "EthDst"
     | IP4Src -> "IP4Src"
     | IP4Dst -> "IP4Dst"
     | TCPSrcPort -> "TCPSrcPort"
     | TCPDstPort -> "TCPDstPort"
+    | Location -> "Location"
 
-  let num_fields = 12
+  let num_fields = 14
 
   (* Ensure that these are in the same order in which the variants appear. *)
   let all_fields =
-    [ Switch; Location; EthSrc; EthDst; Vlan; VlanPcp; EthType; IPProto;
-      IP4Src; IP4Dst; TCPSrcPort; TCPDstPort ]
+    [ Switch; Vlan; VlanPcp; VSwitch; VPort; EthType; IPProto; EthSrc; EthDst;
+      IP4Src; IP4Dst; TCPSrcPort; TCPDstPort; Location; ]
 
   let is_valid_order (lst : t list) : bool =
     List.length lst = num_fields &&
@@ -80,6 +84,8 @@ module Field = struct
     | Frenetic_NetKAT.EthDst _ -> EthDst
     | Frenetic_NetKAT.Vlan _ -> Vlan
     | Frenetic_NetKAT.VlanPcp _ -> VlanPcp
+    | NetKAT_Types.VSwitch _ -> VSwitch
+    | NetKAT_Types.VPort _ -> VPort
     | Frenetic_NetKAT.EthType _ -> EthType
     | Frenetic_NetKAT.IPProto _ -> IPProto
     | Frenetic_NetKAT.IP4Src _ -> IP4Src
@@ -346,6 +352,8 @@ module Pattern = struct
     | EthDst(dlAddr) -> (Field.EthDst, Value.(Const dlAddr))
     | Vlan(vlan) -> (Field.Vlan, Value.of_int vlan)
     | VlanPcp(vlanPcp) -> (Field.VlanPcp, Value.of_int vlanPcp)
+    | VSwitch(vsw_id) -> (Field.VSwitch, Value.(Const vsw_id))
+    | VPort(vpt) ->  (Field.VPort, Value.(Const vpt))
     | EthType(dlTyp) -> (Field.EthType, Value.of_int dlTyp)
     | IPProto(nwProto) -> (Field.IPProto, Value.of_int nwProto)
     | IP4Src(nwAddr, mask) ->
@@ -367,6 +375,8 @@ module Pattern = struct
     | (EthDst  , Const dlAddr) -> NetKAT.(EthDst dlAddr)
     | (Vlan    , Const vlan) -> NetKAT.(Vlan(to_int vlan))
     | (VlanPcp , Const vlanPcp) -> NetKAT.(VlanPcp (to_int vlanPcp))
+    | (VSwitch  , Const vsw) -> NetKAT.VSwitch vsw
+    | (VPort  , Const vpt) -> NetKAT.VPort vpt
     | (EthType , Const dlTyp) -> NetKAT.(EthType (to_int dlTyp))
     | (IPProto , Const nwProto) -> NetKAT.(IPProto (to_int nwProto))
     | (IP4Src  , Mask(nwAddr, mask)) -> NetKAT.(IP4Src(to_int32 nwAddr, Int32.of_int_exn (mask - 32)))
@@ -386,8 +396,8 @@ module Pattern = struct
     let open Field in
     let open Value in
     match f, v with
-    | (Switch, Const _) -> assert false
-    | (Switch, v)       -> raise (FieldValue_mismatch(Switch, v))
+    | (Switch, Const _) | (VSwitch, Const _) | (VPort, Const _) ->
+      assert false
     | (Location, Const p) -> fun pat ->
       { pat with SDN.Pattern.inPort = Some(to_int32 p) }
     | (EthSrc, Const dlAddr) -> fun pat ->
@@ -552,6 +562,7 @@ module Action = struct
         | EthDst  , Const dlAddr  -> SDN.(Modify(SetEthDst dlAddr)) :: acc
         | Vlan    , Const vlan    -> SDN.(Modify(SetVlan(Some(to_int vlan)))) :: acc
         | VlanPcp , Const vlanPcp -> SDN.(Modify(SetVlanPcp (to_int vlanPcp))) :: acc
+        | VSwitch, Const _ | VPort, Const _ -> assert false
         | EthType , Const dlTyp   -> SDN.(Modify(SetEthTyp (to_int dlTyp))) :: acc
         | IPProto , Const nwProto -> SDN.(Modify(SetIPProto (to_int nwProto))) :: acc
         | IP4Src  , Mask (nwAddr, 64)
