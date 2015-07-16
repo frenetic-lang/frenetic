@@ -66,7 +66,7 @@ EXTEND Gram
       Frenetic_NetKAT.Test (Frenetic_NetKAT.(Location (Physical n)))
     | "vswitch"; "="; sw = nk_int64 -> 
       Frenetic_NetKAT.(Test (VSwitch sw))
-    | "vport"; "="; n = nk_int32 -> 
+    | "vport"; "="; n = nk_int64 -> 
       Frenetic_NetKAT.Test (Frenetic_NetKAT.(VPort n))
     | "vlanId"; "="; n = nk_int -> 
       Frenetic_NetKAT.(Test (Vlan n))
@@ -131,7 +131,7 @@ EXTEND Gram
       Frenetic_NetKAT.(Mod (Location (Physical n)))
     | "vswitch"; ":="; sw = nk_int64 ->
       Frenetic_NetKAT.(Mod (VSwitch sw))
-    | "vport"; ":="; n = nk_int32 ->
+    | "vport"; ":="; n = nk_int64 ->
       Frenetic_NetKAT.(Mod (VPort n))
     | "ethSrc"; ":="; n = nk_int64 ->
       Frenetic_NetKAT.(Mod (EthSrc n))
@@ -155,7 +155,7 @@ EXTEND Gram
       Frenetic_NetKAT.(Mod (TCPDstPort n))
     | switch1 = nk_int64; "@"; port1 = nk_int32; "=>"; switch2 = nk_int64; "@"; port2 = nk_int32 ->
       Frenetic_NetKAT.(Link (switch1, port1, switch2, port2))
-    | switch1 = nk_int64; "@"; port1 = nk_int32; "=>>"; switch2 = nk_int64; "@"; port2 = nk_int32 ->
+    | switch1 = nk_int64; "@"; port1 = nk_int64; "=>>"; switch2 = nk_int64; "@"; port2 = nk_int64 ->
       Frenetic_NetKAT.(VLink (switch1, port1, switch2, port2))
   ]];
 

@@ -84,8 +84,8 @@ module Field = struct
     | Frenetic_NetKAT.EthDst _ -> EthDst
     | Frenetic_NetKAT.Vlan _ -> Vlan
     | Frenetic_NetKAT.VlanPcp _ -> VlanPcp
-    | NetKAT_Types.VSwitch _ -> VSwitch
-    | NetKAT_Types.VPort _ -> VPort
+    | Frenetic_NetKAT.VSwitch _ -> VSwitch
+    | Frenetic_NetKAT.VPort _ -> VPort
     | Frenetic_NetKAT.EthType _ -> EthType
     | Frenetic_NetKAT.IPProto _ -> IPProto
     | Frenetic_NetKAT.IP4Src _ -> IP4Src
@@ -133,7 +133,7 @@ module Field = struct
         let (n, lst) = f_seq' q lst in
         (m * n, lst)
       | Union _ -> (f_union pol, lst)
-      | Star _ | Link _ -> (1, lst) (* bad, but it works *)
+      | Star _ | Link _ | VLink _ -> (1, lst) (* bad, but it works *)
     and f_seq pol =
       let (size, preds) = f_seq' pol [] in
       List.iter preds ~f:(f_pred size true);
@@ -144,7 +144,7 @@ module Field = struct
       | Union (p, q) ->
         f_union' p (fun m -> f_union' q (fun n -> k (m + n)))
       | Seq _ -> k (f_seq pol)
-      | Star _ | Link _ -> k 1 (* bad, but it works *)
+      | Star _ | Link _ | VLink _ -> k 1 (* bad, but it works *)
     and f_union pol = f_union' pol (fun n -> n) in
     let _ = f_seq pol in
     let cmp (_, x) (_, y) = Pervasives.compare y x in

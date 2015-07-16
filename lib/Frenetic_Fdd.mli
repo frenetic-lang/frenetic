@@ -9,6 +9,8 @@ module Field : sig
     = Switch
       | Vlan
       | VlanPcp
+      | VSwitch
+      | VPort
       | EthType
       | IPProto
       | EthSrc

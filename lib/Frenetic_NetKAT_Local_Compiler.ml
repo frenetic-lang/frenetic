@@ -102,7 +102,7 @@ module FDK = struct
                         of_local_pol_k q (fun q' ->
                           k (seq p' q')))
     | Star p -> of_local_pol_k p (fun p' -> k (star p'))
-    | Link (sw1, pt1, sw2, pt2) -> raise Non_local
+    | Link _ | VLink _ -> raise Non_local
 
   let rec of_local_pol p = of_local_pol_k p ident
 
@@ -217,15 +217,15 @@ let to_pattern hvs =
   List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_OpenFlow.Pattern.match_all
 
 let remove_local_fields =
-  T.fold
-    (fun r -> T.mk_leaf (Action.Par.map r ~f:(fun s -> Action.Seq.filter s ~f:(fun ~key ~data ->
-      match key with
-      | VPort | VSwitch -> false
-      | _ -> true))))
-    (fun v t f ->
-      match v with
-      | VSwitch, _ | VPort, _ -> failwith "uninitialized local field"
-      | _, _ -> T.mk_branch v t f)
+  FDK.(fold
+         (fun r -> mk_leaf (Action.Par.map r ~f:(fun s -> Action.Seq.filter s ~f:(fun ~key ~data ->
+           match key with
+             | Frenetic_Fdd.Action.F VPort | Frenetic_Fdd.Action.F VSwitch -> false
+             | _ -> true))))
+         (fun v t f ->
+           match v with
+             | Frenetic_Fdd.Field.VSwitch, _ | Frenetic_Fdd.Field.VPort, _ -> failwith "uninitialized local field"
+             | _, _ -> mk_branch v t f))
 
 let mk_branch_or_leaf test t f =
   match t with
@@ -390,7 +390,7 @@ module Pol = struct
         | None -> filter_loc s2 p2
         | Some ing -> Frenetic_NetKAT_Optimize.mk_and (Test (Switch s2)) (Frenetic_NetKAT_Optimize.mk_not ing) |> mk_filter in
       mk_big_seq [filter_loc s1 p1; Dup; post_link ]
-
+    | VLink _ -> assert false (* SJS / JNF *)
 end
 
 

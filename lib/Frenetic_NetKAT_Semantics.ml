@@ -193,7 +193,8 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
       | TCPSrcPort n ->
         { pkt with headers = { pkt.headers with tcpSrcPort = n }}
       | TCPDstPort n ->
-        { pkt with headers = { pkt.headers with tcpDstPort = n }} in
+        { pkt with headers = { pkt.headers with tcpDstPort = n }} 
+      | VSwitch n | VPort n -> pkt (* SJS *) in
     PacketSet.singleton pkt'
   | Union (pol1, pol2) ->
     PacketSet.union (eval pkt pol1) (eval pkt pol2)
@@ -275,11 +276,12 @@ let queries_of_policy (pol : policy) : string list =
   let rec loop (pol : policy) (acc : string list) : string list = match pol with
     | Mod (Location (Query str)) ->
       if List.mem acc str then acc else str :: acc
-    | Filter _ | Mod _ | Link _ -> acc
+    | Filter _ | Mod _ | Link _ | VLink _ -> acc
     | Union (p, q) | Seq (p, q) -> loop q (loop p acc)
     | Star p -> loop p acc in
   loop pol []
 
+(* JNF: is this dead code? *)
 let switches_of_policy (p:policy) =
   let rec collect' a =
     match a with
@@ -301,5 +303,6 @@ let switches_of_policy (p:policy) =
     | Star q ->
        collect q
     | Link(sw1,_,sw2,_) ->
-       [sw1;sw2] in
+       [sw1;sw2] 
+    | VLink _ -> [] in
   List.to_list (List.dedup (collect p))
