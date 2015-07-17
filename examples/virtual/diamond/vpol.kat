@@ -1,0 +1,5 @@
+(*virtual policy*)
+
+filter(switch = 1); port:=2 |
+filter(switch = 2); port:=3 |
+filter(switch = 3); port:=0
