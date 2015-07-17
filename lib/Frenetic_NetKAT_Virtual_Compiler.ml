@@ -500,6 +500,7 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
   let g_fabric_ch = open_out g_fabric_file in
   begin
     if log then (
+ 
       Printf.printf "|V(vgraph)|: %i\n" (G.Virt.nb_vertex vgraph);
       Printf.printf "|E(vgraph)|: %i\n" (G.Virt.nb_edges vgraph);
       G.Virt.Dot.output_graph vg_ch vgraph;

@@ -1,6 +1,7 @@
 open Frenetic_NetKAT_Virtual_Compiler
+module Log = Frenetic_Log
 
-let main vpolicy_file vrel_file vtopo_file ving_pol_file ving_file veg_file ptopo_file ping_file peg_file () : unit = 
+let main vpolicy_file vrel_file vtopo_file ving_pol_file ving_file veg_file ptopo_file ping_file peg_file : unit = 
     let fmt = Format.formatter_of_out_channel stderr in
     let () = Format.pp_set_margin fmt 120 in
     let () = Frenetic_Fdd.Field.set_order

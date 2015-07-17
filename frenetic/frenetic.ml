@@ -56,7 +56,6 @@ let http_controller : unit Term.t * Term.info =
    info "http-controller" ~doc)
 
 let virtual_cmd : unit Term.t * Term.info =
-  let open Term in  
   let doc = "run virtual compiler to produce fabric" in
   let vpolicy =
     let doc = "file containing the local virtual policy (containing no links)" in
@@ -94,8 +93,8 @@ let virtual_cmd : unit Term.t * Term.info =
     let doc = "file containing the virtual eggress predicate" in
     Arg.(required & (pos 8 (some file) None) & info [] ~docv:"PEGRESS" ~doc)
   in
-  (async_init ( app (app (app (app (app (app (app (app (app (pure Frenetic_Virtual.main) vpolicy) vrel) vtopo)  ving_pol) ving) veg) ptopo) ping)  peg),
-  info "virtual_cmd" ~doc)
+  Term.(app (app (app (app (app (app (app (app (app (pure Frenetic_Virtual.main) vpolicy) vrel) vtopo)  ving_pol) ving) veg) ptopo) ping)  peg),
+  Term.info "virtual_cmd" ~doc
 
 
 let shell : unit Term.t * Term.info =

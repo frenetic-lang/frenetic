@@ -157,7 +157,7 @@ let rec token c = lexer
     let _ = comment c lexbuf in
     token c c.lexbuf 
   | [ "()!+;=*+/|@" ] | ":=" | "=>" | "=>>"
-    | "true" | "false" | "switch" | "port" |"vswitch" | "vport" | "vlanId"
+    | "true" | "false" | "switch" | "port" | "vswitch" | "vport" | "vlanId"
     | "vlanPcp" | "ethTyp" | "ipProto" | "tcpSrcPort" | "tcpDstPort"
     | "ethSrc" | "ethDst" | "ip4Src"| "ip4Dst" | "and" | "or" | "not" | "id"
     | "drop" | "if" | "then" | "else" | "filter"  ->

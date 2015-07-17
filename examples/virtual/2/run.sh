@@ -1,5 +1,6 @@
 #!/bin/bash
-../../../katnetic.native virtual\
+
+../../../frenetic.native virtual_cmd\
   vpol.kat\
   vrel.kat\
   vtopo.kat\
