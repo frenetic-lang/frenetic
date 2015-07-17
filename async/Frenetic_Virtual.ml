@@ -21,6 +21,5 @@ let main vpolicy_file vrel_file vtopo_file ving_pol_file ving_file veg_file ptop
     let ping = pred_from_file ping_file in
     let peg = pred_from_file peg_file in
     let _ = generate_fabrics ~log:true  vrel vtopo ving veg ptopo ping peg in 
-    Log.info "%s" "generated fabric";
     ()
 
