@@ -6,33 +6,19 @@ let main vpolicy_file vrel_file vtopo_file ving_pol_file ving_file veg_file ptop
     let () = Frenetic_Fdd.Field.set_order
              [ Switch; Location; VSwitch; VPort; IP4Dst; Vlan; TCPSrcPort; TCPDstPort; IP4Src;
                 EthType; EthDst; EthSrc; VlanPcp; IPProto ] in
-    let vpolicy =
-      Core.Std.In_channel.with_file vpolicy_file ~f:(fun chan ->
-        Frenetic_NetKAT_Parser.policy_from_string (Frenetic_NetKAT_Lexer.token (Lexing.from_channel chan))) in
-    let vrel =
-      Core.Std.In_channel.with_file vrel_file ~f:(fun chan ->
-        Frenetic_NetKAT_Parser.pred_program Frenetic_NetKAT_Lexer.token (Lexing.from_channel chan)) in
-    let vtopo =
-      Core.Std.In_channel.with_file vtopo_file ~f:(fun chan ->
-        Frenetic_NetKAT_Parser.program Frenetic_NetKAT_Lexer.token (Lexing.from_channel chan)) in
-    let ving_pol =
-      Core.Std.In_channel.with_file ving_pol_file ~f:(fun chan ->
-        Frenetic_NetKAT_Parser.program Frenetic_NetKAT_Lexer.token (Lexing.from_channel chan)) in
-    let ving =
-      Core.Std.In_channel.with_file ving_file ~f:(fun chan ->
-        Frenetic_NetKAT_Parser.pred_program Frenetic_NetKAT_Lexer.token (Lexing.from_channel chan)) in
-    let veg =
-      Core.Std.In_channel.with_file veg_file ~f:(fun chan ->
-        Frenetic_NetKAT_Parser.pred_program Frenetic_NetKAT_Lexer.token (Lexing.from_channel chan)) in
-    let ptopo =
-      Core.Std.In_channel.with_file ptopo_file ~f:(fun chan ->
-        Frenetic_NetKAT_Parser.program Frenetic_NetKAT_Lexer.token (Lexing.from_channel chan)) in
-    let ping =
-      Core.Std.In_channel.with_file ping_file ~f:(fun chan ->
-        Frenetic_NetKAT_Parser.pred_program Frenetic_NetKAT_Lexer.token (Lexing.from_channel chan)) in
-    let peg =
-      Core.Std.In_channel.with_file peg_file ~f:(fun chan ->
-        Frenetic_NetKAT_Parser.pred_program Frenetic_NetKAT_Lexer.token (Lexing.from_channel chan)) in
-    let _ = generate_fabrics ~log ~record_paths vrel vtopo ving peg ptopo ping peg in 
+    let policy_from_file fname = Core.Std.In_channel.read_all fname |>
+	Frenetic_NetKAT_Parser.policy_from_string in
+    let pred_from_file fname = Core.Std.In_channel.read_all fname|>
+	Frenetic_NetKAT_Parser.pred_from_string in
+    let vpolicy = policy_from_file vpolicy_file in
+    let vrel = pred_from_file vrel_file in
+    let vtopo = policy_from_file vtopo_file in
+    let ving_pol = policy_from_file ving_pol_file in
+    let ving = pred_from_file ving_file in
+    let veg = pred_from_file veg_file in
+    let ptopo = policy_from_file ptopo_file in
+    let ping = pred_from_file ping_file in
+    let peg = pred_from_file peg_file in
+    let _ = generate_fabrics ~log:true  vrel vtopo ving veg ptopo ping peg in 
     ()
 

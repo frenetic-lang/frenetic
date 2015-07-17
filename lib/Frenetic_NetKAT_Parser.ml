@@ -198,3 +198,6 @@ END
 
 let policy_from_string s =
   Gram.parse_string nk_pol (Loc.mk "<string>") s
+
+let pred_from_string s = 
+  Gram.parse_string nk_pred (Loc.mk "<string>") s
