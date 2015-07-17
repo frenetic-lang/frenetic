@@ -1,0 +1,30 @@
+Physical:
+=========
+
+  ->-0[1]2-->--1[2]9
+
+ptopo = 1@2=>2@1
+
+ping = switch=1 and port=0
+
+peg  = switch=2 and port=9
+
+Virtual:
+========
+
+  ->-0[1]9->-
+
+vtopo = drop
+ving_pol = vswitch:=1; vport:=0
+ving = vswitch=1 and vport=0
+veg  = vswitch=1 and vport=9
+vpol = filter (vswitch=1); vport:=9
+
+Relation:
+=========
+
+vrel =
+  ((vswitch=1 and vport=0) and (switch=1 and port=0)) or
+  ((vswitch=1 and vport=9) and (switch=2 and port=9))
+
+

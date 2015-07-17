@@ -1,0 +1,85 @@
+Physical:
+=========
+
+        2[1]5
+       /     \
+      1       1
+    3[2]4   6[5]7
+   /    |   |    \
+  2     2   5     5
+ [3]   [4] [6]   [7]
+  0     0   0     0
+
+(* Physical Topology *)
+ptopo =
+  1@2=>2@1 | 2@3=>3@2 | 2@4=>4@2 |
+  2@1=>1@2 | 3@2=>2@3 | 4@2=>2@4 |
+  1@5=>5@1 | 5@6=>6@5 | 5@7=>7@5 |
+  5@1=>1@5 | 6@5=>5@6 | 7@5=>5@7
+
+(* Physical Ingress *)
+ping =
+  (switch=3 and port=0) or
+  (switch=4 and port=0) or
+  (switch=6 and port=0) or
+  (switch=7 and port=0)
+
+(* Physical Egress *)
+peg =
+  (switch=3 and port=0) or
+  (switch=4 and port=0) or
+  (switch=6 and port=0) or
+  (switch=7 and port=0)
+
+Virtual:
+========
+
+      4
+    3[1]6
+      7
+
+(* Virtual Topology *)
+vtopo = drop
+
+(* Virtual Ingress Policy *)
+ving_pol =
+  vswitch:=1; (
+    filter (switch=3); vport:=3 |
+    filter (switch=4); vport:=4 |
+    filter (switch=6); vport:=6 |
+    filter (switch=7); vport:=7
+  )
+
+(* Virtual Ingress *)
+ving =
+  (vswitch=1 and vport=3) or
+  (vswitch=1 and vport=4) or
+  (vswitch=1 and vport=6) or
+  (vswitch=1 and vport=7)
+
+(* Virtual Egress *)
+veg =
+  (vswitch=1 and vport=3) or
+  (vswitch=1 and vport=4) or
+  (vswitch=1 and vport=6) or
+  (vswitch=1 and vport=7)
+
+(* Virtual Policy *)
+vpol =
+  if ipDst=10.0.0.3 then vport:=3 else
+  if ipDst=10.0.0.4 then vport:=4 else
+  if ipDst=10.0.0.6 then vport:=6 else
+  if ipDst=10.0.0.7 then vport:=7 else drop
+
+
+Relation:
+=========
+
+vrel =
+  ((vswitch=1 and vport=3) and (switch=3 and port=0)) or
+  ((vswitch=1 and vport=4) and (switch=4 and port=0)) or
+  ((vswitch=1 and vport=6) and (switch=6 and port=0)) or
+  ((vswitch=1 and vport=7) and (switch=7 and port=0))
+
+
+

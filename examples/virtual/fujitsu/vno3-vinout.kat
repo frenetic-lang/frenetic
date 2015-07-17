@@ -1,0 +1,3 @@
+(vswitch = 1 and vport = 1) or (* Host 1 *)
+(vswitch = 1 and vport = 2) or (* Host 2 *)
+(vswitch = 1 and vport = 3)    (* Host 6 *)

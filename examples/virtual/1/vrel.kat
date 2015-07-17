@@ -1,0 +1,2 @@
+((vswitch=1 and vport=0) and (switch=1 and port=0)) or
+((vswitch=1 and vport=9) and (switch=2 and port=9))

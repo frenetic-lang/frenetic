@@ -1,0 +1,5 @@
+(* Egress of physical topology. See sketch.txt for details. *)
+(switch=3 and port=0) or
+(switch=4 and port=0) or
+(switch=6 and port=0) or
+(switch=7 and port=0)

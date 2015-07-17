@@ -95,7 +95,7 @@ let virtual_cmd : unit Term.t * Term.info =
     Arg.(required & (pos 8 (some file) None) & info [] ~docv:"PEGRESS" ~doc)
   in
   (async_init ( app (app (app (app (app (app (app (app (app (pure Frenetic_Virtual.main) vpolicy) vrel) vtopo)  ving_pol) ving) veg) ptopo) ping)  peg),
-  info "virtual" ~doc)
+  info "virtual_cmd" ~doc)
 
 
 let shell : unit Term.t * Term.info =
