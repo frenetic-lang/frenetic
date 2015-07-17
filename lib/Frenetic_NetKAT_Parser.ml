@@ -157,23 +157,16 @@ EXTEND Gram
       Frenetic_NetKAT.(Mod (TCPSrcPort n))
     | "tcpDstPort"; ":="; n = nk_int ->
       Frenetic_NetKAT.(Mod (TCPDstPort n))
-<<<<<<< HEAD
     | loc1 = nk_loc; "=>"; loc2 = nk_loc -> 
       let switch1, port1 = loc1 in 
       let switch2, port2 = loc2 in 
-      let port1 = Int64.to_int32 port1 in 
-      let port2 = Int64.to_int32 port2 in 
+      let port1 = Int64.to_int32_exn port1 in 
+      let port2 = Int64.to_int32_exn port2 in 
       Frenetic_NetKAT.(Link (switch1, port1, switch2, port2))
     | loc1 = nk_loc; "=>>"; loc2 = nk_loc -> 
       let switch1, port1 = loc1 in 
       let switch2, port2 = loc2 in 
       Frenetic_NetKAT.(VLink (switch1, port1, switch2, port2))
-=======
-    | switch1 = nk_int64; "@"; port1 = nk_int64; "=>>"; switch2 = nk_int64; "@"; port2 = nk_int64 ->
-      Frenetic_NetKAT.(VLink(switch1, port1, switch2, port2)) 
-    | switch1 = nk_int64; "@"; port1 = nk_int32; "=>"; switch2 = nk_int64; "@"; port2 = nk_int32 ->
-      Frenetic_NetKAT.(Link (switch1, port1, switch2, port2))
->>>>>>> 31b03a5b8fed150461aea142f5dcb6d7f18de8cf
   ]];
 
   nk_pol_star : [[
