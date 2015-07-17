@@ -1,4 +1,5 @@
 #!/bin/bash
+
 ../../../frenetic.native virtual_cmd\
   vpol.kat\
   vrel.kat\
@@ -8,4 +9,5 @@
   veg.kat\
   ptopo.kat\
   ping.kat\
-  peg.kat 
+  peg.kat
+

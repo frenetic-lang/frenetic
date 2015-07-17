@@ -1,6 +1,7 @@
 open Frenetic_NetKAT_Virtual_Compiler
+module Log = Frenetic_Log
 
-let main vpolicy_file vrel_file vtopo_file ving_pol_file ving_file veg_file ptopo_file ping_file peg_file () : unit = 
+let main vpolicy_file vrel_file vtopo_file ving_pol_file ving_file veg_file ptopo_file ping_file peg_file : unit = 
     let fmt = Format.formatter_of_out_channel stderr in
     let () = Format.pp_set_margin fmt 120 in
     let () = Frenetic_Fdd.Field.set_order
@@ -20,5 +21,6 @@ let main vpolicy_file vrel_file vtopo_file ving_pol_file ving_file veg_file ptop
     let ping = pred_from_file ping_file in
     let peg = pred_from_file peg_file in
     let _ = generate_fabrics ~log:true  vrel vtopo ving veg ptopo ping peg in 
+    Log.info "%s" "generated fabric";
     ()
 

@@ -3,6 +3,7 @@ open Frenetic_NetKAT_Optimize
 
 module Tbl = Core.Std.Hashtbl.Poly
 module Sexp = Core.Std.Sexp
+module Log = Frenetic_Log
 
 (* auxilliary list functions *)
 let inters xs ys = List.find_all (fun x -> List.mem x ys) xs
@@ -498,8 +499,10 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
   let g_raw_ch = open_out g_raw_file in
   let g_pruned_ch = open_out g_pruned_file in
   let g_fabric_ch = open_out g_fabric_file in
+  Log.info "%s" "finished generated .dot files";
   begin
     if log then (
+      Log.info "%s" "if (log) - evaluates to true.";
       Printf.printf "|V(vgraph)|: %i\n" (G.Virt.nb_vertex vgraph);
       Printf.printf "|E(vgraph)|: %i\n" (G.Virt.nb_edges vgraph);
       G.Virt.Dot.output_graph vg_ch vgraph;
@@ -521,6 +524,7 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
       G.Prod.Dot.output_graph g_fabric_ch (Lazy.force fabric_graph);
       close_out g_fabric_ch)
     else ();
+    Log.info "%s" "before Lazy.force fabric";
     Lazy.force fabric
   end
 
