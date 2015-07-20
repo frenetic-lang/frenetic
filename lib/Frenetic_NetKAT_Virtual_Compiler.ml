@@ -1,5 +1,6 @@
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Optimize
+open Frenetic_NetKAT_Pretty
 
 module Tbl = Core.Std.Hashtbl.Poly
 module Sexp = Core.Std.Sexp
@@ -589,9 +590,9 @@ let compile ?(log=true) ?(record_paths=None) (vpolicy : policy) (vrel : pred)
   let p = mk_seq vpolicy fout in
   let t = mk_seq (encode_vlinks vtopo) fin in
   (* ing; (p;t)^*; p  *)
-  (* Printf.printf "ing: %s\n\n%!" (NetKAT_Pretty.string_of_policy ing);
-  Printf.printf "fout: %s\n\n%!" (NetKAT_Pretty.string_of_policy fout);
-  Printf.printf "fin: %s\n\n%!" (NetKAT_Pretty.string_of_policy fin);
-  Printf.printf "vpolicy: %s\n\n%!" (NetKAT_Pretty.string_of_policy vpolicy);
-  Printf.printf "vtopo: %s\n\n%!" (NetKAT_Pretty.string_of_policy vtopo); *)
+  Printf.printf "ing: %s\n\n%!" (string_of_policy ing);
+  Printf.printf "fout: %s\n\n%!" (string_of_policy fout);
+  Printf.printf "fin: %s\n\n%!" (string_of_policy fin);
+  Printf.printf "vpolicy: %s\n\n%!" (string_of_policy vpolicy);
+  Printf.printf "vtopo: %s\n\n%!" (string_of_policy vtopo);
   mk_big_seq [ing; mk_star (mk_seq p t); p; eg]
