@@ -1,4 +1,5 @@
 open Frenetic_NetKAT_Virtual_Compiler
+open Frenetic_NetKAT_Pretty
 module Log = Frenetic_Log
 
 let main vpolicy_file vrel_file vtopo_file ving_pol_file ving_file veg_file ptopo_file ping_file peg_file : unit = 
@@ -21,6 +22,7 @@ let main vpolicy_file vrel_file vtopo_file ving_pol_file ving_file veg_file ptop
     let ping = pred_from_file ping_file in
     let peg = pred_from_file peg_file in
     (* let _ = generate_fabrics ~log:true  vrel vtopo ving veg ptopo ping peg in  *)
-    let _ = compile ~log:true vpolicy vrel vtopo ving_pol ving veg ptopo ping peg in
+    let pol = compile ~log:true vpolicy vrel vtopo ving_pol ving veg ptopo ping peg in
+    Printf.printf "pol: %s\n\n%!" (string_of_policy pol);
     ()
 
