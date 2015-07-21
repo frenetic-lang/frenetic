@@ -1,5 +1,6 @@
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Optimize
+open Frenetic_NetKAT_Pretty
 
 module Tbl = Core.Std.Hashtbl.Poly
 module Sexp = Core.Std.Sexp
