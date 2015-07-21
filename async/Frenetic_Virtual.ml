@@ -26,6 +26,28 @@ let main vpolicy_file vrel_file vtopo_file ving_pol_file ving_file veg_file ptop
     (* let fdks = NetKAT_GlobalFDDCompiler.of_policy global_pol ~dedup:false in *)
     (* let fdks_deduped = NetKAT_GlobalFDDCompiler.of_policy global_pol ~dedup:true in *)
     let fdd =
-      Frenetic_NetKAT_Local_Compiler.compile_global global_pol in 
+      Frenetic_NetKAT_Local_Compiler.compile_global global_pol in
+    let opt_pol = Frenetic_NetKAT_Optimize.(mk_big_seq [mk_filter ping; global_pol; mk_filter peg]) in
     ()
 
+(*     let fdk =
+      NetKAT_GlobalFDDCompiler.of_policy ~dedup:true ~ing:ping ~remove_duplicates:true
+        Optimize.(mk_big_seq [mk_filter ping; global_physical_pol; mk_filter peg]) in
+    let compiled_physical_pol =
+      NetKAT_GlobalFDDCompiler.to_local NetKAT_FDD.Field.Vlan (NetKAT_FDD.Value.of_int 0xffff) fdk in
+
+    let print_table (sw, t) =
+      Format.fprintf fmt "@[%s@]@\n@\n"
+        (SDN_Types.string_of_flowTable ~label:(Int64.to_string sw) t) in
+    let _ = begin
+    Format.fprintf fmt "@\n[global] Parsed: @[%s@] @[%s@] @[%s@] @[%s@] @[%s@] @[%s@] @[%s@] @[%s@] @[%s@] @\n@\n"
+      vpolicy_file vrel_file vtopo_file ving_pol_file ving_file veg_file ptopo_file ping_file peg_file;
+    Format.fprintf fmt "[global] Global Policy:@\n@[%a@]@\n@\n"
+      NetKAT_Pretty.format_policy global_physical_pol;
+    end in
+    let switches = NetKAT_Misc.switches_of_policy
+      (Optimize.mk_seq (NetKAT_Types.Filter ping) global_physical_pol) in
+    let tables =
+      List.map (fun sw -> (sw, NetKAT_LocalCompiler.to_table sw compiled_physical_pol)) switches in
+    List.iter print_table tables;
+    () *)
