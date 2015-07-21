@@ -55,6 +55,15 @@ let http_controller : unit Term.t * Term.info =
   (async_init (app (app (pure Frenetic_Http_Controller.main) http_port) openflow_port),
    info "http-controller" ~doc)
 
+let global_cmd : unit Term.t * Term.info =
+  let doc = "run global compiler" in
+  let policy =
+    let doc = "file containing the policy" in 
+    Arg.(required & (pos 0 (some file) None) & info [] ~docv:"POLICY" ~doc)
+  in
+  Term.(app (pure Frenetic_Virtual.main2) policy),
+  Term.info "global_cmd" ~doc
+
 let virtual_cmd : unit Term.t * Term.info =
   let doc = "run virtual compiler to produce fabric" in
   let vpolicy =
@@ -103,13 +112,13 @@ let shell : unit Term.t * Term.info =
   (async_init (app (app (pure Frenetic_Shell.main) http_port) openflow_port),
    info "shell" ~doc)
 
-
 (* Add new commands here. *)
 let top_level_commands = [
   compile_server;
   http_controller;
   shell;
-  virtual_cmd
+  virtual_cmd;
+  global_cmd
 ]
 
 let () =

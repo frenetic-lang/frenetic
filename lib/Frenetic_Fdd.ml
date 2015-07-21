@@ -456,10 +456,15 @@ module Action = struct
       let compare = compare_field_or_cont
     end)
 
-    let fold_fields seq ~init ~f =
+    let fold_fields seq ?(pc = None) ~init ~f =
       fold seq ~init ~f:(fun ~key ~data acc -> match key with
         | F key -> f ~key ~data acc
-        | _ -> acc)
+        | _ -> 
+	   begin 
+	     match pc with 
+	     | Some key -> f ~key ~data acc
+	     | None -> acc 
+	   end)
 
     let equal_mod_k s1 s2 = equal (=) (remove s1 K) (remove s2 K)
 
@@ -518,7 +523,7 @@ module Action = struct
       | Some (Query str) -> str :: queries
       | _ -> queries)
 
-  let to_sdn ?(in_port:Int64.t option) (t:t) : SDN.par =
+  let to_sdn ?(pc = None) ?(in_port:Int64.t option) (t:t) : SDN.par =
     (* Convert a NetKAT action to an SDN action. At the moment this function
        assumes that fields are assigned to proper bitwidth integers, and does
        no validation along those lines. If the input is derived from a NetKAT
@@ -553,7 +558,7 @@ module Action = struct
         | Some (Query _) -> assert false
         | Some mask      -> raise (FieldValue_mismatch(Location, mask))
       in
-      Seq.fold_fields (Seq.remove seq (F Location)) ~init ~f:(fun ~key ~data acc ->
+      Seq.fold_fields (Seq.remove seq (F Location)) ~pc ~init ~f:(fun ~key ~data acc ->
         match key, data with
         | Switch  , Const switch -> raise Non_local
         | Switch  , _ -> raise (FieldValue_mismatch(Switch, data))
@@ -586,7 +591,7 @@ module Action = struct
   let to_policy t =
     let open Frenetic_NetKAT in
     Par.fold t ~init:drop ~f:(fun acc seq ->
-      let seq' = Seq.fold_fields seq ~init:id ~f:(fun ~key ~data acc ->
+      let seq' = Seq.fold_fields seq ~pc:None ~init:id ~f:(fun ~key ~data acc ->
         let hv = match Pattern.to_hv (key, data) with
           | IP4Src(nwAddr, 32l) -> IP4Src(nwAddr, 32l)
           | IP4Dst(nwAddr, 32l) -> IP4Dst(nwAddr, 32l)
