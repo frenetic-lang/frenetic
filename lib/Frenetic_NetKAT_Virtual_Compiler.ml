@@ -60,8 +60,6 @@ module V = struct
   let hash = Hashtbl.hash
 end
 
-
-
 (* Module to build graphs from topologies (physical or virtual) *)
 module GraphBuilder (Params : sig
   type switch with sexp
@@ -460,13 +458,13 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
     | _ -> false
   in
 
-  let get_path_and_distance pv1 pv2 =
+  let get_path_and_distance ?(pg = pgraph) pv1 pv2  =
     if is_loop pv1 pv2 then ([],0) else
     match Tbl.find dist_tbl (pv1, pv2) with
     | Some (path, dist) -> (path, dist)
     | None -> begin
       try
-        let path', dist = Dijkstra.shortest_path pgraph pv1 pv2 in
+        let path', dist = Dijkstra.shortest_path pg pv1 pv2 in
         let path = unwrap_path path' in
         Tbl.replace dist_tbl ~key:(pv1, pv2) ~data:(path, dist);
         (path, dist)
@@ -485,9 +483,81 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
   let cost v1 v2 =
     snd (get_path_and_distance (pv_of_v v1) (pv_of_v v2)) in
 
+  
+  (* Lists all links of virtual topology and records
+  primary physical paths and their backups.
+  @param g : fabric graph 
+  @param ing: ingress nodes *)
+  let phys_paths_of_vlinks g ing =
+    let htable = Tbl.create () in
+    let pathtable = Tbl.create () in
+
+    (*check if valid pair and then add.*)
+    let add_pair v v' = 
+      Printf.printf "consistent pair! \n";
+      let (vpair, ppair) = match v, v' with 
+      | ConsistentIn (v1,p1), ConsistentOut (v2,p2) 
+      | ConsistentOut (v1,p1), ConsistentIn (v2,p2) -> (v1,v2), (p1,p2)
+      | _ -> assert false  in 
+      let vpair' = match fst vpair, snd vpair with 
+      | InPort(s1,p1), OutPort(s2,p2) -> (OutPort(s1,p1) , InPort(s2,p2))
+      | OutPort(s1,p1), InPort(s2,p2) -> (InPort(s1,p1) , OutPort(s2,p2))
+      | _ -> assert false in 
+      if (Tbl.mem htable vpair || Tbl.mem htable vpair') then (Printf.printf "didn't add a pair. \n"; ())
+      else ( Tbl.add_exn htable ~key:vpair ~data:ppair) in 
+
+    let enumerate_links g ing () = 
+      let vseen = ref [] in  
+      let rec pair v v' = 
+        match v,v' with 
+        | ConsistentIn _ , ConsistentOut _
+        | ConsistentOut _ , ConsistentIn _ ->
+          add_pair v v'; 
+	  if (List.mem v' !vseen ) then () else traverse v' 
+        | _ -> ()
+      and traverse v = 
+        vseen := v::(!vseen);
+        match v with 
+        | ConsistentIn _ | ConsistentOut _ ->
+          G.Prod.iter_succ (fun v' -> G.Prod.iter_succ (pair v) g v') g v
+        | InconsistentIn _ | InconsistentOut _ -> () in 
+      List.iter traverse ing  in
+
+    let rec del_path g path = 
+      match path with 
+      | link :: path' ->
+	del_path (G.Phys.remove_edge g (fst link) (snd link)) path'
+      | [] -> g in
+
+    let find_paths () =  
+      let add_paths ~key:vpair ~data:(pv1,pv2) = 
+        (let sw1,sw2 = (match pv1, pv2 with
+        | InPort(s1,p1), OutPort(s2,p2)
+        | InPort(s1,p1), InPort(s2,p2)
+        | OutPort(s1,p1), OutPort(s2,p2)
+        | OutPort(s1,p1), InPort(s2,p2) -> s1,s2) in
+        if (sw1 <> sw2) then begin
+	  Printf.printf "sw1 != sw2. \n"; 
+          let path1 = path_oracle pv1 pv2 in
+	  Printf.printf "found one path.. \n"; 
+          let pgraph' = del_path pgraph path1 in 
+          let path2 = fst (get_path_and_distance ~pg:pgraph' pv1 pv2) in 
+	  Printf.printf "adding 2 paths.. \n";
+          Tbl.add_exn pathtable ~key:vpair ~data:[path1;path2] end
+	else ()) in 
+      Tbl.iter htable add_paths  in
+
+    let _ = enumerate_links g ing () in
+    Printf.printf "number of elements: %i\n" (Tbl.length htable);
+    let _ = find_paths () in 
+    Printf.printf "number of ingresses: %i \n" (List.length ing);
+    pathtable  in
+
   let pruned_graph = lazy (prune_product_graph prod_graph) in
   let fabric_graph = lazy (fabric_graph_of_pruned (Lazy.force pruned_graph) prod_ing cost) in
   let fabric = lazy (fabric_of_fabric_graph ~record_paths (Lazy.force fabric_graph) prod_ing path_oracle) in
+  let fabric_ing = List.filter (fun x -> G.Prod.mem_vertex (Lazy.force fabric_graph) x) prod_ing in
+  let picked_paths = phys_paths_of_vlinks (Lazy.force fabric_graph) fabric_ing in 
   let vg_file = "vg.dot" in
   let pg_file = "pg.dot" in
   let g_raw_file = "g_raw.dot" in
@@ -500,7 +570,6 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
   let g_fabric_ch = open_out g_fabric_file in
   begin
     if log then (
- 
       Printf.printf "|V(vgraph)|: %i\n" (G.Virt.nb_vertex vgraph);
       Printf.printf "|E(vgraph)|: %i\n" (G.Virt.nb_edges vgraph);
       G.Virt.Dot.output_graph vg_ch vgraph;
@@ -524,7 +593,6 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
     else ();
     Lazy.force fabric
   end
-
 
 (*
   Vingress defines the virtual ingress. Examples:
@@ -588,10 +656,10 @@ let compile ?(log=true) ?(record_paths=None) (vpolicy : policy) (vrel : pred)
   let eg = Filter (mk_and veg peg) in
   let p = mk_seq vpolicy fout in
   let t = mk_seq (encode_vlinks vtopo) fin in
-  (* ing; (p;t)^*; p  *)
-  (* Printf.printf "ing: %s\n\n%!" (NetKAT_Pretty.string_of_policy ing);
-  Printf.printf "fout: %s\n\n%!" (NetKAT_Pretty.string_of_policy fout);
-  Printf.printf "fin: %s\n\n%!" (NetKAT_Pretty.string_of_policy fin);
-  Printf.printf "vpolicy: %s\n\n%!" (NetKAT_Pretty.string_of_policy vpolicy);
-  Printf.printf "vtopo: %s\n\n%!" (NetKAT_Pretty.string_of_policy vtopo); *)
+  (* ing; (p;t)^*; p  
+  Printf.printf "ing: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy ing);
+  Printf.printf "fout: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fout);
+  Printf.printf "fin: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fin);
+  Printf.printf "vpolicy: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy vpolicy);
+  Printf.printf "vtopo: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy vtopo); *)
   mk_big_seq [ing; mk_star (mk_seq p t); p; eg]
