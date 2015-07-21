@@ -428,9 +428,15 @@ let fabric_of_fabric_graph ?(record_paths=None) g ing path_oracle =
   else
     failwith "global compiler: specification allows for no valid fabric"
 
+let add_loop v g = 
+  match G.Phys.V.label v with
+    | OutPort (sw,pt) -> G.Phys.add_edge g v (G.Phys.V.create (InPort (sw,pt)))
+    | _ -> g  
+
 let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_topo p_ing p_eg  =
   let vgraph = G.Virt.make v_ing v_eg v_topo in
   let pgraph = G.Phys.make p_ing p_eg p_topo in
+  let pgraph2 = G.Phys.fold_vertex add_loop pgraph pgraph in
   let prod_ing, prod_graph = make_product_graph vgraph pgraph v_ing vrel in
 
   let unwrap_e e = (G.Phys.V.label (G.Phys.E.src e), G.Phys.V.label (G.Phys.E.dst e)) in
@@ -458,13 +464,13 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
     | _ -> false
   in
 
-  let get_path_and_distance ?(pg = pgraph) pv1 pv2  =
+  let get_path_and_distance pv1 pv2  =
     if is_loop pv1 pv2 then ([],0) else
     match Tbl.find dist_tbl (pv1, pv2) with
     | Some (path, dist) -> (path, dist)
     | None -> begin
       try
-        let path', dist = Dijkstra.shortest_path pg pv1 pv2 in
+        let path', dist = Dijkstra.shortest_path pgraph pv1 pv2 in
         let path = unwrap_path path' in
         Tbl.replace dist_tbl ~key:(pv1, pv2) ~data:(path, dist);
         (path, dist)
@@ -494,16 +500,11 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
 
     (*check if valid pair and then add.*)
     let add_pair v v' = 
-      Printf.printf "consistent pair! \n";
       let (vpair, ppair) = match v, v' with 
       | ConsistentIn (v1,p1), ConsistentOut (v2,p2) 
       | ConsistentOut (v1,p1), ConsistentIn (v2,p2) -> (v1,v2), (p1,p2)
-      | _ -> assert false  in 
-      let vpair' = match fst vpair, snd vpair with 
-      | InPort(s1,p1), OutPort(s2,p2) -> (OutPort(s1,p1) , InPort(s2,p2))
-      | OutPort(s1,p1), InPort(s2,p2) -> (InPort(s1,p1) , OutPort(s2,p2))
-      | _ -> assert false in 
-      if (Tbl.mem htable vpair || Tbl.mem htable vpair') then (Printf.printf "didn't add a pair. \n"; ())
+      | _ -> assert false  in  
+      if (Tbl.mem htable vpair) then (Printf.printf "didn't add a pair. \n"; ())
       else ( Tbl.add_exn htable ~key:vpair ~data:ppair) in 
 
     let enumerate_links g ing () = 
@@ -526,38 +527,48 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
     let rec del_path g path = 
       match path with 
       | link :: path' ->
-	del_path (G.Phys.remove_edge g (fst link) (snd link)) path'
+	let g' = G.Phys.remove_edge g (fst link) (snd link) in 
+        del_path g' path'
       | [] -> g in
 
+    let print_vpair (v1,v2) =
+      (match v1,v2 with
+	| InPort(s1,p1), OutPort(s2,p2)
+        | InPort(s1,p1), InPort(s2,p2)
+        | OutPort(s1,p1), OutPort(s2,p2)
+        | OutPort(s1,p1), InPort(s2,p2) ->
+	  let to_int x = Int32.to_int x in
+      	  Printf.fprintf stdout "vpair is: %Lu %i-%Lu %i\n" s1 (to_int p1) s2 (to_int p2)) in 
+
     let find_paths () =  
-      let add_paths ~key:vpair ~data:(pv1,pv2) = 
+      let add_paths ~key:vpair ~data:(pv1,pv2) =
         (let sw1,sw2 = (match pv1, pv2 with
         | InPort(s1,p1), OutPort(s2,p2)
         | InPort(s1,p1), InPort(s2,p2)
         | OutPort(s1,p1), OutPort(s2,p2)
         | OutPort(s1,p1), InPort(s2,p2) -> s1,s2) in
-        if (sw1 <> sw2) then begin
-	  Printf.printf "sw1 != sw2. \n"; 
+        if (sw1 <> sw2) then begin 
+	  print_vpair (pv1,pv2);
           let path1 = path_oracle pv1 pv2 in
-	  Printf.printf "found one path.. \n"; 
-          let pgraph' = del_path pgraph path1 in 
-          let path2 = fst (get_path_and_distance ~pg:pgraph' pv1 pv2) in 
-	  Printf.printf "adding 2 paths.. \n";
-          Tbl.add_exn pathtable ~key:vpair ~data:[path1;path2] end
+	  Printf.printf "found one path.. \n";
+	  print_path path1 stdout;
+          let pgraph' = del_path pgraph2 path1 in 
+  	  let path2 = try fst (Dijkstra.shortest_path pgraph' pv1 pv2) 
+	    with Not_found -> Printf.printf "No other path.\n"; path1 in 
+	  print_path path2 stdout;
+          Tbl.add_exn pathtable ~key:vpair ~data:(path1,path2) end
 	else ()) in 
       Tbl.iter htable add_paths  in
 
     let _ = enumerate_links g ing () in
-    Printf.printf "number of elements: %i\n" (Tbl.length htable);
     let _ = find_paths () in 
-    Printf.printf "number of ingresses: %i \n" (List.length ing);
-    pathtable  in
+    pathtable in
 
   let pruned_graph = lazy (prune_product_graph prod_graph) in
   let fabric_graph = lazy (fabric_graph_of_pruned (Lazy.force pruned_graph) prod_ing cost) in
   let fabric = lazy (fabric_of_fabric_graph ~record_paths (Lazy.force fabric_graph) prod_ing path_oracle) in
   let fabric_ing = List.filter (fun x -> G.Prod.mem_vertex (Lazy.force fabric_graph) x) prod_ing in
-  let picked_paths = phys_paths_of_vlinks (Lazy.force fabric_graph) fabric_ing in 
+  let picked_paths = phys_paths_of_vlinks (Lazy.force fabric_graph) fabric_ing in
   let vg_file = "vg.dot" in
   let pg_file = "pg.dot" in
   let g_raw_file = "g_raw.dot" in
