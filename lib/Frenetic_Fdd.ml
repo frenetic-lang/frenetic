@@ -567,7 +567,7 @@ module Action = struct
         | EthDst  , Const dlAddr  -> SDN.(Modify(SetEthDst dlAddr)) :: acc
         | Vlan    , Const vlan    -> SDN.(Modify(SetVlan(Some(to_int vlan)))) :: acc
         | VlanPcp , Const vlanPcp -> SDN.(Modify(SetVlanPcp (to_int vlanPcp))) :: acc
-        | VSwitch, Const _ | VPort, Const _ -> assert false
+        | VSwitch, Const _ | VPort, Const _ -> assert false (* JNF: danger, danger *)
         | EthType , Const dlTyp   -> SDN.(Modify(SetEthTyp (to_int dlTyp))) :: acc
         | IPProto , Const nwProto -> SDN.(Modify(SetIPProto (to_int nwProto))) :: acc
         | IP4Src  , Mask (nwAddr, 64)

@@ -633,7 +633,6 @@ module NetKAT_Automaton = struct
         if id = automaton.source then FDK.mk_id ()
         else FDK.atom (pc, Value.of_int id) Action.one Action.zero in
       let fdk = FDK.seq guard (FDK.union e d) in
-      Printf.printf "%d => %s\n\n" id (FDK.to_string fdk);
       FDK.union acc fdk)
 
   (* SJS: horrible hack *)
@@ -696,5 +695,5 @@ end
 let compile_global (pol : Frenetic_NetKAT.policy) : FDK.t =
   let open NetKAT_Automaton in 
   let a = of_policy ~dedup:true pol in 
-  let t = to_local Field.Vlan a in 
+  let t = to_local Field.Vlan a in
   t
