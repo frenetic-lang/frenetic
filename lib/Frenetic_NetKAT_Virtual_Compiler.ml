@@ -700,5 +700,9 @@ let compile ?(log=true) ?(record_paths=None) (vpolicy : policy) (vrel : pred)
   match (List.fold_left func (None,0) fset) with
   | Some pol,_ -> pol
   | None , _ -> assert false 
-
-
+  (* ing; (p;t)^*; p *)  
+  (* Printf.printf "ing: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy ing);
+  Printf.printf "fout: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fout);
+  Printf.printf "fin: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fin);
+  Printf.printf "vpolicy: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy vpolicy);
+  Printf.printf "vtopo: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy vtopo); *)

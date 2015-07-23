@@ -8,6 +8,10 @@ let print_tables policy : Frenetic_NetKAT_Local_Compiler.t =
     Format.fprintf fmt "@[%s@]@\n@\n" (Frenetic_OpenFlow.string_of_flowTable ~label:(Int64.to_string sw) t) in 
   let fdd = Frenetic_NetKAT_Local_Compiler.compile_global policy in  
   let switches = Frenetic_NetKAT_Semantics.switches_of_policy policy in
+  let local_pol = Frenetic_NetKAT_Local_Compiler.to_local_pol fdd in
+  Format.fprintf 
+    fmt "[local] Local Policy:@\n@[%a@]@\n@\n"
+    Frenetic_NetKAT_Pretty.format_policy local_pol;
   let tables = List.map (fun sw -> (sw, Frenetic_NetKAT_Local_Compiler.to_table ?pc:(Some Frenetic_Fdd.Field.Vlan) sw fdd)) switches in 
   List.iter print_table tables;
   fdd
