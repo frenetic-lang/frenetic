@@ -24,6 +24,7 @@ module Field = struct
     | TCPSrcPort
     | TCPDstPort
     | Location
+    | VFabric
     with sexp
 
   (** The type of packet fields. This is an enumeration whose ordering has an
@@ -47,13 +48,14 @@ module Field = struct
     | TCPSrcPort -> "TCPSrcPort"
     | TCPDstPort -> "TCPDstPort"
     | Location -> "Location"
+    | VFabric -> "VFabric"
 
-  let num_fields = 14
+  let num_fields = 15
 
   (* Ensure that these are in the same order in which the variants appear. *)
   let all_fields =
     [ Switch; Vlan; VlanPcp; VSwitch; VPort; EthType; IPProto; EthSrc; EthDst;
-      IP4Src; IP4Dst; TCPSrcPort; TCPDstPort; Location; ]
+      IP4Src; IP4Dst; TCPSrcPort; TCPDstPort; Location; VFabric]
 
   let is_valid_order (lst : t list) : bool =
     List.length lst = num_fields &&
@@ -92,6 +94,7 @@ module Field = struct
     | Frenetic_NetKAT.IP4Dst _ -> IP4Dst
     | Frenetic_NetKAT.TCPSrcPort _ -> TCPSrcPort
     | Frenetic_NetKAT.TCPDstPort _ -> TCPDstPort
+    | Frenetic_NetKAT.VFabric _ -> VFabric
 
   (* Heuristic to pick a variable order that operates by scoring the fields
      in a policy. A field receives a high score if, when a test field=X
@@ -362,6 +365,7 @@ module Pattern = struct
       (Field.IP4Dst, Value.(Mask(Int64.of_int32 nwAddr, 32 + (Int32.to_int_exn mask))))
     | TCPSrcPort(tpPort) -> (Field.TCPSrcPort, Value.of_int tpPort)
     | TCPDstPort(tpPort) -> (Field.TCPDstPort, Value.of_int tpPort)
+    | VFabric(num) -> (Field.VFabric, Value.of_int num)
 
   let to_hv (f, v) =
     let open Field in
@@ -385,6 +389,7 @@ module Pattern = struct
     | (IP4Dst  , Const nwAddr) -> NetKAT.(IP4Dst(to_int32 nwAddr, 32l))
     | (TCPSrcPort, Const tpPort) -> NetKAT.(TCPSrcPort(to_int tpPort))
     | (TCPDstPort, Const tpPort) -> NetKAT.(TCPDstPort(to_int tpPort))
+    | (VFabric, Const num) -> NetKAT.(VFabric(to_int num))
     | _, _ -> raise (FieldValue_mismatch(f, v))
 
   let to_pred (f, v) =
@@ -396,7 +401,8 @@ module Pattern = struct
     let open Field in
     let open Value in
     match f, v with
-    | (Switch, Const _) | (VSwitch, Const _) | (VPort, Const _) ->
+    | (Switch, Const _) | (VSwitch, Const _) | (VPort, Const _) 
+    | (VFabric, Const _) ->
       assert false
     | (Location, Const p) -> fun pat ->
       { pat with SDN.Pattern.inPort = Some(to_int32 p) }
@@ -562,7 +568,7 @@ module Action = struct
         | EthDst  , Const dlAddr  -> SDN.(Modify(SetEthDst dlAddr)) :: acc
         | Vlan    , Const vlan    -> SDN.(Modify(SetVlan(Some(to_int vlan)))) :: acc
         | VlanPcp , Const vlanPcp -> SDN.(Modify(SetVlanPcp (to_int vlanPcp))) :: acc
-        | VSwitch, Const _ | VPort, Const _ -> assert false
+        | VSwitch, Const _ | VPort, Const _ | VFabric, Const _ -> assert false
         | EthType , Const dlTyp   -> SDN.(Modify(SetEthTyp (to_int dlTyp))) :: acc
         | IPProto , Const nwProto -> SDN.(Modify(SetIPProto (to_int nwProto))) :: acc
         | IP4Src  , Mask (nwAddr, 64)

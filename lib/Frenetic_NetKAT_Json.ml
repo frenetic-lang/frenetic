@@ -32,6 +32,7 @@ let macaddr_from_string (str : string) : Int64.t =
 let to_json_value (h : header_val) : json = match h with
   | Switch n | VSwitch n | VPort n -> `String (string_of_int (Int64.to_int_exn n))
   (* JavaScript can't represent large 64-bit numbers *)
+  | VFabric n -> `String(string_of_int n)
   | EthSrc n
   | EthDst n -> `String (macaddr_to_string n)
   | Location (Physical n) -> `Assoc [("type", `String "physical");
@@ -69,7 +70,8 @@ let to_json_header (h : header_val) : json =
     | IP4Src _ -> "ip4src"
     | IP4Dst _ -> "ip4dst"
     | TCPSrcPort _ -> "tcpsrcport"
-    | TCPDstPort _ -> "tcpdstport" in
+    | TCPDstPort _ -> "tcpdstport" 
+    | VFabric _ -> "vfabric" in
   `String str
 
 

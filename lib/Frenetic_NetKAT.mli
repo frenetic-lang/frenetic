@@ -35,6 +35,7 @@ type header_val =
   | TCPDstPort of tpPort
   | VSwitch of vswitchId
   | VPort of vportId
+  | VFabric of int
   with sexp
 
 type pred =

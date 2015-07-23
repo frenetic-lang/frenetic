@@ -21,6 +21,7 @@ module Field : sig
     | TCPSrcPort
     | TCPDstPort
     | Location
+    | VFabric
 
   val get_order : unit -> t list
 

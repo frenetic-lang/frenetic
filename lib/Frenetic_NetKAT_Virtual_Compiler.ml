@@ -683,17 +683,20 @@ let compile ?(log=true) ?(record_paths=None) (vpolicy : policy) (vrel : pred)
   let fset = generate_fabrics ~log ~record_paths vrel vtopo ving veg ptopo ping peg in
   let ing = mk_big_seq [Filter ping; ving_pol; Filter ving] in
   let eg = Filter (mk_and veg peg) in
-  let gen_policy fout_set fin_set = 
+  let gen_policy fout_set fin_set count= 
     let fout = mk_big_union fout_set in
-    let fin = mk_big_union fin_set in
-    (*Printf.printf "---------------------------------------------------\n";
+    let fin = mk_big_union fin_set in 
+    Printf.printf "---------------------------------------------------\n";(*
     Printf.printf "fin: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fin);
     Printf.printf "fout: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fout
 );*)
     let p = mk_seq vpolicy fout in
     let t = mk_seq (encode_vlinks vtopo) fin in
-    mk_big_seq [ing; mk_star (mk_seq p t); p; eg] in
-  List.fold_left (fun acc (fout,fin) -> (gen_policy fout fin)::acc) [] fset
+    let vfab = Filter (Test(VFabric count)) in
+    let pol = mk_big_seq [vfab; ing; mk_star (mk_seq p t); p; eg] in
+    Printf.printf "fabric: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy pol); 
+    pol in
+  List.fold_left (fun (acc,n) (fout,fin) -> ((gen_policy fout fin n)::acc,n+1)) ([],0) fset
   (* ing; (p;t)^*; p  
  Printf.printf "fin: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fin);
   Printf.printf "vpolicy: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy vpolicy);

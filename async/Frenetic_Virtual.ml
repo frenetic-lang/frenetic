@@ -6,7 +6,7 @@ let main vpolicy_file vrel_file vtopo_file ving_pol_file ving_file veg_file ptop
     let () = Format.pp_set_margin fmt 120 in
     let () = Frenetic_Fdd.Field.set_order
              [ Switch; Location; VSwitch; VPort; IP4Dst; Vlan; TCPSrcPort; TCPDstPort; IP4Src;
-                EthType; EthDst; EthSrc; VlanPcp; IPProto ] in
+                EthType; EthDst; EthSrc; VlanPcp; IPProto;VFabric ] in
     let policy_from_file fname = Core.Std.In_channel.read_all fname |>
 	Frenetic_NetKAT_Parser.policy_from_string in
     let pred_from_file fname = Core.Std.In_channel.read_all fname|>

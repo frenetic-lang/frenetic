@@ -20,6 +20,7 @@ module Field : sig
       | TCPSrcPort
       | TCPDstPort
       | Location
+      | VFabric
   with sexp
   val auto_order : Frenetic_NetKAT.policy -> unit
   val set_order : t list -> unit
