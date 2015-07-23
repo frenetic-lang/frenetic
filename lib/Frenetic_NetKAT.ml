@@ -11,6 +11,7 @@ type portId = Frenetic_OpenFlow.portId with sexp
 type payload = Frenetic_OpenFlow.payload with sexp
 type vswitchId = int64 with sexp
 type vportId = int64 with sexp
+type vfabricId = int64 with sexp
 
 (** {2 Policies} *)
 
@@ -35,7 +36,7 @@ type header_val =
   | TCPDstPort of tpPort
   | VSwitch of vswitchId
   | VPort of vportId
-  | VFabric of int
+  | VFabric of vfabricId
   with sexp
 
 type pred =

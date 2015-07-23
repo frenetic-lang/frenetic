@@ -30,9 +30,8 @@ let macaddr_from_string (str : string) : Int64.t =
   loop 0 0L
 
 let to_json_value (h : header_val) : json = match h with
-  | Switch n | VSwitch n | VPort n -> `String (string_of_int (Int64.to_int_exn n))
+  | Switch n | VSwitch n | VPort n | VFabric n -> `String (string_of_int (Int64.to_int_exn n))
   (* JavaScript can't represent large 64-bit numbers *)
-  | VFabric n -> `String(string_of_int n)
   | EthSrc n
   | EthDst n -> `String (macaddr_to_string n)
   | Location (Physical n) -> `Assoc [("type", `String "physical");

@@ -365,7 +365,7 @@ module Pattern = struct
       (Field.IP4Dst, Value.(Mask(Int64.of_int32 nwAddr, 32 + (Int32.to_int_exn mask))))
     | TCPSrcPort(tpPort) -> (Field.TCPSrcPort, Value.of_int tpPort)
     | TCPDstPort(tpPort) -> (Field.TCPDstPort, Value.of_int tpPort)
-    | VFabric(num) -> (Field.VFabric, Value.of_int num)
+    | VFabric(vfab) -> (Field.VFabric, Value.(Const vfab))
 
   let to_hv (f, v) =
     let open Field in
@@ -389,7 +389,7 @@ module Pattern = struct
     | (IP4Dst  , Const nwAddr) -> NetKAT.(IP4Dst(to_int32 nwAddr, 32l))
     | (TCPSrcPort, Const tpPort) -> NetKAT.(TCPSrcPort(to_int tpPort))
     | (TCPDstPort, Const tpPort) -> NetKAT.(TCPDstPort(to_int tpPort))
-    | (VFabric, Const num) -> NetKAT.(VFabric(to_int num))
+    | (VFabric, Const vfab) -> NetKAT.VFabric vfab
     | _, _ -> raise (FieldValue_mismatch(f, v))
 
   let to_pred (f, v) =
