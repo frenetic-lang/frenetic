@@ -554,7 +554,7 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
 	  Printf.printf "found one path.. \n";
 	  print_path path1 stdout;
           let pgraph' = del_path pgraph2 path1 in 
-  	  let path2 = try fst (Dijkstra.shortest_path pgraph' pv1 pv2) 
+  	  let path2 = try unwrap_path (fst (Dijkstra.shortest_path pgraph' pv1 pv2))
 	    with Not_found -> Printf.printf "No other path.\n"; path1 in 
 	  print_path path2 stdout;
           Tbl.add_exn pathtable ~key:vpair ~data:(path1,path2) end
@@ -563,13 +563,31 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
 
     let _ = enumerate_links g ing () in
     let _ = find_paths () in 
-    pathtable in
+    (pathtable,htable) in
+
+  let get_fabric_set fg ptbl htbl = 
+    let aux vpair paths = 
+      (let ppair = Tbl.find htbl vpair in
+      match ppair with
+	| Some (pv1,pv2) -> 
+	    Some (fun p1 p2 -> if (pv1 = p1 && pv2 = p2) then (snd paths) 
+	     else path_oracle p1 p2)
+	| None -> None) in 
+    let func ~key:vpair ~data:paths acc = 
+      match (aux vpair paths) with
+      | Some f -> begin
+	  let fabric = lazy (fabric_of_fabric_graph (Lazy.force fg) prod_ing f) in fabric::acc 
+	  end
+      | None -> acc in
+    Tbl.fold ptbl ~f:func ~init:[] in    
 
   let pruned_graph = lazy (prune_product_graph prod_graph) in
   let fabric_graph = lazy (fabric_graph_of_pruned (Lazy.force pruned_graph) prod_ing cost) in
   let fabric = lazy (fabric_of_fabric_graph ~record_paths (Lazy.force fabric_graph) prod_ing path_oracle) in
   let fabric_ing = List.filter (fun x -> G.Prod.mem_vertex (Lazy.force fabric_graph) x) prod_ing in
-  let picked_paths = phys_paths_of_vlinks (Lazy.force fabric_graph) fabric_ing in
+  let pt,ht = phys_paths_of_vlinks (Lazy.force fabric_graph) fabric_ing in
+  let fabric_set = get_fabric_set fabric_graph pt ht in
+  let fset = fabric::fabric_set in 
   let vg_file = "vg.dot" in
   let pg_file = "pg.dot" in
   let g_raw_file = "g_raw.dot" in
@@ -603,8 +621,9 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
       G.Prod.Dot.output_graph g_fabric_ch (Lazy.force fabric_graph);
       close_out g_fabric_ch)
     else ();
-    Lazy.force fabric
+    List.fold_left (fun acc fab -> (Lazy.force fab)::acc) [] fset
   end
+
 
 (*
   Vingress defines the virtual ingress. Examples:
@@ -660,18 +679,22 @@ let rec encode_vlinks (vtopo : policy) =
 
 let compile ?(log=true) ?(record_paths=None) (vpolicy : policy) (vrel : pred)
   (vtopo : policy) (ving_pol : policy) (ving : pred) (veg : pred)
-  (ptopo : policy)                     (ping : pred) (peg : pred) =
-  let (fout_set, fin_set) = generate_fabrics ~log ~record_paths vrel vtopo ving veg ptopo ping peg in
-  let fout = mk_big_union fout_set in
-  let fin = mk_big_union fin_set in
+  (ptopo : policy)                     (ping : pred) (peg : pred) = 
+  let fset = generate_fabrics ~log ~record_paths vrel vtopo ving veg ptopo ping peg in
   let ing = mk_big_seq [Filter ping; ving_pol; Filter ving] in
   let eg = Filter (mk_and veg peg) in
-  let p = mk_seq vpolicy fout in
-  let t = mk_seq (encode_vlinks vtopo) fin in
+  let gen_policy fout_set fin_set = 
+    let fout = mk_big_union fout_set in
+    let fin = mk_big_union fin_set in
+    (*Printf.printf "---------------------------------------------------\n";
+    Printf.printf "fin: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fin);
+    Printf.printf "fout: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fout
+);*)
+    let p = mk_seq vpolicy fout in
+    let t = mk_seq (encode_vlinks vtopo) fin in
+    mk_big_seq [ing; mk_star (mk_seq p t); p; eg] in
+  List.fold_left (fun acc (fout,fin) -> (gen_policy fout fin)::acc) [] fset
   (* ing; (p;t)^*; p  
-  Printf.printf "ing: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy ing);
-  Printf.printf "fout: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fout);
-  Printf.printf "fin: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fin);
+ Printf.printf "fin: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fin);
   Printf.printf "vpolicy: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy vpolicy);
   Printf.printf "vtopo: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy vtopo); *)
-  mk_big_seq [ing; mk_star (mk_seq p t); p; eg]
