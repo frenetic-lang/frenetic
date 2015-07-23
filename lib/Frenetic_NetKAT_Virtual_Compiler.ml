@@ -710,9 +710,9 @@ let compile ?(log=true) ?(record_paths=None) (vpolicy : policy) (vrel : pred)
     let fin = mk_big_union fin_set in 
     let p = mk_seq vpolicy fout in
     let t = mk_seq (encode_vlinks vtopo) fin in
-    let vfab = Filter (Test(VFabric vfab)) in
-    let pol = mk_big_seq [vfab; ing; mk_star (mk_seq p t); p; eg] in
-     Printf.printf "Generating fabric %i \n" count ;
+    let vfab_flt = Filter (Test(VFabric vfab)) in
+    let pol = mk_big_seq [vfab_flt; ing; mk_star (mk_seq p t); p; eg] in
+     Printf.printf "Generating fabric %Lu \n" vfab ;
     pol) in
   let func (acc, vfab) (fout,fin) = 
     match acc with
