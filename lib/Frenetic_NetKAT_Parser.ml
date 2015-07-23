@@ -72,6 +72,8 @@ EXTEND Gram
       Frenetic_NetKAT.(Test (VSwitch sw))
     | "vport"; "="; n = nk_int64 -> 
       Frenetic_NetKAT.Test (Frenetic_NetKAT.(VPort n))
+    | "vfabric"; "="; vfab = nk_int64 -> 
+      Frenetic_NetKAT.(Test (VFabric vfab))
     | "vlanId"; "="; n = nk_int -> 
       Frenetic_NetKAT.(Test (Vlan n))
     | "vlanPcp"; "="; n = nk_int -> 
@@ -137,6 +139,8 @@ EXTEND Gram
       Frenetic_NetKAT.(Mod (VSwitch sw))
     | "vport"; ":="; n = nk_int64 ->
       Frenetic_NetKAT.(Mod (VPort n))
+    | "vfabric"; "="; vfab = nk_int64 -> 
+      Frenetic_NetKAT.(Mod (VFabric vfab))
     | "ethSrc"; ":="; n = nk_int64 ->
       Frenetic_NetKAT.(Mod (EthSrc n))
     | "ethDst"; ":="; n = nk_int64 ->
