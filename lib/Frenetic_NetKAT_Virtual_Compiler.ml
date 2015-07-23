@@ -490,7 +490,15 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
   let cost v1 v2 =
     snd (get_path_and_distance (pv_of_v v1) (pv_of_v v2)) in
 
-  
+  let print_vpair (v1,v2) to_int=
+      match v1,v2 with
+	| InPort(s1,p1), OutPort(s2,p2)
+        | InPort(s1,p1), InPort(s2,p2)
+        | OutPort(s1,p1), OutPort(s2,p2)
+        | OutPort(s1,p1), InPort(s2,p2) ->
+      	  Printf.fprintf stdout "vpair is: %Lu %i-%Lu %i\n" s1 (to_int p1) s2 (to_int p2) in 
+
+ 
   (* Lists all links of virtual topology and records
   primary physical paths and their backups.
   @param g : fabric graph 
@@ -505,7 +513,7 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
       | ConsistentIn (v1,p1), ConsistentOut (v2,p2) 
       | ConsistentOut (v1,p1), ConsistentIn (v2,p2) -> (v1,v2), (p1,p2)
       | _ -> assert false  in  
-      if (Tbl.mem htable vpair) then (Printf.printf "didn't add a pair. \n"; ())
+      if (Tbl.mem htable vpair) then ()
       else ( Tbl.add_exn htable ~key:vpair ~data:ppair) in 
 
     let enumerate_links g ing () = 
@@ -532,15 +540,6 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
         del_path g' path'
       | [] -> g in
 
-    let print_vpair (v1,v2) =
-      (match v1,v2 with
-	| InPort(s1,p1), OutPort(s2,p2)
-        | InPort(s1,p1), InPort(s2,p2)
-        | OutPort(s1,p1), OutPort(s2,p2)
-        | OutPort(s1,p1), InPort(s2,p2) ->
-	  let to_int x = Int32.to_int x in
-      	  Printf.fprintf stdout "vpair is: %Lu %i-%Lu %i\n" s1 (to_int p1) s2 (to_int p2)) in 
-
     let find_paths () =  
       let add_paths ~key:vpair ~data:(pv1,pv2) =
         (let sw1,sw2 = (match pv1, pv2 with
@@ -549,7 +548,7 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
         | OutPort(s1,p1), OutPort(s2,p2)
         | OutPort(s1,p1), InPort(s2,p2) -> s1,s2) in
         if (sw1 <> sw2) then begin 
-	  print_vpair (pv1,pv2);
+  	  print_vpair (pv1,pv2) Int32.to_int ;
           let path1 = path_oracle pv1 pv2 in
 	  Printf.printf "found one path.. \n";
 	  print_path path1 stdout;
@@ -565,15 +564,38 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
     let _ = find_paths () in 
     (pathtable,htable) in
 
-  let get_fabric_set fg ptbl htbl = 
+  let find_vpair' (v1,v2) = 
+    match v1,v2 with
+    | OutPort (s1,p1), InPort (s2,p2) -> (OutPort (s2,p2), InPort (s1,p1))
+    | InPort (s1,p1), OutPort (s2,p2) -> (InPort (s2,p2), OutPort(s1,p1))
+    | _ -> assert false in
+
+  let find_ppair' (p1,p2) = 
+    match p1,p2 with
+    | InPort(s1,p1), OutPort(s2,p2) -> InPort(s2,p2), OutPort(s1,p1)
+    | InPort(s1,p1), InPort(s2,p2) -> InPort(s2,p2), InPort(s1,p1)
+    | OutPort(s1,p1), OutPort(s2,p2) -> OutPort(s2,p2), OutPort(s1,p1)
+    | OutPort(s1,p1), InPort(s2,p2) -> OutPort(s2,p2), InPort(s1,p1) in  
+
+  let get_fabric_set fg ptbl htbl =
+    let vseen = ref [] in 
     let aux vpair paths = 
       (let ppair = Tbl.find htbl vpair in
       match ppair with
 	| Some (pv1,pv2) -> 
+            let vpair' = find_vpair' vpair in
+            vseen:= vpair' :: !vseen; 
+	    let paths2 = Tbl.find ptbl vpair' in
 	    Some (fun p1 p2 -> if (pv1 = p1 && pv2 = p2) then (snd paths) 
+	     else if (find_ppair' (pv1,pv2) = (p1,p2)) then begin
+	       match paths2 with 
+	       | None -> assert false
+	       | Some path -> snd path 
+	     end
 	     else path_oracle p1 p2)
 	| None -> None) in 
     let func ~key:vpair ~data:paths acc = 
+      if (List.mem vpair !vseen) then acc else
       match (aux vpair paths) with
       | Some f -> begin
 	  let fabric = lazy (fabric_of_fabric_graph (Lazy.force fg) prod_ing f) in fabric::acc 
@@ -690,8 +712,7 @@ let compile ?(log=true) ?(record_paths=None) (vpolicy : policy) (vrel : pred)
     let t = mk_seq (encode_vlinks vtopo) fin in
     let vfab = Filter (Test(VFabric count)) in
     let pol = mk_big_seq [vfab; ing; mk_star (mk_seq p t); p; eg] in
-    Printf.printf "---------------------------------------------------\n";
-    Printf.printf "fabric: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy pol); 
+     Printf.printf "Generating fabric %i \n" count ;
     pol) in
   let func (acc,n) (fout,fin) = 
     match acc with
