@@ -684,20 +684,21 @@ let compile ?(log=true) ?(record_paths=None) (vpolicy : policy) (vrel : pred)
   let ing = mk_big_seq [Filter ping; ving_pol; Filter ving] in
   let eg = Filter (mk_and veg peg) in
   let gen_policy fout_set fin_set count= 
-    let fout = mk_big_union fout_set in
+    (let fout = mk_big_union fout_set in
     let fin = mk_big_union fin_set in 
-    Printf.printf "---------------------------------------------------\n";(*
-    Printf.printf "fin: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fin);
-    Printf.printf "fout: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fout
-);*)
     let p = mk_seq vpolicy fout in
     let t = mk_seq (encode_vlinks vtopo) fin in
     let vfab = Filter (Test(VFabric count)) in
     let pol = mk_big_seq [vfab; ing; mk_star (mk_seq p t); p; eg] in
+    Printf.printf "---------------------------------------------------\n";
     Printf.printf "fabric: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy pol); 
-    pol in
-  List.fold_left (fun (acc,n) (fout,fin) -> ((gen_policy fout fin n)::acc,n+1)) ([],0) fset
-  (* ing; (p;t)^*; p  
- Printf.printf "fin: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fin);
-  Printf.printf "vpolicy: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy vpolicy);
-  Printf.printf "vtopo: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy vtopo); *)
+    pol) in
+  let func (acc,n) (fout,fin) = 
+    match acc with
+    | None -> (Some (gen_policy fout fin n),n+1) 
+    | Some pol -> (Some (mk_union pol (gen_policy fout fin n)),n+1) in
+  match (List.fold_left func (None,0) fset) with
+  | Some pol,_ -> pol
+  | None , _ -> assert false 
+
+

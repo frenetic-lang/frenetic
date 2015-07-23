@@ -165,16 +165,16 @@ struct
 
   let equal x y = x = y (* comparing ints *)
 
-  let rec to_string t = "to_string broken" (* match T.get t with
-    | Leaf r             -> R.to_string r
-    | Branch(v, l, t, f) -> Printf.sprintf "B(%s = %s, %s, %s)"
-      (V.to_string v) (L.to_string l) (to_string t)
-      (to_string (T.get f))
- *)
+  let rec to_string t = match T.unget t with
+    | Leaf r -> 
+       Printf.sprintf "(%s)" (R.to_string r)
+    | Branch((v, l), t, f) -> 
+       Printf.sprintf "(%s = %s ? %s : %s)"
+	 (V.to_string v) (L.to_string l) (to_string t) (to_string f)
+		      
   let clear_cache ~(preserve : Core.Std.Int.Set.t) = T.clear preserve
 
   let mk_leaf r = T.get (Leaf r)
-
 
   let mk_branch (v,l) t f =
     (* When the ids of the diagrams are equal, then the diagram will take on the
