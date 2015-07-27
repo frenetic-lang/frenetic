@@ -12,9 +12,11 @@ let product xs ys =
 let minimize xs obj =
   let f best x =
     let v = obj x in
-    match best with
-    | None -> Some (x, v)
-    | Some (y, v') -> if v<v' then Some (x, v) else best
+    match best,v with
+    | None, None -> None
+    | None, Some v -> Some (x, v) 
+    | Some (y, v'),None -> best
+    | Some (y, v'), Some v -> if v<v' then Some (x, v) else best
   in
   List.fold_left f None xs
 
@@ -189,8 +191,6 @@ module G = struct
 
 end
 
-
-
 let parse_vrel (vrel : pred) =
   let rec parse_physical pred alist =
     match pred with
@@ -211,22 +211,19 @@ let parse_vrel (vrel : pred) =
   | `Ok map -> map
   | `Duplicate_key (_, _) -> failwith "Virtual Compiler: virtual relation contains duplicate key"
 
-
+let get_vrel vrel =
+  let vrel_tbl = parse_vrel vrel in
+  let vrel (vsw, vpt) = Tbl.find vrel_tbl (vsw, vpt) |> Core.Std.Option.value ~default:[] in
+  (fun vv -> match G.Virt.V.label vv with
+    | InPort (vsw, vpt) ->
+       vrel (vsw, vpt) |> List.map (fun (sw, pt) -> G.Phys.V.create (InPort (sw, pt)))
+    | OutPort (vsw, vpt) ->
+       vrel (vsw, vpt) |> List.map (fun (sw, pt) -> G.Phys.V.create (OutPort (sw, pt))))
 
 let make_product_graph (vgraph : G.Virt.t) (pgraph : G.Phys.t) (ving : pred) (vrel : pred) =
 begin
 
-  let vrel_tbl = parse_vrel vrel in
-
-  let vrel (vsw, vpt) = Tbl.find vrel_tbl (vsw, vpt) |> Core.Std.Option.value ~default:[] in
-
-  let vrel' vv =
-    match G.Virt.V.label vv with
-    | InPort (vsw, vpt) ->
-       vrel (vsw, vpt) |> List.map (fun (sw, pt) -> G.Phys.V.create (InPort (sw, pt)))
-    | OutPort (vsw, vpt) ->
-       vrel (vsw, vpt) |> List.map (fun (sw, pt) -> G.Phys.V.create (OutPort (sw, pt)))
-  in
+  let vrel' = get_vrel vrel in 
 
   let add_loop v g =
     match G.Phys.V.label v with
@@ -465,22 +462,24 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
     | _ -> false
   in
 
-  let get_path_and_distance pv1 pv2  =
-    if is_loop pv1 pv2 then ([],0) else
-    match Tbl.find dist_tbl (pv1, pv2) with
-    | Some (path, dist) -> (path, dist)
+  let get_path_and_distance tbl g pv1 pv2  =
+    if is_loop pv1 pv2 then Some([],0) else
+    match Tbl.find tbl (pv1, pv2) with
+    | Some (path, dist) -> Some (path, dist)
     | None -> begin
       try
-        let path', dist = Dijkstra.shortest_path pgraph pv1 pv2 in
+        let path', dist = Dijkstra.shortest_path g pv1 pv2 in
         let path = unwrap_path path' in
-        Tbl.replace dist_tbl ~key:(pv1, pv2) ~data:(path, dist);
-        (path, dist)
+        Tbl.replace tbl ~key:(pv1, pv2) ~data:(path, dist);
+        Some (path, dist)
       with Not_found ->
-        assert false
-    end
-  in
+        None
+      end in
 
-  let path_oracle pv1 pv2 = fst (get_path_and_distance pv1 pv2) in
+  let path_oracle pv1 pv2 =  
+    match (get_path_and_distance dist_tbl pgraph pv1 pv2) with
+    | Some (p,d) -> p 
+    | None -> assert false in
 
   let pv_of_v v =
     match G.Prod.V.label v with
@@ -488,42 +487,50 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
     | ConsistentIn (_, pv) | ConsistentOut (_, pv) -> pv in
 
   let cost v1 v2 =
-    snd (get_path_and_distance (pv_of_v v1) (pv_of_v v2)) in
+    match (get_path_and_distance dist_tbl pgraph (pv_of_v v1) (pv_of_v v2)) with
+    | Some (p,d) -> Some d 
+    | None -> assert false in 
 
-  let print_vpair (v1,v2) to_int=
-      match v1,v2 with
-	| InPort(s1,p1), OutPort(s2,p2)
-        | InPort(s1,p1), InPort(s2,p2)
-        | OutPort(s1,p1), OutPort(s2,p2)
-        | OutPort(s1,p1), InPort(s2,p2) ->
-      	  Printf.fprintf stdout "vpair is: %Lu %i-%Lu %i\n" s1 (to_int p1) s2 (to_int p2) in 
+  let print_pair (v1,v2) to_int=
+    match v1,v2 with
+	  | InPort(s1,p1), OutPort(s2,p2)
+    | InPort(s1,p1), InPort(s2,p2)
+    | OutPort(s1,p1), OutPort(s2,p2)
+    | OutPort(s1,p1), InPort(s2,p2) ->
+      Printf.fprintf stdout "pair is: %Lu %i-%Lu %i\n" s1 (to_int p1) s2 (to_int p2) in 
 
- 
+  let vrel' vv = get_vrel vrel vv in 
+
   (* Lists all links of virtual topology and records
   primary physical paths and their backups.
   @param g : fabric graph 
   @param ing: ingress nodes *)
   let phys_paths_of_vlinks g ing =
-    let htable = Tbl.create () in
-    let pathtable = Tbl.create () in
+    let pathlist = ref [] in
+    let linktbl = Tbl.create () in
 
-    (*check if valid pair and then add.*)
     let add_pair v v' = 
-      let (vpair, ppair) = match v, v' with 
+      let v,(pv1,pv2) = match v, v' with 
       | ConsistentIn (v1,p1), ConsistentOut (v2,p2) 
-      | ConsistentOut (v1,p1), ConsistentIn (v2,p2) -> (v1,v2), (p1,p2)
+      | ConsistentOut (v1,p1), ConsistentIn (v2,p2) -> (v1,v2),(p1,p2)
       | _ -> assert false  in  
-      if (Tbl.mem htable vpair) then ()
-      else ( Tbl.add_exn htable ~key:vpair ~data:ppair) in 
+      let sw1,sw2 = match pv1,pv2 with
+      | InPort(s1,p1), OutPort(s2,p2)
+      | InPort(s1,p1), InPort(s2,p2)
+      | OutPort(s1,p1), OutPort(s2,p2)
+      | OutPort(s1,p1), InPort(s2,p2) -> s1,s2 in
+      if (sw1 <> sw2 && ((List.mem (v,(pv1,pv2)) !pathlist) = false)) then 
+        pathlist:= (v,(pv1,pv2))::!pathlist
+      else () in
 
-    let enumerate_links g ing () = 
+    let enumerate_vlinks g ing () = 
       let vseen = ref [] in  
       let rec pair v v' = 
         match v,v' with 
         | ConsistentIn _ , ConsistentOut _
         | ConsistentOut _ , ConsistentIn _ ->
           add_pair v v'; 
-	  if (List.mem v' !vseen ) then () else traverse v' 
+	        if (List.mem v' !vseen ) then () else traverse v' 
         | _ -> ()
       and traverse v = 
         vseen := v::(!vseen);
@@ -533,82 +540,56 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
         | InconsistentIn _ | InconsistentOut _ -> () in 
       List.iter traverse ing  in
 
-    let rec del_path g path = 
-      match path with 
-      | link :: path' ->
-	let g' = G.Phys.remove_edge g (fst link) (snd link) in 
-        del_path g' path'
-      | [] -> g in
+    let find_all_plinks () =
+      let aux (v,(pv1,pv2)) = 
+        let add_links link =
+          match link with 
+          | (OutPort(s1,p1), InPort(s2,p2)) when s1<>s2 -> begin
+            match Tbl.find linktbl link with
+            | Some x -> () 
+            | None -> begin 
+              let rev = (OutPort(s2,p2), InPort(s1,p1)) in
+              match Tbl.find linktbl rev with
+              | Some x -> ()
+              | None -> begin
+                  let g = G.Phys.remove_edge pgraph2 (fst link) (snd link)  in 
+                  let g = G.Phys.remove_edge g (fst rev) (snd rev) in
+                  Tbl.add_exn linktbl ~key:link ~data:g
+                end
+              end 
+            end 
+          | _ -> () in
+        List.iter add_links (path_oracle pv1 pv2) in
+      List.iter aux !pathlist in 
 
-    let find_paths () =  
-      let add_paths ~key:vpair ~data:(pv1,pv2) =
-        (let sw1,sw2 = (match pv1, pv2 with
-        | InPort(s1,p1), OutPort(s2,p2)
-        | InPort(s1,p1), InPort(s2,p2)
-        | OutPort(s1,p1), OutPort(s2,p2)
-        | OutPort(s1,p1), InPort(s2,p2) -> s1,s2) in
-        if (sw1 <> sw2) then begin 
-  	  print_vpair (pv1,pv2) Int32.to_int ;
-          let path1 = path_oracle pv1 pv2 in
-	  Printf.printf "found one path.. \n";
-	  print_path path1 stdout;
-          let pgraph' = del_path pgraph2 path1 in 
-  	  let path2 = try unwrap_path (fst (Dijkstra.shortest_path pgraph' pv1 pv2))
-	    with Not_found -> Printf.printf "No other path.\n"; path1 in 
-	  print_path path2 stdout;
-          Tbl.add_exn pathtable ~key:vpair ~data:(path1,path2) end
-	else ()) in 
-      Tbl.iter htable add_paths  in
-
-    let _ = enumerate_links g ing () in
-    let _ = find_paths () in 
-    (pathtable,htable) in
-
-  let find_vpair' (v1,v2) = 
-    match v1,v2 with
-    | OutPort (s1,p1), InPort (s2,p2) -> (OutPort (s2,p2), InPort (s1,p1))
-    | InPort (s1,p1), OutPort (s2,p2) -> (InPort (s2,p2), OutPort(s1,p1))
-    | _ -> assert false in
-
-  let find_ppair' (p1,p2) = 
-    match p1,p2 with
-    | InPort(s1,p1), OutPort(s2,p2) -> InPort(s2,p2), OutPort(s1,p1)
-    | InPort(s1,p1), InPort(s2,p2) -> InPort(s2,p2), InPort(s1,p1)
-    | OutPort(s1,p1), OutPort(s2,p2) -> OutPort(s2,p2), OutPort(s1,p1)
-    | OutPort(s1,p1), InPort(s2,p2) -> OutPort(s2,p2), InPort(s1,p1) in  
-
-  let get_fabric_set fg ptbl htbl =
-    let vseen = ref [] in 
-    let aux vpair paths = 
-      (let ppair = Tbl.find htbl vpair in
-      match ppair with
-	| Some (pv1,pv2) -> 
-            let vpair' = find_vpair' vpair in
-            vseen:= vpair' :: !vseen; 
-	    let paths2 = Tbl.find ptbl vpair' in
-	    Some (fun p1 p2 -> if (pv1 = p1 && pv2 = p2) then (snd paths) 
-	     else if (find_ppair' (pv1,pv2) = (p1,p2)) then begin
-	       match paths2 with 
-	       | None -> assert false
-	       | Some path -> snd path 
-	     end
-	     else path_oracle p1 p2)
-	| None -> None) in 
-    let func ~key:vpair ~data:paths acc = 
-      if (List.mem vpair !vseen) then acc else
-      match (aux vpair paths) with
-      | Some f -> begin
-	  let fabric = lazy (fabric_of_fabric_graph (Lazy.force fg) prod_ing f) in fabric::acc 
-	  end
-      | None -> acc in
-    Tbl.fold ptbl ~f:func ~init:[] in    
+    let _ = enumerate_vlinks g ing () in
+    let _ = find_all_plinks () in
+    linktbl in
+    
+  let get_fabric_set pruned_graph ptbl =
+    let memlist lst ppair = 
+      List.fold_left (fun acc x-> if (fst(x) = ppair) then (Some x) else None) None lst in
+    let make_fabric ~key:link ~data:g acc =  
+      let dist_tbl' = Tbl.create () in
+      let get_path_dist = get_path_and_distance dist_tbl' g in 
+      let cost' v1 v2 = 
+        match get_path_dist (pv_of_v v1) (pv_of_v v2) with
+        | None -> None 
+        | Some(p,d) -> Some d in 
+      let path pv1 pv2 = 
+        match get_path_dist pv1 pv2 with 
+        | None -> assert false 
+        | Some(p,d) -> p in 
+      let fgraph = lazy (fabric_graph_of_pruned (Lazy.force pruned_graph) prod_ing cost') in 
+      (lazy (fabric_of_fabric_graph (Lazy.force fgraph) prod_ing path))::acc in
+    Tbl.fold ptbl ~f:make_fabric ~init:[] in
 
   let pruned_graph = lazy (prune_product_graph prod_graph) in
   let fabric_graph = lazy (fabric_graph_of_pruned (Lazy.force pruned_graph) prod_ing cost) in
   let fabric = lazy (fabric_of_fabric_graph ~record_paths (Lazy.force fabric_graph) prod_ing path_oracle) in
   let fabric_ing = List.filter (fun x -> G.Prod.mem_vertex (Lazy.force fabric_graph) x) prod_ing in
-  let pt,ht = phys_paths_of_vlinks (Lazy.force fabric_graph) fabric_ing in
-  let fabric_set = get_fabric_set fabric_graph pt ht in
+  let pt = phys_paths_of_vlinks (Lazy.force fabric_graph) fabric_ing in
+  let fabric_set = get_fabric_set pruned_graph pt in
   let fset = fabric::fabric_set in 
   let vg_file = "vg.dot" in
   let pg_file = "pg.dot" in
