@@ -498,9 +498,7 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
     | OutPort(s1,p1), OutPort(s2,p2)
     | OutPort(s1,p1), InPort(s2,p2) ->
       Printf.fprintf stdout "pair is: %Lu %i-%Lu %i\n" s1 (to_int p1) s2 (to_int p2) in 
-
-  let vrel' vv = get_vrel vrel vv in 
-
+      
   (* Lists all links of virtual topology and records
   primary physical paths and their backups.
   @param g : fabric graph 
@@ -567,8 +565,6 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
     linktbl in
     
   let get_fabric_set pruned_graph ptbl =
-    let memlist lst ppair = 
-      List.fold_left (fun acc x-> if (fst(x) = ppair) then (Some x) else None) None lst in
     let make_fabric ~key:link ~data:g acc =  
       let dist_tbl' = Tbl.create () in
       let get_path_dist = get_path_and_distance dist_tbl' g in 
@@ -699,7 +695,7 @@ let compile ?(log=true) ?(record_paths=None) (vpolicy : policy) (vrel : pred)
     match acc with
     | None -> (Some (gen_policy fout fin vfab), (Int64.add vfab 1L)) 
     | Some pol -> (Some (mk_union pol (gen_policy fout fin vfab)), (Int64.add vfab 1L)) in
-  match (List.fold_left func (None, 0L) fset) with
+  match (List.fold_left func (None, 0L) (List.rev fset)) with
   | Some pol,_ -> pol
   | None , _ -> assert false 
   (* ing; (p;t)^*; p *)  
