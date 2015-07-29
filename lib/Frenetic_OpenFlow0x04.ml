@@ -213,8 +213,8 @@ type errorTyp =
 
 type length = int16
 
-type oxmIPv6ExtHdr = { noext : bool; esp : bool; auth : bool; 
-                       dest : bool; frac : bool; router : bool; 
+type oxmIPv6ExtHdr = { noext : bool; esp : bool; auth : bool;
+                       dest : bool; frac : bool; router : bool;
                        hop : bool; unrep : bool; unseq : bool } with sexp
 
 type oxm =
@@ -630,6 +630,11 @@ type asyncConfig = { packet_in : packetInReasonMap asyncMask;
                      flow_removed : flowReasonMask asyncMask }
 
 
+type error = {
+  err : errorTyp;
+  data : bytes;
+}
+
 
 type flowMod = { mfCookie : int64 mask; mfTable_id : tableId;
                  mfCommand : flowModCommand; mfIdle_timeout : timeout;
@@ -638,6 +643,45 @@ type flowMod = { mfCookie : int64 mask; mfTable_id : tableId;
                  mfOut_port : pseudoPort option;
                  mfOut_group : groupId option; mfFlags : flowModFlags;
                  mfOfp_match : oxmMatch; mfInstructions : instruction list }
+
+type switchFeatures = {
+  datapath_id : int64;
+  num_buffers : int32;
+  num_tables : int8;
+  aux_id : int8;
+  supported_capabilities : capabilities
+}
+
+type message =
+  | Hello of element list
+  | EchoRequest of bytes
+  | EchoReply of bytes
+  | FeaturesRequest
+  | FeaturesReply of switchFeatures
+  | FlowModMsg of flowMod
+  | GroupModMsg of groupMod
+  | PortModMsg of portMod
+  | MeterModMsg of meterMod
+  | PacketInMsg of packetIn
+  | FlowRemoved of flowRemoved
+  | PacketOutMsg of packetOut
+  | PortStatusMsg of portStatus
+  | MultipartReq of multipartRequest
+  | MultipartReply of multipartReply
+  | BarrierRequest
+  | BarrierReply
+  | RoleRequest of roleRequest
+  | RoleReply of roleRequest
+  | QueueGetConfigReq of queueConfReq
+  | QueueGetConfigReply of queueConfReply
+  | GetConfigRequestMsg
+  | GetConfigReplyMsg of switchConfig
+  | SetConfigMsg of switchConfig
+  | TableModMsg of tableMod
+  | GetAsyncRequest
+  | GetAsyncReply of asyncConfig
+  | SetAsync of asyncConfig
+  | Error of error
 
 let match_all = []
 
@@ -689,8 +733,6 @@ let marshal_payload buffer pkt =
   match buffer with
   | Some b -> Buffered (b, payload)
   | None -> NotBuffered payload
-
-
 
 
 exception Unparsable of string
@@ -3883,9 +3925,7 @@ end
 
 module SwitchFeatures = struct
 
-  type t = { datapath_id : int64; num_buffers : int32;
-             num_tables : int8; aux_id : int8;
-             supported_capabilities : capabilities }
+  type t = switchFeatures
 
   let sizeof (sw : t) : int =
     sizeof_ofp_switch_features
@@ -6216,10 +6256,7 @@ end
 
 module Error = struct
 
-  type t = {
-    err : errorTyp;
-    data : bytes;
-  }
+  type t = error
 
       cstruct ofp_error_msg {
       uint16_t typ;
@@ -7347,37 +7384,7 @@ end
 
 module Message = struct
 
-  type t =
-    | Hello of element list
-    | EchoRequest of bytes
-    | EchoReply of bytes
-    | FeaturesRequest
-    | FeaturesReply of SwitchFeatures.t
-    | FlowModMsg of FlowMod.t
-    | GroupModMsg of GroupMod.t
-    | PortModMsg of PortMod.t
-    | MeterModMsg of MeterMod.t
-    | PacketInMsg of PacketIn.t
-    | FlowRemoved of FlowRemoved.t
-    | PacketOutMsg of PacketOut.t
-    | PortStatusMsg of PortStatus.t
-    | MultipartReq of MultipartReq.t
-    | MultipartReply of MultipartReply.t
-    | BarrierRequest
-    | BarrierReply
-    | RoleRequest of RoleRequest.t
-    | RoleReply of RoleRequest.t
-    | QueueGetConfigReq of QueueConfReq.t
-    | QueueGetConfigReply of QueueConfReply.t
-    | GetConfigRequestMsg
-    | GetConfigReplyMsg of SwitchConfig.t
-    | SetConfigMsg of SwitchConfig.t
-    | TableModMsg of TableMod.t
-    | GetAsyncRequest
-    | GetAsyncReply of AsyncConfig.t
-    | SetAsync of AsyncConfig.t
-    | Error of Error.t
-
+  type t = message
 
   let string_of_msg_code (msg : msg_code) : string = match msg with
     | HELLO -> "HELLO"
@@ -7628,4 +7635,4 @@ module Message = struct
     (hdr.Header.xid, msg)
 end
 
-let portsDescRequest = Message.MultipartReq portDescReq
+let portsDescRequest = MultipartReq portDescReq
