@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 3cd789853a736fc80b3950af4ea03078)
+# DO NOT EDIT (digest: b6e7998d3a7a865c3716b13984139b3b)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -124,7 +124,6 @@ true: annot, bin_annot
 <openflow/lib/*.ml{,i,y}>: package(fieldslib)
 <openflow/lib/*.ml{,i,y}>: package(fieldslib.syntax)
 <openflow/lib/*.ml{,i,y}>: package(ocamlgraph)
-<openflow/lib/*.ml{,i,y}>: package(ppx_deriving.std)
 <openflow/lib/*.ml{,i,y}>: package(sexplib)
 <openflow/lib/*.ml{,i,y}>: package(sexplib.syntax)
 <openflow/lib/*.ml{,i,y}>: package(str)

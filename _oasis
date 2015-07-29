@@ -101,7 +101,6 @@ Executable frenetic
 Library openflow
   Path: openflow/lib
   BuildDepends:
-    ppx_deriving.std,
     str,
     cstruct,
     cstruct.syntax,
