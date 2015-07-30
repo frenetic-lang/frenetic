@@ -732,22 +732,23 @@ let post (x : int ref) : int =
 
 (* Make Map of subtrees of t and their corresponding flow table locations *)
 let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
-  let m_id = ref 0 in
-  let rec add_subtree (fields : Field.t list) (t : t) (t_id : tableId)  
-    (subtrees : flow_subtrees) : flow_subtrees =
+  let rec subtrees_for_table (table : Field.t list) (t : t) 
+    (subtrees : t list) : t list =
     match FDK.unget t with
-    | Leaf _ -> 
-      subtrees
+    | Leaf _ -> subtrees
     | Branch ((field, _), tru, fls) ->
-      if (List.mem fields field) then
-        Map.add subtrees ~key:t ~data:(t_id, (post m_id))
+      if (List.mem table field) then
+        t :: subtrees
       else
-        add_subtree fields tru t_id subtrees
-        |> add_subtree fields fls t_id 
+        subtrees_for_table table tru subtrees
+        |> subtrees_for_table table fls
   in
-  List.foldi layout ~init:Map.Poly.empty ~f:(fun idx accum fields -> 
-                                               add_subtree fields t idx accum)
-
+  let meta_id = ref 0 in
+  List.map layout ~f:(fun table -> subtrees_for_table table t [])
+  |> List.filter ~f:(fun subtrees -> subtrees <> [])
+  |> List.foldi ~init:Map.Poly.empty ~f:(fun tbl_id accum subtrees -> 
+      List.fold_right subtrees ~init:accum ~f:(fun t accum ->
+        Map.add accum ~key:t ~data:(tbl_id,(post meta_id))))
 
 (* make a flow struct that includes the table and meta id of the flow *)
 let mk_multitable_flow (pattern : Frenetic_OpenFlow.Pattern.t) 
@@ -795,16 +796,8 @@ let subtrees_to_multitable (subtrees : flow_subtrees) : multitable_flow list =
 (* Produce a list of flow table entries for a multitable setup *)
 let to_multitable (sw_id : switchId) (layout : flow_layout) (t : t) 
   : multitable_flow list =
-  let t = FDK.(restrict [(Field.Switch, Value.Const sw_id)] t) in
-  let subtrees = flow_table_subtrees layout t in
-  (* Because all packets start at table 0, if the root of the FDD is not on
-   * table 0, add a row to table 0 redirecting to the first used table *)
-  let (root_t, root_m) = Option.value_exn (Map.find subtrees t) in
-  if root_t = 0 then
-    subtrees_to_multitable subtrees
-  else
-    let redirect_row = { cookie = 0L; idle_timeout = Permanent; 
-                         hard_timeout = Permanent; flowId = (0,0);
-                         pattern = Frenetic_OpenFlow.Pattern.match_all ; 
-                         instruction = `GotoTable (root_t, root_m); } in
-    redirect_row :: subtrees_to_multitable subtrees
+  (* restrict to only instructions for this switch, get subtrees, 
+   * turn subtrees into list of multitable flow rows *)
+  FDK.(restrict [(Field.Switch, Value.Const sw_id)] t)
+  |> flow_table_subtrees layout
+  |> subtrees_to_multitable
