@@ -1,6 +1,6 @@
 (** Controller's representation of the group table configuration on an
     OpenFlow 1.3 switch. *)
-open OpenFlow0x04
+open Frenetic_OpenFlow0x04
 type t
 
 val create : unit -> t
@@ -17,4 +17,4 @@ val clear_groups : t -> unit
 
 (** Produces a list of messages to realize the previous [add_group] and
    [clear_groups] commands, upto the last [commit] command. *)
-val commit : t -> OpenFlow0x04.Message.t list
+val commit : t -> message list
