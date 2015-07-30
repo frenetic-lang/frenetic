@@ -1,4 +1,4 @@
-open OpenFlow0x04
+open Frenetic_OpenFlow0x04
 
 type t = {
 	table : (groupId, (groupType * bucket list)) Hashtbl.t;
