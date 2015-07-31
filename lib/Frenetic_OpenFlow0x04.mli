@@ -968,12 +968,17 @@ module Capabilities : sig
 
 end
 
+type switchFeatures = { datapath_id : int64; 
+			num_buffers : int32;
+			num_tables : int8; 
+			aux_id : int8;
+			supported_capabilities : capabilities }
+
+
 (** Switch Features structure. See the section 7.3.1 of the OpenFlow 1.3.4 specification *)
 module SwitchFeatures : sig
 
-  type t = { datapath_id : int64; num_buffers : int32;
-             num_tables : int8; aux_id : int8;
-             supported_capabilities : capabilities }
+  type t = switchFeatures
 
   val sizeof : t -> int
 
@@ -1449,13 +1454,15 @@ module QueueConfReply : sig
 
 end
 
-(** Error message structure. See the section 7.4.4 of the OpenFlow 1.3.4 specification *)
-module Error : sig
-
-  type t = {
+type error = {
     err : errorTyp;
     data : bytes;
   }
+
+(** Error message structure. See the section 7.4.4 of the OpenFlow 1.3.4 specification *)
+module Error : sig
+
+  type t = error 
 
   val marshal : Cstruct.t -> t -> int
 
