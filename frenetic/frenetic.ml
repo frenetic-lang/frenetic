@@ -34,6 +34,18 @@ let table : Frenetic_NetKAT_Local_Compiler.flow_layout Term.t =
   let default = [Frenetic_NetKAT_Local_Compiler.Field.get_order ()] in
   value & opt conv default & info ["table"] ~docv:"TABLE" ~doc
 
+(* TODO(eli): use cmdliner file type and make a converter as above *)
+let policy_file : string Term.t =
+  let open Arg in
+  let doc = "file contianing NetKat policy to apply to the network" in
+  value & pos 0 string "" & info [] ~docv:"POLICY" ~doc
+
+(* TODO(eli): use cmdliner file type and make a converter as above *)
+let topology_file : string Term.t =
+  let open Arg in
+  let doc = "file containing .dot topology of network" in
+  value & pos 1 string "" & info [] ~docv:"TOPOLOGY" ~doc
+
 let log_output : (string * Async.Std.Log.Output.t Lazy.t) Term.t =
   let open Async.Std in
   let open Async_extended in
@@ -91,11 +103,20 @@ let fault_tolerant : unit Term.t * Term.info =
    openflow_port) policy_file) topology_file), 
    info "fault-tolerant" ~doc)
 
+let fault_tolerant : unit Term.t * Term.info =
+  let open Term in
+  let doc = "Fault tolerant networking work-in-progress" in
+  (async_init (app (app (app (pure Frenetic_FaultTolerant_Controller.main)
+   openflow_port) policy_file) topology_file), 
+   info "fault-tolerant" ~doc)
+
 (* Add new commands here. *)
 let top_level_commands = [
   compile_server;
   http_controller;
-  shell
+  shell;
+  openflow13;
+  fault_tolerant
 ]
 
 let () =
