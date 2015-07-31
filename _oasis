@@ -11,7 +11,7 @@ XOCamlbuildExtraArgs: -cflags -w,-40,-short-paths
 BuildTools:
   ocamlbuild,
   ocamldoc,
-  camlp4of
+  camlp4
 
 Library frenetic
   Path: lib
@@ -51,6 +51,7 @@ Library frenetic
     Frenetic_OpenFlow,
     Frenetic_OpenFlow_Header,
     Frenetic_OpenFlow0x01,
+    Frenetic_OpenFlow0x04,
     Frenetic_Packet,
     Frenetic_Topology,
     Frenetic_Util,
@@ -109,8 +110,6 @@ Library openflow
     sexplib,
     threads
   Modules:
-    OpenFlow0x04,
-    OpenFlow0x04_Core,
     GroupTable0x04
 
 # Will be reintroduced in summer 2015

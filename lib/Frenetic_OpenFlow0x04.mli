@@ -5,7 +5,7 @@ type 'a mask = { m_value : 'a; m_mask : 'a option }
 type 'a asyncMask = { m_master : 'a ; m_slave : 'a }
 
 type payload =
-  | Buffered of int32 * bytes 
+  | Buffered of int32 * bytes
     (** [Buffered (id, buf)] is a packet buffered on a switch. *)
   | NotBuffered of bytes
 
@@ -14,14 +14,9 @@ type int12 = int16
 type int24 = int32
 type int128 = int64 * int64
 
-let val_to_mask v =
-  { m_value = v; m_mask = None }
+val val_to_mask : 'a1 -> 'a1 mask
 
-let ip_to_mask (p,m) =
-  if m = 32l then { m_value = p; m_mask = None }
-  else 
-    let m = Int32.shift_left 0xffffffffl (Int32.to_int (Int32.sub 32l m)) in
-    { m_value = p; m_mask = Some m }
+val ip_to_mask : (nwAddr * int32) -> nwAddr mask
 
 type switchId = int64
 
@@ -33,7 +28,7 @@ type tableId = int8
 
 type bufferId = int32
 
-type switchFlags = 
+type switchFlags =
   | NormalFrag
   | DropFrag
   | ReasmFrag
@@ -41,11 +36,11 @@ type switchFlags =
 
 type switchConfig = {flags : switchFlags; miss_send_len : int16 }
 
-type helloFailed = 
+type helloFailed =
  | HelloIncompatible
  | HelloPermError
 
-type badRequest = 
+type badRequest =
  | ReqBadVersion
  | ReqBadType
  | ReqBadMultipart
@@ -61,7 +56,7 @@ type badRequest =
  | ReqBadPacket
  | ReqMultipartBufOverflow
 
-type badAction = 
+type badAction =
  | ActBadType
  | ActBadLen
  | ActBadExp
@@ -90,7 +85,7 @@ type badInstruction =
  | InstBadLen
  | InstPermError
 
-type badMatch = 
+type badMatch =
  | MatBadTyp
  | MatBadLen
  | MatBadTag
@@ -130,7 +125,7 @@ type groupModFailed =
  | GrBadBucket
  | GrBadWatch
  | GrPermError
- 
+
 type portModFailed =
  | PoBadPort
  | PoBadHwAddr
@@ -153,12 +148,12 @@ type switchConfigFailed =
  | ScBadLen
  | ScPermError
 
-type roleReqFailed = 
+type roleReqFailed =
  | RoStale
  | RoUnsup
  | RoBadRole
 
-type meterModFailed = 
+type meterModFailed =
  | MeUnknown
  | MeMeterExists
  | MeInvalidMeter
@@ -182,7 +177,7 @@ type tableFeatFailed =
 
 type experimenterFailed = { exp_typ : int16; exp_id : int32}
 
-type errorTyp = 
+type errorTyp =
  | HelloFailed of helloFailed
  | BadRequest of badRequest
  | BadAction of badAction
@@ -248,36 +243,56 @@ type oxm =
 
 type oxmMatch = oxm list
 
+(** {2 Convenient Functions} *)
+
+val parse_payload : payload -> Frenetic_Packet.packet
+
+(** [marshal_payload buf pkt] serializes pkt, where [buf] is an optional
+buffer ID. *)
+val marshal_payload : int32 option -> Frenetic_Packet.packet -> payload
+
+val match_all : oxmMatch
+
+(** A pseudo-port, as described by the [ofp_port_no] enumeration in
+    Section A.2.1 of the OpenFlow 1.3.0 specification. *)
 type pseudoPort =
   | PhysicalPort of portId
-  | InPort
-  | Table
-  | Normal
-  | Flood
-  | AllPorts
-  | Controller of int16
-  | Local
-  | Any
+  | InPort            (** Send the packet out the input port. This reserved port
+                          must be explicitly used in order to send back out of
+                          the input port. *)
+  | Table             (** Submit the packet to the first flow table NB: This
+                          destination port can only be used in packet-out
+                          messages. *)
+  | Normal            (** Process with normal L2/L3 switching. *)
+  | Flood             (** All physical ports in VLAN, except input port and
+                          those blocked or link down. *)
+  | AllPorts          (** All physical ports except input port. *)
+  | Controller of int16 (** Send to controller along with [n] (max 1024) bytes
+                            of the packet *)
+  | Local             (** Local openflow "port". *)
+  | Any               (** Wildcard port used only for flow mod (delete) and flow
+                          stats requests. Selects all flows regardless of output
+                          port (including flows with no output port). *)
 
-type actionHdr = 
-  | OutputHdr
-  | GroupHdr
-  | PopVlanHdr
-  | PushVlanHdr
-  | PopMplsHdr
-  | PushMplsHdr
-  | SetFieldHdr
-  | CopyTtlOutHdr
-  | CopyTtlInHdr
-  | SetNwTtlHdr
-  | DecNwTtlHdr
-  | PushPbbHdr
-  | PopPbbHdr
-  | SetMplsTtlHdr
-  | DecMplsTtlHdr
-  | SetQueueHdr
-  | ExperimenterAHdr of int32
-  
+type actionHdr =
+| OutputHdr
+| GroupHdr
+| PopVlanHdr
+| PushVlanHdr
+| PopMplsHdr
+| PushMplsHdr
+| SetFieldHdr
+| CopyTtlOutHdr
+| CopyTtlInHdr
+| SetNwTtlHdr
+| DecNwTtlHdr
+| PushPbbHdr
+| PopPbbHdr
+| SetMplsTtlHdr
+| DecMplsTtlHdr
+| SetQueueHdr
+| ExperimenterAHdr of int32
+
 type action =
 | Output of pseudoPort
 | Group of groupId
@@ -297,9 +312,10 @@ type action =
 | SetQueue of int32
 | Experimenter of int32
 
+
 type actionSequence = action list
 
-type instructionHdr = 
+type instructionHdr =
  | GotoTableHdr
  | ApplyActionsHdr
  | WriteActionsHdr
@@ -354,67 +370,24 @@ type flowMod = { mfCookie : int64 mask; mfTable_id : tableId;
                  mfOut_group : groupId option; mfFlags : flowModFlags;
                  mfOfp_match : oxmMatch; mfInstructions : instruction list }
 
-let match_all = []
 
-let default_fm_flags = 
-  { fmf_send_flow_rem = false
-  ; fmf_check_overlap = false
-  ; fmf_reset_counts = false
-  ; fmf_no_pkt_counts = false
-  ; fmf_no_byt_counts = false }
+val add_flow : tbl:tableId -> prio:int16 -> pat:oxmMatch -> insts:instruction list -> flowMod
 
-let add_flow prio pat insts =
-  { mfCookie = val_to_mask 0L
-  ; mfTable_id = 0
-  ; mfCommand = AddFlow
-  ; mfIdle_timeout = Permanent
-  ; mfHard_timeout = Permanent
-  ; mfPriority = prio
-  ; mfBuffer_id = None
-  ; mfOut_port = None
-  ; mfOut_group = None
-  ; mfFlags = default_fm_flags
-  ; mfOfp_match = pat
-  ; mfInstructions = insts }
+val delete_all_flows : flowMod
 
-let delete_all_flows =
-  { mfCookie = val_to_mask 0L
-  ; mfTable_id = 0xff (* OFPTT_ALL *)
-  ; mfCommand = DeleteFlow
-  ; mfIdle_timeout = Permanent
-  ; mfHard_timeout = Permanent
-  ; mfPriority = 0
-  ; mfBuffer_id = None
-  ; mfOut_port = None
-  ; mfOut_group = Some 0xffffffffl (* OFPG_ANY *)
-  ; mfFlags = default_fm_flags
-  ; mfOfp_match = match_all
-  ; mfInstructions = [] }
-
-let delete_all_groups =
-  DeleteGroup (All, 0xfffffffcl)
-
-let parse_payload = function
-  | Buffered (_, b)
-  | NotBuffered b -> 
-    Frenetic_Packet.parse b
-
-let marshal_payload buffer pkt =
-  let payload = Frenetic_Packet.marshal pkt in
-  match buffer with
-    | Some b -> Buffered (b, payload)
-    | None -> NotBuffered payload
+val delete_all_groups : groupMod
 
 type packetInReason =
 | NoMatch
 | ExplicitSend
 | InvalidTTL
 
-type packetIn = { pi_total_len : int16; pi_reason : packetInReason; 
-                  pi_table_id : tableId; pi_cookie : int64;
-                  pi_ofp_match : oxmMatch; pi_payload : payload }
+type packetIn = { pi_total_len : int16;
+                  pi_reason : packetInReason; pi_table_id : tableId;
+                  pi_cookie : int64; pi_ofp_match : oxmMatch;
+                  pi_payload : payload }
 
-type flowReason = 
+type flowReason =
   | FlowIdleTimeout
   | FlowHardTiemout
   | FlowDelete
@@ -426,7 +399,7 @@ type flowRemoved = { cookie : int64; priority : int16; reason : flowReason;
                      byte_count : int64; oxm : oxmMatch }
 
 type capabilities = { flow_stats : bool; table_stats : bool;
-                      port_stats : bool; group_stats : bool; ip_reasm : 
+                      port_stats : bool; group_stats : bool; ip_reasm :
                       bool; queue_stats : bool; port_blocked : bool }
 
 type portState = { link_down : bool; blocked : bool; live : bool }
@@ -434,31 +407,25 @@ type portState = { link_down : bool; blocked : bool; live : bool }
 type portConfig = { port_down : bool; no_recv : bool; no_fwd : bool;
                     no_packet_in : bool }
 
-type portFeatures = { rate_10mb_hd : bool; rate_10mb_fd : bool; 
+type portFeatures = { rate_10mb_hd : bool; rate_10mb_fd : bool;
                       rate_100mb_hd : bool; rate_100mb_fd : bool;
                       rate_1gb_hd : bool; rate_1gb_fd : bool;
                       rate_10gb_fd : bool; rate_40gb_fd : bool;
                       rate_100gb_fd : bool; rate_1tb_fd : bool;
                       other : bool; copper : bool; fiber : bool;
-                      autoneg : bool; pause : bool; pause_asym : bool }    
+                      autoneg : bool; pause : bool; pause_asym : bool }
 
-type portDesc = { port_no : portId;
-                  hw_addr : int48;
-                  name : string;
-                  config : portConfig;
-                  state : portState;
-                  curr : portFeatures;
-                  advertised : portFeatures;
-                  supported : portFeatures; 
-                  peer : portFeatures;
-                  curr_speed : int32;
-                  max_speed : int32}
+
+type portDesc = { port_no : portId; hw_addr : int48; name : string; config :
+                  portConfig; state : portState; curr : portFeatures;
+                  advertised : portFeatures; supported : portFeatures; peer :
+                  portFeatures; curr_speed : int32; max_speed : int32}
 
 type portMod = { mpPortNo : portId; mpHw_addr : int48; mpConfig : portConfig;
                  mpMask : portConfig; mpAdvertise : portState }
 
 type portReason =
-  | PortAdd 
+  | PortAdd
   | PortDelete
   | PortModify
 
@@ -481,7 +448,7 @@ type meterBand =
   | DscpRemark of (rate*burst*int8)
   | ExpMeter of (rate*burst*experimenterId)
 
-type meterCommand = 
+type meterCommand =
   | AddMeter
   | ModifyMeter
   | DeleteMeter
@@ -491,16 +458,16 @@ type meterFlags = { kbps : bool; pktps : bool; burst : bool; stats : bool}
 type meterMod = { command : meterCommand; flags : meterFlags; meter_id : int32;
                   bands : meterBand list}
 
-type flowRequest = {fr_table_id : tableId; fr_out_port : portId; 
+type flowRequest = {fr_table_id : tableId; fr_out_port : portId;
                     fr_out_group : portId; fr_cookie : int64 mask;
                     fr_match : oxmMatch}
 
 type queueRequest = {port_number : portId; queue_id : int32}
 
-type experimenter = {exp_id : int32; exp_type : int32}
+type experimenter = {exp_id : experimenterId; exp_type : int32}
 
 type tableFeatureProp =
-  | TfpInstruction of instructionHdr list 
+  | TfpInstruction of instructionHdr list
   | TfpInstructionMiss of instructionHdr list
   | TfpNextTable of tableId list
   | TfpNextTableMiss of tableId list
@@ -519,14 +486,14 @@ type tableFeatureProp =
 
 type tableConfig = Deprecated
 
-type tableFeatures = {length : int16;table_id : tableId; name : string;
+type tableFeatures = {length : int16; table_id : tableId; name : string;
                       metadata_match : int64; metadata_write : int64;
                       config : tableConfig; max_entries: int32;
                       feature_prop : tableFeatureProp list}
 
 type multipartType =
   | SwitchDescReq
-  | PortsDescReq 
+  | PortsDescReq
   | FlowStatsReq of flowRequest
   | AggregFlowStatsReq of flowRequest
   | TableStatsReq
@@ -539,19 +506,18 @@ type multipartType =
   | MeterConfReq of int32
   | MeterFeatReq
   | TableFeatReq of (tableFeatures list) option
-  | ExperimentReq of experimenter  
+  | ExperimentReq of experimenter
 
 type multipartRequest = { mpr_type : multipartType; mpr_flags : bool }
 
-let portDescReq = 
-  { mpr_type = PortsDescReq
-  ; mpr_flags = false }
+
+val portDescReq : multipartRequest
 
 type switchDesc = { mfr_desc :string ; hw_desc : string; sw_desc : string;
                          serial_num : string }
 
-type flowStats = { table_id : tableId; duration_sec : int32; duration_nsec : 
-                   int32; priority : int16; idle_timeout : timeout; 
+type flowStats = { table_id : tableId; duration_sec : int32; duration_nsec :
+                   int32; priority : int16; idle_timeout : timeout;
                    hard_timeout : timeout; flags : flowModFlags; cookie : int64;
                    packet_count : int64; byte_count : int64; ofp_match : oxmMatch;
                    instructions : instruction list}
@@ -561,12 +527,11 @@ type aggregStats = { packet_count : int64; byte_count : int64; flow_count : int3
 type tableStats = { table_id : tableId; active_count : int32; lookup_count : int64;
                     matched_count : int64}
 
-type portStats = { psPort_no : portId; rx_packets : int64; tx_packets : int64; 
-                   rx_bytes : int64; tx_bytes : int64; rx_dropped : int64; 
+type portStats = { psPort_no : portId; rx_packets : int64; tx_packets : int64;
+                   rx_bytes : int64; tx_bytes : int64; rx_dropped : int64;
                    tx_dropped : int64; rx_errors : int64; tx_errors : int64;
                    rx_frame_err : int64; rx_over_err : int64; rx_crc_err : int64;
                    collisions : int64; duration_sec : int32; duration_nsec : int32}
-
 
 type queueStats = { qsPort_no : portId; queue_id : int32; tx_bytes : int64; tx_packets : int64;
                     tx_errors : int64; duration_sec : int32; duration_nsec : int32 }
@@ -580,7 +545,7 @@ type groupStats = { length : int16; group_id : int32; ref_count : int32;
 type groupDesc = { length : int16; typ : groupType; group_id : int32; bucket : bucket list}
 
 type groupCapabilities = { select_weight : bool; select_liveness : bool;
-                           chaining : bool; chaining_checks : bool }
+                           chaining : bool; chaining_checks : bool}
 
 type groupTypeMap = { all : bool; select : bool; indirect : bool; ff : bool}
 
@@ -590,27 +555,27 @@ type actionTypeMap = { output : bool; copy_ttl_out : bool; copy_ttl_in : bool;
                        group : bool; set_nw_ttl : bool; dec_nw_ttl : bool; set_field : bool;
                        push_pbb : bool; pop_pbb : bool }
 
-type groupFeatures = { typ : groupTypeMap; capabilities : groupCapabilities; 
-                       max_groups_all : int32; max_groups_select : int32; 
-                       max_groups_indirect : int32; max_groups_ff : 
-                       int32; actions_all : actionTypeMap; actions_select : actionTypeMap; 
+type groupFeatures = { typ : groupTypeMap; capabilities : groupCapabilities;
+                       max_groups_all : int32; max_groups_select : int32;
+                       max_groups_indirect : int32; max_groups_ff : int32;
+                       actions_all : actionTypeMap; actions_select : actionTypeMap;
                        actions_indirect : actionTypeMap; actions_ff : actionTypeMap }
 
 type meterBandStats = { packet_band_count : int64; byte_band_count : int64 }
 
 type meterStats = { meter_id: int32; len : int16; flow_count : int32; packet_in_count :
-                    int64; byte_in_count : int64; duration_sec : int32; duration_nsec : 
+                    int64; byte_in_count : int64; duration_sec : int32; duration_nsec :
                     int32; band : meterBandStats list}
 
 type meterConfig = { length : length; flags : meterFlags; meter_id : int32; bands : meterBand list}
 
 type meterBandMaps = { drop : bool; dscpRemark : bool}
 
-type meterFeatures = { max_meter : int32; band_typ : meterBandMaps; 
+type meterFeatures = { max_meter : int32; band_typ : meterBandMaps;
                             capabilities : meterFlags; max_band : int8;
                             max_color : int8 }
 
-type multipartReplyTyp = 
+type multipartReplyTyp =
   | PortsDescReply of portDesc list
   | SwitchDescReply of switchDesc
   | FlowStatsReply of flowStats list
@@ -630,11 +595,11 @@ type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool}
 
 type tableMod = { table_id : tableId; config : tableConfig }
 
-type rateQueue = 
+type rateQueue =
   | Rate of int
-  | Disabled  
+  | Disabled
 
-type queueProp = 
+type queueProp =
   | MinRateProp of rateQueue
   | MaxRateProp of rateQueue
   | ExperimenterProp of int32
@@ -644,8 +609,8 @@ type queueDesc = { queue_id : int32; port : portId; len : int16; properties : qu
 type queueConfReq = { port : portId }
 
 type queueConfReply = { port : portId; queues : queueDesc list }
- 
-type controllerRole = 
+
+type controllerRole =
   | NoChangeRole
   | EqualRole
   | MasterRole
@@ -654,8 +619,8 @@ type controllerRole =
 type roleRequest = { role : controllerRole; generation_id : int64 }
 
 type supportedList = int list
- 
-type element = 
+
+type element =
   | VersionBitMap of supportedList
 
 type helloElement = element list
@@ -664,9 +629,84 @@ type packetInReasonMap =  { table_miss : bool; apply_action : bool; invalid_ttl 
 
 type portReasonMap =  { add : bool; delete : bool; modify : bool }
 
-type flowReasonMask = { idle_timeout : bool; hard_timeout : bool; delete : bool; 
+type flowReasonMask = { idle_timeout : bool; hard_timeout : bool; delete : bool;
                         group_delete : bool}
 
-type asyncConfig = { packet_in : packetInReasonMap asyncMask; 
+type asyncConfig = { packet_in : packetInReasonMap asyncMask;
                      port_status : portReasonMap asyncMask;
                      flow_removed : flowReasonMask asyncMask }
+
+type switchFeatures = {
+  datapath_id : int64;
+  num_buffers : int32;
+  num_tables : int8;
+  aux_id : int8;
+  supported_capabilities : capabilities
+}
+
+type error = {
+  err : errorTyp;
+  data : bytes;
+}
+
+type msg_code =  | HELLO | ERROR | ECHO_REQ | ECHO_RESP | VENDOR | FEATURES_REQ
+                 | FEATURES_RESP | GET_CONFIG_REQ | GET_CONFIG_RESP
+                 | SET_CONFIG | PACKET_IN | FLOW_REMOVED | PORT_STATUS | PACKET_OUT
+                 | FLOW_MOD | GROUP_MOD | PORT_MOD | TABLE_MOD | MULTIPART_REQ
+                 | MULTIPART_RESP | BARRIER_REQ | BARRIER_RESP | QUEUE_GET_CONFIG_REQ
+                 | QUEUE_GET_CONFIG_RESP | ROLE_REQ | ROLE_RESP | GET_ASYNC_REQ
+                 | GET_ASYNC_REP | SET_ASYNC | METER_MOD
+
+type message =
+  | Hello of element list
+  | EchoRequest of bytes
+  | EchoReply of bytes
+  | FeaturesRequest
+  | FeaturesReply of switchFeatures
+  | FlowModMsg of flowMod
+  | GroupModMsg of groupMod
+  | PortModMsg of portMod
+  | MeterModMsg of meterMod
+  | PacketInMsg of packetIn
+  | FlowRemoved of flowRemoved
+  | PacketOutMsg of packetOut
+  | PortStatusMsg of portStatus
+  | MultipartReq of multipartRequest
+  | MultipartReply of multipartReply
+  | BarrierRequest
+  | BarrierReply
+  | RoleRequest of roleRequest
+  | RoleReply of roleRequest
+  | QueueGetConfigReq of queueConfReq
+  | QueueGetConfigReply of queueConfReply
+  | GetConfigRequestMsg
+  | GetConfigReplyMsg of switchConfig
+  | SetConfigMsg of switchConfig
+  | TableModMsg of tableMod
+  | GetAsyncRequest
+  | GetAsyncReply of asyncConfig
+  | SetAsync of asyncConfig
+  | Error of error
+
+val msg_code_to_int : msg_code -> int
+
+module Message : sig
+
+  type t = message
+
+  val sizeof : t -> int
+
+  (** [to_string v] pretty-prints [v] *)
+  val to_string : t -> string
+
+  val blit_message : t -> Cstruct.t -> int
+
+  val header_of : xid -> t -> Frenetic_OpenFlow_Header.t
+
+  val marshal : xid -> t -> string
+
+  val parse : Frenetic_OpenFlow_Header.t -> string -> (xid * t)
+
+  val marshal_body : t -> Cstruct.t -> unit
+
+end
