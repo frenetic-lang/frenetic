@@ -61,6 +61,19 @@ let shell : unit Term.t * Term.info =
   (async_init (app (app (pure Frenetic_Shell.main) http_port) openflow_port),
    info "shell" ~doc)
 
+let openflow13 : unit Term.t * Term.info =
+  let open Term in
+  let doc = "OpenFlow 1.3 work-in-progress" in
+  (async_init (app (app (app (pure Frenetic_OpenFlow0x04_Controller.main)
+   openflow_port) policy_file) table), info "openflow13" ~doc)
+
+let fault_tolerant : unit Term.t * Term.info =
+  let open Term in
+  let doc = "Fault tolerant networking work-in-progress" in
+  (async_init (app (app (app (pure Frenetic_OpenFlow0x04_Controller.fault_tolerant_main)
+   openflow_port) policy_file) topology_file), 
+   info "fault-tolerant" ~doc)
+
 (* Add new commands here. *)
 let top_level_commands = [
   compile_server;
