@@ -790,6 +790,7 @@ let subtree_to_table (subtrees : flow_subtrees) (t : t) : multitable_flow list =
 (* Collect the flow table rows for each subtree in one list. *)
 let subtrees_to_multitable (subtrees : flow_subtrees) : multitable_flow list =
   Map.keys subtrees
+  |> List.rev
   |> List.map ~f:(fun t -> subtree_to_table subtrees t)
   |> List.concat
 
