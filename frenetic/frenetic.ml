@@ -103,13 +103,6 @@ let fault_tolerant : unit Term.t * Term.info =
    openflow_port) policy_file) topology_file), 
    info "fault-tolerant" ~doc)
 
-let fault_tolerant : unit Term.t * Term.info =
-  let open Term in
-  let doc = "Fault tolerant networking work-in-progress" in
-  (async_init (app (app (app (pure Frenetic_FaultTolerant_Controller.main)
-   openflow_port) policy_file) topology_file), 
-   info "fault-tolerant" ~doc)
-
 (* Add new commands here. *)
 let top_level_commands = [
   compile_server;
