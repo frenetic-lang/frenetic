@@ -396,6 +396,33 @@ let rec print_path path out_channel =
   | [] -> Printf.fprintf out_channel "\n%!";
   | _ -> assert false
 
+let print_pair (v1,v2) to_int=
+  match v1,v2 with
+  | InPort(s1,p1), OutPort(s2,p2)
+  | InPort(s1,p1), InPort(s2,p2)
+  | OutPort(s1,p1), OutPort(s2,p2)
+  | OutPort(s1,p1), InPort(s2,p2) ->
+    Printf.fprintf stdout "pair is: %Lu %i-%Lu %i\n" s1 (to_int p1) s2 (to_int p2) 
+      
+let rec construct path pol = 
+  let str32 p1 = Int32.to_string p1 in 
+  let str64 p1 = Int64.to_string p1 in
+  match path with 
+  | (OutPort (s1,p1), (InPort(s2,p2)))::path' -> 
+      if (s1 <> s2) then begin
+        let str = (str64 s1) ^ "@" ^ (str32 p1) ^ " => " ^ (str64 s2) ^ "@" ^ (str32 p2) ^ ";" in 
+        construct path' (pol ^ str) end
+      else
+        construct path' pol 
+  | (InPort (s1,p1), OutPort(s2,p2))::path' ->
+      let str = "port := " ^ (str32 p2) ^ ";" in
+      construct path' (pol ^ str) 
+  | [] -> Printf.fprintf stdout "%s \n" pol; pol 
+  | _ -> assert false 
+
+let stitch_paths pathlist = 
+  List.fold_left (fun acc x -> acc ^ (construct x "")) "" pathlist
+
 let fabric_atom_of_prod_edge ?(record_paths=None) path_oracle v1 v2 =
   match G.Prod.V.label v1, G.Prod.V.label v2 with
   | ConsistentOut _, InconsistentIn _ | ConsistentIn _, InconsistentOut _ -> `None
@@ -404,7 +431,7 @@ let fabric_atom_of_prod_edge ?(record_paths=None) path_oracle v1 v2 =
      assert (vv = vv');
      let path = path_oracle pv1 pv2 in
      let _ = Core.Std.Option.(record_paths >>| print_path path) in
-     let fabric = mk_big_seq [match_vloc' vv; match_ploc' pv1; policy_of_path path; set_vloc' vv] in
+     let fabric = [match_vloc' vv; match_ploc' pv1; policy_of_path path; set_vloc' vv] in
      begin match l with
        | InconsistentOut _ -> `Out fabric
        | InconsistentIn _ -> `In fabric
@@ -491,14 +518,6 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
     | Some (p,d) -> Some d 
     | None -> assert false in 
 
-  let print_pair (v1,v2) to_int=
-    match v1,v2 with
-	  | InPort(s1,p1), OutPort(s2,p2)
-    | InPort(s1,p1), InPort(s2,p2)
-    | OutPort(s1,p1), OutPort(s2,p2)
-    | OutPort(s1,p1), InPort(s2,p2) ->
-      Printf.fprintf stdout "pair is: %Lu %i-%Lu %i\n" s1 (to_int p1) s2 (to_int p2) in 
-      
   (* Lists all links of virtual topology and records
   primary physical paths and their backups.
   @param g : fabric graph 
@@ -676,31 +695,52 @@ let rec encode_vlinks (vtopo : policy) =
       (mk_seq (Mod (VSwitch vsw2)) (Mod (VPort vpt2)))
   | _ -> vtopo
 
+let merge_fin pfin (mfin,id) fin= 
+  let is_conflict f1 f2 = 
+    match f1,f2 with 
+    | vv::pv::path::svv, vv'::pv'::path'::svv' -> 
+      if (vv = vv' && pv = pv' && (path <> path') && svv=svv') 
+        then true else false
+    | _ -> assert false in 
+  let combine mfin f1 = 
+    if List.mem f1 mfin then mfin else begin
+      try 
+        let conf = List.find (is_conflict f1) mfin in
+        try
+          let conf' = List.find (is_conflict f1) pfin in 
+          match conf,f1 with
+          | vv::pv::path::svv::_, vv'::pv'::path'::_ -> 
+            let p1 = mk_seq (Filter(Test(VFabric(id)))) path in 
+            let p2 = mk_seq (Filter(mk_not (Test(VFabric(id))) )) path' in  
+            let merged = mk_union p1 p2 in 
+            [vv;pv;merged;svv]::(List.filter (fun x -> x<>conf) mfin) 
+          | _ -> assert false 
+        with _ -> mfin
+      with _ -> 
+        f1::mfin 
+    end in 
+  List.fold_left combine mfin fin 
+
 let compile ?(log=true) ?(record_paths=None) (vpolicy : policy) (vrel : pred)
   (vtopo : policy) (ving_pol : policy) (ving : pred) (veg : pred)
   (ptopo : policy)                     (ping : pred) (peg : pred) = 
   let fset = generate_fabrics ~log ~record_paths vrel vtopo ving veg ptopo ping peg in
+  let (pfabric, fset') = match (List.rev fset) with 
+    | hd::tl -> (hd,List.rev tl)
+    | [] -> assert false in 
   let ing = mk_big_seq [Filter ping; ving_pol; Filter ving] in
   let eg = Filter (mk_and veg peg) in
-  let gen_policy fout_set fin_set vfab = 
-    (let fout = mk_big_union fout_set in
-    let fin = mk_big_union fin_set in 
-    let p = mk_seq vpolicy fout in
-    let t = mk_seq (encode_vlinks vtopo) fin in
-    let vfab_flt = Filter (Test(VFabric vfab)) in
-    let pol = mk_big_seq [vfab_flt; ing; mk_star (mk_seq p t); p; eg] in
-     Printf.printf "Generating fabric %Lu \n" vfab ;
-    pol) in
-  let func (acc, vfab) (fout,fin) = 
-    match acc with
-    | None -> (Some (gen_policy fout fin vfab), (Int64.add vfab 1L)) 
-    | Some pol -> (Some (mk_union pol (gen_policy fout fin vfab)), (Int64.add vfab 1L)) in
-  match (List.fold_left func (None, 0L) (List.rev fset)) with
-  | Some pol,_ -> pol
-  | None , _ -> assert false 
-  (* ing; (p;t)^*; p *)  
-  (* Printf.printf "ing: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy ing);
-  Printf.printf "fout: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fout);
-  Printf.printf "fin: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fin);
-  Printf.printf "vpolicy: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy vpolicy);
-  Printf.printf "vtopo: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy vtopo); *)
+  let seq lst = List.fold_left (fun acc f -> (mk_big_seq f)::acc) [] lst |> mk_big_union in
+  (*let printfoi lst m =  Printf.printf "%s %s\n\n%!" m (Frenetic_NetKAT_Pretty.string_of_policy (seq lst)) in *)
+  let mfout = List.fold_left (fun acc (fout,fin) -> fout@acc) (fst pfabric) fset' |> seq in
+  let pfin = snd pfabric in 
+  let func (acc,id) (fout,fin) = (merge_fin pfin (acc,id) fin, Int64.add id 1L) in
+  let mfin = fst (List.fold_left func (pfin, 0L) fset') |> seq in
+  let p = mk_seq vpolicy mfout in 
+  let t = mk_seq (encode_vlinks vtopo) mfin in 
+  Printf.printf "mfout: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy mfout);
+  Printf.printf "mfin: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy mfin);
+  let pol = mk_big_seq [ing; mk_star (mk_seq p t); p; eg] in 
+  pol
+
+
