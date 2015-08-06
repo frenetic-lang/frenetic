@@ -317,6 +317,7 @@ let eval_pipes =
   Interp.eval_pipes
 
 let to_dotfile t filename =
+  let t = remove_local_fields t in
   Out_channel.with_file filename ~f:(fun chan ->
     Out_channel.output_string chan (FDK.to_dot t))
 

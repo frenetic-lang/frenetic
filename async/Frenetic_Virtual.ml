@@ -9,7 +9,7 @@ let print_tables policy : Frenetic_NetKAT_Local_Compiler.t =
   let fdd = Frenetic_NetKAT_Local_Compiler.compile_global policy in  
   let switches = Frenetic_NetKAT_Semantics.switches_of_policy policy in
   let local_pol = Frenetic_NetKAT_Local_Compiler.to_local_pol fdd in
-  Frenetic_NetKAT_Local_Compiler.to_dotfile fdd "automaton.dot";
+  Frenetic_NetKAT_Local_Compiler.to_dotfile fdd "automaton2.dot";
   Format.fprintf 
     fmt "[local] Local Policy:@\n@[%a@]@\n@\n"
     Frenetic_NetKAT_Pretty.format_policy local_pol;

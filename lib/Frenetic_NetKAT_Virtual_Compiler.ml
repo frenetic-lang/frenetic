@@ -321,7 +321,6 @@ let prune_product_graph g =
   G.Prod.fold_vertex (fun v g -> if is_fatal v g then erase_fatal v g else g) g g
 
 
-
 (* The pruned graph may leave the fabric with several options to restore consistency; to arrive at
    a fabric graph, we must decide on a single option wherever we have a choice, thus determining a
    fabric uniquely.
@@ -337,7 +336,7 @@ let fabric_graph_of_pruned g ing cost =
     | InconsistentIn _ | InconsistentOut _ ->
        let sucs = G.Prod.succ g v in
        begin match minimize sucs (fun v' -> cost v v') with
-         | None -> assert false
+         | None -> assert false (*no alernate path*)
          | Some (selection, _) -> select' v selection g'
        end
   and select' v v' g' =
@@ -403,25 +402,6 @@ let print_pair (v1,v2) to_int=
   | OutPort(s1,p1), OutPort(s2,p2)
   | OutPort(s1,p1), InPort(s2,p2) ->
     Printf.fprintf stdout "pair is: %Lu %i-%Lu %i\n" s1 (to_int p1) s2 (to_int p2) 
-      
-let rec construct path pol = 
-  let str32 p1 = Int32.to_string p1 in 
-  let str64 p1 = Int64.to_string p1 in
-  match path with 
-  | (OutPort (s1,p1), (InPort(s2,p2)))::path' -> 
-      if (s1 <> s2) then begin
-        let str = (str64 s1) ^ "@" ^ (str32 p1) ^ " => " ^ (str64 s2) ^ "@" ^ (str32 p2) ^ ";" in 
-        construct path' (pol ^ str) end
-      else
-        construct path' pol 
-  | (InPort (s1,p1), OutPort(s2,p2))::path' ->
-      let str = "port := " ^ (str32 p2) ^ ";" in
-      construct path' (pol ^ str) 
-  | [] -> Printf.fprintf stdout "%s \n" pol; pol 
-  | _ -> assert false 
-
-let stitch_paths pathlist = 
-  List.fold_left (fun acc x -> acc ^ (construct x "")) "" pathlist
 
 let fabric_atom_of_prod_edge ?(record_paths=None) path_oracle v1 v2 =
   match G.Prod.V.label v1, G.Prod.V.label v2 with
@@ -695,7 +675,7 @@ let rec encode_vlinks (vtopo : policy) =
       (mk_seq (Mod (VSwitch vsw2)) (Mod (VPort vpt2)))
   | _ -> vtopo
 
-let merge_fin pfin (mfin,id) fin= 
+let merge_f pfin (mfin,id) fin= 
   let is_conflict f1 f2 = 
     match f1,f2 with 
     | vv::pv::path::svv, vv'::pv'::path'::svv' -> 
@@ -707,7 +687,7 @@ let merge_fin pfin (mfin,id) fin=
       try 
         let conf = List.find (is_conflict f1) mfin in
         try
-          let conf' = List.find (is_conflict f1) pfin in 
+          let _ = List.find (is_conflict f1) pfin in 
           match conf,f1 with
           | vv::pv::path::svv::_, vv'::pv'::path'::_ -> 
             let p1 = mk_seq (Filter(Test(VFabric(id)))) path in 
@@ -731,11 +711,11 @@ let compile ?(log=true) ?(record_paths=None) (vpolicy : policy) (vrel : pred)
   let ing = mk_big_seq [Filter ping; ving_pol; Filter ving] in
   let eg = Filter (mk_and veg peg) in
   let seq lst = List.fold_left (fun acc f -> (mk_big_seq f)::acc) [] lst |> mk_big_union in
-  (*let printfoi lst m =  Printf.printf "%s %s\n\n%!" m (Frenetic_NetKAT_Pretty.string_of_policy (seq lst)) in *)
-  let mfout = List.fold_left (fun acc (fout,fin) -> fout@acc) (fst pfabric) fset' |> seq in
   let pfin = snd pfabric in 
-  let func (acc,id) (fout,fin) = (merge_fin pfin (acc,id) fin, Int64.add id 1L) in
-  let mfin = fst (List.fold_left func (pfin, 0L) fset') |> seq in
+  let pfout = fst pfabric in 
+  let func (acc,id) (fout,fin) = ((merge_f pfout (fst acc,id) fout,merge_f pfin (snd acc,id) fin), Int64.add id 1L) in
+  let (mfout',mfin') = fst (List.fold_left func (pfabric,0L) fset') in
+  let (mfout,mfin) = (seq mfout', seq mfin') in
   let p = mk_seq vpolicy mfout in 
   let t = mk_seq (encode_vlinks vtopo) mfin in 
   Printf.printf "mfout: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy mfout);
