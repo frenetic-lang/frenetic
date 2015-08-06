@@ -71,7 +71,7 @@ let handle_request
   Log.info "%s %s" (Cohttp.Code.string_of_method request.meth)
     (Uri.path request.uri);
   match request.meth, extract_path request with
-    | `GET, ["version"] -> Server.respond_with_string "3"
+    | `GET, ["version"] -> Server.respond_with_string "4"
     | `GET, ["port_stats"; switch_id; port_id] ->
        port_stats (Int64.of_string switch_id) (Int32.of_string port_id)
        >>= fun portStats ->

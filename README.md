@@ -2,19 +2,18 @@
 
 An open-source SDN controller platform.
 
-[![Build Status](https://travis-ci.org/frenetic-lang/frenetic.png)](https://travis-ci.org/frenetic-lang/frenetic)
+[![Build Status](https://travis-ci.org/frenetic-lang/frenetic.svg?branch=master)](https://travis-ci.org/frenetic-lang/frenetic)
 
 ## Installation
 
 ### Installing from OPAM
 
-    You can install the latest release from [OPAM](http://opam.ocamlpro.com/) using
-    the following command:
+You can install the latest release from [OPAM](http://opam.ocamlpro.com/) using
+the following command:
 
         $ opam install frenetic
 
-    This installs the Frenetic libraries (using `ocamlfind`) and
-    the `frenetic` executable (typically at `~/.opam/system/bin/frentic`).
+This installs the Frenetic libraries (using `ocamlfind`) and the `frenetic` executable (typically at `~/.opam/system/bin/frentic`).
 
 ### Installing an Ubuntu Package
 

@@ -89,7 +89,6 @@ TEST "par1" =
        (Union (modSrc 2, modSrc 1))
        (Union (modSrc 3, modSrc 1)))
 
-(* TODO: Fix these
 TEST "star id" =
   test_compile
     (Star (Filter True))
@@ -110,7 +109,7 @@ TEST "star modify2" =
     (Star (Union (modSrc 0,
                 ite (testSrc 0) (modSrc 1) (modSrc 2))))
      (Union (modSrc 2, Union(modSrc 1, Union(modSrc 0, Filter True))))
-*)
+
 (*
 TEST "policy that caused stack overflow on 10/16/2013" =
   test_compile
@@ -325,8 +324,8 @@ let compare_eval_output p q pkt =
 let compare_compiler_output p q pkt =
   let open Frenetic_NetKAT_Semantics in
   PacketSet.compare
-    (Frenetic_NetKAT_Flowterp.Packet.eval pkt (Frenetic_NetKAT_Local_Compiler.(to_table pkt.switch (compile ~order:`Heuristic p))))
-    (Frenetic_NetKAT_Flowterp.Packet.eval pkt (Frenetic_NetKAT_Local_Compiler.(to_table pkt.switch (compile ~order:`Heuristic q))))
+    (Flowterp.Packet.eval pkt (Frenetic_NetKAT_Local_Compiler.(to_table pkt.switch (compile ~order:`Heuristic p))))
+    (Flowterp.Packet.eval pkt (Frenetic_NetKAT_Local_Compiler.(to_table pkt.switch (compile ~order:`Heuristic q))))
   = 0
 
 let check gen_fn compare_fn =
@@ -335,7 +334,7 @@ let check gen_fn compare_fn =
         QuickCheck.Success -> true
     | _                  -> false
 
-(* TODO: FIX THIS
+(*
 TEST "quickcheck NetKAT <-> JSON" =
   let open Frenetic_NetKAT_Json in
   let open Frenetic_NetKAT_Optimize in
@@ -377,8 +376,8 @@ TEST "ip masking compile" =
   let (pol1, pol2, pkt) = get_masking_test in
   compare_compiler_output pol1 pol2 pkt
 
-(* regression test for bug in Frenetic_NetKAT_Flowterp handling of patterns with IP mask 0 *)
-(* TODO: FIx This
+(* regression test for bug in Flowterp handling of patterns with IP mask 0 *)
+(*
 TEST "zero mask" =
   let prop_compile_ok (pkt) =
     let pol = Seq(Filter(Test(Location(Physical 0l))),
@@ -386,10 +385,11 @@ TEST "zero mask" =
     let open Frenetic_NetKAT_Semantics in
     PacketSet.compare
       (Frenetic_NetKAT_Semantics.eval pkt (Frenetic_NetKAT_Optimize.specialize_policy pkt.switch pol))
-      (Frenetic_NetKAT_Flowterp.Packet.eval pkt
+      (Flowterp.Packet.eval pkt
          (Frenetic_NetKAT_Local_Compiler.(to_table pkt.switch (compile pol)))) = 0 in
   check gen_pkt prop_compile_ok
 *)
+
 TEST "semantics agree with flowtable" =
   let prop_compile_ok (p, pkt) =
     (* XXX(seliopou): Because flowtables are not pipe-aware, policies that set
@@ -400,7 +400,7 @@ TEST "semantics agree with flowtable" =
     let open Frenetic_NetKAT_Semantics in
     PacketSet.compare
       (Frenetic_NetKAT_Semantics.eval pkt (Frenetic_NetKAT_Optimize.specialize_policy pkt.switch p'))
-      (Frenetic_NetKAT_Flowterp.Packet.eval pkt
+      (Flowterp.Packet.eval pkt
         (Frenetic_NetKAT_Local_Compiler.(to_table pkt.switch (compile p'))))
     = 0 in
   check gen_pol_1 prop_compile_ok
@@ -524,47 +524,45 @@ TEST "quickcheck ka-seq-zero eval" =
   let prop_compile_ok (pol, pkt) =
     compare_eval_output drop (Seq(pol, drop)) pkt in
   check gen_pol_1 prop_compile_ok
-(* TODO: Fix these
+
 TEST "quickcheck ka-unroll-l compiler" =
   let prop_compile_ok (pol, pkt) =
     compare_compiler_output (Star pol) (Union(id, Seq(pol, Star pol))) pkt in
   check gen_pol_1 prop_compile_ok
-*)
+
 TEST "quickcheck ka-unroll-l eval" =
   let prop_compile_ok (pol, pkt) =
     compare_eval_output (Star pol) (Union(id, Seq(pol, Star pol))) pkt in
   check gen_pol_1 prop_compile_ok
-(*
+
 TEST "quickcheck ka-lfp-l compiler" =
   let prop_compile_ok (p, q, r, pkt) =
     not (compare_compiler_output (Union(Union(q, Seq (p, r)), r)) r pkt)
     ||  (compare_compiler_output (Union(Seq(Star p, q), r)) r pkt) in
   check gen_pol_3 prop_compile_ok
-*)
-(*
+
 TEST "quickcheck ka-lfp-l eval" =
   let prop_compile_ok (p, q, r, pkt) =
     not (compare_eval_output (Union(Union(q, Seq (p, r)), r)) r pkt)
     ||  (compare_eval_output (Union(Seq(Star p, q), r)) r pkt) in
   check gen_pol_3 prop_compile_ok
-*)
-(*
+
 TEST "quickcheck ka-unroll-r compiler" =
   let prop_compile_ok (pol, pkt) =
     compare_compiler_output (Star pol) (Union(id, Seq(Star pol, pol))) pkt in
   check gen_pol_1 prop_compile_ok
-*)
+
 TEST "quickcheck ka-unroll-r eval" =
   let prop_compile_ok (pol, pkt) =
     compare_eval_output (Star pol) (Union(id, Seq(Star pol, pol))) pkt in
   check gen_pol_1 prop_compile_ok
-(*
+
 TEST "quickcheck ka-lfp-r compiler" =
   let prop_compile_ok (p, q, r, pkt) =
     not (compare_compiler_output (Union(Union(p, Seq (q, r)), q)) q pkt)
     ||  (compare_compiler_output (Union(Seq(p, Star r), q)) q pkt) in
   check gen_pol_3 prop_compile_ok
-*)
+
 TEST "quickcheck ka-lfp-r eval" =
   let prop_compile_ok (p, q, r, pkt) =
     not (compare_eval_output (Union(Union(p, Seq (q, r)), q)) q pkt)

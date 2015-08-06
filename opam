@@ -15,8 +15,9 @@ remove: [
   ["ocamlfind" "remove" "openflow"]
 ]
 depends: [
-  "ocamlfind"
-  "core"
+  "ocamlfind" {build}
+  "oasis" {build}
+  "core" {= "112.24.0"}
   "async"
   "async_extended"
   "async_parallel"
@@ -32,7 +33,7 @@ depends: [
   "tcpip"
   "mparser"
   "ocamlgraph" {>= "1.8.6"}
-  "quickcheck" {test}
+  "quickcheck"
   "ounit" {test}
   "pa_ounit" {test}
 ]

@@ -13,7 +13,7 @@ def other_port(pt):
 class MyApp(frenetic.App):
 
   def packet_in(self, sw, pt, payload):
-    self.pkt_out(switch = sw,
+    self.pkt_out(switch_id = sw,
                  payload = payload,
                  actions = [Output(Physical(other_port(pt)))])
 

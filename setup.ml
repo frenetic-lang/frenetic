@@ -6952,7 +6952,8 @@ let setup_t =
                            FindlibPackage ("camlp4.lib", None);
                            FindlibPackage ("camlp4.extend", None);
                            FindlibPackage ("camlp4", None);
-                           FindlibPackage ("core", None);
+                           FindlibPackage
+                             ("core", Some (OASISVersion.VEqual "112.24.0"));
                            FindlibPackage ("cstruct", None);
                            FindlibPackage ("cstruct.syntax", None);
                            FindlibPackage ("fieldslib", None);
@@ -6971,7 +6972,7 @@ let setup_t =
                         [
                            ExternalTool "ocamlbuild";
                            ExternalTool "ocamldoc";
-                           ExternalTool "camlp4of"
+                           ExternalTool "camlp4"
                         ];
                       bs_c_sources = [];
                       bs_data_files = [];
@@ -7002,6 +7003,7 @@ let setup_t =
                            "Frenetic_OpenFlow";
                            "Frenetic_OpenFlow_Header";
                            "Frenetic_OpenFlow0x01";
+                           "Frenetic_OpenFlow0x04";
                            "Frenetic_Packet";
                            "Frenetic_Topology";
                            "Frenetic_Util";
@@ -7030,7 +7032,8 @@ let setup_t =
                            FindlibPackage ("async_parallel", None);
                            FindlibPackage ("cohttp", None);
                            FindlibPackage ("cohttp.async", None);
-                           FindlibPackage ("core", None);
+                           FindlibPackage
+                             ("core", Some (OASISVersion.VEqual "112.24.0"));
                            FindlibPackage ("cstruct", None);
                            FindlibPackage ("cstruct.async", None);
                            InternalLibrary "frenetic";
@@ -7044,7 +7047,7 @@ let setup_t =
                         [
                            ExternalTool "ocamlbuild";
                            ExternalTool "ocamldoc";
-                           ExternalTool "camlp4of"
+                           ExternalTool "camlp4"
                         ];
                       bs_c_sources = [];
                       bs_data_files = [];
@@ -7086,7 +7089,8 @@ let setup_t =
                       bs_build_depends =
                         [
                            FindlibPackage ("async", None);
-                           FindlibPackage ("core", None);
+                           FindlibPackage
+                             ("core", Some (OASISVersion.VEqual "112.24.0"));
                            InternalLibrary "frenetic";
                            InternalLibrary "async";
                            FindlibPackage ("cmdliner", None);
@@ -7096,7 +7100,7 @@ let setup_t =
                         [
                            ExternalTool "ocamlbuild";
                            ExternalTool "ocamldoc";
-                           ExternalTool "camlp4of"
+                           ExternalTool "camlp4"
                         ];
                       bs_c_sources = [];
                       bs_data_files = [];
@@ -7160,7 +7164,8 @@ let setup_t =
                            FindlibPackage ("str", None);
                            FindlibPackage ("cstruct", None);
                            FindlibPackage ("cstruct.syntax", None);
-                           FindlibPackage ("core", None);
+                           FindlibPackage
+                             ("core", Some (OASISVersion.VEqual "112.24.0"));
                            InternalLibrary "frenetic";
                            FindlibPackage ("sexplib.syntax", None);
                            FindlibPackage ("sexplib", None);
@@ -7170,7 +7175,7 @@ let setup_t =
                         [
                            ExternalTool "ocamlbuild";
                            ExternalTool "ocamldoc";
-                           ExternalTool "camlp4of"
+                           ExternalTool "camlp4"
                         ];
                       bs_c_sources = [];
                       bs_data_files = [];
@@ -7182,12 +7187,7 @@ let setup_t =
                       bs_nativeopt = [(OASISExpr.EBool true, [])]
                    },
                    {
-                      lib_modules =
-                        [
-                           "OpenFlow0x04";
-                           "OpenFlow0x04_Core";
-                           "GroupTable0x04"
-                        ];
+                      lib_modules = ["GroupTable0x04"];
                       lib_pack = false;
                       lib_internal_modules = [];
                       lib_findlib_parent = None;
@@ -7218,7 +7218,7 @@ let setup_t =
                         [
                            ExternalTool "ocamlbuild";
                            ExternalTool "ocamldoc";
-                           ExternalTool "camlp4of"
+                           ExternalTool "camlp4"
                         ];
                       bs_c_sources = [];
                       bs_data_files = [];
@@ -7230,11 +7230,20 @@ let setup_t =
                       bs_nativeopt = [(OASISExpr.EBool true, [])]
                    },
                    {
-                      lib_modules = [];
+                      lib_modules =
+                        [
+                           "Arbitrary_Base";
+                           "Arbitrary_Frenetic_NetKAT";
+                           "Arbitrary_Frenetic_OpenFlow";
+                           "Arbitrary_Frenetic_OpenFlow0x01";
+                           "Arbitrary_Frenetic_OpenFlow_Header";
+                           "Arbitrary_Frenetic_Packet";
+                           "Flowterp"
+                        ];
                       lib_pack = false;
                       lib_internal_modules = [];
-                      lib_findlib_parent = None;
-                      lib_findlib_name = None;
+                      lib_findlib_parent = Some "frenetic";
+                      lib_findlib_name = Some "test";
                       lib_findlib_containers = []
                    });
                Executable
@@ -7264,7 +7273,7 @@ let setup_t =
                         [
                            ExternalTool "ocamlbuild";
                            ExternalTool "ocamldoc";
-                           ExternalTool "camlp4of"
+                           ExternalTool "camlp4"
                         ];
                       bs_c_sources = [];
                       bs_data_files = [];
@@ -7309,7 +7318,7 @@ let setup_t =
                         [
                            ExternalTool "ocamlbuild";
                            ExternalTool "ocamldoc";
-                           ExternalTool "camlp4of";
+                           ExternalTool "camlp4";
                            InternalExecutable "testtool"
                         ]
                    });
@@ -7342,7 +7351,7 @@ let setup_t =
                         [
                            ExternalTool "ocamlbuild";
                            ExternalTool "ocamldoc";
-                           ExternalTool "camlp4of";
+                           ExternalTool "camlp4";
                            ExternalTool "ocamldoc"
                         ]
                    })

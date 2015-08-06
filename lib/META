@@ -9,6 +9,17 @@ archive(byte, plugin) = "frenetic.cma"
 archive(native) = "frenetic.cmxa"
 archive(native, plugin) = "frenetic.cmxs"
 exists_if = "frenetic.cma"
+package "test" (
+ version = "4.0.0"
+ description = "The Frenetic Compiler and Runtime System"
+ requires = "frenetic quickcheck"
+ archive(byte) = "test_frenetic.cma"
+ archive(byte, plugin) = "test_frenetic.cma"
+ archive(native) = "test_frenetic.cmxa"
+ archive(native, plugin) = "test_frenetic.cmxs"
+ exists_if = "test_frenetic.cma"
+)
+
 package "async" (
  version = "4.0.0"
  description = "The Frenetic Compiler and Runtime System"
