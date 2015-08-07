@@ -1,0 +1,17 @@
+(*ingress of physical topology*)
+(switch=1 and port=1) |
+(switch=1 and port=2) |
+(switch=2 and port=1) |
+(switch=2 and port=2) |
+(switch=3 and port=1) |
+(switch=3 and port=2) |
+(switch=4 and port=1) |
+(switch=4 and port=2) |
+(switch=5 and port=1) |
+(switch=5 and port=2) |
+(switch=6 and port=1) |
+(switch=6 and port=2) |
+(switch=7 and port=1) |
+(switch=7 and port=2) |
+(switch=8 and port=1) |
+(switch=8 and port=2)
