@@ -36,6 +36,7 @@ Library frenetic
   Modules:
     Frenetic_Bits,
     Frenetic_Fdd,
+    Frenetic_GroupTable0x04,
     Frenetic_Log,
     Frenetic_Network,
     Frenetic_NetKAT,
@@ -97,20 +98,6 @@ Executable frenetic
     frenetic.async,
     cmdliner,
     async_extended
-
-Library openflow
-  Path: openflow/lib
-  BuildDepends:
-    str,
-    cstruct,
-    cstruct.syntax,
-    core  (= 112.24.0),
-    frenetic,
-    sexplib.syntax,
-    sexplib,
-    threads
-  Modules:
-    GroupTable0x04
 
 # Will be reintroduced in summer 2015
 #Library syntax
