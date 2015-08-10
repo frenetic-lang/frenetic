@@ -36,6 +36,8 @@ let to_json_value (h : header_val) : json = match h with
   | EthDst n -> `String (macaddr_to_string n)
   | Location (Physical n) -> `Assoc [("type", `String "physical");
                                      ("port", `Int (Int32.to_int_exn n))]
+  (* TODO(grouptable) *)
+  | Location (FastFail n_lst) -> failwith "Not Yet Implemented"
   | Location (Pipe s) -> `Assoc [("type", `String "pipe");
                                  ("name", `String s)]
   | Location (Query s) -> `Assoc [("type", `String "query");

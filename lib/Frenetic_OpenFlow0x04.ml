@@ -3201,6 +3201,43 @@ module Action = struct
     | DecMplsTtl -> "Dec MPLS TTL"
     | SetQueue q -> Format.sprintf "Set Queue: %lu" q
     | Experimenter e -> Format.sprintf "Experimenter: %lu" e
+
+  (* Map generic single action to openflow 1.3 actions *)
+  let from_of_action (action : Frenetic_OpenFlow.action) : t =
+    let open Frenetic_OpenFlow in
+    match action with
+    | Frenetic_OpenFlow.Output pseudoport  -> 
+     (let port = match pseudoport with
+      | Physical port_id -> PhysicalPort port_id
+      | InPort           -> InPort
+      | Table            -> Table
+      | Normal           -> Normal
+      | Flood            -> Flood
+      | All              -> AllPorts
+      | Controller c     -> Controller c
+      | Local            -> Local
+      in Output port)
+    | Frenetic_OpenFlow.Modify fieldmod -> 
+     (let oxm = match fieldmod with
+      | SetEthSrc dlAddr     -> OxmEthSrc (val_to_mask dlAddr)
+      | SetEthDst dlAddr     -> OxmEthDst (val_to_mask dlAddr)
+      | SetVlan dlVlan       -> OxmVlanVId (val_to_mask (Option.value_exn dlVlan))
+      | SetVlanPcp dlVlanPcp -> OxmVlanPcp dlVlanPcp
+      | SetEthTyp dlTyp      -> OxmEthType dlTyp
+      | SetIPProto nwProto   -> OxmIPProto nwProto
+      | SetIP4Src nwAddr     -> OxmIP4Src (val_to_mask nwAddr)
+      | SetIP4Dst nwAddr     -> OxmIP4Dst (val_to_mask nwAddr)
+      | SetTCPSrcPort tpPort -> OxmTCPSrc tpPort
+      | SetTCPDstPort tpPort -> OxmTCPDst tpPort
+      in SetField oxm)
+    | Frenetic_OpenFlow.FastFail gid -> Group gid 
+        (* TODO(eli): throw exception with better error *)
+    | _ -> assert false (* don't need to support other actions yet *)
+
+  (* Map generic action sequence to openflow 1.3 instruction *)
+  let from_of_seq (seq : Frenetic_OpenFlow.seq) : sequence =
+    List.map seq ~f:from_of_action
+
 end
 
 module Bucket = struct

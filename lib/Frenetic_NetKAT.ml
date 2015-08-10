@@ -12,8 +12,11 @@ type payload = Frenetic_OpenFlow.payload with sexp
 
 (** {2 Policies} *)
 
+let string_of_fastfail = Frenetic_OpenFlow.format_list ~to_string:Int32.to_string
+
 type location =
   | Physical of int32
+  | FastFail of int32 list
   | Pipe of string
   | Query of string
   with sexp

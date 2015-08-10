@@ -212,6 +212,7 @@ let get_inport hvs =
 let to_action in_port r tests =
   List.fold tests ~init:r ~f:(fun a t -> Action.demod t a)
   |> Action.to_sdn ?in_port
+  |> fun (par, group_table) -> par
 
 let to_pattern hvs =
   List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_OpenFlow.Pattern.match_all

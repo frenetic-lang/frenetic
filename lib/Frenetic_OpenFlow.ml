@@ -249,10 +249,13 @@ type pseudoport =
   | Controller of int
   | Local
 
+type groupId = int32 with sexp
+
 type action =
   | Output of pseudoport
   | Enqueue of portId * queueId
   | Modify of modify
+  | FastFail of groupId
 
 type seq = action list
 
@@ -346,6 +349,11 @@ let format_pseudoport (fmt:Format.formatter) (p:pseudoport) : unit =
   | Controller(bytes) -> Format.fprintf fmt "Controller(%u)" bytes
   | Local -> Format.fprintf fmt "Local"
 
+let format_list (ls : 'a list) ~(to_string : 'a -> string) =
+  let open Core.Std in
+  let str_ls = List.map ~f:to_string ls |> List.intersperse ~sep:"," in
+  String.concat (["["] @ str_ls @ ["]"])
+
 let format_action (fmt:Format.formatter) (a:action) : unit =
   match a with
   | Output(p) ->
@@ -354,6 +362,9 @@ let format_action (fmt:Format.formatter) (a:action) : unit =
     Format.fprintf fmt "Enqueue(%ld,%ld)" m n
   | Modify(m) ->
     format_modify fmt m
+    (* TODO(grouptable) *)
+  | FastFail gid -> 
+    Format.fprintf fmt "FastFail(%ld)" gid
 
 let rec format_seq (fmt : Format.formatter) (seq : seq) : unit =
   match seq with
@@ -629,6 +640,8 @@ let from_action (inPort : OF10.portId option) (act : action) : OF10.action =
       SetTpSrc tp
     | Modify (SetTCPDstPort tp) ->
       SetTpDst tp
+      (* TODO(grouptable) *)
+    | FastFail _ -> failwith "Openflow 1.0 does not support fast failover."
         
 let from_seq (inPort : OF10.portId option) (seq : seq) : OF10.action list = 
   List.map seq ~f:(from_action inPort)

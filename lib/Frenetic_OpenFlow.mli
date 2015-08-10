@@ -129,11 +129,14 @@ type pseudoport =
   | Controller of int
   | Local
 
+type groupId = int32 with sexp
+
 type action =
   | Output of pseudoport
   | Enqueue of portId * queueId
   | Modify of modify
- 
+  | FastFail of groupId
+
 type seq = action list
 
 type par = seq list
@@ -208,6 +211,7 @@ type flowStats = {
 
 (* {1 Pretty-printing } *)
 
+val format_list : 'a list -> to_string:('a -> string) -> string
 val format_action : Format.formatter -> action -> unit
 val format_seq : Format.formatter -> seq -> unit
 val format_par : Format.formatter -> par -> unit

@@ -7,10 +7,11 @@ module Formatting = struct
      guides parenthesis insertion. *)
     
   type predicate_context = OR_L | OR_R | AND_L | AND_R | NEG | PAREN_PR
-      
+     
   let format_header_val (fmt : formatter) (hv : header_val) (asgn : string) : unit = match hv with
     | Switch(n) -> fprintf fmt "@[switch %s %Lu@]" asgn n
     | Location(Physical n) -> fprintf fmt "@[port %s %lu@]" asgn n
+    | Location(FastFail n_lst) -> fprintf fmt "@[fastFail ports %s %s@]" asgn (string_of_fastfail n_lst)
     | Location(Pipe x) -> fprintf fmt "@[port %s pipe(%s)@]" asgn x
     | Location(Query x) -> fprintf fmt "@[port %s query(%s)@]" asgn x
     | EthSrc(n) -> fprintf fmt "@[ethSrc %s %s@]" asgn (Frenetic_Packet.string_of_mac n)
