@@ -15,11 +15,11 @@ let compile_respond pol =
     let sws = Frenetic_NetKAT_Semantics.switches_of_policy pol in
     if List.length sws = 0 then [0L] else sws in
   List.map sws ~f:(fun sw ->
-    (sw, Frenetic_NetKAT_Local_Compiler.to_table ~opt:false sw fdd))) in
+    (sw, Frenetic_NetKAT_Local_Compiler.to_table' ~opt:false sw fdd))) in
   (* JSON conversion is not timed. *)
   let json_tbls = List.map tbls ~f:(fun (sw, tbl) ->
   `Assoc [("switch_id", `Int (Int64.to_int_exn sw));
-         ("tbl", Frenetic_NetKAT_SDN_Json.flowTable_to_json tbl)]) in
+         ("tbl", Frenetic_NetKAT_SDN_Json.flowTable'_to_json tbl)]) in
   let resp = Yojson.Basic.to_string ~std:true (`List json_tbls) in
   let headers = Cohttp.Header.init_with
   "X-Compile-Time" (Float.to_string time) in
@@ -49,8 +49,8 @@ let handle_request
     | `GET, [switchId; "flow_table"] ->
        let sw = Int64.of_string switchId in
        Frenetic_NetKAT_Local_Compiler.compile !policy |>
-         Frenetic_NetKAT_Local_Compiler.to_table sw |>
-         Frenetic_NetKAT_SDN_Json.flowTable_to_json |>
+         Frenetic_NetKAT_Local_Compiler.to_table' sw |>
+         Frenetic_NetKAT_SDN_Json.flowTable'_to_json |>
          Yojson.Basic.to_string ~std:true |>
          Cohttp_async.Server.respond_with_string
     | _, _ ->

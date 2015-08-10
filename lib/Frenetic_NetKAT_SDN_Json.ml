@@ -137,6 +137,19 @@ let flow_to_json (n : int) (f : flow) : json =
      ("hard_timeout", timeout_to_json f.hard_timeout)
    ]
 
+let flow'_to_json (n:int) ((f,qs) : flow * string list) : json = 
+  match flow_to_json n f with 
+    | `Assoc l -> 
+       let qs_json = List.map qs ~f:(fun x -> `String x) in 
+       `Assoc (("queries", `List qs_json) :: l)
+    | _ -> 
+       failwith "Malformed Json flow"
+    
+let flowTable'_to_json (tbl : (flow * string list) list) : json = 
+  let priorities = List.range ~stride:(-1) 65535 (65535 - List.length tbl) in
+  `List (List.map2_exn ~f:flow'_to_json priorities tbl)
+
 let flowTable_to_json (tbl : flowTable) : json =
   let priorities = List.range ~stride:(-1) 65535 (65535 - List.length tbl) in
   `List (List.map2_exn ~f:flow_to_json priorities tbl)
+
