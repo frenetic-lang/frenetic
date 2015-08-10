@@ -534,25 +534,33 @@ module NetKAT_Automaton = struct
     t.source <- source;
     t
 
-
   let dedup_global (automaton : t) : unit =
     let tbl = S.Table.create () ~size:10 in
     let untbl = Int.Table.create () ~size:10 in
     let unmerge k = Int.Table.find untbl k |> Option.value ~default:[k] in
     let merge ks =
+      let p s = 
+	"{" ^ S.fold s ~init:"" ~f:(fun acc x -> Printf.sprintf "%s%s%d" acc (if acc = "" then acc else ",") x) ^ "}" in 
       let () = assert (List.length ks > 1) in
       let ks = List.concat_map ks ~f:unmerge in
       let ks_set = S.of_list ks in
+      Printf.printf "Merge %s\n" (p ks_set);
       match S.Table.find tbl ks_set with
-      | Some k -> k
+      | Some k -> 
+	 Printf.printf "Found %d\n" k; 
+	 k
       | None ->
         let (es, ds) =
           List.map ks ~f:(T.find_exn automaton.states)
           |> List.unzip in
         let fdk = (FDK.big_union es, FDK.big_union ds) in
         let k = add_to_t automaton fdk in
+	Printf.printf "Adding %d <-> %s\n" k (p ks_set);
         S.Table.add_exn tbl ~key:ks_set ~data:k;
-        Int.Table.add_exn untbl ~key:k ~data:ks;
+	(try Int.Table.add_exn untbl ~key:k ~data:ks 
+	with e -> 
+	  Printf.printf "Oops %d\n" k;
+	  raise e);
         k
     in
     let dedup_action par =
