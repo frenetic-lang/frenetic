@@ -411,7 +411,7 @@ let fabric_atom_of_prod_edge ?(record_paths=None) path_oracle v1 v2 =
      assert (vv = vv');
      let path = path_oracle pv1 pv2 in
      let _ = Core.Std.Option.(record_paths >>| print_path path) in
-     let fabric = [match_vloc' vv; match_ploc' pv1; policy_of_path path; set_vloc' vv] in
+     let fabric = (vv, pv1, path, vv) in
      begin match l with
        | InconsistentOut _ -> `Out fabric
        | InconsistentIn _ -> `In fabric
@@ -432,7 +432,7 @@ let fabric_of_fabric_graph ?(record_paths=None) g ing path_oracle =
     fabric
   else
     failwith "global compiler: specification allows for no valid fabric"
-
+  
 let add_loop v g = 
   match G.Phys.V.label v with
     | OutPort (sw,pt) -> G.Phys.add_edge g v (G.Phys.V.create (InPort (sw,pt)))
@@ -497,95 +497,134 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
     match (get_path_and_distance dist_tbl pgraph (pv_of_v v1) (pv_of_v v2)) with
     | Some (p,d) -> Some d 
     | None -> assert false in 
+  
+  let expand_fabric_paths (fout,fin) =
+    let rec find_sub_paths (v,p,path,setv) =
+      match path with 
+      | ((OutPort (s1,p1), (InPort (s2,p2) as p')) as l) ::path' 
+      | ((InPort (s1,p1), (OutPort(s2,p2) as p')) as l)::path' ->
+        (v,p,l,setv)::(find_sub_paths (v,p',path',setv)) 
+      | [] -> [] 
+      | _ -> assert false in 
+    let exp lst = List.fold_left (fun acc (v,p,path,setv) -> (find_sub_paths (v,p,path,setv),p)::acc) [] lst in
+    (exp fout,exp fin) in 
 
-  (* Lists all links of virtual topology and records
-  primary physical paths and their backups.
-  @param g : fabric graph 
-  @param ing: ingress nodes *)
-  let phys_paths_of_vlinks g ing =
-    let pathlist = ref [] in
-    let linktbl = Tbl.create () in
+  let fault_tolerant_fabric pfabric pruned_graph= 
+    let (pfout,pfin) = expand_fabric_paths pfabric in 
+    let fabrics' = ref [] in 
 
-    let add_pair v v' = 
-      let v,(pv1,pv2) = match v, v' with 
-      | ConsistentIn (v1,p1), ConsistentOut (v2,p2) 
-      | ConsistentOut (v1,p1), ConsistentIn (v2,p2) -> (v1,v2),(p1,p2)
-      | _ -> assert false  in  
-      let sw1,sw2 = match pv1,pv2 with
-      | InPort(s1,p1), OutPort(s2,p2)
-      | InPort(s1,p1), InPort(s2,p2)
-      | OutPort(s1,p1), OutPort(s2,p2)
-      | OutPort(s1,p1), InPort(s2,p2) -> s1,s2 in
-      if (sw1 <> sw2 && ((List.mem (v,(pv1,pv2)) !pathlist) = false)) then 
-        pathlist:= (v,(pv1,pv2))::!pathlist
-      else () in
+    let get_cost get_path_dist v1 v2 = 
+      match get_path_dist (pv_of_v v1) (pv_of_v v2)with
+      | None -> None 
+      | Some(p,d) -> Some d in
 
-    let enumerate_vlinks g ing () = 
-      let vseen = ref [] in  
-      let rec pair v v' = 
-        match v,v' with 
-        | ConsistentIn _ , ConsistentOut _
-        | ConsistentOut _ , ConsistentIn _ ->
-          add_pair v v'; 
-	        if (List.mem v' !vseen ) then () else traverse v' 
-        | _ -> ()
-      and traverse v = 
-        vseen := v::(!vseen);
-        match v with 
-        | ConsistentIn _ | ConsistentOut _ ->
-          G.Prod.iter_succ (fun v' -> G.Prod.iter_succ (pair v) g v') g v
-        | InconsistentIn _ | InconsistentOut _ -> () in 
-      List.iter traverse ing  in
+    let get_path get_path_dist pv1 pv2 = 
+      match get_path_dist pv1 pv2 with 
+      | None -> assert false 
+      | Some(p,d) -> p in 
 
-    let find_all_plinks () =
-      let aux (v,(pv1,pv2)) = 
-        let add_links link =
-          match link with 
-          | (OutPort(s1,p1), InPort(s2,p2)) when s1<>s2 -> begin
-            match Tbl.find linktbl link with
-            | Some x -> () 
-            | None -> begin 
-              let rev = (OutPort(s2,p2), InPort(s1,p1)) in
-              match Tbl.find linktbl rev with
-              | Some x -> ()
-              | None -> begin
-                  let g = G.Phys.remove_edge pgraph2 (fst link) (snd link)  in 
-                  let g = G.Phys.remove_edge g (fst rev) (snd rev) in
-                  Tbl.add_exn linktbl ~key:link ~data:g
-                end
-              end 
-            end 
-          | _ -> () in
-        List.iter add_links (path_oracle pv1 pv2) in
-      List.iter aux !pathlist in 
+    let get_pv2 v pv1 cost = 
+      let prodv = match v,pv1 with 
+      | OutPort(s1,p1), InPort(s2,p2) -> InconsistentOut (v,pv1) 
+      | InPort(s1,p1), OutPort(s2,p2) -> InconsistentIn (v,pv1)
+      | _ -> assert false (*can't be consistent already*) in
+      let sucs = G.Prod.succ (Lazy.force pruned_graph) prodv in
+      begin match minimize sucs (fun v' -> cost prodv v') with
+        | None -> assert false (*no alernate path*)
+        | Some (selection, _) -> begin
+          match selection with 
+          | ConsistentIn (v2,pv2) 
+          | ConsistentOut (v2,pv2) -> pv2 
+          | _ -> assert false 
+        end
+      end in
 
-    let _ = enumerate_vlinks g ing () in
-    let _ = find_all_plinks () in
-    linktbl in
-    
-  let get_fabric_set pruned_graph ptbl =
-    let make_fabric ~key:link ~data:g acc =  
-      let dist_tbl' = Tbl.create () in
-      let get_path_dist = get_path_and_distance dist_tbl' g in 
-      let cost' v1 v2 = 
-        match get_path_dist (pv_of_v v1) (pv_of_v v2) with
-        | None -> None 
-        | Some(p,d) -> Some d in 
-      let path pv1 pv2 = 
-        match get_path_dist pv1 pv2 with 
-        | None -> assert false 
-        | Some(p,d) -> p in 
-      let fgraph = lazy (fabric_graph_of_pruned (Lazy.force pruned_graph) prod_ing cost') in 
-      (lazy (fabric_of_fabric_graph (Lazy.force fgraph) prod_ing path))::acc in
-    Tbl.fold ptbl ~f:make_fabric ~init:[] in
+    let get_alt_path v pv1 g relp= 
+      let dist_tbl' = Tbl.create () in 
+      let get_pd = get_path_and_distance dist_tbl' g in 
+      let cost' = get_cost get_pd in
+      let path' = get_path get_pd in 
+      let afabric = lazy (fabric_graph_of_pruned (Lazy.force pruned_graph) prod_ing cost') in
+      fabrics':= (fabric_of_fabric_graph (Lazy.force afabric) prod_ing path')::(!fabrics');
+      path' pv1 (get_pv2 v relp cost') in 
+
+    let find_tolerant_paths relp (v,p,link,setv) = 
+      match link with 
+      | (OutPort (s1,p1), InPort (s2,p2)) -> 
+        if s1 = s2 then (v,p,link,setv,[]) else 
+        begin
+          let rev = (OutPort(s2,p2), InPort(s1,p1)) in 
+          let g = G.Phys.remove_edge pgraph2 (fst link) (snd link) in 
+          let g = G.Phys.remove_edge g (fst rev) (snd rev) in
+          let path' = get_alt_path v p g relp in 
+          (v,p,link,setv,path') 
+        end
+      | (InPort (s1,p1), OutPort (s2,p2)) -> 
+        (v,p,link,setv,[])
+      | _ -> assert false (*no other type of link*) in
+
+    let alt_f (lst,p) = List.map (find_tolerant_paths p) lst in 
+    let alt_lst = List.fold_left (fun acc f -> (alt_f f)::acc) [] in 
+    ((alt_lst pfout, alt_lst pfin),!fabrics') in 
+
+  let policy_of_ft_fabric (fout,fin) =  
+    let get_path (v,p,link,sv,path) = (link,path) in 
+    let compile_path lst = List.fold_left (fun acc x -> (get_path x)::acc) [] (List.rev lst) in 
+    let rec policy_of_pathlst lst num = 
+      match lst with
+      | (link,path)::[] -> begin 
+        match path with 
+        | [] -> policy_of_path [link]
+        | _ -> ( let p1 = mk_seq (Filter (Test(VFabric(num)))) (policy_of_path [link]) in
+          let p2 = mk_seq (Filter (mk_not (Test(VFabric(num))))) (policy_of_path path) in
+          mk_union p1 p2)
+        end
+      | (link,path)::path' -> begin
+        match path with
+        | [] -> mk_seq (policy_of_path [link]) (policy_of_pathlst path' (Int64.add 1L num))
+        | _ -> (
+            let p1 = Filter (Test(VFabric(num)))  in
+            let p2 = mk_seq (Filter (mk_not (Test(VFabric(num))))) (policy_of_path path) in
+            mk_union (mk_seq p1 (mk_seq (policy_of_path [link]) (policy_of_pathlst path' (Int64.add 1L num)))) p2)
+        end 
+      | _ -> policy_of_path [] in 
+    let to_pol f = 
+      let pathpol = compile_path f in
+      let pathpol =  policy_of_pathlst pathpol 0L in 
+      let (v,p,link,sv,path) = try List.hd f with _ -> assert false in 
+      mk_big_seq [match_vloc' v; match_ploc' p; pathpol; set_vloc' sv] in
+    let func f = mk_big_union (List.fold_left (fun acc x-> (to_pol x)::acc) [] f) in 
+    (func fout,func fin) in 
+
+  let policy_of_merged (fout,fin) = 
+    let to_pol (v,p,path,sv) = mk_big_seq [match_vloc' v; match_ploc' p; policy_of_path path; set_vloc' sv] in 
+    let func f = mk_big_union (List.fold_left (fun acc x -> (to_pol x)::acc) [] f) in 
+    (func fout,func fin) in 
+
+  (*let print_fabric fab = 
+    let (fout,fin) = policy_of_merged fab in 
+    Printf.printf "fout: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fout);
+    Printf.printf "fin: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fin) in *)
+
+  let merged_fabric pruned_graph fabric = 
+    let (ft_fabric,fset) = fault_tolerant_fabric (Lazy.force fabric) pruned_graph in 
+    let (pfout,pfin) = Lazy.force fabric in
+    let is_match (v1,p1,path1,sv1) (v2,p2,path2,sv2) =
+      if (v1=v2 && p1=p2) then true else false in 
+    let is_new pf acc f1 = if (List.exists (is_match f1) (pf@acc)) then acc else f1::acc in
+    let find_new pf acc f' = List.fold_left (is_new pf) acc f' in
+    let mfab = List.fold_left (fun (dfout,dfin) (fout,fin) -> (find_new pfout dfout fout, find_new pfin dfin fin)) ([],[]) fset in
+    let (ftfout,ftfin) =  policy_of_ft_fabric ft_fabric in 
+    let (mfout, mfin) = policy_of_merged mfab in 
+    ((mk_union ftfout mfout), (mk_union ftfin mfin)) in
 
   let pruned_graph = lazy (prune_product_graph prod_graph) in
   let fabric_graph = lazy (fabric_graph_of_pruned (Lazy.force pruned_graph) prod_ing cost) in
   let fabric = lazy (fabric_of_fabric_graph ~record_paths (Lazy.force fabric_graph) prod_ing path_oracle) in
-  let fabric_ing = List.filter (fun x -> G.Prod.mem_vertex (Lazy.force fabric_graph) x) prod_ing in
-  let pt = phys_paths_of_vlinks (Lazy.force fabric_graph) fabric_ing in
-  let fabric_set = get_fabric_set pruned_graph pt in
-  let fset = fabric::fabric_set in 
+  let (fout,fin) = policy_of_merged (Lazy.force fabric) in 
+  Printf.printf "fout: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fout);
+  Printf.printf "fin: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fin);  
+  let mfabric = merged_fabric pruned_graph fabric in
   let vg_file = "vg.dot" in
   let pg_file = "pg.dot" in
   let g_raw_file = "g_raw.dot" in
@@ -619,7 +658,7 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
       G.Prod.Dot.output_graph g_fabric_ch (Lazy.force fabric_graph);
       close_out g_fabric_ch)
     else ();
-    List.fold_left (fun acc fab -> (Lazy.force fab)::acc) [] fset
+    mfabric
   end
 
 
@@ -675,51 +714,16 @@ let rec encode_vlinks (vtopo : policy) =
       (mk_seq (Mod (VSwitch vsw2)) (Mod (VPort vpt2)))
   | _ -> vtopo
 
-let merge_f pfin (mfin,id) fin= 
-  let is_conflict f1 f2 = 
-    match f1,f2 with 
-    | vv::pv::path::svv, vv'::pv'::path'::svv' -> 
-      if (vv = vv' && pv = pv' && (path <> path') && svv=svv') 
-        then true else false
-    | _ -> assert false in 
-  let combine mfin f1 = 
-    if List.mem f1 mfin then mfin else begin
-      try 
-        let conf = List.find (is_conflict f1) mfin in
-        try
-          let _ = List.find (is_conflict f1) pfin in 
-          match conf,f1 with
-          | vv::pv::path::svv::_, vv'::pv'::path'::_ -> 
-            let p1 = mk_seq (Filter(Test(VFabric(id)))) path in 
-            let p2 = mk_seq (Filter(mk_not (Test(VFabric(id))) )) path' in  
-            let merged = mk_union p1 p2 in 
-            [vv;pv;merged;svv]::(List.filter (fun x -> x<>conf) mfin) 
-          | _ -> assert false 
-        with _ -> mfin
-      with _ -> 
-        f1::mfin 
-    end in 
-  List.fold_left combine mfin fin 
-
 let compile ?(log=true) ?(record_paths=None) (vpolicy : policy) (vrel : pred)
   (vtopo : policy) (ving_pol : policy) (ving : pred) (veg : pred)
   (ptopo : policy)                     (ping : pred) (peg : pred) = 
-  let fset = generate_fabrics ~log ~record_paths vrel vtopo ving veg ptopo ping peg in
-  let (pfabric, fset') = match (List.rev fset) with 
-    | hd::tl -> (hd,List.rev tl)
-    | [] -> assert false in 
+  let (fout,fin) = generate_fabrics ~log ~record_paths vrel vtopo ving veg ptopo ping peg in
   let ing = mk_big_seq [Filter ping; ving_pol; Filter ving] in
   let eg = Filter (mk_and veg peg) in
-  let seq lst = List.fold_left (fun acc f -> (mk_big_seq f)::acc) [] lst |> mk_big_union in
-  let pfin = snd pfabric in 
-  let pfout = fst pfabric in 
-  let func (acc,id) (fout,fin) = ((merge_f pfout (fst acc,id) fout,merge_f pfin (snd acc,id) fin), Int64.add id 1L) in
-  let (mfout',mfin') = fst (List.fold_left func (pfabric,0L) fset') in
-  let (mfout,mfin) = (seq mfout', seq mfin') in
-  let p = mk_seq vpolicy mfout in 
-  let t = mk_seq (encode_vlinks vtopo) mfin in 
-  Printf.printf "mfout: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy mfout);
-  Printf.printf "mfin: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy mfin);
+  let p = mk_seq vpolicy fout in 
+  let t = mk_seq (encode_vlinks vtopo) fin in 
+  Printf.printf "mfout: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fout);
+  Printf.printf "mfin: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy fin);
   let pol = mk_big_seq [ing; mk_star (mk_seq p t); p; eg] in 
   pol
 
