@@ -1,4 +1,5 @@
 open Frenetic_OpenFlow0x04
+open Frenetic_Packet
 
 type t = {
 	table : (groupId, (groupType * bucket list)) Hashtbl.t;
