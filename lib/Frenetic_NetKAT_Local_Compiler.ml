@@ -209,9 +209,9 @@ let get_inport hvs =
   in
   List.fold_left hvs ~init:None ~f:get_inport'
 
-let to_action in_port r tests =
+let to_action (in_port : Int64.t option) r tests =
   List.fold tests ~init:r ~f:(fun a t -> Action.demod t a)
-  |> Action.to_sdn ?in_port
+  |> Action.to_sdn in_port
   |> fun (par, group_table) -> par
 
 let to_pattern hvs =
