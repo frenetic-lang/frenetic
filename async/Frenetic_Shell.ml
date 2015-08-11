@@ -325,14 +325,11 @@ let rec repl () : unit Deferred.t =
 
 let log_file = "frenetic.log"
 
-(* TODO: I'm pretty much discarding http_port and openflow_port
-   to match the type signature to get this to compile.
- *)
-let main (http_port : int) (openflow_port : int) () : unit =
+let main (openflow_port : int) () : unit =
   Log.set_output [Async.Std.Log.Output.file `Text log_file];
   printf "Frenetic Shell v 0.0\n%!";
   printf "Type `help` for a list of commands\n%!";
-  Controller.start ();
+  Controller.start openflow_port "openflow.native" "openflow.log";
   let _ = repl () in
   ()
 

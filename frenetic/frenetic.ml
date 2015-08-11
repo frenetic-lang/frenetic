@@ -1,74 +1,89 @@
 open Core.Std
-open Cmdliner
 
-let http_port : int Term.t =
-  let open Arg in
-  let doc = "The HTTP port on which to listen for new policies" in
-  value & opt int 9000 & info ["http-port"] ~docv:"PORT" ~doc
+let run_types : [`Http_Server | `Compile_Server | `Shell] Command.Spec.Arg_type.t = 
+  Command.Spec.Arg_type.create
+    (fun run_type_arg ->
+      match run_type_arg with 
+      | "http-server" -> `Http_Server
+      | "compile-server" -> `Compile_Server
+      | "shell" -> `Shell
+      | _ -> 
+        eprintf "'%s' is not a legal frenetic command\n" run_type_arg;
+        exit 1
+    )
 
-let openflow_port : int Term.t =
-  let open Arg in
-  let doc = "The OpenFlow port to switch switches connect" in
-  value & opt int 6633 & info ["openflow-port"] ~docv:"PORT" ~doc
+let verbosity_levels : Async.Std.Log.Level.t Command.Spec.Arg_type.t = 
+  Command.Spec.Arg_type.create
+    (function
+      | "info" -> `Info
+      | "debug" -> `Debug
+      | "error" -> `Error
+      | verbosity_level -> 
+        eprintf "'%s' is not a legal verbosity level.  Choose info, debug or error\n" verbosity_level;
+        exit 1)
 
-let verbosity : [ `Debug | `Error | `Info ] Term.t =
-  let open Arg in
-  let level = enum [("info", `Info); ("debug", `Debug); ("error", `Error)] in
-  let doc = "Set logging verbosity" in
-  value & opt level `Info & info ["verbosity"] ~docv:"LEVEL" ~doc
+let default_actions : [`Drop | `Controller | `Nop] Command.Spec.Arg_type.t = 
+  Command.Spec.Arg_type.create
+    (fun run_type_arg ->
+      match run_type_arg with 
+      | "drop" -> `Drop
+      | "controller" -> `Controller
+      | "nop" -> `Nop
+      | _ -> 
+        eprintf "'%s' is not a legal default action.  Choose drop, controller or nop\n" run_type_arg;
+        exit 1
+    )
 
-let log_output : (string * Async.Std.Log.Output.t Lazy.t) Term.t =
-  let open Async.Std in
-  let open Async_extended in
-  let open Arg in
-  let stderr_output = ("stderr", lazy (Extended_log.Console.output (Lazy.force Writer.stderr))) in
-  let a_parser (str : string) = match str with
-    | "stderr" -> `Ok stderr_output
-    | "stdout" -> `Ok ("stdout", lazy (Extended_log.Console.output (Lazy.force Writer.stdout)))
-    | filename -> `Ok (filename, lazy (Log.Output.file `Text filename)) in
-  let a_printer fmt (str, _) = Format.pp_print_string fmt str in
-  value (opt (a_parser, a_printer) stderr_output (info ["log"]))
+let default_log_device = 
+  ("stderr", lazy (Async_extended.Extended_log.Console.output (Lazy.force Async.Std.Writer.stderr)))
 
-(* Starts the async scheduler and sets up the async logger. *)
-let async_init (cmd : (unit -> unit) Term.t) : unit Term.t =
-  let open Async.Std in
-  let open Term in
-  let cmd' (verbosity : [ `Debug | `Error | `Info ])
-           ((_, log_output) : (string * Log.Output.t Lazy.t))
-           (f : unit -> unit) : unit =
-    let main () =
-      Frenetic_Log.set_level verbosity;
-      Frenetic_Log.set_output [Lazy.force log_output];
-      f () in
-    never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ()) in
-  app (app (app (pure cmd') verbosity) log_output) cmd
+let log_outputs : (string * Async.Std.Log.Output.t Lazy.t) Command.Spec.Arg_type.t =
+  Command.Spec.Arg_type.create
+    (function
+      | "stderr" -> default_log_device
+      | "stdout" -> ("stdout", lazy (Async_extended.Extended_log.Console.output (Lazy.force Async.Std.Writer.stdout)))
+      | filename -> (filename, lazy (Async.Std.Log.Output.file `Text filename)) )
 
-let compile_server : unit Term.t * Term.info =
-  let open Term in
-  let doc = "Run the compile server" in
-  (async_init (app (pure Frenetic_Compile_Server.main) http_port),
-   info "compile-server" ~doc)
+let spec = 
+  let open Command.Spec in 
+  empty
+  +> flag "--http-port" (optional_with_default 9000 int) ~doc:"int HTTP port on which to listen for new policies"
+  +> flag "--openflow-port" (optional_with_default 6633 int) ~doc:"int Port to listen on for OpenFlow switches"
+  +> flag "--rpc-port" (optional_with_default 8984 int) ~doc:"int TCP port to serve on for communicating with higher-level controller"
+  +> flag "--openflow-log" (optional_with_default "./openflow.log" file) ~doc:"string log path"
+  +> flag "--openflow-executable" (optional_with_default "./openflow.native" file) ~doc:"file path to openflow executable"
+  +> flag "--verbosity" (optional_with_default `Info verbosity_levels) ~doc:"level verbosity level = {debug, error, info}"
+  +> flag "--log" (optional_with_default default_log_device log_outputs) ~doc: "file path to write logs, 'stdout' or 'stderr'"
+  +> flag "--default-action" (optional_with_default `Drop default_actions) ~doc: "action default action for policy misses = {drop, controller, nop}"
+  +> anon ("[flags] {http_server | compile_server | shell}" %: run_types) 
 
-let http_controller : unit Term.t * Term.info =
-  let open Term in
-  let doc = "Run the HTTP controller" in
-  (async_init (app (app (pure Frenetic_Http_Controller.main) http_port) openflow_port),
-   info "http-controller" ~doc)
-
-let shell : unit Term.t * Term.info =
-  let open Term in
-  let doc = "Run the Frenetic Shell" in
-  (async_init (app (app (pure Frenetic_Shell.main) http_port) openflow_port),
-   info "shell" ~doc)
-
-(* Add new commands here. *)
-let top_level_commands = [
-  compile_server;
-  http_controller;
-  shell
-]
+let command =
+  Command.basic
+    ~summary: "Frenetic NetKAT-to-OpenFlow compiler"
+    spec
+    (fun http_port openflow_port rpc_port openflow_log openflow_executable verbosity log default_action run_type () -> 
+      let (log_path, log_output) = log in
+      let main = 
+        match run_type with 
+        | `Shell -> 
+          fun () ->
+            Frenetic_Log.set_level verbosity;
+            Frenetic_Log.set_output [Lazy.force log_output];
+            Frenetic_Shell.main openflow_port ()
+        | `Compile_Server -> 
+          fun () -> 
+            Frenetic_Log.set_level verbosity;
+            Frenetic_Log.set_output [Lazy.force log_output];
+            Frenetic_Compile_Server.main http_port ()
+        | `Http_Server -> 
+          fun () -> 
+            Frenetic_Log.set_level verbosity;
+            Frenetic_Log.set_output [Lazy.force log_output];
+            Frenetic_Http_Controller.main http_port openflow_port openflow_executable openflow_log () 
+      in
+      ignore (main ());
+      Core.Std.never_returns (Async.Std.Scheduler.go ())
+    )
 
 let () =
-  match Term.eval_choice compile_server top_level_commands with
-  | `Error _ -> exit 1
-  | _ -> exit 0
+  Command.run ~version: "4.0" ~build_info: "RWO" command

@@ -1,7 +1,6 @@
 open Core.Std
 open Async.Std
 open Frenetic_OpenFlow0x01
-open Async_parallel
 module Log = Frenetic_Log
 
 type event = [
@@ -18,12 +17,6 @@ let server_sock_addr = Ivar.create ()
 let server_reader = Ivar.create ()
 let server_writer = Ivar.create ()
 
-let channel_transfer chan writer =
-  Deferred.forever () (fun _ -> Log.info "About to read for transfer!";
-                        Channel.read chan >>= fun elm ->
-                        Log.info "Transferring!";
-                        Pipe.write writer elm)
-
 let read_outstanding = ref false
 let read_finished = Condition.create ()
 
@@ -34,22 +27,28 @@ let rec clear_to_read () = if (!read_outstanding)
 let signal_read () = read_outstanding := false; 
   Condition.broadcast read_finished ()
 
-let init port =
+let pidfile = "/var/run/frenetic/openflow0x01.pid" 
+
+let cleanup () =
+  Sys.file_exists pidfile 
+  >>= function
+  | `Yes  -> 
+     let pid = In_channel.read_all pidfile in
+     Signal.send_i Signal.term (`Pid (Pid.of_string pid)) ;
+     Unix.unlink pidfile
+  | _ ->  Deferred.unit (* ignore - this means openflow.ml exited normally *)
+
+let init port openflow_executable openflow_log =
   Log.info "Calling create!";
   let sock_port = 8984 in
   let sock_addr = `Inet (Unix.Inet_addr.localhost, sock_port) in
-  let prog = "openflow" in
+  let prog = openflow_executable in
   let args = ["-s"; string_of_int sock_port;
               "-p"; string_of_int port;
-              "-v"]
-             (* @ (match Log.level () with *)
-             (*     | `Debug -> ["-v"] *)
-  (*     | _ -> []) *) in
+              "-v"] in
   don't_wait_for (
-    let home = Unix.getenv_exn "HOME" in
-    let prog = String.concat [home; "/.opam/system/bin/"; prog] in
     Log.info "Current uid: %n" (Unix.getuid ());
-    Log.info "Current HOME: %s" home;
+    cleanup () >>= fun() ->  
     Log.flushed () >>= fun () ->
     Sys.file_exists prog >>= function
     | `No

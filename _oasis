@@ -63,7 +63,7 @@ Library async
   Path: async
   BuildDepends:
     async,
-    #async_parallel,
+#async_parallel,
     cohttp,
     cohttp.async,
     core (= 112.24.0),
@@ -96,7 +96,6 @@ Executable frenetic
     core  (= 112.24.0),
     frenetic,
     frenetic.async,
-    cmdliner,
     async_extended
 
 Executable openflow
@@ -109,7 +108,6 @@ Executable openflow
     core,
     frenetic,
     frenetic.async,
-    cmdliner,
     async_extended
 
 Library openflow

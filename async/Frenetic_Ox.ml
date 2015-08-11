@@ -116,7 +116,7 @@ module Make (Handlers:OXMODULE) = struct
     (* intentionally on stdout *)
     Format.printf "Ox controller launching...\n%!";
     INRIASys.catch_break true;
-    Controller.init 6633; 
+    Controller.init 6633 "./openflow.native" "./openflow.log" ; 
     Deferred.don't_wait_for
       (Monitor.try_with ~name:"controller" (fun () ->
         Deferred.both 

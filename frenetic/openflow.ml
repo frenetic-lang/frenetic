@@ -1,7 +1,6 @@
 open Core.Std
 open Async.Std
 open Frenetic_OpenFlow0x01
-open Async_parallel
 module Log = Frenetic_Log
 
 type event = [
@@ -113,7 +112,6 @@ let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit De
 
     (* Connected *)
     | Connected threadState, `Eof ->
-      (* TODO(jnf): log disconnection *)
       Hashtbl.Poly.remove switches threadState.switchId;
       Log.debug "Switch %s disconnected" (string_of_switchId threadState.switchId);
       Pipe.write_without_pushback events_writer (`Disconnect threadState.switchId);
@@ -209,22 +207,17 @@ let run_server port rpc_port =
 let spec =
   let open Command.Spec in
   empty
-  +> flag "-p" (optional int) ~doc:"int Port to listen on for OpenFlow switches"
-  +> flag "-s" (optional int) ~doc:"file TCP port to serve on for communicating with higher-level controller"
+  +> flag "-p" (optional_with_default 6633 int) ~doc:"int Port to listen on for OpenFlow switches"
+  +> flag "-s" (optional_with_default 8984 int) ~doc:"file TCP port to serve on for communicating with higher-level controller"
+  +> flag "-l" (optional_with_default "./openflow.log" file) ~doc:"string log path"
   +> flag "-v" no_arg ~doc:" enable verbose logging (`Debug level)"
 
 let run =
   Command.basic
     ~summary:"Run OpenFlow0x01 controller"
     spec
-    (fun port sock_port verbose () ->
-       Log.set_output [(Async.Std.Log.Output.file `Text "/var/log/frenetic/openflow.log")];
-       let port = match port with
-         | Some port -> port
-         | None -> 6634 in
-       let rpc_port = match sock_port with
-         | Some sock_port -> sock_port
-         | None -> 8984 in
+    (fun port rpc_port log_file verbose () ->
+       Log.set_output [(Async.Std.Log.Output.file `Text log_file)];
        let log_level = match verbose with
          | true -> Log.info "Setting log_level to Debug";
            `Debug
@@ -237,11 +230,11 @@ let run =
                        Log.info "Received signal %s" (to_string t);
                        shutdown 0));
          Monitor.try_with (fun () ->
-             Unix.(openfile ~close_on_exec:true "/var/run/frenetic/openflow0x01.pid" ~mode:[`Creat; `Trunc; `Wronly])
+             Unix.(openfile ~close_on_exec:true Frenetic_OpenFlow0x01_Controller.pidfile ~mode:[`Creat; `Trunc; `Wronly])
              >>= fun fd -> let writer = Writer.create fd in
              Writer.write writer Pid.(to_string (Unix.getpid ()));
              Writer.close writer) >>= (function
-         | Error exn -> Log.error "Failed to create pid file /var/run/frenetic/openflow0x01.pid: %s" (Exn.to_string exn);
+         | Error exn -> Log.error "Failed to create pid file %s: %s" Frenetic_OpenFlow0x01_Controller.pidfile (Exn.to_string exn);
            return ()
          | Ok () -> return ()) >>= fun () ->
          Monitor.try_with (fun () -> run_server port rpc_port)
@@ -251,10 +244,6 @@ let run =
          | Ok () -> ());
                                                
        in
-       (* TODO: 
-          (1) register our pid in /var/run/frenetic 
-          (2) kill /var/run/frenetic/openflow0x01.socket when we die
-       *)
        ignore (main ());
        Core.Std.never_returns (Async.Std.Scheduler.go ()))
 

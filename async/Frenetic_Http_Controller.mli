@@ -1,1 +1,1 @@
-val main : int -> int -> unit -> unit
+val main : int -> int -> string -> string -> unit -> unit

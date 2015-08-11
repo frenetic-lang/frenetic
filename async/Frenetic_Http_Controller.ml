@@ -124,7 +124,7 @@ let handle_request
 let print_error addr exn =
   Log.error "%s" (Exn.to_string exn)
 
-let listen ~http_port ~openflow_port =
+let listen ~http_port ~openflow_port ~openflow_executable ~openflow_log =
   let module Controller = Frenetic_NetKAT_Controller.Make in
   let on_handler_error = `Call print_error in
   let _ = Cohttp_async.Server.create
@@ -133,10 +133,11 @@ let listen ~http_port ~openflow_port =
     (handle_request (module Controller)) in
   let (_, pol_reader) = Frenetic_DynGraph.to_pipe pol in
   let _ = Pipe.iter pol_reader ~f:(fun pol -> Controller.update_policy pol) in
-  Controller.start ();
+  Controller.start openflow_port openflow_executable openflow_log;
   don't_wait_for(propogate_events Controller.event);
   Deferred.return ()
 
 
-let main (http_port : int) (openflow_port : int) () : unit =
-  don't_wait_for(listen ~http_port ~openflow_port)
+let main (http_port : int) (openflow_port : int) 
+  (openflow_executable: string) (openflow_log: string) () : unit =
+  don't_wait_for(listen ~http_port ~openflow_port ~openflow_executable ~openflow_log)
