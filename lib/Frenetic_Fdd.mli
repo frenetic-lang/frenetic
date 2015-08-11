@@ -77,7 +77,7 @@ module Action : sig
   val negate : t -> t
   val to_policy : t -> Frenetic_NetKAT.policy
   val demod : Pattern.t -> t -> t
-  val to_sdn : Int64.t option -> t -> Frenetic_OpenFlow.par * Frenetic_GroupTable0x04.t
+  val to_sdn : Int64.t option ->  Frenetic_GroupTable0x04.t option -> t -> Frenetic_OpenFlow.par
   val get_queries : t -> string list
   val pipes : t -> Frenetic_Util.StringSet.t
   val queries : t -> string list

@@ -209,10 +209,17 @@ let get_inport hvs =
   in
   List.fold_left hvs ~init:None ~f:get_inport'
 
-let to_action (in_port : Int64.t option) r tests =
+(* TODO(grouptable): fix this mess. I made to_action_multitable because it's
+ * used in the multitable compiler. to_action does not use group tables and is
+ * for the normal compiler. *)
+
+(* Frenetic_OpenFlow.group is an action group, equivalent in type to 
+ * 'action list list list', while Frenetic_GroupTable0x04.t contains
+ * groupmod messages to create a group table *)
+let to_action (in_port : Int64.t option) r
+  ?(group_tbl : Frenetic_GroupTable0x04.t option) tests : Frenetic_OpenFlow.par =
   List.fold tests ~init:r ~f:(fun a t -> Action.demod t a)
-  |> Action.to_sdn in_port
-  |> fun (par, group_table) -> par
+  |> Action.to_sdn in_port group_tbl
 
 let to_pattern hvs =
   List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_OpenFlow.Pattern.match_all
@@ -762,13 +769,14 @@ let mk_multitable_flow (pattern : Frenetic_OpenFlow.Pattern.t)
     None
 
 (* Create flow table rows for one subtree *)
-let subtree_to_table (subtrees : flow_subtrees) (t : t) : multitable_flow list =
+let subtree_to_table (subtrees : flow_subtrees) (t : t) 
+  (group_tbl : Frenetic_GroupTable0x04.t) : multitable_flow list =
   let rec dfs (tests : (Field.t * Value.t) list) (subtrees : flow_subtrees) 
   (t : t) (flowId : flowId) : multitable_flow option list = 
     match FDK.unget t with
     | Leaf actions ->
-      let instruction = [to_action (get_inport tests) actions tests] in
-      [mk_multitable_flow (to_pattern tests) (`Action instruction) flowId]
+        let insts = [to_action (get_inport tests) actions tests ~group_tbl] in
+      [mk_multitable_flow (to_pattern tests) (`Action insts) flowId]
     | Branch ((Location, Pipe _), _, fls) -> 
       assert false (* not supported *)
     | Branch (test, tru, fls) ->
@@ -788,15 +796,17 @@ let subtree_to_table (subtrees : flow_subtrees) (t : t) : multitable_flow list =
   | None -> assert false (* only make a table if t is in the Map *)
 
 (* Collect the flow table rows for each subtree in one list. *)
-let subtrees_to_multitable (subtrees : flow_subtrees) : multitable_flow list =
+let subtrees_to_multitable (subtrees : flow_subtrees) : (multitable_flow list * Frenetic_GroupTable0x04.t) =
+  let group_table = (Frenetic_GroupTable0x04.create ()) in
   Map.keys subtrees
   |> List.rev
-  |> List.map ~f:(fun t -> subtree_to_table subtrees t)
+  |> List.map ~f:(fun t -> subtree_to_table subtrees t group_table)
   |> List.concat
+  |> fun ls -> (ls, group_table)
 
 (* Produce a list of flow table entries for a multitable setup *)
 let to_multitable (sw_id : switchId) (layout : flow_layout) (t : t) 
-  : multitable_flow list =
+  : (multitable_flow list * Frenetic_GroupTable0x04.t) =
   (* restrict to only instructions for this switch, get subtrees, 
    * turn subtrees into list of multitable flow rows *)
   FDK.(restrict [(Field.Switch, Value.Const sw_id)] t)

@@ -522,7 +522,8 @@ module Action = struct
       | Some (Query str) -> str :: queries
       | _ -> queries)
 
-  let to_sdn' (in_port:(Int64.t option)) (tbl : Frenetic_GroupTable0x04.t) (t:t) : SDN.par =
+  let to_sdn (in_port : Int64.t option) (group_tbl : Frenetic_GroupTable0x04.t option)  
+    (t:t) : SDN.par =
     (* Convert a NetKAT action to an SDN action. At the moment this function
        assumes that fields are assigned to proper bitwidth integers, and does
        no validation along those lines. If the input is derived from a NetKAT
@@ -556,8 +557,11 @@ module Action = struct
         | Some (Pipe  _) -> [SDN.(Output(Controller 128))]
         | Some (Query _) -> assert false
         | Some (FastFail p_lst) -> 
-            let gid = Frenetic_GroupTable0x04.add_fastfail_group tbl p_lst
-            in [SDN.(FastFail gid)]
+           (match group_tbl with
+            | Some tbl ->
+              let gid = Frenetic_GroupTable0x04.add_fastfail_group tbl p_lst
+              in [SDN.(FastFail gid)]
+            | None -> failwith "No group table provided")
         | Some mask      -> raise (FieldValue_mismatch(Location, mask))
       in
       Seq.fold_fields (Seq.remove seq (F Location)) ~init ~f:(fun ~key ~data acc ->
@@ -580,10 +584,6 @@ module Action = struct
         | _, _ -> raise (FieldValue_mismatch(key, data))
       ) :: acc)
 
-  let to_sdn (in_port : Int64.t option) (t:t) : (SDN.par * Frenetic_GroupTable0x04.t) =
-    let group_table = (Frenetic_GroupTable0x04.create ()) in
-    ((to_sdn' in_port group_table t), group_table)
-    
   let demod (f, v) t =
     Par.fold t ~init:zero ~f:(fun acc seq ->
       let seq' = match Seq.find seq (F f) with
@@ -644,7 +644,7 @@ module Action = struct
     Par.fold ~init:0 ~f:(fun acc seq -> acc + (Seq.length seq))
 
   let to_string t =
-    let (par, _) = to_sdn None t in
+    let par = to_sdn None None t in
     Printf.sprintf "[%s]" (SDN.string_of_par par)
 
 end
