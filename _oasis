@@ -148,6 +148,18 @@ Executable testtool
     frenetic,
     frenetic.async
 
+Executable fastfailtest 
+  Path: integration
+  MainIs: FastFailTest_Controller.ml
+  Install: false
+  CompiledObject: native
+  BuildDepends:
+    async,
+    core,
+    frenetic,
+    frenetic.async,
+    async_extended
+
 Test all_tests
   Run$: flag(tests)
   Command: $testtool inline-test-runner frenetic
