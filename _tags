@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: b6e7998d3a7a865c3716b13984139b3b)
+# DO NOT EDIT (digest: bc9c292a4ed5a6be0fccf06eab808bf3)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -31,6 +31,7 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: package(sexplib.syntax)
 <lib/*.ml{,i,y}>: package(str)
 <lib/*.ml{,i,y}>: package(tcpip)
+<lib/*.ml{,i,y}>: package(threads)
 <lib/*.ml{,i,y}>: package(ulex)
 <lib/*.ml{,i,y}>: package(yojson)
 # Library async
@@ -55,6 +56,7 @@ true: annot, bin_annot
 <async/*.ml{,i,y}>: package(sexplib.syntax)
 <async/*.ml{,i,y}>: package(str)
 <async/*.ml{,i,y}>: package(tcpip)
+<async/*.ml{,i,y}>: package(threads)
 <async/*.ml{,i,y}>: package(ulex)
 <async/*.ml{,i,y}>: package(yojson)
 <async/*.ml{,i,y}>: use_frenetic
@@ -81,6 +83,7 @@ true: annot, bin_annot
 "frenetic/frenetic.native": package(sexplib.syntax)
 "frenetic/frenetic.native": package(str)
 "frenetic/frenetic.native": package(tcpip)
+"frenetic/frenetic.native": package(threads)
 "frenetic/frenetic.native": package(ulex)
 "frenetic/frenetic.native": package(yojson)
 "frenetic/frenetic.native": use_async
@@ -107,31 +110,11 @@ true: annot, bin_annot
 <frenetic/*.ml{,i,y}>: package(sexplib.syntax)
 <frenetic/*.ml{,i,y}>: package(str)
 <frenetic/*.ml{,i,y}>: package(tcpip)
+<frenetic/*.ml{,i,y}>: package(threads)
 <frenetic/*.ml{,i,y}>: package(ulex)
 <frenetic/*.ml{,i,y}>: package(yojson)
 <frenetic/*.ml{,i,y}>: use_async
 <frenetic/*.ml{,i,y}>: use_frenetic
-# Library openflow
-"openflow/lib/openflow.cmxs": use_openflow
-<openflow/lib/*.ml{,i,y}>: package(async)
-<openflow/lib/*.ml{,i,y}>: package(base64)
-<openflow/lib/*.ml{,i,y}>: package(camlp4)
-<openflow/lib/*.ml{,i,y}>: package(camlp4.extend)
-<openflow/lib/*.ml{,i,y}>: package(camlp4.lib)
-<openflow/lib/*.ml{,i,y}>: package(core)
-<openflow/lib/*.ml{,i,y}>: package(cstruct)
-<openflow/lib/*.ml{,i,y}>: package(cstruct.syntax)
-<openflow/lib/*.ml{,i,y}>: package(fieldslib)
-<openflow/lib/*.ml{,i,y}>: package(fieldslib.syntax)
-<openflow/lib/*.ml{,i,y}>: package(ocamlgraph)
-<openflow/lib/*.ml{,i,y}>: package(sexplib)
-<openflow/lib/*.ml{,i,y}>: package(sexplib.syntax)
-<openflow/lib/*.ml{,i,y}>: package(str)
-<openflow/lib/*.ml{,i,y}>: package(tcpip)
-<openflow/lib/*.ml{,i,y}>: package(threads)
-<openflow/lib/*.ml{,i,y}>: package(ulex)
-<openflow/lib/*.ml{,i,y}>: package(yojson)
-<openflow/lib/*.ml{,i,y}>: use_frenetic
 # Library test_frenetic
 "lib_test/lib/test_frenetic.cmxs": use_test_frenetic
 <lib_test/lib/*.ml{,i,y}>: package(async)
@@ -150,6 +133,7 @@ true: annot, bin_annot
 <lib_test/lib/*.ml{,i,y}>: package(sexplib.syntax)
 <lib_test/lib/*.ml{,i,y}>: package(str)
 <lib_test/lib/*.ml{,i,y}>: package(tcpip)
+<lib_test/lib/*.ml{,i,y}>: package(threads)
 <lib_test/lib/*.ml{,i,y}>: package(ulex)
 <lib_test/lib/*.ml{,i,y}>: package(yojson)
 <lib_test/lib/*.ml{,i,y}>: use_frenetic
@@ -177,6 +161,7 @@ true: annot, bin_annot
 "lib_test/Test.byte": package(sexplib.syntax)
 "lib_test/Test.byte": package(str)
 "lib_test/Test.byte": package(tcpip)
+"lib_test/Test.byte": package(threads)
 "lib_test/Test.byte": package(ulex)
 "lib_test/Test.byte": package(yojson)
 "lib_test/Test.byte": use_async
@@ -205,11 +190,65 @@ true: annot, bin_annot
 <lib_test/*.ml{,i,y}>: package(sexplib.syntax)
 <lib_test/*.ml{,i,y}>: package(str)
 <lib_test/*.ml{,i,y}>: package(tcpip)
+<lib_test/*.ml{,i,y}>: package(threads)
 <lib_test/*.ml{,i,y}>: package(ulex)
 <lib_test/*.ml{,i,y}>: package(yojson)
 <lib_test/*.ml{,i,y}>: use_async
 <lib_test/*.ml{,i,y}>: use_frenetic
 <lib_test/*.ml{,i,y}>: use_test_frenetic
+# Executable fastfailtest
+"integration/FastFailTest_Controller.native": package(async)
+"integration/FastFailTest_Controller.native": package(async_extended)
+"integration/FastFailTest_Controller.native": package(base64)
+"integration/FastFailTest_Controller.native": package(camlp4)
+"integration/FastFailTest_Controller.native": package(camlp4.extend)
+"integration/FastFailTest_Controller.native": package(camlp4.lib)
+"integration/FastFailTest_Controller.native": package(cohttp)
+"integration/FastFailTest_Controller.native": package(cohttp.async)
+"integration/FastFailTest_Controller.native": package(core)
+"integration/FastFailTest_Controller.native": package(cstruct)
+"integration/FastFailTest_Controller.native": package(cstruct.async)
+"integration/FastFailTest_Controller.native": package(cstruct.syntax)
+"integration/FastFailTest_Controller.native": package(fieldslib)
+"integration/FastFailTest_Controller.native": package(fieldslib.syntax)
+"integration/FastFailTest_Controller.native": package(mparser)
+"integration/FastFailTest_Controller.native": package(mparser.re)
+"integration/FastFailTest_Controller.native": package(ocamlgraph)
+"integration/FastFailTest_Controller.native": package(sexplib)
+"integration/FastFailTest_Controller.native": package(sexplib.syntax)
+"integration/FastFailTest_Controller.native": package(str)
+"integration/FastFailTest_Controller.native": package(tcpip)
+"integration/FastFailTest_Controller.native": package(threads)
+"integration/FastFailTest_Controller.native": package(ulex)
+"integration/FastFailTest_Controller.native": package(yojson)
+"integration/FastFailTest_Controller.native": use_async
+"integration/FastFailTest_Controller.native": use_frenetic
+<integration/*.ml{,i,y}>: package(async)
+<integration/*.ml{,i,y}>: package(async_extended)
+<integration/*.ml{,i,y}>: package(base64)
+<integration/*.ml{,i,y}>: package(camlp4)
+<integration/*.ml{,i,y}>: package(camlp4.extend)
+<integration/*.ml{,i,y}>: package(camlp4.lib)
+<integration/*.ml{,i,y}>: package(cohttp)
+<integration/*.ml{,i,y}>: package(cohttp.async)
+<integration/*.ml{,i,y}>: package(core)
+<integration/*.ml{,i,y}>: package(cstruct)
+<integration/*.ml{,i,y}>: package(cstruct.async)
+<integration/*.ml{,i,y}>: package(cstruct.syntax)
+<integration/*.ml{,i,y}>: package(fieldslib)
+<integration/*.ml{,i,y}>: package(fieldslib.syntax)
+<integration/*.ml{,i,y}>: package(mparser)
+<integration/*.ml{,i,y}>: package(mparser.re)
+<integration/*.ml{,i,y}>: package(ocamlgraph)
+<integration/*.ml{,i,y}>: package(sexplib)
+<integration/*.ml{,i,y}>: package(sexplib.syntax)
+<integration/*.ml{,i,y}>: package(str)
+<integration/*.ml{,i,y}>: package(tcpip)
+<integration/*.ml{,i,y}>: package(threads)
+<integration/*.ml{,i,y}>: package(ulex)
+<integration/*.ml{,i,y}>: package(yojson)
+<integration/*.ml{,i,y}>: use_async
+<integration/*.ml{,i,y}>: use_frenetic
 # OASIS_STOP
 <packet/lib/*.ml>: syntax_camlp4o
 <packet/test/*.ml>: syntax_camlp4o
