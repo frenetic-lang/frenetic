@@ -4,7 +4,7 @@ open Frenetic_Packet
 type t = {
 	table : (groupId, (groupType * bucket list)) Hashtbl.t;
 	mutable next_group_id : groupId;
-	mutable pending_messages : message list
+	mutable pending_messages : Message.t list
 }
 
 let next_group_id (tbl : t) =
@@ -31,12 +31,12 @@ let add_group (tbl : t) (typ : groupType) (buckets : bucket list) : groupId =
 let clear_groups (tbl : t) : unit =
 	tbl.next_group_id <- 1l;
 	let rm_group (id : groupId) ((typ, _) : groupType * bucket list) : unit =
-	  let msg = GroupModMsg (DeleteGroup (typ, id)) in
+	  let msg = Message.GroupModMsg (DeleteGroup (typ, id)) in
 	  tbl.pending_messages <-  msg :: tbl.pending_messages in
   Hashtbl.iter rm_group tbl.table;
   Hashtbl.clear tbl.table
 
-let commit (tbl : t) : message list =
+let commit (tbl : t) : Message.t list =
 	let msgs = tbl.pending_messages in
 	tbl.pending_messages <- [];
 	List.rev msgs
