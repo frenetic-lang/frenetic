@@ -37,6 +37,7 @@ Library frenetic
   Modules:
     Frenetic_Bits,
     Frenetic_Fdd,
+    Frenetic_GroupTable0x04,
     Frenetic_Log,
     Frenetic_Network,
     Frenetic_NetKAT,
@@ -56,9 +57,7 @@ Library frenetic
     Frenetic_Packet,
     Frenetic_Topology,
     Frenetic_Util,
-    Frenetic_Vlr,
-    Frenetic_OpenFlow0x04,
-    Frenetic_GroupTable0x04
+    Frenetic_Vlr
 
 Library async
   Findlibparent: frenetic
