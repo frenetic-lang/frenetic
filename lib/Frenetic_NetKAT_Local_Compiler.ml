@@ -535,9 +535,11 @@ module NetKAT_Automaton = struct
     t
 
   let dedup_global (automaton : t) : unit =
-    let tbl = S.Table.create () ~size:10 in
-    let untbl = Int.Table.create () ~size:10 in
-    let unmerge k = Int.Table.find untbl k |> Option.value ~default:[k] in
+    (* table of type : int set -> int *)
+    let tbl : int S.Table.t = S.Table.create () ~size:10 in
+    (* table of type : int -> int set *)
+    let untbl : S.t Int.Table.t = Int.Table.create () ~size:10 in
+    let unmerge k = Int.Table.find untbl k |> Option.value ~default:(S.singleton k) in
     let merge ks =
       let p s =
         "{" ^
@@ -545,22 +547,22 @@ module NetKAT_Automaton = struct
           ~f:(fun acc x -> Printf.sprintf "%s%s%d" acc (if acc = "" then acc else ",") x) ^
         "}"
       in
-      let () = assert (List.length ks > 1) in
-      let ks = List.concat_map ks ~f:unmerge in
-      let ks_set = S.of_list ks in
-      Printf.printf "Merge %s\n" (p ks_set);
-      match S.Table.find tbl ks_set with
+      let () = assert (S.length ks > 1) in
+      let ks = S.fold ks ~init:S.empty ~f:(fun acc k -> S.union acc (unmerge k)) in
+      Printf.printf "Merge %s\n" (p ks);
+      match S.Table.find tbl ks with
       | Some k ->
           Printf.printf "Found %d\n" k;
           k
       | None ->
         let (es, ds) =
-          List.map ks ~f:(T.find_exn automaton.states)
+          S.to_list ks
+          |> List.map ~f:(T.find_exn automaton.states)
           |> List.unzip in
         let fdk = (FDK.big_union es, FDK.big_union ds) in
         let k = add_to_t automaton fdk in
-        Printf.printf "Adding %d <-> %s\n" k (p ks_set);
-        S.Table.add_exn tbl ~key:ks_set ~data:k;
+        Printf.printf "Adding %d <-> %s\n" k (p ks);
+        S.Table.add_exn tbl ~key:ks ~data:k;
         begin try Int.Table.add_exn untbl ~key:k ~data:ks with e ->
            Printf.printf "Oops %d\n" k;
            raise e
@@ -575,7 +577,8 @@ module NetKAT_Automaton = struct
       |> List.map ~f:(function
         | [seq] -> seq
         | group ->
-          let ks = List.map group ~f:(fun s -> Action.Seq.find_exn s K |> Value.to_int_exn) in
+          let ks = List.map group ~f:(fun s -> Action.Seq.find_exn s K |> Value.to_int_exn)
+                   |> S.of_list in
           let k = merge ks in
           List.hd_exn group |> Action.Seq.add ~key:K ~data:(Value.of_int k))
       |> Action.Par.of_list
