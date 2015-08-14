@@ -401,11 +401,7 @@ end
 module NetKAT_Automaton = struct
 
   (* table *)
-  module T = Hashtbl.Make(struct
-    type t = int with sexp
-    let hash n = n
-    let compare = Int.compare
-  end)
+  module T = Int.Table
 
   (* untable *)
   module U = Hashtbl.Make(struct
@@ -541,19 +537,10 @@ module NetKAT_Automaton = struct
     let untbl : S.t Int.Table.t = Int.Table.create () ~size:10 in
     let unmerge k = Int.Table.find untbl k |> Option.value ~default:(S.singleton k) in
     let merge ks =
-      let p s =
-        "{" ^
-        S.fold s ~init:""
-          ~f:(fun acc x -> Printf.sprintf "%s%s%d" acc (if acc = "" then acc else ",") x) ^
-        "}"
-      in
       let () = assert (S.length ks > 1) in
       let ks = S.fold ks ~init:S.empty ~f:(fun acc k -> S.union acc (unmerge k)) in
-      Printf.printf "Merge %s\n" (p ks);
       match S.Table.find tbl ks with
-      | Some k ->
-          Printf.printf "Found %d\n" k;
-          k
+      | Some k -> k
       | None ->
         let (es, ds) =
           S.to_list ks
@@ -561,12 +548,10 @@ module NetKAT_Automaton = struct
           |> List.unzip in
         let fdk = (FDK.big_union es, FDK.big_union ds) in
         let k = add_to_t automaton fdk in
-        Printf.printf "Adding %d <-> %s\n" k (p ks);
         S.Table.add_exn tbl ~key:ks ~data:k;
-        begin try Int.Table.add_exn untbl ~key:k ~data:ks with e ->
-           Printf.printf "Oops %d\n" k;
-           raise e
-        end;
+        (* k may not be fresh, since there could have been an FDK equvialent to fdk
+           present in the automaton already; therefore, simply ignore warning *)
+        ignore (Int.Table.add untbl ~key:k ~data:ks);
         k
     in
     let dedup_action par =
