@@ -256,13 +256,26 @@ let rec naive_to_table sw_id (t : FDK.t) =
     dfs (test :: tests) tru @ dfs tests fls in
   List.filter_opt (dfs [] t)
 
-let to_table' ?(dedup = false) ?(opt = true) swId t =
-  let t = if dedup then FDK.dedup t else t in
-  match opt with
-  | true -> opt_to_table swId t
-  | false -> naive_to_table swId t
+let remove_tail_drops fl =
+  let rec remove_tail_drop fl =
+    match fl with 
+    | [] -> fl
+    | h :: t ->
+      let actions = (fst h).Frenetic_OpenFlow.action in 
+      match (List.concat (List.concat actions)) with 
+      | [] -> remove_tail_drop t
+      | _ -> h :: t in 
+  List.rev (remove_tail_drop (List.rev fl))
 
-let to_table ?(dedup = false) ?(opt = true) swId t = List.map ~f:fst (to_table' ~dedup ~opt swId t)
+let to_table' ?(dedup = false) ?(opt = true) ?(remove_tail_drop_opt = true) swId t =
+  let t = if dedup then FDK.dedup t else t in
+  let t = match opt with
+  | true -> opt_to_table swId t
+  | false -> naive_to_table swId t in
+  if remove_tail_drop_opt then (remove_tail_drops t) else t
+
+let to_table ?(dedup = false) ?(opt = true) ?(remove_tail_drop_opt = true) swId t = 
+  List.map ~f:fst (to_table' ~dedup ~opt ~remove_tail_drop_opt swId t)
 
 let pipes t =
   let ps = FDK.fold

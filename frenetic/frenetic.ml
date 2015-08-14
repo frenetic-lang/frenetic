@@ -1,10 +1,10 @@
 open Core.Std
 
-let run_types : [`Http_Server | `Compile_Server | `Shell] Command.Spec.Arg_type.t = 
+let run_types : [`Http_Controller | `Compile_Server | `Shell] Command.Spec.Arg_type.t = 
   Command.Spec.Arg_type.create
     (fun run_type_arg ->
       match run_type_arg with 
-      | "http-server" -> `Http_Server
+      | "http-controller" -> `Http_Controller
       | "compile-server" -> `Compile_Server
       | "shell" -> `Shell
       | _ -> 
@@ -19,20 +19,8 @@ let verbosity_levels : Async.Std.Log.Level.t Command.Spec.Arg_type.t =
       | "debug" -> `Debug
       | "error" -> `Error
       | verbosity_level -> 
-        eprintf "'%s' is not a legal verbosity level.  Choose info, debug or error\n" verbosity_level;
+        eprintf "'%s' is not a legal verbosity level.  Choose info (default), debug or error\n" verbosity_level;
         exit 1)
-
-let default_actions : [`Drop | `Controller | `Nop] Command.Spec.Arg_type.t = 
-  Command.Spec.Arg_type.create
-    (fun run_type_arg ->
-      match run_type_arg with 
-      | "drop" -> `Drop
-      | "controller" -> `Controller
-      | "nop" -> `Nop
-      | _ -> 
-        eprintf "'%s' is not a legal default action.  Choose drop, controller or nop\n" run_type_arg;
-        exit 1
-    )
 
 let default_log_device = 
   ("stderr", lazy (Async_extended.Extended_log.Console.output (Lazy.force Async.Std.Writer.stderr)))
@@ -50,18 +38,17 @@ let spec =
   +> flag "--http-port" (optional_with_default 9000 int) ~doc:"int HTTP port on which to listen for new policies"
   +> flag "--openflow-port" (optional_with_default 6633 int) ~doc:"int Port to listen on for OpenFlow switches"
   +> flag "--rpc-port" (optional_with_default 8984 int) ~doc:"int TCP port to serve on for communicating with higher-level controller"
-  +> flag "--openflow-log" (optional_with_default "./openflow.log" file) ~doc:"string log path"
   +> flag "--openflow-executable" (optional_with_default "./openflow.native" file) ~doc:"file path to openflow executable"
+  +> flag "--openflow-log" (optional_with_default "./openflow.log" file) ~doc:"string log path"
   +> flag "--verbosity" (optional_with_default `Info verbosity_levels) ~doc:"level verbosity level = {debug, error, info}"
   +> flag "--log" (optional_with_default default_log_device log_outputs) ~doc: "file path to write logs, 'stdout' or 'stderr'"
-  +> flag "--default-action" (optional_with_default `Drop default_actions) ~doc: "action default action for policy misses = {drop, controller, nop}"
-  +> anon ("[flags] {http_server | compile_server | shell}" %: run_types) 
+  +> anon ("[flags] {http-controller | compile_server | shell}" %: run_types) 
 
 let command =
   Command.basic
     ~summary: "Frenetic NetKAT-to-OpenFlow compiler"
     spec
-    (fun http_port openflow_port rpc_port openflow_log openflow_executable verbosity log default_action run_type () -> 
+    (fun http_port openflow_port rpc_port openflow_executable openflow_log verbosity log run_type () -> 
       let (log_path, log_output) = log in
       let main = 
         match run_type with 
@@ -69,13 +56,13 @@ let command =
           fun () ->
             Frenetic_Log.set_level verbosity;
             Frenetic_Log.set_output [Lazy.force log_output];
-            Frenetic_Shell.main openflow_port ()
+            Frenetic_Shell.main openflow_port openflow_executable openflow_log ()
         | `Compile_Server -> 
           fun () -> 
             Frenetic_Log.set_level verbosity;
             Frenetic_Log.set_output [Lazy.force log_output];
             Frenetic_Compile_Server.main http_port ()
-        | `Http_Server -> 
+        | `Http_Controller -> 
           fun () -> 
             Frenetic_Log.set_level verbosity;
             Frenetic_Log.set_output [Lazy.force log_output];

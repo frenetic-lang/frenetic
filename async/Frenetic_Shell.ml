@@ -325,11 +325,11 @@ let rec repl () : unit Deferred.t =
 
 let log_file = "frenetic.log"
 
-let main (openflow_port : int) () : unit =
+let main (openflow_port : int) (openflow_executable: string) (openflow_log: string) () : unit =
   Log.set_output [Async.Std.Log.Output.file `Text log_file];
   printf "Frenetic Shell v 0.0\n%!";
   printf "Type `help` for a list of commands\n%!";
-  Controller.start openflow_port "openflow.native" "openflow.log";
+  Controller.start openflow_port openflow_executable openflow_log;
   let _ = repl () in
   ()
 

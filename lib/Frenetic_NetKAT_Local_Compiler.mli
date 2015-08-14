@@ -70,10 +70,10 @@ val restrict : header_val -> t -> t
     This function is called by {!to_table} to restrict [t] to the portion that
     should run on a single switch. *)
 
-val to_table : ?dedup:bool -> ?opt:bool -> switchId -> t -> flow list
+val to_table : ?dedup:bool -> ?opt:bool -> ?remove_tail_drop_opt:bool  -> switchId -> t -> flow list
 (** [to_table sw t] returns a flowtable that implements [t] for switch [sw]. *)
 
-val to_table' : ?dedup:bool -> ?opt:bool -> switchId -> t -> (flow * string list) list
+val to_table' : ?dedup:bool -> ?opt:bool -> ?remove_tail_drop_opt:bool -> switchId -> t -> (flow * string list) list
 
 
 

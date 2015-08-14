@@ -63,7 +63,6 @@ Library async
   Path: async
   BuildDepends:
     async,
-#async_parallel,
     cohttp,
     cohttp.async,
     core (= 112.24.0),
