@@ -36,9 +36,7 @@ let implement_flow (writer : Writer.t) (fdd : Frenetic_NetKAT_Local_Compiler.t)
     let pat = if m_id = 0 then (Oxm.from_of_pattern row.pattern) 
       else (OxmMetadata (mask_meta m_id))::(Oxm.from_of_pattern row.pattern) in
     let insts = match row.instruction with
-      (* TODO(eli): group now means both group table and action group,
-       * so this hurts my poor little brain *)
-      | `Action group -> Instructions.from_of_group group
+      | `Action action_group -> Instructions.from_of_group action_group
       | `GotoTable (goto_t, goto_m) -> 
         [WriteMetadata (mask_meta goto_m); GotoTable goto_t]
     in
@@ -131,7 +129,9 @@ let main (of_port : int) (pol_file : string)
   in ()
 
 (* Implement fault tolerant policies. Extract the policy and topology from 
- * kat and dot files, run client_handler for each connecting client *)
+ * kat and dot files, run client_handler for each connecting client 
+ * TODO(mulias): This is a SHAM. Parsing the topology from a .dot file is not
+ * yet implemented. *)
 let fault_tolerant_main (of_port : int) (pol_file : string) 
   (topo_file : string) () : unit =
   Log.info "Starting OpenFlow 1.3 fault tolerant controller";

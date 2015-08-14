@@ -2657,7 +2657,7 @@ module Oxm = struct
     |> (fun accum -> if pat.dlVlanPcp = None then accum 
        else (OxmVlanPcp (Option.value_exn pat.dlVlanPcp)) :: accum)
     |> (fun accum -> if pat.nwSrc = None then accum 
-       (* TODO(eli): nwSrc is an int32*int32, the second int is proably the mask *)
+       (* TODO(mulias): nwSrc is an int32*int32, the second int is proably the mask *)
        else let (src,_) = Option.value_exn pat.nwSrc in 
          (OxmIP4Src (val_to_mask src)) :: accum)
     |> (fun accum -> if pat.nwDst = None then accum 
@@ -3228,9 +3228,7 @@ module Action = struct
       | SetTCPDstPort tpPort -> OxmTCPDst tpPort
       in SetField oxm)
     | Frenetic_OpenFlow.FastFail gid -> Group gid 
-        (* TODO(eli): throw exception with better error *)
-    | _ -> assert false (* don't need to support other actions yet *)
-
+    | Enqueue _ -> failwith "Not Yet Implemented"
   (* Map generic action sequence to openflow 1.3 instruction *)
   let from_of_seq (seq : Frenetic_OpenFlow.seq) : sequence =
     List.map seq ~f:from_of_action
@@ -3783,8 +3781,9 @@ module Instructions = struct
     match group with
     | []        -> []
     | par :: [] -> [ApplyActions (List.concat (List.map par ~f:Action.from_of_seq))]
-    (* TODO(eli): better error message *)
-    | _         -> assert false (* assume group is singletion *)
+    (* TODO(mulias): this is a bug. When running mininet with ovs 2.0.2, a non
+     * singleton action group would not be propperly processed by the switch. *)
+    | _         -> failwith "Action group can not contain more than one sequence"
 
 end
 

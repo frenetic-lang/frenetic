@@ -704,9 +704,10 @@ let compile_global (pol : Frenetic_NetKAT.policy) : FDK.t =
 type flow_layout = Field.t list list
 
 let layout_to_string (layout : flow_layout) : string =
-  List.fold layout ~init:"" ~f:(fun accum fields ->
-    accum ^ "[ " ^ (List.fold fields ~init:"" ~f:(fun accum field ->
-      accum ^ (Field.to_string field) ^ " ")) ^ "]")
+  List.map layout ~f:(fun table ->
+    let str_lst = List.map table ~f:Field.to_string in
+    "[" ^ (String.concat str_lst ~sep:" ") ^ "]")
+  |> String.concat
 
 (* Each flow table row has a table location, and a meta value on that table *)
 type tableId = int
@@ -769,16 +770,16 @@ let mk_multitable_flow (pattern : Frenetic_OpenFlow.Pattern.t)
     None
 
 (* Create flow table rows for one subtree *)
-let subtree_to_table (subtrees : flow_subtrees) (t : t) 
+let subtree_to_table (subtrees : flow_subtrees) (subtree : (t * flowId)) 
   (group_tbl : Frenetic_GroupTable0x04.t) : multitable_flow list =
   let rec dfs (tests : (Field.t * Value.t) list) (subtrees : flow_subtrees) 
   (t : t) (flowId : flowId) : multitable_flow option list = 
     match FDK.unget t with
     | Leaf actions ->
-        let insts = [to_action (get_inport tests) actions tests ~group_tbl] in
+      let insts = [to_action (get_inport tests) actions tests ~group_tbl] in
       [mk_multitable_flow (to_pattern tests) (`Action insts) flowId]
     | Branch ((Location, Pipe _), _, fls) -> 
-      assert false (* not supported *)
+      failwith "1.3 compiler does not support pipes"
     | Branch (test, tru, fls) ->
      (match Map.find subtrees t with
       | Some goto_id ->
@@ -786,21 +787,19 @@ let subtree_to_table (subtrees : flow_subtrees) (t : t)
       | None -> List.append (dfs (test :: tests) subtrees tru flowId) 
                             (dfs tests subtrees fls flowId))
   in
-  match Map.find subtrees t with
-  | Some flowId ->
-   (match FDK.unget t with
-    | Branch (test, tru, fls) ->
-      List.filter_opt (List.append (dfs [test] subtrees tru flowId) 
-                                   (dfs [] subtrees fls flowId))
-    | _ -> assert false) (* each t in the map should be a branch *)
-  | None -> assert false (* only make a table if t is in the Map *)
+  let (t, flowId) = subtree in
+  match FDK.unget t with
+  | Branch (test, tru, fls) ->
+    List.filter_opt (List.append (dfs [test] subtrees tru flowId) 
+                                 (dfs [] subtrees fls flowId))
+  | Leaf _  -> assert false (* each entry in the subtree map is a branch *)
 
 (* Collect the flow table rows for each subtree in one list. *)
 let subtrees_to_multitable (subtrees : flow_subtrees) : (multitable_flow list * Frenetic_GroupTable0x04.t) =
   let group_table = (Frenetic_GroupTable0x04.create ()) in
-  Map.keys subtrees
+  Map.to_alist subtrees
   |> List.rev
-  |> List.map ~f:(fun t -> subtree_to_table subtrees t group_table)
+  |> List.map ~f:(fun subtree -> subtree_to_table subtrees subtree group_table)
   |> List.concat
   |> fun ls -> (ls, group_table)
 

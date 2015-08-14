@@ -34,13 +34,13 @@ let table : Frenetic_NetKAT_Local_Compiler.flow_layout Term.t =
   let default = [Frenetic_NetKAT_Local_Compiler.Field.get_order ()] in
   value & opt conv default & info ["table"] ~docv:"TABLE" ~doc
 
-(* TODO(eli): use cmdliner file type and make a converter as above *)
+(* TODO(mulias): cmdliner fiel arg type would be more appropriate than a string *)
 let policy_file : string Term.t =
   let open Arg in
   let doc = "file contianing NetKat policy to apply to the network" in
   value & pos 0 string "" & info [] ~docv:"POLICY" ~doc
 
-(* TODO(eli): use cmdliner file type and make a converter as above *)
+(* TODO(mulias): cmdliner fiel arg type would be more appropriate than a string *)
 let topology_file : string Term.t =
   let open Arg in
   let doc = "file containing .dot topology of network" in
