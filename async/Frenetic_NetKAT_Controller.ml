@@ -79,21 +79,21 @@ let of_to_netkat_event fdd (evt : Controller.event) : Frenetic_NetKAT.event list
      (* TODO(joe): Did we just want the port number? Or do we want the entire description? *)
      let ps =
        List.filter
-	 (List.map feats.ports ~f:(fun desc -> Int32.of_int_exn desc.port_no))
-	 ~f:(fun p -> not (p = 0xFFFEl))
+	       (List.map feats.ports ~f:(fun desc -> Int32.of_int_exn desc.port_no))
+	       ~f:(fun p -> not (p = 0xFFFEl))
      in [SwitchUp(sw_id, ps)]
   | `Disconnect (sw_id) -> [SwitchDown sw_id]
   | `Message (sw_id, hdr, PortStatusMsg ps) ->
-    begin match ps.reason, ps.desc.config.down with
-      | Add, _
-      | Modify, true ->
-        let pt_id = Int32.of_int_exn (ps.desc.port_no) in
-        [PortUp (sw_id, pt_id)]
-      | Delete, _
-      | Modify, false ->
-        let pt_id = Int32.of_int_exn (ps.desc.port_no) in
-        [PortDown (sw_id, pt_id)]
-    end
+      begin match ps.reason, ps.desc.config.down with
+        | Add, _
+        | Modify, true ->
+          let pt_id = Int32.of_int_exn (ps.desc.port_no) in
+          [PortUp (sw_id, pt_id)]
+        | Delete, _
+        | Modify, false ->
+          let pt_id = Int32.of_int_exn (ps.desc.port_no) in
+          [PortDown (sw_id, pt_id)]
+      end
   | `Message (sw_id,hdr,PacketInMsg pi) when pi.port <= 0xff00 ->
       let port_id = Int32.of_int_exn pi.port in
       let payload : Frenetic_OpenFlow.payload = 
@@ -110,17 +110,23 @@ let of_to_netkat_event fdd (evt : Controller.event) : Frenetic_NetKAT.event list
         headers = bytes_to_headers port_id (Frenetic_OpenFlow.payload_bytes payload);
         payload = payload;
       } in
-      let pis, qus, phys = Frenetic_NetKAT_Local_Compiler.eval_pipes pkt0 fdd in
+      (* TODO: Send table_miss packets to pipes specified in config *)
+      let pis, _, _ = 
+        match pi.reason with
+        | NoMatch -> ( [("table_miss", pkt0)], [], [] )
+        | ExplicitSend -> Frenetic_NetKAT_Local_Compiler.eval_pipes pkt0 fdd 
+      in
       List.map pis ~f:(fun (pipe, pkt2) ->
         let pkt3, changed = packet_sync_headers pkt2 in
         let payload = match payload, changed with
-            | Frenetic_OpenFlow.NotBuffered(_), _
-            | _                       , true ->
-              Frenetic_OpenFlow.NotBuffered(Frenetic_OpenFlow.payload_bytes pkt3.payload)
-            | Frenetic_OpenFlow.Buffered(buf_id, bytes), false ->
-              Frenetic_OpenFlow.Buffered(buf_id, bytes)
+          | Frenetic_OpenFlow.NotBuffered(_), _
+          | _ , true ->
+            Frenetic_OpenFlow.NotBuffered(Frenetic_OpenFlow.payload_bytes pkt3.payload)
+          | Frenetic_OpenFlow.Buffered(buf_id, bytes), false ->
+            Frenetic_OpenFlow.Buffered(buf_id, bytes)
         in
-        PacketIn(pipe, sw_id, port_id, payload, pi.total_len))
+        PacketIn(pipe, sw_id, port_id, payload, pi.total_len)
+      )
   | _ -> []
 
 module type CONTROLLER = sig
@@ -130,12 +136,14 @@ module type CONTROLLER = sig
   val query : string -> (Int64.t * Int64.t) Deferred.t
   val port_stats : switchId -> portId -> OF10.portStats list Deferred.t
   val is_query : string -> bool
-  val start : int -> string -> string -> unit
+  val start : int -> unit
   val current_switches : unit -> (switchId * portId list) list Deferred.t
+  val set_current_compiler_options : Frenetic_NetKAT_Local_Compiler.compiler_options -> unit
 end
 
 module Make : CONTROLLER = struct
   let fdd = ref (Frenetic_NetKAT_Local_Compiler.compile drop)
+  let current_compiler_options = ref (Frenetic_NetKAT_Local_Compiler.default_compiler_options)
   let stats : (string, Int64.t * Int64.t) Hashtbl.Poly.t = Hashtbl.Poly.create ()
   let (pol_reader, pol_writer) = Pipe.create ()
   let (pktout_reader, pktout_writer) = Pipe.create ()
@@ -172,7 +180,7 @@ module Make : CONTROLLER = struct
     List.map ~f:get_switch_and_ports features
 
   let get_table (sw_id : switchId) : (Frenetic_OpenFlow.flow * string list) list =
-    Frenetic_NetKAT_Local_Compiler.to_table' sw_id !fdd
+    Frenetic_NetKAT_Local_Compiler.to_table' ~options:!current_compiler_options sw_id !fdd
 
   let raw_query (name : string) : (Int64.t * Int64.t) Deferred.t =
     Controller.get_switches () >>= fun switches ->
@@ -243,7 +251,7 @@ module Make : CONTROLLER = struct
       Hashtbl.Poly.set stats qname stat)
     >>= fun () ->
     (* Actually update things *)
-    fdd := Frenetic_NetKAT_Local_Compiler.compile pol;
+    fdd := Frenetic_NetKAT_Local_Compiler.compile ~options:!current_compiler_options pol;
     Upd.BestEffortUpdate.implement_policy !fdd
 
   let handle_event (evt : Controller.event) : unit Deferred.t =
@@ -255,14 +263,17 @@ module Make : CONTROLLER = struct
        Upd.BestEffortUpdate.bring_up_switch sw_id !fdd
      | _ -> Deferred.return ()
 
+  let set_current_compiler_options opt =
+    current_compiler_options := opt
+
   let send_pktout ((sw_id, pktout) : switchId * Frenetic_OpenFlow.pktOut) : unit Deferred.t =
     let pktout0x01 = To0x01.from_packetOut pktout in
     Controller.send sw_id 0l (OF10.Message.PacketOutMsg pktout0x01) >>= function
       | `Eof -> return ()
       | `Ok -> return ()
 
-  let start (openflow_port:int) (openflow_executable:string) (openflow_log:string) : unit =
-    Controller.init openflow_port openflow_executable openflow_log;
+  let start (openflow_port:int) : unit =
+    Controller.init openflow_port;
     don't_wait_for (Pipe.iter pol_reader ~f:update_all_switches);
     don't_wait_for (Pipe.iter (Controller.events) ~f:handle_event);
     don't_wait_for (Pipe.iter pktout_reader ~f:send_pktout)

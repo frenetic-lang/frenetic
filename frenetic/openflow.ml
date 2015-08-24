@@ -209,6 +209,8 @@ let spec =
   empty
   +> flag "-p" (optional_with_default 6633 int) ~doc:"int Port to listen on for OpenFlow switches"
   +> flag "-s" (optional_with_default 8984 int) ~doc:"file TCP port to serve on for communicating with higher-level controller"
+  (* TODO: Figure out how to connect standard out of this process with parent so the log messages
+     will go to the same log file. *)
   +> flag "-l" (optional_with_default "./openflow.log" file) ~doc:"string log path"
   +> flag "-v" no_arg ~doc:" enable verbose logging (`Debug level)"
 
@@ -217,7 +219,8 @@ let run =
     ~summary:"Run OpenFlow0x01 controller"
     spec
     (fun port rpc_port log_file verbose () ->
-       Log.set_output [(Async.Std.Log.Output.file `Text log_file)];
+       let log_output = lazy (Async_extended.Std.Log.Output.file `Text log_file) in
+       Frenetic_Log.set_output [Lazy.force log_output];
        let log_level = match verbose with
          | true -> Log.info "Setting log_level to Debug";
            `Debug
@@ -229,14 +232,6 @@ let run =
                    ~f:(fun t ->
                        Log.info "Received signal %s" (to_string t);
                        shutdown 0));
-         Monitor.try_with (fun () ->
-             Unix.(openfile ~close_on_exec:true Frenetic_OpenFlow0x01_Controller.pidfile ~mode:[`Creat; `Trunc; `Wronly])
-             >>= fun fd -> let writer = Writer.create fd in
-             Writer.write writer Pid.(to_string (Unix.getpid ()));
-             Writer.close writer) >>= (function
-         | Error exn -> Log.error "Failed to create pid file %s: %s" Frenetic_OpenFlow0x01_Controller.pidfile (Exn.to_string exn);
-           return ()
-         | Ok () -> return ()) >>= fun () ->
          Monitor.try_with (fun () -> run_server port rpc_port)
          >>| function
          | Error exn -> Log.error "Caught an exception!";

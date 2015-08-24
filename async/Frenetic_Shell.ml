@@ -36,6 +36,10 @@ type command =
    *   f_1 < f_2 [ < f_3 < ... < f_n ] - Given two or more fields, ensures the
    *                                     order of the specified fields is maintained. *)
   | Order of LC.order
+  (* usage: remove_tail_drops 
+   * Remove any drop rules at the end of each flow table.  Toggles setting.  
+  *)
+  | ToggleRemoveTailDrops
   (* usage: exit
    * Exits the shell. *)
   | Exit
@@ -137,6 +141,10 @@ module Parser = struct
     let policy : (command, bytes list) MParser.t =
       Tokens.symbol "policy" >> return (Show Policy)
 
+    (* Parser for the remove_tail_drops command *)
+    let remove_tail_drops : (command, bytes list) MParser.t =
+      Tokens.symbol "remove_tail_drops" >> return ToggleRemoveTailDrops
+
     (* Parser for the flow-table command *)
     let flowtable : (command, bytes list) MParser.t =
       Tokens.symbol "flow-table" >>
@@ -151,6 +159,7 @@ module Parser = struct
 	policy <|>
 	help <|>
 	flowtable <|>
+  remove_tail_drops <|>
 	load <|>
 	exit <|>
   quit
@@ -160,13 +169,15 @@ end
 (* For convenience *)
 let compose f g x = f (g x)
 
-(* Reference to the ordering that is currently set.
- * Use heuristic ordering by default *)
-let order : LC.order ref = ref `Heuristic
+(* TODO(jcollard): The cache flag here is actually a problem. Changing ordering won't work as expected. *)
+let current_compiler_options = ref { LC.default_compiler_options with cache_prepare = `Keep }
+
+let set_field_order ord : unit =
+  current_compiler_options := { !current_compiler_options with field_order = ord }
 
 (* Prints the current ordering mode. *)
 let print_order () : unit =
-  match !order with
+  match (!current_compiler_options).field_order with
   | `Heuristic -> print_endline "Ordering Mode: Heuristic"
   | `Default -> print_endline "Ordering Mode: Default"
   | `Static fields ->
@@ -193,24 +204,29 @@ let rec check_duplicates (fs : Field.t list) (acc : Field.t list) : bool =
 let set_order (o : LC.order) : unit =
   match o with
   | `Heuristic ->
-     order := `Heuristic;
+     set_field_order `Heuristic;
      print_order ()
   | `Default ->
-     order := `Default;
+     set_field_order `Default;
      print_order ()
   | `Static ls ->
      if check_duplicates ls [] then ()
      else
-     let curr_order = match !order with
-                      | `Heuristic -> Field.all_fields
-		      | `Default -> Field.all_fields
-		      | `Static fields -> fields
+     let curr_order = match (!current_compiler_options).field_order with
+      | `Heuristic -> Field.all_fields
+      | `Default -> Field.all_fields
+      | `Static fields -> fields
      in
      let removed = List.filter curr_order (compose not (List.mem ls)) in
      (* Tags all specified Fields at the highest priority *)
      let new_order = List.append (List.rev ls) removed in
-     order := (`Static new_order);
+     set_field_order (`Static new_order);
      print_order ()
+
+let toggle_remove_tail_drops () =
+  let current_setting = (!current_compiler_options).remove_tail_drops in
+  current_compiler_options := { !current_compiler_options with remove_tail_drops = not current_setting };
+  printf "Remove Tail Drops: %B\n%!" (!current_compiler_options).remove_tail_drops
 
 (* A reference to the current policy and the associated string. *)
 let policy : (policy * string) ref = ref (drop, "drop")
@@ -221,15 +237,12 @@ let print_policy () =
     (_, p) -> printf "%s\n%!" p
 
 (* Given a policy, returns a pretty ascii table for each switch *)
-let string_of_policy ?(order=`Heuristic) (pol : policy) : string =
-  (* TODO(jcollard): The cache flag here is actually a problem.
-   *                 Changing ordering won't work as expected. *)
-  let bdd = LC.compile ~order:order ~cache:`Keep pol in
-  (* TODO: Get switch numbers *)
+let string_of_policy (pol : policy) : string =
+  let bdd = LC.compile ~options:(!current_compiler_options) pol in
   let switches = Frenetic_NetKAT_Semantics.switches_of_policy pol in
   let switches' = if List.is_empty switches then [0L] else switches in
   let tbls = List.map switches'
-		      (fun sw_id -> LC.to_table sw_id bdd |>
+		      (fun sw_id -> LC.to_table ~options:(!current_compiler_options) sw_id bdd |>
 				      Frenetic_OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id)) in
   String.concat ~sep:"\n\n" tbls
 
@@ -272,6 +285,9 @@ let help =
   "";
   "  load <filename>     - Loads a policy from the specified file, compiles it, and";
   "                        updates the controller with the resulting flow-table.";
+  "";
+  "  remove_tail_drops   - Remove drop rules at the end of each flow-table.  Toggles ";
+  "                        setting.";
   "";
   "  help                - Displays this message.";
   "";
@@ -320,16 +336,17 @@ let rec repl () : unit Deferred.t =
          don't_wait_for (Controller.update_policy pol)
 		  | Some (Load filename) -> load_file filename
 		  | Some (Order order) -> set_order order
+      | Some (ToggleRemoveTailDrops) -> toggle_remove_tail_drops ()
 		  | None -> ()
   in handle input; repl ()
 
 let log_file = "frenetic.log"
 
-let main (openflow_port : int) (openflow_executable: string) (openflow_log: string) () : unit =
+let main (openflow_port : int) () : unit =
   Log.set_output [Async.Std.Log.Output.file `Text log_file];
-  printf "Frenetic Shell v 0.0\n%!";
+  printf "Frenetic Shell v 4.0\n%!";
   printf "Type `help` for a list of commands\n%!";
-  Controller.start openflow_port openflow_executable openflow_log;
+  Controller.start openflow_port;
   let _ = repl () in
   ()
 

@@ -148,6 +148,7 @@ module Interp = struct
     let hvs = HeadersValues.to_hvs packet.headers in
     let sw  = (Field.Switch, Value.of_int64 packet.switch) in
     let vs  = List.map hvs ~f:Pattern.of_hv in
+    let () = eprintf "In eval_to_action" in
     match FDK.(peek (restrict (sw :: vs) t)) with
     | None    -> assert false
     | Some(r) -> r
@@ -156,6 +157,7 @@ module Interp = struct
     Frenetic_NetKAT_Semantics.eval p Action.(to_policy (eval_to_action p t))
 
   let eval_pipes (p:packet) (t:FDK.t) =
+    let () = printf "In Interp.eval_pipes" in
     Frenetic_NetKAT_Semantics.eval_pipes p Action.(to_policy (eval_to_action p t))
 end
 
@@ -166,14 +168,35 @@ type cache
     | `Empty
     | `Preserve of t ]
 
+type compiler_options = {
+    cache_prepare: cache;
+    field_order: order;
+    remove_tail_drops: bool;
+    dedup_flows: bool;
+    optimize: bool;
+}
+
 let clear_cache () = FDK.clear_cache Int.Set.empty
 
-let compile ?(order=`Heuristic) ?(cache=`Empty) pol =
-  (match cache with
+(* TODO: Change remove_tails_drops to default false and field order to Heuristic *)
+let default_compiler_options = { 
+  cache_prepare = `Empty; 
+  field_order = `Static [
+    Field.Switch; Field.Vlan; Field.EthSrc; Field.EthDst; Field.Location; 
+    Field.VlanPcp; Field.EthType; Field.IPProto; Field.IP4Src; Field.IP4Dst;
+    Field.TCPSrcPort; Field.TCPDstPort
+  ]; 
+  remove_tail_drops = true;
+  dedup_flows = false;
+  optimize = true;
+}
+
+let compile ?(options=default_compiler_options) pol =
+  (match options.cache_prepare with
    | `Keep -> ()
    | `Empty -> FDK.clear_cache Int.Set.empty
    | `Preserve fdd -> FDK.clear_cache (FDK.refs fdd));
-  (match order with
+  (match options.field_order with
    | `Heuristic -> Field.auto_order pol
    | `Default -> Field.set_order Field.all_fields
    | `Static flds -> Field.set_order flds);
@@ -267,15 +290,15 @@ let remove_tail_drops fl =
       | _ -> h :: t in 
   List.rev (remove_tail_drop (List.rev fl))
 
-let to_table' ?(dedup = false) ?(opt = true) ?(remove_tail_drop_opt = true) swId t =
-  let t = if dedup then FDK.dedup t else t in
-  let t = match opt with
+let to_table' ?(options=default_compiler_options) swId t =
+  let t = if options.dedup_flows then FDK.dedup t else t in
+  let t = match options.optimize with
   | true -> opt_to_table swId t
   | false -> naive_to_table swId t in
-  if remove_tail_drop_opt then (remove_tail_drops t) else t
+  if options.remove_tail_drops then (remove_tail_drops t) else t
 
-let to_table ?(dedup = false) ?(opt = true) ?(remove_tail_drop_opt = true) swId t = 
-  List.map ~f:fst (to_table' ~dedup ~opt ~remove_tail_drop_opt swId t)
+let to_table ?(options=default_compiler_options) swId t = 
+  List.map ~f:fst (to_table' ~options swId t)
 
 let pipes t =
   let ps = FDK.fold
@@ -310,17 +333,74 @@ let size =
 
 let compression_ratio t = (FDK.compressed_size t, FDK.uncompressed_size t)
 
-let eval =
-  Interp.eval
+let eval_to_action (packet:Frenetic_NetKAT_Semantics.packet) (t:FDK.t) =
+  let open Frenetic_NetKAT_Semantics in 
+  let hvs = HeadersValues.to_hvs packet.headers in
+  let sw  = (Field.Switch, Value.of_int64 packet.switch) in
+  let vs  = List.map hvs ~f:Pattern.of_hv in
+  let () = eprintf "In eval_to_action" in
+  match FDK.(peek (restrict (sw :: vs) t)) with
+  | None    -> assert false
+  | Some(r) -> r
 
-let eval_pipes =
-  Interp.eval_pipes
+let eval (p:Frenetic_NetKAT_Semantics.packet) (t:FDK.t) =
+  Frenetic_NetKAT_Semantics.eval p Action.(to_policy (eval_to_action p t))
+
+let eval_pipes (p:Frenetic_NetKAT_Semantics.packet) (t:FDK.t) =
+  Frenetic_NetKAT_Semantics.eval_pipes p Action.(to_policy (eval_to_action p t))
 
 let to_dotfile t filename =
   Out_channel.with_file filename ~f:(fun chan ->
     Out_channel.output_string chan (FDK.to_dot t))
 
 let restrict hv t = FDK.restrict [Pattern.of_hv hv] t
+
+let options_from_json_string s =
+  let open Yojson.Basic.Util in 
+  let json = Yojson.Basic.from_string s in
+  let cache_prepare_string = json |> member "cache_prepare" |> to_string in
+  let cache_prepare = 
+    match cache_prepare_string with
+    | "keep" -> `Keep
+    | _ -> `Empty in
+    (* TODO: Handle Preserve *)
+  let field_order_string = json |> member "field_order" |> to_string in
+  let field_order = 
+    match field_order_string with
+    | "default" -> `Default
+    | "heuristic" -> `Heuristic
+    | _ ->
+     (* TODO: This is copypasta from Frenetic_Shell. *)
+     let ls = String.split_on_chars ~on:['<'] field_order_string 
+      |> List.map ~f:String.strip 
+      |> List.map ~f:Field.of_string in   
+     let compose f g x = f (g x) in
+     let curr_order = Field.all_fields in
+     let removed = List.filter curr_order (compose not (List.mem ls)) in
+     (* Tags all specified Fields at the highest priority *)
+     let new_order = List.append (List.rev ls) removed in
+     (`Static new_order) in
+  let remove_tail_drops = json |> member "remove_tail_drops" |> to_bool in
+  let dedup_flows = json |> member "dedup_flows" |> to_bool in
+  let optimize = json |> member "optimize" |> to_bool in
+  {cache_prepare; field_order; remove_tail_drops; dedup_flows; optimize}
+
+let field_order_to_string fo = 
+ match fo with
+  | `Heuristic -> "heuristic"
+  | `Default -> "default"
+  | `Static fields ->
+     List.rev (List.map fields Field.to_string) |> String.concat ~sep:" < "
+
+let options_to_json_string opt =
+  let open Yojson.Basic in 
+  `Assoc [
+    ("cache_prepare", `String (if opt.cache_prepare = `Keep then "keep" else "empty"));
+    ("field_order", `String (field_order_to_string opt.field_order));
+    ("remove_tail_drops", `Bool opt.remove_tail_drops);
+    ("dedup_flows", `Bool opt.dedup_flows);
+    ("optimze", `Bool opt.optimize)
+  ] |> pretty_to_string 
 
 (* *** GLOBAL COMPILATION *)
 

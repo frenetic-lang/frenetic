@@ -7,7 +7,7 @@ type event = [
   | `Disconnect of switchId
   | `Message of switchId * Frenetic_OpenFlow_Header.t * Message.t 
 ]
-val init: int ->string -> string -> unit
+val init: int -> unit
 
 val get_switches : unit -> switchId list Deferred.t
 
@@ -21,4 +21,3 @@ val send_batch : switchId -> xid -> Message.t list -> [`Ok | `Eof] Deferred.t
 
 val send_txn : switchId -> Message.t -> [`Ok of (Message.t list) Deferred.t | `Eof] Deferred.t
 
-val pidfile : string

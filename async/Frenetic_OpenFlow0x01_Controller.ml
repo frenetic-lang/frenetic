@@ -27,28 +27,17 @@ let rec clear_to_read () = if (!read_outstanding)
 let signal_read () = read_outstanding := false; 
   Condition.broadcast read_finished ()
 
-let pidfile = "/var/run/frenetic/openflow0x01.pid" 
-
-let cleanup () =
-  Sys.file_exists pidfile 
-  >>= function
-  | `Yes  -> 
-     let pid = In_channel.read_all pidfile in
-     Signal.send_i Signal.term (`Pid (Pid.of_string pid)) ;
-     Unix.unlink pidfile
-  | _ ->  Deferred.unit (* ignore - this means openflow.ml exited normally *)
-
-let init port openflow_executable openflow_log =
+let init port =
   Log.info "Calling create!";
   let sock_port = 8984 in
   let sock_addr = `Inet (Unix.Inet_addr.localhost, sock_port) in
-  let prog = openflow_executable in
+  (* Always use openflow.native from the same directory as frenetic.native *)
+  let prog = Filename.dirname(Sys.executable_name) ^ "/openflow.native" in
   let args = ["-s"; string_of_int sock_port;
               "-p"; string_of_int port;
               "-v"] in
   don't_wait_for (
     Log.info "Current uid: %n" (Unix.getuid ());
-    cleanup () >>= fun() ->  
     Log.flushed () >>= fun () ->
     Sys.file_exists prog >>= function
     | `No

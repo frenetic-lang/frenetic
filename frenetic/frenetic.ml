@@ -38,8 +38,6 @@ let spec =
   +> flag "--http-port" (optional_with_default 9000 int) ~doc:"int HTTP port on which to listen for new policies"
   +> flag "--openflow-port" (optional_with_default 6633 int) ~doc:"int Port to listen on for OpenFlow switches"
   +> flag "--rpc-port" (optional_with_default 8984 int) ~doc:"int TCP port to serve on for communicating with higher-level controller"
-  +> flag "--openflow-executable" (optional_with_default "./openflow.native" file) ~doc:"file path to openflow executable"
-  +> flag "--openflow-log" (optional_with_default "./openflow.log" file) ~doc:"string log path"
   +> flag "--verbosity" (optional_with_default `Info verbosity_levels) ~doc:"level verbosity level = {debug, error, info}"
   +> flag "--log" (optional_with_default default_log_device log_outputs) ~doc: "file path to write logs, 'stdout' or 'stderr'"
   +> anon ("[flags] {http-controller | compile_server | shell}" %: run_types) 
@@ -48,7 +46,7 @@ let command =
   Command.basic
     ~summary: "Frenetic NetKAT-to-OpenFlow compiler"
     spec
-    (fun http_port openflow_port rpc_port openflow_executable openflow_log verbosity log run_type () -> 
+    (fun http_port openflow_port rpc_port verbosity log run_type () -> 
       let (log_path, log_output) = log in
       let main = 
         match run_type with 
@@ -56,7 +54,7 @@ let command =
           fun () ->
             Frenetic_Log.set_level verbosity;
             Frenetic_Log.set_output [Lazy.force log_output];
-            Frenetic_Shell.main openflow_port openflow_executable openflow_log ()
+            Frenetic_Shell.main openflow_port ()
         | `Compile_Server -> 
           fun () -> 
             Frenetic_Log.set_level verbosity;
@@ -66,7 +64,7 @@ let command =
           fun () -> 
             Frenetic_Log.set_level verbosity;
             Frenetic_Log.set_output [Lazy.force log_output];
-            Frenetic_Http_Controller.main http_port openflow_port openflow_executable openflow_log () 
+            Frenetic_Http_Controller.main http_port openflow_port () 
       in
       ignore (main ());
       Core.Std.never_returns (Async.Std.Scheduler.go ())

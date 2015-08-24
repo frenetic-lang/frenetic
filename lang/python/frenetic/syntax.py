@@ -422,3 +422,29 @@ true = Id()
 false = Drop()
 id = Filter(true)
 drop = Filter(false)
+
+class CompilerOptions:
+
+    def __init__(self, cache_prepare, field_order, remove_tail_drops, dedup_flows, optimize):
+        assert type(cache_prepare) == str
+        assert type(field_order) == str
+        assert type(remove_tail_drops) == bool
+        assert type(dedup_flows) == bool
+        assert type(optimize) == bool
+
+        self.cache_prepare = cache_prepare
+        self.field_order = field_order
+        self.remove_tail_drops = remove_tail_drops
+        self.dedup_flows = dedup_flows
+        self.optimize = optimize
+
+    def to_json(self):
+        return {
+            "cache_prepare": self.cache_prepare,
+            "field_order": self.field_order,
+            "remove_tail_drops": self.remove_tail_drops,
+            "dedup_flows": self.dedup_flows,
+            "optimize": self.optimize
+        }
+
+
