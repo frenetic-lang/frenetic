@@ -110,7 +110,6 @@ let of_to_netkat_event fdd (evt : Controller.event) : Frenetic_NetKAT.event list
         headers = bytes_to_headers port_id (Frenetic_OpenFlow.payload_bytes payload);
         payload = payload;
       } in
-      (* TODO: Send table_miss packets to pipes specified in config *)
       let pis, _, _ = 
         match pi.reason with
         | NoMatch -> ( [("table_miss", pkt0)], [], [] )
@@ -232,6 +231,7 @@ module Make : CONTROLLER = struct
 
   let update_all_switches (pol : policy) : unit Deferred.t =
     Log.printf ~level:`Debug "Installing policy\n%s" (Frenetic_NetKAT_Pretty.string_of_policy pol);
+
     let new_queries = Frenetic_NetKAT_Semantics.queries_of_policy pol in
     (* Discard old queries *)
     Hashtbl.Poly.filteri_inplace stats
@@ -252,6 +252,7 @@ module Make : CONTROLLER = struct
     >>= fun () ->
     (* Actually update things *)
     fdd := Frenetic_NetKAT_Local_Compiler.compile ~options:!current_compiler_options pol;
+    Upd.BestEffortUpdate.set_current_compiler_options !current_compiler_options;
     Upd.BestEffortUpdate.implement_policy !fdd
 
   let handle_event (evt : Controller.event) : unit Deferred.t =
@@ -260,6 +261,7 @@ module Make : CONTROLLER = struct
     match evt with
      | `Connect (sw_id, feats) ->
        printf ~level:`Info "switch %Ld connected" sw_id;
+       Upd.BestEffortUpdate.set_current_compiler_options !current_compiler_options;
        Upd.BestEffortUpdate.bring_up_switch sw_id !fdd
      | _ -> Deferred.return ()
 

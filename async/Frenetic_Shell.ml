@@ -177,13 +177,7 @@ let set_field_order ord : unit =
 
 (* Prints the current ordering mode. *)
 let print_order () : unit =
-  match (!current_compiler_options).field_order with
-  | `Heuristic -> print_endline "Ordering Mode: Heuristic"
-  | `Default -> print_endline "Ordering Mode: Default"
-  | `Static fields ->
-     let strs = List.rev (List.map fields Field.to_string) in
-     let cs = String.concat ~sep:" < " strs in
-     printf "Ordering Mode: %s\n%!" cs
+  printf "Ordering Mode: %s\n%!" (LC.field_order_to_string (!current_compiler_options).field_order)
 
 (* Convenience function that checks that an ordering doesn't contain
  * duplicates. This is used in favor of List.contains_dup so a better

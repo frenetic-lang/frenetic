@@ -27,22 +27,28 @@ let rec clear_to_read () = if (!read_outstanding)
 let signal_read () = read_outstanding := false; 
   Condition.broadcast read_finished ()
 
+let openflow_executable () =
+  let prog_alt1 = Filename.dirname(Sys.executable_name) ^ "/openflow" in
+  let prog_alt2 = Filename.dirname(Sys.executable_name) ^ "/openflow.native" in
+  Sys.file_exists prog_alt1 
+  >>= function
+  | `Yes -> return prog_alt1
+  | _ -> Sys.file_exists prog_alt2 
+         >>= function
+         | `Yes -> return prog_alt2
+         | _ -> failwith (Printf.sprintf "Can't find OpenFlow executable %s!" prog_alt2)
+
 let init port =
   Log.info "Calling create!";
   let sock_port = 8984 in
   let sock_addr = `Inet (Unix.Inet_addr.localhost, sock_port) in
-  (* Always use openflow.native from the same directory as frenetic.native *)
-  let prog = Filename.dirname(Sys.executable_name) ^ "/openflow.native" in
   let args = ["-s"; string_of_int sock_port;
               "-p"; string_of_int port;
               "-v"] in
   don't_wait_for (
     Log.info "Current uid: %n" (Unix.getuid ());
     Log.flushed () >>= fun () ->
-    Sys.file_exists prog >>= function
-    | `No
-    | `Unknown -> failwith (Printf.sprintf "Can't find OpenFlow executable %s!" prog)
-    | `Yes ->
+    openflow_executable () >>= fun prog ->
       Process.create ~prog ~args ()
       >>= function
       | Error err -> Log.error "Failed to launch openflow server %s!" prog;

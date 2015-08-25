@@ -209,8 +209,6 @@ let spec =
   empty
   +> flag "-p" (optional_with_default 6633 int) ~doc:"int Port to listen on for OpenFlow switches"
   +> flag "-s" (optional_with_default 8984 int) ~doc:"file TCP port to serve on for communicating with higher-level controller"
-  (* TODO: Figure out how to connect standard out of this process with parent so the log messages
-     will go to the same log file. *)
   +> flag "-l" (optional_with_default "./openflow.log" file) ~doc:"string log path"
   +> flag "-v" no_arg ~doc:" enable verbose logging (`Debug level)"
 

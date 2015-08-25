@@ -124,14 +124,13 @@ let handle_request
        printf "POST /config";
        handle_parse_errors body parse_config_json 
         (fun conf -> 
-          printf "Setting tail drops to %B\n%!" conf.remove_tail_drops;
           current_compiler_options := conf; 
           set_current_compiler_options conf;
           Cohttp_async.Server.respond `OK)
     | `GET, ["config"] ->
        printf "GET /config";
        LC.options_to_json_string !current_compiler_options |> 
-       Cohttp_async.Server.respond_with_string
+       Cohttp_async.Server.respond_with_string 
      | _, _ ->
       Log.error "Unknown method/path (404 error)";
       Cohttp_async.Server.respond `Not_found

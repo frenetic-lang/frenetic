@@ -152,6 +152,10 @@ val eval_pipes : packet -> t -> (string * packet) list * (string * packet) list 
 
 val to_dotfile : t -> string -> unit
 
+val field_order_from_string : string -> order
+
+val field_order_to_string : order -> string
+
 (** [options_from_json_string s] returns a compiler_options type suitable.  Mostly for HTTP servers *)
 val options_from_json_string : string -> compiler_options
 

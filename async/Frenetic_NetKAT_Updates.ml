@@ -34,8 +34,9 @@ module type CONSISTENT_UPDATE_ARGS = sig
 end
 
 module type UPDATE = sig
-  val bring_up_switch : SDN.switchId ->
+  val bring_up_switch : 
     ?old:LC.t ->
+    SDN.switchId ->
     LC.t ->
     unit Deferred.t
 
@@ -43,9 +44,12 @@ module type UPDATE = sig
     ?old:LC.t ->
     LC.t ->
     unit Deferred.t
+
+  val set_current_compiler_options : LC.compiler_options -> unit 
 end
 
 module BestEffortUpdate = struct
+  let current_compiler_options = ref LC.default_compiler_options
 
   let restrict sw_id repr =
     LC.restrict Frenetic_NetKAT.(Switch sw_id) repr
@@ -66,8 +70,8 @@ module BestEffortUpdate = struct
       | `Eof -> raise UpdateError
       | `Ok -> return ()
 
-  let bring_up_switch (sw_id : SDN.switchId) ?old new_r =
-    let table = LC.to_table sw_id new_r in
+  let bring_up_switch ?old (sw_id : SDN.switchId) new_r =
+    let table = LC.to_table ~options:!current_compiler_options sw_id new_r in
     Log.printf ~level:`Debug "Setting up flow table\n%s"
       (Frenetic_OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id) table);
     Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
@@ -84,12 +88,17 @@ module BestEffortUpdate = struct
   let implement_policy ?old repr =
     (Controller.get_switches ()) >>= fun switches ->
     Deferred.List.iter switches (fun sw_id ->
-      bring_up_switch sw_id repr)
+      bring_up_switch ~old sw_id repr)
+
+  let set_current_compiler_options opt = 
+    current_compiler_options := opt
 end
 
 module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
   open Frenetic_OpenFlow
   open Args
+
+  let current_compiler_options = ref LC.default_compiler_options
 
   let barrier sw = 
     Controller.send_txn sw M.BarrierRequest >>= function
@@ -274,7 +283,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
     >>| fun () ->
       incr ver
 
-  let bring_up_switch (sw_id : switchId) ?old repr =
+  let bring_up_switch ?old (sw_id : switchId) repr =
     Monitor.try_with ~name:"PerPacketConsistent.bring_up_switch" (fun () ->
       delete_flows_for sw_id >>= fun () ->
       internal_install_policy_for !ver repr sw_id >>= fun () ->
@@ -286,5 +295,8 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
           "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
         Log.flushed () >>| fun () ->
         Printf.eprintf "%s\n%!" (Exn.to_string _exn)
+
+  let set_current_compiler_options opt = 
+    current_compiler_options := opt
 
 end

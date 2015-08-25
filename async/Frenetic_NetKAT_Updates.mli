@@ -31,8 +31,8 @@ end
 
 module type UPDATE = sig
   val bring_up_switch : 
-    SDN.switchId ->
     ?old:LC.t ->
+    SDN.switchId ->
     LC.t ->
     unit Deferred.t
 
@@ -40,6 +40,8 @@ module type UPDATE = sig
     ?old:LC.t ->
     LC.t ->
     unit Deferred.t
+
+  val set_current_compiler_options : LC.compiler_options -> unit
 end
 
 module BestEffortUpdate : UPDATE

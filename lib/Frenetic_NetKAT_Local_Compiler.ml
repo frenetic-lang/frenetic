@@ -148,7 +148,6 @@ module Interp = struct
     let hvs = HeadersValues.to_hvs packet.headers in
     let sw  = (Field.Switch, Value.of_int64 packet.switch) in
     let vs  = List.map hvs ~f:Pattern.of_hv in
-    let () = eprintf "In eval_to_action" in
     match FDK.(peek (restrict (sw :: vs) t)) with
     | None    -> assert false
     | Some(r) -> r
@@ -157,7 +156,6 @@ module Interp = struct
     Frenetic_NetKAT_Semantics.eval p Action.(to_policy (eval_to_action p t))
 
   let eval_pipes (p:packet) (t:FDK.t) =
-    let () = printf "In Interp.eval_pipes" in
     Frenetic_NetKAT_Semantics.eval_pipes p Action.(to_policy (eval_to_action p t))
 end
 
@@ -178,15 +176,10 @@ type compiler_options = {
 
 let clear_cache () = FDK.clear_cache Int.Set.empty
 
-(* TODO: Change remove_tails_drops to default false and field order to Heuristic *)
 let default_compiler_options = { 
   cache_prepare = `Empty; 
-  field_order = `Static [
-    Field.Switch; Field.Vlan; Field.EthSrc; Field.EthDst; Field.Location; 
-    Field.VlanPcp; Field.EthType; Field.IPProto; Field.IP4Src; Field.IP4Dst;
-    Field.TCPSrcPort; Field.TCPDstPort
-  ]; 
-  remove_tail_drops = true;
+  field_order = `Heuristic; 
+  remove_tail_drops = false;
   dedup_flows = false;
   optimize = true;
 }
@@ -355,31 +348,30 @@ let to_dotfile t filename =
 
 let restrict hv t = FDK.restrict [Pattern.of_hv hv] t
 
+let field_order_from_string = function
+  | "default" -> `Default
+  | "heuristic" -> `Heuristic
+  | field_order_string ->
+   let ls = String.split_on_chars ~on:['<'] field_order_string 
+    |> List.map ~f:String.strip 
+    |> List.map ~f:Field.of_string in   
+   let compose f g x = f (g x) in
+   let curr_order = Field.all_fields in
+   let removed = List.filter curr_order (compose not (List.mem ls)) in
+   (* Tags all specified Fields at the highest priority *)
+   let new_order = List.append (List.rev ls) removed in
+   (`Static new_order)
+
 let options_from_json_string s =
   let open Yojson.Basic.Util in 
   let json = Yojson.Basic.from_string s in
   let cache_prepare_string = json |> member "cache_prepare" |> to_string in
+  (*  Note: Preserve is not settable with JSON because it requires a complex data structure *)
   let cache_prepare = 
     match cache_prepare_string with
     | "keep" -> `Keep
     | _ -> `Empty in
-    (* TODO: Handle Preserve *)
-  let field_order_string = json |> member "field_order" |> to_string in
-  let field_order = 
-    match field_order_string with
-    | "default" -> `Default
-    | "heuristic" -> `Heuristic
-    | _ ->
-     (* TODO: This is copypasta from Frenetic_Shell. *)
-     let ls = String.split_on_chars ~on:['<'] field_order_string 
-      |> List.map ~f:String.strip 
-      |> List.map ~f:Field.of_string in   
-     let compose f g x = f (g x) in
-     let curr_order = Field.all_fields in
-     let removed = List.filter curr_order (compose not (List.mem ls)) in
-     (* Tags all specified Fields at the highest priority *)
-     let new_order = List.append (List.rev ls) removed in
-     (`Static new_order) in
+  let field_order = field_order_from_string (json |> member "field_order" |> to_string) in
   let remove_tail_drops = json |> member "remove_tail_drops" |> to_bool in
   let dedup_flows = json |> member "dedup_flows" |> to_bool in
   let optimize = json |> member "optimize" |> to_bool in
