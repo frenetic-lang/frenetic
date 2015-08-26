@@ -180,7 +180,7 @@ let default_compiler_options = {
   cache_prepare = `Empty; 
   field_order = `Heuristic; 
   remove_tail_drops = false;
-  dedup_flows = false;
+  dedup_flows = true;
   optimize = true;
 }
 
