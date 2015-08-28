@@ -6966,7 +6966,8 @@ let setup_t =
                            FindlibPackage ("str", None);
                            FindlibPackage ("tcpip", None);
                            FindlibPackage ("ulex", None);
-                           FindlibPackage ("yojson", None)
+                           FindlibPackage ("yojson", None);
+                           FindlibPackage ("threads", None)
                         ];
                       bs_build_tools =
                         [
@@ -6988,6 +6989,7 @@ let setup_t =
                         [
                            "Frenetic_Bits";
                            "Frenetic_Fdd";
+                           "Frenetic_GroupTable0x04";
                            "Frenetic_Log";
                            "Frenetic_Network";
                            "Frenetic_NetKAT";
@@ -7147,52 +7149,6 @@ let setup_t =
                    {exec_custom = false; exec_main_is = "openflow.ml"});
                Library
                  ({
-                     cs_name = "openflow";
-                     cs_data = PropList.Data.create ();
-                     cs_plugin_data = []
-                  },
-                   {
-                      bs_build = [(OASISExpr.EBool true, true)];
-                      bs_install = [(OASISExpr.EBool true, true)];
-                      bs_path = "openflow/lib";
-                      bs_compiled_object = Best;
-                      bs_build_depends =
-                        [
-                           FindlibPackage ("str", None);
-                           FindlibPackage ("cstruct", None);
-                           FindlibPackage ("cstruct.syntax", None);
-                           FindlibPackage
-                             ("core", Some (OASISVersion.VEqual "112.24.0"));
-                           InternalLibrary "frenetic";
-                           FindlibPackage ("sexplib.syntax", None);
-                           FindlibPackage ("sexplib", None);
-                           FindlibPackage ("threads", None)
-                        ];
-                      bs_build_tools =
-                        [
-                           ExternalTool "ocamlbuild";
-                           ExternalTool "ocamldoc";
-                           ExternalTool "camlp4"
-                        ];
-                      bs_c_sources = [];
-                      bs_data_files = [];
-                      bs_ccopt = [(OASISExpr.EBool true, [])];
-                      bs_cclib = [(OASISExpr.EBool true, [])];
-                      bs_dlllib = [(OASISExpr.EBool true, [])];
-                      bs_dllpath = [(OASISExpr.EBool true, [])];
-                      bs_byteopt = [(OASISExpr.EBool true, [])];
-                      bs_nativeopt = [(OASISExpr.EBool true, [])]
-                   },
-                   {
-                      lib_modules = ["GroupTable0x04"];
-                      lib_pack = false;
-                      lib_internal_modules = [];
-                      lib_findlib_parent = None;
-                      lib_findlib_name = None;
-                      lib_findlib_containers = []
-                   });
-               Library
-                 ({
                      cs_name = "test_frenetic";
                      cs_data = PropList.Data.create ();
                      cs_plugin_data = []
@@ -7282,6 +7238,44 @@ let setup_t =
                       bs_nativeopt = [(OASISExpr.EBool true, [])]
                    },
                    {exec_custom = false; exec_main_is = "Test.ml"});
+               Executable
+                 ({
+                     cs_name = "fastfailtest";
+                     cs_data = PropList.Data.create ();
+                     cs_plugin_data = []
+                  },
+                   {
+                      bs_build = [(OASISExpr.EBool true, true)];
+                      bs_install = [(OASISExpr.EBool true, false)];
+                      bs_path = "integration";
+                      bs_compiled_object = Native;
+                      bs_build_depends =
+                        [
+                           FindlibPackage ("async", None);
+                           FindlibPackage ("core", None);
+                           InternalLibrary "frenetic";
+                           InternalLibrary "async";
+                           FindlibPackage ("async_extended", None)
+                        ];
+                      bs_build_tools =
+                        [
+                           ExternalTool "ocamlbuild";
+                           ExternalTool "ocamldoc";
+                           ExternalTool "camlp4"
+                        ];
+                      bs_c_sources = [];
+                      bs_data_files = [];
+                      bs_ccopt = [(OASISExpr.EBool true, [])];
+                      bs_cclib = [(OASISExpr.EBool true, [])];
+                      bs_dlllib = [(OASISExpr.EBool true, [])];
+                      bs_dllpath = [(OASISExpr.EBool true, [])];
+                      bs_byteopt = [(OASISExpr.EBool true, [])];
+                      bs_nativeopt = [(OASISExpr.EBool true, [])]
+                   },
+                   {
+                      exec_custom = false;
+                      exec_main_is = "FastFailTest_Controller.ml"
+                   });
                Test
                  ({
                      cs_name = "all_tests";
@@ -7360,7 +7354,12 @@ let setup_t =
        };
      oasis_fn = Some "_oasis";
      oasis_version = "0.4.5";
+<<<<<<< HEAD
      oasis_digest = Some "\178\158\132\248\184\r\b\178\1821d\1616H\223\207";
+=======
+     oasis_digest =
+       Some "[\210\226\006v\150\022\181\166R\026\162\028\246\172~";
+>>>>>>> master
      oasis_exec = None;
      oasis_setup_args = [];
      setup_update = false
@@ -7368,6 +7367,10 @@ let setup_t =
 
 let setup () = BaseSetup.setup setup_t;;
 
+<<<<<<< HEAD
 # 7372 "setup.ml"
+=======
+# 7333 "setup.ml"
+>>>>>>> master
 (* OASIS_STOP *)
 let () = setup ();;

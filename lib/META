@@ -1,9 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: 336b557f984a3eb1593666a1e61c1906)
+# DO NOT EDIT (digest: 5d77b1839037ea8ab0702b886dd855b5)
 version = "4.0.0"
 description = "The Frenetic Compiler and Runtime System"
 requires =
-"async base64 camlp4.lib camlp4.extend camlp4 core cstruct cstruct.syntax fieldslib fieldslib.syntax ocamlgraph sexplib sexplib.syntax str tcpip ulex yojson"
+"async base64 camlp4.lib camlp4.extend camlp4 core cstruct cstruct.syntax fieldslib fieldslib.syntax ocamlgraph sexplib sexplib.syntax str tcpip ulex yojson threads"
 archive(byte) = "frenetic.cma"
 archive(byte, plugin) = "frenetic.cma"
 archive(native) = "frenetic.cmxa"

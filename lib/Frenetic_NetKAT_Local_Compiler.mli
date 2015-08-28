@@ -160,3 +160,34 @@ val field_order_to_string : order -> string
 val options_from_json_string : string -> compiler_options
 
 val options_to_json_string : compiler_options -> string
+
+(* multitable support *)
+
+(* Each list of fields represents the fields one flow table can match on *)
+type flow_layout = Field.t list list
+
+(* Each flow table row has a table location, and a meta value on that table *)
+type tableId = int
+type metaId = int
+type flowId = tableId * metaId
+
+(* OpenFlow 1.3+ instruction types *)
+type instruction = 
+  [ `Action of Frenetic_OpenFlow.group 
+  | `GotoTable of flowId ]
+
+(* A flow table row, with multitable support. If goto has a Some value
+ * then the 0x04 row instruction is GotoTable. *)
+type multitable_flow = {
+  pattern      : Frenetic_OpenFlow.Pattern.t;
+  cookie       : int64;
+  idle_timeout : Frenetic_OpenFlow.timeout;
+  hard_timeout : Frenetic_OpenFlow.timeout;
+  instruction  : instruction;
+  flowId       : flowId;
+}
+
+val layout_to_string : flow_layout -> string
+
+(* Produce a list of flow table entries for a multitable setup *)
+val to_multitable : switchId -> flow_layout -> t -> (multitable_flow list * Frenetic_GroupTable0x04.t)

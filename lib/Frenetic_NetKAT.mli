@@ -12,8 +12,11 @@ type payload = Frenetic_OpenFlow.payload with sexp
 
 (** {2 Policies} *)
 
+val string_of_fastfail : int32 list -> string
+
 type location =
   | Physical of int32
+  | FastFail of int32 list
   | Pipe of string
   | Query of string
   with sexp

@@ -652,37 +652,6 @@ type switchFeatures = {
   supported_capabilities : capabilities
 }
 
-type message =
-  | Hello of element list
-  | EchoRequest of bytes
-  | EchoReply of bytes
-  | FeaturesRequest
-  | FeaturesReply of switchFeatures
-  | FlowModMsg of flowMod
-  | GroupModMsg of groupMod
-  | PortModMsg of portMod
-  | MeterModMsg of meterMod
-  | PacketInMsg of packetIn
-  | FlowRemoved of flowRemoved
-  | PacketOutMsg of packetOut
-  | PortStatusMsg of portStatus
-  | MultipartReq of multipartRequest
-  | MultipartReply of multipartReply
-  | BarrierRequest
-  | BarrierReply
-  | RoleRequest of roleRequest
-  | RoleReply of roleRequest
-  | QueueGetConfigReq of queueConfReq
-  | QueueGetConfigReply of queueConfReply
-  | GetConfigRequestMsg
-  | GetConfigReplyMsg of switchConfig
-  | SetConfigMsg of switchConfig
-  | TableModMsg of tableMod
-  | GetAsyncRequest
-  | GetAsyncReply of asyncConfig
-  | SetAsync of asyncConfig
-  | Error of error
-
 let match_all = []
 
 let default_fm_flags =
@@ -2675,6 +2644,34 @@ module Oxm = struct
       let fields, bits3 = parse_headers bits2 in
       (List.append [field] fields, bits3)
 
+  (* Take a generic pattern and produce an openflow 1.3 pattern *)
+  let from_of_pattern (pat : Frenetic_OpenFlow.Pattern.t) : oxm list =
+    (if pat.dlSrc = None then []
+    else [OxmEthSrc (val_to_mask (Option.value_exn pat.dlSrc))])
+    |> (fun accum -> if pat.dlDst = None then accum 
+       else (OxmEthDst (val_to_mask (Option.value_exn pat.dlDst))) :: accum)
+    |> (fun accum -> if pat.dlTyp = None then accum 
+       else (OxmEthType (Option.value_exn pat.dlTyp)) :: accum)
+    |> (fun accum -> if pat.dlVlan = None then accum 
+       else (OxmVlanVId (val_to_mask (Option.value_exn pat.dlVlan))) :: accum)
+    |> (fun accum -> if pat.dlVlanPcp = None then accum 
+       else (OxmVlanPcp (Option.value_exn pat.dlVlanPcp)) :: accum)
+    |> (fun accum -> if pat.nwSrc = None then accum 
+       (* TODO(mulias): nwSrc is an int32*int32, the second int is proably the mask *)
+       else let (src,_) = Option.value_exn pat.nwSrc in 
+         (OxmIP4Src (val_to_mask src)) :: accum)
+    |> (fun accum -> if pat.nwDst = None then accum 
+       else let (dst,_) = Option.value_exn pat.nwDst in
+         (OxmIP4Dst (val_to_mask dst)) :: accum)
+    |> (fun accum -> if pat.nwProto = None then accum 
+       else (OxmIPProto (Option.value_exn pat.nwProto)) :: accum)
+    |> (fun accum -> if pat.tpSrc = None then accum 
+       else (OxmTCPSrc (Option.value_exn pat.tpSrc)) :: accum)
+    |> (fun accum -> if pat.tpDst = None then accum 
+       else (OxmTCPDst (Option.value_exn pat.tpDst)) :: accum)
+    |> (fun accum -> if pat.inPort = None then accum 
+       else (OxmInPort (Option.value_exn pat.inPort)) :: accum)
+
 end
 
 module PseudoPort = struct
@@ -3201,6 +3198,41 @@ module Action = struct
     | DecMplsTtl -> "Dec MPLS TTL"
     | SetQueue q -> Format.sprintf "Set Queue: %lu" q
     | Experimenter e -> Format.sprintf "Experimenter: %lu" e
+
+  (* Map generic single action to openflow 1.3 actions *)
+  let from_of_action (action : Frenetic_OpenFlow.action) : t =
+    let open Frenetic_OpenFlow in
+    match action with
+    | Frenetic_OpenFlow.Output pseudoport  -> 
+     (let port = match pseudoport with
+      | Physical port_id -> PhysicalPort port_id
+      | InPort           -> InPort
+      | Table            -> Table
+      | Normal           -> Normal
+      | Flood            -> Flood
+      | All              -> AllPorts
+      | Controller c     -> Controller c
+      | Local            -> Local
+      in Output port)
+    | Frenetic_OpenFlow.Modify fieldmod -> 
+     (let oxm = match fieldmod with
+      | SetEthSrc dlAddr     -> OxmEthSrc (val_to_mask dlAddr)
+      | SetEthDst dlAddr     -> OxmEthDst (val_to_mask dlAddr)
+      | SetVlan dlVlan       -> OxmVlanVId (val_to_mask (Option.value_exn dlVlan))
+      | SetVlanPcp dlVlanPcp -> OxmVlanPcp dlVlanPcp
+      | SetEthTyp dlTyp      -> OxmEthType dlTyp
+      | SetIPProto nwProto   -> OxmIPProto nwProto
+      | SetIP4Src nwAddr     -> OxmIP4Src (val_to_mask nwAddr)
+      | SetIP4Dst nwAddr     -> OxmIP4Dst (val_to_mask nwAddr)
+      | SetTCPSrcPort tpPort -> OxmTCPSrc tpPort
+      | SetTCPDstPort tpPort -> OxmTCPDst tpPort
+      in SetField oxm)
+    | Frenetic_OpenFlow.FastFail gid -> Group gid 
+    | Enqueue _ -> failwith "Not Yet Implemented"
+  (* Map generic action sequence to openflow 1.3 instruction *)
+  let from_of_seq (seq : Frenetic_OpenFlow.seq) : sequence =
+    List.map seq ~f:from_of_action
+
 end
 
 module Bucket = struct
@@ -3742,6 +3774,16 @@ module Instructions = struct
   let parse (bits : Cstruct.t) : t =
     let field,_ = parse_field bits in
     field
+
+  (* Take a generic action group and produce an openflow 1.3 instruction list *)
+  let from_of_group (group : Frenetic_OpenFlow.group) : t =
+    (* group is a singleton list containing a list of lists of actions *)
+    match group with
+    | []        -> []
+    | par :: [] -> [ApplyActions (List.concat (List.map par ~f:Action.from_of_seq))]
+    (* TODO(mulias): this is a bug. When running mininet with ovs 2.0.2, a non
+     * singleton action group would not be propperly processed by the switch. *)
+    | _         -> failwith "Action group can not contain more than one sequence"
 
 end
 
@@ -7384,7 +7426,37 @@ end
 
 module Message = struct
 
-  type t = message
+  type t = 
+    | Hello of element list
+    | EchoRequest of bytes
+    | EchoReply of bytes
+    | FeaturesRequest
+    | FeaturesReply of switchFeatures
+    | FlowModMsg of flowMod
+    | GroupModMsg of groupMod
+    | PortModMsg of portMod
+    | MeterModMsg of meterMod
+    | PacketInMsg of packetIn
+    | FlowRemoved of flowRemoved
+    | PacketOutMsg of packetOut
+    | PortStatusMsg of portStatus
+    | MultipartReq of multipartRequest
+    | MultipartReply of multipartReply
+    | BarrierRequest
+    | BarrierReply
+    | RoleRequest of roleRequest
+    | RoleReply of roleRequest
+    | QueueGetConfigReq of queueConfReq
+    | QueueGetConfigReply of queueConfReply
+    | GetConfigRequestMsg
+    | GetConfigReplyMsg of switchConfig
+    | SetConfigMsg of switchConfig
+    | TableModMsg of tableMod
+    | GetAsyncRequest
+    | GetAsyncReply of asyncConfig
+    | SetAsync of asyncConfig
+    | Error of error
+
 
   let string_of_msg_code (msg : msg_code) : string = match msg with
     | HELLO -> "HELLO"
@@ -7635,4 +7707,4 @@ module Message = struct
     (hdr.Header.xid, msg)
 end
 
-let portsDescRequest = MultipartReq portDescReq
+let portsDescRequest = Message.MultipartReq portDescReq

@@ -50,6 +50,7 @@ module Headers = struct
       | Output InPort -> { hdrs with location = Physical(port) }
       | Output _ -> assert false
       | Enqueue _ -> assert false
+      | FastFail _ -> assert false
       | Modify m ->
         begin match m with
           | SetEthSrc dlSrc -> { hdrs with ethSrc = dlSrc }

@@ -32,10 +32,12 @@ Library frenetic
     str,
     tcpip,
     ulex,
-    yojson
+    yojson,
+    threads
   Modules:
     Frenetic_Bits,
     Frenetic_Fdd,
+    Frenetic_GroupTable0x04,
     Frenetic_Log,
     Frenetic_Network,
     Frenetic_NetKAT,
@@ -109,20 +111,6 @@ Executable openflow
     frenetic.async,
     async_extended
 
-Library openflow
-  Path: openflow/lib
-  BuildDepends:
-    str,
-    cstruct,
-    cstruct.syntax,
-    core  (= 112.24.0),
-    frenetic,
-    sexplib.syntax,
-    sexplib,
-    threads
-  Modules:
-    GroupTable0x04
-
 # Will be reintroduced in summer 2015
 #Library syntax
 #  Path: frenetic/syntax
@@ -170,6 +158,18 @@ Executable testtool
     frenetic.test,
     frenetic,
     frenetic.async
+
+Executable fastfailtest 
+  Path: integration
+  MainIs: FastFailTest_Controller.ml
+  Install: false
+  CompiledObject: native
+  BuildDepends:
+    async,
+    core,
+    frenetic,
+    frenetic.async,
+    async_extended
 
 Test all_tests
   Run$: flag(tests)

@@ -59,6 +59,7 @@ module HeadersValues = struct
       ~init:""
       ~location:(g (function
         | Physical n -> Printf.sprintf "%lu" n
+        | FastFail n_lst -> Printf.sprintf "%s" (string_of_fastfail n_lst)
         | Pipe x     -> Printf.sprintf "pipe(%s)" x
         | Query x    -> Printf.sprintf "query(%s)" x))
       ~ethSrc:Int64.(g to_string)
@@ -239,6 +240,8 @@ let eval_pipes (packet:packet) (pol:Frenetic_NetKAT.policy)
      * belong to. *)
     match pkt.headers.HeadersValues.location with
       | Physical _ -> (            pi,             qu, pkt :: phy)
+      (* TODO(grouptable) *)
+      | FastFail _ -> failwith "Not Yet Implemented"
       | Pipe     p -> ((p, pkt) :: pi,             qu,        phy)
       | Query    q -> (            pi, (q, pkt) :: qu,        phy))
 

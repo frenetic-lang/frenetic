@@ -175,6 +175,9 @@ module Value = struct
     | Mask of Int64.t * int
     | Pipe of string
     | Query of string
+    (* TODO(grouptable): HACK, should only be able to fast fail on ports.
+     * Put this somewhere else *)
+    | FastFail of Int32.t list
     with sexp
   (** The packet field value type. This is a union of all the possible values
       that all fields can take on. All integer bit widths are represented by an
@@ -214,7 +217,9 @@ module Value = struct
     | Pipe     _ ,       _
     | Query    _ ,       _
     | _          , Pipe  _
-    | _          , Query _ -> false
+    | _          , Query _ 
+    | FastFail _ , _ 
+    | _          , FastFail _ -> false
     | Mask(a, m) , Mask(b, n) -> subset_eq_mask a m  b n
     | Const a    , Mask(b, n) -> subset_eq_mask a 64 b n
 
@@ -250,7 +255,9 @@ module Value = struct
     | Pipe     _ ,       _
     | Query    _ ,       _
     | _          , Pipe  _
-    | _          , Query _ -> None
+    | _          , Query _
+    | FastFail _ , _ 
+    | _          , FastFail _ -> None
     | Mask(a, m) , Mask(b, n) -> meet_mask a m  b n
     | Const a, Mask(b, n)     -> meet_mask a 64 b n
 
@@ -291,7 +298,9 @@ module Value = struct
     | Pipe     _ ,       _
     | Query    _ ,       _
     | _          , Pipe  _
-    | _          , Query _ -> None
+    | _          , Query _
+    | FastFail _ , _ 
+    | _          , FastFail _ -> None
     | Mask(a, m) , Mask(b, n) -> join_mask a m  b n
     | Const a, Mask(b, n)     -> join_mask a 64 b n
 
@@ -310,6 +319,8 @@ module Value = struct
        | c -> c)
     | Mask _, _ -> -1
     | _, Mask _ -> 1
+    | FastFail _, _ -> -1
+    | _, FastFail _ -> 1
     | _ -> Pervasives.compare x y
 
   let to_string = function
@@ -317,6 +328,7 @@ module Value = struct
     | Mask(a, m) -> Printf.sprintf "Mask(%Lu, %d)" a m
     | Pipe(p) -> Printf.sprintf "Pipe(%s)" p
     | Query(p) -> Printf.sprintf "Query(%s)" p
+    | FastFail(p_lst) -> Printf.sprintf "FastFail(%s)" (Frenetic_NetKAT.string_of_fastfail p_lst)
 
   let of_int   t = Const (Int64.of_int   t)
   let of_int32 t = Const (Int64.of_int32 t)
@@ -355,6 +367,8 @@ module Pattern = struct
     match hv with
     | Switch sw_id -> (Field.Switch, Value.(Const sw_id))
     | Location(Physical p) -> (Field.Location, Value.of_int32 p)
+    (* TODO(grouptable): value hack *)
+    | Location(FastFail p_lst) -> (Field.Location, Value.(FastFail p_lst))
     | Location(Pipe p)  -> (Field.Location, Value.(Pipe p))
     | Location(Query p) -> (Field.Location, Value.(Query p))
     | EthSrc(dlAddr) -> (Field.EthSrc, Value.(Const dlAddr))
@@ -523,7 +537,8 @@ module Action = struct
       | Some (Query str) -> str :: queries
       | _ -> queries)
 
-  let to_sdn ?(in_port:Int64.t option) (t:t) : SDN.par =
+  let to_sdn (in_port : Int64.t option) (group_tbl : Frenetic_GroupTable0x04.t option)  
+    (t:t) : SDN.par =
     (* Convert a NetKAT action to an SDN action. At the moment this function
        assumes that fields are assigned to proper bitwidth integers, and does
        no validation along those lines. If the input is derived from a NetKAT
@@ -556,6 +571,12 @@ module Action = struct
         | Some (Const p) -> [SDN.(Output(to_port p))]
         | Some (Pipe  _) -> [SDN.(Output(Controller 128))]
         | Some (Query _) -> assert false
+        | Some (FastFail p_lst) -> 
+           (match group_tbl with
+            | Some tbl ->
+              let gid = Frenetic_GroupTable0x04.add_fastfail_group tbl p_lst
+              in [SDN.(FastFail gid)]
+            | None -> failwith "No group table provided")
         | Some mask      -> raise (FieldValue_mismatch(Location, mask))
       in
       Seq.fold_fields (Seq.remove seq (F Location)) ~init ~f:(fun ~key ~data acc ->
@@ -638,7 +659,8 @@ module Action = struct
     Par.fold ~init:0 ~f:(fun acc seq -> acc + (Seq.length seq))
 
   let to_string t =
-    Printf.sprintf "[%s]" (SDN.string_of_par (to_sdn t))
+    let par = to_sdn None None t in
+    Printf.sprintf "[%s]" (SDN.string_of_par par)
 
 end
 
