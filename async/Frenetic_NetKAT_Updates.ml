@@ -34,8 +34,9 @@ module type CONSISTENT_UPDATE_ARGS = sig
 end
 
 module type UPDATE = sig
-  val bring_up_switch : SDN.switchId ->
+  val bring_up_switch : 
     ?old:LC.t ->
+    SDN.switchId ->
     LC.t ->
     unit Deferred.t
 
@@ -43,9 +44,12 @@ module type UPDATE = sig
     ?old:LC.t ->
     LC.t ->
     unit Deferred.t
+
+  val set_current_compiler_options : LC.compiler_options -> unit 
 end
 
 module BestEffortUpdate = struct
+  let current_compiler_options = ref LC.default_compiler_options
 
   let restrict sw_id repr =
     LC.restrict Frenetic_NetKAT.(Switch sw_id) repr
@@ -53,20 +57,21 @@ module BestEffortUpdate = struct
   let install_flows_for sw_id table =
     let to_flow_mod p f = M.FlowModMsg (from_flow p f) in
     let priority = ref 65536 in
-    Deferred.List.iter table ~f:(fun flow ->
-      decr priority;
-      match Controller.send sw_id 0l (to_flow_mod !priority flow) with 
-        | `Eof -> raise UpdateError
-        | `Ok -> return ())
+    let flows = List.map table ~f:(fun flow ->
+        decr priority;
+        to_flow_mod !priority flow) in
+    Controller.send_batch sw_id 0l flows >>= function
+    | `Eof -> raise UpdateError
+    | `Ok -> return ()
 
   let delete_flows_for sw_id =
     let delete_flows = M.FlowModMsg OF10.delete_all_flows in
-    match Controller.send sw_id 5l delete_flows with 
+    Controller.send sw_id 5l delete_flows >>= function
       | `Eof -> raise UpdateError
       | `Ok -> return ()
 
-  let bring_up_switch (sw_id : SDN.switchId) ?old new_r =
-    let table = LC.to_table sw_id new_r in
+  let bring_up_switch ?old (sw_id : SDN.switchId) new_r =
+    let table = LC.to_table ~options:!current_compiler_options sw_id new_r in
     Log.printf ~level:`Debug "Setting up flow table\n%s"
       (Frenetic_OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id) table);
     Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
@@ -81,31 +86,38 @@ module BestEffortUpdate = struct
         Printf.eprintf "%s\n%!" (Exn.to_string _exn)
 
   let implement_policy ?old repr =
-    Deferred.List.iter (Controller.get_switches ()) (fun sw_id ->
-      bring_up_switch sw_id repr)
+    (Controller.get_switches ()) >>= fun switches ->
+    Deferred.List.iter switches (fun sw_id ->
+      bring_up_switch ~old sw_id repr)
+
+  let set_current_compiler_options opt = 
+    current_compiler_options := opt
 end
 
 module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
   open Frenetic_OpenFlow
   open Args
 
+  let current_compiler_options = ref LC.default_compiler_options
+
   let barrier sw = 
-    match Controller.send_txn sw M.BarrierRequest with 
+    Controller.send_txn sw M.BarrierRequest >>= function
       | `Ok dl -> dl >>= fun _ -> return (Ok ())
       | `Eof -> return (Error UpdateError)
 
   let install_flows_for sw_id ?old table =
     let to_flow_mod p f = M.FlowModMsg (from_flow p f) in
     let priority = ref 65536 in
-    Deferred.List.iter table ~f:(fun flow ->
-      decr priority;
-      match Controller.send sw_id 0l (to_flow_mod !priority flow) with 
-        | `Eof -> raise UpdateError
-        | `Ok -> return ())
+    let flows = List.map table ~f:(fun flow ->
+        decr priority;
+        to_flow_mod !priority flow) in
+    Controller.send_batch sw_id 0l flows >>= function
+    | `Eof -> raise UpdateError
+    | `Ok -> return ()
 
   let delete_flows_for sw_id =
     let delete_flows = M.FlowModMsg OF10.delete_all_flows in
-    match Controller.send sw_id 5l delete_flows with 
+    Controller.send sw_id 5l delete_flows >>= function
       | `Eof -> raise UpdateError 
       | `Ok -> return ()
 
@@ -155,7 +167,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
       ; hard_timeout = Permanent
       } with command = DeleteFlow } in
     Monitor.try_with ~name:"PerPacketConsistent.clear_policy_for" (fun () ->
-      match Controller.send sw_id 5l clear_version_message with 
+      Controller.send sw_id 5l clear_version_message >>= function
         | `Eof -> raise UpdateError
         | `Ok -> return ())
     >>| function
@@ -214,13 +226,14 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
     let to_flow_del prio flow =
       M.FlowModMsg ({from_flow prio flow with command = DeleteStrictFlow}) in
     (* Install the new table *)
-    Deferred.List.iter new_table ~f:(fun (flow, prio) ->
-      match Controller.send c_id 0l (to_flow_mod prio flow) with 
+    let new_flows = List.map new_table ~f:(fun (flow, prio) ->
+        to_flow_mod prio flow) in
+    Controller.send_batch c_id 0l new_flows >>= function
         | `Eof -> raise UpdateError 
-        | `Ok -> return ())
+        | `Ok -> return ()
     (* Delete the old table from the bottom up *)
     >>= fun () -> Deferred.List.iter del_table ~f:(fun (flow, prio) ->
-      match Controller.send c_id 0l (to_flow_del prio flow) with 
+      Controller.send c_id 0l (to_flow_del prio flow) >>= function
         | `Eof -> raise UpdateError
         | `Ok -> return ())
     >>| fun () ->
@@ -251,7 +264,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
      * program, whereas a switch id may be reused across client ids, i.e., a
      * switch connects, disconnects, and connects again. Due to this behavior,
      * it may be possible to get into an inconsistent state below. Maybe. *)
-    let switches = Controller.get_switches () in
+    Controller.get_switches () >>= fun switches ->
     let ver_num = !ver + 1 in
     (* Install internal update *)
     Log.debug "Installing internal tables for ver %d" ver_num;
@@ -270,7 +283,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
     >>| fun () ->
       incr ver
 
-  let bring_up_switch (sw_id : switchId) ?old repr =
+  let bring_up_switch ?old (sw_id : switchId) repr =
     Monitor.try_with ~name:"PerPacketConsistent.bring_up_switch" (fun () ->
       delete_flows_for sw_id >>= fun () ->
       internal_install_policy_for !ver repr sw_id >>= fun () ->
@@ -282,5 +295,8 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
           "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
         Log.flushed () >>| fun () ->
         Printf.eprintf "%s\n%!" (Exn.to_string _exn)
+
+  let set_current_compiler_options opt = 
+    current_compiler_options := opt
 
 end

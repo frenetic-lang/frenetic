@@ -4,6 +4,7 @@ open Cohttp_async
 open Frenetic_NetKAT
 open Frenetic_Common
 module Server = Cohttp_async.Server
+module LC = Frenetic_NetKAT_Local_Compiler
 module Log = Frenetic_Log
 
 type client = {
@@ -14,6 +15,8 @@ type client = {
   (* Write to this pipe when new event received from the network *)
   event_writer: string Pipe.Writer.t;
 }
+
+let current_compiler_options = ref LC.default_compiler_options 
 
 (* TODO(arjun):
 
@@ -77,7 +80,7 @@ let handle_request
        >>= fun portStats ->
        Server.respond_with_string (Frenetic_NetKAT_Json.port_stats_to_json_string portStats)
     | `GET, ["current_switches"] ->
-      let switches = current_switches () in
+      current_switches () >>= fun switches ->
       Server.respond_with_string (current_switches_to_json_string switches)
     | `GET, ["query"; name] ->
       if (is_query name) then
@@ -117,7 +120,18 @@ let handle_request
       (fun pol ->
          Frenetic_DynGraph.push pol (get_client clientId).policy_node;
          Cohttp_async.Server.respond `OK)
-    | _, _ ->
+    | `POST, ["config"] ->
+       printf "POST /config";
+       handle_parse_errors body parse_config_json 
+        (fun conf -> 
+          current_compiler_options := conf; 
+          set_current_compiler_options conf;
+          Cohttp_async.Server.respond `OK)
+    | `GET, ["config"] ->
+       printf "GET /config";
+       LC.options_to_json_string !current_compiler_options |> 
+       Cohttp_async.Server.respond_with_string 
+     | _, _ ->
       Log.error "Unknown method/path (404 error)";
       Cohttp_async.Server.respond `Not_found
 
@@ -133,7 +147,7 @@ let listen ~http_port ~openflow_port =
     (handle_request (module Controller)) in
   let (_, pol_reader) = Frenetic_DynGraph.to_pipe pol in
   let _ = Pipe.iter pol_reader ~f:(fun pol -> Controller.update_policy pol) in
-  Controller.start ();
+  Controller.start openflow_port;
   don't_wait_for(propogate_events Controller.event);
   Deferred.return ()
 

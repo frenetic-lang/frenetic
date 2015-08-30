@@ -324,12 +324,12 @@ let compare_eval_output p q pkt =
 let compare_compiler_output p q pkt =
   let open Frenetic_NetKAT_Semantics in
   PacketSet.compare
-    (Flowterp.Packet.eval pkt (Frenetic_NetKAT_Local_Compiler.(to_table pkt.switch (compile ~order:`Heuristic p))))
-    (Flowterp.Packet.eval pkt (Frenetic_NetKAT_Local_Compiler.(to_table pkt.switch (compile ~order:`Heuristic q))))
+    (Flowterp.Packet.eval pkt (Frenetic_NetKAT_Local_Compiler.(to_table pkt.switch (compile p))))
+    (Flowterp.Packet.eval pkt (Frenetic_NetKAT_Local_Compiler.(to_table pkt.switch (compile q))))
   = 0
 
 let check gen_fn compare_fn =
-  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
+  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 100 } in
   match QuickCheck.check gen_fn cfg compare_fn with
         QuickCheck.Success -> true
     | _                  -> false

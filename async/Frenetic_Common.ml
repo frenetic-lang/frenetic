@@ -55,3 +55,7 @@ let parse_update body = Body.to_string body >>= fun pol_str ->
 let parse_update_json body =
   Body.to_string body >>= fun str ->
   return (Frenetic_NetKAT_Json.policy_from_json_string str)
+
+let parse_config_json body =
+  Body.to_string body >>= fun str ->
+  return (Frenetic_NetKAT_Local_Compiler.options_from_json_string str)
