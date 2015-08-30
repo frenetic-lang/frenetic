@@ -33,6 +33,21 @@ module Field = struct
 
   let hash = Hashtbl.hash
 
+  let of_string = function
+    | "Switch" -> Switch 
+    | "Location" -> Location 
+    | "EthSrc" -> EthSrc 
+    | "EthDst" -> EthDst 
+    | "Vlan" -> Vlan 
+    | "VlanPcp" -> VlanPcp 
+    | "EthType" -> EthType 
+    | "IPProto" -> IPProto 
+    | "IP4Src" -> IP4Src 
+    | "IP4Dst" -> IP4Dst 
+    | "TCPSrcPort" -> TCPSrcPort 
+    | "TCPDstPort" -> TCPDstPort 
+    | _ -> assert false
+
   let to_string = function
     | Switch -> "Switch"
     | Vlan -> "Vlan"

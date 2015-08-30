@@ -236,6 +236,7 @@ let eval_pipes (packet:packet) (pol:Frenetic_NetKAT.policy)
    * Since Local.t is switch-specific, this function assumes but does not
    * check that the packet came from the same switch as the given Local.t *)
   let packets = eval packet pol in
+  let () = eprintf "Found %d packets" (PacketSet.length packets) in 
   PacketSet.fold packets ~init:([],[],[]) ~f:(fun (pi,qu,phy) pkt ->
     (* Running the packet through the switch's policy will label the resultant
      * packets with the pipe or query they belong to, if any. All that's left to
@@ -248,32 +249,6 @@ let eval_pipes (packet:packet) (pol:Frenetic_NetKAT.policy)
       | FastFail _ -> failwith "Not Yet Implemented"
       | Pipe     p -> ((p, pkt) :: pi,             qu,        phy)
       | Query    q -> (            pi, (q, pkt) :: qu,        phy))
-
-
-(* Apparently not used anymore
-let switches_of_policy (pol : policy) : switchId list =
-  let ids : (switchId, unit) Hashtbl.Poly.t = Hashtbl.Poly.create () in
-  let rec count_pred (pred : pred) (k : unit -> 'a) : 'a = match pred with
-    | Test (Switch sw) ->
-      Hashtbl.Poly.set ids ~key:sw ~data:();
-      k ()
-    | True | False | Test _ -> k ()
-    | And (a, b) | Or (a, b) ->
-      count_pred a (fun () -> count_pred b (fun () -> k ()))
-    | Neg a -> count_pred a k in
-  let rec count_pol (pol : policy) (k : unit -> 'a) : 'a = match pol with
-    | Filter a -> count_pred a k
-    | Mod _ -> k ()
-    | Union (p, q) | Seq (p, q) ->
-       count_pol p (fun () -> count_pol q (fun () -> k ()))
-    | Star p -> count_pol p k
-    | Link (sw1, _, sw2, _) ->
-      Hashtbl.Poly.set ids ~key:sw1 ~data:();
-      Hashtbl.Poly.set ids ~key:sw2 ~data:();
-      k () in
-  count_pol pol ident;
-  Hashtbl.Poly.keys ids
-*)
 
 let queries_of_policy (pol : policy) : string list =
   let rec loop (pol : policy) (acc : string list) : string list = match pol with

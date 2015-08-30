@@ -15,6 +15,7 @@ setup.log
 *~
 .*.sw[po]
 *.docdir
+*.log
 
 
 # Emacs Temp Files

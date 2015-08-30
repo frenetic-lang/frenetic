@@ -1,6 +1,7 @@
 open Core.Std
 open Async.Std
 open Frenetic_OpenFlow0x01
+module Log = Frenetic_Log
 
 type event = [
   | `Connect of switchId * SwitchFeatures.t
@@ -8,148 +9,164 @@ type event = [
   | `Message of switchId * Frenetic_OpenFlow_Header.t * Message.t
 ]
 
+let chan = Ivar.create ()
+
 let (events, events_writer) = Pipe.create ()
 
-let openflow_events (r:Reader.t) : (Frenetic_OpenFlow_Header.t * Message.t) Pipe.Reader.t =
+let server_sock_addr = Ivar.create ()
+let server_reader = Ivar.create ()
+let server_writer = Ivar.create ()
 
-  let reader,writer = Pipe.create () in
+let read_outstanding = ref false
+let read_finished = Condition.create ()
 
-  let rec loop () =
-    let header_str = String.create Frenetic_OpenFlow_Header.size in
-    Reader.really_read r header_str >>= function 
-      | `Eof _ -> 
-        Pipe.close writer;
-        return ()
-      | `Ok -> 
-        let header = Frenetic_OpenFlow_Header.parse (Cstruct.of_string header_str) in
-        let body_len = header.length - Frenetic_OpenFlow_Header.size in
-        let body_str = String.create body_len in
-        Reader.really_read r body_str >>= function
-          | `Eof _ -> 
-            Pipe.close writer;
-            return ()
-          | `Ok -> 
-            let _,message = Message.parse header body_str in
-            Pipe.write_without_pushback writer (header,message);
-            loop () in 
-  don't_wait_for (loop ());
-  reader
+let rec clear_to_read () = if (!read_outstanding)
+  then Condition.wait read_finished >>= clear_to_read
+  else return (read_outstanding := true)
 
-type switchState =
-  { features : SwitchFeatures.t;
-    send : xid -> Message.t -> unit;
-    send_txn : Message.t -> (Message.t list) Deferred.t }
+let signal_read () = read_outstanding := false; 
+  Condition.broadcast read_finished ()
 
-let switches : (switchId, switchState) Hashtbl.Poly.t =
-  Hashtbl.Poly.create ()
+let openflow_executable () =
+  let prog_alt1 = Filename.dirname(Sys.executable_name) ^ "/openflow" in
+  let prog_alt2 = Filename.dirname(Sys.executable_name) ^ "/openflow.native" in
+  Sys.file_exists prog_alt1 
+  >>= function
+  | `Yes -> return prog_alt1
+  | _ -> Sys.file_exists prog_alt2 
+         >>= function
+         | `Yes -> return prog_alt2
+         | _ -> failwith (Printf.sprintf "Can't find OpenFlow executable %s!" prog_alt2)
 
-type threadState =
-  { switchId : switchId;
-    txns : (xid, Message.t list Ivar.t * Message.t list) Hashtbl.t }
+let init port =
+  Log.info "Calling create!";
+  let sock_port = 8984 in
+  let sock_addr = `Inet (Unix.Inet_addr.localhost, sock_port) in
+  let args = ["-s"; string_of_int sock_port;
+              "-p"; string_of_int port;
+              "-v"] in
+  don't_wait_for (
+    Log.info "Current uid: %n" (Unix.getuid ());
+    Log.flushed () >>= fun () ->
+    openflow_executable () >>= fun prog ->
+      Process.create ~prog ~args ()
+      >>= function
+      | Error err -> Log.error "Failed to launch openflow server %s!" prog;
+        raise (Core_kernel.Error.to_exn err)
+      | Ok proc ->
+        Log.info "Successfully launched OpenFlow controller with pid %s" (Pid.to_string (Process.pid proc));
+        (* Redirect stdout of the child proc to out stdout for logging *)
+        let buf = String.create 1000 in
+        don't_wait_for (Deferred.repeat_until_finished () (fun () ->
+            Reader.read (Process.stdout proc) buf >>| function
+            | `Eof -> `Finished ()
+            | `Ok n -> `Repeat (Writer.write (Lazy.force Writer.stdout) ~len:n buf)));
+        Log.info "Connecting to first OpenFlow server socket";
+        let rec wait_for_server () = 
+          Monitor.try_with ~extract_exn:true (fun () -> Socket.connect (Socket.create Socket.Type.tcp) sock_addr) >>= function
+          | Ok sock -> return sock
+          | Error exn -> Log.info "Failed to open socket to OpenFlow server: %s" (Exn.to_string exn);
+            Log.info "Retrying in 1 second";
+            after (Time.Span.of_sec 1.)
+            >>= wait_for_server in
+        wait_for_server ()
+        >>= fun sock ->
+        Ivar.fill server_sock_addr sock_addr;
+        Log.info "Successfully connected to first OpenFlow server socket";
+        Ivar.fill server_reader (Reader.create (Socket.fd sock));
+        Ivar.fill server_writer (Writer.create (Socket.fd sock));
+        (* We open a second socket to get the events stream *)
+        Log.info "Connecting to second OpenFlow server socket";
+        Socket.connect (Socket.create Socket.Type.tcp) sock_addr
+        >>= fun sock ->
+        Log.info "Successfully connected to second OpenFlow server socket";
+        let reader = Reader.create (Socket.fd sock) in
+        let writer = Writer.create (Socket.fd sock) in
+        Writer.write_marshal writer ~flags:[] `Events;
+        Deferred.repeat_until_finished ()
+          (fun () ->
+             Reader.read_marshal reader
+             >>= function
+             | `Eof ->
+               Log.info "OpenFlow controller closed events socket";
+               Pipe.close events_writer;
+               Socket.shutdown sock `Both;
+               return (`Finished ())
+             | `Ok (`Events_resp evt) ->
+               Pipe.write events_writer evt >>| fun () ->
+               `Repeat ()))
 
-type state =
-  | Initial
-  | SentSwitchFeatures
-  | Connected of threadState
 
-let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit Deferred.t =
-  let open Message in 
+let ready_to_process () =
+  Ivar.read server_reader
+  >>= fun reader ->
+  Ivar.read server_writer
+  >>= fun writer ->
+  clear_to_read ()
+  >>= fun () ->
+  let read () = Reader.read_marshal reader >>| function
+    | `Eof -> Log.error "OpenFlow server socket shutdown unexpectedly!";
+      failwith "Can not reach OpenFlow server!"
+    | `Ok a -> a in
+  let write = Writer.write_marshal writer ~flags:[] in
+  return (read, write)
 
-  let serialize (xid:xid) (msg:Message.t) : unit = 
-    let header = Message.header_of xid msg in 
-    let buf = Cstruct.create header.length in 
-    Frenetic_OpenFlow_Header.marshal buf header;
-    Message.marshal_body msg (Cstruct.shift buf Frenetic_OpenFlow_Header.size);
-    Async_cstruct.schedule_write w buf in 
+let get_switches () =
+  ready_to_process ()
+  >>= fun (recv, send) ->
+  send `Get_switches;
+  recv ()
+  >>| function
+  | `Get_switches_resp resp ->
+      signal_read (); resp
 
-  let my_events = openflow_events r in
+let get_switch_features (switch_id : switchId) =
+  ready_to_process ()
+  >>= fun (recv, send) ->
+  send (`Get_switch_features switch_id);
+  recv ()
+  >>| function
+  | `Get_switch_features_resp resp ->
+    signal_read (); resp
 
-  let rec loop (state:state) : unit Deferred.t =
-    Pipe.read my_events >>= fun next_event ->
-    match state, next_event with
-    (* EchoRequest messages *)
-    | _, `Ok (hdr,EchoRequest bytes) ->
-      serialize 0l (EchoReply bytes);
-      loop state
-        
-    (* Initial *)
-    | Initial, `Eof -> 
-      return () 
-    | Initial, `Ok (hdr,Hello bytes) ->
-      (* TODO(jnf): check version? *)
-      serialize 0l SwitchFeaturesRequest;
-      loop SentSwitchFeatures
-    | Initial, `Ok(hdr,msg) -> 
-      assert false
+let send swid xid msg =
+  ready_to_process ()
+  >>= fun (recv, send) ->
+  send (`Send (swid,xid,msg));
+  recv ()
+  >>| function
+  | `Send_resp resp ->
+    signal_read (); resp
 
-    (* SentSwitchFeatures *)
-    | SentSwitchFeatures, `Eof -> 
-      return ()
-    | SentSwitchFeatures, `Ok (hdr, SwitchFeaturesReply features) ->
-      let switchId = features.switch_id in
-      let txns = Hashtbl.Poly.create () in 
-      let xid_cell = ref 0l in 
-      let next_uid () = xid_cell := Int32.(!xid_cell + 1l); !xid_cell in 
-      let threadState = { switchId; txns } in
-      let send xid msg = serialize xid msg in 
-      let send_txn msg =
-        let xid = next_uid () in 
-        let ivar = Ivar.create () in 
-        Hashtbl.Poly.add_exn txns ~key:xid ~data:(ivar,[]);
-	send xid msg;
-        Ivar.read ivar in
-      Hashtbl.Poly.add_exn switches ~key:switchId ~data:{ features; send; send_txn };
-      Pipe.write_without_pushback events_writer (`Connect (switchId, features));
-      loop (Connected threadState)
-    | SentSwitchFeatures, `Ok (hdr,msg) ->
-      (* Ignore messages sent between SwitchFeaturesReq and SwitchFeaturesResp *)
-      loop state
+let send_batch swid xid msgs =
+  ready_to_process ()
+  >>= fun (recv, send) ->
+  send (`Send_batch (swid,xid,msgs));
+  recv ()
+  >>| function
+  | `Send_batch_resp resp ->
+    signal_read (); resp
 
-    (* Connected *)
-    | Connected threadState, `Eof ->
-      (* TODO(jnf): log disconnection *)
-      Hashtbl.Poly.remove switches threadState.switchId;
-      Pipe.write_without_pushback events_writer (`Disconnect threadState.switchId);
-      return ()
-    | Connected threadState, `Ok (hdr, msg) ->
-      Pipe.write_without_pushback events_writer (`Message (threadState.switchId, hdr, msg));
-      (match Hashtbl.Poly.find threadState.txns hdr.xid with 
-        | None -> ()
-        | Some (ivar,msgs) -> 
-          Hashtbl.Poly.remove threadState.txns hdr.xid;
-          Ivar.fill ivar (msg::msgs));
-      loop state in
-  
-  serialize 0l (Hello (Cstruct.create 0));
-  loop Initial
-
-let init port = 
-  don't_wait_for 
-    (Tcp.Server.create
-     ~on_handler_error:`Raise
-     (Tcp.on_port port)
-     client_handler >>= fun _ -> 
-     return ())
-
-let get_switches () = 
-  Hashtbl.Poly.keys switches
-
-let get_switch_features switchId = 
-  match Hashtbl.Poly.find switches switchId with 
-    | Some switchState -> Some switchState.features
-    | None -> None
-
-let send switchId xid msg = 
-  match Hashtbl.Poly.find switches switchId with
-    | Some switchState -> 
-      switchState.send xid msg; 
-      `Ok
-    | None ->
-      `Eof
-
-let send_txn switchId msg = 
-  match Hashtbl.Poly.find switches switchId with
-    | Some switchState -> 
-      `Ok (switchState.send_txn msg)
-    | None -> 
-      `Eof
+(* We open a new socket for each send_txn call so that we can block on the reply *)
+let send_txn swid msg =
+  Ivar.read server_sock_addr
+  >>= fun sock_addr ->
+  Socket.connect (Socket.create Socket.Type.tcp) sock_addr
+  >>= fun sock ->
+  let reader = Reader.create (Socket.fd sock) in
+  let writer = Writer.create (Socket.fd sock) in
+  Log.debug "send_txn";
+  Writer.write_marshal writer ~flags:[] (`Send_txn (swid,msg));
+  Reader.read_marshal reader >>| function
+  | `Eof ->
+    Log.debug "send_txn returned (EOF)";
+    Socket.shutdown sock `Both;
+    `Eof
+  | `Ok (`Send_txn_resp `Eof) ->
+    Log.debug "send_txn returned (EOF)";
+    Socket.shutdown sock `Both;
+    `Eof
+  | `Ok (`Send_txn_resp (`Ok resp)) ->
+    Log.debug "send_txn returned (Ok)";
+    Socket.shutdown sock `Both;
+    resp

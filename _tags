@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: bc9c292a4ed5a6be0fccf06eab808bf3)
+# DO NOT EDIT (digest: 36e2531024196fd7c31925c9b57b6742)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -67,7 +67,6 @@ true: annot, bin_annot
 "frenetic/frenetic.native": package(camlp4)
 "frenetic/frenetic.native": package(camlp4.extend)
 "frenetic/frenetic.native": package(camlp4.lib)
-"frenetic/frenetic.native": package(cmdliner)
 "frenetic/frenetic.native": package(cohttp)
 "frenetic/frenetic.native": package(cohttp.async)
 "frenetic/frenetic.native": package(core)
@@ -88,13 +87,38 @@ true: annot, bin_annot
 "frenetic/frenetic.native": package(yojson)
 "frenetic/frenetic.native": use_async
 "frenetic/frenetic.native": use_frenetic
+# Executable openflow
+"frenetic/openflow.native": package(async)
+"frenetic/openflow.native": package(async_extended)
+"frenetic/openflow.native": package(base64)
+"frenetic/openflow.native": package(camlp4)
+"frenetic/openflow.native": package(camlp4.extend)
+"frenetic/openflow.native": package(camlp4.lib)
+"frenetic/openflow.native": package(cohttp)
+"frenetic/openflow.native": package(cohttp.async)
+"frenetic/openflow.native": package(core)
+"frenetic/openflow.native": package(cstruct)
+"frenetic/openflow.native": package(cstruct.async)
+"frenetic/openflow.native": package(cstruct.syntax)
+"frenetic/openflow.native": package(fieldslib)
+"frenetic/openflow.native": package(fieldslib.syntax)
+"frenetic/openflow.native": package(mparser)
+"frenetic/openflow.native": package(mparser.re)
+"frenetic/openflow.native": package(ocamlgraph)
+"frenetic/openflow.native": package(sexplib)
+"frenetic/openflow.native": package(sexplib.syntax)
+"frenetic/openflow.native": package(str)
+"frenetic/openflow.native": package(tcpip)
+"frenetic/openflow.native": package(ulex)
+"frenetic/openflow.native": package(yojson)
+"frenetic/openflow.native": use_async
+"frenetic/openflow.native": use_frenetic
 <frenetic/*.ml{,i,y}>: package(async)
 <frenetic/*.ml{,i,y}>: package(async_extended)
 <frenetic/*.ml{,i,y}>: package(base64)
 <frenetic/*.ml{,i,y}>: package(camlp4)
 <frenetic/*.ml{,i,y}>: package(camlp4.extend)
 <frenetic/*.ml{,i,y}>: package(camlp4.lib)
-<frenetic/*.ml{,i,y}>: package(cmdliner)
 <frenetic/*.ml{,i,y}>: package(cohttp)
 <frenetic/*.ml{,i,y}>: package(cohttp.async)
 <frenetic/*.ml{,i,y}>: package(core)

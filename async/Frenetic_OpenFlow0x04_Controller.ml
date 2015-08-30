@@ -120,7 +120,8 @@ let main (of_port : int) (pol_file : string)
   Log.info "Using flow tables: %s" (layout_to_string layout);
   let pol_str = In_channel.read_all pol_file in
   let pol = Frenetic_NetKAT_Parser.policy_from_string pol_str in
-  let fdd = compile pol ~order:(`Static (List.concat layout)) in
+  let compiler_opts = {default_compiler_options with field_order = `Static (List.concat layout)} in
+  let fdd = compile pol ~options:compiler_opts in
   let _ = Tcp.Server.create ~on_handler_error:`Raise (Tcp.on_port of_port)
     (fun _ reader writer -> 
       let message_sender = send_message writer in

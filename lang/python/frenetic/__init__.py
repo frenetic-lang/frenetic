@@ -35,7 +35,7 @@ class App(object):
     """This method can be overridden by the application. By default, it simply
        prints the event and drops the packet."""
     def packet_in(self, switch_id, port_id, payload):
-        print "packet_in(switch_id=%s, port_id=%d, payload=...)" % (switch_id, port_id)
+        print "packet_in(switch_id=%s, port_id=%d, pipe=%s, payload=...)" % (switch_id, port_id)
         self.pkt_out(switch_id, payload, [])
 
     def connected(self):
@@ -48,6 +48,11 @@ class App(object):
                         in_port=in_port)
         pkt_out_url = "http://%s:%s/pkt_out" % (self.frenetic_http_host, self.frenetic_http_port)
         request = HTTPRequest(pkt_out_url, method='POST', body=json.dumps(msg.to_json()))
+        return self.__http_client.fetch(request)
+
+    def config(self, compiler_options):
+        config_url = "http://%s:%s/config" % (self.frenetic_http_host, self.frenetic_http_port)
+        request = HTTPRequest(config_url, method='POST', body=json.dumps(compiler_options.to_json()))
         return self.__http_client.fetch(request)
 
     def run_response(self, ftr, callback):

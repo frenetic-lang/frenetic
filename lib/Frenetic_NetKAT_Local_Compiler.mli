@@ -1,7 +1,6 @@
 open Core.Std
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Semantics
-
 open Frenetic_OpenFlow
 
 module Field : sig
@@ -43,6 +42,14 @@ type cache
     | `Empty
     | `Preserve of t ]
 
+type compiler_options = {
+    cache_prepare: cache;
+    field_order: order;
+    remove_tail_drops: bool;
+    dedup_flows: bool;
+    optimize: bool;
+}
+
 (** {2 Compilation} *)
 
 exception Non_local
@@ -50,16 +57,12 @@ exception Non_local
     [Link] term in it. [Link] terms are currently not supported by this
     compiler. *)
 
-val compile : ?order:order -> ?cache:cache -> policy -> t
+val default_compiler_options : compiler_options
+
+val compile : ?options:compiler_options -> policy -> t
 (** [compile p] returns the intermediate representation of the policy [p].
     You can generate a flowtable from [t] by passing it to the {!to_table}
     function below.
-
-    The optional [order] flag determines the variable order. If unset,
-    it uses a static default ordering.
-
-    The optional [cache] flag determines if the cache should be cleared
-    before compilation. By default, the cache is cleared.
  *)
 
  val compile_global : policy -> t
@@ -73,10 +76,15 @@ val restrict : header_val -> t -> t
     This function is called by {!to_table} to restrict [t] to the portion that
     should run on a single switch. *)
 
-val to_table : ?dedup:bool -> ?opt:bool -> ?pc:Field.t -> switchId -> t -> flow list
+(*val to_table : ?dedup:bool -> ?opt:bool -> ?pc:Field.t -> switchId -> t -> flow list*)
 (** [to_table sw t] returns a flowtable that implements [t] for switch [sw]. *)
 
-val to_table' : ?dedup:bool -> ?opt:bool -> ?pc:Field.t -> switchId -> t -> (flow * string list) list
+(*val to_table' : ?dedup:bool -> ?opt:bool -> ?pc:Field.t -> switchId -> t -> (flow * string list) list*)
+
+val to_table : ?options:compiler_options -> switchId -> t -> flow list
+(** [to_table sw t] returns a flowtable that implements [t] for switch [sw]. *)
+
+val to_table' : ?options:compiler_options -> switchId -> t -> (flow * string list) list
 
 (** {2 Composition} *)
 
@@ -134,15 +142,13 @@ val to_string : t -> string
 (** [to_string t] returns a string representation of [t]. This will be a
     representation of the Vlr diagram from the tdk package. *)
 
-
 (** {2 Interpreter} *)
 
 val eval : packet -> t -> PacketSet.t
 (** [eval pkt t] returns a [PacketSet.t] that is the result of the packet [pkt]
     being run through the policy represented by [t]. *)
 
-val eval_pipes
-  : packet -> t -> (string * packet) list * (string * packet) list * packet list
+val eval_pipes : packet -> t -> (string * packet) list * (string * packet) list * packet list
 (** [eval_pipes pkt t] returns the result of running the packet [pkt] through
     the policy represented by [t], with packets grouped according to the type of
     location to which the policy assigns them. The result is a triple whose
@@ -152,6 +158,14 @@ val eval_pipes
 
 val to_dotfile : t -> string -> unit
 
+val field_order_from_string : string -> order
+
+val field_order_to_string : order -> string
+
+(** [options_from_json_string s] returns a compiler_options type suitable.  Mostly for HTTP servers *)
+val options_from_json_string : string -> compiler_options
+
+val options_to_json_string : compiler_options -> string
 
 (* multitable support *)
 

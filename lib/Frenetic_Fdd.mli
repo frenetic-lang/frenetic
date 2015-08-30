@@ -27,7 +27,8 @@ module Field : sig
   val get_order : unit -> t list
   val all_fields : t list
   val to_string : t -> string
-  val compare: t -> t -> int
+  val of_string : string -> t
+  val compare : t -> t -> int
   val hash : t -> int
 end
 
