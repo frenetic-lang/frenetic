@@ -26,8 +26,9 @@ let pol = (Union (polAtoB, polBtoA))
 
 let main () =
   Frenetic_Log.info "Starting controller";
-  let layout = Frenetic_Fdd.Field.all_fields in 
-  let fdd = compile pol ~order:(`Static layout) in
+  let layout = Frenetic_Fdd.Field.all_fields in
+  let compiler_opts = {default_compiler_options with field_order = `Default} in
+  let fdd = compile pol ~options:compiler_opts in
   let _ = Tcp.Server.create ~on_handler_error:`Raise (Tcp.on_port 6633)
     (fun _ reader writer -> 
       let message_sender = send_message writer in

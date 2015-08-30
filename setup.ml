@@ -7354,12 +7354,7 @@ let setup_t =
        };
      oasis_fn = Some "_oasis";
      oasis_version = "0.4.5";
-<<<<<<< HEAD
      oasis_digest = Some "\178\158\132\248\184\r\b\178\1821d\1616H\223\207";
-=======
-     oasis_digest =
-       Some "[\210\226\006v\150\022\181\166R\026\162\028\246\172~";
->>>>>>> master
      oasis_exec = None;
      oasis_setup_args = [];
      setup_update = false
@@ -7367,10 +7362,6 @@ let setup_t =
 
 let setup () = BaseSetup.setup setup_t;;
 
-<<<<<<< HEAD
 # 7372 "setup.ml"
-=======
-# 7333 "setup.ml"
->>>>>>> master
 (* OASIS_STOP *)
 let () = setup ();;

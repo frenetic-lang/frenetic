@@ -329,7 +329,7 @@ let compare_compiler_output p q pkt =
   = 0
 
 let check gen_fn compare_fn =
-  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
+  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 100 } in
   match QuickCheck.check gen_fn cfg compare_fn with
         QuickCheck.Success -> true
     | _                  -> false
