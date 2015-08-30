@@ -114,6 +114,8 @@ let action_to_json (a : action) : json = match a with
             `Int (Int32.to_int_exn q)]
   | Modify m ->
      `List [`String "Modify"; modify_to_json m]
+     (* TODO(grouptable): who gets this json? *)
+  | FastFail p_lst -> failwith "Not Yet Implemented"
 
 let seq_to_json (s : seq) : json =`List (List.map ~f:action_to_json s)
 

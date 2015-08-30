@@ -11,7 +11,7 @@ XOCamlbuildExtraArgs: -cflags -w,-40,-short-paths
 BuildTools:
   ocamlbuild,
   ocamldoc,
-  camlp4of
+  camlp4
 
 Library frenetic
   Path: lib
@@ -32,10 +32,12 @@ Library frenetic
     str,
     tcpip,
     ulex,
-    yojson
+    yojson,
+    threads
   Modules:
     Frenetic_Bits,
     Frenetic_Fdd,
+    Frenetic_GroupTable0x04,
     Frenetic_Log,
     Frenetic_Network,
     Frenetic_NetKAT,
@@ -52,6 +54,7 @@ Library frenetic
     Frenetic_OpenFlow,
     Frenetic_OpenFlow_Header,
     Frenetic_OpenFlow0x01,
+    Frenetic_OpenFlow0x04,
     Frenetic_Packet,
     Frenetic_Topology,
     Frenetic_Util,
@@ -97,22 +100,6 @@ Executable frenetic
     frenetic.async,
     cmdliner,
     async_extended
-
-Library openflow
-  Path: openflow/lib
-  BuildDepends:
-    str,
-    cstruct,
-    cstruct.syntax,
-    core  (= 112.24.0),
-    frenetic,
-    sexplib.syntax,
-    sexplib,
-    threads
-  Modules:
-    OpenFlow0x04,
-    OpenFlow0x04_Core,
-    GroupTable0x04
 
 # Will be reintroduced in summer 2015
 #Library syntax
@@ -161,6 +148,18 @@ Executable testtool
     frenetic.test,
     frenetic,
     frenetic.async
+
+Executable fastfailtest 
+  Path: integration
+  MainIs: FastFailTest_Controller.ml
+  Install: false
+  CompiledObject: native
+  BuildDepends:
+    async,
+    core,
+    frenetic,
+    frenetic.async,
+    async_extended
 
 Test all_tests
   Run$: flag(tests)
