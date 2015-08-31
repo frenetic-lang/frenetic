@@ -225,13 +225,6 @@ let get_inport hvs =
   in
   List.fold_left hvs ~init:None ~f:get_inport'
 
-(* TODO: This is in head revision.  If below compiles, then delete *)
-(*
-let to_action ?pc in_port r tests =
-  List.fold tests ~init:r ~f:(fun a t -> Action.demod t a)
-  |> Action.to_sdn ?pc ?in_port
-*)
-
 (* TODO(grouptable): fix this mess. I made to_action_multitable because it's
  * used in the multitable compiler. to_action does not use group tables and is
  * for the normal compiler. *)
@@ -239,10 +232,10 @@ let to_action ?pc in_port r tests =
 (* Frenetic_OpenFlow.group is an action group, equivalent in type to 
  * 'action list list list', while Frenetic_GroupTable0x04.t contains
  * groupmod messages to create a group table *)
-let to_action (in_port : Int64.t option) r
+let to_action ?pc (in_port : Int64.t option) r
   ?(group_tbl : Frenetic_GroupTable0x04.t option) tests : Frenetic_OpenFlow.par =
   List.fold tests ~init:r ~f:(fun a t -> Action.demod t a)
-  |> Action.to_sdn in_port group_tbl
+  |> Action.to_sdn ?pc in_port group_tbl
 
 let to_pattern hvs =
   List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_OpenFlow.Pattern.match_all
@@ -299,16 +292,6 @@ let rec naive_to_table ?pc sw_id (t : FDK.t) =
     dfs (test :: tests) tru @ dfs tests fls in
   List.filter_opt (dfs [] t)
 
-(*
-let to_table' ?(dedup = false) ?(opt = true) ?pc swId t =
-  let t = if dedup then FDK.dedup t else t in
-  match opt with
-  | true -> opt_to_table ?pc swId t
-  | false -> naive_to_table ?pc swId t
-
-let to_table ?(dedup = false) ?(opt = true) ?pc swId t =
-  List.map ~f:fst (to_table' ~dedup ~opt ?pc swId t)
-*)
 let remove_tail_drops fl =
   let rec remove_tail_drop fl =
     match fl with 
@@ -320,16 +303,15 @@ let remove_tail_drops fl =
       | _ -> h :: t in 
   List.rev (remove_tail_drop (List.rev fl))
 
-let to_table' ?(options=default_compiler_options) swId t =
+let to_table' ?(options=default_compiler_options) ?pc swId t =
   let t = if options.dedup_flows then FDK.dedup t else t in
   let t = match options.optimize with
-  | true -> opt_to_table swId t
-  | false -> naive_to_table swId t in
+  | true -> opt_to_table ?pc swId t
+  | false -> naive_to_table ?pc swId t in
   if options.remove_tail_drops then (remove_tail_drops t) else t
 
-let to_table ?(options=default_compiler_options) swId t = 
-  List.map ~f:fst (to_table' ~options swId t)
-
+let to_table ?(options=default_compiler_options) ?pc swId t = 
+  List.map ~f:fst (to_table' ~options ?pc swId t)
 
 let pipes t =
   let ps = FDK.fold

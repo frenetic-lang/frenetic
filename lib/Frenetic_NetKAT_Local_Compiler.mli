@@ -76,15 +76,12 @@ val restrict : header_val -> t -> t
     This function is called by {!to_table} to restrict [t] to the portion that
     should run on a single switch. *)
 
-(*val to_table : ?dedup:bool -> ?opt:bool -> ?pc:Field.t -> switchId -> t -> flow list*)
 (** [to_table sw t] returns a flowtable that implements [t] for switch [sw]. *)
 
-(*val to_table' : ?dedup:bool -> ?opt:bool -> ?pc:Field.t -> switchId -> t -> (flow * string list) list*)
-
-val to_table : ?options:compiler_options -> switchId -> t -> flow list
+val to_table : ?options:compiler_options -> ?pc:Field.t -> switchId -> t -> flow list
 (** [to_table sw t] returns a flowtable that implements [t] for switch [sw]. *)
 
-val to_table' : ?options:compiler_options -> switchId -> t -> (flow * string list) list
+val to_table' : ?options:compiler_options -> ?pc:Field.t -> switchId -> t -> (flow * string list) list
 
 (** {2 Composition} *)
 

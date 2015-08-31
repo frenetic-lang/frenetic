@@ -557,8 +557,7 @@ module Action = struct
       | Some (Query str) -> str :: queries
       | _ -> queries)
 
-  (*let to_sdn ?(pc = None) ?(in_port:Int64.t option) (t:t) : SDN.par = *)
-  let to_sdn (in_port : Int64.t option) (group_tbl : Frenetic_GroupTable0x04.t option)  
+  let to_sdn ?(pc = None) (in_port : Int64.t option) (group_tbl : Frenetic_GroupTable0x04.t option)  
     (t:t) : SDN.par =
 
     (* Convert a NetKAT action to an SDN action. At the moment this function

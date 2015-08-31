@@ -123,14 +123,25 @@ let parse_ipaddr (json : json) : Int32.t =
 let from_json_header_val (json : json) : header_val =
   let open Yojson.Basic.Util in
   let value = json |> member "value" in
+  (* "switch" -> Switch (value |> to_string |> Int64.of_string) *)
+  (* | "vlan" -> Vlan (value |> to_string |> Int.of_string) *)
   match json |> member "header" |> to_string with
-  | "switch" -> Switch (value |> to_string |> Int64.of_string)
+  | "switch" -> Switch (value |> to_int |> Int64.of_int)
   | "vswitch" -> VSwitch (value |> to_string |> Int64.of_string)
   | "vport" -> VSwitch (value |> to_string |> Int64.of_string)
+  | "location" ->
+    let value = match value |> member "type" |> to_string with
+      | "physical" -> Physical (value |> member "port" |>
+                                to_int |> int_to_uint32)
+      | "pipe" -> Pipe (value |> member "name" |> to_string)
+      | "query" -> Query (value |> member "name" |> to_string)
+      | str -> raise (Invalid_argument ("invalid location type " ^ str)) 
+
+    in Location value  
   | "port" -> Location(Physical(value |> to_string |> Int32.of_string))
   | "ethsrc" -> EthSrc (value |> to_string |> macaddr_from_string)
   | "ethdst" -> EthDst (value |> to_string |> macaddr_from_string)
-  | "vlan" -> Vlan (value |> to_string |> Int.of_string)
+  | "vlan" -> Vlan (value |> to_int)
   | "vlanpcp" -> VlanPcp (value |> to_string |> Int.of_string)
   | "ethtype" -> EthType (value |> to_string |> Int.of_string)
   | "ipproto" -> IPProto (value |> to_string |> Int.of_string)
