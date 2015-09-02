@@ -76,9 +76,9 @@ let spec =
   +> flag "--ving-pol" (optional_with_default "ving_pol.kat" file) ~doc: "File containing virtual ingress policy"
   +> flag "--ving" (optional_with_default "ving.kat" file) ~doc: "File containing virtual ingress predicate"
   +> flag "--veg" (optional_with_default "veg.kat" file) ~doc: "File containing virtual egress predicate"
-  +> flag "--ptopo" (optional_with_default "ptopo.kat" file) ~doc: "File containing virtual p topology"
-  +> flag "--ping" (optional_with_default "ping.kat" file) ~doc: "File containing virtual p ingress"
-  +> flag "--peg" (optional_with_default "peg.kat" file) ~doc: "File containing virtual p egress"
+  +> flag "--ptopo" (optional_with_default "ptopo.kat" file) ~doc: "File containing physical topology"
+  +> flag "--ping" (optional_with_default "ping.kat" file) ~doc: "File containing physical ingress"
+  +> flag "--peg" (optional_with_default "peg.kat" file) ~doc: "File containing physical egress"
   +> anon ("[flags] {http-controller | compile-server | shell | openflow13 | fault_tolerant | global_cmd | virtual_cmd}" %: run_types) 
 
 let command =
