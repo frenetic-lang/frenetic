@@ -102,7 +102,7 @@ let specialize_policy sw pol =
         loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (mk_seq p1 p2)))
       | Star pol ->
         loop pol (fun p -> k (mk_star p))
-      | Link(sw,pt,sw',pt') ->
+      | Link _ | VLink _ ->
 	failwith "Not a local policy" in
   loop pol (fun x -> x)
 
@@ -146,7 +146,7 @@ let rec norm_pred (pred : pred) : pred = match pred with
     mk_big_or (list_of_or pred')
 
 let rec norm_policy (pol : policy) : policy = match pol with
-  | Mod _ | Link _ -> pol
+  | Mod _ | Link _ | VLink _ -> pol
   | Filter a -> Filter (norm_pred a)
   | Star p -> Star (norm_policy p)
   | Union (p, q) ->

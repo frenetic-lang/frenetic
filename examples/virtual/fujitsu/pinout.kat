@@ -1,0 +1,6 @@
+(switch=1 and port=3) or
+(switch=2 and port=5) or
+(switch=2 and port=6) or
+(switch=3 and port=4) or
+(switch=4 and port=5) or
+(switch=4 and port=6)

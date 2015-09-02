@@ -7002,6 +7002,7 @@ let setup_t =
                            "Frenetic_NetKAT_Pretty";
                            "Frenetic_NetKAT_SDN_Json";
                            "Frenetic_NetKAT_Semantics";
+                           "Frenetic_NetKAT_Virtual_Compiler";
                            "Frenetic_OpenFlow";
                            "Frenetic_OpenFlow_Header";
                            "Frenetic_OpenFlow0x01";

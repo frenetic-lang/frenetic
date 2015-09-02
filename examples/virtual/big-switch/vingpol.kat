@@ -1,0 +1,8 @@
+(* Virtual ingress policy. Initializes vswitch and vport (i.e. the virtual location) at phyiscal ingress. See sketch.txt for details. *)
+
+vswitch:=1; (
+  filter (switch=3); vport:=3 |
+  filter (switch=4); vport:=4 |
+  filter (switch=6); vport:=6 |
+  filter (switch=7); vport:=7
+)

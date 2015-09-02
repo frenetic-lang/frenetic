@@ -13,6 +13,8 @@ module Field = struct
     = Switch
     | Vlan
     | VlanPcp
+    | VSwitch
+    | VPort
     | EthType
     | IPProto
     | EthSrc
@@ -22,6 +24,7 @@ module Field = struct
     | TCPSrcPort
     | TCPDstPort
     | Location
+    | VFabric
     with sexp
 
   (** The type of packet fields. This is an enumeration whose ordering has an
@@ -47,24 +50,27 @@ module Field = struct
 
   let to_string = function
     | Switch -> "Switch"
-    | Location -> "Location"
-    | EthSrc -> "EthSrc"
-    | EthDst -> "EthDst"
     | Vlan -> "Vlan"
     | VlanPcp -> "VlanPcp"
+    | VSwitch -> "VSwitch"
+    | VPort -> "VPort"
     | EthType -> "EthType"
     | IPProto -> "IPProto"
+    | EthSrc -> "EthSrc"
+    | EthDst -> "EthDst"
     | IP4Src -> "IP4Src"
     | IP4Dst -> "IP4Dst"
     | TCPSrcPort -> "TCPSrcPort"
     | TCPDstPort -> "TCPDstPort"
+    | Location -> "Location"
+    | VFabric -> "VFabric"
 
-  let num_fields = 12
+  let num_fields = 15
 
   (* Ensure that these are in the same order in which the variants appear. *)
   let all_fields =
-    [ Switch; Location; EthSrc; EthDst; Vlan; VlanPcp; EthType; IPProto;
-      IP4Src; IP4Dst; TCPSrcPort; TCPDstPort ]
+    [ Switch; Vlan; VlanPcp; VSwitch; VPort; EthType; IPProto; EthSrc; EthDst;
+      IP4Src; IP4Dst; TCPSrcPort; TCPDstPort; Location; VFabric]
 
   let is_valid_order (lst : t list) : bool =
     List.length lst = num_fields &&
@@ -95,12 +101,15 @@ module Field = struct
     | Frenetic_NetKAT.EthDst _ -> EthDst
     | Frenetic_NetKAT.Vlan _ -> Vlan
     | Frenetic_NetKAT.VlanPcp _ -> VlanPcp
+    | Frenetic_NetKAT.VSwitch _ -> VSwitch
+    | Frenetic_NetKAT.VPort _ -> VPort
     | Frenetic_NetKAT.EthType _ -> EthType
     | Frenetic_NetKAT.IPProto _ -> IPProto
     | Frenetic_NetKAT.IP4Src _ -> IP4Src
     | Frenetic_NetKAT.IP4Dst _ -> IP4Dst
     | Frenetic_NetKAT.TCPSrcPort _ -> TCPSrcPort
     | Frenetic_NetKAT.TCPDstPort _ -> TCPDstPort
+    | Frenetic_NetKAT.VFabric _ -> VFabric
 
   (* Heuristic to pick a variable order that operates by scoring the fields
      in a policy. A field receives a high score if, when a test field=X
@@ -142,7 +151,7 @@ module Field = struct
         let (n, lst) = f_seq' q lst in
         (m * n, lst)
       | Union _ -> (f_union pol, lst)
-      | Star _ | Link _ -> (1, lst) (* bad, but it works *)
+      | Star _ | Link _ | VLink _ -> (1, lst) (* bad, but it works *)
     and f_seq pol =
       let (size, preds) = f_seq' pol [] in
       List.iter preds ~f:(f_pred size true);
@@ -153,7 +162,7 @@ module Field = struct
       | Union (p, q) ->
         f_union' p (fun m -> f_union' q (fun n -> k (m + n)))
       | Seq _ -> k (f_seq pol)
-      | Star _ | Link _ -> k 1 (* bad, but it works *)
+      | Star _ | Link _ | VLink _ -> k 1 (* bad, but it works *)
     and f_union pol = f_union' pol (fun n -> n) in
     let _ = f_seq pol in
     let cmp (_, x) (_, y) = Pervasives.compare y x in
@@ -375,6 +384,8 @@ module Pattern = struct
     | EthDst(dlAddr) -> (Field.EthDst, Value.(Const dlAddr))
     | Vlan(vlan) -> (Field.Vlan, Value.of_int vlan)
     | VlanPcp(vlanPcp) -> (Field.VlanPcp, Value.of_int vlanPcp)
+    | VSwitch(vsw_id) -> (Field.VSwitch, Value.(Const vsw_id))
+    | VPort(vpt) ->  (Field.VPort, Value.(Const vpt))
     | EthType(dlTyp) -> (Field.EthType, Value.of_int dlTyp)
     | IPProto(nwProto) -> (Field.IPProto, Value.of_int nwProto)
     | IP4Src(nwAddr, mask) ->
@@ -383,6 +394,7 @@ module Pattern = struct
       (Field.IP4Dst, Value.(Mask(Int64.of_int32 nwAddr, 32 + (Int32.to_int_exn mask))))
     | TCPSrcPort(tpPort) -> (Field.TCPSrcPort, Value.of_int tpPort)
     | TCPDstPort(tpPort) -> (Field.TCPDstPort, Value.of_int tpPort)
+    | VFabric(vfab) -> (Field.VFabric, Value.(Const vfab))
 
   let to_hv (f, v) =
     let open Field in
@@ -396,6 +408,8 @@ module Pattern = struct
     | (EthDst  , Const dlAddr) -> NetKAT.(EthDst dlAddr)
     | (Vlan    , Const vlan) -> NetKAT.(Vlan(to_int vlan))
     | (VlanPcp , Const vlanPcp) -> NetKAT.(VlanPcp (to_int vlanPcp))
+    | (VSwitch  , Const vsw) -> NetKAT.VSwitch vsw
+    | (VPort  , Const vpt) -> NetKAT.VPort vpt
     | (EthType , Const dlTyp) -> NetKAT.(EthType (to_int dlTyp))
     | (IPProto , Const nwProto) -> NetKAT.(IPProto (to_int nwProto))
     | (IP4Src  , Mask(nwAddr, mask)) -> NetKAT.(IP4Src(to_int32 nwAddr, Int32.of_int_exn (mask - 32)))
@@ -404,6 +418,7 @@ module Pattern = struct
     | (IP4Dst  , Const nwAddr) -> NetKAT.(IP4Dst(to_int32 nwAddr, 32l))
     | (TCPSrcPort, Const tpPort) -> NetKAT.(TCPSrcPort(to_int tpPort))
     | (TCPDstPort, Const tpPort) -> NetKAT.(TCPDstPort(to_int tpPort))
+    | (VFabric, Const vfab) -> NetKAT.VFabric vfab
     | _, _ -> raise (FieldValue_mismatch(f, v))
 
   let to_pred (f, v) =
@@ -415,8 +430,8 @@ module Pattern = struct
     let open Field in
     let open Value in
     match f, v with
-    | (Switch, Const _) -> assert false
-    | (Switch, v)       -> raise (FieldValue_mismatch(Switch, v))
+    | (Switch, Const _) | (VSwitch, Const _) | (VPort, Const _)  -> assert false
+    | (VFabric, Const _) -> assert false 
     | (Location, Const p) -> fun pat ->
       { pat with SDN.Pattern.inPort = Some(to_int32 p) }
     | (EthSrc, Const dlAddr) -> fun pat ->
@@ -475,10 +490,15 @@ module Action = struct
       let compare = compare_field_or_cont
     end)
 
-    let fold_fields seq ~init ~f =
+    let fold_fields seq ?(pc = None) ~init ~f =
       fold seq ~init ~f:(fun ~key ~data acc -> match key with
         | F key -> f ~key ~data acc
-        | _ -> acc)
+        | _ -> 
+	   begin 
+	     match pc with 
+	     | Some key -> f ~key ~data acc
+	     | None -> acc 
+	   end)
 
     let equal_mod_k s1 s2 = equal (=) (remove s1 K) (remove s2 K)
 
@@ -537,8 +557,9 @@ module Action = struct
       | Some (Query str) -> str :: queries
       | _ -> queries)
 
-  let to_sdn (in_port : Int64.t option) (group_tbl : Frenetic_GroupTable0x04.t option)  
+  let to_sdn ?(pc = None) (in_port : Int64.t option) (group_tbl : Frenetic_GroupTable0x04.t option)  
     (t:t) : SDN.par =
+
     (* Convert a NetKAT action to an SDN action. At the moment this function
        assumes that fields are assigned to proper bitwidth integers, and does
        no validation along those lines. If the input is derived from a NetKAT
@@ -579,7 +600,7 @@ module Action = struct
             | None -> failwith "No group table provided")
         | Some mask      -> raise (FieldValue_mismatch(Location, mask))
       in
-      Seq.fold_fields (Seq.remove seq (F Location)) ~init ~f:(fun ~key ~data acc ->
+      Seq.fold_fields (Seq.remove seq (F Location)) ~pc ~init ~f:(fun ~key ~data acc ->
         match key, data with
         | Switch  , Const switch -> raise Non_local
         | Switch  , _ -> raise (FieldValue_mismatch(Switch, data))
@@ -588,6 +609,7 @@ module Action = struct
         | EthDst  , Const dlAddr  -> SDN.(Modify(SetEthDst dlAddr)) :: acc
         | Vlan    , Const vlan    -> SDN.(Modify(SetVlan(Some(to_int vlan)))) :: acc
         | VlanPcp , Const vlanPcp -> SDN.(Modify(SetVlanPcp (to_int vlanPcp))) :: acc
+        | VSwitch, Const _ | VPort, Const _ | VFabric, Const _ -> assert false (* JNF: danger, danger *)
         | EthType , Const dlTyp   -> SDN.(Modify(SetEthTyp (to_int dlTyp))) :: acc
         | IPProto , Const nwProto -> SDN.(Modify(SetIPProto (to_int nwProto))) :: acc
         | IP4Src  , Mask (nwAddr, 64)
@@ -611,7 +633,7 @@ module Action = struct
   let to_policy t =
     let open Frenetic_NetKAT in
     Par.fold t ~init:drop ~f:(fun acc seq ->
-      let seq' = Seq.fold_fields seq ~init:id ~f:(fun ~key ~data acc ->
+      let seq' = Seq.fold_fields seq ~pc:None ~init:id ~f:(fun ~key ~data acc ->
         let hv = match Pattern.to_hv (key, data) with
           | IP4Src(nwAddr, 32l) -> IP4Src(nwAddr, 32l)
           | IP4Dst(nwAddr, 32l) -> IP4Dst(nwAddr, 32l)

@@ -75,7 +75,7 @@ module FDK = struct
   (* Do NOT eta-reduce to avoid caching problems with mk_drop *)
   let big_union fdds = List.fold ~init:(mk_drop ()) ~f:union fdds
 
-  let star' lhs t = 
+  let star' lhs t =
     let rec loop acc power =
       let power' = seq power t in
       let acc' = union acc power' in
@@ -102,7 +102,7 @@ module FDK = struct
                         of_local_pol_k q (fun q' ->
                           k (seq p' q')))
     | Star p -> of_local_pol_k p (fun p' -> k (star p'))
-    | Link (sw1, pt1, sw2, pt2) -> raise Non_local
+    | Link _ | VLink _ -> raise Non_local
 
   let rec of_local_pol p = of_local_pol_k p ident
 
@@ -232,22 +232,34 @@ let get_inport hvs =
 (* Frenetic_OpenFlow.group is an action group, equivalent in type to 
  * 'action list list list', while Frenetic_GroupTable0x04.t contains
  * groupmod messages to create a group table *)
-let to_action (in_port : Int64.t option) r
+let to_action ?pc (in_port : Int64.t option) r
   ?(group_tbl : Frenetic_GroupTable0x04.t option) tests : Frenetic_OpenFlow.par =
   List.fold tests ~init:r ~f:(fun a t -> Action.demod t a)
-  |> Action.to_sdn in_port group_tbl
+  |> Action.to_sdn ?pc in_port group_tbl
 
 let to_pattern hvs =
   List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_OpenFlow.Pattern.match_all
+
+let remove_local_fields =
+  FDK.(fold
+         (fun r -> mk_leaf (Action.Par.map r ~f:(fun s -> Action.Seq.filter s ~f:(fun ~key ~data ->
+           match key with
+             | Frenetic_Fdd.Action.F VPort | Frenetic_Fdd.Action.F VSwitch -> false
+             | _ -> true))))
+         (fun v t f ->
+           match v with
+             | Frenetic_Fdd.Field.VSwitch, _ | Frenetic_Fdd.Field.VPort, _ -> failwith "uninitialized local field"
+             | _, _ -> mk_branch v t f))
 
 let mk_branch_or_leaf test t f =
   match t with
   | None -> Some f
   | Some t -> Some (FDK.mk_branch test t f)
 
-let opt_to_table sw_id t =
+let opt_to_table ?pc sw_id t =
   let t =
-    FDK.(restrict [(Field.Switch, Value.Const sw_id)] t)
+    FDK.(restrict [(Field.Switch, Value.Const sw_id); (Field.VFabric, Value.Const (Int64.of_int 1))] t)
+    |> remove_local_fields
   in
   let rec next_table_row tests mk_rest t =
     match FDK.unget t with
@@ -256,7 +268,7 @@ let opt_to_table sw_id t =
     | Branch (test, t, f) ->
       next_table_row (test::tests) (fun t' -> mk_rest (mk_branch_or_leaf test t' f)) t
     | Leaf actions ->
-      let openflow_instruction = [to_action (get_inport tests) actions tests] in
+      let openflow_instruction = [to_action ~pc (get_inport tests) actions tests] in
       let queries = Action.get_queries actions in
       let row = mk_flow (to_pattern tests) openflow_instruction queries in
       (row, mk_rest None)
@@ -268,11 +280,11 @@ let opt_to_table sw_id t =
   in
   List.filter_opt (loop t [])
 
-let rec naive_to_table sw_id (t : FDK.t) =
-  let t = FDK.(restrict [(Field.Switch, Value.Const sw_id)] t) in
+let rec naive_to_table ?pc sw_id (t : FDK.t) =
+  let t = FDK.(restrict [(Field.Switch, Value.Const sw_id)] t) |> remove_local_fields in
   let rec dfs tests t = match FDK.unget t with
   | Leaf actions ->
-    let openflow_instruction = [to_action (get_inport tests) actions tests] in
+    let openflow_instruction = [to_action ~pc (get_inport tests) actions tests] in
     let queries = Action.get_queries actions in
     [mk_flow (to_pattern tests) openflow_instruction queries]
   | Branch ((Location, Pipe _), _, fls) -> dfs tests fls
@@ -291,16 +303,15 @@ let remove_tail_drops fl =
       | _ -> h :: t in 
   List.rev (remove_tail_drop (List.rev fl))
 
-let to_table' ?(options=default_compiler_options) swId t =
+let to_table' ?(options=default_compiler_options) ?pc swId t =
   let t = if options.dedup_flows then FDK.dedup t else t in
   let t = match options.optimize with
-  | true -> opt_to_table swId t
-  | false -> naive_to_table swId t in
+  | true -> opt_to_table ?pc swId t
+  | false -> naive_to_table ?pc swId t in
   if options.remove_tail_drops then (remove_tail_drops t) else t
 
-let to_table ?(options=default_compiler_options) swId t = 
-  List.map ~f:fst (to_table' ~options swId t)
-
+let to_table ?(options=default_compiler_options) ?pc swId t = 
+  List.map ~f:fst (to_table' ~options ?pc swId t)
 
 let pipes t =
   let ps = FDK.fold
@@ -352,6 +363,7 @@ let eval_pipes (p:Frenetic_NetKAT_Semantics.packet) (t:FDK.t) =
   Frenetic_NetKAT_Semantics.eval_pipes p Action.(to_policy (eval_to_action p t))
 
 let to_dotfile t filename =
+  let t = remove_local_fields t in
   Out_channel.with_file filename ~f:(fun chan ->
     Out_channel.output_string chan (FDK.to_dot t))
 
@@ -472,7 +484,7 @@ module Pol = struct
         | None -> filter_loc s2 p2
         | Some ing -> Frenetic_NetKAT_Optimize.mk_and (Test (Switch s2)) (Frenetic_NetKAT_Optimize.mk_not ing) |> mk_filter in
       mk_big_seq [filter_loc s1 p1; Dup; post_link ]
-
+    | VLink _ -> assert false (* SJS / JNF *)
 end
 
 
@@ -481,11 +493,7 @@ end
 module NetKAT_Automaton = struct
 
   (* table *)
-  module T = Hashtbl.Make(struct
-    type t = int with sexp
-    let hash n = n
-    let compare = Int.compare
-  end)
+  module T = Int.Table
 
   (* untable *)
   module U = Hashtbl.Make(struct
@@ -614,44 +622,46 @@ module NetKAT_Automaton = struct
     t.source <- source;
     t
 
-
   let dedup_global (automaton : t) : unit =
-    let tbl = S.Table.create () ~size:10 in
-    let untbl = Int.Table.create () ~size:10 in
-    let unmerge k = Int.Table.find untbl k |> Option.value ~default:[k] in
+    (* table of type : int set -> int *)
+    let tbl : int S.Table.t = S.Table.create () ~size:10 in
+    (* table of type : int -> int set *)
+    let untbl : S.t Int.Table.t = Int.Table.create () ~size:10 in
+    let unmerge k = Int.Table.find untbl k |> Option.value ~default:(S.singleton k) in
     let merge ks =
-      let () = assert (List.length ks > 1) in
-      let ks = List.concat_map ks ~f:unmerge in
-      let ks_set = S.of_list ks in
-      match S.Table.find tbl ks_set with
+      let () = assert (S.length ks > 1) in
+      let ks = S.fold ks ~init:S.empty ~f:(fun acc k -> S.union acc (unmerge k)) in
+      match S.Table.find tbl ks with
       | Some k -> k
       | None ->
         let (es, ds) =
-          List.map ks ~f:(T.find_exn automaton.states)
+          S.to_list ks
+          |> List.map ~f:(T.find_exn automaton.states)
           |> List.unzip in
         let fdk = (FDK.big_union es, FDK.big_union ds) in
         let k = add_to_t automaton fdk in
-        S.Table.add_exn tbl ~key:ks_set ~data:k;
-        Int.Table.add_exn untbl ~key:k ~data:ks;
+        S.Table.add_exn tbl ~key:ks ~data:k;
+        (* k may not be fresh, since there could have been an FDK equvialent to fdk
+           present in the automaton already; therefore, simply ignore warning *)
+        ignore (Int.Table.add untbl ~key:k ~data:ks);
         k
     in
     let dedup_action par =
       par
       |> Action.Par.to_list
+      (* SJS: this seems to be a bug! We need to sort the list appropriately first. *)
       |> List.group ~break:(fun s1 s2 -> not (Action.Seq.equal_mod_k s1 s2))
       |> List.map ~f:(function
         | [seq] -> seq
         | group ->
-          let ks = List.map group ~f:(fun s -> Action.Seq.find_exn s K |> Value.to_int_exn) in
+          let ks = List.map group ~f:(fun s -> Action.Seq.find_exn s K |> Value.to_int_exn)
+                   |> S.of_list in
           let k = merge ks in
           List.hd_exn group |> Action.Seq.add ~key:K ~data:(Value.of_int k))
       |> Action.Par.of_list
     in
     let dedup_fdk = FDK.map_r dedup_action in
     map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) -> (e, dedup_fdk d))
-
-
-
 
   let rec split_pol (automaton : t0) (pol: Pol.policy) : FDK.t * FDK.t * ((int * Pol.policy) list) =
     match pol with
@@ -704,7 +714,6 @@ module NetKAT_Automaton = struct
     let () = if dedup then dedup_global automaton in
     automaton
 
-
   let pc_unused pc fdd =
     FDK.fold
       (fun par -> Action.Par.for_all par ~f:(fun seq -> not (Action.(Seq.mem seq (F pc)))))
@@ -719,7 +728,6 @@ module NetKAT_Automaton = struct
         else FDK.atom (pc, Value.of_int id) Action.one Action.zero in
       let fdk = FDK.seq guard (FDK.union e d) in
       FDK.union acc fdk)
-
 
   (* SJS: horrible hack *)
   let to_dot (automaton : t) =
@@ -776,11 +784,15 @@ module NetKAT_Automaton = struct
     fprintf fmt ";}@\n";
     fprintf fmt "}@.";
     Buffer.contents buf
-
 end
 
 let compile_global (pol : Frenetic_NetKAT.policy) : FDK.t =
-  NetKAT_Automaton.(to_local Field.Vlan (of_policy ~dedup:true pol))
+  let open NetKAT_Automaton in
+  let a = of_policy ~dedup:true pol in
+  let t = to_local Field.Vlan a in
+  t
+
+(* NetKAT_Automaton.(to_local Field.Vlan (of_policy ~dedup:true pol)) *)
 
 
 (* multitable *)

@@ -1,0 +1,5 @@
+(*virtual policy*)
+
+filter(vswitch = 1); vport:=2 |
+filter(vswitch = 2); vport:=3 |
+filter(vswitch = 3); vport:=0

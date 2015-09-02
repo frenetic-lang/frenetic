@@ -1,0 +1,4 @@
+vswitch:=1;
+if switch=4 and port=6 then vport:=1
+else if switch=2 and port=6 then vport:=2
+else drop

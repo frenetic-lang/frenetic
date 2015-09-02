@@ -156,9 +156,9 @@ let rec token c = lexer
     set_start_loc c;
     let _ = comment c lexbuf in
     token c c.lexbuf 
-  | [ "()!+;=*+/|@" ] | ":=" | "=>" 
-    | "true" | "false" | "switch" | "port" | "vlanId"
-    | "vlanPcp" | "ethTyp" | "ipProto" | "tcpSrcPort" | "tcpDstPort"
+  | [ "()!+;=*+/|@" ] | ":=" | "=>" | "=>>"
+    | "true" | "false" | "switch" | "port" | "vswitch" | "vport" | "vfabric"
+    | "vlanId" | "vlanPcp" | "ethTyp" | "ipProto" | "tcpSrcPort" | "tcpDstPort"
     | "ethSrc" | "ethDst" | "ip4Src"| "ip4Dst" | "and" | "or" | "not" | "id"
     | "drop" | "if" | "then" | "else" | "filter"  ->
       KEYWORD (L.latin1_lexeme c.lexbuf)

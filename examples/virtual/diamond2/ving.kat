@@ -1,0 +1,2 @@
+(*ingress of virtual topology*)
+(vswitch=1 and vport=0)

@@ -1,0 +1,10 @@
+|V(vgraph)|: 8
+|E(vgraph)|: 16
+|V(pgraph)|: 32
+|E(pgraph)|: 50
+|V(prod_graph)|: 24
+|E(prod_graph)|: 32
+|V(pruned_graph)|: 24
+|E(pruned_graph)|: 32
+|V(fabric_graph)|: 24
+|E(fabric_graph)|: 32

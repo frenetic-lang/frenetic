@@ -31,7 +31,7 @@ let handle_parse_errors
   >>= function
   | Ok x -> handler x
   | Error exn ->
-      printf ~level:`Error "Invalid message from client";
+      printf ~level:`Error "Invalid message from client %s" (Exn.to_string exn);
       Cohttp_async.Server.respond `Bad_request
 
 let handle_parse_errors'

@@ -30,7 +30,7 @@ let macaddr_from_string (str : string) : Int64.t =
   loop 0 0L
 
 let to_json_value (h : header_val) : json = match h with
-  | Switch n -> `Int (Int64.to_int_exn n)
+  | Switch n | VSwitch n | VPort n | VFabric n -> `String (string_of_int (Int64.to_int_exn n))
   (* JavaScript can't represent large 64-bit numbers *)
   | EthSrc n
   | EthDst n -> `String (macaddr_to_string n)
@@ -50,8 +50,11 @@ let to_json_value (h : header_val) : json = match h with
   | TCPDstPort n -> `Int n
   | IP4Src (addr, mask)
   | IP4Dst (addr, mask) ->
-    `Assoc [("addr", `String (Ipaddr.V4.to_string (Ipaddr.V4.of_int32 addr)));
-            ("mask", `Int (Int32.to_int_exn mask))]
+     let m = Int32.to_int_exn mask in
+     `Assoc 
+      (("addr", `String (Ipaddr.V4.to_string (Ipaddr.V4.of_int32 addr)))::
+	 if m = 32 then []
+	 else ["mask", `Int (Int32.to_int_exn mask)])
 
 let to_json_header (h : header_val) : json =
   let str = match h with
@@ -61,12 +64,15 @@ let to_json_header (h : header_val) : json =
     | EthDst _ -> "ethdst"
     | Vlan _ -> "vlan"
     | VlanPcp _ -> "vlanpcp"
+    | VSwitch _ -> "vswitch"
+    | VPort _ -> "vport"
     | EthType _ -> "ethtype"
     | IPProto _ -> "ipproto"
     | IP4Src _ -> "ip4src"
     | IP4Dst _ -> "ip4dst"
     | TCPSrcPort _ -> "tcpsrcport"
-    | TCPDstPort _ -> "tcpdstport" in
+    | TCPDstPort _ -> "tcpdstport" 
+    | VFabric _ -> "vfabric" in
   `String str
 
 
@@ -103,6 +109,12 @@ let rec policy_to_json (pol : policy) : json = match pol with
             ("pt1", `Int (Int32.to_int_exn pt1));
             ("sw2", `Int (Int64.to_int_exn sw2));
             ("pt2", `Int (Int32.to_int_exn pt2))]
+  | VLink (sw1, pt1, sw2, pt2) ->
+    `Assoc [("type", `String "vlink");
+            ("sw1", `Int (Int64.to_int_exn sw1));
+            ("pt1", `Int (Int64.to_int_exn pt1));
+            ("sw2", `Int (Int64.to_int_exn sw2));
+            ("pt2", `Int (Int64.to_int_exn pt2))]
 
 let parse_ipaddr (json : json) : Int32.t =
   let open Yojson.Basic.Util in
@@ -111,28 +123,32 @@ let parse_ipaddr (json : json) : Int32.t =
 let from_json_header_val (json : json) : header_val =
   let open Yojson.Basic.Util in
   let value = json |> member "value" in
+  (* "switch" -> Switch (value |> to_string |> Int64.of_string) *)
+  (* | "vlan" -> Vlan (value |> to_string |> Int.of_string) *)
   match json |> member "header" |> to_string with
   | "switch" -> Switch (value |> to_int |> Int64.of_int)
+  | "vswitch" -> VSwitch (value |> to_string |> Int64.of_string)
+  | "vport" -> VSwitch (value |> to_string |> Int64.of_string)
   | "location" ->
     let value = match value |> member "type" |> to_string with
       | "physical" -> Physical (value |> member "port" |>
                                 to_int |> int_to_uint32)
       | "pipe" -> Pipe (value |> member "name" |> to_string)
       | "query" -> Query (value |> member "name" |> to_string)
-      | str -> raise (Invalid_argument ("invalid location type " ^ str))
-    in Location value
+      | str -> raise (Invalid_argument ("invalid location type " ^ str)) 
+
+    in Location value  
+  | "port" -> Location(Physical(value |> to_string |> Int32.of_string))
   | "ethsrc" -> EthSrc (value |> to_string |> macaddr_from_string)
   | "ethdst" -> EthDst (value |> to_string |> macaddr_from_string)
   | "vlan" -> Vlan (value |> to_int)
-  | "vlanpcp" -> VlanPcp (value |> to_int)
-  | "ethtype" -> EthType (value |> to_int)
-  | "ipproto" -> IPProto (value |> to_int)
-  | "ip4src" -> IP4Src (value |> member "addr" |> parse_ipaddr,
-                        value |> member "mask" |> to_int |> Int32.of_int_exn)
-  | "ip4dst" -> IP4Dst (value |> member "addr" |> parse_ipaddr,
-                        value |> member "mask" |> to_int |> Int32.of_int_exn)
-  | "tcpsrcport" -> TCPSrcPort (value |> to_int)
-  | "tcpdstport" -> TCPDstPort (value |> to_int)
+  | "vlanpcp" -> VlanPcp (value |> to_string |> Int.of_string)
+  | "ethtype" -> EthType (value |> to_string |> Int.of_string)
+  | "ipproto" -> IPProto (value |> to_string |> Int.of_string)
+  | "ipSrc" -> IP4Src (value |> to_string |> Frenetic_Packet.ip_of_string, 32l)
+  | "ipDst" -> IP4Dst (value |> to_string |> Frenetic_Packet.ip_of_string, 32l)
+  | "tcpsrcport" -> TCPSrcPort (value |> to_string |> Int.of_string)
+  | "tcpdstport" -> TCPDstPort (value |> to_string |> Int.of_string)
   | str -> raise (Invalid_argument ("invalid header " ^ str))
 
 let rec from_json_pred (json : json) : pred =
