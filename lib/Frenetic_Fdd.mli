@@ -21,6 +21,7 @@ module Field : sig
       | TCPDstPort
       | Location
       | VFabric
+      | Wavelength
   with sexp
   val auto_order : Frenetic_NetKAT.policy -> unit
   val set_order : t list -> unit

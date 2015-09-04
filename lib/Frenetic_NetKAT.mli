@@ -40,6 +40,7 @@ type header_val =
   | VSwitch of vswitchId
   | VPort of vportId
   | VFabric of vfabricId
+  | Wavelength of int8
   with sexp
 
 type pred =

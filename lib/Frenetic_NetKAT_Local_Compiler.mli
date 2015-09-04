@@ -21,6 +21,7 @@ module Field : sig
     | TCPDstPort
     | Location
     | VFabric
+    | Wavelength
 
   val get_order : unit -> t list
 

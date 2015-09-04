@@ -24,6 +24,7 @@ module HeadersValues : sig
     ; ipDst : nwAddr
     ; tcpSrcPort : tpPort
     ; tcpDstPort : tpPort
+    ; wavelength : int8
     } with sexp, fields
 
   val compare : t -> t -> int

@@ -25,6 +25,7 @@ module Field = struct
     | TCPDstPort
     | Location
     | VFabric
+    | Wavelength
     with sexp
 
   (** The type of packet fields. This is an enumeration whose ordering has an
@@ -46,6 +47,7 @@ module Field = struct
     | "IP4Dst" -> IP4Dst 
     | "TCPSrcPort" -> TCPSrcPort 
     | "TCPDstPort" -> TCPDstPort 
+    | "Wavelength" -> Wavelength
     | _ -> assert false
 
   let to_string = function
@@ -64,6 +66,7 @@ module Field = struct
     | TCPDstPort -> "TCPDstPort"
     | Location -> "Location"
     | VFabric -> "VFabric"
+    | Wavelength -> "Wavelength"
 
   let num_fields = 15
 
@@ -110,6 +113,7 @@ module Field = struct
     | Frenetic_NetKAT.TCPSrcPort _ -> TCPSrcPort
     | Frenetic_NetKAT.TCPDstPort _ -> TCPDstPort
     | Frenetic_NetKAT.VFabric _ -> VFabric
+    | Frenetic_NetKAT.Wavelength _ -> Wavelength
 
   (* Heuristic to pick a variable order that operates by scoring the fields
      in a policy. A field receives a high score if, when a test field=X
@@ -395,6 +399,7 @@ module Pattern = struct
     | TCPSrcPort(tpPort) -> (Field.TCPSrcPort, Value.of_int tpPort)
     | TCPDstPort(tpPort) -> (Field.TCPDstPort, Value.of_int tpPort)
     | VFabric(vfab) -> (Field.VFabric, Value.(Const vfab))
+    | Wavelength(lambda) -> (Field.Wavelength, Value.of_int lambda)
 
   let to_hv (f, v) =
     let open Field in
