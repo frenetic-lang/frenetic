@@ -152,11 +152,11 @@ let compile vno =
   print_endline (string_of_pred !ingress_predicate);
   print_endline "Physical egress predicate";
   print_endline (string_of_pred !egress_predicate);
-  (Frenetic_NetKAT_Virtual_Compiler.compile vno.policy
+  (Frenetic_NetKAT_Virtual_Compiler.compile
      vno.relation vno.topology vno.ingress_policy
      vno.ingress_predicate vno.egress_predicate
      !topology !ingress_predicate
-     !egress_predicate)
+     !egress_predicate vno.policy)
 
 let global_compile (policy : policy)  : unit =
   compiled := Some( Frenetic_NetKAT_Compiler.compile_global policy )
