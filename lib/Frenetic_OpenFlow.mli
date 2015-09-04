@@ -87,7 +87,8 @@ module Pattern : sig
       ; nwProto : nwProto option
       ; tpSrc : tpPort option
       ; tpDst : tpPort option
-      ; inPort : portId option }
+      ; inPort : portId option
+      ; wavelength : int8 option }
 
   (** [match_all] is pattern that matches any packet *)
   val match_all : t
@@ -118,6 +119,7 @@ type modify =
   | SetIP4Dst of nwAddr
   | SetTCPSrcPort of tpPort
   | SetTCPDstPort of tpPort
+  | SetWavelength of int8
 
 type pseudoport =
   | Physical of portId

@@ -104,7 +104,9 @@ let modify_to_json (m : modify) : json = match m with
   | SetTCPSrcPort n ->
      `List [`String "SetTpSrc"; `Int n]
   | SetTCPDstPort n ->
-     `List [`String "SetTpDst"; `Int n]
+    `List [`String "SetTpDst"; `Int n]
+  | SetWavelength n ->
+    `List [`String "SetWavelength"; `Int n]
 
 let action_to_json (a : action) : json = match a with
   | Output p -> `List [`String "Output"; pseudoport_to_json p]

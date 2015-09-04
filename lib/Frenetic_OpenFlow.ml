@@ -124,7 +124,8 @@ module Pattern = struct
       ; nwProto : nwProto option
       ; tpSrc : tpPort option
       ; tpDst : tpPort option
-      ; inPort : portId option }
+      ; inPort : portId option
+      ; wavelength : int8 option }
 
   let match_all =
       { dlSrc = None
@@ -137,7 +138,8 @@ module Pattern = struct
       ; nwProto = None
       ; tpSrc = None
       ; tpDst = None
-      ; inPort = None }
+      ; inPort = None
+      ; wavelength = None }
 
   (* TODO(jnf): rename subseteq ?*)
   let less_eq p1 p2 =
@@ -160,6 +162,7 @@ module Pattern = struct
     && check (=) p1.tpSrc p2.tpSrc
     && check (=) p1.tpDst p2.tpDst
     && check (=) p1.inPort p2.inPort
+    && check (=) p1.wavelength p2.wavelength
 
   let eq p1 p2 =
     let check f m1 m2 =
@@ -178,6 +181,7 @@ module Pattern = struct
     && check (=) p1.tpSrc p2.tpSrc
     && check (=) p1.tpDst p2.tpDst
     && check (=) p1.inPort p2.inPort
+    && check (=) p1.wavelength p2.wavelength
 
   let eq_join x1 x2 =
     if x1 = x2 then Some x1 else None
@@ -199,7 +203,8 @@ module Pattern = struct
     ; nwProto = joiner eq_join p1.nwProto p2.nwProto
     ; tpSrc = joiner eq_join p1.tpSrc p2.tpSrc
     ; tpDst = joiner eq_join p1.tpDst p2.tpDst
-    ; inPort = joiner eq_join p1.inPort p2.inPort }
+    ; inPort = joiner eq_join p1.inPort p2.inPort
+    ; wavelength = joiner eq_join p1.wavelength p2.wavelength }
 
   let format (fmt:Format.formatter) (p:t) : unit =
     let first = ref true in
@@ -222,6 +227,7 @@ module Pattern = struct
     format_field "tcpSrcPort" format_int p.tpSrc;
     format_field "tcpDstPort" format_int p.tpDst;
     format_field "port" format_int32 p.inPort;
+    format_field "wavelength" format_int p.wavelength;
     Format.fprintf fmt "}@]"
 
   let string_of = make_string_of format
@@ -238,6 +244,7 @@ type modify =
   | SetIP4Dst of nwAddr
   | SetTCPSrcPort of tpPort
   | SetTCPDstPort of tpPort
+  | SetWavelength of int8
 
 type pseudoport =
   | Physical of portId
@@ -337,6 +344,8 @@ let format_modify (fmt:Format.formatter) (m:modify) : unit =
     Format.fprintf fmt "SetField(tcpSrcPort, %a)" format_int tpPort
   | SetTCPDstPort(tpPort) ->
     Format.fprintf fmt "SetField(tcpDstPort, %a)" format_int tpPort
+  | SetWavelength(lambda) ->
+    Format.fprintf fmt "SetWavelength(wavelength, %a)" format_int lambda
 
 let format_pseudoport (fmt:Format.formatter) (p:pseudoport) : unit =
   match p with
@@ -458,6 +467,9 @@ let string_of_tcpDstPort (x : tpPort) : string =
 let string_of_inPort (x : portId) : string =
   Format.sprintf "InPort = %lu" x
 
+let string_of_wavelength (x : int8) : string =
+  Format.sprintf "Wavelength = %d" x
+
 let check (string_of : 'a -> string)
 	  (x : 'a option)
 	  (acc : string list) : string list =
@@ -477,7 +489,8 @@ let pattern_list (p : Pattern.t) : string list =
     check string_of_ipProto p.nwProto |>
     check string_of_tcpSrcPort p.tpSrc |>
     check string_of_tcpDstPort p.tpDst |>
-    check string_of_inPort p.inPort
+    check string_of_inPort p.inPort |>
+    check string_of_wavelength p.wavelength
 
 (* Given a flow, return a pair of list of strings where the first list
  * contains the strings of the pattern and the second list contains
@@ -640,7 +653,8 @@ let from_action (inPort : OF10.portId option) (act : action) : OF10.action =
       SetTpSrc tp
     | Modify (SetTCPDstPort tp) ->
       SetTpDst tp
-      (* TODO(grouptable) *)
+    (* TODO(grouptable) *)
+    | Modify (SetWavelength lambda) -> failwith "Openflow 1.0 does not support wavelengths."
     | FastFail _ -> failwith "Openflow 1.0 does not support fast failover."
         
 let from_seq (inPort : OF10.portId option) (seq : seq) : OF10.action list = 
