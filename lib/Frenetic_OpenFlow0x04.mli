@@ -116,7 +116,7 @@ type groupModFailed =
  | GrOutOfGroups
  | GrOutOfBuckets
  | GrChainingUnsupported
- | GrWatcHUnsupported
+ | GrWatchUnsupported
  | GrLoop
  | GrUnknownGroup
  | GrChainedGroup
@@ -140,7 +140,7 @@ type tableModFailed =
 
 type queueOpFailed =
  | QuBadPort
- | QuBadQUeue
+ | QuBadQueue
  | QuPermError
 
 type switchConfigFailed =

@@ -133,7 +133,7 @@ type groupModFailed =
   | GrOutOfGroups
   | GrOutOfBuckets
   | GrChainingUnsupported
-  | GrWatcHUnsupported
+  | GrWatchUnsupported
   | GrLoop
   | GrUnknownGroup
   | GrChainedGroup
@@ -157,7 +157,7 @@ type tableModFailed =
 
 type queueOpFailed =
   | QuBadPort
-  | QuBadQUeue
+  | QuBadQueue
   | QuPermError
 
 type switchConfigFailed =
@@ -900,7 +900,7 @@ module PortFeatures = struct
 
   let to_string (feat : t) =
     Format.sprintf
-      "{ 10mhd = %B; 10mfd  = %B; 100mhd  = %B; 100mfd  = %B; 1ghd%B\
+      "{ 10mhd = %B; 10mfd  = %B; 100mhd  = %B; 100mfd  = %B; 1ghd  = %B; \
        1gfd  = %B; 10gfd  = %B; 40gfd  = %B; 100gfd  = %B; 1tfd  = %B; \
        other  = %B; copper  = %B; fiber  = %B; autoneg  = %B; pause  = %B; \
        pause_asym  = %B }"
@@ -1548,10 +1548,11 @@ let set_ofp_uint128_value (buf : Cstruct.t) ((h,l) : uint128) =
 let get_ofp_uint128_value (buf : Cstruct.t) : uint128 =
   (get_ofp_uint128_high buf, get_ofp_uint128_low buf)
 
-(* TODO(arjun): WTF use pattern-matching *)
 let rec marshal_fields (buf: Cstruct.t) (fields : 'a list) (marshal_func : Cstruct.t -> 'a -> int ): int =
-  if (fields = []) then 0
-  else let size = marshal_func buf (List.hd_exn fields) in
+  match fields with
+  | [] -> 0
+  | fields -> 
+    let size = marshal_func buf (List.hd_exn fields) in
     size + (marshal_fields (Cstruct.shift buf size) (List.tl_exn fields) marshal_func)
 
 let parse_fields (bits : Cstruct.t) (parse_func : Cstruct.t -> 'a) (length_func : Cstruct.t -> int option) :'a list =
@@ -6711,7 +6712,7 @@ module Error = struct
       | GrOutOfGroups -> "OutOfGroups"
       | GrOutOfBuckets -> "OutOfBuckets"
       | GrChainingUnsupported -> "ChainingUnsupported"
-      | GrWatcHUnsupported -> "WatcHUnsupported"
+      | GrWatchUnsupported -> "WatchUnsupported"
       | GrLoop -> "Loop"
       | GrUnknownGroup -> "UnknownGroup"
       | GrChainedGroup -> "ChainedGroup"
@@ -6729,7 +6730,7 @@ module Error = struct
       | GrOutOfGroups -> ofp_group_mod_failed_code_to_int OFPGMFC_OUT_OF_GROUPS
       | GrOutOfBuckets -> ofp_group_mod_failed_code_to_int OFPGMFC_OUT_OF_BUCKETS
       | GrChainingUnsupported -> ofp_group_mod_failed_code_to_int OFPGMFC_CHAINING_UNSUPPORTED
-      | GrWatcHUnsupported -> ofp_group_mod_failed_code_to_int OFPGMFC_WATCH_UNSUPPORTED
+      | GrWatchUnsupported -> ofp_group_mod_failed_code_to_int OFPGMFC_WATCH_UNSUPPORTED
       | GrLoop -> ofp_group_mod_failed_code_to_int OFPGMFC_LOOP
       | GrUnknownGroup -> ofp_group_mod_failed_code_to_int OFPGMFC_UNKNOWN_GROUP
       | GrChainedGroup -> ofp_group_mod_failed_code_to_int OFPGMFC_CHAINED_GROUP
@@ -6747,7 +6748,7 @@ module Error = struct
       | Some OFPGMFC_OUT_OF_GROUPS -> GrOutOfGroups
       | Some OFPGMFC_OUT_OF_BUCKETS -> GrOutOfBuckets
       | Some OFPGMFC_CHAINING_UNSUPPORTED -> GrChainingUnsupported
-      | Some OFPGMFC_WATCH_UNSUPPORTED -> GrWatcHUnsupported
+      | Some OFPGMFC_WATCH_UNSUPPORTED -> GrWatchUnsupported
       | Some OFPGMFC_LOOP -> GrLoop
       | Some OFPGMFC_UNKNOWN_GROUP -> GrUnknownGroup
       | Some OFPGMFC_CHAINED_GROUP -> GrChainedGroup
@@ -6843,19 +6844,19 @@ module Error = struct
     let to_string (cod : queueOpFailed) : string =
       match cod with
       | QuBadPort -> "BadPort"
-      | QuBadQUeue -> "BadQUeue"
+      | QuBadQueue -> "BadQueue"
       | QuPermError -> "Permission_Error"
 
     let marshal (cod : queueOpFailed) : int =
       match cod with
       | QuBadPort -> ofp_queue_op_failed_code_to_int OFPQOFC_BAD_PORT
-      | QuBadQUeue -> ofp_queue_op_failed_code_to_int OFPQOFC_BAD_QUEUE
+      | QuBadQueue -> ofp_queue_op_failed_code_to_int OFPQOFC_BAD_QUEUE
       | QuPermError -> ofp_queue_op_failed_code_to_int OFPQOFC_EPERM
 
     let parse t : queueOpFailed =
       match int_to_ofp_queue_op_failed_code t with
       | Some OFPQOFC_BAD_PORT -> QuBadPort
-      | Some OFPQOFC_BAD_QUEUE -> QuBadQUeue
+      | Some OFPQOFC_BAD_QUEUE -> QuBadQueue
       | Some OFPQOFC_EPERM -> QuPermError
       | None -> raise (Unparsable (sprintf "malfomed queue op failed code"))
 
