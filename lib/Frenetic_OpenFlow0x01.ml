@@ -83,8 +83,8 @@ type flowMod =
     } with sexp
 
 type payload =
-  | Buffered of int32 * bytes
-  | NotBuffered of bytes
+  | Buffered of int32 * Cstruct.t
+  | NotBuffered of Cstruct.t
 with sexp
 
 type packetInReason =
@@ -2860,10 +2860,10 @@ module Message = struct
     | QUEUE_GET_CONFIG_RESP -> "QUEUE_GET_CONFIG_RESP"
 
   type t =
-    | Hello of bytes
+    | Hello of Cstruct.t
     | ErrorMsg of Error.t
-    | EchoRequest of bytes
-    | EchoReply of bytes
+    | EchoRequest of Cstruct.t
+    | EchoReply of Cstruct.t
     | VendorMsg of Vendor.t
     | SwitchFeaturesRequest
     | SwitchFeaturesReply of SwitchFeatures.t

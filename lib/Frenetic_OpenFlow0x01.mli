@@ -88,8 +88,8 @@ type flowMod =
 with sexp
 
 type payload =
-  | Buffered of int32 * bytes sexp_opaque
-  | NotBuffered of bytes sexp_opaque
+  | Buffered of int32 * Cstruct.t sexp_opaque
+  | NotBuffered of Cstruct.t sexp_opaque
 with sexp
 
 type packetInReason =
@@ -633,10 +633,10 @@ specification. *)
 module Message : sig
 
   type t =
-    | Hello of bytes
+    | Hello of Cstruct.t
     | ErrorMsg of Error.t
-    | EchoRequest of bytes
-    | EchoReply of bytes
+    | EchoRequest of Cstruct.t
+    | EchoReply of Cstruct.t
     | VendorMsg of Vendor.t
     | SwitchFeaturesRequest
     | SwitchFeaturesReply of SwitchFeatures.t
