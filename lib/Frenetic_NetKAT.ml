@@ -79,7 +79,6 @@ type switch_port = switchId * portId with sexp
 type host = Frenetic_Packet.dlAddr * Frenetic_Packet.nwAddr with sexp
 
 type bufferId = Int32.t with sexp (* XXX(seliopou): different than Frenetic_OpenFlow *)
-type bytes = Frenetic_Packet.bytes with sexp
 
 type event =
   | PacketIn of string * switchId * portId * payload * int
