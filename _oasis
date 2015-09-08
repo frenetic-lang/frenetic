@@ -82,6 +82,7 @@ Library async
     Frenetic_DynGraph
   Modules:
     Frenetic_Compile_Server,
+    Frenetic_Staged_Server,
     Frenetic_Http_Controller,
     Frenetic_OpenFlow0x01_Controller,
     Frenetic_NetKAT_Controller,

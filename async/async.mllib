@@ -1,6 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: a335e46dcef60c8c74fadb33000249c0)
+# DO NOT EDIT (digest: 25042964af83b3f1c6b1741838c6d9ea)
 Frenetic_Compile_Server
+Frenetic_Staged_Server
 Frenetic_Http_Controller
 Frenetic_OpenFlow0x01_Controller
 Frenetic_NetKAT_Controller

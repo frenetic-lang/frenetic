@@ -3,13 +3,14 @@ open Core.Std
 let run_types : [
   `Http_Controller | `Compile_Server | `Shell | 
   `Openflow13_Controller | `Openflow13_Fault_Tolerant_Controller |
-  `Global_Compiler | `Virtual_Compiler 
+  `Global_Compiler | `Virtual_Compiler | `Staged_Server
 ] Command.Spec.Arg_type.t = 
   Command.Spec.Arg_type.create
     (fun run_type_arg ->
       match run_type_arg with 
       | "http-controller" -> `Http_Controller
       | "compile-server" -> `Compile_Server
+      | "staged-server" -> `Staged_Server
       | "shell" -> `Shell
       | "openflow13" -> `Openflow13_Controller
       | "fault_tolerant" -> `Openflow13_Fault_Tolerant_Controller
@@ -79,7 +80,7 @@ let spec =
   +> flag "--ptopo" (optional_with_default "ptopo.kat" file) ~doc: "File containing physical topology"
   +> flag "--ping" (optional_with_default "ping.kat" file) ~doc: "File containing physical ingress"
   +> flag "--peg" (optional_with_default "peg.kat" file) ~doc: "File containing physical egress"
-  +> anon ("[flags] {http-controller | compile-server | shell | openflow13 | fault_tolerant | global_cmd | virtual_cmd}" %: run_types) 
+  +> anon ("[flags] {http-controller | compile-server | staged-server | shell | openflow13 | fault_tolerant | global_cmd | virtual_cmd}" %: run_types) 
 
 let command =
   Command.basic
@@ -102,6 +103,11 @@ let command =
             Frenetic_Log.set_level verbosity;
             Frenetic_Log.set_output [Lazy.force log_output];
             Frenetic_Compile_Server.main http_port ()
+        | `Staged_Server ->
+          fun () ->
+            Frenetic_Log.set_level verbosity;
+            Frenetic_Log.set_output [Lazy.force log_output];
+            Frenetic_Staged_Server.main http_port ()
         | `Http_Controller -> 
           fun () -> 
             Frenetic_Log.set_level verbosity;
