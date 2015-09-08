@@ -3,7 +3,6 @@ open Core.Std
 (*===========================================================================*)
 (* AUXILLIARY FUNCTIONS                                                      *)
 (*===========================================================================*)
-
 let verbosity_levels : Async.Std.Log.Level.t Command.Spec.Arg_type.t =
   Command.Spec.Arg_type.create
     (function
@@ -111,6 +110,16 @@ let compile_server : Command.t =
     (fun http_port ->
       run (Frenetic_Compile_Server.main http_port))
 
+let staged_server : Command.t =
+  Command.basic
+    ~summary:"Invokes staged compile server."
+    Command.Spec.(empty
+      +> Flag.http_port
+      ++ default_spec)
+    (fun http_port ->
+      run (Frenetic_Staged_Server.main http_port))
+
+
 let http_controller : Command.t =
   Command.basic
     ~summary:"Invokes http controler."
@@ -149,6 +158,7 @@ let main : Command.t =
     ~summary:"Invokes the specified Frenetic module."
     [ ("shell", shell)
     ; ("compile-server", compile_server)
+    ; ("staged-server", staged_server)
     ; ("http-controller", http_controller)
     ; ("openflow13", openflow13_controller)
     ; ("fault-tolerant", openflow13_fault_tolerant_controller)

@@ -152,14 +152,14 @@ let compile vno =
   print_endline (string_of_pred !ingress_predicate);
   print_endline "Physical egress predicate";
   print_endline (string_of_pred !egress_predicate);
-  (Frenetic_NetKAT_Virtual_Compiler.compile
-     vno.relation vno.topology vno.ingress_policy
-     vno.ingress_predicate vno.egress_predicate
-     !topology !ingress_predicate
-     !egress_predicate vno.policy)
+  (Frenetic_NetKAT_Virtual_Compiler.compile vno.policy
+     ~vrel:vno.relation ~vtopo:vno.topology ~ving_pol:vno.ingress_policy
+     ~ving:vno.ingress_predicate ~veg:vno.egress_predicate
+     ~ptopo:!topology ~ping:!ingress_predicate
+     ~peg:!egress_predicate)
 
 let global_compile (policy : policy)  : unit =
-  compiled := Some( Frenetic_NetKAT_Compiler.compile_global policy )
+  compiled := Some( Frenetic_NetKAT_Compiler.compile_global ~options:!compiler_options policy )
 
 let compile_vnos vno_list =
   match List.hd vno_list, List.tl vno_list with
@@ -225,7 +225,7 @@ let handle_request
         (fun s -> print_endline "Parsing policy :";
                   print_endline (string_of_policy s);
                   s) |>
-        Frenetic_NetKAT_Compiler.compile_local |>
+        Frenetic_NetKAT_Compiler.compile_local ~options:!compiler_options |>
         Frenetic_NetKAT_Compiler.to_table sw |>
         Frenetic_NetKAT_SDN_Json.flowTable_to_json |>
         Yojson.Basic.to_string ~std:true |>
@@ -252,7 +252,7 @@ let handle_request
     match !compiled with
     | None -> respond "None"
     | Some repr -> repr |>
-        Frenetic_NetKAT_Compiler.to_table sw |>
+        Frenetic_NetKAT_Compiler.to_table ~options:!compiler_options sw |>
         Frenetic_NetKAT_SDN_Json.flowTable_to_json |>
         Yojson.Basic.to_string ~std:true |>
         Cohttp_async.Server.respond_with_string end
