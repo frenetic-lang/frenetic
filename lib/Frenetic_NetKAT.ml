@@ -1,10 +1,14 @@
 open Sexplib.Conv
-
-(** NetKAT Syntax *)
 open Core.Std
 
-(** {2 Basics} *)
+(** NetKAT Syntax *)
+
+(** {1 Basics} *)
 open Frenetic_Packet
+
+(* thrown whenever local policy is expected, but global policy
+  (i.e. policy containing links) is encountered *)
+exception Non_local
 
 type switchId = Frenetic_OpenFlow.switchId with sexp
 type portId = Frenetic_OpenFlow.portId with sexp
@@ -14,6 +18,7 @@ type vportId = int64 with sexp
 type vfabricId = int64 with sexp
 
 (** {2 Policies} *)
+
 
 let string_of_fastfail = Frenetic_OpenFlow.format_list ~to_string:Int32.to_string
 
@@ -65,12 +70,6 @@ type policy =
 let id = Filter True
 let drop = Filter False
 
-(** {2 Packets}
-
-  If we only defined the semantics and were not building a system, a
-  packet would only be a record of headers. However, the runtime needs to
-  apply [eval] to packets contained in [PACKET_IN] mesages. For the runtime,
-  packets also carry a payload that is unmodified by [eval]. *)
 
 (** {3 Applications} *)
 

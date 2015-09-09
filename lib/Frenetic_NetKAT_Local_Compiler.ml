@@ -3,13 +3,14 @@ open Frenetic_Fdd
 open Frenetic_NetKAT
 
 module Field = Frenetic_Fdd.Field
-exception Non_local = Frenetic_Fdd.Non_local
+exception Non_local = Frenetic_NetKAT.Non_local
 
 type order
   = [ `Default
     | `Static of Field.t list
     | `Heuristic ]
 
+(* the intermediate representation of the local compiler *)
 module FDK = struct
 
   include FDK
@@ -175,9 +176,9 @@ type compiler_options = {
 
 let clear_cache () = FDK.clear_cache Int.Set.empty
 
-let default_compiler_options = { 
-  cache_prepare = `Empty; 
-  field_order = `Heuristic; 
+let default_compiler_options = {
+  cache_prepare = `Empty;
+  field_order = `Heuristic;
   remove_tail_drops = false;
   dedup_flows = true;
   optimize = true;
@@ -228,7 +229,7 @@ let get_inport hvs =
  * used in the multitable compiler. to_action does not use group tables and is
  * for the normal compiler. *)
 
-(* Frenetic_OpenFlow.group is an action group, equivalent in type to 
+(* Frenetic_OpenFlow.group is an action group, equivalent in type to
  * 'action list list list', while Frenetic_GroupTable0x04.t contains
  * groupmod messages to create a group table *)
 let to_action ?pc (in_port : Int64.t option) r
@@ -239,16 +240,15 @@ let to_action ?pc (in_port : Int64.t option) r
 let to_pattern hvs =
   List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_OpenFlow.Pattern.match_all
 
-let remove_local_fields =
-  FDK.(fold
-         (fun r -> mk_leaf (Action.Par.map r ~f:(fun s -> Action.Seq.filter s ~f:(fun ~key ~data ->
-           match key with
-             | Frenetic_Fdd.Action.F VPort | Frenetic_Fdd.Action.F VSwitch -> false
-             | _ -> true))))
-         (fun v t f ->
-           match v with
-             | Frenetic_Fdd.Field.VSwitch, _ | Frenetic_Fdd.Field.VPort, _ -> failwith "uninitialized local field"
-             | _, _ -> mk_branch v t f))
+let remove_local_fields = FDK.(fold
+   (fun r -> mk_leaf (Action.Par.map r ~f:(fun s -> Action.Seq.filter s ~f:(fun ~key ~data ->
+     match key with
+       | Action.F VPort | Action.F VSwitch -> false
+       | _ -> true))))
+   (fun v t f ->
+     match v with
+       | Field.VSwitch, _ | Field.VPort, _ -> failwith "uninitialized local field"
+       | _, _ -> mk_branch v t f))
 
 let mk_branch_or_leaf test t f =
   match t with
@@ -257,7 +257,9 @@ let mk_branch_or_leaf test t f =
 
 let opt_to_table ?pc sw_id t =
   let t =
-    FDK.(restrict [(Field.Switch, Value.Const sw_id); (Field.VFabric, Value.Const (Int64.of_int 1))] t)
+    t
+    |> restrict [(Field.Switch, Value.Const sw_id)
+                ;(Field.VFabric, Value.Const (Int64.of_int 1))]
     |> remove_local_fields
   in
   let rec next_table_row tests mk_rest t =
@@ -293,13 +295,13 @@ let rec naive_to_table ?pc sw_id (t : FDK.t) =
 
 let remove_tail_drops fl =
   let rec remove_tail_drop fl =
-    match fl with 
+    match fl with
     | [] -> fl
     | h :: t ->
-      let actions = (fst h).Frenetic_OpenFlow.action in 
-      match (List.concat (List.concat actions)) with 
+      let actions = (fst h).Frenetic_OpenFlow.action in
+      match (List.concat (List.concat actions)) with
       | [] -> remove_tail_drop t
-      | _ -> h :: t in 
+      | _ -> h :: t in
   List.rev (remove_tail_drop (List.rev fl))
 
 let to_table' ?(options=default_compiler_options) ?pc swId t =
@@ -309,7 +311,7 @@ let to_table' ?(options=default_compiler_options) ?pc swId t =
   | false -> naive_to_table ?pc swId t in
   if options.remove_tail_drops then (remove_tail_drops t) else t
 
-let to_table ?(options=default_compiler_options) ?pc swId t = 
+let to_table ?(options=default_compiler_options) ?pc swId t =
   List.map ~f:fst (to_table' ~options ?pc swId t)
 
 let pipes t =
@@ -346,7 +348,7 @@ let size =
 let compression_ratio t = (FDK.compressed_size t, FDK.uncompressed_size t)
 
 let eval_to_action (packet:Frenetic_NetKAT_Semantics.packet) (t:FDK.t) =
-  let open Frenetic_NetKAT_Semantics in 
+  let open Frenetic_NetKAT_Semantics in
   let hvs = HeadersValues.to_hvs packet.headers in
   let sw  = (Field.Switch, Value.of_int64 packet.switch) in
   let vs  = List.map hvs ~f:Pattern.of_hv in
@@ -372,9 +374,9 @@ let field_order_from_string = function
   | "default" -> `Default
   | "heuristic" -> `Heuristic
   | field_order_string ->
-   let ls = String.split_on_chars ~on:['<'] field_order_string 
-    |> List.map ~f:String.strip 
-    |> List.map ~f:Field.of_string in   
+   let ls = String.split_on_chars ~on:['<'] field_order_string
+    |> List.map ~f:String.strip
+    |> List.map ~f:Field.of_string in
    let compose f g x = f (g x) in
    let curr_order = Field.all_fields in
    let removed = List.filter curr_order (compose not (List.mem ls)) in
@@ -383,11 +385,11 @@ let field_order_from_string = function
    (`Static new_order)
 
 let options_from_json_string s =
-  let open Yojson.Basic.Util in 
+  let open Yojson.Basic.Util in
   let json = Yojson.Basic.from_string s in
   let cache_prepare_string = json |> member "cache_prepare" |> to_string in
   (*  Note: Preserve is not settable with JSON because it requires a complex data structure *)
-  let cache_prepare = 
+  let cache_prepare =
     match cache_prepare_string with
     | "keep" -> `Keep
     | _ -> `Empty in
@@ -397,7 +399,7 @@ let options_from_json_string s =
   let optimize = json |> member "optimize" |> to_bool in
   {cache_prepare; field_order; remove_tail_drops; dedup_flows; optimize}
 
-let field_order_to_string fo = 
+let field_order_to_string fo =
  match fo with
   | `Heuristic -> "heuristic"
   | `Default -> "default"
@@ -405,14 +407,15 @@ let field_order_to_string fo =
      List.rev (List.map fields Field.to_string) |> String.concat ~sep:" < "
 
 let options_to_json_string opt =
-  let open Yojson.Basic in 
+  let open Yojson.Basic in
   `Assoc [
     ("cache_prepare", `String (if opt.cache_prepare = `Keep then "keep" else "empty"));
     ("field_order", `String (field_order_to_string opt.field_order));
     ("remove_tail_drops", `Bool opt.remove_tail_drops);
     ("dedup_flows", `Bool opt.dedup_flows);
     ("optimze", `Bool opt.optimize)
-  ] |> pretty_to_string 
+  ] |> pretty_to_string
+
 
 (* *** GLOBAL COMPILATION *)
 
@@ -814,8 +817,8 @@ type flowId = tableId * metaId
 type flow_subtrees = (t, flowId) Map.Poly.t
 
 (* OpenFlow 1.3+ instruction types *)
-type instruction = 
-  [ `Action of Frenetic_OpenFlow.group 
+type instruction =
+  [ `Action of Frenetic_OpenFlow.group
   | `GotoTable of flowId ]
 
 (* A flow table row, with multitable support. If goto has a Some value
@@ -836,7 +839,7 @@ let post (x : int ref) : int =
 
 (* Make Map of subtrees of t and their corresponding flow table locations *)
 let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
-  let rec subtrees_for_table (table : Field.t list) (t : t) 
+  let rec subtrees_for_table (table : Field.t list) (t : t)
     (subtrees : t list) : t list =
     match FDK.unget t with
     | Leaf _ -> subtrees
@@ -850,43 +853,43 @@ let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
   let meta_id = ref 0 in
   List.map layout ~f:(fun table -> subtrees_for_table table t [])
   |> List.filter ~f:(fun subtrees -> subtrees <> [])
-  |> List.foldi ~init:Map.Poly.empty ~f:(fun tbl_id accum subtrees -> 
+  |> List.foldi ~init:Map.Poly.empty ~f:(fun tbl_id accum subtrees ->
       List.fold_right subtrees ~init:accum ~f:(fun t accum ->
         Map.add accum ~key:t ~data:(tbl_id,(post meta_id))))
 
 (* make a flow struct that includes the table and meta id of the flow *)
-let mk_multitable_flow (pattern : Frenetic_OpenFlow.Pattern.t) 
+let mk_multitable_flow (pattern : Frenetic_OpenFlow.Pattern.t)
   (instruction : instruction) (flowId : flowId) : multitable_flow option =
   if is_valid_pattern pattern then
-    Some { cookie = 0L; 
-           idle_timeout = Permanent; 
+    Some { cookie = 0L;
+           idle_timeout = Permanent;
            hard_timeout = Permanent;
            pattern; instruction; flowId }
   else
     None
 
 (* Create flow table rows for one subtree *)
-let subtree_to_table (subtrees : flow_subtrees) (subtree : (t * flowId)) 
+let subtree_to_table (subtrees : flow_subtrees) (subtree : (t * flowId))
   (group_tbl : Frenetic_GroupTable0x04.t) : multitable_flow list =
-  let rec dfs (tests : (Field.t * Value.t) list) (subtrees : flow_subtrees) 
-  (t : t) (flowId : flowId) : multitable_flow option list = 
+  let rec dfs (tests : (Field.t * Value.t) list) (subtrees : flow_subtrees)
+  (t : t) (flowId : flowId) : multitable_flow option list =
     match FDK.unget t with
     | Leaf actions ->
       let insts = [to_action (get_inport tests) actions tests ~group_tbl] in
       [mk_multitable_flow (to_pattern tests) (`Action insts) flowId]
-    | Branch ((Location, Pipe _), _, fls) -> 
+    | Branch ((Location, Pipe _), _, fls) ->
       failwith "1.3 compiler does not support pipes"
     | Branch (test, tru, fls) ->
      (match Map.find subtrees t with
       | Some goto_id ->
         [mk_multitable_flow (to_pattern tests) (`GotoTable goto_id) flowId]
-      | None -> List.append (dfs (test :: tests) subtrees tru flowId) 
+      | None -> List.append (dfs (test :: tests) subtrees tru flowId)
                             (dfs tests subtrees fls flowId))
   in
   let (t, flowId) = subtree in
   match FDK.unget t with
   | Branch (test, tru, fls) ->
-    List.filter_opt (List.append (dfs [test] subtrees tru flowId) 
+    List.filter_opt (List.append (dfs [test] subtrees tru flowId)
                                  (dfs [] subtrees fls flowId))
   | Leaf _  -> assert false (* each entry in the subtree map is a branch *)
 
@@ -900,9 +903,9 @@ let subtrees_to_multitable (subtrees : flow_subtrees) : (multitable_flow list * 
   |> fun ls -> (ls, group_table)
 
 (* Produce a list of flow table entries for a multitable setup *)
-let to_multitable (sw_id : switchId) (layout : flow_layout) (t : t) 
+let to_multitable (sw_id : switchId) (layout : flow_layout) (t : t)
   : (multitable_flow list * Frenetic_GroupTable0x04.t) =
-  (* restrict to only instructions for this switch, get subtrees, 
+  (* restrict to only instructions for this switch, get subtrees,
    * turn subtrees into list of multitable flow rows *)
   FDK.(restrict [(Field.Switch, Value.Const sw_id)] t)
   |> flow_table_subtrees layout
