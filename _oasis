@@ -113,6 +113,15 @@ Executable openflow
     frenetic.async,
     async_extended
 
+Executable compiler
+  Path: frenetic
+  MainIs: compiler.ml
+  Install: true
+  CompiledObject: native
+  BuildDepends:
+    core,
+    frenetic
+
 # Will be reintroduced in summer 2015
 #Library syntax
 #  Path: frenetic/syntax
