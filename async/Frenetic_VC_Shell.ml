@@ -114,7 +114,7 @@ end = struct
   let ingress_predicate = ref True
   let egress_predicate  = ref True
   let compiled          = ref None
-  let compiler_options  = ref Frenetic_NetKAT_Local_Compiler.default_compiler_options
+  let compiler_options  = ref Frenetic_NetKAT_Compiler.default_compiler_options
   
   (* Virtualization functions for predicates and policies *)
   let rec virtualize_pred = function
@@ -150,7 +150,7 @@ end = struct
   
   (* Compiles the global policy for the entire network *)
   let global_compile policy =
-    compiled := Some (Frenetic_NetKAT_Local_Compiler.compile_global policy)
+    compiled := Some (Frenetic_NetKAT_Compiler.compile_global policy)
   
   (* Compiles the policies for all VNOs *)
   let compile_vnos vnos =
@@ -164,7 +164,7 @@ end = struct
   
   (* Returns the flow table of a switch's policy as a JSON string *)
   let pol_to_string sw pol =
-    Frenetic_NetKAT_Local_Compiler.to_table sw pol |>
+    Frenetic_NetKAT_Compiler.to_table sw pol |>
     Frenetic_NetKAT_SDN_Json.flowTable_to_json     |>
     Yojson.Basic.to_string ~std:true
   
@@ -189,7 +189,7 @@ end = struct
     | Compile                    -> Hashtbl.fold vnos ~init:[]
                                     ~f:(fun ~key:id ~data:vno acc -> vno::acc) |> compile_vnos
     | CompileLocal     (sw, pol) ->
-        Frenetic_NetKAT_Local_Compiler.compile pol |>
+        Frenetic_NetKAT_Compiler.compile pol |>
         pol_to_string sw |> print_endline
     | CompileSelective  ids      -> 
         let (vnos, unknowns) =

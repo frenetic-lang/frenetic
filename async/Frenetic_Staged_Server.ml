@@ -33,7 +33,7 @@ let topology          = ref (Filter True)
 let ingress_predicate = ref True
 let egress_predicate  = ref True
 let compiled          = ref None
-let compiler_options  = ref Frenetic_NetKAT_Local_Compiler.default_compiler_options
+let compiler_options  = ref Frenetic_NetKAT_Compiler.default_compiler_options
 
 let vnos = Hashtbl.create ~hashable:Int.hashable ()
 
@@ -159,7 +159,7 @@ let compile vno =
      !egress_predicate)
 
 let global_compile (policy : policy)  : unit =
-  compiled := Some( Frenetic_NetKAT_Local_Compiler.compile_global policy )
+  compiled := Some( Frenetic_NetKAT_Compiler.compile_global policy )
 
 let compile_vnos vno_list =
   match List.hd vno_list, List.tl vno_list with
@@ -225,8 +225,8 @@ let handle_request
         (fun s -> print_endline "Parsing policy :";
                   print_endline (string_of_policy s);
                   s) |>
-        Frenetic_NetKAT_Local_Compiler.compile |>
-        Frenetic_NetKAT_Local_Compiler.to_table sw |>
+        Frenetic_NetKAT_Compiler.compile |>
+        Frenetic_NetKAT_Compiler.to_table sw |>
         Frenetic_NetKAT_SDN_Json.flowTable_to_json |>
         Yojson.Basic.to_string ~std:true |>
         (fun s -> print_endline "Generated flowtable";
@@ -252,7 +252,7 @@ let handle_request
     match !compiled with
     | None -> respond "None"
     | Some repr -> repr |>
-        Frenetic_NetKAT_Local_Compiler.to_table sw |>
+        Frenetic_NetKAT_Compiler.to_table sw |>
         Frenetic_NetKAT_SDN_Json.flowTable_to_json |>
         Yojson.Basic.to_string ~std:true |>
         Cohttp_async.Server.respond_with_string end

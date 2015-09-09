@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 035a41f87f8cb20292b3e35c07b5cf26)
+# DO NOT EDIT (digest: b765c2e96f6588ef41dd2195e185bf28)
 Frenetic_Hashcons
 Frenetic_Bits
 Frenetic_Fdd
@@ -7,16 +7,16 @@ Frenetic_GroupTable0x04
 Frenetic_Log
 Frenetic_Network
 Frenetic_NetKAT
+Frenetic_NetKAT_Optimize
 Frenetic_NetKAT_Json
 Frenetic_NetKAT_Lexer
-Frenetic_NetKAT_Local_Compiler
+Frenetic_NetKAT_Compiler
+Frenetic_NetKAT_Virtual_Compiler
 Frenetic_NetKAT_Net
-Frenetic_NetKAT_Optimize
 Frenetic_NetKAT_Parser
 Frenetic_NetKAT_Pretty
 Frenetic_NetKAT_SDN_Json
 Frenetic_NetKAT_Semantics
-Frenetic_NetKAT_Virtual_Compiler
 Frenetic_OpenFlow
 Frenetic_OpenFlow_Header
 Frenetic_OpenFlow0x01
