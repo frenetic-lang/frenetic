@@ -240,15 +240,15 @@ let to_action ?pc (in_port : Int64.t option) r
 let to_pattern hvs =
   List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_OpenFlow.Pattern.match_all
 
-let remove_local_fields = FDK.(fold
-   (fun r -> mk_leaf (Action.Par.map r ~f:(fun s -> Action.Seq.filter s ~f:(fun ~key ~data ->
-     match key with
-       | Action.F VPort | Action.F VSwitch -> false
-       | _ -> true))))
-   (fun v t f ->
-     match v with
-       | Field.VSwitch, _ | Field.VPort, _ -> failwith "uninitialized local field"
-       | _, _ -> mk_branch v t f))
+let remove_local_fields = FDK.fold
+  (fun r -> mk_leaf (Action.Par.map r ~f:(fun s -> Action.Seq.filter s ~f:(fun ~key ~data ->
+    match key with
+    | Action.F VPort | Action.F VSwitch -> false
+    | _ -> true))))
+  (fun v t f ->
+    match v with
+    | Field.VSwitch, _ | Field.VPort, _ -> failwith "uninitialized local field"
+    | _, _ -> mk_branch v t f)
 
 let mk_branch_or_leaf test t f =
   match t with
@@ -493,7 +493,10 @@ module Pol = struct
          optimization or deciding equivalence. *)
       let post_link = match ing with
         | None -> filter_loc s2 p2
-        | Some ing -> Frenetic_NetKAT_Optimize.mk_and (Test (Switch s2)) (Frenetic_NetKAT_Optimize.mk_not ing) |> mk_filter in
+        | Some ing ->
+            Frenetic_NetKAT_Optimize.(mk_and (Test (Switch s2)) (mk_not ing))
+            |> mk_filter
+      in
       mk_big_seq [filter_loc s1 p1; Dup; post_link ]
     | VLink _ -> assert false (* SJS / JNF *)
 end
@@ -920,6 +923,6 @@ let to_multitable (sw_id : switchId) (layout : flow_layout) (t : t)
   : (multitable_flow list * Frenetic_GroupTable0x04.t) =
   (* restrict to only instructions for this switch, get subtrees,
    * turn subtrees into list of multitable flow rows *)
-  FDK.(restrict [(Field.Switch, Value.Const sw_id)] t)
+  FDK.restrict [(Field.Switch, Value.Const sw_id)] t
   |> flow_table_subtrees layout
   |> subtrees_to_multitable
