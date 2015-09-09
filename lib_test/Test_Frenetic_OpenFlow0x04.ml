@@ -1,6 +1,7 @@
 open Core.Std
 open OUnitHack
 open Frenetic_OpenFlow0x04
+open Arbitrary_Frenetic_OpenFlow0x04
 
 (* Mostly stolen from Cstruct.hexdump, but less pretty format *)
 let buf_to_hex t =
@@ -30,7 +31,9 @@ let test_marshal frenetic_msg msg_name =
   let frenetic_hex = buf_to_hex (Cstruct.of_string cs) in
   let ryu_hex_file_name = "lib_test/data/openflow0x04/" ^ msg_name ^ ".hex" in
   let ryu_hex = In_channel.read_all ryu_hex_file_name in
+  
   printf "RYU: %s\nFR:  %s\n%!" ryu_hex frenetic_hex; 
+  
   frenetic_hex = ryu_hex
 
 let test_parse frenetic_msg msg_name = 
@@ -215,21 +218,21 @@ TEST "OfpGetConfigRequest Marshal" =
   let frenetic_msg = Message.GetConfigRequestMsg in
   test_marshal frenetic_msg "OfpGetConfigRequest"
 
-(* TODO: Get data to post correctly in RYU before enabling
-   ALSO: The flags implementation is clearly wrong.  It should be a bunch of booleans to translate to a bitmap,
- much like OfpFeaturesReply.capabailities 
 TEST "OfpGetConfigReply Parse" = 
-  let config_reply = { flags = NormalFrag; miss_send_len = 603 } in
+  let config_reply = { 
+    flags = {frag_normal = false; frag_drop = true; frag_reasm = true;} ;
+    miss_send_len = 603 
+  } in
   let frenetic_msg = Message.GetConfigReplyMsg config_reply in
   test_parse frenetic_msg "OfpGetConfigReply"
-*)
 
-(* TODO: Suffers from same problem as OfpGetConfigReply
 TEST "OfpSetConfig Marshal" = 
-  let config_rec = { flags = ReasmFrag; miss_send_len = 603 } in
+  let config_rec = { 
+    flags = {frag_normal = true; frag_drop = false; frag_reasm = false;} ;
+    miss_send_len = 603 
+  } in
   let frenetic_msg = Message.SetConfigMsg config_rec in
   test_marshal frenetic_msg "OfpSetConfig"
-*)
 
 (* TODO: This test fails, but the generated packets ARE equal, so I have no idea why
 TEST "OfpPortStatus Parse" = 
@@ -277,7 +280,7 @@ TEST "OfpPacketOutBuffered Marshal" =
   let packet_out_request = {
     po_payload = Buffered (81349218l, Cstruct.of_string "");
     po_port_id = Some 987245l;
-    po_actions = [ Output(PhysicalPort(666l)) ]
+    po_actions = sample_single_action
   } in
   let frenetic_msg = Message.PacketOutMsg packet_out_request in
   test_marshal frenetic_msg "OfpPacketOutBuffered"
@@ -286,30 +289,63 @@ TEST "OfpPacketOutUnbuffered Marshal" =
   let packet_out_request = { 
     po_payload = NotBuffered(Cstruct.of_string "") ;
     po_port_id = Some 987145l;
-    po_actions = [ 
-      Output(PhysicalPort(983745l));
-      Output(InPort);
-      Output(Table);
-      Output(Normal);
-      Output(Flood);
-      Output(AllPorts);
-      Output(Controller(6));
-      Output(Local);
-      Output(Any);
-      Group(9l);
-      SetQueue(10l);
-      SetMplsTtl(11);
-      DecMplsTtl;
-      SetNwTtl(13);
-      DecNwTtl;
-      CopyTtlOut;
-      CopyTtlIn;
-      PushVlan;  (* TODO: This should take an argument *)
-      PushMpls;  (* TODO: And this *)
-      PopVlan;
-      PopMpls;   (* TODO: And this *)
-      SetField(OxmEthSrc({ m_value = 21L; m_mask = None}))
-    ]
+    po_actions = sample_lotsa_actions
   } in
   let frenetic_msg = Message.PacketOutMsg packet_out_request in
   test_marshal frenetic_msg "OfpPacketOutUnbuffered"
+
+TEST "OfpGroupModAddNoActions Marshal" = 
+  let group_mod_request = AddGroup (All, 391247l, []) in
+  let frenetic_msg = Message.GroupModMsg group_mod_request in
+  test_marshal frenetic_msg "OfpGroupModAddNoActions"
+
+TEST "OfpGroupModAddOneAction Marshal" = 
+  let bucket = { 
+    bu_weight = 0; 
+    bu_watch_port = None;
+    bu_watch_group = None; 
+    bu_actions = sample_single_action
+  } in
+  let group_mod_request = AddGroup (Indirect, 321347l, [bucket]) in
+  let frenetic_msg = Message.GroupModMsg group_mod_request in
+  test_marshal frenetic_msg "OfpGroupModAddOneAction"  
+
+TEST "OfpGroupModAddSelect Marshal" = 
+  let bucket1 = {bu_weight = 40; bu_watch_port = None; bu_watch_group = None; bu_actions = sample_single_action } in
+  let bucket2 = {bu_weight = 10; bu_watch_port = None; bu_watch_group = None; bu_actions = sample_single_action } in
+  let group_mod_request = AddGroup (Select, 121347l, [bucket1; bucket2]) in
+  let frenetic_msg = Message.GroupModMsg group_mod_request in
+  test_marshal frenetic_msg "OfpGroupModAddSelect"    
+
+TEST "OfpGroupModAddAll Marshal" = 
+  let broadcast_bucket = [
+    {bu_weight = 0; bu_watch_port = None; bu_watch_group = None; bu_actions = [Output(PhysicalPort(1l))] } ;
+    {bu_weight = 0; bu_watch_port = None; bu_watch_group = None; bu_actions = [Output(PhysicalPort(2l))] } ;
+    {bu_weight = 0; bu_watch_port = None; bu_watch_group = None; bu_actions = [Output(PhysicalPort(3l))] } ;
+  ] in
+  let group_mod_request = AddGroup (All, 121340l, broadcast_bucket) in
+  let frenetic_msg = Message.GroupModMsg group_mod_request in
+  test_marshal frenetic_msg "OfpGroupModAddAll"
+
+TEST "OfpGroupModAddFf Marshal" = 
+  let ff_bucket = [
+    {bu_weight = 0; bu_watch_port = Some 17l; bu_watch_group = Some 0l; bu_actions = [Output(PhysicalPort(1l))] } ;
+    {bu_weight = 0; bu_watch_port = Some 18l; bu_watch_group = Some 0l; bu_actions = [Output(PhysicalPort(2l))] } ;
+    {bu_weight = 0; bu_watch_port = Some 19l; bu_watch_group = Some 1l; bu_actions = [Output(PhysicalPort(3l))] } ;
+  ] in
+  let group_mod_request = AddGroup (FF, 205793l, ff_bucket) in
+  let frenetic_msg = Message.GroupModMsg group_mod_request in
+  test_marshal frenetic_msg "OfpGroupModAddFf"      
+
+TEST "OfpGroupModModify Marshal" = 
+  let bucket1 = {bu_weight = 10; bu_watch_port = None; bu_watch_group = None; bu_actions = sample_single_action } in
+  let bucket2 = {bu_weight = 40; bu_watch_port = None; bu_watch_group = None; bu_actions = sample_single_action } in
+  let group_mod_request = ModifyGroup (Select, 121347l, [bucket1; bucket2]) in
+  let frenetic_msg = Message.GroupModMsg group_mod_request in
+  test_marshal frenetic_msg "OfpGroupModModify"    
+
+TEST "OfpGroupModDelete Marshal" = 
+  let group_mod_request = DeleteGroup (All, 391247l) in
+  let frenetic_msg = Message.GroupModMsg group_mod_request in
+  test_marshal frenetic_msg "OfpGroupModDelete"
+

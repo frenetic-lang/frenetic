@@ -28,11 +28,7 @@ type tableId = int8
 
 type bufferId = int32
 
-type switchFlags =
-  | NormalFrag
-  | DropFrag
-  | ReasmFrag
-  | MaskFrag
+type switchFlags = { frag_normal: bool; frag_drop: bool; frag_reasm: bool; }
 
 type switchConfig = {flags : switchFlags; miss_send_len : int16 }
 
@@ -297,15 +293,15 @@ type action =
 | Output of pseudoPort
 | Group of groupId
 | PopVlan
-| PushVlan
-| PopMpls
-| PushMpls
+| PushVlan of int16
+| PopMpls of int16
+| PushMpls of int16
 | SetField of oxm
 | CopyTtlOut
 | CopyTtlIn
 | SetNwTtl of int8
 | DecNwTtl
-| PushPbb
+| PushPbb of int16
 | PopPbb
 | SetMplsTtl of int8
 | DecMplsTtl

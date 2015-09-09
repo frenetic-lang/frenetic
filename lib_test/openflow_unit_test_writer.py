@@ -48,6 +48,11 @@ class OFPSwitchFeaturesSerializable(OFPSwitchFeatures):
       ofproto.OFP_HEADER_SIZE, self.datapath_id, self.n_buffers, self.n_tables,
       self.auxiliary_id, self.capabilities, 0)
 
+class OFPGetConfigReplySerializable(OFPGetConfigReply):
+  def _serialize_body(self):
+    msg_pack_into(ofproto.OFP_SWITCH_CONFIG_PACK_STR, self.buf,
+      ofproto.OFP_HEADER_SIZE, self.flags, self.miss_send_len)
+
 class OFPPacketInSerializable(OFPPacketIn):
   def _serialize_body(self):
     msg_pack_into(ofproto.OFP_PACKET_IN_PACK_STR, self.buf,
@@ -139,8 +144,8 @@ msgs["OfpGetConfigRequest"] = OFPGetConfigRequest(Datapath)
 ####################################################################################
 # OFPT_GET_CONFIG_REPLY
 
-msgs["OfpGetConfigReply"] = OFPGetConfigReply(Datapath, 
-  flags=OFPC_FRAG_NORMAL | OFPC_FRAG_REASM,
+msgs["OfpGetConfigReply"] = OFPGetConfigReplySerializable(Datapath, 
+  flags=OFPC_FRAG_DROP | OFPC_FRAG_REASM,
   miss_send_len = 603
 )
 
@@ -148,7 +153,7 @@ msgs["OfpGetConfigReply"] = OFPGetConfigReply(Datapath,
 # OFPT_SET_CONFIG
 
 msgs["OfpSetConfig"] = OFPSetConfig(Datapath, 
-  flags=OFPC_FRAG_NORMAL & OFPC_FRAG_REASM,
+  flags=OFPC_FRAG_NORMAL,
   miss_send_len = 603
 )
 
@@ -202,25 +207,25 @@ msgs["OfpPortStatus"] = OFPPortStatusSerializable(Datapath,
 ####################################################################################
 # OFPT_PACKET_OUT
 
-actions = [ 
-  OFPActionOutput(666)
+one_action = [ 
+  OFPActionOutput(666, 0)
 ]
 msgs["OfpPacketOutBuffered"] = OFPPacketOut(Datapath, 
   buffer_id = 81349218,
   in_port = 987245, 
-  actions = actions
+  actions = one_action
 )
 
-actions = [ 
+lotsa_actions = [ 
   OFPActionOutput(983745, 0),
-  OFPActionOutput(OFPP_IN_PORT, 1),
-  OFPActionOutput(OFPP_TABLE, 2),
-  OFPActionOutput(OFPP_NORMAL, 3),
-  OFPActionOutput(OFPP_FLOOD, 4),
-  OFPActionOutput(OFPP_ALL, 5),
+  OFPActionOutput(OFPP_IN_PORT, 0),
+  OFPActionOutput(OFPP_TABLE, 0),
+  OFPActionOutput(OFPP_NORMAL, 0),
+  OFPActionOutput(OFPP_FLOOD, 0),
+  OFPActionOutput(OFPP_ALL, 0),
   OFPActionOutput(OFPP_CONTROLLER, 6),
-  OFPActionOutput(OFPP_LOCAL, 7),
-  OFPActionOutput(OFPP_ANY, 8),
+  OFPActionOutput(OFPP_LOCAL, 0),
+  OFPActionOutput(OFPP_ANY, 0),
   OFPActionGroup(9),
   OFPActionSetQueue(10),
   OFPActionSetMplsTtl(11),
@@ -234,12 +239,91 @@ actions = [
   OFPActionPopVlan(),
   OFPActionPopMpls(20),
   # We test all the set field possibilities in OFPT_FLOW_MOD
-  OFPActionSetField(eth_src="00:00:00:00:00:21")
+  OFPActionSetField(eth_src="00:00:00:00:00:15")  # 21 = 0x15
 ]
 msgs["OfpPacketOutUnbuffered"] = OFPPacketOut(Datapath, 
   buffer_id = OFP_NO_BUFFER,
   in_port = 987145, 
-  actions = actions
+  actions = lotsa_actions
+)
+
+####################################################################################
+# OFPT_FLOW_MOD
+# Same as OFPT_PACKET_IN
+
+####################################################################################
+# OFPT_GROUP_MOD
+
+msgs["OfpGroupModAddNoActions"] = OFPGroupMod(Datapath, 
+  command = OFPGC_ADD,
+  type_ = OFPGT_ALL, 
+  group_id = 391247,
+  buckets = []
+)
+
+buckets = [ OFPBucket(actions=one_action) ]
+msgs["OfpGroupModAddOneAction"] = OFPGroupMod(Datapath, 
+  command = OFPGC_ADD,
+  type_ = OFPGT_INDIRECT, 
+  group_id = 321347,
+  buckets = buckets
+)
+
+buckets = [ 
+  OFPBucket(actions=one_action, weight=40), 
+  OFPBucket(actions=one_action, weight=10) 
+]
+msgs["OfpGroupModAddSelect"] = OFPGroupMod(Datapath, 
+  command = OFPGC_ADD,
+  type_ = OFPGT_SELECT, 
+  group_id = 121347,
+  buckets = buckets
+)
+
+broadcast_actions = [ OFPActionOutput(p, 0) for p in range(1,4) ]
+buckets = [ OFPBucket(actions=[a]) for a in broadcast_actions ]
+msgs["OfpGroupModAddAll"] = OFPGroupMod(Datapath, 
+  command = OFPGC_ADD,
+  type_ = OFPGT_ALL, 
+  group_id = 121340,
+  buckets = buckets
+)
+
+buckets = [ OFPBucket(actions=[a], watch_port=(i+17), watch_group=(int(i/2))) for i, a in enumerate(broadcast_actions) ]
+msgs["OfpGroupModAddFf"] = OFPGroupMod(Datapath, 
+  command = OFPGC_ADD,
+  type_ = OFPGT_FF, 
+  group_id = 205793,
+  buckets = buckets
+)
+
+buckets = [ 
+  OFPBucket(actions=one_action, weight=10), 
+  OFPBucket(actions=one_action, weight=40) 
+]
+msgs["OfpGroupModModify"] = OFPGroupMod(Datapath, 
+  command = OFPGC_MODIFY,
+  type_ = OFPGT_SELECT, 
+  group_id = 121347,
+  buckets = buckets
+)
+
+msgs["OfpGroupModDelete"] = OFPGroupMod(Datapath, 
+  command = OFPGC_DELETE,
+  type_ = OFPGT_ALL, 
+  group_id = 391247,
+  buckets = []
+)
+
+####################################################################################
+# OFPT_PORT_STATUS
+
+msgs["OfpPortMod"] = OFPPortMod(Datapath,
+  port_no = 77,
+  hw_addr = "10:20:30:40:50:60",
+  config =   OFPPC_PORT_DOWN | OFPPC_NO_FWD, 
+  mask = 0xff,
+  advertise = OFPPF_10MB_FD | OFPPF_40GB_FD | OFPPF_FIBER
 )
 
 ####################################################################################

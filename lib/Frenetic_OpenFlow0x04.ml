@@ -45,11 +45,7 @@ type tableId = int8 with sexp
 
 type bufferId = int32
 
-type switchFlags =
-  | NormalFrag
-  | DropFrag
-  | ReasmFrag
-  | MaskFrag
+type switchFlags = { frag_normal: bool; frag_drop: bool; frag_reasm: bool; }
 
 type switchConfig = {flags : switchFlags; miss_send_len : int16 }
 
@@ -296,16 +292,16 @@ type actionHdr =
 type action =
   | Output of pseudoPort
   | Group of groupId
-  | PopVlan
-  | PushVlan
-  | PopMpls
-  | PushMpls
+  | PopVlan 
+  | PushVlan of int16
+  | PopMpls of int16
+  | PushMpls of int16
   | SetField of oxm
   | CopyTtlOut
   | CopyTtlIn
   | SetNwTtl of int8
   | DecNwTtl
-  | PushPbb
+  | PushPbb of int16
   | PopPbb
   | SetMplsTtl of int8
   | DecMplsTtl
@@ -1189,7 +1185,9 @@ cstruct ofp_action_mpls_ttl {
   uint16_t typ;                   (* SET_MPLS_TTL. *)
   uint16_t len;                   (* Length is 8. *)
   uint8_t mpls_ttl;
-  uint8_t pad[3];
+  uint8_t pad;
+  uint8_t pad1;
+  uint8_t pad2;
 } as big_endian
 
 (* Action structure for *_PUSH *)
@@ -2904,34 +2902,25 @@ module SwitchConfig = struct
 
   module Flags = struct
 
-    cenum ofp_config_flags {
-      OFPC_FRAG_NORMAL = 0;
-      OFPC_FRAG_DROP = 1;
-      OFPC_FRAG_REASM = 2;
-      OFPC_FRAG_MASK = 3
-    } as uint16_t
+    let marshal (f : switchFlags) =
+      (* This is unusual, but it's in the spec.  One would think drop and reasm were mutually
+         exclusive, but they're not. *)
+      if f.frag_normal then 0
+      else
+      (if f.frag_drop then 1 lsl 0 else 0) lor
+      (if f.frag_reasm then 1 lsl 1 else 0) 
 
-    let to_string (flags : switchFlags) : string =
-      match flags with
-      | NormalFrag -> "NormalHandling"
-      | DropFrag -> "DropFragments"
-      | ReasmFrag -> "Reasemble"
-      | MaskFrag -> "MaskFrag"
+    let parse bits : switchFlags =
+      { frag_normal = (bits = 0)
+      ; frag_drop = test_bit16 0 bits
+      ; frag_reasm = test_bit16 1 bits
+      }
 
-    let marshal (flags : switchFlags) : int =
-      match flags with
-      | NormalFrag -> ofp_config_flags_to_int OFPC_FRAG_NORMAL
-      | DropFrag -> ofp_config_flags_to_int OFPC_FRAG_DROP
-      | ReasmFrag -> ofp_config_flags_to_int OFPC_FRAG_REASM
-      | MaskFrag -> ofp_config_flags_to_int OFPC_FRAG_MASK
-
-    let parse t : switchFlags =
-      match int_to_ofp_config_flags t with
-      | Some OFPC_FRAG_NORMAL -> NormalFrag
-      | Some OFPC_FRAG_DROP -> DropFrag
-      | Some OFPC_FRAG_REASM -> ReasmFrag
-      | Some OFPC_FRAG_MASK -> MaskFrag
-      | None -> raise (Unparsable (sprintf "Malformed flags"))
+    let to_string f =
+      Format.sprintf "{ frag_normal = %B; frag_drop = %B; frag_reasm = %B; }"
+        f.frag_normal
+        f.frag_drop
+        f.frag_reasm
   end
 
   type t = switchConfig
@@ -3004,17 +2993,17 @@ module Action = struct
     | Output _ -> sizeof_ofp_action_output
     | Group _ -> sizeof_ofp_action_group
     | PopVlan -> sizeof_ofp_action_header
-    | PushVlan -> sizeof_ofp_action_push
-    | PopMpls -> sizeof_ofp_action_pop_mpls
-    | PushMpls -> sizeof_ofp_action_push
+    | PushVlan _ -> sizeof_ofp_action_push
+    | PopMpls _ -> sizeof_ofp_action_pop_mpls
+    | PushMpls _ -> sizeof_ofp_action_push
     | SetField oxm -> pad_to_64bits (sizeof_ofp_action_set_field + Oxm.sizeof oxm)
     | CopyTtlOut -> sizeof_ofp_action_header
     | CopyTtlIn -> sizeof_ofp_action_header
     | SetNwTtl _ -> sizeof_ofp_action_nw_ttl
     | DecNwTtl -> sizeof_ofp_action_header
-    | PushPbb -> sizeof_ofp_action_push
+    | PushPbb _ -> sizeof_ofp_action_push
     | PopPbb -> sizeof_ofp_action_header
-    | SetMplsTtl _ -> sizeof_ofp_action_push
+    | SetMplsTtl _ -> sizeof_ofp_action_mpls_ttl
     | DecMplsTtl -> sizeof_ofp_action_header
     | SetQueue _ -> sizeof_ofp_action_set_queue
     | Experimenter _ -> sizeof_ofp_action_experimenter
@@ -3037,10 +3026,10 @@ module Action = struct
       set_ofp_action_output_pad4 buf 0;
       set_ofp_action_output_pad5 buf 0;
       size
-    | PushVlan ->
+    | PushVlan ethertype ->
       set_ofp_action_push_typ buf 17; (* PUSH_VLAN *)
       set_ofp_action_push_len buf size;
-      set_ofp_action_push_ethertype buf 0x8100;
+      set_ofp_action_push_ethertype buf ethertype;
       size
     | PopVlan ->
       set_ofp_action_header_typ buf 18; (* POP_VLAN *)
@@ -3050,15 +3039,15 @@ module Action = struct
       set_ofp_action_header_pad2 buf 0;
       set_ofp_action_header_pad3 buf 0;
       size
-    | PushMpls ->
+    | PushMpls ethertype ->
       set_ofp_action_push_typ buf 19; (* PUSH_MPLS *)
       set_ofp_action_push_len buf size;
-      set_ofp_action_push_ethertype buf 0x8847;
+      set_ofp_action_push_ethertype buf ethertype;
       size
-    | PopMpls ->
+    | PopMpls ethertype ->
       set_ofp_action_pop_mpls_typ buf 20; (* POP_MPLS *)
       set_ofp_action_pop_mpls_len buf size;
-      set_ofp_action_pop_mpls_ethertype buf 0x800;
+      set_ofp_action_pop_mpls_ethertype buf ethertype;
       size
     | Group gid ->
       set_ofp_action_group_typ buf 22; (* OFPAT_GROUP *)
@@ -3109,10 +3098,10 @@ module Action = struct
       set_ofp_action_header_pad2 buf 0;
       set_ofp_action_header_pad3 buf 0;
       size
-    | PushPbb ->
+    | PushPbb ethertype ->
       set_ofp_action_push_typ buf 26; (* OFPAT_PUSH_PBB *)
       set_ofp_action_push_len buf size;
-      set_ofp_action_push_ethertype buf 0x88a8; (* Not sure, maybe need to redefine*)
+      set_ofp_action_push_ethertype buf ethertype; 
       size
     | PopPbb ->
       set_ofp_action_header_typ buf 27; (* OFPAT_POP_PBB *)
@@ -3126,6 +3115,9 @@ module Action = struct
       set_ofp_action_mpls_ttl_typ buf 15; (* OFPAT_SET_MPLS_TTL *)
       set_ofp_action_mpls_ttl_len buf size;
       set_ofp_action_mpls_ttl_mpls_ttl buf newTtl;
+      set_ofp_action_mpls_ttl_pad buf 0;
+      set_ofp_action_mpls_ttl_pad1 buf 0;
+      set_ofp_action_mpls_ttl_pad2 buf 0;
       size
     | DecMplsTtl ->
       set_ofp_action_header_typ buf 16; (* OFPAT_DEC_MPLS_TTL *)
@@ -3153,10 +3145,10 @@ module Action = struct
     | Some OFPAT_COPY_TTL_IN -> CopyTtlIn
     | Some OFPAT_SET_MPLS_TTL -> SetMplsTtl (get_ofp_action_mpls_ttl_mpls_ttl bits)
     | Some OFPAT_DEC_MPLS_TTL -> DecMplsTtl
-    | Some OFPAT_PUSH_VLAN -> PushVlan
+    | Some OFPAT_PUSH_VLAN -> PushVlan (get_ofp_action_push_ethertype bits)
     | Some OFPAT_POP_VLAN -> PopVlan
-    | Some OFPAT_PUSH_MPLS -> PushMpls
-    | Some OFPAT_POP_MPLS -> PopMpls
+    | Some OFPAT_PUSH_MPLS -> PushMpls  (get_ofp_action_push_ethertype bits)
+    | Some OFPAT_POP_MPLS -> PopMpls  (get_ofp_action_pop_mpls_ethertype bits)
     | Some OFPAT_SET_QUEUE -> SetQueue (get_ofp_action_set_queue_queue_id bits)
     | Some OFPAT_GROUP -> Group (get_ofp_action_group_group_id bits)
     | Some OFPAT_SET_NW_TTL -> SetNwTtl (get_ofp_action_nw_ttl_nw_ttl bits)
@@ -3164,7 +3156,7 @@ module Action = struct
     | Some OFPAT_SET_FIELD -> let field,_ = Oxm.parse (
         Cstruct.shift bits 4) in
       SetField (field)
-    | Some OFPAT_PUSH_PBB -> PushPbb
+    | Some OFPAT_PUSH_PBB -> PushPbb  (get_ofp_action_push_ethertype bits)
     | Some OFPAT_POP_PBB -> PopPbb
     | Some OFPAT_EXPERIMENTER -> Experimenter (get_ofp_action_experimenter_experimenter bits)
     | None -> failwith "None type"
@@ -3185,15 +3177,15 @@ module Action = struct
     | Output o -> Format.sprintf "PseudoPort: %s" (PseudoPort.to_string o)
     | Group g -> Format.sprintf "Group ID: %lu" g
     | PopVlan -> "Pop Vlan"
-    | PushVlan -> "Push Vlan"
-    | PopMpls -> "Pop Mpls"
-    | PushMpls -> "Push Mpls"
+    | PushVlan _ -> "Push Vlan"
+    | PopMpls _ -> "Pop Mpls"
+    | PushMpls _ -> "Push Mpls"
     | SetField oxm -> Format.sprintf "oxm: %s" (Oxm.to_string oxm)
     | CopyTtlOut -> "Copy TTL out"
     | CopyTtlIn -> "Copy TTL In"
     | SetNwTtl t -> Format.sprintf "Set NW TTL %u" t
     | DecNwTtl -> "Dec NW TTL"
-    | PushPbb -> "Push PBB"
+    | PushPbb _ -> "Push PBB"
     | PopPbb -> "POP PBB"
     | SetMplsTtl t -> Format.sprintf "Set MPLS TTL: %u" t
     | DecMplsTtl -> "Dec MPLS TTL"
@@ -3401,13 +3393,13 @@ module GroupMod = struct
       set_ofp_group_mod_group_id buf gid;
       sizeof_ofp_group_mod + (marshal_fields (Cstruct.shift buf sizeof_ofp_group_mod) buckets Bucket.marshal)
     | DeleteGroup (typ, gid) ->
-      set_ofp_group_mod_command buf 1; (* OFPGC_DEL *)
+      set_ofp_group_mod_command buf 2; (* OFPGC_DEL *)
       set_ofp_group_mod_typ buf (GroupType.marshal typ);
       set_ofp_group_mod_pad buf 0;
       set_ofp_group_mod_group_id buf gid;
       sizeof_ofp_group_mod
     | ModifyGroup (typ, gid, buckets) ->
-      set_ofp_group_mod_command buf 2; (* OFPGC_MODIFY *)
+      set_ofp_group_mod_command buf 1; (* OFPGC_MODIFY *)
       set_ofp_group_mod_typ buf (GroupType.marshal typ);
       set_ofp_group_mod_pad buf 0;
       set_ofp_group_mod_group_id buf gid;
