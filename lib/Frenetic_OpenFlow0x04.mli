@@ -968,7 +968,9 @@ type switchFeatures = { datapath_id : int64;
 			num_buffers : int32;
 			num_tables : int8; 
 			aux_id : int8;
-			supported_capabilities : capabilities }
+			supported_capabilities : capabilities;
+			ports : portDesc list
+		      }
 
 
 (** Switch Features structure. See the section 7.3.1 of the OpenFlow 1.3.4 specification *)

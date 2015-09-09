@@ -645,7 +645,8 @@ type switchFeatures = {
   num_buffers : int32;
   num_tables : int8;
   aux_id : int8;
-  supported_capabilities : capabilities
+  supported_capabilities : capabilities;
+  ports : portDesc list
 }
 
 let match_all = []
@@ -3958,52 +3959,14 @@ module Capabilities = struct
 
 end
 
-module SwitchFeatures = struct
-
-  type t = switchFeatures
-
-  let sizeof (sw : t) : int =
-    sizeof_ofp_switch_features
-
-  let to_string (sw : t) : string =
-    Format.sprintf "{ datapath_id = %Lu; num_buffers = %lu; num_Tables = %u; aux_id = %u; capabilities = %s }"
-      sw.datapath_id
-      sw.num_buffers
-      sw.num_tables
-      sw.aux_id
-      (Capabilities.to_string sw.supported_capabilities)
-
-  let marshal (buf : Cstruct.t) (features : t) : int =
-    set_ofp_switch_features_datapath_id buf features.datapath_id;
-    set_ofp_switch_features_n_buffers buf features.num_buffers;
-    set_ofp_switch_features_n_tables buf features.num_tables;
-    set_ofp_switch_features_auxiliary_id buf features.aux_id;
-    set_ofp_switch_features_pad0 buf 0;
-    set_ofp_switch_features_pad1 buf 0;
-    set_ofp_switch_features_capabilities buf (Capabilities.to_int32 features.supported_capabilities);
-    sizeof_ofp_switch_features
-
-  let parse (bits : Cstruct.t) : t =
-    let datapath_id = get_ofp_switch_features_datapath_id bits in
-    let num_buffers = get_ofp_switch_features_n_buffers bits in
-    let num_tables = get_ofp_switch_features_n_tables bits in
-    let aux_id = get_ofp_switch_features_auxiliary_id bits in
-    let supported_capabilities = Capabilities.parse
-        (get_ofp_switch_features_capabilities bits) in
-    { datapath_id;
-      num_buffers;
-      num_tables;
-      aux_id;
-      supported_capabilities }
-
-end
-
 module PortDesc = struct
 
   type t = portDesc
 
   let sizeof (_ : t) =
     sizeof_ofp_port
+
+  let size = sizeof_ofp_port
 
   let marshal (buf : Cstruct.t) (desc : t) : int =
     let size = sizeof_ofp_port in
@@ -4114,6 +4077,56 @@ module PortStatus = struct
       (Reason.to_string t.reason)
       (PortDesc.to_string t.desc)
 end
+			
+			
+module SwitchFeatures = struct
+
+  type t = switchFeatures
+
+  let sizeof (sw : t) : int =
+    sizeof_ofp_switch_features
+
+  let to_string (sw : t) : string =
+    Format.sprintf "{ datapath_id = %Lu; num_buffers = %lu; num_Tables = %u; aux_id = %u; capabilities = %s }"
+      sw.datapath_id
+      sw.num_buffers
+      sw.num_tables
+      sw.aux_id
+      (Capabilities.to_string sw.supported_capabilities)
+
+  let marshal (buf : Cstruct.t) (features : t) : int =
+    set_ofp_switch_features_datapath_id buf features.datapath_id;
+    set_ofp_switch_features_n_buffers buf features.num_buffers;
+    set_ofp_switch_features_n_tables buf features.num_tables;
+    set_ofp_switch_features_auxiliary_id buf features.aux_id;
+    set_ofp_switch_features_pad0 buf 0;
+    set_ofp_switch_features_pad1 buf 0;
+    set_ofp_switch_features_capabilities buf (Capabilities.to_int32 features.supported_capabilities);
+    sizeof_ofp_switch_features
+
+  let parse (bits : Cstruct.t) : t =
+    let datapath_id = get_ofp_switch_features_datapath_id bits in
+    let num_buffers = get_ofp_switch_features_n_buffers bits in
+    let num_tables = get_ofp_switch_features_n_tables bits in
+    let aux_id = get_ofp_switch_features_auxiliary_id bits in
+    let supported_capabilities = Capabilities.parse
+        (get_ofp_switch_features_capabilities bits) in
+    let portIter =
+      Cstruct.iter
+	(fun buf -> Some PortDesc.size)
+	PortDesc.parse
+	bits in
+    let ports = Cstruct.fold (fun acc bits -> bits :: acc) portIter [] in
+    { datapath_id;
+      num_buffers;
+      num_tables;
+      aux_id;
+      supported_capabilities;
+      ports
+    }
+
+end
+
 
 module PacketIn = struct
 
