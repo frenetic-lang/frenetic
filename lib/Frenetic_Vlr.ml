@@ -31,8 +31,8 @@ module type S = sig
   val unget : t -> d
   val mk_branch : v -> t -> t -> t
   val mk_leaf : r -> t
-  val mk_id : unit -> t
-  val mk_drop : unit -> t
+  val drop : t
+  val id : t
   val const : r -> t
   val atom : v -> r -> r -> t
   val restrict : v list -> t -> t
@@ -105,8 +105,6 @@ struct
        Printf.sprintf "(%s = %s ? %s : %s)"
 	 (V.to_string v) (L.to_string l) (to_string t) (to_string f)
 		      
-  let clear_cache ~(preserve : Core.Std.Int.Set.t) = T.clear preserve
-
   let mk_leaf r = T.get (Leaf r)
 
   let mk_branch (v,l) t f =
@@ -122,9 +120,14 @@ struct
     end else
       T.get (Branch((v, l), t, f))
 
-  (* these need to be functions to avoid cache problems *)
-  let mk_id () = mk_leaf (R.one)
-  let mk_drop () = mk_leaf (R.zero)
+  let drop = mk_leaf (R.zero)
+  let id = mk_leaf (R.one)
+
+  let clear_cache ~(preserve : Core.Std.Int.Set.t) =
+    (* SJS: the interface exposes `id` and `drop` as constants,
+       so they must NEVER be cleared from the cache *)
+    let preserve = Core.Std.Set.(add (add preserve drop) id) in
+    T.clear preserve
 
   let rec fold g h t = match T.unget t with
     | Leaf r -> g r

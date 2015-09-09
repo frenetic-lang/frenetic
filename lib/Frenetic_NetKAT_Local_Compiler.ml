@@ -23,8 +23,8 @@ module FDK = struct
 
   let rec of_pred p =
     match p with
-    | True      -> mk_id ()
-    | False     -> mk_drop ()
+    | True      -> id
+    | False     -> drop
     | Test(hv)  -> of_test hv
     | And(p, q) -> prod (of_pred p) (of_pred q)
     | Or (p, q) -> sum (of_pred p) (of_pred q)
@@ -58,7 +58,7 @@ module FDK = struct
     | None   ->
       dp_fold
         (fun par ->
-          Action.Par.fold par ~init:(mk_drop ()) ~f:(fun acc seq ->
+          Action.Par.fold par ~init:drop ~f:(fun acc seq ->
             let u' = restrict (Action.Seq.to_hvs seq) u in
             (sum (prod (const Action.Par.(singleton seq)) u') acc)))
         (fun v t f -> cond v t f)
@@ -72,8 +72,7 @@ module FDK = struct
     else
       sum t u
 
-  (* Do NOT eta-reduce to avoid caching problems with mk_drop *)
-  let big_union fdds = List.fold ~init:(mk_drop ()) ~f:union fdds
+  let big_union fdds = List.fold ~init:drop ~f:union fdds
 
   let star' lhs t =
     let rec loop acc power =
@@ -83,9 +82,9 @@ module FDK = struct
         then acc
         else loop acc' power'
     in
-    loop (mk_id ()) lhs
+    loop id lhs
 
-  let star t = star' (mk_id ()) t
+  let star t = star' id t
 
   let rec of_local_pol_k p k =
     let open Frenetic_NetKAT in
@@ -96,8 +95,8 @@ module FDK = struct
                         of_local_pol_k q (fun q' ->
                           k (union p' q')))
     | Seq (p, q) -> of_local_pol_k p (fun p' ->
-                      if FDK.equal p' (FDK.mk_drop ()) then
-                        k (FDK.mk_drop ())
+                      if FDK.equal p' FDK.drop then
+                        k FDK.drop
                       else
                         of_local_pol_k q (fun q' ->
                           k (seq p' q')))
@@ -455,7 +454,7 @@ module Pol = struct
     | _ -> Star(pol)
 
   let mk_fdk e d =
-    let drop' = FDK.mk_drop () in
+    let drop' = FDK.drop in
     if FDK.equal e drop' && FDK.equal d drop' then drop
     else FDK (e, d)
 
@@ -665,8 +664,8 @@ module NetKAT_Automaton = struct
 
   let rec split_pol (automaton : t0) (pol: Pol.policy) : FDK.t * FDK.t * ((int * Pol.policy) list) =
     match pol with
-    | Filter pred -> (FDK.of_pred pred, FDK.mk_drop (), [])
-    | Mod hv -> (FDK.of_mod hv, FDK.mk_drop (), [])
+    | Filter pred -> (FDK.of_pred pred, FDK.drop, [])
+    | Mod hv -> (FDK.of_mod hv, FDK.drop, [])
     | Union (p,q) ->
       let (e_p, d_p, k_p) = split_pol automaton p in
       let (e_q, d_q, k_q) = split_pol automaton q in
@@ -692,7 +691,7 @@ module NetKAT_Automaton = struct
       (e, d, k)
     | Dup ->
       let id = mk_state_t0 automaton in
-      let e = FDK.mk_drop () in
+      let e = FDK.drop in
       let d = FDK.mk_cont id in
       let k = [(id, Pol.id)] in
       (e, d, k)
@@ -721,10 +720,10 @@ module NetKAT_Automaton = struct
       fdd
 
   let to_local (pc : Field.t) (automaton : t) : FDK.t =
-    fold_reachable automaton ~init:(FDK.mk_drop ()) ~f:(fun acc id (e,d) ->
+    fold_reachable automaton ~init:FDK.drop ~f:(fun acc id (e,d) ->
       let _ = assert (pc_unused pc e && pc_unused pc d) in
       let guard =
-        if id = automaton.source then FDK.mk_id ()
+        if id = automaton.source then FDK.id
         else FDK.atom (pc, Value.of_int id) Action.one Action.zero in
       let fdk = FDK.seq guard (FDK.union e d) in
       FDK.union acc fdk)
