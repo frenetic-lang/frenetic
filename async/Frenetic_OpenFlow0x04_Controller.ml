@@ -121,7 +121,7 @@ let main (of_port : int) (pol_file : string)
   let pol_str = In_channel.read_all pol_file in
   let pol = Frenetic_NetKAT_Parser.policy_from_string pol_str in
   let compiler_opts = {default_compiler_options with field_order = `Static (List.concat layout)} in
-  let fdd = compile pol ~options:compiler_opts in
+  let fdd = compile_local pol ~options:compiler_opts in
   let _ = Tcp.Server.create ~on_handler_error:`Raise (Tcp.on_port of_port)
     (fun _ reader writer ->
       let message_sender = send_message writer in
@@ -138,7 +138,7 @@ let fault_tolerant_main (of_port : int) (pol_file : string)
   Log.info "Starting OpenFlow 1.3 fault tolerant controller";
   let pol_str = In_channel.read_all pol_file in
   let pol = Frenetic_NetKAT_Parser.policy_from_string pol_str in
-  let fdd = Frenetic_NetKAT_Compiler.compile pol in
+  let fdd = Frenetic_NetKAT_Compiler.compile_local pol in
   let topo = Frenetic_NetKAT_Net.Net.Topology.empty () in
   (* let topo = Frenetic_NetKAT_Net.Net.Parse.from_dotfile topo_file in *)
   let _ = Tcp.Server.create ~on_handler_error:`Raise (Tcp.on_port of_port)

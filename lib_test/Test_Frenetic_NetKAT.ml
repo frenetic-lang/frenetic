@@ -5,7 +5,7 @@ open Frenetic_NetKAT
 open Frenetic_NetKAT_Pretty
 
 let test_compile lhs rhs =
-  let tbl = Frenetic_NetKAT_Compiler.(restrict (Switch 0L) (compile lhs)) in
+  let tbl = Frenetic_NetKAT_Compiler.(restrict (Switch 0L) (compile_local lhs)) in
   let rhs' = Frenetic_NetKAT_Compiler.to_local_pol tbl in
   if rhs' = rhs then
     true
@@ -17,7 +17,7 @@ let test_compile lhs rhs =
 
 let test_compile_table pol tbl =
   let open Frenetic_NetKAT_Compiler in
-  let tbl' = to_table 0L (compile pol) in
+  let tbl' = to_table 0L (compile_local pol) in
   if tbl = tbl' then
     true
   else
@@ -324,8 +324,8 @@ let compare_eval_output p q pkt =
 let compare_compiler_output p q pkt =
   let open Frenetic_NetKAT_Semantics in
   PacketSet.compare
-    (Flowterp.Packet.eval pkt (Frenetic_NetKAT_Compiler.(to_table pkt.switch (compile p))))
-    (Flowterp.Packet.eval pkt (Frenetic_NetKAT_Compiler.(to_table pkt.switch (compile q))))
+    (Flowterp.Packet.eval pkt (Frenetic_NetKAT_Compiler.(to_table pkt.switch (compile_local p))))
+    (Flowterp.Packet.eval pkt (Frenetic_NetKAT_Compiler.(to_table pkt.switch (compile_local q))))
   = 0
 
 let check gen_fn compare_fn =
@@ -401,7 +401,7 @@ TEST "semantics agree with flowtable" =
     PacketSet.compare
       (Frenetic_NetKAT_Semantics.eval pkt (Frenetic_NetKAT_Optimize.specialize_policy pkt.switch p'))
       (Flowterp.Packet.eval pkt
-        (Frenetic_NetKAT_Compiler.(to_table pkt.switch (compile p'))))
+        (Frenetic_NetKAT_Compiler.(to_table pkt.switch (compile_local p'))))
     = 0 in
   check gen_pol_1 prop_compile_ok
 

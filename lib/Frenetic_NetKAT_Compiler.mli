@@ -36,8 +36,8 @@ exception Non_local
 
 val default_compiler_options : compiler_options
 
-val compile : ?options:compiler_options -> policy -> t
-(** [compile p] returns the intermediate representation of the policy [p].
+val compile_local : ?options:compiler_options -> policy -> t
+(** [compile_local p] returns the intermediate representation of the local policy [p].
     You can generate a flowtable from [t] by passing it to the {!to_table}
     function below.
  *)
