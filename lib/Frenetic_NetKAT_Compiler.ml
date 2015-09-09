@@ -507,16 +507,16 @@ end
 module NetKAT_Automaton = struct
 
   (* table *)
-  module T = Int.Table
+  module Tbl = Int.Table
 
-  (* untable *)
-  module U = Hashtbl.Make(struct
+  (* untable (inverse table) *)
+  module Untbl = Hashtbl.Make(struct
     type t = (int * int) with sexp
     let hash (t1, t2) = 617 * t1 +  619 * t2
     let compare = Pervasives.compare
   end)
 
-  (* (hashable) set *)
+  (* (hashable) int set *)
   module S = struct
     module S = struct
       include Set.Make(Int)
@@ -528,25 +528,25 @@ module NetKAT_Automaton = struct
 
   (* main data structure of symbolic NetKAT automaton *)
   type t =
-    { states : (FDK.t * FDK.t) T.t;
-      has_state : int U.t;
+    { states : (FDK.t * FDK.t) Tbl.t;
+      has_state : int Untbl.t;
       mutable source : int;
       mutable nextState : int }
 
   (* lazy intermediate presentation to avoid compiling uncreachable automata states *)
   type t0 =
-    { states : (FDK.t * FDK.t) Lazy.t T.t;
+    { states : (FDK.t * FDK.t) Lazy.t Tbl.t;
       source : int;
       mutable nextState : int }
 
   let create_t0 () : t0 =
-    let states = T.create () ~size:10 in
+    let states = Tbl.create () ~size:100 in
     let source = 0 in
     { states; source; nextState = source+1 }
 
   let create_t () : t =
-    let states = T.create () ~size:10 in
-    let has_state = U.create () ~size:10 in
+    let states = Tbl.create () ~size:100 in
+    let has_state = Untbl.create () ~size:100 in
     let source = 0 in
     { states; has_state; source; nextState = source+1 }
 
@@ -560,27 +560,27 @@ module NetKAT_Automaton = struct
     automaton.nextState <- id + 1;
     id
 
-  let add_to_t (automaton : t) (fdks : (FDK.t * FDK.t)) =
-    match U.find automaton.has_state fdks with
+  let add_to_t (automaton : t) (state : (FDK.t * FDK.t)) =
+    match Untbl.find automaton.has_state state with
     | Some k -> k
     | None ->
       let k = mk_state_t automaton in
-      T.add_exn automaton.states ~key:k ~data:fdks;
-      U.add_exn automaton.has_state ~key:fdks ~data:k;
+      Tbl.add_exn automaton.states ~key:k ~data:state;
+      Untbl.add_exn automaton.has_state ~key:state ~data:k;
       k
 
   let map_reachable ?(order = `Pre) (automaton : t) ~(f: int -> (FDK.t * FDK.t) -> (FDK.t * FDK.t)) : unit =
     let rec loop seen (id : int) =
       if S.mem seen id then seen else
         let seen = S.add seen id in
-        let fdks = T.find_exn automaton.states id in
+        let state = Tbl.find_exn automaton.states id in
         let this seen =
-          let fdks = f id fdks in
-          T.replace automaton.states ~key:id ~data:fdks; (seen, fdks) in
+          let state = f id state in
+          Tbl.replace automaton.states ~key:id ~data:state; (seen, state) in
         let that (seen, (_,d)) = List.fold (FDK.conts d) ~init:seen ~f:loop in
         match order with
         | `Pre -> seen |> this |> that
-        | `Post -> (seen, fdks) |> that |> this |> fst
+        | `Post -> (seen, state) |> that |> this |> fst
     in
     loop S.empty automaton.source |> ignore
 
@@ -588,8 +588,8 @@ module NetKAT_Automaton = struct
     let rec loop (acc, seen) (id : int) =
       if S.mem seen id then (acc, seen) else
         let seen = S.add seen id in
-        let (_,d) as fdks = T.find_exn automaton.states id in
-        let this (acc, seen) = (f acc id fdks, seen) in
+        let (_,d) as state = Tbl.find_exn automaton.states id in
+        let this (acc, seen) = (f acc id state, seen) in
         let that (acc, seen) = List.fold (FDK.conts d) ~init:(acc, seen) ~f:loop in
         match order with
         | `Pre -> (acc, seen) |> this |> that
@@ -603,10 +603,10 @@ module NetKAT_Automaton = struct
   let t_of_t0' (automaton : t0) =
     let t = create_t () in
     let rec add id =
-      if not (T.mem t.states id) then
+      if not (Tbl.mem t.states id) then
         let _ = t.nextState <- max t.nextState (id + 1) in
-        let (_,d) as fdk = Lazy.force (T.find_exn automaton.states id) in
-        T.add_exn t.states ~key:id ~data:fdk;
+        let (_,d) as state = Lazy.force (Tbl.find_exn automaton.states id) in
+        Tbl.add_exn t.states ~key:id ~data:state;
         List.iter (FDK.conts d) ~f:add
     in
     add automaton.source;
@@ -616,12 +616,12 @@ module NetKAT_Automaton = struct
   let t_of_t0 ?(remove_duplicates=false) (automaton : t0) =
     if not remove_duplicates then t_of_t0' automaton else
     let t = create_t () in
-    let ktbl = U.create () ~size:10 in
+    let ktbl = Untbl.create () ~size:10 in
     let rec loop id =
-      let fdk = T.find_exn automaton.states id in
-      let seen = Lazy.is_val fdk in
-      let (e,d) = Lazy.force fdk in
-      if seen then match U.find ktbl (e,d) with
+      let state = Tbl.find_exn automaton.states id in
+      let seen = Lazy.is_val state in
+      let (e,d) = Lazy.force state in
+      if seen then match Untbl.find ktbl (e,d) with
         | None -> failwith "cyclic FDKG"
         | Some k -> k
       else
@@ -629,14 +629,15 @@ module NetKAT_Automaton = struct
           Action.(Seq.change seq K (function None -> None | Some id ->
             loop (Value.to_int_exn id) |> Value.of_int |> Option.some)))) d in
         let k = add_to_t t (e,d') in
-        U.set ktbl ~key:(e,d) ~data:k;
+        Untbl.set ktbl ~key:(e,d) ~data:k;
         k
     in
     let source = loop automaton.source in
     t.source <- source;
     t
 
-  let dedup_global (automaton : t) : unit =
+  (* classic powerset construction, performed on symbolic automaton *)
+  let determinize (automaton : t) : unit =
     (* table of type : int set -> int *)
     let tbl : int S.Table.t = S.Table.create () ~size:10 in
     (* table of type : int -> int set *)
@@ -650,7 +651,7 @@ module NetKAT_Automaton = struct
       | None ->
         let (es, ds) =
           S.to_list ks
-          |> List.map ~f:(T.find_exn automaton.states)
+          |> List.map ~f:(Tbl.find_exn automaton.states)
           |> List.unzip in
         let fdk = (FDK.big_union es, FDK.big_union ds) in
         let k = add_to_t automaton fdk in
@@ -660,7 +661,7 @@ module NetKAT_Automaton = struct
         ignore (Int.Table.add untbl ~key:k ~data:ks);
         k
     in
-    let dedup_action par =
+    let determinize_action par =
       par
       |> Action.Par.to_list
       (* SJS: this seems to be a bug! We need to sort the list appropriately first. *)
@@ -674,7 +675,7 @@ module NetKAT_Automaton = struct
           List.hd_exn group |> Action.Seq.add ~key:K ~data:(Value.of_int k))
       |> Action.Par.of_list
     in
-    let dedup_fdk = FDK.map_r dedup_action in
+    let dedup_fdk = FDK.map_r determinize_action in
     map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) -> (e, dedup_fdk d))
 
   let rec split_pol (automaton : t0) (pol: Pol.policy) : FDK.t * FDK.t * ((int * Pol.policy) list) =
@@ -718,14 +719,14 @@ module NetKAT_Automaton = struct
       List.iter k ~f:(add_policy automaton);
       (e, d)
     in
-    T.add_exn automaton.states ~key:id ~data:(Lazy.from_fun f)
+    Tbl.add_exn automaton.states ~key:id ~data:(Lazy.from_fun f)
 
   let of_policy ?(dedup=true) ?ing ?(remove_duplicates=false) (pol : Frenetic_NetKAT.policy) : t =
     let automaton = create_t0 () in
     let pol = Pol.of_pol ing pol in
     let () = add_policy automaton (automaton.source, pol) in
     let automaton = t_of_t0 ~remove_duplicates automaton in
-    let () = if dedup then dedup_global automaton in
+    let () = if dedup then determinize automaton in
     automaton
 
   let pc_unused pc fdd =
@@ -745,16 +746,16 @@ module NetKAT_Automaton = struct
 
   (* SJS: horrible hack *)
   let to_dot (automaton : t) =
-    let states = T.map automaton.states ~f:(fun (e,d) -> FDK.union e d) in
+    let states = Tbl.map automaton.states ~f:(fun (e,d) -> FDK.union e d) in
     let open Format in
     let buf = Buffer.create 200 in
     let fmt = formatter_of_buffer buf in
-    let seen = T.create () ~size:20 in
+    let seen = Tbl.create () ~size:20 in
     pp_set_margin fmt (1 lsl 29);
     fprintf fmt "digraph fdk {@\n";
     let rec node_loop node =
-      if not (T.mem seen node) then begin
-        T.add_exn seen node ();
+      if not (Tbl.mem seen node) then begin
+        Tbl.add_exn seen node ();
         match FDK.unget node with
         | Leaf par ->
           let seqId = ref 0 in
@@ -765,7 +766,7 @@ module NetKAT_Automaton = struct
           fprintf fmt "\t%d [shape = point];@\n" node;
           Action.Par.iter par ~f:(fun seq ->
             let id = sprintf "\"%dS%d\"" node (!seqId) in
-            let cont = Action.Seq.find seq K |> Option.map ~f:(fun v -> T.find_exn states (Value.to_int_exn v)) in
+            let cont = Action.Seq.find seq K |> Option.map ~f:(fun v -> Tbl.find_exn states (Value.to_int_exn v)) in
             let label = Action.to_string (Action.Par.singleton seq) in
             fprintf fmt "\t%s [shape=box, label=\"%s\"];@\n" id label;
             Option.iter cont ~f:(fun k ->
@@ -785,14 +786,14 @@ module NetKAT_Automaton = struct
     in
     let fdks = ref [] in
     let rec fdk_loop fdkId =
-      let fdk = T.find_exn states fdkId in
+      let fdk = Tbl.find_exn states fdkId in
       let conts = FDK.conts fdk in
       fdks := fdk :: (!fdks);
       node_loop fdk;
       List.iter conts ~f:fdk_loop
     in
     fdk_loop automaton.source;
-    fprintf fmt "%d [style=bold, color=red];@\n" (T.find_exn states automaton.source);
+    fprintf fmt "%d [style=bold, color=red];@\n" (Tbl.find_exn states automaton.source);
     fprintf fmt "{rank=source; ";
     List.iter (!fdks) ~f:(fun fdk -> fprintf fmt "%d " fdk);
     fprintf fmt ";}@\n";
