@@ -119,8 +119,8 @@ module type S = sig
   val unget : t -> d
   val mk_branch : v -> t -> t -> t
   val mk_leaf : r -> t
-  val mk_id : unit -> t
-  val mk_drop : unit -> t
+  val drop : t (* zero *)
+  val id : t (* one *)
 
   val const : r -> t
   (** [const r] creates a constant diagram out of [r]. *)

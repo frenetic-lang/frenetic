@@ -35,6 +35,7 @@ Library frenetic
     yojson,
     threads
   Modules:
+    Frenetic_Hashcons,
     Frenetic_Bits,
     Frenetic_Fdd,
     Frenetic_GroupTable0x04,
