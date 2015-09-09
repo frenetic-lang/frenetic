@@ -184,7 +184,7 @@ let default_compiler_options = {
   optimize = true;
 }
 
-let compile ?(options=default_compiler_options) pol =
+let compile_local ?(options=default_compiler_options) pol =
   (match options.cache_prepare with
    | `Keep -> ()
    | `Empty -> FDK.clear_cache Int.Set.empty
@@ -789,12 +789,8 @@ module NetKAT_Automaton = struct
 end
 
 let compile_global (pol : Frenetic_NetKAT.policy) : FDK.t =
-  let open NetKAT_Automaton in
-  let a = of_policy ~dedup:true pol in
-  let t = to_local Field.Vlan a in
-  t
-
-(* NetKAT_Automaton.(to_local Field.Vlan (of_policy ~dedup:true pol)) *)
+  NetKAT_Automaton.of_policy ~dedup:true pol
+  |> NetKAT_Automaton.to_local Field.Vlan
 
 
 (* multitable *)

@@ -143,7 +143,7 @@ module type CONTROLLER = sig
 end
 
 module Make : CONTROLLER = struct
-  let fdd = ref (Frenetic_NetKAT_Compiler.compile drop)
+  let fdd = ref (Frenetic_NetKAT_Compiler.compile_local drop)
   let current_compiler_options = ref (Frenetic_NetKAT_Compiler.default_compiler_options)
   let stats : (string, Int64.t * Int64.t) Hashtbl.Poly.t = Hashtbl.Poly.create ()
   let (pol_reader, pol_writer) = Pipe.create ()
@@ -253,7 +253,7 @@ module Make : CONTROLLER = struct
       Hashtbl.Poly.set stats qname stat)
     >>= fun () ->
     (* Actually update things *)
-    fdd := Frenetic_NetKAT_Compiler.compile ~options:!current_compiler_options pol;
+    fdd := Frenetic_NetKAT_Compiler.compile_local ~options:!current_compiler_options pol;
     Upd.BestEffortUpdate.set_current_compiler_options !current_compiler_options;
     Upd.BestEffortUpdate.implement_policy !fdd
 
