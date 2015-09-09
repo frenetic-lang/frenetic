@@ -10,7 +10,7 @@ type order
     | `Static of Field.t list
     | `Heuristic ]
 
-(* the intermediate representation of the local compiler *)
+(* the shared intermediate representation of the local & global compiler *)
 module FDK = struct
 
   include FDK
@@ -417,7 +417,16 @@ let options_to_json_string opt =
   ] |> pretty_to_string
 
 
-(* *** GLOBAL COMPILATION *)
+
+
+
+
+
+
+(*==========================================================================*)
+(* GLOBAL COMPILATION                                                       *)
+(*==========================================================================*)
+
 
 (* internal policy representation that allows to inject fdks into policies *)
 module Pol = struct
@@ -793,7 +802,15 @@ let compile_global (pol : Frenetic_NetKAT.policy) : FDK.t =
   |> NetKAT_Automaton.to_local Field.Vlan
 
 
-(* multitable *)
+
+
+
+
+
+
+(*==========================================================================*)
+(* MULTITABLE                                                               *)
+(*==========================================================================*)
 
 (* Each list of fields represents the fields one flow table can match on *)
 type flow_layout = Field.t list list
