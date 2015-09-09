@@ -34,18 +34,18 @@ module Field = struct
   let hash = Hashtbl.hash
 
   let of_string = function
-    | "Switch" -> Switch 
-    | "Location" -> Location 
-    | "EthSrc" -> EthSrc 
-    | "EthDst" -> EthDst 
-    | "Vlan" -> Vlan 
-    | "VlanPcp" -> VlanPcp 
-    | "EthType" -> EthType 
-    | "IPProto" -> IPProto 
-    | "IP4Src" -> IP4Src 
-    | "IP4Dst" -> IP4Dst 
-    | "TCPSrcPort" -> TCPSrcPort 
-    | "TCPDstPort" -> TCPDstPort 
+    | "Switch" -> Switch
+    | "Location" -> Location
+    | "EthSrc" -> EthSrc
+    | "EthDst" -> EthDst
+    | "Vlan" -> Vlan
+    | "VlanPcp" -> VlanPcp
+    | "EthType" -> EthType
+    | "IPProto" -> IPProto
+    | "IP4Src" -> IP4Src
+    | "IP4Dst" -> IP4Dst
+    | "TCPSrcPort" -> TCPSrcPort
+    | "TCPDstPort" -> TCPDstPort
     | _ -> assert false
 
   let to_string = function
@@ -226,8 +226,8 @@ module Value = struct
     | Pipe     _ ,       _
     | Query    _ ,       _
     | _          , Pipe  _
-    | _          , Query _ 
-    | FastFail _ , _ 
+    | _          , Query _
+    | FastFail _ , _
     | _          , FastFail _ -> false
     | Mask(a, m) , Mask(b, n) -> subset_eq_mask a m  b n
     | Const a    , Mask(b, n) -> subset_eq_mask a 64 b n
@@ -265,7 +265,7 @@ module Value = struct
     | Query    _ ,       _
     | _          , Pipe  _
     | _          , Query _
-    | FastFail _ , _ 
+    | FastFail _ , _
     | _          , FastFail _ -> None
     | Mask(a, m) , Mask(b, n) -> meet_mask a m  b n
     | Const a, Mask(b, n)     -> meet_mask a 64 b n
@@ -308,7 +308,7 @@ module Value = struct
     | Query    _ ,       _
     | _          , Pipe  _
     | _          , Query _
-    | FastFail _ , _ 
+    | FastFail _ , _
     | _          , FastFail _ -> None
     | Mask(a, m) , Mask(b, n) -> join_mask a m  b n
     | Const a, Mask(b, n)     -> join_mask a 64 b n
@@ -348,7 +348,6 @@ module Value = struct
 end
 
 exception FieldValue_mismatch of Field.t * Value.t
-exception Non_local
 
 
 (* Packet patterns.
@@ -431,7 +430,7 @@ module Pattern = struct
     let open Value in
     match f, v with
     | (Switch, Const _) | (VSwitch, Const _) | (VPort, Const _)  -> assert false
-    | (VFabric, Const _) -> assert false 
+    | (VFabric, Const _) -> assert false
     | (Location, Const p) -> fun pat ->
       { pat with SDN.Pattern.inPort = Some(to_int32 p) }
     | (EthSrc, Const dlAddr) -> fun pat ->
@@ -493,11 +492,11 @@ module Action = struct
     let fold_fields seq ?(pc = None) ~init ~f =
       fold seq ~init ~f:(fun ~key ~data acc -> match key with
         | F key -> f ~key ~data acc
-        | _ -> 
-	   begin 
-	     match pc with 
+        | _ ->
+	   begin
+	     match pc with
 	     | Some key -> f ~key ~data acc
-	     | None -> acc 
+	     | None -> acc
 	   end)
 
     let equal_mod_k s1 s2 = equal (=) (remove s1 K) (remove s2 K)
@@ -538,7 +537,7 @@ module Action = struct
     else
       Par.fold a ~init:zero ~f:(fun acc seq1 ->
         (* cannot implement sequential composition of this kind here *)
-        let _ = assert (match Seq.find seq1 K with None -> true | _ -> false) in        
+        let _ = assert (match Seq.find seq1 K with None -> true | _ -> false) in
         let r = Par.map b ~f:(fun seq2 ->
           (* Favor modifications to the right *)
           Seq.merge seq1 seq2 ~f:(fun ~key m ->
@@ -557,7 +556,7 @@ module Action = struct
       | Some (Query str) -> str :: queries
       | _ -> queries)
 
-  let to_sdn ?(pc = None) (in_port : Int64.t option) (group_tbl : Frenetic_GroupTable0x04.t option)  
+  let to_sdn ?(pc = None) (in_port : Int64.t option) (group_tbl : Frenetic_GroupTable0x04.t option)
     (t:t) : SDN.par =
 
     (* Convert a NetKAT action to an SDN action. At the moment this function
@@ -592,7 +591,7 @@ module Action = struct
         | Some (Const p) -> [SDN.(Output(to_port p))]
         | Some (Pipe  _) -> [SDN.(Output(Controller 128))]
         | Some (Query _) -> assert false
-        | Some (FastFail p_lst) -> 
+        | Some (FastFail p_lst) ->
            (match group_tbl with
             | Some tbl ->
               let gid = Frenetic_GroupTable0x04.add_fastfail_group tbl p_lst
@@ -602,7 +601,7 @@ module Action = struct
       in
       Seq.fold_fields (Seq.remove seq (F Location)) ~pc ~init ~f:(fun ~key ~data acc ->
         match key, data with
-        | Switch  , Const switch -> raise Non_local
+        | Switch  , Const switch -> raise Frenetic_NetKAT.Non_local
         | Switch  , _ -> raise (FieldValue_mismatch(Switch, data))
         | Location, _ -> assert false
         | EthSrc  , Const dlAddr  -> SDN.(Modify(SetEthSrc dlAddr)) :: acc

@@ -1,10 +1,12 @@
 (** NetKAT Syntax *)
 open Sexplib.Conv
 open Core.Std
-
 open Frenetic_Packet
 
 (** {2 Basics} *)
+(* thrown whenever local policy is expected, but global policy
+  (i.e. policy containing links) is encountered *)
+exception Non_local
 
 type switchId = Frenetic_OpenFlow.switchId with sexp
 type portId = Frenetic_OpenFlow.portId with sexp
