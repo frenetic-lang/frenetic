@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 36e2531024196fd7c31925c9b57b6742)
+# DO NOT EDIT (digest: 16631ef450717b24c272d10ae328fbb8)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -109,6 +109,7 @@ true: annot, bin_annot
 "frenetic/openflow.native": package(sexplib.syntax)
 "frenetic/openflow.native": package(str)
 "frenetic/openflow.native": package(tcpip)
+"frenetic/openflow.native": package(threads)
 "frenetic/openflow.native": package(ulex)
 "frenetic/openflow.native": package(yojson)
 "frenetic/openflow.native": use_async
