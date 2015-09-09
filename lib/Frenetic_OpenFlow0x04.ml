@@ -7722,3 +7722,78 @@ module Message = struct
 end
 
 let portsDescRequest = Message.MultipartReq portDescReq
+
+exception Invalid_port of int32
+
+let from_portId (pport_id : Frenetic_OpenFlow.portId) : portId =
+  if pport_id > 0xff00l then (* pport_id <= OFPP_MAX *)
+    raise (Invalid_port pport_id)
+  else
+    pport_id
+
+let from_output (inPort : portId option) (pseudoport : Frenetic_OpenFlow.pseudoport) : action =
+  match pseudoport with
+  | InPort -> Output InPort
+  | Table -> Output Table
+  | Normal -> Output Normal
+  | Flood -> Output Flood
+  | All -> Output AllPorts
+  | Physical pport_id ->  
+     let pport_id = from_portId pport_id in
+     if Some pport_id = inPort then
+       Output InPort
+     else
+       Output (PhysicalPort pport_id)
+  | Controller n -> 
+     Output (Controller n)
+  | Local ->
+     Output Local
+        
+let from_action (inPort : portId option) (act : Frenetic_OpenFlow.action) : action = 
+  match act with
+  | Output pseudoport ->
+     from_output inPort pseudoport
+  | Enqueue (pport_id, queue_id) ->
+     failwith "not implemented"
+  | Modify (SetEthSrc dlAddr) ->
+     failwith "not implemented"
+  | Modify (SetEthDst dlAddr) ->
+     failwith "not implemented"
+  | Modify (SetVlan vlan) ->
+     failwith "not implemented"
+  | Modify (SetVlanPcp pcp) ->
+     failwith "not implemented"
+  | Modify (SetEthTyp _) ->
+     raise (Invalid_argument "cannot set Ethernet type")
+  | Modify (SetIPProto _) ->
+     raise (Invalid_argument "cannot set IP protocol")
+  | Modify (SetIP4Src nwAddr) ->
+     failwith "not implemented"
+  | Modify (SetIP4Dst nwAddr) ->
+     failwith "not implemented"
+  | Modify (SetTCPSrcPort tp) ->
+     failwith "not implemented"
+  | Modify (SetTCPDstPort tp) ->
+     failwith "not implemented"
+  (* TODO(grouptable) *)
+  | FastFail _ -> failwith "Openflow 1.0 does not support fast failover."
+      
+
+let from_seq (inPort : portId option) (seq : Frenetic_OpenFlow.seq) : action list = 
+  List.map seq ~f:(from_action inPort)
+
+let from_par (inPort : portId option) (par : Frenetic_OpenFlow.par) : action list =
+  List.concat (List.map par ~f:(from_seq inPort)) 
+      
+let from_payload (pay : Frenetic_OpenFlow.payload) : payload =
+  match pay with
+  | Buffered (buf_id, bytes) ->
+     Buffered (buf_id, bytes)
+  | NotBuffered bytes -> NotBuffered bytes
+					    
+let from_packetOut (pktOut : Frenetic_OpenFlow.pktOut) : packetOut =
+  let output_payload, port_id, apply_actions = pktOut in
+  let po_payload = from_payload output_payload in
+  let po_port_id = Core_kernel.Option.map port_id from_portId in
+  let po_actions = from_par port_id [apply_actions] in
+  { po_payload; po_port_id; po_actions }

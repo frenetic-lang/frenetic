@@ -8,7 +8,12 @@ type event = [
   | `Disconnect of switchId
   | `Message of switchId * Frenetic_OpenFlow_Header.t * Message.t 
 ]
-	       
+
+val get_switches : unit -> switchId list Deferred.t
+
+val get_switch_features : switchId -> SwitchFeatures.t option Deferred.t
+
+val send : switchId -> xid -> Message.t -> [`Ok | `Eof] Deferred.t						       
 	       
 (* Marshal and send a message to the switch *)
 val send_message : Writer.t -> Frenetic_OpenFlow_Header.xid -> Frenetic_OpenFlow0x04.Message.t -> unit
