@@ -1,7 +1,15 @@
 open Core.Std
 open Async.Std
+open Frenetic_OpenFlow0x04
 module Log = Frenetic_Log
 
+type event = [
+  | `Connect of switchId * SwitchFeatures.t
+  | `Disconnect of switchId
+  | `Message of switchId * Frenetic_OpenFlow_Header.t * Message.t 
+]
+	       
+	       
 (* Marshal and send a message to the switch *)
 let send_message (to_client : Writer.t) (xid : Frenetic_OpenFlow_Header.xid)
   (message : Frenetic_OpenFlow0x04.Message.t) : unit =

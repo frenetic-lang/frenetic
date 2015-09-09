@@ -377,10 +377,13 @@ type packetInReason =
 | ExplicitSend
 | InvalidTTL
 
-type packetIn = { pi_total_len : int16;
-                  pi_reason : packetInReason; pi_table_id : tableId;
-                  pi_cookie : int64; pi_ofp_match : oxmMatch;
-                  pi_payload : payload }
+type packetIn = { pi_total_len : int16
+		; pi_reason : packetInReason
+		; pi_table_id : tableId
+		; pi_cookie : int64
+		; pi_ofp_match : oxmMatch
+		; pi_payload : payload
+		; pi_port : portId }
 
 type flowReason =
   | FlowIdleTimeout
@@ -399,8 +402,10 @@ type capabilities = { flow_stats : bool; table_stats : bool;
 
 type portState = { link_down : bool; blocked : bool; live : bool }
 
-type portConfig = { port_down : bool; no_recv : bool; no_fwd : bool;
-                    no_packet_in : bool }
+type portConfig = { port_down : bool
+		  ; no_recv : bool
+		  ; no_fwd : bool
+		  ; no_packet_in : bool }
 
 type portFeatures = { rate_10mb_hd : bool; rate_10mb_fd : bool;
                       rate_100mb_hd : bool; rate_100mb_fd : bool;
@@ -411,10 +416,17 @@ type portFeatures = { rate_10mb_hd : bool; rate_10mb_fd : bool;
                       autoneg : bool; pause : bool; pause_asym : bool }
 
 
-type portDesc = { port_no : portId; hw_addr : int48; name : string; config :
-                  portConfig; state : portState; curr : portFeatures;
-                  advertised : portFeatures; supported : portFeatures; peer :
-                  portFeatures; curr_speed : int32; max_speed : int32}
+type portDesc = { port_no : portId
+		; hw_addr : int48
+		; name : string
+		; config : portConfig
+		; state : portState
+		; curr : portFeatures
+		; advertised : portFeatures
+		; supported : portFeatures
+		; peer : portFeatures
+		; curr_speed : int32
+		; max_speed : int32}
 
 type portMod = { mpPortNo : portId; mpHw_addr : int48; mpConfig : portConfig;
                  mpMask : portConfig; mpAdvertise : portState }
@@ -424,7 +436,8 @@ type portReason =
   | PortDelete
   | PortModify
 
-type portStatus = { reason : portReason; desc : portDesc }
+type portStatus = { reason : portReason
+		  ; desc : portDesc }
 
 type packetOut = {
   po_payload : payload;
