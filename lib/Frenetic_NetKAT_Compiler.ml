@@ -10,6 +10,11 @@ type order
     | `Static of Field.t list
     | `Heuristic ]
 
+
+(*==========================================================================*)
+(* LOCAL COMPILATION                                                        *)
+(*==========================================================================*)
+
 (* the shared intermediate representation of the local & global compiler *)
 module FDK = struct
 
