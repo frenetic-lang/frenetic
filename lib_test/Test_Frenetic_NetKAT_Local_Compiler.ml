@@ -2,7 +2,7 @@ open OUnitHack
 open Frenetic_OpenFlow
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Pretty
-open Frenetic_NetKAT_Local_Compiler
+open Frenetic_NetKAT_Compiler
 
 TEST "Can test locations, even when they are set to pipes" =
   let p = Filter (Test (Location (Pipe "web"))) in

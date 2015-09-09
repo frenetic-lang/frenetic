@@ -7,7 +7,7 @@ module Net = Frenetic_NetKAT_Net.Net
 module SDN = Frenetic_OpenFlow
 module Log = Frenetic_Log
 module Controller = Frenetic_OpenFlow0x01_Controller
-module LC = Frenetic_NetKAT_Local_Compiler
+module Comp = Frenetic_NetKAT_Compiler
 
 open Frenetic_OpenFlow.To0x01
 
@@ -21,38 +21,38 @@ end)
 type edge = (Frenetic_OpenFlow.flow * int) list SwitchMap.t
 
 module type UPDATE_ARGS = sig
-  val get_order : unit -> LC.order
-  val get_prev_order : unit -> LC.order
+  val get_order : unit -> Comp.order
+  val get_prev_order : unit -> Comp.order
 end
 
 module type CONSISTENT_UPDATE_ARGS = sig
-  val get_order : unit -> LC.order
-  val get_prev_order : unit -> LC.order
+  val get_order : unit -> Comp.order
+  val get_prev_order : unit -> Comp.order
   val get_nib : unit -> Net.Topology.t
   val get_edge : unit -> edge
   val set_edge : edge -> unit
 end
 
 module type UPDATE = sig
-  val bring_up_switch : 
-    ?old:LC.t ->
+  val bring_up_switch :
+    ?old:Comp.t ->
     SDN.switchId ->
-    LC.t ->
+    Comp.t ->
     unit Deferred.t
 
   val implement_policy :
-    ?old:LC.t ->
-    LC.t ->
+    ?old:Comp.t ->
+    Comp.t ->
     unit Deferred.t
 
-  val set_current_compiler_options : LC.compiler_options -> unit 
+  val set_current_compiler_options : Comp.compiler_options -> unit
 end
 
 module BestEffortUpdate = struct
-  let current_compiler_options = ref LC.default_compiler_options
+  let current_compiler_options = ref Comp.default_compiler_options
 
   let restrict sw_id repr =
-    LC.restrict Frenetic_NetKAT.(Switch sw_id) repr
+    Comp.restrict Frenetic_NetKAT.(Switch sw_id) repr
 
   let install_flows_for sw_id table =
     let to_flow_mod p f = M.FlowModMsg (from_flow p f) in
@@ -71,16 +71,16 @@ module BestEffortUpdate = struct
       | `Ok -> return ()
 
   let bring_up_switch ?old (sw_id : SDN.switchId) new_r =
-    let table = LC.to_table ~options:!current_compiler_options sw_id new_r in
+    let table = Comp.to_table ~options:!current_compiler_options sw_id new_r in
     Log.printf ~level:`Debug "Setting up flow table\n%s"
       (Frenetic_OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id) table);
     Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
-      delete_flows_for sw_id >>= fun _ -> 
+      delete_flows_for sw_id >>= fun _ ->
       install_flows_for sw_id table)
     >>= function
       | Ok x -> return x
       | Error _exn ->
-        Log.debug 
+        Log.debug
           "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
         Log.flushed () >>| fun () ->
         Printf.eprintf "%s\n%!" (Exn.to_string _exn)
@@ -90,7 +90,7 @@ module BestEffortUpdate = struct
     Deferred.List.iter switches (fun sw_id ->
       bring_up_switch ~old sw_id repr)
 
-  let set_current_compiler_options opt = 
+  let set_current_compiler_options opt =
     current_compiler_options := opt
 end
 
@@ -98,9 +98,9 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
   open Frenetic_OpenFlow
   open Args
 
-  let current_compiler_options = ref LC.default_compiler_options
+  let current_compiler_options = ref Comp.default_compiler_options
 
-  let barrier sw = 
+  let barrier sw =
     Controller.send_txn sw M.BarrierRequest >>= function
       | `Ok dl -> dl >>= fun _ -> return (Ok ())
       | `Eof -> return (Error UpdateError)
@@ -118,7 +118,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
   let delete_flows_for sw_id =
     let delete_flows = M.FlowModMsg OF10.delete_all_flows in
     Controller.send sw_id 5l delete_flows >>= function
-      | `Eof -> raise UpdateError 
+      | `Eof -> raise UpdateError
       | `Ok -> return ()
 
   let specialize_action ver internal_ports actions =
@@ -178,7 +178,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
   let internal_install_policy_for (ver : int) repr (sw_id : switchId) =
     begin let open Deferred.Result in
     Monitor.try_with ~name:"PerPacketConsistent.internal_install_policy_for" (fun () ->
-      let table0 = LC.to_table sw_id repr in
+      let table0 = Comp.to_table sw_id repr in
       let table1 = specialize_internal_to
         ver (Frenetic_Topology.internal_ports (get_nib ()) sw_id) table0 in
       assert (List.length table1 > 0);
@@ -229,7 +229,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
     let new_flows = List.map new_table ~f:(fun (flow, prio) ->
         to_flow_mod prio flow) in
     Controller.send_batch c_id 0l new_flows >>= function
-        | `Eof -> raise UpdateError 
+        | `Eof -> raise UpdateError
         | `Ok -> return ()
     (* Delete the old table from the bottom up *)
     >>= fun () -> Deferred.List.iter del_table ~f:(fun (flow, prio) ->
@@ -242,7 +242,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
   let edge_install_policy_for ver repr (sw_id : switchId) : unit Deferred.t =
     begin let open Deferred.Result in
     Monitor.try_with ~name:"PerPacketConsistent.edge_install_policy_for" (fun () ->
-      let table = LC.to_table sw_id repr in
+      let table = Comp.to_table sw_id repr in
       let edge_table = specialize_edge_to
         ver (Frenetic_Topology.internal_ports (get_nib ()) sw_id) table in
       Log.debug
@@ -296,7 +296,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
         Log.flushed () >>| fun () ->
         Printf.eprintf "%s\n%!" (Exn.to_string _exn)
 
-  let set_current_compiler_options opt = 
+  let set_current_compiler_options opt =
     current_compiler_options := opt
 
 end

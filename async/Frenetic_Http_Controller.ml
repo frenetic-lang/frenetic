@@ -4,7 +4,7 @@ open Cohttp_async
 open Frenetic_NetKAT
 open Frenetic_Common
 module Server = Cohttp_async.Server
-module LC = Frenetic_NetKAT_Local_Compiler
+module Comp = Frenetic_NetKAT_Compiler
 module Log = Frenetic_Log
 
 type client = {
@@ -16,7 +16,7 @@ type client = {
   event_writer: string Pipe.Writer.t;
 }
 
-let current_compiler_options = ref LC.default_compiler_options 
+let current_compiler_options = ref Comp.default_compiler_options
 
 (* TODO(arjun):
 
@@ -122,15 +122,15 @@ let handle_request
          Cohttp_async.Server.respond `OK)
     | `POST, ["config"] ->
        printf "POST /config";
-       handle_parse_errors body parse_config_json 
-        (fun conf -> 
-          current_compiler_options := conf; 
+       handle_parse_errors body parse_config_json
+        (fun conf ->
+          current_compiler_options := conf;
           set_current_compiler_options conf;
           Cohttp_async.Server.respond `OK)
     | `GET, ["config"] ->
        printf "GET /config";
-       LC.options_to_json_string !current_compiler_options |> 
-       Cohttp_async.Server.respond_with_string 
+       Comp.options_to_json_string !current_compiler_options |>
+       Cohttp_async.Server.respond_with_string
      | _, _ ->
       Log.error "Unknown method/path (404 error)";
       Cohttp_async.Server.respond `Not_found

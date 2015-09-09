@@ -3,7 +3,7 @@ open Async.Std
 open Frenetic_NetKAT
 
 module Controller = Frenetic_NetKAT_Controller.Make
-module LC = Frenetic_NetKAT_Local_Compiler
+module LC = Frenetic_NetKAT_Compiler
 module Field = Frenetic_Fdd.Field
 module Log = Frenetic_Log
 
@@ -36,8 +36,8 @@ type command =
    *   f_1 < f_2 [ < f_3 < ... < f_n ] - Given two or more fields, ensures the
    *                                     order of the specified fields is maintained. *)
   | Order of LC.order
-  (* usage: remove_tail_drops 
-   * Remove any drop rules at the end of each flow table.  Toggles setting.  
+  (* usage: remove_tail_drops
+   * Remove any drop rules at the end of each flow table.  Toggles setting.
   *)
   | ToggleRemoveTailDrops
   (* usage: exit
@@ -100,8 +100,8 @@ module Parser = struct
         Ok (Frenetic_NetKAT_Parser.policy_from_string pol_str)
       with Camlp4.PreCast.Loc.Exc_located (error_loc,x) ->
         Error (
-          sprintf "Error: %s\n%s" 
-          (Camlp4.PreCast.Loc.to_string error_loc) 
+          sprintf "Error: %s\n%s"
+          (Camlp4.PreCast.Loc.to_string error_loc)
           (Exn.to_string x))
 
     (* Parser for netkat policies *)
