@@ -556,8 +556,7 @@ module Action = struct
       | Some (Query str) -> str :: queries
       | _ -> queries)
 
-  let to_sdn ?(pc = None) (in_port : Int64.t option) (group_tbl : Frenetic_GroupTable0x04.t option)
-    (t:t) : SDN.par =
+  let to_sdn ?pc ?group_tbl (in_port : int64 option) (t:t) : SDN.par =
 
     (* Convert a NetKAT action to an SDN action. At the moment this function
        assumes that fields are assigned to proper bitwidth integers, and does
@@ -680,7 +679,7 @@ module Action = struct
     Par.fold ~init:0 ~f:(fun acc seq -> acc + (Seq.length seq))
 
   let to_string t =
-    let par = to_sdn None None t in
+    let par = to_sdn ~group_tbl:(Frenetic_GroupTable0x04.create ()) None t in
     Printf.sprintf "[%s]" (SDN.string_of_par par)
 
 end
