@@ -1,3 +1,6 @@
+open Sexplib
+open Sexplib.Std
+
 module type HashCmp = sig
   type t
   val hash : t -> int
@@ -21,7 +24,7 @@ module type Result = sig
 end
 
 module type S = sig
-  type t = int
+  type t = int with sexp
   type v
   type r
   type d
@@ -63,7 +66,7 @@ struct
     = Leaf of r
     | Branch of v * int * int
 
-  type t = int
+  type t = int with sexp
   module T = Frenetic_Hashcons.Make(struct
       type t = d
 

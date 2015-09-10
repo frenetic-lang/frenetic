@@ -102,7 +102,7 @@ end
 
 module type S = sig
 
-  type t = int
+  type t = int with sexp
   (** The type of a decision diagram *)
 
   type v

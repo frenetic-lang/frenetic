@@ -125,7 +125,8 @@ module Pattern = struct
       ; tpSrc : tpPort option
       ; tpDst : tpPort option
       ; inPort : portId option
-      ; wavelength : int8 option } with sexp
+      ; wavelength : int8 option }
+  with sexp
 
   let match_all =
       { dlSrc = None
@@ -245,6 +246,7 @@ type modify =
   | SetTCPSrcPort of tpPort
   | SetTCPDstPort of tpPort
   | SetWavelength of int8
+with sexp
 
 type pseudoport =
   | Physical of portId
@@ -255,6 +257,7 @@ type pseudoport =
   | All
   | Controller of int
   | Local
+with sexp
 
 type groupId = int32 with sexp
 
@@ -263,16 +266,18 @@ type action =
   | Enqueue of portId * queueId
   | Modify of modify
   | FastFail of groupId
+with sexp
 
-type seq = action list
+type seq = action list with sexp
 
-type par = seq list
+type par = seq list with sexp
 
-type group = par list
+type group = par list with sexp
 
 type timeout =
   | Permanent
   | ExpiresAfter of int16
+with sexp
 
 type flow = {
   pattern: Pattern.t;
@@ -280,9 +285,9 @@ type flow = {
   cookie: int64;
   idle_timeout: timeout;
   hard_timeout: timeout
-}
+} with sexp
 
-type flowTable = flow list
+type flowTable = flow list with sexp
 
 type payload =
   | Buffered of bufferId * Cstruct.t
@@ -297,15 +302,16 @@ let payload_bytes (payload : payload) : Cstruct.t =
 type packetInReason =
   | NoMatch
   | ExplicitSend
+with sexp
 
-type pktIn = payload * int * portId * packetInReason
+type pktIn = payload * int * portId * packetInReason with sexp
 
-type pktOut = payload * (portId option) * (action list)
+type pktOut = payload * (portId option) * (action list) with sexp
 
 type switchFeatures = {
   switch_id : switchId;
   switch_ports : portId list
-}
+} with sexp
 
 type flowStats = {
   flow_table_id : int8; (** ID of table flow came from. *)
@@ -318,7 +324,7 @@ type flowStats = {
   flow_actions: action list;
   flow_packet_count: int64;
   flow_byte_count: int64
-}
+} with sexp
 
 let format_modify (fmt:Format.formatter) (m:modify) : unit =
   match m with

@@ -189,7 +189,7 @@ end = struct
     | Compile                    -> Hashtbl.fold vnos ~init:[]
                                     ~f:(fun ~key:id ~data:vno acc -> vno::acc) |> compile_vnos
     | CompileLocal     (sw, pol) ->
-        Frenetic_NetKAT_Compiler.compile pol |>
+        Frenetic_NetKAT_Compiler.compile_local pol |>
         pol_to_string sw |> print_endline
     | CompileSelective  ids      -> 
         let (vnos, unknowns) =

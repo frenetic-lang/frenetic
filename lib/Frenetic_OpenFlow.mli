@@ -88,7 +88,8 @@ module Pattern : sig
       ; tpSrc : tpPort option
       ; tpDst : tpPort option
       ; inPort : portId option
-      ; wavelength : int8 option } with sexp
+      ; wavelength : int8 option }
+  with sexp
 
   (** [match_all] is pattern that matches any packet *)
   val match_all : t
@@ -120,6 +121,7 @@ type modify =
   | SetTCPSrcPort of tpPort
   | SetTCPDstPort of tpPort
   | SetWavelength of int8
+with sexp
 
 type pseudoport =
   | Physical of portId
@@ -130,6 +132,7 @@ type pseudoport =
   | All
   | Controller of int
   | Local
+with sexp
 
 type groupId = int32 with sexp
 
@@ -138,16 +141,18 @@ type action =
   | Enqueue of portId * queueId
   | Modify of modify
   | FastFail of groupId
+  with sexp
 
-type seq = action list
+type seq = action list with sexp
 
-type par = seq list
+type par = seq list with sexp
 
-type group = par list
+type group = par list with sexp
 
 type timeout =
   | Permanent (** No timeout *)
   | ExpiresAfter of int16 (** Time out after [n] seconds *)
+  with sexp
 
 type flow = {
   pattern: Pattern.t;
@@ -155,10 +160,10 @@ type flow = {
   cookie: int64;
   idle_timeout: timeout;
   hard_timeout: timeout
-}
+} with sexp
 
 (** Priorities are implicit *)
-type flowTable = flow list 
+type flowTable = flow list with sexp
 
 (** {1 Controller Packet Processing} *)
 
@@ -176,12 +181,13 @@ val payload_bytes : payload -> Cstruct.t
 type packetInReason =
   | NoMatch
   | ExplicitSend
+  with sexp
 
 (** [(payload, total_length, in_port, reason)] *)
-type pktIn = payload * int * portId * packetInReason
+type pktIn = payload * int * portId * packetInReason with sexp
 
 (** [(payload, in_port option, action list)] *)
-type pktOut = payload * (portId option) * (action list)
+type pktOut = payload * (portId option) * (action list) with sexp
 
 (* {1 Switch Configuration} *)
 
@@ -189,7 +195,7 @@ type pktOut = payload * (portId option) * (action list)
 type switchFeatures = {
   switch_id : switchId;
   switch_ports : portId list
-}
+} with sexp
 
 (* {1 Statistics} *)
 
@@ -205,7 +211,7 @@ type flowStats = {
   flow_actions: action list;
   flow_packet_count: int64;
   flow_byte_count: int64
-}
+} with sexp
 
 (* {1 Errors} *)
 

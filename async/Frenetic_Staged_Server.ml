@@ -225,7 +225,7 @@ let handle_request
         (fun s -> print_endline "Parsing policy :";
                   print_endline (string_of_policy s);
                   s) |>
-        Frenetic_NetKAT_Compiler.compile |>
+        Frenetic_NetKAT_Compiler.compile_local |>
         Frenetic_NetKAT_Compiler.to_table sw |>
         Frenetic_NetKAT_SDN_Json.flowTable_to_json |>
         Yojson.Basic.to_string ~std:true |>
