@@ -471,8 +471,7 @@ module Pol = struct
     | _ -> Star(pol)
 
   let mk_fdk e d =
-    let drop' = FDK.drop in
-    if FDK.equal e drop' && FDK.equal d drop' then drop
+    if FDK.equal e FDK.drop && FDK.equal d FDK.drop then drop
     else FDK (e, d)
 
   let mk_big_union = List.fold ~init:drop ~f:mk_union
