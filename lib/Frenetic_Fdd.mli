@@ -1,10 +1,6 @@
 open Core.Std
 
-(* TODO(jnf): why is this exception here, in a module that defines a
-   data structure? Seems misplaced... *)
-exception Non_local
-
-module Field : sig 
+module Field : sig
   type t
     = Switch
       | Vlan
@@ -33,11 +29,11 @@ module Field : sig
 end
 
 module Value : sig
-  type t = 
+  type t =
       Const of Int64.t
     | Mask of Int64.t * int
     | Pipe of string
-    | Query of string 
+    | Query of string
     (* TODO(grouptable): HACK, should only be able to fast fail on ports.
      * Put this somewhere else *)
     | FastFail of Int32.t list
@@ -49,7 +45,7 @@ module Value : sig
   val to_int_exn : t -> int
 end
 
-module Pattern : sig 
+module Pattern : sig
   type t = Field.t * Value.t
   val compare : t -> t -> int
   val of_hv : Frenetic_NetKAT.header_val -> t
