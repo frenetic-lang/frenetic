@@ -410,7 +410,7 @@ type portDesc = { port_no : portId;
                   max_speed : int32}
 
 type portMod = { mpPortNo : portId; mpHw_addr : int48; mpConfig : portConfig;
-                 mpMask : portConfig; mpAdvertise : portState }
+                 mpMask : int32; mpAdvertise : portFeatures }
 
 type portReason =
   | PortAdd
@@ -3445,27 +3445,30 @@ module PortMod = struct
     sizeof_ofp_port_mod
 
   let to_string (pm : t) : string =
-    Format.sprintf "{ port_no = %lu; hw_addr = %s; config = %s; mask = %s; advertise = %s }"
+    Format.sprintf "{ port_no = %lu; hw_addr = %s; config = %s; mask = %lu; advertise = %s }"
       pm.mpPortNo
       (string_of_mac pm.mpHw_addr)
       (PortConfig.to_string pm.mpConfig)
-      (PortConfig.to_string pm.mpMask)
-      (PortState.to_string pm.mpAdvertise)
+      pm.mpMask
+      (PortFeatures.to_string pm.mpAdvertise)
 
   let marshal (buf : Cstruct.t) (pm : t) : int =
     set_ofp_port_mod_port_no buf pm.mpPortNo;
+    set_ofp_port_mod_pad "\000\000\000\000" 0 buf; 
     set_ofp_port_mod_hw_addr (bytes_of_mac pm.mpHw_addr) 0 buf;
+    set_ofp_port_mod_pad2 "\000\000" 0 buf; 
     set_ofp_port_mod_config buf (PortConfig.marshal pm.mpConfig);
-    set_ofp_port_mod_mask buf (PortConfig.marshal pm.mpMask);
-    set_ofp_port_mod_advertise buf (PortState.marshal pm.mpAdvertise);
+    set_ofp_port_mod_mask buf pm.mpMask;
+    set_ofp_port_mod_advertise buf (PortFeatures.marshal pm.mpAdvertise);
+    set_ofp_port_mod_pad3 "\000\000\000\000" 0 buf; 
     sizeof_ofp_port_mod
 
   let parse (bits : Cstruct.t) : t =
     let mpPortNo = get_ofp_port_mod_port_no bits in
     let mpHw_addr = mac_of_bytes (copy_ofp_port_mod_hw_addr bits) in
     let mpConfig = PortConfig.parse (get_ofp_port_mod_config bits) in
-    let mpMask = PortConfig.parse (get_ofp_port_mod_mask bits) in
-    let mpAdvertise = PortState.parse (get_ofp_port_mod_advertise bits) in
+    let mpMask = get_ofp_port_mod_mask bits in
+    let mpAdvertise = PortFeatures.parse (get_ofp_port_mod_advertise bits) in
     { mpPortNo; mpHw_addr; mpConfig; mpMask; mpAdvertise}
 
 end
@@ -5294,7 +5297,7 @@ module FlowStats = struct
        | Permanent -> 0
        | ExpiresAfter  v -> v);
     set_ofp_flow_stats_flags buf (FlowMod.Flags.marshal fs.flags);
-    set_ofp_flow_stats_pad1 (Cstruct.to_string (Cstruct.create 4)) 0 buf;
+    set_ofp_flow_stats_pad1 "\000\000\000\000" 0 buf;
     set_ofp_flow_stats_cookie buf fs.cookie;
     set_ofp_flow_stats_packet_count buf fs.packet_count;
     set_ofp_flow_stats_byte_count buf fs.byte_count;
@@ -5364,7 +5367,7 @@ module AggregateStats = struct
     set_ofp_aggregate_stats_reply_packet_count buf ag.packet_count;
     set_ofp_aggregate_stats_reply_byte_count buf ag.byte_count;
     set_ofp_aggregate_stats_reply_flow_count buf ag.flow_count;
-    set_ofp_aggregate_stats_reply_pad (Cstruct.to_string (Cstruct.create 4)) 0 buf;
+    set_ofp_aggregate_stats_reply_pad "\000\000\000\000" 0 buf;
     sizeof_ofp_aggregate_stats_reply
 
   let parse (bits : Cstruct.t) : aggregStats =
@@ -5398,7 +5401,7 @@ module TableStats = struct
 
   let marshal (buf : Cstruct.t) (ts : tableStats) : int =
     set_ofp_table_stats_table_id buf ts.table_id;
-    set_ofp_table_stats_pad (Cstruct.to_string (Cstruct.create 3)) 0 buf;
+    set_ofp_table_stats_pad "\000\000\000" 0 buf;
     set_ofp_table_stats_active_count buf ts.active_count;
     set_ofp_table_stats_lookup_count buf ts.lookup_count;
     set_ofp_table_stats_matched_count buf ts.matched_count;
@@ -5597,8 +5600,10 @@ module GroupStats = struct
 
   let marshal (buf : Cstruct.t) (gs : groupStats) : int =
     set_ofp_group_stats_length buf gs.length;
+    set_ofp_group_stats_pad "\000\000" 0 buf;
     set_ofp_group_stats_group_id buf gs.group_id;
     set_ofp_group_stats_ref_count buf gs.ref_count;
+    set_ofp_group_stats_pad2 "\000\000\000\000" 0 buf;
     set_ofp_group_stats_packet_count buf gs.packet_count;
     set_ofp_group_stats_byte_count buf gs.byte_count;
     set_ofp_group_stats_duration_sec buf gs.duration_sec;
@@ -5905,6 +5910,7 @@ module MeterStats = struct
   let marshal (buf : Cstruct.t) (ms : meterStats) =
     set_ofp_meter_stats_meter_id buf ms.meter_id;
     set_ofp_meter_stats_len buf ms.len;
+    set_ofp_meter_stats_pad "\000\000\000\000\000\000" 0 buf;
     set_ofp_meter_stats_flow_count buf ms.flow_count;
     set_ofp_meter_stats_packet_in_count buf ms.packet_in_count;
     set_ofp_meter_stats_byte_in_count buf ms.byte_in_count;
@@ -6024,6 +6030,7 @@ module MeterFeatures = struct
     set_ofp_meter_features_capabilities buf (Int32.of_int_exn (MeterFlags.marshal mfs.capabilities));
     set_ofp_meter_features_max_bands buf mfs.max_band;
     set_ofp_meter_features_max_color buf mfs.max_color;
+    set_ofp_meter_features_pad "\000\000" 0 buf;
     sizeof_ofp_meter_features
 
   let parse (bits : Cstruct.t) : t =
@@ -6187,6 +6194,7 @@ module TableMod = struct
   let marshal (buf : Cstruct.t) (tab : tableMod) : int =
     set_ofp_table_mod_table_id buf tab.table_id;
     set_ofp_table_mod_config buf (TableConfig.marshal tab.config);
+    set_ofp_table_mod_pad "\000\000\000" 0 buf;
     sizeof_ofp_table_mod
 
   let parse (bits : Cstruct.t) : tableMod =
@@ -6213,6 +6221,7 @@ module QueueConfReq = struct
 
   let marshal (buf : Cstruct.t) (qr : t) : int =
     set_ofp_queue_get_config_request_port buf qr.port;
+    set_ofp_queue_get_config_request_pad "\000\000\000\000" 0 buf;
     sizeof_ofp_queue_get_config_request
 
   let parse (bits : Cstruct.t) : t =
@@ -6239,6 +6248,7 @@ module QueueConfReply = struct
 
   let marshal (buf : Cstruct.t) (qr : t) : int =
     set_ofp_queue_get_config_reply_port buf qr.port;
+    set_ofp_queue_get_config_reply_pad "\000\000\000\000" 0 buf;
     let queueBuf = Cstruct.shift buf sizeof_ofp_queue_get_config_reply in
     sizeof_ofp_queue_get_config_reply + (marshal_fields queueBuf qr.queues QueueDesc.marshal)
 
@@ -6302,6 +6312,7 @@ module RoleRequest = struct
 
   let marshal (buf : Cstruct.t) (role : roleRequest) : int =
     set_ofp_role_request_role buf (Role.marshal role.role);
+    set_ofp_role_request_pad "\000\000\000\000" 0 buf;
     set_ofp_role_request_generation_id buf role.generation_id;
     sizeof_ofp_role_request
 

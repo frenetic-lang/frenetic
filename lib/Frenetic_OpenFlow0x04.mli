@@ -429,7 +429,7 @@ type portDesc = { port_no : portId
 		; max_speed : int32}
 
 type portMod = { mpPortNo : portId; mpHw_addr : int48; mpConfig : portConfig;
-                 mpMask : portConfig; mpAdvertise : portState }
+                 mpMask : int32; mpAdvertise : portFeatures }
 
 type portReason =
   | PortAdd

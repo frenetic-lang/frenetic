@@ -68,6 +68,12 @@ class OFPPortStatusSerializable(OFPPortStatus):
       port.advertised , port.supported , port.peer , port.curr_speed, port.max_speed
     )
 
+class OFPRoleReplySerializable(OFPRoleReply):
+  def _serialize_body(self):
+    # OFP_ROLE_REQUEST_PACK_STR is used because the packets have the same shape
+    msg_pack_into(ofproto.OFP_ROLE_REQUEST_PACK_STR, self.buf,
+      ofproto.OFP_HEADER_SIZE, self.role, self.generation_id)
+
 
 ####################################################################################
 # OFPT_HELLO
@@ -316,7 +322,7 @@ msgs["OfpGroupModDelete"] = OFPGroupMod(Datapath,
 )
 
 ####################################################################################
-# OFPT_PORT_STATUS
+# OFPT_PORT_MOD
 
 msgs["OfpPortMod"] = OFPPortMod(Datapath,
   port_no = 77,
@@ -324,6 +330,40 @@ msgs["OfpPortMod"] = OFPPortMod(Datapath,
   config =   OFPPC_PORT_DOWN | OFPPC_NO_FWD, 
   mask = 0xff,
   advertise = OFPPF_10MB_FD | OFPPF_40GB_FD | OFPPF_FIBER
+)
+
+####################################################################################
+# OFPT_TABLE_MOD
+
+msgs["OfpTableMod"] = OFPTableMod(Datapath,
+  table_id = 156,
+  config = 3 
+)
+
+####################################################################################
+# OFPT_BARRIER_REQUEST
+
+msgs["OfpBarrierRequest"] = OFPBarrierRequest(Datapath)
+
+####################################################################################
+# OFPT_BARRIER_REPLY
+
+msgs["OfpBarrierReply"] = OFPBarrierReply(Datapath)
+
+####################################################################################
+# OFPT_ROLE_REQUEST
+
+msgs["OfpRoleRequest"] = OFPRoleRequest(Datapath, 
+  role = OFPCR_ROLE_EQUAL,
+  generation_id = 92580291354
+)
+
+####################################################################################
+# OFPT_ROLE_REPLY
+
+msgs["OfpRoleReply"] = OFPRoleReplySerializable(Datapath, 
+  role = OFPCR_ROLE_SLAVE,
+  generation_id = 92581791354
 )
 
 ####################################################################################
