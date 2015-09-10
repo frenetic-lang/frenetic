@@ -1,11 +1,12 @@
+open Core.Std
 open Frenetic_OpenFlow0x04
 open Frenetic_Packet
 
 type t = {
-	table : (groupId, (groupType * bucket list)) Hashtbl.t;
+	table : (groupId, (groupType * bucket list)) Hashtbl.Poly.t;
 	mutable next_group_id : groupId;
 	mutable pending_messages : Message.t list
-}
+} with sexp
 
 let next_group_id (tbl : t) =
   let id = tbl.next_group_id in
@@ -16,7 +17,7 @@ let next_group_id (tbl : t) =
     id
 
 let create () : t = {
-	table = Hashtbl.create 100;
+	table = Hashtbl.Poly.create () ~size:100;
 	next_group_id = 1l;
   pending_messages = []
 }
@@ -24,7 +25,7 @@ let create () : t = {
 let add_group (tbl : t) (typ : groupType) (buckets : bucket list) : groupId =
   let id = next_group_id tbl in
   let msg = Message.GroupModMsg (AddGroup (typ, id, buckets)) in
-  Hashtbl.add tbl.table id (typ, buckets);
+  Hashtbl.add_exn tbl.table id (typ, buckets);
   tbl.pending_messages <- msg :: tbl.pending_messages;
   id
 
@@ -33,7 +34,7 @@ let clear_groups (tbl : t) : unit =
 	let rm_group (id : groupId) ((typ, _) : groupType * bucket list) : unit =
 	  let msg = Message.GroupModMsg (DeleteGroup (typ, id)) in
 	  tbl.pending_messages <-  msg :: tbl.pending_messages in
-  Hashtbl.iter rm_group tbl.table;
+  Hashtbl.iter tbl.table ~f:(fun ~key ~data -> rm_group key data);
   Hashtbl.clear tbl.table
 
 let commit (tbl : t) : Message.t list =

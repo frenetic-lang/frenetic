@@ -148,17 +148,18 @@ val options_to_json_string : compiler_options -> string
 (* multitable support *)
 
 (* Each list of fields represents the fields one flow table can match on *)
-type flow_layout = Field.t list list
+type flow_layout = Field.t list list with sexp
 
 (* Each flow table row has a table location, and a meta value on that table *)
-type tableId = int
-type metaId = int
-type flowId = tableId * metaId
+type tableId = int with sexp
+type metaId = int with sexp
+type flowId = tableId * metaId with sexp
 
 (* OpenFlow 1.3+ instruction types *)
 type instruction =
   [ `Action of Frenetic_OpenFlow.group
   | `GotoTable of flowId ]
+with sexp
 
 (* A flow table row, with multitable support. If goto has a Some value
  * then the 0x04 row instruction is GotoTable. *)
@@ -169,7 +170,7 @@ type multitable_flow = {
   hard_timeout : Frenetic_OpenFlow.timeout;
   instruction  : instruction;
   flowId       : flowId;
-}
+} with sexp
 
 val layout_to_string : flow_layout -> string
 
