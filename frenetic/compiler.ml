@@ -4,7 +4,7 @@ open Core.Std
 (* UTILITY FUNCTIONS                                                         *)
 (*===========================================================================*)
 
-let parse_pol file = 
+let parse_pol file =
   In_channel.read_all file
   |> Frenetic_NetKAT_Parser.policy_from_string
 
@@ -29,9 +29,9 @@ let dump_all_tables switches fdd =
 
 module Local = struct
   let spec = Command.Spec.(
-    empty 
+    empty
     +> anon ("filename" %: file)
-    +> flag "--switches" (optional int) 
+    +> flag "--switches" (optional int)
          ~doc:"n number of switches to dump flow tables for \
                (assuming switch-numbering 1,2,...,n)"
   )
@@ -51,8 +51,21 @@ module Local = struct
 end
 
 module Global = struct
-  let spec = Command.Spec.empty
-  let run () = printf "dummy!"
+  let spec = Command.Spec.(
+    empty
+    +> anon ("filename" %: file)
+    +> flag "--ff" no_arg
+         ~doc:" enable fast failover"
+  )
+
+  let run file failover () =
+    let pol = parse_pol file in
+    let fdd = Frenetic_NetKAT_Compiler.compile_global pol in
+    let switches = Frenetic_NetKAT_Semantics.switches_of_policy pol in
+    if failover then
+      dump_all_ffo_tables switches fdd
+    else
+      dump_all_tables switches fdd
 end
 
 module Virtual = struct
@@ -87,8 +100,8 @@ let virt : Command.t =
     Virtual.spec
     Virtual.run
 
-let main : Command.t = 
-  Command.group 
+let main : Command.t =
+  Command.group
     ~summary:"Runs compiler and dumps resulting flow tables"
     (* ~readme: *)
     [("local", local); ("global", global); ("virtual", virt)]
