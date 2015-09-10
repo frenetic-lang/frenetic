@@ -8,19 +8,19 @@ module Controller = Frenetic_OpenFlow0x01_Controller
 module Log = Frenetic_Log
 module Upd = Frenetic_NetKAT_Updates
 
-val bytes_to_headers : 
-	Frenetic_OpenFlow.portId -> 
-	Cstruct.t -> 
+val bytes_to_headers :
+	Frenetic_OpenFlow.portId ->
+	Cstruct.t ->
 	Frenetic_NetKAT_Semantics.HeadersValues.t
 
-val packet_sync_headers : 
-  Frenetic_NetKAT_Semantics.packet -> 
+val packet_sync_headers :
+  Frenetic_NetKAT_Semantics.packet ->
 	Frenetic_NetKAT_Semantics.packet * bool
 
-val of_to_netkat_event : 
-  Frenetic_NetKAT_Local_Compiler.t -> 
-  Controller.event -> 
-  Frenetic_NetKAT.event list 
+val of_to_netkat_event :
+  Frenetic_NetKAT_Compiler.t ->
+  Controller.event ->
+  Frenetic_NetKAT.event list
 
 module type CONTROLLER = sig
   val update_policy : policy -> unit Deferred.t
@@ -31,7 +31,7 @@ module type CONTROLLER = sig
   val is_query : string -> bool
   val start : int -> unit
   val current_switches : unit -> (switchId * portId list) list Deferred.t
-  val set_current_compiler_options : Frenetic_NetKAT_Local_Compiler.compiler_options -> unit
+  val set_current_compiler_options : Frenetic_NetKAT_Compiler.compiler_options -> unit
 end
 
-module Make : CONTROLLER 
+module Make : CONTROLLER

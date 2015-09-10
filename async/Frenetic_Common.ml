@@ -58,4 +58,4 @@ let parse_update_json body =
 
 let parse_config_json body =
   Body.to_string body >>= fun str ->
-  return (Frenetic_NetKAT_Local_Compiler.options_from_json_string str)
+  return (Frenetic_NetKAT_Compiler.options_from_json_string str)

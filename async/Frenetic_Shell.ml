@@ -3,7 +3,7 @@ open Async.Std
 open Frenetic_NetKAT
 
 module Controller = Frenetic_NetKAT_Controller.Make
-module LC = Frenetic_NetKAT_Local_Compiler
+module Comp = Frenetic_NetKAT_Compiler
 module Field = Frenetic_Fdd.Field
 module Log = Frenetic_Log
 
@@ -35,9 +35,9 @@ type command =
    *   default - Uses the default ordering as specified in NetKAT_LocalCompiler
    *   f_1 < f_2 [ < f_3 < ... < f_n ] - Given two or more fields, ensures the
    *                                     order of the specified fields is maintained. *)
-  | Order of LC.order
-  (* usage: remove_tail_drops 
-   * Remove any drop rules at the end of each flow table.  Toggles setting.  
+  | Order of Comp.order
+  (* usage: remove_tail_drops
+   * Remove any drop rules at the end of each flow table.  Toggles setting.
   *)
   | ToggleRemoveTailDrops
   (* usage: exit
@@ -100,8 +100,8 @@ module Parser = struct
         Ok (Frenetic_NetKAT_Parser.policy_from_string pol_str)
       with Camlp4.PreCast.Loc.Exc_located (error_loc,x) ->
         Error (
-          sprintf "Error: %s\n%s" 
-          (Camlp4.PreCast.Loc.to_string error_loc) 
+          sprintf "Error: %s\n%s"
+          (Camlp4.PreCast.Loc.to_string error_loc)
           (Exn.to_string x))
 
     (* Parser for netkat policies *)
@@ -170,14 +170,14 @@ end
 let compose f g x = f (g x)
 
 (* TODO(jcollard): The cache flag here is actually a problem. Changing ordering won't work as expected. *)
-let current_compiler_options = ref { LC.default_compiler_options with cache_prepare = `Keep }
+let current_compiler_options = ref { Comp.default_compiler_options with cache_prepare = `Keep }
 
 let set_field_order ord : unit =
   current_compiler_options := { !current_compiler_options with field_order = ord }
 
 (* Prints the current ordering mode. *)
 let print_order () : unit =
-  printf "Ordering Mode: %s\n%!" (LC.field_order_to_string (!current_compiler_options).field_order)
+  printf "Ordering Mode: %s\n%!" (Comp.field_order_to_string (!current_compiler_options).field_order)
 
 (* Convenience function that checks that an ordering doesn't contain
  * duplicates. This is used in favor of List.contains_dup so a better
@@ -195,7 +195,7 @@ let rec check_duplicates (fs : Field.t list) (acc : Field.t list) : bool =
 (* Given an ordering, sets the order reference.
  * If a Static ordering is given with duplicates, the ordering
  * is not updated and an error message is printed *)
-let set_order (o : LC.order) : unit =
+let set_order (o : Comp.order) : unit =
   match o with
   | `Heuristic ->
      set_field_order `Heuristic;
@@ -232,11 +232,11 @@ let print_policy () =
 
 (* Given a policy, returns a pretty ascii table for each switch *)
 let string_of_policy (pol : policy) : string =
-  let bdd = LC.compile ~options:(!current_compiler_options) pol in
+  let bdd = Comp.compile_local ~options:(!current_compiler_options) pol in
   let switches = Frenetic_NetKAT_Semantics.switches_of_policy pol in
   let switches' = if List.is_empty switches then [0L] else switches in
   let tbls = List.map switches'
-		      (fun sw_id -> LC.to_table ~options:(!current_compiler_options) sw_id bdd |>
+		      (fun sw_id -> Comp.to_table ~options:(!current_compiler_options) sw_id bdd |>
 				      Frenetic_OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id)) in
   String.concat ~sep:"\n\n" tbls
 
