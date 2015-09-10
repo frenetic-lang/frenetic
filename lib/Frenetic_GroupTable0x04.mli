@@ -3,6 +3,9 @@
 open Frenetic_OpenFlow0x04
 type t with sexp
 
+(* SJS *)
+val to_string : t -> string
+
 val create : unit -> t
 
 (** Creates a new group, allocating a fresh ID. *)
