@@ -7,10 +7,6 @@
     convenient.
 *)
 
-(** [bytes] is the type of arbitrary byte arrays, as implemented by
-    the [cstruct] library. *)
-type bytes = Cstruct.t with sexp
-
 (** [int8] is the type of 8-bit integers. *)
 type int8 = int with sexp
 
@@ -84,7 +80,7 @@ module Tcp : sig
     ; window : int16 (** Window size. *)
     ; chksum : int8  (** Checksum. *)
     ; urgent : int8 (** Urgent pointer. *)
-    ; payload : bytes (** TCP payload. *)
+    ; payload : Cstruct.t (** TCP payload. *)
     } with sexp
 end
 
@@ -95,7 +91,7 @@ module Udp : sig
     { src : tpPort (** Source port. *)
     ; dst : tpPort  (** Destination port. *)
     ; chksum : int16  (** Checksum. *)
-    ; payload : bytes (** UDP payload. *)
+    ; payload : Cstruct.t (** UDP payload. *)
     } with sexp
 end
 
@@ -106,7 +102,7 @@ module Icmp : sig
     { typ : int8 (** ICMP type. *)
     ; code : int8 (** ICMP subtype. *)
     ; chksum : int16 (** Checksum. *)
-    ; payload : bytes (** ICMP payload. *)
+    ; payload : Cstruct.t (** ICMP payload. *)
     } with sexp
 end
 
@@ -129,7 +125,7 @@ module Dns : sig
       ; typ : int16
       ; class_ : int16
       ; ttl : int (* TTL is a signed 32-bit int *)
-      ; rdata : bytes
+      ; rdata : Cstruct.t
       } with sexp
   end
 
@@ -181,7 +177,7 @@ module Igmp : sig
   type msg =
     | Igmp1and2 of Igmp1and2.t
     | Igmp3 of Igmp3.t
-    | Unparsable of (int8 * bytes)
+    | Unparsable of (int8 * Cstruct.t)
   with sexp
 
   type t = {
@@ -203,7 +199,7 @@ module Ip : sig
     | Udp of Udp.t
     | Icmp of Icmp.t
     | Igmp of Igmp.t
-    | Unparsable of (nwProto * bytes)
+    | Unparsable of (nwProto * Cstruct.t)
   with sexp
 
   module Flags : sig
@@ -223,7 +219,7 @@ module Ip : sig
     ; chksum : int16 (** Header checksum. *)
     ; src : nwAddr (** IP source address. *)
     ; dst : nwAddr (** IP destination address. *)
-    ; options : bytes (** Uninterpreted IP options. *)
+    ; options : Cstruct.t (** Uninterpreted IP options. *)
     ; tp : tp (** Transport payload. *)
     } with sexp
 end
@@ -240,7 +236,7 @@ end
 type nw =
   | Ip of Ip.t (** Internet Protocol version 4 (IPv4). *)
   | Arp of Arp.t (** Address Resolution Protocol (ARP). *)
-  | Unparsable of (dlTyp * bytes) (** The EtherType code accompanied by the 
+  | Unparsable of (dlTyp * Cstruct.t) (** The EtherType code accompanied by the 
                                   uninterpreted ethernet payload. *)
   with sexp
 

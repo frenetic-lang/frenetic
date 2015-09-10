@@ -157,7 +157,7 @@ module Tcp = struct
     ; window : int16
     ; chksum : int8
     ; urgent : int8
-    ; payload : bytes } with sexp
+    ; payload : Cstruct.t } with sexp
 
   let format fmt v =
     let open Format in
@@ -240,7 +240,7 @@ module Udp = struct
     { src : tpPort
     ; dst : tpPort
     ; chksum : int16
-    ; payload : bytes }
+    ; payload : Cstruct.t }
   with sexp
 
   let format fmt v =
@@ -285,7 +285,7 @@ module Icmp = struct
     typ : int8;
     code : int8;
     chksum : int16;
-    payload : bytes
+    payload : Cstruct.t
   } with sexp
 
   cstruct icmp { 
@@ -410,7 +410,7 @@ module Dns = struct
       typ : int16;
       class_ : int16;
       ttl : int; (* TTL is signed 32-bit int *)
-      rdata : bytes
+      rdata : Cstruct.t
     } with sexp
 
     cstruct rr {
@@ -684,7 +684,7 @@ module Igmp = struct
   type msg =
     | Igmp1and2 of Igmp1and2.t
     | Igmp3 of Igmp3.t
-    | Unparsable of (int8 * bytes)
+    | Unparsable of (int8 * Cstruct.t)
   with sexp
 
   type t = {
@@ -707,7 +707,7 @@ module Igmp = struct
   let format_msg fmt = function
     | Igmp1and2 igmp1and2 -> Igmp1and2.format fmt igmp1and2
     | Igmp3 igmp3 -> Igmp3.format fmt igmp3
-    | Unparsable (_, bytes) -> Format.fprintf fmt "msg_len=%d" (Cstruct.len bytes)
+    | Unparsable (_, b) -> Format.fprintf fmt "msg_len=%d" (Cstruct.len b)
 
   let format_ver_and_typ fmt v =
     let open Format in
@@ -768,7 +768,7 @@ module Ip = struct
     | Udp of Udp.t
     | Icmp of Icmp.t
     | Igmp of Igmp.t
-    | Unparsable of (nwProto * bytes)
+    | Unparsable of (nwProto * Cstruct.t)
   with sexp
 
   module Flags = struct
@@ -802,7 +802,7 @@ module Ip = struct
     chksum : int16;
     src : nwAddr;
     dst : nwAddr;
-    options : bytes;
+    options : Cstruct.t;
     tp : tp
   } with sexp
 
@@ -1023,7 +1023,7 @@ end
 type nw =
   | Ip of Ip.t
   | Arp of Arp.t
-  | Unparsable of (dlTyp * bytes)
+  | Unparsable of (dlTyp * Cstruct.t)
   with sexp
 
 type packet = {
@@ -1342,44 +1342,44 @@ let marshal (pkt:packet) : Cstruct.t =
   bits
 
 let ip_of_string (s : string) : nwAddr =
-  let bytes = Str.split (Str.regexp "\\.") s in
+  let b = Str.split (Str.regexp "\\.") s in
   let open Int32 in
-      (logor (shift_left (of_string (List.nth bytes 0)) 24)
-         (logor (shift_left (of_string (List.nth bytes 1)) 16)
-            (logor (shift_left (of_string (List.nth bytes 2)) 8)
-               (of_string (List.nth bytes 3)))))
+      (logor (shift_left (of_string (List.nth b 0)) 24)
+         (logor (shift_left (of_string (List.nth b 1)) 16)
+            (logor (shift_left (of_string (List.nth b 2)) 8)
+               (of_string (List.nth b 3)))))
 
 let mac_of_string (s : string) : dlAddr =
-  let bytes = Str.split (Str.regexp ":") s in
+  let b = Str.split (Str.regexp ":") s in
   let parse_byte str = Int64.of_string ("0x" ^ str) in
   let open Int64 in
-      (logor (shift_left (parse_byte (List.nth bytes 0)) 40)
-         (logor (shift_left (parse_byte (List.nth bytes 1)) 32)
-            (logor (shift_left (parse_byte (List.nth bytes 2)) 24)
-               (logor (shift_left (parse_byte (List.nth bytes 3)) 16)
-                  (logor (shift_left (parse_byte (List.nth bytes 4)) 8)
-                     (parse_byte (List.nth bytes 5)))))))
+      (logor (shift_left (parse_byte (List.nth b 0)) 40)
+         (logor (shift_left (parse_byte (List.nth b 1)) 32)
+            (logor (shift_left (parse_byte (List.nth b 2)) 24)
+               (logor (shift_left (parse_byte (List.nth b 3)) 16)
+                  (logor (shift_left (parse_byte (List.nth b 4)) 8)
+                     (parse_byte (List.nth b 5)))))))
 
 let ipv6_of_string (s : string) : ipv6Addr =
-  let bytes = Str.split (Str.regexp ":") s in
-  let bytes_len = List.length bytes in
+  let b = Str.split (Str.regexp ":") s in
+  let bytes_len = List.length b in
   let rec fill_with_0 n =
     if n = 0 then ["0"]
     else "0"::(fill_with_0 (n-1)) in
-  let rec fill_bytes bytes =
-    match bytes with
+  let rec fill_bytes b =
+    match b with
       | [] -> []
       | ""::q -> List.append (fill_with_0 (8-bytes_len)) q
       | t::q -> t::(fill_bytes q) in
-  let bytes = fill_bytes bytes in
+  let b = fill_bytes b in
   let parse_byte str = Int64.of_string ("0x" ^ str) in
   let open Int64 in
-      (logor (shift_left (parse_byte (List.nth bytes 0)) 48)
-         (logor (shift_left (parse_byte (List.nth bytes 1)) 32)
-            (logor (shift_left (parse_byte (List.nth bytes 2)) 16)
-               (parse_byte (List.nth bytes 3))))),
-      (logor (shift_left (parse_byte (List.nth bytes 4)) 48)
-         (logor (shift_left (parse_byte (List.nth bytes 5)) 32)
-            (logor (shift_left (parse_byte (List.nth bytes 6)) 16)
-               (parse_byte (List.nth bytes 7)))))
+      (logor (shift_left (parse_byte (List.nth b 0)) 48)
+         (logor (shift_left (parse_byte (List.nth b 1)) 32)
+            (logor (shift_left (parse_byte (List.nth b 2)) 16)
+               (parse_byte (List.nth b 3))))),
+      (logor (shift_left (parse_byte (List.nth b 4)) 48)
+         (logor (shift_left (parse_byte (List.nth b 5)) 32)
+            (logor (shift_left (parse_byte (List.nth b 6)) 16)
+               (parse_byte (List.nth b 7)))))
                         

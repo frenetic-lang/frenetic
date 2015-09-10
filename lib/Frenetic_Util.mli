@@ -2,7 +2,7 @@ open Core.Std
 
 module StringSet : Set.S with type Elt.t = string
 
-val make_string_of : (Format.formatter -> 'a -> 'b) -> 'a -> bytes
+val make_string_of : (Format.formatter -> 'a -> 'b) -> 'a -> string
 
 val string_of_option : ('a -> string) -> 'a option -> string
 

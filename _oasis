@@ -21,7 +21,7 @@ Library frenetic
     camlp4.lib,
     camlp4.extend,
     camlp4,
-    core (= 112.24.0),
+    core,
     cstruct,
     cstruct.syntax,
     fieldslib,
@@ -69,7 +69,7 @@ Library async
     async,
     cohttp,
     cohttp.async,
-    core (= 112.24.0),
+    core,
     cstruct,
     cstruct.async,
     frenetic,
@@ -96,7 +96,7 @@ Executable frenetic
   CompiledObject: native
   BuildDepends:
     async,
-    core  (= 112.24.0),
+    core,
     frenetic,
     frenetic.async,
     async_extended

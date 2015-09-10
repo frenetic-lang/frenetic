@@ -278,14 +278,14 @@ type flow = {
 type flowTable = flow list
 
 type payload =
-  | Buffered of bufferId * bytes
-  | NotBuffered of bytes
+  | Buffered of bufferId * Cstruct.t
+  | NotBuffered of Cstruct.t
 with sexp
 
-let payload_bytes (payload : payload) : bytes =
+let payload_bytes (payload : payload) : Cstruct.t =
   match payload with
-  | Buffered(_, bytes)
-  | NotBuffered(bytes) -> bytes
+  | Buffered(_, b)
+  | NotBuffered(b) -> b
 
 type packetInReason =
   | NoMatch
@@ -715,9 +715,9 @@ let from_flow (priority : int) (flow : flow) : OF10.flowMod =
 
 let from_payload (pay : payload) : OF10.payload =
   match pay with
-    | Buffered (buf_id, bytes) ->
-      Buffered (buf_id, bytes)
-    | NotBuffered bytes -> NotBuffered bytes
+    | Buffered (buf_id, b) ->
+      Buffered (buf_id, b)
+    | NotBuffered b -> NotBuffered b
       
 let from_packetOut (pktOut : pktOut) : OF10.packetOut =
   let output_payload, port_id, apply_actions = pktOut in

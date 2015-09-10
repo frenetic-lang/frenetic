@@ -5,9 +5,9 @@ type 'a mask = { m_value : 'a; m_mask : 'a option }
 type 'a asyncMask = { m_master : 'a ; m_slave : 'a }
 
 type payload =
-  | Buffered of int32 * bytes
+  | Buffered of int32 * Cstruct.t
     (** [Buffered (id, buf)] is a packet buffered on a switch. *)
-  | NotBuffered of bytes
+  | NotBuffered of Cstruct.t
 
 type xid = Frenetic_OpenFlow_Header.xid
 type int12 = int16
@@ -480,8 +480,8 @@ type tableFeatureProp =
   | TfpWriteSetFieldMiss of oxm list
   | TfpApplySetField of oxm list
   | TfpApplySetFieldMiss of oxm list
-  | TfpExperimenter of (experimenter*bytes)
-  | TfpExperimenterMiss of (experimenter*bytes)
+  | TfpExperimenter of (experimenter*Cstruct.t)
+  | TfpExperimenterMiss of (experimenter*Cstruct.t)
 
 type tableConfig = Deprecated
 
@@ -1456,7 +1456,7 @@ end
 
 type error = {
     err : errorTyp;
-    data : bytes;
+    data : Cstruct.t;
   }
 
 (** Error message structure. See the section 7.4.4 of the OpenFlow 1.3.4 specification *)
@@ -1559,8 +1559,8 @@ module Message : sig
 
   type t =
     | Hello of element list
-    | EchoRequest of bytes
-    | EchoReply of bytes
+    | EchoRequest of Cstruct.t
+    | EchoReply of Cstruct.t
     | FeaturesRequest
     | FeaturesReply of SwitchFeatures.t
     | FlowModMsg of FlowMod.t

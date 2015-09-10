@@ -162,14 +162,14 @@ type flowTable = flow list
 
 (** The payload for [packetIn] and [packetOut] messages *)
 type payload =
-  | Buffered of bufferId * bytes 
+  | Buffered of bufferId * Cstruct.t 
     (** [Buffered (id, buf)] is a packet buffered on a switch *)
-  | NotBuffered of bytes
+  | NotBuffered of Cstruct.t
 with sexp
 
 
 (** [payload_bytes payload] returns the bytes for the given payload *)
-val payload_bytes : payload -> bytes
+val payload_bytes : payload -> Cstruct.t
 
 type packetInReason =
   | NoMatch
