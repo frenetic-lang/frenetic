@@ -606,7 +606,8 @@ module Action = struct
           if Seq.mem seq (F f) then
             failwith "program counter field already in use - must be fresh!"
           else
-            Seq.add seq ~key:(F f) ~data:v
+            Seq.remove seq K
+            |> Seq.add ~key:(F f) ~data:v
       in
       Seq.fold (Seq.remove seq (F Location)) ~init ~f:(fun ~key ~data acc ->
         match key, data with
