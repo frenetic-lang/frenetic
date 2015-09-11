@@ -494,15 +494,10 @@ module Action = struct
       let compare = compare_field_or_cont
     end)
 
-    let fold_fields seq ?(pc = None) ~init ~f =
+    let fold_fields seq ~init ~f =
       fold seq ~init ~f:(fun ~key ~data acc -> match key with
         | F key -> f ~key ~data acc
-        | _ ->
-	   begin
-	     match pc with
-	     | Some key -> f ~key ~data acc
-	     | None -> acc
-	   end)
+        | _ -> acc)
 
     let equal_mod_k s1 s2 = equal (=) (remove s1 K) (remove s2 K)
 
@@ -562,7 +557,6 @@ module Action = struct
       | _ -> queries)
 
   let to_sdn ?pc ?group_tbl (in_port : int64 option) (t:t) : SDN.par =
-
     (* Convert a NetKAT action to an SDN action. At the moment this function
        assumes that fields are assigned to proper bitwidth integers, and does
        no validation along those lines. If the input is derived from a NetKAT
@@ -600,28 +594,40 @@ module Action = struct
             | Some tbl ->
               let gid = Frenetic_GroupTable0x04.add_fastfail_group tbl p_lst
               in [SDN.(FastFail gid)]
-            | None -> failwith "No group table provided")
+            | None -> failwith "fast failover present, but no group table provided!")
         | Some mask      -> raise (FieldValue_mismatch(Location, mask))
       in
-      Seq.fold_fields (Seq.remove seq (F Location)) ~pc ~init ~f:(fun ~key ~data acc ->
+      let seq =
+        match pc, Seq.find seq K with
+        | _, None -> seq
+        | None, Some _ ->
+          failwith "continuation present, but no program counter field provided!"
+        | Some f, Some v ->
+          if Seq.mem seq (F f) then
+            failwith "program counter field already in use - must be fresh!"
+          else
+            Seq.add seq ~key:(F f) ~data:v
+      in
+      Seq.fold (Seq.remove seq (F Location)) ~init ~f:(fun ~key ~data acc ->
         match key, data with
-        | Switch  , Const switch -> raise Frenetic_NetKAT.Non_local
-        | Switch  , _ -> raise (FieldValue_mismatch(Switch, data))
-        | Location, _ -> assert false
-        | EthSrc  , Const dlAddr  -> SDN.(Modify(SetEthSrc dlAddr)) :: acc
-        | EthDst  , Const dlAddr  -> SDN.(Modify(SetEthDst dlAddr)) :: acc
-        | Vlan    , Const vlan    -> SDN.(Modify(SetVlan(Some(to_int vlan)))) :: acc
-        | VlanPcp , Const vlanPcp -> SDN.(Modify(SetVlanPcp (to_int vlanPcp))) :: acc
-        | VSwitch, Const _ | VPort, Const _ | VFabric, Const _ -> assert false (* JNF: danger, danger *)
-        | EthType , Const dlTyp   -> SDN.(Modify(SetEthTyp (to_int dlTyp))) :: acc
-        | IPProto , Const nwProto -> SDN.(Modify(SetIPProto (to_int nwProto))) :: acc
-        | IP4Src  , Mask (nwAddr, 64)
-        | IP4Src  , Const nwAddr   -> SDN.(Modify(SetIP4Src(to_int32 nwAddr))) :: acc
-        | IP4Dst  , Mask (nwAddr, 64)
-        | IP4Dst  , Const nwAddr   -> SDN.(Modify(SetIP4Dst(to_int32 nwAddr))) :: acc
-        | TCPSrcPort, Const tpPort -> SDN.(Modify(SetTCPSrcPort(to_int tpPort))) :: acc
-        | TCPDstPort, Const tpPort -> SDN.(Modify(SetTCPDstPort(to_int tpPort))) :: acc
-        | _, _ -> raise (FieldValue_mismatch(key, data))
+        | F Switch  , Const switch -> raise Frenetic_NetKAT.Non_local
+        | F Switch  , _ -> raise (FieldValue_mismatch(Switch, data))
+        | F Location, _ -> assert false
+        | F EthSrc  , Const dlAddr  -> SDN.(Modify(SetEthSrc dlAddr)) :: acc
+        | F EthDst  , Const dlAddr  -> SDN.(Modify(SetEthDst dlAddr)) :: acc
+        | F Vlan    , Const vlan    -> SDN.(Modify(SetVlan(Some(to_int vlan)))) :: acc
+        | F VlanPcp , Const vlanPcp -> SDN.(Modify(SetVlanPcp (to_int vlanPcp))) :: acc
+        | F VSwitch, Const _ | F VPort, Const _ | F VFabric, Const _ -> assert false (* JNF: danger, danger *)
+        | F EthType , Const dlTyp   -> SDN.(Modify(SetEthTyp (to_int dlTyp))) :: acc
+        | F IPProto , Const nwProto -> SDN.(Modify(SetIPProto (to_int nwProto))) :: acc
+        | F IP4Src  , Mask (nwAddr, 64)
+        | F IP4Src  , Const nwAddr   -> SDN.(Modify(SetIP4Src(to_int32 nwAddr))) :: acc
+        | F IP4Dst  , Mask (nwAddr, 64)
+        | F IP4Dst  , Const nwAddr   -> SDN.(Modify(SetIP4Dst(to_int32 nwAddr))) :: acc
+        | F TCPSrcPort, Const tpPort -> SDN.(Modify(SetTCPSrcPort(to_int tpPort))) :: acc
+        | F TCPDstPort, Const tpPort -> SDN.(Modify(SetTCPDstPort(to_int tpPort))) :: acc
+        | F f, _ -> raise (FieldValue_mismatch(f, data))
+        | K, _ -> assert false
       ) :: acc)
 
   let demod (f, v) t =
@@ -636,7 +642,7 @@ module Action = struct
   let to_policy t =
     let open Frenetic_NetKAT in
     Par.fold t ~init:drop ~f:(fun acc seq ->
-      let seq' = Seq.fold_fields seq ~pc:None ~init:id ~f:(fun ~key ~data acc ->
+      let seq' = Seq.fold_fields seq ~init:id ~f:(fun ~key ~data acc ->
         let hv = match Pattern.to_hv (key, data) with
           | IP4Src(nwAddr, 32l) -> IP4Src(nwAddr, 32l)
           | IP4Dst(nwAddr, 32l) -> IP4Dst(nwAddr, 32l)
