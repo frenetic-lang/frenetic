@@ -492,7 +492,12 @@ let to_entry (f : flow) : (string list) * (string list) =
   let open Core.Std in
   let open List in
   let pattern_list = pattern_list f.pattern in
-  let action_list = map (concat (concat f.action)) string_of_action in
+  let pars : string list list = map ~f:(map ~f:string_of_action) (concat f.action) in
+  let add_sep = function
+    | [] -> assert false
+    | h::tl -> ("+ " ^ h)::tl
+  in
+  let action_list = concat_mapi pars ~f:(function 0 -> ident | _ -> add_sep) in
   (pattern_list, action_list)
 
 (* Pads a string with spaces so that it is atleast `len` characters. *)
