@@ -820,7 +820,7 @@ let compile_global (pol : Frenetic_NetKAT.policy) : FDK.t =
 (*==========================================================================*)
 
 (* Each list of fields represents the fields one flow table can match on *)
-type flow_layout = Field.t list list
+type flow_layout = Field.t list list with sexp
 
 let layout_to_string (layout : flow_layout) : string =
   List.map layout ~f:(fun table ->
@@ -829,17 +829,18 @@ let layout_to_string (layout : flow_layout) : string =
   |> String.concat
 
 (* Each flow table row has a table location, and a meta value on that table *)
-type tableId = int
-type metaId = int
-type flowId = tableId * metaId
+type tableId = int with sexp
+type metaId = int with sexp
+type flowId = tableId * metaId with sexp
 
 (* Match subtrees of t with the table location they will be placed *)
-type flow_subtrees = (t, flowId) Map.Poly.t
+type flow_subtrees = (t, flowId) Map.Poly.t with sexp
 
 (* OpenFlow 1.3+ instruction types *)
 type instruction =
   [ `Action of Frenetic_OpenFlow.group
   | `GotoTable of flowId ]
+  with sexp
 
 (* A flow table row, with multitable support. If goto has a Some value
  * then the 0x04 row instruction is GotoTable. *)
@@ -850,7 +851,7 @@ type multitable_flow = {
   hard_timeout : Frenetic_OpenFlow.timeout;
   instruction  : instruction;
   flowId       : flowId;
-}
+} with sexp
 
 (* C style x++ for mutable ints *)
 let post (x : int ref) : int =
