@@ -383,7 +383,7 @@ type packetIn = { pi_total_len : int16
 		; pi_cookie : int64
 		; pi_ofp_match : oxmMatch
 		; pi_payload : payload
-		; pi_port : portId }
+		}
 
 type flowReason =
   | FlowIdleTimeout
