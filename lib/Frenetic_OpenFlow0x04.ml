@@ -360,14 +360,9 @@ type packetInReason =
   | ExplicitSend
   | InvalidTTL
 
-type packetIn = { pi_total_len : int16
-		; pi_reason : packetInReason
-		; pi_table_id : tableId
-		; pi_cookie : int64
-		; pi_ofp_match : oxmMatch
-		; pi_payload : payload
-		; pi_port : portId
-		}
+type packetIn = { pi_total_len : int16; pi_reason : packetInReason;
+                  pi_table_id : tableId; pi_cookie : int64;
+                  pi_ofp_match : oxmMatch; pi_payload : payload }
 
 type flowReason =
   | FlowIdleTimeout
@@ -4175,8 +4170,7 @@ module PacketIn = struct
     uint16_t total_len;
     uint8_t reason;
     uint8_t table_id;
-    uint64_t cookie;
-    uint32_t in_port;
+    uint64_t cookie
   } as big_endian
 
   let sizeof (pi : t) : int =
@@ -4219,7 +4213,6 @@ module PacketIn = struct
       | -1l -> None
       | n -> Some n in
     let total_len = get_ofp_packet_in_total_len bits in
-    let in_port = get_ofp_packet_in_in_port bits in
     let reason_code = get_ofp_packet_in_reason bits in
     let reason = Reason.parse (reason_code) in
     let table_id = get_ofp_packet_in_table_id bits in
@@ -4235,13 +4228,12 @@ module PacketIn = struct
       | None -> NotBuffered final_bits
       | Some n -> Buffered (n,final_bits)
     in
-    { pi_total_len = total_len
-    ; pi_reason = reason
-    ; pi_table_id = table_id
-    ; pi_cookie = cookie
-    ; pi_ofp_match = ofp_match
-    ; pi_payload = pkt
-    ; pi_port = in_port
+    { pi_total_len = total_len;
+      pi_reason = reason;
+      pi_table_id = table_id;
+      pi_cookie = cookie;
+      pi_ofp_match = ofp_match;
+      pi_payload = pkt
     }
 
 end
