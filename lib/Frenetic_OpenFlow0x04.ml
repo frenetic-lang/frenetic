@@ -366,6 +366,7 @@ type packetIn = { pi_total_len : int16
 		; pi_cookie : int64
 		; pi_ofp_match : oxmMatch
 		; pi_payload : payload
+		; pi_port : portId
 		}
 
 type flowReason =
@@ -4210,6 +4211,7 @@ module PacketIn = struct
       | -1l -> None
       | n -> Some n in
     let total_len = get_ofp_packet_in_total_len bits in
+    let in_port = get_ofp_packet_in_in_port bits in
     let reason_code = get_ofp_packet_in_reason bits in
     let reason = Reason.parse (reason_code) in
     let table_id = get_ofp_packet_in_table_id bits in
@@ -4231,6 +4233,7 @@ module PacketIn = struct
     ; pi_cookie = cookie
     ; pi_ofp_match = ofp_match
     ; pi_payload = pkt
+    ; pi_port = in_port
     }
 
 end

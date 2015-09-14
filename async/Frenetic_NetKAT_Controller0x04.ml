@@ -91,18 +91,9 @@ let of_to_netkat_event fdd (evt : Controller.event) : Frenetic_NetKAT.event list
           let pt_id = (ps.desc.port_no) in
           [PortDown (sw_id, pt_id)]
       end
-  | `Message (sw_id,hdr,PacketInMsg pi) 
-       when
-	 (let isInPort = (fun oxm -> match oxm with
-				     | Frenetic_OpenFlow0x04.OxmInPort ip -> true
-				     | _ -> false) in
-	  let port_id =
-	    match (List.filter ~f:isInPort pi.pi_ofp_match) with
-	    | [OxmInPort pid] -> pid
-	    | _ -> Int32.of_int_exn 0xffff
-	  in
-	  port_id <= Int32.of_int_exn 0xff00) ->
-      let port_id = failwith "TODO" in
+  | `Message (sw_id,hdr,PacketInMsg pi)
+       when pi.pi_port <= Int32.of_int_exn 0xff00 ->
+      let port_id = pi.pi_port in
       let payload : Frenetic_OpenFlow.payload = 
         match pi.pi_payload with 
         | Buffered (id,bs) -> Buffered (id,bs) 
