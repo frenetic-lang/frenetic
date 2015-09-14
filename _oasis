@@ -83,9 +83,7 @@ Library async
     Frenetic_Compile_Server,
     Frenetic_Http_Controller,
     Frenetic_OpenFlow0x01_Controller,
-    Frenetic_OpenFlow0x04_Controller,
     Frenetic_NetKAT_Controller,
-    Frenetic_NetKAT_Controller0x04,
     Frenetic_NetKAT_Updates,
     Frenetic_Ox
 
