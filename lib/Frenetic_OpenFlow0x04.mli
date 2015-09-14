@@ -984,6 +984,7 @@ type switchFeatures = { datapath_id : int64
 		      ; num_tables : int8
 		      ; aux_id : int8
 		      ; supported_capabilities : capabilities
+		      ;
 		      }
 
 
