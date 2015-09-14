@@ -4167,12 +4167,11 @@ module PacketIn = struct
   end
 
     cstruct ofp_packet_in {
-    uint32_t buffer_id;
-    uint16_t total_len;
-    uint8_t reason;
-    uint8_t table_id;
-    uint64_t cookie;
-    uint32_t in_port;
+      uint32_t buffer_id
+    ; uint16_t total_len
+    ; uint8_t reason
+    ; uint8_t table_id
+    ; uint64_t cookie
   } as big_endian
 
   let sizeof (pi : t) : int =
