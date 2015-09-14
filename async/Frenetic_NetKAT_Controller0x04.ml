@@ -93,13 +93,16 @@ let of_to_netkat_event fdd (evt : Controller.event) : Frenetic_NetKAT.event list
       end
   | `Message (sw_id,hdr,PacketInMsg pi) 
        when
-	 (match (List.filter ~f:OF.is_OxmInPort pi.pi_ofp_match) with
-	   | [OxmInPort pid] -> (pid <= Int32.of_int_exn 0xff00)
-	   | _ -> false) ->
-     let port_id = (match (List.filter ~f:OF.is_OxmInPort pi.pi_ofp_match) with
-		    | [OxmInPort pid] -> pid
-		    | _ -> failwith "Guarded against this")
-     in
+	 (let isInPort = (fun oxm -> match oxm with
+				     | Frenetic_OpenFlow0x04.OxmInPort ip -> true
+				     | _ -> false) in
+	  let port_id =
+	    match (List.filter ~f:isInPort pi.pi_ofp_match) with
+	    | [OxmInPort pid] -> pid
+	    | _ -> Int32.of_int_exn 0xffff
+	  in
+	  port_id <= Int32.of_int_exn 0xff00) ->
+      let port_id = failwith "TODO" in
       let payload : Frenetic_OpenFlow.payload = 
         match pi.pi_payload with 
         | Buffered (id,bs) -> Buffered (id,bs) 

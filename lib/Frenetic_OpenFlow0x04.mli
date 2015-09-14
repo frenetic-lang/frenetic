@@ -237,8 +237,6 @@ type oxm =
 | OxmPBBIsid of int24 mask
 | OxmIPv6ExtHdr of oxmIPv6ExtHdr mask
 
-val is_OxmInPort : oxm -> bool				 
-				 
 type oxmMatch = oxm list
 
 (** {2 Convenient Functions} *)
