@@ -76,8 +76,11 @@ let of_to_netkat_event fdd (evt : Controller.event) : Frenetic_NetKAT.event list
   match evt with
   (* TODO(arjun): include switch features in SwitchUp *)
   | `Connect (sw_id, feats) ->
-     (* TODO(jcollard): Switch Features no longer contains ports. Discover ports another way. *)
-     let ps = [] 
+     (* TODO(joe): Did we just want the port number? Or do we want the entire description? *)
+     let ps =
+       List.filter
+	       (List.map feats.ports ~f:(fun desc -> desc.port_no))
+	       ~f:(fun p -> not (p = 0xFFFEl))
      in [SwitchUp(sw_id, ps)]
   | `Disconnect (sw_id) -> [SwitchDown sw_id]
   | `Message (sw_id, hdr, PortStatusMsg ps) ->
@@ -169,9 +172,13 @@ module Make : CONTROLLER = struct
     Deferred.List.filter_map ~f:Controller.get_switch_features
       switches >>| fun features ->
     let get_switch_and_ports (feats : OF.SwitchFeatures.t) =
-      (* TODO(jcollard): Switch Features no longer includes ports. Discover another way *)
-      let pts = [] in
-      (feats.datapath_id, pts) in
+      (feats.datapath_id,
+       List.filter_map ~f:(fun port_desc ->
+         if port_desc.port_no = (Int32.of_int_exn 0xFFFE) then
+           None
+         else
+           Some port_desc.port_no)
+         feats.ports) in
     List.map ~f:get_switch_and_ports features
 
   let get_table (sw_id : switchId) : (Frenetic_OpenFlow.flow * string list) list =
