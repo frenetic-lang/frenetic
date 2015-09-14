@@ -8,61 +8,7 @@ type event = [
   | `Disconnect of switchId
   | `Message of switchId * Frenetic_OpenFlow_Header.t * Message.t 
 ]
-
-let server_reader = Ivar.create ()
-let server_writer = Ivar.create ()
-
-let read_outstanding = ref false				
-let read_finished = Condition.create ()
-				     
-let rec clear_to_read () = if (!read_outstanding)
-  then Condition.wait read_finished >>= clear_to_read
-  else return (read_outstanding := true)
-
-let signal_read () = read_outstanding := false; 
-  Condition.broadcast read_finished ()	      
-	      
-let ready_to_process () =
-  Ivar.read server_reader
-  >>= fun reader ->
-  Ivar.read server_writer
-  >>= fun writer ->
-  clear_to_read ()
-  >>= fun () ->
-  let read () = Reader.read_marshal reader >>| function
-    | `Eof -> Log.error "OpenFlow server socket shutdown unexpectedly!";
-      failwith "Can not reach OpenFlow server!"
-    | `Ok a -> a in
-  let write = Writer.write_marshal writer ~flags:[] in
-  return (read, write)
-	 
-let get_switches () =
-  ready_to_process ()
-  >>= fun (recv, send) ->
-  send `Get_switches;
-  recv ()
-  >>| function
-  | `Get_switches_resp resp ->
-      signal_read (); resp
-
-let get_switch_features (switch_id : switchId) =
-  ready_to_process ()
-  >>= fun (recv, send) ->
-  send (`Get_switch_features switch_id);
-  recv ()
-  >>| function
-  | `Get_switch_features_resp resp ->
-    signal_read (); resp
-
-let send swid xid msg =
-  ready_to_process ()
-  >>= fun (recv, send) ->
-  send (`Send (swid,xid,msg));
-  recv ()
-  >>| function
-  | `Send_resp resp ->
-    signal_read (); resp
-		      
+	       
 	       
 (* Marshal and send a message to the switch *)
 let send_message (to_client : Writer.t) (xid : Frenetic_OpenFlow_Header.xid)

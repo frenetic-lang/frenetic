@@ -1615,5 +1615,3 @@ module Message : sig
   val marshal_body : t -> Cstruct.t -> unit
 
 end
-
-val from_packetOut : Frenetic_OpenFlow.pktOut -> packetOut
