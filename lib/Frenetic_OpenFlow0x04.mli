@@ -977,12 +977,12 @@ module Capabilities : sig
 
 end
 
-type switchFeatures = { datapath_id : int64; 
-			num_buffers : int32;
-			num_tables : int8; 
-			aux_id : int8;
-			supported_capabilities : capabilities;
-			ports : portDesc list
+type switchFeatures = { datapath_id : int64
+		      ; num_buffers : int32
+		      ; num_tables : int8
+		      ; aux_id : int8
+		      ; supported_capabilities : capabilities
+		      ;
 		      }
 
 

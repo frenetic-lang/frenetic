@@ -645,14 +645,13 @@ type flowMod = { mfCookie : int64 mask; mfTable_id : tableId;
                  mfOut_group : groupId option; mfFlags : flowModFlags;
                  mfOfp_match : oxmMatch; mfInstructions : instruction list }
 
-type switchFeatures = {
-  datapath_id : int64;
-  num_buffers : int32;
-  num_tables : int8;
-  aux_id : int8;
-  supported_capabilities : capabilities;
-  ports : portDesc list
-}
+type switchFeatures = { datapath_id : int64
+		      ; num_buffers : int32
+		      ; num_tables : int8
+		      ; aux_id : int8
+		      ; supported_capabilities : capabilities
+		      ;
+		      }
 
 let match_all = []
 
@@ -4119,18 +4118,11 @@ module SwitchFeatures = struct
     let aux_id = get_ofp_switch_features_auxiliary_id bits in
     let supported_capabilities = Capabilities.parse
         (get_ofp_switch_features_capabilities bits) in
-    let portIter =
-      Cstruct.iter
-	(fun buf -> Some PortDesc.size)
-	PortDesc.parse
-	bits in
-    let ports = Cstruct.fold (fun acc bits -> bits :: acc) portIter [] in
-    { datapath_id;
-      num_buffers;
-      num_tables;
-      aux_id;
-      supported_capabilities;
-      ports
+    { datapath_id
+    ; num_buffers
+    ; num_tables
+    ; aux_id
+    ; supported_capabilities
     }
 
 end
