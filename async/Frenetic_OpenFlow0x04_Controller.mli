@@ -9,14 +9,10 @@ type event = [
   | `Message of switchId * Frenetic_OpenFlow_Header.t * Message.t 
 ]
 
-val init: int -> unit
-
 val get_switches : unit -> switchId list Deferred.t
 
 val get_switch_features : switchId -> SwitchFeatures.t option Deferred.t
 
-val events : event Pipe.Reader.t			       
-						       
 val send : switchId -> xid -> Message.t -> [`Ok | `Eof] Deferred.t						       
 	       
 (* Marshal and send a message to the switch *)
