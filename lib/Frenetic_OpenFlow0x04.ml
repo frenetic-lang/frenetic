@@ -256,6 +256,11 @@ type oxm =
   | OxmIPv6ExtHdr of oxmIPv6ExtHdr mask
   with sexp
 
+let is_OxmInPort (oxm : oxm) =
+  match oxm with
+  | OxmInPort pt -> true
+  | _ -> false
+	 
 type oxmMatch = oxm list with sexp
 
 type pseudoPort =
