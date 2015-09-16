@@ -2778,7 +2778,7 @@ module QueueDesc = struct
       uint16_t len;
       uint8_t pad[4];
       uint16_t rate;
-      uint8_t pad[6]
+      uint8_t pad2[6]
     } as big_endian
 
     cstruct ofp_queue_prop_max_rate {
@@ -2786,7 +2786,7 @@ module QueueDesc = struct
       uint16_t len;
       uint8_t pad[4];
       uint16_t rate;
-      uint8_t pad[6]
+      uint8_t pad2[6]
     } as big_endian
 
     cstruct ofp_queue_prop_experimenter {
@@ -2794,7 +2794,7 @@ module QueueDesc = struct
       uint16_t len;
       uint8_t pad[4];
       uint32_t experimenter;
-      uint8_t pad[4]
+      uint8_t pad2[4]
     } as big_endian
 
     type t = queueProp
@@ -2830,23 +2830,29 @@ module QueueDesc = struct
       | MinRateProp rate ->
         set_ofp_queue_prop_min_rate_property buf (ofp_queue_properties_to_int OFPQT_MIN_RATE);
         set_ofp_queue_prop_min_rate_len buf 16; (* fixed by specification *)
+        set_ofp_queue_prop_min_rate_pad "\000\000\000\000" 0 buf; 
         set_ofp_queue_prop_min_rate_rate buf (
           match rate with
           | Rate n -> n
           | Disabled -> 0xffff);
+        set_ofp_queue_prop_min_rate_pad2 "\000\000\000\000\000\000" 0 buf; 
         sizeof_ofp_queue_prop_min_rate
       | MaxRateProp rate ->
         set_ofp_queue_prop_max_rate_property buf (ofp_queue_properties_to_int OFPQT_MAX_RATE);
         set_ofp_queue_prop_max_rate_len buf 16; (* fixed by specification *)
+        set_ofp_queue_prop_max_rate_pad "\000\000\000\000" 0 buf; 
         set_ofp_queue_prop_max_rate_rate buf (
           match rate with
           | Rate n -> n
           | Disabled -> 0xffff);
+        set_ofp_queue_prop_max_rate_pad2 "\000\000\000\000\000\000" 0 buf; 
         sizeof_ofp_queue_prop_max_rate
       | ExperimenterProp id ->
         set_ofp_queue_prop_experimenter_property buf (ofp_queue_properties_to_int OFPQT_EXPERIMENTER);
         set_ofp_queue_prop_experimenter_len buf 16; (* fixed by specification *)
+        set_ofp_queue_prop_experimenter_pad "\000\000\000\000" 0 buf; 
         set_ofp_queue_prop_experimenter_experimenter buf id;
+        set_ofp_queue_prop_experimenter_pad2 "\000\000\000\000" 0 buf; 
         sizeof_ofp_queue_prop_experimenter
 
     let parse (bits : Cstruct.t) : t =
@@ -2886,6 +2892,7 @@ module QueueDesc = struct
     set_ofp_packet_queue_queue_id buf qd.queue_id;
     set_ofp_packet_queue_port buf qd.port;
     set_ofp_packet_queue_len buf qd.len;
+    set_ofp_packet_queue_pad "\000\000\000\000\000\000" 0 buf; 
     let propBuf = Cstruct.sub buf sizeof_ofp_packet_queue (qd.len - sizeof_ofp_packet_queue) in
     sizeof_ofp_packet_queue + (marshal_fields propBuf qd.properties QueueProp.marshal)
 
@@ -3036,6 +3043,8 @@ module Action = struct
       set_ofp_action_push_typ buf 17; (* PUSH_VLAN *)
       set_ofp_action_push_len buf size;
       set_ofp_action_push_ethertype buf ethertype;
+      set_ofp_action_push_pad0 buf 0;
+      set_ofp_action_push_pad1 buf 0;
       size
     | PopVlan ->
       set_ofp_action_header_typ buf 18; (* POP_VLAN *)
@@ -3049,11 +3058,15 @@ module Action = struct
       set_ofp_action_push_typ buf 19; (* PUSH_MPLS *)
       set_ofp_action_push_len buf size;
       set_ofp_action_push_ethertype buf ethertype;
+      set_ofp_action_push_pad0 buf 0;
+      set_ofp_action_push_pad1 buf 0;
       size
     | PopMpls ethertype ->
       set_ofp_action_pop_mpls_typ buf 20; (* POP_MPLS *)
       set_ofp_action_pop_mpls_len buf size;
       set_ofp_action_pop_mpls_ethertype buf ethertype;
+      set_ofp_action_pop_mpls_pad0 buf 0;
+      set_ofp_action_pop_mpls_pad1 buf 0;
       size
     | Group gid ->
       set_ofp_action_group_typ buf 22; (* OFPAT_GROUP *)
@@ -5140,16 +5153,24 @@ module MultipartReq = struct
     | FlowStatsReq f -> size + (FlowRequest.marshal pay_buf f)
     | AggregFlowStatsReq f -> size + (FlowRequest.marshal pay_buf f)
     | TableStatsReq -> size
-    | PortStatsReq p -> set_ofp_port_stats_request_port_no pay_buf p;
+    | PortStatsReq p -> 
+      set_ofp_port_stats_request_port_no pay_buf p;
+      set_ofp_port_stats_request_pad "\000\000\000\000" 0 pay_buf;
       size + sizeof_ofp_port_stats_request
     | QueueStatsReq q -> size + (QueueRequest.marshal pay_buf q)
-    | GroupStatsReq g -> set_ofp_port_stats_request_port_no pay_buf g;
-      size + sizeof_ofp_port_stats_request
+    | GroupStatsReq g -> 
+      set_ofp_group_stats_request_group_id pay_buf g;
+      set_ofp_group_stats_request_pad "\000\000\000\000" 0 pay_buf;
+      size + sizeof_ofp_group_stats_request
     | GroupDescReq
     | GroupFeatReq -> size
-    | MeterStatsReq m -> set_ofp_meter_multipart_request_meter_id pay_buf m;
+    | MeterStatsReq m -> 
+      set_ofp_meter_multipart_request_meter_id pay_buf m;
+      set_ofp_meter_multipart_request_pad "\000\000\000\000" 0 pay_buf;
       size + sizeof_ofp_meter_multipart_request
-    | MeterConfReq m -> set_ofp_meter_multipart_request_meter_id pay_buf m;
+    | MeterConfReq m -> 
+      set_ofp_meter_multipart_request_meter_id pay_buf m;
+      set_ofp_meter_multipart_request_pad "\000\000\000\000" 0 pay_buf;
       size + sizeof_ofp_meter_multipart_request
     | MeterFeatReq -> size
     | TableFeatReq t ->

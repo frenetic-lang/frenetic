@@ -31,7 +31,7 @@ let test_marshal frenetic_msg msg_name =
   let frenetic_hex = buf_to_hex (Cstruct.of_string cs) in
   let ryu_hex_file_name = "lib_test/data/openflow0x04/" ^ msg_name ^ ".hex" in
   let ryu_hex = In_channel.read_all ryu_hex_file_name in
-  (*
+  (* 
   printf "RYU: %s\nFR:  %s\n%!" ryu_hex frenetic_hex; 
   *)
   frenetic_hex = ryu_hex
@@ -47,10 +47,15 @@ let test_parse frenetic_msg msg_name =
   (*
   let ryu_as_string = Message.to_string ryu_msg in
   let frenetic_as_string = Message.to_string frenetic_msg in
+  let cs = Message.marshal 0l frenetic_msg in
+  let frenetic_hex = buf_to_hex (Cstruct.of_string cs) in
   printf "%s\n%!" (buf_to_hex (Cstruct.of_string message_buf));
   printf "RYU: %s\nFR:  %s\n%!" ryu_as_string frenetic_as_string; 
+  printf "RYU: %s\nFR:  %s\n%!" ryu_hex frenetic_hex; 
   *)
   ryu_msg = frenetic_msg
+
+(******** OFPT_HELLO *)
 
 TEST "OfpHello Marshal" = 
   let frenetic_msg = Message.Hello ([ VersionBitMap [4; 1] ]) in
@@ -61,6 +66,8 @@ TEST "OfpHello Parse" =
      two lists as different.  Perhaps VersionBitMap should use sets instead of lists. *)
   let frenetic_msg = Message.Hello ([ VersionBitMap [4; 1] ]) in
   test_parse frenetic_msg "OfpHello"
+
+(******** OFPT_ERROR_MESSAGE *)
 
 TEST "OfpErrorMessage Parse" =
   let all_error_combinations = [
@@ -175,6 +182,8 @@ TEST "OfpErrorMessage Parse" =
   in
   List.fold_left ~init:true ~f:(&&) (List.map ~f:test_one_msg all_error_combinations)
 
+(******** OFPT_ECHO_REQUEST *)
+
 TEST "OfpEchoRequest Marshal" = 
   let frenetic_msg = Message.EchoRequest (Cstruct.of_string "OfpEchoRequest") in
   test_marshal frenetic_msg "OfpEchoRequest"
@@ -182,6 +191,8 @@ TEST "OfpEchoRequest Marshal" =
 TEST "OfpEchoRequest Parse" = 
   let frenetic_msg = Message.EchoRequest (Cstruct.of_string "OfpEchoRequest") in
   test_parse frenetic_msg "OfpEchoRequest"
+
+(******** OFPT_ECHO_REPLY *)
 
 TEST "OfpEchoReply Marshal" = 
   let frenetic_msg = Message.EchoReply (Cstruct.of_string "OfpEchoReply") in
@@ -191,9 +202,13 @@ TEST "OfpEchoReply Parse" =
   let frenetic_msg = Message.EchoReply (Cstruct.of_string "OfpEchoReply") in
   test_parse frenetic_msg "OfpEchoReply"
 
+(******** OFPT_FEATURES_REQUEST *)
+
 TEST "OfpFeaturesRequest Marshal" = 
   let frenetic_msg = Message.FeaturesRequest in
   test_marshal frenetic_msg "OfpFeaturesRequest"
+
+(******** OFPT_FEATURES_REPLY *)
 
 (* TODO: This temporarily doesn't work because ports is required, which isn't part of 0x04 spec 
 TEST "OfpFeaturesReply Parse" = 
@@ -215,9 +230,14 @@ TEST "OfpFeaturesReply Parse" =
   let frenetic_msg = Message.FeaturesReply feat_reply in
   test_parse frenetic_msg "OfpFeaturesReply"
 *)
+
+(******** OFPT_GET_CONFIG_REQUEST *)
+
 TEST "OfpGetConfigRequest Marshal" = 
   let frenetic_msg = Message.GetConfigRequestMsg in
   test_marshal frenetic_msg "OfpGetConfigRequest"
+
+(******** OFPT_GET_CONFIG_REPLY *)
 
 TEST "OfpGetConfigReply Parse" = 
   let config_reply = { 
@@ -227,6 +247,8 @@ TEST "OfpGetConfigReply Parse" =
   let frenetic_msg = Message.GetConfigReplyMsg config_reply in
   test_parse frenetic_msg "OfpGetConfigReply"
 
+(******** OFPT_SET_CONFIG *)
+
 TEST "OfpSetConfig Marshal" = 
   let config_rec = { 
     flags = {frag_normal = true; frag_drop = false; frag_reasm = false;} ;
@@ -235,14 +257,49 @@ TEST "OfpSetConfig Marshal" =
   let frenetic_msg = Message.SetConfigMsg config_rec in
   test_marshal frenetic_msg "OfpSetConfig"
 
-(* TODO: This test fails, but the generated packets ARE equal, so I have no idea why 
+(******** OFPT_PACKET_IN *)
+
+(* TODO: Temporarily disabled because Ports is part of packet, where its not part of the spec
+TEST "OfpPacketInBuffered Parse" = 
+  let payload = "Hi mom!  This is a buffered packet in." in
+  let packet_in_reply = { 
+    pi_total_len = String.length payload
+    ; pi_reason = InvalidTTL
+    ; pi_table_id = 100
+    ; pi_cookie = 0L
+    ; pi_ofp_match = sample_pipeline_match
+    ; pi_payload = Buffered (2348957l, Cstruct.of_string payload)
+    ; pi_port = 0l
+  } in
+  let frenetic_msg = Message.PacketInMsg packet_in_reply in
+  TODO: Change to parse 
+  test_marshal frenetic_msg "OfpPacketInBuffered"
+
+TEST "OfpPacketInUnbuffered Parse" = 
+  let payload = "Hi mom!  This is a unbuffered packet in." in
+  let packet_in_reply = { 
+    pi_total_len = String.length payload
+    ; pi_reason = ExplicitSend
+    ; pi_table_id = 200
+    ; pi_cookie = 0L
+    ; pi_ofp_match = sample_pipeline_match
+    ; pi_payload = NotBuffered (Cstruct.of_string payload)
+    ; pi_port = 0l
+  } in
+  let frenetic_msg = Message.PacketInMsg packet_in_reply in
+  TODO: Change to parse
+  test_marshal frenetic_msg "OfpPacketInUnbuffered"
+*)
+
+(******** OFPT_PORT_STATUS *)
+
 TEST "OfpPortStatus Parse" = 
   let port_status_reply = {
     reason = PortModify;
     desc = {
       port_no = 77l;
       hw_addr = 0x102030405060L;
-      name = "Port 77";
+      name = "Port 77\000\000\000\000\000\000\000\000\000";
       config = { port_down = true; no_recv = false; no_fwd = true; no_packet_in = false };
       state = { link_down = false; blocked = true; live = true };
       curr = { 
@@ -275,7 +332,9 @@ TEST "OfpPortStatus Parse" =
   } in
   let frenetic_msg = Message.PortStatusMsg port_status_reply in
   test_parse frenetic_msg "OfpPortStatus"
-  *)
+
+(******** OFPT_PACKET_OUT *)
+
 TEST "OfpPacketOutBuffered Marshal" = 
   let packet_out_request = {
     po_payload = Buffered (81349218l, Cstruct.of_string "");
@@ -293,6 +352,112 @@ TEST "OfpPacketOutUnbuffered Marshal" =
   } in
   let frenetic_msg = Message.PacketOutMsg packet_out_request in
   test_marshal frenetic_msg "OfpPacketOutUnbuffered"
+
+(******** OFPT_FLOW_MOD *)
+
+TEST "OfPFlowModAddSingleAction Marshal" = 
+  let flow_mod_add_request = { 
+    mfCookie = val_to_mask 0x12754879L
+    ; mfTable_id = 100
+    ; mfCommand = AddFlow
+    ; mfIdle_timeout = ExpiresAfter 0x0190
+    ; mfHard_timeout = ExpiresAfter 0x0600
+    ; mfPriority = 0x5678
+    ; mfBuffer_id = None
+    ; mfOut_port = None
+    ; mfOut_group = None
+    ; mfFlags = { 
+      fmf_send_flow_rem = true
+      ; fmf_check_overlap = false
+      ; fmf_reset_counts = false
+      ; fmf_no_pkt_counts = true
+      ; fmf_no_byt_counts = false 
+    }
+    ; mfOfp_match = [ OxmInPort(1l); OxmEthDst({ m_value = 0xffffffffffL; m_mask = None }) ]
+    ; mfInstructions = [ ApplyActions sample_single_action ]
+  } in
+  let frenetic_msg = Message.FlowModMsg flow_mod_add_request in
+  test_marshal frenetic_msg "OfPFlowModAddSingleAction"
+
+TEST "OfPFlowModAddMultiAction Marshal" = 
+  let flow_mod_add_request = { 
+    mfCookie = val_to_mask 0x12554879L
+    ; mfTable_id = 200
+    ; mfCommand = AddFlow
+    ; mfIdle_timeout = Permanent
+    ; mfHard_timeout = Permanent
+    ; mfPriority = 0x5478
+    ; mfBuffer_id = Some 0x87132l
+    ; mfOut_port = None
+    ; mfOut_group = None
+    ; mfFlags = { 
+      fmf_send_flow_rem = false
+      ; fmf_check_overlap = true
+      ; fmf_reset_counts = false
+      ; fmf_no_pkt_counts = false
+      ; fmf_no_byt_counts = true 
+    }
+    ; mfOfp_match = sample_lotsa_matches
+    ; mfInstructions = [ ApplyActions sample_lotsa_actions ]
+  } in
+  let frenetic_msg = Message.FlowModMsg flow_mod_add_request in
+  test_marshal frenetic_msg "OfPFlowModAddMultiAction"
+
+TEST "OfPFlowModModify Marshal" = 
+  let flow_mod_mod_request = { 
+    mfCookie = { m_value = 0x12753838L; m_mask = Some 0xffffffffL }
+    ; mfTable_id = 200
+    ; mfCommand = ModStrictFlow
+    ; mfIdle_timeout = ExpiresAfter 0x0191
+    ; mfHard_timeout = ExpiresAfter 0x0601
+    ; mfPriority = 0x5678
+    ; mfBuffer_id = None
+    ; mfOut_port = None
+    ; mfOut_group = None
+    ; mfFlags = { 
+      fmf_send_flow_rem = false
+      ; fmf_check_overlap = false
+      ; fmf_reset_counts = true
+      ; fmf_no_pkt_counts = false
+      ; fmf_no_byt_counts = false 
+    }
+    ; mfOfp_match = [ OxmTCPSrc(8000); ]
+    ; mfInstructions = [ 
+      GotoTable 200
+      ; WriteMetadata {m_value = 2134987L; m_mask=Some 0xffffffffL }
+      ; WriteActions sample_single_action
+      ; Clear
+      ; Meter 271l
+    ]
+  } in
+  let frenetic_msg = Message.FlowModMsg flow_mod_mod_request in
+  test_marshal frenetic_msg "OfPFlowModModify"
+
+TEST "OfPFlowModDelete Marshal" = 
+  let flow_mod_delete_request = { 
+    mfCookie = { m_value = 0L; m_mask = None }
+    ; mfTable_id = 0xff 
+    ; mfCommand = DeleteFlow
+    ; mfIdle_timeout = Permanent
+    ; mfHard_timeout = Permanent
+    ; mfPriority = 0
+    ; mfBuffer_id = None
+    ; mfOut_port = Some (PhysicalPort 0x921474l)
+    ; mfOut_group = Some 0xffffffffl
+    ; mfFlags = { 
+      fmf_send_flow_rem = false
+      ; fmf_check_overlap = false
+      ; fmf_reset_counts = true
+      ; fmf_no_pkt_counts = false
+      ; fmf_no_byt_counts = false 
+    }
+    ; mfOfp_match = [ OxmUDPSrc(800); ]
+    ; mfInstructions = [ ]
+  } in
+  let frenetic_msg = Message.FlowModMsg flow_mod_delete_request in
+  test_marshal frenetic_msg "OfPFlowModDelete"
+
+(******** OFPT_GROUP_MOD *)
 
 TEST "OfpGroupModAddNoActions Marshal" = 
   let group_mod_request = AddGroup (All, 391247l, []) in
@@ -349,6 +514,8 @@ TEST "OfpGroupModDelete Marshal" =
   let frenetic_msg = Message.GroupModMsg group_mod_request in
   test_marshal frenetic_msg "OfpGroupModDelete"
 
+(******** OFPT_PORT_MOD *)
+
 TEST "OfpPortMod Marshal" = 
   let port_mod_request = { 
     mpPortNo = 77l
@@ -365,23 +532,147 @@ TEST "OfpPortMod Marshal" =
   let frenetic_msg = Message.PortModMsg port_mod_request in
   test_marshal frenetic_msg "OfpPortMod"
 
+(******** OFPT_TABLE_MOD *)
+
 TEST "OfpTableMod Marshal" = 
   let table_mod_request = { table_id = 156; config = Deprecated } in
   let frenetic_msg = Message.TableModMsg table_mod_request in
   test_marshal frenetic_msg "OfpTableMod"
 
+(******** OFPT_MULTIPART_REQUEST *)
+
+TEST "OfpDescStatsRequest Marshal" = 
+  let frenetic_msg = Message.MultipartReq { mpr_type = SwitchDescReq ; mpr_flags = false } in
+  test_marshal frenetic_msg "OfpDescStatsRequest"
+
+TEST "OfpTableStatsRequest Marshal" = 
+  let frenetic_msg = Message.MultipartReq { mpr_type = TableStatsReq ; mpr_flags = false } in
+  test_marshal frenetic_msg "OfpTableStatsRequest"
+
+TEST "OfpPortStatsRequest Marshal" = 
+  let frenetic_msg = Message.MultipartReq { mpr_type = PortStatsReq 555l; mpr_flags = false } in
+  test_marshal frenetic_msg "OfpPortStatsRequest"
+
+TEST "OfpQueueStatsRequest Marshal" = 
+  let frenetic_msg = Message.MultipartReq { mpr_type = QueueStatsReq {port_number=565l; queue_id=192834l}; mpr_flags = false } in
+  test_marshal frenetic_msg "OfpQueueStatsRequest"
+
+TEST "OfpGroupStatsRequest Marshal" = 
+  let frenetic_msg = Message.MultipartReq { mpr_type = GroupStatsReq 5123456l; mpr_flags = false } in
+  test_marshal frenetic_msg "OfpGroupStatsRequest"
+
+TEST "OfpGroupDescStatsRequest Marshal" = 
+  let frenetic_msg = Message.MultipartReq { mpr_type = GroupDescReq ; mpr_flags = false } in
+  test_marshal frenetic_msg "OfpGroupDescStatsRequest"
+
+TEST "OfpGroupFeaturesStatsRequest Marshal" = 
+  let frenetic_msg = Message.MultipartReq { mpr_type = GroupFeatReq ; mpr_flags = false } in
+  test_marshal frenetic_msg "OfpGroupFeaturesStatsRequest"
+
+TEST "OfpMeterStatsRequest Marshal" = 
+  let frenetic_msg = Message.MultipartReq { mpr_type = MeterStatsReq 6234324l; mpr_flags = false } in
+  test_marshal frenetic_msg "OfpMeterStatsRequest"
+
+TEST "OfpMeterConfigStatsRequest Marshal" = 
+  let frenetic_msg = Message.MultipartReq { mpr_type = MeterConfReq 6234324l; mpr_flags = false } in
+  test_marshal frenetic_msg "OfpMeterConfigStatsRequest"
+
+TEST "OfpMeterFeaturesStatsRequest Marshal" = 
+  let frenetic_msg = Message.MultipartReq { mpr_type = MeterFeatReq ; mpr_flags = false } in
+  test_marshal frenetic_msg "OfpMeterFeaturesStatsRequest"
+
+(* TEST "OfpTableFeaturesStatsRequest Marshal" = 
+  let frenetic_msg = Message.MultipartReq { mpr_type = TableFeatReq ; mpr_flags = false } in
+  test_marshal frenetic_msg "OfpTableFeaturesStatsRequest"
+ *)
+TEST "OfpPortDescStatsRequest Marshal" = 
+  let frenetic_msg = Message.MultipartReq { mpr_type = PortsDescReq ; mpr_flags = false } in
+  test_marshal frenetic_msg "OfpPortDescStatsRequest"
+
+(******** OFPT_BARRIER_REQUEST *)
+
 TEST "OfpBarrierRequest Marshal" = 
   let frenetic_msg = Message.BarrierRequest in
   test_marshal frenetic_msg "OfpBarrierRequest"
+
+(******** OFPT_BARRIER_REPLY *)
 
 TEST "OfpBarrierReply Parse" = 
   let frenetic_msg = Message.BarrierReply in
   test_parse frenetic_msg "OfpBarrierReply"
 
+(******** OFPT_ROLE_REQUEST *)
+
 TEST "OfpRoleRequest Marshal" = 
   let frenetic_msg = Message.RoleRequest { role = EqualRole; generation_id = 92580291354L } in
   test_marshal frenetic_msg "OfpRoleRequest"
 
+(******** OFPT_ROLE_REPLY *)
+
 TEST "OfpRoleReply Parse" = 
   let frenetic_msg = Message.RoleReply { role = SlaveRole; generation_id = 92581791354L } in
   test_parse frenetic_msg "OfpRoleReply"
+
+(******** OFPT_GET_CONFIG_REQUEST *)
+
+TEST "OfpQueueGetConfigRequest Marshal" = 
+  let frenetic_msg = Message.QueueGetConfigReq { port = 2387456l } in
+  test_marshal frenetic_msg "OfpQueueGetConfigRequest"
+
+(******** OFPT_GET_CONFIG_REPLY *)
+
+TEST "OfpQueueGetConfigReply Parse" = 
+  let frenetic_msg = Message.QueueGetConfigReply { 
+    port = 2387456l
+    ; queues = [
+      { queue_id = 2134l; port = 2387456l; len = 48; properties = [ MinRateProp (Rate 20); MaxRateProp (Rate 46) ] };
+      { queue_id = 284570349l; port = 2387456l; len = 48; properties = [ MinRateProp (Rate 33); MaxRateProp Disabled ] }
+    ]
+  } in
+  test_parse frenetic_msg "OfpQueueGetConfigReply"
+
+(******** OFPT_GET_ASYNC_REQUEST *)
+
+TEST "OfpGetAsyncRequest Marshal" = 
+  let frenetic_msg = Message.GetAsyncRequest in
+  test_marshal frenetic_msg "OfpGetAsyncRequest"
+
+(******** OFPT_GET_ASYNC_REPLY *)
+
+TEST "OfpGetAsyncReply Parse" = 
+  let get_async_reply = { 
+    packet_in = { 
+      m_master = { table_miss = true; apply_action = false; invalid_ttl = false }
+      ; m_slave = { table_miss = false; apply_action = true; invalid_ttl = true }
+    }
+    ; port_status = {
+      m_master = { add = true; delete = false; modify = true }
+      ; m_slave = { add = false; delete = true; modify = false }
+    }
+    ; flow_removed = { 
+      m_master = { idle_timeout = true; hard_timeout = false; delete = true ; group_delete = false }
+      ; m_slave = { idle_timeout = false; hard_timeout = true; delete = false ; group_delete = true }
+    } 
+  } in
+  let frenetic_msg = Message.GetAsyncReply get_async_reply in
+  test_parse frenetic_msg "OfpGetAsyncReply"
+
+(******** OFPT_SET_ASYNC *)
+
+TEST "OfpSetAsync Marshal" = 
+  let set_async = { 
+    packet_in = { 
+      m_master = { table_miss = false; apply_action = true; invalid_ttl = true }
+      ; m_slave = { table_miss = true; apply_action = false; invalid_ttl = false }
+    }
+    ; port_status = {
+      m_master = { add = false; delete = true; modify = false }
+      ; m_slave = { add = true; delete = false; modify = true }
+    }
+    ; flow_removed = { 
+      m_master = { idle_timeout = false; hard_timeout = true; delete = false ; group_delete = true }
+      ; m_slave = { idle_timeout = true; hard_timeout = false; delete = true ; group_delete = false }
+    } 
+  } in
+  let frenetic_msg = Message.SetAsync set_async in
+  test_marshal frenetic_msg "OfpSetAsync"
