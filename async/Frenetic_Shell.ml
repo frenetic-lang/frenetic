@@ -2,7 +2,7 @@ open Core.Std
 open Async.Std
 open Frenetic_NetKAT
 
-module Controller = Frenetic_NetKAT_Controller.Make
+module Controller = Frenetic_NetKAT_Controller0x04.Make
 module LC = Frenetic_NetKAT_Local_Compiler
 module Field = Frenetic_Fdd.Field
 module Log = Frenetic_Log
