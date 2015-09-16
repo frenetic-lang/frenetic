@@ -66,7 +66,7 @@ let get_client (clientId: string): client =
                { policy_node = node; event_reader = r; event_writer =  w })
 
 let handle_request
-  (module Controller : Frenetic_NetKAT_Controller0x04.CONTROLLER)
+  (module Controller : Frenetic_NetKAT_Controller.CONTROLLER)
   ~(body : Cohttp_async.Body.t)
   (client_addr : Socket.Address.Inet.t)
   (request : Request.t) : Server.response Deferred.t =
@@ -75,16 +75,13 @@ let handle_request
     (Uri.path request.uri);
   match request.meth, extract_path request with
     | `GET, ["version"] -> Server.respond_with_string "4"
-    (* TODO(jcollard): Add support for queries TAG(query)
     | `GET, ["port_stats"; switch_id; port_id] ->
        port_stats (Int64.of_string switch_id) (Int32.of_string port_id)
        >>= fun portStats ->
        Server.respond_with_string (Frenetic_NetKAT_Json.port_stats_to_json_string portStats)
-     *)
     | `GET, ["current_switches"] ->
       current_switches () >>= fun switches ->
       Server.respond_with_string (current_switches_to_json_string switches)
-    (* TODO(jcollard): Add support for queries TAG(query)				 
     | `GET, ["query"; name] ->
       if (is_query name) then
         query name
@@ -97,7 +94,6 @@ let handle_request
           Server.respond_with_string ~headers
             (Frenetic_NetKAT_Json.stats_to_json_string (0L, 0L))
         end
-     *)
     | `GET, [clientId; "event"] ->
       let curr_client = get_client clientId in
       (* Check if there are events that this client has not seen yet *)
@@ -143,7 +139,7 @@ let print_error addr exn =
   Log.error "%s" (Exn.to_string exn)
 
 let listen ~http_port ~openflow_port =
-  let module Controller = Frenetic_NetKAT_Controller0x04.Make in
+  let module Controller = Frenetic_NetKAT_Controller.Make in
   let on_handler_error = `Call print_error in
   let _ = Cohttp_async.Server.create
     ~on_handler_error

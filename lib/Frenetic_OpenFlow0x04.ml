@@ -360,14 +360,9 @@ type packetInReason =
   | ExplicitSend
   | InvalidTTL
 
-type packetIn = { pi_total_len : int16
-		; pi_reason : packetInReason
-		; pi_table_id : tableId
-		; pi_cookie : int64
-		; pi_ofp_match : oxmMatch
-		; pi_payload : payload
-		; pi_port : portId
-		}
+type packetIn = { pi_total_len : int16; pi_reason : packetInReason;
+                  pi_table_id : tableId; pi_cookie : int64;
+                  pi_ofp_match : oxmMatch; pi_payload : payload }
 
 type flowReason =
   | FlowIdleTimeout
@@ -650,8 +645,7 @@ type switchFeatures = {
   num_buffers : int32;
   num_tables : int8;
   aux_id : int8;
-  supported_capabilities : capabilities;
-  ports : portDesc list
+  supported_capabilities : capabilities
 }
 
 let match_all = []
@@ -3980,14 +3974,52 @@ module Capabilities = struct
 
 end
 
+module SwitchFeatures = struct
+
+  type t = switchFeatures
+
+  let sizeof (sw : t) : int =
+    sizeof_ofp_switch_features
+
+  let to_string (sw : t) : string =
+    Format.sprintf "{ datapath_id = %Lu; num_buffers = %lu; num_Tables = %u; aux_id = %u; capabilities = %s }"
+      sw.datapath_id
+      sw.num_buffers
+      sw.num_tables
+      sw.aux_id
+      (Capabilities.to_string sw.supported_capabilities)
+
+  let marshal (buf : Cstruct.t) (features : t) : int =
+    set_ofp_switch_features_datapath_id buf features.datapath_id;
+    set_ofp_switch_features_n_buffers buf features.num_buffers;
+    set_ofp_switch_features_n_tables buf features.num_tables;
+    set_ofp_switch_features_auxiliary_id buf features.aux_id;
+    set_ofp_switch_features_pad0 buf 0;
+    set_ofp_switch_features_pad1 buf 0;
+    set_ofp_switch_features_capabilities buf (Capabilities.to_int32 features.supported_capabilities);
+    sizeof_ofp_switch_features
+
+  let parse (bits : Cstruct.t) : t =
+    let datapath_id = get_ofp_switch_features_datapath_id bits in
+    let num_buffers = get_ofp_switch_features_n_buffers bits in
+    let num_tables = get_ofp_switch_features_n_tables bits in
+    let aux_id = get_ofp_switch_features_auxiliary_id bits in
+    let supported_capabilities = Capabilities.parse
+        (get_ofp_switch_features_capabilities bits) in
+    { datapath_id;
+      num_buffers;
+      num_tables;
+      aux_id;
+      supported_capabilities }
+
+end
+
 module PortDesc = struct
 
   type t = portDesc
 
   let sizeof (_ : t) =
     sizeof_ofp_port
-
-  let size = sizeof_ofp_port
 
   let marshal (buf : Cstruct.t) (desc : t) : int =
     let size = sizeof_ofp_port in
@@ -4098,56 +4130,6 @@ module PortStatus = struct
       (Reason.to_string t.reason)
       (PortDesc.to_string t.desc)
 end
-			
-			
-module SwitchFeatures = struct
-
-  type t = switchFeatures
-
-  let sizeof (sw : t) : int =
-    sizeof_ofp_switch_features
-
-  let to_string (sw : t) : string =
-    Format.sprintf "{ datapath_id = %Lu; num_buffers = %lu; num_Tables = %u; aux_id = %u; capabilities = %s }"
-      sw.datapath_id
-      sw.num_buffers
-      sw.num_tables
-      sw.aux_id
-      (Capabilities.to_string sw.supported_capabilities)
-
-  let marshal (buf : Cstruct.t) (features : t) : int =
-    set_ofp_switch_features_datapath_id buf features.datapath_id;
-    set_ofp_switch_features_n_buffers buf features.num_buffers;
-    set_ofp_switch_features_n_tables buf features.num_tables;
-    set_ofp_switch_features_auxiliary_id buf features.aux_id;
-    set_ofp_switch_features_pad0 buf 0;
-    set_ofp_switch_features_pad1 buf 0;
-    set_ofp_switch_features_capabilities buf (Capabilities.to_int32 features.supported_capabilities);
-    sizeof_ofp_switch_features
-
-  let parse (bits : Cstruct.t) : t =
-    let datapath_id = get_ofp_switch_features_datapath_id bits in
-    let num_buffers = get_ofp_switch_features_n_buffers bits in
-    let num_tables = get_ofp_switch_features_n_tables bits in
-    let aux_id = get_ofp_switch_features_auxiliary_id bits in
-    let supported_capabilities = Capabilities.parse
-        (get_ofp_switch_features_capabilities bits) in
-    let portIter =
-      Cstruct.iter
-	(fun buf -> Some PortDesc.size)
-	PortDesc.parse
-	bits in
-    let ports = Cstruct.fold (fun acc bits -> bits :: acc) portIter [] in
-    { datapath_id;
-      num_buffers;
-      num_tables;
-      aux_id;
-      supported_capabilities;
-      ports
-    }
-
-end
-
 
 module PacketIn = struct
 
@@ -4188,8 +4170,7 @@ module PacketIn = struct
     uint16_t total_len;
     uint8_t reason;
     uint8_t table_id;
-    uint64_t cookie;
-    uint32_t in_port;
+    uint64_t cookie
   } as big_endian
 
   let sizeof (pi : t) : int =
@@ -4232,7 +4213,6 @@ module PacketIn = struct
       | -1l -> None
       | n -> Some n in
     let total_len = get_ofp_packet_in_total_len bits in
-    let in_port = get_ofp_packet_in_in_port bits in
     let reason_code = get_ofp_packet_in_reason bits in
     let reason = Reason.parse (reason_code) in
     let table_id = get_ofp_packet_in_table_id bits in
@@ -4248,13 +4228,12 @@ module PacketIn = struct
       | None -> NotBuffered final_bits
       | Some n -> Buffered (n,final_bits)
     in
-    { pi_total_len = total_len
-    ; pi_reason = reason
-    ; pi_table_id = table_id
-    ; pi_cookie = cookie
-    ; pi_ofp_match = ofp_match
-    ; pi_payload = pkt
-    ; pi_port = in_port
+    { pi_total_len = total_len;
+      pi_reason = reason;
+      pi_table_id = table_id;
+      pi_cookie = cookie;
+      pi_ofp_match = ofp_match;
+      pi_payload = pkt
     }
 
 end
@@ -7754,78 +7733,3 @@ module Message = struct
 end
 
 let portsDescRequest = Message.MultipartReq portDescReq
-
-exception Invalid_port of int32
-
-let from_portId (pport_id : Frenetic_OpenFlow.portId) : portId =
-  if pport_id > 0xff00l then (* pport_id <= OFPP_MAX *)
-    raise (Invalid_port pport_id)
-  else
-    pport_id
-
-let from_output (inPort : portId option) (pseudoport : Frenetic_OpenFlow.pseudoport) : action =
-  match pseudoport with
-  | InPort -> Output InPort
-  | Table -> Output Table
-  | Normal -> Output Normal
-  | Flood -> Output Flood
-  | All -> Output AllPorts
-  | Physical pport_id ->  
-     let pport_id = from_portId pport_id in
-     if Some pport_id = inPort then
-       Output InPort
-     else
-       Output (PhysicalPort pport_id)
-  | Controller n -> 
-     Output (Controller n)
-  | Local ->
-     Output Local
-        
-let from_action (inPort : portId option) (act : Frenetic_OpenFlow.action) : action = 
-  match act with
-  | Output pseudoport ->
-     from_output inPort pseudoport
-  | Enqueue (pport_id, queue_id) ->
-     failwith "not implemented"
-  | Modify (SetEthSrc dlAddr) ->
-     failwith "not implemented"
-  | Modify (SetEthDst dlAddr) ->
-     failwith "not implemented"
-  | Modify (SetVlan vlan) ->
-     failwith "not implemented"
-  | Modify (SetVlanPcp pcp) ->
-     failwith "not implemented"
-  | Modify (SetEthTyp _) ->
-     raise (Invalid_argument "cannot set Ethernet type")
-  | Modify (SetIPProto _) ->
-     raise (Invalid_argument "cannot set IP protocol")
-  | Modify (SetIP4Src nwAddr) ->
-     failwith "not implemented"
-  | Modify (SetIP4Dst nwAddr) ->
-     failwith "not implemented"
-  | Modify (SetTCPSrcPort tp) ->
-     failwith "not implemented"
-  | Modify (SetTCPDstPort tp) ->
-     failwith "not implemented"
-  (* TODO(grouptable) *)
-  | FastFail _ -> failwith "Openflow 1.0 does not support fast failover."
-      
-
-let from_seq (inPort : portId option) (seq : Frenetic_OpenFlow.seq) : action list = 
-  List.map seq ~f:(from_action inPort)
-
-let from_par (inPort : portId option) (par : Frenetic_OpenFlow.par) : action list =
-  List.concat (List.map par ~f:(from_seq inPort)) 
-      
-let from_payload (pay : Frenetic_OpenFlow.payload) : payload =
-  match pay with
-  | Buffered (buf_id, bytes) ->
-     Buffered (buf_id, bytes)
-  | NotBuffered bytes -> NotBuffered bytes
-					    
-let from_packetOut (pktOut : Frenetic_OpenFlow.pktOut) : packetOut =
-  let output_payload, port_id, apply_actions = pktOut in
-  let po_payload = from_payload output_payload in
-  let po_port_id = Core_kernel.Option.map port_id from_portId in
-  let po_actions = from_par port_id [apply_actions] in
-  { po_payload; po_port_id; po_actions }
