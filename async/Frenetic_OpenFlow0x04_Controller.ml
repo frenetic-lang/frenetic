@@ -149,17 +149,4 @@ let fault_tolerant_main (of_port : int) (pol_file : string)
       client_handler reader message_sender flow_sender) 
   in ()
 
-
-module type Controller = sig
-  val update_policy : policy -> unit Deferred.t
-  val start : int -> unit
-end
-
-module Make : Controller = struct
-  let update_policy ( p : policy ) : unit Deferred.t =
-    failwith "not implemented"
-
-  let start ( port : int ) : unit =
-    failwith "not implemented"
-end
 				
