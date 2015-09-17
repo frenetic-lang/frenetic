@@ -43,7 +43,7 @@ module Local = struct
       | None -> Frenetic_NetKAT_Semantics.switches_of_policy pol
       | Some n -> List.range 0 n |> List.map ~f:Int64.of_int
     in
-    if Option.is_none nr_switches then
+    if Option.is_none nr_switches && List.is_empty switches then
       printf "Number of switches not automatically recognized!\n\
               Use the --switch flag to specify it manually.\n"
     else
@@ -54,18 +54,13 @@ module Global = struct
   let spec = Command.Spec.(
     empty
     +> anon ("filename" %: file)
-    +> flag "--ff" no_arg
-         ~doc:" enable fast failover"
   )
 
-  let run file failover () =
+  let run file () =
     let pol = parse_pol file in
     let fdd = Frenetic_NetKAT_Compiler.compile_global pol in
     let switches = Frenetic_NetKAT_Semantics.switches_of_policy pol in
-    if failover then
-      dump_all_ffo_tables switches fdd
-    else
-      dump_all_tables switches fdd
+    dump_all_tables switches fdd
 end
 
 module Virtual = struct
