@@ -1,0 +1,5 @@
+(* Egress of virtual topology. See sketch.txt for details. *)
+(vswitch=1 and vport=3) or
+(vswitch=1 and vport=4) or
+(vswitch=1 and vport=6) or
+(vswitch=1 and vport=7)

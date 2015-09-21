@@ -5,19 +5,19 @@ open Frenetic_NetKAT
 open Frenetic_NetKAT_Pretty
 
 let test_compile lhs rhs =
-  let tbl = Frenetic_NetKAT_Local_Compiler.(restrict (Switch 0L) (compile lhs)) in
-  let rhs' = Frenetic_NetKAT_Local_Compiler.to_local_pol tbl in
+  let tbl = Frenetic_NetKAT_Compiler.(restrict (Switch 0L) (compile_local lhs)) in
+  let rhs' = Frenetic_NetKAT_Compiler.to_local_pol tbl in
   if rhs' = rhs then
     true
   else
     (Format.printf "compile @,%a@, produced %a@,,@,expected %a\n%!%s\n%!"
        format_policy lhs format_policy rhs' format_policy rhs
-       (Frenetic_NetKAT_Local_Compiler.to_string tbl);
+       (Frenetic_NetKAT_Compiler.to_string tbl);
      false)
 
 let test_compile_table pol tbl =
-  let open Frenetic_NetKAT_Local_Compiler in
-  let tbl' = to_table 0L (compile pol) in
+  let open Frenetic_NetKAT_Compiler in
+  let tbl' = to_table 0L (compile_local pol) in
   if tbl = tbl' then
     true
   else
@@ -130,7 +130,7 @@ TEST "quickcheck failure on 10/16/2013" =
 (* TEST "quickcheck failure on 8/25/2014" = *)
 (*   let b = "filter port = 0; (ethDst := fb:40:e5:6b:a8:f8; (ipSrc := 126.42.191.208 | ethTyp := 0x1464 | (filter ipDst = 155.173.129.111/22 | id); filter ipDst = 121.178.114.15/11 and port = __))" in *)
 (*   try *)
-(*     let _ = Frenetic_NetKAT_Local_Compiler.(to_table (compile 0L *)
+(*     let _ = Frenetic_NetKAT_Compiler.(to_table (compile 0L *)
 (*       (NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string b)))) in *)
 (*     false *)
 (*   with _ -> true *)
@@ -141,7 +141,7 @@ TEST "quickcheck failure on 10/16/2013" =
 TEST "indeterminate pipe" =
   let b = "filter port = __; ethDst := fb:40:e5:6b:a8:f8" in
   try
-    let _ = Frenetic_NetKAT_Local_Compiler.(to_table 0L (compile
+    let _ = Frenetic_NetKAT_Compiler.(to_table 0L (compile
       (NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string b)))) in
     false
   with _ -> true
@@ -324,8 +324,8 @@ let compare_eval_output p q pkt =
 let compare_compiler_output p q pkt =
   let open Frenetic_NetKAT_Semantics in
   PacketSet.compare
-    (Flowterp.Packet.eval pkt (Frenetic_NetKAT_Local_Compiler.(to_table pkt.switch (compile p))))
-    (Flowterp.Packet.eval pkt (Frenetic_NetKAT_Local_Compiler.(to_table pkt.switch (compile q))))
+    (Flowterp.Packet.eval pkt (Frenetic_NetKAT_Compiler.(to_table pkt.switch (compile_local p))))
+    (Flowterp.Packet.eval pkt (Frenetic_NetKAT_Compiler.(to_table pkt.switch (compile_local q))))
   = 0
 
 let check gen_fn compare_fn =
@@ -386,7 +386,7 @@ TEST "zero mask" =
     PacketSet.compare
       (Frenetic_NetKAT_Semantics.eval pkt (Frenetic_NetKAT_Optimize.specialize_policy pkt.switch pol))
       (Flowterp.Packet.eval pkt
-         (Frenetic_NetKAT_Local_Compiler.(to_table pkt.switch (compile pol)))) = 0 in
+         (Frenetic_NetKAT_Compiler.(to_table pkt.switch (compile pol)))) = 0 in
   check gen_pkt prop_compile_ok
 *)
 
@@ -401,7 +401,7 @@ TEST "semantics agree with flowtable" =
     PacketSet.compare
       (Frenetic_NetKAT_Semantics.eval pkt (Frenetic_NetKAT_Optimize.specialize_policy pkt.switch p'))
       (Flowterp.Packet.eval pkt
-        (Frenetic_NetKAT_Local_Compiler.(to_table pkt.switch (compile p'))))
+        (Frenetic_NetKAT_Compiler.(to_table pkt.switch (compile_local p'))))
     = 0 in
   check gen_pol_1 prop_compile_ok
 

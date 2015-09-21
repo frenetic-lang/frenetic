@@ -3,27 +3,7 @@ open Frenetic_NetKAT
 open Frenetic_NetKAT_Semantics
 open Frenetic_OpenFlow
 
-module Field : sig
-
-  type t = Frenetic_Fdd.Field.t
-    = Switch
-    | Vlan
-    | VlanPcp
-    | EthType
-    | IPProto
-    | EthSrc
-    | EthDst
-    | IP4Src
-    | IP4Dst
-    | TCPSrcPort
-    | TCPDstPort
-    | Location
-
-  val get_order : unit -> t list
-
-  val to_string : t -> string
-
-end
+module Field = Frenetic_Fdd.Field
 
 type order
   = [ `Default
@@ -32,7 +12,7 @@ type order
 
 
 type t
-(** The type of the intermediate compiler representation. *)
+(** The type of the intermediate compiler representation (FDD). *)
 
 type cache
   = [ `Keep
@@ -50,19 +30,19 @@ type compiler_options = {
 (** {2 Compilation} *)
 
 exception Non_local
-(** The exception that's thrown when the compiler is given a policy with a
-    [Link] term in it. [Link] terms are currently not supported by this
+(** The exception that's thrown when the local compiler is given a policy with a
+    [Link] term in it. To compile policies with [Link] terms, invoke global
     compiler. *)
 
 val default_compiler_options : compiler_options
 
-val compile : ?options:compiler_options -> policy -> t
-(** [compile p] returns the intermediate representation of the policy [p].
+val compile_local : ?options:compiler_options -> policy -> t
+(** [compile_local p] returns the intermediate representation of the local policy [p].
     You can generate a flowtable from [t] by passing it to the {!to_table}
     function below.
  *)
 
- val compile_global : policy -> t
+val compile_global : policy -> t
 
 val restrict : header_val -> t -> t
 (** [restrict hv t] returns the fragment of [t] that applies when the assignment
@@ -73,12 +53,16 @@ val restrict : header_val -> t -> t
     This function is called by {!to_table} to restrict [t] to the portion that
     should run on a single switch. *)
 
-val to_table : ?options:compiler_options -> switchId -> t -> flow list
 (** [to_table sw t] returns a flowtable that implements [t] for switch [sw]. *)
 
-val to_table' : ?options:compiler_options -> switchId -> t -> (flow * string list) list
+val to_table : ?options:compiler_options -> ?pc:Field.t
+            -> ?group_tbl:Frenetic_GroupTable0x04.t -> switchId -> t
+            -> flow list
+(** [to_table sw t] returns a flowtable that implements [t] for switch [sw]. *)
 
-
+val to_table' : ?options:compiler_options -> ?pc:Field.t
+             -> ?group_tbl:Frenetic_GroupTable0x04.t -> switchId -> t
+             -> (flow * string list) list
 
 (** {2 Composition} *)
 
@@ -164,17 +148,18 @@ val options_to_json_string : compiler_options -> string
 (* multitable support *)
 
 (* Each list of fields represents the fields one flow table can match on *)
-type flow_layout = Field.t list list
+type flow_layout = Field.t list list with sexp
 
 (* Each flow table row has a table location, and a meta value on that table *)
-type tableId = int
-type metaId = int
-type flowId = tableId * metaId
+type tableId = int with sexp
+type metaId = int with sexp
+type flowId = tableId * metaId with sexp
 
 (* OpenFlow 1.3+ instruction types *)
-type instruction = 
-  [ `Action of Frenetic_OpenFlow.group 
+type instruction =
+  [ `Action of Frenetic_OpenFlow.group
   | `GotoTable of flowId ]
+with sexp
 
 (* A flow table row, with multitable support. If goto has a Some value
  * then the 0x04 row instruction is GotoTable. *)
@@ -185,7 +170,7 @@ type multitable_flow = {
   hard_timeout : Frenetic_OpenFlow.timeout;
   instruction  : instruction;
   flowId       : flowId;
-}
+} with sexp
 
 val layout_to_string : flow_layout -> string
 

@@ -17,7 +17,7 @@ remove: [
 depends: [
   "ocamlfind" {build}
   "oasis" {build}
-  "core" {= "112.24.0"}
+  "core"
   "async"
   "async_extended"
   "async_parallel"

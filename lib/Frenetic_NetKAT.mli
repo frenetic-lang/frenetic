@@ -1,14 +1,19 @@
 (** NetKAT Syntax *)
 open Sexplib.Conv
 open Core.Std
-
 open Frenetic_Packet
 
 (** {2 Basics} *)
+(* thrown whenever local policy is expected, but global policy
+  (i.e. policy containing links) is encountered *)
+exception Non_local
 
 type switchId = Frenetic_OpenFlow.switchId with sexp
 type portId = Frenetic_OpenFlow.portId with sexp
 type payload = Frenetic_OpenFlow.payload with sexp
+type vswitchId = int64 with sexp
+type vportId = int64 with sexp
+type vfabricId = int64 with sexp
 
 (** {2 Policies} *)
 
@@ -34,6 +39,9 @@ type header_val =
   | IP4Dst of nwAddr * int32
   | TCPSrcPort of tpPort
   | TCPDstPort of tpPort
+  | VSwitch of vswitchId
+  | VPort of vportId
+  | VFabric of vfabricId
   with sexp
 
 type pred =
@@ -52,6 +60,8 @@ type policy =
   | Seq of policy * policy
   | Star of policy
   | Link of switchId * portId * switchId * portId
+  | VLink of vswitchId * vportId * vswitchId * vportId
+  with sexp
 
 val id : policy
 val drop : policy
@@ -64,7 +74,6 @@ type switch_port = switchId * portId with sexp
 type host = Frenetic_Packet.dlAddr * Frenetic_Packet.nwAddr with sexp
 
 type bufferId = Int32.t with sexp (* XXX(seliopou): different than Frenetic_OpenFlow *)
-type bytes = Frenetic_Packet.bytes with sexp
 
 type event =
   | PacketIn of string * switchId * portId * payload * int

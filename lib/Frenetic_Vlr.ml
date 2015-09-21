@@ -1,6 +1,8 @@
+open Sexplib
+open Sexplib.Std
+
 module type HashCmp = sig
   type t
-
   val hash : t -> int
   val compare : t -> t -> int
   val to_string : t -> string
@@ -21,74 +23,8 @@ module type Result = sig
   val zero : t
 end
 
-module type TABLE = sig
-  val clear : Core.Std.Int.Set.t -> unit
-  type value
-  val get : value -> int
-  val unget : int -> value
-end
-
-module type TABLE_VALUE = sig
-  type t
-  val hash : t -> int
-  val equal : t -> t -> bool
-end
-
-module PersistentTable (Value : TABLE_VALUE) : TABLE
-  with type value = Value.t = struct
-
-  module T = Hashtbl.Make (Value)
-  (* TODO(arjun): Since these are allocated contiguously, it would be
-     better to use a growable array ArrayList<Int> *)
-  (* TODO(jnf): are you suggesting we port Frentic to Java?! *)
-  module U = Hashtbl.Make(struct
-    type t = int
-    let hash n = n
-    let equal x y = x = y
-  end)
-
-  type value = Value.t
-
-  let tbl : int T.t = T.create 100
-  let untbl : value U.t = U.create 100
-
-  let idx = ref 0
-
-  let clear (preserve : Core.Std.Int.Set.t) : unit =
-    let open Core.Std in
-    let max_key = ref 0 in
-    T.iter (fun key data ->
-      max_key := max !max_key data;
-      if Int.Set.mem preserve data then
-        ()
-      else
-        (U.remove untbl data;
-         T.remove tbl key))
-      tbl;
-    idx := !max_key + 1
-
-  let gensym () =
-    let r = !idx in
-    idx := !idx + 1;
-    r
-
-  let get (v : value) =
-    try
-      T.find tbl v
-    with Not_found ->
-      begin
-        let n = gensym () in
-        T.add tbl v n;
-        U.add untbl n v;
-        n
-      end
-
-  let unget (idx : int) : value = U.find untbl idx
-
-end
-
 module type S = sig
-  type t = int
+  type t = int with sexp
   type v
   type r
   type d
@@ -98,8 +34,8 @@ module type S = sig
   val unget : t -> d
   val mk_branch : v -> t -> t -> t
   val mk_leaf : r -> t
-  val mk_id : unit -> t
-  val mk_drop : unit -> t
+  val drop : t
+  val id : t
   val const : r -> t
   val atom : v -> r -> r -> t
   val restrict : v list -> t -> t
@@ -130,8 +66,8 @@ struct
     = Leaf of r
     | Branch of v * int * int
 
-  type t = int
-  module T = PersistentTable(struct
+  type t = int with sexp
+  module T = Frenetic_Hashcons.Make(struct
       type t = d
 
       let hash t = match t with
@@ -165,16 +101,14 @@ struct
 
   let equal x y = x = y (* comparing ints *)
 
-  let rec to_string t = "to_string broken" (* match T.get t with
-    | Leaf r             -> R.to_string r
-    | Branch(v, l, t, f) -> Printf.sprintf "B(%s = %s, %s, %s)"
-      (V.to_string v) (L.to_string l) (to_string t)
-      (to_string (T.get f))
- *)
-  let clear_cache ~(preserve : Core.Std.Int.Set.t) = T.clear preserve
-
+  let rec to_string t = match T.unget t with
+    | Leaf r -> 
+       Printf.sprintf "(%s)" (R.to_string r)
+    | Branch((v, l), t, f) -> 
+       Printf.sprintf "(%s = %s ? %s : %s)"
+	 (V.to_string v) (L.to_string l) (to_string t) (to_string f)
+		      
   let mk_leaf r = T.get (Leaf r)
-
 
   let mk_branch (v,l) t f =
     (* When the ids of the diagrams are equal, then the diagram will take on the
@@ -189,9 +123,14 @@ struct
     end else
       T.get (Branch((v, l), t, f))
 
-  (* these need to be functions to avoid cache problems *)
-  let mk_id () = mk_leaf (R.one)
-  let mk_drop () = mk_leaf (R.zero)
+  let drop = mk_leaf (R.zero)
+  let id = mk_leaf (R.one)
+
+  let clear_cache ~(preserve : Core.Std.Int.Set.t) =
+    (* SJS: the interface exposes `id` and `drop` as constants,
+       so they must NEVER be cleared from the cache *)
+    let preserve = Core.Std.Set.(add (add preserve drop) id) in
+    T.clear preserve
 
   let rec fold g h t = match T.unget t with
     | Leaf r -> g r

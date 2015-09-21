@@ -54,7 +54,7 @@ let make_string_of formatter x =
 module Pattern = struct
 
   module Ip = struct
-    type t = nwAddr * int32
+    type t = nwAddr * int32 with sexp
 
     let match_all = (0l, 0l)
 
@@ -125,6 +125,7 @@ module Pattern = struct
       ; tpSrc : tpPort option
       ; tpDst : tpPort option
       ; inPort : portId option }
+    with sexp
 
   let match_all =
       { dlSrc = None
@@ -238,6 +239,7 @@ type modify =
   | SetIP4Dst of nwAddr
   | SetTCPSrcPort of tpPort
   | SetTCPDstPort of tpPort
+with sexp
 
 type pseudoport =
   | Physical of portId
@@ -248,6 +250,7 @@ type pseudoport =
   | All
   | Controller of int
   | Local
+with sexp
 
 type groupId = int32 with sexp
 
@@ -256,16 +259,18 @@ type action =
   | Enqueue of portId * queueId
   | Modify of modify
   | FastFail of groupId
+with sexp
 
-type seq = action list
+type seq = action list with sexp
 
-type par = seq list
+type par = seq list with sexp
 
-type group = par list
+type group = par list with sexp
 
 type timeout =
   | Permanent
   | ExpiresAfter of int16
+with sexp
 
 type flow = {
   pattern: Pattern.t;
@@ -273,32 +278,33 @@ type flow = {
   cookie: int64;
   idle_timeout: timeout;
   hard_timeout: timeout
-}
+} with sexp
 
-type flowTable = flow list
+type flowTable = flow list with sexp
 
 type payload =
-  | Buffered of bufferId * bytes
-  | NotBuffered of bytes
+  | Buffered of bufferId * Cstruct.t
+  | NotBuffered of Cstruct.t
 with sexp
 
-let payload_bytes (payload : payload) : bytes =
+let payload_bytes (payload : payload) : Cstruct.t =
   match payload with
-  | Buffered(_, bytes)
-  | NotBuffered(bytes) -> bytes
+  | Buffered(_, b)
+  | NotBuffered(b) -> b
 
 type packetInReason =
   | NoMatch
   | ExplicitSend
+with sexp
 
-type pktIn = payload * int * portId * packetInReason
+type pktIn = payload * int * portId * packetInReason with sexp
 
-type pktOut = payload * (portId option) * (action list)
+type pktOut = payload * (portId option) * (action list) with sexp
 
 type switchFeatures = {
   switch_id : switchId;
   switch_ports : portId list
-}
+} with sexp
 
 type flowStats = {
   flow_table_id : int8; (** ID of table flow came from. *)
@@ -311,7 +317,7 @@ type flowStats = {
   flow_actions: action list;
   flow_packet_count: int64;
   flow_byte_count: int64
-}
+} with sexp
 
 let format_modify (fmt:Format.formatter) (m:modify) : unit =
   match m with
@@ -486,7 +492,12 @@ let to_entry (f : flow) : (string list) * (string list) =
   let open Core.Std in
   let open List in
   let pattern_list = pattern_list f.pattern in
-  let action_list = map (concat (concat f.action)) string_of_action in
+  let pars : string list list = map ~f:(map ~f:string_of_action) (concat f.action) in
+  let add_sep = function
+    | [] -> assert false
+    | h::tl -> ("+ " ^ h)::tl
+  in
+  let action_list = concat_mapi pars ~f:(function 0 -> ident | _ -> add_sep) in
   (pattern_list, action_list)
 
 (* Pads a string with spaces so that it is atleast `len` characters. *)
@@ -715,9 +726,9 @@ let from_flow (priority : int) (flow : flow) : OF10.flowMod =
 
 let from_payload (pay : payload) : OF10.payload =
   match pay with
-    | Buffered (buf_id, bytes) ->
-      Buffered (buf_id, bytes)
-    | NotBuffered bytes -> NotBuffered bytes
+    | Buffered (buf_id, b) ->
+      Buffered (buf_id, b)
+    | NotBuffered b -> NotBuffered b
       
 let from_packetOut (pktOut : pktOut) : OF10.packetOut =
   let output_payload, port_id, apply_actions = pktOut in

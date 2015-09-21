@@ -31,7 +31,7 @@ let handle_parse_errors
   >>= function
   | Ok x -> handler x
   | Error exn ->
-      printf ~level:`Error "Invalid message from client";
+      printf ~level:`Error "Invalid message from client %s" (Exn.to_string exn);
       Cohttp_async.Server.respond `Bad_request
 
 let handle_parse_errors'
@@ -58,4 +58,4 @@ let parse_update_json body =
 
 let parse_config_json body =
   Body.to_string body >>= fun str ->
-  return (Frenetic_NetKAT_Local_Compiler.options_from_json_string str)
+  return (Frenetic_NetKAT_Compiler.options_from_json_string str)

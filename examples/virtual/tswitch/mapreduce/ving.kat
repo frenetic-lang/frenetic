@@ -1,0 +1,5 @@
+(*ingress of virtual topology*)
+(vswitch=5 and vport=3) or
+(vswitch=6 and vport=3) or
+(vswitch=7 and vport=3) or
+(vswitch=8 and vport=3)

@@ -45,7 +45,7 @@ exception Unsupported of string
 module Pattern : sig
 
   module Ip : sig
-    type t = nwAddr * int32
+    type t = nwAddr * int32 with sexp
 
     (** [match_all] is pattern that matches any address *)
     val match_all : t
@@ -88,6 +88,7 @@ module Pattern : sig
       ; tpSrc : tpPort option
       ; tpDst : tpPort option
       ; inPort : portId option }
+    with sexp
 
   (** [match_all] is pattern that matches any packet *)
   val match_all : t
@@ -118,6 +119,7 @@ type modify =
   | SetIP4Dst of nwAddr
   | SetTCPSrcPort of tpPort
   | SetTCPDstPort of tpPort
+with sexp
 
 type pseudoport =
   | Physical of portId
@@ -128,6 +130,7 @@ type pseudoport =
   | All
   | Controller of int
   | Local
+with sexp
 
 type groupId = int32 with sexp
 
@@ -136,16 +139,18 @@ type action =
   | Enqueue of portId * queueId
   | Modify of modify
   | FastFail of groupId
+  with sexp
 
-type seq = action list
+type seq = action list with sexp
 
-type par = seq list
+type par = seq list with sexp
 
-type group = par list
+type group = par list with sexp
 
 type timeout =
   | Permanent (** No timeout *)
   | ExpiresAfter of int16 (** Time out after [n] seconds *)
+  with sexp
 
 type flow = {
   pattern: Pattern.t;
@@ -153,33 +158,34 @@ type flow = {
   cookie: int64;
   idle_timeout: timeout;
   hard_timeout: timeout
-}
+} with sexp
 
 (** Priorities are implicit *)
-type flowTable = flow list 
+type flowTable = flow list with sexp
 
 (** {1 Controller Packet Processing} *)
 
 (** The payload for [packetIn] and [packetOut] messages *)
 type payload =
-  | Buffered of bufferId * bytes 
+  | Buffered of bufferId * Cstruct.t 
     (** [Buffered (id, buf)] is a packet buffered on a switch *)
-  | NotBuffered of bytes
+  | NotBuffered of Cstruct.t
 with sexp
 
 
 (** [payload_bytes payload] returns the bytes for the given payload *)
-val payload_bytes : payload -> bytes
+val payload_bytes : payload -> Cstruct.t
 
 type packetInReason =
   | NoMatch
   | ExplicitSend
+  with sexp
 
 (** [(payload, total_length, in_port, reason)] *)
-type pktIn = payload * int * portId * packetInReason
+type pktIn = payload * int * portId * packetInReason with sexp
 
 (** [(payload, in_port option, action list)] *)
-type pktOut = payload * (portId option) * (action list)
+type pktOut = payload * (portId option) * (action list) with sexp
 
 (* {1 Switch Configuration} *)
 
@@ -187,7 +193,7 @@ type pktOut = payload * (portId option) * (action list)
 type switchFeatures = {
   switch_id : switchId;
   switch_ports : portId list
-}
+} with sexp
 
 (* {1 Statistics} *)
 
@@ -203,7 +209,7 @@ type flowStats = {
   flow_actions: action list;
   flow_packet_count: int64;
   flow_byte_count: int64
-}
+} with sexp
 
 (* {1 Errors} *)
 

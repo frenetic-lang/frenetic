@@ -1,40 +1,42 @@
 open Frenetic_Packet
 
-type 'a mask = { m_value : 'a; m_mask : 'a option }
+type 'a mask = { m_value : 'a; m_mask : 'a option } with sexp
 
-type 'a asyncMask = { m_master : 'a ; m_slave : 'a }
+type 'a asyncMask = { m_master : 'a ; m_slave : 'a } with sexp
 
 type payload =
-  | Buffered of int32 * bytes
+  | Buffered of int32 * Cstruct.t
     (** [Buffered (id, buf)] is a packet buffered on a switch. *)
-  | NotBuffered of bytes
+  | NotBuffered of Cstruct.t
+  with sexp
 
-type xid = Frenetic_OpenFlow_Header.xid
-type int12 = int16
-type int24 = int32
-type int128 = int64 * int64
+type xid = Frenetic_OpenFlow_Header.xid with sexp
+type int12 = int16 with sexp
+type int24 = int32 with sexp
+type int128 = int64 * int64 with sexp
 
 val val_to_mask : 'a1 -> 'a1 mask
 
 val ip_to_mask : (nwAddr * int32) -> nwAddr mask
 
-type switchId = int64
+type switchId = int64 with sexp
 
-type groupId = int32
+type groupId = int32 with sexp
 
-type portId = int32
+type portId = int32 with sexp
 
-type tableId = int8
+type tableId = int8 with sexp
 
-type bufferId = int32
+type bufferId = int32 with sexp
 
 type switchFlags = { frag_normal: bool; frag_drop: bool; frag_reasm: bool; }
 
-type switchConfig = {flags : switchFlags; miss_send_len : int16 }
+type switchConfig = {flags : switchFlags; miss_send_len : int16 } with sexp
 
 type helloFailed =
  | HelloIncompatible
  | HelloPermError
+ with sexp
 
 type badRequest =
  | ReqBadVersion
@@ -51,6 +53,7 @@ type badRequest =
  | ReqBadPort
  | ReqBadPacket
  | ReqMultipartBufOverflow
+ with sexp
 
 type badAction =
  | ActBadType
@@ -69,6 +72,7 @@ type badAction =
  | ActBadSetTyp
  | ActBadSetLen
  | ActBadSetArg
+ with sexp
 
 type badInstruction =
  | InstUnknownInst
@@ -80,6 +84,7 @@ type badInstruction =
  | InstBadExpTyp
  | InstBadLen
  | InstPermError
+ with sexp
 
 type badMatch =
  | MatBadTyp
@@ -94,6 +99,7 @@ type badMatch =
  | MatBadPrereq
  | MatDupField
  | MatPermError
+ with sexp
 
 type flowModFailed =
  | FlUnknown
@@ -104,6 +110,7 @@ type flowModFailed =
  | FlBadTimeout
  | FlBadCommand
  | FlBadFlags
+ with sexp
 
 type groupModFailed =
  | GrGroupExists
@@ -121,6 +128,7 @@ type groupModFailed =
  | GrBadBucket
  | GrBadWatch
  | GrPermError
+ with sexp
 
 type portModFailed =
  | PoBadPort
@@ -128,26 +136,31 @@ type portModFailed =
  | PoBadConfig
  | PoBadAdvertise
  | PoPermError
+ with sexp
 
 type tableModFailed =
  | TaBadTable
  | TaBadConfig
  | TaPermError
+ with sexp
 
 type queueOpFailed =
  | QuBadPort
  | QuBadQueue
  | QuPermError
+ with sexp
 
 type switchConfigFailed =
  | ScBadFlags
  | ScBadLen
  | ScPermError
+ with sexp
 
 type roleReqFailed =
  | RoStale
  | RoUnsup
  | RoBadRole
+ with sexp
 
 type meterModFailed =
  | MeUnknown
@@ -162,6 +175,7 @@ type meterModFailed =
  | MeBadBandValue
  | MeOutOfMeters
  | MeOutOfBands
+ with sexp
 
 type tableFeatFailed =
  | TfBadTable
@@ -170,8 +184,9 @@ type tableFeatFailed =
  | TfBadLen
  | TfBadArg
  | TfPermError
+ with sexp
 
-type experimenterFailed = { exp_typ : int16; exp_id : int32}
+type experimenterFailed = { exp_typ : int16; exp_id : int32} with sexp
 
 type errorTyp =
  | HelloFailed of helloFailed
@@ -189,11 +204,12 @@ type errorTyp =
  | MeterModFailed of meterModFailed
  | TableFeatFailed of tableFeatFailed
  | ExperimenterFailed of experimenterFailed
+ with sexp
 
-type length = int16
+type length = int16 with sexp
 
 type oxmIPv6ExtHdr = { noext : bool; esp : bool; auth : bool; dest : bool; frac : bool;
-                       router : bool; hop : bool; unrep : bool; unseq : bool }
+                       router : bool; hop : bool; unrep : bool; unseq : bool } with sexp
 
 type oxm =
 | OxmInPort of portId
@@ -236,8 +252,9 @@ type oxm =
 | OxmMPLSBos of bool
 | OxmPBBIsid of int24 mask
 | OxmIPv6ExtHdr of oxmIPv6ExtHdr mask
+with sexp
 
-type oxmMatch = oxm list
+type oxmMatch = oxm list with sexp
 
 (** {2 Convenient Functions} *)
 
@@ -269,6 +286,7 @@ type pseudoPort =
   | Any               (** Wildcard port used only for flow mod (delete) and flow
                           stats requests. Selects all flows regardless of output
                           port (including flows with no output port). *)
+  with sexp
 
 type actionHdr =
 | OutputHdr
@@ -288,6 +306,7 @@ type actionHdr =
 | DecMplsTtlHdr
 | SetQueueHdr
 | ExperimenterAHdr of int32
+with sexp
 
 type action =
 | Output of pseudoPort
@@ -307,9 +326,10 @@ type action =
 | DecMplsTtl
 | SetQueue of int32
 | Experimenter of int32
+with sexp
 
 
-type actionSequence = action list
+type actionSequence = action list with sexp
 
 type instructionHdr =
  | GotoTableHdr
@@ -319,6 +339,7 @@ type instructionHdr =
  | ClearHdr
  | MeterHdr
  | ExperimenterHdr of int32
+ with sexp
 
 type instruction =
 | GotoTable of tableId
@@ -328,24 +349,29 @@ type instruction =
 | Clear
 | Meter of int32
 | Experimenter of int32
+with sexp
 
 type bucket = { bu_weight : int16; bu_watch_port : portId option;
                 bu_watch_group : groupId option; bu_actions : actionSequence }
+  with sexp
 
 type groupType =
 | All
 | Select
 | Indirect
 | FF
+with sexp
 
 type groupMod =
 | AddGroup of groupType * groupId * bucket list
 | DeleteGroup of groupType * groupId
 | ModifyGroup of groupType * groupId * bucket list
+with sexp
 
 type timeout =
 | Permanent
 | ExpiresAfter of int16
+with sexp
 
 type flowModCommand =
 | AddFlow
@@ -353,10 +379,11 @@ type flowModCommand =
 | ModStrictFlow
 | DeleteFlow
 | DeleteStrictFlow
+with sexp
 
 type flowModFlags = { fmf_send_flow_rem : bool; fmf_check_overlap : bool;
                       fmf_reset_counts : bool; fmf_no_pkt_counts : bool;
-                      fmf_no_byt_counts : bool }
+                      fmf_no_byt_counts : bool } with sexp
 
 type flowMod = { mfCookie : int64 mask; mfTable_id : tableId;
                  mfCommand : flowModCommand; mfIdle_timeout : timeout;
@@ -364,7 +391,7 @@ type flowMod = { mfCookie : int64 mask; mfTable_id : tableId;
                  mfBuffer_id : bufferId option;
                  mfOut_port : pseudoPort option;
                  mfOut_group : groupId option; mfFlags : flowModFlags;
-                 mfOfp_match : oxmMatch; mfInstructions : instruction list }
+                 mfOfp_match : oxmMatch; mfInstructions : instruction list } with sexp
 
 val add_flow : tbl:tableId -> prio:int16 -> pat:oxmMatch -> insts:instruction list -> flowMod
 
@@ -376,31 +403,33 @@ type packetInReason =
 | NoMatch
 | ExplicitSend
 | InvalidTTL
+with sexp
 
 type packetIn = { pi_total_len : int16;
                   pi_reason : packetInReason; pi_table_id : tableId;
                   pi_cookie : int64; pi_ofp_match : oxmMatch;
-                  pi_payload : payload }
+                  pi_payload : payload } with sexp
 
 type flowReason =
   | FlowIdleTimeout
   | FlowHardTiemout
   | FlowDelete
   | FlowGroupDelete
+  with sexp
 
 type flowRemoved = { cookie : int64; priority : int16; reason : flowReason;
                      table_id : tableId; duration_sec : int32; duration_nsec : int32;
                      idle_timeout : timeout; hard_timeout : timeout; packet_count : int64;
-                     byte_count : int64; oxm : oxmMatch }
+                     byte_count : int64; oxm : oxmMatch } with sexp
 
 type capabilities = { flow_stats : bool; table_stats : bool;
                       port_stats : bool; group_stats : bool; ip_reasm :
-                      bool; queue_stats : bool; port_blocked : bool }
+                      bool; queue_stats : bool; port_blocked : bool } with sexp
 
-type portState = { link_down : bool; blocked : bool; live : bool }
+type portState = { link_down : bool; blocked : bool; live : bool } with sexp
 
 type portConfig = { port_down : bool; no_recv : bool; no_fwd : bool;
-                    no_packet_in : bool }
+                    no_packet_in : bool } with sexp
 
 type portFeatures = { rate_10mb_hd : bool; rate_10mb_fd : bool;
                       rate_100mb_hd : bool; rate_100mb_fd : bool;
@@ -408,13 +437,13 @@ type portFeatures = { rate_10mb_hd : bool; rate_10mb_fd : bool;
                       rate_10gb_fd : bool; rate_40gb_fd : bool;
                       rate_100gb_fd : bool; rate_1tb_fd : bool;
                       other : bool; copper : bool; fiber : bool;
-                      autoneg : bool; pause : bool; pause_asym : bool }
+                      autoneg : bool; pause : bool; pause_asym : bool } with sexp
 
 
 type portDesc = { port_no : portId; hw_addr : int48; name : string; config :
                   portConfig; state : portState; curr : portFeatures;
                   advertised : portFeatures; supported : portFeatures; peer :
-                  portFeatures; curr_speed : int32; max_speed : int32}
+                  portFeatures; curr_speed : int32; max_speed : int32} with sexp
 
 type portMod = { mpPortNo : portId; mpHw_addr : int48; mpConfig : portConfig;
                  mpMask : int32; mpAdvertise : portFeatures }
@@ -423,43 +452,46 @@ type portReason =
   | PortAdd
   | PortDelete
   | PortModify
+  with sexp
 
-type portStatus = { reason : portReason; desc : portDesc }
+type portStatus = { reason : portReason; desc : portDesc } with sexp
 
 type packetOut = {
   po_payload : payload;
   po_port_id : portId option;
   po_actions : actionSequence
-}
+} with sexp
 
-type rate = int32
+type rate = int32 with sexp
 
-type burst = int32
+type burst = int32 with sexp
 
-type experimenterId = int32
+type experimenterId = int32 with sexp
 
 type meterBand =
   | Drop of (rate*burst)
   | DscpRemark of (rate*burst*int8)
   | ExpMeter of (rate*burst*experimenterId)
+  with sexp
 
 type meterCommand =
   | AddMeter
   | ModifyMeter
   | DeleteMeter
+  with sexp
 
-type meterFlags = { kbps : bool; pktps : bool; burst : bool; stats : bool}
+type meterFlags = { kbps : bool; pktps : bool; burst : bool; stats : bool} with sexp
 
 type meterMod = { command : meterCommand; flags : meterFlags; meter_id : int32;
-                  bands : meterBand list}
+                  bands : meterBand list} with sexp
 
 type flowRequest = {fr_table_id : tableId; fr_out_port : portId;
                     fr_out_group : portId; fr_cookie : int64 mask;
-                    fr_match : oxmMatch}
+                    fr_match : oxmMatch} with sexp
 
-type queueRequest = {port_number : portId; queue_id : int32}
+type queueRequest = {port_number : portId; queue_id : int32} with sexp
 
-type experimenter = {exp_id : experimenterId; exp_type : int32}
+type experimenter = {exp_id : experimenterId; exp_type : int32} with sexp
 
 type tableFeatureProp =
   | TfpInstruction of instructionHdr list
@@ -476,15 +508,16 @@ type tableFeatureProp =
   | TfpWriteSetFieldMiss of oxm list
   | TfpApplySetField of oxm list
   | TfpApplySetFieldMiss of oxm list
-  | TfpExperimenter of (experimenter*bytes)
-  | TfpExperimenterMiss of (experimenter*bytes)
+  | TfpExperimenter of (experimenter*Cstruct.t)
+  | TfpExperimenterMiss of (experimenter*Cstruct.t)
+  with sexp
 
-type tableConfig = Deprecated
+type tableConfig = Deprecated with sexp
 
 type tableFeatures = {length : int16; table_id : tableId; name : string;
                       metadata_match : int64; metadata_write : int64;
                       config : tableConfig; max_entries: int32;
-                      feature_prop : tableFeatureProp list}
+                      feature_prop : tableFeatureProp list} with sexp
 
 type multipartType =
   | SwitchDescReq
@@ -502,8 +535,9 @@ type multipartType =
   | MeterFeatReq
   | TableFeatReq of (tableFeatures list) option
   | ExperimentReq of experimenter
+  with sexp
 
-type multipartRequest = { mpr_type : multipartType; mpr_flags : bool }
+type multipartRequest = { mpr_type : multipartType; mpr_flags : bool } with sexp
 
 
 val portDescReq : multipartRequest
@@ -515,60 +549,61 @@ type flowStats = { table_id : tableId; duration_sec : int32; duration_nsec :
                    int32; priority : int16; idle_timeout : timeout;
                    hard_timeout : timeout; flags : flowModFlags; cookie : int64;
                    packet_count : int64; byte_count : int64; ofp_match : oxmMatch;
-                   instructions : instruction list}
+                   instructions : instruction list} with sexp
 
-type aggregStats = { packet_count : int64; byte_count : int64; flow_count : int32}
+type aggregStats = { packet_count : int64; byte_count : int64; flow_count : int32} with sexp
 
 type tableStats = { table_id : tableId; active_count : int32; lookup_count : int64;
-                    matched_count : int64}
+                    matched_count : int64} with sexp
 
 type portStats = { psPort_no : portId; rx_packets : int64; tx_packets : int64;
                    rx_bytes : int64; tx_bytes : int64; rx_dropped : int64;
                    tx_dropped : int64; rx_errors : int64; tx_errors : int64;
                    rx_frame_err : int64; rx_over_err : int64; rx_crc_err : int64;
-                   collisions : int64; duration_sec : int32; duration_nsec : int32}
+                   collisions : int64; duration_sec : int32; duration_nsec : int32} with sexp
 
 type queueStats = { qsPort_no : portId; queue_id : int32; tx_bytes : int64; tx_packets : int64;
-                    tx_errors : int64; duration_sec : int32; duration_nsec : int32 }
+                    tx_errors : int64; duration_sec : int32; duration_nsec : int32 } with sexp
 
-type bucketStats = { packet_count : int64; byte_count : int64}
+type bucketStats = { packet_count : int64; byte_count : int64} with sexp
 
 type groupStats = { length : int16; group_id : int32; ref_count : int32;
                     packet_count : int64; byte_count : int64; duration_sec : int32;
-                    duration_nsec : int32; bucket_stats : bucketStats list}
+                    duration_nsec : int32; bucket_stats : bucketStats list} with sexp
 
-type groupDesc = { length : int16; typ : groupType; group_id : int32; bucket : bucket list}
+type groupDesc = { length : int16; typ : groupType; group_id : int32; bucket : bucket list} with sexp
 
 type groupCapabilities = { select_weight : bool; select_liveness : bool;
-                           chaining : bool; chaining_checks : bool}
+                           chaining : bool; chaining_checks : bool} with sexp
 
-type groupTypeMap = { all : bool; select : bool; indirect : bool; ff : bool}
+type groupTypeMap = { all : bool; select : bool; indirect : bool; ff : bool} with sexp
 
 type actionTypeMap = { output : bool; copy_ttl_out : bool; copy_ttl_in : bool;
                        set_mpls_ttl : bool; dec_mpls_ttl : bool; push_vlan : bool;
                        pop_vlan : bool; push_mpls : bool; pop_mpls : bool; set_queue : bool;
                        group : bool; set_nw_ttl : bool; dec_nw_ttl : bool; set_field : bool;
-                       push_pbb : bool; pop_pbb : bool }
+                       push_pbb : bool; pop_pbb : bool } with sexp
 
 type groupFeatures = { typ : groupTypeMap; capabilities : groupCapabilities;
                        max_groups_all : int32; max_groups_select : int32;
                        max_groups_indirect : int32; max_groups_ff : int32;
                        actions_all : actionTypeMap; actions_select : actionTypeMap;
-                       actions_indirect : actionTypeMap; actions_ff : actionTypeMap }
+                       actions_indirect : actionTypeMap; actions_ff : actionTypeMap } with sexp
 
-type meterBandStats = { packet_band_count : int64; byte_band_count : int64 }
+type meterBandStats = { packet_band_count : int64; byte_band_count : int64 } with sexp
 
 type meterStats = { meter_id: int32; len : int16; flow_count : int32; packet_in_count :
                     int64; byte_in_count : int64; duration_sec : int32; duration_nsec :
-                    int32; band : meterBandStats list}
+                    int32; band : meterBandStats list} with sexp
 
 type meterConfig = { length : length; flags : meterFlags; meter_id : int32; bands : meterBand list}
+  with sexp
 
-type meterBandMaps = { drop : bool; dscpRemark : bool}
+type meterBandMaps = { drop : bool; dscpRemark : bool} with sexp
 
 type meterFeatures = { max_meter : int32; band_typ : meterBandMaps;
                             capabilities : meterFlags; max_band : int8;
-                            max_color : int8 }
+                            max_color : int8 } with sexp
 
 type multipartReplyTyp =
   | PortsDescReply of portDesc list
@@ -585,51 +620,58 @@ type multipartReplyTyp =
   | MeterReply of meterStats list
   | MeterConfig of meterConfig list
   | MeterFeaturesReply of meterFeatures
+  with sexp
 
-type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool}
+type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool} with sexp
 
-type tableMod = { table_id : tableId; config : tableConfig }
+type tableMod = { table_id : tableId; config : tableConfig } with sexp
 
 type rateQueue =
   | Rate of int
   | Disabled
+  with sexp
 
 type queueProp =
   | MinRateProp of rateQueue
   | MaxRateProp of rateQueue
   | ExperimenterProp of int32
+  with sexp
 
 type queueDesc = { queue_id : int32; port : portId; len : int16; properties : queueProp list }
+  with sexp
 
-type queueConfReq = { port : portId }
+type queueConfReq = { port : portId } with sexp
 
-type queueConfReply = { port : portId; queues : queueDesc list }
+type queueConfReply = { port : portId; queues : queueDesc list } with sexp
 
 type controllerRole =
   | NoChangeRole
   | EqualRole
   | MasterRole
   | SlaveRole
+  with sexp
 
-type roleRequest = { role : controllerRole; generation_id : int64 }
+type roleRequest = { role : controllerRole; generation_id : int64 } with sexp
 
-type supportedList = int list
+type supportedList = int list with sexp
 
 type element =
   | VersionBitMap of supportedList
+  with sexp
 
-type helloElement = element list
+type helloElement = element list with sexp
 
 type packetInReasonMap =  { table_miss : bool; apply_action : bool; invalid_ttl : bool }
+  with sexp
 
-type portReasonMap =  { add : bool; delete : bool; modify : bool }
+type portReasonMap =  { add : bool; delete : bool; modify : bool } with sexp
 
 type flowReasonMask = { idle_timeout : bool; hard_timeout : bool; delete : bool;
-                        group_delete : bool}
+                        group_delete : bool} with sexp
 
 type asyncConfig = { packet_in : packetInReasonMap asyncMask;
                      port_status : portReasonMap asyncMask;
-                     flow_removed : flowReasonMask asyncMask }
+                     flow_removed : flowReasonMask asyncMask } with sexp
 
 
 type msg_code =  | HELLO | ERROR | ECHO_REQ | ECHO_RESP | VENDOR | FEATURES_REQ
@@ -1452,7 +1494,7 @@ end
 
 type error = {
     err : errorTyp;
-    data : bytes;
+    data : Cstruct.t;
   }
 
 (** Error message structure. See the section 7.4.4 of the OpenFlow 1.3.4 specification *)
@@ -1555,8 +1597,8 @@ module Message : sig
 
   type t =
     | Hello of element list
-    | EchoRequest of bytes
-    | EchoReply of bytes
+    | EchoRequest of Cstruct.t
+    | EchoReply of Cstruct.t
     | FeaturesRequest
     | FeaturesReply of SwitchFeatures.t
     | FlowModMsg of FlowMod.t
@@ -1583,6 +1625,7 @@ module Message : sig
     | GetAsyncReply of AsyncConfig.t
     | SetAsync of AsyncConfig.t
     | Error of Error.t
+    with sexp
 
   val sizeof : t -> int
 

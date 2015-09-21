@@ -1,14 +1,12 @@
 open Core.Std
 
-(* TODO(jnf): why is this exception here, in a module that defines a
-   data structure? Seems misplaced... *)
-exception Non_local
-
-module Field : sig 
+module Field : sig
   type t
     = Switch
       | Vlan
       | VlanPcp
+      | VSwitch
+      | VPort
       | EthType
       | IPProto
       | EthSrc
@@ -18,6 +16,7 @@ module Field : sig
       | TCPSrcPort
       | TCPDstPort
       | Location
+      | VFabric
   with sexp
   val auto_order : Frenetic_NetKAT.policy -> unit
   val set_order : t list -> unit
@@ -30,11 +29,11 @@ module Field : sig
 end
 
 module Value : sig
-  type t = 
+  type t =
       Const of Int64.t
     | Mask of Int64.t * int
     | Pipe of string
-    | Query of string 
+    | Query of string
     (* TODO(grouptable): HACK, should only be able to fast fail on ports.
      * Put this somewhere else *)
     | FastFail of Int32.t list
@@ -46,7 +45,7 @@ module Value : sig
   val to_int_exn : t -> int
 end
 
-module Pattern : sig 
+module Pattern : sig
   type t = Field.t * Value.t
   val compare : t -> t -> int
   val of_hv : Frenetic_NetKAT.header_val -> t
@@ -78,7 +77,8 @@ module Action : sig
   val negate : t -> t
   val to_policy : t -> Frenetic_NetKAT.policy
   val demod : Pattern.t -> t -> t
-  val to_sdn : Int64.t option ->  Frenetic_GroupTable0x04.t option -> t -> Frenetic_OpenFlow.par
+  val to_sdn : ?pc:Field.t -> ?group_tbl:Frenetic_GroupTable0x04.t
+            -> Int64.t option -> t -> Frenetic_OpenFlow.par
   val get_queries : t -> string list
   val pipes : t -> Frenetic_Util.StringSet.t
   val queries : t -> string list

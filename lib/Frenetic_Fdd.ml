@@ -13,6 +13,8 @@ module Field = struct
     = Switch
     | Vlan
     | VlanPcp
+    | VSwitch
+    | VPort
     | EthType
     | IPProto
     | EthSrc
@@ -22,6 +24,7 @@ module Field = struct
     | TCPSrcPort
     | TCPDstPort
     | Location
+    | VFabric
     with sexp
 
   (** The type of packet fields. This is an enumeration whose ordering has an
@@ -31,40 +34,43 @@ module Field = struct
   let hash = Hashtbl.hash
 
   let of_string = function
-    | "Switch" -> Switch 
-    | "Location" -> Location 
-    | "EthSrc" -> EthSrc 
-    | "EthDst" -> EthDst 
-    | "Vlan" -> Vlan 
-    | "VlanPcp" -> VlanPcp 
-    | "EthType" -> EthType 
-    | "IPProto" -> IPProto 
-    | "IP4Src" -> IP4Src 
-    | "IP4Dst" -> IP4Dst 
-    | "TCPSrcPort" -> TCPSrcPort 
-    | "TCPDstPort" -> TCPDstPort 
+    | "Switch" -> Switch
+    | "Location" -> Location
+    | "EthSrc" -> EthSrc
+    | "EthDst" -> EthDst
+    | "Vlan" -> Vlan
+    | "VlanPcp" -> VlanPcp
+    | "EthType" -> EthType
+    | "IPProto" -> IPProto
+    | "IP4Src" -> IP4Src
+    | "IP4Dst" -> IP4Dst
+    | "TCPSrcPort" -> TCPSrcPort
+    | "TCPDstPort" -> TCPDstPort
     | _ -> assert false
 
   let to_string = function
     | Switch -> "Switch"
-    | Location -> "Location"
-    | EthSrc -> "EthSrc"
-    | EthDst -> "EthDst"
     | Vlan -> "Vlan"
     | VlanPcp -> "VlanPcp"
+    | VSwitch -> "VSwitch"
+    | VPort -> "VPort"
     | EthType -> "EthType"
     | IPProto -> "IPProto"
+    | EthSrc -> "EthSrc"
+    | EthDst -> "EthDst"
     | IP4Src -> "IP4Src"
     | IP4Dst -> "IP4Dst"
     | TCPSrcPort -> "TCPSrcPort"
     | TCPDstPort -> "TCPDstPort"
+    | Location -> "Location"
+    | VFabric -> "VFabric"
 
-  let num_fields = 12
+  let num_fields = 15
 
   (* Ensure that these are in the same order in which the variants appear. *)
   let all_fields =
-    [ Switch; Location; EthSrc; EthDst; Vlan; VlanPcp; EthType; IPProto;
-      IP4Src; IP4Dst; TCPSrcPort; TCPDstPort ]
+    [ Switch; Vlan; VlanPcp; VSwitch; VPort; EthType; IPProto; EthSrc; EthDst;
+      IP4Src; IP4Dst; TCPSrcPort; TCPDstPort; Location; VFabric]
 
   let is_valid_order (lst : t list) : bool =
     List.length lst = num_fields &&
@@ -95,12 +101,15 @@ module Field = struct
     | Frenetic_NetKAT.EthDst _ -> EthDst
     | Frenetic_NetKAT.Vlan _ -> Vlan
     | Frenetic_NetKAT.VlanPcp _ -> VlanPcp
+    | Frenetic_NetKAT.VSwitch _ -> VSwitch
+    | Frenetic_NetKAT.VPort _ -> VPort
     | Frenetic_NetKAT.EthType _ -> EthType
     | Frenetic_NetKAT.IPProto _ -> IPProto
     | Frenetic_NetKAT.IP4Src _ -> IP4Src
     | Frenetic_NetKAT.IP4Dst _ -> IP4Dst
     | Frenetic_NetKAT.TCPSrcPort _ -> TCPSrcPort
     | Frenetic_NetKAT.TCPDstPort _ -> TCPDstPort
+    | Frenetic_NetKAT.VFabric _ -> VFabric
 
   (* Heuristic to pick a variable order that operates by scoring the fields
      in a policy. A field receives a high score if, when a test field=X
@@ -142,7 +151,7 @@ module Field = struct
         let (n, lst) = f_seq' q lst in
         (m * n, lst)
       | Union _ -> (f_union pol, lst)
-      | Star _ | Link _ -> (1, lst) (* bad, but it works *)
+      | Star _ | Link _ | VLink _ -> (1, lst) (* bad, but it works *)
     and f_seq pol =
       let (size, preds) = f_seq' pol [] in
       List.iter preds ~f:(f_pred size true);
@@ -153,7 +162,7 @@ module Field = struct
       | Union (p, q) ->
         f_union' p (fun m -> f_union' q (fun n -> k (m + n)))
       | Seq _ -> k (f_seq pol)
-      | Star _ | Link _ -> k 1 (* bad, but it works *)
+      | Star _ | Link _ | VLink _ -> k 1 (* bad, but it works *)
     and f_union pol = f_union' pol (fun n -> n) in
     let _ = f_seq pol in
     let cmp (_, x) (_, y) = Pervasives.compare y x in
@@ -217,8 +226,8 @@ module Value = struct
     | Pipe     _ ,       _
     | Query    _ ,       _
     | _          , Pipe  _
-    | _          , Query _ 
-    | FastFail _ , _ 
+    | _          , Query _
+    | FastFail _ , _
     | _          , FastFail _ -> false
     | Mask(a, m) , Mask(b, n) -> subset_eq_mask a m  b n
     | Const a    , Mask(b, n) -> subset_eq_mask a 64 b n
@@ -256,7 +265,7 @@ module Value = struct
     | Query    _ ,       _
     | _          , Pipe  _
     | _          , Query _
-    | FastFail _ , _ 
+    | FastFail _ , _
     | _          , FastFail _ -> None
     | Mask(a, m) , Mask(b, n) -> meet_mask a m  b n
     | Const a, Mask(b, n)     -> meet_mask a 64 b n
@@ -299,7 +308,7 @@ module Value = struct
     | Query    _ ,       _
     | _          , Pipe  _
     | _          , Query _
-    | FastFail _ , _ 
+    | FastFail _ , _
     | _          , FastFail _ -> None
     | Mask(a, m) , Mask(b, n) -> join_mask a m  b n
     | Const a, Mask(b, n)     -> join_mask a 64 b n
@@ -339,7 +348,6 @@ module Value = struct
 end
 
 exception FieldValue_mismatch of Field.t * Value.t
-exception Non_local
 
 
 (* Packet patterns.
@@ -375,6 +383,8 @@ module Pattern = struct
     | EthDst(dlAddr) -> (Field.EthDst, Value.(Const dlAddr))
     | Vlan(vlan) -> (Field.Vlan, Value.of_int vlan)
     | VlanPcp(vlanPcp) -> (Field.VlanPcp, Value.of_int vlanPcp)
+    | VSwitch(vsw_id) -> (Field.VSwitch, Value.(Const vsw_id))
+    | VPort(vpt) ->  (Field.VPort, Value.(Const vpt))
     | EthType(dlTyp) -> (Field.EthType, Value.of_int dlTyp)
     | IPProto(nwProto) -> (Field.IPProto, Value.of_int nwProto)
     | IP4Src(nwAddr, mask) ->
@@ -383,6 +393,7 @@ module Pattern = struct
       (Field.IP4Dst, Value.(Mask(Int64.of_int32 nwAddr, 32 + (Int32.to_int_exn mask))))
     | TCPSrcPort(tpPort) -> (Field.TCPSrcPort, Value.of_int tpPort)
     | TCPDstPort(tpPort) -> (Field.TCPDstPort, Value.of_int tpPort)
+    | VFabric(vfab) -> (Field.VFabric, Value.(Const vfab))
 
   let to_hv (f, v) =
     let open Field in
@@ -396,6 +407,8 @@ module Pattern = struct
     | (EthDst  , Const dlAddr) -> NetKAT.(EthDst dlAddr)
     | (Vlan    , Const vlan) -> NetKAT.(Vlan(to_int vlan))
     | (VlanPcp , Const vlanPcp) -> NetKAT.(VlanPcp (to_int vlanPcp))
+    | (VSwitch  , Const vsw) -> NetKAT.VSwitch vsw
+    | (VPort  , Const vpt) -> NetKAT.VPort vpt
     | (EthType , Const dlTyp) -> NetKAT.(EthType (to_int dlTyp))
     | (IPProto , Const nwProto) -> NetKAT.(IPProto (to_int nwProto))
     | (IP4Src  , Mask(nwAddr, mask)) -> NetKAT.(IP4Src(to_int32 nwAddr, Int32.of_int_exn (mask - 32)))
@@ -404,6 +417,7 @@ module Pattern = struct
     | (IP4Dst  , Const nwAddr) -> NetKAT.(IP4Dst(to_int32 nwAddr, 32l))
     | (TCPSrcPort, Const tpPort) -> NetKAT.(TCPSrcPort(to_int tpPort))
     | (TCPDstPort, Const tpPort) -> NetKAT.(TCPDstPort(to_int tpPort))
+    | (VFabric, Const vfab) -> NetKAT.VFabric vfab
     | _, _ -> raise (FieldValue_mismatch(f, v))
 
   let to_pred (f, v) =
@@ -415,8 +429,8 @@ module Pattern = struct
     let open Field in
     let open Value in
     match f, v with
-    | (Switch, Const _) -> assert false
-    | (Switch, v)       -> raise (FieldValue_mismatch(Switch, v))
+    | (Switch, Const _) | (VSwitch, Const _) | (VPort, Const _)  -> assert false
+    | (VFabric, Const _) -> assert false
     | (Location, Const p) -> fun pat ->
       { pat with SDN.Pattern.inPort = Some(to_int32 p) }
     | (EthSrc, Const dlAddr) -> fun pat ->
@@ -518,7 +532,7 @@ module Action = struct
     else
       Par.fold a ~init:zero ~f:(fun acc seq1 ->
         (* cannot implement sequential composition of this kind here *)
-        let _ = assert (match Seq.find seq1 K with None -> true | _ -> false) in        
+        let _ = assert (match Seq.find seq1 K with None -> true | _ -> false) in
         let r = Par.map b ~f:(fun seq2 ->
           (* Favor modifications to the right *)
           Seq.merge seq1 seq2 ~f:(fun ~key m ->
@@ -537,8 +551,7 @@ module Action = struct
       | Some (Query str) -> str :: queries
       | _ -> queries)
 
-  let to_sdn (in_port : Int64.t option) (group_tbl : Frenetic_GroupTable0x04.t option)  
-    (t:t) : SDN.par =
+  let to_sdn ?pc ?group_tbl (in_port : int64 option) (t:t) : SDN.par =
     (* Convert a NetKAT action to an SDN action. At the moment this function
        assumes that fields are assigned to proper bitwidth integers, and does
        no validation along those lines. If the input is derived from a NetKAT
@@ -571,32 +584,46 @@ module Action = struct
         | Some (Const p) -> [SDN.(Output(to_port p))]
         | Some (Pipe  _) -> [SDN.(Output(Controller 128))]
         | Some (Query _) -> assert false
-        | Some (FastFail p_lst) -> 
+        | Some (FastFail p_lst) ->
            (match group_tbl with
             | Some tbl ->
               let gid = Frenetic_GroupTable0x04.add_fastfail_group tbl p_lst
               in [SDN.(FastFail gid)]
-            | None -> failwith "No group table provided")
+            | None -> failwith "fast failover present, but no group table provided!")
         | Some mask      -> raise (FieldValue_mismatch(Location, mask))
       in
-      Seq.fold_fields (Seq.remove seq (F Location)) ~init ~f:(fun ~key ~data acc ->
+      let seq =
+        match pc, Seq.find seq K with
+        | _, None -> seq
+        | None, Some _ ->
+          failwith "continuation present, but no program counter field provided!"
+        | Some f, Some v ->
+          if Seq.mem seq (F f) then
+            failwith "program counter field already in use - must be fresh!"
+          else
+            Seq.remove seq K
+            |> Seq.add ~key:(F f) ~data:v
+      in
+      Seq.fold (Seq.remove seq (F Location)) ~init ~f:(fun ~key ~data acc ->
         match key, data with
-        | Switch  , Const switch -> raise Non_local
-        | Switch  , _ -> raise (FieldValue_mismatch(Switch, data))
-        | Location, _ -> assert false
-        | EthSrc  , Const dlAddr  -> SDN.(Modify(SetEthSrc dlAddr)) :: acc
-        | EthDst  , Const dlAddr  -> SDN.(Modify(SetEthDst dlAddr)) :: acc
-        | Vlan    , Const vlan    -> SDN.(Modify(SetVlan(Some(to_int vlan)))) :: acc
-        | VlanPcp , Const vlanPcp -> SDN.(Modify(SetVlanPcp (to_int vlanPcp))) :: acc
-        | EthType , Const dlTyp   -> SDN.(Modify(SetEthTyp (to_int dlTyp))) :: acc
-        | IPProto , Const nwProto -> SDN.(Modify(SetIPProto (to_int nwProto))) :: acc
-        | IP4Src  , Mask (nwAddr, 64)
-        | IP4Src  , Const nwAddr   -> SDN.(Modify(SetIP4Src(to_int32 nwAddr))) :: acc
-        | IP4Dst  , Mask (nwAddr, 64)
-        | IP4Dst  , Const nwAddr   -> SDN.(Modify(SetIP4Dst(to_int32 nwAddr))) :: acc
-        | TCPSrcPort, Const tpPort -> SDN.(Modify(SetTCPSrcPort(to_int tpPort))) :: acc
-        | TCPDstPort, Const tpPort -> SDN.(Modify(SetTCPDstPort(to_int tpPort))) :: acc
-        | _, _ -> raise (FieldValue_mismatch(key, data))
+        | F Switch  , Const switch -> raise Frenetic_NetKAT.Non_local
+        | F Switch  , _ -> raise (FieldValue_mismatch(Switch, data))
+        | F Location, _ -> assert false
+        | F EthSrc  , Const dlAddr  -> SDN.(Modify(SetEthSrc dlAddr)) :: acc
+        | F EthDst  , Const dlAddr  -> SDN.(Modify(SetEthDst dlAddr)) :: acc
+        | F Vlan    , Const vlan    -> SDN.(Modify(SetVlan(Some(to_int vlan)))) :: acc
+        | F VlanPcp , Const vlanPcp -> SDN.(Modify(SetVlanPcp (to_int vlanPcp))) :: acc
+        | F VSwitch, Const _ | F VPort, Const _ | F VFabric, Const _ -> assert false (* JNF: danger, danger *)
+        | F EthType , Const dlTyp   -> SDN.(Modify(SetEthTyp (to_int dlTyp))) :: acc
+        | F IPProto , Const nwProto -> SDN.(Modify(SetIPProto (to_int nwProto))) :: acc
+        | F IP4Src  , Mask (nwAddr, 64)
+        | F IP4Src  , Const nwAddr   -> SDN.(Modify(SetIP4Src(to_int32 nwAddr))) :: acc
+        | F IP4Dst  , Mask (nwAddr, 64)
+        | F IP4Dst  , Const nwAddr   -> SDN.(Modify(SetIP4Dst(to_int32 nwAddr))) :: acc
+        | F TCPSrcPort, Const tpPort -> SDN.(Modify(SetTCPSrcPort(to_int tpPort))) :: acc
+        | F TCPDstPort, Const tpPort -> SDN.(Modify(SetTCPDstPort(to_int tpPort))) :: acc
+        | F f, _ -> raise (FieldValue_mismatch(f, data))
+        | K, _ -> assert false
       ) :: acc)
 
   let demod (f, v) t =
@@ -659,7 +686,7 @@ module Action = struct
     Par.fold ~init:0 ~f:(fun acc seq -> acc + (Seq.length seq))
 
   let to_string t =
-    let par = to_sdn None None t in
+    let par = to_sdn ~group_tbl:(Frenetic_GroupTable0x04.create ()) None t in
     Printf.sprintf "[%s]" (SDN.string_of_par par)
 
 end

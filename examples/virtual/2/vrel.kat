@@ -1,0 +1,4 @@
+((vswitch=1 and vport=0) and ((switch=1 and port=0) or (switch=2 and port=0))) or
+((vswitch=1 and vport=2) and (switch=3 and port=4)) or
+((vswitch=2 and vport=1) and (switch=4 and port=3)) or
+((vswitch=2 and vport=9) and ((switch=4 and port=9) or (switch=5 and port=9)))

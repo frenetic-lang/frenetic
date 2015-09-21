@@ -1,16 +1,24 @@
 open Sexplib.Conv
-
-(** NetKAT Syntax *)
 open Core.Std
 
-(** {2 Basics} *)
+(** NetKAT Syntax *)
+
+(** {1 Basics} *)
 open Frenetic_Packet
+
+(* thrown whenever local policy is expected, but global policy
+  (i.e. policy containing links) is encountered *)
+exception Non_local
 
 type switchId = Frenetic_OpenFlow.switchId with sexp
 type portId = Frenetic_OpenFlow.portId with sexp
 type payload = Frenetic_OpenFlow.payload with sexp
+type vswitchId = int64 with sexp
+type vportId = int64 with sexp
+type vfabricId = int64 with sexp
 
 (** {2 Policies} *)
+
 
 let string_of_fastfail = Frenetic_OpenFlow.format_list ~to_string:Int32.to_string
 
@@ -34,6 +42,9 @@ type header_val =
   | IP4Dst of nwAddr * int32
   | TCPSrcPort of tpPort
   | TCPDstPort of tpPort
+  | VSwitch of vswitchId
+  | VPort of vportId
+  | VFabric of vfabricId
   with sexp
 
 type pred =
@@ -52,17 +63,12 @@ type policy =
   | Seq of policy * policy
   | Star of policy
   | Link of switchId * portId * switchId * portId
+  | VLink of vswitchId * vportId * vswitchId * vportId
   with sexp
 
 let id = Filter True
 let drop = Filter False
 
-(** {2 Packets}
-
-  If we only defined the semantics and were not building a system, a
-  packet would only be a record of headers. However, the runtime needs to
-  apply [eval] to packets contained in [PACKET_IN] mesages. For the runtime,
-  packets also carry a payload that is unmodified by [eval]. *)
 
 (** {3 Applications} *)
 
@@ -72,7 +78,6 @@ type switch_port = switchId * portId with sexp
 type host = Frenetic_Packet.dlAddr * Frenetic_Packet.nwAddr with sexp
 
 type bufferId = Int32.t with sexp (* XXX(seliopou): different than Frenetic_OpenFlow *)
-type bytes = Frenetic_Packet.bytes with sexp
 
 type event =
   | PacketIn of string * switchId * portId * payload * int

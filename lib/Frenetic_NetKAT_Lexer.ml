@@ -85,7 +85,7 @@ type context = {
 (* TODO: This is the same as in Frenetic_NetKAT_Json ... factor into better place *)
 let macaddr_from_string (str : string) : Int64.t =
   let buf = Macaddr.to_bytes (Macaddr.of_string_exn str) in
-  let byte n = Int64.of_int (Char.to_int (Bytes.get buf n)) in
+  let byte n = Int64.of_int (Char.to_int (String.get buf n)) in
   let rec loop n acc =
     let shift = 8 * (5 - n) in
     let acc' = Int64.(acc + (shift_left (byte n) shift)) in
@@ -156,9 +156,9 @@ let rec token c = lexer
     set_start_loc c;
     let _ = comment c lexbuf in
     token c c.lexbuf 
-  | [ "()!+;=*+/|@" ] | ":=" | "=>" 
-    | "true" | "false" | "switch" | "port" | "vlanId"
-    | "vlanPcp" | "ethTyp" | "ipProto" | "tcpSrcPort" | "tcpDstPort"
+  | [ "()!+;=*+/|@" ] | ":=" | "=>" | "=>>"
+    | "true" | "false" | "switch" | "port" | "vswitch" | "vport" | "vfabric"
+    | "vlanId" | "vlanPcp" | "ethTyp" | "ipProto" | "tcpSrcPort" | "tcpDstPort"
     | "ethSrc" | "ethDst" | "ip4Src"| "ip4Dst" | "and" | "or" | "not" | "id"
     | "drop" | "if" | "then" | "else" | "filter"  ->
       KEYWORD (L.latin1_lexeme c.lexbuf)

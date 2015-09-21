@@ -6952,8 +6952,7 @@ let setup_t =
                            FindlibPackage ("camlp4.lib", None);
                            FindlibPackage ("camlp4.extend", None);
                            FindlibPackage ("camlp4", None);
-                           FindlibPackage
-                             ("core", Some (OASISVersion.VEqual "112.24.0"));
+                           FindlibPackage ("core", None);
                            FindlibPackage ("cstruct", None);
                            FindlibPackage ("cstruct.syntax", None);
                            FindlibPackage ("fieldslib", None);
@@ -6987,17 +6986,19 @@ let setup_t =
                    {
                       lib_modules =
                         [
+                           "Frenetic_Hashcons";
                            "Frenetic_Bits";
                            "Frenetic_Fdd";
                            "Frenetic_GroupTable0x04";
                            "Frenetic_Log";
                            "Frenetic_Network";
                            "Frenetic_NetKAT";
+                           "Frenetic_NetKAT_Optimize";
                            "Frenetic_NetKAT_Json";
                            "Frenetic_NetKAT_Lexer";
-                           "Frenetic_NetKAT_Local_Compiler";
+                           "Frenetic_NetKAT_Compiler";
+                           "Frenetic_NetKAT_Virtual_Compiler";
                            "Frenetic_NetKAT_Net";
-                           "Frenetic_NetKAT_Optimize";
                            "Frenetic_NetKAT_Parser";
                            "Frenetic_NetKAT_Pretty";
                            "Frenetic_NetKAT_SDN_Json";
@@ -7033,8 +7034,7 @@ let setup_t =
                            FindlibPackage ("async", None);
                            FindlibPackage ("cohttp", None);
                            FindlibPackage ("cohttp.async", None);
-                           FindlibPackage
-                             ("core", Some (OASISVersion.VEqual "112.24.0"));
+                           FindlibPackage ("core", None);
                            FindlibPackage ("cstruct", None);
                            FindlibPackage ("cstruct.async", None);
                            InternalLibrary "frenetic";
@@ -7090,8 +7090,7 @@ let setup_t =
                       bs_build_depends =
                         [
                            FindlibPackage ("async", None);
-                           FindlibPackage
-                             ("core", Some (OASISVersion.VEqual "112.24.0"));
+                           FindlibPackage ("core", None);
                            InternalLibrary "frenetic";
                            InternalLibrary "async";
                            FindlibPackage ("async_extended", None)

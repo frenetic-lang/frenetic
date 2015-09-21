@@ -1,0 +1,3 @@
+filter (ipDst = 10.0.0.1); vport := 1 |
+filter (ipDst = 10.0.0.2); vport := 2 |
+filter (ipDst = 10.0.0.3); vport := 3

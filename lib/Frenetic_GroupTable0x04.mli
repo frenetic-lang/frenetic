@@ -1,7 +1,10 @@
 (** Controller's representation of the group table configuration on an
     OpenFlow 1.3 switch. *)
 open Frenetic_OpenFlow0x04
-type t
+type t with sexp
+
+(* SJS *)
+val to_string : t -> string
 
 val create : unit -> t
 
