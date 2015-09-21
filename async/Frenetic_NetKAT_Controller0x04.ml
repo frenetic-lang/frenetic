@@ -11,7 +11,7 @@ module Make : Controller = struct
 
   module OF = Frenetic_OpenFlow0x04
   module Controller = Frenetic_OpenFlow0x04_Controller
-  module Compiler = Frenetic_NetKAT_Local_Compiler
+  module Compiler = Frenetic_NetKAT_Compiler
   module Field = Frenetic_Fdd.Field
 
   (* TODO(jcollard): Type should probalby be changed to use `Heuristic *)
@@ -33,10 +33,9 @@ module Make : Controller = struct
     Controller.implement_flow switch.writer fdd layout sw_id
 
   let update_switches ( p : policy ) : unit Deferred.t =
-    let open Frenetic_NetKAT_Local_Compiler in
     let layout = !layout in    
-    let compiler_opts = {default_compiler_options with field_order = `Static (List.concat layout)} in
-    let fdd = compile p ~options:compiler_opts in
+    let compiler_opts = {Compiler.default_compiler_options with field_order = `Static (List.concat layout)} in
+    let fdd = Compiler.compile_local p ~options:compiler_opts in
     Hashtbl.iter (update_switch fdd layout) switches;
     Deferred.unit
 			      
@@ -46,13 +45,12 @@ module Make : Controller = struct
     Pipe.write pol_writer pol
 
   let start ( of_port : int ) : unit =
-    let open Frenetic_NetKAT_Local_Compiler in 
     Log.info "Starting OpenFlow 1.3 controller";
-    Log.info "Using flow tables: %s" (layout_to_string !layout);
+    Log.info "Using flow tables: %s" (Compiler.layout_to_string !layout);
     let layout = !layout in
     let pol = drop in
-    let compiler_opts = {default_compiler_options with field_order = `Static (List.concat layout)} in
-    let fdd = compile pol ~options:compiler_opts in
+    let compiler_opts = {Compiler.default_compiler_options with field_order = `Static (List.concat layout)} in
+    let fdd = Compiler.compile_local pol ~options:compiler_opts in
     let _ = Tcp.Server.create ~on_handler_error:`Raise (Tcp.on_port of_port)
 	    (fun _ reader writer -> 
 	     Log.info "Connection.";

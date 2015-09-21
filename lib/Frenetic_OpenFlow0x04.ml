@@ -46,7 +46,7 @@ type tableId = int8 with sexp
 
 type bufferId = int32 with sexp
 
-type switchFlags = { frag_normal: bool; frag_drop: bool; frag_reasm: bool; }
+type switchFlags = { frag_normal: bool; frag_drop: bool; frag_reasm: bool; } with sexp
 
 type switchConfig = {flags : switchFlags; miss_send_len : int16 } with sexp
 
@@ -430,7 +430,7 @@ type portDesc = { port_no : portId;
                   max_speed : int32} with sexp
 
 type portMod = { mpPortNo : portId; mpHw_addr : int48; mpConfig : portConfig;
-                 mpMask : int32; mpAdvertise : portFeatures }
+                 mpMask : int32; mpAdvertise : portFeatures } with sexp
 
 type portReason =
   | PortAdd
@@ -528,7 +528,7 @@ let portDescReq =
   ; mpr_flags = false }
 
 type switchDesc = { mfr_desc :string ; hw_desc : string; sw_desc : string;
-                    serial_num : string ; dp_desc : string }
+                    serial_num : string ; dp_desc : string } with sexp
 
 type flowModFlags = { fmf_send_flow_rem : bool; fmf_check_overlap : bool;
                       fmf_reset_counts : bool; fmf_no_pkt_counts : bool;
