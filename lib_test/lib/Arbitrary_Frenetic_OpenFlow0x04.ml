@@ -28,6 +28,11 @@ let sample_lotsa_actions = [
   SetField(OxmEthSrc({ m_value = 21L; m_mask = None}))
 ]
 
+let sample_single_match = [
+  OxmInPort(1l); 
+  OxmEthDst({ m_value = 0xffffffffffL; m_mask = None })
+]
+
 let sample_pipeline_match = [
   OxmInPort 1l;
   OxmInPhyPort 2l;
@@ -45,7 +50,7 @@ let sample_lotsa_matches = [
   OxmVlanVId { m_value = 7; m_mask = None }; 
   OxmVlanPcp 8; 
   OxmIPDscp 9; 
-  OxmIPEcn 10; 
+  OxmIPEcn 2;  (* This can only be two bits long *) 
   OxmIPProto 11;
   OxmIP4Src { m_value = 12l; m_mask = None }; 
   OxmIP4Dst { m_value = 13l; m_mask = None }; 
@@ -78,4 +83,26 @@ let sample_lotsa_matches = [
   OxmIPv6ExtHdr { m_value = { noext = false; esp = false; auth = false;
                        dest = true; frac = false; router = true;
                        hop = false; unrep = false; unseq = false }; m_mask = None };
+]
+
+let sample_single_table_property = [
+  TfpInstruction [ GotoTableHdr ];
+]
+
+let sample_lotsa_table_properties = [
+  TfpInstruction [ GotoTableHdr ];
+  TfpInstructionMiss [ WriteMetadataHdr ; WriteActionsHdr ; ApplyActionsHdr ; ClearHdr ; MeterHdr ];
+  TfpNextTable [ 100; 150; 200; 250 ];
+  TfpNextTableMiss [ 1; 2; 3; 4 ];
+  TfpWriteAction [ OutputHdr ];
+  TfpWriteActionMiss [ CopyTtlOutHdr; CopyTtlInHdr; PushVlanHdr; PopVlanHdr; PushMplsHdr; PopMplsHdr];
+  TfpApplyAction [ SetQueueHdr ];
+  TfpApplyActionMiss [ GroupHdr; SetNwTtlHdr; DecNwTtlHdr; SetFieldHdr; PushPbbHdr; PopPbbHdr ];
+  (* The values here are ignored *)
+  TfpMatch [ OxmTunnelId { m_value = 0x77L; m_mask = None } ];
+  TfpWildcard [ OxmVlanPcp 0x77 ];
+  TfpWriteSetField [ OxmIPv6FLabel { m_value = 0x77l; m_mask = None } ];
+  TfpWriteSetFieldMiss [ OxmMetadata { m_value = 0x77L; m_mask = None } ];
+  TfpApplySetField [ OxmIPv6NDTarget { m_value = (0x77L,0x77L); m_mask = None } ];
+  TfpApplySetFieldMiss [ OxmEthDst { m_value = 0x77L; m_mask = None } ]
 ]

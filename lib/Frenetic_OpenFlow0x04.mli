@@ -509,7 +509,7 @@ type multipartRequest = { mpr_type : multipartType; mpr_flags : bool }
 val portDescReq : multipartRequest
 
 type switchDesc = { mfr_desc :string ; hw_desc : string; sw_desc : string;
-                         serial_num : string }
+                         serial_num : string; dp_desc : string }
 
 type flowStats = { table_id : tableId; duration_sec : int32; duration_nsec :
                    int32; priority : int16; idle_timeout : timeout;

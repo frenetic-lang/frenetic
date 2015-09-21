@@ -173,7 +173,7 @@ Executable fastfailtest
 
 Test all_tests
   Run$: flag(tests)
-  Command: $testtool inline-test-runner frenetic -only-test Test_Frenetic_OpenFlow0x04.ml
+  Command: $testtool inline-test-runner frenetic
   TestTools: testtool
 
 Document frenetic

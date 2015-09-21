@@ -498,7 +498,7 @@ let portDescReq =
   ; mpr_flags = false }
 
 type switchDesc = { mfr_desc :string ; hw_desc : string; sw_desc : string;
-                    serial_num : string }
+                    serial_num : string ; dp_desc : string }
 
 type flowModFlags = { fmf_send_flow_rem : bool; fmf_check_overlap : bool;
                       fmf_reset_counts : bool; fmf_no_pkt_counts : bool;
@@ -1464,6 +1464,7 @@ cstruct ofp_desc {
   uint8_t hw_desc[256];
   uint8_t sw_desc[256];
   uint8_t serial_num[32];
+  uint8_t dp_desc[256];
 } as big_endian
 
 cstruct ofp_uint8 {
@@ -2824,29 +2825,29 @@ module QueueDesc = struct
       | MinRateProp rate ->
         set_ofp_queue_prop_min_rate_property buf (ofp_queue_properties_to_int OFPQT_MIN_RATE);
         set_ofp_queue_prop_min_rate_len buf 16; (* fixed by specification *)
-        set_ofp_queue_prop_min_rate_pad "\000\000\000\000" 0 buf; 
+        set_ofp_queue_prop_min_rate_pad (String.make 4 '\000') 0 buf; 
         set_ofp_queue_prop_min_rate_rate buf (
           match rate with
           | Rate n -> n
           | Disabled -> 0xffff);
-        set_ofp_queue_prop_min_rate_pad2 "\000\000\000\000\000\000" 0 buf; 
+        set_ofp_queue_prop_min_rate_pad2 (String.make 6 '\000') 0 buf; 
         sizeof_ofp_queue_prop_min_rate
       | MaxRateProp rate ->
         set_ofp_queue_prop_max_rate_property buf (ofp_queue_properties_to_int OFPQT_MAX_RATE);
         set_ofp_queue_prop_max_rate_len buf 16; (* fixed by specification *)
-        set_ofp_queue_prop_max_rate_pad "\000\000\000\000" 0 buf; 
+        set_ofp_queue_prop_max_rate_pad (String.make 4 '\000') 0 buf; 
         set_ofp_queue_prop_max_rate_rate buf (
           match rate with
           | Rate n -> n
           | Disabled -> 0xffff);
-        set_ofp_queue_prop_max_rate_pad2 "\000\000\000\000\000\000" 0 buf; 
+        set_ofp_queue_prop_max_rate_pad2 (String.make 6 '\000') 0 buf; 
         sizeof_ofp_queue_prop_max_rate
       | ExperimenterProp id ->
         set_ofp_queue_prop_experimenter_property buf (ofp_queue_properties_to_int OFPQT_EXPERIMENTER);
         set_ofp_queue_prop_experimenter_len buf 16; (* fixed by specification *)
-        set_ofp_queue_prop_experimenter_pad "\000\000\000\000" 0 buf; 
+        set_ofp_queue_prop_experimenter_pad (String.make 4 '\000') 0 buf; 
         set_ofp_queue_prop_experimenter_experimenter buf id;
-        set_ofp_queue_prop_experimenter_pad2 "\000\000\000\000" 0 buf; 
+        set_ofp_queue_prop_experimenter_pad2 (String.make 4 '\000') 0 buf; 
         sizeof_ofp_queue_prop_experimenter
 
     let parse (bits : Cstruct.t) : t =
@@ -2886,7 +2887,7 @@ module QueueDesc = struct
     set_ofp_packet_queue_queue_id buf qd.queue_id;
     set_ofp_packet_queue_port buf qd.port;
     set_ofp_packet_queue_len buf qd.len;
-    set_ofp_packet_queue_pad "\000\000\000\000\000\000" 0 buf; 
+    set_ofp_packet_queue_pad (String.make 6 '\000') 0 buf; 
     let propBuf = Cstruct.sub buf sizeof_ofp_packet_queue (qd.len - sizeof_ofp_packet_queue) in
     sizeof_ofp_packet_queue + (marshal_fields propBuf qd.properties QueueProp.marshal)
 
@@ -3461,13 +3462,13 @@ module PortMod = struct
 
   let marshal (buf : Cstruct.t) (pm : t) : int =
     set_ofp_port_mod_port_no buf pm.mpPortNo;
-    set_ofp_port_mod_pad "\000\000\000\000" 0 buf; 
+    set_ofp_port_mod_pad (String.make 4 '\000') 0 buf; 
     set_ofp_port_mod_hw_addr (bytes_of_mac pm.mpHw_addr) 0 buf;
-    set_ofp_port_mod_pad2 "\000\000" 0 buf; 
+    set_ofp_port_mod_pad2 (String.make 2 '\000') 0 buf; 
     set_ofp_port_mod_config buf (PortConfig.marshal pm.mpConfig);
     set_ofp_port_mod_mask buf pm.mpMask;
     set_ofp_port_mod_advertise buf (PortFeatures.marshal pm.mpAdvertise);
-    set_ofp_port_mod_pad3 "\000\000\000\000" 0 buf; 
+    set_ofp_port_mod_pad3 (String.make 4 '\000') 0 buf; 
     sizeof_ofp_port_mod
 
   let parse (bits : Cstruct.t) : t =
@@ -3516,6 +3517,7 @@ module MeterBand = struct
       set_ofp_meter_band_drop_len buf sizeof_ofp_meter_band_drop;
       set_ofp_meter_band_drop_rate buf r;
       set_ofp_meter_band_drop_burst_size buf b;
+      set_ofp_meter_band_drop_pad (String.make 4 '\000') 0 buf; 
       sizeof_ofp_meter_band_drop
     | DscpRemark (r,b,p) ->
       set_ofp_meter_band_dscp_remark_typ buf 2; (* OFPMBT_DSCP_REMARK *)
@@ -3523,6 +3525,7 @@ module MeterBand = struct
       set_ofp_meter_band_dscp_remark_rate buf r;
       set_ofp_meter_band_dscp_remark_burst_size buf b;
       set_ofp_meter_band_dscp_remark_prec_level buf p;
+      set_ofp_meter_band_dscp_remark_pad (String.make 3 '\000') 0 buf; 
       sizeof_ofp_meter_band_dscp_remark
     | ExpMeter (r,b,e) ->
       set_ofp_meter_band_experimenter_typ buf 0xffff; (* OFPMBT_EXPERIMENTER *)
@@ -4638,6 +4641,10 @@ module ActionHdr = struct
     | ExperimenterAHdr e -> Format.sprintf "Experimenter = %lu" e
 
   let marshal (buf : Cstruct.t) (act : t) : int =
+    set_ofp_action_header_pad buf 0;
+    set_ofp_action_header_pad1 buf 0;
+    set_ofp_action_header_pad2 buf 0;
+    set_ofp_action_header_pad3 buf 0;
     match act with
     | OutputHdr ->
       set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_OUTPUT);
@@ -4993,7 +5000,7 @@ module TableFeature = struct
   let marshal (buf : Cstruct.t) (tf : t) : int =
     set_ofp_table_features_length buf tf.length;
     set_ofp_table_features_table_id buf tf.table_id;
-    set_ofp_table_features_pad (Cstruct.to_string (Cstruct.create 5)) 0 buf;
+    set_ofp_table_features_pad (String.make 5 '\000') 0 buf;
     set_ofp_table_features_name tf.name 0 buf;
     set_ofp_table_features_metadata_match buf tf.metadata_match;
     set_ofp_table_features_metadata_write buf tf.metadata_write;
@@ -5134,22 +5141,22 @@ module MultipartReq = struct
     | TableStatsReq -> size
     | PortStatsReq p -> 
       set_ofp_port_stats_request_port_no pay_buf p;
-      set_ofp_port_stats_request_pad "\000\000\000\000" 0 pay_buf;
+      set_ofp_port_stats_request_pad (String.make 4 '\000') 0 pay_buf;
       size + sizeof_ofp_port_stats_request
     | QueueStatsReq q -> size + (QueueRequest.marshal pay_buf q)
     | GroupStatsReq g -> 
       set_ofp_group_stats_request_group_id pay_buf g;
-      set_ofp_group_stats_request_pad "\000\000\000\000" 0 pay_buf;
+      set_ofp_group_stats_request_pad (String.make 4 '\000') 0 pay_buf;
       size + sizeof_ofp_group_stats_request
     | GroupDescReq
     | GroupFeatReq -> size
     | MeterStatsReq m -> 
       set_ofp_meter_multipart_request_meter_id pay_buf m;
-      set_ofp_meter_multipart_request_pad "\000\000\000\000" 0 pay_buf;
+      set_ofp_meter_multipart_request_pad (String.make 4 '\000') 0 pay_buf;
       size + sizeof_ofp_meter_multipart_request
     | MeterConfReq m -> 
       set_ofp_meter_multipart_request_meter_id pay_buf m;
-      set_ofp_meter_multipart_request_pad "\000\000\000\000" 0 pay_buf;
+      set_ofp_meter_multipart_request_pad (String.make 4 '\000') 0 pay_buf;
       size + sizeof_ofp_meter_multipart_request
     | MeterFeatReq -> size
     | TableFeatReq t ->
@@ -5209,17 +5216,19 @@ module SwitchDescriptionReply = struct
     sizeof_ofp_desc
 
   let to_string (sdr : switchDesc) : string =
-    Format.sprintf "{ mfr_desc = %s; hw_desc = %s; sw_desc = %s; serial_num = %s }"
+    Format.sprintf "{ mfr_desc = %s; hw_desc = %s; sw_desc = %s; serial_num = %s; dp_desc = %s }"
       sdr.mfr_desc
       sdr.hw_desc
       sdr.sw_desc
       sdr.serial_num
+      sdr.dp_desc
 
   let marshal (buf : Cstruct.t) (sdr : switchDesc) : int =
     set_ofp_desc_mfr_desc sdr.mfr_desc 0 buf;
     set_ofp_desc_hw_desc sdr.hw_desc 0 buf;
     set_ofp_desc_sw_desc sdr.sw_desc 0 buf;
     set_ofp_desc_serial_num sdr.serial_num 0 buf;
+    set_ofp_desc_dp_desc sdr.dp_desc 0 buf;
     sizeof_ofp_desc
 
   let parse (bits : Cstruct.t) : switchDesc =
@@ -5227,10 +5236,12 @@ module SwitchDescriptionReply = struct
     let hw_desc = copy_ofp_desc_hw_desc bits in
     let sw_desc = copy_ofp_desc_sw_desc bits in
     let serial_num = copy_ofp_desc_serial_num bits in
+    let dp_desc = copy_ofp_desc_dp_desc bits in
     { mfr_desc;
       hw_desc;
       sw_desc;
-      serial_num}
+      serial_num;
+      dp_desc}
 
 end
 
@@ -5297,7 +5308,7 @@ module FlowStats = struct
        | Permanent -> 0
        | ExpiresAfter  v -> v);
     set_ofp_flow_stats_flags buf (FlowMod.Flags.marshal fs.flags);
-    set_ofp_flow_stats_pad1 "\000\000\000\000" 0 buf;
+    set_ofp_flow_stats_pad1 (String.make 4 '\000') 0 buf;
     set_ofp_flow_stats_cookie buf fs.cookie;
     set_ofp_flow_stats_packet_count buf fs.packet_count;
     set_ofp_flow_stats_byte_count buf fs.byte_count;
@@ -5367,7 +5378,7 @@ module AggregateStats = struct
     set_ofp_aggregate_stats_reply_packet_count buf ag.packet_count;
     set_ofp_aggregate_stats_reply_byte_count buf ag.byte_count;
     set_ofp_aggregate_stats_reply_flow_count buf ag.flow_count;
-    set_ofp_aggregate_stats_reply_pad "\000\000\000\000" 0 buf;
+    set_ofp_aggregate_stats_reply_pad (String.make 4 '\000') 0 buf;
     sizeof_ofp_aggregate_stats_reply
 
   let parse (bits : Cstruct.t) : aggregStats =
@@ -5401,7 +5412,7 @@ module TableStats = struct
 
   let marshal (buf : Cstruct.t) (ts : tableStats) : int =
     set_ofp_table_stats_table_id buf ts.table_id;
-    set_ofp_table_stats_pad "\000\000\000" 0 buf;
+    set_ofp_table_stats_pad (String.make 3 '\000') 0 buf;
     set_ofp_table_stats_active_count buf ts.active_count;
     set_ofp_table_stats_lookup_count buf ts.lookup_count;
     set_ofp_table_stats_matched_count buf ts.matched_count;
@@ -5447,7 +5458,7 @@ module PortStats = struct
 
   let marshal (buf : Cstruct.t) (ps : portStats) : int =
     set_ofp_port_stats_port_no buf ps.psPort_no;
-    set_ofp_port_stats_pad (Cstruct.to_string (Cstruct.create 4)) 0 buf;
+    set_ofp_port_stats_pad (String.make 4 '\000') 0 buf;
     set_ofp_port_stats_rx_packets buf ps.rx_packets;
     set_ofp_port_stats_tx_packets buf ps.tx_packets;
     set_ofp_port_stats_rx_bytes buf ps.rx_bytes;
@@ -5600,10 +5611,10 @@ module GroupStats = struct
 
   let marshal (buf : Cstruct.t) (gs : groupStats) : int =
     set_ofp_group_stats_length buf gs.length;
-    set_ofp_group_stats_pad "\000\000" 0 buf;
+    set_ofp_group_stats_pad (String.make 2 '\000') 0 buf;
     set_ofp_group_stats_group_id buf gs.group_id;
     set_ofp_group_stats_ref_count buf gs.ref_count;
-    set_ofp_group_stats_pad2 "\000\000\000\000" 0 buf;
+    set_ofp_group_stats_pad2 (String.make 4 '\000') 0 buf;
     set_ofp_group_stats_packet_count buf gs.packet_count;
     set_ofp_group_stats_byte_count buf gs.byte_count;
     set_ofp_group_stats_duration_sec buf gs.duration_sec;
@@ -5910,7 +5921,7 @@ module MeterStats = struct
   let marshal (buf : Cstruct.t) (ms : meterStats) =
     set_ofp_meter_stats_meter_id buf ms.meter_id;
     set_ofp_meter_stats_len buf ms.len;
-    set_ofp_meter_stats_pad "\000\000\000\000\000\000" 0 buf;
+    set_ofp_meter_stats_pad (String.make 6 '\000') 0 buf;
     set_ofp_meter_stats_flow_count buf ms.flow_count;
     set_ofp_meter_stats_packet_in_count buf ms.packet_in_count;
     set_ofp_meter_stats_byte_in_count buf ms.byte_in_count;
@@ -6030,7 +6041,7 @@ module MeterFeatures = struct
     set_ofp_meter_features_capabilities buf (Int32.of_int_exn (MeterFlags.marshal mfs.capabilities));
     set_ofp_meter_features_max_bands buf mfs.max_band;
     set_ofp_meter_features_max_color buf mfs.max_color;
-    set_ofp_meter_features_pad "\000\000" 0 buf;
+    set_ofp_meter_features_pad (String.make 2 '\000') 0 buf;
     sizeof_ofp_meter_features
 
   let parse (bits : Cstruct.t) : t =
@@ -6088,6 +6099,7 @@ module MultipartReply = struct
       match mpr.mpreply_flags with
       | true -> ofp_multipart_request_flags_to_int OFPMPF_REQ_MORE
       | false -> 0);
+    set_ofp_multipart_reply_pad (String.make 4 '\000') 0 buf;
     sizeof_ofp_multipart_reply + (match mpr.mpreply_typ with
         | PortsDescReply pdr ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_PORT_DESC);
@@ -6194,7 +6206,7 @@ module TableMod = struct
   let marshal (buf : Cstruct.t) (tab : tableMod) : int =
     set_ofp_table_mod_table_id buf tab.table_id;
     set_ofp_table_mod_config buf (TableConfig.marshal tab.config);
-    set_ofp_table_mod_pad "\000\000\000" 0 buf;
+    set_ofp_table_mod_pad (String.make 3 '\000') 0 buf;
     sizeof_ofp_table_mod
 
   let parse (bits : Cstruct.t) : tableMod =
@@ -6221,7 +6233,7 @@ module QueueConfReq = struct
 
   let marshal (buf : Cstruct.t) (qr : t) : int =
     set_ofp_queue_get_config_request_port buf qr.port;
-    set_ofp_queue_get_config_request_pad "\000\000\000\000" 0 buf;
+    set_ofp_queue_get_config_request_pad (String.make 4 '\000') 0 buf;
     sizeof_ofp_queue_get_config_request
 
   let parse (bits : Cstruct.t) : t =
@@ -6248,7 +6260,7 @@ module QueueConfReply = struct
 
   let marshal (buf : Cstruct.t) (qr : t) : int =
     set_ofp_queue_get_config_reply_port buf qr.port;
-    set_ofp_queue_get_config_reply_pad "\000\000\000\000" 0 buf;
+    set_ofp_queue_get_config_reply_pad (String.make 4 '\000') 0 buf;
     let queueBuf = Cstruct.shift buf sizeof_ofp_queue_get_config_reply in
     sizeof_ofp_queue_get_config_reply + (marshal_fields queueBuf qr.queues QueueDesc.marshal)
 
@@ -6312,7 +6324,7 @@ module RoleRequest = struct
 
   let marshal (buf : Cstruct.t) (role : roleRequest) : int =
     set_ofp_role_request_role buf (Role.marshal role.role);
-    set_ofp_role_request_pad "\000\000\000\000" 0 buf;
+    set_ofp_role_request_pad (String.make 4 '\000') 0 buf;
     set_ofp_role_request_generation_id buf role.generation_id;
     sizeof_ofp_role_request
 
