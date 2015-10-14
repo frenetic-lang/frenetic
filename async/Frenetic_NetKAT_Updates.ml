@@ -83,7 +83,7 @@ module BestEffortUpdate = struct
         Log.debug
           "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
         Log.flushed () >>| fun () ->
-        Printf.eprintf "%s\n%!" (Exn.to_string _exn)
+        Log.error "%s\n%!" (Exn.to_string _exn)
 
   let implement_policy ?old repr =
     (Controller.get_switches ()) >>= fun switches ->
@@ -294,7 +294,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
         Log.debug
           "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
         Log.flushed () >>| fun () ->
-        Printf.eprintf "%s\n%!" (Exn.to_string _exn)
+        Log.error "%s\n%!" (Exn.to_string _exn)
 
   let set_current_compiler_options opt =
     current_compiler_options := opt
