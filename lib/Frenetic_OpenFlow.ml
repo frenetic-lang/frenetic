@@ -40,17 +40,6 @@ let format_ip_mask (fmt : Format.formatter) ((p,m) : nwAddr * int32) =
     format_ip p
     (if m = 32l then "" else Printf.sprintf "/%ld" m)
 
-(* convert a formatter to a function that produces a string *)
-(* TODO(jnf): we have this defined in several places. Consolidate. *)
-let make_string_of formatter x =
-  let open Format in
-  let buf = Buffer.create 100 in
-  let fmt = formatter_of_buffer buf in
-  pp_set_margin fmt 80;
-  formatter fmt x;
-  fprintf fmt "@?";
-  Buffer.contents buf
-
 module Pattern = struct
 
   module Ip = struct
@@ -110,7 +99,7 @@ module Pattern = struct
         | None   -> false
 
     let format = format_ip_mask
-    let string_of ip = make_string_of format ip
+    let string_of ip = Frenetic_Util.make_string_of format ip
   end
 
   type t =
@@ -225,7 +214,7 @@ module Pattern = struct
     format_field "port" format_int32 p.inPort;
     Format.fprintf fmt "}@]"
 
-  let string_of = make_string_of format
+  let string_of = Frenetic_Util.make_string_of format
 end
 
 type modify =
@@ -415,10 +404,10 @@ let format_flowTable (fmt:Format.formatter) (l:flowTable) : unit =
         true) in
   Format.fprintf fmt "]@]"
 
-let string_of_action = make_string_of format_action
-let string_of_seq = make_string_of format_seq
-let string_of_par = make_string_of format_par
-let string_of_flow = make_string_of format_flow
+let string_of_action = Frenetic_Util.make_string_of format_action
+let string_of_seq = Frenetic_Util.make_string_of format_seq
+let string_of_par = Frenetic_Util.make_string_of format_par
+let string_of_flow = Frenetic_Util.make_string_of format_flow
 
 let string_of_vlan (x : int) : string =
   Format.sprintf "Vlan = %d" x

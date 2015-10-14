@@ -155,13 +155,14 @@ module Tcp = struct
     ; offset : int8
     ; flags : Flags.t
     ; window : int16
-    ; chksum : int8
-    ; urgent : int8
+    ; chksum : int16
+    ; urgent : int16
     ; payload : Cstruct.t } with sexp
 
   let format fmt v =
     let open Format in
-    fprintf fmt "@[tpSrc=%d;tpDst=%d@]" v.src v.dst
+    fprintf fmt "@[tpSrc=%d;tpDst=%d;chksum=%d]" 
+      v.src v.dst v.chksum 
 
   cstruct tcp { 
     uint16_t src;
@@ -1207,8 +1208,6 @@ let string_of_dlVlan = function
 
 let string_of_dlVlanPcp = string_of_int
 
-let string_of_dlVlanDei = string_of_bool
-
 let string_of_nwAddr = string_of_ip
 
 let string_of_nwProto = function
@@ -1344,21 +1343,23 @@ let marshal (pkt:packet) : Cstruct.t =
 let ip_of_string (s : string) : nwAddr =
   let b = Str.split (Str.regexp "\\.") s in
   let open Int32 in
-      (logor (shift_left (of_string (List.nth b 0)) 24)
-         (logor (shift_left (of_string (List.nth b 1)) 16)
-            (logor (shift_left (of_string (List.nth b 2)) 8)
-               (of_string (List.nth b 3)))))
+    assert (List.length b = 4);
+    (logor (shift_left (of_string (List.nth b 0)) 24)
+       (logor (shift_left (of_string (List.nth b 1)) 16)
+          (logor (shift_left (of_string (List.nth b 2)) 8)
+             (of_string (List.nth b 3)))))
 
 let mac_of_string (s : string) : dlAddr =
   let b = Str.split (Str.regexp ":") s in
   let parse_byte str = Int64.of_string ("0x" ^ str) in
   let open Int64 in
-      (logor (shift_left (parse_byte (List.nth b 0)) 40)
-         (logor (shift_left (parse_byte (List.nth b 1)) 32)
-            (logor (shift_left (parse_byte (List.nth b 2)) 24)
-               (logor (shift_left (parse_byte (List.nth b 3)) 16)
-                  (logor (shift_left (parse_byte (List.nth b 4)) 8)
-                     (parse_byte (List.nth b 5)))))))
+    assert (List.length b = 6);
+    (logor (shift_left (parse_byte (List.nth b 0)) 40)
+       (logor (shift_left (parse_byte (List.nth b 1)) 32)
+          (logor (shift_left (parse_byte (List.nth b 2)) 24)
+             (logor (shift_left (parse_byte (List.nth b 3)) 16)
+                (logor (shift_left (parse_byte (List.nth b 4)) 8)
+                   (parse_byte (List.nth b 5)))))))
 
 let ipv6_of_string (s : string) : ipv6Addr =
   let b = Str.split (Str.regexp ":") s in

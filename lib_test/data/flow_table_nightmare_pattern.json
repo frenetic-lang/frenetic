@@ -1,0 +1,1 @@
+[{"priority":65535,"pattern":{"dlSrc":"00:00:de:ad:be:ef","dlDst":"00:00:be:ef:de:ad","dlTyp":2054,"dlVlan":500,"dlVlanPcp":30,"nwSrc":"192.168.0.0/24","nwDst":"192.169.0.0/18","nwProto":2,"tpSrc":8080,"tpDst":346356,"inPort":24},"action":[[["Output",{"type":"physical","port":0}]]],"cookie":"0","idle_timeout":"Permanent","hard_timeout":"Permanent"}]

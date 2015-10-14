@@ -236,7 +236,6 @@ let eval_pipes (packet:packet) (pol:Frenetic_NetKAT.policy)
    * Since Local.t is switch-specific, this function assumes but does not
    * check that the packet came from the same switch as the given Local.t *)
   let packets = eval packet pol in
-  let () = eprintf "Found %d packets" (PacketSet.length packets) in 
   PacketSet.fold packets ~init:([],[],[]) ~f:(fun (pi,qu,phy) pkt ->
     (* Running the packet through the switch's policy will label the resultant
      * packets with the pipe or query they belong to, if any. All that's left to

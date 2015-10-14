@@ -396,6 +396,9 @@ TEST "semantics agree with flowtable" =
      * the packet location to a pipe will not pass this test. To side-step the
      * problem, set the location to physical port 0 on the way out.
      *)
+    (* TODO: This test fails with the following generated test case:
+       filter port = 0; (filter ipSrc = 63.255.157.188/0; id).
+    *)
     let p' = Seq(p, Mod(Location(Physical(0l)))) in
     let open Frenetic_NetKAT_Semantics in
     PacketSet.compare

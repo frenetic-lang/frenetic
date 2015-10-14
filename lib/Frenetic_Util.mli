@@ -1,9 +1,9 @@
+(** Utility functions for Frenetic.  These are used in multiple modules and don't have an obvious home type. *)
+
 open Core.Std 
 
 module StringSet : Set.S with type Elt.t = string
 
+(** Given a user-defined formatter and a type, make a string.  This is a lot like sprintf, and encourages sharing the formatting code. *)
 val make_string_of : (Format.formatter -> 'a -> 'b) -> 'a -> string
 
-val string_of_option : ('a -> string) -> 'a option -> string
-
-val string_of_list : ('a -> string) -> 'a list -> string
