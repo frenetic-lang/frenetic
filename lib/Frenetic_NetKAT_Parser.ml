@@ -1,11 +1,3 @@
-(* Simple parser for NetKAT ... no antiquoting, etc.
-   This parser has a common structure with Frenetic_Syntax_Extension_Parser, but outputs
-   pure NetKAT data structures instead of OCaml AST's.  It's be nice if you could share the logic
-   but that doesn't look possible because.
-
-   So IF YOU CHANGE THE GRAMMAR HERE, be sure to change it in Frenetic_Syntax_Extension_Parser as well
-)*)
-
 open Core.Std
 open Camlp4.PreCast
 open Frenetic_NetKAT_Lexer
@@ -28,14 +20,14 @@ let nk_int = Gram.Entry.mk "nk_int"
 let nk_ipv4 = Gram.Entry.mk "nk_ipv4"
 let nk_loc = Gram.Entry.mk "nk_loc"
 
+(* TODO: Consider using the same optimizations that Frenetic_NetKAT_Json uses: my_big_union, etc. *)
+
 EXTEND Gram
 
   nk_int64: [[
       n = INT -> Core.Std.Int64.of_int_exn (int_of_string n)
     | n = INT64 -> Core.Std.Int64.of_string n
-    (* Not sure how to handle this yet, if we even need to
-    | `ANTIQUOT s -> illegal "$ syntax is not allowed in the simple parser"
-  *)
+    (*| `ANTIQUOT s -> illegal "$ syntax is not allowed in the simple parser" *)
   ]];
 
   nk_int32: [[
@@ -133,6 +125,7 @@ EXTEND Gram
       Frenetic_NetKAT.Filter a
     | "switch"; ":="; sw = nk_int64 ->
       Frenetic_NetKAT.(Mod (Switch sw))
+    (* TODO: Allow pseudo ports here as well, like controller, flood, etc. *)
     | "port"; ":="; n = nk_int32 ->
       Frenetic_NetKAT.(Mod (Location (Physical n)))
     | "vswitch"; ":="; sw = nk_int64 ->

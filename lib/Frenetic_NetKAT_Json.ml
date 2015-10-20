@@ -14,8 +14,9 @@ let macaddr_to_string (mac : Int64.t) : string =
   let buf = String.create 6 in
   let rec loop n =
     let byte = Int64.bit_and (Int64.shift_right mac (8 * n)) 0xffL in
-    String.set buf n (Char.of_int_exn (Int64.to_int_exn byte));
-    if n = 5 then () else loop (n + 1) in
+    String.set buf (5 - n) (Char.of_int_exn (Int64.to_int_exn byte));
+    if n = 5 then () 
+    else loop (n + 1) in
   loop 0;
   Macaddr.to_string (Macaddr.of_bytes_exn buf)
 
@@ -142,12 +143,12 @@ let from_json_header_val (json : json) : header_val =
   | "ethsrc" -> EthSrc (value |> to_string |> macaddr_from_string)
   | "ethdst" -> EthDst (value |> to_string |> macaddr_from_string)
   | "vlan" -> Vlan (value |> to_int)
-  | "vlanpcp" -> VlanPcp (value |> to_string |> Int.of_string)
+  | "vlanpcp" -> VlanPcp (value (*|> to_string |> Int.of_string*) |> to_int)
   | "ethtype" -> EthType (value |> to_string |> Int.of_string)
   | "ipproto" -> IPProto (value |> to_string |> Int.of_string)
   | "ipSrc" -> IP4Src (value |> to_string |> Frenetic_Packet.ip_of_string, 32l)
   | "ipDst" -> IP4Dst (value |> to_string |> Frenetic_Packet.ip_of_string, 32l)
-  | "tcpsrcport" -> TCPSrcPort (value |> to_string |> Int.of_string)
+  | "tcpsrcport" -> TCPSrcPort (value |> (*to_string |> Int.of_string*) to_int)
   | "tcpdstport" -> TCPDstPort (value |> to_string |> Int.of_string)
   | str -> raise (Invalid_argument ("invalid header " ^ str))
 
@@ -187,9 +188,6 @@ let policy_to_json_string (pol : policy) : string =
 
 let policy_from_json_string (str : string) : policy =
   policy_from_json (from_string str)
-
-let policy_from_json_channel (chan : In_channel.t) : policy =
-  policy_from_json (from_channel chan)
 
 let event_to_json (event : event) : json =
   let open Yojson.Basic.Util in

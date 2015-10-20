@@ -2,7 +2,10 @@
 open Test_Frenetic_Bits
 open Test_Frenetic_GroupTable0x04
 open Test_Frenetic_NetKAT
+open Test_Frenetic_NetKAT_Json
+open Test_Frenetic_NetKAT_Lexer
 open Test_Frenetic_NetKAT_Local_Compiler
+open Test_Frenetic_NetKAT_Parser
 open Test_Frenetic_NetKAT_Pretty
 open Test_Frenetic_Network
 open Test_Frenetic_Packet
