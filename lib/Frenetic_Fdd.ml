@@ -556,7 +556,7 @@ module Action = struct
       | Some (Query str) -> str :: queries
       | _ -> queries)
 
-  let to_sdn ?pc ?group_tbl (in_port : int64 option) (t:t) : SDN.par =
+  let to_sdn ?group_tbl (in_port : int64 option) (t:t) : SDN.par =
     (* Convert a NetKAT action to an SDN action. At the moment this function
        assumes that fields are assigned to proper bitwidth integers, and does
        no validation along those lines. If the input is derived from a NetKAT
@@ -596,18 +596,6 @@ module Action = struct
               in [SDN.(FastFail gid)]
             | None -> failwith "fast failover present, but no group table provided!")
         | Some mask      -> raise (FieldValue_mismatch(Location, mask))
-      in
-      let seq =
-        match pc, Seq.find seq K with
-        | _, None -> seq
-        | None, Some _ ->
-          failwith "continuation present, but no program counter field provided!"
-        | Some f, Some v ->
-          if Seq.mem seq (F f) then
-            failwith "program counter field already in use - must be fresh!"
-          else
-            Seq.remove seq K
-            |> Seq.add ~key:(F f) ~data:v
       in
       Seq.fold (Seq.remove seq (F Location)) ~init ~f:(fun ~key ~data acc ->
         match key, data with
