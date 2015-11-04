@@ -55,12 +55,12 @@ val restrict : header_val -> t -> t
 
 (** [to_table sw t] returns a flowtable that implements [t] for switch [sw]. *)
 
-val to_table : ?options:compiler_options -> ?pc:Field.t
+val to_table : ?options:compiler_options
             -> ?group_tbl:Frenetic_GroupTable0x04.t -> switchId -> t
             -> flow list
 (** [to_table sw t] returns a flowtable that implements [t] for switch [sw]. *)
 
-val to_table' : ?options:compiler_options -> ?pc:Field.t
+val to_table' : ?options:compiler_options
              -> ?group_tbl:Frenetic_GroupTable0x04.t -> switchId -> t
              -> (flow * string list) list
 
