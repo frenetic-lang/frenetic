@@ -171,12 +171,6 @@ module Field = struct
 
 end
 
-(** Packet field values.
-
-    Each packet field can take on a certain range of values that in general have
-    a lattice structure. This sometimes enables multiple tests on fields to be
-    compressed into a single test. This module implements the [Lattice]
-    siganture from the Tdk package. *)
 module Value = struct
 
   type t
@@ -188,25 +182,8 @@ module Value = struct
      * Put this somewhere else *)
     | FastFail of Int32.t list
     with sexp
-  (** The packet field value type. This is a union of all the possible values
-      that all fields can take on. All integer bit widths are represented by an
-      [Int64.t] and will be cast to the appropriate bit width for use during
-      final translation to flowtables.
-
-      A simple bitmask variant is also supported. [Mask(n, m)] indicates that
-      the first [m] bits of the value [n] are fixed, while the rest should be
-      treated as wildcards.
-
-      Because this is a big union of possible value types, it's possible for the
-      programmer to construct [(Field.t, Value.t)] pairs that do not make any
-      sense, e.g., [(Field.EthSrc, Value.Pipe "learn")]. This will be detected
-      during flowtable generation, though the syntax of the NetKAT language will
-      prevent programs from generating these ill-formed predicates. *)
-
-  (*
-    10.1.0.0 / 16    10.0.0.0 / 8
-    0.0.10.1         0.0.10.0
-   *)
+ 
+  (* subseq_eq, meet and join are defined to make this fit interface of Frenetic_Vlr.Lattice *)
   let subset_eq a b =
     (* A partial order on values that should be reflexive, transitive, and
        antisymmetric. This should also satisfy certain properites related to
@@ -269,7 +246,6 @@ module Value = struct
     | _          , FastFail _ -> None
     | Mask(a, m) , Mask(b, n) -> meet_mask a m  b n
     | Const a, Mask(b, n)     -> meet_mask a 64 b n
-
 
   let join ?(tight=false) a b =
     (* Determines the least upper bound of two elements, if one exists. This
@@ -349,12 +325,6 @@ end
 
 exception FieldValue_mismatch of Field.t * Value.t
 
-
-(* Packet patterns.
-
-   This module contains operations related to the deicsion variables of the
-   diagram used by the compiler, including functions to convert to and from the
-   [header_value], building up flow tables. *)
 module Pattern = struct
   type t = Field.t * Value.t
 
@@ -424,8 +394,6 @@ module Pattern = struct
     Frenetic_NetKAT.Test (to_hv (f, v))
 
   let to_sdn (f, v) : SDN.Pattern.t -> SDN.Pattern.t =
-    (* Converts a [Pattern.t] into a function that will modify a [SDN.Pattern.t]
-       to check the condition represented by the [Pattern.t]. *)
     let open Field in
     let open Value in
     match f, v with
@@ -463,12 +431,7 @@ module Pattern = struct
 
 end
 
-(* Packet actions
 
-   This module impelements packet actions for NetKAT. They are modeled as a set
-   of maps from fields to values/continuations. The inner maps represent a sequential
-   composition of field modifications. The outer set represents a parallel
-   composition of sequential compositions. *)
 module Action = struct
 
   type field_or_cont =
@@ -540,9 +503,7 @@ module Action = struct
         in
         Par.union acc r)
 
-  let negate t : t =
-    (* This implements negation for the [zero] and [one] actions. Any
-       non-[zero] action will be mapped to [zero] by this function. *)
+  let negate t : t =    
     if compare t zero = 0 then one else zero
 
   let get_queries (t : t) : string list =
@@ -552,10 +513,7 @@ module Action = struct
       | _ -> queries)
 
   let to_sdn ?pc ?group_tbl (in_port : int64 option) (t:t) : SDN.par =
-    (* Convert a NetKAT action to an SDN action. At the moment this function
-       assumes that fields are assigned to proper bitwidth integers, and does
-       no validation along those lines. If the input is derived from a NetKAT
-       surface syntax program, then this assumption likely holds. *)
+ 
     let to_int = Int64.to_int_exn in
     let to_int32 = Int64.to_int32_exn in
     let t = Par.filter_map t ~f:(fun seq ->
