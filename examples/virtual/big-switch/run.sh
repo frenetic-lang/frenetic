@@ -1,15 +1,15 @@
 #!/bin/bash
 
 ../../../frenetic.native virtual_cmd\
-  vpol.kat\
-  vrel.kat\
-  vtopo.kat\
-  vingpol.kat\
-  ving.kat\
-  veg.kat\
-  ptopo.kat\
-  ping.kat\
-  peg.kat
+  --vpol vpol.kat\
+  --vrel vrel.kat\
+  --vtopo vtopo.kat\
+  --ving-pol vingpol.kat\
+  --ving ving.kat\
+  --veg veg.kat\
+  --ptopo ptopo.kat\
+  --ping ping.kat\
+  --peg peg.kat
 
 
 for arg in "g_fabric" "g_pruned" "pg" "vg" "g_raw" 
