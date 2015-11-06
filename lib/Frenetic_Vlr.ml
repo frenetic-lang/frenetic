@@ -30,6 +30,10 @@ module type S = sig
   with sexp
   module Tbl : Hashtbl.S with type key = t
   module BinTbl : Hashtbl.S with type key = (t * t)
+  module Set : sig
+    include Set.S with type Elt.t = t
+    include Hashable.S with type t := t
+  end
   val get : d -> t
   val unget : t -> d
   val mk_branch : v -> t -> t -> t
@@ -100,6 +104,7 @@ struct
   let unget = T.unget
 
   module Tbl = Int.Table
+
   module BinTbl = Hashtbl.Make(struct
     type t = (int * int) with sexp
     let hash (t1, t2) = 617 * t1 +  619 * t2
@@ -107,6 +112,15 @@ struct
       | 0 -> Int.compare b1 b2
       | x -> x
   end)
+
+  module Set = struct
+    module S = struct
+      include Set.Make(Int)
+      let hash = Hashtbl.hash
+    end
+    include Hashable.Make(S)
+    include S
+  end
 
   let equal x y = x = y (* comparing ints *)
 
@@ -138,7 +152,7 @@ struct
   let clear_cache ~(preserve : Int.Set.t) =
     (* SJS: the interface exposes `id` and `drop` as constants,
        so they must NEVER be cleared from the cache *)
-    let preserve = Set.(add (add preserve drop) id) in
+    let preserve = Int.Set.(add (add preserve drop) id) in
     T.clear preserve
 
   let rec fold g h t = match T.unget t with

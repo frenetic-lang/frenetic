@@ -105,6 +105,12 @@ module type S = sig
   module Tbl : Hashtbl.S with type key = t
   module BinTbl : Hashtbl.S with type key = (t * t)
 
+  module Set : sig
+    include Set.S with type Elt.t = t
+    include Hashable.S with type t := t
+  end
+  (** hashable sets of decision diagrams *)
+
   val get : d -> t
   val unget : t -> d
   val mk_branch : v -> t -> t -> t
