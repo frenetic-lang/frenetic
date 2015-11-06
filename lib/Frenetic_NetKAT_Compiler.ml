@@ -306,10 +306,10 @@ let to_table ?(options=default_compiler_options) ?group_tbl swId t =
 let pipes t =
   let ps = FDK.fold
     (fun r -> Action.pipes r)
-    (fun _ t f -> Frenetic_Util.StringSet.union t f)
+    (fun _ t f -> String.Set.union t f)
     t
   in
-  Frenetic_Util.StringSet.to_list ps
+  String.Set.to_list ps
 
 let queries t =
   let module S = Core.Std.Set.Make(struct
@@ -495,18 +495,25 @@ end
 module NetKAT_Automaton = struct
 
   (* table *)
-  module Tbl = FDK.Tbl
+  module Tbl = Int.Table
 
   (* untable (inverse table) *)
   module Untbl = FDK.BinTbl
 
-  (* (hashable) int set *)
-  module S = FDK.Set
+  (* (hashable) int sets *)
+  module S = struct
+    module S = struct
+      include Set.Make(Int)
+      let hash = Hashtbl.hash
+    end
+    include Hashable.Make(S)
+    include S
+  end
 
   (* main data structure of symbolic NetKAT automaton *)
   type t =
     { states : (FDK.t * FDK.t) Tbl.t;
-      has_state : FDK.t Untbl.t;
+      has_state : int Untbl.t;
       mutable source : int;
       mutable nextState : int }
 
@@ -527,17 +534,17 @@ module NetKAT_Automaton = struct
     let source = 0 in
     { states; has_state; source; nextState = source+1 }
 
-  let mk_state_t0 (automaton : t0) =
+  let mk_state_t0 (automaton : t0) : int =
     let id = automaton.nextState in
     automaton.nextState <- id + 1;
     id
 
-  let mk_state_t (automaton : t) =
+  let mk_state_t (automaton : t) : int =
     let id = automaton.nextState in
     automaton.nextState <- id + 1;
     id
 
-  let add_to_t (automaton : t) (state : (FDK.t * FDK.t)) =
+  let add_to_t (automaton : t) (state : (FDK.t * FDK.t)) : int =
     match Untbl.find automaton.has_state state with
     | Some k -> k
     | None ->
@@ -735,14 +742,15 @@ module NetKAT_Automaton = struct
     let open Format in
     let buf = Buffer.create 200 in
     let fmt = formatter_of_buffer buf in
-    let seen = Tbl.create () ~size:20 in
+    let seen = FDK.Tbl.create () ~size:20 in
     pp_set_margin fmt (1 lsl 29);
     fprintf fmt "digraph fdk {@\n";
     let rec node_loop node =
-      if not (Tbl.mem seen node) then begin
-        Tbl.add_exn seen node ();
+      if not (FDK.Tbl.mem seen node) then begin
+        FDK.Tbl.add_exn seen node ();
         match FDK.unget node with
         | Leaf par ->
+          let node = FDK.get_uid node in
           let seqId = ref 0 in
           let edges = ref [] in
           fprintf fmt "subgraph cluster_%d {@\n" node;
@@ -750,21 +758,23 @@ module NetKAT_Automaton = struct
           fprintf fmt "\tshape = box;@\n" ;
           fprintf fmt "\t%d [shape = point];@\n" node;
           Action.Par.iter par ~f:(fun seq ->
-            let id = sprintf "\"%dS%d\"" node (!seqId) in
-            let cont = Action.Seq.find seq K |> Option.map ~f:(fun v -> Tbl.find_exn states (Value.to_int_exn v)) in
+            let id : string = sprintf "\"%dS%d\"" node (!seqId) in
+            let cont = Action.Seq.find seq K
+              |> Option.map ~f:(fun v -> Tbl.find_exn states (Value.to_int_exn v)) in
             let label = Action.to_string (Action.Par.singleton seq) in
             fprintf fmt "\t%s [shape=box, label=\"%s\"];@\n" id label;
             Option.iter cont ~f:(fun k ->
-              edges := sprintf "%s -> %d [style=bold, color=blue];@\n" id k :: (!edges));
+              edges := sprintf "%s -> %d [style=bold, color=blue];@\n"
+                id (FDK.get_uid k) :: (!edges));
             incr seqId;
           );
           fprintf fmt "}@\n";
           List.iter (!edges) ~f:(fprintf fmt "%s")
         | Branch((f, v), a, b) ->
-          fprintf fmt "%d [label=\"%s = %s\"];@\n"
-            node (Field.to_string f) (Value.to_string v);
-          fprintf fmt "%d -> %d;@\n" node a;
-          fprintf fmt "%d -> %d [style=\"dashed\"];@\n" node b;
+          let node = FDK.get_uid node in
+          fprintf fmt "%d [label=\"%s = %s\"];@\n" node (Field.to_string f) (Value.to_string v);
+          fprintf fmt "%d -> %d;@\n" node (FDK.get_uid a);
+          fprintf fmt "%d -> %d [style=\"dashed\"];@\n" node (FDK.get_uid b);
           node_loop a;
           node_loop b
       end
@@ -778,9 +788,10 @@ module NetKAT_Automaton = struct
       List.iter conts ~f:fdk_loop
     in
     fdk_loop automaton.source;
-    fprintf fmt "%d [style=bold, color=red];@\n" (Tbl.find_exn states automaton.source);
+    fprintf fmt "%d [style=bold, color=red];@\n"
+      (Tbl.find_exn states automaton.source |> FDK.get_uid);
     fprintf fmt "{rank=source; ";
-    List.iter (!fdks) ~f:(fun fdk -> fprintf fmt "%d " fdk);
+    List.iter (!fdks) ~f:(fun fdk -> fprintf fmt "%d " (FDK.get_uid fdk));
     fprintf fmt ";}@\n";
     fprintf fmt "}@.";
     Buffer.contents buf

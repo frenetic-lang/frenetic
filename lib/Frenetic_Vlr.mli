@@ -88,7 +88,7 @@ end
 
 module type S = sig
 
-  type t = int with sexp
+  type t with sexp
   (** The type of a decision diagram *)
 
   type v with sexp
@@ -105,14 +105,9 @@ module type S = sig
   module Tbl : Hashtbl.S with type key = t
   module BinTbl : Hashtbl.S with type key = (t * t)
 
-  module Set : sig
-    include Set.S with type Elt.t = t
-    include Hashable.S with type t := t
-  end
-  (** hashable sets of decision diagrams *)
-
   val get : d -> t
   val unget : t -> d
+  val get_uid : t -> int
   val mk_branch : v -> t -> t -> t
   val mk_leaf : r -> t
   val drop : t (* zero *)

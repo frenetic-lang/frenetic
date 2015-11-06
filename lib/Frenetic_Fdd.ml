@@ -645,7 +645,7 @@ module Action = struct
 
   (* TODO(jnf): why is this imperative?! *)
   let pipes t =
-    let module S = Frenetic_Util.StringSet in
+    let module S = String.Set in
     let s = ref S.empty in
     iter_fv t ~f:(fun key data ->
       match key, data with
@@ -654,7 +654,7 @@ module Action = struct
     !s
 
   let queries t =
-    let module S = Frenetic_Util.StringSet in
+    let module S = String.Set in
     let s = ref S.empty in
     iter_fv t ~f:(fun key data ->
       match key, data with

@@ -21,7 +21,7 @@ module type Result = sig
 end
 
 module type S = sig
-  type t = int with sexp
+  type t with sexp
   type v with sexp
   type r with sexp
   type d
@@ -30,12 +30,9 @@ module type S = sig
   with sexp
   module Tbl : Hashtbl.S with type key = t
   module BinTbl : Hashtbl.S with type key = (t * t)
-  module Set : sig
-    include Set.S with type Elt.t = t
-    include Hashable.S with type t := t
-  end
   val get : d -> t
   val unget : t -> d
+  val get_uid : t -> int
   val mk_branch : v -> t -> t -> t
   val mk_leaf : r -> t
   val drop : t
@@ -102,25 +99,11 @@ struct
 
   let get = T.get
   let unget = T.unget
+  let get_uid (t:t) : int = t
 
   module Tbl = Int.Table
 
-  module BinTbl = Hashtbl.Make(struct
-    type t = (int * int) with sexp
-    let hash (t1, t2) = 617 * t1 +  619 * t2
-    let compare (a1,b1) (a2,b2) = match Int.compare a1 a2 with
-      | 0 -> Int.compare b1 b2
-      | x -> x
-  end)
-
-  module Set = struct
-    module S = struct
-      include Set.Make(Int)
-      let hash = Hashtbl.hash
-    end
-    include Hashable.Make(S)
-    include S
-  end
+  module BinTbl = Frenetic_Util.IntPairTbl
 
   let equal x y = x = y (* comparing ints *)
 
