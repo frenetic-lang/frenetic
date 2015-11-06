@@ -87,6 +87,6 @@ end
 
 module FDK : sig
   include Frenetic_Vlr.S with type v = Field.t * Value.t and type r = Action.t
-  val mk_cont : int -> int
-  val conts : t -> t list
+  val mk_cont : int -> t
+  val conts : t -> int list
 end

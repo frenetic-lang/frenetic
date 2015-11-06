@@ -43,6 +43,7 @@ module type S = sig
   (* val apply : (r -> r -> r) -> bool -> bool -> r -> t -> t -> t *)
   val sum : t -> t -> t
   val prod : t -> t -> t
+  val dp_map : (r -> t) -> (v -> t -> t -> t) -> t -> t
   val map_r : (r -> r) -> t -> t
   val fold : (r -> 'a) -> (v -> 'a -> 'a -> 'a) -> t -> 'a
   val equal : t -> t -> bool
@@ -199,6 +200,18 @@ struct
   let sum = apply R.sum true true R.zero
 
   let prod = apply R.prod false false R.one
+
+  let dp_map (g : R.t -> t)
+             (h : V.t * L.t -> t -> t -> t)
+             (t : t) : t =
+    let open Core.Std in
+    let tbl = Int.Table.create () in
+    let rec f t =
+      Int.Table.find_or_add tbl t ~default:(fun () -> f' t)
+    and f' t = match unget t with
+      | Leaf r -> g r
+      | Branch ((v, l), tru, fls) -> h (v,l) (f tru) (f fls) in
+    f t
 
   let compressed_size (node : t) : int =
     let open Core.Std in
