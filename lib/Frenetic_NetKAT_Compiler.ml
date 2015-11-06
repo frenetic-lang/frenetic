@@ -110,7 +110,7 @@ module FDK = struct
                                       (mk_seq (mk_filter (mk_not p)) f)))
 
   let dedup fdd =
-    let module FS = Set.Make(Field) in
+    let module FS = Core.Std.Set.Make(Field) in
     dp_map
       (fun par ->
         let mods = Action.Par.to_hvs par in
@@ -312,7 +312,7 @@ let pipes t =
   Frenetic_Util.StringSet.to_list ps
 
 let queries t =
-  let module S = Set.Make(struct
+  let module S = Core.Std.Set.Make(struct
     type t = string * Frenetic_NetKAT.pred sexp_opaque with sexp
     let compare = Pervasives.compare
   end) in
@@ -495,24 +495,13 @@ end
 module NetKAT_Automaton = struct
 
   (* table *)
-  module Tbl = Int.Table
+  module Tbl = FDK.Tbl
 
   (* untable (inverse table) *)
-  module Untbl = Hashtbl.Make(struct
-    type t = (int * int) with sexp
-    let hash (t1, t2) = 617 * t1 +  619 * t2
-    let compare = Pervasives.compare
-  end)
+  module Untbl = FDK.BinTbl
 
   (* (hashable) int set *)
-  module S = struct
-    module S = struct
-      include Set.Make(Int)
-      let hash = Hashtbl.hash
-    end
-    include Hashable.Make(S)
-    include S
-  end
+  module S = FDK.Set
 
   (* main data structure of symbolic NetKAT automaton *)
   type t =
