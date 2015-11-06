@@ -1,10 +1,7 @@
-open Sexplib
-open Sexplib.Std
+open Core.Std
 
 module type HashCmp = sig
-  type t
-  val hash : t -> int
-  val compare : t -> t -> int
+  include Hashtbl.Key
   val to_string : t -> string
 end
 
@@ -25,11 +22,14 @@ end
 
 module type S = sig
   type t = int with sexp
-  type v
-  type r
+  type v with sexp
+  type r with sexp
   type d
     = Leaf of r
     | Branch of v * t * t
+  with sexp
+  module Tbl : Hashtbl.S with type key = t
+  module BinTbl : Hashtbl.S with type key = (t * t)
   val get : d -> t
   val unget : t -> d
   val mk_branch : v -> t -> t -> t
@@ -48,24 +48,35 @@ module type S = sig
   val fold : (r -> 'a) -> (v -> 'a -> 'a -> 'a) -> t -> 'a
   val equal : t -> t -> bool
   val to_string : t -> string
-  val clear_cache : preserve:Core.Std.Int.Set.t -> unit
+  val clear_cache : preserve:Int.Set.t -> unit
   val compressed_size : t -> int
   val uncompressed_size : t -> int
   val to_dot : t -> string
-  val refs : t -> Core.Std.Int.Set.t
-
+  val refs : t -> Int.Set.t
 end
 
 
 module Make(V:HashCmp)(L:Lattice)(R:Result) : 
   S with type v = V.t * L.t and type r = R.t = 
 struct
-  type v = V.t * L.t
-  type r = R.t
+  type v = V.t * L.t with sexp
+  type r = R.t with sexp
 
   type d
     = Leaf of r
     | Branch of v * int * int
+  with sexp
+  (* A tree structure representing the decision diagram. The [Leaf] variant
+   * represents a constant function. The [Branch(v, l, t, f)] represents an
+   * if-then-else. When variable [v] takes on the value [l], then [t] should
+   * hold. Otherwise, [f] should hold.
+   *
+   * [Branch] nodes appear in an order determined first by the total order on
+   * the [V.t] value with with ties broken by the total order on [L.t]. The
+   * least such pair should appear at the root of the diagram, with each child
+   * nodes being strictly greater than their parent node. This invariant is
+   * important both for efficiency and correctness.
+   * *)
 
   type t = int with sexp
   module T = Frenetic_Hashcons.Make(struct
@@ -88,17 +99,14 @@ struct
   let get = T.get
   let unget = T.unget
 
-  (* A tree structure representing the decision diagram. The [Leaf] variant
-   * represents a constant function. The [Branch(v, l, t, f)] represents an
-   * if-then-else. When variable [v] takes on the value [l], then [t] should
-   * hold. Otherwise, [f] should hold.
-   *
-   * [Branch] nodes appear in an order determined first by the total order on
-   * the [V.t] value with with ties broken by the total order on [L.t]. The
-   * least such pair should appear at the root of the diagram, with each child
-   * nodes being strictly greater than their parent node. This invariant is
-   * important both for efficiency and correctness.
-   * *)
+  module Tbl = Int.Table
+  module BinTbl = Hashtbl.Make(struct
+    type t = (int * int) with sexp
+    let hash (t1, t2) = 617 * t1 +  619 * t2
+    let compare (a1,b1) (a2,b2) = match Int.compare a1 a2 with
+      | 0 -> Int.compare b1 b2
+      | x -> x
+  end)
 
   let equal x y = x = y (* comparing ints *)
 
@@ -119,18 +127,18 @@ struct
 
        If the ids are distinct, then the node has to be constructed and assigned
        a new id. *)
-    if equal t f then begin
+    if equal t f then
       t
-    end else
+    else
       T.get (Branch((v, l), t, f))
 
   let drop = mk_leaf (R.zero)
   let id = mk_leaf (R.one)
 
-  let clear_cache ~(preserve : Core.Std.Int.Set.t) =
+  let clear_cache ~(preserve : Int.Set.t) =
     (* SJS: the interface exposes `id` and `drop` as constants,
        so they must NEVER be cleared from the cache *)
-    let preserve = Core.Std.Set.(add (add preserve drop) id) in
+    let preserve = Set.(add (add preserve drop) id) in
     T.clear preserve
 
   let rec fold g h t = match T.unget t with
@@ -163,17 +171,15 @@ struct
     in
     loop (List.sort (fun (u, _) (v, _) -> V.compare u v) lst) u
 
-  module H = Core.Std.Hashtbl.Poly
-
   let apply f commutative idempotent zero x y =
-    let tbl : (int * int, int) H.t = H.create () in
+    let tbl : (t * t, t) Hashtbl.t = BinTbl.create () in
     let rec sum x y =
       if idempotent && x=y then x else
       if commutative && y < x
         (* for commutative operations, we have f(x,y) = f(y,x),
            so to maximize memoization, we always look up f(min(x,y), max(x,y)) *)
-        then H.find_or_add tbl (y, x) ~default:(fun () -> sum' y x)
-        else H.find_or_add tbl (x, y) ~default:(fun () -> sum' x y)
+        then Hashtbl.find_or_add tbl (y, x) ~default:(fun () -> sum' y x)
+        else Hashtbl.find_or_add tbl (x, y) ~default:(fun () -> sum' x y)
     and sum' x y =
       match T.unget x, T.unget y with
       | Leaf r, _      ->
@@ -204,17 +210,15 @@ struct
   let dp_map (g : R.t -> t)
              (h : V.t * L.t -> t -> t -> t)
              (t : t) : t =
-    let open Core.Std in
-    let tbl = Int.Table.create () in
+    let tbl = Tbl.create () in
     let rec f t =
-      Int.Table.find_or_add tbl t ~default:(fun () -> f' t)
+      Tbl.find_or_add tbl t ~default:(fun () -> f' t)
     and f' t = match unget t with
       | Leaf r -> g r
       | Branch ((v, l), tru, fls) -> h (v,l) (f tru) (f fls) in
     f t
 
   let compressed_size (node : t) : int =
-    let open Core.Std in
     let rec f (node : t) (seen : Int.Set.t) =
       if Int.Set.mem seen node then
         (0, seen)
@@ -234,37 +238,27 @@ struct
     | Leaf _ -> 1
     | Branch (_, hi, lo) -> 1 + uncompressed_size hi + uncompressed_size lo
 
-  module VH = Hashtbl.Make(struct
-    type t = v
-
-    let equal (v1, l1) (v2, l2) =
-      V.compare v1 v2 = 0 && L.compare l1 l2 = 0
-
-    let hash (v, l) =
-      191 * (V.hash v) + 877 * (L.hash l)
-  end)
-
   let to_dot t =
     let open Format in
     let buf = Buffer.create 200 in
     let fmt = formatter_of_buffer buf in
-    let seen = Hashtbl.create ~random:true 20 in
-    let rank = VH.create 20 in
+    let seen : Int.Hash_set.t = Int.Hash_set.create ~size:10 () in
+    let rank : ((V.t*L.t), Int.Hash_set.t) Hashtbl.t = Hashtbl.Poly.create ~size:20 () in
     pp_set_margin fmt (1 lsl 29);
     fprintf fmt "digraph tdk {@\n";
     let rec loop t =
-      if not (Hashtbl.mem seen t) then begin
-        Hashtbl.add seen t ();
+      if not (Hash_set.mem seen t) then begin
+        Hash_set.add seen t;
         match T.unget t with
         | Leaf r ->
           fprintf fmt "%d [shape=box label=\"%s\"];@\n" t (R.to_string r)
         | Branch((v, l), a, b) ->
           begin
-            try Hashtbl.add (VH.find rank (v, l)) t ()
+            try Hash_set.add (Hashtbl.find_exn rank (v, l)) t
             with Not_found ->
-              let s = Hashtbl.create ~random:true 10 in
-              Hashtbl.add s t ();
-              VH.add rank (v, l) s
+              let s = Int.Hash_set.create ~size:10 () in
+              Hash_set.add s t;
+              Hashtbl.set rank (v, l) s
           end;
           fprintf fmt "%d [label=\"%s = %s\"];@\n"
             t (V.to_string v) (L.to_string l);
@@ -275,17 +269,14 @@ struct
       end
     in
     loop t;
-    VH.iter
-      (fun _ s ->
-         fprintf fmt "{rank=same; ";
-         Hashtbl.iter (fun x () -> fprintf fmt "%d " x) s;
-         fprintf fmt ";}@\n")
-      rank;
+    Hashtbl.iter rank ~f:(fun ~key:_ ~data:s ->
+      fprintf fmt "{rank=same; ";
+      Hash_set.iter s ~f:(fun x -> fprintf fmt "%d " x);
+      fprintf fmt ";}@\n");
     fprintf fmt "}@.";
     Buffer.contents buf
 
-  let refs (t : t) : Core.Std.Int.Set.t =
-    let open Core.Std in
+  let refs (t : t) : Int.Set.t =
     let rec f (node : t) (seen : Int.Set.t) =
       if Int.Set.mem seen node then
         seen

@@ -2,21 +2,7 @@ open Core.Std
 
 (** The signature for a type that can be compared and hashed *)
 module type HashCmp = sig
-  type t 
-
-  val hash : t -> int
-  (** [hash t] assigns an interger to each value of type [t]. This assignment
-      must be consistent with the {!compare} operation in the following way:
-
-          if [compare a b = 0] then [hash a = hash b] *)
-
-  val compare : t -> t -> int
-  (** [compare a b] returns one of three values:
-
-      {ul
-      {- [0] when [a] and [b] are equal;}
-      {- [1] when [a] is greater than [b]; and}
-      {- [-1] when [a] is less than [b].}} *)
+  include Hashtbl.Key
 
   val to_string : t -> string
   (** [to_string t] returns a string representation of the value. *)
@@ -105,15 +91,19 @@ module type S = sig
   type t = int with sexp
   (** The type of a decision diagram *)
 
-  type v
+  type v with sexp
   (** The type of a variable in the decision diagram. *)
 
-  type r
+  type r with sexp
   (** The type of the result of a decision diagram *)
 
   type d
     = Leaf of r
     | Branch of v * t * t
+  with sexp
+
+  module Tbl : Hashtbl.S with type key = t
+  module BinTbl : Hashtbl.S with type key = (t * t)
 
   val get : d -> t
   val unget : t -> d
