@@ -59,8 +59,6 @@ module FDK = struct
         (fun v t f -> cond v t f)
       t
 
-  (* Compute the union of [t] and [u] by using the sum operation. This will
-     appropriately combine actions for overlapping patterns. *)
   let union t u = sum t u
 
   let big_union fdds = List.fold ~init:drop ~f:union fdds
@@ -215,13 +213,6 @@ let get_inport hvs =
   in
   List.fold_left hvs ~init:None ~f:get_inport'
 
-(* TODO(grouptable): fix this mess. I made to_action_multitable because it's
- * used in the multitable compiler. to_action does not use group tables and is
- * for the normal compiler. *)
-
-(* Frenetic_OpenFlow.group is an action group, equivalent in type to
- * 'action list list list', while Frenetic_GroupTable0x04.t contains
- * groupmod messages to create a group table *)
 let to_action ?group_tbl (in_port : Int64.t option) r tests =
   List.fold tests ~init:r ~f:(fun a t -> Action.demod t a)
   |> Action.to_sdn ?group_tbl in_port
