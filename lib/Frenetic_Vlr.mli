@@ -148,11 +148,11 @@ module type S = sig
       can attempt to reduce the diagram to a value, and then use [peek] to
       extract that value. *)
 
+  (* val apply : (r -> r -> r) -> bool -> bool -> r -> t -> t -> t *)
+
   val sum : t -> t -> t
   (** [sum a b] returns the disjunction of the two diagrams. The [sum]
       operation on the [r] type is used to combine leaf nodes. *)
-
-  val sum_generalized : (r -> r -> r) -> r -> t -> t -> t
 
   val prod : t -> t -> t
   (** [prod a b] returns the conjunction of the two diagrams. The [prod]

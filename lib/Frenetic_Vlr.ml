@@ -40,8 +40,8 @@ module type S = sig
   val atom : v -> r -> r -> t
   val restrict : v list -> t -> t
   val peek : t -> r option
+  (* val apply : (r -> r -> r) -> bool -> bool -> r -> t -> t -> t *)
   val sum : t -> t -> t
-  val sum_generalized : (r -> r -> r) -> r -> t -> t -> t
   val prod : t -> t -> t
   val map_r : (r -> r) -> t -> t
   val fold : (r -> 'a) -> (v -> 'a -> 'a -> 'a) -> t -> 'a
@@ -201,15 +201,20 @@ struct
     (fun r          -> const (g r))
     (fun (v, l) t f -> mk_branch (v,l) t f)
 
-  let sum_generalized f zero x y =
+  let apply f commutative idempotent zero x y =
     let tbl : (int * int, int) H.t = H.create () in
     let rec sum x y =
-       H.find_or_add tbl (x, y) ~default:(fun () -> sum' x y)
+      if idempotent && x=y then x
+      else if commutative && y < x
+        (* for commutative operations, we have f(x,y) = f(y,x),
+           so to maximize memoization, we always look up f(min(x,y), max(x,y)) *)
+        then H.find_or_add tbl (y, x) ~default:(fun () -> sum' y x)
+        else H.find_or_add tbl (x, y) ~default:(fun () -> sum' x y)
     and sum' x y =
       match T.unget x, T.unget y with
       | Leaf r, _      ->
-         if R.compare r zero = 0 then y
-        else map_r (f r) y
+        if R.compare r zero = 0 then y
+        else map_r (fun y -> f r y) y
       | _     , Leaf r ->
         if R.compare zero r = 0 then x
         else map_r (fun x -> f x r) x
@@ -228,9 +233,9 @@ struct
         end
     in sum x y
 
-  let sum = sum_generalized R.sum R.zero
+  let sum = apply R.sum true true R.zero
 
-  let prod = sum_generalized R.prod R.one
+  let prod = apply R.prod false false R.one
 
   let compressed_size (node : t) : int =
     let open Core.Std in
