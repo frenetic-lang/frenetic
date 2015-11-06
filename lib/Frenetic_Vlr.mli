@@ -91,16 +91,15 @@ module type S = sig
   type t with sexp
   (** The type of a decision diagram *)
 
-  type v with sexp
+  type v
   (** The type of a variable in the decision diagram. *)
 
-  type r with sexp
+  type r
   (** The type of the result of a decision diagram *)
 
   type d
     = Leaf of r
     | Branch of v * t * t
-  with sexp
 
   module Tbl : Hashtbl.S with type key = t
   module BinTbl : Hashtbl.S with type key = (t * t)

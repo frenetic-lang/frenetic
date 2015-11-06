@@ -22,12 +22,11 @@ end
 
 module type S = sig
   type t with sexp
-  type v with sexp
-  type r with sexp
+  type v
+  type r
   type d
     = Leaf of r
     | Branch of v * t * t
-  with sexp
   module Tbl : Hashtbl.S with type key = t
   module BinTbl : Hashtbl.S with type key = (t * t)
   val get : d -> t
@@ -81,7 +80,7 @@ struct
 
   type t = int with sexp
   module T = Frenetic_Hashcons.Make(struct
-      type t = d
+      type t = d with sexp
 
       let hash t = match t with
         | Leaf r ->
@@ -89,12 +88,21 @@ struct
         | Branch((v, l), t, f) ->
           (1021 * (V.hash v) + 1031 * (L.hash l) + 1033 * t + 1039 * f) lor 0x1
 
-      let equal a b = match a, b with
-        | Leaf r1, Leaf r2 -> R.compare r1 r2 = 0
+      let compare a b = match a, b with
+        | Leaf _, Branch _ -> -1
+        | Branch _, Leaf _ -> 1
+        | Leaf r1, Leaf r2 -> R.compare r1 r2
         | Branch((vx, lx), tx, fx), Branch((vy, ly), ty, fy) ->
-          V.compare vx vy = 0 && tx = ty && fx = fy
-            && L.compare lx ly = 0
-        | _, _ -> false
+          begin match V.compare vx vy with
+          | 0 -> begin match L.compare lx ly with
+            | 0 -> begin match Int.compare tx ty with
+              | 0 -> Int.compare fx fy
+              | x -> x
+              end
+            | x -> x
+            end
+          | x -> x
+          end
     end)
 
   let get = T.get
