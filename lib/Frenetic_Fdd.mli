@@ -81,7 +81,7 @@ module Action : sig
   val to_sdn : ?group_tbl:Frenetic_GroupTable0x04.t
             -> Int64.t option -> t -> Frenetic_OpenFlow.par
   val get_queries : t -> string list
-  val pipes : t -> Frenetic_Util.StringSet.t
+  val pipes : t -> String.Set.t
   val queries : t -> string list
   val to_string : t -> string
 end

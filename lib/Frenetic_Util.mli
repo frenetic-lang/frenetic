@@ -1,6 +1,6 @@
 open Core.Std 
 
-module StringSet : Set.S with type Elt.t = string
+module IntPairTbl : Hashtbl.S with type key = (int * int)
 
 val make_string_of : (Format.formatter -> 'a -> 'b) -> 'a -> string
 
