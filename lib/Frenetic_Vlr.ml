@@ -140,46 +140,15 @@ struct
   let const r = mk_leaf r
   let atom (v,l) t f = mk_branch (v,l) (const t) (const f)
 
-  let node_min t1 t2 = match (t1, t2) with
-  | Leaf _, Leaf _ -> (t1, t2) (* constants at same rank since they can't be ordered *)
-  | Leaf _, _ -> (t2, t1)
-  | _, Leaf _ -> (t1, t2)
-  | Branch ((v1, l1), _, _), Branch ((v2, l2), _, _) -> match V.compare v1 v2 with
-    | -1 -> (t1, t2)
-    | 1 -> (t2, t1)
-    | 0 -> if L.subset_eq l1 l2 then
-             (t1, t2)
-           else if L.subset_eq l2 l1 then
-             (t2, t1)
-           else
-             (* The Spiros case. I don't think it matters which we pick *)
-             (t1, t2)
-    | _ -> assert false
+  let peek t = match T.unget t with
+    | Leaf r   -> Some r
+    | Branch _ -> None
 
+  let rec map_r g = fold
+    (fun r          -> const (g r))
+    (fun (v, l) t f -> mk_branch (v,l) t f)
 
-  module H = Core.Std.Hashtbl.Poly
-
-  let rec restrict' ((x1, l1) : v) (is_true : bool) (t : t) : t=
-    match unget t with
-    | Leaf r -> t
-    | Branch ((x2, l2), tru, fls) ->
-      match V.compare x1 x2 with
-      | 1 -> t
-      | -1 ->
-        if is_true then mk_branch (x1,l1) t (mk_leaf R.zero)
-        else mk_branch (x1,l1) (mk_leaf R.zero) t
-      | 0 ->
-        if L.subset_eq l2 l1 then
-          (if is_true then t else mk_leaf R.zero)
-        else if L.subset_eq l1 l2 then
-          mk_branch (x2,l2) (restrict' (x1,l1) is_true tru) fls
-        (* TODO(arjun): disjoint assumption. Does not work for prefixes *)
-        else
-          (if is_true then mk_leaf R.zero else tru)
-      | _ -> assert false
-
-
-  let restrict lst =
+  let restrict lst u =
     let rec loop xs u =
       match xs, T.unget u with
       | []          , _
@@ -191,21 +160,15 @@ struct
         |  1 -> mk_branch (v',l') (loop xs t) (loop xs f)
         |  _ -> assert false
     in
-    loop (List.sort (fun (u, _) (v, _) -> V.compare u v) lst)
+    loop (List.sort (fun (u, _) (v, _) -> V.compare u v) lst) u
 
-  let peek t = match T.unget t with
-    | Leaf r   -> Some r
-    | Branch _ -> None
-
-  let rec map_r g = fold
-    (fun r          -> const (g r))
-    (fun (v, l) t f -> mk_branch (v,l) t f)
+  module H = Core.Std.Hashtbl.Poly
 
   let apply f commutative idempotent zero x y =
     let tbl : (int * int, int) H.t = H.create () in
     let rec sum x y =
-      if idempotent && x=y then x
-      else if commutative && y < x
+      if idempotent && x=y then x else
+      if commutative && y < x
         (* for commutative operations, we have f(x,y) = f(y,x),
            so to maximize memoization, we always look up f(min(x,y), max(x,y)) *)
         then H.find_or_add tbl (y, x) ~default:(fun () -> sum' y x)
