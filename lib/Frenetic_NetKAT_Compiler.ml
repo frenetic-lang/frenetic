@@ -70,13 +70,9 @@ module FDK = struct
         (fun v t f -> cond v t f)
       t
 
-  let union t u =
-    (* Compute the union of [t] and [u] by using the sum operation. This will
-       appropriately combine actions for overlapping patterns. *)
-    if equal t u then
-      t
-    else
-      sum t u
+  (* Compute the union of [t] and [u] by using the sum operation. This will
+     appropriately combine actions for overlapping patterns. *)
+  let union t u = sum t u
 
   let big_union fdds = List.fold ~init:drop ~f:union fdds
 
