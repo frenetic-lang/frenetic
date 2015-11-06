@@ -158,6 +158,11 @@ module type S = sig
   (** [prod a b] returns the conjunction of the two diagrams. The [prod]
       operation on the [r] type is used to combine leaf nodes. *)
 
+  val dp_map : (r -> t) -> (v -> t -> t -> t) -> t -> t
+  (** [dp_map f h t] traverses t in post order and first maps the leaves using
+      f, and then the internal nodes using h, producing a modified diagram.
+      It uses memoization for better performance. *)
+
   val map_r : (r -> r) -> t -> t
   (** [map_r f t] returns a diagram with the same structure but whose leaf
       nodes have been modified according the function [f].

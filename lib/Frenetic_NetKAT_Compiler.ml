@@ -43,17 +43,6 @@ module FDK = struct
       (sum (prod (atom v Action.one Action.zero) t)
              (prod (atom v Action.zero Action.one) f))
 
-  let dp_fold (g : Action.t -> 'a)
-              (h : Field.t * Value.t -> 'a -> 'a -> 'a)
-              (t : t) : 'a =
-    let tbl = Hashtbl.Poly.create () in
-    let rec f t =
-      Hashtbl.Poly.find_or_add tbl t ~default:(fun () -> f' t)
-    and f' t = match unget t with
-      | Leaf r -> g r
-      | Branch ((v, l), tru, fls) -> h (v,l) (f tru) (f fls) in
-    f t
-
   let seq t u =
     match peek u with
     | Some _ -> prod t u (* This is an optimization. If [u] is an
@@ -62,7 +51,7 @@ module FDK = struct
                               of the decision variables in [u] need to be
                               removed because there are none. *)
     | None   ->
-      dp_fold
+      dp_map
         (fun par ->
           Action.Par.fold par ~init:drop ~f:(fun acc seq ->
             let u' = restrict (Action.Seq.to_hvs seq) u in
@@ -122,7 +111,7 @@ module FDK = struct
 
   let dedup fdd =
     let module FS = Set.Make(Field) in
-    dp_fold
+    dp_map
       (fun par ->
         let mods = Action.Par.to_hvs par in
         let fields = List.map mods ~f:fst |> FS.of_list in
@@ -528,7 +517,7 @@ module NetKAT_Automaton = struct
   (* main data structure of symbolic NetKAT automaton *)
   type t =
     { states : (FDK.t * FDK.t) Tbl.t;
-      has_state : int Untbl.t;
+      has_state : FDK.t Untbl.t;
       mutable source : int;
       mutable nextState : int }
 
