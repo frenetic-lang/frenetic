@@ -53,7 +53,7 @@ let to_json_value (h : header_val) : json = match h with
   | IPProto n
   | TCPSrcPort n
   | TCPDstPort n -> `Int n
-  | IP4Src (addr, mask) -> to_json_ip (addr, mask)
+  | IP4Src (addr, mask)
   | IP4Dst (addr, mask) -> to_json_ip (addr, mask)
   | Wavelength n -> `Int n
 
