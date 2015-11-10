@@ -1,5 +1,6 @@
 (* Write tests in independent modules, then just include them here to run them *)
 open Test_Frenetic_Bits
+open Test_Frenetic_Fdd
 open Test_Frenetic_GroupTable0x04
 open Test_Frenetic_NetKAT
 open Test_Frenetic_NetKAT_Json

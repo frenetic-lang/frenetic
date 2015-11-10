@@ -176,7 +176,7 @@ Executable fastfailtest
 Test all_tests
   Run$: flag(tests)
   # -only-test Test_Frenetic_GroupTable0x04.ml
-  Command: $testtool inline-test-runner frenetic
+  Command: $testtool inline-test-runner frenetic -only-test Test_Frenetic_Fdd.ml
   TestTools: testtool
 
 Document frenetic

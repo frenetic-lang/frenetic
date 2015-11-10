@@ -2,10 +2,6 @@ open Core.Std
 
 module SDN = Frenetic_OpenFlow
 
-(** Packet field.
-
-    Packet fields are the variables that network functions are defined over.
-    This module implements the the [Variable] signature from the Tdk package. *)
 module Field = struct
 
   (* Do not change the order without reordering all_fields *)
@@ -27,25 +23,24 @@ module Field = struct
     | VFabric
     with sexp
 
-  (** The type of packet fields. This is an enumeration whose ordering has an
-      effect on the performance of Tdk operations, as well as the size of the
-      flowtables that the compiler will produce. *)
-
   let hash = Hashtbl.hash
 
   let of_string = function
     | "Switch" -> Switch
-    | "Location" -> Location
-    | "EthSrc" -> EthSrc
-    | "EthDst" -> EthDst
     | "Vlan" -> Vlan
     | "VlanPcp" -> VlanPcp
+    | "VSwitch" -> VSwitch
+    | "VPort" -> VPort
     | "EthType" -> EthType
     | "IPProto" -> IPProto
+    | "EthSrc" -> EthSrc
+    | "EthDst" -> EthDst
     | "IP4Src" -> IP4Src
     | "IP4Dst" -> IP4Dst
     | "TCPSrcPort" -> TCPSrcPort
     | "TCPDstPort" -> TCPDstPort
+    | "Location" -> Location
+    | "VFabric" -> VFabric
     | _ -> assert false
 
   let to_string = function
@@ -70,15 +65,15 @@ module Field = struct
   (* Ensure that these are in the same order in which the variants appear. *)
   let all_fields =
     [ Switch; Vlan; VlanPcp; VSwitch; VPort; EthType; IPProto; EthSrc; EthDst;
-      IP4Src; IP4Dst; TCPSrcPort; TCPDstPort; Location; VFabric]
+      IP4Src; IP4Dst; TCPSrcPort; TCPDstPort; Location; VFabric ]
 
   let is_valid_order (lst : t list) : bool =
-    List.length lst = num_fields &&
-    List.for_all all_fields ~f:(List.mem lst)
+    List.length lst = num_fields && not (List.contains_dup lst)
 
   assert (is_valid_order all_fields)
 
-  (* Initial order is the order in which fields appear in this file. *)
+  (* order[i] = the position of field i in the current ordering.  Indexes are 1..15 assigned by Obj.magic,
+     so that order[1] is the index of the Switch field.  Initial order is the order in which fields appear in this file. *)
   let order = Array.init num_fields ~f:ident
 
   let readable_order = ref all_fields
@@ -125,10 +120,11 @@ module Field = struct
        field assignments to sizes. *)
   let auto_order (pol : Frenetic_NetKAT.policy) : unit =
     let open Frenetic_NetKAT in
+    (* Construct map of (field,score) pairs, where score starts at 0 for every field *)
     let count_tbl =
       match Hashtbl.Poly.of_alist (List.map all_fields ~f:(fun f -> (f, 0))) with
       | `Ok tbl -> tbl
-      | `Duplicate_key _ -> assert false in
+      | `Duplicate_key _ -> assert false in (* Should never happen because assert above will catch it *)
     let rec f_pred size in_product pred = match pred with
       | True -> ()
       | False -> ()
@@ -165,8 +161,10 @@ module Field = struct
       | Star _ | Link _ | VLink _ -> k 1 (* bad, but it works *)
     and f_union pol = f_union' pol (fun n -> n) in
     let _ = f_seq pol in
+    (* Sort (field, score) pairs by descending score into lst *)
     let cmp (_, x) (_, y) = Pervasives.compare y x in
     let lst = List.sort ~cmp (Hashtbl.Poly.to_alist count_tbl) in
+    (* Then set field order accordingly *)
     set_order (List.map lst ~f:(fun (fld, _) -> fld))
 
 end

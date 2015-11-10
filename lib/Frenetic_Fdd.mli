@@ -14,7 +14,7 @@
   Basically, the flow goes: you turn NetKAT into an FDD, then an FDD into a Flow Table.
   See paper "A Fast Compiler for NetKAT" (http://www.cs.cornell.edu/~jnfoster/papers/netkat-compiler.pdf)
   for details and theory behind it.  FDD's are nice because you can operate on them 
-  using the full well-estbalished theory of BDD's. 
+  using the full well-established theory of BDD's. 
 *)
 
 open Core.Std
@@ -24,7 +24,13 @@ module Field : sig
   (** Fields are analogous to binary variables in a BDD. 
    These are pretty much the same as matchable fields in OpenFlow.  To this list, we
    add VSwitch, VPort and VFabric for the virtual compiler.  These are not actual matchable
-   fields in OpenFlow, but are converted to Switch and Port in the process. *)
+   fields in OpenFlow, but are converted to Switch and Port in the compilation process. 
+
+   The constructors in type t are listed in the default order, which is acceptable for many
+   NetKAT programs.  
+
+    This module implements the the [HashCmp] signature from the Frenetic_Vlr package, so it 
+    becomes the "V" in VLR. *)
   type t
     = Switch
       | Vlan
@@ -43,6 +49,21 @@ module Field : sig
       | VFabric
   with sexp
 
+  (** [hash field] returns a hash code for the field.  *)
+  val hash : t -> int
+
+  (** [all_fields] returns the default field field ordering *)
+  val all_fields : t list
+
+  (** [compare f1 f2] compares two fields in the current ordering in the usual way. *)
+  val compare : t -> t -> int
+
+  (** [of_string str] converts a field string to an abstract field.  Throws an exception for unrecognized strings. *)  
+  val of_string : string -> t
+
+  (** [to_string field] returns a human-readable representation *)  
+  val to_string : t -> string
+
   (** [set_order field_list] sets the field ordering to the given list.  Any non-listed fields are given low priority in random order. *)
   val set_order : t list -> unit
 
@@ -51,21 +72,6 @@ module Field : sig
 
   (** [auto_order policy] heurisitically determines the field ordering given a policy *)
   val auto_order : Frenetic_NetKAT.policy -> unit
-
-  (** [all_fields] returns the default field field ordering *)
-  val all_fields : t list
-
-  (** [to_string field] returns a human-readable representation *)  
-  val to_string : t -> string
-
-  (** [of_string str] converts a field string to an abstract field.  Throws an exception for unrecognized strings. *)  
-  val of_string : string -> t
-
-  (** [compare f1 f2] compares two fields in the current ordering in the usual way. *)
-  val compare : t -> t -> int
-
-  (** [hash field] returns a hash code for the field.  *)
-  val hash : t -> int
 end
 
 module Value : sig
@@ -216,7 +222,7 @@ end
 
 (** TODO(CAR): Why is this called FDK and not FDD?  Historical?  *)
 module FDK : sig
-  (** An FDD is a concrete version of a Variable-Lattice-Result (VLR) structure.  *)
+  (** An FDD is an instance of a Variable-Lattice-Result (VLR) structure.  *)
   include Frenetic_Vlr.S with type v = Field.t * Value.t and type r = Action.t
   val mk_cont : int -> int
   val conts : t -> t list
