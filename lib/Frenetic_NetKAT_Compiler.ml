@@ -43,6 +43,13 @@ module FDK = struct
       (sum (prod (atom v Action.one Action.zero) t)
              (prod (atom v Action.zero Action.one) f))
 
+  let seq_tbl = Tbl.create ~size:1000 ()
+
+  let clear_cache preserve = begin
+    clear_cache preserve;
+    Tbl.clear seq_tbl;
+  end
+
   let seq t u =
     match peek u with
     | Some _ -> prod t u (* This is an optimization. If [u] is an
@@ -51,12 +58,13 @@ module FDK = struct
                               of the decision variables in [u] need to be
                               removed because there are none. *)
     | None   ->
-      dp_map
+      FDK.dp_map
         (fun par ->
           Action.Par.fold par ~init:drop ~f:(fun acc seq ->
             let u' = restrict (Action.Seq.to_hvs seq) u in
             (sum (prod (const Action.Par.(singleton seq)) u') acc)))
         (fun v t f -> cond v t f)
+        seq_tbl
       t
 
   let union t u = sum t u
@@ -108,8 +116,8 @@ module FDK = struct
                                       (mk_seq (mk_filter (mk_not p)) f)))
 
   let dedup fdd =
-    let module FS = Core.Std.Set.Make(Field) in
-    dp_map
+    let module FS = Set.Make(Field) in
+    FDK.map
       (fun par ->
         let mods = Action.Par.to_hvs par in
         let fields = List.map mods ~f:fst |> FS.of_list in
@@ -161,8 +169,6 @@ type compiler_options = {
     dedup_flows: bool;
     optimize: bool;
 }
-
-let clear_cache () = FDK.clear_cache Int.Set.empty
 
 let default_compiler_options = {
   cache_prepare = `Empty;
@@ -303,7 +309,7 @@ let pipes t =
   String.Set.to_list ps
 
 let queries t =
-  let module S = Core.Std.Set.Make(struct
+  let module S = Set.Make(struct
     type t = string * Frenetic_NetKAT.pred sexp_opaque with sexp
     let compare = Pervasives.compare
   end) in

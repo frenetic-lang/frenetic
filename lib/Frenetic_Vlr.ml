@@ -40,10 +40,10 @@ module type S = sig
   val atom : v -> r -> r -> t
   val restrict : v list -> t -> t
   val peek : t -> r option
-  (* val apply : (r -> r -> r) -> bool -> bool -> r -> t -> t -> t *)
   val sum : t -> t -> t
   val prod : t -> t -> t
-  val dp_map : (r -> t) -> (v -> t -> t -> t) -> t -> t
+  val map : (r -> t) -> (v -> t -> t -> t) -> t -> t
+  val dp_map : (r -> t) -> (v -> t -> t -> t) -> (t, t) Hashtbl.t -> t -> t
   val map_r : (r -> r) -> t -> t
   val fold : (r -> 'a) -> (v -> 'a -> 'a -> 'a) -> t -> 'a
   val equal : t -> t -> bool
@@ -140,12 +140,6 @@ struct
   let drop = mk_leaf (R.zero)
   let id = mk_leaf (R.one)
 
-  let clear_cache ~(preserve : Int.Set.t) =
-    (* SJS: the interface exposes `id` and `drop` as constants,
-       so they must NEVER be cleared from the cache *)
-    let preserve = Int.Set.(add (add preserve drop) id) in
-    T.clear preserve
-
   let rec fold g h t = match T.unget t with
     | Leaf r -> g r
     | Branch((v, l), t, f) ->
@@ -176,15 +170,9 @@ struct
     in
     loop (List.sort (fun (u, _) (v, _) -> V.compare u v) lst) u
 
-  let apply f commutative idempotent zero x y =
-    let tbl : (t * t, t) Hashtbl.t = BinTbl.create () in
+  let apply f zero (cache : (t*t, t) Hashtbl.t) =
     let rec sum x y =
-      if idempotent && x=y then x else
-      if commutative && y < x
-        (* for commutative operations, we have f(x,y) = f(y,x),
-           so to maximize memoization, we always look up f(min(x,y), max(x,y)) *)
-        then Hashtbl.find_or_add tbl (y, x) ~default:(fun () -> sum' y x)
-        else Hashtbl.find_or_add tbl (x, y) ~default:(fun () -> sum' x y)
+      BinTbl.find_or_add cache (x, y) ~default:(fun () -> sum' x y)
     and sum' x y =
       match T.unget x, T.unget y with
       | Leaf r, _      ->
@@ -206,22 +194,42 @@ struct
         |  1 -> mk_branch (vy,ly) (sum x ty) (sum x fy)
         |  _ -> assert false
         end
-    in sum x y
+    in sum
 
-  let sum = apply R.sum true true R.zero
+  let sum_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
+  let sum = apply R.sum R.zero sum_tbl
 
-  let prod = apply R.prod false false R.one
+  let prod_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
+  let prod = apply R.prod R.one prod_tbl
 
-  let dp_map (g : R.t -> t)
-             (h : V.t * L.t -> t -> t -> t)
-             (t : t) : t =
-    let tbl = Tbl.create () in
-    let rec f t =
-      Tbl.find_or_add tbl t ~default:(fun () -> f' t)
-    and f' t = match unget t with
+  let clear_cache ~(preserve : Int.Set.t) =
+    (* SJS: the interface exposes `id` and `drop` as constants,
+       so they must NEVER be cleared from the cache *)
+    let preserve = Int.Set.(add (add preserve drop) id) in begin
+      T.clear preserve;
+      BinTbl.clear sum_tbl;
+      BinTbl.clear prod_tbl
+    end
+
+  let map (g : R.t -> t)
+          (h : V.t * L.t -> t -> t -> t)
+          (t : t) : t =
+    let rec f t = match unget t with
       | Leaf r -> g r
       | Branch ((v, l), tru, fls) -> h (v,l) (f tru) (f fls) in
     f t
+
+  let dp_map (g : R.t -> t)
+             (h : V.t * L.t -> t -> t -> t)
+             (cache : (t, t) Hashtbl.t)
+             : t -> t =
+    let rec f t =
+      Tbl.find_or_add cache t ~default:(fun () -> f' t)
+    and f' t =
+      match unget t with
+        | Leaf r -> g r
+        | Branch ((v, l), tru, fls) -> h (v,l) (f tru) (f fls) in
+    f
 
   let compressed_size (node : t) : int =
     let rec f (node : t) (seen : Int.Set.t) =
