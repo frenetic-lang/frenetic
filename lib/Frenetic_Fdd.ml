@@ -637,30 +637,24 @@ module Action = struct
       in
       Frenetic_NetKAT_Optimize.mk_union seq' acc)
 
-  let iter_fv t ~f =
-    Par.iter t ~f:(fun seq ->
-      Seq.iter seq ~f:(fun ~key ~data -> match key with
-        | F key -> f key data
-        | _ -> ()))
+  let fold_fv t ~(init : 'a) ~(f : 'a -> field:Field.t -> value:Value.t -> 'a) : 'a =
+    Par.fold t ~init ~f:(fun acc seq ->
+      Seq.fold seq ~init:acc ~f:(fun ~key ~data acc -> match key with
+        | F key -> f acc ~field:key ~value:data
+        | _ -> acc))
 
-  (* TODO(jnf): why is this imperative?! *)
   let pipes t =
-    let module S = String.Set in
-    let s = ref S.empty in
-    iter_fv t ~f:(fun key data ->
-      match key, data with
-      | Field.Location, Value.Pipe q -> s := S.add !s q
-      | _, _ -> ());
-    !s
+    fold_fv t ~init:String.Set.empty ~f:(fun acc ~field ~value ->
+      match field, value with
+      | Field.Location, Value.Pipe q -> Set.add acc q
+      | _, _ -> acc)
 
   let queries t =
-    let module S = String.Set in
-    let s = ref S.empty in
-    iter_fv t ~f:(fun key data ->
-      match key, data with
-      | Field.Location, Value.Query q -> s := S.add !s q
-      | _, _ -> ());
-    S.to_list !s
+    fold_fv t ~init:String.Set.empty ~f:(fun acc ~field ~value ->
+      match field, value with
+      | Field.Location, Value.Query q -> Set.add acc q
+      | _, _ -> acc)
+    |> Set.to_list
 
   let hash t =
     (* XXX(seliopou): Hashtbl.hash does not work because the same set can have
