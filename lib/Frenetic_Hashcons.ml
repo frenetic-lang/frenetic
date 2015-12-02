@@ -22,15 +22,14 @@ module Make (Value : Hashtbl.Key) : HASHTYPE with type t = Value.t = struct
 
   let idx = ref 0
 
-  let clear (preserve : Int.Set.t) : unit =
-    let max_key = ref 0 in
-    T.iter tbl ~f:(fun ~key ~data ->
-      max_key := max !max_key data;
-      if not (Int.Set.mem preserve data) then begin
-        U.remove untbl data;
-        T.remove tbl key
-      end);
-    idx := !max_key + 1
+  let clear (preserve : Int.Set.t) : unit = begin
+    (* SJS: iterate over _copy_ of tbl to avoid side effect hell! *)
+    T.to_alist tbl
+      |> List.filter ~f:(fun (_,v) -> not (Set.mem preserve v))
+      |> List.iter ~f:(fun (k,v) -> T.remove tbl k; U.remove untbl v);
+    idx := 1 + T.fold tbl ~init:0 ~f:(fun ~key ~data -> max data)
+  end
+
 
   let gensym () =
     let r = !idx in
