@@ -13,7 +13,6 @@ open Frenetic_NetKAT_Optimize
 (** IP & MAC Addresses **)
 let string_of_mac = Frenetic_Packet.string_of_mac
 let mac_of_string = Frenetic_Packet.mac_of_string
-
 let string_of_ip = Frenetic_Packet.string_of_ip
 let ip_of_string = Frenetic_Packet.ip_of_string
 
