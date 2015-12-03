@@ -18,9 +18,9 @@ let ip_of_string = Frenetic_Packet.ip_of_string
 
 let to_json_ip (addr, mask : Frenetic_Packet.nwAddr * int32) : json =
   let addr = ("addr", `String (string_of_ip addr)) in
-  let mask = Int32.to_int_exn mask |> (fun m ->
-    if m = 32 then [] else [("mask", `Int m)])
-  in
+  let mask = Int32.to_int_exn mask |> function
+    | 32 -> []
+    | m -> [("mask", `Int m)] in
   `Assoc (addr :: mask)
 
 let from_json_ip (json : json) : Frenetic_Packet.nwAddr * int32 =
