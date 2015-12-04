@@ -43,20 +43,20 @@ module FDK = struct
       (sum (prod (atom v Action.one Action.zero) t)
              (prod (atom v Action.zero Action.one) f))
 
-  let seq_tbl = Tbl.create ~size:1000 ()
+  let seq_tbl = BinTbl.create ~size:1000 ()
 
   let clear_cache preserve = begin
+    BinTbl.clear seq_tbl;
     clear_cache preserve;
-    Tbl.clear seq_tbl;
   end
 
   let seq t u =
     match peek u with
     | Some _ -> prod t u (* This is an optimization. If [u] is an
-                              [Action.Par.t], then it will compose with [t]
-                              regardless of however [t] modifies packets. None
-                              of the decision variables in [u] need to be
-                              removed because there are none. *)
+                            [Action.Par.t], then it will compose with [t]
+                            regardless of however [t] modifies packets. None
+                            of the decision variables in [u] need to be
+                            removed because there are none. *)
     | None   ->
       FDK.dp_map
         (fun par ->
@@ -64,8 +64,8 @@ module FDK = struct
             let u' = restrict (Action.Seq.to_hvs seq) u in
             (sum (prod (const Action.Par.(singleton seq)) u') acc)))
         (fun v t f -> cond v t f)
-        seq_tbl
-      t
+        ~find_or_add:(fun t -> BinTbl.find_or_add seq_tbl (t,u))
+        t
 
   let union t u = sum t u
 

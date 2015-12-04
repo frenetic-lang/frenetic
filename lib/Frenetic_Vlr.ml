@@ -43,7 +43,9 @@ module type S = sig
   val sum : t -> t -> t
   val prod : t -> t -> t
   val map : (r -> t) -> (v -> t -> t -> t) -> t -> t
-  val dp_map : (r -> t) -> (v -> t -> t -> t) -> (t, t) Hashtbl.t -> t -> t
+  val dp_map : (r -> t) -> (v -> t -> t -> t) -> t
+            -> find_or_add:(t -> default:(unit -> t) -> t)
+            -> t
   val map_r : (r -> r) -> t -> t
   val fold : (r -> 'a) -> (v -> 'a -> 'a -> 'a) -> t -> 'a
   val equal : t -> t -> bool
@@ -56,8 +58,8 @@ module type S = sig
 end
 
 
-module Make(V:HashCmp)(L:Lattice)(R:Result) : 
-  S with type v = V.t * L.t and type r = R.t = 
+module Make(V:HashCmp)(L:Lattice)(R:Result) :
+  S with type v = V.t * L.t and type r = R.t =
 struct
   type v = V.t * L.t with sexp
   type r = R.t with sexp
@@ -116,12 +118,12 @@ struct
   let equal x y = x = y (* comparing ints *)
 
   let rec to_string t = match T.unget t with
-    | Leaf r -> 
+    | Leaf r ->
        Printf.sprintf "(%s)" (R.to_string r)
-    | Branch((v, l), t, f) -> 
+    | Branch((v, l), t, f) ->
        Printf.sprintf "(%s = %s ? %s : %s)"
 	 (V.to_string v) (L.to_string l) (to_string t) (to_string f)
-		      
+
   let mk_leaf r = T.get (Leaf r)
 
   let mk_branch (v,l) t f =
@@ -206,9 +208,9 @@ struct
     (* SJS: the interface exposes `id` and `drop` as constants,
        so they must NEVER be cleared from the cache *)
     let preserve = Int.Set.(add (add preserve drop) id) in begin
-      T.clear preserve;
       BinTbl.clear sum_tbl;
-      BinTbl.clear prod_tbl
+      BinTbl.clear prod_tbl;
+      T.clear preserve;
     end
 
   let map (g : R.t -> t)
@@ -221,15 +223,16 @@ struct
 
   let dp_map (g : R.t -> t)
              (h : V.t * L.t -> t -> t -> t)
-             (cache : (t, t) Hashtbl.t)
-             : t -> t =
+             (t : t)
+             ~find_or_add
+             : t =
     let rec f t =
-      Tbl.find_or_add cache t ~default:(fun () -> f' t)
+      find_or_add t ~default:(fun () -> f' t)
     and f' t =
       match unget t with
         | Leaf r -> g r
         | Branch ((v, l), tru, fls) -> h (v,l) (f tru) (f fls) in
-    f
+    f t
 
   let compressed_size (node : t) : int =
     let rec f (node : t) (seen : Int.Set.t) =

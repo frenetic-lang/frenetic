@@ -152,7 +152,9 @@ module type S = sig
   (** [map f h t] traverses t in post order and first maps the leaves using
       f, and then the internal nodes using h, producing a modified diagram. *)
 
-  val dp_map : (r -> t) -> (v -> t -> t -> t) -> (t, t) Hashtbl.t -> t -> t
+  val dp_map : (r -> t) -> (v -> t -> t -> t) -> t
+             -> find_or_add:(t -> default:(unit -> t) -> t)
+             -> t
   (** [dp_map f h cache t] is equal to [map f h t], but uses [cache] for memoization *)
 
   val map_r : (r -> r) -> t -> t
@@ -209,5 +211,5 @@ end
     structure represents functions that take on values in a semi-ring, and whose
     variables are assigned values from a lattice, i.e., that are partially
     ordered. *)
-module Make(V:HashCmp)(L:Lattice)(R:Result) : S 
+module Make(V:HashCmp)(L:Lattice)(R:Result) : S
   with type v = V.t * L.t and type r = R.t
