@@ -15,14 +15,6 @@ open Core.Std
 open Frenetic_NetKAT
 open Yojson.Basic
 
-(* {1 Field Operations} *)
-
-(** Serialize an Ethernet Mac Address to a string looking like nn:nn:nn:nn:nn:nn *)
-val macaddr_to_string : Int64.t -> string 
-
-(** Serialize a string looking like nn:nn:nn:nn:nn:nn to an Ethernet mac *)
-val macaddr_from_string : string -> Int64.t
-
 (* {1 Json Serialization/Deserialization} *)
 
 (** Deserialize a Yojson repesentation of a NetKAT policy *)

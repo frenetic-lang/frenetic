@@ -2,12 +2,6 @@ open Core.Std
 open Yojson.Basic
 open Frenetic_NetKAT_Json
 
-TEST "macaddr_to_string converts number 0x87adf989839e to string 87:ad:f9:89:83:9e" =
-  macaddr_to_string 0x87adf989839eL = "87:ad:f9:89:83:9e"
-
-TEST "macaddr_from_string converts string 87:ad:f9:89:83:9e to number 0x87adf989839e" =
-  macaddr_from_string "87:ad:f9:89:83:9e" = 0x87adf989839eL
-
 (* TODO: Right now, NetKAT_Parser does not do optimization, but NetKAT_Json does, making it tough to do
    more extensive testing.  When that's worked out, add more tests here. *)
 

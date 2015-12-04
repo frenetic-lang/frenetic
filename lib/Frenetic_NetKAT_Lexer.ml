@@ -127,7 +127,7 @@ let rec token c = lexer
   | blank+ -> token c c.lexbuf
   | decbyte '.' decbyte '.' decbyte '.' decbyte -> IP4ADDR (L.latin1_lexeme c.lexbuf)
   | hexbyte ':' hexbyte ':' hexbyte ':' hexbyte ':' hexbyte ':' hexbyte ->
-    INT64 (Int64.to_string(Frenetic_NetKAT_Json.macaddr_from_string (L.latin1_lexeme c.lexbuf))) 
+    INT64 (Int64.to_string(Frenetic_Packet.mac_of_string (L.latin1_lexeme c.lexbuf))) 
   | (hexnum | decnum)  -> INT (L.latin1_lexeme c.lexbuf)
   | (hexnum | decnum) 'l' -> INT32 (L.latin1_lexeme c.lexbuf)
   | (hexnum | decnum) 'L' -> INT64 (L.latin1_lexeme c.lexbuf)

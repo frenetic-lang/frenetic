@@ -170,13 +170,13 @@ TEST_MODULE = struct
     with Not_found -> true | _ -> false   
 
   TEST "S.clear_cache removes all provided diagrams, but keeps diagrams in preserve parameter" =
-    let fdd = two_level_tree in
+    let _ = two_level_tree in
     let node_100 = const 100 in
     clear_cache (Int.Set.of_list [ node_100 ]);
     node_100 = const 100
 
   TEST "S.clear_cache doesn't remove drop or id diagrams under any circumstances" =
-    let fdd = two_level_tree in
+    let _ = two_level_tree in
     let zero_idx = drop in
     let one_idx = id in
     clear_cache Int.Set.empty;
