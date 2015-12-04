@@ -237,9 +237,9 @@ let get_inport hvs =
 (* Frenetic_OpenFlow.group is an action group, equivalent in type to
  * 'action list list list', while Frenetic_GroupTable0x04.t contains
  * groupmod messages to create a group table *)
-let to_action ?pc ?group_tbl (in_port : Int64.t option) r tests =
+let to_action ?group_tbl (in_port : Int64.t option) r tests =
   List.fold tests ~init:r ~f:(fun a t -> Action.demod t a)
-  |> Action.to_sdn ?pc ?group_tbl in_port
+  |> Action.to_sdn ?group_tbl in_port
 
 let to_pattern hvs =
   List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_OpenFlow.Pattern.match_all
@@ -259,7 +259,7 @@ let mk_branch_or_leaf test t f =
   | None -> Some f
   | Some t -> Some (FDK.mk_branch test t f)
 
-let opt_to_table ?pc ?group_tbl sw_id t =
+let opt_to_table ?group_tbl sw_id t =
   let t =
     t
     |> restrict [(Field.Switch, Value.Const sw_id)
@@ -273,7 +273,7 @@ let opt_to_table ?pc ?group_tbl sw_id t =
     | Branch (test, t, f) ->
       next_table_row (test::tests) (fun t' -> mk_rest (mk_branch_or_leaf test t' f)) t
     | Leaf actions ->
-      let openflow_instruction = [to_action ?pc ?group_tbl (get_inport tests) actions tests] in
+      let openflow_instruction = [to_action ?group_tbl (get_inport tests) actions tests] in
       let queries = Action.get_queries actions in
       let row = mk_flow (to_pattern tests) openflow_instruction queries in
       (row, mk_rest None)
@@ -285,11 +285,11 @@ let opt_to_table ?pc ?group_tbl sw_id t =
   in
   List.filter_opt (loop t [])
 
-let rec naive_to_table ?pc ?group_tbl sw_id (t : FDK.t) =
+let rec naive_to_table ?group_tbl sw_id (t : FDK.t) =
   let t = FDK.(restrict [(Field.Switch, Value.Const sw_id)] t) |> remove_local_fields in
   let rec dfs tests t = match FDK.unget t with
   | Leaf actions ->
-    let openflow_instruction = [to_action ?pc ?group_tbl (get_inport tests) actions tests] in
+    let openflow_instruction = [to_action ?group_tbl (get_inport tests) actions tests] in
     let queries = Action.get_queries actions in
     [mk_flow (to_pattern tests) openflow_instruction queries]
   | Branch ((Location, Pipe _), _, fls) -> dfs tests fls
@@ -308,15 +308,15 @@ let remove_tail_drops fl =
       | _ -> h :: t in
   List.rev (remove_tail_drop (List.rev fl))
 
-let to_table' ?(options=default_compiler_options) ?pc ?group_tbl swId t =
+let to_table' ?(options=default_compiler_options) ?group_tbl swId t =
   let t = if options.dedup_flows then FDK.dedup t else t in
   let t = match options.optimize with
-  | true -> opt_to_table ?pc ?group_tbl swId t
-  | false -> naive_to_table ?pc ?group_tbl swId t in
+  | true -> opt_to_table ?group_tbl swId t
+  | false -> naive_to_table ?group_tbl swId t in
   if options.remove_tail_drops then (remove_tail_drops t) else t
 
-let to_table ?(options=default_compiler_options) ?pc ?group_tbl swId t =
-  List.map ~f:fst (to_table' ~options ?pc ?group_tbl swId t)
+let to_table ?(options=default_compiler_options) ?group_tbl swId t =
+  List.map ~f:fst (to_table' ~options ?group_tbl swId t)
 
 let pipes t =
   let ps = FDK.fold
@@ -741,6 +741,14 @@ module NetKAT_Automaton = struct
   let to_local (pc : Field.t) (automaton : t) : FDK.t =
     fold_reachable automaton ~init:FDK.drop ~f:(fun acc id (e,d) ->
       let _ = assert (pc_unused pc e && pc_unused pc d) in
+      let d =
+        let open Action in
+        FDK.map_r
+          (Par.map ~f:(fun seq -> match Seq.find seq K with
+            | None -> failwith "transition function must specify next state!"
+            | Some data -> Seq.remove seq K |> Seq.add ~key:(F pc) ~data))
+          d
+      in
       let guard =
         if id = automaton.source then FDK.id
         else FDK.atom (pc, Value.of_int id) Action.one Action.zero in

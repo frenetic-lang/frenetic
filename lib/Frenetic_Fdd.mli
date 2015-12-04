@@ -215,9 +215,8 @@ module Action : sig
   (** [to_sdn switch action] converts a NetKAT action to an SDN action. At the moment this function
    assumes that fields are assigned to proper bitwidth integers, and does
    no validation along those lines. If the input is derived from a NetKAT
-   surface syntax program, then this assumption likely holds.  Use pc, presumably an
-   unused field, as a program counter for global programs.  *)
-  val to_sdn : ?pc:Field.t -> ?group_tbl:Frenetic_GroupTable0x04.t
+   surface syntax program, then this assumption likely holds.    *)
+  val to_sdn : ?group_tbl:Frenetic_GroupTable0x04.t
             -> Int64.t option -> t -> Frenetic_OpenFlow.par
 
   (** [get_queries action] returns a list of queries used in actions.  May have dupes. *)

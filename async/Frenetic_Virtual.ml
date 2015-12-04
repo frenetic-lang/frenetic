@@ -13,7 +13,7 @@ let print_tables policy : Frenetic_NetKAT_Compiler.t =
   Format.fprintf
     fmt "[local] Local Policy:@\n@[%a@]@\n@\n"
     Frenetic_NetKAT_Pretty.format_policy local_pol;
-  let tables = List.map (fun sw -> (sw, Frenetic_NetKAT_Compiler.to_table ?pc:(Some Frenetic_Fdd.Field.Vlan) sw fdd)) switches in
+  let tables = List.map (fun sw -> (sw, Frenetic_NetKAT_Compiler.to_table sw fdd)) switches in
   List.iter print_table tables;
   fdd
 
