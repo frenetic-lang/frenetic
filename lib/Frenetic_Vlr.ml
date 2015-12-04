@@ -32,6 +32,7 @@ module type S = sig
     | Branch of v * t * t
   val get : d -> t
   val unget : t -> d
+  val equal : t -> t -> bool
   val mk_branch : v -> t -> t -> t
   val mk_leaf : r -> t
   val drop : t
@@ -40,21 +41,17 @@ module type S = sig
   val atom : v -> r -> r -> t
   val restrict : v list -> t -> t
   val peek : t -> r option
-  val sum : t -> t -> t
-  val sum_generalized : (r -> r -> r) -> r -> t -> t -> t
-  val prod : t -> t -> t
-  val map_r : (r -> r) -> t -> t
   val fold : (r -> 'a) -> (v -> 'a -> 'a -> 'a) -> t -> 'a
-  val equal : t -> t -> bool
+  val map_r : (r -> r) -> t -> t
+  val sum : t -> t -> t
+  val prod : t -> t -> t
   val to_string : t -> string
   val clear_cache : preserve:Core.Std.Int.Set.t -> unit
   val compressed_size : t -> int
   val uncompressed_size : t -> int
   val to_dot : t -> string
   val refs : t -> Core.Std.Int.Set.t
-
 end
-
 
 module Make(V:HashCmp)(L:Lattice)(R:Result) : 
   S with type v = V.t * L.t and type r = R.t = 
@@ -87,27 +84,8 @@ struct
   let get = T.get
   let unget = T.unget
 
-  (* A tree structure representing the decision diagram. The [Leaf] variant
-   * represents a constant function. The [Branch(v, l, t, f)] represents an
-   * if-then-else. When variable [v] takes on the value [l], then [t] should
-   * hold. Otherwise, [f] should hold.
-   *
-   * [Branch] nodes appear in an order determined first by the total order on
-   * the [V.t] value with with ties broken by the total order on [L.t]. The
-   * least such pair should appear at the root of the diagram, with each child
-   * nodes being strictly greater than their parent node. This invariant is
-   * important both for efficiency and correctness.
-   * *)
-
   let equal x y = x = y (* comparing ints *)
 
-  let rec to_string t = match T.unget t with
-    | Leaf r -> 
-       Printf.sprintf "(%s)" (R.to_string r)
-    | Branch((v, l), t, f) -> 
-       Printf.sprintf "(%s = %s ? %s : %s)"
-	 (V.to_string v) (L.to_string l) (to_string t) (to_string f)
-		      
   let mk_leaf r = T.get (Leaf r)
 
   let mk_branch (v,l) t f =
@@ -126,58 +104,9 @@ struct
   let drop = mk_leaf (R.zero)
   let id = mk_leaf (R.one)
 
-  let clear_cache ~(preserve : Core.Std.Int.Set.t) =
-    (* SJS: the interface exposes `id` and `drop` as constants,
-       so they must NEVER be cleared from the cache *)
-    let preserve = Core.Std.Set.(add (add preserve drop) id) in
-    T.clear preserve
-
-  let rec fold g h t = match T.unget t with
-    | Leaf r -> g r
-    | Branch((v, l), t, f) ->
-      h (v, l) (fold g h t) (fold g h f)
-
   let const r = mk_leaf r
+
   let atom (v,l) t f = mk_branch (v,l) (const t) (const f)
-
-  let node_min t1 t2 = match (t1, t2) with
-  | Leaf _, Leaf _ -> (t1, t2) (* constants at same rank since they can't be ordered *)
-  | Leaf _, _ -> (t2, t1)
-  | _, Leaf _ -> (t1, t2)
-  | Branch ((v1, l1), _, _), Branch ((v2, l2), _, _) -> match V.compare v1 v2 with
-    | -1 -> (t1, t2)
-    | 1 -> (t2, t1)
-    | 0 -> if L.subset_eq l1 l2 then
-             (t1, t2)
-           else if L.subset_eq l2 l1 then
-             (t2, t1)
-           else
-             (* The Spiros case. I don't think it matters which we pick *)
-             (t1, t2)
-    | _ -> assert false
-
-
-  module H = Core.Std.Hashtbl.Poly
-
-  let rec restrict' ((x1, l1) : v) (is_true : bool) (t : t) : t=
-    match unget t with
-    | Leaf r -> t
-    | Branch ((x2, l2), tru, fls) ->
-      match V.compare x1 x2 with
-      | 1 -> t
-      | -1 ->
-        if is_true then mk_branch (x1,l1) t (mk_leaf R.zero)
-        else mk_branch (x1,l1) (mk_leaf R.zero) t
-      | 0 ->
-        if L.subset_eq l2 l1 then
-          (if is_true then t else mk_leaf R.zero)
-        else if L.subset_eq l1 l2 then
-          mk_branch (x2,l2) (restrict' (x1,l1) is_true tru) fls
-        (* TODO(arjun): disjoint assumption. Does not work for prefixes *)
-        else
-          (if is_true then mk_leaf R.zero else tru)
-      | _ -> assert false
-
 
   let restrict lst =
     let rec loop xs u =
@@ -197,11 +126,17 @@ struct
     | Leaf r   -> Some r
     | Branch _ -> None
 
+  let rec fold g h t = match T.unget t with
+    | Leaf r -> g r
+    | Branch((v, l), t, f) ->
+      h (v, l) (fold g h t) (fold g h f)
+
   let rec map_r g = fold
     (fun r          -> const (g r))
     (fun (v, l) t f -> mk_branch (v,l) t f)
 
   let sum_generalized f zero x y =
+    let module H = Core.Std.Hashtbl.Poly in
     let tbl : (int * int, int) H.t = H.create () in
     let rec sum x y =
        H.find_or_add tbl (x, y) ~default:(fun () -> sum' x y)
@@ -232,6 +167,19 @@ struct
 
   let prod = sum_generalized R.prod R.one
 
+  let rec to_string t = match T.unget t with
+    | Leaf r -> 
+       Printf.sprintf "(%s)" (R.to_string r)
+    | Branch((v, l), t, f) -> 
+       Printf.sprintf "(%s = %s ? %s : %s)"
+   (V.to_string v) (L.to_string l) (to_string t) (to_string f)
+          
+  let clear_cache ~(preserve : Core.Std.Int.Set.t) =
+    (* SJS: the interface exposes `id` and `drop` as constants,
+       so they must NEVER be cleared from the cache *)
+    let preserve = Core.Std.Set.(add (add preserve drop) id) in
+    T.clear preserve
+
   let compressed_size (node : t) : int =
     let open Core.Std in
     let rec f (node : t) (seen : Int.Set.t) =
@@ -253,6 +201,7 @@ struct
     | Leaf _ -> 1
     | Branch (_, hi, lo) -> 1 + uncompressed_size hi + uncompressed_size lo
 
+  (* Exclusively for to_dot *)
   module VH = Hashtbl.Make(struct
     type t = v
 
@@ -262,7 +211,7 @@ struct
     let hash (v, l) =
       191 * (V.hash v) + 877 * (L.hash l)
   end)
-
+  
   let to_dot t =
     let open Format in
     let buf = Buffer.create 200 in

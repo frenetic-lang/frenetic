@@ -1,13 +1,8 @@
 open Sexplib.Conv
 open Core.Std
 
-(** NetKAT Syntax *)
-
-(** {1 Basics} *)
 open Frenetic_Packet
 
-(* thrown whenever local policy is expected, but global policy
-  (i.e. policy containing links) is encountered *)
 exception Non_local
 
 type switchId = Frenetic_OpenFlow.switchId with sexp
@@ -16,9 +11,6 @@ type payload = Frenetic_OpenFlow.payload with sexp
 type vswitchId = int64 with sexp
 type vportId = int64 with sexp
 type vfabricId = int64 with sexp
-
-(** {2 Policies} *)
-
 
 let string_of_fastfail = Frenetic_OpenFlow.format_list ~to_string:Int32.to_string
 
@@ -68,9 +60,6 @@ type policy =
 
 let id = Filter True
 let drop = Filter False
-
-
-(** {3 Applications} *)
 
 type action = Frenetic_OpenFlow.action
 

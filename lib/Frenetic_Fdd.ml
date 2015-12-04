@@ -183,9 +183,7 @@ module Value = struct
  
   (* subseq_eq, meet and join are defined to make this fit interface of Frenetic_Vlr.Lattice *)
   let subset_eq a b =
-    (* A partial order on values that should be reflexive, transitive, and
-       antisymmetric. This should also satisfy certain properites related to
-       [join] and [meet] which will be mentioned along with those functions. *)
+    (* Note that Mask checking is a lot like Frenetic_OpenFlow.Pattern.Ip, but the int's are different sizes *)
     let subset_eq_mask a m b n =
       if m < n
         then false
@@ -193,7 +191,8 @@ module Value = struct
           Int64.shift_right_logical a (64-n) = Int64.shift_right_logical b (64-n)
     in
     match a, b with
-    | Const  a   , Const b
+    | Const  a   , Const b 
+    (* Note that comparing a mask to a constant requires the mask to be all 64 bits, otherwise they fail the lesser mask test *)
     | Mask(a, 64), Const b -> a = b
     | Pipe   a   , Pipe  b
     | Query  a   , Query b -> a = b
@@ -208,16 +207,6 @@ module Value = struct
     | Const a    , Mask(b, n) -> subset_eq_mask a 64 b n
 
   let meet ?(tight=false) a b =
-    (* Determines the greatest lower bound of two elements, if one exists. This
-       operation should be associative, commutative, and idempotent. If [tight]
-       is false, then this is the typical meet operation on a lattice. If
-       [tight] is true, then the retuned value [r] must in addition satisfy the
-       following property:
-
-         ∀x, [subset_eq r x] <=> [subset_eq a x || subset_eq b x || equal r x].
-
-       In other words, any elements related to [r] should do so transitively
-       through [a] or [b], or be equal to [r] itself. *)
     let meet_mask a m b n =
       let lt = subset_eq (Mask(a, m)) (Mask(b, n)) in
       let gt = subset_eq (Mask(b, n)) (Mask(a, m)) in
@@ -246,16 +235,9 @@ module Value = struct
     | Const a, Mask(b, n)     -> meet_mask a 64 b n
 
   let join ?(tight=false) a b =
-    (* Determines the least upper bound of two elements, if one exists. This
-       operation should be associative, commutative, and idempotent. If [tight]
-       is false, then this is the typical join operation on a lattice. If
-       [tight] is true, then the retuned value [r] must in addition satisfy the
-       following property:
-
-         ∀x, [subset_eq x r] <=> [subset_eq x a || subset_eq x b || equal x r].
-
-       In other words, any elements related to [r] should do so transitively
-       through [a] or [b], or be equal to [r] itself. *)
+    (* The intent here looks a lot like Frenetic_OpenFlow.Pattern.Ip.join, but the notion of "tightness" might not
+       not apply.  Look at perhaps sharing the logic between the two, abstracting out bit length since this deals with 
+       64 bit ints *)
     let join_mask a m b n =
       let lt = subset_eq (Mask(a, m)) (Mask(b, n)) in
       let gt = subset_eq (Mask(b, n)) (Mask(a, m)) in
@@ -289,6 +271,7 @@ module Value = struct
 
   let hash = Hashtbl.hash
 
+  (* Value compare is used in Pattern below, but is not public *)
   let compare x y = match (x, y) with
     | Const a, Mask (b, 64)
     | Mask (a, 64), Const b
@@ -314,7 +297,8 @@ module Value = struct
     | FastFail(p_lst) -> Printf.sprintf "FastFail(%s)" (Frenetic_NetKAT.string_of_fastfail p_lst)
 
   let of_int   t = Const (Int64.of_int   t)
-  let of_int32 t = Const (Int64.of_int32 t)
+  (* Private to this file only *)
+  let of_int32 t = Const (Int64.of_int32 t) 
   let of_int64 t = Const t
   let to_int_exn = function
     | Const k -> Int64.to_int_exn k
@@ -330,10 +314,7 @@ module Pattern = struct
     let c = Field.compare (fst a) (fst b) in
     if c <> 0 then c else Value.compare (snd a) (snd b)
 
-  let to_string (f, v) =
-    Printf.sprintf "%s = %s" (Field.to_string f) (Value.to_string v)
-
-  let to_int = Int64.to_int_exn
+  let to_int = Int64.to_int_exn 
   let to_int32 = Int64.to_int32_exn
 
   module NetKAT = Frenetic_NetKAT
@@ -395,8 +376,6 @@ module Pattern = struct
     let open Field in
     let open Value in
     match f, v with
-    | (Switch, Const _) | (VSwitch, Const _) | (VPort, Const _)  -> assert false
-    | (VFabric, Const _) -> assert false
     | (Location, Const p) -> fun pat ->
       { pat with SDN.Pattern.inPort = Some(to_int32 p) }
     | (EthSrc, Const dlAddr) -> fun pat ->
@@ -415,16 +394,21 @@ module Pattern = struct
       { pat with SDN.Pattern.nwSrc =
           Some(to_int32 nwAddr, Int32.of_int_exn (mask - 32)) }
     | (IP4Src  , Const nwAddr) -> fun pat ->
-      { pat with SDN.Pattern.nwSrc = Some(to_int32 nwAddr, 0l) }
+      { pat with SDN.Pattern.nwSrc = Some(to_int32 nwAddr, 32l) }
     | (IP4Dst  , Mask(nwAddr, mask)) -> fun pat ->
       { pat with SDN.Pattern.nwDst =
           Some(to_int32 nwAddr, Int32.of_int_exn (mask - 32)) }
     | (IP4Dst  , Const nwAddr) -> fun pat ->
-      { pat with SDN.Pattern.nwDst = Some(to_int32 nwAddr, 0l) }
+      { pat with SDN.Pattern.nwDst = Some(to_int32 nwAddr, 32l) }
     | (TCPSrcPort, Const tpPort) -> fun pat ->
       { pat with SDN.Pattern.tpSrc = Some(to_int tpPort) }
     | (TCPDstPort, Const tpPort) -> fun pat ->
       { pat with SDN.Pattern.tpDst = Some(to_int tpPort) }
+    (* Should never happen because these pseudo-fields should have been removed by the time to_sdn is used *)
+    | (Switch, Const _) 
+    | (VSwitch, Const _) 
+    | (VPort, Const _)  
+    | (VFabric, Const _) -> assert false  
     | _, _ -> raise (FieldValue_mismatch(f, v))
 
 end

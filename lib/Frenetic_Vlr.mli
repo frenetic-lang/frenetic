@@ -41,7 +41,10 @@ module type Lattice = sig
 
       In other words, elements related to the greatest lower bound should be
       related transitively through [a] and [b], or be equal to the greatest
-      lower bound itself. *)
+      lower bound itself. 
+
+      TODO: tightness doesn't seem to be used anywhere in Frenetic, and can probably
+      be removed.  *)
 
   val join : ?tight:bool -> t -> t -> t option
   (** [join ~tight a b] returns the least upper bound of the elements [a] and
@@ -103,7 +106,8 @@ end
 module type S = sig
 
   type t = int with sexp
-  (** The type of a decision diagram *)
+  (** A decision diagram index.  All diagrams and subdiagrams within it are given an
+  index.  You can convert this to a tree with [unget], and from a tree with [get]. *)
 
   type v
   (** The type of a variable in the decision diagram. *)
@@ -114,16 +118,49 @@ module type S = sig
   type d
     = Leaf of r
     | Branch of v * t * t
+  (* A tree structure representing the decision diagram. The [Leaf] variant
+   * represents a constant function. The [Branch(v, l, t, f)] represents an
+   * if-then-else. When variable [v] takes on the value [l], then [t] should
+   * hold. Otherwise, [f] should hold.
+   *
+   * [Branch] nodes appear in an order determined first by the total order on
+   * the [V.t] value with with ties broken by the total order on [L.t]. The
+   * least such pair should appear at the root of the diagram, with each child
+   * nodes being strictly greater than their parent node. This invariant is
+   * important both for efficiency and correctness.
+   * *)
 
   val get : d -> t
+  (* Given a tree structure, return the cache index for it *)
+
   val unget : t -> d
+  (* Given a tree structure, return the cache index for it *)
+
+  val equal : t -> t -> bool
+  (** [equal a b] returns whether or not the two diagrams are structurally
+      equal.
+
+      If two diagrams are structurally equal, then they represent the
+      same combinatorial object. However, if two diagrams are not equal, they
+      still may represent the same combinatorial object. Whether or not this is
+      the case depends on they behavior of the type [v]. *)
+
   val mk_branch : v -> t -> t -> t
+  (** [mkbranch v t f] Creates (or looks up if it's already been created) a diagram with pattern
+    v, true-branch t and false-branch f.  The t and f branches should already have been created,
+    so you pass indexes here. *)
+
   val mk_leaf : r -> t
+  (** [mkleaf r] Creates (or looks up) a leaf.  *)
+
   val drop : t (* zero *)
+  (** [drop] returns the leaf for a drop operation, which is always present as a leaf node *)
+
   val id : t (* one *)
+  (** [id] returns the leaf for the identity operation, which is always present as a leaf node *)
 
   val const : r -> t
-  (** [const r] creates a constant diagram out of [r]. *)
+  (** [const r] creates a constant diagram out of [r]. It's essentially a leaf node with a constant.  *)
 
   val atom : v -> r -> r -> t
   (** [atom v t f] creates a diagram that checks the variable assignment
@@ -148,15 +185,13 @@ module type S = sig
       can attempt to reduce the diagram to a value, and then use [peek] to
       extract that value. *)
 
-  val sum : t -> t -> t
-  (** [sum a b] returns the disjunction of the two diagrams. The [sum]
-      operation on the [r] type is used to combine leaf nodes. *)
-
-  val sum_generalized : (r -> r -> r) -> r -> t -> t -> t
-
-  val prod : t -> t -> t
-  (** [prod a b] returns the conjunction of the two diagrams. The [prod]
-      operation on the [r] type is used to combine leaf nodes. *)
+  val fold : (r -> 'a)
+    -> (v -> 'a -> 'a -> 'a)
+    -> t
+    -> 'a
+  (** [fold f g t] traverses the diagram, replacing leaf nodes with
+      applications of [f] to the values that they hold, and branches on
+      variables with applications of [g]. *)
 
   val map_r : (r -> r) -> t -> t
   (** [map_r f t] returns a diagram with the same structure but whose leaf
@@ -168,23 +203,13 @@ module type S = sig
 
           [let neg = map_r (fun r -> not r)] *)
 
-  val fold
-    :  (r -> 'a)
-    -> (v -> 'a -> 'a -> 'a)
-    -> t
-    -> 'a
-  (** [fold f g t] traverses the diagram, replacing leaf nodes with
-      applications of [f] to the values that they hold, and branches on
-      variables with applications of [g]. *)
+  val sum : t -> t -> t
+  (** [sum a b] returns the disjunction of the two diagrams. The [sum]
+      operation on the [r] type is used to combine leaf nodes. *)
 
-  val equal : t -> t -> bool
-  (** [equal a b] returns whether or not the two diagrams are structurally
-      equal.
-
-      If two diagrams are structurally equal, then they represent the
-      same combinatorial object. However, if two diagrams are not equal, they
-      still may represent the same combinatorial object. Whether or not this is
-      the case depends on they behavior of the type [v]. *)
+  val prod : t -> t -> t
+  (** [prod a b] returns the conjunction of the two diagrams. The [prod]
+      operation on the [r] type is used to combine leaf nodes. *)
 
   val to_string : t -> string
   (** [to_string t] returns a string representation of the diagram. *)
@@ -193,7 +218,10 @@ module type S = sig
   (** [clear_cache ()] clears the internal cache of diagrams. *)
 
   val compressed_size : t -> int
+  (** [compressed_size t] returns the number of nodes in the diagram, duplicates not counted *)
+
   val uncompressed_size : t -> int
+  (** [uncompressed_size t] returns the number of nodes in the diagram, duplicates counted *)
 
   val to_dot : t -> string
   (** [to_dot t] returns a string representation of the diagram using the DOT
@@ -201,7 +229,7 @@ module type S = sig
       using Graphviz or any other program that supports the DOT language. *)
 
   val refs : t -> Int.Set.t
-
+  (** [refs t] returns set of subdiagrams in this diagram. *)
 end
 
 

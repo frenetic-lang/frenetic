@@ -109,6 +109,16 @@ module Value : sig
     | FastFail of Int32.t list
     with sexp
 
+  (** [subset_eq x y] returns true if x = y, or x and y match the same set of values, as in masks.  Certain combinations
+  of values are never equal, including FastFails or values that are not of the same type, like a Const vs. a Query *)
+  val subset_eq : t -> t -> bool
+
+  (** [meet x y] returns the greatest lower bound of x and y *)
+  val meet : ?tight:bool -> t -> t -> t option
+
+  (** [join x y] returns the least upper bound of x and y *)
+   val join : ?tight:bool -> t -> t -> t option
+
   (** [to_string value] returns a human-readable representation *)  
   val to_string : t -> string
 
@@ -121,6 +131,8 @@ module Value : sig
   (** [to_int_exn value] returns just the integer for Const values, or an exception otherwise *)
   val to_int_exn : t -> int
 end
+
+exception FieldValue_mismatch of Field.t * Value.t
 
 module Pattern : sig
   (* A Pattern is a predicate - "switch = 2" used as a node value in an FDD.  Note this is a lot like

@@ -1,4 +1,12 @@
-(** NetKAT Syntax *)
+(** NetKAT Syntax 
+
+  The NetKAT language is central to Frenetic, and we factor out the central types here.  The big actors
+  on NetKAT structures are Frenetic_NetKAT_Compiler which compiles NetKAT into flow tables,
+  Frenetic_NetKAT_Parser which turns NetKAT strings (e.g "TcpSrcPort(8080); port := 2") into NetKAT, and 
+  Frenetic_NetKAT_Json which turns JSON-formatted NetKAT into NetKAT
+
+*)
+
 open Sexplib.Conv
 open Core.Std
 open Frenetic_Packet
@@ -73,7 +81,7 @@ type action = Frenetic_OpenFlow.action
 type switch_port = switchId * portId with sexp
 type host = Frenetic_Packet.dlAddr * Frenetic_Packet.nwAddr with sexp
 
-type bufferId = Int32.t with sexp (* XXX(seliopou): different than Frenetic_OpenFlow *)
+type bufferId = Int32.t with sexp 
 
 type event =
   | PacketIn of string * switchId * portId * payload * int
