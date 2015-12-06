@@ -60,6 +60,8 @@ Library frenetic
     Frenetic_Topology,
     Frenetic_Util,
     Frenetic_Vlr
+  InternalModules:
+    Frenetic_ProbNetKAT
 
 Library async
   Findlibparent: frenetic
