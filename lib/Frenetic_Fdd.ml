@@ -332,9 +332,11 @@ module Value = struct
     | _, FastFail _ -> 1
     | _ -> Pervasives.compare x y
 
+  let equal x y = compare x y = 0
+
   let to_string = function
-    | Const(a)   -> Printf.sprintf "Const(%Lu)" a
-    | Mask(a, m) -> Printf.sprintf "Mask(%Lu, %d)" a m
+    | Const(a)   -> Printf.sprintf "%Lu" a
+    | Mask(a, m) -> Printf.sprintf "%Lu/%d" a m
     | Pipe(p) -> Printf.sprintf "Pipe(%s)" p
     | Query(p) -> Printf.sprintf "Query(%s)" p
     | FastFail(p_lst) -> Printf.sprintf "FastFail(%s)" (Frenetic_NetKAT.string_of_fastfail p_lst)
@@ -489,46 +491,79 @@ module Action = struct
       let compare = compare_field_or_cont
     end)
 
+    let compare = compare_direct Value.compare
+
     let fold_fields seq ~init ~f =
       fold seq ~init ~f:(fun ~key ~data acc -> match key with
         | F key -> f ~key ~data acc
         | _ -> acc)
 
-    let equal_mod_k s1 s2 = equal (=) (remove s1 K) (remove s2 K)
+    let equal_mod_k s1 s2 =
+      equal (Value.equal) (remove s1 K) (remove s2 K)
+
+    let compare_mod_k s1 s2 =
+      compare (remove s1 K) (remove s2 K)
 
     let to_hvs seq =
       seq |> to_alist |> List.filter_map ~f:(function (F f,v) -> Some (f,v) | _ -> None)
+
+    let to_string (t : Value.t t) : string =
+      let s = to_alist t
+        |> List.map ~f:(fun (f,v) ->
+            let f = match f with
+              | K -> "state"
+              | F f -> Field.to_string f
+            in
+            sprintf "%s := %s" f (Value.to_string v))
+        |> String.concat ~sep:", "
+      in "[" ^ s ^ "]"
   end
 
   module Par = struct
     include Set.Make(struct
     type t = Value.t Seq.t with sexp
-    let compare = Seq.compare_direct Value.compare
+    let compare = Seq.compare
     end)
 
     let to_hvs par =
       fold par ~init:[] ~f:(fun acc seq -> Seq.to_hvs seq @ acc)
+
+    let to_string t : string =
+      let s = to_list t
+        |> List.map ~f:Seq.to_string
+        |> String.concat ~sep:"; "
+      in "{" ^ s ^ "}"
+
+    let mod_k = map ~f:(fun seq -> Seq.remove seq K)
+
+    let compare_mod_k p1 p2 =
+      compare (mod_k p1) (mod_k p2)
+
+    let equal_mod_k p1 p2 =
+      equal (mod_k p1) (mod_k p2)
   end
 
   type t = Par.t with sexp
 
   let one = Par.singleton Seq.empty
   let zero = Par.empty
+  let is_one = Par.equal one
+  let is_zero = Par.is_empty
 
   let sum (a:t) (b:t) : t =
     (* This implements parallel composition specifically for NetKAT
        modifications. *)
-    if Par.is_empty a then b            (* 0 + p = p *)
-    else if Par.is_empty b then a       (* p + 0 = p *)
+    if is_zero a then b            (* 0 + p = p *)
+    else if is_zero b then a       (* p + 0 = p *)
     else Par.union a b
 
   let prod (a:t) (b:t) : t =
     (* This implements sequential composition specifically for NetKAT
        modifications and makes use of NetKAT laws to simplify results.*)
-    if Par.is_empty a then zero         (* 0; p == 0 *)
-    else if Par.is_empty b then zero    (* p; 0 == 0 *)
-    else if Par.equal a one then b      (* 1; p == p *)
-    else if Par.equal b one then a      (* p; 1 == p *)
+    if is_zero a then zero       (* 0; p == 0 *)
+    else if is_zero b then zero  (* p; 0 == 0 *)
+    else if is_one a then b      (* 1; p == p *)
+    else if is_one b then a      (* p; 1 == p *)
     else
       Par.fold a ~init:zero ~f:(fun acc seq1 ->
         (* cannot implement sequential composition of this kind here *)
@@ -543,7 +578,7 @@ module Action = struct
   let negate t : t =
     (* This implements negation for the [zero] and [one] actions. Any
        non-[zero] action will be mapped to [zero] by this function. *)
-    if compare t zero = 0 then one else zero
+    if is_zero t then one else zero
 
   let get_queries (t : t) : string list =
     Par.fold t ~init:[] ~f:(fun queries seq ->
@@ -667,9 +702,9 @@ module Action = struct
   let size =
     Par.fold ~init:0 ~f:(fun acc seq -> acc + (Seq.length seq))
 
-  let to_string t =
-    let par = to_sdn ~group_tbl:(Frenetic_GroupTable0x04.create ()) None t in
-    Printf.sprintf "[%s]" (SDN.string_of_par par)
+  let to_string = Par.to_string
+    (* let par = to_sdn ~group_tbl:(Frenetic_GroupTable0x04.create ()) None t in
+    Printf.sprintf "[%s]" (SDN.string_of_par par) *)
 
 end
 
@@ -682,12 +717,19 @@ module FDK = struct
   let conts fdk =
     fold
       (fun par ->
-        Action.Par.fold par ~init:[] ~f:(fun acc seq ->
-          Action.(Seq.find seq K) :: acc)
-        |> List.filter_opt)
-      (fun _ t f -> t @ f)
+        Action.Par.fold par ~init:Int.Set.empty ~f:(fun acc seq ->
+          match Action.(Seq.find seq K) with
+          | None -> acc
+          | Some k -> Value.to_int_exn k |> Int.Set.add acc))
+      (fun _ t f -> Set.union t f)
       fdk
-    |> List.map ~f:Value.to_int_exn
-    |> List.dedup
+
+  let map_conts t ~(f: int -> int) =
+    let open Action in
+    let f par = Par.map par ~f:(fun seq -> Seq.change seq K (function
+      | None -> failwith "continuation expected, but none found"
+      | Some k -> Some (k |> Value.to_int_exn |> f |> Value.of_int)))
+    in
+    map_r f t
 
 end

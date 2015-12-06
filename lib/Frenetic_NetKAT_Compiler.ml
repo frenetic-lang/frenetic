@@ -10,6 +10,11 @@ type order
     | `Static of Field.t list
     | `Heuristic ]
 
+module Action = Frenetic_Fdd.Action
+module Value = Frenetic_Fdd.Value
+module Par = Action.Par
+module Seq = Action.Seq
+
 
 (*==========================================================================*)
 (* LOCAL COMPILATION                                                        *)
@@ -36,16 +41,9 @@ module FDK = struct
     | Or (p, q) -> sum (of_pred p) (of_pred q)
     | Neg(q)    -> map_r Action.negate (of_pred q)
 
-  let cond v t f =
-    if equal t f then
-      t
-    else
-      (sum (prod (atom v Action.one Action.zero) t)
-             (prod (atom v Action.zero Action.one) f))
-
   let seq_tbl = BinTbl.create ~size:1000 ()
 
-  let clear_cache preserve = begin
+  let clear_cache ~preserve = begin
     BinTbl.clear seq_tbl;
     clear_cache preserve;
   end
@@ -132,6 +130,8 @@ module FDK = struct
       fdd
 end
 
+
+
 (** An internal module that implements an interpreter for a [FDK.t]. This
     interpreter uses [FDK.t] operations to find the [Action.t] that should
     apply to the packet. Once that's found, it converts the [Action.t] into a
@@ -181,8 +181,8 @@ let default_compiler_options = {
 let compile_local ?(options=default_compiler_options) pol =
   (match options.cache_prepare with
    | `Keep -> ()
-   | `Empty -> FDK.clear_cache Int.Set.empty
-   | `Preserve fdd -> FDK.clear_cache (FDK.refs fdd));
+   | `Empty -> FDK.clear_cache ~preserve:Int.Set.empty
+   | `Preserve fdd -> FDK.clear_cache ~preserve:(FDK.refs fdd));
   (match options.field_order with
    | `Heuristic -> Field.auto_order pol
    | `Default -> Field.set_order Field.all_fields
@@ -558,7 +558,7 @@ module NetKAT_Automaton = struct
         let this seen =
           let state = f id state in
           Tbl.replace automaton.states ~key:id ~data:state; (seen, state) in
-        let that (seen, (_,d)) = List.fold (FDK.conts d) ~init:seen ~f:loop in
+        let that (seen, (_,d)) = Set.fold (FDK.conts d) ~init:seen ~f:loop in
         match order with
         | `Pre -> seen |> this |> that
         | `Post -> (seen, state) |> that |> this |> fst
@@ -571,7 +571,7 @@ module NetKAT_Automaton = struct
         let seen = S.add seen id in
         let (_,d) as state = Tbl.find_exn automaton.states id in
         let this (acc, seen) = (f acc id state, seen) in
-        let that (acc, seen) = List.fold (FDK.conts d) ~init:(acc, seen) ~f:loop in
+        let that (acc, seen) = Set.fold (FDK.conts d) ~init:(acc, seen) ~f:loop in
         match order with
         | `Pre -> (acc, seen) |> this |> that
         | `Post -> (acc, seen) |> that |> this
@@ -588,7 +588,7 @@ module NetKAT_Automaton = struct
         let _ = t.nextState <- max t.nextState (id + 1) in
         let (_,d) as state = Lazy.force (Tbl.find_exn automaton.states id) in
         Tbl.add_exn t.states ~key:id ~data:state;
-        List.iter (FDK.conts d) ~f:add
+        Set.iter (FDK.conts d) ~f:add
     in
     add automaton.source;
     t.source <- automaton.source;
@@ -782,7 +782,7 @@ module NetKAT_Automaton = struct
       let conts = FDK.conts fdk in
       fdks := fdk :: (!fdks);
       node_loop fdk;
-      List.iter conts ~f:fdk_loop
+      Set.iter conts ~f:fdk_loop
     in
     fdk_loop automaton.source;
     fprintf fmt "%d [style=bold, color=red];@\n"

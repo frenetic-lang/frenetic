@@ -40,8 +40,10 @@ module type S = sig
   val atom : v -> r -> r -> t
   val restrict : v list -> t -> t
   val peek : t -> r option
+  val apply : (r -> r -> r) -> r -> cache:((t*t, t) Hashtbl.t) -> t -> t -> t
   val sum : t -> t -> t
   val prod : t -> t -> t
+  val cond : v -> t -> t -> t
   val map : (r -> t) -> (v -> t -> t -> t) -> t -> t
   val dp_map : (r -> t) -> (v -> t -> t -> t) -> t
             -> find_or_add:(t -> default:(unit -> t) -> t)
@@ -49,6 +51,7 @@ module type S = sig
   val map_r : (r -> r) -> t -> t
   val fold : (r -> 'a) -> (v -> 'a -> 'a -> 'a) -> t -> 'a
   val equal : t -> t -> bool
+  val compare : t -> t -> int
   val to_string : t -> string
   val clear_cache : preserve:Int.Set.t -> unit
   val compressed_size : t -> int
@@ -116,13 +119,7 @@ struct
   module BinTbl = Frenetic_Util.IntPairTbl
 
   let equal x y = x = y (* comparing ints *)
-
-  let rec to_string t = match T.unget t with
-    | Leaf r ->
-       Printf.sprintf "(%s)" (R.to_string r)
-    | Branch((v, l), t, f) ->
-       Printf.sprintf "(%s = %s ? %s : %s)"
-	 (V.to_string v) (L.to_string l) (to_string t) (to_string f)
+  let compare = Int.compare
 
   let mk_leaf r = T.get (Leaf r)
 
@@ -141,6 +138,16 @@ struct
 
   let drop = mk_leaf (R.zero)
   let id = mk_leaf (R.one)
+
+  let rec to_string t =
+    if t = drop then "0" else
+    if t = id then "1" else
+    match T.unget t with
+    | Leaf r ->
+       Printf.sprintf "%s" (R.to_string r)
+    | Branch((v, l), t, f) ->
+       Printf.sprintf "(%s = %s ? %s : %s)"
+   (V.to_string v) (L.to_string l) (to_string t) (to_string f)
 
   let rec fold g h t = match T.unget t with
     | Leaf r -> g r
@@ -172,7 +179,7 @@ struct
     in
     loop (List.sort (fun (u, _) (v, _) -> V.compare u v) lst) u
 
-  let apply f zero (cache : (t*t, t) Hashtbl.t) =
+  let apply f zero ~(cache: (t*t, t) Hashtbl.t) =
     let rec sum x y =
       BinTbl.find_or_add cache (x, y) ~default:(fun () -> sum' x y)
     and sum' x y =
@@ -199,10 +206,10 @@ struct
     in sum
 
   let sum_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
-  let sum = apply R.sum R.zero sum_tbl
+  let sum = apply R.sum R.zero ~cache:sum_tbl
 
   let prod_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
-  let prod = apply R.prod R.one prod_tbl
+  let prod = apply R.prod R.one ~cache:prod_tbl
 
   let clear_cache ~(preserve : Int.Set.t) =
     (* SJS: the interface exposes `id` and `drop` as constants,
@@ -212,6 +219,17 @@ struct
       BinTbl.clear prod_tbl;
       T.clear preserve;
     end
+
+  let cond v t f =
+    let ok t =
+      match unget t with
+      | Leaf _ -> true
+      | Branch ((f',v'), _, _) -> V.compare (fst v) f' = -1
+    in
+    if equal t f then t else
+    if ok t && ok f then mk_branch v t f else
+      (sum (prod (atom v R.one R.zero) t)
+           (prod (atom v R.zero R.one) f))
 
   let map (g : R.t -> t)
           (h : V.t * L.t -> t -> t -> t)

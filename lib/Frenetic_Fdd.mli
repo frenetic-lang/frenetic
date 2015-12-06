@@ -39,6 +39,8 @@ module Value : sig
     | FastFail of Int32.t list
     with sexp
 
+  val compare : t -> t -> int
+  val equal : t -> t -> bool
   val to_string : t -> string
   val of_int : int -> t
   val of_int64 : int64 -> t
@@ -62,6 +64,8 @@ module Action : sig
 
   module Seq : sig
     include Map.S with type Key.t = field_or_cont
+    val compare : Value.t t -> Value.t t -> int
+    val compare_mod_k : Value.t t -> Value.t t -> int
     val equal_mod_k : Value.t t -> Value.t t -> bool
     val to_hvs : Value.t t -> (Field.t * Value.t) list
   end
@@ -69,6 +73,9 @@ module Action : sig
   module Par : sig
     include Set.S with type Elt.t = Value.t Seq.t
     val to_hvs : t -> (Field.t * Value.t) list
+    val mod_k : t -> t
+    val compare_mod_k : t -> t -> int
+    val equal_mod_k : t -> t -> bool
   end
 
   type t = Par.t with sexp
@@ -88,5 +95,6 @@ end
 module FDK : sig
   include Frenetic_Vlr.S with type v = Field.t * Value.t and type r = Action.t
   val mk_cont : int -> t
-  val conts : t -> int list
+  val conts : t -> Int.Set.t
+  val map_conts : t -> f:(int -> int) -> t
 end

@@ -138,7 +138,7 @@ module type S = sig
       can attempt to reduce the diagram to a value, and then use [peek] to
       extract that value. *)
 
-  (* val apply : (r -> r -> r) -> bool -> bool -> r -> t -> t -> t *)
+  val apply : (r -> r -> r) -> r -> cache:((t*t, t) Hashtbl.t) -> t -> t -> t
 
   val sum : t -> t -> t
   (** [sum a b] returns the disjunction of the two diagrams. The [sum]
@@ -147,6 +147,8 @@ module type S = sig
   val prod : t -> t -> t
   (** [prod a b] returns the conjunction of the two diagrams. The [prod]
       operation on the [r] type is used to combine leaf nodes. *)
+
+  val cond : v -> t -> t -> t
 
   val map : (r -> t) -> (v -> t -> t -> t) -> t -> t
   (** [map f h t] traverses t in post order and first maps the leaves using
@@ -184,6 +186,8 @@ module type S = sig
       same combinatorial object. However, if two diagrams are not equal, they
       still may represent the same combinatorial object. Whether or not this is
       the case depends on they behavior of the type [v]. *)
+
+  val compare : t -> t -> int
 
   val to_string : t -> string
   (** [to_string t] returns a string representation of the diagram. *)
