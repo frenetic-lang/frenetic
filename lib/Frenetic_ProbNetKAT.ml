@@ -2,7 +2,246 @@ open Core.Std
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Compiler
 
-module FDK_Dist = struct
+module Pol = struct
+
+  module Set = Int.Set
+  module Map = Int.Map
+
+  type policy =
+    | Filter of header_val
+    | Filter_out of header_val (* negated filter *)
+    | Mod of header_val
+    | Union of Set.t
+    | Seq of int list
+    | Choice of int * Coin.t * int
+    | Star of int
+    | Dup (* we can handle all of NetKAT *)
+    (* | Deriv of FDK.t * FDK.t *)
+  with sexp
+
+  let compare_choice (x : int * Coin.t * int) (y : int * Coin.t * int) : int =
+    Pervasives.compare x y
+
+  let compare p1 p2 = match p1,p2 with
+    | Filter hv1, Filter hv2
+    | Filter_out hv1, Filter_out hv2
+    | Mod hv1, Mod hv2 -> Pervasives.compare hv1 hv2
+    | Union ps1, Union ps2 -> Set.compare ps1 ps2
+    | Seq ps1, Seq ps2 -> List.compare Int.compare ps1 ps2
+    | Choice (p1,c1,q1), Choice (p2,c2,q2) -> compare_choice (p1,c1,q1) (p2,c2,q2)
+    | Star p1, Star p2 -> Int.compare p1 p2
+    | Dup, Dup -> 0
+    (* | Deriv (e0,d0), Deriv (e1,d1) -> Pervasives.compare (e0,d0) (e1,d1) *)
+    | Filter _, _ -> -1
+    | _, Filter _ -> 1
+    | Filter_out _, _ -> -1
+    | _, Filter_out _ -> 1
+    | Mod _, _ -> -1
+    | _, Mod _ -> 1
+    | Union _, _ -> -1
+    | _, Union _ -> 1
+    | Seq _, _ -> -1
+    | _, Seq _ -> 1
+    | Choice _, _ -> -1
+    | _, Choice _ -> 1
+    | Star _, _ -> -1
+    | _, Star _ -> 1
+    (* | Dup, _ -> -1 *)
+    (* | _, Dup -> 1 *)
+
+  module T = Frenetic_Hashcons.Make(struct
+    type t = policy with sexp
+    let compare = compare
+    let hash = Hashtbl.hash
+  end)
+
+  type t = int
+  let get = T.get
+  let unget = T.unget
+
+  let drop = get (Union Set.empty)
+  let id = get (Seq [])
+  let dup = get Dup
+
+  let mk_filter hv = get (Filter hv)
+  let mk_filter_out hv = get (Filter_out hv)
+  let mk_mod hv = get (Mod hv)
+
+  let mk_union p1 p2 =
+    match unget p1, Set.singleton p1, unget p2, Set.singleton p2 with
+    | Union ps1, _, Union ps2, _
+    | Union ps1, _, _, ps2
+    | _, ps1, Union ps2, _
+    | _, ps1, _, ps2
+    -> Union (Set.union ps1 ps2) |> get
+
+  let mk_seq p1 p2 =
+    if p1 = drop || p2 = drop then drop else
+    match unget p1, [p1], unget p2, [p2] with
+    | Seq pl1, _, Seq pl2, _
+    | Seq pl1, _, _, pl2
+    | _, pl1, Seq pl2, _
+    | _, pl1, _, pl2
+    -> Seq (pl1 @ pl2) |> get
+
+  let mk_or = mk_union
+  let mk_and = mk_seq
+
+  let mk_big_union = List.fold_left ~init:drop ~f:mk_union
+  let mk_big_seq = List.fold_left ~init:id ~f:mk_seq
+
+  let mk_choice p c q =
+    get (Choice (p,c,q))
+
+  let rec mk_star p =
+    if p = drop || p = id then id else
+    match unget p with
+    | Star p -> mk_star p
+    | Filter _
+    | Filter_out _
+    | Mod _ -> mk_union id p
+    | x -> Star p |> get
+
+  let rec of_pred ?(negate = false) (pred : Frenetic_NetKAT.pred) : t =
+    match pred with
+    | True when negate -> drop
+    | True -> id
+    | False when negate -> id
+    | False -> drop
+    | Test hv when negate -> mk_filter_out hv
+    | Test hv -> mk_filter hv
+    | And (p1, p2) when negate -> mk_or (of_pred ~negate p1) (of_pred ~negate p2)
+    | And (p1, p2) -> mk_and (of_pred p1) (of_pred p2)
+    | Or (p1, p2) when negate -> mk_and (of_pred ~negate p1) (of_pred ~negate p2)
+    | Or (p1, p2) -> mk_or (of_pred p1) (of_pred p2)
+    | Neg pred -> of_pred ~negate:(not negate) pred
+
+  let match_loc sw pt =
+    let t1 = mk_filter (Switch sw) in
+    let t2 = mk_filter (Location (Physical pt)) in
+    mk_seq t1 t2
+
+  let mk_link ?(ing : Frenetic_NetKAT.pred option) s1 p1 s2 p2 =
+    (* SJS: This is not the true sematnics of a link! This is a hack that works for now,
+       but we will need to use the correct encoding once we start doing things like global
+       optimization or deciding equivalence. *)
+    let post_link = match ing with
+      | None -> match_loc s2 p2
+      | Some ing -> mk_seq (mk_filter (Switch s2)) (of_pred ~negate:true ing)
+    in
+    mk_big_seq [match_loc s1 p1; dup; post_link ]
+
+  let rec of_pol ?(ing : Frenetic_NetKAT.pred option) (pol : Frenetic_NetKAT.policy) : t =
+    match pol with
+    | Filter a -> of_pred a
+    | Mod hv -> mk_mod hv
+    | Union (p,q) -> mk_union (of_pol ?ing p) (of_pol ?ing q)
+    | Seq (p,q) -> mk_seq (of_pol ?ing p) (of_pol ?ing q)
+    | Star p -> mk_star (of_pol ?ing p)
+    | Link (s1,p1,s2,p2) -> mk_link ?ing s1 p1 s2 p2
+    | VLink _ -> assert false (* SJS / JNF *)
+end
+
+module Unit : Frenetic_Vlr.Lattice = struct
+  include Unit
+  let subset_eq _ _ = true
+  let meet ?tight _ _ = Some ()
+  let join ?tight _ _ = Some ()
+end
+
+module FDK = struct
+  include Frenetic_NetKAT_Compiler.FDK
+  let zero = drop
+  let one = id
+  let sum = union
+  let prod = seq
+  let hash t = Int.hash (get_uid t)
+end
+
+(* probabilistic FDKs - essentially MetaNetKAT FDDs using meta fields for the coins *)
+module PFDK = struct
+
+  include Frenetic_Vlr.Make(Coin)(Unit)(FDK)
+
+  let of_filter hv =
+    FDK.of_pred (Test hv)
+
+  let of_filter_out hv =
+    FDK.of_pred (Neg (Test hv))
+
+  let of_mod hv =
+    const (FDK.of_mod hv)
+
+  let union = sum
+  (* let seq = *)
+end
+
+(* Antimirov partial derivatives *)
+module Deriv = struct
+
+  type t = (PFDK.t * PFDK.t) with sexp
+
+  let drop = (PFDK.drop, PFDK.drop)
+  let id = (PFDK.id, PFDK.drop)
+
+  let of_filter hv =
+    (PFDK.of_filter hv, PFDK.drop)
+
+  let of_mod hv =
+    (PFDK.of_mod hv, PFDK.drop)
+
+  let union (e1,d1) (e2,d2) =
+    let e = PFDK.union e1 e2 in
+    let d = PFDK.union d1 d2 in
+    (e,d)
+
+  let seq (e1,d1) (e2,d2) =
+    let e = PFDK.seq e1 e2 in
+    let d1' = seq_with_pol d1 (Pol.mk_deriv e2 d2) in
+    let d2' = PFDK.seq e1 d2 in
+    let d = PFDK.union d1' d2' in
+    (e, d)
+
+
+  let rec of_pol (pol : Pol.t) : t =
+    match unget pol with
+    | Filter pred -> of_pred pred
+    | Filter_out pred -> of_pred ~negate:true pred
+    | Mod hv -> of_mod hv
+    | Union ps ->
+      Pol.Set.to_list ps
+      |> List.map ~f:split_pol
+      |> List.fold ~init:drop ~f:union
+    | Seq pl ->
+      List.map ~f:split_pol
+      |> List.fold ~init:id ~f:union
+    | Choice dist ->
+      Map.to_alist dist
+      |> List.map ~f:(fun (pol,prop) -> (of_pol pol, prop))
+      |> PFDK.M.of_alist_reduce ~f:(+.)
+      (e, d)
+    | Star p ->
+      let (e_p, d_p) = split_pol p in
+      let e = PFDK.star e_p in
+      let d = PFDK.seq e (PFDK.seq' d_p pol) in
+      (e, d)
+    | Link (s1, p1, s2, p2) ->
+      let e = PFDK.drop in
+      let open Frenetic_NetKAT_Optimize in
+      let cont = match ing with
+        | None -> match_loc s2 p2
+        | Some ing -> mk_and (Test (Switch s2)) (mk_not ing) |> mk_filter
+      in
+      let pre_link = match_loc s1 p1 |> PFDK.of_local_pol in
+      let d = PFDK.seq pre_link (PFDK.of_cont cont) in
+      (e, d)
+    | VLink _ -> failwith "expected physical policy, but found virtual one"
+
+end
+
+
+
+(* module FDK_Dist = struct
   module D = Frenetic_NetKAT_Compiler
   module M = Map.Make(D)
 
@@ -66,155 +305,6 @@ module FDK_Dist = struct
     | Link _
     | VLink _ -> failwith "Expected local policy, but found link!"
 
-end
-
-
-
-module Pol = struct
-
-  module Set = Int.Set
-  module Map = Int.Map
-
-  let compare = Int.compare
-
-  type policy =
-    | Filter of header_val
-    | Filter_out of header_val (* negated filter *)
-    | Mod of header_val
-    | Union of Set.t
-    | Seq of int list
-    | Choice of float Map.t
-    | Star of int
-    | Dup (* we can handle all of NetKAT *)
-    | Deriv of FDK_Dist.t * FDK_Dist.t
-  with sexp
-
-  let compare p1 p2 = match p1,p2 with
-    | Filter hv1, Filter hv2
-    | Filter_out hv1, Filter_out hv2
-    | Mod hv1, Mod hv2 -> Pervasives.compare hv1 hv2
-    | Union ps1, Union ps2 -> Set.compare ps1 ps2
-    | Seq ps1, Seq ps2 -> List.compare compare ps1 ps2
-    | Choice d1, Choice d2 -> Map.compare Float.compare d1 d2
-    | Star p1, Star p2 -> compare p1 p2
-    | Dup, Dup -> 0
-    | Deriv (e0,d0), Deriv (e1,d1) -> Pervasives.compare (e0,d0) (e1,d1)
-    | Filter _, _ -> -1
-    | _, Filter _ -> 1
-    | Filter_out _, _ -> -1
-    | _, Filter_out _ -> 1
-    | Mod _, _ -> -1
-    | _, Mod _ -> 1
-    | Union _, _ -> -1
-    | _, Union _ -> 1
-    | Seq _, _ -> -1
-    | _, Seq _ -> 1
-    | Choice _, _ -> -1
-    | _, Choice _ -> 1
-    | Star _, _ -> -1
-    | _, Star _ -> 1
-    | Dup, _ -> -1
-    | _, Dup -> 1
-
-  module T = Frenetic_Hashcons.Make(struct
-    type t = policy with sexp
-    let compare = compare
-    (* SJS: this may not be safe!!!! Choice is an Int.Map *)
-    let hash = Hashtbl.hash
-  end)
-
-  type t = int
-  let get = T.get
-  let unget = T.unget
-
-  let drop = get (Union Set.empty)
-  let id = get (Seq [])
-  let dup = get Dup
-
-  let mk_filter hv = get (Filter hv)
-  let mk_filter_out hv = get (Filter_out hv)
-  let mk_mod hv = get (Mod hv)
-
-  let mk_union p1 p2 =
-    match unget p1, Set.singleton p1, unget p2, Set.singleton p2 with
-    | Union ps1, _, Union ps2, _
-    | Union ps1, _, _, ps2
-    | _, ps1, Union ps2, _
-    | _, ps1, _, ps2
-    -> Union (Set.union ps1 ps2) |> get
-
-  let mk_seq p1 p2 =
-    match unget p1, [p1], unget p2, [p2] with
-    | Seq pl1, _, Seq pl2, _
-    | Seq pl1, _, _, pl2
-    | _, pl1, Seq pl2, _
-    | _, pl1, _, pl2
-    -> Seq (pl1 @ pl2) |> get
-
-  let mk_or = mk_union
-  let mk_and = mk_seq
-
-  let mk_big_union = List.fold_left ~init:drop ~f:mk_union
-  let mk_big_seq = List.fold_left ~init:id ~f:mk_seq
-
-  let mk_choice pl =
-    match pl with
-    | [] -> failwith "not a valid distribution"
-    | [p] -> p
-    | _ ->
-      let prob = 1.0 /. Float.of_int (List.length pl) in
-      List.map pl ~f:(fun p -> (p, prob))
-      |> Map.of_alist_exn
-      |> (fun d -> Choice d)
-      |> get
-
-  let rec mk_star p =
-    if p = drop || p = id then id else
-    match unget p with
-    | Star p -> mk_star p
-    | Filter _
-    | Filter_out _
-    | Mod _ -> mk_union id p
-    | x -> Star p |> get
-
-  let rec of_pred ?(negate = false) (pred : Frenetic_NetKAT.pred) : t =
-    match pred with
-    | True when negate -> drop
-    | True -> id
-    | False when negate -> id
-    | False -> drop
-    | Test hv when negate -> mk_filter_out hv
-    | Test hv -> mk_filter hv
-    | And (p1, p2) when negate -> mk_or (of_pred ~negate p1) (of_pred ~negate p2)
-    | And (p1, p2) -> mk_and (of_pred p1) (of_pred p2)
-    | Or (p1, p2) when negate -> mk_and (of_pred ~negate p1) (of_pred ~negate p2)
-    | Or (p1, p2) -> mk_or (of_pred p1) (of_pred p2)
-    | Neg pred -> of_pred ~negate:(not negate) pred
-
-  let match_loc sw pt =
-    let t1 = mk_filter (Switch sw) in
-    let t2 = mk_filter (Location (Physical pt)) in
-    mk_seq t1 t2
-
-  let mk_link ?(ing : Frenetic_NetKAT.pred option) s1 p1 s2 p2 =
-    (* SJS: This is not the true sematnics of a link! This is a hack that works for now,
-       but we will need to use the correct encoding once we start doing things like global
-       optimization or deciding equivalence. *)
-    let post_link = match ing with
-      | None -> match_loc s2 p2
-      | Some ing -> mk_seq (mk_filter (Switch s2)) (of_pred ~negate:true ing)
-    in
-    mk_big_seq [match_loc s1 p1; dup; post_link ]
-
-  let rec of_pol ?(ing : Frenetic_NetKAT.pred option) (pol : Frenetic_NetKAT.policy) : t =
-    match pol with
-    | Filter a -> of_pred a
-    | Mod hv -> mk_mod hv
-    | Union (p,q) -> mk_union (of_pol ?ing p) (of_pol ?ing q)
-    | Seq (p,q) -> mk_seq (of_pol ?ing p) (of_pol ?ing q)
-    | Star p -> mk_star (of_pol ?ing p)
-    | Link (s1,p1,s2,p2) -> mk_link ?ing s1 p1 s2 p2
-    | VLink _ -> assert false (* SJS / JNF *)
 end
 
 
@@ -290,7 +380,7 @@ module Deriv = struct
       (e, d)
     | VLink _ -> failwith "expected physical policy, but found virtual one"
 
-end
+end *)
 
 (* module Prob_NetKAT_Automaton = struct
 

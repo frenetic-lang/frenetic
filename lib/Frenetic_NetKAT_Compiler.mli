@@ -12,6 +12,8 @@ module FDK : sig
   include Frenetic_Vlr.S with type v = Field.t * Value.t and type r = Action.t
   val mk_cont : int -> t
   val conts : t -> int list
+  val of_pred : pred -> t
+  val of_mod : header_val -> t
 end
 
 type order

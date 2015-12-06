@@ -56,12 +56,21 @@ type pred =
   | Neg of pred
   with sexp
 
+module Coin = struct
+  type coin_label = int with sexp
+  type coin_idx = int with sexp
+  type t = coin_label * coin_idx with sexp
+  let  compare (x:t) (y:t) = Pervasives.compare x y
+  let hash = Hashtbl.hash
+  let to_string x = sexp_of_t x |> Sexp.to_string
+ end
+
 type policy =
   | Filter of pred
   | Mod of header_val
   | Union of policy * policy
   | Seq of policy * policy
-  | Choice of policy * policy
+  | Choice of policy * Coin.t * policy
   | Star of policy
   | Link of switchId * portId * switchId * portId
   | VLink of vswitchId * vportId * vswitchId * vportId

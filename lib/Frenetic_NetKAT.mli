@@ -53,12 +53,21 @@ type pred =
   | Neg of pred
   with sexp
 
+module Coin : sig
+  type coin_label = int with sexp
+  type coin_idx = int with sexp
+  type t = coin_label * coin_idx with sexp
+  val compare : t -> t -> int
+  val hash : t -> int
+  val to_string : t -> string
+end
+
 type policy =
   | Filter of pred
   | Mod of header_val
   | Union of policy * policy
   | Seq of policy * policy
-  | Choice of policy * policy
+  | Choice of policy * Coin.t * policy
   | Star of policy
   | Link of switchId * portId * switchId * portId
   | VLink of vswitchId * vportId * vswitchId * vportId
