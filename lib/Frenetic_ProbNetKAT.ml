@@ -1,15 +1,21 @@
 open Core.Std
 open Frenetic_NetKAT
+open Frenetic_NetKAT_Compiler
 
 module Pol = struct
+
+  module Set = Int.Set
+  module Map = Int.Map
+
+  let compare = Int.compare
 
   type policy =
     | Filter of header_val
     | Filter_out of header_val (* negated filter *)
     | Mod of header_val
-    | Union of Int.Set.t
+    | Union of Set.t
     | Seq of int list
-    | Choice of float Int.Map.t
+    | Choice of float Map.t
     | Star of int
     | Dup (* we can handle all of NetKAT *)
   with sexp
@@ -17,11 +23,11 @@ module Pol = struct
   let compare p1 p2 = match p1,p2 with
     | Filter hv1, Filter hv2
     | Filter_out hv1, Filter_out hv2
-    | Mod hv1, Mod hv2 -> compare hv1 hv2
-    | Union ps1, Union ps2 -> Int.Set.compare ps1 ps2
-    | Seq ps1, Seq ps2 -> List.compare Int.compare ps1 ps2
-    | Choice d1, Choice d2 -> Int.Map.compare Float.compare d1 d2
-    | Star p1, Star p2 -> Int.compare p1 p2
+    | Mod hv1, Mod hv2 -> Pervasives.compare hv1 hv2
+    | Union ps1, Union ps2 -> Set.compare ps1 ps2
+    | Seq ps1, Seq ps2 -> List.compare compare ps1 ps2
+    | Choice d1, Choice d2 -> Map.compare Float.compare d1 d2
+    | Star p1, Star p2 -> compare p1 p2
     | Dup, Dup -> 0
     | Filter _, _ -> -1
     | _, Filter _ -> 1
@@ -49,7 +55,7 @@ module Pol = struct
   let get = T.get
   let unget = T.unget
 
-  let drop = get (Union Int.Set.empty)
+  let drop = get (Union Set.empty)
   let id = get (Seq [])
   let dup = get Dup
 
@@ -58,12 +64,12 @@ module Pol = struct
   let mk_mod hv = get (Mod hv)
 
   let mk_union p1 p2 =
-    match unget p1, Int.Set.singleton p1, unget p2, Int.Set.singleton p2 with
+    match unget p1, Set.singleton p1, unget p2, Set.singleton p2 with
     | Union ps1, _, Union ps2, _
     | Union ps1, _, _, ps2
     | _, ps1, Union ps2, _
     | _, ps1, _, ps2
-    -> Union (Int.Set.union ps1 ps2) |> get
+    -> Union (Set.union ps1 ps2) |> get
 
   let mk_seq p1 p2 =
     match unget p1, [p1], unget p2, [p2] with
@@ -86,10 +92,9 @@ module Pol = struct
     | _ ->
       let prob = 1.0 /. Float.of_int (List.length pl) in
       List.map pl ~f:(fun p -> (p, prob))
-      |> Int.Map.of_alist
-      |> function
-          | `Duplicate_key _ -> failwith "not a valid distribution"
-          | `Ok d -> get (Choice d)
+      |> Map.of_alist_exn
+      |> (fun d -> Choice d)
+      |> get
 
   let rec mk_star p =
     if p = drop || p = id then id else
@@ -140,7 +145,7 @@ module Pol = struct
     | VLink _ -> assert false (* SJS / JNF *)
 end
 
-module DFDK = struct
+module FDK_Dist = struct
   module D = Frenetic_NetKAT_Compiler
   module M = Map.Make(D)
 
@@ -168,6 +173,23 @@ module DFDK = struct
 
   let union = convolution ~op:D.union
   let seq = convolution ~op:D.seq
+  let seq' p q =
+    let q = Pol.of_pol q in
+    M.fold p ~init:M.empty ~f:(fun ~key:p ~data:prob acc ->
+      let p' =
+        FDK.map_r (Par.fold ~init:Par.empty ~f:(fun acc seq -> Par.add acc (Seq.change seq K (function
+          | Some (Const k) -> Some (Const (Pol.mk_seq (Int.of_int64_exn k) q |> Int64.of_int))
+          | _ -> failwith "continuation expected - none found"))))
+        p
+      in
+      M.change acc p' (function
+        | None -> Some prob
+        | Some prob' -> Some (prob' +. prob)))
+
+  let choice ?(prop=0.5) p q =
+    let p' = M.map p ~f:(fun pr -> prop *. pr) in
+    let q' = M.map q ~f:(fun pr -> (1.0 -. prop) *. pr) in
+    union p' q'
 
   (* This is the correct ProbNetKAT star semantics:
      p* = 1 + p0 + p0;p1 + p0;p1;p2 + ... *)
@@ -185,14 +207,68 @@ module DFDK = struct
   let of_mod hv =
     dirac (D.of_mod hv)
 
-  let rec of_policy pol =
+  let of_cont p =
+    Pol.of_pol p |> FDK.mk_cont |> dirac
+
+  let rec of_local_pol (pol : Frenetic_NetKAT.policy) =
     match pol with
     | Filter pred -> of_pred pred
     | Mod hv -> of_mod hv
-    | Union (p, q) -> union (of_policy p) (of_policy q)
-    | Seq (p, q) -> seq (of_policy p) (of_policy q)
-    | Star p -> star (of_policy p)
+    | Union (p, q) -> union (of_local_pol p) (of_local_pol q)
+    | Seq (p, q) -> seq (of_local_pol p) (of_local_pol q)
+    | Star p -> star (of_local_pol p)
     | Link _
     | VLink _ -> failwith "Expected local policy, but found link!"
+
+end
+
+module Prob_NetKAT_Automaton = struct
+
+  let match_loc sw pt : Frenetic_NetKAT.policy =
+    let t1 = Test (Switch sw) in
+    let t2 = Test (Location (Physical pt)) in
+    Filter (Frenetic_NetKAT_Optimize.mk_and t1 t2)
+
+  let rec split_pol ?(ing : Frenetic_NetKAT.pred option) (pol : Frenetic_NetKAT.policy)
+    : (FDK_Dist.t * FDK_Dist.t) =
+    match pol with
+    | Filter pred -> (FDK_Dist.of_pred pred, FDK_Dist.drop)
+    | Mod hv -> (FDK_Dist.of_mod hv, FDK_Dist.drop)
+    | Union (p, q) ->
+      let (e_p, d_p) = split_pol p in
+      let (e_q, d_q) = split_pol q in
+      let e = FDK_Dist.union e_p e_q in
+      let d = FDK_Dist.union d_p d_q in
+      (e, d)
+    | Seq (p, q) ->
+      let (e_p, d_p) = split_pol p in
+      let (e_q, d_q) = split_pol q in
+      let e = FDK_Dist.seq e_p e_q in
+      (* let q' = FDK_Dist.seq e_q d_q in *)
+      let d = FDK_Dist.union (FDK_Dist.seq' d_p q) (FDK_Dist.seq e_p d_q) in
+      (e, d)
+    | Choice (p,q) ->
+      let (e_p, d_p) = split_pol p in
+      let (e_q, d_q) = split_pol q in
+      let e = FDK_Dist.choice e_p e_q in
+      let d = FDK_Dist.choice d_p d_q in
+      (e, d)
+    | Star p ->
+      let (e_p, d_p) = split_pol p in
+      let e = FDK_Dist.star e_p in
+      let d = FDK_Dist.seq e (FDK_Dist.seq' d_p pol) in
+      (e, d)
+    | Link (s1, p1, s2, p2) ->
+      let e = FDK_Dist.drop in
+      let open Frenetic_NetKAT_Optimize in
+      let cont = match ing with
+        | None -> match_loc s2 p2
+        | Some ing -> mk_and (Test (Switch s2)) (mk_not ing) |> mk_filter
+      in
+      let pre_link = match_loc s1 p1 |> FDK_Dist.of_local_pol in
+      let d = FDK_Dist.seq pre_link (FDK_Dist.of_cont cont) in
+      (e, d)
+    | VLink _ -> failwith "expected physical policy, but found virtual one"
+
 
 end

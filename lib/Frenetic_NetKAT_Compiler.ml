@@ -10,6 +10,11 @@ type order
     | `Static of Field.t list
     | `Heuristic ]
 
+module Action = Frenetic_Fdd.Action
+module Value = Frenetic_Fdd.Value
+module Par = Action.Par
+module Seq = Action.Seq
+
 
 (*==========================================================================*)
 (* LOCAL COMPILATION                                                        *)
@@ -45,7 +50,7 @@ module FDK = struct
 
   let seq_tbl = BinTbl.create ~size:1000 ()
 
-  let clear_cache preserve = begin
+  let clear_cache ~preserve = begin
     BinTbl.clear seq_tbl;
     clear_cache preserve;
   end
@@ -132,6 +137,8 @@ module FDK = struct
       fdd
 end
 
+
+
 (** An internal module that implements an interpreter for a [FDK.t]. This
     interpreter uses [FDK.t] operations to find the [Action.t] that should
     apply to the packet. Once that's found, it converts the [Action.t] into a
@@ -181,8 +188,8 @@ let default_compiler_options = {
 let compile_local ?(options=default_compiler_options) pol =
   (match options.cache_prepare with
    | `Keep -> ()
-   | `Empty -> FDK.clear_cache Int.Set.empty
-   | `Preserve fdd -> FDK.clear_cache (FDK.refs fdd));
+   | `Empty -> FDK.clear_cache ~preserve:Int.Set.empty
+   | `Preserve fdd -> FDK.clear_cache ~preserve:(FDK.refs fdd));
   (match options.field_order with
    | `Heuristic -> Field.auto_order pol
    | `Default -> Field.set_order Field.all_fields

@@ -61,6 +61,7 @@ type policy =
   | Mod of header_val
   | Union of policy * policy
   | Seq of policy * policy
+  | Choice of policy * policy
   | Star of policy
   | Link of switchId * portId * switchId * portId
   | VLink of vswitchId * vportId * vswitchId * vportId

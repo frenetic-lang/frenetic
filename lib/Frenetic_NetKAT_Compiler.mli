@@ -4,6 +4,15 @@ open Frenetic_NetKAT_Semantics
 open Frenetic_OpenFlow
 
 module Field = Frenetic_Fdd.Field
+module Value = Frenetic_Fdd.Value
+module Action = Frenetic_Fdd.Action
+module Par = Action.Par
+module Seq = Action.Seq
+module FDK : sig
+  include Frenetic_Vlr.S with type v = Field.t * Value.t and type r = Action.t
+  val mk_cont : int -> t
+  val conts : t -> int list
+end
 
 type order
   = [ `Default
@@ -11,7 +20,7 @@ type order
     | `Heuristic ]
 
 
-type t with sexp
+type t = FDK.t with sexp
 (** The type of the intermediate compiler representation (FDD). *)
 
 val compare : t -> t -> int
