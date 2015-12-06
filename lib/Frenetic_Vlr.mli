@@ -137,8 +137,6 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
       variable assignments. If the list assigns multiple values to a variable,
       then the behavior is unspecified. *)
 
-  (* val apply : (r -> r -> r) -> bool -> bool -> r -> t -> t -> t *)
-
   val sum : t -> t -> t
   (** [sum a b] returns the disjunction of the two diagrams. The [sum]
       operation on the [r] type is used to combine leaf nodes. *)
@@ -185,6 +183,8 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
       same combinatorial object. However, if two diagrams are not equal, they
       still may represent the same combinatorial object. Whether or not this is
       the case depends on they behavior of the type [v]. *)
+
+  val compare : t -> t -> int
 
   val to_string : t -> string
   (** [to_string t] returns a string representation of the diagram. *)

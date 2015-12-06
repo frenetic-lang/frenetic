@@ -10,7 +10,6 @@ type order
     | `Static of Field.t list
     | `Heuristic ]
 
-
 type t
 (** The type of the intermediate compiler representation (FDD). *)
 
