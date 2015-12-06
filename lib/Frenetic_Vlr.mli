@@ -185,6 +185,8 @@ module type S = sig
       still may represent the same combinatorial object. Whether or not this is
       the case depends on they behavior of the type [v]. *)
 
+  val compare : t -> t -> int
+
   val to_string : t -> string
   (** [to_string t] returns a string representation of the diagram. *)
 

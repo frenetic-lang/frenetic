@@ -1,15 +1,6 @@
 open Core.Std
 open Frenetic_NetKAT
 
-module type OUTCOME = sig
-  type t
-  include Map.Key with type t := t
-  val zero : t
-  val one : t
-  val union : t -> t -> t
-  val seq : t -> t -> t
-end
-
 module Pol = struct
 
   type policy =
@@ -149,9 +140,9 @@ module Pol = struct
     | VLink _ -> assert false (* SJS / JNF *)
 end
 
-module Make(Outcome : OUTCOME) = struct
-  type outcome = Outcome.t
-  module M = Map.Make(Outcome)
+module DFDK = struct
+  module D = Frenetic_NetKAT_Compiler
+  module M = Map.Make(D)
 
   (* Invariant: values sum up to 1.0 *)
   type t = float M.t
@@ -163,10 +154,10 @@ module Make(Outcome : OUTCOME) = struct
   let compare = M.compare_direct Float.compare
 
   let dirac a = M.singleton a 1.0
-  let zero = dirac Outcome.zero
-  let one = dirac Outcome.one
+  let drop = dirac D.drop
+  let id = dirac D.id
 
-  let convolution t1 t2 ~(op:outcome -> outcome -> outcome) : t =
+  let convolution t1 t2 ~(op:D.t -> D.t -> D.t) : t =
     M.fold t1 ~init:M.empty ~f:(fun ~key:o1 ~data:p1 acc ->
       M.fold t2 ~init:acc ~f:(fun ~key:o2 ~data:p2 acc ->
         let o = op o1 o2 in
@@ -175,8 +166,8 @@ module Make(Outcome : OUTCOME) = struct
           | None -> Some p
           | Some p' -> Some (p' +. p))))
 
-  let union = convolution ~op:Outcome.union
-  let seq = convolution ~op:Outcome.seq
+  let union = convolution ~op:D.union
+  let seq = convolution ~op:D.seq
 
   (* This is the correct ProbNetKAT star semantics:
      p* = 1 + p0 + p0;p1 + p0;p1;p2 + ... *)
@@ -186,8 +177,22 @@ module Make(Outcome : OUTCOME) = struct
       if equal acc acc'
         then acc
         else loop acc' (seq power t)
-    in loop one t
+    in loop id t
 
-  (* let of_policy t *)
+  let of_pred pred =
+    dirac (D.of_pred pred)
+
+  let of_mod hv =
+    dirac (D.of_mod hv)
+
+  let rec of_policy pol =
+    match pol with
+    | Filter pred -> of_pred pred
+    | Mod hv -> of_mod hv
+    | Union (p, q) -> union (of_policy p) (of_policy q)
+    | Seq (p, q) -> seq (of_policy p) (of_policy q)
+    | Star p -> star (of_policy p)
+    | Link _
+    | VLink _ -> failwith "Expected local policy, but found link!"
 
 end

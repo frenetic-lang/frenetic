@@ -49,6 +49,7 @@ module type S = sig
   val map_r : (r -> r) -> t -> t
   val fold : (r -> 'a) -> (v -> 'a -> 'a -> 'a) -> t -> 'a
   val equal : t -> t -> bool
+  val compare : t -> t -> int
   val to_string : t -> string
   val clear_cache : preserve:Int.Set.t -> unit
   val compressed_size : t -> int
@@ -116,6 +117,7 @@ struct
   module BinTbl = Frenetic_Util.IntPairTbl
 
   let equal x y = x = y (* comparing ints *)
+  let compare = Int.compare
 
   let rec to_string t = match T.unget t with
     | Leaf r ->

@@ -11,8 +11,14 @@ type order
     | `Heuristic ]
 
 
-type t
+type t with sexp
 (** The type of the intermediate compiler representation (FDD). *)
+
+val compare : t -> t -> int
+val drop : t
+val id : t
+val of_pred : pred -> t
+val of_mod : header_val -> t
 
 type cache
   = [ `Keep
