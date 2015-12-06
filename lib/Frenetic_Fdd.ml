@@ -514,21 +514,23 @@ module Action = struct
 
   let one = Par.singleton Seq.empty
   let zero = Par.empty
+  let is_one = Par.equal one
+  let is_zero = Par.is_empty
 
   let sum (a:t) (b:t) : t =
     (* This implements parallel composition specifically for NetKAT
        modifications. *)
-    if Par.is_empty a then b            (* 0 + p = p *)
-    else if Par.is_empty b then a       (* p + 0 = p *)
+    if is_zero a then b            (* 0 + p = p *)
+    else if is_zero b then a       (* p + 0 = p *)
     else Par.union a b
 
   let prod (a:t) (b:t) : t =
     (* This implements sequential composition specifically for NetKAT
        modifications and makes use of NetKAT laws to simplify results.*)
-    if Par.is_empty a then zero         (* 0; p == 0 *)
-    else if Par.is_empty b then zero    (* p; 0 == 0 *)
-    else if Par.equal a one then b      (* 1; p == p *)
-    else if Par.equal b one then a      (* p; 1 == p *)
+    if is_zero a then zero       (* 0; p == 0 *)
+    else if is_zero b then zero  (* p; 0 == 0 *)
+    else if is_one a then b      (* 1; p == p *)
+    else if is_one b then a      (* p; 1 == p *)
     else
       Par.fold a ~init:zero ~f:(fun acc seq1 ->
         (* cannot implement sequential composition of this kind here *)
@@ -543,7 +545,7 @@ module Action = struct
   let negate t : t =
     (* This implements negation for the [zero] and [one] actions. Any
        non-[zero] action will be mapped to [zero] by this function. *)
-    if compare t zero = 0 then one else zero
+    if is_zero t then one else zero
 
   let get_queries (t : t) : string list =
     Par.fold t ~init:[] ~f:(fun queries seq ->
