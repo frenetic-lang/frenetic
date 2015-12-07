@@ -90,8 +90,9 @@ module Pol = struct
   let mk_big_union = List.fold_left ~init:drop ~f:mk_union
   let mk_big_seq = List.fold_left ~init:id ~f:mk_seq
 
-  let mk_choice p c q =
-    get (Choice (p,c,q))
+  let mk_choice p1 c p2 =
+    if p1 = p2 then p1
+    else get (Choice (p1, c, p2))
 
   let rec mk_star p =
     if p = drop || p = id then id else
