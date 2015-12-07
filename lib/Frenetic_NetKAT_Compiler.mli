@@ -14,6 +14,9 @@ module FDK : sig
   val conts : t -> int list
   val of_pred : pred -> t
   val of_mod : header_val -> t
+  val union : t -> t -> t
+  val seq : t -> t -> t
+  val star : t -> t
 end
 
 type order

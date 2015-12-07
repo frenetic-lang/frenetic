@@ -89,4 +89,5 @@ module FDK : sig
   include Frenetic_Vlr.S with type v = Field.t * Value.t and type r = Action.t
   val mk_cont : int -> t
   val conts : t -> int list
+  val map_conts : t -> f:(int -> int) -> t
 end

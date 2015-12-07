@@ -692,4 +692,12 @@ module FDK = struct
     |> List.map ~f:Value.to_int_exn
     |> List.dedup
 
+  let map_conts t ~(f: int -> int) =
+    let open Action in
+    let f par = Par.map par ~f:(fun seq -> Seq.change seq K (function
+      | None -> failwith "continuation expected, but none found"
+      | Some k -> Some (k |> Value.to_int_exn |> f |> Value.of_int)))
+    in
+    map_r f t
+
 end
