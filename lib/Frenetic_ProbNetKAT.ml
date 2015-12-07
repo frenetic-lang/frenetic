@@ -142,6 +142,59 @@ module Pol = struct
     | VLink _ -> assert false (* SJS / JNF *)
 end
 
+
+(* syntactic Antimirov derivatives *)
+module SynDiv = struct
+
+  type t = Pol.t * ((Pol.t * Pol.t) list)
+
+  let drop = (Pol.drop, [])
+  let id = (Pol.id, [])
+  let dup = (Pol.drop, [(Pol.id, Pol.id)])
+
+  let union (e1,ds1) (e2,ds2) =
+    let e = Pol.mk_union e1 e2 in
+    let ds = ds1 @ ds2 in
+    (e, ds)
+
+  let choice (e1,ds1) c (e2,ds2) =
+    let open Pol in
+    let e = mk_choice e1 c e2 in
+    let ds1' = List.map ds1 ~f:(fun (d,k) -> (mk_choice d c drop, k)) in
+    let ds2' = List.map ds2 ~f:(fun (d,k) -> (mk_choice drop c d, k)) in
+    let ds = ds1' @ ds2' in
+    (e, ds)
+
+  let seq (e1,ds1) (p2, (e2,ds2)) =
+    let e = Pol.mk_seq e1 e2 in
+    let ds1' = List.map ds1 ~f:(fun (d,k) -> (d, Pol.mk_seq k p2)) in
+    let ds2' = List.map ds2 ~f:(fun (d,k) -> (Pol.mk_seq e1 d, k)) in
+    let ds = ds1' @ ds2' in
+    (e, ds)
+
+  let star p_star (e0,ds0) =
+    let e = Pol.mk_star e0 in
+    let ds = List.map ds0 ~f:(fun (d,k) -> (Pol.mk_seq e d, Pol.mk_seq k p_star)) in
+    (e, ds)
+
+  let rec of_pol pol =
+    match Pol.unget pol with
+    | Filter _
+    | Filter_out _
+    | Mod _ -> (pol, [])
+    | Dup -> dup
+    | Choice (p,c,q) -> choice (of_pol p) c (of_pol q)
+    | Union ps ->
+      Pol.Set.to_list ps
+      |> List.map ~f:of_pol
+      |> List.fold ~init:drop ~f:union
+    | Seq pl ->
+      List.map pl ~f:(fun p -> (p, of_pol p))
+      |> List.fold ~init:id ~f:seq
+    | Star p -> star pol (of_pol pol)
+
+end
+
 module Unit : Frenetic_Vlr.Lattice = struct
   include Unit
   let subset_eq _ _ = true
@@ -167,10 +220,11 @@ module PFDK = struct
     include Pol
     let zero = drop
     let one = id
-    let prod = seq
-    let sum = union
+    let prod = mk_seq
+    let sum = mk_union
     let to_string t = sexp_of_t t |> Sexp.to_string
     let hash = Hashtbl.hash
+    let compare = Int.compare
   end)
 
   (* let of_filter hv =
