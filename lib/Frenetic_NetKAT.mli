@@ -60,6 +60,7 @@ module Coin : sig
   val compare : t -> t -> int
   val hash : t -> int
   val to_string : t -> string
+  val prob : t -> float
 end
 
 type policy =

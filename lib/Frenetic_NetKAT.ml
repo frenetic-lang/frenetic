@@ -63,6 +63,7 @@ module Coin = struct
   let  compare (x:t) (y:t) = Pervasives.compare x y
   let hash = Hashtbl.hash
   let to_string x = sexp_of_t x |> Sexp.to_string
+  let prob t = 0.5 (* SJS: good enough for now *)
  end
 
 type policy =

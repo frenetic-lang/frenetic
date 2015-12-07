@@ -1,7 +1,7 @@
 open Core.Std
 open Frenetic_NetKAT
-open Frenetic_NetKAT_Compiler
 
+(* Internal Policy representation. Hash-consed modulo ACI. *)
 module Pol = struct
 
   module Set = Int.Set
@@ -161,8 +161,18 @@ module Pol = struct
 end
 
 
+
+(* We need some extra operations on FDKs. *)
+module FDK = struct
+  include Frenetic_NetKAT_Compiler.FDK
+
+  let of_local_pol (pol : Pol.t) = failwith "not implemented"
+end
+
+
+
 (* syntactic Antimirov derivatives *)
-module SynDiv = struct
+module SynDeriv = struct
 
   type t = Pol.t * ((Pol.t * Pol.t) list)
 
@@ -217,7 +227,26 @@ module SynDiv = struct
 end
 
 
-module State = struct
+(* Outcomes of the probability space. An outcome is a map from coins to bool,
+   indicating heads or tails
+*)
+module Omega = struct
+
+  module T = Map.Make(Coin)
+
+  type t = bool T.t (* coin -> bool, heads or tails *)
+
+  let of_alist_exn = T.of_alist_exn
+
+  let prob w =
+    T.fold w ~init:1.0 ~f:(fun ~key:c ~data:heads acc ->
+      acc *. (if heads then Coin.prob c else 1. -. Coin.prob c))
+end
+
+
+
+(* deterministic states *)
+module DetState = struct
   type t = FDK.t * FDK.t with sexp
   let compare = Pervasives.compare
 
@@ -227,12 +256,16 @@ module State = struct
   let union (e1,d1) (e2,d2) =
     (FDK.union e1 e2, FDK.union d1 d2)
 
+  let of_local_pol (pol : Pol.t) =
+    (FDK.of_local_pol pol, FDK.drop)
+
 end
 
 
-module FDK_Dist = struct
-  module Dom = State
-  module Dist = Map.Make(Dom)
+
+module ProbState = struct
+  module Dist = Map.Make(DetState) (* DetState.t -> float *)
+
 
   (* Invariant: values sum up to 1.0 *)
   type t = float Dist.t with sexp
@@ -244,10 +277,10 @@ module FDK_Dist = struct
   let compare = Dist.compare_direct Float.compare
 
   let dirac d = Dist.singleton d 1.0
-  let zero = dirac Dom.zero
-  let one = dirac Dom.one
+  let zero = dirac DetState.zero
+  let one = dirac DetState.one
 
-  let convolution t1 t2 ~(op:Dom.t -> Dom.t -> Dom.t) : t =
+  let convolution t1 t2 ~(op:DetState.t -> DetState.t -> DetState.t) : t =
     Dist.fold t1 ~init:Dist.empty ~f:(fun ~key:d1 ~data:p1 acc ->
       Dist.fold t2 ~init:acc ~f:(fun ~key:d2 ~data:p2 acc ->
         let d = op d1 d2 in
@@ -256,7 +289,29 @@ module FDK_Dist = struct
           | None -> Some p
           | Some p' -> Some (p' +. p))))
 
-  let union = convolution ~op:Dom.union
+  let union = convolution ~op:DetState.union
+
+  let of_local_pol (pol : Pol.t) (w : Omega.t) : t =
+    failwith "not implemented"
+
+  let of_syn_deriv_at_outcome (e,ds : SynDeriv.t) (w : Omega.t) : t =
+    failwith "not implemented"
+
+  let of_syn_deriv (e,ds : SynDeriv.t) : t =
+    let coins = SynDeriv.coins_in_hop (e,ds) |> Array.of_list in
+    let space =
+      let rec loop n space =
+        if n=0 then space else
+        List.map space ~f:(List.cons true) @ List.map space ~f:(List.cons false)
+        |> loop (n-1)
+      in
+      loop (Array.length coins) []
+      |> List.map ~f:(List.mapi ~f:(fun i b -> (coins.(i), b)))
+      |> List.map ~f:Omega.of_alist_exn
+    in
+    List.map space ~f:(of_syn_deriv_at_outcome (e,ds))
+    |> List.fold ~init:zero ~f:union
+
 
 (*   let choice ?(prop=0.5) p c q =
     let p' = Dist.map p ~f:(fun pr -> prop *. pr) in

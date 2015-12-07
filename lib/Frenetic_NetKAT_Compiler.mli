@@ -17,6 +17,7 @@ module FDK : sig
   val union : t -> t -> t
   val seq : t -> t -> t
   val star : t -> t
+  val of_local_pol : policy -> t
 end
 
 type order
