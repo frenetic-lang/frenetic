@@ -1,14 +1,10 @@
-module type HASHABLE = sig
-  type t
-  val hash : t -> int
-  val equal : t -> t -> bool
-end
+open Core.Std
 
 module type HASHTYPE = sig
-  type value
-  val get : value -> int
-  val unget : int -> value
-  val clear : Core.Std.Int.Set.t -> unit
+  type t
+  val get : t -> int
+  val unget : int -> t
+  val clear : Int.Set.t -> unit
 end
 
-module Make (Value : HASHABLE) : HASHTYPE with type value = Value.t
+module Make (Value : Hashtbl.Key) : HASHTYPE with type t = Value.t

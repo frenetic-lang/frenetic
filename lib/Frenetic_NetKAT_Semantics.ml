@@ -260,27 +260,28 @@ let queries_of_policy (pol : policy) : string list =
   loop pol []
 
 (* JNF: is this dead code? *)
+(* SJS: no, we use it for the compilekat benchmarks *)
 let switches_of_policy (p:policy) =
-  let rec collect' a =
+  let rec collect' a acc =
     match a with
     | Test (Switch sw) ->
-       [sw]
+       sw :: acc
     | True | False | Test _ ->
-       []
+       acc
     | And (b, c) | Or (b, c) ->
-       collect' b @ collect' c
-    | Neg b -> collect' b in
-  let rec collect p =
+       acc |> collect' b |> collect' c
+    | Neg b -> collect' b acc in
+  let rec collect p acc =
     match p with
     | Filter a ->
-       collect' a
+       collect' a acc
     | Mod _ ->
-       []
+       acc
     | Union(q,r) | Seq (q,r) ->
-       collect q @ collect r
+       acc |> collect q |> collect r
     | Star q ->
-       collect q
+       collect q acc
     | Link(sw1,_,sw2,_) ->
-       [sw1;sw2] 
-    | VLink _ -> [] in
-  List.to_list (List.dedup (collect p))
+       sw1 :: sw2 :: acc
+    | VLink _ -> acc in
+  collect p [] |> List.dedup |> List.to_list

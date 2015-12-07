@@ -36,47 +36,31 @@ module FDK = struct
     | Or (p, q) -> sum (of_pred p) (of_pred q)
     | Neg(q)    -> map_r Action.negate (of_pred q)
 
-  let cond v t f =
-    if equal t f then
-      t
-    else
-      (sum (prod (atom v Action.one Action.zero) t)
-             (prod (atom v Action.zero Action.one) f))
+  let seq_tbl = BinTbl.create ~size:1000 ()
 
-  let dp_fold (g : Action.t -> 'a)
-              (h : Field.t * Value.t -> 'a -> 'a -> 'a)
-              (t : t) : 'a =
-    let tbl = Hashtbl.Poly.create () in
-    let rec f t =
-      Hashtbl.Poly.find_or_add tbl t ~default:(fun () -> f' t)
-    and f' t = match unget t with
-      | Leaf r -> g r
-      | Branch ((v, l), tru, fls) -> h (v,l) (f tru) (f fls) in
-    f t
+  let clear_cache preserve = begin
+    BinTbl.clear seq_tbl;
+    clear_cache preserve;
+  end
 
   let seq t u =
     match peek u with
     | Some _ -> prod t u (* This is an optimization. If [u] is an
-                              [Action.Par.t], then it will compose with [t]
-                              regardless of however [t] modifies packets. None
-                              of the decision variables in [u] need to be
-                              removed because there are none. *)
+                            [Action.Par.t], then it will compose with [t]
+                            regardless of however [t] modifies packets. None
+                            of the decision variables in [u] need to be
+                            removed because there are none. *)
     | None   ->
-      dp_fold
+      FDK.dp_map
         (fun par ->
           Action.Par.fold par ~init:drop ~f:(fun acc seq ->
             let u' = restrict (Action.Seq.to_hvs seq) u in
             (sum (prod (const Action.Par.(singleton seq)) u') acc)))
         (fun v t f -> cond v t f)
-      t
+        ~find_or_add:(fun t -> BinTbl.find_or_add seq_tbl (t,u))
+        t
 
-  let union t u =
-    (* Compute the union of [t] and [u] by using the sum operation. This will
-       appropriately combine actions for overlapping patterns. *)
-    if equal t u then
-      t
-    else
-      sum t u
+  let union t u = sum t u
 
   let big_union fdds = List.fold ~init:drop ~f:union fdds
 
@@ -126,7 +110,7 @@ module FDK = struct
 
   let dedup fdd =
     let module FS = Set.Make(Field) in
-    dp_fold
+    FDK.map
       (fun par ->
         let mods = Action.Par.to_hvs par in
         let fields = List.map mods ~f:fst |> FS.of_list in
@@ -179,8 +163,6 @@ type compiler_options = {
     optimize: bool;
 }
 
-let clear_cache () = FDK.clear_cache Int.Set.empty
-
 let default_compiler_options = {
   cache_prepare = `Empty;
   field_order = `Heuristic;
@@ -230,13 +212,6 @@ let get_inport hvs =
   in
   List.fold_left hvs ~init:None ~f:get_inport'
 
-(* TODO(grouptable): fix this mess. I made to_action_multitable because it's
- * used in the multitable compiler. to_action does not use group tables and is
- * for the normal compiler. *)
-
-(* Frenetic_OpenFlow.group is an action group, equivalent in type to
- * 'action list list list', while Frenetic_GroupTable0x04.t contains
- * groupmod messages to create a group table *)
 let to_action ?group_tbl (in_port : Int64.t option) r tests =
   List.fold tests ~init:r ~f:(fun a t -> Action.demod t a)
   |> Action.to_sdn ?group_tbl in_port
@@ -321,10 +296,10 @@ let to_table ?(options=default_compiler_options) ?group_tbl swId t =
 let pipes t =
   let ps = FDK.fold
     (fun r -> Action.pipes r)
-    (fun _ t f -> Frenetic_Util.StringSet.union t f)
+    (fun _ t f -> String.Set.union t f)
     t
   in
-  Frenetic_Util.StringSet.to_list ps
+  String.Set.to_list ps
 
 let queries t =
   let module S = Set.Make(struct
@@ -513,13 +488,9 @@ module NetKAT_Automaton = struct
   module Tbl = Int.Table
 
   (* untable (inverse table) *)
-  module Untbl = Hashtbl.Make(struct
-    type t = (int * int) with sexp
-    let hash (t1, t2) = 617 * t1 +  619 * t2
-    let compare = Pervasives.compare
-  end)
+  module Untbl = FDK.BinTbl
 
-  (* (hashable) int set *)
+  (* (hashable) int sets *)
   module S = struct
     module S = struct
       include Set.Make(Int)
@@ -553,17 +524,17 @@ module NetKAT_Automaton = struct
     let source = 0 in
     { states; has_state; source; nextState = source+1 }
 
-  let mk_state_t0 (automaton : t0) =
+  let mk_state_t0 (automaton : t0) : int =
     let id = automaton.nextState in
     automaton.nextState <- id + 1;
     id
 
-  let mk_state_t (automaton : t) =
+  let mk_state_t (automaton : t) : int =
     let id = automaton.nextState in
     automaton.nextState <- id + 1;
     id
 
-  let add_to_t (automaton : t) (state : (FDK.t * FDK.t)) =
+  let add_to_t (automaton : t) (state : (FDK.t * FDK.t)) : int =
     match Untbl.find automaton.has_state state with
     | Some k -> k
     | None ->
@@ -761,14 +732,15 @@ module NetKAT_Automaton = struct
     let open Format in
     let buf = Buffer.create 200 in
     let fmt = formatter_of_buffer buf in
-    let seen = Tbl.create () ~size:20 in
+    let seen = FDK.Tbl.create () ~size:20 in
     pp_set_margin fmt (1 lsl 29);
     fprintf fmt "digraph fdk {@\n";
     let rec node_loop node =
-      if not (Tbl.mem seen node) then begin
-        Tbl.add_exn seen node ();
+      if not (FDK.Tbl.mem seen node) then begin
+        FDK.Tbl.add_exn seen node ();
         match FDK.unget node with
         | Leaf par ->
+          let node = FDK.get_uid node in
           let seqId = ref 0 in
           let edges = ref [] in
           fprintf fmt "subgraph cluster_%d {@\n" node;
@@ -776,21 +748,23 @@ module NetKAT_Automaton = struct
           fprintf fmt "\tshape = box;@\n" ;
           fprintf fmt "\t%d [shape = point];@\n" node;
           Action.Par.iter par ~f:(fun seq ->
-            let id = sprintf "\"%dS%d\"" node (!seqId) in
-            let cont = Action.Seq.find seq K |> Option.map ~f:(fun v -> Tbl.find_exn states (Value.to_int_exn v)) in
+            let id : string = sprintf "\"%dS%d\"" node (!seqId) in
+            let cont = Action.Seq.find seq K
+              |> Option.map ~f:(fun v -> Tbl.find_exn states (Value.to_int_exn v)) in
             let label = Action.to_string (Action.Par.singleton seq) in
             fprintf fmt "\t%s [shape=box, label=\"%s\"];@\n" id label;
             Option.iter cont ~f:(fun k ->
-              edges := sprintf "%s -> %d [style=bold, color=blue];@\n" id k :: (!edges));
+              edges := sprintf "%s -> %d [style=bold, color=blue];@\n"
+                id (FDK.get_uid k) :: (!edges));
             incr seqId;
           );
           fprintf fmt "}@\n";
           List.iter (!edges) ~f:(fprintf fmt "%s")
         | Branch((f, v), a, b) ->
-          fprintf fmt "%d [label=\"%s = %s\"];@\n"
-            node (Field.to_string f) (Value.to_string v);
-          fprintf fmt "%d -> %d;@\n" node a;
-          fprintf fmt "%d -> %d [style=\"dashed\"];@\n" node b;
+          let node = FDK.get_uid node in
+          fprintf fmt "%d [label=\"%s = %s\"];@\n" node (Field.to_string f) (Value.to_string v);
+          fprintf fmt "%d -> %d;@\n" node (FDK.get_uid a);
+          fprintf fmt "%d -> %d [style=\"dashed\"];@\n" node (FDK.get_uid b);
           node_loop a;
           node_loop b
       end
@@ -804,9 +778,10 @@ module NetKAT_Automaton = struct
       List.iter conts ~f:fdk_loop
     in
     fdk_loop automaton.source;
-    fprintf fmt "%d [style=bold, color=red];@\n" (Tbl.find_exn states automaton.source);
+    fprintf fmt "%d [style=bold, color=red];@\n"
+      (Tbl.find_exn states automaton.source |> FDK.get_uid);
     fprintf fmt "{rank=source; ";
-    List.iter (!fdks) ~f:(fun fdk -> fprintf fmt "%d " fdk);
+    List.iter (!fdks) ~f:(fun fdk -> fprintf fmt "%d " (FDK.get_uid fdk));
     fprintf fmt ";}@\n";
     fprintf fmt "}@.";
     Buffer.contents buf

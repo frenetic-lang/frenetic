@@ -2,21 +2,7 @@ open Core.Std
 
 (** The signature for a type that can be compared and hashed *)
 module type HashCmp = sig
-  type t 
-
-  val hash : t -> int
-  (** [hash t] assigns an interger to each value of type [t]. This assignment
-      must be consistent with the {!compare} operation in the following way:
-
-          if [compare a b = 0] then [hash a = hash b] *)
-
-  val compare : t -> t -> int
-  (** [compare a b] returns one of three values:
-
-      {ul
-      {- [0] when [a] and [b] are equal;}
-      {- [1] when [a] is greater than [b]; and}
-      {- [-1] when [a] is less than [b].}} *)
+  include Hashtbl.Key
 
   val to_string : t -> string
   (** [to_string t] returns a string representation of the value. *)
@@ -102,7 +88,7 @@ end
 
 module type S = sig
 
-  type t = int with sexp
+  type t with sexp
   (** The type of a decision diagram *)
 
   type v
@@ -115,8 +101,12 @@ module type S = sig
     = Leaf of r
     | Branch of v * t * t
 
+  module Tbl : Hashtbl.S with type key = t
+  module BinTbl : Hashtbl.S with type key = (t * t)
+
   val get : d -> t
   val unget : t -> d
+  val get_uid : t -> int
   val mk_branch : v -> t -> t -> t
   val mk_leaf : r -> t
   val drop : t (* zero *)
@@ -148,15 +138,26 @@ module type S = sig
       can attempt to reduce the diagram to a value, and then use [peek] to
       extract that value. *)
 
+  (* val apply : (r -> r -> r) -> bool -> bool -> r -> t -> t -> t *)
+
   val sum : t -> t -> t
   (** [sum a b] returns the disjunction of the two diagrams. The [sum]
       operation on the [r] type is used to combine leaf nodes. *)
 
-  val sum_generalized : (r -> r -> r) -> r -> t -> t -> t
-
   val prod : t -> t -> t
   (** [prod a b] returns the conjunction of the two diagrams. The [prod]
       operation on the [r] type is used to combine leaf nodes. *)
+
+  val cond : v -> t -> t -> t
+
+  val map : (r -> t) -> (v -> t -> t -> t) -> t -> t
+  (** [map f h t] traverses t in post order and first maps the leaves using
+      f, and then the internal nodes using h, producing a modified diagram. *)
+
+  val dp_map : (r -> t) -> (v -> t -> t -> t) -> t
+             -> find_or_add:(t -> default:(unit -> t) -> t)
+             -> t
+  (** [dp_map f h cache t] is equal to [map f h t], but uses [cache] for memoization *)
 
   val map_r : (r -> r) -> t -> t
   (** [map_r f t] returns a diagram with the same structure but whose leaf
@@ -212,5 +213,5 @@ end
     structure represents functions that take on values in a semi-ring, and whose
     variables are assigned values from a lattice, i.e., that are partially
     ordered. *)
-module Make(V:HashCmp)(L:Lattice)(R:Result) : S 
+module Make(V:HashCmp)(L:Lattice)(R:Result) : S
   with type v = V.t * L.t and type r = R.t

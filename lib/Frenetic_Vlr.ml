@@ -1,10 +1,7 @@
-open Sexplib
-open Sexplib.Std
+open Core.Std
 
 module type HashCmp = sig
-  type t
-  val hash : t -> int
-  val compare : t -> t -> int
+  include Hashtbl.Key
   val to_string : t -> string
 end
 
@@ -24,14 +21,17 @@ module type Result = sig
 end
 
 module type S = sig
-  type t = int with sexp
+  type t with sexp
   type v
   type r
   type d
     = Leaf of r
     | Branch of v * t * t
+  module Tbl : Hashtbl.S with type key = t
+  module BinTbl : Hashtbl.S with type key = (t * t)
   val get : d -> t
   val unget : t -> d
+  val get_uid : t -> int
   val mk_branch : v -> t -> t -> t
   val mk_leaf : r -> t
   val drop : t
@@ -41,52 +41,34 @@ module type S = sig
   val restrict : v list -> t -> t
   val peek : t -> r option
   val sum : t -> t -> t
-  val sum_generalized : (r -> r -> r) -> r -> t -> t -> t
   val prod : t -> t -> t
+  val cond : v -> t -> t -> t
+  val map : (r -> t) -> (v -> t -> t -> t) -> t -> t
+  val dp_map : (r -> t) -> (v -> t -> t -> t) -> t
+            -> find_or_add:(t -> default:(unit -> t) -> t)
+            -> t
   val map_r : (r -> r) -> t -> t
   val fold : (r -> 'a) -> (v -> 'a -> 'a -> 'a) -> t -> 'a
   val equal : t -> t -> bool
   val to_string : t -> string
-  val clear_cache : preserve:Core.Std.Int.Set.t -> unit
+  val clear_cache : preserve:Int.Set.t -> unit
   val compressed_size : t -> int
   val uncompressed_size : t -> int
   val to_dot : t -> string
-  val refs : t -> Core.Std.Int.Set.t
-
+  val refs : t -> Int.Set.t
 end
 
 
-module Make(V:HashCmp)(L:Lattice)(R:Result) : 
-  S with type v = V.t * L.t and type r = R.t = 
+module Make(V:HashCmp)(L:Lattice)(R:Result) :
+  S with type v = V.t * L.t and type r = R.t =
 struct
-  type v = V.t * L.t
-  type r = R.t
+  type v = V.t * L.t with sexp
+  type r = R.t with sexp
 
   type d
     = Leaf of r
     | Branch of v * int * int
-
-  type t = int with sexp
-  module T = Frenetic_Hashcons.Make(struct
-      type t = d
-
-      let hash t = match t with
-        | Leaf r ->
-          (R.hash r) lsl 1
-        | Branch((v, l), t, f) ->
-          (1021 * (V.hash v) + 1031 * (L.hash l) + 1033 * t + 1039 * f) lor 0x1
-
-      let equal a b = match a, b with
-        | Leaf r1, Leaf r2 -> R.compare r1 r2 = 0
-        | Branch((vx, lx), tx, fx), Branch((vy, ly), ty, fy) ->
-          V.compare vx vy = 0 && tx = ty && fx = fy
-            && L.compare lx ly = 0
-        | _, _ -> false
-    end)
-
-  let get = T.get
-  let unget = T.unget
-
+  with sexp
   (* A tree structure representing the decision diagram. The [Leaf] variant
    * represents a constant function. The [Branch(v, l, t, f)] represents an
    * if-then-else. When variable [v] takes on the value [l], then [t] should
@@ -99,15 +81,50 @@ struct
    * important both for efficiency and correctness.
    * *)
 
+  type t = int with sexp
+  module T = Frenetic_Hashcons.Make(struct
+      type t = d with sexp
+
+      let hash t = match t with
+        | Leaf r ->
+          (R.hash r) lsl 1
+        | Branch((v, l), t, f) ->
+          (1021 * (V.hash v) + 1031 * (L.hash l) + 1033 * t + 1039 * f) lor 0x1
+
+      let compare a b = match a, b with
+        | Leaf _, Branch _ -> -1
+        | Branch _, Leaf _ -> 1
+        | Leaf r1, Leaf r2 -> R.compare r1 r2
+        | Branch((vx, lx), tx, fx), Branch((vy, ly), ty, fy) ->
+          begin match V.compare vx vy with
+          | 0 -> begin match L.compare lx ly with
+            | 0 -> begin match Int.compare tx ty with
+              | 0 -> Int.compare fx fy
+              | x -> x
+              end
+            | x -> x
+            end
+          | x -> x
+          end
+    end)
+
+  let get = T.get
+  let unget = T.unget
+  let get_uid (t:t) : int = t
+
+  module Tbl = Int.Table
+
+  module BinTbl = Frenetic_Util.IntPairTbl
+
   let equal x y = x = y (* comparing ints *)
 
   let rec to_string t = match T.unget t with
-    | Leaf r -> 
+    | Leaf r ->
        Printf.sprintf "(%s)" (R.to_string r)
-    | Branch((v, l), t, f) -> 
+    | Branch((v, l), t, f) ->
        Printf.sprintf "(%s = %s ? %s : %s)"
 	 (V.to_string v) (L.to_string l) (to_string t) (to_string f)
-		      
+
   let mk_leaf r = T.get (Leaf r)
 
   let mk_branch (v,l) t f =
@@ -118,19 +135,13 @@ struct
 
        If the ids are distinct, then the node has to be constructed and assigned
        a new id. *)
-    if equal t f then begin
+    if equal t f then
       t
-    end else
+    else
       T.get (Branch((v, l), t, f))
 
   let drop = mk_leaf (R.zero)
   let id = mk_leaf (R.one)
-
-  let clear_cache ~(preserve : Core.Std.Int.Set.t) =
-    (* SJS: the interface exposes `id` and `drop` as constants,
-       so they must NEVER be cleared from the cache *)
-    let preserve = Core.Std.Set.(add (add preserve drop) id) in
-    T.clear preserve
 
   let rec fold g h t = match T.unget t with
     | Leaf r -> g r
@@ -140,46 +151,15 @@ struct
   let const r = mk_leaf r
   let atom (v,l) t f = mk_branch (v,l) (const t) (const f)
 
-  let node_min t1 t2 = match (t1, t2) with
-  | Leaf _, Leaf _ -> (t1, t2) (* constants at same rank since they can't be ordered *)
-  | Leaf _, _ -> (t2, t1)
-  | _, Leaf _ -> (t1, t2)
-  | Branch ((v1, l1), _, _), Branch ((v2, l2), _, _) -> match V.compare v1 v2 with
-    | -1 -> (t1, t2)
-    | 1 -> (t2, t1)
-    | 0 -> if L.subset_eq l1 l2 then
-             (t1, t2)
-           else if L.subset_eq l2 l1 then
-             (t2, t1)
-           else
-             (* The Spiros case. I don't think it matters which we pick *)
-             (t1, t2)
-    | _ -> assert false
+  let peek t = match T.unget t with
+    | Leaf r   -> Some r
+    | Branch _ -> None
 
+  let rec map_r g = fold
+    (fun r          -> const (g r))
+    (fun (v, l) t f -> mk_branch (v,l) t f)
 
-  module H = Core.Std.Hashtbl.Poly
-
-  let rec restrict' ((x1, l1) : v) (is_true : bool) (t : t) : t=
-    match unget t with
-    | Leaf r -> t
-    | Branch ((x2, l2), tru, fls) ->
-      match V.compare x1 x2 with
-      | 1 -> t
-      | -1 ->
-        if is_true then mk_branch (x1,l1) t (mk_leaf R.zero)
-        else mk_branch (x1,l1) (mk_leaf R.zero) t
-      | 0 ->
-        if L.subset_eq l2 l1 then
-          (if is_true then t else mk_leaf R.zero)
-        else if L.subset_eq l1 l2 then
-          mk_branch (x2,l2) (restrict' (x1,l1) is_true tru) fls
-        (* TODO(arjun): disjoint assumption. Does not work for prefixes *)
-        else
-          (if is_true then mk_leaf R.zero else tru)
-      | _ -> assert false
-
-
-  let restrict lst =
+  let restrict lst u =
     let rec loop xs u =
       match xs, T.unget u with
       | []          , _
@@ -191,25 +171,16 @@ struct
         |  1 -> mk_branch (v',l') (loop xs t) (loop xs f)
         |  _ -> assert false
     in
-    loop (List.sort (fun (u, _) (v, _) -> V.compare u v) lst)
+    loop (List.sort (fun (u, _) (v, _) -> V.compare u v) lst) u
 
-  let peek t = match T.unget t with
-    | Leaf r   -> Some r
-    | Branch _ -> None
-
-  let rec map_r g = fold
-    (fun r          -> const (g r))
-    (fun (v, l) t f -> mk_branch (v,l) t f)
-
-  let sum_generalized f zero x y =
-    let tbl : (int * int, int) H.t = H.create () in
+  let apply f zero (cache : (t*t, t) Hashtbl.t) =
     let rec sum x y =
-       H.find_or_add tbl (x, y) ~default:(fun () -> sum' x y)
+      BinTbl.find_or_add cache (x, y) ~default:(fun () -> sum' x y)
     and sum' x y =
       match T.unget x, T.unget y with
       | Leaf r, _      ->
-         if R.compare r zero = 0 then y
-        else map_r (f r) y
+        if R.compare r zero = 0 then y
+        else map_r (fun y -> f r y) y
       | _     , Leaf r ->
         if R.compare zero r = 0 then x
         else map_r (fun x -> f x r) x
@@ -226,14 +197,56 @@ struct
         |  1 -> mk_branch (vy,ly) (sum x ty) (sum x fy)
         |  _ -> assert false
         end
-    in sum x y
+    in sum
 
-  let sum = sum_generalized R.sum R.zero
+  let sum_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
+  let sum = apply R.sum R.zero sum_tbl
 
-  let prod = sum_generalized R.prod R.one
+  let prod_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
+  let prod = apply R.prod R.one prod_tbl
+
+  let clear_cache ~(preserve : Int.Set.t) =
+    (* SJS: the interface exposes `id` and `drop` as constants,
+       so they must NEVER be cleared from the cache *)
+    let preserve = Int.Set.(add (add preserve drop) id) in begin
+      BinTbl.clear sum_tbl;
+      BinTbl.clear prod_tbl;
+      T.clear preserve;
+    end
+
+  let cond v t f =
+    let ok t =
+      match unget t with
+      | Leaf _ -> true
+      | Branch ((f',v'), _, _) -> V.compare (fst v) f' = -1
+    in
+    if equal t f then t else
+    if ok t && ok f then mk_branch v t f else
+      (sum (prod (atom v R.one R.zero) t)
+           (prod (atom v R.zero R.one) f))
+
+  let map (g : R.t -> t)
+          (h : V.t * L.t -> t -> t -> t)
+          (t : t) : t =
+    let rec f t = match unget t with
+      | Leaf r -> g r
+      | Branch ((v, l), tru, fls) -> h (v,l) (f tru) (f fls) in
+    f t
+
+  let dp_map (g : R.t -> t)
+             (h : V.t * L.t -> t -> t -> t)
+             (t : t)
+             ~find_or_add
+             : t =
+    let rec f t =
+      find_or_add t ~default:(fun () -> f' t)
+    and f' t =
+      match unget t with
+        | Leaf r -> g r
+        | Branch ((v, l), tru, fls) -> h (v,l) (f tru) (f fls) in
+    f t
 
   let compressed_size (node : t) : int =
-    let open Core.Std in
     let rec f (node : t) (seen : Int.Set.t) =
       if Int.Set.mem seen node then
         (0, seen)
@@ -253,37 +266,27 @@ struct
     | Leaf _ -> 1
     | Branch (_, hi, lo) -> 1 + uncompressed_size hi + uncompressed_size lo
 
-  module VH = Hashtbl.Make(struct
-    type t = v
-
-    let equal (v1, l1) (v2, l2) =
-      V.compare v1 v2 = 0 && L.compare l1 l2 = 0
-
-    let hash (v, l) =
-      191 * (V.hash v) + 877 * (L.hash l)
-  end)
-
   let to_dot t =
     let open Format in
     let buf = Buffer.create 200 in
     let fmt = formatter_of_buffer buf in
-    let seen = Hashtbl.create ~random:true 20 in
-    let rank = VH.create 20 in
+    let seen : Int.Hash_set.t = Int.Hash_set.create ~size:10 () in
+    let rank : ((V.t*L.t), Int.Hash_set.t) Hashtbl.t = Hashtbl.Poly.create ~size:20 () in
     pp_set_margin fmt (1 lsl 29);
     fprintf fmt "digraph tdk {@\n";
     let rec loop t =
-      if not (Hashtbl.mem seen t) then begin
-        Hashtbl.add seen t ();
+      if not (Hash_set.mem seen t) then begin
+        Hash_set.add seen t;
         match T.unget t with
         | Leaf r ->
           fprintf fmt "%d [shape=box label=\"%s\"];@\n" t (R.to_string r)
         | Branch((v, l), a, b) ->
           begin
-            try Hashtbl.add (VH.find rank (v, l)) t ()
+            try Hash_set.add (Hashtbl.find_exn rank (v, l)) t
             with Not_found ->
-              let s = Hashtbl.create ~random:true 10 in
-              Hashtbl.add s t ();
-              VH.add rank (v, l) s
+              let s = Int.Hash_set.create ~size:10 () in
+              Hash_set.add s t;
+              Hashtbl.set rank (v, l) s
           end;
           fprintf fmt "%d [label=\"%s = %s\"];@\n"
             t (V.to_string v) (L.to_string l);
@@ -294,17 +297,14 @@ struct
       end
     in
     loop t;
-    VH.iter
-      (fun _ s ->
-         fprintf fmt "{rank=same; ";
-         Hashtbl.iter (fun x () -> fprintf fmt "%d " x) s;
-         fprintf fmt ";}@\n")
-      rank;
+    Hashtbl.iter rank ~f:(fun ~key:_ ~data:s ->
+      fprintf fmt "{rank=same; ";
+      Hash_set.iter s ~f:(fun x -> fprintf fmt "%d " x);
+      fprintf fmt ";}@\n");
     fprintf fmt "}@.";
     Buffer.contents buf
 
-  let refs (t : t) : Core.Std.Int.Set.t =
-    let open Core.Std in
+  let refs (t : t) : Int.Set.t =
     let rec f (node : t) (seen : Int.Set.t) =
       if Int.Set.mem seen node then
         seen

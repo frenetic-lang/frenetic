@@ -21,8 +21,6 @@
  *)
 open Core.Std
 
-module StringSet = Set.Make(String) 
-
 let make_string_of formatter x =
   let open Format in
   let buf = Buffer.create 100 in
@@ -40,3 +38,11 @@ let string_of_option to_string opt =
 let string_of_list to_string l =
   let strs = List.map l to_string in
   "[" ^ (String.concat ~sep:", " strs) ^ "]"
+
+module IntPairTbl = Hashtbl.Make(struct
+  type t = (int * int) with sexp
+  let hash (t1, t2) = 617 * t1 +  619 * t2
+  let compare (a1,b1) (a2,b2) = match Int.compare a1 a2 with
+    | 0 -> Int.compare b1 b2
+    | x -> x
+end)

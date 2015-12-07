@@ -80,13 +80,13 @@ module Action : sig
   val to_sdn : ?group_tbl:Frenetic_GroupTable0x04.t
             -> Int64.t option -> t -> Frenetic_OpenFlow.par
   val get_queries : t -> string list
-  val pipes : t -> Frenetic_Util.StringSet.t
+  val pipes : t -> String.Set.t
   val queries : t -> string list
   val to_string : t -> string
 end
 
 module FDK : sig
   include Frenetic_Vlr.S with type v = Field.t * Value.t and type r = Action.t
-  val mk_cont : int -> int
-  val conts : t -> t list
+  val mk_cont : int -> t
+  val conts : t -> int list
 end
