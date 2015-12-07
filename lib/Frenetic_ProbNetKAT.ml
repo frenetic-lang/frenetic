@@ -1,6 +1,25 @@
 open Core.Std
 open Frenetic_NetKAT
 
+(* Outcomes of the probability space. An outcome is a map from coins to bool,
+   indicating heads or tails
+*)
+module Omega = struct
+
+  module T = Map.Make(Coin)
+
+  type t = bool T.t (* coin -> bool, heads or tails *)
+
+  (* SJS: this is really annoying... is there a way to include T, with type t monomorphic? *)
+  let of_alist_exn = T.of_alist_exn
+  let find = T.find
+
+  let prob w =
+    T.fold w ~init:1.0 ~f:(fun ~key:c ~data:heads acc ->
+      acc *. (if heads then Coin.prob c else 1. -. Coin.prob c))
+end
+
+
 (* Internal Policy representation. Hash-consed modulo ACI. *)
 module Pol = struct
 
@@ -87,7 +106,8 @@ module Pol = struct
   let mk_or = mk_union
   let mk_and = mk_seq
 
-  let mk_big_union = List.fold_left ~init:drop ~f:mk_union
+  let mk_big_union = List.fold ~init:drop ~f:mk_union
+  let mk_big_union' = Set.fold ~init:drop ~f:mk_union
   let mk_big_seq = List.fold_left ~init:id ~f:mk_seq
 
   let mk_choice p1 c p2 =
@@ -160,6 +180,23 @@ module Pol = struct
         collect p acc
     in
     collect t acc
+
+  let rec resolve_choices t (w : Omega.t) =
+    match unget t with
+    | Filter _ | Filter_out _ | Mod _ | Dup -> t
+    | Choice (p,c,q) ->
+      begin match Omega.find w c with
+      | None -> mk_choice (resolve_choices p w) c (resolve_choices q w)
+      | Some heads -> if heads then resolve_choices p w else resolve_choices q w
+      end
+    | Union ps ->
+      Set.map ps ~f:(fun t -> resolve_choices t w)
+      |> mk_big_union'
+    | Seq pl ->
+      List.map pl ~f:(fun t -> resolve_choices t w)
+      |> mk_big_seq
+    | Star p ->
+      mk_star (resolve_choices p w)
 end
 
 
@@ -243,37 +280,27 @@ module SynDeriv = struct
 end
 
 
-(* Outcomes of the probability space. An outcome is a map from coins to bool,
-   indicating heads or tails
-*)
-module Omega = struct
-
-  module T = Map.Make(Coin)
-
-  type t = bool T.t (* coin -> bool, heads or tails *)
-
-  let of_alist_exn = T.of_alist_exn
-
-  let prob w =
-    T.fold w ~init:1.0 ~f:(fun ~key:c ~data:heads acc ->
-      acc *. (if heads then Coin.prob c else 1. -. Coin.prob c))
-end
-
-
-
 (* deterministic states *)
 module DetState = struct
   type t = FDK.t * FDK.t with sexp
-  let compare = Pervasives.compare
+  let compare : t -> t -> int = Pervasives.compare
 
   let zero = (FDK.drop, FDK.drop)
   let one = (FDK.id, FDK.drop)
 
-  let union (e1,d1) (e2,d2) =
+  let union (e1,d1) (e2,d2) : t =
     (FDK.union e1 e2, FDK.union d1 d2)
 
-  let of_local_pol (pol : Pol.t) =
+  let of_local_pol (pol : Pol.t) : t =
     (FDK.of_local_pol pol, FDK.drop)
+
+  let of_syn_deriv (e,ds : SynDeriv.t) : t =
+    let e = FDK.of_local_pol e in
+    let ds =
+      List.map ds ~f:(fun (d,k) -> FDK.seq (FDK.of_local_pol d) (FDK.mk_cont k))
+      |> List.fold ~init:FDK.drop ~f:FDK.union
+    in
+    (e, ds)
 
 end
 
@@ -293,8 +320,17 @@ module ProbState = struct
   let compare = Dist.compare_direct Float.compare
 
   let dirac d = Dist.singleton d 1.0
-  let zero = dirac DetState.zero
-  let one = dirac DetState.one
+  let drop = dirac DetState.zero
+  let zero = drop
+  let id = dirac DetState.one
+  let one = id
+
+  let choice ?(prob=0.5) (t1 : t) (t2 : t) =
+    let t1 = Dist.map t1 ~f:(fun p -> p *. prob) in
+    let t2 = Dist.map t2 ~f:(fun p -> p *. (1.0 -. prob)) in
+    Dist.merge t1 t2 ~f:(fun ~key -> function
+      | `Left p | `Right p -> Some p
+      | `Both (p1,p2) -> Some (p1 +. p2))
 
   let convolution t1 t2 ~(op:DetState.t -> DetState.t -> DetState.t) : t =
     Dist.fold t1 ~init:Dist.empty ~f:(fun ~key:d1 ~data:p1 acc ->
@@ -307,11 +343,13 @@ module ProbState = struct
 
   let union = convolution ~op:DetState.union
 
-  let of_local_pol (pol : Pol.t) (w : Omega.t) : t =
-    failwith "not implemented"
+  let of_det_state = dirac
 
   let of_syn_deriv_at_outcome (e,ds : SynDeriv.t) (w : Omega.t) : t =
-    failwith "not implemented"
+    let e = Pol.resolve_choices e w in
+    let ds = List.map ds ~f:(fun (d,k) -> (Pol.resolve_choices d w, Pol.resolve_choices k w)) in
+    let state = DetState.of_syn_deriv (e,ds) |> of_det_state in
+    choice ~prob:(Omega.prob w) state drop
 
   let of_syn_deriv (e,ds : SynDeriv.t) : t =
     let coins = SynDeriv.coins_in_hop (e,ds) |> Array.of_list in
@@ -329,9 +367,9 @@ module ProbState = struct
     |> List.fold ~init:zero ~f:union
 
 
-(*   let choice ?(prop=0.5) p c q =
-    let p' = Dist.map p ~f:(fun pr -> prop *. pr) in
-    let q' = Dist.map q ~f:(fun pr -> (1.0 -. prop) *. pr) in
+(*   let choice ?(prob=0.5) p c q =
+    let p' = Dist.map p ~f:(fun pr -> prob *. pr) in
+    let q' = Dist.map q ~f:(fun pr -> (1.0 -. prob) *. pr) in
     union p' q'
  *)
 (*
