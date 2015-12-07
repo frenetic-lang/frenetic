@@ -138,6 +138,7 @@ module Pol = struct
     | Mod hv -> mk_mod hv
     | Union (p,q) -> mk_union (of_pol ?ing p) (of_pol ?ing q)
     | Seq (p,q) -> mk_seq (of_pol ?ing p) (of_pol ?ing q)
+    | Choice (p,c,q) -> mk_choice (of_pol ?ing p) c (of_pol ?ing q)
     | Star p -> mk_star (of_pol ?ing p)
     | Link (s1,p1,s2,p2) -> mk_link ?ing s1 p1 s2 p2
     | VLink _ -> assert false (* SJS / JNF *)
@@ -167,7 +168,21 @@ end
 module FDK = struct
   include Frenetic_NetKAT_Compiler.FDK
 
-  let of_local_pol (pol : Pol.t) = failwith "not implemented"
+  let rec of_local_pol (pol : Pol.t) =
+    match Pol.unget pol with
+    | Filter hv -> of_pred (Test hv)
+    | Filter_out hv -> of_pred (Neg (Test hv))
+    | Mod hv -> of_mod hv
+    | Union ps ->
+      Pol.Set.to_list ps
+      |> List.map ~f:of_local_pol
+      |> List.fold ~init:drop ~f:union
+    | Seq pl ->
+      List.map pl ~f:of_local_pol
+      |> List.fold ~init:id ~f:seq
+    | Star p -> star (of_local_pol p)
+    | Choice _ -> failwith "expected deterministic policy, got probabilistic one"
+    | Dup -> failwith "expected local policy, got global one"
 end
 
 
