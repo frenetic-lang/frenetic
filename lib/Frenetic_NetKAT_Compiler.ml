@@ -36,13 +36,6 @@ module FDK = struct
     | Or (p, q) -> sum (of_pred p) (of_pred q)
     | Neg(q)    -> map_r Action.negate (of_pred q)
 
-  let cond v t f =
-    if equal t f then
-      t
-    else
-      (sum (prod (atom v Action.one Action.zero) t)
-             (prod (atom v Action.zero Action.one) f))
-
   let seq_tbl = BinTbl.create ~size:1000 ()
 
   let clear_cache preserve = begin
