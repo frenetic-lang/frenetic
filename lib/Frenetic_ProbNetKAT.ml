@@ -55,7 +55,7 @@ module Pol = struct
     let hash = Hashtbl.hash
   end)
 
-  type t = int
+  type t = int with sexp
   let get = T.get
   let unget = T.unget
 
@@ -163,9 +163,17 @@ end
 (* probabilistic FDKs - essentially MetaNetKAT FDDs using meta fields for the coins *)
 module PFDK = struct
 
-  include Frenetic_Vlr.Make(Coin)(Unit)(FDK)
+  include Frenetic_Vlr.Make(Coin)(Unit)(struct
+    include Pol
+    let zero = drop
+    let one = id
+    let prod = seq
+    let sum = union
+    let to_string t = sexp_of_t t |> Sexp.to_string
+    let hash = Hashtbl.hash
+  end)
 
-  let of_filter hv =
+  (* let of_filter hv =
     const (FDK.of_pred (Test hv))
 
   let of_filter_out hv =
@@ -182,14 +190,16 @@ module PFDK = struct
   let clear_cache ~preserve = begin
     BinTbl.clear seq_tbl;
     clear_cache ~preserve;
-  end
+  end *)
+
+
 
 end
 
 (* Antimirov partial derivatives *)
 module Deriv = struct
 
-  type t = (PFDK.t * PFDK.t) with sexp
+ (*  type t = (PFDK.t * PFDK.t) with sexp
 
   let drop = (PFDK.drop, PFDK.drop)
   let id = (PFDK.id, PFDK.drop)
@@ -229,7 +239,7 @@ module Deriv = struct
     | Seq pl ->
       List.map ~f:of_pol pl
       |> List.fold ~init:id ~f:union
-    | _ -> failwith "mot implemented yet"
+    | _ -> failwith "mot implemented yet" *)
 (*     | Choice dist ->
       Map.to_alist dist
       |> List.map ~f:(fun (pol,prop) -> (of_pol pol, prop))
