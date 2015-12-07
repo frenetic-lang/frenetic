@@ -221,7 +221,8 @@ class Switch(HeaderAndValue):
         self.value = value
 
     def value_to_json(self):
-        return self.value
+        # JSON doesn't allow 64-bit ints, so we convert them to strings.  Frenetic converts them back.  
+        return str(self.value)
 
 class Query(object):
 
