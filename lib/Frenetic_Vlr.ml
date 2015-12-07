@@ -40,6 +40,7 @@ module type S = sig
   val atom : v -> r -> r -> t
   val restrict : v list -> t -> t
   val peek : t -> r option
+  val apply : (r -> r -> r) -> r -> cache:((t*t, t) Hashtbl.t) -> t -> t -> t
   val sum : t -> t -> t
   val prod : t -> t -> t
   val cond : v -> t -> t -> t
@@ -175,7 +176,7 @@ struct
     in
     loop (List.sort (fun (u, _) (v, _) -> V.compare u v) lst) u
 
-  let apply f zero (cache : (t*t, t) Hashtbl.t) =
+  let apply f zero ~(cache: (t*t, t) Hashtbl.t) =
     let rec sum x y =
       BinTbl.find_or_add cache (x, y) ~default:(fun () -> sum' x y)
     and sum' x y =
@@ -202,10 +203,10 @@ struct
     in sum
 
   let sum_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
-  let sum = apply R.sum R.zero sum_tbl
+  let sum = apply R.sum R.zero ~cache:sum_tbl
 
   let prod_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
-  let prod = apply R.prod R.one prod_tbl
+  let prod = apply R.prod R.one ~cache:prod_tbl
 
   let clear_cache ~(preserve : Int.Set.t) =
     (* SJS: the interface exposes `id` and `drop` as constants,

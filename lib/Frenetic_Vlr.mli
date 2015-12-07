@@ -138,7 +138,7 @@ module type S = sig
       can attempt to reduce the diagram to a value, and then use [peek] to
       extract that value. *)
 
-  (* val apply : (r -> r -> r) -> bool -> bool -> r -> t -> t -> t *)
+  val apply : (r -> r -> r) -> r -> cache:((t*t, t) Hashtbl.t) -> t -> t -> t
 
   val sum : t -> t -> t
   (** [sum a b] returns the disjunction of the two diagrams. The [sum]

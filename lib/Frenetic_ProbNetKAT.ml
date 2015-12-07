@@ -156,6 +156,8 @@ module FDK = struct
   let sum = union
   let prod = seq
   let hash t = Int.hash (get_uid t)
+  let union = Frenetic_NetKAT_Compiler.union
+  let seq = Frenetic_NetKAT_Compiler.seq
 end
 
 (* probabilistic FDKs - essentially MetaNetKAT FDDs using meta fields for the coins *)
@@ -164,16 +166,24 @@ module PFDK = struct
   include Frenetic_Vlr.Make(Coin)(Unit)(FDK)
 
   let of_filter hv =
-    FDK.of_pred (Test hv)
+    const (FDK.of_pred (Test hv))
 
   let of_filter_out hv =
-    FDK.of_pred (Neg (Test hv))
+    const (FDK.of_pred (Neg (Test hv)))
 
   let of_mod hv =
     const (FDK.of_mod hv)
 
   let union = sum
-  (* let seq = *)
+
+  let seq_tbl : (t*t,t) Hashtbl.t = BinTbl.create ~size:100 ()
+  let seq = apply FDK.seq FDK.drop ~cache:seq_tbl
+
+  let clear_cache ~preserve = begin
+    BinTbl.clear seq_tbl;
+    clear_cache ~preserve;
+  end
+
 end
 
 (* Antimirov partial derivatives *)
@@ -187,6 +197,9 @@ module Deriv = struct
   let of_filter hv =
     (PFDK.of_filter hv, PFDK.drop)
 
+  let of_filter_out hv =
+    (PFDK.of_filter_out hv, PFDK.drop)
+
   let of_mod hv =
     (PFDK.of_mod hv, PFDK.drop)
 
@@ -197,25 +210,27 @@ module Deriv = struct
 
   let seq (e1,d1) (e2,d2) =
     let e = PFDK.seq e1 e2 in
-    let d1' = seq_with_pol d1 (Pol.mk_deriv e2 d2) in
+    (* let d1' = seq_with_pol d1 (Pol.mk_deriv e2 d2) in *)
     let d2' = PFDK.seq e1 d2 in
-    let d = PFDK.union d1' d2' in
-    (e, d)
+    (* let d = PFDK.union d1' d2' in *)
+    failwith "not implemented"
+    (* (e, d) *)
 
 
   let rec of_pol (pol : Pol.t) : t =
-    match unget pol with
-    | Filter pred -> of_pred pred
-    | Filter_out pred -> of_pred ~negate:true pred
+    match Pol.unget pol with
+    | Filter hv -> of_filter hv
+    | Filter_out hv -> of_filter_out hv
     | Mod hv -> of_mod hv
     | Union ps ->
       Pol.Set.to_list ps
-      |> List.map ~f:split_pol
+      |> List.map ~f:of_pol
       |> List.fold ~init:drop ~f:union
     | Seq pl ->
-      List.map ~f:split_pol
+      List.map ~f:of_pol pl
       |> List.fold ~init:id ~f:union
-    | Choice dist ->
+    | _ -> failwith "mot implemented yet"
+(*     | Choice dist ->
       Map.to_alist dist
       |> List.map ~f:(fun (pol,prop) -> (of_pol pol, prop))
       |> PFDK.M.of_alist_reduce ~f:(+.)
@@ -235,7 +250,7 @@ module Deriv = struct
       let pre_link = match_loc s1 p1 |> PFDK.of_local_pol in
       let d = PFDK.seq pre_link (PFDK.of_cont cont) in
       (e, d)
-    | VLink _ -> failwith "expected physical policy, but found virtual one"
+    | VLink _ -> failwith "expected physical policy, but found virtual one" *)
 
 end
 
