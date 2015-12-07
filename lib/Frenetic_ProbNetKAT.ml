@@ -352,7 +352,14 @@ module ProbState = struct
     choice ~prob:(Omega.prob w) state drop
 
   let of_syn_deriv (e,ds : SynDeriv.t) : t =
-    let coins = SynDeriv.coins_in_hop (e,ds) |> Array.of_list in
+    let coins_in_hop = SynDeriv.coins_in_hop (e,ds) |> Array.of_list in
+    let ks = List.map ds ~f:snd in
+    let dependent_future_coins =
+      List.fold ks ~init:(Int.Set.empty, Int.Set.empty) ~f:(fun (seen, dependent) k ->
+        List.fold (Pol.coins k) ~init:(seen,dependent) ~f:(fun (seen, dependent) c ->
+          if Set.member seen c then (seen, Set.add dependent c)
+          else (Set.add seen c, dependent)))
+    let coins = coins_in_hop @ dependent_future_coins
     let space =
       let rec loop n space =
         if n=0 then space else
@@ -363,8 +370,9 @@ module ProbState = struct
       |> List.map ~f:(List.mapi ~f:(fun i b -> (coins.(i), b)))
       |> List.map ~f:Omega.of_alist_exn
     in
-    List.map space ~f:(of_syn_deriv_at_outcome (e,ds))
-    |> List.fold ~init:zero ~f:union
+    let t = 
+      List.map space ~f:(of_syn_deriv_at_outcome (e,ds))
+      |> List.fold ~init:zero ~f:union
 
 
 (*   let choice ?(prob=0.5) p c q =
