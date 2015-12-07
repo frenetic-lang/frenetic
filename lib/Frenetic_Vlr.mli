@@ -148,6 +148,8 @@ module type S = sig
   (** [prod a b] returns the conjunction of the two diagrams. The [prod]
       operation on the [r] type is used to combine leaf nodes. *)
 
+  val cond : v -> t -> t -> t
+
   val map : (r -> t) -> (v -> t -> t -> t) -> t -> t
   (** [map f h t] traverses t in post order and first maps the leaves using
       f, and then the internal nodes using h, producing a modified diagram. *)

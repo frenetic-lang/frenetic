@@ -42,6 +42,7 @@ module type S = sig
   val peek : t -> r option
   val sum : t -> t -> t
   val prod : t -> t -> t
+  val cond : v -> t -> t -> t
   val map : (r -> t) -> (v -> t -> t -> t) -> t -> t
   val dp_map : (r -> t) -> (v -> t -> t -> t) -> t
             -> find_or_add:(t -> default:(unit -> t) -> t)
@@ -214,6 +215,17 @@ struct
       BinTbl.clear prod_tbl;
       T.clear preserve;
     end
+
+  let cond v t f =
+    let ok t =
+      match unget t with
+      | Leaf _ -> true
+      | Branch ((f',v'), _, _) -> V.compare (fst v) f' = -1
+    in
+    if equal t f then t else
+    if ok t && ok f then mk_branch v t f else
+      (sum (prod (atom v R.one R.zero) t)
+           (prod (atom v R.zero R.one) f))
 
   let map (g : R.t -> t)
           (h : V.t * L.t -> t -> t -> t)
