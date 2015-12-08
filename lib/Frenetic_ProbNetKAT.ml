@@ -27,13 +27,16 @@ module Omega = struct
     in
     loop (Array.length coins) []
     |> List.map ~f:(List.mapi ~f:(fun i b -> (coins.(i), b)))
-    |> List.map ~f:Omega.of_alist_exn
+    |> List.map ~f:of_alist_exn
 
-  (* given a random variable [f] : Omega -> 'a, calculates the pushforward-measure on 'a *)
-  let pushforward (coins : Coin.Set.t) ~(f : Omega.t -> 'a) : ('a, float) Map.Poly.t =
+  (* given a random variable [f] : Omega -> a, calculates the pushforward-measure on a *)
+  let pushforward (type a) (type cmp) (coins : Coin.Set.t) ~(f : t -> a)
+    ~(m : (module Map.S with type Key.t = a and type Key.comparator_witness = cmp))
+    : (a, float, cmp) Map.t =
+    let module Map = (val m) in
     space_of_coins coins
-    |> List.map ~f:(fun w -> (rv w, prob w))
-    |> Map.Poly.of_alist
+    |> List.map ~f:(fun w -> (f w, prob w))
+    |> Map.of_alist_reduce ~f:(+.)
 
 end
 
@@ -181,17 +184,16 @@ module Pol = struct
     | Link (s1,p1,s2,p2) -> mk_link ?ing s1 p1 s2 p2
     | VLink _ -> assert false (* SJS / JNF *)
 
-  let coins ?(acc=[]) t =
+  let coins ?(acc=Coin.Set.empty) (t : t) : Coin.Set.t =
     let rec collect t acc =
       match unget t with
       | Filter _ | Filter_out _ | Mod _ | Dup -> acc
       | Choice (p,c,q) ->
-        c :: acc
+        Coin.Set.add acc c
         |> collect p
         |> collect q
       | Union ps ->
-        Set.to_list ps
-        |> List.fold_right ~init:acc ~f:collect
+        Set.fold_right ps ~init:acc ~f:collect
       | Seq pl ->
         List.fold_right pl ~init:acc ~f:collect
       | Star p ->
@@ -316,32 +318,6 @@ module DetState = struct
   let of_local_pol (pol : Pol.t) : t =
     (FDK.of_local_pol pol, FDK.drop)
 
-  let of_syn_deriv (e,ds : SynDeriv.t) : t =
-    let e = FDK.of_local_pol e in
-    let ds =
-      List.map ds ~f:(fun (d,k) -> FDK.seq (FDK.of_local_pol d) (FDK.mk_cont k))
-      |> List.fold ~init:FDK.drop ~f:FDK.union
-    in
-    (e, ds)
-
-  (* SJS: powerset construction, copied from global copiler *)
-  let determinze (e,d : t) : t =
-    let determinize_action par =
-      Action.Par.to_list par
-      |> List.sort ~cmp
-      (* SJS: this seems to be a bug! We need to sort the list appropriately first. *)
-      |> List.group ~break:(fun s1 s2 -> not (Action.Seq.equal_mod_k s1 s2))
-      |> List.map ~f:(function
-        | [seq] -> seq
-        | group ->
-          let ks = List.map group ~f:(fun s -> Action.Seq.find_exn s K |> Value.to_int_exn)
-                   |> S.of_list in
-          let k = merge ks in
-          List.hd_exn group |> Action.Seq.add ~key:K ~data:(Value.of_int k))
-      |> Action.Par.of_list
-    in
-    (e, FDK.dedup d |> FDK.map_r determinize_action)
-
   let conts (e,d : t) : Int.Set.t = FDK.conts d
 
   let map_conts (e,d : t) ~(f:int -> int) : t =
@@ -352,10 +328,42 @@ module DetState = struct
 
   let dependent_future_coins (t : t) : Coin.Set.t =
     let init = (Coin.Set.empty, Coin.Set.empty) (* (seen, dependent) *) in
-    List.fold (conts t) ~init ~f:(fun init k ->
-      List.fold (Pol.coins k) ~init ~f:(fun (seen, dependent) c ->
-        if Set.member seen c then (seen, Set.add dependent c)
+    Set.fold (conts t) ~init ~f:(fun init k ->
+      Set.fold (Pol.coins k) ~init ~f:(fun (seen, dependent) c ->
+        if Set.mem seen c then (seen, Set.add dependent c)
         else (Set.add seen c, dependent)))
+    |> snd
+
+  let of_syn_deriv (e,ds : SynDeriv.t) : t =
+    let e = FDK.of_local_pol e in
+    let ds =
+      List.map ds ~f:(fun (d,k) -> FDK.seq (FDK.of_local_pol d) (FDK.mk_cont k))
+      |> List.fold ~init:FDK.drop ~f:FDK.union
+    in
+    (e, ds)
+
+  let of_syn_deriv_at_outcome (deriv : SynDeriv.t) (w : Omega.t) : t =
+    SynDeriv.resolve_choices deriv w
+    |> of_syn_deriv
+
+  (* SJS: powerset construction, copied from global copiler *)
+  let determinize (e,d : t) : t =
+    let determinize_action par =
+      let open Frenetic_NetKAT_Compiler in
+      Par.to_list par
+      |> List.sort ~cmp:Seq.compare_mod_k
+      |> List.group ~break:(fun s1 s2 -> not (Seq.equal_mod_k s1 s2))
+      |> List.map ~f:(function
+        | [seq] -> seq
+        | (rep::_ as group) ->
+          let k =
+            List.map group ~f:(fun s -> Seq.find_exn s K |> Value.to_int_exn)
+            |> Pol.mk_big_union
+          in
+          Seq.add rep ~key:K ~data:(Value.of_int k))
+      |> Par.of_list
+    in
+    (e, FDK.dedup d |> FDK.map_r determinize_action)
 
 end
 
@@ -366,7 +374,7 @@ module ProbState = struct
     include Map.Make(DetState) (* DetState.t -> float *)
 
     (* SJS: is there a better way to do this?? *)
-    let map_keys m ~(f: key -> key) ~(merge: float -> float -> float) =
+    let map_keys m ~(f: Key.t -> Key.t) ~(merge: float -> float -> float) =
       to_alist m
       |> List.map ~f:(fun (k,v) -> (f k, v))
       |> of_alist_reduce ~f:merge
@@ -425,23 +433,16 @@ module ProbState = struct
     determinize t
     |> Dist.fold ~init:drop ~f:(fun ~key:state ~data:prob acc ->
         DetState.dependent_future_coins state
-        |> Omega.pushforward ~f:(fun w ->
+        |> Omega.pushforward ~m:(module Dist) ~f:(fun w ->
             DetState.map_conts state ~f:(fun k -> Pol.resolve_choices k w))
-        |> Omega.)
-
-  let of_syn_deriv_at_outcome (deriv : SynDeriv.t) (w : Omega.t) : t =
-    let state =
-      SynDeriv.resolve_choices deriv w
-      |> DetState.of_syn_deriv
-      |> of_det_state
-    in
-    choice ~prob:(Omega.prob w) state drop
+        |> Dist.merge acc ~f:(fun ~key -> function
+          | `Left p1 -> Some p1
+          | `Right p2 -> Some (p2 *. prob)
+          | `Both (p1,p2) -> Some (p1 +. p2 *. prob)))
 
   let of_syn_deriv (e,ds : SynDeriv.t) : t =
     SynDeriv.coins_in_hop (e,ds)
-    |> space_of_coins
-    |> List.map ~f:(of_syn_deriv_at_outcome (e,ds))
-    |> List.fold ~init:zero ~f:union
+    |> Omega.pushforward ~m:(module Dist) ~f:(DetState.of_syn_deriv_at_outcome (e,ds))
     |> independent_normal_form
 
 

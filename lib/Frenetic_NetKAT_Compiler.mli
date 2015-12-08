@@ -9,15 +9,14 @@ module Action = Frenetic_Fdd.Action
 module Par = Action.Par
 module Seq = Action.Seq
 module FDK : sig
-  include Frenetic_Vlr.S with type v = Field.t * Value.t and type r = Action.t
-  val mk_cont : int -> t
-  val conts : t -> int list
+  include module type of Frenetic_Fdd.FDK
   val of_pred : pred -> t
   val of_mod : header_val -> t
   val union : t -> t -> t
   val seq : t -> t -> t
   val star : t -> t
   val of_local_pol : policy -> t
+  val dedup : t -> t
 end
 
 type order

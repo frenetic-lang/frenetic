@@ -64,7 +64,7 @@ module Action : sig
 
   module Seq : sig
     include Map.S with type Key.t = field_or_cont
-    val compare_mod_k : Value.t t -> Value.t t -> bool
+    val compare_mod_k : Value.t t -> Value.t t -> int
     val equal_mod_k : Value.t t -> Value.t t -> bool
     val to_hvs : Value.t t -> (Field.t * Value.t) list
   end
