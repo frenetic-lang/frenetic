@@ -311,6 +311,10 @@ end
 (* deterministic states *)
 module DetState = struct
   type t = FDK.t * FDK.t with sexp
+
+  let to_string ?(indent="") (e,d : t) : string =
+    sprintf "%s%s\n%s%s" indent (FDK.to_string e) indent (FDK.to_string d)
+
   let compare : t -> t -> int = Pervasives.compare
 
   let zero = (FDK.drop, FDK.drop)
@@ -388,6 +392,12 @@ module ProbState = struct
 
   (* Invariant: values sum up to 1.0 *)
   type t = float Dist.t with sexp
+
+  let to_string ?(indent="") (t : t) : string =
+    Dist.to_alist t
+    |> List.map ~f:(fun (st, p) ->
+        sprintf "%s%f ->\n%s" indent p (DetState.to_string ~indent:(indent ^ "  ") st))
+    |> String.concat ~sep:"\n"
 
   let hash t : int =
     Dist.to_alist t
@@ -470,8 +480,12 @@ module ProbAuto = struct
     states : ProbState.t Int.Map.t
   } with sexp
 
-  let to_string t =
-    Sexp.to_string (sexp_of_t t)
+  let to_string (t : t) : string =
+    Int.Map.to_alist t.states
+    |> List.map ~f:(fun (id, state) ->
+        sprintf "s%d =\n%s" id (ProbState.to_string ~indent:"  " state))
+    |> List.cons (sprintf "start state = %d" t.start)
+    |> String.concat ~sep:"\n\n"
 
   let of_pol' (pol : Pol.t) : t =
     let start = pol in
