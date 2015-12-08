@@ -474,8 +474,8 @@ module ProbAuto = struct
     let rec mk_states acc stateId : ProbState.t Int.Map.t =
       if Map.mem acc stateId then acc else
       let state = ProbState.of_pol stateId in
-      let conts = ProbState.conts state in
       let init = Map.add acc ~key:stateId ~data:state in
+      let conts = ProbState.conts state in
       Set.fold conts ~init ~f:mk_states
     in
     let states = mk_states Int.Map.empty start in

@@ -13,6 +13,12 @@ BuildTools:
   ocamldoc,
   camlp4
 
+Executable probnetkat
+  Path: examples/probnetkat
+  BuildDepends:
+    frenetic
+  MainIs: Test.ml
+
 Library frenetic
   Path: lib
   BuildDepends:
@@ -62,123 +68,6 @@ Library frenetic
     Frenetic_Vlr
   InternalModules:
     Frenetic_ProbNetKAT
-
-Library async
-  Findlibparent: frenetic
-  Findlibname: async
-  Path: async
-  BuildDepends:
-    async,
-    cohttp,
-    cohttp.async,
-    core,
-    cstruct,
-    cstruct.async,
-    frenetic,
-    mparser,
-    mparser.re,
-    sexplib,
-    sexplib.syntax,
-    str
-  InternalModules:
-    Frenetic_Common,
-    Frenetic_DynGraph
-  Modules:
-    Frenetic_Compile_Server,
-    Frenetic_Http_Controller,
-    Frenetic_OpenFlow0x01_Controller,
-    Frenetic_NetKAT_Controller,
-    Frenetic_NetKAT_Updates,
-    Frenetic_Ox
-
-Executable frenetic
-  Path: frenetic
-  MainIs: frenetic.ml
-  Install: true
-  CompiledObject: native
-  BuildDepends:
-    async,
-    core,
-    frenetic,
-    frenetic.async,
-    async_extended
-
-Executable openflow
-  Path: frenetic
-  MainIs: openflow.ml
-  Install: true
-  CompiledObject: native
-  BuildDepends:
-    async,
-    core,
-    frenetic,
-    frenetic.async,
-    async_extended
-
-# Will be reintroduced in summer 2015
-#Library syntax
-#  Path: frenetic/syntax
-#  Findlibparent: frenetic
-#  Findlibname: syntax
-#  BuildDepends:
-#    camlp4.lib,
-#    camlp4.extend,
-#    camlp4.quotations.o,
-#    ulex,
-#    ipaddr
-#  Modules:
-#    Parser,
-#    Quotations
-#  XMETAType: syntax
-#  XMETARequires: camlp4, ulex, ipaddr
-#  XMETADescription: Syntax extension writing NetKAT expressions
-
-Library test_frenetic
-  Findlibparent: frenetic
-  Findlibname: test
-  Path: lib_test/lib
-  Build$: flag(tests)
-  Install: true
-  BuildDepends:
-    frenetic,
-    quickcheck
-  Modules:
-    Arbitrary_Base,
-    Arbitrary_Frenetic_NetKAT,
-    Arbitrary_Frenetic_OpenFlow,
-    Arbitrary_Frenetic_OpenFlow0x01,
-    Arbitrary_Frenetic_OpenFlow_Header,
-    Arbitrary_Frenetic_Packet,
-    Flowterp
-
-Executable testtool
-  Path: lib_test
-  MainIs: Test.ml
-  Install: false
-  Build$: flag(tests)
-  BuildDepends:
-    pa_ounit,
-    pa_ounit.syntax,
-    frenetic.test,
-    frenetic,
-    frenetic.async
-
-Executable fastfailtest 
-  Path: integration
-  MainIs: FastFailTest_Controller.ml
-  Install: false
-  CompiledObject: native
-  BuildDepends:
-    async,
-    core,
-    frenetic,
-    frenetic.async,
-    async_extended
-
-Test all_tests
-  Run$: flag(tests)
-  Command: $testtool inline-test-runner frenetic
-  TestTools: testtool
 
 Document frenetic
   Title: Frenetic API docs
