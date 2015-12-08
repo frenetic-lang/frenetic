@@ -25,7 +25,7 @@ module Omega = struct
       List.map space ~f:(List.cons true) @ List.map space ~f:(List.cons false)
       |> loop (n-1)
     in
-    loop (Array.length coins) []
+    loop (Array.length coins) [[]]
     |> List.map ~f:(List.mapi ~f:(fun i b -> (coins.(i), b)))
     |> List.map ~f:of_alist_exn
 
@@ -323,9 +323,6 @@ module DetState = struct
   let union (e1,d1) (e2,d2) : t =
     (FDK.union e1 e2, FDK.union d1 d2)
 
-  let of_local_pol (pol : Pol.t) : t =
-    (FDK.of_local_pol pol, FDK.drop)
-
   let conts (e,d : t) : Int.Set.t = FDK.conts d
 
   let map_conts (e,d : t) ~(f:int -> int) : t =
@@ -349,6 +346,9 @@ module DetState = struct
       |> List.fold ~init:FDK.drop ~f:FDK.union
     in
     (e, ds)
+
+  let of_pol (pol : Pol.t) =
+    of_syn_deriv (SynDeriv.of_pol pol)
 
   let of_syn_deriv_at_outcome (deriv : SynDeriv.t) (w : Omega.t) : t =
     SynDeriv.resolve_choices deriv w
@@ -441,7 +441,7 @@ module ProbState = struct
   let independent_normal_form (t : t) : t =
     (* SJS: determinize automaton to keep the number of dependend future coins minimal *)
     let t = determinize t in
-    Dist.fold t ~init:drop ~f:(fun ~key:state ~data:prob acc ->
+    Dist.fold t ~init:Dist.empty ~f:(fun ~key:state ~data:prob acc ->
       DetState.dependent_future_coins state
       |> Omega.pushforward ~m:(module Dist) ~f:(fun w ->
           DetState.map_conts state ~f:(fun k -> Pol.resolve_choices k w))
@@ -456,8 +456,7 @@ module ProbState = struct
     |> independent_normal_form
 
   let of_pol (pol : Pol.t) : t =
-    SynDeriv.of_pol pol
-    |> of_syn_deriv
+    of_syn_deriv (SynDeriv.of_pol pol)
 
   let conts (t : t) : Int.Set.t =
     Dist.fold t ~init:Int.Set.empty ~f:(fun ~key:state ~data:prob acc ->
