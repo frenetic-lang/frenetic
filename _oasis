@@ -19,6 +19,11 @@ Executable probnetkat
     frenetic
   MainIs: Test.ml
 
+Test probnetkat_test
+  Run: true
+  TestTools: probnetkat
+  Command: $probnetkat
+
 Library frenetic
   Path: lib
   BuildDepends:
@@ -65,17 +70,6 @@ Library frenetic
     Frenetic_Packet,
     Frenetic_Topology,
     Frenetic_Util,
-    Frenetic_Vlr
-  InternalModules:
+    Frenetic_Vlr,
     Frenetic_ProbNetKAT
-
-Document frenetic
-  Title: Frenetic API docs
-  Type: ocamlbuild (0.4)
-  BuildTools+: ocamldoc
-  Install: true
-  Format: html
-  Index: index.html
-  XOCamlbuildPath: lib
-  XOCamlbuildLibraries: frenetic
-
+    
