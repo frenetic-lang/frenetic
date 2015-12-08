@@ -135,6 +135,10 @@ module Pol = struct
     if p1 = p2 then p1
     else get (Choice (p1, c, p2))
 
+  let mk_fresh_choice p1 p2 =
+    let c = Coin.mk_fresh () in
+    mk_choice p1 c p2
+
   let rec mk_star p =
     if p = drop || p = id then id else
     match unget p with
@@ -469,8 +473,8 @@ module ProbAuto = struct
   let to_string t =
     Sexp.to_string (sexp_of_t t)
 
-  let of_pol (pol : Frenetic_NetKAT.policy) : t =
-    let start = Pol.of_pol pol in
+  let of_pol' (pol : Pol.t) : t =
+    let start = pol in
     let rec mk_states acc stateId : ProbState.t Int.Map.t =
       if Map.mem acc stateId then acc else
       let state = ProbState.of_pol stateId in
@@ -480,5 +484,8 @@ module ProbAuto = struct
     in
     let states = mk_states Int.Map.empty start in
     { start; states }
+
+  let of_pol (pol : Frenetic_NetKAT.policy) : t =
+    of_pol' (Pol.of_pol pol)
 
 end

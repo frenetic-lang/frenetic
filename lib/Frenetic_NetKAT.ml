@@ -65,6 +65,11 @@ module Coin = struct
     let hash = Hashtbl.hash
     let to_string x = sexp_of_t x |> Sexp.to_string
     let prob t = 0.5 (* SJS: good enough for now *)
+    let idx = ref 0
+    let mk_fresh () =
+      let c = (!idx, 0) in
+      incr idx; c
+
   end
   include T
   module Set = Set.Make(T)
