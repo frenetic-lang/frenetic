@@ -740,7 +740,7 @@ module NetKAT_Automaton = struct
         FDK.Tbl.add_exn seen node ();
         match FDK.unget node with
         | Leaf par ->
-          let node = FDK.get_uid node in
+          let node = (node : FDK.t :> int) in
           let seqId = ref 0 in
           let edges = ref [] in
           fprintf fmt "subgraph cluster_%d {@\n" node;
@@ -755,16 +755,16 @@ module NetKAT_Automaton = struct
             fprintf fmt "\t%s [shape=box, label=\"%s\"];@\n" id label;
             Option.iter cont ~f:(fun k ->
               edges := sprintf "%s -> %d [style=bold, color=blue];@\n"
-                id (FDK.get_uid k) :: (!edges));
+                id (k : FDK.t :> int) :: (!edges));
             incr seqId;
           );
           fprintf fmt "}@\n";
           List.iter (!edges) ~f:(fprintf fmt "%s")
         | Branch((f, v), a, b) ->
-          let node = FDK.get_uid node in
+          let node = (node : FDK.t :> int) in
           fprintf fmt "%d [label=\"%s = %s\"];@\n" node (Field.to_string f) (Value.to_string v);
-          fprintf fmt "%d -> %d;@\n" node (FDK.get_uid a);
-          fprintf fmt "%d -> %d [style=\"dashed\"];@\n" node (FDK.get_uid b);
+          fprintf fmt "%d -> %d;@\n" node (a : FDK.t :> int);
+          fprintf fmt "%d -> %d [style=\"dashed\"];@\n" node (b : FDK.t :> int);
           node_loop a;
           node_loop b
       end
@@ -779,9 +779,9 @@ module NetKAT_Automaton = struct
     in
     fdk_loop automaton.source;
     fprintf fmt "%d [style=bold, color=red];@\n"
-      (Tbl.find_exn states automaton.source |> FDK.get_uid);
+      (Tbl.find_exn states automaton.source : FDK.t :> int);
     fprintf fmt "{rank=source; ";
-    List.iter (!fdks) ~f:(fun fdk -> fprintf fmt "%d " (FDK.get_uid fdk));
+    List.iter (!fdks) ~f:(fun fdk -> fprintf fmt "%d " (fdk : FDK.t :> int));
     fprintf fmt ";}@\n";
     fprintf fmt "}@.";
     Buffer.contents buf
@@ -817,7 +817,7 @@ type metaId = int with sexp
 type flowId = tableId * metaId with sexp
 
 (* Match subtrees of t with the table location they will be placed *)
-type flow_subtrees = (t, flowId) Map.Poly.t with sexp
+type flow_subtrees = (t, flowId) Map.Poly.t
 
 (* OpenFlow 1.3+ instruction types *)
 type instruction =

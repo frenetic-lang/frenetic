@@ -95,7 +95,7 @@ end
     ordered. *)
 module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
-  type t with sexp
+  type t = private int
   (** The type of a decision diagram *)
 
   type v = V.t * L.t
@@ -114,7 +114,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
   val get : d -> t
   val unget : t -> d
-  val get_uid : t -> int
+  val get_uid : t -> int (* get_uid t is equivalent to (t : t :> int) *)
   val mk_branch : v -> t -> t -> t
   val mk_leaf : r -> t
   val drop : t (* zero *)
