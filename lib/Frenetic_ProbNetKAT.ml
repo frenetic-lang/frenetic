@@ -459,12 +459,15 @@ end
 (* probabilistic symbolic NetKAT automata *)
 module ProbAuto = struct
 
-  type stateId = int
+  type stateId = int with sexp
 
   type t = {
     start : stateId;
     states : ProbState.t Int.Map.t
-  }
+  } with sexp
+
+  let to_string t =
+    Sexp.to_string (sexp_of_t t)
 
   let of_pol (pol : Frenetic_NetKAT.policy) : t =
     let start = Pol.of_pol pol in
