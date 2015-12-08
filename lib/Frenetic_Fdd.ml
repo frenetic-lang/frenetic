@@ -504,6 +504,17 @@ module Action = struct
 
     let to_hvs seq =
       seq |> to_alist |> List.filter_map ~f:(function (F f,v) -> Some (f,v) | _ -> None)
+
+    let to_string (t : Value.t t) : string =
+      let s = to_alist t
+        |> List.map ~f:(fun (f,v) ->
+            let f = match f with
+              | K -> "state"
+              | F f -> Field.to_string f
+            in
+            sprintf "%s := %s" f (Value.to_string v))
+        |> String.concat ~sep:", "
+      in "[" ^ s ^ "]"
   end
 
   module Par = struct
@@ -514,6 +525,12 @@ module Action = struct
 
     let to_hvs par =
       fold par ~init:[] ~f:(fun acc seq -> Seq.to_hvs seq @ acc)
+
+    let to_string t : string =
+      let s = to_list t
+        |> List.map ~f:Seq.to_string
+        |> String.concat ~sep:"; "
+      in "{" ^ s ^ "}"
   end
 
   type t = Par.t with sexp
@@ -675,9 +692,9 @@ module Action = struct
   let size =
     Par.fold ~init:0 ~f:(fun acc seq -> acc + (Seq.length seq))
 
-  let to_string t =
-    let par = to_sdn ~group_tbl:(Frenetic_GroupTable0x04.create ()) None t in
-    Printf.sprintf "[%s]" (SDN.string_of_par par)
+  let to_string = Par.to_string
+    (* let par = to_sdn ~group_tbl:(Frenetic_GroupTable0x04.create ()) None t in
+    Printf.sprintf "[%s]" (SDN.string_of_par par) *)
 
 end
 

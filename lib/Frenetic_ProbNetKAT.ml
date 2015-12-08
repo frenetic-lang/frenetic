@@ -313,7 +313,7 @@ module DetState = struct
   type t = FDK.t * FDK.t with sexp
 
   let to_string ?(indent="") (e,d : t) : string =
-    sprintf "%s%s\n%s%s" indent (FDK.to_string e) indent (FDK.to_string d)
+    sprintf "%sE = %s\n%sD = %s" indent (FDK.to_string e) indent (FDK.to_string d)
 
   let compare : t -> t -> int = Pervasives.compare
 

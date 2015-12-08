@@ -121,13 +121,6 @@ struct
   let equal x y = x = y (* comparing ints *)
   let compare = Int.compare
 
-  let rec to_string t = match T.unget t with
-    | Leaf r ->
-       Printf.sprintf "(%s)" (R.to_string r)
-    | Branch((v, l), t, f) ->
-       Printf.sprintf "(%s = %s ? %s : %s)"
-	 (V.to_string v) (L.to_string l) (to_string t) (to_string f)
-
   let mk_leaf r = T.get (Leaf r)
 
   let mk_branch (v,l) t f =
@@ -145,6 +138,16 @@ struct
 
   let drop = mk_leaf (R.zero)
   let id = mk_leaf (R.one)
+
+  let rec to_string t =
+    if t = drop then "0" else
+    if t = id then "1" else
+    match T.unget t with
+    | Leaf r ->
+       Printf.sprintf "%s" (R.to_string r)
+    | Branch((v, l), t, f) ->
+       Printf.sprintf "(%s = %s ? %s : %s)"
+   (V.to_string v) (L.to_string l) (to_string t) (to_string f)
 
   let rec fold g h t = match T.unget t with
     | Leaf r -> g r
