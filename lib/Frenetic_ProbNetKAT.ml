@@ -354,6 +354,7 @@ module DetState = struct
       |> List.sort ~cmp:Seq.compare_mod_k
       |> List.group ~break:(fun s1 s2 -> not (Seq.equal_mod_k s1 s2))
       |> List.map ~f:(function
+        | [] -> assert false
         | [seq] -> seq
         | (rep::_ as group) ->
           let k =
@@ -378,12 +379,6 @@ module ProbState = struct
       to_alist m
       |> List.map ~f:(fun (k,v) -> (f k, v))
       |> of_alist_reduce ~f:merge
-
-    (* SJS: is there a better way to do this?? *)
-    (* let map_key_val m ~f:(key:key -> data:data -> key * float) ~merge:(float -> float -> float) =
-      to_alist m
-      |> List.map ~f:(fun (key,data) -> f ~key ~data)
-      |> of_alist_reduce ~f:merge *)
   end
 
 
@@ -391,7 +386,8 @@ module ProbState = struct
   type t = float Dist.t with sexp
 
   let hash t : int =
-    Dist.to_alist t |> List.map ~f:(fun (o,p) -> (Hashtbl.hash o, p)) |> Hashtbl.hash
+    Dist.to_alist t
+    |> Hashtbl.hash
 
   let equal = Dist.equal Float.equal
   let compare = Dist.compare_direct Float.compare
@@ -405,7 +401,7 @@ module ProbState = struct
   let choice ?(prob=0.5) (t1 : t) (t2 : t) =
     let t1 = Dist.map t1 ~f:(fun p -> p *. prob) in
     let t2 = Dist.map t2 ~f:(fun p -> p *. (1.0 -. prob)) in
-    Dist.merge t1 t2 ~f:(fun ~key -> function
+    Dist.merge t1 t2 ~f:(fun ~key:_ -> function
       | `Left p | `Right p -> Some p
       | `Both (p1,p2) -> Some (p1 +. p2))
 
@@ -423,79 +419,26 @@ module ProbState = struct
   let of_det_state = dirac
 
   let determinize (t : t) : t =
-    Dist.map_keys t ~merge:(+.) ~f:DetState.determinize
+    Dist.map_keys t ~f:DetState.determinize ~merge:(+.)
 
   (* bring state into independent normal form, where all sucessor states
      (including the current state) are independent; this frees us from having
      to express all states as a joint distribution. *)
   let independent_normal_form (t : t) : t =
     (* SJS: determinize automaton to keep the number of dependend future coins minimal *)
-    determinize t
-    |> Dist.fold ~init:drop ~f:(fun ~key:state ~data:prob acc ->
-        DetState.dependent_future_coins state
-        |> Omega.pushforward ~m:(module Dist) ~f:(fun w ->
-            DetState.map_conts state ~f:(fun k -> Pol.resolve_choices k w))
-        |> Dist.merge acc ~f:(fun ~key -> function
-          | `Left p1 -> Some p1
-          | `Right p2 -> Some (p2 *. prob)
-          | `Both (p1,p2) -> Some (p1 +. p2 *. prob)))
+    let t = determinize t in
+    Dist.fold t ~init:drop ~f:(fun ~key:state ~data:prob acc ->
+      DetState.dependent_future_coins state
+      |> Omega.pushforward ~m:(module Dist) ~f:(fun w ->
+          DetState.map_conts state ~f:(fun k -> Pol.resolve_choices k w))
+      |> Dist.merge acc ~f:(fun ~key:_ -> function
+        | `Left p1 -> Some p1
+        | `Right p2 -> Some (p2 *. prob)
+        | `Both (p1,p2) -> Some (p1 +. p2 *. prob)))
 
   let of_syn_deriv (e,ds : SynDeriv.t) : t =
     SynDeriv.coins_in_hop (e,ds)
     |> Omega.pushforward ~m:(module Dist) ~f:(DetState.of_syn_deriv_at_outcome (e,ds))
     |> independent_normal_form
-
-
-(*   let choice ?(prob=0.5) p c q =
-    let p' = Dist.map p ~f:(fun pr -> prob *. pr) in
-    let q' = Dist.map q ~f:(fun pr -> (1.0 -. prob) *. pr) in
-    union p' q'
- *)
-(*
-  (* This is the correct ProbNetKAT star semantics:
-     p* = 1 + p0 + p0;p1 + p0;p1;p2 + ... *)
-  let star t =
-    let rec loop acc power =
-      let acc' = union acc power in
-      if equal acc acc'
-        then acc
-        else loop acc' (seq power t)
-    in loop id t
-
-  let of_pred ?(negate=false) pred =
-    let pred = if negate then Neg pred else pred in
-    dirac (D.of_pred pred)
-
-  let of_mod hv =
-    dirac (D.of_mod hv)
-
-(*   let of_cont p =
-    Pol.of_pol p |> FDK.mk_cont |> dirac *)
-
-  let rec of_local_pol (pol : Frenetic_NetKAT.policy) =
-    match pol with
-    | Filter pred -> of_pred pred
-    | Mod hv -> of_mod hv
-    | Union (p, q) -> union (of_local_pol p) (of_local_pol q)
-    | Seq (p, q) -> seq (of_local_pol p) (of_local_pol q)
-    | Star p -> star (of_local_pol p)
-    | Link _
-    | VLink _ -> failwith "Expected local policy, but found link!"
-
-end
-
-
-(* let seq_with_pol (t:t) (p:Pol.t) =
-  FDK_Dist.(Dist.fold t ~init:Dist.empty ~f:(fun ~key:fdk ~data:prob acc ->
-    let fdk' =
-      FDK.map_r (Par.fold ~init:Par.empty ~f:(fun acc seq -> Par.add acc (Seq.change seq K (function
-        | Some (Const k) -> Some (Const (Pol.mk_seq (Int.of_int64_exn k) q |> Int64.of_int))
-        | _ -> failwith "continuation expected - none found"))))
-      fdk
-    in
-    Dist.change acc fdk' (function
-      | None -> Some prob
-      | Some prob' -> Some (prob' +. prob)))) *)
-*)
 
 end
