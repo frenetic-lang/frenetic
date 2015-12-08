@@ -441,4 +441,41 @@ module ProbState = struct
     |> Omega.pushforward ~m:(module Dist) ~f:(DetState.of_syn_deriv_at_outcome (e,ds))
     |> independent_normal_form
 
+  let of_pol (pol : Pol.t) : t =
+    SynDeriv.of_pol pol
+    |> of_syn_deriv
+
+  let conts (t : t) : Int.Set.t =
+    Dist.fold t ~init:Int.Set.empty ~f:(fun ~key:state ~data:prob acc ->
+      (* SJS: we should really never have keys with probability 0 *)
+      if prob = 0.0 then acc else
+      DetState.conts state
+      |> Set.union acc)
+
+end
+
+
+
+(* probabilistic symbolic NetKAT automata *)
+module ProbAuto = struct
+
+  type stateId = int
+
+  type t = {
+    start : stateId;
+    states : ProbState.t Int.Map.t
+  }
+
+  let of_pol (pol : Frenetic_NetKAT.policy) : t =
+    let start = Pol.of_pol pol in
+    let rec mk_states acc stateId : ProbState.t Int.Map.t =
+      if Map.mem acc stateId then acc else
+      let state = ProbState.of_pol stateId in
+      let conts = ProbState.conts state in
+      let init = Map.add acc ~key:stateId ~data:state in
+      Set.fold conts ~init ~f:mk_states
+    in
+    let states = mk_states Int.Map.empty start in
+    { start; states }
+
 end
