@@ -57,13 +57,17 @@ type pred =
   with sexp
 
 module Coin = struct
-  type coin_label = int with sexp
-  type coin_idx = int with sexp
-  type t = coin_label * coin_idx with sexp
-  let  compare (x:t) (y:t) = Pervasives.compare x y
-  let hash = Hashtbl.hash
-  let to_string x = sexp_of_t x |> Sexp.to_string
-  let prob t = 0.5 (* SJS: good enough for now *)
+  module T = struct
+    type coin_label = int with sexp
+    type coin_idx = int with sexp
+    type t = coin_label * coin_idx with sexp
+    let  compare (x:t) (y:t) = Pervasives.compare x y
+    let hash = Hashtbl.hash
+    let to_string x = sexp_of_t x |> Sexp.to_string
+    let prob t = 0.5 (* SJS: good enough for now *)
+  end
+  include T
+  module Set = Set.Make(T)
  end
 
 type policy =

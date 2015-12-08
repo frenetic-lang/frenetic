@@ -332,6 +332,8 @@ module Value = struct
     | _, FastFail _ -> 1
     | _ -> Pervasives.compare x y
 
+  let equal x y = compare x y = 0
+
   let to_string = function
     | Const(a)   -> Printf.sprintf "Const(%Lu)" a
     | Mask(a, m) -> Printf.sprintf "Mask(%Lu, %d)" a m
@@ -494,7 +496,11 @@ module Action = struct
         | F key -> f ~key ~data acc
         | _ -> acc)
 
-    let equal_mod_k s1 s2 = equal (=) (remove s1 K) (remove s2 K)
+    let equal_mod_k s1 s2 =
+      equal (Value.equal) (remove s1 K) (remove s2 K)
+
+    let compare_mod_k s1 s2 =
+      compare_direct Value.compare (remove s1 K) (remove s2 K)
 
     let to_hvs seq =
       seq |> to_alist |> List.filter_map ~f:(function (F f,v) -> Some (f,v) | _ -> None)
@@ -684,13 +690,12 @@ module FDK = struct
   let conts fdk =
     fold
       (fun par ->
-        Action.Par.fold par ~init:[] ~f:(fun acc seq ->
-          Action.(Seq.find seq K) :: acc)
-        |> List.filter_opt)
-      (fun _ t f -> t @ f)
+        Action.Par.fold par ~init:Int.Set.empty ~f:(fun acc seq ->
+          match Action.(Seq.find seq K) with
+          | None -> acc
+          | Some k -> Value.to_int_exn k |> Int.Set.add acc))
+      (fun _ t f -> Set.union t f)
       fdk
-    |> List.map ~f:Value.to_int_exn
-    |> List.dedup
 
   let map_conts t ~(f: int -> int) =
     let open Action in

@@ -17,6 +17,24 @@ module Omega = struct
   let prob w =
     T.fold w ~init:1.0 ~f:(fun ~key:c ~data:heads acc ->
       acc *. (if heads then Coin.prob c else 1. -. Coin.prob c))
+
+  let space_of_coins (cs : Coin.Set.t) : t list =
+    let coins = Set.to_array cs in
+    let rec loop n space =
+      if n=0 then space else
+      List.map space ~f:(List.cons true) @ List.map space ~f:(List.cons false)
+      |> loop (n-1)
+    in
+    loop (Array.length coins) []
+    |> List.map ~f:(List.mapi ~f:(fun i b -> (coins.(i), b)))
+    |> List.map ~f:Omega.of_alist_exn
+
+  (* given a random variable [f] : Omega -> 'a, calculates the pushforward-measure on 'a *)
+  let pushforward (coins : Coin.Set.t) ~(f : Omega.t -> 'a) : ('a, float) Map.Poly.t =
+    space_of_coins coins
+    |> List.map ~f:(fun w -> (rv w, prob w))
+    |> Map.Poly.of_alist
+
 end
 
 
@@ -277,6 +295,10 @@ module SynDeriv = struct
       |> List.fold ~init:id ~f:seq
     | Star p -> star pol (of_pol pol)
 
+  let resolve_choices (e,ds : t) (w : Omega.t) : t =
+    let e = Pol.resolve_choices e w in
+    let ds = List.map ds ~f:(fun (d,k) -> (Pol.resolve_choices d w, Pol.resolve_choices k w)) in
+    (e, ds)
 end
 
 
@@ -302,12 +324,59 @@ module DetState = struct
     in
     (e, ds)
 
+  (* SJS: powerset construction, copied from global copiler *)
+  let determinze (e,d : t) : t =
+    let determinize_action par =
+      Action.Par.to_list par
+      |> List.sort ~cmp
+      (* SJS: this seems to be a bug! We need to sort the list appropriately first. *)
+      |> List.group ~break:(fun s1 s2 -> not (Action.Seq.equal_mod_k s1 s2))
+      |> List.map ~f:(function
+        | [seq] -> seq
+        | group ->
+          let ks = List.map group ~f:(fun s -> Action.Seq.find_exn s K |> Value.to_int_exn)
+                   |> S.of_list in
+          let k = merge ks in
+          List.hd_exn group |> Action.Seq.add ~key:K ~data:(Value.of_int k))
+      |> Action.Par.of_list
+    in
+    (e, FDK.dedup d |> FDK.map_r determinize_action)
+
+  let conts (e,d : t) : Int.Set.t = FDK.conts d
+
+  let map_conts (e,d : t) ~(f:int -> int) : t =
+    (e, FDK.map_conts d ~f)
+
+  let resolve_choices (t : t) (w : Omega.t) =
+    map_conts t ~f:(fun k -> Pol.resolve_choices k w)
+
+  let dependent_future_coins (t : t) : Coin.Set.t =
+    let init = (Coin.Set.empty, Coin.Set.empty) (* (seen, dependent) *) in
+    List.fold (conts t) ~init ~f:(fun init k ->
+      List.fold (Pol.coins k) ~init ~f:(fun (seen, dependent) c ->
+        if Set.member seen c then (seen, Set.add dependent c)
+        else (Set.add seen c, dependent)))
+
 end
 
 
 
 module ProbState = struct
-  module Dist = Map.Make(DetState) (* DetState.t -> float *)
+  module Dist = struct
+    include Map.Make(DetState) (* DetState.t -> float *)
+
+    (* SJS: is there a better way to do this?? *)
+    let map_keys m ~(f: key -> key) ~(merge: float -> float -> float) =
+      to_alist m
+      |> List.map ~f:(fun (k,v) -> (f k, v))
+      |> of_alist_reduce ~f:merge
+
+    (* SJS: is there a better way to do this?? *)
+    (* let map_key_val m ~f:(key:key -> data:data -> key * float) ~merge:(float -> float -> float) =
+      to_alist m
+      |> List.map ~f:(fun (key,data) -> f ~key ~data)
+      |> of_alist_reduce ~f:merge *)
+  end
 
 
   (* Invariant: values sum up to 1.0 *)
@@ -345,34 +414,35 @@ module ProbState = struct
 
   let of_det_state = dirac
 
-  let of_syn_deriv_at_outcome (e,ds : SynDeriv.t) (w : Omega.t) : t =
-    let e = Pol.resolve_choices e w in
-    let ds = List.map ds ~f:(fun (d,k) -> (Pol.resolve_choices d w, Pol.resolve_choices k w)) in
-    let state = DetState.of_syn_deriv (e,ds) |> of_det_state in
+  let determinize (t : t) : t =
+    Dist.map_keys t ~merge:(+.) ~f:DetState.determinize
+
+  (* bring state into independent normal form, where all sucessor states
+     (including the current state) are independent; this frees us from having
+     to express all states as a joint distribution. *)
+  let independent_normal_form (t : t) : t =
+    (* SJS: determinize automaton to keep the number of dependend future coins minimal *)
+    determinize t
+    |> Dist.fold ~init:drop ~f:(fun ~key:state ~data:prob acc ->
+        DetState.dependent_future_coins state
+        |> Omega.pushforward ~f:(fun w ->
+            DetState.map_conts state ~f:(fun k -> Pol.resolve_choices k w))
+        |> Omega.)
+
+  let of_syn_deriv_at_outcome (deriv : SynDeriv.t) (w : Omega.t) : t =
+    let state =
+      SynDeriv.resolve_choices deriv w
+      |> DetState.of_syn_deriv
+      |> of_det_state
+    in
     choice ~prob:(Omega.prob w) state drop
 
   let of_syn_deriv (e,ds : SynDeriv.t) : t =
-    let coins_in_hop = SynDeriv.coins_in_hop (e,ds) |> Array.of_list in
-    let ks = List.map ds ~f:snd in
-    let dependent_future_coins =
-      List.fold ks ~init:(Int.Set.empty, Int.Set.empty) ~f:(fun (seen, dependent) k ->
-        List.fold (Pol.coins k) ~init:(seen,dependent) ~f:(fun (seen, dependent) c ->
-          if Set.member seen c then (seen, Set.add dependent c)
-          else (Set.add seen c, dependent)))
-    let coins = coins_in_hop @ dependent_future_coins
-    let space =
-      let rec loop n space =
-        if n=0 then space else
-        List.map space ~f:(List.cons true) @ List.map space ~f:(List.cons false)
-        |> loop (n-1)
-      in
-      loop (Array.length coins) []
-      |> List.map ~f:(List.mapi ~f:(fun i b -> (coins.(i), b)))
-      |> List.map ~f:Omega.of_alist_exn
-    in
-    let t = 
-      List.map space ~f:(of_syn_deriv_at_outcome (e,ds))
-      |> List.fold ~init:zero ~f:union
+    SynDeriv.coins_in_hop (e,ds)
+    |> space_of_coins
+    |> List.map ~f:(of_syn_deriv_at_outcome (e,ds))
+    |> List.fold ~init:zero ~f:union
+    |> independent_normal_form
 
 
 (*   let choice ?(prob=0.5) p c q =

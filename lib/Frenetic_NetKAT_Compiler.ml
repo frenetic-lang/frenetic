@@ -558,7 +558,7 @@ module NetKAT_Automaton = struct
         let this seen =
           let state = f id state in
           Tbl.replace automaton.states ~key:id ~data:state; (seen, state) in
-        let that (seen, (_,d)) = List.fold (FDK.conts d) ~init:seen ~f:loop in
+        let that (seen, (_,d)) = Set.fold (FDK.conts d) ~init:seen ~f:loop in
         match order with
         | `Pre -> seen |> this |> that
         | `Post -> (seen, state) |> that |> this |> fst
@@ -571,7 +571,7 @@ module NetKAT_Automaton = struct
         let seen = S.add seen id in
         let (_,d) as state = Tbl.find_exn automaton.states id in
         let this (acc, seen) = (f acc id state, seen) in
-        let that (acc, seen) = List.fold (FDK.conts d) ~init:(acc, seen) ~f:loop in
+        let that (acc, seen) = Set.fold (FDK.conts d) ~init:(acc, seen) ~f:loop in
         match order with
         | `Pre -> (acc, seen) |> this |> that
         | `Post -> (acc, seen) |> that |> this
@@ -588,7 +588,7 @@ module NetKAT_Automaton = struct
         let _ = t.nextState <- max t.nextState (id + 1) in
         let (_,d) as state = Lazy.force (Tbl.find_exn automaton.states id) in
         Tbl.add_exn t.states ~key:id ~data:state;
-        List.iter (FDK.conts d) ~f:add
+        Set.iter (FDK.conts d) ~f:add
     in
     add automaton.source;
     t.source <- automaton.source;
@@ -782,7 +782,7 @@ module NetKAT_Automaton = struct
       let conts = FDK.conts fdk in
       fdks := fdk :: (!fdks);
       node_loop fdk;
-      List.iter conts ~f:fdk_loop
+      Set.iter conts ~f:fdk_loop
     in
     fdk_loop automaton.source;
     fprintf fmt "%d [style=bold, color=red];@\n"
