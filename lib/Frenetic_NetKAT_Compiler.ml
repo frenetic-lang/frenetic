@@ -44,14 +44,14 @@ module FDK = struct
   end
 
   let seq t u =
-    match peek u with
-    | Some _ -> prod t u (* This is an optimization. If [u] is an
+    match unget u with
+    | Leaf _ -> prod t u (* This is an optimization. If [u] is an
                             [Action.Par.t], then it will compose with [t]
                             regardless of however [t] modifies packets. None
                             of the decision variables in [u] need to be
                             removed because there are none. *)
-    | None   ->
-      FDK.dp_map
+    | Branch _ ->
+      dp_map
         (fun par ->
           Action.Par.fold par ~init:drop ~f:(fun acc seq ->
             let u' = restrict (Action.Seq.to_hvs seq) u in
@@ -137,9 +137,9 @@ module Interp = struct
     let hvs = HeadersValues.to_hvs packet.headers in
     let sw  = (Field.Switch, Value.of_int64 packet.switch) in
     let vs  = List.map hvs ~f:Pattern.of_hv in
-    match FDK.(peek (restrict (sw :: vs) t)) with
-    | None    -> assert false
-    | Some(r) -> r
+    match FDK.(unget (restrict (sw :: vs) t)) with
+    | Leaf r -> r
+    | Branch _ -> assert false
 
   let eval (p:packet) (t:FDK.t) =
     Frenetic_NetKAT_Semantics.eval p Action.(to_policy (eval_to_action p t))
@@ -339,9 +339,9 @@ let eval_to_action (packet:Frenetic_NetKAT_Semantics.packet) (t:FDK.t) =
   let sw  = (Field.Switch, Value.of_int64 packet.switch) in
   let vs  = List.map hvs ~f:Pattern.of_hv in
   let () = eprintf "In eval_to_action" in
-  match FDK.(peek (restrict (sw :: vs) t)) with
-  | None    -> assert false
-  | Some(r) -> r
+  match FDK.(unget (restrict (sw :: vs) t)) with
+  | Leaf r -> r
+  | Branch _ -> assert false
 
 let eval (p:Frenetic_NetKAT_Semantics.packet) (t:FDK.t) =
   Frenetic_NetKAT_Semantics.eval p Action.(to_policy (eval_to_action p t))
