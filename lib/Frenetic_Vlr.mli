@@ -86,19 +86,27 @@ module type Result = sig
       and [||], respectively, then [zero] should be the value [false]. *)
 end
 
-module type S = sig
+(** Variable-Lattice-Result
 
-  type t with sexp
+    This module implements a variant of a binary decision diagrams. Rather than
+    representing boolean-valued functions over boolean variables, this data
+    structure represents functions that take on values in a semi-ring, and whose
+    variables are assigned values from a lattice, i.e., that are partially
+    ordered. *)
+module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
+
+  type t = private int
   (** The type of a decision diagram *)
 
-  type v
+  type v = V.t * L.t
   (** The type of a variable in the decision diagram. *)
 
-  type r
+  type r = R.t
   (** The type of the result of a decision diagram *)
 
   type d
-    = Leaf of r
+    = private
+    | Leaf of r
     | Branch of v * t * t
 
   module Tbl : Hashtbl.S with type key = t
@@ -106,7 +114,7 @@ module type S = sig
 
   val get : d -> t
   val unget : t -> d
-  val get_uid : t -> int
+  val get_uid : t -> int (* get_uid t is equivalent to (t : t :> int) *)
   val mk_branch : v -> t -> t -> t
   val mk_leaf : r -> t
   val drop : t (* zero *)
@@ -128,15 +136,6 @@ module type S = sig
       This function assumes that a variable will only appear once in the list of
       variable assignments. If the list assigns multiple values to a variable,
       then the behavior is unspecified. *)
-
-  val peek : t -> r option
-  (** [peek t] check if the diagram is a leaf node. If it is, it will return
-      the value at the leaf, and [None] otherwise.
-
-      [peek], combined with {!restrict} are useful when extracting information
-      from a diagram. Through multiple applications of [restrict] the programmer
-      can attempt to reduce the diagram to a value, and then use [peek] to
-      extract that value. *)
 
   (* val apply : (r -> r -> r) -> bool -> bool -> r -> t -> t -> t *)
 
@@ -204,14 +203,3 @@ module type S = sig
   val refs : t -> Int.Set.t
 
 end
-
-
-(** Variable-Lattice-Result
-
-    This module implements a variant of a binary decision diagrams. Rather than
-    representing boolean-valued functions over boolean variables, this data
-    structure represents functions that take on values in a semi-ring, and whose
-    variables are assigned values from a lattice, i.e., that are partially
-    ordered. *)
-module Make(V:HashCmp)(L:Lattice)(R:Result) : S
-  with type v = V.t * L.t and type r = R.t

@@ -20,48 +20,7 @@ module type Result = sig
   val zero : t
 end
 
-module type S = sig
-  type t with sexp
-  type v
-  type r
-  type d
-    = Leaf of r
-    | Branch of v * t * t
-  module Tbl : Hashtbl.S with type key = t
-  module BinTbl : Hashtbl.S with type key = (t * t)
-  val get : d -> t
-  val unget : t -> d
-  val get_uid : t -> int
-  val mk_branch : v -> t -> t -> t
-  val mk_leaf : r -> t
-  val drop : t
-  val id : t
-  val const : r -> t
-  val atom : v -> r -> r -> t
-  val restrict : v list -> t -> t
-  val peek : t -> r option
-  val sum : t -> t -> t
-  val prod : t -> t -> t
-  val cond : v -> t -> t -> t
-  val map : (r -> t) -> (v -> t -> t -> t) -> t -> t
-  val dp_map : (r -> t) -> (v -> t -> t -> t) -> t
-            -> find_or_add:(t -> default:(unit -> t) -> t)
-            -> t
-  val map_r : (r -> r) -> t -> t
-  val fold : (r -> 'a) -> (v -> 'a -> 'a -> 'a) -> t -> 'a
-  val equal : t -> t -> bool
-  val to_string : t -> string
-  val clear_cache : preserve:Int.Set.t -> unit
-  val compressed_size : t -> int
-  val uncompressed_size : t -> int
-  val to_dot : t -> string
-  val refs : t -> Int.Set.t
-end
-
-
-module Make(V:HashCmp)(L:Lattice)(R:Result) :
-  S with type v = V.t * L.t and type r = R.t =
-struct
+module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   type v = V.t * L.t with sexp
   type r = R.t with sexp
 
@@ -150,10 +109,6 @@ struct
 
   let const r = mk_leaf r
   let atom (v,l) t f = mk_branch (v,l) (const t) (const f)
-
-  let peek t = match T.unget t with
-    | Leaf r   -> Some r
-    | Branch _ -> None
 
   let rec map_r g = fold
     (fun r          -> const (g r))

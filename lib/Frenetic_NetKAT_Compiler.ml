@@ -44,14 +44,14 @@ module FDK = struct
   end
 
   let seq t u =
-    match peek u with
-    | Some _ -> prod t u (* This is an optimization. If [u] is an
+    match unget u with
+    | Leaf _ -> prod t u (* This is an optimization. If [u] is an
                             [Action.Par.t], then it will compose with [t]
                             regardless of however [t] modifies packets. None
                             of the decision variables in [u] need to be
                             removed because there are none. *)
-    | None   ->
-      FDK.dp_map
+    | Branch _ ->
+      dp_map
         (fun par ->
           Action.Par.fold par ~init:drop ~f:(fun acc seq ->
             let u' = restrict (Action.Seq.to_hvs seq) u in
@@ -137,9 +137,9 @@ module Interp = struct
     let hvs = HeadersValues.to_hvs packet.headers in
     let sw  = (Field.Switch, Value.of_int64 packet.switch) in
     let vs  = List.map hvs ~f:Pattern.of_hv in
-    match FDK.(peek (restrict (sw :: vs) t)) with
-    | None    -> assert false
-    | Some(r) -> r
+    match FDK.(unget (restrict (sw :: vs) t)) with
+    | Leaf r -> r
+    | Branch _ -> assert false
 
   let eval (p:packet) (t:FDK.t) =
     Frenetic_NetKAT_Semantics.eval p Action.(to_policy (eval_to_action p t))
@@ -332,9 +332,9 @@ let eval_to_action (packet:Frenetic_NetKAT_Semantics.packet) (t:FDK.t) =
   let sw  = (Field.Switch, Value.of_int64 packet.switch) in
   let vs  = List.map hvs ~f:Pattern.of_hv in
   let () = eprintf "In eval_to_action" in
-  match FDK.(peek (restrict (sw :: vs) t)) with
-  | None    -> assert false
-  | Some(r) -> r
+  match FDK.(unget (restrict (sw :: vs) t)) with
+  | Leaf r -> r
+  | Branch _ -> assert false
 
 let eval (p:Frenetic_NetKAT_Semantics.packet) (t:FDK.t) =
   Frenetic_NetKAT_Semantics.eval p Action.(to_policy (eval_to_action p t))
@@ -740,7 +740,7 @@ module NetKAT_Automaton = struct
         FDK.Tbl.add_exn seen node ();
         match FDK.unget node with
         | Leaf par ->
-          let node = FDK.get_uid node in
+          let node = (node : FDK.t :> int) in
           let seqId = ref 0 in
           let edges = ref [] in
           fprintf fmt "subgraph cluster_%d {@\n" node;
@@ -755,16 +755,16 @@ module NetKAT_Automaton = struct
             fprintf fmt "\t%s [shape=box, label=\"%s\"];@\n" id label;
             Option.iter cont ~f:(fun k ->
               edges := sprintf "%s -> %d [style=bold, color=blue];@\n"
-                id (FDK.get_uid k) :: (!edges));
+                id (k : FDK.t :> int) :: (!edges));
             incr seqId;
           );
           fprintf fmt "}@\n";
           List.iter (!edges) ~f:(fprintf fmt "%s")
         | Branch((f, v), a, b) ->
-          let node = FDK.get_uid node in
+          let node = (node : FDK.t :> int) in
           fprintf fmt "%d [label=\"%s = %s\"];@\n" node (Field.to_string f) (Value.to_string v);
-          fprintf fmt "%d -> %d;@\n" node (FDK.get_uid a);
-          fprintf fmt "%d -> %d [style=\"dashed\"];@\n" node (FDK.get_uid b);
+          fprintf fmt "%d -> %d;@\n" node (a : FDK.t :> int);
+          fprintf fmt "%d -> %d [style=\"dashed\"];@\n" node (b : FDK.t :> int);
           node_loop a;
           node_loop b
       end
@@ -779,9 +779,9 @@ module NetKAT_Automaton = struct
     in
     fdk_loop automaton.source;
     fprintf fmt "%d [style=bold, color=red];@\n"
-      (Tbl.find_exn states automaton.source |> FDK.get_uid);
+      (Tbl.find_exn states automaton.source : FDK.t :> int);
     fprintf fmt "{rank=source; ";
-    List.iter (!fdks) ~f:(fun fdk -> fprintf fmt "%d " (FDK.get_uid fdk));
+    List.iter (!fdks) ~f:(fun fdk -> fprintf fmt "%d " (fdk : FDK.t :> int));
     fprintf fmt ";}@\n";
     fprintf fmt "}@.";
     Buffer.contents buf
@@ -817,7 +817,7 @@ type metaId = int with sexp
 type flowId = tableId * metaId with sexp
 
 (* Match subtrees of t with the table location they will be placed *)
-type flow_subtrees = (t, flowId) Map.Poly.t with sexp
+type flow_subtrees = (t, flowId) Map.Poly.t
 
 (* OpenFlow 1.3+ instruction types *)
 type instruction =
