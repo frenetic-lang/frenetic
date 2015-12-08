@@ -335,8 +335,8 @@ module Value = struct
   let equal x y = compare x y = 0
 
   let to_string = function
-    | Const(a)   -> Printf.sprintf "Const(%Lu)" a
-    | Mask(a, m) -> Printf.sprintf "Mask(%Lu, %d)" a m
+    | Const(a)   -> Printf.sprintf "%Lu" a
+    | Mask(a, m) -> Printf.sprintf "%Lu/%d" a m
     | Pipe(p) -> Printf.sprintf "Pipe(%s)" p
     | Query(p) -> Printf.sprintf "Query(%s)" p
     | FastFail(p_lst) -> Printf.sprintf "FastFail(%s)" (Frenetic_NetKAT.string_of_fastfail p_lst)
