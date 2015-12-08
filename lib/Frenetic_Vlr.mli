@@ -137,15 +137,6 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
       variable assignments. If the list assigns multiple values to a variable,
       then the behavior is unspecified. *)
 
-  val peek : t -> r option
-  (** [peek t] check if the diagram is a leaf node. If it is, it will return
-      the value at the leaf, and [None] otherwise.
-
-      [peek], combined with {!restrict} are useful when extracting information
-      from a diagram. Through multiple applications of [restrict] the programmer
-      can attempt to reduce the diagram to a value, and then use [peek] to
-      extract that value. *)
-
   (* val apply : (r -> r -> r) -> bool -> bool -> r -> t -> t -> t *)
 
   val sum : t -> t -> t

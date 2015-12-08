@@ -110,10 +110,6 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   let const r = mk_leaf r
   let atom (v,l) t f = mk_branch (v,l) (const t) (const f)
 
-  let peek t = match T.unget t with
-    | Leaf r   -> Some r
-    | Branch _ -> None
-
   let rec map_r g = fold
     (fun r          -> const (g r))
     (fun (v, l) t f -> mk_branch (v,l) t f)
