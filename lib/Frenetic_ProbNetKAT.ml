@@ -221,6 +221,7 @@ module Pol = struct
       |> mk_big_seq
     | Star p ->
       mk_star (resolve_choices p w)
+
 end
 
 
@@ -299,7 +300,7 @@ module SynDeriv = struct
     | Seq pl ->
       List.map pl ~f:(fun p -> (p, of_pol p))
       |> List.fold ~init:id ~f:seq
-    | Star p -> star pol (of_pol pol)
+    | Star p -> star pol (of_pol p)
 
   let resolve_choices (e,ds : t) (w : Omega.t) : t =
     let e = Pol.resolve_choices e w in
@@ -485,15 +486,15 @@ module Auto = struct
 
     type t = {
       start : stateId;
-      states : State.t Int.Map.t
+      states : State.t Int.Map.t;
     } with sexp
 
     let to_string (t : t) : string =
       Int.Map.to_alist t.states
       |> List.map ~f:(fun (id, state) ->
-          sprintf "s%d =\n%s" id (State.to_string ~indent:"  " state))
-      |> List.cons (sprintf "start state = %d" t.start)
-      |> String.concat ~sep:"\n\n"
+          sprintf "  s%d =\n%s" id (State.to_string ~indent:"    " state))
+      |> List.cons (sprintf "\n\nSTART STATE = %d" t.start)
+      |> String.concat ~sep:"\n"
 
     let of_pol' (pol : Pol.t) : t =
       let start = pol in
