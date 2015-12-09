@@ -64,6 +64,7 @@ module Action : sig
 
   module Seq : sig
     include Map.S with type Key.t = field_or_cont
+    val compare : Value.t t -> Value.t t -> int
     val compare_mod_k : Value.t t -> Value.t t -> int
     val equal_mod_k : Value.t t -> Value.t t -> bool
     val to_hvs : Value.t t -> (Field.t * Value.t) list
@@ -72,6 +73,9 @@ module Action : sig
   module Par : sig
     include Set.S with type Elt.t = Value.t Seq.t
     val to_hvs : t -> (Field.t * Value.t) list
+    val mod_k : t -> t
+    val compare_mod_k : t -> t -> int
+    val equal_mod_k : t -> t -> bool
   end
 
   type t = Par.t with sexp

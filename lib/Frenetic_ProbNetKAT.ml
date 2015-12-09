@@ -403,8 +403,7 @@ module ProbState = struct
     |> String.concat ~sep:"\n"
 
   let hash t : int =
-    Dist.to_alist t
-    |> Hashtbl.hash
+    Hashtbl.hash (Dist.to_alist t)
 
   let equal = Dist.equal Float.equal
   let compare = Dist.compare_direct Float.compare

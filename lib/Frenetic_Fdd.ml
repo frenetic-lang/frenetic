@@ -491,6 +491,8 @@ module Action = struct
       let compare = compare_field_or_cont
     end)
 
+    let compare = compare_direct Value.compare
+
     let fold_fields seq ~init ~f =
       fold seq ~init ~f:(fun ~key ~data acc -> match key with
         | F key -> f ~key ~data acc
@@ -500,7 +502,7 @@ module Action = struct
       equal (Value.equal) (remove s1 K) (remove s2 K)
 
     let compare_mod_k s1 s2 =
-      compare_direct Value.compare (remove s1 K) (remove s2 K)
+      compare (remove s1 K) (remove s2 K)
 
     let to_hvs seq =
       seq |> to_alist |> List.filter_map ~f:(function (F f,v) -> Some (f,v) | _ -> None)
@@ -520,7 +522,7 @@ module Action = struct
   module Par = struct
     include Set.Make(struct
     type t = Value.t Seq.t with sexp
-    let compare = Seq.compare_direct Value.compare
+    let compare = Seq.compare
     end)
 
     let to_hvs par =
@@ -531,6 +533,14 @@ module Action = struct
         |> List.map ~f:Seq.to_string
         |> String.concat ~sep:"; "
       in "{" ^ s ^ "}"
+
+    let mod_k = map ~f:(fun seq -> Seq.remove seq K)
+
+    let compare_mod_k p1 p2 =
+      compare (mod_k p1) (mod_k p2)
+
+    let equal_mod_k p1 p2 =
+      equal (mod_k p1) (mod_k p2)
   end
 
   type t = Par.t with sexp
