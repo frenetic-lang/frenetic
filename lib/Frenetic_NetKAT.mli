@@ -62,6 +62,7 @@ module Coin : sig
   val hash : t -> int
   val to_string : t -> string
   val prob : t -> float
+  val mk_fresh : unit -> t
 end
 
 type policy =
