@@ -18,18 +18,22 @@ let p1' = mk_fresh_choice (mk_hop id) (mk_hop id')
 let p2 = mk_star dup
 let p2' = mk_fresh_choice dup id |> mk_star
 
+let show_pol p =
+  printf "%s\n" (Pol.to_string p)
+
 let show_prop p =
-  printf "%s" (ProbAuto.to_string (ProbAuto.of_pol' p))
+  show_pol p;
+  printf "%s\n" (ProbAuto.to_string (ProbAuto.of_pol' p))
 
 let show_det p =
-  printf "%s" (DetAuto.to_string (DetAuto.of_pol' p))
-
-let show_pol p =
-  printf "%s" (Pol.to_string p)
+  show_pol p;
+  printf "%s\n" (DetAuto.to_string (DetAuto.of_pol' p))
 
 let main : unit = begin
   (* show_prop p1; *)
   (* show_prop p1'; *)
-  show_pol p1';
   show_prop p2;
+  show_prop p2';
+  show_prop p1;
+  show_prop p1';
 end

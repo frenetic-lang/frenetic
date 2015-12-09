@@ -239,6 +239,8 @@ module Pol = struct
       let v = Frenetic_Fdd.Value.to_string v in
       sprintf "%s%s%s" f rel v
     in
+    if t = id then "1" else
+    if t = drop then "0" else
     match unget t with
     | Filter hv -> of_hv hv "="
     | Filter_out hv -> of_hv hv "!="
@@ -530,8 +532,9 @@ module Auto = struct
       Int.Map.to_alist t.states
       |> List.map ~f:(fun (id, state) ->
           sprintf "  s%d =\n%s" id (State.to_string ~indent:"    " state))
-      |> List.cons (sprintf "\n\nSTART STATE = %d" t.start)
+      |> List.cons (sprintf "START STATE = %d" t.start)
       |> String.concat ~sep:"\n"
+      |> sprintf "%s\n"
 
     let of_pol' (pol : Pol.t) : t =
       let start = pol in
