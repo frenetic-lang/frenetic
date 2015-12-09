@@ -469,36 +469,53 @@ end
 
 
 
-(* probabilistic symbolic NetKAT automata *)
-module ProbAuto = struct
+module Auto = struct
 
-  type stateId = int with sexp
+  module type Differentiable = sig
+    type t with sexp
+    val to_string : ?indent:string -> t -> string
+    val of_pol : Pol.t -> t
+    val conts : t -> Pol.Set.t
+  end
 
-  type t = {
-    start : stateId;
-    states : ProbState.t Int.Map.t
-  } with sexp
+  module Make(State : Differentiable) = struct
 
-  let to_string (t : t) : string =
-    Int.Map.to_alist t.states
-    |> List.map ~f:(fun (id, state) ->
-        sprintf "s%d =\n%s" id (ProbState.to_string ~indent:"  " state))
-    |> List.cons (sprintf "start state = %d" t.start)
-    |> String.concat ~sep:"\n\n"
+    type stateId = int with sexp
+    type state = State.t
 
-  let of_pol' (pol : Pol.t) : t =
-    let start = pol in
-    let rec mk_states acc stateId : ProbState.t Int.Map.t =
-      if Map.mem acc stateId then acc else
-      let state = ProbState.of_pol stateId in
-      let init = Map.add acc ~key:stateId ~data:state in
-      let conts = ProbState.conts state in
-      Set.fold conts ~init ~f:mk_states
-    in
-    let states = mk_states Int.Map.empty start in
-    { start; states }
+    type t = {
+      start : stateId;
+      states : State.t Int.Map.t
+    } with sexp
 
-  let of_pol (pol : Frenetic_NetKAT.policy) : t =
-    of_pol' (Pol.of_pol pol)
+    let to_string (t : t) : string =
+      Int.Map.to_alist t.states
+      |> List.map ~f:(fun (id, state) ->
+          sprintf "s%d =\n%s" id (State.to_string ~indent:"  " state))
+      |> List.cons (sprintf "start state = %d" t.start)
+      |> String.concat ~sep:"\n\n"
+
+    let of_pol' (pol : Pol.t) : t =
+      let start = pol in
+      let rec mk_states acc stateId : State.t Int.Map.t =
+        if Map.mem acc stateId then acc else
+        let state = State.of_pol stateId in
+        let init = Map.add acc ~key:stateId ~data:state in
+        let conts = State.conts state in
+        Set.fold conts ~init ~f:mk_states
+      in
+      let states = mk_states Int.Map.empty start in
+      { start; states }
+
+    let of_pol (pol : Frenetic_NetKAT.policy) : t =
+      of_pol' (Pol.of_pol pol)
+
+  end
 
 end
+
+(* deterministic symbolic NetKAT automata *)
+module DetAuto = Auto.Make(DetState)
+
+(* probabilistic symbolic NetKAT automata *)
+module ProbAuto = Auto.Make(ProbState)
