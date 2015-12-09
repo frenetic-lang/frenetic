@@ -56,13 +56,15 @@ type pred =
 module Coin : sig
   type coin_label = int with sexp
   type coin_idx = int with sexp
-  type t = coin_label * coin_idx with sexp
+  type prob = float
+  type t with sexp
+  (* type t = coin_label * coin_idx * prob with sexp *)
   module Set : Set.S with type Elt.t = t
   val compare : t -> t -> int
   val hash : t -> int
   val to_string : t -> string
   val prob : t -> float
-  val mk_fresh : unit -> t
+  val mk_fresh : ?prob:float -> unit -> t
 end
 
 type policy =
