@@ -132,8 +132,10 @@ module Pol = struct
   let mk_big_seq = List.fold_left ~init:id ~f:mk_seq
 
   let mk_choice p1 c p2 =
-    if p1 = p2 then p1
-    else get (Choice (p1, c, p2))
+    if p1 = p2 then p1 else
+    if Coin.prob c = 1.0 then p1 else
+    if Coin.prob c = 0.0 then p2 else
+    get (Choice (p1, c, p2))
 
   let mk_fresh_choice p1 p2 =
     let c = Coin.mk_fresh () in
