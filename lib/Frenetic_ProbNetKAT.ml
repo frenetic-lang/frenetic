@@ -224,6 +224,34 @@ module Pol = struct
     | Star p ->
       mk_star (resolve_choices p w)
 
+  let rec to_string (t : t) : string =
+    let of_hv hv rel =
+      let f,v = Frenetic_Fdd.Pattern.of_hv hv in
+      let f = Frenetic_Fdd.Field.to_string f in
+      let v = Frenetic_Fdd.Value.to_string v in
+      sprintf "%s%s%s" f rel v
+    in
+    match unget t with
+    | Filter hv -> of_hv hv "="
+    | Filter_out hv -> of_hv hv "!="
+    | Mod hv -> of_hv hv ":="
+    | Union ps ->
+      Set.to_list ps
+      |> List.map ~f:to_string
+      |> String.concat ~sep:" + "
+      |> sprintf "{ %s }"
+    | Seq pl ->
+      List.map pl ~f:to_string
+      |> String.concat ~sep:"; "
+      |> sprintf "[%s]"
+    | Choice (p,c,q) ->
+      let p = to_string p in
+      let q = to_string q in
+      let c = if Coin.prob c = 0.5 then "?" else sprintf "?(%f)" (Coin.prob c) in
+      sprintf "(%s %s %s)" p c q
+    | Dup -> "dup"
+    | Star p -> (to_string p) ^ "*"
+
 end
 
 

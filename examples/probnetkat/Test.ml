@@ -24,8 +24,12 @@ let show_prop p =
 let show_det p =
   printf "%s" (DetAuto.to_string (DetAuto.of_pol' p))
 
+let show_pol p =
+  printf "%s" (Pol.to_string p)
+
 let main : unit = begin
   (* show_prop p1; *)
   (* show_prop p1'; *)
+  show_pol p1';
   show_prop p2;
 end
