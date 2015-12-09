@@ -112,8 +112,14 @@ module Pol = struct
     | Union ps1, _, Union ps2, _
     | Union ps1, _, _, ps2
     | _, ps1, Union ps2, _
-    | _, ps1, _, ps2
-    -> Union (Set.union ps1 ps2) |> get
+    | _, ps1, _, ps2 ->
+    let ps = Set.union ps1 ps2 in
+    if Set.length ps = 1 then
+      match Set.to_list ps with
+      | [p] -> p
+      | _ -> assert false
+    else
+      get (Union ps)
 
   let mk_seq p1 p2 =
     if p1 = drop || p2 = drop then drop else
@@ -121,8 +127,10 @@ module Pol = struct
     | Seq pl1, _, Seq pl2, _
     | Seq pl1, _, _, pl2
     | _, pl1, Seq pl2, _
-    | _, pl1, _, pl2
-    -> Seq (pl1 @ pl2) |> get
+    | _, pl1, _, pl2 ->
+      match pl1@pl2 with
+      | [p] -> p
+      | pl -> get (Seq pl)
 
   let mk_or = mk_union
   let mk_and = mk_seq
