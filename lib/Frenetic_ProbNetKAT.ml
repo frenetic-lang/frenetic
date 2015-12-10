@@ -490,6 +490,21 @@ module ProbState = struct
         | `Right p2 -> Some (p2 *. prob)
         | `Both (p1,p2) -> Some (p1 +. p2 *. prob)))
 
+  (* let latest_choice_normal_form (t : t) : t =
+    let rec try_merge ts = match ts with
+      | [] | [_] -> ts
+      | (s1,p1) :: (s2,p2) :: ts ->
+        if DetState.equal_mod_k s1 s2 then
+          (DetState.union s1 s2, p1 +. p2) :: ts
+          |> try_merge
+        else
+          (s1,p1) :: try_merge ((s2,p2) :: ts)
+    in
+    Dist.to_alist t
+    |> List.sort ~cmp:(fun (s1,_) (s2,_) -> DetState.compare_mod_k)
+    |> try_merge
+    |> Dist.of_alist_reduce ~f:(+.) *)
+
   let of_syn_deriv (e,ds : SynDeriv.t) : t =
     SynDeriv.coins_in_hop (e,ds)
     |> Omega.pushforward ~m:(module Dist) ~f:(DetState.of_syn_deriv_at_outcome (e,ds))
