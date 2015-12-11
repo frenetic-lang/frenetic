@@ -96,4 +96,5 @@ module FDK : sig
   include module type of Frenetic_Vlr.Make(Field)(Value)(Action)
   val mk_cont : int -> t
   val conts : t -> int list
+  val map_conts : t -> f:(int -> int) -> t
 end

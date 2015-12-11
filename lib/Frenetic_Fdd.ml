@@ -695,4 +695,11 @@ module FDK = struct
     |> List.map ~f:Value.to_int_exn
     |> List.dedup
 
+  let map_conts fdk ~f =
+    map_r (fun par -> Action.Par.map par ~f:(fun seq ->
+      Action.(Seq.change seq K (function
+        | None -> None
+        | Some k -> Value.to_int_exn k |> f |> Value.of_int |> Option.some))))
+    fdk
+
 end
