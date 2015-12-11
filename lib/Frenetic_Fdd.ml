@@ -499,6 +499,9 @@ module Action = struct
         | F key -> f ~key ~data acc
         | _ -> acc)
 
+    let compare = compare_direct Value.compare
+    let compare_mod_k s1 s2 = compare (remove s1 K) (remove s2 K)
+
     let equal_mod_k s1 s2 = equal (=) (remove s1 K) (remove s2 K)
 
     let to_hvs seq =

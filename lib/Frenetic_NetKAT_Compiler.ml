@@ -646,7 +646,7 @@ module NetKAT_Automaton = struct
     let determinize_action par =
       par
       |> Action.Par.to_list
-      (* SJS: this seems to be a bug! We need to sort the list appropriately first. *)
+      |> List.sort ~cmp:Action.Seq.compare_mod_k
       |> List.group ~break:(fun s1 s2 -> not (Action.Seq.equal_mod_k s1 s2))
       |> List.map ~f:(function
         | [seq] -> seq
