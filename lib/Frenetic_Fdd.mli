@@ -18,6 +18,8 @@ module Field : sig
       | Location
       | VFabric
   with sexp
+
+  include Frenetic_Vlr.HashCmp with type t := t
   val auto_order : Frenetic_NetKAT.policy -> unit
   val set_order : t list -> unit
   val get_order : unit -> t list
@@ -39,6 +41,7 @@ module Value : sig
     | FastFail of Int32.t list
     with sexp
 
+  include Frenetic_Vlr.Lattice with type t := t
   val compare : t -> t -> int
   val equal : t -> t -> bool
   val to_string : t -> string
@@ -79,6 +82,8 @@ module Action : sig
   end
 
   type t = Par.t with sexp
+
+  include Frenetic_Vlr.Result with type t := t
   val one : t
   val zero : t
   val negate : t -> t
@@ -93,7 +98,7 @@ module Action : sig
 end
 
 module FDK : sig
-  include Frenetic_Vlr.S with type v = Field.t * Value.t and type r = Action.t
+  include module type of Frenetic_Vlr.Make(Field)(Value)(Action)
   val mk_cont : int -> t
   val conts : t -> Int.Set.t
   val map_conts : t -> f:(int -> int) -> t

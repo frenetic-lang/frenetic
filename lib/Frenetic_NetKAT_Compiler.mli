@@ -25,7 +25,7 @@ type order
     | `Heuristic ]
 
 
-type t = FDK.t with sexp
+type t = FDK.t
 (** The type of the intermediate compiler representation (FDD). *)
 
 val compare : t -> t -> int
