@@ -332,9 +332,11 @@ module Value = struct
     | _, FastFail _ -> 1
     | _ -> Pervasives.compare x y
 
+  let equal x y = compare x y = 0
+
   let to_string = function
-    | Const(a)   -> Printf.sprintf "Const(%Lu)" a
-    | Mask(a, m) -> Printf.sprintf "Mask(%Lu, %d)" a m
+    | Const(a)   -> Printf.sprintf "%Lu" a
+    | Mask(a, m) -> Printf.sprintf "%Lu/%d" a m
     | Pipe(p) -> Printf.sprintf "Pipe(%s)" p
     | Query(p) -> Printf.sprintf "Query(%s)" p
     | FastFail(p_lst) -> Printf.sprintf "FastFail(%s)" (Frenetic_NetKAT.string_of_fastfail p_lst)
@@ -489,25 +491,56 @@ module Action = struct
       let compare = compare_field_or_cont
     end)
 
+    let compare = compare_direct Value.compare
+
     let fold_fields seq ~init ~f =
       fold seq ~init ~f:(fun ~key ~data acc -> match key with
         | F key -> f ~key ~data acc
         | _ -> acc)
 
-    let equal_mod_k s1 s2 = equal (=) (remove s1 K) (remove s2 K)
+    let equal_mod_k s1 s2 =
+      equal (Value.equal) (remove s1 K) (remove s2 K)
+
+    let compare_mod_k s1 s2 =
+      compare (remove s1 K) (remove s2 K)
 
     let to_hvs seq =
       seq |> to_alist |> List.filter_map ~f:(function (F f,v) -> Some (f,v) | _ -> None)
+
+    let to_string (t : Value.t t) : string =
+      let s = to_alist t
+        |> List.map ~f:(fun (f,v) ->
+            let f = match f with
+              | K -> "state"
+              | F f -> Field.to_string f
+            in
+            sprintf "%s := %s" f (Value.to_string v))
+        |> String.concat ~sep:", "
+      in "[" ^ s ^ "]"
   end
 
   module Par = struct
     include Set.Make(struct
     type t = Value.t Seq.t with sexp
-    let compare = Seq.compare_direct Value.compare
+    let compare = Seq.compare
     end)
 
     let to_hvs par =
       fold par ~init:[] ~f:(fun acc seq -> Seq.to_hvs seq @ acc)
+
+    let to_string t : string =
+      let s = to_list t
+        |> List.map ~f:Seq.to_string
+        |> String.concat ~sep:"; "
+      in "{" ^ s ^ "}"
+
+    let mod_k = map ~f:(fun seq -> Seq.remove seq K)
+
+    let compare_mod_k p1 p2 =
+      compare (mod_k p1) (mod_k p2)
+
+    let equal_mod_k p1 p2 =
+      equal (mod_k p1) (mod_k p2)
   end
 
   type t = Par.t with sexp
@@ -669,9 +702,9 @@ module Action = struct
   let size =
     Par.fold ~init:0 ~f:(fun acc seq -> acc + (Seq.length seq))
 
-  let to_string t =
-    let par = to_sdn ~group_tbl:(Frenetic_GroupTable0x04.create ()) None t in
-    Printf.sprintf "[%s]" (SDN.string_of_par par)
+  let to_string = Par.to_string
+    (* let par = to_sdn ~group_tbl:(Frenetic_GroupTable0x04.create ()) None t in
+    Printf.sprintf "[%s]" (SDN.string_of_par par) *)
 
 end
 
@@ -684,12 +717,19 @@ module FDK = struct
   let conts fdk =
     fold
       (fun par ->
-        Action.Par.fold par ~init:[] ~f:(fun acc seq ->
-          Action.(Seq.find seq K) :: acc)
-        |> List.filter_opt)
-      (fun _ t f -> t @ f)
+        Action.Par.fold par ~init:Int.Set.empty ~f:(fun acc seq ->
+          match Action.(Seq.find seq K) with
+          | None -> acc
+          | Some k -> Value.to_int_exn k |> Int.Set.add acc))
+      (fun _ t f -> Set.union t f)
       fdk
-    |> List.map ~f:Value.to_int_exn
-    |> List.dedup
+
+  let map_conts t ~(f: int -> int) =
+    let open Action in
+    let f par = Par.map par ~f:(fun seq -> Seq.change seq K (function
+      | None -> failwith "continuation expected, but none found"
+      | Some k -> Some (k |> Value.to_int_exn |> f |> Value.of_int)))
+    in
+    map_r f t
 
 end
