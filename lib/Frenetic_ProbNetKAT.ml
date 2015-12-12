@@ -354,7 +354,7 @@ module DetState = struct
   type t = FDK.t * FDK.t
 
   let t_of_sexp _ = failwith "not implemented"
-  let sexp_of_t = failwith "not implemented"
+  let sexp_of_t _ = failwith "not implemented"
 
   let to_string ?(indent="") (e,d : t) : string =
     sprintf "%sE = %s\n%sD = %s" indent (FDK.to_string e) indent (FDK.to_string d)

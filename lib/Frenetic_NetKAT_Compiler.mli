@@ -24,8 +24,7 @@ type order
     | `Static of Field.t list
     | `Heuristic ]
 
-
-type t = FDK.t
+type t
 (** The type of the intermediate compiler representation (FDD). *)
 
 val compare : t -> t -> int
