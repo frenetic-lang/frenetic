@@ -3,7 +3,8 @@ open Core.Std
 let run_types : [
   `Http_Controller | `Compile_Server | `Shell |
   `Openflow13_Controller | `Openflow13_Fault_Tolerant_Controller |
-  `Global_Compiler | `Virtual_Compiler | `Staged_Server | `VC_Shell
+  `Global_Compiler | `Virtual_Compiler | `Staged_Server | `VC_Shell |
+  `Dump
 ] Command.Spec.Arg_type.t =
   Command.Spec.Arg_type.create
     (fun run_type_arg ->
@@ -15,8 +16,7 @@ let run_types : [
       | "shell" -> `Shell
       | "openflow13" -> `Openflow13_Controller
       | "fault_tolerant" -> `Openflow13_Fault_Tolerant_Controller
-      | "global_cmd" -> `Global_Compiler
-      | "virtual_cmd" -> `Virtual_Compiler
+      | "dump" -> `Dump
       | _ ->
         eprintf "'%s' is not a legal frenetic command\n" run_type_arg;
         exit 1
@@ -72,23 +72,15 @@ let spec =
   +> flag "--table" (optional_with_default [Frenetic_Fdd.Field.get_order ()] table_fields) ~doc:"Partition of fields into Openflow 1.3 tables, e.g. ethsrc,ethdst;ipsrc,ipdst"
   +> flag "--policy-file" (optional_with_default "policy.kat" file) ~doc: "File containing NetKat policy to apply to the network"
   +> flag "--topology-file" (optional_with_default "topology.dot" file) ~doc: "File containing .dot topology of network"
-  +> flag "--vpolicy" (optional_with_default "vpolicy.dot" file) ~doc: "File containing local virtual policy (containing no links)"
-  +> flag "--vrel" (optional_with_default "vrel.kat" file) ~doc: "File containing virtual relation"
-  +> flag "--vtopo" (optional_with_default "vtopo.kat" file) ~doc: "File containing virtual topology"
-  +> flag "--ving-pol" (optional_with_default "ving_pol.kat" file) ~doc: "File containing virtual ingress policy"
-  +> flag "--ving" (optional_with_default "ving.kat" file) ~doc: "File containing virtual ingress predicate"
-  +> flag "--veg" (optional_with_default "veg.kat" file) ~doc: "File containing virtual egress predicate"
-  +> flag "--ptopo" (optional_with_default "ptopo.kat" file) ~doc: "File containing physical topology"
-  +> flag "--ping" (optional_with_default "ping.kat" file) ~doc: "File containing physical ingress"
-  +> flag "--peg" (optional_with_default "peg.kat" file) ~doc: "File containing physical egress"
+
   +> anon ("[flags] {http-controller | compile-server | staged-server | shell | openflow13 | fault_tolerant | global_cmd | virtual_cmd}" %: run_types)
 
-let command =
+let command : Command.t =
   Command.basic
     ~summary: "Frenetic NetKAT-to-OpenFlow compiler"
     spec
     (fun http_port openflow_port rpc_port verbosity log fixed_policy table_fields
-        policy_path topology_path vpolicy vrel vtopo ving_pol ving veg ptopo ping peg run_type () ->
+        policy_path topology_path run_type () ->
       let (log_path, log_output) = log in
       (* Creating an async compatible command runner where the functions have different shapes is messy,
          hence the duplication here *)
@@ -129,20 +121,16 @@ let command =
             Frenetic_Log.set_level verbosity;
             Frenetic_Log.set_output [Lazy.force log_output];
             Frenetic_OpenFlow0x04_Controller.fault_tolerant_main openflow_port policy_path topology_path ()
-        | `Global_Compiler ->
-          fun () ->
-            Frenetic_Log.set_level verbosity;
-            Frenetic_Log.set_output [Lazy.force log_output];
-            Frenetic_Virtual.main2 policy_path
-        | `Virtual_Compiler ->
-          fun () ->
-            Frenetic_Log.set_level verbosity;
-            Frenetic_Log.set_output [Lazy.force log_output];
-            Frenetic_Virtual.main vpolicy vrel vtopo ving_pol ving veg ptopo ping peg
+        | `Dump -> fun () -> ()
       in
       ignore (main ());
       Core.Std.never_returns (Async.Std.Scheduler.go ())
     )
 
+let main : Command.t =
+  Command.group
+    ~summary:"Invokes the specified Frenetic module."
+    [("old", command); ("dump", Dump.main)]
+
 let () =
-  Command.run ~version: "4.0" ~build_info: "RWO" command
+  Command.run ~version: "5.0" ~build_info: "RWO" main
