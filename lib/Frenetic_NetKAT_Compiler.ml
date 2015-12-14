@@ -162,12 +162,17 @@ type cache
     | `Empty
     | `Preserve of t ]
 
+type adherence
+  = [ `Strict
+    | `Sloppy ]
+
 type compiler_options = {
     cache_prepare: cache;
     field_order: order;
     remove_tail_drops: bool;
     dedup_flows: bool;
     optimize: bool;
+    openflow_adherence: adherence;
 }
 
 let default_compiler_options = {
@@ -176,6 +181,7 @@ let default_compiler_options = {
   remove_tail_drops = false;
   dedup_flows = true;
   optimize = true;
+  openflow_adherence = `Sloppy;
 }
 
 let compile_local ?(options=default_compiler_options) pol =
@@ -189,7 +195,8 @@ let compile_local ?(options=default_compiler_options) pol =
    | `Static flds -> Field.set_order flds);
   of_local_pol pol
 
-let is_valid_pattern (pat : Frenetic_OpenFlow.Pattern.t) : bool =
+let is_valid_pattern options (pat : Frenetic_OpenFlow.Pattern.t) : bool =
+  options.openflow_adherence = `Sloppy ||
   (Option.is_none pat.dlTyp ==>
      (Option.is_none pat.nwProto &&
       Option.is_none pat.nwSrc &&
@@ -198,8 +205,8 @@ let is_valid_pattern (pat : Frenetic_OpenFlow.Pattern.t) : bool =
      (Option.is_none pat.tpSrc &&
       Option.is_none pat.tpDst))
 
-let mk_flow pattern action queries =
-  if is_valid_pattern pattern then
+let mk_flow options pattern action queries =
+  if is_valid_pattern options pattern then
     let open Frenetic_OpenFlow.Pattern in
     let open Frenetic_OpenFlow in
     Some ({ pattern
@@ -241,7 +248,7 @@ let mk_branch_or_leaf test t f =
   | None -> Some f
   | Some t -> Some (FDK.mk_branch test t f)
 
-let opt_to_table ?group_tbl sw_id t =
+let opt_to_table ?group_tbl options sw_id t =
   let t =
     t
     |> restrict [(Field.Switch, Value.Const sw_id)
@@ -257,7 +264,7 @@ let opt_to_table ?group_tbl sw_id t =
     | Leaf actions ->
       let openflow_instruction = [to_action ?group_tbl (get_inport tests) actions tests] in
       let queries = Action.get_queries actions in
-      let row = mk_flow (to_pattern tests) openflow_instruction queries in
+      let row = mk_flow options (to_pattern tests) openflow_instruction queries in
       (row, mk_rest None)
   in
   let rec loop t acc =
@@ -267,13 +274,13 @@ let opt_to_table ?group_tbl sw_id t =
   in
   List.filter_opt (loop t [])
 
-let rec naive_to_table ?group_tbl sw_id (t : FDK.t) =
+let rec naive_to_table ?group_tbl options sw_id (t : FDK.t) =
   let t = FDK.(restrict [(Field.Switch, Value.Const sw_id)] t) |> remove_local_fields in
   let rec dfs tests t = match FDK.unget t with
   | Leaf actions ->
     let openflow_instruction = [to_action ?group_tbl (get_inport tests) actions tests] in
     let queries = Action.get_queries actions in
-    [mk_flow (to_pattern tests) openflow_instruction queries]
+    [mk_flow options (to_pattern tests) openflow_instruction queries]
   | Branch ((Location, Pipe _), _, fls) -> dfs tests fls
   | Branch (test, tru, fls) ->
     dfs (test :: tests) tru @ dfs tests fls in
@@ -293,8 +300,8 @@ let remove_tail_drops fl =
 let to_table' ?(options=default_compiler_options) ?group_tbl swId t =
   let t = if options.dedup_flows then FDK.dedup t else t in
   let t = match options.optimize with
-  | true -> opt_to_table ?group_tbl swId t
-  | false -> naive_to_table ?group_tbl swId t in
+  | true -> opt_to_table ?group_tbl options swId t
+  | false -> naive_to_table ?group_tbl options swId t in
   if options.remove_tail_drops then (remove_tail_drops t) else t
 
 let to_table ?(options=default_compiler_options) ?group_tbl swId t =
@@ -383,7 +390,8 @@ let options_from_json_string s =
   let remove_tail_drops = json |> member "remove_tail_drops" |> to_bool in
   let dedup_flows = json |> member "dedup_flows" |> to_bool in
   let optimize = json |> member "optimize" |> to_bool in
-  {cache_prepare; field_order; remove_tail_drops; dedup_flows; optimize}
+  {default_compiler_options with
+    cache_prepare; field_order; remove_tail_drops; dedup_flows; optimize}
 
 let field_order_to_string fo =
  match fo with
@@ -869,9 +877,9 @@ let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
         Map.add accum ~key:t ~data:(tbl_id,(post meta_id))))
 
 (* make a flow struct that includes the table and meta id of the flow *)
-let mk_multitable_flow (pattern : Frenetic_OpenFlow.Pattern.t)
+let mk_multitable_flow options (pattern : Frenetic_OpenFlow.Pattern.t)
   (instruction : instruction) (flowId : flowId) : multitable_flow option =
-  if is_valid_pattern pattern then
+  if is_valid_pattern options pattern then
     Some { cookie = 0L;
            idle_timeout = Permanent;
            hard_timeout = Permanent;
@@ -880,20 +888,20 @@ let mk_multitable_flow (pattern : Frenetic_OpenFlow.Pattern.t)
     None
 
 (* Create flow table rows for one subtree *)
-let subtree_to_table (subtrees : flow_subtrees) (subtree : (t * flowId))
+let subtree_to_table options (subtrees : flow_subtrees) (subtree : (t * flowId))
   (group_tbl : Frenetic_GroupTable0x04.t) : multitable_flow list =
   let rec dfs (tests : (Field.t * Value.t) list) (subtrees : flow_subtrees)
   (t : t) (flowId : flowId) : multitable_flow option list =
     match FDK.unget t with
     | Leaf actions ->
       let insts = [to_action (get_inport tests) actions tests ~group_tbl] in
-      [mk_multitable_flow (to_pattern tests) (`Action insts) flowId]
+      [mk_multitable_flow options (to_pattern tests) (`Action insts) flowId]
     | Branch ((Location, Pipe _), _, fls) ->
       failwith "1.3 compiler does not support pipes"
     | Branch (test, tru, fls) ->
      (match Map.find subtrees t with
       | Some goto_id ->
-        [mk_multitable_flow (to_pattern tests) (`GotoTable goto_id) flowId]
+        [mk_multitable_flow options (to_pattern tests) (`GotoTable goto_id) flowId]
       | None -> List.append (dfs (test :: tests) subtrees tru flowId)
                             (dfs tests subtrees fls flowId))
   in
@@ -905,19 +913,19 @@ let subtree_to_table (subtrees : flow_subtrees) (subtree : (t * flowId))
   | Leaf _  -> assert false (* each entry in the subtree map is a branch *)
 
 (* Collect the flow table rows for each subtree in one list. *)
-let subtrees_to_multitable (subtrees : flow_subtrees) : (multitable_flow list * Frenetic_GroupTable0x04.t) =
+let subtrees_to_multitable options (subtrees : flow_subtrees) : (multitable_flow list * Frenetic_GroupTable0x04.t) =
   let group_table = (Frenetic_GroupTable0x04.create ()) in
   Map.to_alist subtrees
   |> List.rev
-  |> List.map ~f:(fun subtree -> subtree_to_table subtrees subtree group_table)
+  |> List.map ~f:(fun subtree -> subtree_to_table options subtrees subtree group_table)
   |> List.concat
   |> fun ls -> (ls, group_table)
 
 (* Produce a list of flow table entries for a multitable setup *)
-let to_multitable (sw_id : switchId) (layout : flow_layout) (t : t)
+let to_multitable ?(options=default_compiler_options) (sw_id : switchId) (layout : flow_layout) t
   : (multitable_flow list * Frenetic_GroupTable0x04.t) =
   (* restrict to only instructions for this switch, get subtrees,
    * turn subtrees into list of multitable flow rows *)
   FDK.restrict [(Field.Switch, Value.Const sw_id)] t
   |> flow_table_subtrees layout
-  |> subtrees_to_multitable
+  |> subtrees_to_multitable options
