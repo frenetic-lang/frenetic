@@ -12,6 +12,9 @@ let parse_pred file =
   In_channel.read_all file
   |> Frenetic_NetKAT_Parser.pred_from_string
 
+let dump_fdd fdd =
+  printf "%s\n" (Frenetic_NetKAT_Compiler.to_string fdd)
+
 let dump_table fdd sw =
   Frenetic_NetKAT_Compiler.to_table sw fdd
   |> Frenetic_OpenFlow.string_of_flowTable ~label:(sprintf "Switch %Ld" sw)
@@ -32,11 +35,14 @@ module Local = struct
     empty
     +> anon ("filename" %: file)
     +> flag "--switches" (optional int)
-         ~doc:"n number of switches to dump flow tables for \
+        ~doc:"n number of switches to dump flow tables for \
                (assuming switch-numbering 1,2,...,n)"
+    +> flag "--dump-fdd" no_arg
+        ~doc:" dump the intermediate representation generated \
+              by the local compiler"
   )
 
-  let run file nr_switches () =
+  let run file nr_switches dumpfdd () =
     let pol = parse_pol file in
     let fdd = Frenetic_NetKAT_Compiler.compile_local pol in
     let switches = match nr_switches with
@@ -47,6 +53,7 @@ module Local = struct
       printf "Number of switches not automatically recognized!\n\
               Use the --switch flag to specify it manually.\n"
     else
+      if dumpfdd then dump_fdd fdd;
       dump_all_tables switches fdd
 end
 
