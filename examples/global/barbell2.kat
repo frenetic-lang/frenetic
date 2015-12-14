@@ -1,0 +1,10 @@
+(* In contrast with barbell1.kat, switch 3 must _not_
+   distinguish between two classes of packets in this example.
+   Ideally, the compiler should _not_ assign different tags
+   to packets entering at port 1 and packets entering at port 2.
+*)
+
+filter switch=1;(
+  filter port=1; port:=3; 1@3=>3@3; port:=1 |
+  filter port=2; port:=3; 1@3=>3@3; port:=1
+)

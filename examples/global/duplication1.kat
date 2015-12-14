@@ -1,0 +1,5 @@
+(* If a packet with ip4Src=10.0.0.1 and ip4Dst=10.0.0.1 enters switch 1,
+   only a _single_ packet should be sent to switch 5 *)
+
+filter switch=1;
+  (ip4Src:=10.0.0.1 | ip4Dst:=10.0.0.1); port:=5; 1@5=>5@1; port:=99
