@@ -629,7 +629,7 @@ module NetKAT_Automaton = struct
     |> List.iter ~f:(fun id ->
         let (e,d) = Lazy.force (Tbl.find_exn t0.states id) in
         (* SJS: even though we are traversing the graph in reverse-lexiographic order,
-           a node may not be visited after all its sucessors because there may be cylces *)
+           a node may be visited prior to one of its sucessors because there may be cylces *)
         let d = FDK.map_conts d ~f:(Tbl.find_or_add newId ~default:(fun () -> mk_state_t t)) in
         (* check if new id was already assigned *)
         match Tbl.find newId id with
