@@ -140,10 +140,7 @@ module Field = struct
         if in_product then
           let fld = field_of_header_val hv in
           let n = Hashtbl.Poly.find_exn count_tbl fld in
-          let _ = Hashtbl.Poly.replace count_tbl ~key:fld ~data:(n + size) in
-          ()
-        else
-          ()
+          Hashtbl.Poly.replace count_tbl ~key:fld ~data:(n + size)
       | Or (a, b) -> f_pred size false a; f_pred size false b
       | And (a, b) -> f_pred size true a; f_pred size true b
       | Neg a -> f_pred size in_product a in
@@ -169,9 +166,10 @@ module Field = struct
       | Star _ | Link _ | VLink _ -> k 1 (* bad, but it works *)
     and f_union pol = f_union' pol (fun n -> n) in
     let _ = f_seq pol in
-    let cmp (_, x) (_, y) = Pervasives.compare y x in
-    let lst = List.sort ~cmp (Hashtbl.Poly.to_alist count_tbl) in
-    set_order (List.map lst ~f:(fun (fld, _) -> fld))
+    Hashtbl.Poly.to_alist count_tbl
+    |> List.sort ~cmp:(fun (_, x) (_, y) -> Pervasives.compare y x)
+    |> List.map ~f:fst
+    |> set_order
 
 end
 
