@@ -464,29 +464,37 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
   in
 
   let get_path_and_distance pv1 pv2 =
-    if is_loop pv1 pv2 then ([],0) else
+    if is_loop pv1 pv2 then Some ([],0) else
     match Tbl.find dist_tbl (pv1, pv2) with
-    | Some (path, dist) -> (path, dist)
-    | None -> begin
-      try
+    | None ->
+      begin try
         let path', dist = Dijkstra.shortest_path pgraph pv1 pv2 in
         let path = unwrap_path path' in
         Tbl.replace dist_tbl ~key:(pv1, pv2) ~data:(path, dist);
-        (path, dist)
+        Some (path, dist)
       with Not_found ->
-        assert false
-    end
+        None
+      end
+    | pd -> pd
   in
 
-  let path_oracle pv1 pv2 = fst (get_path_and_distance pv1 pv2) in
+  let path_oracle pv1 pv2 =
+    match get_path_and_distance pv1 pv2 with
+    | Some (p,d) -> p
+    | None -> assert false
+  in
 
   let pv_of_v v =
     match G.Prod.V.label v with
     | InconsistentIn (_, pv) | InconsistentOut (_, pv)
-    | ConsistentIn (_, pv) | ConsistentOut (_, pv) -> pv in
+    | ConsistentIn (_, pv) | ConsistentOut (_, pv) -> pv
+  in
 
   let cost v1 v2 =
-    snd (get_path_and_distance (pv_of_v v1) (pv_of_v v2)) in
+    match get_path_and_distance (pv_of_v v1) (pv_of_v v2) with
+    | Some (p,d) -> Some p
+    | None -> None
+  in
 
   let pruned_graph = lazy (prune_product_graph prod_graph) in
   let fabric_graph = lazy (fabric_graph_of_pruned (Lazy.force pruned_graph) prod_ing cost) in
