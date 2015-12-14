@@ -57,6 +57,8 @@ module Local = struct
       dump_all_tables switches fdd
 end
 
+
+
 module Global = struct
   let spec = Command.Spec.(
     empty
@@ -70,9 +72,22 @@ module Global = struct
     dump_all_tables switches fdd
 end
 
+
+
 module Virtual = struct
-  let spec = Command.Spec.empty
-  let run () = printf "dummy!"
+  let spec = Command.Spec.(
+    empty
+    +> flag "--vpolicy" (optional_with_default "vpolicy.dot" file) ~doc: "File containing local virtual policy (containing no links)"
+    +> flag "--vrel" (optional_with_default "vrel.kat" file) ~doc: "File containing virtual relation"
+    +> flag "--vtopo" (optional_with_default "vtopo.kat" file) ~doc: "File containing virtual topology"
+    +> flag "--ving-pol" (optional_with_default "ving_pol.kat" file) ~doc: "File containing virtual ingress policy"
+    +> flag "--ving" (optional_with_default "ving.kat" file) ~doc: "File containing virtual ingress predicate"
+    +> flag "--veg" (optional_with_default "veg.kat" file) ~doc: "File containing virtual egress predicate"
+    +> flag "--ptopo" (optional_with_default "ptopo.kat" file) ~doc: "File containing physical topology"
+    +> flag "--ping" (optional_with_default "ping.kat" file) ~doc: "File containing physical ingress"
+    +> flag "--peg" (optional_with_default "peg.kat" file) ~doc: "File containing physical egress"
+  )
+  let run _ _ _ _ _ _ _ _ _ _ _ () = printf "dummy!"
 end
 
 
@@ -104,8 +119,6 @@ let virt : Command.t =
 
 let main : Command.t =
   Command.group
-    ~summary:"Runs compiler and dumps resulting flow tables"
+    ~summary:"Runs (local/global/virtual) compiler and dumps resulting flow tables"
     (* ~readme: *)
     [("local", local); ("global", global); ("virtual", virt)]
-
-let () = Command.run ~version:"1.0" main
