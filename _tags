@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 16631ef450717b24c272d10ae328fbb8)
+# DO NOT EDIT (digest: 8d4306a66e7cc3264681b8d596f7b91e)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -114,22 +114,43 @@ true: annot, bin_annot
 "frenetic/openflow.native": package(yojson)
 "frenetic/openflow.native": use_async
 "frenetic/openflow.native": use_frenetic
-<frenetic/*.ml{,i,y}>: package(async)
 <frenetic/*.ml{,i,y}>: package(async_extended)
+<frenetic/*.ml{,i,y}>: package(cohttp)
+<frenetic/*.ml{,i,y}>: package(cohttp.async)
+<frenetic/*.ml{,i,y}>: package(cstruct.async)
+<frenetic/*.ml{,i,y}>: package(mparser)
+<frenetic/*.ml{,i,y}>: package(mparser.re)
+<frenetic/*.ml{,i,y}>: use_async
+# Executable compiler
+"frenetic/compiler.native": package(async)
+"frenetic/compiler.native": package(base64)
+"frenetic/compiler.native": package(camlp4)
+"frenetic/compiler.native": package(camlp4.extend)
+"frenetic/compiler.native": package(camlp4.lib)
+"frenetic/compiler.native": package(core)
+"frenetic/compiler.native": package(cstruct)
+"frenetic/compiler.native": package(cstruct.syntax)
+"frenetic/compiler.native": package(fieldslib)
+"frenetic/compiler.native": package(fieldslib.syntax)
+"frenetic/compiler.native": package(ocamlgraph)
+"frenetic/compiler.native": package(sexplib)
+"frenetic/compiler.native": package(sexplib.syntax)
+"frenetic/compiler.native": package(str)
+"frenetic/compiler.native": package(tcpip)
+"frenetic/compiler.native": package(threads)
+"frenetic/compiler.native": package(ulex)
+"frenetic/compiler.native": package(yojson)
+"frenetic/compiler.native": use_frenetic
+<frenetic/*.ml{,i,y}>: package(async)
 <frenetic/*.ml{,i,y}>: package(base64)
 <frenetic/*.ml{,i,y}>: package(camlp4)
 <frenetic/*.ml{,i,y}>: package(camlp4.extend)
 <frenetic/*.ml{,i,y}>: package(camlp4.lib)
-<frenetic/*.ml{,i,y}>: package(cohttp)
-<frenetic/*.ml{,i,y}>: package(cohttp.async)
 <frenetic/*.ml{,i,y}>: package(core)
 <frenetic/*.ml{,i,y}>: package(cstruct)
-<frenetic/*.ml{,i,y}>: package(cstruct.async)
 <frenetic/*.ml{,i,y}>: package(cstruct.syntax)
 <frenetic/*.ml{,i,y}>: package(fieldslib)
 <frenetic/*.ml{,i,y}>: package(fieldslib.syntax)
-<frenetic/*.ml{,i,y}>: package(mparser)
-<frenetic/*.ml{,i,y}>: package(mparser.re)
 <frenetic/*.ml{,i,y}>: package(ocamlgraph)
 <frenetic/*.ml{,i,y}>: package(sexplib)
 <frenetic/*.ml{,i,y}>: package(sexplib.syntax)
@@ -138,7 +159,6 @@ true: annot, bin_annot
 <frenetic/*.ml{,i,y}>: package(threads)
 <frenetic/*.ml{,i,y}>: package(ulex)
 <frenetic/*.ml{,i,y}>: package(yojson)
-<frenetic/*.ml{,i,y}>: use_async
 <frenetic/*.ml{,i,y}>: use_frenetic
 # Library test_frenetic
 "lib_test/lib/test_frenetic.cmxs": use_test_frenetic

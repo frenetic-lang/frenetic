@@ -20,6 +20,7 @@ module type Result = sig
   val zero : t
 end
 
+
 module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   type v = V.t * L.t with sexp
   type r = R.t with sexp
@@ -76,13 +77,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   module BinTbl = Frenetic_Util.IntPairTbl
 
   let equal x y = x = y (* comparing ints *)
-
-  let rec to_string t = match T.unget t with
-    | Leaf r ->
-       Printf.sprintf "(%s)" (R.to_string r)
-    | Branch((v, l), t, f) ->
-       Printf.sprintf "(%s = %s ? %s : %s)"
-	 (V.to_string v) (L.to_string l) (to_string t) (to_string f)
+  let compare = Int.compare
 
   let mk_leaf r = T.get (Leaf r)
 
@@ -101,6 +96,16 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
 
   let drop = mk_leaf (R.zero)
   let id = mk_leaf (R.one)
+
+  let rec to_string t =
+    if t = drop then "0" else
+    if t = id then "1" else
+    match T.unget t with
+    | Leaf r ->
+       Printf.sprintf "%s" (R.to_string r)
+    | Branch((v, l), t, f) ->
+       Printf.sprintf "(%s = %s ? %s : %s)"
+   (V.to_string v) (L.to_string l) (to_string t) (to_string f)
 
   let rec fold g h t = match T.unget t with
     | Leaf r -> g r
@@ -128,7 +133,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     in
     loop (List.sort (fun (u, _) (v, _) -> V.compare u v) lst) u
 
-  let apply f zero (cache : (t*t, t) Hashtbl.t) =
+  let apply f zero ~(cache: (t*t, t) Hashtbl.t) =
     let rec sum x y =
       BinTbl.find_or_add cache (x, y) ~default:(fun () -> sum' x y)
     and sum' x y =
@@ -155,10 +160,10 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     in sum
 
   let sum_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
-  let sum = apply R.sum R.zero sum_tbl
+  let sum = apply R.sum R.zero ~cache:sum_tbl
 
   let prod_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
-  let prod = apply R.prod R.one prod_tbl
+  let prod = apply R.prod R.one ~cache:prod_tbl
 
   let clear_cache ~(preserve : Int.Set.t) =
     (* SJS: the interface exposes `id` and `drop` as constants,

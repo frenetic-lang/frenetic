@@ -42,6 +42,8 @@ module Value : sig
     with sexp
 
   include Frenetic_Vlr.Lattice with type t := t
+  val compare : t -> t -> int
+  val equal : t -> t -> bool
   val to_string : t -> string
   val of_int : int -> t
   val of_int64 : int64 -> t
@@ -74,6 +76,9 @@ module Action : sig
   module Par : sig
     include Set.S with type Elt.t = Value.t Seq.t
     val to_hvs : t -> (Field.t * Value.t) list
+    val mod_k : t -> t
+    val compare_mod_k : t -> t -> int
+    val equal_mod_k : t -> t -> bool
   end
 
   type t = Par.t with sexp
@@ -95,6 +100,6 @@ end
 module FDK : sig
   include module type of Frenetic_Vlr.Make(Field)(Value)(Action)
   val mk_cont : int -> t
-  val conts : t -> int list
+  val conts : t -> Int.Set.t
   val map_conts : t -> f:(int -> int) -> t
 end
