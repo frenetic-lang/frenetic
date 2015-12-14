@@ -27,7 +27,7 @@ let dump_all_tables switches fdd =
 
 
 (*===========================================================================*)
-(* COMMANDS                                                                  *)
+(* COMMANDS: Local, Global, Virtual                                          *)
 (*===========================================================================*)
 
 module Local = struct
@@ -87,7 +87,7 @@ module Virtual = struct
     +> flag "--ping" (optional_with_default "ping.kat" file) ~doc: "File containing physical ingress"
     +> flag "--peg" (optional_with_default "peg.kat" file) ~doc: "File containing physical egress"
   )
-  let run _ _ _ _ _ _ _ _ _ _ _ () = printf "dummy!"
+  let run _ _ _ _ _ _ _ _ _ () = printf "dummy!"
 end
 
 
