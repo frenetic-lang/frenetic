@@ -184,7 +184,7 @@ let default_compiler_options = {
   openflow_adherence = `Sloppy;
 }
 
-let compile_local ?(options=default_compiler_options) pol =
+let prepare_compilation ~options pol = begin
   (match options.cache_prepare with
    | `Keep -> ()
    | `Empty -> FDK.clear_cache ~preserve:Int.Set.empty
@@ -192,8 +192,11 @@ let compile_local ?(options=default_compiler_options) pol =
   (match options.field_order with
    | `Heuristic -> Field.auto_order pol
    | `Default -> Field.set_order Field.all_fields
-   | `Static flds -> Field.set_order flds);
-  of_local_pol pol
+   | `Static flds -> Field.set_order flds)
+end
+
+let compile_local ?(options=default_compiler_options) pol =
+  prepare_compilation ~options pol; of_local_pol pol
 
 let is_valid_pattern options (pat : Frenetic_OpenFlow.Pattern.t) : bool =
   options.openflow_adherence = `Sloppy ||
@@ -816,7 +819,8 @@ module NetKAT_Automaton = struct
     Buffer.contents buf
 end
 
-let compile_global (pol : Frenetic_NetKAT.policy) : FDK.t =
+let compile_global ?(options=default_compiler_options) (pol : Frenetic_NetKAT.policy) : FDK.t =
+  prepare_compilation ~options pol;
   NetKAT_Automaton.of_policy ~dedup:true pol
   |> NetKAT_Automaton.to_local Field.Vlan
 

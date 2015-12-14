@@ -46,7 +46,7 @@ val compile_local : ?options:compiler_options -> policy -> t
     function below.
  *)
 
-val compile_global : policy -> t
+val compile_global : ?options:compiler_options -> policy -> t
 
 val restrict : header_val -> t -> t
 (** [restrict hv t] returns the fragment of [t] that applies when the assignment
@@ -178,7 +178,7 @@ val layout_to_string : flow_layout -> string
 
 (* Produce a list of flow table entries for a multitable setup *)
 val to_multitable : ?options:compiler_options
-                  -> switchId 
-                  -> flow_layout 
-                  -> t 
+                  -> switchId
+                  -> flow_layout
+                  -> t
                   -> (multitable_flow list * Frenetic_GroupTable0x04.t)
