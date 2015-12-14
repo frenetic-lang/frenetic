@@ -1,4 +1,16 @@
-(filter (switch=1 and port=0);
-  port:=3; 1@3=>3@3; port:=4; 3@4=>4@4; port:=5; 4@5 => 5@5; port:=99) |
-(filter (switch=2 and port=0);
-  port:=3; 2@3=>3@3; port:=4; 3@4=>4@4; port:=6; 4@6 => 6@6; port:=99)
+(* The barbell-topology example from the ICFP paper.
+
+   Two classes of packets enter switch 3:
+   * Packets originiating from port 1 at switch 1.
+     These need to be forwarded out through port 1.
+   * Packets originiatong from port 2 at switch 1.
+     These need to be forwarded out through port 2.
+
+  In order for switch 3 to be able to differentiate the two
+  classes of packets, the compiler must insert tags at switch 1.
+*)
+
+filter switch=1;(
+  filter port=1; port:=3; 1@3=>3@3; port:=1 |
+  filter port=2; port:=3; 1@3=>3@3; port:=2
+)

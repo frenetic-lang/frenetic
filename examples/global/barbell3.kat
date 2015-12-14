@@ -1,0 +1,20 @@
+(* A modified barbell-topology example.
+
+  Just as in barbell1.kat. two classes of packets enter switch 3:
+   * Packets originiating from port 1 at switch 1.
+     These need to be forwarded out through port 1.
+   * Packets originiatong from port 2 at switch 1.
+     These need to be forwarded out through port 2.
+
+  Contrary to barbell1.kat, however, switch 3 can differentiate
+  these two classes trivially since one class enters at port 5
+  and the other class enters at port 6 of switch 3.
+
+  Thus, the compiler does not need to add additional tags to the
+  packets.
+*)
+
+filter switch=1;(
+  filter port=1; port:=5; 1@5=>3@5; port:=1 |
+  filter port=2; port:=6; 1@6=>3@6; port:=2
+)
