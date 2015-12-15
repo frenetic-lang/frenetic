@@ -1,5 +1,9 @@
 open Core.Std
 
+(*===========================================================================*)
+(* AUXILLIARY FUNCTIONS                                                      *)
+(*===========================================================================*)
+
 let verbosity_levels : Async.Std.Log.Level.t Command.Spec.Arg_type.t =
   Command.Spec.Arg_type.create
     (function
@@ -39,8 +43,9 @@ let table_fields : Frenetic_NetKAT_Compiler.flow_layout Command.Spec.Arg_type.t 
     )
 
 
-
-
+(*===========================================================================*)
+(* FLAG SPECIFICATION                                                        *)
+(*===========================================================================*)
 
 module Flag = struct
   open Command.Spec
@@ -76,7 +81,7 @@ end
 
 
 (*===========================================================================*)
-(* BASIC SPECIFICATION OF COMMANDS                                           *)
+(* COMMAND SPECIFICATION                                                     *)
 (*===========================================================================*)
 
 let default_spec =
