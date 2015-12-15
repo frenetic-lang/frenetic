@@ -54,17 +54,6 @@ let table_fields : Frenetic_NetKAT_Compiler.flow_layout Command.Spec.Arg_type.t 
       List.map ~f:table_to_fields field_list_list
     )
 
-let spec =
-  let open Command.Spec in
-  empty
-  +> flag "--http-port" (optional_with_default 9000 int) ~doc:"int HTTP port on which to listen for new policies"
-  +> flag "--openflow-port" (optional_with_default 6633 int) ~doc:"int Port to listen on for OpenFlow switches"
-  +> flag "--verbosity" (optional_with_default `Info verbosity_levels) ~doc:"level verbosity level = {debug, error, info}"
-  +> flag "--log" (optional_with_default default_log_device log_outputs) ~doc: "file path to write logs, 'stdout' or 'stderr'"
-  +> flag "--table" (optional_with_default [Frenetic_Fdd.Field.get_order ()] table_fields) ~doc:"Partition of fields into Openflow 1.3 tables, e.g. ethsrc,ethdst;ipsrc,ipdst"
-  +> flag "--policy-file" (optional_with_default "policy.kat" file) ~doc: "File containing NetKAT policy to apply to the network"
-  +> flag "--topology-file" (optional_with_default "topology.dot" file) ~doc: "File containing .dot topology of network"
-  +> anon ("[flags] {http-controller | compile-server | shell | openflow13 | fault_tolerant }" %: run_types)
 
 let run http_port openflow_port verbosity log table_fields policy_path topology_path run_type () =
   let (log_path, log_output) = log in
@@ -86,16 +75,83 @@ let run http_port openflow_port verbosity log table_fields policy_path topology_
   ignore (main ());
   never_returns (Async.Std.Scheduler.go ())
 
-let command : Command.t =
+
+module Flag = struct
+  open Command.Spec
+
+  let verbosity =
+    flag "--verbosity" (optional_with_default `Info verbosity_levels)
+      ~doc:"level verbosity level = {debug, error, info}"
+
+  let log =
+    flag "--log" (optional_with_default default_log_device log_outputs)
+      ~doc:"file path to write logs, 'stdout' or 'stderr'"
+
+  let http_port =
+    flag "--http-port" (optional_with_default 9000 int)
+      ~doc:"int HTTP port on which to listen for new policies"
+
+  let openflow_port =
+    flag "--openflow-port" (optional_with_default 6633 int)
+      ~doc:"int Port to listen on for OpenFlow switches"
+
+  let table =
+    flag "--table" (optional_with_default [Frenetic_Fdd.Field.get_order ()] table_fields)
+      ~doc:"Partition of fields into Openflow 1.3 tables, e.g. ethsrc,ethdst;ipsrc,ipdst"
+
+  let policy_file =
+    flag "--policy-file" (optional_with_default "policy.kat" file)
+    ~doc:"File containing NetKAT policy to apply to the network"
+
+  let topology_file =
+    flag "--topology-file" (optional_with_default "topology.dot" file)
+      ~doc:"File containing .dot topology of network"
+end
+
+module Common = struct
+
+  let spec =
+    Command.Spec.(empty +> Flag.verbosity +> Flag.log)
+
+  let run verbosity log cmd =
+    let (log_path, log_output) = log in
+    Frenetic_Log.set_level verbosity;
+    Frenetic_Log.set_output [Lazy.force log_output];
+    ignore (cmd ());
+    never_returns (Async.Std.Scheduler.go ())
+
+end
+
+module Shell = struct
+
+  let spec =
+    let open Command.Spec in
+    Common.spec +> Flag.openflow_port
+
+  let run verbosity log openflow_port =
+    Common.run verbosity log (Frenetic_Shell.main openflow_port)
+
+end
+
+
+(*===========================================================================*)
+(* BASIC SPECIFICATION OF COMMANDS                                           *)
+(*===========================================================================*)
+
+let shell : Command.t =
   Command.basic
-    ~summary: "Frenetic NetKAT-to-OpenFlow compiler"
-    spec
-    run
+  ~summary:"invoke frenetic shell"
+    (* ~readme: *)
+    Shell.spec
+    Shell.run
+
+let dump : Command.t =
+  Dump.main
 
 let main : Command.t =
   Command.group
     ~summary:"Invokes the specified Frenetic module."
-    [("old", command); ("dump", Dump.main)]
+    [("shell", shell); ("dump", Dump.main)]
 
 let () =
   Command.run ~version: "5.0" ~build_info: "RWO" main
