@@ -119,6 +119,6 @@ let virt : Command.t =
 
 let main : Command.t =
   Command.group
-    ~summary:"Runs (local/global/virtual) compiler and dumps resulting flow tables"
+    ~summary:"run (local/global/virtual) compiler and dump resulting tables"
     (* ~readme: *)
     [("local", local); ("global", global); ("virtual", virt)]

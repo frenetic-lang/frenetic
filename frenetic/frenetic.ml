@@ -1,25 +1,5 @@
 open Core.Std
 
-let run_types : [
-  `Http_Controller | `Compile_Server | `Shell |
-  `Openflow13_Controller | `Openflow13_Fault_Tolerant_Controller |
-  `Global_Compiler | `Virtual_Compiler | `Staged_Server | `VC_Shell |
-  `Dump
-] Command.Spec.Arg_type.t =
-  Command.Spec.Arg_type.create
-    (function
-      | "http-controller" -> `Http_Controller
-      | "compile-server" -> `Compile_Server
-      | "staged-server" -> `Staged_Server
-      | "vc-shell" -> `VC_Shell
-      | "shell" -> `Shell
-      | "openflow13" -> `Openflow13_Controller
-      | "fault_tolerant" -> `Openflow13_Fault_Tolerant_Controller
-      | run_type_arg ->
-        eprintf "'%s' is not a legal frenetic command\n" run_type_arg;
-        exit 1
-    )
-
 let verbosity_levels : Async.Std.Log.Level.t Command.Spec.Arg_type.t =
   Command.Spec.Arg_type.create
     (function
@@ -58,27 +38,6 @@ let table_fields : Frenetic_NetKAT_Compiler.flow_layout Command.Spec.Arg_type.t 
       List.map ~f:table_to_fields field_list_list
     )
 
-let run http_port openflow_port verbosity log table_fields policy_path topology_path run_type () =
-  let (log_path, log_output) = log in
-  let () = Frenetic_Log.set_level verbosity in
-  let () = Frenetic_Log.set_output [Lazy.force log_output] in
-  let main =
-    match run_type with
-    | `Shell ->
-        Frenetic_Shell.main openflow_port
-    | `Compile_Server ->
-        Frenetic_Compile_Server.main http_port
-    | `Http_Controller ->
-        Frenetic_Http_Controller.main http_port openflow_port
-    | `Openflow13_Controller ->
-        Frenetic_OpenFlow0x04_Controller.main openflow_port policy_path table_fields
-    | `Openflow13_Fault_Tolerant_Controller ->
-        Frenetic_OpenFlow0x04_Controller.fault_tolerant_main openflow_port policy_path topology_path
-  in
-  ignore (main ());
-  never_returns (Async.Std.Scheduler.go ())
-
-
 module Flag = struct
   open Command.Spec
 
@@ -98,7 +57,7 @@ module Flag = struct
     flag "--openflow-port" (optional_with_default 6633 int)
       ~doc:"int Port to listen on for OpenFlow switches"
 
-  let table =
+  let table_fields =
     flag "--table" (optional_with_default [Frenetic_Fdd.Field.get_order ()] table_fields)
       ~doc:"Partition of fields into Openflow 1.3 tables, e.g. ethsrc,ethdst;ipsrc,ipdst"
 
@@ -111,50 +70,74 @@ module Flag = struct
       ~doc:"File containing .dot topology of network"
 end
 
-module Common = struct
-
-  let spec =
-    Command.Spec.(empty +> Flag.verbosity +> Flag.log)
-
-  let run verbosity log cmd =
-    let (log_path, log_output) = log in
-    Frenetic_Log.set_level verbosity;
-    Frenetic_Log.set_output [Lazy.force log_output];
-    ignore (cmd ());
-    never_returns (Async.Std.Scheduler.go ())
-
-end
-
-module Shell = struct
-
-  let spec =
-    let open Command.Spec in
-    Common.spec +> Flag.openflow_port
-
-  let run verbosity log openflow_port =
-    Common.run verbosity log (Frenetic_Shell.main openflow_port)
-
-end
-
 
 (*===========================================================================*)
 (* BASIC SPECIFICATION OF COMMANDS                                           *)
 (*===========================================================================*)
 
+let default_spec =
+  Command.Spec.(empty +> Flag.verbosity +> Flag.log)
+
+let run cmd verbosity log =
+  let (log_path, log_output) = log in
+  Frenetic_Log.set_level verbosity;
+  Frenetic_Log.set_output [Lazy.force log_output];
+  ignore (cmd ());
+  never_returns (Async.Std.Scheduler.go ())
+
 let shell : Command.t =
   Command.basic
-  ~summary:"invoke frenetic shell"
-    (* ~readme: *)
-    Shell.spec
-    Shell.run
+    ~summary:"invoke frenetic shell"
+    Command.Spec.(empty +> Flag.openflow_port ++ default_spec)
+    (fun openflow_port ->
+      run (Frenetic_Shell.main openflow_port))
 
-let dump : Command.t =
-  Dump.main
+let compile_server : Command.t =
+  Command.basic
+    ~summary:"invoke compile server"
+    Command.Spec.(empty +> Flag.http_port ++ default_spec)
+    (fun http_port ->
+      run (Frenetic_Compile_Server.main http_port))
+
+let http_controller : Command.t =
+  Command.basic
+    ~summary:"invoke http controler"
+    Command.Spec.(empty +> Flag.http_port +> Flag.openflow_port ++ default_spec)
+    (fun http_port openflow_port ->
+      run (Frenetic_Http_Controller.main http_port openflow_port))
+
+let openflow13_controller : Command.t =
+  Command.basic
+    ~summary:"invoke openflow 1.3 controler"
+    Command.Spec.(empty
+      +> Flag.openflow_port
+      +> Flag.policy_file
+      +> Flag.table_fields
+      ++ default_spec)
+    (fun openflow_port policy_file table_fields ->
+      run (Frenetic_OpenFlow0x04_Controller.main openflow_port policy_file table_fields))
+
+let openflow13_fault_tolerant_controller : Command.t =
+  Command.basic
+    ~summary:"invoke fault-tolerant openflow 1.3 controler"
+    Command.Spec.(empty
+      +> Flag.openflow_port
+      +> Flag.policy_file
+      +> Flag.topology_file
+      ++ default_spec)
+    (fun openflow_port policy_file topology_file ->
+      Frenetic_OpenFlow0x04_Controller.fault_tolerant_main openflow_port policy_file topology_file
+      |> run)
 
 let main : Command.t =
   Command.group
     ~summary:"Invokes the specified Frenetic module."
-    [("shell", shell); ("dump", Dump.main)]
+    [ ("shell", shell)
+    ; ("compile-server", compile_server)
+    ; ("http-controller", http_controller)
+    ; ("openflow13", openflow13_controller)
+    ; ("fault-tolerant", openflow13_fault_tolerant_controller)
+    ; ("dump", Dump.main)]
 
 let () =
   Command.run ~version: "5.0" ~build_info: "RWO" main
