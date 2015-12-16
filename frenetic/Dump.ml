@@ -90,11 +90,11 @@ module Flag = struct
 
   let ping =
     flag "--ping" (optional_with_default "ping.kat" file)
-      ~doc: "file Physical ingress. If not specified, defaults to ping.kat"
+      ~doc: "file Physical ingress predicate. If not specified, defaults to ping.kat"
 
   let peg =
     flag "--peg" (optional_with_default "peg.kat" file)
-      ~doc: "file Physical egress. If not specified, defaults to peg.kat"
+      ~doc: "file Physical egress predicate. If not specified, defaults to peg.kat"
 end
 
 
@@ -105,7 +105,7 @@ end
 module Local = struct
   let spec = Command.Spec.(
     empty
-    +> anon ("filename" %: file)
+    +> anon ("file" %: file)
     +> Flag.switches
     +> Flag.print_fdd
     +> Flag.dump_fdd
@@ -132,13 +132,19 @@ end
 module Global = struct
   let spec = Command.Spec.(
     empty
-    +> anon ("filename" %: file)
+    +> anon ("file" %: file)
+    +> Flag.print_fdd
+    +> Flag.dump_fdd
+    +> Flag.print_auto
+    +> Flag.dump_auto
   )
 
-  let run file () =
+  let run file printfdd dumpfdd printauto dumpauto () =
     let pol = parse_pol file in
     let fdd = Frenetic_NetKAT_Compiler.compile_global pol in
     let switches = Frenetic_NetKAT_Semantics.switches_of_policy pol in
+    if printfdd then print_fdd fdd;
+    if dumpfdd then dump_fdd fdd;
     print_all_tables fdd switches
 end
 
