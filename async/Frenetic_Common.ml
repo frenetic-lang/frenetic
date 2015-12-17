@@ -45,7 +45,7 @@ let handle_parse_errors'
   >>= function
   | Ok x -> handler x
   | Error exn ->
-      printf ~level:`Error "Invalid message from client:\n%s" body_str;
+      printf ~level:`Error "Invalid message from client %s:\n%s" (Exn.to_string exn) body_str;
       Cohttp_async.Server.respond `Bad_request
 
 let parse_update body = Body.to_string body >>= fun pol_str ->
