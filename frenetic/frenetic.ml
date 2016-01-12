@@ -44,7 +44,7 @@ let table_fields : Frenetic_NetKAT_Compiler.flow_layout Command.Spec.Arg_type.t 
 
 
 (*===========================================================================*)
-(* FLAG SPECIFICATION                                                        *)
+(* FLAGS                                                                     *)
 (*===========================================================================*)
 
 module Flag = struct
@@ -60,11 +60,11 @@ module Flag = struct
 
   let http_port =
     flag "--http-port" (optional_with_default 9000 int)
-      ~doc:"int HTTP port on which to listen for new policies"
+      ~doc:"int HTTP port on which to listen for new policies. Defaults to 9000."
 
   let openflow_port =
     flag "--openflow-port" (optional_with_default 6633 int)
-      ~doc:"int Port to listen on for OpenFlow switches"
+      ~doc:"int Port to listen on for OpenFlow switches. Defaults to 6633."
 
   let table_fields =
     flag "--table" (optional_with_default [Frenetic_Fdd.Field.get_order ()] table_fields)
@@ -72,16 +72,16 @@ module Flag = struct
 
   let policy_file =
     flag "--policy-file" (optional_with_default "policy.kat" file)
-    ~doc:"File containing NetKAT policy to apply to the network"
+    ~doc:"File containing NetKAT policy to apply to the network. Defaults to \"policy.kat\"."
 
   let topology_file =
     flag "--topology-file" (optional_with_default "topology.dot" file)
-      ~doc:"File containing .dot topology of network"
+      ~doc:"File containing .dot topology of network. Defaults to \"topology.kat\"."
 end
 
 
 (*===========================================================================*)
-(* COMMAND SPECIFICATION                                                     *)
+(* COMMANDS                                                                  *)
 (*===========================================================================*)
 
 let default_spec =
@@ -97,21 +97,28 @@ let run cmd verbosity log =
 let shell : Command.t =
   Command.basic
     ~summary:"invoke frenetic shell"
-    Command.Spec.(empty +> Flag.openflow_port ++ default_spec)
+    Command.Spec.(empty
+      +> Flag.openflow_port
+      ++ default_spec)
     (fun openflow_port ->
       run (Frenetic_Shell.main openflow_port))
 
 let compile_server : Command.t =
   Command.basic
     ~summary:"invoke compile server"
-    Command.Spec.(empty +> Flag.http_port ++ default_spec)
+    Command.Spec.(empty
+      +> Flag.http_port
+      ++ default_spec)
     (fun http_port ->
       run (Frenetic_Compile_Server.main http_port))
 
 let http_controller : Command.t =
   Command.basic
     ~summary:"invoke http controler"
-    Command.Spec.(empty +> Flag.http_port +> Flag.openflow_port ++ default_spec)
+    Command.Spec.(empty
+      +> Flag.http_port
+      +> Flag.openflow_port
+      ++ default_spec)
     (fun http_port openflow_port ->
       run (Frenetic_Http_Controller.main http_port openflow_port))
 
@@ -135,8 +142,8 @@ let openflow13_fault_tolerant_controller : Command.t =
       +> Flag.topology_file
       ++ default_spec)
     (fun openflow_port policy_file topology_file ->
-      Frenetic_OpenFlow0x04_Controller.fault_tolerant_main openflow_port policy_file topology_file
-      |> run)
+      run (Frenetic_OpenFlow0x04_Controller.fault_tolerant_main
+        openflow_port policy_file topology_file))
 
 let main : Command.t =
   Command.group
