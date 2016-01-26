@@ -10,24 +10,8 @@ open Yojson.Basic
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Optimize
 
-let macaddr_to_string (mac : Int64.t) : string =
-  let buf = Bytes.create 6 in
-  let rec loop n =
-    let byte = Int64.bit_and (Int64.shift_right mac (8 * n)) 0xffL in
-    Bytes.set buf n (Char.of_int_exn (Int64.to_int_exn byte));
-    if n = 5 then () else loop (n + 1) in
-  loop 0;
-  Macaddr.to_string (Macaddr.of_bytes_exn buf)
-
-let macaddr_from_string (str : string) : Int64.t =
-  let buf = Macaddr.to_bytes (Macaddr.of_string_exn str) in
-  let byte n = Int64.of_int (Char.to_int (Bytes.get buf n)) in
-  let rec loop n acc =
-    let shift = 8 * (5 - n) in
-    let acc' = Int64.(acc + (shift_left (byte n) shift)) in
-    if n = 5 then acc'
-    else loop (n + 1) acc' in
-  loop 0 0L
+let macaddr_to_string  = Frenetic_Packet.string_of_mac
+let macaddr_from_string = Frenetic_Packet.mac_of_string
 
 let to_json_value (h : header_val) : json = match h with
   | Switch n | VSwitch n | VPort n | VFabric n -> `String (string_of_int (Int64.to_int_exn n))
