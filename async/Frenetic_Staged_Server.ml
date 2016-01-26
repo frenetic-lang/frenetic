@@ -265,7 +265,7 @@ let main (port:int) () =
   print_endline "NetKAT compiler running";
   Frenetic_Fdd.Field.set_order
    [ Switch; Location; VSwitch; VPort; IP4Dst; Vlan; TCPSrcPort; TCPDstPort; IP4Src;
-      EthType; EthDst; EthSrc; VlanPcp; IPProto ; Wavelength];
+      EthType; EthDst; EthSrc; VlanPcp; IPProto ; VFabric; Wavelength];
   ignore (Cohttp_async.Server.create (Tcp.on_port port) handle_request)
 
 (* let main (args : string list) : unit = match args with *)

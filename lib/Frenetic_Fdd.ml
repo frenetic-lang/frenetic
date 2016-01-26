@@ -68,12 +68,12 @@ module Field = struct
     | VFabric -> "VFabric"
     | Wavelength -> "Wavelength"
 
-  let num_fields = 15
+  let num_fields = 16
 
   (* Ensure that these are in the same order in which the variants appear. *)
   let all_fields =
     [ Switch; Vlan; VlanPcp; VSwitch; VPort; EthType; IPProto; EthSrc; EthDst;
-      IP4Src; IP4Dst; TCPSrcPort; TCPDstPort; Location; VFabric]
+      IP4Src; IP4Dst; TCPSrcPort; TCPDstPort; Location; VFabric; Wavelength]
 
   let is_valid_order (lst : t list) : bool =
     List.length lst = num_fields &&
