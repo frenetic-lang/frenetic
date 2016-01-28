@@ -1,11 +1,11 @@
 #!/bin/bash
-../../../katnetic.native virtual\
-  vno2-vpol.kat\
-  vno2-vrel.kat\
-  vtopo.kat\
-  vno2-vingpol.kat\
-  vno2-vinout.kat\
-  vno2-vinout.kat\
-  ptopo.kat\
-  pinout.kat\
-  pinout.kat 
+../../../frenetic.native dump virtual\
+  --vpol vno2-vpol.kat\
+  --vrel vno2-vrel.kat\
+  --vtopo vtopo.kat\
+  --ving-pol vno2-vingpol.kat\
+  --ving vno2-vinout.kat\
+  --veg vno2-vinout.kat\
+  --ptopo ptopo.kat\
+  --ping pinout.kat\
+  --peg pinout.kat 

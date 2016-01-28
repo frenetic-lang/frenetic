@@ -1,6 +1,6 @@
 #!/bin/bash
 
-../../../frenetic.native virtual_cmd\
+../../../frenetic.native dump virtual \
   --vpol mapreduce/vpol.kat\
   --vrel mapreduce/vrel.kat\
   --vtopo mapreduce/vtopo.kat\
