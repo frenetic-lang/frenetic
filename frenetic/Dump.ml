@@ -174,27 +174,27 @@ end
 
 let local : Command.t =
   Command.basic
-    ~summary:"run local compiler"
+    ~summary:"Runs local compiler and dumps resulting tables."
     (* ~readme: *)
     Local.spec
     Local.run
 
 let global : Command.t =
   Command.basic
-    ~summary:"run global compiler"
+    ~summary:"Runs global compiler and dumps resulting tables."
     (* ~readme: *)
     Global.spec
     Global.run
 
 let virt : Command.t =
   Command.basic
-    ~summary:"run virtual compiler"
+    ~summary:"Runs virtual compiler and dumps resulting tables."
     (* ~readme: *)
     Virtual.spec
     Virtual.run
 
 let main : Command.t =
   Command.group
-    ~summary:"run (local/global/virtual) compiler and dump resulting tables"
+    ~summary:"Runs (local/global/virtual) compiler and dumps resulting tables."
     (* ~readme: *)
     [("local", local); ("global", global); ("virtual", virt)]
