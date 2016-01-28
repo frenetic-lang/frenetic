@@ -1,0 +1,19 @@
+GLOBAL COMPILER EXAMPLES
+=====================================================
+
+To run the examples in this directory, execute
+  
+   frenetic dump global FILE
+
+You may have to install frenetic first by executing
+
+   make && sudo make (re)install
+
+in the frenetic root directory.
+
+-----------------------------------------------------
+
+To see more options, like dumping the compiler's intermediate representation,
+execute 
+
+   frenetic dump global -help
