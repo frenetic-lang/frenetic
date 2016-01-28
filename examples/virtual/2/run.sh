@@ -1,7 +1,7 @@
 #!/bin/bash
 
-../../../frenetic.native virtual_cmd\
-  --vpolicy vpol.kat\
+../../../frenetic.native dump virtual \
+  --vpol vpol.kat\
   --vrel vrel.kat\
   --vtopo vtopo.kat\
   --ving-pol vingpol.kat\
