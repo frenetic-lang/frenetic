@@ -95,7 +95,7 @@ let run cmd verbosity log =
 
 let shell : Command.t =
   Command.basic
-    ~summary:"invoke frenetic shell"
+    ~summary:"Invokes frenetic shell."
     Command.Spec.(empty
       +> Flag.openflow_port
       ++ default_spec)
@@ -104,7 +104,7 @@ let shell : Command.t =
 
 let compile_server : Command.t =
   Command.basic
-    ~summary:"invoke compile server"
+    ~summary:"Invokes compile server."
     Command.Spec.(empty
       +> Flag.http_port
       ++ default_spec)
@@ -113,7 +113,7 @@ let compile_server : Command.t =
 
 let http_controller : Command.t =
   Command.basic
-    ~summary:"invoke http controler"
+    ~summary:"Invokes http controler."
     Command.Spec.(empty
       +> Flag.http_port
       +> Flag.openflow_port
@@ -123,7 +123,7 @@ let http_controller : Command.t =
 
 let openflow13_controller : Command.t =
   Command.basic
-    ~summary:"invoke openflow 1.3 controler"
+    ~summary:"Invokes openflow 1.3 controler."
     Command.Spec.(empty
       +> Flag.openflow_port
       +> Flag.policy_file
@@ -134,7 +134,7 @@ let openflow13_controller : Command.t =
 
 let openflow13_fault_tolerant_controller : Command.t =
   Command.basic
-    ~summary:"invoke fault-tolerant openflow 1.3 controler"
+    ~summary:"Invokes fault-tolerant openflow 1.3 controler."
     Command.Spec.(empty
       +> Flag.openflow_port
       +> Flag.policy_file
