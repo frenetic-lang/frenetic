@@ -395,43 +395,38 @@ let rec print_path path out_channel =
   | [] -> Printf.fprintf out_channel "\n%!";
   | _ -> assert false
 
-let print_pair (v1,v2) to_int=
-  match v1,v2 with
-  | InPort(s1,p1), OutPort(s2,p2)
-  | InPort(s1,p1), InPort(s2,p2)
-  | OutPort(s1,p1), OutPort(s2,p2)
-  | OutPort(s1,p1), InPort(s2,p2) ->
-    Printf.fprintf stdout "pair is: %Lu %i-%Lu %i\n" s1 (to_int p1) s2 (to_int p2)
-
-let fabric_atom_of_prod_edge ?(record_paths=None) path_oracle v1 v2 =
+let fabric_atom_of_prod_edge ?record_paths path_oracle v1 v2 =
   match G.Prod.V.label v1, G.Prod.V.label v2 with
   | ConsistentOut _, InconsistentIn _ | ConsistentIn _, InconsistentOut _ -> `None
   | (InconsistentOut (vv, pv1) as l), ConsistentOut (vv', pv2)
   | (InconsistentIn (vv, pv1) as l), ConsistentIn (vv', pv2) ->
-     assert (vv = vv');
-     let path = path_oracle pv1 pv2 in
-     let _ = Core.Std.Option.(record_paths >>| print_path path) in
-     let fabric = mk_big_seq [match_vloc' vv; match_ploc' pv1; policy_of_path path; set_vloc' vv] in
-     begin match l with
-       | InconsistentOut _ -> `Out fabric
-       | InconsistentIn _ -> `In fabric
-       | _ -> assert false
-     end
+    assert (vv = vv');
+    let path = path_oracle pv1 pv2 in
+    let _ = Core.Std.Option.(record_paths >>| print_path path) in
+    let fabric =
+      [match_vloc' vv; match_ploc' pv1; policy_of_path path; set_vloc' vv]
+      |> mk_big_seq
+    in
+    begin match l with
+     | InconsistentOut _ -> `Out fabric
+     | InconsistentIn _ -> `In fabric
+     | _ -> assert false
+    end
   | _ -> assert false
 
-let fabric_of_fabric_graph ?(record_paths=None) g ing path_oracle =
-  if List.for_all (fun v -> G.Prod.mem_vertex g v) ing then
+let fabric_of_fabric_graph ?record_paths g ing path_oracle =
+  if not (List.for_all (G.Prod.mem_vertex g) ing) then
+    failwith "virtual compiler: specification allows for no valid fabric"
+  else
     let record_paths = Core.Std.Option.(record_paths >>| open_out) in
     let f v1 v2 ((fout, fin) as fs) =
-      match fabric_atom_of_prod_edge ~record_paths path_oracle v1 v2 with
+      match fabric_atom_of_prod_edge ?record_paths path_oracle v1 v2 with
       | `None -> fs
       | `Out f -> (f::fout, fin)
       | `In f -> (fout, f::fin) in
     let fabric = G.Prod.fold_edges f g ([], []) in
     let _ = Core.Std.Option.(record_paths >>| close_out) in
     fabric
-  else
-    failwith "global compiler: specification allows for no valid fabric"
 
 let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_topo p_ing p_eg  =
   let vgraph = G.Virt.make v_ing v_eg v_topo in
@@ -498,7 +493,7 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
 
   let pruned_graph = lazy (prune_product_graph prod_graph) in
   let fabric_graph = lazy (fabric_graph_of_pruned (Lazy.force pruned_graph) prod_ing cost) in
-  let fabric = lazy (fabric_of_fabric_graph ~record_paths (Lazy.force fabric_graph) prod_ing path_oracle) in
+  let fabric = lazy (fabric_of_fabric_graph ?record_paths (Lazy.force fabric_graph) prod_ing path_oracle) in
   let vg_file = "vg.dot" in
   let pg_file = "pg.dot" in
   let g_raw_file = "g_raw.dot" in
