@@ -722,12 +722,12 @@ module FDK = struct
       (fun _ t f -> Set.union t f)
       fdk
 
-  let map_conts t ~(f: int -> int) =
+  let map_conts fdk ~(f: int -> int) =
     let open Action in
     let f par = Par.map par ~f:(fun seq -> Seq.change seq K (function
       | None -> failwith "continuation expected, but none found"
       | Some k -> Some (k |> Value.to_int_exn |> f |> Value.of_int)))
     in
-    map_r f t
+    map_r f fdk
 
 end
