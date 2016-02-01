@@ -741,7 +741,7 @@ module NetKAT_Automaton = struct
       (fun (f,_) l r -> l && r && f<>pc)
       fdd
 
-  let to_local (pc : Field.t) (automaton : t) : FDK.t =
+  let to_local ~(pc : Field.t) (automaton : t) : FDK.t =
     fold_reachable automaton ~init:FDK.drop ~f:(fun acc id (e,d) ->
       let _ = assert (pc_unused pc e && pc_unused pc d) in
       let d =
@@ -821,8 +821,8 @@ end
 
 let compile_global ?(options=default_compiler_options) (pol : Frenetic_NetKAT.policy) : FDK.t =
   prepare_compilation ~options pol;
-  NetKAT_Automaton.of_policy ~dedup:true pol
-  |> NetKAT_Automaton.to_local Field.Vlan
+  NetKAT_Automaton.of_policy pol
+  |> NetKAT_Automaton.to_local ~pc:Field.Vlan
 
 
 
