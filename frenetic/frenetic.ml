@@ -3,7 +3,7 @@ open Core.Std
 let run_types : [
   `Http_Controller | `Compile_Server | `Shell | 
   `Openflow13_Controller | `Openflow13_Fault_Tolerant_Controller |
-  `Global_Compiler | `Virtual_Compiler | `Staged_Server
+  `Global_Compiler | `Virtual_Compiler | `Staged_Server | `VC_Shell
 ] Command.Spec.Arg_type.t = 
   Command.Spec.Arg_type.create
     (fun run_type_arg ->
@@ -11,6 +11,7 @@ let run_types : [
       | "http-controller" -> `Http_Controller
       | "compile-server" -> `Compile_Server
       | "staged-server" -> `Staged_Server
+      | "vc-shell" -> `VC_Shell
       | "shell" -> `Shell
       | "openflow13" -> `Openflow13_Controller
       | "fault_tolerant" -> `Openflow13_Fault_Tolerant_Controller
@@ -108,6 +109,11 @@ let command =
             Frenetic_Log.set_level verbosity;
             Frenetic_Log.set_output [Lazy.force log_output];
             Frenetic_Staged_Server.main http_port ()
+        | `VC_Shell ->
+          fun () ->
+            Frenetic_Log.set_level verbosity;
+            Frenetic_Log.set_output [Lazy.force log_output];
+            Frenetic_VC_Shell.main ()
         | `Http_Controller -> 
           fun () -> 
             Frenetic_Log.set_level verbosity;
