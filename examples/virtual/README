@@ -1,0 +1,17 @@
+VIRTUAL COMPILER EXAMPLES
+=====================================================
+
+Each folder comes with a script "run.sh". Execute it to compile the respective example.
+
+You may have to install frenetic first by executing
+
+   make && sudo make (re)install
+
+in the frenetic root directory.
+
+-----------------------------------------------------
+
+For more options, like dumping the compiler's intermediate representation,
+execute 
+
+   frenetic dump virtual -help

@@ -1,24 +1,8 @@
 open Core.Std
 
-let run_types : [
-  `Http_Controller | `Compile_Server | `Shell |
-  `Openflow13_Controller | `Openflow13_Fault_Tolerant_Controller |
-  `Global_Compiler | `Virtual_Compiler
-] Command.Spec.Arg_type.t =
-  Command.Spec.Arg_type.create
-    (fun run_type_arg ->
-      match run_type_arg with
-      | "http-controller" -> `Http_Controller
-      | "compile-server" -> `Compile_Server
-      | "shell" -> `Shell
-      | "openflow13" -> `Openflow13_Controller
-      | "fault_tolerant" -> `Openflow13_Fault_Tolerant_Controller
-      | "global_cmd" -> `Global_Compiler
-      | "virtual_cmd" -> `Virtual_Compiler
-      | _ ->
-        eprintf "'%s' is not a legal frenetic command\n" run_type_arg;
-        exit 1
-    )
+(*===========================================================================*)
+(* AUXILLIARY FUNCTIONS                                                      *)
+(*===========================================================================*)
 
 let verbosity_levels : Async.Std.Log.Level.t Command.Spec.Arg_type.t =
   Command.Spec.Arg_type.create
@@ -58,79 +42,118 @@ let table_fields : Frenetic_NetKAT_Compiler.flow_layout Command.Spec.Arg_type.t 
       List.map ~f:table_to_fields field_list_list
     )
 
-let spec =
-  let open Command.Spec in
-  empty
-  +> flag "--http-port" (optional_with_default 9000 int) ~doc:"int HTTP port on which to listen for new policies"
-  +> flag "--openflow-port" (optional_with_default 6633 int) ~doc:"int Port to listen on for OpenFlow switches"
-  +> flag "--rpc-port" (optional_with_default 8984 int) ~doc:"int TCP port to serve on for communicating with higher-level controller"
-  +> flag "--verbosity" (optional_with_default `Info verbosity_levels) ~doc:"level verbosity level = {debug, error, info}"
-  +> flag "--log" (optional_with_default default_log_device log_outputs) ~doc: "file path to write logs, 'stdout' or 'stderr'"
-  +> flag "--policy" (optional string) ~doc: "NetKat policy to apply to the network"
-  +> flag "--table" (optional_with_default [Frenetic_Fdd.Field.get_order ()] table_fields) ~doc:"Partition of fields into Openflow 1.3 tables, e.g. ethsrc,ethdst;ipsrc,ipdst"
-  +> flag "--policy-file" (optional_with_default "policy.kat" file) ~doc: "File containing NetKat policy to apply to the network"
-  +> flag "--topology-file" (optional_with_default "topology.dot" file) ~doc: "File containing .dot topology of network"
-  +> flag "--vpolicy" (optional_with_default "vpolicy.dot" file) ~doc: "File containing local virtual policy (containing no links)"
-  +> flag "--vrel" (optional_with_default "vrel.kat" file) ~doc: "File containing virtual relation"
-  +> flag "--vtopo" (optional_with_default "vtopo.kat" file) ~doc: "File containing virtual topology"
-  +> flag "--ving-pol" (optional_with_default "ving_pol.kat" file) ~doc: "File containing virtual ingress policy"
-  +> flag "--ving" (optional_with_default "ving.kat" file) ~doc: "File containing virtual ingress predicate"
-  +> flag "--veg" (optional_with_default "veg.kat" file) ~doc: "File containing virtual egress predicate"
-  +> flag "--ptopo" (optional_with_default "ptopo.kat" file) ~doc: "File containing physical topology"
-  +> flag "--ping" (optional_with_default "ping.kat" file) ~doc: "File containing physical ingress"
-  +> flag "--peg" (optional_with_default "peg.kat" file) ~doc: "File containing physical egress"
-  +> anon ("[flags] {http-controller | compile-server | shell | openflow13 | fault_tolerant | global_cmd | virtual_cmd}" %: run_types)
 
-let command =
+(*===========================================================================*)
+(* FLAGS                                                                     *)
+(*===========================================================================*)
+
+module Flag = struct
+  open Command.Spec
+
+  let verbosity =
+    flag "--verbosity" (optional_with_default `Info verbosity_levels)
+      ~doc:"level verbosity level = {debug, error, info}"
+
+  let log =
+    flag "--log" (optional_with_default default_log_device log_outputs)
+      ~doc:"file path to write logs, 'stdout' or 'stderr'"
+
+  let http_port =
+    flag "--http-port" (optional_with_default 9000 int)
+      ~doc:"int HTTP port on which to listen for new policies. Defaults to 9000."
+
+  let openflow_port =
+    flag "--openflow-port" (optional_with_default 6633 int)
+      ~doc:"int Port to listen on for OpenFlow switches. Defaults to 6633."
+
+  let table_fields =
+    flag "--table" (optional_with_default [Frenetic_Fdd.Field.get_order ()] table_fields)
+      ~doc:"Partition of fields into Openflow 1.3 tables, e.g. ethsrc,ethdst;ipsrc,ipdst"
+
+  let policy_file =
+    flag "--policy-file" (optional_with_default "policy.kat" file)
+    ~doc:"File containing NetKAT policy to apply to the network. Defaults to \"policy.kat\"."
+
+  let topology_file =
+    flag "--topology-file" (optional_with_default "topology.dot" file)
+      ~doc:"File containing .dot topology of network. Defaults to \"topology.kat\"."
+end
+
+
+(*===========================================================================*)
+(* COMMANDS                                                                  *)
+(*===========================================================================*)
+
+let default_spec =
+  Command.Spec.(empty +> Flag.verbosity +> Flag.log)
+
+let run cmd verbosity log =
+  let (log_path, log_output) = log in
+  Frenetic_Log.set_level verbosity;
+  Frenetic_Log.set_output [Lazy.force log_output];
+  ignore (cmd ());
+  never_returns (Async.Std.Scheduler.go ())
+
+let shell : Command.t =
   Command.basic
-    ~summary: "Frenetic NetKAT-to-OpenFlow compiler"
-    spec
-    (fun http_port openflow_port rpc_port verbosity log fixed_policy table_fields
-        policy_path topology_path vpolicy vrel vtopo ving_pol ving veg ptopo ping peg run_type () ->
-      let (log_path, log_output) = log in
-      (* Creating an async compatible command runner where the functions have different shapes is messy,
-         hence the duplication here *)
-      let main =
-        match run_type with
-        | `Shell ->
-          fun () ->
-            Frenetic_Log.set_level verbosity;
-            Frenetic_Log.set_output [Lazy.force log_output];
-            Frenetic_Shell.main openflow_port ()
-        | `Compile_Server ->
-          fun () ->
-            Frenetic_Log.set_level verbosity;
-            Frenetic_Log.set_output [Lazy.force log_output];
-            Frenetic_Compile_Server.main http_port ()
-        | `Http_Controller ->
-          fun () ->
-            Frenetic_Log.set_level verbosity;
-            Frenetic_Log.set_output [Lazy.force log_output];
-            Frenetic_Http_Controller.main http_port openflow_port ()
-        | `Openflow13_Controller ->
-          fun () ->
-            Frenetic_Log.set_level verbosity;
-            Frenetic_Log.set_output [Lazy.force log_output];
-            Frenetic_OpenFlow0x04_Controller.main openflow_port policy_path table_fields ()
-        | `Openflow13_Fault_Tolerant_Controller ->
-          fun () ->
-            Frenetic_Log.set_level verbosity;
-            Frenetic_Log.set_output [Lazy.force log_output];
-            Frenetic_OpenFlow0x04_Controller.fault_tolerant_main openflow_port policy_path topology_path ()
-        | `Global_Compiler ->
-          fun () ->
-            Frenetic_Log.set_level verbosity;
-            Frenetic_Log.set_output [Lazy.force log_output];
-            Frenetic_Virtual.main2 policy_path
-        | `Virtual_Compiler ->
-          fun () ->
-            Frenetic_Log.set_level verbosity;
-            Frenetic_Log.set_output [Lazy.force log_output];
-            Frenetic_Virtual.main vpolicy vrel vtopo ving_pol ving veg ptopo ping peg
-      in
-      ignore (main ());
-      Core.Std.never_returns (Async.Std.Scheduler.go ())
-    )
+    ~summary:"Invokes frenetic shell."
+    Command.Spec.(empty
+      +> Flag.openflow_port
+      ++ default_spec)
+    (fun openflow_port ->
+      run (Frenetic_Shell.main openflow_port))
+
+let compile_server : Command.t =
+  Command.basic
+    ~summary:"Invokes compile server."
+    Command.Spec.(empty
+      +> Flag.http_port
+      ++ default_spec)
+    (fun http_port ->
+      run (Frenetic_Compile_Server.main http_port))
+
+let http_controller : Command.t =
+  Command.basic
+    ~summary:"Invokes http controler."
+    Command.Spec.(empty
+      +> Flag.http_port
+      +> Flag.openflow_port
+      ++ default_spec)
+    (fun http_port openflow_port ->
+      run (Frenetic_Http_Controller.main http_port openflow_port))
+
+let openflow13_controller : Command.t =
+  Command.basic
+    ~summary:"Invokes openflow 1.3 controler."
+    Command.Spec.(empty
+      +> Flag.openflow_port
+      +> Flag.policy_file
+      +> Flag.table_fields
+      ++ default_spec)
+    (fun openflow_port policy_file table_fields ->
+      run (Frenetic_OpenFlow0x04_Controller.main openflow_port policy_file table_fields))
+
+let openflow13_fault_tolerant_controller : Command.t =
+  Command.basic
+    ~summary:"Invokes fault-tolerant openflow 1.3 controler."
+    Command.Spec.(empty
+      +> Flag.openflow_port
+      +> Flag.policy_file
+      +> Flag.topology_file
+      ++ default_spec)
+    (fun openflow_port policy_file topology_file ->
+      run (Frenetic_OpenFlow0x04_Controller.fault_tolerant_main
+        openflow_port policy_file topology_file))
+
+let main : Command.t =
+  Command.group
+    ~summary:"Invokes the specified Frenetic module."
+    [ ("shell", shell)
+    ; ("compile-server", compile_server)
+    ; ("http-controller", http_controller)
+    ; ("openflow13", openflow13_controller)
+    ; ("fault-tolerant", openflow13_fault_tolerant_controller)
+    ; ("dump", Dump.main)]
 
 let () =
-  Command.run ~version: "4.0" ~build_info: "RWO" command
+  Command.run ~version: "5.0" ~build_info: "RWO" main

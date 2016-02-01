@@ -1,7 +1,6 @@
 #!/bin/bash
 
-../../../frenetic.native virtual_cmd\
-  --vpol mapreduce/vpol.kat\
+../../../frenetic.native dump virtual mapreduce/vpol.kat \
   --vrel mapreduce/vrel.kat\
   --vtopo mapreduce/vtopo.kat\
   --ving-pol mapreduce/vingpol.kat\
@@ -12,10 +11,13 @@
   --peg peg.kat
 
 
-for arg in "g_fabric" "g_pruned" "pg" "vg" "g_raw" 
-do 
-  echo $arg
-  arg1="${arg}.dot"
-  arg2="${arg}.png"
-  dot -Tpng $arg1 > $arg2
-done
+if which dot >/dev/null
+then
+  for arg in "g_fabric" "g_pruned" "pg" "vg" "g_raw"
+  do
+    echo $arg
+    arg1="${arg}.dot"
+    arg2="${arg}.svg"
+    dot -Tsvg $arg1 > $arg2
+  done
+fi

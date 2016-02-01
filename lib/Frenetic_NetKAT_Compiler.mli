@@ -38,12 +38,17 @@ type cache
     | `Empty
     | `Preserve of t ]
 
+type adherence
+  = [ `Strict
+    | `Sloppy ]
+
 type compiler_options = {
     cache_prepare: cache;
     field_order: order;
     remove_tail_drops: bool;
     dedup_flows: bool;
     optimize: bool;
+    openflow_adherence: adherence;
 }
 
 (** {2 Compilation} *)
@@ -61,7 +66,7 @@ val compile_local : ?options:compiler_options -> policy -> t
     function below.
  *)
 
-val compile_global : policy -> t
+val compile_global : ?options:compiler_options -> policy -> t
 
 val restrict : header_val -> t -> t
 (** [restrict hv t] returns the fragment of [t] that applies when the assignment
@@ -71,8 +76,6 @@ val restrict : header_val -> t -> t
 
     This function is called by {!to_table} to restrict [t] to the portion that
     should run on a single switch. *)
-
-(** [to_table sw t] returns a flowtable that implements [t] for switch [sw]. *)
 
 val to_table : ?options:compiler_options
             -> ?group_tbl:Frenetic_GroupTable0x04.t -> switchId -> t
@@ -194,4 +197,8 @@ type multitable_flow = {
 val layout_to_string : flow_layout -> string
 
 (* Produce a list of flow table entries for a multitable setup *)
-val to_multitable : switchId -> flow_layout -> t -> (multitable_flow list * Frenetic_GroupTable0x04.t)
+val to_multitable : ?options:compiler_options
+                  -> switchId
+                  -> flow_layout
+                  -> t
+                  -> (multitable_flow list * Frenetic_GroupTable0x04.t)
