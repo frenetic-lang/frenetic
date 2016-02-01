@@ -4,12 +4,18 @@ open Core.Std
 (* UTILITY FUNCTIONS                                                         *)
 (*===========================================================================*)
 
+let read_file (file : string) : string =
+  match Sys.file_exists file with
+  | `No -> failwith (sprintf "File \"%s\" expexted but not found." file)
+  | `Unknown -> failwith (sprintf "No read permission for file \"%s\"." file)
+  | `Yes -> In_channel.read_all file
+
 let parse_pol file =
-  In_channel.read_all file
+  read_file file
   |> Frenetic_NetKAT_Parser.policy_from_string
 
 let parse_pred file =
-  In_channel.read_all file
+  read_file file
   |> Frenetic_NetKAT_Parser.pred_from_string
 
 let print_fdd fdd =
@@ -146,6 +152,7 @@ module Global = struct
     if printfdd then print_fdd fdd;
     if dumpfdd then dump_fdd fdd;
     print_all_tables fdd switches
+
 end
 
 
@@ -153,7 +160,7 @@ end
 module Virtual = struct
   let spec = Command.Spec.(
     empty
-    +> Flag.vpol
+    +> anon ("file" %: file)
     +> Flag.vrel
     +> Flag.vtopo
     +> Flag.ving_pol
@@ -162,8 +169,32 @@ module Virtual = struct
     +> Flag.ptopo
     +> Flag.ping
     +> Flag.peg
+    +> Flag.print_auto
+    +> Flag.dump_auto
   )
-  let run _ _ _ _ _ _ _ _ _ () = failwith "not implemented"
+
+  let run vpol vrel vtopo ving_pol ving veg ptopo ping peg printfdd dumpfdd () =
+    (* parse files *)
+    let vpol = parse_pol vpol in
+    let vrel = parse_pred vrel in
+    let vtopo = parse_pol vtopo in
+    let ving_pol = parse_pol ving_pol in
+    let ving = parse_pred ving in
+    let veg = parse_pred veg in
+    let ptopo = parse_pol ptopo in
+    let ping = parse_pred ping in
+    let peg = parse_pred peg in
+    (* compile *)
+    let module Virtual = Frenetic_NetKAT_Virtual_Compiler in
+    let global_pol =
+      Virtual.compile vpol ~log:true ~vrel ~vtopo ~ving_pol ~ving ~veg ~ptopo ~ping ~peg
+    in
+    let fdd = Frenetic_NetKAT_Compiler.compile_global global_pol in
+    let switches = Frenetic_NetKAT_Semantics.switches_of_policy global_pol in
+    if printfdd then print_fdd fdd;
+    if dumpfdd then dump_fdd fdd;
+    print_all_tables fdd switches
+
 end
 
 
