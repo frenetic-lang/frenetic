@@ -45,7 +45,7 @@ exception Unsupported of string
 module Pattern : sig
 
   module Ip : sig
-    type t = nwAddr * int32
+    type t = nwAddr * int32 with sexp
 
     (** [match_all] is pattern that matches any address *)
     val match_all : t
@@ -88,7 +88,7 @@ module Pattern : sig
       ; tpSrc : tpPort option
       ; tpDst : tpPort option
       ; inPort : portId option
-      ; wavelength : int8 option }
+      ; wavelength : int8 option } with sexp
 
   (** [match_all] is pattern that matches any packet *)
   val match_all : t

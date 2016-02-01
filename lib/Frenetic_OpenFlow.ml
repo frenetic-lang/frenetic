@@ -54,7 +54,7 @@ let make_string_of formatter x =
 module Pattern = struct
 
   module Ip = struct
-    type t = nwAddr * int32
+    type t = nwAddr * int32 with sexp
 
     let match_all = (0l, 0l)
 
@@ -125,7 +125,7 @@ module Pattern = struct
       ; tpSrc : tpPort option
       ; tpDst : tpPort option
       ; inPort : portId option
-      ; wavelength : int8 option }
+      ; wavelength : int8 option } with sexp
 
   let match_all =
       { dlSrc = None
