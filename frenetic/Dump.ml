@@ -192,6 +192,7 @@ module Virtual = struct
     let ptopo = parse_pol ptopo in
     let ping = parse_pred ping in
     let peg = parse_pred peg in
+
     (* compile *)
     let module Virtual = Frenetic_NetKAT_Virtual_Compiler in
     let global_pol =
@@ -199,6 +200,8 @@ module Virtual = struct
     in
     let fdd = Frenetic_NetKAT_Compiler.compile_global global_pol in
     let switches = Frenetic_NetKAT_Semantics.switches_of_policy global_pol in
+
+    (* ptiny & dump *)
     if printglobal then begin
       Format.fprintf fmt "Global Policy:@\n@[%a@]@\n@\n"
         Frenetic_NetKAT_Pretty.format_policy global_pol
