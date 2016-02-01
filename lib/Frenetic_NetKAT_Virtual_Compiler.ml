@@ -428,7 +428,7 @@ let fabric_of_fabric_graph ?record_paths g ing path_oracle =
     let _ = Core.Std.Option.(record_paths >>| close_out) in
     fabric
 
-let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_topo p_ing p_eg  =
+let generate_fabrics ?(log=true) ?record_paths vrel v_topo v_ing v_eg p_topo p_ing p_eg  =
   let vgraph = G.Virt.make v_ing v_eg v_topo in
   let pgraph = G.Phys.make p_ing p_eg p_topo in
   let prod_ing, prod_graph = make_product_graph vgraph pgraph v_ing vrel in
@@ -525,8 +525,7 @@ let generate_fabrics ?(log=true) ?(record_paths=None) vrel v_topo v_ing v_eg p_t
       Printf.printf "|V(fabric_graph)|: %i\n" (G.Prod.nb_vertex (Lazy.force fabric_graph));
       Printf.printf "|E(fabric_graph)|: %i\n" (G.Prod.nb_edges (Lazy.force fabric_graph));
       G.Prod.Dot.output_graph g_fabric_ch (Lazy.force fabric_graph);
-      close_out g_fabric_ch)
-    else ();
+      close_out g_fabric_ch);
     Lazy.force fabric
   end
 
@@ -583,20 +582,21 @@ let rec encode_vlinks (vtopo : policy) =
       (mk_seq (Mod (VSwitch vsw2)) (Mod (VPort vpt2)))
   | _ -> vtopo
 
-let compile ?(log=true) ?(record_paths=None) (vpolicy : policy) (vrel : pred)
-  (vtopo : policy) (ving_pol : policy) (ving : pred) (veg : pred)
-  (ptopo : policy)                     (ping : pred) (peg : pred) : policy =
-  let (fout_set, fin_set) = generate_fabrics ~log ~record_paths vrel vtopo ving veg ptopo ping peg in
+let compile ?(log=true) ?(record_paths : string option)
+  ~(vrel : pred) ~(vtopo : policy) ~(ving_pol : policy) ~(ving : pred) ~(veg : pred)
+                 ~(ptopo : policy)                      ~(ping : pred) ~(peg : pred)
+  (vpol : policy) : policy =
+  let (fout_set, fin_set) = generate_fabrics ~log ?record_paths vrel vtopo ving veg ptopo ping peg in
   let fout = mk_big_union fout_set in
   let fin = mk_big_union fin_set in
   let ing = mk_big_seq [Filter ping; ving_pol; Filter ving] in
   let eg = Filter (mk_and veg peg) in
-  let p = mk_seq vpolicy fout in
+  let p = mk_seq vpol fout in
   let t = mk_seq (encode_vlinks vtopo) fin in
   (* ing; (p;t)^*; p  *)
   (* Printf.printf "ing: %s\n\n%!" (NetKAT_Pretty.string_of_policy ing);
   Printf.printf "fout: %s\n\n%!" (NetKAT_Pretty.string_of_policy fout);
   Printf.printf "fin: %s\n\n%!" (NetKAT_Pretty.string_of_policy fin);
-  Printf.printf "vpolicy: %s\n\n%!" (NetKAT_Pretty.string_of_policy vpolicy);
+  Printf.printf "vpol: %s\n\n%!" (NetKAT_Pretty.string_of_policy vpol);
   Printf.printf "vtopo: %s\n\n%!" (NetKAT_Pretty.string_of_policy vtopo); *)
   mk_big_seq [ing; mk_star (mk_seq p t); p; eg]
