@@ -101,6 +101,15 @@ let shell : Command.t =
     (fun openflow_port ->
       run (Frenetic_Shell.main openflow_port))
 
+let virtual_shell : Command.t =
+  Command.basic
+    ~summary:"Invokes virtual compiler shell."
+    Command.Spec.(empty
+      +> Flag.openflow_port
+      ++ default_spec)
+    (fun port ->
+      run (Frenetic_VC_Shell.main port))
+
 let compile_server : Command.t =
   Command.basic
     ~summary:"Invokes compile server."
@@ -157,6 +166,7 @@ let main : Command.t =
   Command.group
     ~summary:"Invokes the specified Frenetic module."
     [ ("shell", shell)
+    ; ("virtual-shell", virtual_shell)
     ; ("compile-server", compile_server)
     ; ("staged-server", staged_server)
     ; ("http-controller", http_controller)

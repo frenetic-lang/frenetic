@@ -143,11 +143,11 @@ end = struct
   
   (* Compiles a VNO's policy into a local NetKAT program  *)
   let compile (vno : VNO.t) = Frenetic_NetKAT_Virtual_Compiler.compile vno.policy
-     vno.relation vno.topology vno.ingress_policy
-     vno.ingress_predicate vno.egress_predicate
-     !topology !ingress_predicate
-     !egress_predicate
-  
+   ~vrel:vno.relation ~vtopo:vno.topology ~ving_pol:vno.ingress_policy
+    ~ving:vno.ingress_predicate ~veg:vno.egress_predicate
+    ~ptopo:!topology ~ping:!ingress_predicate
+    ~peg:!egress_predicate
+
   (* Compiles the global policy for the entire network *)
   let global_compile policy =
     compiled := Some (Frenetic_NetKAT_Compiler.compile_global policy)
@@ -233,7 +233,7 @@ let rec repl () =
       repl ()
   
     
-let main () =
+let main port () =
   Frenetic_Log.set_output [Async.Std.Log.Output.file `Text "frenetic_vc_shell.log"];
   Frenetic_Fdd.Field.set_order
    [Switch; Location; VSwitch; VPort; IP4Dst; Vlan; TCPSrcPort; TCPDstPort; IP4Src;
