@@ -506,26 +506,28 @@ let generate_fabrics ?(log=true) ?record_paths vrel v_topo v_ing v_eg p_topo p_i
   let g_fabric_ch = open_out g_fabric_file in
   begin
     if log then (
-      Printf.printf "|V(vgraph)|: %i\n" (G.Virt.nb_vertex vgraph);
-      Printf.printf "|E(vgraph)|: %i\n" (G.Virt.nb_edges vgraph);
+      Printf.printf "[virtual] Statistics:\n";
+      Printf.printf "  |V(vgraph)|: %i\n" (G.Virt.nb_vertex vgraph);
+      Printf.printf "  |E(vgraph)|: %i\n" (G.Virt.nb_edges vgraph);
       G.Virt.Dot.output_graph vg_ch vgraph;
       close_out vg_ch;
-      Printf.printf "|V(pgraph)|: %i\n" (G.Phys.nb_vertex pgraph);
-      Printf.printf "|E(pgraph)|: %i\n" (G.Phys.nb_edges pgraph);
+      Printf.printf "  |V(pgraph)|: %i\n" (G.Phys.nb_vertex pgraph);
+      Printf.printf "  |E(pgraph)|: %i\n" (G.Phys.nb_edges pgraph);
       G.Phys.Dot.output_graph pg_ch pgraph;
       close_out pg_ch;
-      Printf.printf "|V(prod_graph)|: %i\n" (G.Prod.nb_vertex prod_graph);
-      Printf.printf "|E(prod_graph)|: %i\n" (G.Prod.nb_edges prod_graph);
+      Printf.printf "  |V(prod_graph)|: %i\n" (G.Prod.nb_vertex prod_graph);
+      Printf.printf "  |E(prod_graph)|: %i\n" (G.Prod.nb_edges prod_graph);
       G.Prod.Dot.output_graph g_raw_ch prod_graph;
       close_out g_raw_ch;
-      Printf.printf "|V(pruned_graph)|: %i\n" (G.Prod.nb_vertex (Lazy.force pruned_graph));
-      Printf.printf "|E(pruned_graph)|: %i\n" (G.Prod.nb_edges (Lazy.force pruned_graph));
+      Printf.printf "  |V(pruned_graph)|: %i\n" (G.Prod.nb_vertex (Lazy.force pruned_graph));
+      Printf.printf "  |E(pruned_graph)|: %i\n" (G.Prod.nb_edges (Lazy.force pruned_graph));
       G.Prod.Dot.output_graph g_pruned_ch (Lazy.force pruned_graph);
       close_out g_pruned_ch;
-      Printf.printf "|V(fabric_graph)|: %i\n" (G.Prod.nb_vertex (Lazy.force fabric_graph));
-      Printf.printf "|E(fabric_graph)|: %i\n" (G.Prod.nb_edges (Lazy.force fabric_graph));
+      Printf.printf "  |V(fabric_graph)|: %i\n" (G.Prod.nb_vertex (Lazy.force fabric_graph));
+      Printf.printf "  |E(fabric_graph)|: %i\n" (G.Prod.nb_edges (Lazy.force fabric_graph));
       G.Prod.Dot.output_graph g_fabric_ch (Lazy.force fabric_graph);
-      close_out g_fabric_ch);
+      close_out g_fabric_ch;
+      Printf.printf "\n");
     Lazy.force fabric
   end
 
