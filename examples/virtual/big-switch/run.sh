@@ -1,16 +1,6 @@
 #!/bin/bash
 
-../../../frenetic.native dump virtual \
-  --vpol vpol.kat\
-  --vrel vrel.kat\
-  --vtopo vtopo.kat\
-  --ving-pol vingpol.kat\
-  --ving ving.kat\
-  --veg veg.kat\
-  --ptopo ptopo.kat\
-  --ping ping.kat\
-  --peg peg.kat
-
+../../../frenetic.native dump virtual vpol.kat
 
 for arg in "g_fabric" "g_pruned" "pg" "vg" "g_raw" 
 do 

@@ -1,6 +1,5 @@
 #!/bin/bash
-../../../frenetic.native dump virtual\
-  --vpol vno3-vpol.kat\
+../../../frenetic.native dump virtual vno3-vpol.kat\
   --vrel vno3-vrel.kat\
   --vtopo vtopo.kat\
   --ving-pol vno3-vingpol.kat\

@@ -1,3 +1,0 @@
-(*relation between physical and virtual topology*)
-((vswitch=1 and vport=0) and (switch=1 and port=0)) or
-((vswitch=1 and vport=1) and (switch=3 and port=0)) 
