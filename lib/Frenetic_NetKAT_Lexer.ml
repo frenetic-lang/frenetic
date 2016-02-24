@@ -21,7 +21,7 @@ type token =
   | INT32 of string
   | INT64 of string
   | IP4ADDR of string
-  (* | ANTIQUOT of string *)
+  | ANTIQUOT of string 
   | EOI
 
 module Token =
@@ -39,9 +39,7 @@ struct
       | INT s -> sf "INT %s" s
       | INT32 s -> sf "INT32 %s" s
       | INT64 s -> sf "INT64 %s" s
-      (* TODO: See below on why Antiquotes don't work
       | ANTIQUOT s -> sf "ANTIQUOT %s" s
-    *)
       | EOI             -> sf "EOI"
 
   let print ppf x = Format.pp_print_string ppf (to_string x)
@@ -148,10 +146,8 @@ let rec token c = lexer
   | (hexnum | decnum)  -> INT (L.latin1_lexeme c.lexbuf)
   | (hexnum | decnum) 'l' -> INT32 (L.latin1_lexeme c.lexbuf)
   | (hexnum | decnum) 'L' -> INT64 (L.latin1_lexeme c.lexbuf)
-  (* TODO: Thought this was causing parsing errors, but I was mistaken.  Re-enable.
   | "$" ident ->
      ANTIQUOT( L.latin1_sub_lexeme c.lexbuf 1 (L.lexeme_length c.lexbuf - 1))
-   *)
   | "(*" -> 
     set_start_loc c;
     let _ = comment c lexbuf in
