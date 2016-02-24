@@ -130,7 +130,7 @@ Library syntax
     Frenetic_Syntax_Extension_Parser,
     Frenetic_Syntax_Extension_Quotations
   XMETAType: syntax
-  XMETARequires: camlp4, ulex, ipaddr
+  XMETARequires: camlp4, ulex, ipaddr, frenetic
   XMETADescription: Syntax extension writing NetKAT expressions
 
 Library test_frenetic
