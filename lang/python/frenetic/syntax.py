@@ -343,7 +343,7 @@ class IP4Dst(HeaderAndValue):
         self.header = "ip4dst"
         assert type(value) == str or type(value) == unicode
         if mask != None:
-            assert(mask) == int
+            assert type(mask) == int
             self.mask = mask
         self.value = value
 
