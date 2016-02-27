@@ -125,7 +125,7 @@ let from_json_header_val (json : json) : header_val =
   match json |> member "header" |> to_string with
   | "switch" -> Switch (value |> to_string |> Int64.of_string)
   | "vswitch" -> VSwitch (value |> to_string |> Int64.of_string)
-  | "vport" -> VSwitch (value |> to_string |> Int64.of_string)
+  | "vport" -> VPort (value |> to_string |> Int64.of_string)
   | "location" ->
     let value = match value |> member "type" |> to_string with
       | "physical" -> Physical (value |> member "port" |>

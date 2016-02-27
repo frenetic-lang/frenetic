@@ -7,6 +7,7 @@ val policy_from_json : json -> policy
 (** Note: errors may occur when converting between 64-bit values and
     JSON-representable integers. *)
 val policy_to_json : policy -> json
+val from_json_header_val : json -> header_val
 val event_to_json : event -> json
 
 val policy_from_json_channel : In_channel.t -> policy
@@ -15,3 +16,4 @@ val event_to_json_string : event -> string
 val policy_to_json_string : policy -> string
 val stats_to_json_string : Int64.t * Int64.t -> string
 val port_stats_to_json_string : Frenetic_OpenFlow0x01.portStats list -> string
+
