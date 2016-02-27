@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 16631ef450717b24c272d10ae328fbb8)
+# DO NOT EDIT (digest: 544257afc1035488bb1dc9276a76d62c)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -140,6 +140,29 @@ true: annot, bin_annot
 <frenetic/*.ml{,i,y}>: package(yojson)
 <frenetic/*.ml{,i,y}>: use_async
 <frenetic/*.ml{,i,y}>: use_frenetic
+# Library syntax
+"syntax/syntax.cmxs": use_syntax
+<syntax/*.ml{,i,y}>: package(async)
+<syntax/*.ml{,i,y}>: package(base64)
+<syntax/*.ml{,i,y}>: package(camlp4)
+<syntax/*.ml{,i,y}>: package(camlp4.extend)
+<syntax/*.ml{,i,y}>: package(camlp4.lib)
+<syntax/*.ml{,i,y}>: package(camlp4.quotations.o)
+<syntax/*.ml{,i,y}>: package(core)
+<syntax/*.ml{,i,y}>: package(cstruct)
+<syntax/*.ml{,i,y}>: package(cstruct.syntax)
+<syntax/*.ml{,i,y}>: package(fieldslib)
+<syntax/*.ml{,i,y}>: package(fieldslib.syntax)
+<syntax/*.ml{,i,y}>: package(ipaddr)
+<syntax/*.ml{,i,y}>: package(ocamlgraph)
+<syntax/*.ml{,i,y}>: package(sexplib)
+<syntax/*.ml{,i,y}>: package(sexplib.syntax)
+<syntax/*.ml{,i,y}>: package(str)
+<syntax/*.ml{,i,y}>: package(tcpip)
+<syntax/*.ml{,i,y}>: package(threads)
+<syntax/*.ml{,i,y}>: package(ulex)
+<syntax/*.ml{,i,y}>: package(yojson)
+<syntax/*.ml{,i,y}>: use_frenetic
 # Library test_frenetic
 "lib_test/lib/test_frenetic.cmxs": use_test_frenetic
 <lib_test/lib/*.ml{,i,y}>: package(async)

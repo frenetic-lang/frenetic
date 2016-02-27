@@ -113,23 +113,25 @@ Executable openflow
     frenetic.async,
     async_extended
 
-# Will be reintroduced in summer 2015
-#Library syntax
-#  Path: frenetic/syntax
-#  Findlibparent: frenetic
-#  Findlibname: syntax
-#  BuildDepends:
-#    camlp4.lib,
-#    camlp4.extend,
-#    camlp4.quotations.o,
-#    ulex,
-#    ipaddr
-#  Modules:
-#    Parser,
-#    Quotations
-#  XMETAType: syntax
-#  XMETARequires: camlp4, ulex, ipaddr
-#  XMETADescription: Syntax extension writing NetKAT expressions
+Library syntax
+  Path: syntax
+  Findlibparent: frenetic
+  Findlibname: syntax
+  Install: true
+  BuildDepends:
+    camlp4.lib,
+    camlp4.extend,
+    camlp4.quotations.o,
+    ulex,
+    ipaddr,
+    core,
+    frenetic
+  Modules:
+    Frenetic_Syntax_Extension_Parser,
+    Frenetic_Syntax_Extension_Quotations
+  XMETAType: syntax
+  XMETARequires: camlp4, ulex, ipaddr, frenetic
+  XMETADescription: Syntax extension writing NetKAT expressions
 
 Library test_frenetic
   Findlibparent: frenetic
