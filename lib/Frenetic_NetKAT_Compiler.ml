@@ -561,6 +561,12 @@ module NetKAT_Automaton = struct
       Untbl.add_exn automaton.has_state ~key:state ~data:k;
       k
 
+  let add_to_t_with_id (automaton : t) (state : (FDK.t * FDK.t)) (id : int) : unit = begin
+      assert (not (Tbl.mem automaton.states id));
+      Tbl.add_exn automaton.states ~key:id ~data:state;
+      Untbl.set automaton.has_state ~key:state ~data:id;
+    end
+
   let map_reachable ?(order = `Pre) (automaton : t) ~(f: int -> (FDK.t * FDK.t) -> (FDK.t * FDK.t)) : unit =
     let rec loop seen (id : int) =
       if S.mem seen id then seen else
@@ -605,27 +611,35 @@ module NetKAT_Automaton = struct
     t.source <- automaton.source;
     t
 
-  let t_of_t0 ?(remove_duplicates=false) (automaton : t0) =
-    if not remove_duplicates then t_of_t0' automaton else
-    let t = create_t () in
-    let ktbl = Untbl.create () ~size:10 in
-    let rec loop id =
-      let state = Tbl.find_exn automaton.states id in
-      let seen = Lazy.is_val state in
-      let (e,d) = Lazy.force state in
-      if seen then match Untbl.find ktbl (e,d) with
-        | None -> failwith "cyclic FDKG"
-        | Some k -> k
-      else
-        let d' = FDK.map_r (fun par -> Action.Par.map par ~f:(fun seq ->
-          Action.(Seq.change seq K (function None -> None | Some id ->
-            loop (Value.to_int_exn id) |> Value.of_int |> Option.some)))) d in
-        let k = add_to_t t (e,d') in
-        Untbl.set ktbl ~key:(e,d) ~data:k;
-        k
+  let lex_sort (t0 : t0) =
+    let rec loop acc stateId =
+      if List.mem acc stateId then acc else
+      let init = stateId :: acc in
+      let (_,d) = Lazy.force (Tbl.find_exn t0.states stateId) in
+      Set.fold (FDK.conts d) ~init ~f:loop
     in
-    let source = loop automaton.source in
-    t.source <- source;
+    loop [] t0.source
+
+  let t_of_t0 ?(cheap_minimize=true) (t0 : t0) =
+    if not cheap_minimize then t_of_t0' t0 else
+    let t = create_t () in
+    (* table that maps old ids to new ids *)
+    let newId = Int.Table.create () ~size:100 in
+    lex_sort t0
+    |> List.iter ~f:(fun id ->
+        let (e,d) = Lazy.force (Tbl.find_exn t0.states id) in
+        (* SJS: even though we are traversing the graph in reverse-lexiographic order,
+           a node may be visited prior to one of its sucessors because there may be cylces *)
+        let d = FDK.map_conts d ~f:(Tbl.find_or_add newId ~default:(fun () -> mk_state_t t)) in
+        (* check if new id was already assigned *)
+        match Tbl.find newId id with
+        | None ->
+          let new_id = add_to_t t (e,d) in
+          Tbl.add_exn newId ~key:id ~data:new_id
+        | Some new_id ->
+          add_to_t_with_id t (e,d) new_id
+      );
+    t.source <- Tbl.find_exn newId t0.source;
     t
 
   (* classic powerset construction, performed on symbolic automaton *)
@@ -656,7 +670,7 @@ module NetKAT_Automaton = struct
     let determinize_action par =
       par
       |> Action.Par.to_list
-      (* SJS: this seems to be a bug! We need to sort the list appropriately first. *)
+      |> List.sort ~cmp:Action.Seq.compare_mod_k
       |> List.group ~break:(fun s1 s2 -> not (Action.Seq.equal_mod_k s1 s2))
       |> List.map ~f:(function
         | [seq] -> seq
@@ -713,11 +727,11 @@ module NetKAT_Automaton = struct
     in
     Tbl.add_exn automaton.states ~key:id ~data:(Lazy.from_fun f)
 
-  let of_policy ?(dedup=true) ?ing ?(remove_duplicates=false) (pol : Frenetic_NetKAT.policy) : t =
+  let of_policy ?(dedup=true) ?ing ?(cheap_minimize=true) (pol : Frenetic_NetKAT.policy) : t =
     let automaton = create_t0 () in
     let pol = Pol.of_pol ing pol in
     let () = add_policy automaton (automaton.source, pol) in
-    let automaton = t_of_t0 ~remove_duplicates automaton in
+    let automaton = t_of_t0 ~cheap_minimize automaton in
     let () = if dedup then determinize automaton in
     automaton
 
@@ -727,7 +741,7 @@ module NetKAT_Automaton = struct
       (fun (f,_) l r -> l && r && f<>pc)
       fdd
 
-  let to_local (pc : Field.t) (automaton : t) : FDK.t =
+  let to_local ~(pc : Field.t) (automaton : t) : FDK.t =
     fold_reachable automaton ~init:FDK.drop ~f:(fun acc id (e,d) ->
       let _ = assert (pc_unused pc e && pc_unused pc d) in
       let d =
@@ -807,8 +821,8 @@ end
 
 let compile_global ?(options=default_compiler_options) (pol : Frenetic_NetKAT.policy) : FDK.t =
   prepare_compilation ~options pol;
-  NetKAT_Automaton.of_policy ~dedup:true pol
-  |> NetKAT_Automaton.to_local Field.Vlan
+  NetKAT_Automaton.of_policy pol
+  |> NetKAT_Automaton.to_local ~pc:Field.Vlan
 
 
 
