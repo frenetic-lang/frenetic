@@ -1,14 +1,17 @@
 language: c
-install: wget https://raw.githubusercontent.com/ocaml/ocaml-travisci-skeleton/master/.travis-opam.sh
+install: wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.travis-opam.sh
 script: bash -ex .travis-opam.sh
 env:
+  matrix:
   - OCAML_VERSION=latest PACKAGE=frenetic TESTS=true BASE_REMOTE=https://opam.ocaml.org
+  global:
+    secure: Knubza2foy3fm4iKfXTE+DBxQE0XjeT8PN4O1aXZpLqZAGuCt3UU1gOs03lUzbqjU6IOzV8H2y4ctQ7eHiTK9G/kQawSZZtOb15oDOGa8zBM/1tA06GjrBIJhqOk3R6ro0V8eU3W3BqqrbR0cZhGaASFJ2tTDiX53G9dEFJWqho=
 notifications:
   irc:
     channels:
-      - "irc.freenode.net#frenetic"
+    - irc.freenode.net#frenetic
     template:
-      - "%{repository}#%{build_number} (%{branch} - %{commit}): %{message}"
-      - "Build details : %{build_url}"
+    - ! '%{repository}#%{build_number} (%{branch} - %{commit}): %{message}'
+    - ! 'Build details : %{build_url}'
     on_success: change
     on_failure: always
