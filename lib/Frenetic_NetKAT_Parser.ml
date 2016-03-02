@@ -33,9 +33,6 @@ EXTEND Gram
   nk_int64: [[
       n = INT -> Core.Std.Int64.of_int_exn (int_of_string n)
     | n = INT64 -> Core.Std.Int64.of_string n
-    (* Not sure how to handle this yet, if we even need to
-    | `ANTIQUOT s -> illegal "$ syntax is not allowed in the simple parser"
-  *)
   ]];
 
   nk_int32: [[
@@ -139,7 +136,7 @@ EXTEND Gram
       Frenetic_NetKAT.(Mod (VSwitch sw))
     | "vport"; ":="; n = nk_int64 ->
       Frenetic_NetKAT.(Mod (VPort n))
-    | "vfabric"; "="; vfab = nk_int64 -> 
+    | "vfabric"; ":="; vfab = nk_int64 -> 
       Frenetic_NetKAT.(Mod (VFabric vfab))
     | "ethSrc"; ":="; n = nk_int64 ->
       Frenetic_NetKAT.(Mod (EthSrc n))
