@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 544257afc1035488bb1dc9276a76d62c)
+# DO NOT EDIT (digest: c2bd5f2ad7b89edaa8872212675878d8)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -16,7 +16,6 @@ true: annot, bin_annot
 "_darcs": not_hygienic
 # Library frenetic
 "lib/frenetic.cmxs": use_frenetic
-<lib/*.ml{,i,y}>: package(async)
 <lib/*.ml{,i,y}>: package(base64)
 <lib/*.ml{,i,y}>: package(camlp4)
 <lib/*.ml{,i,y}>: package(camlp4.extend)
@@ -142,7 +141,6 @@ true: annot, bin_annot
 <frenetic/*.ml{,i,y}>: use_frenetic
 # Library syntax
 "syntax/syntax.cmxs": use_syntax
-<syntax/*.ml{,i,y}>: package(async)
 <syntax/*.ml{,i,y}>: package(base64)
 <syntax/*.ml{,i,y}>: package(camlp4)
 <syntax/*.ml{,i,y}>: package(camlp4.extend)
@@ -165,7 +163,6 @@ true: annot, bin_annot
 <syntax/*.ml{,i,y}>: use_frenetic
 # Library test_frenetic
 "lib_test/lib/test_frenetic.cmxs": use_test_frenetic
-<lib_test/lib/*.ml{,i,y}>: package(async)
 <lib_test/lib/*.ml{,i,y}>: package(base64)
 <lib_test/lib/*.ml{,i,y}>: package(camlp4)
 <lib_test/lib/*.ml{,i,y}>: package(camlp4.extend)

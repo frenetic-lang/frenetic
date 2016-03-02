@@ -16,7 +16,6 @@ BuildTools:
 Library frenetic
   Path: lib
   BuildDepends:
-    async,
     base64 (>= 2.0.0),
     camlp4.lib,
     camlp4.extend,
@@ -39,7 +38,6 @@ Library frenetic
     Frenetic_Bits,
     Frenetic_Fdd,
     Frenetic_GroupTable0x04,
-    Frenetic_Log,
     Frenetic_Network,
     Frenetic_NetKAT,
     Frenetic_NetKAT_Optimize,
@@ -83,6 +81,7 @@ Library async
     Frenetic_DynGraph
   Modules:
     Frenetic_Compile_Server,
+    Frenetic_Log,
     Frenetic_Http_Controller,
     Frenetic_OpenFlow0x01_Controller,
     Frenetic_NetKAT_Controller,
