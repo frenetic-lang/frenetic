@@ -1,6 +1,12 @@
 language: c
-install: wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.travis-opam.sh
-script: bash -ex .travis-opam.sh
+sudo: required
+install: 
+  # Temporary until docgen works
+  #- wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.travis-opam.sh
+  - wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.travis-docgen.sh
+script: 
+  #- bash -ex .travis-opam.sh
+  - bash -ex .travis-docgen.sh
 env:
   matrix:
   - OCAML_VERSION=latest PACKAGE=frenetic TESTS=true BASE_REMOTE=https://opam.ocaml.org
