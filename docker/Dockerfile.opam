@@ -1,0 +1,7 @@
+FROM avsm/docker-opam:ubuntu-trusty-4.02.1
+MAINTAINER Shrutarshi Basu <basus@cs.cornell.edu>
+RUN sudo apt-get -y update
+RUN sudo apt-get -y install zlib1g-dev
+RUN cd ~/opam-repository && git pull && opam update -u -y
+RUN opam upgrade
+RUN opam install frenetic

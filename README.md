@@ -25,6 +25,30 @@ To install the Frenetic package, add the following to the end of `/etc/apt/sourc
 
 Then, run `apt-get update && apt-get install frenetic`.
 
+## Using a Docker container
+
+There are two Dockerfiles provided (in the `docker` directory) that will build a
+[Docker image](https://www.docker.com/whatisdocker/) containing Frenetic and its
+dependencies. The `Dockerfile.opam` file creates an image using the current
+stable versions of packages from [OPAM](http://opam.ocamlpro.com/). The
+`Dockerfile.git` creates an image using the most current versions of Frenetic
+and its immediate dependencies from GitHub.
+
+Prebuilt images are available from the
+[Docker Hub](https://hub.docker.com/). You can obtain the
+[stable OPAM version](https://registry.hub.docker.com/u/basus/frenetic/)
+using:
+
+    $ docker pull basus/frenetic
+
+The [Git version](https://registry.hub.docker.com/u/basus/frenetic-git/) can be
+obtained using:
+
+    $ docker pull basus/frenetic-git
+
+Please see the [Docker documentation](http://docs.docker.com/) for more information
+on using Docker.
+
 ## Frenetic HTTP Controller
 
 Instead of using OCaml, you can interact with Frenetic over HTTP.

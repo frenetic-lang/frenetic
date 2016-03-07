@@ -1,0 +1,25 @@
+FROM avsm/docker-opam:ubuntu-trusty-4.02.1
+MAINTAINER Shrutarshi Basu <basus@cs.cornell.edu>
+RUN sudo apt-get -y update
+RUN sudo apt-get -y upgrade
+RUN sudo apt-get -y install zlib1g-dev
+RUN cd ~/opam-repository && git pull && opam update -u -y && opam upgrade -y
+RUN opam install core async async_extended fieldslib cmdliner cstruct sexplib \
+                 ulex ipaddr yojson base64 cohttp quickcheck ounit pa_ounit \
+                 tcpip ocamlgraph
+RUN eval `opam config env`
+WORKDIR /home/opam
+RUN git clone https://github.com/frenetic-lang/ocaml-packet.git
+RUN git clone https://github.com/frenetic-lang/ocaml-openflow.git
+RUN git clone https://github.com/frenetic-lang/ocaml-topology.git
+RUN git clone https://github.com/frenetic-lang/frenetic.git
+WORKDIR /home/opam/ocaml-packet
+RUN eval `opam config env` && make && make install
+WORKDIR /home/opam/ocaml-openflow
+RUN eval `opam config env` && make && make install
+WORKDIR /home/opam/ocaml-topology
+RUN eval `opam config env` && make && make install
+WORKDIR /home/opam/frenetic
+RUN eval `opam config env` && make && make install || true
+RUN cp _build/frenetic/frenetic.native $(opam config var bin)/frenetic
+WORKDIR /home/opam/
