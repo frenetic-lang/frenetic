@@ -1,0 +1,106 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="next" href="Frenetic_Network.NETWORK.Traverse.html">
+<link rel="Up" href="Frenetic_Network.NETWORK.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
+<link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
+<link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
+<link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
+<link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
+<link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
+<link title="Frenetic_NetKAT_Lexer" rel="Chapter" href="Frenetic_NetKAT_Lexer.html">
+<link title="Frenetic_NetKAT_Compiler" rel="Chapter" href="Frenetic_NetKAT_Compiler.html">
+<link title="Frenetic_NetKAT_Virtual_Compiler" rel="Chapter" href="Frenetic_NetKAT_Virtual_Compiler.html">
+<link title="Frenetic_NetKAT_Net" rel="Chapter" href="Frenetic_NetKAT_Net.html">
+<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
+<link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
+<link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
+<link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
+<link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
+<link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
+<link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
+<link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
+<link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
+<link title="Frenetic_Vlr" rel="Chapter" href="Frenetic_Vlr.html"><title>Frenetic_Network.NETWORK.Topology</title>
+</head>
+<body>
+<div class="navbar">&nbsp;<a class="up" href="Frenetic_Network.NETWORK.html" title="Frenetic_Network.NETWORK">Up</a>
+&nbsp;<a class="post" href="Frenetic_Network.NETWORK.Traverse.html" title="Frenetic_Network.NETWORK.Traverse">Next</a>
+</div>
+<h1>Module <a href="type_Frenetic_Network.NETWORK.Topology.html">Frenetic_Network.NETWORK.Topology</a></h1>
+
+<pre><span class="keyword">module</span> Topology: <code class="code">sig</code> <a href="Frenetic_Network.NETWORK.Topology.html">..</a> <code class="code">end</code></pre><hr width="100%">
+
+<pre><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> </pre>
+
+
+<pre><span id="TYPEvertex"><span class="keyword">type</span> <code class="type"></code>vertex</span> </pre>
+
+
+<pre><span id="TYPEedge"><span class="keyword">type</span> <code class="type"></code>edge</span> </pre>
+
+
+<pre><span id="TYPEport"><span class="keyword">type</span> <code class="type"></code>port</span> = <code class="type">int32</code> </pre>
+
+
+<pre><span class="keyword">module</span> <a href="Frenetic_Network.NETWORK.Topology.Vertex.html">Vertex</a>: <code class="type"><a href="Frenetic_Network.VERTEX.html">Frenetic_Network.VERTEX</a></code><code class="type"> </code></pre>
+<pre><span class="keyword">module</span> <a href="Frenetic_Network.NETWORK.Topology.Edge.html">Edge</a>: <code class="type"><a href="Frenetic_Network.EDGE.html">Frenetic_Network.EDGE</a></code><code class="type"> </code></pre>
+<pre><span class="keyword">module</span> <a href="Frenetic_Network.NETWORK.Topology.UnitWeight.html">UnitWeight</a>: <code class="type"><a href="Frenetic_Network.WEIGHT.html">Frenetic_Network.WEIGHT</a></code><code class="type"> 
+      with type t = int
+      and type edge = Edge.t</code></pre>
+<pre><span class="keyword">module</span> <a href="Frenetic_Network.NETWORK.Topology.EdgeSet.html">EdgeSet</a>: <code class="type">Set.S</code><code class="type"> 
+      with type Elt.t = edge</code></pre>
+<pre><span class="keyword">module</span> <a href="Frenetic_Network.NETWORK.Topology.VertexSet.html">VertexSet</a>: <code class="type">Set.S</code><code class="type"> 
+      with type Elt.t = vertex</code></pre>
+<pre><span class="keyword">module</span> <a href="Frenetic_Network.NETWORK.Topology.VertexHash.html">VertexHash</a>: <code class="type">Hashtbl.S</code><code class="type"> 
+      with type key = vertex</code></pre>
+<pre><span class="keyword">module</span> <a href="Frenetic_Network.NETWORK.Topology.PortSet.html">PortSet</a>: <code class="type">Set.S</code><code class="type"> 
+      with type Elt.t = port</code></pre>
+<pre><span id="VALcopy"><span class="keyword">val</span> copy</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -> <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a></code></pre>
+<pre><span id="VALempty"><span class="keyword">val</span> empty</span> : <code class="type">unit -> <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a></code></pre>
+<pre><span id="VALadd_vertex"><span class="keyword">val</span> add_vertex</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       Vertex.t -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> *<br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a></code></pre>
+<pre><span id="VALadd_port"><span class="keyword">val</span> add_port</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEport">port</a> -> <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a></code></pre>
+<pre><span id="VALadd_edge"><span class="keyword">val</span> add_edge</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEport">port</a> -><br>       Edge.t -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEport">port</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> * <a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a></code></pre>
+<pre><span id="VALnum_vertexes"><span class="keyword">val</span> num_vertexes</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -> int</code></pre>
+<pre><span id="VALnum_edges"><span class="keyword">val</span> num_edges</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -> int</code></pre>
+<pre><span id="VALvertexes"><span class="keyword">val</span> vertexes</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       VertexSet.t</code></pre>
+<pre><span id="VALedges"><span class="keyword">val</span> edges</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       EdgeSet.t</code></pre>
+<pre><span id="VALneighbors"><span class="keyword">val</span> neighbors</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -><br>       VertexSet.t</code></pre>
+<pre><span id="VALfind_edge"><span class="keyword">val</span> find_edge</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a></code></pre>
+<pre><span id="VALfind_all_edges"><span class="keyword">val</span> find_all_edges</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -><br>       EdgeSet.t</code></pre>
+<pre><span id="VALvertex_to_ports"><span class="keyword">val</span> vertex_to_ports</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -><br>       PortSet.t</code></pre>
+<pre><span id="VALnext_hop"><span class="keyword">val</span> next_hop</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEport">port</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a> option</code></pre>
+<pre><span id="VALedge_src"><span class="keyword">val</span> edge_src</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> *<br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEport">port</a></code></pre>
+<pre><span id="VALedge_dst"><span class="keyword">val</span> edge_dst</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> *<br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEport">port</a></code></pre>
+<pre><span id="VALinverse_edge"><span class="keyword">val</span> inverse_edge</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a> option</code></pre>
+<pre><span id="VALvertex_to_string"><span class="keyword">val</span> vertex_to_string</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -> string</code></pre>
+<pre><span id="VALvertex_to_label"><span class="keyword">val</span> vertex_to_label</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -> Vertex.t</code></pre>
+<pre><span id="VALvertex_of_label"><span class="keyword">val</span> vertex_of_label</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       Vertex.t -> <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a></code></pre>
+<pre><span id="VALedge_to_string"><span class="keyword">val</span> edge_to_string</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a> -> string</code></pre>
+<pre><span id="VALedge_to_label"><span class="keyword">val</span> edge_to_label</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a> -> Edge.t</code></pre>
+<pre><span id="VALiter_succ"><span class="keyword">val</span> iter_succ</span> : <code class="type">(<a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a> -> unit) -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -> unit</code></pre>
+<pre><span id="VALiter_vertexes"><span class="keyword">val</span> iter_vertexes</span> : <code class="type">(<a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -> unit) -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -> unit</code></pre>
+<pre><span id="VALiter_edges"><span class="keyword">val</span> iter_edges</span> : <code class="type">(<a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a> -> unit) -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -> unit</code></pre>
+<pre><span id="VALfold_vertexes"><span class="keyword">val</span> fold_vertexes</span> : <code class="type">(<a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -> 'a -> 'a) -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -> 'a -> 'a</code></pre>
+<pre><span id="VALfold_edges"><span class="keyword">val</span> fold_edges</span> : <code class="type">(<a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a> -> 'a -> 'a) -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -> 'a -> 'a</code></pre>
+<pre><span id="VALremove_vertex"><span class="keyword">val</span> remove_vertex</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a></code></pre>
+<pre><span id="VALremove_port"><span class="keyword">val</span> remove_port</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEport">port</a> -> <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a></code></pre>
+<pre><span id="VALremove_edge"><span class="keyword">val</span> remove_edge</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a> -> <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a></code></pre>
+<pre><span id="VALremove_endpoint"><span class="keyword">val</span> remove_endpoint</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> *<br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEport">port</a> -> <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a></code></pre>
+<pre><span id="VALvertex_of_sexp"><span class="keyword">val</span> vertex_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a></code></pre>
+<pre><span id="VALsexp_of_vertex"><span class="keyword">val</span> sexp_of_vertex</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALedge_of_sexp"><span class="keyword">val</span> edge_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a></code></pre>
+<pre><span id="VALsexp_of_edge"><span class="keyword">val</span> sexp_of_edge</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a> -> Sexplib.Sexp.t</code></pre></body></html>

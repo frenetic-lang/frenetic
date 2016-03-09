@@ -1,0 +1,87 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="Frenetic_Fdd.Pattern.html">
+<link rel="next" href="Frenetic_Fdd.FDK.html">
+<link rel="Up" href="Frenetic_Fdd.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
+<link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
+<link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
+<link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
+<link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
+<link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
+<link title="Frenetic_NetKAT_Lexer" rel="Chapter" href="Frenetic_NetKAT_Lexer.html">
+<link title="Frenetic_NetKAT_Compiler" rel="Chapter" href="Frenetic_NetKAT_Compiler.html">
+<link title="Frenetic_NetKAT_Virtual_Compiler" rel="Chapter" href="Frenetic_NetKAT_Virtual_Compiler.html">
+<link title="Frenetic_NetKAT_Net" rel="Chapter" href="Frenetic_NetKAT_Net.html">
+<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
+<link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
+<link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
+<link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
+<link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
+<link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
+<link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
+<link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
+<link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
+<link title="Frenetic_Vlr" rel="Chapter" href="Frenetic_Vlr.html"><title>Frenetic_Fdd.Action</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="Frenetic_Fdd.Pattern.html" title="Frenetic_Fdd.Pattern">Previous</a>
+&nbsp;<a class="up" href="Frenetic_Fdd.html" title="Frenetic_Fdd">Up</a>
+&nbsp;<a class="post" href="Frenetic_Fdd.FDK.html" title="Frenetic_Fdd.FDK">Next</a>
+</div>
+<h1>Module <a href="type_Frenetic_Fdd.Action.html">Frenetic_Fdd.Action</a></h1>
+
+<pre><span class="keyword">module</span> Action: <code class="code">sig</code> <a href="Frenetic_Fdd.Action.html">..</a> <code class="code">end</code></pre><hr width="100%">
+
+<pre><code><span id="TYPEfield_or_cont"><span class="keyword">type</span> <code class="type"></code>field_or_cont</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTfield_or_cont.F"><span class="constructor">F</span></span> <span class="keyword">of</span> <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">Frenetic_Fdd.Field.t</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTfield_or_cont.K"><span class="constructor">K</span></span></code></td>
+
+</tr></table>
+
+
+
+<pre><span class="keyword">module</span> <a href="Frenetic_Fdd.Action.Seq.html">Seq</a>: <code class="code">sig</code> <a href="Frenetic_Fdd.Action.Seq.html">..</a> <code class="code">end</code></pre>
+<pre><span class="keyword">module</span> <a href="Frenetic_Fdd.Action.Par.html">Par</a>: <code class="code">sig</code> <a href="Frenetic_Fdd.Action.Par.html">..</a> <code class="code">end</code></pre>
+<pre><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> = <code class="type">Par.t</code> </pre>
+
+
+<pre><span class="keyword">include</span> <a href="Frenetic_Vlr.Result.html">Frenetic_Vlr.Result</a></pre>
+
+<pre><span id="VALone"><span class="keyword">val</span> one</span> : <code class="type"><a href="Frenetic_Fdd.Action.html#TYPEt">t</a></code></pre>
+<pre><span id="VALzero"><span class="keyword">val</span> zero</span> : <code class="type"><a href="Frenetic_Fdd.Action.html#TYPEt">t</a></code></pre>
+<pre><span id="VALnegate"><span class="keyword">val</span> negate</span> : <code class="type"><a href="Frenetic_Fdd.Action.html#TYPEt">t</a> -> <a href="Frenetic_Fdd.Action.html#TYPEt">t</a></code></pre>
+<pre><span id="VALto_policy"><span class="keyword">val</span> to_policy</span> : <code class="type"><a href="Frenetic_Fdd.Action.html#TYPEt">t</a> -> <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a></code></pre>
+<pre><span id="VALdemod"><span class="keyword">val</span> demod</span> : <code class="type"><a href="Frenetic_Fdd.Pattern.html#TYPEt">Frenetic_Fdd.Pattern.t</a> -> <a href="Frenetic_Fdd.Action.html#TYPEt">t</a> -> <a href="Frenetic_Fdd.Action.html#TYPEt">t</a></code></pre>
+<pre><span id="VALto_sdn"><span class="keyword">val</span> to_sdn</span> : <code class="type">?group_tbl:<a href="Frenetic_GroupTable0x04.html#TYPEt">Frenetic_GroupTable0x04.t</a> -><br>       Core.Std.Int64.t option -> <a href="Frenetic_Fdd.Action.html#TYPEt">t</a> -> <a href="Frenetic_OpenFlow.html#TYPEpar">Frenetic_OpenFlow.par</a></code></pre>
+<pre><span id="VALget_queries"><span class="keyword">val</span> get_queries</span> : <code class="type"><a href="Frenetic_Fdd.Action.html#TYPEt">t</a> -> string list</code></pre>
+<pre><span id="VALpipes"><span class="keyword">val</span> pipes</span> : <code class="type"><a href="Frenetic_Fdd.Action.html#TYPEt">t</a> -> Core.Std.String.Set.t</code></pre>
+<pre><span id="VALqueries"><span class="keyword">val</span> queries</span> : <code class="type"><a href="Frenetic_Fdd.Action.html#TYPEt">t</a> -> string list</code></pre>
+<pre><span id="VALto_string"><span class="keyword">val</span> to_string</span> : <code class="type"><a href="Frenetic_Fdd.Action.html#TYPEt">t</a> -> string</code></pre>
+<pre><span id="VALfield_or_cont_of_sexp"><span class="keyword">val</span> field_or_cont_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Fdd.Action.html#TYPEfield_or_cont">field_or_cont</a></code></pre>
+<pre><span id="VALsexp_of_field_or_cont"><span class="keyword">val</span> sexp_of_field_or_cont</span> : <code class="type"><a href="Frenetic_Fdd.Action.html#TYPEfield_or_cont">field_or_cont</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALt_of_sexp"><span class="keyword">val</span> t_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Fdd.Action.html#TYPEt">t</a></code></pre>
+<pre><span id="VALsexp_of_t"><span class="keyword">val</span> sexp_of_t</span> : <code class="type"><a href="Frenetic_Fdd.Action.html#TYPEt">t</a> -> Sexplib.Sexp.t</code></pre></body></html>

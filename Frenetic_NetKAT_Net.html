@@ -1,0 +1,74 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="Frenetic_NetKAT_Virtual_Compiler.html">
+<link rel="next" href="Frenetic_NetKAT_Parser.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
+<link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
+<link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
+<link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
+<link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
+<link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
+<link title="Frenetic_NetKAT_Lexer" rel="Chapter" href="Frenetic_NetKAT_Lexer.html">
+<link title="Frenetic_NetKAT_Compiler" rel="Chapter" href="Frenetic_NetKAT_Compiler.html">
+<link title="Frenetic_NetKAT_Virtual_Compiler" rel="Chapter" href="Frenetic_NetKAT_Virtual_Compiler.html">
+<link title="Frenetic_NetKAT_Net" rel="Chapter" href="Frenetic_NetKAT_Net.html">
+<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
+<link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
+<link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
+<link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
+<link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
+<link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
+<link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
+<link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
+<link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
+<link title="Frenetic_Vlr" rel="Chapter" href="Frenetic_Vlr.html"><title>Frenetic_NetKAT_Net</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="Frenetic_NetKAT_Virtual_Compiler.html" title="Frenetic_NetKAT_Virtual_Compiler">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="Frenetic_NetKAT_Parser.html" title="Frenetic_NetKAT_Parser">Next</a>
+</div>
+<h1>Module <a href="type_Frenetic_NetKAT_Net.html">Frenetic_NetKAT_Net</a></h1>
+
+<pre><span class="keyword">module</span> Frenetic_NetKAT_Net: <code class="code">sig</code> <a href="Frenetic_NetKAT_Net.html">..</a> <code class="code">end</code></pre><hr width="100%">
+
+<pre><span class="keyword">module</span> <a href="Frenetic_NetKAT_Net.SDN.html">SDN</a>: <code class="type"><a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a></code></pre>
+<pre><code><span id="TYPEnode"><span class="keyword">type</span> <code class="type"></code>node</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTnode.Switch"><span class="constructor">Switch</span></span> <span class="keyword">of</span> <code class="type">SDN.switchId</code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTnode.Host"><span class="constructor">Host</span></span> <span class="keyword">of</span> <code class="type"><a href="Frenetic_Packet.html#TYPEdlAddr">Frenetic_Packet.dlAddr</a> * <a href="Frenetic_Packet.html#TYPEnwAddr">Frenetic_Packet.nwAddr</a></code></code></td>
+
+</tr></table>
+
+
+
+<pre><span class="keyword">module</span> <a href="Frenetic_NetKAT_Net.Node.html">Node</a>: <code class="code">sig</code> <a href="Frenetic_NetKAT_Net.Node.html">..</a> <code class="code">end</code></pre>
+<pre><span class="keyword">module</span> <a href="Frenetic_NetKAT_Net.Link.html">Link</a>: <code class="type"><a href="Frenetic_Network.EDGE.html">Frenetic_Network.EDGE</a></code><code class="type"> </code></pre>
+<pre><span class="keyword">module</span> <a href="Frenetic_NetKAT_Net.Net.html">Net</a>: <code class="type"><a href="Frenetic_Network.NETWORK.html">Frenetic_Network.NETWORK</a></code><code class="type">  
+  with type Topology.Vertex.t = Node.t
+  and type Topology.Edge.t = Link.t</code></pre>
+<pre><span id="VALnode_of_sexp"><span class="keyword">val</span> node_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT_Net.html#TYPEnode">node</a></code></pre>
+<pre><span id="VALsexp_of_node"><span class="keyword">val</span> sexp_of_node</span> : <code class="type"><a href="Frenetic_NetKAT_Net.html#TYPEnode">node</a> -> Sexplib.Sexp.t</code></pre></body></html>

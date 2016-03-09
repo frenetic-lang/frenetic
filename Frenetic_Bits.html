@@ -1,0 +1,83 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="Frenetic_Hashcons.html">
+<link rel="next" href="Frenetic_Fdd.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
+<link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
+<link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
+<link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
+<link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
+<link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
+<link title="Frenetic_NetKAT_Lexer" rel="Chapter" href="Frenetic_NetKAT_Lexer.html">
+<link title="Frenetic_NetKAT_Compiler" rel="Chapter" href="Frenetic_NetKAT_Compiler.html">
+<link title="Frenetic_NetKAT_Virtual_Compiler" rel="Chapter" href="Frenetic_NetKAT_Virtual_Compiler.html">
+<link title="Frenetic_NetKAT_Net" rel="Chapter" href="Frenetic_NetKAT_Net.html">
+<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
+<link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
+<link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
+<link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
+<link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
+<link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
+<link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
+<link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
+<link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
+<link title="Frenetic_Vlr" rel="Chapter" href="Frenetic_Vlr.html"><title>Frenetic_Bits</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="Frenetic_Hashcons.html" title="Frenetic_Hashcons">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="Frenetic_Fdd.html" title="Frenetic_Fdd">Next</a>
+</div>
+<h1>Module <a href="type_Frenetic_Bits.html">Frenetic_Bits</a></h1>
+
+<pre><span class="keyword">module</span> Frenetic_Bits: <code class="code">sig</code> <a href="Frenetic_Bits.html">..</a> <code class="code">end</code></pre><div class="info module top">
+Bit manipulation for integers
+<p>
+
+  Though Std has bitwise and's, or's and shifting, Frenetic needs some more 
+  bit-specific primitives.  Other libraries like bitv have them, but they require 
+  converting back and forth to abstract data types ... this approach is faster and
+  less complex.<br>
+</div>
+<hr width="100%">
+
+<pre><span id="VALclear_bit"><span class="keyword">val</span> clear_bit</span> : <code class="type">int -> int32 -> int32</code></pre><div class="info ">
+<code class="code">clear_bit n x</code> sets bit <code class="code">n</code> in integer <code class="code">x</code> to 0<br>
+</div>
+
+<pre><span id="VALset_bit"><span class="keyword">val</span> set_bit</span> : <code class="type">int -> int32 -> int32</code></pre><div class="info ">
+<code class="code">set_bit n x</code> sets bit <code class="code">n </code>in integer <code class="code">x</code> to 1<br>
+</div>
+
+<pre><span id="VALbit"><span class="keyword">val</span> bit</span> : <code class="type">int32 -> int -> bool -> int32</code></pre><div class="info ">
+<code class="code">bit x n set_bit</code> sets bit <code class="code">n</code> of integer <code class="code">x</code> to 1 if <code class="code">set_bit</code>=true, 0 otherwise.<br>
+</div>
+
+<pre><span id="VALtest_bit"><span class="keyword">val</span> test_bit</span> : <code class="type">int -> int32 -> bool</code></pre><div class="info ">
+<code class="code">test_bit n x</code> returns true if bit <code class="code">n</code> in integer <code class="code">x</code> is 1<br>
+</div>
+
+<pre><span id="VALget_byte32"><span class="keyword">val</span> get_byte32</span> : <code class="type">int32 -> int -> int</code></pre><div class="info ">
+<code class="code">get_byte32 x n</code> returns the <code class="code">n</code>'th byte of <code class="code">int32</code> <code class="code">x</code>.   The least significant
+  byte is 0, the most is 3.  Raises error if <code class="code">n</code> is not in 0..3<br>
+</div>
+
+<pre><span id="VALget_byte"><span class="keyword">val</span> get_byte</span> : <code class="type">int64 -> int -> int</code></pre><div class="info ">
+<code class="code">get_byte x n</code> returns the <code class="code">n</code>'th byte of <code class="code">int64</code> <code class="code">x</code>.  The least significant byte is 0,
+  the most is 7.  Raises error if <code class="code">n</code> is not in 0..7<br>
+</div>
+</body></html>

@@ -1,0 +1,805 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="Frenetic_OpenFlow0x04.html">
+<link rel="next" href="Frenetic_Topology.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
+<link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
+<link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
+<link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
+<link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
+<link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
+<link title="Frenetic_NetKAT_Lexer" rel="Chapter" href="Frenetic_NetKAT_Lexer.html">
+<link title="Frenetic_NetKAT_Compiler" rel="Chapter" href="Frenetic_NetKAT_Compiler.html">
+<link title="Frenetic_NetKAT_Virtual_Compiler" rel="Chapter" href="Frenetic_NetKAT_Virtual_Compiler.html">
+<link title="Frenetic_NetKAT_Net" rel="Chapter" href="Frenetic_NetKAT_Net.html">
+<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
+<link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
+<link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
+<link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
+<link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
+<link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
+<link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
+<link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
+<link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
+<link title="Frenetic_Vlr" rel="Chapter" href="Frenetic_Vlr.html"><link title="Packet types" rel="Section" href="#9_Packettypes">
+<link title="Accessors" rel="Section" href="#accs">
+<link title="Mutators" rel="Section" href="#9_Mutators">
+<link title="Pretty Printing" rel="Section" href="#9_PrettyPrinting">
+<link title="Serialization" rel="Section" href="#marshal">
+<link title="Accessors" rel="Section" href="#accs">
+<link title="Mutators" rel="Section" href="#9_Mutators">
+<link title="Pretty Printing" rel="Section" href="#9_PrettyPrinting">
+<link title="Serialization" rel="Section" href="#marshal">
+<title>Frenetic_Packet</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="Frenetic_OpenFlow0x04.html" title="Frenetic_OpenFlow0x04">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="Frenetic_Topology.html" title="Frenetic_Topology">Next</a>
+</div>
+<h1>Module <a href="type_Frenetic_Packet.html">Frenetic_Packet</a></h1>
+
+<pre><span class="keyword">module</span> Frenetic_Packet: <code class="code">sig</code> <a href="Frenetic_Packet.html">..</a> <code class="code">end</code></pre><div class="info module top">
+Library for constructing, marshaling and parsing data packets.<br>
+</div>
+<hr width="100%">
+<br>
+<div class="h9" id="9_Packettypes">Packet types</div>
+<p>
+
+    It is possible to navigate the structure of a packet directly
+    using the types defined here. However, using <a href="Frenetic_Packet.html#accs"><i>Accessors</i></a> may be more
+    convenient.<br>
+
+<pre><span id="TYPEint8"><span class="keyword">type</span> <code class="type"></code>int8</span> = <code class="type">int</code> </pre>
+<div class="info ">
+<code class="code">int8</code> is the type of 8-bit integers.<br>
+</div>
+
+
+<pre><span id="TYPEint16"><span class="keyword">type</span> <code class="type"></code>int16</span> = <code class="type">int</code> </pre>
+<div class="info ">
+<code class="code">int16</code> is the type of 16-bit integers.<br>
+</div>
+
+
+<pre><span id="TYPEint48"><span class="keyword">type</span> <code class="type"></code>int48</span> = <code class="type">int64</code> </pre>
+<div class="info ">
+<code class="code">int48</code> is the type of 48-bit integers.<br>
+</div>
+
+
+<pre><span id="TYPEdlAddr"><span class="keyword">type</span> <code class="type"></code>dlAddr</span> = <code class="type"><a href="Frenetic_Packet.html#TYPEint48">int48</a></code> </pre>
+<div class="info ">
+<code class="code">dlAddr</code> is the type of Ethernet addresses.<br>
+</div>
+
+
+<pre><span id="TYPEdlTyp"><span class="keyword">type</span> <code class="type"></code>dlTyp</span> = <code class="type"><a href="Frenetic_Packet.html#TYPEint16">int16</a></code> </pre>
+<div class="info ">
+<code class="code">dlTyp</code> is the type of Ethernet frame types.<br>
+</div>
+
+
+<pre><span id="TYPEdlVlan"><span class="keyword">type</span> <code class="type"></code>dlVlan</span> = <code class="type"><a href="Frenetic_Packet.html#TYPEint16">int16</a> option</code> </pre>
+<div class="info ">
+<code class="code">dlVlan</code> is the type of VLAN identifiers.  A value of <code class="code">None</code>
+    indicates that no 802.1Q (VLAN) header is set, which is distinct from
+    setting the VLAN to 0.<br>
+</div>
+
+
+<pre><span id="TYPEdlVlanPcp"><span class="keyword">type</span> <code class="type"></code>dlVlanPcp</span> = <code class="type"><a href="Frenetic_Packet.html#TYPEint8">int8</a></code> </pre>
+<div class="info ">
+<code class="code">dlVlanPcp</code> is the type of 802.1Q (VLAN) priorities.<br>
+</div>
+
+
+<pre><span id="TYPEdlVlanDei"><span class="keyword">type</span> <code class="type"></code>dlVlanDei</span> = <code class="type">bool</code> </pre>
+<div class="info ">
+<code class="code">dlVlanDei</code> is the type of 802.1Q (VLAN) drop eligible indicator.<br>
+</div>
+
+
+<pre><span id="TYPEnwAddr"><span class="keyword">type</span> <code class="type"></code>nwAddr</span> = <code class="type">int32</code> </pre>
+<div class="info ">
+<code class="code">nwAddr</code> is the type of IPv4 addresses.<br>
+</div>
+
+
+<pre><span id="TYPEnwProto"><span class="keyword">type</span> <code class="type"></code>nwProto</span> = <code class="type"><a href="Frenetic_Packet.html#TYPEint8">int8</a></code> </pre>
+<div class="info ">
+<code class="code">nwProto</code> is the type of IPv4 protocol numbers.<br>
+</div>
+
+
+<pre><span id="TYPEnwTos"><span class="keyword">type</span> <code class="type"></code>nwTos</span> = <code class="type"><a href="Frenetic_Packet.html#TYPEint8">int8</a></code> </pre>
+<div class="info ">
+<code class="code">nwTos</code> is the type of IPv4 types of service.<br>
+</div>
+
+
+<pre><span id="TYPEipv6Addr"><span class="keyword">type</span> <code class="type"></code>ipv6Addr</span> = <code class="type">int64 * int64</code> </pre>
+<div class="info ">
+<code class="code">ipv6Addr</code> is the type of IPv6 addresses.<br>
+</div>
+
+
+<pre><span id="TYPEtpPort"><span class="keyword">type</span> <code class="type"></code>tpPort</span> = <code class="type"><a href="Frenetic_Packet.html#TYPEint16">int16</a></code> </pre>
+<div class="info ">
+<code class="code">tpPort</code> is the type of transport protocol ports.<br>
+</div>
+
+
+<pre><span class="keyword">module</span> <a href="Frenetic_Packet.Tcp.html">Tcp</a>: <code class="code">sig</code> <a href="Frenetic_Packet.Tcp.html">..</a> <code class="code">end</code></pre><div class="info">
+TCP frame of a packet.
+</div>
+
+<pre><span class="keyword">module</span> <a href="Frenetic_Packet.Udp.html">Udp</a>: <code class="code">sig</code> <a href="Frenetic_Packet.Udp.html">..</a> <code class="code">end</code></pre><div class="info">
+UDP frame of a packet.
+</div>
+
+<pre><span class="keyword">module</span> <a href="Frenetic_Packet.Icmp.html">Icmp</a>: <code class="code">sig</code> <a href="Frenetic_Packet.Icmp.html">..</a> <code class="code">end</code></pre><div class="info">
+ICMP frame of a packet.
+</div>
+
+<pre><span class="keyword">module</span> <a href="Frenetic_Packet.Dns.html">Dns</a>: <code class="code">sig</code> <a href="Frenetic_Packet.Dns.html">..</a> <code class="code">end</code></pre><div class="info">
+Basic DNS packet type.
+</div>
+
+<pre><span class="keyword">module</span> <a href="Frenetic_Packet.Igmp1and2.html">Igmp1and2</a>: <code class="code">sig</code> <a href="Frenetic_Packet.Igmp1and2.html">..</a> <code class="code">end</code></pre><div class="info">
+IGMP v1 and v2 message type.
+</div>
+
+<pre><span class="keyword">module</span> <a href="Frenetic_Packet.Igmp3.html">Igmp3</a>: <code class="code">sig</code> <a href="Frenetic_Packet.Igmp3.html">..</a> <code class="code">end</code></pre><div class="info">
+IGMP v3 message type.
+</div>
+
+<pre><span class="keyword">module</span> <a href="Frenetic_Packet.Igmp.html">Igmp</a>: <code class="code">sig</code> <a href="Frenetic_Packet.Igmp.html">..</a> <code class="code">end</code></pre><div class="info">
+IGMP frame of a packet.
+</div>
+
+<pre><span class="keyword">module</span> <a href="Frenetic_Packet.Ip.html">Ip</a>: <code class="code">sig</code> <a href="Frenetic_Packet.Ip.html">..</a> <code class="code">end</code></pre><div class="info">
+IPv4 frame of a packet.
+</div>
+
+<pre><span class="keyword">module</span> <a href="Frenetic_Packet.Arp.html">Arp</a>: <code class="code">sig</code> <a href="Frenetic_Packet.Arp.html">..</a> <code class="code">end</code></pre><div class="info">
+Address resolution protocol (ARP) packet payload.
+</div>
+
+<pre><code><span id="TYPEnw"><span class="keyword">type</span> <code class="type"></code>nw</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTnw.Ip"><span class="constructor">Ip</span></span> <span class="keyword">of</span> <code class="type"><a href="Frenetic_Packet.Ip.html#TYPEt">Ip.t</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Internet Protocol version 4 (IPv4).<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTnw.Arp"><span class="constructor">Arp</span></span> <span class="keyword">of</span> <code class="type"><a href="Frenetic_Packet.Arp.html#TYPEt">Arp.t</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Address Resolution Protocol (ARP).<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTnw.Unparsable"><span class="constructor">Unparsable</span></span> <span class="keyword">of</span> <code class="type">(<a href="Frenetic_Packet.html#TYPEdlTyp">dlTyp</a> * Cstruct.t)</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+The EtherType code accompanied by the 
+                                  uninterpreted ethernet payload.<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+
+<div class="info ">
+The type <code class="code">nw</code> represents a packet at the network protocol level.<br>
+</div>
+
+
+<pre><code><span id="TYPEpacket"><span class="keyword">type</span> <code class="type"></code>packet</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpacket.dlSrc">dlSrc</span>&nbsp;: <code class="type"><a href="Frenetic_Packet.html#TYPEdlAddr">dlAddr</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Ethernet source address.<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpacket.dlDst">dlDst</span>&nbsp;: <code class="type"><a href="Frenetic_Packet.html#TYPEdlAddr">dlAddr</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Ethernet destination address.<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpacket.dlVlan">dlVlan</span>&nbsp;: <code class="type"><a href="Frenetic_Packet.html#TYPEdlVlan">dlVlan</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+802.1Q VLAN identifier, if any.<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpacket.dlVlanDei">dlVlanDei</span>&nbsp;: <code class="type"><a href="Frenetic_Packet.html#TYPEdlVlanDei">dlVlanDei</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+802.1Q VLAN Drop Eligible Indciator.  Ignored if
+                           <code class="code">dlVlan</code> is <code class="code">None</code><br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpacket.dlVlanPcp">dlVlanPcp</span>&nbsp;: <code class="type"><a href="Frenetic_Packet.html#TYPEdlVlanPcp">dlVlanPcp</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+802.1Q VLAN priority.  Ignored if <code class="code">dlVlan</code> is 
+                          <code class="code">None</code>.<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpacket.nw">nw</span>&nbsp;: <code class="type"><a href="Frenetic_Packet.html#TYPEnw">nw</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+Network payload.<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+}
+
+
+<br>
+<div class="h9" id="accs">Accessors</div><br>
+
+<pre><span id="VALdlTyp"><span class="keyword">val</span> dlTyp</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> <a href="Frenetic_Packet.html#TYPEdlTyp">dlTyp</a></code></pre><div class="info ">
+<code class="code">dlTyp pkt</code> returns the ethernet frame type of <code class="code">pkt</code><br>
+</div>
+
+<pre><span id="VALnwSrc"><span class="keyword">val</span> nwSrc</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> <a href="Frenetic_Packet.html#TYPEnwAddr">nwAddr</a></code></pre><div class="info ">
+<code class="code">nwSrc pkt</code> returns the source IP address of <code class="code">pkt</code>.<br>
+<b>Raises</b> <code>Invalid_argument</code> if the packet is not carrying an IP payload.<br>
+</div>
+
+<pre><span id="VALnwDst"><span class="keyword">val</span> nwDst</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> <a href="Frenetic_Packet.html#TYPEnwAddr">nwAddr</a></code></pre><div class="info ">
+<code class="code">nwDst pkt</code> returns the destination IP address of <code class="code">pkt</code>.<br>
+<b>Raises</b> <code>Invalid_argument</code> if the packet is not carrying an IP payload.<br>
+</div>
+
+<pre><span id="VALnwTos"><span class="keyword">val</span> nwTos</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> <a href="Frenetic_Packet.html#TYPEnwTos">nwTos</a></code></pre><div class="info ">
+<code class="code">nwTos pkt</code> returns the IPv4 type of service of <code class="code">pkt</code>.<br>
+<b>Raises</b> <code>Invalid_argument</code> if the packet is not carrying an IP payload.<br>
+</div>
+
+<pre><span id="VALnwProto"><span class="keyword">val</span> nwProto</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> <a href="Frenetic_Packet.html#TYPEnwProto">nwProto</a></code></pre><div class="info ">
+<code class="code">nwProto pkt</code> returns the IP protocol number of <code class="code">pkt</code>.<br>
+<b>Raises</b> <code>Invalid_argument</code> if the packet is not carrying an IP payload.<br>
+</div>
+
+<pre><span id="VALtpSrc"><span class="keyword">val</span> tpSrc</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> <a href="Frenetic_Packet.html#TYPEtpPort">tpPort</a></code></pre><div class="info ">
+<code class="code">tpSrc pkt</code> returns the transport protocol source port of <code class="code">pkt</code>.<br>
+<b>Raises</b> <code>Invalid_argument</code> if the packet is not carrying a TCP or UDP
+    payload.<br>
+</div>
+
+<pre><span id="VALtpDst"><span class="keyword">val</span> tpDst</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> <a href="Frenetic_Packet.html#TYPEtpPort">tpPort</a></code></pre><div class="info ">
+<code class="code">tpDst pkt</code> returns the transport protocol destination port of
+    <code class="code">pkt</code>.<br>
+<b>Raises</b> <code>Invalid_argument</code> if the packet is not carrying a
+    TCP or UDP payload.<br>
+</div>
+
+<pre><span id="VALarpOperation"><span class="keyword">val</span> arpOperation</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> int</code></pre><div class="info ">
+<code class="code">arpOperation pkt</code> returns the ARP operation code of <code class="code">pkt</code>.<br>
+<b>Raises</b> <code>Invalid_argument</code> if the packet is not carrying a ARP
+    payload.<br>
+</div>
+<br>
+<div class="h9" id="9_Mutators">Mutators</div><br>
+
+<pre><span id="VALsetDlSrc"><span class="keyword">val</span> setDlSrc</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> <a href="Frenetic_Packet.html#TYPEdlAddr">dlAddr</a> -> <a href="Frenetic_Packet.html#TYPEpacket">packet</a></code></pre><div class="info ">
+<code class="code">setDlSrc pkt addr</code> sets the ethernet source address of <code class="code">pkt</code> to
+    <code class="code">addr</code>.<br>
+</div>
+
+<pre><span id="VALsetDlDst"><span class="keyword">val</span> setDlDst</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> <a href="Frenetic_Packet.html#TYPEdlAddr">dlAddr</a> -> <a href="Frenetic_Packet.html#TYPEpacket">packet</a></code></pre><div class="info ">
+<code class="code">setDlDst pkt addr</code> sets the ethernet destination address of <code class="code">pkt</code>
+    to <code class="code">addr</code>.<br>
+</div>
+
+<pre><span id="VALsetDlVlan"><span class="keyword">val</span> setDlVlan</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> <a href="Frenetic_Packet.html#TYPEdlVlan">dlVlan</a> -> <a href="Frenetic_Packet.html#TYPEpacket">packet</a></code></pre><div class="info ">
+<code class="code">setDlVlan pkt vlan</code> sets the VLAN identifier of <code class="code">pkt</code> to
+    <code class="code">vlan</code>.<br>
+</div>
+
+<pre><span id="VALsetDlVlanPcp"><span class="keyword">val</span> setDlVlanPcp</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> <a href="Frenetic_Packet.html#TYPEdlVlanPcp">dlVlanPcp</a> -> <a href="Frenetic_Packet.html#TYPEpacket">packet</a></code></pre><div class="info ">
+<code class="code">setDlVlanPcp pkt pri</code> sets the VLAN priority of <code class="code">pkt</code> to
+    <code class="code">pri</code>.<br>
+</div>
+
+<pre><span id="VALsetNwSrc"><span class="keyword">val</span> setNwSrc</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> <a href="Frenetic_Packet.html#TYPEnwAddr">nwAddr</a> -> <a href="Frenetic_Packet.html#TYPEpacket">packet</a></code></pre><div class="info ">
+<code class="code">setNwSrc pkt</code> sets the source IP address of <code class="code">pkt</code> if the packet
+    carries an IP payload.  Otherwise, it returns the packet
+    unchanged.<br>
+</div>
+
+<pre><span id="VALsetNwDst"><span class="keyword">val</span> setNwDst</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> <a href="Frenetic_Packet.html#TYPEnwAddr">nwAddr</a> -> <a href="Frenetic_Packet.html#TYPEpacket">packet</a></code></pre><div class="info ">
+<code class="code">setNwDst pkt</code> sets the destination IP address of <code class="code">pkt</code> if the
+    packet carries an IP payload.  Otherwise, it returns the packet
+    unchanged.<br>
+</div>
+
+<pre><span id="VALsetNwTos"><span class="keyword">val</span> setNwTos</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> <a href="Frenetic_Packet.html#TYPEnwTos">nwTos</a> -> <a href="Frenetic_Packet.html#TYPEpacket">packet</a></code></pre><div class="info ">
+<code class="code">setNwTos pkt</code> sets the IPv4 type of service of <code class="code">pkt</code> if the
+    packet carries an IP payload.  Otherwise, it returns the packet
+    unchanged.<br>
+</div>
+
+<pre><span id="VALsetTpSrc"><span class="keyword">val</span> setTpSrc</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> <a href="Frenetic_Packet.html#TYPEtpPort">tpPort</a> -> <a href="Frenetic_Packet.html#TYPEpacket">packet</a></code></pre><div class="info ">
+<code class="code">setTpSrc pkt</code> sets the transport protocol source port of <code class="code">pkt</code> if
+    the packet carries a TCP or UDP payload.  Otherwise, it returns
+    the packet unchanged.<br>
+</div>
+
+<pre><span id="VALsetTpDst"><span class="keyword">val</span> setTpDst</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> <a href="Frenetic_Packet.html#TYPEtpPort">tpPort</a> -> <a href="Frenetic_Packet.html#TYPEpacket">packet</a></code></pre><div class="info ">
+<code class="code">setTpDst pkt</code> sets the transport protocol destination port of
+    <code class="code">pkt</code> if the packet carries a TCP or UDP payload.  Otherwise, it
+    returns the packet unchanged.<br>
+</div>
+<br>
+<div class="h9" id="9_PrettyPrinting">Pretty Printing</div><br>
+
+<pre><span id="VALstring_of_mac"><span class="keyword">val</span> string_of_mac</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlAddr">dlAddr</a> -> string</code></pre><div class="info ">
+<code class="code">string_of_mac mac</code> pretty-prints an ethernet address.<br>
+</div>
+
+<pre><span id="VALmac_of_string"><span class="keyword">val</span> mac_of_string</span> : <code class="type">string -> <a href="Frenetic_Packet.html#TYPEdlAddr">dlAddr</a></code></pre><div class="info ">
+<code class="code">mac_of_string string</code> converts an colon-separated ethernet
+    address to a <code class="code">dlAddr</code> *<br>
+</div>
+
+<pre><span id="VALstring_of_dlAddr"><span class="keyword">val</span> string_of_dlAddr</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlAddr">dlAddr</a> -> string</code></pre><div class="info ">
+<code class="code">string_of_dlAddr addr</code> is identical to <code class="code">string_of_mac</code>.<br>
+</div>
+
+<pre><span id="VALstring_of_dlTyp"><span class="keyword">val</span> string_of_dlTyp</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlTyp">dlTyp</a> -> string</code></pre><div class="info ">
+<code class="code">string_of_dlTyp typ</code> pretty-prints an ethernet frame type.<br>
+</div>
+
+<pre><span id="VALstring_of_dlVlan"><span class="keyword">val</span> string_of_dlVlan</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlVlan">dlVlan</a> -> string</code></pre><div class="info ">
+<code class="code">string_of_dlVlan vlan</code> pretty-prints an 802.1Q VLAN
+    identifier.<br>
+</div>
+
+<pre><span id="VALstring_of_dlVlanPcp"><span class="keyword">val</span> string_of_dlVlanPcp</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlVlanPcp">dlVlanPcp</a> -> string</code></pre><div class="info ">
+<code class="code">string_of_dlVlanPcp p</code> pretty-prints an 802.1Q VLAN priority.<br>
+</div>
+
+<pre><span id="VALstring_of_dlVlanDei"><span class="keyword">val</span> string_of_dlVlanDei</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlVlanDei">dlVlanDei</a> -> string</code></pre><div class="info ">
+<code class="code">string_of_dlVlanDei p</code> pretty-prints an 802.1Q VLAN Drop Eligible
+    Indicator.<br>
+</div>
+
+<pre><span id="VALstring_of_ip"><span class="keyword">val</span> string_of_ip</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEnwAddr">nwAddr</a> -> string</code></pre><div class="info ">
+<code class="code">string_of_ip ip</code> pretty-prints an IPv4 address.<br>
+</div>
+
+<pre><span id="VALip_of_string"><span class="keyword">val</span> ip_of_string</span> : <code class="type">string -> <a href="Frenetic_Packet.html#TYPEnwAddr">nwAddr</a></code></pre><div class="info ">
+<code class="code">ip_of_string string</code> converts an dot-separated IPv4 address to a
+    <code class="code">nwAddr</code> *<br>
+</div>
+
+<pre><span id="VALstring_of_nwAddr"><span class="keyword">val</span> string_of_nwAddr</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEnwAddr">nwAddr</a> -> string</code></pre><div class="info ">
+<code class="code">string_of_nwAddr addr</code> is identical to <code class="code">string_of_ip</code>.<br>
+</div>
+
+<pre><span id="VALstring_of_nwProto"><span class="keyword">val</span> string_of_nwProto</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEnwProto">nwProto</a> -> string</code></pre><div class="info ">
+<code class="code">string_of_nwProto p</code> pretty-prints an IPv4 protocol.<br>
+</div>
+
+<pre><span id="VALstring_of_nwTos"><span class="keyword">val</span> string_of_nwTos</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEnwTos">nwTos</a> -> string</code></pre><div class="info ">
+<code class="code">string_of_nwTos t</code> pretty-prints an IPv4 type of service.<br>
+</div>
+
+<pre><span id="VALstring_of_ipv6"><span class="keyword">val</span> string_of_ipv6</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEipv6Addr">ipv6Addr</a> -> string</code></pre><div class="info ">
+<code class="code">string_of_ipv6 t</code> pretty-prints an IPv6 address. *<br>
+</div>
+
+<pre><span id="VALipv6_of_string"><span class="keyword">val</span> ipv6_of_string</span> : <code class="type">string -> <a href="Frenetic_Packet.html#TYPEipv6Addr">ipv6Addr</a></code></pre><div class="info ">
+<code class="code">string_of_ipv6 t</code> Converts a colon-separated IPv6 address to
+    ipv6Addr. *<br>
+</div>
+
+<pre><span id="VALstring_of_tpPort"><span class="keyword">val</span> string_of_tpPort</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEtpPort">tpPort</a> -> string</code></pre><div class="info ">
+<code class="code">string_of_tpPort p</code> pretty-prints a transport protocol port
+    number.<br>
+</div>
+
+<pre><span id="VALbytes_of_mac"><span class="keyword">val</span> bytes_of_mac</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlAddr">dlAddr</a> -> string</code></pre><div class="info ">
+<code class="code">bytes_of_mac mac</code> returns a bit-string representation of
+    <code class="code">mac</code>.<br>
+</div>
+
+<pre><span id="VALmac_of_bytes"><span class="keyword">val</span> mac_of_bytes</span> : <code class="type">string -> <a href="Frenetic_Packet.html#TYPEint48">int48</a></code></pre><div class="info ">
+<code class="code">mac_of_bytes str</code> constructs a <code class="code">dlAddr</code> from a bit-string
+    representation.<br>
+<b>Raises</b> <code>Invalid_argument</code> if the length of the
+    string is not six characters.<br>
+</div>
+<br>
+<div class="h9" id="marshal">Serialization</div><br>
+
+<pre><span id="VALparse"><span class="keyword">val</span> parse</span> : <code class="type">Cstruct.t -> <a href="Frenetic_Packet.html#TYPEpacket">packet</a></code></pre><div class="info ">
+<code class="code">parse bits</code> parses a bit sequence into a packet.<br>
+</div>
+
+<pre><span id="VALlen"><span class="keyword">val</span> len</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> int</code></pre><div class="info ">
+<code class="code">len pkt</code> length of packet in bytes.<br>
+</div>
+
+<pre><span id="VALmarshal"><span class="keyword">val</span> marshal</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> Cstruct.t</code></pre><div class="info ">
+<code class="code">marshal pkt</code> marshals <code class="code">pkt</code> into a bit sequence.<br>
+</div>
+
+<pre><span id="VALto_string"><span class="keyword">val</span> to_string</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> string</code></pre><div class="info ">
+<code class="code">to_string pkt</code> prints <code class="code">pkt</code> as a string.<br>
+</div>
+
+<pre><span id="VALformat_packet"><span class="keyword">val</span> format_packet</span> : <code class="type">Format.formatter -> <a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> unit</code></pre><div class="info ">
+<code class="code">format_packet fmt pkt</code> uses formatter <code class="code">fmt</code> to format <code class="code">pkt</code>.<br>
+</div>
+
+<pre><span id="VALint8_of_sexp"><span class="keyword">val</span> int8_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEint8">int8</a></code></pre>
+<pre><span id="VALsexp_of_int8"><span class="keyword">val</span> sexp_of_int8</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEint8">int8</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALint16_of_sexp"><span class="keyword">val</span> int16_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEint16">int16</a></code></pre><div class="info ">
+<code class="code">int16</code> is the type of 16-bit integers.<br>
+</div>
+
+<pre><span id="VALsexp_of_int16"><span class="keyword">val</span> sexp_of_int16</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEint16">int16</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALint48_of_sexp"><span class="keyword">val</span> int48_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEint48">int48</a></code></pre><div class="info ">
+<code class="code">int48</code> is the type of 48-bit integers.<br>
+</div>
+
+<pre><span id="VALsexp_of_int48"><span class="keyword">val</span> sexp_of_int48</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEint48">int48</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALdlAddr_of_sexp"><span class="keyword">val</span> dlAddr_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEdlAddr">dlAddr</a></code></pre><div class="info ">
+<code class="code">dlAddr</code> is the type of Ethernet addresses.<br>
+</div>
+
+<pre><span id="VALsexp_of_dlAddr"><span class="keyword">val</span> sexp_of_dlAddr</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlAddr">dlAddr</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALdlTyp_of_sexp"><span class="keyword">val</span> dlTyp_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEdlTyp">dlTyp</a></code></pre><div class="info ">
+<code class="code">dlTyp</code> is the type of Ethernet frame types.<br>
+</div>
+
+<pre><span id="VALsexp_of_dlTyp"><span class="keyword">val</span> sexp_of_dlTyp</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlTyp">dlTyp</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALdlVlan_of_sexp"><span class="keyword">val</span> dlVlan_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEdlVlan">dlVlan</a></code></pre><div class="info ">
+<code class="code">dlVlan</code> is the type of VLAN identifiers.  A value of <code class="code">None</code>
+    indicates that no 802.1Q (VLAN) header is set, which is distinct from
+    setting the VLAN to 0.<br>
+</div>
+
+<pre><span id="VALsexp_of_dlVlan"><span class="keyword">val</span> sexp_of_dlVlan</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlVlan">dlVlan</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALdlVlanPcp_of_sexp"><span class="keyword">val</span> dlVlanPcp_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEdlVlanPcp">dlVlanPcp</a></code></pre><div class="info ">
+<code class="code">dlVlanPcp</code> is the type of 802.1Q (VLAN) priorities.<br>
+</div>
+
+<pre><span id="VALsexp_of_dlVlanPcp"><span class="keyword">val</span> sexp_of_dlVlanPcp</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlVlanPcp">dlVlanPcp</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALdlVlanDei_of_sexp"><span class="keyword">val</span> dlVlanDei_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEdlVlanDei">dlVlanDei</a></code></pre><div class="info ">
+<code class="code">dlVlanDei</code> is the type of 802.1Q (VLAN) drop eligible indicator.<br>
+</div>
+
+<pre><span id="VALsexp_of_dlVlanDei"><span class="keyword">val</span> sexp_of_dlVlanDei</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlVlanDei">dlVlanDei</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALnwAddr_of_sexp"><span class="keyword">val</span> nwAddr_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEnwAddr">nwAddr</a></code></pre><div class="info ">
+<code class="code">nwAddr</code> is the type of IPv4 addresses.<br>
+</div>
+
+<pre><span id="VALsexp_of_nwAddr"><span class="keyword">val</span> sexp_of_nwAddr</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEnwAddr">nwAddr</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALnwProto_of_sexp"><span class="keyword">val</span> nwProto_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEnwProto">nwProto</a></code></pre><div class="info ">
+<code class="code">nwProto</code> is the type of IPv4 protocol numbers.<br>
+</div>
+
+<pre><span id="VALsexp_of_nwProto"><span class="keyword">val</span> sexp_of_nwProto</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEnwProto">nwProto</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALnwTos_of_sexp"><span class="keyword">val</span> nwTos_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEnwTos">nwTos</a></code></pre><div class="info ">
+<code class="code">nwTos</code> is the type of IPv4 types of service.<br>
+</div>
+
+<pre><span id="VALsexp_of_nwTos"><span class="keyword">val</span> sexp_of_nwTos</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEnwTos">nwTos</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALipv6Addr_of_sexp"><span class="keyword">val</span> ipv6Addr_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEipv6Addr">ipv6Addr</a></code></pre><div class="info ">
+<code class="code">ipv6Addr</code> is the type of IPv6 addresses.<br>
+</div>
+
+<pre><span id="VALsexp_of_ipv6Addr"><span class="keyword">val</span> sexp_of_ipv6Addr</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEipv6Addr">ipv6Addr</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALtpPort_of_sexp"><span class="keyword">val</span> tpPort_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEtpPort">tpPort</a></code></pre><div class="info ">
+<code class="code">tpPort</code> is the type of transport protocol ports.<br>
+</div>
+
+<pre><span id="VALsexp_of_tpPort"><span class="keyword">val</span> sexp_of_tpPort</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEtpPort">tpPort</a> -> Sexplib.Sexp.t</code></pre><br>
+TCP frame of a packet.<br>
+<br>
+TCP header flags.<br>
+<br>
+ECN-nonce concealment protection.<br>
+<br>
+Congestion window reduced.<br>
+<br>
+ECN-Echo.<br>
+<br>
+Indicates the Urgent pointer field is significant.<br>
+<br>
+Indicates that the Acknowledgment field is 
+                       significant.<br>
+<br>
+Asks to push the buffered data to the receiving 
+                       application.<br>
+<br>
+Reset the connection.<br>
+<br>
+Synchronize sequence numbers.<br>
+<br>
+No more data from sender.<br>
+<br>
+Source port.<br>
+<br>
+Destination port.<br>
+<br>
+Sequence number.<br>
+<br>
+Acknowledgement number.<br>
+<br>
+Data offset.<br>
+<br>
+TCP header flags.<br>
+<br>
+Window size.<br>
+<br>
+Checksum.<br>
+<br>
+Urgent pointer.<br>
+<br>
+TCP payload.<br>
+<br>
+UDP frame of a packet.<br>
+<br>
+Source port.<br>
+<br>
+Destination port.<br>
+<br>
+Checksum.<br>
+<br>
+UDP payload.<br>
+<br>
+ICMP frame of a packet.<br>
+<br>
+ICMP type.<br>
+<br>
+ICMP subtype.<br>
+<br>
+Checksum.<br>
+<br>
+ICMP payload.<br>
+<br>
+Basic DNS packet type.<br>
+<br>
+<code class="code">serialize dns_pkt</code> serializes <code class="code">dns_pkt</code> into a bit sequence,
+      suitable for placing in a UDP or TCP payload.<br>
+<br>
+IGMP v1 and v2 message type.<br>
+<br>
+Maximum response time.<br>
+<br>
+Checksum.<br>
+<br>
+IGMP group address.<br>
+<br>
+IGMP v3 message type.<br>
+<br>
+Group Record type.<br>
+<br>
+Multicast Group.<br>
+<br>
+List of sources addresses.<br>
+<br>
+Checksum.<br>
+<br>
+Group records.<br>
+<br>
+IGMP frame of a packet.<br>
+<br>
+IGMP version/type.<br>
+<br>
+enclosed IGMP message<br>
+<br>
+IPv4 frame of a packet.<br>
+<br>
+The type <code class="code">tp</code> represents packets at the transport protocol
+      level, which are encapsulated within the IPv4 payload. At
+      present, we only support TCP, UDP, ICMP and IGMP explicitly;
+      otherwise, the raw bytes and IPv4 protocol number are
+      provided.<br>
+<br>
+<code class="code">Flags</code> is the type of IPv4 flags.<br>
+<br>
+Don't fragment.<br>
+<br>
+More fragments.<br>
+<br>
+Type of service.<br>
+<br>
+Identification.<br>
+<br>
+IPv4 header flags.<br>
+<br>
+Fragment offset.<br>
+<br>
+Time to live.<br>
+<br>
+Header checksum.<br>
+<br>
+IP source address.<br>
+<br>
+IP destination address.<br>
+<br>
+Uninterpreted IP options.<br>
+<br>
+Transport payload.<br>
+<br>
+Address resolution protocol (ARP) packet payload.<br>
+
+<pre><span id="VALnw_of_sexp"><span class="keyword">val</span> nw_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEnw">nw</a></code></pre><div class="info ">
+The type <code class="code">nw</code> represents a packet at the network protocol level.<br>
+</div>
+
+<pre><span id="VALsexp_of_nw"><span class="keyword">val</span> sexp_of_nw</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEnw">nw</a> -> Sexplib.Sexp.t</code></pre><div class="info ">
+The EtherType code accompanied by the 
+                                  uninterpreted ethernet payload.<br>
+</div>
+
+<pre><span id="VALpacket_of_sexp"><span class="keyword">val</span> packet_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEpacket">packet</a></code></pre><div class="info ">
+The type <code class="code">packet</code> represents a packet at the ethernet protocol level.<br>
+</div>
+
+<pre><span id="VALsexp_of_packet"><span class="keyword">val</span> sexp_of_packet</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> Sexplib.Sexp.t</code></pre><br>
+<div class="h9" id="accs">Accessors</div><br>
+<br>
+<code class="code">dlTyp pkt</code> returns the ethernet frame type of <code class="code">pkt</code><br>
+<br>
+<code class="code">nwSrc pkt</code> returns the source IP address of <code class="code">pkt</code>.<br>
+<br>
+<code class="code">nwDst pkt</code> returns the destination IP address of <code class="code">pkt</code>.<br>
+<br>
+<code class="code">nwTos pkt</code> returns the IPv4 type of service of <code class="code">pkt</code>.<br>
+<br>
+<code class="code">nwProto pkt</code> returns the IP protocol number of <code class="code">pkt</code>.<br>
+<br>
+<code class="code">tpSrc pkt</code> returns the transport protocol source port of <code class="code">pkt</code>.<br>
+<br>
+<code class="code">tpDst pkt</code> returns the transport protocol destination port of
+    <code class="code">pkt</code>.<br>
+<br>
+<code class="code">arpOperation pkt</code> returns the ARP operation code of <code class="code">pkt</code>.<br>
+<br>
+<div class="h9" id="9_Mutators">Mutators</div><br>
+<br>
+<code class="code">setDlSrc pkt addr</code> sets the ethernet source address of <code class="code">pkt</code> to
+    <code class="code">addr</code>.<br>
+<br>
+<code class="code">setDlDst pkt addr</code> sets the ethernet destination address of <code class="code">pkt</code>
+    to <code class="code">addr</code>.<br>
+<br>
+<code class="code">setDlVlan pkt vlan</code> sets the VLAN identifier of <code class="code">pkt</code> to
+    <code class="code">vlan</code>.<br>
+<br>
+<code class="code">setDlVlanPcp pkt pri</code> sets the VLAN priority of <code class="code">pkt</code> to
+    <code class="code">pri</code>.<br>
+<br>
+<code class="code">setNwSrc pkt</code> sets the source IP address of <code class="code">pkt</code> if the packet
+    carries an IP payload.  Otherwise, it returns the packet
+    unchanged.<br>
+<br>
+<code class="code">setNwDst pkt</code> sets the destination IP address of <code class="code">pkt</code> if the
+    packet carries an IP payload.  Otherwise, it returns the packet
+    unchanged.<br>
+<br>
+<code class="code">setNwTos pkt</code> sets the IPv4 type of service of <code class="code">pkt</code> if the
+    packet carries an IP payload.  Otherwise, it returns the packet
+    unchanged.<br>
+<br>
+<code class="code">setTpSrc pkt</code> sets the transport protocol source port of <code class="code">pkt</code> if
+    the packet carries a TCP or UDP payload.  Otherwise, it returns
+    the packet unchanged.<br>
+<br>
+<code class="code">setTpDst pkt</code> sets the transport protocol destination port of
+    <code class="code">pkt</code> if the packet carries a TCP or UDP payload.  Otherwise, it
+    returns the packet unchanged.<br>
+<br>
+<div class="h9" id="9_PrettyPrinting">Pretty Printing</div><br>
+<br>
+<code class="code">string_of_mac mac</code> pretty-prints an ethernet address.<br>
+<br>
+<code class="code">mac_of_string string</code> converts an colon-separated ethernet
+    address to a <code class="code">dlAddr</code> *<br>
+<br>
+<code class="code">string_of_dlAddr addr</code> is identical to <code class="code">string_of_mac</code>.<br>
+<br>
+<code class="code">string_of_dlTyp typ</code> pretty-prints an ethernet frame type.<br>
+<br>
+<code class="code">string_of_dlVlan vlan</code> pretty-prints an 802.1Q VLAN
+    identifier.<br>
+<br>
+<code class="code">string_of_dlVlanPcp p</code> pretty-prints an 802.1Q VLAN priority.<br>
+<br>
+<code class="code">string_of_dlVlanDei p</code> pretty-prints an 802.1Q VLAN Drop Eligible
+    Indicator.<br>
+<br>
+<code class="code">string_of_ip ip</code> pretty-prints an IPv4 address.<br>
+<br>
+<code class="code">ip_of_string string</code> converts an dot-separated IPv4 address to a
+    <code class="code">nwAddr</code> *<br>
+<br>
+<code class="code">string_of_nwAddr addr</code> is identical to <code class="code">string_of_ip</code>.<br>
+<br>
+<code class="code">string_of_nwProto p</code> pretty-prints an IPv4 protocol.<br>
+<br>
+<code class="code">string_of_nwTos t</code> pretty-prints an IPv4 type of service.<br>
+<br>
+<code class="code">string_of_ipv6 t</code> pretty-prints an IPv6 address. *<br>
+<br>
+<code class="code">string_of_ipv6 t</code> Converts a colon-separated IPv6 address to
+    ipv6Addr. *<br>
+<br>
+<code class="code">string_of_tpPort p</code> pretty-prints a transport protocol port
+    number.<br>
+<br>
+<code class="code">bytes_of_mac mac</code> returns a bit-string representation of
+    <code class="code">mac</code>.<br>
+<br>
+<code class="code">mac_of_bytes str</code> constructs a <code class="code">dlAddr</code> from a bit-string
+    representation.<br>
+<br>
+<div class="h9" id="marshal">Serialization</div><br>
+<br>
+<code class="code">parse bits</code> parses a bit sequence into a packet.<br>
+<br>
+<code class="code">len pkt</code> length of packet in bytes.<br>
+<br>
+<code class="code">marshal pkt</code> marshals <code class="code">pkt</code> into a bit sequence.<br>
+<br>
+<code class="code">to_string pkt</code> prints <code class="code">pkt</code> as a string.<br>
+<br>
+<code class="code">format_packet fmt pkt</code> uses formatter <code class="code">fmt</code> to format <code class="code">pkt</code>.<br>
+</body></html>
