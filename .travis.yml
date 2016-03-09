@@ -20,3 +20,7 @@ notifications:
     - ! 'Build details : %{build_url}'
     on_success: change
     on_failure: always
+branches:
+  only:
+    - master
+    - issue_233_docs
