@@ -2,10 +2,10 @@ language: c
 sudo: required
 install: 
   - wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.travis-opam.sh
-  - wget https://www.cs.cornell.edu/~cr396/_travis-docgen.sh
+  - wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.travis-docgen.sh
 script: 
   - bash -ex .travis-opam.sh
-  - bash -ex _travis-docgen.sh
+  - bash -ex .travis-docgen.sh
 env:
   matrix:
   - OCAML_VERSION=latest PACKAGE=frenetic TESTS=true BASE_REMOTE=https://opam.ocaml.org
