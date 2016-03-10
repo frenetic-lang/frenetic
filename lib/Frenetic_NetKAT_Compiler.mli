@@ -13,6 +13,9 @@ type order
 type t
 (** The type of the intermediate compiler representation (FDD). *)
 
+type automaton
+(** The type of the automata representation of a global NetKAT program *)
+
 type cache
   = [ `Keep
     | `Empty
@@ -42,6 +45,17 @@ val compile_local : ?options:compiler_options -> policy -> t
  *)
 
 val compile_global : ?options:compiler_options -> policy -> t
+
+val compile_to_automaton : ?options:compiler_options -> policy -> automaton
+(** [compile_to_automaton p] returns the automaton representation of the global
+    policy [p]. You can generate an intermediate representation from the
+    automaton by passing it to the {!compile_from_automaton} function below.
+ *)
+
+val compile_from_automaton : automaton -> t
+(** [compile_from_automaton p] returns the intermediate representation from the
+    automaton.
+ *)
 
 val restrict : header_val -> t -> t
 (** [restrict hv t] returns the fragment of [t] that applies when the assignment

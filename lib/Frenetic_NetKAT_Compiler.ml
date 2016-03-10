@@ -833,15 +833,19 @@ module NetKAT_Automaton = struct
     Buffer.contents buf
 end
 
+type automaton = NetKAT_Automaton.t
+
 let compile_global ?(options=default_compiler_options) (pol : Frenetic_NetKAT.policy) : FDK.t =
   prepare_compilation ~options pol;
   NetKAT_Automaton.of_policy pol
   |> NetKAT_Automaton.to_local ~pc:Field.Vlan
 
+let compile_to_automaton ?(options=default_compiler_options) (pol : Frenetic_NetKAT.policy) : automaton =
+  prepare_compilation ~options pol;
+  NetKAT_Automaton.of_policy pol
 
-
-
-
+let compile_from_automaton (at : automaton) =
+  NetKAT_Automaton.to_local ~pc:Field.Vlan at
 
 
 
