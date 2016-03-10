@@ -103,6 +103,13 @@ let shell : Command.t =
     (fun openflow_port ->
       run (Frenetic_Shell.main openflow_port))
 
+let autoshell : Command.t =
+  Command.basic
+    ~summary:"Invokes frenetic automaton shell."
+    Command.Spec.(empty
+      ++ default_spec)
+    (run Frenetic_Autoshell.main )
+
 let compile_server : Command.t =
   Command.basic
     ~summary:"Invokes compile server."
@@ -149,6 +156,7 @@ let main : Command.t =
   Command.group
     ~summary:"Invokes the specified Frenetic module."
     [ ("shell", shell)
+    ; ("autoshell", autoshell)
     ; ("compile-server", compile_server)
     ; ("http-controller", http_controller)
     ; ("openflow13", openflow13_controller)
