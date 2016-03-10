@@ -131,6 +131,11 @@ val to_string : t -> string
 (** [to_string t] returns a string representation of [t]. This will be a
     representation of the Vlr diagram from the tdk package. *)
 
+val automaton_to_string : automaton -> string
+(** [automaton_to_string automaton] returns a string representation of
+    [automaton]. This will be in DOT format, so it can be sent to the Graphviz
+    program for visualization *)
+
 (** {2 Interpreter} *)
 
 val eval : packet -> t -> PacketSet.t

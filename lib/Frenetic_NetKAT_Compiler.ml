@@ -847,6 +847,8 @@ let compile_to_automaton ?(options=default_compiler_options) (pol : Frenetic_Net
 let compile_from_automaton (at : automaton) =
   NetKAT_Automaton.to_local ~pc:Field.Vlan at
 
+let automaton_to_string (at : automaton) =
+  NetKAT_Automaton.to_dot at
 
 
 (*==========================================================================*)

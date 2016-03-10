@@ -8,6 +8,7 @@ module Log = Frenetic_Log
 type command =
   | Load of string
   | Compile
+  | Write of string
   | Exit
 
 
@@ -35,6 +36,12 @@ module Parser = struct
   let compile : (command, bytes list) MParser.t =
     Tokens.symbol "exit" >> return Compile
 
+  (* Parser for the write command *)
+  let write : (command, bytes list) MParser.t =
+    Tokens.symbol "write" >>
+      many_until any_char eof >>=
+      (fun filename -> return (Write (String.of_char_list filename)))
+
   (* Parser for the exit command *)
   let exit : (command, bytes list) MParser.t =
     Tokens.symbol "exit" >> return Exit
@@ -45,6 +52,8 @@ module Parser = struct
 
   let command : (command, bytes list) MParser.t =
     load <|>
+    compile <|>
+    write <|>
     quit <|>
     exit
 
@@ -77,6 +86,10 @@ let load_file (filename : string) : unit =
 let compile (pol : policy) : Frenetic_NetKAT_Compiler.automaton =
   Frenetic_NetKAT_Compiler.compile_to_automaton pol
 
+let write (at : Frenetic_NetKAT_Compiler.automaton) (filename:string) : unit =
+  let string = Frenetic_NetKAT_Compiler.automaton_to_string at in
+  Out_channel.write_all "%s\n%!" ~data:string
+
 let parse_command (line : string) : command option =
   match (MParser.parse_string Parser.command line []) with
   | Success command -> Some command
@@ -93,6 +106,9 @@ let rec repl () : unit Deferred.t =
       | Some Compile ->
         let (pol,_) = !policy in
         automaton := Some (compile pol, pol)
+      | Some (Write filename) -> begin match !automaton with
+        | None -> print_endline "No compiled automaton available"
+        | Some (at, _) -> write at filename end
       | Some Exit ->
 	print_endline "Goodbye!";
 	Shutdown.shutdown 0
