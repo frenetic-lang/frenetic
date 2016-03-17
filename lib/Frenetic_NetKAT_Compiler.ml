@@ -208,7 +208,24 @@ let is_valid_pattern options (pat : Frenetic_OpenFlow.Pattern.t) : bool =
      (Option.is_none pat.tpSrc &&
       Option.is_none pat.tpDst))
 
-let mk_flow options pattern action queries =
+(* TODO: You need to know which dependencies have been met on True branches up the tree 
+   Also, there may be more than one rule needed.  *)
+let fill_in_dependencies (pat : Frenetic_OpenFlow.Pattern.t) = 
+  let open Frenetic_OpenFlow.Pattern in
+  if (Option.is_some pat.nwSrc || Option.is_some pat.nwDst || Option.is_some pat.nwProto) && 
+    Option.is_none pat.dlTyp then {pat with dlTyp = Some 0x800 }
+  else if (Option.is_some pat.dlVlan || Option.is_some pat.dlVlanPcp) && 
+    Option.is_none pat.dlTyp then {pat with dlTyp = Some 0x8100}
+  else if (Option.is_some pat.tpSrc || Option.is_some pat.tpDst) && 
+    Option.is_none pat.nwProto then {pat with nwProto = Some 0x1}
+  else
+    pat
+
+let to_pattern hvs =
+  List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_OpenFlow.Pattern.match_all
+
+let mk_flow options tests action queries =
+  let pattern = to_pattern tests |> fill_in_dependencies in
   if is_valid_pattern options pattern then
     let open Frenetic_OpenFlow.Pattern in
     let open Frenetic_OpenFlow in
@@ -232,9 +249,6 @@ let get_inport hvs =
 let to_action ?group_tbl (in_port : Int64.t option) r tests =
   List.fold tests ~init:r ~f:(fun a t -> Action.demod t a)
   |> Action.to_sdn ?group_tbl in_port
-
-let to_pattern hvs =
-  List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_OpenFlow.Pattern.match_all
 
 let remove_local_fields = FDK.fold
   (fun r -> mk_leaf (Action.Par.map r ~f:(fun s -> Action.Seq.filter s ~f:(fun ~key ~data ->
@@ -267,7 +281,7 @@ let opt_to_table ?group_tbl options sw_id t =
     | Leaf actions ->
       let openflow_instruction = [to_action ?group_tbl (get_inport tests) actions tests] in
       let queries = Action.get_queries actions in
-      let row = mk_flow options (to_pattern tests) openflow_instruction queries in
+      let row = mk_flow options tests openflow_instruction queries in
       (row, mk_rest None)
   in
   let rec loop t acc =
@@ -283,7 +297,7 @@ let rec naive_to_table ?group_tbl options sw_id (t : FDK.t) =
   | Leaf actions ->
     let openflow_instruction = [to_action ?group_tbl (get_inport tests) actions tests] in
     let queries = Action.get_queries actions in
-    [mk_flow options (to_pattern tests) openflow_instruction queries]
+    [mk_flow options tests openflow_instruction queries]
   | Branch ((Location, Pipe _), _, fls) -> dfs tests fls
   | Branch (test, tru, fls) ->
     dfs (test :: tests) tru @ dfs tests fls in
