@@ -53,6 +53,7 @@ end
 module Pattern : sig
   type t = Field.t * Value.t
   val compare : t -> t -> int
+  val equal : t -> t -> bool
   val of_hv : Frenetic_NetKAT.header_val -> t
   val to_hv : t -> Frenetic_NetKAT.header_val
   val to_pred : t -> Frenetic_NetKAT.pred

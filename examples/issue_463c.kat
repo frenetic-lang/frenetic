@@ -1,0 +1,4 @@
+filter (ethTyp=0x800) ;
+  (filter tcpDstPort=22 ; port := 9 |  
+   filter tcpDstPort=443 ; port := 10
+  )  
