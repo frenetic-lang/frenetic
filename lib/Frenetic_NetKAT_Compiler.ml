@@ -162,17 +162,12 @@ type cache
     | `Empty
     | `Preserve of t ]
 
-type adherence
-  = [ `Strict
-    | `Sloppy ]
-
 type compiler_options = {
     cache_prepare: cache;
     field_order: order;
     remove_tail_drops: bool;
     dedup_flows: bool;
     optimize: bool;
-    openflow_adherence: adherence;
 }
 
 let default_compiler_options = {
@@ -181,7 +176,6 @@ let default_compiler_options = {
   remove_tail_drops = false;
   dedup_flows = true;
   optimize = true;
-  openflow_adherence = `Sloppy;
 }
 
 let prepare_compilation ~options pol = begin
@@ -199,7 +193,6 @@ let compile_local ?(options=default_compiler_options) pol =
   prepare_compilation ~options pol; of_local_pol pol
 
 let is_valid_pattern options (pat : Frenetic_OpenFlow.Pattern.t) : bool =
-  options.openflow_adherence = `Sloppy ||
   (Option.is_none pat.dlTyp ==>
      (Option.is_none pat.nwProto &&
       Option.is_none pat.nwSrc &&
@@ -222,13 +215,20 @@ let fill_in_dependencies all_tests (pat : Frenetic_OpenFlow.Pattern.t) =
     if (Option.is_some pat.nwSrc || Option.is_some pat.nwDst) && Option.is_none pat.dlTyp then
       [ EthType(0x800); EthType(0x806) ]
     else if Option.is_some pat.nwProto && Option.is_none pat.dlTyp then
-      [ EthType(0x800); ]
-    (* TODO: Need to be able to handle two dependencies - requires changes.  Bluggh.  
+      [ EthType(0x800) ]
     else if (Option.is_some pat.tpSrc || Option.is_some pat.tpDst) && Option.is_none pat.nwProto then
-      [ [ EthType(0x800); IPProto(6) ]; [ EthType(0x800); IPProto(17) ] ]
-    *)
+      [ IPProto(6); IPProto(17) ]
     else
       []
+    in
+  (* tpSrc/tpDst has two dependencies, so fold the dlTyp into the given pattern, if needed. *)
+  let pat = 
+    if (Option.is_some pat.tpSrc || Option.is_some pat.tpDst) && Option.is_none pat.nwProto && Option.is_none pat.dlTyp then
+      match add_dependency_if_unseen all_tests pat (EthType(0x800)) with
+      | Some new_pat -> new_pat
+      | None -> pat
+    else
+      pat 
     in
   match all_dependencies with
   | [] -> [ pat ]
@@ -414,8 +414,7 @@ let options_from_json_string s =
   let remove_tail_drops = json |> member "remove_tail_drops" |> to_bool in
   let dedup_flows = json |> member "dedup_flows" |> to_bool in
   let optimize = json |> member "optimize" |> to_bool in
-  {default_compiler_options with
-    cache_prepare; field_order; remove_tail_drops; dedup_flows; optimize}
+  {cache_prepare; field_order; remove_tail_drops; dedup_flows; optimize}
 
 let field_order_to_string fo =
  match fo with
@@ -912,6 +911,7 @@ let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
 (* make a flow struct that includes the table and meta id of the flow *)
 let mk_multitable_flow options (pattern : Frenetic_OpenFlow.Pattern.t)
   (instruction : instruction) (flowId : flowId) : multitable_flow option =
+  (* TODO: Fill in dependencies, similar to mk_flows above *)
   if is_valid_pattern options pattern then
     Some { cookie = 0L;
            idle_timeout = Permanent;
