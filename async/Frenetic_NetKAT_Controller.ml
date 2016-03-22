@@ -159,8 +159,7 @@ module Make : CONTROLLER = struct
     Pipe.write pktout_writer (sw_id, pkt_out)
 
   let event () : event Deferred.t =
-    Pipe.read event_reader
-    >>= function
+    Pipe.read event_reader >>= function
     | `Eof -> assert false
     | `Ok evt -> Deferred.return evt
 

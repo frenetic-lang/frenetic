@@ -1,12 +1,8 @@
 open Core.Std
 open Async.Std
-open Frenetic_NetKAT
-open Frenetic_OpenFlow
 
-module OF10 = Frenetic_OpenFlow0x01
-module Controller = Frenetic_OpenFlow0x01_Controller
+open Frenetic_NetKAT
 module Log = Frenetic_Log
-module Upd = Frenetic_NetKAT_Updates
 
 val bytes_to_headers :
 	Frenetic_OpenFlow.portId ->
@@ -22,16 +18,45 @@ val of_to_netkat_event :
   Controller.event ->
   Frenetic_NetKAT.event list
 
+type portStats = Int64.t * Int64.t * Int64.t * Int64.t
+
+module type CTRL = sig
+end
+module type UPR = sig
+end
+
 module type CONTROLLER = sig
-  val update_policy : policy -> unit Deferred.t
-  val send_packet_out : switchId -> Frenetic_OpenFlow.pktOut -> unit Deferred.t
+  (** [event ()] returns the next event from the network. *)
   val event : unit -> event Deferred.t
+
+  (** [update_policy p] sets the global policy to [p]. *) 
+  val update_policy : policy -> unit Deferred.t
+
+  (** [send_packet_out sw pd p] injects packets into the network by
+      applying [p] to [pd] at [sw]. *)
+  val send_packet_out : switchId -> payload -> policy -> unit Deferred.t
+
+  (** [query x] returns byte and packet counts for query [x]. *)
   val query : string -> (Int64.t * Int64.t) Deferred.t
-  val port_stats : switchId -> portId -> OF10.portStats list Deferred.t
+
+  (** [is_query x] returns [true] iff [x] is a valid query in the
+      installed policy. *)
   val is_query : string -> bool
+
+  (** [port_stats sw pt] retrieves cumulative port statistics for port
+      [pt] on switch [sw]. Note that using pseudo-port 0xf..f will
+      return the statistics for all ports *)
+  val port_stats : switchId -> portId -> portStats list Deferred.t
+
+  (** [start pt] initializes the controller, listening on TCP port [pt]. *)
   val start : int -> unit
+  
+  (** [current_switches ()] returns the set of switches currently
+      connected to this controller. *)
   val current_switches : unit -> (switchId * portId list) list Deferred.t
+
+  (** This is a hack. *)
   val set_current_compiler_options : Frenetic_NetKAT_Compiler.compiler_options -> unit
 end
 
-module Make : CONTROLLER
+module Make(C:CTRL) (U:UPD) : CONTROLLER
