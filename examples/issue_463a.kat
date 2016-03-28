@@ -1,2 +1,0 @@
-filter (ip4Dst=192.168.56.1 and ethTyp=0x806); port:=9 |
-filter (port=1 and ip4Dst=192.168.57.0 and ip4Src=192.168.56.100 and ethTyp=0x800); port:=10

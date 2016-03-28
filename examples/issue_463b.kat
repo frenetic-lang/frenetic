@@ -1,2 +1,0 @@
-filter ipProto=6; port:=9 |
-filter ipProto=1; port:=10

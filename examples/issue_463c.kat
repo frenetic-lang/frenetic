@@ -1,2 +1,0 @@
-filter tcpDstPort=22 ; port := 9 |  
-filter tcpDstPort=443 ; port := 10
