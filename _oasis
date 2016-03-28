@@ -20,7 +20,7 @@ Library frenetic
     camlp4.lib,
     camlp4.extend,
     camlp4,
-    core,
+    core (= 112.35.0),
     cstruct,
     cstruct.syntax,
     fieldslib,
@@ -67,7 +67,7 @@ Library async
     async,
     cohttp,
     cohttp.async,
-    core,
+    core (= 112.35.0),
     cstruct,
     cstruct.async,
     frenetic,
@@ -123,7 +123,7 @@ Library syntax
     camlp4.quotations.o,
     ulex,
     ipaddr,
-    core,
+    core (= 112.35.0),
     frenetic
   Modules:
     Frenetic_Syntax_Extension_Parser,
