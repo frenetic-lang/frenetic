@@ -1,3 +1,5 @@
+# TODO: Turn this into a complete test suite and add to "make tests" and TravisCI
+
 import unittest
 from syntax import *
 
@@ -36,3 +38,23 @@ class SwitchEqListTestCase(SimpleTestCase):
   def runTest(self):
     se = SwitchEq([2,3])
     self.assertEqual(se.to_json(), SWITCH_2_OR_3 )
+
+IF_THEN_ELSE_CASE = {
+  'pols': [
+    {'pols': [
+      {'pred': 
+      {'header': 'location', 'type': 'test', 'value': {'type': 'physical', 'port': 8}}, 'type': 'filter'}, 
+      {'header': 'location', 'type': 'mod', 'value': {'type': 'physical', 'port': 9}}
+    ], 'type': 'seq'}, 
+    {'pols': [
+      {'pred': {'pred': {'header': 'location', 'type': 'test', 'value': {'type': 'physical', 'port': 8}}, 'type': 'neg'}, 'type': 'filter'}, 
+      {'pred': {'type': 'false'}, 'type': 'filter'}
+    ], 'type': 'seq'}
+  ], 
+  'type': 'union'
+}
+
+class IfThenElseTestCase(SimpleTestCase):
+  def runTest(self):
+    se = IfThenElse(PortEq(8), SetPort(9), drop)
+    self.assertEqual(se.to_json(), IF_THEN_ELSE_CASE)

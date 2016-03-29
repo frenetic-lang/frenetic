@@ -417,6 +417,14 @@ class Seq(Policy):
           "pols": [ pol.to_json() for pol in self.children ]
         }
 
+class IfThenElse(Policy):
+    def __init__(self, pred, true_pol, false_pol):
+        assert isinstance(pred, Pred) and isinstance(true_pol, Policy) and isinstance(false_pol, Policy)
+        self.policy = pred.ite(true_pol, false_pol)
+
+    def to_json(self):
+        return self.policy.to_json()
+
 # Shorthands
 
 true = Id()
@@ -470,7 +478,21 @@ class SwitchEq(MultiPred):
 
 class PortEq(MultiPred):
     def __init__(self, *values):
-        self.hv = init_int_eq(Port, *values)
+        # You have to do it this way because Location(Physical()) is > 1 class.
+        # Also we do more stringent value checking
+        if type(values[0]) == list:
+            values = values[0]
+        vs = []
+        for v in values:
+            if type(v) == str:
+                v = int(v)
+            assert(type(v) == int and v >= 1 and v <= 65535)
+            vs.append(v)
+        expanded_preds = [ Test(Location(Physical(v))) for v in vs ]
+        if len(expanded_preds) > 1:
+            self.hv = Or(expanded_preds)
+        else:
+            self.hv = expanded_preds[0]
 
 class EthSrcEq(MultiPred):
     def __init__(self, *values):
@@ -594,6 +616,14 @@ class SinglePolicy(Policy):
     def to_json(self):
         return self.hv.to_json()
 
+# With SetPort we do extra checking to make sure the port id is legal OpenFlow
+class SetPort(SinglePolicy):
+    def __init__(self, value):
+        if (type(value)) == str:
+            value = int(value)
+        assert(type(value) == int and value >= 1 and value <= 65535)
+        self.hv = Mod(Location(Physical(value)))
+
 class SetEthSrc(SinglePolicy):
     def __init__(self, value):
         self.hv = str_policy(EthSrc, value)
@@ -642,13 +672,6 @@ class SetIP4Dst(SinglePolicy):
         self.hv = Mod(IP4Dst(value, mask))
 
 ############### Misc.
-
-class Send(SinglePolicy):
-    def __init__(self, value):
-        if (type(value)) == str:
-            value = int(value)
-        assert(type(value) == int and value >= 1 and value <= 65535)
-        self.hv = Mod(Location(Physical(value)))
 
 class SendToController(SinglePolicy):
     def __init__(self, value):
