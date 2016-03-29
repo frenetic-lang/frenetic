@@ -1,22 +1,22 @@
 open Core.Std
 open Async.Std
 
-type handler = body:Cohttp_async.Body.t -> Unix.Socket.Address.Inet.t -> 
+type handler = body:Cohttp_async.Body.t -> Unix.Socket.Address.Inet.t ->
   Cohttp_async.Request.t -> Cohttp_async.Server.response Deferred.t
 
-type routes = (bytes * (bytes array -> handler Deferred.t)) list
+type routes = (string * (string array -> handler Deferred.t)) list
 
 module Topo = Frenetic_NetKAT_Net.Net.Topology
 module VertexMap = Map.Make(String)
 
-let static_handler ?content_type (filename: bytes) = fun ~body _ _ ->
+let static_handler ?content_type (filename: string) = fun ~body _ _ ->
   let headers = match content_type with
     | None -> None
     | Some(typ) ->
       Some(Cohttp.Header.init_with "Content-type" typ) in
   Cohttp_async.Server.respond_with_file ?headers filename
 
-let bytes_handler (b: bytes) : handler = fun ~body _ _ ->
+let bytes_handler (b: string) : handler = fun ~body _ _ ->
   Cohttp_async.Server.respond_with_string "hi"
 
 let string_handler str : handler = fun ~body _ _ ->

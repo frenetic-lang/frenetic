@@ -340,7 +340,7 @@ let main (openflow_port : int) () : unit =
   Log.set_output [Async.Std.Log.Output.file `Text log_file];
   printf "Frenetic Shell v 4.0\n%!";
   printf "Type `help` for a list of commands\n%!";
-  Controller.start openflow_port;
+  Controller.start ~port:openflow_port;
   let _ = repl () in
   ()
 

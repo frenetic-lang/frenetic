@@ -180,10 +180,10 @@ module Link : sig
   val set_weight : t -> float -> unit
 
 end
-
-module Net : NETWORK 
+(*
+module Net : NETWORK
   with type Topology.Vertex.t = Node.t
   and type Topology.Edge.t = Link.t
 
-module NetPath : Net.PATH 
-  with type weight = float
+module NetPath : Net.PATH
+  with type weight = float *)

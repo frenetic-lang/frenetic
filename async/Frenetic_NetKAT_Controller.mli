@@ -29,9 +29,11 @@ module type CONTROLLER = sig
   val query : string -> (Int64.t * Int64.t) Deferred.t
   val port_stats : switchId -> portId -> OF10.portStats list Deferred.t
   val is_query : string -> bool
-  val start : int -> unit
+  val start : ?port:int -> unit
   val current_switches : unit -> (switchId * portId list) list Deferred.t
   val set_current_compiler_options : Frenetic_NetKAT_Compiler.compiler_options -> unit
+  val get_table : switchId -> (Frenetic_OpenFlow.flow * string list) list
+  (*val get_policy: unit ->  policy*)
 end
 
 module Make : CONTROLLER

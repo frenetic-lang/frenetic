@@ -1,3 +1,5 @@
+(* Note: Issue #425 *)
+module CamlBytes = Bytes
 (* NOTE(arjun): Core.Std.Int32.of_int_exn will throw an exception if it receives a positive
    integer value >= 0x1fffffff. However, OpenFlow ports are unsigned integers,
    so these are legitimate port numbers, IIRC. *)
@@ -10,6 +12,24 @@ open Yojson.Basic
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Optimize
 
+let macaddr_to_string (mac : Int64.t) : string =
+  let buf = CamlBytes.create 6 in
+  let rec loop n =
+    let byte = Int64.bit_and (Int64.shift_right mac (8 * n)) 0xffL in
+    CamlBytes.set buf n (Char.of_int_exn (Int64.to_int_exn byte));
+    if n = 5 then () else loop (n + 1) in
+  loop 0;
+  Macaddr.to_string (Macaddr.of_bytes_exn buf)
+
+let macaddr_from_string (str : string) : Int64.t =
+  let buf = Macaddr.to_bytes (Macaddr.of_string_exn str) in
+  let byte n = Int64.of_int (Char.to_int (CamlBytes.get buf n)) in
+  let rec loop n acc =
+    let shift = 8 * (5 - n) in
+    let acc' = Int64.(acc + (shift_left (byte n) shift)) in
+    if n = 5 then acc'
+    else loop (n + 1) acc' in
+  loop 0 0L
 
 (** IP & MAC Addresses **)
 let string_of_mac = Frenetic_Packet.string_of_mac
@@ -117,6 +137,9 @@ let rec policy_to_json (pol : policy) : json = match pol with
             ("sw2", `Int (Int64.to_int_exn sw2));
             ("pt2", `Int (Int64.to_int_exn pt2))]
 
+let parse_ipaddr (json : json) : Int32.t =
+  let open Yojson.Basic.Util in
+  Ipaddr.V4.to_int32 (Ipaddr.V4.of_string_exn (to_string json))
 
 (** From JSON **)
 let from_json_header_val (json : json) : header_val =
@@ -300,4 +323,59 @@ let port_stats_to_json (portStats : Frenetic_OpenFlow0x01.portStats list) : json
 
 let port_stats_to_json_string (portStats : Frenetic_OpenFlow0x01.portStats list) : string =
   Yojson.Basic.to_string ~std:true (port_stats_to_json portStats)
+
+let event_from_json (json : json) : event =
+  let open Yojson.Basic.Util in
+  let payload_from_json (json : json) : payload =
+   let open Yojson.Basic.Util in
+   let bytes = json |> member "buffer" |> to_string |> B64.decode
+   			 |> Cstruct.of_string in
+   match json|> member "id" |> to_int_option with
+    | None -> NotBuffered bytes
+    | Some n -> Buffered (Int32.of_int_exn n, bytes) in
+
+  match json |> member "type" |> to_string with
+  | "packet_in" ->
+      PacketIn (
+        json |> member "pipe" |> to_string,
+        json |> member "switch_id" |> to_int |> Int64.of_int_exn,
+        json |> member "port_id" |> to_int |> Int32.of_int_exn,
+        json |> member "payload" |> payload_from_json,
+        json |> member "length" |> to_int)
+  | "query" ->
+      Query (
+        "",
+        json |> member "packet_count" |> to_int |> Int64.of_int_exn,
+        json |> member "byte_count" |> to_int |> Int64.of_int_exn)
+  | "switch_up" ->
+      SwitchUp (
+        json |> member "switch_id" |> to_int |> Int64.of_int_exn,
+        json |> member "ports" |> to_list |>
+          (fun jl -> List.map jl
+            (fun portjson -> portjson |> to_int |> Int32.of_int_exn)))
+  | "switch_down" ->
+      SwitchDown (
+        json |>  member "switch_id" |> to_int |> Int64.of_int_exn)
+  | "port_up"
+  | "port_down" as t ->
+      let sw = json |> member "switch_id" |> to_int |> Int64.of_int_exn in
+      let port = json |> member "port_id" |> to_int |> Int32.of_int_exn in
+      if t = "port_up" then PortUp (sw, port) else PortDown (sw, port)
+  | "link_up"
+  | "link_down" as t ->
+      let pluck j =
+        (j |> member "switch_id" |> to_int |> Int64.of_int_exn,
+         j |> member "port_id" |> to_int |> Int32.of_int_exn) in
+      let src = pluck (json |> member "src") in
+      let dst = pluck (json |> member "dst") in
+      if t = "link_up" then LinkUp (src, dst) else LinkDown (src, dst)
+  | "host_up"
+  | "host_down" as t ->
+      let sw = json |> member "switch_id" |> to_int |> Int64.of_int_exn in
+      let port = json |> member "port_id" |> to_int |> Int32.of_int_exn in
+      let dl = json |> member "dl_addr" |> to_string |> Frenetic_Packet.mac_of_string in
+      let nw = json |> member "nw_addr" |> to_string |> Frenetic_Packet.ip_of_string in
+      if t = "host_up" then HostUp ((sw, port), (dl, nw))
+      else HostDown ((sw, port), (dl, nw))
+  | str -> raise (Invalid_argument ("invalid event type " ^ str))
 

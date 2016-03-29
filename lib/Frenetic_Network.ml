@@ -1008,7 +1008,7 @@ module Node = struct
     let (id, popt) = i in
     let name = string_of_id id in
     let at = List.hd_exn ats in
-    let partial = List.fold_left at 
+    let partial = List.fold_left at
       ~init:{partial_default with partial_name = Some name}
       ~f:update_dot_attr in
     unbox partial
@@ -1084,7 +1084,7 @@ end
 module Weight = struct
   type edge = Link.t with sexp
   type t = float with sexp
-  let weight l = 
+  let weight l =
     let open Link in
     l.weight
   let compare = compare
@@ -1092,6 +1092,6 @@ module Weight = struct
   let zero = 0.
 end
 
-module Net = Make(Node)(Link)
+(*module Net = Make(Node)(Link)
 
-module NetPath = Net.Path(Weight)
+module NetPath = Net.Path(Weight)*)
