@@ -30,11 +30,11 @@ type vloc = vswitchId * vportId
 type ('a, 'b) node =
   | InPort of 'a * 'b
   | OutPort of 'a * 'b
-with sexp
+[@@deriving sexp]
 
 (* virtual vertex *)
 module VV = struct
-  type t = (vswitchId, vportId) node with sexp
+  type t = (vswitchId, vportId) node [@@deriving sexp]
   let compare = compare
   let equal = (=)
   let hash  = Hashtbl.hash
@@ -42,7 +42,7 @@ end
 
 (* physical vertex *)
 module PV = struct
-  type t = (switchId, portId) node with sexp
+  type t = (switchId, portId) node [@@deriving sexp]
   let compare = compare
   let equal = (=)
   let hash = Hashtbl.hash
@@ -54,10 +54,10 @@ type prod_vertex =
   | InconsistentOut of VV.t * PV.t
   | ConsistentOut of VV.t * PV.t
   | InconsistentIn of VV.t * PV.t
-with sexp
+[@@deriving sexp]
 
 module V = struct
-  type t = prod_vertex with sexp
+  type t = prod_vertex [@@deriving sexp]
   let compare = compare
   let equal = (=)
   let hash = Hashtbl.hash
@@ -65,8 +65,8 @@ end
 
 (* Module to build graphs from topologies (physical or virtual) *)
 module GraphBuilder (Params : sig
-  type switch with sexp
-  type port with sexp
+  type switch [@@deriving sexp]
+  type port [@@deriving sexp]
   val locs_from_pred : pred -> (switch * port) list
   val links_from_topo : policy -> (switch * port * switch * port) list
 end) (Vlabel : Graph.Sig.COMPARABLE with type t = (Params.switch, Params.port) node) = struct
@@ -133,8 +133,8 @@ end
 module G = struct
 
   module Virt = GraphBuilder (struct
-    type switch = vswitchId with sexp
-    type port = vportId with sexp
+    type switch = vswitchId [@@deriving sexp]
+    type port = vportId [@@deriving sexp]
     let rec locs_from_pred pred =
       match pred with
       | And (Test (VSwitch vsw), Test (VPort vpt)) -> [(vsw, vpt)]
@@ -149,8 +149,8 @@ module G = struct
   end) (VV)
 
   module Phys = GraphBuilder (struct
-    type switch = switchId with sexp
-    type port = portId with sexp
+    type switch = switchId [@@deriving sexp]
+    type port = portId [@@deriving sexp]
     let rec locs_from_pred pred =
       match pred with
       | And (Test (Switch sw), Test (Location (Physical pt))) -> [(sw, pt)]

@@ -1,7 +1,7 @@
 open Core_kernel.Std
 
 module type VERTEX = sig
-  type t with sexp
+  type t [@@deriving sexp]
 
   val compare : t -> t -> int
   val to_string : t -> string
@@ -12,7 +12,7 @@ module type VERTEX = sig
 end
 
 module type EDGE = sig
-  type t with sexp
+  type t [@@deriving sexp]
 
   val compare : t -> t -> int
   val to_string : t -> string
@@ -23,8 +23,8 @@ module type EDGE = sig
 end
 
 module type WEIGHT = sig
-  type t with sexp
-  type edge with sexp
+  type t [@@deriving sexp]
+  type edge [@@deriving sexp]
 
   val weight : edge -> t
   val compare : t -> t -> int
@@ -36,8 +36,8 @@ module type NETWORK = sig
   module Topology : sig
     type t
 
-    type vertex with sexp
-    type edge with sexp
+    type vertex [@@deriving sexp]
+    type edge [@@deriving sexp]
     type port = int32
 
     module Vertex : VERTEX
@@ -51,7 +51,7 @@ module type NETWORK = sig
       with type Elt.t = edge
 
     module VertexSet : Set.S
-      with type Elt.t = vertex
+      with type Elt.t = vertex 
 
     module VertexHash : Hashtbl.S
       with type key = vertex
@@ -157,7 +157,7 @@ module Make : MAKE
 
 module Node : sig
   include VERTEX
-  type device = Switch | Host | Middlebox with sexp
+  type device = Switch | Host | Middlebox [@@deriving sexp]
 
   val default : t
   val create : string -> int64 -> device -> int32 -> int64 -> t

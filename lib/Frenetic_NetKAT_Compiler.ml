@@ -320,7 +320,7 @@ let pipes t =
 
 let queries t =
   let module S = Set.Make(struct
-    type t = string * Frenetic_NetKAT.pred sexp_opaque with sexp
+    type t = string * Frenetic_NetKAT.pred sexp_opaque [@@deriving sexp]
     let compare = Pervasives.compare
   end) in
   let qs = FDK.fold
@@ -836,7 +836,7 @@ let compile_global ?(options=default_compiler_options) (pol : Frenetic_NetKAT.po
 (*==========================================================================*)
 
 (* Each list of fields represents the fields one flow table can match on *)
-type flow_layout = Field.t list list with sexp
+type flow_layout = Field.t list list [@@deriving sexp]
 
 let layout_to_string (layout : flow_layout) : string =
   List.map layout ~f:(fun table ->
@@ -845,9 +845,9 @@ let layout_to_string (layout : flow_layout) : string =
   |> String.concat
 
 (* Each flow table row has a table location, and a meta value on that table *)
-type tableId = int with sexp
-type metaId = int with sexp
-type flowId = tableId * metaId with sexp
+type tableId = int [@@deriving sexp]
+type metaId = int [@@deriving sexp]
+type flowId = tableId * metaId [@@deriving sexp]
 
 (* Match subtrees of t with the table location they will be placed *)
 type flow_subtrees = (t, flowId) Map.Poly.t
@@ -856,7 +856,7 @@ type flow_subtrees = (t, flowId) Map.Poly.t
 type instruction =
   [ `Action of Frenetic_OpenFlow.group
   | `GotoTable of flowId ]
-  with sexp
+  [@@deriving sexp]
 
 (* A flow table row, with multitable support. If goto has a Some value
  * then the 0x04 row instruction is GotoTable. *)
@@ -867,7 +867,7 @@ type multitable_flow = {
   hard_timeout : Frenetic_OpenFlow.timeout;
   instruction  : instruction;
   flowId       : flowId;
-} with sexp
+} [@@deriving sexp]
 
 (* C style x++ for mutable ints *)
 let post (x : int ref) : int =

@@ -6,7 +6,7 @@ type t = {
 	table : (groupId, (groupType * bucket list)) Hashtbl.Poly.t;
 	mutable next_group_id : groupId;
 	mutable pending_messages : Message.t list
-} with sexp
+} [@@deriving sexp]
 
 (* SJS *)
 let to_string t =
