@@ -34,18 +34,18 @@ let testDst n = Test (EthDst (Int64.of_int n))
 let modSrc n = Mod (EthSrc (Int64.of_int n))
 let modDst n = Mod (EthDst (Int64.of_int n))
 
-TEST "compile drop" =
+let%test "compile drop" =
   test_compile (Filter False) (Filter False)
 
-TEST "compile test" =
+let%test "compile test" =
   let pr = testSrc 0 in
   test_compile (Filter pr) (Filter pr)
 
-TEST "compile negation" =
+let%test "compile negation" =
   let pr = testSrc 0 in
   test_compile (Filter (Neg pr)) (Filter (Neg pr))
 
-TEST "compile negation of conjunction" =
+let%test "compile negation of conjunction" =
   let pr1 = testSrc 0 in
   let pr2 = testDst 0 in
   let pr = And (pr1, pr2) in
@@ -53,31 +53,31 @@ TEST "compile negation of conjunction" =
     (Filter (Neg pr))
     (Filter (Or(And(pr1, Neg pr2), Neg pr1)))
 
-TEST "commute test annihilator" =
+let%test "commute test annihilator" =
   test_compile
     (Seq (modSrc 1 , Filter (testSrc 0)))
     (Filter False)
 
-TEST "commute test different fields" =
+let%test "commute test different fields" =
   test_compile
     (Seq (modSrc 1, Filter (testDst 0)))
     (Seq (Filter (testDst 0), modSrc 1))
 
 (* trivial optimization possible *)
-TEST "commute same field" =
+let%test "commute same field" =
   test_compile
     (Seq (modSrc 1, Filter (testSrc 1)))
     (modSrc 1)
 
 (* trivial optimization possible *)
-TEST "same field, two values = drop" =
+let%test "same field, two values = drop" =
   let pr1 = testSrc 1 in
   let pr2 = testSrc 0 in
   test_compile
     (Filter (And (pr1, pr2)))
     (Filter False)
 
-TEST "par1" =
+let%test "par1" =
   test_compile
     (Union(modSrc 1,
          ite
@@ -89,29 +89,29 @@ TEST "par1" =
        (Union (modSrc 2, modSrc 1))
        (Union (modSrc 3, modSrc 1)))
 
-TEST "star id" =
+let%test "star id" =
   test_compile
     (Star (Filter True))
     (Filter True)
 
-TEST "star drop" =
+let%test "star drop" =
   test_compile
     (Star (Filter False))
     (Filter True)
 
-TEST "star modify1" =
+let%test "star modify1" =
   test_compile
     (Star (modSrc 1))
     (Union (modSrc 1, Filter True))
 
-TEST "star modify2" =
+let%test "star modify2" =
   test_compile
     (Star (Union (modSrc 0,
                 ite (testSrc 0) (modSrc 1) (modSrc 2))))
      (Union (modSrc 2, Union(modSrc 1, Union(modSrc 0, Filter True))))
 
 (*
-TEST "policy that caused stack overflow on 10/16/2013" =
+let%test "policy that caused stack overflow on 10/16/2013" =
   test_compile
     (Union (Seq (Filter (Or (Test (Dst, 1), And (Test (Dst, 1), Test (Src, 0)))),
             Union (Mod (Dst, 0), Filter (And (Or (Test (Src, 2), Test (Dst, 1)),
@@ -120,14 +120,14 @@ TEST "policy that caused stack overflow on 10/16/2013" =
     id *)
 
 (*  Src -> A ; (filter Src = C + Dst -> C) *)
-TEST "quickcheck failure on 10/16/2013" =
+let%test "quickcheck failure on 10/16/2013" =
   test_compile
     (Seq (modSrc 0, Union (Filter (testSrc 2), modDst 2)))
     (Seq (modDst 2, modSrc 0))
 
 (* If a policy has a pipe location in a predicate, it should fail to compile. *)
 (* JNF: unless that pipe is determined elsewhere (here the earlier filter port = 0) *)
-(* TEST "quickcheck failure on 8/25/2014" = *)
+(* let%test "quickcheck failure on 8/25/2014" = *)
 (*   let b = "filter port = 0; (ethDst := fb:40:e5:6b:a8:f8; (ipSrc := 126.42.191.208 | ethTyp := 0x1464 | (filter ipDst = 155.173.129.111/22 | id); filter ipDst = 121.178.114.15/11 and port = __))" in *)
 (*   try *)
 (*     let _ = Frenetic_NetKAT_Compiler.(to_table (compile 0L *)
@@ -138,7 +138,7 @@ TEST "quickcheck failure on 10/16/2013" =
 (* If a policy has a pipe location in a predicate, it should fail to compile. *)
 (* JNF: unless that pipe is determined elsewhere (here the earlier filter port = 0) *)
 (* Reimplement when parser is fixed
-TEST "indeterminate pipe" =
+let%test "indeterminate pipe" =
   let b = "filter port = __; ethDst := fb:40:e5:6b:a8:f8" in
   try
     let _ = Frenetic_NetKAT_Compiler.(to_table 0L (compile
@@ -146,7 +146,7 @@ TEST "indeterminate pipe" =
     false
   with _ -> true
 *)
-TEST "vlan" =
+let%test "vlan" =
   let test_vlan_none = Test (Vlan 0xFFF) in
   let mod_vlan_none = Mod (Vlan 0xFFF) in
   let mod_port1 = Mod (Location (Physical 1l)) in
@@ -169,7 +169,7 @@ TEST "vlan" =
    pattern -- the accumulator was being ignored, which is
    bogus. This test tickles the bug by simply compiling a
    predicate with two negated tests. *)
-TEST "expand_rules" =
+let%test "expand_rules" =
    let flow p a = { pattern = p; action = [a]; cookie = 0L; idle_timeout = Permanent; hard_timeout= Permanent } in
    let dropEthSrc v = flow { Pattern.match_all with Pattern.dlSrc = Some(v) } [] in
    let pol = Seq(Filter (And (Neg(Test(EthSrc 0L)), Neg(Test(EthSrc 1L)))),
@@ -185,7 +185,7 @@ module FromPipe = struct
   open Core.Std
 
   module PipeSet = Set.Make(struct
-    type t = string with sexp
+    type t = string [@@deriving sexp]
     let compare = String.compare
   end)
 
@@ -214,19 +214,19 @@ module FromPipe = struct
       payload = Frenetic_OpenFlow.NotBuffered (Cstruct.create 0)
     }
 
-TEST "all to controller" =
+let%test "all to controller" =
   let pol = Mod(Location(Pipe("all"))) in
   let pkt = default_packet default_headers in
   test_from_pipes pol pkt ["all"]
 
-TEST "all to controller, twice" =
+let%test "all to controller, twice" =
   let pol = Union(
     Mod(Location(Pipe("all1"))),
     Mod(Location(Pipe("all2")))) in
   let pkt = default_packet default_headers in
   test_from_pipes pol pkt ["all1"; "all2"]
 
-TEST "ambiguous pipes" =
+let%test "ambiguous pipes" =
   let pol = Seq(Filter(Test(EthDst 2L)),
                 Union(Seq(Mod(EthDst 3L),
                           Mod(Location(Pipe("pipe1")))),
@@ -237,7 +237,7 @@ TEST "ambiguous pipes" =
                              with ethDst = 2L } in
   test_from_pipes pol pkt ["pipe2"; "pipe1"]
 
-TEST "left side" =
+let%test "left side" =
   let pol = Union(
     Seq(Filter(Test(EthSrc 1L)),
         Mod(Location(Pipe("left")))),
@@ -248,7 +248,7 @@ TEST "left side" =
                              with ethSrc = 1L } in
   test_from_pipes pol pkt ["left"]
 
-TEST "right side" =
+let%test "right side" =
   let pol = Union(
     Seq(Filter(Test(EthSrc 1L)),
         Mod(Location(Pipe("left")))),
@@ -335,7 +335,7 @@ let check gen_fn compare_fn =
     | _                  -> false
 
 (*
-TEST "quickcheck NetKAT <-> JSON" =
+let%test "quickcheck NetKAT <-> JSON" =
   let open Frenetic_NetKAT_Json in
   let open Frenetic_NetKAT_Optimize in
   let generate_policy_json =
@@ -368,17 +368,17 @@ let get_masking_test =
   let pkt = {switch = 0L; headers = headers; payload = payload} in
   (filter_pol_of_ip ip1, filter_pol_of_ip ip2, pkt)
 
-TEST "ip masking eval" =
+let%test "ip masking eval" =
   let (pol1, pol2, pkt) = get_masking_test in
   compare_eval_output pol1 pol2 pkt
 
-TEST "ip masking compile" =
+let%test "ip masking compile" =
   let (pol1, pol2, pkt) = get_masking_test in
   compare_compiler_output pol1 pol2 pkt
 
 (* regression test for bug in Flowterp handling of patterns with IP mask 0 *)
 (*
-TEST "zero mask" =
+let%test "zero mask" =
   let prop_compile_ok (pkt) =
     let pol = Seq(Filter(Test(Location(Physical 0l))),
                   Filter(Test(IP4Dst(0l,0l)))) in
@@ -390,7 +390,7 @@ TEST "zero mask" =
   check gen_pkt prop_compile_ok
 *)
 
-TEST "semantics agree with flowtable" =
+let%test "semantics agree with flowtable" =
   let prop_compile_ok (p, pkt) =
     (* XXX(seliopou): Because flowtables are not pipe-aware, policies that set
      * the packet location to a pipe will not pass this test. To side-step the
@@ -405,7 +405,7 @@ TEST "semantics agree with flowtable" =
     = 0 in
   check gen_pol_1 prop_compile_ok
 
-TEST "quickcheck ka-plus-assoc compiler" =
+let%test "quickcheck ka-plus-assoc compiler" =
   let prop_compile_ok (p, q, r, pkt) =
     compare_compiler_output
       (Union(p,(Union(q,r))))
@@ -413,7 +413,7 @@ TEST "quickcheck ka-plus-assoc compiler" =
       pkt in
   check gen_pol_3 prop_compile_ok
 
-TEST "quickcheck ka-plus-assoc eval" =
+let%test "quickcheck ka-plus-assoc eval" =
   let prop_compile_ok (p, q, r, pkt) =
     compare_eval_output
       (Union(p, (Union (q, r))))
@@ -421,149 +421,149 @@ TEST "quickcheck ka-plus-assoc eval" =
       pkt in
   check gen_pol_3 prop_compile_ok
 
-TEST "quickcheck ka-plus-comm compiler" =
+let%test "quickcheck ka-plus-comm compiler" =
   let prop_compile_ok (p, q, pkt) =
     compare_compiler_output (Union(p, q)) (Union(q, p)) pkt in
   check gen_pol_2 prop_compile_ok
 
-TEST "quickcheck ka-plus-comm eval" =
+let%test "quickcheck ka-plus-comm eval" =
   let prop_compile_ok (p, q, pkt) =
     compare_eval_output (Union(p, q)) (Union(q, p)) pkt in
   check gen_pol_2 prop_compile_ok
 
-TEST "quickcheck ka-plus-zero compiler" =
+let%test "quickcheck ka-plus-zero compiler" =
   let prop_compile_ok (pol, pkt) =
     compare_compiler_output pol (Union(pol, drop)) pkt in
   check gen_pol_1 prop_compile_ok
 
-TEST "quickcheck ka-plus-zero eval" =
+let%test "quickcheck ka-plus-zero eval" =
   let prop_compile_ok (pol, pkt) =
     compare_eval_output pol (Union(pol, drop)) pkt in
   check gen_pol_1 prop_compile_ok
 
-TEST "quickcheck ka-plus-idem compiler" =
+let%test "quickcheck ka-plus-idem compiler" =
   let prop_compile_ok (pol, pkt) =
     compare_compiler_output (Union(pol, pol)) pol pkt in
   check gen_pol_1 prop_compile_ok
 
-TEST "quickcheck ka-plus-idem eval" =
+let%test "quickcheck ka-plus-idem eval" =
   let prop_compile_ok (pol, pkt) =
     compare_eval_output (Union(pol, pol)) pol pkt in
   check gen_pol_1 prop_compile_ok
 
-TEST "quickcheck ka-seq-assoc compiler" =
+let%test "quickcheck ka-seq-assoc compiler" =
   let prop_compile_ok (p, q, r, pkt) =
     compare_compiler_output (Seq(p, (Seq (q, r)))) (Seq((Seq(p, q)), r)) pkt in
   check gen_pol_3 prop_compile_ok
 
-TEST "quickcheck ka-seq-assoc eval" =
+let%test "quickcheck ka-seq-assoc eval" =
   let prop_compile_ok (p, q, r, pkt) =
     compare_eval_output (Seq(p, (Seq (q, r)))) (Seq((Seq(p, q)), r)) pkt in
   check gen_pol_3 prop_compile_ok
 
-TEST "quickcheck ka-one-seq compiler" =
+let%test "quickcheck ka-one-seq compiler" =
   let prop_compile_ok (pol, pkt) =
     compare_compiler_output pol (Seq(id, pol)) pkt in
   check gen_pol_1 prop_compile_ok
 
-TEST "quickcheck ka-one-seq eval" =
+let%test "quickcheck ka-one-seq eval" =
   let prop_compile_ok (pol, pkt) =
     compare_eval_output pol (Seq(id, pol)) pkt in
   check gen_pol_1 prop_compile_ok
 
-TEST "quickcheck ka-seq-one compiler" =
+let%test "quickcheck ka-seq-one compiler" =
   let prop_compile_ok (pol, pkt) =
     compare_compiler_output pol (Seq(pol, id)) pkt in
   check gen_pol_1 prop_compile_ok
 
-TEST "quickcheck ka-seq-one eval" =
+let%test "quickcheck ka-seq-one eval" =
   let prop_compile_ok (pol, pkt) =
     compare_eval_output pol (Seq(pol, id)) pkt in
   check gen_pol_1 prop_compile_ok
 
-TEST "quickcheck ka-seq-dist-l compiler" =
+let%test "quickcheck ka-seq-dist-l compiler" =
   let prop_compile_ok (p, q, r, pkt) =
     compare_compiler_output
       (Seq(p, (Union (q, r)))) (Union ((Seq(p, q)), (Seq(p, r)))) pkt in
   check gen_pol_3 prop_compile_ok
 
-TEST "quickcheck ka-seq-dist-l eval" =
+let%test "quickcheck ka-seq-dist-l eval" =
   let prop_compile_ok (p, q, r, pkt) =
     compare_eval_output
       (Seq(p, (Union (q, r)))) (Union ((Seq(p, q)), (Seq(p, r)))) pkt in
   check gen_pol_3 prop_compile_ok
 
-TEST "quickcheck ka-seq-dist-r compiler" =
+let%test "quickcheck ka-seq-dist-r compiler" =
   let prop_compile_ok (p, q, r, pkt) =
     compare_compiler_output
       (Seq (Union(p, q), r)) (Union (Seq(p, r), Seq(q, r))) pkt in
   check gen_pol_3 prop_compile_ok
 
-TEST "quickcheck ka-seq-dist-r eval" =
+let%test "quickcheck ka-seq-dist-r eval" =
   let prop_compile_ok (p, q, r, pkt) =
     compare_eval_output
       (Seq (Union(p, q), r)) (Union (Seq(p, r), Seq(q, r))) pkt in
   check gen_pol_3 prop_compile_ok
 
-TEST "quickcheck ka-zero-seq compiler" =
+let%test "quickcheck ka-zero-seq compiler" =
   let prop_compile_ok (pol, pkt) =
     compare_compiler_output drop (Seq(drop, pol)) pkt in
   check gen_pol_1 prop_compile_ok
 
-TEST "quickcheck ka-zero-seq eval" =
+let%test "quickcheck ka-zero-seq eval" =
   let prop_compile_ok (pol, pkt) =
     compare_eval_output drop (Seq(drop, pol)) pkt in
   check gen_pol_1 prop_compile_ok
 
-TEST "quickcheck ka-seq-zero compiler" =
+let%test "quickcheck ka-seq-zero compiler" =
   let prop_compile_ok (pol, pkt) =
     compare_compiler_output drop (Seq(pol, drop)) pkt in
   check gen_pol_1 prop_compile_ok
 
-TEST "quickcheck ka-seq-zero eval" =
+let%test "quickcheck ka-seq-zero eval" =
   let prop_compile_ok (pol, pkt) =
     compare_eval_output drop (Seq(pol, drop)) pkt in
   check gen_pol_1 prop_compile_ok
 
-TEST "quickcheck ka-unroll-l compiler" =
+let%test "quickcheck ka-unroll-l compiler" =
   let prop_compile_ok (pol, pkt) =
     compare_compiler_output (Star pol) (Union(id, Seq(pol, Star pol))) pkt in
   check gen_pol_1 prop_compile_ok
 
-TEST "quickcheck ka-unroll-l eval" =
+let%test "quickcheck ka-unroll-l eval" =
   let prop_compile_ok (pol, pkt) =
     compare_eval_output (Star pol) (Union(id, Seq(pol, Star pol))) pkt in
   check gen_pol_1 prop_compile_ok
 
-TEST "quickcheck ka-lfp-l compiler" =
+let%test "quickcheck ka-lfp-l compiler" =
   let prop_compile_ok (p, q, r, pkt) =
     not (compare_compiler_output (Union(Union(q, Seq (p, r)), r)) r pkt)
     ||  (compare_compiler_output (Union(Seq(Star p, q), r)) r pkt) in
   check gen_pol_3 prop_compile_ok
 
-TEST "quickcheck ka-lfp-l eval" =
+let%test "quickcheck ka-lfp-l eval" =
   let prop_compile_ok (p, q, r, pkt) =
     not (compare_eval_output (Union(Union(q, Seq (p, r)), r)) r pkt)
     ||  (compare_eval_output (Union(Seq(Star p, q), r)) r pkt) in
   check gen_pol_3 prop_compile_ok
 
-TEST "quickcheck ka-unroll-r compiler" =
+let%test "quickcheck ka-unroll-r compiler" =
   let prop_compile_ok (pol, pkt) =
     compare_compiler_output (Star pol) (Union(id, Seq(Star pol, pol))) pkt in
   check gen_pol_1 prop_compile_ok
 
-TEST "quickcheck ka-unroll-r eval" =
+let%test "quickcheck ka-unroll-r eval" =
   let prop_compile_ok (pol, pkt) =
     compare_eval_output (Star pol) (Union(id, Seq(Star pol, pol))) pkt in
   check gen_pol_1 prop_compile_ok
 
-TEST "quickcheck ka-lfp-r compiler" =
+let%test "quickcheck ka-lfp-r compiler" =
   let prop_compile_ok (p, q, r, pkt) =
     not (compare_compiler_output (Union(Union(p, Seq (q, r)), q)) q pkt)
     ||  (compare_compiler_output (Union(Seq(p, Star r), q)) q pkt) in
   check gen_pol_3 prop_compile_ok
 
-TEST "quickcheck ka-lfp-r eval" =
+let%test "quickcheck ka-lfp-r eval" =
   let prop_compile_ok (p, q, r, pkt) =
     not (compare_eval_output (Union(Union(p, Seq (q, r)), q)) q pkt)
     ||  (compare_eval_output (Union(Seq(p, Star r), q)) q pkt) in

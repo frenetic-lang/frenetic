@@ -136,7 +136,7 @@ module Field = struct
         if in_product then
           let fld = field_of_header_val hv in
           let n = Hashtbl.Poly.find_exn count_tbl fld in
-          Hashtbl.Poly.replace count_tbl ~key:fld ~data:(n + size)
+          Hashtbl.Poly.set count_tbl ~key:fld ~data:(n + size)
       | Or (a, b) -> f_pred size false a; f_pred size false b
       | And (a, b) -> f_pred size true a; f_pred size true b
       | Neg a -> f_pred size in_product a in

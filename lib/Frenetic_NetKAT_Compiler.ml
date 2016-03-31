@@ -237,7 +237,7 @@ let to_pattern hvs =
   List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_OpenFlow.Pattern.match_all
 
 let remove_local_fields = FDK.fold
-  (fun r -> mk_leaf (Action.Par.map r ~f:(fun s -> Action.Seq.filter s ~f:(fun ~key ~data ->
+  (fun r -> mk_leaf (Action.Par.map r ~f:(fun s -> Action.Seq.filteri s ~f:(fun ~key ~data ->
     match key with
     | Action.F VPort | Action.F VSwitch -> false
     | _ -> true))))
@@ -574,7 +574,7 @@ module NetKAT_Automaton = struct
         let state = Tbl.find_exn automaton.states id in
         let this seen =
           let state = f id state in
-          Tbl.replace automaton.states ~key:id ~data:state; (seen, state) in
+          Tbl.set automaton.states ~key:id ~data:state; (seen, state) in
         let that (seen, (_,d)) = Set.fold (FDK.conts d) ~init:seen ~f:loop in
         match order with
         | `Pre -> seen |> this |> that

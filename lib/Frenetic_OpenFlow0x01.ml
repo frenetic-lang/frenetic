@@ -1031,7 +1031,7 @@ module FlowMod = struct
       | OFPFC_MODIFY
       | OFPFC_MODIFY_STRICT
       | OFPFC_DELETE
-      | OFPFC_DELETE_STRIC
+      | OFPFC_DELETE_STRICT
       [@@uint16_t]
     ]
 

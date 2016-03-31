@@ -13,7 +13,7 @@ let show_bit_int_bool ibb = show_triple show_int show_int32 show_bool ibb
 let prop_clear_bit (x, n) = 
   test_bit n (clear_bit n x) = false
 
-TEST "bit n of (clear_bit n x) is zero" =
+let%test "bit n of (clear_bit n x) is zero" =
   let test = testable_fun arbitrary_int_and_bit show_int_and_bit testable_bool in
   match quickCheck test prop_clear_bit with
     | Success -> true
@@ -23,7 +23,7 @@ TEST "bit n of (clear_bit n x) is zero" =
 let prop_set_bit (x, n) =
   test_bit n (set_bit n x)
 
-TEST "bit n of (set_bit n x) is one" =
+let%test "bit n of (set_bit n x) is one" =
   let test = testable_fun arbitrary_int_and_bit show_int_and_bit testable_bool in
   match quickCheck test prop_set_bit with
     | Success -> true
@@ -33,7 +33,7 @@ TEST "bit n of (set_bit n x) is one" =
 let prop_bit (n, x, b) =
   test_bit n (bit x n b) = b
 
-TEST "bit n of (bit n x b) is b" =
+let%test "bit n of (bit n x b) is b" =
   let test = testable_fun arbitrary_bit_int_bool show_bit_int_bool testable_bool in
   match quickCheck test prop_bit with
     | Success -> true
@@ -42,13 +42,13 @@ TEST "bit n of (bit n x b) is b" =
 
 (* Because there are no analogous set_byte32 functions, it's easier just to test these straight *)
 
-TEST "get_byte32 3 of 0xffeeddcc is 0xff" =
+let%test "get_byte32 3 of 0xffeeddcc is 0xff" =
   get_byte32 0xffeeddccl 3 = 0xff
 
-TEST "get_byte32 0 of 0xffeeddcc is 0xcc" =
+let%test "get_byte32 0 of 0xffeeddcc is 0xcc" =
   get_byte32 0xffeeddccl 0 = 0xcc
 
-TEST "get_byte32 with bit out of range generates error" =
+let%test "get_byte32 with bit out of range generates error" =
   try
     get_byte32 0xffeeddccl 5 = max_int    
   with 

@@ -257,7 +257,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
       end
     in
     loop t;
-    Hashtbl.iter rank ~f:(fun ~key:_ ~data:s ->
+    Hashtbl.iteri rank ~f:(fun ~key:_ ~data:s ->
       fprintf fmt "{rank=same; ";
       Hash_set.iter s ~f:(fun x -> fprintf fmt "%d " x);
       fprintf fmt ";}@\n");

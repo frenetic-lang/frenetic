@@ -19,75 +19,75 @@ module RoundTripping = struct
 
   module Gen = Arbitrary_Frenetic_OpenFlow0x01
  
-  TEST "OpenFlow_Header RoundTrip" =
+  let%test "OpenFlow_Header RoundTrip" =
     let module GenHeader = Gen.Frenetic_OpenFlow0x01_Unsize(Arbitrary_Frenetic_OpenFlow_Header.Header) in
       (openflow_quickCheck GenHeader.arbitrary
           GenHeader.to_string GenHeader.parse GenHeader.marshal)
 
-  TEST "OpenFlow0x01 Wildcards RoundTrip" =
+  let%test "OpenFlow0x01 Wildcards RoundTrip" =
       (openflow_quickCheck Gen.Wildcards.arbitrary
           Gen.Wildcards.to_string Gen.Wildcards.parse Gen.Wildcards.marshal)
 
-  TEST "OpenFlow0x01 Match RoundTrip" =
+  let%test "OpenFlow0x01 Match RoundTrip" =
       let module GenMatch = Gen.Frenetic_OpenFlow0x01_Unsize(Gen.Match) in
       (openflow_quickCheck GenMatch.arbitrary
           GenMatch.to_string GenMatch.parse GenMatch.marshal)
 
-  TEST "OpenFlow0x01 PseudoPort RoundTrip" =
+  let%test "OpenFlow0x01 PseudoPort RoundTrip" =
       (openflow_quickCheck Gen.PseudoPort.arbitrary
           Gen.PseudoPort.to_string Gen.PseudoPort.parse Gen.PseudoPort.marshal)
 
-  TEST "OpenFlow0x01 Action RoundTrip" =
+  let%test "OpenFlow0x01 Action RoundTrip" =
       let module GenAction = Gen.Frenetic_OpenFlow0x01_Unsize(Gen.Action) in
       (openflow_quickCheck GenAction.arbitrary
           GenAction.to_string GenAction.parse GenAction.marshal)
 
-  TEST "OpenFlow0x01 Timeout RoundTrip" =
+  let%test "OpenFlow0x01 Timeout RoundTrip" =
       let module GenTimeout = Gen.Timeout in
       (openflow_quickCheck GenTimeout.arbitrary
           GenTimeout.to_string GenTimeout.parse GenTimeout.marshal)
 
-  TEST "OpenFlow0x01 FlowMod.Command RoundTrip" =
+  let%test "OpenFlow0x01 FlowMod.Command RoundTrip" =
       let module GenCommand = Gen.FlowMod.Command in
       (openflow_quickCheck GenCommand.arbitrary
           GenCommand.to_string GenCommand.parse GenCommand.marshal)
 
-  TEST "OpenFlow0x01 FlowMod RoundTrip" =
+  let%test "OpenFlow0x01 FlowMod RoundTrip" =
       let module GenFlowMod = Gen.Frenetic_OpenFlow0x01_Unsize(Gen.FlowMod) in
       (openflow_quickCheck GenFlowMod.arbitrary
           GenFlowMod.to_string GenFlowMod.parse GenFlowMod.marshal)
 
-  TEST "OpenFlow0x01 FlowRemoved.Reason RoundTrip" =
+  let%test "OpenFlow0x01 FlowRemoved.Reason RoundTrip" =
       let module GenReason = Gen.FlowRemoved.Reason in
       (openflow_quickCheck GenReason.arbitrary
           GenReason.to_string GenReason.parse GenReason.marshal)
 
-  TEST "OpenFlow0x01 FlowRemoved RoundTrip" =
+  let%test "OpenFlow0x01 FlowRemoved RoundTrip" =
       let module GenFlowRemoved = Gen.Frenetic_OpenFlow0x01_Unsize(Gen.FlowRemoved) in
       (openflow_quickCheck GenFlowRemoved.arbitrary
           GenFlowRemoved.to_string GenFlowRemoved.parse GenFlowRemoved.marshal)
 
-  TEST "OpenFlow0x01 PortDescription.PortConfig RoundTrip" =
+  let%test "OpenFlow0x01 PortDescription.PortConfig RoundTrip" =
       let module GenPortConfig = Gen.PortDescription.PortConfig in
       (openflow_quickCheck GenPortConfig.arbitrary
           GenPortConfig.to_string GenPortConfig.parse GenPortConfig.marshal)
 
-  TEST "OpenFlow0x01 PortDescription.PortState RoundTrip" =
+  let%test "OpenFlow0x01 PortDescription.PortState RoundTrip" =
       let module GenPortState = Gen.PortDescription.PortState in
       (openflow_quickCheck GenPortState.arbitrary
           GenPortState.to_string GenPortState.parse GenPortState.marshal)
 
-  TEST "OpenFlow0x01 PortDescription RoundTrip" =
+  let%test "OpenFlow0x01 PortDescription RoundTrip" =
       let module GenPortDescription = Gen.Frenetic_OpenFlow0x01_Unsize(Gen.PortDescription) in
       (openflow_quickCheck GenPortDescription.arbitrary
           GenPortDescription.to_string GenPortDescription.parse GenPortDescription.marshal)
 
-  TEST "OpenFlow0x01 PortStatus RoundTrip" =
+  let%test "OpenFlow0x01 PortStatus RoundTrip" =
       let module GenPortStatus = Gen.Frenetic_OpenFlow0x01_Unsize(Gen.PortStatus) in
       (openflow_quickCheck GenPortStatus.arbitrary
           GenPortStatus.to_string GenPortStatus.parse GenPortStatus.marshal)
 
-  TEST "OpenFlow Hello Test 1" = 
+  let%test "OpenFlow Hello Test 1" = 
     let open Message in 
     let bs = Cstruct.create 101 in
     let m = Hello bs in 
@@ -105,7 +105,7 @@ module RoundTripping = struct
         false in 
           xid_ok && msg_ok 
   
-  TEST "OpenFlow Vendor Test 1" =
+  let%test "OpenFlow Vendor Test 1" =
     let open Message in
     let bs = Cstruct.create 101 in
     let bs' = Cstruct.create ((Cstruct.len bs) + 4) in
@@ -120,7 +120,7 @@ module RoundTripping = struct
     | _ ->
       false
   
-  TEST "OpenFlow StatsReply DescriptionReply Test 1" =
+  let%test "OpenFlow StatsReply DescriptionReply Test 1" =
     let open Message in
     let bs' = Cstruct.create 1060 in
     let content = {  

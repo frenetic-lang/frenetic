@@ -465,7 +465,7 @@ let generate_fabrics ?(log=true) ?record_paths vrel v_topo v_ing v_eg p_topo p_i
       begin try
         let path', dist = Dijkstra.shortest_path pgraph pv1 pv2 in
         let path = unwrap_path path' in
-        Tbl.replace dist_tbl ~key:(pv1, pv2) ~data:(path, dist);
+        Tbl.set dist_tbl ~key:(pv1, pv2) ~data:(path, dist);
         Some (path, dist)
       with Not_found ->
         None

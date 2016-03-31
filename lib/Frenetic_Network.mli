@@ -38,7 +38,7 @@ module type NETWORK = sig
 
     type vertex [@@deriving sexp]
     type edge [@@deriving sexp]
-    type port = int32
+    type port = int32 [@@deriving sexp]
 
     module Vertex : VERTEX
     module Edge : EDGE
@@ -51,7 +51,7 @@ module type NETWORK = sig
       with type Elt.t = edge
 
     module VertexSet : Set.S
-      with type Elt.t = vertex 
+      with type Elt.t = vertex
 
     module VertexHash : Hashtbl.S
       with type key = vertex

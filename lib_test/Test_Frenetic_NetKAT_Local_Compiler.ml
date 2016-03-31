@@ -4,12 +4,12 @@ open Frenetic_NetKAT
 open Frenetic_NetKAT_Pretty
 open Frenetic_NetKAT_Compiler
 
-TEST "Can test locations, even when they are set to pipes" =
+let%test "Can test locations, even when they are set to pipes" =
   let p = Filter (Test (Location (Pipe "web"))) in
   let opt = { default_compiler_options with remove_tail_drops = false } in
   List.length (to_table 0L ~options:opt (compile_local ~options:opt p)) == 1 (* that drops everything *)
 
-TEST "clearing cache fails" =
+let%test "clearing cache fails" =
   let a = Test (IPProto 1) in
   let b = Test (EthType 0x800) in
   let fdd1 = compile_local (Filter a) in
@@ -21,7 +21,7 @@ TEST "clearing cache fails" =
   with
     Not_found -> true
 
-TEST "keeping cache_prepare works" =
+let%test "keeping cache_prepare works" =
   let a = Test (IPProto 1) in
   let b = Test (EthType 0x800) in
   let fdd1 = compile_local (Filter a) in
@@ -29,7 +29,7 @@ TEST "keeping cache_prepare works" =
   let fdd2 = compile_local ~options:compiler_options_keep (Filter b) in
   seq fdd1 fdd2 = compile_local ~options:compiler_options_keep (Filter (And (a, b)))
 
-TEST "keeping reachable nodes in cache_prepare works" =
+let%test "keeping reachable nodes in cache_prepare works" =
   let a = Test (IPProto 1) in
   let b = Test (EthType 0x800) in
   let fdd1 = compile_local (Filter a) in

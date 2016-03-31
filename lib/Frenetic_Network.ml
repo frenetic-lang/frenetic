@@ -1,6 +1,6 @@
 open Graph
 (* open Sexplib.Conv *)
-open Core_kernel.Std
+open Core_kernel.Std 
 
 module type VERTEX = sig
   type t [@@deriving sexp]
@@ -11,7 +11,7 @@ module type VERTEX = sig
   val to_mininet : t -> string
   val parse_dot : Graph.Dot_ast.node_id -> Graph.Dot_ast.attr list -> t
   val parse_gml : Graph.Gml.value_list -> t
-end
+ end
 
 module type EDGE = sig
   type t [@@deriving sexp]
@@ -25,7 +25,7 @@ module type EDGE = sig
 end
 
 module type WEIGHT = sig
-  type t 
+  type t [@@deriving sexp]
   type edge [@@deriving sexp]
 
   val weight : edge -> t
@@ -40,7 +40,7 @@ module type NETWORK = sig
 
     type vertex [@@deriving sexp]
     type edge [@@deriving sexp]
-    type port = int32
+    type port = int32 [@@deriving sexp]
 
     module Vertex : VERTEX
     module Edge : EDGE
@@ -164,15 +164,20 @@ struct
     module Edge = Edge
 
     module VL = struct
-      type t =
-          { id : int;
-            label : Vertex.t } [@@deriving sexp]
+      type t = { 
+        id : int;
+        label : Vertex.t
+      } [@@deriving sexp]
+
       let compare n1 n2 = Pervasives.compare n1.id n2.id
       let hash n1 = Hashtbl.hash n1.id
       let equal n1 n2 = n1.id = n2.id
       let to_string n = string_of_int n.id
+      (*
+      let sexp_of_t v = Sexp.List [Sexp.Atom "id"; sexp_of_int v.id ]
+      let t_of_sexp s = { id = int_of_sexp (Sexp.Atom "1"); label = vertex_t_of_sexp s }
+      *)
     end
-
 
     module VertexSet = Set.Make(VL)
     module VertexMap = Map.Make(Vertex)
@@ -470,7 +475,7 @@ struct
       let dist = VertexHash.create () ~size:size in
       let prev = VertexHash.create () ~size:size in
       let admissible = VertexHash.create () ~size:size in
-      VertexHash.replace dist src Weight.zero;
+      VertexHash.set dist src Weight.zero;
       let build_cycle_from x0 =
         let rec traverse_parent x ret =
           let e = VertexHash.find_exn admissible x in
@@ -502,9 +507,9 @@ struct
                 with Not_found -> true
               in
               if improvement then begin
-                VertexHash.replace prev ev2 ev1;
-                VertexHash.replace dist ev2 dev2;
-                VertexHash.replace admissible ev2 e;
+                VertexHash.set prev ev2 ev1;
+                VertexHash.set dist ev2 dev2;
+                VertexHash.set admissible ev2 e;
                 Some ev2
               end else x
             end with Not_found -> x) t.graph None in

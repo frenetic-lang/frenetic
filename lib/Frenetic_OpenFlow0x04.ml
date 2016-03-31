@@ -1090,7 +1090,7 @@ type ofp_port_reason =
 [%%cstruct 
 type ofp_port_status = {
   reason: uint8_t;               (* One of OFPPR_* *)
-  pad: uint8_t pad [@len 7];
+  pad: uint8_t [@len 7];
 } [@@big_endian]]
 
 [%%cenum 
@@ -3312,7 +3312,7 @@ module Action = struct
     | PushVlan -> "Push Vlan"
     | PopMpls -> "Pop Mpls"
     | PushMpls -> "Push Mpls"
-    | SetField oxm -> Format.sprintf "oxm: %s" (Oxm.to_string oxm)
+    | SetField oxm -> Format.sprintf "oxm: %s" "" (*Oxm.to_string oxm*)
     | CopyTtlOut -> "Copy TTL out"
     | CopyTtlIn -> "Copy TTL In"
     | SetNwTtl t -> Format.sprintf "Set NW TTL %u" t
