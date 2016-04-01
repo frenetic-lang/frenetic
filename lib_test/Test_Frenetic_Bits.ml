@@ -1,4 +1,3 @@
-open OUnitHack
 open QuickCheck
 open Frenetic_Bits
 

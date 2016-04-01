@@ -1,4 +1,3 @@
-open OUnitHack
 open Frenetic_OpenFlow0x01
 open QuickCheck
 

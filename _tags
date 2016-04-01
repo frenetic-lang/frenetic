@@ -217,5 +217,7 @@ true: annot, bin_annot
 <lib/Frenetic_NetKAT_Lexer.ml{,i}>: syntax_camlp4o
 <syntax/Frenetic_Syntax_Extension_Parser.ml{,i}>: syntax_camlp4o
 <syntax/Frenetic_Syntax_Extension_Quotations.ml{,i}>: syntax_camlp4o
+<lib_test/*.ml{,i}>: predicate(ppx_driver)
+<lib_test/*.ml{,i}>: pp(ppx-jane -dump-ast -inline-test-lib frenetic)
 true: thread
 true: -traverse

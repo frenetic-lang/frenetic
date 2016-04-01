@@ -9,7 +9,7 @@ Plugins:     META (0.3)
 AlphaFeatures: 
   no_automatic_syntax,
   ocamlbuild_more_args
-XOCamlbuildExtraArgs: -cflags -w,-40,-short-paths
+XOCamlbuildExtraArgs: -cflags -w,-40,-short-paths 
 BuildTools:
   ocamlbuild,
   ocamldoc

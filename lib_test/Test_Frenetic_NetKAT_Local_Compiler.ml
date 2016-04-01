@@ -1,4 +1,3 @@
-open OUnitHack
 open Frenetic_OpenFlow
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Pretty

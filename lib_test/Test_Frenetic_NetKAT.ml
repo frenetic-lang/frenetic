@@ -1,4 +1,3 @@
-open OUnitHack
 module QCGen = QuickCheck_gen
 open Frenetic_OpenFlow
 open Frenetic_NetKAT

@@ -1,4 +1,3 @@
-open OUnitHack
 open Frenetic_Network.Net
 
 let%test "single node" =
