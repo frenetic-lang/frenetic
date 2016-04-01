@@ -22,13 +22,13 @@ end
 
 
 module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
-  type v = V.t * L.t with sexp
-  type r = R.t with sexp
+  type v = V.t * L.t [@@deriving sexp]
+  type r = R.t [@@deriving sexp]
 
   type d
     = Leaf of r
     | Branch of v * int * int
-  with sexp
+  [@@deriving sexp]
   (* A tree structure representing the decision diagram. The [Leaf] variant
    * represents a constant function. The [Branch(v, l, t, f)] represents an
    * if-then-else. When variable [v] takes on the value [l], then [t] should
@@ -41,9 +41,9 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
    * important both for efficiency and correctness.
    * *)
 
-  type t = int with sexp
+  type t = int [@@deriving sexp]
   module T = Frenetic_Hashcons.Make(struct
-      type t = d with sexp
+      type t = d [@@deriving sexp]
 
       let hash t = match t with
         | Leaf r ->
@@ -257,7 +257,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
       end
     in
     loop t;
-    Hashtbl.iter rank ~f:(fun ~key:_ ~data:s ->
+    Hashtbl.iteri rank ~f:(fun ~key:_ ~data:s ->
       fprintf fmt "{rank=same; ";
       Hash_set.iter s ~f:(fun x -> fprintf fmt "%d " x);
       fprintf fmt ";}@\n");

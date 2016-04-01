@@ -8,4 +8,5 @@ open Test_Frenetic_Packet
 open Test_Frenetic_OpenFlow
 open Test_Frenetic_OpenFlow0x01
 
-Pa_ounit_lib.Runtime.summarize ()
+let _ = 
+  Ppx_inline_test_lib.Runtime.summarize ()
