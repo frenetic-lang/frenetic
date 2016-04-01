@@ -2,6 +2,7 @@
 
 import unittest
 from syntax import *
+from ryu.packet import packet
 
 class SimpleTestCase(unittest.TestCase):
   def setUp(self):
@@ -58,3 +59,5 @@ class IfThenElseTestCase(SimpleTestCase):
   def runTest(self):
     se = IfThenElse(PortEq(8), SetPort(9), drop)
     self.assertEqual(se.to_json(), IF_THEN_ELSE_CASE)
+
+class PacketTestCase(SimpleTestCase)

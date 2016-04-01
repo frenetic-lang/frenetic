@@ -41,6 +41,14 @@ class App(object):
     def connected(self):
         print "established connection to Frenetic controller"
 
+    def packet(self, payload, *protocols):
+        pkt = packet.Packet(array.array('b', payload.data))
+        for p in pkt:
+            for proto in protocols:
+                if p.protocol_name == proto:
+                    return p
+        return None
+
     def pkt_out(self, switch_id, payload, actions, in_port=None):
         msg = PacketOut(switch=switch_id,
                         payload=payload,
