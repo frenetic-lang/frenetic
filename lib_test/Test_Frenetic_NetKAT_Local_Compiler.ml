@@ -60,7 +60,7 @@ let modify_outport p = Mod (Location (Physical p))
 
 let flow p a = { pattern = p; action = [a]; cookie = 0L; idle_timeout = Permanent; hard_timeout= Permanent }
 
-TEST "adds rules to drop packets not meeting ip4Src dependencies" =
+let%test "adds rules to drop packets not meeting ip4Src dependencies" =
   let open Pattern in
   let pol = 
     Union(
@@ -74,7 +74,7 @@ TEST "adds rules to drop packets not meeting ip4Src dependencies" =
     flow match_all []
   ]
 
-TEST "adds matches for ethTyp on ipProto dependencies" =
+let%test "adds matches for ethTyp on ipProto dependencies" =
   let open Pattern in
   let pol = 
     Union(
@@ -87,7 +87,7 @@ TEST "adds matches for ethTyp on ipProto dependencies" =
     flow match_all []
   ]
 
-TEST "adds matches for ethTyp and ipProto on tcp/udp dependencies" =
+let%test "adds matches for ethTyp and ipProto on tcp/udp dependencies" =
   let open Pattern in
   let pol = 
     Union(
