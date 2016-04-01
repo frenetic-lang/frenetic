@@ -75,31 +75,31 @@ let sexp_of_bytes s =
 
 type bytes = Cstruct.t
 
-type int8 = int with sexp
+type int8 = int [@@deriving sexp]
 
-type int16 = int with sexp
+type int16 = int [@@deriving sexp]
 
-type int48 = int64 with sexp
+type int48 = int64 [@@deriving sexp]
 
-type dlAddr = int48 with sexp
+type dlAddr = int48 [@@deriving sexp]
 
-type dlTyp = int16 with sexp
+type dlTyp = int16 [@@deriving sexp]
 
-type dlVlan = int16 option with sexp
+type dlVlan = int16 option [@@deriving sexp]
 
-type dlVlanPcp = int8 with sexp
+type dlVlanPcp = int8 [@@deriving sexp]
 
-type dlVlanDei = bool with sexp
+type dlVlanDei = bool [@@deriving sexp]
 
-type nwAddr = int32 with sexp
+type nwAddr = int32 [@@deriving sexp]
 
-type nwProto = int8 with sexp
+type nwProto = int8 [@@deriving sexp]
 
-type nwTos = int8 with sexp
+type nwTos = int8 [@@deriving sexp]
 
-type ipv6Addr = int64*int64 with sexp
+type ipv6Addr = int64*int64 [@@deriving sexp]
 
-type tpPort = int16 with sexp
+type tpPort = int16 [@@deriving sexp]
 
 module Tcp = struct
 
@@ -114,7 +114,7 @@ module Tcp = struct
       ; psh : bool
       ; rst : bool
       ; syn : bool
-      ; fin : bool } with sexp
+      ; fin : bool } [@@deriving sexp]
 
     let to_string f = Printf.sprintf
       "{ ns = %B; cwr = %B; ece = %B; urg = %B; ack = %B; psh = %B; rst = %B; \
@@ -157,22 +157,23 @@ module Tcp = struct
     ; window : int16
     ; chksum : int8
     ; urgent : int8
-    ; payload : Cstruct.t } with sexp
+    ; payload : Cstruct.t } [@@deriving sexp]
 
   let format fmt v =
     let open Format in
     fprintf fmt "@[tpSrc=%d;tpDst=%d@]" v.src v.dst
 
-  cstruct tcp { 
-    uint16_t src;
-    uint16_t dst;
-    uint32_t seq;
-    uint32_t ack;
-    uint16_t offset_flags; (* offset, reserved, and flags *)
-    uint16_t window;
-    uint16_t chksum;
-    uint16_t urgent
-  } as big_endian
+  [%%cstruct 
+  type tcp ={ 
+    src: uint16_t ;
+    dst: uint16_t ;
+    seq: uint32_t ;
+    ack: uint32_t ;
+    offset_flags: uint16_t ; (* offset, reserved, and flags *)
+    window: uint16_t ;
+    chksum: uint16_t ;
+    urgent: uint16_t 
+  } [@@big_endian]]
 
   let parse (bits : Cstruct.t) = 
     if Cstruct.len bits < sizeof_tcp then
@@ -241,18 +242,19 @@ module Udp = struct
     ; dst : tpPort
     ; chksum : int16
     ; payload : Cstruct.t }
-  with sexp
+  [@@deriving sexp]
 
   let format fmt v =
     let open Format in
     fprintf fmt "@[tpSrc=%d;tpDst=%d@]" v.src v.dst
 
-  cstruct udp {
-    uint16_t src;
-    uint16_t dst;
-    uint16_t len;
-    uint16_t chksum
-  } as big_endian
+  [%%cstruct 
+  type udp= {
+    src: uint16_t ;
+    dst: uint16_t ;
+    len: uint16_t ;
+    chksum: uint16_t 
+  } [@@big_endian]]
 
   let parse (bits : Cstruct.t) =
     if Cstruct.len bits < sizeof_udp then
@@ -286,13 +288,14 @@ module Icmp = struct
     code : int8;
     chksum : int16;
     payload : Cstruct.t
-  } with sexp
+  } [@@deriving sexp]
 
-  cstruct icmp { 
-    uint8_t typ;
-    uint8_t code;
-    uint16_t chksum
-  } as big_endian
+  [%%cstruct 
+  type icmp ={ 
+    typ: uint8_t ;
+    code: uint8_t ;
+    chksum: uint16_t 
+  } [@@big_endian]]
 
   let format fmt v =
     let open Format in
@@ -370,13 +373,14 @@ module Dns = struct
       name : string;
       typ : int16;
       class_ : int16
-    } with sexp
+    } [@@deriving sexp]
 
-    cstruct qd {
+    [%%cstruct 
+    type qd= {
       (* preceeded by name *)
-      uint16_t typ;
-      uint16_t class_
-    } as big_endian
+      typ: uint16_t ;
+      class_: uint16_t 
+    } [@@big_endian]]
 
     let format fmt v =
       let open Format in
@@ -411,16 +415,17 @@ module Dns = struct
       class_ : int16;
       ttl : int; (* TTL is signed 32-bit int *)
       rdata : Cstruct.t
-    } with sexp
+    } [@@deriving sexp]
 
-    cstruct rr {
+    [%%cstruct 
+    type rr= {
       (* preceeded by name *)
-      uint16_t typ;
-      uint16_t class_;
-      int32_t ttl;
-      uint16_t rdlen
+      typ: uint16_t ;
+      class_: uint16_t ;
+      ttl: int32_t ;
+      rdlen: uint16_t 
       (* followed by variable-length RData *)
-    } as big_endian
+    } [@@big_endian]]
 
     let format fmt v =
       let open Format in
@@ -464,7 +469,7 @@ module Dns = struct
     ; answers : Rr.t list
     ; authority : Rr.t list
     ; additional : Rr.t list }
-  with sexp
+  [@@deriving sexp]
 
   let format fmt v =
     let open Format in
@@ -475,16 +480,17 @@ module Dns = struct
     List.iter (Rr.format fmt) v.additional
 
 
-  cstruct dns {
-    uint16_t id;
-    uint16_t flags;
-    uint16_t qdcount;
-    uint16_t ancount;
-    uint16_t nscount;
-    uint16_t arcount
+  [%%cstruct 
+  type dns= {
+    id: uint16_t ;
+    flags: uint16_t ;
+    qdcount: uint16_t ;
+    ancount: uint16_t ;
+    nscount: uint16_t ;
+    arcount: uint16_t 
     (* followed by questions (if any) *)
     (* followed by resource records (if any) *)
-  } as big_endian
+  } [@@big_endian]]
 
   let parse_helper (bits : Cstruct.t) (num : int) pf lf off =
     let indices = indicies_maker num in
@@ -544,13 +550,14 @@ module Igmp1and2 = struct
     mrt: int8;
     chksum : int16;
     addr : nwAddr;
-  } with sexp
+  } [@@deriving sexp]
 
-  cstruct igmp1and2 {
-    uint8_t mrt;
-    uint16_t chksum;
-    uint32_t addr
-  } as big_endian
+  [%%cstruct 
+  type igmp1and2= {
+    mrt: uint8_t ;
+    chksum: uint16_t ;
+    addr: uint32_t 
+  } [@@big_endian]]
 
   let format fmt v =
     let open Format in
@@ -588,15 +595,16 @@ module Igmp3 = struct
       typ : int8;
       addr : nwAddr;
       sources : nwAddr list;
-    } with sexp
+    } [@@deriving sexp]
 
-    cstruct grouprec {
-      uint8_t typ;
-      uint8_t aux_len;
-      uint16_t num_sources;
-      uint32_t addr
+    [%%cstruct 
+    type grouprec= {
+      typ: uint8_t ;
+      aux_len: uint8_t ;
+      num_sources: uint16_t ;
+      addr: uint32_t 
       (* followed by sources (if any) *)
-    } as big_endian
+    } [@@big_endian]]
 
     let format fmt v =
       let open Format in
@@ -632,15 +640,16 @@ module Igmp3 = struct
   type t = {
     chksum : int16;
     grs : GroupRec.t list;
-  } with sexp
+  } [@@deriving sexp]
 
-  cstruct igmp3 {
-    uint8_t reserved1;
-    uint16_t chksum;
-    uint16_t reserved2;
-    uint16_t num_records
+  [%%cstruct 
+  type igmp3= {
+    reserved1: uint8_t ;
+    chksum: uint16_t ;
+    reserved2: uint16_t ;
+    num_records: uint16_t 
     (* followed by group records (if any) *)
-  } as big_endian
+  } [@@big_endian]]
 
   let format fmt v =
     let open Format in
@@ -685,24 +694,27 @@ module Igmp = struct
     | Igmp1and2 of Igmp1and2.t
     | Igmp3 of Igmp3.t
     | Unparsable of (int8 * Cstruct.t)
-  with sexp
+  [@@deriving sexp]
 
   type t = {
     ver_and_typ : int8;
     msg : msg
-  } with sexp
+  } [@@deriving sexp]
 
-  cenum igmp_msg_type {
-    IGMP_MSG_QUERY = 0x11;
-    IGMP_v1_REPORT = 0x12;
-    IGMP_v2_REPORT = 0x16;
-    IGMP_v2_LEAVE = 0x17;
-    IGMP_v3_REPORT = 0x22
-  } as uint8_t
+  [%%cenum 
+  type igmp_msg_type =
+    | IGMP_MSG_QUERY [@id 0x11]
+    | IGMP_v1_REPORT [@id 0x12]
+    | IGMP_v2_REPORT [@id 0x16]
+    | IGMP_v2_LEAVE [@id 0x17]
+    | IGMP_v3_REPORT [@id 0x22]
+    [@@uint8_t]
+  ]
 
-  cstruct igmp {
-    uint8_t ver_and_typ (* version implicit in type. facepalm. *)
-  } as big_endian
+  [%%cstruct 
+  type igmp= {
+    ver_and_typ: uint8_t  (* version implicit in type. facepalm. *)
+  } [@@big_endian]]
 
   let format_msg fmt = function
     | Igmp1and2 igmp1and2 -> Igmp1and2.format fmt igmp1and2
@@ -769,7 +781,7 @@ module Ip = struct
     | Icmp of Icmp.t
     | Igmp of Igmp.t
     | Unparsable of (nwProto * Cstruct.t)
-  with sexp
+  [@@deriving sexp]
 
   module Flags = struct
   (** [Flags] is the type of IPv4 flags. *)
@@ -777,7 +789,7 @@ module Ip = struct
     type t =
       { df : bool (** Don't fragment. *)
       ; mf : bool (** More fragments. *)
-      } with sexp
+      } [@@deriving sexp]
 
     let to_string v = Printf.sprintf "{ df = %B; mf = %B }" v.df v.mf
 
@@ -804,7 +816,7 @@ module Ip = struct
     dst : nwAddr;
     options : Cstruct.t;
     tp : tp
-  } with sexp
+  } [@@deriving sexp]
 
   let format_tp fmt = function
     | Tcp tcp -> Tcp.format fmt tcp
@@ -820,25 +832,28 @@ module Ip = struct
       (string_of_ip v.dst) 
       format_tp v.tp
 
-  cenum ip_proto { 
-    IP_ICMP = 0x01;
-    IP_IGMP = 0x02;
-    IP_TCP = 0x06;
-    IP_UDP = 0x11
-  } as uint8_t
+  [%%cenum 
+  type ip_proto = 
+    | IP_ICMP [@id 0x01]
+    | IP_IGMP [@id 0x02]
+    | IP_TCP [@id 0x06]
+    | IP_UDP [@id 0x11]
+    [@@uint8_t]
+  ]
 
-  cstruct ip { 
-    uint8_t vhl; (* version and ihl *)
-    uint8_t tos; 
-    uint16_t len;
-    uint16_t ident;
-    uint16_t frag; (* flags and frag *)
-    uint8_t ttl;
-    uint8_t proto;
-    uint16_t chksum;
-    uint32_t src;
-    uint32_t dst
-  } as big_endian
+  [%%cstruct 
+  type ip ={ 
+    vhl: uint8_t ; (* version and ihl *)
+    tos: uint8_t ; 
+    len: uint16_t ;
+    ident: uint16_t ;
+    frag: uint16_t ; (* flags and frag *)
+    ttl: uint8_t ;
+    proto: uint8_t ;
+    chksum: uint16_t ;
+    src: uint32_t ;
+    dst: uint32_t 
+  } [@@big_endian]]
 
   let parse (bits : Cstruct.t) =
     if Cstruct.len bits < sizeof_ip then
@@ -935,7 +950,7 @@ module Arp = struct
   type t =
     | Query of dlAddr * nwAddr * nwAddr
     | Reply of dlAddr * nwAddr * dlAddr * nwAddr
-  with sexp
+  [@@deriving sexp]
 
   let format fmt v =
     let open Format in
@@ -953,17 +968,18 @@ module Arp = struct
       
 
   (* Network *)
-  cstruct arp {
-    uint16_t htype;
-    uint16_t ptype;
-    uint8_t hlen;
-    uint8_t plen;
-    uint16_t oper;
-    uint8_t sha[6];
-    uint32_t spa;
-    uint8_t tha[6];
-    uint32_t tpa
-  } as big_endian
+  [%%cstruct 
+  type arp= {
+    htype: uint16_t ;
+    ptype: uint16_t ;
+    hlen: uint8_t ;
+    plen: uint8_t ;
+    oper: uint16_t ;
+    sha: uint8_t [@len 6];
+    spa: uint32_t ;
+    tha: uint8_t [@len 6];
+    tpa: uint32_t 
+  } [@@big_endian]]
 
   let nwSrc t = match t with
     | Query (_, ip, _) -> ip
@@ -973,10 +989,12 @@ module Arp = struct
     | Query (_, _, ip) -> ip
     | Reply (_, _, _, ip) -> ip
 
-  cenum arp_oper {
-    ARP_REQUEST = 0x0001;
-    ARP_REPLY = 0x0002
-  } as uint16_t
+  [%%cenum 
+  type arp_oper =
+    | ARP_REQUEST [@id 0x0001]
+    | ARP_REPLY [@id 0x0002]
+    [@@uint16_t]
+  ]
   
   let parse (bits : Cstruct.t) =
     if Cstruct.len bits < sizeof_arp then
@@ -1024,7 +1042,7 @@ type nw =
   | Ip of Ip.t
   | Arp of Arp.t
   | Unparsable of (dlTyp * Cstruct.t)
-  with sexp
+  [@@deriving sexp]
 
 type packet = {
   dlSrc : dlAddr;
@@ -1033,7 +1051,7 @@ type packet = {
   dlVlanDei : dlVlanDei;
   dlVlanPcp : dlVlanPcp;
   nw : nw
-} with sexp
+} [@@deriving sexp]
 
 let format_nw fmt v =
   let open Format in
@@ -1223,25 +1241,29 @@ let string_of_nwTos = string_of_int
 let string_of_tpPort = string_of_int
 
 (* Data Link *)
-cstruct eth {
-  uint8_t dst[6];
-  uint8_t src[6];
-  uint16_t typ
-} as big_endian
+[%%cstruct 
+type eth= {
+  dst: uint8_t [@len 6];
+  src: uint8_t [@len 6];
+  typ: uint16_t 
+} [@@big_endian]]
 
-cstruct vlan {
-  uint8_t dst[6];
-  uint8_t src[6];
-  uint16_t hdr; (* 0x8100 *)
-  uint16_t tag; (* pcp, dei, and tag *)
-  uint16_t typ
-} as big_endian
+[%%cstruct 
+type vlan= {
+  dst: uint8_t [@len 6];
+  src: uint8_t [@len 6];
+  hdr: uint16_t ; (* 0x8100 *)
+  tag: uint16_t ; (* pcp, dei, and tag *)
+  typ: uint16_t 
+} [@@big_endian]]
 
-cenum eth_typ {
-  ETHTYP_IP = 0x0800;
-  ETHTYP_ARP = 0x0806;
-  ETHTYP_VLAN = 0x8100
-} as uint16_t
+[%%cenum 
+type eth_typ =
+  | ETHTYP_IP [@id 0x0800]
+  | ETHTYP_ARP [@id 0x0806]
+  | ETHTYP_VLAN [@id 0x8100]
+  [@@uint16_t]
+]
 
 let vlan_mask = 0xfff
 let vlan_pcp_mask = 0x7 lsl 13
@@ -1249,12 +1271,13 @@ let vlan_dei_mask = 0x1000
 
 (* Transport *)
 
-cstruct udp { 
-  uint16_t src;
-  uint16_t dst;
-  uint16_t len;
-  uint16_t chksum
-} as big_endian
+[%%cstruct 
+type udp ={ 
+  src: uint16_t ;
+  dst: uint16_t ;
+  len: uint16_t ;
+  chksum: uint16_t 
+} [@@big_endian]]
 
 (* TODO(arjun): error if not enough space (annoying to do due to VLANs)*)
 let parse (bits : Cstruct.t) =

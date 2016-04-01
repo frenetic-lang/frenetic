@@ -1,4 +1,3 @@
-open OUnitHack
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Pretty
 module SDN = Frenetic_OpenFlow
@@ -26,24 +25,24 @@ let p_str3 = "filter switch = 1 ; filter port = 1 ; port := 2 |
               (filter switch = 1 ; filter port = 2 ; port := 1 |
                filter switch = 2 ; filter port = 1 ; port := 2)"
 
-TEST "simple filter" = test_pretty p_str1 = true
-TEST "simple sequence" = test_pretty p_str2 = true
-TEST "assoc par" = test_pretty p_str3 = true
+let%test "simple filter" = test_pretty p_str1 = true
+let%test "simple sequence" = test_pretty p_str2 = true
+let%test "assoc par" = test_pretty p_str3 = true
 
-TEST "conditional parses" = test_parse "if port = 1 then drop else id" 
-TEST "prettified conditional parses" = 
+let%test "conditional parses" = test_parse "if port = 1 then drop else id" 
+let%test "prettified conditional parses" = 
   test_parse (string_of_policy (
     Frenetic_NetKAT_Parser.policy_from_string "filter not port = 1; drop"))
-TEST "conditional" = test_pretty "if port = 1 then drop else id" = true
+let%test "conditional" = test_pretty "if port = 1 then drop else id" = true
 
-TEST "line wrap" =
+let%test "line wrap" =
   let str = "\
   filter port = 1; filter port = 1; filter port = 1; filter port = 1 |\n\
   filter port = 1; filter port = 1; filter port = 1; filter port = 1 |\n\
   filter port = 1; filter port = 1; filter port = 1; filter port = 1" in
   parse_pretty str = str
 
-TEST "pretty printing should wrap long lines nicely" =
+let%test "pretty printing should wrap long lines nicely" =
   let str = "\
   filter port = 1; filter port = 1; filter port = 1; filter port = 1 |\n\
   filter port = 1; filter port = 1; filter port = 1; filter port = 1 |\n\
@@ -69,7 +68,7 @@ let prop_parse_pol_idempotent (p : policy) : bool =
     false
 
 (*
-TEST "testing parse-pretty roundtrip" =
+let%test "testing parse-pretty roundtrip" =
   let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
   match QuickCheck.check testable_pol_to_bool cfg prop_parse_pol_idempotent with
     | QuickCheck.Success -> true

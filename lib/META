@@ -1,9 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: 68c43748397eb608374766508daaa2ca)
+# DO NOT EDIT (digest: 1be9b6f0c06b51d212346983a4d67785)
 version = "4.0.0"
 description = "The Frenetic Compiler and Runtime System"
 requires =
-"base64 camlp4.lib camlp4.extend camlp4 core cstruct cstruct.syntax fieldslib fieldslib.syntax ocamlgraph sexplib sexplib.syntax str tcpip ulex yojson threads"
+"base64 camlp4.lib camlp4.extend camlp4 core cstruct ppx_fields_conv ocamlgraph ppx_sexp_conv str tcpip ulex yojson threads"
 archive(byte) = "frenetic.cma"
 archive(byte, plugin) = "frenetic.cma"
 archive(native) = "frenetic.cmxa"
@@ -35,7 +35,7 @@ package "async" (
  version = "4.0.0"
  description = "The Frenetic Compiler and Runtime System"
  requires =
- "async cohttp cohttp.async core cstruct cstruct.async frenetic mparser mparser.re sexplib sexplib.syntax str"
+ "async cohttp cohttp.async core cstruct cstruct.async frenetic mparser mparser.re ppx_sexp_conv str"
  archive(byte) = "async.cma"
  archive(byte, plugin) = "async.cma"
  archive(native) = "async.cmxa"

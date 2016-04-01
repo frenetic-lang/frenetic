@@ -4,10 +4,10 @@ module SDN = Frenetic_OpenFlow
 
 type node =
   | Switch of SDN.switchId
-  | Host of Frenetic_Packet.dlAddr * Frenetic_Packet.nwAddr with sexp
+  | Host of Frenetic_Packet.dlAddr * Frenetic_Packet.nwAddr [@@deriving sexp]
 
 module Node = struct
-  type t = node with sexp
+  type t = node [@@deriving sexp]
 
   let compare = Pervasives.compare
 
@@ -28,7 +28,7 @@ module Node = struct
 end
 
 module Link = struct
-  type t = unit with sexp
+  type t = unit [@@deriving sexp]
 
   let compare = Pervasives.compare
 

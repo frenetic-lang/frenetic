@@ -25,7 +25,7 @@ module Field = struct
     | TCPDstPort
     | Location
     | VFabric
-    with sexp
+    [@@deriving sexp]
 
   (** The type of packet fields. This is an enumeration whose ordering has an
       effect on the performance of Tdk operations, as well as the size of the
@@ -76,7 +76,7 @@ module Field = struct
     List.length lst = num_fields &&
     List.for_all all_fields ~f:(List.mem lst)
 
-  assert (is_valid_order all_fields)
+  (* assert (is_valid_order all_fields) *)
 
   (* Initial order is the order in which fields appear in this file. *)
   let order = Array.init num_fields ~f:ident
@@ -136,7 +136,7 @@ module Field = struct
         if in_product then
           let fld = field_of_header_val hv in
           let n = Hashtbl.Poly.find_exn count_tbl fld in
-          Hashtbl.Poly.replace count_tbl ~key:fld ~data:(n + size)
+          Hashtbl.Poly.set count_tbl ~key:fld ~data:(n + size)
       | Or (a, b) -> f_pred size false a; f_pred size false b
       | And (a, b) -> f_pred size true a; f_pred size true b
       | Neg a -> f_pred size in_product a in
@@ -185,7 +185,7 @@ module Value = struct
     (* TODO(grouptable): HACK, should only be able to fast fail on ports.
      * Put this somewhere else *)
     | FastFail of Int32.t list
-    with sexp
+    [@@deriving sexp]
   (** The packet field value type. This is a union of all the possible values
       that all fields can take on. All integer bit widths are represented by an
       [Int64.t] and will be cast to the appropriate bit width for use during
@@ -477,7 +477,7 @@ module Action = struct
   type field_or_cont =
     | F of Field.t
     | K
-  with sexp
+  [@@deriving sexp]
 
   let compare_field_or_cont x y =
     match x,y with
@@ -488,7 +488,7 @@ module Action = struct
 
   module Seq = struct
     include Map.Make(struct
-      type t = field_or_cont with sexp
+      type t = field_or_cont [@@deriving sexp]
       let compare = compare_field_or_cont
     end)
 
@@ -522,7 +522,7 @@ module Action = struct
 
   module Par = struct
     include Set.Make(struct
-    type t = Value.t Seq.t with sexp
+    type t = Value.t Seq.t [@@deriving sexp]
     let compare = Seq.compare
     end)
 
@@ -544,7 +544,7 @@ module Action = struct
       equal (mod_k p1) (mod_k p2)
   end
 
-  type t = Par.t with sexp
+  type t = Par.t [@@deriving sexp]
 
   let one = Par.singleton Seq.empty
   let zero = Par.empty

@@ -1,13 +1,13 @@
 open Core.Std
 
-type xid = Int32.t with sexp
+type xid = Int32.t [@@deriving sexp]
 
 type t = {
   version: int;
   type_code: int;
   length: int;
   xid: xid
-} include Sexpable with type t := t
+} [@@deriving sexp] (*include Sexpable with type t := t*)
 
 val size : int
 

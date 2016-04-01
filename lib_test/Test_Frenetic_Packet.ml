@@ -1,4 +1,3 @@
-open OUnitHack
 open Frenetic_Packet
 open QuickCheck
 open Arbitrary_Base
@@ -78,11 +77,11 @@ module RoundTrip = struct
     let e' = parse (marshal e) in
     prop_roundtrip ~chksum:true parse marshal e'
 
-  TEST "Roundtrip property for unparsable Ethernet frames" =
+  let%test "Roundtrip property for unparsable Ethernet frames" =
     (packet_quickCheck (Arb.arbitrary_packet Arb.arbitrary_dl_unparsable)
       (prop_roundtrip parse marshal))
 
-  TEST "Roundtrip property for ARP packets" =
+  let%test "Roundtrip property for ARP packets" =
     let arp = Gen.map_gen (fun x -> Arp(x)) Arb.arbitrary_arp in
     (packet_quickCheck (Arb.arbitrary_packet arp)
       (prop_roundtrip parse marshal))
@@ -90,17 +89,17 @@ module RoundTrip = struct
   let mk_ip tp = Arb.arbitrary_packet
     (Gen.map_gen (fun x -> Ip(x)) (Arb.arbitrary_ip tp))
 
-  TEST "Roundtrip property for unparsable IP packets" =
+  let%test "Roundtrip property for unparsable IP packets" =
     (packet_quickCheck (mk_ip Arb.arbitrary_ip_unparsable)
       (prop_roundtrip parse marshal))
 
-  TEST "Roundtrip property for UDP packets" =
+  let%test "Roundtrip property for UDP packets" =
     let udp = Gen.map_gen (fun x -> Ip.Udp(x))
           (Arb.arbitrary_udp (Arb.arbitrary_payload 65507)) in
     (packet_quickCheck (mk_ip udp)
       (prop_roundtrip2 parse marshal))
 
-  TEST "Roundtrip property for TCP packets" =
+  let%test "Roundtrip property for TCP packets" =
     let tcp = Gen.map_gen (fun x -> Ip.Tcp(x))
           (Arb.arbitrary_tcp (Arb.arbitrary_payload (65507 - 128))) in
     (packet_quickCheck (mk_ip tcp)
@@ -118,7 +117,7 @@ module RoundTrip = struct
       | Failure _ -> failwith "No failure expected"
       | Exhausted _ -> failwith "No exhaustion expected"
 
-  TEST "Roundtrip property for IPv6 Address" =
+  let%test "Roundtrip property for IPv6 Address" =
     (addr_quickcheck arbitrary_uint128
       ipv6_of_string string_of_ipv6)
 

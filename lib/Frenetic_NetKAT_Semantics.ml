@@ -18,7 +18,7 @@ module HeadersValues = struct
     ; ipDst : nwAddr
     ; tcpSrcPort : tpPort
     ; tcpDstPort : tpPort
-    } with sexp, fields
+    } [@@deriving sexp, fields]
 
   let compare x y =
     (* N.B. This is intentionally unrolled for performance purposes, as the
@@ -99,7 +99,7 @@ type packet = {
 }
 
 module PacketSet = Set.Make (struct
-  type t = packet sexp_opaque with sexp
+  type t = packet sexp_opaque [@@deriving sexp]
 
   (* First compare by headers, then payload. The payload comparison is a
      little questionable. However, this is safe to use in eval, since
