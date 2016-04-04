@@ -82,7 +82,7 @@ module Field = struct
 
   (* compare depends on current order! *)
   let compare (x : t) (y : t) : int =
-    Int.compare order.(to_enum x) order.(to_enum y)
+    Int.compare order.(Obj.magic x) order.(Obj.magic y)
 
   let field_of_header_val hv = match hv with
     | Frenetic_NetKAT.Switch _ -> Switch
