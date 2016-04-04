@@ -24,7 +24,7 @@ type location =
   | FastFail of int32 list
   | Pipe of string
   | Query of string
-  [@@deriving sexp]
+  [@@deriving sexp, compare]
 
 type header_val =
   | Switch of switchId

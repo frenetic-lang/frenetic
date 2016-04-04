@@ -18,36 +18,7 @@ module HeadersValues = struct
     ; ipDst : nwAddr
     ; tcpSrcPort : tpPort
     ; tcpDstPort : tpPort
-    } [@@deriving sexp, fields]
-
-  let compare x y =
-    (* N.B. This is intentionally unrolled for performance purposes, as the
-     * comparison should short circuit as soon as possible. In light of that
-     * fact, it may be beneficial to reorder some of these checks in the
-     * future.
-     * *)
-    let c = Pervasives.compare x.location y.location in
-    if c <> 0 then c else
-    let c = Int64.compare x.ethSrc y.ethSrc in
-    if c <> 0 then c else
-    let c = Int64.compare x.ethDst y.ethDst in
-    if c <> 0 then c else
-    let c = Int.compare x.vlan y.vlan in
-    if c <> 0 then c else
-    let c = Int.compare x.vlanPcp y.vlanPcp in
-    if c <> 0 then c else
-    let c = Int.compare x.ethType y.ethType in
-    if c <> 0 then c else
-    let c = Int.compare x.ipProto y.ipProto in
-    if c <> 0 then c else
-    let c = Int32.compare x.ipSrc y.ipSrc in
-    if c <> 0 then c else
-    let c = Int32.compare x.ipDst y.ipDst in
-    if c <> 0 then c else
-    let c = Int.compare x.tcpSrcPort y.tcpSrcPort in
-    if c <> 0 then c else
-    let c = Int.compare x.tcpDstPort y.tcpDstPort in
-    c
+    } [@@deriving sexp, fields, compare]
 
   let to_string (x:t) : string =
     let g to_string acc f =
@@ -194,7 +165,7 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
       | TCPSrcPort n ->
         { pkt with headers = { pkt.headers with tcpSrcPort = n }}
       | TCPDstPort n ->
-        { pkt with headers = { pkt.headers with tcpDstPort = n }} 
+        { pkt with headers = { pkt.headers with tcpDstPort = n }}
       | VSwitch n | VPort n | VFabric n -> pkt (* SJS *) in
     PacketSet.singleton pkt'
   | Union (pol1, pol2) ->
@@ -236,7 +207,7 @@ let eval_pipes (packet:packet) (pol:Frenetic_NetKAT.policy)
    * Since Local.t is switch-specific, this function assumes but does not
    * check that the packet came from the same switch as the given Local.t *)
   let packets = eval packet pol in
-  let () = eprintf "Found %d packets" (PacketSet.length packets) in 
+  let () = eprintf "Found %d packets" (PacketSet.length packets) in
   PacketSet.fold packets ~init:([],[],[]) ~f:(fun (pi,qu,phy) pkt ->
     (* Running the packet through the switch's policy will label the resultant
      * packets with the pipe or query they belong to, if any. All that's left to

@@ -340,10 +340,7 @@ let pipes t =
   String.Set.to_list ps
 
 let queries t =
-  let module S = Set.Make(struct
-    type t = string * Frenetic_NetKAT.pred sexp_opaque [@@deriving sexp]
-    let compare = Pervasives.compare
-  end) in
+  let module S = Set.Poly in
   let qs = FDK.fold
     (fun r ->
       let qs = Action.queries r in
