@@ -18,17 +18,12 @@ type cache
     | `Empty
     | `Preserve of t ]
 
-type adherence
-  = [ `Strict
-    | `Sloppy ]
-
 type compiler_options = {
     cache_prepare: cache;
     field_order: order;
     remove_tail_drops: bool;
     dedup_flows: bool;
     optimize: bool;
-    openflow_adherence: adherence;
 }
 
 (** {2 Compilation} *)

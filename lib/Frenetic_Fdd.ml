@@ -365,6 +365,9 @@ module Pattern = struct
   let to_string (f, v) =
     Printf.sprintf "%s = %s" (Field.to_string f) (Value.to_string v)
 
+  let equal a b =
+    compare a b = 0
+
   let to_int = Int64.to_int_exn
   let to_int32 = Int64.to_int32_exn
 

@@ -162,17 +162,12 @@ type cache
     | `Empty
     | `Preserve of t ]
 
-type adherence
-  = [ `Strict
-    | `Sloppy ]
-
 type compiler_options = {
     cache_prepare: cache;
     field_order: order;
     remove_tail_drops: bool;
     dedup_flows: bool;
     optimize: bool;
-    openflow_adherence: adherence;
 }
 
 let default_compiler_options = {
@@ -181,7 +176,6 @@ let default_compiler_options = {
   remove_tail_drops = false;
   dedup_flows = true;
   optimize = true;
-  openflow_adherence = `Sloppy;
 }
 
 let prepare_compilation ~options pol = begin
@@ -199,7 +193,6 @@ let compile_local ?(options=default_compiler_options) pol =
   prepare_compilation ~options pol; of_local_pol pol
 
 let is_valid_pattern options (pat : Frenetic_OpenFlow.Pattern.t) : bool =
-  options.openflow_adherence = `Sloppy ||
   (Option.is_none pat.dlTyp ==>
      (Option.is_none pat.nwProto &&
       Option.is_none pat.nwSrc &&
@@ -208,18 +201,49 @@ let is_valid_pattern options (pat : Frenetic_OpenFlow.Pattern.t) : bool =
      (Option.is_none pat.tpSrc &&
       Option.is_none pat.tpDst))
 
-let mk_flow options pattern action queries =
-  if is_valid_pattern options pattern then
-    let open Frenetic_OpenFlow.Pattern in
-    let open Frenetic_OpenFlow in
-    Some ({ pattern
-          ; action
-          ; cookie = 0L
-          ; idle_timeout = Permanent
-          ; hard_timeout = Permanent
-          }, queries)
-  else
-   None
+let add_dependency_if_unseen all_tests pat dep = 
+  let dep_pat = Pattern.of_hv dep in
+  match List.exists ~f:(Pattern.equal dep_pat) all_tests with
+  | true -> None
+  | false -> Some (Pattern.to_sdn dep_pat pat)
+
+(* Note that although Vlan and VlanPcp technically have a dependency on the packet being an EthType 0x8100, you
+   never have to include that Dependency in OpenFlow because the EthType match is always for the INNER packet. *)
+let fill_in_dependencies all_tests (pat : Frenetic_OpenFlow.Pattern.t) = 
+  let open Frenetic_OpenFlow.Pattern in
+  let all_dependencies = 
+    if (Option.is_some pat.nwSrc || Option.is_some pat.nwDst) && Option.is_none pat.dlTyp then
+      [ EthType(0x800); EthType(0x806) ]
+    else if Option.is_some pat.nwProto && Option.is_none pat.dlTyp then
+      [ EthType(0x800) ]
+    else if (Option.is_some pat.tpSrc || Option.is_some pat.tpDst) && Option.is_none pat.nwProto then
+      [ IPProto(6); IPProto(17) ]
+    else
+      []
+    in
+  (* tpSrc/tpDst has two dependencies, so fold the dlTyp into the given pattern, if needed. *)
+  let pat = 
+    if (Option.is_some pat.tpSrc || Option.is_some pat.tpDst) && Option.is_none pat.nwProto && Option.is_none pat.dlTyp then
+      match add_dependency_if_unseen all_tests pat (EthType(0x800)) with
+      | Some new_pat -> new_pat
+      | None -> pat
+    else
+      pat 
+    in
+  match all_dependencies with
+  | [] -> [ pat ]
+  | deps -> List.filter_opt (List.map deps ~f:(add_dependency_if_unseen all_tests pat)) 
+
+let to_pattern hvs =
+  List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_OpenFlow.Pattern.match_all
+
+let mk_flows options true_tests all_tests action queries =
+  let open Frenetic_OpenFlow.Pattern in
+  let open Frenetic_OpenFlow in
+  let patterns = to_pattern true_tests |> fill_in_dependencies all_tests in
+  List.map patterns ~f:(fun p ->
+    ({ pattern=p; action; cookie=0L; idle_timeout=Permanent; hard_timeout=Permanent }, queries)
+  )
 
 let get_inport hvs =
   let get_inport' current hv =
@@ -232,9 +256,6 @@ let get_inport hvs =
 let to_action ?group_tbl (in_port : Int64.t option) r tests =
   List.fold tests ~init:r ~f:(fun a t -> Action.demod t a)
   |> Action.to_sdn ?group_tbl in_port
-
-let to_pattern hvs =
-  List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_OpenFlow.Pattern.match_all
 
 let remove_local_fields = FDK.fold
   (fun r -> mk_leaf (Action.Par.map r ~f:(fun s -> Action.Seq.filteri s ~f:(fun ~key ~data ->
@@ -258,36 +279,36 @@ let opt_to_table ?group_tbl options sw_id t =
                 ;(Field.VFabric, Value.Const (Int64.of_int 1))]
     |> remove_local_fields
   in
-  let rec next_table_row tests mk_rest t =
+  let rec next_table_row true_tests all_tests mk_rest t =
     match FDK.unget t with
     | Branch ((Location, Pipe _), _, f) ->
-      next_table_row tests mk_rest f
+      next_table_row true_tests all_tests mk_rest f
     | Branch (test, t, f) ->
-      next_table_row (test::tests) (fun t' -> mk_rest (mk_branch_or_leaf test t' f)) t
+      next_table_row (test::true_tests) (test::all_tests) (fun t' all_tests -> mk_rest (mk_branch_or_leaf test t' f) (test::all_tests)) t
     | Leaf actions ->
-      let openflow_instruction = [to_action ?group_tbl (get_inport tests) actions tests] in
+      let openflow_instruction = [to_action ?group_tbl (get_inport true_tests) actions true_tests] in
       let queries = Action.get_queries actions in
-      let row = mk_flow options (to_pattern tests) openflow_instruction queries in
-      (row, mk_rest None)
+      let row = mk_flows options true_tests all_tests openflow_instruction queries in
+      (row, mk_rest None all_tests)
   in
-  let rec loop t acc =
-    match next_table_row [] (fun x -> x) t with
-    | (row, None) -> List.rev (row::acc)
-    | (row, Some rest) -> loop rest (row::acc)
+  let rec loop t all_tests acc =
+    match next_table_row [] all_tests (fun x all_tests -> (x, all_tests) ) t with
+    | (row, (None, _)) -> List.rev (row::acc)
+    | (row, (Some rest, all_tests)) -> loop rest all_tests (row::acc)
   in
-  List.filter_opt (loop t [])
+  (loop t [] []) |> List.concat
 
 let rec naive_to_table ?group_tbl options sw_id (t : FDK.t) =
   let t = FDK.(restrict [(Field.Switch, Value.Const sw_id)] t) |> remove_local_fields in
-  let rec dfs tests t = match FDK.unget t with
+  let rec dfs true_tests all_tests t = match FDK.unget t with
   | Leaf actions ->
-    let openflow_instruction = [to_action ?group_tbl (get_inport tests) actions tests] in
+    let openflow_instruction = [to_action ?group_tbl (get_inport true_tests) actions true_tests] in
     let queries = Action.get_queries actions in
-    [mk_flow options (to_pattern tests) openflow_instruction queries]
-  | Branch ((Location, Pipe _), _, fls) -> dfs tests fls
+    [ mk_flows options true_tests all_tests openflow_instruction queries ]
+  | Branch ((Location, Pipe _), _, fls) -> dfs true_tests all_tests fls
   | Branch (test, tru, fls) ->
-    dfs (test :: tests) tru @ dfs tests fls in
-  List.filter_opt (dfs [] t)
+    dfs (test :: true_tests) (test :: all_tests) tru @ dfs true_tests (test :: all_tests) fls in
+  (dfs [] [] t) |> List.concat 
 
 let remove_tail_drops fl =
   let rec remove_tail_drop fl =
@@ -393,8 +414,7 @@ let options_from_json_string s =
   let remove_tail_drops = json |> member "remove_tail_drops" |> to_bool in
   let dedup_flows = json |> member "dedup_flows" |> to_bool in
   let optimize = json |> member "optimize" |> to_bool in
-  {default_compiler_options with
-    cache_prepare; field_order; remove_tail_drops; dedup_flows; optimize}
+  {cache_prepare; field_order; remove_tail_drops; dedup_flows; optimize}
 
 let field_order_to_string fo =
  match fo with
@@ -410,14 +430,8 @@ let options_to_json_string opt =
     ("field_order", `String (field_order_to_string opt.field_order));
     ("remove_tail_drops", `Bool opt.remove_tail_drops);
     ("dedup_flows", `Bool opt.dedup_flows);
-    ("optimze", `Bool opt.optimize)
+    ("optimize", `Bool opt.optimize)
   ] |> pretty_to_string
-
-
-
-
-
-
 
 
 (*==========================================================================*)
@@ -897,6 +911,7 @@ let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
 (* make a flow struct that includes the table and meta id of the flow *)
 let mk_multitable_flow options (pattern : Frenetic_OpenFlow.Pattern.t)
   (instruction : instruction) (flowId : flowId) : multitable_flow option =
+  (* TODO: Fill in dependencies, similar to mk_flows above *)
   if is_valid_pattern options pattern then
     Some { cookie = 0L;
            idle_timeout = Permanent;
