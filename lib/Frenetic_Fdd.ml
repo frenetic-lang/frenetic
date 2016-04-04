@@ -304,18 +304,22 @@ module Value = struct
     | Const a, Mask (b, 64)
     | Mask (a, 64), Const b
     | Const a, Const b -> Int64.compare a b
-    | Const _ , _ -> -1
-    | _, Const _ -> 1
+    | Query s1, Query s2
+    | Pipe s1, Pipe s2 -> String.compare s1 s2
+    | FastFail l1, FastFail l2 -> List.compare Int32.compare l1 l2
     | Mask(a, m) , Mask(b, n) ->
       let shift = 64 - min m n in
       (match Int64.(compare (shift_right a shift) (shift_right b shift)) with
        | 0 -> Int.compare n m
        | c -> c)
+    | Const _ , _ -> -1
+    | _, Const _ -> 1
     | Mask _, _ -> -1
     | _, Mask _ -> 1
-    | FastFail _, _ -> -1
-    | _, FastFail _ -> 1
-    | _ -> Pervasives.compare x y
+    | Query _, _ -> -1
+    | _, Query _ -> 1
+    | Pipe _, _ -> -1
+    | _, Pipe _ -> 1
 
   let equal x y = compare x y = 0
 
