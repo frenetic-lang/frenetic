@@ -17,7 +17,7 @@ module Field : sig
       | TCPDstPort
       | Location
       | VFabric
-  with sexp
+  [@@deriving sexp]
 
   include Frenetic_Vlr.HashCmp with type t := t
   val auto_order : Frenetic_NetKAT.policy -> unit
@@ -39,7 +39,7 @@ module Value : sig
     (* TODO(grouptable): HACK, should only be able to fast fail on ports.
      * Put this somewhere else *)
     | FastFail of Int32.t list
-    with sexp
+    [@@deriving sexp]
 
   include Frenetic_Vlr.Lattice with type t := t
   val compare : t -> t -> int
@@ -53,6 +53,7 @@ end
 module Pattern : sig
   type t = Field.t * Value.t
   val compare : t -> t -> int
+  val equal : t -> t -> bool
   val of_hv : Frenetic_NetKAT.header_val -> t
   val to_hv : t -> Frenetic_NetKAT.header_val
   val to_pred : t -> Frenetic_NetKAT.pred
@@ -63,7 +64,7 @@ module Action : sig
   type field_or_cont =
     | F of Field.t
     | K
-  with sexp
+  [@@deriving sexp]
 
   module Seq : sig
     include Map.S with type Key.t = field_or_cont
@@ -81,7 +82,7 @@ module Action : sig
     val equal_mod_k : t -> t -> bool
   end
 
-  type t = Par.t with sexp
+  type t = Par.t [@@deriving sexp]
 
   include Frenetic_Vlr.Result with type t := t
   val one : t
