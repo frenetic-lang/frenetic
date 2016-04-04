@@ -10,12 +10,12 @@ open Frenetic_Packet
   (i.e. policy containing links) is encountered *)
 exception Non_local
 
-type switchId = Frenetic_OpenFlow.switchId [@@deriving sexp]
-type portId = Frenetic_OpenFlow.portId [@@deriving sexp]
+type switchId = Frenetic_OpenFlow.switchId [@@deriving sexp, compare, eq]
+type portId = Frenetic_OpenFlow.portId [@@deriving sexp, compare, eq]
 type payload = Frenetic_OpenFlow.payload [@@deriving sexp]
-type vswitchId = int64 [@@deriving sexp]
-type vportId = int64 [@@deriving sexp]
-type vfabricId = int64 [@@deriving sexp]
+type vswitchId = int64 [@@deriving sexp, compare, eq]
+type vportId = int64 [@@deriving sexp, compare, eq]
+type vfabricId = int64 [@@deriving sexp, compare, eq]
 
 (** {2 Policies} *)
 

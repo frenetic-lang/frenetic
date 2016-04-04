@@ -468,8 +468,7 @@ module Action = struct
 
   module Seq = struct
     include Map.Make(struct
-      type t = field_or_cont [@@deriving sexp]
-      let compare = compare_field_or_cont
+      type t = field_or_cont [@@deriving sexp, compare]
     end)
 
     let compare = compare_direct Value.compare
