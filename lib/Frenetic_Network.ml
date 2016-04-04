@@ -1,6 +1,6 @@
 open Graph
 (* open Sexplib.Conv *)
-open Core_kernel.Std 
+open Core_kernel.Std
 
 module type VERTEX = sig
   type t [@@deriving sexp]
@@ -36,7 +36,7 @@ end
 
 module type NETWORK = sig
   module Topology : sig
-    type t 
+    type t
 
     type vertex [@@deriving sexp]
     type edge [@@deriving sexp]
@@ -164,12 +164,12 @@ struct
     module Edge = Edge
 
     module VL = struct
-      type t = { 
+      type t = {
         id : int;
         label : Vertex.t
       } [@@deriving sexp]
 
-      let compare n1 n2 = Pervasives.compare n1.id n2.id
+      let compare n1 n2 = Int.compare n1.id n2.id
       let hash n1 = Hashtbl.hash n1.id
       let equal n1 n2 = n1.id = n2.id
       let to_string n = string_of_int n.id
@@ -187,7 +187,7 @@ struct
                  label : Edge.t;
                  src : port;
                  dst : port } [@@deriving sexp]
-      let compare e1 e2 = Pervasives.compare e1.id e2.id
+      let compare e1 e2 = Int.compare e1.id e2.id
       let hash e1 = Hashtbl.hash e1.id
       let equal e1 e2 = e1.id = e2.id
       let to_string e = string_of_int e.id
@@ -200,10 +200,9 @@ struct
 
     module UnitWeight = struct
       type edge = Edge.t [@@deriving sexp]
-      type t = int [@@deriving sexp]
+      type t = int [@@deriving sexp, compare]
       type label = EL.t
       let weight _ = 1
-      let compare = Pervasives.compare
       let add = (+)
       let zero = 0
     end
@@ -881,13 +880,13 @@ let capacity_of_id vo = match maybe vo with
 
 module Node = struct
 
-  type device = Switch | Host | Middlebox [@@deriving sexp]
+  type device = Switch | Host | Middlebox [@@deriving sexp, compare]
 
   type t = { dev_type : device ;
              dev_id : int64 ;
              ip : int32 ;
              mac : int64 ;
-             name : string } [@@deriving sexp]
+             name : string } [@@deriving sexp, compare]
 
   type partial_t = { partial_dev_type : device option ;
                      partial_dev_id : int64 option ;
@@ -920,8 +919,6 @@ module Node = struct
   let device (n:t) : device = n.dev_type
   let mac (n:t) : int64 = n.mac
   let ip (n:t) : int32 = n.ip
-
-  let compare = Pervasives.compare
 
   let to_string n = n.name
 
@@ -1014,7 +1011,7 @@ module Node = struct
     let (id, popt) = i in
     let name = string_of_id id in
     let at = List.hd_exn ats in
-    let partial = List.fold_left at 
+    let partial = List.fold_left at
       ~init:{partial_default with partial_name = Some name}
       ~f:update_dot_attr in
     unbox partial
@@ -1043,7 +1040,7 @@ module Link = struct
 
   type t = { cost : int64 ;
              capacity : int64 ;
-             mutable weight : float } [@@deriving sexp]
+             mutable weight : float } [@@deriving sexp, compare]
 
   let default = { cost = 1L;
                   capacity = Int64.of_int64 0x7FFFFFFFFFFFFFFFL;
@@ -1054,8 +1051,6 @@ module Link = struct
 
   let cost (l:t) = l.cost
   let capacity (l:t) = l.capacity
-
-  let compare = Pervasives.compare
 
   let weight (l:t) = l.weight
   let set_weight (l:t) (w:float) = l.weight <- w
@@ -1090,7 +1085,7 @@ end
 module Weight = struct
   type edge = Link.t [@@deriving sexp]
   type t = float [@@deriving sexp]
-  let weight l = 
+  let weight l =
     let open Link in
     l.weight
   let compare = compare
