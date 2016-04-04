@@ -1,8 +1,10 @@
 # TODO: Turn this into a complete test suite and add to "make tests" and TravisCI
 
+# Probably a better way to do this ...
+import sys
+sys.path.append('../..')
 import unittest
-from syntax import *
-from ryu.packet import packet
+from frenetic.syntax import *
 
 class SimpleTestCase(unittest.TestCase):
   def setUp(self):
@@ -60,4 +62,3 @@ class IfThenElseTestCase(SimpleTestCase):
     se = IfThenElse(PortEq(8), SetPort(9), drop)
     self.assertEqual(se.to_json(), IF_THEN_ELSE_CASE)
 
-class PacketTestCase(SimpleTestCase)

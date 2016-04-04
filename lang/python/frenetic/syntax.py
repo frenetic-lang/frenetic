@@ -454,6 +454,8 @@ def init_int_eq(klass, *values):
     expanded_preds = [ Test(klass(v)) for v in vs ]
     if len(expanded_preds) > 1:
         return Or(expanded_preds)
+    elif len(expanded_preds) == 0:
+        return false
     else:
         return expanded_preds[0]
 
@@ -465,6 +467,8 @@ def init_str_eq(klass, *values):
     expanded_preds = [ Test(klass(v)) for v in values ]
     if len(expanded_preds) > 1:
         return Or(expanded_preds)
+    elif len(expanded_preds) == 0:
+        return false
     else:
         return expanded_preds[0]
 
