@@ -206,21 +206,20 @@ EXTEND Gram
 
 END
 
-let run f x =
-  try f x
-  with Loc.Exc_located (loc, e) ->
-    failwith (Loc.to_string loc ^ ": " ^ Exn.to_string e)
+let report loc e =
+  failwith (Loc.to_string loc ^ ": " ^ Exn.to_string e)
 
 let policy_of_string ?(srcfile="<N/A>") s =
-  run (Gram.parse_string nk_pol (Loc.mk srcfile)) s
+  try Gram.parse_string nk_pol (Loc.mk srcfile) s
+  with Loc.Exc_located (loc, e) -> report loc e
 
 let pred_of_string ?(srcfile="<N/A>") s =
-  run (Gram.parse_string nk_pred (Loc.mk srcfile)) s
+  try Gram.parse_string nk_pred (Loc.mk srcfile) s
+  with Loc.Exc_located (loc, e) -> report loc e
 
-let with_file (parse : ?srcfile:string -> string -> 'a) srcfile =
-  In_channel.read_all srcfile
-  |> parse ~srcfile
+let policy_of_file srcfile =
+   policy_of_string ~srcfile (In_channel.read_all srcfile)
 
-let policy_of_file = with_file policy_of_string
-let pred_of_file = with_file pred_of_string
+let pred_of_file srcfile =
+   pred_of_string ~srcfile (In_channel.read_all srcfile)
 
