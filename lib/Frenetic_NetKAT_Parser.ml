@@ -31,13 +31,13 @@ let nk_loc = Gram.Entry.mk "nk_loc"
 EXTEND Gram
 
   nk_int64: [[
-      n = INT -> Core.Std.Int64.of_int_exn (int_of_string n)
-    | n = INT64 -> Core.Std.Int64.of_string n
+      n = INT -> Int64.of_int_exn (int_of_string n)
+    | n = INT64 -> Int64.of_string n
   ]];
 
   nk_int32: [[
-      n = INT -> Core.Std.Int32.of_int_exn (int_of_string n)
-    | n = INT32 -> Core.Std.Int32.of_string n
+      n = INT -> Int32.of_int_exn (int_of_string n)
+    | n = INT32 -> Int32.of_string n
   ]];
 
   nk_int: [[
