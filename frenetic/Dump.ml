@@ -9,7 +9,7 @@ let parse_pol ?(json=false) file =
   | false -> Frenetic_NetKAT_Parser.policy_of_file file
   | true ->
     In_channel.create file
-    |> Frenetic_NetKAT_Json.policy_from_json_channel
+    |> Frenetic_NetKAT_Json.policy_of_json_channel
 
 let parse_pred = Frenetic_NetKAT_Parser.pred_of_file
 

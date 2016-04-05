@@ -41,7 +41,7 @@ let handle_request
       handle_parse_errors body
         (fun body ->
            Body.to_string body >>= fun str ->
-           return (Frenetic_NetKAT_Json.policy_from_json_string str))
+           return (Frenetic_NetKAT_Json.policy_of_json_string str))
         compile_respond
     | `POST, ["update"] ->
       printf "POST /update";
