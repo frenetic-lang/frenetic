@@ -56,23 +56,23 @@ EXTEND Gram
 
   nk_pred_atom: [[
       "("; a = nk_pred; ")" -> a
-    | "true" -> 
+    | "true" ->
       Frenetic_NetKAT.True
-    | "false" -> 
+    | "false" ->
       Frenetic_NetKAT.False
-    | "switch"; "="; sw = nk_int64 -> 
+    | "switch"; "="; sw = nk_int64 ->
       Frenetic_NetKAT.(Test (Switch sw))
-    | "port"; "="; n = nk_int32 -> 
+    | "port"; "="; n = nk_int32 ->
       Frenetic_NetKAT.Test (Frenetic_NetKAT.(Location (Physical n)))
-    | "vswitch"; "="; sw = nk_int64 -> 
+    | "vswitch"; "="; sw = nk_int64 ->
       Frenetic_NetKAT.(Test (VSwitch sw))
-    | "vport"; "="; n = nk_int64 -> 
+    | "vport"; "="; n = nk_int64 ->
       Frenetic_NetKAT.Test (Frenetic_NetKAT.(VPort n))
-    | "vfabric"; "="; vfab = nk_int64 -> 
+    | "vfabric"; "="; vfab = nk_int64 ->
       Frenetic_NetKAT.(Test (VFabric vfab))
-    | "vlanId"; "="; n = nk_int -> 
+    | "vlanId"; "="; n = nk_int ->
       Frenetic_NetKAT.(Test (Vlan n))
-    | "vlanPcp"; "="; n = nk_int -> 
+    | "vlanPcp"; "="; n = nk_int ->
       Frenetic_NetKAT.(Test (VlanPcp n))
     | "ethTyp"; "="; n = nk_int ->
       Frenetic_NetKAT.(Test (EthType n))
@@ -97,8 +97,8 @@ EXTEND Gram
   ]];
 
   nk_pred_not : [[
-      a = nk_pred_atom -> a 
-    | "not"; a = nk_pred_not -> 
+      a = nk_pred_atom -> a
+    | "not"; a = nk_pred_not ->
       Frenetic_NetKAT.Neg a
   ]];
 
@@ -119,13 +119,13 @@ EXTEND Gram
   ]];
 
   nk_pol_atom: [[
-      "("; p = nk_pol; ")" -> 
+      "("; p = nk_pol; ")" ->
       p
-    | "id" -> 
+    | "id" ->
       Frenetic_NetKAT.Filter Frenetic_NetKAT.True
-    | "drop" -> 
+    | "drop" ->
       Frenetic_NetKAT.Filter Frenetic_NetKAT.False
-    | "filter"; a = nk_pred -> 
+    | "filter"; a = nk_pred ->
       Frenetic_NetKAT.Filter a
     | "switch"; ":="; sw = nk_int64 ->
       Frenetic_NetKAT.(Mod (Switch sw))
@@ -135,7 +135,7 @@ EXTEND Gram
       Frenetic_NetKAT.(Mod (VSwitch sw))
     | "vport"; ":="; n = nk_int64 ->
       Frenetic_NetKAT.(Mod (VPort n))
-    | "vfabric"; ":="; vfab = nk_int64 -> 
+    | "vfabric"; ":="; vfab = nk_int64 ->
       Frenetic_NetKAT.(Mod (VFabric vfab))
     | "ethSrc"; ":="; n = nk_int64 ->
       Frenetic_NetKAT.(Mod (EthSrc n))
@@ -157,41 +157,41 @@ EXTEND Gram
       Frenetic_NetKAT.(Mod (TCPSrcPort n))
     | "tcpDstPort"; ":="; n = nk_int ->
       Frenetic_NetKAT.(Mod (TCPDstPort n))
-    | loc1 = nk_loc; "=>"; loc2 = nk_loc -> 
-      let switch1, port1 = loc1 in 
-      let switch2, port2 = loc2 in 
-      let port1 = Int64.to_int32_exn port1 in 
-      let port2 = Int64.to_int32_exn port2 in 
+    | loc1 = nk_loc; "=>"; loc2 = nk_loc ->
+      let switch1, port1 = loc1 in
+      let switch2, port2 = loc2 in
+      let port1 = Int64.to_int32_exn port1 in
+      let port2 = Int64.to_int32_exn port2 in
       Frenetic_NetKAT.(Link (switch1, port1, switch2, port2))
-    | loc1 = nk_loc; "=>>"; loc2 = nk_loc -> 
-      let switch1, port1 = loc1 in 
-      let switch2, port2 = loc2 in 
+    | loc1 = nk_loc; "=>>"; loc2 = nk_loc ->
+      let switch1, port1 = loc1 in
+      let switch2, port2 = loc2 in
       Frenetic_NetKAT.(VLink (switch1, port1, switch2, port2))
   ]];
 
   nk_pol_star : [[
-      p = nk_pol_atom -> 
+      p = nk_pol_atom ->
       p
-    | p = nk_pol_star; "*" -> 
+    | p = nk_pol_star; "*" ->
       Frenetic_NetKAT.Star p
   ]];
 
   nk_pol_seq : [[
-      p = nk_pol_star -> 
+      p = nk_pol_star ->
       p
     | p = nk_pol_seq; ";"; q = nk_pol_star ->
       Frenetic_NetKAT.Seq (p, q)
   ]];
 
   nk_pol_union : [[
-      p = nk_pol_seq -> 
+      p = nk_pol_seq ->
       p
     | p = nk_pol_union; "|"; q = nk_pol_seq ->
       Frenetic_NetKAT.Union (p, q)
   ]];
 
   nk_pol_cond : [[
-      p = nk_pol_union -> 
+      p = nk_pol_union ->
       p
     | "if"; a = nk_pred;
       "then"; p = nk_pol_cond;
@@ -200,14 +200,27 @@ EXTEND Gram
   ]];
 
   nk_pol : [[
-    p = nk_pol_cond -> 
+    p = nk_pol_cond ->
     p
   ]];
 
 END
 
-let policy_from_string s =
-  Gram.parse_string nk_pol (Loc.mk "<string>") s
+let run f x =
+  try f x
+  with Loc.Exc_located (loc, e) ->
+    failwith (Loc.to_string loc ^ ": " ^ Exn.to_string e)
 
-let pred_from_string s = 
-  Gram.parse_string nk_pred (Loc.mk "<string>") s
+let policy_from_string ?(srcfile="<N/A>") s =
+  run (Gram.parse_string nk_pol (Loc.mk srcfile)) s
+
+let pred_from_string ?(srcfile="<N/A>") s =
+  run (Gram.parse_string nk_pred (Loc.mk srcfile)) s
+
+let with_file (parse : ?srcfile:string -> string -> 'a) srcfile =
+  In_channel.read_all srcfile
+  |> parse ~srcfile
+
+let policy_of_file = with_file policy_from_string
+let pred_of_file = with_file pred_from_string
+
