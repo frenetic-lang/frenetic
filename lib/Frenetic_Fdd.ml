@@ -82,6 +82,7 @@ module Field = struct
 
   (* compare depends on current order! *)
   let compare (x : t) (y : t) : int =
+    (* using Obj.magic instead of to_enum for bettter performance *)
     Int.compare order.(Obj.magic x) order.(Obj.magic y)
 
   let field_of_header_val hv = match hv with
