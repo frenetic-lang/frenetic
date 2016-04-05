@@ -31,28 +31,27 @@ let nk_loc = Gram.Entry.mk "nk_loc"
 EXTEND Gram
 
   nk_int64: [[
-      n = INT -> Int64.of_int_exn (int_of_string n)
+      n = INT -> Int64.of_string n
     | n = INT64 -> Int64.of_string n
   ]];
 
   nk_int32: [[
-      n = INT -> Int32.of_int_exn (int_of_string n)
+      n = INT -> Int32.of_string n
     | n = INT32 -> Int32.of_string n
   ]];
 
   nk_int: [[
-       n = INT -> int_of_string n
+      n = INT -> Int.of_string n
   ]];
 
   nk_ipv4: [[
-        n = IP4ADDR ->
-        let ip = Ipaddr.V4.(to_int32 (of_string_exn n)) in
-        ip
+      n = IP4ADDR ->
+        Ipaddr.V4.(to_int32 (of_string_exn n))
   ]];
 
   nk_loc: [[
-    switch = nk_int64; "@"; port = nk_int64 -> 
-    (switch,port)
+      switch = nk_int64; "@"; port = nk_int64 ->
+        (switch,port)
   ]];
 
   nk_pred_atom: [[
