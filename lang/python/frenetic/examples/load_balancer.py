@@ -6,21 +6,6 @@ from ryu.lib.packet import packet
 
 client_port = 1
 
-def get(pkt,protocol):
-    for p in pkt:
-        if p.protocol_name == protocol:
-            return p
-
-# Returns 0 as a default
-def packet_src_port(payload):
-  pkt = packet.Packet(array.array('b', payload.data))
-  ip = get(pkt, "ipv4")
-
-  if ip.proto == 6:
-    return get(pkt, "tcp").src_port
-  else:
-    return 0
-
 class State(object):
 
   def __init__(self, server_ports):
@@ -47,11 +32,20 @@ class LoadBalancer(frenetic.App):
     self.client_port = client_port
     self.state = state
 
+  # Returns 0 as a default
+  def packet_src_port(payload):
+    ip = self.packet(payload, "ipv4")
+
+    if ip.proto == 6:
+      return self.packet(payload, "tcp").src_port
+    else:
+      return 0
+
   def policy(self):
     conns = self.state.connections
     pol = (Union(self.route(src_port) for src_port in conns) |
             self.to_controller())
-    return Filter(Test(EthType(0x800))) >> pol
+    return Filter(EthTypeEq(0x800)) >> pol
 
   def connected(self):
       self.update(self.policy())
@@ -59,20 +53,14 @@ class LoadBalancer(frenetic.App):
   def route(self, src_tcp_port):
     dst_sw_port = self.state.connections[src_tcp_port]
     client_to_server = \
-      Filter(Test(Location(Physical(self.client_port))) &
-             Test(TCPSrcPort(src_tcp_port))) >> \
-      Mod(Location(Physical(dst_sw_port)))
+      Filter(PortEq(self.client_port) & TCPSrcPortEq(src_tcp_port)) >> SetPort(dst_sw_port)
     server_to_client = \
-      Filter(Test(Location(Physical(dst_sw_port))) &
-             Test(TCPDstPort(src_tcp_port))) >> \
-      Mod(Location(Physical(self.client_port)))
-    return Filter(Test(IPProto(6))) >> (client_to_server | server_to_client)
+      Filter(PortEq(dst_sw_port) & TCPDstPortEq(src_tcp_port)) >> SetPort(self.client_port)
+    return Filter(IPProtoEq(6)) >> (client_to_server | server_to_client)
 
   def to_controller(self):
     known_src_ports = self.state.connections.keys()
-    return Filter(Test(Location(Physical(self.client_port))) &
-                  ~Or(Test(TCPSrcPort(pt)) for pt in known_src_ports)) >> \
-      Mod(Location(Pipe("http")))
+    return Filter(PortEq(self.client_port) & ~TCPSrcPortEq(known_src_ports)) >> SendToController("http")
 
   def packet_in(self, switch_id, port_id, payload):
     src = packet_src_port(payload)

@@ -1,32 +1,25 @@
 from ryu.lib.packet import packet
 import base64
-from netkat import webkat
-from netkat.syntax import *
-from netkat.result import *
+import frenetic
+from frenetic.syntax import *
 
-"""Silly repeater"""
+"""Silly repeater - sends packet out the port it came in on"""
+class SillyRepeaterApp(frenetic.App):
 
-def state():
-    pass
+    def __init__(self):
+        frenetic.App.__init__(self)
 
-##
-# Main handler
-##
-def handler(event):
-    print event
-    typ = event['type']
-    if typ == 'packet_in':
-        sw = event['switch_id']
-        pt = event['port_id']
-        bits = base64.b64decode(event['payload']['buffer'])
-        webkat.pkt_out(sw,pt,bits)
-    else:
-        return None
+    def connected(self):
+        # The controller may already be connected to several switches on startup.
+        # This ensures that we probe them too.
+        def handle_current_switches(switches):
+            for switch_id in switches:
+                self.update( SendToController("http") )
+        self.current_switches(callback=handle_current_switches)        
 
-def main():
-    webkat.update(modify("port", "http"))
-    while True:
-        handler(webkat.event())
+    def packet_in(self, switch_id, port_id, payload):
+        self.pkt_out(switch_id = switch_id, payload = payload, actions = [Output(Physical(port_id))])
 
 if __name__ == '__main__':
-    main()
+    app = SillyRepeaterApp()
+    app.start_event_loop()
