@@ -16,11 +16,13 @@ module Gram = MakeGram(Frenetic_NetKAT_Lexer)
 open Frenetic_NetKAT_Lexer
 open Frenetic_NetKAT
 
+let nk_pred_eoi = Gram.Entry.mk "nk_pred_eoi"
 let nk_pred = Gram.Entry.mk "nk_pred"
 let nk_pred_atom = Gram.Entry.mk "nk_pred_atom"
 let nk_pred_not = Gram.Entry.mk "nk_pred_not"
 let nk_pred_and = Gram.Entry.mk "nk_pred_and"
 let nk_pred_or = Gram.Entry.mk "nk_pred_or"
+let nk_pol_eoi = Gram.Entry.mk "nk_pol_eoi"
 let nk_pol = Gram.Entry.mk "nk_pol"
 let nk_pol_atom = Gram.Entry.mk "nk_pol_atom"
 let nk_pol_seq = Gram.Entry.mk "nk_pol_seq"
@@ -205,27 +207,27 @@ EXTEND Gram
       MK(Union(Seq(Filter ID(a), ID(p)), Seq(Filter (Neg ID(a)), ID(q))))
   ]];
 
-  nk_pol : [[
-    p = nk_pol_cond -> p
-  ]];
+  nk_pol : [[ p = nk_pol_cond -> p ]];
+
+  nk_pol_eoi: [[ x = nk_pol; `EOI -> x ]];
+  nk_pred_eoi: [[ x = nk_pred; `EOI -> x ]];
 
 END
-
 
 
 let report loc e =
   failwith (Loc.to_string loc ^ ": " ^ Exn.to_string e)
 
-let policy_of_string ?(srcfile="<N/A>") (s : string) =
-  try Gram.parse_string nk_pol (Loc.mk srcfile) s
+let policy_of_string ?(loc=(Loc.mk "<N/A>")) (s : string) =
+  try Gram.parse_string nk_pol_eoi loc s
   with Loc.Exc_located (loc, e) -> report loc e
 
-let pred_of_string ?(srcfile="<N/A>") (s : string) =
-  try Gram.parse_string nk_pred (Loc.mk srcfile) s
+let pred_of_string ?(loc=(Loc.mk "<N/A>")) (s : string) =
+  try Gram.parse_string nk_pred_eoi loc s
   with Loc.Exc_located (loc, e) -> report loc e
 
-let policy_of_file (srcfile : string) =
-   policy_of_string ~srcfile (In_channel.read_all srcfile)
+let policy_of_file (file : string) =
+   policy_of_string ~loc:(Loc.mk file) (In_channel.read_all file)
 
-let pred_of_file (srcfile : string) =
-   pred_of_string ~srcfile (In_channel.read_all srcfile)
+let pred_of_file (file : string) =
+   pred_of_string ~loc:(Loc.mk file) (In_channel.read_all file)
