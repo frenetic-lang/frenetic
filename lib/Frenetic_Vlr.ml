@@ -22,13 +22,13 @@ end
 
 
 module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
-  type v = V.t * L.t [@@deriving sexp]
-  type r = R.t [@@deriving sexp]
+  type v = V.t * L.t [@@deriving sexp, compare]
+  type r = R.t [@@deriving sexp, compare]
 
   type d
     = Leaf of r
     | Branch of v * int * int
-  [@@deriving sexp]
+  [@@deriving sexp, compare]
   (* A tree structure representing the decision diagram. The [Leaf] variant
    * represents a constant function. The [Branch(v, l, t, f)] represents an
    * if-then-else. When variable [v] takes on the value [l], then [t] should
@@ -41,9 +41,9 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
    * important both for efficiency and correctness.
    * *)
 
-  type t = int [@@deriving sexp]
+  type t = int [@@deriving sexp, compare, eq]
   module T = Frenetic_Hashcons.Make(struct
-      type t = d [@@deriving sexp]
+      type t = d [@@deriving sexp, compare]
 
       let hash t = match t with
         | Leaf r ->
@@ -51,21 +51,6 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
         | Branch((v, l), t, f) ->
           (1021 * (V.hash v) + 1031 * (L.hash l) + 1033 * t + 1039 * f) lor 0x1
 
-      let compare a b = match a, b with
-        | Leaf _, Branch _ -> -1
-        | Branch _, Leaf _ -> 1
-        | Leaf r1, Leaf r2 -> R.compare r1 r2
-        | Branch((vx, lx), tx, fx), Branch((vy, ly), ty, fy) ->
-          begin match V.compare vx vy with
-          | 0 -> begin match L.compare lx ly with
-            | 0 -> begin match Int.compare tx ty with
-              | 0 -> Int.compare fx fy
-              | x -> x
-              end
-            | x -> x
-            end
-          | x -> x
-          end
     end)
 
   let get = T.get
@@ -75,9 +60,6 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   module Tbl = Int.Table
 
   module BinTbl = Frenetic_Util.IntPairTbl
-
-  let equal x y = x = y (* comparing ints *)
-  let compare = Int.compare
 
   let mk_leaf r = T.get (Leaf r)
 

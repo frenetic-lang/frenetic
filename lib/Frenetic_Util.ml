@@ -40,15 +40,8 @@ let string_of_list to_string l =
   "[" ^ (String.concat ~sep:", " strs) ^ "]"
 
 module IntPair = struct
-  type t = (int * int) [@@deriving sexp]
+  type t = (int * int) [@@deriving sexp, compare]
   let hash (t1, t2) = 617 * t1 +  619 * t2
-  let compare (a1,b1) (a2,b2) = match Int.compare a1 a2 with
-    | 0 -> Int.compare b1 b2
-    | x -> x
-  (*
-  let sexp_of_t v = [%sexp_of: (int * int)]
-  let t_of_sexp se = (0,0)
-  *)
 end
 
 module IntPairTbl = Hashtbl.Make(IntPair)
