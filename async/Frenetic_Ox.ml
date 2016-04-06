@@ -41,43 +41,43 @@ module DefaultHandlers = struct
 
 end
 
+let (pkt_out : to_sw Pipe.Reader.t), (defer : to_sw option -> unit) =
+  let r, w = Pipe.create () in
+  r, function
+  | None -> ()
+  | Some to_sw -> Pipe.write_without_pushback w to_sw
+                                              
+let munge_exns ?(name="munge_exns") thunk =
+  let open Core.Std in
+  Monitor.try_with ~name (fun () -> return (thunk ()))
+  >>> function
+  | Ok () -> ()
+  | Error exn ->
+     Log.error ~tags "unhandled exception raised by a callback\n%s"
+               (Exn.to_string exn)
+
+module Platform = struct
+  
+  let send_packet_out sw xid pktOut =
+    defer (Some (sw, xid, PacketOutMsg pktOut))
+          
+  let send_flow_mod sw xid flowMod =
+    defer (Some (sw, xid, FlowModMsg flowMod))
+          
+  let send_stats_request sw xid req =
+    defer (Some (sw, xid, StatsRequestMsg req))
+          
+  let send_barrier_request sw xid =
+    defer (Some (sw, xid, BarrierRequest))
+          
+  let timeout (n : float) (thk : unit -> unit) : unit = 
+    after (Core.Std.Time.Span.of_sec n)
+    >>> fun () -> munge_exns thk
+end
+
 module Make (Handlers:OXMODULE) = struct
 
   module Controller = Frenetic_OpenFlow0x01_Controller
-
-  let (pkt_out : to_sw Pipe.Reader.t), (defer : to_sw option -> unit) =
-    let r, w = Pipe.create () in
-    r, function
-      | None -> ()
-      | Some to_sw -> Pipe.write_without_pushback w to_sw
-        
-  let munge_exns ?(name="munge_exns") thunk =
-    let open Core.Std in
-        Monitor.try_with ~name (fun () -> return (thunk ()))
-        >>> function
-          | Ok () -> ()
-          | Error exn ->
-            Log.error ~tags "unhandled exception raised by a callback\n%s"
-              (Exn.to_string exn)
-
-  module Platform = struct
-      
-    let send_packet_out sw xid pktOut =
-      defer (Some (sw, xid, PacketOutMsg pktOut))
-        
-    let send_flow_mod sw xid flowMod =
-      defer (Some (sw, xid, FlowModMsg flowMod))
-        
-    let send_stats_request sw xid req =
-      defer (Some (sw, xid, StatsRequestMsg req))
-        
-    let send_barrier_request sw xid =
-      defer (Some (sw, xid, BarrierRequest))
-        
-    let timeout (n : float) (thk : unit -> unit) : unit = 
-      after (Core.Std.Time.Span.of_sec n)
-      >>> fun () -> munge_exns thk
-  end
     
   let handle_pkt_out ((sw, xid, msg) : to_sw) : unit Deferred.t =
     Controller.send sw xid msg >>= function

@@ -234,8 +234,8 @@ module Make : CONTROLLER = struct
 
     let new_queries = Frenetic_NetKAT_Semantics.queries_of_policy pol in
     (* Discard old queries *)
-    Hashtbl.Poly.filteri_inplace stats
-      ~f:(fun key _ -> List.mem new_queries key);
+    let filterer ~(key:string) ~(data:int64 * int64) = List.mem new_queries key in
+    Hashtbl.Poly.filteri_inplace ~f:filterer stats ;
     (* Queries that have to be saved. *)
     let preserved_queries = Hashtbl.Poly.keys stats in
     (* Initialize new queries to 0 *)

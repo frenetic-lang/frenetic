@@ -6,29 +6,26 @@ Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     https://github.com/frenetic-lang/frenetic/contributors
 License:     LGPL
 Plugins:     META (0.3)
-AlphaFeatures: ocamlbuild_more_args
-XOCamlbuildExtraArgs: -cflags -w,-40,-short-paths
+AlphaFeatures: 
+  no_automatic_syntax,
+  ocamlbuild_more_args
+XOCamlbuildExtraArgs: -cflags -w,-40,-short-paths 
 BuildTools:
   ocamlbuild,
-  ocamldoc,
-  camlp4
+  ocamldoc
 
 Library frenetic
   Path: lib
   BuildDepends:
-    async,
     base64 (>= 2.0.0),
     camlp4.lib,
     camlp4.extend,
     camlp4,
     core,
     cstruct,
-    cstruct.syntax,
-    fieldslib,
-    fieldslib.syntax,
+    ppx_fields_conv,
     ocamlgraph (>= 1.8.6),
-    sexplib,
-    sexplib.syntax,
+    ppx_sexp_conv,
     str,
     tcpip,
     ulex,
@@ -38,9 +35,8 @@ Library frenetic
     Frenetic_Hashcons,
     Frenetic_Bits,
     Frenetic_Fdd,
+    Frenetic_OpenFlow0x04,
     Frenetic_GroupTable0x04,
-    Frenetic_Log,
-    Frenetic_Network,
     Frenetic_NetKAT,
     Frenetic_NetKAT_Optimize,
     Frenetic_NetKAT_Json,
@@ -52,10 +48,10 @@ Library frenetic
     Frenetic_NetKAT_Pretty,
     Frenetic_NetKAT_SDN_Json,
     Frenetic_NetKAT_Semantics,
+    Frenetic_Network,
     Frenetic_OpenFlow,
     Frenetic_OpenFlow_Header,
     Frenetic_OpenFlow0x01,
-    Frenetic_OpenFlow0x04,
     Frenetic_Packet,
     Frenetic_Topology,
     Frenetic_Util,
@@ -75,14 +71,14 @@ Library async
     frenetic,
     mparser,
     mparser.re,
-    sexplib,
-    sexplib.syntax,
+    ppx_sexp_conv,
     str
   InternalModules:
     Frenetic_Common,
     Frenetic_DynGraph
   Modules:
     Frenetic_Compile_Server,
+    Frenetic_Log,
     Frenetic_Http_Controller,
     Frenetic_OpenFlow0x01_Controller,
     Frenetic_NetKAT_Controller,
@@ -113,23 +109,25 @@ Executable openflow
     frenetic.async,
     async_extended
 
-# Will be reintroduced in summer 2015
-#Library syntax
-#  Path: frenetic/syntax
-#  Findlibparent: frenetic
-#  Findlibname: syntax
-#  BuildDepends:
-#    camlp4.lib,
-#    camlp4.extend,
-#    camlp4.quotations.o,
-#    ulex,
-#    ipaddr
-#  Modules:
-#    Parser,
-#    Quotations
-#  XMETAType: syntax
-#  XMETARequires: camlp4, ulex, ipaddr
-#  XMETADescription: Syntax extension writing NetKAT expressions
+Library syntax
+  Path: syntax
+  Findlibparent: frenetic
+  Findlibname: syntax
+  Install: true
+  BuildDepends:
+    camlp4.lib,
+    camlp4.extend,
+    camlp4.quotations.o,
+    ulex,
+    ipaddr,
+    core,
+    frenetic
+  Modules:
+    Frenetic_Syntax_Extension_Parser,
+    Frenetic_Syntax_Extension_Quotations
+  XMETAType: syntax
+  XMETARequires: camlp4, ulex, ipaddr, frenetic
+  XMETADescription: Syntax extension writing NetKAT expressions
 
 Library test_frenetic
   Findlibparent: frenetic
@@ -155,23 +153,22 @@ Executable testtool
   Install: false
   Build$: flag(tests)
   BuildDepends:
-    pa_ounit,
-    pa_ounit.syntax,
+    ppx_inline_test,
     frenetic.test,
     frenetic,
     frenetic.async
 
-Executable fastfailtest 
-  Path: integration
-  MainIs: FastFailTest_Controller.ml
-  Install: false
-  CompiledObject: native
-  BuildDepends:
-    async,
-    core,
-    frenetic,
-    frenetic.async,
-    async_extended
+#Executable fastfailtest 
+#  Path: integration
+#  MainIs: FastFailTest_Controller.ml
+#  Install: false
+#  CompiledObject: native
+#  BuildDepends:
+#    async,
+#    core,
+#    frenetic,
+#    frenetic.async,
+#    async_extended
 
 Test all_tests
   Run$: flag(tests)
@@ -185,6 +182,8 @@ Document frenetic
   BuildTools+: ocamldoc
   Install: true
   Format: html
+  # This is needed because travis.docgen expects docs to be in _build/frenetic.docdir
+  PostCommand: mv _build/lib/frenetic.docdir _build
   Index: index.html
   XOCamlbuildPath: lib
   XOCamlbuildLibraries: frenetic

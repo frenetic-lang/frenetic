@@ -16,12 +16,12 @@ open Frenetic_Packet
   (i.e. policy containing links) is encountered *)
 exception Non_local
 
-type switchId = Frenetic_OpenFlow.switchId with sexp
-type portId = Frenetic_OpenFlow.portId with sexp
-type payload = Frenetic_OpenFlow.payload with sexp
-type vswitchId = int64 with sexp
-type vportId = int64 with sexp
-type vfabricId = int64 with sexp
+type switchId = Frenetic_OpenFlow.switchId [@@deriving sexp]
+type portId = Frenetic_OpenFlow.portId [@@deriving sexp]
+type payload = Frenetic_OpenFlow.payload [@@deriving sexp]
+type vswitchId = int64 [@@deriving sexp]
+type vportId = int64 [@@deriving sexp]
+type vfabricId = int64 [@@deriving sexp]
 
 (** {2 Policies} *)
 
@@ -32,7 +32,7 @@ type location =
   | FastFail of int32 list
   | Pipe of string
   | Query of string
-  with sexp
+  [@@deriving sexp]
 
 type header_val =
   | Switch of switchId
@@ -50,7 +50,7 @@ type header_val =
   | VSwitch of vswitchId
   | VPort of vportId
   | VFabric of vfabricId
-  with sexp
+  [@@deriving sexp]
 
 type pred =
   | True
@@ -59,7 +59,7 @@ type pred =
   | And of pred * pred
   | Or of pred * pred
   | Neg of pred
-  with sexp
+  [@@deriving sexp]
 
 type policy =
   | Filter of pred
@@ -69,7 +69,7 @@ type policy =
   | Star of policy
   | Link of switchId * portId * switchId * portId
   | VLink of vswitchId * vportId * vswitchId * vportId
-  with sexp
+  [@@deriving sexp]
 
 val id : policy
 val drop : policy
@@ -78,10 +78,10 @@ val drop : policy
 
 type action = Frenetic_OpenFlow.action
 
-type switch_port = switchId * portId with sexp
-type host = Frenetic_Packet.dlAddr * Frenetic_Packet.nwAddr with sexp
+type switch_port = switchId * portId [@@deriving sexp]
+type host = Frenetic_Packet.dlAddr * Frenetic_Packet.nwAddr [@@deriving sexp]
 
-type bufferId = Int32.t with sexp 
+type bufferId = Int32.t [@@deriving sexp] (* XXX(seliopou): different than Frenetic_OpenFlow *)
 
 type event =
   | PacketIn of string * switchId * portId * payload * int
@@ -94,4 +94,4 @@ type event =
   | LinkDown of switch_port * switch_port
   | HostUp of switch_port * host
   | HostDown of switch_port * host
-  with sexp
+  [@@deriving sexp]

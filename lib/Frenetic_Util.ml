@@ -21,8 +21,6 @@
  *)
 open Core.Std
 
-module StringSet = Set.Make(String) 
-
 let make_string_of formatter x =
   let open Format in
   let buf = Buffer.create 100 in

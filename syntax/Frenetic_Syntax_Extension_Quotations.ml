@@ -1,6 +1,7 @@
 open Camlp4.PreCast
 open Frenetic_NetKAT_Lexer
 module Q = Syntax.Quotation
+module Parser = Frenetic_Syntax_Extension_Parser
 
 let nk_eoi = Parser.Gram.Entry.mk "nk_eoi"
 let nkpred_eoi = Parser.Gram.Entry.mk "nkpred_eoi"

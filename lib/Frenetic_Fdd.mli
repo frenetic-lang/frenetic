@@ -47,10 +47,12 @@ module Field : sig
       | TCPDstPort
       | Location
       | VFabric
-  with sexp
+  [@@deriving sexp]
 
-  (** [hash field] returns a hash code for the field.  *)
-  val hash : t -> int
+  include Frenetic_Vlr.HashCmp with type t := t
+  val auto_order : Frenetic_NetKAT.policy -> unit
+  val set_order : t list -> unit
+  val get_order : unit -> t list
 
   (** [all_fields] returns the default field field ordering *)
   val all_fields : t list
@@ -107,19 +109,12 @@ module Value : sig
     (* TODO(grouptable): HACK, should only be able to fast fail on ports.
      * Put this somewhere else *)
     | FastFail of Int32.t list
-    with sexp
+    [@@deriving sexp]
 
-  (** [subset_eq x y] returns true if x = y, or x and y match the same set of values, as in masks.  Certain combinations
-  of values are never equal, including FastFails or values that are not of the same type, like a Const vs. a Query *)
-  val subset_eq : t -> t -> bool
+  include Frenetic_Vlr.Lattice with type t := t
+  val compare : t -> t -> int
+  val equal : t -> t -> bool
 
-  (** [meet x y] returns the greatest lower bound of x and y *)
-  val meet : ?tight:bool -> t -> t -> t option
-
-  (** [join x y] returns the least upper bound of x and y *)
-   val join : ?tight:bool -> t -> t -> t option
-
-  (** [to_string value] returns a human-readable representation *)  
   val to_string : t -> string
 
   (** [of_int i]  converts an integer to a Const value *)
@@ -146,6 +141,8 @@ module Pattern : sig
   patterns with the same field *) 
   val compare : t -> t -> int
 
+  val equal : t -> t -> bool
+
   (** [of_hv header_value] converts a NetKAT header_value pair to a pattern *)  
   val of_hv : Frenetic_NetKAT.header_val -> t
 
@@ -168,7 +165,7 @@ module Action : sig
   type field_or_cont =
     | F of Field.t
     | K
-  with sexp
+  [@@deriving sexp]
 
   module Seq : sig
     (* List of modifications applied to fields, listed in field order.   There's one modification per 
@@ -177,6 +174,9 @@ module Action : sig
     really isn't applied sequentially, but two Seq's applied sequentially will have last-modification-wins semantics,
     as it is in NetKAT.  *)
     include Map.S with type Key.t = field_or_cont
+
+    val compare : Value.t t -> Value.t t -> int
+    val compare_mod_k : Value.t t -> Value.t t -> int
 
     (* [equal_mod_k s1 s2] Compares two sequences for equality, ignoring K pseudo-field if it exists *)
     val equal_mod_k : Value.t t -> Value.t t -> bool
@@ -192,9 +192,15 @@ module Action : sig
 
    (** [to_hvs s] converts to a sequence to an HVS option list applying sequences in the right order *)
     val to_hvs : t -> (Field.t * Value.t) list
+    val mod_k : t -> t
+    val compare_mod_k : t -> t -> int
+    val equal_mod_k : t -> t -> bool
   end
 
-  type t = Par.t with sexp
+
+  type t = Par.t [@@deriving sexp]
+
+  include Frenetic_Vlr.Result with type t := t
 
   (** [one] returns identify action, which is a modification representing "no modifications" *)
   val one : t
@@ -223,10 +229,10 @@ module Action : sig
   val get_queries : t -> string list
 
   (** [get_pipes action] returns a set of pipes used in actions *)
-  val pipes : t -> Frenetic_Util.StringSet.t 
+  val pipes : t -> String.Set.t
 
   (** [queries action] returns a de-duped set of queries referenced in action *)
-  val queries : t -> string list 
+  val queries : t -> string list
 
   val to_string : t -> string
 end
@@ -234,7 +240,8 @@ end
 (** TODO(CAR): Why is this called FDK and not FDD?  Historical?  *)
 module FDK : sig
   (** An FDD is an instance of a Variable-Lattice-Result (VLR) structure.  *)
-  include Frenetic_Vlr.S with type v = Field.t * Value.t and type r = Action.t
-  val mk_cont : int -> int
-  val conts : t -> t list
+  include module type of Frenetic_Vlr.Make(Field)(Value)(Action)
+  val mk_cont : int -> t
+  val conts : t -> Int.Set.t
+  val map_conts : t -> f:(int -> int) -> t
 end

@@ -16,7 +16,7 @@
 *)
 open Frenetic_OpenFlow0x04
 
-type t with sexp
+type t 
 
 (* SJS *)
 (** String representation of group table. *)

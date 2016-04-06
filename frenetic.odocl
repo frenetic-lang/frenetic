@@ -1,0 +1,27 @@
+# OASIS_START
+# DO NOT EDIT (digest: 1d2a733870f87f7cc2c5bcac54be0c93)
+lib/Frenetic_Hashcons
+lib/Frenetic_Bits
+lib/Frenetic_Fdd
+lib/Frenetic_GroupTable0x04
+lib/Frenetic_Network
+lib/Frenetic_NetKAT
+lib/Frenetic_NetKAT_Optimize
+lib/Frenetic_NetKAT_Json
+lib/Frenetic_NetKAT_Lexer
+lib/Frenetic_NetKAT_Compiler
+lib/Frenetic_NetKAT_Virtual_Compiler
+lib/Frenetic_NetKAT_Net
+lib/Frenetic_NetKAT_Parser
+lib/Frenetic_NetKAT_Pretty
+lib/Frenetic_NetKAT_SDN_Json
+lib/Frenetic_NetKAT_Semantics
+lib/Frenetic_OpenFlow
+lib/Frenetic_OpenFlow_Header
+lib/Frenetic_OpenFlow0x01
+lib/Frenetic_OpenFlow0x04
+lib/Frenetic_Packet
+lib/Frenetic_Topology
+lib/Frenetic_Util
+lib/Frenetic_Vlr
+# OASIS_STOP

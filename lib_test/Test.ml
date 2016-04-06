@@ -17,4 +17,5 @@ open Test_Frenetic_NetKAT_SDN_Json
 open Test_Frenetic_Util
 open Test_Frenetic_Vlr
 
-Pa_ounit_lib.Runtime.summarize ()
+let _ = 
+  Ppx_inline_test_lib.Runtime.summarize ()

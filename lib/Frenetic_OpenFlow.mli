@@ -33,10 +33,10 @@ open Frenetic_Packet
 
 module OF10 = Frenetic_OpenFlow0x01
 
-type switchId = int64 with sexp
-type portId = int32 with sexp
-type queueId = int32 with sexp
-type bufferId = int32 with sexp
+type switchId = int64 [@@deriving sexp]
+type portId = int32 [@@deriving sexp]
+type queueId = int32 [@@deriving sexp]
+type bufferId = int32 [@@deriving sexp]
 
 exception Unsupported of string
 
@@ -45,7 +45,7 @@ exception Unsupported of string
 module Pattern : sig
 
   module Ip : sig
-    type t = nwAddr * int32 with sexp
+    type t = nwAddr * int32 [@@deriving sexp]
 
     (** [match_all] is pattern that matches any address *)
     val match_all : t
@@ -88,7 +88,7 @@ module Pattern : sig
       ; tpSrc : tpPort option
       ; tpDst : tpPort option
       ; inPort : portId option }
-    with sexp
+    [@@deriving sexp]
 
   (** [match_all] is pattern that matches any packet *)
   val match_all : t
@@ -119,7 +119,7 @@ type modify =
   | SetIP4Dst of nwAddr
   | SetTCPSrcPort of tpPort
   | SetTCPDstPort of tpPort
-with sexp
+[@@deriving sexp]
 
 type pseudoport =
   | Physical of portId
@@ -130,27 +130,27 @@ type pseudoport =
   | All
   | Controller of int
   | Local
-with sexp
+[@@deriving sexp]
 
-type groupId = int32 with sexp
+type groupId = int32 [@@deriving sexp]
 
 type action =
   | Output of pseudoport
   | Enqueue of portId * queueId
   | Modify of modify
   | FastFail of groupId
-  with sexp
+  [@@deriving sexp]
 
-type seq = action list with sexp
+type seq = action list [@@deriving sexp]
 
-type par = seq list with sexp
+type par = seq list [@@deriving sexp]
 
-type group = par list with sexp
+type group = par list [@@deriving sexp]
 
 type timeout =
   | Permanent (** No timeout *)
   | ExpiresAfter of int16 (** Time out after [n] seconds *)
-  with sexp
+  [@@deriving sexp]
 
 type flow = {
   pattern: Pattern.t;
@@ -158,10 +158,10 @@ type flow = {
   cookie: int64;
   idle_timeout: timeout;
   hard_timeout: timeout
-} with sexp
+} [@@deriving sexp]
 
 (** Priorities are implicit *)
-type flowTable = flow list with sexp
+type flowTable = flow list [@@deriving sexp]
 
 (** {1 Controller Packet Processing} *)
 
@@ -170,7 +170,7 @@ type payload =
   | Buffered of bufferId * Cstruct.t 
     (** [Buffered (id, buf)] is a packet buffered on a switch *)
   | NotBuffered of Cstruct.t
-with sexp
+[@@deriving sexp]
 
 
 (** [payload_bytes payload] returns the bytes for the given payload *)
@@ -179,13 +179,13 @@ val payload_bytes : payload -> Cstruct.t
 type packetInReason =
   | NoMatch
   | ExplicitSend
-  with sexp
+  [@@deriving sexp]
 
 (** [(payload, total_length, in_port, reason)] *)
-type pktIn = payload * int * portId * packetInReason with sexp
+type pktIn = payload * int * portId * packetInReason [@@deriving sexp]
 
 (** [(payload, in_port option, action list)] *)
-type pktOut = payload * (portId option) * (action list) with sexp
+type pktOut = payload * (portId option) * (action list) [@@deriving sexp]
 
 (* {1 Switch Configuration} *)
 
@@ -193,7 +193,7 @@ type pktOut = payload * (portId option) * (action list) with sexp
 type switchFeatures = {
   switch_id : switchId;
   switch_ports : portId list
-} with sexp
+} [@@deriving sexp]
 
 (* {1 Statistics} *)
 
@@ -209,7 +209,7 @@ type flowStats = {
   flow_actions: action list;
   flow_packet_count: int64;
   flow_byte_count: int64
-} with sexp
+} [@@deriving sexp]
 
 (* {1 Errors} *)
 

@@ -221,7 +221,8 @@ class Switch(HeaderAndValue):
         self.value = value
 
     def value_to_json(self):
-        return self.value
+        # JSON doesn't allow 64-bit ints, so we convert them to strings.  Frenetic converts them back.  
+        return str(self.value)
 
 class Query(object):
 
@@ -342,7 +343,7 @@ class IP4Dst(HeaderAndValue):
         self.header = "ip4dst"
         assert type(value) == str or type(value) == unicode
         if mask != None:
-            assert(mask) == int
+            assert type(mask) == int
             self.mask = mask
         self.value = value
 

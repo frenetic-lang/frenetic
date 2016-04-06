@@ -20,7 +20,7 @@ type token =
   | INT32 of string
   | INT64 of string
   | IP4ADDR of string
-  | ANTIQUOT of string
+  | ANTIQUOT of string 
   | EOI
 
 module Token = struct

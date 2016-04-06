@@ -1,0 +1,3 @@
+filter (ip4Dst = 10.0.0.1); vport:=1 |
+filter (ip4Dst = 10.0.0.2); vport:=2 |
+filter (ip4Dst = 10.0.0.6); vport:=3

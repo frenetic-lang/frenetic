@@ -10,7 +10,6 @@ type order
     | `Static of Field.t list
     | `Heuristic ]
 
-
 type t
 (** The type of the intermediate compiler representation (FDD). *)
 
@@ -42,7 +41,7 @@ val compile_local : ?options:compiler_options -> policy -> t
     function below.
  *)
 
-val compile_global : policy -> t
+val compile_global : ?options:compiler_options -> policy -> t
 
 val restrict : header_val -> t -> t
 (** [restrict hv t] returns the fragment of [t] that applies when the assignment
@@ -52,8 +51,6 @@ val restrict : header_val -> t -> t
 
     This function is called by {!to_table} to restrict [t] to the portion that
     should run on a single switch. *)
-
-(** [to_table sw t] returns a flowtable that implements [t] for switch [sw]. *)
 
 val to_table : ?options:compiler_options
             -> ?group_tbl:Frenetic_GroupTable0x04.t -> switchId -> t
@@ -148,18 +145,18 @@ val options_to_json_string : compiler_options -> string
 (* multitable support *)
 
 (* Each list of fields represents the fields one flow table can match on *)
-type flow_layout = Field.t list list with sexp
+type flow_layout = Field.t list list [@@deriving sexp]
 
 (* Each flow table row has a table location, and a meta value on that table *)
-type tableId = int with sexp
-type metaId = int with sexp
-type flowId = tableId * metaId with sexp
+type tableId = int [@@deriving sexp]
+type metaId = int [@@deriving sexp]
+type flowId = tableId * metaId [@@deriving sexp]
 
 (* OpenFlow 1.3+ instruction types *)
 type instruction =
   [ `Action of Frenetic_OpenFlow.group
   | `GotoTable of flowId ]
-with sexp
+[@@deriving sexp]
 
 (* A flow table row, with multitable support. If goto has a Some value
  * then the 0x04 row instruction is GotoTable. *)
@@ -170,9 +167,13 @@ type multitable_flow = {
   hard_timeout : Frenetic_OpenFlow.timeout;
   instruction  : instruction;
   flowId       : flowId;
-} with sexp
+} [@@deriving sexp]
 
 val layout_to_string : flow_layout -> string
 
 (* Produce a list of flow table entries for a multitable setup *)
-val to_multitable : switchId -> flow_layout -> t -> (multitable_flow list * Frenetic_GroupTable0x04.t)
+val to_multitable : ?options:compiler_options
+                  -> switchId
+                  -> flow_layout
+                  -> t
+                  -> (multitable_flow list * Frenetic_GroupTable0x04.t)

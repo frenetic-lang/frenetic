@@ -21,7 +21,7 @@ module Field = struct
     | TCPDstPort
     | Location
     | VFabric
-    with sexp
+    [@@deriving sexp]
 
   let hash = Hashtbl.hash
 
@@ -70,7 +70,7 @@ module Field = struct
   let is_valid_order (lst : t list) : bool =
     List.length lst = num_fields && not (List.contains_dup lst)
 
-  assert (is_valid_order all_fields)
+  (* assert (is_valid_order all_fields) *)
 
   (* order[i] = the position of field i in the current ordering.  Indexes are 1..15 assigned by Obj.magic,
      so that order[1] is the index of the Switch field.  Initial order is the order in which fields appear in this file. *)
@@ -132,10 +132,7 @@ module Field = struct
         if in_product then
           let fld = field_of_header_val hv in
           let n = Hashtbl.Poly.find_exn count_tbl fld in
-          let _ = Hashtbl.Poly.replace count_tbl ~key:fld ~data:(n + size) in
-          ()
-        else
-          ()
+          Hashtbl.Poly.set count_tbl ~key:fld ~data:(n + size)
       | Or (a, b) -> f_pred size false a; f_pred size false b
       | And (a, b) -> f_pred size true a; f_pred size true b
       | Neg a -> f_pred size in_product a in
@@ -161,11 +158,10 @@ module Field = struct
       | Star _ | Link _ | VLink _ -> k 1 (* bad, but it works *)
     and f_union pol = f_union' pol (fun n -> n) in
     let _ = f_seq pol in
-    (* Sort (field, score) pairs by descending score into lst *)
-    let cmp (_, x) (_, y) = Pervasives.compare y x in
-    let lst = List.sort ~cmp (Hashtbl.Poly.to_alist count_tbl) in
-    (* Then set field order accordingly *)
-    set_order (List.map lst ~f:(fun (fld, _) -> fld))
+    Hashtbl.Poly.to_alist count_tbl
+    |> List.sort ~cmp:(fun (_, x) (_, y) -> Pervasives.compare y x)
+    |> List.map ~f:fst
+    |> set_order
 
 end
 
@@ -179,8 +175,8 @@ module Value = struct
     (* TODO(grouptable): HACK, should only be able to fast fail on ports.
      * Put this somewhere else *)
     | FastFail of Int32.t list
-    with sexp
- 
+    [@@deriving sexp]
+
   (* subseq_eq, meet and join are defined to make this fit interface of Frenetic_Vlr.Lattice *)
   let subset_eq a b =
     (* Note that Mask checking is a lot like Frenetic_OpenFlow.Pattern.Ip, but the int's are different sizes *)
@@ -289,9 +285,11 @@ module Value = struct
     | _, FastFail _ -> 1
     | _ -> Pervasives.compare x y
 
+  let equal x y = compare x y = 0
+
   let to_string = function
-    | Const(a)   -> Printf.sprintf "Const(%Lu)" a
-    | Mask(a, m) -> Printf.sprintf "Mask(%Lu, %d)" a m
+    | Const(a)   -> Printf.sprintf "%Lu" a
+    | Mask(a, m) -> Printf.sprintf "%Lu/%d" a m
     | Pipe(p) -> Printf.sprintf "Pipe(%s)" p
     | Query(p) -> Printf.sprintf "Query(%s)" p
     | FastFail(p_lst) -> Printf.sprintf "FastFail(%s)" (Frenetic_NetKAT.string_of_fastfail p_lst)
@@ -419,7 +417,7 @@ module Action = struct
   type field_or_cont =
     | F of Field.t
     | K
-  with sexp
+  [@@deriving sexp]
 
   let compare_field_or_cont x y =
     match x,y with
@@ -430,50 +428,83 @@ module Action = struct
 
   module Seq = struct
     include Map.Make(struct
-      type t = field_or_cont with sexp
+      type t = field_or_cont [@@deriving sexp]
       let compare = compare_field_or_cont
     end)
+
+    let compare = compare_direct Value.compare
 
     let fold_fields seq ~init ~f =
       fold seq ~init ~f:(fun ~key ~data acc -> match key with
         | F key -> f ~key ~data acc
         | _ -> acc)
 
-    let equal_mod_k s1 s2 = equal (=) (remove s1 K) (remove s2 K)
+    let equal_mod_k s1 s2 =
+      equal (Value.equal) (remove s1 K) (remove s2 K)
+
+    let compare_mod_k s1 s2 =
+      compare (remove s1 K) (remove s2 K)
 
     let to_hvs seq =
       seq |> to_alist |> List.filter_map ~f:(function (F f,v) -> Some (f,v) | _ -> None)
+
+    let to_string (t : Value.t t) : string =
+      let s = to_alist t
+        |> List.map ~f:(fun (f,v) ->
+            let f = match f with
+              | K -> "state"
+              | F f -> Field.to_string f
+            in
+            sprintf "%s := %s" f (Value.to_string v))
+        |> String.concat ~sep:", "
+      in "[" ^ s ^ "]"
   end
 
   module Par = struct
     include Set.Make(struct
-    type t = Value.t Seq.t with sexp
-    let compare = Seq.compare_direct Value.compare
+    type t = Value.t Seq.t [@@deriving sexp]
+    let compare = Seq.compare
     end)
 
     let to_hvs par =
       fold par ~init:[] ~f:(fun acc seq -> Seq.to_hvs seq @ acc)
+
+    let to_string t : string =
+      let s = to_list t
+        |> List.map ~f:Seq.to_string
+        |> String.concat ~sep:"; "
+      in "{" ^ s ^ "}"
+
+    let mod_k = map ~f:(fun seq -> Seq.remove seq K)
+
+    let compare_mod_k p1 p2 =
+      compare (mod_k p1) (mod_k p2)
+
+    let equal_mod_k p1 p2 =
+      equal (mod_k p1) (mod_k p2)
   end
 
-  type t = Par.t with sexp
+  type t = Par.t [@@deriving sexp]
 
   let one = Par.singleton Seq.empty
   let zero = Par.empty
+  let is_one = Par.equal one
+  let is_zero = Par.is_empty
 
   let sum (a:t) (b:t) : t =
     (* This implements parallel composition specifically for NetKAT
        modifications. *)
-    if Par.is_empty a then b            (* 0 + p = p *)
-    else if Par.is_empty b then a       (* p + 0 = p *)
+    if is_zero a then b            (* 0 + p = p *)
+    else if is_zero b then a       (* p + 0 = p *)
     else Par.union a b
 
   let prod (a:t) (b:t) : t =
     (* This implements sequential composition specifically for NetKAT
        modifications and makes use of NetKAT laws to simplify results.*)
-    if Par.is_empty a then zero         (* 0; p == 0 *)
-    else if Par.is_empty b then zero    (* p; 0 == 0 *)
-    else if Par.equal a one then b      (* 1; p == p *)
-    else if Par.equal b one then a      (* p; 1 == p *)
+    if is_zero a then zero       (* 0; p == 0 *)
+    else if is_zero b then zero  (* p; 0 == 0 *)
+    else if is_one a then b      (* 1; p == p *)
+    else if is_one b then a      (* p; 1 == p *)
     else
       Par.fold a ~init:zero ~f:(fun acc seq1 ->
         (* cannot implement sequential composition of this kind here *)
@@ -485,8 +516,10 @@ module Action = struct
         in
         Par.union acc r)
 
-  let negate t : t =    
-    if compare t zero = 0 then one else zero
+  let negate t : t =
+    (* This implements negation for the [zero] and [one] actions. Any
+       non-[zero] action will be mapped to [zero] by this function. *)
+    if is_zero t then one else zero
 
   let get_queries (t : t) : string list =
     Par.fold t ~init:[] ~f:(fun queries seq ->
@@ -576,30 +609,24 @@ module Action = struct
       in
       Frenetic_NetKAT_Optimize.mk_union seq' acc)
 
-  let iter_fv t ~f =
-    Par.iter t ~f:(fun seq ->
-      Seq.iter seq ~f:(fun ~key ~data -> match key with
-        | F key -> f key data
-        | _ -> ()))
+  let fold_fv t ~(init : 'a) ~(f : 'a -> field:Field.t -> value:Value.t -> 'a) : 'a =
+    Par.fold t ~init ~f:(fun acc seq ->
+      Seq.fold seq ~init:acc ~f:(fun ~key ~data acc -> match key with
+        | F key -> f acc ~field:key ~value:data
+        | _ -> acc))
 
-  (* TODO(jnf): why is this imperative?! *)
   let pipes t =
-    let module S = Frenetic_Util.StringSet in
-    let s = ref S.empty in
-    iter_fv t ~f:(fun key data ->
-      match key, data with
-      | Field.Location, Value.Pipe q -> s := S.add !s q
-      | _, _ -> ());
-    !s
+    fold_fv t ~init:String.Set.empty ~f:(fun acc ~field ~value ->
+      match field, value with
+      | Field.Location, Value.Pipe q -> Set.add acc q
+      | _, _ -> acc)
 
   let queries t =
-    let module S = Frenetic_Util.StringSet in
-    let s = ref S.empty in
-    iter_fv t ~f:(fun key data ->
-      match key, data with
-      | Field.Location, Value.Query q -> s := S.add !s q
-      | _, _ -> ());
-    S.to_list !s
+    fold_fv t ~init:String.Set.empty ~f:(fun acc ~field ~value ->
+      match field, value with
+      | Field.Location, Value.Query q -> Set.add acc q
+      | _, _ -> acc)
+    |> Set.to_list
 
   let hash t =
     (* XXX(seliopou): Hashtbl.hash does not work because the same set can have
@@ -612,9 +639,9 @@ module Action = struct
   let size =
     Par.fold ~init:0 ~f:(fun acc seq -> acc + (Seq.length seq))
 
-  let to_string t =
-    let par = to_sdn ~group_tbl:(Frenetic_GroupTable0x04.create ()) None t in
-    Printf.sprintf "[%s]" (SDN.string_of_par par)
+  let to_string = Par.to_string
+    (* let par = to_sdn ~group_tbl:(Frenetic_GroupTable0x04.create ()) None t in
+    Printf.sprintf "[%s]" (SDN.string_of_par par) *)
 
 end
 
@@ -627,12 +654,19 @@ module FDK = struct
   let conts fdk =
     fold
       (fun par ->
-        Action.Par.fold par ~init:[] ~f:(fun acc seq ->
-          Action.(Seq.find seq K) :: acc)
-        |> List.filter_opt)
-      (fun _ t f -> t @ f)
+        Action.Par.fold par ~init:Int.Set.empty ~f:(fun acc seq ->
+          match Action.(Seq.find seq K) with
+          | None -> acc
+          | Some k -> Value.to_int_exn k |> Int.Set.add acc))
+      (fun _ t f -> Set.union t f)
       fdk
-    |> List.map ~f:Value.to_int_exn
-    |> List.dedup
+
+  let map_conts fdk ~(f: int -> int) =
+    let open Action in
+    let f par = Par.map par ~f:(fun seq -> Seq.change seq K (function
+      | None -> failwith "continuation expected, but none found"
+      | Some k -> Some (k |> Value.to_int_exn |> f |> Value.of_int)))
+    in
+    map_r f fdk
 
 end

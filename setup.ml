@@ -6875,7 +6875,7 @@ let setup_t =
           oasis_version = "0.4";
           ocaml_version = Some (OASISVersion.VGreaterEqual "4.02.0");
           findlib_version = None;
-          alpha_features = ["ocamlbuild_more_args"];
+          alpha_features = ["no_automatic_syntax"; "ocamlbuild_more_args"];
           beta_features = [];
           name = "frenetic";
           version = "4.0.0";
@@ -6945,7 +6945,6 @@ let setup_t =
                       bs_compiled_object = Best;
                       bs_build_depends =
                         [
-                           FindlibPackage ("async", None);
                            FindlibPackage
                              ("base64",
                                Some (OASISVersion.VGreaterEqual "2.0.0"));
@@ -6954,14 +6953,11 @@ let setup_t =
                            FindlibPackage ("camlp4", None);
                            FindlibPackage ("core", None);
                            FindlibPackage ("cstruct", None);
-                           FindlibPackage ("cstruct.syntax", None);
-                           FindlibPackage ("fieldslib", None);
-                           FindlibPackage ("fieldslib.syntax", None);
+                           FindlibPackage ("ppx_fields_conv", None);
                            FindlibPackage
                              ("ocamlgraph",
                                Some (OASISVersion.VGreaterEqual "1.8.6"));
-                           FindlibPackage ("sexplib", None);
-                           FindlibPackage ("sexplib.syntax", None);
+                           FindlibPackage ("ppx_sexp_conv", None);
                            FindlibPackage ("str", None);
                            FindlibPackage ("tcpip", None);
                            FindlibPackage ("ulex", None);
@@ -6969,11 +6965,7 @@ let setup_t =
                            FindlibPackage ("threads", None)
                         ];
                       bs_build_tools =
-                        [
-                           ExternalTool "ocamlbuild";
-                           ExternalTool "ocamldoc";
-                           ExternalTool "camlp4"
-                        ];
+                        [ExternalTool "ocamlbuild"; ExternalTool "ocamldoc"];
                       bs_c_sources = [];
                       bs_data_files = [];
                       bs_ccopt = [(OASISExpr.EBool true, [])];
@@ -6989,9 +6981,8 @@ let setup_t =
                            "Frenetic_Hashcons";
                            "Frenetic_Bits";
                            "Frenetic_Fdd";
+                           "Frenetic_OpenFlow0x04";
                            "Frenetic_GroupTable0x04";
-                           "Frenetic_Log";
-                           "Frenetic_Network";
                            "Frenetic_NetKAT";
                            "Frenetic_NetKAT_Optimize";
                            "Frenetic_NetKAT_Json";
@@ -7003,10 +6994,10 @@ let setup_t =
                            "Frenetic_NetKAT_Pretty";
                            "Frenetic_NetKAT_SDN_Json";
                            "Frenetic_NetKAT_Semantics";
+                           "Frenetic_Network";
                            "Frenetic_OpenFlow";
                            "Frenetic_OpenFlow_Header";
                            "Frenetic_OpenFlow0x01";
-                           "Frenetic_OpenFlow0x04";
                            "Frenetic_Packet";
                            "Frenetic_Topology";
                            "Frenetic_Util";
@@ -7040,16 +7031,11 @@ let setup_t =
                            InternalLibrary "frenetic";
                            FindlibPackage ("mparser", None);
                            FindlibPackage ("mparser.re", None);
-                           FindlibPackage ("sexplib", None);
-                           FindlibPackage ("sexplib.syntax", None);
+                           FindlibPackage ("ppx_sexp_conv", None);
                            FindlibPackage ("str", None)
                         ];
                       bs_build_tools =
-                        [
-                           ExternalTool "ocamlbuild";
-                           ExternalTool "ocamldoc";
-                           ExternalTool "camlp4"
-                        ];
+                        [ExternalTool "ocamlbuild"; ExternalTool "ocamldoc"];
                       bs_c_sources = [];
                       bs_data_files = [];
                       bs_ccopt = [(OASISExpr.EBool true, [])];
@@ -7063,6 +7049,7 @@ let setup_t =
                       lib_modules =
                         [
                            "Frenetic_Compile_Server";
+                           "Frenetic_Log";
                            "Frenetic_Http_Controller";
                            "Frenetic_OpenFlow0x01_Controller";
                            "Frenetic_NetKAT_Controller";
@@ -7096,11 +7083,7 @@ let setup_t =
                            FindlibPackage ("async_extended", None)
                         ];
                       bs_build_tools =
-                        [
-                           ExternalTool "ocamlbuild";
-                           ExternalTool "ocamldoc";
-                           ExternalTool "camlp4"
-                        ];
+                        [ExternalTool "ocamlbuild"; ExternalTool "ocamldoc"];
                       bs_c_sources = [];
                       bs_data_files = [];
                       bs_ccopt = [(OASISExpr.EBool true, [])];
@@ -7131,11 +7114,7 @@ let setup_t =
                            FindlibPackage ("async_extended", None)
                         ];
                       bs_build_tools =
-                        [
-                           ExternalTool "ocamlbuild";
-                           ExternalTool "ocamldoc";
-                           ExternalTool "camlp4"
-                        ];
+                        [ExternalTool "ocamlbuild"; ExternalTool "ocamldoc"];
                       bs_c_sources = [];
                       bs_data_files = [];
                       bs_ccopt = [(OASISExpr.EBool true, [])];
@@ -7146,6 +7125,50 @@ let setup_t =
                       bs_nativeopt = [(OASISExpr.EBool true, [])]
                    },
                    {exec_custom = false; exec_main_is = "openflow.ml"});
+               Library
+                 ({
+                     cs_name = "syntax";
+                     cs_data = PropList.Data.create ();
+                     cs_plugin_data = []
+                  },
+                   {
+                      bs_build = [(OASISExpr.EBool true, true)];
+                      bs_install = [(OASISExpr.EBool true, true)];
+                      bs_path = "syntax";
+                      bs_compiled_object = Best;
+                      bs_build_depends =
+                        [
+                           FindlibPackage ("camlp4.lib", None);
+                           FindlibPackage ("camlp4.extend", None);
+                           FindlibPackage ("camlp4.quotations.o", None);
+                           FindlibPackage ("ulex", None);
+                           FindlibPackage ("ipaddr", None);
+                           FindlibPackage ("core", None);
+                           InternalLibrary "frenetic"
+                        ];
+                      bs_build_tools =
+                        [ExternalTool "ocamlbuild"; ExternalTool "ocamldoc"];
+                      bs_c_sources = [];
+                      bs_data_files = [];
+                      bs_ccopt = [(OASISExpr.EBool true, [])];
+                      bs_cclib = [(OASISExpr.EBool true, [])];
+                      bs_dlllib = [(OASISExpr.EBool true, [])];
+                      bs_dllpath = [(OASISExpr.EBool true, [])];
+                      bs_byteopt = [(OASISExpr.EBool true, [])];
+                      bs_nativeopt = [(OASISExpr.EBool true, [])]
+                   },
+                   {
+                      lib_modules =
+                        [
+                           "Frenetic_Syntax_Extension_Parser";
+                           "Frenetic_Syntax_Extension_Quotations"
+                        ];
+                      lib_pack = false;
+                      lib_internal_modules = [];
+                      lib_findlib_parent = Some "frenetic";
+                      lib_findlib_name = Some "syntax";
+                      lib_findlib_containers = []
+                   });
                Library
                  ({
                      cs_name = "test_frenetic";
@@ -7167,11 +7190,7 @@ let setup_t =
                            FindlibPackage ("quickcheck", None)
                         ];
                       bs_build_tools =
-                        [
-                           ExternalTool "ocamlbuild";
-                           ExternalTool "ocamldoc";
-                           ExternalTool "camlp4"
-                        ];
+                        [ExternalTool "ocamlbuild"; ExternalTool "ocamldoc"];
                       bs_c_sources = [];
                       bs_data_files = [];
                       bs_ccopt = [(OASISExpr.EBool true, [])];
@@ -7215,18 +7234,13 @@ let setup_t =
                       bs_compiled_object = Byte;
                       bs_build_depends =
                         [
-                           FindlibPackage ("pa_ounit", None);
-                           FindlibPackage ("pa_ounit.syntax", None);
+                           FindlibPackage ("ppx_inline_test", None);
                            InternalLibrary "test_frenetic";
                            InternalLibrary "frenetic";
                            InternalLibrary "async"
                         ];
                       bs_build_tools =
-                        [
-                           ExternalTool "ocamlbuild";
-                           ExternalTool "ocamldoc";
-                           ExternalTool "camlp4"
-                        ];
+                        [ExternalTool "ocamlbuild"; ExternalTool "ocamldoc"];
                       bs_c_sources = [];
                       bs_data_files = [];
                       bs_ccopt = [(OASISExpr.EBool true, [])];
@@ -7237,44 +7251,6 @@ let setup_t =
                       bs_nativeopt = [(OASISExpr.EBool true, [])]
                    },
                    {exec_custom = false; exec_main_is = "Test.ml"});
-               Executable
-                 ({
-                     cs_name = "fastfailtest";
-                     cs_data = PropList.Data.create ();
-                     cs_plugin_data = []
-                  },
-                   {
-                      bs_build = [(OASISExpr.EBool true, true)];
-                      bs_install = [(OASISExpr.EBool true, false)];
-                      bs_path = "integration";
-                      bs_compiled_object = Native;
-                      bs_build_depends =
-                        [
-                           FindlibPackage ("async", None);
-                           FindlibPackage ("core", None);
-                           InternalLibrary "frenetic";
-                           InternalLibrary "async";
-                           FindlibPackage ("async_extended", None)
-                        ];
-                      bs_build_tools =
-                        [
-                           ExternalTool "ocamlbuild";
-                           ExternalTool "ocamldoc";
-                           ExternalTool "camlp4"
-                        ];
-                      bs_c_sources = [];
-                      bs_data_files = [];
-                      bs_ccopt = [(OASISExpr.EBool true, [])];
-                      bs_cclib = [(OASISExpr.EBool true, [])];
-                      bs_dlllib = [(OASISExpr.EBool true, [])];
-                      bs_dllpath = [(OASISExpr.EBool true, [])];
-                      bs_byteopt = [(OASISExpr.EBool true, [])];
-                      bs_nativeopt = [(OASISExpr.EBool true, [])]
-                   },
-                   {
-                      exec_custom = false;
-                      exec_main_is = "FastFailTest_Controller.ml"
-                   });
                Test
                  ({
                      cs_name = "all_tests";
@@ -7308,7 +7284,6 @@ let setup_t =
                         [
                            ExternalTool "ocamlbuild";
                            ExternalTool "ocamldoc";
-                           ExternalTool "camlp4";
                            InternalExecutable "testtool"
                         ]
                    });
@@ -7323,7 +7298,16 @@ let setup_t =
                       doc_custom =
                         {
                            pre_command = [(OASISExpr.EBool true, None)];
-                           post_command = [(OASISExpr.EBool true, None)]
+                           post_command =
+                             [
+                                (OASISExpr.EBool true,
+                                  Some
+                                    (("mv",
+                                       [
+                                          "_build/lib/frenetic.docdir";
+                                          "_build"
+                                       ])))
+                             ]
                         };
                       doc_build =
                         [
@@ -7341,7 +7325,6 @@ let setup_t =
                         [
                            ExternalTool "ocamlbuild";
                            ExternalTool "ocamldoc";
-                           ExternalTool "camlp4";
                            ExternalTool "ocamldoc"
                         ]
                    })
