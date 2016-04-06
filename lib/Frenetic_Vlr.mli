@@ -194,6 +194,23 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
           [let neg = map_r (fun r -> not r)] *)
 
+  val fold
+    :  (r -> 'a)
+    -> (v -> 'a -> 'a -> 'a)
+    -> t
+    -> 'a
+  (** [fold f g t] traverses the diagram, replacing leaf nodes with
+      applications of [f] to the values that they hold, and branches on
+      variables with applications of [g]. *)
+
+  val equal : t -> t -> bool
+  (** [equal a b] returns whether or not the two diagrams are structurally
+      equal.
+      If two diagrams are structurally equal, then they represent the
+      same combinatorial object. However, if two diagrams are not equal, they
+      still may represent the same combinatorial object. Whether or not this is
+      the case depends on they behavior of the type [v]. *)
+
   val sum : t -> t -> t
   (** [sum a b] returns the disjunction of the two diagrams. The [sum]
       operation on the [r] type is used to combine leaf nodes. *)

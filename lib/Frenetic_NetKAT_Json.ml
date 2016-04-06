@@ -182,6 +182,9 @@ let policy_to_json_string (pol : policy) : string =
 let policy_from_json_string (str : string) : policy =
   policy_from_json (from_string str)
 
+let policy_from_json_channel (chan : In_channel.t) : policy =
+  policy_from_json (from_channel chan)
+
 let event_to_json (event : event) : json =
   let open Yojson.Basic.Util in
   match event with

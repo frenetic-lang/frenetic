@@ -312,6 +312,9 @@ module Pattern = struct
     let c = Field.compare (fst a) (fst b) in
     if c <> 0 then c else Value.compare (snd a) (snd b)
 
+  let equal a b =
+    compare a b = 0
+
   let to_int = Int64.to_int_exn 
   let to_int32 = Int64.to_int32_exn
 

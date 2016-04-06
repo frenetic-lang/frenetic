@@ -20,6 +20,16 @@ module type Result = sig
   val zero : t
 end
 
+module IntPair = struct
+  type t = (int * int) [@@deriving sexp]
+  let hash (t1, t2) = 617 * t1 +  619 * t2
+  let compare (a1,b1) (a2,b2) = match Int.compare a1 a2 with
+    | 0 -> Int.compare b1 b2
+    | x -> x
+end
+
+module IntPairTbl = Hashtbl.Make(IntPair)
+
 module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   type v = V.t * L.t [@@deriving sexp]
   type r = R.t [@@deriving sexp]
@@ -73,7 +83,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
 
   module Tbl = Int.Table
 
-  module BinTbl = Frenetic_Util.IntPairTbl
+  module BinTbl = IntPairTbl
 
   let equal x y = x = y (* comparing ints *)
   let compare = Int.compare

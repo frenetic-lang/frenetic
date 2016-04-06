@@ -1,8 +1,7 @@
-open OUnitHack
 open Core.Std
 open Frenetic_Util
 
-TEST "make_string_of applies a formatter to a type and returns a string" = 
+let%test "make_string_of applies a formatter to a type and returns a string" = 
   let formatter_for_strings (fmt: Format.formatter) (s1, s2): unit = 
     Format.fprintf fmt "%s, " s1;
     Format.fprintf fmt "%s" s2 

@@ -40,6 +40,9 @@ val port_stats_to_json : Frenetic_OpenFlow0x01.portStats list -> json
 (** Same as policy_from_json, but receives json string *)
 val policy_from_json_string : string -> policy
 
+(** Same as policy_from_json, but reads json from input channel *)
+val policy_from_json_channel : In_channel.t -> policy
+
 (** Same as event_to_json but returns json string *)
 val event_to_json_string : event -> string
 
