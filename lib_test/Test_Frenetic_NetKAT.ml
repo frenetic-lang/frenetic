@@ -333,8 +333,8 @@ let check gen_fn compare_fn =
         QuickCheck.Success -> true
     | _                  -> false
 
-(*
-let%test "quickcheck NetKAT <-> JSON" =
+
+(* let%test "quickcheck NetKAT <-> JSON" =
   let open Frenetic_NetKAT_Json in
   let open Frenetic_NetKAT_Optimize in
   let generate_policy_json =
@@ -350,7 +350,12 @@ let%test "quickcheck NetKAT <-> JSON" =
       norm_policy (policy_of_json (policy_to_json pol)) = norm_policy pol
     with _ -> false in
   check generate_policy_json prop_parse_ok
-*)
+
+let%test "json" =
+  let open Frenetic_NetKAT_Optimize in
+  let m1 = mk_mod
+  let pol =
+ *)
 
 let get_masking_test =
   let ip1 = Int32.of_int(192 * 256*256*256 + 168 * 256*256 + 0 * 256 + 1 * 1) in
@@ -376,18 +381,19 @@ let%test "ip masking compile" =
   compare_compiler_output pol1 pol2 pkt
 
 (* regression test for bug in Flowterp handling of patterns with IP mask 0 *)
-(*
+
 let%test "zero mask" =
   let prop_compile_ok (pkt) =
+    let open Frenetic_NetKAT_Semantics in
     let pol = Seq(Filter(Test(Location(Physical 0l))),
                   Filter(Test(IP4Dst(0l,0l)))) in
-    let open Frenetic_NetKAT_Semantics in
+    let pol' = Frenetic_NetKAT_Optimize.specialize_policy pkt.switch pol in
     PacketSet.compare
-      (Frenetic_NetKAT_Semantics.eval pkt (Frenetic_NetKAT_Optimize.specialize_policy pkt.switch pol))
+      (Frenetic_NetKAT_Semantics.eval pkt pol')
       (Flowterp.Packet.eval pkt
-         (Frenetic_NetKAT_Compiler.(to_table pkt.switch (compile pol)))) = 0 in
+         (Frenetic_NetKAT_Compiler.(to_table pkt.switch (compile_local pol)))) = 0 in
   check gen_pkt prop_compile_ok
-*)
+
 
 let%test "semantics agree with flowtable" =
   let prop_compile_ok (p, pkt) =

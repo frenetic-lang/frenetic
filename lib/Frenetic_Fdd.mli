@@ -23,7 +23,7 @@ module Field : sig
   val auto_order : Frenetic_NetKAT.policy -> unit
   val set_order : t list -> unit
   val get_order : unit -> t list
-  val all_fields : t list
+  val all : t list
   val to_string : t -> string
   val of_string : string -> t
   val compare : t -> t -> int

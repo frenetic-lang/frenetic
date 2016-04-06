@@ -8,10 +8,10 @@ open Frenetic_Packet
 
 exception Unsupported of string
 
-type switchId = int64 [@@deriving sexp]
-type portId = int32 [@@deriving sexp]
-type queueId = int32 [@@deriving sexp]
-type bufferId = int32 [@@deriving sexp]
+type switchId = int64 [@@deriving sexp, compare, eq]
+type portId = int32 [@@deriving sexp, compare, eq]
+type queueId = int32 [@@deriving sexp, compare, eq]
+type bufferId = int32 [@@deriving sexp, compare, eq]
 
 (* general formatters for numeric types *)
 let format_int (fmt : Format.formatter) (v:int) =
@@ -369,7 +369,7 @@ let format_action (fmt:Format.formatter) (a:action) : unit =
   | Modify(m) ->
     format_modify fmt m
     (* TODO(grouptable) *)
-  | FastFail gid -> 
+  | FastFail gid ->
     Format.fprintf fmt "FastFail(%ld)" gid
 
 let rec format_seq (fmt : Format.formatter) (seq : seq) : unit =
@@ -445,10 +445,10 @@ let string_of_ipProto (x : nwProto) : string =
 
 let string_of_ethSrc (x : dlAddr) : string =
   Format.sprintf "EthSrc = %s" (Frenetic_Packet.string_of_mac x)
-		 
+
 let string_of_ethDst (x : dlAddr) : string =
   Format.sprintf "EthDst = %s" (Frenetic_Packet.string_of_mac x)
-		 
+
 let string_of_ip4src (x : Pattern.Ip.t) : string =
   Format.sprintf "IP4Src = %s" (Pattern.Ip.string_of x)
 
@@ -604,18 +604,18 @@ let from_output (inPort : OF10.portId option) (pseudoport : pseudoport) : OF10.a
     | Normal -> Output Normal
     | Flood -> Output Flood
     | All -> Output AllPorts
-    | Physical pport_id ->  
+    | Physical pport_id ->
       let pport_id = from_portId pport_id in
       if Some pport_id = inPort then
         Output InPort
       else
         Output (PhysicalPort pport_id)
-    | Controller n -> 
+    | Controller n ->
       Output (Controller n)
     | Local ->
       Output Local
-        
-let from_action (inPort : OF10.portId option) (act : action) : OF10.action = 
+
+let from_action (inPort : OF10.portId option) (act : action) : OF10.action =
   match act with
     | Output pseudoport ->
       from_output inPort pseudoport
@@ -623,7 +623,7 @@ let from_action (inPort : OF10.portId option) (act : action) : OF10.action =
       let pport_id = from_portId pport_id in
       if Some pport_id = inPort then
         Enqueue(InPort, queue_id)
-      else 
+      else
         Enqueue (PhysicalPort pport_id, queue_id)
     | Modify (SetEthSrc dlAddr) ->
       SetDlSrc dlAddr
@@ -653,8 +653,8 @@ let from_action (inPort : OF10.portId option) (act : action) : OF10.action =
       SetTpDst tp
       (* TODO(grouptable) *)
     | FastFail _ -> failwith "Openflow 1.0 does not support fast failover."
-        
-let from_seq (inPort : OF10.portId option) (seq : seq) : OF10.action list = 
+
+let from_seq (inPort : OF10.portId option) (seq : seq) : OF10.action list =
   List.map seq ~f:(from_action inPort)
 
 let from_par (inPort : OF10.portId option) (par : par) : OF10.action list =
@@ -672,8 +672,8 @@ let from_timeout (timeout : timeout) : OF10.timeout =
   match timeout with
     | Permanent -> Permanent
     | ExpiresAfter n -> ExpiresAfter n
-      
-      
+
+
 let from_pattern (pat : Pattern.t) : OF10.pattern =
   { dlSrc = pat.dlSrc
   ; dlDst = pat.dlDst
@@ -729,7 +729,7 @@ let from_payload (pay : payload) : OF10.payload =
     | Buffered (buf_id, b) ->
       Buffered (buf_id, b)
     | NotBuffered b -> NotBuffered b
-      
+
 let from_packetOut (pktOut : pktOut) : OF10.packetOut =
   let output_payload, port_id, apply_actions = pktOut in
   let output_payload = from_payload output_payload in
