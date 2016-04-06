@@ -4,7 +4,6 @@ module SDN = Frenetic_OpenFlow
 
 module Field = struct
 
-  (* Do not change the order without reordering all_fields *)
   type t
     = Switch
     | Vlan
@@ -21,7 +20,13 @@ module Field = struct
     | TCPDstPort
     | Location
     | VFabric
-    [@@deriving sexp]
+    [@@deriving sexp, enumerate, enum]
+
+  (** The type of packet fields. This is an enumeration whose ordering has an
+      effect on the performance of Tdk operations, as well as the size of the
+      flowtables that the compiler will produce. *)
+
+  let num_fields = max + 1
 
   let hash = Hashtbl.hash
 
@@ -60,34 +65,25 @@ module Field = struct
     | Location -> "Location"
     | VFabric -> "VFabric"
 
-  let num_fields = 15
-
-  (* Ensure that these are in the same order in which the variants appear. *)
-  let all_fields =
-    [ Switch; Vlan; VlanPcp; VSwitch; VPort; EthType; IPProto; EthSrc; EthDst;
-      IP4Src; IP4Dst; TCPSrcPort; TCPDstPort; Location; VFabric ]
-
   let is_valid_order (lst : t list) : bool =
-    List.length lst = num_fields && not (List.contains_dup lst)
-
-  (* assert (is_valid_order all_fields) *)
+    Set.Poly.(equal (of_list lst) (of_list all))
 
   (* order[i] = the position of field i in the current ordering.  Indexes are 1..15 assigned by Obj.magic,
      so that order[1] is the index of the Switch field.  Initial order is the order in which fields appear in this file. *)
   let order = Array.init num_fields ~f:ident
 
-  let readable_order = ref all_fields
-
-  let compare (x : t) (y : t) : int =
-    Pervasives.compare order.(Obj.magic x) order.(Obj.magic y)
-
   let set_order (lst : t list) : unit =
     assert (is_valid_order lst);
-    readable_order := lst;
-    List.iteri lst ~f:(fun i fld ->
-      order.(Obj.magic fld) <- i)
+    List.iteri lst ~f:(fun i fld -> order.(to_enum fld) <- i)
 
-  let get_order () = !readable_order
+  let get_order () =
+    Array.to_list order
+    |> List.filter_map ~f:of_enum
+
+  (* compare depends on current order! *)
+  let compare (x : t) (y : t) : int =
+    (* using Obj.magic instead of to_enum for bettter performance *)
+    Int.compare order.(Obj.magic x) order.(Obj.magic y)
 
   let field_of_header_val hv = match hv with
     | Frenetic_NetKAT.Switch _ -> Switch
@@ -122,7 +118,7 @@ module Field = struct
     let open Frenetic_NetKAT in
     (* Construct map of (field,score) pairs, where score starts at 0 for every field *)
     let count_tbl =
-      match Hashtbl.Poly.of_alist (List.map all_fields ~f:(fun f -> (f, 0))) with
+      match Hashtbl.Poly.of_alist (List.map all ~f:(fun f -> (f, 0))) with
       | `Ok tbl -> tbl
       | `Duplicate_key _ -> assert false in (* Should never happen because assert above will catch it *)
     let rec f_pred size in_product pred = match pred with
@@ -159,7 +155,7 @@ module Field = struct
     and f_union pol = f_union' pol (fun n -> n) in
     let _ = f_seq pol in
     Hashtbl.Poly.to_alist count_tbl
-    |> List.sort ~cmp:(fun (_, x) (_, y) -> Pervasives.compare y x)
+    |> List.sort ~cmp:(fun (_, x) (_, y) -> Int.compare y x)
     |> List.map ~f:fst
     |> set_order
 
@@ -271,19 +267,23 @@ module Value = struct
   let compare x y = match (x, y) with
     | Const a, Mask (b, 64)
     | Mask (a, 64), Const b
-    | Const a, Const b -> Pervasives.compare a b
-    | Const _ , _ -> -1
-    | _, Const _ -> 1
+    | Const a, Const b -> Int64.compare a b
+    | Query s1, Query s2
+    | Pipe s1, Pipe s2 -> String.compare s1 s2
+    | FastFail l1, FastFail l2 -> List.compare Int32.compare l1 l2
     | Mask(a, m) , Mask(b, n) ->
       let shift = 64 - min m n in
-      (match Pervasives.compare (Int64.shift_right a shift) (Int64.shift_right b shift) with
-       | 0 -> Pervasives.compare n m
+      (match Int64.(compare (shift_right a shift) (shift_right b shift)) with
+       | 0 -> Int.compare n m
        | c -> c)
+    | Const _ , _ -> -1
+    | _, Const _ -> 1
     | Mask _, _ -> -1
     | _, Mask _ -> 1
-    | FastFail _, _ -> -1
-    | _, FastFail _ -> 1
-    | _ -> Pervasives.compare x y
+    | Query _, _ -> -1
+    | _, Query _ -> 1
+    | Pipe _, _ -> -1
+    | _, Pipe _ -> 1
 
   let equal x y = compare x y = 0
 
@@ -307,10 +307,7 @@ exception FieldValue_mismatch of Field.t * Value.t
 
 module Pattern = struct
   type t = Field.t * Value.t
-
-  let compare a b =
-    let c = Field.compare (fst a) (fst b) in
-    if c <> 0 then c else Value.compare (snd a) (snd b)
+  [@@deriving compare]
 
   let to_string (f, v) =    
     Printf.sprintf "%s = %s" (Field.to_string f) (Value.to_string v)
@@ -321,10 +318,8 @@ module Pattern = struct
   let to_int = Int64.to_int_exn 
   let to_int32 = Int64.to_int32_exn
 
-  module NetKAT = Frenetic_NetKAT
-
   let of_hv hv =
-    let open NetKAT in
+    let open Frenetic_NetKAT in
     match hv with
     | Switch sw_id -> (Field.Switch, Value.(Const sw_id))
     | Location(Physical p) -> (Field.Location, Value.of_int32 p)
@@ -351,6 +346,7 @@ module Pattern = struct
   let to_hv (f, v) =
     let open Field in
     let open Value in
+    let module NetKAT = Frenetic_NetKAT in
     match f, v with
     | (Switch  , Const sw) -> NetKAT.Switch sw
     | (Location, Const p) -> NetKAT.(Location (Physical (to_int32 p)))
@@ -423,19 +419,11 @@ module Action = struct
   type field_or_cont =
     | F of Field.t
     | K
-  [@@deriving sexp]
-
-  let compare_field_or_cont x y =
-    match x,y with
-    | F f1, F f2 -> Field.compare f1 f2
-    | K, K -> 0
-    | F _, K -> 1
-    | K, F _ -> -1
+  [@@deriving sexp, compare]
 
   module Seq = struct
     include Map.Make(struct
-      type t = field_or_cont [@@deriving sexp]
-      let compare = compare_field_or_cont
+      type t = field_or_cont [@@deriving sexp, compare]
     end)
 
     let compare = compare_direct Value.compare

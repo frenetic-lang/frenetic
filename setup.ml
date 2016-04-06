@@ -6953,11 +6953,12 @@ let setup_t =
                            FindlibPackage ("camlp4", None);
                            FindlibPackage ("core", None);
                            FindlibPackage ("cstruct", None);
-                           FindlibPackage ("ppx_fields_conv", None);
                            FindlibPackage
                              ("ocamlgraph",
                                Some (OASISVersion.VGreaterEqual "1.8.6"));
-                           FindlibPackage ("ppx_sexp_conv", None);
+                           FindlibPackage ("ppx_jane", None);
+                           FindlibPackage ("ppx_deriving.eq", None);
+                           FindlibPackage ("ppx_deriving.enum", None);
                            FindlibPackage ("str", None);
                            FindlibPackage ("tcpip", None);
                            FindlibPackage ("ulex", None);
@@ -7344,6 +7345,6 @@ let setup_t =
 
 let setup () = BaseSetup.setup setup_t;;
 
-# 7348 "setup.ml"
+# 7349 "setup.ml"
 (* OASIS_STOP *)
 let () = setup ();;

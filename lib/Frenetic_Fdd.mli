@@ -54,8 +54,8 @@ module Field : sig
   val set_order : t list -> unit
   val get_order : unit -> t list
 
-  (** [all_fields] returns the default field field ordering *)
-  val all_fields : t list
+  (** [all] returns the default field field ordering *)
+  val all : t list
 
   (** [compare f1 f2] compares two fields in the current ordering in the usual way. *)
   val compare : t -> t -> int

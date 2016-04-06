@@ -185,7 +185,7 @@ let prepare_compilation ~options pol = begin
    | `Preserve fdd -> FDK.clear_cache ~preserve:(FDK.refs fdd));
   (match options.field_order with
    | `Heuristic -> Field.auto_order pol
-   | `Default -> Field.set_order Field.all_fields
+   | `Default -> Field.set_order Field.all
    | `Static flds -> Field.set_order flds)
 end
 
@@ -201,7 +201,7 @@ let is_valid_pattern options (pat : Frenetic_OpenFlow.Pattern.t) : bool =
      (Option.is_none pat.tpSrc &&
       Option.is_none pat.tpDst))
 
-let add_dependency_if_unseen all_tests pat dep = 
+let add_dependency_if_unseen all_tests pat dep =
   let dep_pat = Pattern.of_hv dep in
   match List.exists ~f:(Pattern.equal dep_pat) all_tests with
   | true -> None
@@ -209,9 +209,9 @@ let add_dependency_if_unseen all_tests pat dep =
 
 (* Note that although Vlan and VlanPcp technically have a dependency on the packet being an EthType 0x8100, you
    never have to include that Dependency in OpenFlow because the EthType match is always for the INNER packet. *)
-let fill_in_dependencies all_tests (pat : Frenetic_OpenFlow.Pattern.t) = 
+let fill_in_dependencies all_tests (pat : Frenetic_OpenFlow.Pattern.t) =
   let open Frenetic_OpenFlow.Pattern in
-  let all_dependencies = 
+  let all_dependencies =
     if (Option.is_some pat.nwSrc || Option.is_some pat.nwDst) && Option.is_none pat.dlTyp then
       [ EthType(0x800); EthType(0x806) ]
     else if Option.is_some pat.nwProto && Option.is_none pat.dlTyp then
@@ -222,17 +222,17 @@ let fill_in_dependencies all_tests (pat : Frenetic_OpenFlow.Pattern.t) =
       []
     in
   (* tpSrc/tpDst has two dependencies, so fold the dlTyp into the given pattern, if needed. *)
-  let pat = 
+  let pat =
     if (Option.is_some pat.tpSrc || Option.is_some pat.tpDst) && Option.is_none pat.nwProto && Option.is_none pat.dlTyp then
       match add_dependency_if_unseen all_tests pat (EthType(0x800)) with
       | Some new_pat -> new_pat
       | None -> pat
     else
-      pat 
+      pat
     in
   match all_dependencies with
   | [] -> [ pat ]
-  | deps -> List.filter_opt (List.map deps ~f:(add_dependency_if_unseen all_tests pat)) 
+  | deps -> List.filter_opt (List.map deps ~f:(add_dependency_if_unseen all_tests pat))
 
 let to_pattern hvs =
   List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_OpenFlow.Pattern.match_all
@@ -308,7 +308,7 @@ let rec naive_to_table ?group_tbl options sw_id (t : FDK.t) =
   | Branch ((Location, Pipe _), _, fls) -> dfs true_tests all_tests fls
   | Branch (test, tru, fls) ->
     dfs (test :: true_tests) (test :: all_tests) tru @ dfs true_tests (test :: all_tests) fls in
-  (dfs [] [] t) |> List.concat 
+  (dfs [] [] t) |> List.concat
 
 let remove_tail_drops fl =
   let rec remove_tail_drop fl =
@@ -340,10 +340,7 @@ let pipes t =
   String.Set.to_list ps
 
 let queries t =
-  let module S = Set.Make(struct
-    type t = string * Frenetic_NetKAT.pred sexp_opaque [@@deriving sexp]
-    let compare = Pervasives.compare
-  end) in
+  let module S = Set.Poly in
   let qs = FDK.fold
     (fun r ->
       let qs = Action.queries r in
@@ -395,7 +392,7 @@ let field_order_from_string = function
     |> List.map ~f:String.strip
     |> List.map ~f:Field.of_string in
    let compose f g x = f (g x) in
-   let curr_order = Field.all_fields in
+   let curr_order = Field.all in
    let removed = List.filter curr_order (compose not (List.mem ls)) in
    (* Tags all specified Fields at the highest priority *)
    let new_order = List.append (List.rev ls) removed in

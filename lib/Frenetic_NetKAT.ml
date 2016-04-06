@@ -5,12 +5,12 @@ open Frenetic_Packet
 
 exception Non_local
 
-type switchId = Frenetic_OpenFlow.switchId [@@deriving sexp]
-type portId = Frenetic_OpenFlow.portId [@@deriving sexp]
+type switchId = Frenetic_OpenFlow.switchId [@@deriving sexp, compare, eq]
+type portId = Frenetic_OpenFlow.portId [@@deriving sexp, compare, eq]
 type payload = Frenetic_OpenFlow.payload [@@deriving sexp]
-type vswitchId = int64 [@@deriving sexp]
-type vportId = int64 [@@deriving sexp]
-type vfabricId = int64 [@@deriving sexp]
+type vswitchId = int64 [@@deriving sexp, compare, eq]
+type vportId = int64 [@@deriving sexp, compare, eq]
+type vfabricId = int64 [@@deriving sexp, compare, eq]
 
 let string_of_fastfail = Frenetic_OpenFlow.format_list ~to_string:Int32.to_string
 
@@ -19,7 +19,7 @@ type location =
   | FastFail of int32 list
   | Pipe of string
   | Query of string
-  [@@deriving sexp]
+  [@@deriving sexp, compare]
 
 type header_val =
   | Switch of switchId
