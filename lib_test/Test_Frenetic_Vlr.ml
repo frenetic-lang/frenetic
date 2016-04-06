@@ -149,24 +149,6 @@ let%test_module _ = (module struct
 
   (* TODO: TEST "prod" *)
 
-  let%test "S.to_string recurively prints diagram using tenary syntax" =
-    let fdd = two_level_tree in
-    to_string fdd = "(Var1 = 17 ? (Var2 = 10 ? (300) : (600)) : (Var1 = 23 ? (100) : (200)))"
-(*
-  let%test "S.clear_cache removes all provided diagrams" =
-    let fdd = two_level_tree in
-    clear_cache Int.Set.empty;
-    try 
-      unget (fdd) = Leaf 3
-    with Not_found -> true | _ -> false   
-
-  let%test "S.clear_cache removes all provided diagrams, but keeps diagrams in preserve parameter" =
-    let _ = two_level_tree in
-    let node_100 = const 100 in
-    clear_cache (Int.Set.of_list [ 100 ]);
-    node_100 = const 100
-*)
-
   let%test "S.clear_cache doesn't remove drop or id diagrams under any circumstances" =
     let _ = two_level_tree in
     let zero_idx = drop in

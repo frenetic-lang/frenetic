@@ -312,6 +312,9 @@ module Pattern = struct
     let c = Field.compare (fst a) (fst b) in
     if c <> 0 then c else Value.compare (snd a) (snd b)
 
+  let to_string (f, v) =    
+    Printf.sprintf "%s = %s" (Field.to_string f) (Value.to_string v)
+
   let equal a b =
     compare a b = 0
 

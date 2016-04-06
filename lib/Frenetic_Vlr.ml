@@ -215,19 +215,6 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
         | Branch ((v, l), tru, fls) -> h (v,l) (f tru) (f fls) in
     f t
 
-  let rec to_string t = match T.unget t with
-    | Leaf r -> 
-       Printf.sprintf "(%s)" (R.to_string r)
-    | Branch((v, l), t, f) -> 
-       Printf.sprintf "(%s = %s ? %s : %s)"
-   (V.to_string v) (L.to_string l) (to_string t) (to_string f)
-          
-  let clear_cache ~(preserve : Core.Std.Int.Set.t) =
-    (* SJS: the interface exposes `id` and `drop` as constants,
-       so they must NEVER be cleared from the cache *)
-    let preserve = Core.Std.Set.(add (add preserve drop) id) in
-    T.clear preserve
-
   let compressed_size (node : t) : int =
     let rec f (node : t) (seen : Int.Set.t) =
       if Int.Set.mem seen node then

@@ -89,6 +89,8 @@ module type Result = sig
       and [||], respectively, then [zero] should be the value [false]. *)
 end
 
+module IntPairTbl : Hashtbl.S with type key = (int * int)
+
 (** Variable-Lattice-Result
 
     This module implements a variant of a binary decision diagrams. Rather than

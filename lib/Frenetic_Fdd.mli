@@ -60,6 +60,8 @@ module Field : sig
   (** [compare f1 f2] compares two fields in the current ordering in the usual way. *)
   val compare : t -> t -> int
 
+  val hash : t -> int
+
   (** [of_string str] converts a field string to an abstract field.  Throws an exception for unrecognized strings. *)  
   val of_string : string -> t
 
@@ -155,7 +157,7 @@ module Pattern : sig
   (* [to_sdn p] Converts a [Pattern.t] into a function that will modify a [SDN.Pattern.t]
     to check the condition represented by the [Pattern.t].  This function is used to glue
     OpenFlow match patterns into a complete match spec.  *)
-  val to_sdn : t -> (Frenetic_OpenFlow.Pattern.t -> Frenetic_OpenFlow.Pattern.t) 
+  val to_sdn : t -> Frenetic_OpenFlow.Pattern.t -> Frenetic_OpenFlow.Pattern.t
 end
 
 module Action : sig

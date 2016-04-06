@@ -43,9 +43,8 @@ let test_compile_table pol tbl =
   if string_of_flowTable tbl = string_of_flowTable tbl' then
     true
   else
-    (Format.printf "compile @,%a@, produced %a@,,@,expected %a\n%s%!\n"
-       format_policy pol format_flowTable tbl' format_flowTable tbl
-       (string_of_flowTable tbl);
+    (Format.printf "compile @,%a@, produced\n%s@,\n@,expected\n%s%!\n"
+       format_policy pol (string_of_flowTable tbl') (string_of_flowTable tbl);
      false)
 
 let ip_of_str n = Ipaddr.V4.(to_int32 (of_string_exn n))

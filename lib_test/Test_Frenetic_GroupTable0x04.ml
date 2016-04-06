@@ -25,14 +25,12 @@ let%test "clear_group removes all groups from a group table" =
   let gtab = create () in
   let _ = add_group gtab Select rr_bucket_list in
   let () = clear_groups gtab in
-  printf "%s\n%!" (to_string gtab);
   (to_string gtab) = ""
 
 let%test "clear_group removes all groups from a group table" = 
   let gtab = create () in
   let _ = add_group gtab Select rr_bucket_list in
   let () = clear_groups gtab in
-  printf "%s\n%!" (to_string gtab);
   (to_string gtab) = ""
 
 let%test "commit emits OpenFlow 1.3 messages to recreate the group table on the switch" = 
