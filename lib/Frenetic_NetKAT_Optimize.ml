@@ -41,6 +41,8 @@ let mk_mod hv =
 
 let mk_union pol1 pol2 =
   match pol1, pol2 with
+    | Filter pr1, Filter pr2 ->
+      Filter (mk_or pr1 pr2)
     | Filter False, _ ->
       pol2
     | _, Filter False ->
@@ -50,6 +52,8 @@ let mk_union pol1 pol2 =
 
 let mk_seq pol1 pol2 =
   match pol1, pol2 with
+    | Filter pr1, Filter pr2 ->
+      Filter (mk_and pr1 pr2)
     | Filter True, _ ->
       pol2
     | _, Filter True ->
