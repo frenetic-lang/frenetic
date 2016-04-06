@@ -1,9 +1,8 @@
 open Core.Std
+open Frenetic_Fdd
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Semantics
 open Frenetic_OpenFlow
-
-module Field = Frenetic_Fdd.Field
 
 type order
   = [ `Default
@@ -27,11 +26,6 @@ type compiler_options = {
 }
 
 (** {2 Compilation} *)
-
-exception Non_local
-(** The exception that's thrown when the local compiler is given a policy with a
-    [Link] term in it. To compile policies with [Link] terms, invoke global
-    compiler. *)
 
 val default_compiler_options : compiler_options
 

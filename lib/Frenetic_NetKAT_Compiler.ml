@@ -1,17 +1,13 @@
 open Core.Std
 open Frenetic_Fdd
 open Frenetic_NetKAT
-
-module Field = Frenetic_Fdd.Field
-exception Non_local = Frenetic_NetKAT.Non_local
+open Frenetic_NetKAT_Optimize
 
 type order
   = [ `Default
     | `Static of Field.t list
     | `Heuristic ]
 
-module Action = Frenetic_Fdd.Action
-module Value = Frenetic_Fdd.Value
 module Par = Action.Par
 module Seq = Action.Seq
 
@@ -107,11 +103,9 @@ module FDK = struct
         let p = Pattern.to_pred v in
         match t, f with
         | Filter t, Filter f ->
-          Frenetic_NetKAT_Optimize.(mk_filter (mk_or (mk_and p t)
-                                                 (mk_and (mk_not p) f)))
+          Filter NK.(p && t ||| not p && f)
         | _       , _        ->
-          Frenetic_NetKAT_Optimize.(mk_union (mk_seq (mk_filter p) t)
-                                      (mk_seq (mk_filter (mk_not p)) f)))
+          NK.(Filter p >> t || Filter (not p) >> f))
 
   let dedup fdd =
     let module FS = Set.Make(Field) in
@@ -347,9 +341,8 @@ let queries t =
       S.of_list (List.map qs ~f:(fun q -> (q, Frenetic_NetKAT.True))))
     (fun v t f ->
       let p = Pattern.to_pred v in
-      let open Frenetic_NetKAT_Optimize in
-      S.(union (map t ~f:(fun (q, p') -> (q, mk_and p p')))
-               (map t ~f:(fun (q, p') -> (q, mk_and (mk_not p) p')))))
+      S.(union (map t ~f:(fun (q, p') -> (q, NK.(p && p'))))
+               (map t ~f:(fun (q, p') -> (q, NK.(not p && p'))))))
     t
   in
   S.to_list qs

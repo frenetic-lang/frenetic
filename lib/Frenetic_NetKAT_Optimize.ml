@@ -170,7 +170,7 @@ let flatten_union (pol : policy) : policy list = flatten_union_k pol [] ident
 
 
 (** {Syntax} **)
-module Nk = struct
+module NK = struct
   (* ordered by precedence, see http://caml.inria.fr/pub/docs/manual-caml-light/node4.9.html  *)
   let ( !! ) hv = Mod hv
   let ( ?? ) hv = Filter (Test hv)
@@ -182,9 +182,9 @@ module Nk = struct
   let ( --> ) (s1,p1) (s2,p2) = Link (s1,p1,s2,p2)
   let not pred = Neg pred
   let ( >> ) p q = Seq (p, q)
-  let ( and ) p q = And (p, q)
+  let ( && ) p q = And (p, q)
   let ( || ) p q = Union (p, q)
-  let ( or ) p q = Or (p, q)
+  let ( ||| ) p q = Or (p, q)
 
 
   let ip4Src (ip,mask) = IP4Src (ip, mask)

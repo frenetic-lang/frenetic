@@ -20,7 +20,7 @@ val flatten_union : policy -> policy list
 
 
 (** {Syntax} **)
-module Nk : sig
+module NK : sig
   (* ordered by precedence, see http://caml.inria.fr/pub/docs/manual-caml-light/node4.9.html  *)
   val ( !! ) : header_val -> policy
   val ( ?? ) : header_val -> policy
@@ -34,7 +34,7 @@ module Nk : sig
   val ( >> ) : policy -> policy -> policy
   val ( && ) : pred -> pred -> pred
   val ( || ) : policy -> policy -> policy
-  val ( or ) : pred -> pred -> pred
+  val ( ||| ) : pred -> pred -> pred
 
   val ip4Src : int32 * int32 -> header_val
   val ip4Dst : int32 * int32 -> header_val
