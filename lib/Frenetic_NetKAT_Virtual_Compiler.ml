@@ -341,9 +341,9 @@ let fabric_graph_of_pruned g ing cost =
 
 
 (* functions for fabric generation *)
-let match_ploc (sw,pt) = Filter (And (Test(Switch sw), Test(Location(Physical(pt)))))
-let match_vloc (vsw,vpt) = Filter (And (Test(VSwitch vsw), Test(VPort vpt)))
-let set_vloc (vsw,vpt) = mk_seq (Mod (VSwitch vsw)) (Mod (VPort vpt))
+let match_ploc (sw,pt) = NK.(??(Switch sw) >> ??(port pt))
+let match_vloc (vsw,vpt) = NK.(??(VSwitch vsw) >> ??(VPort vpt))
+let set_vloc (vsw,vpt) = NK.(!!(VSwitch vsw) >> !!(VPort vpt))
 
 let match_vloc' vv =
   match G.Virt.V.label vv with
