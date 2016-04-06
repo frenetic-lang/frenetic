@@ -2,7 +2,7 @@
   #define MK(arg) <:expr< arg >>
   #define ID(arg) $arg$
   #define STR(val) $`str:val$
-  #define AQ | `ANTIQUOT s -> AQ.parse_expr _loc s
+  #define AQ | `ANTIQUOT s -> Syntax.AntiquotSyntax.parse_expr _loc s
 #else
   #define MK(arg) arg
   #define ID(arg) arg
@@ -12,8 +12,8 @@
 
 open Core.Std
 open Camlp4.PreCast
-open Frenetic_NetKAT_Lexer
 module Gram = MakeGram(Frenetic_NetKAT_Lexer)
+open Frenetic_NetKAT_Lexer
 open Frenetic_NetKAT
 
 let nk_pred = Gram.Entry.mk "nk_pred"
@@ -211,20 +211,21 @@ EXTEND Gram
 
 END
 
+
+
 let report loc e =
   failwith (Loc.to_string loc ^ ": " ^ Exn.to_string e)
 
-let policy_of_string ?(srcfile="<N/A>") s =
+let policy_of_string ?(srcfile="<N/A>") (s : string) =
   try Gram.parse_string nk_pol (Loc.mk srcfile) s
   with Loc.Exc_located (loc, e) -> report loc e
 
-let pred_of_string ?(srcfile="<N/A>") s =
+let pred_of_string ?(srcfile="<N/A>") (s : string) =
   try Gram.parse_string nk_pred (Loc.mk srcfile) s
   with Loc.Exc_located (loc, e) -> report loc e
 
-let policy_of_file srcfile =
+let policy_of_file (srcfile : string) =
    policy_of_string ~srcfile (In_channel.read_all srcfile)
 
-let pred_of_file srcfile =
+let pred_of_file (srcfile : string) =
    pred_of_string ~srcfile (In_channel.read_all srcfile)
-
