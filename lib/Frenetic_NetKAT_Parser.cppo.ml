@@ -1,15 +1,20 @@
-(* Simple parser for NetKAT ... no antiquoting, etc.
-   This parser has a common structure with Frenetic_Syntax_Extension_Parser, but outputs
-   pure NetKAT data structures instead of OCaml AST's.  It's be nice if you could share the logic
-   but that doesn't look possible because.
-
-   So IF YOU CHANGE THE GRAMMAR HERE, be sure to change it in Frenetic_Syntax_Extension_Parser as well
-)*)
+#ifdef AST
+  #define MK(arg) <:expr< arg >>
+  #define ID(arg) $arg$
+  #define STR(val) $`str:val$
+  #define AQ | `ANTIQUOT s -> AQ.parse_expr _loc s
+#else
+  #define MK(arg) arg
+  #define ID(arg) arg
+  #define STR(val) val
+  #define AQ
+#endif
 
 open Core.Std
 open Camlp4.PreCast
 open Frenetic_NetKAT_Lexer
 module Gram = MakeGram(Frenetic_NetKAT_Lexer)
+open Frenetic_NetKAT
 
 let nk_pred = Gram.Entry.mk "nk_pred"
 let nk_pred_atom = Gram.Entry.mk "nk_pred_atom"
@@ -31,87 +36,92 @@ let nk_loc = Gram.Entry.mk "nk_loc"
 EXTEND Gram
 
   nk_int64: [[
-      n = INT -> Int64.of_string n
-    | n = INT64 -> Int64.of_string n
+      n = INT -> MK(Int64.of_string STR(n))
+    | n = INT64 -> MK(Int64.of_string STR(n))
+    AQ
   ]];
 
   nk_int32: [[
-      n = INT -> Int32.of_string n
-    | n = INT32 -> Int32.of_string n
+      n = INT -> MK(Int32.of_string STR(n))
+    | n = INT32 -> MK(Int32.of_string STR(n))
+    AQ
   ]];
 
   nk_int: [[
-      n = INT -> Int.of_string n
+      n = INT -> MK(Int.of_string STR(n))
+    AQ
   ]];
 
   nk_ipv4: [[
       n = IP4ADDR ->
-        Ipaddr.V4.(to_int32 (of_string_exn n))
+        MK(Ipaddr.V4.(to_int32 (of_string_exn STR(n))))
+     AQ
   ]];
 
   nk_loc: [[
       switch = nk_int64; "@"; port = nk_int64 ->
-        (switch,port)
+        MK((ID(switch),ID(port)))
   ]];
 
   nk_pred_atom: [[
       "("; a = nk_pred; ")" -> a
     | "true" ->
-      Frenetic_NetKAT.True
+      MK(True)
     | "false" ->
-      Frenetic_NetKAT.False
+      MK(False)
     | "switch"; "="; sw = nk_int64 ->
-      Frenetic_NetKAT.(Test (Switch sw))
+      MK(Test (Switch ID(sw)))
     | "port"; "="; n = nk_int32 ->
-      Frenetic_NetKAT.Test (Frenetic_NetKAT.(Location (Physical n)))
+      MK(Test (Location (Physical ID(n))))
     | "vswitch"; "="; sw = nk_int64 ->
-      Frenetic_NetKAT.(Test (VSwitch sw))
+      MK((Test (VSwitch ID(sw))))
     | "vport"; "="; n = nk_int64 ->
-      Frenetic_NetKAT.Test (Frenetic_NetKAT.(VPort n))
+      MK(Test (VPort ID(n)))
     | "vfabric"; "="; vfab = nk_int64 ->
-      Frenetic_NetKAT.(Test (VFabric vfab))
+      MK(Test (VFabric ID(vfab)))
     | "vlanId"; "="; n = nk_int ->
-      Frenetic_NetKAT.(Test (Vlan n))
+      MK(Test (Vlan ID(n)))
     | "vlanPcp"; "="; n = nk_int ->
-      Frenetic_NetKAT.(Test (VlanPcp n))
+      MK(Test (VlanPcp ID(n)))
     | "ethTyp"; "="; n = nk_int ->
-      Frenetic_NetKAT.(Test (EthType n))
+      MK(Test (EthType ID(n)))
     | "ipProto"; "="; n = nk_int ->
-      Frenetic_NetKAT.(Test (IPProto n))
+      MK(Test (IPProto ID(n)))
     | "tcpSrcPort"; "="; n = nk_int ->
-      Frenetic_NetKAT.(Test (TCPSrcPort n))
+      MK(Test (TCPSrcPort ID(n)))
     | "tcpDstPort"; "="; n = nk_int ->
-      Frenetic_NetKAT.(Test (TCPDstPort n))
+      MK(Test (TCPDstPort ID(n)))
     | "ethSrc"; "="; n = nk_int64 ->
-      Frenetic_NetKAT.(Test (EthSrc n))
+      MK(Test (EthSrc ID(n)))
     | "ethDst"; "="; n = nk_int64 ->
-      Frenetic_NetKAT.(Test (EthDst n))
+      MK(Test (EthDst ID(n)))
     | "ip4Src"; "="; n = nk_ipv4; "/"; m = nk_int32 ->
-      Frenetic_NetKAT.(Test (IP4Src (n, m)))
+      MK(Test (IP4Src (ID(n), ID(m))))
     | "ip4Src"; "="; n = nk_ipv4 ->
-      Frenetic_NetKAT.(Test (IP4Src (n, 32l)))
+      MK(Test (IP4Src (ID(n), 32l)))
     | "ip4Dst"; "="; n = nk_ipv4; "/"; m = nk_int32 ->
-      Frenetic_NetKAT.(Test (IP4Dst (n, m)))
+      MK(Test (IP4Dst (ID(n), ID(m))))
     | "ip4Dst"; "="; n = nk_ipv4 ->
-      Frenetic_NetKAT.(Test (IP4Dst (n, 32l)))
+      MK(Test (IP4Dst (ID(n), 32l)))
+    AQ
   ]];
 
   nk_pred_not : [[
       a = nk_pred_atom -> a
     | "not"; a = nk_pred_not ->
-      Frenetic_NetKAT.Neg a
+      MK(Neg ID(a))
   ]];
 
   nk_pred_and : [[
       a = nk_pred_not -> a
     | a = nk_pred_and; "and"; b = nk_pred_not ->
-      Frenetic_NetKAT.And (a, b)
+      MK(And (ID(a), ID(b)))
   ]];
 
   nk_pred_or : [[
       a = nk_pred_and -> a
     | a = nk_pred_or; "or"; b = nk_pred_and ->
-      Frenetic_NetKAT.Or (a, b)
+      MK(Or (ID(a), ID(b)))
   ]];
 
   nk_pred: [[
@@ -119,89 +129,84 @@ EXTEND Gram
   ]];
 
   nk_pol_atom: [[
-      "("; p = nk_pol; ")" ->
-      p
+      "("; p = nk_pol; ")" -> p
     | "id" ->
-      Frenetic_NetKAT.Filter Frenetic_NetKAT.True
+      MK(id)
     | "drop" ->
-      Frenetic_NetKAT.Filter Frenetic_NetKAT.False
+      MK(drop)
     | "filter"; a = nk_pred ->
-      Frenetic_NetKAT.Filter a
+      MK(Filter ID(a))
     | "switch"; ":="; sw = nk_int64 ->
-      Frenetic_NetKAT.(Mod (Switch sw))
+      MK(Mod (Switch ID(sw)))
     | "port"; ":="; n = nk_int32 ->
-      Frenetic_NetKAT.(Mod (Location (Physical n)))
+      MK(Mod (Location (Physical ID(n))))
     | "vswitch"; ":="; sw = nk_int64 ->
-      Frenetic_NetKAT.(Mod (VSwitch sw))
+      MK(Mod (VSwitch ID(sw)))
     | "vport"; ":="; n = nk_int64 ->
-      Frenetic_NetKAT.(Mod (VPort n))
+      MK(Mod (VPort ID(n)))
     | "vfabric"; ":="; vfab = nk_int64 ->
-      Frenetic_NetKAT.(Mod (VFabric vfab))
+      MK(Mod (VFabric ID(vfab)))
     | "ethSrc"; ":="; n = nk_int64 ->
-      Frenetic_NetKAT.(Mod (EthSrc n))
+      MK(Mod (EthSrc ID(n)))
     | "ethDst"; ":="; n = nk_int64 ->
-      Frenetic_NetKAT.(Mod (EthDst n))
+      MK(Mod (EthDst ID(n)))
     | "ethTyp"; ":="; n = nk_int ->
-      Frenetic_NetKAT.(Mod (EthType n))
+      MK(Mod (EthType ID(n)))
     | "vlanId"; ":="; n = nk_int ->
-      Frenetic_NetKAT.(Mod (Vlan n))
+      MK(Mod (Vlan ID(n)))
     | "vlanPcp"; ":="; n = nk_int ->
-      Frenetic_NetKAT.(Mod (VlanPcp n))
+      MK(Mod (VlanPcp ID(n)))
     | "ip4Src"; ":="; n = nk_ipv4 ->
-      Frenetic_NetKAT.(Mod (IP4Src(n,32l)))
+      MK(Mod (IP4Src(ID(n), 32l)))
     | "ip4Dst"; ":="; n = nk_ipv4 ->
-      Frenetic_NetKAT.(Mod (IP4Dst(n,32l)))
+      MK(Mod (IP4Dst(ID(n), 32l)))
     | "ipProto"; ":="; n = nk_int ->
-      Frenetic_NetKAT.(Mod (IPProto n))
+      MK(Mod (IPProto ID(n)))
     | "tcpSrcPort"; ":="; n = nk_int ->
-      Frenetic_NetKAT.(Mod (TCPSrcPort n))
+      MK(Mod (TCPSrcPort ID(n)))
     | "tcpDstPort"; ":="; n = nk_int ->
-      Frenetic_NetKAT.(Mod (TCPDstPort n))
-    | loc1 = nk_loc; "=>"; loc2 = nk_loc ->
-      let switch1, port1 = loc1 in
-      let switch2, port2 = loc2 in
-      let port1 = Int64.to_int32_exn port1 in
-      let port2 = Int64.to_int32_exn port2 in
-      Frenetic_NetKAT.(Link (switch1, port1, switch2, port2))
-    | loc1 = nk_loc; "=>>"; loc2 = nk_loc ->
-      let switch1, port1 = loc1 in
-      let switch2, port2 = loc2 in
-      Frenetic_NetKAT.(VLink (switch1, port1, switch2, port2))
+      MK(Mod (TCPDstPort ID(n)))
+    | loc1 = nk_loc; "=>"; loc2 = nk_loc -> MK(
+      let (sw1, pt1) = ID(loc1) in
+      let (sw2, pt2) = ID(loc2) in
+      let pt1 = Int64.to_int32_exn pt1 in
+      let pt2 = Int64.to_int32_exn pt2 in
+      Link (sw1, pt1, sw2, pt2))
+    | loc1 = nk_loc; "=>>"; loc2 = nk_loc -> MK(
+      let (sw1, pt1) = ID(loc1) in
+      let (sw2, pt2) = ID(loc2) in
+      MK(VLink (sw1, pt1, sw2, pt2)))
+    AQ
   ]];
 
   nk_pol_star : [[
-      p = nk_pol_atom ->
-      p
+      p = nk_pol_atom -> p
     | p = nk_pol_star; "*" ->
-      Frenetic_NetKAT.Star p
+      MK(Star ID(p))
   ]];
 
   nk_pol_seq : [[
-      p = nk_pol_star ->
-      p
+      p = nk_pol_star -> p
     | p = nk_pol_seq; ";"; q = nk_pol_star ->
-      Frenetic_NetKAT.Seq (p, q)
+      MK(Seq (ID(p), ID(q)))
   ]];
 
   nk_pol_union : [[
-      p = nk_pol_seq ->
-      p
+      p = nk_pol_seq -> p
     | p = nk_pol_union; "|"; q = nk_pol_seq ->
-      Frenetic_NetKAT.Union (p, q)
+      MK(Union (ID(p), ID(q)))
   ]];
 
   nk_pol_cond : [[
-      p = nk_pol_union ->
-      p
+      p = nk_pol_union -> p
     | "if"; a = nk_pred;
       "then"; p = nk_pol_cond;
       "else"; q = nk_pol_cond ->
-      Frenetic_NetKAT.(Union(Seq(Filter a, p), Seq(Filter (Neg a), q)))
+      MK(Union(Seq(Filter ID(a), ID(p)), Seq(Filter (Neg ID(a)), ID(q))))
   ]];
 
   nk_pol : [[
-    p = nk_pol_cond ->
-    p
+    p = nk_pol_cond -> p
   ]];
 
 END
