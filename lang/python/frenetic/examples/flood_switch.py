@@ -11,12 +11,12 @@ def flood_switch_policy(switch):
   assert isinstance(switch, SwitchRef)
   pol = False
   for src in switch.ports:
-    test = Filter(Test(Location(Physical(src))))
+    test = Filter(PortEq(src))
     actions = False
     for dst in switch.ports:
       if src == dst:
         continue
-      action = test >> Mod(Location(Physical(dst)))
+      action = test >> SetPort(dst)
       if not actions:
         actions = action
       else:
@@ -26,5 +26,5 @@ def flood_switch_policy(switch):
     else:
       pol = actions | pol
   if not pol:
-    return Filter(Test(Switch(switch.id))) >> drop
-  return Filter(Test(Switch(switch.id))) >> pol
+    return Filter(SwitchEq(switch.id)) >> drop
+  return Filter(SwitchEq(switch.id)) >> pol

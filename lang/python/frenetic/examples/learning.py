@@ -14,20 +14,6 @@ table = {}
 topo = {}
 all_ethernet = set()
 
-##
-# Helper functions
-##
-def get_ethernet(pkt):
-    for p in pkt:
-        if p.protocol_name == 'ethernet':
-            return p
-
-def output(pt):
-    return Mod(Location(Physical(pt)))
-
-def controller():
-    return Mod(Location(Pipe("learning_controller")))
-
 # For each port p, copy a incoming packet from port p to all other ports.  This will
 # effectively copy it to all switches as long as there are no loops.  
 def flood(sw):
@@ -35,7 +21,7 @@ def flood(sw):
 
     def flood_port(pt):
         outs = [_pt for _pt in ports if _pt != pt]
-        return Filter(Test(Location(Physical(pt)))) >> Union(output(pt) for pt in outs)
+        return Filter(PortEq(pt)) >> Union(SetPort(_pt) for _pt in outs)
     
     return Union(flood_port(port) for port in ports)
 
@@ -43,7 +29,7 @@ def flood(sw):
 # Learning switch functions
 ##
 
-def learn(switch_id,pkt,pt):
+def learn(app, switch_id,pkt,pt):
     if switch_id not in topo:
         topo[switch_id] = []
         table[switch_id] = {}
@@ -51,7 +37,7 @@ def learn(switch_id,pkt,pt):
     # then don't bother recalculating.  This can happen if the rule hasn't been installed
     # fast enough.
     # TODO: Handle case of Ethernet moved
-    mac = get_ethernet(pkt).src
+    mac = app.packet(pkt,"ethernet").src
     if mac in all_ethernet:
         return "no_updates"
     print "Saw Ethernet For first time ", mac, " at switch ", switch_id, " port ", pt
@@ -61,16 +47,16 @@ def learn(switch_id,pkt,pt):
 
 def switch_policy(sw):
     def f((known,unknown),mac):
-        src = Test(EthSrc(mac))
-        dst = Test(EthDst(mac))
-        return (known | Filter(dst) >> Mod(Location(Physical(table[sw][mac]))), unknown & ~src)
+        src = EthSrcEq(mac)
+        dst = EthDstEq(mac)
+        return (known | Filter(dst) >> SetPort(table[sw][mac]), unknown & ~src)
         
     (known_pol, unknown_pred) = reduce(f, table[sw].keys(), (drop, true))
     # print "Known pol: ", known_pol.to_json()
     # print "Unknown pred: ", unknown_pred.to_json()
     # print "Controller: ", controller().to_json()
     # print "Flood(sw): ", flood(sw).to_json()
-    return known_pol | Filter(unknown_pred) >> (controller() | flood(sw))
+    return known_pol | Filter(unknown_pred) >> (SendToController("learning_controller") | flood(sw))
 
 def policy():
     #for sw in topo.keys():
@@ -127,7 +113,7 @@ class LearningApp(frenetic.App):
 
     def packet_in(self,switch_id, port_id, payload):
         pkt = packet.Packet(array.array('b', payload.data))
-        if learn(switch_id,pkt,port_id) == "updates_needed":
+        if learn(self, switch_id,pkt,port_id) == "updates_needed":
             self.update(policy())
 
 if __name__ == '__main__':

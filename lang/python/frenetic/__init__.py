@@ -1,4 +1,4 @@
-import uuid, sys, json, base64, time
+import uuid, sys, json, base64, time, array, binascii
 from datetime import timedelta
 from functools import partial
 from tornado import httpclient
@@ -7,6 +7,7 @@ from tornado.ioloop import IOLoop
 from frenetic.syntax import PacketIn, PacketOut
 from tornado.concurrent import return_future
 from tornado import gen
+from ryu.lib.packet import *
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
@@ -35,11 +36,18 @@ class App(object):
     """This method can be overridden by the application. By default, it simply
        prints the event and drops the packet."""
     def packet_in(self, switch_id, port_id, payload):
-        print "packet_in(switch_id=%s, port_id=%d, pipe=%s, payload=...)" % (switch_id, port_id)
+        print "packet_in(switch_id=%s, port_id=%d)" % (switch_id, port_id)
         self.pkt_out(switch_id, payload, [])
 
     def connected(self):
         print "established connection to Frenetic controller"
+
+    def packet(self, payload, protocol):
+        pkt = packet.Packet(array.array('b', payload.data))
+        for p in pkt:
+            if p.protocol_name == protocol:
+                return p
+        return None
 
     def pkt_out(self, switch_id, payload, actions, in_port=None):
         msg = PacketOut(switch=switch_id,

@@ -20,5 +20,5 @@ class MyApp(frenetic.App):
 
 print "Run mn --controller=remote --topo=single,2"
 app = MyApp()
-app.update(Mod(Location(Pipe("http"))))
+app.update(SendToController("http"))
 app.start_event_loop()
