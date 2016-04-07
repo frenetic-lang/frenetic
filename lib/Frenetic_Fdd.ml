@@ -76,8 +76,14 @@ module Field = struct
     assert (is_valid_order lst);
     List.iteri lst ~f:(fun i fld -> order.(to_enum fld) <- i)
 
+  (* Not a clean way to invert a permutation, but fast *)
+  let invert arr =
+    let inverted = Array.init num_fields ~f:ident in
+    Array.iteri arr ~f:(fun i elt -> inverted.(elt) <- i );
+    inverted
+
   let get_order () =
-    Array.to_list order
+    Array.to_list (invert order)
     |> List.filter_map ~f:of_enum
 
   (* compare depends on current order! *)

@@ -5,8 +5,8 @@ let%test_module _ = (module struct
 
   (* Field.hash intentionally not tested, as it just uses the default implementation *)
 
-  let%test "Field.all_fields returns default ordering" =
-    List.hd_exn all_fields = Switch
+  let%test "Field.all returns default ordering" =
+    List.hd_exn all = Switch
 
   (* The "order" field is dependent on Obj.magic returning Constructors starting from 0 in the 
     order that they're defined.  That's a pretty big assumption, and Obj.magic is not a public function,
@@ -33,6 +33,10 @@ let%test_module _ = (module struct
     [ EthDst; EthSrc; EthType; IP4Src; IP4Dst; IPProto; Location; Switch; TCPSrcPort; 
       TCPDstPort; Vlan; VlanPcp; VFabric; VPort; VSwitch ]
 
+  let string_of_list to_string l =
+    let strs = List.map l to_string in
+    "[" ^ (String.concat ~sep:", " strs) ^ "]"
+
   let%test "Field.set_order mutably sets field order" =
     let () = set_order all_fields_alpha_order in
     List.nth_exn (get_order ()) 5 = IPProto 
@@ -54,7 +58,7 @@ let%test_module _ = (module struct
     with Assert_failure _ -> true | _ -> false
 
   let%test "Field.get_order gets currently stored field order" =
-    let () = set_order all_fields in  (* Set back to default order *)
+    let () = set_order all in  (* Set back to default order *)
     List.nth_exn (get_order ()) 6 = IPProto 
 
   let%test "Field.auto_order sorts referenced Test field to top" = 
@@ -66,7 +70,7 @@ let%test_module _ = (module struct
   let auto_order_on_file_policy pol_file =
     let open Frenetic_NetKAT in
     let open Frenetic_NetKAT_Parser in 
-    let () = set_order all_fields in  (* Set back to default order *)
+    let () = set_order all in  (* Set back to default order *)
     let nk_str = In_channel.read_all pol_file in
     let pol = policy_from_string nk_str in
     auto_order pol
@@ -181,9 +185,6 @@ let%test_module _ = (module struct
   open Frenetic_Fdd.Field
   open Frenetic_Fdd.Value
   open Frenetic_Fdd.Pattern
-  (*open Frenetic_Fdd.Field*) 
-
-  (*set_order all_fields;  Set back to default order *)
 
   let%test "Pattern.compare returns comparison of fields if they're different" =
     compare (TCPSrcPort, Const 0L) (Vlan, Const 1305L) = 1
