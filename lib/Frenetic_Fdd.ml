@@ -30,40 +30,11 @@ module Field = struct
 
   let hash = Hashtbl.hash
 
-  let of_string = function
-    | "Switch" -> Switch
-    | "Vlan" -> Vlan
-    | "VlanPcp" -> VlanPcp
-    | "VSwitch" -> VSwitch
-    | "VPort" -> VPort
-    | "EthType" -> EthType
-    | "IPProto" -> IPProto
-    | "EthSrc" -> EthSrc
-    | "EthDst" -> EthDst
-    | "IP4Src" -> IP4Src
-    | "IP4Dst" -> IP4Dst
-    | "TCPSrcPort" -> TCPSrcPort
-    | "TCPDstPort" -> TCPDstPort
-    | "Location" -> Location
-    | "VFabric" -> VFabric
-    | _ -> assert false
+  let of_string s =
+    Sexp.of_string s |> t_of_sexp
 
-  let to_string = function
-    | Switch -> "Switch"
-    | Vlan -> "Vlan"
-    | VlanPcp -> "VlanPcp"
-    | VSwitch -> "VSwitch"
-    | VPort -> "VPort"
-    | EthType -> "EthType"
-    | IPProto -> "IPProto"
-    | EthSrc -> "EthSrc"
-    | EthDst -> "EthDst"
-    | IP4Src -> "IP4Src"
-    | IP4Dst -> "IP4Dst"
-    | TCPSrcPort -> "TCPSrcPort"
-    | TCPDstPort -> "TCPDstPort"
-    | Location -> "Location"
-    | VFabric -> "VFabric"
+  let to_string t =
+    sexp_of_t t |> Sexp.to_string
 
   let is_valid_order (lst : t list) : bool =
     Set.Poly.(equal (of_list lst) (of_list all))
@@ -189,7 +160,7 @@ module Value = struct
           Int64.shift_right_logical a (64-n) = Int64.shift_right_logical b (64-n)
     in
     match a, b with
-    | Const  a   , Const b 
+    | Const  a   , Const b
     (* Note that comparing a mask to a constant requires the mask to be all 64 bits, otherwise they fail the lesser mask test *)
     | Mask(a, 64), Const b -> a = b
     | Pipe   a   , Pipe  b
@@ -234,7 +205,7 @@ module Value = struct
 
   let join ?(tight=false) a b =
     (* The intent here looks a lot like Frenetic_OpenFlow.Pattern.Ip.join, but the notion of "tightness" might not
-       not apply.  Look at perhaps sharing the logic between the two, abstracting out bit length since this deals with 
+       not apply.  Look at perhaps sharing the logic between the two, abstracting out bit length since this deals with
        64 bit ints *)
     let join_mask a m b n =
       let lt = subset_eq (Mask(a, m)) (Mask(b, n)) in
@@ -302,7 +273,7 @@ module Value = struct
 
   let of_int   t = Const (Int64.of_int   t)
   (* Private to this file only *)
-  let of_int32 t = Const (Int64.of_int32 t) 
+  let of_int32 t = Const (Int64.of_int32 t)
   let of_int64 t = Const t
   let to_int_exn = function
     | Const k -> Int64.to_int_exn k
@@ -321,7 +292,7 @@ module Pattern = struct
   let equal a b =
     compare a b = 0
 
-  let to_int = Int64.to_int_exn 
+  let to_int = Int64.to_int_exn
   let to_int32 = Int64.to_int32_exn
 
   let of_hv hv =
@@ -411,10 +382,10 @@ module Pattern = struct
     | (TCPDstPort, Const tpPort) -> fun pat ->
       { pat with SDN.Pattern.tpDst = Some(to_int tpPort) }
     (* Should never happen because these pseudo-fields should have been removed by the time to_sdn is used *)
-    | (Switch, Const _) 
-    | (VSwitch, Const _) 
-    | (VPort, Const _)  
-    | (VFabric, Const _) -> assert false  
+    | (Switch, Const _)
+    | (VSwitch, Const _)
+    | (VPort, Const _)
+    | (VFabric, Const _) -> assert false
     | _, _ -> raise (FieldValue_mismatch(f, v))
 
 end

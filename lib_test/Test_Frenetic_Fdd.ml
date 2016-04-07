@@ -8,29 +8,27 @@ let%test_module _ = (module struct
   let%test "Field.all returns default ordering" =
     List.hd_exn all = Switch
 
-  (* The "order" field is dependent on Obj.magic returning Constructors starting from 0 in the 
+  (* The "order" field is dependent on Obj.magic returning Constructors starting from 0 in the
     order that they're defined.  That's a pretty big assumption, and Obj.magic is not a public function,
     so test it here to make sure a future OCaml release doesn't break it.  *)
   type test_type = One | Two | Three
   let%test "Obj.magic returns cardinal numbers of constructors in correct order" =
-    Obj.magic One = 0 && Obj.magic Two = 1 && Obj.magic Three = 2 
+    Obj.magic One = 0 && Obj.magic Two = 1 && Obj.magic Three = 2
 
   let%test "Field.compare returns comparison value between two fields in the current ordering" =
-    compare VlanPcp Location = -1     
+    compare VlanPcp Location = -1
 
   let%test "Field.of_string converts field string to abstract field" =
     of_string "Vlan" = Vlan
 
   let%test "Field.of_string throws exception for unrecognized field strings" =
-    try 
-      of_string "Not a Valid Field String" = Vlan
-    with Assert_failure _ -> true | _ -> false
+    Exn.does_raise (fun () -> of_string "Not a Valid Field String")
 
   let%test "Field.to_string converts field to string rep" =
     to_string VPort = "VPort"
 
   let all_fields_alpha_order =
-    [ EthDst; EthSrc; EthType; IP4Src; IP4Dst; IPProto; Location; Switch; TCPSrcPort; 
+    [ EthDst; EthSrc; EthType; IP4Src; IP4Dst; IPProto; Location; Switch; TCPSrcPort;
       TCPDstPort; Vlan; VlanPcp; VFabric; VPort; VSwitch ]
 
   let string_of_list to_string l =
@@ -39,37 +37,33 @@ let%test_module _ = (module struct
 
   let%test "Field.set_order mutably sets field order" =
     let () = set_order all_fields_alpha_order in
-    List.nth_exn (get_order ()) 5 = IPProto 
+    List.nth_exn (get_order ()) 5 = IPProto
 
   let%test "Field.set_order mutably changes the order array so compare works" =
     let () = set_order all_fields_alpha_order in
-    compare VlanPcp Location = 1     
+    compare VlanPcp Location = 1
 
   let%test "Field.set_order rejects list with missing fields" =
-    try 
-      let () = set_order (List.tl_exn all_fields_alpha_order) in (* Chop off first field *)
-      false
-    with Assert_failure _ -> true | _ -> false
+    Exn.does_raise (fun () ->
+      set_order (List.tl_exn all_fields_alpha_order)) (* Chop off first field *)
 
   let%test "Field.set_order rejects list with duplicate fields" =
-    try 
-      let () = set_order (VSwitch :: List.tl_exn all_fields_alpha_order) in (* VSwitch is now listed twice *)
-      false
-    with Assert_failure _ -> true | _ -> false
+    Exn.does_raise (fun () ->
+     set_order (VSwitch :: List.tl_exn all_fields_alpha_order)) (* VSwitch is now listed twice *)
 
   let%test "Field.get_order gets currently stored field order" =
     let () = set_order all in  (* Set back to default order *)
-    List.nth_exn (get_order ()) 6 = IPProto 
+    List.nth_exn (get_order ()) 6 = IPProto
 
-  let%test "Field.auto_order sorts referenced Test field to top" = 
-    let open Frenetic_NetKAT in 
+  let%test "Field.auto_order sorts referenced Test field to top" =
+    let open Frenetic_NetKAT in
     let policy = Filter(Test(TCPSrcPort(5))) in
     let () = auto_order policy in
-    List.hd_exn (get_order ()) = TCPSrcPort  
+    List.hd_exn (get_order ()) = TCPSrcPort
 
   let auto_order_on_file_policy pol_file =
     let open Frenetic_NetKAT in
-    let open Frenetic_NetKAT_Parser in 
+    let open Frenetic_NetKAT_Parser in
     let () = set_order all in  (* Set back to default order *)
     let nk_str = In_channel.read_all pol_file in
     let pol = policy_from_string nk_str in
@@ -175,9 +169,7 @@ let%test_module _ = (module struct
   (* Note that to_int_exn always succeeds on 64-bit architectures because both int's are 64 bits  *)
 
   let%test "Value.to_int_exn throws exception if not a constant" =
-    try 
-      to_int_exn (Pipe ("Hello")) = 1
-    with Assert_failure _ -> true | _ -> false
+    Exn.does_raise (fun () -> to_int_exn (Pipe ("Hello")))
 
 end)
 
@@ -192,20 +184,20 @@ let%test_module _ = (module struct
   let%test "Pattern.compare uses value as tiebreaker if fields are the same" =
     compare (TCPSrcPort, Const 80L) (TCPSrcPort, Const 8080L) = -1
 
-  let%test "Pattern.of_hv converts NetKAT HeaderValue to Pattern" = 
+  let%test "Pattern.of_hv converts NetKAT HeaderValue to Pattern" =
     of_hv (Frenetic_NetKAT.Switch 1L) = (Switch, Const 1L)
 
-  let%test "Pattern.of_hv converts NetKAT 32-bit based mask patterns to 64-bit" = 
+  let%test "Pattern.of_hv converts NetKAT 32-bit based mask patterns to 64-bit" =
     (* TODO(cr396): I think this is wrong.  If you expand the mask, it seems that you should right-pad the value with 32 bits of 0's *)
     of_hv (Frenetic_NetKAT.IP4Src(0x10203040l, 24l)) = (IP4Src, Mask(0x10203040L, 56))
 
-  let%test "Pattern.to_hv converts Pattern to NetKAT HeaderValue" = 
+  let%test "Pattern.to_hv converts Pattern to NetKAT HeaderValue" =
     to_hv (VFabric, Const 7L) = Frenetic_NetKAT.VFabric 7L
 
-  let%test "Pattern.to_hv converts Pattern constant values in places where mask is required to a full 32-bit mask" = 
+  let%test "Pattern.to_hv converts Pattern constant values in places where mask is required to a full 32-bit mask" =
     to_hv (IP4Src, Const 0x10203040L) = (Frenetic_NetKAT.IP4Src(0x10203040l, 32l))
 
-  let%test "Pattern.to_hv converts Pattern 64-bit based mask patterns to 32-bit" = 
+  let%test "Pattern.to_hv converts Pattern 64-bit based mask patterns to 32-bit" =
     (* TODO(cr396): I think this is wrong.  If you have a 56-bit mask, the number should be greater than a 56-bit number, which won't
        fit in the NetKAT 32-bit constant.  The constant should be left-shifted 32 bits *)
     to_hv (IP4Src, Mask(0x10203040L, 56)) = (Frenetic_NetKAT.IP4Src(0x10203040l, 24l))
@@ -225,17 +217,15 @@ let%test_module _ = (module struct
     new_sp_fn SDN_Pattern.match_all = SDN_Pattern.{match_all with nwSrc = Some (0x10203040l, 32l) }
 
   let%test "Pattern.to_sdn fails when given a non-OpenFlow field in a pattern" =
-    try 
+    Exn.does_raise (fun () ->
       let module SDN_Pattern = Frenetic_OpenFlow.Pattern in
       let new_sp_fn = to_sdn (VPort, Const 0L) in
-      new_sp_fn SDN_Pattern.match_all = SDN_Pattern.match_all
-    with Assert_failure _ -> true | _ -> false
+      new_sp_fn SDN_Pattern.match_all)
 
   let%test "Pattern.to_sdn fails when given a non-OpenFlow construct like a Pipe or Query" =
-    try 
+    Exn.does_raise (fun () ->
       let module SDN_Pattern = Frenetic_OpenFlow.Pattern in
       let new_sp_fn = to_sdn (Location, Pipe("Hello")) in
-      new_sp_fn SDN_Pattern.match_all = SDN_Pattern.match_all
-    with Frenetic_Fdd.FieldValue_mismatch _ -> true | _ -> false
+      new_sp_fn SDN_Pattern.match_all = SDN_Pattern.match_all)
 
 end)
