@@ -347,7 +347,7 @@ let check gen_fn compare_fn =
       testable_bool in
   let prop_parse_ok pol =
     try
-      norm_policy (policy_from_json (policy_to_json pol)) = norm_policy pol
+      norm_policy (policy_of_json (policy_to_json pol)) = norm_policy pol
     with _ -> false in
   check generate_policy_json prop_parse_ok
 
