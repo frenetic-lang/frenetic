@@ -14,7 +14,7 @@ module Discovery : sig
   val start : event Pipe.Reader.t -> (policy -> unit Deferred.t) ->
     (switchId -> Frenetic_OpenFlow.pktOut -> unit Deferred.t) -> t
 
-  val start_server : int -> policy -> unit
+  val start_server : int -> (policy -> unit Deferred.t) -> unit
 
   val get_policy : t -> policy
 end
