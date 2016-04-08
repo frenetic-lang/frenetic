@@ -12,6 +12,7 @@ open Test_Frenetic_Network
 open Test_Frenetic_Packet
 open Test_Frenetic_OpenFlow
 open Test_Frenetic_OpenFlow0x01
+open Test_Frenetic_OpenFlow0x04
 open Test_Frenetic_OpenFlow_Header
 open Test_Frenetic_NetKAT_SDN_Json
 open Test_Frenetic_Util

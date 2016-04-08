@@ -29,12 +29,7 @@ type tableId = int8 [@@deriving sexp]
 
 type bufferId = int32 [@@deriving sexp]
 
-type switchFlags =
-  | NormalFrag
-  | DropFrag
-  | ReasmFrag
-  | MaskFrag
-  [@@deriving sexp]
+type switchFlags = { frag_normal: bool; frag_drop: bool; frag_reasm: bool; } [@@deriving sexp]
 
 type switchConfig = {flags : switchFlags; miss_send_len : int16 } [@@deriving sexp]
 
@@ -124,7 +119,7 @@ type groupModFailed =
  | GrOutOfGroups
  | GrOutOfBuckets
  | GrChainingUnsupported
- | GrWatcHUnsupported
+ | GrWatchUnsupported
  | GrLoop
  | GrUnknownGroup
  | GrChainedGroup
@@ -151,7 +146,7 @@ type tableModFailed =
 
 type queueOpFailed =
  | QuBadPort
- | QuBadQUeue
+ | QuBadQueue
  | QuPermError
  [@@deriving sexp]
 
@@ -317,15 +312,15 @@ type action =
 | Output of pseudoPort
 | Group of groupId
 | PopVlan
-| PushVlan
-| PopMpls
-| PushMpls
+| PushVlan of int16
+| PopMpls of int16
+| PushMpls of int16
 | SetField of oxm
 | CopyTtlOut
 | CopyTtlIn
 | SetNwTtl of int8
 | DecNwTtl
-| PushPbb
+| PushPbb of int16
 | PopPbb
 | SetMplsTtl of int8
 | DecMplsTtl
@@ -451,7 +446,7 @@ type portDesc = { port_no : portId; hw_addr : int48; name : string; config :
                   portFeatures; curr_speed : int32; max_speed : int32} [@@deriving sexp]
 
 type portMod = { mpPortNo : portId; mpHw_addr : int48; mpConfig : portConfig;
-                 mpMask : portConfig; mpAdvertise : portState } [@@deriving sexp]
+                 mpMask : int32; mpAdvertise : portFeatures } [@@deriving sexp]
 
 type portReason =
   | PortAdd
@@ -548,7 +543,7 @@ type multipartRequest = { mpr_type : multipartType; mpr_flags : bool } [@@derivi
 val portDescReq : multipartRequest
 
 type switchDesc = { mfr_desc :string ; hw_desc : string; sw_desc : string;
-                         serial_num : string } [@@deriving sexp]
+                         serial_num : string; dp_desc : string } [@@deriving sexp]
 
 type flowStats = { table_id : tableId; duration_sec : int32; duration_nsec :
                    int32; priority : int16; idle_timeout : timeout;
