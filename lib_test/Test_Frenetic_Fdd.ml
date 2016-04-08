@@ -66,7 +66,7 @@ let%test_module _ = (module struct
     let open Frenetic_NetKAT_Parser in
     let () = set_order all in  (* Set back to default order *)
     let nk_str = In_channel.read_all pol_file in
-    let pol = policy_from_string nk_str in
+    let pol = policy_of_string nk_str in
     auto_order pol
 
   let%test "Field.auto_order on example places Location at the top" =

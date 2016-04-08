@@ -13,6 +13,15 @@ XOCamlbuildExtraArgs: -cflags -w,-40,-short-paths
 BuildTools:
   ocamlbuild,
   ocamldoc
+# generate standard parser and syntax extension parser from common file
+PreBuildCommand:
+  cppo -q \
+    lib/Frenetic_NetKAT_Parser.cppo.ml -o lib/Frenetic_NetKAT_Parser.ml
+  cppo -q -I lib \
+    syntax/Frenetic_Syntax_Extension_Parser.cppo.ml -o \
+    syntax/Frenetic_Syntax_Extension_Parser.ml
+PostBuildCommand:
+  rm lib/Frenetic_NetKAT_Parser.ml syntax/Frenetic_Syntax_Extension_Parser.ml
 
 Library frenetic
   Path: lib
@@ -124,8 +133,7 @@ Library syntax
     core,
     frenetic
   Modules:
-    Frenetic_Syntax_Extension_Parser,
-    Frenetic_Syntax_Extension_Quotations
+    Frenetic_Syntax_Extension_Parser
   XMETAType: syntax
   XMETARequires: camlp4, ulex, ipaddr, frenetic
   XMETADescription: Syntax extension writing NetKAT expressions

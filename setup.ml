@@ -6905,8 +6905,37 @@ let setup_t =
           build_type = (`Build, "ocamlbuild", Some "0.4");
           build_custom =
             {
-               pre_command = [(OASISExpr.EBool true, None)];
-               post_command = [(OASISExpr.EBool true, None)]
+               pre_command =
+                 [
+                    (OASISExpr.EBool true,
+                      Some
+                        (("cppo",
+                           [
+                              "-q";
+                              "\\\n";
+                              "lib/Frenetic_NetKAT_Parser.cppo.ml";
+                              "-o";
+                              "lib/Frenetic_NetKAT_Parser.ml\ncppo";
+                              "-q";
+                              "-I";
+                              "lib";
+                              "\\\n";
+                              "syntax/Frenetic_Syntax_Extension_Parser.cppo.ml";
+                              "-o";
+                              "\\\n";
+                              "syntax/Frenetic_Syntax_Extension_Parser.ml"
+                           ])))
+                 ];
+               post_command =
+                 [
+                    (OASISExpr.EBool true,
+                      Some
+                        (("rm",
+                           [
+                              "lib/Frenetic_NetKAT_Parser.ml";
+                              "syntax/Frenetic_Syntax_Extension_Parser.ml"
+                           ])))
+                 ]
             };
           install_type = (`Install, "internal", Some "0.4");
           install_custom =
@@ -7159,11 +7188,7 @@ let setup_t =
                       bs_nativeopt = [(OASISExpr.EBool true, [])]
                    },
                    {
-                      lib_modules =
-                        [
-                           "Frenetic_Syntax_Extension_Parser";
-                           "Frenetic_Syntax_Extension_Quotations"
-                        ];
+                      lib_modules = ["Frenetic_Syntax_Extension_Parser"];
                       lib_pack = false;
                       lib_internal_modules = [];
                       lib_findlib_parent = Some "frenetic";
@@ -7345,6 +7370,6 @@ let setup_t =
 
 let setup () = BaseSetup.setup setup_t;;
 
-# 7349 "setup.ml"
+# 7374 "setup.ml"
 (* OASIS_STOP *)
 let () = setup ();;

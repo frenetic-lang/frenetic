@@ -5,13 +5,11 @@ let%test "size returns 8 bytes" =
   size = 8
 
 let%test "parse rejects buffer less than size" =
-  try 
+  Exn.does_raise (fun () ->
     let buf = Cstruct.of_string "\x04" in
     let _ = parse buf in
     false
-  with
-    | Assert_failure _ -> true
-    | _ -> false
+  )
   
 let%test "parse correctly parses an OpenFlow header" =
   let buf = Cstruct.of_string "\x04\x03\x00\x40\x12\x34\x56\x78\x99\x99" in

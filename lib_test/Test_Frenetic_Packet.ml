@@ -96,8 +96,9 @@ let%test "nwSrc Accessor for ARP Packet" =
   nwSrc sample_arp_query_packet = ip_of_string "192.168.0.100"
 
 let%test "nwSrc Accessor for Unparseable Packet raises exception" = 
-  try nwSrc sample_unparseable_packet = (-1l)
-  with | Invalid_argument _ -> true | _ -> false
+  Exn.does_raise (fun () ->
+    nwSrc sample_unparseable_packet = (-1l)
+  )
 
 let%test "nwDst Accessor for IP Packet" = 
   nwDst sample_tcp_packet = 0xac580cfal
@@ -106,15 +107,17 @@ let%test "nwDst Accessor for ARP Packet" =
   nwDst sample_arp_reply_packet = ip_of_string "172.88.12.250"
 
 let%test "nwDst Accessor for Unparseable Packet raises exception" = 
-  try nwDst sample_unparseable_packet = (-1l)
-  with | Invalid_argument _ -> true | _ -> false
+  Exn.does_raise (fun () ->
+    nwDst sample_unparseable_packet = (-1l)
+  )
 
 let%test "nwTos Accessor for IP Packet" = 
   nwTos sample_tcp_packet = 141
 
 let%test "nwTos Accessor for Unparseable Packet raises exception" = 
-  try nwTos sample_unparseable_packet = (-1)
-  with | Invalid_argument _ -> true | _ -> false
+  Exn.does_raise (fun () ->
+    nwTos sample_unparseable_packet = (-1)
+  )
 
 let%test "nwProto Accessor for IP Packet" = 
   nwProto sample_tcp_packet = 0x06
@@ -123,41 +126,48 @@ let%test "nwProto Accessor for Unparseable IP Packet" =
   nwProto sample_ip_unparseable_packet = 88
 
 let%test "nwProto Accessor for Unparseable Packet raises exception" = 
-  try nwProto sample_unparseable_packet = (-1) 
-  with | Invalid_argument _ -> true | _ -> false
+  Exn.does_raise (fun () ->
+    nwProto sample_unparseable_packet = (-1) 
+  )
 
 let%test "tpSrc Accessor for TCP Packet" = 
   tpSrc sample_tcp_packet = 8080
 
 let%test "tpSrc Accessor for Unparseable IP Packet raises exception" = 
-  try tpSrc sample_ip_unparseable_packet = (-1)
-  with | Invalid_argument _ -> true | _ -> false
+  Exn.does_raise (fun () ->
+    tpSrc sample_ip_unparseable_packet = (-1)
+  )
 
 let%test "tpSrc Accessor for Unparseable Packet raises exception" = 
-  try tpSrc sample_unparseable_packet = (-1)
-  with | Invalid_argument _ -> true | _ -> false
+  Exn.does_raise (fun () ->
+    tpSrc sample_unparseable_packet = (-1)
+  )
 
 let%test "tpDst Accessor for TCP Packet" = 
   tpDst sample_tcp_packet = 44927
 
 let%test "tpDst Accessor for Unparseable IP Packet raises exception" = 
-  try tpDst sample_ip_unparseable_packet = (-1)
-  with | Invalid_argument _ -> true | _ -> false
+  Exn.does_raise (fun () ->
+    tpDst sample_ip_unparseable_packet = (-1)
+  )
 
 let%test "tpDst Accessor for Unparseable Packet raises exception" = 
-  try tpDst sample_unparseable_packet = (-1)
-  with | Invalid_argument _ -> true | _ -> false
+  Exn.does_raise (fun () ->
+    tpDst sample_unparseable_packet = (-1)
+  )
 
 let%test "arpOperation Accessor for TCP Packet" = 
   arpOperation sample_arp_query_packet = 0x0001
 
 let%test "arpOperation Accessor for Unparseable Packet raises exception" = 
-  try arpOperation sample_unparseable_packet = (-1)
-  with | Invalid_argument _ -> true | _ -> false
+  Exn.does_raise (fun () ->
+    arpOperation sample_unparseable_packet = (-1)
+  )
 
 let%test "arpOperation Accessor for IP Packet raises exception" = 
-  try arpOperation sample_tcp_packet = (-1)
-  with | Invalid_argument _ -> true | _ -> false
+  Exn.does_raise (fun () ->
+    arpOperation sample_tcp_packet = (-1)
+  )
 
 let%test "setDlSrc Mutator" = 
   (setDlSrc sample_ethernet_packet 0x102030405060L).dlSrc = 0x102030405060L
@@ -211,8 +221,9 @@ let%test "mac_of_string converts from hh:hh:hh:hh:hh:hh format" =
   mac_of_string "90:80:70:60:50:40" = 0x908070605040L
 
 let%test "mac_of_string blows up if not in hh:hh:hh:hh:hh:hh format" =
-  try mac_of_string "Unparseable" = (-1L)
-  with Assert_failure _ -> true | _ -> false  
+  Exn.does_raise (fun () ->
+    mac_of_string "Unparseable" = (-1L)
+  )
 
 let%test "string_of_dlAddr returns hh:hh:hh:hh:hh:hh format" = 
   string_of_dlAddr 0x102030405060L = "10:20:30:40:50:60"
@@ -242,8 +253,9 @@ let%test "ip_of_string converts from dotted notation nn.nn.nn.nn" =
   ip_of_string "192.168.0.101" = 0xc0a80065l
 
 let%test "ip_of_string blows up on inputs not in dotted notation nn.nn.nn.nn" =
-  try ip_of_string "192.168.0" = (-1l)
-  with Assert_failure _ -> true | _ -> false 
+  Exn.does_raise (fun () ->
+    ip_of_string "192.168.0" = (-1l)
+  )
 
 let%test "string_of_nwAddr converts to dotted notation nn.nn.nn.nn" =
   string_of_nwAddr 0xc0a80065l = "192.168.0.101"
@@ -294,8 +306,9 @@ let%test "mac_of_bytes converts from packed format" =
   mac_of_bytes "\x90\x80\x70\x60\x50\x40" = 0x908070605040L
 
 let%test "mac_of_bytes blows up if not in 6 bytes packed format" =
-  try mac_of_bytes "Unparseable" = (-1L)
-  with Invalid_argument _ -> true | _ -> false  
+  Exn.does_raise (fun () ->
+    mac_of_bytes "Unparseable" = (-1L)
+  )
 
 (** Marshall serialization *)
 

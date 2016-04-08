@@ -2,23 +2,12 @@ open Frenetic_OpenFlow
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Pretty
 open Frenetic_NetKAT_Compiler
+module Exn = Core.Std.Exn
 
 let%test "Can test locations, even when they are set to pipes" =
   let p = Filter (Test (Location (Pipe "web"))) in
   let opt = { default_compiler_options with remove_tail_drops = false } in
   List.length (to_table 0L ~options:opt (compile_local ~options:opt p)) == 1 (* that drops everything *)
-
-let%test "clearing cache fails" =
-  let a = Test (IPProto 1) in
-  let b = Test (EthType 0x800) in
-  let fdd1 = compile_local (Filter a) in
-  let compiler_options_empty = { default_compiler_options with cache_prepare = `Empty } in
-  let compiler_options_keep = { default_compiler_options with cache_prepare = `Keep } in
-  let fdd2 = compile_local ~options:compiler_options_empty (Filter b) in
-  try
-    seq fdd1 fdd2 != compile_local ~options:compiler_options_keep (Filter (And (a, b)))
-  with
-    Not_found -> true
 
 let%test "keeping cache_prepare works" =
   let a = Test (IPProto 1) in
@@ -390,8 +379,8 @@ let%test "json" =
  *)
 
 let get_masking_test =
-  let ip1 = Int32.of_int(192 * 256*256*256 + 168 * 256*256 + 0 * 256 + 1 * 1) in
-  let ip2 = Int32.of_int(192 * 256*256*256 + 168 * 256*256 + 0 * 256 + 5 * 1) in
+  let ip1 = Int32.of_int(192 * 256*256*256 + 168 * 256*256 + 0 * 256 + 1) in
+  let ip2 = Int32.of_int(192 * 256*256*256 + 168 * 256*256 + 0 * 256 + 5) in
   let filter_pol_of_ip ip =
     Seq(Filter(Test(IP4Src(ip, 24l))), Mod(Location(Physical 1l))) in
   let open Frenetic_NetKAT_Semantics in

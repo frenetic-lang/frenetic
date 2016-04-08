@@ -37,9 +37,9 @@ let%test "pkt_out handles buffered data Json format" =
 
 let%test "pkt_out doesn't support modify action" =
   let sample_packet_out_modify_json = from_string "{ \"actions\": [ {\"type\": \"modify\"} ] }" in
-  try 
+  Exn.does_raise (fun () ->
     (pkt_out_from_json sample_packet_out_modify_json) = (0L, (NotBuffered (Cstruct.of_string ""), None, []))
-  with Failure _ -> true | _ -> false 
+  )
 
 let%test "flowTable_to_json serializes a flow table in Json format" = 
   let ft = Test_Frenetic_OpenFlow.nightmare_pattern_table in
@@ -47,7 +47,7 @@ let%test "flowTable_to_json serializes a flow table in Json format" =
 
 let%test "flowTable_to_json doesn't handle multiple actions" = 
   let ft = Test_Frenetic_OpenFlow.sample_flow_table in
-  try 
+  Exn.does_raise (fun () ->
     to_string (flowTable_to_json ft) = ""
-  with Failure _ -> true | _ -> false 
+  )
    

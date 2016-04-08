@@ -22,8 +22,9 @@ let%test "Token.extract_string returns identifier for identifier-type tokens" =
   Token.extract_string (INT32 "12345") = "12345"
 
 let%test "Token.extract_string returns error for bare tokens" =
-  try Token.extract_string EOI = "12345"
-  with Invalid_argument _ -> true | _ -> false
+  Exn.does_raise (fun () ->
+    Token.extract_string EOI = "12345"
+  )
 
 let%test "mk takes a stream and location and returns tokens in a stream" = 
   let s = mk () (Loc.mk "<string>") (Stream.of_string "ip4Src = 8080l") in
