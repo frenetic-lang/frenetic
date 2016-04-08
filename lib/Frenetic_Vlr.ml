@@ -20,6 +20,12 @@ module type Result = sig
   val zero : t
 end
 
+module IntPair = struct
+  type t = (int * int) [@@deriving sexp, compare]
+  let hash (t1, t2) = 617 * t1 +  619 * t2
+end
+
+module IntPairTbl = Hashtbl.Make(IntPair)
 
 module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   type v = V.t * L.t [@@deriving sexp, compare]
@@ -59,7 +65,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
 
   module Tbl = Int.Table
 
-  module BinTbl = Frenetic_Util.IntPairTbl
+  module BinTbl = IntPairTbl
 
   let mk_leaf r = T.get (Leaf r)
 

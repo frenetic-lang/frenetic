@@ -1,4 +1,6 @@
-(** Library for constructing, marshaling and parsing data packets. *)
+(** Library for constructing, marshaling and parsing data packets.  These packets are 
+    independent of OpenFlow message information - they are mostly used for the payloads
+    of PacketIn and PacketOut messages. *)
 
 (** {9 Packet types}
 
@@ -339,6 +341,7 @@ val string_of_mac : dlAddr -> string
 (** [mac_of_string string] converts an colon-separated ethernet
     address to a [dlAddr] **)
 val mac_of_string : string -> dlAddr
+
 (* TODO(arjun): IMO it is silly to expose *all* these functions. *)
 
 (** [string_of_dlAddr addr] is identical to [string_of_mac]. *)
@@ -353,10 +356,6 @@ val string_of_dlVlan : dlVlan -> string
 
 (** [string_of_dlVlanPcp p] pretty-prints an 802.1Q VLAN priority. *)
 val string_of_dlVlanPcp : dlVlanPcp -> string
-
-(** [string_of_dlVlanDei p] pretty-prints an 802.1Q VLAN Drop Eligible
-    Indicator. *)
-val string_of_dlVlanDei : dlVlanDei -> string
 
 (** [string_of_ip ip] pretty-prints an IPv4 address. *)
 val string_of_ip : nwAddr -> string

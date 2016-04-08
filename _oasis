@@ -181,7 +181,8 @@ Executable testtool
 
 Test all_tests
   Run$: flag(tests)
-  Command: $testtool inline-test-runner frenetic
+  # -only-test Test_Frenetic_GroupTable0x04.ml
+  Command: $testtool inline-test-runner frenetic 
   TestTools: testtool
 
 Document frenetic

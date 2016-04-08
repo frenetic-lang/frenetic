@@ -10,7 +10,6 @@ open Yojson.Basic
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Optimize
 
-
 (** IP & MAC Addresses **)
 let string_of_mac = Frenetic_Packet.string_of_mac
 let mac_of_string = Frenetic_Packet.mac_of_string
@@ -32,7 +31,6 @@ let from_json_ip (json : json) : Frenetic_Packet.nwAddr * int32 =
     | `Null -> 32 |> int_to_uint32
     | x -> x |> to_int |> int_to_uint32 in
   (addr, mask)
-
 
 (** To JSON **)
 let to_json_value (h : header_val) : json = match h with
