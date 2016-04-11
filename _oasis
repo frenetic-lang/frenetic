@@ -152,6 +152,7 @@ Library test_frenetic
     Arbitrary_Frenetic_NetKAT,
     Arbitrary_Frenetic_OpenFlow,
     Arbitrary_Frenetic_OpenFlow0x01,
+    Arbitrary_Frenetic_OpenFlow0x04,
     Arbitrary_Frenetic_OpenFlow_Header,
     Arbitrary_Frenetic_Packet,
     Flowterp
