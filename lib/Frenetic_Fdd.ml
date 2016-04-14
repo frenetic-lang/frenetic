@@ -2,13 +2,8 @@ open Core.Std
 
 module SDN = Frenetic_OpenFlow
 
-(** Packet field.
-
-    Packet fields are the variables that network functions are defined over.
-    This module implements the the [Variable] signature from the Tdk package. *)
 module Field = struct
 
-  (* Do not change the order without reordering all_fields *)
   type t
     = Switch
     | Vlan
@@ -25,74 +20,47 @@ module Field = struct
     | TCPDstPort
     | Location
     | VFabric
-    [@@deriving sexp]
+    [@@deriving sexp, enumerate, enum]
 
   (** The type of packet fields. This is an enumeration whose ordering has an
       effect on the performance of Tdk operations, as well as the size of the
       flowtables that the compiler will produce. *)
 
+  let num_fields = max + 1
+
   let hash = Hashtbl.hash
 
-  let of_string = function
-    | "Switch" -> Switch
-    | "Location" -> Location
-    | "EthSrc" -> EthSrc
-    | "EthDst" -> EthDst
-    | "Vlan" -> Vlan
-    | "VlanPcp" -> VlanPcp
-    | "EthType" -> EthType
-    | "IPProto" -> IPProto
-    | "IP4Src" -> IP4Src
-    | "IP4Dst" -> IP4Dst
-    | "TCPSrcPort" -> TCPSrcPort
-    | "TCPDstPort" -> TCPDstPort
-    | _ -> assert false
+  let of_string s =
+    Sexp.of_string s |> t_of_sexp
 
-  let to_string = function
-    | Switch -> "Switch"
-    | Vlan -> "Vlan"
-    | VlanPcp -> "VlanPcp"
-    | VSwitch -> "VSwitch"
-    | VPort -> "VPort"
-    | EthType -> "EthType"
-    | IPProto -> "IPProto"
-    | EthSrc -> "EthSrc"
-    | EthDst -> "EthDst"
-    | IP4Src -> "IP4Src"
-    | IP4Dst -> "IP4Dst"
-    | TCPSrcPort -> "TCPSrcPort"
-    | TCPDstPort -> "TCPDstPort"
-    | Location -> "Location"
-    | VFabric -> "VFabric"
-
-  let num_fields = 15
-
-  (* Ensure that these are in the same order in which the variants appear. *)
-  let all_fields =
-    [ Switch; Vlan; VlanPcp; VSwitch; VPort; EthType; IPProto; EthSrc; EthDst;
-      IP4Src; IP4Dst; TCPSrcPort; TCPDstPort; Location; VFabric]
+  let to_string t =
+    sexp_of_t t |> Sexp.to_string
 
   let is_valid_order (lst : t list) : bool =
-    List.length lst = num_fields &&
-    List.for_all all_fields ~f:(List.mem lst)
+    Set.Poly.(equal (of_list lst) (of_list all))
 
-  (* assert (is_valid_order all_fields) *)
-
-  (* Initial order is the order in which fields appear in this file. *)
+  (* order[i] = the position of field i in the current ordering.  Indexes are 1..15 assigned by Obj.magic,
+     so that order[1] is the index of the Switch field.  Initial order is the order in which fields appear in this file. *)
   let order = Array.init num_fields ~f:ident
-
-  let readable_order = ref all_fields
-
-  let compare (x : t) (y : t) : int =
-    Pervasives.compare order.(Obj.magic x) order.(Obj.magic y)
 
   let set_order (lst : t list) : unit =
     assert (is_valid_order lst);
-    readable_order := lst;
-    List.iteri lst ~f:(fun i fld ->
-      order.(Obj.magic fld) <- i)
+    List.iteri lst ~f:(fun i fld -> order.(to_enum fld) <- i)
 
-  let get_order () = !readable_order
+  (* Not a clean way to invert a permutation, but fast *)
+  let invert arr =
+    let inverted = Array.init num_fields ~f:ident in
+    Array.iteri arr ~f:(fun i elt -> inverted.(elt) <- i );
+    inverted
+
+  let get_order () =
+    Array.to_list (invert order)
+    |> List.filter_map ~f:of_enum
+
+  (* compare depends on current order! *)
+  let compare (x : t) (y : t) : int =
+    (* using Obj.magic instead of to_enum for bettter performance *)
+    Int.compare order.(Obj.magic x) order.(Obj.magic y)
 
   let field_of_header_val hv = match hv with
     | Frenetic_NetKAT.Switch _ -> Switch
@@ -125,10 +93,11 @@ module Field = struct
        field assignments to sizes. *)
   let auto_order (pol : Frenetic_NetKAT.policy) : unit =
     let open Frenetic_NetKAT in
+    (* Construct map of (field,score) pairs, where score starts at 0 for every field *)
     let count_tbl =
-      match Hashtbl.Poly.of_alist (List.map all_fields ~f:(fun f -> (f, 0))) with
+      match Hashtbl.Poly.of_alist (List.map all ~f:(fun f -> (f, 0))) with
       | `Ok tbl -> tbl
-      | `Duplicate_key _ -> assert false in
+      | `Duplicate_key _ -> assert false in (* Should never happen because assert above will catch it *)
     let rec f_pred size in_product pred = match pred with
       | True -> ()
       | False -> ()
@@ -163,18 +132,12 @@ module Field = struct
     and f_union pol = f_union' pol (fun n -> n) in
     let _ = f_seq pol in
     Hashtbl.Poly.to_alist count_tbl
-    |> List.sort ~cmp:(fun (_, x) (_, y) -> Pervasives.compare y x)
+    |> List.sort ~cmp:(fun (_, x) (_, y) -> Int.compare y x)
     |> List.map ~f:fst
     |> set_order
 
 end
 
-(** Packet field values.
-
-    Each packet field can take on a certain range of values that in general have
-    a lattice structure. This sometimes enables multiple tests on fields to be
-    compressed into a single test. This module implements the [Lattice]
-    siganture from the Tdk package. *)
 module Value = struct
 
   type t
@@ -186,29 +149,10 @@ module Value = struct
      * Put this somewhere else *)
     | FastFail of Int32.t list
     [@@deriving sexp]
-  (** The packet field value type. This is a union of all the possible values
-      that all fields can take on. All integer bit widths are represented by an
-      [Int64.t] and will be cast to the appropriate bit width for use during
-      final translation to flowtables.
 
-      A simple bitmask variant is also supported. [Mask(n, m)] indicates that
-      the first [m] bits of the value [n] are fixed, while the rest should be
-      treated as wildcards.
-
-      Because this is a big union of possible value types, it's possible for the
-      programmer to construct [(Field.t, Value.t)] pairs that do not make any
-      sense, e.g., [(Field.EthSrc, Value.Pipe "learn")]. This will be detected
-      during flowtable generation, though the syntax of the NetKAT language will
-      prevent programs from generating these ill-formed predicates. *)
-
-  (*
-    10.1.0.0 / 16    10.0.0.0 / 8
-    0.0.10.1         0.0.10.0
-   *)
+  (* subseq_eq, meet and join are defined to make this fit interface of Frenetic_Vlr.Lattice *)
   let subset_eq a b =
-    (* A partial order on values that should be reflexive, transitive, and
-       antisymmetric. This should also satisfy certain properites related to
-       [join] and [meet] which will be mentioned along with those functions. *)
+    (* Note that Mask checking is a lot like Frenetic_OpenFlow.Pattern.Ip, but the int's are different sizes *)
     let subset_eq_mask a m b n =
       if m < n
         then false
@@ -217,6 +161,7 @@ module Value = struct
     in
     match a, b with
     | Const  a   , Const b
+    (* Note that comparing a mask to a constant requires the mask to be all 64 bits, otherwise they fail the lesser mask test *)
     | Mask(a, 64), Const b -> a = b
     | Pipe   a   , Pipe  b
     | Query  a   , Query b -> a = b
@@ -231,16 +176,6 @@ module Value = struct
     | Const a    , Mask(b, n) -> subset_eq_mask a 64 b n
 
   let meet ?(tight=false) a b =
-    (* Determines the greatest lower bound of two elements, if one exists. This
-       operation should be associative, commutative, and idempotent. If [tight]
-       is false, then this is the typical meet operation on a lattice. If
-       [tight] is true, then the retuned value [r] must in addition satisfy the
-       following property:
-
-         ∀x, [subset_eq r x] <=> [subset_eq a x || subset_eq b x || equal r x].
-
-       In other words, any elements related to [r] should do so transitively
-       through [a] or [b], or be equal to [r] itself. *)
     let meet_mask a m b n =
       let lt = subset_eq (Mask(a, m)) (Mask(b, n)) in
       let gt = subset_eq (Mask(b, n)) (Mask(a, m)) in
@@ -268,18 +203,10 @@ module Value = struct
     | Mask(a, m) , Mask(b, n) -> meet_mask a m  b n
     | Const a, Mask(b, n)     -> meet_mask a 64 b n
 
-
   let join ?(tight=false) a b =
-    (* Determines the least upper bound of two elements, if one exists. This
-       operation should be associative, commutative, and idempotent. If [tight]
-       is false, then this is the typical join operation on a lattice. If
-       [tight] is true, then the retuned value [r] must in addition satisfy the
-       following property:
-
-         ∀x, [subset_eq x r] <=> [subset_eq x a || subset_eq x b || equal x r].
-
-       In other words, any elements related to [r] should do so transitively
-       through [a] or [b], or be equal to [r] itself. *)
+    (* The intent here looks a lot like Frenetic_OpenFlow.Pattern.Ip.join, but the notion of "tightness" might not
+       not apply.  Look at perhaps sharing the logic between the two, abstracting out bit length since this deals with
+       64 bit ints *)
     let join_mask a m b n =
       let lt = subset_eq (Mask(a, m)) (Mask(b, n)) in
       let gt = subset_eq (Mask(b, n)) (Mask(a, m)) in
@@ -313,22 +240,27 @@ module Value = struct
 
   let hash = Hashtbl.hash
 
+  (* Value compare is used in Pattern below, but is not public *)
   let compare x y = match (x, y) with
     | Const a, Mask (b, 64)
     | Mask (a, 64), Const b
-    | Const a, Const b -> Pervasives.compare a b
-    | Const _ , _ -> -1
-    | _, Const _ -> 1
+    | Const a, Const b -> Int64.compare a b
+    | Query s1, Query s2
+    | Pipe s1, Pipe s2 -> String.compare s1 s2
+    | FastFail l1, FastFail l2 -> List.compare Int32.compare l1 l2
     | Mask(a, m) , Mask(b, n) ->
       let shift = 64 - min m n in
-      (match Pervasives.compare (Int64.shift_right a shift) (Int64.shift_right b shift) with
-       | 0 -> Pervasives.compare n m
+      (match Int64.(compare (shift_right a shift) (shift_right b shift)) with
+       | 0 -> Int.compare n m
        | c -> c)
+    | Const _ , _ -> -1
+    | _, Const _ -> 1
     | Mask _, _ -> -1
     | _, Mask _ -> 1
-    | FastFail _, _ -> -1
-    | _, FastFail _ -> 1
-    | _ -> Pervasives.compare x y
+    | Query _, _ -> -1
+    | _, Query _ -> 1
+    | Pipe _, _ -> -1
+    | _, Pipe _ -> 1
 
   let equal x y = compare x y = 0
 
@@ -340,6 +272,7 @@ module Value = struct
     | FastFail(p_lst) -> Printf.sprintf "FastFail(%s)" (Frenetic_NetKAT.string_of_fastfail p_lst)
 
   let of_int   t = Const (Int64.of_int   t)
+  (* Private to this file only *)
   let of_int32 t = Const (Int64.of_int32 t)
   let of_int64 t = Const t
   let to_int_exn = function
@@ -349,20 +282,11 @@ end
 
 exception FieldValue_mismatch of Field.t * Value.t
 
-
-(* Packet patterns.
-
-   This module contains operations related to the deicsion variables of the
-   diagram used by the compiler, including functions to convert to and from the
-   [header_value], building up flow tables. *)
 module Pattern = struct
   type t = Field.t * Value.t
+  [@@deriving compare]
 
-  let compare a b =
-    let c = Field.compare (fst a) (fst b) in
-    if c <> 0 then c else Value.compare (snd a) (snd b)
-
-  let to_string (f, v) =
+  let to_string (f, v) =    
     Printf.sprintf "%s = %s" (Field.to_string f) (Value.to_string v)
 
   let equal a b =
@@ -371,10 +295,8 @@ module Pattern = struct
   let to_int = Int64.to_int_exn
   let to_int32 = Int64.to_int32_exn
 
-  module NetKAT = Frenetic_NetKAT
-
   let of_hv hv =
-    let open NetKAT in
+    let open Frenetic_NetKAT in
     match hv with
     | Switch sw_id -> (Field.Switch, Value.(Const sw_id))
     | Location(Physical p) -> (Field.Location, Value.of_int32 p)
@@ -401,6 +323,7 @@ module Pattern = struct
   let to_hv (f, v) =
     let open Field in
     let open Value in
+    let module NetKAT = Frenetic_NetKAT in
     match f, v with
     | (Switch  , Const sw) -> NetKAT.Switch sw
     | (Location, Const p) -> NetKAT.(Location (Physical (to_int32 p)))
@@ -427,13 +350,9 @@ module Pattern = struct
     Frenetic_NetKAT.Test (to_hv (f, v))
 
   let to_sdn (f, v) : SDN.Pattern.t -> SDN.Pattern.t =
-    (* Converts a [Pattern.t] into a function that will modify a [SDN.Pattern.t]
-       to check the condition represented by the [Pattern.t]. *)
     let open Field in
     let open Value in
     match f, v with
-    | (Switch, Const _) | (VSwitch, Const _) | (VPort, Const _)  -> assert false
-    | (VFabric, Const _) -> assert false
     | (Location, Const p) -> fun pat ->
       { pat with SDN.Pattern.inPort = Some(to_int32 p) }
     | (EthSrc, Const dlAddr) -> fun pat ->
@@ -452,44 +371,36 @@ module Pattern = struct
       { pat with SDN.Pattern.nwSrc =
           Some(to_int32 nwAddr, Int32.of_int_exn (mask - 32)) }
     | (IP4Src  , Const nwAddr) -> fun pat ->
-      { pat with SDN.Pattern.nwSrc = Some(to_int32 nwAddr, 0l) }
+      { pat with SDN.Pattern.nwSrc = Some(to_int32 nwAddr, 32l) }
     | (IP4Dst  , Mask(nwAddr, mask)) -> fun pat ->
       { pat with SDN.Pattern.nwDst =
           Some(to_int32 nwAddr, Int32.of_int_exn (mask - 32)) }
     | (IP4Dst  , Const nwAddr) -> fun pat ->
-      { pat with SDN.Pattern.nwDst = Some(to_int32 nwAddr, 0l) }
+      { pat with SDN.Pattern.nwDst = Some(to_int32 nwAddr, 32l) }
     | (TCPSrcPort, Const tpPort) -> fun pat ->
       { pat with SDN.Pattern.tpSrc = Some(to_int tpPort) }
     | (TCPDstPort, Const tpPort) -> fun pat ->
       { pat with SDN.Pattern.tpDst = Some(to_int tpPort) }
+    (* Should never happen because these pseudo-fields should have been removed by the time to_sdn is used *)
+    | (Switch, Const _)
+    | (VSwitch, Const _)
+    | (VPort, Const _)
+    | (VFabric, Const _) -> assert false
     | _, _ -> raise (FieldValue_mismatch(f, v))
 
 end
 
-(* Packet actions
 
-   This module impelements packet actions for NetKAT. They are modeled as a set
-   of maps from fields to values/continuations. The inner maps represent a sequential
-   composition of field modifications. The outer set represents a parallel
-   composition of sequential compositions. *)
 module Action = struct
 
   type field_or_cont =
     | F of Field.t
     | K
-  [@@deriving sexp]
-
-  let compare_field_or_cont x y =
-    match x,y with
-    | F f1, F f2 -> Field.compare f1 f2
-    | K, K -> 0
-    | F _, K -> 1
-    | K, F _ -> -1
+  [@@deriving sexp, compare]
 
   module Seq = struct
     include Map.Make(struct
-      type t = field_or_cont [@@deriving sexp]
-      let compare = compare_field_or_cont
+      type t = field_or_cont [@@deriving sexp, compare]
     end)
 
     let compare = compare_direct Value.compare
@@ -588,10 +499,6 @@ module Action = struct
       | _ -> queries)
 
   let to_sdn ?group_tbl (in_port : int64 option) (t:t) : SDN.par =
-    (* Convert a NetKAT action to an SDN action. At the moment this function
-       assumes that fields are assigned to proper bitwidth integers, and does
-       no validation along those lines. If the input is derived from a NetKAT
-       surface syntax program, then this assumption likely holds. *)
     let to_int = Int64.to_int_exn in
     let to_int32 = Int64.to_int32_exn in
     let t = Par.filter_map t ~f:(fun seq ->

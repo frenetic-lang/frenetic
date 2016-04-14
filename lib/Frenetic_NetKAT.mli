@@ -1,4 +1,12 @@
-(** NetKAT Syntax *)
+(** NetKAT Syntax 
+
+  The NetKAT language is central to Frenetic, and we factor out the central types here.  The big actors
+  on NetKAT structures are Frenetic_NetKAT_Compiler which compiles NetKAT into flow tables,
+  Frenetic_NetKAT_Parser which turns NetKAT strings (e.g "TcpSrcPort(8080); port := 2") into NetKAT, and 
+  Frenetic_NetKAT_Json which turns JSON-formatted NetKAT into NetKAT
+
+*)
+
 open Sexplib.Conv
 open Core.Std
 open Frenetic_Packet
@@ -8,12 +16,12 @@ open Frenetic_Packet
   (i.e. policy containing links) is encountered *)
 exception Non_local
 
-type switchId = Frenetic_OpenFlow.switchId [@@deriving sexp]
-type portId = Frenetic_OpenFlow.portId [@@deriving sexp]
+type switchId = Frenetic_OpenFlow.switchId [@@deriving sexp, compare, eq]
+type portId = Frenetic_OpenFlow.portId [@@deriving sexp, compare, eq]
 type payload = Frenetic_OpenFlow.payload [@@deriving sexp]
-type vswitchId = int64 [@@deriving sexp]
-type vportId = int64 [@@deriving sexp]
-type vfabricId = int64 [@@deriving sexp]
+type vswitchId = int64 [@@deriving sexp, compare, eq]
+type vportId = int64 [@@deriving sexp, compare, eq]
+type vfabricId = int64 [@@deriving sexp, compare, eq]
 
 (** {2 Policies} *)
 
@@ -24,7 +32,7 @@ type location =
   | FastFail of int32 list
   | Pipe of string
   | Query of string
-  [@@deriving sexp]
+  [@@deriving sexp, compare]
 
 type header_val =
   | Switch of switchId

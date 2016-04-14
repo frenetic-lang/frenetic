@@ -27,7 +27,10 @@ module type Lattice = sig
 
       In other words, elements related to the greatest lower bound should be
       related transitively through [a] and [b], or be equal to the greatest
-      lower bound itself. *)
+      lower bound itself. 
+
+      TODO: tightness doesn't seem to be used anywhere in Frenetic, and can probably
+      be removed.  *)
 
   val join : ?tight:bool -> t -> t -> t option
   (** [join ~tight a b] returns the least upper bound of the elements [a] and
@@ -86,6 +89,8 @@ module type Result = sig
       and [||], respectively, then [zero] should be the value [false]. *)
 end
 
+module IntPairTbl : Hashtbl.S with type key = (int * int)
+
 (** Variable-Lattice-Result
 
     This module implements a variant of a binary decision diagrams. Rather than
@@ -96,7 +101,8 @@ end
 module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
   type t = private int
-  (** The type of a decision diagram *)
+  (** A decision diagram index.  All diagrams and subdiagrams within it are given an
+  index.  You can convert this to a tree with [unget], and from a tree with [get]. *)
 
   type v = V.t * L.t
   (** The type of a variable in the decision diagram. *)
@@ -108,20 +114,44 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
     = private
     | Leaf of r
     | Branch of v * t * t
+  (* A tree structure representing the decision diagram. The [Leaf] variant
+   * represents a constant function. The [Branch(v, l, t, f)] represents an
+   * if-then-else. When variable [v] takes on the value [l], then [t] should
+   * hold. Otherwise, [f] should hold.
+   *
+   * [Branch] nodes appear in an order determined first by the total order on
+   * the [V.t] value with with ties broken by the total order on [L.t]. The
+   * least such pair should appear at the root of the diagram, with each child
+   * nodes being strictly greater than their parent node. This invariant is
+   * important both for efficiency and correctness.
+   * *)
 
   module Tbl : Hashtbl.S with type key = t
   module BinTbl : Hashtbl.S with type key = (t * t)
 
   val get : d -> t
+  (* Given a tree structure, return the cache index for it *)
+
   val unget : t -> d
+
   val get_uid : t -> int (* get_uid t is equivalent to (t : t :> int) *)
+
   val mk_branch : v -> t -> t -> t
+  (** [mkbranch v t f] Creates (or looks up if it's already been created) a diagram with pattern
+    v, true-branch t and false-branch f.  The t and f branches should already have been created,
+    so you pass indexes here. *)
+
   val mk_leaf : r -> t
+  (** [mkleaf r] Creates (or looks up) a leaf.  *)
+
   val drop : t (* zero *)
+  (** [drop] returns the leaf for a drop operation, which is always present as a leaf node *)
+
   val id : t (* one *)
+  (** [id] returns the leaf for the identity operation, which is always present as a leaf node *)
 
   val const : r -> t
-  (** [const r] creates a constant diagram out of [r]. *)
+  (** [const r] creates a constant diagram out of [r]. It's essentially a leaf node with a constant.  *)
 
   val atom : v -> r -> r -> t
   (** [atom v t f] creates a diagram that checks the variable assignment
@@ -178,11 +208,18 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   val equal : t -> t -> bool
   (** [equal a b] returns whether or not the two diagrams are structurally
       equal.
-
       If two diagrams are structurally equal, then they represent the
       same combinatorial object. However, if two diagrams are not equal, they
       still may represent the same combinatorial object. Whether or not this is
       the case depends on they behavior of the type [v]. *)
+
+  val sum : t -> t -> t
+  (** [sum a b] returns the disjunction of the two diagrams. The [sum]
+      operation on the [r] type is used to combine leaf nodes. *)
+
+  val prod : t -> t -> t
+  (** [prod a b] returns the conjunction of the two diagrams. The [prod]
+      operation on the [r] type is used to combine leaf nodes. *)
 
   val compare : t -> t -> int
 
@@ -193,7 +230,10 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   (** [clear_cache ()] clears the internal cache of diagrams. *)
 
   val compressed_size : t -> int
+  (** [compressed_size t] returns the number of nodes in the diagram, duplicates not counted *)
+
   val uncompressed_size : t -> int
+  (** [uncompressed_size t] returns the number of nodes in the diagram, duplicates counted *)
 
   val to_dot : t -> string
   (** [to_dot t] returns a string representation of the diagram using the DOT
@@ -201,5 +241,5 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
       using Graphviz or any other program that supports the DOT language. *)
 
   val refs : t -> Int.Set.t
-
+  (** [refs t] returns set of subdiagrams in this diagram. *)
 end

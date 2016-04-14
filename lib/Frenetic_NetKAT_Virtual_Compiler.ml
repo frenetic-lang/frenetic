@@ -21,30 +21,26 @@ let minimize xs obj =
   List.fold_left f None xs
 
 (* physical location *)
-type ploc = switchId * portId
+type ploc = switchId * portId [@@deriving compare, eq]
 
 (* virtual location *)
-type vloc = vswitchId * vportId
+type vloc = vswitchId * vportId [@@deriving compare, eq]
 
 (* topology node *)
 type ('a, 'b) node =
   | InPort of 'a * 'b
   | OutPort of 'a * 'b
-[@@deriving sexp]
+[@@deriving sexp, compare, eq]
 
 (* virtual vertex *)
 module VV = struct
-  type t = (vswitchId, vportId) node [@@deriving sexp]
-  let compare = compare
-  let equal = (=)
+  type t = (vswitchId, vportId) node [@@deriving sexp, compare, eq]
   let hash  = Hashtbl.hash
 end
 
 (* physical vertex *)
 module PV = struct
-  type t = (switchId, portId) node [@@deriving sexp]
-  let compare = compare
-  let equal = (=)
+  type t = (switchId, portId) node [@@deriving sexp, compare, eq]
   let hash = Hashtbl.hash
 end
 
@@ -54,12 +50,10 @@ type prod_vertex =
   | InconsistentOut of VV.t * PV.t
   | ConsistentOut of VV.t * PV.t
   | InconsistentIn of VV.t * PV.t
-[@@deriving sexp]
+[@@deriving sexp, compare, eq]
 
 module V = struct
-  type t = prod_vertex [@@deriving sexp]
-  let compare = compare
-  let equal = (=)
+  type t = prod_vertex [@@deriving sexp, compare, eq]
   let hash = Hashtbl.hash
 end
 

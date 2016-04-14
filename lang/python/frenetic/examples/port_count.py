@@ -18,13 +18,17 @@ class PortCount(frenetic.App):
     self.update(self.global_policy())
 
   def connected(self):
-    frenetic.App.connected(self)
+    # The controller may already be connected to several switches on startup.
+    # This ensures that we probe them too.
+    def handle_current_switches(switches):
+      for switch_id in switches:
+        self.switch_up(switch_id, switches[switch_id])
+    self.current_switches(callback=handle_current_switches)        
     PeriodicCallback(self.count_ports, 5000).start()
 
   def print_count(self, future, switch):
     data = future.result()
     print "Count %s@%s: {rx_bytes = %s, tx_bytes = %s}" % (switch, data['port_no'], data['rx_bytes'], data['tx_bytes'])
-    
 
   def count_ports(self):
     for switch in self.state.switches:
@@ -32,7 +36,6 @@ class PortCount(frenetic.App):
         ftr = self.port_stats(str(switch.id), str(port))
         f = partial(self.print_count, switch = switch.id)
         IOLoop.instance().add_future(ftr, f)
-        
 
   def switch_up(self, switch_id, ports):
     print "switch_up(%s, %s)" % (switch_id, ports)
@@ -46,8 +49,6 @@ class PortCount(frenetic.App):
 
   def global_policy(self):
     return Union([flood_switch_policy(switch) for switch in self.state.switches])
-    
-
 
 def main(version):
     app = PortCount(State())

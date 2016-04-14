@@ -238,6 +238,15 @@ type portDescription =
   ; peer : portFeatures 
   } [@@deriving sexp]
 
+let string_of_option to_string opt =
+  match opt with
+  | Some v -> "Some " ^ to_string v
+  | None -> "None"
+
+let string_of_list to_string l =
+  let strs = List.map l to_string in
+  "[" ^ (String.concat ~sep:", " strs) ^ "]"
+
 module Format = struct
 
   open Format
@@ -1018,7 +1027,6 @@ module Timeout = struct
     if d = 0 then Permanent else ExpiresAfter d
 end
 
-
 module FlowMod = struct
 
   module Command = struct
@@ -1090,8 +1098,8 @@ module FlowMod = struct
     (Timeout.to_string m.idle_timeout)
     (Timeout.to_string m.hard_timeout)
     m.notify_when_removed
-    (Frenetic_Util.string_of_option Int32.to_string m.apply_to_packet)
-    (Frenetic_Util.string_of_option PseudoPort.to_string m.out_port)
+    (string_of_option Int32.to_string m.apply_to_packet)
+    (string_of_option PseudoPort.to_string m.out_port)
     m.check_overlap
 
   let size_of (msg:flowMod) =
@@ -1394,7 +1402,7 @@ module PacketOut = struct
 
   let to_string out = Printf.sprintf
     "{ payload = ...; port_id = %s; actions = %s }"
-    (Frenetic_Util.string_of_option string_of_portId out.port_id)
+    (string_of_option string_of_portId out.port_id)
     (Action.sequence_to_string out.apply_actions)
 
   let parse bits =
@@ -1914,7 +1922,7 @@ module SwitchFeatures = struct
     feats.num_tables
     (Capabilities.to_string feats.supported_capabilities)
     (SupportedActions.to_string feats.supported_actions)
-    (Frenetic_Util.string_of_list PortDescription.to_string feats.ports)
+    (string_of_list PortDescription.to_string feats.ports)
 
   let parse (buf : Cstruct.t) : t =
     let switch_id = get_ofp_switch_features_datapath_id buf in
@@ -2219,7 +2227,7 @@ module StatsReply = struct
       stats.byte_count
       (Action.sequence_to_string stats.actions)
 
-    let sequence_to_string = Frenetic_Util.string_of_list to_string
+    let sequence_to_string = string_of_list to_string
 
     let _parse_individual_stats bits =
       (* length = flow stats + actions *)

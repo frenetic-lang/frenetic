@@ -1,4 +1,6 @@
-(** Library for constructing, marshaling and parsing data packets. *)
+(** Library for constructing, marshaling and parsing data packets.  These packets are 
+    independent of OpenFlow message information - they are mostly used for the payloads
+    of PacketIn and PacketOut messages. *)
 
 (** {9 Packet types}
 
@@ -8,46 +10,46 @@
 *)
 
 (** [int8] is the type of 8-bit integers. *)
-type int8 = int [@@deriving sexp]
+type int8 = int [@@deriving sexp, compare]
 
 (** [int16] is the type of 16-bit integers. *)
-type int16 = int [@@deriving sexp]
+type int16 = int [@@deriving sexp, compare]
 
 (** [int48] is the type of 48-bit integers. *)
-type int48 = int64 [@@deriving sexp]
+type int48 = int64 [@@deriving sexp, compare]
 
 (** [dlAddr] is the type of Ethernet addresses. *)
-type dlAddr = int48 [@@deriving sexp]
+type dlAddr = int48 [@@deriving sexp, compare]
 
 (** [dlTyp] is the type of Ethernet frame types. *)
-type dlTyp = int16 [@@deriving sexp]
+type dlTyp = int16 [@@deriving sexp, compare]
 
 (** [dlVlan] is the type of VLAN identifiers.  A value of [None]
     indicates that no 802.1Q (VLAN) header is set, which is distinct from
     setting the VLAN to 0.
 *)
-type dlVlan = int16 option [@@deriving sexp]
+type dlVlan = int16 option [@@deriving sexp, compare]
 
 (** [dlVlanPcp] is the type of 802.1Q (VLAN) priorities. *)
-type dlVlanPcp = int8 [@@deriving sexp]
+type dlVlanPcp = int8 [@@deriving sexp, compare]
 
 (** [dlVlanDei] is the type of 802.1Q (VLAN) drop eligible indicator. *)
-type dlVlanDei = bool [@@deriving sexp]
+type dlVlanDei = bool [@@deriving sexp, compare]
 
 (** [nwAddr] is the type of IPv4 addresses. *)
-type nwAddr = int32 [@@deriving sexp]
+type nwAddr = int32 [@@deriving sexp, compare]
 
 (** [nwProto] is the type of IPv4 protocol numbers. *)
-type nwProto = int8 [@@deriving sexp]
+type nwProto = int8 [@@deriving sexp, compare]
 
 (** [nwTos] is the type of IPv4 types of service. *)
-type nwTos = int8 [@@deriving sexp]
+type nwTos = int8 [@@deriving sexp, compare]
 
 (** [ipv6Addr] is the type of IPv6 addresses. *)
-type ipv6Addr = int64*int64 [@@deriving sexp]
+type ipv6Addr = int64*int64 [@@deriving sexp, compare]
 
 (** [tpPort] is the type of transport protocol ports. *)
-type tpPort = int16 [@@deriving sexp]
+type tpPort = int16 [@@deriving sexp, compare]
 
 (** TCP frame of a packet. *)
 module Tcp : sig
@@ -60,9 +62,9 @@ module Tcp : sig
       ; cwr : bool (** Congestion window reduced. *)
       ; ece : bool (** ECN-Echo. *)
       ; urg : bool (** Indicates the Urgent pointer field is significant. *)
-      ; ack : bool (** Indicates that the Acknowledgment field is 
+      ; ack : bool (** Indicates that the Acknowledgment field is
                        significant. *)
-      ; psh : bool (** Asks to push the buffered data to the receiving 
+      ; psh : bool (** Asks to push the buffered data to the receiving
                        application. *)
       ; rst : bool (** Reset the connection. *)
       ; syn : bool (** Synchronize sequence numbers. *)
@@ -70,7 +72,7 @@ module Tcp : sig
       } [@@deriving sexp]
   end
 
-  type t = 
+  type t =
     { src : tpPort (** Source port. *)
     ; dst : tpPort  (** Destination port. *)
     ; seq : int32 (** Sequence number. *)
@@ -98,7 +100,7 @@ end
 (** ICMP frame of a packet. *)
 module Icmp : sig
 
-  type t = 
+  type t =
     { typ : int8 (** ICMP type. *)
     ; code : int8 (** ICMP subtype. *)
     ; chksum : int16 (** Checksum. *)
@@ -210,7 +212,7 @@ module Ip : sig
       } [@@deriving sexp]
   end
 
-  type t = 
+  type t =
     { tos : nwTos (** Type of service. *)
     ; ident : int16 (** Identification. *)
     ; flags : Flags.t (** IPv4 header flags. *)
@@ -236,18 +238,18 @@ end
 type nw =
   | Ip of Ip.t (** Internet Protocol version 4 (IPv4). *)
   | Arp of Arp.t (** Address Resolution Protocol (ARP). *)
-  | Unparsable of (dlTyp * Cstruct.t) (** The EtherType code accompanied by the 
+  | Unparsable of (dlTyp * Cstruct.t) (** The EtherType code accompanied by the
                                   uninterpreted ethernet payload. *)
   [@@deriving sexp]
 
 (** The type [packet] represents a packet at the ethernet protocol level. *)
-type packet = 
+type packet =
   { dlSrc : dlAddr (** Ethernet source address. *)
   ; dlDst : dlAddr (** Ethernet destination address. *)
   ; dlVlan : dlVlan (** 802.1Q VLAN identifier, if any. *)
   ; dlVlanDei : dlVlanDei (** 802.1Q VLAN Drop Eligible Indciator.  Ignored if
                            [dlVlan] is [None] *)
-  ; dlVlanPcp : dlVlanPcp (** 802.1Q VLAN priority.  Ignored if [dlVlan] is 
+  ; dlVlanPcp : dlVlanPcp (** 802.1Q VLAN priority.  Ignored if [dlVlan] is
                           [None]. *)
   ; nw : nw (** Network payload. *)
   } [@@deriving sexp]
@@ -339,6 +341,7 @@ val string_of_mac : dlAddr -> string
 (** [mac_of_string string] converts an colon-separated ethernet
     address to a [dlAddr] **)
 val mac_of_string : string -> dlAddr
+
 (* TODO(arjun): IMO it is silly to expose *all* these functions. *)
 
 (** [string_of_dlAddr addr] is identical to [string_of_mac]. *)
@@ -353,10 +356,6 @@ val string_of_dlVlan : dlVlan -> string
 
 (** [string_of_dlVlanPcp p] pretty-prints an 802.1Q VLAN priority. *)
 val string_of_dlVlanPcp : dlVlanPcp -> string
-
-(** [string_of_dlVlanDei p] pretty-prints an 802.1Q VLAN Drop Eligible
-    Indicator. *)
-val string_of_dlVlanDei : dlVlanDei -> string
 
 (** [string_of_ip ip] pretty-prints an IPv4 address. *)
 val string_of_ip : nwAddr -> string

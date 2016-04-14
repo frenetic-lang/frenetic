@@ -48,7 +48,7 @@ class Routing(frenetic.App):
     # to the next_switch.
     next_switch = switch_path.pop()
     out_port = self.state.network[curr_switch][next_switch]['label']
-    pol = Filter(Test(Switch(curr_switch))) >> Mod(Location(Physical(out_port)))
+    pol = Filter(SwitchEq(curr_switch)) >> SetPort(out_port)
     acc.append(pol)
     return self.build_path(switch_path, next_switch, acc)
 
@@ -100,8 +100,8 @@ class Routing(frenetic.App):
         switch_path.pop()
 
         # Test that we are coming from the src_host and going to the dst_host
-        test = Filter(Test(EthSrc(src_host)) & Test(EthDst(dst_host)))
+        test = Filter(EthSrcEq(src_host) & EthDstEq(dst_host))
         paths.append(test >> self.build_path(switch_path, switch_path.pop(), []))
 
     # If there exists a path, use it.
-    return ((Filter(Test(EthType(0x800))) >> Union(paths)))
+    return Filter(EthTypeEq(0x800)) >> Union(paths)
