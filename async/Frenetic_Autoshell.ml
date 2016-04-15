@@ -12,6 +12,7 @@ type command =
   | Compile
   | Fabric
   | Write of string
+  | Speckat
   | Exit
 
 
@@ -55,6 +56,10 @@ module Parser = struct
       many_until any_char eof >>=
       (fun filename -> return (Write (String.of_char_list filename)))
 
+  (* Parser for the Speckat command *)
+  let speckat : (command, bytes list) MParser.t =
+    Tokens.symbol "speckat" >> return Speckat
+
   (* Parser for the exit command *)
   let exit : (command, bytes list) MParser.t =
     Tokens.symbol "exit" >> return Exit
@@ -68,6 +73,7 @@ module Parser = struct
     net <|>
     compile <|>
     fabric <|>
+    speckat <|>
     write <|>
     quit <|>
     exit
@@ -105,14 +111,15 @@ let load_policy_file (filename : string) : unit =
   with
   | Sys_error msg -> printf "Loading policy failed: %s\n%!" msg
 
-let load_net_file (filename : string) : unit =
+let load_net_file (filename : string) : Net.Topology.t option =
   try
     let net = Net.Parse.from_dotfile filename in
     printf "\n Topology: \n\n";
     printf "%s\n%!" (Net.Pretty.to_dot net);
-    topology := Some (net, filename)
+    topology := Some (net, filename);
+    Some net
   with
-  | Sys_error msg -> printf "Loading policy failed: %s\n%!" msg
+  | Sys_error msg -> printf "Loading policy failed: %s\n%!" msg; None
 
 let compile (pol : policy) : Frenetic_NetKAT_Compiler.automaton =
   Frenetic_NetKAT_Compiler.compile_to_automaton pol
@@ -124,6 +131,26 @@ let mk_fabric (net : Net.Topology.t) :
 let write (at : Frenetic_NetKAT_Compiler.automaton) (filename:string) : unit =
   let string = Frenetic_NetKAT_Compiler.automaton_to_string at in
   Out_channel.write_all "%s\n%!" ~data:string
+
+let print_fabric (table:(switchId, Frenetic_OpenFlow0x01.flowMod list) Hashtbl.t)
+  : unit =
+  printf "\n Fabric: \n";
+  Hashtbl.iteri table (fun ~key:swid ~data:flow_mods ->
+    printf "\n\t Switch %Ld:\n" swid;
+    List.iter flow_mods (fun fm -> printf "\t\t %s\n"
+      (Frenetic_OpenFlow0x01.FlowMod.to_string fm)));
+  printf "\n"
+
+let speckat () : unit =
+    let dotpath = "examples/speckat/fork.dot" in
+    printf "Loading topology from %s\n" dotpath;
+    match load_net_file dotpath with
+    | Some net ->
+      printf "Generating VLAN per port fabric";
+      let table = mk_fabric net in
+      print_fabric table
+    | None ->
+      printf "Failed to generate fabric. Topology might be wrong."
 
 let parse_command (line : string) : command option =
   match (MParser.parse_string Parser.command line []) with
@@ -138,16 +165,11 @@ let rec repl () : unit Deferred.t =
     | `Eof -> Shutdown.shutdown 0
     | `Ok line -> match parse_command line with
       | Some (Policy filename) -> load_policy_file filename
-      | Some (Net filename) -> load_net_file filename
+      | Some (Net filename) -> ignore(load_net_file filename)
       | Some Fabric -> begin match !topology with
         | Some(net,_) ->
           let table = mk_fabric net in
-          printf "\n Fabric: \n";
-          Hashtbl.iteri table (fun ~key:swid ~data:flow_mods ->
-            printf "\n\t Switch %Ld:\n" swid;
-            List.iter flow_mods (fun fm -> printf "\t\t %s\n"
-              (Frenetic_OpenFlow0x01.FlowMod.to_string fm)));
-          printf "\n";
+          print_fabric table;
           fabric := table
         | None -> printf "Please load a topology with the `net` command first."
       end
@@ -157,6 +179,7 @@ let rec repl () : unit Deferred.t =
       | Some (Write filename) -> begin match !automaton with
         | None -> print_endline "No compiled automaton available"
         | Some (at, _) -> write at filename end
+      | Some Speckat -> speckat ()
       | Some Exit ->
 	print_endline "Goodbye!";
 	Shutdown.shutdown 0
