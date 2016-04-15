@@ -58,6 +58,7 @@ Library frenetic
     Frenetic_NetKAT_Pretty,
     Frenetic_NetKAT_SDN_Json,
     Frenetic_NetKAT_Semantics,
+    Frenetic_Fabric,
     Frenetic_Network,
     Frenetic_OpenFlow,
     Frenetic_OpenFlow_Header,
