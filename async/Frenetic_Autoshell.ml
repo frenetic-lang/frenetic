@@ -10,6 +10,7 @@ type command =
   | Policy of string
   | Net of string
   | Compile
+  | Fabric
   | Write of string
   | Exit
 
@@ -42,7 +43,11 @@ module Parser = struct
 
   (* Parser for the compile command *)
   let compile : (command, bytes list) MParser.t =
-    Tokens.symbol "exit" >> return Compile
+    Tokens.symbol "compile" >> return Compile
+
+  (* Parser for the fabric command *)
+  let fabric : (command, bytes list) MParser.t =
+    Tokens.symbol "fabric" >> return Fabric
 
   (* Parser for the write command *)
   let write : (command, bytes list) MParser.t =
@@ -62,6 +67,7 @@ module Parser = struct
     policy <|>
     net <|>
     compile <|>
+    fabric <|>
     write <|>
     quit <|>
     exit
@@ -77,6 +83,9 @@ let automaton : (Frenetic_NetKAT_Compiler.automaton * policy) option ref = ref
 
 (* A reference to the current topoology and associated filename *)
 let topology : (Net.Topology.t * string) option ref = ref None
+
+(* A reference to the current fabri *)
+let fabric : (switchId, Frenetic_OpenFlow0x01.flowMod list) Hashtbl.t ref = ref (Hashtbl.Poly.create ())
 
 let load_policy_file (filename : string) : unit =
   try
@@ -105,9 +114,12 @@ let load_net_file (filename : string) : unit =
   with
   | Sys_error msg -> printf "Loading policy failed: %s\n%!" msg
 
-
 let compile (pol : policy) : Frenetic_NetKAT_Compiler.automaton =
   Frenetic_NetKAT_Compiler.compile_to_automaton pol
+
+let mk_fabric (net : Net.Topology.t) :
+    (switchId, Frenetic_OpenFlow0x01.flowMod list) Hashtbl.t =
+  Frenetic_Fabric.vlan_per_port net
 
 let write (at : Frenetic_NetKAT_Compiler.automaton) (filename:string) : unit =
   let string = Frenetic_NetKAT_Compiler.automaton_to_string at in
@@ -127,6 +139,18 @@ let rec repl () : unit Deferred.t =
     | `Ok line -> match parse_command line with
       | Some (Policy filename) -> load_policy_file filename
       | Some (Net filename) -> load_net_file filename
+      | Some Fabric -> begin match !topology with
+        | Some(net,_) ->
+          let table = mk_fabric net in
+          printf "\n Fabric: \n";
+          Hashtbl.iteri table (fun ~key:swid ~data:flow_mods ->
+            printf "\n\t Switch %Ld:\n" swid;
+            List.iter flow_mods (fun fm -> printf "\t\t %s\n"
+              (Frenetic_OpenFlow0x01.FlowMod.to_string fm)));
+          printf "\n";
+          fabric := table
+        | None -> printf "Please load a topology with the `net` command first."
+      end
       | Some Compile ->
         let (pol,_) = !policy in
         automaton := Some (compile pol, pol)
