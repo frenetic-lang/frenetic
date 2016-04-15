@@ -147,8 +147,11 @@ let speckat () : unit =
     match load_net_file dotpath with
     | Some net ->
       printf "Generating VLAN per port fabric";
-      let table = mk_fabric net in
-      print_fabric table
+      let table = Frenetic_Fabric.vlan_per_port net in
+      print_fabric table;
+      printf "Generating VLAN per shortest path fabric";
+      let table = Frenetic_Fabric.shortest_path net [1L;2L;3L] [1L;2L;3L] in
+      print_fabric table ;
     | None ->
       printf "Failed to generate fabric. Topology might be wrong."
 
