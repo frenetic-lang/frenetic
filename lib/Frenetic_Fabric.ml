@@ -34,10 +34,12 @@ let drop = { add_flow with priority = 1 }
 
 let vlan_per_port (net:Net.Topology.t) :
     (switchId, Frenetic_OpenFlow0x01.flowMod list) Hashtbl.t =
+  (* TODO(basus: Do something intelligent for switch->host links *)
   let mk_flow_mod (port:int) : flowMod =
     let pattern = { blank_pattern with dlVlan = Some (Some port) } in
     let actions = [ SetDlVlan None; Output (PhysicalPort port) ] in
-    { add_flow with pattern = pattern; actions = actions }
+    { add_flow with pattern = pattern; actions = actions;
+      out_port = Some (PhysicalPort port) }
   in
 
   let open Net.Topology in
