@@ -1,12 +1,14 @@
 open Core.Std
 open Async.Std
 open Frenetic_NetKAT
+open Frenetic_Network
 
 module Compiler = Frenetic_NetKAT_Compiler
 module Log = Frenetic_Log
 
 type command =
-  | Load of string
+  | Policy of string
+  | Net of string
   | Compile
   | Write of string
   | Exit
@@ -18,7 +20,7 @@ module Parser = struct
   module Tokens = MParser_RE.Tokens
 
   (* Use the netkat parser to parse policies *)
-  let parse_policy ?(name = "") (pol_str : string) : (policy, string) Result.t =
+  let parse_policy (pol_str : string) : (policy, string) Result.t =
     try
       Ok (Frenetic_NetKAT_Parser.policy_of_string pol_str)
     with Camlp4.PreCast.Loc.Exc_located (error_loc,x) ->
@@ -26,11 +28,17 @@ module Parser = struct
                (Camlp4.PreCast.Loc.to_string error_loc)
                (Exn.to_string x))
 
-  (* Parser for the load command *)
-  let load : (command, bytes list) MParser.t =
-    Tokens.symbol "load" >>
+  (* Parser for the policy command *)
+  let policy: (command, bytes list) MParser.t =
+    Tokens.symbol "policy" >>
       many_until any_char eof >>=
-      (fun filename -> return (Load (String.of_char_list filename)))
+      (fun filename -> return (Policy (String.of_char_list filename)))
+
+  (* Parser for the net command *)
+  let net: (command, bytes list) MParser.t =
+    Tokens.symbol "net" >>
+      many_until any_char eof >>=
+      (fun filename -> return (Net (String.of_char_list filename)))
 
   (* Parser for the compile command *)
   let compile : (command, bytes list) MParser.t =
@@ -51,7 +59,8 @@ module Parser = struct
     Tokens.symbol "quit" >> return Exit
 
   let command : (command, bytes list) MParser.t =
-    load <|>
+    policy <|>
+    net <|>
     compile <|>
     write <|>
     quit <|>
@@ -63,9 +72,13 @@ end
 let policy : (policy * string) ref = ref (drop, "drop")
 
 (* A reference to the current automaton and the associated policy. *)
-let automaton : (Frenetic_NetKAT_Compiler.automaton * policy) option ref = ref None
+let automaton : (Frenetic_NetKAT_Compiler.automaton * policy) option ref = ref
+  None
 
-let load_file (filename : string) : unit =
+(* A reference to the current topoology and associated filename *)
+let topology : (Net.Topology.t * string) option ref = ref None
+
+let load_policy_file (filename : string) : unit =
   try
     let open In_channel in
     let chan = create filename in
@@ -81,7 +94,17 @@ let load_file (filename : string) : unit =
       printf "%s\n%!" (Frenetic_NetKAT_Pretty.string_of_policy p)
     | Error msg -> print_endline msg
   with
-  | Sys_error msg -> printf "Load failed: %s\n%!" msg
+  | Sys_error msg -> printf "Loading policy failed: %s\n%!" msg
+
+let load_net_file (filename : string) : unit =
+  try
+    let net = Net.Parse.from_dotfile filename in
+    printf "\n Topology: \n\n";
+    printf "%s\n%!" (Net.Pretty.to_dot net);
+    topology := Some (net, filename)
+  with
+  | Sys_error msg -> printf "Loading policy failed: %s\n%!" msg
+
 
 let compile (pol : policy) : Frenetic_NetKAT_Compiler.automaton =
   Frenetic_NetKAT_Compiler.compile_to_automaton pol
@@ -102,7 +125,8 @@ let rec repl () : unit Deferred.t =
   let handle line = match line with
     | `Eof -> Shutdown.shutdown 0
     | `Ok line -> match parse_command line with
-      | Some (Load filename) -> load_file filename
+      | Some (Policy filename) -> load_policy_file filename
+      | Some (Net filename) -> load_net_file filename
       | Some Compile ->
         let (pol,_) = !policy in
         automaton := Some (compile pol, pol)
