@@ -209,9 +209,9 @@ let port_stats (t : t) =
   let discover =
     (let event_pipe = Pipe.map discoverclient.event_reader
       ~f:(fun s -> s |> Yojson.Basic.from_string |> Frenetic_NetKAT_Json.event_from_json) in
-    Discoveryapp.Discovery.start event_pipe (update t "discover") (pkt_out t)) in
-  let _ = update t "discover" (Discoveryapp.Discovery.get_policy discover) >>|
-  fun _ ->  (Discoveryapp.Discovery.start_server http_port (update t "discover"));
+    Frenetic_Discovery.Discovery.start event_pipe (update t "discover") (pkt_out t)) in
+  let _ = update t "discover" (Frenetic_Discovery.Discovery.get_policy discover) >>|
+  fun _ ->  (Frenetic_Discovery.Discovery.start_server http_port (update t "discover"));
    don't_wait_for (propogate_events Controller.event) in
   ()
 

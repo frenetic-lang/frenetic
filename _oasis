@@ -94,7 +94,7 @@ Library async
     Frenetic_NetKAT_Controller,
     Frenetic_NetKAT_Updates,
     Frenetic_Ox,
-    Discoveryapp
+    Frenetic_Discovery
 
 Executable frenetic
   Path: frenetic
