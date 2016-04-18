@@ -12,22 +12,6 @@ from probe import ProbeData
 weight_check_interval = 5000
 num_intervals = 5
 
-# Packet to be encoded for sending Probes over the probocol
-
-def get(pkt,protocol):
-    for p in pkt:
-        if p.protocol_name == protocol:
-            return p
-
-def get_src_ip(pkt):
-  ip = get(pkt, "ipv4")
-  if ip is not None:
-    return ip.src
-
-  arp = get(pkt, "arp")
-  if arp is not None:
-    return arp.src_ip
-
 class Count(object):
 
   def __init__(self, count):
@@ -235,13 +219,12 @@ class Topology(frenetic.App):
                    actions=[Output(Physical(dst_port_id))])
 
   def packet_in(self, switch_id, port_id, payload):
-    pkt = packet.Packet(array.array('b', payload.data))
-    p = get(pkt, 'ethernet')
+    p = self.packet(payload, 'ethernet')
     # If this is VLan packet, get ethernet type from emebdded header instead
-    ethertype = get(pkt, 'vlan').ethertype if (p.ethertype == 0x8100) else p.ethertype
+    ethertype = self.packet(payload, 'vlan').ethertype if (p.ethertype == 0x8100) else p.ethertype
 
     if (ethertype == ProbeData.PROBOCOL):
-      probe_data = get(pkt, 'ProbeData')
+      probe_data = self.packet(payload, 'ProbeData')
       self.handle_probe(switch_id, port_id, probe_data.src_switch,
                         probe_data.src_port)
       self.pkt_out(switch_id, payload, [])

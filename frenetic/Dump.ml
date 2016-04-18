@@ -4,24 +4,14 @@ open Core.Std
 (* UTILITY FUNCTIONS                                                         *)
 (*===========================================================================*)
 
-let with_file (file : string) ~(f:in_channel -> 'a) : 'a =
-  match Sys.file_exists file with
-  | `No -> failwith (sprintf "File \"%s\" expexted but not found." file)
-  | `Unknown -> failwith (sprintf "No read permission for file \"%s\"." file)
-  | `Yes -> In_channel.with_file ~f file
-
 let parse_pol ?(json=false) file =
-  with_file file ~f:(fun chan -> match json with
-    | false ->
-      In_channel.input_all chan
-      |> Frenetic_NetKAT_Parser.policy_from_string
-    | true ->
-      Frenetic_NetKAT_Json.policy_from_json_channel chan)
+  match json with
+  | false -> Frenetic_NetKAT_Parser.policy_of_file file
+  | true ->
+    In_channel.create file
+    |> Frenetic_NetKAT_Json.policy_of_json_channel
 
-let parse_pred file =
-  with_file file ~f:(fun chan ->
-    In_channel.input_all chan
-    |> Frenetic_NetKAT_Parser.pred_from_string)
+let parse_pred = Frenetic_NetKAT_Parser.pred_of_file
 
 let fmt = Format.formatter_of_out_channel stdout
 let _ = Format.pp_set_margin fmt 120

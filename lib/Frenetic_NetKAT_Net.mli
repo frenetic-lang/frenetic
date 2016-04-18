@@ -4,10 +4,10 @@ module SDN = Frenetic_OpenFlow
 
 type node =
   | Switch of SDN.switchId
-  | Host of Frenetic_Packet.dlAddr * Frenetic_Packet.nwAddr with sexp
+  | Host of Frenetic_Packet.dlAddr * Frenetic_Packet.nwAddr [@@deriving sexp]
 
 module Node: sig
-  type t = node with sexp
+  type t = node [@@deriving sexp]
 end
 
 module Link: Frenetic_Network.EDGE

@@ -18,17 +18,19 @@ type gui_event =
 
 module Switch = struct
   module Probe = struct
-    cstruct probe_payload {
-      uint64_t switch_id;
-      uint32_t port_id
-    } as big_endian
+    [%%cstruct
+    type probe_payload = {
+      switch_id: uint64_t;
+      port_id: uint32_t;
+    } [@@big_endian]]
 
     (* XXX(seliopou): Watch out for this. The protocol in etheret packets has two
      * different meanings depending on the range of values that it falls into. If
      * anything weird happens with probe sizes, look here.  This is not the protocol,
      * but in fact the size.  *)
 
-let protocol = 0x05ff
+    let protocol = 0x05ff
+
     let mac = 0xffeabbadabbaL
 
     exception Wrong_type
@@ -471,7 +473,7 @@ module Discovery = struct
         let sw_id = Array.get g 1 in
         make_req "http://localhost:9000/policy" "GET" ()
         >>= fun pol ->
-          let pol = Frenetic_NetKAT_Json.policy_from_json_string pol |>
+          let pol = Frenetic_NetKAT_Json.policy_of_json_string pol |>
         Frenetic_NetKAT_Pretty.string_of_policy in
           make_req ("http://localhost:9000/flowtbl/"^sw_id) "GET" ()
           >>= fun flowtbl ->  let data = Yojson.Basic.to_string (`Assoc[("policy",`String pol);
@@ -496,7 +498,7 @@ module Discovery = struct
             replace "%7B" ";" in
         let polstr =  "filter " ^ polstr in
         Log.info "%s" polstr;
-          let policy = try Some (Frenetic_NetKAT_Parser.policy_from_string polstr)
+          let policy = try Some (Frenetic_NetKAT_Parser.policy_of_string polstr)
             with _ -> None in
           match policy with
           | Some pol -> begin
@@ -547,5 +549,4 @@ module Discovery = struct
   let newroutes = List.map routes converter in*)
     let _ = Gui_Server.create routes in
     ()
-
           end

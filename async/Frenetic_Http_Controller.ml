@@ -44,15 +44,15 @@ let pol : (policy, policy) Frenetic_DynGraph.t = Frenetic_DynGraph.create drop u
 let clients : (string, client) Hashtbl.t = Hashtbl.Poly.create ()
 
 let iter_clients (f : string -> client -> unit) : unit =
-  Hashtbl.iter clients ~f:(fun ~key ~data -> f key data)
+  Hashtbl.iteri clients ~f:(fun ~key ~data -> f key data)
 
 let rec propogate_events event =
   event () >>=
-    fun evt ->
-      let response = Frenetic_NetKAT_Json.event_to_json_string evt in
-      (* TODO(jcollard): Is there a mapM equivalent here? *)
-      Hashtbl.iter clients (fun ~key ~data:client ->
-        Pipe.write_without_pushback client.event_writer response);
+  fun evt ->
+  let response = Frenetic_NetKAT_Json.event_to_json_string evt in
+  (* TODO(jcollard): Is there a mapM equivalent here? *)
+  Hashtbl.iteri clients (fun ~key ~data:client ->
+    Pipe.write_without_pushback client.event_writer response);
   propogate_events event
 
   (* Gets the client's node in the dataflow graph, or creates it if doesn't exist *)

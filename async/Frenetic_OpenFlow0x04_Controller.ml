@@ -119,7 +119,7 @@ let main (of_port : int) (pol_file : string)
   Log.info "Starting OpenFlow 1.3 controller";
   Log.info "Using flow tables: %s" (layout_to_string layout);
   let pol_str = In_channel.read_all pol_file in
-  let pol = Frenetic_NetKAT_Parser.policy_from_string pol_str in
+  let pol = Frenetic_NetKAT_Parser.policy_of_string pol_str in
   let compiler_opts = {default_compiler_options with field_order = `Static (List.concat layout)} in
   let fdd = compile_local pol ~options:compiler_opts in
   let _ = Tcp.Server.create ~on_handler_error:`Raise (Tcp.on_port of_port)
@@ -137,7 +137,7 @@ let fault_tolerant_main (of_port : int) (pol_file : string)
   (topo_file : string) () : unit =
   Log.info "Starting OpenFlow 1.3 fault tolerant controller";
   let pol_str = In_channel.read_all pol_file in
-  let pol = Frenetic_NetKAT_Parser.policy_from_string pol_str in
+  let pol = Frenetic_NetKAT_Parser.policy_of_string pol_str in
   let fdd = Frenetic_NetKAT_Compiler.compile_local pol in
   let topo = Frenetic_NetKAT_Net.Net.Topology.empty () in
   (* let topo = Frenetic_NetKAT_Net.Net.Parse.from_dotfile topo_file in *)

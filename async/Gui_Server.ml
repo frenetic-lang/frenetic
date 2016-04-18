@@ -59,7 +59,7 @@ handler body addr request
 let create ?max_connections ?max_pending_connections
     ?buffer_age_limit ?on_handler_error ext_routes =
   (* routes_to_handler (routes @ ext_routes)  >>= fun h -> *)
-  Cohttp_async.Server.create ?max_connections ?max_pending_connections
+  Cohttp_async.Server.create ?max_connections
     ?buffer_age_limit ?on_handler_error
     (Tcp.on_port 8080) (routes_to_handler (routes @ ext_routes))
 

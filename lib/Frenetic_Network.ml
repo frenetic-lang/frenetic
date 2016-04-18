@@ -1,9 +1,9 @@
 open Graph
-open Sexplib.Conv
+(* open Sexplib.Conv *)
 open Core_kernel.Std
 
 module type VERTEX = sig
-  type t with sexp
+  type t [@@deriving sexp]
 
   val compare : t -> t -> int
   val to_string : t -> string
@@ -11,10 +11,10 @@ module type VERTEX = sig
   val to_mininet : t -> string
   val parse_dot : Graph.Dot_ast.node_id -> Graph.Dot_ast.attr list -> t
   val parse_gml : Graph.Gml.value_list -> t
-end
+ end
 
 module type EDGE = sig
-  type t with sexp
+  type t [@@deriving sexp]
 
   val compare : t -> t -> int
   val to_string : t -> string
@@ -25,8 +25,8 @@ module type EDGE = sig
 end
 
 module type WEIGHT = sig
-  type t with sexp
-  type edge with sexp
+  type t [@@deriving sexp]
+  type edge [@@deriving sexp]
 
   val weight : edge -> t
   val compare : t -> t -> int
@@ -38,9 +38,9 @@ module type NETWORK = sig
   module Topology : sig
     type t
 
-    type vertex with sexp
-    type edge with sexp
-    type port = int32
+    type vertex [@@deriving sexp]
+    type edge [@@deriving sexp]
+    type port = int32 [@@deriving sexp]
 
     module Vertex : VERTEX
     module Edge : EDGE
@@ -156,7 +156,7 @@ module Make : MAKE =
     functor (Edge:EDGE) ->
 struct
   module Topology = struct
-    type port = int32 with sexp
+    type port = int32 [@@deriving sexp]
     module PortSet = Set.Make(Int32)
     module PortMap = Map.Make(Int32)
 
@@ -164,24 +164,30 @@ struct
     module Edge = Edge
 
     module VL = struct
-      type t =
-          { id : int;
-            label : Vertex.t } with sexp
-      let compare n1 n2 = Pervasives.compare n1.id n2.id
+      type t = {
+        id : int;
+        label : Vertex.t
+      } [@@deriving sexp]
+
+      let compare n1 n2 = Int.compare n1.id n2.id
       let hash n1 = Hashtbl.hash n1.id
       let equal n1 n2 = n1.id = n2.id
       let to_string n = string_of_int n.id
+      (*
+      let sexp_of_t v = Sexp.List [Sexp.Atom "id"; sexp_of_int v.id ]
+      let t_of_sexp s = { id = int_of_sexp (Sexp.Atom "1"); label = vertex_t_of_sexp s }
+      *)
     end
+
     module VertexSet = Set.Make(VL)
     module VertexMap = Map.Make(Vertex)
     module VertexHash = Hashtbl.Make(VL)
-
     module EL = struct
       type t = { id : int;
                  label : Edge.t;
                  src : port;
-                 dst : port } with sexp
-      let compare e1 e2 = Pervasives.compare e1.id e2.id
+                 dst : port } [@@deriving sexp]
+      let compare e1 e2 = Int.compare e1.id e2.id
       let hash e1 = Hashtbl.hash e1.id
       let equal e1 e2 = e1.id = e2.id
       let to_string e = string_of_int e.id
@@ -193,18 +199,20 @@ struct
     end
 
     module UnitWeight = struct
-      type edge = Edge.t with sexp
-      type t = int with sexp
+      type edge = Edge.t [@@deriving sexp]
+      type t = int [@@deriving sexp, compare]
       type label = EL.t
       let weight _ = 1
-      let compare = Pervasives.compare
       let add = (+)
       let zero = 0
     end
 
+    type vertex = VL.t [@@deriving sexp]
+
+    type edge = vertex * EL.t * vertex [@@deriving sexp]
 
     module EdgeSet = Set.Make(struct
-      type t = VL.t * EL.t * VL.t  with sexp
+      type t = VL.t * EL.t * VL.t  [@@deriving sexp]
       let compare (e1:t) (e2:t) : int =
         let (_,l1,_) = e1 in
         let (_,l2,_) = e2 in
@@ -213,9 +221,6 @@ struct
 
     module P = Graph.Persistent.Digraph.ConcreteBidirectionalLabeled(VL)(EL)
 
-    type vertex = VL.t with sexp
-
-    type edge = vertex * EL.t * vertex with sexp
 
     type t =
         { graph : P.t;
@@ -469,7 +474,7 @@ struct
       let dist = VertexHash.create () ~size:size in
       let prev = VertexHash.create () ~size:size in
       let admissible = VertexHash.create () ~size:size in
-      VertexHash.replace dist src Weight.zero;
+      VertexHash.set dist src Weight.zero;
       let build_cycle_from x0 =
         let rec traverse_parent x ret =
           let e = VertexHash.find_exn admissible x in
@@ -501,9 +506,9 @@ struct
                 with Not_found -> true
               in
               if improvement then begin
-                VertexHash.replace prev ev2 ev1;
-                VertexHash.replace dist ev2 dev2;
-                VertexHash.replace admissible ev2 e;
+                VertexHash.set prev ev2 ev1;
+                VertexHash.set dist ev2 dev2;
+                VertexHash.set admissible ev2 e;
                 Some ev2
               end else x
             end with Not_found -> x) t.graph None in
@@ -875,13 +880,13 @@ let capacity_of_id vo = match maybe vo with
 
 module Node = struct
 
-  type device = Switch | Host | Middlebox with sexp
+  type device = Switch | Host | Middlebox [@@deriving sexp, compare]
 
   type t = { dev_type : device ;
              dev_id : int64 ;
              ip : int32 ;
              mac : int64 ;
-             name : string } with sexp
+             name : string } [@@deriving sexp, compare]
 
   type partial_t = { partial_dev_type : device option ;
                      partial_dev_id : int64 option ;
@@ -914,8 +919,6 @@ module Node = struct
   let device (n:t) : device = n.dev_type
   let mac (n:t) : int64 = n.mac
   let ip (n:t) : int32 = n.ip
-
-  let compare = Pervasives.compare
 
   let to_string n = n.name
 
@@ -1037,7 +1040,7 @@ module Link = struct
 
   type t = { cost : int64 ;
              capacity : int64 ;
-             mutable weight : float } with sexp
+             mutable weight : float } [@@deriving sexp, compare]
 
   let default = { cost = 1L;
                   capacity = Int64.of_int64 0x7FFFFFFFFFFFFFFFL;
@@ -1048,8 +1051,6 @@ module Link = struct
 
   let cost (l:t) = l.cost
   let capacity (l:t) = l.capacity
-
-  let compare = Pervasives.compare
 
   let weight (l:t) = l.weight
   let set_weight (l:t) (w:float) = l.weight <- w
@@ -1082,8 +1083,8 @@ module Link = struct
 end
 
 module Weight = struct
-  type edge = Link.t with sexp
-  type t = float with sexp
+  type edge = Link.t [@@deriving sexp]
+  type t = float [@@deriving sexp]
   let weight l =
     let open Link in
     l.weight

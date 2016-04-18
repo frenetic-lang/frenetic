@@ -6,7 +6,7 @@ type t = {
 	table : (groupId, (groupType * bucket list)) Hashtbl.Poly.t;
 	mutable next_group_id : groupId;
 	mutable pending_messages : Message.t list
-} with sexp
+} [@@deriving sexp]
 
 (* SJS *)
 let to_string t =
@@ -62,7 +62,7 @@ let clear_groups (tbl : t) : unit =
 	let rm_group (id : groupId) ((typ, _) : groupType * bucket list) : unit =
 	  let msg = Message.GroupModMsg (DeleteGroup (typ, id)) in
 	  tbl.pending_messages <-  msg :: tbl.pending_messages in
-  Hashtbl.iter tbl.table ~f:(fun ~key ~data -> rm_group key data);
+  Hashtbl.iteri tbl.table ~f:(fun ~key ~data -> rm_group key data);
   Hashtbl.clear tbl.table
 
 let commit (tbl : t) : Message.t list =

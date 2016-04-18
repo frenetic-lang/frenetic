@@ -10,7 +10,7 @@ open SDN.To0x01
 exception UpdateError
 
 module SwitchMap : sig
-  type 'a t with sexp
+  type 'a t [@@deriving sexp]
 end
 
 type edge = (SDN.flow * int) list SwitchMap.t

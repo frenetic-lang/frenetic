@@ -12,25 +12,6 @@ open Yojson.Basic
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Optimize
 
-let macaddr_to_string (mac : Int64.t) : string =
-  let buf = CamlBytes.create 6 in
-  let rec loop n =
-    let byte = Int64.bit_and (Int64.shift_right mac (8 * n)) 0xffL in
-    CamlBytes.set buf n (Char.of_int_exn (Int64.to_int_exn byte));
-    if n = 5 then () else loop (n + 1) in
-  loop 0;
-  Macaddr.to_string (Macaddr.of_bytes_exn buf)
-
-let macaddr_from_string (str : string) : Int64.t =
-  let buf = Macaddr.to_bytes (Macaddr.of_string_exn str) in
-  let byte n = Int64.of_int (Char.to_int (CamlBytes.get buf n)) in
-  let rec loop n acc =
-    let shift = 8 * (5 - n) in
-    let acc' = Int64.(acc + (shift_left (byte n) shift)) in
-    if n = 5 then acc'
-    else loop (n + 1) acc' in
-  loop 0 0L
-
 (** IP & MAC Addresses **)
 let string_of_mac = Frenetic_Packet.string_of_mac
 let mac_of_string = Frenetic_Packet.mac_of_string
@@ -52,7 +33,6 @@ let from_json_ip (json : json) : Frenetic_Packet.nwAddr * int32 =
     | `Null -> 32 |> int_to_uint32
     | x -> x |> to_int |> int_to_uint32 in
   (addr, mask)
-
 
 (** To JSON **)
 let to_json_value (h : header_val) : json = match h with
@@ -183,16 +163,16 @@ let rec from_json_pred (json : json) : pred =
   | "neg" -> Neg (json |> member "pred" |> from_json_pred)
   | str -> raise (Invalid_argument ("invalid predicate type " ^ str))
 
-let rec policy_from_json (json : json) : policy =
+let rec policy_of_json (json : json) : policy =
   let open Yojson.Basic.Util in
    match json |> member "type" |> to_string with
    | "filter" -> Filter (json |> member "pred" |> from_json_pred)
    | "mod" -> Mod (from_json_header_val json)
    | "union" -> mk_big_union (json |> member "pols" |> to_list
-                              |> List.map ~f:policy_from_json)
+                              |> List.map ~f:policy_of_json)
    | "seq" -> mk_big_seq (json |> member "pols" |> to_list
-                          |> List.map ~f:policy_from_json)
-   | "star" -> Star (policy_from_json (json |> member "pol"))
+                          |> List.map ~f:policy_of_json)
+   | "star" -> Star (policy_of_json (json |> member "pol"))
    | "link" -> Link (json |> member "sw1" |> to_int |> Int64.of_int,
                      json |> member "pt1" |> to_int |> int_to_uint32,
                      json |> member "sw2" |> to_int |> Int64.of_int,
@@ -204,11 +184,11 @@ let rec policy_from_json (json : json) : policy =
 let policy_to_json_string (pol : policy) : string =
   Yojson.Basic.to_string ~std:true (policy_to_json pol)
 
-let policy_from_json_string (str : string) : policy =
-  policy_from_json (from_string str)
+let policy_of_json_string (str : string) : policy =
+  policy_of_json (from_string str)
 
-let policy_from_json_channel (chan : In_channel.t) : policy =
-  policy_from_json (from_channel chan)
+let policy_of_json_channel (chan : In_channel.t) : policy =
+  policy_of_json (from_channel chan)
 
 let event_to_json (event : event) : json =
   let open Yojson.Basic.Util in
