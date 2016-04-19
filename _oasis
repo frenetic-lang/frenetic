@@ -120,6 +120,18 @@ Executable openflow
     frenetic.async,
     async_extended
 
+Executable discovery
+  Path: discovery
+  MainIs: Frenetic_Discovery.ml
+  Install: true
+  CompiledObject: native
+  BuildDepends:
+    async,
+    core,
+    frenetic,
+    frenetic.async,
+    async_extended
+
 Library syntax
   Path: syntax
   Findlibparent: frenetic
