@@ -94,7 +94,8 @@ Library async
     Frenetic_NetKAT_Controller,
     Frenetic_NetKAT_Updates,
     Frenetic_Ox,
-    Frenetic_Discovery
+    Frenetic_Discovery,
+    Gui_Server
 
 Executable frenetic
   Path: frenetic
@@ -111,18 +112,6 @@ Executable frenetic
 Executable openflow
   Path: frenetic
   MainIs: openflow.ml
-  Install: true
-  CompiledObject: native
-  BuildDepends:
-    async,
-    core,
-    frenetic,
-    frenetic.async,
-    async_extended
-
-Executable discovery
-  Path: discovery
-  MainIs: Frenetic_Discovery.ml
   Install: true
   CompiledObject: native
   BuildDepends:
