@@ -58,12 +58,13 @@ let rec propogate_events event =
   (* Gets the client's node in the dataflow graph, or creates it if doesn't exist *)
 let get_client (clientId: string): client =
   Hashtbl.find_or_add clients clientId
-     ~default:(fun () ->
-       printf ~level:`Info "New client %s" clientId;
-               let node = Frenetic_DynGraph.create_source drop in
-               Frenetic_DynGraph.attach node pol;
-               let (r, w) = Pipe.create () in
-               { policy_node = node; event_reader = r; event_writer =  w })
+    ~default:(fun () ->
+      printf ~level:`Info "New client %s" clientId;
+      let node = Frenetic_DynGraph.create_source drop in
+      Frenetic_DynGraph.attach node pol;
+	    let (r, w) = Pipe.create () in
+      { policy_node = node; event_reader = r; event_writer =  w }
+    )
 
 let handle_request
   (module Controller : Frenetic_NetKAT_Controller.CONTROLLER)
@@ -149,7 +150,11 @@ let handle_request
       Cohttp_async.Server.respond `Not_found
 
 let print_error addr exn =
-  Log.error "%s" (Exn.to_string exn)
+  let monitor_exn = Exn.to_string (Monitor.extract_exn exn) in
+  (* This is really kludgy, but the exception is of unknown type *)
+  match String.substr_index monitor_exn ~pattern:"writer fd unexpectedly closed" with
+  | Some _ ->  Log.info "Ignoring writer exception"
+  | None -> Log.error "%s" monitor_exn
 
 type t = (module Frenetic_NetKAT_Controller.CONTROLLER)
 
