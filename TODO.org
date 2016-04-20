@@ -1,0 +1,20 @@
+* Shell
+  - [ ] Load policy files
+  - [ ] Load topology files
+  - [ ] Compile global policies to flow tables
+  - [ ] Write topologies to LINC-OE scripts
+  - [ ] Write topologies to Mininet scripts
+  - [ ] Connect to Java controller process in background
+  - [ ] Send flow tables to controller process
+* Controller process
+  - [X] Compile OpenFlowJ in virtual machine
+  - [X] Write JSON flow table parser
+  - [X] Write flow table listener process
+  - [X] Write controller process
+  - [ ] Connect listener to the controller
+* Compiler
+  - [ ] Add support for channel header field
+  - [ ] Extract E and D matrices from the global compiler
+  - [ ] Relocate E matrices to ingress switches
+  - [ ] Extract path information from the D matrix
+  - [ ] Correlate paths between D matrix and fabric channels
