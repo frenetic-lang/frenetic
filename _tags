@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 5a27618902d1c202b9708900c17e4071)
+# DO NOT EDIT (digest: 3eb5d6f947da520c5afad5d115c159f0)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -33,6 +33,29 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: package(yojson)
 # Library async
 "async/async.cmxs": use_async
+<async/*.ml{,i,y}>: package(async)
+<async/*.ml{,i,y}>: package(base64)
+<async/*.ml{,i,y}>: package(camlp4)
+<async/*.ml{,i,y}>: package(camlp4.extend)
+<async/*.ml{,i,y}>: package(camlp4.lib)
+<async/*.ml{,i,y}>: package(cohttp)
+<async/*.ml{,i,y}>: package(cohttp.async)
+<async/*.ml{,i,y}>: package(core)
+<async/*.ml{,i,y}>: package(cstruct)
+<async/*.ml{,i,y}>: package(cstruct.async)
+<async/*.ml{,i,y}>: package(mparser)
+<async/*.ml{,i,y}>: package(mparser.re)
+<async/*.ml{,i,y}>: package(ocamlgraph)
+<async/*.ml{,i,y}>: package(ppx_deriving.enum)
+<async/*.ml{,i,y}>: package(ppx_deriving.eq)
+<async/*.ml{,i,y}>: package(ppx_jane)
+<async/*.ml{,i,y}>: package(ppx_sexp_conv)
+<async/*.ml{,i,y}>: package(str)
+<async/*.ml{,i,y}>: package(tcpip)
+<async/*.ml{,i,y}>: package(threads)
+<async/*.ml{,i,y}>: package(ulex)
+<async/*.ml{,i,y}>: package(yojson)
+<async/*.ml{,i,y}>: use_frenetic
 # Executable frenetic
 "frenetic/frenetic.native": package(async)
 "frenetic/frenetic.native": package(async_extended)
@@ -110,57 +133,6 @@ true: annot, bin_annot
 <frenetic/*.ml{,i,y}>: package(yojson)
 <frenetic/*.ml{,i,y}>: use_async
 <frenetic/*.ml{,i,y}>: use_frenetic
-# Executable discovery
-"async/Frenetic_Discovery.native": package(async)
-"async/Frenetic_Discovery.native": package(async_extended)
-"async/Frenetic_Discovery.native": package(base64)
-"async/Frenetic_Discovery.native": package(camlp4)
-"async/Frenetic_Discovery.native": package(camlp4.extend)
-"async/Frenetic_Discovery.native": package(camlp4.lib)
-"async/Frenetic_Discovery.native": package(cohttp)
-"async/Frenetic_Discovery.native": package(cohttp.async)
-"async/Frenetic_Discovery.native": package(core)
-"async/Frenetic_Discovery.native": package(cstruct)
-"async/Frenetic_Discovery.native": package(cstruct.async)
-"async/Frenetic_Discovery.native": package(mparser)
-"async/Frenetic_Discovery.native": package(mparser.re)
-"async/Frenetic_Discovery.native": package(ocamlgraph)
-"async/Frenetic_Discovery.native": package(ppx_deriving.enum)
-"async/Frenetic_Discovery.native": package(ppx_deriving.eq)
-"async/Frenetic_Discovery.native": package(ppx_jane)
-"async/Frenetic_Discovery.native": package(ppx_sexp_conv)
-"async/Frenetic_Discovery.native": package(str)
-"async/Frenetic_Discovery.native": package(tcpip)
-"async/Frenetic_Discovery.native": package(threads)
-"async/Frenetic_Discovery.native": package(ulex)
-"async/Frenetic_Discovery.native": package(yojson)
-"async/Frenetic_Discovery.native": use_async
-"async/Frenetic_Discovery.native": use_frenetic
-<async/*.ml{,i,y}>: package(async)
-<async/*.ml{,i,y}>: package(async_extended)
-<async/*.ml{,i,y}>: package(base64)
-<async/*.ml{,i,y}>: package(camlp4)
-<async/*.ml{,i,y}>: package(camlp4.extend)
-<async/*.ml{,i,y}>: package(camlp4.lib)
-<async/*.ml{,i,y}>: package(cohttp)
-<async/*.ml{,i,y}>: package(cohttp.async)
-<async/*.ml{,i,y}>: package(core)
-<async/*.ml{,i,y}>: package(cstruct)
-<async/*.ml{,i,y}>: package(cstruct.async)
-<async/*.ml{,i,y}>: package(mparser)
-<async/*.ml{,i,y}>: package(mparser.re)
-<async/*.ml{,i,y}>: package(ocamlgraph)
-<async/*.ml{,i,y}>: package(ppx_deriving.enum)
-<async/*.ml{,i,y}>: package(ppx_deriving.eq)
-<async/*.ml{,i,y}>: package(ppx_jane)
-<async/*.ml{,i,y}>: package(ppx_sexp_conv)
-<async/*.ml{,i,y}>: package(str)
-<async/*.ml{,i,y}>: package(tcpip)
-<async/*.ml{,i,y}>: package(threads)
-<async/*.ml{,i,y}>: package(ulex)
-<async/*.ml{,i,y}>: package(yojson)
-<async/*.ml{,i,y}>: use_async
-<async/*.ml{,i,y}>: use_frenetic
 # Library syntax
 "syntax/syntax.cmxs": use_syntax
 <syntax/*.ml{,i,y}>: package(base64)
