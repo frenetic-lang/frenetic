@@ -23,6 +23,17 @@ type state = { mutable policy   : policy option
              ; mutable fabric   : fabric option
              }
 
+let state =  { policy   = None
+             ; topology = None
+             ; fabric   = None
+             }
+
+type show =
+  | SPolicy
+  | STopology
+  | SFabric
+  | SAll
+
 type input =
   | IPolicy
   | ITopology
@@ -30,6 +41,7 @@ type input =
 
 type command =
   | Load of (input * source)
+  | Show of show
   | Compile
   | Fabric
   | Write of string
@@ -52,11 +64,19 @@ module Parser = struct
      (fun w -> return (Filename (String.of_char_list w))))
 
   (* Parser for the load command *)
-  let loadable : (command, bytes list) MParser.t =
+  let load : (command, bytes list) MParser.t =
     symbol "load" >> (
       (symbol "policy"   >> source >>= (fun s -> return (Load (IPolicy, s)))) <|>
       (symbol "topology" >> source >>= (fun s -> return (Load (ITopology, s)))) <|>
       (symbol "fabric"   >> source >>= (fun s -> return (Load (IFabric, s)))))
+
+  (* Parser for the show command *)
+  let show : (command, bytes list) MParser.t =
+    symbol "show" >> (
+      (symbol "policy"   >> (return (Show SPolicy)))   <|>
+      (symbol "topology" >> (return (Show STopology))) <|>
+      (symbol "fabric"   >> (return (Show SFabric)))  <|>
+      (symbol "all"      >> (return (Show SAll))))
 
   (* Parser for the compile command *)
   let compile : (command, bytes list) MParser.t =
@@ -77,7 +97,8 @@ module Parser = struct
     (symbol "exit" <|> symbol "quit") >> return Exit
 
   let command : (command, bytes list) MParser.t =
-    loadable <|>
+    load     <|>
+    show     <|>
     compile  <|>
     fabric   <|>
     write    <|>
@@ -111,6 +132,22 @@ let load (l:input) (s:source) : (element, string) Result.t = match l with
       | _ -> Error "Topologies can only be loaded from DOT files" end
   | IFabric -> Error "Fabric loading unimplemented"
 
+let rec show (s:show) : unit = match s with
+  | SPolicy -> begin match state.policy with
+      | None -> print_endline "No policy specified"
+      | Some p -> printf "%s\n" (Frenetic_NetKAT_Pretty.string_of_policy p) end
+  | STopology -> begin match state.topology with
+      | None -> print_endline "No topology specified"
+      | Some t -> printf "%s\n" (Net.Pretty.to_string t) end
+  | SFabric -> print_endline "Fabric printing unimplemented"
+  | SAll ->
+    print_endline "Policy";
+    show SPolicy;
+    print_endline "Topology";
+    show STopology;
+    print_endline "Fabric";
+    show SFabric
+
 let compile (pol : policy) : Frenetic_NetKAT_Compiler.automaton =
   Frenetic_NetKAT_Compiler.compile_to_automaton pol
 
@@ -127,11 +164,6 @@ let parse_command (line : string) : command option =
   | Success command -> Some command
   | Failed (msg, e) -> (print_endline msg; None)
 
-let state =  { policy   = None
-             ; topology = None
-             ; fabric   = None
-             }
-
 let rec repl () : unit Deferred.t =
   printf "autoshell> %!";
   Reader.read_line (Lazy.force Reader.stdin) >>= fun input ->
@@ -143,6 +175,7 @@ let rec repl () : unit Deferred.t =
           | Ok (Topology t) -> state.topology <- Some t
           | Ok (Fabric f)   -> state.fabric   <- Some f
           | Error s         -> print_endline s end
+      | Some (Show s) -> show s
       | Some Fabric -> begin match state.topology with
           | Some net ->
             (* TODO(basus) : fix fabric generation interface *)
