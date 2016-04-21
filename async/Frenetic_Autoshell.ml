@@ -6,14 +6,22 @@ open Frenetic_Network
 module Compiler = Frenetic_NetKAT_Compiler
 module Log = Frenetic_Log
 
+type fabric = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
+type topology = Net.Topology.t
+
 type source =
   | String of string
   | Filename of string
 
 type element =
   | Policy   of policy
-  | Topology of Net.Topology.t
-  | Fabric   of (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
+  | Topology of topology
+  | Fabric   of fabric
+
+type state = { mutable policy   : policy option
+             ; mutable topology : topology option
+             ; mutable fabric   : fabric option
+             }
 
 type input =
   | IPolicy
@@ -96,18 +104,6 @@ let string_of_source (s:source) : string = match s with
     let chan = In_channel.create f in
     In_channel.input_all chan
 
-(* A reference to the current policy and the associated string. *)
-let policy = ref drop
-
-(* A reference to the current automaton and the associated policy. *)
-let automaton = ref None
-
-(* A reference to the current topoology and associated filename *)
-let topology : Net.Topology.t option ref = ref None
-
-(* A reference to the current fabric *)
-let fabric : (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t ref = ref (Hashtbl.Poly.create ())
-
 let load (l:input) (s:source) : (element, string) Result.t = match l with
   | IPolicy -> Parser.policy (string_of_source s)
   | ITopology -> begin match s with
@@ -131,6 +127,11 @@ let parse_command (line : string) : command option =
   | Success command -> Some command
   | Failed (msg, e) -> (print_endline msg; None)
 
+let state =  { policy   = None
+             ; topology = None
+             ; fabric   = None
+             }
+
 let rec repl () : unit Deferred.t =
   printf "autoshell> %!";
   Reader.read_line (Lazy.force Reader.stdin) >>= fun input ->
@@ -138,22 +139,19 @@ let rec repl () : unit Deferred.t =
     | `Eof -> Shutdown.shutdown 0
     | `Ok line -> match parse_command line with
       | Some (Load (l,s)) -> begin match load l s with
-          | Ok (Policy p)   -> policy := p
-          | Ok (Topology t) -> topology := Some t
-          | Ok (Fabric f)   -> fabric := f
+          | Ok (Policy p)   -> state.policy   <- Some p
+          | Ok (Topology t) -> state.topology <- Some t
+          | Ok (Fabric f)   -> state.fabric   <- Some f
           | Error s         -> print_endline s end
-      | Some Fabric -> begin match !topology with
+      | Some Fabric -> begin match state.topology with
           | Some net ->
             (* TODO(basus) : fix fabric generation interface *)
           ignore(mk_fabric net)
         | None -> printf "Please load a topology with the `load topology` command first."
       end
-      | Some Compile ->
-        let pol = !policy in
-        automaton := Some (compile pol, pol)
-      | Some (Write filename) -> begin match !automaton with
-        | None -> print_endline "No compiled automaton available"
-        | Some (at, _) -> write at filename end
+        (* TODO(basus) : fix automaton interface *)
+      | Some Compile
+      | Some (Write _) -> ()
       | Some Exit ->
 	print_endline "Goodbye!";
 	Shutdown.shutdown 0
