@@ -86,10 +86,7 @@ class App(object):
       response = ftr.result()
       if(hasattr(response, 'buffer')):
         data = json.loads(response.buffer.getvalue())
-        dataPrime = {}
-        for key in data:
-          dataPrime[key] = int(data[key])
-        callback(data)
+        callback(data[0])
 
     @return_future
     def port_stats_helper(self, ftr, callback):
