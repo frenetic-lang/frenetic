@@ -6,6 +6,8 @@ open Frenetic_Network
 module Compiler = Frenetic_NetKAT_Compiler
 module Log = Frenetic_Log
 
+type fdd = Compiler.t
+type automaton = Compiler.automaton
 type fabric = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
 type topology = Net.Topology.t
 
@@ -21,12 +23,33 @@ type element =
 type state = { mutable policy   : policy option
              ; mutable topology : topology option
              ; mutable fabric   : fabric option
+             ; mutable fdd      : fdd option
+             ; mutable automaton: automaton option
              }
 
 let state =  { policy   = None
              ; topology = None
              ; fabric   = None
+             ; fdd      = None
+             ; automaton= None
              }
+
+type update =
+  | Fabrication       of (topology -> fabric)
+  | FullCompilation   of (policy -> fdd)
+  | StagedCompilation of (policy -> automaton) * (automaton -> fdd)
+  | ToAuto            of (policy -> automaton)
+  | FromAuto          of (automaton -> fdd)
+
+type intermediate =
+  | FDD of Compiler.t
+  | Automaton of Compiler.automaton
+
+type compile =
+  | Local
+  | Global
+  | ToAutomaton
+  | FromAutomaton
 
 type show =
   | SPolicy
@@ -42,7 +65,7 @@ type input =
 type command =
   | Load of (input * source)
   | Show of show
-  | Compile
+  | Compile of compile
   | Fabric
   | Write of string
   | Exit
@@ -80,7 +103,12 @@ module Parser = struct
 
   (* Parser for the compile command *)
   let compile : (command, bytes list) MParser.t =
-    symbol "compile" >> return Compile
+    symbol "compile" >> (
+      (symbol "local" >> (return (Compile Local))) <|>
+      (symbol "global" >> (return (Compile Global))) <|>
+      (symbol "to-auto" >> (return (Compile ToAutomaton))) <|>
+      (symbol "from-auto" >> (return (Compile FromAutomaton))))
+
 
   (* Parser for the fabric command *)
   let fabric : (command, bytes list) MParser.t =
@@ -125,6 +153,28 @@ let string_of_source (s:source) : string = match s with
     let chan = In_channel.create f in
     In_channel.input_all chan
 
+let rec update (s:state) (u:update) : unit = match u with
+  | Fabrication fn -> begin match s.topology with
+      | Some t -> s.fabric <- Some(fn t)
+      | None   -> print_endline "Fabric generation requires a topology" end
+  | FullCompilation fn -> begin match s.policy with
+      | Some p -> s.fdd <- Some(fn p)
+      | None   -> print_endline "Local and global compilation requires a policy"
+    end
+  | StagedCompilation (fn1, fn2) -> begin match s.policy with
+      (* This check is redundant, we could call update recursively without an *)
+      (* error, but it allows for a better error message *)
+      | Some p -> update s (ToAuto fn1) ; update s (FromAuto fn2)
+      | None   -> print_endline "Staged compilation requires a policy"
+    end
+  | ToAuto fn -> begin match s.policy with
+      | Some p -> s.automaton <- Some (fn p)
+      | None   -> print_endline "Compilation to automaton requires a policy" end
+  | FromAuto fn -> begin match s.automaton with
+      | Some a -> s.fdd <- Some(fn a)
+      | None   -> print_endline "Compilation from automaton requires a automaton"
+    end
+
 let load (l:input) (s:source) : (element, string) Result.t = match l with
   | IPolicy -> Parser.policy (string_of_source s)
   | ITopology -> begin match s with
@@ -147,9 +197,6 @@ let rec show (s:show) : unit = match s with
     show STopology;
     print_endline "Fabric";
     show SFabric
-
-let compile (pol : policy) : Frenetic_NetKAT_Compiler.automaton =
-  Frenetic_NetKAT_Compiler.compile_to_automaton pol
 
 let mk_fabric (net : Net.Topology.t) :
     (switchId, Frenetic_OpenFlow0x01.flowMod list) Hashtbl.t =
@@ -183,7 +230,14 @@ let rec repl () : unit Deferred.t =
         | None -> printf "Please load a topology with the `load topology` command first."
       end
         (* TODO(basus) : fix automaton interface *)
-      | Some Compile
+      | Some (Compile c) -> begin match c with
+          | Local         -> begin
+            try update state (FullCompilation Compiler.compile_local)
+            with Compiler.Non_local -> print_endline "Policy is non-local." end
+          | Global        -> update state (FullCompilation Compiler.compile_global)
+          | ToAutomaton   -> update state (ToAuto Compiler.compile_to_automaton)
+          | FromAutomaton -> update state (FromAuto Compiler.compile_from_automaton)
+        end
       | Some (Write _) -> ()
       | Some Exit ->
 	print_endline "Goodbye!";
