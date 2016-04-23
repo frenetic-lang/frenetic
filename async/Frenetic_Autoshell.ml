@@ -55,6 +55,7 @@ type show =
   | SPolicy
   | STopology
   | SFabric
+  | STable of switchId
   | SAll
 
 type input =
@@ -99,6 +100,9 @@ module Parser = struct
       (symbol "policy"   >> (return (Show SPolicy)))   <|>
       (symbol "topology" >> (return (Show STopology))) <|>
       (symbol "fabric"   >> (return (Show SFabric)))  <|>
+      (symbol "table"    >> (many_until digit eof >>= (fun sw ->
+           let swid = Int64.of_string (String.of_char_list sw) in
+           return (Show (STable swid))))) <|>
       (symbol "all"      >> (return (Show SAll))))
 
   (* Parser for the compile command *)
@@ -197,6 +201,15 @@ let rec show (s:show) : unit = match s with
       | None -> print_endline "No topology specified"
       | Some t -> printf "%s\n" (Net.Pretty.to_string t) end
   | SFabric -> print_endline "Fabric printing unimplemented"
+  | STable swid ->
+    (* TODO(basus): print an error if the given switch id is not in the *)
+    (* topology or policy *)
+    begin match state.fdd with
+      | Some fdd -> let table = Compiler.to_table swid fdd in
+        printf "\n%s\n" (Frenetic_OpenFlow.string_of_flowTable table)
+      | None ->
+        print_endline "Showing flowtables requires a loaded and compiled policy"
+    end
   | SAll ->
     print_endline "Policy";
     show SPolicy;
