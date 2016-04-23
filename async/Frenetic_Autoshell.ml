@@ -67,6 +67,7 @@ type command =
   | Load of (input * source)
   | Show of show
   | Compile of compile
+  | Post of (string * int * switchId)
   | Fabric
   | Write of string
   | Exit
@@ -84,8 +85,8 @@ module Parser = struct
   let source : (source, bytes list) MParser.t =
     (char '"' >> many_chars_until any_char (char '"') >>=
      (fun string -> return ( String string) ) ) <|>
-    (many_until any_char eof >>=
-     (fun w -> return (Filename (String.of_char_list w))))
+    (many_chars any_char >>=
+     (fun w -> return (Filename w)))
 
   (* Parser for the load command *)
   let load : (command, bytes list) MParser.t =
@@ -113,6 +114,19 @@ module Parser = struct
       (symbol "to-auto" >> (return (Compile ToAutomaton))) <|>
       (symbol "from-auto" >> (return (Compile FromAutomaton))))
 
+  (* Parser for the post command *)
+  let post : (command, bytes list) MParser.t =
+    symbol "post" >> (
+      (* Parse hostname:port swid *)
+      (many_chars_until any_char (char ':') >>=
+      (fun hostname -> many_chars_until digit blank >>=
+        (fun port_s -> many_chars digit >>=
+          (fun sw_s -> return (Post (hostname, (Int.of_string port_s),
+                                     (Int64.of_string sw_s))))))) <|>
+      (* Parse hostname swid. TODO(basus): not working yet *)
+      (many_chars_until any_char blank >>=
+       (fun hostname -> many_chars digit >>=
+         (fun sw_s -> return (Post (hostname, 80, (Int64.of_string sw_s)))))))
 
   (* Parser for the fabric command *)
   let fabric : (command, bytes list) MParser.t =
@@ -132,6 +146,7 @@ module Parser = struct
     load     <|>
     show     <|>
     compile  <|>
+    post     <|>
     fabric   <|>
     write    <|>
     exit
@@ -258,6 +273,9 @@ let rec repl () : unit Deferred.t =
           | ToAutomaton   -> update state (ToAuto Compiler.compile_to_automaton)
           | FromAutomaton -> update state (FromAuto Compiler.compile_from_automaton)
         end
+      | Some (Post(host, port, swid)) ->
+        let uri = Uri.make ~host:host ~port:port ~path:(Int64.to_string swid) () in
+        printf "URI parsed as %s\n" (Uri.to_string uri)
       | Some (Write _) -> ()
       | Some Exit ->
 	print_endline "Goodbye!";
