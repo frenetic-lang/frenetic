@@ -147,11 +147,13 @@ module Parser = struct
 
 end
 
-let string_of_source (s:source) : string = match s with
-  | String s -> s
+let string_of_source (s:source) : (string, string) Result.t = match s with
+  | String s -> Ok s
   | Filename f ->
-    let chan = In_channel.create f in
-    In_channel.input_all chan
+    try
+      let chan = In_channel.create f in
+      Ok (In_channel.input_all chan)
+    with Sys_error msg -> Error msg
 
 let rec update (s:state) (u:update) : unit = match u with
   | Fabrication fn -> begin match s.topology with
@@ -175,12 +177,17 @@ let rec update (s:state) (u:update) : unit = match u with
       | None   -> print_endline "Compilation from automaton requires a automaton"
     end
 
-let load (l:input) (s:source) : (element, string) Result.t = match l with
-  | IPolicy -> Parser.policy (string_of_source s)
-  | ITopology -> begin match s with
-      | Filename f -> Ok (Topology (Net.Parse.from_dotfile f))
-      | _ -> Error "Topologies can only be loaded from DOT files" end
-  | IFabric -> Error "Fabric loading unimplemented"
+let load (l:input) (s:source) : (element, string) Result.t =
+  try match l with
+    | IPolicy -> begin match (string_of_source s) with
+        | Ok string -> Parser.policy string
+        | Error e -> Error e end
+    | ITopology -> begin match s with
+        | Filename f ->  Ok (Topology (Net.Parse.from_dotfile f))
+        | _ -> Error "Topologies can only be loaded from DOT files" end
+    | IFabric -> Error "Fabric loading unimplemented"
+  with Sys_error e
+     | Failure e -> Error e
 
 let rec show (s:show) : unit = match s with
   | SPolicy -> begin match state.policy with
