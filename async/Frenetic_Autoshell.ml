@@ -70,6 +70,7 @@ type command =
   | Post of (string * int * switchId)
   | Fabric
   | Write of string
+  | Blank
   | Exit
 
 module Parser = struct
@@ -139,6 +140,10 @@ module Parser = struct
       many_until any_char eof >>=
       (fun filename -> return (Write (String.of_char_list filename)))
 
+  (* Parser for a blank line *)
+  let blank : (command, bytes list) MParser.t =
+    eof >> return Blank
+
   (* Parser for the exit command *)
   let exit : (command, bytes list) MParser.t =
     (symbol "exit" <|> symbol "quit") >> return Exit
@@ -150,6 +155,7 @@ module Parser = struct
     post     <|>
     fabric   <|>
     write    <|>
+    blank    <|>
     exit
 
   (** Non-Monadic parsers for the information that the shell can
@@ -247,6 +253,7 @@ let parse_command (line : string) : command option =
   | Success command -> Some command
   | Failed (msg, e) -> (print_endline msg; None)
 
+(* TODO(basus) : this probably doesn't need to be written in terms of Async *)
 let rec repl () : unit Deferred.t =
   printf "autoshell> %!";
   Reader.read_line (Lazy.force Reader.stdin) >>= fun input ->
@@ -290,8 +297,8 @@ let rec repl () : unit Deferred.t =
         | None -> printf "Please `load` and `compile` a policy first" end
       | Some (Write _) -> ()
       | Some Exit ->
-	print_endline "Goodbye!";
-	Shutdown.shutdown 0
+	print_endline "Goodbye!"; Shutdown.shutdown 0
+      | Some Blank -> ()
       | None -> ()
   in handle input;
   repl ()
