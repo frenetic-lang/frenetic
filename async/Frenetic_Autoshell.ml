@@ -276,7 +276,18 @@ let rec repl () : unit Deferred.t =
         end
       | Some (Post(host, port, swid)) ->
         let uri = Uri.make ~host:host ~port:port ~path:(Int64.to_string swid) () in
-        printf "URI parsed as %s\n" (Uri.to_string uri)
+        printf "URI parsed as %s\n" (Uri.to_string uri);
+        begin match state.fdd with
+          | Some fdd ->
+            let open Cohttp.Body in
+            let table = Compiler.to_table swid fdd in
+            let json = (Frenetic_NetKAT_SDN_Json.flowTable_to_json table) in
+            Cohttp_async.Client.post
+              ~body:(`String (Yojson.Basic.to_string json))
+              uri >>=
+            (fun (_,body) -> (Cohttp_async.Body.to_string body)) >>>
+            (fun s -> printf "%s\n" s)
+        | None -> printf "Please `load` and `compile` a policy first" end
       | Some (Write _) -> ()
       | Some Exit ->
 	print_endline "Goodbye!";
