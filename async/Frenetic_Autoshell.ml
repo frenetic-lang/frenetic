@@ -117,16 +117,17 @@ module Parser = struct
   (* Parser for the post command *)
   let post : (command, bytes list) MParser.t =
     symbol "post" >> (
-      (* Parse hostname:port swid *)
-      (many_chars_until any_char (char ':') >>=
-      (fun hostname -> many_chars_until digit blank >>=
-        (fun port_s -> many_chars digit >>=
-          (fun sw_s -> return (Post (hostname, (Int.of_string port_s),
-                                     (Int64.of_string sw_s))))))) <|>
-      (* Parse hostname swid. TODO(basus): not working yet *)
-      (many_chars_until any_char blank >>=
-       (fun hostname -> many_chars digit >>=
-         (fun sw_s -> return (Post (hostname, 80, (Int64.of_string sw_s)))))))
+      many_chars (alphanum <|> (char '.')) >>=
+      (fun hostname ->
+         (* Parse hostname:port swid *)
+         ((char ':') >> many_chars_until digit blank >>=
+          (fun port_s -> many_chars digit >>=
+            (fun sw_s -> return (Post (hostname, (Int.of_string port_s),
+                                       (Int64.of_string sw_s)))))) <|>
+         (* Parse hostname swid *)
+         ( blank >> many_chars digit >>=
+            (fun sw_s -> return (Post (hostname, 80,
+                                       (Int64.of_string sw_s)))))))
 
   (* Parser for the fabric command *)
   let fabric : (command, bytes list) MParser.t =
