@@ -170,6 +170,8 @@ EXTEND Gram
       MK(Mod (TCPSrcPort ID(n)))
     | "tcpDstPort"; ":="; n = nk_int ->
       MK(Mod (TCPDstPort ID(n)))
+    | "channel"; ":="; n = nk_int ->
+      MK(Mod (Channel ID(n)))
     | loc1 = nk_loc; "=>"; loc2 = nk_loc -> MK(
       let (sw1, pt1) = ID(loc1) in
       let (sw2, pt2) = ID(loc2) in

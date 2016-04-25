@@ -556,6 +556,7 @@ module Action = struct
         | F IP4Dst  , Const nwAddr   -> SDN.(Modify(SetIP4Dst(to_int32 nwAddr))) :: acc
         | F TCPSrcPort, Const tpPort -> SDN.(Modify(SetTCPSrcPort(to_int tpPort))) :: acc
         | F TCPDstPort, Const tpPort -> SDN.(Modify(SetTCPDstPort(to_int tpPort))) :: acc
+        | F Channel, Const chan      -> SDN.(Modify(SetChannel(to_int chan))) :: acc
         | F f, _ -> raise (FieldValue_mismatch(f, data))
         | K, _ -> assert false
       ) :: acc)

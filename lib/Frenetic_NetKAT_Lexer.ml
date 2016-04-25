@@ -140,7 +140,7 @@ let rec token c = lexer
   | [ "()!+;=*+/|@" ] | ":=" | "=>" | "=>>"
     | "true" | "false" | "switch" | "port" | "vswitch" | "vport" | "vfabric"
     | "vlanId" | "vlanPcp" | "ethTyp" | "ipProto" | "tcpSrcPort" | "tcpDstPort"
-    | "ethSrc" | "ethDst" | "ip4Src"| "ip4Dst" | "and" | "or" | "not" | "id"
+    | "ethSrc" | "ethDst" | "ip4Src"| "ip4Dst" | "channel" | "and" | "or" | "not" | "id"
     | "drop" | "if" | "then" | "else" | "filter"  ->
       KEYWORD (L.latin1_lexeme c.lexbuf)
   | _ -> illegal c
