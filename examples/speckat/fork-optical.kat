@@ -1,0 +1,11 @@
+(filter switch=1;
+  (filter port=1;
+    ((filter tcpDstPort=80; channel:=1; port:=2) |
+     (filter tcpDstPort=22; channel:=2; port:=2))) |
+  (filter port=2; port:=1) ) |
+(filter switch=2; filter port=1; channel:=1; port:=2) |
+(filter switch=3; filter port=1; channel:=2; port:=2) |
+(filter switch=4;
+  ((filter port=1; ((filter channel=1; port:=2) | (filter channel=3; port:=3))) |
+   (filter port=2; port:=1) |
+   (filter port=3; port:=2)))
