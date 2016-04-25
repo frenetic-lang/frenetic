@@ -72,7 +72,7 @@ type command =
   | Show of show
   | Json of json
   | Compile of compile
-  | Post of (string * int * switchId)
+  | Post of (string * int * string * switchId)
   | Fabric
   | Write of string
   | Blank
@@ -131,17 +131,21 @@ module Parser = struct
   (* Parser for the post command *)
   let post : (command, bytes list) MParser.t =
     symbol "post" >> (
-      many_chars (alphanum <|> (char '.')) >>=
-      (fun hostname ->
-         (* Parse hostname:port swid *)
-         ((char ':') >> many_chars_until digit blank >>=
-          (fun port_s -> many_chars digit >>=
-            (fun sw_s -> return (Post (hostname, (Int.of_string port_s),
-                                       (Int64.of_string sw_s)))))) <|>
-         (* Parse hostname swid *)
-         ( blank >> many_chars digit >>=
-            (fun sw_s -> return (Post (hostname, 80,
-                                       (Int64.of_string sw_s)))))))
+      many_chars_until alphanum blank >>=
+      (fun cmd ->
+         many_chars (alphanum <|> (char '.')) >>=
+         (fun hostname ->
+            (* Parse hostname:port swid *)
+            ((char ':') >> many_chars_until digit blank >>=
+             (fun port_s -> many_chars digit >>=
+               (fun sw_s -> return (Post (hostname, (Int.of_string port_s),
+                                          cmd,
+                                          (Int64.of_string sw_s)))))) <|>
+            (* Parse hostname swid *)
+            ( blank >> many_chars digit >>=
+              (fun sw_s -> return (Post (hostname, 80,
+                                         cmd,
+                                         (Int64.of_string sw_s))))))))
 
   (* Parser for the fabric command *)
   let fabric : (command, bytes list) MParser.t =
@@ -312,8 +316,9 @@ let rec repl () : unit Deferred.t =
           | ToAutomaton   -> update state (ToAuto Compiler.compile_to_automaton)
           | FromAutomaton -> update state (FromAuto Compiler.compile_from_automaton)
         end
-      | Some (Post(host, port, swid)) ->
-        let uri = Uri.make ~host:host ~port:port ~path:(Int64.to_string swid) () in
+      | Some (Post(host, port, cmd, swid)) ->
+        let path = String.concat ~sep:"/" [cmd; Int64.to_string swid] in
+        let uri = Uri.make ~host:host ~port:port ~path:path () in
         printf "URI parsed as %s\n" (Uri.to_string uri);
         begin match state.fdd with
           | Some fdd ->
