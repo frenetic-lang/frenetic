@@ -29,6 +29,7 @@ module Formatting = struct
     | VSwitch(n) -> fprintf fmt "@[vswitch %s %Lu@]" asgn n
     | VPort(n) -> fprintf fmt "@[vport %s %Lu@]" asgn n
     | VFabric(n) -> fprintf fmt "@[vfabric %s %Lu@]" asgn n
+    | Channel(n) -> fprintf fmt "@[channel %s %d@]" asgn n
 
 
   let rec pred (cxt : predicate_context) (fmt : formatter) (pr : pred) : unit =

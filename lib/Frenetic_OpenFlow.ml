@@ -113,7 +113,8 @@ module Pattern = struct
       ; nwProto : nwProto option
       ; tpSrc : tpPort option
       ; tpDst : tpPort option
-      ; inPort : portId option }
+      ; inPort : portId option
+      ; channel : int16 option }
     [@@deriving sexp]
 
   let match_all =
@@ -127,7 +128,8 @@ module Pattern = struct
       ; nwProto = None
       ; tpSrc = None
       ; tpDst = None
-      ; inPort = None }
+      ; inPort = None
+      ; channel = None }
 
   (* TODO(jnf): rename subseteq ?*)
   let less_eq p1 p2 =
@@ -150,6 +152,7 @@ module Pattern = struct
     && check (=) p1.tpSrc p2.tpSrc
     && check (=) p1.tpDst p2.tpDst
     && check (=) p1.inPort p2.inPort
+    && check (=) p1.channel p2.channel
 
   let eq p1 p2 =
     let check f m1 m2 =
@@ -168,6 +171,7 @@ module Pattern = struct
     && check (=) p1.tpSrc p2.tpSrc
     && check (=) p1.tpDst p2.tpDst
     && check (=) p1.inPort p2.inPort
+    && check (=) p1.channel p2.channel
 
   let eq_join x1 x2 =
     if x1 = x2 then Some x1 else None
@@ -189,7 +193,8 @@ module Pattern = struct
     ; nwProto = joiner eq_join p1.nwProto p2.nwProto
     ; tpSrc = joiner eq_join p1.tpSrc p2.tpSrc
     ; tpDst = joiner eq_join p1.tpDst p2.tpDst
-    ; inPort = joiner eq_join p1.inPort p2.inPort }
+    ; inPort = joiner eq_join p1.inPort p2.inPort
+    ; channel = joiner eq_join p1.channel p2.channel  }
 
   let format (fmt:Format.formatter) (p:t) : unit =
     let first = ref true in
@@ -212,6 +217,7 @@ module Pattern = struct
     format_field "tcpSrcPort" format_int p.tpSrc;
     format_field "tcpDstPort" format_int p.tpDst;
     format_field "port" format_int32 p.inPort;
+    format_field "channel" format_int p.channel;
     Format.fprintf fmt "}@]"
 
   let string_of = Frenetic_Util.make_string_of format
@@ -228,6 +234,7 @@ type modify =
   | SetIP4Dst of nwAddr
   | SetTCPSrcPort of tpPort
   | SetTCPDstPort of tpPort
+  | SetChannel of int16
 [@@deriving sexp]
 
 type pseudoport =
@@ -332,6 +339,8 @@ let format_modify (fmt:Format.formatter) (m:modify) : unit =
     Format.fprintf fmt "SetField(tcpSrcPort, %a)" format_int tpPort
   | SetTCPDstPort(tpPort) ->
     Format.fprintf fmt "SetField(tcpDstPort, %a)" format_int tpPort
+  | SetChannel(chan) ->
+    Format.fprintf fmt "SetChannel(channel, %a)" format_int chan
 
 let format_pseudoport (fmt:Format.formatter) (p:pseudoport) : unit =
   match p with
@@ -641,6 +650,8 @@ let from_action (inPort : OF10.portId option) (act : action) : OF10.action =
     | Modify (SetTCPDstPort tp) ->
       SetTpDst tp
       (* TODO(grouptable) *)
+    | Modify (SetChannel ch) ->
+      failwith "OpenFlow 1.0 does not support optical channels."
     | FastFail _ -> failwith "Openflow 1.0 does not support fast failover."
 
 let from_seq (inPort : OF10.portId option) (seq : seq) : OF10.action list =

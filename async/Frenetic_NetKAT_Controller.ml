@@ -28,6 +28,9 @@ let bytes_to_headers
   ; ipDst = (try nwDst pkt with Invalid_argument(_) -> 0l)
   ; tcpSrcPort = (try tpSrc pkt with Invalid_argument(_) -> 0)
   ; tcpDstPort = (try tpDst pkt with Invalid_argument(_) -> 0)
+  (* XXX(basus): We don't planning on running an optical controller yet, so leaving
+     channel parsing unimplemented for now *)
+  ; channel = 0
   }
 
 let packet_sync_headers (pkt:Frenetic_NetKAT_Semantics.packet) : Frenetic_NetKAT_Semantics.packet * bool =
@@ -66,7 +69,8 @@ let packet_sync_headers (pkt:Frenetic_NetKAT_Semantics.packet) : Frenetic_NetKAT
       Frenetic_Packet.setTpDst)
     (* XXX(seliopou): currently does not support: *)
     ~ethType:(g (fun _ _ -> true) (fail "ethType"))
-    ~ipProto:(g (fun _ _ -> true) (fail "ipProto")) in
+    ~ipProto:(g (fun _ _ -> true) (fail "ipProto"))
+    ~channel:(g (fun _ _ -> true) (fail "channel")) in
   ({ pkt with payload = match pkt.payload with
     | Frenetic_OpenFlow.NotBuffered(_) -> Frenetic_OpenFlow.NotBuffered(Frenetic_Packet.marshal packet')
     | Frenetic_OpenFlow.Buffered(n, _) -> Frenetic_OpenFlow.Buffered(n, Frenetic_Packet.marshal packet')

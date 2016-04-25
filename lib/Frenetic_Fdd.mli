@@ -47,6 +47,7 @@ module Field : sig
       | TCPDstPort
       | Location
       | VFabric
+      | Channel
   [@@deriving sexp]
 
   include Frenetic_Vlr.HashCmp with type t := t

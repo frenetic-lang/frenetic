@@ -20,6 +20,7 @@ module Field = struct
     | TCPDstPort
     | Location
     | VFabric
+    | Channel
     [@@deriving sexp, enumerate, enum]
 
   (** The type of packet fields. This is an enumeration whose ordering has an
@@ -78,6 +79,7 @@ module Field = struct
     | Frenetic_NetKAT.TCPSrcPort _ -> TCPSrcPort
     | Frenetic_NetKAT.TCPDstPort _ -> TCPDstPort
     | Frenetic_NetKAT.VFabric _ -> VFabric
+    | Frenetic_NetKAT.Channel _ -> Channel
 
   (* Heuristic to pick a variable order that operates by scoring the fields
      in a policy. A field receives a high score if, when a test field=X
@@ -319,6 +321,7 @@ module Pattern = struct
     | TCPSrcPort(tpPort) -> (Field.TCPSrcPort, Value.of_int tpPort)
     | TCPDstPort(tpPort) -> (Field.TCPDstPort, Value.of_int tpPort)
     | VFabric(vfab) -> (Field.VFabric, Value.(Const vfab))
+    | Channel(chan) -> (Field.Channel, Value.of_int chan)
 
   let to_hv (f, v) =
     let open Field in

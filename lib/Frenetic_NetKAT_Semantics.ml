@@ -18,6 +18,7 @@ module HeadersValues = struct
     ; ipDst : nwAddr
     ; tcpSrcPort : tpPort
     ; tcpDstPort : tpPort
+    ; channel : int
     } [@@deriving sexp, fields, compare]
 
   let to_string (x:t) : string =
@@ -43,6 +44,7 @@ module HeadersValues = struct
       ~ipDst:Int32.(g to_string)
       ~tcpSrcPort:Int.(g to_string)
       ~tcpDstPort:Int.(g to_string)
+      ~channel:Int.(g to_string)
 
   let to_hvs (t:t) : Frenetic_NetKAT.header_val list =
     let open Frenetic_NetKAT in
@@ -60,6 +62,7 @@ module HeadersValues = struct
       ~ipDst:(conv (fun x -> IP4Dst(x, 32l)))
       ~tcpSrcPort:(conv (fun x -> TCPSrcPort x))
       ~tcpDstPort:(conv (fun x -> TCPDstPort x))
+      ~channel:(conv (fun x -> Channel x))
 
 end
 
@@ -133,6 +136,7 @@ let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
         Frenetic_OpenFlow.Pattern.Ip.less_eq (pkt.headers.ipDst, 32l) (n, m)
       | TCPSrcPort n -> pkt.headers.tcpSrcPort = n
       | TCPDstPort n -> pkt.headers.tcpDstPort = n
+      | Channel n -> pkt.headers.channel = n
       | VSwitch n | VPort n | VFabric n -> true (* SJS *)
     end
   | And (pr1, pr2) -> eval_pred pkt pr1 && eval_pred pkt pr2
@@ -166,6 +170,7 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
         { pkt with headers = { pkt.headers with tcpSrcPort = n }}
       | TCPDstPort n ->
         { pkt with headers = { pkt.headers with tcpDstPort = n }}
+      | Channel n -> { pkt with headers = { pkt.headers with channel = n }}
       | VSwitch n | VPort n | VFabric n -> pkt (* SJS *) in
     PacketSet.singleton pkt'
   | Union (pol1, pol2) ->

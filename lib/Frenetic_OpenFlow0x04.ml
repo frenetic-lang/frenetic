@@ -3355,6 +3355,7 @@ module Action = struct
       | SetIP4Dst nwAddr     -> OxmIP4Dst (val_to_mask nwAddr)
       | SetTCPSrcPort tpPort -> OxmTCPSrc tpPort
       | SetTCPDstPort tpPort -> OxmTCPDst tpPort
+      | SetChannel _         -> failwith "Channels not yet implemented"
       in SetField oxm)
     | Frenetic_OpenFlow.FastFail gid -> Group gid 
     | Enqueue _ -> failwith "Not Yet Implemented"

@@ -61,7 +61,8 @@ let modify_from_json (json : json) : action =
   | IP4Dst (addr,mask) -> SetIP4Dst addr
   | TCPSrcPort n -> SetTCPSrcPort n
   | TCPDstPort n -> SetTCPDstPort n
-  | Switch _ | Location _ | VSwitch _ | VPort _ | VFabric _ 
+  | Channel n -> SetChannel n
+  | Switch _ | Location _ | VSwitch _ | VPort _ | VFabric _
     -> failwith "Unsupported field modification" in  
   Modify set_field_val 
   
@@ -101,7 +102,8 @@ let pattern_to_json (p:Pattern.t) : json =
      ("nwProto", int_field ident p.nwProto);
      ("tpSrc", int_field ident p.tpSrc);
      ("tpDst", int_field ident p.tpDst);
-     ("inPort", int_field Int32.to_int_exn p.inPort) ]
+     ("inPort", int_field Int32.to_int_exn p.inPort);
+     ("channel", int_field ident p.channel)]
 
 let modify_to_json (m : modify) : json = match m with
   | SetEthSrc m ->
@@ -124,6 +126,8 @@ let modify_to_json (m : modify) : json = match m with
      `List [`String "SetTpSrc"; `Int n]
   | SetTCPDstPort n ->
      `List [`String "SetTpDst"; `Int n]
+  | SetChannel n ->
+     `List [`String "SetChannel"; `Int n]
 
 let action_to_json (a : action) : json = match a with
   | Output p -> `List [`String "Output"; pseudoport_to_json p]

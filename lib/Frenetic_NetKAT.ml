@@ -37,6 +37,7 @@ type header_val =
   | VSwitch of vswitchId
   | VPort of vportId
   | VFabric of vfabricId
+  | Channel of int
   [@@deriving sexp]
 
 type pred =

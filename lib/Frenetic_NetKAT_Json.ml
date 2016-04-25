@@ -50,8 +50,9 @@ let to_json_value (h : header_val) : json = match h with
   | VlanPcp n
   | EthType n
   | IPProto n
+  | Channel n
   | TCPSrcPort n
-  | TCPDstPort n -> `Int n
+  | TCPDstPort n-> `Int n
   | IP4Src (addr, mask)
   | IP4Dst (addr, mask) -> to_json_ip (addr, mask)
 
@@ -71,6 +72,7 @@ let to_json_header (h : header_val) : json =
     | IP4Dst _ -> "ip4dst"
     | TCPSrcPort _ -> "tcpsrcport"
     | TCPDstPort _ -> "tcpdstport"
+    | Channel _ -> "channel"
     | VFabric _ -> "vfabric" in
   `String str
 
@@ -143,6 +145,7 @@ let from_json_header_val (json : json) : header_val =
   | "ip4dst" -> let (x,y) = from_json_ip value in IP4Dst (x,y)
   | "tcpsrcport" -> TCPSrcPort (value |> to_int)
   | "tcpdstport" -> TCPDstPort (value |> to_int)
+  | "channel" -> Channel (value |> to_int)
   | str -> raise (Invalid_argument ("invalid header " ^ str))
 
 let rec from_json_pred (json : json) : pred =

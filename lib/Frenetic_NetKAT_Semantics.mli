@@ -24,6 +24,7 @@ module HeadersValues : sig
     ; ipDst : nwAddr
     ; tcpSrcPort : tpPort
     ; tcpDstPort : tpPort
+    ; channel : int
     } [@@deriving sexp, fields]
 
   val compare : t -> t -> int
