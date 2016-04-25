@@ -105,6 +105,8 @@ EXTEND Gram
       MK(Test (IP4Dst (ID(n), ID(m))))
     | "ip4Dst"; "="; n = nk_ipv4 ->
       MK(Test (IP4Dst (ID(n), 32l)))
+    | "channel"; "="; n = nk_int ->
+      MK(Test (Channel ID(n)))
     AQ
   ]];
 
