@@ -58,6 +58,10 @@ type show =
   | STable of switchId
   | SAll
 
+type json =
+  | JPolicy
+  | JTable of switchId
+
 type input =
   | IPolicy
   | ITopology
@@ -66,6 +70,7 @@ type input =
 type command =
   | Load of (input * source)
   | Show of show
+  | Json of json
   | Compile of compile
   | Post of (string * int * switchId)
   | Fabric
@@ -106,6 +111,14 @@ module Parser = struct
            let swid = Int64.of_string (String.of_char_list sw) in
            return (Show (STable swid))))) <|>
       (symbol "all"      >> (return (Show SAll))))
+
+  (* Parser for the json command *)
+  let json : (command, bytes list) MParser.t =
+    symbol "json" >> (
+      (symbol "policy"   >> (return (Json JPolicy)))   <|>
+      (symbol "table"    >> (many_until digit eof >>= (fun sw ->
+           let swid = Int64.of_string (String.of_char_list sw) in
+           return (Json (JTable swid))))))
 
   (* Parser for the compile command *)
   let compile : (command, bytes list) MParser.t =
@@ -151,6 +164,7 @@ module Parser = struct
   let command : (command, bytes list) MParser.t =
     load     <|>
     show     <|>
+    json     <|>
     compile  <|>
     post     <|>
     fabric   <|>
@@ -240,6 +254,22 @@ let rec show (s:show) : unit = match s with
     print_endline "Fabric";
     show SFabric
 
+let json(j:json) : unit = match j with
+  | JPolicy -> begin match state.policy with
+      | None -> print_endline "No policy specified"
+      | Some p ->
+        let json = Frenetic_NetKAT_Json.policy_to_json p in
+        printf "%s\n" (Yojson.Basic.pretty_to_string json)
+    end
+  | JTable swid -> begin match state.fdd with
+      | Some fdd ->
+        let table = Compiler.to_table swid fdd in
+        let json = Frenetic_NetKAT_SDN_Json.flowTable_to_json table in
+        printf "\n%s\n" (Yojson.Basic.pretty_to_string json)
+      | None ->
+        print_endline "JSON flowtables requires a loaded and compiled policy"
+    end
+
 let mk_fabric (net : Net.Topology.t) :
     (switchId, Frenetic_OpenFlow0x01.flowMod list) Hashtbl.t =
   Frenetic_Fabric.vlan_per_port net
@@ -266,6 +296,7 @@ let rec repl () : unit Deferred.t =
           | Ok (Fabric f)   -> state.fabric   <- Some f
           | Error s         -> print_endline s end
       | Some (Show s) -> show s
+      | Some (Json s) -> json s
       | Some Fabric -> begin match state.topology with
           | Some net ->
             (* TODO(basus) : fix fabric generation interface *)
