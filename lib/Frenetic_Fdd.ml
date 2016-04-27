@@ -384,6 +384,8 @@ module Pattern = struct
       { pat with SDN.Pattern.tpSrc = Some(to_int tpPort) }
     | (TCPDstPort, Const tpPort) -> fun pat ->
       { pat with SDN.Pattern.tpDst = Some(to_int tpPort) }
+    | (Channel, Const chan) -> fun pat ->
+      { pat with SDN.Pattern.channel = Some(to_int chan) }
     (* Should never happen because these pseudo-fields should have been removed by the time to_sdn is used *)
     | (Switch, Const _)
     | (VSwitch, Const _)
