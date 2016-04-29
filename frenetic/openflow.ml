@@ -91,16 +91,20 @@ let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit De
       return ()
     | SentSwitchFeatures, `Ok (hdr, SwitchFeaturesReply features) ->
       let switchId = features.switch_id in
-      let txns = Hashtbl.Poly.create () in 
-      let xid_cell = ref 0l in 
-      let next_uid () = xid_cell := Int32.(!xid_cell + 1l); !xid_cell in 
+      let txns = Hashtbl.Poly.create () in
+      (* We start the transaction ID high because Frenetic will send low ID's for flow
+      table requests *)
+      let xid_cell = ref 100000l in
+      let next_uid () = xid_cell := Int32.(!xid_cell + 1l); !xid_cell in
       let threadState = { switchId; txns } in
-      let send xid msg = serialize xid msg in 
+      let send xid msg = serialize xid msg in
       let send_txn msg =
-        let xid = next_uid () in 
-        let ivar = Ivar.create () in 
+        let xid = next_uid () in
+        let ivar = Ivar.create () in
         Hashtbl.Poly.add_exn txns ~key:xid ~data:(ivar,[]);
-        Ivar.read ivar in
+        serialize xid msg;
+        Ivar.read ivar;
+        in
       Hashtbl.Poly.add_exn switches ~key:switchId ~data:{ features; send; send_txn };
       Log.debug "Switch %s connected" (string_of_switchId switchId);
       Pipe.write_without_pushback events_writer (`Connect (switchId, features));
@@ -117,11 +121,14 @@ let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit De
       Pipe.write_without_pushback events_writer (`Disconnect threadState.switchId);
       return ()
     | Connected threadState, `Ok (hdr, msg) ->
+      (* TODO: Am not sure we should be writing a transactional response to the event writer *)
       Pipe.write_without_pushback events_writer (`Message (threadState.switchId, hdr, msg));
       (match Hashtbl.Poly.find threadState.txns hdr.xid with 
        | None -> ()
        | Some (ivar,msgs) -> 
          Hashtbl.Poly.remove threadState.txns hdr.xid;
+         (* Am not sure why this is a list, since there will never be more than one.  The
+         above line removes the hash entry so it'll never come up again. *)
          Ivar.fill ivar (msg::msgs));
       loop state in
 
@@ -154,7 +161,9 @@ let send_batch switchId xid msgs =
 
 let send_txn switchId msg = 
   match Hashtbl.Poly.find switches switchId with
-  | Some switchState -> 
+  | Some switchState ->
+    (* The following returns a Deferred which will be fulfilled when a
+    matching response is received *)
     `Ok (switchState.send_txn msg)
   | None -> 
     `Eof
@@ -188,9 +197,14 @@ let rpc_handler (a:Socket.Address.Inet.t) (reader:Reader.t) (writer:Writer.t) : 
        Log.error "Event stream stopped unexpectedly!";
        `Finished ()
      | `Send_txn (swid, msg) ->
-       write (`Send_txn_resp (send_txn swid msg));
+       let run_trx = send_txn swid msg in
+       let () = match run_trx with
+         | `Eof -> write (`Send_trx_rep `Eof)
+         | `Ok ivar_deferred ->
+            upon ivar_deferred
+              (fun collected_responses -> write (`Send_txn_resp (`Ok (`Ok collected_responses))))
+          in
        return (`Repeat ()))
-
   
 let run_server port rpc_port =
   don't_wait_for
