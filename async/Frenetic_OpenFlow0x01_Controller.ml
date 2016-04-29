@@ -159,15 +159,12 @@ let send_txn swid msg =
   Reader.read_marshal reader >>| fun resp ->
     match resp with
     | `Eof ->
-      Log.debug "send_txn returned (EOF)";
       Socket.shutdown sock `Both;
       `Eof
     | `Ok (`Send_txn_resp `Eof) ->
-      Log.debug "send_txn returned (EOF)";
       Socket.shutdown sock `Both;
       `Eof
     | `Ok (`Send_txn_resp (`Ok resp)) ->
-      Log.debug "send_txn returned (Ok)";
       Socket.shutdown sock `Both;
       resp
     | _ ->
