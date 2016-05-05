@@ -208,12 +208,12 @@ class Firewall(frenetic.App):
       tcp = self.packet(payload, "udp")
     else:
       print "Not a TCP or UDP packet. Dropped."
-      self.pkt_out(switch = switch_id, payload = payload, actions = [])
+      self.pkt_out(switch_id = switch_id, payload = payload, actions = [])
       return
 
     if ip == None or tcp == None:
       print "Not TCP/IP packet. Dropped."
-      self.pkt_out(switch = switch_id, payload = payload, actions = [])
+      self.pkt_out(switch_id = switch_id, payload = payload, actions = [])
       return
 
     if self.state.version == 1:

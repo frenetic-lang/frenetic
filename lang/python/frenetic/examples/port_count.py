@@ -28,7 +28,8 @@ class PortCount(frenetic.App):
 
   def print_count(self, future, switch):
     data = future.result()
-    print "Count %s@%s: {rx_bytes = %s, tx_bytes = %s}" % (switch, data['port_no'], data['rx_bytes'], data['tx_bytes'])
+    for d in data:
+      print "Count %s@%s: {rx_bytes = %s, tx_bytes = %s}" % (switch, d['port_no'], d['rx_bytes'], d['tx_bytes'])
 
   def count_ports(self):
     for switch in self.state.switches:
