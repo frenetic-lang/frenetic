@@ -278,6 +278,16 @@ let mk_fabric (net : Net.Topology.t) :
     (switchId, Frenetic_OpenFlow0x01.flowMod list) Hashtbl.t =
   Frenetic_Fabric.vlan_per_port net
 
+let post (uri:Uri.t) (body:string) =
+  try_with (fun () ->
+      let open Cohttp.Body in
+      Cohttp_async.Client.post ~body:(`String body) uri >>=
+      (fun (_,body) -> (Cohttp_async.Body.to_string body)))
+  >>> (function
+      | Ok s -> printf "%s\n" s
+      | Error _ -> printf "Could not post")
+
+
 let write (at : Frenetic_NetKAT_Compiler.automaton) (filename:string) : unit =
   let string = Frenetic_NetKAT_Compiler.automaton_to_string at in
   Out_channel.write_all "%s\n%!" ~data:string
@@ -319,18 +329,13 @@ let rec repl () : unit Deferred.t =
       | Some (Post(host, port, cmd, swid)) ->
         let path = String.concat ~sep:"/" [cmd; Int64.to_string swid] in
         let uri = Uri.make ~host:host ~port:port ~path:path () in
-        printf "URI parsed as %s\n" (Uri.to_string uri);
         begin match state.fdd with
           | Some fdd ->
-            let open Cohttp.Body in
             let table = Compiler.to_table swid fdd in
             let json = (Frenetic_NetKAT_SDN_Json.flowTable_to_json table) in
-            Cohttp_async.Client.post
-              ~body:(`String (Yojson.Basic.to_string json))
-              uri >>=
-            (fun (_,body) -> (Cohttp_async.Body.to_string body)) >>>
-            (fun s -> printf "%s\n" s)
-        | None -> printf "Please `load` and `compile` a policy first" end
+            let body = Yojson.Basic.to_string json in
+            post uri body
+          | None -> printf "Please `load` and `compile` a policy first" end
       | Some (Write _) -> ()
       | Some Exit ->
 	print_endline "Goodbye!"; Shutdown.shutdown 0
