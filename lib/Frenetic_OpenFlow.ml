@@ -544,7 +544,7 @@ let div max_p max_a : string =
 (* Create the columns of the table *)
 let title label max_p max_a : string =
   let open Core.Std in
-  let pattern = pad max_p (Format.sprintf "%s | Pattern" label) in
+  let pattern = pad max_p (Format.sprintf "%s| Pattern" label) in
   let action = pad max_a "Action" in
   Format.sprintf "| %s | %s |\n" pattern action
 

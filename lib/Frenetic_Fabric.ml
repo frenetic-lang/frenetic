@@ -104,3 +104,11 @@ let of_global_policy (pol:Frenetic_NetKAT.policy) (sws:switchId list) : fabric =
     ) ;
   fabric
 
+let to_string (fab:fabric) : string =
+  let buf = Buffer.create (Hashtbl.length fab * 100) in
+  Hashtbl.Poly.iteri fab ~f:(fun ~key:swid ~data:mods ->
+      Buffer.add_string buf (
+        Frenetic_OpenFlow.string_of_flowTable
+          ~label:(sprintf "Switch %Ld |\n" swid)
+          mods)) ;
+  Buffer.contents buf
