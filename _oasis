@@ -6,10 +6,10 @@ Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     https://github.com/frenetic-lang/frenetic/contributors
 License:     LGPL
 Plugins:     META (0.3)
-AlphaFeatures: 
+AlphaFeatures:
   no_automatic_syntax,
   ocamlbuild_more_args
-XOCamlbuildExtraArgs: -cflags -w,-40,-short-paths 
+XOCamlbuildExtraArgs: -cflags -w,-40,-short-paths
 BuildTools:
   ocamlbuild,
   ocamldoc
@@ -32,6 +32,7 @@ Library frenetic
     camlp4,
     core,
     cstruct,
+    hashcons,
     ocamlgraph (>= 1.8.6),
     ppx_jane,
     ppx_deriving.eq,
@@ -40,6 +41,7 @@ Library frenetic
     tcpip,
     ulex,
     yojson,
+    tdk,
     threads
   Modules:
     Frenetic_Hashcons,
@@ -58,6 +60,9 @@ Library frenetic
     Frenetic_NetKAT_Pretty,
     Frenetic_NetKAT_SDN_Json,
     Frenetic_NetKAT_Semantics,
+    Frenetic_Decide_Lexer,
+    Frenetic_Decide_Parser,
+    Frenetic_Decide_Measurement,
     Frenetic_Network,
     Frenetic_OpenFlow,
     Frenetic_OpenFlow_Header,
@@ -168,7 +173,7 @@ Executable testtool
     frenetic,
     frenetic.async
 
-#Executable fastfailtest 
+#Executable fastfailtest
 #  Path: integration
 #  MainIs: FastFailTest_Controller.ml
 #  Install: false
@@ -183,7 +188,7 @@ Executable testtool
 Test all_tests
   Run$: flag(tests)
   # -only-test Test_Frenetic_GroupTable0x04.ml
-  Command: $testtool inline-test-runner frenetic 
+  Command: $testtool inline-test-runner frenetic
   TestTools: testtool
 
 Document frenetic

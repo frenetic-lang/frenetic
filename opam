@@ -38,6 +38,8 @@ depends: [
   "mparser"
   "ocamlgraph" {>= "1.8.6"}
   "quickcheck"
+  "hashcons"
+  "tdk"
   "ounit" {test}
   "pa_ounit" {test}
 ]

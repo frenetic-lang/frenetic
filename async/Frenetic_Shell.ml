@@ -2,10 +2,24 @@ open Core.Std
 open Async.Std
 open Frenetic_NetKAT
 
-module Controller = Frenetic_NetKAT_Controller.Make
 module Comp = Frenetic_NetKAT_Compiler
+module Controller = Frenetic_NetKAT_Controller.Make
+module DecideAst = Frenetic_Decide_Ast
+module Felix = Frenetic_Decide_Measurement
+module FelixLexer = Frenetic_Decide_Lexer
+module FelixParser = Frenetic_Decide_Parser
 module Field = Frenetic_Fdd.Field
 module Log = Frenetic_Log
+
+(* Felix reads in a network specified by four kat files, {in,p,t,out}.kat, and
+ * a single query file, q.query. This record contains these five filenames. *)
+type felix_files = {
+  in_: string;
+  p:   string;
+  t:   string;
+  out: string;
+  q:   string;
+}
 
 type showable =
   (* usage: order
@@ -52,6 +66,10 @@ type command =
   | Load of string
   (* See showables for more details *)
   | Show of showable
+  (* usage: felix in.kat p.kat t.kat out.kat q.query
+   * Compile and print the Felix query found in q.query against network
+   * specified by {in,p,t,out}.kat *)
+  | Felix of felix_files
 
 module Parser = struct
 
@@ -88,7 +106,7 @@ module Parser = struct
       (Tokens.symbol "heuristic" >> return (Order `Heuristic)) <|>
       (Tokens.symbol "default" >> return (Order `Default)) <|>
       (sep_by1 any_field (Tokens.symbol "<") >>=
-	 fun fields -> eof >> return (Order (`Static fields))))
+   fun fields -> eof >> return (Order (`Static fields))))
 
     (* Mostly useless error message for parsing policies *)
     let string_of_position (p : Lexing.position) : string =
@@ -107,17 +125,17 @@ module Parser = struct
     (* Parser for netkat policies *)
     let policy' : ((policy * string), bytes list) MParser.t =
       many_until any_char eof >>=
-	(fun pol_chars ->
-	 let pol_str = String.of_char_list pol_chars in
-	 match parse_policy pol_str with
-	 | Ok pol -> return (pol, pol_str)
-	 | Error msg -> fail msg)
+      (fun pol_chars ->
+       let pol_str = String.of_char_list pol_chars in
+       match parse_policy pol_str with
+       | Ok pol -> return (pol, pol_str)
+       | Error msg -> fail msg)
 
     (* Parser for the Update command *)
     let update : (command, bytes list) MParser.t =
       Tokens.symbol "update" >>
-	policy' >>=
-	(fun pol -> return (Update pol))
+      policy' >>=
+      (fun pol -> return (Update pol))
 
     (* Parser for the help command *)
     let help : (command, bytes list) MParser.t =
@@ -134,8 +152,8 @@ module Parser = struct
     (* Parser for the load command *)
     let load : (command, bytes list) MParser.t =
       Tokens.symbol "load" >>
-	many_until any_char eof >>=
-	(fun filename -> return (Load (String.of_char_list filename)))
+      many_until any_char eof >>=
+      (fun filename -> return (Load (String.of_char_list filename)))
 
     (* Parser for the policy command *)
     let policy : (command, bytes list) MParser.t =
@@ -148,22 +166,33 @@ module Parser = struct
     (* Parser for the flow-table command *)
     let flowtable : (command, bytes list) MParser.t =
       Tokens.symbol "flow-table" >>
-	(eof >> return (Show (FlowTable None)) <|>
-	(policy' >>=
-	   (fun pol -> return (Show (FlowTable (Some pol))))))
+      (eof >> return (Show (FlowTable None)) <|>
+      (policy' >>=
+     (fun pol -> return (Show (FlowTable (Some pol))))))
 
-   (* Parser for commands *)
+    (* Parser for the felix command *)
+    let felix : (command, bytes list) MParser.t =
+      let word = (many1 (none_of " ") >>= fun word -> spaces >>$ word) in
+      Tokens.symbol "felix" >>= fun _ ->
+      spaces >>= fun _ ->
+      count 5 word >>= fun chars ->
+      eof >>= fun _ ->
+      match List.map ~f:String.of_char_list chars with
+      | [in_; p; t; out; q] -> return (Felix {in_; p; t; out; q})
+      | _ -> failwith "felix: count 5 didn't parse 5 things!"
+
+    (* Parser for commands *)
     let command : (command, bytes list) MParser.t =
       order <|>
-	update <|>
-	policy <|>
-	help <|>
-	flowtable <|>
-  remove_tail_drops <|>
-	load <|>
-	exit <|>
-  quit
-
+      update <|>
+      policy <|>
+      help <|>
+      flowtable <|>
+      remove_tail_drops <|>
+      load <|>
+      exit <|>
+      quit <|>
+      felix
 end
 
 (* For convenience *)
@@ -189,7 +218,7 @@ let rec check_duplicates (fs : Field.t list) (acc : Field.t list) : bool =
      if List.mem acc f
      then
        (printf "Invalid ordering: %s < %s" (Field.to_string f) (Field.to_string f);
-	false)
+  false)
      else check_duplicates rest (f::acc)
 
 (* Given an ordering, sets the order reference.
@@ -222,6 +251,58 @@ let toggle_remove_tail_drops () =
   current_compiler_options := { !current_compiler_options with remove_tail_drops = not current_setting };
   printf "Remove Tail Drops: %B\n%!" (!current_compiler_options).remove_tail_drops
 
+(* The filename, line, column, and token of a parsing error. *)
+exception FelixParseError of string * int * int * string
+
+let felix ({q; _} as files: felix_files) : unit =
+  (* Try to parse lexbuf, derived from filename, with parser_function and throw
+   * an exception if parsing fails. If lexbuf wasn't derived from a file,
+   * filename can be any descriptive string. *)
+  let parse_exn parser_function lexbuf (filename: string) =
+    try
+      parser_function FelixLexer.token lexbuf
+    with
+      | Parsing.Parse_error -> begin
+        let curr = lexbuf.Lexing.lex_curr_p in
+        let line = curr.Lexing.pos_lnum in
+        let char = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
+        let token = Lexing.lexeme lexbuf in
+        raise (FelixParseError (filename, line, char, token))
+      end
+  in
+
+  (* Generate a lexbuf from filename, and then parse it with parser_function. *)
+  let parse_file_exn parser_function (filename: string) =
+    let file_channel = In_channel.create filename in
+    parse_exn parser_function (Lexing.from_channel file_channel) filename
+  in
+
+  let term_of_file (filename: string) : DecideAst.Term.t =
+    parse_file_exn FelixParser.term_main filename
+  in
+
+  let query_of_file (filename: string) : Felix.Query.t =
+    parse_file_exn FelixParser.query_main filename
+  in
+
+  let network_of_files (files: felix_files) : Felix.network =
+    let ingress  = term_of_file files.in_ in
+    let p        = term_of_file files.p in
+    let t        = term_of_file files.t in
+    let outgress = term_of_file files.out in
+    Felix.({ingress; p; t; outgress})
+  in
+
+  try
+    let network = network_of_files files in
+    let query = query_of_file q in
+    let compiled = Felix.compile network query in
+    print_endline (DecideAst.Term.to_string compiled)
+  with
+  | Sys_error msg -> printf "Load failed: %s\n%!" msg
+  | FelixParseError (filename, line, char, token) ->
+      printf "Parse error %s:%d%d: %s%!" filename line char token
+
 (* A reference to the current policy and the associated string. *)
 let policy : (policy * string) ref = ref (drop, "drop")
 
@@ -236,8 +317,8 @@ let string_of_policy (pol : policy) : string =
   let switches = Frenetic_NetKAT_Semantics.switches_of_policy pol in
   let switches' = if List.is_empty switches then [0L] else switches in
   let tbls = List.map switches'
-		      (fun sw_id -> Comp.to_table ~options:(!current_compiler_options) sw_id bdd |>
-				      Frenetic_OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id)) in
+          (fun sw_id -> Comp.to_table ~options:(!current_compiler_options) sw_id bdd |>
+              Frenetic_OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id)) in
   String.concat ~sep:"\n\n" tbls
 
 (* Given a policy, print the flowtables associated with it *)
@@ -283,6 +364,9 @@ let help =
   "  remove_tail_drops   - Remove drop rules at the end of each flow-table.  Toggles ";
   "                        setting.";
   "";
+  "  felix <in> <p> <t> <out> <q>";
+  "                      - Compile Felix query q against network in,p,t,out";
+  "";
   "  help                - Displays this message.";
   "";
   "  exit                - Exits Frenetic Shell.";
@@ -318,20 +402,21 @@ let rec repl () : unit Deferred.t =
     match line with
     | `Eof -> Shutdown.shutdown 0
     | `Ok line -> match parse_command line with
-		  | Some Exit | Some Quit ->
-		     print_endline "Goodbye!";
-		     Shutdown.shutdown 0
-		  | Some (Show Ordering) -> print_order ()
-		  | Some (Show Policy) -> print_policy ()
-		  | Some (Show Help) -> print_help ()
-		  | Some (Show (FlowTable t)) -> print_policy_table t
-		  | Some (Update (pol, pol_str)) ->
-		     policy := (pol, pol_str);
+      | Some Exit | Some Quit ->
+         print_endline "Goodbye!";
+         Shutdown.shutdown 0
+      | Some (Show Ordering) -> print_order ()
+      | Some (Show Policy) -> print_policy ()
+      | Some (Show Help) -> print_help ()
+      | Some (Show (FlowTable t)) -> print_policy_table t
+      | Some (Update (pol, pol_str)) ->
+         policy := (pol, pol_str);
          don't_wait_for (Controller.update_policy pol)
-		  | Some (Load filename) -> load_file filename
-		  | Some (Order order) -> set_order order
+      | Some (Load filename) -> load_file filename
+      | Some (Order order) -> set_order order
       | Some (ToggleRemoveTailDrops) -> toggle_remove_tail_drops ()
-		  | None -> ()
+      | Some (Felix files) -> felix files
+      | None -> ()
   in handle input; repl ()
 
 let log_file = "frenetic.log"
