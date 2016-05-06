@@ -1,59 +1,39 @@
 open Core.Std
 open Frenetic_Network
-open Frenetic_OpenFlow0x01
+open Frenetic_OpenFlow
 
-type fabric = (switchId, Frenetic_OpenFlow0x01.flowMod list) Hashtbl.t
+module Compiler = Frenetic_NetKAT_Compiler
 
-let blank_pattern =
-  { dlSrc = None
-  ; dlDst = None
-  ; dlTyp = None
-  ; dlVlan = None
-  ; dlVlanPcp = None
-  ; nwSrc = None
-  ; nwDst = None
-  ; nwProto = None
-  ; nwTos = None
-  ; tpSrc = None
-  ; tpDst = None
-  ; inPort = None }
+type fabric = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
 
-let add_flow =
-  { command = AddFlow
-  ; pattern = blank_pattern
-  ; actions = []
-  ; priority = 65535
+let strip_vlan = Some 0xffff
+
+let mk_flow (pat:Pattern.t) (actions:group) : flow =
+  { pattern = pat
+  ; action = actions
   ; cookie = 0L
   ; idle_timeout = Permanent
   ; hard_timeout = Permanent
-  ; notify_when_removed = true
-  ; apply_to_packet = None
-  ; out_port = None
-  ; check_overlap = false
   }
 
-let drop = { add_flow with priority = 1 }
+let drop = mk_flow Pattern.match_all [[[]]]
 
 let vlan_per_port (net:Net.Topology.t) : fabric =
-  let mk_flow_mod (port:int) : flowMod =
-    let pattern = { blank_pattern with dlVlan = Some (Some port) } in
-    let actions = [ SetDlVlan None; Output (PhysicalPort port) ] in
-    { add_flow with pattern = pattern; actions = actions;
-      out_port = Some (PhysicalPort port) }
-  in
-
   let open Net.Topology in
   let tags = Hashtbl.Poly.create ~size:(num_vertexes net) () in
   iter_edges (fun edge ->
       let src, port = edge_src edge in
       let label = vertex_to_label net src in
-      let flow_mod = mk_flow_mod (Int32.to_int_exn port) in
+      let pattern = { Pattern.match_all with dlVlan =
+                                               Some (Int32.to_int_exn port)} in
+      let actions = [ [ [ Modify(SetVlan strip_vlan); Output (Physical port) ] ] ] in
+      let flow = mk_flow pattern actions in
       match Node.device label with
       | Node.Switch ->
         Hashtbl.Poly.change tags (Node.id label)
           ~f:(fun table -> match table with
-          | Some flow_mods -> Some( flow_mod::flow_mods )
-          | None -> Some [flow_mod; drop] )
+              | Some flows -> Some( flow::flows )
+              | None -> Some [flow; drop] )
       | _ -> ()) net;
   tags
 
@@ -69,11 +49,10 @@ let shortest_path (net:Net.Topology.t)
     | None -> failwith (Printf.sprintf "No vertex for switch id: %Ld" swid )
   in
 
-  let mk_flow_mod (tag:int) (port:int) : flowMod =
-    let pattern = { blank_pattern with dlVlan = Some (Some tag) } in
-    let actions = [ Output (PhysicalPort port) ] in
-    { add_flow with pattern = pattern; actions = actions;
-      out_port = Some (PhysicalPort port) }
+  let mk_flow_mod (tag:int) (port:int32) : flow =
+    let pattern = { Pattern.match_all with dlVlan = Some tag } in
+    let actions = [[[ Output (Physical port) ]]] in
+    mk_flow pattern actions
   in
 
 
@@ -92,7 +71,7 @@ let shortest_path (net:Net.Topology.t)
           List.iter p ~f:(fun edge ->
             let src, port = edge_src edge in
             let label = vertex_to_label net src in
-            let flow_mod = mk_flow_mod !tag (Int32.to_int_exn port) in
+            let flow_mod = mk_flow_mod !tag port in
             match Node.device label with
             | Node.Switch ->
               Hashtbl.Poly.change table (Node.id label)
@@ -101,3 +80,27 @@ let shortest_path (net:Net.Topology.t)
                 | None -> Some [flow_mod; drop] )
             | _ -> ())));
   table
+
+let of_local_policy (pol:Frenetic_NetKAT.policy) (sws:switchId list) : fabric =
+  let fabric = Hashtbl.Poly.create ~size:(List.length sws) () in
+  let compiled = Compiler.compile_local pol in
+  List.iter sws ~f:(fun swid ->
+      let table = (Compiler.to_table swid compiled) in
+      match Hashtbl.Poly.add fabric ~key:swid ~data:table with
+      | `Ok -> ()
+      | `Duplicate -> printf "Duplicate table for switch %Ld\n" swid
+    ) ;
+  fabric
+
+
+let of_global_policy (pol:Frenetic_NetKAT.policy) (sws:switchId list) : fabric =
+  let fabric = Hashtbl.Poly.create ~size:(List.length sws) () in
+  let compiled = Compiler.compile_global pol in
+  List.iter sws ~f:(fun swid ->
+      let table = (Compiler.to_table swid compiled) in
+      match Hashtbl.Poly.add fabric ~key:swid ~data:table with
+      | `Ok -> ()
+      | `Duplicate -> printf "Duplicate table for switch %Ld\n" swid
+    ) ;
+  fabric
+

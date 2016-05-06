@@ -8,7 +8,7 @@ module Log = Frenetic_Log
 
 type fdd = Compiler.t
 type automaton = Compiler.automaton
-type fabric = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
+type fabric = Frenetic_Fabric.fabric
 type topology = Net.Topology.t
 
 type source =
@@ -274,8 +274,7 @@ let json(j:json) : unit = match j with
         print_endline "JSON flowtables requires a loaded and compiled policy"
     end
 
-let mk_fabric (net : Net.Topology.t) :
-    (switchId, Frenetic_OpenFlow0x01.flowMod list) Hashtbl.t =
+let mk_fabric (net : Net.Topology.t) : fabric =
   Frenetic_Fabric.vlan_per_port net
 
 let post (uri:Uri.t) (body:string) =
