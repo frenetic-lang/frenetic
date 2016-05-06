@@ -35,7 +35,7 @@ let state =  { policy   = None
              }
 
 type update =
-  | Fabrication       of (topology -> fabric)
+  | Fabrication       of fabric
   | FullCompilation   of (policy -> fdd)
   | StagedCompilation of (policy -> automaton) * (automaton -> fdd)
   | ToAuto            of (policy -> automaton)
@@ -67,13 +67,17 @@ type input =
   | ITopology
   | IFabric
 
+type fabricate =
+  | FTopology of (source * switchId list)
+  | FPolicy of (source * switchId list)
+
 type command =
   | Load of (input * source)
   | Show of show
   | Json of json
   | Compile of compile
   | Post of (string * int * string * switchId)
-  | Fabric
+  | Fabricate of fabricate
   | Write of string
   | Blank
   | Exit
@@ -91,8 +95,13 @@ module Parser = struct
   let source : (source, bytes list) MParser.t =
     (char '"' >> many_chars_until any_char (char '"') >>=
      (fun string -> return ( String string) ) ) <|>
-    (many_chars any_char >>=
+    (many_chars (alphanum <|> (any_of "./_-")) >>=
      (fun w -> return (Filename w)))
+
+  (* Parser for integer lists *)
+  let int_list : (int list, bytes list) MParser.t =
+    (char '[' >> many_until (many_chars_until digit (char ';')) (char ']') >>=
+     (fun ints -> return (List.map ints ~f:Int.of_string)))
 
   (* Parser for the load command *)
   let load : (command, bytes list) MParser.t =
@@ -147,9 +156,18 @@ module Parser = struct
                                          cmd,
                                          (Int64.of_string sw_s))))))))
 
-  (* Parser for the fabric command *)
-  let fabric : (command, bytes list) MParser.t =
-    symbol "fabric" >> return Fabric
+  (* Parser for the fabricate command *)
+  (* TODO(basus) : raise errors if ints are parsed properly *)
+  let fabricate : (command, bytes list) MParser.t =
+    symbol "fabricate" >> (
+      (symbol "policy" >> source >>=
+       (fun s -> blank >> int_list >>= (fun ints ->
+            let swids = List.map ints ~f:(Int64.of_int_exn) in
+            return (Fabricate (FPolicy (s, swids)))))) <|>
+      (symbol "topology" >> source >>=
+       (fun s -> blank >> int_list >>= (fun ints ->
+            let swids = List.map ints ~f:(Int64.of_int_exn) in
+            return (Fabricate (FPolicy (s, swids)))))))
 
   (* Parser for the write command *)
   let write : (command, bytes list) MParser.t =
@@ -171,7 +189,7 @@ module Parser = struct
     json     <|>
     compile  <|>
     post     <|>
-    fabric   <|>
+    fabricate<|>
     write    <|>
     blank    <|>
     exit
@@ -181,9 +199,9 @@ module Parser = struct
   codebase. *)
 
   (* Use the netkat parser to parse policies *)
-  let policy (pol_str : string) : (element, string) Result.t =
+  let policy (pol_str : string) : (policy, string) Result.t =
     try
-      Ok (Policy (Frenetic_NetKAT_Parser.policy_of_string pol_str))
+      Ok (Frenetic_NetKAT_Parser.policy_of_string pol_str)
     with Camlp4.PreCast.Loc.Exc_located (error_loc,x) ->
       Error (sprintf "Error: %s\n%s"
                (Camlp4.PreCast.Loc.to_string error_loc)
@@ -200,9 +218,7 @@ let string_of_source (s:source) : (string, string) Result.t = match s with
     with Sys_error msg -> Error msg
 
 let rec update (s:state) (u:update) : unit = match u with
-  | Fabrication fn -> begin match s.topology with
-      | Some t -> s.fabric <- Some(fn t)
-      | None   -> print_endline "Fabric generation requires a topology" end
+  | Fabrication fabric -> s.fabric <- Some fabric
   | FullCompilation fn -> begin match s.policy with
       | Some p -> s.fdd <- Some(fn p)
       | None   -> print_endline "Local and global compilation requires a policy"
@@ -224,7 +240,9 @@ let rec update (s:state) (u:update) : unit = match u with
 let load (l:input) (s:source) : (element, string) Result.t =
   try match l with
     | IPolicy -> begin match (string_of_source s) with
-        | Ok string -> Parser.policy string
+        | Ok string -> begin match Parser.policy string with
+            | Ok pol -> Ok (Policy pol)
+            | Error e -> Error e end
         | Error e -> Error e end
     | ITopology -> begin match s with
         | Filename f ->  Ok (Topology (Net.Parse.from_dotfile f))
@@ -240,7 +258,9 @@ let rec show (s:show) : unit = match s with
   | STopology -> begin match state.topology with
       | None -> print_endline "No topology specified"
       | Some t -> printf "%s\n" (Net.Pretty.to_string t) end
-  | SFabric -> print_endline "Fabric printing unimplemented"
+  | SFabric -> begin match state.fabric with
+      | None -> print_endline "No fabric specified. Use `fabricate` command."
+      | Some f -> printf "\n%s\n" (Frenetic_Fabric.to_string f) end
   | STable swid ->
     (* TODO(basus): print an error if the given switch id is not in the *)
     (* topology or policy *)
@@ -274,8 +294,18 @@ let json(j:json) : unit = match j with
         print_endline "JSON flowtables requires a loaded and compiled policy"
     end
 
-let mk_fabric (net : Net.Topology.t) : fabric =
-  Frenetic_Fabric.vlan_per_port net
+let fabricate (fab:fabricate) : (fabric, string) Result.t = match fab with
+  | FPolicy(source, swids) -> begin match string_of_source source with
+      | Ok s -> begin match Parser.policy s with
+          | Ok pol -> Ok (Frenetic_Fabric.of_local_policy pol swids)
+          | Error e -> print_endline e; Error e end
+      | Error e -> print_endline e; Error e end
+  | FTopology(s, swids) -> begin match s with
+      | Filename f ->
+        let topology = Net.Parse.from_dotfile f in
+        Ok (Frenetic_Fabric.vlan_per_port topology)
+      | _ -> Error "Topologies can only be loaded from DOT files" end
+
 
 let post (uri:Uri.t) (body:string) =
   try_with (fun () ->
@@ -310,12 +340,9 @@ let rec repl () : unit Deferred.t =
           | Error s         -> print_endline s end
       | Some (Show s) -> show s
       | Some (Json s) -> json s
-      | Some Fabric -> begin match state.topology with
-          | Some net ->
-            (* TODO(basus) : fix fabric generation interface *)
-          ignore(mk_fabric net)
-        | None -> printf "Please load a topology with the `load topology` command first."
-      end
+      | Some (Fabricate f) -> begin match (fabricate f) with
+          | Ok f -> update state (Fabrication f)
+          | Error s -> print_endline s end
         (* TODO(basus) : fix automaton interface *)
       | Some (Compile c) -> begin match c with
           | Local         -> begin
@@ -349,5 +376,3 @@ let main () : unit =
   printf "Type `help` for a list of commands\n%!";
   let _ = repl () in
   ()
-
-
