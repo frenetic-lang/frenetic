@@ -5,6 +5,9 @@ open Frenetic_NetKAT
 module Comp = Frenetic_NetKAT_Compiler
 module Controller = Frenetic_NetKAT_Controller.Make
 module DecideAst = Frenetic_Decide_Ast
+module DecideLexer = Frenetic_Decide_Lexer
+module DecideParser = Frenetic_Decide_Parser
+module DecideUtil = Frenetic_Decide_Util
 module Felix = Frenetic_Decide_Measurement
 module FelixLexer = Frenetic_Decide_Lexer
 module FelixParser = Frenetic_Decide_Parser
@@ -70,6 +73,9 @@ type command =
    * Compile and print the Felix query found in q.query against network
    * specified by {in,p,t,out}.kat *)
   | Felix of felix_files
+  (* usage: decide <formula>
+   * Run the decision procedure on <formula>. *)
+  | Decide of string
 
 module Parser = struct
 
@@ -173,13 +179,19 @@ module Parser = struct
     (* Parser for the felix command *)
     let felix : (command, bytes list) MParser.t =
       let word = (many1 (none_of " ") >>= fun word -> spaces >>$ word) in
-      Tokens.symbol "felix" >>= fun _ ->
-      spaces >>= fun _ ->
+      Tokens.symbol "felix" >>
+      spaces >>
       count 5 word >>= fun chars ->
-      eof >>= fun _ ->
+      eof >>
       match List.map ~f:String.of_char_list chars with
       | [in_; p; t; out; q] -> return (Felix {in_; p; t; out; q})
       | _ -> failwith "felix: count 5 didn't parse 5 things!"
+
+    (* Parser for the decide command *)
+    let decide : (command, bytes list) MParser.t =
+      Tokens.symbol "decide" >>
+      many_until any_char eof >>= fun formula ->
+      return (Decide (String.of_char_list formula))
 
     (* Parser for commands *)
     let command : (command, bytes list) MParser.t =
@@ -192,7 +204,8 @@ module Parser = struct
       load <|>
       exit <|>
       quit <|>
-      felix
+      felix <|>
+      decide
 end
 
 (* For convenience *)
@@ -252,25 +265,24 @@ let toggle_remove_tail_drops () =
   printf "Remove Tail Drops: %B\n%!" (!current_compiler_options).remove_tail_drops
 
 (* The filename, line, column, and token of a parsing error. *)
-exception FelixParseError of string * int * int * string
+exception ParseError of string * int * int * string
+
+(* Try to parse lexbuf, derived from filename, with parser_function and throw
+ * an exception if parsing fails. If lexbuf wasn't derived from a file,
+ * filename can be any descriptive string. *)
+let parse_exn parser_function lexbuf (filename: string) =
+  try
+    parser_function FelixLexer.token lexbuf
+  with
+    | Parsing.Parse_error -> begin
+      let curr = lexbuf.Lexing.lex_curr_p in
+      let line = curr.Lexing.pos_lnum in
+      let char = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
+      let token = Lexing.lexeme lexbuf in
+      raise (ParseError (filename, line, char, token))
+    end
 
 let felix ({q; _} as files: felix_files) : unit =
-  (* Try to parse lexbuf, derived from filename, with parser_function and throw
-   * an exception if parsing fails. If lexbuf wasn't derived from a file,
-   * filename can be any descriptive string. *)
-  let parse_exn parser_function lexbuf (filename: string) =
-    try
-      parser_function FelixLexer.token lexbuf
-    with
-      | Parsing.Parse_error -> begin
-        let curr = lexbuf.Lexing.lex_curr_p in
-        let line = curr.Lexing.pos_lnum in
-        let char = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
-        let token = Lexing.lexeme lexbuf in
-        raise (FelixParseError (filename, line, char, token))
-      end
-  in
-
   (* Generate a lexbuf from filename, and then parse it with parser_function. *)
   let parse_file_exn parser_function (filename: string) =
     let file_channel = In_channel.create filename in
@@ -300,8 +312,19 @@ let felix ({q; _} as files: felix_files) : unit =
     print_endline (DecideAst.Term.to_string compiled)
   with
   | Sys_error msg -> printf "Load failed: %s\n%!" msg
-  | FelixParseError (filename, line, char, token) ->
-      printf "Parse error %s:%d%d: %s%!" filename line char token
+  | ParseError (filename, line, char, token) ->
+      printf "Parse error %s:%d%d: %s\n%!" filename line char token
+
+let decide (formula: string) : unit =
+  try
+    let lexbuf = Lexing.from_string formula in
+    let formula = parse_exn DecideParser.formula_main lexbuf "" in
+    let lhs, rhs = DecideAst.Formula.terms formula in
+    ignore (DecideUtil.set_univ DecideAst.([Term.values lhs; Term.values rhs]));
+    printf "%b\n%!" (Frenetic_Decide_Bisimulation.check_equivalent lhs rhs)
+  with
+  | ParseError (filename, line, char, token) ->
+      printf "Parse error %s:%d%d: %s\n%!" filename line char token
 
 (* A reference to the current policy and the associated string. *)
 let policy : (policy * string) ref = ref (drop, "drop")
@@ -367,6 +390,8 @@ let help =
   "  felix <in> <p> <t> <out> <q>";
   "                      - Compile Felix query q against network in,p,t,out";
   "";
+  "  decide <formula>    - Decide NetKAT formula";
+  "";
   "  help                - Displays this message.";
   "";
   "  exit                - Exits Frenetic Shell.";
@@ -416,6 +441,7 @@ let rec repl () : unit Deferred.t =
       | Some (Order order) -> set_order order
       | Some (ToggleRemoveTailDrops) -> toggle_remove_tail_drops ()
       | Some (Felix files) -> felix files
+      | Some (Decide formula) -> decide formula
       | None -> ()
   in handle input; repl ()
 
