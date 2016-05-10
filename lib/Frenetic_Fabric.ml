@@ -131,7 +131,7 @@ let rec remove_dups (pol:Frenetic_NetKAT.policy) : Frenetic_NetKAT.policy =
   | Mod hv      -> Mod hv
   | Union (p,q) -> Union(remove_dups p, remove_dups q)
   | Seq (p,q)   -> Seq(remove_dups p, remove_dups q)
-  | Star p      -> (remove_dups p)
+  | Star p      -> Star(remove_dups p)
   | Link (s1,p1,s2,p2) ->
     Seq (at_location s1 p1, to_location s2 p2)
   | VLink _ -> failwith "Fabric: Cannot remove Dups from a policy with VLink"
@@ -177,4 +177,4 @@ let retarget (pol:Frenetic_NetKAT.policy) =
 
 let print_partition (cond, act) =
   printf "Condition: %s\n%!" (Frenetic_NetKAT_Pretty.string_of_policy cond);
-  printf "Action: %s\n%!" (Frenetic_NetKAT_Pretty.string_of_policy act)
+  printf "Action: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy act)
