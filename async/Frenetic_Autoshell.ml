@@ -172,12 +172,15 @@ module Parser = struct
 
   (* Parser for retarget command *)
   let retarget : (command, bytes list) MParser.t =
-    symbol "retarget" >> (
-      source >>= (fun pol -> source >>= (fun topo ->
-          int_list >>= ( fun ings -> int_list >>= (fun egs ->
+    symbol "retarget" >>
+    (source >>=
+     (fun pol -> blank >> source >>=
+       (fun topo -> blank >> int_list >>=
+         (fun ings -> blank >> int_list >>=
+           (fun egs ->
               return (Retarget( pol, topo,
-                               List.map ings ~f:(Int64.of_int_exn),
-                               List.map egs ~f:(Int64.of_int_exn))))))))
+                                List.map ings ~f:(Int64.of_int_exn),
+                                List.map egs ~f:(Int64.of_int_exn))))))))
 
   (* Parser for the write command *)
   let write : (command, bytes list) MParser.t =
@@ -335,7 +338,7 @@ let retarget (pol:source) (topo:source)
   let ingresses = union (List.map ings ~f:to_switch) in
   let egresses  = union (List.map egs ~f:to_switch) in
   let complete = seq [ ingresses;
-                       Star(Union(policy, topology)); policy;
+                       Star(Seq(policy, topology)); policy;
                        egresses ] in
   Frenetic_Fabric.retarget complete
 
