@@ -78,6 +78,7 @@ type command =
   | Compile of compile
   | Post of (string * int * string * switchId)
   | Fabricate of fabricate
+  | Retarget
   | Write of string
   | Blank
   | Exit
@@ -169,6 +170,10 @@ module Parser = struct
             let swids = List.map ints ~f:(Int64.of_int_exn) in
             return (Fabricate (FPolicy (s, swids)))))))
 
+  (* Parser for retarget command *)
+    let retarget : (command, bytes list) MParser.t =
+      symbol "retarget" >> return Retarget
+
   (* Parser for the write command *)
   let write : (command, bytes list) MParser.t =
     symbol "write" >>
@@ -189,6 +194,7 @@ module Parser = struct
     json     <|>
     compile  <|>
     post     <|>
+    retarget <|>
     fabricate<|>
     write    <|>
     blank    <|>
@@ -343,7 +349,13 @@ let rec repl () : unit Deferred.t =
       | Some (Fabricate f) -> begin match (fabricate f) with
           | Ok f -> update state (Fabrication f)
           | Error s -> print_endline s end
-        (* TODO(basus) : fix automaton interface *)
+      | Some Retarget -> begin match state.policy with
+          | Some pol ->
+            let open Frenetic_Fabric in
+            let partitions = retarget pol in
+            List.iter partitions ~f:print_partition
+          | None ->
+            print_endline "Load a global policy with `load global` first" end
       | Some (Compile c) -> begin match c with
           | Local         -> begin
             try update state (FullCompilation Compiler.compile_local)
