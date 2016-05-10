@@ -2,30 +2,31 @@ open Core.Std
 open Async.Std
 
 open Frenetic_NetKAT
-module Log = Frenetic_Log
+(* module Log = Frenetic_Log *)
 
-val bytes_to_headers :
-	Frenetic_OpenFlow.portId ->
-	Cstruct.t ->
-	Frenetic_NetKAT_Semantics.HeadersValues.t
+(* val bytes_to_headers : *)
+(* 	Frenetic_OpenFlow.portId -> *)
+(* 	Cstruct.t -> *)
+(* 	Frenetic_NetKAT_Semantics.HeadersValues.t *)
 
-val packet_sync_headers :
-  Frenetic_NetKAT_Semantics.packet ->
-	Frenetic_NetKAT_Semantics.packet * bool
+(* val packet_sync_headers : *)
+(*   Frenetic_NetKAT_Semantics.packet -> *)
+(* 	Frenetic_NetKAT_Semantics.packet * bool *)
 
-val of_to_netkat_event :
-  Frenetic_NetKAT_Compiler.t ->
-  Controller.event ->
-  Frenetic_NetKAT.event list
-
-type portStats = Int64.t * Int64.t * Int64.t * Int64.t
-
-module type CTRL = sig
-end
-module type UPR = sig
-end
+(* val of_to_netkat_event : *)
+(*   Frenetic_NetKAT_Compiler.t -> *)
+(*   Controller.event -> *)
+(*   Frenetic_NetKAT.event list *)
 
 module type CONTROLLER = sig
+
+end
+
+module type UPDATE = sig
+
+end
+
+module type S = sig
   (** [event ()] returns the next event from the network. *)
   val event : unit -> event Deferred.t
 
@@ -46,7 +47,7 @@ module type CONTROLLER = sig
   (** [port_stats sw pt] retrieves cumulative port statistics for port
       [pt] on switch [sw]. Note that using pseudo-port 0xf..f will
       return the statistics for all ports *)
-  val port_stats : switchId -> portId -> portStats list Deferred.t
+  val port_stats : switchId -> portId -> Frenetic_OpenFlow0x01.portStats list Deferred.t
 
   (** [start pt] initializes the controller, listening on TCP port [pt]. *)
   val start : int -> unit
@@ -59,4 +60,4 @@ module type CONTROLLER = sig
   val set_current_compiler_options : Frenetic_NetKAT_Compiler.compiler_options -> unit
 end
 
-module Make(C:CTRL) (U:UPD) : CONTROLLER
+module Make(C:CONTROLLER) (U:UPDATE) : S
