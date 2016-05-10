@@ -459,6 +459,9 @@ let string_of_tcpSrcPort (x : tpPort) : string =
 let string_of_tcpDstPort (x : tpPort) : string =
   Format.sprintf "TCPDstPort = %d" x
 
+let string_of_channel (x : int) : string =
+  Format.sprintf "Channel = %d" x
+
 let string_of_inPort (x : portId) : string =
   Format.sprintf "InPort = %lu" x
 
@@ -481,6 +484,7 @@ let pattern_list (p : Pattern.t) : string list =
     check string_of_ipProto p.nwProto |>
     check string_of_tcpSrcPort p.tpSrc |>
     check string_of_tcpDstPort p.tpDst |>
+    check string_of_channel p.channel |>
     check string_of_inPort p.inPort
 
 (* Given a flow, return a pair of list of strings where the first list
