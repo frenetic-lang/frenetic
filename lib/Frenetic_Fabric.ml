@@ -3,6 +3,7 @@ open Frenetic_Network
 open Frenetic_OpenFlow
 
 module Compiler = Frenetic_NetKAT_Compiler
+module FDK = Frenetic_Fdd.FDK
 
 type fabric = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
 
@@ -112,3 +113,45 @@ let to_string (fab:fabric) : string =
           ~label:(sprintf "Switch %Ld |\n" swid)
           mods)) ;
   Buffer.contents buf
+
+
+let rec remove_dups (pol:Frenetic_NetKAT.policy) : Frenetic_NetKAT.policy =
+  let open Frenetic_NetKAT in
+  let at_location sw pt =
+    let sw_test = Test (Switch sw) in
+    let pt_test = Test (Location (Physical pt)) in
+    let loc_test = Frenetic_NetKAT_Optimize.mk_and sw_test pt_test in
+    Filter loc_test in
+  match pol with
+  | Filter a    -> Filter a
+  | Mod hv      -> Mod hv
+  | Union (p,q) -> Union(remove_dups p, remove_dups q)
+  | Seq (p,q)   -> Seq(remove_dups p, remove_dups q)
+  | Star p      -> (remove_dups p)
+  | Link (s1,p1,s2,p2) ->
+    Seq (at_location s1 p1, at_location s2 p2)
+  | VLink _ -> failwith "Fabric: Cannot remove Dups from a policy with VLink"
+
+let retarget (pol:Frenetic_NetKAT.policy) =
+  let open FDK in
+  let module NK = Frenetic_NetKAT in
+
+  (* This returns a list of paths, where the each path is a list of
+     policies. The head of each path is the policy form of the leaf node action
+     and the remainder is a list of predicates that need to be true to perform
+     the action. *)
+  let rec get_paths id path =
+    let node = unget id in
+    match node with
+    | Branch ((v,l), t, f) ->
+      let true_pred   = NK.Test (Frenetic_Fdd.Pattern.to_hv (v, l)) in
+      let true_paths  = get_paths t ( (NK.Filter true_pred)::path ) in
+      let false_pred  = NK.Neg true_pred in
+      let false_paths = get_paths f ( (NK.Filter false_pred)::path ) in
+      List.unordered_append true_paths false_paths
+    | Leaf r -> [ (Frenetic_Fdd.Action.to_policy r)::path ]
+  in
+  let deduped = remove_dups pol in
+  let fdd = Compiler.compile_local deduped in
+  let paths = get_paths fdd [] in
+  paths
