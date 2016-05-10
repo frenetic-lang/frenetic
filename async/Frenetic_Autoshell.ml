@@ -20,6 +20,8 @@ type element =
   | Topology of topology
   | Fabric   of fabric
 
+type loc = (switchId * portId)
+
 type state = { mutable policy   : policy option
              ; mutable topology : topology option
              ; mutable fabric   : fabric option
@@ -78,7 +80,7 @@ type command =
   | Compile of compile
   | Post of (string * int * string * switchId)
   | Fabricate of fabricate
-  | Retarget of (source * source * switchId list * switchId list)
+  | Retarget of (source * source * loc list * loc list)
   | Write of string
   | Blank
   | Exit
@@ -103,6 +105,17 @@ module Parser = struct
   let int_list : (int list, bytes list) MParser.t =
     (char '[' >> many_until (many_chars_until digit (char ';')) (char ']') >>=
      (fun ints -> return (List.map ints ~f:Int.of_string)))
+
+  (* Parser for lists of locations: (switch, port) pairs written as sw:pt *)
+  let loc_list : (loc list, bytes list) MParser.t =
+    (char '[' >> many_until (
+        many_chars_until digit (char ':') >>=
+        (fun swid -> many_chars_until digit (char ';') >>=
+          (fun ptid -> return ((Int64.of_string swid),
+                               (Int32.of_string ptid)))))
+        (char ']') >>=
+     (fun ints -> return ints))
+
 
   (* Parser for the load command *)
   let load : (command, bytes list) MParser.t =
@@ -175,12 +188,10 @@ module Parser = struct
     symbol "retarget" >>
     (source >>=
      (fun pol -> blank >> source >>=
-       (fun topo -> blank >> int_list >>=
-         (fun ings -> blank >> int_list >>=
+       (fun topo -> blank >> loc_list >>=
+         (fun ings -> blank >> loc_list >>=
            (fun egs ->
-              return (Retarget( pol, topo,
-                                List.map ings ~f:(Int64.of_int_exn),
-                                List.map egs ~f:(Int64.of_int_exn))))))))
+              return (Retarget( pol, topo, ings, egs)))))))
 
   (* Parser for the write command *)
   let write : (command, bytes list) MParser.t =
@@ -323,11 +334,11 @@ let fabricate (fab:fabricate) : (fabric, string) Result.t = match fab with
         Ok (Frenetic_Fabric.vlan_per_port topology)
       | _ -> Error "Topologies can only be loaded from DOT files" end
 
-let retarget (pol:source) (topo:source)
-    (ings:switchId list) (egs:switchId list) =
+let retarget (pol:source) (topo:source) (ings:loc list) (egs:loc list) =
   let union = Frenetic_NetKAT_Optimize.mk_big_union in
   let seq = Frenetic_NetKAT_Optimize.mk_big_seq in
-  let to_switch swid = Filter (Test( Switch swid)) in
+  let to_filter (sw,pt) = Filter( And( Test(Switch sw),
+                                    Test(Location (Physical pt)))) in
   (* TODO(basus): Use proper error handling with Result types *)
   let policy = match Source.to_policy pol with
     | Ok pol -> pol
@@ -335,8 +346,8 @@ let retarget (pol:source) (topo:source)
   let topology = match Source.to_policy topo with
     | Ok p -> p
     | Error e -> failwith e in
-  let ingresses = union (List.map ings ~f:to_switch) in
-  let egresses  = union (List.map egs ~f:to_switch) in
+  let ingresses = union (List.map ings ~f:to_filter) in
+  let egresses  = union (List.map egs ~f:to_filter) in
   let complete = seq [ ingresses;
                        Star(Seq(policy, topology)); policy;
                        egresses ] in
