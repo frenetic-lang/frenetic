@@ -78,7 +78,7 @@ type command =
   | Compile of compile
   | Post of (string * int * string * switchId)
   | Fabricate of fabricate
-  | Retarget
+  | Retarget of (source * source * switchId list * switchId list)
   | Write of string
   | Blank
   | Exit
@@ -171,8 +171,13 @@ module Parser = struct
             return (Fabricate (FPolicy (s, swids)))))))
 
   (* Parser for retarget command *)
-    let retarget : (command, bytes list) MParser.t =
-      symbol "retarget" >> return Retarget
+  let retarget : (command, bytes list) MParser.t =
+    symbol "retarget" >> (
+      source >>= (fun pol -> source >>= (fun topo ->
+          int_list >>= ( fun ings -> int_list >>= (fun egs ->
+              return (Retarget( pol, topo,
+                               List.map ings ~f:(Int64.of_int_exn),
+                               List.map egs ~f:(Int64.of_int_exn))))))))
 
   (* Parser for the write command *)
   let write : (command, bytes list) MParser.t =
@@ -215,13 +220,20 @@ module Parser = struct
 
 end
 
-let string_of_source (s:source) : (string, string) Result.t = match s with
-  | String s -> Ok s
-  | Filename f ->
-    try
-      let chan = In_channel.create f in
-      Ok (In_channel.input_all chan)
-    with Sys_error msg -> Error msg
+module Source = struct
+  let to_string (s:source) : (string, string) Result.t = match s with
+    | String s -> Ok s
+    | Filename f ->
+      try
+        let chan = In_channel.create f in
+        Ok (In_channel.input_all chan)
+      with Sys_error msg -> Error msg
+
+  let to_policy (s:source) : (policy, string) Result.t =
+    match to_string s with
+    | Ok s -> Parser.policy s
+    | Error e -> print_endline e; Error e
+end
 
 let rec update (s:state) (u:update) : unit = match u with
   | Fabrication fabric -> s.fabric <- Some fabric
@@ -245,11 +257,9 @@ let rec update (s:state) (u:update) : unit = match u with
 
 let load (l:input) (s:source) : (element, string) Result.t =
   try match l with
-    | IPolicy -> begin match (string_of_source s) with
-        | Ok string -> begin match Parser.policy string with
+    | IPolicy -> begin match (Source.to_policy s) with
             | Ok pol -> Ok (Policy pol)
             | Error e -> Error e end
-        | Error e -> Error e end
     | ITopology -> begin match s with
         | Filename f ->  Ok (Topology (Net.Parse.from_dotfile f))
         | _ -> Error "Topologies can only be loaded from DOT files" end
@@ -301,10 +311,8 @@ let json(j:json) : unit = match j with
     end
 
 let fabricate (fab:fabricate) : (fabric, string) Result.t = match fab with
-  | FPolicy(source, swids) -> begin match string_of_source source with
-      | Ok s -> begin match Parser.policy s with
-          | Ok pol -> Ok (Frenetic_Fabric.of_local_policy pol swids)
-          | Error e -> print_endline e; Error e end
+  | FPolicy(source, swids) -> begin match Source.to_policy source with
+      | Ok pol -> Ok (Frenetic_Fabric.of_local_policy pol swids)
       | Error e -> print_endline e; Error e end
   | FTopology(s, swids) -> begin match s with
       | Filename f ->
@@ -312,6 +320,24 @@ let fabricate (fab:fabricate) : (fabric, string) Result.t = match fab with
         Ok (Frenetic_Fabric.vlan_per_port topology)
       | _ -> Error "Topologies can only be loaded from DOT files" end
 
+let retarget (pol:source) (topo:source)
+    (ings:switchId list) (egs:switchId list) =
+  let union = Frenetic_NetKAT_Optimize.mk_big_union in
+  let seq = Frenetic_NetKAT_Optimize.mk_big_seq in
+  let to_switch swid = Filter (Test( Switch swid)) in
+  (* TODO(basus): Use proper error handling with Result types *)
+  let policy = match Source.to_policy pol with
+    | Ok pol -> pol
+    | Error e -> failwith e in
+  let topology = match Source.to_policy topo with
+    | Ok p -> p
+    | Error e -> failwith e in
+  let ingresses = union (List.map ings ~f:to_switch) in
+  let egresses  = union (List.map egs ~f:to_switch) in
+  let complete = seq [ ingresses;
+                       Star(Union(policy, topology)); policy;
+                       egresses ] in
+  Frenetic_Fabric.retarget complete
 
 let post (uri:Uri.t) (body:string) =
   try_with (fun () ->
@@ -349,13 +375,9 @@ let rec repl () : unit Deferred.t =
       | Some (Fabricate f) -> begin match (fabricate f) with
           | Ok f -> update state (Fabrication f)
           | Error s -> print_endline s end
-      | Some Retarget -> begin match state.policy with
-          | Some pol ->
-            let open Frenetic_Fabric in
-            let partitions = retarget pol in
-            List.iter partitions ~f:print_partition
-          | None ->
-            print_endline "Load a global policy with `load global` first" end
+      | Some (Retarget(pol, topo, ings, egs)) ->
+        let partitions = retarget pol topo ings egs in
+        List.iter partitions ~f:Frenetic_Fabric.print_partition
       | Some (Compile c) -> begin match c with
           | Local         -> begin
             try update state (FullCompilation Compiler.compile_local)
