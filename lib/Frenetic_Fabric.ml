@@ -122,6 +122,10 @@ let rec remove_dups (pol:Frenetic_NetKAT.policy) : Frenetic_NetKAT.policy =
     let pt_test = Test (Location (Physical pt)) in
     let loc_test = Frenetic_NetKAT_Optimize.mk_and sw_test pt_test in
     Filter loc_test in
+  let to_location sw pt =
+    let sw_mod = Mod (Switch sw) in
+    let pt_mod = Mod (Location (Physical pt)) in
+    Seq ( sw_mod, pt_mod ) in
   match pol with
   | Filter a    -> Filter a
   | Mod hv      -> Mod hv
@@ -129,7 +133,7 @@ let rec remove_dups (pol:Frenetic_NetKAT.policy) : Frenetic_NetKAT.policy =
   | Seq (p,q)   -> Seq(remove_dups p, remove_dups q)
   | Star p      -> (remove_dups p)
   | Link (s1,p1,s2,p2) ->
-    Seq (at_location s1 p1, at_location s2 p2)
+    Seq (at_location s1 p1, to_location s2 p2)
   | VLink _ -> failwith "Fabric: Cannot remove Dups from a policy with VLink"
 
 let retarget (pol:Frenetic_NetKAT.policy) =
@@ -151,7 +155,26 @@ let retarget (pol:Frenetic_NetKAT.policy) =
       List.unordered_append true_paths false_paths
     | Leaf r -> [ (Frenetic_Fdd.Action.to_policy r)::path ]
   in
+
+  (* Partition a path through the FDD into the condition and the
+     action. TODO(basus): add checks for either component. *)
+  let partition (path: NK.policy list) = match path with
+    | head::tail ->
+      let action = head in
+      let condition = Frenetic_NetKAT_Optimize.mk_big_seq tail in
+      (condition, action)
+    | _ -> failwith "Path through FDD not long enough to paritition"
+  in
   let deduped = remove_dups pol in
+  printf "\nDup free policy: \n%s\n"
+    (Frenetic_NetKAT_Pretty.string_of_policy deduped);
   let fdd = Compiler.compile_local deduped in
+  printf "\nCompiled fdd:\n%s\n" (FDK.to_string fdd);
   let paths = get_paths fdd [] in
-  paths
+  printf "\nNumber of paths %d\n%!" (List.length paths);
+  List.map paths ~f:partition
+
+
+let print_partition (cond, act) =
+  printf "Condition: %s\n%!" (Frenetic_NetKAT_Pretty.string_of_policy cond);
+  printf "Action: %s\n%!" (Frenetic_NetKAT_Pretty.string_of_policy act)
