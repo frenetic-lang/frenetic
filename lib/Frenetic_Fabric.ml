@@ -188,6 +188,43 @@ let combine (pol:policy) (topo:policy) ings egs : policy =
         Star(Seq(pol, topo)); pol;
         egresses ]
 
+let rec locate policy : (switchId option * portId option) =
+  let open Frenetic_NetKAT in
+  let locate_from_header hv = match hv with
+    | Switch sw -> (Some sw, None)
+    | Location (Physical pt) -> (None, Some pt)
+    | _ -> (None, None) in
+  let combine p1 p2 = match p1, p2 with
+    | (None, None), (None, None) -> (None, None)
+    | (Some sw, None), (None, Some pt)
+    | (None, Some pt), (Some sw, None)
+    | (Some sw, Some pt), (None, None)
+    | (None, None), (Some sw, Some pt) -> (Some sw, Some pt)
+    | _ -> failwith "Clash" in
+  match policy with
+  | Mod hv -> locate_from_header hv
+  | Union (p1, p2) -> combine (locate p1) (locate p2)
+  | Seq (p1, p2) -> combine (locate p1) (locate p2)
+  | Star p -> locate p
+  | _ -> (None, None)
+
+let match_actions pol_table fab_table =
+  Hashtbl.fold pol_table ~init:[] ~f:(fun ~key:(sw,pt) ~data:cond acc -> acc)
+
+
+let retarget policy fabric topology =
+ let to_table partition =
+    let table = Hashtbl.Poly.create ~size:(List.length partition) () in
+    List.iter partition (fun (cond, actions) ->
+        Hashtbl.Poly.add_exn table (locate actions) cond);
+    table in
+  let pol_table = to_table policy in
+  let fab_table = to_table fabric in
+  let matching = match_actions pol_table fab_table in
+  let pols = List.map matching ~f:(fun (action, pol_cond, fab_cond) ->
+     (), ()) in
+ pols
+
 let print_partition (cond, act) =
   printf "Condition: %s\n%!" (Frenetic_NetKAT_Pretty.string_of_policy cond);
   printf "Action: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy act)
