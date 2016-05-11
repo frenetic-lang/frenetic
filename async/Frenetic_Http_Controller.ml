@@ -105,10 +105,9 @@ let handle_request
       handle_parse_errors' body
         (fun str ->
            let json = Yojson.Basic.from_string str in
-           Frenetic_NetKAT_SDN_Json.pkt_out_from_json json)
-        (fun (sw_id, pkt_out) ->
-           send_packet_out sw_id pkt_out
-           >>= fun () ->
+           Frenetic_NetKAT_Json.pkt_out_from_json json)
+        (fun (sw_id, payload, policy) ->
+           send_packet_out sw_id payload policy >>= fun () -> 
            Cohttp_async.Server.respond `OK)
     | `POST, [clientId; "update_json"] ->
       handle_parse_errors body parse_update_json
@@ -139,7 +138,7 @@ let print_error addr exn =
   Log.error "%s" (Exn.to_string exn)
 
 let listen ~http_port ~openflow_port =
-  let module Controller = Frenetic_NetKAT_Controller.Make in
+  let module Controller = Frenetic_NetKAT_Controller.OF10 in
   let on_handler_error = `Call print_error in
   let _ = Cohttp_async.Server.create
     ~on_handler_error

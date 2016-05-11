@@ -17,3 +17,8 @@ val policy_to_json_string : policy -> string
 val stats_to_json_string : Int64.t * Int64.t -> string
 val port_stats_to_json_string : Frenetic_OpenFlow0x01.portStats list -> string
 
+(* Used to be in Frenetic_NetKAT_SDN_Json *)                                                                         
+val pseudoport_to_json : pseudoport -> json
+val pseudoport_from_json : json -> pseudoport
+val flowTable_to_json : flowTable -> json
+val pkt_out_from_json : json -> switchId * payload * policy

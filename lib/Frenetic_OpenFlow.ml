@@ -300,7 +300,6 @@ with sexp
 type pktIn = payload * int * portId * packetInReason with sexp
 
 type pktOut = payload * (portId option) * (action list) with sexp
-
 type switchFeatures = {
   switch_id : switchId;
   switch_ports : portId list
