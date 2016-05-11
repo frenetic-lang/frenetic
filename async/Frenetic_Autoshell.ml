@@ -338,20 +338,17 @@ let retarget (pol:source) (topo:source) (ings:loc list) (egs:loc list) =
   let union = Frenetic_NetKAT_Optimize.mk_big_union in
   let seq = Frenetic_NetKAT_Optimize.mk_big_seq in
   let to_filter (sw,pt) = Filter( And( Test(Switch sw),
-                                    Test(Location (Physical pt)))) in
-  (* TODO(basus): Use proper error handling with Result types *)
-  let policy = match Source.to_policy pol with
-    | Ok pol -> pol
-    | Error e -> failwith e in
-  let topology = match Source.to_policy topo with
-    | Ok p -> p
-    | Error e -> failwith e in
-  let ingresses = union (List.map ings ~f:to_filter) in
-  let egresses  = union (List.map egs ~f:to_filter) in
-  let complete = seq [ ingresses;
-                       Star(Seq(policy, topology)); policy;
-                       egresses ] in
-  Frenetic_Fabric.retarget complete
+                                       Test(Location (Physical pt)))) in
+  match Source.to_policy pol, Source.to_policy topo with
+  | Ok policy, Ok topology ->
+    let ingresses = union (List.map ings ~f:to_filter) in
+    let egresses  = union (List.map egs ~f:to_filter) in
+    let complete = seq [ ingresses;
+                         Star(Seq(policy, topology)); policy;
+                         egresses ] in
+    Ok (Frenetic_Fabric.retarget complete)
+  | Error e, _ -> Error e
+  | _, Error e -> Error e
 
 let post (uri:Uri.t) (body:string) =
   try_with (fun () ->
@@ -390,8 +387,9 @@ let rec repl () : unit Deferred.t =
           | Ok f -> update state (Fabrication f)
           | Error s -> print_endline s end
       | Some (Retarget(pol, topo, ings, egs)) ->
-        let partitions = retarget pol topo ings egs in
-        List.iter partitions ~f:Frenetic_Fabric.print_partition
+        begin match retarget pol topo ings egs with
+          | Ok ps -> List.iter ps ~f:Frenetic_Fabric.print_partition
+          | Error e -> print_endline e end
       | Some (Compile c) -> begin match c with
           | Local         -> begin
             try update state (FullCompilation Compiler.compile_local)
