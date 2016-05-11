@@ -347,6 +347,7 @@ module Pattern = struct
     | (TCPSrcPort, Const tpPort) -> NetKAT.(TCPSrcPort(to_int tpPort))
     | (TCPDstPort, Const tpPort) -> NetKAT.(TCPDstPort(to_int tpPort))
     | (VFabric, Const vfab) -> NetKAT.VFabric vfab
+    | (Channel, Const ch) -> NetKAT.(Channel(to_int ch))
     | _, _ -> raise (FieldValue_mismatch(f, v))
 
   let to_pred (f, v) =
