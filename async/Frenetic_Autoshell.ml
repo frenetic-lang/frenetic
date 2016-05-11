@@ -387,25 +387,14 @@ let retarget (r:retarget) = match r with
         re_state.physical <- policy
       | Error e -> print_endline e end
   | RCompile ->
-    let union = Frenetic_NetKAT_Optimize.mk_big_union in
-    let seq = Frenetic_NetKAT_Optimize.mk_big_seq in
-    let to_filter (sw,pt) = Filter( And( Test(Switch sw),
-                                         Test(Location (Physical pt)))) in
-    let compile policy topology ings egs =
-      let ingresses = union (List.map ings ~f:to_filter) in
-      let egresses  = union (List.map egs ~f:to_filter) in
-      let complete = seq [ ingresses;
-                           Star(Seq(policy, topology)); policy;
-                           egresses ] in
-      Frenetic_Fabric.retarget complete in
-    let ideal = compile re_state.ideal re_state.physical re_state.ideal_in
+    let ideal = Frenetic_Fabric.combine re_state.ideal re_state.physical re_state.ideal_in
         re_state.ideal_out in
-    let fabric = compile re_state.existing re_state.physical re_state.existing_in
+    let fabric = Frenetic_Fabric.combine re_state.existing re_state.physical re_state.existing_in
         re_state.existing_out in
     (* TODO(basus): Insert magic function that generates proper ingress & *)
     (* egress policies here *)
-    List.iter ideal ~f:Frenetic_Fabric.print_partition;
-    List.iter fabric ~f:Frenetic_Fabric.print_partition
+    List.iter (Frenetic_Fabric.extract ideal) ~f:Frenetic_Fabric.print_partition;
+    List.iter (Frenetic_Fabric.extract fabric) ~f:Frenetic_Fabric.print_partition
 
 let post (uri:Uri.t) (body:string) =
   try_with (fun () ->

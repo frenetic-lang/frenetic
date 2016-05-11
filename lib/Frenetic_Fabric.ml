@@ -5,6 +5,7 @@ open Frenetic_OpenFlow
 module Compiler = Frenetic_NetKAT_Compiler
 module FDK = Frenetic_Fdd.FDK
 
+type policy = Frenetic_NetKAT.policy
 type fabric = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
 
 let strip_vlan = Some 0xffff
@@ -82,7 +83,7 @@ let shortest_path (net:Net.Topology.t)
             | _ -> ())));
   table
 
-let of_local_policy (pol:Frenetic_NetKAT.policy) (sws:switchId list) : fabric =
+let of_local_policy (pol:policy) (sws:switchId list) : fabric =
   let fabric = Hashtbl.Poly.create ~size:(List.length sws) () in
   let compiled = Compiler.compile_local pol in
   List.iter sws ~f:(fun swid ->
@@ -94,7 +95,7 @@ let of_local_policy (pol:Frenetic_NetKAT.policy) (sws:switchId list) : fabric =
   fabric
 
 
-let of_global_policy (pol:Frenetic_NetKAT.policy) (sws:switchId list) : fabric =
+let of_global_policy (pol:policy) (sws:switchId list) : fabric =
   let fabric = Hashtbl.Poly.create ~size:(List.length sws) () in
   let compiled = Compiler.compile_global pol in
   List.iter sws ~f:(fun swid ->
@@ -115,7 +116,7 @@ let to_string (fab:fabric) : string =
   Buffer.contents buf
 
 
-let rec remove_dups (pol:Frenetic_NetKAT.policy) : Frenetic_NetKAT.policy =
+let rec remove_dups (pol:policy) : policy =
   let open Frenetic_NetKAT in
   let at_location sw pt =
     let sw_test = Test (Switch sw) in
@@ -136,7 +137,7 @@ let rec remove_dups (pol:Frenetic_NetKAT.policy) : Frenetic_NetKAT.policy =
     Seq (at_location s1 p1, to_location s2 p2)
   | VLink _ -> failwith "Fabric: Cannot remove Dups from a policy with VLink"
 
-let retarget (pol:Frenetic_NetKAT.policy) =
+let extract (pol:policy) : (policy * policy) list =
   let open FDK in
   let module NK = Frenetic_NetKAT in
 
@@ -174,6 +175,18 @@ let retarget (pol:Frenetic_NetKAT.policy) =
   printf "\nNumber of paths %d\n%!" (List.length paths);
   List.map paths ~f:partition
 
+
+let combine (pol:policy) (topo:policy) ings egs : policy =
+  let open Frenetic_NetKAT in
+  let union = Frenetic_NetKAT_Optimize.mk_big_union in
+  let seq = Frenetic_NetKAT_Optimize.mk_big_seq in
+  let to_filter (sw,pt) = Filter( And( Test(Switch sw),
+                                       Test(Location (Physical pt)))) in
+  let ingresses = union (List.map ings ~f:to_filter) in
+  let egresses  = union (List.map egs ~f:to_filter) in
+  seq [ ingresses;
+        Star(Seq(pol, topo)); pol;
+        egresses ]
 
 let print_partition (cond, act) =
   printf "Condition: %s\n%!" (Frenetic_NetKAT_Pretty.string_of_policy cond);
