@@ -18,3 +18,4 @@ val combine : policy -> policy ->
   (switchId * portId) list -> (switchId * portId) list ->
   policy
 val print_partition : (policy * policy) -> unit
+val retarget : (policy * policy) list -> (policy * policy) list -> policy -> (policy list * policy list)

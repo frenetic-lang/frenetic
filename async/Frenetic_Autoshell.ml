@@ -393,8 +393,11 @@ let retarget (r:retarget) = match r with
         re_state.existing_out in
     (* TODO(basus): Insert magic function that generates proper ingress & *)
     (* egress policies here *)
-    List.iter (Frenetic_Fabric.extract ideal) ~f:Frenetic_Fabric.print_partition;
-    List.iter (Frenetic_Fabric.extract fabric) ~f:Frenetic_Fabric.print_partition
+    let ideal_parts = (Frenetic_Fabric.extract ideal) in
+    let fab_parts = Frenetic_Fabric.extract fabric in
+    List.iter ideal_parts ~f:Frenetic_Fabric.print_partition;
+    List.iter fab_parts ~f:Frenetic_Fabric.print_partition;
+    let ins, outs = Frenetic_Fabric.retarget ideal_parts fab_parts re_state.physical in ()
 
 let post (uri:Uri.t) (body:string) =
   try_with (fun () ->

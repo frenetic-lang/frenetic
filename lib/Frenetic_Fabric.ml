@@ -188,12 +188,42 @@ let combine (pol:policy) (topo:policy) ings egs : policy =
         Star(Seq(pol, topo)); pol;
         egresses ]
 
-let rec locate policy : (switchId option * portId option) =
+let find_predecessors topo sw pt =
   let open Frenetic_NetKAT in
-  let locate_from_header hv = match hv with
-    | Switch sw -> (Some sw, None)
-    | Location (Physical pt) -> (None, Some pt)
-    | _ -> (None, None) in
+  let rec find sw pol acc = match topo with
+    | Union(p1, p2) -> find sw p1 (find sw p1 acc)
+    | Link (s1,p1,s2,p2) -> if s2 = sw then (s1,p1,p2)::acc else acc
+    | _ -> failwith "Invalid construct in topology" in
+  match sw with
+  | None -> failwith "Cannot find predecessor for None switch"
+  | Some sw -> find sw topo []
+
+let locate_from_header hv =
+  let open Frenetic_NetKAT in
+  match hv with
+  | Switch sw -> (Some sw, None)
+  | Location (Physical pt) -> (None, Some pt)
+  | _ -> (None, None)
+
+let rec locate_from_endpoint policy : (switchId option * portId option) =
+  let open Frenetic_NetKAT in
+  let combine p1 p2 = match p1, p2 with
+    | (None, None), (None, None) -> (None, None)
+    | (Some sw, None), (None, Some pt)
+    | (None, Some pt), (Some sw, None)
+    | (Some sw, Some pt), (None, None)
+    | (None, None), (Some sw, Some pt) ->
+      printf " Sw: %Ld pt: %ld" sw pt ;(Some sw, Some pt)
+    | _ -> failwith "Clash" in
+  match policy with
+  | Mod hv -> locate_from_header hv
+  | Union (p1, p2) -> combine (locate_from_endpoint p1) (locate_from_endpoint p2)
+  | Seq (p1, p2) -> combine (locate_from_endpoint p1) (locate_from_endpoint p2)
+  | Star p -> locate_from_endpoint p
+  | _ -> (None, None)
+
+let rec locate_from_origin policy =
+  let open Frenetic_NetKAT in
   let combine p1 p2 = match p1, p2 with
     | (None, None), (None, None) -> (None, None)
     | (Some sw, None), (None, Some pt)
@@ -201,29 +231,88 @@ let rec locate policy : (switchId option * portId option) =
     | (Some sw, Some pt), (None, None)
     | (None, None), (Some sw, Some pt) -> (Some sw, Some pt)
     | _ -> failwith "Clash" in
+  let rec locate_from_filter f = match f with
+    | Test hv -> locate_from_header hv
+    | True | False | Neg _ -> (None, None)
+    | And(p1, p2) -> combine (locate_from_filter p1) (locate_from_filter p2)
+    | Or (p1, p2) -> combine (locate_from_filter p1) (locate_from_filter p2) in
   match policy with
-  | Mod hv -> locate_from_header hv
-  | Union (p1, p2) -> combine (locate p1) (locate p2)
-  | Seq (p1, p2) -> combine (locate p1) (locate p2)
-  | Star p -> locate p
+  | Filter f -> locate_from_filter f
+  | Union (p1, p2) -> combine (locate_from_origin p1) (locate_from_origin p2)
+  | Seq (p1, p2) -> combine (locate_from_origin p1) (locate_from_origin p2)
+  | Star p -> locate_from_origin p
   | _ -> (None, None)
 
-let match_actions pol_table fab_table =
-  Hashtbl.fold pol_table ~init:[] ~f:(fun ~key:(sw,pt) ~data:cond acc -> acc)
+
+let mk_ingress ideal fabric topo =
+  let open Frenetic_NetKAT in
+  let matching sw preds = match sw with
+    | None -> failwith "mk_ingress: None switch cannot be matched"
+    | Some sw -> begin
+        match List.hd ( List.filter preds ~f:(fun (s,p,_) -> s = sw) ) with
+        | Some (sw,pt,_) -> pt
+        | None -> failwith (sprintf "Nowhere to go from %Ld " sw) end
+  in
+  let sw_fab, pt_fab = locate_from_origin fabric in
+  let sw_ideal, _ = locate_from_origin ideal in
+  let preds = find_predecessors topo sw_fab pt_fab in
+  let port = matching sw_ideal preds in
+  let action = Mod( Location( Physical port)) in
+  Seq(ideal,action)
+
+let match_actions pol_table fab_table topo =
+  let open Frenetic_NetKAT in
+  let fab_outs = Hashtbl.keys fab_table in
+  (* For each (switch,port) endpoint in the ideal policy there are three options:
+     1. The fabric reaches that endpoint
+     2. The fabric reaches the ideal switch, but not the same port
+     3. The fabric reaches a port that connects to the ideal switch *)
+  Hashtbl.fold pol_table ~init:[] ~f:(fun ~key:(sw,pt) ~data:conds acc ->
+      List.fold conds ~init:acc ~f:(fun acc cond ->
+      match Hashtbl.find fab_table (sw,pt) with
+      | Some conds' -> List.fold conds' ~init:acc ~f:(fun acc cond' ->
+          ((sw,pt), mk_ingress cond cond' topo, Filter True)::acc)
+      | None ->
+        let conds = List.map
+            (List.filter fab_outs ~f:(fun (sw',_) -> sw = sw'))
+            ~f:(fun key -> Hashtbl.find_exn fab_table key) in
+        begin match conds with
+          | head::_ -> ((sw,pt),mk_ingress cond (List.hd_exn head) topo, Filter True)::acc
+          | _ ->
+            (* TODO(basus): this should be a list of acceptable predecessors *)
+            let sw', pt',pt'' = List.hd_exn (find_predecessors topo sw pt) in
+            let cond' = Hashtbl.find_exn fab_table (Some sw', Some pt') in
+            let end_sw = begin match sw with
+              | Some sw -> sw
+              | None -> failwith "Cannot test against none switch" end in
+            let end_pt = begin match pt with
+              | Some pt -> pt
+              | None -> failwith "Cannot test against none ptitch" end in
+            ((sw, pt),
+             mk_ingress cond (List.hd_exn cond') topo,
+             Seq(Filter (And (Test( Location(Physical pt'')),
+                              Test( Switch end_sw))),
+                (Mod (Location (Physical end_pt)))))::acc
+        end ))
 
 
 let retarget policy fabric topology =
- let to_table partition =
+  let to_table partition =
     let table = Hashtbl.Poly.create ~size:(List.length partition) () in
     List.iter partition (fun (cond, actions) ->
-        Hashtbl.Poly.add_exn table (locate actions) cond);
+        let loc = (locate_from_endpoint actions) in
+        if loc = (None, None) then () else Hashtbl.Poly.add_multi table loc cond);
     table in
   let pol_table = to_table policy in
+  printf "Made policy table\n%!";
   let fab_table = to_table fabric in
-  let matching = match_actions pol_table fab_table in
-  let pols = List.map matching ~f:(fun (action, pol_cond, fab_cond) ->
-     (), ()) in
- pols
+  printf "Made fabric table\n%!";
+  let matching = match_actions pol_table fab_table topology in
+  printf "Matched actions\n%!";
+  let ins, outs = List.fold matching ~init:([],[])
+      ~f:(fun (ins,outs) (location, ingress, egress) ->
+          (ingress::ins, egress::outs)) in
+  (ins,outs)
 
 let print_partition (cond, act) =
   printf "Condition: %s\n%!" (Frenetic_NetKAT_Pretty.string_of_policy cond);
