@@ -22,6 +22,24 @@ type element =
 
 type loc = (switchId * portId)
 
+type re_state = { mutable ideal : policy
+                ; mutable existing : policy
+                ; mutable physical : policy
+                ; mutable ideal_in : loc list
+                ; mutable ideal_out : loc list
+                ; mutable existing_in : loc list
+                ; mutable existing_out : loc list
+                }
+
+let re_state = { ideal = Filter True
+               ; existing = Filter True
+               ; physical = Filter True
+               ; ideal_in = []
+               ; ideal_out = []
+               ; existing_in = []
+               ; existing_out = []
+               }
+
 type state = { mutable policy   : policy option
              ; mutable topology : topology option
              ; mutable fabric   : fabric option
@@ -73,6 +91,12 @@ type fabricate =
   | FTopology of (source * switchId list)
   | FPolicy of (source * switchId list)
 
+type retarget =
+  | RIdeal of (source * loc list * loc list)
+  | RFabric of (source * loc list * loc list)
+  | RTopo of source
+  | RCompile
+
 type command =
   | Load of (input * source)
   | Show of show
@@ -80,7 +104,7 @@ type command =
   | Compile of compile
   | Post of (string * int * string * switchId)
   | Fabricate of fabricate
-  | Retarget of (source * source * loc list * loc list)
+  | Retarget of retarget
   | Write of string
   | Blank
   | Exit
@@ -185,13 +209,24 @@ module Parser = struct
 
   (* Parser for retarget command *)
   let retarget : (command, bytes list) MParser.t =
-    symbol "retarget" >>
-    (source >>=
-     (fun pol -> blank >> source >>=
-       (fun topo -> blank >> loc_list >>=
+    symbol "retarget" >> (
+      (symbol "ideal" >>
+       (source >>=
+        (fun pol -> blank >> loc_list >>=
          (fun ings -> blank >> loc_list >>=
            (fun egs ->
-              return (Retarget( pol, topo, ings, egs)))))))
+              return (RIdeal( pol, ings, egs))))))) <|>
+      (symbol "fabric" >>
+       (source >>=
+        (fun pol -> blank >> loc_list >>=
+         (fun ings -> blank >> loc_list >>=
+           (fun egs ->
+              return (RFabric( pol, ings, egs))))))) <|>
+      (symbol "topology" >>
+       (source >>= (fun topo -> return (RTopo topo)))) <|>
+      (symbol "compile" >> return RCompile)) >>=
+    (fun r -> return ( Retarget r) )
+
 
   (* Parser for the write command *)
   let write : (command, bytes list) MParser.t =
@@ -334,21 +369,43 @@ let fabricate (fab:fabricate) : (fabric, string) Result.t = match fab with
         Ok (Frenetic_Fabric.vlan_per_port topology)
       | _ -> Error "Topologies can only be loaded from DOT files" end
 
-let retarget (pol:source) (topo:source) (ings:loc list) (egs:loc list) =
-  let union = Frenetic_NetKAT_Optimize.mk_big_union in
-  let seq = Frenetic_NetKAT_Optimize.mk_big_seq in
-  let to_filter (sw,pt) = Filter( And( Test(Switch sw),
-                                       Test(Location (Physical pt)))) in
-  match Source.to_policy pol, Source.to_policy topo with
-  | Ok policy, Ok topology ->
-    let ingresses = union (List.map ings ~f:to_filter) in
-    let egresses  = union (List.map egs ~f:to_filter) in
-    let complete = seq [ ingresses;
-                         Star(Seq(policy, topology)); policy;
-                         egresses ] in
-    Ok (Frenetic_Fabric.retarget complete)
-  | Error e, _ -> Error e
-  | _, Error e -> Error e
+let retarget (r:retarget) = match r with
+  | RIdeal (s, ings, egs) -> begin match Source.to_policy s with
+      | Ok policy ->
+        re_state.ideal     <- policy;
+        re_state.ideal_in  <- ings;
+        re_state.ideal_out <- egs
+      | Error e -> print_endline e end
+  | RFabric (s, ings, egs) -> begin match Source.to_policy s with
+      | Ok policy ->
+        re_state.existing     <- policy;
+        re_state.existing_in  <- ings;
+        re_state.existing_out <- egs
+      | Error e -> print_endline e end
+  | RTopo s -> begin match Source.to_policy s with
+      | Ok policy ->
+        re_state.physical <- policy
+      | Error e -> print_endline e end
+  | RCompile ->
+    let union = Frenetic_NetKAT_Optimize.mk_big_union in
+    let seq = Frenetic_NetKAT_Optimize.mk_big_seq in
+    let to_filter (sw,pt) = Filter( And( Test(Switch sw),
+                                         Test(Location (Physical pt)))) in
+    let compile policy topology ings egs =
+      let ingresses = union (List.map ings ~f:to_filter) in
+      let egresses  = union (List.map egs ~f:to_filter) in
+      let complete = seq [ ingresses;
+                           Star(Seq(policy, topology)); policy;
+                           egresses ] in
+      Frenetic_Fabric.retarget complete in
+    let ideal = compile re_state.ideal re_state.physical re_state.ideal_in
+        re_state.ideal_out in
+    let fabric = compile re_state.existing re_state.physical re_state.existing_in
+        re_state.existing_out in
+    (* TODO(basus): Insert magic function that generates proper ingress & *)
+    (* egress policies here *)
+    List.iter ideal ~f:Frenetic_Fabric.print_partition;
+    List.iter fabric ~f:Frenetic_Fabric.print_partition
 
 let post (uri:Uri.t) (body:string) =
   try_with (fun () ->
@@ -386,10 +443,10 @@ let rec repl () : unit Deferred.t =
       | Some (Fabricate f) -> begin match (fabricate f) with
           | Ok f -> update state (Fabrication f)
           | Error s -> print_endline s end
-      | Some (Retarget(pol, topo, ings, egs)) ->
-        begin match retarget pol topo ings egs with
-          | Ok ps -> List.iter ps ~f:Frenetic_Fabric.print_partition
-          | Error e -> print_endline e end
+      | Some (Retarget r) -> retarget r
+        (* begin match retarget pol topo ings egs with *)
+        (*   | Ok ps -> List.iter ps ~f:Frenetic_Fabric.print_partition *)
+        (*   | Error e -> print_endline e end *)
       | Some (Compile c) -> begin match c with
           | Local         -> begin
             try update state (FullCompilation Compiler.compile_local)
