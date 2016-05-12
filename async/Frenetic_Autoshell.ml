@@ -391,13 +391,12 @@ let retarget (r:retarget) = match r with
         re_state.ideal_out in
     let fabric = Frenetic_Fabric.assemble re_state.existing re_state.physical re_state.existing_in
         re_state.existing_out in
-    (* TODO(basus): Insert magic function that generates proper ingress & *)
-    (* egress policies here *)
     let ideal_parts = (Frenetic_Fabric.extract ideal) in
     let fab_parts = Frenetic_Fabric.extract fabric in
     List.iter ideal_parts ~f:Frenetic_Fabric.print_partition;
     List.iter fab_parts ~f:Frenetic_Fabric.print_partition;
-    (* let ins, outs = Frenetic_Fabric.retarget ideal_parts fab_parts re_state.physical in *) ()
+    let _ = Frenetic_Fabric.retarget ideal_parts fab_parts re_state.physical in
+    ()
 
 let post (uri:Uri.t) (body:string) =
   try_with (fun () ->
@@ -471,3 +470,4 @@ let main () : unit =
   printf "Type `help` for a list of commands\n%!";
   let _ = repl () in
   ()
+  
