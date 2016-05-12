@@ -139,7 +139,7 @@ module type S = sig
   val set_current_compiler_options : Frenetic_NetKAT_Compiler.compiler_options -> unit
 end
 
-module type CONTROLLER = sig
+module type PLUGIN = sig
   open Frenetic_OpenFlow0x01
   val init: int -> unit
   val events : Frenetic_OpenFlow0x01_Controller.event Pipe.Reader.t
@@ -148,12 +148,10 @@ module type CONTROLLER = sig
   val get_switches : unit -> switchId list Deferred.t
   val get_switch_features : switchId -> SwitchFeatures.t option Deferred.t
   val send_txn : switchId -> Message.t -> [`Ok of (Message.t list) Deferred.t | `Eof] Deferred.t
-end
-
-module type UPDATE = sig
+  val update : Frenetic_NetKAT_Compiler.t -> unit Deferred.t
 end
                   
-module Make (C:CONTROLLER) (U:UPDATE) : S = struct
+module Make (P:PLUGIN) : S = struct
   let fdd = ref (Frenetic_NetKAT_Compiler.compile_local drop)
   let current_compiler_options = ref (Frenetic_NetKAT_Compiler.default_compiler_options)
   let stats : (string, Int64.t * Int64.t) Hashtbl.Poly.t = Hashtbl.Poly.create ()
@@ -167,6 +165,7 @@ module Make (C:CONTROLLER) (U:UPDATE) : S = struct
     Pipe.write pol_writer pol
 
   let send_packet_out (sw_id : switchId) (payload : payload) (policy : policy) : unit Deferred.t =
+    let _ = Frenetic_NetKAT_Compiler.compile_local policy in
     return () (* JNF FIXME *)
     (* Pipe.write pktout_writer (sw_id, pkt_out) *)
 
@@ -176,8 +175,8 @@ module Make (C:CONTROLLER) (U:UPDATE) : S = struct
     | `Ok evt -> Deferred.return evt
 
   let current_switches () =
-    C.get_switches () >>= fun switches ->
-    Deferred.List.filter_map ~f:C.get_switch_features
+    P.get_switches () >>= fun switches ->
+    Deferred.List.filter_map ~f:P.get_switch_features
       switches >>| fun features ->
     let get_switch_and_ports (feats : OF10.SwitchFeatures.t) =
       (feats.switch_id,
@@ -193,7 +192,7 @@ module Make (C:CONTROLLER) (U:UPDATE) : S = struct
     Frenetic_NetKAT_Compiler.to_table' ~options:!current_compiler_options sw_id !fdd
 
   let raw_query (name : string) : (Int64.t * Int64.t) Deferred.t =
-    C.get_switches () >>= fun switches ->
+    P.get_switches () >>= fun switches ->
     Deferred.List.map ~how:`Parallel
       switches ~f:(fun sw_id ->
         let pats = List.filter_map (get_table sw_id) ~f:(fun (flow, names) ->
@@ -207,7 +206,7 @@ module Make (C:CONTROLLER) (U:UPDATE) : S = struct
             let req =
               OF10.IndividualRequest
                 { sr_of_match = pat0x01; sr_table_id = 0xff; sr_out_port = None } in
-            C.send_txn sw_id (OF10.Message.StatsRequestMsg req) >>= function
+            P.send_txn sw_id (OF10.Message.StatsRequestMsg req) >>= function
               | `Eof -> return (0L,0L)
               | `Ok l -> begin
                 l >>| function
@@ -230,7 +229,7 @@ module Make (C:CONTROLLER) (U:UPDATE) : S = struct
   let port_stats (sw_id : switchId) (pid : portId) : OF10.portStats list Deferred.t =
     let pt = Int32.(to_int_exn pid) in
     let req = OF10.PortRequest (Some (PhysicalPort pt)) in
-    C.send_txn sw_id (OF10.Message.StatsRequestMsg req) >>= function
+    P.send_txn sw_id (OF10.Message.StatsRequestMsg req) >>= function
       | `Eof -> assert false
       | `Ok l -> begin
         l >>| function
@@ -281,15 +280,20 @@ module Make (C:CONTROLLER) (U:UPDATE) : S = struct
 
   let send_pktout ((sw_id, pktout) : switchId * Frenetic_OpenFlow.pktOut) : unit Deferred.t =
     let pktout0x01 = To0x01.from_packetOut pktout in
-    C.send sw_id 0l (OF10.Message.PacketOutMsg pktout0x01) >>= function
+    P.send sw_id 0l (OF10.Message.PacketOutMsg pktout0x01) >>= function
       | `Eof -> return ()
       | `Ok -> return ()
 
   let start (openflow_port:int) : unit =
-    C.init openflow_port;
+    P.init openflow_port;
     don't_wait_for (Pipe.iter pol_reader ~f:update_all_switches);
-    don't_wait_for (Pipe.iter (C.events) ~f:handle_event);
+    don't_wait_for (Pipe.iter (P.events) ~f:handle_event);
     don't_wait_for (Pipe.iter pktout_reader ~f:send_pktout)
 end
 
-module OF10 = Make(Frenetic_OpenFlow0x01_Controller)(struct end)
+module OF10_PLUGIN = struct
+  include Frenetic_OpenFlow0x01_Controller
+  let update = Frenetic_NetKAT_Updates.BestEffortUpdate.implement_policy
+end
+          
+module OF10 = Make(OF10_PLUGIN)

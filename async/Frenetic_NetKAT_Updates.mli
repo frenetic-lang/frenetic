@@ -31,13 +31,11 @@ end
 
 module type UPDATE = sig
   val bring_up_switch :
-    ?old:Comp.t ->
     SDN.switchId ->
     Comp.t ->
     unit Deferred.t
 
   val implement_policy :
-    ?old:Comp.t ->
     Comp.t ->
     unit Deferred.t
 

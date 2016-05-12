@@ -18,7 +18,7 @@ open Frenetic_NetKAT
 (*   Controller.event -> *)
 (*   Frenetic_NetKAT.event list *)
 
-module type CONTROLLER = sig
+module type PLUGIN = sig
   open Frenetic_OpenFlow0x01
   val init: int -> unit
   val events : Frenetic_OpenFlow0x01_Controller.event Pipe.Reader.t
@@ -27,10 +27,7 @@ module type CONTROLLER = sig
   val get_switches : unit -> switchId list Deferred.t
   val get_switch_features : switchId -> SwitchFeatures.t option Deferred.t
   val send_txn : switchId -> Message.t -> [`Ok of (Message.t list) Deferred.t | `Eof] Deferred.t
-end
-
-module type UPDATE = sig
-
+  val update : Frenetic_NetKAT_Compiler.t -> unit Deferred.t
 end
 
 module type S = sig
@@ -67,6 +64,6 @@ module type S = sig
   val set_current_compiler_options : Frenetic_NetKAT_Compiler.compiler_options -> unit
 end
 
-module Make(C:CONTROLLER) (U:UPDATE) : S
+module Make(P:PLUGIN) : S
 
 module OF10 : S
