@@ -8,6 +8,7 @@ module FDK = Frenetic_Fdd.FDK
 type policy = Frenetic_NetKAT.policy
 type fabric = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
 type stream = (policy * policy)
+type loc = (switchId * portId)
 
 let strip_vlan = Some 0xffff
 
@@ -200,6 +201,13 @@ let find_predecessors topo sw =
   | None -> failwith "Cannot find predecessor for None switch"
   | Some sw -> find sw topo []
 
+let locate_from_options (swopt, ptopt) : (loc, string) Result.t =
+  match swopt, ptopt with
+  | Some sw, Some pt -> Ok (sw,pt)
+  | Some sw, None -> Error (sprintf "No port specified for switch %Ld" sw)
+  | None, Some pt -> Error (sprintf "No switch specified for port %ld" pt)
+  | None, None -> Error "No switch or port specified"
+
 let locate_from_header hv =
   let open Frenetic_NetKAT in
   match hv with
@@ -207,24 +215,7 @@ let locate_from_header hv =
   | Location (Physical pt) -> (None, Some pt)
   | _ -> (None, None)
 
-let rec locate_from_endpoint policy : (switchId option * portId option) =
-  let open Frenetic_NetKAT in
-  let combine p1 p2 = match p1, p2 with
-    | (None, None), (None, None) -> (None, None)
-    | (Some sw, None), (None, Some pt)
-    | (None, Some pt), (Some sw, None)
-    | (Some sw, Some pt), (None, None)
-    | (None, None), (Some sw, Some pt) ->
-      printf " Sw: %Ld pt: %ld" sw pt ;(Some sw, Some pt)
-    | _ -> failwith "Clash" in
-  match policy with
-  | Mod hv -> locate_from_header hv
-  | Union (p1, p2) -> combine (locate_from_endpoint p1) (locate_from_endpoint p2)
-  | Seq (p1, p2) -> combine (locate_from_endpoint p1) (locate_from_endpoint p2)
-  | Star p -> locate_from_endpoint p
-  | _ -> (None, None)
-
-let rec locate_from_origin policy =
+let locate_from_sink policy : (loc,string) Result.t =
   let open Frenetic_NetKAT in
   let combine p1 p2 = match p1, p2 with
     | (None, None), (None, None) -> (None, None)
@@ -232,20 +223,62 @@ let rec locate_from_origin policy =
     | (None, Some pt), (Some sw, None)
     | (Some sw, Some pt), (None, None)
     | (None, None), (Some sw, Some pt) -> (Some sw, Some pt)
-    | _ -> failwith "Clash" in
+    | _ -> failwith "Clash in sinks" in
+  let rec aux policy = match policy with
+  | Mod hv -> locate_from_header hv
+  | Union (p1, p2) -> combine (aux p1) (aux p2)
+  | Seq (p1, p2) -> combine (aux p1) (aux p2)
+  | Star p -> aux p
+  | _ -> (None, None) in
+  locate_from_options (aux policy)
+
+let locate_from_source policy =
+  let open Frenetic_NetKAT in
+  let combine p1 p2 = match p1, p2 with
+    | (None, None), (None, None) -> (None, None)
+    | (Some sw, None), (None, Some pt)
+    | (None, Some pt), (Some sw, None)
+    | (Some sw, Some pt), (None, None)
+    | (None, None), (Some sw, Some pt) -> (Some sw, Some pt)
+    | _ -> failwith "Clash in sources" in
   let rec locate_from_filter f = match f with
     | Test hv -> locate_from_header hv
     | True | False | Neg _ -> (None, None)
     | And(p1, p2) -> combine (locate_from_filter p1) (locate_from_filter p2)
     | Or (p1, p2) -> combine (locate_from_filter p1) (locate_from_filter p2) in
-  match policy with
+  let rec aux policy = match policy with
   | Filter f -> locate_from_filter f
-  | Union (p1, p2) -> combine (locate_from_origin p1) (locate_from_origin p2)
-  | Seq (p1, p2) -> combine (locate_from_origin p1) (locate_from_origin p2)
-  | Star p -> locate_from_origin p
-  | _ -> (None, None)
+  | Union (p1, p2) -> combine (aux p1) (aux p2)
+  | Seq (p1, p2) -> combine (aux p1) (aux p2)
+  | Star p -> aux p
+  | _ -> (None, None) in
+  locate_from_options (aux policy)
+
+let locate_endpoints ((pol, pol'):stream) =
+  let src = locate_from_source pol in
+  let sink = locate_from_sink pol' in
+  match src, sink with
+  | Ok s, Ok s' -> Ok (s,s')
+  | Ok _, Error s -> Error s
+  | Error s, Ok _ -> Error s
+  | Error s, Error s' -> Error (String.concat ~sep:"\n" [s;s'])
+
+let locate ((pol,pol'):stream) =
+  let locs = locate_endpoints (pol,pol') in
+  match locs with
+  | Ok (src,sink) -> Ok (src, sink, pol, pol')
+  | Error e -> Error e
+
+let add_location acc stream =
+  match acc, locate stream with
+  | Ok acc, Ok l -> Ok (l::acc)
+  | Error s, Error s' -> Error (String.concat ~sep:"\n" [s;s'])
+  | Error e, _ -> Error e
+  | _, Error e -> Error e
 
 let retarget (ideal:stream list) (fabric: stream list) (topo:policy) =
+  let ideal_located = List.fold ideal ~init:(Ok []) ~f:add_location in
+  let fabric_located = List.fold fabric ~init:(Ok []) ~f:add_location in
   ([], [])
 
 let print_partition (cond, act) =
