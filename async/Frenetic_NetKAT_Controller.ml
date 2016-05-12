@@ -128,12 +128,12 @@ let of_to_netkat_event fdd (evt : Frenetic_OpenFlow0x01_Controller.event) : Fren
   | _ -> []
 
 module type S = sig
-  val update_policy : policy -> unit Deferred.t
-  val send_packet_out : switchId -> Frenetic_OpenFlow.pktOut -> unit Deferred.t
   val event : unit -> event Deferred.t
+  val update_policy : policy -> unit Deferred.t
+  val send_packet_out : switchId -> payload -> policy -> unit Deferred.t
   val query : string -> (Int64.t * Int64.t) Deferred.t
-  val port_stats : switchId -> portId -> OF10.portStats list Deferred.t
   val is_query : string -> bool
+  val port_stats : switchId -> portId -> OF10.portStats list Deferred.t
   val start : int -> unit
   val current_switches : unit -> (switchId * portId list) list Deferred.t
   val set_current_compiler_options : Frenetic_NetKAT_Compiler.compiler_options -> unit
@@ -166,9 +166,9 @@ module Make (C:CONTROLLER) (U:UPDATE) : S = struct
   let update_policy (pol : policy) : unit Deferred.t =
     Pipe.write pol_writer pol
 
-  let send_packet_out (sw_id : switchId)
-    (pkt_out : Frenetic_OpenFlow.pktOut) : unit Deferred.t =
-    Pipe.write pktout_writer (sw_id, pkt_out)
+  let send_packet_out (sw_id : switchId) (payload : payload) (policy : policy) : unit Deferred.t =
+    return () (* JNF FIXME *)
+    (* Pipe.write pktout_writer (sw_id, pkt_out) *)
 
   let event () : event Deferred.t =
     Pipe.read event_reader >>= function
