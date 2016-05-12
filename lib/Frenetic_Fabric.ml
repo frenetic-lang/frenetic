@@ -180,7 +180,7 @@ let extract (pol:policy) : (policy * policy) list =
   List.map paths ~f:partition
 
 let string_of_stream (cond, act) =
-  sprintf "Condition: %s\nAction: %s\n\n" (Frenetic_NetKAT_Pretty.string_of_policy cond)
+  sprintf "Condition: %s\nAction: %s\n" (Frenetic_NetKAT_Pretty.string_of_policy cond)
     (Frenetic_NetKAT_Pretty.string_of_policy act)
 
 let string_of_located_stream ((sw,pt),(sw',pt'),stream) =
@@ -307,31 +307,26 @@ let locate ((pol,pol'):stream) =
   | Ok (src,sink) -> Ok (src, sink, (pol, pol'))
   | Error e -> Error e
 
-let add_location acc stream =
-  try match acc, locate stream with
-    | Ok acc, Ok l -> Ok (l::acc)
-    | Error s, Error s' -> Error (String.concat ~sep:"\n" [s;s'])
-    | Error e, _ -> Error e
-    | _, Error e -> Error e
-  with ClashException e ->
-    let msg = sprintf "Exception |%s| in alpha-beta pair: %s%!" e
-        (string_of_stream stream) in
-    print_endline msg;
-    Error msg
+let locate_or_drop (located, dropped) stream =
+  let cond, act = stream in
+  if act = Frenetic_NetKAT.drop then (located, stream::dropped)
+  else try match locate stream with
+    | Ok l -> (l::located,dropped)
+    | Error e ->
+      printf "\n\n%s %s\n%!"(string_of_stream stream) e;
+      (located, dropped)
+    with ClashException e ->
+      let msg = sprintf "Exception |%s| in alpha-beta pair: %s%!" e
+          (string_of_stream stream) in
+      print_endline msg;
+      (located,dropped)
 
 let retarget (ideal:stream list) (fabric: stream list) (topo:policy) =
-  let ideal_located = List.fold ideal ~init:(Ok []) ~f:add_location in
-  let fabric_located = List.fold fabric ~init:(Ok []) ~f:add_location in
-  begin match ideal_located, fabric_located with
-    | Ok ideal, Ok fabric ->
-      print_endline "Located ideal policy:";
-      (List.iter ideal ~f:(fun s -> print_endline (string_of_located_stream s)));
-      print_endline "Located fabric policy:";
-      (List.iter fabric ~f:(fun s -> print_endline (string_of_located_stream s)));
-    | Error e', Error e -> print_endline e; print_endline e';
-    | Error e, _
-    | _, Error e -> print_endline e
-  end;
+  let ideal_located,ideal_dropped = List.fold ideal ~init:([],[]) ~f:locate_or_drop in
+  let fabric_located,fabric_dropped = List.fold fabric ~init:([],[])
+      ~f:locate_or_drop in
+  List.iter ideal_located ~f:(fun s -> print_endline ( string_of_located_stream s ));
+  List.iter fabric_located ~f:(fun s -> print_endline ( string_of_located_stream s ));
   let loc_preds, switch_preds = find_predecessors topo in
   let loc_succs, switch_succs = find_successors topo in
   ([], [])
