@@ -10,6 +10,8 @@ type fabric = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
 type stream = (policy * policy)
 type loc = (switchId * portId)
 
+exception ClashException of string
+
 let strip_vlan = Some 0xffff
 
 let mk_flow (pat:Pattern.t) (actions:group) : flow =
@@ -177,6 +179,9 @@ let extract (pol:policy) : (policy * policy) list =
   printf "\nNumber of paths %d\n%!" (List.length paths);
   List.map paths ~f:partition
 
+let print_partition (cond, act) =
+  printf "Condition: %s\n%!" (Frenetic_NetKAT_Pretty.string_of_policy cond);
+  printf "Action: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy act)
 
 let assemble (pol:policy) (topo:policy) ings egs : policy =
   let open Frenetic_NetKAT in
@@ -222,6 +227,24 @@ let find_successors (topo:policy) =
   populate topo;
   (switch_table, loc_table)
 
+let combine_locations ?(hdr="Clash detected") p1 p2 = match p1, p2 with
+  | (None, None), (None, None) -> (None, None)
+  | (Some sw, None), (None, Some pt)
+  | (None, Some pt), (Some sw, None)
+  | (Some sw, Some pt), (None, None)
+  | (None, None), (Some sw, Some pt) -> (Some sw, Some pt)
+  | (Some sw, None), (None, None)
+  | (None, None), (Some sw, None) -> (Some sw, None)
+  | (None, Some pt), (None, None)
+  | (None, None), (None, Some pt) -> (None, Some pt)
+  | (sw,pt), (sw',pt') ->
+    let reason = begin match sw, pt, sw', pt' with
+      | Some sw, _, Some sw', _ -> sprintf "Clashing switches %Ld and %Ld." sw sw'
+      | _, Some pt, _, Some pt' -> sprintf "Clashing switches %ld and %ld." pt pt'
+      | _ -> sprintf "No clash. Bug in code." end in
+    let msg = String.concat ~sep:" " [hdr; hdr] in
+    raise (ClashException msg)
+
 let locate_from_options (swopt, ptopt) : (loc, string) Result.t =
   match swopt, ptopt with
   | Some sw, Some pt -> Ok (sw,pt)
@@ -238,39 +261,27 @@ let locate_from_header hv =
 
 let locate_from_sink policy : (loc,string) Result.t =
   let open Frenetic_NetKAT in
-  let combine p1 p2 = match p1, p2 with
-    | (None, None), (None, None) -> (None, None)
-    | (Some sw, None), (None, Some pt)
-    | (None, Some pt), (Some sw, None)
-    | (Some sw, Some pt), (None, None)
-    | (None, None), (Some sw, Some pt) -> (Some sw, Some pt)
-    | _ -> failwith "Clash in sinks" in
+  let hdr = "Clash in sinks" in
   let rec aux policy = match policy with
   | Mod hv -> locate_from_header hv
-  | Union (p1, p2) -> combine (aux p1) (aux p2)
-  | Seq (p1, p2) -> combine (aux p1) (aux p2)
+  | Union (p1, p2) -> combine_locations ~hdr:hdr (aux p1) (aux p2)
+  | Seq (p1, p2) -> combine_locations ~hdr:hdr (aux p1) (aux p2)
   | Star p -> aux p
   | _ -> (None, None) in
   locate_from_options (aux policy)
 
 let locate_from_source policy =
   let open Frenetic_NetKAT in
-  let combine p1 p2 = match p1, p2 with
-    | (None, None), (None, None) -> (None, None)
-    | (Some sw, None), (None, Some pt)
-    | (None, Some pt), (Some sw, None)
-    | (Some sw, Some pt), (None, None)
-    | (None, None), (Some sw, Some pt) -> (Some sw, Some pt)
-    | _ -> failwith "Clash in sources" in
+  let hdr = "Clash in source" in
   let rec locate_from_filter f = match f with
     | Test hv -> locate_from_header hv
     | True | False | Neg _ -> (None, None)
-    | And(p1, p2) -> combine (locate_from_filter p1) (locate_from_filter p2)
-    | Or (p1, p2) -> combine (locate_from_filter p1) (locate_from_filter p2) in
+    | And(p1, p2) -> combine_locations ~hdr:hdr (locate_from_filter p1) (locate_from_filter p2)
+    | Or (p1, p2) -> combine_locations ~hdr:hdr (locate_from_filter p1) (locate_from_filter p2) in
   let rec aux policy = match policy with
   | Filter f -> locate_from_filter f
-  | Union (p1, p2) -> combine (aux p1) (aux p2)
-  | Seq (p1, p2) -> combine (aux p1) (aux p2)
+  | Union (p1, p2) -> combine_locations ~hdr:hdr (aux p1) (aux p2)
+  | Seq (p1, p2) -> combine_locations ~hdr:hdr (aux p1) (aux p2)
   | Star p -> aux p
   | _ -> (None, None) in
   locate_from_options (aux policy)
@@ -291,11 +302,14 @@ let locate ((pol,pol'):stream) =
   | Error e -> Error e
 
 let add_location acc stream =
-  match acc, locate stream with
-  | Ok acc, Ok l -> Ok (l::acc)
-  | Error s, Error s' -> Error (String.concat ~sep:"\n" [s;s'])
-  | Error e, _ -> Error e
-  | _, Error e -> Error e
+  try match acc, locate stream with
+    | Ok acc, Ok l -> Ok (l::acc)
+    | Error s, Error s' -> Error (String.concat ~sep:"\n" [s;s'])
+    | Error e, _ -> Error e
+    | _, Error e -> Error e
+  with ClashException e ->
+    print_endline e; print_partition stream;
+    Error e
 
 let retarget (ideal:stream list) (fabric: stream list) (topo:policy) =
   let ideal_located = List.fold ideal ~init:(Ok []) ~f:add_location in
@@ -303,7 +317,3 @@ let retarget (ideal:stream list) (fabric: stream list) (topo:policy) =
   let loc_preds, switch_preds = find_predecessors topo in
   let loc_succs, switch_succs = find_successors topo in
   ([], [])
-
-let print_partition (cond, act) =
-  printf "Condition: %s\n%!" (Frenetic_NetKAT_Pretty.string_of_policy cond);
-  printf "Action: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy act)
