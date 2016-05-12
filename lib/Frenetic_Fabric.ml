@@ -190,16 +190,37 @@ let assemble (pol:policy) (topo:policy) ings egs : policy =
         Star(Seq(pol, topo)); pol;
         egresses ]
 
-let find_predecessors topo sw =
+let find_predecessors (topo:policy) =
   let open Frenetic_NetKAT in
-  let rec find sw pol acc =
-    match pol with
-    | Union(p1, p2) -> find sw p1 (find sw p2 acc)
-    | Link (s1,p1,s2,p2) -> if s2 = sw then (s1,p1,p2)::acc else acc
-    | _ -> failwith "Invalid construct in topology" in
-  match sw with
-  | None -> failwith "Cannot find predecessor for None switch"
-  | Some sw -> find sw topo []
+  let switch_table = Hashtbl.Poly.create () in
+  let loc_table = Hashtbl.Poly.create () in
+  let rec populate pol = match pol with
+    | Union(p1, p2) ->
+      populate p1;
+      populate p2
+    | Link (s1,p1,s2,p2) ->
+      Hashtbl.Poly.add_exn loc_table (s2,p2) (s1,p1);
+      Hashtbl.Poly.add_multi switch_table s2 (s1,p1,p2);
+    | p -> failwith (sprintf "Unexpected construct in policy: %s\n"
+                       (Frenetic_NetKAT_Pretty.string_of_policy p)) in
+  populate topo;
+  (switch_table, loc_table)
+
+let find_successors (topo:policy) =
+  let open Frenetic_NetKAT in
+  let switch_table = Hashtbl.Poly.create () in
+  let loc_table = Hashtbl.Poly.create () in
+  let rec populate pol = match pol with
+    | Union(p1, p2) ->
+      populate p1;
+      populate p2
+    | Link (s1,p1,s2,p2) ->
+      Hashtbl.Poly.add_exn loc_table (s1,p1) (s2,p2);
+      Hashtbl.Poly.add_multi switch_table s1 (s2,p2,p1);
+    | p -> failwith (sprintf "Unexpected construct in policy: %s\n"
+                       (Frenetic_NetKAT_Pretty.string_of_policy p)) in
+  populate topo;
+  (switch_table, loc_table)
 
 let locate_from_options (swopt, ptopt) : (loc, string) Result.t =
   match swopt, ptopt with
@@ -279,6 +300,8 @@ let add_location acc stream =
 let retarget (ideal:stream list) (fabric: stream list) (topo:policy) =
   let ideal_located = List.fold ideal ~init:(Ok []) ~f:add_location in
   let fabric_located = List.fold fabric ~init:(Ok []) ~f:add_location in
+  let loc_preds, switch_preds = find_predecessors topo in
+  let loc_succs, switch_succs = find_successors topo in
   ([], [])
 
 let print_partition (cond, act) =
