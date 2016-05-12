@@ -12,8 +12,12 @@ type loc = (switchId * portId)
 type correlation =
   | Exact
   | Adjacent of portId * portId
+  | SinkOnly of portId
+  | SourceOnly of portId
+  | Uncorrelated
 
 exception ClashException of string
+exception CorrelationException of string
 
 let strip_vlan = Some 0xffff
 
@@ -241,9 +245,9 @@ let precedes tbl (sw,_) (sw',pt') =
   | Some (pre_sw,pre_pt) -> if pre_sw = sw then Some pre_pt else None
   | None -> None
 
-let succeeds tbl (sw,pt) (sw',_) =
-  match Hashtbl.Poly.find tbl (sw,pt) with
-  | Some (post_sw, post_pt) -> if post_sw = sw' then Some post_pt else None
+let succeeds tbl (sw,_) (sw',pt') =
+  match Hashtbl.Poly.find tbl (sw',pt') with
+  | Some (post_sw, post_pt) -> if post_sw = sw then Some post_pt else None
   | None -> None
 
 let combine_locations ?(hdr="Clash detected") p1 p2 = match p1, p2 with
@@ -339,9 +343,9 @@ let correlate ideal_src ideal_sink fab_src fab_sink
   if fab_src = ideal_src && fab_sink = ideal_sink then Exact
   else match (precedes ideal_src fab_src, succeeds ideal_sink fab_sink) with
     | Some pt, Some pt' -> Adjacent(pt, pt')
-    | _, Some pt -> failwith "Cannot determine predecessor"
-    | Some pt, _ -> failwith "Cannot determine predecessor"
-    | None, None -> failwith "Cannot determine predecessor or successor"
+    | _, Some pt -> SinkOnly pt
+    | Some pt, _ -> SourceOnly pt
+    | None, None -> Uncorrelated
 
 let imprint ideal fabric precedes succeeds =
   List.fold ideal ~init:([], []) ~f:(fun acc ideal ->
@@ -349,8 +353,21 @@ let imprint ideal fabric precedes succeeds =
       List.fold fabric ~init:acc ~f:(fun (ins,outs) fab ->
           let fab_src,fab_sink,fab_stream = fab in
           match correlate ideal_src ideal_sink fab_src fab_sink precedes succeeds with
-          | Exact -> acc
-          | Adjacent(in_pt, out_pt) -> acc
+          | Exact ->
+            print_endline "Exact Matching stream;";
+            printf "Fabric: %s\n%!" (string_of_located_stream fab);
+            printf "Policy: %s\n%!" (string_of_located_stream ideal);
+            acc
+          | Adjacent(in_pt, out_pt) ->
+            print_endline "Adjacent stream;";
+            printf "Fabric: %s\n%!" (string_of_located_stream fab);
+            printf "Policy: %s\n%!" (string_of_located_stream ideal);
+            printf "Incoming bridge: %Ld:%ld --> %Ld:%ld\n%!"
+              (fst ideal_src) in_pt (fst fab_src) (snd fab_src);
+            printf "Outgoing bridge: %Ld:%ld --> %Ld:%ld\n%!"
+              (fst fab_sink) (snd fab_sink) (fst ideal_sink) out_pt;
+            acc
+          | _ -> acc
         ))
 
 let retarget (ideal:stream list) (fabric: stream list) (topo:policy) =
@@ -363,4 +380,5 @@ let retarget (ideal:stream list) (fabric: stream list) (topo:policy) =
   let switch_succs, loc_succs = find_successors topo in
   let precedes = precedes loc_preds in
   let succeeds = succeeds loc_succs in
+  let _ = imprint ideal_located fabric_located precedes succeeds in
   ([], [])
