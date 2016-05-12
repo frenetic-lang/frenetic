@@ -9,6 +9,9 @@ type policy = Frenetic_NetKAT.policy
 type fabric = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
 type stream = (policy * policy)
 type loc = (switchId * portId)
+type correlation =
+  | Exact
+  | Adjacent of portId * portId
 
 exception ClashException of string
 
@@ -233,6 +236,16 @@ let find_successors (topo:policy) =
   populate topo;
   (switch_table, loc_table)
 
+let precedes tbl (sw,_) (sw',pt') =
+  match Hashtbl.Poly.find tbl (sw',pt') with
+  | Some (pre_sw,pre_pt) -> if pre_sw = sw then Some pre_pt else None
+  | None -> None
+
+let succeeds tbl (sw,pt) (sw',_) =
+  match Hashtbl.Poly.find tbl (sw,pt) with
+  | Some (post_sw, post_pt) -> if post_sw = sw' then Some post_pt else None
+  | None -> None
+
 let combine_locations ?(hdr="Clash detected") p1 p2 = match p1, p2 with
   | (None, None), (None, None) -> (None, None)
   | (Some sw, None), (None, Some pt)
@@ -321,12 +334,33 @@ let locate_or_drop (located, dropped) stream =
       print_endline msg;
       (located,dropped)
 
+let correlate ideal_src ideal_sink fab_src fab_sink
+  precedes succeeds =
+  if fab_src = ideal_src && fab_sink = ideal_sink then Exact
+  else match (precedes ideal_src fab_src, succeeds ideal_sink fab_sink) with
+    | Some pt, Some pt' -> Adjacent(pt, pt')
+    | _, Some pt -> failwith "Cannot determine predecessor"
+    | Some pt, _ -> failwith "Cannot determine predecessor"
+    | None, None -> failwith "Cannot determine predecessor or successor"
+
+let imprint ideal fabric precedes succeeds =
+  List.fold ideal ~init:([], []) ~f:(fun acc ideal ->
+      let ideal_src,ideal_sink,ideal_stream = ideal in
+      List.fold fabric ~init:acc ~f:(fun (ins,outs) fab ->
+          let fab_src,fab_sink,fab_stream = fab in
+          match correlate ideal_src ideal_sink fab_src fab_sink precedes succeeds with
+          | Exact -> acc
+          | Adjacent(in_pt, out_pt) -> acc
+        ))
+
 let retarget (ideal:stream list) (fabric: stream list) (topo:policy) =
   let ideal_located,ideal_dropped = List.fold ideal ~init:([],[]) ~f:locate_or_drop in
   let fabric_located,fabric_dropped = List.fold fabric ~init:([],[])
       ~f:locate_or_drop in
   List.iter ideal_located ~f:(fun s -> print_endline ( string_of_located_stream s ));
   List.iter fabric_located ~f:(fun s -> print_endline ( string_of_located_stream s ));
-  let loc_preds, switch_preds = find_predecessors topo in
-  let loc_succs, switch_succs = find_successors topo in
+  let switch_preds, loc_preds = find_predecessors topo in
+  let switch_succs, loc_succs = find_successors topo in
+  let precedes = precedes loc_preds in
+  let succeeds = succeeds loc_succs in
   ([], [])
