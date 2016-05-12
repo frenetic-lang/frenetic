@@ -348,16 +348,26 @@ let correlate ideal_src ideal_sink fab_src fab_sink
     | None, None -> Uncorrelated
 
 let imprint ideal fabric precedes succeeds =
-  List.fold ideal ~init:([], []) ~f:(fun acc ideal ->
+  let open Frenetic_NetKAT in
+  let rec remove_switch policy = match policy with
+    | Union (p, Mod(Switch _)) -> p
+    | Union (Mod(Switch _), p) -> p
+    | Seq (p, Mod(Switch _)) -> p
+    | Seq (Mod(Switch _), p) -> p
+    | Star p -> Star (remove_switch p)
+    | p -> p in
+
+  let seq = Frenetic_NetKAT_Optimize.mk_big_seq in
+  let ingress,egress,_ = List.fold ideal ~init:([], [],1) ~f:(fun acc ideal ->
       let ideal_src,ideal_sink,ideal_stream = ideal in
-      List.fold fabric ~init:acc ~f:(fun (ins,outs) fab ->
+      List.fold fabric ~init:acc ~f:(fun (ins,outs,tag) fab ->
           let fab_src,fab_sink,fab_stream = fab in
           match correlate ideal_src ideal_sink fab_src fab_sink precedes succeeds with
           | Exact ->
             print_endline "Exact Matching stream;";
             printf "Fabric: %s\n%!" (string_of_located_stream fab);
             printf "Policy: %s\n%!" (string_of_located_stream ideal);
-            acc
+            ((fst fab_stream::ins), (snd fab_stream::outs), tag)
           | Adjacent(in_pt, out_pt) ->
             print_endline "Adjacent stream;";
             printf "Fabric: %s\n%!" (string_of_located_stream fab);
@@ -366,9 +376,20 @@ let imprint ideal fabric precedes succeeds =
               (fst ideal_src) in_pt (fst fab_src) (snd fab_src);
             printf "Outgoing bridge: %Ld:%ld --> %Ld:%ld\n%!"
               (fst fab_sink) (snd fab_sink) (fst ideal_sink) out_pt;
-            acc
-          | _ -> acc
-        ))
+            let ingress = seq [ (fst ideal_stream);
+                                Mod( Vlan tag);
+                                Mod( Location( Physical in_pt)) ] in
+            let test_location = And( Test( Switch (fst ideal_sink)),
+                                     Test( Location (Physical out_pt))) in
+            let egress = seq [ Filter( And( Test(Vlan tag),
+                                            test_location));
+                               remove_switch (snd ideal_stream) ] in
+            (* print_endline ( Frenetic_NetKAT_Pretty.string_of_policy ingress ); *)
+            (* print_endline (Frenetic_NetKAT_Pretty.string_of_policy egress ); *)
+            (ingress::ins, egress::outs, tag+1)
+          | _ -> (ins,outs,tag)
+        )) in
+  (ingress,egress)
 
 let retarget (ideal:stream list) (fabric: stream list) (topo:policy) =
   let ideal_located,ideal_dropped = List.fold ideal ~init:([],[]) ~f:locate_or_drop in
@@ -380,5 +401,4 @@ let retarget (ideal:stream list) (fabric: stream list) (topo:policy) =
   let switch_succs, loc_succs = find_successors topo in
   let precedes = precedes loc_preds in
   let succeeds = succeeds loc_succs in
-  let _ = imprint ideal_located fabric_located precedes succeeds in
-  ([], [])
+  imprint ideal_located fabric_located precedes succeeds
