@@ -18,5 +18,5 @@ val extract : policy ->
 val assemble : policy -> policy ->
   (switchId * portId) list -> (switchId * portId) list ->
   policy
-val print_partition : stream -> unit
+val string_of_stream : stream -> string
 val retarget : stream list -> stream list -> policy -> (policy list * policy list)

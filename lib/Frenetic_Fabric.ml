@@ -179,9 +179,15 @@ let extract (pol:policy) : (policy * policy) list =
   printf "\nNumber of paths %d\n%!" (List.length paths);
   List.map paths ~f:partition
 
-let print_partition (cond, act) =
-  printf "Condition: %s\n%!" (Frenetic_NetKAT_Pretty.string_of_policy cond);
-  printf "Action: %s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy act)
+let string_of_stream (cond, act) =
+  sprintf "Condition: %s\nAction: %s\n\n" (Frenetic_NetKAT_Pretty.string_of_policy cond)
+    (Frenetic_NetKAT_Pretty.string_of_policy act)
+
+let string_of_located_stream ((sw,pt),(sw',pt'),stream) =
+  let src = sprintf "Source: Switch: %Ld Port:%ld" sw pt in
+  let sink = sprintf "Sink: Switch: %Ld Port:%ld" sw' pt' in
+  let stream = string_of_stream stream in
+  String.concat ~sep:"\n" [src; sink; stream]
 
 let assemble (pol:policy) (topo:policy) ings egs : policy =
   let open Frenetic_NetKAT in
@@ -242,7 +248,7 @@ let combine_locations ?(hdr="Clash detected") p1 p2 = match p1, p2 with
       | Some sw, _, Some sw', _ -> sprintf "Clashing switches %Ld and %Ld." sw sw'
       | _, Some pt, _, Some pt' -> sprintf "Clashing switches %ld and %ld." pt pt'
       | _ -> sprintf "No clash. Bug in code." end in
-    let msg = String.concat ~sep:" " [hdr; hdr] in
+    let msg = String.concat ~sep:" " [hdr; reason] in
     raise (ClashException msg)
 
 let locate_from_options (swopt, ptopt) : (loc, string) Result.t =
@@ -298,7 +304,7 @@ let locate_endpoints ((pol, pol'):stream) =
 let locate ((pol,pol'):stream) =
   let locs = locate_endpoints (pol,pol') in
   match locs with
-  | Ok (src,sink) -> Ok (src, sink, pol, pol')
+  | Ok (src,sink) -> Ok (src, sink, (pol, pol'))
   | Error e -> Error e
 
 let add_location acc stream =
@@ -308,12 +314,24 @@ let add_location acc stream =
     | Error e, _ -> Error e
     | _, Error e -> Error e
   with ClashException e ->
-    print_endline e; print_partition stream;
-    Error e
+    let msg = sprintf "Exception |%s| in alpha-beta pair: %s%!" e
+        (string_of_stream stream) in
+    print_endline msg;
+    Error msg
 
 let retarget (ideal:stream list) (fabric: stream list) (topo:policy) =
   let ideal_located = List.fold ideal ~init:(Ok []) ~f:add_location in
   let fabric_located = List.fold fabric ~init:(Ok []) ~f:add_location in
+  begin match ideal_located, fabric_located with
+    | Ok ideal, Ok fabric ->
+      print_endline "Located ideal policy:";
+      (List.iter ideal ~f:(fun s -> print_endline (string_of_located_stream s)));
+      print_endline "Located fabric policy:";
+      (List.iter fabric ~f:(fun s -> print_endline (string_of_located_stream s)));
+    | Error e', Error e -> print_endline e; print_endline e';
+    | Error e, _
+    | _, Error e -> print_endline e
+  end;
   let loc_preds, switch_preds = find_predecessors topo in
   let loc_succs, switch_succs = find_successors topo in
   ([], [])

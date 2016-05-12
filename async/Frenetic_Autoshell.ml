@@ -393,8 +393,6 @@ let retarget (r:retarget) = match r with
         re_state.existing_out in
     let ideal_parts = (Frenetic_Fabric.extract ideal) in
     let fab_parts = Frenetic_Fabric.extract fabric in
-    List.iter ideal_parts ~f:Frenetic_Fabric.print_partition;
-    List.iter fab_parts ~f:Frenetic_Fabric.print_partition;
     let _ = Frenetic_Fabric.retarget ideal_parts fab_parts re_state.physical in
     ()
 
@@ -435,9 +433,6 @@ let rec repl () : unit Deferred.t =
           | Ok f -> update state (Fabrication f)
           | Error s -> print_endline s end
       | Some (Retarget r) -> retarget r
-        (* begin match retarget pol topo ings egs with *)
-        (*   | Ok ps -> List.iter ps ~f:Frenetic_Fabric.print_partition *)
-        (*   | Error e -> print_endline e end *)
       | Some (Compile c) -> begin match c with
           | Local         -> begin
             try update state (FullCompilation Compiler.compile_local)
