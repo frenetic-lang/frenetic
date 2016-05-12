@@ -29,6 +29,8 @@ type re_state = { mutable ideal : policy
                 ; mutable ideal_out : loc list
                 ; mutable existing_in : loc list
                 ; mutable existing_out : loc list
+                ; mutable ingress : policy list
+                ; mutable egress  : policy list
                 }
 
 let re_state = { ideal = Filter True
@@ -38,6 +40,8 @@ let re_state = { ideal = Filter True
                ; ideal_out = []
                ; existing_in = []
                ; existing_out = []
+               ; ingress = []
+               ; egress  = []
                }
 
 type state = { mutable policy   : policy option
@@ -96,6 +100,7 @@ type retarget =
   | RFabric of (source * loc list * loc list)
   | RTopo of source
   | RCompile
+  | RSetup
 
 type command =
   | Load of (input * source)
@@ -224,7 +229,8 @@ module Parser = struct
               return (RFabric( pol, ings, egs))))))) <|>
       (symbol "topology" >>
        (source >>= (fun topo -> return (RTopo topo)))) <|>
-      (symbol "compile" >> return RCompile)) >>=
+      (symbol "compile" >> return RCompile) <|>
+      (symbol "setup" >> return RSetup)) >>=
     (fun r -> return ( Retarget r) )
 
 
@@ -393,13 +399,18 @@ let retarget (r:retarget) = match r with
         re_state.existing_out in
     let ideal_parts = (Frenetic_Fabric.extract ideal) in
     let fab_parts = Frenetic_Fabric.extract fabric in
-    let ins, outs = Frenetic_Fabric.retarget ideal_parts fab_parts re_state.physical in
+    let ins, outs = Frenetic_Fabric.retarget ideal_parts fab_parts
+        re_state.physical in
     print_endline "\nIngresses\n";
     List.iter ins ~f:(fun p -> printf "%s\n"
                          (Frenetic_NetKAT_Pretty.string_of_policy p));
     print_endline "\nEgresses\n";
     List.iter outs ~f:(fun p -> printf "%s\n"
-                         (Frenetic_NetKAT_Pretty.string_of_policy p))
+                          (Frenetic_NetKAT_Pretty.string_of_policy p));
+    re_state.ingress <- ins;
+    re_state.egress <- outs
+  | RSetup ->
+    
 
 let post (uri:Uri.t) (body:string) =
   try_with (fun () ->
