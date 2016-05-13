@@ -100,7 +100,7 @@ type retarget =
   | RFabric of (source * loc list * loc list)
   | RTopo of source
   | RCompile
-  | RSetup
+  | RSetup of string * int
 
 type command =
   | Load of (input * source)
@@ -145,6 +145,15 @@ module Parser = struct
         (char ']') >>=
      (fun ints -> return ints))
 
+  (* Parser for URI endpoints. Not bulletproof. *)
+  let uri : ((string * int), bytes list) MParser.t =
+    many_chars (alphanum <|> (char '.')) >>=
+    (fun hostname ->
+       (* Parse hostname:port swid *)
+       ((char ':') >> many_chars digit >>=
+        (fun port_s -> return (hostname, (Int.of_string port_s)))) <|>
+       (* Parse hostname swid *)
+       ( blank >> return (hostname, 80)))
 
   (* Parser for the load command *)
   let load : (command, bytes list) MParser.t =
@@ -230,7 +239,9 @@ module Parser = struct
       (symbol "topology" >>
        (source >>= (fun topo -> return (RTopo topo)))) <|>
       (symbol "compile" >> return RCompile) <|>
-      (symbol "setup" >> return RSetup)) >>=
+      (symbol "setup" >> uri >>=
+       (fun (hostname, port) -> return
+           (RSetup (hostname, port))))) >>=
     (fun r -> return ( Retarget r) )
 
 
@@ -375,6 +386,26 @@ let fabricate (fab:fabricate) : (fabric, string) Result.t = match fab with
         Ok (Frenetic_Fabric.vlan_per_port topology)
       | _ -> Error "Topologies can only be loaded from DOT files" end
 
+let post (uri:Uri.t) (body:string) : unit =
+  try_with (fun () ->
+      let open Cohttp.Body in
+      Cohttp_async.Client.post ~body:(`String body) uri >>=
+      (fun (_,body) -> (Cohttp_async.Body.to_string body)))
+  >>> (function
+      | Ok s -> printf "%s\n" s
+      | Error _ -> printf "Could not post")
+
+let install (host:string) (port:int) (swids:switchId list) (fdd:fdd) : unit =
+  List.iter swids ~f:(fun swid ->
+      let path = String.concat ~sep:"/" ["install"; Int64.to_string swid] in
+      let uri = Uri.make ~host:host ~port:port ~path:path () in
+      try
+      let table =  Compiler.to_table swid fdd in
+      let json = (Frenetic_NetKAT_SDN_Json.flowTable_to_json table) in
+      let body = Yojson.Basic.to_string json in
+      post uri body
+    with Not_found -> printf "No table found for swid %Ld\n%!" swid)
+
 let retarget (r:retarget) = match r with
   | RIdeal (s, ings, egs) -> begin match Source.to_policy s with
       | Ok policy ->
@@ -401,26 +432,29 @@ let retarget (r:retarget) = match r with
     let fab_parts = Frenetic_Fabric.extract fabric in
     let ins, outs = Frenetic_Fabric.retarget ideal_parts fab_parts
         re_state.physical in
-    print_endline "\nIngresses\n";
-    List.iter ins ~f:(fun p -> printf "%s\n"
-                         (Frenetic_NetKAT_Pretty.string_of_policy p));
-    print_endline "\nEgresses\n";
-    List.iter outs ~f:(fun p -> printf "%s\n"
-                          (Frenetic_NetKAT_Pretty.string_of_policy p));
     re_state.ingress <- ins;
     re_state.egress <- outs
-  | RSetup ->
-    
+  | RSetup (host, port) ->
+    print_endline "\n\nIngresses\n";
+    List.iter re_state.ingress ~f:(fun p -> printf "%s\n"
+                         (Frenetic_NetKAT_Pretty.string_of_policy p));
+    print_endline "\nEgresses\n";
+    List.iter re_state.egress ~f:(fun p -> printf "%s\n%!"
+                          (Frenetic_NetKAT_Pretty.string_of_policy p));
 
-let post (uri:Uri.t) (body:string) =
-  try_with (fun () ->
-      let open Cohttp.Body in
-      Cohttp_async.Client.post ~body:(`String body) uri >>=
-      (fun (_,body) -> (Cohttp_async.Body.to_string body)))
-  >>> (function
-      | Ok s -> printf "%s\n" s
-      | Error _ -> printf "Could not post")
+    let ingress = Frenetic_NetKAT_Optimize.mk_big_union re_state.ingress in
+    let egress  = Frenetic_NetKAT_Optimize.mk_big_union re_state.egress in
+    printf "\nUnioned ingress:\n%s\n\n" (Frenetic_NetKAT_Pretty.string_of_policy ingress);
+    printf "Unioned egress:\n%s\n\n" (Frenetic_NetKAT_Pretty.string_of_policy egress);
 
+    let in_fdd = Compiler.compile_local ingress in
+    let out_fdd = Compiler.compile_local egress in
+    printf "Ingress FDD is:\n%s\n%!" (Frenetic_Fdd.FDK.to_string in_fdd);
+    printf "\nInstalling ingresses\n%!";
+    install host port (List.map re_state.ideal_in fst) in_fdd;
+    printf "\nInstalling egresses\n%!";
+    install host port (List.map re_state.ideal_out fst) out_fdd;
+    ()
 
 let write (at : Frenetic_NetKAT_Compiler.automaton) (filename:string) : unit =
   let string = Frenetic_NetKAT_Compiler.automaton_to_string at in
