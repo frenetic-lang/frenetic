@@ -316,8 +316,33 @@ type flowStats = {
   flow_actions: action list;
   flow_packet_count: int64;
   flow_byte_count: int64
-} with sexp
+  } with sexp
 
+type portStats =
+  { port_no : int16
+  ; port_rx_packets : int64
+  ; port_tx_packets : int64
+  ; port_rx_bytes : int64
+  ; port_tx_bytes : int64
+  ; port_rx_dropped : int64
+  ; port_tx_dropped : int64
+  ; port_rx_errors : int64
+  ; port_tx_errors : int64
+  ; port_rx_frame_err : int64
+  ; port_rx_over_err : int64
+  ; port_rx_crc_err : int64
+  ; port_collisions : int64
+  } with sexp
+
+type event =
+  | SwitchUp of switchId * portId list
+  | SwitchDown of switchId 
+  | PortUp of switchId * portId
+  | PortDown of switchId * portId
+  | PacketIn of string * switchId * portId * payload * int
+  | PortStats of switchId * portStats
+  | Flowstats of switchId * flowStats
+           
 let format_modify (fmt:Format.formatter) (m:modify) : unit =
   match m with
   | SetEthSrc(dlAddr) ->

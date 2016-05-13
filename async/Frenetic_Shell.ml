@@ -2,7 +2,7 @@ open Core.Std
 open Async.Std
 open Frenetic_NetKAT
 
-module Controller = Frenetic_NetKAT_Controller.OF10
+module Controller = Frenetic_NetKAT_Controller.OpenFlow0x01
 module Comp = Frenetic_NetKAT_Compiler
 module Field = Frenetic_Fdd.Field
 module Log = Frenetic_Log
@@ -306,7 +306,7 @@ let load_file (filename : string) : unit =
     | Ok p ->
        policy := (p, policy_string);
        printf "%s\n%!" policy_string;
-       don't_wait_for (Controller.update_policy p)
+       don't_wait_for (Controller.update p)
     | Error msg -> print_endline msg
   with
   | Sys_error msg -> printf "Load failed: %s\n%!" msg
@@ -327,7 +327,7 @@ let rec repl () : unit Deferred.t =
 		  | Some (Show (FlowTable t)) -> print_policy_table t
 		  | Some (Update (pol, pol_str)) ->
 		     policy := (pol, pol_str);
-         don't_wait_for (Controller.update_policy pol)
+         don't_wait_for (Controller.update pol)
 		  | Some (Load filename) -> load_file filename
 		  | Some (Order order) -> set_order order
       | Some (ToggleRemoveTailDrops) -> toggle_remove_tail_drops ()

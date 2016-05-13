@@ -7,6 +7,8 @@ module Server = Cohttp_async.Server
 module Comp = Frenetic_NetKAT_Compiler
 module Log = Frenetic_Log
 
+let fixme = ""
+               
 type client = {
   (* Write new policies to this node *)
   policy_node: (Frenetic_DynGraph.cannot_receive, policy) Frenetic_DynGraph.t;
@@ -49,7 +51,7 @@ let iter_clients (f : string -> client -> unit) : unit =
 let rec propogate_events event =
   event () >>=
   fun evt ->
-  let response = Frenetic_NetKAT_Json.event_to_json_string evt in
+  let response = fixme (* Frenetic_NetKAT_Json.event_to_json_string evt *) in
   (* TODO(jcollard): Is there a mapM equivalent here? *)
   Hashtbl.iter clients (fun ~key ~data:client ->
     Pipe.write_without_pushback client.event_writer response);
@@ -78,22 +80,21 @@ let handle_request
     | `GET, ["port_stats"; switch_id; port_id] ->
        port_stats (Int64.of_string switch_id) (Int32.of_string port_id)
        >>= fun portStats ->
-       Server.respond_with_string (Frenetic_NetKAT_Json.port_stats_to_json_string portStats)
+       Server.respond_with_string fixme (* TODO(jnf) (Frenetic_NetKAT_Json.stats_to_json_string portStats) *)
     | `GET, ["current_switches"] ->
-      current_switches () >>= fun switches ->
+      switches () >>= fun switches ->
       Server.respond_with_string (current_switches_to_json_string switches)
     | `GET, ["query"; name] ->
-      if (is_query name) then
-        query name
-        >>= fun stats ->
-        Server.respond_with_string (Frenetic_NetKAT_Json.stats_to_json_string stats)
-      else
-        begin
-          Log.info "query %s is not defined in the current policy" name;
-          let headers = Cohttp.Header.init_with "X-Query-Not-Defined" "true" in
-          Server.respond_with_string ~headers
-            (Frenetic_NetKAT_Json.stats_to_json_string (0L, 0L))
-        end
+       (* TODO: check if query exists *)
+       query name
+       >>= fun stats ->
+       Server.respond_with_string (Frenetic_NetKAT_Json.stats_to_json_string stats)
+    (* begin *)
+    (*   Log.info "query %s is not defined in the current policy" name; *)
+    (*   let headers = Cohttp.Header.init_with "X-Query-Not-Defined" "true" in *)
+    (*   Server.respond_with_string ~headers *)
+    (*     (Frenetic_NetKAT_Json.stats_to_json_string (0L, 0L)) *)
+    (* end *)
     | `GET, [clientId; "event"] ->
       let curr_client = get_client clientId in
       (* Check if there are events that this client has not seen yet *)
@@ -107,7 +108,7 @@ let handle_request
            let json = Yojson.Basic.from_string str in
            Frenetic_NetKAT_Json.pkt_out_from_json json)
         (fun (sw_id, payload, policy) ->
-           send_packet_out sw_id payload policy >>= fun () -> 
+           packet_out sw_id payload policy >>= fun () -> 
            Cohttp_async.Server.respond `OK)
     | `POST, [clientId; "update_json"] ->
       handle_parse_errors body parse_update_json
@@ -124,7 +125,8 @@ let handle_request
        handle_parse_errors body parse_config_json
         (fun conf ->
           current_compiler_options := conf;
-          set_current_compiler_options conf;
+          (* TODO(jnf) *)
+          (* set_current_compiler_options conf; *)
           Cohttp_async.Server.respond `OK)
     | `GET, ["config"] ->
        printf "GET /config";
@@ -138,14 +140,14 @@ let print_error addr exn =
   Log.error "%s" (Exn.to_string exn)
 
 let listen ~http_port ~openflow_port =
-  let module Controller = Frenetic_NetKAT_Controller.OF10 in
+  let module Controller = Frenetic_NetKAT_Controller.OpenFlow0x01 in
   let on_handler_error = `Call print_error in
   let _ = Cohttp_async.Server.create
     ~on_handler_error
     (Tcp.on_port http_port)
     (handle_request (module Controller)) in
   let (_, pol_reader) = Frenetic_DynGraph.to_pipe pol in
-  let _ = Pipe.iter pol_reader ~f:(fun pol -> Controller.update_policy pol) in
+  let _ = Pipe.iter pol_reader ~f:(fun pol -> Controller.update pol) in
   Controller.start openflow_port;
   don't_wait_for(propogate_events Controller.event);
   Deferred.return ()

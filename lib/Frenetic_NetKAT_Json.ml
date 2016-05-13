@@ -9,8 +9,7 @@ open Core.Std
 open Yojson.Basic
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Optimize
-
-
+       
 (** Optimize & MAC Addresses **)
 let string_of_mac = Frenetic_Packet.string_of_mac
 let mac_of_string = Frenetic_Packet.mac_of_string
@@ -187,121 +186,12 @@ let policy_from_json_string (str : string) : policy =
 let policy_from_json_channel (chan : In_channel.t) : policy =
   policy_from_json (from_channel chan)
 
-let event_to_json (event : event) : json =
-  let open Yojson.Basic.Util in
-  match event with
-  | PacketIn (pipe, sw_id, pt_id, payload, len) ->
-    let buffer = Frenetic_OpenFlow.payload_bytes payload |>
-      Cstruct.to_string |>
-      B64.encode in
-    `Assoc [
-        ("type", `String "packet_in");
-        ("pipe", `String pipe);
-        ("switch_id", `Int (Int64.to_int_exn sw_id));
-        ("port_id", `Int (Int32.to_int_exn pt_id));
-        ("payload", `Assoc [
-            ("buffer", `String buffer);
-            ("id", match payload with
-              | Frenetic_OpenFlow.Buffered (id, _) -> `Int (Int32.to_int_exn id)
-              | _  -> `Null)
-        ]);
-        ("length", `Int len)
-    ]
-  | Query (name, pkt_count, byte_count) ->
-    `Assoc [
-      ("type", `String "query");
-      ("packet_count", `Int (Int64.to_int_exn pkt_count));
-      ("byte_count", `Int (Int64.to_int_exn byte_count))
-    ]
-  | SwitchUp (sw_id, ports) ->
-     let json_ports = List.map ports (fun port -> `Int (Int32.to_int_exn port)) in
-    `Assoc [
-      ("type", `String "switch_up");
-      ("switch_id", `Int (Int64.to_int_exn sw_id));
-      ("ports", `List json_ports)
-    ]
-  | SwitchDown sw_id ->
-    `Assoc [
-      ("type", `String "switch_down");
-      ("switch_id", `Int (Int64.to_int_exn sw_id))
-    ]
-  | PortUp (sw_id, pt_id) ->
-    `Assoc [
-      ("type", `String "port_up");
-      ("switch_id", `Int (Int64.to_int_exn sw_id));
-      ("port_id", `Int (Int32.to_int_exn pt_id))
-    ]
-  | PortDown (sw_id, pt_id) ->
-    `Assoc [
-      ("type", `String "port_down");
-      ("switch_id", `Int (Int64.to_int_exn sw_id));
-      ("port_id",   `Int (Int32.to_int_exn pt_id))
-    ]
-  | LinkUp ((sw_id1, pt_id1), (sw_id2, pt_id2)) ->
-    `Assoc [
-      ("type", `String "link_up");
-      ("src", `Assoc [("switch_id", `Int (Int64.to_int_exn sw_id1));
-                      ("port_id", `Int (Int32.to_int_exn pt_id1))]);
-      ("dst", `Assoc [("switch_id", `Int (Int64.to_int_exn sw_id2));
-                      ("port_id", `Int (Int32.to_int_exn pt_id2))])
-    ]
-  | LinkDown ((sw_id1, pt_id1), (sw_id2, pt_id2)) ->
-    `Assoc [
-        ("type", `String "link_down");
-        ("src", `Assoc [("switch_id", `Int (Int64.to_int_exn sw_id1));
-                        ("port_id", `Int (Int32.to_int_exn pt_id1))]);
-        ("dst", `Assoc [("switch_id", `Int (Int64.to_int_exn sw_id2));
-                        ("port_id", `Int (Int32.to_int_exn pt_id2))])
-      ]
-  | HostUp ((sw_id, pt_id), (dlAddr, nwAddr)) ->
-    `Assoc [
-      ("type", `String "host_up");
-      ("switch_id", `Int (Int64.to_int_exn sw_id));
-      ("port_id",   `Int (Int32.to_int_exn pt_id));
-      ("dl_addr",   `String (Frenetic_Packet.string_of_dlAddr dlAddr));
-      ("nw_addr",   `String (Frenetic_Packet.string_of_nwAddr nwAddr))
-    ]
-  | HostDown ((sw_id, pt_id), (dlAddr, nwAddr)) ->
-    `Assoc [
-      ("type", `String "host_down");
-      ("switch_id", `Int (Int64.to_int_exn sw_id));
-      ("port_id", `Int (Int32.to_int_exn pt_id));
-      ("dl_addr", `String (Frenetic_Packet.string_of_dlAddr dlAddr));
-      ("nw_addr", `String (Frenetic_Packet.string_of_nwAddr nwAddr))
-    ]
-
-let event_to_json_string (event : event) : string =
-  Yojson.Basic.to_string ~std:true (event_to_json event)
-
 let stats_to_json ((pkts, bytes) : Int64.t * Int64.t) : json =
   `Assoc [("packets", `Int (Int64.to_int_exn pkts));
           ("bytes", `Int (Int64.to_int_exn bytes))]
 
 let stats_to_json_string (stats : Int64.t * Int64.t) : string =
   Yojson.Basic.to_string ~std:true (stats_to_json stats)
-
-let port_stat_to_json (portStat: Frenetic_OpenFlow0x01.portStats) : json =
-  `Assoc [("port_no", `Int portStat.port_no);
-    ("rx_packets", `Int (Int64.to_int_exn portStat.rx_packets));
-    ("tx_packets", `Int (Int64.to_int_exn portStat.tx_packets));
-    ("rx_bytes", `Int (Int64.to_int_exn portStat.rx_bytes));
-    ("tx_bytes", `Int (Int64.to_int_exn portStat.tx_bytes));
-    ("rx_dropped", `Int (Int64.to_int_exn portStat.rx_dropped));
-    ("tx_dropped", `Int (Int64.to_int_exn portStat.tx_dropped));
-    ("rx_errors", `Int (Int64.to_int_exn portStat.rx_errors));
-    ("tx_errors", `Int (Int64.to_int_exn portStat.tx_errors));
-    ("rx_fram_err", `Int (Int64.to_int_exn portStat.rx_frame_err));
-    ("rx_over_err", `Int (Int64.to_int_exn portStat.rx_over_err));
-    ("rx_crc_err", `Int (Int64.to_int_exn portStat.rx_crc_err));
-    ("collisions", `Int (Int64.to_int_exn portStat.collisions))]
-
-let port_stats_to_json (portStats : Frenetic_OpenFlow0x01.portStats list) : json =
-  `List (List.map portStats ~f:port_stat_to_json)
-
-let port_stats_to_json_string (portStats : Frenetic_OpenFlow0x01.portStats list) : string =
-  Yojson.Basic.to_string ~std:true (port_stats_to_json portStats)
-
-(* Used to be in Frenetic_NetKAT_SDN_Json *)
 
 open Frenetic_OpenFlow
 let pseudoport_from_json (json : json) : pseudoport =

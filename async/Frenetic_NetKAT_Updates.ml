@@ -9,8 +9,6 @@ module Log = Frenetic_Log
 module Controller = Frenetic_OpenFlow0x01_Controller
 module Comp = Frenetic_NetKAT_Compiler
 
-open Frenetic_OpenFlow.To0x01
-
 exception UpdateError
 
 module SwitchMap = Map.Make(struct
@@ -47,7 +45,10 @@ module type UPDATE = sig
 end
 
 module BestEffortUpdate = struct
-  let current_compiler_options = ref Comp.default_compiler_options
+  open Frenetic_OpenFlow.To0x01
+
+  let current_compiler_options =
+    ref Comp.default_compiler_options
 
   let restrict sw_id repr =
     Comp.restrict Frenetic_NetKAT.(Switch sw_id) repr
@@ -94,6 +95,7 @@ end
 
 module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
   open Frenetic_OpenFlow
+  open To0x01
   open Args
 
   let current_compiler_options = ref Comp.default_compiler_options

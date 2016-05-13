@@ -5,8 +5,6 @@ module Net = Frenetic_NetKAT_Net.Net
 module SDN = Frenetic_OpenFlow
 module Comp = Frenetic_NetKAT_Compiler
 
-open SDN.To0x01
-
 exception UpdateError
 
 module SwitchMap : sig
