@@ -26,7 +26,7 @@ module type S = sig
   val switches : unit -> (switchId * portId list) list Deferred.t
 
   (** [port_stats sw pt] returns byte and packet counts for switch[sw] port [pt]. *)
-  val port_stats : switchId -> portId -> (int64 * int64 * int64 * int64) Deferred.t
+  val port_stats : switchId -> portId -> portStats Deferred.t
 
   (** [update p] sets the global policy to [p]. *) 
   val update : Frenetic_NetKAT.policy -> unit Deferred.t

@@ -187,20 +187,20 @@ type flowTable = flow list with sexp
 
 (** The body of a reply to an individual flow statistics request *)
 type flowStats = {
-  flow_table_id : int8; 
+  flow_table_id : int64; 
   flow_pattern : Pattern.t;
-  flow_duration_sec: int32;
-  flow_duration_nsec: int32;
-  flow_priority: int16;
-  flow_idle_timeout: int16;
-  flow_hard_timeout: int16;
   flow_actions: action list;
+  flow_duration_sec: int64;
+  flow_duration_nsec: int64;
+  flow_priority: int64;
+  flow_idle_timeout: int64;
+  flow_hard_timeout: int64;
   flow_packet_count: int64;
   flow_byte_count: int64
   } with sexp
 
-type portStats =
-  { port_no : int16
+type portStats = 
+  { port_no : int64
   ; port_rx_packets : int64
   ; port_tx_packets : int64
   ; port_rx_bytes : int64

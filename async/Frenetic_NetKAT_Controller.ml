@@ -19,7 +19,7 @@ module type S = sig
   val start : int -> unit
   val event : unit -> event Deferred.t
   val switches : unit -> (switchId * portId list) list Deferred.t
-  val port_stats : switchId -> portId -> (int64 * int64 * int64 * int64) Deferred.t
+  val port_stats : switchId -> portId -> portStats Deferred.t
   val update : Frenetic_NetKAT.policy -> unit Deferred.t
   val packet_out : switchId -> payload -> Frenetic_NetKAT.policy -> unit Deferred.t
   val query : string -> (int64 * int64) Deferred.t
@@ -60,9 +60,8 @@ module Make (P:PLUGIN) : S = struct
   let switches () : (switchId * portId list) list Deferred.t =
     return (Hashtbl.Poly.to_alist switch_hash)
 
-  let port_stats (sw : switchId) (pt : portId) : (int64 * int64 * int64 * int64) Deferred.t =
-    P.port_stats sw pt >>= fun ps ->
-    return (ps.port_rx_packets, ps.port_tx_packets, ps.port_rx_bytes, ps.port_tx_bytes)
+  let port_stats (sw : switchId) (pt : portId) : portStats Deferred.t =
+    P.port_stats sw pt
 
   let packet_out (sw:switchId) (pay:payload) (pol:policy) : unit Deferred.t =
     P.packet_out sw pay (Frenetic_NetKAT_Compiler.compile_local pol)
