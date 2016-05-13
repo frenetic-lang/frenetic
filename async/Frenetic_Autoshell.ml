@@ -308,6 +308,10 @@ module Source = struct
     | Error e -> print_endline e; Error e
 end
 
+let compile_local =
+  let open Compiler in
+  compile_local ~options:{ default_compiler_options with cache_prepare = `Keep }
+
 let rec update (s:state) (u:update) : unit = match u with
   | Fabrication fabric -> s.fabric <- Some fabric
   | FullCompilation fn -> begin match s.policy with
@@ -411,7 +415,8 @@ let install (host:string) (port:int) (swids:switchId list) (fdd:fdd) : unit =
       let json = (Frenetic_NetKAT_SDN_Json.flowTable_to_json table) in
       let body = Yojson.Basic.to_string json in
       post uri body
-    with Not_found -> printf "No table found for swid %Ld\n%!" swid)
+      with Not_found -> printf "No table found for swid %Ld\n%!" swid;
+        printf "%s\n%!" (Printexc.get_backtrace ()))
 
 let retarget (r:retarget) = match r with
   | RIdeal (s, ings, egs) -> begin match Source.to_policy s with
@@ -451,18 +456,16 @@ let retarget (r:retarget) = match r with
 
     let ingress = Frenetic_NetKAT_Optimize.mk_big_union re_state.ingress in
     let egress  = Frenetic_NetKAT_Optimize.mk_big_union re_state.egress in
-    printf "\nUnioned ingress:\n%s\n\n" (Frenetic_NetKAT_Pretty.string_of_policy ingress);
-    printf "Unioned egress:\n%s\n\n" (Frenetic_NetKAT_Pretty.string_of_policy egress);
-
-    let in_fdd = Compiler.compile_local ingress in
-    let out_fdd = Compiler.compile_local egress in
-    printf "Ingress FDD is:\n%s\n%!" (Frenetic_Fdd.FDK.to_string in_fdd);
-    printf "\nInstalling ingresses\n%!";
-    install host port (List.map re_state.ideal_in fst) in_fdd;
-    printf "\nInstalling egresses\n%!";
-    install host port (List.map re_state.ideal_out fst) out_fdd
+    printf "\nUnioned ingress:\n%s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy ingress);
+    printf "Unioned egress:\n%s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy egress);
+    let edge = Frenetic_NetKAT.Union (ingress, egress) in
+    let edge_fdd = compile_local edge in
+    let edge_switches = List.dedup (List.rev_append
+                                      (List.map re_state.ideal_in fst)
+                                      (List.map re_state.ideal_out fst)) in
+    install host port edge_switches edge_fdd;
   | RCore (host, port, swids) ->
-    let core_fdd = Compiler.compile_local re_state.existing in
+    let core_fdd = compile_local re_state.existing in
     install host port swids core_fdd
 
 let write (at : Frenetic_NetKAT_Compiler.automaton) (filename:string) : unit =

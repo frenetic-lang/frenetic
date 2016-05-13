@@ -16,6 +16,7 @@ type correlation =
   | SourceOnly of portId
   | Uncorrelated
 
+exception NonFilterNode of policy
 exception ClashException of string
 exception CorrelationException of string
 
@@ -168,12 +169,19 @@ let extract (pol:policy) : (policy * policy) list =
     | Leaf r -> [ (Frenetic_Fdd.Action.to_policy r)::path ]
   in
 
+  let rec mk_big_and (pols:NK.policy list) = match pols with
+    | [] -> NK.True
+    | (NK.Filter pred)::[] -> pred
+    | (NK.Filter pred)::tail -> NK.And(pred, mk_big_and tail)
+    | p::tail -> raise (NonFilterNode p) in
+
   (* Partition a path through the FDD into the condition and the
      action. TODO(basus): add checks for either component. *)
   let partition (path: NK.policy list) = match path with
     | head::tail ->
       let action = head in
-      let condition = Frenetic_NetKAT_Optimize.mk_big_seq tail in
+      let condition = NK.Filter (mk_big_and tail) in
+      (* let condition = Frenetic_NetKAT_Optimize.mk_big_seq tail in *)
       (condition, action)
     | _ -> failwith "Path through FDD not long enough to paritition"
   in
@@ -383,6 +391,7 @@ let imprint ideal fabric precedes succeeds =
                                      Test( Location (Physical out_pt))) in
             let egress = seq [ Filter( And( Test(Vlan tag),
                                             test_location));
+                               Mod( Vlan 0xffff);
                                remove_switch (snd ideal_stream) ] in
             (* print_endline ( Frenetic_NetKAT_Pretty.string_of_policy ingress ); *)
             (* print_endline (Frenetic_NetKAT_Pretty.string_of_policy egress ); *)
