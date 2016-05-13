@@ -14,7 +14,7 @@ module type PLUGIN = sig
   val port_stats : switchId -> portId -> portStats Deferred.t
 end
 
-module type S = sig
+module type CONTROLLER = sig
   (** [start pt] initializes the controller, listening on TCP port [pt]. *)
   val start : int -> unit
 
@@ -39,6 +39,6 @@ module type S = sig
   val query : string -> (int64 * int64) Deferred.t
 end
 
-module Make(P:PLUGIN) : S
+module Make(P:PLUGIN) : CONTROLLER
 
-module OpenFlow0x01 : S
+module OpenFlow0x01 : CONTROLLER

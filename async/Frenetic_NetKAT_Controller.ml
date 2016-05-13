@@ -15,7 +15,7 @@ module type PLUGIN = sig
   val port_stats : switchId -> portId -> portStats Deferred.t
 end
 
-module type S = sig
+module type CONTROLLER = sig
   val start : int -> unit
   val event : unit -> event Deferred.t
   val switches : unit -> (switchId * portId list) list Deferred.t
@@ -25,7 +25,7 @@ module type S = sig
   val query : string -> (int64 * int64) Deferred.t
 end
                                      
-module Make (P:PLUGIN) : S = struct
+module Make (P:PLUGIN) : CONTROLLER = struct
   (* Global variables *)
   let (pol_reader, pol_writer) = Pipe.create ()
   let (event_reader, event_writer) =  Pipe.create ()
