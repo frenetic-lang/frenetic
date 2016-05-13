@@ -100,7 +100,8 @@ type retarget =
   | RFabric of (source * loc list * loc list)
   | RTopo of source
   | RCompile
-  | RSetup of string * int
+  | RCore of string * int * switchId list
+  | REdge of string * int
 
 type command =
   | Load of (input * source)
@@ -239,9 +240,15 @@ module Parser = struct
       (symbol "topology" >>
        (source >>= (fun topo -> return (RTopo topo)))) <|>
       (symbol "compile" >> return RCompile) <|>
-      (symbol "setup" >> uri >>=
+      (symbol "setup" >> (
+       (symbol "edge" >> uri >>=
        (fun (hostname, port) -> return
-           (RSetup (hostname, port))))) >>=
+           (REdge (hostname, port)))) <|>
+       (symbol "core" >> uri >>=
+        (fun (hostname, port) -> blank >> int_list >>=
+          (fun ints ->
+             let swids = List.map ints ~f:(Int64.of_int_exn) in
+             return (RCore (hostname, port, swids)))))))) >>=
     (fun r -> return ( Retarget r) )
 
 
@@ -434,7 +441,7 @@ let retarget (r:retarget) = match r with
         re_state.physical in
     re_state.ingress <- ins;
     re_state.egress <- outs
-  | RSetup (host, port) ->
+  | REdge (host, port) ->
     print_endline "\n\nIngresses\n";
     List.iter re_state.ingress ~f:(fun p -> printf "%s\n"
                          (Frenetic_NetKAT_Pretty.string_of_policy p));
@@ -453,8 +460,10 @@ let retarget (r:retarget) = match r with
     printf "\nInstalling ingresses\n%!";
     install host port (List.map re_state.ideal_in fst) in_fdd;
     printf "\nInstalling egresses\n%!";
-    install host port (List.map re_state.ideal_out fst) out_fdd;
-    ()
+    install host port (List.map re_state.ideal_out fst) out_fdd
+  | RCore (host, port, swids) ->
+    let core_fdd = Compiler.compile_local re_state.existing in
+    install host port swids core_fdd
 
 let write (at : Frenetic_NetKAT_Compiler.automaton) (filename:string) : unit =
   let string = Frenetic_NetKAT_Compiler.automaton_to_string at in
