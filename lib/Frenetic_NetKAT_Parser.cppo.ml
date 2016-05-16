@@ -222,16 +222,22 @@ END
 let report loc e =
   failwith (Loc.to_string loc ^ ": " ^ Exn.to_string e)
 
-let policy_of_string ?(loc=(Loc.mk "<N/A>")) (s : string) =
-  try Gram.parse_string nk_pol_eoi loc s
+let policy_of_stream ?(loc=(Loc.mk "<N/A>")) (s : char Stream.t) =
+  try Gram.parse nk_pol_eoi loc s
   with Loc.Exc_located (loc, e) -> report loc e
+
+let pred_of_stream ?(loc=(Loc.mk "<N/A>")) (s : char Stream.t) =
+  try Gram.parse nk_pred_eoi loc s
+  with Loc.Exc_located (loc, e) -> report loc e
+
+let policy_of_string ?(loc=(Loc.mk "<N/A>")) (s : string) =
+  policy_of_stream ~loc (Stream.of_string s)
 
 let pred_of_string ?(loc=(Loc.mk "<N/A>")) (s : string) =
-  try Gram.parse_string nk_pred_eoi loc s
-  with Loc.Exc_located (loc, e) -> report loc e
+  pred_of_stream ~loc (Stream.of_string s)
 
 let policy_of_file (file : string) =
-   policy_of_string ~loc:(Loc.mk file) (In_channel.read_all file)
+   policy_of_stream ~loc:(Loc.mk file) (In_channel.with_file file ~f:Stream.of_channel)
 
 let pred_of_file (file : string) =
-   pred_of_string ~loc:(Loc.mk file) (In_channel.read_all file)
+   pred_of_stream ~loc:(Loc.mk file) (In_channel.with_file file ~f:Stream.of_channel)
