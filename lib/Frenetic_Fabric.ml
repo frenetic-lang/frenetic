@@ -20,7 +20,7 @@ exception NonFilterNode of policy
 exception ClashException of string
 exception CorrelationException of string
 
-let strip_vlan = Some 0xffff
+let strip_vlan = 0xffff
 
 let mk_flow (pat:Pattern.t) (actions:group) : flow =
   { pattern = pat
@@ -40,7 +40,7 @@ let vlan_per_port (net:Net.Topology.t) : fabric =
       let label = vertex_to_label net src in
       let pattern = { Pattern.match_all with dlVlan =
                                                Some (Int32.to_int_exn port)} in
-      let actions = [ [ [ Modify(SetVlan strip_vlan); Output (Physical port) ] ] ] in
+      let actions = [ [ [ Modify(SetVlan (Some strip_vlan)); Output (Physical port) ] ] ] in
       let flow = mk_flow pattern actions in
       match Node.device label with
       | Node.Switch ->
@@ -186,12 +186,8 @@ let extract (pol:policy) : (policy * policy) list =
     | _ -> failwith "Path through FDD not long enough to paritition"
   in
   let deduped = remove_dups pol in
-  printf "\nDup free policy: \n%s\n"
-    (Frenetic_NetKAT_Pretty.string_of_policy deduped);
   let fdd = Compiler.compile_local deduped in
-  printf "\nCompiled fdd:\n%s\n" (FDK.to_string fdd);
   let paths = get_paths fdd [] in
-  printf "\nNumber of paths %d\n%!" (List.length paths);
   List.map paths ~f:partition
 
 let string_of_stream (cond, act) =
@@ -338,7 +334,6 @@ let locate_or_drop (located, dropped) stream =
   else try match locate stream with
     | Ok l -> (l::located,dropped)
     | Error e ->
-      printf "\n\n%s %s\n%!"(string_of_stream stream) e;
       (located, dropped)
     with ClashException e ->
       let msg = sprintf "Exception |%s| in alpha-beta pair: %s%!" e
@@ -372,18 +367,8 @@ let imprint ideal fabric precedes succeeds =
           let fab_src,fab_sink,fab_stream = fab in
           match correlate ideal_src ideal_sink fab_src fab_sink precedes succeeds with
           | Exact ->
-            print_endline "Exact Matching stream;";
-            printf "Fabric: %s\n%!" (string_of_located_stream fab);
-            printf "Policy: %s\n%!" (string_of_located_stream ideal);
             ((fst fab_stream::ins), (snd fab_stream::outs), tag)
           | Adjacent(in_pt, out_pt) ->
-            print_endline "Adjacent stream;";
-            printf "Fabric: %s\n%!" (string_of_located_stream fab);
-            printf "Policy: %s\n%!" (string_of_located_stream ideal);
-            printf "Incoming bridge: %Ld:%ld --> %Ld:%ld\n%!"
-              (fst ideal_src) in_pt (fst fab_src) (snd fab_src);
-            printf "Outgoing bridge: %Ld:%ld --> %Ld:%ld\n%!"
-              (fst fab_sink) (snd fab_sink) (fst ideal_sink) out_pt;
             let ingress = seq [ (fst ideal_stream);
                                 Mod( Vlan tag);
                                 Mod( Location( Physical in_pt)) ] in
@@ -391,10 +376,8 @@ let imprint ideal fabric precedes succeeds =
                                      Test( Location (Physical out_pt))) in
             let egress = seq [ Filter( And( Test(Vlan tag),
                                             test_location));
-                               Mod( Vlan 0xffff);
+                               Mod( Vlan strip_vlan);
                                remove_switch (snd ideal_stream) ] in
-            (* print_endline ( Frenetic_NetKAT_Pretty.string_of_policy ingress ); *)
-            (* print_endline (Frenetic_NetKAT_Pretty.string_of_policy egress ); *)
             (ingress::ins, egress::outs, tag+1)
           | _ -> (ins,outs,tag)
         )) in
@@ -404,8 +387,6 @@ let retarget (ideal:stream list) (fabric: stream list) (topo:policy) =
   let ideal_located,ideal_dropped = List.fold ideal ~init:([],[]) ~f:locate_or_drop in
   let fabric_located,fabric_dropped = List.fold fabric ~init:([],[])
       ~f:locate_or_drop in
-  List.iter ideal_located ~f:(fun s -> print_endline ( string_of_located_stream s ));
-  List.iter fabric_located ~f:(fun s -> print_endline ( string_of_located_stream s ));
   let switch_preds, loc_preds = find_predecessors topo in
   let switch_succs, loc_succs = find_successors topo in
   let precedes = precedes loc_preds in

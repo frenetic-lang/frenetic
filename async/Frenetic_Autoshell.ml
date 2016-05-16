@@ -447,17 +447,8 @@ let retarget (r:retarget) = match r with
     re_state.ingress <- ins;
     re_state.egress <- outs
   | REdge (host, port) ->
-    print_endline "\n\nIngresses\n";
-    List.iter re_state.ingress ~f:(fun p -> printf "%s\n"
-                         (Frenetic_NetKAT_Pretty.string_of_policy p));
-    print_endline "\nEgresses\n";
-    List.iter re_state.egress ~f:(fun p -> printf "%s\n%!"
-                          (Frenetic_NetKAT_Pretty.string_of_policy p));
-
     let ingress = Frenetic_NetKAT_Optimize.mk_big_union re_state.ingress in
     let egress  = Frenetic_NetKAT_Optimize.mk_big_union re_state.egress in
-    printf "\nUnioned ingress:\n%s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy ingress);
-    printf "Unioned egress:\n%s\n\n%!" (Frenetic_NetKAT_Pretty.string_of_policy egress);
     let edge = Frenetic_NetKAT.Union (ingress, egress) in
     let edge_fdd = compile_local edge in
     let edge_switches = List.dedup (List.rev_append
@@ -477,7 +468,6 @@ let parse_command (line : string) : command option =
   | Success command -> Some command
   | Failed (msg, e) -> (print_endline msg; None)
 
-(* TODO(basus) : this probably doesn't need to be written in terms of Async *)
 let rec repl () : unit Deferred.t =
   printf "autoshell> %!";
   Reader.read_line (Lazy.force Reader.stdin) >>= fun input ->
