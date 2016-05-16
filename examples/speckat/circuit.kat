@@ -1,0 +1,20 @@
+(filter (switch=4 and port=2);
+  channel:=1;
+  4@1 => 7@1;
+  7@2 => 5@1;
+  port:=2) |
+(filter (switch=4 and port=3);
+  channel:=2;
+  4@1 => 7@1;
+  7@2 => 6@1;
+  port:=2) |
+(filter (switch=5 and port=2);
+  channel:=1;
+  5@1 => 7@2;
+  7@1 => 4@1;
+  port:=2) |
+(filter (switch=6 and port=2);
+  channel:=2;
+  6@1 => 7@3;
+  7@1 => 4@1;
+  port:=3)

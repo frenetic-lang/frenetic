@@ -111,6 +111,7 @@ type command =
   | Post of (string * int * string * switchId)
   | Fabricate of fabricate
   | Retarget of retarget
+  | Circuit of source
   | Write of string
   | Blank
   | Exit
@@ -251,6 +252,8 @@ module Parser = struct
              return (RCore (hostname, port, swids)))))))) >>=
     (fun r -> return ( Retarget r) )
 
+  let circuit : (command, bytes list) MParser.t =
+    symbol "circuit" >> source >>= (fun s -> return (Circuit s))
 
   (* Parser for the write command *)
   let write : (command, bytes list) MParser.t =
@@ -274,6 +277,7 @@ module Parser = struct
     post     <|>
     retarget <|>
     fabricate<|>
+    circuit  <|>
     write    <|>
     blank    <|>
     exit
@@ -397,6 +401,19 @@ let fabricate (fab:fabricate) : (fabric, string) Result.t = match fab with
         Ok (Frenetic_Fabric.vlan_per_port topology)
       | _ -> Error "Topologies can only be loaded from DOT files" end
 
+let circuit s =
+  let open Frenetic_Circuit_NetKAT in
+  match Source.to_policy s with
+  | Ok pol ->
+    let config = config_of_policy pol in
+    begin match config with
+      | Ok c -> printf "%s\n" (string_of_config c)
+      | Error e -> print_endline e
+    end
+  | Error e ->
+    print_endline "Could not read circuit policy";
+    print_endline e
+
 let post (uri:Uri.t) (body:string) : unit =
   try_with (fun () ->
       let open Cohttp.Body in
@@ -484,6 +501,7 @@ let rec repl () : unit Deferred.t =
       | Some (Fabricate f) -> begin match (fabricate f) with
           | Ok f -> update state (Fabrication f)
           | Error s -> print_endline s end
+      | Some (Circuit c) -> circuit c
       | Some (Retarget r) -> retarget r
       | Some (Compile c) -> begin match c with
           | Local         -> begin

@@ -47,6 +47,7 @@ Library frenetic
     Frenetic_Fdd,
     Frenetic_OpenFlow0x04,
     Frenetic_GroupTable0x04,
+    Frenetic_Circuit_NetKAT,
     Frenetic_NetKAT,
     Frenetic_NetKAT_Optimize,
     Frenetic_NetKAT_Json,
