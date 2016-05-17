@@ -1,8 +1,8 @@
 open Core.Std
 open Frenetic_NetKAT
 
-type channel = int
-type loc = switchId * portId
+type channel = int [@@deriving sexp,compare]
+type loc = switchId * portId [@@deriving sexp,compare]
 type hop = switchId * portId * switchId * portId
 type circuit = { source : loc
                ; sink : loc
@@ -95,6 +95,127 @@ let policy_of_circuit (c:circuit) : policy =
 let policy_of_config (c:config) : policy =
   let paths = List.map c ~f:policy_of_circuit in
   union paths
+
+(** Validation routines *)
+type chan_config = { chan : channel
+                   (* Forwarded to a port *)
+                   ; incoming : portId option
+                   (* Forwarded from a port *)
+                   ; outgoing : portId option
+                   }
+
+let blank_chan = { chan = 0
+                 ; incoming = None
+                 ; outgoing = None
+                 }
+
+module ChannelTable = Hashtbl.Make( struct
+    type t = channel [@@deriving sexp,compare]
+    let compare = Int.compare
+    let hash = Hashtbl.hash
+  end )
+
+type port_config = chan_config ChannelTable.t
+
+module LocTable = Hashtbl.Make( struct
+    type t = loc [@@deriving sexp,compare]
+    let compare = compare_loc
+    let hash = Hashtbl.hash
+  end )
+
+
+
+let validate_circuit (tbl:port_config LocTable.t) (c:circuit)
+  : (circuit, string) Result.t =
+  let error = ref None in
+
+  let loc_triples = List.fold c.path ~init:[(None,c.source,None)]
+      ~f:(fun (prev::rest) (sw,pt,sw',pt') ->
+          let (l1,l2,l3) = prev in
+          match (l1,l2,l3) with
+          | _,_,None ->
+            let prev' = (l1,l2,Some(sw,pt)) in
+            let src = (Some l2,(sw,pt),Some(sw',pt')) in
+            let dst = (Some(sw,pt),(sw',pt'),None) in
+            dst::src::prev'::rest
+          | _ -> failwith "Malformed triple fold") in
+  let (l1,l2,l3) = List.hd_exn loc_triples in
+  let loc_triples = List.rev
+      ((Some l2,c.sink,None)::(l1,l2,Some c.sink)::(List.tl_exn loc_triples)) in
+
+
+  let update_incoming (conf:chan_config) this next =
+    match conf.incoming with
+    | None -> Ok { conf with incoming = Some (snd next) }
+    | Some pt->
+      Error( sprintf "Channel %d on %Ld:%ld is split between %ld and %ld"
+               conf.chan (fst this) (snd this) (snd next) pt) in
+
+  let update_outgoing conf this prev =
+    match conf.outgoing with
+    | None -> Ok { conf with outgoing = Some (snd prev) }
+    | Some pt ->
+      Error( sprintf "Channel %d on %Ld:%ld is merged from %ld and %ld"
+               conf.chan (fst this) (snd this) (snd prev) pt) in
+
+  let update (conf:chan_config) (prev_opt, this, next_opt) =
+    match prev_opt, next_opt with
+    | Some prev, Some next ->
+      if (fst prev) = (fst this)
+      then update_outgoing conf this prev
+      else if (fst this) = (fst next)
+      then update_incoming conf this next
+      else Error( sprintf "Invalid hops surrounding %Ld:%ld"
+                    (fst this) (snd this))
+    | None, Some next ->
+      if (fst this) = (fst next)
+      then update_incoming conf this next
+      else Error( sprintf "Invalid hops surrounding %Ld:%ld"
+                  (fst this) (snd this))
+    | Some prev, None ->
+      if (fst prev) = (fst this)
+      then update_outgoing conf this prev
+      else Error( sprintf "Invalid hops surrounding %Ld:%ld"
+                    (fst this) (snd this))
+    | None, None ->
+      Error( sprintf "Invalid blank locations surrounding %Ld:%ld"
+                    (fst this) (snd this))
+  in
+
+
+  List.iter loc_triples ~f:(fun triple ->
+      let _,this,_ = triple in
+      match LocTable.find tbl this with
+      | None ->
+        let tbl' = ChannelTable.create () in
+        begin match update { blank_chan with chan = c.channel } triple with
+          | Ok conf -> ChannelTable.add_exn tbl' c.channel conf
+          | Error e -> error := Some( Error e ) end;
+        LocTable.add_exn tbl this tbl'
+      | Some tbl' ->
+        begin match ChannelTable.find tbl' c.channel with
+          | None ->
+            begin match update { blank_chan with chan = c.channel } triple with
+              | Ok conf -> ChannelTable.add_exn tbl' c.channel conf
+              | Error e -> error := Some( Error e ) end
+          | Some conf ->
+            begin match update conf triple with
+              | Ok conf -> ChannelTable.set tbl' c.channel conf
+              | Error e -> error := Some( Error e ) end
+        end );
+
+  match !error with
+  | None -> Ok c
+  | Some e -> e
+
+let validate_config (c:config) : (config, string) Result.t =
+  let tbl = LocTable.create ~size:(List.length c) () in
+  List.fold c ~init:(Ok []) ~f:(fun acc circuit ->
+      match acc, validate_circuit tbl circuit with
+      | Ok circs, Ok circuit -> Ok (circuit::circs)
+      | Ok _, Error e -> Error e
+      | Error e, Ok _ -> Error e
+      | Error es, Error e -> Error (String.concat ~sep:"\n" [es; e]))
 
 (** Pretty printing *)
 let string_of_loc ((sw,pt):loc) =

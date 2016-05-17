@@ -410,9 +410,10 @@ let fabricate (fab:fabricate) : (fabric, string) Result.t = match fab with
 
 let circuit s =
   let open Frenetic_Circuit_NetKAT in
+  let (>>=) = Result.(>>=) in
   match Source.to_policy s with
   | Ok pol ->
-    let config = config_of_policy pol in
+    let config = config_of_policy pol >>= validate_config in
     begin match config with
       | Ok c ->
         let policy = policy_of_config c in
