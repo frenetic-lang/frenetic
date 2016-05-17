@@ -96,6 +96,25 @@ let policy_of_config (c:config) : policy =
   let paths = List.map c ~f:policy_of_circuit in
   union paths
 
+(** Pretty printing *)
+let string_of_loc ((sw,pt):loc) =
+  sprintf "Switch: %Ld Port:%ld" sw pt
+
+let string_of_hop (h:hop) : string =
+  let sw, pt, sw', pt' = h in
+  sprintf "%Ld:%ld => %Ld:%ld" sw pt sw' pt'
+
+let string_of_circuit (c) : string =
+  let paths = String.concat ~sep:" | " (List.map c.path ~f:string_of_hop) in
+  sprintf "Source: %s\n Sink: %s \n Path: %s\n Channel: %d\n"
+    (string_of_loc c.source)
+    (string_of_loc c.sink)
+    (paths)
+    c.channel
+
+let string_of_config (c:config) : string =
+  String.concat ~sep:"\n" (List.map c ~f:string_of_circuit)
+
 (** Validation routines *)
 type chan_config = { chan : channel
                    (* Forwarded to a port *)
@@ -123,11 +142,8 @@ module LocTable = Hashtbl.Make( struct
     let hash = Hashtbl.hash
   end )
 
-
-
 let validate_circuit (tbl:port_config LocTable.t) (c:circuit)
   : (circuit, string) Result.t =
-  let error = ref None in
 
   let loc_triples = List.fold c.path ~init:[(None,c.source,None)]
       ~f:(fun (prev::rest) (sw,pt,sw',pt') ->
@@ -148,15 +164,20 @@ let validate_circuit (tbl:port_config LocTable.t) (c:circuit)
     match conf.incoming with
     | None -> Ok { conf with incoming = Some (snd next) }
     | Some pt->
-      Error( sprintf "Channel %d on %Ld:%ld is split between %ld and %ld"
-               conf.chan (fst this) (snd this) (snd next) pt) in
+      if pt = snd next then Ok conf
+      else
+        Error( sprintf "Channel %d from %Ld:%ld is split between ports %ld and %ld"
+                 conf.chan (fst this) (snd this) (snd next) pt) in
 
   let update_outgoing conf this prev =
     match conf.outgoing with
-    | None -> Ok { conf with outgoing = Some (snd prev) }
+    | None ->
+      Ok { conf with outgoing = Some (snd prev) }
     | Some pt ->
-      Error( sprintf "Channel %d on %Ld:%ld is merged from %ld and %ld"
-               conf.chan (fst this) (snd this) (snd prev) pt) in
+      if pt = snd prev then Ok conf
+      else
+        Error( sprintf "Channel %d to %Ld:%ld is merged from ports %ld and %ld"
+                 conf.chan (fst this) (snd this) (snd prev) pt) in
 
   let update (conf:chan_config) (prev_opt, this, next_opt) =
     match prev_opt, next_opt with
@@ -182,56 +203,36 @@ let validate_circuit (tbl:port_config LocTable.t) (c:circuit)
                     (fst this) (snd this))
   in
 
-
-  List.iter loc_triples ~f:(fun triple ->
+  let errors = List.fold loc_triples ~init:[] ~f:(fun errors triple ->
       let _,this,_ = triple in
       match LocTable.find tbl this with
       | None ->
         let tbl' = ChannelTable.create () in
-        begin match update { blank_chan with chan = c.channel } triple with
-          | Ok conf -> ChannelTable.add_exn tbl' c.channel conf
-          | Error e -> error := Some( Error e ) end;
-        LocTable.add_exn tbl this tbl'
+        let es = begin match update { blank_chan with chan = c.channel } triple with
+          | Ok conf -> ChannelTable.add_exn tbl' c.channel conf; errors
+          | Error e -> e::errors end in
+        LocTable.add_exn tbl this tbl';
+        es
       | Some tbl' ->
         begin match ChannelTable.find tbl' c.channel with
           | None ->
             begin match update { blank_chan with chan = c.channel } triple with
-              | Ok conf -> ChannelTable.add_exn tbl' c.channel conf
-              | Error e -> error := Some( Error e ) end
+              | Ok conf -> ChannelTable.add_exn tbl' c.channel conf; errors
+              | Error e -> e::errors end
           | Some conf ->
             begin match update conf triple with
-              | Ok conf -> ChannelTable.set tbl' c.channel conf
-              | Error e -> error := Some( Error e ) end
-        end );
-
-  match !error with
-  | None -> Ok c
-  | Some e -> e
+              | Ok conf -> ChannelTable.set tbl' c.channel conf; errors
+              | Error e -> e::errors end
+        end ) in
+  match errors with
+  | [] -> Ok c
+  | es -> Error( String.concat ~sep:"\n" es)
 
 let validate_config (c:config) : (config, string) Result.t =
   let tbl = LocTable.create ~size:(List.length c) () in
   List.fold c ~init:(Ok []) ~f:(fun acc circuit ->
       match acc, validate_circuit tbl circuit with
-      | Ok circs, Ok circuit -> Ok (circuit::circs)
-      | Ok _, Error e -> Error e
-      | Error e, Ok _ -> Error e
+      | Ok circs, Ok circuit -> print_endline "Fine";Ok (circuit::circs)
+      | Ok _, Error e -> printf "%s\n%!" (string_of_circuit circuit); Error e
+      | Error e, Ok _ -> printf "%s\n%!" (string_of_circuit circuit); Error e
       | Error es, Error e -> Error (String.concat ~sep:"\n" [es; e]))
-
-(** Pretty printing *)
-let string_of_loc ((sw,pt):loc) =
-  sprintf "Switch: %Ld Port:%ld" sw pt
-
-let string_of_hop (h:hop) : string =
-  let sw, pt, sw', pt' = h in
-  sprintf "%Ld:%ld => %Ld:%ld" sw pt sw' pt'
-
-let string_of_circuit (c) : string =
-  let paths = String.concat ~sep:" | " (List.map c.path ~f:string_of_hop) in
-  sprintf "Source: %s\n Sink: %s \n Path: %s\n Channel: %d\n"
-    (string_of_loc c.source)
-    (string_of_loc c.sink)
-    (paths)
-    c.channel
-
-let string_of_config (c:config) : string =
-  String.concat ~sep:"\n" (List.map c ~f:string_of_circuit)

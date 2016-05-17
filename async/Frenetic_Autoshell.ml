@@ -418,8 +418,10 @@ let circuit s =
       | Ok c ->
         let policy = policy_of_config c in
         printf "Config:\n%s\n" (string_of_config c);
-        printf "New policy:\n%s\n" (string_of_policy policy)
-      | Error e -> print_endline e
+        printf "Implementable policy:\n%s\n" (string_of_policy policy)
+      | Error e ->
+        print_endline "Circuit configuration errors:";
+        print_endline e
     end
   | Error e ->
     print_endline "Could not read circuit policy";
