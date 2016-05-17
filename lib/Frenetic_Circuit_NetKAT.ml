@@ -13,6 +13,7 @@ type circuit = { source : loc
 type config = circuit list
 let (>>=) = Result.(>>=)
 
+(** Utility functions *)
 let flatten_seqs pol =
   let rec aux p acc = match p with
     | Seq(p1, p2) -> (aux p1 (aux p2 acc))
@@ -25,9 +26,13 @@ let flatten_unions pol =
     | _ as p -> p::acc in
   aux pol []
 
+let union = Frenetic_NetKAT_Optimize.mk_big_union
+let seq = Frenetic_NetKAT_Optimize.mk_big_seq
+
 let string_of_policy_list (pols: policy list) (sep:string) =
   String.concat ~sep:sep (List.map pols (Frenetic_NetKAT_Pretty.string_of_policy))
 
+(** Generate circuit types from policies *)
 let source_of_filter (filter:pred) : (loc, string) Result.t = match filter with
   | And( Test( Switch swid ),
          Test( Location( Physical ptid)))
@@ -39,7 +44,7 @@ let source_of_filter (filter:pred) : (loc, string) Result.t = match filter with
 let path_of_policies (pol:policy list) : ((hop list * portId), string) Result.t =
   let rec aux pol_list hops = match pol_list with
     | Mod( Location( Physical pt))::[] ->
-      Ok (hops, pt)
+      Ok (List.rev hops, pt)
     | Link(s,p,s',p')::rest ->
       let hop = (s,p,s',p') in
       aux rest (hop::hops)
@@ -75,6 +80,23 @@ let config_of_policy (pol:policy) : (config, string) Result.t =
       | Error e, Ok _ -> Error e
       | Error es, Error e -> Error (String.concat ~sep:"\n" [es; e]))
 
+(** Generate policies from circuit types *)
+let policy_of_circuit (c:circuit) : policy =
+  let pred = Filter( And( Test( Switch ( fst c.source )),
+                          Test( Location( Physical( snd c.source ))))) in
+  let channel = Mod( Channel c.channel ) in
+  let path = List.fold c.path ~init:[channel; pred] ~f:(fun acc (sw,pt,sw',pt') ->
+      let fwd = Mod( Location( Physical pt )) in
+      let link = Link(sw,pt,sw',pt') in
+      link::fwd::acc) in
+  let out = Mod( Location( Physical( snd c.sink ))) in
+  seq (List.rev (out::path))
+
+let policy_of_config (c:config) : policy =
+  let paths = List.map c ~f:policy_of_circuit in
+  union paths
+
+(** Pretty printing *)
 let string_of_loc ((sw,pt):loc) =
   sprintf "Switch: %Ld Port:%ld" sw pt
 

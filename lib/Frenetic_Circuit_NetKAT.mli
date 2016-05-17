@@ -15,6 +15,8 @@ type config = circuit list
 val path_of_policies  : policy list -> ((hop list * portId), string) Result.t
 val circuit_of_policy : policy -> (circuit, string) Result.t
 val config_of_policy  : policy -> (config, string) Result.t
+val policy_of_config  : config -> policy
+val policy_of_circuit : circuit -> policy
 
 val string_of_loc : loc -> string
 val string_of_hop : hop -> string

@@ -414,7 +414,10 @@ let circuit s =
   | Ok pol ->
     let config = config_of_policy pol in
     begin match config with
-      | Ok c -> printf "%s\n" (string_of_config c)
+      | Ok c ->
+        let policy = policy_of_config c in
+        printf "Config:\n%s\n" (string_of_config c);
+        printf "New policy:\n%s\n" (string_of_policy policy)
       | Error e -> print_endline e
     end
   | Error e ->
