@@ -11,6 +11,8 @@ type automaton = Compiler.automaton
 type fabric = Frenetic_Fabric.fabric
 type topology = Net.Topology.t
 
+
+(** Various types. Need cleanup and consolidation at some point. *)
 type source =
   | String of string
   | Filename of string
@@ -116,6 +118,7 @@ type command =
   | Blank
   | Exit
 
+(** Useful modules, mostly for code clarity *)
 module Parser = struct
 
   (** Monadic Parsers for the command line *)
@@ -312,6 +315,13 @@ module Source = struct
     | Error e -> print_endline e; Error e
 end
 
+(** Utility functions and shorthands *)
+let log_filename = "frenetic.log"
+let log = Log.printf
+let (>>|) = Result.(>>|)
+
+let string_of_policy = Frenetic_NetKAT_Pretty.string_of_policy
+
 let compile_local =
   let open Compiler in
   compile_local ~options:{ default_compiler_options with cache_prepare = `Keep }
@@ -338,9 +348,7 @@ let rec update (s:state) (u:update) : unit = match u with
 
 let load (l:input) (s:source) : (element, string) Result.t =
   try match l with
-    | IPolicy -> begin match (Source.to_policy s) with
-            | Ok pol -> Ok (Policy pol)
-            | Error e -> Error e end
+    | IPolicy -> Source.to_policy s >>| (fun p -> Policy p )
     | ITopology -> begin match s with
         | Filename f ->  Ok (Topology (Net.Parse.from_dotfile f))
         | _ -> Error "Topologies can only be loaded from DOT files" end
@@ -392,9 +400,8 @@ let json(j:json) : unit = match j with
     end
 
 let fabricate (fab:fabricate) : (fabric, string) Result.t = match fab with
-  | FPolicy(source, swids) -> begin match Source.to_policy source with
-      | Ok pol -> Ok (Frenetic_Fabric.of_local_policy pol swids)
-      | Error e -> print_endline e; Error e end
+  | FPolicy(source, swids) -> Source.to_policy source >>|
+    fun p -> Frenetic_Fabric.of_local_policy p swids
   | FTopology(s, swids) -> begin match s with
       | Filename f ->
         let topology = Net.Parse.from_dotfile f in
@@ -428,10 +435,10 @@ let install (host:string) (port:int) (swids:switchId list) (fdd:fdd) : unit =
       let path = String.concat ~sep:"/" ["install"; Int64.to_string swid] in
       let uri = Uri.make ~host:host ~port:port ~path:path () in
       try
-      let table =  Compiler.to_table swid fdd in
-      let json = (Frenetic_NetKAT_SDN_Json.flowTable_to_json table) in
-      let body = Yojson.Basic.to_string json in
-      post uri body
+        let table =  Compiler.to_table swid fdd in
+        let json = (Frenetic_NetKAT_SDN_Json.flowTable_to_json table) in
+        let body = Yojson.Basic.to_string json in
+        post uri body
       with Not_found -> printf "No table found for swid %Ld\n%!" swid;
         printf "%s\n%!" (Printexc.get_backtrace ()))
 
@@ -465,7 +472,9 @@ let retarget (r:retarget) = match r with
     re_state.egress <- outs
   | REdge (host, port) ->
     let ingress = Frenetic_NetKAT_Optimize.mk_big_union re_state.ingress in
+    print_endline (string_of_policy ingress);
     let egress  = Frenetic_NetKAT_Optimize.mk_big_union re_state.egress in
+    print_endline (string_of_policy egress);
     let edge = Frenetic_NetKAT.Union (ingress, egress) in
     let edge_fdd = compile_local edge in
     let edge_switches = List.dedup (List.rev_append
@@ -485,52 +494,55 @@ let parse_command (line : string) : command option =
   | Success command -> Some command
   | Failed (msg, e) -> (print_endline msg; None)
 
+let command (com:command) : unit = match com with
+  | Load (l,s) -> begin match load l s with
+      | Ok (Policy p)   -> state.policy   <- Some p
+      | Ok (Topology t) -> state.topology <- Some t
+      | Ok (Fabric f)   -> state.fabric   <- Some f
+      | Error s         -> print_endline s end
+  | Show s -> show s
+  | Json s -> json s
+  | Fabricate f -> begin match (fabricate f) with
+      | Ok f -> update state (Fabrication f)
+      | Error s -> print_endline s end
+  | Circuit c -> circuit c
+  | Retarget r -> retarget r
+  | Compile c -> begin match c with
+      | Local         -> begin
+          try update state (FullCompilation Compiler.compile_local)
+          with Compiler.Non_local -> print_endline "Policy is non-local." end
+      | Global        -> update state (FullCompilation Compiler.compile_global)
+      | ToAutomaton   -> update state (ToAuto Compiler.compile_to_automaton)
+      | FromAutomaton -> update state (FromAuto Compiler.compile_from_automaton)
+    end
+  | Post(host, port, cmd, swid) ->
+    let path = String.concat ~sep:"/" [cmd; Int64.to_string swid] in
+    let uri = Uri.make ~host:host ~port:port ~path:path () in
+    begin match state.fdd with
+      | Some fdd ->
+        let table = Compiler.to_table swid fdd in
+        let json = (Frenetic_NetKAT_SDN_Json.flowTable_to_json table) in
+        let body = Yojson.Basic.to_string json in
+        post uri body
+      | None -> printf "Please `load` and `compile` a policy first" end
+  | Write _ -> ()
+  | Exit ->
+    print_endline "Goodbye!"; Shutdown.shutdown 0
+  | Blank -> ()
+
 let rec repl () : unit Deferred.t =
   printf "autoshell> %!";
   Reader.read_line (Lazy.force Reader.stdin) >>= fun input ->
   let handle line = match line with
     | `Eof -> Shutdown.shutdown 0
-    | `Ok line -> match parse_command line with
-      | Some (Load (l,s)) -> begin match load l s with
-          | Ok (Policy p)   -> state.policy   <- Some p
-          | Ok (Topology t) -> state.topology <- Some t
-          | Ok (Fabric f)   -> state.fabric   <- Some f
-          | Error s         -> print_endline s end
-      | Some (Show s) -> show s
-      | Some (Json s) -> json s
-      | Some (Fabricate f) -> begin match (fabricate f) with
-          | Ok f -> update state (Fabrication f)
-          | Error s -> print_endline s end
-      | Some (Circuit c) -> circuit c
-      | Some (Retarget r) -> retarget r
-      | Some (Compile c) -> begin match c with
-          | Local         -> begin
-            try update state (FullCompilation Compiler.compile_local)
-            with Compiler.Non_local -> print_endline "Policy is non-local." end
-          | Global        -> update state (FullCompilation Compiler.compile_global)
-          | ToAutomaton   -> update state (ToAuto Compiler.compile_to_automaton)
-          | FromAutomaton -> update state (FromAuto Compiler.compile_from_automaton)
-        end
-      | Some (Post(host, port, cmd, swid)) ->
-        let path = String.concat ~sep:"/" [cmd; Int64.to_string swid] in
-        let uri = Uri.make ~host:host ~port:port ~path:path () in
-        begin match state.fdd with
-          | Some fdd ->
-            let table = Compiler.to_table swid fdd in
-            let json = (Frenetic_NetKAT_SDN_Json.flowTable_to_json table) in
-            let body = Yojson.Basic.to_string json in
-            post uri body
-          | None -> printf "Please `load` and `compile` a policy first" end
-      | Some (Write _) -> ()
-      | Some Exit ->
-	print_endline "Goodbye!"; Shutdown.shutdown 0
-      | Some Blank -> ()
-      | None -> ()
+    | `Ok line -> begin match parse_command line with
+        | Some c -> command c
+        | None -> () end
   in handle input;
   repl ()
 
 let main () : unit =
-  Log.set_output [Async.Std.Log.Output.file `Text "frenetic.log"];
+  Log.set_output [Async.Std.Log.Output.file `Text log_filename];
   printf "Frenetic Automaton Shell v 1.0\n%!";
   printf "Type `help` for a list of commands\n%!";
   let _ = repl () in
