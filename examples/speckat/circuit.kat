@@ -3,10 +3,10 @@
   4@1 => 7@1;
   7@2 => 5@1;
   port:=2) |
-(filter (switch=4 and port=3);
+(filter (switch=4 and port=2);
   channel:=2;
   4@1 => 7@1;
-  7@2 => 6@1;
+  7@3 => 6@1;
   port:=2) |
 (filter (switch=5 and port=2);
   channel:=1;

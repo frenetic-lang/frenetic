@@ -224,14 +224,36 @@ let validate_circuit (tbl:port_config LocTable.t) (c:circuit)
               | Ok conf -> ChannelTable.set tbl' c.channel conf; errors
               | Error e -> e::errors end
         end ) in
+
   match errors with
   | [] -> Ok c
   | es -> Error( String.concat ~sep:"\n" es)
 
 let validate_config (c:config) : (config, string) Result.t =
-  let tbl = LocTable.create ~size:(List.length c) () in
+  let in_tbl  = LocTable.create ~size:(List.length c) () in
+  let out_tbl = LocTable.create ~size:(List.length c) () in
+  let tbl     = LocTable.create ~size:(List.length c) () in
   List.fold c ~init:(Ok []) ~f:(fun acc circuit ->
-      match acc, validate_circuit tbl circuit with
+      let e_in = match LocTable.find in_tbl circuit.source with
+        | None -> LocTable.add_exn in_tbl circuit.source circuit.channel;
+          None
+        | Some ch -> Some (
+            sprintf "Channels %d and %d both attempting to start at %Ld:%ld"
+              ch circuit.channel (fst circuit.source) (snd circuit.source) )
+      in
+      let e_out = match LocTable.find out_tbl circuit.sink with
+        | None -> LocTable.add_exn out_tbl circuit.sink circuit.channel;
+          None
+        | Some ch -> Some (
+            sprintf "Channels %d and %d both attempting to end at %Ld:%ld"
+              ch circuit.channel (fst circuit.sink) (snd circuit.sink) )
+      in
+      let acc' = match e_in,e_out with
+        | None, None -> acc
+        | Some s, None
+        | None, Some s -> Error s
+        | Some s, Some s' -> Error (s ^ s') in
+      match acc', validate_circuit tbl circuit with
       | Ok circs, Ok circuit -> print_endline "Fine";Ok (circuit::circs)
       | Ok _, Error e -> printf "%s\n%!" (string_of_circuit circuit); Error e
       | Error e, Ok _ -> printf "%s\n%!" (string_of_circuit circuit); Error e
