@@ -96,40 +96,44 @@ let policy_of_config (c:config) : policy =
   let paths = List.map c ~f:policy_of_circuit in
   union paths
 
-let local_policy_of_circuit (c:circuit) : policy =
+let local_policy_of_circuit tbl (c:circuit) : unit =
   let open Frenetic_NetKAT_Optimize in
   (* Ingress rule *)
-  let pred = Filter( And( Test( Switch ( fst c.source )),
-                          Test( Location( Physical( snd c.source ))))) in
+  let pred = Filter( Test( Location( Physical( snd c.source )))) in
   let channel = Mod( Channel c.channel ) in
   let first_out = match List.hd c.path with
     | Some(_,pt,_,_) -> Mod( Location( Physical pt ))
     | None -> Mod( Location( Physical (snd c.sink))) in
   let ingress = seq [ pred; channel; first_out; ] in
+  Hashtbl.Poly.add_multi tbl (fst c.source) ingress;
 
   (* Rules for each hop *)
-  let prev_pt,hops = List.fold c.path ~init:((snd c.source),[])
-      ~f:(fun (prev_pt,acc) (sw,pt,sw',pt') ->
-          let pred = mk_big_and [ Test( Switch sw );
-                                  Test( Location( Physical prev_pt ));
+  (* TODO(basus): Ideally we should "short circuit" a zero-hop path *)
+  let prev_pt = match c.path with
+    | [] -> snd c.source
+    | (_,_,sw,pt)::tail ->
+      List.fold tail ~init:pt ~f:(fun prev_pt (sw,pt,sw',pt') ->
+          let pred = mk_big_and [ Test( Location( Physical prev_pt ));
                                   Test( Channel c.channel ) ]  in
           let out = Mod( Location( Physical pt ))in
           let pol = Seq ( Filter pred, out ) in
-          (pt', pol::acc)) in
+          Hashtbl.Poly.add_multi tbl sw pol;
+          pt') in
 
   (* Egress rule *)
-  let pred = mk_big_and [ Test( Switch (fst c.sink) );
-                          Test( Location( Physical prev_pt ));
+  let pred = mk_big_and [ Test( Location( Physical prev_pt ));
                           Test( Channel c.channel ) ] in
   let out = Mod( Location( Physical (snd c.sink) )) in
   let egress = Seq ( Filter pred, out ) in
-
-  (* Put it all together. Since it's a union, order doesn't matter. *)
-  union (ingress::egress::hops)
+  Hashtbl.Poly.add_multi tbl (fst c.sink) egress
 
 let local_policy_of_config (c:config) : policy =
-  let paths = List.map c ~f:local_policy_of_circuit in
-  union paths
+  let tbl = Hashtbl.Poly.create ~size:(List.length c) () in
+  List.iter c ~f:(local_policy_of_circuit tbl);
+  let pols = Hashtbl.fold tbl ~init:[] ~f:(fun ~key:sw ~data:pols acc ->
+      let pol = Seq( Filter( Test( Switch sw )), union pols) in
+      pol::acc) in
+  union pols
 
 (** Pretty printing *)
 let string_of_loc ((sw,pt):loc) =

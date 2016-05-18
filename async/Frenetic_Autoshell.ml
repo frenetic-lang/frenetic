@@ -462,6 +462,8 @@ let retarget (r:retarget) = match r with
       | Error e -> print_endline e end
   | RCircuit (s, ings, egs) -> begin match circuit s with
       | Ok policy ->
+        print_endline "Implementable localized policy is:";
+        print_endline (string_of_policy policy);
         re_state.existing     <- policy;
         re_state.existing_in  <- ings;
         re_state.existing_out <- egs
