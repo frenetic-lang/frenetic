@@ -17,6 +17,8 @@ val circuit_of_policy : policy -> (circuit, string) Result.t
 val config_of_policy  : policy -> (config, string) Result.t
 val policy_of_config  : config -> policy
 val policy_of_circuit : circuit -> policy
+val local_policy_of_config  : config -> policy
+val local_policy_of_circuit : circuit -> policy
 
 val validate_config   : config -> (config, string) Result.t
 

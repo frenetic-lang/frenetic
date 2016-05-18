@@ -96,6 +96,41 @@ let policy_of_config (c:config) : policy =
   let paths = List.map c ~f:policy_of_circuit in
   union paths
 
+let local_policy_of_circuit (c:circuit) : policy =
+  let open Frenetic_NetKAT_Optimize in
+  (* Ingress rule *)
+  let pred = Filter( And( Test( Switch ( fst c.source )),
+                          Test( Location( Physical( snd c.source ))))) in
+  let channel = Mod( Channel c.channel ) in
+  let first_out = match List.hd c.path with
+    | Some(_,pt,_,_) -> Mod( Location( Physical pt ))
+    | None -> Mod( Location( Physical (snd c.sink))) in
+  let ingress = seq [ pred; channel; first_out; ] in
+
+  (* Rules for each hop *)
+  let prev_pt,hops = List.fold c.path ~init:((snd c.source),[])
+      ~f:(fun (prev_pt,acc) (sw,pt,sw',pt') ->
+          let pred = mk_big_and [ Test( Switch sw );
+                                  Test( Location( Physical prev_pt ));
+                                  Test( Channel c.channel ) ]  in
+          let out = Mod( Location( Physical pt ))in
+          let pol = Seq ( Filter pred, out ) in
+          (pt', pol::acc)) in
+
+  (* Egress rule *)
+  let pred = mk_big_and [ Test( Switch (fst c.sink) );
+                          Test( Location( Physical prev_pt ));
+                          Test( Channel c.channel ) ] in
+  let out = Mod( Location( Physical (snd c.sink) )) in
+  let egress = Seq ( Filter pred, out ) in
+
+  (* Put it all together. Since it's a union, order doesn't matter. *)
+  union (ingress::egress::hops)
+
+let local_policy_of_config (c:config) : policy =
+  let paths = List.map c ~f:local_policy_of_circuit in
+  union paths
+
 (** Pretty printing *)
 let string_of_loc ((sw,pt):loc) =
   sprintf "Switch: %Ld Port:%ld" sw pt
@@ -254,7 +289,7 @@ let validate_config (c:config) : (config, string) Result.t =
         | None, Some s -> Error s
         | Some s, Some s' -> Error (s ^ s') in
       match acc', validate_circuit tbl circuit with
-      | Ok circs, Ok circuit -> print_endline "Fine";Ok (circuit::circs)
-      | Ok _, Error e -> printf "%s\n%!" (string_of_circuit circuit); Error e
-      | Error e, Ok _ -> printf "%s\n%!" (string_of_circuit circuit); Error e
-      | Error es, Error e -> Error (String.concat ~sep:"\n" [es; e]))
+      | Ok circs, Ok circuit -> Ok (circuit::circs)
+      | Ok _, Error e        -> Error e
+      | Error e, Ok _        -> Error e
+      | Error es, Error e    -> Error (String.concat ~sep:"\n" [es; e]))

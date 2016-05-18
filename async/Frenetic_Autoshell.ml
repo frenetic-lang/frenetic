@@ -100,6 +100,7 @@ type fabricate =
 type retarget =
   | RIdeal of (source * loc list * loc list)
   | RFabric of (source * loc list * loc list)
+  | RCircuit of (source * loc list * loc list)
   | RTopo of source
   | RCompile
   | RCore of string * int * switchId list
@@ -232,27 +233,33 @@ module Parser = struct
       (symbol "ideal" >>
        (source >>=
         (fun pol -> blank >> loc_list >>=
-         (fun ings -> blank >> loc_list >>=
-           (fun egs ->
-              return (RIdeal( pol, ings, egs))))))) <|>
+          (fun ings -> blank >> loc_list >>=
+            (fun egs ->
+               return (RIdeal( pol, ings, egs))))))) <|>
       (symbol "fabric" >>
        (source >>=
         (fun pol -> blank >> loc_list >>=
-         (fun ings -> blank >> loc_list >>=
-           (fun egs ->
-              return (RFabric( pol, ings, egs))))))) <|>
+          (fun ings -> blank >> loc_list >>=
+            (fun egs ->
+               return (RFabric( pol, ings, egs))))))) <|>
+      (symbol "circuit" >>
+       (source >>=
+        (fun pol -> blank >> loc_list >>=
+          (fun ings -> blank >> loc_list >>=
+            (fun egs ->
+               return (RCircuit( pol, ings, egs))))))) <|>
       (symbol "topology" >>
        (source >>= (fun topo -> return (RTopo topo)))) <|>
       (symbol "compile" >> return RCompile) <|>
       (symbol "setup" >> (
-       (symbol "edge" >> uri >>=
-       (fun (hostname, port) -> return
-           (REdge (hostname, port)))) <|>
-       (symbol "core" >> uri >>=
-        (fun (hostname, port) -> blank >> int_list >>=
-          (fun ints ->
-             let swids = List.map ints ~f:(Int64.of_int_exn) in
-             return (RCore (hostname, port, swids)))))))) >>=
+          (symbol "edge" >> uri >>=
+           (fun (hostname, port) -> return
+               (REdge (hostname, port)))) <|>
+          (symbol "core" >> uri >>=
+           (fun (hostname, port) -> blank >> int_list >>=
+             (fun ints ->
+                let swids = List.map ints ~f:(Int64.of_int_exn) in
+                return (RCore (hostname, port, swids)))))))) >>=
     (fun r -> return ( Retarget r) )
 
   let circuit : (command, bytes list) MParser.t =
@@ -408,24 +415,16 @@ let fabricate (fab:fabricate) : (fabric, string) Result.t = match fab with
         Ok (Frenetic_Fabric.vlan_per_port topology)
       | _ -> Error "Topologies can only be loaded from DOT files" end
 
-let circuit s =
+let circuit (s:source) : (policy, string) Result.t =
   let open Frenetic_Circuit_NetKAT in
   let (>>=) = Result.(>>=) in
   match Source.to_policy s with
   | Ok pol ->
-    let config = config_of_policy pol >>= validate_config in
-    begin match config with
-      | Ok c ->
-        let policy = policy_of_config c in
-        printf "Config:\n%s\n" (string_of_config c);
-        printf "Implementable policy:\n%s\n" (string_of_policy policy)
-      | Error e ->
-        print_endline "Circuit configuration errors:";
-        print_endline e
-    end
-  | Error e ->
-    print_endline "Could not read circuit policy";
-    print_endline e
+    config_of_policy pol >>=
+    validate_config >>|
+    local_policy_of_config
+ | Error e ->
+    Error ( "Could not read circuit policy" ^ e)
 
 let post (uri:Uri.t) (body:string) : unit =
   try_with (fun () ->
@@ -456,6 +455,12 @@ let retarget (r:retarget) = match r with
         re_state.ideal_out <- egs
       | Error e -> print_endline e end
   | RFabric (s, ings, egs) -> begin match Source.to_policy s with
+      | Ok policy ->
+        re_state.existing     <- policy;
+        re_state.existing_in  <- ings;
+        re_state.existing_out <- egs
+      | Error e -> print_endline e end
+  | RCircuit (s, ings, egs) -> begin match circuit s with
       | Ok policy ->
         re_state.existing     <- policy;
         re_state.existing_in  <- ings;
@@ -511,7 +516,11 @@ let command (com:command) : unit = match com with
   | Fabricate f -> begin match (fabricate f) with
       | Ok f -> update state (Fabrication f)
       | Error s -> print_endline s end
-  | Circuit c -> circuit c
+  | Circuit c -> begin match circuit c with
+      | Ok p ->
+        print_endline "Implementable localized policy is:";
+        print_endline (string_of_policy p)
+      | Error e -> print_endline e end
   | Retarget r -> retarget r
   | Compile c -> begin match c with
       | Local         -> begin
