@@ -1,0 +1,448 @@
+open Core.Std
+open Async.Std
+open Frenetic_NetKAT
+open Frenetic_Network
+open Frenetic_Circuit_NetKAT
+
+module Compiler = Frenetic_NetKAT_Compiler
+module Log = Frenetic_Log
+
+type fdd = Compiler.t
+type automaton = Compiler.automaton
+
+(** Utility functions and shorthands *)
+let log_filename = "frenetic.log"
+let log = Log.printf
+let (>>|) = Result.(>>|)
+
+type loc = (switchId * portId)
+
+type source =
+  | String of string
+  | Filename of string
+
+type element =
+  | Policy of policy
+  | Fabric of policy
+  | Circuit of circuit
+  | Topology of policy
+
+type configuration = { policy     : policy option
+                     ; fdd        : fdd option
+                     ; automaton  : automaton option
+                     ; ingresses  : loc list
+                     ; egresses   : loc list
+                     }
+
+let new_config = { policy    = None
+                 ; fdd       = None
+                 ; automaton = None
+                 ; ingresses = []
+                 ; egresses  = []
+                 }
+
+type fabric = { circuit : (config * loc list * loc list) option
+              ; config  : configuration option }
+
+type state = { mutable naive    : configuration option
+             ; mutable fabric   : fabric option
+             ; mutable edge     : configuration option
+             ; mutable topology : policy option
+             }
+
+let state = { naive    = None
+            ; fabric   = None
+            ; edge     = None
+            ; topology = None
+            }
+
+type state_part =
+  | SNaive
+  | SFabric
+  | SEdge
+  | STopology
+  | SCircuit
+
+type config_part =
+  | CPolicy
+  | CFdd
+  | CAuto
+  | CIngress
+  | CEgress
+
+type load =
+  | LNaive    of source * loc list * loc list
+  | LFabric   of source * loc list * loc list
+  | LCircuit  of source * loc list * loc list
+  | LTopo     of source
+
+type compile =
+  | CLocal                      (* Compile the naive policy as a local policy *)
+  | CGlobal                     (* Compile the naive policy as a global policy *)
+  | CFabric                     (* Compile the fabric as a local policy *)
+  | CCircuit                    (* Compile the circuit to a fabric, & compile that *)
+  | CEdge                       (* Compile the naive policy atop the fabric *)
+
+type install =
+  | INaive of switchId list
+  | IEdge
+  | IFabric
+
+type command =
+  | Load of load
+  | Compile of compile
+  | Install of install
+  | Blank
+  | Quit
+
+(** Useful modules, mostly for code clarity *)
+module Parser = struct
+
+  (** Monadic Parsers for the command line *)
+  open MParser
+
+  module Tokens = MParser_RE.Tokens
+
+  let symbol = Tokens.symbol
+
+  (* Parser for integer lists *)
+  let int_list : (int list, bytes list) MParser.t =
+    (char '[' >> many_until (many_chars_until digit (char ';')) (char ']') >>=
+     (fun ints -> return (List.map ints ~f:Int.of_string)))
+
+  (* Parser for lists of locations: (switch, port) pairs written as sw:pt *)
+  let loc_list : (loc list, bytes list) MParser.t =
+    (char '[' >> many_until (
+        many_chars_until digit (char ':') >>=
+        (fun swid -> many_chars_until digit (char ';') >>=
+          (fun ptid -> return ((Int64.of_string swid),
+                               (Int32.of_string ptid)))))
+        (char ']') >>=
+     (fun ints -> return ints))
+
+  (* Parser for sources *)
+  let source : (source, bytes list) MParser.t =
+    (char '"' >> many_chars_until any_char (char '"') >>=
+     (fun string -> return ( String string) ) ) <|>
+    (many_chars (alphanum <|> (any_of "./_-")) >>=
+     (fun w -> return (Filename w)))
+
+  (* Parser for sources with ingress & egress locations *)
+  let guarded_source : ((source * loc list * loc list), bytes list) MParser.t =
+    (source >>=
+     (fun pol -> blank >> loc_list >>=
+       (fun ings -> blank >> loc_list >>=
+         (fun egs ->
+            return (pol, ings, egs)))))
+
+  (* Parser for load command *)
+  let load : (command, bytes list) MParser.t =
+    symbol "load" >> (
+      (symbol "policy" >> guarded_source >>=
+       fun (s,i,o) -> return ( LNaive(s,i,o) )) <|>
+      (symbol "fabric" >> guarded_source >>=
+       fun (s,i,o) -> return ( LFabric(s,i,o) )) <|>
+      (symbol "circuit" >> guarded_source >>=
+       fun (s,i,o) -> return ( LCircuit(s,i,o) )) <|>
+      (symbol "topology" >>
+       source >>= fun s -> return (LTopo s))) >>=
+    fun l -> return ( Load l )
+
+  (* Parser for the compile command *)
+  let compile : (command, bytes list) MParser.t =
+    symbol "compile" >> (
+      (symbol "local"   >> return CLocal) <|>
+      (symbol "global"  >> return CGlobal) <|>
+      (symbol "fabric"  >> return CFabric) <|>
+      (symbol "circuit" >> return CCircuit) <|>
+      (symbol "edge"    >> return CEdge)) >>=
+    fun c -> return( Compile c )
+
+  (* Parser for the install command *)
+  let install : (command, bytes list) MParser.t =
+    symbol "install" >> (
+      (symbol "policy" >> int_list >>= (fun ints ->
+           let swids = List.map ints ~f:(Int64.of_int_exn) in
+           return( INaive swids ))) <|>
+      (symbol "edge"   >> return IEdge) <|>
+      (symbol "fabric" >> return IFabric)) >>=
+    (fun i -> return( Install i))
+
+  (* Parser for a blank line *)
+  let blank : (command, bytes list) MParser.t =
+    eof >> return Blank
+
+  (* Parser for the quit command *)
+  let quit : (command, bytes list) MParser.t =
+    (symbol "exit" <|> symbol "quit") >> return Quit
+
+  let command : (command, bytes list) MParser.t =
+    load    <|>
+    compile <|>
+    install <|>
+    blank   <|>
+    quit
+
+  (** Non-Monadic parsers for the information that the shell can
+  manipulate. Mostly just wrappers for parsers from the rest of the Frenetic
+  codebase. *)
+
+  (* Use the netkat parser to parse policies *)
+  let policy (pol_str : string) : (policy, string) Result.t =
+    try
+      Ok (Frenetic_NetKAT_Parser.policy_of_string pol_str)
+    with Camlp4.PreCast.Loc.Exc_located (error_loc,x) ->
+      Error (sprintf "Error: %s\n%s"
+               (Camlp4.PreCast.Loc.to_string error_loc)
+               (Exn.to_string x))
+
+end
+
+module Source = struct
+  let to_string (s:source) : (string, string) Result.t = match s with
+    | String s -> Ok s
+    | Filename f ->
+      try
+        let chan = In_channel.create f in
+        Ok (In_channel.input_all chan)
+      with Sys_error msg -> Error msg
+
+  let to_policy (s:source) : (policy, string) Result.t =
+    match to_string s with
+    | Ok s -> Parser.policy s
+    | Error e -> print_endline e; Error e
+end
+
+let string_of_loc (s,p) =
+  sprintf "%Ld:%ld" s p
+
+let string_of_guarded_source s i o =
+  let s' = match s with
+    | String s
+    | Filename s -> s in
+  sprintf "%s [%s] [%s] "
+    s'
+    ( String.concat ~sep:"; " (List.map i ~f:string_of_loc) )
+    ( String.concat ~sep:"; " (List.map i ~f:string_of_loc) )
+
+let config (s:source) (i:loc list) (o:loc list) : (configuration, string) Result.t =
+  Source.to_policy s >>| fun pol ->
+  { new_config with policy = Some pol ;
+                    ingresses = i ;
+                    egresses = o }
+
+let load (l:load) : (string, string) Result.t =
+  let (>>=) = Result.(>>=) in
+  match l with
+  | LNaive    (s,i,o) ->
+    config s i o >>| fun c ->
+    state.naive <- Some c ;
+    "Loaded new naive policy"
+  | LFabric   (s,i,o) ->
+    config s i o >>| fun c ->
+    state.fabric <- Some { circuit = None ; config = Some c };
+    "Loaded new fabric policy"
+  | LCircuit  (s,i,o) ->
+    Source.to_policy s >>= fun p ->
+    config_of_policy p >>= fun c ->
+    validate_config c  >>= fun c ->
+    state.fabric <- Some { circuit = Some (c,i,o); config = None };
+    Ok "Loaded new circuit policy"
+  | LTopo s ->
+    Source.to_policy s >>| fun t ->
+    state.topology <- Some t;
+    "Loaded new topology"
+
+let compile_local (c:configuration) = match c.policy with
+  | None -> Error "No policy specified. Please load with `load (policy|fabric)` command."
+  | Some p ->
+    let open Compiler in
+    try
+      let fdd = (compile_local
+                   ~options:{ default_compiler_options with cache_prepare = `Keep }
+                   p) in
+      Ok { c with fdd = Some fdd }
+    with Non_local ->
+      Error "Given policy is not local. It contains links."
+
+let compile_global (c:configuration) = match c.policy with
+  | None -> Error "No policy specified. Please load with `load policy <filename>` command."
+  | Some p ->
+    let open Compiler in
+    let automaton = (compile_to_automaton
+                       ~options:{ default_compiler_options with cache_prepare = `Keep }
+                       p) in
+    let fdd = compile_from_automaton automaton in
+    Ok { c with fdd = Some fdd; automaton = Some automaton }
+
+let compile_fabric (f:fabric) = match f.config with
+  | None -> Error "No fabric specified. Please load with `load fabric` command."
+  | Some c ->
+    compile_local c >>| fun c' ->
+    { f with config = Some c' }
+
+let compile_circuit (f:fabric) = match f.circuit with
+  | None -> Error "No circuit specified. Please load with `load circuit` command."
+  | Some (c,i,o) ->
+    let l = local_policy_of_config c in
+    let conf = { new_config with policy    = Some l;
+                                 ingresses = i;
+                                 egresses  = o } in
+    compile_local conf >>| fun c' ->
+    { f with config = Some c' }
+
+let compile_edge c f topo =
+  let (>>=) = Result.(>>=) in
+  (match c.policy with
+   | None -> Error "Edge compilation require a policy. Use `load policy` command."
+   | Some p -> Ok p) >>=
+  (fun pol -> ( match f.config with
+       | None -> Error "Please load and compile a circuit or load a fabric first"
+       | Some c -> begin match c.policy with
+           | None -> Error "Please load and compile a circuit or load a fabric first"
+           | Some p -> Ok (p,c.ingresses,c.egresses) end ) >>=
+     fun (fpol,fins,fouts) ->
+     let open Compiler in
+     let naive = Frenetic_Fabric.assemble pol topo c.ingresses c.egresses in
+     let fabric = Frenetic_Fabric.assemble fpol topo fins fouts in
+     let parts = (Frenetic_Fabric.extract naive) in
+     let fab_parts = Frenetic_Fabric.extract fabric in
+     let ins, outs = Frenetic_Fabric.retarget parts fab_parts topo in
+     let ingress = Frenetic_NetKAT_Optimize.mk_big_union ins in
+     let egress  = Frenetic_NetKAT_Optimize.mk_big_union outs in
+     let edge = Frenetic_NetKAT.Union (ingress, egress) in
+     let edge_fdd = compile_local
+         ~options:{ default_compiler_options with cache_prepare = `Keep }
+         edge in
+     Ok { new_config with policy = Some pol;
+                       ingresses = c.ingresses; egresses = c.egresses;
+                       fdd = Some edge_fdd })
+  
+let compile (c:compile) : (string, string) Result.t = match c with
+  | CLocal -> begin match state.naive with
+    | None -> Error "No policy specified. Please load with `load policy` command."
+    | Some c ->
+      compile_local c >>| fun c' ->
+      state.naive <- Some c';
+      "Local naive policy compiled successfully";
+    end
+  | CGlobal -> begin match state.naive with
+    | None -> Error "No policy specified. Please load with `load policy` command."
+    | Some c ->
+      compile_global c >>| fun c' ->
+      state.naive <- Some c';
+      "Global naive policy compiled successfully" end
+  | CFabric -> begin match state.fabric with
+      | None -> Error "No fabric specified. Please load with `load fabric` command."
+      | Some f ->
+        compile_fabric f >>| fun f' ->
+        state.fabric <- Some f';
+        "Fabric compiled successfully" end
+  | CCircuit -> begin match state.fabric with
+      | None -> Error "No circuits specified. Please load with `load circuit` command."
+      | Some f ->
+        compile_circuit f >>| fun f' ->
+        state.fabric <- Some f';
+        "Circuit compiled successfully" end
+  | CEdge -> begin match state.naive, state.fabric,state.topology with
+      | Some c, Some f, Some t ->
+        compile_edge c f t >>| fun c ->
+        state.edge <- Some c;
+        "Edge policies compiled successfully"
+      | _ -> Error "Edge compilation requires naive policy, fabric and topology"
+    end
+
+let post (uri:Uri.t) (body:string) =
+  let open Cohttp.Body in
+  try_with (fun () ->
+  Cohttp_async.Client.post ~body:(`String body) uri >>=
+  fun (_,body) -> Cohttp_async.Body.to_string body) >>=
+  (function
+    | Ok s -> return( Ok s )
+    | Error e -> return( Error( Exn.to_string e )))
+
+let install_fdd ?(host="localhost") ?(port=6634) (fdd:fdd) (swids:switchId list) =
+  List.map swids ~f:(fun swid ->
+      let path = String.concat ~sep:"/" ["install"; Int64.to_string swid] in
+      let uri = Uri.make ~host:host ~port:port ~path:path () in
+      try
+        let table =  Compiler.to_table swid fdd in
+        let json = (Frenetic_NetKAT_SDN_Json.flowTable_to_json table) in
+        let body = Yojson.Basic.to_string json in
+        post uri body
+      with Not_found ->
+        return (Error (sprintf "No table found for swid %Ld\n%!" swid)))
+
+let install_naive c swids = match c.fdd with
+  | Some fdd -> install_fdd fdd swids
+  | None -> [ return ( Error "Please compile a naive policy first" )]
+
+let install_config c = match c.fdd with
+  | Some fdd ->
+    let swids = List.dedup (List.rev_append
+                  (List.map c.ingresses fst)
+                  (List.map c.egresses fst)) in
+    install_fdd fdd swids
+  | None -> [ return ( Error "Please compile the appropriate policy first" )]
+
+let install_fabric f = match f.config with
+  | Some c -> install_config c
+  | None -> [ return ( Error "Please compile a fabric first" )]
+
+let install (i:install) = match i with
+  | INaive swids -> begin match state.naive with
+      | Some c -> install_naive c swids
+      | None -> [ return ( Error "Please load and compile a naive policy first" )] end
+  | IEdge -> begin match state.edge with
+      | Some c -> install_config c
+      | None -> [ return ( Error "Please load and compile a fabric and naive policy first" )]
+    end
+  | IFabric -> begin match state.fabric with
+      | Some f -> install_fabric f
+      | None -> [ return ( Error "Please load and compile a fabric first" )]
+    end
+
+let print_result r : unit = match r with
+  | Ok msg  -> printf "Success: %s\n" msg
+  | Error e -> printf "Error: %s\n" e
+
+let print_deferred_results rs =
+  Deferred.all rs >>>
+  List.iter ~f:(function
+      | Error e -> printf "Error: %s\n" e
+      | Ok m -> printf "Success: %s\n" m)
+
+let command (com:command) = match com with
+  | Load l ->
+    load l |> print_result
+  | Compile c ->
+    compile c |> print_result
+  | Install i ->
+    install i |> print_deferred_results
+  | Quit ->
+    print_endline "Goodbye!";
+    Shutdown.shutdown 0
+  | Blank -> ()
+
+
+
+let handle (line: string) : unit =
+  match (MParser.parse_string Parser.command line []) with
+  | Success com     -> command com
+  | Failed (msg, e) -> print_endline msg
+
+let rec repl ?(prompt="powershell> ") () : unit Deferred.t =
+  printf "%s%!" prompt;
+  Reader.read_line (Lazy.force Reader.stdin) >>=
+  ( fun line -> match line with
+      | `Eof ->
+        return ( Shutdown.shutdown 0 )
+      | `Ok line ->
+        handle line;
+        repl ())
+
+let main () : unit =
+  Log.set_output [Async.Std.Log.Output.file `Text log_filename];
+  printf "Frenetic PowerShell v 1.0\n%!";
+  printf "Type `help` for a list of commands\n%!";
+  ignore(repl ())
