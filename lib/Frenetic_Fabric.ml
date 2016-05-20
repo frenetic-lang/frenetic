@@ -9,6 +9,8 @@ type policy = Frenetic_NetKAT.policy
 type fabric = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
 type stream = (policy * policy)
 type loc = (switchId * portId)
+type located_stream = ( loc * loc * stream )
+
 type correlation =
   | Exact
   | Adjacent of portId * portId
@@ -418,3 +420,46 @@ let retarget (ideal:stream list) (fabric: stream list) (topo:policy) =
   let precedes = precedes loc_preds in
   let succeeds = succeeds loc_succs in
   imprint ideal_located fabric_located precedes succeeds
+
+
+module OverNode = struct
+  type t = (switchId * portId)
+
+  let default = (0L, 0l)
+
+  let compare l1 l2 = Pervasives.compare l1 l2
+  let hash l1       = Hashtbl.hash l1
+
+  let equal (sw,pt) (sw',pt') =
+    sw = sw' && pt = pt'
+
+  let to_string (sw,pt) = sprintf "(%Ld:%ld)" sw pt
+end
+
+module OverEdge = struct
+  open Frenetic_NetKAT
+
+  type t = { matching     : correlation
+           ; source       : loc
+           ; sink         : loc
+           ; condition    : pred
+           ; modification : policy }
+
+  let default = { matching     = Exact
+                ; source       = (0L, 0l)
+                ; sink         = (0L, 0l)
+                ; condition    = True
+                ; modification = Filter True }
+
+  let compare = Pervasives.compare
+  let hash    = Hashtbl.hash
+  let equal   = (=)
+end
+
+module Overlay = struct
+  module G = Graph.Persistent.Digraph.ConcreteBidirectionalLabeled
+      (OverNode)
+      (OverEdge)
+
+  include G
+end
