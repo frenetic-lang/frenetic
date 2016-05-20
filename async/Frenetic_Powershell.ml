@@ -86,9 +86,9 @@ type compile =
   | CEdge                       (* Compile the naive policy atop the fabric *)
 
 type install =
-  | INaive of switchId list
+  | INaive  of switchId list
+  | IFabric of switchId list
   | IEdge
-  | IFabric
 
 type command =
   | Load of load
@@ -111,6 +111,10 @@ module Parser = struct
   let int_list : (int list, bytes list) MParser.t =
     (char '[' >> many_until (many_chars_until digit (char ';')) (char ']') >>=
      (fun ints -> return (List.map ints ~f:Int.of_string)))
+
+  let switch_list : (switchId list, bytes list) MParser.t =
+    int_list >>= fun ints ->
+    return (List.map ints ~f:Int64.of_int_exn)
 
   (* Parser for lists of locations: (switch, port) pairs written as sw:pt *)
   let loc_list : (loc list, bytes list) MParser.t =
@@ -163,11 +167,11 @@ module Parser = struct
   (* Parser for the install command *)
   let install : (command, bytes list) MParser.t =
     symbol "install" >> (
-      (symbol "policy" >> int_list >>= (fun ints ->
-           let swids = List.map ints ~f:(Int64.of_int_exn) in
-           return( INaive swids ))) <|>
-      (symbol "edge"   >> return IEdge) <|>
-      (symbol "fabric" >> return IFabric)) >>=
+      (symbol "policy" >> switch_list >>= fun swids ->
+           return( INaive swids )) <|>
+      (symbol "fabric" >> switch_list >>= fun swids ->
+       return( IFabric swids )) <|>
+      (symbol "edge"   >> return IEdge)) >>=
     (fun i -> return( Install i))
 
   (* Parser for a blank line *)
@@ -350,6 +354,8 @@ let install_fdd ?(host="localhost") ?(port=6634) (fdd:fdd) (swids:switchId list)
       let uri = Uri.make ~host:host ~port:port ~path:path () in
       try
         let table =  Compiler.to_table swid fdd in
+        printf "Switch: %Ld\n%!" swid;
+        printf "%s\n%!" (Frenetic_OpenFlow.string_of_flowTable table );
         let json = (Frenetic_NetKAT_SDN_Json.flowTable_to_json table) in
         let body = Yojson.Basic.to_string json in
         post uri body
@@ -360,13 +366,15 @@ let install_naive c swids = match c.fdd with
   | Some fdd -> install_fdd fdd swids
   | None -> [ return ( Error "Please compile a naive policy first" )]
 
-let install_config c = match c.fdd with
-  | Some fdd ->
-    let swids = List.dedup (List.rev_append
-                  (List.map c.ingresses fst)
-                  (List.map c.egresses fst)) in
+let install_config ?(switches=[]) c = match c.fdd, switches with
+  | None, _ -> [ return ( Error "Please compile the appropriate policy first" )]
+  | Some fdd, [] ->
+    let open List in
+    let swids = dedup (rev_append
+                         (map c.ingresses fst) (map c.egresses fst)) in
     install_fdd fdd swids
-  | None -> [ return ( Error "Please compile the appropriate policy first" )]
+  | Some fdd, sws ->
+    install_fdd fdd sws
 
 let install (i:install) = match i with
   | INaive swids -> begin match state.naive with
@@ -376,8 +384,8 @@ let install (i:install) = match i with
       | Some c -> install_config c
       | None -> [ return ( Error "Please load and compile a fabric and naive policy first" )]
     end
-  | IFabric -> begin match state.fabric with
-      | Some f -> install_config f.config
+  | IFabric swids -> begin match state.fabric with
+      | Some f -> install_config ~switches:swids f.config
       | None -> [ return ( Error "Please load and compile a fabric first" )]
     end
 
