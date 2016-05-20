@@ -255,15 +255,19 @@ let succeeds tbl (sw,_) (sw',pt') =
   | None -> None
 
 let combine_locations ?(hdr="Clash detected") p1 p2 = match p1, p2 with
-  | (None, None), (None, None) -> (None, None)
-  | (Some sw, None), (None, Some pt)
-  | (None, Some pt), (Some sw, None)
-  | (Some sw, Some pt), (None, None)
-  | (None, None), (Some sw, Some pt) -> (Some sw, Some pt)
-  | (Some sw, None), (None, None)
-  | (None, None), (Some sw, None) -> (Some sw, None)
-  | (None, Some pt), (None, None)
-  | (None, None), (None, Some pt) -> (None, Some pt)
+  | (None    , None    ), (None,    None) ->
+    (None, None)
+  | (Some sw , None    ), (None,    Some pt)
+  | (None    , Some pt ), (Some sw, None)
+  | (Some sw , Some pt ), (None,    None)
+  | (None    , None    ), (Some sw, Some pt) ->
+    (Some sw, Some pt)
+  | (Some sw , None    ), (None,    None)
+  | (None    , None    ), (Some sw, None) ->
+    (Some sw, None)
+  | (None    , Some pt ), (None, None)
+  | (None    , None    ), (None, Some pt) ->
+    (None, Some pt)
   | (sw,pt), (sw',pt') ->
     let reason = begin match sw, pt, sw', pt' with
       | Some sw, _, Some sw', _ -> sprintf "Clashing switches %Ld and %Ld." sw sw'
@@ -275,9 +279,9 @@ let combine_locations ?(hdr="Clash detected") p1 p2 = match p1, p2 with
 let locate_from_options (swopt, ptopt) : (loc, string) Result.t =
   match swopt, ptopt with
   | Some sw, Some pt -> Ok (sw,pt)
-  | Some sw, None -> Error (sprintf "No port specified for switch %Ld" sw)
-  | None, Some pt -> Error (sprintf "No switch specified for port %ld" pt)
-  | None, None -> Error "No switch or port specified"
+  | Some sw, None    -> Error (sprintf "No port specified for switch %Ld" sw)
+  | None, Some pt    -> Error (sprintf "No switch specified for port %ld" pt)
+  | None, None       -> Error "No switch or port specified"
 
 let locate_from_header hv =
   let open Frenetic_NetKAT in
@@ -290,10 +294,10 @@ let locate_from_sink policy : (loc,string) Result.t =
   let open Frenetic_NetKAT in
   let hdr = "Clash in sinks" in
   let rec aux policy = match policy with
-  | Mod hv -> locate_from_header hv
+  | Mod hv         -> locate_from_header hv
   | Union (p1, p2) -> combine_locations ~hdr:hdr (aux p1) (aux p2)
-  | Seq (p1, p2) -> combine_locations ~hdr:hdr (aux p1) (aux p2)
-  | Star p -> aux p
+  | Seq (p1, p2)   -> combine_locations ~hdr:hdr (aux p1) (aux p2)
+  | Star p         -> aux p
   | _ -> (None, None) in
   locate_from_options (aux policy)
 
@@ -306,11 +310,11 @@ let locate_from_source policy =
     | And(p1, p2) -> combine_locations ~hdr:hdr (locate_from_filter p1) (locate_from_filter p2)
     | Or (p1, p2) -> combine_locations ~hdr:hdr (locate_from_filter p1) (locate_from_filter p2) in
   let rec aux policy = match policy with
-  | Filter f -> locate_from_filter f
+  | Filter f       -> locate_from_filter f
   | Union (p1, p2) -> combine_locations ~hdr:hdr (aux p1) (aux p2)
-  | Seq (p1, p2) -> combine_locations ~hdr:hdr (aux p1) (aux p2)
-  | Star p -> aux p
-  | _ -> (None, None) in
+  | Seq (p1, p2)   -> combine_locations ~hdr:hdr (aux p1) (aux p2)
+  | Star p         -> aux p
+  | _              -> (None, None) in
   locate_from_options (aux policy)
 
 let locate_endpoints ((pol, pol'):stream) =
@@ -351,14 +355,14 @@ let correlate ideal_src ideal_sink fab_src fab_sink
     | None, None -> Uncorrelated
 
 let imprint ideal fabric precedes succeeds =
-  let open Frenetic_NetKAT in
-  let rec remove_switch policy = match policy with
-    | Union (p, Mod(Switch _)) -> p
-    | Union (Mod(Switch _), p) -> p
-    | Seq (p, Mod(Switch _)) -> p
-    | Seq (Mod(Switch _), p) -> p
-    | Star p -> Star (remove_switch p)
-    | p -> p in
+ let open Frenetic_NetKAT in
+ let rec remove_switch policy = match policy with
+ | Union (p, Mod(Switch _)) -> p
+ | Union (Mod(Switch _), p) -> p
+ | Seq (p, Mod(Switch _))   -> p
+ | Seq (Mod(Switch _), p)   -> p
+ | Star p                   -> Star (remove_switch p)
+ | p                        -> p in
 
   let seq = Frenetic_NetKAT_Optimize.mk_big_seq in
   let ingress,egress,_ = List.fold ideal ~init:([], [],1) ~f:(fun acc ideal ->
