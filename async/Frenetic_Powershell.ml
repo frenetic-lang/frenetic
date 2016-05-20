@@ -219,8 +219,14 @@ module Source = struct
     | Error e -> print_endline e; Error e
 end
 
+let string_of_policy = Frenetic_NetKAT_Pretty.string_of_policy
+
 let string_of_loc (s,p) =
   sprintf "%Ld:%ld" s p
+
+let string_of_locs ls =
+  sprintf "[%s]"
+    (String.concat ~sep:"; " (List.map ls string_of_loc))
 
 let string_of_guarded_source s i o =
   let s' = match s with
@@ -230,6 +236,12 @@ let string_of_guarded_source s i o =
     s'
     ( String.concat ~sep:"; " (List.map i ~f:string_of_loc) )
     ( String.concat ~sep:"; " (List.map i ~f:string_of_loc) )
+
+let string_of_config c =
+  sprintf "Policy:\n%s\nIngresses:%s\nEgresses%s\n"
+    (Frenetic_NetKAT_Pretty.string_of_policy c.policy)
+    (string_of_locs c.ingresses)
+    (string_of_locs c.egresses)
 
 let config (s:source) (i:loc list) (o:loc list) : (configuration, string) Result.t =
   Source.to_policy s >>| fun pol ->
@@ -243,10 +255,12 @@ let load (l:load) : (string, string) Result.t =
   | LNaive    (s,i,o) ->
     config s i o >>| fun c ->
     state.naive <- Some c ;
-    "Loaded new naive policy"
+    log "Loaded naive configuration:\n%s\n" (string_of_config c);
+    "Loaded new naive policy."
   | LFabric   (s,i,o) ->
     config s i o >>| fun c ->
     state.fabric <- Some { circuit = None ; config = c };
+    log "Loaded fabric configuration:\n%s\n" (string_of_config c);
     "Loaded new fabric policy"
   | LCircuit  (s,i,o) ->
     Source.to_policy s >>= fun p ->
@@ -255,16 +269,21 @@ let load (l:load) : (string, string) Result.t =
     let pol = local_policy_of_config c in
     let conf = { new_config with policy = pol; ingresses = i; egresses = o } in
     state.fabric <- Some { circuit = Some (c,i,o); config = conf };
+    log "Loaded circuit policy:\n%s\n" (string_of_policy p);
+    log "Compiled circuit configuration:\n%s\n" (string_of_config conf);
     Ok "Loaded new circuit policy"
   | LTopo s ->
     Source.to_policy s >>| fun t ->
     state.topology <- Some t;
+    log "Loaded topology:\n%s\n" (string_of_policy t);
     "Loaded new topology"
 
 let compile_local (c:configuration) =
   let open Compiler in
   try
     let fdd = compile_local ~options:keep_cache c.policy in
+    log "Compiled local policy to FDD:\n%s\n"
+      (Frenetic_Fdd.FDK.to_string fdd);
     Ok { c with fdd = Some fdd }
   with Non_local ->
     Error "Given policy is not local. It contains links."
@@ -272,10 +291,15 @@ let compile_local (c:configuration) =
 let compile_global (c:configuration) =
   let open Compiler in
   let automaton = compile_to_automaton ~options:keep_cache c.policy in
+  log "Compiled global policy to automaton:\n%s\n"
+      (Compiler.automaton_to_string automaton);
   let fdd = compile_from_automaton automaton in
+  log "Compiled global policy to FDD:\n%s\n"
+    (Frenetic_Fdd.FDK.to_string fdd);
   Ok { c with fdd = Some fdd; automaton = Some automaton }
 
 let compile_fabric (f:fabric) =
+  log "Compiling fabric\n";
   compile_local f.config >>| fun c' ->
   { f with config = c' }
 
@@ -286,20 +310,28 @@ let compile_circuit (f:fabric) = match f.circuit with
     let conf = { new_config with policy    = l;
                                  ingresses = i;
                                  egresses  = o } in
+    log "Compiled circuit to configuration:\n%s\n" (string_of_config conf);
+    log "Compiling circuit configuration\n";
     compile_local conf >>| fun c' ->
     { f with config = c' }
 
 let compile_edge c f topo =
   let open Compiler in
   let (fpol,fins,fouts) = (f.config.policy, f.config.ingresses, f.config.egresses) in
-  let naive = Frenetic_Fabric.assemble c.policy topo c.ingresses c.egresses in
-  let fabric = Frenetic_Fabric.assemble fpol topo fins fouts in
-  let parts = (Frenetic_Fabric.extract naive) in
-  let fab_parts = Frenetic_Fabric.extract fabric in
-  let ins, outs = Frenetic_Fabric.retarget parts fab_parts topo in
+
+   let naive     = Frenetic_Fabric.assemble c.policy topo c.ingresses c.egresses in
+   let fabric    = Frenetic_Fabric.assemble fpol topo fins fouts in
+   let parts     = (Frenetic_Fabric.extract naive) in
+   let fab_parts = Frenetic_Fabric.extract fabric in
+   let ins, outs = Frenetic_Fabric.retarget parts fab_parts topo in
+
   let ingress = Frenetic_NetKAT_Optimize.mk_big_union ins in
   let egress  = Frenetic_NetKAT_Optimize.mk_big_union outs in
-  let edge = Frenetic_NetKAT.Union (ingress, egress) in
+  let edge    = Frenetic_NetKAT.Union (ingress, egress) in
+
+  log "Retargeted ingress policy:\n%s\n" (string_of_policy ingress);
+  log "Retargeted egress policy:\n%s\n" (string_of_policy egress);
+
   let edge_fdd = compile_local ~options:keep_cache edge in
   Ok { new_config with policy = edge;
                        ingresses = c.ingresses; egresses = c.egresses;
@@ -356,6 +388,8 @@ let install_fdd ?(host="localhost") ?(port=6634) (fdd:fdd) (swids:switchId list)
         let table =  Compiler.to_table swid fdd in
         let json = (Frenetic_NetKAT_SDN_Json.flowTable_to_json table) in
         let body = Yojson.Basic.to_string json in
+        log "Installing flowtable on switch %Ld:\n%s\n" swid
+          (Frenetic_OpenFlow.string_of_flowTable table);
         post uri body
       with Not_found ->
         return (Error (sprintf "No table found for swid %Ld\n%!" swid)))
