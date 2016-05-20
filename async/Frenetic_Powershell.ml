@@ -14,6 +14,8 @@ type automaton = Compiler.automaton
 let log_filename = "frenetic.log"
 let log = Log.printf
 let (>>|) = Result.(>>|)
+let keep_cache = { Compiler.default_compiler_options
+                   with cache_prepare = `Keep }
 
 type loc = (switchId * portId)
 
@@ -27,14 +29,14 @@ type element =
   | Circuit of circuit
   | Topology of policy
 
-type configuration = { policy     : policy option
+type configuration = { policy     : policy
                      ; fdd        : fdd option
                      ; automaton  : automaton option
                      ; ingresses  : loc list
                      ; egresses   : loc list
                      }
 
-let new_config = { policy    = None
+let new_config = { policy    = Filter True
                  ; fdd       = None
                  ; automaton = None
                  ; ingresses = []
@@ -42,7 +44,7 @@ let new_config = { policy    = None
                  }
 
 type fabric = { circuit : (config * loc list * loc list) option
-              ; config  : configuration option }
+              ; config  : configuration }
 
 type state = { mutable naive    : configuration option
              ; mutable fabric   : fabric option
@@ -227,7 +229,7 @@ let string_of_guarded_source s i o =
 
 let config (s:source) (i:loc list) (o:loc list) : (configuration, string) Result.t =
   Source.to_policy s >>| fun pol ->
-  { new_config with policy = Some pol ;
+  { new_config with policy = pol ;
                     ingresses = i ;
                     egresses = o }
 
@@ -240,84 +242,65 @@ let load (l:load) : (string, string) Result.t =
     "Loaded new naive policy"
   | LFabric   (s,i,o) ->
     config s i o >>| fun c ->
-    state.fabric <- Some { circuit = None ; config = Some c };
+    state.fabric <- Some { circuit = None ; config = c };
     "Loaded new fabric policy"
   | LCircuit  (s,i,o) ->
     Source.to_policy s >>= fun p ->
     config_of_policy p >>= fun c ->
     validate_config c  >>= fun c ->
-    state.fabric <- Some { circuit = Some (c,i,o); config = None };
+    let pol = local_policy_of_config c in
+    let conf = { new_config with policy = pol; ingresses = i; egresses = o } in
+    state.fabric <- Some { circuit = Some (c,i,o); config = conf };
     Ok "Loaded new circuit policy"
   | LTopo s ->
     Source.to_policy s >>| fun t ->
     state.topology <- Some t;
     "Loaded new topology"
 
-let compile_local (c:configuration) = match c.policy with
-  | None -> Error "No policy specified. Please load with `load (policy|fabric)` command."
-  | Some p ->
-    let open Compiler in
-    try
-      let fdd = (compile_local
-                   ~options:{ default_compiler_options with cache_prepare = `Keep }
-                   p) in
-      Ok { c with fdd = Some fdd }
-    with Non_local ->
-      Error "Given policy is not local. It contains links."
+let compile_local (c:configuration) =
+  let open Compiler in
+  try
+    let fdd = compile_local ~options:keep_cache c.policy in
+    Ok { c with fdd = Some fdd }
+  with Non_local ->
+    Error "Given policy is not local. It contains links."
 
-let compile_global (c:configuration) = match c.policy with
-  | None -> Error "No policy specified. Please load with `load policy <filename>` command."
-  | Some p ->
+let compile_global (c:configuration) =
     let open Compiler in
-    let automaton = (compile_to_automaton
-                       ~options:{ default_compiler_options with cache_prepare = `Keep }
-                       p) in
+    let automaton = compile_to_automaton ~options:keep_cache c.policy in
     let fdd = compile_from_automaton automaton in
     Ok { c with fdd = Some fdd; automaton = Some automaton }
 
-let compile_fabric (f:fabric) = match f.config with
-  | None -> Error "No fabric specified. Please load with `load fabric` command."
-  | Some c ->
-    compile_local c >>| fun c' ->
-    { f with config = Some c' }
+let compile_fabric (f:fabric) =
+    compile_local f.config >>| fun c' ->
+    { f with config = c' }
 
 let compile_circuit (f:fabric) = match f.circuit with
   | None -> Error "No circuit specified. Please load with `load circuit` command."
   | Some (c,i,o) ->
     let l = local_policy_of_config c in
-    let conf = { new_config with policy    = Some l;
+    let conf = { new_config with policy    = l;
                                  ingresses = i;
                                  egresses  = o } in
     compile_local conf >>| fun c' ->
-    { f with config = Some c' }
+    { f with config = c' }
 
 let compile_edge c f topo =
-  let (>>=) = Result.(>>=) in
-  (match c.policy with
-   | None -> Error "Edge compilation require a policy. Use `load policy` command."
-   | Some p -> Ok p) >>=
-  (fun pol -> ( match f.config with
-       | None -> Error "Please load and compile a circuit or load a fabric first"
-       | Some c -> begin match c.policy with
-           | None -> Error "Please load and compile a circuit or load a fabric first"
-           | Some p -> Ok (p,c.ingresses,c.egresses) end ) >>=
-     fun (fpol,fins,fouts) ->
-     let open Compiler in
-     let naive = Frenetic_Fabric.assemble pol topo c.ingresses c.egresses in
-     let fabric = Frenetic_Fabric.assemble fpol topo fins fouts in
-     let parts = (Frenetic_Fabric.extract naive) in
-     let fab_parts = Frenetic_Fabric.extract fabric in
-     let ins, outs = Frenetic_Fabric.retarget parts fab_parts topo in
-     let ingress = Frenetic_NetKAT_Optimize.mk_big_union ins in
-     let egress  = Frenetic_NetKAT_Optimize.mk_big_union outs in
-     let edge = Frenetic_NetKAT.Union (ingress, egress) in
-     let edge_fdd = compile_local
-         ~options:{ default_compiler_options with cache_prepare = `Keep }
-         edge in
-     Ok { new_config with policy = Some pol;
+  let open Compiler in
+  let (fpol,fins,fouts) = (f.config.policy, f.config.ingresses, f.config.egresses) in
+  let naive = Frenetic_Fabric.assemble c.policy topo c.ingresses c.egresses in
+  let fabric = Frenetic_Fabric.assemble fpol topo fins fouts in
+  let parts = (Frenetic_Fabric.extract naive) in
+  let fab_parts = Frenetic_Fabric.extract fabric in
+  let ins, outs = Frenetic_Fabric.retarget parts fab_parts topo in
+  let ingress = Frenetic_NetKAT_Optimize.mk_big_union ins in
+  let egress  = Frenetic_NetKAT_Optimize.mk_big_union outs in
+  let edge = Frenetic_NetKAT.Union (ingress, egress) in
+  let edge_fdd = compile_local ~options:keep_cache edge in
+  Ok { new_config with policy = edge;
                        ingresses = c.ingresses; egresses = c.egresses;
-                       fdd = Some edge_fdd })
-  
+                       fdd = Some edge_fdd }
+
 let compile (c:compile) : (string, string) Result.t = match c with
   | CLocal -> begin match state.naive with
     | None -> Error "No policy specified. Please load with `load policy` command."
@@ -385,10 +368,6 @@ let install_config c = match c.fdd with
     install_fdd fdd swids
   | None -> [ return ( Error "Please compile the appropriate policy first" )]
 
-let install_fabric f = match f.config with
-  | Some c -> install_config c
-  | None -> [ return ( Error "Please compile a fabric first" )]
-
 let install (i:install) = match i with
   | INaive swids -> begin match state.naive with
       | Some c -> install_naive c swids
@@ -398,7 +377,7 @@ let install (i:install) = match i with
       | None -> [ return ( Error "Please load and compile a fabric and naive policy first" )]
     end
   | IFabric -> begin match state.fabric with
-      | Some f -> install_fabric f
+      | Some f -> install_config f.config
       | None -> [ return ( Error "Please load and compile a fabric first" )]
     end
 
