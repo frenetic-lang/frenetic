@@ -110,13 +110,6 @@ let autoshell : Command.t =
       ++ default_spec)
     (run Frenetic_Autoshell.main )
 
-let powershell : Command.t =
-  Command.basic
-    ~summary:"Invokes frenetic powershell."
-    Command.Spec.(empty
-      ++ default_spec)
-    (run Frenetic_Powershell.main )
-
 let compile_server : Command.t =
   Command.basic
     ~summary:"Invokes compile server."
@@ -164,7 +157,6 @@ let main : Command.t =
     ~summary:"Invokes the specified Frenetic module."
     [ ("shell", shell)
     ; ("autoshell", autoshell)
-    ; ("powershell", powershell)
     ; ("compile-server", compile_server)
     ; ("http-controller", http_controller)
     ; ("openflow13", openflow13_controller)
