@@ -51,3 +51,16 @@ module Pol = struct
     | Dup
     [@@deriving sexp, compare, show]
 end
+
+module Dist = struct
+  module M = struct
+    type t = Hist.SetMap [@@deriving sexp, compare, show]
+
+    let return x =
+      Map.singleton x 1.0
+
+    let map = `Custom fun t ~f ->
+      Map.to_alist t
+      |
+
+
