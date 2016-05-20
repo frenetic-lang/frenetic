@@ -94,6 +94,7 @@ type command =
   | Load of load
   | Compile of compile
   | Install of install
+  | Show of state_part
   | Blank
   | Quit
 
@@ -174,6 +175,16 @@ module Parser = struct
       (symbol "edge"   >> return IEdge)) >>=
     (fun i -> return( Install i))
 
+  (* Parser for the show command *)
+  let show : (command, bytes list) MParser.t =
+    symbol "show" >> (
+      (symbol "policy"   >> return SNaive) <|>
+      (symbol "fabric"   >> return SFabric) <|>
+      (symbol "edge"     >> return SEdge) <|>
+      (symbol "topology" >> return STopology) <|>
+      (symbol "circuit"  >> return SCircuit)) >>=
+    (fun s -> return( Show s ))
+
   (* Parser for a blank line *)
   let blank : (command, bytes list) MParser.t =
     eof >> return Blank
@@ -186,6 +197,7 @@ module Parser = struct
     load    <|>
     compile <|>
     install <|>
+    show    <|>
     blank   <|>
     quit
 
@@ -421,6 +433,30 @@ let install (i:install) = match i with
       | None -> [ return ( Error "Please load and compile a fabric first" )]
     end
 
+let show (s:state_part) = match s with
+  | SNaive -> begin match state.naive with
+      | Some c -> print_endline (string_of_config c)
+      | None -> print_endline "No naive policy defined." end
+  | SFabric -> begin match state.fabric with
+      | Some f -> print_endline (string_of_config f.config)
+      | None -> print_endline "No fabric defined." end
+  | SEdge -> begin match state.edge with
+      | Some c -> print_endline (string_of_config c)
+      | None -> print_endline "No edge defined." end
+  | STopology -> begin match state.topology with
+      | Some t -> print_endline (string_of_policy t)
+      | None   -> print_endline "No topology defined" end
+  | SCircuit -> begin match state.fabric with
+      | Some f -> begin match f.circuit with
+          | Some c ->
+            let c',i,o = c in
+            printf "Ingresses:\n%s\n" (string_of_locs i);
+            printf "Egresses:\n%s\n" (string_of_locs o);
+            print_endline (Frenetic_Circuit_NetKAT.string_of_config c')
+          | None   -> print_endline "Fabric defined directly, without circuit"
+        end
+      | None -> print_endline "No circuit defined" end
+
 let print_result r : unit = match r with
   | Ok msg  -> printf "Success: %s\n" msg
   | Error e -> printf "Error: %s\n" e
@@ -438,6 +474,7 @@ let command (com:command) = match com with
     compile c |> print_result
   | Install i ->
     install i |> print_deferred_results
+  | Show s -> show s
   | Quit ->
     print_endline "Goodbye!";
     Shutdown.shutdown 0
