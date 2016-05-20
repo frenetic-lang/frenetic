@@ -22,6 +22,10 @@ exception CorrelationException of string
 
 let strip_vlan = 0xffff
 
+let compile_local =
+  let open Compiler in
+  compile_local ~options:{ default_compiler_options with cache_prepare = `Keep }
+
 let mk_flow (pat:Pattern.t) (actions:group) : flow =
   { pattern = pat
   ; action = actions
@@ -97,7 +101,7 @@ let shortest_path (net:Net.Topology.t)
 
 let of_local_policy (pol:policy) (sws:switchId list) : fabric =
   let fabric = Hashtbl.Poly.create ~size:(List.length sws) () in
-  let compiled = Compiler.compile_local pol in
+  let compiled = compile_local pol in
   List.iter sws ~f:(fun swid ->
       let table = (Compiler.to_table swid compiled) in
       match Hashtbl.Poly.add fabric ~key:swid ~data:table with
@@ -186,7 +190,7 @@ let extract (pol:policy) : (policy * policy) list =
     | _ -> failwith "Path through FDD not long enough to paritition"
   in
   let deduped = remove_dups pol in
-  let fdd = Compiler.compile_local deduped in
+  let fdd = compile_local deduped in
   let paths = get_paths fdd [] in
   List.map paths ~f:partition
 

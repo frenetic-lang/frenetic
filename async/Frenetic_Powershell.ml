@@ -270,14 +270,14 @@ let compile_local (c:configuration) =
     Error "Given policy is not local. It contains links."
 
 let compile_global (c:configuration) =
-    let open Compiler in
-    let automaton = compile_to_automaton ~options:keep_cache c.policy in
-    let fdd = compile_from_automaton automaton in
-    Ok { c with fdd = Some fdd; automaton = Some automaton }
+  let open Compiler in
+  let automaton = compile_to_automaton ~options:keep_cache c.policy in
+  let fdd = compile_from_automaton automaton in
+  Ok { c with fdd = Some fdd; automaton = Some automaton }
 
 let compile_fabric (f:fabric) =
-    compile_local f.config >>| fun c' ->
-    { f with config = c' }
+  compile_local f.config >>| fun c' ->
+  { f with config = c' }
 
 let compile_circuit (f:fabric) = match f.circuit with
   | None -> Error "No circuit specified. Please load with `load circuit` command."
@@ -354,8 +354,6 @@ let install_fdd ?(host="localhost") ?(port=6634) (fdd:fdd) (swids:switchId list)
       let uri = Uri.make ~host:host ~port:port ~path:path () in
       try
         let table =  Compiler.to_table swid fdd in
-        printf "Switch: %Ld\n%!" swid;
-        printf "%s\n%!" (Frenetic_OpenFlow.string_of_flowTable table );
         let json = (Frenetic_NetKAT_SDN_Json.flowTable_to_json table) in
         let body = Yojson.Basic.to_string json in
         post uri body
