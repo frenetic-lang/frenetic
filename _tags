@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 31e3dce1fa263dc7b06584f511f903ca)
+# DO NOT EDIT (digest: 952cfa9bd88fce052247a2eedf343d4b)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -25,6 +25,8 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: package(ocamlgraph)
 <lib/*.ml{,i,y}>: package(ppx_deriving.enum)
 <lib/*.ml{,i,y}>: package(ppx_deriving.eq)
+<lib/*.ml{,i,y}>: package(ppx_deriving.make)
+<lib/*.ml{,i,y}>: package(ppx_deriving.show)
 <lib/*.ml{,i,y}>: package(ppx_jane)
 <lib/*.ml{,i,y}>: package(str)
 <lib/*.ml{,i,y}>: package(tcpip)
@@ -41,6 +43,8 @@ true: annot, bin_annot
 "examples/probnetkat/Test.byte": package(ocamlgraph)
 "examples/probnetkat/Test.byte": package(ppx_deriving.enum)
 "examples/probnetkat/Test.byte": package(ppx_deriving.eq)
+"examples/probnetkat/Test.byte": package(ppx_deriving.make)
+"examples/probnetkat/Test.byte": package(ppx_deriving.show)
 "examples/probnetkat/Test.byte": package(ppx_jane)
 "examples/probnetkat/Test.byte": package(str)
 "examples/probnetkat/Test.byte": package(tcpip)
@@ -57,6 +61,8 @@ true: annot, bin_annot
 <examples/probnetkat/*.ml{,i,y}>: package(ocamlgraph)
 <examples/probnetkat/*.ml{,i,y}>: package(ppx_deriving.enum)
 <examples/probnetkat/*.ml{,i,y}>: package(ppx_deriving.eq)
+<examples/probnetkat/*.ml{,i,y}>: package(ppx_deriving.make)
+<examples/probnetkat/*.ml{,i,y}>: package(ppx_deriving.show)
 <examples/probnetkat/*.ml{,i,y}>: package(ppx_jane)
 <examples/probnetkat/*.ml{,i,y}>: package(str)
 <examples/probnetkat/*.ml{,i,y}>: package(tcpip)
@@ -77,6 +83,8 @@ true: annot, bin_annot
 <syntax/*.ml{,i,y}>: package(ocamlgraph)
 <syntax/*.ml{,i,y}>: package(ppx_deriving.enum)
 <syntax/*.ml{,i,y}>: package(ppx_deriving.eq)
+<syntax/*.ml{,i,y}>: package(ppx_deriving.make)
+<syntax/*.ml{,i,y}>: package(ppx_deriving.show)
 <syntax/*.ml{,i,y}>: package(ppx_jane)
 <syntax/*.ml{,i,y}>: package(str)
 <syntax/*.ml{,i,y}>: package(tcpip)
