@@ -1,20 +1,21 @@
 open Core.Std
 
-type xid = Int32.t with sexp
+type xid = Int32.t [@@deriving sexp]
 
 type t = {
   version: int;
   type_code: int;
   length: int;
   xid: xid
-} with sexp
+} [@@deriving sexp]
 
-cstruct ofp_header {
-  uint8_t version;
-  uint8_t typ;
-  uint16_t length;
-  uint32_t xid
-} as big_endian
+[%%cstruct 
+type ofp_header = {
+  version: uint8_t;
+  typ: uint8_t;
+  length: uint16_t;
+  xid: uint32_t
+} [@@big_endian]]
 
 let size = sizeof_ofp_header
 
@@ -38,9 +39,3 @@ let to_string hdr =
   Format.sprintf "{ version = %x, code = %d, len = %d, xid = %ld }"
     hdr.version hdr.type_code hdr.length hdr.xid
 
-let type_code_hello = 0
-let type_code_error = 1
-let type_code_echo_request = 2
-let type_code_echo_reply = 3
-let type_code_features_request = 5
-let type_code_features_reply = 6

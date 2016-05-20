@@ -6,12 +6,22 @@ Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     https://github.com/frenetic-lang/frenetic/contributors
 License:     LGPL
 Plugins:     META (0.3)
-AlphaFeatures: ocamlbuild_more_args
-XOCamlbuildExtraArgs: -cflags -w,-40,-short-paths
+AlphaFeatures: 
+  no_automatic_syntax,
+  ocamlbuild_more_args
+XOCamlbuildExtraArgs: -cflags -w,-40,-short-paths 
 BuildTools:
   ocamlbuild,
-  ocamldoc,
-  camlp4
+  ocamldoc
+# generate standard parser and syntax extension parser from common file
+PreBuildCommand:
+  cppo -q \
+    lib/Frenetic_NetKAT_Parser.cppo.ml -o lib/Frenetic_NetKAT_Parser.ml
+  cppo -q -I lib \
+    syntax/Frenetic_Syntax_Extension_Parser.cppo.ml -o \
+    syntax/Frenetic_Syntax_Extension_Parser.ml
+PostBuildCommand:
+  rm lib/Frenetic_NetKAT_Parser.ml syntax/Frenetic_Syntax_Extension_Parser.ml
 
 Executable probnetkat
   Path: examples/probnetkat
@@ -27,19 +37,16 @@ Test probnetkat_test
 Library frenetic
   Path: lib
   BuildDepends:
-    async,
     base64 (>= 2.0.0),
     camlp4.lib,
     camlp4.extend,
     camlp4,
     core,
     cstruct,
-    cstruct.syntax,
-    fieldslib,
-    fieldslib.syntax,
     ocamlgraph (>= 1.8.6),
-    sexplib,
-    sexplib.syntax,
+    ppx_jane,
+    ppx_deriving.eq,
+    ppx_deriving.enum,
     str,
     tcpip,
     ulex,
@@ -49,9 +56,8 @@ Library frenetic
     Frenetic_Hashcons,
     Frenetic_Bits,
     Frenetic_Fdd,
+    Frenetic_OpenFlow0x04,
     Frenetic_GroupTable0x04,
-    Frenetic_Log,
-    Frenetic_Network,
     Frenetic_NetKAT,
     Frenetic_NetKAT_Optimize,
     Frenetic_NetKAT_Json,
@@ -63,13 +69,31 @@ Library frenetic
     Frenetic_NetKAT_Pretty,
     Frenetic_NetKAT_SDN_Json,
     Frenetic_NetKAT_Semantics,
+    Frenetic_Network,
     Frenetic_OpenFlow,
     Frenetic_OpenFlow_Header,
     Frenetic_OpenFlow0x01,
-    Frenetic_OpenFlow0x04,
     Frenetic_Packet,
     Frenetic_Topology,
     Frenetic_Util,
     Frenetic_Vlr,
     Frenetic_ProbNetKAT
     
+Library syntax
+  Path: syntax
+  Findlibparent: frenetic
+  Findlibname: syntax
+  Install: true
+  BuildDepends:
+    camlp4.lib,
+    camlp4.extend,
+    camlp4.quotations.o,
+    ulex,
+    ipaddr,
+    core,
+    frenetic
+  Modules:
+    Frenetic_Syntax_Extension_Parser
+  XMETAType: syntax
+  XMETARequires: camlp4, ulex, ipaddr, frenetic
+  XMETADescription: Syntax extension writing NetKAT expressions

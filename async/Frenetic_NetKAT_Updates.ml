@@ -14,7 +14,7 @@ open Frenetic_OpenFlow.To0x01
 exception UpdateError
 
 module SwitchMap = Map.Make(struct
-  type t = Frenetic_OpenFlow.switchId with sexp
+  type t = Frenetic_OpenFlow.switchId [@@deriving sexp]
   let compare = compare
 end)
 
@@ -102,7 +102,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
 
   let barrier sw =
     Controller.send_txn sw M.BarrierRequest >>= function
-      | `Ok dl -> dl >>= fun _ -> return (Ok ())
+      | `Ok dl -> return (Ok ())
       | `Eof -> return (Error UpdateError)
 
   let install_flows_for sw_id ?old table =
@@ -159,13 +159,13 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
 
   let clear_policy_for (ver : int) sw_id =
     let open OF10 in
-    let clear_version_message = M.FlowModMsg { from_flow 0
-      { pattern = { Pattern.match_all with Pattern.dlVlan = Some ver }
+    let clear_rule = { pattern = { Pattern.match_all with Pattern.dlVlan = Some ver }
       ; action = []
       ; cookie = 0L
       ; idle_timeout = Permanent
       ; hard_timeout = Permanent
-      } with command = DeleteFlow } in
+    } in
+    let clear_version_message = M.FlowModMsg ( {(from_flow 0 clear_rule) with command = DeleteFlow} ) in
     Monitor.try_with ~name:"PerPacketConsistent.clear_policy_for" (fun () ->
       Controller.send sw_id 5l clear_version_message >>= function
         | `Eof -> raise UpdateError
@@ -224,7 +224,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
     let to_flow_mod prio flow =
       M.FlowModMsg (from_flow prio flow) in
     let to_flow_del prio flow =
-      M.FlowModMsg ({from_flow prio flow with command = DeleteStrictFlow}) in
+      M.FlowModMsg ({(from_flow prio flow) with command = DeleteStrictFlow}) in
     (* Install the new table *)
     let new_flows = List.map new_table ~f:(fun (flow, prio) ->
         to_flow_mod prio flow) in

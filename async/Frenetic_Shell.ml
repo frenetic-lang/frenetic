@@ -97,7 +97,7 @@ module Parser = struct
     (* Use the netkat parser to parse policies *)
     let parse_policy ?(name = "") (pol_str : string) : (policy, string) Result.t =
       try
-        Ok (Frenetic_NetKAT_Parser.policy_from_string pol_str)
+        Ok (Frenetic_NetKAT_Parser.policy_of_string pol_str)
       with Camlp4.PreCast.Loc.Exc_located (error_loc,x) ->
         Error (
           sprintf "Error: %s\n%s"
@@ -207,8 +207,8 @@ let set_order (o : Comp.order) : unit =
      if check_duplicates ls [] then ()
      else
      let curr_order = match (!current_compiler_options).field_order with
-      | `Heuristic -> Field.all_fields
-      | `Default -> Field.all_fields
+      | `Heuristic -> Field.all
+      | `Default -> Field.all
       | `Static fields -> fields
      in
      let removed = List.filter curr_order (compose not (List.mem ls)) in

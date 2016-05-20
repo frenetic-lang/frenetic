@@ -198,13 +198,13 @@ module Make : CONTROLLER = struct
                 { sr_of_match = pat0x01; sr_table_id = 0xff; sr_out_port = None } in
             Controller.send_txn sw_id (OF10.Message.StatsRequestMsg req) >>= function
               | `Eof -> return (0L,0L)
-              | `Ok l -> begin
-                l >>| function
-                  | [OF10.Message.StatsReplyMsg (IndividualFlowRep stats)] ->
-                    (List.sum (module Int64) stats ~f:(fun stat -> stat.packet_count),
-                     List.sum (module Int64) stats ~f:(fun stat -> stat.byte_count))
-                  | _ -> (0L, 0L)
-              end))
+              | `Ok l -> match l with
+                | [OF10.Message.StatsReplyMsg (IndividualFlowRep stats)] ->
+                  return (List.sum (module Int64) stats ~f:(fun stat -> stat.packet_count),
+                   List.sum (module Int64) stats ~f:(fun stat -> stat.byte_count))
+                | _ -> return (0L, 0L)
+          )
+      )
     >>| fun stats ->
       List.fold (List.concat stats) ~init:(0L, 0L)
         ~f:(fun (pkts, bytes) (pkts', bytes') ->
@@ -221,11 +221,9 @@ module Make : CONTROLLER = struct
     let req = OF10.PortRequest (Some (PhysicalPort pt)) in
     Controller.send_txn sw_id (OF10.Message.StatsRequestMsg req) >>= function
       | `Eof -> assert false
-      | `Ok l -> begin
-        l >>| function
-          | [OF10.Message.StatsReplyMsg (PortRep ps)] -> ps
-          | _ -> assert false
-      end
+      | `Ok l -> match l with
+        | [OF10.Message.StatsReplyMsg (PortRep ps)] -> return ps
+        | _ -> assert false
 
   let is_query (name : string) : bool = Hashtbl.Poly.mem stats name
 
@@ -234,8 +232,8 @@ module Make : CONTROLLER = struct
 
     let new_queries = Frenetic_NetKAT_Semantics.queries_of_policy pol in
     (* Discard old queries *)
-    Hashtbl.Poly.filteri_inplace stats
-      ~f:(fun key _ -> List.mem new_queries key);
+    let filterer ~(key:string) ~(data:int64 * int64) = List.mem new_queries key in
+    Hashtbl.Poly.filteri_inplace ~f:filterer stats ;
     (* Queries that have to be saved. *)
     let preserved_queries = Hashtbl.Poly.keys stats in
     (* Initialize new queries to 0 *)

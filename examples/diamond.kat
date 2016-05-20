@@ -1,8 +1,8 @@
-(* This policy works for
+(* This policy works for custom Mininet topo
 
-  sudo mn  --controller=remote --topo=tree,2,2 --mac 
+  sudo python examples/diamond.py
 
-  pingall should succeed
+  pingall should work
 *)
 
 filter ethTyp=0x806;

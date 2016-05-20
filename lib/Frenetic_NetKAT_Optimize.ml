@@ -156,6 +156,10 @@ let rec norm_policy (pol : policy) : policy = match pol with
     let pol' = Seq (norm_policy p, norm_policy q) in
     mk_big_seq (list_of_seq pol')
 
+(*
+   TODO(car): flatten_union in Optimize outputs the unioned policies in reverse order.  While this is semantically equivalent,
+   it's probably not right.  
+ *)
 let rec flatten_union_k (pol : policy)
   (acc : policy list)
   (k : policy list -> 'a) : 'a = match pol with

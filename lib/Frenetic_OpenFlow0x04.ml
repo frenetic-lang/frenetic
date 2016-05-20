@@ -13,19 +13,19 @@ type uint48 = uint64
 type uint24 = int32
 type uint12 = uint16
 
-type 'a mask = { m_value : 'a; m_mask : 'a option } with sexp
+type 'a mask = { m_value : 'a; m_mask : 'a option } [@@deriving sexp]
 
-type 'a asyncMask = { m_master : 'a ; m_slave : 'a } with sexp
+type 'a asyncMask = { m_master : 'a ; m_slave : 'a } [@@deriving sexp]
 
 type payload =
   | Buffered of int32 * Cstruct.t
   | NotBuffered of Cstruct.t
-  with sexp
+  [@@deriving sexp]
 
-type xid = Frenetic_OpenFlow_Header.xid with sexp
-type int12 = int16 with sexp
-type int24 = int32 with sexp
-type int128 = int64 * int64 with sexp
+type xid = Frenetic_OpenFlow_Header.xid [@@deriving sexp]
+type int12 = int16 [@@deriving sexp]
+type int24 = int32 [@@deriving sexp]
+type int128 = int64 * int64 [@@deriving sexp]
 
 let val_to_mask v =
   { m_value = v; m_mask = None }
@@ -36,29 +36,24 @@ let ip_to_mask (p,m) =
     let m = Int32.shift_left 0xffffffffl (Int32.to_int_exn (Int32.(32l - m))) in
     { m_value = p; m_mask = Some m }
 
-type switchId = int64 with sexp
+type switchId = int64 [@@deriving sexp]
 
-type groupId = int32 with sexp
+type groupId = int32 [@@deriving sexp]
 
-type portId = int32 with sexp
+type portId = int32 [@@deriving sexp]
 
-type tableId = int8 with sexp
+type tableId = int8 [@@deriving sexp]
 
-type bufferId = int32 with sexp
+type bufferId = int32 [@@deriving sexp]
 
-type switchFlags =
-  | NormalFrag
-  | DropFrag
-  | ReasmFrag
-  | MaskFrag
-  with sexp
+type switchFlags = { frag_normal: bool; frag_drop: bool; frag_reasm: bool; } [@@deriving sexp]
 
-type switchConfig = {flags : switchFlags; miss_send_len : int16 } with sexp
+type switchConfig = {flags : switchFlags; miss_send_len : int16 } [@@deriving sexp]
 
 type helloFailed =
   | HelloIncompatible
   | HelloPermError
-  with sexp
+  [@@deriving sexp]
 
 type badRequest =
   | ReqBadVersion
@@ -75,7 +70,7 @@ type badRequest =
   | ReqBadPort
   | ReqBadPacket
   | ReqMultipartBufOverflow
-  with sexp
+  [@@deriving sexp]
 
 type badAction =
   | ActBadType
@@ -94,7 +89,7 @@ type badAction =
   | ActBadSetTyp
   | ActBadSetLen
   | ActBadSetArg
-  with sexp
+  [@@deriving sexp]
 
 type badInstruction =
   | InstUnknownInst
@@ -106,7 +101,7 @@ type badInstruction =
   | InstBadExpTyp
   | InstBadLen
   | InstPermError
-  with sexp
+  [@@deriving sexp]
 
 type badMatch =
   | MatBadTyp
@@ -121,7 +116,7 @@ type badMatch =
   | MatBadPrereq
   | MatDupField
   | MatPermError
-  with sexp
+  [@@deriving sexp]
 
 type flowModFailed =
   | FlUnknown
@@ -132,7 +127,7 @@ type flowModFailed =
   | FlBadTimeout
   | FlBadCommand
   | FlBadFlags
-  with sexp
+  [@@deriving sexp]
 
 type groupModFailed =
   | GrGroupExists
@@ -141,7 +136,7 @@ type groupModFailed =
   | GrOutOfGroups
   | GrOutOfBuckets
   | GrChainingUnsupported
-  | GrWatcHUnsupported
+  | GrWatchUnsupported
   | GrLoop
   | GrUnknownGroup
   | GrChainedGroup
@@ -150,7 +145,7 @@ type groupModFailed =
   | GrBadBucket
   | GrBadWatch
   | GrPermError
-  with sexp
+  [@@deriving sexp]
 
 type portModFailed =
   | PoBadPort
@@ -158,31 +153,31 @@ type portModFailed =
   | PoBadConfig
   | PoBadAdvertise
   | PoPermError
-  with sexp
+  [@@deriving sexp]
 
 type tableModFailed =
   | TaBadTable
   | TaBadConfig
   | TaPermError
-  with sexp
+  [@@deriving sexp]
 
 type queueOpFailed =
   | QuBadPort
-  | QuBadQUeue
+  | QuBadQueue
   | QuPermError
-  with sexp
+  [@@deriving sexp]
 
 type switchConfigFailed =
   | ScBadFlags
   | ScBadLen
   | ScPermError
-  with sexp
+  [@@deriving sexp]
 
 type roleReqFailed =
   | RoStale
   | RoUnsup
   | RoBadRole
-  with sexp
+  [@@deriving sexp]
 
 type meterModFailed =
   | MeUnknown
@@ -197,7 +192,7 @@ type meterModFailed =
   | MeBadBandValue
   | MeOutOfMeters
   | MeOutOfBands
-  with sexp
+  [@@deriving sexp]
 
 type tableFeatFailed =
   | TfBadTable
@@ -206,9 +201,9 @@ type tableFeatFailed =
   | TfBadLen
   | TfBadArg
   | TfPermError
-  with sexp
+  [@@deriving sexp]
 
-type experimenterFailed = { exp_typ : int16; exp_id : int32} with sexp
+type experimenterFailed = { exp_typ : int16; exp_id : int32} [@@deriving sexp]
 
 type errorTyp =
   | HelloFailed of helloFailed
@@ -226,13 +221,13 @@ type errorTyp =
   | MeterModFailed of meterModFailed
   | TableFeatFailed of tableFeatFailed
   | ExperimenterFailed of experimenterFailed
-  with sexp
+  [@@deriving sexp]
 
-type length = int16 with sexp
+type length = int16 [@@deriving sexp]
 
 type oxmIPv6ExtHdr = { noext : bool; esp : bool; auth : bool;
                        dest : bool; frac : bool; router : bool;
-                       hop : bool; unrep : bool; unseq : bool } with sexp
+                       hop : bool; unrep : bool; unseq : bool } [@@deriving sexp]
 
 type oxm =
   | OxmInPort of portId
@@ -275,9 +270,9 @@ type oxm =
   | OxmMPLSBos of bool
   | OxmPBBIsid of int24 mask
   | OxmIPv6ExtHdr of oxmIPv6ExtHdr mask
-  with sexp
+  [@@deriving sexp]
 
-type oxmMatch = oxm list with sexp
+type oxmMatch = oxm list [@@deriving sexp]
 
 type pseudoPort =
   | PhysicalPort of portId
@@ -289,7 +284,7 @@ type pseudoPort =
   | Controller of int16
   | Local
   | Any
-  with sexp
+  [@@deriving sexp]
 
 type actionHdr =
   | OutputHdr
@@ -309,29 +304,29 @@ type actionHdr =
   | DecMplsTtlHdr
   | SetQueueHdr
   | ExperimenterAHdr of int32
-  with sexp
+  [@@deriving sexp]
 
 type action =
   | Output of pseudoPort
   | Group of groupId
   | PopVlan
-  | PushVlan
-  | PopMpls
-  | PushMpls
+  | PushVlan of int16
+  | PopMpls of int16
+  | PushMpls of int16
   | SetField of oxm
   | CopyTtlOut
   | CopyTtlIn
   | SetNwTtl of int8
   | DecNwTtl
-  | PushPbb
+  | PushPbb of int16
   | PopPbb
   | SetMplsTtl of int8
   | DecMplsTtl
   | SetQueue of int32
   | Experimenter of int32
-  with sexp
+  [@@deriving sexp]
 
-type actionSequence = action list with sexp
+type actionSequence = action list [@@deriving sexp]
 
 type instructionHdr =
   | GotoTableHdr
@@ -341,7 +336,7 @@ type instructionHdr =
   | ClearHdr
   | MeterHdr
   | ExperimenterHdr of int32
-  with sexp
+  [@@deriving sexp]
 
 type instruction =
   | GotoTable of tableId
@@ -351,29 +346,29 @@ type instruction =
   | Clear
   | Meter of int32
   | Experimenter of int32
-  with sexp
+  [@@deriving sexp]
 
 type bucket = { bu_weight : int16; bu_watch_port : portId option;
                 bu_watch_group : groupId option; bu_actions : actionSequence }
-  with sexp
+  [@@deriving sexp]
 
 type groupType =
   | All
   | Select
   | Indirect
   | FF
-with sexp
+[@@deriving sexp]
 
 type groupMod =
   | AddGroup of groupType * groupId * bucket list
   | DeleteGroup of groupType * groupId
   | ModifyGroup of groupType * groupId * bucket list
-  with sexp
+  [@@deriving sexp]
 
 type timeout =
   | Permanent
   | ExpiresAfter of int16
-  with sexp
+  [@@deriving sexp]
 
 type flowModCommand =
   | AddFlow
@@ -381,38 +376,38 @@ type flowModCommand =
   | ModStrictFlow
   | DeleteFlow
   | DeleteStrictFlow
-  with sexp
+  [@@deriving sexp]
 
 type packetInReason =
   | NoMatch
   | ExplicitSend
   | InvalidTTL
-  with sexp
+  [@@deriving sexp]
 
 type packetIn = { pi_total_len : int16; pi_reason : packetInReason;
                   pi_table_id : tableId; pi_cookie : int64;
-                  pi_ofp_match : oxmMatch; pi_payload : payload } with sexp
+                  pi_ofp_match : oxmMatch; pi_payload : payload } [@@deriving sexp]
 
 type flowReason =
   | FlowIdleTimeout
   | FlowHardTiemout
   | FlowDelete
   | FlowGroupDelete
-  with sexp
+  [@@deriving sexp]
 
 type flowRemoved = { cookie : int64; priority : int16; reason : flowReason;
                      table_id : tableId; duration_sec : int32; duration_nsec : int32;
                      idle_timeout : timeout; hard_timeout : timeout; packet_count : int64;
-                     byte_count : int64; oxm : oxmMatch } with sexp
+                     byte_count : int64; oxm : oxmMatch } [@@deriving sexp]
 
 type capabilities = { flow_stats : bool; table_stats : bool;
                       port_stats : bool; group_stats : bool; ip_reasm :
-                        bool; queue_stats : bool; port_blocked : bool } with sexp
+                        bool; queue_stats : bool; port_blocked : bool } [@@deriving sexp]
 
-type portState = { link_down : bool; blocked : bool; live : bool } with sexp
+type portState = { link_down : bool; blocked : bool; live : bool } [@@deriving sexp]
 
 type portConfig = { port_down : bool; no_recv : bool; no_fwd : bool;
-                    no_packet_in : bool } with sexp
+                    no_packet_in : bool } [@@deriving sexp]
 
 type portFeatures = { rate_10mb_hd : bool; rate_10mb_fd : bool;
                       rate_100mb_hd : bool; rate_100mb_fd : bool;
@@ -420,7 +415,7 @@ type portFeatures = { rate_10mb_hd : bool; rate_10mb_fd : bool;
                       rate_10gb_fd : bool; rate_40gb_fd : bool;
                       rate_100gb_fd : bool; rate_1tb_fd : bool;
                       other : bool; copper : bool; fiber : bool;
-                      autoneg : bool; pause : bool; pause_asym : bool } with sexp
+                      autoneg : bool; pause : bool; pause_asym : bool } [@@deriving sexp]
 
 type portDesc = { port_no : portId;
                   hw_addr : int48;
@@ -432,55 +427,55 @@ type portDesc = { port_no : portId;
                   supported : portFeatures;
                   peer : portFeatures;
                   curr_speed : int32;
-                  max_speed : int32} with sexp
+                  max_speed : int32} [@@deriving sexp]
 
 type portMod = { mpPortNo : portId; mpHw_addr : int48; mpConfig : portConfig;
-                 mpMask : portConfig; mpAdvertise : portState } with sexp
+                 mpMask : int32; mpAdvertise : portFeatures } [@@deriving sexp]
 
 type portReason =
   | PortAdd
   | PortDelete
   | PortModify
-  with sexp
+  [@@deriving sexp]
 
-type portStatus = { reason : portReason; desc : portDesc } with sexp
+type portStatus = { reason : portReason; desc : portDesc } [@@deriving sexp]
 
 type packetOut = {
   po_payload : payload;
   po_port_id : portId option;
   po_actions : actionSequence
-} with sexp
+} [@@deriving sexp]
 
-type rate = int32 with sexp
+type rate = int32 [@@deriving sexp]
 
-type burst = int32 with sexp
+type burst = int32 [@@deriving sexp]
 
-type experimenterId = int32 with sexp
+type experimenterId = int32 [@@deriving sexp]
 
 type meterBand =
   | Drop of (rate*burst)
   | DscpRemark of (rate*burst*int8)
   | ExpMeter of (rate*burst*experimenterId)
-  with sexp
+  [@@deriving sexp]
 
 type meterCommand =
   | AddMeter
   | ModifyMeter
   | DeleteMeter
-  with sexp
+  [@@deriving sexp]
 
-type meterFlags = { kbps : bool; pktps : bool; burst : bool; stats : bool} with sexp
+type meterFlags = { kbps : bool; pktps : bool; burst : bool; stats : bool} [@@deriving sexp]
 
 type meterMod = { command : meterCommand; flags : meterFlags; meter_id : int32;
-                  bands : meterBand list} with sexp
+                  bands : meterBand list} [@@deriving sexp]
 
 type flowRequest = {fr_table_id : tableId; fr_out_port : portId;
                     fr_out_group : portId; fr_cookie : int64 mask;
-                    fr_match : oxmMatch} with sexp
+                    fr_match : oxmMatch} [@@deriving sexp]
 
-type queueRequest = {port_number : portId; queue_id : int32} with sexp
+type queueRequest = {port_number : portId; queue_id : int32} [@@deriving sexp]
 
-type experimenter = {exp_id : int32; exp_type : int32} with sexp
+type experimenter = {exp_id : int32; exp_type : int32} [@@deriving sexp]
 
 type tableFeatureProp =
   | TfpInstruction of instructionHdr list
@@ -499,14 +494,14 @@ type tableFeatureProp =
   | TfpApplySetFieldMiss of oxm list
   | TfpExperimenter of (experimenter*Cstruct.t)
   | TfpExperimenterMiss of (experimenter*Cstruct.t)
-  with sexp
+  [@@deriving sexp]
 
-type tableConfig = Deprecated with sexp
+type tableConfig = Deprecated [@@deriving sexp]
 
 type tableFeatures = {length : int16;table_id : tableId; name : string;
                       metadata_match : int64; metadata_write : int64;
                       config : tableConfig; max_entries: int32;
-                      feature_prop : tableFeatureProp list} with sexp
+                      feature_prop : tableFeatureProp list} [@@deriving sexp]
 
 type multipartType =
   | SwitchDescReq
@@ -524,83 +519,83 @@ type multipartType =
   | MeterFeatReq
   | TableFeatReq of (tableFeatures list) option
   | ExperimentReq of experimenter
-  with sexp
+  [@@deriving sexp]
 
-type multipartRequest = { mpr_type : multipartType; mpr_flags : bool } with sexp
+type multipartRequest = { mpr_type : multipartType; mpr_flags : bool } [@@deriving sexp]
 
 let portDescReq =
   { mpr_type = PortsDescReq
   ; mpr_flags = false }
 
 type switchDesc = { mfr_desc :string ; hw_desc : string; sw_desc : string;
-                    serial_num : string } with sexp
+                    serial_num : string; dp_desc: string } [@@deriving sexp]
 
 type flowModFlags = { fmf_send_flow_rem : bool; fmf_check_overlap : bool;
                       fmf_reset_counts : bool; fmf_no_pkt_counts : bool;
-                      fmf_no_byt_counts : bool } with sexp
+                      fmf_no_byt_counts : bool } [@@deriving sexp]
 
 type flowStats = { table_id : tableId; duration_sec : int32; duration_nsec :
                      int32; priority : int16; idle_timeout : timeout;
                    hard_timeout : timeout; flags : flowModFlags; cookie : int64;
                    packet_count : int64; byte_count : int64; ofp_match : oxmMatch;
-                   instructions : instruction list} with sexp
+                   instructions : instruction list} [@@deriving sexp]
 
-type aggregStats = { packet_count : int64; byte_count : int64; flow_count : int32} with sexp
+type aggregStats = { packet_count : int64; byte_count : int64; flow_count : int32} [@@deriving sexp]
 
 type tableStats = { table_id : tableId; active_count : int32; lookup_count : int64;
-                    matched_count : int64} with sexp
+                    matched_count : int64} [@@deriving sexp]
 
 type portStats = { psPort_no : portId; rx_packets : int64; tx_packets : int64;
                    rx_bytes : int64; tx_bytes : int64; rx_dropped : int64;
                    tx_dropped : int64; rx_errors : int64; tx_errors : int64;
                    rx_frame_err : int64; rx_over_err : int64; rx_crc_err : int64;
-                   collisions : int64; duration_sec : int32; duration_nsec : int32} with sexp
+                   collisions : int64; duration_sec : int32; duration_nsec : int32} [@@deriving sexp]
 
 
 type queueStats = { qsPort_no : portId; queue_id : int32; tx_bytes : int64; tx_packets : int64;
-                    tx_errors : int64; duration_sec : int32; duration_nsec : int32 } with sexp
+                    tx_errors : int64; duration_sec : int32; duration_nsec : int32 } [@@deriving sexp]
 
-type bucketStats = { packet_count : int64; byte_count : int64} with sexp
+type bucketStats = { packet_count : int64; byte_count : int64} [@@deriving sexp]
 
 type groupStats = { length : int16; group_id : int32; ref_count : int32;
                     packet_count : int64; byte_count : int64; duration_sec : int32;
-                    duration_nsec : int32; bucket_stats : bucketStats list} with sexp
+                    duration_nsec : int32; bucket_stats : bucketStats list} [@@deriving sexp]
 
-type groupDesc = { length : int16; typ : groupType; group_id : int32; bucket : bucket list} with sexp
+type groupDesc = { length : int16; typ : groupType; group_id : int32; bucket : bucket list} [@@deriving sexp]
 
 type groupCapabilities = { select_weight : bool; select_liveness : bool;
-                           chaining : bool; chaining_checks : bool } with sexp
+                           chaining : bool; chaining_checks : bool } [@@deriving sexp]
 
-type groupTypeMap = { all : bool; select : bool; indirect : bool; ff : bool} with sexp
+type groupTypeMap = { all : bool; select : bool; indirect : bool; ff : bool} [@@deriving sexp]
 
 type actionTypeMap = { output : bool; copy_ttl_out : bool; copy_ttl_in : bool;
                        set_mpls_ttl : bool; dec_mpls_ttl : bool; push_vlan : bool;
                        pop_vlan : bool; push_mpls : bool; pop_mpls : bool; set_queue : bool;
                        group : bool; set_nw_ttl : bool; dec_nw_ttl : bool; set_field : bool;
-                       push_pbb : bool; pop_pbb : bool } with sexp
+                       push_pbb : bool; pop_pbb : bool } [@@deriving sexp]
 
 type groupFeatures = { typ : groupTypeMap; capabilities : groupCapabilities;
                        max_groups_all : int32; max_groups_select : int32;
                        max_groups_indirect : int32; max_groups_ff :
                          int32; actions_all : actionTypeMap; actions_select : actionTypeMap;
                        actions_indirect : actionTypeMap; actions_ff : actionTypeMap }
-                       with sexp
+                       [@@deriving sexp]
 
 type meterBandStats = { packet_band_count : int64; byte_band_count : int64 }
-  with sexp
+  [@@deriving sexp]
 
 type meterStats = { meter_id: int32; len : int16; flow_count : int32; packet_in_count :
                       int64; byte_in_count : int64; duration_sec : int32; duration_nsec :
-                      int32; band : meterBandStats list} with sexp
+                      int32; band : meterBandStats list} [@@deriving sexp]
 
 type meterConfig = { length : length; flags : meterFlags; meter_id : int32; bands : meterBand list}
-  with sexp
+  [@@deriving sexp]
 
-type meterBandMaps = { drop : bool; dscpRemark : bool} with sexp
+type meterBandMaps = { drop : bool; dscpRemark : bool} [@@deriving sexp]
 
 type meterFeatures = { max_meter : int32; band_typ : meterBandMaps;
                        capabilities : meterFlags; max_band : int8;
-                       max_color : int8 } with sexp
+                       max_color : int8 } [@@deriving sexp]
 
 type multipartReplyTyp =
   | PortsDescReply of portDesc list
@@ -617,63 +612,63 @@ type multipartReplyTyp =
   | MeterReply of meterStats list
   | MeterConfig of meterConfig list
   | MeterFeaturesReply of meterFeatures
-  with sexp
+  [@@deriving sexp]
 
-type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool} with sexp
+type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool} [@@deriving sexp]
 
-type tableMod = { table_id : tableId; config : tableConfig } with sexp
+type tableMod = { table_id : tableId; config : tableConfig } [@@deriving sexp]
 
 type rateQueue =
   | Rate of int
   | Disabled
-  with sexp
+  [@@deriving sexp]
 
 type queueProp =
   | MinRateProp of rateQueue
   | MaxRateProp of rateQueue
   | ExperimenterProp of int32
-  with sexp
+  [@@deriving sexp]
 
 type queueDesc = { queue_id : int32; port : portId; len : int16; properties : queueProp list }
-  with sexp
+  [@@deriving sexp]
 
-type queueConfReq = { port : portId } with sexp
+type queueConfReq = { port : portId } [@@deriving sexp]
 
-type queueConfReply = { port : portId; queues : queueDesc list } with sexp
+type queueConfReply = { port : portId; queues : queueDesc list } [@@deriving sexp]
 
 type controllerRole =
   | NoChangeRole
   | EqualRole
   | MasterRole
   | SlaveRole
-  with sexp
+  [@@deriving sexp]
 
-type roleRequest = { role : controllerRole; generation_id : int64 } with sexp
+type roleRequest = { role : controllerRole; generation_id : int64 } [@@deriving sexp]
 
-type supportedList = int list with sexp
+type supportedList = int list [@@deriving sexp]
 
 type element =
   | VersionBitMap of supportedList
-  with sexp
+  [@@deriving sexp]
 
-type helloElement = element list with sexp
+type helloElement = element list [@@deriving sexp]
 
-type packetInReasonMap =  { table_miss : bool; apply_action : bool; invalid_ttl : bool } with sexp
+type packetInReasonMap =  { table_miss : bool; apply_action : bool; invalid_ttl : bool } [@@deriving sexp]
 
-type portReasonMap =  { add : bool; delete : bool; modify : bool } with sexp
+type portReasonMap =  { add : bool; delete : bool; modify : bool } [@@deriving sexp]
 
 type flowReasonMask = { idle_timeout : bool; hard_timeout : bool; delete : bool;
-                        group_delete : bool} with sexp
+                        group_delete : bool} [@@deriving sexp]
 
 type asyncConfig = { packet_in : packetInReasonMap asyncMask;
                      port_status : portReasonMap asyncMask;
-                     flow_removed : flowReasonMask asyncMask } with sexp
+                     flow_removed : flowReasonMask asyncMask } [@@deriving sexp]
 
 
 type error = {
   err : errorTyp;
   data : Cstruct.t;
-} with sexp
+} [@@deriving sexp]
 
 
 type flowMod = { mfCookie : int64 mask; mfTable_id : tableId;
@@ -682,7 +677,7 @@ type flowMod = { mfCookie : int64 mask; mfTable_id : tableId;
                  mfBuffer_id : bufferId option;
                  mfOut_port : pseudoPort option;
                  mfOut_group : groupId option; mfFlags : flowModFlags;
-                 mfOfp_match : oxmMatch; mfInstructions : instruction list } with sexp
+                 mfOfp_match : oxmMatch; mfInstructions : instruction list } [@@deriving sexp]
 
 type switchFeatures = {
   datapath_id : int64;
@@ -690,7 +685,7 @@ type switchFeatures = {
   num_tables : int8;
   aux_id : int8;
   supported_capabilities : capabilities
-} with sexp
+} [@@deriving sexp]
 
 let match_all = []
 
@@ -749,44 +744,47 @@ let sym_num = ref 0
 
 let sum (lst : int list) = List.fold_left ~f:(fun x y -> x + y) ~init:0 lst
 
-    (* OKAY *)
-    cenum msg_code {
-    HELLO;
-    ERROR;
-    ECHO_REQ;
-    ECHO_RESP;
-    VENDOR;
-    FEATURES_REQ;
-    FEATURES_RESP;
-    GET_CONFIG_REQ;
-    GET_CONFIG_RESP;
-    SET_CONFIG;
-    PACKET_IN;
-    FLOW_REMOVED;
-    PORT_STATUS;
-    PACKET_OUT;
-    FLOW_MOD;
-    GROUP_MOD;
-    PORT_MOD;
-    TABLE_MOD;
-    MULTIPART_REQ;
-    MULTIPART_RESP;
-    BARRIER_REQ;
-    BARRIER_RESP;
-    QUEUE_GET_CONFIG_REQ;
-    QUEUE_GET_CONFIG_RESP;
-    ROLE_REQ;
-    ROLE_RESP;
-    GET_ASYNC_REQ;
-    GET_ASYNC_REP;
-    SET_ASYNC;
-    METER_MOD
-  } as uint8_t
+  (* OKAY *)
+  [%%cenum 
+  type msg_code =
+    | HELLO
+    | ERROR
+    | ECHO_REQ
+    | ECHO_RESP
+    | VENDOR
+    | FEATURES_REQ
+    | FEATURES_RESP
+    | GET_CONFIG_REQ
+    | GET_CONFIG_RESP
+    | SET_CONFIG
+    | PACKET_IN
+    | FLOW_REMOVED
+    | PORT_STATUS
+    | PACKET_OUT
+    | FLOW_MOD
+    | GROUP_MOD
+    | PORT_MOD
+    | TABLE_MOD
+    | MULTIPART_REQ
+    | MULTIPART_RESP
+    | BARRIER_REQ
+    | BARRIER_RESP
+    | QUEUE_GET_CONFIG_REQ
+    | QUEUE_GET_CONFIG_RESP
+    | ROLE_REQ
+    | ROLE_RESP
+    | GET_ASYNC_REQ
+    | GET_ASYNC_REP
+    | SET_ASYNC
+    | METER_MOD
+    [@@uint8_t]
+  ]
 
-  cstruct ofp_match {
-    uint16_t typ;
-    uint16_t length
-  } as big_endian
+  [%%cstruct 
+  type ofp_match = {
+    typ: uint16_t;
+    length: uint16_t;
+  } [@@big_endian]]
 
 let ofpp_in_port = 0xfffffff8l
 let ofpp_flood = 0xfffffffbl
@@ -802,72 +800,79 @@ let ofpg_any = 0xffffffffl
 let ofp_eth_alen = 6          (* Bytes in an Ethernet address. *)
 
     (* OKAY *)
-    cenum ofp_oxm_class {
-    OFPXMC_NXM_0          = 0x0000;    (* Backward compatibility with NXM *)
-    OFPXMC_NXM_1          = 0x0001;    (* Backward compatibility with NXM *)
-    OFPXMC_OPENFLOW_BASIC = 0x8000;    (* Basic class for OpenFlow *)
-    OFPXMC_EXPERIMENTER   = 0xFFFF     (* Experimenter class *)
-  } as uint16_t
+  [%%cenum 
+  type ofp_oxm_class =
+    | OFPXMC_NXM_0          [@id 0x0000]    (* Backward compatibility with NXM *)
+    | OFPXMC_NXM_1          [@id 0x0001]    (* Backward compatibility with NXM *)
+    | OFPXMC_OPENFLOW_BASIC [@id 0x8000]    (* Basic class for OpenFlow *)
+    | OFPXMC_EXPERIMENTER   [@id 0xFFFF]    (* Experimenter class *)
+    [@@uint16_t]
+  ]
 
   (* OKAY *)
-  cenum oxm_ofb_match_fields {
-    OFPXMT_OFB_IN_PORT        = 0;  (* Switch input port. *)
-    OFPXMT_OFB_IN_PHY_PORT    = 1;  (* Switch physical input port. *)
-    OFPXMT_OFB_METADATA       = 2;  (* Metadata passed between tables. *)
-    OFPXMT_OFB_ETH_DST        = 3;  (* Ethernet destination address. *)
-    OFPXMT_OFB_ETH_SRC        = 4;  (* Ethernet source address. *)
-    OFPXMT_OFB_ETH_TYPE       = 5;  (* Ethernet frame type. *)
-    OFPXMT_OFB_VLAN_VID       = 6;  (* VLAN id. *)
-    OFPXMT_OFB_VLAN_PCP       = 7;  (* VLAN priority. *)
-    OFPXMT_OFB_IP_DSCP        = 8;  (* IP DSCP (6 bits in ToS field). *)
-    OFPXMT_OFB_IP_ECN         = 9;  (* IP ECN (2 bits in ToS field). *)
-    OFPXMT_OFB_IP_PROTO       = 10; (* IP protocol. *)
-    OFPXMT_OFB_IPV4_SRC       = 11; (* IPv4 source address. *)
-    OFPXMT_OFB_IPV4_DST       = 12; (* IPv4 destination address. *)
-    OFPXMT_OFB_TCP_SRC        = 13; (* TCP source port. *)
-    OFPXMT_OFB_TCP_DST        = 14; (* TCP destination port. *)
-    OFPXMT_OFB_UDP_SRC        = 15; (* UDP source port. *)
-    OFPXMT_OFB_UDP_DST        = 16; (* UDP destination port. *)
-    OFPXMT_OFB_SCTP_SRC       = 17; (* SCTP source port. *)
-    OFPXMT_OFB_SCTP_DST       = 18; (* SCTP destination port. *)
-    OFPXMT_OFB_ICMPV4_TYPE    = 19; (* ICMP type. *)
-    OFPXMT_OFB_ICMPV4_CODE    = 20; (* ICMP code. *)
-    OFPXMT_OFB_ARP_OP         = 21; (* ARP opcode. *)
-    OFPXMT_OFB_ARP_SPA        = 22; (* ARP source IPv4 address. *)
-    OFPXMT_OFB_ARP_TPA        = 23; (* ARP target IPv4 address. *)
-    OFPXMT_OFB_ARP_SHA        = 24; (* ARP source hardware address. *)
-    OFPXMT_OFB_ARP_THA        = 25; (* ARP target hardware address. *)
-    OFPXMT_OFB_IPV6_SRC       = 26; (* IPv6 source address. *)
-    OFPXMT_OFB_IPV6_DST       = 27; (* IPv6 destination address. *)
-    OFPXMT_OFB_IPV6_FLABEL    = 28; (* IPv6 Flow Label *)
-    OFPXMT_OFB_ICMPV6_TYPE    = 29; (* ICMPv6 type. *)
-    OFPXMT_OFB_ICMPV6_CODE    = 30; (* ICMPv6 code. *)
-    OFPXMT_OFB_IPV6_ND_TARGET = 31; (* Target address for ND. *)
-    OFPXMT_OFB_IPV6_ND_SLL    = 32; (* Source link-layer for ND. *)
-    OFPXMT_OFB_IPV6_ND_TLL    = 33; (* Target link-layer for ND. *)
-    OFPXMT_OFB_MPLS_LABEL     = 34; (* MPLS label. *)
-    OFPXMT_OFB_MPLS_TC        = 35; (* MPLS TC. *)
-    OFPXMT_OFP_MPLS_BOS       = 36; (* MPLS BoS bit. *)
-    OFPXMT_OFB_PBB_ISID       = 37; (* PBB I-SID. *)
-    OFPXMT_OFB_TUNNEL_ID      = 38; (* Logical Port Metadata. *)
-    OFPXMT_OFB_IPV6_EXTHDR    = 39  (* IPv6 Extension Header pseudo-field *)
-  } as uint8_t
+  [%%cenum 
+  type oxm_ofb_match_fields =
+    | OFPXMT_OFB_IN_PORT        [@id 0]  (* Switch input port. *)
+    | OFPXMT_OFB_IN_PHY_PORT    [@id 1]  (* Switch physical input port. *)
+    | OFPXMT_OFB_METADATA       [@id 2]  (* Metadata passed between tables. *)
+    | OFPXMT_OFB_ETH_DST        [@id 3]  (* Ethernet destination address. *)
+    | OFPXMT_OFB_ETH_SRC        [@id 4]  (* Ethernet source address. *)
+    | OFPXMT_OFB_ETH_TYPE       [@id 5]  (* Ethernet frame type. *)
+    | OFPXMT_OFB_VLAN_VID       [@id 6]  (* VLAN id. *)
+    | OFPXMT_OFB_VLAN_PCP       [@id 7]  (* VLAN priority. *)
+    | OFPXMT_OFB_IP_DSCP        [@id 8]  (* IP DSCP (6 bits in ToS field). *)
+    | OFPXMT_OFB_IP_ECN         [@id 9]  (* IP ECN (2 bits in ToS field). *)
+    | OFPXMT_OFB_IP_PROTO       [@id 10] (* IP protocol. *)
+    | OFPXMT_OFB_IPV4_SRC       [@id 11] (* IPv4 source address. *)
+    | OFPXMT_OFB_IPV4_DST       [@id 12] (* IPv4 destination address. *)
+    | OFPXMT_OFB_TCP_SRC        [@id 13] (* TCP source port. *)
+    | OFPXMT_OFB_TCP_DST        [@id 14] (* TCP destination port. *)
+    | OFPXMT_OFB_UDP_SRC        [@id 15] (* UDP source port. *)
+    | OFPXMT_OFB_UDP_DST        [@id 16] (* UDP destination port. *)
+    | OFPXMT_OFB_SCTP_SRC       [@id 17] (* SCTP source port. *)
+    | OFPXMT_OFB_SCTP_DST       [@id 18] (* SCTP destination port. *)
+    | OFPXMT_OFB_ICMPV4_TYPE    [@id 19] (* ICMP type. *)
+    | OFPXMT_OFB_ICMPV4_CODE    [@id 20] (* ICMP code. *)
+    | OFPXMT_OFB_ARP_OP         [@id 21] (* ARP opcode. *)
+    | OFPXMT_OFB_ARP_SPA        [@id 22] (* ARP source IPv4 address. *)
+    | OFPXMT_OFB_ARP_TPA        [@id 23] (* ARP target IPv4 address. *)
+    | OFPXMT_OFB_ARP_SHA        [@id 24] (* ARP source hardware address. *)
+    | OFPXMT_OFB_ARP_THA        [@id 25] (* ARP target hardware address. *)
+    | OFPXMT_OFB_IPV6_SRC       [@id 26] (* IPv6 source address. *)
+    | OFPXMT_OFB_IPV6_DST       [@id 27] (* IPv6 destination address. *)
+    | OFPXMT_OFB_IPV6_FLABEL    [@id 28] (* IPv6 Flow Label *)
+    | OFPXMT_OFB_ICMPV6_TYPE    [@id 29] (* ICMPv6 type. *)
+    | OFPXMT_OFB_ICMPV6_CODE    [@id 30] (* ICMPv6 code. *)
+    | OFPXMT_OFB_IPV6_ND_TARGET [@id 31] (* Target address for ND. *)
+    | OFPXMT_OFB_IPV6_ND_SLL    [@id 32] (* Source link-layer for ND. *)
+    | OFPXMT_OFB_IPV6_ND_TLL    [@id 33] (* Target link-layer for ND. *)
+    | OFPXMT_OFB_MPLS_LABEL     [@id 34] (* MPLS label. *)
+    | OFPXMT_OFB_MPLS_TC        [@id 35] (* MPLS TC. *)
+    | OFPXMT_OFP_MPLS_BOS       [@id 36] (* MPLS BoS bit. *)
+    | OFPXMT_OFB_PBB_ISID       [@id 37] (* PBB I-SID. *)
+    | OFPXMT_OFB_TUNNEL_ID      [@id 38] (* Logical Port Metadata. *)
+    | OFPXMT_OFB_IPV6_EXTHDR    [@id 39]  (* IPv6 Extension Header pseudo-field *)
+    [@@uint8_t]
+  ]
 
-  cenum ofp_vlan_id {
-    OFPVID_PRESENT = 0x1000; (* Bit that indicate that a VLAN id is set *)
-    OFPVID_NONE    = 0x0000  (* No VLAN id was set. *)
-  } as uint16_t
+  [%%cenum 
+  type ofp_vlan_id =
+    | OFPVID_PRESENT [@id 0x1000] (* Bit that indicate that a VLAN id is set *)
+    | OFPVID_NONE    [@id 0x0000] (* No VLAN id was set. *)
+    [@@uint16_t]
+  ]
 
-  cstruct ofp_switch_features {
-    uint64_t datapath_id;
-    uint32_t n_buffers;
-    uint8_t n_tables;
-    uint8_t auxiliary_id;
-    uint8_t pad0;
-    uint8_t pad1;
-    uint32_t capabilities;
-    uint32_t reserved
-  } as big_endian
+  [%%cstruct 
+  type ofp_switch_features = {
+    datapath_id: uint64_t ;
+    n_buffers: uint32_t ;
+    n_tables: uint8_t ;
+    auxiliary_id: uint8_t ;
+    pad0: uint8_t ;
+    pad1: uint8_t ;
+    capabilities: uint32_t ;
+    reserved: uint32_t ;
+  } [@@big_endian]]
 
 module PortConfig = struct
 
@@ -940,7 +945,7 @@ module PortFeatures = struct
 
   let to_string (feat : t) =
     Format.sprintf
-      "{ 10mhd = %B; 10mfd  = %B; 100mhd  = %B; 100mfd  = %B; 1ghd%B\
+      "{ 10mhd = %B; 10mfd  = %B; 100mhd  = %B; 100mfd  = %B; 1ghd = %B\
        1gfd  = %B; 10gfd  = %B; 40gfd  = %B; 100gfd  = %B; 1tfd  = %B; \
        other  = %B; copper  = %B; fiber  = %B; autoneg  = %B; pause  = %B; \
        pause_asym  = %B }"
@@ -986,188 +991,206 @@ module PortState = struct
       state.live
 end
 
-  cstruct ofp_port_stats_request {
-  uint32_t port_no;
-  uint8_t pad[4]
-} as big_endian
+[%%cstruct 
+type ofp_port_stats_request = {
+  port_no: uint32_t ;
+  pad: uint8_t  [@len 4];
+} [@@big_endian]]
 
-cstruct ofp_queue_stats_request {
-  uint32_t port_no;
-  uint32_t queue_id
-} as big_endian
+[%%cstruct 
+type ofp_queue_stats_request = {
+  port_no: uint32_t ;
+  queue_id: uint32_t ;
+} [@@big_endian]]
 
-cstruct ofp_group_stats_request {
-  uint32_t group_id;
-  uint8_t pad[4]
-} as big_endian
+[%%cstruct 
+type ofp_group_stats_request = {
+  group_id: uint32_t ;
+  pad: uint8_t [@len 4];
+} [@@big_endian]]
 
-cstruct ofp_meter_multipart_request {
-  uint32_t meter_id;
-  uint8_t pad[4]
-} as big_endian
+[%%cstruct 
+type ofp_meter_multipart_request = {
+  meter_id: uint32_t ;
+  pad: uint8_t [@len 4];
+} [@@big_endian]]
 
-cstruct ofp_table_features {
-  uint16_t length;
-  uint8_t table_id;
-  uint8_t pad[5];
-  uint8_t name[32];
-  uint64_t metadata_match;
-  uint64_t metadata_write;
-  uint32_t config;
-  uint32_t max_entries
-} as big_endian
+[%%cstruct 
+type ofp_table_features = {
+  length: uint16_t ;
+  table_id: uint8_t ;
+  pad: uint8_t [@len 5];
+  name: uint8_t [@len 32];
+  metadata_match: uint64_t ;
+  metadata_write: uint64_t ;
+  config: uint32_t ;
+  max_entries: uint32_t ;
+} [@@big_endian]]
 
 (* Body of reply to OFPMP_PORT request. If a counter is unsupported, set
  * the field to all ones. *)
-cstruct ofp_port_stats {
-  uint32_t port_no;
-  uint8_t pad[4]; (* Align to 64-bits. *)
-  uint64_t rx_packets; (* Number of received packets. *)
-  uint64_t tx_packets; (* Number of transmitted packets. *)
-  uint64_t rx_bytes; (* Number of received bytes. *)
-  uint64_t tx_bytes; (* Number of transmitted bytes. *)
-  uint64_t rx_dropped; (* Number of packets dropped by RX. *)
-  uint64_t tx_dropped; (* Number of packets dropped by TX. *)
-  uint64_t rx_errors; (* Number of receive errors. This is a super-set
+[%%cstruct 
+type ofp_port_stats = {
+  port_no: uint32_t ;
+  pad: uint8_t [@len 4]; (* Align to 64-bits. *)
+  rx_packets: uint64_t ; (* Number of received packets. *)
+  tx_packets: uint64_t ; (* Number of transmitted packets. *)
+  rx_bytes: uint64_t ; (* Number of received bytes. *)
+  tx_bytes: uint64_t ; (* Number of transmitted bytes. *)
+  rx_dropped: uint64_t ; (* Number of packets dropped by RX. *)
+  tx_dropped: uint64_t ; (* Number of packets dropped by TX. *)
+  rx_errors: uint64_t ; (* Number of receive errors. This is a super-set
                          			 of more specific receive errors and should be
                          			 greater than or equal to the sum of all
                          			 rx_*_err values. *)
-  uint64_t tx_errors; (* Number of transmit errors. This is a super-set
+  tx_errors: uint64_t ; (* Number of transmit errors. This is a super-set
                          			 of more specific transmit errors and should be
                          			 greater than or equal to the sum of all
                          			 tx_*_err values (none currently defined.) *)
-  uint64_t rx_frame_err; (* Number of frame alignment errors. *)
-  uint64_t rx_over_err; (* Number of packets with RX overrun. *)
-  uint64_t rx_crc_err; (* Number of CRC errors. *)
-  uint64_t collisions; (* Number of collisions. *)
-  uint32_t duration_sec; (* Time port has been alive in seconds. *)
-  uint32_t duration_nsec (* Time port has been alive in nanoseconds beyond
+  rx_frame_err: uint64_t ; (* Number of frame alignment errors. *)
+  rx_over_err: uint64_t ; (* Number of packets with RX overrun. *)
+  rx_crc_err: uint64_t ; (* Number of CRC errors. *)
+  collisions: uint64_t ; (* Number of collisions. *)
+  duration_sec: uint32_t ; (* Time port has been alive in seconds. *)
+  duration_nsec: uint32_t ; (* Time port has been alive in nanoseconds beyond
                             			     duration_sec. *)
-} as big_endian
+} [@@big_endian]]
 
-cstruct ofp_port {
-  uint32_t port_no;
-  uint32_t pad;
-  uint8_t hw_addr[6];
-  uint8_t pad2;
-  uint8_t pad3;
-  uint8_t name[16]; (* OFP_MAX_PORT_NAME_LEN, Null-terminated *)
-  uint32_t config; (* Bitmap of OFPPC_* flags. *)
-  uint32_t state; (* Bitmap of OFPPS_* flags. *)
-  (* Bitmaps of OFPPF_* that describe features. All bits zeroed if
-   * unsupported or unavailable. *)
-  uint32_t curr; (* Current features. *)
-  uint32_t advertised; (* Features being advertised by the port. *)
-  uint32_t supported; (* Features supported by the port. *)
-  uint32_t peer; (* Features advertised by peer. *)
-  uint32_t curr_speed; (* Current port bitrate in kbps. *)
-  uint32_t max_speed (* Max port bitrate in kbps *)
-} as big_endian
+[%%cstruct 
+type ofp_port = {
+  port_no: uint32_t ;
+  pad: uint32_t ;
+  hw_addr: uint8_t [@len 6];
+  pad2: uint8_t ;
+  pad3: uint8_t ;
+  name: uint8_t [@len 16]; (* OFP_MAX_PORT_NAME_LEN, Null-terminated *)
+  config: uint32_t ; (* Bitmap of OFPPC_* flags. *)
+  state: uint32_t ; (* Bitmap of OFPPS_* flags. *)
+  curr: uint32_t ; (* Current features. *)
+  advertised: uint32_t ; (* Features being advertised by the port. *)
+  supported: uint32_t ; (* Features supported by the port. *)
+  peer: uint32_t ; (* Features advertised by peer. *)
+  curr_speed: uint32_t ; (* Current port bitrate in kbps. *)
+  max_speed: uint32_t ;  (* Max port bitrate in kbps *)
+} [@@big_endian]]
 
-cenum ofp_port_reason {
-  OFPPR_ADD;
-  OFPPR_DELETE;
-  OFPPR_MODIFY
-} as uint8_t
+[%%cenum 
+type ofp_port_reason =
+  | OFPPR_ADD
+  | OFPPR_DELETE
+  | OFPPR_MODIFY
+  [@@uint8_t]
+]
 
-cstruct ofp_port_status {
-  uint8_t reason;               (* One of OFPPR_* *)
-  uint8_t pad[7]
-} as big_endian
+[%%cstruct 
+type ofp_port_status = {
+  reason: uint8_t;               (* One of OFPPR_* *)
+  pad: uint8_t [@len 7];
+} [@@big_endian]]
 
-cenum ofp_table_config {
-  OFPTC_DEPRECATED_MASK = 0x00000003l (* currently deprecated *)
-} as uint32_t
+[%%cenum 
+type ofp_table_config =
+  | OFPTC_DEPRECATED_MASK [@id 0x00000003l] (* currently deprecated *)
+  [@@uint32_t]
+]
 
-cenum ofp_table_feature_prop_type {
-  OFPTFPT_INSTRUCTIONS       = 0;
-  OFPTFPT_INSTRUCTIONS_MISS  = 1;
-  OFPTFPT_NEXT_TABLES        = 2;
-  OFPTFPT_NEXT_TABLES_MISS   = 3;
-  OFPTFPT_WRITE_ACTIONS      = 4;
-  OFPTFPT_WRITE_ACTIONS_MISS  = 5;
-  OFPTFPT_APPLY_ACTIONS       = 6;
-  OFPTFPT_APPLY_ACTIONS_MISS  = 7;
-  OFPTFPT_MATCH               = 8;
-  OFPTFPT_WILDCARDS           = 10;
-  OFPTFPT_WRITE_SETFIELD      = 12;
-  OFPTFPT_WRITE_SETFIELD_MISS = 13;
-  OFPTFPT_APPLY_SETFIELD      = 14;
-  OFPTFPT_APPLY_SETFIELD_MISS = 15;
-  OFPTFPT_EXPERIMENTER        = 0xFFFE;
-  OFPTFPT_EXPERIMENTER_MISS   = 0xFFFF
-} as uint16_t
+[%%cenum 
+type ofp_table_feature_prop_type =
+  | OFPTFPT_INSTRUCTIONS       [@id 0]
+  | OFPTFPT_INSTRUCTIONS_MISS  [@id 1]
+  | OFPTFPT_NEXT_TABLES        [@id 2]
+  | OFPTFPT_NEXT_TABLES_MISS   [@id 3]
+  | OFPTFPT_WRITE_ACTIONS      [@id 4]
+  | OFPTFPT_WRITE_ACTIONS_MISS  [@id 5]
+  | OFPTFPT_APPLY_ACTIONS       [@id 6]
+  | OFPTFPT_APPLY_ACTIONS_MISS  [@id 7]
+  | OFPTFPT_MATCH               [@id 8]
+  | OFPTFPT_WILDCARDS           [@id 10]
+  | OFPTFPT_WRITE_SETFIELD      [@id 12]
+  | OFPTFPT_WRITE_SETFIELD_MISS [@id 13]
+  | OFPTFPT_APPLY_SETFIELD      [@id 14]
+  | OFPTFPT_APPLY_SETFIELD_MISS [@id 15]
+  | OFPTFPT_EXPERIMENTER        [@id 0xFFFE]
+  | OFPTFPT_EXPERIMENTER_MISS   [@id 0xFFFF]
+  [@@uint16_t]
+]
 
-cstruct ofp_table_feature_prop_header {
-  uint16_t typ;
-  uint16_t length
-} as big_endian
+[%%cstruct 
+type ofp_table_feature_prop_header = {
+  typ: uint16_t;
+  length: uint16_t;
+} [@@big_endian]]
 
-cenum ofp_flow_mod_command {
-  OFPFC_ADD            = 0; (* New flow. *)
-  OFPFC_MODIFY         = 1; (* Modify all matching flows. *)
-  OFPFC_MODIFY_STRICT  = 2; (* Modify entry strictly matching wildcards and
+[%%cenum 
+type ofp_flow_mod_command =
+  | OFPFC_ADD            [@id 0] (* New flow. *)
+  | OFPFC_MODIFY         [@id 1] (* Modify all matching flows. *)
+  | OFPFC_MODIFY_STRICT  [@id 2] (* Modify entry strictly matching wildcards and
                                priority. *)
-  OFPFC_DELETE         = 3; (* Delete all matching flows. *)
-  OFPFC_DELETE_STRICT  = 4  (* Delete entry strictly matching wildcards and
+  | OFPFC_DELETE         [@id 3] (* Delete all matching flows. *)
+  | OFPFC_DELETE_STRICT  [@id 4]  (* Delete entry strictly matching wildcards and
                                priority. *)
-} as uint8_t
+  [@@uint8_t]
+]
 
-cstruct ofp_flow_mod {
-  uint64_t cookie;             (* Opaque controller-issued identifier. *)
-  uint64_t cookie_mask;        (* Mask used to restrict the cookie bits
+[%%cstruct 
+type ofp_flow_mod = {
+  cookie: uint64_t ;             (* Opaque controller-issued identifier. *)
+  cookie_mask: uint64_t ;        (* Mask used to restrict the cookie bits
                                   that must match when the command is
                                   OFPFC_MODIFY* or OFPFC_DELETE*. A value
                                   of 0 indicates no restriction. *)
 
   (* Flow actions. *)
-  uint8_t table_id;             (* ID of the table to put the flow in.
+  table_id: uint8_t ;             (* ID of the table to put the flow in.
                                    For OFPFC_DELETE_* commands, OFPTT_ALL
                                    can also be used to delete matching
                                    flows from all tables. *)
-  uint8_t command;              (* One of OFPFC_*. *)
-  uint16_t idle_timeout;        (* Idle time before discarding (seconds). *)
-  uint16_t hard_timeout;        (* Max time before discarding (seconds). *)
-  uint16_t priority;            (* Priority level of flow entry. *)
-  uint32_t buffer_id;           (* Buffered packet to apply to, or
+  command: uint8_t ;              (* One of OFPFC_*. *)
+  idle_timeout: uint16_t ;        (* Idle time before discarding (seconds). *)
+  hard_timeout: uint16_t ;        (* Max time before discarding (seconds). *)
+  priority: uint16_t ;            (* Priority level of flow entry. *)
+  buffer_id: uint32_t ;           (* Buffered packet to apply to, or
                                    OFP_NO_BUFFER.
                                    Not meaningful for OFPFC_DELETE*. *)
-  uint32_t out_port;            (* For OFPFC_DELETE* commands, require
+  out_port: uint32_t ;            (* For OFPFC_DELETE* commands, require
                                    matching entries to include this as an
                                    output port.  A value of OFPP_ANY
                                    indicates no restriction. *)
-  uint32_t out_group;           (* For OFPFC_DELETE* commands, require
+  out_group: uint32_t ;           (* For OFPFC_DELETE* commands, require
                                    matching entries to include this as an
                                    output group.  A value of OFPG_ANY
                                    indicates no restriction. *)
-  uint16_t flags;               (* One of OFPFF_*. *)
-  uint8_t pad0;
-  uint8_t pad1
-} as big_endian
+  flags: uint16_t ;               (* One of OFPFF_*. *)
+  pad0: uint8_t ;
+  pad1: uint8_t ;
+} [@@big_endian]]
 
 (* OKAY *)
-cenum ofp_action_type {
-  OFPAT_OUTPUT       = 0;  (* Output to switch port. *)
-  OFPAT_COPY_TTL_OUT = 11; (* Copy TTL "outwards" -- from next-to-outermost
+[%%cenum 
+type ofp_action_type =
+  | OFPAT_OUTPUT       [@id 0]  (* Output to switch port. *)
+  | OFPAT_COPY_TTL_OUT [@id 11] (* Copy TTL "outwards" -- from next-to-outermost
                               to outermost *)
-  OFPAT_COPY_TTL_IN  = 12; (* Copy TTL "inwards" -- from outermost to
+  | OFPAT_COPY_TTL_IN  [@id 12] (* Copy TTL "inwards" -- from outermost to
                               next-to-outermost *)
-  OFPAT_SET_MPLS_TTL = 15; (* MPLS TTL *)
-  OFPAT_DEC_MPLS_TTL = 16; (* Decrement MPLS TTL *)
+  | OFPAT_SET_MPLS_TTL [@id 15] (* MPLS TTL *)
+  | OFPAT_DEC_MPLS_TTL [@id 16] (* Decrement MPLS TTL *)
 
-  OFPAT_PUSH_VLAN    = 17; (* Push a new VLAN tag *)
-  OFPAT_POP_VLAN     = 18; (* Pop the outer VLAN tag *)
-  OFPAT_PUSH_MPLS    = 19; (* Push a new MPLS tag *)
-  OFPAT_POP_MPLS     = 20; (* Pop the outer MPLS tag *)
-  OFPAT_SET_QUEUE    = 21; (* Set queue id when outputting to a port *)
-  OFPAT_GROUP        = 22; (* Apply group. *)
-  OFPAT_SET_NW_TTL   = 23; (* IP TTL. *)
-  OFPAT_DEC_NW_TTL   = 24; (* Decrement IP TTL. *)
-  OFPAT_SET_FIELD    = 25; (* Set a header field using OXM TLV format. *)
-  OFPAT_PUSH_PBB     = 26; (* Push a new PBB service tag (I-TAG) *)
-  OFPAT_POP_PBB      = 27; (* Pop the outer PBB service tag (I-TAG) *)
-  OFPAT_EXPERIMENTER = 0xffff
-} as uint16_t
+  | OFPAT_PUSH_VLAN    [@id 17] (* Push a new VLAN tag *)
+  | OFPAT_POP_VLAN     [@id 18] (* Pop the outer VLAN tag *)
+  | OFPAT_PUSH_MPLS    [@id 19] (* Push a new MPLS tag *)
+  | OFPAT_POP_MPLS     [@id 20] (* Pop the outer MPLS tag *)
+  | OFPAT_SET_QUEUE    [@id 21] (* Set queue id when outputting to a port *)
+  | OFPAT_GROUP        [@id 22] (* Apply group. *)
+  | OFPAT_SET_NW_TTL   [@id 23] (* IP TTL. *)
+  | OFPAT_DEC_NW_TTL   [@id 24] (* Decrement IP TTL. *)
+  | OFPAT_SET_FIELD    [@id 25] (* Set a header field using OXM TLV format. *)
+  | OFPAT_PUSH_PBB     [@id 26] (* Push a new PBB service tag (I-TAG) *)
+  | OFPAT_POP_PBB      [@id 27] (* Pop the outer PBB service tag (I-TAG) *)
+  | OFPAT_EXPERIMENTER [@id 0xffff]
+  [@@uint16_t]
+]
 
 (* Action structure for OFPAT_OUTPUT, which sends packets out 'port'.
  * When the 'port' is the OFPP_CONTROLLER, 'max_len' indicates the max
@@ -1175,369 +1198,417 @@ cenum ofp_action_type {
  * packet should be sent. A 'max_len' of OFPCML_NO_BUFFER means that
  * the packet is not buffered and the complete packet is to be sent to
  * the controller. *)
-cstruct ofp_action_output {
-  uint16_t typ;                   (* OFPAT_OUTPUT. *)
-  uint16_t len;                   (* Length is 16. *)
-  uint32_t port;                  (* Output port. *)
-  uint16_t max_len;               (* Max length to send to controller. *)
-  uint8_t pad0;                   (* Pad to 64 bits. *)
-  uint8_t pad1;                   (* Pad to 64 bits. *)
-  uint8_t pad2;                   (* Pad to 64 bits. *)
-  uint8_t pad3;                   (* Pad to 64 bits. *)
-  uint8_t pad4;                   (* Pad to 64 bits. *)
-  uint8_t pad5                    (* Pad to 64 bits. *)
-} as big_endian
+[%%cstruct 
+type ofp_action_output = {
+  typ: uint16_t ;                   (* OFPAT_OUTPUT. *)
+  len: uint16_t ;                   (* Length is 16. *)
+  port: uint32_t ;                  (* Output port. *)
+  max_len: uint16_t ;               (* Max length to send to controller. *)
+  pad0: uint8_t ;                   (* Pad to 64 bits. *)
+  pad1: uint8_t ;                   (* Pad to 64 bits. *)
+  pad2: uint8_t ;                   (* Pad to 64 bits. *)
+  pad3: uint8_t ;                   (* Pad to 64 bits. *)
+  pad4: uint8_t ;                   (* Pad to 64 bits. *)
+  pad5: uint8_t ;                    (* Pad to 64 bits. *)
+} [@@big_endian]]
 
 (* Action structure for OFPAT_GROUP. *)
-cstruct ofp_action_group {
-  uint16_t typ;                   (* OFPAT_GROUP. *)
-  uint16_t len;                   (* Length is 8. *)
-  uint32_t group_id               (* Group identifier. *)
-} as big_endian
+[%%cstruct 
+type ofp_action_group = {
+  typ: uint16_t ;                   (* OFPAT_GROUP. *)
+  len: uint16_t ;                   (* Length is 8. *)
+  group_id: uint32_t                (* Group identifier. *)
+} [@@big_endian]]
 
 (* Generic action header. Used for POP_VLAN *)
-cstruct ofp_action_header {
-  uint16_t typ;                   (* POP_VLAN. *)
-  uint16_t len;                   (* Length is 8. *)
-  uint8_t pad;
-  uint8_t pad1;
-  uint8_t pad2;
-  uint8_t pad3
-} as big_endian
+[%%cstruct 
+type ofp_action_header = {
+  typ: uint16_t ;                   (* POP_VLAN. *)
+  len: uint16_t ;                   (* Length is 8. *)
+  pad: uint8_t ;
+  pad1: uint8_t ;
+  pad2: uint8_t ;
+  pad3: uint8_t 
+} [@@big_endian]]
 
 (* Action structure for POP_MPLS *)
-cstruct ofp_action_pop_mpls {
-  uint16_t typ;                   (* POP_VLAN. *)
-  uint16_t len;                   (* Length is 8. *)
-  uint16_t ethertype;
-  uint8_t pad0;                   (* Pad to 64 bits. *)
-  uint8_t pad1                    (* Pad to 64 bits. *)
-} as big_endian
+[%%cstruct 
+type ofp_action_pop_mpls = {
+  typ: uint16_t ;                   (* POP_VLAN. *)
+  len: uint16_t ;                   (* Length is 8. *)
+  ethertype: uint16_t ;
+  pad0: uint8_t ;                   (* Pad to 64 bits. *)
+  pad1: uint8_t                     (* Pad to 64 bits. *)
+} [@@big_endian]]
 
 (* Action structure for SET_NW_TTL *)
-cstruct ofp_action_nw_ttl {
-  uint16_t typ;                   (* SET_NW_TTL. *)
-  uint16_t len;                   (* Length is 8. *)
-  uint8_t nw_ttl;
-  uint8_t pad;
-  uint8_t pad1;
-  uint8_t pad2
-} as big_endian
+[%%cstruct 
+type ofp_action_nw_ttl = {
+  typ: uint16_t ;                   (* SET_NW_TTL. *)
+  len: uint16_t ;                   (* Length is 8. *)
+  nw_ttl: uint8_t ;
+  pad: uint8_t ;
+  pad1: uint8_t ;
+  pad2: uint8_t 
+} [@@big_endian]]
 
 (* Action structure for SET_MPLS_TTL *)
-cstruct ofp_action_mpls_ttl {
-  uint16_t typ;                   (* SET_MPLS_TTL. *)
-  uint16_t len;                   (* Length is 8. *)
-  uint8_t mpls_ttl;
-  uint8_t pad[3];
-} as big_endian
+[%%cstruct 
+type ofp_action_mpls_ttl = {
+  typ: uint16_t ;                   (* SET_MPLS_TTL. *)
+  len: uint16_t ;                   (* Length is 8. *)
+  mpls_ttl: uint8_t ;
+  pad: uint8_t;
+  pad1: uint8_t;
+  pad2: uint8_t;
+} [@@big_endian]]
 
 (* Action structure for *_PUSH *)
-cstruct ofp_action_push {
-  uint16_t typ;                   (* OFPAT_PUSH_VLAN/MPLS/PBB *)
-  uint16_t len;                   (* Length is 8. *)
-  uint16_t ethertype;             (* Pad to 64 bits. *)
-  uint8_t pad0;                   (* Pad to 64 bits. *)
-  uint8_t pad1                   (* Pad to 64 bits. *)
-} as big_endian
+[%%cstruct 
+type ofp_action_push = {
+  typ: uint16_t ;                   (* OFPAT_PUSH_VLAN/MPLS/PBB *)
+  len: uint16_t ;                   (* Length is 8. *)
+  ethertype: uint16_t ;             (* Pad to 64 bits. *)
+  pad0: uint8_t ;                   (* Pad to 64 bits. *)
+  pad1: uint8_t ;                   (* Pad to 64 bits. *)
+} [@@big_endian]]
 
 (* Action structure for OFPAT_SET_FIELD. *)
-cstruct ofp_action_set_field {
-  uint16_t typ;                  (* OFPAT_SET_FIELD. *)
-  uint16_t len                   (* Length is padded to 64 bits. *)
+[%%cstruct 
+type ofp_action_set_field = {
+  typ: uint16_t ;                  (* OFPAT_SET_FIELD. *)
+  len: uint16_t ;                   (* Length is padded to 64 bits. *)
   (* Followed by:
    *   - Exactly oxm_len bytes containing a single OXM TLV, then
    *   - Exactly ((oxm_len + 4) + 7)/8*8 - (oxm_len + 4) (between 0 and 7)
    *     bytes of all-zero bytes
   *)
-} as big_endian
+} [@@big_endian]]
 
 (* Action structure for SET_QUEUE *)
-cstruct ofp_action_set_queue {
-  uint16_t typ;                   (* OFPAT_SET_QUEUE*)
-  uint16_t len;                   (* Length is 8. *)
-  uint32_t queue_id
-} as big_endian
+[%%cstruct 
+type ofp_action_set_queue = {
+  typ: uint16_t ;                   (* OFPAT_SET_QUEUE*)
+  len: uint16_t ;                   (* Length is 8. *)
+  queue_id: uint32_t ;
+} [@@big_endian]]
 
-cstruct ofp_action_experimenter {
-  uint16_t typ;
-  uint16_t len;
-  uint32_t experimenter
-} as big_endian
+[%%cstruct 
+type ofp_action_experimenter = {
+  typ: uint16_t ;
+  len: uint16_t ;
+  experimenter: uint32_t ;
+} [@@big_endian]]
 
 (* Instruction header that is common to all instructions.  The length includes
  * the header and any padding used to make the instruction 64-bit aligned.
  * NB: The length of an instruction *must* always be a multiple of eight. *)
-cstruct ofp_instruction {
-  uint16_t typ;                 (* Instruction type *)
-  uint16_t len                  (* Length of this struct in bytes. *)
-} as big_endian
+[%%cstruct 
+type ofp_instruction = {
+  typ: uint16_t ;                 (* Instruction type *)
+  len: uint16_t ;                  (* Length of this struct in bytes. *)
+} [@@big_endian]]
 
-cenum ofp_instruction_type {
-  OFPIT_GOTO_TABLE        = 1;
-  OFPIT_WRITE_METADATA    = 2;
-  OFPIT_WRITE_ACTIONS     = 3;
-  OFPIT_APPLY_ACTIONS     = 4;
-  OFPIT_CLEAR_ACTIONS     = 5;
-  OFPIT_METER             = 6;
-  OFPIT_EXPERIMENTER      = 0xFFFF;
-} as uint16_t
+[%%cenum 
+type ofp_instruction_type =
+  | OFPIT_GOTO_TABLE        [@id 1]
+  | OFPIT_WRITE_METADATA    [@id 2]
+  | OFPIT_WRITE_ACTIONS     [@id 3]
+  | OFPIT_APPLY_ACTIONS     [@id 4]
+  | OFPIT_CLEAR_ACTIONS     [@id 5]
+  | OFPIT_METER             [@id 6]
+  | OFPIT_EXPERIMENTER      [@id 0xFFFF]
+  [@@uint16_t]
+]
 
 (* Instruction structure for OFPIT_GOTO_TABLE *)
-cstruct ofp_instruction_goto_table {
-  uint16_t typ;                 (* OFPIT_GOTO_TABLE *)
-  uint16_t len;                 (* Length of this struct in bytes. *)
-  uint8_t table_id;             (* Set next table in the lookup pipeline *)
-  uint8_t pad0;                 (* Pad to 64 bits. *)
-  uint8_t pad1;
-  uint8_t pad2
-} as big_endian
+[%%cstruct 
+type ofp_instruction_goto_table = {
+  typ: uint16_t ;                 (* OFPIT_GOTO_TABLE *)
+  len: uint16_t ;                 (* Length of this struct in bytes. *)
+  table_id: uint8_t ;             (* Set next table in the lookup pipeline *)
+  pad0: uint8_t ;                 (* Pad to 64 bits. *)
+  pad1: uint8_t ;
+  pad2: uint8_t 
+} [@@big_endian]]
 
 (* Instruction structure for OFPIT_WRITE_METADATA *)
-cstruct ofp_instruction_write_metadata {
-  uint16_t typ;                 (* OFPIT_WRITE_METADATA *)
-  uint16_t len;                 (* Length of this struct in bytes. *)
-  uint8_t pad0;                 (* Align to 64-bits *)
-  uint8_t pad1;
-  uint8_t pad2;
-  uint8_t pad3;
-  uint64_t metadata;            (* Metadata value to write *)
-  uint64_t metadata_mask        (* Metadata write bitmask *)
-} as big_endian
+[%%cstruct 
+type ofp_instruction_write_metadata = {
+  typ: uint16_t ;                 (* OFPIT_WRITE_METADATA *)
+  len: uint16_t ;                 (* Length of this struct in bytes. *)
+  pad0: uint8_t ;                 (* Align to 64-bits *)
+  pad1: uint8_t ;
+  pad2: uint8_t ;
+  pad3: uint8_t ;
+  metadata: uint64_t ;            (* Metadata value to write *)
+  metadata_mask: uint64_t         (* Metadata write bitmask *)
+} [@@big_endian]]
 
 (* Instruction structure for OFPIT_WRITE/APPLY/CLEAR_ACTIONS *)
-cstruct ofp_instruction_actions {
-  uint16_t typ;               (* One of OFPIT_*_ACTIONS *)
-  uint16_t len;               (* Length of this struct in bytes. *)
-  uint8_t pad0;               (* Align to 64-bits *)
-  uint8_t pad1;
-  uint8_t pad2;
-  uint8_t pad3
-} as big_endian
+[%%cstruct 
+type ofp_instruction_actions = {
+  typ: uint16_t ;               (* One of OFPIT_*_ACTIONS *)
+  len: uint16_t ;               (* Length of this struct in bytes. *)
+  pad0: uint8_t ;               (* Align to 64-bits *)
+  pad1: uint8_t ;
+  pad2: uint8_t ;
+  pad3: uint8_t 
+} [@@big_endian]]
 
 (* Instruction structure for OFPIT_METER *)
-cstruct ofp_instruction_meter {
-  uint16_t typ;                 (* OFPIT_METER *)
-  uint16_t len;                 (* Length is 8. *)
-  uint32_t meter_id             (* Meter instance. *)
-} as big_endian
+[%%cstruct 
+type ofp_instruction_meter = {
+  typ: uint16_t ;                 (* OFPIT_METER *)
+  len: uint16_t ;                 (* Length is 8. *)
+  meter_id: uint32_t              (* Meter instance. *)
+} [@@big_endian]]
 
 (* Instruction structure for experimental instructions *)
-cstruct ofp_instruction_experimenter {
-  uint16_t typ;               (* OFPIT_EXPERIMENTER *)
-  uint16_t len;               (* Length of this struct in bytes *)
-  uint32_t experimenter       (* Experimenter ID which takes the same form
+[%%cstruct 
+type ofp_instruction_experimenter = {
+  typ: uint16_t ;               (* OFPIT_EXPERIMENTER *)
+  len: uint16_t ;               (* Length of this struct in bytes *)
+  experimenter: uint32_t        (* Experimenter ID which takes the same form
                                  as in struct ofp_experimenter_header. *)
   (* Experimenter-defined arbitrary additional data. *)
-} as big_endian
+} [@@big_endian]]
 
 
-cenum ofp_group_type {
-  OFPGT_ALL = 0; (* All (multicast/broadcast) group. *)
-  OFPGT_SELECT = 1; (* Select group. *)
-  OFPGT_INDIRECT = 2; (* Indirect group. *)
-  OFPGT_FF = 3 (* Fast failover group. *)
-} as uint16_t
+[%%cenum 
+type ofp_group_type =
+  | OFPGT_ALL [@id 0] (* All (multicast/broadcast) group. *)
+  | OFPGT_SELECT [@id 1] (* Select group. *)
+  | OFPGT_INDIRECT [@id 2] (* Indirect group. *)
+  | OFPGT_FF [@id 3] (* Fast failover group. *)
+  [@@uint16_t]
+]
 
 (* Group setup and teardown (controller -> datapath). *)
-cstruct ofp_group_mod {
-  uint16_t command;             (* One of OFPGC_*. *)
-  uint8_t typ;                 (* One of OFPGT_*. *)
-  uint8_t pad;                  (* Pad to 64 bits. *)
-  uint32_t group_id            (* Group identifier. *)
-} as big_endian
+[%%cstruct 
+type ofp_group_mod = {
+  command: uint16_t ;             (* One of OFPGC_*. *)
+  typ: uint8_t ;                 (* One of OFPGT_*. *)
+  pad: uint8_t ;                  (* Pad to 64 bits. *)
+  group_id: uint32_t             (* Group identifier. *)
+} [@@big_endian]]
 
 (* Bucket for use in groups. *)
-cstruct ofp_bucket {
-  uint16_t len;                   (* Length the bucket in bytes, including
+[%%cstruct 
+type ofp_bucket = {
+  len: uint16_t ;                   (* Length the bucket in bytes, including
                                      this header and any padding to make it
                                      64-bit aligned. *)
-  uint16_t weight;                (* Relative weight of bucket.  Only
+  weight: uint16_t ;                (* Relative weight of bucket.  Only
                                      defined for select groups. *)
-  uint32_t watch_port;            (* Port whose state affects whether this
+  watch_port: uint32_t ;            (* Port whose state affects whether this
                                      bucket is live.  Only required for fast
                                      failover groups. *)
-  uint32_t watch_group;           (* Group whose state affects whether this
+  watch_group: uint32_t ;           (* Group whose state affects whether this
                                      bucket is live.  Only required for fast
                                      failover groups. *)
-  uint8_t pad0;
-  uint8_t pad1;
-  uint8_t pad2;
-  uint8_t pad3
-} as big_endian
+  pad0: uint8_t ;
+  pad1: uint8_t ;
+  pad2: uint8_t ;
+  pad3: uint8_t 
+} [@@big_endian]]
 
-cstruct ofp_oxm {
-  uint16_t oxm_class;
-  uint8_t oxm_field_and_hashmask;
-  uint8_t oxm_length
-} as big_endian
+[%%cstruct 
+type ofp_oxm = {
+  oxm_class: uint16_t ;
+  oxm_field_and_hashmask: uint8_t ;
+  oxm_length: uint8_t 
+} [@@big_endian]]
 
 
-cstruct ofp_meter_band_header {
-  uint16_t typ;
-  uint16_t len;
-  uint32_t rate;
-  uint32_t burst_size
-} as big_endian
+[%%cstruct 
+type ofp_meter_band_header = {
+  typ: uint16_t ;
+  len: uint16_t ;
+  rate: uint32_t ;
+  burst_size: uint32_t 
+} [@@big_endian]]
 
-cstruct ofp_meter_band_drop {
-  uint16_t typ;
-  uint16_t len;
-  uint32_t rate;
-  uint32_t burst_size;
-  uint8_t pad[4]
-} as big_endian
+[%%cstruct 
+type ofp_meter_band_drop = {
+  typ: uint16_t ;
+  len: uint16_t ;
+  rate: uint32_t ;
+  burst_size: uint32_t ;
+  pad: uint8_t [@len 4]
+} [@@big_endian]]
 
-cstruct ofp_meter_band_dscp_remark {
-  uint16_t typ;
-  uint16_t len;
-  uint32_t rate;
-  uint32_t burst_size;
-  uint8_t prec_level;
-  uint8_t pad[3]
-} as big_endian
+[%%cstruct 
+type ofp_meter_band_dscp_remark = {
+  typ: uint16_t ;
+  len: uint16_t ;
+  rate: uint32_t ;
+  burst_size: uint32_t ;
+  prec_level: uint8_t ;
+  pad: uint8_t  [@len 3];
+} [@@big_endian]]
 
-cstruct ofp_meter_band_experimenter {
-  uint16_t typ;
-  uint16_t len;
-  uint32_t rate;
-  uint32_t burst_size;
-  uint32_t experimenter
-} as big_endian
+[%%cstruct 
+type ofp_meter_band_experimenter = {
+  typ: uint16_t ;
+  len: uint16_t ;
+  rate: uint32_t ;
+  burst_size: uint32_t ;
+  experimenter: uint32_t 
+} [@@big_endian]]
 
-cenum ofp_meter_flags {
-  OFPMF_KBPS = 1;
-  OFPMF_PKTPS = 2;
-  OFPMF_BURST = 4;
-  OFPMF_STATS = 8;
-} as uint32_t
+[%%cenum 
+type ofp_meter_flags =
+  | OFPMF_KBPS [@id 1]
+  | OFPMF_PKTPS [@id 2]
+  | OFPMF_BURST [@id 4]
+  | OFPMF_STATS [@id 8]
+  [@@uint32_t]
+]
 
-cstruct ofp_multipart_request {
-  uint16_t typ;   (* One of the OFPMP_* constants. *)
-  uint16_t flags;  (* OFPMP_REQ_* flags (none yet defined). *)
-  uint8_t pad[4];
-  uint8_t body[0] (* Body of the request. *)
-} as big_endian
+[%%cstruct 
+type ofp_multipart_request = {
+  typ: uint16_t ;   (* One of the OFPMP_* constants. *)
+  flags: uint16_t ;  (* OFPMP_REQ_* flags (none yet defined). *)
+  pad: uint8_t  [@len 4];
+  body: uint8_t  [@len 0] (* Body of the request. *)
+} [@@big_endian]]
 
-cenum ofp_multipart_request_flags {
-  OFPMPF_REQ_MORE = 1 (* More requests to follow. *)
-} as uint16_t
+[%%cenum 
+type ofp_multipart_request_flags =
+  | OFPMPF_REQ_MORE [@id 1] (* More requests to follow. *)
+  [@@uint16_t]
+]
 
-cenum ofp_multipart_reply_flags {
-  OFPMPF_REPLY_MORE  = 1  (* More replies to follow. *)
-} as uint16_t
+[%%cenum 
+type ofp_multipart_reply_flags =
+  | OFPMPF_REPLY_MORE  [@id 1]  (* More replies to follow. *)
+  [@@uint16_t]
+]
 
-cstruct ofp_multipart_reply {
-  uint16_t typ;   (* One of the OFPMP_* constants. *)
-  uint16_t flags;  (* OFPMP_REPLY_* flags. *)
-  uint8_t pad[4];
-  uint8_t body[0] (* Body of the reply. *)
-} as big_endian
+[%%cstruct 
+type ofp_multipart_reply = {
+  typ: uint16_t ;   (* One of the OFPMP_* constants. *)
+  flags: uint16_t ;  (* OFPMP_REPLY_* flags. *)
+  pad: uint8_t  [@len 4];
+  body: uint8_t [@len 0]; (* Body of the reply. *)
+} [@@big_endian]]
 
-cenum ofp_multipart_types {
+[%%cenum 
+type ofp_multipart_types =
   (* Description of this OpenFlow switch.
    * The request body is empty.
    * The reply body is struct ofp_desc. *)
-  OFPMP_DESC = 0;
+  | OFPMP_DESC [@id 0]
   (* Individual flow statistics.
    * The request body is struct ofp_flow_multipart_request.
    * The reply body is an array of struct ofp_flow_stats. *)
-  OFPMP_FLOW = 1;
+  | OFPMP_FLOW [@id 1]
   (* Aggregate flow statistics.
    * The request body is struct ofp_aggregate_stats_request.
    * The reply body is struct ofp_aggregate_stats_reply. *)
-  OFPMP_AGGREGATE = 2;
+  | OFPMP_AGGREGATE [@id 2]
   (* Flow table statistics.
    * The request body is empty.
    * The reply body is an array of struct ofp_table_stats. *)
-  OFPMP_TABLE = 3;
+  | OFPMP_TABLE [@id 3]
   (* Port statistics.
    * The request body is struct ofp_port_stats_request.
    * The reply body is an array of struct ofp_port_stats. *)
-  OFPMP_PORT_STATS = 4;
+  | OFPMP_PORT_STATS [@id 4]
   (* Queue statistics for a port
    * The request body is struct ofp_queue_stats_request.
    * The reply body is an array of struct ofp_queue_stats *)
-  OFPMP_QUEUE = 5;
+  | OFPMP_QUEUE [@id 5]
   (* Group counter statistics.
    * The request body is struct ofp_group_stats_request.
    * The reply is an array of struct ofp_group_stats. *)
-  OFPMP_GROUP = 6;
+  | OFPMP_GROUP [@id 6]
   (* Group description statistics.
    * The request body is empty.
    * The reply body is an array of struct ofp_group_desc_stats. *)
-  OFPMP_GROUP_DESC = 7;
+  | OFPMP_GROUP_DESC [@id 7]
   (* Group features.
    * The request body is empty.
    * The reply body is struct ofp_group_features_stats. *)
-  OFPMP_GROUP_FEATURES = 8;
+  | OFPMP_GROUP_FEATURES [@id 8]
   (* Meter statistics.
    * The request body is struct ofp_meter_multipart_requests.
    * The reply body is an array of struct ofp_meter_stats. *)
-  OFPMP_METER = 9;
+  | OFPMP_METER [@id 9]
   (* Meter configuration.
    * The request body is struct ofp_meter_multipart_requests.
    * The reply body is an array of struct ofp_meter_config. *)
-  OFPMP_METER_CONFIG = 10;
+  | OFPMP_METER_CONFIG [@id 10]
   (* Meter features.
    * The request body is empty.
    * The reply body is struct ofp_meter_features. *)
-  OFPMP_METER_FEATURES = 11;
+  | OFPMP_METER_FEATURES [@id 11]
   (* Table features.
    * The request body is either empty or contains an array of
    * struct ofp_table_features containing the controller’s
    * desired view of the switch. If the switch is unable to
    * set the specified view an error is returned.
    * The reply body is an array of struct ofp_table_features. *)
-  OFPMP_TABLE_FEATURES = 12;
+  | OFPMP_TABLE_FEATURES [@id 12]
   (* Port description.
    * The request body is empty.
    * The reply body is an array of struct ofp_port. *)
-  OFPMP_PORT_DESC = 13;
+  | OFPMP_PORT_DESC [@id 13]
   (* Experimenter extension.
    * The request and reply bodies begin with
    * struct ofp_experimenter_stats_header.
    * The request and reply bodies are otherwise experimenter-defined. *)
-  OFPMP_EXPERIMENTER = 0xffff
-} as uint16_t
+  | OFPMP_EXPERIMENTER [@id 0xffff]
+  [@@uint16_t]
+]
 
-cstruct ofp_desc {
-  uint8_t mfr_desc[256];
-  uint8_t hw_desc[256];
-  uint8_t sw_desc[256];
-  uint8_t serial_num[32];
-} as big_endian
+[%%cstruct 
+type ofp_desc = {
+  mfr_desc: uint8_t  [@len 256];
+  hw_desc: uint8_t  [@len 256];
+  sw_desc: uint8_t  [@len 256];
+  serial_num: uint8_t  [@len 32];
+  dp_desc: uint8_t [@len 256];
+} [@@big_endian]]
 
-cstruct ofp_uint8 {
-  uint8_t value
-} as big_endian
+[%%cstruct 
+type ofp_uint8 = {
+  value: uint8_t ;
+} [@@big_endian]]
 
-cstruct ofp_uint16 {
-  uint16_t value
-} as big_endian
+[%%cstruct 
+type ofp_uint16 = {
+  value: uint16_t ;
+} [@@big_endian]]
 
-cstruct ofp_uint24 {
-  uint16_t high;
-  uint8_t low
-} as big_endian
+[%%cstruct 
+type ofp_uint24 = {
+  high: uint16_t ;
+  low: uint8_t ;
+} [@@big_endian]]
 
-cstruct ofp_uint32 {
-  uint32_t value
-} as big_endian
+[%%cstruct 
+type ofp_uint32 = {
+  value: uint32_t ;
+} [@@big_endian]]
 
-cstruct ofp_uint48 {
-  uint32_t high;
-  uint16_t low
-} as big_endian
+[%%cstruct 
+type ofp_uint48 = {
+  high: uint32_t ;
+  low: uint16_t ;
+} [@@big_endian]]
 
-cstruct ofp_uint64 {
-  uint64_t value
-} as big_endian
+[%%cstruct 
+type ofp_uint64 = {
+  value: uint64_t ;
+} [@@big_endian]]
 
-cstruct ofp_uint128 {
-  uint64_t high;
-  uint64_t low
-} as big_endian
+[%%cstruct 
+type ofp_uint128 = {
+  high: uint64_t ;
+  low: uint64_t ;
+} [@@big_endian]]
 
 (* TODO(arjun): WTF *)
 let max_uint32 = 4294967296L (* = 2^32*)
@@ -1588,10 +1659,10 @@ let set_ofp_uint128_value (buf : Cstruct.t) ((h,l) : uint128) =
 let get_ofp_uint128_value (buf : Cstruct.t) : uint128 =
   (get_ofp_uint128_high buf, get_ofp_uint128_low buf)
 
-(* TODO(arjun): WTF use pattern-matching *)
 let rec marshal_fields (buf: Cstruct.t) (fields : 'a list) (marshal_func : Cstruct.t -> 'a -> int ): int =
-  if (fields = []) then 0
-  else let size = marshal_func buf (List.hd_exn fields) in
+  match fields with
+  | [] -> 0
+  | fields -> let size = marshal_func buf (List.hd_exn fields) in
     size + (marshal_fields (Cstruct.shift buf size) (List.tl_exn fields) marshal_func)
 
 let parse_fields (bits : Cstruct.t) (parse_func : Cstruct.t -> 'a) (length_func : Cstruct.t -> int option) :'a list =
@@ -2717,29 +2788,31 @@ end
 module PseudoPort = struct
   type t = pseudoPort
 
-      cenum ofp_port_no {
-      (* Maximum number of physical and logical switch ports. *)
-      OFPP_MAX        = 0xffffff00l;
+  [%%cenum 
+  type ofp_port_no =
+    (* Maximum number of physical and logical switch ports. *)
+    | OFPP_MAX        [@id 0xffffff00l]
 
-      (* Reserved OpenFlow Port (fake output "ports"). *)
-      OFPP_IN_PORT    = 0xfffffff8l; (* Send the packet out the input port. This
-                                        reserved port must be explicitly used
-                                        in order to send back out of the input
-                                        port.*)
-      OFPP_TABLE      = 0xfffffff9l; (* Submit the packet to the first flow table
-                                        NB: This destination port can only be
-                                        used in packet-out messages. *)
-      OFPP_NORMAL     = 0xfffffffal; (* Process with normal L2/L3 switching. *)
-      OFPP_FLOOD      = 0xfffffffbl; (* All physical ports in VLAN, except input
-                                        port and those blocked or link down. *)
-      OFPP_ALL        = 0xfffffffcl; (* All physical ports except input port. *)
-      OFPP_CONTROLLER = 0xfffffffdl; (* Send to controller. *)
-      OFPP_LOCAL      = 0xfffffffel; (* Local openflow "port". *)
-      OFPP_ANY        = 0xffffffffl  (* Wildcard port used only for flow mod
-                                        (delete) and flow stats requests. Selects
-                                        all flows regardless of output port
-                                        (including flows with no output port). *)
-    } as uint32_t
+    (* Reserved OpenFlow Port (fake output "ports"). *)
+    | OFPP_IN_PORT    [@id 0xfffffff8l] (* Send the packet out the input port. This
+                                      reserved port must be explicitly used
+                                      in order to send back out of the input
+                                      port.*)
+    | OFPP_TABLE      [@id 0xfffffff9l] (* Submit the packet to the first flow table
+                                      NB: This destination port can only be
+                                      used in packet-out messages. *)
+    | OFPP_NORMAL     [@id 0xfffffffal] (* Process with normal L2/L3 switching. *)
+    | OFPP_FLOOD      [@id 0xfffffffbl] (* All physical ports in VLAN, except input
+                                      port and those blocked or link down. *)
+    | OFPP_ALL        [@id 0xfffffffcl] (* All physical ports except input port. *)
+    | OFPP_CONTROLLER [@id 0xfffffffdl] (* Send to controller. *)
+    | OFPP_LOCAL      [@id 0xfffffffel] (* Local openflow "port". *)
+    | OFPP_ANY        [@id 0xffffffffl]  (* Wildcard port used only for flow mod
+                                      (delete) and flow stats requests. Selects
+                                      all flows regardless of output port
+                                      (including flows with no output port). *)
+    [@@uint32_t]
+  ]
 
   let size_of _ = 4
 
@@ -2787,50 +2860,57 @@ end
 
 module QueueDesc = struct
 
-  cstruct ofp_packet_queue {
-    uint32_t queue_id;
-    uint32_t port;
-    uint16_t len;
-    uint8_t pad[6]
-  } as big_endian
+  [%%cstruct 
+  type ofp_packet_queue = {
+    queue_id: uint32_t ;
+    port: uint32_t ;
+    len: uint16_t ;
+    pad: uint8_t  [@len 6];
+  } [@@big_endian]]
 
   module QueueProp = struct
 
-    cstruct ofp_queue_prop_header {
-      uint16_t property;
-      uint16_t len;
-      uint8_t pad[4]
-    } as big_endian
+    [%%cstruct 
+    type ofp_queue_prop_header = {
+      property: uint16_t ;
+      len: uint16_t ;
+      pad: uint8_t  [@len 4];
+    } [@@big_endian]]
 
-    cenum ofp_queue_properties {
-      OFPQT_MIN_RATE = 1;
-      OFPQT_MAX_RATE = 2;
-      OFPQT_EXPERIMENTER = 0xffff
-    } as uint16_t
+    [%%cenum 
+    type ofp_queue_properties =
+      | OFPQT_MIN_RATE [@id 1]
+      | OFPQT_MAX_RATE [@id 2]
+      | OFPQT_EXPERIMENTER [@id 0xffff]
+      [@@uint16_t]
+    ]
 
-    cstruct ofp_queue_prop_min_rate {
-      uint16_t property;
-      uint16_t len;
-      uint8_t pad[4];
-      uint16_t rate;
-      uint8_t pad[6]
-    } as big_endian
+    [%%cstruct 
+    type ofp_queue_prop_min_rate = {
+      property: uint16_t ;
+      len: uint16_t ;
+      pad: uint8_t  [@len 4];
+      rate: uint16_t ;
+      pad2: uint8_t  [@len 6];
+    } [@@big_endian]]
 
-    cstruct ofp_queue_prop_max_rate {
-      uint16_t property;
-      uint16_t len;
-      uint8_t pad[4];
-      uint16_t rate;
-      uint8_t pad[6]
-    } as big_endian
+    [%%cstruct 
+    type ofp_queue_prop_max_rate = {
+      property: uint16_t ;
+      len: uint16_t ;
+      pad: uint8_t [@len 4];
+      rate: uint16_t ;
+      pad2: uint8_t  [@len 6];
+    } [@@big_endian]]
 
-    cstruct ofp_queue_prop_experimenter {
-      uint16_t property;
-      uint16_t len;
-      uint8_t pad[4];
-      uint32_t experimenter;
-      uint8_t pad[4]
-    } as big_endian
+    [%%cstruct 
+    type ofp_queue_prop_experimenter = {
+      property: uint16_t ;
+      len: uint16_t ;
+      pad: uint8_t  [@len 4];
+      experimenter: uint32_t ;
+      pad2: uint8_t  [@len 4];
+    } [@@big_endian]]
 
     type t = queueProp
 
@@ -2865,23 +2945,29 @@ module QueueDesc = struct
       | MinRateProp rate ->
         set_ofp_queue_prop_min_rate_property buf (ofp_queue_properties_to_int OFPQT_MIN_RATE);
         set_ofp_queue_prop_min_rate_len buf 16; (* fixed by specification *)
+        set_ofp_queue_prop_min_rate_pad (String.make 4 '\000') 0 buf; 
         set_ofp_queue_prop_min_rate_rate buf (
           match rate with
           | Rate n -> n
           | Disabled -> 0xffff);
+        set_ofp_queue_prop_min_rate_pad2 (String.make 6 '\000') 0 buf; 
         sizeof_ofp_queue_prop_min_rate
       | MaxRateProp rate ->
         set_ofp_queue_prop_max_rate_property buf (ofp_queue_properties_to_int OFPQT_MAX_RATE);
         set_ofp_queue_prop_max_rate_len buf 16; (* fixed by specification *)
+        set_ofp_queue_prop_max_rate_pad (String.make 4 '\000') 0 buf;
         set_ofp_queue_prop_max_rate_rate buf (
           match rate with
           | Rate n -> n
           | Disabled -> 0xffff);
+        set_ofp_queue_prop_max_rate_pad2 (String.make 6 '\000') 0 buf; 
         sizeof_ofp_queue_prop_max_rate
       | ExperimenterProp id ->
         set_ofp_queue_prop_experimenter_property buf (ofp_queue_properties_to_int OFPQT_EXPERIMENTER);
         set_ofp_queue_prop_experimenter_len buf 16; (* fixed by specification *)
+        set_ofp_queue_prop_experimenter_pad (String.make 4 '\000') 0 buf; 
         set_ofp_queue_prop_experimenter_experimenter buf id;
+        set_ofp_queue_prop_experimenter_pad2 (String.make 4 '\000') 0 buf; 
         sizeof_ofp_queue_prop_experimenter
 
     let parse (bits : Cstruct.t) : t =
@@ -2921,6 +3007,7 @@ module QueueDesc = struct
     set_ofp_packet_queue_queue_id buf qd.queue_id;
     set_ofp_packet_queue_port buf qd.port;
     set_ofp_packet_queue_len buf qd.len;
+    set_ofp_packet_queue_pad (String.make 6 '\000') 0 buf; 
     let propBuf = Cstruct.sub buf sizeof_ofp_packet_queue (qd.len - sizeof_ofp_packet_queue) in
     sizeof_ofp_packet_queue + (marshal_fields propBuf qd.properties QueueProp.marshal)
 
@@ -2936,41 +3023,34 @@ end
 
 module SwitchConfig = struct
 
-  cstruct ofp_switch_config {
-    uint16_t flags;
-    uint16_t miss_send_len
-  } as big_endian
+  [%%cstruct 
+  type ofp_switch_config = {
+    flags: uint16_t;
+    miss_send_len: uint16_t;
+  } [@@big_endian]]
 
   module Flags = struct
 
-    cenum ofp_config_flags {
-      OFPC_FRAG_NORMAL = 0;
-      OFPC_FRAG_DROP = 1;
-      OFPC_FRAG_REASM = 2;
-      OFPC_FRAG_MASK = 3
-    } as uint16_t
-
     let to_string (flags : switchFlags) : string =
-      match flags with
-      | NormalFrag -> "NormalHandling"
-      | DropFrag -> "DropFragments"
-      | ReasmFrag -> "Reasemble"
-      | MaskFrag -> "MaskFrag"
+      Format.sprintf "{ frag_normal = %B; frag_drop = %B; frag_reasm = %B; }"
+        flags.frag_normal
+        flags.frag_drop
+        flags.frag_reasm
 
-    let marshal (flags : switchFlags) : int =
-      match flags with
-      | NormalFrag -> ofp_config_flags_to_int OFPC_FRAG_NORMAL
-      | DropFrag -> ofp_config_flags_to_int OFPC_FRAG_DROP
-      | ReasmFrag -> ofp_config_flags_to_int OFPC_FRAG_REASM
-      | MaskFrag -> ofp_config_flags_to_int OFPC_FRAG_MASK
+    let marshal (flags : switchFlags) =
+     (* This is unusual, but it's in the spec.  One would think drop and reasm were mutually
+        exclusive, but they're not. *)
+     if flags.frag_normal then 0
+     else
+      (if flags.frag_drop then 1 lsl 0 else 0) lor
+      (if flags.frag_reasm then 1 lsl 1 else 0) 
 
-    let parse t : switchFlags =
-      match int_to_ofp_config_flags t with
-      | Some OFPC_FRAG_NORMAL -> NormalFrag
-      | Some OFPC_FRAG_DROP -> DropFrag
-      | Some OFPC_FRAG_REASM -> ReasmFrag
-      | Some OFPC_FRAG_MASK -> MaskFrag
-      | None -> raise (Unparsable (sprintf "Malformed flags"))
+    let parse bits : switchFlags =
+      { frag_normal = (bits = 0)
+      ; frag_drop = test_bit16 0 bits
+      ; frag_reasm = test_bit16 1 bits
+      }
+
   end
 
   type t = switchConfig
@@ -3043,17 +3123,17 @@ module Action = struct
     | Output _ -> sizeof_ofp_action_output
     | Group _ -> sizeof_ofp_action_group
     | PopVlan -> sizeof_ofp_action_header
-    | PushVlan -> sizeof_ofp_action_push
-    | PopMpls -> sizeof_ofp_action_pop_mpls
-    | PushMpls -> sizeof_ofp_action_push
+    | PushVlan _ -> sizeof_ofp_action_push
+    | PopMpls _ -> sizeof_ofp_action_pop_mpls
+    | PushMpls _ -> sizeof_ofp_action_push
     | SetField oxm -> pad_to_64bits (sizeof_ofp_action_set_field + Oxm.sizeof oxm)
     | CopyTtlOut -> sizeof_ofp_action_header
     | CopyTtlIn -> sizeof_ofp_action_header
     | SetNwTtl _ -> sizeof_ofp_action_nw_ttl
     | DecNwTtl -> sizeof_ofp_action_header
-    | PushPbb -> sizeof_ofp_action_push
+    | PushPbb _ -> sizeof_ofp_action_push
     | PopPbb -> sizeof_ofp_action_header
-    | SetMplsTtl _ -> sizeof_ofp_action_push
+    | SetMplsTtl _ -> sizeof_ofp_action_mpls_ttl
     | DecMplsTtl -> sizeof_ofp_action_header
     | SetQueue _ -> sizeof_ofp_action_set_queue
     | Experimenter _ -> sizeof_ofp_action_experimenter
@@ -3076,10 +3156,12 @@ module Action = struct
       set_ofp_action_output_pad4 buf 0;
       set_ofp_action_output_pad5 buf 0;
       size
-    | PushVlan ->
+    | PushVlan ethertype ->
       set_ofp_action_push_typ buf 17; (* PUSH_VLAN *)
       set_ofp_action_push_len buf size;
-      set_ofp_action_push_ethertype buf 0x8100;
+      set_ofp_action_push_ethertype buf ethertype;
+      set_ofp_action_push_pad0 buf 0;
+      set_ofp_action_push_pad1 buf 0;
       size
     | PopVlan ->
       set_ofp_action_header_typ buf 18; (* POP_VLAN *)
@@ -3089,15 +3171,19 @@ module Action = struct
       set_ofp_action_header_pad2 buf 0;
       set_ofp_action_header_pad3 buf 0;
       size
-    | PushMpls ->
+    | PushMpls ethertype ->
       set_ofp_action_push_typ buf 19; (* PUSH_MPLS *)
       set_ofp_action_push_len buf size;
-      set_ofp_action_push_ethertype buf 0x8847;
+      set_ofp_action_push_ethertype buf ethertype;
+      set_ofp_action_push_pad0 buf 0;
+      set_ofp_action_push_pad1 buf 0;
       size
-    | PopMpls ->
+    | PopMpls ethertype ->
       set_ofp_action_pop_mpls_typ buf 20; (* POP_MPLS *)
       set_ofp_action_pop_mpls_len buf size;
-      set_ofp_action_pop_mpls_ethertype buf 0x800;
+      set_ofp_action_pop_mpls_ethertype buf ethertype;
+      set_ofp_action_pop_mpls_pad0 buf 0;
+      set_ofp_action_pop_mpls_pad1 buf 0;
       size
     | Group gid ->
       set_ofp_action_group_typ buf 22; (* OFPAT_GROUP *)
@@ -3148,10 +3234,10 @@ module Action = struct
       set_ofp_action_header_pad2 buf 0;
       set_ofp_action_header_pad3 buf 0;
       size
-    | PushPbb ->
+    | PushPbb ethertype ->
       set_ofp_action_push_typ buf 26; (* OFPAT_PUSH_PBB *)
       set_ofp_action_push_len buf size;
-      set_ofp_action_push_ethertype buf 0x88a8; (* Not sure, maybe need to redefine*)
+      set_ofp_action_push_ethertype buf ethertype;
       size
     | PopPbb ->
       set_ofp_action_header_typ buf 27; (* OFPAT_POP_PBB *)
@@ -3165,6 +3251,9 @@ module Action = struct
       set_ofp_action_mpls_ttl_typ buf 15; (* OFPAT_SET_MPLS_TTL *)
       set_ofp_action_mpls_ttl_len buf size;
       set_ofp_action_mpls_ttl_mpls_ttl buf newTtl;
+      set_ofp_action_mpls_ttl_pad buf 0;
+      set_ofp_action_mpls_ttl_pad1 buf 0;
+      set_ofp_action_mpls_ttl_pad2 buf 0;
       size
     | DecMplsTtl ->
       set_ofp_action_header_typ buf 16; (* OFPAT_DEC_MPLS_TTL *)
@@ -3192,10 +3281,10 @@ module Action = struct
     | Some OFPAT_COPY_TTL_IN -> CopyTtlIn
     | Some OFPAT_SET_MPLS_TTL -> SetMplsTtl (get_ofp_action_mpls_ttl_mpls_ttl bits)
     | Some OFPAT_DEC_MPLS_TTL -> DecMplsTtl
-    | Some OFPAT_PUSH_VLAN -> PushVlan
+    | Some OFPAT_PUSH_VLAN -> PushVlan (get_ofp_action_push_ethertype bits)
     | Some OFPAT_POP_VLAN -> PopVlan
-    | Some OFPAT_PUSH_MPLS -> PushMpls
-    | Some OFPAT_POP_MPLS -> PopMpls
+    | Some OFPAT_PUSH_MPLS -> PushMpls  (get_ofp_action_push_ethertype bits)
+    | Some OFPAT_POP_MPLS -> PopMpls  (get_ofp_action_pop_mpls_ethertype bits)
     | Some OFPAT_SET_QUEUE -> SetQueue (get_ofp_action_set_queue_queue_id bits)
     | Some OFPAT_GROUP -> Group (get_ofp_action_group_group_id bits)
     | Some OFPAT_SET_NW_TTL -> SetNwTtl (get_ofp_action_nw_ttl_nw_ttl bits)
@@ -3203,7 +3292,7 @@ module Action = struct
     | Some OFPAT_SET_FIELD -> let field,_ = Oxm.parse (
         Cstruct.shift bits 4) in
       SetField (field)
-    | Some OFPAT_PUSH_PBB -> PushPbb
+    | Some OFPAT_PUSH_PBB -> PushPbb (get_ofp_action_push_ethertype bits)
     | Some OFPAT_POP_PBB -> PopPbb
     | Some OFPAT_EXPERIMENTER -> Experimenter (get_ofp_action_experimenter_experimenter bits)
     | None -> failwith "None type"
@@ -3224,16 +3313,16 @@ module Action = struct
     | Output o -> Format.sprintf "PseudoPort: %s" (PseudoPort.to_string o)
     | Group g -> Format.sprintf "Group ID: %lu" g
     | PopVlan -> "Pop Vlan"
-    | PushVlan -> "Push Vlan"
-    | PopMpls -> "Pop Mpls"
-    | PushMpls -> "Push Mpls"
-    | SetField oxm -> Format.sprintf "oxm: %s" (Oxm.to_string oxm)
+    | PushVlan _ -> "Push Vlan"
+    | PopMpls _ -> "Pop Mpls"
+    | PushMpls _ -> "Push Mpls"
+    | SetField oxm -> Format.sprintf "oxm: %s" "" (*Oxm.to_string oxm*)
     | CopyTtlOut -> "Copy TTL out"
     | CopyTtlIn -> "Copy TTL In"
     | SetNwTtl t -> Format.sprintf "Set NW TTL %u" t
     | DecNwTtl -> "Dec NW TTL"
-    | PushPbb -> "Push PBB"
-    | PopPbb -> "POP PBB"
+    | PushPbb _ -> "Push PBB"
+    | PopPbb -> "Pop PBB"
     | SetMplsTtl t -> Format.sprintf "Set MPLS TTL: %u" t
     | DecMplsTtl -> "Dec MPLS TTL"
     | SetQueue q -> Format.sprintf "Set Queue: %lu" q
@@ -3399,11 +3488,13 @@ end
 
 module GroupMod = struct
 
-  cenum ofp_group_mod_command {
-    OFPGC_ADD = 0;
-    OFPGC_MODIFY = 1;
-    OFPGC_DELETE = 2
-  } as uint16_t
+  [%%cenum 
+  type ofp_group_mod_command =
+    | OFPGC_ADD [@id 0]
+    | OFPGC_MODIFY [@id 1]
+    | OFPGC_DELETE [@id 2]
+    [@@uint16_t]
+  ]
 
   type t = groupMod
 
@@ -3440,13 +3531,13 @@ module GroupMod = struct
       set_ofp_group_mod_group_id buf gid;
       sizeof_ofp_group_mod + (marshal_fields (Cstruct.shift buf sizeof_ofp_group_mod) buckets Bucket.marshal)
     | DeleteGroup (typ, gid) ->
-      set_ofp_group_mod_command buf 1; (* OFPGC_DEL *)
+      set_ofp_group_mod_command buf 2; (* OFPGC_DEL *)
       set_ofp_group_mod_typ buf (GroupType.marshal typ);
       set_ofp_group_mod_pad buf 0;
       set_ofp_group_mod_group_id buf gid;
       sizeof_ofp_group_mod
     | ModifyGroup (typ, gid, buckets) ->
-      set_ofp_group_mod_command buf 2; (* OFPGC_MODIFY *)
+      set_ofp_group_mod_command buf 1; (* OFPGC_MODIFY *)
       set_ofp_group_mod_typ buf (GroupType.marshal typ);
       set_ofp_group_mod_pad buf 0;
       set_ofp_group_mod_group_id buf gid;
@@ -3469,16 +3560,17 @@ end
 
 module PortMod = struct
 
-  cstruct ofp_port_mod {
-    uint32_t port_no;
-    uint8_t pad[4];
-    uint8_t hw_addr[6];
-    uint8_t pad2[2];
-    uint32_t config;
-    uint32_t mask;
-    uint32_t advertise;
-    uint8_t pad3[4]
-  } as big_endian
+  [%%cstruct 
+  type ofp_port_mod = {
+    port_no: uint32_t ;
+    pad: uint8_t  [@len 4];
+    hw_addr: uint8_t  [@len 6];
+    pad2: uint8_t  [@len 2];
+    config: uint32_t ;
+    mask: uint32_t ;
+    advertise: uint32_t ;
+    pad3: uint8_t  [@len 4]
+  } [@@big_endian]]
 
   type t = portMod
 
@@ -3486,38 +3578,43 @@ module PortMod = struct
     sizeof_ofp_port_mod
 
   let to_string (pm : t) : string =
-    Format.sprintf "{ port_no = %lu; hw_addr = %s; config = %s; mask = %s; advertise = %s }"
+    Format.sprintf "{ port_no = %lu; hw_addr = %s; config = %s; mask = %lu; advertise = %s }"
       pm.mpPortNo
       (string_of_mac pm.mpHw_addr)
       (PortConfig.to_string pm.mpConfig)
-      (PortConfig.to_string pm.mpMask)
-      (PortState.to_string pm.mpAdvertise)
+      pm.mpMask
+      (PortFeatures.to_string pm.mpAdvertise)
 
   let marshal (buf : Cstruct.t) (pm : t) : int =
     set_ofp_port_mod_port_no buf pm.mpPortNo;
+    set_ofp_port_mod_pad (String.make 4 '\000') 0 buf; 
     set_ofp_port_mod_hw_addr (bytes_of_mac pm.mpHw_addr) 0 buf;
+    set_ofp_port_mod_pad2 (String.make 2 '\000') 0 buf; 
     set_ofp_port_mod_config buf (PortConfig.marshal pm.mpConfig);
-    set_ofp_port_mod_mask buf (PortConfig.marshal pm.mpMask);
-    set_ofp_port_mod_advertise buf (PortState.marshal pm.mpAdvertise);
+    set_ofp_port_mod_mask buf pm.mpMask;
+    set_ofp_port_mod_advertise buf (PortFeatures.marshal pm.mpAdvertise);
+    set_ofp_port_mod_pad3 (String.make 4 '\000') 0 buf; 
     sizeof_ofp_port_mod
 
   let parse (bits : Cstruct.t) : t =
     let mpPortNo = get_ofp_port_mod_port_no bits in
     let mpHw_addr = mac_of_bytes (copy_ofp_port_mod_hw_addr bits) in
     let mpConfig = PortConfig.parse (get_ofp_port_mod_config bits) in
-    let mpMask = PortConfig.parse (get_ofp_port_mod_mask bits) in
-    let mpAdvertise = PortState.parse (get_ofp_port_mod_advertise bits) in
+    let mpMask = get_ofp_port_mod_mask bits in
+    let mpAdvertise = PortFeatures.parse (get_ofp_port_mod_advertise bits) in
     { mpPortNo; mpHw_addr; mpConfig; mpMask; mpAdvertise}
 
 end
 
 module MeterBand = struct
 
-  cenum ofp_meter_band_type {
-    OFPMBT_DROP = 1;
-    OFPMBT_DSCP_REMARK = 2;
-    OFPMBT_EXPERIMENTER = 0xffff
-  } as uint16_t
+  [%%cenum 
+  type ofp_meter_band_type =
+    | OFPMBT_DROP [@id 1]
+    | OFPMBT_DSCP_REMARK [@id 2]
+    | OFPMBT_EXPERIMENTER [@id 0xffff]
+    [@@uint16_t]
+  ]
 
   type t = meterBand
 
@@ -3547,6 +3644,7 @@ module MeterBand = struct
       set_ofp_meter_band_drop_len buf sizeof_ofp_meter_band_drop;
       set_ofp_meter_band_drop_rate buf r;
       set_ofp_meter_band_drop_burst_size buf b;
+      set_ofp_meter_band_drop_pad (String.make 4 '\000') 0 buf; 
       sizeof_ofp_meter_band_drop
     | DscpRemark (r,b,p) ->
       set_ofp_meter_band_dscp_remark_typ buf 2; (* OFPMBT_DSCP_REMARK *)
@@ -3554,6 +3652,7 @@ module MeterBand = struct
       set_ofp_meter_band_dscp_remark_rate buf r;
       set_ofp_meter_band_dscp_remark_burst_size buf b;
       set_ofp_meter_band_dscp_remark_prec_level buf p;
+      set_ofp_meter_band_dscp_remark_pad (String.make 3 '\000') 0 buf; 
       sizeof_ofp_meter_band_dscp_remark
     | ExpMeter (r,b,e) ->
       set_ofp_meter_band_experimenter_typ buf 0xffff; (* OFPMBT_EXPERIMENTER *)
@@ -3605,19 +3704,22 @@ end
 
 module MeterMod = struct
 
-  cstruct ofp_meter_mod {
-    uint16_t commands;
-    uint16_t flags;
-    uint32_t meter_id
-  } as big_endian
+  [%%cstruct 
+  type ofp_meter_mod = {
+    commands: uint16_t ;
+    flags: uint16_t ;
+    meter_id: uint32_t ;
+  } [@@big_endian]]
 
   module Command = struct
 
-    cenum ofp_meter_mod_command {
-      OFPMC_ADD;
-      OFPMC_MODIFY;
-      OFPMC_DELETE
-    } as uint16_t
+    [%%cenum 
+    type ofp_meter_mod_command =
+      | OFPMC_ADD
+      | OFPMC_MODIFY
+      | OFPMC_DELETE
+      [@@uint16_t]
+    ]
 
     let to_string (t :  meterCommand) =
       match t with
@@ -3790,7 +3892,7 @@ end
 
 module Instructions = struct
 
-  type t = instruction list with sexp
+  type t = instruction list [@@deriving sexp]
 
   let sizeof (inss : t) : int =
     sum (List.map ~f:Instruction.sizeof inss)
@@ -4168,11 +4270,13 @@ module PacketIn = struct
 
   module Reason = struct
 
-    cenum ofp_packet_in_reason {
-      NO_MATCH = 0;
-      ACTION = 1;
-      INVALID_TTL = 2
-    } as uint8_t
+    [%%cenum 
+    type ofp_packet_in_reason =
+      | NO_MATCH [@id 0]
+      | ACTION [@id 1]
+      | INVALID_TTL [@id 2]
+      [@@uint8_t]
+    ]
 
     type t = packetInReason
 
@@ -4196,13 +4300,14 @@ module PacketIn = struct
       | None -> raise (Unparsable (sprintf "bad reason in packet_in (%d)" t))
   end
 
-    cstruct ofp_packet_in {
-    uint32_t buffer_id;
-    uint16_t total_len;
-    uint8_t reason;
-    uint8_t table_id;
-    uint64_t cookie
-  } as big_endian
+  [%%cstruct 
+  type ofp_packet_in = {
+    buffer_id: uint32_t ;
+    total_len: uint16_t ;
+    reason: uint8_t ;
+    table_id: uint8_t ;
+    cookie: uint64_t ;
+  } [@@big_endian]]
 
   let sizeof (pi : t) : int =
     pi.pi_total_len + (OfpMatch.sizeof pi.pi_ofp_match) + sizeof_ofp_packet_in + 2 (*2 bytes of pad*)
@@ -4252,7 +4357,7 @@ module PacketIn = struct
     let ofp_match, pkt_bits = OfpMatch.parse ofp_match_bits in
     let pkt_bits = Cstruct.sub pkt_bits 2 total_len in (* pad bytes *)
     let final_bits = Cstruct.create total_len in
-    (* create a new Cstruct to set the offset to 0 *)
+    (* create a new [cstruct type to set the offset to 0 *)
     Cstruct.blit pkt_bits 0 final_bits 0 total_len;
     (* printf "len = %d\n" (Cstruct.len pkt_bits); *)
     let pkt = match bufId with
@@ -4271,22 +4376,22 @@ end
 
 module PacketOut = struct
 
-  cstruct ofp_packet_out {
-    uint32_t buffer_id;           (* ID assigned by datapath (OFP_NO_BUFFER
-                                     if none). *)
-    uint32_t in_port;             (* Packet's input port or OFPP_CONTROLLER. *)
-    uint16_t actions_len;         (* Size of action array in bytes. *)
-    uint8_t pad0;
-    uint8_t pad1;
-    uint8_t pad2;
-    uint8_t pad3;
-    uint8_t pad4;
-    uint8_t pad5
+  [%%cstruct 
+  type ofp_packet_out = {
+    buffer_id: uint32_t ;           (* ID assigned by datapath (OFP_NO_BUFFER if none). *)
+    in_port: uint32_t ;             (* Packet's input port or OFPP_CONTROLLER. *)
+    actions_len: uint16_t ;         (* Size of action array in bytes. *)
+    pad0: uint8_t ;
+    pad1: uint8_t ;
+    pad2: uint8_t ;
+    pad3: uint8_t ;
+    pad4: uint8_t ;
+    pad5: uint8_t ;
     (* struct ofp_action_header actions[0]; *) (* Action list. *)
     (* uint8_t data[0]; *)        (* Packet data.  The length is inferred
                                      from the length field in the header.
                                      (Only meaningful if buffer_id == -1.) *)
-  } as big_endian
+  } [@@big_endian]]
 
   type t = packetOut
 
@@ -4358,12 +4463,14 @@ module FlowRemoved = struct
 
   module RemovedReason = struct
 
-    cenum ofp_flow_removed_reason {
-      OFPRR_IDLE_TIMEOUT = 0;
-      OFPRR_HARD_TIMEOUT = 1;
-      OFPRR_DELETE = 2;
-      OFPRR_GROUP_DELETE = 3
-    } as uint8_t
+    [%%cenum 
+    type ofp_flow_removed_reason =
+      | OFPRR_IDLE_TIMEOUT [@id 0]
+      | OFPRR_HARD_TIMEOUT [@id 1]
+      | OFPRR_DELETE [@id 2]
+      | OFPRR_GROUP_DELETE [@id 3]
+      [@@uint8_t]
+    ]
 
     type t = flowReason
 
@@ -4391,18 +4498,19 @@ module FlowRemoved = struct
 
   end
 
-    cstruct ofp_flow_removed {
-    uint64_t cookie;
-    uint16_t priority;
-    uint8_t reason;
-    uint8_t table_id;
-    uint32_t duration_sec;
-    uint32_t duration_nsec;
-    uint16_t idle_timeout;
-    uint16_t hard_timeout;
-    uint64_t packet_count;
-    uint64_t byte_count
-  } as big_endian
+  [%%cstruct 
+  type ofp_flow_removed = {
+    cookie: uint64_t ;
+    priority: uint16_t ;
+    reason: uint8_t ;
+    table_id: uint8_t ;
+    duration_sec: uint32_t ;
+    duration_nsec: uint32_t ;
+    idle_timeout: uint16_t ;
+    hard_timeout: uint16_t ;
+    packet_count: uint64_t ;
+    byte_count: uint64_t 
+  } [@@big_endian]]
 
   type t = flowRemoved
 
@@ -4471,15 +4579,16 @@ end
 
 module FlowRequest = struct
 
-  cstruct ofp_flow_stats_request {
-    uint8_t table_id;
-    uint8_t pad[3];
-    uint32_t out_port;
-    uint32_t out_group;
-    uint8_t pad2[4];
-    uint64_t cookie;
-    uint64_t cookie_mask;
-  } as big_endian
+  [%%cstruct 
+  type ofp_flow_stats_request = {
+    table_id: uint8_t ;
+    pad: uint8_t [@len 3];
+    out_port: uint32_t ;
+    out_group: uint32_t ;
+    pad2: uint8_t [@len 4];
+    cookie: uint64_t ;
+    cookie_mask: uint64_t ;
+  } [@@big_endian]]
 
   type t = flowRequest
 
@@ -4669,6 +4778,10 @@ module ActionHdr = struct
     | ExperimenterAHdr e -> Format.sprintf "Experimenter = %lu" e
 
   let marshal (buf : Cstruct.t) (act : t) : int =
+    set_ofp_action_header_pad buf 0;
+    set_ofp_action_header_pad1 buf 0;
+    set_ofp_action_header_pad2 buf 0;
+    set_ofp_action_header_pad3 buf 0;
     match act with
     | OutputHdr ->
       set_ofp_action_header_typ buf (ofp_action_type_to_int OFPAT_OUTPUT);
@@ -4769,12 +4882,13 @@ end
 
 module TableFeatureProp = struct
 
-  cstruct ofp_table_feature_prop_experimenter {
-    uint16_t typ;
-    uint16_t length;
-    uint32_t experimenter;
-    uint32_t exp_typ
-  } as big_endian
+  [%%cstruct 
+  type ofp_table_feature_prop_experimenter = {
+    typ: uint16_t ;
+    length: uint16_t ;
+    experimenter: uint32_t ;
+    exp_typ: uint32_t 
+  } [@@big_endian]]
 
   type t = tableFeatureProp
 
@@ -4993,9 +5107,11 @@ end
 
 module TableConfig = struct
 
-  cenum ofp_table_config {
-    OFPTC_DEPRECATED_MASK = 3
-  } as uint32_t
+  [%%cenum 
+  type ofp_table_config =
+    | OFPTC_DEPRECATED_MASK [@id 3]
+    [@@uint32_t]
+  ]
 
   type t = tableConfig
   let marshal (tc : tableConfig) : int32 =
@@ -5024,7 +5140,7 @@ module TableFeature = struct
   let marshal (buf : Cstruct.t) (tf : t) : int =
     set_ofp_table_features_length buf tf.length;
     set_ofp_table_features_table_id buf tf.table_id;
-    set_ofp_table_features_pad (Cstruct.to_string (Cstruct.create 5)) 0 buf;
+    set_ofp_table_features_pad (String.make 5 '\000') 0 buf;
     set_ofp_table_features_name tf.name 0 buf;
     set_ofp_table_features_metadata_match buf tf.metadata_match;
     set_ofp_table_features_metadata_write buf tf.metadata_write;
@@ -5070,19 +5186,21 @@ end
 
 module MultipartReq = struct
 
-  cstruct ofp_multipart_request {
-    uint16_t typ; (* One of the OFPMP_* constants. *)
-    uint16_t flags; (* OFPMPF_REQ_* flags. *)
-    uint8_t pad0;
-    uint8_t pad1;
-    uint8_t pad2;
-    uint8_t pad3
-  } as big_endian
+  [%%cstruct 
+  type ofp_multipart_request = {
+    typ: uint16_t ; (* One of the OFPMP_* constants. *)
+    flags: uint16_t ; (* OFPMPF_REQ_* flags. *)
+    pad0: uint8_t ;
+    pad1: uint8_t ;
+    pad2: uint8_t ;
+    pad3: uint8_t 
+  } [@@big_endian]]
 
-  cstruct ofp_experimenter_multipart_header {
-    uint32_t experimenter;
-    uint32_t exp_type
-  } as big_endian
+  [%%cstruct 
+  type ofp_experimenter_multipart_header = {
+    experimenter: uint32_t ;
+    exp_type: uint32_t 
+  } [@@big_endian]]
 
   type t = multipartRequest
 
@@ -5163,16 +5281,24 @@ module MultipartReq = struct
     | FlowStatsReq f -> size + (FlowRequest.marshal pay_buf f)
     | AggregFlowStatsReq f -> size + (FlowRequest.marshal pay_buf f)
     | TableStatsReq -> size
-    | PortStatsReq p -> set_ofp_port_stats_request_port_no pay_buf p;
+    | PortStatsReq p -> 
+      set_ofp_port_stats_request_port_no pay_buf p;
+      set_ofp_port_stats_request_pad (String.make 4 '\000') 0 pay_buf;
       size + sizeof_ofp_port_stats_request
     | QueueStatsReq q -> size + (QueueRequest.marshal pay_buf q)
-    | GroupStatsReq g -> set_ofp_port_stats_request_port_no pay_buf g;
+    | GroupStatsReq g -> 
+      set_ofp_group_stats_request_group_id pay_buf g;
+      set_ofp_group_stats_request_pad (String.make 4 '\000') 0 pay_buf;
       size + sizeof_ofp_port_stats_request
     | GroupDescReq
     | GroupFeatReq -> size
-    | MeterStatsReq m -> set_ofp_meter_multipart_request_meter_id pay_buf m;
+    | MeterStatsReq m -> 
+      set_ofp_meter_multipart_request_meter_id pay_buf m;
+      set_ofp_meter_multipart_request_pad (String.make 4 '\000') 0 pay_buf;
       size + sizeof_ofp_meter_multipart_request
-    | MeterConfReq m -> set_ofp_meter_multipart_request_meter_id pay_buf m;
+    | MeterConfReq m -> 
+      set_ofp_meter_multipart_request_meter_id pay_buf m;
+      set_ofp_meter_multipart_request_pad (String.make 4 '\000') 0 pay_buf;
       size + sizeof_ofp_meter_multipart_request
     | MeterFeatReq -> size
     | TableFeatReq t ->
@@ -5232,17 +5358,19 @@ module SwitchDescriptionReply = struct
     sizeof_ofp_desc
 
   let to_string (sdr : switchDesc) : string =
-    Format.sprintf "{ mfr_desc = %s; hw_desc = %s; sw_desc = %s; serial_num = %s }"
+    Format.sprintf "{ mfr_desc = %s; hw_desc = %s; sw_desc = %s; serial_num = %s; dp_desc = %s  }"
       sdr.mfr_desc
       sdr.hw_desc
       sdr.sw_desc
       sdr.serial_num
+      sdr.dp_desc
 
   let marshal (buf : Cstruct.t) (sdr : switchDesc) : int =
     set_ofp_desc_mfr_desc sdr.mfr_desc 0 buf;
     set_ofp_desc_hw_desc sdr.hw_desc 0 buf;
     set_ofp_desc_sw_desc sdr.sw_desc 0 buf;
     set_ofp_desc_serial_num sdr.serial_num 0 buf;
+    set_ofp_desc_dp_desc sdr.dp_desc 0 buf;
     sizeof_ofp_desc
 
   let parse (bits : Cstruct.t) : switchDesc =
@@ -5250,30 +5378,33 @@ module SwitchDescriptionReply = struct
     let hw_desc = copy_ofp_desc_hw_desc bits in
     let sw_desc = copy_ofp_desc_sw_desc bits in
     let serial_num = copy_ofp_desc_serial_num bits in
-    { mfr_desc;
-      hw_desc;
-      sw_desc;
-      serial_num}
+    let dp_desc = copy_ofp_desc_dp_desc bits in
+     { mfr_desc;
+       hw_desc;
+       sw_desc;
+       serial_num;
+       dp_desc}
 
 end
 
 module FlowStats = struct
 
-  cstruct ofp_flow_stats {
-    uint16_t length;
-    uint8_t table_id;
-    uint8_t pad0;
-    uint32_t duration_sec;
-    uint32_t duration_nsec;
-    uint16_t priority;
-    uint16_t idle_timeout;
-    uint16_t hard_timeout;
-    uint16_t flags;
-    uint8_t pad1[4];
-    uint64_t cookie;
-    uint64_t packet_count;
-    uint64_t byte_count;
-  } as big_endian
+  [%%cstruct 
+  type ofp_flow_stats = {
+    length: uint16_t ;
+    table_id: uint8_t ;
+    pad0: uint8_t ;
+    duration_sec: uint32_t ;
+    duration_nsec: uint32_t ;
+    priority: uint16_t ;
+    idle_timeout: uint16_t ;
+    hard_timeout: uint16_t ;
+    flags: uint16_t ;
+    pad1: uint8_t [@len 4];
+    cookie: uint64_t ;
+    packet_count: uint64_t ;
+    byte_count: uint64_t ;
+  } [@@big_endian]]
 
   type t = flowStats
 
@@ -5320,7 +5451,7 @@ module FlowStats = struct
        | Permanent -> 0
        | ExpiresAfter  v -> v);
     set_ofp_flow_stats_flags buf (FlowMod.Flags.marshal fs.flags);
-    set_ofp_flow_stats_pad1 (Cstruct.to_string (Cstruct.create 4)) 0 buf;
+    set_ofp_flow_stats_pad1 (String.make 4 '\000') 0 buf;
     set_ofp_flow_stats_cookie buf fs.cookie;
     set_ofp_flow_stats_packet_count buf fs.packet_count;
     set_ofp_flow_stats_byte_count buf fs.byte_count;
@@ -5368,12 +5499,13 @@ end
 
 module AggregateStats = struct
 
-  cstruct ofp_aggregate_stats_reply {
-    uint64_t packet_count;
-    uint64_t byte_count;
-    uint32_t flow_count;
-    uint8_t pad[4];
-  } as big_endian
+  [%%cstruct 
+  type ofp_aggregate_stats_reply = {
+    packet_count: uint64_t ;
+    byte_count: uint64_t ;
+    flow_count: uint32_t ;
+    pad: uint8_t  [@len 4];
+  } [@@big_endian]]
 
   type t = aggregStats
 
@@ -5390,7 +5522,7 @@ module AggregateStats = struct
     set_ofp_aggregate_stats_reply_packet_count buf ag.packet_count;
     set_ofp_aggregate_stats_reply_byte_count buf ag.byte_count;
     set_ofp_aggregate_stats_reply_flow_count buf ag.flow_count;
-    set_ofp_aggregate_stats_reply_pad (Cstruct.to_string (Cstruct.create 4)) 0 buf;
+    set_ofp_aggregate_stats_reply_pad (String.make 3 '\000') 0 buf;
     sizeof_ofp_aggregate_stats_reply
 
   let parse (bits : Cstruct.t) : aggregStats =
@@ -5401,13 +5533,14 @@ module AggregateStats = struct
 end
 
 module TableStats = struct
-  cstruct ofp_table_stats {
-    uint8_t table_id;
-    uint8_t pad[3];
-    uint32_t active_count;
-    uint64_t lookup_count;
-    uint64_t matched_count;
-  } as big_endian
+  [%%cstruct 
+  type ofp_table_stats = {
+    table_id: uint8_t ;
+    pad: uint8_t  [@len 3];
+    active_count: uint32_t ;
+    lookup_count: uint64_t ;
+    matched_count: uint64_t ;
+  } [@@big_endian]]
 
   type t = tableStats
 
@@ -5424,7 +5557,7 @@ module TableStats = struct
 
   let marshal (buf : Cstruct.t) (ts : tableStats) : int =
     set_ofp_table_stats_table_id buf ts.table_id;
-    set_ofp_table_stats_pad (Cstruct.to_string (Cstruct.create 3)) 0 buf;
+    set_ofp_table_stats_pad (String.make 3 '\000') 0 buf;
     set_ofp_table_stats_active_count buf ts.active_count;
     set_ofp_table_stats_lookup_count buf ts.lookup_count;
     set_ofp_table_stats_matched_count buf ts.matched_count;
@@ -5470,7 +5603,7 @@ module PortStats = struct
 
   let marshal (buf : Cstruct.t) (ps : portStats) : int =
     set_ofp_port_stats_port_no buf ps.psPort_no;
-    set_ofp_port_stats_pad (Cstruct.to_string (Cstruct.create 4)) 0 buf;
+    set_ofp_port_stats_pad (String.make 4 '\000') 0 buf;
     set_ofp_port_stats_rx_packets buf ps.rx_packets;
     set_ofp_port_stats_tx_packets buf ps.tx_packets;
     set_ofp_port_stats_rx_bytes buf ps.rx_bytes;
@@ -5511,15 +5644,16 @@ end
 
 module QueueStats = struct
 
-  cstruct ofp_queue_stats {
-    uint32_t port_no;
-    uint32_t queue_id;
-    uint64_t tx_bytes;
-    uint64_t tx_packets;
-    uint64_t tx_errors;
-    uint32_t duration_sec;
-    uint32_t duration_nsec
-  } as big_endian
+  [%%cstruct 
+  type ofp_queue_stats = {
+    port_no: uint32_t ;
+    queue_id: uint32_t ;
+    tx_bytes: uint64_t ;
+    tx_packets: uint64_t ;
+    tx_errors: uint64_t ;
+    duration_sec: uint32_t ;
+    duration_nsec: uint32_t 
+  } [@@big_endian]]
 
   type t = queueStats
 
@@ -5562,24 +5696,26 @@ end
 
 module GroupStats = struct
 
-  cstruct ofp_group_stats {
-    uint16_t length;
-    uint8_t pad[2];
-    uint32_t group_id;
-    uint32_t ref_count;
-    uint8_t pad2[4];
-    uint64_t packet_count;
-    uint64_t byte_count;
-    uint32_t duration_sec;
-    uint32_t duration_nsec
-  } as big_endian
+  [%%cstruct 
+  type ofp_group_stats = {
+    length: uint16_t ;
+    pad: uint8_t [@len 2];
+    group_id: uint32_t ;
+    ref_count: uint32_t ;
+    pad2: uint8_t [@len 4];
+    packet_count: uint64_t ;
+    byte_count: uint64_t ;
+    duration_sec: uint32_t ;
+    duration_nsec: uint32_t 
+  } [@@big_endian]]
 
   module BucketStats = struct
 
-    cstruct ofp_bucket_counter {
-      uint64_t packet_count;
-      uint64_t byte_count
-    } as big_endian
+    [%%cstruct 
+    type ofp_bucket_counter = {
+      packet_count: uint64_t ;
+      byte_count: uint64_t 
+    } [@@big_endian]]
 
     type t = bucketStats
 
@@ -5623,8 +5759,10 @@ module GroupStats = struct
 
   let marshal (buf : Cstruct.t) (gs : groupStats) : int =
     set_ofp_group_stats_length buf gs.length;
+    set_ofp_group_stats_pad (String.make 2 '\000') 0 buf;
     set_ofp_group_stats_group_id buf gs.group_id;
     set_ofp_group_stats_ref_count buf gs.ref_count;
+    set_ofp_group_stats_pad2 (String.make 4 '\000') 0 buf;
     set_ofp_group_stats_packet_count buf gs.packet_count;
     set_ofp_group_stats_byte_count buf gs.byte_count;
     set_ofp_group_stats_duration_sec buf gs.duration_sec;
@@ -5650,12 +5788,13 @@ end
 
 module GroupDesc = struct
 
-  cstruct ofp_group_desc {
-    uint16_t length;
-    uint8_t typ;
-    uint8_t pad;
-    uint32_t group_id;
-  } as big_endian
+  [%%cstruct 
+  type ofp_group_desc = {
+    length: uint16_t ;
+    typ: uint8_t ;
+    pad: uint8_t ;
+    group_id: uint32_t ;
+  } [@@big_endian]]
 
   type t = groupDesc
 
@@ -5696,18 +5835,19 @@ end
 
 module GroupFeatures = struct
 
-  cstruct ofp_group_features {
-    uint32_t typ;
-    uint32_t capabilities;
-    uint32_t max_groups_all;
-    uint32_t max_groups_select;
-    uint32_t max_groups_indirect;
-    uint32_t max_groups_fastfailover;
-    uint32_t actions_all;
-    uint32_t actions_select;
-    uint32_t actions_indirect;
-    uint32_t actions_fastfailover
-  } as big_endian
+  [%%cstruct 
+  type ofp_group_features = {
+    typ: uint32_t ;
+    capabilities: uint32_t ;
+    max_groups_all: uint32_t ;
+    max_groups_select: uint32_t ;
+    max_groups_indirect: uint32_t ;
+    max_groups_fastfailover: uint32_t ;
+    actions_all: uint32_t ;
+    actions_select: uint32_t ;
+    actions_indirect: uint32_t ;
+    actions_fastfailover: uint32_t 
+  } [@@big_endian]]
 
   module GroupType = struct
 
@@ -5873,23 +6013,25 @@ end
 
 module MeterStats = struct
 
-  cstruct ofp_meter_stats {
-    uint32_t meter_id;
-    uint16_t len;
-    uint8_t pad[6];
-    uint32_t flow_count;
-    uint64_t packet_in_count;
-    uint64_t byte_in_count;
-    uint32_t duration_sec;
-    uint32_t duration_nsec
-  } as big_endian
+  [%%cstruct 
+  type ofp_meter_stats = {
+    meter_id: uint32_t ;
+    len: uint16_t ;
+    pad: uint8_t [@len 6];
+    flow_count: uint32_t ;
+    packet_in_count: uint64_t ;
+    byte_in_count: uint64_t ;
+    duration_sec: uint32_t ;
+    duration_nsec: uint32_t 
+  } [@@big_endian]]
 
   module Band = struct
 
-    cstruct ofp_meter_band_stats {
-      uint64_t packet_band_count;
-      uint64_t byte_band_count
-    } as big_endian
+    [%%cstruct 
+    type ofp_meter_band_stats = {
+      packet_band_count: uint64_t ;
+      byte_band_count: uint64_t 
+    } [@@big_endian]]
 
     type t = meterBandStats
 
@@ -5931,6 +6073,7 @@ module MeterStats = struct
   let marshal (buf : Cstruct.t) (ms : meterStats) =
     set_ofp_meter_stats_meter_id buf ms.meter_id;
     set_ofp_meter_stats_len buf ms.len;
+    set_ofp_meter_stats_pad (String.make 6 '\000') 0 buf;
     set_ofp_meter_stats_flow_count buf ms.flow_count;
     set_ofp_meter_stats_packet_in_count buf ms.packet_in_count;
     set_ofp_meter_stats_byte_in_count buf ms.byte_in_count;
@@ -5959,11 +6102,12 @@ end
 
 module MeterConfig = struct
 
-  cstruct ofp_meter_config {
-    uint16_t length;
-    uint16_t flags;
-    uint32_t meter_id
-  } as big_endian
+  [%%cstruct 
+  type ofp_meter_config = {
+    length: uint16_t ;
+    flags: uint16_t ;
+    meter_id: uint32_t 
+  } [@@big_endian]]
 
   type t = meterConfig
 
@@ -6003,14 +6147,15 @@ end
 
 module MeterFeatures = struct
 
-  cstruct ofp_meter_features {
-    uint32_t max_meter;
-    uint32_t band_types;
-    uint32_t capabilities;
-    uint8_t max_bands;
-    uint8_t max_color;
-    uint8_t pad[2]
-  } as big_endian
+  [%%cstruct 
+  type ofp_meter_features = {
+    max_meter: uint32_t ;
+    band_types: uint32_t ;
+    capabilities: uint32_t ;
+    max_bands: uint8_t ;
+    max_color: uint8_t ;
+    pad: uint8_t [@len 2]
+  } [@@big_endian]]
 
   module Bands = struct
     type t = meterBandMaps
@@ -6050,6 +6195,7 @@ module MeterFeatures = struct
     set_ofp_meter_features_capabilities buf (Int32.of_int_exn (MeterFlags.marshal mfs.capabilities));
     set_ofp_meter_features_max_bands buf mfs.max_band;
     set_ofp_meter_features_max_color buf mfs.max_color;
+    set_ofp_meter_features_pad (String.make 2 '\000') 0 buf;
     sizeof_ofp_meter_features
 
   let parse (bits : Cstruct.t) : t =
@@ -6107,6 +6253,7 @@ module MultipartReply = struct
       match mpr.mpreply_flags with
       | true -> ofp_multipart_request_flags_to_int OFPMPF_REQ_MORE
       | false -> 0);
+    set_ofp_multipart_reply_pad (String.make 4 '\000') 0 buf;
     sizeof_ofp_multipart_reply + (match mpr.mpreply_typ with
         | PortsDescReply pdr ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_PORT_DESC);
@@ -6194,11 +6341,12 @@ end
 
 module TableMod = struct
 
-  cstruct ofp_table_mod {
-    uint8_t table_id;
-    uint8_t pad[3];
-    uint32_t config
-  } as big_endian
+  [%%cstruct 
+  type ofp_table_mod = {
+    table_id: uint8_t ;
+    pad: uint8_t [@len 3];
+    config: uint32_t 
+  } [@@big_endian]]
 
   type t = tableMod
 
@@ -6213,6 +6361,7 @@ module TableMod = struct
   let marshal (buf : Cstruct.t) (tab : tableMod) : int =
     set_ofp_table_mod_table_id buf tab.table_id;
     set_ofp_table_mod_config buf (TableConfig.marshal tab.config);
+    set_ofp_table_mod_pad (String.make 3 '\000') 0 buf;
     sizeof_ofp_table_mod
 
   let parse (bits : Cstruct.t) : tableMod =
@@ -6224,10 +6373,11 @@ end
 
 module QueueConfReq = struct
 
-  cstruct ofp_queue_get_config_request {
-    uint32_t port;
-    uint8_t pad[4]
-  } as big_endian
+  [%%cstruct 
+  type ofp_queue_get_config_request = {
+    port: uint32_t ;
+    pad: uint8_t [@len 4]
+  } [@@big_endian]]
 
   type t = queueConfReq
 
@@ -6239,6 +6389,7 @@ module QueueConfReq = struct
 
   let marshal (buf : Cstruct.t) (qr : t) : int =
     set_ofp_queue_get_config_request_port buf qr.port;
+    set_ofp_queue_get_config_request_pad (String.make 4 '\000') 0 buf;
     sizeof_ofp_queue_get_config_request
 
   let parse (bits : Cstruct.t) : t =
@@ -6248,10 +6399,11 @@ end
 
 module QueueConfReply = struct
 
-  cstruct ofp_queue_get_config_reply {
-    uint32_t port;
-    uint8_t pad[4];
-  } as big_endian
+  [%%cstruct 
+  type ofp_queue_get_config_reply = {
+    port: uint32_t ;
+    pad: uint8_t [@len 4];
+  } [@@big_endian]]
 
   type t = queueConfReply
 
@@ -6265,6 +6417,7 @@ module QueueConfReply = struct
 
   let marshal (buf : Cstruct.t) (qr : t) : int =
     set_ofp_queue_get_config_reply_port buf qr.port;
+    set_ofp_queue_get_config_reply_pad (String.make 4 '\000') 0 buf;
     let queueBuf = Cstruct.shift buf sizeof_ofp_queue_get_config_reply in
     sizeof_ofp_queue_get_config_reply + (marshal_fields queueBuf qr.queues QueueDesc.marshal)
 
@@ -6278,19 +6431,22 @@ end
 
 module RoleRequest = struct
 
-  cstruct ofp_role_request {
-    uint32_t role;
-    uint8_t pad[4];
-    uint64_t generation_id
-  } as big_endian
+  [%%cstruct 
+  type ofp_role_request = {
+    role: uint32_t ;
+    pad: uint8_t [@len 4];
+    generation_id: uint64_t 
+  } [@@big_endian]]
 
   module Role = struct
-    cenum ofp_controller_role {
-      OFPCR_ROLE_NOCHANGE = 0;
-      OFPCR_ROLE_EQUAL = 1;
-      OFPCR_ROLE_MASTER = 2;
-      OFPCR_ROLE_SLAVE = 3
-    } as uint32_t
+    [%%cenum 
+    type ofp_controller_role =
+      | OFPCR_ROLE_NOCHANGE [@id 0]
+      | OFPCR_ROLE_EQUAL [@id 1]
+      | OFPCR_ROLE_MASTER [@id 2]
+      | OFPCR_ROLE_SLAVE [@id 3]
+      [@@uint32_t]
+    ]
 
     let to_string (role : controllerRole) : string =
       match role with
@@ -6328,6 +6484,7 @@ module RoleRequest = struct
 
   let marshal (buf : Cstruct.t) (role : roleRequest) : int =
     set_ofp_role_request_role buf (Role.marshal role.role);
+    set_ofp_role_request_pad (String.make 4 '\000') 0 buf;
     set_ofp_role_request_generation_id buf role.generation_id;
     sizeof_ofp_role_request
 
@@ -6340,35 +6497,40 @@ module Error = struct
 
   type t = error
 
-      cstruct ofp_error_msg {
-      uint16_t typ;
-      uint16_t code
-    } as big_endian
+    [%%cstruct 
+    type ofp_error_msg = {
+      typ: uint16_t ;
+      code: uint16_t 
+    } [@@big_endian]]
 
-    cenum ofp_error_type {
-      OFPET_HELLO_FAILED = 0;
-      OFPET_BAD_REQUEST = 1;
-      OFPET_BAD_ACTION = 2;
-      OFPET_BAD_INSTRUCTION = 3;
-      OFPET_BAD_MATCH = 4;
-      OFPET_FLOW_MOD_FAILED = 5;
-      OFPET_GROUP_MOD_FAILED = 6;
-      OFPET_PORT_MOD_FAILED = 7;
-      OFPET_TABLE_MOD_FAILED = 8;
-      OFPET_QUEUE_OP_FAILED = 9;
-      OFPET_SWITCH_CONFIG_FAILED = 10;
-      OFPET_ROLE_REQUEST_FAILED = 11;
-      OFPET_METER_MOD_FAILED = 12;
-      OFPET_TABLE_FEATURES_FAILED = 13;
-      OFPET_EXPERIMENTER = 0xffff
-    } as uint16_t
+    [%%cenum 
+    type ofp_error_type =
+      | OFPET_HELLO_FAILED [@id 0]
+      | OFPET_BAD_REQUEST [@id 1]
+      | OFPET_BAD_ACTION [@id 2]
+      | OFPET_BAD_INSTRUCTION [@id 3]
+      | OFPET_BAD_MATCH [@id 4]
+      | OFPET_FLOW_MOD_FAILED [@id 5]
+      | OFPET_GROUP_MOD_FAILED [@id 6]
+      | OFPET_PORT_MOD_FAILED [@id 7]
+      | OFPET_TABLE_MOD_FAILED [@id 8]
+      | OFPET_QUEUE_OP_FAILED [@id 9]
+      | OFPET_SWITCH_CONFIG_FAILED [@id 10]
+      | OFPET_ROLE_REQUEST_FAILED [@id 11]
+      | OFPET_METER_MOD_FAILED [@id 12]
+      | OFPET_TABLE_FEATURES_FAILED [@id 13]
+      | OFPET_EXPERIMENTER [@id 0xffff]
+      [@@uint16_t]
+    ]
 
   module HelloFailed = struct
 
-    cenum ofp_hello_failed_code {
-      OFPHFC_INCOMPATIBLE = 0;
-      OFPHFC_EPERM = 1
-    } as uint16_t
+    [%%cenum 
+    type ofp_hello_failed_code =
+      | OFPHFC_INCOMPATIBLE [@id 0]
+      | OFPHFC_EPERM [@id 1]
+      [@@uint16_t]
+    ]
 
     type t = helloFailed
 
@@ -6392,22 +6554,24 @@ module Error = struct
 
   module BadRequest = struct
 
-    cenum ofp_bad_request_code {
-      OFPBRC_BAD_VERSION = 0;
-      OFPBRC_BAD_TYPE = 1;
-      OFPBRC_BAD_MULTIPART = 2;
-      OFPBRC_BAD_EXPERIMENTER = 3;
-      OFPBRC_BAD_EXP_TYPE = 4;
-      OFPBRC_EPERM = 5;
-      OFPBRC_BAD_LEN = 6;
-      OFPBRC_BUFFER_EMPTY = 7;
-      OFPBRC_BUFFER_UNKNOWN = 8;
-      OFPBRC_BAD_TABLE_ID = 9;
-      OFPBRC_IS_SLAVE = 10;
-      OFPBRC_BAD_PORT = 11;
-      OFPBRC_BAD_PACKET = 12;
-      OFPBRC_MULTIPART_BUFFER_OVERFLOW = 13
-    } as uint16_t
+    [%%cenum 
+    type ofp_bad_request_code =
+      | OFPBRC_BAD_VERSION [@id 0]
+      | OFPBRC_BAD_TYPE [@id 1]
+      | OFPBRC_BAD_MULTIPART [@id 2]
+      | OFPBRC_BAD_EXPERIMENTER [@id 3]
+      | OFPBRC_BAD_EXP_TYPE [@id 4]
+      | OFPBRC_EPERM [@id 5]
+      | OFPBRC_BAD_LEN [@id 6]
+      | OFPBRC_BUFFER_EMPTY [@id 7]
+      | OFPBRC_BUFFER_UNKNOWN [@id 8]
+      | OFPBRC_BAD_TABLE_ID [@id 9]
+      | OFPBRC_IS_SLAVE [@id 10]
+      | OFPBRC_BAD_PORT [@id 11]
+      | OFPBRC_BAD_PACKET [@id 12]
+      | OFPBRC_MULTIPART_BUFFER_OVERFLOW [@id 13]
+      [@@uint16_t]
+    ]
 
     type t = badRequest
 
@@ -6467,24 +6631,26 @@ module Error = struct
 
   module BadAction = struct
 
-    cenum ofp_bad_action_code {
-      OFPBAC_BAD_TYPE = 0;
-      OFPBAC_BAD_LEN = 1;
-      OFPBAC_BAD_EXPERIMENTER = 2;
-      OFPBAC_BAD_EXP_TYPE = 3;
-      OFPBAC_BAD_OUT_PORT = 4;
-      OFPBAC_BAD_ARGUMENT = 5;
-      OFPBAC_EPERM = 6;
-      OFPBAC_TOO_MANY = 7;
-      OFPBAC_BAD_QUEUE = 8;
-      OFPBAC_BAD_OUT_GROUP = 9;
-      OFPBAC_MATCH_INCONSISTENT = 10;
-      OFPBAC_UNSUPPORTED_ORDER = 11;
-      OFPBAC_BAD_TAG = 12;
-      OFPBAC_BAD_SET_TYPE = 13;
-      OFPBAC_BAD_SET_LEN = 14;
-      OFPBAC_BAD_SET_ARGUMENT = 15
-    } as uint16_t
+    [%%cenum 
+    type ofp_bad_action_code =
+      | OFPBAC_BAD_TYPE [@id 0]
+      | OFPBAC_BAD_LEN [@id 1]
+      | OFPBAC_BAD_EXPERIMENTER [@id 2]
+      | OFPBAC_BAD_EXP_TYPE [@id 3]
+      | OFPBAC_BAD_OUT_PORT [@id 4]
+      | OFPBAC_BAD_ARGUMENT [@id 5]
+      | OFPBAC_EPERM [@id 6]
+      | OFPBAC_TOO_MANY [@id 7]
+      | OFPBAC_BAD_QUEUE [@id 8]
+      | OFPBAC_BAD_OUT_GROUP [@id 9]
+      | OFPBAC_MATCH_INCONSISTENT [@id 10]
+      | OFPBAC_UNSUPPORTED_ORDER [@id 11]
+      | OFPBAC_BAD_TAG [@id 12]
+      | OFPBAC_BAD_SET_TYPE [@id 13]
+      | OFPBAC_BAD_SET_LEN [@id 14]
+      | OFPBAC_BAD_SET_ARGUMENT [@id 15]
+      [@@uint16_t]
+    ]
 
     type t = badAction
 
@@ -6550,17 +6716,19 @@ module Error = struct
 
   module BadInstruction = struct
 
-    cenum ofp_bad_instruction_code {
-      OFPBIC_UNKNOWN_INST = 0;
-      OFPBIC_UNSUP_INST = 1;
-      OFPBIC_BAD_TABLE_ID = 2;
-      OFPBIC_UNSUP_METADATA = 3;
-      OFPBIC_UNSUP_METADATA_MASK = 4;
-      OFPBIC_BAD_EXPERIMENTER = 5;
-      OFPBIC_BAD_EXP_TYPE = 6;
-      OFPBIC_BAD_LEN = 7;
-      OFPBIC_EPERM = 8
-    } as uint16_t
+    [%%cenum 
+    type ofp_bad_instruction_code =
+      | OFPBIC_UNKNOWN_INST [@id 0]
+      | OFPBIC_UNSUP_INST [@id 1]
+      | OFPBIC_BAD_TABLE_ID [@id 2]
+      | OFPBIC_UNSUP_METADATA [@id 3]
+      | OFPBIC_UNSUP_METADATA_MASK [@id 4]
+      | OFPBIC_BAD_EXPERIMENTER [@id 5]
+      | OFPBIC_BAD_EXP_TYPE [@id 6]
+      | OFPBIC_BAD_LEN [@id 7]
+      | OFPBIC_EPERM [@id 8]
+      [@@uint16_t]
+    ]
 
     type t = badInstruction
 
@@ -6605,20 +6773,22 @@ module Error = struct
 
   module BadMatch = struct
 
-    cenum ofp_bad_match_code {
-      OFPBMC_BAD_TYPE = 0;
-      OFPBMC_BAD_LEN = 1;
-      OFPBMC_BAD_TAG = 2;
-      OFPBMC_BAD_DL_ADDR_MASK = 3;
-      OFPBMC_BAD_NW_ADDR_MASK = 4;
-      OFPBMC_BAD_WILDCARDS = 5;
-      OFPBMC_BAD_FIELD = 6;
-      OFPBMC_BAD_VALUE = 7;
-      OFPBMC_BAD_MASK = 8;
-      OFPBMC_BAD_PREREQ = 9;
-      OFPBMC_DUP_FIELD = 10;
-      OFPBMC_EPERM = 11
-    } as uint16_t
+    [%%cenum 
+    type ofp_bad_match_code =
+      | OFPBMC_BAD_TYPE [@id 0]
+      | OFPBMC_BAD_LEN [@id 1]
+      | OFPBMC_BAD_TAG [@id 2]
+      | OFPBMC_BAD_DL_ADDR_MASK [@id 3]
+      | OFPBMC_BAD_NW_ADDR_MASK [@id 4]
+      | OFPBMC_BAD_WILDCARDS [@id 5]
+      | OFPBMC_BAD_FIELD [@id 6]
+      | OFPBMC_BAD_VALUE [@id 7]
+      | OFPBMC_BAD_MASK [@id 8]
+      | OFPBMC_BAD_PREREQ [@id 9]
+      | OFPBMC_DUP_FIELD [@id 10]
+      | OFPBMC_EPERM [@id 11]
+      [@@uint16_t]
+    ]
 
     type t = badMatch
 
@@ -6672,16 +6842,18 @@ module Error = struct
 
   module FlowModFailed = struct
 
-    cenum ofp_flow_mod_failed_code {
-      OFPFMFC_UNKNOWN = 0;
-      OFPFMFC_TABLE_FULL = 1;
-      OFPFMFC_BAD_TABLE_ID = 2;
-      OFPFMFC_OVERLAP = 3;
-      OFPFMFC_EPERM = 4;
-      OFPFMFC_BAD_TIMEOUT = 5;
-      OFPFMFC_BAD_COMMAND = 6;
-      OFPFMFC_BAD_FLAGS = 7
-    } as uint16_t
+    [%%cenum 
+    type ofp_flow_mod_failed_code =
+      | OFPFMFC_UNKNOWN [@id 0]
+      | OFPFMFC_TABLE_FULL [@id 1]
+      | OFPFMFC_BAD_TABLE_ID [@id 2]
+      | OFPFMFC_OVERLAP [@id 3]
+      | OFPFMFC_EPERM [@id 4]
+      | OFPFMFC_BAD_TIMEOUT [@id 5]
+      | OFPFMFC_BAD_COMMAND [@id 6]
+      | OFPFMFC_BAD_FLAGS [@id 7]
+      [@@uint16_t]
+    ]
 
     type t = flowModFailed
 
@@ -6723,23 +6895,25 @@ module Error = struct
 
   module GroupModFailed = struct
 
-    cenum ofp_group_mod_failed_code {
-      OFPGMFC_GROUP_EXISTS = 0;
-      OFPGMFC_INVALID_GROUP = 1;
-      OFPGMFC_WEIGHT_UNSUPPORTED = 2;
-      OFPGMFC_OUT_OF_GROUPS = 3;
-      OFPGMFC_OUT_OF_BUCKETS = 4;
-      OFPGMFC_CHAINING_UNSUPPORTED = 5;
-      OFPGMFC_WATCH_UNSUPPORTED = 6;
-      OFPGMFC_LOOP = 7;
-      OFPGMFC_UNKNOWN_GROUP = 8;
-      OFPGMFC_CHAINED_GROUP = 9;
-      OFPGMFC_BAD_TYPE = 10;
-      OFPGMFC_BAD_COMMAND = 11;
-      OFPGMFC_BAD_BUCKET = 12;
-      OFPGMFC_BAD_WATCH = 13;
-      OFPGMFC_EPERM = 14
-    } as uint16_t
+    [%%cenum 
+    type ofp_group_mod_failed_code =
+      | OFPGMFC_GROUP_EXISTS [@id 0]
+      | OFPGMFC_INVALID_GROUP [@id 1]
+      | OFPGMFC_WEIGHT_UNSUPPORTED [@id 2]
+      | OFPGMFC_OUT_OF_GROUPS [@id 3]
+      | OFPGMFC_OUT_OF_BUCKETS [@id 4]
+      | OFPGMFC_CHAINING_UNSUPPORTED [@id 5]
+      | OFPGMFC_WATCH_UNSUPPORTED [@id 6]
+      | OFPGMFC_LOOP [@id 7]
+      | OFPGMFC_UNKNOWN_GROUP [@id 8]
+      | OFPGMFC_CHAINED_GROUP [@id 9]
+      | OFPGMFC_BAD_TYPE [@id 10]
+      | OFPGMFC_BAD_COMMAND [@id 11]
+      | OFPGMFC_BAD_BUCKET [@id 12]
+      | OFPGMFC_BAD_WATCH [@id 13]
+      | OFPGMFC_EPERM [@id 14]
+      [@@uint16_t]
+    ]
 
     type t = groupModFailed
 
@@ -6751,7 +6925,7 @@ module Error = struct
       | GrOutOfGroups -> "OutOfGroups"
       | GrOutOfBuckets -> "OutOfBuckets"
       | GrChainingUnsupported -> "ChainingUnsupported"
-      | GrWatcHUnsupported -> "WatcHUnsupported"
+      | GrWatchUnsupported -> "WatchUnsupported"
       | GrLoop -> "Loop"
       | GrUnknownGroup -> "UnknownGroup"
       | GrChainedGroup -> "ChainedGroup"
@@ -6769,7 +6943,7 @@ module Error = struct
       | GrOutOfGroups -> ofp_group_mod_failed_code_to_int OFPGMFC_OUT_OF_GROUPS
       | GrOutOfBuckets -> ofp_group_mod_failed_code_to_int OFPGMFC_OUT_OF_BUCKETS
       | GrChainingUnsupported -> ofp_group_mod_failed_code_to_int OFPGMFC_CHAINING_UNSUPPORTED
-      | GrWatcHUnsupported -> ofp_group_mod_failed_code_to_int OFPGMFC_WATCH_UNSUPPORTED
+      | GrWatchUnsupported -> ofp_group_mod_failed_code_to_int OFPGMFC_WATCH_UNSUPPORTED
       | GrLoop -> ofp_group_mod_failed_code_to_int OFPGMFC_LOOP
       | GrUnknownGroup -> ofp_group_mod_failed_code_to_int OFPGMFC_UNKNOWN_GROUP
       | GrChainedGroup -> ofp_group_mod_failed_code_to_int OFPGMFC_CHAINED_GROUP
@@ -6787,7 +6961,7 @@ module Error = struct
       | Some OFPGMFC_OUT_OF_GROUPS -> GrOutOfGroups
       | Some OFPGMFC_OUT_OF_BUCKETS -> GrOutOfBuckets
       | Some OFPGMFC_CHAINING_UNSUPPORTED -> GrChainingUnsupported
-      | Some OFPGMFC_WATCH_UNSUPPORTED -> GrWatcHUnsupported
+      | Some OFPGMFC_WATCH_UNSUPPORTED -> GrWatchUnsupported
       | Some OFPGMFC_LOOP -> GrLoop
       | Some OFPGMFC_UNKNOWN_GROUP -> GrUnknownGroup
       | Some OFPGMFC_CHAINED_GROUP -> GrChainedGroup
@@ -6802,13 +6976,15 @@ module Error = struct
 
   module PortModFailed = struct
 
-    cenum ofp_port_mod_failed_code {
-      OFPPMFC_BAD_PORT = 0;
-      OFPPMFC_BAD_HW_ADDR = 1;
-      OFPPMFC_BAD_CONFIG = 2;
-      OFPPMFC_BAD_ADVERTISE = 3;
-      OFPPMFC_EPERM = 4
-    } as uint16_t
+    [%%cenum 
+    type ofp_port_mod_failed_code =
+      | OFPPMFC_BAD_PORT [@id 0]
+      | OFPPMFC_BAD_HW_ADDR [@id 1]
+      | OFPPMFC_BAD_CONFIG [@id 2]
+      | OFPPMFC_BAD_ADVERTISE [@id 3]
+      | OFPPMFC_EPERM [@id 4]
+      [@@uint16_t]
+    ]
 
     type t = portModFailed
 
@@ -6841,11 +7017,13 @@ module Error = struct
 
   module TableModFailed = struct
 
-    cenum ofp_table_mod_failed_code {
-      OFPTMFC_BAD_TABLE = 0;
-      OFPTMFC_BAD_CONFIG = 1;
-      OFPTMFC_EPERM = 2
-    } as uint16_t
+    [%%cenum 
+    type ofp_table_mod_failed_code =
+      | OFPTMFC_BAD_TABLE [@id 0]
+      | OFPTMFC_BAD_CONFIG [@id 1]
+      | OFPTMFC_EPERM [@id 2]
+      [@@uint16_t]
+    ]
 
     type t = tableModFailed
 
@@ -6872,30 +7050,32 @@ module Error = struct
 
   module QueueOpFailed = struct
 
-    cenum ofp_queue_op_failed_code {
-      OFPQOFC_BAD_PORT = 0;
-      OFPQOFC_BAD_QUEUE = 1;
-      OFPQOFC_EPERM = 2
-    } as uint16_t
+    [%%cenum 
+    type ofp_queue_op_failed_code =
+      | OFPQOFC_BAD_PORT [@id 0]
+      | OFPQOFC_BAD_QUEUE [@id 1]
+      | OFPQOFC_EPERM [@id 2]
+      [@@uint16_t]
+    ]
 
     type t = queueOpFailed
 
     let to_string (cod : queueOpFailed) : string =
       match cod with
       | QuBadPort -> "BadPort"
-      | QuBadQUeue -> "BadQUeue"
+      | QuBadQueue -> "BadQueue"
       | QuPermError -> "Permission_Error"
 
     let marshal (cod : queueOpFailed) : int =
       match cod with
       | QuBadPort -> ofp_queue_op_failed_code_to_int OFPQOFC_BAD_PORT
-      | QuBadQUeue -> ofp_queue_op_failed_code_to_int OFPQOFC_BAD_QUEUE
+      | QuBadQueue -> ofp_queue_op_failed_code_to_int OFPQOFC_BAD_QUEUE
       | QuPermError -> ofp_queue_op_failed_code_to_int OFPQOFC_EPERM
 
     let parse t : queueOpFailed =
       match int_to_ofp_queue_op_failed_code t with
       | Some OFPQOFC_BAD_PORT -> QuBadPort
-      | Some OFPQOFC_BAD_QUEUE -> QuBadQUeue
+      | Some OFPQOFC_BAD_QUEUE -> QuBadQueue
       | Some OFPQOFC_EPERM -> QuPermError
       | None -> raise (Unparsable (sprintf "malfomed queue op failed code"))
 
@@ -6903,11 +7083,13 @@ module Error = struct
 
   module SwitchConfigFailed = struct
 
-    cenum ofp_switch_config_failed_code {
-      OFPSCFC_BAD_FLAGS = 0;
-      OFPSCFC_BAD_LEN = 1;
-      OFPSCFC_EPERM = 2
-    } as uint16_t
+    [%%cenum 
+    type ofp_switch_config_failed_code =
+      | OFPSCFC_BAD_FLAGS [@id 0]
+      | OFPSCFC_BAD_LEN [@id 1]
+      | OFPSCFC_EPERM [@id 2]
+      [@@uint16_t]
+    ]
 
     type t = switchConfigFailed
 
@@ -6934,11 +7116,13 @@ module Error = struct
 
   module RoleReqFailed = struct
 
-    cenum ofp_role_request_failed_code {
-      OFPRRFC_STALE = 0;
-      OFPRRFC_UNSUP = 1;
-      OFPRRFC_BAD_ROLE = 2
-    } as uint16_t
+    [%%cenum 
+    type ofp_role_request_failed_code =
+      | OFPRRFC_STALE [@id 0]
+      | OFPRRFC_UNSUP [@id 1]
+      | OFPRRFC_BAD_ROLE [@id 2]
+      [@@uint16_t]
+    ]
 
     type t = roleReqFailed
 
@@ -6965,20 +7149,22 @@ module Error = struct
 
   module MeterModFailed = struct
 
-    cenum ofp_meter_mod_failed_code {
-      OFPMMFC_UNKNOWN = 0;
-      OFPMMFC_METER_EXISTS = 1;
-      OFPMMFC_INVALID_METER = 2;
-      OFPMMFC_UNKNOWN_METER = 3;
-      OFPMMFC_BAD_COMMAND = 4;
-      OFPMMFC_BAD_FLAGS = 5;
-      OFPMMFC_BAD_RATE = 6;
-      OFPMMFC_BAD_BURST = 7;
-      OFPMMFC_BAD_BAND = 8;
-      OFPMMFC_BAD_BAND_VALUE = 9;
-      OFPMMFC_OUT_OF_METERS = 10;
-      OFPMMFC_OUT_OF_BANDS = 11
-    } as uint16_t
+    [%%cenum 
+    type ofp_meter_mod_failed_code =
+      | OFPMMFC_UNKNOWN [@id 0]
+      | OFPMMFC_METER_EXISTS [@id 1]
+      | OFPMMFC_INVALID_METER [@id 2]
+      | OFPMMFC_UNKNOWN_METER [@id 3]
+      | OFPMMFC_BAD_COMMAND [@id 4]
+      | OFPMMFC_BAD_FLAGS [@id 5]
+      | OFPMMFC_BAD_RATE [@id 6]
+      | OFPMMFC_BAD_BURST [@id 7]
+      | OFPMMFC_BAD_BAND [@id 8]
+      | OFPMMFC_BAD_BAND_VALUE [@id 9]
+      | OFPMMFC_OUT_OF_METERS [@id 10]
+      | OFPMMFC_OUT_OF_BANDS [@id 11]
+      [@@uint16_t]
+    ]
 
     type t = meterModFailed
 
@@ -7032,14 +7218,16 @@ module Error = struct
 
   module TableFeatFailed = struct
 
-    cenum ofp_table_features_failed_code {
-      OFPTFFC_BAD_TABLE = 0;
-      OFPTFFC_BAD_METADATA = 1;
-      OFPTFFC_BAD_TYPE = 2;
-      OFPTFFC_BAD_LEN = 3;
-      OFPTFFC_BAD_ARGUMENT = 4;
-      OFPTFFC_EPERM = 5
-    } as uint16_t
+    [%%cenum 
+    type ofp_table_features_failed_code =
+      | OFPTFFC_BAD_TABLE [@id 0]
+      | OFPTFFC_BAD_METADATA [@id 1]
+      | OFPTFFC_BAD_TYPE [@id 2]
+      | OFPTFFC_BAD_LEN [@id 3]
+      | OFPTFFC_BAD_ARGUMENT [@id 4]
+      | OFPTFFC_EPERM [@id 5]
+      [@@uint16_t]
+    ]
 
     type t = tableFeatFailed
 
@@ -7073,11 +7261,12 @@ module Error = struct
 
   end
 
-    cstruct ofp_error_experimenter_msg {
-    uint16_t typ;
-    uint16_t exp_type;
-    uint32_t experimenter
-  } as big_endian
+  [%%cstruct 
+  type ofp_error_experimenter_msg = {
+    typ: uint16_t ;
+    exp_type: uint16_t ;
+    experimenter: uint32_t 
+  } [@@big_endian]]
 
   let experimenterFailed_to_string (exp : experimenterFailed) : string =
     Format.sprintf "Exp type : %u; exp ID: %lu"
@@ -7228,7 +7417,7 @@ module Error = struct
       | ExperimenterFailed _ -> Cstruct.shift bits sizeof_ofp_error_experimenter_msg
       | _ -> Cstruct.shift bits sizeof_ofp_error_msg in
     let data = Cstruct.create (Cstruct.len err_bits) in
-    (* create a new Cstruct to set the offset to 0 *)
+    (* create a new cstruct type to set the offset to 0 *)
     Cstruct.blit err_bits 0 data 0 (Cstruct.len err_bits);
     { err; data }
 
@@ -7238,14 +7427,17 @@ module Hello = struct
 
   module Element = struct
 
-    cstruct ofp_hello_elem_header {
-      uint16_t typ;
-      uint16_t len
-    } as big_endian
+    [%%cstruct 
+    type ofp_hello_elem_header = {
+      typ: uint16_t ;
+      len: uint16_t ;
+    } [@@big_endian]]
 
-    cenum ofp_hello_elem_type {
-      OFPHET_VERSIONBITMAP = 1
-    } as uint16_t
+    [%%cenum 
+    type ofp_hello_elem_type =
+      | OFPHET_VERSIONBITMAP [@id 1]
+      [@@uint16_t]
+    ]
 
     module VersionBitMap = struct
 
@@ -7419,14 +7611,15 @@ module AsyncConfig = struct
 
   end
 
-    cstruct ofp_async_config {
-    uint32_t packet_in_mask0;
-    uint32_t packet_in_mask1;
-    uint32_t port_status_mask0;
-    uint32_t port_status_mask1;
-    uint32_t flow_removed_mask0;
-    uint32_t flow_removed_mask1;
-  } as big_endian
+  [%%cstruct 
+  type ofp_async_config = {
+    packet_in_mask0: uint32_t ;
+    packet_in_mask1: uint32_t ;
+    port_status_mask0: uint32_t ;
+    port_status_mask1: uint32_t ;
+    flow_removed_mask0: uint32_t ;
+    flow_removed_mask1: uint32_t ;
+  } [@@big_endian]]
 
   type t = asyncConfig
 
@@ -7496,7 +7689,7 @@ module Message = struct
     | GetAsyncReply of asyncConfig
     | SetAsync of asyncConfig
     | Error of error
-    with sexp
+    [@@deriving sexp]
 
 
   let string_of_msg_code (msg : msg_code) : string = match msg with

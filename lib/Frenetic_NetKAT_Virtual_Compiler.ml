@@ -21,30 +21,26 @@ let minimize xs obj =
   List.fold_left f None xs
 
 (* physical location *)
-type ploc = switchId * portId
+type ploc = switchId * portId [@@deriving compare, eq]
 
 (* virtual location *)
-type vloc = vswitchId * vportId
+type vloc = vswitchId * vportId [@@deriving compare, eq]
 
 (* topology node *)
 type ('a, 'b) node =
   | InPort of 'a * 'b
   | OutPort of 'a * 'b
-with sexp
+[@@deriving sexp, compare, eq]
 
 (* virtual vertex *)
 module VV = struct
-  type t = (vswitchId, vportId) node with sexp
-  let compare = compare
-  let equal = (=)
+  type t = (vswitchId, vportId) node [@@deriving sexp, compare, eq]
   let hash  = Hashtbl.hash
 end
 
 (* physical vertex *)
 module PV = struct
-  type t = (switchId, portId) node with sexp
-  let compare = compare
-  let equal = (=)
+  type t = (switchId, portId) node [@@deriving sexp, compare, eq]
   let hash = Hashtbl.hash
 end
 
@@ -54,19 +50,17 @@ type prod_vertex =
   | InconsistentOut of VV.t * PV.t
   | ConsistentOut of VV.t * PV.t
   | InconsistentIn of VV.t * PV.t
-with sexp
+[@@deriving sexp, compare, eq]
 
 module V = struct
-  type t = prod_vertex with sexp
-  let compare = compare
-  let equal = (=)
+  type t = prod_vertex [@@deriving sexp, compare, eq]
   let hash = Hashtbl.hash
 end
 
 (* Module to build graphs from topologies (physical or virtual) *)
 module GraphBuilder (Params : sig
-  type switch with sexp
-  type port with sexp
+  type switch [@@deriving sexp]
+  type port [@@deriving sexp]
   val locs_from_pred : pred -> (switch * port) list
   val links_from_topo : policy -> (switch * port * switch * port) list
 end) (Vlabel : Graph.Sig.COMPARABLE with type t = (Params.switch, Params.port) node) = struct
@@ -133,8 +127,8 @@ end
 module G = struct
 
   module Virt = GraphBuilder (struct
-    type switch = vswitchId with sexp
-    type port = vportId with sexp
+    type switch = vswitchId [@@deriving sexp]
+    type port = vportId [@@deriving sexp]
     let rec locs_from_pred pred =
       match pred with
       | And (Test (VSwitch vsw), Test (VPort vpt)) -> [(vsw, vpt)]
@@ -149,8 +143,8 @@ module G = struct
   end) (VV)
 
   module Phys = GraphBuilder (struct
-    type switch = switchId with sexp
-    type port = portId with sexp
+    type switch = switchId [@@deriving sexp]
+    type port = portId [@@deriving sexp]
     let rec locs_from_pred pred =
       match pred with
       | And (Test (Switch sw), Test (Location (Physical pt))) -> [(sw, pt)]
@@ -465,7 +459,7 @@ let generate_fabrics ?(log=true) ?record_paths vrel v_topo v_ing v_eg p_topo p_i
       begin try
         let path', dist = Dijkstra.shortest_path pgraph pv1 pv2 in
         let path = unwrap_path path' in
-        Tbl.replace dist_tbl ~key:(pv1, pv2) ~data:(path, dist);
+        Tbl.set dist_tbl ~key:(pv1, pv2) ~data:(path, dist);
         Some (path, dist)
       with Not_found ->
         None
