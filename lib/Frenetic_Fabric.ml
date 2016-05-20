@@ -132,6 +132,10 @@ let to_string (fab:fabric) : string =
   Buffer.contents buf
 
 
+(** Start of retargeting compiler code *)
+
+(** Iterate through a policy and translates Links to matches on source and *)
+(** modifications to the destination *)
 let rec remove_dups (pol:policy) : policy =
   let open Frenetic_NetKAT in
   let at_location sw pt =
@@ -153,6 +157,10 @@ let rec remove_dups (pol:policy) : policy =
     Seq (at_location s1 p1, to_location s2 p2)
   | VLink _ -> failwith "Fabric: Cannot remove Dups from a policy with VLink"
 
+(** Extract the alpha and beta pair from a policy. The alpha is the predicate *)
+(** for the policy, and the beta is the modification. Alpha corresponds to the
+    internal nodes in the FDD and the beta to the leaves *)
+(* TODO(basus) : change the alpha to a predicate instead of a policy *)
 let extract (pol:policy) : (policy * policy) list =
   let open FDK in
   let module NK = Frenetic_NetKAT in
@@ -204,6 +212,8 @@ let string_of_located_stream ((sw,pt),(sw',pt'),stream) =
   let stream = string_of_stream stream in
   String.concat ~sep:"\n" [src; sink; stream]
 
+(* Given a policy, guard it with the ingresses, sequence and iterate with the *)
+(* topology and guard with the egresses, i.e. form in;(p.t)*;p;out *)
 let assemble (pol:policy) (topo:policy) ings egs : policy =
   let open Frenetic_NetKAT in
   let union = Frenetic_NetKAT_Optimize.mk_big_union in
@@ -248,11 +258,13 @@ let find_successors (topo:policy) =
   populate topo;
   (switch_table, loc_table)
 
+(* Does (sw,pt) precede (sw',pt') in the topology, using the predecessor table *)
 let precedes tbl (sw,_) (sw',pt') =
   match Hashtbl.Poly.find tbl (sw',pt') with
   | Some (pre_sw,pre_pt) -> if pre_sw = sw then Some pre_pt else None
   | None -> None
 
+(* Does (sw,pt) succeed (sw',pt') in the topology, using the successor table *)
 let succeeds tbl (sw,_) (sw',pt') =
   match Hashtbl.Poly.find tbl (sw',pt') with
   | Some (post_sw, post_pt) -> if post_sw = sw then Some post_pt else None
@@ -349,6 +361,8 @@ let locate_or_drop (located, dropped) stream =
       print_endline msg;
       (located,dropped)
 
+(* See if the endpoints of a flow in the ideal policy are the same as, or
+   adjacent to endpoints of a fabric flow *)
 let correlate ideal_src ideal_sink fab_src fab_sink
   precedes succeeds =
   if fab_src = ideal_src && fab_sink = ideal_sink then Exact
@@ -358,6 +372,9 @@ let correlate ideal_src ideal_sink fab_src fab_sink
     | Some pt, _ -> SourceOnly pt
     | None, None -> Uncorrelated
 
+(* Try to generate ingress and egress policies to implement the ideal flows on *)
+(* the given fabric flows, using the predecessor and successor tables for the
+   topology *)
 let imprint ideal fabric precedes succeeds =
  let open Frenetic_NetKAT in
  let rec remove_switch policy = match policy with
@@ -391,6 +408,7 @@ let imprint ideal fabric precedes succeeds =
         )) in
   (ingress,egress)
 
+(* Try to implement the ideal alpha/beta pairs atop the fabric alpha/beta pairs *)
 let retarget (ideal:stream list) (fabric: stream list) (topo:policy) =
   let ideal_located,ideal_dropped = List.fold ideal ~init:([],[]) ~f:locate_or_drop in
   let fabric_located,fabric_dropped = List.fold fabric ~init:([],[])
