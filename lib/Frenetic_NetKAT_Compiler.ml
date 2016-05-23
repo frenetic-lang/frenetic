@@ -439,12 +439,12 @@ let options_to_json_string opt =
 (* internal policy representation that allows to inject fdds into policies *)
 module Pol = struct
 
-  type policy =
+  type t =
     | Filter of pred
     | Mod of header_val
-    | Union of policy * policy
-    | Seq of policy * policy
-    | Star of policy
+    | Union of t * t
+    | Seq of t * t
+    | Star of t
     | Dup (* we can handle all of NetKAT *)
     | FDD of FDD.t * FDD.t (* FDD injection. E and D matrix. *)
 
@@ -487,7 +487,7 @@ module Pol = struct
 
   let filter_loc sw pt = match_loc sw pt |> mk_filter
 
-  let rec of_pol (ing : Frenetic_NetKAT.pred option) (pol : Frenetic_NetKAT.policy) : policy =
+  let rec of_pol (ing : Frenetic_NetKAT.pred option) (pol : Frenetic_NetKAT.policy) : t =
     match pol with
     | Filter a -> Filter a
     | Mod hv -> Mod hv
@@ -695,7 +695,7 @@ module NetKAT_Automaton = struct
     let dedup_fdd = FDD.map_r determinize_action in
     map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) -> (e, dedup_fdd d))
 
-  let rec split_pol (automaton : t0) (pol: Pol.policy) : FDD.t * FDD.t * ((int * Pol.policy) list) =
+  let rec split_pol (automaton : t0) (pol: Pol.t) : FDD.t * FDD.t * ((int * Pol.t) list) =
     match pol with
     | Filter pred -> (FDD.of_pred pred, FDD.drop, [])
     | Mod hv -> (FDD.of_mod hv, FDD.drop, [])
@@ -730,7 +730,7 @@ module NetKAT_Automaton = struct
       (e, d, k)
     | FDD (e,d) -> (e,d,[])
 
-  let rec add_policy (automaton : t0) (id, pol : int * Pol.policy) : unit =
+  let rec add_policy (automaton : t0) (id, pol : int * Pol.t) : unit =
     let f () =
       let (e,d,k) = split_pol automaton pol in
       List.iter k ~f:(add_policy automaton);
