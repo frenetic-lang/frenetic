@@ -190,7 +190,6 @@ let rpc_handler (a:Socket.Address.Inet.t) (reader:Reader.t) (writer:Writer.t) : 
      | `Send_txn (swid, msg) ->
        write (`Send_txn_resp (send_txn swid msg));
        return (`Repeat ()))
-
   
 let run_server port rpc_port =
   don't_wait_for

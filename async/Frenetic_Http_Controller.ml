@@ -68,7 +68,7 @@ let get_client (clientId: string): client =
                { policy_node = node; event_reader = r; event_writer =  w })
 
 let handle_request
-  (module Controller : Frenetic_NetKAT_Controller.S)
+  (module Controller : Frenetic_NetKAT_Controller.CONTROLLER) (* TODO: why is this module a parameter? *)
   ~(body : Cohttp_async.Body.t)
   (client_addr : Socket.Address.Inet.t)
   (request : Request.t) : Server.response Deferred.t =

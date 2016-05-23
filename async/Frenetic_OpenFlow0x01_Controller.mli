@@ -1,23 +1,26 @@
 open Core.Std
 open Async.Std
-open Frenetic_OpenFlow0x01
+open Frenetic_OpenFlow
 
-type event = [
-  | `Connect of switchId * SwitchFeatures.t
-  | `Disconnect of switchId
-  | `Message of switchId * Frenetic_OpenFlow_Header.t * Message.t 
-]
-val init: int -> unit
-
-val get_switches : unit -> switchId list Deferred.t
-
-val get_switch_features : switchId -> SwitchFeatures.t option Deferred.t
+(* plugin functions *)
+       
+val start: int -> unit
 
 val events : event Pipe.Reader.t
 
-val send : switchId -> xid -> Message.t -> [`Ok | `Eof] Deferred.t
+val switch_features : switchId -> switchFeatures option Deferred.t
 
-val send_batch : switchId -> xid -> Message.t list -> [`Ok | `Eof] Deferred.t
+val packet_out : switchId -> payload -> Frenetic_NetKAT_Compiler.t -> unit Deferred.t
 
-val send_txn : switchId -> Message.t -> [`Ok of (Message.t list) Deferred.t | `Eof] Deferred.t
+val flow_stats : switchId -> Frenetic_NetKAT.pred -> flowStats Deferred.t
+
+val port_stats : switchId -> portId -> portStats Deferred.t
+
+(* general functions *)
+                                                 
+val send : switchId -> Frenetic_OpenFlow0x01.xid -> Frenetic_OpenFlow0x01.Message.t -> [`Ok | `Eof] Deferred.t
+
+val send_batch : switchId -> Frenetic_OpenFlow0x01.xid -> Frenetic_OpenFlow0x01.Message.t list -> [`Ok | `Eof] Deferred.t
+
+val send_txn : switchId -> Frenetic_OpenFlow0x01.Message.t -> [`Ok of (Frenetic_OpenFlow0x01.Message.t list) Deferred.t | `Eof] Deferred.t
 

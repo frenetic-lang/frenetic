@@ -86,7 +86,6 @@ module OpenFlow0x01_Plugin = struct
   let packet_out _ = assert false
   let flow_stats _ = assert false
   let port_stats _ = assert false
-
 end
           
 module OpenFlow0x01 = Make(OpenFlow0x01_Plugin)

@@ -1,14 +1,11 @@
 open Core.Std
 open Async.Std
-open Frenetic_OpenFlow0x01
+
+open Frenetic_OpenFlow
 module Log = Frenetic_Log
 
-type event = [
-  | `Connect of switchId * SwitchFeatures.t
-  | `Disconnect of switchId
-  | `Message of switchId * Frenetic_OpenFlow_Header.t * Message.t
-]
-
+module OF10 = Frenetic_OpenFlow0x01
+               
 let chan = Ivar.create ()
 
 let (events, events_writer) = Pipe.create ()
@@ -111,23 +108,17 @@ let ready_to_process () =
   let write = Writer.write_marshal writer ~flags:[] in
   return (read, write)
 
-let get_switches () =
-  ready_to_process ()
-  >>= fun (recv, send) ->
-  send `Get_switches;
-  recv ()
-  >>| function
-  | `Get_switches_resp resp ->
-      signal_read (); resp
-
-let get_switch_features (switch_id : switchId) =
+let switch_features (switch_id : switchId) : switchFeatures Deferred.t =
   ready_to_process ()
   >>= fun (recv, send) ->
   send (`Get_switch_features switch_id);
   recv ()
   >>| function
   | `Get_switch_features_resp resp ->
-    signal_read (); resp
+     signal_read ();
+     resp >>= fun (feats:OF10.SwitchFeatures.t) ->
+     return {switch_id = feats.switch_id;
+             switch_ports = List.map ~f:(fun pd -> Int32.of_int pd.port_no) feats.ports }
 
 let send swid xid msg =
   ready_to_process ()
