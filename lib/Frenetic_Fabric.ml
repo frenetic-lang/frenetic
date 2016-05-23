@@ -12,6 +12,7 @@ type loc = (switchId * portId)
 type located_stream = ( loc * loc * stream )
 
 type correlation =
+  | Same
   | Exact
   | Adjacent of portId * portId
   | SinkOnly of portId
@@ -440,17 +441,13 @@ end
 module OverEdge = struct
   open Frenetic_NetKAT
 
-  type t = { matching     : correlation
-           ; source       : loc
-           ; sink         : loc
-           ; condition    : policy
-           ; modification : policy }
+  type t =
+    | Internal                  (* Between ports on the same switch *)
+    | Exact of stream           (* The fabric delivers between those exact point *)
+    | Adjacent of stream        (* Fabric delivers between locations attached to
+                                   these in the topology *)
 
-  let default = { matching     = Exact
-                ; source       = (0L, 0l)
-                ; sink         = (0L, 0l)
-                ; condition    = Filter True
-                ; modification = Filter True }
+  let default = Internal
 
   let compare = Pervasives.compare
   let hash    = Hashtbl.hash
@@ -476,27 +473,14 @@ end
 
 module OverPath = Graph.Path.Dijkstra(Overlay)(Weight)
 
-let graph_construct naive_src naive_sink fabric graph precedes succeeds =
-  List.fold fabric ~init:graph
-    ~f:(fun graph (fab_src,fab_sink,fab_stream) ->
-        let open OverEdge in
-        match correlate naive_src naive_sink fab_src fab_sink precedes succeeds with
-        | Exact ->
-          let edge = { matching = Exact
-                     ; source = fab_src
-                     ; sink = fab_sink
-                     ; condition = (fst fab_stream)
-                     ; modification = (snd fab_stream) } in
-          Overlay.add_edge_e graph (naive_src,edge,naive_sink)
-        | Adjacent(in_pt, out_pt) ->
-          let edge = { matching = Adjacent(in_pt, out_pt)
-                     ; source = fab_src
-                     ; sink = fab_sink
-                     ; condition = (fst fab_stream)
-                     ; modification = (snd fab_stream) } in
-          Overlay.add_edge_e graph (naive_src,edge,naive_sink)
-        | _ -> graph )
-
+(* Add edges between ports of the same switch *)
+let graph_switch_connect g =
+  let open OverEdge in
+  Overlay.fold_vertex (fun (sw,pt) g ->
+      Overlay.fold_vertex (fun (sw',pt') g ->
+          if sw = sw' && not (pt = pt')
+          then Overlay.add_edge_e g ((sw,pt), Internal, (sw,pt'))
+          else g ) g g) g g
 
 
 let graph_retarget (naive:stream list) (fabric:stream list) (topo:policy) =
@@ -508,42 +492,50 @@ let graph_retarget (naive:stream list) (fabric:stream list) (topo:policy) =
       ~f:locate_or_drop in
   let switch_preds, loc_preds = find_predecessors topo in
   let switch_succs, loc_succs = find_successors topo in
-  let precedes = precedes loc_preds in
-  let succeeds = succeeds loc_succs in
 
   let graph = List.fold naive_located ~init:Overlay.empty
-      ~f:(fun graph (src, sink, (cond, acts)) ->
-          graph_construct src sink fabric_located graph precedes succeeds) in
-let rec remove_switch policy = match policy with
- | Union (p, Mod(Switch _)) -> p
- | Union (Mod(Switch _), p) -> p
- | Seq (p, Mod(Switch _))   -> p
- | Seq (Mod(Switch _), p)   -> p
- | Star p                   -> Star (remove_switch p)
- | p                        -> p in
+      ~f:(fun g (src, sink, _) ->
+          let g' = Overlay.add_vertex g src in
+          Overlay.add_vertex g' sink) in
+
+  let graph = ( List.fold fabric_located ~init:graph
+      ~f:(fun g (src, sink, stream) ->
+           let open OverEdge in
+           let g' = Overlay.add_edge_e g (src, Exact stream, sink) in
+           let src' = Hashtbl.Poly.find loc_preds src in
+           let sink' = Hashtbl.Poly.find loc_succs sink in
+           match src', sink' with
+           | Some src', Some sink' ->
+             Overlay.add_edge_e g' (src', Adjacent stream, sink')
+           | _ -> g'
+        ) ) |> graph_switch_connect in
+
+  let rec remove_switch policy = match policy with
+    | Union (p, Mod(Switch _)) -> p
+    | Union (Mod(Switch _), p) -> p
+    | Seq (p, Mod(Switch _))   -> p
+    | Seq (Mod(Switch _), p)   -> p
+    | Star p                   -> Star (remove_switch p)
+    | p                        -> p in
 
   let seq = Frenetic_NetKAT_Optimize.mk_big_seq in
 
   let ingresses, egresses, _ = List.fold naive_located ~init:([],[],1)
       ~f:(fun (ins, outs, tag) (src,sink,naive_stream) ->
-          let open OverEdge in
           match fst (OverPath.shortest_path graph src sink) with
-          | [] -> (ins,outs,tag)
-          | [(_,edge,_)] -> begin match edge.matching with
-              | Exact ->
-                ((edge.condition::ins), (edge.modification::outs), tag)
-              | Adjacent(in_pt, out_pt) ->
+          | [(_,ing,(_,in_pt)); (_,fab,_); ((out_sw,out_pt),eg,_)] ->
+            begin match ing, fab, eg with
+              | Internal, Adjacent _, Internal ->
                 let ingress = seq [ (fst naive_stream);
-                                    Mod( Vlan tag);
+                                    Mod( Vlan tag );
                                     Mod( Location( Physical in_pt)) ] in
-                let test_location = And( Test( Switch (fst sink)),
-                                         Test( Location (Physical out_pt))) in
-                let egress = seq [ Filter( And( Test(Vlan tag),
-                                                test_location));
-                                   Mod( Vlan strip_vlan);
-                                   remove_switch (snd naive_stream) ] in
-                (ingress::ins, egress::outs, tag+1)
-              | _ -> (ins,outs,tag) end
-          | _ -> (ins,outs,tag)) in
-  ingresses, egresses
+                let test_loc = And( Test( Switch out_sw ),
+                                    Test( Location( Physical out_pt ))) in
+                let egress = seq [ Filter( And( Test( Vlan tag ),
+                                                test_loc ));
+                                     remove_switch (snd naive_stream) ] in
+                ( ingress::ins, egress::outs, tag+1)
+              | _ -> (ins, outs, tag) end
+          | _ -> (ins, outs, tag)) in
 
+  ingresses, egresses
