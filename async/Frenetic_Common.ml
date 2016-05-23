@@ -18,7 +18,7 @@ let printf ?(level : [ `Debug | `Info | `Error ] = `Info)
 let extract_path (req : Request.t) : string list =
     List.filter ~f:(fun str -> not (String.is_empty str))
       (String.split ~on:'/'
-         (Uri.path req.uri))
+         (Uri.path (Request.uri req)))
 
 (* Note: cannot create a variable called parser because of some Camlp4 thing
    we are using. *)
