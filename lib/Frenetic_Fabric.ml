@@ -421,6 +421,7 @@ let retarget (ideal:stream list) (fabric: stream list) (topo:policy) =
   let succeeds = succeeds loc_succs in
   imprint ideal_located fabric_located precedes succeeds
 
+(** Start implementing graph-based retargeting. *)
 
 module OverNode = struct
   type t = (switchId * portId)
@@ -442,13 +443,13 @@ module OverEdge = struct
   type t = { matching     : correlation
            ; source       : loc
            ; sink         : loc
-           ; condition    : pred
+           ; condition    : policy
            ; modification : policy }
 
   let default = { matching     = Exact
                 ; source       = (0L, 0l)
                 ; sink         = (0L, 0l)
-                ; condition    = True
+                ; condition    = Filter True
                 ; modification = Filter True }
 
   let compare = Pervasives.compare
@@ -463,3 +464,86 @@ module Overlay = struct
 
   include G
 end
+
+module Weight = struct
+  type t = int
+  type edge = Overlay.E.t
+  let weight e = 1
+  let compare = Int.compare
+  let add = (+)
+  let zero = 0
+end
+
+module OverPath = Graph.Path.Dijkstra(Overlay)(Weight)
+
+let graph_construct naive_src naive_sink fabric graph precedes succeeds =
+  List.fold fabric ~init:graph
+    ~f:(fun graph (fab_src,fab_sink,fab_stream) ->
+        let open OverEdge in
+        match correlate naive_src naive_sink fab_src fab_sink precedes succeeds with
+        | Exact ->
+          let edge = { matching = Exact
+                     ; source = fab_src
+                     ; sink = fab_sink
+                     ; condition = (fst fab_stream)
+                     ; modification = (snd fab_stream) } in
+          Overlay.add_edge_e graph (naive_src,edge,naive_sink)
+        | Adjacent(in_pt, out_pt) ->
+          let edge = { matching = Adjacent(in_pt, out_pt)
+                     ; source = fab_src
+                     ; sink = fab_sink
+                     ; condition = (fst fab_stream)
+                     ; modification = (snd fab_stream) } in
+          Overlay.add_edge_e graph (naive_src,edge,naive_sink)
+        | _ -> graph )
+
+
+
+let graph_retarget (naive:stream list) (fabric:stream list) (topo:policy) =
+  let open Frenetic_NetKAT in
+  print_endline "Calling graph-based retargeting algorithm";
+  let naive_located, naive_dropped = List.fold naive ~init:([],[])
+      ~f:locate_or_drop in
+  let fabric_located, fabric_dropped = List.fold fabric ~init:([],[])
+      ~f:locate_or_drop in
+  let switch_preds, loc_preds = find_predecessors topo in
+  let switch_succs, loc_succs = find_successors topo in
+  let precedes = precedes loc_preds in
+  let succeeds = succeeds loc_succs in
+
+  let graph = List.fold naive_located ~init:Overlay.empty
+      ~f:(fun graph (src, sink, (cond, acts)) ->
+          graph_construct src sink fabric_located graph precedes succeeds) in
+let rec remove_switch policy = match policy with
+ | Union (p, Mod(Switch _)) -> p
+ | Union (Mod(Switch _), p) -> p
+ | Seq (p, Mod(Switch _))   -> p
+ | Seq (Mod(Switch _), p)   -> p
+ | Star p                   -> Star (remove_switch p)
+ | p                        -> p in
+
+  let seq = Frenetic_NetKAT_Optimize.mk_big_seq in
+
+  let ingresses, egresses, _ = List.fold naive_located ~init:([],[],1)
+      ~f:(fun (ins, outs, tag) (src,sink,naive_stream) ->
+          let open OverEdge in
+          match fst (OverPath.shortest_path graph src sink) with
+          | [] -> (ins,outs,tag)
+          | [(_,edge,_)] -> begin match edge.matching with
+              | Exact ->
+                ((edge.condition::ins), (edge.modification::outs), tag)
+              | Adjacent(in_pt, out_pt) ->
+                let ingress = seq [ (fst naive_stream);
+                                    Mod( Vlan tag);
+                                    Mod( Location( Physical in_pt)) ] in
+                let test_location = And( Test( Switch (fst sink)),
+                                         Test( Location (Physical out_pt))) in
+                let egress = seq [ Filter( And( Test(Vlan tag),
+                                                test_location));
+                                   Mod( Vlan strip_vlan);
+                                   remove_switch (snd naive_stream) ] in
+                (ingress::ins, egress::outs, tag+1)
+              | _ -> (ins,outs,tag) end
+          | _ -> (ins,outs,tag)) in
+  ingresses, egresses
+
