@@ -520,22 +520,42 @@ let graph_retarget (naive:stream list) (fabric:stream list) (topo:policy) =
 
   let seq = Frenetic_NetKAT_Optimize.mk_big_seq in
 
+  (* Given a list of hops consisting of alternating fabric paths and internal
+     forwards on edge switches, generate ingress, egress, or bounce rules to
+     stitch the hops together, forming a VLAN-tagged path between the naive
+     policy endpoints *)
+  let rec stitch path tag stream =
+    let open OverEdge in
+    match path with
+    | [] -> ([], [])
+    | (_,Internal,(_,in_pt))::rest ->
+      let ingress = seq [ (fst stream);
+                          Mod( Vlan tag );
+                          Mod( Location( Physical in_pt)) ] in
+      let ins, outs = stitch rest tag stream in
+      (ingress::ins, outs)
+    | (_,Adjacent _,_)::((out_sw,out_pt),Internal,(_,in_pt))::rest ->
+      let test_loc = And( Test( Switch out_sw ),
+                          Test( Location( Physical out_pt ))) in
+      let filter = Filter( And( Test( Vlan tag ),
+                                test_loc )) in
+      let egress = begin match rest with
+        | [] ->
+          (* Paths is complete, strip the tag and leave the network *)
+          seq [ filter; Mod( Vlan strip_vlan); remove_switch (snd stream) ]
+        | rest ->
+          (* There are more hops left, bounce back to the fabric *)
+          seq [ filter; Mod( Location( Physical in_pt )) ] end in
+      let ins, outs = stitch rest tag stream in
+      (ins, egress::outs)
+    | _ -> failwith "Malformed path" in
+
+
   let ingresses, egresses, _ = List.fold naive_located ~init:([],[],1)
       ~f:(fun (ins, outs, tag) (src,sink,naive_stream) ->
-          match fst (OverPath.shortest_path graph src sink) with
-          | [(_,ing,(_,in_pt)); (_,fab,_); ((out_sw,out_pt),eg,_)] ->
-            begin match ing, fab, eg with
-              | Internal, Adjacent _, Internal ->
-                let ingress = seq [ (fst naive_stream);
-                                    Mod( Vlan tag );
-                                    Mod( Location( Physical in_pt)) ] in
-                let test_loc = And( Test( Switch out_sw ),
-                                    Test( Location( Physical out_pt ))) in
-                let egress = seq [ Filter( And( Test( Vlan tag ),
-                                                test_loc ));
-                                     remove_switch (snd naive_stream) ] in
-                ( ingress::ins, egress::outs, tag+1)
-              | _ -> (ins, outs, tag) end
-          | _ -> (ins, outs, tag)) in
-
+          let path,_ = OverPath.shortest_path graph src sink in
+          let ingress, egress = stitch path tag naive_stream in
+          ( List.rev_append ingress ins,
+            List.rev_append egress  outs,
+            tag + 1 )) in
   ingresses, egresses
