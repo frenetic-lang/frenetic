@@ -3,3 +3,11 @@ load circuit examples/speckat/circuit.kat [4:2;4:3;5:2;6:2;] [4:2;4:3;5:2;6:2;]
 load topology examples/speckat/topo.kat
 compile circuit
 compile edge
+show table 1 edge
+show table 2 edge
+show table 3 edge
+show table 4 fabric
+show table 5 fabric
+show table 6 fabric
+show table 7 fabric
+

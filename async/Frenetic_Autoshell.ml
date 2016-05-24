@@ -90,11 +90,15 @@ type install =
   | IFabric of switchId list
   | IEdge
 
+type show =
+  | SPart of state_part
+  | STable of state_part * switchId
+
 type command =
   | Load of load
   | Compile of compile
   | Install of install
-  | Show of state_part
+  | Show of show
   | Blank
   | Quit
 
@@ -142,6 +146,14 @@ module Parser = struct
          (fun egs ->
             return (pol, ings, egs)))))
 
+  (* Parser for parts of the state *)
+  let state_part : (state_part, bytes list) MParser.t =
+      (symbol "policy"   >> return SNaive) <|>
+      (symbol "fabric"   >> return SFabric) <|>
+      (symbol "edge"     >> return SEdge) <|>
+      (symbol "topology" >> return STopology) <|>
+      (symbol "circuit"  >> return SCircuit)
+
   (* Parser for load command *)
   let load : (command, bytes list) MParser.t =
     symbol "load" >> (
@@ -178,12 +190,12 @@ module Parser = struct
   (* Parser for the show command *)
   let show : (command, bytes list) MParser.t =
     symbol "show" >> (
-      (symbol "policy"   >> return SNaive) <|>
-      (symbol "fabric"   >> return SFabric) <|>
-      (symbol "edge"     >> return SEdge) <|>
-      (symbol "topology" >> return STopology) <|>
-      (symbol "circuit"  >> return SCircuit)) >>=
-    (fun s -> return( Show s ))
+      (state_part >>= fun s -> return( Show( SPart s ))) <|>
+      (symbol "table" >> many_chars_until digit blank >>=
+       fun id ->
+       let swid = Int64.of_string id in
+       state_part >>=
+       fun sp -> return( Show( STable(sp, swid) ))))
 
   (* Parser for a blank line *)
   let blank : (command, bytes list) MParser.t =
@@ -250,7 +262,7 @@ let string_of_guarded_source s i o =
     ( String.concat ~sep:"; " (List.map i ~f:string_of_loc) )
 
 let string_of_config c =
-  sprintf "Policy:\n%s\nIngresses:%s\nEgresses%s\n"
+  sprintf "Policy:\n%s\nIngresses: %s\nEgresses: %s\n"
     (Frenetic_NetKAT_Pretty.string_of_policy c.policy)
     (string_of_locs c.ingresses)
     (string_of_locs c.egresses)
@@ -260,6 +272,23 @@ let config (s:source) (i:loc list) (o:loc list) : (configuration, string) Result
   { new_config with policy = pol ;
                     ingresses = i ;
                     egresses = o }
+
+let get_config_fdd (c:configuration option) = match c with
+  | Some c -> begin match c.fdd with
+      | Some f -> Ok f
+      | None -> Error "Policy has not been compiled to FDD." end
+  | None -> Error "Policy has not been loaded and compiled."
+
+let get_state_fdd (s:state_part) = match s with
+  | SNaive -> get_config_fdd state.naive
+  | SFabric -> begin match state.fabric with
+      | Some f -> get_config_fdd (Some f.config)
+      | None -> Error "No fabric loaded and compiled." end
+  | SEdge -> get_config_fdd state.edge
+  | SCircuit -> Error "Circuits must be compiled to a fabric first."
+  | STopology -> begin match state.topology with
+      | None -> Error "No topology defined."
+      | Some t -> Error "Topology has no FDD." end
 
 let load (l:load) : (string, string) Result.t =
   let (>>=) = Result.(>>=) in
@@ -433,20 +462,20 @@ let install (i:install) = match i with
       | None -> [ return ( Error "Please load and compile a fabric first" )]
     end
 
-let show (s:state_part) = match s with
-  | SNaive -> begin match state.naive with
+let show (s:show) = match s with
+  | SPart SNaive -> begin match state.naive with
       | Some c -> print_endline (string_of_config c)
       | None -> print_endline "No naive policy defined." end
-  | SFabric -> begin match state.fabric with
+  | SPart SFabric -> begin match state.fabric with
       | Some f -> print_endline (string_of_config f.config)
       | None -> print_endline "No fabric defined." end
-  | SEdge -> begin match state.edge with
+  | SPart SEdge -> begin match state.edge with
       | Some c -> print_endline (string_of_config c)
       | None -> print_endline "No edge defined." end
-  | STopology -> begin match state.topology with
+  | SPart STopology -> begin match state.topology with
       | Some t -> print_endline (string_of_policy t)
       | None   -> print_endline "No topology defined" end
-  | SCircuit -> begin match state.fabric with
+  | SPart SCircuit -> begin match state.fabric with
       | Some f -> begin match f.circuit with
           | Some c ->
             let c',i,o = c in
@@ -456,6 +485,14 @@ let show (s:state_part) = match s with
           | None   -> print_endline "Fabric defined directly, without circuit"
         end
       | None -> print_endline "No circuit defined" end
+  | STable ( part, swid ) -> begin match (get_state_fdd part) with
+      | Ok fdd ->
+        let table = Compiler.to_table swid fdd in
+        let label = sprintf "Switch: %Ld " swid in
+        print_endline (Frenetic_OpenFlow.string_of_flowTable ~label:label table)
+      | Error s ->
+        print_endline s end
+
 
 let print_result r : unit = match r with
   | Ok msg  -> printf "Success: %s\n" msg
