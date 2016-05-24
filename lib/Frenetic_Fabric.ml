@@ -29,6 +29,9 @@ let compile_local =
   let open Compiler in
   compile_local ~options:{ default_compiler_options with cache_prepare = `Keep }
 
+let seq = Frenetic_NetKAT_Optimize.mk_big_seq
+let union = Frenetic_NetKAT_Optimize.mk_big_union
+
 let mk_flow (pat:Pattern.t) (actions:group) : flow =
   { pattern = pat
   ; action = actions
@@ -137,6 +140,17 @@ let to_string (fab:fabric) : string =
 
 (** Start of retargeting compiler code *)
 
+(** Iterate through a policy and remove any modifications to the switch field. *)
+let rec remove_switch_mods (pol:policy) : policy =
+  let open Frenetic_NetKAT in
+  match pol with
+  | Union (p, Mod(Switch _)) -> p
+  | Union (Mod(Switch _), p) -> p
+  | Seq (p, Mod(Switch _))   -> p
+  | Seq (Mod(Switch _), p)   -> p
+  | Star p                   -> Star (remove_switch_mods p)
+  | p                        -> p
+
 (** Iterate through a policy and translates Links to matches on source and *)
 (** modifications to the destination *)
 let rec remove_dups (pol:policy) : policy =
@@ -219,8 +233,6 @@ let string_of_located_stream ((sw,pt),(sw',pt'),stream) =
 (* topology and guard with the egresses, i.e. form in;(p.t)*;p;out *)
 let assemble (pol:policy) (topo:policy) ings egs : policy =
   let open Frenetic_NetKAT in
-  let union = Frenetic_NetKAT_Optimize.mk_big_union in
-  let seq = Frenetic_NetKAT_Optimize.mk_big_seq in
   let to_filter (sw,pt) = Filter( And( Test(Switch sw),
                                        Test(Location (Physical pt)))) in
   let ingresses = union (List.map ings ~f:to_filter) in
@@ -380,16 +392,7 @@ let correlate ideal_src ideal_sink fab_src fab_sink
    topology *)
 let imprint ideal fabric precedes succeeds =
  let open Frenetic_NetKAT in
- let rec remove_switch policy = match policy with
- | Union (p, Mod(Switch _)) -> p
- | Union (Mod(Switch _), p) -> p
- | Seq (p, Mod(Switch _))   -> p
- | Seq (Mod(Switch _), p)   -> p
- | Star p                   -> Star (remove_switch p)
- | p                        -> p in
-
-  let seq = Frenetic_NetKAT_Optimize.mk_big_seq in
-  let ingress,egress,_ = List.fold ideal ~init:([], [],1) ~f:(fun acc ideal ->
+ let ingress,egress,_ = List.fold ideal ~init:([], [],1) ~f:(fun acc ideal ->
       let ideal_src,ideal_sink,ideal_stream = ideal in
       List.fold fabric ~init:acc ~f:(fun (ins,outs,tag) fab ->
           let fab_src,fab_sink,fab_stream = fab in
@@ -405,7 +408,7 @@ let imprint ideal fabric precedes succeeds =
             let egress = seq [ Filter( And( Test(Vlan tag),
                                             test_location));
                                Mod( Vlan strip_vlan);
-                               remove_switch (snd ideal_stream) ] in
+                               remove_switch_mods (snd ideal_stream) ] in
             (ingress::ins, egress::outs, tag+1)
           | _ -> (ins,outs,tag)
         )) in
@@ -490,8 +493,8 @@ let graph_retarget (naive:stream list) (fabric:stream list) (topo:policy) =
       ~f:locate_or_drop in
   let fabric_located, fabric_dropped = List.fold fabric ~init:([],[])
       ~f:locate_or_drop in
-  let switch_preds, loc_preds = find_predecessors topo in
-  let switch_succs, loc_succs = find_successors topo in
+  let _, loc_preds = find_predecessors topo in
+  let _, loc_succs = find_successors topo in
 
   let graph = List.fold naive_located ~init:Overlay.empty
       ~f:(fun g (src, sink, _) ->
@@ -509,16 +512,6 @@ let graph_retarget (naive:stream list) (fabric:stream list) (topo:policy) =
              Overlay.add_edge_e g' (src', Adjacent stream, sink')
            | _ -> g'
         ) ) |> graph_switch_connect in
-
-  let rec remove_switch policy = match policy with
-    | Union (p, Mod(Switch _)) -> p
-    | Union (Mod(Switch _), p) -> p
-    | Seq (p, Mod(Switch _))   -> p
-    | Seq (Mod(Switch _), p)   -> p
-    | Star p                   -> Star (remove_switch p)
-    | p                        -> p in
-
-  let seq = Frenetic_NetKAT_Optimize.mk_big_seq in
 
   (* Given a list of hops consisting of alternating fabric paths and internal
      forwards on edge switches, generate ingress, egress, or bounce rules to
@@ -542,7 +535,7 @@ let graph_retarget (naive:stream list) (fabric:stream list) (topo:policy) =
       let egress = begin match rest with
         | [] ->
           (* Paths is complete, strip the tag and leave the network *)
-          seq [ filter; Mod( Vlan strip_vlan); remove_switch (snd stream) ]
+          seq [ filter; Mod( Vlan strip_vlan); remove_switch_mods (snd stream) ]
         | rest ->
           (* There are more hops left, bounce back to the fabric *)
           seq [ filter; Mod( Location( Physical in_pt )) ] end in
