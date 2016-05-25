@@ -1,0 +1,11 @@
+(filter switch=1; ((filter (port=1 and ip4Dst = 10.0.0.2); port:=2) |
+                   (filter port=2; port:=1))) |
+(filter switch=2; ((filter (port=1 and ip4Dst = 10.0.0.1); port:=2) |
+                   (filter port=2; port:=1))) |
+(filter switch=4; ((filter port=1; port:=2) |
+                   (filter port=2; port:=1))) |
+(filter switch=5; ((filter port=1; port:=2) |
+                   (filter port=2; port:=1))) |
+(filter switch=6; ((filter port=1; port:=2) |
+                   (filter port=2; port:=1)))
+
