@@ -102,7 +102,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
 
   let barrier sw =
     Controller.send_txn sw M.BarrierRequest >>= function
-      | `Ok dl -> dl >>= fun _ -> return (Ok ())
+      | `Ok dl -> return (Ok ())
       | `Eof -> return (Error UpdateError)
 
   let install_flows_for sw_id ?old table =

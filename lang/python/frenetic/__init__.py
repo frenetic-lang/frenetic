@@ -86,9 +86,6 @@ class App(object):
       response = ftr.result()
       if(hasattr(response, 'buffer')):
         data = json.loads(response.buffer.getvalue())
-        dataPrime = {}
-        for key in data:
-          dataPrime[key] = int(data[key])
         callback(data)
 
     @return_future
