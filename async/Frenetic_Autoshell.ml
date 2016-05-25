@@ -348,6 +348,7 @@ let compile_circuit (f:fabric) = match f.circuit with
   | None -> Error "No circuit specified. Please load with `load circuit` command."
   | Some (c,i,o) ->
     let l = local_policy_of_config c in
+    printf "Compiling circuit policy: %s\n%!" (string_of_policy l);
     let conf = { new_config with policy    = l;
                                  ingresses = i;
                                  egresses  = o } in

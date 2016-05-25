@@ -195,7 +195,10 @@ let extract (pol:policy) : (policy * policy) list =
       let false_pred  = NK.Neg true_pred in
       let false_paths = get_paths f ( (NK.Filter false_pred)::path ) in
       List.unordered_append true_paths false_paths
-    | Leaf r -> [ (Frenetic_Fdd.Action.to_policy r)::path ]
+    | Leaf r ->
+      let p = (Frenetic_Fdd.Action.to_policy r) in
+      printf "Action : %s\n%!" (Frenetic_NetKAT_Pretty.string_of_policy p);
+      [ p::path ]
   in
 
   let rec mk_big_and (pols:NK.policy list) = match pols with
@@ -215,9 +218,14 @@ let extract (pol:policy) : (policy * policy) list =
     | _ -> failwith "Path through FDD not long enough to paritition"
   in
   let deduped = remove_dups pol in
+  (* printf "Deduped policy is:\n%s\n%!" (Frenetic_NetKAT_Pretty.string_of_policy deduped); *)
   let fdd = compile_local deduped in
   let paths = get_paths fdd [] in
+  (* printf "Local FDD is:\n%s\n%!" (Frenetic_Fdd.FDK.to_string fdd); *)
   List.map paths ~f:partition
+
+let string_of_loc ((sw,pt):loc) =
+  sprintf "(%Ld:%ld)" sw pt
 
 let string_of_stream (cond, act) =
   sprintf "Condition: %s\nAction: %s\n" (Frenetic_NetKAT_Pretty.string_of_policy cond)
@@ -229,6 +237,8 @@ let string_of_located_stream ((sw,pt),(sw',pt'),stream) =
   let stream = string_of_stream stream in
   String.concat ~sep:"\n" [src; sink; stream]
 
+let string_of_policy = Frenetic_NetKAT_Pretty.string_of_policy
+
 (* Given a policy, guard it with the ingresses, sequence and iterate with the *)
 (* topology and guard with the egresses, i.e. form in;(p.t)*;p;out *)
 let assemble (pol:policy) (topo:policy) ings egs : policy =
@@ -237,6 +247,8 @@ let assemble (pol:policy) (topo:policy) ings egs : policy =
                                        Test(Location (Physical pt)))) in
   let ingresses = union (List.map ings ~f:to_filter) in
   let egresses  = union (List.map egs ~f:to_filter) in
+  (* printf "Ingresses: %s\n%!" (string_of_policy ingresses); *)
+  (* printf "Egresses: %s\n%!" (string_of_policy egresses); *)
   seq [ ingresses;
         Star(Seq(pol, topo)); pol;
         egresses ]
@@ -365,10 +377,12 @@ let locate ((pol,pol'):stream) =
 
 let locate_or_drop (located, dropped) stream =
   let cond, act = stream in
+  (* printf "%s\n" (string_of_stream stream); *)
   if act = Frenetic_NetKAT.drop then (located, stream::dropped)
   else try match locate stream with
     | Ok l -> (l::located,dropped)
     | Error e ->
+      printf "Error: %s\n%!" e;
       (located, dropped)
     with ClashException e ->
       let msg = sprintf "Exception |%s| in alpha-beta pair: %s%!" e
@@ -495,11 +509,15 @@ let graph_retarget (naive:stream list) (fabric:stream list) (topo:policy) =
       ~f:locate_or_drop in
   let _, loc_preds = find_predecessors topo in
   let _, loc_succs = find_successors topo in
+  print_endline "Separate and found preds and succs";
 
   let graph = List.fold naive_located ~init:Overlay.empty
       ~f:(fun g (src, sink, _) ->
           let g' = Overlay.add_vertex g src in
           Overlay.add_vertex g' sink) in
+  (* printf "Added vertices to graph\n%!"; *)
+
+  (* printf "Number of fabric streams: %d\n" (List.length fabric); *)
 
   let graph = ( List.fold fabric_located ~init:graph
       ~f:(fun g (src, sink, stream) ->
@@ -509,25 +527,43 @@ let graph_retarget (naive:stream list) (fabric:stream list) (topo:policy) =
            let sink' = Hashtbl.Poly.find loc_succs sink in
            match src', sink' with
            | Some src', Some sink' ->
+             printf "Adding adjacent edge between %s and %s\n%!"
+               (string_of_loc src') (string_of_loc sink');
              Overlay.add_edge_e g' (src', Adjacent stream, sink')
-           | _ -> g'
-        ) ) |> graph_switch_connect in
+           | None, Some sink' ->
+             printf "No pred for %s\n%!" (string_of_loc src);
+             g'
+           | Some src', None ->
+             printf "No succ for %s\n%!" (string_of_loc sink);
+             g'
+           | None, None ->
+             printf "No pred for %s and no succ for %s\n%!"
+               (string_of_loc src)
+               (string_of_loc sink); g'
+         ) ) in
+  (* printf "Addded edges\n%!"; *)
+
+  let graph = graph_switch_connect graph in
+  (* printf "Connected graph\n%!"; *)
 
   (* Given a list of hops consisting of alternating fabric paths and internal
      forwards on edge switches, generate ingress, egress, or bounce rules to
      stitch the hops together, forming a VLAN-tagged path between the naive
      policy endpoints *)
   let rec stitch path tag stream =
+    (* printf "Stitch called\n%!"; *)
     let open OverEdge in
     match path with
     | [] -> ([], [])
     | (_,Internal,(_,in_pt))::rest ->
+      (* printf "Stitch starting branch\n%!"; *)
       let ingress = seq [ (fst stream);
                           Mod( Vlan tag );
                           Mod( Location( Physical in_pt)) ] in
       let ins, outs = stitch rest tag stream in
       (ingress::ins, outs)
     | (_,Adjacent _,_)::((out_sw,out_pt),Internal,(_,in_pt))::rest ->
+      (* printf "Stitch continuing branch\n%!"; *)
       let test_loc = And( Test( Switch out_sw ),
                           Test( Location( Physical out_pt ))) in
       let filter = Filter( And( Test( Vlan tag ),
@@ -546,9 +582,15 @@ let graph_retarget (naive:stream list) (fabric:stream list) (topo:policy) =
 
   let ingresses, egresses, _ = List.fold naive_located ~init:([],[],1)
       ~f:(fun (ins, outs, tag) (src,sink,naive_stream) ->
-          let path,_ = OverPath.shortest_path graph src sink in
-          let ingress, egress = stitch path tag naive_stream in
-          ( List.rev_append ingress ins,
-            List.rev_append egress  outs,
-            tag + 1 )) in
+          try
+            let path,_ = OverPath.shortest_path graph src sink in
+            let ingress, egress = stitch path tag naive_stream in
+            ( List.rev_append ingress ins,
+              List.rev_append egress  outs,
+              tag + 1 )
+          with Not_found ->
+            printf "No path between %s and %s\n%!"
+              (string_of_loc src) (string_of_loc sink);
+            (ins,outs, tag)) in
+
   ingresses, egresses
