@@ -245,7 +245,7 @@ let pred_of_string ?(loc=(Loc.mk "<N/A>")) (s : string) =
   pred_of_stream ~loc (Stream.of_string s)
 
 let policy_of_file (file : string) =
-   policy_of_stream ~loc:(Loc.mk file) (In_channel.with_file file ~f:Stream.of_channel)
+  In_channel.with_file file ~f:(fun ch -> policy_of_stream ~loc:(Loc.mk file) (Stream.of_channel ch))
 
 let pred_of_file (file : string) =
-   pred_of_stream ~loc:(Loc.mk file) (In_channel.with_file file ~f:Stream.of_channel)
+  In_channel.with_file file ~f:(fun ch -> pred_of_stream ~loc:(Loc.mk file) (Stream.of_channel ch))
