@@ -34,6 +34,8 @@ let nk_int32 = Gram.Entry.mk "nk_int32"
 let nk_int = Gram.Entry.mk "nk_int"
 let nk_ipv4 = Gram.Entry.mk "nk_ipv4"
 let nk_loc = Gram.Entry.mk "nk_loc"
+let nk_string_constant = Gram.Entry.mk "nk_string_constant"
+let nk_pkt_dest = Gram.Entry.mk "nk_pkt_dest"
 
 EXTEND Gram
 
@@ -63,6 +65,10 @@ EXTEND Gram
   nk_loc: [[
       switch = nk_int64; "@"; port = nk_int64 ->
         MK((ID(switch),ID(port)))
+  ]];
+
+  nk_string_constant: [[
+      sc = STRING_CONSTANT -> MK(STR(sc))
   ]];
 
   nk_pred_atom: [[
@@ -130,6 +136,12 @@ EXTEND Gram
       a = nk_pred_or -> a
   ]];
 
+  nk_pkt_dest: [[
+      n = nk_int32 -> MK(Physical n)
+    | "query"; "("; q = nk_string_constant; ")" -> MK(Query q) 
+    | "pipe"; "("; p = nk_string_constant; ")" -> MK(Pipe p) 
+  ]];
+
   nk_pol_atom: [[
       "("; p = nk_pol; ")" -> p
     | "id" ->
@@ -140,8 +152,8 @@ EXTEND Gram
       MK(Filter ID(a))
     | "switch"; ":="; sw = nk_int64 ->
       MK(Mod (Switch ID(sw)))
-    | "port"; ":="; n = nk_int32 ->
-      MK(Mod (Location (Physical ID(n))))
+    | "port"; ":="; l = nk_pkt_dest ->
+      MK(Mod (Location l))
     | "vswitch"; ":="; sw = nk_int64 ->
       MK(Mod (VSwitch ID(sw)))
     | "vport"; ":="; n = nk_int64 ->

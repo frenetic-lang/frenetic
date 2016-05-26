@@ -21,6 +21,7 @@ type token =
   | INT64 of string
   | IP4ADDR of string
   | ANTIQUOT of string
+  | STRING_CONSTANT of string
   | EOI
 
 module Token : sig
