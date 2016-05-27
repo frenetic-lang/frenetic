@@ -13,6 +13,8 @@ type order
 type t
 (** The type of the intermediate compiler representation (FDD). *)
 
+val to_dot : t -> string
+
 type cache
   = [ `Keep
     | `Empty
