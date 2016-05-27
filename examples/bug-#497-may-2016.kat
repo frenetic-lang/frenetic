@@ -2,16 +2,16 @@
  filter switch = 4 and port = 2 | filter switch = 5 and port = 2);
 
 ((filter switch = 6;
-  (filter port = 4; channel := 2; port := 2 |
-   filter port = 2 and channel = 2; port := 4 |
-   filter port = 3; channel := 1; port := 1 |
-   filter port = 1 and channel = 1; port := 3) |
+  (filter port = 4; vlanId := 2; port := 2 |
+   filter port = 2 and vlanId = 2; port := 4 |
+   filter port = 3; vlanId := 1; port := 1 |
+   filter port = 1 and vlanId = 1; port := 3) |
   filter switch = 5;
-  (filter port = 1 and channel = 2; port := 2 |
-   filter port = 2; channel := 2; port := 1) |
+  (filter port = 1 and vlanId = 2; port := 2 |
+   filter port = 2; vlanId := 2; port := 1) |
   filter switch = 4;
-  (filter port = 1 and channel = 1; port := 2 |
-   filter port = 2; channel := 1; port := 1));
+  (filter port = 1 and vlanId = 1; port := 2 |
+   filter port = 2; vlanId := 1; port := 1));
  (filter switch = 4 and port = 1; (switch := 6; port := 1) |
   filter switch = 6 and port = 1; (switch := 4; port := 1) |
   filter switch = 5 and port = 1; (switch := 6; port := 2) |
@@ -26,16 +26,16 @@
   filter switch = 6 and port = 4; (switch := 3; port := 2)))*;
 
 (filter switch = 6;
- (filter port = 4; channel := 2; port := 2 |
-  filter port = 2 and channel = 2; port := 4 |
-  filter port = 3; channel := 1; port := 1 |
-  filter port = 1 and channel = 1; port := 3) |
+ (filter port = 4; vlanId := 2; port := 2 |
+  filter port = 2 and vlanId = 2; port := 4 |
+  filter port = 3; vlanId := 1; port := 1 |
+  filter port = 1 and vlanId = 1; port := 3) |
  filter switch = 5;
- (filter port = 1 and channel = 2; port := 2 |
-  filter port = 2; channel := 2; port := 1) |
+ (filter port = 1 and vlanId = 2; port := 2 |
+  filter port = 2; vlanId := 2; port := 1) |
  filter switch = 4;
- (filter port = 1 and channel = 1; port := 2 |
-  filter port = 2; channel := 1; port := 1));
+ (filter port = 1 and vlanId = 1; port := 2 |
+  filter port = 2; vlanId := 1; port := 1));
 
 (filter switch = 6 and port = 3 | filter switch = 6 and port = 4 |
  filter switch = 4 and port = 2 | filter switch = 4 and port = 3)
