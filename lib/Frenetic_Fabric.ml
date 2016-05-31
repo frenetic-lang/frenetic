@@ -550,18 +550,11 @@ let graph_retarget (naive:stream list) (fabric:stream list) (topo:policy) =
       (ins, egress::outs)
     | _ -> failwith "Malformed path" in
 
-
   let ingresses, egresses, _ = List.fold naive_located ~init:([],[],1)
       ~f:(fun (ins, outs, tag) (src,sink,naive_stream) ->
           try
             let path,_ = OverPath.shortest_path graph src sink in
             let ingress, egress = stitch path tag naive_stream in
-            printf "Looking for path between %s and %s\n%!"
-              (string_of_loc src) (string_of_loc sink);
-            printf "Generated Ingress:\n%!";
-            List.iter ingress ~f:(fun p -> printf "%s\n%!" (string_of_policy p));
-            printf "Generated Egress:\n%!";
-            List.iter egress  ~f:(fun p -> printf "%s\n%!" (string_of_policy p));
             ( List.rev_append ingress ins,
               List.rev_append egress  outs,
               tag + 1 )
