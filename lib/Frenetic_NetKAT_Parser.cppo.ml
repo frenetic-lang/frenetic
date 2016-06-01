@@ -72,7 +72,10 @@ EXTEND Gram
   ]];
 
   nk_pred_atom: [[
-      "("; a = nk_pred; ")" -> a
+      "("; a = nk_pred; ")" ->
+      a
+    | "begin"; a = nk_pred; "end" ->
+      a
     | "true" ->
       MK(True)
     | "false" ->
@@ -138,12 +141,15 @@ EXTEND Gram
 
   nk_pkt_dest: [[
       n = nk_int32 -> MK(Physical n)
-    | "query"; "("; q = nk_string_constant; ")" -> MK(Query q) 
-    | "pipe"; "("; p = nk_string_constant; ")" -> MK(Pipe p) 
+    | "query"; "("; q = nk_string_constant; ")" -> MK(Query q)
+    | "pipe"; "("; p = nk_string_constant; ")" -> MK(Pipe p)
   ]];
 
   nk_pol_atom: [[
-      "("; p = nk_pol; ")" -> p
+      "("; p = nk_pol; ")" ->
+      p
+    | "begin"; p = nk_pol; "end" ->
+      p
     | "id" ->
       MK(id)
     | "drop" ->
