@@ -5,10 +5,11 @@ open Frenetic_OpenFlow
 module Compiler = Frenetic_NetKAT_Compiler
 module FDK = Frenetic_Fdd.FDK
 
+type pred   = Frenetic_NetKAT.pred
 type policy = Frenetic_NetKAT.policy
 type fabric = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
-type stream = (policy * policy)
-type loc = (switchId * portId)
+type stream = (pred * policy)
+type loc    = (switchId * portId)
 type located_stream = ( loc * loc * stream )
 
 type correlation =
@@ -177,8 +178,7 @@ let rec remove_dups (pol:policy) : policy =
 (** Extract the alpha and beta pair from a policy. The alpha is the predicate *)
 (** for the policy, and the beta is the modification. Alpha corresponds to the
     internal nodes in the FDD and the beta to the leaves *)
-(* TODO(basus) : change the alpha to a predicate instead of a policy *)
-let extract (pol:policy) : (policy * policy) list =
+let extract (pol:policy) : stream list =
   let open FDK in
   let module NK = Frenetic_NetKAT in
 
@@ -191,29 +191,19 @@ let extract (pol:policy) : (policy * policy) list =
     match node with
     | Branch ((v,l), t, f) ->
       let true_pred   = NK.Test (Frenetic_Fdd.Pattern.to_hv (v, l)) in
-      let true_paths  = get_paths t ( (NK.Filter true_pred)::path ) in
+      let true_paths  = get_paths t ( true_pred::path ) in
       let false_pred  = NK.Neg true_pred in
-      let false_paths = get_paths f ( (NK.Filter false_pred)::path ) in
+      let false_paths = get_paths f ( false_pred::path ) in
       List.unordered_append true_paths false_paths
     | Leaf r ->
-      [ (Frenetic_Fdd.Action.to_policy r)::path ]
+      [ ((Frenetic_Fdd.Action.to_policy r), path) ]
   in
 
-  let rec mk_big_and (pols:NK.policy list) = match pols with
-    | [] -> NK.True
-    | (NK.Filter pred)::[] -> pred
-    | (NK.Filter pred)::tail -> NK.And(pred, mk_big_and tail)
-    | p::tail -> raise (NonFilterNode p) in
-
-  (* Partition a path through the FDD into the condition and the
-     action. TODO(basus): add checks for either component. *)
-  let partition (path: NK.policy list) = match path with
-    | head::tail ->
-      let action = head in
-      let condition = NK.Filter (mk_big_and tail) in
-      (* let condition = Frenetic_NetKAT_Optimize.mk_big_seq tail in *)
+  (* Partition a path through the FDD into the condition and the action. *)
+  let partition ((pol,preds): (NK.policy * NK.pred list)) =
+      let action = pol in
+      let condition = Frenetic_NetKAT_Optimize.mk_big_and preds in
       (condition, action)
-    | _ -> failwith "Path through FDD not long enough to paritition"
   in
   let deduped = remove_dups pol in
   let fdd = compile_local deduped in
@@ -223,8 +213,8 @@ let extract (pol:policy) : (policy * policy) list =
 let string_of_loc ((sw,pt):loc) =
   sprintf "(%Ld:%ld)" sw pt
 
-let string_of_stream (cond, act) =
-  sprintf "Condition: %s\nAction: %s\n" (Frenetic_NetKAT_Pretty.string_of_policy cond)
+let string_of_stream (pred, act) =
+  sprintf "Condition: %s\nAction: %s\n" (Frenetic_NetKAT_Pretty.string_of_pred pred)
     (Frenetic_NetKAT_Pretty.string_of_policy act)
 
 let string_of_located_stream ((sw,pt),(sw',pt'),stream) =
@@ -327,6 +317,16 @@ let locate_from_header hv =
   | Location (Physical pt) -> (None, Some pt)
   | _ -> (None, None)
 
+let rec locate_from_pred p =
+  let open Frenetic_NetKAT in
+  let hdr = "Clash in source" in
+  match p with
+    | Test hv -> locate_from_header hv
+    | True | False | Neg _ -> (None, None)
+    | And(p1, p2)
+    | Or (p1, p2) ->
+      combine_locations ~hdr:hdr (locate_from_pred p1) (locate_from_pred p2)
+
 let locate_from_sink policy : (loc,string) Result.t =
   let open Frenetic_NetKAT in
   let hdr = "Clash in sinks" in
@@ -341,22 +341,17 @@ let locate_from_sink policy : (loc,string) Result.t =
 let locate_from_source policy =
   let open Frenetic_NetKAT in
   let hdr = "Clash in source" in
-  let rec locate_from_filter f = match f with
-    | Test hv -> locate_from_header hv
-    | True | False | Neg _ -> (None, None)
-    | And(p1, p2) -> combine_locations ~hdr:hdr (locate_from_filter p1) (locate_from_filter p2)
-    | Or (p1, p2) -> combine_locations ~hdr:hdr (locate_from_filter p1) (locate_from_filter p2) in
   let rec aux policy = match policy with
-  | Filter f       -> locate_from_filter f
+  | Filter f       -> locate_from_pred f
   | Union (p1, p2) -> combine_locations ~hdr:hdr (aux p1) (aux p2)
   | Seq (p1, p2)   -> combine_locations ~hdr:hdr (aux p1) (aux p2)
   | Star p         -> aux p
   | _              -> (None, None) in
   locate_from_options (aux policy)
 
-let locate_endpoints ((pol, pol'):stream) =
-  let src = locate_from_source pol in
-  let sink = locate_from_sink pol' in
+let locate_endpoints ((pred, pol):stream) =
+  let src  = locate_from_pred pred |> locate_from_options in
+  let sink = locate_from_sink pol in
   match src, sink with
   | Ok s, Ok s' -> Ok (s,s')
   | Ok _, Error s -> Error s
@@ -369,9 +364,8 @@ let locate ((pol,pol'):stream) =
   | Ok (src,sink) -> Ok (src, sink, (pol, pol'))
   | Error e -> Error e
 
-let locate_or_drop (located, dropped) stream =
+let locate_or_drop (located, dropped) (stream:stream) =
   let cond, act = stream in
-  (* printf "%s\n" (string_of_stream stream); *)
   if act = Frenetic_NetKAT.drop then (located, stream::dropped)
   else try match locate stream with
     | Ok l -> (l::located,dropped)
@@ -482,7 +476,7 @@ let retarget (naive:stream list) (fabric:stream list) (topo:policy) =
     match path with
     | [] -> ([], [])
     | (_,Internal,(_,in_pt))::rest ->
-      let ingress = seq [ (fst stream);
+      let ingress = seq [ Filter( fst stream );
                           Mod( Vlan tag );
                           Mod( Location( Physical in_pt)) ] in
       let ins, outs = stitch rest tag stream in
