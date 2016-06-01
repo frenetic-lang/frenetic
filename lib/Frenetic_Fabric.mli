@@ -21,6 +21,4 @@ val assemble : policy -> policy ->
 val string_of_stream : stream -> string
 val retarget : stream list -> stream list -> policy ->
   (policy list * policy list)
-val graph_retarget : stream list -> stream list -> policy ->
-  (policy list * policy list)
 

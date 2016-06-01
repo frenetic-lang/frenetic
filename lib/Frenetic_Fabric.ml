@@ -383,55 +383,6 @@ let locate_or_drop (located, dropped) stream =
       print_endline msg;
       (located,dropped)
 
-(* See if the endpoints of a flow in the ideal policy are the same as, or
-   adjacent to endpoints of a fabric flow *)
-let correlate ideal_src ideal_sink fab_src fab_sink
-  precedes succeeds =
-  if fab_src = ideal_src && fab_sink = ideal_sink then Exact
-  else match (precedes ideal_src fab_src, succeeds ideal_sink fab_sink) with
-    | Some pt, Some pt' -> Adjacent(pt, pt')
-    | _, Some pt -> SinkOnly pt
-    | Some pt, _ -> SourceOnly pt
-    | None, None -> Uncorrelated
-
-(* Try to generate ingress and egress policies to implement the ideal flows on *)
-(* the given fabric flows, using the predecessor and successor tables for the
-   topology *)
-let imprint ideal fabric precedes succeeds =
- let open Frenetic_NetKAT in
- let ingress,egress,_ = List.fold ideal ~init:([], [],1) ~f:(fun acc ideal ->
-      let ideal_src,ideal_sink,ideal_stream = ideal in
-      List.fold fabric ~init:acc ~f:(fun (ins,outs,tag) fab ->
-          let fab_src,fab_sink,fab_stream = fab in
-          match correlate ideal_src ideal_sink fab_src fab_sink precedes succeeds with
-          | Exact ->
-            ((fst fab_stream::ins), (snd fab_stream::outs), tag)
-          | Adjacent(in_pt, out_pt) ->
-            let ingress = seq [ (fst ideal_stream);
-                                Mod( Vlan tag);
-                                Mod( Location( Physical in_pt)) ] in
-            let test_location = And( Test( Switch (fst ideal_sink)),
-                                     Test( Location (Physical out_pt))) in
-            let egress = seq [ Filter( And( Test(Vlan tag),
-                                            test_location));
-                               Mod( Vlan strip_vlan);
-                               remove_switch_mods (snd ideal_stream) ] in
-            (ingress::ins, egress::outs, tag+1)
-          | _ -> (ins,outs,tag)
-        )) in
-  (ingress,egress)
-
-(* Try to implement the ideal alpha/beta pairs atop the fabric alpha/beta pairs *)
-let retarget (ideal:stream list) (fabric: stream list) (topo:policy) =
-  let ideal_located,ideal_dropped = List.fold ideal ~init:([],[]) ~f:locate_or_drop in
-  let fabric_located,fabric_dropped = List.fold fabric ~init:([],[])
-      ~f:locate_or_drop in
-  let switch_preds, loc_preds = find_predecessors topo in
-  let switch_succs, loc_succs = find_successors topo in
-  let precedes = precedes loc_preds in
-  let succeeds = succeeds loc_succs in
-  imprint ideal_located fabric_located precedes succeeds
-
 (** Start implementing graph-based retargeting. *)
 
 module OverNode = struct
@@ -484,7 +435,7 @@ end
 module OverPath = Graph.Path.Dijkstra(Overlay)(Weight)
 
 (* Add edges between ports of the same switch *)
-let graph_switch_connect g =
+let switch_inter_connect g =
   let open OverEdge in
   Overlay.fold_vertex (fun (sw,pt) g ->
       Overlay.fold_vertex (fun (sw',pt') g ->
@@ -492,10 +443,8 @@ let graph_switch_connect g =
           then Overlay.add_edge_e g ((sw,pt), Internal, (sw,pt'))
           else g ) g g) g g
 
-
-let graph_retarget (naive:stream list) (fabric:stream list) (topo:policy) =
+let retarget (naive:stream list) (fabric:stream list) (topo:policy) =
   let open Frenetic_NetKAT in
-  print_endline "Calling graph-based retargeting algorithm";
   let naive_located, naive_dropped = List.fold naive ~init:([],[])
       ~f:locate_or_drop in
   let fabric_located, fabric_dropped = List.fold fabric ~init:([],[])
@@ -503,11 +452,13 @@ let graph_retarget (naive:stream list) (fabric:stream list) (topo:policy) =
   let _, loc_preds = find_predecessors topo in
   let _, loc_succs = find_successors topo in
 
+  (* Add vertices all naive locations *)
   let graph = List.fold naive_located ~init:Overlay.empty
       ~f:(fun g (src, sink, _) ->
           let g' = Overlay.add_vertex g src in
           Overlay.add_vertex g' sink) in
 
+  (* Add edges between all location pairs reachable via the fabric *)
   let graph = ( List.fold fabric_located ~init:graph
       ~f:(fun g (src, sink, stream) ->
            let open OverEdge in
@@ -520,7 +471,7 @@ let graph_retarget (naive:stream list) (fabric:stream list) (topo:policy) =
            | _ -> g'
          ) ) in
 
-  let graph = graph_switch_connect graph in
+  let graph = switch_inter_connect graph in
 
   (* Given a list of hops consisting of alternating fabric paths and internal
      forwards on edge switches, generate ingress, egress, or bounce rules to

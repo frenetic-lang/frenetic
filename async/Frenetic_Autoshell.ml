@@ -363,9 +363,9 @@ let compile_edge c f topo =
 
    let naive     = Frenetic_Fabric.assemble c.policy topo c.ingresses c.egresses in
    let fabric    = Frenetic_Fabric.assemble fpol topo fins fouts in
-   let parts     = (Frenetic_Fabric.extract naive) in
+   let parts     = Frenetic_Fabric.extract naive in
    let fab_parts = Frenetic_Fabric.extract fabric in
-   let ins, outs = Frenetic_Fabric.graph_retarget parts fab_parts topo in
+   let ins, outs = Frenetic_Fabric.retarget parts fab_parts topo in
 
   let ingress = Frenetic_NetKAT_Optimize.mk_big_union ins in
   let egress  = Frenetic_NetKAT_Optimize.mk_big_union outs in
