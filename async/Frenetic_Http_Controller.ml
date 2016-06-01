@@ -73,7 +73,7 @@ let handle_request
   (request : Request.t) : Server.response Deferred.t =
   let open Controller in
   Log.info "%s %s" (Cohttp.Code.string_of_method request.meth)
-    (Uri.path request.uri);
+    (Uri.path (Request.uri request));
   match request.meth, extract_path request with
     | `GET, ["version"] -> Server.respond_with_string "4"
     | `GET, ["port_stats"; switch_id; port_id] ->

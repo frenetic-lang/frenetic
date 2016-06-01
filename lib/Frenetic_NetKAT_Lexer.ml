@@ -21,6 +21,7 @@ type token =
   | INT64 of string
   | IP4ADDR of string
   | ANTIQUOT of string 
+  | STRING_CONSTANT of string
   | EOI
 
 module Token = struct
@@ -38,6 +39,7 @@ module Token = struct
       | INT32 s -> sf "INT32 %s" s
       | INT64 s -> sf "INT64 %s" s
       | ANTIQUOT s -> sf "ANTIQUOT %s" s
+      | STRING_CONSTANT s -> sf "STRING_CONSTANT %s" s
       | EOI -> sf "EOI"
 
   let print ppf x = Format.pp_print_string ppf (to_string x)
@@ -49,7 +51,8 @@ module Token = struct
 
   let extract_string =
     function
-      | KEYWORD s | INT s | INT64 s | INT32 s | IP4ADDR s -> s
+      | KEYWORD s | INT s | INT64 s | INT32 s | 
+        IP4ADDR s | STRING_CONSTANT s -> s
       | tok ->
           invalid_arg
             ("Cannot extract a string from this token: " ^
@@ -114,6 +117,7 @@ let regexp hexnum = '0' 'x' hex+
 let regexp decnum = ['0'-'9']+
 let regexp decbyte = (['0'-'9'] ['0'-'9'] ['0'-'9']) | (['0'-'9'] ['0'-'9']) | ['0'-'9']
 let regexp hexbyte = hex hex
+let regexp arbitrary_string_without_dbl_quote = [^"\""]+
 
 let regexp newline = ('\010' | '\013' | "\013\010")
 let regexp blank = [' ' '\009']
@@ -141,8 +145,10 @@ let rec token c = lexer
     | "true" | "false" | "switch" | "port" | "vswitch" | "vport" | "vfabric"
     | "vlanId" | "vlanPcp" | "ethTyp" | "ipProto" | "tcpSrcPort" | "tcpDstPort"
     | "ethSrc" | "ethDst" | "ip4Src"| "ip4Dst" | "and" | "or" | "not" | "id"
-    | "drop" | "if" | "then" | "else" | "filter"  ->
+    | "drop" | "if" | "then" | "else" | "filter"  | "pipe" | "query" ->
       KEYWORD (L.latin1_lexeme c.lexbuf)
+  | "\"" arbitrary_string_without_dbl_quote "\"" -> 
+      STRING_CONSTANT(L.latin1_sub_lexeme c.lexbuf 1 (L.lexeme_length c.lexbuf - 1))
   | _ -> illegal c
 
 (* Swallow all characters in comments *)

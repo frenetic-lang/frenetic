@@ -4,32 +4,32 @@
   which are mostly based on OpenFlow matches, are just binary formulas after all.
   An FDD extends a BDD by (1) using OpenFlow actions at the leaves instead of binary
   values True and False (2) using complete header matches instead of individual bit
-  matches. 
+  matches.
 
   As in BDD's, field ordering is important to prevent combinatorial explosions.
-  Fortunately we can exploit what goes in real FDD's to get decent 
+  Fortunately we can exploit what goes in real FDD's to get decent
   heuristics.  Nevertheless, the field ordering is part of the data structure and
   can also be set manually by the programming through compiler options.
 
   Basically, the flow goes: you turn NetKAT into an FDD, then an FDD into a Flow Table.
   See paper "A Fast Compiler for NetKAT" (http://www.cs.cornell.edu/~jnfoster/papers/netkat-compiler.pdf)
-  for details and theory behind it.  FDD's are nice because you can operate on them 
-  using the full well-established theory of BDD's. 
+  for details and theory behind it.  FDD's are nice because you can operate on them
+  using the full well-established theory of BDD's.
 *)
 
 open Core.Std
 
 module Field : sig
-  
-  (** Fields are analogous to binary variables in a BDD. 
+
+  (** Fields are analogous to binary variables in a BDD.
    These are pretty much the same as matchable fields in OpenFlow.  To this list, we
    add VSwitch, VPort and VFabric for the virtual compiler.  These are not actual matchable
-   fields in OpenFlow, but are converted to Switch and Port in the compilation process. 
+   fields in OpenFlow, but are converted to Switch and Port in the compilation process.
 
    The constructors in type t are listed in the default order, which is acceptable for many
-   NetKAT programs.  
+   NetKAT programs.
 
-    This module implements the the [HashCmp] signature from the Frenetic_Vlr package, so it 
+    This module implements the the [HashCmp] signature from the Frenetic_Vlr package, so it
     becomes the "V" in VLR. *)
   type t
     = Switch
@@ -62,10 +62,10 @@ module Field : sig
 
   val hash : t -> int
 
-  (** [of_string str] converts a field string to an abstract field.  Throws an exception for unrecognized strings. *)  
+  (** [of_string str] converts a field string to an abstract field.  Throws an exception for unrecognized strings. *)
   val of_string : string -> t
 
-  (** [to_string field] returns a human-readable representation *)  
+  (** [to_string field] returns a human-readable representation *)
   val to_string : t -> string
 
   (** [set_order field_list] sets the field ordering to the given list.  Any non-listed fields are given low priority in random order. *)
@@ -82,10 +82,10 @@ module Value : sig
 
   (** In a BDD, each node is an implicit predicate, "variable = true".  In a FDD, each node is a test of a
   field against a particular value, as in EthSrc = "FE:89:00:12:34:12".  The edges are either true or false
-  just like in a BDD.  But we also use values in modifcations - as in "port := 2".  Note only Const and Mask 
-  are really used by OpenFlow.  Both  Pipe and Query are translated to the pseudoport Controller. 
+  just like in a BDD.  But we also use values in modifcations - as in "port := 2".  Note only Const and Mask
+  are really used by OpenFlow.  Both  Pipe and Query are translated to the pseudoport Controller.
 
-   Each packet field can take on a certain range of values that in general have a lattice structure. 
+   Each packet field can take on a certain range of values that in general have a lattice structure.
    This sometimes enables multiple tests on fields to be compressed into a single test. This module implements the [Lattice]
    signature from Frenetic_Vlr.
 
@@ -140,15 +140,15 @@ module Pattern : sig
   type t = Field.t * Value.t
 
   (** [compare p1 p2] compares two patterns - the field ordering is used for differing fields, and the natural order of integers for
-  patterns with the same field *) 
+  patterns with the same field *)
   val compare : t -> t -> int
 
   val equal : t -> t -> bool
 
-  (** [of_hv header_value] converts a NetKAT header_value pair to a pattern *)  
+  (** [of_hv header_value] converts a NetKAT header_value pair to a pattern *)
   val of_hv : Frenetic_NetKAT.header_val -> t
 
-  (** [to_hv p] converts a pattern to a NetKAT header_value pair *)  
+  (** [to_hv p] converts a pattern to a NetKAT header_value pair *)
   val to_hv : t -> Frenetic_NetKAT.header_val
 
   (** [to_pred p] converts a pattern to a NetKAT predicate *)
@@ -170,8 +170,8 @@ module Action : sig
   [@@deriving sexp]
 
   module Seq : sig
-    (* List of modifications applied to fields, listed in field order.   There's one modification per 
-    field.  The continuation psuedo-field K is used for global compilation only, and is always the last field.  
+    (* List of modifications applied to fields, listed in field order.   There's one modification per
+    field.  The continuation psuedo-field K is used for global compilation only, and is always the last field.
     So it looks like { F tcpSrc => 80; F ethSrc => ff:ff:ff:ff:ff:ff:ff; K => ??? }.  Note that this
     really isn't applied sequentially, but two Seq's applied sequentially will have last-modification-wins semantics,
     as it is in NetKAT.  *)
@@ -188,7 +188,7 @@ module Action : sig
   end
 
   module Par : sig
-    (* Action sequences excuted in parallel, like an OpenFlow 1.3 action list.  Equal actions should be applied 
+    (* Action sequences excuted in parallel, like an OpenFlow 1.3 action list.  Equal actions should be applied
      only once, which is why we use a Set here.  *)
     include Set.S with type Elt.t = Value.t Seq.t
 
@@ -239,8 +239,7 @@ module Action : sig
   val to_string : t -> string
 end
 
-(** TODO(CAR): Why is this called FDK and not FDD?  Historical?  *)
-module FDK : sig
+module FDD : sig
   (** An FDD is an instance of a Variable-Lattice-Result (VLR) structure.  *)
   include module type of Frenetic_Vlr.Make(Field)(Value)(Action)
   val mk_cont : int -> t
