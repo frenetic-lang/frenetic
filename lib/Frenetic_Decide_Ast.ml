@@ -268,12 +268,6 @@ module Formula = struct
     | Eq of Term.t * Term.t
     | Le of Term.t * Term.t
 
-  let make_eq (t1:Term.t) (t2:Term.t) : t =
-    Eq (t1,t2)
-
-  let make_le (t1:Term.t) (t2:Term.t) : t =
-    Le (t1,t2)
-
   let to_string (f:t) : string =
     match f with
       | Eq (s,t) ->
@@ -299,8 +293,8 @@ module Formula = struct
   let equal (f1:t) (f2:t) : bool =
     compare f1 f2 = 0
 
-  let terms (f:t) =
+  let terms (f: t) =
     match f with
-      | Eq (s,t) -> (s,t)
+      | Eq (s,t)
       | Le (s,t) -> (s,t)
 end

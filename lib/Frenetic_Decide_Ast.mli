@@ -58,9 +58,10 @@ end and TermSet : sig
 end
 
 module Formula : sig
-  type t
-  val make_eq : Term.t -> Term.t -> t
-  val make_le : Term.t -> Term.t -> t
+  type t =
+    | Eq of Term.t * Term.t
+    | Le of Term.t * Term.t
+
   val compare : t -> t -> int
   val equal : t -> t -> bool
   val to_string : t -> string

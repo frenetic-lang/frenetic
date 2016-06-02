@@ -56,8 +56,8 @@ term:
 ;
 
 formula:
-  | term EQUIV term { make_eq $1 $3 }
-  | term LE term    { make_le $1 $3 }
+  | term EQUIV term { Eq ($1, $3) }
+  | term LE term    { Le ($1, $3) }
 ;
 
 predicate:

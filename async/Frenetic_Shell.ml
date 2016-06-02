@@ -319,6 +319,8 @@ let decide (formula: string) : unit =
   try
     let lexbuf = Lexing.from_string formula in
     let formula = parse_exn DecideParser.formula_main lexbuf "" in
+    (* TODO(mwhittaker). This doesn't handle formulas with <= in them
+     * correctly. See test_lib/Test_Decide.ml for the correct behavior. *)
     let lhs, rhs = DecideAst.Formula.terms formula in
     ignore (DecideUtil.set_univ DecideAst.([Term.values lhs; Term.values rhs]));
     printf "%b\n%!" (Frenetic_Decide_Bisimulation.check_equivalent lhs rhs)
