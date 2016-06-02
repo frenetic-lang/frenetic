@@ -1,28 +1,4 @@
-exception Quit
-exception Undo
 open Sexplib.Std
-
-let debug_mode = false
-let profile_mode = false
-let failed_Count = ref 0
-let success_count = ref 1
-
-type stats = {
-  compact_percent : int list ref
-}
-
-let stats = {compact_percent = ref []}
-
-let print_debugging_info _  =
-  Printf.printf "%s"
-    (List.fold_right
-       (Printf.sprintf "BaseSet natural compaction rate: %u\n%s")
-       !(stats.compact_percent) "")
-
-let string_fold f s a =
-  let acc = ref a in
-  String.iter (fun e -> acc := (f e !acc)) s; !acc
-
 
 module Field = struct
   type t = int [@@deriving sexp]
@@ -49,12 +25,12 @@ module Field = struct
       Hashtbl.clear inttostring in
     of_string,to_string,reset
 end
+
 module FieldSet = struct
   include Set.Make(Field)
   let of_list (ts:elt list) : t =
     List.fold_left (fun acc t -> add t acc) empty ts
 end
-
 
 module Value = struct
   type t = int [@@deriving sexp]
@@ -85,6 +61,7 @@ module Value = struct
     of_string,to_string,(fun _ -> !counter),reset
   let extra_val = -1
 end
+
 module ValueSet = struct
   include Set.Make(Value)
   let of_list (ts:elt list) : t =
@@ -95,94 +72,6 @@ module ValueSet = struct
   let sexp_of_t (s : t) : Sexplib.Sexp.t = sexp_of_list sexp_of_elt (elements s)
 end
 
-let all_fields_fail = (fun _ -> failwith
-  "Please set all_fields in Decide_Util.ml before trying to run any calculations!")
-let all_fields = ref all_fields_fail
-let all_values_fail = (fun _ -> failwith
-  "Please set all_values in Decide_Util.ml before trying to run any calculations!")
-let all_values = ref all_values_fail
-
-
-module FieldArray = struct
-  type 'a t = 'a array [@@deriving sexp]
-
-  let size = 1
-
-  let make (a : 'a) : 'a t =
-    let seen = FieldSet.cardinal (!all_fields ()) in
-    Array.make (size + seen) a
-  let init f =
-    let seen = FieldSet.cardinal (!all_fields ()) in
-    Array.init (size + seen) f
-  let set this k =
-    Array.set this (Field.as_int k)
-  let get this k =
-    try
-      Array.get this (Field.as_int k)
-    with (Invalid_argument _) ->
-      invalid_arg
-	(Printf.sprintf
-	   "Error! This field is not tracked: \"%s\" (has int %u)\n all_fields: %s"
-	   (Field.to_string k) (Field.as_int k)
-	   (FieldSet.fold (fun s -> Printf.sprintf "(%s : %u) %s " (Field.to_string s) (Field.as_int s)) (!all_fields ()) ""))
-  let fold f arr acc =
-    let accr = ref acc in
-    Array.iteri (fun indx elem ->
-      let acc = !accr in
-      accr := (f indx elem acc)) arr;
-    !accr
-  let copy = Array.copy
-  let size a = Array.length a
-
-end
-module ValueArray = struct
-  type 'a t = 'a array
-  let make (a : 'a) : 'a t =
-    let _ = !all_fields () in
-    ignore (Array.make (Value.as_int (Value.max_elem ())) a);
-    failwith "don't use this, I haven't tested it."
-  let set this k =
-    Array.set this (Value.as_int k)
-  let get this k =
-    Array.get this (Value.as_int k)
-end
-
-
-let output_endline (out : out_channel) (s : string) : unit =
-  output_string out s;
-  output_char out '\n'
-
-let copy_lines in_channel out_channel : unit =
-  try
-    while true do
-      output_endline out_channel (input_line in_channel)
-    done
-  with End_of_file -> ()
-
-let rec range (min : int) (max : int) : int list =
-  if max <= min then [] else min :: range (min + 1) max
-
-let rec remove_duplicates list =
-  match list with
-  | [] -> []
-  | x :: t -> x :: remove_duplicates (List.filter ((<>) x) t)
-
-(* perform f on all pairs *)
-let cross (f : 'a -> 'b -> 'c) (s : 'a list) (t : 'b list) : 'c list =
-  List.concat (List.map (fun x -> List.map (f x) t) s)
-
-
-let thunkify f =
-  let ret = ref None in
-  (fun _ ->
-    match !ret with
-      | None -> let v = f() in ret := Some v; v
-      | Some v -> v)
-
-
-(*****************************************************
- * A functional version
- *****************************************************)
 module type SetMapF =
   functor (K : Map.OrderedType) ->
   functor (V : Set.OrderedType) -> sig
@@ -315,73 +204,37 @@ module SetMapF : SetMapF =
 
   end
 
-module Int = struct
-  type t = int
-  let compare = compare
-end
+module UnivMap = SetMapF(Field)(Value)
 
-module StringSetMap = SetMapF (String) (String)
+let all_fields_fail = (fun _ -> failwith
+  "Please set all_fields in Decide_Util.ml before trying to run any calculations!")
+let all_fields = ref all_fields_fail
+let all_values_fail = (fun _ -> failwith
+  "Please set all_values in Decide_Util.ml before trying to run any calculations!")
+let all_values = ref all_values_fail
 
-(*****************************************************
- * Stream of strings in length-lexicographic order --
- * use to create new variable names
- *****************************************************)
-module type LexStream = sig
-  type t
-  val make : unit -> t
-  val next : t -> string
-end
+let set_univ (tvallist : UnivMap.t list) : bool =
+  let module UnivMap = SetMapF (Field) (Value) in
+  let univ = List.fold_right UnivMap.union tvallist UnivMap.empty in
+  let univ = List.fold_left (fun u x -> UnivMap.add x Value.extra_val u) univ (UnivMap.keys univ) in
+  let module UnivDescr = struct
+	let all_fields : FieldSet.t =
+	  (* TODO: fix me when SSM is eliminated *)
+	  List.fold_right
+	    (fun f ->
+	      FieldSet.add f) (UnivMap.keys univ) FieldSet.empty
+	let all_values f : ValueSet.t =
+	  try
+	    UnivMap.Values.fold (fun v acc -> ValueSet.add v acc ) (UnivMap.find_all f univ)
+	      ValueSet.empty
+	  with Not_found ->
+	    ValueSet.empty
+      end in
+  all_fields := (fun _ -> UnivDescr.all_fields);
+  all_values := (fun _ -> UnivDescr.all_values);
+  List.exists (fun e -> not (UnivMap.is_empty e)) tvallist
 
-module LexStream : LexStream = struct
-  type t = int list ref
-
-  let rec inc (s : int list) : int list =
-    match s with
-      | [] -> [Char.code 'a']
-      | x :: t ->
-          if x < Char.code 'z' then (x + 1) :: t
-          else Char.code 'a' :: inc t
-
-  let make() : t = ref [Char.code 'a']
-
-  let next (h : t) : string =
-    let l = !h in
-    h := inc l;
-    String.concat "" (List.map (String.make 1) (List.map Char.chr (List.rev l)))
-end
-
-module WorkList = functor (K : Set.OrderedType) ->
-struct
-  module S = Set.Make(K)
-  type t = S.t * (K.t list)
-
-  let add (e : K.t) (wl : t)  : t =
-    let set,worklist = wl in
-    if S.mem e set
-    then (
-      wl)
-    else S.add e set,e::worklist
-
-  let singleton (e : K.t ) : t =
-    S.singleton e, [e]
-
-  let is_empty wl : bool =
-    let set,wl = wl in
-    match wl with
-      | [] -> true
-      | _ -> false
-
-  let hd (set,wl) : K.t =
-    List.hd wl
-
-  let tl (set,wl) : t = set, List.tl wl
-
-  let all_seen_items (set,_) =
-    S.elements set
-
-end
-
-module UnionFind = functor(Ord : Core.Std.Map.Key) -> struct
+module UnionFind(Ord : Core.Std.Map.Key) = struct
   open Core.Std
   module FindMap = Map.Make(Ord)
   type union_find_ds =
@@ -521,27 +374,3 @@ module UnionFind = functor(Ord : Core.Std.Map.Key) -> struct
         | _ -> failwith "Decide_Util.UnionFind.get_parent returned a non-root node!"))
       ~init:[] ~f:(fun ~key:k ~data:v acc -> {Class.identifier = k; Class.members = v} :: acc)
 end
-
-module UnivMap = SetMapF(Field)(Value)
-
-(* returns true if universe is non-empty *)
-let set_univ (tvallist : UnivMap.t list) : bool =
-  let module UnivMap = SetMapF (Field) (Value) in
-  let univ = List.fold_right UnivMap.union tvallist UnivMap.empty in
-  let univ = List.fold_left (fun u x -> UnivMap.add x Value.extra_val u) univ (UnivMap.keys univ) in
-  let module UnivDescr = struct
-	let all_fields : FieldSet.t =
-	  (* TODO: fix me when SSM is eliminated *)
-	  List.fold_right
-	    (fun f ->
-	      FieldSet.add f) (UnivMap.keys univ) FieldSet.empty
-	let all_values f : ValueSet.t =
-	  try
-	    UnivMap.Values.fold (fun v acc -> ValueSet.add v acc ) (UnivMap.find_all f univ)
-	      ValueSet.empty
-	  with Not_found ->
-	    ValueSet.empty
-      end in
-  all_fields := (fun _ -> UnivDescr.all_fields);
-  all_values := (fun _ -> UnivDescr.all_values);
-  List.exists (fun e -> not (UnivMap.is_empty e)) tvallist
