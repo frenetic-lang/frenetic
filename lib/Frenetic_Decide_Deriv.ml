@@ -263,7 +263,7 @@ module rec BDDDeriv : DerivTerm = struct
       CompactDerivSet.fold t ~init:TermSet.empty
         ~f:(fun acc deriv ->
             let result = EMatrix.run deriv.left_hand point in
-            Printf.printf "Running %s on %s: %b\n" (compact_derivative_to_string deriv) (point_to_string point) result;
+            (* Printf.printf "Running %s on %s: %b\n" (compact_derivative_to_string deriv) (point_to_string point) result; *)
                if result
              then TermSet.add acc (Term.times [pkt_to_beta (snd point); deriv.right_hand])
              else acc)
