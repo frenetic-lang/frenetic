@@ -51,7 +51,7 @@ def sampleTcpPayload():
 class ParseEthernetPacket(SimpleTestCase):
   def runTest(self):
     payload = sampleEthernetPayload()
-    pkt = Packet(1,2,payload)
+    pkt = Packet.from_payload(1,2,payload)
     self.assertEquals(pkt.switch, 1)
     self.assertEquals(pkt.port, 2)
     self.assertEquals(pkt.ethDst, ETHERNET_DATA["dst_mac"])
@@ -62,7 +62,7 @@ class ParseEthernetPacket(SimpleTestCase):
 class ParseTcpPacket(SimpleTestCase):
   def runTest(self):
     payload = sampleTcpPayload()
-    pkt = Packet(1,2,payload)
+    pkt = Packet.from_payload(1,2,payload)
     self.assertEquals(pkt.switch, 1)
     self.assertEquals(pkt.port, 2)
     self.assertEquals(pkt.ethDst, ETHERNET_DATA["dst_mac"])
@@ -77,7 +77,7 @@ class ParseTcpPacket(SimpleTestCase):
 class MatchesEthernetPacket(SimpleTestCase):
   def runTest(self):
     payload = sampleEthernetPayload()
-    pkt = Packet(1,2,payload)
+    pkt = Packet.from_payload(1,2,payload)
     self.assertTrue(pkt.matches(SwitchEq(1)))
     self.assertFalse(pkt.matches(SwitchEq(2))) 
     self.assertTrue(pkt.matches(EthSrcEq( ETHERNET_DATA["src_mac"] )))
@@ -85,3 +85,14 @@ class MatchesEthernetPacket(SimpleTestCase):
     self.assertTrue(pkt.matches(SwitchEq(1) & PortEq(2)))
     self.assertTrue(pkt.matches(SwitchEq(23452345) | PortEq(2)))
     self.assertTrue(pkt.matches(~ SwitchEq(23452345)))
+
+class MatchesTcpPacket(SimpleTestCase):
+  def runTest(self):
+    payload = sampleTcpPayload()
+    pkt = Packet.from_payload(1,2,payload)
+    self.assertTrue(pkt.matches(TCPSrcPortEq(TCP_DATA["src_port"]) & TCPDstPortEq(TCP_DATA["dst_port"])))
+    self.assertTrue(pkt.matches(IP4SrcEq(TCP_DATA["src_ip"])))
+    # Network matches
+    self.assertTrue(pkt.matches(IP4SrcEq("192.168.0.0",24)))
+    self.assertTrue(pkt.matches(IP4DstEq("192.168.0.101",32)))
+    self.assertTrue(pkt.matches(IP4DstEq("192.168.0.0",16)))

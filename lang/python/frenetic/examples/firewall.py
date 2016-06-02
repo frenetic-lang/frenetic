@@ -170,7 +170,7 @@ class Firewall(frenetic.App):
     # policy to.
     # TODO(arjun): Terrible hack
     pt = 1 if dst_ip == "10.0.0.1" else 2 if dst_ip == "10.0.0.2" else 0
-    self.pkt_out(switch_id, payload, [Output(Physical(pt))])
+    self.pkt_out(switch_id, payload, [SetPort(pt)])
     return
 
   def packet_in_v2(self, switch_id, port_id, payload, src_ip, dst_ip,
@@ -181,7 +181,7 @@ class Firewall(frenetic.App):
       self.state.add_pending(allow_entry)
       # TODO(arjun): Terrible hack
       pt = 1 if dst_ip == "10.0.0.1" else 2 if dst_ip == "10.0.0.2" else 0
-      self.pkt_out(switch_id, payload, [Output(Physical(pt))])
+      self.pkt_out(switch_id, payload, [SetPort(pt)])
       #self.update(self.global_policy())
       return
 
@@ -193,28 +193,16 @@ class Firewall(frenetic.App):
       self.state.allow(reverse_allow_entry)
       self.update(self.global_policy())
       pt = 1 if dst_ip == "10.0.0.1" else 2 if dst_ip == "10.0.0.2" else 0
-      self.pkt_out(switch_id, payload, [Output(Physical(pt))])
+      self.pkt_out(switch_id, payload, [SetPort(pt)])
       return
 
     self.pkt_out(switch_id, payload, [])
 
   def packet_in(self, switch_id, port_id, payload):
-    p = self.packet(payload,'ethernet')
-    ip = self.packet(payload, "ipv4")
-
-    if ip.proto == 6:
-      tcp = self.packet(payload, "tcp")
-    elif ip.proto == 17:
-      tcp = self.packet(payload, "udp")
-    else:
+    pkt = Packet.from_payload(switch_id, port_id, payload)
+    if pkt.ipProto != 6 and pkt.ipProto != 17:
       print "Not a TCP or UDP packet. Dropped."
       self.pkt_out(switch_id = switch_id, payload = payload, actions = [])
-      return
-
-    if ip == None or tcp == None:
-      print "Not TCP/IP packet. Dropped."
-      self.pkt_out(switch_id = switch_id, payload = payload, actions = [])
-      return
 
     if self.state.version == 1:
       f = self.packet_in_v1
@@ -223,7 +211,7 @@ class Firewall(frenetic.App):
     else:
       assert False
 
-    f(switch_id, port_id, payload, ip.src, ip.dst, tcp.src_port, tcp.dst_port)
+    f(switch_id, port_id, payload, pkt.ip4Src, pkt.ip4Dst, pkt.tcpSrcPort, pkt.tcpDstPort)
 
 class State(object):
 

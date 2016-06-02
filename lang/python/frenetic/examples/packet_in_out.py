@@ -15,7 +15,7 @@ class MyApp(frenetic.App):
   def packet_in(self, sw, pt, payload):
     self.pkt_out(switch_id = sw,
                  payload = payload,
-                 actions = [Output(Physical(other_port(pt)))])
+                 actions = [SetPort(other_port(pt))])
 
 
 print "Run mn --controller=remote --topo=single,2"
