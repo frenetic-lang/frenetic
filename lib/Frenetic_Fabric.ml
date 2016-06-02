@@ -12,14 +12,6 @@ type stream = (pred * policy)
 type loc    = (switchId * portId)
 type located_stream = ( loc * loc * stream )
 
-type correlation =
-  | Same
-  | Exact
-  | Adjacent of portId * portId
-  | SinkOnly of portId
-  | SourceOnly of portId
-  | Uncorrelated
-
 exception NonFilterNode of policy
 exception ClashException of string
 exception CorrelationException of string
@@ -437,6 +429,14 @@ let switch_inter_connect g =
           then Overlay.add_edge_e g ((sw,pt), Internal, (sw,pt'))
           else g ) g g) g g
 
+let mk_mods path =
+  let open OverEdge in
+  let open Frenetic_NetKAT in
+  match path with
+  | (_,Adjacent (pred, pol),_)::_ ->
+    Filter False
+  | _ -> Filter True
+
 let retarget (naive:stream list) (fabric:stream list) (topo:policy) =
   let open Frenetic_NetKAT in
   let naive_located, naive_dropped = List.fold naive ~init:([],[])
@@ -476,7 +476,9 @@ let retarget (naive:stream list) (fabric:stream list) (topo:policy) =
     match path with
     | [] -> ([], [])
     | (_,Internal,(_,in_pt))::rest ->
+      let mods = mk_mods rest in
       let ingress = seq [ Filter( fst stream );
+                          mods;
                           Mod( Vlan tag );
                           Mod( Location( Physical in_pt)) ] in
       let ins, outs = stitch rest tag stream in
