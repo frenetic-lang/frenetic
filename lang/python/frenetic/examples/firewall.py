@@ -1,6 +1,7 @@
 import frenetic, sys, json, time
 from functools import partial
 from frenetic.syntax import *
+from frenetic.packet import *
 import single_switch_forwarding
 import array
 from ryu.lib.packet import packet

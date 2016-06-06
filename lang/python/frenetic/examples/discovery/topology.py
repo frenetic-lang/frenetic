@@ -1,7 +1,7 @@
-import struct, frenetic, binascii, array, time, datetime
+import struct, frenetic, binascii, array, time, datetime, copy
 from functools import partial
-from ryu.lib.packet import packet, ethernet, arp
 from frenetic.syntax import *
+from frenetic.packet import *
 from state import *
 from tornado.ioloop import PeriodicCallback
 from tornado.ioloop import IOLoop
@@ -55,7 +55,8 @@ class Topology(frenetic.App):
     self.update(self.policy())
 
     IOLoop.instance().add_timeout(datetime.timedelta(seconds=2), self.run_probe)
-    IOLoop.instance().add_timeout(datetime.timedelta(seconds=30), self.host_discovery)
+    # TODO: Set back to 30
+    IOLoop.instance().add_timeout(datetime.timedelta(seconds=10), self.host_discovery)
 
     # The controller may already be connected to several switches on startup.
     # This ensures that we probe them too.
@@ -143,23 +144,21 @@ class Topology(frenetic.App):
       for port_id in switch[1]:
         probe_data = ProbeData(switch_id, port_id)
         print "Sending out probe for (%s, %s)" % (switch_id, port_id)
-        # Build a PROBOCOL packet and send it out
-        pkt = packet.Packet()
-        pkt.add_protocol(ethernet.ethernet(ethertype=ProbeData.PROBOCOL))
-        pkt.add_protocol(probe_data)
-        pkt.serialize()
-        # TODO(arjun): OMGWTF
-        payload = NotBuffered(binascii.a2b_base64(binascii.b2a_base64(pkt.data)))
-        self.pkt_out(switch_id, payload, [Output(Physical(port_id))])
+        # Build a PROBOCOL packet and send it out.  We use bogus source and destinations
+        # because the next switch will pick it up.  Everyone else will just drop it.  
+        pkt = Packet(ethType=ProbeData.PROBOCOL, ethSrc="00:00:de:ad:be:ef", ethDst="ef:be:ad:de:00:00")
+        payload = pkt.to_payload(ryu_packet_headers = [probe_data])
+        self.pkt_out(switch_id, payload, [SetPort(port_id)])
 
   def policy(self):
     if self.state.mode == "internal_discovery":
       # All PROBOCOL traffic is sent to the controller, otherwise flood
       probe_traffic = Filter(Test(EthType(ProbeData.PROBOCOL))) >> Mod(Location(Pipe("http")))
-      sniff = Filter(Test(EthType(0x806))) >> Mod(Location(Pipe("http")))
+      sniff = Filter(EthTypeEq(0x806)) >> SendToController("http")
       return probe_traffic | sniff
     elif self.state.mode == "host_discovery":
-      sniff = Filter(Test(EthType(0x806))) >> Mod(Location(Pipe("http")))
+      #TODO: Remove 0x800
+      sniff = Filter(EthTypeEq(0x806,0x800)) >> SendToController("http")
       return sniff
     else:
       assert False
@@ -183,57 +182,56 @@ class Topology(frenetic.App):
     self.state.add_edge(dst_switch, src_switch, label=dst_port)
     self.state.add_edge(src_switch, dst_switch, label=src_port)
 
-  def handle_sniff(self, switch_id, port_id, pkt, raw_pkt):
+  def handle_sniff(self, pkt):
     # TODO(arjun): mobility
-    if self.state.network.has_node(pkt.src):
+    if self.state.network.has_node(pkt.ethSrc):
       return
 
-    if not switch_id in self.state.switches():
+    if not pkt.switch in self.state.switches():
       return
 
     # TODO(arjun): Security vulnerability. What if some idiot sends a packet
     # with a broadcast source?
-    self.state.add_host(pkt.src)
-    for edge in self.state.network.out_edges(switch_id, data=True):
-      if edge[2]["label"] == port_id:
+    self.state.add_host(pkt.ethSrc)
+    for edge in self.state.network.out_edges(pkt.switch, data=True):
+      if edge[2]["label"] == pkt.port:
         print "SANITY ERROR: Received an ARP packet on an internal link."
         print "Please do not rewire the network."
         return
 
-    print "Edge (%s, %s)--%s" % (switch_id, port_id, pkt.src)
+    print "Edge (%s, %s)--%s" % (pkt.switch, pkt.port, pkt.ethSrc)
     # This switch / ports probe has not been seen
     # We will tentatively assume it is connected to the src host
-    self.state.add_edge(switch_id, pkt.src, label=port_id)
-    self.state.add_edge(pkt.src, switch_id)
+    self.state.add_edge(pkt.switch, pkt.ethSrc, label=pkt.port)
+    self.state.add_edge(pkt.ethSrc, pkt.switch)
     self.state.notify()
 
-  def send_arp(self, switch_id, port_id, pkt):
-    # TODO(arjun): conversion should be in library
-    payload = NotBuffered(binascii.a2b_base64(binascii.b2a_base64(pkt.data)))
+  def send_arp(self, pkt):
     for loc in self.state.network_edge():
+      pkt_copy = copy.copy(pkt)
       dst_switch_id, dst_port_id = loc
-      if loc == (switch_id, port_id):
+      if loc == (pkt.switch, pkt.port):
         continue
       self.pkt_out(switch_id=dst_switch_id,
-                   payload=payload,
-                   actions=[Output(Physical(dst_port_id))])
+                   payload=pkt_copy.to_payload(),
+                   actions=[SetPort(dst_port_id)])
 
   def packet_in(self, switch_id, port_id, payload):
-    p = self.packet(payload, 'ethernet')
-    # If this is VLan packet, get ethernet type from emebdded header instead
-    ethertype = self.packet(payload, 'vlan').ethertype if (p.ethertype == 0x8100) else p.ethertype
+    pkt = Packet.from_payload(switch_id, port_id, payload)
 
-    if (ethertype == ProbeData.PROBOCOL):
+    if (pkt.ethType == ProbeData.PROBOCOL):
       probe_data = self.packet(payload, 'ProbeData')
       self.handle_probe(switch_id, port_id, probe_data.src_switch,
                         probe_data.src_port)
+      # Drop the probe packet if it's buffered.  No-Op if it's unbuffered.
       self.pkt_out(switch_id, payload, [])
       return
 
-    if (ethertype == 0x806):  # = arp
-      self.handle_sniff(switch_id, port_id, p, pkt)
+    elif (pkt.ethType == 0x806):  # = arp
+      self.handle_sniff(pkt)
       if (self.state.mode == "host_discovery"):
-        self.send_arp(switch_id, port_id, pkt)
+        self.send_arp(pkt)
+      # Drop the ARP request packet.  We got all the data we needed from it.
       self.pkt_out(switch_id, payload, [])
       return
 

@@ -1,5 +1,5 @@
 # Abstract representation of a packet for use in PacketIn and PacketOut
-import array
+import array, binascii
 from frenetic.syntax import *
 from frenetic.net_utils import *
 from ryu.lib.packet import packet, ethernet, arp
@@ -33,6 +33,9 @@ class Packet(object):
     self.tcpSrcPort = tcpSrcPort
     self.tcpDstPort = tcpDstPort
 
+    # This is all the leftover data
+    self.unknown_headers = []
+
   # Class method for extracting a packet from a payload (packet in)
   @staticmethod
   def from_payload(dpid, port_id, payload):
@@ -44,7 +47,7 @@ class Packet(object):
 
     pkt = Packet(dpid, port_id)
 
-    for p in ryu_pkt:
+    for p in ryu_pkt.protocols:
       if p.protocol_name == 'ethernet':
         pkt.ethSrc = p.src
         pkt.ethDst = p.dst
@@ -68,6 +71,8 @@ class Packet(object):
         pkt.ipProto = p.opcode
         pkt.ip4Src = p.src_ip
         pkt.ip4Dst = p.dst_ip
+      else:
+        pkt.unknown_headers.append(p)
 
     return pkt
 
@@ -141,31 +146,30 @@ class Packet(object):
     else:
       raise "unrecognized predicate: "+str(pred)
 
-  def to_payload(self):
+  def to_payload(self, ryu_packet_headers = []):
     # Do some sanity checks
-    assert(self.switch == None, "The switch attribute is ignored for outgoing packets.  Use the dpid in pkt_out") 
-    assert(self.port_id == None, "The port_id attribute is ignored for outgoing packets.  Use a SetPort() action") 
-    assert(self.ethSrc != None, "ethSrc must be set") 
-    assert(self.ethDst != None, "ethDst must be set")
-    assert(self.ethType != None, "ethType must be set")
-    assert(self.ethType != 0x8100, "For VLAN packets, set ethType to the inner packet type and set the vlan")
+    assert isinstance(ryu_packet_headers,list),"The ryu_packet_headers parameter must be a list"
+    assert self.ethSrc != None, "ethSrc must be set"
+    assert self.ethDst != None, "ethDst must be set"
+    assert self.ethType != None, "ethType must be set"
+    assert self.ethType != 0x8100, "For VLAN packets, set ethType to the inner packet type and set the vlan"
     if ((self.ethType == 0x800 or self.ethType == 0x806) or self.ip4Src != None or self.ip4Dst != None or self.ipProto != None):
-      assert(self.ip4Src != None, "For ARP/IP packets, ip4Src must be set")
-      assert(self.ip4Dst != None, "For ARP/IP packets, ip4Dst must be set")      
-      assert(self.ipProto != None, "For ARP/IP packets, ipProto must be set")      
-      assert(self.ethType == 0x800 or self.ethType == 0x806, "IP or ARP packets must have the proper ethType")
+      assert self.ip4Src != None, "For ARP/IP packets, ip4Src must be set"
+      assert self.ip4Dst != None, "For ARP/IP packets, ip4Dst must be set"     
+      assert self.ipProto != None, "For ARP/IP packets, ipProto must be set"     
+      assert self.ethType == 0x800 or self.ethType == 0x806, "IP or ARP packets must have the proper ethType"
 
       if ((self.ipProto == 6 or self.ipProto == 17) or self.tcpSrcPort != None or self.tcpDstPort != None):
-        assert(self.tcpSrcPort != None, "tcpSrcPort must be set for TCP/UDP packets")
-        assert(self.tcpDstPort != None, "tcpDstPort must be set for TCP/UDP packets")
-        assert(self.ipProto == 6 or self.ipProto == 17, "TCP or UDP packets must have the proper ipProto")
+        assert self.tcpSrcPort != None, "tcpSrcPort must be set for TCP/UDP packets"
+        assert self.tcpDstPort != None, "tcpDstPort must be set for TCP/UDP packets"
+        assert self.ipProto == 6 or self.ipProto == 17, "TCP or UDP packets must have the proper ipProto"
 
     # Then put it together with RYU
     p = packet.Packet()
     used_etherType = 0x8100 if self.vlan != None else self.ethType
     e = ethernet.ethernet(dst=self.ethDst, src=self.ethSrc, ethertype=used_etherType)
     p.add_protocol(e)
-    if (p.vlan != None):
+    if (self.vlan != None):
       v = vlan.vlan(pcp=self.vlanPcp, vid=self.vlan, ethertype=self.ethType)
       p.add_protocol(v)
     if (self.ethType == 0x806):
@@ -181,8 +185,17 @@ class Packet(object):
       elif self.ipProto == 17:
         u = udp.udp(src_port=self.tcpSrcPort, dst_port=self.tcpDstPort)
         p.add_protocol(u)
-    # TODO: allow arbitrary RYU packets to be included here
+
+    # Extra stuff for protocol headers not handled natively.
+    for rph in ryu_packet_headers:
+      p.add_protocol(rph)
+
+    for uh in self.unknown_headers:
+      p.add_protocol(uh)
+
     p.serialize()
     return NotBuffered(binascii.a2b_base64(binascii.b2a_base64(p.data)))
 
-
+  def __str__(self):
+    # TODO: Finish this.
+    return "Hi mom!"

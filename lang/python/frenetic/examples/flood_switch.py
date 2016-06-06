@@ -11,7 +11,7 @@ def flood_switch_policy(switch):
   assert isinstance(switch, SwitchRef)
   all_policies = []
   for src in switch.ports:
-    action = Filter(PortEq(src)) >> SetPort([for dst in switch.ports if src != dst])
+    action = Filter(PortEq(src)) >> SetPort([dst for dst in switch.ports if src != dst])
     all_policies.append(action)
 
   if not all_policies:
