@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 3eb5d6f947da520c5afad5d115c159f0)
+# DO NOT EDIT (digest: ed7db915dfca3833ed4e42040670d6e8)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -82,6 +82,32 @@ true: annot, bin_annot
 "frenetic/frenetic.native": package(yojson)
 "frenetic/frenetic.native": use_async
 "frenetic/frenetic.native": use_frenetic
+# Executable cma
+"frenetic/cma.native": package(async)
+"frenetic/cma.native": package(async_extended)
+"frenetic/cma.native": package(base64)
+"frenetic/cma.native": package(camlp4)
+"frenetic/cma.native": package(camlp4.extend)
+"frenetic/cma.native": package(camlp4.lib)
+"frenetic/cma.native": package(cohttp)
+"frenetic/cma.native": package(cohttp.async)
+"frenetic/cma.native": package(core)
+"frenetic/cma.native": package(cstruct)
+"frenetic/cma.native": package(cstruct.async)
+"frenetic/cma.native": package(mparser)
+"frenetic/cma.native": package(mparser.re)
+"frenetic/cma.native": package(ocamlgraph)
+"frenetic/cma.native": package(ppx_deriving.enum)
+"frenetic/cma.native": package(ppx_deriving.eq)
+"frenetic/cma.native": package(ppx_jane)
+"frenetic/cma.native": package(ppx_sexp_conv)
+"frenetic/cma.native": package(str)
+"frenetic/cma.native": package(tcpip)
+"frenetic/cma.native": package(threads)
+"frenetic/cma.native": package(ulex)
+"frenetic/cma.native": package(yojson)
+"frenetic/cma.native": use_async
+"frenetic/cma.native": use_frenetic
 # Executable openflow
 "frenetic/openflow.native": package(async)
 "frenetic/openflow.native": package(async_extended)

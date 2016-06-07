@@ -107,6 +107,18 @@ Executable frenetic
     frenetic.async,
     async_extended
 
+Executable cma
+  Path: frenetic
+  MainIs: cma.ml
+  Install: true
+  CompiledObject: native
+  BuildDepends:
+    async,
+    core,
+    frenetic,
+    frenetic.async,
+    async_extended
+
 Executable openflow
   Path: frenetic
   MainIs: openflow.ml
