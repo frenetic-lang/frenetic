@@ -1,6 +1,13 @@
 open Core.Std
 open Num
 
+type headerval =
+  [`Switch of int
+  | `Id of int
+  | `Port of int
+  | `Dst of int]
+  [@@ deriving sexp, compare, show]
+
 module Pkt = struct
   module T = struct
     type t = { switch : int [@default 1];
@@ -44,14 +51,8 @@ module Pol (Prob : PROB) = struct
   type t =
     | Id
     | Drop
-    | Test of [`Switch of int
-              | `Id of int
-              | `Port of int
-              | `Dst of int]
-    | Set of [`Switch of int
-             | `Id of int
-             | `Port of int
-             | `Dst of int]
+    | Test of headerval
+    | Set of headerval
     | Union of t * t
     | Seq of t * t
     | Choice of (t * Prob.t) list
@@ -59,6 +60,8 @@ module Pol (Prob : PROB) = struct
     | Dup
     [@@deriving sexp, compare, show]
 end
+
+
 
 module SetDist (Key : Map.Key) (Prob : PROB) = struct
 
@@ -94,6 +97,9 @@ module SetDist (Key : Map.Key) (Prob : PROB) = struct
   let scale t ~(scalar : Prob.t) =
     T.map t ~f:(fun p -> Prob.(p * scalar))
 
+  let weighted_sum (list : (t * Prob.t) list) =
+    List.map list ~f:(fun (t, p) -> scale t ~scalar:p)
+    |> List.fold ~init:empty ~f:sum
 
   (* Markov Kernel *)
   module Kernel = struct
@@ -111,7 +117,48 @@ module SetDist (Key : Map.Key) (Prob : PROB) = struct
       let intermediate_dist = k1 input_point in
       (lift k2) intermediate_dist
 
+    type t = kernel
+
   end
+
+end
+
+
+module type PSEUDOHISTORY = sig
+  include Map.Key
+  val dup : t -> t
+  val test : t -> hv:headerval -> bool
+  val modify : t -> hv:headerval -> t
+end
+
+module ProbNetKAT (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
+
+  module Dist = SetDist(Hist)(Prob)
+  module Pol = Pol(Prob)
+
+  let rec eval (p : Pol.t) : Dist.Kernel.t = fun point ->
+    let open Dist in
+    match p with
+    | Id ->
+      dirac point
+    | Drop ->
+      dirac Set.empty
+    | Test hv ->
+      Set.filter ~f:(Hist.test ~hv) point
+      |> dirac
+    | Set hv ->
+      failwith "not implemented"
+    | Union (q,r)->
+      union (eval q point) (eval r point)
+    | Seq (q,r)->
+      Kernel.seq (eval q) (eval r) point
+    | Choice dist ->
+      List.map dist ~f:(fun (pol, prob) -> (eval p point, prob))
+      |> Dist.weighted_sum
+    | Star _ ->
+      failwith "star"
+    | Dup ->
+      failwith "not implemented"
 
 
 end
