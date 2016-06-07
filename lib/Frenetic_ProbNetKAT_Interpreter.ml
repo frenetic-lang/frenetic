@@ -114,8 +114,8 @@ module SetDist (Key : Map.Key) (Prob : PROB) = struct
 
     (* sequential composition of kernels *)
     let seq (k1 : kernel) (k2 : kernel) : kernel = fun input_point ->
-      let intermediate_dist = k1 input_point in
-      (lift k2) intermediate_dist
+      k1 input_point
+      |> lift k2
 
     type t = kernel
 
