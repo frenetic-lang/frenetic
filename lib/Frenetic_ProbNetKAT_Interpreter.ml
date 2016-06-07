@@ -10,8 +10,8 @@ module Pkt = struct
              } [@@deriving sexp, compare, show, make]
   end
   include T
-  module Set = Set.Make(T)
-  module SetMap = Map.Make(Set)
+  module Set = Set.Make(T) (* Pkt Set *)
+  module SetMap = Map.Make(Set) (* Pkt Set -> 'a *)
 end
 
 module Hist = struct
@@ -20,8 +20,8 @@ module Hist = struct
   end
   include T
 
-  module Set = Set.Make(T)
-  module SetMap = Map.Make(Set)
+  module Set = Set.Make(T) (* Hist Set *)
+  module SetMap = Map.Make(Set) (* Hist Set -> 'a *)
   let to_string t =
     Set.elements t
     |> List.map ~f:(fun pkts ->
@@ -32,7 +32,15 @@ module Hist = struct
     |> Printf.sprintf "{%s}"
 end
 
-module Pol = struct
+module type PROB = sig
+  type t [@@deriving sexp, compare, show]
+  val zero : t
+  val one : t
+  val (+) : t -> t -> t
+  val ( * ) : t -> t -> t
+end
+
+module Pol (Prob : PROB) = struct
   type t =
     | Id
     | Drop
@@ -46,21 +54,31 @@ module Pol = struct
              | `Dst of int]
     | Union of t * t
     | Seq of t * t
-    | Choice of (t * float) list
+    | Choice of (t * Prob.t) list
     | Star of t
     | Dup
     [@@deriving sexp, compare, show]
 end
 
-module Dist = struct
-  module M = struct
-    type t = Hist.SetMap [@@deriving sexp, compare, show]
+module SetDist (Key : Map.Key) (Prob : PROB) = struct
 
-    let return x =
-      Map.singleton x 1.0
+  module Set = Set.Make(Key) (* Set Key.t *)
+  module T = Map.Make(Set)
 
-    let map = `Custom fun t ~f ->
-      Map.to_alist t
-      |
+  type point = Set.t
+  type t = Prob.t T.t (* Set Key.t -> Prob.t *)
+
+  let empty : t = T.empty
+  let dirac (p : point) = T.singleton p Prob.one
+
+  let union t1 t2 : t =
+    T.fold t1 ~init:T.empty ~f:(fun ~key:point1 ~data:p1 acc ->
+      T.fold t2 ~init:acc ~f:(fun ~key:point2 ~data:p2 acc ->
+        let point = Set.union point1 point2 in
+        let p = Prob.(p1 * p2) in
+        T.change acc point (function
+          | None -> Some p
+          | Some p' -> Some Prob.(p' + p))))
 
 
+end
