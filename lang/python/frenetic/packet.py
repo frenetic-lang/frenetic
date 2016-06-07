@@ -197,5 +197,11 @@ class Packet(object):
     return NotBuffered(binascii.a2b_base64(binascii.b2a_base64(p.data)))
 
   def __str__(self):
-    # TODO: Finish this.
-    return "Hi mom!"
+    retval = "{ethSrc: "+self.ethSrc+", ethDst: "+self.ethDst+", ethType: "+str(self.ethType)
+    if (self.vlan != None):
+      retval += ", vlan: "+str(self.vlan)+", vlan: "+str(self.vlanPcp)
+    if (self.ip4Src != None):
+      retval += ", ip4Src: "+self.ip4Src+", ip4Dst: "+self.ip4Dst+", ipProto: "+str(self.ipProto)
+    if (self.tcpSrcPort != None):
+      retval += ", tcpSrcPort: "+str(self.tcpSrcPort)+", tcpDstPort: "+str(self.tcpDstPort)
+    return retval + "}"

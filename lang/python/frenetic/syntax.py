@@ -68,13 +68,16 @@ class PacketOut(object):
         self.switch = switch
         assert isinstance(payload,Buffered) or isinstance(payload,NotBuffered)
         self.payload = payload
-        assert isinstance(actions,list) or isinstance(actions, Seq)
+        assert isinstance(actions,list) or isinstance(actions, Seq) or \
+            isinstance(actions,SinglePolicy) or isinstance(actions,SetPort)
 
         # We flatten all Sequences into lists of actions.  (We don't do this for 
         # Unions because packet outs can't send out parallel packets except for 
         # multiple ports, which we deal with separately.)
         if isinstance(actions, Seq):
             actions = actions.children
+        elif isinstance(actions,SinglePolicy) or isinstance(actions,SetPort):
+            actions = [actions]
 
         scrubbed_actions = []
         for action in actions:
@@ -739,6 +742,11 @@ class SendToController(SinglePolicy):
     def __init__(self, value):
         assert(type(value) == str or type(value == unicode))
         self.hv = Mod(Location(Pipe(value)))
+
+class SendToQuery(SinglePolicy):
+    def __init__(self, value):
+        assert(type(value) == str or type(value == unicode))
+        self.hv = Mod(Location(Query(value)))
 
 class CompilerOptions:
 

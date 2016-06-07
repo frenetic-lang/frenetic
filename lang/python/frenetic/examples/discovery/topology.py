@@ -40,7 +40,6 @@ class Count(object):
 class Topology(frenetic.App):
 
   client_id = "topology"
-  # TODO: Make these settable at command line.  Below are defaults.
   frenetic_http_host = "localhost"
   frenetic_http_port = "9000"
 
@@ -55,8 +54,7 @@ class Topology(frenetic.App):
     self.update(self.policy())
 
     IOLoop.instance().add_timeout(datetime.timedelta(seconds=2), self.run_probe)
-    # TODO: Set back to 30
-    IOLoop.instance().add_timeout(datetime.timedelta(seconds=10), self.host_discovery)
+    IOLoop.instance().add_timeout(datetime.timedelta(seconds=30), self.host_discovery)
 
     # The controller may already be connected to several switches on startup.
     # This ensures that we probe them too.
@@ -157,8 +155,7 @@ class Topology(frenetic.App):
       sniff = Filter(EthTypeEq(0x806)) >> SendToController("http")
       return probe_traffic | sniff
     elif self.state.mode == "host_discovery":
-      #TODO: Remove 0x800
-      sniff = Filter(EthTypeEq(0x806,0x800)) >> SendToController("http")
+      sniff = Filter(EthTypeEq(0x806)) >> SendToController("http")
       return sniff
     else:
       assert False
