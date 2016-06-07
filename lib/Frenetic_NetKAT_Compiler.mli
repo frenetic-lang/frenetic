@@ -179,3 +179,5 @@ val to_multitable : ?options:compiler_options
                   -> flow_layout
                   -> t
                   -> (multitable_flow list * Frenetic_GroupTable0x04.t)
+
+val to_of13_table : switchId -> t -> Frenetic_OpenFlow0x04.FlowMod.t list

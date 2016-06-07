@@ -959,3 +959,5 @@ let to_multitable ?(options=default_compiler_options) (sw_id : switchId) (layout
   FDD.restrict [(Field.Switch, Value.Const sw_id)] t
   |> flow_table_subtrees layout
   |> subtrees_to_multitable options
+
+let to_of13_table _ _ = assert false
