@@ -75,18 +75,21 @@ module SetDist (Key : Map.Key) (Prob : PROB) = struct
   (* point mass distribution *)
   let dirac (p : point) = T.singleton p Prob.one
 
+
+  (* SJS: using more readable, less efficient monad implementation instead *)
   (* nonstandard operation: given distributions [t1] and [t2],
      sample independently from both to get values point1 and point2 and take
      union of the results *)
-  let union t1 t2 : t =
+(*   let union t1 t2 : t =
     T.fold t1 ~init:T.empty ~f:(fun ~key:point1 ~data:p1 acc ->
       T.fold t2 ~init:acc ~f:(fun ~key:point2 ~data:p2 acc ->
         let point = Set.union point1 point2 in
         let p = Prob.(p1 * p2) in
         T.change acc point (function
           | None -> Some p
-          | Some p' -> Some Prob.(p' + p))))
+          | Some p' -> Some Prob.(p' + p)))) *)
 
+  (* pointwise sum of distributions *)
   let sum t1 t2 : t =
     Map.merge t1 t2 ~f:(fun ~key vals ->
       Some (match vals with
@@ -120,6 +123,13 @@ module SetDist (Key : Map.Key) (Prob : PROB) = struct
 
   end
 
+  (* probability monad *)
+  module Let_syntax = struct
+    let bind a b = Kernel.lift b a
+    let (>>=) a b = bind a b
+    let return = dirac
+  end
+
 end
 
 
@@ -137,27 +147,34 @@ module ProbNetKAT (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
 
   let rec eval (p : Pol.t) : Dist.Kernel.t = fun point ->
     let open Dist in
+    let open Dist.Let_syntax in
     match p with
     | Id ->
       dirac point
     | Drop ->
       dirac Set.empty
+    | Dup ->
+      Set.map ~f:Hist.dup point
+      |> dirac
     | Test hv ->
       Set.filter ~f:(Hist.test ~hv) point
       |> dirac
     | Set hv ->
-      failwith "not implemented"
+      Set.map ~f:(Hist.modify ~hv) point
+      |> dirac
     | Union (q,r)->
-      union (eval q point) (eval r point)
+      let%bind a1 = eval q point in
+      let%bind a2 = eval r point in
+      return (Set.union a1 a2)
+      (* SJS: union (eval q point) (eval r point) *)
     | Seq (q,r)->
-      Kernel.seq (eval q) (eval r) point
+      eval q point >>= eval r
+      (* SJS: Kernel.seq (eval q) (eval r) point *)
     | Choice dist ->
       List.map dist ~f:(fun (pol, prob) -> (eval p point, prob))
       |> Dist.weighted_sum
     | Star _ ->
       failwith "star"
-    | Dup ->
-      failwith "not implemented"
 
 
 end
