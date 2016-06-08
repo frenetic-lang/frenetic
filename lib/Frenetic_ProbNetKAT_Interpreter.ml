@@ -158,7 +158,7 @@ module ProbNetKAT (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
     | Star _ ->
       failwith "star"
     | Dup ->
-      failwith "not implemented"
-
+      Set.map ~f:(Hist.dup) point
+      |> dirac
 
 end
