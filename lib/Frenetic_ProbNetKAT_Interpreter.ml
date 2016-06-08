@@ -83,8 +83,11 @@ module Pol (Prob : PROB) = struct
     | Dup
     [@@deriving sexp, compare, show]
 
-  let (>>) p q = Seq (p,q)
-  let (||) p q = Union (p,q)
+  let ( !! ) hv = Mod hv
+  let ( ?? ) hv = Test hv
+  let ( >> ) p q = Seq (p, q)
+  let ( || ) p q = Union (p, q)
+
 end
 
 
