@@ -22,10 +22,10 @@ end
 
 
 module Pkt = struct
-  type t = { switch : int [@default 1];
-             port : int [@default 1];
-             id : int [@default 1];
-             dst : int [@default 1];
+  type t = { switch : int [@default 0];
+             port : int [@default 0];
+             id : int [@default 0];
+             dst : int [@default 0];
            } [@@deriving sexp, compare, show, make]
 
   let dup pk = pk
@@ -82,6 +82,9 @@ module Pol (Prob : PROB) = struct
     | Star of t
     | Dup
     [@@deriving sexp, compare, show]
+
+  let (>>) p q = Seq (p,q)
+  let (||) p q = Union (p,q)
 end
 
 
@@ -94,7 +97,7 @@ module Dist (Point : Map.Key) (Prob : PROB) = struct
 
   module T = Map.Make(Point) (* Point.t -> 'a *)
 
-  type t = Prob.t T.t (* Point.t -> Prob.t *)
+  type t = Prob.t T.t [@@deriving sexp] (* Point.t -> Prob.t *)
 
   let empty : t = T.empty
 
