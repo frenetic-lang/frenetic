@@ -9,22 +9,11 @@ class SwitchRef(object):
 # Create a policy that given a SwitchRef, floods all input to its ports
 def flood_switch_policy(switch):
   assert isinstance(switch, SwitchRef)
-  pol = False
+  all_policies = []
   for src in switch.ports:
-    test = Filter(PortEq(src))
-    actions = False
-    for dst in switch.ports:
-      if src == dst:
-        continue
-      action = test >> SetPort(dst)
-      if not actions:
-        actions = action
-      else:
-        actions = action | actions
-    if not pol:
-      pol = actions
-    else:
-      pol = actions | pol
-  if not pol:
+    action = Filter(PortEq(src)) >> SetPort([dst for dst in switch.ports if src != dst])
+    all_policies.append(action)
+
+  if not all_policies:
     return Filter(SwitchEq(switch.id)) >> drop
-  return Filter(SwitchEq(switch.id)) >> pol
+  return Filter(SwitchEq(switch.id)) >> Union(all_policies)

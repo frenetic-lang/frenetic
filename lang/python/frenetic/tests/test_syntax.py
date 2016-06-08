@@ -1,6 +1,5 @@
 # TODO: Turn this into a complete test suite and add to "make tests" and TravisCI
-
-# Probably a better way to do this ...
+# This makes sure we grab Frenetic from sandbox, rather than dsitribution
 import sys
 sys.path.append('../..')
 import unittest
@@ -61,4 +60,87 @@ class IfThenElseTestCase(SimpleTestCase):
   def runTest(self):
     se = IfThenElse(PortEq(8), SetPort(9), drop)
     self.assertEqual(se.to_json(), IF_THEN_ELSE_CASE)
+
+class SingleSetPort(SimpleTestCase):
+  def runTest(self):
+    sp = SetPort(2)
+    self.assertEqual(sp.to_json(), {'header': 'location', 'type': 'mod', 'value': {'type': 'physical', 'port': 2}})
+
+MULTIPLE_SET_PORT_CASE = {
+  'pols': [
+    {'header': 'location', 'type': 'mod', 'value': {'type': 'physical', 'port': 2}},
+    {'header': 'location', 'type': 'mod', 'value': {'type': 'physical', 'port': 3}}
+  ], 
+  'type': 'union'
+}
+
+class MultipleSetPort(SimpleTestCase):
+  def runTest(self):
+    sp = SetPort(2,3)
+    self.assertEqual(sp.to_json(), MULTIPLE_SET_PORT_CASE)
+
+class ListSetPort(SimpleTestCase):
+  def runTest(self):
+    sp = SetPort([2,3])
+    self.assertEqual(sp.to_json(), MULTIPLE_SET_PORT_CASE)
+
+PACKET_OUT_MULTIPLE_PORTS = {
+  "switch": 1, "in_port": 2, 
+  "payload": { "type": "buffered", "bufferid": 666 },
+  "actions": [
+    { "type": "output", "pseudoport": { "type": "physical", "port": 1 } },
+    { "type": "output", "pseudoport": { "type": "physical", "port": 2 } },
+  ]
+}
+
+class PacketOutTraditional(SimpleTestCase):
+  def runTest(self):
+    ac = [ Output(Physical(1)), Output(Physical(2)) ]
+    pko = PacketOut(1, Buffered(666, ""), ac, 2)
+    self.assertEquals(pko.to_json(), PACKET_OUT_MULTIPLE_PORTS)
+
+class PacketOutConvertModLocation(SimpleTestCase):
+  def runTest(self):
+    ac = [ Mod(Location(Physical(1))), Mod(Location(Physical(2))) ]
+    pko = PacketOut(1, Buffered(666, ""), ac, 2)
+    self.assertEquals(pko.to_json(), PACKET_OUT_MULTIPLE_PORTS)
+
+class PacketOutConvertSetPort(SimpleTestCase):
+  def runTest(self):
+    ac = [ SetPort(1), SetPort(2) ]
+    pko = PacketOut(1, Buffered(666, ""), ac, 2)
+    self.assertEquals(pko.to_json(), PACKET_OUT_MULTIPLE_PORTS)    
+
+class PacketOutConvertSetMultiPort(SimpleTestCase):
+  def runTest(self):
+    ac = [ SetPort(1,2) ]
+    pko = PacketOut(1, Buffered(666, ""), ac, 2)
+    self.assertEquals(pko.to_json(), PACKET_OUT_MULTIPLE_PORTS) 
+
+class PacketOutConvertSetMultiPortList(SimpleTestCase):
+  def runTest(self):
+    ac = [ SetPort([1,2]) ]
+    pko = PacketOut(1, Buffered(666, ""), ac, 2)
+    self.assertEquals(pko.to_json(), PACKET_OUT_MULTIPLE_PORTS) 
+
+PACKET_OUT_SEQUENCE = {
+  "switch": 1, "in_port": 2, 
+  "payload": { "type": "buffered", "bufferid": 666 },
+  "actions": [
+    { "header": "vlan", "type": "mod", "value": 1 },
+    { "header": "vlanpcp", "type": "mod", "value": 3 }
+  ]
+}
+
+class PacketOutSequenceTradtional(SimpleTestCase):
+  def runTest(self):
+    ac = [ SetVlan(1), SetVlanPcp(3) ]
+    pko = PacketOut(1, Buffered(666, ""), ac, 2)
+    self.assertEquals(pko.to_json(), PACKET_OUT_SEQUENCE) 
+
+class PacketOutSequenceWithNetKATSeq(SimpleTestCase):
+  def runTest(self):
+    ac = Seq( [SetVlan(1), SetVlanPcp(3) ])
+    pko = PacketOut(1, Buffered(666, ""), ac, 2)
+    self.assertEquals(pko.to_json(), PACKET_OUT_SEQUENCE) 
 
