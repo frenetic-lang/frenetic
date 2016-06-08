@@ -145,33 +145,33 @@ module ProbNetKAT (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
   module Dist = SetDist(Hist)(Prob)
   module Pol = Pol(Prob)
 
-  let rec eval (p : Pol.t) : Dist.Kernel.t = fun point ->
+  let rec eval (p : Pol.t) : Dist.Kernel.t = fun inp ->
     let open Dist in
     let open Dist.Let_syntax in
     match p with
     | Id ->
-      dirac point
+      dirac inp
     | Drop ->
       dirac Set.empty
     | Dup ->
-      Set.map ~f:Hist.dup point
+      Set.map inp ~f:Hist.dup
       |> dirac
     | Test hv ->
-      Set.filter ~f:(Hist.test ~hv) point
+      Set.filter inp ~f:(Hist.test ~hv)
       |> dirac
     | Set hv ->
-      Set.map ~f:(Hist.modify ~hv) point
+      Set.map inp ~f:(Hist.modify ~hv)
       |> dirac
     | Union (q,r)->
-      let%bind a1 = eval q point in
-      let%bind a2 = eval r point in
+      let%bind a1 = eval q inp in
+      let%bind a2 = eval r inp in
       return (Set.union a1 a2)
-      (* SJS: union (eval q point) (eval r point) *)
+      (* SJS: union (eval q inp) (eval r inp) *)
     | Seq (q,r)->
-      eval q point >>= eval r
-      (* SJS: Kernel.seq (eval q) (eval r) point *)
+      eval q inp >>= eval r
+      (* SJS: Kernel.seq (eval q) (eval r) inp *)
     | Choice dist ->
-      List.map dist ~f:(fun (pol, prob) -> (eval p point, prob))
+      List.map dist ~f:(fun (pol, prob) -> (eval p inp, prob))
       |> Dist.weighted_sum
     | Star _ ->
       failwith "star"
