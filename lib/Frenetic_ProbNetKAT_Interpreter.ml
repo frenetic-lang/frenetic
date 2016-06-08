@@ -87,6 +87,8 @@ module Pol (Prob : PROB) = struct
   let ( ?? ) hv = Test hv
   let ( >> ) p q = Seq (p, q)
   let ( || ) p q = Union (p, q)
+  let ( @ ) a b = (a,b)
+  let ( ?@ ) dist = Choice dist (* -[p @ 1//2; q @ 1//2] *)
 
 end
 
@@ -189,7 +191,7 @@ module Interp (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
         eval q inp >>= eval r
         (* SJS: Kernel.seq (eval q) (eval r) inp *)
       | Choice dist ->
-        List.map dist ~f:(fun (pol, prob) -> (eval p inp, prob))
+        List.map dist ~f:(fun (p, prob) -> (eval p inp, prob))
         |> Dist.weighted_sum
       | Star q -> star n q inp
 

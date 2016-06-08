@@ -31,7 +31,19 @@ let mk_simple_dist alist =
 
 let d1 = mk_simple_dist [(pk1, 1//2); (pk2, 1//2)]
 
-let () =
-  Dist.sexp_of_t d1
+let p1 = Pol.( ?@ [!!(Port 1) @ 1//2 ; !!(Port 2) @ 1//2] )
+let p2 = Pol.( ?@ [(!!(Port 1) || !!(Port 2)) @ 1//2 ; Drop @ 1//2] )
+
+let n = 0
+
+let show_dist d =
+  Dist.sexp_of_t d
   |> Sexp.to_string
   |> Printf.printf "%s\n"
+
+
+let () = begin
+  show_dist d1;
+  show_dist (eval n p1 (HSet.singleton pk1));
+  show_dist (eval n p2 (HSet.singleton pk1))
+end
