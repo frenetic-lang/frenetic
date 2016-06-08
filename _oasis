@@ -29,10 +29,16 @@ Executable probnetkat
     frenetic
   MainIs: Test.ml
 
+Executable probnetkat_interp
+  Path: lib
+  BuildDepends:
+    frenetic
+  MainIs: Frenetic_ProbNetKAT_Test.ml
+
 Test probnetkat_test
   Run: true
-  TestTools: probnetkat
-  Command: $probnetkat
+  TestTools: probnetkat_interp
+  Command: $probnetkat_interp
 
 Library frenetic
   Path: lib
