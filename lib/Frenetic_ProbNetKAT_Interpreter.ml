@@ -26,7 +26,7 @@ module Pkt = struct
              port : int [@default 1];
              id : int [@default 1];
              dst : int [@default 1];
-           } [@@deriving sexp, compare, show]
+           } [@@deriving sexp, compare, show, make]
 
   let dup pk = pk
 
@@ -156,35 +156,45 @@ module Interp (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
   module Dist = Dist(HSet)(Prob)
   module Pol = Pol(Prob)
 
-  let rec eval (p : Pol.t) : Dist.Kernel.t = fun inp ->
+  let eval (n : int) (p : Pol.t) (inp : HSet.t) : Dist.t =
     let open Dist in
     let open Dist.Let_syntax in
-    match p with
-    | Id ->
-      dirac inp
-    | Drop ->
-      dirac HSet.empty
-    | Dup ->
-      HSet.map inp ~f:Hist.dup
-      |> dirac
-    | Test hv ->
-      HSet.filter inp ~f:(Hist.test ~hv)
-      |> dirac
-    | Mod hv ->
-      HSet.map inp ~f:(Hist.modify ~hv)
-      |> dirac
-    | Union (q,r)->
-      let%bind a1 = eval q inp in
-      let%bind a2 = eval r inp in
-      return (HSet.union a1 a2)
-      (* SJS: union (eval q inp) (eval r inp) *)
-    | Seq (q,r)->
-      eval q inp >>= eval r
-      (* SJS: Kernel.seq (eval q) (eval r) inp *)
-    | Choice dist ->
-      List.map dist ~f:(fun (pol, prob) -> (eval p inp, prob))
-      |> Dist.weighted_sum
-    | Star _ ->
-      failwith "star"
+    let rec eval (p : Pol.t) (inp : HSet.t) : Dist.t =
+      match p with
+      | Id ->
+        dirac inp
+      | Drop ->
+        dirac HSet.empty
+      | Dup ->
+        HSet.map inp ~f:Hist.dup
+        |> dirac
+      | Test hv ->
+        HSet.filter inp ~f:(Hist.test ~hv)
+        |> dirac
+      | Mod hv ->
+        HSet.map inp ~f:(Hist.modify ~hv)
+        |> dirac
+      | Union (q,r) ->
+        let%bind a1 = eval q inp in
+        let%bind a2 = eval r inp in
+        return (HSet.union a1 a2)
+        (* SJS: union (eval q inp) (eval r inp) *)
+      | Seq (q,r)->
+        eval q inp >>= eval r
+        (* SJS: Kernel.seq (eval q) (eval r) inp *)
+      | Choice dist ->
+        List.map dist ~f:(fun (pol, prob) -> (eval p inp, prob))
+        |> Dist.weighted_sum
+      | Star q -> star n q inp
+
+    and star (n : int) (p : Pol.t) (inp : HSet.t) : Dist.t =
+      match n with
+      | 0 -> return inp
+      | _ ->
+          let%bind a = eval p inp in
+          let%bind b = star (n-1) p a in
+          return (HSet.union inp b)
+
+    in eval p inp
 
 end
