@@ -146,7 +146,8 @@ module ProbNetKAT (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
       Set.filter ~f:(Hist.test ~hv) point
       |> dirac
     | Set hv ->
-      failwith "not implemented"
+        Set.map ~f:(Hist.modify ~hv) point
+      |> dirac
     | Union (q,r)->
       union (eval q point) (eval r point)
     | Seq (q,r)->
