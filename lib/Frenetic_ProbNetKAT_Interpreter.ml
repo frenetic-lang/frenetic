@@ -1,43 +1,66 @@
 open Core.Std
-open Num
+
+
+(*==========================================================================*)
+(* Packets & Histories                                                      *)
+(*==========================================================================*)
 
 type headerval =
-  [`Switch of int
-  | `Id of int
-  | `Port of int
-  | `Dst of int]
+  | Switch of int
+  | Port of int
+  | Id of int
+  | Dst of int
   [@@ deriving sexp, compare, show]
 
-module Pkt = struct
-  module T = struct
-    type t = { switch : int [@default 1];
-               port : int [@default 1];
-               id : int [@default 1];
-               dst : int [@default 1];
-             } [@@deriving sexp, compare, show, make]
-  end
-  include T
-  module Set = Set.Make(T) (* Pkt Set *)
-  module SetMap = Map.Make(Set) (* Pkt Set -> 'a *)
+
+module type PSEUDOHISTORY = sig
+  include Map.Key
+  val dup : t -> t
+  val test : t -> hv:headerval -> bool
+  val modify : t -> hv:headerval -> t
 end
+
+
+module Pkt = struct
+  type t = { switch : int [@default 1];
+             port : int [@default 1];
+             id : int [@default 1];
+             dst : int [@default 1];
+           } [@@deriving sexp, compare, show]
+
+  let dup pk = pk
+
+  let test pk ~(hv:headerval) : bool =
+    match hv with
+    | Switch sw -> pk.switch = sw
+    | Port pt -> pk.port = pt
+    | Id id -> pk.id = id
+    | Dst d -> pk.dst = d
+
+  let modify pk ~(hv:headerval) : t =
+    match hv with
+    | Switch sw -> { pk with switch = sw }
+    | Port pt -> { pk with port = pt }
+    | Id id -> { pk with id = id }
+    | Dst d -> { pk with dst = d }
+end
+
 
 module Hist = struct
-  module T = struct
-    type t = Pkt.t list [@@deriving sexp, compare, show]
-  end
-  include T
+  type t = Pkt.t * Pkt.t list [@@deriving sexp, compare, show]
 
-  module Set = Set.Make(T) (* Hist Set *)
-  module SetMap = Map.Make(Set) (* Hist Set -> 'a *)
-  let to_string t =
-    Set.elements t
-    |> List.map ~f:(fun pkts ->
-        List.map pkts ~f:Pkt.show
-        |> String.concat ~sep:"; "
-        |> Printf.sprintf "[%s]")
-    |> String.concat ~sep:", "
-    |> Printf.sprintf "{%s}"
+  let dup (pk,h) = (pk, pk::h)
+
+  let test (pk,h) ~hv = Pkt.test pk ~hv
+
+  let modify (pk,h) ~hv = (Pkt.modify pk ~hv, h)
 end
+
+
+
+(*==========================================================================*)
+(* Probability & ProbNetKAT Policies                                        *)
+(*==========================================================================*)
 
 module type PROB = sig
   type t [@@deriving sexp, compare, show]
@@ -46,12 +69,13 @@ module type PROB = sig
   val ( * ) : t -> t -> t
 end
 
+
 module Pol (Prob : PROB) = struct
   type t =
     | Id
     | Drop
     | Test of headerval
-    | Set of headerval
+    | Mod of headerval
     | Union of t * t
     | Seq of t * t
     | Choice of (t * Prob.t) list
@@ -62,32 +86,20 @@ end
 
 
 
-module SetDist (Key : Map.Key) (Prob : PROB) = struct
+(*==========================================================================*)
+(* Distributions & Kernels                                                  *)
+(*==========================================================================*)
 
-  module Set = Set.Make(Key) (* Set Key.t *)
-  module T = Map.Make(Set) (* point -> 'a *)
+module Dist (Point : Map.Key) (Prob : PROB) = struct
 
-  type point = Set.t
-  type t = Prob.t T.t (* point -> Prob.t *)
+  module T = Map.Make(Point) (* Point.t -> 'a *)
+
+  type t = Prob.t T.t (* Point.t -> Prob.t *)
 
   let empty : t = T.empty
 
   (* point mass distribution *)
-  let dirac (p : point) = T.singleton p Prob.one
-
-
-  (* SJS: using more readable, less efficient monad implementation instead *)
-  (* nonstandard operation: given distributions [t1] and [t2],
-     sample independently from both to get values point1 and point2 and take
-     union of the results *)
-(*   let union t1 t2 : t =
-    T.fold t1 ~init:T.empty ~f:(fun ~key:point1 ~data:p1 acc ->
-      T.fold t2 ~init:acc ~f:(fun ~key:point2 ~data:p2 acc ->
-        let point = Set.union point1 point2 in
-        let p = Prob.(p1 * p2) in
-        T.change acc point (function
-          | None -> Some p
-          | Some p' -> Some Prob.(p' + p)))) *)
+  let dirac (p : Point.t) : t = T.singleton p Prob.one
 
   (* pointwise sum of distributions *)
   let sum t1 t2 : t =
@@ -96,16 +108,16 @@ module SetDist (Key : Map.Key) (Prob : PROB) = struct
       | `Both (v1, v2) -> Prob.(v1 + v2)
       | `Left v | `Right v -> v))
 
-  let scale t ~(scalar : Prob.t) =
+  let scale t ~(scalar : Prob.t) : t =
     T.map t ~f:(fun p -> Prob.(p * scalar))
 
-  let weighted_sum (list : (t * Prob.t) list) =
+  let weighted_sum (list : (t * Prob.t) list) : t =
     List.map list ~f:(fun (t, p) -> scale t ~scalar:p)
     |> List.fold ~init:empty ~f:sum
 
   (* Markov Kernel *)
   module Kernel = struct
-    type kernel = point -> t
+    type kernel = Point.t -> t
 
     (* lift Markov Kernel to measure transformer *)
     let lift (k : kernel) (dist : t) : t =
@@ -133,16 +145,15 @@ module SetDist (Key : Map.Key) (Prob : PROB) = struct
 end
 
 
-module type PSEUDOHISTORY = sig
-  include Map.Key
-  val dup : t -> t
-  val test : t -> hv:headerval -> bool
-  val modify : t -> hv:headerval -> t
-end
 
-module ProbNetKAT (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
+(*==========================================================================*)
+(* ProbNetKAT Interpreter                                                   *)
+(*==========================================================================*)
 
-  module Dist = SetDist(Hist)(Prob)
+module Interp (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
+
+  module HSet = Set.Make(Hist)
+  module Dist = Dist(HSet)(Prob)
   module Pol = Pol(Prob)
 
   let rec eval (p : Pol.t) : Dist.Kernel.t = fun inp ->
@@ -152,20 +163,20 @@ module ProbNetKAT (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
     | Id ->
       dirac inp
     | Drop ->
-      dirac Set.empty
+      dirac HSet.empty
     | Dup ->
-      Set.map inp ~f:Hist.dup
+      HSet.map inp ~f:Hist.dup
       |> dirac
     | Test hv ->
-      Set.filter inp ~f:(Hist.test ~hv)
+      HSet.filter inp ~f:(Hist.test ~hv)
       |> dirac
-    | Set hv ->
-      Set.map inp ~f:(Hist.modify ~hv)
+    | Mod hv ->
+      HSet.map inp ~f:(Hist.modify ~hv)
       |> dirac
     | Union (q,r)->
       let%bind a1 = eval q inp in
       let%bind a2 = eval r inp in
-      return (Set.union a1 a2)
+      return (HSet.union a1 a2)
       (* SJS: union (eval q inp) (eval r inp) *)
     | Seq (q,r)->
       eval q inp >>= eval r
@@ -175,6 +186,5 @@ module ProbNetKAT (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
       |> Dist.weighted_sum
     | Star _ ->
       failwith "star"
-
 
 end
