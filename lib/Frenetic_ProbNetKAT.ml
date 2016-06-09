@@ -57,7 +57,7 @@ module Pol = struct
     | Star of int
     | Dup (* we can handle all of NetKAT *)
     (* | Deriv of FDK.t * FDK.t *)
-  with sexp
+  [@@deriving sexp]
 
   let compare_choice (x : int * Coin.t * int) (y : int * Coin.t * int) : int =
     Pervasives.compare x y
@@ -90,12 +90,12 @@ module Pol = struct
     (* | _, Dup -> 1 *)
 
   module T = Frenetic_Hashcons.Make(struct
-    type t = policy with sexp
+    type t = policy [@@deriving sexp]
     let compare = compare
     let hash = Hashtbl.hash
   end)
 
-  type t = int with sexp
+  type t = int [@@deriving sexp]
   let get = T.get
   let unget = T.unget
 
@@ -435,7 +435,7 @@ module ProbState = struct
 
 
   (* Invariant: values sum up to 1.0 *)
-  type t = float Dist.t with sexp
+  type t = float Dist.t [@@deriving sexp]
 
   let to_string ?(indent="") (t : t) : string =
     Dist.to_alist t
@@ -530,7 +530,7 @@ end
 module Auto = struct
 
   module type Differentiable = sig
-    type t with sexp
+    type t [@@deriving sexp]
     val to_string : ?indent:string -> t -> string
     val of_pol : Pol.t -> t
     val conts : t -> Pol.Set.t
@@ -538,13 +538,13 @@ module Auto = struct
 
   module Make(State : Differentiable) = struct
 
-    type stateId = int with sexp
+    type stateId = int [@@deriving sexp]
     type state = State.t
 
     type t = {
       start : stateId;
       states : State.t Int.Map.t;
-    } with sexp
+    } [@@deriving sexp]
 
     let to_string (t : t) : string =
       Int.Map.to_alist t.states

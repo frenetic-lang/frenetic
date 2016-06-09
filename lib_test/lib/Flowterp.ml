@@ -3,7 +3,7 @@ open Core.Std
 module HVSet = Set.Make(struct
   open Frenetic_NetKAT_Semantics
 
-  type t = HeadersValues.t sexp_opaque with sexp
+  type t = HeadersValues.t sexp_opaque [@@deriving sexp]
   let compare = HeadersValues.compare
 end)
 

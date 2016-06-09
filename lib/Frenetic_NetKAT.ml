@@ -1,24 +1,16 @@
 open Sexplib.Conv
 open Core.Std
 
-(** NetKAT Syntax *)
-
-(** {1 Basics} *)
 open Frenetic_Packet
 
-(* thrown whenever local policy is expected, but global policy
-  (i.e. policy containing links) is encountered *)
 exception Non_local
 
-type switchId = Frenetic_OpenFlow.switchId with sexp
-type portId = Frenetic_OpenFlow.portId with sexp
-type payload = Frenetic_OpenFlow.payload with sexp
-type vswitchId = int64 with sexp
-type vportId = int64 with sexp
-type vfabricId = int64 with sexp
-
-(** {2 Policies} *)
-
+type switchId = Frenetic_OpenFlow.switchId [@@deriving sexp, compare, eq]
+type portId = Frenetic_OpenFlow.portId [@@deriving sexp, compare, eq]
+type payload = Frenetic_OpenFlow.payload [@@deriving sexp]
+type vswitchId = int64 [@@deriving sexp, compare, eq]
+type vportId = int64 [@@deriving sexp, compare, eq]
+type vfabricId = int64 [@@deriving sexp, compare, eq]
 
 let string_of_fastfail = Frenetic_OpenFlow.format_list ~to_string:Int32.to_string
 
@@ -27,7 +19,7 @@ type location =
   | FastFail of int32 list
   | Pipe of string
   | Query of string
-  with sexp
+  [@@deriving sexp, compare]
 
 type header_val =
   | Switch of switchId
@@ -45,7 +37,7 @@ type header_val =
   | VSwitch of vswitchId
   | VPort of vportId
   | VFabric of vfabricId
-  with sexp
+  [@@deriving sexp]
 
 type pred =
   | True
@@ -54,14 +46,14 @@ type pred =
   | And of pred * pred
   | Or of pred * pred
   | Neg of pred
-  with sexp
+  [@@deriving sexp]
 
 module Coin = struct
   module T = struct
-    type coin_label = int with sexp
-    type coin_idx = int with sexp
-    type prob = float with sexp
-    type t = coin_label * coin_idx * prob with sexp
+    type coin_label = int [@@deriving sexp]
+    type coin_idx = int [@@deriving sexp]
+    type prob = float [@@deriving sexp]
+    type t = coin_label * coin_idx * prob [@@deriving sexp]
     let  compare (x:t) (y:t) = Pervasives.compare x y
     let hash = Hashtbl.hash
     let to_string x = sexp_of_t x |> Sexp.to_string
@@ -85,20 +77,17 @@ type policy =
   | Star of policy
   | Link of switchId * portId * switchId * portId
   | VLink of vswitchId * vportId * vswitchId * vportId
-  with sexp
+  [@@deriving sexp]
 
 let id = Filter True
 let drop = Filter False
 
-
-(** {3 Applications} *)
-
 type action = Frenetic_OpenFlow.action
 
-type switch_port = switchId * portId with sexp
-type host = Frenetic_Packet.dlAddr * Frenetic_Packet.nwAddr with sexp
+type switch_port = switchId * portId [@@deriving sexp]
+type host = Frenetic_Packet.dlAddr * Frenetic_Packet.nwAddr [@@deriving sexp]
 
-type bufferId = Int32.t with sexp (* XXX(seliopou): different than Frenetic_OpenFlow *)
+type bufferId = Int32.t [@@deriving sexp] (* XXX(seliopou): different than Frenetic_OpenFlow *)
 
 type event =
   | PacketIn of string * switchId * portId * payload * int
@@ -111,4 +100,4 @@ type event =
   | LinkDown of switch_port * switch_port
   | HostUp of switch_port * host
   | HostDown of switch_port * host
-  with sexp
+  [@@deriving sexp]

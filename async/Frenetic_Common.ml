@@ -45,16 +45,16 @@ let handle_parse_errors'
   >>= function
   | Ok x -> handler x
   | Error exn ->
-      printf ~level:`Error "Invalid message from client:\n%s" body_str;
+      printf ~level:`Error "Invalid message from client %s:\n%s" (Exn.to_string exn) body_str;
       Cohttp_async.Server.respond `Bad_request
 
 let parse_update body = Body.to_string body >>= fun pol_str ->
-  let pol = Frenetic_NetKAT_Parser.policy_from_string pol_str in
+  let pol = Frenetic_NetKAT_Parser.policy_of_string pol_str in
   return pol
 
 let parse_update_json body =
   Body.to_string body >>= fun str ->
-  return (Frenetic_NetKAT_Json.policy_from_json_string str)
+  return (Frenetic_NetKAT_Json.policy_of_json_string str)
 
 let parse_config_json body =
   Body.to_string body >>= fun str ->

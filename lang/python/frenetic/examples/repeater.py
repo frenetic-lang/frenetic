@@ -9,18 +9,26 @@ class MyApp(frenetic.App):
         frenetic.App.__init__(self)
         self.topo = {}
 
+    def connected(self):
+        # The controller may already be connected to several switches on startup.
+        # This ensures that we probe them too.
+        def handle_current_switches(switches):
+            for switch_id in switches:
+                self.switch_up(switch_id, switches[switch_id])
+        self.current_switches(callback=handle_current_switches)        
+
     def policy(self):
         return Union(self.sw_policy(sw) for sw in self.topo.keys())
 
     def sw_policy(self, sw):
         ports = self.topo[sw]
         p = Union(self.port_policy(in_port, ports) for in_port in ports)
-        return Filter(Test(Switch(sw))) >> p
+        return Filter( SwitchEq(sw) ) >> p
 
     def port_policy(self, in_port, ports):
         out_ports = [port for port in ports if port != in_port]
-        p = Union(Mod(Location(Physical(p))) for p in out_ports)
-        return Filter(Test(Location(Physical(in_port)))) >> p
+        p = Union(SetPort(p) for p in out_ports)
+        return Filter( PortEq(in_port) ) >> p
 
     def switch_up(self,switch_id,ports):
         self.topo[switch_id] = ports

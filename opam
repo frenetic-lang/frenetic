@@ -1,12 +1,16 @@
 opam-version: "1.2"
-ocaml-version: [ >= "4.02.0" ]
+available: [ ocaml-version >= "4.02.0" ]
 version: "4.0.0"
 maintainer: "Arjun Guha <arjun@cs.umass.edu>"
+authors: "Arjun Guha <arjun@cs.umass.edu>, Nate Foster <jnfoster@cs.cornell.edu>"
+homepage: "http://frenetic-lang.org"
+bug-reports: "https://github.com/frenetic-lang/frenetic/issues"
+dev-repo: "https://github.com/frenetic-lang/frenetic.git"
 build: [
   ["./configure" "--%{pa_ounit:enable}%-tests" "--prefix" prefix ]
   [make]
-  [make "install"]
 ]
+install: [make "install"]
 build-test: [
   [make "test"]
 ]

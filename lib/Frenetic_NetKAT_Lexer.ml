@@ -6,8 +6,7 @@ open Core.Std
 
 module Loc = Camlp4.PreCast.Loc
 
-module Error =
-struct
+module Error = struct
   type t = string
   exception E of string
   let print = Format.pp_print_string
@@ -21,11 +20,10 @@ type token =
   | INT32 of string
   | INT64 of string
   | IP4ADDR of string
-  (* | ANTIQUOT of string *)
+  | ANTIQUOT of string 
   | EOI
 
-module Token =
-struct
+module Token = struct
   module Loc = Loc
   module Error = Error
 
@@ -39,10 +37,8 @@ struct
       | INT s -> sf "INT %s" s
       | INT32 s -> sf "INT32 %s" s
       | INT64 s -> sf "INT64 %s" s
-      (* TODO: See below on why Antiquotes don't work
       | ANTIQUOT s -> sf "ANTIQUOT %s" s
-    *)
-      | EOI             -> sf "EOI"
+      | EOI -> sf "EOI"
 
   let print ppf x = Format.pp_print_string ppf (to_string x)
 
@@ -59,8 +55,7 @@ struct
             ("Cannot extract a string from this token: " ^
                to_string tok)
 
-  module Filter =
-  struct
+  module Filter = struct
     type token_filter = (t, Loc.t) Camlp4.Sig.stream_filter
     type t = unit
     let mk _ = ()
@@ -81,17 +76,6 @@ type context = {
   lexbuf      : Ulexing.lexbuf;
   enc         : Ulexing.enc ref;
 }
-
-(* TODO: This is the same as in Frenetic_NetKAT_Json ... factor into better place *)
-let macaddr_from_string (str : string) : Int64.t =
-  let buf = Macaddr.to_bytes (Macaddr.of_string_exn str) in
-  let byte n = Int64.of_int (Char.to_int (String.get buf n)) in
-  let rec loop n acc =
-    let shift = 8 * (5 - n) in
-    let acc' = Int64.(acc + (shift_left (byte n) shift)) in
-    if n = 5 then acc'
-    else loop (n + 1) acc' in
-  loop 0 0L
 
 let current_loc c =
   let (fn, bl, bb, bo, el, eb, _, g) = Loc.to_tuple c.loc in
@@ -122,8 +106,7 @@ let next_line c =
 
 let error c s = Loc.raise (current_loc c) (Error.E s)
 
-let regexp identinit =
-  ['A'-'Z' 'a'-'z' '_' ]
+let regexp identinit = ['A'-'Z' 'a'-'z' '_' ]
 let regexp identchar = (identinit | [".'_" ] | [ '0'-'9' ])
 let regexp ident = identinit identchar*
 let regexp hex = ['0'-'9''a'-'f''A'-'F']
@@ -144,14 +127,12 @@ let rec token c = lexer
   | blank+ -> token c c.lexbuf
   | decbyte '.' decbyte '.' decbyte '.' decbyte -> IP4ADDR (L.latin1_lexeme c.lexbuf)
   | hexbyte ':' hexbyte ':' hexbyte ':' hexbyte ':' hexbyte ':' hexbyte ->
-    INT64 (Int64.to_string(macaddr_from_string (L.latin1_lexeme c.lexbuf))) 
+    INT64 (Int64.to_string(Frenetic_Packet.mac_of_string (L.latin1_lexeme c.lexbuf))) 
   | (hexnum | decnum)  -> INT (L.latin1_lexeme c.lexbuf)
   | (hexnum | decnum) 'l' -> INT32 (L.latin1_lexeme c.lexbuf)
   | (hexnum | decnum) 'L' -> INT64 (L.latin1_lexeme c.lexbuf)
-  (* TODO: Thought this was causing parsing errors, but I was mistaken.  Re-enable.
   | "$" ident ->
      ANTIQUOT( L.latin1_sub_lexeme c.lexbuf 1 (L.lexeme_length c.lexbuf - 1))
-   *)
   | "(*" -> 
     set_start_loc c;
     let _ = comment c lexbuf in

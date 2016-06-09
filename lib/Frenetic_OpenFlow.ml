@@ -8,10 +8,10 @@ open Frenetic_Packet
 
 exception Unsupported of string
 
-type switchId = int64 with sexp
-type portId = int32 with sexp
-type queueId = int32 with sexp
-type bufferId = int32 with sexp
+type switchId = int64 [@@deriving sexp, compare, eq]
+type portId = int32 [@@deriving sexp, compare, eq]
+type queueId = int32 [@@deriving sexp, compare, eq]
+type bufferId = int32 [@@deriving sexp, compare, eq]
 
 (* general formatters for numeric types *)
 let format_int (fmt : Format.formatter) (v:int) =
@@ -40,21 +40,10 @@ let format_ip_mask (fmt : Format.formatter) ((p,m) : nwAddr * int32) =
     format_ip p
     (if m = 32l then "" else Printf.sprintf "/%ld" m)
 
-(* convert a formatter to a function that produces a string *)
-(* TODO(jnf): we have this defined in several places. Consolidate. *)
-let make_string_of formatter x =
-  let open Format in
-  let buf = Buffer.create 100 in
-  let fmt = formatter_of_buffer buf in
-  pp_set_margin fmt 80;
-  formatter fmt x;
-  fprintf fmt "@?";
-  Buffer.contents buf
-
 module Pattern = struct
 
   module Ip = struct
-    type t = nwAddr * int32 with sexp
+    type t = nwAddr * int32 [@@deriving sexp]
 
     let match_all = (0l, 0l)
 
@@ -110,7 +99,7 @@ module Pattern = struct
         | None   -> false
 
     let format = format_ip_mask
-    let string_of ip = make_string_of format ip
+    let string_of ip = Frenetic_Util.make_string_of format ip
   end
 
   type t =
@@ -125,7 +114,7 @@ module Pattern = struct
       ; tpSrc : tpPort option
       ; tpDst : tpPort option
       ; inPort : portId option }
-    with sexp
+    [@@deriving sexp]
 
   let match_all =
       { dlSrc = None
@@ -225,7 +214,7 @@ module Pattern = struct
     format_field "port" format_int32 p.inPort;
     Format.fprintf fmt "}@]"
 
-  let string_of = make_string_of format
+  let string_of = Frenetic_Util.make_string_of format
 end
 
 type modify =
@@ -239,7 +228,7 @@ type modify =
   | SetIP4Dst of nwAddr
   | SetTCPSrcPort of tpPort
   | SetTCPDstPort of tpPort
-with sexp
+[@@deriving sexp]
 
 type pseudoport =
   | Physical of portId
@@ -250,27 +239,27 @@ type pseudoport =
   | All
   | Controller of int
   | Local
-with sexp
+[@@deriving sexp]
 
-type groupId = int32 with sexp
+type groupId = int32 [@@deriving sexp]
 
 type action =
   | Output of pseudoport
   | Enqueue of portId * queueId
   | Modify of modify
   | FastFail of groupId
-with sexp
+[@@deriving sexp]
 
-type seq = action list with sexp
+type seq = action list [@@deriving sexp]
 
-type par = seq list with sexp
+type par = seq list [@@deriving sexp]
 
-type group = par list with sexp
+type group = par list [@@deriving sexp]
 
 type timeout =
   | Permanent
   | ExpiresAfter of int16
-with sexp
+[@@deriving sexp]
 
 type flow = {
   pattern: Pattern.t;
@@ -278,14 +267,14 @@ type flow = {
   cookie: int64;
   idle_timeout: timeout;
   hard_timeout: timeout
-} with sexp
+} [@@deriving sexp]
 
-type flowTable = flow list with sexp
+type flowTable = flow list [@@deriving sexp]
 
 type payload =
   | Buffered of bufferId * Cstruct.t
   | NotBuffered of Cstruct.t
-with sexp
+[@@deriving sexp]
 
 let payload_bytes (payload : payload) : Cstruct.t =
   match payload with
@@ -295,16 +284,16 @@ let payload_bytes (payload : payload) : Cstruct.t =
 type packetInReason =
   | NoMatch
   | ExplicitSend
-with sexp
+[@@deriving sexp]
 
-type pktIn = payload * int * portId * packetInReason with sexp
+type pktIn = payload * int * portId * packetInReason [@@deriving sexp]
 
-type pktOut = payload * (portId option) * (action list) with sexp
+type pktOut = payload * (portId option) * (action list) [@@deriving sexp]
 
 type switchFeatures = {
   switch_id : switchId;
   switch_ports : portId list
-} with sexp
+} [@@deriving sexp]
 
 type flowStats = {
   flow_table_id : int8; (** ID of table flow came from. *)
@@ -317,7 +306,7 @@ type flowStats = {
   flow_actions: action list;
   flow_packet_count: int64;
   flow_byte_count: int64
-} with sexp
+} [@@deriving sexp]
 
 let format_modify (fmt:Format.formatter) (m:modify) : unit =
   match m with
@@ -369,7 +358,7 @@ let format_action (fmt:Format.formatter) (a:action) : unit =
   | Modify(m) ->
     format_modify fmt m
     (* TODO(grouptable) *)
-  | FastFail gid -> 
+  | FastFail gid ->
     Format.fprintf fmt "FastFail(%ld)" gid
 
 let rec format_seq (fmt : Format.formatter) (seq : seq) : unit =
@@ -415,10 +404,10 @@ let format_flowTable (fmt:Format.formatter) (l:flowTable) : unit =
         true) in
   Format.fprintf fmt "]@]"
 
-let string_of_action = make_string_of format_action
-let string_of_seq = make_string_of format_seq
-let string_of_par = make_string_of format_par
-let string_of_flow = make_string_of format_flow
+let string_of_action = Frenetic_Util.make_string_of format_action
+let string_of_seq = Frenetic_Util.make_string_of format_seq
+let string_of_par = Frenetic_Util.make_string_of format_par
+let string_of_flow = Frenetic_Util.make_string_of format_flow
 
 let string_of_vlan (x : int) : string =
   Format.sprintf "Vlan = %d" x
@@ -445,10 +434,10 @@ let string_of_ipProto (x : nwProto) : string =
 
 let string_of_ethSrc (x : dlAddr) : string =
   Format.sprintf "EthSrc = %s" (Frenetic_Packet.string_of_mac x)
-		 
+
 let string_of_ethDst (x : dlAddr) : string =
   Format.sprintf "EthDst = %s" (Frenetic_Packet.string_of_mac x)
-		 
+
 let string_of_ip4src (x : Pattern.Ip.t) : string =
   Format.sprintf "IP4Src = %s" (Pattern.Ip.string_of x)
 
@@ -604,18 +593,18 @@ let from_output (inPort : OF10.portId option) (pseudoport : pseudoport) : OF10.a
     | Normal -> Output Normal
     | Flood -> Output Flood
     | All -> Output AllPorts
-    | Physical pport_id ->  
+    | Physical pport_id ->
       let pport_id = from_portId pport_id in
       if Some pport_id = inPort then
         Output InPort
       else
         Output (PhysicalPort pport_id)
-    | Controller n -> 
+    | Controller n ->
       Output (Controller n)
     | Local ->
       Output Local
-        
-let from_action (inPort : OF10.portId option) (act : action) : OF10.action = 
+
+let from_action (inPort : OF10.portId option) (act : action) : OF10.action =
   match act with
     | Output pseudoport ->
       from_output inPort pseudoport
@@ -623,7 +612,7 @@ let from_action (inPort : OF10.portId option) (act : action) : OF10.action =
       let pport_id = from_portId pport_id in
       if Some pport_id = inPort then
         Enqueue(InPort, queue_id)
-      else 
+      else
         Enqueue (PhysicalPort pport_id, queue_id)
     | Modify (SetEthSrc dlAddr) ->
       SetDlSrc dlAddr
@@ -653,8 +642,8 @@ let from_action (inPort : OF10.portId option) (act : action) : OF10.action =
       SetTpDst tp
       (* TODO(grouptable) *)
     | FastFail _ -> failwith "Openflow 1.0 does not support fast failover."
-        
-let from_seq (inPort : OF10.portId option) (seq : seq) : OF10.action list = 
+
+let from_seq (inPort : OF10.portId option) (seq : seq) : OF10.action list =
   List.map seq ~f:(from_action inPort)
 
 let from_par (inPort : OF10.portId option) (par : par) : OF10.action list =
@@ -672,8 +661,8 @@ let from_timeout (timeout : timeout) : OF10.timeout =
   match timeout with
     | Permanent -> Permanent
     | ExpiresAfter n -> ExpiresAfter n
-      
-      
+
+
 let from_pattern (pat : Pattern.t) : OF10.pattern =
   { dlSrc = pat.dlSrc
   ; dlDst = pat.dlDst
@@ -729,7 +718,7 @@ let from_payload (pay : payload) : OF10.payload =
     | Buffered (buf_id, b) ->
       Buffered (buf_id, b)
     | NotBuffered b -> NotBuffered b
-      
+
 let from_packetOut (pktOut : pktOut) : OF10.packetOut =
   let output_payload, port_id, apply_actions = pktOut in
   let output_payload = from_payload output_payload in
