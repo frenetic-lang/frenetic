@@ -247,19 +247,25 @@ module Interp (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
 
     in eval p
 
-  let expectation (n : int) (p : Pol.t) (inp : Dist.t) ~(f : HSet.t -> Prob.t) =
+  let expectation ?(inp=Dist.dirac (HSet.singleton (Hist.make ()))) (n : int)
+    (p : Pol.t) ~(f : HSet.t -> Prob.t) =
     let open Dist.Let_syntax in
     inp >>= eval n p |> Dist.expectation ~f
 
-  let expectation' (n : int) (p : Pol.t) (inp : Dist.t) ~(f : Hist.t -> Prob.t) =
-    expectation n p inp ~f:(fun hset ->
+  let expectation' ?(inp : Dist.t option) (n : int) (p : Pol.t)  ~(f : Hist.t -> Prob.t) =
+    expectation n p ?inp ~f:(fun hset ->
+      let n = HSet.length hset in
+      if n=0 then Prob.of_int 0 else
       let sum = HSet.fold hset ~init:Prob.zero ~f:(fun acc h ->
         Prob.(acc + f h))
       in
-      Prob.(sum / of_int (HSet.length hset)))
+      Prob.(sum / of_int n))
 
   (* allows convenient specification of probabilities *)
   let ( / ) (a : int) (b : int) : Prob.t =
     Prob.(of_int a / of_int b)
+
+  (* export more convenient eval *)
+  let eval ?(inp=HSet.singleton (Hist.make ())) n p = eval n p inp
 
 end
