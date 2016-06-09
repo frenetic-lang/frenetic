@@ -4,9 +4,7 @@ open Frenetic_ProbNetKAT_Interpreter
 module PreciseProb = struct
   include Num
   let pp_num f n = Printf.printf "%s" (string_of_num n)
-  let num_of_sexp _ = failwith "aaa" (*function
-
-    | _ -> num_of_string str *)
+  let num_of_sexp _ = failwith "<>"
   let sexp_of_num n = Sexp.of_string (string_of_num n)
   type t = num [@@deriving sexp, compare, show]
   let one = Int 1
@@ -15,13 +13,18 @@ module PreciseProb = struct
   let to_string = string_of_num
 end
 
+module FloatProb = struct
+  include Float
+  let show _ = ""
+end
+
 let (//) (a : int) (b : int) : PreciseProb.t =
   Num.(num_of_int a // num_of_int b)
 
-include Interp(Pkt)(PreciseProb)
+include Interp(Hist)(PreciseProb)
 
-let pk1 = Pkt.make ()
-let pk2 = Pkt.make ~switch:1 ()
+let pk1 = Hist.make ()
+let pk2 = Hist.make ~switch:1 ()
 
 let mk_simple_dist alist =
   List.map ~f:(fun (pk, prob) -> (HSet.singleton pk, prob)) alist
@@ -30,21 +33,21 @@ let mk_simple_dist alist =
 let d1 = mk_simple_dist [(pk1, 1//2); (pk2, 1//2)]
 
 open Pol
-let p1 = ?@[ !!(Port 1) , 1//2
-           ; !!(Port 2) , 1//2 ]
-let p2 = ?@[ !!(Port 1) & !!(Port 2) , 1//2
-           ; Drop                    , 1//2]
+let p1 = ?@[ !!(Switch 0) , 1//2
+           ; !!(Switch 1) , 1//2 ]
+let p2 = ?@[ !!(Switch 0) & !!(Switch 1) , 1//2
+           ; Drop                        , 1//2]
 
-let n = 0
+let p3 = p1 >> Star (Dup >> p1)
 
-let show_dist d =
-  Dist.sexp_of_t d
-  |> Sexp.to_string
-  |> Printf.printf "%s\n"
-
+let n = 2
 
 let () = begin
-  show_dist d1;
-  show_dist (eval n p1 (HSet.singleton pk1));
-  show_dist (eval n p2 (HSet.singleton pk1))
+  Dist.print d1;
+  print_endline "";
+  Dist.print (eval n p1 (HSet.singleton pk1));
+  print_endline "";
+  Dist.print (eval n p2 (HSet.singleton pk1));
+  print_endline "";
+  Dist.print (eval n p3 (HSet.singleton pk1));
 end

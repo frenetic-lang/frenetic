@@ -14,10 +14,12 @@ type headerval =
 
 
 module type PSEUDOHISTORY = sig
-  type t [@@deriving sexp, compare, show]
+  type t [@@deriving sexp, compare]
   val dup : t -> t
   val test : t -> hv:headerval -> bool
   val modify : t -> hv:headerval -> t
+  val to_string : t -> string
+  val make : ?switch:int -> ?port:int -> ?id:int -> ?dst:int -> unit -> t
 end
 
 
@@ -43,6 +45,10 @@ module Pkt = struct
     | Port pt -> { pk with port = pt }
     | Id id -> { pk with id = id }
     | Dst d -> { pk with dst = d }
+
+  let to_string t =
+    Printf.sprintf "%d|%d|%d|%d" t.switch t.port t.id t.dst
+    (* Printf.sprintf "%d" t.switch *)
 end
 
 
@@ -54,6 +60,13 @@ module Hist = struct
   let test (pk,h) ~hv = Pkt.test pk ~hv
 
   let modify (pk,h) ~hv = (Pkt.modify pk ~hv, h)
+
+  let to_string (pk,h) =
+    List.map (pk::h) ~f:Pkt.to_string
+    |> String.concat ~sep:">>"
+
+  let make ?switch ?port ?id ?dst () =
+    (Pkt.make ?switch ?port ?id ?dst (), [])
 end
 
 
@@ -67,6 +80,7 @@ module type PROB = sig
   val one : t
   val (+) : t -> t -> t
   val ( * ) : t -> t -> t
+  val to_string : t -> string
 end
 
 
@@ -160,9 +174,30 @@ end
 
 module Interp (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
 
-  module HSet = Set.Make(Hist)
-  module Dist = Dist(HSet)(Prob)
+  module Hist = Hist
+  module Prob = Prob
   module Pol = Pol(Prob)
+
+  module HSet = struct
+    include Set.Make(Hist)
+    let to_string t =
+      to_list t
+      |> List.map ~f:Hist.to_string
+      |> String.concat ~sep:", "
+      |> Printf.sprintf "{ %s }"
+  end
+
+  module Dist = struct
+    include Dist(HSet)(Prob)
+    let to_string t =
+      T.to_alist t
+      |> List.map ~f:(fun (hs, prob) ->
+        Printf.sprintf "%s @ %s" (HSet.to_string hs) (Prob.to_string prob))
+      |> String.concat ~sep:"\n"
+      |> Printf.sprintf "%s"
+    let print t =
+      print_endline (to_string t)
+  end
 
   let eval (n : int) (p : Pol.t) (inp : HSet.t) : Dist.t =
     let open Dist in
