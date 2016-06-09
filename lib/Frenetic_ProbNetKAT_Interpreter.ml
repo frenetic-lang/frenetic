@@ -230,7 +230,8 @@ module Interp (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
 
     and star (n : int) (p : Pol.t) (inp : HSet.t) : Dist.t =
       match n with
-      | 0 -> return inp
+      | 0 ->
+        return inp
       | _ ->
         let%bind a = eval p inp in
         let%bind b = star (n-1) p a in
