@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 952cfa9bd88fce052247a2eedf343d4b)
+# DO NOT EDIT (digest: 697b02ce0e711cba3db6d2c719a08665)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -16,6 +16,25 @@ true: annot, bin_annot
 "_darcs": not_hygienic
 # Library frenetic
 "lib/frenetic.cmxs": use_frenetic
+# Executable probnetkat_interp
+<lib/Frenetic_ProbNetKAT_Test.{native,byte}>: package(base64)
+<lib/Frenetic_ProbNetKAT_Test.{native,byte}>: package(camlp4)
+<lib/Frenetic_ProbNetKAT_Test.{native,byte}>: package(camlp4.extend)
+<lib/Frenetic_ProbNetKAT_Test.{native,byte}>: package(camlp4.lib)
+<lib/Frenetic_ProbNetKAT_Test.{native,byte}>: package(core)
+<lib/Frenetic_ProbNetKAT_Test.{native,byte}>: package(cstruct)
+<lib/Frenetic_ProbNetKAT_Test.{native,byte}>: package(ocamlgraph)
+<lib/Frenetic_ProbNetKAT_Test.{native,byte}>: package(ppx_deriving.enum)
+<lib/Frenetic_ProbNetKAT_Test.{native,byte}>: package(ppx_deriving.eq)
+<lib/Frenetic_ProbNetKAT_Test.{native,byte}>: package(ppx_deriving.make)
+<lib/Frenetic_ProbNetKAT_Test.{native,byte}>: package(ppx_deriving.show)
+<lib/Frenetic_ProbNetKAT_Test.{native,byte}>: package(ppx_jane)
+<lib/Frenetic_ProbNetKAT_Test.{native,byte}>: package(str)
+<lib/Frenetic_ProbNetKAT_Test.{native,byte}>: package(tcpip)
+<lib/Frenetic_ProbNetKAT_Test.{native,byte}>: package(threads)
+<lib/Frenetic_ProbNetKAT_Test.{native,byte}>: package(ulex)
+<lib/Frenetic_ProbNetKAT_Test.{native,byte}>: package(yojson)
+<lib/Frenetic_ProbNetKAT_Test.{native,byte}>: use_frenetic
 <lib/*.ml{,i,y}>: package(base64)
 <lib/*.ml{,i,y}>: package(camlp4)
 <lib/*.ml{,i,y}>: package(camlp4.extend)
@@ -33,25 +52,26 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: package(threads)
 <lib/*.ml{,i,y}>: package(ulex)
 <lib/*.ml{,i,y}>: package(yojson)
+<lib/*.ml{,i,y}>: use_frenetic
 # Executable probnetkat
-"examples/probnetkat/Test.byte": package(base64)
-"examples/probnetkat/Test.byte": package(camlp4)
-"examples/probnetkat/Test.byte": package(camlp4.extend)
-"examples/probnetkat/Test.byte": package(camlp4.lib)
-"examples/probnetkat/Test.byte": package(core)
-"examples/probnetkat/Test.byte": package(cstruct)
-"examples/probnetkat/Test.byte": package(ocamlgraph)
-"examples/probnetkat/Test.byte": package(ppx_deriving.enum)
-"examples/probnetkat/Test.byte": package(ppx_deriving.eq)
-"examples/probnetkat/Test.byte": package(ppx_deriving.make)
-"examples/probnetkat/Test.byte": package(ppx_deriving.show)
-"examples/probnetkat/Test.byte": package(ppx_jane)
-"examples/probnetkat/Test.byte": package(str)
-"examples/probnetkat/Test.byte": package(tcpip)
-"examples/probnetkat/Test.byte": package(threads)
-"examples/probnetkat/Test.byte": package(ulex)
-"examples/probnetkat/Test.byte": package(yojson)
-"examples/probnetkat/Test.byte": use_frenetic
+<examples/probnetkat/Test.{native,byte}>: package(base64)
+<examples/probnetkat/Test.{native,byte}>: package(camlp4)
+<examples/probnetkat/Test.{native,byte}>: package(camlp4.extend)
+<examples/probnetkat/Test.{native,byte}>: package(camlp4.lib)
+<examples/probnetkat/Test.{native,byte}>: package(core)
+<examples/probnetkat/Test.{native,byte}>: package(cstruct)
+<examples/probnetkat/Test.{native,byte}>: package(ocamlgraph)
+<examples/probnetkat/Test.{native,byte}>: package(ppx_deriving.enum)
+<examples/probnetkat/Test.{native,byte}>: package(ppx_deriving.eq)
+<examples/probnetkat/Test.{native,byte}>: package(ppx_deriving.make)
+<examples/probnetkat/Test.{native,byte}>: package(ppx_deriving.show)
+<examples/probnetkat/Test.{native,byte}>: package(ppx_jane)
+<examples/probnetkat/Test.{native,byte}>: package(str)
+<examples/probnetkat/Test.{native,byte}>: package(tcpip)
+<examples/probnetkat/Test.{native,byte}>: package(threads)
+<examples/probnetkat/Test.{native,byte}>: package(ulex)
+<examples/probnetkat/Test.{native,byte}>: package(yojson)
+<examples/probnetkat/Test.{native,byte}>: use_frenetic
 <examples/probnetkat/*.ml{,i,y}>: package(base64)
 <examples/probnetkat/*.ml{,i,y}>: package(camlp4)
 <examples/probnetkat/*.ml{,i,y}>: package(camlp4.extend)
