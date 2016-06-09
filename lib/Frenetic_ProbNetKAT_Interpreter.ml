@@ -77,9 +77,12 @@ end
 
 module type PROB = sig
   type t [@@deriving sexp, compare, show]
+  val zero : t
   val one : t
   val (+) : t -> t -> t
   val ( * ) : t -> t -> t
+  val ( / ) : t -> t -> t
+  val of_int : int -> t
   val to_string : t -> string
 end
 
@@ -135,6 +138,11 @@ module Dist (Point : Map.Key) (Prob : PROB) = struct
   let weighted_sum (list : (t * Prob.t) list) : t =
     List.map list ~f:(fun (t, p) -> scale t ~scalar:p)
     |> List.fold ~init:empty ~f:sum
+
+  (* expectation of random variable [f] w.r.t distribution [t] *)
+  let expectation t ~(f : Point.t -> Prob.t) : Prob.t =
+    T.fold t ~init:Prob.zero ~f:(fun ~key:point ~data:prob acc ->
+      Prob.(acc + prob * f point))
 
   (* Markov Kernel *)
   module Kernel = struct
@@ -238,5 +246,20 @@ module Interp (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
         return (HSet.union inp b)
 
     in eval p
+
+  let expectation (n : int) (p : Pol.t) (inp : Dist.t) ~(f : HSet.t -> Prob.t) =
+    let open Dist.Let_syntax in
+    inp >>= eval n p |> Dist.expectation ~f
+
+  let expectation' (n : int) (p : Pol.t) (inp : Dist.t) ~(f : Hist.t -> Prob.t) =
+    expectation n p inp ~f:(fun hset ->
+      let sum = HSet.fold hset ~init:Prob.zero ~f:(fun acc h ->
+        Prob.(acc + f h))
+      in
+      Prob.(sum / of_int (HSet.length hset)))
+
+  (* allows convenient specification of probabilities *)
+  let ( / ) (a : int) (b : int) : Prob.t =
+    Prob.(of_int a / of_int b)
 
 end

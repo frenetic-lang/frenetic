@@ -7,9 +7,12 @@ module PreciseProb = struct
   let num_of_sexp _ = failwith "<>"
   let sexp_of_num n = Sexp.of_string (string_of_num n)
   type t = num [@@deriving sexp, compare, show]
+  let zero = Int 0
   let one = Int 1
   let (+) a b = a +/ b
   let ( * ) a b = a */ b
+  let ( / ) a b = a // b
+  let of_int = num_of_int
   let to_string = string_of_num
 end
 
@@ -18,11 +21,9 @@ module FloatProb = struct
   let show _ = ""
 end
 
-let (/) (a : int) (b : int) : PreciseProb.t =
-  Num.(num_of_int a // num_of_int b)
+
 
 include Interp(Hist)(PreciseProb)
-
 
 
 let pk1 = Hist.make ()
