@@ -198,7 +198,7 @@ module Interp (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
       print_endline (to_string t)
   end
 
-  let eval (n : int) (p : Pol.t) (inp : HSet.t) : Dist.t =
+  let eval (n : int) (p : Pol.t) : Dist.Kernel.t =
     let open Dist in
     let open Dist.Let_syntax in
     let rec eval (p : Pol.t) (inp : HSet.t) : Dist.t =
@@ -220,10 +220,8 @@ module Interp (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
         let%bind a1 = eval q inp in
         let%bind a2 = eval r inp in
         return (HSet.union a1 a2)
-        (* SJS: union (eval q inp) (eval r inp) *)
       | Seq (q,r)->
         eval q inp >>= eval r
-        (* SJS: Kernel.seq (eval q) (eval r) inp *)
       | Choice dist ->
         List.map dist ~f:(fun (p, prob) -> (eval p inp, prob))
         |> Dist.weighted_sum
@@ -238,6 +236,6 @@ module Interp (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
         let%bind b = star (n-1) p a in
         return (HSet.union inp b)
 
-    in eval p inp
+    in eval p
 
 end
