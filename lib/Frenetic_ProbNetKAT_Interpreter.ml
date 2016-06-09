@@ -228,15 +228,16 @@ module Interp (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
       | Choice dist ->
         List.map dist ~f:(fun (p, prob) -> (eval p inp, prob))
         |> Dist.weighted_sum
-      | Star q -> star n q inp
+      | Star q ->
+        star n q inp
 
     and star (n : int) (p : Pol.t) (inp : HSet.t) : Dist.t =
       match n with
       | 0 -> return inp
       | _ ->
-          let%bind a = eval p inp in
-          let%bind b = star (n-1) p a in
-          return (HSet.union inp b)
+        let%bind a = eval p inp in
+        let%bind b = star (n-1) p a in
+        return (HSet.union inp b)
 
     in eval p inp
 
