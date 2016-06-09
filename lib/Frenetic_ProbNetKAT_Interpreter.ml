@@ -101,8 +101,7 @@ module Pol (Prob : PROB) = struct
   let ( ?? ) hv = Test hv
   let ( >> ) p q = Seq (p, q)
   let ( & ) p q = Union (p, q)
-  let ( @ ) a b = (a,b)
-  let ( ?@ ) dist = Choice dist (* -[p @ 1//2; q @ 1//2] *)
+  let ( ?@ ) dist = Choice dist (* ?@[p , 1//2; q , 1//2] *)
 
 end
 
