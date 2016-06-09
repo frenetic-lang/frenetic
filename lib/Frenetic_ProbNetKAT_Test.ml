@@ -18,7 +18,7 @@ module FloatProb = struct
   let show _ = ""
 end
 
-let (//) (a : int) (b : int) : PreciseProb.t =
+let (/) (a : int) (b : int) : PreciseProb.t =
   Num.(num_of_int a // num_of_int b)
 
 include Interp(Hist)(PreciseProb)
@@ -30,15 +30,16 @@ let mk_simple_dist alist =
   List.map ~f:(fun (pk, prob) -> (HSet.singleton pk, prob)) alist
   |> Dist.T.of_alist_exn
 
-let d1 = mk_simple_dist [(pk1, 1//2); (pk2, 1//2)]
+let d1 = mk_simple_dist [(pk1, 1/2); (pk2, 1/2)]
 
 open Pol
-let p1 = ?@[ !!(Switch 0) , 1//2
-           ; !!(Switch 1) , 1//2 ]
-let p2 = ?@[ !!(Switch 0) & !!(Switch 1) , 1//2
-           ; Drop                        , 1//2]
+let p1 = ?@[ !!(Switch 0) , 1/2
+           ; !!(Switch 1) , 1/2 ]
+let p2 = ?@[ !!(Switch 0) & !!(Switch 1) , 1/2
+           ; Drop                        , 1/2]
 
 let p3 = p1 >> Star (Dup >> p1)
+let p4 = p1 >> Star (??(Switch 0) >> Dup >> p1) >> ??(Switch 1)
 
 let n = 2
 
@@ -50,4 +51,6 @@ let () = begin
   Dist.print (eval n p2 (HSet.singleton pk1));
   print_endline "";
   Dist.print (eval n p3 (HSet.singleton pk1));
+  print_endline "";
+  Dist.print (eval (2*n) p4 (HSet.singleton pk1));
 end
