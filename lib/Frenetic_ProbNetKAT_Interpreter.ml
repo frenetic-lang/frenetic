@@ -14,7 +14,7 @@ type headerval =
 
 
 module type PSEUDOHISTORY = sig
-  include Map.Key
+  type t [@@deriving sexp, compare, show]
   val dup : t -> t
   val test : t -> hv:headerval -> bool
   val modify : t -> hv:headerval -> t
