@@ -194,7 +194,7 @@ module Interp (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
       |> List.map ~f:(fun (hs, prob) ->
         Printf.sprintf "%s @ %s" (HSet.to_string hs) (Prob.to_string prob))
       |> String.concat ~sep:"\n"
-      |> Printf.sprintf "%s"
+      |> Printf.sprintf "%s\n"
     let print t =
       print_endline (to_string t)
   end

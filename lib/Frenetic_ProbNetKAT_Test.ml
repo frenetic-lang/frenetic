@@ -45,12 +45,8 @@ let n = 2
 
 let () = begin
   Dist.print d1;
-  print_endline "";
   Dist.print (eval n p1 (HSet.singleton pk1));
-  print_endline "";
   Dist.print (eval n p2 (HSet.singleton pk1));
-  print_endline "";
   Dist.print (eval n p3 (HSet.singleton pk1));
-  print_endline "";
   Dist.print (eval (2*n) p4 (HSet.singleton pk1));
 end
