@@ -29,8 +29,11 @@ let mk_simple_dist alist =
 
 let d1 = mk_simple_dist [(pk1, 1//2); (pk2, 1//2)]
 
-let p1 = Pol.( ?@ [!!(Port 1) @ 1//2 ; !!(Port 2) @ 1//2] )
-let p2 = Pol.( ?@ [(!!(Port 1) & !!(Port 2)) @ 1//2 ; Drop @ 1//2] )
+open Pol
+let p1 = ?@[ !!(Port 1) , 1//2
+           ; !!(Port 2) , 1//2 ]
+let p2 = ?@[ !!(Port 1) & !!(Port 2) , 1//2
+           ; Drop                    , 1//2]
 
 let n = 0
 
