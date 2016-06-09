@@ -14,11 +14,13 @@ module PreciseProb = struct
   let ( / ) a b = a // b
   let of_int = num_of_int
   let to_string = string_of_num
+  let to_dec_string = approx_num_fix 10
 end
 
 module FloatProb = struct
   include Float
   let show _ = ""
+  let to_dec_string = Printf.sprintf "%.10f"
 end
 
 
@@ -34,11 +36,14 @@ open Pol
 let p1 = ?@[ !!(Switch 0) , 1/2
            ; !!(Switch 1) , 1/2 ]
 
+let p1' = ?@[ !!(Switch 0) , 9/10
+           ; !!(Switch 1) , 1/10 ]
+
 let p2 = ?@[ !!(Switch 0) & !!(Switch 1) , 1/2
            ; Drop                        , 1/2]
 
 let p3 = p1 >> Star (Dup >> p1)
-let p4 = p1 >> Star (??(Switch 0) >> Dup >> p1) >> ??(Switch 1)
+let p4 = p1' >> Star (??(Switch 0) >> Dup >> p1') >> ??(Switch 1)
 
 (* Random Variables (i.e, Queries) *)
 let q1 (pk,h) = Prob.of_int (List.length h + 1)
@@ -51,5 +56,9 @@ let () = begin
   Dist.print (eval n p2);
   Dist.print (eval n p3);
   Dist.print (eval (2*n) p4);
-  print_endline (expectation' (2*n) p4 ~f:q1 |> Prob.to_string);
+  for n=0 to 80 do
+    expectation' n p4 ~f:q1
+    |> Prob.to_dec_string
+    |> Printf.printf "n = %d: %s\n%!" n
+  done
 end

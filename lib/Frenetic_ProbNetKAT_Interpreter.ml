@@ -84,6 +84,7 @@ module type PROB = sig
   val ( / ) : t -> t -> t
   val of_int : int -> t
   val to_string : t -> string
+  val to_dec_string : t -> string (* decimal representation *)
 end
 
 
