@@ -63,7 +63,7 @@ module Hist = struct
 
   let to_string (pk,h) =
     List.map (pk::h) ~f:Pkt.to_string
-    |> String.concat ~sep:">>"
+    |> String.concat ~sep:"-"
 
   let make ?switch ?port ?id ?dst () =
     (Pkt.make ?switch ?port ?id ?dst (), [])
