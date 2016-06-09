@@ -15,24 +15,22 @@ module PreciseProb = struct
   let to_string = string_of_num
 end
 
+let (//) (a : int) (b : int) : PreciseProb.t =
+  Num.(num_of_int a // num_of_int b)
+
 include Interp(Pkt)(PreciseProb)
 
 let pk1 = Pkt.make ()
 let pk2 = Pkt.make ~switch:1 ()
 
-let (//) (a : int) (b : int) = Num.(num_of_int a // num_of_int b)
-
 let mk_simple_dist alist =
   List.map ~f:(fun (pk, prob) -> (HSet.singleton pk, prob)) alist
-  |> Dist.T.of_alist
-  |> function
-    | `Duplicate_key _ -> assert false
-    | `Ok x -> x
+  |> Dist.T.of_alist_exn
 
 let d1 = mk_simple_dist [(pk1, 1//2); (pk2, 1//2)]
 
 let p1 = Pol.( ?@ [!!(Port 1) @ 1//2 ; !!(Port 2) @ 1//2] )
-let p2 = Pol.( ?@ [(!!(Port 1) || !!(Port 2)) @ 1//2 ; Drop @ 1//2] )
+let p2 = Pol.( ?@ [(!!(Port 1) & !!(Port 2)) @ 1//2 ; Drop @ 1//2] )
 
 let n = 0
 
