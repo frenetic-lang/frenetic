@@ -12,6 +12,11 @@ type headerval =
   | Dst of int
   [@@ deriving sexp, compare, show]
 
+let string_of_headerval (hv : headerval) = match hv with
+  | Switch n  -> "Switch=" ^ (string_of_int n)
+  | Port n    -> "Port=" ^ (string_of_int n)
+  | Id n      -> "Id=" ^ (string_of_int n)
+  | Dst n     -> "Dst=" ^ (string_of_int n)
 
 module type PSEUDOHISTORY = sig
   type t [@@deriving sexp, compare]
@@ -101,11 +106,27 @@ module Pol (Prob : PROB) = struct
     | Dup
     [@@deriving sexp, compare, show]
 
-  let ( !! ) hv = Mod hv
   let ( ?? ) hv = Test hv
+  let ( !! ) hv = Mod hv
   let ( >> ) p q = Seq (p, q)
   let ( & ) p q = Union (p, q)
   let ( ?@ ) dist = Choice dist (* ?@[p , 1//2; q , 1//2] *)
+
+  let rec to_string = function
+    | Id -> "Id"
+    | Drop -> "Drop"
+    | Test hv -> "??" ^ (string_of_headerval hv)
+    | Mod hv -> "!!" ^ (string_of_headerval hv)
+    | Seq (p, q) -> (to_string p) ^ " >> " ^ (to_string q)
+    | Union (p, q) -> "& " ^ (to_string p) ^ " " ^ (to_string q)
+    | Choice dist -> begin
+      List.map ~f:(fun (pol, prob) ->
+        Printf.sprintf "%s @ %s" (to_string pol) (Prob.to_string prob)) dist
+      |> String.concat ~sep:" + "
+      |> Printf.sprintf "(%s)"
+      end
+    | Star p -> (to_string p) ^ "*"
+    | Dup -> "dup"
 
 end
 
