@@ -166,10 +166,40 @@ module Dist (Point : Map.Key) (Prob : PROB) = struct
   end
 
   (* probability monad *)
+  module Monad = struct
+    module Let_syntax = struct
+      let bind a b = Kernel.lift b a
+      let (>>=) a b = bind a b
+      let return = dirac
+    end
+    include Let_syntax
+  end
+
+
+
+end
+
+module SetDist (Point : Map.Key) (Prob : PROB) = struct
+  module PSet = Set.Make(Point)
+  module D = Dist(PSet)(Prob)
+
+  module SemiKernel = struct
+    type skernel = Point.t -> D.t
+
+    let lift (k : skernel) : D.Kernel.t =
+      PSet.fold ~init:(D.dirac PSet.empty) ~f:(fun acc p ->
+        let open D.Monad in
+        let%bind a1 = k p in
+        let%bind a2 = acc in
+        return (PSet.union a1 a2))
+
+    type t = skernel
+  end
+
   module Let_syntax = struct
-    let bind a b = Kernel.lift b a
+    let bind a b = D.Kernel.lift (SemiKernel.lift b) a
     let (>>=) a b = bind a b
-    let return = dirac
+    let return p = D.dirac (PSet.singleton p)
   end
 
 end
@@ -208,29 +238,26 @@ module Interp (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
   end
 
   let eval (n : int) (p : Pol.t) : Dist.Kernel.t =
-    let open Dist in
-    let open Dist.Let_syntax in
+    let open Dist.Monad in
     let rec eval (p : Pol.t) (inp : HSet.t) : Dist.t =
       match p with
       | Id ->
-        dirac inp
+        return inp
       | Drop ->
-        dirac HSet.empty
+        return HSet.empty
       | Dup ->
-        HSet.map inp ~f:Hist.dup
-        |> dirac
+        return (HSet.map inp ~f:Hist.dup)
       | Test hv ->
-        HSet.filter inp ~f:(Hist.test ~hv)
-        |> dirac
+        return (HSet.filter inp ~f:(Hist.test ~hv))
       | Mod hv ->
-        HSet.map inp ~f:(Hist.modify ~hv)
-        |> dirac
+        return (HSet.map inp ~f:(Hist.modify ~hv))
       | Union (q,r) ->
         let%bind a1 = eval q inp in
         let%bind a2 = eval r inp in
         return (HSet.union a1 a2)
       | Seq (q,r)->
-        eval q inp >>= eval r
+        let%bind a = eval q inp in
+        eval r a
       | Choice dist ->
         List.map dist ~f:(fun (p, prob) -> (eval p inp, prob))
         |> Dist.weighted_sum
@@ -248,9 +275,11 @@ module Interp (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
 
     in eval p
 
+  (* Given RV f : 2^H -> |R, compute expectation E[f] w.r.t. distribution
+     mu = [|p|]_n inp  *)
   let expectation ?(inp=Dist.dirac (HSet.singleton (Hist.make ()))) (n : int)
     (p : Pol.t) ~(f : HSet.t -> Prob.t) =
-    let open Dist.Let_syntax in
+    let open Dist.Monad in
     inp >>= eval n p |> Dist.expectation ~f
 
   let expectation' ?(inp : Dist.t option) (n : int) (p : Pol.t)  ~(f : Hist.t -> Prob.t) =
