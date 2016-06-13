@@ -38,6 +38,14 @@ Executable probnetkat_interp
     prob
   MainIs: Frenetic_ProbNetKAT_Test.ml
 
+Executable probnetkat_te
+  Path: lib
+  CompiledObject: best
+  BuildDepends:
+    prob
+  MainIs: Frenetic_ProbNetKAT_TE.ml
+
+
 Test probnetkat_test
   Run: true
   TestTools: probnetkat_interp
@@ -49,11 +57,15 @@ Library prob
   Build: true
   BuildDepends:
     core,
+    cstruct,
+    ocamlgraph (>= 0.8.6),
     ppx_jane,
     ppx_deriving.eq,
     ppx_deriving.enum,
     ppx_deriving.show,
-    ppx_deriving.make
+    ppx_deriving.make,
+    str,
+    tcpip
   Modules:
     Frenetic_ProbNetKAT_Interpreter
 
