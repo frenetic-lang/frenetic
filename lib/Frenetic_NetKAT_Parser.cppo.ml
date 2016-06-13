@@ -34,6 +34,8 @@ let nk_int32 = Gram.Entry.mk "nk_int32"
 let nk_int = Gram.Entry.mk "nk_int"
 let nk_ipv4 = Gram.Entry.mk "nk_ipv4"
 let nk_loc = Gram.Entry.mk "nk_loc"
+let nk_string_constant = Gram.Entry.mk "nk_string_constant"
+let nk_pkt_dest = Gram.Entry.mk "nk_pkt_dest"
 
 EXTEND Gram
 
@@ -65,8 +67,15 @@ EXTEND Gram
         MK((ID(switch),ID(port)))
   ]];
 
+  nk_string_constant: [[
+      sc = STRING_CONSTANT -> MK(STR(sc))
+  ]];
+
   nk_pred_atom: [[
-      "("; a = nk_pred; ")" -> a
+      "("; a = nk_pred; ")" ->
+      a
+    | "begin"; a = nk_pred; "end" ->
+      a
     | "true" ->
       MK(True)
     | "false" ->
@@ -132,8 +141,17 @@ EXTEND Gram
       a = nk_pred_or -> a
   ]];
 
+  nk_pkt_dest: [[
+      n = nk_int32 -> MK(Physical n)
+    | "query"; "("; q = nk_string_constant; ")" -> MK(Query q)
+    | "pipe"; "("; p = nk_string_constant; ")" -> MK(Pipe p)
+  ]];
+
   nk_pol_atom: [[
-      "("; p = nk_pol; ")" -> p
+      "("; p = nk_pol; ")" ->
+      p
+    | "begin"; p = nk_pol; "end" ->
+      p
     | "id" ->
       MK(id)
     | "drop" ->
@@ -142,8 +160,8 @@ EXTEND Gram
       MK(Filter ID(a))
     | "switch"; ":="; sw = nk_int64 ->
       MK(Mod (Switch ID(sw)))
-    | "port"; ":="; n = nk_int32 ->
-      MK(Mod (Location (Physical ID(n))))
+    | "port"; ":="; l = nk_pkt_dest ->
+      MK(Mod (Location l))
     | "vswitch"; ":="; sw = nk_int64 ->
       MK(Mod (VSwitch ID(sw)))
     | "vport"; ":="; n = nk_int64 ->
@@ -237,7 +255,7 @@ let pred_of_string ?(loc=(Loc.mk "<N/A>")) (s : string) =
   pred_of_stream ~loc (Stream.of_string s)
 
 let policy_of_file (file : string) =
-   policy_of_stream ~loc:(Loc.mk file) (In_channel.with_file file ~f:Stream.of_channel)
+  In_channel.with_file file ~f:(fun ch -> policy_of_stream ~loc:(Loc.mk file) (Stream.of_channel ch))
 
 let pred_of_file (file : string) =
-   pred_of_stream ~loc:(Loc.mk file) (In_channel.with_file file ~f:Stream.of_channel)
+  In_channel.with_file file ~f:(fun ch -> pred_of_stream ~loc:(Loc.mk file) (Stream.of_channel ch))

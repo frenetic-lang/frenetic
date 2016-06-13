@@ -7,7 +7,6 @@ from tornado.ioloop import IOLoop
 from frenetic.syntax import PacketIn, PacketOut
 from tornado.concurrent import return_future
 from tornado import gen
-from ryu.lib.packet import *
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
@@ -43,6 +42,7 @@ class App(object):
         print "established connection to Frenetic controller"
 
     def packet(self, payload, protocol):
+        from ryu.lib.packet import packet
         pkt = packet.Packet(array.array('b', payload.data))
         for p in pkt:
             if p.protocol_name == protocol:
@@ -50,10 +50,7 @@ class App(object):
         return None
 
     def pkt_out(self, switch_id, payload, actions, in_port=None):
-        msg = PacketOut(switch=switch_id,
-                        payload=payload,
-                        actions=actions,
-                        in_port=in_port)
+        msg = PacketOut(switch=switch_id, payload=payload, actions=actions, in_port=in_port)
         pkt_out_url = "http://%s:%s/pkt_out" % (self.frenetic_http_host, self.frenetic_http_port)
         request = HTTPRequest(pkt_out_url, method='POST', body=json.dumps(msg.to_json()))
         return self.__http_client.fetch(request)

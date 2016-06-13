@@ -3,7 +3,7 @@ open Frenetic_Network
 open Frenetic_OpenFlow
 
 module Compiler = Frenetic_NetKAT_Compiler
-module FDK = Frenetic_Fdd.FDK
+module FDD = Frenetic_Fdd.FDD
 
 type pred   = Frenetic_NetKAT.pred
 type policy = Frenetic_NetKAT.policy
@@ -171,7 +171,7 @@ let rec remove_dups (pol:policy) : policy =
 (** for the policy, and the beta is the modification. Alpha corresponds to the
     internal nodes in the FDD and the beta to the leaves *)
 let extract (pol:policy) : stream list =
-  let open FDK in
+  let open FDD in
   let module NK = Frenetic_NetKAT in
 
   (* This returns a list of paths, where the each path is a list of

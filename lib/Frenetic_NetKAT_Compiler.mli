@@ -10,11 +10,12 @@ type order
     | `Static of Field.t list
     | `Heuristic ]
 
-type t = Frenetic_Fdd.FDK.t
+type t = Frenetic_Fdd.FDD.t
 (** The type of the intermediate compiler representation (FDD). *)
 
 type automaton
 (** The type of the automata representation of a global NetKAT program *)
+val to_dot : t -> string
 
 type cache
   = [ `Keep

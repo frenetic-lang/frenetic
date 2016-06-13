@@ -51,7 +51,7 @@ let modify_from_json (json : json) : action =
   let header_val = Frenetic_NetKAT_Json.from_json_header_val(json) in
   let set_field_val = match header_val with
   | EthSrc m -> SetEthSrc m
-  | EthDst m -> SetEthSrc m
+  | EthDst m -> SetEthDst m
   | Vlan vl -> SetVlan (Some vl)
   | VlanPcp n -> SetVlanPcp n
   | EthType n -> SetEthTyp n 

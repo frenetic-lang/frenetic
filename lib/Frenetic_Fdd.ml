@@ -288,7 +288,7 @@ module Pattern = struct
   type t = Field.t * Value.t
   [@@deriving compare]
 
-  let to_string (f, v) =    
+  let to_string (f, v) =
     Printf.sprintf "%s = %s" (Field.to_string f) (Value.to_string v)
 
   let equal a b =
@@ -623,13 +623,13 @@ module Action = struct
 
 end
 
-module FDK = struct
+module FDD = struct
 
   include Frenetic_Vlr.Make(Field)(Value)(Action)
 
   let mk_cont k = mk_leaf Action.(Par.singleton (Seq.singleton K (Value.of_int k)))
 
-  let conts fdk =
+  let conts fdd =
     fold
       (fun par ->
         Action.Par.fold par ~init:Int.Set.empty ~f:(fun acc seq ->
@@ -637,14 +637,14 @@ module FDK = struct
           | None -> acc
           | Some k -> Value.to_int_exn k |> Int.Set.add acc))
       (fun _ t f -> Set.union t f)
-      fdk
+      fdd
 
-  let map_conts fdk ~(f: int -> int) =
+  let map_conts fdd ~(f: int -> int) =
     let open Action in
     let f par = Par.map par ~f:(fun seq -> Seq.change seq K (function
       | None -> failwith "continuation expected, but none found"
       | Some k -> Some (k |> Value.to_int_exn |> f |> Value.of_int)))
     in
-    map_r f fdk
+    map_r f fdd
 
 end

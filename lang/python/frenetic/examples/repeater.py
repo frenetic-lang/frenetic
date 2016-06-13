@@ -26,8 +26,7 @@ class MyApp(frenetic.App):
         return Filter( SwitchEq(sw) ) >> p
 
     def port_policy(self, in_port, ports):
-        out_ports = [port for port in ports if port != in_port]
-        p = Union(SetPort(p) for p in out_ports)
+        p = SetPort([port for port in ports if port != in_port])
         return Filter( PortEq(in_port) ) >> p
 
     def switch_up(self,switch_id,ports):

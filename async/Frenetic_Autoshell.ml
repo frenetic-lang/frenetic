@@ -324,7 +324,7 @@ let compile_local (c:configuration) =
   try
     let fdd = compile_local ~options:keep_cache c.policy in
     log "Compiled local policy to FDD:\n%s\n"
-      (Frenetic_Fdd.FDK.to_string fdd);
+      (Frenetic_Fdd.FDD.to_string fdd);
     Ok { c with fdd = Some fdd }
   with Non_local ->
     Error "Given policy is not local. It contains links."
@@ -336,7 +336,7 @@ let compile_global (c:configuration) =
       (Compiler.automaton_to_string automaton);
   let fdd = compile_from_automaton automaton in
   log "Compiled global policy to FDD:\n%s\n"
-    (Frenetic_Fdd.FDK.to_string fdd);
+    (Frenetic_Fdd.FDD.to_string fdd);
   Ok { c with fdd = Some fdd; automaton = Some automaton }
 
 let compile_fabric (f:fabric) =
