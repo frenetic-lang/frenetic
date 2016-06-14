@@ -16,15 +16,75 @@ exception NonFilterNode of policy
 exception ClashException of string
 exception CorrelationException of string
 
-let strip_vlan = 0xffff
+(** Utility functions *)
+
+let string_of_loc ((sw,pt):loc) =
+  sprintf "(%Ld:%ld)" sw pt
+
+let string_of_stream (pred, act) =
+  sprintf "Condition: %s\nAction: %s\n" (Frenetic_NetKAT_Pretty.string_of_pred pred)
+    (Frenetic_NetKAT_Pretty.string_of_policy act)
+
+let string_of_located_stream ((sw,pt),(sw',pt'),stream) =
+  let src = sprintf "Source: Switch: %Ld Port:%ld" sw pt in
+  let sink = sprintf "Sink: Switch: %Ld Port:%ld" sw' pt' in
+  let stream = string_of_stream stream in
+  String.concat ~sep:"\n" [src; sink; stream]
+
+let string_of_pred   = Frenetic_NetKAT_Pretty.string_of_pred
+let string_of_policy = Frenetic_NetKAT_Pretty.string_of_policy
 
 let compile_local =
   let open Compiler in
   compile_local ~options:{ default_compiler_options with cache_prepare = `Keep }
 
-let seq = Frenetic_NetKAT_Optimize.mk_big_seq
+let seq   = Frenetic_NetKAT_Optimize.mk_big_seq
 let union = Frenetic_NetKAT_Optimize.mk_big_union
 
+let conjoin (preds:pred list) : pred =
+  let open Frenetic_Fdd in
+  let module NK = Frenetic_NetKAT in
+  let clash f v vs =
+    let vstring = String.concat ~sep:";" (List.map ~f:Value.to_string vs) in
+    sprintf "Field (%s) expected to have clashing values of (%s) and (%s) "
+      (Field.to_string f) (Value.to_string v) vstring in
+  let tbl = Hashtbl.Poly.create ~size:(List.length preds) () in
+  let aux (p:pred) = match p with
+    | True -> ()
+    | False -> ()
+    | Test hv ->
+      let field, value = Frenetic_Fdd.Pattern.of_hv hv in
+      Hashtbl.Poly.update tbl field ~f:(function
+          | None -> (`Pos value)
+          | Some (`Pos v) ->
+            let msg = clash field value [v] in
+            raise (ClashException msg)
+          | Some (`Neg vs) ->
+            let msg = clash field value vs in
+            raise (ClashException msg))
+    | Neg( Test hv ) ->
+      let field, value = Frenetic_Fdd.Pattern.of_hv hv in
+      Hashtbl.Poly.update tbl field ~f:(function
+          | None -> (`Neg [value])
+          | Some (`Neg vs) -> (`Neg (value::vs))
+          | Some (`Pos v) ->
+            let msg = sprintf "Field (%s) expected to have clashing values of (%s) and (%s)."
+                (Field.to_string field) (Value.to_string value) (Value.to_string v) in
+            raise (ClashException msg))
+    | p -> raise (ClashException( string_of_pred p)) in
+  List.iter preds aux ;
+  let ps = Hashtbl.Poly.fold tbl ~init:[] ~f:(fun ~key:field ~data:value acc ->
+      match value with
+      | `Pos value ->
+        (NK.Test (Frenetic_Fdd.Pattern.to_hv (field, value)))::acc
+      | `Neg vs ->
+        List.fold_left vs ~init:acc ~f:(fun acc v ->
+            NK.Neg( NK.Test( Frenetic_Fdd.Pattern.to_hv (field, v)))::acc)) in
+  Frenetic_NetKAT_Optimize.mk_big_and ps
+
+(** Fabric generators, from a topology or policy *)
+
+let strip_vlan = 0xffff
 let mk_flow (pat:Pattern.t) (actions:group) : flow =
   { pattern = pat
   ; action = actions
@@ -194,28 +254,13 @@ let extract (pol:policy) : stream list =
   (* Partition a path through the FDD into the condition and the action. *)
   let partition ((pol,preds): (NK.policy * NK.pred list)) =
       let action = pol in
-      let condition = Frenetic_NetKAT_Optimize.mk_big_and preds in
+      let condition = conjoin preds in
       (condition, action)
   in
   let deduped = remove_dups pol in
   let fdd = compile_local deduped in
   let paths = get_paths fdd [] in
   List.map paths ~f:partition
-
-let string_of_loc ((sw,pt):loc) =
-  sprintf "(%Ld:%ld)" sw pt
-
-let string_of_stream (pred, act) =
-  sprintf "Condition: %s\nAction: %s\n" (Frenetic_NetKAT_Pretty.string_of_pred pred)
-    (Frenetic_NetKAT_Pretty.string_of_policy act)
-
-let string_of_located_stream ((sw,pt),(sw',pt'),stream) =
-  let src = sprintf "Source: Switch: %Ld Port:%ld" sw pt in
-  let sink = sprintf "Sink: Switch: %Ld Port:%ld" sw' pt' in
-  let stream = string_of_stream stream in
-  String.concat ~sep:"\n" [src; sink; stream]
-
-let string_of_policy = Frenetic_NetKAT_Pretty.string_of_policy
 
 (* Given a policy, guard it with the ingresses, sequence and iterate with the *)
 (* topology and guard with the egresses, i.e. form in;(p.t)*;p;out *)
