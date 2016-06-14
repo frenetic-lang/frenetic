@@ -9,6 +9,7 @@ type headerval =
   | Switch of int
   | Port of int
   | Id of int
+  | Src of int
   | Dst of int
   [@@ deriving sexp, compare, show]
 
@@ -16,6 +17,7 @@ let string_of_headerval (hv : headerval) = match hv with
   | Switch n  -> "Switch=" ^ (string_of_int n)
   | Port n    -> "Port=" ^ (string_of_int n)
   | Id n      -> "Id=" ^ (string_of_int n)
+  | Src n     -> "Src=" ^ (string_of_int n)
   | Dst n     -> "Dst=" ^ (string_of_int n)
 
 module type PSEUDOHISTORY = sig
@@ -32,6 +34,7 @@ module Pkt = struct
   type t = { switch : int [@default 0];
              port : int [@default 0];
              id : int [@default 0];
+             src : int [@default 0];
              dst : int [@default 0];
            } [@@deriving sexp, compare, show, make]
 
@@ -42,6 +45,7 @@ module Pkt = struct
     | Switch sw -> pk.switch = sw
     | Port pt -> pk.port = pt
     | Id id -> pk.id = id
+    | Src s -> pk.src = s
     | Dst d -> pk.dst = d
 
   let modify pk ~(hv:headerval) : t =
@@ -49,6 +53,7 @@ module Pkt = struct
     | Switch sw -> { pk with switch = sw }
     | Port pt -> { pk with port = pt }
     | Id id -> { pk with id = id }
+    | Src s -> { pk with src = s }
     | Dst d -> { pk with dst = d }
 
   let to_string t =
