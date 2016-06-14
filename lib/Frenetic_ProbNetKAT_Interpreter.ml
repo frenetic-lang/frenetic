@@ -57,7 +57,7 @@ module Pkt = struct
     | Dst d -> { pk with dst = d }
 
   let to_string t =
-    Printf.sprintf "%d|%d|%d|%d" t.switch t.port t.id t.dst
+    Printf.sprintf "%d|%d|%d|%d|%d" t.switch t.port t.id t.src t.dst
     (* Printf.sprintf "%d" t.switch *)
 end
 
@@ -148,7 +148,7 @@ module Pol (Prob : PROB) = struct
     | Union (p, q) -> "(" ^ (to_string p) ^ ")\n& (" ^ (to_string q) ^ ")"
     | Choice dist -> begin
       List.map ~f:(fun (pol, prob) ->
-        Printf.sprintf "%s @ %s" (to_string pol) (Prob.to_string prob)) dist
+        Printf.sprintf "[%s @ %s]" (to_string pol) (Prob.to_string prob)) dist
       |> String.concat ~sep:" [+] "
       |> Printf.sprintf "(%s)"
       end
