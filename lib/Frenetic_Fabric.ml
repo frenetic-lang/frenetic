@@ -8,6 +8,14 @@ module FDD = Frenetic_Fdd.FDD
 type pred   = Frenetic_NetKAT.pred
 type policy = Frenetic_NetKAT.policy
 type fabric = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
+
+type check =
+  | Pos of Frenetic_Fdd.Value.t
+  | Neg of Frenetic_Fdd.Value.t list
+
+type branch = Frenetic_Fdd.Field.t * check
+
+type raw_stream = branch list * Frenetic_Fdd.Action.t
 type stream = (pred * policy)
 type loc    = (switchId * portId)
 type located_stream = ( loc * loc * stream )
@@ -40,48 +48,6 @@ let compile_local =
 
 let seq   = Frenetic_NetKAT_Optimize.mk_big_seq
 let union = Frenetic_NetKAT_Optimize.mk_big_union
-
-let conjoin (preds:pred list) : pred =
-  let open Frenetic_Fdd in
-  let module NK = Frenetic_NetKAT in
-  let clash f v vs =
-    let vstring = String.concat ~sep:";" (List.map ~f:Value.to_string vs) in
-    sprintf "Field (%s) expected to have clashing values of (%s) and (%s) "
-      (Field.to_string f) (Value.to_string v) vstring in
-  let tbl = Hashtbl.Poly.create ~size:(List.length preds) () in
-  let aux (p:pred) = match p with
-    | True -> ()
-    | False -> ()
-    | Test hv ->
-      let field, value = Frenetic_Fdd.Pattern.of_hv hv in
-      Hashtbl.Poly.update tbl field ~f:(function
-          | None -> (`Pos value)
-          | Some (`Pos v) ->
-            let msg = clash field value [v] in
-            raise (ClashException msg)
-          | Some (`Neg vs) ->
-            let msg = clash field value vs in
-            raise (ClashException msg))
-    | Neg( Test hv ) ->
-      let field, value = Frenetic_Fdd.Pattern.of_hv hv in
-      Hashtbl.Poly.update tbl field ~f:(function
-          | None -> (`Neg [value])
-          | Some (`Neg vs) -> (`Neg (value::vs))
-          | Some (`Pos v) ->
-            let msg = sprintf "Field (%s) expected to have clashing values of (%s) and (%s)."
-                (Field.to_string field) (Value.to_string value) (Value.to_string v) in
-            raise (ClashException msg))
-    | p -> raise (ClashException( string_of_pred p)) in
-  List.iter preds aux ;
-  let ps = Hashtbl.Poly.fold tbl ~init:[] ~f:(fun ~key:field ~data:value acc ->
-      match value with
-      | `Pos value ->
-        (NK.Test (Frenetic_Fdd.Pattern.to_hv (field, value)))::acc
-      | `Neg vs ->
-        List.fold_left vs ~init:acc ~f:(fun acc v ->
-            NK.Neg( NK.Test( Frenetic_Fdd.Pattern.to_hv (field, v)))::acc)) in
-  Frenetic_NetKAT_Optimize.mk_big_and ps
-
 (** Fabric generators, from a topology or policy *)
 
 let strip_vlan = 0xffff
@@ -254,9 +220,49 @@ let extract (pol:policy) : stream list =
   (* Partition a path through the FDD into the condition and the action. *)
   let partition ((pol,preds): (NK.policy * NK.pred list)) =
       let action = pol in
-      let condition = conjoin preds in
+      let condition = Frenetic_NetKAT_Optimize.mk_big_and preds in
       (condition, action)
   in
+  let deduped = remove_dups pol in
+  let fdd = compile_local deduped in
+  let paths = get_paths fdd [] in
+  List.map paths ~f:partition
+
+let raw_extract (pol:policy) : raw_stream list =
+  let module NK = Frenetic_NetKAT in
+
+  let rec get_paths id path =
+    let open FDD in
+    let node = unget id in
+    match node with
+    | Branch ((v,l), t, f) ->
+      let true_pred = (v, Pos l) in
+      let true_paths = get_paths t ( true_pred::path ) in
+      let false_pred = (v, Neg [l]) in
+      let false_paths = get_paths f ( false_pred::path ) in
+      List.unordered_append true_paths false_paths
+    | Leaf r ->
+      [ (r, path) ] in
+
+  let partition (action, conds) : raw_stream =
+    let open Frenetic_Fdd in
+    let tbl = Hashtbl.Poly.create ~size:(List.length conds) () in
+    let fuse f c1 c2 = match c1, c2 with
+      | Pos v, Neg vs -> Pos v
+      | Neg vs, Pos v -> Pos v
+      | Neg v1, Neg v2 -> Neg (List.unordered_append v1 v2)
+      | Pos v1, Pos v2 ->
+        let msg = sprintf "Field (%s) expected to have clashing values of (%s) and (%s) "
+            (Field.to_string f) (Value.to_string v1) (Value.to_string v2) in
+        raise (ClashException msg) in
+    List.iter conds ~f:(fun (field,check) ->
+        Hashtbl.Poly.update tbl field ~f:(function
+            | None -> check
+            | Some c -> fuse field c check));
+    let branches = Hashtbl.Poly.fold tbl ~init:[]
+        ~f:(fun ~key:field ~data:value acc -> (field, value)::acc) in
+    (branches, action) in
+
   let deduped = remove_dups pol in
   let fdd = compile_local deduped in
   let paths = get_paths fdd [] in
@@ -413,6 +419,17 @@ let locate_or_drop (located, dropped) (stream:stream) =
           (string_of_stream stream) in
       print_endline msg;
       (located,dropped)
+
+let locate_from_branches (bs: branch list) =
+  let open Frenetic_Fdd in
+  let swopt, ptopt = List.fold_left bs ~init:(None, None)
+      ~f:(fun (swacc, ptacc) (field, check) -> match field,check with
+          | Switch, Pos v ->
+            ( Some( Int64.of_int ( Value.to_int_exn v )), ptacc)
+          | Location, Pos v  ->
+            (swacc, Some( Int32.of_int_exn ( Value.to_int_exn v ) ))
+          | _ -> (swacc, ptacc)) in
+  locate_from_options (swopt, ptopt)
 
 (** Start implementing graph-based retargeting. *)
 
