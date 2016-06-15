@@ -145,7 +145,7 @@ let rec token c = lexer
     | "true" | "false" | "switch" | "port" | "vswitch" | "vport" | "vfabric"
     | "vlanId" | "vlanPcp" | "ethTyp" | "ipProto" | "tcpSrcPort" | "tcpDstPort"
     | "ethSrc" | "ethDst" | "ip4Src"| "ip4Dst" | "and" | "or" | "not" | "id"
-    | "drop" | "if" | "then" | "else" | "filter"  | "pipe" | "query"
+    | "drop" | "if" | "then" | "else" | "filter"  | "pipe" | "query" | "channel"
     | "begin" | "end" ->
       KEYWORD (L.latin1_lexeme c.lexbuf)
   | "\"" arbitrary_string_without_dbl_quote "\"" ->
