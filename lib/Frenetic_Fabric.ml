@@ -48,6 +48,8 @@ let compile_local =
 
 let seq   = Frenetic_NetKAT_Optimize.mk_big_seq
 let union = Frenetic_NetKAT_Optimize.mk_big_union
+
+
 (** Fabric generators, from a topology or policy *)
 
 let strip_vlan = 0xffff
@@ -280,6 +282,7 @@ let assemble (pol:policy) (topo:policy) ings egs : policy =
         Star(Seq(pol, topo)); pol;
         egresses ]
 
+(** Functions for finding adjacent nodes in a given topology *)
 let find_predecessors (topo:policy) =
   let open Frenetic_NetKAT in
   let switch_table = Hashtbl.Poly.create () in
@@ -324,6 +327,7 @@ let succeeds tbl (sw,_) (sw',pt') =
   | Some (post_sw, post_pt) -> if post_sw = sw then Some post_pt else None
   | None -> None
 
+(** Location-related functions *)
 let combine_locations ?(hdr="Clash detected") p1 p2 = match p1, p2 with
   | (None    , None    ), (None,    None) ->
     (None, None)
@@ -401,6 +405,17 @@ let locate_endpoints ((pred, pol):stream) =
   | Error s, Ok _ -> Error s
   | Error s, Error s' -> Error (String.concat ~sep:"\n" [s;s'])
 
+let locate_from_branches (bs: branch list) =
+  let open Frenetic_Fdd in
+  let swopt, ptopt = List.fold_left bs ~init:(None, None)
+      ~f:(fun (swacc, ptacc) (field, check) -> match field,check with
+          | Switch, Pos v ->
+            ( Some( Int64.of_int ( Value.to_int_exn v )), ptacc)
+          | Location, Pos v  ->
+            (swacc, Some( Int32.of_int_exn ( Value.to_int_exn v ) ))
+          | _ -> (swacc, ptacc)) in
+  locate_from_options (swopt, ptopt)
+
 let locate ((pol,pol'):stream) =
   let locs = locate_endpoints (pol,pol') in
   match locs with
@@ -419,17 +434,6 @@ let locate_or_drop (located, dropped) (stream:stream) =
           (string_of_stream stream) in
       print_endline msg;
       (located,dropped)
-
-let locate_from_branches (bs: branch list) =
-  let open Frenetic_Fdd in
-  let swopt, ptopt = List.fold_left bs ~init:(None, None)
-      ~f:(fun (swacc, ptacc) (field, check) -> match field,check with
-          | Switch, Pos v ->
-            ( Some( Int64.of_int ( Value.to_int_exn v )), ptacc)
-          | Location, Pos v  ->
-            (swacc, Some( Int32.of_int_exn ( Value.to_int_exn v ) ))
-          | _ -> (swacc, ptacc)) in
-  locate_from_options (swopt, ptopt)
 
 (** Start implementing graph-based retargeting. *)
 
