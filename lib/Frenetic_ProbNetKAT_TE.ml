@@ -17,6 +17,7 @@ end
 
 module VertexMap = Map.Make(VertexOrd)
 module IntMap = Map.Make(Int)
+module StringMap = Map.Make(String)
 
 module SrcDstOrd = struct
   type t = Topology.vertex * Topology.vertex [@@deriving sexp]
@@ -54,7 +55,7 @@ let dump_edges (t:Topology.t) (es:path) : string =
 
 let dump_path_prob_set (t:Topology.t) (pps: flow_decomp) : string =
   let buf = Buffer.create 101 in
-  PathMap.iter
+  PathMap.iteri
     pps
     ~f:(fun ~key:path ~data:prob ->
       Printf.bprintf buf "[%s] @ %f\n" (dump_edges t path) (float_of_num prob));
@@ -62,7 +63,7 @@ let dump_path_prob_set (t:Topology.t) (pps: flow_decomp) : string =
 
 let dump_scheme (t:Topology.t) (s:scheme) : string =
   let buf = Buffer.create 101 in
-  SrcDstMap.iter s
+  SrcDstMap.iteri s
     ~f:(fun ~key:(v1,v2) ~data:pps ->
       Printf.bprintf buf "%s -> %s :\n  %s\n"
           (Node.name (Net.Topology.vertex_to_label t v1))
@@ -111,8 +112,8 @@ let topo_to_pnk (topo : Topology.t) (v_id, id_v) =
     if pol_acc = Drop then
       edge_prog
     else
-      Union (edge_prog, pol_acc)
-    ) topo Drop
+      edge_prog & pol_acc)
+    topo Drop
 
 (******************* Routing Schemes *******************)
 
@@ -245,7 +246,9 @@ let route_ksp (topo : Topology.t) (k : int) : scheme =
               PathMap.add acc ~key:path ~data:prob) in
       SrcDstMap.add acc ~key:(v1,v2) ~data:path_map)
 
+(**** Translate routing schemes to ProbNetKAT policies *****)
 let path_to_pnk (topo : Topology.t) (path : path) (include_links : bool) (v_id, id_v) =
+  (* translate a path *)
   let (_,_), pol = List.fold_left path
     ~init:((0,0), Drop)
     ~f:(fun ((in_sw_id, in_pt_id), pol) edge ->
@@ -274,6 +277,7 @@ let path_to_pnk (topo : Topology.t) (path : path) (include_links : bool) (v_id, 
       pol
 
 let routing_scheme_to_pnk (topo : Topology.t) (routes : scheme) (include_links : bool) (v_id, id_v) =
+  (* translate a routing scheme *)
   SrcDstMap.fold routes ~init:Drop
     ~f:(fun ~key:(src,dst) ~data:path_dist pol_acc ->
       if src = dst then
@@ -290,23 +294,60 @@ let routing_scheme_to_pnk (topo : Topology.t) (routes : scheme) (include_links :
         if pol_acc = Drop then
           sd_route_pol
         else
-          Union (pol_acc, sd_route_pol))
+          pol_acc & sd_route_pol)
 
-let q1 (pk,h) = (Prob.of_int (List.length h )) // (Prob.of_int 2)
+(**** ProbNetKAT queries ****)
+let path_length (pk,h) = (Prob.of_int (List.length h )) // (Prob.of_int 2)
+let num_packets (pk,h) = Prob.of_int 1
+let inp_dist_3eq = ?@[ !!(Switch 101) >> !!(Port 1) >> !!(Src 101) >> !!(Dst 102), 1/6
+                ;  !!(Switch 101) >> !!(Port 1) >> !!(Src 101) >> !!(Dst 103), 1/6
+                ;  !!(Switch 102) >> !!(Port 1) >> !!(Src 102) >> !!(Dst 101), 1/6
+                ;  !!(Switch 102) >> !!(Port 1) >> !!(Src 102) >> !!(Dst 103), 1/6
+                ;  !!(Switch 103) >> !!(Port 1) >> !!(Src 103) >> !!(Dst 101), 1/6
+                ;  !!(Switch 103) >> !!(Port 1) >> !!(Src 103) >> !!(Dst 102), 1/6 ]
 
-let analyze_routing_scheme (routing_pol : Pol.t) (topo_pol : Pol.t) (include_links_in_path : bool) =
+let read_demands (dem_file : string) (topo : Topology.t) =
+  let str_node_map =
+    Topology.fold_vertexes
+    (fun v acc ->
+      StringMap.add acc ~key:(Node.name (vertex_to_label topo v)) ~data:v
+    ) topo StringMap.empty in
+  In_channel.with_file dem_file
+    ~f:(fun file ->
+        In_channel.fold_lines file
+          ~init:SrcDstMap.empty
+          ~f:(fun acc line ->
+            let entries = Array.of_list (String.split line ~on:' ') in
+            let src = StringMap.find_exn str_node_map entries.(0) in
+            let dst = StringMap.find_exn str_node_map entries.(1) in
+            let dem = num_of_string entries.(2) in
+            SrcDstMap.add acc ~key:(src,dst) ~data:dem
+            ))
+
+let demands_to_inp_dist_pnk demands (v_id, id_v) =
+  let sum = SrcDstMap.fold demands ~init:(num_of_int 0)
+    ~f:(fun ~key:_ ~data:dem acc -> dem +/ acc) in
+  let dist = SrcDstMap.fold demands ~init:[]
+    ~f:(fun ~key:(s,d) ~data:dem acc ->
+      let src_id = VertexMap.find_exn v_id s in
+      let dst_id = VertexMap.find_exn v_id d in
+      (!!(Switch src_id) >> !!(Port 1) >> !!(Src src_id) >> !!(Dst dst_id), dem // sum)::acc) in
+  ?@dist
+
+let analyze_routing_scheme (routing_pol : Pol.t) (topo_pol : Pol.t) (inp_dist : Pol.t) (include_links_in_path : bool)=
   let pnk_program = if include_links_in_path then
       routing_pol
     else
       (Star (topo_pol >> routing_pol)) >> topo_pol in
-  let p = (!!(Switch 101) >> !!(Port 10) >> !!(Src 101) >> !!(Dst 102) >> pnk_program) in
+  let p = (inp_dist >> pnk_program) in
   Dist.print (eval 10 p);
-  expectation' 1 p ~f:q1
+  expectation' 1 p ~f:path_length
     |> Prob.to_dec_string
-    |> Printf.printf "%s\n%!"
+    |> Printf.printf "Latency: %s\n%!"
 
 let () = begin
   let include_links_in_path = true in
+  if (not include_links_in_path) then failwith "Need a better way to compose local programs with topology" else
   let topo = Parse.from_dotfile "examples/3cycle.dot" in
   let vertex_id_bimap = gen_node_pnk_id_map topo in
   let topo_pol = topo_to_pnk topo vertex_id_bimap in
@@ -314,11 +355,14 @@ let () = begin
   let scheme_ksp = route_ksp topo 3 in
   let routing_spf_pol = routing_scheme_to_pnk topo scheme_spf include_links_in_path vertex_id_bimap in
   let routing_ksp_pol = routing_scheme_to_pnk topo scheme_ksp include_links_in_path vertex_id_bimap in
+  let inp_dist = read_demands "examples/3cycle.dem" topo in
+  let inp_dist_pol = demands_to_inp_dist_pnk inp_dist vertex_id_bimap in
   Printf.printf "Topo: %s\n" (Pol.to_string topo_pol);
   Printf.printf "SPF Scheme: %s" (dump_scheme topo scheme_spf);
   Printf.printf "KSP Scheme: %s" (dump_scheme topo scheme_ksp);
-  Printf.printf "SPF Routing: %s\n\nLatency: " (Pol.to_string routing_spf_pol);
-  analyze_routing_scheme routing_spf_pol topo_pol include_links_in_path;
-  Printf.printf "KSP Routing: %s\n\nLatency: " (Pol.to_string routing_ksp_pol);
-  analyze_routing_scheme routing_ksp_pol topo_pol include_links_in_path
-end
+  Printf.printf "SPF Routing: %s\n: " (Pol.to_string routing_spf_pol);
+  Printf.printf "Input dist: %s" (Pol.to_string inp_dist_pol);
+  analyze_routing_scheme routing_spf_pol topo_pol inp_dist_pol include_links_in_path;
+  Printf.printf "KSP Routing: %s\n: " (Pol.to_string routing_ksp_pol);
+  analyze_routing_scheme routing_ksp_pol topo_pol inp_dist_pol include_links_in_path
+  end
