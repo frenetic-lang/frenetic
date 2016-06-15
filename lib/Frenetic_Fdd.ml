@@ -277,9 +277,17 @@ module Value = struct
   (* Private to this file only *)
   let of_int32 t = Const (Int64.of_int32 t)
   let of_int64 t = Const t
+
   let to_int_exn = function
     | Const k -> Int64.to_int_exn k
     | _ -> assert false
+  let to_int64_exn = function
+    | Const k -> k
+    | _ -> assert false
+  let to_int32_exn = function
+    | Const k -> Int64.to_int32_exn k
+    | _ -> assert false
+
 end
 
 exception FieldValue_mismatch of Field.t * Value.t

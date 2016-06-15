@@ -128,6 +128,13 @@ module Value : sig
 
   (** [to_int_exn value] returns just the integer for Const values, or an exception otherwise *)
   val to_int_exn : t -> int
+
+  (** [to_int32_exn value] returns the 64-bit integer for Const values, or an exception otherwise *)
+  val to_int32_exn : t -> int32
+
+  (** [to_int64_exn value] returns the 64-bit integer for Const values, or an exception otherwise *)
+  val to_int64_exn : t -> int64
+
 end
 
 exception FieldValue_mismatch of Field.t * Value.t
