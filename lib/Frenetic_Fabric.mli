@@ -1,10 +1,12 @@
 open Core.Std
+open Frenetic_Fdd
 open Frenetic_Network
 open Frenetic_OpenFlow
 open Frenetic_NetKAT
 
 type fabric = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
-type stream = pred * policy
+type condition  = Field.t * Value.t option * Value.t list
+type stream     = condition list * Action.t
 
 val vlan_per_port : Net.Topology.t -> fabric
 val shortest_path : Net.Topology.t -> switchId list -> switchId list -> fabric

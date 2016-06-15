@@ -1,37 +1,45 @@
 open Core.Std
+open Frenetic_Fdd
 open Frenetic_Network
 open Frenetic_OpenFlow
 
 module Compiler = Frenetic_NetKAT_Compiler
-module FDD = Frenetic_Fdd.FDD
 
 type pred   = Frenetic_NetKAT.pred
 type policy = Frenetic_NetKAT.policy
 type fabric = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
 
-type check =
-  | Pos of Frenetic_Fdd.Value.t
-  | Neg of Frenetic_Fdd.Value.t list
-
-type branch = Frenetic_Fdd.Field.t * check
-
-type raw_stream = branch list * Frenetic_Fdd.Action.t
-type stream = (pred * policy)
-type loc    = (switchId * portId)
-type located_stream = ( loc * loc * stream )
+type condition  = Field.t * Value.t option * Value.t list
+type stream     = condition list * Action.t
+type loc        = (switchId * portId)
+type loc_stream = ( loc * loc * stream )
 
 exception NonFilterNode of policy
 exception ClashException of string
 exception CorrelationException of string
 
 (** Utility functions *)
+let conjoin = Frenetic_NetKAT_Optimize.mk_big_and
+
+let pred_of_cond ((f,pos,neg):condition) : pred =
+  let pos' = match pos with
+    | None -> []
+    | Some v -> [ Frenetic_Fdd.Pattern.to_pred (f, v) ] in
+  let negs = List.fold_left neg ~init:pos'
+      ~f:(fun acc v -> (Neg (Frenetic_Fdd.Pattern.to_pred (f, v)))::acc) in
+ conjoin negs
+
+let pred_of_conds (conds: condition list) =
+  let open Frenetic_NetKAT in
+  conjoin (List.map conds ~f:pred_of_cond)
 
 let string_of_loc ((sw,pt):loc) =
   sprintf "(%Ld:%ld)" sw pt
 
-let string_of_stream (pred, act) =
-  sprintf "Condition: %s\nAction: %s\n" (Frenetic_NetKAT_Pretty.string_of_pred pred)
-    (Frenetic_NetKAT_Pretty.string_of_policy act)
+let string_of_stream (conds, act) =
+  sprintf "Condition: %s\nAction: %s\n"
+    (Frenetic_NetKAT_Pretty.string_of_pred (pred_of_conds conds))
+    (Frenetic_NetKAT_Pretty.string_of_policy (Action.to_policy act))
 
 let string_of_located_stream ((sw,pt),(sw',pt'),stream) =
   let src = sprintf "Source: Switch: %Ld Port:%ld" sw pt in
@@ -199,75 +207,48 @@ let rec remove_dups (pol:policy) : policy =
 (** for the policy, and the beta is the modification. Alpha corresponds to the
     internal nodes in the FDD and the beta to the leaves *)
 let extract (pol:policy) : stream list =
-  let open FDD in
-  let module NK = Frenetic_NetKAT in
-
-  (* This returns a list of paths, where the each path is a list of
-     policies. The head of each path is the policy form of the leaf node action
-     and the remainder is a list of predicates that need to be true to perform
-     the action. *)
-  let rec get_paths id path =
-    let node = unget id in
-    match node with
-    | Branch ((v,l), t, f) ->
-      let true_pred   = NK.Test (Frenetic_Fdd.Pattern.to_hv (v, l)) in
-      let true_paths  = get_paths t ( true_pred::path ) in
-      let false_pred  = NK.Neg true_pred in
-      let false_paths = get_paths f ( false_pred::path ) in
-      List.unordered_append true_paths false_paths
-    | Leaf r ->
-      [ ((Frenetic_Fdd.Action.to_policy r), path) ]
-  in
-
-  (* Partition a path through the FDD into the condition and the action. *)
-  let partition ((pol,preds): (NK.policy * NK.pred list)) =
-      let action = pol in
-      let condition = Frenetic_NetKAT_Optimize.mk_big_and preds in
-      (condition, action)
-  in
-  let deduped = remove_dups pol in
-  let fdd = compile_local deduped in
-  let paths = get_paths fdd [] in
-  List.map paths ~f:partition
-
-let raw_extract (pol:policy) : raw_stream list =
-  let module NK = Frenetic_NetKAT in
-
   let rec get_paths id path =
     let open FDD in
     let node = unget id in
     match node with
     | Branch ((v,l), t, f) ->
-      let true_pred = (v, Pos l) in
-      let true_paths = get_paths t ( true_pred::path ) in
-      let false_pred = (v, Neg [l]) in
+      let true_pred   = (v, Some l, []) in
+      let true_paths  = get_paths t ( true_pred::path ) in
+      let false_pred  = (v, None, [l]) in
       let false_paths = get_paths f ( false_pred::path ) in
       List.unordered_append true_paths false_paths
     | Leaf r ->
       [ (r, path) ] in
 
-  let partition (action, conds) : raw_stream =
+  let partition (action, conds) : stream =
     let open Frenetic_Fdd in
     let tbl = Hashtbl.Poly.create ~size:(List.length conds) () in
-    let fuse f c1 c2 = match c1, c2 with
-      | Pos v, Neg vs -> Pos v
-      | Neg vs, Pos v -> Pos v
-      | Neg v1, Neg v2 -> Neg (List.unordered_append v1 v2)
-      | Pos v1, Pos v2 ->
-        let msg = sprintf "Field (%s) expected to have clashing values of (%s) and (%s) "
-            (Field.to_string f) (Value.to_string v1) (Value.to_string v2) in
-        raise (ClashException msg) in
-    List.iter conds ~f:(fun (field,check) ->
+    let fuse f (pos,neg) (pos',neg') =
+      let pos = match pos, pos' with
+        | None  , None     -> None
+        | Some v, None     -> Some v
+        | None  , Some v   -> Some v
+        | Some v1, Some v2 ->
+          let msg = sprintf "Field (%s) expected to have clashing values of (%s) and (%s) "
+              (Field.to_string f) (Value.to_string v1) (Value.to_string v2) in
+          raise (ClashException msg) in
+      let neg = match neg, neg' with
+        | [], [] -> []
+        | vs, [] -> vs
+        | [], vs -> vs
+        | vs1, vs2 -> List.unordered_append vs1 vs2 in
+      (pos, neg) in
+    List.iter conds ~f:(fun (field,pos,neg) ->
         Hashtbl.Poly.update tbl field ~f:(function
-            | None -> check
-            | Some c -> fuse field c check));
+            | None -> ( pos,neg )
+            | Some c -> fuse field (pos,neg) c));
     let branches = Hashtbl.Poly.fold tbl ~init:[]
-        ~f:(fun ~key:field ~data:value acc -> (field, value)::acc) in
+        ~f:(fun ~key:field ~data:(pos,neg) acc -> (field, pos, neg)::acc) in
     (branches, action) in
 
   let deduped = remove_dups pol in
-  let fdd = compile_local deduped in
-  let paths = get_paths fdd [] in
+  let fdd     = compile_local deduped in
+  let paths   = get_paths fdd [] in
   List.map paths ~f:partition
 
 (* Given a policy, guard it with the ingresses, sequence and iterate with the *)
@@ -396,35 +377,39 @@ let locate_from_source policy =
   | _              -> (None, None) in
   locate_from_options (aux policy)
 
-let locate_endpoints ((pred, pol):stream) =
-  let src  = locate_from_pred pred |> locate_from_options in
-  let sink = locate_from_sink pol in
+(* TODO(basus): This should be implemented without converting to a policy *)
+let locate_from_action (action: Action.t) =
+  Action.to_policy action |> locate_from_sink
+
+let locate_from_conditions (cs: condition list) =
+  let open Frenetic_Fdd in
+  let opts = List.fold_left cs ~init:(None, None)
+      ~f:(fun (sw, pt) (field, pos, _) -> match field, pos with
+          | Switch, Some v ->
+            ( Some( Value.to_int64_exn v ), pt)
+          | Location, Some v  ->
+            (sw, Some( Value.to_int32_exn v ))
+          | _ -> (sw, pt)) in
+  locate_from_options opts
+
+let locate_endpoints ((conds,action):stream) =
+  let src  = locate_from_conditions conds in
+  let sink = locate_from_action action in
   match src, sink with
   | Ok s, Ok s' -> Ok (s,s')
   | Ok _, Error s -> Error s
   | Error s, Ok _ -> Error s
   | Error s, Error s' -> Error (String.concat ~sep:"\n" [s;s'])
 
-let locate_from_branches (bs: branch list) =
-  let open Frenetic_Fdd in
-  let swopt, ptopt = List.fold_left bs ~init:(None, None)
-      ~f:(fun (swacc, ptacc) (field, check) -> match field,check with
-          | Switch, Pos v ->
-            ( Some( Int64.of_int ( Value.to_int_exn v )), ptacc)
-          | Location, Pos v  ->
-            (swacc, Some( Int32.of_int_exn ( Value.to_int_exn v ) ))
-          | _ -> (swacc, ptacc)) in
-  locate_from_options (swopt, ptopt)
-
-let locate ((pol,pol'):stream) =
-  let locs = locate_endpoints (pol,pol') in
+let locate (s:stream) =
+  let locs = locate_endpoints s in
   match locs with
-  | Ok (src,sink) -> Ok (src, sink, (pol, pol'))
+  | Ok (src,sink) -> Ok (src, sink, s)
   | Error e -> Error e
 
 let locate_or_drop (located, dropped) (stream:stream) =
-  let cond, act = stream in
-  if act = Frenetic_NetKAT.drop then (located, stream::dropped)
+  let conds, action = stream in
+  if action = Action.zero then (located, stream::dropped)
   else try match locate stream with
     | Ok l -> (l::located,dropped)
     | Error e ->
@@ -543,7 +528,8 @@ let retarget (naive:stream list) (fabric:stream list) (topo:policy) =
     | [] -> ([], [])
     | (_,Internal,(_,in_pt))::rest ->
       let mods = mk_mods rest in
-      let ingress = seq [ Filter( fst stream );
+      let filter = Filter (fst stream |> pred_of_conds) in
+      let ingress = seq [ filter;
                           mods;
                           Mod( Vlan tag );
                           Mod( Location( Physical in_pt)) ] in
@@ -556,7 +542,8 @@ let retarget (naive:stream list) (fabric:stream list) (topo:policy) =
                                 test_loc )) in
       let egress = begin match rest with
         | [] ->
-          seq [ filter; Mod( Vlan strip_vlan); remove_switch_mods (snd stream) ]
+          let mods = snd stream |> Action.to_policy in
+          seq [ filter; Mod( Vlan strip_vlan); remove_switch_mods mods ]
         | rest ->
           seq [ filter; Mod( Location( Physical in_pt )) ] end in
       let ins, outs = stitch rest tag stream in
