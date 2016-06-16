@@ -207,20 +207,15 @@ let rec remove_dups (pol:policy) : policy =
 (** for the policy, and the beta is the modification. Alpha corresponds to the
     internal nodes in the FDD and the beta to the leaves *)
 let extract (pol:policy) : stream list =
-  let rec get_paths id path =
-    let open FDD in
-    let node = unget id in
-    printf "Getting path\n%!";
-    match node with
-    | Branch ((v,l), t, f) ->
-      printf "At branch\n%!";
+  let rec get_paths node path =
+    match FDD.unget node with
+    | FDD.Branch ((v,l), t, f) ->
       let true_pred   = (v, Some l, []) in
       let true_paths  = get_paths t ( true_pred::path ) in
       let false_pred  = (v, None, [l]) in
       let false_paths = get_paths f ( false_pred::path ) in
       List.unordered_append true_paths false_paths
-    | Leaf r ->
-      printf "At leaf: %s\n%!" (Action.to_string r);
+    | FDD.Leaf r ->
       [ (r, path) ] in
 
   let partition (action, conds) : stream =
@@ -249,16 +244,9 @@ let extract (pol:policy) : stream list =
         ~f:(fun ~key:field ~data:(pos,neg) acc -> (field, pos, neg)::acc) in
     (branches, action) in
 
-  printf "\nOriginal Policy:\n%s\n" (string_of_policy pol);
   let deduped = remove_dups pol in
-  printf "\nDup-removed Policy:\n%s\n" (string_of_policy deduped);
   let fdd     = compile_local deduped in
-  printf "\nFDD: \n%s\n%!" (FDD.to_string fdd);
-
-  printf "\nTrying to get paths through FDD\n%!";
   let paths   = get_paths fdd [] in
-
-  printf "\nNumber of paths through FDD: %d\n%!" (List.length paths);
   List.map paths ~f:partition
 
 (* Given a policy, guard it with the ingresses, sequence and iterate with the *)
