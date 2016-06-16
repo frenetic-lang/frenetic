@@ -495,15 +495,6 @@ let retarget (naive:stream list) (fabric:stream list) (topo:policy) =
   let _, loc_preds = find_predecessors topo in
   let _, loc_succs = find_successors topo in
 
-  printf "Naive : %d\n" (List.length naive);
-  printf "Naive located: %d\n" (List.length naive_located);
-  printf "Naive dropped: %d\n" (List.length naive_dropped);
-
- 
-  printf "Fabric : %d\n" (List.length fabric);
-  printf "Fabric located: %d\n" (List.length fabric_located);
-  printf "Fabric dropped: %d\n%!" (List.length fabric_dropped);
-
   (* Add vertices all naive locations *)
   let graph = List.fold naive_located ~init:Overlay.empty
       ~f:(fun g (src, sink, _) ->
@@ -537,7 +528,6 @@ let retarget (naive:stream list) (fabric:stream list) (topo:policy) =
       let mods = mk_mods rest in
       let filter = Filter (fst stream |> pred_of_conds) in
       let ingress = seq [ filter;
-                          mods;
                           Mod( Vlan tag );
                           Mod( Location( Physical in_pt)) ] in
       let ins, outs = stitch rest tag stream in
