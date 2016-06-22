@@ -114,7 +114,7 @@ module Hist = struct
 
   let to_string (pk,h) =
     List.map (pk::h) ~f:Pkt.to_string
-    |> String.concat ~sep:"::"
+    |> String.concat ~sep:"\027[34m#\027[0m"
 
   let make ?switch ?port ?id ?dst () =
     (Pkt.make ?switch ?port ?id ?dst (), [])
@@ -310,7 +310,7 @@ module Interp (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
     let to_string t =
       to_list t
       |> List.map ~f:Hist.to_string
-      |> String.concat ~sep:", "
+      |> String.concat ~sep:"\027[0;31m, \027[0m"
       |> Printf.sprintf "{ %s }"
   end
 
