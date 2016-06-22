@@ -23,7 +23,7 @@ let string_of_headerval (hv : headerval) = match hv with
 module type PSEUDOHISTORY = sig
   type t [@@deriving sexp, compare]
   val dup : t -> t
-  val test : t -> hv:headerval -> bool
+  val test : t -> hv:headerval -> t option (* None if false, Some t if true. Useful to filter wildcards *)
   val modify : t -> hv:headerval -> t
   val to_string : t -> string
   val make : ?switch:int option -> ?port:int option -> ?id:int option -> ?dst:int option -> unit -> t
@@ -40,32 +40,47 @@ module Pkt = struct
 
   let dup pk = pk
 
-  let test pk ~(hv:headerval) : bool =
+  let test pk ~(hv:headerval) : t option =
     match hv with
     | Switch sw -> begin
       match pk.switch with
-       | None -> true
-       | Some v -> v = sw
+      | None ->
+        Some { pk with switch = Some sw }
+      | Some v ->
+        if v = sw then Some pk
+        else None
       end
     | Port pt -> begin
       match pk.port with
-      | None -> true
-      | Some v -> v = pt
+      | None ->
+        Some { pk with port = Some pt }
+      | Some v ->
+        if v = pt then Some pk
+        else None
       end
     | Id id -> begin
       match pk.id with
-      | None -> true
-      | Some v -> v = id
+      | None ->
+        Some { pk with id = Some id }
+      | Some v ->
+        if v = id then Some pk
+        else None
       end
     | Src s -> begin
       match pk.src with
-      | None -> true
-      | Some v -> v = s
+      | None ->
+        Some { pk with src = Some s }
+      | Some v ->
+        if v = s then Some pk
+        else None
       end
     | Dst d -> begin
       match pk.dst with
-      | None -> true
-      | Some v -> v = d
+      | None ->
+        Some { pk with dst = Some d }
+      | Some v ->
+        if v = d then Some pk
+        else None
       end
 
   let modify pk ~(hv:headerval) : t =
@@ -90,13 +105,16 @@ module Hist = struct
 
   let dup (pk,h) = (pk, pk::h)
 
-  let test (pk,h) ~hv = Pkt.test pk ~hv
+  let test (pk,h) ~hv =
+    match Pkt.test pk ~hv with
+    | None -> None
+    | Some pk' -> Some (pk',h)
 
   let modify (pk,h) ~hv = (Pkt.modify pk ~hv, h)
 
   let to_string (pk,h) =
     List.map (pk::h) ~f:Pkt.to_string
-    |> String.concat ~sep:"-"
+    |> String.concat ~sep:"::"
 
   let make ?switch ?port ?id ?dst () =
     (Pkt.make ?switch ?port ?id ?dst (), [])
@@ -319,7 +337,7 @@ module Interp (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
       | Dup ->
         return (HSet.map inp ~f:Hist.dup)
       | Test hv ->
-        return (HSet.filter inp ~f:(Hist.test ~hv))
+        return (HSet.filter_map inp ~f:(Hist.test ~hv))
       | Mod hv ->
         return (HSet.map inp ~f:(Hist.modify ~hv))
       | Union (q,r) ->

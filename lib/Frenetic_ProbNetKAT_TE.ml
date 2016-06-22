@@ -334,13 +334,14 @@ let demands_to_inp_dist_pnk demands (v_id, id_v) =
       (!!(Switch src_id) >> !!(Port 1) >> !!(Src src_id) >> !!(Dst dst_id), dem // sum)::acc) in
   ?@dist
 
-let analyze_routing_scheme (routing_pol : Pol.t) (topo_pol : Pol.t) (inp_dist : Pol.t) (include_links_in_path : bool)=
+let analyze_routing_scheme (routing_pol : Pol.t) (topo_pol : Pol.t) (create_inp_dist : Pol.t) (include_links_in_path : bool)=
   let pnk_program = if include_links_in_path then
       routing_pol
     else
       (Star (topo_pol >> routing_pol)) >> topo_pol in
-  let p = (inp_dist >> pnk_program) in
-  Dist.print (eval 10 p);
+  (*let p = (create_inp_dist >> pnk_program) in*)
+  let p = pnk_program in
+  Dist.print (eval 20 p);
   expectation' 1 p ~f:path_length
     |> Prob.to_dec_string
     |> Printf.printf "Latency: %s\n%!"
@@ -357,12 +358,6 @@ let () = begin
   let routing_ksp_pol = routing_scheme_to_pnk topo scheme_ksp include_links_in_path vertex_id_bimap in
   let inp_dist = read_demands "examples/3cycle.dem" topo in
   let inp_dist_pol = demands_to_inp_dist_pnk inp_dist vertex_id_bimap in
-  Printf.printf "Topo: %s\n" (Pol.to_string topo_pol);
-  Printf.printf "SPF Scheme: %s" (dump_scheme topo scheme_spf);
-  Printf.printf "KSP Scheme: %s" (dump_scheme topo scheme_ksp);
-  Printf.printf "SPF Routing: %s\n: " (Pol.to_string routing_spf_pol);
-  Printf.printf "Input dist: %s" (Pol.to_string inp_dist_pol);
   analyze_routing_scheme routing_spf_pol topo_pol inp_dist_pol include_links_in_path;
-  Printf.printf "KSP Routing: %s\n: " (Pol.to_string routing_ksp_pol);
   analyze_routing_scheme routing_ksp_pol topo_pol inp_dist_pol include_links_in_path
   end

@@ -21,6 +21,9 @@ let p2 = ?@[ !!(Switch 0) & !!(Switch 1) , 1/2
 let p3 = p1 >> Star (Dup >> p1)
 let p4 = p1' >> Star (??(Switch 0) >> Dup >> p1') >> ??(Switch 1)
 
+let p5 =  ?@[ ??(Switch 0) >> !!(Port 0) , 1/2
+           ; ??(Switch 1) >> !!(Port 1) , 1/2 ]
+
 (* Random Variables (i.e, Queries) *)
 let q1 (pk,h) = Prob.of_int (List.length h + 1)
 
@@ -32,7 +35,8 @@ let () = begin
   Dist.print (eval n p2);
   Dist.print (eval n p3);
   Dist.print (eval (2*n) p4);
-  for n=0 to 80 do
+  Dist.print (eval n p5);
+  for n=0 to 10 do
     expectation' n p4 ~f:q1
     |> Prob.to_dec_string
     |> Printf.printf "n = %d: %s\n%!" n
