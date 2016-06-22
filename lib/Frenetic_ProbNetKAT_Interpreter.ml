@@ -26,39 +26,62 @@ module type PSEUDOHISTORY = sig
   val test : t -> hv:headerval -> bool
   val modify : t -> hv:headerval -> t
   val to_string : t -> string
-  val make : ?switch:int -> ?port:int -> ?id:int -> ?dst:int -> unit -> t
+  val make : ?switch:int option -> ?port:int option -> ?id:int option -> ?dst:int option -> unit -> t
 end
 
 
 module Pkt = struct
-  type t = { switch : int [@default 0];
-             port : int [@default 0];
-             id : int [@default 0];
-             src : int [@default 0];
-             dst : int [@default 0];
+  type t = { switch : int option [@default None];
+             port : int option [@default None];
+             id : int option [@default None];
+             src : int option [@default None];
+             dst : int option [@default None];
            } [@@deriving sexp, compare, show, make]
 
   let dup pk = pk
 
   let test pk ~(hv:headerval) : bool =
     match hv with
-    | Switch sw -> pk.switch = sw
-    | Port pt -> pk.port = pt
-    | Id id -> pk.id = id
-    | Src s -> pk.src = s
-    | Dst d -> pk.dst = d
+    | Switch sw -> begin
+      match pk.switch with
+       | None -> true
+       | Some v -> v = sw
+      end
+    | Port pt -> begin
+      match pk.port with
+      | None -> true
+      | Some v -> v = pt
+      end
+    | Id id -> begin
+      match pk.id with
+      | None -> true
+      | Some v -> v = id
+      end
+    | Src s -> begin
+      match pk.src with
+      | None -> true
+      | Some v -> v = s
+      end
+    | Dst d -> begin
+      match pk.dst with
+      | None -> true
+      | Some v -> v = d
+      end
 
   let modify pk ~(hv:headerval) : t =
     match hv with
-    | Switch sw -> { pk with switch = sw }
-    | Port pt -> { pk with port = pt }
-    | Id id -> { pk with id = id }
-    | Src s -> { pk with src = s }
-    | Dst d -> { pk with dst = d }
+    | Switch sw -> { pk with switch = Some sw }
+    | Port pt -> { pk with port = Some pt }
+    | Id id -> { pk with id = Some id }
+    | Src s -> { pk with src = Some s }
+    | Dst d -> { pk with dst = Some d }
 
   let to_string t =
-    Printf.sprintf "%d|%d|%d|%d|%d" t.switch t.port t.id t.src t.dst
-    (* Printf.sprintf "%d" t.switch *)
+    let opt_string (fld : int option) = match fld with
+      | None -> "*"
+      | Some n -> string_of_int n in
+    Printf.sprintf "%s|%s|%s|%s|%s" (opt_string t.switch) (opt_string t.port) (opt_string t.id) (opt_string t.src)
+    (opt_string t.dst)
 end
 
 

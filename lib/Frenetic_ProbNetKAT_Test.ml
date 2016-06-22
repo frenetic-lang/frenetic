@@ -5,7 +5,7 @@ include Interp(Hist)(PreciseProb)
 
 (* Packets *)
 let pk1 = Hist.make ()
-let pk2 = Hist.make ~switch:1 ()
+let pk2 = Hist.make ~switch:(Some 1) ()
 
 (* Policies  *)
 open Pol
