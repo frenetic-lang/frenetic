@@ -1,22 +1,16 @@
 import frenetic, sys, json, time
 from functools import partial
 from frenetic.syntax import *
+from frenetic.packet import *
 import single_switch_forwarding
 import array
 from ryu.lib.packet import packet
 from tornado.ioloop import PeriodicCallback
 from tornado.ioloop import IOLoop
 from tornado.concurrent import return_future
-from tornado.gen import sleep
 
 net_size = 2
 clean_delay = 3
-
-def get(pkt,protocol):
-    for p in pkt:
-        if p.protocol_name == protocol:
-            return p
-
 
 class Allowed(object):
 
@@ -40,14 +34,14 @@ class Allowed(object):
     return self.trusted_ip.__hash__()
 
   def to_pred(self):
-    return ((Test(IP4Src(self.trusted_ip)) &
-             Test(TCPSrcPort(self.trusted_port)) &
-             Test(IP4Dst(self.untrusted_ip)) &
-             Test(TCPDstPort(self.untrusted_port))) |
-            (Test(IP4Src(self.untrusted_ip)) &
-             Test(TCPSrcPort(self.untrusted_port)) &
-             Test(IP4Dst(self.trusted_ip)) &
-             Test(TCPDstPort(self.trusted_port))))
+    return ((IP4SrcEq(self.trusted_ip) &
+             TCPSrcPortEq(self.trusted_port) &
+             IP4DstEq(self.untrusted_ip) &
+             TCPDstPortEq(self.untrusted_port)) |
+            (IP4SrcEq(self.untrusted_ip) &
+             TCPSrcPortEq(self.untrusted_port) &
+             IP4DstEq(self.trusted_ip) &
+             TCPDstPortEq(self.trusted_port)))
 
   def __str__(self):
     fmt = "Allowed(trusted_ip=%s, trusted_port=%s, untrusted_ip=%s, untrusted_port=%s)"
@@ -60,8 +54,8 @@ class Trusted(object):
 
   def __init__(self, ips):
     self.ips = ips
-    self.srcs = Or([Test(IP4Src(ip)) for ip in self.ips])
-    self.dsts = Or([Test(IP4Dst(ip)) for ip in self.ips])
+    self.srcs = Or([IP4SrcEq(ip) for ip in self.ips])
+    self.dsts = Or([IP4DstEq(ip) for ip in self.ips])
 
   def internal_pred(self):
     return (self.srcs & self.dsts)
@@ -96,14 +90,13 @@ class Firewall(frenetic.App):
     allowed = self.allowed_pred()
     queries = Union([ x.query_pol() for x in self.state.allowed])
 
-    tcp_or_udp = Test(EthType(0x800)) & (Test(IPProto(6)) | Test(IPProto(17)))
+    tcp_or_udp = EthTypeEq(0x800) & IPProtoEq(6,17)
 
-    return Filter(tcp_or_udp) >> internal.ite(
-      forwarding_pol,
-      Filter(external) >>
-      allowed.ite(
-        forwarding_pol | queries,
-        Mod(Location(Pipe("http")))))
+    return Filter(tcp_or_udp) >> IfThenElse(
+        internal,
+        forwarding_pol,
+        Filter(external) >> IfThenElse(allowed, forwarding_pol | queries, SendToController("http"))
+      )
 
   def find_pending(self, to_remove_set, pending):
     if(pending.time_created + clean_delay < time.time()):
@@ -178,7 +171,7 @@ class Firewall(frenetic.App):
     # policy to.
     # TODO(arjun): Terrible hack
     pt = 1 if dst_ip == "10.0.0.1" else 2 if dst_ip == "10.0.0.2" else 0
-    self.pkt_out(switch_id, payload, [Output(Physical(pt))])
+    self.pkt_out(switch_id, payload, [SetPort(pt)])
     return
 
   def packet_in_v2(self, switch_id, port_id, payload, src_ip, dst_ip,
@@ -189,7 +182,7 @@ class Firewall(frenetic.App):
       self.state.add_pending(allow_entry)
       # TODO(arjun): Terrible hack
       pt = 1 if dst_ip == "10.0.0.1" else 2 if dst_ip == "10.0.0.2" else 0
-      self.pkt_out(switch_id, payload, [Output(Physical(pt))])
+      self.pkt_out(switch_id, payload, [SetPort(pt)])
       #self.update(self.global_policy())
       return
 
@@ -201,29 +194,16 @@ class Firewall(frenetic.App):
       self.state.allow(reverse_allow_entry)
       self.update(self.global_policy())
       pt = 1 if dst_ip == "10.0.0.1" else 2 if dst_ip == "10.0.0.2" else 0
-      self.pkt_out(switch_id, payload, [Output(Physical(pt))])
+      self.pkt_out(switch_id, payload, [SetPort(pt)])
       return
 
     self.pkt_out(switch_id, payload, [])
 
   def packet_in(self, switch_id, port_id, payload):
-    pkt = packet.Packet(array.array('b', payload.data))
-    p = get(pkt,'ethernet')
-    ip = get(pkt, "ipv4")
-
-    if ip.proto == 6:
-      tcp = get(pkt, "tcp")
-    elif ip.proto == 17:
-      tcp = get(pkt, "udp")
-    else:
+    pkt = Packet.from_payload(switch_id, port_id, payload)
+    if pkt.ipProto != 6 and pkt.ipProto != 17:
       print "Not a TCP or UDP packet. Dropped."
-      self.pkt_out(switch = switch_id, payload = payload, actions = [])
-      return
-
-    if ip == None or tcp == None:
-      print "Not TCP/IP packet. Dropped."
-      self.pkt_out(switch = switch_id, payload = payload, actions = [])
-      return
+      self.pkt_out(switch_id = switch_id, payload = payload, actions = [])
 
     if self.state.version == 1:
       f = self.packet_in_v1
@@ -232,7 +212,7 @@ class Firewall(frenetic.App):
     else:
       assert False
 
-    f(switch_id, port_id, payload, ip.src, ip.dst, tcp.src_port, tcp.dst_port)
+    f(switch_id, port_id, payload, pkt.ip4Src, pkt.ip4Dst, pkt.tcpSrcPort, pkt.tcpDstPort)
 
 class State(object):
 

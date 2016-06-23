@@ -146,18 +146,18 @@ let send_txn swid msg =
   >>= fun sock ->
   let reader = Reader.create (Socket.fd sock) in
   let writer = Writer.create (Socket.fd sock) in
-  Log.debug "send_txn";
   Writer.write_marshal writer ~flags:[] (`Send_txn (swid,msg));
-  Reader.read_marshal reader >>| function
-  | `Eof ->
-    Log.debug "send_txn returned (EOF)";
-    Socket.shutdown sock `Both;
-    `Eof
-  | `Ok (`Send_txn_resp `Eof) ->
-    Log.debug "send_txn returned (EOF)";
-    Socket.shutdown sock `Both;
-    `Eof
-  | `Ok (`Send_txn_resp (`Ok resp)) ->
-    Log.debug "send_txn returned (Ok)";
-    Socket.shutdown sock `Both;
-    resp
+  Reader.read_marshal reader >>| fun resp ->
+    match resp with
+    | `Eof ->
+      Socket.shutdown sock `Both;
+      `Eof
+    | `Ok (`Send_txn_resp `Eof) ->
+      Socket.shutdown sock `Both;
+      `Eof
+    | `Ok (`Send_txn_resp (`Ok resp)) ->
+      Socket.shutdown sock `Both;
+      resp
+    | _ ->
+      Log.debug "send_txn returned something unintelligible";
+      `Eof

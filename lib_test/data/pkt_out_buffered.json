@@ -1,0 +1,10 @@
+{
+  "actions": [ 
+    { "type": "output", "pseudoport": { "type":"controller", "bytes":1024 }  }
+  ],
+  "switch": 843509872345, 
+  "payload":  { 
+    "type": "buffered", 
+    "bufferid": 8192374 
+  }
+}  

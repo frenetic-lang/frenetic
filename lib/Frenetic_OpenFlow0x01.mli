@@ -9,13 +9,13 @@ exception Unparsable of string
 parser is not yet equipped to handle. *)
 exception Ignored of string
 
-type 'a mask = { m_value : 'a; m_mask : 'a option } with sexp
+type 'a mask = { m_value : 'a; m_mask : 'a option } [@@deriving sexp]
 
-type switchId = int64 with sexp
+type switchId = int64 [@@deriving sexp]
 
-type portId = int16 with sexp
+type portId = int16 [@@deriving sexp]
 
-type queueId = int32 with sexp
+type queueId = int32 [@@deriving sexp]
 
 type xid = Frenetic_OpenFlow_Header.xid
 
@@ -32,7 +32,7 @@ type pattern =
     ; tpSrc : tpPort option
     ; tpDst : tpPort option
     ; inPort : portId option
-    } with sexp
+    } [@@deriving sexp]
 
 type pseudoPort =
   | PhysicalPort of portId
@@ -43,7 +43,7 @@ type pseudoPort =
   | AllPorts
   | Controller of int
   | Local
-  with sexp
+  [@@deriving sexp]
 
 type action =
   | Output of pseudoPort
@@ -57,12 +57,12 @@ type action =
   | SetTpSrc of tpPort
   | SetTpDst of tpPort
   | Enqueue of pseudoPort * queueId
-with sexp
+[@@deriving sexp]
 
 type timeout =
   | Permanent
   | ExpiresAfter of int16
-with sexp
+[@@deriving sexp]
 
 type flowModCommand =
   | AddFlow
@@ -70,7 +70,7 @@ type flowModCommand =
   | ModStrictFlow
   | DeleteFlow
   | DeleteStrictFlow
-with sexp
+[@@deriving sexp]
 
 type flowMod =
     { command : flowModCommand
@@ -85,30 +85,30 @@ type flowMod =
     ; out_port : pseudoPort option
     ; check_overlap : bool
     }
-with sexp
+[@@deriving sexp]
 
 type payload =
   | Buffered of int32 * Cstruct.t sexp_opaque
   | NotBuffered of Cstruct.t sexp_opaque
-with sexp
+[@@deriving sexp]
 
 type packetInReason =
   | NoMatch
   | ExplicitSend
-with sexp
+[@@deriving sexp]
 
 type packetIn =
     { input_payload : payload
     ; total_len : int16
     ; port : portId
     ; reason : packetInReason
-    } with sexp
+    } [@@deriving sexp]
 
 type flowRemovedReason =
   | IdleTimeout
   | HardTimeout
   | Delete
-with sexp
+[@@deriving sexp]
 
 type flowRemoved =
     { pattern : pattern;
@@ -121,21 +121,21 @@ type flowRemoved =
       packet_count : int64;
       byte_count : int64
     }
-with sexp
+[@@deriving sexp]
 
 type packetOut =
     { output_payload : payload
     ; port_id : portId option
     ; apply_actions : action list
     }
-with sexp
+[@@deriving sexp]
 
 type statsReq =
   { sr_of_match : pattern
   ; sr_table_id : int8
   ; sr_out_port : pseudoPort option
   }
-with sexp
+[@@deriving sexp]
 
 type request =
   | DescriptionRequest
@@ -143,7 +143,7 @@ type request =
   | IndividualRequest of statsReq
   | AggregateRequest of statsReq
   | PortRequest of pseudoPort option
-with sexp
+[@@deriving sexp]
 
 type descriptionStats =
     { manufacturer : string
@@ -152,7 +152,7 @@ type descriptionStats =
     ; serial_number : string
     ; datapath : string
     }
-with sexp
+[@@deriving sexp]
 
 type individualStats =
     { table_id : int8
@@ -167,14 +167,14 @@ type individualStats =
     ; byte_count : int64
     ; actions : action list
     }
-with sexp
+[@@deriving sexp]
 
 type aggregateStats =
     { total_packet_count : int64
     ; total_byte_count : int64
     ; flow_count : int32
     }
-with sexp
+[@@deriving sexp]
 
 type portStats =
     { port_no : int16
@@ -191,14 +191,14 @@ type portStats =
     ; rx_crc_err : int64
     ; collisions : int64
     }
-with sexp
+[@@deriving sexp]
 
 type reply =
   | DescriptionRep of descriptionStats
   | IndividualFlowRep of individualStats list
   | AggregateFlowRep of aggregateStats
   | PortRep of portStats list
-with sexp
+[@@deriving sexp]
 
 type wildcards = 
   { in_port: bool;
@@ -213,7 +213,7 @@ type wildcards =
     nw_dst: int; (* XXX: unsigned *)
     dl_vlan_pcp: bool;
     nw_tos: bool;
-  } with sexp
+  } [@@deriving sexp]
 
 type portConfig =
   { down : bool;
@@ -223,19 +223,19 @@ type portConfig =
     no_flood : bool;
     no_fwd : bool;
     no_packet_in : bool;
-  } with sexp
+  } [@@deriving sexp]
 
 type stpState =
   | Listen
   | Learn
   | Forward
   | Block
-with sexp
+[@@deriving sexp]
       
 type portState = 
   { down : bool;
     stp_state : stpState
-  } with sexp
+  } [@@deriving sexp]
 
 type portFeatures =
   { f_10MBHD : bool
@@ -250,7 +250,7 @@ type portFeatures =
   ; autoneg : bool
   ; pause : bool
   ; pause_asym : bool
-  } with sexp
+  } [@@deriving sexp]
 
 type portDescription =
   { port_no : portId
@@ -262,7 +262,7 @@ type portDescription =
   ; advertised : portFeatures
   ; supported : portFeatures
   ; peer : portFeatures
-  } with sexp
+  } [@@deriving sexp]
 
 module Wildcards : sig
   val to_string : wildcards -> string
@@ -311,7 +311,7 @@ module FlowMod : sig
     val to_int : flowModCommand -> int16
     val of_int : int16 -> flowModCommand
   end
-  type t = flowMod with sexp
+  type t = flowMod [@@deriving sexp]
   val to_string : flowMod -> string
   val marshal : flowMod -> Cstruct.t -> int
   val parse : Cstruct.t -> flowMod
@@ -373,14 +373,14 @@ module PortStatus : sig
       | Add
       | Delete
       | Modify
-    with sexp
+    [@@deriving sexp]
 
     val to_string : t -> string
   end
 
   type t = 
     { reason : ChangeReason.t; 
-      desc : portDescription } with sexp
+      desc : portDescription } [@@deriving sexp]
 
   val to_string : t -> string
   val parse : Cstruct.t -> t
@@ -406,7 +406,7 @@ module SwitchFeatures : sig
     ; tpSrc : bool
     ; tpDst : bool
     ; inPort : bool }
-  with sexp
+  [@@deriving sexp]
 
   (** See the [ofp_capabilities] enumeration in Section 5.3.1 of the OpenFlow
   1.0 specification. *)
@@ -420,7 +420,7 @@ module SwitchFeatures : sig
       ; ip_reasm : bool
       ; queue_stats : bool
       ; arp_match_ip : bool
-      } with sexp
+      } [@@deriving sexp]
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -444,7 +444,7 @@ module SwitchFeatures : sig
         set_tp_dst : bool;
         enqueue : bool;
         vendor : bool; 
-      } with sexp
+      } [@@deriving sexp]
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -458,7 +458,7 @@ module SwitchFeatures : sig
       supported_capabilities : Capabilities.t;
       supported_actions : SupportedActions.t;
       ports : portDescription list
-    } with sexp
+    } [@@deriving sexp]
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
@@ -473,7 +473,7 @@ module SwitchConfig : sig
       | FragNormal
       | FragDrop
       | FragReassemble
-    with sexp
+    [@@deriving sexp]
 
     val to_string : t -> string
   end
@@ -481,19 +481,19 @@ module SwitchConfig : sig
   type t = 
     { frag_flags : FragFlags.t;
       miss_send_len : int 
-    } with sexp
+    } [@@deriving sexp]
 
   val to_string : t -> string
 end
 
 module StatsRequest : sig
-  type t = request with sexp
+  type t = request [@@deriving sexp]
   val to_string : t -> string
 end
 
 module StatsReply : sig
 
-  type t = reply with sexp
+  type t = reply [@@deriving sexp]
 
   val parse : Cstruct.t -> t
 
@@ -511,7 +511,7 @@ module Error : sig
     type t =
       | Incompatible
       | Eperm
-    with sexp
+    [@@deriving sexp]
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -530,7 +530,7 @@ module Error : sig
       | BadLen
       | BufferEmpty
       | BufferUnknown
-    with sexp
+    [@@deriving sexp]
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -549,7 +549,7 @@ module Error : sig
       | Eperm
       | TooMany
       | BadQueue
-    with sexp
+    [@@deriving sexp]
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -565,7 +565,7 @@ module Error : sig
       | BadEmergTimeout
       | BadCommand
       | Unsupported
-    with sexp
+    [@@deriving sexp]
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -577,7 +577,7 @@ module Error : sig
     type t =
       | BadPort
       | BadHwAddr
-    with sexp
+    [@@deriving sexp]
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -590,7 +590,7 @@ module Error : sig
       | BadPort
       | BadQueue
       | Eperm
-    with sexp
+    [@@deriving sexp]
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -605,11 +605,11 @@ module Error : sig
     | FlowModFailed of FlowModFailed.t
     | PortModFailed of PortModFailed.t
     | QueueOpFailed of QueueOpFailed.t
-  with sexp
+  [@@deriving sexp]
 
   type t =
     | Error of c * Cstruct.t sexp_opaque
-  with sexp
+  [@@deriving sexp]
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
@@ -620,7 +620,7 @@ end
 module Vendor : sig
 
   type t = int32 * Cstruct.t sexp_opaque
-  with sexp
+  [@@deriving sexp]
 
   val parse : Cstruct.t -> t
 
@@ -652,7 +652,7 @@ module Message : sig
     | SetConfig of SwitchConfig.t
     | ConfigRequestMsg
     | ConfigReplyMsg of SwitchConfig.t
-  with sexp
+  [@@deriving sexp]
 
   (** [size_of msg] returns the size of [msg] in bytes when serialized. *)
   val size_of : t -> int

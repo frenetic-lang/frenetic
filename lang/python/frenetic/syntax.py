@@ -68,9 +68,40 @@ class PacketOut(object):
         self.switch = switch
         assert isinstance(payload,Buffered) or isinstance(payload,NotBuffered)
         self.payload = payload
-        #TODO: Can this be refined? Currently list<'instance'>
-        assert isinstance(actions,list)
-        self.actions = actions
+        assert isinstance(actions,list) or isinstance(actions, Seq) or \
+            isinstance(actions,SinglePolicy) or isinstance(actions,SetPort)
+
+        # We flatten all Sequences into lists of actions.  (We don't do this for 
+        # Unions because packet outs can't send out parallel packets except for 
+        # multiple ports, which we deal with separately.)
+        if isinstance(actions, Seq):
+            actions = actions.children
+        elif isinstance(actions,SinglePolicy) or isinstance(actions,SetPort):
+            actions = [actions]
+
+        scrubbed_actions = []
+        for action in actions:
+            assert isinstance(action, Mod) or isinstance(action, Output) or \
+                isinstance(action,SinglePolicy) or isinstance(action,SetPort) 
+            # In Frenetic 4.0, Mod(Location()) is not accepted.  When the plugin architecture
+            # of 4.1 is instated, this will change, but for the time being, convert a Mod(Location()) 
+            # to an Output for convenience
+            if isinstance(action, Mod): 
+                if action.hv.header == "location":
+                    assert isinstance(action.hv.value, Physical), "Only port outputs are allowed in pkt_out" 
+                    scrubbed_actions.append(Output(Physical(action.hv.value.port)))
+                else:
+                    scrubbed_actions.append(action)
+            # A SetPort might have many destinations, so we convert them here.
+            elif isinstance(action, SetPort):
+                for p in action.port_list:
+                    scrubbed_actions.append(Output(Physical(p)))
+
+            # All others have no scrubbing involved
+            else:
+                scrubbed_actions.append(action)
+
+        self.actions = scrubbed_actions
         assert in_port == None or (type(in_port) == int and in_port >= 0)
         self.in_port = in_port
 
@@ -86,11 +117,9 @@ class PacketIn(object):
         assert (json['type'] == 'packet_in')
         assert type(json['switch_id']) == int and json['switch_id'] >= 0
         self.switch_id = json['switch_id']
-        assert type(json['port_id']) == int and json['switch_id'] >= 0
+        assert type(json['port_id']) == int and json['port_id'] >= 0
         self.port_id = json['port_id']
-        # TODO: assert isinstance(payload,Buffered) or isinstance(payload,NotBuffered)
         self.payload = Payload.from_json(json['payload'])
-
 
 class Stats(object):
 
@@ -417,12 +446,307 @@ class Seq(Policy):
           "pols": [ pol.to_json() for pol in self.children ]
         }
 
+class IfThenElse(Policy):
+    def __init__(self, pred, true_pol, false_pol):
+        assert isinstance(pred, Pred) and isinstance(true_pol, Policy) and isinstance(false_pol, Policy)
+        self.policy = pred.ite(true_pol, false_pol)
+
+    def to_json(self):
+        return self.policy.to_json()
+
 # Shorthands
 
 true = Id()
 false = Drop()
 id = Filter(true)
 drop = Filter(false)
+
+# These classes are syntactic sugar to reduce the number of parantheses in 
+# Net apps.  They're pretty redundant, but since the NetKAT syntax doesn't 
+# change often, deupification is not really warranted.
+
+########## ___Eq
+
+# Given a field class name (Switch, Port, ...) and a value, return the expanded predicate
+# The value can be a single int value, a var args list of ints, a real python list of ints,
+# or the equivalent string values
+
+def init_int_eq(klass, *values):
+    if type(values[0]) == list:
+        values = values[0]
+    vs = []
+    for v in values:
+        if type(v) == str:
+            v = int(v)
+        assert(type(v) == int and v >= 0)
+        vs.append(v)
+    expanded_preds = [ Test(klass(v)) for v in vs ]
+    if len(expanded_preds) > 1:
+        return Or(expanded_preds)
+    elif len(expanded_preds) == 0:
+        return false
+    else:
+        return expanded_preds[0]
+
+def init_str_eq(klass, *values):
+    if type(values[0]) == list:
+        values = values[0]
+    for v in values:
+        assert(type(v) == str or type(value) == unicode)
+    expanded_preds = [ Test(klass(v)) for v in values ]
+    if len(expanded_preds) > 1:
+        return Or(expanded_preds)
+    elif len(expanded_preds) == 0:
+        return false
+    else:
+        return expanded_preds[0]
+
+class MultiPred(Pred):
+    def to_json(self):
+        return self.hv.to_json()
+
+class SwitchEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = init_int_eq(Switch, *values)
+
+class PortEq(MultiPred):
+    def __init__(self, *values):
+        # You have to do it this way because Location(Physical()) is > 1 class.
+        # Also we do more stringent value checking
+        if type(values[0]) == list:
+            values = values[0]
+        vs = []
+        for v in values:
+            if type(v) == str:
+                v = int(v)
+            assert(type(v) == int and v >= 1 and v <= 65535)
+            vs.append(v)
+        expanded_preds = [ Test(Location(Physical(v))) for v in vs ]
+        if len(expanded_preds) > 1:
+            self.hv = Or(expanded_preds)
+        else:
+            self.hv = expanded_preds[0]
+
+class EthSrcEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = init_str_eq(EthSrc, *values)
+
+class EthDstEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = init_str_eq(EthDst, *values)
+
+class VlanEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = init_int_eq(Vlan, *values)
+
+class VlanPcpEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = init_int_eq(VlanPcp, *values)
+
+class EthTypeEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = init_int_eq(EthType, *values)
+
+class IPProtoEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = init_int_eq(IPProto, *values)
+
+class TCPSrcPortEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = init_int_eq(TCPSrcPort, *values)
+
+class TCPDstPortEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = init_int_eq(TCPDstPort, *values)
+
+# IP4Src and IP4Dst are the only ones that can't be used with a list or varags because
+# the mask makes it too unpredictable
+
+class IP4SrcEq(MultiPred):
+    def __init__(self, value, mask = None):
+        assert(type(value) == str or type(value == unicode))
+        if mask != None:
+            assert type(mask) == int
+        self.hv = Test(IP4Src(value, mask))
+
+    def to_json(self):
+        return self.hv.to_json()
+
+class IP4DstEq(MultiPred):
+    def __init__(self, value, mask = None):
+        assert(type(value) == str or type(value == unicode))
+        if mask != None:
+            assert type(mask) == int
+        self.hv = Test(IP4Dst(value, mask))
+
+    def to_json(self):
+        return self.hv.to_json()
+
+
+########## ___NotEq
+
+class SwitchNotEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = Not(SwitchEq(*values))
+
+class PortNotEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = Not(PortEq(*values))
+
+class EthSrcNotEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = Not(EthSrcEq(*values))
+
+class EthDstNotEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = Not(EthDstEq(*values))
+
+class VlanNotEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = Not(VlanEq(*values))
+
+class VlanPcpNotEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = Not(VlanPcpEq(*values))
+
+class EthTypeNotEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = Not(EthTypeEq(*values))
+
+class IPProtoNotEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = Not(IPProtoEq(*values))
+
+class IP4SrcNotEq(MultiPred):
+    def __init__(self, value, mask = None):
+        self.hv = Not(IP4SrcEq(value, mask))
+
+class IP4DstNotEq(MultiPred):
+    def __init__(self, value, mask = None):
+        self.hv = Not(IP4DstEq(value, mask))
+
+class TCPSrcPortNotEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = Not(TCPSrcPortEq(*values))
+
+class TCPDstPortNotEq(MultiPred):
+    def __init__(self, *values):
+        self.hv = Not(TCPDstPortEq(*values))
+
+########## Set___
+
+def int_policy(klazz, value):
+    if (type(value)) == str:
+        value = int(value)
+    assert(type(value) == int and value > 0)
+    return Mod(klazz(value))
+
+def str_policy(klazz, value):
+    assert(type(value) == str or type(value == unicode))
+    return Mod(klazz(value))
+
+def int_list_policy(klazz, *values):
+    if type(values[0]) == list:
+        values = values[0]
+    vs = []
+    for v in values:
+        if type(v) == str:
+            v = int(v)
+        assert(type(v) == int and v >= 0)
+        vs.append(v)
+    expanded_preds = [ Test(klass(v)) for v in vs ]
+    if len(expanded_preds) > 1:
+        return Or(expanded_preds)
+    elif len(expanded_preds) == 0:
+        return false
+    else:
+        return expanded_preds[0]
+
+# SetPort is a unique case in modifications.  It can take more than one
+# output port, similar to a MultiPred.  
+class SetPort(Policy):
+    def __init__(self, *values):
+        if type(values[0]) == list:
+            values = values[0]
+        vs = []
+        for v in values:
+            if type(v) == str:
+                v = int(v)
+            assert(type(v) == int and v >= 1 and v <= 65535)
+            vs.append(v)
+
+        # Also unlike other Mods, we simply leave the port list alone
+        # instead of immediately turning into a HeaderValue.  That's because
+        # we might use this in a rule or a Packet Out action
+        self.port_list = vs
+
+    def to_json(self):
+        actions = [Mod(Location(Physical(p))) for p in self.port_list]
+        # If there's more than one, Union them together so packet is copied
+        if len(actions) > 1:
+            full_policy = Union(actions)
+            return full_policy.to_json()
+        else:
+            return actions[0].to_json()
+
+class SinglePolicy(Policy):
+    def to_json(self):
+        return self.hv.to_json()
+
+class SetEthSrc(SinglePolicy):
+    def __init__(self, value):
+        self.hv = str_policy(EthSrc, value)
+
+class SetEthDst(SinglePolicy):
+    def __init__(self, value):
+        self.hv = str_policy(EthDst, value)
+
+class SetVlan(SinglePolicy):
+    def __init__(self, value):
+        self.hv = int_policy(Vlan, value)
+
+class SetVlanPcp(SinglePolicy):
+    def __init__(self, value):
+        self.hv = int_policy(VlanPcp, value)
+
+class SetEthType(SinglePolicy):
+    def __init__(self, value):
+        self.hv = int_policy(EthType, value)
+
+class SetIPProto(SinglePolicy):
+    def __init__(self, value):
+        self.hv = int_policy(IPProto, value)
+
+class SetTCPSrcPort(SinglePolicy):
+    def __init__(self, value):
+        self.hv = int_policy(TCPSrcPort, value)
+
+class SetTCPDstPort(SinglePolicy):
+    def __init__(self, value):
+        self.hv = int_policy(TCPDstPort, value)
+
+# IP4Src and Ip4Dst are weird because they may contain a mask
+class SetIP4Src(SinglePolicy):
+    def __init__(self, value):
+        assert(type(value) == str or type(value == unicode))
+        self.hv = Mod(IP4Src(value, None))
+
+class SetIP4Dst(SinglePolicy):
+    def __init__(self, value):
+        assert(type(value) == str or type(value == unicode))
+        self.hv = Mod(IP4Dst(value, None))
+
+############### Misc.
+
+class SendToController(SinglePolicy):
+    def __init__(self, value):
+        assert(type(value) == str or type(value == unicode))
+        self.hv = Mod(Location(Pipe(value)))
+
+class SendToQuery(SinglePolicy):
+    def __init__(self, value):
+        assert(type(value) == str or type(value == unicode))
+        self.hv = Mod(Location(Query(value)))
 
 class CompilerOptions:
 

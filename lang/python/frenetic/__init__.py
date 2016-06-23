@@ -1,4 +1,4 @@
-import uuid, sys, json, base64, time
+import uuid, sys, json, base64, time, array, binascii
 from datetime import timedelta
 from functools import partial
 from tornado import httpclient
@@ -35,17 +35,22 @@ class App(object):
     """This method can be overridden by the application. By default, it simply
        prints the event and drops the packet."""
     def packet_in(self, switch_id, port_id, payload):
-        print "packet_in(switch_id=%s, port_id=%d, pipe=%s, payload=...)" % (switch_id, port_id)
+        print "packet_in(switch_id=%s, port_id=%d)" % (switch_id, port_id)
         self.pkt_out(switch_id, payload, [])
 
     def connected(self):
         print "established connection to Frenetic controller"
 
+    def packet(self, payload, protocol):
+        from ryu.lib.packet import packet
+        pkt = packet.Packet(array.array('b', payload.data))
+        for p in pkt:
+            if p.protocol_name == protocol:
+                return p
+        return None
+
     def pkt_out(self, switch_id, payload, actions, in_port=None):
-        msg = PacketOut(switch=switch_id,
-                        payload=payload,
-                        actions=actions,
-                        in_port=in_port)
+        msg = PacketOut(switch=switch_id, payload=payload, actions=actions, in_port=in_port)
         pkt_out_url = "http://%s:%s/pkt_out" % (self.frenetic_http_host, self.frenetic_http_port)
         request = HTTPRequest(pkt_out_url, method='POST', body=json.dumps(msg.to_json()))
         return self.__http_client.fetch(request)
@@ -78,9 +83,6 @@ class App(object):
       response = ftr.result()
       if(hasattr(response, 'buffer')):
         data = json.loads(response.buffer.getvalue())
-        dataPrime = {}
-        for key in data:
-          dataPrime[key] = int(data[key])
         callback(data)
 
     @return_future

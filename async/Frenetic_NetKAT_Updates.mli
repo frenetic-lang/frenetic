@@ -8,7 +8,7 @@ module Comp = Frenetic_NetKAT_Compiler
 exception UpdateError
 
 module SwitchMap : sig
-  type 'a t with sexp
+  type 'a t [@@deriving sexp]
 end
 
 type edge = (SDN.flow * int) list SwitchMap.t

@@ -4,24 +4,14 @@ open Core.Std
 (* UTILITY FUNCTIONS                                                         *)
 (*===========================================================================*)
 
-let with_file (file : string) ~(f:in_channel -> 'a) : 'a =
-  match Sys.file_exists file with
-  | `No -> failwith (sprintf "File \"%s\" expexted but not found." file)
-  | `Unknown -> failwith (sprintf "No read permission for file \"%s\"." file)
-  | `Yes -> In_channel.with_file ~f file
-
 let parse_pol ?(json=false) file =
-  with_file file ~f:(fun chan -> match json with
-    | false ->
-      In_channel.input_all chan
-      |> Frenetic_NetKAT_Parser.policy_from_string
-    | true ->
-      Frenetic_NetKAT_Json.policy_from_json_channel chan)
+  match json with
+  | false -> Frenetic_NetKAT_Parser.policy_of_file file
+  | true ->
+    In_channel.create file
+    |> Frenetic_NetKAT_Json.policy_of_json_channel
 
-let parse_pred file =
-  with_file file ~f:(fun chan ->
-    In_channel.input_all chan
-    |> Frenetic_NetKAT_Parser.pred_from_string)
+let parse_pred = Frenetic_NetKAT_Parser.pred_of_file
 
 let fmt = Format.formatter_of_out_channel stdout
 let _ = Format.pp_set_margin fmt 120
@@ -29,8 +19,9 @@ let _ = Format.pp_set_margin fmt 120
 let print_fdd fdd =
   printf "%s\n" (Frenetic_NetKAT_Compiler.to_string fdd)
 
-let dump_fdd fdd =
-  printf "%s\n" (Frenetic_NetKAT_Compiler.to_string fdd)
+let dump_fdd fdd ~file =
+  let data = Frenetic_NetKAT_Compiler.to_dot fdd in
+  Out_channel.write_all file ~data
 
 let print_table fdd sw =
   Frenetic_NetKAT_Compiler.to_table sw fdd
@@ -160,7 +151,7 @@ module Local = struct
               Use the --switch flag to specify it manually.\n"
     else
       if printfdd then print_fdd fdd;
-      if dumpfdd then dump_fdd fdd;
+      if dumpfdd then dump_fdd fdd ~file:(file ^ ".dot");
       print_all_tables ~no_tables fdd switches;
       print_time t;
 end
@@ -184,7 +175,7 @@ module Global = struct
     let (t, fdd) = time (fun () -> Frenetic_NetKAT_Compiler.compile_global pol) in
     let switches = Frenetic_NetKAT_Semantics.switches_of_policy pol in
     if printfdd then print_fdd fdd;
-    if dumpfdd then dump_fdd fdd;
+    if dumpfdd then dump_fdd fdd ~file:(file ^ ".dot");
     print_all_tables ~no_tables fdd switches;
     print_time t;
 
@@ -209,9 +200,9 @@ module Virtual = struct
     +> Flag.print_global_pol
   )
 
-  let run vpol vrel vtopo ving_pol ving veg ptopo ping peg printfdd dumpfdd printglobal () =
+  let run vpol_file vrel vtopo ving_pol ving veg ptopo ping peg printfdd dumpfdd printglobal () =
     (* parse files *)
-    let vpol = parse_pol vpol in
+    let vpol = parse_pol vpol_file in
     let vrel = parse_pred vrel in
     let vtopo = parse_pol vtopo in
     let ving_pol = parse_pol ving_pol in
@@ -235,7 +226,7 @@ module Virtual = struct
         Frenetic_NetKAT_Pretty.format_policy global_pol
     end;
     if printfdd then print_fdd fdd;
-    if dumpfdd then dump_fdd fdd;
+    if dumpfdd then dump_fdd fdd ~file:(vpol_file ^ ".dot");
     print_all_tables fdd switches
 
 end

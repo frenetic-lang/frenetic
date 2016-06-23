@@ -1,25 +1,10 @@
 import frenetic, sys, json, time, argparse
 import os.path
 from frenetic.syntax import *
+from frenetic.packet import *
 import array
-from ryu.lib.packet import packet
 
 client_port = 1
-
-def get(pkt,protocol):
-    for p in pkt:
-        if p.protocol_name == protocol:
-            return p
-
-# Returns 0 as a default
-def packet_src_port(payload):
-  pkt = packet.Packet(array.array('b', payload.data))
-  ip = get(pkt, "ipv4")
-
-  if ip.proto == 6:
-    return get(pkt, "tcp").src_port
-  else:
-    return 0
 
 class State(object):
 
@@ -47,11 +32,16 @@ class LoadBalancer(frenetic.App):
     self.client_port = client_port
     self.state = state
 
+  # Returns 0 as a default
+  def packet_src_port(self, switch_id, port_id, payload):
+    pkt = Packet.from_payload(switch_id, port_id, payload)
+    return pkt.tcpSrcPort if pkt.ipProto == 6 else 0
+
   def policy(self):
     conns = self.state.connections
     pol = (Union(self.route(src_port) for src_port in conns) |
             self.to_controller())
-    return Filter(Test(EthType(0x800))) >> pol
+    return Filter(EthTypeEq(0x800)) >> pol
 
   def connected(self):
       self.update(self.policy())
@@ -59,30 +49,24 @@ class LoadBalancer(frenetic.App):
   def route(self, src_tcp_port):
     dst_sw_port = self.state.connections[src_tcp_port]
     client_to_server = \
-      Filter(Test(Location(Physical(self.client_port))) &
-             Test(TCPSrcPort(src_tcp_port))) >> \
-      Mod(Location(Physical(dst_sw_port)))
+      Filter(PortEq(self.client_port) & TCPSrcPortEq(src_tcp_port)) >> SetPort(dst_sw_port)
     server_to_client = \
-      Filter(Test(Location(Physical(dst_sw_port))) &
-             Test(TCPDstPort(src_tcp_port))) >> \
-      Mod(Location(Physical(self.client_port)))
-    return Filter(Test(IPProto(6))) >> (client_to_server | server_to_client)
+      Filter(PortEq(dst_sw_port) & TCPDstPortEq(src_tcp_port)) >> SetPort(self.client_port)
+    return Filter(IPProtoEq(6)) >> (client_to_server | server_to_client)
 
   def to_controller(self):
     known_src_ports = self.state.connections.keys()
-    return Filter(Test(Location(Physical(self.client_port))) &
-                  ~Or(Test(TCPSrcPort(pt)) for pt in known_src_ports)) >> \
-      Mod(Location(Pipe("http")))
+    return Filter(PortEq(self.client_port) & ~TCPSrcPortEq(known_src_ports)) >> SendToController("http")
 
   def packet_in(self, switch_id, port_id, payload):
-    src = packet_src_port(payload)
+    src = self.packet_src_port(switch_id, port_id, payload)
     server_port = self.state.new_connection(src)
     print "Sending traffic from TCP port %s to switch port %s" % (src, server_port)
     self.update(self.policy())
 
     # Assumes no address-translation
     self.pkt_out(switch_id = switch_id, payload = payload,
-                 actions = [Output(Physical(server_port))])
+                 actions = [SetPort(server_port)])
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description="A simple load balancer")

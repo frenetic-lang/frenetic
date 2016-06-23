@@ -1,17 +1,40 @@
+(** JSON serialization/deserialization of NetKAT messages.  
+
+  NetKAT comes in two syntaxes: "regular" which is handled by Frenetic_NetKAT_Parser/Lexer
+  and "json" which is handled here.  We translate most things to the Frenetic_NetKAT.policy
+  type
+
+  This module also serializes/deserializes switch-to-controller OpenFlow messages for net apps.
+  TODO: These functions should be moved to Frenetic_NetKAT_SDN_Json, or should be consolidated
+  here.  There's no good reason to differentiate between switch-to-controller and 
+  controller-to-switch OpenFlow messages.  The only problem is this module can't open 
+  Frenetic_OpenFlow due to collisions in some data types ... that'll need to be solved.
+  
+*)
 open Core.Std
 open Frenetic_NetKAT
-open Frenetic_OpenFlow
 open Yojson.Basic
 
-val policy_from_json : json -> policy
-(** Note: errors may occur when converting between 64-bit values and
+(* {1 Json Serialization/Deserialization} *)
+
+(** Deserialize a Yojson repesentation of a NetKAT policy *)
+val policy_of_json : json -> policy
+
+(** Serialize a NetKAT policy to Yojson format.  Note: errors may occur when converting between 64-bit values and
     JSON-representable integers. *)
 val policy_to_json : policy -> json
+
 val from_json_header_val : json -> header_val
 
-val policy_from_json_channel : In_channel.t -> policy
-val policy_from_json_string : string -> policy
+(** Same as policy_of_json, but reads json from input channel *)
+val policy_of_json_channel : In_channel.t -> policy
+
+(** Same as policy_of_json, but receives json string *)
+val policy_of_json_string : string -> policy
+
 val policy_to_json_string : policy -> string
+
+(** Sames as stats_to_json but returns json string *)
 val stats_to_json_string : Int64.t * Int64.t -> string
 
 (* Used to be in Frenetic_NetKAT_SDN_Json *)                                                                         

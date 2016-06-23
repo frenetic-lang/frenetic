@@ -22,5 +22,5 @@ val send : switchId -> Frenetic_OpenFlow0x01.xid -> Frenetic_OpenFlow0x01.Messag
 
 val send_batch : switchId -> Frenetic_OpenFlow0x01.xid -> Frenetic_OpenFlow0x01.Message.t list -> [`Ok | `Eof] Deferred.t
 
-val send_txn : switchId -> Frenetic_OpenFlow0x01.Message.t -> [`Ok of (Frenetic_OpenFlow0x01.Message.t list) Deferred.t | `Eof] Deferred.t
+val send_txn : switchId -> Frenetic_OpenFlow0x01.Message.t -> [`Ok of (Frenetic_OpenFlow0x01.Message.t list) | `Eof] Deferred.t
 
