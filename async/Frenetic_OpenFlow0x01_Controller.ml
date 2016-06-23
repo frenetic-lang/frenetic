@@ -35,7 +35,7 @@ let openflow_executable () =
          | `Yes -> return prog_alt2
          | _ -> failwith (Printf.sprintf "Can't find OpenFlow executable %s!" prog_alt2)
 
-let init port =
+let start port =
   Log.info "Calling create!";
   let sock_port = 8984 in
   let sock_addr = `Inet (Unix.Inet_addr.localhost, sock_port) in
@@ -108,17 +108,17 @@ let ready_to_process () =
   let write = Writer.write_marshal writer ~flags:[] in
   return (read, write)
 
-let switch_features (switch_id : switchId) : switchFeatures Deferred.t =
+let switch_features (switch_id : switchId)  =
   ready_to_process ()
   >>= fun (recv, send) ->
   send (`Get_switch_features switch_id);
   recv ()
-  >>| function
+  >>= function
   | `Get_switch_features_resp resp ->
      signal_read ();
-     resp >>= fun (feats:OF10.SwitchFeatures.t) ->
-     return {switch_id = feats.switch_id;
-             switch_ports = List.map ~f:(fun pd -> Int32.of_int pd.port_no) feats.ports }
+     resp >>| fun (feats:OF10.SwitchFeatures.t) ->
+     Some {switch_id = feats.switch_id;
+       switch_ports = List.filter_map ~f:(fun pd -> Int32.of_int pd.port_no) feats.ports }
 
 let send swid xid msg =
   ready_to_process ()
@@ -161,3 +161,40 @@ let send_txn swid msg =
     | _ ->
       Log.debug "send_txn returned something unintelligible";
       `Eof
+
+  let packet_out swid payload compiler =
+    let msg = OF10.{ 
+      output_payload = payload
+      ; port_id = Some 0
+      ; apply_actions = []
+    } in
+    send swid 0 msg
+ 
+  let flow_stats swid pred =
+    []
+
+  let port_stats swid portId =
+    []
+
+  (* Maybe remove this - might not be needed anymore *)
+  let get_switches () =
+    ready_to_process ()
+    >>= fun (recv, send) ->
+    send `Get_switches;
+    recv ()
+    >>| function
+    | `Get_switches_resp resp ->
+        signal_read (); resp
+
+module OpenFlow0x01_Plugin = struct
+  let (r,_) = Pipe.create ()
+  let start _ = assert false
+  let events = r
+  let switch_features _ = assert false
+  let update _ = assert false
+  let update_switch _ = assert false
+  let packet_out _ = assert false
+  let flow_stats _ = assert false
+  let port_stats _ = assert false
+end
+          

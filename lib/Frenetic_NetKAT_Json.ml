@@ -270,7 +270,7 @@ let pkt_out_from_json (json : json) : switchId * payload * policy =
   let open Yojson.Basic.Util in
   let switch = json |> member "switch" |> to_int |> Int64.of_int in
   let payload = json |> member "payload" |> payload_from_json in
-  let policy = json |> member "policy" |> policy_from_json in 
+  let policy = json |> member "policy" |> policy_of_json in 
   (switch, payload, policy)
 
 let pattern_to_json (p:Pattern.t) : json =

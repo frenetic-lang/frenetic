@@ -43,7 +43,7 @@ type payload =
   | Buffered of bufferId * Cstruct.t 
     (** [Buffered (id, buf)] is a packet buffered on a switch *)
   | NotBuffered of Cstruct.t
-with sexp
+[@@deriving sexp]
 
 (** [payload_bytes payload] returns the bytes for the given payload *)
 val payload_bytes : payload -> Cstruct.t
@@ -54,7 +54,7 @@ val payload_bytes : payload -> Cstruct.t
 type switchFeatures = {
   switch_id : switchId;
   switch_ports : portId list
-} with sexp
+} [@@deriving sexp]
                                                                
 (** {1 Packet Forwarding} *)
 

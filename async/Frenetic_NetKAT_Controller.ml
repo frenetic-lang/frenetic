@@ -76,16 +76,4 @@ module Make (P:PLUGIN) : CONTROLLER = struct
           return (Int64.(packets + fs.flow_packet_count), Int64.(bytes + fs.flow_byte_count)))
 end
 
-module OpenFlow0x01_Plugin = struct
-  let (r,_) = Pipe.create ()
-  let start _ = assert false
-  let events = r
-  let switch_features _ = assert false
-  let update _ = assert false
-  let update_switch _ = assert false
-  let packet_out _ = assert false
-  let flow_stats _ = assert false
-  let port_stats _ = assert false
-end
-          
-module OpenFlow0x01 = Make(OpenFlow0x01_Plugin)
+module OpenFlow0x01 = Make(Frenetic_OpenFlow0x01_Plugin)

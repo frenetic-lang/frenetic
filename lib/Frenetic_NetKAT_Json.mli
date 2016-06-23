@@ -5,14 +5,10 @@
   type
 
   This module also serializes/deserializes switch-to-controller OpenFlow messages for net apps.
-  TODO: These functions should be moved to Frenetic_NetKAT_SDN_Json, or should be consolidated
-  here.  There's no good reason to differentiate between switch-to-controller and 
-  controller-to-switch OpenFlow messages.  The only problem is this module can't open 
-  Frenetic_OpenFlow due to collisions in some data types ... that'll need to be solved.
-  
 *)
 open Core.Std
 open Frenetic_NetKAT
+open Frenetic_OpenFlow
 open Yojson.Basic
 
 (* {1 Json Serialization/Deserialization} *)
