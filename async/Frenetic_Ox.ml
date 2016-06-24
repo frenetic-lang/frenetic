@@ -88,7 +88,7 @@ module Make (Handlers:OXMODULE) = struct
           "unhandled exception sending message to switch %Ld" sw;
         return ()
 
-  let handler (e:Controller.event) : unit Deferred.t = 
+  let handler (e:Frenetic_OpenFlow.event) : unit Deferred.t = 
     let open Message in
     let open FlowMod in
     let open SwitchFeatures in 

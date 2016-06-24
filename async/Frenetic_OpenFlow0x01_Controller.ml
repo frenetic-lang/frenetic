@@ -162,30 +162,71 @@ let send_txn swid msg =
       Log.debug "send_txn returned something unintelligible";
       `Eof
 
-  let packet_out swid payload compiler =
-    let msg = OF10.{ 
-      output_payload = payload
-      ; port_id = Some 0
-      ; apply_actions = []
-    } in
-    send swid 0 msg
- 
-  let flow_stats swid pred =
-    []
+(* TODO: pass ingress port, turn compiler output into actions *)
+let packet_out (swid:int64) (payload:payload) (compiler:Frenetic_NetKAT_Compiler.t) =
+  (* Translate generic payload to an OpenFlow 1.0 payload *)
+  let of10_payload = match payload with
+    | Buffered (bufferId, data) -> OF10.Buffered (bufferId, data)
+    | NotBuffered data -> OF10.NotBuffered (data) in
+  let msg = OF10.{ 
+    output_payload = of10_payload
+    ; port_id = Some 0
+    ; apply_actions = []
+  } in
+  send swid 0 msg
 
-  let port_stats swid portId =
-    []
+(* TODO: Implement *)
+let flow_stats (swid:switchId) (pred:Frenetic_NetKAT.pred) =
+  return {
+    flow_table_id = 0L; 
+    flow_pattern = Pattern.match_all;
+    flow_actions = [];
+    flow_duration_sec = 0L;
+    flow_duration_nsec = 0L;
+    flow_priority = 0L;
+    flow_idle_timeout = 0L;
+    flow_hard_timeout = 0L;
+    flow_packet_count = 0L;
+    flow_byte_count = 0L
+  }
 
-  (* Maybe remove this - might not be needed anymore *)
-  let get_switches () =
-    ready_to_process ()
-    >>= fun (recv, send) ->
-    send `Get_switches;
-    recv ()
-    >>| function
-    | `Get_switches_resp resp ->
-        signal_read (); resp
+(* TODO: Implement *)
+let port_stats (swid:switchId) (portId:int32) =
+  return { 
+    port_no = 0L
+    ; port_rx_packets = 0L
+    ; port_tx_packets = 0L
+    ; port_rx_bytes = 0L
+    ; port_tx_bytes = 0L
+    ; port_rx_dropped = 0L
+    ; port_tx_dropped = 0L
+    ; port_rx_errors = 0L
+    ; port_tx_errors = 0L
+    ; port_rx_frame_err = 0L
+    ; port_rx_over_err = 0L
+    ; port_rx_crc_err = 0L
+    ; port_collisions = 0L
+  }
 
+(* TODO: Implement *)
+let update (compiler: Frenetic_NetKAT_Compiler.t) =
+  return ()
+
+(* TODO: Implement *)
+let update_switch (swid: switchId) (compiler: Frenetic_NetKAT_Compiler.t) = 
+  return ()
+
+(* Maybe remove this - might not be needed anymore *)
+let get_switches () =
+  ready_to_process ()
+  >>= fun (recv, send) ->
+  send `Get_switches;
+  recv ()
+  >>| function
+  | `Get_switches_resp resp ->
+      signal_read (); resp
+
+(*
 module OpenFlow0x01_Plugin = struct
   let (r,_) = Pipe.create ()
   let start _ = assert false
@@ -197,4 +238,5 @@ module OpenFlow0x01_Plugin = struct
   let flow_stats _ = assert false
   let port_stats _ = assert false
 end
+*)
           

@@ -145,7 +145,7 @@ let print_error addr exn =
   | None -> Log.error "%s" monitor_exn
 
 let listen ~http_port ~openflow_port =
-  let module Controller = Frenetic_NetKAT_Controller.OpenFlow0x01 in
+  let module Controller = Frenetic_NetKAT_Controller.Make(Frenetic_OpenFlow0x01_Controller) in
   let on_handler_error = `Call print_error in
   let _ = Cohttp_async.Server.create
     ~on_handler_error

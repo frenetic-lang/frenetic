@@ -91,8 +91,10 @@ Library async
     Frenetic_Http_Controller,
     Frenetic_OpenFlow0x01_Controller,
     Frenetic_NetKAT_Controller,
-    Frenetic_NetKAT_Updates,
-    Frenetic_Ox
+    Frenetic_NetKAT_Updates
+
+# Temporarily disabled until we can get the Plugins to work with Frenetic itself
+# ,Frenetic_Ox
 
 Executable frenetic
   Path: frenetic

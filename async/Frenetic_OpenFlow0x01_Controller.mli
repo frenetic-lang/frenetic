@@ -2,7 +2,7 @@ open Core.Std
 open Async.Std
 open Frenetic_OpenFlow
 
-(* plugin functions *)
+(* plugin function implementations *)
        
 val start: int -> unit
 
@@ -15,6 +15,10 @@ val packet_out : switchId -> payload -> Frenetic_NetKAT_Compiler.t -> unit Defer
 val flow_stats : switchId -> Frenetic_NetKAT.pred -> flowStats Deferred.t
 
 val port_stats : switchId -> portId -> portStats Deferred.t
+
+val update : Frenetic_NetKAT_Compiler.t -> unit Deferred.t
+
+val update_switch : switchId -> Frenetic_NetKAT_Compiler.t -> unit Deferred.t
 
 (* general functions *)
 
