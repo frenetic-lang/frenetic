@@ -352,3 +352,75 @@ let flow_to_json (n : int) (f : flow) : json =
 let flowTable_to_json (tbl : flowTable) : json =
   let priorities = List.range ~stride:(-1) 65535 (65535 - List.length tbl) in
   `List (List.map2_exn ~f:flow_to_json priorities tbl)
+
+let port_stat_to_json (portStat: Frenetic_OpenFlow.portStats) : json =
+  `Assoc [("port_no", `Int (Int64.to_int_exn portStat.port_no));
+    ("rx_packets", `Int (Int64.to_int_exn portStat.port_rx_packets));
+    ("tx_packets", `Int (Int64.to_int_exn portStat.port_tx_packets));
+    ("rx_bytes", `Int (Int64.to_int_exn portStat.port_rx_bytes));
+    ("tx_bytes", `Int (Int64.to_int_exn portStat.port_tx_bytes));
+    ("rx_dropped", `Int (Int64.to_int_exn portStat.port_rx_dropped));
+    ("tx_dropped", `Int (Int64.to_int_exn portStat.port_tx_dropped));
+    ("rx_errors", `Int (Int64.to_int_exn portStat.port_rx_errors));
+    ("tx_errors", `Int (Int64.to_int_exn portStat.port_tx_errors));
+    ("rx_fram_err", `Int (Int64.to_int_exn portStat.port_rx_frame_err));
+    ("rx_over_err", `Int (Int64.to_int_exn portStat.port_rx_over_err));
+    ("rx_crc_err", `Int (Int64.to_int_exn portStat.port_rx_crc_err));
+    ("collisions", `Int (Int64.to_int_exn portStat.port_collisions))]
+
+let event_to_json (event : event) : json =
+  let open Yojson.Basic.Util in
+  match event with
+  | PacketIn (pipe, sw_id, pt_id, payload, len) ->
+    let buffer = Frenetic_OpenFlow.payload_bytes payload |>
+      Cstruct.to_string |>
+      B64.encode in
+    `Assoc [
+        ("type", `String "packet_in");
+        ("pipe", `String pipe);
+        ("switch_id", `Int (Int64.to_int_exn sw_id));
+        ("port_id", `Int (Int32.to_int_exn pt_id));
+        ("payload", `Assoc [
+            ("buffer", `String buffer);
+            ("id", match payload with
+              | Frenetic_OpenFlow.Buffered (id, _) -> `Int (Int32.to_int_exn id)
+              | _  -> `Null)
+        ]);
+        ("length", `Int len)
+    ]
+  | SwitchUp (sw_id, ports) ->
+     let json_ports = List.map ports (fun port -> `Int (Int32.to_int_exn port)) in
+    `Assoc [
+      ("type", `String "switch_up");
+      ("switch_id", `Int (Int64.to_int_exn sw_id));
+      ("ports", `List json_ports)
+    ]
+  | SwitchDown sw_id ->
+    `Assoc [
+      ("type", `String "switch_down");
+      ("switch_id", `Int (Int64.to_int_exn sw_id))
+    ]
+  | PortUp (sw_id, pt_id) ->
+    `Assoc [
+      ("type", `String "port_up");
+      ("switch_id", `Int (Int64.to_int_exn sw_id));
+      ("port_id", `Int (Int32.to_int_exn pt_id))
+    ]
+  | PortDown (sw_id, pt_id) ->
+    `Assoc [
+      ("type", `String "port_down");
+      ("switch_id", `Int (Int64.to_int_exn sw_id));
+      ("port_id",   `Int (Int32.to_int_exn pt_id))
+    ]
+  | PortStats (sw_id, portStats) ->
+    (* TODO: portStats should be a list, so use map *)
+    (*`List (List.map portStats ~f:port_stat_to_json) *)
+    `List [ port_stat_to_json portStats ]
+  | FlowStats (sw_id, flowStats) ->
+    (* TODO: FLowStats is not really an event, so we pass back a query event instead *)
+    `Assoc [("packets", `Int (Int64.to_int_exn flowStats.flow_packet_count));
+          ("bytes", `Int (Int64.to_int_exn flowStats.flow_byte_count))]
+
+let event_to_json_string (event : event) : string =
+  Yojson.Basic.to_string ~std:true (event_to_json event)
+

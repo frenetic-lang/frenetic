@@ -7,8 +7,6 @@ module Server = Cohttp_async.Server
 module Comp = Frenetic_NetKAT_Compiler
 module Log = Frenetic_Log
 
-let fixme = ""
-               
 type client = {
   (* Write new policies to this node *)
   policy_node: (Frenetic_DynGraph.cannot_receive, policy) Frenetic_DynGraph.t;
@@ -36,6 +34,10 @@ let current_switches_to_json lst =
 
 let current_switches_to_json_string lst =
   Yojson.Basic.to_string ~std:true (current_switches_to_json lst)
+
+let port_stat_to_json_string portStat = 
+  Yojson.Basic.to_string ~std:true (Frenetic_NetKAT_Json.port_stat_to_json portStat) 
+
 (* </facepalm> *)
 
 let unions (pols : policy list) : policy =
@@ -51,7 +53,7 @@ let iter_clients (f : string -> client -> unit) : unit =
 let rec propogate_events event =
   event () >>=
   fun evt ->
-  let response = fixme (* Frenetic_NetKAT_Json.event_to_json_string evt *) in
+  let response = Frenetic_NetKAT_Json.event_to_json_string evt in
   (* TODO(jcollard): Is there a mapM equivalent here? *)
   Hashtbl.iteri clients (fun ~key ~data:client ->
     Pipe.write_without_pushback client.event_writer response);
@@ -81,7 +83,7 @@ let handle_request
     | `GET, ["port_stats"; switch_id; port_id] ->
        port_stats (Int64.of_string switch_id) (Int32.of_string port_id)
        >>= fun portStats ->
-       Server.respond_with_string fixme (* TODO(jnf) (Frenetic_NetKAT_Json.stats_to_json_string portStats) *)
+       Server.respond_with_string (port_stat_to_json_string portStats)
     | `GET, ["current_switches"] ->
       switches () >>= fun switches ->
       Server.respond_with_string (current_switches_to_json_string switches)

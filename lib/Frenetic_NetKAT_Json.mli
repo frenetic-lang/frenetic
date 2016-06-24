@@ -25,6 +25,9 @@ val from_json_header_val : json -> header_val
 (** Same as policy_of_json, but reads json from input channel *)
 val policy_of_json_channel : In_channel.t -> policy
 
+(** Same as event_to_json but returns json string *)
+val event_to_json_string : event -> string
+
 (** Same as policy_of_json, but receives json string *)
 val policy_of_json_string : string -> policy
 
@@ -32,6 +35,8 @@ val policy_to_json_string : policy -> string
 
 (** Sames as stats_to_json but returns json string *)
 val stats_to_json_string : Int64.t * Int64.t -> string
+
+val port_stat_to_json : portStats -> json 
 
 (* Used to be in Frenetic_NetKAT_SDN_Json *)                                                                         
 val pseudoport_to_json : pseudoport -> json

@@ -78,10 +78,14 @@ let start port =
         >>= fun sock ->
         Log.info "Successfully connected to second OpenFlow server socket";
         let reader = Reader.create (Socket.fd sock) in
+        Log.info "Got reader";
         let writer = Writer.create (Socket.fd sock) in
+        Log.info "And writer";
         Writer.write_marshal writer ~flags:[] `Events;
+        Log.info "And wrote event";
         Deferred.repeat_until_finished ()
           (fun () ->
+             Log.info "Ready to read from read pipe";
              Reader.read_marshal reader
              >>= function
              | `Eof ->
@@ -90,6 +94,7 @@ let start port =
                Socket.shutdown sock `Both;
                return (`Finished ())
              | `Ok (`Events_resp evt) ->
+               Log.info "Got a response";
                Pipe.write events_writer evt >>| fun () ->
                `Repeat ()))
 

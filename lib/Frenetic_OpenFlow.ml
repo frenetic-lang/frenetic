@@ -331,7 +331,7 @@ type event =
   | PortDown of switchId * portId
   | PacketIn of string * switchId * portId * payload * int
   | PortStats of switchId * portStats
-  | Flowstats of switchId * flowStats
+  | FlowStats of switchId * flowStats
            
 let format_modify (fmt:Format.formatter) (m:modify) : unit =
   match m with

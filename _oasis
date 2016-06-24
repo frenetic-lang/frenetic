@@ -93,9 +93,6 @@ Library async
     Frenetic_NetKAT_Controller,
     Frenetic_NetKAT_Updates
 
-# Temporarily disabled until we can get the Plugins to work with Frenetic itself
-# ,Frenetic_Ox
-
 Executable frenetic
   Path: frenetic
   MainIs: frenetic.ml
