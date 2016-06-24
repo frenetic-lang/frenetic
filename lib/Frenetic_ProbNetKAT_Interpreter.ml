@@ -20,6 +20,14 @@ let string_of_headerval (hv : headerval) = match hv with
   | Src n     -> "Src=" ^ (string_of_int n)
   | Dst n     -> "Dst=" ^ (string_of_int n)
 
+
+let random_color () =
+  let colors = [| "\027[32m" ; "\027[34m" ; "\027[35m" ; "\027[36m" |] in
+  let n = Random.int (Array.length colors) in
+  Array.get colors n
+
+let xcol = "\027[0m"
+
 module type PSEUDOHISTORY = sig
   type t [@@deriving sexp, compare]
   val dup : t -> t
@@ -114,7 +122,7 @@ module Hist = struct
 
   let to_string (pk,h) =
     List.map (pk::h) ~f:Pkt.to_string
-    |> String.concat ~sep:"\027[34m#\027[0m"
+    |> String.concat ~sep:"\027[34m::\027[0m"
 
   let make ?switch ?port ?id ?dst () =
     (Pkt.make ?switch ?port ?id ?dst (), [])
@@ -186,12 +194,14 @@ module Pol (Prob : PROB) = struct
     | Test hv -> (string_of_headerval hv)
     | Mod hv ->  Str.global_replace (Str.regexp_string "=") "<-" (string_of_headerval hv)
     | Seq (p, q) -> (to_string p) ^ "; " ^ (to_string q)
-    | Union (p, q) -> "(" ^ (to_string p) ^ ")\n& (" ^ (to_string q) ^ ")"
+    | Union (p, q) ->
+        let col = random_color () in
+        col ^ "(" ^ xcol ^ (to_string p) ^ ")\n& (" ^ (to_string q) ^ col ^ ")" ^ xcol
     | Choice dist -> begin
       List.map ~f:(fun (pol, prob) ->
-        Printf.sprintf "[%s @ %s]" (to_string pol) (Prob.to_string prob)) dist
+        Printf.sprintf "%s @ %s" (to_string pol) (Prob.to_string prob)) dist
       |> String.concat ~sep:" [+] "
-      |> Printf.sprintf "(%s)"
+      |> Printf.sprintf "\027[31m(\027[0m%s\027[31m)\027[0m"
       end
     | Star p -> (to_string p) ^ "*"
     | Dup -> "dup"
@@ -292,8 +302,6 @@ module SetDist (Point : Map.Key) (Prob : PROB) = struct
   end
 
 end
-
-
 
 (*==========================================================================*)
 (* ProbNetKAT Interpreter                                                   *)
