@@ -196,7 +196,7 @@ module Pol (Prob : PROB) = struct
     | Seq (p, q) -> (to_string p) ^ "; " ^ (to_string q)
     | Union (p, q) ->
         let col = random_color () in
-        col ^ "(" ^ xcol ^ (to_string p) ^ ")\n& (" ^ (to_string q) ^ col ^ ")" ^ xcol
+        col ^ "(" ^ xcol ^ (to_string p) ^ col ^ ")\n& (" ^ xcol ^ (to_string q) ^ col ^ ")" ^ xcol
     | Choice dist -> begin
       List.map ~f:(fun (pol, prob) ->
         Printf.sprintf "%s @ %s" (to_string pol) (Prob.to_string prob)) dist
