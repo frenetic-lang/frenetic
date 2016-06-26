@@ -138,6 +138,7 @@ module type PROB = sig
   type t [@@deriving sexp, compare, show]
   val zero : t
   val one : t
+  val (=) : t -> t -> bool
   val (+) : t -> t -> t
   val ( * ) : t -> t -> t
   val ( / ) : t -> t -> t
@@ -154,6 +155,7 @@ module PreciseProb = struct
   type t = num [@@deriving sexp, compare, show]
   let zero = Int 0
   let one = Int 1
+  let (=) a b = a =/ b
   let (+) a b = a +/ b
   let ( * ) a b = a */ b
   let ( / ) a b = a // b
