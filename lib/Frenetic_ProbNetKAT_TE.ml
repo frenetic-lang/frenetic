@@ -42,6 +42,8 @@ module PortMap = Map.Make(Int)
 type out_port_dist = num PortMap.t
 type link_state_scheme = out_port_dist SrcDstMap.t
 
+module PktSet = Set.Make(Pkt)
+
 
 (* helper functions *)
 
@@ -302,6 +304,9 @@ let all_pairs_multi_shortest_path (topo:Topology.t) : (bool * int * (Topology.ve
 let is_host (topo : Topology.t) (node : vertex) =
   Node.device (vertex_to_label topo node) = Node.Host
 
+let is_switch (topo : Topology.t) (node : vertex) =
+  Node.device (vertex_to_label topo node) = Node.Switch
+
 let gen_node_pnk_id_map (topo : Topology.t) =
   let host_offset =
     Int.of_float (10. ** (ceil (log10 (Float.of_int (num_vertexes topo))) +. 1.)) in
@@ -336,14 +341,30 @@ let topo_to_pnk (topo : Topology.t) (v_id, id_v) =
       link_prog & pol_acc)
     topo Drop
 
-(* ProbNetKAT program to test if a packet is at network edge *)
-let topology_edge_test (topo : Topology.t) (v_id, id_v) =
+(* ProbNetKAT program to test if a packet is at a host *)
+let test_pkt_at_host (topo : Topology.t) (v_id, id_v) =
   let host_set = get_hosts_set topo in
   VertexSet.fold host_set
     ~init:Drop
     ~f:(fun pol_acc v ->
       let host_id = VertexMap.find_exn v_id v in
       pol_acc & ??(Switch host_id))
+
+(* ProbNetKAT program to test if a packet is at network edge (host & port) *)
+let test_pkt_at_edge (topo : Topology.t) (v_id, id_v) =
+  let host_set = get_hosts_set topo in
+  VertexSet.fold host_set
+    ~init:Drop
+    ~f:(fun acc v ->
+      let host_id = VertexMap.find_exn v_id v in
+      VertexSet.fold (Topology.neighbors topo v)
+        ~init:acc
+        ~f:(fun acc neigh ->
+          let link = Topology.find_edge topo v neigh in
+          let port_id = port_to_pnk (snd (Topology.edge_src link)) in
+          let test_pol = (??(Switch host_id) >> ??(Port port_id)) in
+          if acc = Drop then test_pol
+          else acc & test_pol))
 
 
 (****************************** Routing Schemes *******************************)
@@ -504,7 +525,7 @@ let routing_scheme_to_global_pnk (topo : Topology.t) (routes : scheme) (v_id, id
 let link_state_scheme_to_local_pnk (topo : Topology.t) (routes : link_state_scheme) (v_id, id_v) =
   SrcDstMap.fold routes ~init:Drop
     ~f:(fun ~key:(src,dst) ~data:port_dist pol_acc ->
-      if src = dst then
+      if src = dst || (is_host topo src) || (is_switch topo dst)then
         pol_acc
       else
         let src_id = VertexMap.find_exn v_id src in
@@ -569,56 +590,95 @@ let rec congestion (src, dst) (pk,h) =
   | x::[] -> Prob.of_int 0
   | [] -> Prob.of_int 0
 
-(************************************* Tests **********************************)
-let analyze_routing_scheme (network_pnk : Pol.t) (create_inp_dist : Pol.t) =
-  let p = (create_inp_dist >> network_pnk) in
-  Dist.print (eval 20 p);
-  expectation' 20 p ~f:path_length
-    |> Prob.to_dec_string
-    |> Printf.printf "Latency: %s\n%!";
-  expectation' 20 p ~f:(congestion (1,2))
-    |> Prob.to_dec_string
-    |> Printf.printf "Congestion 1-2: %s\n%!";
-  expectation' 20 p ~f:num_packets
-    |> Prob.to_dec_string
-    |> Printf.printf "Num packets: %s\n%!"
+let test_loop_history (pk, h) =
+  let hist_len = List.length h in
+  let pkts = List.fold_left h
+    ~init:PktSet.empty
+    ~f:(fun acc pk ->
+      PktSet.add acc pk) in
+  let num_pkts = PktSet.length pkts in
+  if hist_len = num_pkts then
+    Prob.of_int 0
+  else
+    Prob.of_int 1
 
+let lift_query q = fun hset ->
+      let n = HSet.length hset in
+      if n=0 then num_of_int 0 else
+      let sum = HSet.fold hset ~init:(num_of_int 0) ~f:(fun acc h ->
+        acc +/ q h)
+      in
+      sum // (num_of_int n)
+
+(************************************* Tests **********************************)
+let analyze_routing_scheme (network_pnk : Pol.t) (create_inp_dist : Pol.t) (final_filter : Pol.t)=
+  let p = (create_inp_dist >> network_pnk >> final_filter) in
+  let out_dist = eval 10 p in
+  (*Dist.print out_dist;*)
+  Dist.expectation out_dist ~f:(lift_query path_length)
+    |> Prob.to_dec_string
+    |> Printf.printf "Latency:\t%s\n";
+  Dist.expectation out_dist ~f:(lift_query (congestion (1,2)))
+    |> Prob.to_dec_string
+    |> Printf.printf "Congestion on link(1-2):\t%s\n";
+  Dist.expectation out_dist ~f:(lift_query num_packets)
+    |> Prob.to_dec_string
+    |> Printf.printf "Num packets:\t%s\n";
+  let loop_prob = Dist.expectation out_dist ~f:(lift_query test_loop_history) in
+  Printf.printf "Loop free:\t%b%!\n" (loop_prob =/ (num_of_int 0))
+
+
+let check_loops (network_pnk: Pol.t) (set_ingress_location: Pol.t)=
+  (*Dist.print (eval 20 (set_ingress_location >> network_pnk));*)
+  expectation' 5 (set_ingress_location >> network_pnk) ~f:test_loop_history
+    |> Prob.to_dec_string
+    |> Printf.printf "Loops present: %s\n%!"
 
 let test_global () = begin
-  let topo = Parse.from_dotfile "examples/3cycle.dot" in
+  let topo = Parse.from_dotfile "examples/4cycle.dot" in
   let vertex_id_bimap = gen_node_pnk_id_map topo in
   let scheme_spf = route_spf topo in
   let scheme_ksp = route_ksp topo 3 in
   let routing_spf_pol = routing_scheme_to_global_pnk topo scheme_spf vertex_id_bimap in
   let routing_ksp_pol = routing_scheme_to_global_pnk topo scheme_ksp vertex_id_bimap in
-  let inp_dist = read_demands "examples/3cycle.dem" topo in
+  let inp_dist = read_demands "examples/4cycle.dem" topo in
   let inp_dist_pol = demands_to_inp_dist_pnk inp_dist vertex_id_bimap in
-  analyze_routing_scheme routing_spf_pol inp_dist_pol;
-  analyze_routing_scheme routing_ksp_pol inp_dist_pol
+  Printf.printf "Global\nSPF:\n";
+  analyze_routing_scheme routing_spf_pol inp_dist_pol Id;
+  Printf.printf "\nKSP:\n";
+  analyze_routing_scheme routing_ksp_pol inp_dist_pol Id
   end
 
 let test_local () = begin
   let topo = Parse.from_dotfile "examples/4cycle.dot" in
   let vertex_id_bimap = gen_node_pnk_id_map topo in
   let topo_pnk = topo_to_pnk topo vertex_id_bimap in
-  let test_at_edge_pnk = topology_edge_test topo vertex_id_bimap in
+  let test_at_host_pnk = test_pkt_at_host topo vertex_id_bimap in
+  let test_at_edge_pnk = test_pkt_at_edge topo vertex_id_bimap in
   let spf_routes = route_link_state_spf topo in
   let ecmp_routes = route_link_state_ecmp topo in
   let ksp_routes = route_link_state_ksp topo 3 in
   let spf_pnk = link_state_scheme_to_local_pnk topo spf_routes vertex_id_bimap in
-  Printf.printf "SPF: %s\n" (Pol.to_string spf_pnk);
+  (*Printf.printf "SPF: %s\n" (Pol.to_string spf_pnk);*)
   let ecmp_pnk = link_state_scheme_to_local_pnk topo ecmp_routes vertex_id_bimap in
-  Printf.printf "ECMP: %s\n" (Pol.to_string ecmp_pnk);
+  (*Printf.printf "ECMP: %s\n" (Pol.to_string ecmp_pnk);*)
   let ksp_pnk = link_state_scheme_to_local_pnk topo ksp_routes vertex_id_bimap in
-  Printf.printf "KSP: %s\n" (Pol.to_string ksp_pnk);
+  (*Printf.printf "KSP: %s\n" (Pol.to_string ksp_pnk);*)
   let inp_dist = read_demands "examples/4cycle.dem" topo in
   let inp_dist_pol = demands_to_inp_dist_pnk inp_dist vertex_id_bimap in
-  let network_spf_pnk = (Star (topo_pnk >> spf_pnk)) >> topo_pnk >> test_at_edge_pnk in
-  let network_ecmp_pnk = (Star (topo_pnk >> ecmp_pnk)) >> topo_pnk >> test_at_edge_pnk in
-  let network_ksp_pnk = (Star (topo_pnk >> ksp_pnk)) >> topo_pnk >> test_at_edge_pnk in
-  analyze_routing_scheme network_spf_pnk inp_dist_pol;
-  (*analyze_routing_scheme network_ksp_pnk inp_dist_pol;*)
-  analyze_routing_scheme network_ecmp_pnk inp_dist_pol
+  let network_spf_pnk = (Star (topo_pnk >> spf_pnk)) >> topo_pnk in
+  let network_ecmp_pnk = (Star (topo_pnk >> ecmp_pnk)) >> topo_pnk in
+  let network_ksp_pnk = (Star (topo_pnk >> ksp_pnk)) >> topo_pnk in
+  Printf.printf "\nLocal\nSPF:\n";
+  analyze_routing_scheme network_spf_pnk inp_dist_pol test_at_host_pnk;
+  Printf.printf "\nECMP:\n";
+  analyze_routing_scheme network_ecmp_pnk inp_dist_pol test_at_host_pnk;
+  Printf.printf "\nKSP:\n";
+  analyze_routing_scheme network_ksp_pnk inp_dist_pol test_at_host_pnk;
+  (*Printf.printf "test at edge: %s\n%!" (Pol.to_string test_at_edge_pnk);
+  check_loops ((Star (topo_pnk >> spf_pnk)) >> topo_pnk) test_at_edge_pnk;
+  check_loops ((Star (topo_pnk >> ecmp_pnk)) >> topo_pnk) test_at_edge_pnk;
+  check_loops ((Star (topo_pnk >> ksp_pnk)) >> topo_pnk) test_at_edge_pnk;*)
 end
 
 let () =
