@@ -16,6 +16,14 @@ module VertexOrd = struct
 end
 
 module VertexMap = Map.Make(VertexOrd)
+
+module EdgeOrd = struct
+  type t = Topology.edge  [@@deriving sexp]
+  let compare = Pervasives.compare
+end
+
+module EdgeMap = Map.Make(EdgeOrd)
+
 module IntMap = Map.Make(Int)
 module StringMap = Map.Make(String)
 
@@ -51,6 +59,14 @@ let get_opt_exn v =
   match v with
   | None -> failwith "None"
   | Some x -> x
+
+let string_of_vertex (t:Topology.t) v : string =
+  Printf.sprintf "%s" (Node.name (Topology.vertex_to_label t v))
+
+let string_of_edge (t:Topology.t) e : string =
+  Printf.sprintf "(%s,%s)"
+                (string_of_vertex t (fst (Topology.edge_src e)))
+                (string_of_vertex  t (fst (Topology.edge_dst e)))
 
 let intercalate f s = function
   | [] ->
@@ -590,7 +606,7 @@ let path_length (pk,h) =
 
 let num_packets (pk,h) = Prob.one
 
-let flow_on_link (v_id, id_v) agg_dem (link_src_id, link_dst_id) (pk, h) =
+let flow_on_link agg_dem (link_src_id, link_dst_id) (pk, h) =
   let rec pkt_prob_on_link (src, dst) (pk,h) =
     match h with
     | x::(y::_ as t) -> if (x.Pkt.switch = Some dst && y.Pkt.switch = Some src) then Prob.one
@@ -600,11 +616,10 @@ let flow_on_link (v_id, id_v) agg_dem (link_src_id, link_dst_id) (pk, h) =
   let pkt_prob = pkt_prob_on_link (link_src_id, link_dst_id) (pk, h) in
   Prob.(pkt_prob * agg_dem)
 
-let link_congestion topo (v_id, id_v) agg_dem (link_src_id, link_dst_id) (pk, h) =
-  let link_flow = flow_on_link (v_id, id_v) agg_dem (link_src_id, link_dst_id) (pk, h) in
-  let link_src = IntMap.find_exn id_v link_src_id in
-  let link_dst = IntMap.find_exn id_v link_dst_id in
-  let link = Topology.find_edge topo link_src link_dst in
+let link_congestion topo (v_id, id_v) agg_dem link (pk, h) =
+  let link_src_id = VertexMap.find_exn v_id (fst (Topology.edge_src link)) in
+  let link_dst_id = VertexMap.find_exn v_id (fst (Topology.edge_dst link)) in
+  let link_flow = flow_on_link agg_dem (link_src_id, link_dst_id) (pk, h) in
   let link_cap = Prob.of_int (get_opt_exn (Int64.to_int (Link.capacity (Topology.edge_to_label topo link)))) in
   Prob.(link_flow / link_cap)
 
@@ -638,14 +653,21 @@ let analyze_routing_scheme (topo: Topology.t) (vertex_id_bimap) (network_pnk : P
   Dist.expectation out_dist ~f:(lift_query path_length)
     |> Prob.to_dec_string
     |> Printf.printf "Latency:\t%s\n";
-  Dist.expectation out_dist ~f:(lift_query (link_congestion topo vertex_id_bimap agg_dem (1,2)))
-    |> Prob.to_dec_string
-    |> Printf.printf "Congestion on link (1-2):\t%s\n";
   Dist.expectation out_dist ~f:(lift_query num_packets)
     |> Prob.to_dec_string
     |> Printf.printf "Num packets:\t%s\n";
   let loop_prob = Dist.expectation out_dist ~f:(lift_query test_loop_history) in
-  Printf.printf "Loop free:\t%b%!\n" Prob.(loop_prob = zero)
+  Printf.printf "Loop free:\t%b%!\n" Prob.(loop_prob = zero);
+  let link_congestions = Topology.fold_edges
+    (fun link acc ->
+      let congestion = Dist.expectation out_dist ~f:(lift_query (link_congestion topo vertex_id_bimap agg_dem link)) in
+      EdgeMap.add acc ~key:link ~data:congestion) topo EdgeMap.empty in
+  (*EdgeMap.iteri link_congestions ~f:(fun ~key:link ~data:cong ->
+    Printf.printf "%s : %s\n" (string_of_edge topo link) (Prob.to_dec_string cong))*)
+  let max_cong = EdgeMap.fold ~init:Prob.zero ~f:(fun ~key:link ~data:cong acc -> max_num acc cong) link_congestions in
+  Printf.printf "Max Congestion:\t%s\n" (Prob.to_dec_string max_cong);
+  Printf.printf "Congestion drop:\t%b\n" (max_cong >/ Prob.one)
+
 
 
 let check_loops (network_pnk: Pol.t) (set_ingress_location: Pol.t)=
