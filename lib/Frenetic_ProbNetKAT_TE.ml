@@ -78,8 +78,8 @@ let dump_links (t:Topology.t) (es:path) : string =
   intercalate
     (fun e ->
      Printf.sprintf "(%s,%s)"
-        (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_src e))))
-        (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_dst e))))) ", "  es
+        (Node.name (Topology.vertex_to_label t (fst (Topology.edge_src e))))
+        (Node.name (Topology.vertex_to_label t (fst (Topology.edge_dst e))))) ", "  es
 
 let dump_path_prob_set (t:Topology.t) (pps: flow_decomp) : string =
   let buf = Buffer.create 101 in
@@ -94,8 +94,8 @@ let dump_scheme (t:Topology.t) (s:scheme) : string =
   SrcDstMap.iteri s
     ~f:(fun ~key:(v1,v2) ~data:pps ->
       Printf.bprintf buf "%s -> %s :\n  %s\n"
-          (Node.name (Net.Topology.vertex_to_label t v1))
-          (Node.name (Net.Topology.vertex_to_label t v2))
+          (Node.name (Topology.vertex_to_label t v1))
+          (Node.name (Topology.vertex_to_label t v2))
           (dump_path_prob_set t pps));
   Buffer.contents buf
 
@@ -112,8 +112,8 @@ let dump_link_state_scheme (t:Topology.t) (s:link_state_scheme) : string =
   SrcDstMap.iteri s
     ~f:(fun ~key:(v1,v2) ~data:opd ->
       Printf.bprintf buf "%s -> %s :\n  %s\n"
-          (Node.name (Net.Topology.vertex_to_label t v1))
-          (Node.name (Net.Topology.vertex_to_label t v2))
+          (Node.name (Topology.vertex_to_label t v1))
+          (Node.name (Topology.vertex_to_label t v2))
           (dump_port_prob_set opd));
   Buffer.contents buf
 
@@ -330,7 +330,7 @@ let is_switch (topo : Topology.t) (node : vertex) =
 
 let gen_node_pnk_id_map (topo : Topology.t) =
   let host_offset =
-    Int.of_float (10. ** (ceil (log10 (Float.of_int (num_vertexes topo))) +. 1.)) in
+    Int.of_float (10. ** (Pervasives.ceil (log10 (Float.of_int (num_vertexes topo))) +. 1.)) in
   VertexSet.fold (Topology.vertexes topo)
     ~init:(VertexMap.empty, IntMap.empty)
     ~f:(fun (v_id, id_v) v ->
@@ -442,26 +442,29 @@ let route_link_state_spf (topo : Topology.t) : link_state_scheme =
     ~init:SrcDstMap.empty
     ~f:(fun acc (c,v1,v2,p) ->
       if v1 = v2 then acc
-      else SrcDstMap.add acc ~key:(v1,v2) ~data:(PortMap.singleton (port_to_pnk (get_out_port p)) Prob.one))
+      else SrcDstMap.add acc ~key:(v1,v2)
+        ~data:(PortMap.singleton (port_to_pnk (get_out_port p)) Prob.one))
 
 let route_link_state_ecmp (topo:Topology.t) : link_state_scheme =
   let mpapsp = all_pairs_multi_shortest_path topo in
   SrcDstMap.fold mpapsp
   ~init:SrcDstMap.empty
   ~f:(fun ~key:(src, dst) ~data:(_,n,next_hop_probs) acc ->
-    if src = dst then acc else
-    let next_hops = List.fold_left next_hop_probs
-      ~init:VertexSet.empty
-      ~f:(fun acc (next_hop,_) ->
-        VertexSet.add acc next_hop) in
-    let prob = Prob.(one / of_int (VertexSet.length next_hops)) in
-    let out_ports = VertexSet.fold next_hops
-      ~init:PortMap.empty
-      ~f:(fun acc next_hop ->
-        let link = Topology.find_edge topo src next_hop in
-        let out_port = port_to_pnk(snd (Topology.edge_src link)) in
-        PortMap.add acc ~key:out_port ~data:prob) in
-    SrcDstMap.add acc ~key:(src, dst) ~data:out_ports)
+    if src = dst then
+      acc
+    else
+      let next_hops = List.fold_left next_hop_probs
+        ~init:VertexSet.empty
+        ~f:(fun acc (next_hop,_) ->
+          VertexSet.add acc next_hop) in
+      let prob = Prob.(one / of_int (VertexSet.length next_hops)) in
+      let out_ports = VertexSet.fold next_hops
+        ~init:PortMap.empty
+        ~f:(fun acc next_hop ->
+          let link = Topology.find_edge topo src next_hop in
+          let out_port = port_to_pnk(snd (Topology.edge_src link)) in
+          PortMap.add acc ~key:out_port ~data:prob) in
+      SrcDstMap.add acc ~key:(src, dst) ~data:out_ports)
 
 (* Compute link state routing scheme with k shortest paths from a node to a host *)
 let route_link_state_ksp (topo : Topology.t) (k : int) : link_state_scheme =
@@ -607,21 +610,32 @@ let path_length (pk,h) =
 let num_packets (pk,h) = Prob.one
 
 let flow_on_link agg_dem (link_src_id, link_dst_id) (pk, h) =
-  let rec pkt_prob_on_link (src, dst) (pk,h) =
+  let rec pkt_traverses_link (src, dst) (pk,h) =
     match h with
     | x::(y::_ as t) -> if (x.Pkt.switch = Some dst && y.Pkt.switch = Some src) then Prob.one
-      else pkt_prob_on_link (src, dst) (pk, t)
+      else pkt_traverses_link (src, dst) (pk, t)
     | x::[] -> Prob.zero
     | [] -> Prob.zero in
-  let pkt_prob = pkt_prob_on_link (link_src_id, link_dst_id) (pk, h) in
+  let pkt_prob = pkt_traverses_link (link_src_id, link_dst_id) (pk, h) in
   Prob.(pkt_prob * agg_dem)
 
 let link_congestion topo (v_id, id_v) agg_dem link (pk, h) =
   let link_src_id = VertexMap.find_exn v_id (fst (Topology.edge_src link)) in
   let link_dst_id = VertexMap.find_exn v_id (fst (Topology.edge_dst link)) in
   let link_flow = flow_on_link agg_dem (link_src_id, link_dst_id) (pk, h) in
-  let link_cap = Prob.of_int (get_opt_exn (Int64.to_int (Link.capacity (Topology.edge_to_label topo link)))) in
+  let link_cap = Topology.edge_to_label topo link
+    |> Link.capacity
+    |> Int64.to_int
+    |> get_opt_exn
+    |> Prob.of_int in
   Prob.(link_flow / link_cap)
+
+let sd_tput topo (v_id, id_v) agg_dem (src, dst) (pk, h) =
+  let src_id = VertexMap.find_exn v_id src in
+  let dst_id = VertexMap.find_exn v_id dst in
+  if (pk.Pkt.src = Some src_id && pk.Pkt.dst = Some dst_id) then agg_dem
+  else Prob.zero
+
 
 let test_loop_history (pk, h) =
   let hist_len = List.length h in
@@ -636,7 +650,7 @@ let test_loop_history (pk, h) =
     Prob.one
 
 (* query on a hist ---> query on hist set *)
-let lift_query q = fun hset ->
+let lift_query_avg q = fun hset ->
       let n = HSet.length hset in
       if n=0 then Prob.zero else
       let sum = HSet.fold hset ~init:Prob.zero ~f:(fun acc h ->
@@ -644,31 +658,47 @@ let lift_query q = fun hset ->
       in
       Prob.(sum / of_int n)
 
+let lift_query_sum q = fun hset ->
+      let n = HSet.length hset in
+      if n=0 then Prob.zero else
+      HSet.fold hset ~init:Prob.zero ~f:(fun acc h ->
+        Prob.(acc + q h))
+
 (************************************* Tests **********************************)
 let analyze_routing_scheme (topo: Topology.t) (vertex_id_bimap) (network_pnk : Pol.t) (input_dist : Prob.t SrcDstMap.t) (final_filter : Pol.t) =
   let agg_dem, input_dist_pnk = demands_to_inp_dist_pnk input_dist vertex_id_bimap in
   let p = (input_dist_pnk >> network_pnk >> final_filter) in
   let out_dist = eval 10 p in
   (*Dist.print out_dist;*)
-  Dist.expectation out_dist ~f:(lift_query path_length)
+  Dist.expectation out_dist ~f:(lift_query_avg path_length)
     |> Prob.to_dec_string
     |> Printf.printf "Latency:\t%s\n";
-  Dist.expectation out_dist ~f:(lift_query num_packets)
+  Dist.expectation out_dist ~f:(lift_query_sum num_packets)
     |> Prob.to_dec_string
     |> Printf.printf "Num packets:\t%s\n";
-  let loop_prob = Dist.expectation out_dist ~f:(lift_query test_loop_history) in
+  let loop_prob = Dist.expectation out_dist ~f:(lift_query_sum test_loop_history) in
   Printf.printf "Loop free:\t%b%!\n" Prob.(loop_prob = zero);
+  (* measure link congestions *)
   let link_congestions = Topology.fold_edges
     (fun link acc ->
-      let congestion = Dist.expectation out_dist ~f:(lift_query (link_congestion topo vertex_id_bimap agg_dem link)) in
+      let congestion = Dist.expectation out_dist
+        ~f:(lift_query_sum (link_congestion topo vertex_id_bimap agg_dem link)) in
       EdgeMap.add acc ~key:link ~data:congestion) topo EdgeMap.empty in
+  (* measure tput per src dst pair *)
+  let sd_tputs = SrcDstMap.fold ~init:SrcDstMap.empty
+    ~f:(fun ~key:(src, dst) ~data:_ acc ->
+      let tput = Dist.expectation out_dist
+        ~f:(lift_query_sum (sd_tput topo vertex_id_bimap agg_dem (src, dst))) in
+      SrcDstMap.add acc ~key:(src, dst) ~data:tput) input_dist in
+
+  SrcDstMap.iter sd_tputs ~f:(fun ~key:(s,d) ~data:tput ->
+    Printf.printf "(%s,%s) : %s\n" (string_of_vertex topo s) (string_of_vertex topo d) (Prob.to_dec_string tput));
+
   (*EdgeMap.iteri link_congestions ~f:(fun ~key:link ~data:cong ->
     Printf.printf "%s : %s\n" (string_of_edge topo link) (Prob.to_dec_string cong))*)
   let max_cong = EdgeMap.fold ~init:Prob.zero ~f:(fun ~key:link ~data:cong acc -> max_num acc cong) link_congestions in
   Printf.printf "Max Congestion:\t%s\n" (Prob.to_dec_string max_cong);
   Printf.printf "Congestion drop:\t%b\n" (max_cong >/ Prob.one)
-
-
 
 let check_loops (network_pnk: Pol.t) (set_ingress_location: Pol.t)=
   (*Dist.print (eval 20 (set_ingress_location >> network_pnk));*)
