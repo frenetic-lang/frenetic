@@ -71,7 +71,7 @@ class PacketOut(object):
         assert isinstance(actions,list) or isinstance(actions, Seq) or \
             isinstance(actions,SinglePolicy) or isinstance(actions,SetPort)
 
-        # We flatten all Sequences into lists of actions.  (We don't do this for 
+        # We flatten a Sequence into a list of policies.  (We don't do this for 
         # Unions because packet outs can't send out parallel packets except for 
         # multiple ports, which we deal with separately.)
         if isinstance(actions, Seq):
@@ -83,19 +83,18 @@ class PacketOut(object):
         for action in actions:
             assert isinstance(action, Mod) or isinstance(action, Output) or \
                 isinstance(action,SinglePolicy) or isinstance(action,SetPort) 
-            # In Frenetic 4.0, Mod(Location()) is not accepted.  When the plugin architecture
-            # of 4.1 is instated, this will change, but for the time being, convert a Mod(Location()) 
-            # to an Output for convenience
-            if isinstance(action, Mod): 
+            # In Frenetic 4.1, Output is no longer accepted because Output is not a NetKAT
+            # policy.  Convert all Output's to Mod(Location())
+            if isinstance(action, Output):
+                scrubbed_actions.append(Mod(Location(p)))
+            elif isinstance(action, Mod): 
                 if action.hv.header == "location":
                     assert isinstance(action.hv.value, Physical), "Only port outputs are allowed in pkt_out" 
-                    scrubbed_actions.append(Output(Physical(action.hv.value.port)))
-                else:
-                    scrubbed_actions.append(action)
+                scrubbed_actions.append(action)
             # A SetPort might have many destinations, so we convert them here.
             elif isinstance(action, SetPort):
                 for p in action.port_list:
-                    scrubbed_actions.append(Output(Physical(p)))
+                    scrubbed_actions.append(Mod(Location(p)))
 
             # All others have no scrubbing involved
             else:

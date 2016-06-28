@@ -90,8 +90,7 @@ Library async
     Frenetic_Log,
     Frenetic_Http_Controller,
     Frenetic_OpenFlow0x01_Controller,
-    Frenetic_NetKAT_Controller,
-    Frenetic_NetKAT_Updates
+    Frenetic_NetKAT_Controller
 
 Executable frenetic
   Path: frenetic

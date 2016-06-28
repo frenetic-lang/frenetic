@@ -39,11 +39,9 @@ module Make (P:PLUGIN) : CONTROLLER = struct
     P.update !fdd
 
   let handle_event (evt:event) : unit Deferred.t =
-    Log.info "In handle_event";
     Pipe.write_without_pushback event_writer evt;
     match evt with
     | SwitchUp (sw,ports) -> 
-       Log.info "SwitchUp";
        (* TODO: This used to be add_exn, but it was blowing up.  Just ignore return value now. *)
        let _ = Hashtbl.Poly.add switch_hash sw ports in
        P.update_switch sw !fdd
@@ -54,9 +52,7 @@ module Make (P:PLUGIN) : CONTROLLER = struct
        Deferred.return ()
         
   let start (openflow_port:int) : unit =
-    Log.info "In Frenetic_NetKAT_Controller.start";
     P.start openflow_port;
-    Log.info "FInished P.start";
     don't_wait_for (Pipe.iter P.events ~f:handle_event)
 
   let event () : event Deferred.t =
@@ -65,7 +61,6 @@ module Make (P:PLUGIN) : CONTROLLER = struct
     | `Eof -> assert false
 
   let switches () : (switchId * portId list) list Deferred.t =
-    Log.info "Getting switches";
     return (Hashtbl.Poly.to_alist switch_hash)
 
   let port_stats (sw : switchId) (pt : portId) : portStats Deferred.t =

@@ -1,3 +1,5 @@
+(* TODO: Currently Unused.  See Frenetic_OpenFlow0x01_Controller for Future Directions *)
+
 open Core.Std
 open Async.Std
 

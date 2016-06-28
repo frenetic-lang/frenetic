@@ -110,8 +110,8 @@ let handle_request
         (fun str ->
            let json = Yojson.Basic.from_string str in
            Frenetic_NetKAT_Json.pkt_out_from_json json)
-        (fun (sw_id, payload, policy) ->
-           packet_out sw_id payload policy >>= fun () -> 
+        (fun (sw_id, payload, policy_list) ->
+           packet_out sw_id payload policy_list >>= fun () -> 
            Cohttp_async.Server.respond `OK)
     | `POST, [clientId; "update_json"] ->
       handle_parse_errors body parse_update_json

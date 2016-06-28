@@ -754,6 +754,9 @@ end
 
 module From0x01 = struct
 
+  let from_switchId (swId: OF10.switchId) : switchId =
+    swId
+
   let from_portId (pport_id : OF10.portId) : portId option =
     (* OVS returns the local interface as 65534, but we don't want that *)
     if pport_id > 0xff00 then (* pport_id <= OFPP_MAX *)
@@ -761,12 +764,72 @@ module From0x01 = struct
     else 
       Int.to_int32 pport_id
 
-  let from_switch_features (feats:OF10.SwitchFeatures.t) = 
-    let sp = List.filter_map feats.ports ~f:(fun pd -> from_portId pd.port_no) in
-    { switch_id = feats.switch_id; switch_ports = sp}
+  let from_payload (pl : OF10.payload) : payload =
+    match pl with
+    | Buffered (bufferId, data) -> Buffered (bufferId, data)
+    | NotBuffered data -> NotBuffered data
 
-  let event_from_message swId hdr msg =
-    (* TODO: Translate hdr, msg to generic OpenFlow event *)
-    SwitchDown swId   
+  let from_switch_features (feats : OF10.SwitchFeatures.t) = 
+    let sp = List.filter_map feats.ports ~f:(fun pd -> from_portId pd.port_no) in
+    { switch_id = from_switchId feats.switch_id; switch_ports = sp}
+
+  let from_port_stats (prl : OF10.portStats) =
+    { port_no = Int64.of_int prl.port_no 
+      ; port_rx_packets = prl.rx_packets ; port_tx_packets = prl.tx_packets
+      ; port_rx_bytes = prl.rx_bytes ; port_tx_bytes = prl.tx_bytes ; port_rx_dropped = prl.rx_dropped
+      ; port_tx_dropped = prl.tx_dropped ; port_rx_errors = prl.rx_errors
+      ; port_tx_errors = prl.tx_errors ; port_rx_frame_err = prl.rx_frame_err
+      ; port_rx_over_err = prl.rx_over_err ; port_rx_crc_err = prl.rx_crc_err
+      ; port_collisions = prl.collisions 
+    }  
+
+  let from_individual_stats (ifs: OF10.individualStats ) =
+    { flow_table_id = Int64.of_int ifs.table_id; 
+      (* TODO: This is massivbely difficult *)
+      flow_pattern = Pattern.match_all;
+      (* TODO: THis is massively difficult *)
+      flow_actions = [];
+      flow_duration_sec = Int64.of_int32 ifs.duration_sec; 
+      flow_duration_nsec = Int64.of_int32 ifs.duration_nsec;
+      flow_priority = Int64.of_int ifs.priority;
+      flow_idle_timeout = Int64.of_int ifs.idle_timeout; 
+      flow_hard_timeout = Int64.of_int ifs.hard_timeout;
+      flow_packet_count = ifs.packet_count; 
+      flow_byte_count = ifs.byte_count
+    }
+
+  let event_from_message (swId:OF10.switchId) (msg:OF10.Message.t) =
+    let _swId = from_switchId swId in
+    match msg with 
+    | PortStatusMsg ps -> 
+      let _portId = from_portId ps.desc.port_no in
+      (match _portId with
+      | Some _portId -> 
+        (match ps.reason with
+        | Add -> Some (PortUp (_swId, _portId))  
+        | Delete -> Some (PortDown (_swId, _portId))
+        | _ -> None   (* We ignore port modifications *)
+        )
+      | None -> None
+      )
+    | PacketInMsg pi -> 
+      let _portId = from_portId pi.port in
+      let _reason = match pi.reason with NoMatch -> "NoMatch" | ExplicitSend -> "ExplicitSend" in
+      let _payload = from_payload pi.input_payload in 
+      (match _portId with
+      | Some _portId -> Some (PacketIn (_reason, _swId, _portId, _payload, pi.total_len))
+      | None -> None
+      )
+    | StatsReplyMsg sr ->
+      (match sr with
+      | PortRep prl -> 
+        (* We only get one port stat row with Frenetic, so just grab the first *)
+        Some (PortStats (_swId, from_port_stats (List.hd_exn prl)))
+      | IndividualFlowRep ifrl ->
+        Some (FlowStats (_swId, from_individual_stats (List.hd_exn ifrl)))
+      | _ -> None
+      )        
+    | _ -> None
+
 
 end

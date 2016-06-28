@@ -77,14 +77,10 @@ let start port =
         >>= fun sock ->
         Log.info "Successfully connected to second OpenFlow server socket";
         let reader = Reader.create (Socket.fd sock) in
-        Log.info "Got reader";
         let writer = Writer.create (Socket.fd sock) in
-        Log.info "And writer";
         Writer.write_marshal writer ~flags:[] `Events;
-        Log.info "And wrote event";
         Deferred.repeat_until_finished ()
           (fun () ->
-             Log.info "Ready to read from read pipe";
              Reader.read_marshal reader
              >>= function
              | `Eof ->
@@ -93,7 +89,6 @@ let start port =
                Socket.shutdown sock `Both;
                return (`Finished ())
              | `Ok (`Events_resp evt) ->
-               Log.info "Got a response";
                Pipe.write events_writer evt >>| fun () ->
                `Repeat ()))
 
@@ -212,15 +207,6 @@ let port_stats (swid:switchId) (portId:int32) =
     ; port_collisions = 0L
   }
 
-(* TODO: Implement *)
-let update (compiler: Frenetic_NetKAT_Compiler.t) =
-  return ()
-
-(* TODO: Implement *)
-let update_switch (swid: switchId) (compiler: Frenetic_NetKAT_Compiler.t) = 
-  return ()
-
-(* Maybe remove this - might not be needed anymore *)
 let get_switches () =
   ready_to_process ()
   >>= fun (recv, send) ->
@@ -230,17 +216,70 @@ let get_switches () =
   | `Get_switches_resp resp ->
       signal_read (); resp
 
-(*
-module OpenFlow0x01_Plugin = struct
-  let (r,_) = Pipe.create ()
-  let start _ = assert false
-  let events = r
-  let switch_features _ = assert false
-  let update _ = assert false
-  let update_switch _ = assert false
-  let packet_out _ = assert false
-  let flow_stats _ = assert false
-  let port_stats _ = assert false
+(* TODO: The following is ripped out of Frenetic_NetKAT_Updates.  Turns out you can't call
+stuff in that because of a circular dependency.  In a later version, we should implement 
+generic commands in Frenetic_OpenFlow (similar to events, but going the opposite
+directions), and let openflow.ml translate these to the specifc version of OpenFlow.  That
+way, we can simply pass a plugin instance where the update can write to. *)
+
+module BestEffortUpdate0x01 = struct
+  module Comp = Frenetic_NetKAT_Compiler
+  module M = OF10.Message
+  open Frenetic_OpenFlow.To0x01
+
+  exception UpdateError
+
+  let current_compiler_options =
+    ref Comp.default_compiler_options
+
+  let restrict sw_id repr =
+    Comp.restrict Frenetic_NetKAT.(Switch sw_id) repr
+
+  let install_flows_for sw_id table =
+    let to_flow_mod p f = M.FlowModMsg (from_flow p f) in
+    let priority = ref 65536 in
+    let flows = List.map table ~f:(fun flow ->
+        decr priority;
+        to_flow_mod !priority flow) in
+    send_batch sw_id 0l flows >>= function
+    | `Eof -> raise UpdateError
+    | `Ok -> return ()
+
+  let delete_flows_for sw_id =
+    let delete_flows = M.FlowModMsg OF10.delete_all_flows in
+    send sw_id 5l delete_flows >>= function
+      | `Eof -> raise UpdateError
+      | `Ok -> return ()
+
+  let bring_up_switch (sw_id : switchId) new_r =
+    let table = Comp.to_table ~options:!current_compiler_options sw_id new_r in
+    Log.printf ~level:`Debug "Setting up flow table\n%s"
+      (Frenetic_OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id) table);
+    Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
+      delete_flows_for sw_id >>= fun _ ->
+      install_flows_for sw_id table)
+    >>= function
+      | Ok x -> return x
+      | Error _exn ->
+        Log.debug
+          "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
+        Log.flushed () >>| fun () ->
+        Log.error "%s\n%!" (Exn.to_string _exn)
+
+  let implement_policy repr =
+    (get_switches ()) >>= fun switches ->
+    Deferred.List.iter switches (fun sw_id ->
+      bring_up_switch sw_id repr)
+
+  let set_current_compiler_options opt =
+    current_compiler_options := opt
 end
-*)
+
+let update (compiler: Frenetic_NetKAT_Compiler.t) =
+  BestEffortUpdate0x01.implement_policy compiler
+
+let update_switch (swid: switchId) (compiler: Frenetic_NetKAT_Compiler.t) = 
+  BestEffortUpdate0x01.bring_up_switch swid compiler
+
+
           

@@ -176,7 +176,6 @@ let rec policy_of_json (json : json) : policy =
                      json |> member "pt2" |> to_int |> int_to_uint32)
    | str -> raise (Invalid_argument ("invalid policy type " ^ str))
 
-
 (* by default, Yojson produces non-standard JSON *)
 let policy_to_json_string (pol : policy) : string =
   Yojson.Basic.to_string ~std:true (policy_to_json pol)
@@ -239,38 +238,15 @@ let int32_option_from_json (json : json) : Int32.t option =
     | None -> None
     | Some n -> Some (Int32.of_int_exn n)
 
-let modify_from_json (json : json) : action =
-  (* The mod structure is exactly like the equivalent in flow tables *) 
-  let header_val = from_json_header_val(json) in
-  let set_field_val = match header_val with
-  | EthSrc m -> SetEthSrc m
-  | EthDst m -> SetEthSrc m
-  | Vlan vl -> SetVlan (Some vl)
-  | VlanPcp n -> SetVlanPcp n
-  | EthType n -> SetEthTyp n 
-  | IPProto n -> SetIPProto n
-  (* Masks are not supported on modifications *)
-  | IP4Src (addr,mask) -> SetIP4Src addr
-  | IP4Dst (addr,mask) -> SetIP4Dst addr
-  | TCPSrcPort n -> SetTCPSrcPort n
-  | TCPDstPort n -> SetTCPDstPort n
-  | Switch _ | Location _ | VSwitch _ | VPort _ | VFabric _ 
-    -> failwith "Unsupported field modification" in  
-  Modify set_field_val 
-  
-let action_from_json (json : json) : action =
+let policies_of_json (json: json) : policy list =
   let open Yojson.Basic.Util in
-  match json |> member "type" |> to_string with
-    | "output" -> Output (json |> member "pseudoport" |> pseudoport_from_json)
-    | "mod" -> modify_from_json json
-    | "enqueue" -> failwith "NYI: parsing enqueue actions from JSON"
-    | str -> failwith ("invalid action type: " ^ str)
+  json |> to_list |> List.map ~f:policy_of_json
 
-let pkt_out_from_json (json : json) : switchId * payload * policy =
+let pkt_out_from_json (json : json) : switchId * payload * policy list =
   let open Yojson.Basic.Util in
   let switch = json |> member "switch" |> to_int |> Int64.of_int in
   let payload = json |> member "payload" |> payload_from_json in
-  let policy = json |> member "policy" |> policy_of_json in 
+  let policy = json |> member "policies" |> policies_of_json in 
   (switch, payload, policy)
 
 let pattern_to_json (p:Pattern.t) : json =
