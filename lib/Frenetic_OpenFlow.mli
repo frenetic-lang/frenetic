@@ -248,3 +248,7 @@ module To0x01 : sig
   val from_flow : int -> flow -> OF10.flowMod
   val from_payload : payload -> OF10.payload
 end
+module From0x01 : sig
+  val from_switch_features : OF10.SwitchFeatures.t -> switchFeatures
+  val event_from_message : OF10.switchId -> Frenetic_OpenFlow_Header.t -> OF10.Message.t -> event
+end

@@ -84,4 +84,4 @@ module Make (P:PLUGIN) : CONTROLLER = struct
           return (Int64.(packets + fs.flow_packet_count), Int64.(bytes + fs.flow_byte_count)))
 end
 
-(*module OpenFlow0x01 = Make(Frenetic_OpenFlow0x01_Controller) *)
+

@@ -3,9 +3,8 @@ open Async.Std
 
 open Frenetic_OpenFlow
 module Log = Frenetic_Log
-
 module OF10 = Frenetic_OpenFlow0x01
-               
+
 let chan = Ivar.create ()
 
 let (events, events_writer) = Pipe.create ()

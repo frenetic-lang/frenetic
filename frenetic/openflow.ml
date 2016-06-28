@@ -2,12 +2,9 @@ open Core.Std
 open Async.Std
 open Frenetic_OpenFlow0x01
 module Log = Frenetic_Log
+module ToGeneric = Frenetic_OpenFlow.From0x01
 
-type event = [
-  | `Connect of switchId * SwitchFeatures.t
-  | `Disconnect of switchId
-  | `Message of switchId * Frenetic_OpenFlow_Header.t * Message.t
-]
+type event = Frenetic_OpenFlow.event
 
 let (events, events_writer) : event Pipe.Reader.t * event Pipe.Writer.t
   = Pipe.create ()
@@ -78,18 +75,23 @@ let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit De
 
     (* Initial *)
     | Initial, `Eof ->
+      Log.debug "Initial state got event loop shut down";
       return () 
     | Initial, `Ok (hdr,Hello bytes) ->
       (* TODO(jnf): check version? *)
       serialize 0l SwitchFeaturesRequest;
+      Log.debug "Sent SwitchFeaturesRequest%!";
       loop SentSwitchFeatures
     | Initial, `Ok(hdr,msg) ->
+      Log.debug "Ooops.  Got arbitrary message in initial state%!";
       assert false
 
     (* SentSwitchFeatures *)
     | SentSwitchFeatures, `Eof ->
+      Log.debug "Ooops.  Got EOF while waiting for switch features%!";
       return ()
     | SentSwitchFeatures, `Ok (hdr, SwitchFeaturesReply features) ->
+      Log.debug "Got swithc features response%!";
       let switchId = features.switch_id in
       let txns = Hashtbl.Poly.create () in
       (* We start the transaction ID high because Frenetic will send low ID's for flow
@@ -105,24 +107,30 @@ let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit De
         serialize xid msg;
         Ivar.read ivar;
         in
+      Log.debug "About ready to convert ports list from %s%!" (string_of_switchId switchId);
+      let generic_sw_f = ToGeneric.from_switch_features features in
+      Log.debug "Ready to extract port list%!";
+      let port_list = generic_sw_f.switch_ports in
+      Log.debug "Adding Switch %s to hash%!" (string_of_switchId switchId);
       Hashtbl.Poly.add_exn switches ~key:switchId ~data:{ features; send; send_txn };
-      Log.debug "Switch %s connected" (string_of_switchId switchId);
-      Pipe.write_without_pushback events_writer (`Connect (switchId, features));
+      Log.debug "Switch %s connected%!" (string_of_switchId switchId);
+      Pipe.write_without_pushback events_writer (SwitchUp (switchId, port_list));
       loop (Connected threadState)
     (* TODO: Queue up these messages and deliver them when we're done connecting *)
     | SentSwitchFeatures, `Ok (hdr,msg) ->
-      Log.debug "Dropping unexpected msg received before SwitchFeatures response: %s" (Message.to_string msg);
+      Log.debug "Dropping unexpected msg received before SwitchFeatures response: %s%!" (Message.to_string msg);
       loop state   
 
     (* Connected *)
     | Connected threadState, `Eof ->
       Hashtbl.Poly.remove switches threadState.switchId;
-      Log.debug "Switch %s disconnected" (string_of_switchId threadState.switchId);
-      Pipe.write_without_pushback events_writer (`Disconnect threadState.switchId);
+      Log.debug "Switch %s disconnected%!" (string_of_switchId threadState.switchId);
+      Pipe.write_without_pushback events_writer (SwitchDown threadState.switchId);
       return ()
     | Connected threadState, `Ok (hdr, msg) ->
-      (* TODO: Am not sure we should be writing a transactional response to the event writer *)
-      Pipe.write_without_pushback events_writer (`Message (threadState.switchId, hdr, msg));
+      Log.debug "In normal state, got event%!";
+      let generic_openflow_event = ToGeneric.event_from_message threadState.switchId hdr msg in
+      Pipe.write_without_pushback events_writer generic_openflow_event;
       (match Hashtbl.Poly.find threadState.txns hdr.xid with 
        | None -> ()
        | Some (ivar,msgs) -> 

@@ -603,151 +603,170 @@ let string_of_flowTable ?(label="") (tbl : flowTable) : string =
 
 module To0x01 = struct
 
-exception Invalid_port of int32
+  exception Invalid_port of int32
 
-let from_portId (pport_id : portId) : OF10.portId =
-  if pport_id > 0xff00l then (* pport_id <= OFPP_MAX *)
-    raise (Invalid_port pport_id)
-  else
-    Int32.to_int_exn pport_id
+  let from_portId (pport_id : portId) : OF10.portId =
+    if pport_id > 0xff00l then (* pport_id <= OFPP_MAX *)
+      raise (Invalid_port pport_id)
+    else
+      Int32.to_int_exn pport_id
 
-let from_output (inPort : OF10.portId option) (pseudoport : pseudoport) : OF10.action =
-  match pseudoport with
-    | InPort -> Output InPort
-    | Table -> Output Table
-    | Normal -> Output Normal
-    | Flood -> Output Flood
-    | All -> Output AllPorts
-    | Physical pport_id ->
-      let pport_id = from_portId pport_id in
-      if Some pport_id = inPort then
-        Output InPort
-      else
-        Output (PhysicalPort pport_id)
-    | Controller n ->
-      Output (Controller n)
-    | Local ->
-      Output Local
+  let from_output (inPort : OF10.portId option) (pseudoport : pseudoport) : OF10.action =
+    match pseudoport with
+      | InPort -> Output InPort
+      | Table -> Output Table
+      | Normal -> Output Normal
+      | Flood -> Output Flood
+      | All -> Output AllPorts
+      | Physical pport_id ->
+        let pport_id = from_portId pport_id in
+        if Some pport_id = inPort then
+          Output InPort
+        else
+          Output (PhysicalPort pport_id)
+      | Controller n ->
+        Output (Controller n)
+      | Local ->
+        Output Local
 
-let from_action (inPort : OF10.portId option) (act : action) : OF10.action =
-  match act with
-    | Output pseudoport ->
-      from_output inPort pseudoport
-    | Enqueue (pport_id, queue_id) ->
-      let pport_id = from_portId pport_id in
-      if Some pport_id = inPort then
-        Enqueue(InPort, queue_id)
-      else
-        Enqueue (PhysicalPort pport_id, queue_id)
-    | Modify (SetEthSrc dlAddr) ->
-      SetDlSrc dlAddr
-    | Modify (SetEthDst dlAddr) ->
-      SetDlDst dlAddr
-    | Modify (SetVlan vlan) ->
-      begin match vlan with
-        | None
-        | Some(0xffff) ->
-          SetDlVlan None
-        | Some(n) ->
-          SetDlVlan (Some n)
-      end
-    | Modify (SetVlanPcp pcp) ->
-      SetDlVlanPcp pcp
-    | Modify (SetEthTyp _) ->
-      raise (Invalid_argument "cannot set Ethernet type")
-    | Modify (SetIPProto _) ->
-      raise (Invalid_argument "cannot set IP protocol")
-    | Modify (SetIP4Src nwAddr) ->
-      SetNwSrc nwAddr
-    | Modify (SetIP4Dst nwAddr) ->
-      SetNwDst nwAddr
-    | Modify (SetTCPSrcPort tp) ->
-      SetTpSrc tp
-    | Modify (SetTCPDstPort tp) ->
-      SetTpDst tp
-      (* TODO(grouptable) *)
-    | FastFail _ -> failwith "Openflow 1.0 does not support fast failover."
+  let from_action (inPort : OF10.portId option) (act : action) : OF10.action =
+    match act with
+      | Output pseudoport ->
+        from_output inPort pseudoport
+      | Enqueue (pport_id, queue_id) ->
+        let pport_id = from_portId pport_id in
+        if Some pport_id = inPort then
+          Enqueue(InPort, queue_id)
+        else
+          Enqueue (PhysicalPort pport_id, queue_id)
+      | Modify (SetEthSrc dlAddr) ->
+        SetDlSrc dlAddr
+      | Modify (SetEthDst dlAddr) ->
+        SetDlDst dlAddr
+      | Modify (SetVlan vlan) ->
+        begin match vlan with
+          | None
+          | Some(0xffff) ->
+            SetDlVlan None
+          | Some(n) ->
+            SetDlVlan (Some n)
+        end
+      | Modify (SetVlanPcp pcp) ->
+        SetDlVlanPcp pcp
+      | Modify (SetEthTyp _) ->
+        raise (Invalid_argument "cannot set Ethernet type")
+      | Modify (SetIPProto _) ->
+        raise (Invalid_argument "cannot set IP protocol")
+      | Modify (SetIP4Src nwAddr) ->
+        SetNwSrc nwAddr
+      | Modify (SetIP4Dst nwAddr) ->
+        SetNwDst nwAddr
+      | Modify (SetTCPSrcPort tp) ->
+        SetTpSrc tp
+      | Modify (SetTCPDstPort tp) ->
+        SetTpDst tp
+        (* TODO(grouptable) *)
+      | FastFail _ -> failwith "Openflow 1.0 does not support fast failover."
 
-let from_seq (inPort : OF10.portId option) (seq : seq) : OF10.action list =
-  List.map seq ~f:(from_action inPort)
+  let from_seq (inPort : OF10.portId option) (seq : seq) : OF10.action list =
+    List.map seq ~f:(from_action inPort)
 
-let from_par (inPort : OF10.portId option) (par : par) : OF10.action list =
-  List.concat (List.map par ~f:(from_seq inPort))
+  let from_par (inPort : OF10.portId option) (par : par) : OF10.action list =
+    List.concat (List.map par ~f:(from_seq inPort))
 
-let from_group (inPort : OF10.portId option) (group : group)
-  : OF10.action list =
-  match group with
-  | [] -> []
-  | [par] -> from_par inPort par
-  | _ ->
-     raise (Unsupported "OpenFlow 1.0 does not support fast-failover")
+  let from_group (inPort : OF10.portId option) (group : group)
+    : OF10.action list =
+    match group with
+    | [] -> []
+    | [par] -> from_par inPort par
+    | _ ->
+       raise (Unsupported "OpenFlow 1.0 does not support fast-failover")
 
-let from_timeout (timeout : timeout) : OF10.timeout =
-  match timeout with
-    | Permanent -> Permanent
-    | ExpiresAfter n -> ExpiresAfter n
+  let from_timeout (timeout : timeout) : OF10.timeout =
+    match timeout with
+      | Permanent -> Permanent
+      | ExpiresAfter n -> ExpiresAfter n
 
 
-let from_pattern (pat : Pattern.t) : OF10.pattern =
-  { dlSrc = pat.dlSrc
-  ; dlDst = pat.dlDst
-  ; dlTyp = pat.dlTyp
-  ; dlVlan = (match pat.dlVlan with
-      | Some(0xffff) -> Some None
-      | Some(x) -> Some (Some x)
-      | None -> None)
-  ; dlVlanPcp = pat.dlVlanPcp
-  ; nwSrc = (match pat.nwSrc with
-    | None -> None
-    | Some (p,m) ->
-       let mo =
-         if m = 32l then
-           None
-         else
-           Some (Int32.(32l - m)) in
-       Some { m_value = p; m_mask = mo })
-  ; nwDst = (match pat.nwDst with
-    | None -> None
-    | Some (p,m) ->
-       let mo =
-         if m = 32l then
-           None
-         else
-           Some (Int32.(32l - m)) in
-       Some { m_value = p; m_mask = mo })
-  ; nwProto = pat.nwProto
-  ; nwTos = None
-  ; tpSrc = pat.tpSrc
-  ; tpDst = pat.tpDst
-  ; inPort = Core_kernel.Option.map pat.inPort from_portId
-  }
+  let from_pattern (pat : Pattern.t) : OF10.pattern =
+    { dlSrc = pat.dlSrc
+    ; dlDst = pat.dlDst
+    ; dlTyp = pat.dlTyp
+    ; dlVlan = (match pat.dlVlan with
+        | Some(0xffff) -> Some None
+        | Some(x) -> Some (Some x)
+        | None -> None)
+    ; dlVlanPcp = pat.dlVlanPcp
+    ; nwSrc = (match pat.nwSrc with
+      | None -> None
+      | Some (p,m) ->
+         let mo =
+           if m = 32l then
+             None
+           else
+             Some (Int32.(32l - m)) in
+         Some { m_value = p; m_mask = mo })
+    ; nwDst = (match pat.nwDst with
+      | None -> None
+      | Some (p,m) ->
+         let mo =
+           if m = 32l then
+             None
+           else
+             Some (Int32.(32l - m)) in
+         Some { m_value = p; m_mask = mo })
+    ; nwProto = pat.nwProto
+    ; nwTos = None
+    ; tpSrc = pat.tpSrc
+    ; tpDst = pat.tpDst
+    ; inPort = Core_kernel.Option.map pat.inPort from_portId
+    }
 
-let from_flow (priority : int) (flow : flow) : OF10.flowMod =
-  match flow with
-    | { pattern; action; cookie; idle_timeout; hard_timeout } ->
-      let pat = from_pattern pattern in
-      { command = AddFlow;
-        pattern = pat;
-        priority = priority;
-        actions = from_group pat.inPort action;
-        cookie = cookie;
-        idle_timeout = from_timeout idle_timeout;
-        hard_timeout = from_timeout hard_timeout;
-        notify_when_removed = false;
-        apply_to_packet = None;
-        out_port = None;
-        check_overlap = false }
+  let from_flow (priority : int) (flow : flow) : OF10.flowMod =
+    match flow with
+      | { pattern; action; cookie; idle_timeout; hard_timeout } ->
+        let pat = from_pattern pattern in
+        { command = AddFlow;
+          pattern = pat;
+          priority = priority;
+          actions = from_group pat.inPort action;
+          cookie = cookie;
+          idle_timeout = from_timeout idle_timeout;
+          hard_timeout = from_timeout hard_timeout;
+          notify_when_removed = false;
+          apply_to_packet = None;
+          out_port = None;
+          check_overlap = false }
 
-let from_payload (pay : payload) : OF10.payload =
-  match pay with
-    | Buffered (buf_id, b) ->
-      Buffered (buf_id, b)
-    | NotBuffered b -> NotBuffered b
+  let from_payload (pay : payload) : OF10.payload =
+    match pay with
+      | Buffered (buf_id, b) ->
+        Buffered (buf_id, b)
+      | NotBuffered b -> NotBuffered b
 
-let from_packetOut (pktOut : pktOut) : OF10.packetOut =
-  let output_payload, port_id, apply_actions = pktOut in
-  let output_payload = from_payload output_payload in
-  let port_id = Core_kernel.Option.map port_id from_portId in
-  let apply_actions = from_par port_id [apply_actions] in
-  { output_payload; port_id; apply_actions }
+  let from_packetOut (pktOut : pktOut) : OF10.packetOut =
+    let output_payload, port_id, apply_actions = pktOut in
+    let output_payload = from_payload output_payload in
+    let port_id = Core_kernel.Option.map port_id from_portId in
+    let apply_actions = from_par port_id [apply_actions] in
+    { output_payload; port_id; apply_actions }
+end
+
+module From0x01 = struct
+
+  let from_portId (pport_id : OF10.portId) : portId option =
+    (* OVS returns the local interface as 65534, but we don't want that *)
+    if pport_id > 0xff00 then (* pport_id <= OFPP_MAX *)
+      None
+    else 
+      Int.to_int32 pport_id
+
+  let from_switch_features (feats:OF10.SwitchFeatures.t) = 
+    let sp = List.filter_map feats.ports ~f:(fun pd -> from_portId pd.port_no) in
+    { switch_id = feats.switch_id; switch_ports = sp}
+
+  let event_from_message swId hdr msg =
+    (* TODO: Translate hdr, msg to generic OpenFlow event *)
+    SwitchDown swId   
+
 end
