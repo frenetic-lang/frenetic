@@ -140,6 +140,7 @@ module type PROB = sig
   val one : t
   val (=) : t -> t -> bool
   val (+) : t -> t -> t
+  val (-) : t -> t -> t
   val ( * ) : t -> t -> t
   val ( / ) : t -> t -> t
   val of_int : int -> t
@@ -157,6 +158,7 @@ module PreciseProb = struct
   let one = Int 1
   let (=) a b = a =/ b
   let (+) a b = a +/ b
+  let (-) a b = a -/ b
   let ( * ) a b = a */ b
   let ( / ) a b = a // b
   let of_int = num_of_int
@@ -223,6 +225,9 @@ module Dist (Point : Map.Key) (Prob : PROB) = struct
   type t = Prob.t T.t [@@deriving sexp] (* Point.t -> Prob.t *)
 
   let empty : t = T.empty
+  let fold = T.fold
+  let filter_map = T.filter_map
+  let filter_keys = T.filter_keys
 
   (* point mass distribution *)
   let dirac (p : Point.t) : t = T.singleton p Prob.one
@@ -245,6 +250,11 @@ module Dist (Point : Map.Key) (Prob : PROB) = struct
   let expectation t ~(f : Point.t -> Prob.t) : Prob.t =
     T.fold t ~init:Prob.zero ~f:(fun ~key:point ~data:prob acc ->
       Prob.(acc + prob * f point))
+
+  (* variance of random variable [f] w.r.t distribution [t] *)
+  let variance t ~(f : Point.t -> Prob.t) : Prob.t =
+    let mean = expectation t f in
+    expectation t ~f:(fun point -> Prob.((f point - mean) * (f point - mean)))
 
   (* Markov Kernel *)
   module Kernel = struct
@@ -329,7 +339,7 @@ module Interp (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
     let to_string t =
       T.to_alist t
       |> List.map ~f:(fun (hs, prob) ->
-        Printf.sprintf "%s @ %s" (HSet.to_string hs) (Prob.to_string prob))
+        Printf.sprintf "%s \027[0;31m@\027[0m %s" (HSet.to_string hs) (Prob.to_string prob))
       |> String.concat ~sep:"\n"
       |> Printf.sprintf "%s\n"
     let print t =
@@ -389,6 +399,15 @@ module Interp (Hist : PSEUDOHISTORY) (Prob : PROB) = struct
         Prob.(acc + f h))
       in
       Prob.(sum / of_int n))
+
+  (* same as Dist.expectation, but normalize dist by ignoring empty history sets *)
+  let expectation_normalized in_dist ~(f : HSet.t -> Prob.t) : Prob.t =
+    let tot_prob = Dist.fold in_dist ~init:Prob.zero ~f:(fun ~key:_ ~data:prob acc -> Prob.(acc + prob)) in
+    let tmp_dist = Dist.filter_keys in_dist ~f:(fun hset -> not (HSet.is_empty hset)) in
+    let tmp_prob = Dist.fold tmp_dist ~init:Prob.zero ~f:(fun ~key:_ ~data:prob acc -> Prob.(acc + prob)) in
+    let out_dist = Dist.filter_map tmp_dist ~f:(fun prob -> Some Prob.(prob * tot_prob / tmp_prob)) in
+    Dist.expectation out_dist ~f:f
+
 
   (* allows convenient specification of probabilities *)
   let ( / ) (a : int) (b : int) : Prob.t =

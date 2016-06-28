@@ -362,6 +362,25 @@ let topo_to_pnk (topo : Topology.t) (v_id, id_v) =
       link_prog & pol_acc)
     topo Drop
 
+(* Topology with lossy links to ProbNetKAT program *)
+let topo_to_pnk_lossy (topo : Topology.t) (fail_prob : Prob.t) (v_id, id_v) =
+    Topology.fold_edges (fun link pol_acc ->
+    let src, src_port = Topology.edge_src link in
+    let dst, dst_port = Topology.edge_dst link in
+    let src_id = VertexMap.find_exn v_id src in
+    let dst_id = VertexMap.find_exn v_id dst in
+    let link_src_test = ??(Switch src_id) >> ??(Port (port_to_pnk src_port)) in
+    let link_dest_mod =  !!(Switch dst_id) >> !!(Port (port_to_pnk dst_port)) in
+    let link_prog = link_src_test >> Dup >>
+      ?@[(link_dest_mod >> Dup, Prob.(one - fail_prob));
+        (Drop, fail_prob)] in
+    if pol_acc = Drop then
+      link_prog
+    else
+      link_prog & pol_acc)
+    topo Drop
+
+
 (* ProbNetKAT program to test if a packet is at a host *)
 let test_pkt_at_host (topo : Topology.t) (v_id, id_v) =
   let host_set = get_hosts_set topo in
@@ -670,7 +689,7 @@ let analyze_routing_scheme (topo: Topology.t) (vertex_id_bimap) (network_pnk : P
   let p = (input_dist_pnk >> network_pnk >> final_filter) in
   let out_dist = eval 10 p in
   (*Dist.print out_dist;*)
-  Dist.expectation out_dist ~f:(lift_query_avg path_length)
+  expectation_normalized out_dist ~f:(lift_query_avg path_length)
     |> Prob.to_dec_string
     |> Printf.printf "Latency:\t%s\n";
   Dist.expectation out_dist ~f:(lift_query_sum num_packets)
@@ -691,7 +710,7 @@ let analyze_routing_scheme (topo: Topology.t) (vertex_id_bimap) (network_pnk : P
         ~f:(lift_query_sum (sd_tput topo vertex_id_bimap agg_dem (src, dst))) in
       SrcDstMap.add acc ~key:(src, dst) ~data:tput) input_dist in
 
-  SrcDstMap.iter sd_tputs ~f:(fun ~key:(s,d) ~data:tput ->
+  SrcDstMap.iteri sd_tputs ~f:(fun ~key:(s,d) ~data:tput ->
     Printf.printf "(%s,%s) : %s\n" (string_of_vertex topo s) (string_of_vertex topo d) (Prob.to_dec_string tput));
 
   (*EdgeMap.iteri link_congestions ~f:(fun ~key:link ~data:cong ->
@@ -723,7 +742,8 @@ let test_global topo_file dem_file = begin
 let test_local topo_file dem_file = begin
   let topo = Parse.from_dotfile topo_file in
   let vertex_id_bimap = gen_node_pnk_id_map topo in
-  let topo_pnk = topo_to_pnk topo vertex_id_bimap in
+  (*let topo_pnk = topo_to_pnk topo vertex_id_bimap in*)
+  let topo_pnk = topo_to_pnk_lossy topo Prob.(of_int 1/ of_int 10) vertex_id_bimap in
   let test_at_host_pnk = test_pkt_at_host topo vertex_id_bimap in
   let spf_routes = route_link_state_spf topo in
   let ecmp_routes = route_link_state_ecmp topo in
@@ -742,7 +762,7 @@ let test_local topo_file dem_file = begin
   analyze_routing_scheme topo vertex_id_bimap network_spf_pnk input_dist test_at_host_pnk;
   Printf.printf "\nECMP:\n";
   analyze_routing_scheme topo vertex_id_bimap network_ecmp_pnk input_dist test_at_host_pnk;
-  Printf.printf "\nKSP:\n";
+  Printf.printf "\nKSP:\n%!";
   analyze_routing_scheme topo vertex_id_bimap network_ksp_pnk input_dist test_at_host_pnk;
   (*Printf.printf "test at edge: %s\n%!" (Pol.to_string test_at_edge_pnk);
   let test_at_edge_pnk = test_pkt_at_edge topo vertex_id_bimap in
