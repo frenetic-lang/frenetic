@@ -961,3 +961,63 @@ let to_multitable ?(options=default_compiler_options) (sw_id : switchId) (layout
   |> subtrees_to_multitable options
 
 let to_of13_table _ _ = assert false
+
+let is_zero = Action.Par.is_empty
+
+let is_one a =
+  List.length (Action.Par.elements a) = 1 && (match Action.Par.choose a with Some m -> Action.Seq.is_empty m | _ -> false)
+  
+let rec get_ipsrc patterns = 
+  let open Frenetic_OpenFlow.Pattern in
+  let open Frenetic_OpenFlow in
+  match patterns with
+  | [] -> None
+  | h::t -> match h.nwSrc with
+    | None -> get_ipsrc t
+    | Some n -> Some (Frenetic_OpenFlow.Pattern.Ip.string_of n)
+    
+let rec get_ipdst patterns = 
+  let open Frenetic_OpenFlow.Pattern in
+  let open Frenetic_OpenFlow in
+  match patterns with
+  | [] -> None
+  | h::t -> match h.nwDst with
+    | None -> get_ipdst t
+    | Some n -> Some (Frenetic_OpenFlow.Pattern.Ip.string_of n)
+   
+let rec get_ethsrc patterns =
+  let open Frenetic_OpenFlow.Pattern in
+  let open Frenetic_OpenFlow in
+  match patterns with
+  | [] -> None
+  | h::t -> match h.dlSrc with
+    | None -> get_ethsrc t
+    | Some n -> Some (let open Frenetic_Packet in Frenetic_Packet.string_of_mac n)
+  
+  (* iptables can't see mac destination, so we can't filter on that *)
+  
+let rec to_iptables sw_id (t : FDD.t) =
+  (* let's just copy the naive_to_table structure *)
+  let t = FDD.(restrict [(Field.Switch, Value.Const sw_id)] t) |> remove_local_fields in
+  let rec dfs true_tests all_tests t = match FDD.unget t with
+  | Leaf actions ->
+    (* copying the pattern code from mk_flows *)
+    let open Frenetic_OpenFlow.Pattern in
+    let open Frenetic_OpenFlow in
+    let patterns = to_pattern true_tests |> fill_in_dependencies all_tests in
+    let ipsrc = get_ipsrc patterns in
+    let ipsrc_str = match ipsrc with None -> "" | Some s -> " -s "^s in
+    let ipdst = get_ipdst patterns in
+    let ipdst_str = match ipdst with None -> "" | Some s -> " -d "^s in
+    let ethsrc = get_ethsrc patterns in
+    let ethsrc_str = match ethsrc with None -> "" | Some s -> " -m mac --mac-source "^s in
+    if is_zero actions then
+      [["iptables -A INPUT" ^ ipsrc_str ^ ipdst_str ^ ethsrc_str ^ " -j DROP"]]
+    else if is_one actions then
+      [["iptables -D INPUT" ^ ipsrc_str ^ ipdst_str ^ ethsrc_str ^ " -j DROP"]]
+    else [[]]
+    (* don't generate iptables rules for other types of actions *)
+  | Branch ((Location, Pipe _), _, fls) -> dfs true_tests all_tests fls
+  | Branch (test, tru, fls) ->
+    dfs (test :: true_tests) (test :: all_tests) tru @ dfs true_tests (test :: all_tests) fls in
+  (dfs [] [] t) |> List.concat

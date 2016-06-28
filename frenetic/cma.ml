@@ -2,6 +2,11 @@ open Core.Std
 
 module OF13 = Frenetic_OpenFlow0x04
 
+let rec clean_iptables_list lst = match lst with
+  (* gross hack for sometimes it generates a drop everything or id everything rule after specific filter rules *)
+  | [] -> []
+  | h::t -> if h = "iptables -A INPUT -j DROP" || h = "iptables -D INPUT -j DROP" then clean_iptables_list t else h::(clean_iptables_list t)
+  
 let () =
   if Array.length Sys.argv < 3 then
     begin
@@ -20,11 +25,18 @@ let () =
       (* Compile policy to Fdd *)
       let fdd = Frenetic_NetKAT_Compiler.compile_local pol in 
       let () = Printf.eprintf "[cma] fdd is:\n%s\n%!" (Frenetic_NetKAT_Compiler.to_string fdd) in 
-      (* Convert Fdd to list of OF13 flowMods *)
-      let tbl = Frenetic_NetKAT_Compiler.to_of13_table sw fdd in
-      let () = Printf.eprintf "[cma] table is:\n%!" in
+      (* Convert Fdd to iptables rules *)
+      let tbl' = Frenetic_NetKAT_Compiler.to_iptables sw fdd in
+      let tbl = if List.length tbl' = 1 then tbl' else clean_iptables_list tbl' in
+      let () = Printf.eprintf "[cma] iptables is:\n%!" in
+      let () = List.iter tbl ~f:(fun fm -> Printf.eprintf "  %s\n" fm) in
+      let () = Printf.eprintf "\n%!" in
+      (* execute the policy - this will vomit if you're not sudo *)
+      let i = Sys.command "iptables -F" in
+      let () = List.iter tbl ~f:(fun fm -> let n = Sys.command fm in ()) in
+      (*let () = Printf.eprintf "[cma] table is:\n%!" in
       let () = List.iter tbl ~f:(fun fm -> Printf.eprintf "  %s\n" (OF13.FlowMod.to_string fm)) in
-      let () = Printf.eprintf "\n%!" in             
+      let () = Printf.eprintf "\n%!" in    *)         
       (* fin. *)
       ()
     end

@@ -1,0 +1,6 @@
+filter switch = 1; begin
+  if ip4Src = 192.168.0.1 then drop
+  else if ip4Src = 192.168.0.2 then drop
+  else if ip4Src = 192.168.0.3 then drop
+  else id
+end
