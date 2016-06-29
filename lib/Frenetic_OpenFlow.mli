@@ -215,7 +215,7 @@ type portStats =
   ; port_collisions : int64
 } [@@deriving sexp]
 
-(* {1 Events} *)
+(* {1 Events, switch-to-controller messages} *)
 
 type event =
   | SwitchUp of switchId * portId list
@@ -225,7 +225,12 @@ type event =
   | PacketIn of string * switchId * portId * payload * int
   | PortStats of switchId * portStats
   | FlowStats of switchId * flowStats
-           
+
+(* {1 Commands, controller-to-switch messages} *)
+
+(* TODO: Temporary *)
+type pktOut = payload * (portId option) * (action list) [@@deriving sexp]
+
 (* {1 Pretty-printing } *)
 
 val format_list : 'a list -> to_string:('a -> string) -> string
@@ -240,6 +245,7 @@ val string_of_action : action -> string
 val string_of_seq : seq -> string
 val string_of_par : par -> string
 val string_of_flow : flow -> string
+val string_of_group : group -> string
 val string_of_flowTable : ?label:string -> flowTable -> string
 
 module OF10 = Frenetic_OpenFlow0x01
@@ -247,6 +253,7 @@ module To0x01 : sig
   val from_pattern : Pattern.t -> OF10.pattern
   val from_flow : int -> flow -> OF10.flowMod
   val from_payload : payload -> OF10.payload
+  val from_packetOut : pktOut -> OF10.packetOut 
 end
 module From0x01 : sig
   val from_switch_features : OF10.SwitchFeatures.t -> switchFeatures

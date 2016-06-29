@@ -242,12 +242,19 @@ let policies_of_json (json: json) : policy list =
   let open Yojson.Basic.Util in
   json |> to_list |> List.map ~f:policy_of_json
 
-let pkt_out_from_json (json : json) : switchId * payload * policy list =
+let ingress_port_of_json (json: json) : portId option =
+  let open Yojson.Basic.Util in
+  match json |> to_int_option with 
+  | None -> None 
+  | Some n -> Int32.of_int n
+
+let pkt_out_from_json (json : json) : switchId * portId option * payload * policy =
   let open Yojson.Basic.Util in
   let switch = json |> member "switch" |> to_int |> Int64.of_int in
   let payload = json |> member "payload" |> payload_from_json in
-  let policy = json |> member "policies" |> policies_of_json in 
-  (switch, payload, policy)
+  let policies = json |> member "policies" |> policies_of_json in 
+  let in_port = json |> member "in_port" |> ingress_port_of_json in
+  (switch, in_port, payload, mk_big_union(policies))
 
 let pattern_to_json (p:Pattern.t) : json =
   let open Pattern in

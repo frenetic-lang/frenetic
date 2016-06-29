@@ -12,7 +12,7 @@ module type PLUGIN = sig
   val switch_features : switchId -> switchFeatures option Deferred.t
   val update : Frenetic_NetKAT_Compiler.t -> unit Deferred.t
   val update_switch : switchId -> Frenetic_NetKAT_Compiler.t -> unit Deferred.t
-  val packet_out : switchId -> payload -> Frenetic_NetKAT_Compiler.t -> unit Deferred.t
+  val packet_out : switchId -> portId option -> payload -> Frenetic_NetKAT_Compiler.t -> unit Deferred.t
   val flow_stats : switchId -> Frenetic_NetKAT.pred -> flowStats Deferred.t
   val port_stats : switchId -> portId -> portStats Deferred.t
 end
@@ -23,7 +23,7 @@ module type CONTROLLER = sig
   val switches : unit -> (switchId * portId list) list Deferred.t
   val port_stats : switchId -> portId -> portStats Deferred.t
   val update : Frenetic_NetKAT.policy -> unit Deferred.t
-  val packet_out : switchId -> payload -> Frenetic_NetKAT.policy -> unit Deferred.t
+  val packet_out : switchId -> portId option -> payload -> Frenetic_NetKAT.policy -> unit Deferred.t
   val query : string -> (int64 * int64) Deferred.t
 end
                                      
@@ -42,7 +42,6 @@ module Make (P:PLUGIN) : CONTROLLER = struct
     Pipe.write_without_pushback event_writer evt;
     match evt with
     | SwitchUp (sw,ports) -> 
-       (* TODO: This used to be add_exn, but it was blowing up.  Just ignore return value now. *)
        let _ = Hashtbl.Poly.add switch_hash sw ports in
        P.update_switch sw !fdd
     | SwitchDown sw ->
@@ -66,8 +65,8 @@ module Make (P:PLUGIN) : CONTROLLER = struct
   let port_stats (sw : switchId) (pt : portId) : portStats Deferred.t =
     P.port_stats sw pt
 
-  let packet_out (sw:switchId) (pay:payload) (pol:policy) : unit Deferred.t =
-    P.packet_out sw pay (Frenetic_NetKAT_Compiler.compile_local pol)
+  let packet_out (sw:switchId) (ingress_port:portId option) (pay:payload) (pol:policy) : unit Deferred.t =
+    P.packet_out sw ingress_port pay (Frenetic_NetKAT_Compiler.compile_local pol)
                  
   let query (q:string) : (int64 * int64) Deferred.t =
     let _,pred = List.find_exn (Frenetic_NetKAT_Compiler.queries !fdd) ~f:(fun (q',_) -> q' = q) in 

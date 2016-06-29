@@ -432,6 +432,7 @@ let format_flowTable (fmt:Format.formatter) (l:flowTable) : unit =
 let string_of_action = Frenetic_Util.make_string_of format_action
 let string_of_seq = Frenetic_Util.make_string_of format_seq
 let string_of_par = Frenetic_Util.make_string_of format_par
+let string_of_group = Frenetic_Util.make_string_of format_group
 let string_of_flow = Frenetic_Util.make_string_of format_flow
 
 let string_of_vlan (x : int) : string =

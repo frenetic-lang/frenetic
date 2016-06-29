@@ -161,18 +161,29 @@ let send_txn swid msg =
       Log.debug "send_txn returned something unintelligible";
       `Eof
 
-(* TODO: pass ingress port, turn compiler output into actions *)
-let packet_out (swid:int64) (payload:payload) (compiler:Frenetic_NetKAT_Compiler.t) =
-  (* Translate generic payload to an OpenFlow 1.0 payload *)
-  let of10_payload = match payload with
-    | Buffered (bufferId, data) -> OF10.Buffered (bufferId, data)
-    | NotBuffered data -> OF10.NotBuffered (data) in
-  let msg = OF10.{ 
-    output_payload = of10_payload
-    ; port_id = Some 0
-    ; apply_actions = []
-  } in
-  send swid 0 msg
+let actions_from_first_row compiler =
+  (* All the actions we need will be in the first row, the match all row, which
+     will always be the only row in the table *)
+  let open Frenetic_NetKAT_Compiler in 
+  let flow_table = to_table 0L compiler in
+  let first_row = List.hd_exn flow_table in
+  let group = first_row.action in
+  let first_par = List.hd_exn group in
+  let first_seq = List.hd_exn first_par in
+  first_seq
+
+let packet_out 
+  (swid:int64) 
+  (ingress_port:portId option) 
+  (payload:payload) 
+  (compiler:Frenetic_NetKAT_Compiler.t) =
+  (* Turn this into a generic PktOut event, then run it through OF10 translator *)
+  let actions = actions_from_first_row compiler in 
+  let openflow_generic_pkt_out = (payload, ingress_port, actions) in
+  let pktout0x01 = Frenetic_OpenFlow.To0x01.from_packetOut openflow_generic_pkt_out in
+  send swid 0l (OF10.Message.PacketOutMsg pktout0x01) >>= function
+    | `Eof -> return ()
+    | `Ok -> return ()  
 
 (* TODO: Implement *)
 let flow_stats (swid:switchId) (pred:Frenetic_NetKAT.pred) =

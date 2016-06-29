@@ -49,8 +49,11 @@ class App(object):
                 return p
         return None
 
-    def pkt_out(self, switch_id, payload, actions, in_port=None):
-        msg = PacketOut(switch=switch_id, payload=payload, actions=actions, in_port=in_port)
+    def pkt_out(self, switch_id, payload, actions, in_port=None, policies=None):
+        # Renamed actions to policies in the internal API to make it clearer, but
+        # kept actions keyword for backward compatibility.
+        _policies = policies if policies != None else actions
+        msg = PacketOut(switch=switch_id, payload=payload, policies=_policies, in_port=in_port)
         pkt_out_url = "http://%s:%s/pkt_out" % (self.frenetic_http_host, self.frenetic_http_port)
         request = HTTPRequest(pkt_out_url, method='POST', body=json.dumps(msg.to_json()))
         return self.__http_client.fetch(request)
