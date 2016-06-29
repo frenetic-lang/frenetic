@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 3eb5d6f947da520c5afad5d115c159f0)
+# DO NOT EDIT (digest: 530324c9b3da8ffbe4278a9304b95a08)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -22,6 +22,8 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: package(camlp4.lib)
 <lib/*.ml{,i,y}>: package(core)
 <lib/*.ml{,i,y}>: package(cstruct)
+<lib/*.ml{,i,y}>: package(mparser)
+<lib/*.ml{,i,y}>: package(mparser.re)
 <lib/*.ml{,i,y}>: package(ocamlgraph)
 <lib/*.ml{,i,y}>: package(ppx_deriving.enum)
 <lib/*.ml{,i,y}>: package(ppx_deriving.eq)
@@ -143,6 +145,8 @@ true: annot, bin_annot
 <syntax/*.ml{,i,y}>: package(core)
 <syntax/*.ml{,i,y}>: package(cstruct)
 <syntax/*.ml{,i,y}>: package(ipaddr)
+<syntax/*.ml{,i,y}>: package(mparser)
+<syntax/*.ml{,i,y}>: package(mparser.re)
 <syntax/*.ml{,i,y}>: package(ocamlgraph)
 <syntax/*.ml{,i,y}>: package(ppx_deriving.enum)
 <syntax/*.ml{,i,y}>: package(ppx_deriving.eq)
@@ -161,6 +165,8 @@ true: annot, bin_annot
 <lib_test/lib/*.ml{,i,y}>: package(camlp4.lib)
 <lib_test/lib/*.ml{,i,y}>: package(core)
 <lib_test/lib/*.ml{,i,y}>: package(cstruct)
+<lib_test/lib/*.ml{,i,y}>: package(mparser)
+<lib_test/lib/*.ml{,i,y}>: package(mparser.re)
 <lib_test/lib/*.ml{,i,y}>: package(ocamlgraph)
 <lib_test/lib/*.ml{,i,y}>: package(ppx_deriving.enum)
 <lib_test/lib/*.ml{,i,y}>: package(ppx_deriving.eq)

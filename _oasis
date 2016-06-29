@@ -33,6 +33,8 @@ Library frenetic
     core,
     cstruct,
     ocamlgraph (>= 1.8.6),
+    mparser,
+    mparser.re,
     ppx_jane,
     ppx_deriving.eq,
     ppx_deriving.enum,
@@ -48,6 +50,7 @@ Library frenetic
     Frenetic_OpenFlow0x04,
     Frenetic_GroupTable0x04,
     Frenetic_Circuit_NetKAT,
+    Frenetic_PathKAT,
     Frenetic_NetKAT,
     Frenetic_NetKAT_Optimize,
     Frenetic_NetKAT_Json,
@@ -89,6 +92,7 @@ Library async
     Frenetic_Common,
     Frenetic_DynGraph
   Modules:
+    Frenetic_Autoshell,
     Frenetic_Compile_Server,
     Frenetic_Log,
     Frenetic_Http_Controller,
