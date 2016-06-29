@@ -21,13 +21,17 @@ exception CorrelationException of string
 (** Utility functions *)
 let conjoin = Frenetic_NetKAT_Optimize.mk_big_and
 
+let compile_local =
+  let open Compiler in
+  compile_local ~options:{ default_compiler_options with cache_prepare = `Keep }
+
 let pred_of_cond ((f,pos,neg):condition) : pred =
   let pos' = match pos with
     | None -> []
     | Some v -> [ Frenetic_Fdd.Pattern.to_pred (f, v) ] in
   let negs = List.fold_left neg ~init:pos'
       ~f:(fun acc v -> (Neg (Frenetic_Fdd.Pattern.to_pred (f, v)))::acc) in
- conjoin negs
+  conjoin negs
 
 let pred_of_conds (conds: condition list) =
   let open Frenetic_NetKAT in
@@ -49,10 +53,6 @@ let string_of_located_stream ((sw,pt),(sw',pt'),stream) =
 
 let string_of_pred   = Frenetic_NetKAT_Pretty.string_of_pred
 let string_of_policy = Frenetic_NetKAT_Pretty.string_of_policy
-
-let compile_local =
-  let open Compiler in
-  compile_local ~options:{ default_compiler_options with cache_prepare = `Keep }
 
 let seq   = Frenetic_NetKAT_Optimize.mk_big_seq
 let union = Frenetic_NetKAT_Optimize.mk_big_union
@@ -561,3 +561,10 @@ let retarget (naive:stream list) (fabric:stream list) (topo:policy) =
             (ins,outs, tag)) in
 
   ingresses, egresses
+
+let conds_of_pred (p:pred) : condition list list =
+  let policy = Frenetic_NetKAT.Filter p in
+  let streams = extract policy in
+  List.fold_left streams ~init:[] ~f:(fun acc (conds, action) ->
+      if (Action.to_policy action) = Frenetic_NetKAT.drop then acc
+      else conds::acc)

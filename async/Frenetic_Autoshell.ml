@@ -2,6 +2,7 @@ open Core.Std
 open Async.Std
 open Frenetic_NetKAT
 open Frenetic_Network
+open Frenetic_PathKAT
 open Frenetic_Circuit_NetKAT
 
 module Compiler = Frenetic_NetKAT_Compiler
@@ -99,6 +100,7 @@ type command =
   | Compile of compile
   | Install of install
   | Show of show
+  | Path of source
   | Blank
   | Quit
 
@@ -197,6 +199,11 @@ module Parser = struct
        state_part >>=
        fun sp -> return( Show( STable(sp, swid) ))))
 
+  (* Parser for the path command *)
+  let path: (command, bytes list) MParser.t =
+    symbol "path" >> (
+      source >>= fun s -> return (Path s))
+
   (* Parser for a blank line *)
   let blank : (command, bytes list) MParser.t =
     eof >> return Blank
@@ -210,6 +217,7 @@ module Parser = struct
     compile <|>
     install <|>
     show    <|>
+    path    <|>
     blank   <|>
     quit
 
@@ -494,6 +502,17 @@ let show (s:show) = match s with
       | Error s ->
         print_endline s end
 
+let path s : unit = match Source.to_string s with
+  | Error e -> print_endline e
+  | Ok s ->
+    begin match paths_of_string s with
+      | Ok paths ->
+        List.iter paths ~f:(fun (pred, ls) ->
+            let condsls = Frenetic_Fabric.conds_of_pred pred in
+            List.iter condsls ~f:(fun conds ->
+                printf "%s\n"
+                  (Frenetic_NetKAT_Pretty.string_of_pred (Frenetic_Fabric.pred_of_conds conds))))
+      | Error e -> print_endline e end
 
 let print_result r : unit = match r with
   | Ok msg  -> printf "Success: %s\n" msg
@@ -513,6 +532,7 @@ let command (com:command) = match com with
   | Install i ->
     install i |> print_deferred_results
   | Show s -> show s
+  | Path s -> path s
   | Quit ->
     print_endline "Goodbye!";
     Shutdown.shutdown 0
