@@ -163,7 +163,7 @@ module PreciseProb = struct
   let ( / ) a b = a // b
   let of_int = num_of_int
   let to_string = string_of_num
-  let to_dec_string = approx_num_fix 10
+  let to_dec_string = approx_num_fix 4
 end
 
 module FloatProb = struct
