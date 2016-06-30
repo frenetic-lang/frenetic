@@ -9,7 +9,7 @@ type pred   = Frenetic_NetKAT.pred
 type policy = Frenetic_NetKAT.policy
 type fabric = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
 
-type condition  = Field.t * Value.t option * Value.t list
+type condition  = Field.t * Value.t list * Value.t list
 type stream     = condition list * Action.t
 type loc        = (switchId * portId)
 type loc_stream = ( loc * loc * stream )
@@ -20,22 +20,51 @@ exception CorrelationException of string
 
 (** Utility functions *)
 let conjoin = Frenetic_NetKAT_Optimize.mk_big_and
+let disjoin = Frenetic_NetKAT_Optimize.mk_big_or
 
 let compile_local =
   let open Compiler in
   compile_local ~options:{ default_compiler_options with cache_prepare = `Keep }
 
 let pred_of_cond ((f,pos,neg):condition) : pred =
-  let pos' = match pos with
-    | None -> []
-    | Some v -> [ Frenetic_Fdd.Pattern.to_pred (f, v) ] in
-  let negs = List.fold_left neg ~init:pos'
-      ~f:(fun acc v -> (Neg (Frenetic_Fdd.Pattern.to_pred (f, v)))::acc) in
-  conjoin negs
+  let poss = match pos with
+    | [] -> []
+    | vs -> List.map vs ~f:(fun v ->  Frenetic_Fdd.Pattern.to_pred (f, v)) in
+  let negs = List.fold_left neg ~init:[]
+      ~f:(fun acc v -> (Frenetic_NetKAT.Neg (Frenetic_Fdd.Pattern.to_pred (f, v)))::acc) in
+  Frenetic_NetKAT.And( disjoin poss, conjoin negs)
 
 let pred_of_conds (conds: condition list) =
   let open Frenetic_NetKAT in
   conjoin (List.map conds ~f:pred_of_cond)
+
+(* let c_of_p (p:pred) = *)
+(*   let tbl = Hashtbl.Poly.create () in *)
+(*   let fuse f (pos,neg) (pos',neg') = *)
+(*       let pos = match pos, pos' with *)
+(*         | None  , None     -> None *)
+(*         | Some v, None     -> Some v *)
+(*         | None  , Some v   -> Some v *)
+(*         | Some v1, Some v2 -> *)
+(*           let msg = sprintf "Field (%s) expected to have clashing values of (%s) and (%s) " *)
+(*               (Field.to_string f) (Value.to_string v1) (Value.to_string v2) in *)
+(*           raise (ClashException msg) in *)
+(*       let neg = match neg, neg' with *)
+(*         | [], [] -> [] *)
+(*         | vs, [] -> vs *)
+(*         | [], vs -> vs *)
+(*         | vs1, vs2 -> List.unordered_append vs1 vs2 in *)
+(*       (pos, neg) in *)
+(*   let rec update p = match p with *)
+(*     | True *)
+(*     | False -> () *)
+(*     | Test hv -> *)
+(*       let field, pos = Pattern.of_hv hv in *)
+(*       Hashtbl.Poly.update tbl field ~f:(function *)
+(*             | None -> ( pos, [] ) *)
+(*             | Some c -> fuse field (pos,[]) c) *)
+(*     | And(p1,p2) -> *)
+
 
 let string_of_loc ((sw,pt):loc) =
   sprintf "(%Ld:%ld)" sw pt
@@ -210,9 +239,9 @@ let extract (pol:policy) : stream list =
   let rec get_paths node path =
     match FDD.unget node with
     | FDD.Branch ((v,l), t, f) ->
-      let true_pred   = (v, Some l, []) in
+      let true_pred   = (v, [l], []) in
       let true_paths  = get_paths t ( true_pred::path ) in
-      let false_pred  = (v, None, [l]) in
+      let false_pred  = (v, [], [l]) in
       let false_paths = get_paths f ( false_pred::path ) in
       List.unordered_append true_paths false_paths
     | FDD.Leaf r ->
@@ -221,25 +250,17 @@ let extract (pol:policy) : stream list =
   let partition (action, conds) : stream =
     let open Frenetic_Fdd in
     let tbl = Hashtbl.Poly.create ~size:(List.length conds) () in
-    let fuse f (pos,neg) (pos',neg') =
-      let pos = match pos, pos' with
-        | None  , None     -> None
-        | Some v, None     -> Some v
-        | None  , Some v   -> Some v
-        | Some v1, Some v2 ->
-          let msg = sprintf "Field (%s) expected to have clashing values of (%s) and (%s) "
-              (Field.to_string f) (Value.to_string v1) (Value.to_string v2) in
-          raise (ClashException msg) in
-      let neg = match neg, neg' with
+    let fuse (pos,neg) (pos',neg') =
+      let join l1 l2 = match l1, l2 with
         | [], [] -> []
-        | vs, [] -> vs
-        | [], vs -> vs
-        | vs1, vs2 -> List.unordered_append vs1 vs2 in
-      (pos, neg) in
+        | ls, [] -> ls
+        | [], ls -> ls
+        | ls1, ls2 -> List.unordered_append ls1 ls2 in
+      (join pos pos', join neg neg') in
     List.iter conds ~f:(fun (field,pos,neg) ->
         Hashtbl.Poly.update tbl field ~f:(function
             | None -> ( pos,neg )
-            | Some c -> fuse field (pos,neg) c));
+            | Some c -> fuse (pos,neg) c));
     let branches = Hashtbl.Poly.fold tbl ~init:[]
         ~f:(fun ~key:field ~data:(pos,neg) acc -> (field, pos, neg)::acc) in
     (branches, action) in
@@ -383,10 +404,12 @@ let locate_from_conditions (cs: condition list) =
   let open Frenetic_Fdd in
   let opts = List.fold_left cs ~init:(None, None)
       ~f:(fun (sw, pt) (field, pos, _) -> match field, pos with
-          | Switch, Some v ->
+          | Switch, [v] ->
             ( Some( Value.to_int64_exn v ), pt)
-          | Location, Some v  ->
+          | Location, [v]  ->
             (sw, Some( Value.to_int32_exn v ))
+          (* TODO(basus): Should handle the case where there are multiple
+             positive locations *)
           | _ -> (sw, pt)) in
   locate_from_options opts
 

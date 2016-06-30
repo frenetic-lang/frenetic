@@ -5,7 +5,7 @@ open Frenetic_OpenFlow
 open Frenetic_NetKAT
 
 type fabric = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
-type condition  = Field.t * Value.t option * Value.t list
+type condition  = Field.t * Value.t list * Value.t list
 type stream     = condition list * Action.t
 type loc        = (switchId * portId)
 
