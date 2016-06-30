@@ -121,8 +121,9 @@ let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit De
       return ()
     | Connected threadState, `Ok (hdr, msg) ->
       let generic_openflow_event = ToGeneric.event_from_message threadState.switchId msg in
-      if is_some generic_openflow_event then
-        Pipe.write_without_pushback events_writer (Option.value ~default:(SwitchDown 0L) generic_openflow_event);
+      let goe = Option.value ~default:(SwitchDown 0L) generic_openflow_event in
+      Log.info "Writing event response %s%!" (Frenetic_OpenFlow.string_of_event goe);
+      Pipe.write_without_pushback events_writer goe;
       (match Hashtbl.Poly.find threadState.txns hdr.xid with 
        | None -> ()
        | Some (ivar,msgs) -> 
@@ -199,8 +200,9 @@ let rpc_handler (a:Socket.Address.Inet.t) (reader:Reader.t) (writer:Writer.t) : 
      | `Send_txn (swid, msg) ->
        let run_trx = send_txn swid msg in
        let () = match run_trx with
-         | `Eof -> write (`Send_trx_rep `Eof)
+         | `Eof -> write (`Send_txn_resp `Eof)
          | `Ok ivar_deferred ->
+            Log.info "Wrote Transaction repsonse";
             upon ivar_deferred
               (fun collected_responses -> write (`Send_txn_resp (`Ok (`Ok collected_responses))))
           in

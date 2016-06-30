@@ -247,6 +247,7 @@ val string_of_par : par -> string
 val string_of_flow : flow -> string
 val string_of_group : group -> string
 val string_of_flowTable : ?label:string -> flowTable -> string
+val string_of_event : event -> string
 
 module OF10 = Frenetic_OpenFlow0x01
 module To0x01 : sig

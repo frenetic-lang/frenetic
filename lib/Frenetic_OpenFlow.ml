@@ -602,6 +602,15 @@ let string_of_flowTable ?(label="") (tbl : flowTable) : string =
   let b = bottom max_p max_a in
   String.concat (t :: l :: (List.append entry_strings [b]))
 
+let string_of_event = function
+  | SwitchUp _-> "SwitchUp"
+  | SwitchDown _-> "SwitchDown"
+  | PortUp _-> "PortUp"
+  | PortDown _-> "PortDown"
+  | PacketIn _-> "PacketIn"
+  | PortStats _-> "PortStats"
+  | FlowStats _-> "FlowStats"
+
 module To0x01 = struct
 
   exception Invalid_port of int32

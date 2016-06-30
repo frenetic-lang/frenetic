@@ -155,6 +155,7 @@ let send_txn swid msg =
       Socket.shutdown sock `Both;
       `Eof
     | `Ok (`Send_txn_resp (`Ok resp)) ->
+      Log.info "Received Transaction response";
       Socket.shutdown sock `Both;
       resp
     | _ ->
@@ -200,24 +201,34 @@ let flow_stats (swid:switchId) (pred:Frenetic_NetKAT.pred) =
     flow_byte_count = 0L
   }
 
-(* TODO: Implement *)
-let port_stats (swid:switchId) (portId:int32) =
-  return { 
-    port_no = 0L
-    ; port_rx_packets = 0L
-    ; port_tx_packets = 0L
-    ; port_rx_bytes = 0L
-    ; port_tx_bytes = 0L
-    ; port_rx_dropped = 0L
-    ; port_tx_dropped = 0L
-    ; port_rx_errors = 0L
-    ; port_tx_errors = 0L
-    ; port_rx_frame_err = 0L
-    ; port_rx_over_err = 0L
-    ; port_rx_crc_err = 0L
-    ; port_collisions = 0L
-  }
+let bogus_port_stats = {
+  port_no = 666L 
+    ; port_rx_packets = 0L ; port_tx_packets = 0L
+    ; port_rx_bytes = 0L ; port_tx_bytes = 0L ; port_rx_dropped = 0L
+    ; port_tx_dropped = 0L ; port_rx_errors = 0L
+    ; port_tx_errors = 0L ; port_rx_frame_err = 0L
+    ; port_rx_over_err = 0L ; port_rx_crc_err = 0L
+    ; port_collisions = 0L 
+}
 
+let port_stats (sw_id : switchId) (pid : portId) : portStats Deferred.t =
+  let pt = Int32.(to_int_exn pid) in
+  let req = OF10.PortRequest (Some (PhysicalPort pt)) in
+  send_txn sw_id (OF10.Message.StatsRequestMsg req) >>= function
+    | `Eof -> assert false
+    | `Ok l -> match l with
+      | [] -> Log.info "Got an empty list"; return bogus_port_stats
+      | [hd] -> (match hd with
+        | hd::tl -> Log.info "Got Another List"; return hd
+        | _ -> Log.info "Got something else.  Who fucking knows what?"; return bogus_port_stats
+        )
+      | hd :: tl -> Log.info "Got a > 2 element list"; return bogus_port_stats
+
+      (*
+      | [PortStats _, ps] -> return ps
+      | [] -> Log.info "Got an empty list"; return bogus_port_stats  
+      | _ -> return bogus_port_stats
+      *)
 let get_switches () =
   ready_to_process ()
   >>= fun (recv, send) ->
