@@ -379,6 +379,15 @@ let compile_edge c f topo =
   let egress  = Frenetic_NetKAT_Optimize.mk_big_union outs in
   let edge    = Frenetic_NetKAT.Union (ingress, egress) in
 
+  log "Assembled naive policy:\n%s\n" (string_of_policy naive);
+  log "Assembled fabric policy:\n%s\n" (string_of_policy fabric);
+
+  log "Policy alpha/beta pairs:\n";
+  List.iter parts (fun s -> log "%s\n" (Frenetic_Fabric.string_of_stream s));
+
+  log "Fabric alpha/beta pairs:\n";
+  List.iter fab_parts (fun s -> log "%s\n" (Frenetic_Fabric.string_of_stream s));
+
   log "Retargeted ingress policy:\n%s\n" (string_of_policy ingress);
   log "Retargeted egress policy:\n%s\n" (string_of_policy egress);
 
