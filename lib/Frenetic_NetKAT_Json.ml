@@ -354,7 +354,7 @@ let port_stat_to_json (portStat: Frenetic_OpenFlow.portStats) : json =
 let event_to_json (event : event) : json =
   let open Yojson.Basic.Util in
   match event with
-  | PacketIn (pipe, sw_id, pt_id, payload, len) ->
+  | PacketIn (pipe, sw_id, pt_id, payload, len, reason) ->
     let buffer = Frenetic_OpenFlow.payload_bytes payload |>
       Cstruct.to_string |>
       B64.encode in

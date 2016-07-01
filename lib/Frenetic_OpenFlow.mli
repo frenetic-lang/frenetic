@@ -48,6 +48,11 @@ type payload =
 (** [payload_bytes payload] returns the bytes for the given payload *)
 val payload_bytes : payload -> Cstruct.t
 
+type packetInReason =
+  | NoMatch
+  | ExplicitSend
+[@@deriving sexp]
+
 (** {1 Switch Configuaration } *)
                                                                
 (** A simplification of the _switch features_ message from OpenFlow *)
@@ -222,7 +227,7 @@ type event =
   | SwitchDown of switchId 
   | PortUp of switchId * portId
   | PortDown of switchId * portId
-  | PacketIn of string * switchId * portId * payload * int
+  | PacketIn of string * switchId * portId * payload * int * packetInReason
   | PortStats of switchId * portStats
   | FlowStats of switchId * flowStats
 
@@ -253,8 +258,11 @@ module OF10 = Frenetic_OpenFlow0x01
 module To0x01 : sig
   val from_pattern : Pattern.t -> OF10.pattern
   val from_flow : int -> flow -> OF10.flowMod
+  val from_switch_features : switchFeatures -> OF10.SwitchFeatures.t 
   val from_payload : payload -> OF10.payload
+  val from_packet_in_reason : packetInReason -> OF10.packetInReason 
   val from_packetOut : pktOut -> OF10.packetOut 
+  val message_from_event : event -> (OF10.switchId * OF10.Message.t) option
 end
 module From0x01 : sig
   val from_switch_features : OF10.SwitchFeatures.t -> switchFeatures

@@ -4,7 +4,7 @@ open Core.Std
 open Frenetic_OpenFlow0x01
 open Frenetic_OpenFlow0x01.Message
 
-module OF0x01Controller = Frenetic_OpenFlow0x01_Controller
+module OF0x01Controller = Frenetic_OpenFlow0x01_Plugin
 
 module SwitchTable = Map.Make(Int64)
 

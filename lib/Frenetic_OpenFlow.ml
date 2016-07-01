@@ -286,8 +286,6 @@ type packetInReason =
   | ExplicitSend
 [@@deriving sexp]
 
-type pktIn = payload * int * portId * packetInReason [@@deriving sexp]
-
 type pktOut = payload * (portId option) * (action list) [@@deriving sexp]
 
 type switchFeatures = {
@@ -329,7 +327,7 @@ type event =
   | SwitchDown of switchId 
   | PortUp of switchId * portId
   | PortDown of switchId * portId
-  | PacketIn of string * switchId * portId * payload * int
+  | PacketIn of string * switchId * portId * payload * int * packetInReason
   | PortStats of switchId * portStats
   | FlowStats of switchId * flowStats
            
@@ -754,12 +752,109 @@ module To0x01 = struct
         Buffered (buf_id, b)
       | NotBuffered b -> NotBuffered b
 
+  let port_config_none = OF10.{
+    down = false ; no_stp = false ; no_recv = false ; no_recv_stp = false
+    ; no_flood = false ; no_fwd = false ; no_packet_in = false
+  }
+
+  let port_features_none = OF10.{
+    f_10MBHD = false ; f_10MBFD = false ; f_100MBHD = false ; f_100MBFD = false
+    ; f_1GBHD = false ; f_1GBFD = false ; f_10GBFD = false ; copper = false
+    ; fiber = false ; autoneg = false ; pause = false ; pause_asym = false
+  }
+
+  let port_description_template (portId: portId) : OF10.portDescription = { 
+    port_no = Int.of_int32_exn portId ; hw_addr = 0L; name = ""; config = port_config_none
+    ; state = { down = false; stp_state = Listen} 
+    ; curr = port_features_none ; advertised = port_features_none
+    ; supported = port_features_none ; peer = port_features_none 
+  }
+
+  let from_switch_features (feats : switchFeatures) : OF10.SwitchFeatures.t =
+    let sp = List.map feats.switch_ports ~f:port_description_template in
+    { switch_id = feats.switch_id
+      ; num_buffers = 0l ; num_tables = 0
+      ; supported_capabilities = { 
+        flow_stats = false ; table_stats = false ; port_stats = false ; stp = false
+        ; ip_reasm = false ; queue_stats = false ; arp_match_ip = false
+      }
+      ; supported_actions = { 
+        output = false ; set_vlan_id = false ; set_vlan_pcp = false ; strip_vlan = false
+        ; set_dl_src = false ; set_dl_dst = false ; set_nw_src = false ; set_nw_dst = false
+        ; set_nw_tos = false ; set_tp_src = false ; set_tp_dst = false ; enqueue = false
+        ; vendor = false 
+      }
+      ; ports = sp 
+    }
+
+  let from_packet_in_reason (pir : packetInReason) : OF10.packetInReason =
+    match pir with 
+    | NoMatch -> NoMatch 
+    | ExplicitSend -> ExplicitSend 
+
   let from_packetOut (pktOut : pktOut) : OF10.packetOut =
     let output_payload, port_id, apply_actions = pktOut in
     let output_payload = from_payload output_payload in
     let port_id = Core_kernel.Option.map port_id from_portId in
     let apply_actions = from_par port_id [apply_actions] in
     { output_payload; port_id; apply_actions }
+
+  let port_status_template reason portId : OF10.PortStatus.t = {
+    reason = reason ; desc = port_description_template portId
+  }
+
+  let from_port_stats (prl : portStats) : OF10.portStats =
+    { port_no = Int.of_int64_exn prl.port_no 
+      ; rx_packets = prl.port_rx_packets ; tx_packets = prl.port_tx_packets
+      ; rx_bytes = prl.port_rx_bytes ; tx_bytes = prl.port_tx_bytes 
+      ; rx_dropped = prl.port_rx_dropped
+      ; tx_dropped = prl.port_tx_dropped ; rx_errors = prl.port_rx_errors
+      ; tx_errors = prl.port_tx_errors ; rx_frame_err = prl.port_rx_frame_err
+      ; rx_over_err = prl.port_rx_over_err ; rx_crc_err = prl.port_rx_crc_err
+      ; collisions = prl.port_collisions 
+    }  
+
+  let from_flow_stats (ifs: flowStats) : OF10.individualStats =
+    { table_id = Int.of_int64_exn ifs.flow_table_id; 
+      (* TODO: This is massivbely difficult *)
+      of_match = OF10.match_all;
+      (* TODO: THis is massively difficult *)
+      actions = [];
+      duration_sec = Int32.of_int64_exn ifs.flow_duration_sec; 
+      duration_nsec = Int32.of_int64_exn ifs.flow_duration_nsec;
+      priority = Int.of_int64_exn ifs.flow_priority;
+      idle_timeout = Int.of_int64_exn ifs.flow_idle_timeout; 
+      hard_timeout = Int.of_int64_exn ifs.flow_hard_timeout;
+      packet_count = ifs.flow_packet_count; 
+      byte_count = ifs.flow_byte_count;
+      cookie = 0L
+    }
+
+  let from_payload (pl : payload) : OF10.payload =
+    match pl with
+    | Buffered (bufferId, data) -> Buffered (bufferId, data)
+    | NotBuffered data -> NotBuffered data
+
+  let message_from_event event : (switchId * OF10.Message.t) option =
+    match event with 
+    | PortUp (sw, portId) ->
+      Some (sw, PortStatusMsg (port_status_template Add portId))
+    | PortDown (sw, portId) ->
+      Some (sw, PortStatusMsg (port_status_template Delete portId))
+    | PacketIn (pipe, swId, portId, payload, total_len, reason) ->
+      let _reason = from_packet_in_reason reason in
+      Some (swId, PacketInMsg { 
+        input_payload = from_payload payload 
+        ; total_len = total_len
+        ; port = Int32.to_int_exn portId 
+        ; reason = _reason
+      })
+    | PortStats (swId, pr) ->
+       Some (swId, StatsReplyMsg (PortRep ([from_port_stats pr ])))
+    | FlowStats (swId, ifr) ->
+       Some (swId, StatsReplyMsg (IndividualFlowRep ([from_flow_stats ifr ])))
+    (* SwitchUp and SwitchDown have no analogues in OF 1.0, so drop *)
+    | SwitchUp _ | SwitchDown _ -> None
 end
 
 module From0x01 = struct
@@ -808,6 +903,11 @@ module From0x01 = struct
       flow_byte_count = ifs.byte_count
     }
 
+  let from_packet_in_reason (pir : OF10.packetInReason) : packetInReason =
+    match pir with 
+    | NoMatch -> NoMatch 
+    | ExplicitSend -> ExplicitSend 
+
   let event_from_message (swId:OF10.switchId) (msg:OF10.Message.t) =
     let _swId = from_switchId swId in
     match msg with 
@@ -824,10 +924,10 @@ module From0x01 = struct
       )
     | PacketInMsg pi -> 
       let _portId = from_portId pi.port in
-      let _reason = match pi.reason with NoMatch -> "NoMatch" | ExplicitSend -> "ExplicitSend" in
+      let _reason = from_packet_in_reason pi.reason in
       let _payload = from_payload pi.input_payload in 
       (match _portId with
-      | Some _portId -> Some (PacketIn (_reason, _swId, _portId, _payload, pi.total_len))
+      | Some _portId -> Some (PacketIn ("", _swId, _portId, _payload, pi.total_len, _reason))
       | None -> None
       )
     | StatsReplyMsg sr ->

@@ -11,14 +11,14 @@ type event = Frenetic_OpenFlow.event
    OpenFlow0x01 messages.  It should be the job of openflow.ml to convert 1.x specific
    messages to the generic OpenFlow messages and pass them over the pipe to Frenetic. 
 
-  IF YOU CHANGE THE PROTOCOL HERE, YOU MUST ALSO CHANGE IT IN Frenetic_OpenFlow0x01_Controller.
+  IF YOU CHANGE THE PROTOCOL HERE, YOU MUST ALSO CHANGE IT IN Frenetic_OpenFlow0x01_Plugin.
   Unfortunately, we can't just plop this in Frenetic_OpenFlow0x01 (because it references
   Frenetic_OpenFlow) or Frenetic_OpenFlow (because it references Frenetic_OpenFlow0x01).  We
   could have put it in its own module, but I dont' want to give legitimacy to something
   that's transitional.  
  *)
 
-type rpc_ack = Ok | Eof
+type rpc_ack = RpcOk | RpcEof
 
 (* Don't send this over RPC.  You'll be sorry! *)
 type trx_status = Done | Unfulfilled of Message.t list Deferred.t
@@ -180,17 +180,17 @@ let send switchId xid msg =
   match Hashtbl.Poly.find switches switchId with
   | Some switchState -> 
     switchState.send xid msg; 
-    Ok
+    RpcOk
   | None ->
-    Eof
+    RpcEof
 
 let send_batch switchId xid msgs = 
   match Hashtbl.Poly.find switches switchId with
   | Some switchState ->
     List.iter msgs ~f:(switchState.send xid);
-    Ok
+    RpcOk
   | None ->
-    Eof
+    RpcEof
 
 let send_txn switchId msg = 
   match Hashtbl.Poly.find switches switchId with
@@ -240,11 +240,11 @@ let rpc_handler (a:Socket.Address.Inet.t) (reader:Reader.t) (writer:Writer.t) : 
      | SendTrx (swid, msg) ->
        let run_trx = send_txn swid msg in
        let () = match run_trx with
-         | Done -> write (TrxReply (Eof, []))
+         | Done -> write (TrxReply (RpcEof, []))
          | Unfulfilled ivar_deferred ->
             Log.info "Wrote Transaction repsonse";
             upon ivar_deferred
-              (fun collected_responses -> write (TrxReply (Ok, collected_responses)))
+              (fun collected_responses -> write (TrxReply (RpcOk, collected_responses)))
       in
       return (`Repeat ()))
   

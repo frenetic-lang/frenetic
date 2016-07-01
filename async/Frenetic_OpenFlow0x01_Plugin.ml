@@ -10,7 +10,7 @@ module OF10 = Frenetic_OpenFlow0x01
   IF YOU CHANGE THE PROTOCOL HERE, YOU MUST ALSO CHANGE IT IN openflow.ml
  *)
 
-type rpc_ack = Ok | Eof
+type rpc_ack = RpcOk | RpcEof
 
 type rpc_command =
   | GetSwitches 
@@ -38,161 +38,170 @@ let server_writer = Ivar.create ()
 let read_outstanding = ref false
 let read_finished = Condition.create ()
 
-let rec clear_to_read () = if (!read_outstanding)
-  then Condition.wait read_finished >>= clear_to_read
-  else return (read_outstanding := true)
+module LowLevel = struct
+  module OF10 = Frenetic_OpenFlow0x01 
 
-let signal_read () = read_outstanding := false; 
-  Condition.broadcast read_finished ()
+  let openflow_executable () =
+    let prog_alt1 = Filename.dirname(Sys.executable_name) ^ "/openflow" in
+    let prog_alt2 = Filename.dirname(Sys.executable_name) ^ "/openflow.native" in
+    Sys.file_exists prog_alt1 
+    >>= function
+    | `Yes -> return prog_alt1
+    | _ -> Sys.file_exists prog_alt2 
+           >>= function
+           | `Yes -> return prog_alt2
+           | _ -> failwith (Printf.sprintf "Can't find OpenFlow executable %s!" prog_alt2)
 
-let openflow_executable () =
-  let prog_alt1 = Filename.dirname(Sys.executable_name) ^ "/openflow" in
-  let prog_alt2 = Filename.dirname(Sys.executable_name) ^ "/openflow.native" in
-  Sys.file_exists prog_alt1 
-  >>= function
-  | `Yes -> return prog_alt1
-  | _ -> Sys.file_exists prog_alt2 
-         >>= function
-         | `Yes -> return prog_alt2
-         | _ -> failwith (Printf.sprintf "Can't find OpenFlow executable %s!" prog_alt2)
+
+  let start port =
+    Log.info "Calling create!";
+    let sock_port = 8984 in
+    let sock_addr = `Inet (Unix.Inet_addr.localhost, sock_port) in
+    let args = ["-s"; string_of_int sock_port;
+                "-p"; string_of_int port;
+                "-v"] in
+    don't_wait_for (
+      Log.info "Current uid: %n" (Unix.getuid ());
+      Log.flushed () >>= fun () ->
+      openflow_executable () >>= fun prog ->
+        Process.create ~prog ~args ()
+        >>= function
+        | Error err -> Log.error "Failed to launch openflow server %s!" prog;
+          raise (Core_kernel.Error.to_exn err)
+        | Ok proc ->
+          Log.info "Successfully launched OpenFlow controller with pid %s" (Pid.to_string (Process.pid proc));
+          (* Redirect stdout of the child proc to out stdout for logging *)
+          let buf = String.create 1000 in
+          don't_wait_for (Deferred.repeat_until_finished () (fun () ->
+              Reader.read (Process.stdout proc) buf >>| function
+              | `Eof -> `Finished ()
+              | `Ok n -> `Repeat (Writer.write (Lazy.force Writer.stdout) ~len:n buf)));
+          Log.info "Connecting to first OpenFlow server socket";
+          let rec wait_for_server () = 
+            Monitor.try_with ~extract_exn:true (fun () -> Socket.connect (Socket.create Socket.Type.tcp) sock_addr) >>= function
+            | Ok sock -> return sock
+            | Error exn -> Log.info "Failed to open socket to OpenFlow server: %s" (Exn.to_string exn);
+              Log.info "Retrying in 1 second";
+              after (Time.Span.of_sec 1.)
+              >>= wait_for_server in
+          wait_for_server ()
+          >>= fun sock ->
+          Ivar.fill server_sock_addr sock_addr;
+          Log.info "Successfully connected to first OpenFlow server socket";
+          Ivar.fill server_reader (Reader.create (Socket.fd sock));
+          Ivar.fill server_writer (Writer.create (Socket.fd sock));
+          (* We open a second socket to get the events stream *)
+          Log.info "Connecting to second OpenFlow server socket";
+          Socket.connect (Socket.create Socket.Type.tcp) sock_addr
+          >>= fun sock ->
+          Log.info "Successfully connected to second OpenFlow server socket";
+          let reader = Reader.create (Socket.fd sock) in
+          let writer = Writer.create (Socket.fd sock) in
+          Writer.write_marshal writer ~flags:[] GetEvents;
+          Deferred.repeat_until_finished ()
+            (fun () ->
+               Reader.read_marshal reader
+               >>= function
+               | `Eof ->
+                 Log.info "OpenFlow controller closed events socket";
+                 Pipe.close events_writer;
+                 Socket.shutdown sock `Both;
+                 return (`Finished ())
+               | `Ok (EventsReply evt) ->
+                 Pipe.write events_writer evt >>| fun () ->
+                 `Repeat ()
+               | `Ok (_) ->
+                 Log.error "Got a message that's not an EventsReply.  WTF?  Dropping.";
+                 return (`Repeat ())
+            )
+          )
+
+  let rec clear_to_read () = if (!read_outstanding)
+    then Condition.wait read_finished >>= clear_to_read
+    else return (read_outstanding := true)
+
+  let signal_read () = read_outstanding := false; 
+    Condition.broadcast read_finished ()
+
+  let ready_to_process () =
+    Ivar.read server_reader
+    >>= fun reader ->
+    Ivar.read server_writer
+    >>= fun writer ->
+    clear_to_read ()
+    >>= fun () ->
+    let read () = Reader.read_marshal reader >>| function
+      | `Eof -> Log.error "OpenFlow server socket shutdown unexpectedly!";
+        failwith "Can not reach OpenFlow server!"
+      | `Ok a -> a in
+    let write = Writer.write_marshal writer ~flags:[] in
+    return (read, write)
+
+  let send swid xid msg =
+    ready_to_process ()
+    >>= fun (recv, send) ->
+    send (Send (swid,xid,msg));
+    recv ()
+    >>| function
+    | SendReply resp ->
+      signal_read (); resp
+    | _ -> Log.error "Received a reply that's not SendReply to a Send"; assert false
+
+  let send_batch swid xid msgs =
+    ready_to_process ()
+    >>= fun (recv, send) ->
+    send (SendBatch (swid,xid,msgs));
+    recv ()
+    >>| function
+    | BatchReply resp ->
+      signal_read (); resp
+    | _ -> Log.error "Received a reply that's not BatchReply to a SendBatch"; assert false
+
+
+  (* We open a new socket for each send_txn call so that we can block on the reply *)
+  let send_txn swid msg =
+    Ivar.read server_sock_addr
+    >>= fun sock_addr ->
+    Socket.connect (Socket.create Socket.Type.tcp) sock_addr
+    >>= fun sock ->
+    let reader = Reader.create (Socket.fd sock) in
+    let writer = Writer.create (Socket.fd sock) in
+    Writer.write_marshal writer ~flags:[] (SendTrx (swid,msg));
+    Reader.read_marshal reader >>| fun resp ->
+      match resp with
+      | `Eof ->
+        Socket.shutdown sock `Both;
+        TrxReply (RpcEof,[])
+      | `Ok (TrxReply (RpcEof,_)) ->
+        Socket.shutdown sock `Both;
+        TrxReply (RpcEof,[])
+      | `Ok (TrxReply (RpcOk, resp)) ->
+        Socket.shutdown sock `Both;
+        TrxReply (RpcOk, resp)
+      | _ ->
+        Log.debug "send_txn returned something unintelligible";
+        TrxReply (RpcEof,[])
+
+  let events = events
+end
 
 let start port =
-  Log.info "Calling create!";
-  let sock_port = 8984 in
-  let sock_addr = `Inet (Unix.Inet_addr.localhost, sock_port) in
-  let args = ["-s"; string_of_int sock_port;
-              "-p"; string_of_int port;
-              "-v"] in
-  don't_wait_for (
-    Log.info "Current uid: %n" (Unix.getuid ());
-    Log.flushed () >>= fun () ->
-    openflow_executable () >>= fun prog ->
-      Process.create ~prog ~args ()
-      >>= function
-      | Error err -> Log.error "Failed to launch openflow server %s!" prog;
-        raise (Core_kernel.Error.to_exn err)
-      | Ok proc ->
-        Log.info "Successfully launched OpenFlow controller with pid %s" (Pid.to_string (Process.pid proc));
-        (* Redirect stdout of the child proc to out stdout for logging *)
-        let buf = String.create 1000 in
-        don't_wait_for (Deferred.repeat_until_finished () (fun () ->
-            Reader.read (Process.stdout proc) buf >>| function
-            | `Eof -> `Finished ()
-            | `Ok n -> `Repeat (Writer.write (Lazy.force Writer.stdout) ~len:n buf)));
-        Log.info "Connecting to first OpenFlow server socket";
-        let rec wait_for_server () = 
-          Monitor.try_with ~extract_exn:true (fun () -> Socket.connect (Socket.create Socket.Type.tcp) sock_addr) >>= function
-          | Ok sock -> return sock
-          | Error exn -> Log.info "Failed to open socket to OpenFlow server: %s" (Exn.to_string exn);
-            Log.info "Retrying in 1 second";
-            after (Time.Span.of_sec 1.)
-            >>= wait_for_server in
-        wait_for_server ()
-        >>= fun sock ->
-        Ivar.fill server_sock_addr sock_addr;
-        Log.info "Successfully connected to first OpenFlow server socket";
-        Ivar.fill server_reader (Reader.create (Socket.fd sock));
-        Ivar.fill server_writer (Writer.create (Socket.fd sock));
-        (* We open a second socket to get the events stream *)
-        Log.info "Connecting to second OpenFlow server socket";
-        Socket.connect (Socket.create Socket.Type.tcp) sock_addr
-        >>= fun sock ->
-        Log.info "Successfully connected to second OpenFlow server socket";
-        let reader = Reader.create (Socket.fd sock) in
-        let writer = Writer.create (Socket.fd sock) in
-        Writer.write_marshal writer ~flags:[] GetEvents;
-        Deferred.repeat_until_finished ()
-          (fun () ->
-             Reader.read_marshal reader
-             >>= function
-             | `Eof ->
-               Log.info "OpenFlow controller closed events socket";
-               Pipe.close events_writer;
-               Socket.shutdown sock `Both;
-               return (`Finished ())
-             | `Ok (EventsReply evt) ->
-               Pipe.write events_writer evt >>| fun () ->
-               `Repeat ()
-             | `Ok (_) ->
-               Log.error "Got a message that's not an EventsReply.  WTF?  Dropping.";
-               return (`Repeat ())
-          )
-        )
-
-
-let ready_to_process () =
-  Ivar.read server_reader
-  >>= fun reader ->
-  Ivar.read server_writer
-  >>= fun writer ->
-  clear_to_read ()
-  >>= fun () ->
-  let read () = Reader.read_marshal reader >>| function
-    | `Eof -> Log.error "OpenFlow server socket shutdown unexpectedly!";
-      failwith "Can not reach OpenFlow server!"
-    | `Ok a -> a in
-  let write = Writer.write_marshal writer ~flags:[] in
-  return (read, write)
+  LowLevel.start port
 
 let switch_features (switch_id : switchId)  =
-  ready_to_process ()
+  LowLevel.ready_to_process ()
   >>= fun (recv, send) ->
   send (GetSwitchFeatures switch_id);
   recv ()
   >>= function
   | SwitchFeaturesReply resp ->
-    signal_read ();
+    LowLevel.signal_read ();
     (match resp with
     | Some sf -> return (Some (From0x01.from_switch_features sf))
     | None -> return None)
   | _ -> 
     Log.error "Received a reply that's not SwitchFeaturesReply to a GetSwitchFeatures"; 
     assert false
-
-let send swid xid msg =
-  ready_to_process ()
-  >>= fun (recv, send) ->
-  send (Send (swid,xid,msg));
-  recv ()
-  >>| function
-  | SendReply resp ->
-    signal_read (); resp
-  | _ -> Log.error "Received a reply that's not SendReply to a Send"; assert false
-
-let send_batch swid xid msgs =
-  ready_to_process ()
-  >>= fun (recv, send) ->
-  send (SendBatch (swid,xid,msgs));
-  recv ()
-  >>| function
-  | BatchReply resp ->
-    signal_read (); resp
-  | _ -> Log.error "Received a reply that's not BatchReply to a SendBatch"; assert false
-
-
-(* We open a new socket for each send_txn call so that we can block on the reply *)
-let send_txn swid msg =
-  Ivar.read server_sock_addr
-  >>= fun sock_addr ->
-  Socket.connect (Socket.create Socket.Type.tcp) sock_addr
-  >>= fun sock ->
-  let reader = Reader.create (Socket.fd sock) in
-  let writer = Writer.create (Socket.fd sock) in
-  Writer.write_marshal writer ~flags:[] (SendTrx (swid,msg));
-  Reader.read_marshal reader >>| fun resp ->
-    match resp with
-    | `Eof ->
-      Socket.shutdown sock `Both;
-      TrxReply (Eof,[])
-    | `Ok (TrxReply (Eof,_)) ->
-      Socket.shutdown sock `Both;
-      TrxReply (Eof,[])
-    | `Ok (TrxReply (Ok, resp)) ->
-      Socket.shutdown sock `Both;
-      TrxReply (Ok, resp)
-    | _ ->
-      Log.debug "send_txn returned something unintelligible";
-      TrxReply (Eof,[])
 
 let actions_from_first_row compiler =
   (* All the actions we need will be in the first row, the match all row, which
@@ -214,9 +223,9 @@ let packet_out
   let actions = actions_from_first_row compiler in 
   let openflow_generic_pkt_out = (payload, ingress_port, actions) in
   let pktout0x01 = Frenetic_OpenFlow.To0x01.from_packetOut openflow_generic_pkt_out in
-  send swid 0l (OF10.Message.PacketOutMsg pktout0x01) >>= function
-    | Eof -> return ()
-    | Ok -> return ()  
+  LowLevel.send swid 0l (OF10.Message.PacketOutMsg pktout0x01) >>= function
+    | RpcEof -> return ()
+    | RpcOk -> return ()  
 
 let bogus_flow_stats = {
   flow_table_id = 66L; flow_pattern = Pattern.match_all;
@@ -237,9 +246,9 @@ let flow_stats (sw_id : switchId) (pat: Pattern.t) : flowStats Deferred.t =
   let pat0x01 = To0x01.from_pattern pat in
   let req = OF10.IndividualRequest
     { sr_of_match = pat0x01; sr_table_id = 0xff; sr_out_port = None } in
-  send_txn sw_id (OF10.Message.StatsRequestMsg req) >>= function
-    | TrxReply (Eof, _) -> assert false
-    | TrxReply (Ok, l) -> (match l with
+  LowLevel.send_txn sw_id (OF10.Message.StatsRequestMsg req) >>= function
+    | TrxReply (RpcEof, _) -> assert false
+    | TrxReply (RpcOk, l) -> (match l with
       | [] -> Log.info "Got an empty list"; return bogus_flow_stats
       | [hd] -> ( match hd with
         | StatsReplyMsg (IndividualFlowRep ifrl) ->
@@ -263,9 +272,9 @@ let bogus_port_stats = {
 let port_stats (sw_id : switchId) (pid : portId) : portStats Deferred.t =
   let pt = Int32.(to_int_exn pid) in
   let req = OF10.PortRequest (Some (PhysicalPort pt)) in
-  send_txn sw_id (OF10.Message.StatsRequestMsg req) >>= function
-    | TrxReply (Eof, _) -> assert false
-    | TrxReply (Ok, l) -> (match l with
+  LowLevel.send_txn sw_id (OF10.Message.StatsRequestMsg req) >>= function
+    | TrxReply (RpcEof, _) -> assert false
+    | TrxReply (RpcOk, l) -> (match l with
       | [] -> Log.info "Got an empty list"; return bogus_port_stats
       | [hd] -> ( match hd with
         | StatsReplyMsg (PortRep psl) -> 
@@ -277,13 +286,13 @@ let port_stats (sw_id : switchId) (pid : portId) : portStats Deferred.t =
     | _ -> Log.error "Received a reply that's not TrxReply to a SendTrx"; assert false
 
 let get_switches () =
-  ready_to_process ()
+  LowLevel.ready_to_process ()
   >>= fun (recv, send) ->
   send GetSwitches;
   recv ()
   >>| function
   | SwitchesReply resp ->
-      signal_read (); resp
+      LowLevel.signal_read (); resp
   | _ -> Log.error "Received a reply that's not SwitchesReply to a GetSwitches"; assert false
 
 (* TODO: The following is ripped out of Frenetic_NetKAT_Updates.  Turns out you can't call
@@ -311,15 +320,15 @@ module BestEffortUpdate0x01 = struct
     let flows = List.map table ~f:(fun flow ->
         decr priority;
         to_flow_mod !priority flow) in
-    send_batch sw_id 0l flows >>= function
-    | Eof -> raise UpdateError
-    | Ok -> return ()
+    LowLevel.send_batch sw_id 0l flows >>= function
+    | RpcEof -> raise UpdateError
+    | RpcOk -> return ()
 
   let delete_flows_for sw_id =
     let delete_flows = M.FlowModMsg OF10.delete_all_flows in
-    send sw_id 5l delete_flows >>= function
-      | Eof -> raise UpdateError
-      | Ok -> return ()
+    LowLevel.send sw_id 5l delete_flows >>= function
+      | RpcEof -> raise UpdateError
+      | RpcOk -> return ()
 
   let bring_up_switch (sw_id : switchId) new_r =
     let table = Comp.to_table ~options:!current_compiler_options sw_id new_r in
@@ -350,6 +359,3 @@ let update (compiler: Frenetic_NetKAT_Compiler.t) =
 
 let update_switch (swid: switchId) (compiler: Frenetic_NetKAT_Compiler.t) = 
   BestEffortUpdate0x01.bring_up_switch swid compiler
-
-
-          
