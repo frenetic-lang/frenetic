@@ -259,4 +259,6 @@ end
 module From0x01 : sig
   val from_switch_features : OF10.SwitchFeatures.t -> switchFeatures
   val event_from_message : OF10.switchId -> OF10.Message.t -> event option
+  val from_port_stats : OF10.portStats -> portStats 
+  val from_individual_stats: OF10.individualStats -> flowStats
 end

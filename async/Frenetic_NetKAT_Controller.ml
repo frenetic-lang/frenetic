@@ -13,7 +13,7 @@ module type PLUGIN = sig
   val update : Frenetic_NetKAT_Compiler.t -> unit Deferred.t
   val update_switch : switchId -> Frenetic_NetKAT_Compiler.t -> unit Deferred.t
   val packet_out : switchId -> portId option -> payload -> Frenetic_NetKAT_Compiler.t -> unit Deferred.t
-  val flow_stats : switchId -> Frenetic_NetKAT.pred -> flowStats Deferred.t
+  val flow_stats : switchId -> Pattern.t -> flowStats Deferred.t
   val port_stats : switchId -> portId -> portStats Deferred.t
 end
 
@@ -67,15 +67,37 @@ module Make (P:PLUGIN) : CONTROLLER = struct
 
   let packet_out (sw:switchId) (ingress_port:portId option) (pay:payload) (pol:policy) : unit Deferred.t =
     P.packet_out sw ingress_port pay (Frenetic_NetKAT_Compiler.compile_local pol)
-                 
-  let query (q:string) : (int64 * int64) Deferred.t =
-    let _,pred = List.find_exn (Frenetic_NetKAT_Compiler.queries !fdd) ~f:(fun (q',_) -> q' = q) in 
-    Hashtbl.Poly.fold
-      switch_hash ~init:(return (0L, 0L))
-      ~f:(fun ~key:sw ~data:_ d ->
-          d >>= fun (packets,bytes) -> 
-          P.flow_stats sw pred >>= fun fs ->
-          return (Int64.(packets + fs.flow_packet_count), Int64.(bytes + fs.flow_byte_count)))
+
+  let get_table (sw_id : switchId) : (Frenetic_OpenFlow.flow * string list) list =
+    Frenetic_NetKAT_Compiler.to_table' sw_id !fdd
+
+  let sum_stat_pairs stats = 
+     List.fold stats ~init:(0L, 0L)
+      ~f:(fun (pkts, bytes) (pkts', bytes') ->
+        Int64.(pkts + pkts', bytes + bytes'))
+
+  (* TODO: The NetKAT Controller used to preserve statistics across queries, and 
+     add the accumulated stats in here.  This is no longer done - is that right? *)
+
+  let query (name : string) : (Int64.t * Int64.t) Deferred.t =
+    Deferred.List.map ~how:`Parallel
+      (Hashtbl.Poly.keys switch_hash) 
+      ~f:(fun sw_id ->
+        let pats = List.filter_map (get_table sw_id) ~f:(fun (flow, names) ->
+          if List.mem names name then
+            Some flow.pattern
+          else
+            None) in
+        Deferred.List.map ~how:`Parallel 
+          pats
+          ~f:(fun pat ->
+            P.flow_stats sw_id pat
+            >>| fun(stats) -> (stats.flow_packet_count, stats.flow_byte_count) 
+          )
+        >>| fun stats -> sum_stat_pairs stats
+      )
+     >>| fun stats -> sum_stat_pairs stats
+
 end
 
 

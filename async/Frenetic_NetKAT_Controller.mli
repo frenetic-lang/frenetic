@@ -10,7 +10,7 @@ module type PLUGIN = sig
   val update : Frenetic_NetKAT_Compiler.t -> unit Deferred.t
   val update_switch : switchId -> Frenetic_NetKAT_Compiler.t -> unit Deferred.t
   val packet_out : switchId -> portId option -> payload -> Frenetic_NetKAT_Compiler.t -> unit Deferred.t
-  val flow_stats : switchId -> Frenetic_NetKAT.pred -> flowStats Deferred.t
+  val flow_stats : switchId -> Pattern.t -> flowStats Deferred.t
   val port_stats : switchId -> portId -> portStats Deferred.t
 end
 

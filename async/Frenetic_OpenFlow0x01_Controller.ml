@@ -5,6 +5,28 @@ open Frenetic_OpenFlow
 module Log = Frenetic_Log
 module OF10 = Frenetic_OpenFlow0x01
 
+(* TODO: See openflow.ml for discussion.  This is transitional.  
+
+  IF YOU CHANGE THE PROTOCOL HERE, YOU MUST ALSO CHANGE IT IN openflow.ml
+ *)
+
+type rpc_ack = Ok | Eof
+
+type rpc_command =
+  | GetSwitches 
+  | SwitchesReply of OF10.switchId list
+  | GetSwitchFeatures of OF10.switchId
+  | SwitchFeaturesReply of OF10.SwitchFeatures.t option
+  | Send of OF10.switchId * OF10.xid * OF10.Message.t
+  | SendReply of rpc_ack
+  | SendBatch of OF10.switchId * OF10.xid * OF10.Message.t list
+  | BatchReply of rpc_ack
+  | GetEvents
+  | EventsReply of event
+  | SendTrx of OF10.switchId * OF10.Message.t
+  | TrxReply of rpc_ack * OF10.Message.t list
+  | Finished of unit  (* This is not sent by the client explicitly *)
+
 let chan = Ivar.create ()
 
 let (events, events_writer) = Pipe.create ()
@@ -78,7 +100,7 @@ let start port =
         Log.info "Successfully connected to second OpenFlow server socket";
         let reader = Reader.create (Socket.fd sock) in
         let writer = Writer.create (Socket.fd sock) in
-        Writer.write_marshal writer ~flags:[] `Events;
+        Writer.write_marshal writer ~flags:[] GetEvents;
         Deferred.repeat_until_finished ()
           (fun () ->
              Reader.read_marshal reader
@@ -88,9 +110,14 @@ let start port =
                Pipe.close events_writer;
                Socket.shutdown sock `Both;
                return (`Finished ())
-             | `Ok (`Events_resp evt) ->
+             | `Ok (EventsReply evt) ->
                Pipe.write events_writer evt >>| fun () ->
-               `Repeat ()))
+               `Repeat ()
+             | `Ok (_) ->
+               Log.error "Got a message that's not an EventsReply.  WTF?  Dropping.";
+               return (`Repeat ())
+          )
+        )
 
 
 let ready_to_process () =
@@ -110,32 +137,38 @@ let ready_to_process () =
 let switch_features (switch_id : switchId)  =
   ready_to_process ()
   >>= fun (recv, send) ->
-  send (`Get_switch_features switch_id);
+  send (GetSwitchFeatures switch_id);
   recv ()
   >>= function
-  | `Get_switch_features_resp resp ->
-     signal_read ();
-     resp >>| fun (feats:OF10.SwitchFeatures.t) ->
-     Some {switch_id = feats.switch_id;
-       switch_ports = List.filter_map ~f:(fun pd -> Int32.of_int pd.port_no) feats.ports }
+  | SwitchFeaturesReply resp ->
+    signal_read ();
+    (match resp with
+    | Some sf -> return (Some (From0x01.from_switch_features sf))
+    | None -> return None)
+  | _ -> 
+    Log.error "Received a reply that's not SwitchFeaturesReply to a GetSwitchFeatures"; 
+    assert false
 
 let send swid xid msg =
   ready_to_process ()
   >>= fun (recv, send) ->
-  send (`Send (swid,xid,msg));
+  send (Send (swid,xid,msg));
   recv ()
   >>| function
-  | `Send_resp resp ->
+  | SendReply resp ->
     signal_read (); resp
+  | _ -> Log.error "Received a reply that's not SendReply to a Send"; assert false
 
 let send_batch swid xid msgs =
   ready_to_process ()
   >>= fun (recv, send) ->
-  send (`Send_batch (swid,xid,msgs));
+  send (SendBatch (swid,xid,msgs));
   recv ()
   >>| function
-  | `Send_batch_resp resp ->
+  | BatchReply resp ->
     signal_read (); resp
+  | _ -> Log.error "Received a reply that's not BatchReply to a SendBatch"; assert false
+
 
 (* We open a new socket for each send_txn call so that we can block on the reply *)
 let send_txn swid msg =
@@ -145,22 +178,21 @@ let send_txn swid msg =
   >>= fun sock ->
   let reader = Reader.create (Socket.fd sock) in
   let writer = Writer.create (Socket.fd sock) in
-  Writer.write_marshal writer ~flags:[] (`Send_txn (swid,msg));
+  Writer.write_marshal writer ~flags:[] (SendTrx (swid,msg));
   Reader.read_marshal reader >>| fun resp ->
     match resp with
     | `Eof ->
       Socket.shutdown sock `Both;
-      `Eof
-    | `Ok (`Send_txn_resp `Eof) ->
+      TrxReply (Eof,[])
+    | `Ok (TrxReply (Eof,_)) ->
       Socket.shutdown sock `Both;
-      `Eof
-    | `Ok (`Send_txn_resp (`Ok resp)) ->
-      Log.info "Received Transaction response";
+      TrxReply (Eof,[])
+    | `Ok (TrxReply (Ok, resp)) ->
       Socket.shutdown sock `Both;
-      resp
+      TrxReply (Ok, resp)
     | _ ->
       Log.debug "send_txn returned something unintelligible";
-      `Eof
+      TrxReply (Eof,[])
 
 let actions_from_first_row compiler =
   (* All the actions we need will be in the first row, the match all row, which
@@ -183,23 +215,40 @@ let packet_out
   let openflow_generic_pkt_out = (payload, ingress_port, actions) in
   let pktout0x01 = Frenetic_OpenFlow.To0x01.from_packetOut openflow_generic_pkt_out in
   send swid 0l (OF10.Message.PacketOutMsg pktout0x01) >>= function
-    | `Eof -> return ()
-    | `Ok -> return ()  
+    | Eof -> return ()
+    | Ok -> return ()  
 
-(* TODO: Implement *)
-let flow_stats (swid:switchId) (pred:Frenetic_NetKAT.pred) =
-  return {
-    flow_table_id = 0L; 
-    flow_pattern = Pattern.match_all;
-    flow_actions = [];
-    flow_duration_sec = 0L;
-    flow_duration_nsec = 0L;
-    flow_priority = 0L;
-    flow_idle_timeout = 0L;
-    flow_hard_timeout = 0L;
-    flow_packet_count = 0L;
-    flow_byte_count = 0L
+let bogus_flow_stats = {
+  flow_table_id = 66L; flow_pattern = Pattern.match_all;
+  flow_actions = []; flow_duration_sec = 0L; flow_duration_nsec = 0L;
+  flow_priority = 0L; flow_idle_timeout = 0L; flow_hard_timeout = 0L;
+  flow_packet_count = 0L; flow_byte_count = 0L
+}
+
+(* We aggregate all the OF10 stats and convert them to a generic OpenFlow at the same time *)
+let collapse_stats ifrl =
+  let open OF10 in 
+  { bogus_flow_stats with 
+    flow_packet_count = List.sum (module Int64) ifrl ~f:(fun stat -> stat.packet_count)
+    ; flow_byte_count = List.sum (module Int64) ifrl ~f:(fun stat -> stat.byte_count)
   }
+
+let flow_stats (sw_id : switchId) (pat: Pattern.t) : flowStats Deferred.t =
+  let pat0x01 = To0x01.from_pattern pat in
+  let req = OF10.IndividualRequest
+    { sr_of_match = pat0x01; sr_table_id = 0xff; sr_out_port = None } in
+  send_txn sw_id (OF10.Message.StatsRequestMsg req) >>= function
+    | TrxReply (Eof, _) -> assert false
+    | TrxReply (Ok, l) -> (match l with
+      | [] -> Log.info "Got an empty list"; return bogus_flow_stats
+      | [hd] -> ( match hd with
+        | StatsReplyMsg (IndividualFlowRep ifrl) ->
+          return (collapse_stats ifrl) 
+        | _ -> Log.error "Got a reply, but the type is wrong"; return bogus_flow_stats
+      )    
+      | hd :: tl -> Log.info "Got a > 2 element list"; return bogus_flow_stats
+    )
+    | _ -> Log.error "Received a reply that's not TrxReply to a SendTrx"; assert false
 
 let bogus_port_stats = {
   port_no = 666L 
@@ -215,28 +264,27 @@ let port_stats (sw_id : switchId) (pid : portId) : portStats Deferred.t =
   let pt = Int32.(to_int_exn pid) in
   let req = OF10.PortRequest (Some (PhysicalPort pt)) in
   send_txn sw_id (OF10.Message.StatsRequestMsg req) >>= function
-    | `Eof -> assert false
-    | `Ok l -> match l with
+    | TrxReply (Eof, _) -> assert false
+    | TrxReply (Ok, l) -> (match l with
       | [] -> Log.info "Got an empty list"; return bogus_port_stats
-      | [hd] -> (match hd with
-        | hd::tl -> Log.info "Got Another List"; return hd
-        | _ -> Log.info "Got something else.  Who fucking knows what?"; return bogus_port_stats
-        )
+      | [hd] -> ( match hd with
+        | StatsReplyMsg (PortRep psl) -> 
+          return (Frenetic_OpenFlow.From0x01.from_port_stats (List.hd_exn psl))
+        | _ -> Log.error "Got a reply, but the type is wrong"; return bogus_port_stats
+      )    
       | hd :: tl -> Log.info "Got a > 2 element list"; return bogus_port_stats
+    )
+    | _ -> Log.error "Received a reply that's not TrxReply to a SendTrx"; assert false
 
-      (*
-      | [PortStats _, ps] -> return ps
-      | [] -> Log.info "Got an empty list"; return bogus_port_stats  
-      | _ -> return bogus_port_stats
-      *)
 let get_switches () =
   ready_to_process ()
   >>= fun (recv, send) ->
-  send `Get_switches;
+  send GetSwitches;
   recv ()
   >>| function
-  | `Get_switches_resp resp ->
+  | SwitchesReply resp ->
       signal_read (); resp
+  | _ -> Log.error "Received a reply that's not SwitchesReply to a GetSwitches"; assert false
 
 (* TODO: The following is ripped out of Frenetic_NetKAT_Updates.  Turns out you can't call
 stuff in that because of a circular dependency.  In a later version, we should implement 
@@ -264,14 +312,14 @@ module BestEffortUpdate0x01 = struct
         decr priority;
         to_flow_mod !priority flow) in
     send_batch sw_id 0l flows >>= function
-    | `Eof -> raise UpdateError
-    | `Ok -> return ()
+    | Eof -> raise UpdateError
+    | Ok -> return ()
 
   let delete_flows_for sw_id =
     let delete_flows = M.FlowModMsg OF10.delete_all_flows in
     send sw_id 5l delete_flows >>= function
-      | `Eof -> raise UpdateError
-      | `Ok -> return ()
+      | Eof -> raise UpdateError
+      | Ok -> return ()
 
   let bring_up_switch (sw_id : switchId) new_r =
     let table = Comp.to_table ~options:!current_compiler_options sw_id new_r in
