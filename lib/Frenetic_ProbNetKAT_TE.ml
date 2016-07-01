@@ -5,7 +5,6 @@ open Net
 open Num
 open Topology
 
-module PQueue = Core_kernel.Heap.Removable
 include Interp(Hist)(PreciseProb)
 
 open Pol
@@ -43,15 +42,16 @@ end
 
 module PathMap = Map.Make(PathOrd)
 
-type flow_decomp = num PathMap.t
-type scheme = flow_decomp SrcDstMap.t
+type flow_decomp = Prob.t PathMap.t
+type source_routes = flow_decomp SrcDstMap.t
 
 module PortMap = Map.Make(Int)
-type out_port_dist = num PortMap.t
-type link_state_scheme = out_port_dist SrcDstMap.t
+type out_port_dist = Prob.t PortMap.t
+type per_hop_routes = out_port_dist SrcDstMap.t
 
 module PktSet = Set.Make(Pkt)
 
+module PQueue = Core_kernel.Heap.Removable
 
 (* helper functions *)
 
@@ -91,10 +91,10 @@ let dump_path_prob_set (t:Topology.t) (pps: flow_decomp) : string =
   PathMap.iteri
     pps
     ~f:(fun ~key:path ~data:prob ->
-      Printf.bprintf buf "[%s] @ %f\n" (dump_links t path) (float_of_num prob));
+      Printf.bprintf buf "[%s] @ %s\n" (dump_links t path) (Prob.to_dec_string prob));
   Buffer.contents buf
 
-let dump_scheme (t:Topology.t) (s:scheme) : string =
+let dump_source_routes (t:Topology.t) (s:source_routes) : string =
   let buf = Buffer.create 101 in
   SrcDstMap.iteri s
     ~f:(fun ~key:(v1,v2) ~data:pps ->
@@ -109,10 +109,10 @@ let dump_port_prob_set (opd: out_port_dist) : string =
   IntMap.iteri
     opd
     ~f:(fun ~key:port ~data:prob ->
-      Printf.bprintf buf "[%d] @ %f\n" port (float_of_num prob));
+      Printf.bprintf buf "[%d] @ %s\n" port (Prob.to_dec_string prob));
   Buffer.contents buf
 
-let dump_link_state_scheme (t:Topology.t) (s:link_state_scheme) : string =
+let dump_per_hop_routes (t:Topology.t) (s:per_hop_routes) : string =
   let buf = Buffer.create 101 in
   SrcDstMap.iteri s
     ~f:(fun ~key:(v1,v2) ~data:opd ->
@@ -121,6 +121,13 @@ let dump_link_state_scheme (t:Topology.t) (s:link_state_scheme) : string =
           (Node.name (Topology.vertex_to_label t v2))
           (dump_port_prob_set opd));
   Buffer.contents buf
+
+let dump_to_file (file:string) (header:string) (data: Prob.t IntMap.t) : unit =
+  let oc = Out_channel.create (file ^ ".dat") in
+  fprintf oc "%s\n" (IntMap.fold data ~init:(header ^ "\n")
+    ~f:(fun ~key:k ~data:d acc ->
+      acc ^ (Int.to_string k) ^ "\t" ^ (Prob.to_dec_string d) ^ "\n"));
+  Out_channel.close oc
 
 let get_hosts_set (topo : Topology.t) : VertexSet.t =
   VertexSet.filter (Topology.vertexes topo)
@@ -364,14 +371,10 @@ let topo_to_pnk (topo : Topology.t) (v_id, id_v) =
     let dst, dst_port = Topology.edge_dst link in
     let src_id = VertexMap.find_exn v_id src in
     let dst_id = VertexMap.find_exn v_id dst in
-    let link_src_test = ??(Switch src_id) >> ??(Port (port_to_pnk src_port)) in
-    let link_dest_mod =  !!(Switch dst_id) >> !!(Port (port_to_pnk dst_port)) in
-    let link_prog = link_src_test >> Dup >> link_dest_mod >> Dup in
-    if pol_acc = Drop then
-      link_prog
-    else
-      link_prog & pol_acc)
-    topo Drop
+    let link_pnk = ??(Switch src_id) >> ??(Port (port_to_pnk src_port)) >> Dup
+                 >> !!(Switch dst_id) >> !!(Port (port_to_pnk dst_port)) >> Dup in
+    if pol_acc = Drop then link_pnk
+    else link_pnk & pol_acc) topo Drop
 
 (* Topology with lossy links to ProbNetKAT program *)
 let topo_to_pnk_lossy (topo : Topology.t) (fail_prob : Prob.t) (v_id, id_v) =
@@ -385,27 +388,19 @@ let topo_to_pnk_lossy (topo : Topology.t) (fail_prob : Prob.t) (v_id, id_v) =
     let link_prog = link_src_test >> Dup >>
       ?@[(link_dest_mod >> Dup, Prob.(one - fail_prob));
         (Drop, fail_prob)] in
-    if pol_acc = Drop then
-      link_prog
-    else
-      link_prog & pol_acc)
-    topo Drop
-
+    if pol_acc = Drop then link_prog
+    else link_prog & pol_acc) topo Drop
 
 (* ProbNetKAT program to test if a packet is at a host *)
 let test_pkt_at_host (topo : Topology.t) (v_id, id_v) =
-  let host_set = get_hosts_set topo in
-  VertexSet.fold host_set
-    ~init:Drop
-    ~f:(fun pol_acc v ->
-      let host_id = VertexMap.find_exn v_id v in
-      pol_acc & ??(Switch host_id))
+  get_hosts_set topo
+  |> VertexSet.fold ~init:Drop
+    ~f:(fun pol_acc host -> pol_acc & ??(Switch (VertexMap.find_exn v_id host)))
 
 (* ProbNetKAT program to test if a packet is at network edge (host & port) *)
 let test_pkt_at_edge (topo : Topology.t) (v_id, id_v) =
-  let host_set = get_hosts_set topo in
-  VertexSet.fold host_set
-    ~init:Drop
+  get_hosts_set topo
+  |> VertexSet.fold ~init:Drop
     ~f:(fun acc v ->
       let host_id = VertexMap.find_exn v_id v in
       VertexSet.fold (Topology.neighbors topo v)
@@ -413,15 +408,15 @@ let test_pkt_at_edge (topo : Topology.t) (v_id, id_v) =
         ~f:(fun acc neigh ->
           let link = Topology.find_edge topo v neigh in
           let port_id = port_to_pnk (snd (Topology.edge_src link)) in
-          let test_pol = (??(Switch host_id) >> ??(Port port_id)) in
+          let test_pol = ??(Switch host_id) >> ??(Port port_id) in
           if acc = Drop then test_pol
           else acc & test_pol))
 
 
 (****************************** Routing Schemes *******************************)
 (************ Global Path based *******************)
-(* Topology -> SPF scheme *)
-let route_spf (topo : Topology.t) : scheme =
+(* Topology -> SPF source_routes *)
+let route_spf (topo : Topology.t) : source_routes =
   let device v = vertex_to_label topo v
     |> Node.device in
   let apsp = NetPath.all_pairs_shortest_paths
@@ -435,21 +430,17 @@ let route_spf (topo : Topology.t) : scheme =
     ~f:(fun acc (c,v1,v2,p) ->
       SrcDstMap.add acc ~key:(v1,v2) ~data:(PathMap.singleton p Prob.one))
 
-(* Compute routing scheme with k shortest paths between hosts *)
-let route_ksp (topo : Topology.t) (k : int) : scheme =
+(* Compute source_routes with k shortest paths between hosts *)
+let route_ksp (topo : Topology.t) (k : int) : source_routes =
   let host_set = get_hosts_set topo in
-  let all_ksp = all_pair_ksp topo k host_set host_set in
-  SrcDstMap.fold all_ksp ~init:SrcDstMap.empty
-    ~f:(fun ~key:(v1,v2) ~data:paths acc ->
-      if (v1 = v2) then acc
-      else
-      let path_map = List.fold_left
-          paths
-          ~init:PathMap.empty
+  all_pair_ksp topo k host_set host_set
+    |> SrcDstMap.fold ~init:SrcDstMap.empty
+      ~f:(fun ~key:(v1,v2) ~data:paths acc ->
+        if (v1 = v2) then acc else
+        let path_map = List.fold_left paths ~init:PathMap.empty
           ~f:(fun acc path ->
-              let prob = Prob.(one / of_int (List.length paths)) in
-              PathMap.add acc ~key:path ~data:prob) in
-      SrcDstMap.add acc ~key:(v1,v2) ~data:path_map)
+            PathMap.add acc ~key:path ~data:Prob.(one / of_int (List.length paths))) in
+        SrcDstMap.add acc ~key:(v1,v2) ~data:path_map)
 
 (************ Local switch based *******************)
 (* First outgoing port for a path *)
@@ -458,8 +449,8 @@ let get_out_port path =
   | link::_ -> (snd (Topology.edge_src link))
   | [] -> failwith "Empty edge list"
 
-(* Topology -> link state scheme using shortest path *)
-let route_link_state_spf (topo : Topology.t) : link_state_scheme =
+(* Topology -> hop by hop scheme using shortest path *)
+let route_per_hop_spf (topo : Topology.t) : per_hop_routes =
   let device v = vertex_to_label topo v
     |> Node.device in
   let apsp = NetPath.all_pairs_shortest_paths
@@ -475,51 +466,49 @@ let route_link_state_spf (topo : Topology.t) : link_state_scheme =
       else SrcDstMap.add acc ~key:(v1,v2)
         ~data:(PortMap.singleton (port_to_pnk (get_out_port p)) Prob.one))
 
-(* Topology -> link state scheme using all shortest paths ECMP *)
-let route_link_state_ecmp (topo:Topology.t) : link_state_scheme =
-  let mpapsp = all_pairs_multi_shortest_path topo in
-  SrcDstMap.fold mpapsp
-  ~init:SrcDstMap.empty
-  ~f:(fun ~key:(src, dst) ~data:(_,n,next_hop_probs) acc ->
-    if (src = dst) || (is_switch topo dst) then
-      acc
-    else
-      let next_hops = List.fold_left next_hop_probs
-        ~init:VertexSet.empty
-        ~f:(fun acc (next_hop,_) ->
-          VertexSet.add acc next_hop) in
-      let prob = Prob.(one / of_int (VertexSet.length next_hops)) in
-      let out_ports = VertexSet.fold next_hops
-        ~init:PortMap.empty
-        ~f:(fun acc next_hop ->
-          let link = Topology.find_edge topo src next_hop in
-          let out_port = port_to_pnk(snd (Topology.edge_src link)) in
-          PortMap.add acc ~key:out_port ~data:prob) in
-      SrcDstMap.add acc ~key:(src, dst) ~data:out_ports)
+(* Topology -> hop by hop state scheme using all shortest paths ECMP *)
+let route_per_hop_ecmp (topo : Topology.t) : per_hop_routes =
+  all_pairs_multi_shortest_path topo
+  |> SrcDstMap.fold ~init:SrcDstMap.empty
+    ~f:(fun ~key:(src, dst) ~data:(_,n,next_hop_probs) acc ->
+      if src = dst || is_switch topo dst then acc
+      else
+        let next_hops = List.fold_left next_hop_probs
+          ~init:VertexSet.empty
+          ~f:(fun acc (next_hop,_) ->
+            VertexSet.add acc next_hop) in
+        let prob = Prob.(one / of_int (VertexSet.length next_hops)) in
+        (* Every out port on a shortest path gets equal weight *)
+        let out_port_probs = VertexSet.fold next_hops
+          ~init:PortMap.empty
+          ~f:(fun acc next_hop ->
+            let link = Topology.find_edge topo src next_hop in
+            let out_port = port_to_pnk(snd (Topology.edge_src link)) in
+            PortMap.add acc ~key:out_port ~data:prob) in
+        SrcDstMap.add acc ~key:(src, dst) ~data:out_port_probs)
 
-(* Compute link state routing scheme with k shortest paths from a node to a host *)
-let route_link_state_ksp (topo : Topology.t) (k : int) : link_state_scheme =
+(* Compute hop by hop routing scheme with k shortest paths from a node to a host *)
+let route_per_hop_ksp (topo : Topology.t) (k : int) : per_hop_routes =
   let host_set = get_hosts_set topo in
   let all_nodes_set = Topology.vertexes topo in
-  let all_ksp = all_pair_ksp topo k all_nodes_set host_set in
-  SrcDstMap.fold all_ksp ~init:SrcDstMap.empty
+  all_pair_ksp topo k all_nodes_set host_set
+  |> SrcDstMap.fold ~init:SrcDstMap.empty
     ~f:(fun ~key:(v1,v2) ~data:paths acc ->
       if (v1 = v2) then acc
       else
         let prob = Prob.(one / of_int (List.length paths)) in
-        let port_map = List.fold_left
-          paths
-          ~init:PortMap.empty
+        (* out ports have weights proportional to number of paths through them *)
+        let out_port_probs = List.fold_left paths ~init:PortMap.empty
           ~f:(fun acc path ->
             let out_port = port_to_pnk (get_out_port path) in
             let existing_prob = match PortMap.find acc out_port with
               | None -> Prob.zero
               | Some x -> x in
-            PortMap.add acc ~key:out_port ~data:(existing_prob +/ prob)) in
-      SrcDstMap.add acc ~key:(v1,v2) ~data:port_map)
+            PortMap.add acc ~key:out_port ~data:Prob.(existing_prob + prob)) in
+      SrcDstMap.add acc ~key:(v1,v2) ~data:out_port_probs)
 
-(* Compute link state routing scheme for random walk *)
-let route_link_state_random_walk (topo : Topology.t) : link_state_scheme =
+(* Compute hop by hop routing scheme for random walk *)
+let route_per_hop_random_walk (topo : Topology.t) : per_hop_routes =
   let host_set = get_hosts_set topo in
   let switch_set = get_switch_set topo in
   VertexSet.fold switch_set ~init:SrcDstMap.empty
@@ -529,16 +518,18 @@ let route_link_state_random_walk (topo : Topology.t) : link_state_scheme =
         ~f:(fun acc dst ->
           if VertexSet.mem neighs dst then
             begin
+              (* if dst is a neighbor, then send directly *)
               let link = Topology.find_edge topo sw dst in
               let out_port = port_to_pnk (snd (Topology.edge_src link)) in
-              let port_map = PortMap.singleton out_port Prob.one in
-              SrcDstMap.add acc ~key:(sw,dst) ~data:port_map
+              let out_port_probs = PortMap.singleton out_port Prob.one in
+              SrcDstMap.add acc ~key:(sw,dst) ~data:out_port_probs
             end
           else
             begin
+              (* else forward to random next hop *)
               let sw_neighs = VertexSet.filter neighs ~f:(is_switch topo) in
               let prob = Prob.(one / of_int (VertexSet.length sw_neighs)) in
-              let port_map = VertexSet.fold sw_neighs
+              let out_port_probs = VertexSet.fold sw_neighs
                 ~init:PortMap.empty
                 ~f:(fun acc n_sw ->
                   let link = Topology.find_edge topo sw n_sw in
@@ -546,18 +537,17 @@ let route_link_state_random_walk (topo : Topology.t) : link_state_scheme =
                   let existing_prob = match PortMap.find acc out_port with
                     | None -> Prob.zero
                     | Some x -> x in
-                  PortMap.add acc ~key:out_port ~data:(existing_prob +/ prob)) in
-              SrcDstMap.add acc ~key:(sw,dst) ~data:port_map
+                  PortMap.add acc ~key:out_port ~data:Prob.(existing_prob + prob)) in
+              SrcDstMap.add acc ~key:(sw,dst) ~data:out_port_probs
             end))
 
 (************** Translate routing schemes to ProbNetKAT policies **************)
 
 (* translate a path as a global probnetkat program that includes switch and link actions *)
 let path_to_global_pnk (topo : Topology.t) (path : path) (v_id, id_v) =
-  let include_links = true in (* include link transformations *)
-  let (_,_), pol = List.fold_left path
-    ~init:((0,0), Drop)
-    ~f:(fun ((in_sw_id, in_pt_id), pol) link ->
+  let _, pol = List.fold_left path
+    ~init:(None, None)
+    ~f:(fun (switch_inport, pol) link ->
       let src_sw, src_pt = Topology.edge_src link in
       let dst_sw, dst_pt = Topology.edge_dst link in
       let src_sw_id = VertexMap.find_exn v_id src_sw in
@@ -567,88 +557,76 @@ let path_to_global_pnk (topo : Topology.t) (path : path) (v_id, id_v) =
       let link_pol = (* src switch out-port -> dst switch in-port *)
         ??(Switch src_sw_id) >> ??(Port src_pt_id) >> Dup >>
         !!(Switch dst_sw_id) >> !!(Port dst_pt_id) >> Dup in
-      let new_pol =
-        if in_sw_id = 0 && in_pt_id = 0 then
-          if include_links then link_pol
-          else pol
-        else
-          (* policy at switch : src switch in-port -> src switch out-port *)
-          let curr_sw_pol =
-            ??(Switch  in_sw_id) >> ??(Port  in_pt_id) >>
-            !!(Switch src_sw_id) >> !!(Port src_pt_id) in
-          if pol = Drop && include_links then curr_sw_pol >> link_pol
-          else if pol = Drop && (not include_links) then curr_sw_pol
-          else if pol <> Drop && include_links then pol >> curr_sw_pol >> link_pol
-          else pol & curr_sw_pol in
-      ((dst_sw_id, dst_pt_id), new_pol)) in
-      pol
+      let new_pol = match switch_inport with
+        | None -> link_pol
+        | Some (in_sw_id, in_pt_id) ->
+            begin
+              (* policy at switch : src switch in-port -> src switch out-port *)
+              let curr_sw_pol =
+                ??(Switch  in_sw_id) >> ??(Port  in_pt_id) >>
+                !!(Switch src_sw_id) >> !!(Port src_pt_id) in
+              match pol with
+                | None -> curr_sw_pol >> link_pol
+                | Some p -> p >> curr_sw_pol >> link_pol
+            end in
+      (Some (dst_sw_id, dst_pt_id), Some new_pol)) in
+  match pol with
+  | None -> Drop
+  | Some p -> p
 
-(* translate a routing scheme as a global probnetkat program that includes
+(* translate a source_routes scheme as a global probnetkat program that includes
  * switch and link actions *)
-let routing_scheme_to_global_pnk (topo : Topology.t) (routes : scheme) (v_id, id_v) =
+let source_routes_to_global_pnk (topo : Topology.t) (routes : source_routes) (v_id, id_v) =
   SrcDstMap.fold routes ~init:Drop
     ~f:(fun ~key:(src,dst) ~data:path_dist pol_acc ->
-      if src = dst then
-        pol_acc
+      if src = dst then pol_acc
       else
         let src_id = VertexMap.find_exn v_id src in
         let dst_id = VertexMap.find_exn v_id dst in
-        let path_choices =
-          PathMap.fold path_dist ~init:[]
-            ~f:(fun ~key:path ~data:prob acc ->
-              (path_to_global_pnk topo path (v_id, id_v), prob)::acc) in
-        let sd_route_pol =
-          ??(Src src_id) >> ??(Dst dst_id) >> ?@path_choices in
-        if pol_acc = Drop then
-          sd_route_pol
-        else
-          pol_acc & sd_route_pol)
+        let path_choices = PathMap.fold path_dist ~init:[]
+          ~f:(fun ~key:path ~data:prob acc ->
+            (path_to_global_pnk topo path (v_id, id_v), prob)::acc) in
+        let sd_route_pol = ??(Src src_id) >> ??(Dst dst_id) >> ?@path_choices in
+        if pol_acc = Drop then sd_route_pol
+        else pol_acc & sd_route_pol)
 
 
-
-(* translate a link state routing scheme as a local probnetkat program that
+(* translate a hop by hop routing scheme as a local probnetkat program that
  * includes only switch actions *)
-let link_state_scheme_to_local_pnk (topo : Topology.t) (routes : link_state_scheme) (v_id, id_v) =
+let per_hop_routes_to_local_pnk (topo : Topology.t) (routes : per_hop_routes) (v_id, id_v) =
   SrcDstMap.fold routes ~init:Drop
     ~f:(fun ~key:(src,dst) ~data:port_dist pol_acc ->
-      if src = dst || (is_host topo src) || (is_switch topo dst)then
-        pol_acc
+      if src = dst || is_host topo src || is_switch topo dst then pol_acc
       else
         let src_id = VertexMap.find_exn v_id src in
         let dst_id = VertexMap.find_exn v_id dst in
-        let port_choices =
-          PortMap.fold port_dist ~init:[]
-            ~f:(fun ~key:port ~data:prob acc ->
-              (!!(Port port), prob)::acc) in
-        let local_node_pol =
-          ??(Switch src_id) >> ??(Dst dst_id) >> ?@port_choices in
-        if pol_acc = Drop then
-          local_node_pol
-        else
-          pol_acc & local_node_pol)
+        let port_choices = PortMap.fold port_dist ~init:[]
+          ~f:(fun ~key:port ~data:prob acc ->
+            (!!(Port port), prob)::acc) in
+        let local_sw_pol = ??(Switch src_id) >> ??(Dst dst_id) >> ?@port_choices in
+        if pol_acc = Drop then local_sw_pol
+        else pol_acc & local_sw_pol)
 
 (******************* Read traffic demand distribution *************************)
 (** Assuming all demands are integers in Mbps **)
-let read_demands (dem_file : string) (topo : Topology.t) : (Prob.t SrcDstMap.t)=
+let read_demands (dem_file : string) (topo : Topology.t) : (Prob.t SrcDstMap.t) =
   (* Output is a src-dst map of demands in Mbps *)
   let str_node_map =
     Topology.fold_vertexes
     (fun v acc ->
-      StringMap.add acc ~key:(Node.name (vertex_to_label topo v)) ~data:v
-    ) topo StringMap.empty in
+      StringMap.add acc ~key:(Node.name (vertex_to_label topo v)) ~data:v) topo StringMap.empty in
   In_channel.with_file dem_file
     ~f:(fun file ->
-        In_channel.fold_lines file
-          ~init:SrcDstMap.empty
-          ~f:(fun acc line ->
-            let entries = Array.of_list (String.split line ~on:' ') in
-            let src = StringMap.find_exn str_node_map entries.(0) in
-            let dst = StringMap.find_exn str_node_map entries.(1) in
-            let dem = Prob.((num_of_string entries.(2)) * of_int 1048576) in (*Mbps to bps*)
-            SrcDstMap.add acc ~key:(src,dst) ~data:dem))
+      In_channel.fold_lines file ~init:SrcDstMap.empty
+        ~f:(fun acc line ->
+          let entries = Array.of_list (String.split line ~on:' ') in
+          let src = StringMap.find_exn str_node_map entries.(0) in
+          let dst = StringMap.find_exn str_node_map entries.(1) in
+          let dem = Prob.((of_int (int_of_string entries.(2))) * of_int 1048576) in (*Mbps to bps*)
+          SrcDstMap.add acc ~key:(src,dst) ~data:dem))
 
 (* Convert demands map to a probability distribution, also store the aggregate demand *)
-let demands_to_inp_dist_pnk demands (v_id, id_v) =
+let inp_dist_to_pnk (demands : Prob.t SrcDstMap.t) (v_id, id_v) : (Prob.t * Pol.t) =
   let agg_dem = SrcDstMap.fold demands ~init:Prob.zero
     ~f:(fun ~key:_ ~data:dem acc -> Prob.(dem + acc)) in
   let dist = SrcDstMap.fold demands ~init:[]
@@ -665,87 +643,83 @@ let path_length (pk,h) =
 
 let num_packets (pk,h) = Prob.one
 
-(* measure expected amount of traffic on a link *)
-let flow_on_link agg_dem (link_src_id, link_dst_id) (pk, h) =
-  let rec pkt_traverses_link (src, dst) (pk,h) =
-    match h with
+(* measure congestion or utilization of a link due to a flow *)
+let link_congestion topo (v_id, id_v) agg_dem link (pk, h) : Prob.t =
+  let rec hist_traverses_link (lsrc, ldst) hist : bool =
+    (* true if traverses, false otherwise *)
+    match hist with
     | s1::(s2::_ as t) ->
-        if (s1.Pkt.switch = Some dst && s2.Pkt.switch = Some src) then Prob.one
-        else pkt_traverses_link (src, dst) (pk, t)
-    | _ -> Prob.zero in
-  let pkt_prob = pkt_traverses_link (link_src_id, link_dst_id) (pk, h) in
-  Prob.(pkt_prob * agg_dem)
-
-(* measure expected congestion or utilization of a link *)
-let link_congestion topo (v_id, id_v) agg_dem link (pk, h) =
+        if (s1.Pkt.switch = Some ldst && s2.Pkt.switch = Some lsrc) then true
+        else hist_traverses_link (lsrc, ldst) t
+    | _ -> false in
   let link_src_id = VertexMap.find_exn v_id (fst (Topology.edge_src link)) in
   let link_dst_id = VertexMap.find_exn v_id (fst (Topology.edge_dst link)) in
-  let link_flow = flow_on_link agg_dem (link_src_id, link_dst_id) (pk, h) in
-  let link_cap = Topology.edge_to_label topo link
-    |> Link.capacity
-    |> Int64.to_int
-    |> get_opt_exn
-    |> Prob.of_int in
-  Prob.(link_flow / link_cap)
+  if hist_traverses_link (link_src_id, link_dst_id) h then
+    let link_cap = Topology.edge_to_label topo link
+      |> Link.capacity
+      |> Int64.to_int
+      |> get_opt_exn
+      |> Prob.of_int in
+    Prob.(agg_dem / link_cap)
+  else Prob.zero
 
-(* Measure expected throughput between a pair of hosts *)
-let sd_tput topo (v_id, id_v) agg_dem (src, dst) (pk, h) =
+(* Measure throughput between a pair of hosts *)
+let sd_tput topo (v_id, id_v) agg_dem (src, dst) (pk, h) : Prob.t =
   let src_id = VertexMap.find_exn v_id src in
   let dst_id = VertexMap.find_exn v_id dst in
+  (* check pkt's src and dst and verify the pkt has reached dst *)
   if (pk.Pkt.src = Some src_id && pk.Pkt.dst = Some dst_id && pk.Pkt.switch = Some dst_id) then agg_dem
   else Prob.zero
 
 (* Test loops by checking if a pkt appears more than once in history *)
-let test_loop_history (pk, h) =
+let test_loop_history (pk, h) : Prob.t =
   let pkts = List.fold_left h ~init:PktSet.empty
     ~f:(fun acc pk ->
       PktSet.add acc pk) in
-  if (List.length h) = (PktSet.length pkts) then
-    Prob.zero
-  else
-    Prob.one
+  if List.length h = PktSet.length pkts then Prob.zero
+  else Prob.one
 
 (* query on a hist ---> query on hist set by taking average *)
 let lift_query_avg q = fun hset ->
-      let n = HSet.length hset in
-      if n=0 then Prob.zero else
-      let sum = HSet.fold hset ~init:Prob.zero ~f:(fun acc h ->
-        Prob.(acc + q h))
-      in
-      Prob.(sum / of_int n)
+  let n = HSet.length hset in
+  if n = 0 then Prob.zero else
+  let sum = HSet.fold hset ~init:Prob.zero ~f:(fun acc h ->
+    Prob.(acc + q h))
+  in
+  Prob.(sum / of_int n)
 
 (* query on a hist ---> query on hist set by taking sum *)
 let lift_query_sum q = fun hset ->
-      HSet.fold hset ~init:Prob.zero ~f:(fun acc h ->
-        Prob.(acc + q h))
+  HSet.fold hset ~init:Prob.zero ~f:(fun acc h -> Prob.(acc + q h))
 
 (************************************* Tests **********************************)
 
+(* run f for with i iterations and apply f on output dist to calculate required metric *)
+let metric_convergence ~(p:Pol.t) ~(f:Dist.t -> Prob.t) ~(n:int) =
+  let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
+  let iterations = range 1 n in
+  List.fold_left iterations ~init:IntMap.empty
+    ~f:(fun acc i -> IntMap.add acc ~key:i ~data:(eval i p |> f))
+
 (* Input: topology, routing policy, input distribution. Aggregate throughput vs number of star iterations *)
-let agg_tput_convergence (topo: Topology.t) (vertex_id_bimap) (network_pnk : Pol.t)
-      (input_dist : Prob.t SrcDstMap.t) (final_filter : Pol.t) =
-        Printf.printf "Aggregate throughput (Mbps) / Aggregate demand (Mbps) vs iterations\n";
-  let agg_dem, input_dist_pnk = demands_to_inp_dist_pnk input_dist vertex_id_bimap in
-  let p = (input_dist_pnk >> network_pnk >> final_filter) in
-  for n=0 to 10 do
-    let out_dist = eval n p in
-    (* measure aggregate throughput *)
-    let agg_tput = SrcDstMap.fold ~init:Prob.zero
-    ~f:(fun ~key:(src, dst) ~data:_ acc ->
-      let tput = Dist.expectation out_dist
-        ~f:(lift_query_sum (sd_tput topo vertex_id_bimap agg_dem (src, dst))) in
-      Prob.(acc + tput)) input_dist in
-    Printf.printf "n=%d\t %s / %s \t %s%%\n%!" n
-      Prob.(to_dec_string (agg_tput / of_int 1048576))
-      Prob.(to_dec_string (agg_dem / of_int 1048576))
-      ((Prob.(to_dec_string (of_int 100 * agg_tput / agg_dem))))
-  done
+let net_tput_convergence (topo: Topology.t) (vertex_id_bimap) (network_pnk : Pol.t)
+                        (input_dist : Prob.t SrcDstMap.t) (output_filter : Pol.t) =
+  Printf.printf "Aggregate throughput (Mbps) / Aggregate demand (Mbps) vs iterations\n";
+  let agg_dem, input_dist_pnk = inp_dist_to_pnk input_dist vertex_id_bimap in
+  let p = input_dist_pnk >> network_pnk >> output_filter in
+  metric_convergence ~p ~f:(fun out_dist ->
+    SrcDstMap.fold input_dist ~init:Prob.zero
+      ~f:(fun ~key:(src, dst) ~data:_ acc ->
+        let tput = Dist.expectation out_dist
+          ~f:(lift_query_sum (sd_tput topo vertex_id_bimap agg_dem (src, dst))) in
+        Prob.(acc + tput / agg_dem))) ~n:10
+
 
 (* Input: topology, routing policy, input distribution. Measure expectations of a few metrics *)
 let analyze_routing_scheme (topo: Topology.t) (vertex_id_bimap) (network_pnk : Pol.t)
-      (input_dist : Prob.t SrcDstMap.t) (final_filter : Pol.t) =
-  let agg_dem, input_dist_pnk = demands_to_inp_dist_pnk input_dist vertex_id_bimap in
-  let p = (input_dist_pnk >> network_pnk >> final_filter) in
+      (input_dist : Prob.t SrcDstMap.t) (output_filter : Pol.t) =
+  let agg_dem, input_dist_pnk = inp_dist_to_pnk input_dist vertex_id_bimap in
+  let p = input_dist_pnk >> network_pnk >> output_filter in
   let out_dist = eval 10 p in
   (*Dist.print out_dist;*)
   (* Measure latency in terms of path length. Ignore empty hist sets when calculating expectation *)
@@ -781,15 +755,15 @@ let analyze_routing_scheme (topo: Topology.t) (vertex_id_bimap) (network_pnk : P
       SrcDstMap.add acc ~key:(src, dst) ~data:tput) input_dist in
   SrcDstMap.iteri sd_tputs ~f:(fun ~key:(s,d) ~data:tput ->
     Printf.printf "(%s,%s) : %s / %s\n" (string_of_vertex topo s) (string_of_vertex topo d)
-    Prob.(to_dec_string (tput / of_int 1048576))
-    Prob.(to_dec_string (SrcDstMap.find_exn input_dist (s,d) / of_int 1048576)));
+      Prob.(to_dec_string (tput / of_int 1048576))
+      Prob.(to_dec_string (SrcDstMap.find_exn input_dist (s,d) / of_int 1048576)));
 
   (*maximum congestion*)
   let max_cong = EdgeMap.fold ~init:Prob.zero
-   ~f:(fun ~key:link ~data:cong acc -> max_num acc cong) link_congestions in
+   ~f:(fun ~key:link ~data:cong acc -> Prob.max acc cong) link_congestions in
   Printf.printf "Max Congestion:\t%s\n" (Prob.to_dec_string max_cong);
-  Printf.printf "Congestion drop:\t%b\n" (max_cong >/ Prob.one);
-  agg_tput_convergence topo vertex_id_bimap network_pnk input_dist final_filter
+  Printf.printf "Congestion drop:\t%b\n" Prob.(max_cong > Prob.one);
+  net_tput_convergence topo vertex_id_bimap network_pnk input_dist output_filter
 
 (* Check loops by sending in wildcarded packets *)
 let check_loops (network_pnk: Pol.t) (set_ingress_location: Pol.t)=
@@ -800,19 +774,19 @@ let check_loops (network_pnk: Pol.t) (set_ingress_location: Pol.t)=
 
 (* Measure a few performance statistics for global path-based routing schemes *)
 let test_global topo_file dem_file = begin
+  pprintf red "\n==== Global path based routing ====\n";
   let topo = Parse.from_dotfile topo_file in
   let vertex_id_bimap = gen_node_pnk_id_map topo in
-  let scheme_spf = route_spf topo in
-  let scheme_ksp = route_ksp topo 3 in
-  let routing_spf_pol = routing_scheme_to_global_pnk topo scheme_spf vertex_id_bimap in
-  let routing_ksp_pol = routing_scheme_to_global_pnk topo scheme_ksp vertex_id_bimap in
   let input_dist = read_demands dem_file topo in
-  pprintf red "\n==== Global path based routing ====\n";
-  pprintf red "\n*** SPF ***\n";
-  analyze_routing_scheme topo vertex_id_bimap routing_spf_pol input_dist Id;
-  pprintf red "\n*** KSP ***\n";
-  analyze_routing_scheme topo vertex_id_bimap routing_ksp_pol input_dist Id
-  end
+  let routing_cases = StringMap.empty
+    |> StringMap.add ~key:"SPF_global"  ~data:(route_spf topo)
+    |> StringMap.add ~key:"KSP_global" ~data:(route_ksp topo 2) in
+  StringMap.iteri routing_cases ~f:(fun ~key:name ~data:scheme ->
+    pprintf red ("\n*** "^ name ^" ***\n");
+    let routes_pnk = source_routes_to_global_pnk topo scheme vertex_id_bimap in
+    let conv = analyze_routing_scheme topo vertex_id_bimap routes_pnk input_dist Id in
+    dump_to_file name "#iter\ttput" conv)
+end
 
 (* Measure a few performance statistics for local link-based routing schemes *)
 let test_local topo_file dem_file = begin
@@ -824,22 +798,24 @@ let test_local topo_file dem_file = begin
   let test_at_host_pnk = test_pkt_at_host topo vertex_id_bimap in
   let input_dist = read_demands dem_file topo in
   let routing_cases = StringMap.empty
-    |> StringMap.add ~key:"SPF"  ~data:(route_link_state_spf topo)
-    |> StringMap.add ~key:"ECMP" ~data:(route_link_state_ecmp topo)
-    |> StringMap.add ~key:"KSP"  ~data:(route_link_state_ksp topo 2)
-    |> StringMap.add ~key:"Random walk"  ~data:(route_link_state_random_walk topo) in
+    |> StringMap.add ~key:"SPF"  ~data:(route_per_hop_spf topo)
+    |> StringMap.add ~key:"ECMP" ~data:(route_per_hop_ecmp topo)
+    |> StringMap.add ~key:"KSP"  ~data:(route_per_hop_ksp topo 2)
+    |> StringMap.add ~key:"Random walk"  ~data:(route_per_hop_random_walk topo) in
   StringMap.iteri routing_cases ~f:(fun ~key:name ~data:ls_scheme ->
     pprintf red ("\n*** "^ name ^" ***\n");
-    let routes_pnk = link_state_scheme_to_local_pnk topo ls_scheme vertex_id_bimap in
+    let routes_pnk = per_hop_routes_to_local_pnk topo ls_scheme vertex_id_bimap in
     let network_pnk = (Star (topo_pnk >> routes_pnk)) >> topo_pnk in
-    analyze_routing_scheme topo vertex_id_bimap network_pnk input_dist test_at_host_pnk)
+    let conv = analyze_routing_scheme topo vertex_id_bimap network_pnk input_dist test_at_host_pnk in
+    dump_to_file name "#iter\ttput" conv)
   (*Printf.printf "test at edge: %s\n%!" (Pol.to_string test_at_edge_pnk);
   let test_at_edge_pnk = test_pkt_at_edge topo vertex_id_bimap in
   check_loops ((Star (topo_pnk >> spf_pnk)) >> topo_pnk) test_at_edge_pnk;*)
 end
 
 let () =
-  let topo_file = "examples/4cycle.dot" in
-  let dem_file = "examples/4cycle.dem" in
+  let topology = "4cycle" in
+  let topo_file = "examples/" ^ topology ^ ".dot" in
+  let dem_file = "examples/" ^ topology ^ ".dem" in
   test_global topo_file dem_file;
   test_local topo_file dem_file

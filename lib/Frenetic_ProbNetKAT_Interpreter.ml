@@ -139,10 +139,12 @@ module type PROB = sig
   val zero : t
   val one : t
   val (=) : t -> t -> bool
+  val (>) : t -> t -> bool
   val (+) : t -> t -> t
   val (-) : t -> t -> t
   val ( * ) : t -> t -> t
   val ( / ) : t -> t -> t
+  val max : t -> t -> t
   val of_int : int -> t
   val to_string : t -> string
   val to_dec_string : t -> string (* decimal representation *)
@@ -157,10 +159,12 @@ module PreciseProb = struct
   let zero = Int 0
   let one = Int 1
   let (=) a b = a =/ b
+  let (>) a b = a >/ b
   let (+) a b = a +/ b
   let (-) a b = a -/ b
   let ( * ) a b = a */ b
   let ( / ) a b = a // b
+  let max = max_num
   let of_int = num_of_int
   let to_string = string_of_num
   let to_dec_string = approx_num_fix 4
