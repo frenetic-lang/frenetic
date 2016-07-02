@@ -145,7 +145,11 @@ module type PROB = sig
   val ( * ) : t -> t -> t
   val ( / ) : t -> t -> t
   val max : t -> t -> t
+  val of_float : float -> t
+  val to_float : t -> float
   val of_int : int -> t
+  val of_int64 : Int64.t -> t
+  val of_int32 : Int32.t -> t
   val to_string : t -> string
   val to_dec_string : t -> string (* decimal representation *)
 end
@@ -155,9 +159,35 @@ module PreciseProb = struct
   let pp_num f n = Printf.printf "%s" (string_of_num n)
   let num_of_sexp _ = failwith "<>"
   let sexp_of_num n = Sexp.of_string (string_of_num n)
-  type t = num [@@deriving sexp, compare, show]
   let zero = Int 0
   let one = Int 1
+  type t = num [@@deriving sexp, compare, show]
+  let of_int = num_of_int
+  let of_int64 n = match Int64.to_int n with
+      | Some x -> num_of_int x
+      | None -> failwith "int64 conversion error"
+  let of_int32 n = match Int32.to_int n with
+      | Some x -> num_of_int x
+      | None -> failwith "int32 conversion error"
+  let to_float = float_of_num
+  let of_float f = match classify_float f with (* from ocaml batteries *)
+    | FP_normal
+    | FP_subnormal ->
+      let open Float in
+      let x,e = frexp f in
+      let n,e =
+        Big_int.big_int_of_int64 (Int64.of_float (ldexp x 52)),
+        Int.(e-52)
+      in
+      if Int.(e >= 0) then
+        Big_int (Big_int.shift_left_big_int n e)
+      else (Big_int n) // (Big_int Big_int.(shift_left_big_int unit_big_int Int.(~-e)))
+    | FP_zero -> Int 0
+    | FP_nan -> zero // zero
+    | FP_infinite ->
+        if f >= 0. then one // zero else (minus_num one) // zero
+  let to_string = string_of_num
+  let to_dec_string = approx_num_fix 4
   let (=) a b = a =/ b
   let (>) a b = a >/ b
   let (+) a b = a +/ b
@@ -165,9 +195,6 @@ module PreciseProb = struct
   let ( * ) a b = a */ b
   let ( / ) a b = a // b
   let max = max_num
-  let of_int = num_of_int
-  let to_string = string_of_num
-  let to_dec_string = approx_num_fix 4
 end
 
 module FloatProb = struct
