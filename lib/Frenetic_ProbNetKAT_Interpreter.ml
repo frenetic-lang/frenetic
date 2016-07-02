@@ -9,6 +9,7 @@ type headerval =
   | Switch of int
   | Port of int
   | Id of int
+  | Tag of int
   | Src of int
   | Dst of int
   [@@ deriving sexp, compare, show]
@@ -17,6 +18,7 @@ let string_of_headerval (hv : headerval) = match hv with
   | Switch n  -> "Switch=" ^ (string_of_int n)
   | Port n    -> "Port=" ^ (string_of_int n)
   | Id n      -> "Id=" ^ (string_of_int n)
+  | Tag n      -> "Tag=" ^ (string_of_int n)
   | Src n     -> "Src=" ^ (string_of_int n)
   | Dst n     -> "Dst=" ^ (string_of_int n)
 
@@ -34,16 +36,19 @@ module type PSEUDOHISTORY = sig
   val test : t -> hv:headerval -> t option (* None if false, Some t if true. Useful to filter wildcards *)
   val modify : t -> hv:headerval -> t
   val to_string : t -> string
-  val make : ?switch:int option -> ?port:int option -> ?id:int option -> ?dst:int option -> unit -> t
+  val make : ?switch:int option -> ?port:int option -> ?id:int option ->
+    ?tag:int option -> ?src:int option -> ?dst:int option -> unit -> t
 end
 
 
 module Pkt = struct
-  type t = { switch : int option [@default None];
-             port : int option [@default None];
-             id : int option [@default None];
-             src : int option [@default None];
-             dst : int option [@default None];
+  (* default values for flds is 0. Use None to create wildcard pkts *)
+  type t = { switch : int option [@default Some 0];
+             port : int option [@default Some 0];
+             id   : int option [@default Some 0];
+             tag  : int option [@default Some 0];
+             src  : int option [@default Some 0];
+             dst  : int option [@default Some 0];
            } [@@deriving sexp, compare, show, make]
 
   let dup pk = pk
@@ -74,6 +79,14 @@ module Pkt = struct
         if v = id then Some pk
         else None
       end
+    | Tag tag -> begin
+      match pk.tag with
+      | None ->
+        Some { pk with tag = Some tag }
+      | Some v ->
+        if v = tag then Some pk
+        else None
+      end
     | Src s -> begin
       match pk.src with
       | None ->
@@ -96,6 +109,7 @@ module Pkt = struct
     | Switch sw -> { pk with switch = Some sw }
     | Port pt -> { pk with port = Some pt }
     | Id id -> { pk with id = Some id }
+    | Tag tag -> { pk with tag = Some tag }
     | Src s -> { pk with src = Some s }
     | Dst d -> { pk with dst = Some d }
 
@@ -103,8 +117,7 @@ module Pkt = struct
     let opt_string (fld : int option) = match fld with
       | None -> "*"
       | Some n -> string_of_int n in
-    Printf.sprintf "%s|%s|%s|%s|%s" (opt_string t.switch) (opt_string t.port) (opt_string t.id) (opt_string t.src)
-    (opt_string t.dst)
+    Printf.sprintf "%s|%s|%s|%s|%s|%s" (opt_string t.switch) (opt_string t.port) (opt_string t.id) (opt_string t.tag) (opt_string t.src) (opt_string t.dst)
 end
 
 
@@ -124,8 +137,8 @@ module Hist = struct
     List.map (pk::h) ~f:Pkt.to_string
     |> String.concat ~sep:"\027[34m::\027[0m"
 
-  let make ?switch ?port ?id ?dst () =
-    (Pkt.make ?switch ?port ?id ?dst (), [])
+  let make ?switch ?port ?id ?tag ?src ?dst () =
+    (Pkt.make ?switch ?port ?id ?tag ?src ?dst (), [])
 end
 
 

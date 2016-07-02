@@ -40,7 +40,7 @@ let add_or_increment_path (fd : flow_decomp) (p : path) (r : probability) : flow
     in
   PathMap.add ~key:p ~data:new_value fd
 
-let solve_raeke (t:topology) (d:demands) : scheme =
+let solve_raecke (t:topology) (d:demands) : scheme =
    let epsilon = 0.1 in
     let end_points =
       VertexSet.filter (Topology.vertexes t)

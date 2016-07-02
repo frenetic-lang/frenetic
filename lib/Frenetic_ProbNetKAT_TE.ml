@@ -115,10 +115,10 @@ let route_ksp (topo : Topology.t) (k : int) : source_routes =
             PathMap.add acc ~key:path ~data:Prob.(one / of_int (List.length paths))) in
         SrcDstMap.add acc ~key:(v1,v2) ~data:path_map)
 
-(* Compute source_routes with k shortest paths between hosts *)
-let route_raeke (topo : Topology.t) (d : Prob.t SrcDstMap.t) : source_routes =
+(* Compute source_routes with Raecke's routing algorithm *)
+let route_raecke (topo : Topology.t) (d : Prob.t SrcDstMap.t) : source_routes =
   let float_d = SrcDstMap.map d ~f:(Prob.to_float) in
-  solve_raeke topo float_d
+  solve_raecke topo float_d
 
 (************ Local switch based *******************)
 (* First outgoing port for a path *)
@@ -268,6 +268,62 @@ let source_routes_to_global_pnk (topo : Topology.t) (routes : source_routes) (v_
         if pol_acc = Drop then sd_route_pol
         else pol_acc & sd_route_pol)
 
+
+let union_pol_opt p q : Pol.t option =
+  match (p, q) with
+    | (None, None) -> None
+    | (Some _, None) -> p
+    | (None, Some _) -> q
+    | (Some p', Some q') -> Some (p' & q')
+
+
+(* translate a path as a local probnetkat program by tagging pkts *)
+let path_to_local_pnk v_id tag path : Pol.t option =
+  match path with
+    | _::(_::links) ->
+      (* ignore the first two links as the first hop will set the tag *)
+      List.fold_left links ~init:None ~f:(fun pol_acc link ->
+        let sw, pt = Topology.edge_src link in
+        let sw_id = VertexMap.find_exn v_id sw in
+        let pt_id = port_to_pnk pt in
+        let sw_pol = ??(Switch sw_id) >> ??(Tag tag) >> !!(Port pt_id) in
+        union_pol_opt pol_acc (Some sw_pol))
+    | _ -> None
+
+(* translate a source_routes scheme as a local probnetkat program by tagging pkts *)
+let source_routes_to_local_pnk (topo : Topology.t) (routes : source_routes) (v_id, id_v) =
+  let tag = ref 0 in
+  let routes_pnk = SrcDstMap.fold routes ~init:None
+    ~f:(fun ~key:(src,dst) ~data:path_dist pol_acc ->
+      if src = dst then pol_acc
+      else
+        let src_id = VertexMap.find_exn v_id src in
+        let dst_id = VertexMap.find_exn v_id dst in
+        let set_tag_action, path_pol = PathMap.fold path_dist ~init:([], pol_acc)
+          ~f:(fun ~key:path ~data:prob (tag_prob, pol_acc) ->
+            tag := !tag + 1;
+            let path_pnk = path_to_local_pnk v_id !tag path in (* rest of path matches on tag and forwards *)
+            (* ingress switch sets the tag and forwards on corresponding port *)
+            let ingress_sw_out_pt = (List.nth path 1)
+              |> get_opt_exn
+              |> Topology.edge_src
+              |> snd
+              |> port_to_pnk in
+            ( (!!(Tag !tag) >> !!(Port ingress_sw_out_pt), prob)::tag_prob,
+              union_pol_opt path_pnk pol_acc )) in
+        let ingress_sws = PathMap.fold path_dist ~init:VertexSet.empty ~f:(fun ~key:path ~data:_ acc ->
+          match List.hd path with
+          | None -> acc
+          | Some x -> Topology.edge_dst x |> fst |> VertexSet.add acc) in
+        if VertexSet.length ingress_sws > 1 then
+          failwith "Host connected to multiple switches"
+        else
+          let ingress_sw_id = VertexMap.find_exn v_id (VertexSet.choose ingress_sws |> get_opt_exn) in
+          let set_tag_pol = ??(Switch ingress_sw_id) >> ??(Src src_id) >> ??(Dst dst_id) >> ?@set_tag_action in
+          union_pol_opt (Some set_tag_pol) path_pol) in
+  match routes_pnk with
+    | None -> Drop
+    | Some p -> p
 
 (* translate a hop by hop routing scheme as a local probnetkat program that
  * includes only switch actions *)
@@ -454,9 +510,9 @@ let test_global topo_file dem_file = begin
   let vertex_id_bimap = gen_node_pnk_id_map topo in
   let input_dist = read_demands dem_file topo in
   let routing_cases = StringMap.empty
-    |> StringMap.add ~key:"SPF_global"  ~data:(route_spf topo)
-    |> StringMap.add ~key:"KSP_global" ~data:(route_ksp topo 2)
-    |> StringMap.add ~key:"Raeke_global" ~data:(route_raeke topo input_dist) in
+    |> StringMap.add ~key:"SPF centralized - path based"  ~data:(route_spf topo)
+    |> StringMap.add ~key:"KSP centralized - path based" ~data:(route_ksp topo 2)
+    |> StringMap.add ~key:"Raecke centralized - path based" ~data:(route_raecke topo input_dist) in
   StringMap.iteri routing_cases ~f:(fun ~key:name ~data:scheme ->
     pprintf red ("\n*** "^ name ^" ***\n");
     let routes_pnk = source_routes_to_global_pnk topo scheme vertex_id_bimap in
@@ -474,16 +530,26 @@ let test_local topo_file dem_file = begin
   let test_at_host_pnk = test_pkt_at_host topo vertex_id_bimap in
   let input_dist = read_demands dem_file topo in
   let routing_cases = StringMap.empty
-    |> StringMap.add ~key:"SPF"  ~data:(route_per_hop_spf topo)
-    |> StringMap.add ~key:"ECMP" ~data:(route_per_hop_ecmp topo)
-    |> StringMap.add ~key:"KSP"  ~data:(route_per_hop_ksp topo 2)
-    |> StringMap.add ~key:"Random walk"  ~data:(route_per_hop_random_walk topo) in
+    |> StringMap.add ~key:"SPF distributed hop-by-hop"  ~data:(route_per_hop_spf topo)
+    |> StringMap.add ~key:"ECMP distributed hop-by-hop" ~data:(route_per_hop_ecmp topo)
+    |> StringMap.add ~key:"KSP distributed hop-by-hop"  ~data:(route_per_hop_ksp topo 2)
+    |> StringMap.add ~key:"Random walk distributed hop-by-hop"  ~data:(route_per_hop_random_walk topo) in
   StringMap.iteri routing_cases ~f:(fun ~key:name ~data:ls_scheme ->
     pprintf red ("\n*** "^ name ^" ***\n");
     let routes_pnk = per_hop_routes_to_local_pnk topo ls_scheme vertex_id_bimap in
     let network_pnk = (Star (topo_pnk >> routes_pnk)) >> topo_pnk in
     let conv = analyze_routing_scheme topo vertex_id_bimap network_pnk input_dist test_at_host_pnk in
-    dump_to_file name "#iter\ttput" conv)
+    dump_to_file name "#iter\ttput" conv);
+  let routing_cases = StringMap.empty
+    |> StringMap.add ~key:"SPF centralized hop-by-hop" ~data:(route_spf topo)
+    |> StringMap.add ~key:"KSP centralized hop-by-hop"  ~data:(route_ksp topo 2)
+    |> StringMap.add ~key:"Raecke centralized hop-by-hop" ~data:(route_raecke topo input_dist) in
+  StringMap.iteri routing_cases ~f:(fun ~key:name ~data:ls_scheme ->
+    pprintf red ("\n*** "^ name ^" ***\n");
+    let routes_pnk = source_routes_to_local_pnk topo ls_scheme vertex_id_bimap in
+    let network_pnk = (Star (topo_pnk >> routes_pnk)) >> topo_pnk in
+    let conv = analyze_routing_scheme topo vertex_id_bimap network_pnk input_dist test_at_host_pnk in
+    dump_to_file name "#iter\ttput" conv);
   (*Printf.printf "test at edge: %s\n%!" (Pol.to_string test_at_edge_pnk);
   let test_at_edge_pnk = test_pkt_at_edge topo vertex_id_bimap in
   check_loops ((Star (topo_pnk >> spf_pnk)) >> topo_pnk) test_at_edge_pnk;*)
@@ -493,5 +559,5 @@ let () =
   let topology = "4cycle" in
   let topo_file = "examples/" ^ topology ^ ".dot" in
   let dem_file = "examples/" ^ topology ^ ".dem" in
-  test_global topo_file dem_file;
-  test_local topo_file dem_file
+  test_local topo_file dem_file;
+  test_global topo_file dem_file

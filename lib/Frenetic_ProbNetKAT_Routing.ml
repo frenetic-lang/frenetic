@@ -280,9 +280,9 @@ module Routing (Prob : PROB) = struct
         SrcDstMap.add acc ~key:(s,d) ~data:(approx_float_normalize ppd))
 
   (* Solve using Raecke's algorithm and convert scheme to source_routes type *)
-  let solve_raeke (t : Topology.t) (d:demands) : source_routes =
-    let open Routing_Raeke in
-    solve_raeke t d
+  let solve_raecke (t : Topology.t) (d:demands) : source_routes =
+    let open Routing_Raecke in
+    solve_raecke t d
     |> approx_float_source_routes
 
 end
