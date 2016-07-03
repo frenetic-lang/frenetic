@@ -85,7 +85,7 @@ module Routing (Prob : PROB) = struct
   let dump_to_file (dir:string) (file:string) (data: string) : unit =
     let _ = match (Sys.file_exists dir) with | `No -> Unix.mkdir dir | _ -> () in
     let oc = Out_channel.create (dir ^ file ^ ".dat") in
-    fprintf oc "%s\n" data;
+    fprintf oc "%s" data;
     Out_channel.close oc
 
   let get_hosts_set (topo : Topology.t) : VertexSet.t =

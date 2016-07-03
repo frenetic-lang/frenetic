@@ -7,7 +7,7 @@ open Num
 open Topology
 open Routing_Types
 
-include Interp(Hist)(PreciseProb)
+include Interp(Hist)(FloatProb)
 include Routing(Prob)
 open Pol
 
@@ -24,7 +24,7 @@ module RoutingPerf = struct
           acc ^ (List.map d_list ~f:Prob.to_dec_string
                   |> String.concat ~sep:"\t"
                   |> Printf.sprintf "%d\t%s\n" i)) in
-    Printf.sprintf "#iter\tmax_cong\tavg_latency\tagg_tput\t\n%s\n"
+    Printf.sprintf "#iter\tagg_tput\tmax_cong\tavg_latency\t\n%s\n"
       (intmap_to_string t)
 end
 
@@ -493,7 +493,7 @@ let lift_query_sum q = fun hset ->
 (* run f for with i iterations and apply f on output dist to calculate required metric *)
 let metric_convergence ~(p:Pol.t) ~f ~(n:int) : RoutingPerf.t =
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
-  let iterations = range 1 n in
+  let iterations = range 1 (n+1) in
   List.fold_left iterations ~init:IntMap.empty
     ~f:(fun acc i ->
       Printf.printf "\rIter: %d / %d%!" i n;
@@ -508,7 +508,7 @@ let analyze_routing_scheme (topo: Topology.t)
   let p = in_dist_pnk >>
           network_pnk >>
           output_filter in
-  let max_iters = max 10 (VertexSet.length (get_switch_set topo)) in
+  let max_iters = max 15 (VertexSet.length (get_switch_set topo)) in
 
   (* Measure latency in terms of path length.
    * Ignore empty hist sets when calculating expectation *)
@@ -556,7 +556,7 @@ let check_loops (network_pnk: Pol.t) (set_ingress_location: Pol.t)=
     |> Printf.printf "Loops present: %s\n%!"
 
 (* Measure performance statistics for global path-based routing schemes *)
-let test_global_policies topo_file dem_file = begin
+let test_global_policies topo_file dem_file output_dir = begin
   let topo = Parse.from_dotfile topo_file in
   let vertex_id_bimap = gen_node_pnk_id_map topo in
   let in_dist = read_demands dem_file topo in
@@ -568,21 +568,24 @@ let test_global_policies topo_file dem_file = begin
     pprintf red ("\n*** "^ name ^" ***\n");
     let routes_pnk = source_routes_to_global_pnk topo scheme vertex_id_bimap in
     let stats = analyze_routing_scheme topo vertex_id_bimap routes_pnk in_dist Id in
-    dump_to_file out_dir name (RoutingPerf.to_string stats));
+    dump_to_file output_dir name (RoutingPerf.to_string stats));
 end
 
 (* Measure performance statistics for local link-based routing schemes *)
-let test_local_policies topo_file dem_file = begin
+let test_local_policies topo_file dem_file output_dir link_fail_prob = begin
   let topo = Parse.from_dotfile topo_file in
   let vertex_id_bimap = gen_node_pnk_id_map topo in
-  let topo_pnk = topo_to_pnk topo vertex_id_bimap in
-  (*let topo_pnk = topo_to_pnk_lossy topo Prob.(of_int 1/ of_int 10) vertex_id_bimap in*)
+  let topo_pnk = match link_fail_prob with
+    | None ->
+        topo_to_pnk topo vertex_id_bimap
+    | Some f_prob ->
+        topo_to_pnk_lossy topo Prob.(of_float f_prob) vertex_id_bimap in
   let test_at_host_pnk = test_pkt_at_host topo vertex_id_bimap in
   let in_dist = read_demands dem_file topo in
   let routing_cases = StringMap.empty
     |> StringMap.add ~key:"distributedSPF"  ~data:(route_per_hop_spf topo)
     |> StringMap.add ~key:"distributedECMP" ~data:(route_per_hop_ecmp topo)
-    (*|> StringMap.add ~key:"Random walk distributed hop-by-hop"  ~data:(route_per_hop_random_walk topo)*)
+    (*|> StringMap.add ~key:"distributedRW"  ~data:(route_per_hop_random_walk topo)*)
     |> StringMap.add ~key:"distributedKSP"  ~data:(route_per_hop_ksp topo 2) in
   StringMap.iteri routing_cases
     ~f:(fun ~key:name ~data:per_hop_scheme ->
@@ -590,23 +593,35 @@ let test_local_policies topo_file dem_file = begin
       let routes_pnk = per_hop_routes_to_local_pnk topo per_hop_scheme vertex_id_bimap in
       let network_pnk = (Star (topo_pnk >> routes_pnk)) >> topo_pnk in
       let stats = analyze_routing_scheme topo vertex_id_bimap network_pnk in_dist test_at_host_pnk in
-      dump_to_file out_dir name (RoutingPerf.to_string stats));
+      dump_to_file output_dir name (RoutingPerf.to_string stats));
   let routing_cases = StringMap.empty
-    |> StringMap.add ~key:"centralKSP"  ~data:(route_ksp topo 2)
-    |> StringMap.add ~key:"centralRaecke" ~data:(route_raecke topo in_dist) in
+    |> StringMap.add ~key:"centralizedKSP"  ~data:(route_ksp topo 2)
+    |> StringMap.add ~key:"centralizedRaecke" ~data:(route_raecke topo in_dist) in
   StringMap.iteri routing_cases ~f:(fun ~key:name ~data:per_hop_scheme ->
     pprintf red ("\n*** "^ name ^" ***\n");
     let routes_pnk = source_routes_to_local_pnk topo per_hop_scheme vertex_id_bimap in
     let network_pnk = (Star (topo_pnk >> routes_pnk)) >> topo_pnk in
     let stats = analyze_routing_scheme topo vertex_id_bimap network_pnk in_dist test_at_host_pnk in
-    dump_to_file out_dir name (RoutingPerf.to_string stats));
+    dump_to_file output_dir name (RoutingPerf.to_string stats));
 end
 
 
 (*****************************************************************************)
 
-let () =
-  let topology = "4cycle" in
-  let topo_file = "examples/" ^ topology ^ ".dot" in
-  let dem_file = "examples/" ^ topology ^ ".dem" in
-  test_local_policies topo_file dem_file
+let command =
+  Command.basic
+  ~summary:"TE with ProbNetKAT"
+  Command.Spec.(
+    empty
+    +> anon ("topolgy" %: string)
+    +> flag "-lfp" (optional float) ~doc:" Probability of link failure")
+  (fun (topology:string)
+    (lfp:float option) () ->
+      let topo_file = "examples/" ^ topology ^ ".dot" in
+      let dem_file = "examples/" ^ topology ^ ".dem" in
+      let output_dir = match lfp with
+        | None -> out_dir ^ topology ^ "/"
+        | Some x -> out_dir ^ topology ^ "_fail_" ^ (string_of_float x) ^ "/" in
+      test_local_policies topo_file dem_file output_dir lfp)
+
+let _ = Command.run command

@@ -162,7 +162,6 @@ module type PROB = sig
   val to_float : t -> float
   val of_int : int -> t
   val of_int64 : Int64.t -> t
-  val of_int32 : Int32.t -> t
   val to_string : t -> string
   val to_dec_string : t -> string (* decimal representation *)
 end
