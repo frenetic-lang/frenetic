@@ -82,11 +82,10 @@ module Routing (Prob : PROB) = struct
           (dump_port_prob_set opd));
     Buffer.contents buf
 
-  let dump_to_file (file:string) (header:string) (data: Prob.t IntMap.t) : unit =
-    let oc = Out_channel.create (file ^ ".dat") in
-    fprintf oc "%s\n" (IntMap.fold data ~init:(header ^ "\n")
-    ~f:(fun ~key:k ~data:d acc ->
-      acc ^ (Int.to_string k) ^ "\t" ^ (Prob.to_dec_string d) ^ "\n"));
+  let dump_to_file (dir:string) (file:string) (data: string) : unit =
+    let _ = match (Sys.file_exists dir) with | `No -> Unix.mkdir dir | _ -> () in
+    let oc = Out_channel.create (dir ^ file ^ ".dat") in
+    fprintf oc "%s\n" data;
     Out_channel.close oc
 
   let get_hosts_set (topo : Topology.t) : VertexSet.t =

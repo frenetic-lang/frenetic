@@ -17,13 +17,13 @@ s3 -> s2 [src_port=3, dst_port=2, cost=0, capacity="1Gbps"];
 s3 -> s1 [src_port=2, dst_port=3, cost=0, capacity="1Gbps"];
 s1 -> s3 [src_port=3, dst_port=2, cost=0, capacity="1Gbps"];
 
-h1 -> s1 [src_port=1, dst_port=1, cost=0, capacity="5Gbps"];
-s1 -> h1 [src_port=1, dst_port=1, cost=0, capacity="5Gbps"];
+h1 -> s1 [src_port=0, dst_port=1, cost=0, capacity="5Gbps"];
+s1 -> h1 [src_port=1, dst_port=0, cost=0, capacity="5Gbps"];
 
-h2 -> s2 [src_port=1, dst_port=1, cost=0, capacity="5Gbps"];
-s2 -> h2 [src_port=1, dst_port=1, cost=0, capacity="5Gbps"];
+h2 -> s2 [src_port=0, dst_port=1, cost=0, capacity="5Gbps"];
+s2 -> h2 [src_port=1, dst_port=0, cost=0, capacity="5Gbps"];
 
-h3 -> s3 [src_port=1, dst_port=1, cost=0, capacity="5Gbps"];
-s3 -> h3 [src_port=1, dst_port=1, cost=0, capacity="5Gbps"];
+h3 -> s3 [src_port=0, dst_port=1, cost=0, capacity="5Gbps"];
+s3 -> h3 [src_port=1, dst_port=0, cost=0, capacity="5Gbps"];
 
 }
