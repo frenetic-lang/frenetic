@@ -5,4 +5,7 @@ compile fabric
 compile edge
 install fabric [4;5;6;]
 install edge
+show table 1 edge
+show table 2 edge
+show table 3 edge
 
