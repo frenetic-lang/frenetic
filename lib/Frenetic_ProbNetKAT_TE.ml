@@ -82,9 +82,13 @@ let topo_to_pnk_lossy (topo : Topology.t) (fail_prob : Prob.t) (v_id, id_v) =
                         ??(Port (port_to_pnk src_port)) in
     let link_dest_mod = !!(Switch dst_id) >>
                         !!(Port (port_to_pnk dst_port)) in
-    let link_prog = link_src_test >> Dup >>
-      ?@[(link_dest_mod >> Dup, Prob.(one - fail_prob));
-        (Drop, fail_prob)] in
+    let link_prog = (* Consider only switch-switch links can fail *)
+      if is_host topo src || is_host topo dst then
+        link_src_test >> Dup >> link_dest_mod >> Dup
+      else
+        link_src_test >> Dup >>
+        ?@[ (link_dest_mod >> Dup,  Prob.(one - fail_prob));
+            (Drop,                  fail_prob)] in
     if pol_acc = Drop then link_prog
     else link_prog & pol_acc) topo Drop
 
@@ -583,7 +587,7 @@ let test_local_policies topo_file dem_file output_dir link_fail_prob = begin
   let test_at_host_pnk = test_pkt_at_host topo vertex_id_bimap in
   let in_dist = read_demands dem_file topo in
   let routing_cases = StringMap.empty
-    |> StringMap.add ~key:"distributedSPF"  ~data:(route_per_hop_spf topo)
+    (*|> StringMap.add ~key:"distributedSPF"  ~data:(route_per_hop_spf topo)*)
     |> StringMap.add ~key:"distributedECMP" ~data:(route_per_hop_ecmp topo)
     (*|> StringMap.add ~key:"distributedRW"  ~data:(route_per_hop_random_walk topo)*)
     |> StringMap.add ~key:"distributedKSP"  ~data:(route_per_hop_ksp topo 2) in
@@ -591,6 +595,7 @@ let test_local_policies topo_file dem_file output_dir link_fail_prob = begin
     ~f:(fun ~key:name ~data:per_hop_scheme ->
       pprintf red ("\n*** "^ name ^" ***\n");
       let routes_pnk = per_hop_routes_to_local_pnk topo per_hop_scheme vertex_id_bimap in
+      (*if name = "distributedECMP" then dump_to_file "./" "ecmp.pnk" (Pol.to_string routes_pnk);*)
       let network_pnk = (Star (topo_pnk >> routes_pnk)) >> topo_pnk in
       let stats = analyze_routing_scheme topo vertex_id_bimap network_pnk in_dist test_at_host_pnk in
       dump_to_file output_dir name (RoutingPerf.to_string stats));
