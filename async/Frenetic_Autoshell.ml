@@ -4,6 +4,7 @@ open Frenetic_NetKAT
 open Frenetic_Network
 open Frenetic_PathKAT
 open Frenetic_Circuit_NetKAT
+open Frenetic_BetterFabric
 
 module Compiler = Frenetic_NetKAT_Compiler
 module Log = Frenetic_Log
