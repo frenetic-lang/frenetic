@@ -4,8 +4,8 @@ open Frenetic_NetKAT
 open Frenetic_Network
 open Frenetic_PathKAT
 open Frenetic_Circuit_NetKAT
-open Frenetic_BetterFabric
 
+module Fabric = Frenetic_BetterFabric
 module Compiler = Frenetic_NetKAT_Compiler
 module Log = Frenetic_Log
 
@@ -370,11 +370,13 @@ let compile_edge c f topo =
   let open Compiler in
   let (fpol,fins,fouts) = (f.config.policy, f.config.ingresses, f.config.egresses) in
 
-  let naive     = Frenetic_Fabric.assemble c.policy topo c.ingresses c.egresses in
-  let fabric    = Frenetic_Fabric.assemble fpol topo fins fouts in
-  let parts     = Frenetic_Fabric.extract naive in
-  let fab_parts = Frenetic_Fabric.extract fabric in
-  let ins, outs = Frenetic_Fabric.retarget parts fab_parts topo in
+  let naive     = Fabric.assemble c.policy topo c.ingresses c.egresses in
+  let fabric    = Fabric.assemble fpol topo fins fouts in
+  (* let parts     = Fabric.extract naive in *)
+  (* let fab_parts = Fabric.extract fabric in *)
+  let parts     = Fabric.streams_of_policy naive in
+  let fab_parts = Fabric.streams_of_policy fabric in
+  let ins, outs = Fabric.retarget parts fab_parts topo in
 
   let ingress = Frenetic_NetKAT_Optimize.mk_big_union ins in
   let egress  = Frenetic_NetKAT_Optimize.mk_big_union outs in
@@ -384,10 +386,10 @@ let compile_edge c f topo =
   log "Assembled fabric policy:\n%s\n" (string_of_policy fabric);
 
   log "Policy alpha/beta pairs:\n";
-  List.iter parts (fun s -> log "%s\n" (Frenetic_Fabric.string_of_stream s));
+  List.iter parts (fun s -> log "%s\n" (Fabric.string_of_stream s));
 
   log "Fabric alpha/beta pairs:\n";
-  List.iter fab_parts (fun s -> log "%s\n" (Frenetic_Fabric.string_of_stream s));
+  List.iter fab_parts (fun s -> log "%s\n" (Fabric.string_of_stream s));
 
   log "Retargeted ingress policy:\n%s\n" (string_of_policy ingress);
   log "Retargeted egress policy:\n%s\n" (string_of_policy egress);
