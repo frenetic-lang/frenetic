@@ -65,10 +65,49 @@ let string_of_stream (s:stream) : string =
     (string_of_policy (Action.to_policy action))
 
 
-(** Iterate through a policy and translates Links to matches on source and *)
-(** modifications to the destination *)
+(** Topology Handling: Functions for finding adjacent nodes in a given topology *)
+let find_predecessors (topo:policy) =
+  let table = Hashtbl.Poly.create () in
+  let rec populate pol = match pol with
+    | Union(p1, p2) ->
+      populate p1;
+      populate p2
+    | Link (s1,p1,s2,p2) ->
+      Hashtbl.Poly.add_exn table (s2,p2) (s1,p1);
+    | p -> failwith (sprintf "Unexpected construct in policy: %s\n"
+                       (Frenetic_NetKAT_Pretty.string_of_policy p)) in
+  populate topo;
+  table
+
+let find_successors (topo:policy) =
+  let table = Hashtbl.Poly.create () in
+  let rec populate pol = match pol with
+    | Union(p1, p2) ->
+      populate p1;
+      populate p2
+    | Link (s1,p1,s2,p2) ->
+      Hashtbl.Poly.add_exn table (s1,p1) (s2,p2);
+    | p -> failwith (sprintf "Unexpected construct in policy: %s\n"
+                       (Frenetic_NetKAT_Pretty.string_of_policy p)) in
+  populate topo;
+  table
+
+(* Does (sw,pt) precede (sw',pt') in the topology, using the predecessor table *)
+let precedes tbl (sw,_) (sw',pt') =
+  match Hashtbl.Poly.find tbl (sw',pt') with
+  | Some (pre_sw,pre_pt) -> if pre_sw = sw then Some pre_pt else None
+  | None -> None
+
+(* Does (sw,pt) succeed (sw',pt') in the topology, using the successor table *)
+let succeeds tbl (sw,_) (sw',pt') =
+  match Hashtbl.Poly.find tbl (sw',pt') with
+  | Some (post_sw, post_pt) -> if post_sw = sw then Some post_pt else None
+  | None -> None
+
+(** Code to convert policies to alpha/beta pairs (streams) **)
+(* Iterate through a policy and translates Links to matches on source and *)
+(* modifications to the destination *)
 let rec dedup (pol:policy) : policy =
-  let open Frenetic_NetKAT in
   let at_place sw pt = Filter (pred_of_place (sw,pt)) in
   let to_place sw pt =
     let sw_mod = Mod (Switch sw) in
@@ -113,7 +152,6 @@ let assemble (pol:policy) (topo:policy) ings egs : policy =
 
 (* TODO(basus): This only keep the last destination, but there might be many *)
 let destination_of_action (action:Action.t) : (switchId option * portId option * Action.t) =
-  let open Frenetic_NetKAT in
   Action.Par.fold action ~init:(None, None, Action.Par.empty)
       ~f:(fun (sw,pt,acc) seq ->
           let sw, pt, seq' = Action.Seq.fold_fields seq ~init:(sw,pt,Action.Seq.empty)
@@ -174,48 +212,6 @@ let streams_of_policy (pol:policy) : stream list =
   let paths = traverse fdd [] in
   List.map paths ~f:(fun (a, hs) -> stream_of_fdd_path a hs)
 
-(** Functions for finding adjacent nodes in a given topology *)
-let find_predecessors (topo:policy) =
-  let open Frenetic_NetKAT in
-  let table = Hashtbl.Poly.create () in
-  let rec populate pol = match pol with
-    | Union(p1, p2) ->
-      populate p1;
-      populate p2
-    | Link (s1,p1,s2,p2) ->
-      Hashtbl.Poly.add_exn table (s2,p2) (s1,p1);
-    | p -> failwith (sprintf "Unexpected construct in policy: %s\n"
-                       (Frenetic_NetKAT_Pretty.string_of_policy p)) in
-  populate topo;
-  table
-
-let find_successors (topo:policy) =
-  let open Frenetic_NetKAT in
-  let table = Hashtbl.Poly.create () in
-  let rec populate pol = match pol with
-    | Union(p1, p2) ->
-      populate p1;
-      populate p2
-    | Link (s1,p1,s2,p2) ->
-      Hashtbl.Poly.add_exn table (s1,p1) (s2,p2);
-    | p -> failwith (sprintf "Unexpected construct in policy: %s\n"
-                       (Frenetic_NetKAT_Pretty.string_of_policy p)) in
-  populate topo;
-  table
-
-(* Does (sw,pt) precede (sw',pt') in the topology, using the predecessor table *)
-let precedes tbl (sw,_) (sw',pt') =
-  match Hashtbl.Poly.find tbl (sw',pt') with
-  | Some (pre_sw,pre_pt) -> if pre_sw = sw then Some pre_pt else None
-  | None -> None
-
-(* Does (sw,pt) succeed (sw',pt') in the topology, using the successor table *)
-let succeeds tbl (sw,_) (sw',pt') =
-  match Hashtbl.Poly.find tbl (sw',pt') with
-  | Some (post_sw, post_pt) -> if post_sw = sw then Some post_pt else None
-  | None -> None
-
-
 (** Start graph-based retargeting. *)
 
 module OverNode = struct
@@ -275,8 +271,42 @@ let switch_inter_connect g =
           then Overlay.add_edge_e g ((sw,pt), Internal, (sw,pt'))
           else g ) g g) g g
 
+(* Given a list of hops consisting of alternating fabric paths and internal
+   forwards on edge switches, generate ingress, egress, or bounce rules to
+   stitch the hops together, forming a VLAN-tagged path between the naive
+   policy endpoints *)
+let rec stitch src sink path tag condition action =
+  let open OverEdge in
+  let rec aux path = match path with
+    | [] -> ([], [])
+    | (_,Internal,(_,in_pt))::rest ->
+      let start = pred_of_place src in
+      let cond = pred_of_condition condition in
+      let filter = Filter( And( start, cond )) in
+      let ingress = seq [ filter;
+                          Mod( Vlan tag );
+                          Mod( Location( Physical in_pt)) ] in
+      let ins, outs = aux rest in
+      (ingress::ins, outs)
+    | (_,Adjacent _,_)::((out_sw,out_pt),Internal,(_,in_pt))::rest ->
+      let test_loc = And( Test( Switch out_sw ),
+                          Test( Location( Physical out_pt ))) in
+      let filter = Filter( And( Test( Vlan tag ),
+                                test_loc )) in
+      let egress = begin match rest with
+        | [] ->
+          let mods = Action.to_policy action in
+          let out = Mod( Location( Physical (snd sink) )) in
+          seq [ filter; Mod( Vlan strip_vlan); Seq(mods, out)]
+        | rest ->
+          seq [ filter; Mod( Location( Physical in_pt )) ] end in
+      let ins, outs = aux rest in
+      (ins, egress::outs)
+    | _ -> failwith "Malformed path" in
+  aux path
+
+
 let retarget (policy:stream list) (fabric:stream list) (topo:policy) =
-  let open Frenetic_NetKAT in
   let preds = find_predecessors topo in
   let succs = find_successors topo in
 
@@ -300,40 +330,6 @@ let retarget (policy:stream list) (fabric:stream list) (topo:policy) =
          ) ) in
 
   let graph = switch_inter_connect graph in
-
-  (* Given a list of hops consisting of alternating fabric paths and internal
-     forwards on edge switches, generate ingress, egress, or bounce rules to
-     stitch the hops together, forming a VLAN-tagged path between the naive
-     policy endpoints *)
-  let rec stitch src sink path tag condition action =
-    let open OverEdge in
-    match path with
-    | [] -> ([], [])
-    | (_,Internal,(_,in_pt))::rest ->
-      let start = pred_of_place src in
-      let cond = pred_of_condition condition in
-      let filter = Filter( And( start, cond )) in
-      let ingress = seq [ filter;
-                          Mod( Vlan tag );
-                          Mod( Location( Physical in_pt)) ] in
-      let ins, outs = stitch src sink rest tag condition action in
-      (ingress::ins, outs)
-    | (_,Adjacent _,_)::((out_sw,out_pt),Internal,(_,in_pt))::rest ->
-      let test_loc = And( Test( Switch out_sw ),
-                          Test( Location( Physical out_pt ))) in
-      let filter = Filter( And( Test( Vlan tag ),
-                                test_loc )) in
-      let egress = begin match rest with
-        | [] ->
-          let mods = Action.to_policy action in
-          let out = Mod( Location( Physical (snd sink) )) in
-          seq [ filter; Mod( Vlan strip_vlan); Seq(mods, out)]
-        | rest ->
-          seq [ filter; Mod( Location( Physical in_pt )) ] end in
-      let ins, outs = stitch src sink rest tag condition action in
-      (ins, egress::outs)
-    | _ -> failwith "Malformed path" in
-
   let ingresses, egresses, _ = List.fold policy ~init:([],[],1)
       ~f:(fun (ins, outs, tag) (src,sink,condition,action) ->
           try
