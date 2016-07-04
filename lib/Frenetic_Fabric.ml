@@ -38,34 +38,6 @@ let pred_of_conds (conds: condition list) =
   let open Frenetic_NetKAT in
   conjoin (List.map conds ~f:pred_of_cond)
 
-(* let c_of_p (p:pred) = *)
-(*   let tbl = Hashtbl.Poly.create () in *)
-(*   let fuse f (pos,neg) (pos',neg') = *)
-(*       let pos = match pos, pos' with *)
-(*         | None  , None     -> None *)
-(*         | Some v, None     -> Some v *)
-(*         | None  , Some v   -> Some v *)
-(*         | Some v1, Some v2 -> *)
-(*           let msg = sprintf "Field (%s) expected to have clashing values of (%s) and (%s) " *)
-(*               (Field.to_string f) (Value.to_string v1) (Value.to_string v2) in *)
-(*           raise (ClashException msg) in *)
-(*       let neg = match neg, neg' with *)
-(*         | [], [] -> [] *)
-(*         | vs, [] -> vs *)
-(*         | [], vs -> vs *)
-(*         | vs1, vs2 -> List.unordered_append vs1 vs2 in *)
-(*       (pos, neg) in *)
-(*   let rec update p = match p with *)
-(*     | True *)
-(*     | False -> () *)
-(*     | Test hv -> *)
-(*       let field, pos = Pattern.of_hv hv in *)
-(*       Hashtbl.Poly.update tbl field ~f:(function *)
-(*             | None -> ( pos, [] ) *)
-(*             | Some c -> fuse field (pos,[]) c) *)
-(*     | And(p1,p2) -> *)
-
-
 let string_of_loc ((sw,pt):loc) =
   sprintf "(%Ld:%ld)" sw pt
 
