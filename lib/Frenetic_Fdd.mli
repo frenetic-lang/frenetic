@@ -188,6 +188,8 @@ module Action : sig
     val compare : Value.t t -> Value.t t -> int
     val compare_mod_k : Value.t t -> Value.t t -> int
 
+    val fold_fields : Value.t t -> init:'b -> f:(key:Field.t -> data:Value.t -> 'b -> 'b) -> 'b
+
     (* [equal_mod_k s1 s2] Compares two sequences for equality, ignoring K pseudo-field if it exists *)
     val equal_mod_k : Value.t t -> Value.t t -> bool
 
