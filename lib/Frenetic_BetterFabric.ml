@@ -9,7 +9,7 @@ type condition = (Value.t option * Value.t list) FieldTable.t
 type place     = (switchId * portId)
 type stream    = place * place * condition * Action.t
 
-(** Utility functions *)
+(** Import and rename utility functions *)
 let conjoin = Frenetic_NetKAT_Optimize.mk_big_and
 let disjoin = Frenetic_NetKAT_Optimize.mk_big_or
 let seq     = Frenetic_NetKAT_Optimize.mk_big_seq
@@ -20,13 +20,15 @@ let compile_local =
   let open Compiler in
   compile_local ~options:{ default_compiler_options with cache_prepare = `Keep }
 
+(** Exceptions **)
 exception IncompletePlace of string
 exception NonFilterNode of policy
 exception ClashException of string
 exception CorrelationException of string
 
-let string_of_place ((sw,pt):place) =
-  sprintf "(%Ld:%ld)" sw pt
+(** Various conversations between types **)
+let pred_of_place ((sw,pt):place) =
+  And( Test( Switch sw ), Test( Location( Physical pt )))
 
 let pred_of_condition (c:condition) : pred =
   let preds = FieldTable.fold c ~init:[]
@@ -39,16 +41,35 @@ let pred_of_condition (c:condition) : pred =
               let p = And(conjoin negs, Pattern.to_pred (field, v)) in p::acc) in
   conjoin preds
 
+let place_of_options sw pt = match sw, pt with
+  | Some sw, Some pt -> (sw, pt)
+  | None   , Some pt -> raise (IncompletePlace "No switch specified")
+  | Some sw, None    -> raise (IncompletePlace "No port specified")
+  | None   , None    -> raise (IncompletePlace "No switch and port specified")
+
+
+(** String conversions and pretty printing **)
+let string_of_pred = Frenetic_NetKAT_Pretty.string_of_pred
+let string_of_policy = Frenetic_NetKAT_Pretty.string_of_policy
+
+let string_of_place ((sw,pt):place) =
+  sprintf "(%Ld:%ld)" sw pt
+
+(* TODO(basus): remove conversions to policies *)
+let string_of_stream (s:stream) : string =
+  let (sw_in, pt_in), (sw_out, pt_out), condition, action = s in
+  sprintf
+    "From: Switch:%Ld Port:%ld\nTo Switch:%Ld Port:%ld\nCondition: %s\nAction: %s\n"
+    sw_in pt_in sw_out pt_out
+    (string_of_pred (pred_of_condition condition))
+    (string_of_policy (Action.to_policy action))
+
 
 (** Iterate through a policy and translates Links to matches on source and *)
 (** modifications to the destination *)
 let rec dedup (pol:policy) : policy =
   let open Frenetic_NetKAT in
-  let at_place sw pt =
-    let sw_test = Test (Switch sw) in
-    let pt_test = Test (Location (Physical pt)) in
-    let loc_test = Frenetic_NetKAT_Optimize.mk_and sw_test pt_test in
-    Filter loc_test in
+  let at_place sw pt = Filter (pred_of_place (sw,pt)) in
   let to_place sw pt =
     let sw_mod = Mod (Switch sw) in
     let pt_mod = Mod (Location (Physical pt)) in
@@ -79,6 +100,17 @@ let fuse field (pos, negs) (pos', negs') =
     | vs1, vs2 -> List.unordered_append vs1 vs2 in
   (pos, negs)
 
+(* Given a policy, guard it with the ingresses, sequence and iterate with the *)
+(* topology and guard with the egresses, i.e. form in;(p.t)*;p;out *)
+let assemble (pol:policy) (topo:policy) ings egs : policy =
+  let to_filter (sw,pt) = Filter( And( Test(Switch sw),
+                                       Test(Location (Physical pt)))) in
+  let ingresses = union (List.map ings ~f:to_filter) in
+  let egresses  = union (List.map egs ~f:to_filter) in
+  seq [ ingresses;
+        Star(Seq(pol, topo)); pol;
+        egresses ]
+
 (* TODO(basus): This only keep the last destination, but there might be many *)
 let destination_of_action (action:Action.t) : (switchId option * portId option * Action.t) =
   let open Frenetic_NetKAT in
@@ -98,12 +130,6 @@ let destination_of_action (action:Action.t) : (switchId option * portId option *
                   | hv ->
                     (sw,pt, Action.Seq.add acc (Action.F key) data)) in
           (sw, pt, Action.Par.add acc seq'))
-
-let place_of_options sw pt = match sw, pt with
-  | Some sw, Some pt -> (sw, pt)
-  | None   , Some pt -> raise (IncompletePlace "No switch specified")
-  | Some sw, None    -> raise (IncompletePlace "No port specified")
-  | None   , None    -> raise (IncompletePlace "No switch and port specified")
 
 let stream_of_fdd_path action headers =
   let update sw pt tbl field pos negs = match field, pos with
@@ -131,7 +157,7 @@ let stream_of_fdd_path action headers =
   (place_of_options src_sw src_pt, place_of_options dst_sw dst_pt,
    tbl, action)
 
-let stream_of_policy (pol:policy) : stream list =
+let streams_of_policy (pol:policy) : stream list =
   let rec traverse node path =
     match FDD.unget node with
     | FDD.Branch ((v,l), t, f) ->
@@ -141,7 +167,7 @@ let stream_of_policy (pol:policy) : stream list =
       let false_paths = traverse f ( false_pred::path ) in
       List.unordered_append true_paths false_paths
     | FDD.Leaf r ->
-      if r = Action.zero then [] else [ (r, path) ] in
+      if Action.is_zero r then [] else [ (r, path) ] in
 
   let deduped = dedup pol in
   let fdd = compile_local deduped in
@@ -190,7 +216,7 @@ let succeeds tbl (sw,_) (sw',pt') =
   | None -> None
 
 
-(** Start implementing graph-based retargeting. *)
+(** Start graph-based retargeting. *)
 
 module OverNode = struct
   type t = (switchId * portId)
@@ -279,16 +305,18 @@ let retarget (policy:stream list) (fabric:stream list) (topo:policy) =
      forwards on edge switches, generate ingress, egress, or bounce rules to
      stitch the hops together, forming a VLAN-tagged path between the naive
      policy endpoints *)
-  let rec stitch path tag condition action =
+  let rec stitch src sink path tag condition action =
     let open OverEdge in
     match path with
     | [] -> ([], [])
     | (_,Internal,(_,in_pt))::rest ->
-      let filter = Filter (condition |> pred_of_condition) in
+      let start = pred_of_place src in
+      let cond = pred_of_condition condition in
+      let filter = Filter( And( start, cond )) in
       let ingress = seq [ filter;
                           Mod( Vlan tag );
                           Mod( Location( Physical in_pt)) ] in
-      let ins, outs = stitch rest tag condition action in
+      let ins, outs = stitch src sink rest tag condition action in
       (ingress::ins, outs)
     | (_,Adjacent _,_)::((out_sw,out_pt),Internal,(_,in_pt))::rest ->
       let test_loc = And( Test( Switch out_sw ),
@@ -298,10 +326,11 @@ let retarget (policy:stream list) (fabric:stream list) (topo:policy) =
       let egress = begin match rest with
         | [] ->
           let mods = Action.to_policy action in
-          seq [ filter; Mod( Vlan strip_vlan); mods ]
+          let out = Mod( Location( Physical (snd sink) )) in
+          seq [ filter; Mod( Vlan strip_vlan); Seq(mods, out)]
         | rest ->
           seq [ filter; Mod( Location( Physical in_pt )) ] end in
-      let ins, outs = stitch rest tag condition action in
+      let ins, outs = stitch src sink rest tag condition action in
       (ins, egress::outs)
     | _ -> failwith "Malformed path" in
 
@@ -309,7 +338,7 @@ let retarget (policy:stream list) (fabric:stream list) (topo:policy) =
       ~f:(fun (ins, outs, tag) (src,sink,condition,action) ->
           try
             let path,_ = OverPath.shortest_path graph src sink in
-            let ingress, egress = stitch path tag condition action in
+            let ingress, egress = stitch src sink path tag condition action in
             ( List.rev_append ingress ins,
               List.rev_append egress  outs,
               tag + 1 )
