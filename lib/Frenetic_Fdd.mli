@@ -219,6 +219,7 @@ module Action : sig
 
   (** [zero] returns empty action, which consistently with OpenFlow, means "drop" *)
   val zero : t
+  val is_zero : t -> bool
 
   (** [negate action] implements negation for the [zero] and [one] actions. Any
        non-[zero] action will be mapped to [zero] by this function. *)
