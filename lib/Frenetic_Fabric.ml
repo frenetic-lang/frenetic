@@ -23,6 +23,7 @@ let compile_local =
 
 (** Exceptions **)
 exception IncompletePlace of string
+exception NonExistentPath of string
 exception NonFilterNode of policy
 exception ClashException of string
 exception CorrelationException of string
@@ -363,15 +364,13 @@ let rec stitch (src,sink,condition,action) path tag =
     | _ -> failwith "Malformed path" in
   aux path
 
-let overlay (policy:stream list) (fabric:stream list) (topo:policy) =
+let overlay (places:place list) (fabric:stream list) (topo:policy) =
   let preds = find_predecessors topo in
   let succs = find_successors topo in
 
   (* Add vertices for all policy locations *)
-  let graph = List.fold policy ~init:Overlay.empty
-      ~f:(fun g (src, sink, _, _) ->
-          let g' = Overlay.add_vertex g src in
-          Overlay.add_vertex g' sink) in
+  let graph = List.fold places ~init:Overlay.empty
+      ~f:(Overlay.add_vertex) in
 
   (* Add edges between all location pairs reachable via the fabric *)
   let graph = ( List.fold fabric ~init:graph
@@ -389,7 +388,9 @@ let overlay (policy:stream list) (fabric:stream list) (topo:policy) =
   switch_inter_connect graph
 
 let retarget (policy:stream list) (fabric:stream list) (topo:policy) =
-  let graph = overlay policy fabric topo in
+  let places = List.fold_left policy ~init:[] ~f:(fun acc (src, sink,_,_) ->
+      src::sink::acc) in
+  let graph = overlay places fabric topo in
   let ingresses, egresses, _ = List.fold policy ~init:([],[],1)
       ~f:(fun (ins, outs, tag) ((src,sink,_,_) as stream) ->
           try
@@ -405,5 +406,43 @@ let retarget (policy:stream list) (fabric:stream list) (topo:policy) =
 
   ingresses, egresses
 
+let project_path pred ps tag graph =
+  let open OverEdge in
+  let rec mk_ends node path = match path with
+    | [] -> []
+    | hd::tl -> (node,hd)::(mk_ends hd tl) in
+  let endpoints = mk_ends (List.hd_exn ps) (List.tl_exn ps) in
+  (* TODO(basus): Handle the case where there are multiple conditions *)
+  let cond = List.hd_exn (conditions_of_pred pred) in
+  let action = Action.one in
+  List.fold_left endpoints ~init:([],[]) ~f:(fun (ins,outs) (src,sink) ->
+      try
+        let path,_ = OverPath.shortest_path graph src sink in
+        let stream = (src, sink, cond, action) in
+        let ingress, egress = stitch stream path tag in
+        ( List.rev_append ingress ins,
+          List.rev_append egress  outs)
+      with Not_found ->
+        let msg = sprintf "No path between %s and %s\n%!"
+            (string_of_place src) (string_of_place sink) in
+        raise (NonExistentPath msg))
+
+
+
 let project (paths: path list) (fabric: stream list) (topo:policy) =
-  [],[]
+  let places = List.fold_left paths ~init:[] ~f:(fun acc (_,ps) ->
+      List.fold_left ps ~init:acc ~f:(fun acc p -> p::acc)) in
+  let graph = overlay places fabric topo in
+  let ingresses, egresses, _ = List.fold paths ~init:([],[],1)
+      ~f:(fun (ins, outs, tag) (pred, ps) ->
+          try
+            let ing, out = project_path pred ps tag graph in
+            ( List.rev_append ing ins,
+              List.rev_append out outs,
+              tag + 1 )
+          with NonExistentPath s ->
+            print_endline s;
+            (ins, outs, tag)) in
+
+  ingresses, egresses
+
