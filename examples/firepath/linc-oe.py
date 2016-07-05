@@ -44,7 +44,9 @@ def start(ip="127.0.0.1",port=6633):
 
     # Add electrical-optical links
     net.addLink(s1, r1, 2, 2, cls=LINCLink)
+    net.addLink(s1, r1, 3, 3, cls=LINCLink)
     net.addLink(s2, r2, 2, 2, cls=LINCLink)
+    net.addLink(s2, r2, 3, 3, cls=LINCLink)
     net.addLink(s3, r3, 1, 3, cls=LINCLink)
 
     # Add the s3 firewall link
