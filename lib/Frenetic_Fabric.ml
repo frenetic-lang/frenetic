@@ -1,291 +1,96 @@
 open Core.Std
 open Frenetic_Fdd
-open Frenetic_Network
-open Frenetic_OpenFlow
+open Frenetic_NetKAT
 
 module Compiler = Frenetic_NetKAT_Compiler
+module FieldTable = Hashtbl.Make(Field)
 
-type pred   = Frenetic_NetKAT.pred
-type policy = Frenetic_NetKAT.policy
-type fabric = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
+type condition = (Value.t option * Value.t list) FieldTable.t
+type place     = (switchId * portId)
+type stream    = place * place * condition * Action.t
 
-type condition  = Field.t * Value.t list * Value.t list
-type stream     = condition list * Action.t
-type loc        = (switchId * portId)
-type loc_stream = ( loc * loc * stream )
-
-exception NonFilterNode of policy
-exception ClashException of string
-exception CorrelationException of string
-
-(** Utility functions *)
+(** Import and rename utility functions *)
 let conjoin = Frenetic_NetKAT_Optimize.mk_big_and
 let disjoin = Frenetic_NetKAT_Optimize.mk_big_or
+let seq     = Frenetic_NetKAT_Optimize.mk_big_seq
+let union   = Frenetic_NetKAT_Optimize.mk_big_union
+let strip_vlan = 0xffff
 
 let compile_local =
   let open Compiler in
   compile_local ~options:{ default_compiler_options with cache_prepare = `Keep }
 
-let pred_of_cond ((f,pos,neg):condition) : pred =
-  let poss = match pos with
-    | [] -> []
-    | vs -> List.map vs ~f:(fun v ->  Frenetic_Fdd.Pattern.to_pred (f, v)) in
-  let negs = List.fold_left neg ~init:[]
-      ~f:(fun acc v -> (Frenetic_NetKAT.Neg (Frenetic_Fdd.Pattern.to_pred (f, v)))::acc) in
-  Frenetic_NetKAT.And( disjoin poss, conjoin negs)
+(** Exceptions **)
+exception IncompletePlace of string
+exception NonFilterNode of policy
+exception ClashException of string
+exception CorrelationException of string
 
-let pred_of_conds (conds: condition list) =
-  let open Frenetic_NetKAT in
-  conjoin (List.map conds ~f:pred_of_cond)
+(** Various conversations between types **)
+let pred_of_place ((sw,pt):place) =
+  And( Test( Switch sw ), Test( Location( Physical pt )))
 
-let string_of_loc ((sw,pt):loc) =
-  sprintf "(%Ld:%ld)" sw pt
+let pred_of_condition (c:condition) : pred =
+  let preds = FieldTable.fold c ~init:[]
+      ~f:(fun ~key:field ~data:(pos, negs) acc ->
+          let negs = List.map negs ~f:(fun v ->
+              Neg (Pattern.to_pred (field, v))) in
+          match pos with
+            | None -> (conjoin negs)::acc
+            | Some v ->
+              let p = And(conjoin negs, Pattern.to_pred (field, v)) in p::acc) in
+  conjoin preds
 
-let string_of_stream (conds, act) =
-  sprintf "Condition: %s\nAction: %s\n"
-    (Frenetic_NetKAT_Pretty.string_of_pred (pred_of_conds conds))
-    (Frenetic_NetKAT_Pretty.string_of_policy (Action.to_policy act))
+let place_of_options sw pt = match sw, pt with
+  | Some sw, Some pt -> (sw, pt)
+  | None   , Some pt -> raise (IncompletePlace "No switch specified")
+  | Some sw, None    -> raise (IncompletePlace "No port specified")
+  | None   , None    -> raise (IncompletePlace "No switch and port specified")
 
-let string_of_located_stream ((sw,pt),(sw',pt'),stream) =
-  let src = sprintf "Source: Switch: %Ld Port:%ld" sw pt in
-  let sink = sprintf "Sink: Switch: %Ld Port:%ld" sw' pt' in
-  let stream = string_of_stream stream in
-  String.concat ~sep:"\n" [src; sink; stream]
 
-let string_of_pred   = Frenetic_NetKAT_Pretty.string_of_pred
+(** String conversions and pretty printing **)
+let string_of_pred = Frenetic_NetKAT_Pretty.string_of_pred
 let string_of_policy = Frenetic_NetKAT_Pretty.string_of_policy
 
-let seq   = Frenetic_NetKAT_Optimize.mk_big_seq
-let union = Frenetic_NetKAT_Optimize.mk_big_union
+let string_of_place ((sw,pt):place) =
+  sprintf "(%Ld:%ld)" sw pt
+
+(* TODO(basus): remove conversions to policies *)
+let string_of_stream (s:stream) : string =
+  let (sw_in, pt_in), (sw_out, pt_out), condition, action = s in
+  sprintf
+    "From: Switch:%Ld Port:%ld\nTo Switch:%Ld Port:%ld\nCondition: %s\nAction: %s\n"
+    sw_in pt_in sw_out pt_out
+    (string_of_pred (pred_of_condition condition))
+    (string_of_policy (Action.to_policy action))
 
 
-(** Fabric generators, from a topology or policy *)
-
-let strip_vlan = 0xffff
-let mk_flow (pat:Pattern.t) (actions:group) : flow =
-  { pattern = pat
-  ; action = actions
-  ; cookie = 0L
-  ; idle_timeout = Permanent
-  ; hard_timeout = Permanent
-  }
-
-let drop = mk_flow Pattern.match_all [[[]]]
-
-let vlan_per_port (net:Net.Topology.t) : fabric =
-  let open Net.Topology in
-  let tags = Hashtbl.Poly.create ~size:(num_vertexes net) () in
-  iter_edges (fun edge ->
-      let src, port = edge_src edge in
-      let label = vertex_to_label net src in
-      let pattern = { Pattern.match_all with dlVlan =
-                                               Some (Int32.to_int_exn port)} in
-      let actions = [ [ [ Modify(SetVlan (Some strip_vlan)); Output (Physical port) ] ] ] in
-      let flow = mk_flow pattern actions in
-      match Node.device label with
-      | Node.Switch ->
-        Hashtbl.Poly.change tags (Node.id label)
-          ~f:(fun table -> match table with
-              | Some flows -> Some( flow::flows )
-              | None -> Some [flow; drop] )
-      | _ -> ()) net;
-  tags
-
-let shortest_path (net:Net.Topology.t)
-    (ingress:switchId list) (egress:switchId list) : fabric =
-  let open Net.Topology in
-  let vertexes = vertexes net in
-  let vertex_from_id swid =
-    let vopt = VertexSet.find vertexes (fun v ->
-      (Node.id (vertex_to_label net v)) = swid) in
-    match vopt with
-    | Some v -> v
-    | None -> failwith (Printf.sprintf "No vertex for switch id: %Ld" swid )
-  in
-
-  let mk_flow_mod (tag:int) (port:int32) : flow =
-    let pattern = { Pattern.match_all with dlVlan = Some tag } in
-    let actions = [[[ Output (Physical port) ]]] in
-    mk_flow pattern actions
-  in
-
-
-  let table = Hashtbl.Poly.create ~size:(num_vertexes net) () in
-  let tag = ref 10 in
-  List.iter ingress ~f:(fun swin ->
-    let src = vertex_from_id swin in
-    List.iter egress ~f:(fun swout ->
-      if swin = swout then ()
-      else
-        let dst = vertex_from_id swout in
-        tag := !tag + 1;
-        match Net.UnitPath.shortest_path net src dst with
-        | None -> ()
-        | Some p ->
-          List.iter p ~f:(fun edge ->
-            let src, port = edge_src edge in
-            let label = vertex_to_label net src in
-            let flow_mod = mk_flow_mod !tag port in
-            match Node.device label with
-            | Node.Switch ->
-              Hashtbl.Poly.change table (Node.id label)
-                ~f:(fun table -> match table with
-                | Some flow_mods -> Some( flow_mod::flow_mods )
-                | None -> Some [flow_mod; drop] )
-            | _ -> ())));
+(** Topology Handling: Functions for finding adjacent nodes in a given topology *)
+let find_predecessors (topo:policy) =
+  let table = Hashtbl.Poly.create () in
+  let rec populate pol = match pol with
+    | Union(p1, p2) ->
+      populate p1;
+      populate p2
+    | Link (s1,p1,s2,p2) ->
+      Hashtbl.Poly.add_exn table (s2,p2) (s1,p1);
+    | p -> failwith (sprintf "Unexpected construct in policy: %s\n"
+                       (Frenetic_NetKAT_Pretty.string_of_policy p)) in
+  populate topo;
   table
 
-let of_local_policy (pol:policy) (sws:switchId list) : fabric =
-  let fabric = Hashtbl.Poly.create ~size:(List.length sws) () in
-  let compiled = compile_local pol in
-  List.iter sws ~f:(fun swid ->
-      let table = (Compiler.to_table swid compiled) in
-      match Hashtbl.Poly.add fabric ~key:swid ~data:table with
-      | `Ok -> ()
-      | `Duplicate -> printf "Duplicate table for switch %Ld\n" swid
-    ) ;
-  fabric
-
-
-let of_global_policy (pol:policy) (sws:switchId list) : fabric =
-  let fabric = Hashtbl.Poly.create ~size:(List.length sws) () in
-  let compiled = Compiler.compile_global pol in
-  List.iter sws ~f:(fun swid ->
-      let table = (Compiler.to_table swid compiled) in
-      match Hashtbl.Poly.add fabric ~key:swid ~data:table with
-      | `Ok -> ()
-      | `Duplicate -> printf "Duplicate table for switch %Ld\n" swid
-    ) ;
-  fabric
-
-let to_string (fab:fabric) : string =
-  let buf = Buffer.create (Hashtbl.length fab * 100) in
-  Hashtbl.Poly.iteri fab ~f:(fun ~key:swid ~data:mods ->
-      Buffer.add_string buf (
-        Frenetic_OpenFlow.string_of_flowTable
-          ~label:(sprintf "Switch %Ld |\n" swid)
-          mods)) ;
-  Buffer.contents buf
-
-
-(** Start of retargeting compiler code *)
-
-(** Iterate through a policy and remove any modifications to the switch field. *)
-let rec remove_switch_mods (pol:policy) : policy =
-  let open Frenetic_NetKAT in
-  match pol with
-  | Union (p, Mod(Switch _)) -> p
-  | Union (Mod(Switch _), p) -> p
-  | Seq (p, Mod(Switch _))   -> p
-  | Seq (Mod(Switch _), p)   -> p
-  | Star p                   -> Star (remove_switch_mods p)
-  | p                        -> p
-
-(** Iterate through a policy and translates Links to matches on source and *)
-(** modifications to the destination *)
-let rec remove_dups (pol:policy) : policy =
-  let open Frenetic_NetKAT in
-  let at_location sw pt =
-    let sw_test = Test (Switch sw) in
-    let pt_test = Test (Location (Physical pt)) in
-    let loc_test = Frenetic_NetKAT_Optimize.mk_and sw_test pt_test in
-    Filter loc_test in
-  let to_location sw pt =
-    let sw_mod = Mod (Switch sw) in
-    let pt_mod = Mod (Location (Physical pt)) in
-    Seq ( sw_mod, pt_mod ) in
-  match pol with
-  | Filter a    -> Filter a
-  | Mod hv      -> Mod hv
-  | Union (p,q) -> Union(remove_dups p, remove_dups q)
-  | Seq (p,q)   -> Seq(remove_dups p, remove_dups q)
-  | Star p      -> Star(remove_dups p)
-  | Link (s1,p1,s2,p2) ->
-    Seq (at_location s1 p1, to_location s2 p2)
-  | VLink _ -> failwith "Fabric: Cannot remove Dups from a policy with VLink"
-
-(** Extract the alpha and beta pair from a policy. The alpha is the predicate *)
-(** for the policy, and the beta is the modification. Alpha corresponds to the
-    internal nodes in the FDD and the beta to the leaves *)
-let extract (pol:policy) : stream list =
-  let rec get_paths node path =
-    match FDD.unget node with
-    | FDD.Branch ((v,l), t, f) ->
-      let true_pred   = (v, [l], []) in
-      let true_paths  = get_paths t ( true_pred::path ) in
-      let false_pred  = (v, [], [l]) in
-      let false_paths = get_paths f ( false_pred::path ) in
-      List.unordered_append true_paths false_paths
-    | FDD.Leaf r ->
-      [ (r, path) ] in
-
-  let partition (action, conds) : stream =
-    let open Frenetic_Fdd in
-    let tbl = Hashtbl.Poly.create ~size:(List.length conds) () in
-    let fuse (pos,neg) (pos',neg') =
-      let join l1 l2 = match l1, l2 with
-        | [], [] -> []
-        | ls, [] -> ls
-        | [], ls -> ls
-        | ls1, ls2 -> List.unordered_append ls1 ls2 in
-      (join pos pos', join neg neg') in
-    List.iter conds ~f:(fun (field,pos,neg) ->
-        Hashtbl.Poly.update tbl field ~f:(function
-            | None -> ( pos,neg )
-            | Some c -> fuse (pos,neg) c));
-    let branches = Hashtbl.Poly.fold tbl ~init:[]
-        ~f:(fun ~key:field ~data:(pos,neg) acc -> (field, pos, neg)::acc) in
-    (branches, action) in
-
-  let deduped = remove_dups pol in
-  let fdd     = compile_local deduped in
-  let paths   = get_paths fdd [] in
-  List.map paths ~f:partition
-
-(* Given a policy, guard it with the ingresses, sequence and iterate with the *)
-(* topology and guard with the egresses, i.e. form in;(p.t)*;p;out *)
-let assemble (pol:policy) (topo:policy) ings egs : policy =
-  let open Frenetic_NetKAT in
-  let to_filter (sw,pt) = Filter( And( Test(Switch sw),
-                                       Test(Location (Physical pt)))) in
-  let ingresses = union (List.map ings ~f:to_filter) in
-  let egresses  = union (List.map egs ~f:to_filter) in
-  seq [ ingresses;
-        Star(Seq(pol, topo)); pol;
-        egresses ]
-
-(** Functions for finding adjacent nodes in a given topology *)
-let find_predecessors (topo:policy) =
-  let open Frenetic_NetKAT in
-  let switch_table = Hashtbl.Poly.create () in
-  let loc_table = Hashtbl.Poly.create () in
-  let rec populate pol = match pol with
-    | Union(p1, p2) ->
-      populate p1;
-      populate p2
-    | Link (s1,p1,s2,p2) ->
-      Hashtbl.Poly.add_exn loc_table (s2,p2) (s1,p1);
-      Hashtbl.Poly.add_multi switch_table s2 (s1,p1,p2);
-    | p -> failwith (sprintf "Unexpected construct in policy: %s\n"
-                       (Frenetic_NetKAT_Pretty.string_of_policy p)) in
-  populate topo;
-  (switch_table, loc_table)
-
 let find_successors (topo:policy) =
-  let open Frenetic_NetKAT in
-  let switch_table = Hashtbl.Poly.create () in
-  let loc_table = Hashtbl.Poly.create () in
+  let table = Hashtbl.Poly.create () in
   let rec populate pol = match pol with
     | Union(p1, p2) ->
       populate p1;
       populate p2
     | Link (s1,p1,s2,p2) ->
-      Hashtbl.Poly.add_exn loc_table (s1,p1) (s2,p2);
-      Hashtbl.Poly.add_multi switch_table s1 (s2,p2,p1);
+      Hashtbl.Poly.add_exn table (s1,p1) (s2,p2);
     | p -> failwith (sprintf "Unexpected construct in policy: %s\n"
                        (Frenetic_NetKAT_Pretty.string_of_policy p)) in
   populate topo;
-  (switch_table, loc_table)
+  table
 
 (* Does (sw,pt) precede (sw',pt') in the topology, using the predecessor table *)
 let precedes tbl (sw,_) (sw',pt') =
@@ -299,121 +104,133 @@ let succeeds tbl (sw,_) (sw',pt') =
   | Some (post_sw, post_pt) -> if post_sw = sw then Some post_pt else None
   | None -> None
 
-(** Location-related functions *)
-let combine_locations ?(hdr="Clash detected") p1 p2 = match p1, p2 with
-  | (None    , None    ), (None,    None) ->
-    (None, None)
-  | (Some sw , None    ), (None,    Some pt)
-  | (None    , Some pt ), (Some sw, None)
-  | (Some sw , Some pt ), (None,    None)
-  | (None    , None    ), (Some sw, Some pt) ->
-    (Some sw, Some pt)
-  | (Some sw , None    ), (None,    None)
-  | (None    , None    ), (Some sw, None) ->
-    (Some sw, None)
-  | (None    , Some pt ), (None, None)
-  | (None    , None    ), (None, Some pt) ->
-    (None, Some pt)
-  | (sw,pt), (sw',pt') ->
-    let reason = begin match sw, pt, sw', pt' with
-      | Some sw, _, Some sw', _ -> sprintf "Clashing switches %Ld and %Ld." sw sw'
-      | _, Some pt, _, Some pt' -> sprintf "Clashing switches %ld and %ld." pt pt'
-      | _ -> sprintf "No clash. Bug in code." end in
-    let msg = String.concat ~sep:" " [hdr; reason] in
-    raise (ClashException msg)
+(** Code to convert policies to alpha/beta pairs (streams) **)
+(* Iterate through a policy and translates Links to matches on source and *)
+(* modifications to the destination *)
+let rec dedup (pol:policy) : policy =
+  let at_place sw pt = Filter (pred_of_place (sw,pt)) in
+  let to_place sw pt =
+    let sw_mod = Mod (Switch sw) in
+    let pt_mod = Mod (Location (Physical pt)) in
+    Seq ( sw_mod, pt_mod ) in
+  match pol with
+  | Filter a    -> Filter a
+  | Mod hv      -> Mod hv
+  | Union (p,q) -> Union(dedup p, dedup q)
+  | Seq (p,q)   -> Seq(dedup p, dedup q)
+  | Star p      -> Star(dedup p)
+  | Link (s1,p1,s2,p2) ->
+    Seq (at_place s1 p1, to_place s2 p2)
+  | VLink _ -> failwith "Fabric: Cannot remove Dups from a policy with VLink"
 
-let locate_from_options (swopt, ptopt) : (loc, string) Result.t =
-  match swopt, ptopt with
-  | Some sw, Some pt -> Ok (sw,pt)
-  | Some sw, None    -> Error (sprintf "No port specified for switch %Ld" sw)
-  | None, Some pt    -> Error (sprintf "No switch specified for port %ld" pt)
-  | None, None       -> Error "No switch or port specified"
+let fuse field (pos, negs) (pos', negs') =
+  let pos = match pos, pos' with
+    | None, None   -> None
+    | None, Some v
+    | Some v, None -> Some v
+    | Some v1, Some v2 ->
+      let msg = sprintf "Field (%s) expected to have clashing values of (%s) and (%s) "
+          (Field.to_string field) (Value.to_string v1) (Value.to_string v2) in
+      raise (ClashException msg) in
+  let negs = match negs, negs' with
+    | [], [] -> []
+    | vs, [] -> vs
+    | [], vs -> vs
+    | vs1, vs2 -> List.unordered_append vs1 vs2 in
+  (pos, negs)
 
-let locate_from_header hv =
-  let open Frenetic_NetKAT in
-  match hv with
-  | Switch sw -> (Some sw, None)
-  | Location (Physical pt) -> (None, Some pt)
-  | _ -> (None, None)
+(* Given a policy, guard it with the ingresses, sequence and iterate with the *)
+(* topology and guard with the egresses, i.e. form in;(p.t)*;p;out *)
+let assemble (pol:policy) (topo:policy) ings egs : policy =
+  let to_filter (sw,pt) = Filter( And( Test(Switch sw),
+                                       Test(Location (Physical pt)))) in
+  let ingresses = union (List.map ings ~f:to_filter) in
+  let egresses  = union (List.map egs ~f:to_filter) in
+  seq [ ingresses;
+        Star(Seq(pol, topo)); pol;
+        egresses ]
 
-let rec locate_from_pred p =
-  let open Frenetic_NetKAT in
-  let hdr = "Clash in source" in
-  match p with
-    | Test hv -> locate_from_header hv
-    | True | False | Neg _ -> (None, None)
-    | And(p1, p2)
-    | Or (p1, p2) ->
-      combine_locations ~hdr:hdr (locate_from_pred p1) (locate_from_pred p2)
+(* TODO(basus): This only keep the last destination, but there might be many *)
+let destination_of_action (action:Action.t) : (switchId option * portId option * Action.t) =
+  Action.Par.fold action ~init:(None, None, Action.Par.empty)
+      ~f:(fun (sw,pt,acc) seq ->
+          let sw, pt, seq' = Action.Seq.fold_fields seq ~init:(sw,pt,Action.Seq.empty)
+              ~f:(fun ~key ~data (sw,pt,acc) ->
+                  match Pattern.to_hv (key, data) with
+                  | IP4Src(nwAddr, 32l) ->
+                    (sw,pt, Action.Seq.add acc (Action.F key) data)
+                  | IP4Dst(nwAddr, 32l) ->
+                    (sw,pt, Action.Seq.add acc (Action.F key) data)
+                  | Switch sw ->
+                    (Some sw, pt, acc)
+                  | Location(Physical pt) ->
+                    (sw, Some pt, acc)
+                  | hv ->
+                    (sw,pt, Action.Seq.add acc (Action.F key) data)) in
+          (sw, pt, Action.Par.add acc seq'))
 
-let locate_from_sink policy : (loc,string) Result.t =
-  let open Frenetic_NetKAT in
-  let hdr = "Clash in sinks" in
-  let rec aux policy = match policy with
-  | Mod hv         -> locate_from_header hv
-  | Union (p1, p2) -> combine_locations ~hdr:hdr (aux p1) (aux p2)
-  | Seq (p1, p2)   -> combine_locations ~hdr:hdr (aux p1) (aux p2)
-  | Star p         -> aux p
-  | _ -> (None, None) in
-  locate_from_options (aux policy)
+let paths_of_fdd fdd =
+  let rec traverse node path =
+    match FDD.unget node with
+    | FDD.Branch ((v,l), t, f) ->
+      let true_pred   = (v, Some l, []) in
+      let true_paths  = traverse t ( true_pred::path ) in
+      let false_pred  = (v, None, [l]) in
+      let false_paths = traverse f ( false_pred::path ) in
+      List.unordered_append true_paths false_paths
+    | FDD.Leaf r ->
+      [ (r, path) ] in
+  traverse fdd []
 
-let locate_from_source policy =
-  let open Frenetic_NetKAT in
-  let hdr = "Clash in source" in
-  let rec aux policy = match policy with
-  | Filter f       -> locate_from_pred f
-  | Union (p1, p2) -> combine_locations ~hdr:hdr (aux p1) (aux p2)
-  | Seq (p1, p2)   -> combine_locations ~hdr:hdr (aux p1) (aux p2)
-  | Star p         -> aux p
-  | _              -> (None, None) in
-  locate_from_options (aux policy)
+let condition_of_fdd_path (action,headers) : condition =
+  let tbl = FieldTable.create ~size:(List.length headers) () in
+  List.iter headers ~f:(fun (field, pos, negs) ->
+      FieldTable.update tbl field ~f:(function
+          | None -> ( pos, negs )
+          | Some c -> fuse field (pos,negs) c));
+  tbl
 
-(* TODO(basus): This should be implemented without converting to a policy *)
-let locate_from_action (action: Action.t) =
-  Action.to_policy action |> locate_from_sink
+let stream_of_fdd_path (action,headers) : stream =
+  let update sw pt tbl field pos negs = match field, pos with
+    | Field.Switch, Some( Value.Const sw' ) -> begin match sw with
+        | None -> (Some sw', pt)
+        | Some sw ->
+          let msg = sprintf "Switch field has clashing values of %Ld and %Ld" sw sw' in
+          raise (ClashException msg) end
+    | Field.Location, Some( Value.Const pt' as p) -> begin match pt with
+        | None -> (sw, Some(Value.to_int32_exn p))
+        | Some pt ->
+          let msg = sprintf "Port field has clashing values of %ld and %ld" pt
+              (Value.to_int32_exn p) in
+          raise (ClashException msg) end
+    | _ ->
+      FieldTable.update tbl field ~f:(function
+          | None -> ( pos, negs )
+          | Some c -> fuse field (pos,negs) c);
+      (sw, pt) in
+  let tbl = FieldTable.create ~size:(List.length headers) () in
+  let src_sw, src_pt = List.fold_left headers ~init:(None, None)
+      ~f:(fun (sw,pt) (f, p, ns) ->
+          update sw pt tbl f p ns) in
+  let dst_sw, dst_pt, action = destination_of_action action in
+  (place_of_options src_sw src_pt, place_of_options dst_sw dst_pt,
+   tbl, action)
 
-let locate_from_conditions (cs: condition list) =
-  let open Frenetic_Fdd in
-  let opts = List.fold_left cs ~init:(None, None)
-      ~f:(fun (sw, pt) (field, pos, _) -> match field, pos with
-          | Switch, [v] ->
-            ( Some( Value.to_int64_exn v ), pt)
-          | Location, [v]  ->
-            (sw, Some( Value.to_int32_exn v ))
-          (* TODO(basus): Should handle the case where there are multiple
-             positive locations *)
-          | _ -> (sw, pt)) in
-  locate_from_options opts
+let conditions_of_pred (p:pred) : condition list =
+  let pol = Filter p in
+  let fdd = compile_local pol in
+  let paths = paths_of_fdd fdd in
+  List.map paths ~f:condition_of_fdd_path
 
-let locate_endpoints ((conds,action):stream) =
-  let src  = locate_from_conditions conds in
-  let sink = locate_from_action action in
-  match src, sink with
-  | Ok s, Ok s' -> Ok (s,s')
-  | Ok _, Error s -> Error s
-  | Error s, Ok _ -> Error s
-  | Error s, Error s' -> Error (String.concat ~sep:"\n" [s;s'])
 
-let locate (s:stream) =
-  let locs = locate_endpoints s in
-  match locs with
-  | Ok (src,sink) -> Ok (src, sink, s)
-  | Error e -> Error e
+let streams_of_policy (pol:policy) : stream list =
+  let deduped = dedup pol in
+  let fdd = compile_local deduped in
+  let paths = paths_of_fdd fdd in
+  List.fold_left paths ~init:[] ~f:(fun acc ((a,hs) as p) ->
+      if Action.is_zero a then acc else ( stream_of_fdd_path p )::acc)
 
-let locate_or_drop (located, dropped) (stream:stream) =
-  let conds, action = stream in
-  if (Action.to_policy action) = Frenetic_NetKAT.drop then (located, stream::dropped)
-  else try match locate stream with
-    | Ok l -> (l::located,dropped)
-    | Error e ->
-      (located, dropped)
-    with ClashException e ->
-      let msg = sprintf "Exception |%s| in alpha-beta pair: %s%!" e
-          (string_of_stream stream) in
-      print_endline msg;
-      (located,dropped)
-
-(** Start implementing graph-based retargeting. *)
+(** Start graph-based retargeting. *)
 
 module OverNode = struct
   type t = (switchId * portId)
@@ -433,10 +250,10 @@ module OverEdge = struct
   open Frenetic_NetKAT
 
   type t =
-    | Internal                  (* Between ports on the same switch *)
-    | Exact of stream           (* The fabric delivers between those exact point *)
-    | Adjacent of stream        (* Fabric delivers between locations attached to
-                                   these in the topology *)
+    | Internal                            (* Between ports on the same switch *)
+    | Exact of condition * Action.t       (* The fabric delivers between those exact point *)
+    | Adjacent of condition * Action.t    (* Fabric delivers between locations attached to
+                                             these in the topology *)
 
   let default = Internal
 
@@ -449,7 +266,6 @@ module Overlay = struct
   module G = Graph.Persistent.Digraph.ConcreteBidirectionalLabeled
       (OverNode)
       (OverEdge)
-
   include G
 end
 
@@ -473,59 +289,22 @@ let switch_inter_connect g =
           then Overlay.add_edge_e g ((sw,pt), Internal, (sw,pt'))
           else g ) g g) g g
 
-let mk_mods path =
+(* Given a list of hops consisting of alternating fabric paths and internal
+   forwards on edge switches, generate ingress, egress, or bounce rules to
+   stitch the hops together, forming a VLAN-tagged path between the naive
+   policy endpoints *)
+let rec stitch (src,sink,condition,action) path tag =
   let open OverEdge in
-  let open Frenetic_NetKAT in
-  match path with
-  | (_,Adjacent (pred, pol),_)::_ ->
-    Filter False
-  | _ -> Filter True
-
-let retarget (naive:stream list) (fabric:stream list) (topo:policy) =
-  let open Frenetic_NetKAT in
-  let naive_located, naive_dropped = List.fold naive ~init:([],[])
-      ~f:locate_or_drop in
-  let fabric_located, fabric_dropped = List.fold fabric ~init:([],[])
-      ~f:locate_or_drop in
-  let _, loc_preds = find_predecessors topo in
-  let _, loc_succs = find_successors topo in
-
-  (* Add vertices all naive locations *)
-  let graph = List.fold naive_located ~init:Overlay.empty
-      ~f:(fun g (src, sink, _) ->
-          let g' = Overlay.add_vertex g src in
-          Overlay.add_vertex g' sink) in
-
-  (* Add edges between all location pairs reachable via the fabric *)
-  let graph = ( List.fold fabric_located ~init:graph
-      ~f:(fun g (src, sink, stream) ->
-           let open OverEdge in
-           let g' = Overlay.add_edge_e g (src, Exact stream, sink) in
-           let src' = Hashtbl.Poly.find loc_preds src in
-           let sink' = Hashtbl.Poly.find loc_succs sink in
-           match src', sink' with
-           | Some src', Some sink' ->
-            Overlay.add_edge_e g' (src', Adjacent stream, sink')
-           | _ -> g'
-         ) ) in
-
-  let graph = switch_inter_connect graph in
-
-  (* Given a list of hops consisting of alternating fabric paths and internal
-     forwards on edge switches, generate ingress, egress, or bounce rules to
-     stitch the hops together, forming a VLAN-tagged path between the naive
-     policy endpoints *)
-  let rec stitch path tag stream =
-    let open OverEdge in
-    match path with
+  let rec aux path = match path with
     | [] -> ([], [])
     | (_,Internal,(_,in_pt))::rest ->
-      let mods = mk_mods rest in
-      let filter = Filter (fst stream |> pred_of_conds) in
+      let start = pred_of_place src in
+      let cond = pred_of_condition condition in
+      let filter = Filter( And( start, cond )) in
       let ingress = seq [ filter;
                           Mod( Vlan tag );
                           Mod( Location( Physical in_pt)) ] in
-      let ins, outs = stitch rest tag stream in
+      let ins, outs = aux rest in
       (ingress::ins, outs)
     | (_,Adjacent _,_)::((out_sw,out_pt),Internal,(_,in_pt))::rest ->
       let test_loc = And( Test( Switch out_sw ),
@@ -534,32 +313,52 @@ let retarget (naive:stream list) (fabric:stream list) (topo:policy) =
                                 test_loc )) in
       let egress = begin match rest with
         | [] ->
-          let mods = snd stream |> Action.to_policy in
-          seq [ filter; Mod( Vlan strip_vlan); remove_switch_mods mods ]
+          let mods = Action.to_policy action in
+          let out = Mod( Location( Physical (snd sink) )) in
+          seq [ filter; Mod( Vlan strip_vlan); Seq(mods, out)]
         | rest ->
           seq [ filter; Mod( Location( Physical in_pt )) ] end in
-      let ins, outs = stitch rest tag stream in
+      let ins, outs = aux rest in
       (ins, egress::outs)
     | _ -> failwith "Malformed path" in
+  aux path
 
-  let ingresses, egresses, _ = List.fold naive_located ~init:([],[],1)
-      ~f:(fun (ins, outs, tag) (src,sink,naive_stream) ->
+
+let retarget (policy:stream list) (fabric:stream list) (topo:policy) =
+  let preds = find_predecessors topo in
+  let succs = find_successors topo in
+
+  (* Add vertices for all policy locations *)
+  let graph = List.fold policy ~init:Overlay.empty
+      ~f:(fun g (src, sink, _, _) ->
+          let g' = Overlay.add_vertex g src in
+          Overlay.add_vertex g' sink) in
+
+  (* Add edges between all location pairs reachable via the fabric *)
+  let graph = ( List.fold fabric ~init:graph
+      ~f:(fun g (src, sink, condition, action) ->
+           let open OverEdge in
+           let g' = Overlay.add_edge_e g (src, Exact(condition,action) , sink) in
+           let src' = Hashtbl.Poly.find preds src in
+           let sink' = Hashtbl.Poly.find succs sink in
+           match src', sink' with
+           | Some src', Some sink' ->
+            Overlay.add_edge_e g' (src', Adjacent(condition, action), sink')
+           | _ -> g'
+         ) ) in
+
+  let graph = switch_inter_connect graph in
+  let ingresses, egresses, _ = List.fold policy ~init:([],[],1)
+      ~f:(fun (ins, outs, tag) ((src,sink,_,_) as stream) ->
           try
             let path,_ = OverPath.shortest_path graph src sink in
-            let ingress, egress = stitch path tag naive_stream in
+            let ingress, egress = stitch stream path tag in
             ( List.rev_append ingress ins,
               List.rev_append egress  outs,
               tag + 1 )
           with Not_found ->
             printf "No path between %s and %s\n%!"
-              (string_of_loc src) (string_of_loc sink);
+              (string_of_place src) (string_of_place sink);
             (ins,outs, tag)) in
 
   ingresses, egresses
-
-let conds_of_pred (p:pred) : condition list list =
-  let policy = Frenetic_NetKAT.Filter p in
-  let streams = extract policy in
-  List.fold_left streams ~init:[] ~f:(fun acc (conds, action) ->
-      if (Action.to_policy action) = Frenetic_NetKAT.drop then acc
-      else conds::acc)
