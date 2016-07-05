@@ -7,6 +7,7 @@ module FieldTable = Hashtbl.Make(Field)
 
 type condition = (Value.t option * Value.t list) FieldTable.t
 type place     = (switchId * portId)
+type path      = pred * place list
 type stream    = place * place * condition * Action.t
 
 (** Import and rename utility functions *)
@@ -25,6 +26,45 @@ exception IncompletePlace of string
 exception NonFilterNode of policy
 exception ClashException of string
 exception CorrelationException of string
+
+(** Monadic parser for paths *)
+module PathParser = struct
+
+  open MParser
+  module Tokens = MParser_RE.Tokens
+
+  let symbol = Tokens.symbol
+
+  let pred : (pred, bytes list) MParser.t =
+    char '[' >>
+    many_chars_until (none_of "]") (char ']') >>= fun s ->
+    return (Frenetic_NetKAT_Parser.pred_of_string s)
+
+  let location : (place , bytes list) MParser.t =
+    many_chars_until digit (char '@') >>= fun swid ->
+    many_chars digit >>= fun ptid ->
+    return ((Int64.of_string swid),
+            (Int32.of_string ptid))
+
+  let path : (path, bytes list) MParser.t =
+    pred >>= fun p ->
+    spaces >> (char ':') >> spaces >>
+    location >>= fun start ->
+    (many_until (spaces >> symbol "==>" >> spaces >> location >>= fun l ->
+                 return l)
+       (char ';')) >>= fun ls ->
+    return (p, start::ls)
+
+  let program : (path list, bytes list) MParser.t =
+    many_until (spaces >> path) eof
+
+end
+
+let paths_of_string (s:string) : (path list, string) Result.t =
+  match (MParser.parse_string PathParser.program s []) with
+  | Success paths -> Ok paths
+  | Failed (msg, e) -> Error msg
+
 
 (** Various conversations between types **)
 let pred_of_place ((sw,pt):place) =
@@ -323,8 +363,7 @@ let rec stitch (src,sink,condition,action) path tag =
     | _ -> failwith "Malformed path" in
   aux path
 
-
-let retarget (policy:stream list) (fabric:stream list) (topo:policy) =
+let overlay (policy:stream list) (fabric:stream list) (topo:policy) =
   let preds = find_predecessors topo in
   let succs = find_successors topo in
 
@@ -347,7 +386,10 @@ let retarget (policy:stream list) (fabric:stream list) (topo:policy) =
            | _ -> g'
          ) ) in
 
-  let graph = switch_inter_connect graph in
+  switch_inter_connect graph
+
+let retarget (policy:stream list) (fabric:stream list) (topo:policy) =
+  let graph = overlay policy fabric topo in
   let ingresses, egresses, _ = List.fold policy ~init:([],[],1)
       ~f:(fun (ins, outs, tag) ((src,sink,_,_) as stream) ->
           try
@@ -362,3 +404,6 @@ let retarget (policy:stream list) (fabric:stream list) (topo:policy) =
             (ins,outs, tag)) in
 
   ingresses, egresses
+
+let project (paths: path list) (fabric: stream list) (topo:policy) =
+  [],[]

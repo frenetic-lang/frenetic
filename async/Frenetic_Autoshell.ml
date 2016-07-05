@@ -2,10 +2,9 @@ open Core.Std
 open Async.Std
 open Frenetic_NetKAT
 open Frenetic_Network
-open Frenetic_PathKAT
 open Frenetic_Circuit_NetKAT
 
-module Fabric = Frenetic_BetterFabric
+module Fabric = Frenetic_Fabric
 module Compiler = Frenetic_NetKAT_Compiler
 module Log = Frenetic_Log
 
@@ -372,8 +371,6 @@ let compile_edge c f topo =
 
   let naive     = Fabric.assemble c.policy topo c.ingresses c.egresses in
   let fabric    = Fabric.assemble fpol topo fins fouts in
-  (* let parts     = Fabric.extract naive in *)
-  (* let fab_parts = Fabric.extract fabric in *)
   let parts     = Fabric.streams_of_policy naive in
   let fab_parts = Fabric.streams_of_policy fabric in
   let ins, outs = Fabric.retarget parts fab_parts topo in
@@ -517,14 +514,19 @@ let show (s:show) = match s with
 let path s : unit = match Source.to_string s with
   | Error e -> print_endline e
   | Ok s ->
-    begin match paths_of_string s with
-      | Ok paths ->
-        List.iter paths ~f:(fun (pred, ls) ->
-            let condsls = Frenetic_Fabric.conds_of_pred pred in
-            List.iter condsls ~f:(fun conds ->
-                printf "%s\n"
-                  (Frenetic_NetKAT_Pretty.string_of_pred (Frenetic_Fabric.pred_of_conds conds))))
-      | Error e -> print_endline e end
+    begin match Fabric.paths_of_string s, state.fabric,state.topology with
+      | Ok paths, Some f, Some topo ->
+        (* TODO(basus): Update the edge configuration in the state *)
+        let (fpol,fins,fouts) = (f.config.policy, f.config.ingresses, f.config.egresses) in
+        let fabric      = Fabric.assemble fpol topo fins fouts in
+        let fab_streams = Fabric.streams_of_policy fabric in
+        let ins, outs = Fabric.project paths fab_streams topo in
+        printf "\nIngress policy:\n";
+        List.iter ins (fun p -> printf "%s\n" (string_of_policy p));
+        printf "\nEgress policy:\n";
+        List.iter outs (fun p -> printf "%s\n" (string_of_policy p));
+      | Ok paths, _, _ -> print_endline "Pathfinding needs both fabric and topology"
+      | Error e, _, _ -> print_endline e end
 
 let print_result r : unit = match r with
   | Ok msg  -> printf "Success: %s\n" msg
