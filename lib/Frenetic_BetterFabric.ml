@@ -275,7 +275,7 @@ let switch_inter_connect g =
    forwards on edge switches, generate ingress, egress, or bounce rules to
    stitch the hops together, forming a VLAN-tagged path between the naive
    policy endpoints *)
-let rec stitch src sink path tag condition action =
+let rec stitch (src,sink,condition,action) path tag =
   let open OverEdge in
   let rec aux path = match path with
     | [] -> ([], [])
@@ -331,10 +331,10 @@ let retarget (policy:stream list) (fabric:stream list) (topo:policy) =
 
   let graph = switch_inter_connect graph in
   let ingresses, egresses, _ = List.fold policy ~init:([],[],1)
-      ~f:(fun (ins, outs, tag) (src,sink,condition,action) ->
+      ~f:(fun (ins, outs, tag) ((src,sink,_,_) as stream) ->
           try
             let path,_ = OverPath.shortest_path graph src sink in
-            let ingress, egress = stitch src sink path tag condition action in
+            let ingress, egress = stitch stream path tag in
             ( List.rev_append ingress ins,
               List.rev_append egress  outs,
               tag + 1 )
