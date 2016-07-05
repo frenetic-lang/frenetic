@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 530324c9b3da8ffbe4278a9304b95a08)
+# DO NOT EDIT (digest: 368893901669e1036748f6239a011f16)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -110,6 +110,32 @@ true: annot, bin_annot
 "frenetic/openflow.native": package(yojson)
 "frenetic/openflow.native": use_async
 "frenetic/openflow.native": use_frenetic
+# Executable firepath
+"frenetic/firepath.native": package(async)
+"frenetic/firepath.native": package(async_extended)
+"frenetic/firepath.native": package(base64)
+"frenetic/firepath.native": package(camlp4)
+"frenetic/firepath.native": package(camlp4.extend)
+"frenetic/firepath.native": package(camlp4.lib)
+"frenetic/firepath.native": package(cohttp)
+"frenetic/firepath.native": package(cohttp.async)
+"frenetic/firepath.native": package(core)
+"frenetic/firepath.native": package(cstruct)
+"frenetic/firepath.native": package(cstruct.async)
+"frenetic/firepath.native": package(mparser)
+"frenetic/firepath.native": package(mparser.re)
+"frenetic/firepath.native": package(ocamlgraph)
+"frenetic/firepath.native": package(ppx_deriving.enum)
+"frenetic/firepath.native": package(ppx_deriving.eq)
+"frenetic/firepath.native": package(ppx_jane)
+"frenetic/firepath.native": package(ppx_sexp_conv)
+"frenetic/firepath.native": package(str)
+"frenetic/firepath.native": package(tcpip)
+"frenetic/firepath.native": package(threads)
+"frenetic/firepath.native": package(ulex)
+"frenetic/firepath.native": package(yojson)
+"frenetic/firepath.native": use_async
+"frenetic/firepath.native": use_frenetic
 <frenetic/*.ml{,i,y}>: package(async)
 <frenetic/*.ml{,i,y}>: package(async_extended)
 <frenetic/*.ml{,i,y}>: package(base64)

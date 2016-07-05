@@ -124,6 +124,18 @@ Executable openflow
     frenetic.async,
     async_extended
 
+Executable firepath
+  Path: frenetic
+  MainIs: firepath.ml
+  Install: true
+  CompiledObject: native
+  BuildDepends:
+    async,
+    core,
+    frenetic,
+    frenetic.async,
+    async_extended
+
 Library syntax
   Path: syntax
   Findlibparent: frenetic
