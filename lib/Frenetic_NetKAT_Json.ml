@@ -351,6 +351,9 @@ let port_stat_to_json (portStat: Frenetic_OpenFlow.portStats) : json =
     ("rx_crc_err", `Int (Int64.to_int_exn portStat.port_rx_crc_err));
     ("collisions", `Int (Int64.to_int_exn portStat.port_collisions))]
 
+let port_stat_to_json_string (portStat: Frenetic_OpenFlow.portStats) : string =
+  Yojson.Basic.to_string ~std:true (port_stat_to_json portStat)
+
 let event_to_json (event : event) : json =
   let open Yojson.Basic.Util in
   match event with
@@ -396,13 +399,12 @@ let event_to_json (event : event) : json =
       ("port_id",   `Int (Int32.to_int_exn pt_id))
     ]
   | PortStats (sw_id, portStats) ->
-    (* TODO: portStats should be a list, so use map *)
-    (*`List (List.map portStats ~f:port_stat_to_json) *)
     `List [ port_stat_to_json portStats ]
   | FlowStats (sw_id, flowStats) ->
-    (* TODO: FLowStats is not really an event, so we pass back a query event instead *)
-    `Assoc [("packets", `Int (Int64.to_int_exn flowStats.flow_packet_count));
-          ("bytes", `Int (Int64.to_int_exn flowStats.flow_byte_count))]
+    `Assoc [
+      ("packets", `Int (Int64.to_int_exn flowStats.flow_packet_count));
+      ("bytes", `Int (Int64.to_int_exn flowStats.flow_byte_count))
+    ]
 
 let event_to_json_string (event : event) : string =
   Yojson.Basic.to_string ~std:true (event_to_json event)

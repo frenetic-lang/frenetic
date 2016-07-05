@@ -18,11 +18,6 @@ type client = {
 
 let current_compiler_options = ref Comp.default_compiler_options
 
-(* TODO(arjun):
-
-  <facepalm>
-
-  These are OpenFlow 1.0 types. Everywhere else, we are using SDN_Types. *)
 let port_to_json port = `Int (Int32.to_int_exn port)
 
 let switch_and_ports_to_json (sw, ports) =
@@ -34,11 +29,6 @@ let current_switches_to_json lst =
 
 let current_switches_to_json_string lst =
   Yojson.Basic.to_string ~std:true (current_switches_to_json lst)
-
-let port_stat_to_json_string portStat = 
-  Yojson.Basic.to_string ~std:true (Frenetic_NetKAT_Json.port_stat_to_json portStat) 
-
-(* </facepalm> *)
 
 let unions (pols : policy list) : policy =
   List.fold_left pols ~init:drop ~f:(fun p q -> Union (p, q))
@@ -84,7 +74,7 @@ let handle_request
     | `GET, ["port_stats"; switch_id; port_id] ->
        port_stats (Int64.of_string switch_id) (Int32.of_string port_id)
        >>= fun portStats ->
-       Server.respond_with_string (port_stat_to_json_string portStats)
+       Server.respond_with_string (Frenetic_NetKAT_Json.port_stat_to_json_string portStats)
     | `GET, ["current_switches"] ->
       switches () >>= fun switches ->
       Server.respond_with_string (current_switches_to_json_string switches)

@@ -36,7 +36,7 @@ val policy_to_json_string : policy -> string
 (** Sames as stats_to_json but returns json string *)
 val stats_to_json_string : Int64.t * Int64.t -> string
 
-val port_stat_to_json : portStats -> json 
+val port_stat_to_json_string : portStats -> string 
 
 (* Used to be in Frenetic_NetKAT_SDN_Json *)                                                                         
 val pseudoport_to_json : pseudoport -> json
