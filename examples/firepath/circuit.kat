@@ -1,0 +1,26 @@
+(filter (switch=4 and port=2);
+  channel:=1;
+  4@1=>6@1;
+  port:=3 ) |
+(filter (switch=6 and port=3);
+  channel:=1;
+  6@1=>4@1;
+  port:=2 ) |
+(filter (switch=5 and port=2);
+  channel:=2;
+  5@1=>6@2;
+  port:=4 )
+(filter (switch=6 and port=4);
+  channel:=2;
+  6@2=>5@1;
+  port:=2 ) |
+(filter (switch=4 and port=3);
+  channel:=3;
+  4@1=>6@1;
+  6@2=>5@1;
+  port:=3 ) |
+(filter (switch=5 and port=3);
+  channel:=3;
+  5@1=>6@2;
+  6@1=>4@1;
+  port:=3 )

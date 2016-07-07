@@ -5,8 +5,8 @@ open Frenetic_Network
 open Frenetic_Circuit_NetKAT
 
 module Shell  = Frenetic_Autoshell
-module Parser = Frenetic_NetKAT_Parser
 module Fabric = Frenetic_Fabric
+module Parser = Frenetic_NetKAT_Parser
 module Compiler = Frenetic_NetKAT_Compiler
 module Log = Frenetic_Log
 
@@ -29,9 +29,11 @@ let bounce = Parser.policy_of_file bounce_path |> compile_local
 
 let () =
   let topo = Parser.policy_of_file topo_path in
-  let fabric = Fabric.assemble (Parser.policy_of_file fab_path) topo fins fouts in
   let circuit = Parser.policy_of_file circ_path |>
                 config_of_policy in
+  let fabric = match circuit with
+    | Error e -> failwith e
+    | Ok c -> local_policy_of_config c in
   let path_string = try
       let chan = In_channel.create pol_path in
       In_channel.input_all chan
@@ -40,7 +42,8 @@ let () =
     | Error e -> failwith e
     | Ok paths ->
       let ins, outs = Fabric.project paths (Fabric.streams_of_policy fabric) topo in
-      let edge    = Frenetic_NetKAT.Union (union ins, union outs) in
-      let fdd = compile_local edge in
-      Shell.install_fdd fdd [1L;2L;3L] |> Shell.print_deferred_results;
-      Shell.install_fdd bounce [4L] |> Shell.print_deferred_results;
+      let edge = Frenetic_NetKAT.Union (union ins, union outs) |> compile_local in
+      let fab = compile_local fabric in
+      Shell.install_fdd fab [4L;5L;6L]  |> Shell.print_deferred_results;
+      Shell.install_fdd edge [1L;2L;3L] |> Shell.print_deferred_results;
+      Shell.install_fdd bounce [7L] |> Shell.print_deferred_results;
