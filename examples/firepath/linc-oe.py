@@ -27,7 +27,7 @@ def start(ip="127.0.0.1",port=6633):
     s2 = net.addSwitch('s2', dpid='00:00:00:00:00:00:00:02')
     s3 = net.addSwitch('s3', dpid='00:00:00:00:00:00:00:03')
     # s4 is the "bounce" switch, morally the firewall
-    s4 = net.addSwitch('s4', dpid='00:00:00:00:00:00:00:04')
+    s7 = net.addSwitch('s7', dpid='00:00:00:00:00:00:00:07')
 
     # Add optical switches
     r1 = net.addSwitch('r1', dpid='00:00:00:00:00:00:00:04', cls=LINCSwitch)
@@ -48,9 +48,10 @@ def start(ip="127.0.0.1",port=6633):
     net.addLink(s2, r2, 2, 2, cls=LINCLink)
     net.addLink(s2, r2, 3, 3, cls=LINCLink)
     net.addLink(s3, r3, 1, 3, cls=LINCLink)
+    net.addLink(s3, r3, 2, 4, cls=LINCLink)
 
     # Add the s3 firewall link
-    net.addLink(s3, s4, 2, 1)
+    net.addLink(s3, s7, 3, 1)
 
     # Start the network and prime other ARP caches
     net.start()
