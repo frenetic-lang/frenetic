@@ -6,6 +6,12 @@ open Frenetic_NetKAT
 
 module FieldTable : Hashtbl.S with type key = Field.t
 
+exception IncompletePlace of string
+exception NonExistentPath of string
+exception NonFilterNode of policy
+exception ClashException of string
+exception CorrelationException of string
+
 type condition = (Value.t option * Value.t list) FieldTable.t
 type place     = (switchId * portId)
 type path      = pred * place list
