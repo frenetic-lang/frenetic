@@ -263,14 +263,18 @@ let stream_of_fdd_path (action,headers) : stream =
       ~f:(fun (sw,pt) (f, p, ns) ->
           update sw pt tbl f p ns) in
   let dst_sw, dst_pt, action = destination_of_action action in
-  (place_of_options src_sw src_pt, place_of_options dst_sw dst_pt,
-   tbl, action)
+  let src = place_of_options src_sw src_pt in
+  let dst = place_of_options dst_sw dst_pt in
+  (src, dst, tbl, action)
 
 let conditions_of_pred (p:pred) : condition list =
-  let pol = Filter p in
+  let sentinel = Mod( Location( Pipe "sentinel" )) in
+  let pol = Seq( Filter p, sentinel ) in
   let fdd = compile_local pol in
   let paths = paths_of_fdd fdd in
-  List.map paths ~f:condition_of_fdd_path
+  List.fold_left paths ~init:[] ~f:(fun acc ((a,hs) as p) ->
+      if String.Set.mem (Action.pipes a) "sentinel"
+      then (condition_of_fdd_path p)::acc else acc)
 
 
 let streams_of_policy (pol:policy) : stream list =
@@ -435,7 +439,6 @@ let project_path pred ps tag graph =
         let msg = sprintf "No path between %s and %s\n%!"
             (string_of_place src) (string_of_place sink) in
         raise (NonExistentPath msg))
-
 
 
 let project (paths: path list) (fabric: stream list) (topo:policy) =
