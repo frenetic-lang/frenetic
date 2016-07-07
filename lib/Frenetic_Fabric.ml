@@ -84,8 +84,10 @@ let pred_of_condition (c:condition) : pred =
 
 let place_of_options sw pt = match sw, pt with
   | Some sw, Some pt -> (sw, pt)
-  | None   , Some pt -> raise (IncompletePlace "No switch specified")
-  | Some sw, None    -> raise (IncompletePlace "No port specified")
+  | None   , Some pt -> raise (IncompletePlace
+                                 (sprintf "No switch specified for port %ld" pt))
+  | Some sw, None    -> raise (IncompletePlace
+                                 (sprintf "No port specified for switch %Ld" sw))
   | None   , None    -> raise (IncompletePlace "No switch and port specified")
 
 
@@ -114,7 +116,14 @@ let find_predecessors (topo:policy) =
       populate p1;
       populate p2
     | Link (s1,p1,s2,p2) ->
-      Hashtbl.Poly.add_exn table (s2,p2) (s1,p1);
+      begin match Hashtbl.Poly.add table (s2,p2) (s1,p1) with
+      | `Ok -> ()
+      | `Duplicate ->
+        let s1', p1' = Hashtbl.Poly.find_exn table (s2,p2) in
+        failwith (sprintf
+                    "Duplicate detected for (%Ld:%ld) => (%Ld:%ld). Previously had (%Ld:%ld)."
+                    s1 p1 s2 p2 s1' p1')
+      end
     | p -> failwith (sprintf "Unexpected construct in policy: %s\n"
                        (Frenetic_NetKAT_Pretty.string_of_policy p)) in
   populate topo;
