@@ -99,6 +99,9 @@ let string_of_place ((sw,pt):place) =
   sprintf "(%Ld:%ld)" sw pt
 
 (* TODO(basus): remove conversions to policies *)
+let string_of_condition (c:condition) : string =
+  (string_of_pred (pred_of_condition c))
+
 let string_of_stream (s:stream) : string =
   let (sw_in, pt_in), (sw_out, pt_out), condition, action = s in
   sprintf
@@ -334,39 +337,79 @@ end
 
 module OverPath = Graph.Path.Dijkstra(Overlay)(Weight)
 
+let satisfy (c:condition) : policy list =
+  FieldTable.fold c ~init:[] ~f:(fun ~key ~data acc -> match data with
+      | Some pos, [] -> Mod( Pattern.to_hv (key, pos) )::acc
+      | Some pos, negs ->
+        if List.exists negs (fun f -> f = pos)
+        then raise (ClashException (sprintf "Unsatisfiable condition %s"
+                                      (string_of_condition c)))
+        else Mod( Pattern.to_hv (key, pos) )::acc
+      | None, [] -> acc
+      | None, negs ->
+        (* TODO(basus) : this is incomplete. Need to find a predicate that
+           doesn't match any of the negs. *)
+        acc)
+
+let generalize (hop:Overlay.E.t) (cond:condition) : policy list * policy list =
+  let places_only c =
+    FieldTable.fold c ~init:true ~f:(fun ~key ~data acc ->
+        acc && (key = Field.Switch || key = Field.Location)) in
+  let is_subset c c' =
+    FieldTable.fold c ~init:true ~f:(fun ~key ~data acc ->
+        acc && (FieldTable.mem c' key)) in
+
+  let _,fabric_path,_ = hop in
+  match fabric_path with
+  | Internal -> [], []
+  | Exact (cond',_)
+  | Adjacent (cond',_) ->
+    if places_only cond' then [], []
+    else if is_subset cond' cond then
+      let mods = satisfy cond' in
+      let restore = satisfy cond in
+      (mods, restore)
+    else failwith "Encapsulation needed"
+
 (* Given a list of hops consisting of alternating fabric paths and internal
    forwards on edge switches, generate ingress, egress, or bounce rules to
    stitch the hops together, forming a VLAN-tagged path between the naive
    policy endpoints *)
 let rec stitch (src,sink,condition,action) path tag =
   let open OverEdge in
-  let rec aux path = match path with
+  let rec aux path restore = match path with
     | [] -> ([], [])
     | (_,Internal,(_,in_pt))::rest ->
       let start = pred_of_place src in
-      let cond = pred_of_condition condition in
-      let filter = Filter( And( start, cond )) in
-      let ingress = seq [ filter;
-                          Mod( Vlan tag );
-                          Mod( Location( Physical in_pt)) ] in
-      let ins, outs = aux rest in
+      let pred = pred_of_condition condition in
+      let filter = Filter( And( start, pred )) in
+      let generalize,restore = generalize (List.hd_exn rest) condition in
+      let ingress = seq ( filter::(List.append generalize
+                                     [ Mod( Vlan tag );
+                                       Mod( Location( Physical in_pt)) ])) in
+      let ins, outs = aux rest restore in
       (ingress::ins, outs)
     | (_,Adjacent _,_)::((out_sw,out_pt),Internal,(_,in_pt))::rest ->
       let test_loc = And( Test( Switch out_sw ),
                           Test( Location( Physical out_pt ))) in
       let filter = Filter( And( Test( Vlan tag ),
                                 test_loc )) in
-      let egress = begin match rest with
+      begin match rest with
         | [] ->
           let mods = Action.to_policy action in
           let out = Mod( Location( Physical (snd sink) )) in
-          seq [ filter; Mod( Vlan strip_vlan); Seq(mods, out)]
+          let egress = seq ( filter::Mod( Vlan strip_vlan)::(List.append restore
+                                                               [ mods; out]) ) in
+          ([], [egress])
         | rest ->
-          seq [ filter; Mod( Location( Physical in_pt )) ] end in
-      let ins, outs = aux rest in
-      (ins, egress::outs)
+          let out = Mod( Location( Physical in_pt )) in
+          let generalize, restore' = generalize (List.hd_exn rest) condition in
+          let modify = List.append restore generalize in
+          let egress = seq ( filter::(List.append modify [out])) in
+          let ins, outs = aux rest restore' in
+          (ins, egress::outs) end
     | _ -> failwith "Malformed path" in
-  aux path
+  aux path []
 
 let overlay (places:place list) (fabric:stream list) (topo:policy) =
   let preds = find_predecessors topo in
