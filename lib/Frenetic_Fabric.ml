@@ -351,6 +351,13 @@ let satisfy (c:condition) : policy list =
            doesn't match any of the negs. *)
         acc)
 
+let undo c c' =
+  FieldTable.fold c ~init:[] ~f:(fun ~key ~data acc ->
+      let values = FieldTable.find c' key in
+      match values with
+      | Some(Some v, _) -> Mod( Pattern.to_hv (key,v) )::acc
+      | _ -> failwith "Cannot undo")
+
 let generalize (hop:Overlay.E.t) (cond:condition) : policy list * policy list =
   let places_only c =
     FieldTable.fold c ~init:true ~f:(fun ~key ~data acc ->
@@ -367,9 +374,13 @@ let generalize (hop:Overlay.E.t) (cond:condition) : policy list * policy list =
     if places_only cond' then [], []
     else if is_subset cond' cond then
       let mods = satisfy cond' in
-      let restore = satisfy cond in
+      let restore = undo cond' cond in
       (mods, restore)
-    else failwith "Encapsulation needed"
+    else
+      let mods = satisfy cond' in
+      let encapsulate = Mod( Location( Pipe( "encapsulate" ))) in
+      let restore = Mod( Location( Pipe( "decapsulate" ))) in
+      (encapsulate::mods, [restore])
 
 (* Given a list of hops consisting of alternating fabric paths and internal
    forwards on edge switches, generate ingress, egress, or bounce rules to
