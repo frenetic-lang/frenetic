@@ -334,15 +334,6 @@ end
 
 module OverPath = Graph.Path.Dijkstra(Overlay)(Weight)
 
-(* Add edges between ports of the same switch *)
-let switch_inter_connect g =
-  let open OverEdge in
-  Overlay.fold_vertex (fun (sw,pt) g ->
-      Overlay.fold_vertex (fun (sw',pt') g ->
-          if sw = sw' && not (pt = pt')
-          then Overlay.add_edge_e g ((sw,pt), Internal, (sw,pt'))
-          else g ) g g) g g
-
 (* Given a list of hops consisting of alternating fabric paths and internal
    forwards on edge switches, generate ingress, egress, or bounce rules to
    stitch the hops together, forming a VLAN-tagged path between the naive
@@ -398,7 +389,12 @@ let overlay (places:place list) (fabric:stream list) (topo:policy) =
            | _ -> g'
          ) ) in
 
-  switch_inter_connect graph
+  (* Add edges between ports of the same switch *)
+  Overlay.fold_vertex (fun (sw,pt) g ->
+      Overlay.fold_vertex (fun (sw',pt') g ->
+          if sw = sw' && not (pt = pt')
+          then Overlay.add_edge_e g ((sw,pt), Internal, (sw,pt'))
+          else g ) g g) graph graph
 
 let retarget (policy:stream list) (fabric:stream list) (topo:policy) =
   let places = List.fold_left policy ~init:[] ~f:(fun acc (src, sink,_,_) ->
