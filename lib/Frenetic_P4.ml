@@ -114,3 +114,131 @@ let string_of_p4 (parsers, tables) =
       add_string buffer (string_of_table t);
       add_string buffer "\n" );
   contents buffer
+
+let header_types = Hashtbl.Poly.of_alist_exn
+    [ (Eth,
+"header_type ethernet_t {
+    fields {
+        dstAddr : 48;
+        srcAddr : 48;
+        etherType : 16;
+    }
+}");
+      (Ip,
+"header_type ipv4_t {
+    fields {
+        version : 4;
+        ihl : 4;
+        diffserv : 8;
+        totalLen : 16;
+        identification : 16;
+        flags : 3;
+        fragOffset : 13;
+        ttl : 8;
+        protocol : 8;
+        hdrChecksum : 16;
+        srcAddr : 32;
+        dstAddr: 32;
+    }
+}");
+      (Tcp,
+"
+header_type tcp_t {
+    fields {
+        srcPort : 16;
+        dstPort : 16;
+        seqNo : 32;
+        ackNo : 32;
+        dataOffset : 4;
+        res : 3;
+        ecn : 3;
+        urg : 1;
+	ack : 1;
+	push : 1;
+	rst : 1;
+	syn : 1;
+	fin : 1;
+        window : 16;
+        checksum : 16;
+        urgentPtr : 16;
+    }
+}");
+      (Arp,
+"
+header_type arp_t {
+    fields {
+        hrd : 16;
+        pro : 16;
+        hln : 8;
+        pln : 8;
+        op  : 16;
+        sha : 48;
+        spa : 32;
+        tha : 48;
+        tpa : 32;
+    }
+}");
+      (Udp,
+"header_type udp_t {
+    fields {
+        srcPort : 16;
+        dstPort : 16;
+        length_ : 16;
+        checksum : 16;
+    }
+}") ]
+
+let headers = Hashtbl.Poly.of_alist_exn
+    [ (Eth, "header ethernet_t ethernet;");
+      (Ip, "header ipv4_t ipv4;");
+      (Tcp, "header tcp_t tcp;");
+      (Arp, "header arp_t arp;");
+      (Udp, "header udp_t udp;"); ]
+
+let code_of_parser p =
+  let find = Hashtbl.Poly.find in
+  match find header_types p, find headers p with
+  | Some ht, Some h -> String.concat ~sep:"\n" [ht;h]
+  | _ -> sprintf "Missing header or header type for %s" (show_parser p)
+
+let code_of_field (c:Field.t) = match c with
+  | EthType -> "ethernet.etherType : exact;"
+  | EthSrc  -> "ethernet.srcAddr : exact;"
+  | EthDst -> "ethernet.dstAddr : exact;"
+  | IP4Src -> "ipv4.srcAddr : exact;"
+  | IP4Dst -> "ipv4.dstAddr : exact;"
+  | IPProto -> "ipv4.protocol : exact;"
+  | TCPSrcPort -> "tcp.srcPort : exact;"
+  | TCPDstPort -> "tcp.dstPort : exact;"
+  | _ -> ""
+
+let code_of_action a = match a with
+  | Actions a -> Action.to_string a
+  | Jump (id,_,_) -> sprintf "goto_tbl_%d" id
+
+let code_of_table (id,fs,acts) =
+  let fields = String.concat ~sep:"\n" (List.map fs ~f:code_of_field) in
+  let actions = String.concat  ~sep:"\n" (List.dedup (List.map acts ~f:code_of_action)) in
+  sprintf
+    "table tbl_%d {
+    reads {
+         %s
+    }
+    actions {
+         %s
+    }
+}
+" id fields actions
+
+(* Expected control block: *)
+(* control ingress { *)
+(*     apply(tbl_2) *)
+(*       { goto_tbl_1 { *)
+(*             apply(tbl_1); *)
+(*       }} *)
+(* } *)
+
+let code_of_p4 (parsers, tables) =
+  let ps = String.concat ~sep:"\n" (List.map parsers ~f:code_of_parser) in
+  let tbls = String.concat ~sep:"\n" (List.map tables ~f:code_of_table) in
+  String.concat ~sep:"\n" [ps ; tbls]

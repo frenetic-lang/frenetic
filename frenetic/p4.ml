@@ -9,4 +9,4 @@ let pol_file = "examples/p4.kat"
 let () =
   let pol = Parser.policy_of_file pol_file in
   let p4 = p4_of_policy pol in
-  print_endline (string_of_p4 p4)
+  print_endline (code_of_p4 p4)
