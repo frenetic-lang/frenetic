@@ -1,0 +1,4 @@
+if ip4Dst = 10.0.0.1 then port:=1
+else if ip4Dst = 10.0.0.2 and tcpDstPort = 22 then port:=2
+else if ip4Dst = 10.0.0.2 and tcpDstPort = 80 then port:=3
+else drop

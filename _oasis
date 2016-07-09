@@ -37,6 +37,7 @@ Library frenetic
     mparser.re,
     ppx_jane,
     ppx_deriving.eq,
+    ppx_deriving.show,
     ppx_deriving.enum,
     str,
     tcpip,
@@ -135,6 +136,19 @@ Executable firepath
     frenetic,
     frenetic.async,
     async_extended
+
+Executable p4
+  Path: frenetic
+  MainIs: p4.ml
+  Install: true
+  CompiledObject: native
+  BuildDepends:
+    async,
+    core,
+    frenetic,
+    frenetic.async,
+    async_extended
+
 
 Library syntax
   Path: syntax
