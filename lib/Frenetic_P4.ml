@@ -117,15 +117,29 @@ let string_of_p4 (parsers, tables) =
 
 let header_types = Hashtbl.Poly.of_alist_exn
     [ (Eth,
-"header_type ethernet_t {
+       "header_type ethernet_t {
     fields {
         dstAddr : 48;
         srcAddr : 48;
         etherType : 16;
     }
 }");
+      (Arp,
+       " header_type arp_t {
+    fields {
+        hrd : 16;
+        pro : 16;
+        hln : 8;
+        pln : 8;
+        op  : 16;
+        sha : 48;
+        spa : 32;
+        tha : 48;
+        tpa : 32;
+    }
+}");
       (Ip,
-"header_type ipv4_t {
+       "header_type ipv4_t {
     fields {
         version : 4;
         ihl : 4;
@@ -141,8 +155,17 @@ let header_types = Hashtbl.Poly.of_alist_exn
         dstAddr: 32;
     }
 }");
+      (Udp,
+       "header_type udp_t {
+    fields {
+        srcPort : 16;
+        dstPort : 16;
+        length_ : 16;
+        checksum : 16;
+    }
+}");
       (Tcp,
-"
+       "
 header_type tcp_t {
     fields {
         srcPort : 16;
@@ -153,47 +176,174 @@ header_type tcp_t {
         res : 3;
         ecn : 3;
         urg : 1;
-	ack : 1;
-	push : 1;
-	rst : 1;
-	syn : 1;
-	fin : 1;
+        ack : 1;
+        push : 1;
+        rst : 1;
+        syn : 1;
+        fin : 1;
         window : 16;
         checksum : 16;
         urgentPtr : 16;
     }
-}");
-      (Arp,
-"
-header_type arp_t {
-    fields {
-        hrd : 16;
-        pro : 16;
-        hln : 8;
-        pln : 8;
-        op  : 16;
-        sha : 48;
-        spa : 32;
-        tha : 48;
-        tpa : 32;
+}
+#define TCP_OPTIONS_END 0x00
+header_type options_end_t {
+        fields {
+                kind :8;
+        }
+}
+#define TCP_OPTIONS_NOP 0x01
+header_type options_nop_t {
+   fields {
+        kind: 8;
     }
-}");
-      (Udp,
-"header_type udp_t {
-    fields {
-        srcPort : 16;
-        dstPort : 16;
-        length_ : 16;
-        checksum : 16;
-    }
-}") ]
+}
+#define TCP_OPTIONS_MSS 0x02
+header_type options_mss_t {
+   fields {
+        kind : 8;
+        len : 8;
+        MSS : 16;
+   }
+}
+#define TCP_OPTIONS_WSCALE 0x03
+header_type options_wscale_t {
+   fields {
+        kind : 8;
+        len : 8;
+        wscale : 8;
+   }
+}
+
+#define TCP_OPTIONS_SACK 0x04
+header_type options_sack_t {
+   fields {
+        kind: 8;
+        len : 8;
+   }
+}
+#define TCP_OPTIONS_TS 0x08
+header_type options_ts_t {
+   fields {
+        kind: 8;
+        len : 8;
+        ttee : 64;
+   }
+}
+");
+    ]
 
 let headers = Hashtbl.Poly.of_alist_exn
     [ (Eth, "header ethernet_t ethernet;");
       (Ip, "header ipv4_t ipv4;");
-      (Tcp, "header tcp_t tcp;");
       (Arp, "header arp_t arp;");
-      (Udp, "header udp_t udp;"); ]
+      (Udp, "header udp_t udp;");
+      (Tcp, String.concat ~sep:"\n"
+         ["header tcp_t tcp;";
+          "header options_end_t options_end;";
+          "header options_nop_t options_nop[3];";
+          "header options_mss_t options_mss;";
+          "header options_wscale_t options_wscale";
+          "header options_sack_t options_sack";
+          "header options_ts_t options_ts; "
+         ]);
+    ]
+
+let parsers = Hashtbl.Poly.of_alist_exn
+    [ ( Eth,
+"parser parse_ethernet {
+    extract(ethernet);
+    return select(latest.etherType) {
+        0x806: parse_arp;
+        0x0800: parse_ipv4;
+        default: ingress;
+    }
+}");
+      ( Arp,
+"
+parser parse_arp {
+    extract(arp);
+    return ingress;
+}");
+
+      ( Ip,
+"parser parse_ipv4 {
+    extract(ipv4);
+    return select(latest.protocol) {
+        0x11 : parse_udp;
+        6 : parse_tcp;
+        default: ingress;
+    }
+}
+");
+      ( Tcp,
+"header_type my_metadata_t {
+    fields {
+        parse_tcp_options_counter : 8;
+    }
+}
+metadata my_metadata_t my_metadata;
+
+parser parse_tcp {
+    extract(tcp);
+    set_metadata(my_metadata.parse_tcp_options_counter, tcp.dataOffset * 4 - 20);
+    return select(latest.syn) {
+        1: parse_tcp_options;
+        default : ingress;
+    }
+}
+
+parser parse_tcp_options {
+        return select(my_metadata.parse_tcp_options_counter, current(0,8)) {
+                0x0000 mask 0xff00 : ingress;
+                0x0000 mask 0x00ff : parse_end;
+                0x0001 mask 0x00ff : parse_nop;
+                0x0002 mask 0x00ff : parse_mss;
+                0x0003 mask 0x00ff : parse_wscale;
+                0x0004 mask 0x00ff : parse_sack;
+                0x0008 mask 0x00ff : parse_ts;
+        }
+}
+
+parser parse_end {
+        extract(options_end);
+        set_metadata(my_metadata.parse_tcp_options_counter, my_metadata.parse_tcp_options_counter-1);
+        return parse_tcp_options;
+}
+
+parser parse_nop {
+        extract(options_nop[next]);
+        set_metadata(my_metadata.parse_tcp_options_counter, my_metadata.parse_tcp_options_counter-1);
+        return parse_tcp_options;
+}
+
+parser parse_mss {
+        extract(options_mss);
+        set_metadata(my_metadata.parse_tcp_options_counter, my_metadata.parse_tcp_options_counter-4);
+        return parse_tcp_options;
+}
+
+parser parse_wscale {
+        extract(options_wscale);
+        set_metadata(my_metadata.parse_tcp_options_counter, my_metadata.parse_tcp_options_counter-3);
+        return parse_tcp_options;
+}
+
+parser parse_sack {
+        extract(options_sack);
+        set_metadata(my_metadata.parse_tcp_options_counter, my_metadata.parse_tcp_options_counter-2);
+        return parse_tcp_options;
+}
+
+parser parse_ts {
+        extract(options_ts);
+        set_metadata(my_metadata.parse_tcp_options_counter, my_metadata.parse_tcp_options_counter-10);
+        return parse_tcp_options;
+}
+
+");
+    ]
+
 
 let code_of_parser p =
   let find = Hashtbl.Poly.find in
