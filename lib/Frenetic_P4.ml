@@ -24,7 +24,7 @@ and action =
       | Actions of Action.t
       | Jump of table
 
-type p4 = parser list * table list
+type p4 = table * parser list * table list
 
 let compile_local =
   let open Compiler in
@@ -32,6 +32,16 @@ let compile_local =
 
 let tables = FieldTable.create ~size:15 ()
 let table_id = ref 0
+
+let compare_actions a a' = match a,a' with
+  | Actions _, Jump _
+  | Jump _, Actions _ -> 1
+  | Actions a1, Actions a2 -> Action.compare a1 a2
+  | Jump(id1,_,_), Jump(id2,_,_) -> compare id1 id2
+
+let field_of_node node = match FDD.unget node with
+  | FDD.Branch ((f,_),_,_) -> f
+  | FDD.Leaf _ -> failwith "Cannot get field from a leaf node"
 
 let rec traverse node fields : fdd_path list =
   match FDD.unget node with
@@ -43,14 +53,14 @@ let rec traverse node fields : fdd_path list =
     let false_paths = traverse f fields' in
     List.unordered_append true_paths false_paths
   | FDD.Leaf a ->
-    [ (fields,a) ]
+    [ (List.rev fields,a) ]
 
 let update_table field action tbl_opt = match tbl_opt with
   | None ->
     table_id := !table_id + 1;
     (!table_id, [ field ], [action])
   | Some (id,_,actions) ->
-    (id, [field], action::actions)
+    (id, [field], List.dedup ~compare:compare_actions (action::actions) )
 
 let process_path (p:fdd_path) =
   let rec aux (fields,action) = match fields with
@@ -69,6 +79,8 @@ let process_path (p:fdd_path) =
 let p4_of_policy (pol:policy) : p4 =
   let fdd = compile_local pol in
   let paths = traverse fdd [] in
+  let start = field_of_node fdd in
+  print_endline (FDD.to_dot fdd);
   List.iter paths ~f:process_path;
   let parsers,tbls = FieldTable.fold tables ~init:([],[])
       ~f:(fun  ~key ~data (parsers,tables) -> match key with
@@ -92,11 +104,12 @@ let p4_of_policy (pol:policy) : p4 =
         printf "Unsupported match field:%s for table %d\n"
           (Field.to_string key) id;
         (parsers,tables)) in
-  (List.dedup parsers, tbls)
+  (FieldTable.find_exn tables start, List.dedup parsers, tbls)
 
 let string_of_action a : string = match a with
   | Actions a -> Action.to_string a
   | Jump (id,_,_) -> sprintf "Jump:%d" id
+
 let string_of_table (id,fs,acts) : string =
   let fields = String.concat ~sep:";" (List.map fs Field.to_string) in
   let actions = String.concat ~sep:";" (List.map acts string_of_action) in
@@ -362,14 +375,22 @@ let code_of_field (c:Field.t) = match c with
   | TCPDstPort -> "tcp.dstPort : exact;"
   | _ -> ""
 
-let code_of_action a = match a with
+let code_of_define_action a = match a with
+  | Jump (id,_,_) ->
+    sprintf "action goto_tbl_%d { nop }" id
+  | _ -> ""
+
+let code_of_do_action a = match a with
   | Actions a -> Action.to_string a
   | Jump (id,_,_) -> sprintf "goto_tbl_%d" id
 
 let code_of_table (id,fs,acts) =
   let fields = String.concat ~sep:"\n" (List.map fs ~f:code_of_field) in
-  let actions = String.concat  ~sep:"\n" (List.dedup (List.map acts ~f:code_of_action)) in
-  sprintf
+  let actions = String.concat  ~sep:"\n" (List.dedup (List.map acts
+                                                        ~f:code_of_do_action))
+  in
+  let gotos = List.map acts ~f:code_of_define_action in
+  let code = sprintf
     "table tbl_%d {
     reads {
          %s
@@ -378,7 +399,25 @@ let code_of_table (id,fs,acts) =
          %s
     }
 }
-" id fields actions
+" id fields actions in
+  (code, gotos)
+
+let control_code t =
+  let rec apply (id,fs,acts) =
+    let start = sprintf "apply(tbl_%d)" id in
+    let jumps = List.filter acts ~f:(fun a -> match a with
+        | Actions _ -> false
+        | Jump _ -> true) in
+    match jumps with
+    | [] -> (start ^ ";")
+    | js ->
+      let gotos = List.fold js ~init:["};"] ~f:(fun acc action -> match action with
+          | Actions _ -> acc
+          | Jump ((id,_,_) as t) ->
+            (sprintf "goto_tbl_%d { %s };" id (apply t) )::acc) in
+      String.concat ~sep:"\n" (start::" {"::gotos)
+  in
+  sprintf "control ingress { %s }" (apply t)
 
 (* Expected control block: *)
 (* control ingress { *)
@@ -388,7 +427,14 @@ let code_of_table (id,fs,acts) =
 (*       }} *)
 (* } *)
 
-let code_of_p4 (parsers, tables) =
+let flatten lss =
+  List.fold lss ~init:[] ~f:(fun acc ls ->
+      List.fold ls ~init:acc ~f:(fun acc l -> l::acc))
+
+let code_of_p4 (start, parsers, tables) =
   let ps = String.concat ~sep:"\n" (List.map parsers ~f:code_of_parser) in
-  let tbls = String.concat ~sep:"\n" (List.map tables ~f:code_of_table) in
-  String.concat ~sep:"\n" [ps ; tbls]
+  let tables, gotos = List.unzip (List.map tables ~f:code_of_table) in
+  let gotos = String.concat ~sep:"\n" (List.dedup (flatten gotos)) in
+  let tbls = String.concat ~sep:"\n" tables in
+  let ctrl = control_code start in
+  String.concat ~sep:"\n\n" [ps ; gotos; tbls; ctrl]
