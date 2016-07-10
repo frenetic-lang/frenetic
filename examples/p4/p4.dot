@@ -1,0 +1,23 @@
+digraph tdk {
+27 [label="IP4Dst = 167772161/64"];
+27 -> 3;
+27 -> 25 [style="dashed"];
+3 [shape=box label="{[Location := 1]}"];
+25 [label="IP4Dst = 167772162/64"];
+25 -> 24;
+25 -> 0 [style="dashed"];
+24 [label="TCPDstPort = 22"];
+24 -> 9;
+24 -> 17 [style="dashed"];
+9 [shape=box label="{[Location := 2]}"];
+17 [label="TCPDstPort = 80"];
+17 -> 16;
+17 -> 0 [style="dashed"];
+16 [shape=box label="{[Location := 3]}"];
+0 [shape=box label="{}"];
+{rank=same; 24 ;}
+{rank=same; 17 ;}
+{rank=same; 27 ;}
+{rank=same; 25 ;}
+}
+
