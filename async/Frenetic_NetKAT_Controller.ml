@@ -12,7 +12,7 @@ module type PLUGIN = sig
   val switch_features : switchId -> switchFeatures option Deferred.t
   val update : Frenetic_NetKAT_Compiler.t -> unit Deferred.t
   val update_switch : switchId -> Frenetic_NetKAT_Compiler.t -> unit Deferred.t
-  val packet_out : switchId -> portId option -> payload -> Frenetic_NetKAT_Compiler.t -> unit Deferred.t
+  val packet_out : switchId -> portId option -> payload -> Frenetic_NetKAT.policy list -> unit Deferred.t
   val flow_stats : switchId -> Pattern.t -> flowStats Deferred.t
   val port_stats : switchId -> portId -> portStats Deferred.t
 end
@@ -23,7 +23,7 @@ module type CONTROLLER = sig
   val switches : unit -> (switchId * portId list) list Deferred.t
   val port_stats : switchId -> portId -> portStats Deferred.t
   val update : Frenetic_NetKAT.policy -> unit Deferred.t
-  val packet_out : switchId -> portId option -> payload -> Frenetic_NetKAT.policy -> unit Deferred.t
+  val packet_out : switchId -> portId option -> payload -> Frenetic_NetKAT.policy list -> unit Deferred.t
   val query : string -> (int64 * int64) Deferred.t
 end
                                      
@@ -65,8 +65,8 @@ module Make (P:PLUGIN) : CONTROLLER = struct
   let port_stats (sw : switchId) (pt : portId) : portStats Deferred.t =
     P.port_stats sw pt
 
-  let packet_out (sw:switchId) (ingress_port:portId option) (pay:payload) (pol:policy) : unit Deferred.t =
-    P.packet_out sw ingress_port pay (Frenetic_NetKAT_Compiler.compile_local pol)
+  let packet_out (sw:switchId) (ingress_port:portId option) (pay:payload) (pol:policy list) : unit Deferred.t =
+    P.packet_out sw ingress_port pay pol
 
   let get_table (sw_id : switchId) : (Frenetic_OpenFlow.flow * string list) list =
     Frenetic_NetKAT_Compiler.to_table' sw_id !fdd

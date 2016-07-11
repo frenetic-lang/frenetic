@@ -695,7 +695,6 @@ module To0x01 = struct
       | Permanent -> Permanent
       | ExpiresAfter n -> ExpiresAfter n
 
-
   let from_pattern (pat : Pattern.t) : OF10.pattern =
     { dlSrc = pat.dlSrc
     ; dlDst = pat.dlDst
@@ -816,10 +815,8 @@ module To0x01 = struct
 
   let from_flow_stats (ifs: flowStats) : OF10.individualStats =
     { table_id = Int.of_int64_exn ifs.flow_table_id; 
-      (* TODO: This is massivbely difficult *)
-      of_match = OF10.match_all;
-      (* TODO: THis is massively difficult *)
-      actions = [];
+      of_match = from_pattern ifs.flow_pattern;
+      actions = List.map ifs.flow_actions ~f:(fun act -> from_action None act);
       duration_sec = Int32.of_int64_exn ifs.flow_duration_sec; 
       duration_nsec = Int32.of_int64_exn ifs.flow_duration_nsec;
       priority = Int.of_int64_exn ifs.flow_priority;
@@ -888,12 +885,73 @@ module From0x01 = struct
       ; port_collisions = prl.collisions 
     }  
 
+  let from_pattern (pat : OF10.pattern) : Pattern.t =
+    { dlSrc = pat.dlSrc
+    ; dlDst = pat.dlDst
+    ; dlTyp = pat.dlTyp
+    ; dlVlan = (match pat.dlVlan with
+      | None -> None
+      | Some None -> Some (0xffff)
+      | Some (Some x) -> Some (x)
+    )
+    ; dlVlanPcp = pat.dlVlanPcp
+    ; nwSrc = (match pat.nwSrc with
+      | None -> None
+      | Some { m_value = p; m_mask = mo } ->
+        let mask = match mo with 
+        | None -> 0l
+        | Some m -> Int32.(32l - m) in
+        Some (p,mask)
+    )
+    ; nwDst = (match pat.nwDst with
+      | None -> None
+      | Some { m_value = p; m_mask = mo } ->
+        let mask = match mo with 
+        | None -> 0l
+        | Some m -> Int32.(32l - m) in
+        Some (p,mask)
+    )
+    ; nwProto = pat.nwProto
+    ; tpSrc = pat.tpSrc
+    ; tpDst = pat.tpDst
+    ; inPort = match pat.inPort with | None -> None | Some x -> Int.to_int32 x
+    }
+
+  let from_output (pp : OF10.pseudoPort) : pseudoport =
+    match pp with
+      | InPort -> InPort
+      | Table -> Table
+      | Normal -> Normal
+      | Flood -> Flood 
+      | AllPorts -> All
+      | PhysicalPort pport_id -> Physical (Int.to_int32_exn pport_id)
+      | Controller n -> Controller n
+      | Local -> Local
+
+  let from_action (act : OF10.action) : action =
+    match act with
+      | Output pseudoport -> Output (from_output pseudoport)
+      | Enqueue (PhysicalPort pport_id, queue_id) ->
+        Enqueue ((Int.to_int32_exn pport_id), queue_id)
+      | Enqueue _ -> assert false
+      | SetDlSrc dlAddr -> Modify (SetEthSrc dlAddr)
+      | SetDlDst dlAddr -> Modify (SetEthDst dlAddr)
+      | SetDlVlan vl -> 
+        Modify (SetVlan begin match vl with
+          | None -> Some(0xffff) 
+          | Some n -> Some n
+        end)
+      | SetDlVlanPcp pcp -> Modify (SetVlanPcp pcp) 
+      | SetNwSrc nwAddr -> Modify (SetIP4Src nwAddr)
+      | SetNwDst nwAddr -> Modify (SetIP4Dst nwAddr)
+      | SetTpSrc tp -> Modify (SetTCPSrcPort tp) 
+      | SetTpDst tp -> Modify (SetTCPDstPort tp) 
+      | SetNwTos _ -> assert false
+
   let from_individual_stats (ifs: OF10.individualStats ) =
     { flow_table_id = Int64.of_int ifs.table_id; 
-      (* TODO: This is massivbely difficult *)
-      flow_pattern = Pattern.match_all;
-      (* TODO: THis is massively difficult *)
-      flow_actions = [];
+      flow_pattern = from_pattern ifs.of_match;
+      flow_actions = List.map ifs.actions ~f:from_action;
       flow_duration_sec = Int64.of_int32 ifs.duration_sec; 
       flow_duration_nsec = Int64.of_int32 ifs.duration_nsec;
       flow_priority = Int64.of_int ifs.priority;

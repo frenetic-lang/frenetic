@@ -257,6 +257,7 @@ val string_of_event : event -> string
 module OF10 = Frenetic_OpenFlow0x01
 module To0x01 : sig
   val from_pattern : Pattern.t -> OF10.pattern
+  val from_action : OF10.portId option -> action -> OF10.action 
   val from_flow : int -> flow -> OF10.flowMod
   val from_switch_features : switchFeatures -> OF10.SwitchFeatures.t 
   val from_payload : payload -> OF10.payload
@@ -265,6 +266,7 @@ module To0x01 : sig
   val message_from_event : event -> (OF10.switchId * OF10.Message.t) option
 end
 module From0x01 : sig
+  val from_action : OF10.action -> action
   val from_switch_features : OF10.SwitchFeatures.t -> switchFeatures
   val event_from_message : OF10.switchId -> OF10.Message.t -> event option
   val from_port_stats : OF10.portStats -> portStats 

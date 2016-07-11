@@ -60,7 +60,7 @@ let get_client (clientId: string): client =
       { policy_node = node; event_reader = r; event_writer =  w }
     )
 
-(* This module is a parameter because packet_out is called directly.  TODO: get it out *)
+(* The Controller module is a parameter because port_stats and packet_out are called directly. *)
 let handle_request
   (module Controller : Frenetic_NetKAT_Controller.CONTROLLER) 
   ~(body : Cohttp_async.Body.t)
@@ -101,8 +101,8 @@ let handle_request
         (fun str ->
            let json = Yojson.Basic.from_string str in
            Frenetic_NetKAT_Json.pkt_out_from_json json)
-        (fun (sw_id, port_id, payload, policy_list) ->
-           packet_out sw_id port_id payload policy_list >>= fun () -> 
+        (fun (sw_id, port_id, payload, policies) ->
+           packet_out sw_id port_id payload policies >>= fun () -> 
            Cohttp_async.Server.respond `OK)
     | `POST, [clientId; "update_json"] ->
       handle_parse_errors body parse_update_json

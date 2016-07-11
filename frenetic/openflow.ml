@@ -109,7 +109,12 @@ let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit De
     | Initial, `Eof ->
       return () 
     | Initial, `Ok (hdr,Hello bytes) ->
-      (* TODO(jnf): check version? *)
+      (* We could check the version here, but OpenFlow will respond with a HELLO of
+         the latest supported version.  0x04 sends a bitmap of supported versions in the
+         payload, but that requires a 0x04 translation in a 0x01 plugin, which is crazy.
+         It's better just to blow up if the switch doesn't support 0x01, which is
+         what would happen anyway.  A 0x04 version of openflow.ml will check the version
+         correctly because it has a HELLO processor. *)
       serialize 0l SwitchFeaturesRequest;
       loop SentSwitchFeatures
     | Initial, `Ok(hdr,msg) ->

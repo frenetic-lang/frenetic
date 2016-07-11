@@ -203,24 +203,54 @@ let switch_features (switch_id : switchId)  =
     Log.error "Received a reply that's not SwitchFeaturesReply to a GetSwitchFeatures"; 
     assert false
 
-let actions_from_first_row compiler =
-  (* All the actions we need will be in the first row, the match all row, which
-     will always be the only row in the table *)
-  let open Frenetic_NetKAT_Compiler in 
-  let flow_table = to_table 0L compiler in
-  let first_row = List.hd_exn flow_table in
-  let group = first_row.action in
-  let first_par = List.hd_exn group in
-  let first_seq = List.hd_exn first_par in
-  first_seq
+(* We just brute-force this, even though there's significant overlap with from_action *)
+let action_from_policy (pol:Frenetic_NetKAT.policy) : action option =
+  match pol with 
+  | Mod hv -> 
+    begin
+      match hv with 
+      | Location location -> 
+        begin
+          match location with 
+          | Physical p -> Some (Output (Physical p))
+          | FastFail _ -> None
+          | Pipe _ -> Some (Output (Controller 128))
+          | Query q -> None   
+        end
+      | EthSrc dlAddr -> 
+        Some (Modify(SetEthSrc dlAddr))
+      | EthDst dlAddr -> 
+        Some (Modify(SetEthDst dlAddr))
+      | Vlan n -> 
+        Some (Modify(SetVlan (Some n)))
+      | VlanPcp pcp -> 
+        Some (Modify(SetVlanPcp pcp))
+      | EthType dlTyp -> 
+        Some (Modify(SetEthTyp dlTyp))
+      | IPProto nwProto -> 
+        Some (Modify(SetIPProto nwProto))
+      | IP4Src (nwAddr, mask) -> 
+        Some (Modify(SetIP4Src nwAddr))
+      | IP4Dst (nwAddr, mask) -> 
+        Some (Modify(SetIP4Dst nwAddr))
+      | TCPSrcPort tpPort -> 
+        Some (Modify(SetTCPSrcPort tpPort))
+      | TCPDstPort tpPort -> 
+        Some (Modify(SetTCPDstPort tpPort))
+      | Switch _ | VSwitch _ | VPort _ | VFabric _ -> None
+    end
+  | _ -> None
+
+let actions_from_policies pol_list =
+  List.filter_map pol_list ~f:action_from_policy
 
 let packet_out 
   (swid:int64) 
   (ingress_port:portId option) 
   (payload:payload) 
-  (compiler:Frenetic_NetKAT_Compiler.t) =
+  (pol_list:Frenetic_NetKAT.policy list) =
   (* Turn this into a generic PktOut event, then run it through OF10 translator *)
-  let actions = actions_from_first_row compiler in 
+  let actions = actions_from_policies pol_list in 
   let openflow_generic_pkt_out = (payload, ingress_port, actions) in
   let pktout0x01 = Frenetic_OpenFlow.To0x01.from_packetOut openflow_generic_pkt_out in
   LowLevel.send swid 0l (OF10.Message.PacketOutMsg pktout0x01) >>= function
@@ -332,7 +362,7 @@ module BestEffortUpdate0x01 = struct
 
   let bring_up_switch (sw_id : switchId) new_r =
     let table = Comp.to_table ~options:!current_compiler_options sw_id new_r in
-    Log.printf ~level:`Debug "Setting up flow table\n%s"
+    Log.debug "Setting up flow table\n%s"
       (Frenetic_OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id) table);
     Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
       delete_flows_for sw_id >>= fun _ ->

@@ -86,7 +86,8 @@ class PacketOut(object):
             # In Frenetic 4.1, Output is no longer accepted because Output is not a NetKAT
             # policy.  Convert all Output's to Mod(Location())
             if isinstance(action, Output):
-                scrubbed_policies.append(Mod(Location(Physical(p))))
+                ps = action.pseudoport
+                scrubbed_policies.append(Mod(Location(ps)))
             elif isinstance(action, Mod): 
                 if action.hv.header == "location":
                     assert isinstance(action.hv.value, Physical), "Only port outputs are allowed in pkt_out" 

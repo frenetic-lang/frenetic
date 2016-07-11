@@ -151,7 +151,7 @@ let%test "pkt_out returns switch and abstract Packet Out message from Json forma
     843509872345L, 
     Some 20l,
     (NotBuffered (Cstruct.of_string "Hi mom!")), 
-    Union( Mod(Location(Physical 1l)), Mod(Location(Physical 2l)))
+    [ Mod(Location(Physical 1l)); Mod(Location(Physical 2l)) ]
   )
 
 let%test "pkt_out handles buffered data Json format" =
@@ -161,7 +161,7 @@ let%test "pkt_out handles buffered data Json format" =
     843509872345L, 
     None, 
     Buffered (8192374l, Cstruct.of_string ""), 
-    Mod(Location(Pipe "pipe")) 
+    [ Mod(Location(Pipe "pipe")) ] 
   )
 
 let%test "flowTable_to_json serializes a flow table in Json format" = 
