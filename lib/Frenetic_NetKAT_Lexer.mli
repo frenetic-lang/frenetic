@@ -1,14 +1,14 @@
-(** Lexical analyzer for NetKAT  
+(** Lexical analyzer for NetKAT
 
-  Mostly the definitions here are used to placate the Camlp4 parser, which wants parsing functions in a 
-  certain way.   So see camlp4 documentation for descriptions of the functions here.   
+  Mostly the definitions here are used to placate the Camlp4 parser, which wants parsing functions in a
+  certain way.   So see camlp4 documentation for descriptions of the functions here.
 *)
 
 module Loc = Camlp4.PreCast.Loc
 
 module Error : sig
   type t
-  exception E of t 
+  exception E of t
 
   val print : Format.formatter -> t -> unit
   val to_string : t -> string
@@ -22,6 +22,7 @@ type token =
   | IP4ADDR of string
   | ANTIQUOT of string
   | STRING_CONSTANT of string
+  | ID of string
   | EOI
 
 module Token : sig

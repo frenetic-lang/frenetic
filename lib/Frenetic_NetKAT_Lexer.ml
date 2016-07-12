@@ -22,6 +22,7 @@ type token =
   | IP4ADDR of string
   | ANTIQUOT of string
   | STRING_CONSTANT of string
+  | ID of string
   | EOI
 
 module Token = struct
@@ -40,6 +41,7 @@ module Token = struct
       | INT64 s -> sf "INT64 %s" s
       | ANTIQUOT s -> sf "ANTIQUOT %s" s
       | STRING_CONSTANT s -> sf "STRING_CONSTANT %s" s
+      | ID s -> sf "ID %s" s
       | EOI -> sf "EOI"
 
   let print ppf x = Format.pp_print_string ppf (to_string x)
@@ -52,7 +54,7 @@ module Token = struct
   let extract_string =
     function
       | KEYWORD s | INT s | INT64 s | INT32 s |
-        IP4ADDR s | STRING_CONSTANT s -> s
+        IP4ADDR s | STRING_CONSTANT s | ID s -> s
       | tok ->
           invalid_arg
             ("Cannot extract a string from this token: " ^
@@ -146,10 +148,14 @@ let rec token c = lexer
     | "vlanId" | "vlanPcp" | "ethTyp" | "ipProto" | "tcpSrcPort" | "tcpDstPort"
     | "ethSrc" | "ethDst" | "ip4Src"| "ip4Dst" | "and" | "or" | "not" | "id"
     | "drop" | "if" | "then" | "else" | "filter"  | "pipe" | "query"
-    | "begin" | "end" ->
+    | "begin" | "end"
+    | "let" | "in" | "mut" ->
       KEYWORD (L.latin1_lexeme c.lexbuf)
   | "\"" arbitrary_string_without_dbl_quote "\"" ->
+      (* SJS: this looks like an off-by-one bug... *)
       STRING_CONSTANT(L.latin1_sub_lexeme c.lexbuf 1 (L.lexeme_length c.lexbuf - 1))
+  | ident ->
+    ID (L.latin1_lexeme c.lexbuf)
   | _ -> illegal c
 
 (* Swallow all characters in comments *)

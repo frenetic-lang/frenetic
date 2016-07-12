@@ -22,10 +22,6 @@ module Field = struct
     | VFabric
     [@@deriving sexp, enumerate, enum]
 
-  (** The type of packet fields. This is an enumeration whose ordering has an
-      effect on the performance of Tdk operations, as well as the size of the
-      flowtables that the compiler will produce. *)
-
   let num_fields = max + 1
 
   let hash = Hashtbl.hash
@@ -39,8 +35,6 @@ module Field = struct
   let is_valid_order (lst : t list) : bool =
     Set.Poly.(equal (of_list lst) (of_list all))
 
-  (* order[i] = the position of field i in the current ordering.  Indexes are 1..15 assigned by Obj.magic,
-     so that order[1] is the index of the Switch field.  Initial order is the order in which fields appear in this file. *)
   let order = Array.init num_fields ~f:ident
 
   let set_order (lst : t list) : unit =
@@ -62,7 +56,7 @@ module Field = struct
     (* using Obj.magic instead of to_enum for bettter performance *)
     Int.compare order.(Obj.magic x) order.(Obj.magic y)
 
-  let field_of_header_val hv = match hv with
+  let of_header_val hv = match hv with
     | Frenetic_NetKAT.Switch _ -> Switch
     | Frenetic_NetKAT.Location _ -> Location
     | Frenetic_NetKAT.EthSrc _ -> EthSrc
@@ -103,7 +97,7 @@ module Field = struct
       | False -> ()
       | Test hv ->
         if in_product then
-          let fld = field_of_header_val hv in
+          let fld = of_header_val hv in
           let n = Hashtbl.Poly.find_exn count_tbl fld in
           Hashtbl.Poly.set count_tbl ~key:fld ~data:(n + size)
       | Or (a, b) -> f_pred size false a; f_pred size false b

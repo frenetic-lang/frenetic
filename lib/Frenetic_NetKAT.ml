@@ -11,6 +11,7 @@ type payload = Frenetic_OpenFlow.payload [@@deriving sexp]
 type vswitchId = int64 [@@deriving sexp, compare, eq]
 type vportId = int64 [@@deriving sexp, compare, eq]
 type vfabricId = int64 [@@deriving sexp, compare, eq]
+type metaId = string [@@deriving sexp, compare, eq]
 
 let string_of_fastfail = Frenetic_OpenFlow.format_list ~to_string:Int32.to_string
 
@@ -56,6 +57,7 @@ type policy =
   | Star of policy
   | Link of switchId * portId * switchId * portId
   | VLink of vswitchId * vportId * vswitchId * vportId
+  (* | Let of metaId * bool  *)
   [@@deriving sexp]
 
 let id = Filter True
