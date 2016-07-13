@@ -15,6 +15,46 @@ module Value = Frenetic_Fdd.Value
 module Par = Action.Par
 module Seq = Action.Seq
 
+(*==========================================================================*)
+(* ENVIRONMENTS                                                             *)
+(*==========================================================================*)
+
+module type ENV = sig
+
+  type t
+  val empty : t
+
+  exception Full
+
+  val add : t -> string -> t (* may raise Full *)
+  val lookup : t -> string -> Field.t (* may raise Not_found *)
+
+end
+
+module Env : ENV = struct
+
+  type t = { alist : (string * Field.t) list; depth : int }
+  let empty = { alist = []; depth = 0 }
+
+  exception Full
+
+  let add env name =
+    let field =
+      match env.depth with
+      | 0 -> Field.Meta0
+      | 1 -> Field.Meta1
+      | 2 -> Field.Meta2
+      | 3 -> Field.Meta3
+      | 4 -> Field.Meta4
+      | _ -> raise Full
+    in
+    { alist = List.Assoc.add env.alist name field; depth = env.depth + 1}
+
+  let lookup env name =
+    List.Assoc.find_exn env.alist name
+
+end
+
 
 (*==========================================================================*)
 (* LOCAL COMPILATION                                                        *)

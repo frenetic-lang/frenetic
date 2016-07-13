@@ -47,6 +47,12 @@ module Field : sig
       | TCPDstPort
       | Location
       | VFabric
+      (* SJS: for simplicity, support only up to 5 meta fields for now *)
+      | Meta0
+      | Meta1
+      | Meta2
+      | Meta3
+      | Meta4
   [@@deriving sexp]
 
   include Frenetic_Vlr.HashCmp with type t := t

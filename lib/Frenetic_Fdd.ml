@@ -20,6 +20,12 @@ module Field = struct
     | TCPDstPort
     | Location
     | VFabric
+    (* SJS: for simplicity, support only up to 5 meta fields for now *)
+    | Meta0
+    | Meta1
+    | Meta2
+    | Meta3
+    | Meta4
     [@@deriving sexp, enumerate, enum]
 
   let num_fields = max + 1
