@@ -50,7 +50,7 @@ type pred =
   | Neg of pred
   [@@deriving sexp]
 
-type let_init =
+type meta_init =
   | Alias of header_val
   | Const of int64
   [@@deriving sexp]
@@ -63,7 +63,7 @@ type policy =
   | Star of policy
   | Link of switchId * portId * switchId * portId
   | VLink of vswitchId * vportId * vswitchId * vportId
-  | Let of metaId * bool * let_init * policy
+  | Let of metaId * meta_init * policy
   [@@deriving sexp]
 
 let id = Filter True

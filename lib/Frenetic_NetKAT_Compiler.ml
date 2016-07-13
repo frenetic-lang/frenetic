@@ -80,6 +80,10 @@ module FDD = struct
 
   let star t = star' id t
 
+  let hide t meta_field init =
+    failwith "not implemented"
+    (* TODO: implement *)
+
   let rec of_local_pol_k p k =
     let open Frenetic_NetKAT in
     match p with
