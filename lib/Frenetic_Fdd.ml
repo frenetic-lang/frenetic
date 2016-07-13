@@ -2,6 +2,7 @@ open Core.Std
 
 module SDN = Frenetic_OpenFlow
 
+
 module Field = struct
 
   type t
@@ -27,6 +28,7 @@ module Field = struct
     | Meta3
     | Meta4
     [@@deriving sexp, enumerate, enum]
+  type field = t
 
   let num_fields = max + 1
 
@@ -61,6 +63,37 @@ module Field = struct
   let compare (x : t) (y : t) : int =
     (* using Obj.magic instead of to_enum for bettter performance *)
     Int.compare order.(Obj.magic x) order.(Obj.magic y)
+
+  module type ENV = sig
+    type t
+    val empty : t
+    exception Full
+    val add : t -> string -> t (* may raise Full *)
+    val lookup : t -> string -> field (* may raise Not_found *)
+  end
+
+  module Env : ENV = struct
+
+    type t = { alist : (string * field) list; depth : int }
+    let empty = { alist = []; depth = 0 }
+
+    exception Full
+
+    let add env name =
+      let field =
+        match env.depth with
+        | 0 -> Meta0
+        | 1 -> Meta1
+        | 2 -> Meta2
+        | 3 -> Meta3
+        | 4 -> Meta4
+        | _ -> raise Full
+      in
+      { alist = List.Assoc.add env.alist name field; depth = env.depth + 1}
+
+    let lookup env name =
+      List.Assoc.find_exn env.alist name
+  end
 
   let of_header_val hv = match hv with
     | Frenetic_NetKAT.Switch _ -> Switch
