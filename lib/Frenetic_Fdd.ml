@@ -655,7 +655,7 @@ module FDD = struct
 
   include Frenetic_Vlr.Make(Field)(Value)(Action)
 
-  let mk_cont k = mk_leaf Action.(Par.singleton (Seq.singleton K (Value.of_int k)))
+  let mk_cont k = const Action.(Par.singleton (Seq.singleton K (Value.of_int k)))
 
   let conts fdd =
     fold

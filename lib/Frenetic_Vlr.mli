@@ -27,7 +27,7 @@ module type Lattice = sig
 
       In other words, elements related to the greatest lower bound should be
       related transitively through [a] and [b], or be equal to the greatest
-      lower bound itself. 
+      lower bound itself.
 
       TODO: tightness doesn't seem to be used anywhere in Frenetic, and can probably
       be removed.  *)
@@ -136,14 +136,6 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
   val get_uid : t -> int (* get_uid t is equivalent to (t : t :> int) *)
 
-  val mk_branch : v -> t -> t -> t
-  (** [mkbranch v t f] Creates (or looks up if it's already been created) a diagram with pattern
-    v, true-branch t and false-branch f.  The t and f branches should already have been created,
-    so you pass indexes here. *)
-
-  val mk_leaf : r -> t
-  (** [mkleaf r] Creates (or looks up) a leaf.  *)
-
   val drop : t (* zero *)
   (** [drop] returns the leaf for a drop operation, which is always present as a leaf node *)
 
@@ -157,6 +149,14 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   (** [atom v t f] creates a diagram that checks the variable assignment
       [v] holds and returns the result [t] if it does hold, and the result [f]
       otherwise. *)
+
+  val cond : v -> t -> t -> t
+  (** [cond v t f] creates a diagram with pattern v, true-branch t and false-branch f. *)
+
+  val unchecked_cond : v -> t -> t -> t
+  (** Unsafe!! [unchecked_cond v t f] behaves like [cond v t f], but always puts the pattern [v]
+      in the root node, without ensuring the FDD-ordering invariant is enforced. Only use this if you know what you are doing! *)
+
 
   val restrict : v list -> t -> t
   (** [restrict vs t] returns a diagram derived from [t] and that agrees with
@@ -174,8 +174,6 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   val prod : t -> t -> t
   (** [prod a b] returns the conjunction of the two diagrams. The [prod]
       operation on the [r] type is used to combine leaf nodes. *)
-
-  val cond : v -> t -> t -> t
 
   val map : (r -> t) -> (v -> t -> t -> t) -> t -> t
   (** [map f h t] traverses t in post order and first maps the leaves using

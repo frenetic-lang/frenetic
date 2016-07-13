@@ -86,8 +86,16 @@ module FDD = struct
       let init = of_mod env (Meta (meta_field, v)) in
       seq init t
     | Alias hv ->
-      let f, _ = Pattern.of_hv hv in
-      failwith "not implemented"
+      let alias, _ = Pattern.of_hv hv in
+      let meta = Env.lookup env meta_field in
+      fold
+        const
+        (fun (field,v) tru fls ->
+          if field = meta then
+            cond (alias, v) tru fls
+          else
+            cond (field,v) tru fls)
+        t
 
 
   let rec of_local_pol_k env p k =
@@ -136,7 +144,7 @@ module FDD = struct
             Action.Seq.to_hvs seq |> List.map ~f:fst |> FS.of_list in
           FS.union acc (FS.diff fields seq_fields)) in
         let mods = List.filter mods ~f:(fun (f,_) -> FS.mem harmful f) in
-        List.fold mods ~init:(mk_leaf par) ~f:(fun fdd test ->
+        List.fold mods ~init:(const par) ~f:(fun fdd test ->
           cond test (map_r (Action.demod test) fdd) fdd))
       cond
       fdd
@@ -270,19 +278,19 @@ let to_action ?group_tbl (in_port : Int64.t option) r tests =
   |> Action.to_sdn ?group_tbl in_port
 
 let remove_local_fields = FDD.fold
-  (fun r -> mk_leaf (Action.Par.map r ~f:(fun s -> Action.Seq.filteri s ~f:(fun ~key ~data ->
+  (fun r -> const (Action.Par.map r ~f:(fun s -> Action.Seq.filteri s ~f:(fun ~key ~data ->
     match key with
     | Action.F VPort | Action.F VSwitch -> false
     | _ -> true))))
   (fun v t f ->
     match v with
     | Field.VSwitch, _ | Field.VPort, _ -> failwith "uninitialized local field"
-    | _, _ -> mk_branch v t f)
+    | _, _ -> unchecked_cond v t f)
 
 let mk_branch_or_leaf test t f =
   match t with
   | None -> Some f
-  | Some t -> Some (FDD.mk_branch test t f)
+  | Some t -> Some (FDD.unchecked_cond test t f)
 
 let opt_to_table ?group_tbl options sw_id t =
   let t =
