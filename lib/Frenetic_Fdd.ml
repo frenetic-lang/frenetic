@@ -421,7 +421,12 @@ module Pattern = struct
     | (Switch, Const _)
     | (VSwitch, Const _)
     | (VPort, Const _)
-    | (VFabric, Const _) -> assert false
+    | (VFabric, Const _)
+    | (Meta0, Const _)
+    | (Meta1, Const _)
+    | (Meta2, Const _)
+    | (Meta3, Const _)
+    | (Meta4, Const _) -> assert false
     | _, _ -> raise (FieldValue_mismatch(f, v))
 
 end
