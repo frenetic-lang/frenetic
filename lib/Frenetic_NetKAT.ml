@@ -38,6 +38,7 @@ type header_val =
   | VSwitch of vswitchId
   | VPort of vportId
   | VFabric of vfabricId
+  | Meta of metaId * int64
   [@@deriving sexp]
 
 type pred =
@@ -49,6 +50,11 @@ type pred =
   | Neg of pred
   [@@deriving sexp]
 
+type let_init =
+  | Alias of header_val
+  | Const of int64
+  [@@deriving sexp]
+
 type policy =
   | Filter of pred
   | Mod of header_val
@@ -57,7 +63,7 @@ type policy =
   | Star of policy
   | Link of switchId * portId * switchId * portId
   | VLink of vswitchId * vportId * vswitchId * vportId
-  (* | Let of metaId * bool  *)
+  | Let of metaId * bool * let_init * policy
   [@@deriving sexp]
 
 let id = Filter True

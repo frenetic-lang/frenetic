@@ -50,9 +50,6 @@ module Field : sig
   [@@deriving sexp]
 
   include Frenetic_Vlr.HashCmp with type t := t
-  val auto_order : Frenetic_NetKAT.policy -> unit
-  val set_order : t list -> unit
-  val get_order : unit -> t list
 
   (** [all] returns the default field field ordering *)
   val all : t list

@@ -1,8 +1,8 @@
-(** NetKAT Syntax 
+(** NetKAT Syntax
 
   The NetKAT language is central to Frenetic, and we factor out the central types here.  The big actors
   on NetKAT structures are Frenetic_NetKAT_Compiler which compiles NetKAT into flow tables,
-  Frenetic_NetKAT_Parser which turns NetKAT strings (e.g "TcpSrcPort(8080); port := 2") into NetKAT, and 
+  Frenetic_NetKAT_Parser which turns NetKAT strings (e.g "TcpSrcPort(8080); port := 2") into NetKAT, and
   Frenetic_NetKAT_Json which turns JSON-formatted NetKAT into NetKAT
 
 *)
@@ -22,6 +22,7 @@ type payload = Frenetic_OpenFlow.payload [@@deriving sexp]
 type vswitchId = int64 [@@deriving sexp, compare, eq]
 type vportId = int64 [@@deriving sexp, compare, eq]
 type vfabricId = int64 [@@deriving sexp, compare, eq]
+type metaId = string [@@deriving sexp, compare, eq]
 
 (** {2 Policies} *)
 
@@ -50,6 +51,7 @@ type header_val =
   | VSwitch of vswitchId
   | VPort of vportId
   | VFabric of vfabricId
+  | Meta of metaId * int64
   [@@deriving sexp]
 
 type pred =
@@ -61,6 +63,11 @@ type pred =
   | Neg of pred
   [@@deriving sexp]
 
+type let_init =
+  | Alias of header_val
+  | Const of int64
+  [@@deriving sexp]
+
 type policy =
   | Filter of pred
   | Mod of header_val
@@ -69,6 +76,7 @@ type policy =
   | Star of policy
   | Link of switchId * portId * switchId * portId
   | VLink of vswitchId * vportId * vswitchId * vportId
+  | Let of metaId * bool * let_init * policy
   [@@deriving sexp]
 
 val id : policy
