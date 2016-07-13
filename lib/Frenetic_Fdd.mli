@@ -81,6 +81,14 @@ module Field : sig
   val auto_order : Frenetic_NetKAT.policy -> unit
 end
 
+module Env : sig
+  type t
+  val empty : t
+  exception Full
+  val add : t -> string -> t (* may raise Full *)
+  val lookup : t -> string -> Field.t (* may raise Not_found *)
+end
+
 module Value : sig
 
   (** In a BDD, each node is an implicit predicate, "variable = true".  In a FDD, each node is a test of a

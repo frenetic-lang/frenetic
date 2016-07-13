@@ -24,21 +24,21 @@ module FDD = struct
 
   include FDD
 
-  let of_test hv =
+  let of_test env hv =
     atom (Pattern.of_hv hv) Action.one Action.zero
 
-  let of_mod hv =
+  let of_mod env hv =
     let k, v = Pattern.of_hv hv in
     const Action.(Par.singleton (Seq.singleton (F k) v))
 
-  let rec of_pred p =
+  let rec of_pred env p =
     match p with
     | True      -> id
     | False     -> drop
-    | Test(hv)  -> of_test hv
-    | And(p, q) -> prod (of_pred p) (of_pred q)
-    | Or (p, q) -> sum (of_pred p) (of_pred q)
-    | Neg(q)    -> map_r Action.negate (of_pred q)
+    | Test(hv)  -> of_test env hv
+    | And(p, q) -> prod (of_pred env p) (of_pred env q)
+    | Or (p, q) -> sum (of_pred env p) (of_pred env q)
+    | Neg(q)    -> map_r Action.negate (of_pred env q)
 
   let seq_tbl = BinTbl.create ~size:1000 ()
 
@@ -80,29 +80,37 @@ module FDD = struct
 
   let star t = star' id t
 
-  let hide t meta_field init =
-    failwith "not implemented"
-    (* TODO: implement *)
+  let hide env t meta_field init =
+    match init with
+    | Const v ->
+      let init = of_mod env (Meta (meta_field, v)) in
+      seq init t
+    | Alias hv ->
+      let f, _ = Pattern.of_hv hv in
+      failwith "not implemented"
 
-  let rec of_local_pol_k p k =
+
+  let rec of_local_pol_k env p k =
     let open Frenetic_NetKAT in
     match p with
-    | Filter   p  -> k (of_pred p)
-    | Mod      m  -> k (of_mod  m)
-    | Union (p, q) -> of_local_pol_k p (fun p' ->
-                        of_local_pol_k q (fun q' ->
+    | Filter   p  -> k (of_pred env p)
+    | Mod      m  -> k (of_mod  env m)
+    | Union (p, q) -> of_local_pol_k env p (fun p' ->
+                        of_local_pol_k env q (fun q' ->
                           k (union p' q')))
-    | Seq (p, q) -> of_local_pol_k p (fun p' ->
+    | Seq (p, q) -> of_local_pol_k env p (fun p' ->
                       if FDD.equal p' FDD.drop then
                         k FDD.drop
                       else
-                        of_local_pol_k q (fun q' ->
+                        of_local_pol_k env q (fun q' ->
                           k (seq p' q')))
-    | Star p -> of_local_pol_k p (fun p' -> k (star p'))
-    | Let (field, init, p) -> of_local_pol_k p (fun p' -> k (hide p' field init))
+    | Star p -> of_local_pol_k env p (fun p' -> k (star p'))
+    | Let (field, init, p) ->
+      let env = Env.add env field in
+      of_local_pol_k env p (fun p' -> k (hide env p' field init))
     | Link _ | VLink _ -> raise Non_local
 
-  let rec of_local_pol p = of_local_pol_k p ident
+  let rec of_local_pol ?(env=Env.empty) p = of_local_pol_k env p ident
 
   let to_local_pol =
     fold
@@ -700,9 +708,11 @@ module NetKAT_Automaton = struct
     map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) -> (e, dedup_fdd d))
 
   let rec split_pol (automaton : t0) (pol: Pol.t) : FDD.t * FDD.t * ((int * Pol.t) list) =
+    (* SJS: temporary hack *)
+    let env = Env.empty in
     match pol with
-    | Filter pred -> (FDD.of_pred pred, FDD.drop, [])
-    | Mod hv -> (FDD.of_mod hv, FDD.drop, [])
+    | Filter pred -> (FDD.of_pred env pred, FDD.drop, [])
+    | Mod hv -> (FDD.of_mod env hv, FDD.drop, [])
     | Union (p,q) ->
       let (e_p, d_p, k_p) = split_pol automaton p in
       let (e_q, d_q, k_q) = split_pol automaton q in
