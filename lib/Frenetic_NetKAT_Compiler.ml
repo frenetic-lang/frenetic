@@ -99,6 +99,7 @@ module FDD = struct
                         of_local_pol_k q (fun q' ->
                           k (seq p' q')))
     | Star p -> of_local_pol_k p (fun p' -> k (star p'))
+    | Let (field, init, p) -> of_local_pol_k p (fun p' -> k (hide p' field init))
     | Link _ | VLink _ -> raise Non_local
 
   let rec of_local_pol p = of_local_pol_k p ident
