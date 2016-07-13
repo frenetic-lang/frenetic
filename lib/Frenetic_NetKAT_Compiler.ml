@@ -25,10 +25,10 @@ module FDD = struct
   include FDD
 
   let of_test env hv =
-    atom (Pattern.of_hv hv) Action.one Action.zero
+    atom (Pattern.of_hv ~env hv) Action.one Action.zero
 
   let of_mod env hv =
-    let k, v = Pattern.of_hv hv in
+    let k, v = Pattern.of_hv ~env hv in
     const Action.(Par.singleton (Seq.singleton (F k) v))
 
   let rec of_pred env p =
@@ -83,10 +83,10 @@ module FDD = struct
   let hide env t meta_field init =
     match init with
     | Const v ->
-      let init = of_mod env (Meta (meta_field, v)) in
-      seq init t
+      let constr = Pattern.of_hv ~env (Meta (meta_field, v)) in
+      restrict [constr] t
     | Alias hv ->
-      let alias, _ = Pattern.of_hv hv in
+      let alias, _ = Pattern.of_hv ~env hv in
       let meta = Env.lookup env meta_field in
       fold
         const
@@ -96,7 +96,6 @@ module FDD = struct
           else
             cond (field,v) tru fls)
         t
-
 
   let rec of_local_pol_k env p k =
     let open Frenetic_NetKAT in
@@ -222,6 +221,7 @@ let is_valid_pattern options (pat : Frenetic_OpenFlow.Pattern.t) : bool =
       Option.is_none pat.tpDst))
 
 let add_dependency_if_unseen all_tests pat dep =
+  (* SJS: TODO: handle meta fields?? *)
   let dep_pat = Pattern.of_hv dep in
   match List.exists ~f:(Pattern.equal dep_pat) all_tests with
   | true -> None

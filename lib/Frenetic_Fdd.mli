@@ -157,7 +157,7 @@ module Pattern : sig
   val equal : t -> t -> bool
 
   (** [of_hv header_value] converts a NetKAT header_value pair to a pattern *)
-  val of_hv : Frenetic_NetKAT.header_val -> t
+  val of_hv : ?env:Env.t -> Frenetic_NetKAT.header_val -> t
 
   (** [to_hv p] converts a pattern to a NetKAT header_value pair *)
   val to_hv : t -> Frenetic_NetKAT.header_val
@@ -194,7 +194,7 @@ module Action : sig
     (* [equal_mod_k s1 s2] Compares two sequences for equality, ignoring K pseudo-field if it exists *)
     val equal_mod_k : Value.t t -> Value.t t -> bool
 
-    (** [to_hvs s] converts to a sequence to an HVS option list, removing K pseudo-field *)
+    (** [to_hvs s] converts to a sequence to an HVS list, removing K pseudo-field *)
     val to_hvs : Value.t t -> (Field.t * Value.t) list
   end
 
@@ -203,7 +203,7 @@ module Action : sig
      only once, which is why we use a Set here.  *)
     include Set.S with type Elt.t = Value.t Seq.t
 
-   (** [to_hvs s] converts to a sequence to an HVS option list applying sequences in the right order *)
+   (** [to_hvs s] converts to a sequence to an HVS list applying sequences in the right order *)
     val to_hvs : t -> (Field.t * Value.t) list
     val mod_k : t -> t
     val compare_mod_k : t -> t -> int
