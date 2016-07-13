@@ -277,14 +277,18 @@ let to_action ?group_tbl (in_port : Int64.t option) r tests =
   List.fold tests ~init:r ~f:(fun a t -> Action.demod t a)
   |> Action.to_sdn ?group_tbl in_port
 
-let remove_local_fields = FDD.fold
+let erase_meta_fields = FDD.fold
   (fun r -> const (Action.Par.map r ~f:(fun s -> Action.Seq.filteri s ~f:(fun ~key ~data ->
     match key with
-    | Action.F VPort | Action.F VSwitch -> false
+    | Action.F VPort | Action.F VSwitch
+    | Action.F Meta0 | Action.F Meta1 | Action.F Meta2
+    | Action.F Meta3 | Action.F Meta4 -> false
     | _ -> true))))
   (fun v t f ->
     match v with
-    | Field.VSwitch, _ | Field.VPort, _ -> failwith "uninitialized local field"
+    | VSwitch, _ | VPort, _
+    | Meta0, _ | Meta1, _ | Meta2, _ | Meta3, _ | Meta4, _  ->
+      failwith "uninitialized meta field"
     | _, _ -> unchecked_cond v t f)
 
 let mk_branch_or_leaf test t f =
@@ -297,7 +301,7 @@ let opt_to_table ?group_tbl options sw_id t =
     t
     |> restrict [(Field.Switch, Value.Const sw_id)
                 ;(Field.VFabric, Value.Const (Int64.of_int 1))]
-    |> remove_local_fields
+    |> erase_meta_fields
   in
   let rec next_table_row true_tests all_tests mk_rest t =
     match FDD.unget t with
@@ -319,7 +323,7 @@ let opt_to_table ?group_tbl options sw_id t =
   (loop t [] []) |> List.concat
 
 let rec naive_to_table ?group_tbl options sw_id (t : FDD.t) =
-  let t = FDD.(restrict [(Field.Switch, Value.Const sw_id)] t) |> remove_local_fields in
+  let t = FDD.(restrict [(Field.Switch, Value.Const sw_id)] t) |> erase_meta_fields in
   let rec dfs true_tests all_tests t = match FDD.unget t with
   | Leaf actions ->
     let openflow_instruction = [to_action ?group_tbl (get_inport true_tests) actions true_tests] in
@@ -398,7 +402,7 @@ let eval_pipes (p:Frenetic_NetKAT_Semantics.packet) (t:FDD.t) =
   Frenetic_NetKAT_Semantics.eval_pipes p Action.(to_policy (eval_to_action p t))
 
 let to_dotfile t filename =
-  let t = remove_local_fields t in
+  let t = erase_meta_fields t in
   Out_channel.with_file filename ~f:(fun chan ->
     Out_channel.output_string chan (FDD.to_dot t))
 
