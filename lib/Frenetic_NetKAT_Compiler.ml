@@ -221,7 +221,6 @@ let is_valid_pattern options (pat : Frenetic_OpenFlow.Pattern.t) : bool =
       Option.is_none pat.tpDst))
 
 let add_dependency_if_unseen all_tests pat dep =
-  (* SJS: TODO: handle meta fields?? *)
   let dep_pat = Pattern.of_hv dep in
   match List.exists ~f:(Pattern.equal dep_pat) all_tests with
   | true -> None
