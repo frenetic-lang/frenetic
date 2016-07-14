@@ -29,6 +29,7 @@ let nk_pol_seq = Gram.Entry.mk "nk_pol_seq"
 let nk_pol_star = Gram.Entry.mk "nk_pol_star"
 let nk_pol_union = Gram.Entry.mk "nk_pol_union"
 let nk_pol_cond = Gram.Entry.mk "nk_pol_cond"
+let nk_pol_meta = Gram.Entry.mk "nk_pol_meta"
 let nk_int64 = Gram.Entry.mk "nk_int64"
 let nk_int32 = Gram.Entry.mk "nk_int32"
 let nk_int = Gram.Entry.mk "nk_int"
@@ -225,7 +226,13 @@ EXTEND Gram
       MK(Union(Seq(Filter ID(a), ID(p)), Seq(Filter (Neg ID(a)), ID(q))))
   ]];
 
-  nk_pol : [[ p = nk_pol_cond -> p ]];
+  nk_pol_meta : [[
+      p = nk_pol_cond -> p
+    | "let"; id=METAID; ":="; v=nk_int64; "in"; p = nk_pol_meta ->
+    MK(Let(STR(id), Const ID(v), ID(p)))
+  ]];
+
+  nk_pol : [[ p = nk_pol_meta -> p ]];
 
   nk_pol_eoi: [[ x = nk_pol; `EOI -> x ]];
   nk_pred_eoi: [[ x = nk_pred; `EOI -> x ]];

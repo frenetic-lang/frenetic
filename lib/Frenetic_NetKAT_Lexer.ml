@@ -22,7 +22,7 @@ type token =
   | IP4ADDR of string
   | ANTIQUOT of string
   | STRING_CONSTANT of string
-  | ID of string
+  | METAID of string
   | EOI
 
 module Token = struct
@@ -41,7 +41,7 @@ module Token = struct
       | INT64 s -> sf "INT64 %s" s
       | ANTIQUOT s -> sf "ANTIQUOT %s" s
       | STRING_CONSTANT s -> sf "STRING_CONSTANT %s" s
-      | ID s -> sf "ID %s" s
+      | METAID s -> sf "METAID %s" s
       | EOI -> sf "EOI"
 
   let print ppf x = Format.pp_print_string ppf (to_string x)
@@ -54,7 +54,7 @@ module Token = struct
   let extract_string =
     function
       | KEYWORD s | INT s | INT64 s | INT32 s |
-        IP4ADDR s | STRING_CONSTANT s | ID s -> s
+        IP4ADDR s | STRING_CONSTANT s | METAID s -> s
       | tok ->
           invalid_arg
             ("Cannot extract a string from this token: " ^
@@ -155,7 +155,7 @@ let rec token c = lexer
       (* SJS: this looks like an off-by-one bug... *)
       STRING_CONSTANT(L.latin1_sub_lexeme c.lexbuf 1 (L.lexeme_length c.lexbuf - 1))
   | ident ->
-    ID (L.latin1_lexeme c.lexbuf)
+    METAID (L.latin1_lexeme c.lexbuf)
   | _ -> illegal c
 
 (* Swallow all characters in comments *)

@@ -22,7 +22,7 @@ type token =
   | IP4ADDR of string
   | ANTIQUOT of string
   | STRING_CONSTANT of string
-  | ID of string
+  | METAID of string
   | EOI
 
 module Token : sig
