@@ -149,7 +149,7 @@ let rec token c = lexer
     | "ethSrc" | "ethDst" | "ip4Src"| "ip4Dst" | "and" | "or" | "not" | "id"
     | "drop" | "if" | "then" | "else" | "filter"  | "pipe" | "query"
     | "begin" | "end"
-    | "let" | "in" | "mut" ->
+    | "let" | "var" | "in" ->
       KEYWORD (L.latin1_lexeme c.lexbuf)
   | "\"" arbitrary_string_without_dbl_quote "\"" ->
       (* SJS: this looks like an off-by-one bug... *)
