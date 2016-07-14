@@ -152,6 +152,7 @@ module Field = struct
         let (n, lst) = f_seq' q lst in
         (m * n, lst)
       | Union _ -> (f_union pol, lst)
+      | Let (_,_,p) -> f_seq' p lst (* SJS: temporary, needs fixing! *)
       | Star _ | Link _ | VLink _ -> (1, lst) (* bad, but it works *)
     and f_seq pol =
       let (size, preds) = f_seq' pol [] in
@@ -163,6 +164,7 @@ module Field = struct
       | Union (p, q) ->
         f_union' p (fun m -> f_union' q (fun n -> k (m + n)))
       | Seq _ -> k (f_seq pol)
+      | Let (_,_,p) -> k (f_seq p) (* SJS: temporary, needs fixing! *)
       | Star _ | Link _ | VLink _ -> k 1 (* bad, but it works *)
     and f_union pol = f_union' pol (fun n -> n) in
     let _ = f_seq pol in

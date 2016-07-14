@@ -115,6 +115,8 @@ EXTEND Gram
       MK(Test (IP4Dst (ID(n), ID(m))))
     | "ip4Dst"; "="; n = nk_ipv4 ->
       MK(Test (IP4Dst (ID(n), 32l)))
+    | id=METAID; "="; n = nk_int64 ->
+      MK(Test (Meta (STR(id), ID(n))))
     AQ
   ]];
 
@@ -187,6 +189,8 @@ EXTEND Gram
       MK(Mod (TCPSrcPort ID(n)))
     | "tcpDstPort"; ":="; n = nk_int ->
       MK(Mod (TCPDstPort ID(n)))
+    | id=METAID; ":="; n = nk_int64 ->
+      MK(Mod (Meta (STR(id), ID(n))))
     | loc1 = nk_loc; "=>"; loc2 = nk_loc -> MK(
       let (sw1, pt1) = ID(loc1) in
       let (sw2, pt2) = ID(loc2) in
