@@ -416,7 +416,14 @@ struct
       Dfs.prefix f t.graph
   end
 
-  module Prim = Graph.Prim.Make (Topology.P) (Topology.UnitWeight)
+  module Prim = Graph.Prim.Make (Topology.P) (struct
+    type edge = Topology.P.edge
+    type t = int [@@deriving compare]
+    type label = Topology.EL.t
+    let weight _ = 1
+    let add = (+)
+    let zero = 0
+  end)
 
   let spanningtree_from f graph vertex =
     let open Topology.P in
