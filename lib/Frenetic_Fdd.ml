@@ -11,6 +11,12 @@ module Field = struct
     | VlanPcp
     | VSwitch
     | VPort
+    (* SJS: for simplicity, support only up to 5 meta fields for now *)
+    | Meta0
+    | Meta1
+    | Meta2
+    | Meta3
+    | Meta4
     | EthType
     | IPProto
     | EthSrc
@@ -21,12 +27,6 @@ module Field = struct
     | TCPDstPort
     | Location
     | VFabric
-    (* SJS: for simplicity, support only up to 5 meta fields for now *)
-    | Meta0
-    | Meta1
-    | Meta2
-    | Meta3
-    | Meta4
     [@@deriving sexp, enumerate, enum]
   type field = t
 
@@ -95,7 +95,7 @@ module Field = struct
       List.Assoc.find_exn env.alist name
   end
 
-  let of_header_val hv = match hv with
+  let of_hv ?(env=Env.empty) hv = match hv with
     | Frenetic_NetKAT.Switch _ -> Switch
     | Frenetic_NetKAT.Location _ -> Location
     | Frenetic_NetKAT.EthSrc _ -> EthSrc
@@ -111,7 +111,9 @@ module Field = struct
     | Frenetic_NetKAT.TCPSrcPort _ -> TCPSrcPort
     | Frenetic_NetKAT.TCPDstPort _ -> TCPDstPort
     | Frenetic_NetKAT.VFabric _ -> VFabric
+    | Frenetic_NetKAT.Meta (id,_,_) -> Env.lookup env id
 
+  (* SJS: If toplevel policy is a union, this fails completely. NEEDS FIXING! *)
   (* Heuristic to pick a variable order that operates by scoring the fields
      in a policy. A field receives a high score if, when a test field=X
      is false, the policy can be shrunk substantially.
@@ -136,7 +138,7 @@ module Field = struct
       | False -> ()
       | Test hv ->
         if in_product then
-          let fld = of_header_val hv in
+          let fld = of_hv hv in
           let n = Hashtbl.Poly.find_exn count_tbl fld in
           Hashtbl.Poly.set count_tbl ~key:fld ~data:(n + size)
       | Or (a, b) -> f_pred size false a; f_pred size false b
