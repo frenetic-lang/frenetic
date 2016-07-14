@@ -137,10 +137,12 @@ module Field = struct
       | True -> ()
       | False -> ()
       | Test hv ->
-        if in_product then
+        (* SJS: temporary hack - needs fixing *)
+        if in_product then begin try
           let fld = of_hv hv in
           let n = Hashtbl.Poly.find_exn count_tbl fld in
           Hashtbl.Poly.set count_tbl ~key:fld ~data:(n + size)
+        with _ -> () end
       | Or (a, b) -> f_pred size false a; f_pred size false b
       | And (a, b) -> f_pred size true a; f_pred size true b
       | Neg a -> f_pred size in_product a in
