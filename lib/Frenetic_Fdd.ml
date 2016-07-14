@@ -111,7 +111,7 @@ module Field = struct
     | Frenetic_NetKAT.TCPSrcPort _ -> TCPSrcPort
     | Frenetic_NetKAT.TCPDstPort _ -> TCPDstPort
     | Frenetic_NetKAT.VFabric _ -> VFabric
-    | Frenetic_NetKAT.Meta (id,_,_) -> Env.lookup env id
+    | Frenetic_NetKAT.Meta (id,_) -> Env.lookup env id
 
   (* SJS: If toplevel policy is a union, this fails completely. NEEDS FIXING! *)
   (* Heuristic to pick a variable order that operates by scoring the fields

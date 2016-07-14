@@ -33,27 +33,27 @@ module Field : sig
     becomes the "V" in VLR. *)
   type t
     = Switch
-      | Vlan
-      | VlanPcp
-      | VSwitch
-      | VPort
-      | EthType
-      | IPProto
-      | EthSrc
-      | EthDst
-      | IP4Src
-      | IP4Dst
-      | TCPSrcPort
-      | TCPDstPort
-      | Location
-      | VFabric
-      (* SJS: for simplicity, support only up to 5 meta fields for now *)
-      | Meta0
-      | Meta1
-      | Meta2
-      | Meta3
-      | Meta4
-  [@@deriving sexp]
+    | Vlan
+    | VlanPcp
+    | VSwitch
+    | VPort
+    (* SJS: for simplicity, support only up to 5 meta fields for now *)
+    | Meta0
+    | Meta1
+    | Meta2
+    | Meta3
+    | Meta4
+    | EthType
+    | IPProto
+    | EthSrc
+    | EthDst
+    | IP4Src
+    | IP4Dst
+    | TCPSrcPort
+    | TCPDstPort
+    | Location
+    | VFabric
+    [@@deriving sexp, enumerate, enum]
 
   include Frenetic_Vlr.HashCmp with type t := t
 
