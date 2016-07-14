@@ -1,3 +1,2 @@
-*.dot
 *.json
-
+*.bench
