@@ -29,7 +29,7 @@ let%test_module _ = (module struct
 
   let all_fields_alpha_order =
     [ EthDst; EthSrc; EthType; IP4Src; IP4Dst; IPProto; Location; Switch; TCPSrcPort;
-      TCPDstPort; Vlan; VlanPcp; VFabric; VPort; VSwitch ]
+      TCPDstPort; Vlan; VlanPcp; VFabric; VPort; VSwitch; Meta0; Meta1; Meta2; Meta3; Meta4 ]
 
   let string_of_list to_string l =
     let strs = List.map l to_string in
@@ -53,7 +53,7 @@ let%test_module _ = (module struct
 
   let%test "Field.get_order gets currently stored field order" =
     let () = set_order all in  (* Set back to default order *)
-    List.nth_exn (get_order ()) 6 = IPProto
+    List.nth_exn (get_order ()) 11 = IPProto
 
   let%test "Field.auto_order sorts referenced Test field to top" =
     let open Frenetic_NetKAT in
