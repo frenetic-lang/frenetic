@@ -1,11 +1,12 @@
-let inport := port in
+(* create immutable meta field that carries original port value *)
+let ingress := port in
 
 (* by default, forward packets to controller *)
 port := pipe("controller");
 
 (* overwrite default behavior ... *)
 begin
-  if inport=1 then port:=2 else
-  if ip4Dst=10.0.0.1 then port:=1 else
+  if ingress=1 then port:=2 else
+  if ethDst=1 then port:=1 else
   id
 end
