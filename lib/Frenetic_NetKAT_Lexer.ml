@@ -23,6 +23,7 @@ type token =
   | ANTIQUOT of string
   | STRING_CONSTANT of string
   | METAID of string
+  | LET of bool (* true = mutable, false = immutable *)
   | EOI
 
 module Token = struct
@@ -143,13 +144,14 @@ let rec token c = lexer
     set_start_loc c;
     let _ = comment c lexbuf in
     token c c.lexbuf
+  | "let" -> LET false
+  | "var" -> LET true
   | [ "()!+;=*+/|@" ] | ":=" | "=>" | "=>>"
     | "true" | "false" | "switch" | "port" | "vswitch" | "vport" | "vfabric"
     | "vlanId" | "vlanPcp" | "ethTyp" | "ipProto" | "tcpSrcPort" | "tcpDstPort"
     | "ethSrc" | "ethDst" | "ip4Src"| "ip4Dst" | "and" | "or" | "not" | "id"
     | "drop" | "if" | "then" | "else" | "filter"  | "pipe" | "query"
-    | "begin" | "end"
-    | "let" | "var" | "in" ->
+    | "begin" | "end" | "in" ->
       KEYWORD (L.latin1_lexeme c.lexbuf)
   | "\"" arbitrary_string_without_dbl_quote "\"" ->
       (* SJS: this looks like an off-by-one bug... *)

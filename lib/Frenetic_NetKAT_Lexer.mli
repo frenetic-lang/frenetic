@@ -23,6 +23,7 @@ type token =
   | ANTIQUOT of string
   | STRING_CONSTANT of string
   | METAID of string
+  | LET of bool (* true = mutable, false = immutable *)
   | EOI
 
 module Token : sig
