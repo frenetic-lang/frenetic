@@ -1,0 +1,11 @@
+let inport := port in
+
+(* by default, forward packets to controller *)
+port := pipe("controller");
+
+(* overwrite default behavior ... *)
+begin
+  if inport=1 then port:=2 else
+  if ip4Dst=10.0.0.1 then port:=1 else
+  id
+end
