@@ -54,8 +54,17 @@ module Field : sig
     | Location
     | VFabric
     [@@deriving sexp, enumerate, enum]
+  type field = t
 
   include Frenetic_Vlr.HashCmp with type t := t
+
+  module Env : sig
+    type t
+    val empty : t
+    exception Full
+    val add : t -> string -> t (* may raise Full *)
+    val lookup : t -> string -> field (* may raise Not_found *)
+  end
 
   (** [all] returns the default field field ordering *)
   val all : t list
@@ -64,6 +73,9 @@ module Field : sig
   val compare : t -> t -> int
 
   val hash : t -> int
+
+  (** [of_hv header_value] converts a NetKAT header_value pair to a field *)
+  val of_hv : ?env:Env.t -> Frenetic_NetKAT.header_val -> t
 
   (** [of_string str] converts a field string to an abstract field.  Throws an exception for unrecognized strings. *)
   val of_string : string -> t
@@ -79,14 +91,6 @@ module Field : sig
 
   (** [auto_order policy] heurisitically determines the field ordering given a policy *)
   val auto_order : Frenetic_NetKAT.policy -> unit
-end
-
-module Env : sig
-  type t
-  val empty : t
-  exception Full
-  val add : t -> string -> t (* may raise Full *)
-  val lookup : t -> string -> Field.t (* may raise Not_found *)
 end
 
 module Value : sig
@@ -157,7 +161,7 @@ module Pattern : sig
   val equal : t -> t -> bool
 
   (** [of_hv header_value] converts a NetKAT header_value pair to a pattern *)
-  val of_hv : ?env:Env.t -> Frenetic_NetKAT.header_val -> t
+  val of_hv : ?env:Field.Env.t -> Frenetic_NetKAT.header_val -> t
 
   (** [to_hv p] converts a pattern to a NetKAT header_value pair *)
   val to_hv : t -> Frenetic_NetKAT.header_val

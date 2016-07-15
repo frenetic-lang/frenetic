@@ -86,8 +86,8 @@ module FDD = struct
       let constr = Pattern.of_hv ~env (Meta (meta_field, v)) in
       restrict [constr] t
     | Alias hv ->
-      let alias, _ = Pattern.of_hv ~env hv in
-      let meta = Env.lookup env meta_field in
+      let alias = Field.of_hv ~env hv in
+      let meta = Field.Env.lookup env meta_field in
       fold
         const
         (fun (field,v) tru fls ->
@@ -113,11 +113,11 @@ module FDD = struct
                           k (seq p' q')))
     | Star p -> of_local_pol_k env p (fun p' -> k (star p'))
     | Let (field, init, p) ->
-      let env = Env.add env field in
+      let env = Field.Env.add env field in
       of_local_pol_k env p (fun p' -> k (hide env p' field init))
     | Link _ | VLink _ -> raise Non_local
 
-  let rec of_local_pol ?(env=Env.empty) p = of_local_pol_k env p ident
+  let rec of_local_pol ?(env=Field.Env.empty) p = of_local_pol_k env p ident
 
   let to_local_pol =
     fold
@@ -720,7 +720,7 @@ module NetKAT_Automaton = struct
 
   let rec split_pol (automaton : t0) (pol: Pol.t) : FDD.t * FDD.t * ((int * Pol.t) list) =
     (* SJS: temporary hack *)
-    let env = Env.empty in
+    let env = Field.Env.empty in
     match pol with
     | Filter pred -> (FDD.of_pred env pred, FDD.drop, [])
     | Mod hv -> (FDD.of_mod env hv, FDD.drop, [])

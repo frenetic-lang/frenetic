@@ -177,8 +177,6 @@ module Field = struct
 
 end
 
-module Env = Field.Env
-
 module Value = struct
 
   type t
@@ -336,7 +334,7 @@ module Pattern = struct
   let to_int = Int64.to_int_exn
   let to_int32 = Int64.to_int32_exn
 
-  let of_hv ?(env=Env.empty) hv =
+  let of_hv ?(env=Field.Env.empty) hv =
     let open Frenetic_NetKAT in
     match hv with
     | Switch sw_id -> (Field.Switch, Value.(Const sw_id))
@@ -360,7 +358,7 @@ module Pattern = struct
     | TCPSrcPort(tpPort) -> (Field.TCPSrcPort, Value.of_int tpPort)
     | TCPDstPort(tpPort) -> (Field.TCPDstPort, Value.of_int tpPort)
     | VFabric(vfab) -> (Field.VFabric, Value.(Const vfab))
-    | Meta(name,v) -> (Env.lookup env name, Value.(Const v))
+    | Meta(name,v) -> (Field.Env.lookup env name, Value.(Const v))
 
   let to_hv (f, v) =
     let open Field in
