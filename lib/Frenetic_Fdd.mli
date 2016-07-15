@@ -62,8 +62,8 @@ module Field : sig
     type t
     val empty : t
     exception Full
-    val add : t -> string -> t (* may raise Full *)
-    val lookup : t -> string -> field (* may raise Not_found *)
+    val add : t -> string -> bool -> t (* may raise Full *)
+    val lookup : t -> string -> field * bool (* may raise Not_found *)
   end
 
   (** [all] returns the default field field ordering *)

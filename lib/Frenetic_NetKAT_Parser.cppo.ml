@@ -1,12 +1,12 @@
 #ifdef AST
   #define MK(arg) <:expr< arg >>
   #define ID(arg) $arg$
-  #define STR(val) $`str:val$
+  #define STR(arg) $`str:arg$
   #define AQ | `ANTIQUOT s -> Syntax.AntiquotSyntax.parse_expr _loc s
 #else
   #define MK(arg) arg
   #define ID(arg) arg
-  #define STR(val) val
+  #define STR(arg) arg
   #define AQ
 #endif
 
@@ -30,6 +30,7 @@ let nk_pol_star = Gram.Entry.mk "nk_pol_star"
 let nk_pol_union = Gram.Entry.mk "nk_pol_union"
 let nk_pol_cond = Gram.Entry.mk "nk_pol_cond"
 let nk_pol_meta = Gram.Entry.mk "nk_pol_meta"
+let nk_let = Gram.Entry.mk "nk_let"
 let nk_int64 = Gram.Entry.mk "nk_int64"
 let nk_int32 = Gram.Entry.mk "nk_int32"
 let nk_int = Gram.Entry.mk "nk_int"
@@ -230,34 +231,39 @@ EXTEND Gram
       MK(Union(Seq(Filter ID(a), ID(p)), Seq(Filter (Neg ID(a)), ID(q))))
   ]];
 
+  nk_let : [[
+      "let" -> MK(false)
+    | "var" -> MK(true)
+  ]];
+
   nk_pol_meta : [[
       p = nk_pol_cond -> p
-    | mut=LET; id=METAID; ":="; v=nk_int64; "in"; p = nk_pol_meta ->
-      MK(Let(STR(id), Const ID(v), ID(p)))
-    | mut=LET; id=METAID; ":="; "switch" ; "in"; p = nk_pol_meta ->
-      MK(Let(STR(id), Alias (Switch (Obj.magic 0)), ID(p)))
-    | mut=LET; id=METAID; ":="; "port" ; "in"; p = nk_pol_meta ->
-      MK(Let(STR(id), Alias (Location (Obj.magic 0)), ID(p)))
-    | mut=LET; id=METAID; ":="; "ethSrc" ; "in"; p = nk_pol_meta ->
-      MK(Let(STR(id), Alias (EthSrc (Obj.magic 0)), ID(p)))
-    | mut=LET; id=METAID; ":="; "ethDst" ; "in"; p = nk_pol_meta ->
-      MK(Let(STR(id), Alias (EthDst (Obj.magic 0)), ID(p)))
-    | mut=LET; id=METAID; ":="; "vlanId" ; "in"; p = nk_pol_meta ->
-      MK(Let(STR(id), Alias (Vlan (Obj.magic 0)), ID(p)))
-    | mut=LET; id=METAID; ":="; "vlanPcp" ; "in"; p = nk_pol_meta ->
-      MK(Let(STR(id), Alias (VlanPcp (Obj.magic 0)), ID(p)))
-    | mut=LET; id=METAID; ":="; "ethTyp" ; "in"; p = nk_pol_meta ->
-      MK(Let(STR(id), Alias (EthType (Obj.magic 0)), ID(p)))
-    | mut=LET; id=METAID; ":="; "ipProto" ; "in"; p = nk_pol_meta ->
-      MK(Let(STR(id), Alias (IPProto (Obj.magic 0)), ID(p)))
-    | mut=LET; id=METAID; ":="; "ip4Src" ; "in"; p = nk_pol_meta ->
-      MK(Let(STR(id), Alias (IP4Src (Obj.magic 0, Obj.magic 0)), ID(p)))
-    | mut=LET; id=METAID; ":="; "ip4Dst" ; "in"; p = nk_pol_meta ->
-      MK(Let(STR(id), Alias (IP4Dst (Obj.magic 0, Obj.magic 0)), ID(p)))
-    | mut=LET; id=METAID; ":="; "tcpSrcPort" ; "in"; p = nk_pol_meta ->
-      MK(Let(STR(id), Alias (TCPSrcPort (Obj.magic 0)), ID(p)))
-    | mut=LET; id=METAID; ":="; "tcpDstPort" ; "in"; p = nk_pol_meta ->
-      MK(Let(STR(id), Alias (TCPDstPort (Obj.magic 0)), ID(p)))
+    | mut=nk_let; id=METAID; ":="; v=nk_int64; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Const ID(v), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "switch" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (Switch (Obj.magic 0)), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "port" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (Location (Obj.magic 0)), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "ethSrc" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (EthSrc (Obj.magic 0)), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "ethDst" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (EthDst (Obj.magic 0)), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "vlanId" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (Vlan (Obj.magic 0)), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "vlanPcp" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (VlanPcp (Obj.magic 0)), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "ethTyp" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (EthType (Obj.magic 0)), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "ipProto" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (IPProto (Obj.magic 0)), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "ip4Src" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (IP4Src (Obj.magic 0, Obj.magic 0)), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "ip4Dst" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (IP4Dst (Obj.magic 0, Obj.magic 0)), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "tcpSrcPort" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (TCPSrcPort (Obj.magic 0)), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "tcpDstPort" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (TCPDstPort (Obj.magic 0)), ID(mut), ID(p)))
   ]];
 
   nk_pol : [[ p = nk_pol_meta -> p ]];

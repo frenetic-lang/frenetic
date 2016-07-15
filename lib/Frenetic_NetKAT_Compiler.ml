@@ -29,6 +29,13 @@ module FDD = struct
 
   let of_mod env hv =
     let k, v = Pattern.of_hv ~env hv in
+    (* ensure the field is mutable *)
+    begin match hv with
+      | Meta (id,_) ->
+        let _,mut = Field.Env.lookup env id in
+        if not mut then failwith "cannot modify immutable field"
+      | _ -> ()
+    end;
     const Action.(Par.singleton (Seq.singleton (F k) v))
 
   let rec of_pred env p =
@@ -87,7 +94,7 @@ module FDD = struct
       restrict [constr] t
     | Alias hv ->
       let alias = Field.of_hv ~env hv in
-      let meta = Field.Env.lookup env meta_field in
+      let meta,_ = Field.Env.lookup env meta_field in
       fold
         const
         (fun (field,v) tru fls ->
@@ -112,8 +119,8 @@ module FDD = struct
                         of_local_pol_k env q (fun q' ->
                           k (seq p' q')))
     | Star p -> of_local_pol_k env p (fun p' -> k (star p'))
-    | Let (field, init, p) ->
-      let env = Field.Env.add env field in
+    | Let (field, init, mut, p) ->
+      let env = Field.Env.add env field mut in
       of_local_pol_k env p (fun p' -> k (hide env p' field init))
     | Link _ | VLink _ -> raise Non_local
 

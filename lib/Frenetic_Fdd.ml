@@ -68,18 +68,18 @@ module Field = struct
     type t
     val empty : t
     exception Full
-    val add : t -> string -> t (* may raise Full *)
-    val lookup : t -> string -> field (* may raise Not_found *)
+    val add : t -> string -> bool -> t (* may raise Full *)
+    val lookup : t -> string -> field * bool (* may raise Not_found *)
   end
 
   module Env : ENV = struct
 
-    type t = { alist : (string * field) list; depth : int }
+    type t = { alist : (string * (field * bool)) list; depth : int }
     let empty = { alist = []; depth = 0 }
 
     exception Full
 
-    let add env name =
+    let add env name mut =
       let field =
         match env.depth with
         | 0 -> Meta0
@@ -89,7 +89,7 @@ module Field = struct
         | 4 -> Meta4
         | _ -> raise Full
       in
-      { alist = List.Assoc.add env.alist name field; depth = env.depth + 1}
+      { alist = List.Assoc.add env.alist name (field, mut); depth = env.depth + 1}
 
     let lookup env name =
       List.Assoc.find_exn env.alist name
@@ -111,7 +111,7 @@ module Field = struct
     | Frenetic_NetKAT.TCPSrcPort _ -> TCPSrcPort
     | Frenetic_NetKAT.TCPDstPort _ -> TCPDstPort
     | Frenetic_NetKAT.VFabric _ -> VFabric
-    | Frenetic_NetKAT.Meta (id,_) -> Env.lookup env id
+    | Frenetic_NetKAT.Meta (id,_) -> fst (Env.lookup env id)
 
   (* SJS: If toplevel policy is a union, this fails completely. NEEDS FIXING! *)
   (* Heuristic to pick a variable order that operates by scoring the fields
@@ -154,7 +154,7 @@ module Field = struct
         let (n, lst) = f_seq' q lst in
         (m * n, lst)
       | Union _ -> (f_union pol, lst)
-      | Let (_,_,p) -> f_seq' p lst (* SJS: temporary, needs fixing! *)
+      | Let (_,_,_,p) -> f_seq' p lst (* SJS: temporary, needs fixing! *)
       | Star _ | Link _ | VLink _ -> (1, lst) (* bad, but it works *)
     and f_seq pol =
       let (size, preds) = f_seq' pol [] in
@@ -166,7 +166,7 @@ module Field = struct
       | Union (p, q) ->
         f_union' p (fun m -> f_union' q (fun n -> k (m + n)))
       | Seq _ -> k (f_seq pol)
-      | Let (_,_,p) -> k (f_seq p) (* SJS: temporary, needs fixing! *)
+      | Let (_,_,_,p) -> k (f_seq p) (* SJS: temporary, needs fixing! *)
       | Star _ | Link _ | VLink _ -> k 1 (* bad, but it works *)
     and f_union pol = f_union' pol (fun n -> n) in
     let _ = f_seq pol in
@@ -358,7 +358,7 @@ module Pattern = struct
     | TCPSrcPort(tpPort) -> (Field.TCPSrcPort, Value.of_int tpPort)
     | TCPDstPort(tpPort) -> (Field.TCPDstPort, Value.of_int tpPort)
     | VFabric(vfab) -> (Field.VFabric, Value.(Const vfab))
-    | Meta(name,v) -> (Field.Env.lookup env name, Value.(Const v))
+    | Meta(name,v) -> (fst (Field.Env.lookup env name), Value.(Const v))
 
   let to_hv (f, v) =
     let open Field in

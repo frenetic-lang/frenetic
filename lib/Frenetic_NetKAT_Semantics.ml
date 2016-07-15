@@ -255,7 +255,7 @@ let switches_of_policy (p:policy) =
        sw1 :: sw2 :: acc
     | VLink _ ->
       acc
-    | Let(_,_,p) ->
+    | Let(_,_,_,p) ->
       collect p acc
   in
   collect p [] |> List.dedup |> List.to_list
