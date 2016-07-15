@@ -168,17 +168,15 @@ Executable testtool
     frenetic,
     frenetic.async
 
-#Executable fastfailtest 
-#  Path: integration
-#  MainIs: FastFailTest_Controller.ml
-#  Install: false
-#  CompiledObject: native
-#  BuildDepends:
-#    async,
-#    core,
-#    frenetic,
-#    frenetic.async,
-#    async_extended
+Executable benchmark
+  Install: false
+  Path: bench/src
+  CompiledObject: best
+  MainIs: Main.ml
+  BuildDepends:
+    core,
+    threads,
+    frenetic
 
 Test all_tests
   Run$: flag(tests)
