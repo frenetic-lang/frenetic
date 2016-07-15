@@ -233,7 +233,31 @@ EXTEND Gram
   nk_pol_meta : [[
       p = nk_pol_cond -> p
     | "let"; id=METAID; ":="; v=nk_int64; "in"; p = nk_pol_meta ->
-    MK(Let(STR(id), Const ID(v), ID(p)))
+      MK(Let(STR(id), Const ID(v), ID(p)))
+    | "let"; id=METAID; ":="; "switch" ; "in"; p = nk_pol_meta ->
+      MK(Let(STR(id), Alias (Switch (Obj.magic 0)), ID(p)))
+    | "let"; id=METAID; ":="; "port" ; "in"; p = nk_pol_meta ->
+      MK(Let(STR(id), Alias (Location (Obj.magic 0)), ID(p)))
+    | "let"; id=METAID; ":="; "ethSrc" ; "in"; p = nk_pol_meta ->
+      MK(Let(STR(id), Alias (EthSrc (Obj.magic 0)), ID(p)))
+    | "let"; id=METAID; ":="; "ethDst" ; "in"; p = nk_pol_meta ->
+      MK(Let(STR(id), Alias (EthDst (Obj.magic 0)), ID(p)))
+    | "let"; id=METAID; ":="; "vlanId" ; "in"; p = nk_pol_meta ->
+      MK(Let(STR(id), Alias (Vlan (Obj.magic 0)), ID(p)))
+    | "let"; id=METAID; ":="; "vlanPcp" ; "in"; p = nk_pol_meta ->
+      MK(Let(STR(id), Alias (VlanPcp (Obj.magic 0)), ID(p)))
+    | "let"; id=METAID; ":="; "ethTyp" ; "in"; p = nk_pol_meta ->
+      MK(Let(STR(id), Alias (EthType (Obj.magic 0)), ID(p)))
+    | "let"; id=METAID; ":="; "ipProto" ; "in"; p = nk_pol_meta ->
+      MK(Let(STR(id), Alias (IPProto (Obj.magic 0)), ID(p)))
+    | "let"; id=METAID; ":="; "ip4Src" ; "in"; p = nk_pol_meta ->
+      MK(Let(STR(id), Alias (IP4Src (Obj.magic 0, Obj.magic 0)), ID(p)))
+    | "let"; id=METAID; ":="; "ip4Dst" ; "in"; p = nk_pol_meta ->
+      MK(Let(STR(id), Alias (IP4Dst (Obj.magic 0, Obj.magic 0)), ID(p)))
+    | "let"; id=METAID; ":="; "tcpSrcPort" ; "in"; p = nk_pol_meta ->
+      MK(Let(STR(id), Alias (TCPSrcPort (Obj.magic 0)), ID(p)))
+    | "let"; id=METAID; ":="; "tcpDstPort" ; "in"; p = nk_pol_meta ->
+      MK(Let(STR(id), Alias (TCPDstPort (Obj.magic 0)), ID(p)))
   ]];
 
   nk_pol : [[ p = nk_pol_meta -> p ]];
