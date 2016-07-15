@@ -36,7 +36,7 @@ depends: [
   "cohttp"
   "tcpip"
   "mparser"
-  "ocamlgraph" {>= "1.8.6"}
+  "ocamlgraph" {>= "1.8.7"}
   "quickcheck"
   "ounit" {test}
   "pa_ounit" {test}
