@@ -25,6 +25,7 @@ module type CONTROLLER = sig
   val update : Frenetic_NetKAT.policy -> unit Deferred.t
   val packet_out : switchId -> portId option -> payload -> Frenetic_NetKAT.policy list -> unit Deferred.t
   val query : string -> (int64 * int64) Deferred.t
+  val set_current_compiler_options : Frenetic_NetKAT_Compiler.compiler_options -> unit
 end
                                      
 module Make (P:PLUGIN) : CONTROLLER = struct
@@ -32,6 +33,7 @@ module Make (P:PLUGIN) : CONTROLLER = struct
   let (pol_reader, pol_writer) = Pipe.create ()
   let (event_reader, event_writer) =  Pipe.create ()
   let switch_hash : (switchId, portId list) Hashtbl.Poly.t = Hashtbl.Poly.create ()
+  let current_compiler_options = ref (Frenetic_NetKAT_Compiler.default_compiler_options)
   let fdd = ref (Frenetic_NetKAT_Compiler.compile_local Frenetic_NetKAT.drop) 
                                                                                
   let update (pol:policy) : unit Deferred.t =
@@ -97,6 +99,9 @@ module Make (P:PLUGIN) : CONTROLLER = struct
         >>| fun stats -> sum_stat_pairs stats
       )
      >>| fun stats -> sum_stat_pairs stats
+
+  let set_current_compiler_options opt =
+    current_compiler_options := opt
 
 end
 

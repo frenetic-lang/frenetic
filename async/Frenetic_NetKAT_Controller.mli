@@ -37,6 +37,10 @@ module type CONTROLLER = sig
  
   (** [query x] returns byte and packet counts for query [x]. *)
   val query : string -> (int64 * int64) Deferred.t
+
+  (** [set_current_compiler_options co] sets compiler options for subsequent invocations *)
+  val set_current_compiler_options : Frenetic_NetKAT_Compiler.compiler_options -> unit
+
 end
 
 module Make(P:PLUGIN) : CONTROLLER

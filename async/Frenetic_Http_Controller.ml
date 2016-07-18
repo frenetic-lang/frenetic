@@ -119,8 +119,7 @@ let handle_request
        handle_parse_errors body parse_config_json
         (fun conf ->
           current_compiler_options := conf;
-          (* TODO(jnf) *)
-          (* set_current_compiler_options conf; *)
+          set_current_compiler_options conf;
           Cohttp_async.Server.respond `OK)
     | `GET, ["config"] ->
        printf "GET /config";
