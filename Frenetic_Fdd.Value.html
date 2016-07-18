@@ -15,8 +15,8 @@
 <link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
 <link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
 <link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
-<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
@@ -28,10 +28,10 @@
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
 <link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
 <link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
-<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
@@ -45,6 +45,33 @@
 <h1>Module <a href="type_Frenetic_Fdd.Value.html">Frenetic_Fdd.Value</a></h1>
 
 <pre><span class="keyword">module</span> Value: <code class="code">sig</code> <a href="Frenetic_Fdd.Value.html">..</a> <code class="code">end</code></pre><hr width="100%">
+<br>
+In a BDD, each node is an implicit predicate, "variable = true".  In a FDD, each node is a test of a
+  field against a particular value, as in EthSrc = "FE:89:00:12:34:12".  The edges are either true or false
+  just like in a BDD.  But we also use values in modifcations - as in "port := 2".  Note only Const and Mask
+  are really used by OpenFlow.  Both  Pipe and Query are translated to the pseudoport Controller.
+<p>
+
+   Each packet field can take on a certain range of values that in general have a lattice structure.
+   This sometimes enables multiple tests on fields to be compressed into a single test. This module implements the <code class="code">Lattice</code>
+   signature from Frenetic_Vlr.
+<p>
+
+   All integer bit widths are represented by an
+      <code class="code">Int64.t</code> and will be cast to the appropriate bit width for use during
+      final translation to flowtables.
+<p>
+
+      A simple bitmask variant is also supported. <code class="code">Mask(n, m)</code> indicates that
+      the first <code class="code">m</code> bits of the value <code class="code">n</code> are fixed, while the rest should be
+      treated as wildcards.
+<p>
+
+      Because this is a big union of possible value types, it's possible for the
+      programmer to construct <code class="code">(Field.t, Value.t)</code> pairs that do not make any
+      sense, e.g., <code class="code">(Field.EthSrc, Value.Pipe "learn")</code>. This will be detected
+      during flowtable generation, though the syntax of the NetKAT language will
+      prevent programs from generating these ill-formed predicates.<br>
 
 <pre><code><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> = </code></pre><table class="typetable">
 <tr>
@@ -85,13 +112,22 @@
 
 
 
+<pre><span id="VALt_of_sexp"><span class="keyword">val</span> t_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Fdd.Value.html#TYPEt">t</a></code></pre>
+<pre><span id="VALsexp_of_t"><span class="keyword">val</span> sexp_of_t</span> : <code class="type"><a href="Frenetic_Fdd.Value.html#TYPEt">t</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span class="keyword">include</span> <a href="Frenetic_Vlr.Lattice.html">Frenetic_Vlr.Lattice</a></pre>
 
 <pre><span id="VALcompare"><span class="keyword">val</span> compare</span> : <code class="type"><a href="Frenetic_Fdd.Value.html#TYPEt">t</a> -> <a href="Frenetic_Fdd.Value.html#TYPEt">t</a> -> int</code></pre>
 <pre><span id="VALequal"><span class="keyword">val</span> equal</span> : <code class="type"><a href="Frenetic_Fdd.Value.html#TYPEt">t</a> -> <a href="Frenetic_Fdd.Value.html#TYPEt">t</a> -> bool</code></pre>
 <pre><span id="VALto_string"><span class="keyword">val</span> to_string</span> : <code class="type"><a href="Frenetic_Fdd.Value.html#TYPEt">t</a> -> string</code></pre>
-<pre><span id="VALof_int"><span class="keyword">val</span> of_int</span> : <code class="type">int -> <a href="Frenetic_Fdd.Value.html#TYPEt">t</a></code></pre>
-<pre><span id="VALof_int64"><span class="keyword">val</span> of_int64</span> : <code class="type">int64 -> <a href="Frenetic_Fdd.Value.html#TYPEt">t</a></code></pre>
-<pre><span id="VALto_int_exn"><span class="keyword">val</span> to_int_exn</span> : <code class="type"><a href="Frenetic_Fdd.Value.html#TYPEt">t</a> -> int</code></pre>
-<pre><span id="VALt_of_sexp"><span class="keyword">val</span> t_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Fdd.Value.html#TYPEt">t</a></code></pre>
-<pre><span id="VALsexp_of_t"><span class="keyword">val</span> sexp_of_t</span> : <code class="type"><a href="Frenetic_Fdd.Value.html#TYPEt">t</a> -> Sexplib.Sexp.t</code></pre></body></html>
+<pre><span id="VALof_int"><span class="keyword">val</span> of_int</span> : <code class="type">int -> <a href="Frenetic_Fdd.Value.html#TYPEt">t</a></code></pre><div class="info ">
+<code class="code">of_int i</code>  converts an integer to a Const value<br>
+</div>
+
+<pre><span id="VALof_int64"><span class="keyword">val</span> of_int64</span> : <code class="type">int64 -> <a href="Frenetic_Fdd.Value.html#TYPEt">t</a></code></pre><div class="info ">
+<code class="code">of_int64 i</code>  converts a 64-bit integer to a Const value<br>
+</div>
+
+<pre><span id="VALto_int_exn"><span class="keyword">val</span> to_int_exn</span> : <code class="type"><a href="Frenetic_Fdd.Value.html#TYPEt">t</a> -> int</code></pre><div class="info ">
+<code class="code">to_int_exn value</code> returns just the integer for Const values, or an exception otherwise<br>
+</div>
+</body></html>

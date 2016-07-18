@@ -10,8 +10,8 @@
 <link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
 <link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
 <link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
-<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
@@ -23,10 +23,10 @@
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
 <link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
 <link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
-<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
@@ -35,6 +35,8 @@
 <body>
 <code class="code"><span class="keyword">sig</span><br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;*&nbsp;int32<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.<span class="constructor">Pattern</span>.<span class="constructor">Ip</span>.t<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.<span class="constructor">Pattern</span>.<span class="constructor">Ip</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;match_all&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.<span class="constructor">Pattern</span>.<span class="constructor">Ip</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;less_eq&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.<span class="constructor">Pattern</span>.<span class="constructor">Ip</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.<span class="constructor">Pattern</span>.<span class="constructor">Ip</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;bool<br>
@@ -51,6 +53,4 @@
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;shift&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.<span class="constructor">Pattern</span>.<span class="constructor">Ip</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int32<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;format&nbsp;:&nbsp;<span class="constructor">Format</span>.formatter&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.<span class="constructor">Pattern</span>.<span class="constructor">Ip</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.<span class="constructor">Pattern</span>.<span class="constructor">Ip</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.<span class="constructor">Pattern</span>.<span class="constructor">Ip</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.<span class="constructor">Pattern</span>.<span class="constructor">Ip</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 <span class="keyword">end</span></code></body></html>

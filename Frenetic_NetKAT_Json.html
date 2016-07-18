@@ -15,8 +15,8 @@
 <link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
 <link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
 <link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
-<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
@@ -28,10 +28,10 @@
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
 <link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
 <link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
-<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
@@ -45,22 +45,65 @@
 <h1>Module <a href="type_Frenetic_NetKAT_Json.html">Frenetic_NetKAT_Json</a></h1>
 
 <pre><span class="keyword">module</span> Frenetic_NetKAT_Json: <code class="code">sig</code> <a href="Frenetic_NetKAT_Json.html">..</a> <code class="code">end</code></pre><div class="info module top">
-Note: errors may occur when converting between 64-bit values and
-    JSON-representable integers.<br>
+JSON serialization/deserialization of NetKAT messages.  
+<p>
+
+  NetKAT comes in two syntaxes: "regular" which is handled by Frenetic_NetKAT_Parser/Lexer
+  and "json" which is handled here.  We translate most things to the Frenetic_NetKAT.policy
+  type
+<p>
+
+  This module also serializes/deserializes switch-to-controller OpenFlow messages for net apps.
+  TODO: These functions should be moved to Frenetic_NetKAT_SDN_Json, or should be consolidated
+  here.  There's no good reason to differentiate between switch-to-controller and 
+  controller-to-switch OpenFlow messages.  The only problem is this module can't open 
+  Frenetic_OpenFlow due to collisions in some data types ... that'll need to be solved.<br>
 </div>
 <hr width="100%">
 
-<pre><span id="VALpolicy_from_json"><span class="keyword">val</span> policy_from_json</span> : <code class="type">Yojson.Basic.json -> <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a></code></pre><div class="info ">
-Note: errors may occur when converting between 64-bit values and
+<pre><span id="VALpolicy_of_json"><span class="keyword">val</span> policy_of_json</span> : <code class="type">Yojson.Basic.json -> <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a></code></pre><div class="info ">
+Deserialize a Yojson repesentation of a NetKAT policy<br>
+</div>
+
+<pre><span id="VALpolicy_to_json"><span class="keyword">val</span> policy_to_json</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a> -> Yojson.Basic.json</code></pre><div class="info ">
+Serialize a NetKAT policy to Yojson format.  Note: errors may occur when converting between 64-bit values and
     JSON-representable integers.<br>
 </div>
 
-<pre><span id="VALpolicy_to_json"><span class="keyword">val</span> policy_to_json</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a> -> Yojson.Basic.json</code></pre>
 <pre><span id="VALfrom_json_header_val"><span class="keyword">val</span> from_json_header_val</span> : <code class="type">Yojson.Basic.json -> <a href="Frenetic_NetKAT.html#TYPEheader_val">Frenetic_NetKAT.header_val</a></code></pre>
-<pre><span id="VALevent_to_json"><span class="keyword">val</span> event_to_json</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEevent">Frenetic_NetKAT.event</a> -> Yojson.Basic.json</code></pre>
-<pre><span id="VALpolicy_from_json_channel"><span class="keyword">val</span> policy_from_json_channel</span> : <code class="type">Core.Std.In_channel.t -> <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a></code></pre>
-<pre><span id="VALpolicy_from_json_string"><span class="keyword">val</span> policy_from_json_string</span> : <code class="type">string -> <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a></code></pre>
-<pre><span id="VALevent_to_json_string"><span class="keyword">val</span> event_to_json_string</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEevent">Frenetic_NetKAT.event</a> -> string</code></pre>
-<pre><span id="VALpolicy_to_json_string"><span class="keyword">val</span> policy_to_json_string</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a> -> string</code></pre>
-<pre><span id="VALstats_to_json_string"><span class="keyword">val</span> stats_to_json_string</span> : <code class="type">Core.Std.Int64.t * Core.Std.Int64.t -> string</code></pre>
-<pre><span id="VALport_stats_to_json_string"><span class="keyword">val</span> port_stats_to_json_string</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEportStats">Frenetic_OpenFlow0x01.portStats</a> list -> string</code></pre></body></html>
+<pre><span id="VALevent_to_json"><span class="keyword">val</span> event_to_json</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEevent">Frenetic_NetKAT.event</a> -> Yojson.Basic.json</code></pre><div class="info ">
+Serialize an abstract OpenFlow event (PacketIn, SwitchUp, etc.) to Yojson format.<br>
+</div>
+
+<pre><span id="VALstats_to_json"><span class="keyword">val</span> stats_to_json</span> : <code class="type">Core.Std.Int64.t * Core.Std.Int64.t -> Yojson.Basic.json</code></pre><div class="info ">
+Serialize an OpenFlow switch stats response to Yojson format.<br>
+</div>
+
+<pre><span id="VALport_stats_to_json"><span class="keyword">val</span> port_stats_to_json</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEportStats">Frenetic_OpenFlow0x01.portStats</a> list -> Yojson.Basic.json</code></pre><div class="info ">
+Serialize an OpenFlow port stats response to Yojson format<br>
+</div>
+
+<pre><span id="VALpolicy_of_json_string"><span class="keyword">val</span> policy_of_json_string</span> : <code class="type">string -> <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a></code></pre><div class="info ">
+Same as policy_of_json, but receives json string<br>
+</div>
+
+<pre><span id="VALpolicy_of_json_channel"><span class="keyword">val</span> policy_of_json_channel</span> : <code class="type">Core.Std.In_channel.t -> <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a></code></pre><div class="info ">
+Same as policy_of_json, but reads json from input channel<br>
+</div>
+
+<pre><span id="VALevent_to_json_string"><span class="keyword">val</span> event_to_json_string</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEevent">Frenetic_NetKAT.event</a> -> string</code></pre><div class="info ">
+Same as event_to_json but returns json string<br>
+</div>
+
+<pre><span id="VALpolicy_to_json_string"><span class="keyword">val</span> policy_to_json_string</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a> -> string</code></pre><div class="info ">
+Same as policy_to_json but returns json string<br>
+</div>
+
+<pre><span id="VALstats_to_json_string"><span class="keyword">val</span> stats_to_json_string</span> : <code class="type">Core.Std.Int64.t * Core.Std.Int64.t -> string</code></pre><div class="info ">
+Sames as stats_to_json but returns json string<br>
+</div>
+
+<pre><span id="VALport_stats_to_json_string"><span class="keyword">val</span> port_stats_to_json_string</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEportStats">Frenetic_OpenFlow0x01.portStats</a> list -> string</code></pre><div class="info ">
+Same as port_stats_to_json but returns json string<br>
+</div>
+</body></html>

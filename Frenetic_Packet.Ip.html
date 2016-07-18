@@ -15,8 +15,8 @@
 <link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
 <link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
 <link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
-<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
@@ -28,10 +28,10 @@
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
 <link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
 <link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
-<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
@@ -95,6 +95,8 @@ The type <code class="code">tp</code> represents packets at the transport protoc
 </div>
 
 
+<pre><span id="VALtp_of_sexp"><span class="keyword">val</span> tp_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.Ip.html#TYPEtp">tp</a></code></pre>
+<pre><span id="VALsexp_of_tp"><span class="keyword">val</span> sexp_of_tp</span> : <code class="type"><a href="Frenetic_Packet.Ip.html#TYPEtp">tp</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span class="keyword">module</span> <a href="Frenetic_Packet.Ip.Flags.html">Flags</a>: <code class="code">sig</code> <a href="Frenetic_Packet.Ip.Flags.html">..</a> <code class="code">end</code></pre>
 <pre><code><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> = {</code></pre><table class="typetable">
 <tr>
@@ -200,14 +202,6 @@ Transport payload.<br>
 }
 
 
-
-<pre><span id="VALtp_of_sexp"><span class="keyword">val</span> tp_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.Ip.html#TYPEtp">tp</a></code></pre>
-<pre><span id="VALsexp_of_tp"><span class="keyword">val</span> sexp_of_tp</span> : <code class="type"><a href="Frenetic_Packet.Ip.html#TYPEtp">tp</a> -> Sexplib.Sexp.t</code></pre><br>
-<code class="code">Flags</code> is the type of IPv4 flags.<br>
-<br>
-Don't fragment.<br>
-<br>
-More fragments.<br>
 
 <pre><span id="VALt_of_sexp"><span class="keyword">val</span> t_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.Ip.html#TYPEt">t</a></code></pre>
 <pre><span id="VALsexp_of_t"><span class="keyword">val</span> sexp_of_t</span> : <code class="type"><a href="Frenetic_Packet.Ip.html#TYPEt">t</a> -> Sexplib.Sexp.t</code></pre></body></html>

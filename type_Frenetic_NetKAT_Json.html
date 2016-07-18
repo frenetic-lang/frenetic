@@ -10,8 +10,8 @@
 <link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
 <link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
 <link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
-<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
@@ -23,10 +23,10 @@
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
 <link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
 <link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
-<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
@@ -34,13 +34,17 @@
 </head>
 <body>
 <code class="code"><span class="keyword">sig</span><br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;policy_from_json&nbsp;:&nbsp;<span class="constructor">Yojson</span>.<span class="constructor">Basic</span>.json&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;policy_of_json&nbsp;:&nbsp;<span class="constructor">Yojson</span>.<span class="constructor">Basic</span>.json&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;policy_to_json&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Yojson</span>.<span class="constructor">Basic</span>.json<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;from_json_header_val&nbsp;:&nbsp;<span class="constructor">Yojson</span>.<span class="constructor">Basic</span>.json&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.header_val<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;event_to_json&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.event&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Yojson</span>.<span class="constructor">Basic</span>.json<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;policy_from_json_channel&nbsp;:<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;stats_to_json&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Core</span>.<span class="constructor">Std</span>.<span class="constructor">Int64</span>.t&nbsp;*&nbsp;<span class="constructor">Core</span>.<span class="constructor">Std</span>.<span class="constructor">Int64</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Yojson</span>.<span class="constructor">Basic</span>.json<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;port_stats_to_json&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x01</span>.portStats&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Yojson</span>.<span class="constructor">Basic</span>.json<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;policy_of_json_string&nbsp;:&nbsp;string&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;policy_of_json_channel&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Core</span>.<span class="constructor">Std</span>.<span class="constructor">In_channel</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;policy_from_json_string&nbsp;:&nbsp;string&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;event_to_json_string&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.event&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;policy_to_json_string&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;stats_to_json_string&nbsp;:&nbsp;<span class="constructor">Core</span>.<span class="constructor">Std</span>.<span class="constructor">Int64</span>.t&nbsp;*&nbsp;<span class="constructor">Core</span>.<span class="constructor">Std</span>.<span class="constructor">Int64</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>

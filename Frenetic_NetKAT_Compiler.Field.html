@@ -13,8 +13,8 @@
 <link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
 <link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
 <link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
-<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
@@ -26,10 +26,10 @@
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
 <link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
 <link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
-<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
@@ -149,17 +149,55 @@
 
 </tr></table>
 
+<div class="info ">
+Fields are analogous to binary variables in a BDD.
+   These are pretty much the same as matchable fields in OpenFlow.  To this list, we
+   add VSwitch, VPort and VFabric for the virtual compiler.  These are not actual matchable
+   fields in OpenFlow, but are converted to Switch and Port in the compilation process.
+<p>
+
+   The constructors in type t are listed in the default order, which is acceptable for many
+   NetKAT programs.
+<p>
+
+    This module implements the the <code class="code">HashCmp</code> signature from the Frenetic_Vlr package, so it
+    becomes the "V" in VLR.<br>
+</div>
 
 
+<pre><span id="VALt_of_sexp"><span class="keyword">val</span> t_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Fdd.Field.html#TYPEt">t</a></code></pre>
+<pre><span id="VALsexp_of_t"><span class="keyword">val</span> sexp_of_t</span> : <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">t</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span class="keyword">include</span> <a href="Frenetic_Vlr.HashCmp.html">Frenetic_Vlr.HashCmp</a></pre>
 
 <pre><span id="VALauto_order"><span class="keyword">val</span> auto_order</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a> -> unit</code></pre>
 <pre><span id="VALset_order"><span class="keyword">val</span> set_order</span> : <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">t</a> list -> unit</code></pre>
 <pre><span id="VALget_order"><span class="keyword">val</span> get_order</span> : <code class="type">unit -> <a href="Frenetic_Fdd.Field.html#TYPEt">t</a> list</code></pre>
-<pre><span id="VALall_fields"><span class="keyword">val</span> all_fields</span> : <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">t</a> list</code></pre>
-<pre><span id="VALto_string"><span class="keyword">val</span> to_string</span> : <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">t</a> -> string</code></pre>
-<pre><span id="VALof_string"><span class="keyword">val</span> of_string</span> : <code class="type">string -> <a href="Frenetic_Fdd.Field.html#TYPEt">t</a></code></pre>
-<pre><span id="VALcompare"><span class="keyword">val</span> compare</span> : <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">t</a> -> <a href="Frenetic_Fdd.Field.html#TYPEt">t</a> -> int</code></pre>
+<pre><span id="VALall"><span class="keyword">val</span> all</span> : <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">t</a> list</code></pre><div class="info ">
+<code class="code">all</code> returns the default field field ordering<br>
+</div>
+
+<pre><span id="VALcompare"><span class="keyword">val</span> compare</span> : <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">t</a> -> <a href="Frenetic_Fdd.Field.html#TYPEt">t</a> -> int</code></pre><div class="info ">
+<code class="code">compare f1 f2</code> compares two fields in the current ordering in the usual way.<br>
+</div>
+
 <pre><span id="VALhash"><span class="keyword">val</span> hash</span> : <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">t</a> -> int</code></pre>
-<pre><span id="VALt_of_sexp"><span class="keyword">val</span> t_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Fdd.Field.html#TYPEt">t</a></code></pre>
-<pre><span id="VALsexp_of_t"><span class="keyword">val</span> sexp_of_t</span> : <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">t</a> -> Sexplib.Sexp.t</code></pre></body></html>
+<pre><span id="VALof_string"><span class="keyword">val</span> of_string</span> : <code class="type">string -> <a href="Frenetic_Fdd.Field.html#TYPEt">t</a></code></pre><div class="info ">
+<code class="code">of_string str</code> converts a field string to an abstract field.  Throws an exception for unrecognized strings.<br>
+</div>
+
+<pre><span id="VALto_string"><span class="keyword">val</span> to_string</span> : <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">t</a> -> string</code></pre><div class="info ">
+<code class="code">to_string field</code> returns a human-readable representation<br>
+</div>
+
+<pre><span id="VALset_order"><span class="keyword">val</span> set_order</span> : <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">t</a> list -> unit</code></pre><div class="info ">
+<code class="code">set_order field_list</code> sets the field ordering to the given list.  Any non-listed fields are given low priority in random order.<br>
+</div>
+
+<pre><span id="VALget_order"><span class="keyword">val</span> get_order</span> : <code class="type">unit -> <a href="Frenetic_Fdd.Field.html#TYPEt">t</a> list</code></pre><div class="info ">
+<code class="code">get_order</code> returns the current field ordering.  All fields are returned.<br>
+</div>
+
+<pre><span id="VALauto_order"><span class="keyword">val</span> auto_order</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a> -> unit</code></pre><div class="info ">
+<code class="code">auto_order policy</code> heurisitically determines the field ordering given a policy<br>
+</div>
+</body></html>

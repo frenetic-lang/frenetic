@@ -14,8 +14,8 @@
 <link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
 <link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
 <link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
-<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
@@ -27,10 +27,10 @@
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
 <link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
 <link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
-<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
@@ -44,14 +44,14 @@
 
 <pre><span class="keyword">module</span> Filter: <code class="code">sig</code> <a href="Frenetic_NetKAT_Lexer.Token.Filter.html">..</a> <code class="code">end</code></pre><hr width="100%">
 
-<pre><span id="TYPEtoken_filter"><span class="keyword">type</span> <code class="type"></code>token_filter</span> = <code class="type">(<a href="Frenetic_NetKAT_Lexer.Token.html#TYPEt">Frenetic_NetKAT_Lexer.Token.t</a>, Loc.t) Camlp4.Sig.stream_filter</code> </pre>
-
-
 <pre><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> = <code class="type">unit</code> </pre>
 
 
-<pre><span id="VALmk"><span class="keyword">val</span> mk</span> : <code class="type">'a -> unit</code></pre>
-<pre><span id="VALfilter"><span class="keyword">val</span> filter</span> : <code class="type">'a -> 'b -> 'b</code></pre>
-<pre><span id="VALdefine_filter"><span class="keyword">val</span> define_filter</span> : <code class="type">'a -> 'b -> unit</code></pre>
-<pre><span id="VALkeyword_added"><span class="keyword">val</span> keyword_added</span> : <code class="type">'a -> 'b -> 'c -> unit</code></pre>
-<pre><span id="VALkeyword_removed"><span class="keyword">val</span> keyword_removed</span> : <code class="type">'a -> 'b -> unit</code></pre></body></html>
+<pre><span id="TYPEtoken_filter"><span class="keyword">type</span> <code class="type"></code>token_filter</span> = <code class="type">(<a href="Frenetic_NetKAT_Lexer.html#TYPEtoken">Frenetic_NetKAT_Lexer.token</a>, Loc.t) Camlp4.Sig.stream_filter</code> </pre>
+
+
+<pre><span id="VALkeyword_removed"><span class="keyword">val</span> keyword_removed</span> : <code class="type"><a href="Frenetic_NetKAT_Lexer.Token.Filter.html#TYPEt">t</a> -><br>       bytes -> <a href="Frenetic_NetKAT_Lexer.Token.Filter.html#TYPEt">t</a></code></pre>
+<pre><span id="VALkeyword_added"><span class="keyword">val</span> keyword_added</span> : <code class="type"><a href="Frenetic_NetKAT_Lexer.Token.Filter.html#TYPEt">t</a> -><br>       bytes -> bool -> <a href="Frenetic_NetKAT_Lexer.Token.Filter.html#TYPEt">t</a></code></pre>
+<pre><span id="VALfilter"><span class="keyword">val</span> filter</span> : <code class="type"><a href="Frenetic_NetKAT_Lexer.Token.Filter.html#TYPEt">t</a> -><br>       <a href="Frenetic_NetKAT_Lexer.Token.Filter.html#TYPEtoken_filter">token_filter</a></code></pre>
+<pre><span id="VALdefine_filter"><span class="keyword">val</span> define_filter</span> : <code class="type"><a href="Frenetic_NetKAT_Lexer.Token.Filter.html#TYPEt">t</a> -><br>       (<a href="Frenetic_NetKAT_Lexer.Token.Filter.html#TYPEtoken_filter">token_filter</a> -><br>        <a href="Frenetic_NetKAT_Lexer.Token.Filter.html#TYPEtoken_filter">token_filter</a>) -><br>       <a href="Frenetic_NetKAT_Lexer.Token.Filter.html#TYPEt">t</a></code></pre>
+<pre><span id="VALmk"><span class="keyword">val</span> mk</span> : <code class="type">(bytes -> bool) -> <a href="Frenetic_NetKAT_Lexer.Token.Filter.html#TYPEt">t</a></code></pre></body></html>

@@ -15,8 +15,8 @@
 <link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
 <link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
 <link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
-<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
@@ -28,10 +28,10 @@
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
 <link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
 <link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
-<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
@@ -44,24 +44,29 @@
 </div>
 <h1>Module <a href="type_Frenetic_NetKAT_Parser.html">Frenetic_NetKAT_Parser</a></h1>
 
-<pre><span class="keyword">module</span> Frenetic_NetKAT_Parser: <code class="code">sig</code> <a href="Frenetic_NetKAT_Parser.html">..</a> <code class="code">end</code></pre><hr width="100%">
+<pre><span class="keyword">module</span> Frenetic_NetKAT_Parser: <code class="code">sig</code> <a href="Frenetic_NetKAT_Parser.html">..</a> <code class="code">end</code></pre><div class="info module top">
+Same as policy_of_string, but NetKAT policy read from character stream<br>
+</div>
+<hr width="100%">
 
-<pre><span class="keyword">module</span> <a href="Frenetic_NetKAT_Parser.Gram.html">Gram</a>: <code class="type">Camlp4.PreCast.MakeGram</code><code class="code">(</code><code class="type"><a href="Frenetic_NetKAT_Lexer.html">Frenetic_NetKAT_Lexer</a></code><code class="code">)</code></pre>
-<pre><span id="VALnk_pred"><span class="keyword">val</span> nk_pred</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpred">Frenetic_NetKAT.pred</a> Gram.Entry.t</code></pre>
-<pre><span id="VALnk_pred_atom"><span class="keyword">val</span> nk_pred_atom</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpred">Frenetic_NetKAT.pred</a> Gram.Entry.t</code></pre>
-<pre><span id="VALnk_pred_not"><span class="keyword">val</span> nk_pred_not</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpred">Frenetic_NetKAT.pred</a> Gram.Entry.t</code></pre>
-<pre><span id="VALnk_pred_and"><span class="keyword">val</span> nk_pred_and</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpred">Frenetic_NetKAT.pred</a> Gram.Entry.t</code></pre>
-<pre><span id="VALnk_pred_or"><span class="keyword">val</span> nk_pred_or</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpred">Frenetic_NetKAT.pred</a> Gram.Entry.t</code></pre>
-<pre><span id="VALnk_pol"><span class="keyword">val</span> nk_pol</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a> Gram.Entry.t</code></pre>
-<pre><span id="VALnk_pol_atom"><span class="keyword">val</span> nk_pol_atom</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a> Gram.Entry.t</code></pre>
-<pre><span id="VALnk_pol_seq"><span class="keyword">val</span> nk_pol_seq</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a> Gram.Entry.t</code></pre>
-<pre><span id="VALnk_pol_star"><span class="keyword">val</span> nk_pol_star</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a> Gram.Entry.t</code></pre>
-<pre><span id="VALnk_pol_union"><span class="keyword">val</span> nk_pol_union</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a> Gram.Entry.t</code></pre>
-<pre><span id="VALnk_pol_cond"><span class="keyword">val</span> nk_pol_cond</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a> Gram.Entry.t</code></pre>
-<pre><span id="VALnk_int64"><span class="keyword">val</span> nk_int64</span> : <code class="type">Core.Std.Int64.t Gram.Entry.t</code></pre>
-<pre><span id="VALnk_int32"><span class="keyword">val</span> nk_int32</span> : <code class="type">Core.Std.Int32.t Gram.Entry.t</code></pre>
-<pre><span id="VALnk_int"><span class="keyword">val</span> nk_int</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEtpPort">Frenetic_Packet.tpPort</a> Gram.Entry.t</code></pre>
-<pre><span id="VALnk_ipv4"><span class="keyword">val</span> nk_ipv4</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEnwAddr">Frenetic_Packet.nwAddr</a> Gram.Entry.t</code></pre>
-<pre><span id="VALnk_loc"><span class="keyword">val</span> nk_loc</span> : <code class="type">(Core.Std.Int64.t * Core.Std.Int64.t) Gram.Entry.t</code></pre>
-<pre><span id="VALpolicy_from_string"><span class="keyword">val</span> policy_from_string</span> : <code class="type">string -> <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a></code></pre>
-<pre><span id="VALpred_from_string"><span class="keyword">val</span> pred_from_string</span> : <code class="type">string -> <a href="Frenetic_NetKAT.html#TYPEpred">Frenetic_NetKAT.pred</a></code></pre></body></html>
+<pre><span id="VALpolicy_of_stream"><span class="keyword">val</span> policy_of_stream</span> : <code class="type">?loc:Camlp4.PreCast.Loc.t -> char Stream.t -> <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a></code></pre>
+<pre><span id="VALpred_of_stream"><span class="keyword">val</span> pred_of_stream</span> : <code class="type">?loc:Camlp4.PreCast.Loc.t -> char Stream.t -> <a href="Frenetic_NetKAT.html#TYPEpred">Frenetic_NetKAT.pred</a></code></pre><div class="info ">
+Same as pred_of_string, but NetKAT predicate read from character stream<br>
+</div>
+
+<pre><span id="VALpolicy_of_string"><span class="keyword">val</span> policy_of_string</span> : <code class="type">?loc:Camlp4.PreCast.Loc.t -> string -> <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a></code></pre><div class="info ">
+Given a policy string, parse it into abstract NetKAT form<br>
+</div>
+
+<pre><span id="VALpred_of_string"><span class="keyword">val</span> pred_of_string</span> : <code class="type">?loc:Camlp4.PreCast.Loc.t -> string -> <a href="Frenetic_NetKAT.html#TYPEpred">Frenetic_NetKAT.pred</a></code></pre><div class="info ">
+Given a predicate string, parse it into abstract NetKAT form.  Raise exception if the string is a policy, not a predicate<br>
+</div>
+
+<pre><span id="VALpolicy_of_file"><span class="keyword">val</span> policy_of_file</span> : <code class="type">string -> <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a></code></pre><div class="info ">
+Same as policy_of_string, but NetKAT policy read from file<br>
+</div>
+
+<pre><span id="VALpred_of_file"><span class="keyword">val</span> pred_of_file</span> : <code class="type">string -> <a href="Frenetic_NetKAT.html#TYPEpred">Frenetic_NetKAT.pred</a></code></pre><div class="info ">
+Same as pred_of_string, but NetKAT predicate read from file<br>
+</div>
+</body></html>

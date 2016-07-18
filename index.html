@@ -12,8 +12,8 @@
 <link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
 <link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
 <link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
-<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
@@ -25,10 +25,10 @@
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
 <link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
 <link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
-<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
@@ -50,15 +50,21 @@
 Bit manipulation for integers
 </div>
 </td></tr>
-<tr><td class="module"><a href="Frenetic_Fdd.html">Frenetic_Fdd</a></td><td></td></tr>
-<tr><td class="module"><a href="Frenetic_GroupTable0x04.html">Frenetic_GroupTable0x04</a></td><td><div class="info">
-Controller's representation of the group table configuration on an
-    OpenFlow 1.3 switch.
+<tr><td class="module"><a href="Frenetic_Fdd.html">Frenetic_Fdd</a></td><td><div class="info">
+Forwarding Decision Diagrams
 </div>
 </td></tr>
-<tr><td class="module"><a href="Frenetic_Network.html">Frenetic_Network</a></td><td></td></tr>
+<tr><td class="module"><a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a></td><td><div class="info">
+<code class="code">Buffered (id, buf)</code> is a packet buffered on a switch.
+</div>
+</td></tr>
+<tr><td class="module"><a href="Frenetic_GroupTable0x04.html">Frenetic_GroupTable0x04</a></td><td><div class="info">
+Abstract version of group table, first introduced in OpenFlow 1.1 and
+  widely implemented in OpenFlow 1.3.
+</div>
+</td></tr>
 <tr><td class="module"><a href="Frenetic_NetKAT.html">Frenetic_NetKAT</a></td><td><div class="info">
-NetKAT Syntax
+NetKAT Syntax 
 </div>
 </td></tr>
 <tr><td class="module"><a href="Frenetic_NetKAT_Optimize.html">Frenetic_NetKAT_Optimize</a></td><td><div class="info">
@@ -66,36 +72,45 @@ Warning: will re-order the elements in a union
 </div>
 </td></tr>
 <tr><td class="module"><a href="Frenetic_NetKAT_Json.html">Frenetic_NetKAT_Json</a></td><td><div class="info">
-Note: errors may occur when converting between 64-bit values and
-    JSON-representable integers.
+JSON serialization/deserialization of NetKAT messages.
 </div>
 </td></tr>
-<tr><td class="module"><a href="Frenetic_NetKAT_Lexer.html">Frenetic_NetKAT_Lexer</a></td><td></td></tr>
+<tr><td class="module"><a href="Frenetic_NetKAT_Lexer.html">Frenetic_NetKAT_Lexer</a></td><td><div class="info">
+Lexical analyzer for NetKAT  
+</div>
+</td></tr>
 <tr><td class="module"><a href="Frenetic_NetKAT_Compiler.html">Frenetic_NetKAT_Compiler</a></td><td><div class="info">
 The type of the intermediate compiler representation (FDD).
 </div>
 </td></tr>
 <tr><td class="module"><a href="Frenetic_NetKAT_Virtual_Compiler.html">Frenetic_NetKAT_Virtual_Compiler</a></td><td></td></tr>
 <tr><td class="module"><a href="Frenetic_NetKAT_Net.html">Frenetic_NetKAT_Net</a></td><td></td></tr>
-<tr><td class="module"><a href="Frenetic_NetKAT_Parser.html">Frenetic_NetKAT_Parser</a></td><td></td></tr>
+<tr><td class="module"><a href="Frenetic_NetKAT_Parser.html">Frenetic_NetKAT_Parser</a></td><td><div class="info">
+Same as policy_of_string, but NetKAT policy read from character stream
+</div>
+</td></tr>
 <tr><td class="module"><a href="Frenetic_NetKAT_Pretty.html">Frenetic_NetKAT_Pretty</a></td><td></td></tr>
-<tr><td class="module"><a href="Frenetic_NetKAT_SDN_Json.html">Frenetic_NetKAT_SDN_Json</a></td><td></td></tr>
+<tr><td class="module"><a href="Frenetic_NetKAT_SDN_Json.html">Frenetic_NetKAT_SDN_Json</a></td><td><div class="info">
+JSON serialization/deserialization of abstract OpenFlow messages.
+</div>
+</td></tr>
 <tr><td class="module"><a href="Frenetic_NetKAT_Semantics.html">Frenetic_NetKAT_Semantics</a></td><td><div class="info">
 Packets
 </div>
 </td></tr>
+<tr><td class="module"><a href="Frenetic_Network.html">Frenetic_Network</a></td><td></td></tr>
 <tr><td class="module"><a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a></td><td><div class="info">
 A uniform interface to OpenFlow 1.0 and 1.3.
 </div>
 </td></tr>
-<tr><td class="module"><a href="Frenetic_OpenFlow_Header.html">Frenetic_OpenFlow_Header</a></td><td></td></tr>
+<tr><td class="module"><a href="Frenetic_OpenFlow_Header.html">Frenetic_OpenFlow_Header</a></td><td><div class="info">
+The first fields of every OpenFlow message, no matter what the version, have
+    the same shape.
+</div>
+</td></tr>
 <tr><td class="module"><a href="Frenetic_OpenFlow0x01.html">Frenetic_OpenFlow0x01</a></td><td><div class="info">
 <code class="code">Unparsable msg</code> signals an error in parsing, such as when a bit sequence
 has been corrupted.
-</div>
-</td></tr>
-<tr><td class="module"><a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a></td><td><div class="info">
-<code class="code">Buffered (id, buf)</code> is a packet buffered on a switch.
 </div>
 </td></tr>
 <tr><td class="module"><a href="Frenetic_Packet.html">Frenetic_Packet</a></td><td><div class="info">
@@ -103,7 +118,10 @@ Library for constructing, marshaling and parsing data packets.
 </div>
 </td></tr>
 <tr><td class="module"><a href="Frenetic_Topology.html">Frenetic_Topology</a></td><td></td></tr>
-<tr><td class="module"><a href="Frenetic_Util.html">Frenetic_Util</a></td><td></td></tr>
+<tr><td class="module"><a href="Frenetic_Util.html">Frenetic_Util</a></td><td><div class="info">
+Utility functions for Frenetic.
+</div>
+</td></tr>
 <tr><td class="module"><a href="Frenetic_Vlr.html">Frenetic_Vlr</a></td><td><div class="info">
 The signature for a type that can be compared and hashed
 </div>

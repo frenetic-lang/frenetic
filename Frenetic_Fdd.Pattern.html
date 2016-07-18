@@ -15,8 +15,8 @@
 <link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
 <link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
 <link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
-<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
@@ -28,10 +28,10 @@
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
 <link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
 <link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
-<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
@@ -49,8 +49,22 @@
 <pre><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> = <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">Frenetic_Fdd.Field.t</a> * <a href="Frenetic_Fdd.Value.html#TYPEt">Frenetic_Fdd.Value.t</a></code> </pre>
 
 
-<pre><span id="VALcompare"><span class="keyword">val</span> compare</span> : <code class="type"><a href="Frenetic_Fdd.Pattern.html#TYPEt">t</a> -> <a href="Frenetic_Fdd.Pattern.html#TYPEt">t</a> -> int</code></pre>
-<pre><span id="VALof_hv"><span class="keyword">val</span> of_hv</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEheader_val">Frenetic_NetKAT.header_val</a> -> <a href="Frenetic_Fdd.Pattern.html#TYPEt">t</a></code></pre>
-<pre><span id="VALto_hv"><span class="keyword">val</span> to_hv</span> : <code class="type"><a href="Frenetic_Fdd.Pattern.html#TYPEt">t</a> -> <a href="Frenetic_NetKAT.html#TYPEheader_val">Frenetic_NetKAT.header_val</a></code></pre>
-<pre><span id="VALto_pred"><span class="keyword">val</span> to_pred</span> : <code class="type"><a href="Frenetic_Fdd.Pattern.html#TYPEt">t</a> -> <a href="Frenetic_NetKAT.html#TYPEpred">Frenetic_NetKAT.pred</a></code></pre>
+<pre><span id="VALcompare"><span class="keyword">val</span> compare</span> : <code class="type"><a href="Frenetic_Fdd.Pattern.html#TYPEt">t</a> -> <a href="Frenetic_Fdd.Pattern.html#TYPEt">t</a> -> int</code></pre><div class="info ">
+<code class="code">compare p1 p2</code> compares two patterns - the field ordering is used for differing fields, and the natural order of integers for
+  patterns with the same field<br>
+</div>
+
+<pre><span id="VALequal"><span class="keyword">val</span> equal</span> : <code class="type"><a href="Frenetic_Fdd.Pattern.html#TYPEt">t</a> -> <a href="Frenetic_Fdd.Pattern.html#TYPEt">t</a> -> bool</code></pre>
+<pre><span id="VALof_hv"><span class="keyword">val</span> of_hv</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEheader_val">Frenetic_NetKAT.header_val</a> -> <a href="Frenetic_Fdd.Pattern.html#TYPEt">t</a></code></pre><div class="info ">
+<code class="code">of_hv header_value</code> converts a NetKAT header_value pair to a pattern<br>
+</div>
+
+<pre><span id="VALto_hv"><span class="keyword">val</span> to_hv</span> : <code class="type"><a href="Frenetic_Fdd.Pattern.html#TYPEt">t</a> -> <a href="Frenetic_NetKAT.html#TYPEheader_val">Frenetic_NetKAT.header_val</a></code></pre><div class="info ">
+<code class="code">to_hv p</code> converts a pattern to a NetKAT header_value pair<br>
+</div>
+
+<pre><span id="VALto_pred"><span class="keyword">val</span> to_pred</span> : <code class="type"><a href="Frenetic_Fdd.Pattern.html#TYPEt">t</a> -> <a href="Frenetic_NetKAT.html#TYPEpred">Frenetic_NetKAT.pred</a></code></pre><div class="info ">
+<code class="code">to_pred p</code> converts a pattern to a NetKAT predicate<br>
+</div>
+
 <pre><span id="VALto_sdn"><span class="keyword">val</span> to_sdn</span> : <code class="type"><a href="Frenetic_Fdd.Pattern.html#TYPEt">t</a> -><br>       <a href="Frenetic_OpenFlow.Pattern.html#TYPEt">Frenetic_OpenFlow.Pattern.t</a> -> <a href="Frenetic_OpenFlow.Pattern.html#TYPEt">Frenetic_OpenFlow.Pattern.t</a></code></pre></body></html>

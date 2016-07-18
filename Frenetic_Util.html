@@ -15,8 +15,8 @@
 <link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
 <link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
 <link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
-<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
@@ -28,10 +28,10 @@
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
 <link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
 <link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
-<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
@@ -44,9 +44,12 @@
 </div>
 <h1>Module <a href="type_Frenetic_Util.html">Frenetic_Util</a></h1>
 
-<pre><span class="keyword">module</span> Frenetic_Util: <code class="code">sig</code> <a href="Frenetic_Util.html">..</a> <code class="code">end</code></pre><hr width="100%">
+<pre><span class="keyword">module</span> Frenetic_Util: <code class="code">sig</code> <a href="Frenetic_Util.html">..</a> <code class="code">end</code></pre><div class="info module top">
+Utility functions for Frenetic.  These are used in multiple modules and don't have an obvious home type.<br>
+</div>
+<hr width="100%">
 
-<pre><span class="keyword">module</span> <a href="Frenetic_Util.IntPairTbl.html">IntPairTbl</a>: <code class="type">Hashtbl.S</code><code class="type">  with type key = (int * int)</code></pre>
-<pre><span id="VALmake_string_of"><span class="keyword">val</span> make_string_of</span> : <code class="type">(Format.formatter -> 'a -> 'b) -> 'a -> string</code></pre>
-<pre><span id="VALstring_of_option"><span class="keyword">val</span> string_of_option</span> : <code class="type">('a -> string) -> 'a option -> string</code></pre>
-<pre><span id="VALstring_of_list"><span class="keyword">val</span> string_of_list</span> : <code class="type">('a -> string) -> 'a list -> string</code></pre></body></html>
+<pre><span id="VALmake_string_of"><span class="keyword">val</span> make_string_of</span> : <code class="type">(Format.formatter -> 'a -> 'b) -> 'a -> string</code></pre><div class="info ">
+Given a user-defined formatter and a type, make a string.  This is a lot like sprintf, and encourages sharing the formatting code.<br>
+</div>
+</body></html>

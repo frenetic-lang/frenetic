@@ -15,8 +15,8 @@
 <link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
 <link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
 <link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
-<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
@@ -28,10 +28,10 @@
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
 <link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
 <link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
-<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
@@ -65,10 +65,10 @@
 
 
 
+<pre><span id="VALnode_of_sexp"><span class="keyword">val</span> node_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT_Net.html#TYPEnode">node</a></code></pre>
+<pre><span id="VALsexp_of_node"><span class="keyword">val</span> sexp_of_node</span> : <code class="type"><a href="Frenetic_NetKAT_Net.html#TYPEnode">node</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span class="keyword">module</span> <a href="Frenetic_NetKAT_Net.Node.html">Node</a>: <code class="code">sig</code> <a href="Frenetic_NetKAT_Net.Node.html">..</a> <code class="code">end</code></pre>
 <pre><span class="keyword">module</span> <a href="Frenetic_NetKAT_Net.Link.html">Link</a>: <code class="type"><a href="Frenetic_Network.EDGE.html">Frenetic_Network.EDGE</a></code><code class="type"> </code></pre>
 <pre><span class="keyword">module</span> <a href="Frenetic_NetKAT_Net.Net.html">Net</a>: <code class="type"><a href="Frenetic_Network.NETWORK.html">Frenetic_Network.NETWORK</a></code><code class="type">  
   with type Topology.Vertex.t = Node.t
-  and type Topology.Edge.t = Link.t</code></pre>
-<pre><span id="VALnode_of_sexp"><span class="keyword">val</span> node_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT_Net.html#TYPEnode">node</a></code></pre>
-<pre><span id="VALsexp_of_node"><span class="keyword">val</span> sexp_of_node</span> : <code class="type"><a href="Frenetic_NetKAT_Net.html#TYPEnode">node</a> -> Sexplib.Sexp.t</code></pre></body></html>
+  and type Topology.Edge.t = Link.t</code></pre></body></html>

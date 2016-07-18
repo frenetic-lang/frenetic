@@ -4,7 +4,7 @@
 <link rel="stylesheet" href="style.css" type="text/css">
 <meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
 <link rel="Start" href="index.html">
-<link rel="previous" href="Frenetic_Network.html">
+<link rel="previous" href="Frenetic_GroupTable0x04.html">
 <link rel="next" href="Frenetic_NetKAT_Optimize.html">
 <link rel="Up" href="index.html">
 <link title="Index of types" rel=Appendix href="index_types.html">
@@ -15,8 +15,8 @@
 <link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
 <link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
 <link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
-<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
@@ -28,28 +28,32 @@
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
 <link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
 <link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
-<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
 <link title="Frenetic_Vlr" rel="Chapter" href="Frenetic_Vlr.html"><link title="Policies" rel="Section" href="#2_Policies">
-<link title="Policies" rel="Section" href="#2_Policies">
-<link title="Applications" rel="Subsection" href="#3_Applications">
 <link title="Applications" rel="Subsection" href="#3_Applications">
 <title>Frenetic_NetKAT</title>
 </head>
 <body>
-<div class="navbar"><a class="pre" href="Frenetic_Network.html" title="Frenetic_Network">Previous</a>
+<div class="navbar"><a class="pre" href="Frenetic_GroupTable0x04.html" title="Frenetic_GroupTable0x04">Previous</a>
 &nbsp;<a class="up" href="index.html" title="Index">Up</a>
 &nbsp;<a class="post" href="Frenetic_NetKAT_Optimize.html" title="Frenetic_NetKAT_Optimize">Next</a>
 </div>
 <h1>Module <a href="type_Frenetic_NetKAT.html">Frenetic_NetKAT</a></h1>
 
 <pre><span class="keyword">module</span> Frenetic_NetKAT: <code class="code">sig</code> <a href="Frenetic_NetKAT.html">..</a> <code class="code">end</code></pre><div class="info module top">
-NetKAT Syntax<br>
+NetKAT Syntax 
+<p>
+
+  The NetKAT language is central to Frenetic, and we factor out the central types here.  The big actors
+  on NetKAT structures are Frenetic_NetKAT_Compiler which compiles NetKAT into flow tables,
+  Frenetic_NetKAT_Parser which turns NetKAT strings (e.g "TcpSrcPort(8080); port := 2") into NetKAT, and 
+  Frenetic_NetKAT_Json which turns JSON-formatted NetKAT into NetKAT<br>
 </div>
 <hr width="100%">
 
@@ -61,21 +65,43 @@ NetKAT Syntax<br>
 <pre><span id="TYPEswitchId"><span class="keyword">type</span> <code class="type"></code>switchId</span> = <code class="type"><a href="Frenetic_OpenFlow.html#TYPEswitchId">Frenetic_OpenFlow.switchId</a></code> </pre>
 
 
+<pre><span id="VALswitchId_of_sexp"><span class="keyword">val</span> switchId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEswitchId">switchId</a></code></pre>
+<pre><span id="VALsexp_of_switchId"><span class="keyword">val</span> sexp_of_switchId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEswitchId">switchId</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALcompare_switchId"><span class="keyword">val</span> compare_switchId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEswitchId">switchId</a> -> <a href="Frenetic_NetKAT.html#TYPEswitchId">switchId</a> -> int</code></pre>
+<pre><span id="VALequal_switchId"><span class="keyword">val</span> equal_switchId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEswitchId">switchId</a> -><br>       <a href="Frenetic_NetKAT.html#TYPEswitchId">switchId</a> -> Ppx_deriving_runtime.bool</code></pre>
 <pre><span id="TYPEportId"><span class="keyword">type</span> <code class="type"></code>portId</span> = <code class="type"><a href="Frenetic_OpenFlow.html#TYPEportId">Frenetic_OpenFlow.portId</a></code> </pre>
 
 
+<pre><span id="VALportId_of_sexp"><span class="keyword">val</span> portId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEportId">portId</a></code></pre>
+<pre><span id="VALsexp_of_portId"><span class="keyword">val</span> sexp_of_portId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEportId">portId</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALcompare_portId"><span class="keyword">val</span> compare_portId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEportId">portId</a> -> <a href="Frenetic_NetKAT.html#TYPEportId">portId</a> -> int</code></pre>
+<pre><span id="VALequal_portId"><span class="keyword">val</span> equal_portId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEportId">portId</a> -> <a href="Frenetic_NetKAT.html#TYPEportId">portId</a> -> Ppx_deriving_runtime.bool</code></pre>
 <pre><span id="TYPEpayload"><span class="keyword">type</span> <code class="type"></code>payload</span> = <code class="type"><a href="Frenetic_OpenFlow.html#TYPEpayload">Frenetic_OpenFlow.payload</a></code> </pre>
 
 
+<pre><span id="VALpayload_of_sexp"><span class="keyword">val</span> payload_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEpayload">payload</a></code></pre>
+<pre><span id="VALsexp_of_payload"><span class="keyword">val</span> sexp_of_payload</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpayload">payload</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="TYPEvswitchId"><span class="keyword">type</span> <code class="type"></code>vswitchId</span> = <code class="type">int64</code> </pre>
 
 
+<pre><span id="VALvswitchId_of_sexp"><span class="keyword">val</span> vswitchId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEvswitchId">vswitchId</a></code></pre>
+<pre><span id="VALsexp_of_vswitchId"><span class="keyword">val</span> sexp_of_vswitchId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEvswitchId">vswitchId</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALcompare_vswitchId"><span class="keyword">val</span> compare_vswitchId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEvswitchId">vswitchId</a> -> <a href="Frenetic_NetKAT.html#TYPEvswitchId">vswitchId</a> -> int</code></pre>
+<pre><span id="VALequal_vswitchId"><span class="keyword">val</span> equal_vswitchId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEvswitchId">vswitchId</a> -><br>       <a href="Frenetic_NetKAT.html#TYPEvswitchId">vswitchId</a> -> Ppx_deriving_runtime.bool</code></pre>
 <pre><span id="TYPEvportId"><span class="keyword">type</span> <code class="type"></code>vportId</span> = <code class="type">int64</code> </pre>
 
 
+<pre><span id="VALvportId_of_sexp"><span class="keyword">val</span> vportId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEvportId">vportId</a></code></pre>
+<pre><span id="VALsexp_of_vportId"><span class="keyword">val</span> sexp_of_vportId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEvportId">vportId</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALcompare_vportId"><span class="keyword">val</span> compare_vportId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEvportId">vportId</a> -> <a href="Frenetic_NetKAT.html#TYPEvportId">vportId</a> -> int</code></pre>
+<pre><span id="VALequal_vportId"><span class="keyword">val</span> equal_vportId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEvportId">vportId</a> -><br>       <a href="Frenetic_NetKAT.html#TYPEvportId">vportId</a> -> Ppx_deriving_runtime.bool</code></pre>
 <pre><span id="TYPEvfabricId"><span class="keyword">type</span> <code class="type"></code>vfabricId</span> = <code class="type">int64</code> </pre>
 
-<br>
+
+<pre><span id="VALvfabricId_of_sexp"><span class="keyword">val</span> vfabricId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEvfabricId">vfabricId</a></code></pre>
+<pre><span id="VALsexp_of_vfabricId"><span class="keyword">val</span> sexp_of_vfabricId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEvfabricId">vfabricId</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALcompare_vfabricId"><span class="keyword">val</span> compare_vfabricId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEvfabricId">vfabricId</a> -> <a href="Frenetic_NetKAT.html#TYPEvfabricId">vfabricId</a> -> int</code></pre>
+<pre><span id="VALequal_vfabricId"><span class="keyword">val</span> equal_vfabricId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEvfabricId">vfabricId</a> -><br>       <a href="Frenetic_NetKAT.html#TYPEvfabricId">vfabricId</a> -> Ppx_deriving_runtime.bool</code></pre><br>
 <h2 id="2_Policies">Policies</h2><br>
 
 <pre><span id="VALstring_of_fastfail"><span class="keyword">val</span> string_of_fastfail</span> : <code class="type">int32 list -> string</code></pre>
@@ -111,6 +137,9 @@ NetKAT Syntax<br>
 
 
 
+<pre><span id="VALlocation_of_sexp"><span class="keyword">val</span> location_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPElocation">location</a></code></pre>
+<pre><span id="VALsexp_of_location"><span class="keyword">val</span> sexp_of_location</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPElocation">location</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALcompare_location"><span class="keyword">val</span> compare_location</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPElocation">location</a> -> <a href="Frenetic_NetKAT.html#TYPElocation">location</a> -> int</code></pre>
 <pre><code><span id="TYPEheader_val"><span class="keyword">type</span> <code class="type"></code>header_val</span> = </code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -220,6 +249,8 @@ NetKAT Syntax<br>
 
 
 
+<pre><span id="VALheader_val_of_sexp"><span class="keyword">val</span> header_val_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEheader_val">header_val</a></code></pre>
+<pre><span id="VALsexp_of_header_val"><span class="keyword">val</span> sexp_of_header_val</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEheader_val">header_val</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEpred"><span class="keyword">type</span> <code class="type"></code>pred</span> = </code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -266,6 +297,8 @@ NetKAT Syntax<br>
 
 
 
+<pre><span id="VALpred_of_sexp"><span class="keyword">val</span> pred_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEpred">pred</a></code></pre>
+<pre><span id="VALsexp_of_pred"><span class="keyword">val</span> sexp_of_pred</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpred">pred</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEpolicy"><span class="keyword">type</span> <code class="type"></code>policy</span> = </code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -319,6 +352,8 @@ NetKAT Syntax<br>
 
 
 
+<pre><span id="VALpolicy_of_sexp"><span class="keyword">val</span> policy_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEpolicy">policy</a></code></pre>
+<pre><span id="VALsexp_of_policy"><span class="keyword">val</span> sexp_of_policy</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpolicy">policy</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="VALid"><span class="keyword">val</span> id</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpolicy">policy</a></code></pre>
 <pre><span id="VALdrop"><span class="keyword">val</span> drop</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpolicy">policy</a></code></pre><br>
 <h3 id="3_Applications">Applications</h3><br>
@@ -329,12 +364,18 @@ NetKAT Syntax<br>
 <pre><span id="TYPEswitch_port"><span class="keyword">type</span> <code class="type"></code>switch_port</span> = <code class="type"><a href="Frenetic_NetKAT.html#TYPEswitchId">switchId</a> * <a href="Frenetic_NetKAT.html#TYPEportId">portId</a></code> </pre>
 
 
+<pre><span id="VALswitch_port_of_sexp"><span class="keyword">val</span> switch_port_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEswitch_port">switch_port</a></code></pre>
+<pre><span id="VALsexp_of_switch_port"><span class="keyword">val</span> sexp_of_switch_port</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEswitch_port">switch_port</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="TYPEhost"><span class="keyword">type</span> <code class="type"></code>host</span> = <code class="type"><a href="Frenetic_Packet.html#TYPEdlAddr">Frenetic_Packet.dlAddr</a> * <a href="Frenetic_Packet.html#TYPEnwAddr">Frenetic_Packet.nwAddr</a></code> </pre>
 
 
+<pre><span id="VALhost_of_sexp"><span class="keyword">val</span> host_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEhost">host</a></code></pre>
+<pre><span id="VALsexp_of_host"><span class="keyword">val</span> sexp_of_host</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEhost">host</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="TYPEbufferId"><span class="keyword">type</span> <code class="type"></code>bufferId</span> = <code class="type">Core.Std.Int32.t</code> </pre>
 
 
+<pre><span id="VALbufferId_of_sexp"><span class="keyword">val</span> bufferId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEbufferId">bufferId</a></code></pre>
+<pre><span id="VALsexp_of_bufferId"><span class="keyword">val</span> sexp_of_bufferId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEbufferId">bufferId</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEevent"><span class="keyword">type</span> <code class="type"></code>event</span> = </code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -409,35 +450,5 @@ NetKAT Syntax<br>
 
 
 
-<pre><span id="VALswitchId_of_sexp"><span class="keyword">val</span> switchId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEswitchId">switchId</a></code></pre>
-<pre><span id="VALsexp_of_switchId"><span class="keyword">val</span> sexp_of_switchId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEswitchId">switchId</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALportId_of_sexp"><span class="keyword">val</span> portId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEportId">portId</a></code></pre>
-<pre><span id="VALsexp_of_portId"><span class="keyword">val</span> sexp_of_portId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEportId">portId</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALpayload_of_sexp"><span class="keyword">val</span> payload_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEpayload">payload</a></code></pre>
-<pre><span id="VALsexp_of_payload"><span class="keyword">val</span> sexp_of_payload</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpayload">payload</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALvswitchId_of_sexp"><span class="keyword">val</span> vswitchId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEvswitchId">vswitchId</a></code></pre>
-<pre><span id="VALsexp_of_vswitchId"><span class="keyword">val</span> sexp_of_vswitchId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEvswitchId">vswitchId</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALvportId_of_sexp"><span class="keyword">val</span> vportId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEvportId">vportId</a></code></pre>
-<pre><span id="VALsexp_of_vportId"><span class="keyword">val</span> sexp_of_vportId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEvportId">vportId</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALvfabricId_of_sexp"><span class="keyword">val</span> vfabricId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEvfabricId">vfabricId</a></code></pre>
-<pre><span id="VALsexp_of_vfabricId"><span class="keyword">val</span> sexp_of_vfabricId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEvfabricId">vfabricId</a> -> Sexplib.Sexp.t</code></pre><br>
-<h2 id="2_Policies">Policies</h2><br>
-
-<pre><span id="VALlocation_of_sexp"><span class="keyword">val</span> location_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPElocation">location</a></code></pre>
-<pre><span id="VALsexp_of_location"><span class="keyword">val</span> sexp_of_location</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPElocation">location</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALheader_val_of_sexp"><span class="keyword">val</span> header_val_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEheader_val">header_val</a></code></pre>
-<pre><span id="VALsexp_of_header_val"><span class="keyword">val</span> sexp_of_header_val</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEheader_val">header_val</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALpred_of_sexp"><span class="keyword">val</span> pred_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEpred">pred</a></code></pre>
-<pre><span id="VALsexp_of_pred"><span class="keyword">val</span> sexp_of_pred</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpred">pred</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALpolicy_of_sexp"><span class="keyword">val</span> policy_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEpolicy">policy</a></code></pre>
-<pre><span id="VALsexp_of_policy"><span class="keyword">val</span> sexp_of_policy</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpolicy">policy</a> -> Sexplib.Sexp.t</code></pre><br>
-<h3 id="3_Applications">Applications</h3><br>
-
-<pre><span id="VALswitch_port_of_sexp"><span class="keyword">val</span> switch_port_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEswitch_port">switch_port</a></code></pre>
-<pre><span id="VALsexp_of_switch_port"><span class="keyword">val</span> sexp_of_switch_port</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEswitch_port">switch_port</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALhost_of_sexp"><span class="keyword">val</span> host_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEhost">host</a></code></pre>
-<pre><span id="VALsexp_of_host"><span class="keyword">val</span> sexp_of_host</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEhost">host</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALbufferId_of_sexp"><span class="keyword">val</span> bufferId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEbufferId">bufferId</a></code></pre>
-<pre><span id="VALsexp_of_bufferId"><span class="keyword">val</span> sexp_of_bufferId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEbufferId">bufferId</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="VALevent_of_sexp"><span class="keyword">val</span> event_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEevent">event</a></code></pre>
 <pre><span id="VALsexp_of_event"><span class="keyword">val</span> sexp_of_event</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEevent">event</a> -> Sexplib.Sexp.t</code></pre></body></html>

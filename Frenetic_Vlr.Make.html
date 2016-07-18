@@ -4,6 +4,7 @@
 <link rel="stylesheet" href="style.css" type="text/css">
 <meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
 <link rel="Start" href="index.html">
+<link rel="previous" href="Frenetic_Vlr.IntPairTbl.html">
 <link rel="Up" href="Frenetic_Vlr.html">
 <link title="Index of types" rel=Appendix href="index_types.html">
 <link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
@@ -13,8 +14,8 @@
 <link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
 <link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
 <link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
-<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
@@ -26,17 +27,18 @@
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
 <link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
 <link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
-<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
 <link title="Frenetic_Vlr" rel="Chapter" href="Frenetic_Vlr.html"><title>Frenetic_Vlr.Make</title>
 </head>
 <body>
-<div class="navbar">&nbsp;<a class="up" href="Frenetic_Vlr.html" title="Frenetic_Vlr">Up</a>
+<div class="navbar"><a class="pre" href="Frenetic_Vlr.IntPairTbl.html" title="Frenetic_Vlr.IntPairTbl">Previous</a>
+&nbsp;<a class="up" href="Frenetic_Vlr.html" title="Frenetic_Vlr">Up</a>
 &nbsp;</div>
 <h1>Functor <a href="type_Frenetic_Vlr.Make.html">Frenetic_Vlr.Make</a></h1>
 
@@ -78,7 +80,8 @@ Variable-Lattice-Result
 
 <pre><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> = private <code class="type">int</code> </pre>
 <div class="info ">
-The type of a decision diagram<br>
+A decision diagram index.  All diagrams and subdiagrams within it are given an
+  index.  You can convert this to a tree with <code class="code">unget</code>, and from a tree with <code class="code">get</code>.<br>
 </div>
 
 
@@ -117,12 +120,24 @@ The type of the result of a decision diagram<br>
 <pre><span id="VALget"><span class="keyword">val</span> get</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEd">d</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre>
 <pre><span id="VALunget"><span class="keyword">val</span> unget</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEd">d</a></code></pre>
 <pre><span id="VALget_uid"><span class="keyword">val</span> get_uid</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> int</code></pre>
-<pre><span id="VALmk_branch"><span class="keyword">val</span> mk_branch</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEv">v</a> -><br>       <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre>
-<pre><span id="VALmk_leaf"><span class="keyword">val</span> mk_leaf</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEr">r</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre>
-<pre><span id="VALdrop"><span class="keyword">val</span> drop</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre>
-<pre><span id="VALid"><span class="keyword">val</span> id</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre>
+<pre><span id="VALmk_branch"><span class="keyword">val</span> mk_branch</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEv">v</a> -><br>       <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><div class="info ">
+<code class="code">mkbranch v t f</code> Creates (or looks up if it's already been created) a diagram with pattern
+    v, true-branch t and false-branch f.  The t and f branches should already have been created,
+    so you pass indexes here.<br>
+</div>
+
+<pre><span id="VALmk_leaf"><span class="keyword">val</span> mk_leaf</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEr">r</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><div class="info ">
+<code class="code">mkleaf r</code> Creates (or looks up) a leaf.<br>
+</div>
+
+<pre><span id="VALdrop"><span class="keyword">val</span> drop</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><br>
+<code class="code">drop</code> returns the leaf for a drop operation, which is always present as a leaf node<br>
+
+<pre><span id="VALid"><span class="keyword">val</span> id</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><br>
+<code class="code">id</code> returns the leaf for the identity operation, which is always present as a leaf node<br>
+
 <pre><span id="VALconst"><span class="keyword">val</span> const</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEr">r</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><div class="info ">
-<code class="code">const r</code> creates a constant diagram out of <code class="code">r</code>.<br>
+<code class="code">const r</code> creates a constant diagram out of <code class="code">r</code>. It's essentially a leaf node with a constant.<br>
 </div>
 
 <pre><span id="VALatom"><span class="keyword">val</span> atom</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEv">v</a> -><br>       <a href="Frenetic_Vlr.Make.html#TYPEr">r</a> -> <a href="Frenetic_Vlr.Make.html#TYPEr">r</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><div class="info ">
@@ -184,12 +199,20 @@ The type of the result of a decision diagram<br>
 <pre><span id="VALequal"><span class="keyword">val</span> equal</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> bool</code></pre><div class="info ">
 <code class="code">equal a b</code> returns whether or not the two diagrams are structurally
       equal.
-<p>
-
       If two diagrams are structurally equal, then they represent the
       same combinatorial object. However, if two diagrams are not equal, they
       still may represent the same combinatorial object. Whether or not this is
       the case depends on they behavior of the type <code class="code">v</code>.<br>
+</div>
+
+<pre><span id="VALsum"><span class="keyword">val</span> sum</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><div class="info ">
+<code class="code">sum a b</code> returns the disjunction of the two diagrams. The <code class="code">sum</code>
+      operation on the <code class="code">r</code> type is used to combine leaf nodes.<br>
+</div>
+
+<pre><span id="VALprod"><span class="keyword">val</span> prod</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><div class="info ">
+<code class="code">prod a b</code> returns the conjunction of the two diagrams. The <code class="code">prod</code>
+      operation on the <code class="code">r</code> type is used to combine leaf nodes.<br>
 </div>
 
 <pre><span id="VALcompare"><span class="keyword">val</span> compare</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> int</code></pre>
@@ -201,12 +224,21 @@ The type of the result of a decision diagram<br>
 <code class="code">clear_cache ()</code> clears the internal cache of diagrams.<br>
 </div>
 
-<pre><span id="VALcompressed_size"><span class="keyword">val</span> compressed_size</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> int</code></pre>
-<pre><span id="VALuncompressed_size"><span class="keyword">val</span> uncompressed_size</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> int</code></pre>
+<pre><span id="VALcompressed_size"><span class="keyword">val</span> compressed_size</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> int</code></pre><div class="info ">
+<code class="code">compressed_size t</code> returns the number of nodes in the diagram, duplicates not counted<br>
+</div>
+
+<pre><span id="VALuncompressed_size"><span class="keyword">val</span> uncompressed_size</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> int</code></pre><div class="info ">
+<code class="code">uncompressed_size t</code> returns the number of nodes in the diagram, duplicates counted<br>
+</div>
+
 <pre><span id="VALto_dot"><span class="keyword">val</span> to_dot</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> string</code></pre><div class="info ">
 <code class="code">to_dot t</code> returns a string representation of the diagram using the DOT
       graph description language. The result of this function can be rendered
       using Graphviz or any other program that supports the DOT language.<br>
 </div>
 
-<pre><span id="VALrefs"><span class="keyword">val</span> refs</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> Core.Std.Int.Set.t</code></pre></body></html>
+<pre><span id="VALrefs"><span class="keyword">val</span> refs</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> Core.Std.Int.Set.t</code></pre><div class="info ">
+<code class="code">refs t</code> returns set of subdiagrams in this diagram.<br>
+</div>
+</body></html>

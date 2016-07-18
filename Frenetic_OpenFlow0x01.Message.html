@@ -14,8 +14,8 @@
 <link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
 <link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
 <link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
-<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
@@ -27,10 +27,10 @@
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
 <link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
 <link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
-<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
@@ -185,6 +185,8 @@ specification.<br>
 
 
 
+<pre><span id="VALt_of_sexp"><span class="keyword">val</span> t_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.Message.html#TYPEt">t</a></code></pre>
+<pre><span id="VALsexp_of_t"><span class="keyword">val</span> sexp_of_t</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.Message.html#TYPEt">t</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="VALsize_of"><span class="keyword">val</span> size_of</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.Message.html#TYPEt">t</a> -> int</code></pre><div class="info ">
 <code class="code">size_of msg</code> returns the size of <code class="code">msg</code> in bytes when serialized.<br>
 </div>
@@ -208,15 +210,4 @@ specification.<br>
 <pre><span id="VALto_string"><span class="keyword">val</span> to_string</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.Message.html#TYPEt">t</a> -> string</code></pre><div class="info ">
 <code class="code">to_string msg</code> pretty-prints <code class="code">msg</code>.<br>
 </div>
-
-<pre><span id="VALt_of_sexp"><span class="keyword">val</span> t_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.Message.html#TYPEt">t</a></code></pre>
-<pre><span id="VALsexp_of_t"><span class="keyword">val</span> sexp_of_t</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.Message.html#TYPEt">t</a> -> Sexplib.Sexp.t</code></pre><br>
-<code class="code">size_of msg</code> returns the size of <code class="code">msg</code> in bytes when serialized.<br>
-<br>
-<code class="code">parse hdr bits</code> parses the body of a message with header <code class="code">hdr</code> from
-      buffer <code class="code">bits</code>.<br>
-<br>
-<code class="code">marshal xid msg</code> serializes <code class="code">msg</code>, giving it a transaction ID <code class="code">xid</code>.<br>
-<br>
-<code class="code">to_string msg</code> pretty-prints <code class="code">msg</code>.<br>
 </body></html>

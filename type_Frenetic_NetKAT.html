@@ -10,8 +10,8 @@
 <link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
 <link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
 <link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
-<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
@@ -23,10 +23,10 @@
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
 <link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
 <link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
-<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
@@ -36,17 +36,58 @@
 <code class="code"><span class="keyword">sig</span><br>
 &nbsp;&nbsp;<span class="keyword">exception</span>&nbsp;<span class="constructor">Non_local</span><br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;switchId&nbsp;=&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.switchId<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;switchId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switchId<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_switchId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switchId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_switchId&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switchId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switchId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;equal_switchId&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switchId&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switchId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Ppx_deriving_runtime</span>.bool<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;portId&nbsp;=&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.portId<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;portId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.portId<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_portId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.portId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_portId&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.portId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.portId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;equal_portId&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.portId&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.portId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Ppx_deriving_runtime</span>.bool<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;payload&nbsp;=&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.payload<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;payload_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.payload<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_payload&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.payload&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;vswitchId&nbsp;=&nbsp;int64<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;vswitchId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vswitchId<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_vswitchId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vswitchId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_vswitchId&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vswitchId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vswitchId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;equal_vswitchId&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vswitchId&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vswitchId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Ppx_deriving_runtime</span>.bool<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;vportId&nbsp;=&nbsp;int64<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;vportId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vportId<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_vportId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vportId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_vportId&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vportId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vportId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;equal_vportId&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vportId&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vportId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Ppx_deriving_runtime</span>.bool<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;vfabricId&nbsp;=&nbsp;int64<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;vfabricId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vfabricId<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_vfabricId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vfabricId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_vfabricId&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vfabricId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vfabricId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;equal_vfabricId&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vfabricId&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vfabricId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Ppx_deriving_runtime</span>.bool<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_fastfail&nbsp;:&nbsp;int32&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;location&nbsp;=<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Physical</span>&nbsp;<span class="keyword">of</span>&nbsp;int32<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">FastFail</span>&nbsp;<span class="keyword">of</span>&nbsp;int32&nbsp;list<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Pipe</span>&nbsp;<span class="keyword">of</span>&nbsp;string<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Query</span>&nbsp;<span class="keyword">of</span>&nbsp;string<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;location_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.location<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_location&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.location&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_location&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.location&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.location&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;header_val&nbsp;=<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Switch</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switchId<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Location</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.location<br>
@@ -63,6 +104,8 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">VSwitch</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vswitchId<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">VPort</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vportId<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">VFabric</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vfabricId<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;header_val_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.header_val<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_header_val&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.header_val&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;pred&nbsp;=<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">True</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">False</span><br>
@@ -70,6 +113,8 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">And</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;*&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Or</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;*&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Neg</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;pred_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_pred&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;policy&nbsp;=<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Filter</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Mod</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.header_val<br>
@@ -80,12 +125,20 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switchId&nbsp;*&nbsp;<span class="constructor">Frenetic_NetKAT</span>.portId<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">VLink</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vswitchId&nbsp;*&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vportId&nbsp;*<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vswitchId&nbsp;*&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vportId<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;policy_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_policy&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;id&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;drop&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;action&nbsp;=&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.action<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;switch_port&nbsp;=&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switchId&nbsp;*&nbsp;<span class="constructor">Frenetic_NetKAT</span>.portId<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;switch_port_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switch_port<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_switch_port&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switch_port&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;host&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;*&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;host_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.host<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_host&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.host&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;bufferId&nbsp;=&nbsp;<span class="constructor">Core</span>.<span class="constructor">Std</span>.<span class="constructor">Int32</span>.t<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;bufferId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.bufferId<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_bufferId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.bufferId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;event&nbsp;=<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">PacketIn</span>&nbsp;<span class="keyword">of</span>&nbsp;string&nbsp;*&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switchId&nbsp;*<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.portId&nbsp;*&nbsp;<span class="constructor">Frenetic_NetKAT</span>.payload&nbsp;*&nbsp;int<br>
@@ -98,32 +151,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">LinkDown</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switch_port&nbsp;*&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switch_port<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">HostUp</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switch_port&nbsp;*&nbsp;<span class="constructor">Frenetic_NetKAT</span>.host<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">HostDown</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switch_port&nbsp;*&nbsp;<span class="constructor">Frenetic_NetKAT</span>.host<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;switchId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switchId<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_switchId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switchId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;portId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.portId<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_portId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.portId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;payload_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.payload<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_payload&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.payload&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;vswitchId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vswitchId<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_vswitchId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vswitchId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;vportId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vportId<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_vportId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vportId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;vfabricId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vfabricId<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_vfabricId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.vfabricId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;location_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.location<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_location&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.location&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;header_val_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.header_val<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_header_val&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.header_val&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;pred_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_pred&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;policy_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_policy&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;switch_port_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switch_port<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_switch_port&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switch_port&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;host_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.host<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_host&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.host&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;bufferId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.bufferId<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_bufferId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.bufferId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;event_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.event<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_event&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.event&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 <span class="keyword">end</span></code></body></html>

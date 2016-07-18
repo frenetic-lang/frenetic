@@ -14,8 +14,8 @@
 <link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
 <link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
 <link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
-<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
@@ -27,10 +27,10 @@
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
 <link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
 <link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
-<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
@@ -50,12 +50,18 @@
 <pre><span id="TYPEvertex"><span class="keyword">type</span> <code class="type"></code>vertex</span> </pre>
 
 
+<pre><span id="VALvertex_of_sexp"><span class="keyword">val</span> vertex_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a></code></pre>
+<pre><span id="VALsexp_of_vertex"><span class="keyword">val</span> sexp_of_vertex</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="TYPEedge"><span class="keyword">type</span> <code class="type"></code>edge</span> </pre>
 
 
+<pre><span id="VALedge_of_sexp"><span class="keyword">val</span> edge_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a></code></pre>
+<pre><span id="VALsexp_of_edge"><span class="keyword">val</span> sexp_of_edge</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="TYPEport"><span class="keyword">type</span> <code class="type"></code>port</span> = <code class="type">int32</code> </pre>
 
 
+<pre><span id="VALport_of_sexp"><span class="keyword">val</span> port_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Network.NETWORK.Topology.html#TYPEport">port</a></code></pre>
+<pre><span id="VALsexp_of_port"><span class="keyword">val</span> sexp_of_port</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEport">port</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span class="keyword">module</span> <a href="Frenetic_Network.NETWORK.Topology.Vertex.html">Vertex</a>: <code class="type"><a href="Frenetic_Network.VERTEX.html">Frenetic_Network.VERTEX</a></code><code class="type"> </code></pre>
 <pre><span class="keyword">module</span> <a href="Frenetic_Network.NETWORK.Topology.Edge.html">Edge</a>: <code class="type"><a href="Frenetic_Network.EDGE.html">Frenetic_Network.EDGE</a></code><code class="type"> </code></pre>
 <pre><span class="keyword">module</span> <a href="Frenetic_Network.NETWORK.Topology.UnitWeight.html">UnitWeight</a>: <code class="type"><a href="Frenetic_Network.WEIGHT.html">Frenetic_Network.WEIGHT</a></code><code class="type"> 
@@ -99,8 +105,4 @@
 <pre><span id="VALremove_vertex"><span class="keyword">val</span> remove_vertex</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a></code></pre>
 <pre><span id="VALremove_port"><span class="keyword">val</span> remove_port</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEport">port</a> -> <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a></code></pre>
 <pre><span id="VALremove_edge"><span class="keyword">val</span> remove_edge</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a> -> <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a></code></pre>
-<pre><span id="VALremove_endpoint"><span class="keyword">val</span> remove_endpoint</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> *<br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEport">port</a> -> <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a></code></pre>
-<pre><span id="VALvertex_of_sexp"><span class="keyword">val</span> vertex_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a></code></pre>
-<pre><span id="VALsexp_of_vertex"><span class="keyword">val</span> sexp_of_vertex</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALedge_of_sexp"><span class="keyword">val</span> edge_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a></code></pre>
-<pre><span id="VALsexp_of_edge"><span class="keyword">val</span> sexp_of_edge</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEedge">edge</a> -> Sexplib.Sexp.t</code></pre></body></html>
+<pre><span id="VALremove_endpoint"><span class="keyword">val</span> remove_endpoint</span> : <code class="type"><a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a> -><br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEvertex">vertex</a> *<br>       <a href="Frenetic_Network.NETWORK.Topology.html#TYPEport">port</a> -> <a href="Frenetic_Network.NETWORK.Topology.html#TYPEt">t</a></code></pre></body></html>

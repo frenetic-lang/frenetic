@@ -10,8 +10,8 @@
 <link title="Frenetic_Hashcons" rel="Chapter" href="Frenetic_Hashcons.html">
 <link title="Frenetic_Bits" rel="Chapter" href="Frenetic_Bits.html">
 <link title="Frenetic_Fdd" rel="Chapter" href="Frenetic_Fdd.html">
+<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
-<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
@@ -23,10 +23,10 @@
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
+<link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
 <link title="Frenetic_OpenFlow_Header" rel="Chapter" href="Frenetic_OpenFlow_Header.html">
 <link title="Frenetic_OpenFlow0x01" rel="Chapter" href="Frenetic_OpenFlow0x01.html">
-<link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
@@ -37,15 +37,14 @@
 &nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Field</span>&nbsp;=&nbsp;<span class="constructor">Frenetic_Fdd</span>.<span class="constructor">Field</span><br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;order&nbsp;=&nbsp;[&nbsp;<span class="keywordsign">`</span><span class="constructor">Default</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="keywordsign">`</span><span class="constructor">Heuristic</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="keywordsign">`</span><span class="constructor">Static</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Field</span>.t&nbsp;list&nbsp;]<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;to_dot&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;cache&nbsp;=&nbsp;[&nbsp;<span class="keywordsign">`</span><span class="constructor">Empty</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="keywordsign">`</span><span class="constructor">Keep</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="keywordsign">`</span><span class="constructor">Preserve</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.t&nbsp;]<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;adherence&nbsp;=&nbsp;[&nbsp;<span class="keywordsign">`</span><span class="constructor">Sloppy</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="keywordsign">`</span><span class="constructor">Strict</span>&nbsp;]<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;compiler_options&nbsp;=&nbsp;{<br>
 &nbsp;&nbsp;&nbsp;&nbsp;cache_prepare&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.cache;<br>
 &nbsp;&nbsp;&nbsp;&nbsp;field_order&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.order;<br>
 &nbsp;&nbsp;&nbsp;&nbsp;remove_tail_drops&nbsp;:&nbsp;bool;<br>
 &nbsp;&nbsp;&nbsp;&nbsp;dedup_flows&nbsp;:&nbsp;bool;<br>
 &nbsp;&nbsp;&nbsp;&nbsp;optimize&nbsp;:&nbsp;bool;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;openflow_adherence&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.adherence;<br>
 &nbsp;&nbsp;}<br>
 &nbsp;&nbsp;<span class="keyword">exception</span>&nbsp;<span class="constructor">Non_local</span><br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;default_compiler_options&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.compiler_options<br>
@@ -102,13 +101,29 @@
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;options_to_json_string&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.compiler_options&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;flow_layout&nbsp;=&nbsp;<span class="constructor">Field</span>.t&nbsp;list&nbsp;list<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;flow_layout_of_sexp&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.flow_layout<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_flow_layout&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.flow_layout&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;tableId&nbsp;=&nbsp;int<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tableId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.tableId<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_tableId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.tableId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;metaId&nbsp;=&nbsp;int<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;metaId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.metaId<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_metaId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.metaId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;flowId&nbsp;=<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.tableId&nbsp;*&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.metaId<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;flowId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.flowId<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_flowId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.flowId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;instruction&nbsp;=<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[&nbsp;<span class="keywordsign">`</span><span class="constructor">Action</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.group<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="keywordsign">`</span><span class="constructor">GotoTable</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.flowId&nbsp;]<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;instruction_of_sexp&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.instruction<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;__instruction_of_sexp__&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.instruction<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_instruction&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.instruction&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;multitable_flow&nbsp;=&nbsp;{<br>
 &nbsp;&nbsp;&nbsp;&nbsp;pattern&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.<span class="constructor">Pattern</span>.t;<br>
 &nbsp;&nbsp;&nbsp;&nbsp;cookie&nbsp;:&nbsp;int64;<br>
@@ -117,6 +132,10 @@
 &nbsp;&nbsp;&nbsp;&nbsp;instruction&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.instruction;<br>
 &nbsp;&nbsp;&nbsp;&nbsp;flowId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.flowId;<br>
 &nbsp;&nbsp;}<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;multitable_flow_of_sexp&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.multitable_flow<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_multitable_flow&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.multitable_flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;layout_to_string&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.flow_layout&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;to_multitable&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;?options:<span class="constructor">Frenetic_NetKAT_Compiler</span>.compiler_options&nbsp;<span class="keywordsign">-&gt;</span><br>
@@ -124,24 +143,4 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.flow_layout&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.multitable_flow&nbsp;list&nbsp;*&nbsp;<span class="constructor">Frenetic_GroupTable0x04</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;flow_layout_of_sexp&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.flow_layout<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_flow_layout&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.flow_layout&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tableId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.tableId<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_tableId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.tableId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;metaId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.metaId<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_metaId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.metaId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;flowId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.flowId<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_flowId&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.flowId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;instruction_of_sexp&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.instruction<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;__instruction_of_sexp__&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.instruction<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_instruction&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.instruction&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;multitable_flow_of_sexp&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.multitable_flow<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_multitable_flow&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT_Compiler</span>.multitable_flow&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
 <span class="keyword">end</span></code></body></html>
