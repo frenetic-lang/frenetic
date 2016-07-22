@@ -1,7 +1,7 @@
 {
-  "actions": [ 
-    { "type": "output", "pseudoport": { "type":"physical", "port":1 }  }, 
-    { "type": "output", "pseudoport": { "type":"physical", "port":2 }  } 
+  "policies": [ 
+    { "type": "mod", "header":"location", "value": { "type":"physical", "port":1 }  }, 
+    { "type": "mod", "header":"location", "value": { "type":"physical", "port":2 }  } 
   ],
   "in_port": 20, 
   "switch": 843509872345, 

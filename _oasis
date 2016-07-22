@@ -56,7 +56,6 @@ Library frenetic
     Frenetic_NetKAT_Net,
     Frenetic_NetKAT_Parser,
     Frenetic_NetKAT_Pretty,
-    Frenetic_NetKAT_SDN_Json,
     Frenetic_NetKAT_Semantics,
     Frenetic_Network,
     Frenetic_OpenFlow,
@@ -90,9 +89,8 @@ Library async
     Frenetic_Compile_Server,
     Frenetic_Log,
     Frenetic_Http_Controller,
-    Frenetic_OpenFlow0x01_Controller,
+    Frenetic_OpenFlow0x01_Plugin,
     Frenetic_NetKAT_Controller,
-    Frenetic_NetKAT_Updates,
     Frenetic_Ox
 
 Executable frenetic
@@ -181,7 +179,7 @@ Executable benchmark
 Test all_tests
   Run$: flag(tests)
   # -only-test Test_Frenetic_GroupTable0x04.ml
-  Command: $testtool inline-test-runner frenetic 
+  Command: $testtool inline-test-runner frenetic
   TestTools: testtool
 
 Document frenetic
