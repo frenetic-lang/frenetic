@@ -22,7 +22,6 @@
 <link title="Frenetic_NetKAT_Net" rel="Chapter" href="Frenetic_NetKAT_Net.html">
 <link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
-<link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
 <link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
@@ -139,7 +138,7 @@ Each error is composed of a pair (error_code, data)
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.html#TYPEerrorTyp">errorTyp</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
 <td></td></tr>
-<tr><td><a href="Frenetic_NetKAT.html#TYPEevent">event</a> [<a href="Frenetic_NetKAT.html">Frenetic_NetKAT</a>]</td>
+<tr><td><a href="Frenetic_OpenFlow.html#TYPEevent">event</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.html#TYPEexperimenter">experimenter</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
 <td></td></tr>
@@ -371,23 +370,15 @@ The type <code class="code">packet</code> represents a packet at the ethernet pr
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow.html#TYPEpayload">payload</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
 <td><div class="info">
-The payload for <code class="code">packetIn</code> and <code class="code">packetOut</code> messages
+Packet payloads
 </div>
 </td></tr>
 <tr><td><a href="Frenetic_NetKAT.html#TYPEpayload">payload</a> [<a href="Frenetic_NetKAT.html">Frenetic_NetKAT</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.html#TYPEpayload">payload</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
 <td></td></tr>
-<tr><td><a href="Frenetic_OpenFlow.html#TYPEpktIn">pktIn</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
-<td><div class="info">
-<code class="code">(payload, total_length, in_port, reason)</code>
-</div>
-</td></tr>
 <tr><td><a href="Frenetic_OpenFlow.html#TYPEpktOut">pktOut</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
-<td><div class="info">
-<code class="code">(payload, in_port option, action list)</code>
-</div>
-</td></tr>
+<td></td></tr>
 <tr><td><a href="Frenetic_NetKAT.html#TYPEpolicy">policy</a> [<a href="Frenetic_NetKAT.html">Frenetic_NetKAT</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_Network.NETWORK.Topology.html#TYPEport">port</a> [<a href="Frenetic_Network.NETWORK.Topology.html">Frenetic_Network.NETWORK.Topology</a>]</td>
@@ -425,6 +416,8 @@ The payload for <code class="code">packetIn</code> and <code class="code">packet
 <tr><td><a href="Frenetic_OpenFlow0x04.html#TYPEportState">portState</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x01.html#TYPEportStats">portStats</a> [<a href="Frenetic_OpenFlow0x01.html">Frenetic_OpenFlow0x01</a>]</td>
+<td></td></tr>
+<tr><td><a href="Frenetic_OpenFlow.html#TYPEportStats">portStats</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.html#TYPEportStats">portStats</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
 <td></td></tr>
@@ -575,13 +568,6 @@ A decision diagram index.
 <td></td></tr>
 <tr><td><a href="Frenetic_NetKAT_Net.Node.html#TYPEt">t</a> [<a href="Frenetic_NetKAT_Net.Node.html">Frenetic_NetKAT_Net.Node</a>]</td>
 <td></td></tr>
-<tr><td><a href="Frenetic_OpenFlow.Pattern.Ip.html#TYPEt">t</a> [<a href="Frenetic_OpenFlow.Pattern.Ip.html">Frenetic_OpenFlow.Pattern.Ip</a>]</td>
-<td></td></tr>
-<tr><td><a href="Frenetic_OpenFlow.Pattern.html#TYPEt">t</a> [<a href="Frenetic_OpenFlow.Pattern.html">Frenetic_OpenFlow.Pattern</a>]</td>
-<td><div class="info">
-WARNING: There are dependencies between different fields that must be met
-</div>
-</td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x01.Message.html#TYPEt">t</a> [<a href="Frenetic_OpenFlow0x01.Message.html">Frenetic_OpenFlow0x01.Message</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x01.Vendor.html#TYPEt">t</a> [<a href="Frenetic_OpenFlow0x01.Vendor.html">Frenetic_OpenFlow0x01.Vendor</a>]</td>
@@ -620,6 +606,13 @@ WARNING: There are dependencies between different fields that must be met
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x01.FlowMod.html#TYPEt">t</a> [<a href="Frenetic_OpenFlow0x01.FlowMod.html">Frenetic_OpenFlow0x01.FlowMod</a>]</td>
 <td></td></tr>
+<tr><td><a href="Frenetic_OpenFlow.Pattern.Ip.html#TYPEt">t</a> [<a href="Frenetic_OpenFlow.Pattern.Ip.html">Frenetic_OpenFlow.Pattern.Ip</a>]</td>
+<td></td></tr>
+<tr><td><a href="Frenetic_OpenFlow.Pattern.html#TYPEt">t</a> [<a href="Frenetic_OpenFlow.Pattern.html">Frenetic_OpenFlow.Pattern</a>]</td>
+<td><div class="info">
+WARNING: There are dependencies between different fields that must be met
+</div>
+</td></tr>
 <tr><td><a href="Frenetic_NetKAT_Compiler.html#TYPEt">t</a> [<a href="Frenetic_NetKAT_Compiler.html">Frenetic_NetKAT_Compiler</a>]</td>
 <td><div class="info">
 The type of the intermediate compiler representation (FDD).

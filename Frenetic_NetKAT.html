@@ -26,7 +26,6 @@
 <link title="Frenetic_NetKAT_Net" rel="Chapter" href="Frenetic_NetKAT_Net.html">
 <link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
-<link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
 <link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
@@ -375,80 +374,4 @@ NetKAT Syntax
 
 
 <pre><span id="VALbufferId_of_sexp"><span class="keyword">val</span> bufferId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEbufferId">bufferId</a></code></pre>
-<pre><span id="VALsexp_of_bufferId"><span class="keyword">val</span> sexp_of_bufferId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEbufferId">bufferId</a> -> Sexplib.Sexp.t</code></pre>
-<pre><code><span id="TYPEevent"><span class="keyword">type</span> <code class="type"></code>event</span> = </code></pre><table class="typetable">
-<tr>
-<td align="left" valign="top" >
-<code><span class="keyword">|</span></code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTevent.PacketIn"><span class="constructor">PacketIn</span></span> <span class="keyword">of</span> <code class="type">string * <a href="Frenetic_NetKAT.html#TYPEswitchId">switchId</a> * <a href="Frenetic_NetKAT.html#TYPEportId">portId</a><br>        * <a href="Frenetic_NetKAT.html#TYPEpayload">payload</a> * int</code></code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code><span class="keyword">|</span></code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTevent.Query"><span class="constructor">Query</span></span> <span class="keyword">of</span> <code class="type">string * int64 * int64</code></code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code><span class="keyword">|</span></code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTevent.SwitchUp"><span class="constructor">SwitchUp</span></span> <span class="keyword">of</span> <code class="type"><a href="Frenetic_NetKAT.html#TYPEswitchId">switchId</a> * <a href="Frenetic_NetKAT.html#TYPEportId">portId</a> list</code></code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code><span class="keyword">|</span></code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTevent.SwitchDown"><span class="constructor">SwitchDown</span></span> <span class="keyword">of</span> <code class="type"><a href="Frenetic_NetKAT.html#TYPEswitchId">switchId</a></code></code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code><span class="keyword">|</span></code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTevent.PortUp"><span class="constructor">PortUp</span></span> <span class="keyword">of</span> <code class="type"><a href="Frenetic_NetKAT.html#TYPEswitch_port">switch_port</a></code></code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code><span class="keyword">|</span></code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTevent.PortDown"><span class="constructor">PortDown</span></span> <span class="keyword">of</span> <code class="type"><a href="Frenetic_NetKAT.html#TYPEswitch_port">switch_port</a></code></code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code><span class="keyword">|</span></code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTevent.LinkUp"><span class="constructor">LinkUp</span></span> <span class="keyword">of</span> <code class="type"><a href="Frenetic_NetKAT.html#TYPEswitch_port">switch_port</a> * <a href="Frenetic_NetKAT.html#TYPEswitch_port">switch_port</a></code></code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code><span class="keyword">|</span></code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTevent.LinkDown"><span class="constructor">LinkDown</span></span> <span class="keyword">of</span> <code class="type"><a href="Frenetic_NetKAT.html#TYPEswitch_port">switch_port</a> * <a href="Frenetic_NetKAT.html#TYPEswitch_port">switch_port</a></code></code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code><span class="keyword">|</span></code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTevent.HostUp"><span class="constructor">HostUp</span></span> <span class="keyword">of</span> <code class="type"><a href="Frenetic_NetKAT.html#TYPEswitch_port">switch_port</a> * <a href="Frenetic_NetKAT.html#TYPEhost">host</a></code></code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code><span class="keyword">|</span></code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTevent.HostDown"><span class="constructor">HostDown</span></span> <span class="keyword">of</span> <code class="type"><a href="Frenetic_NetKAT.html#TYPEswitch_port">switch_port</a> * <a href="Frenetic_NetKAT.html#TYPEhost">host</a></code></code></td>
-
-</tr></table>
-
-
-
-<pre><span id="VALevent_of_sexp"><span class="keyword">val</span> event_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT.html#TYPEevent">event</a></code></pre>
-<pre><span id="VALsexp_of_event"><span class="keyword">val</span> sexp_of_event</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEevent">event</a> -> Sexplib.Sexp.t</code></pre></body></html>
+<pre><span id="VALsexp_of_bufferId"><span class="keyword">val</span> sexp_of_bufferId</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEbufferId">bufferId</a> -> Sexplib.Sexp.t</code></pre></body></html>

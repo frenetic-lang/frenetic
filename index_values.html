@@ -22,7 +22,6 @@
 <link title="Frenetic_NetKAT_Net" rel="Chapter" href="Frenetic_NetKAT_Net.html">
 <link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
-<link title="Frenetic_NetKAT_SDN_Json" rel="Chapter" href="Frenetic_NetKAT_SDN_Json.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
 <link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
 <link title="Frenetic_OpenFlow" rel="Chapter" href="Frenetic_OpenFlow.html">
@@ -458,13 +457,8 @@ Create a new group table
     location to which the policy assigns them.
 </div>
 </td></tr>
-<tr><td><a href="Frenetic_NetKAT.html#VALevent_of_sexp">event_of_sexp</a> [<a href="Frenetic_NetKAT.html">Frenetic_NetKAT</a>]</td>
+<tr><td><a href="Frenetic_OpenFlow.From0x01.html#VALevent_from_message">event_from_message</a> [<a href="Frenetic_OpenFlow.From0x01.html">Frenetic_OpenFlow.From0x01</a>]</td>
 <td></td></tr>
-<tr><td><a href="Frenetic_NetKAT_Json.html#VALevent_to_json">event_to_json</a> [<a href="Frenetic_NetKAT_Json.html">Frenetic_NetKAT_Json</a>]</td>
-<td><div class="info">
-Serialize an abstract OpenFlow event (PacketIn, SwitchUp, etc.) to Yojson format.
-</div>
-</td></tr>
 <tr><td><a href="Frenetic_NetKAT_Json.html#VALevent_to_json_string">event_to_json_string</a> [<a href="Frenetic_NetKAT_Json.html">Frenetic_NetKAT_Json</a>]</td>
 <td><div class="info">
 Same as event_to_json but returns json string
@@ -534,11 +528,8 @@ Warning: will re-order the elements in a union
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow.html#VALflowTable_of_sexp">flowTable_of_sexp</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
 <td></td></tr>
-<tr><td><a href="Frenetic_NetKAT_SDN_Json.html#VALflowTable_to_json">flowTable_to_json</a> [<a href="Frenetic_NetKAT_SDN_Json.html">Frenetic_NetKAT_SDN_Json</a>]</td>
-<td><div class="info">
-Construct a json repesentation from an abstract flow table.
-</div>
-</td></tr>
+<tr><td><a href="Frenetic_NetKAT_Json.html#VALflowTable_to_json">flowTable_to_json</a> [<a href="Frenetic_NetKAT_Json.html">Frenetic_NetKAT_Json</a>]</td>
+<td></td></tr>
 <tr><td><a href="Frenetic_NetKAT_Compiler.html#VALflow_layout_of_sexp">flow_layout_of_sexp</a> [<a href="Frenetic_NetKAT_Compiler.html">Frenetic_NetKAT_Compiler</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow.html#VALflow_of_sexp">flow_of_sexp</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
@@ -589,11 +580,17 @@ Construct a json repesentation from an abstract flow table.
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow.html#VALformat_seq">format_seq</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
 <td></td></tr>
+<tr><td><a href="Frenetic_OpenFlow.From0x01.html#VALfrom_action">from_action</a> [<a href="Frenetic_OpenFlow.From0x01.html">Frenetic_OpenFlow.From0x01</a>]</td>
+<td></td></tr>
+<tr><td><a href="Frenetic_OpenFlow.To0x01.html#VALfrom_action">from_action</a> [<a href="Frenetic_OpenFlow.To0x01.html">Frenetic_OpenFlow.To0x01</a>]</td>
+<td></td></tr>
 <tr><td><a href="Frenetic_Network.NETWORK.Parse.html#VALfrom_dotfile">from_dotfile</a> [<a href="Frenetic_Network.NETWORK.Parse.html">Frenetic_Network.NETWORK.Parse</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow.To0x01.html#VALfrom_flow">from_flow</a> [<a href="Frenetic_OpenFlow.To0x01.html">Frenetic_OpenFlow.To0x01</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_Network.NETWORK.Parse.html#VALfrom_gmlfile">from_gmlfile</a> [<a href="Frenetic_Network.NETWORK.Parse.html">Frenetic_Network.NETWORK.Parse</a>]</td>
+<td></td></tr>
+<tr><td><a href="Frenetic_OpenFlow.From0x01.html#VALfrom_individual_stats">from_individual_stats</a> [<a href="Frenetic_OpenFlow.From0x01.html">Frenetic_OpenFlow.From0x01</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_NetKAT_Json.html#VALfrom_json_header_val">from_json_header_val</a> [<a href="Frenetic_NetKAT_Json.html">Frenetic_NetKAT_Json</a>]</td>
 <td></td></tr>
@@ -607,9 +604,17 @@ Construct a json repesentation from an abstract flow table.
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow.To0x01.html#VALfrom_packetOut">from_packetOut</a> [<a href="Frenetic_OpenFlow.To0x01.html">Frenetic_OpenFlow.To0x01</a>]</td>
 <td></td></tr>
+<tr><td><a href="Frenetic_OpenFlow.To0x01.html#VALfrom_packet_in_reason">from_packet_in_reason</a> [<a href="Frenetic_OpenFlow.To0x01.html">Frenetic_OpenFlow.To0x01</a>]</td>
+<td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow.To0x01.html#VALfrom_pattern">from_pattern</a> [<a href="Frenetic_OpenFlow.To0x01.html">Frenetic_OpenFlow.To0x01</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow.To0x01.html#VALfrom_payload">from_payload</a> [<a href="Frenetic_OpenFlow.To0x01.html">Frenetic_OpenFlow.To0x01</a>]</td>
+<td></td></tr>
+<tr><td><a href="Frenetic_OpenFlow.From0x01.html#VALfrom_port_stats">from_port_stats</a> [<a href="Frenetic_OpenFlow.From0x01.html">Frenetic_OpenFlow.From0x01</a>]</td>
+<td></td></tr>
+<tr><td><a href="Frenetic_OpenFlow.From0x01.html#VALfrom_switch_features">from_switch_features</a> [<a href="Frenetic_OpenFlow.From0x01.html">Frenetic_OpenFlow.From0x01</a>]</td>
+<td></td></tr>
+<tr><td><a href="Frenetic_OpenFlow.To0x01.html#VALfrom_switch_features">from_switch_features</a> [<a href="Frenetic_OpenFlow.To0x01.html">Frenetic_OpenFlow.To0x01</a>]</td>
 <td></td></tr>
 <tr><td align="left"><br>G</td></tr>
 <tr><td><a href="Frenetic_Vlr.Make.html#VALget">get</a> [<a href="Frenetic_Vlr.Make.html">Frenetic_Vlr.Make</a>]</td>
@@ -1021,6 +1026,11 @@ buffer ID.
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.html#VALmask_of_sexp">mask_of_sexp</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
 <td></td></tr>
+<tr><td><a href="Frenetic_OpenFlow0x01.html#VALmatch_all">match_all</a> [<a href="Frenetic_OpenFlow0x01.html">Frenetic_OpenFlow0x01</a>]</td>
+<td><div class="info">
+A pattern that matches all packets.
+</div>
+</td></tr>
 <tr><td><a href="Frenetic_OpenFlow.Pattern.Ip.html#VALmatch_all">match_all</a> [<a href="Frenetic_OpenFlow.Pattern.Ip.html">Frenetic_OpenFlow.Pattern.Ip</a>]</td>
 <td><div class="info">
 <code class="code">match_all</code> is pattern that matches any address
@@ -1029,11 +1039,6 @@ buffer ID.
 <tr><td><a href="Frenetic_OpenFlow.Pattern.html#VALmatch_all">match_all</a> [<a href="Frenetic_OpenFlow.Pattern.html">Frenetic_OpenFlow.Pattern</a>]</td>
 <td><div class="info">
 <code class="code">match_all</code> is pattern that matches any packet
-</div>
-</td></tr>
-<tr><td><a href="Frenetic_OpenFlow0x01.html#VALmatch_all">match_all</a> [<a href="Frenetic_OpenFlow0x01.html">Frenetic_OpenFlow0x01</a>]</td>
-<td><div class="info">
-A pattern that matches all packets.
 </div>
 </td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.html#VALmatch_all">match_all</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
@@ -1051,6 +1056,8 @@ A pattern that matches all packets.
       and <code class="code">b</code>, if one exists.
 </div>
 </td></tr>
+<tr><td><a href="Frenetic_OpenFlow.To0x01.html#VALmessage_from_event">message_from_event</a> [<a href="Frenetic_OpenFlow.To0x01.html">Frenetic_OpenFlow.To0x01</a>]</td>
+<td></td></tr>
 <tr><td><a href="Frenetic_NetKAT_Compiler.html#VALmetaId_of_sexp">metaId_of_sexp</a> [<a href="Frenetic_NetKAT_Compiler.html">Frenetic_NetKAT_Compiler</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.html#VALmeterBandMaps_of_sexp">meterBandMaps_of_sexp</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
@@ -1458,15 +1465,10 @@ The identity for the <code class="code">prod</code> operation.
 <code class="code">get_pipes action</code> returns a set of pipes used in actions
 </div>
 </td></tr>
-<tr><td><a href="Frenetic_OpenFlow.html#VALpktIn_of_sexp">pktIn_of_sexp</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
-<td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow.html#VALpktOut_of_sexp">pktOut_of_sexp</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
 <td></td></tr>
-<tr><td><a href="Frenetic_NetKAT_SDN_Json.html#VALpkt_out_from_json">pkt_out_from_json</a> [<a href="Frenetic_NetKAT_SDN_Json.html">Frenetic_NetKAT_SDN_Json</a>]</td>
-<td><div class="info">
-Construct an abstract PacketOut message from a Json representation.
-</div>
-</td></tr>
+<tr><td><a href="Frenetic_NetKAT_Json.html#VALpkt_out_from_json">pkt_out_from_json</a> [<a href="Frenetic_NetKAT_Json.html">Frenetic_NetKAT_Json</a>]</td>
+<td></td></tr>
 <tr><td><a href="Frenetic_NetKAT_Parser.html#VALpolicy_of_file">policy_of_file</a> [<a href="Frenetic_NetKAT_Parser.html">Frenetic_NetKAT_Parser</a>]</td>
 <td><div class="info">
 Same as policy_of_string, but NetKAT policy read from file
@@ -1502,10 +1504,7 @@ Serialize a NetKAT policy to Yojson format.
 </div>
 </td></tr>
 <tr><td><a href="Frenetic_NetKAT_Json.html#VALpolicy_to_json_string">policy_to_json_string</a> [<a href="Frenetic_NetKAT_Json.html">Frenetic_NetKAT_Json</a>]</td>
-<td><div class="info">
-Same as policy_to_json but returns json string
-</div>
-</td></tr>
+<td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x01.html#VALportConfig_of_sexp">portConfig_of_sexp</a> [<a href="Frenetic_OpenFlow0x01.html">Frenetic_OpenFlow0x01</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.html#VALportConfig_of_sexp">portConfig_of_sexp</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
@@ -1542,22 +1541,16 @@ Same as policy_to_json but returns json string
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x01.html#VALportStats_of_sexp">portStats_of_sexp</a> [<a href="Frenetic_OpenFlow0x01.html">Frenetic_OpenFlow0x01</a>]</td>
 <td></td></tr>
+<tr><td><a href="Frenetic_OpenFlow.html#VALportStats_of_sexp">portStats_of_sexp</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
+<td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.html#VALportStats_of_sexp">portStats_of_sexp</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.html#VALportStatus_of_sexp">portStatus_of_sexp</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_Network.NETWORK.Topology.html#VALport_of_sexp">port_of_sexp</a> [<a href="Frenetic_Network.NETWORK.Topology.html">Frenetic_Network.NETWORK.Topology</a>]</td>
 <td></td></tr>
-<tr><td><a href="Frenetic_NetKAT_Json.html#VALport_stats_to_json">port_stats_to_json</a> [<a href="Frenetic_NetKAT_Json.html">Frenetic_NetKAT_Json</a>]</td>
-<td><div class="info">
-Serialize an OpenFlow port stats response to Yojson format
-</div>
-</td></tr>
-<tr><td><a href="Frenetic_NetKAT_Json.html#VALport_stats_to_json_string">port_stats_to_json_string</a> [<a href="Frenetic_NetKAT_Json.html">Frenetic_NetKAT_Json</a>]</td>
-<td><div class="info">
-Same as port_stats_to_json but returns json string
-</div>
-</td></tr>
+<tr><td><a href="Frenetic_NetKAT_Json.html#VALport_stat_to_json_string">port_stat_to_json_string</a> [<a href="Frenetic_NetKAT_Json.html">Frenetic_NetKAT_Json</a>]</td>
+<td></td></tr>
 <tr><td><a href="Frenetic_NetKAT_Parser.html#VALpred_of_file">pred_of_file</a> [<a href="Frenetic_NetKAT_Parser.html">Frenetic_NetKAT_Parser</a>]</td>
 <td><div class="info">
 Same as pred_of_string, but NetKAT predicate read from file
@@ -1595,18 +1588,12 @@ An associative binary operation over the type <code class="code">t</code>.
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.html#VALpseudoPort_of_sexp">pseudoPort_of_sexp</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
 <td></td></tr>
-<tr><td><a href="Frenetic_NetKAT_SDN_Json.html#VALpseudoport_from_json">pseudoport_from_json</a> [<a href="Frenetic_NetKAT_SDN_Json.html">Frenetic_NetKAT_SDN_Json</a>]</td>
-<td><div class="info">
-Construct a pseudoport from Json representiation like Assoc `physical: 2
-</div>
-</td></tr>
+<tr><td><a href="Frenetic_NetKAT_Json.html#VALpseudoport_from_json">pseudoport_from_json</a> [<a href="Frenetic_NetKAT_Json.html">Frenetic_NetKAT_Json</a>]</td>
+<td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow.html#VALpseudoport_of_sexp">pseudoport_of_sexp</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
 <td></td></tr>
-<tr><td><a href="Frenetic_NetKAT_SDN_Json.html#VALpseudoport_to_json">pseudoport_to_json</a> [<a href="Frenetic_NetKAT_SDN_Json.html">Frenetic_NetKAT_SDN_Json</a>]</td>
-<td><div class="info">
-Construct a Json representiation from a pseudoport like Physical(2l)
-</div>
-</td></tr>
+<tr><td><a href="Frenetic_NetKAT_Json.html#VALpseudoport_to_json">pseudoport_to_json</a> [<a href="Frenetic_NetKAT_Json.html">Frenetic_NetKAT_Json</a>]</td>
+<td></td></tr>
 <tr><td align="left"><br>Q</td></tr>
 <tr><td><a href="Frenetic_NetKAT_Compiler.html#VALqueries">queries</a> [<a href="Frenetic_NetKAT_Compiler.html">Frenetic_NetKAT_Compiler</a>]</td>
 <td><div class="info">
@@ -1829,8 +1816,6 @@ Construct a Json representiation from a pseudoport like Physical(2l)
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.html#VALsexp_of_errorTyp">sexp_of_errorTyp</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
 <td></td></tr>
-<tr><td><a href="Frenetic_NetKAT.html#VALsexp_of_event">sexp_of_event</a> [<a href="Frenetic_NetKAT.html">Frenetic_NetKAT</a>]</td>
-<td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.html#VALsexp_of_experimenter">sexp_of_experimenter</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.html#VALsexp_of_experimenterFailed">sexp_of_experimenterFailed</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
@@ -2017,8 +2002,6 @@ Construct a Json representiation from a pseudoport like Physical(2l)
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.html#VALsexp_of_payload">sexp_of_payload</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
 <td></td></tr>
-<tr><td><a href="Frenetic_OpenFlow.html#VALsexp_of_pktIn">sexp_of_pktIn</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
-<td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow.html#VALsexp_of_pktOut">sexp_of_pktOut</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_NetKAT.html#VALsexp_of_policy">sexp_of_policy</a> [<a href="Frenetic_NetKAT.html">Frenetic_NetKAT</a>]</td>
@@ -2058,6 +2041,8 @@ Construct a Json representiation from a pseudoport like Physical(2l)
 <tr><td><a href="Frenetic_OpenFlow0x04.html#VALsexp_of_portState">sexp_of_portState</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x01.html#VALsexp_of_portStats">sexp_of_portStats</a> [<a href="Frenetic_OpenFlow0x01.html">Frenetic_OpenFlow0x01</a>]</td>
+<td></td></tr>
+<tr><td><a href="Frenetic_OpenFlow.html#VALsexp_of_portStats">sexp_of_portStats</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.html#VALsexp_of_portStats">sexp_of_portStats</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
 <td></td></tr>
@@ -2171,10 +2156,6 @@ Construct a Json representiation from a pseudoport like Physical(2l)
 <td></td></tr>
 <tr><td><a href="Frenetic_NetKAT_Net.Node.html#VALsexp_of_t">sexp_of_t</a> [<a href="Frenetic_NetKAT_Net.Node.html">Frenetic_NetKAT_Net.Node</a>]</td>
 <td></td></tr>
-<tr><td><a href="Frenetic_OpenFlow.Pattern.Ip.html#VALsexp_of_t">sexp_of_t</a> [<a href="Frenetic_OpenFlow.Pattern.Ip.html">Frenetic_OpenFlow.Pattern.Ip</a>]</td>
-<td></td></tr>
-<tr><td><a href="Frenetic_OpenFlow.Pattern.html#VALsexp_of_t">sexp_of_t</a> [<a href="Frenetic_OpenFlow.Pattern.html">Frenetic_OpenFlow.Pattern</a>]</td>
-<td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x01.Message.html#VALsexp_of_t">sexp_of_t</a> [<a href="Frenetic_OpenFlow0x01.Message.html">Frenetic_OpenFlow0x01.Message</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x01.Vendor.html#VALsexp_of_t">sexp_of_t</a> [<a href="Frenetic_OpenFlow0x01.Vendor.html">Frenetic_OpenFlow0x01.Vendor</a>]</td>
@@ -2212,6 +2193,10 @@ Construct a Json representiation from a pseudoport like Physical(2l)
 <tr><td><a href="Frenetic_OpenFlow0x01.PortStatus.html#VALsexp_of_t">sexp_of_t</a> [<a href="Frenetic_OpenFlow0x01.PortStatus.html">Frenetic_OpenFlow0x01.PortStatus</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x01.FlowMod.html#VALsexp_of_t">sexp_of_t</a> [<a href="Frenetic_OpenFlow0x01.FlowMod.html">Frenetic_OpenFlow0x01.FlowMod</a>]</td>
+<td></td></tr>
+<tr><td><a href="Frenetic_OpenFlow.Pattern.Ip.html#VALsexp_of_t">sexp_of_t</a> [<a href="Frenetic_OpenFlow.Pattern.Ip.html">Frenetic_OpenFlow.Pattern.Ip</a>]</td>
+<td></td></tr>
+<tr><td><a href="Frenetic_OpenFlow.Pattern.html#VALsexp_of_t">sexp_of_t</a> [<a href="Frenetic_OpenFlow.Pattern.html">Frenetic_OpenFlow.Pattern</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.Message.html#VALsexp_of_t">sexp_of_t</a> [<a href="Frenetic_OpenFlow0x04.Message.html">Frenetic_OpenFlow0x04.Message</a>]</td>
 <td></td></tr>
@@ -2425,11 +2410,6 @@ Construct a Json representiation from a pseudoport like Physical(2l)
 </td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x01.html#VALstatsReq_of_sexp">statsReq_of_sexp</a> [<a href="Frenetic_OpenFlow0x01.html">Frenetic_OpenFlow0x01</a>]</td>
 <td></td></tr>
-<tr><td><a href="Frenetic_NetKAT_Json.html#VALstats_to_json">stats_to_json</a> [<a href="Frenetic_NetKAT_Json.html">Frenetic_NetKAT_Json</a>]</td>
-<td><div class="info">
-Serialize an OpenFlow switch stats response to Yojson format.
-</div>
-</td></tr>
 <tr><td><a href="Frenetic_NetKAT_Json.html#VALstats_to_json_string">stats_to_json_string</a> [<a href="Frenetic_NetKAT_Json.html">Frenetic_NetKAT_Json</a>]</td>
 <td><div class="info">
 Sames as stats_to_json but returns json string
@@ -2464,11 +2444,15 @@ Sames as stats_to_json but returns json string
 <code class="code">string_of_dlVlanPcp p</code> pretty-prints an 802.1Q VLAN priority.
 </div>
 </td></tr>
+<tr><td><a href="Frenetic_OpenFlow.html#VALstring_of_event">string_of_event</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
+<td></td></tr>
 <tr><td><a href="Frenetic_NetKAT.html#VALstring_of_fastfail">string_of_fastfail</a> [<a href="Frenetic_NetKAT.html">Frenetic_NetKAT</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow.html#VALstring_of_flow">string_of_flow</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow.html#VALstring_of_flowTable">string_of_flowTable</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
+<td></td></tr>
+<tr><td><a href="Frenetic_OpenFlow.html#VALstring_of_group">string_of_group</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_Packet.html#VALstring_of_ip">string_of_ip</a> [<a href="Frenetic_Packet.html">Frenetic_Packet</a>]</td>
 <td><div class="info">
@@ -2614,10 +2598,6 @@ An associative and commutative binary operation over the type <code class="code"
 <td></td></tr>
 <tr><td><a href="Frenetic_NetKAT_Net.Node.html#VALt_of_sexp">t_of_sexp</a> [<a href="Frenetic_NetKAT_Net.Node.html">Frenetic_NetKAT_Net.Node</a>]</td>
 <td></td></tr>
-<tr><td><a href="Frenetic_OpenFlow.Pattern.Ip.html#VALt_of_sexp">t_of_sexp</a> [<a href="Frenetic_OpenFlow.Pattern.Ip.html">Frenetic_OpenFlow.Pattern.Ip</a>]</td>
-<td></td></tr>
-<tr><td><a href="Frenetic_OpenFlow.Pattern.html#VALt_of_sexp">t_of_sexp</a> [<a href="Frenetic_OpenFlow.Pattern.html">Frenetic_OpenFlow.Pattern</a>]</td>
-<td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x01.Message.html#VALt_of_sexp">t_of_sexp</a> [<a href="Frenetic_OpenFlow0x01.Message.html">Frenetic_OpenFlow0x01.Message</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x01.Vendor.html#VALt_of_sexp">t_of_sexp</a> [<a href="Frenetic_OpenFlow0x01.Vendor.html">Frenetic_OpenFlow0x01.Vendor</a>]</td>
@@ -2655,6 +2635,10 @@ An associative and commutative binary operation over the type <code class="code"
 <tr><td><a href="Frenetic_OpenFlow0x01.PortStatus.html#VALt_of_sexp">t_of_sexp</a> [<a href="Frenetic_OpenFlow0x01.PortStatus.html">Frenetic_OpenFlow0x01.PortStatus</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x01.FlowMod.html#VALt_of_sexp">t_of_sexp</a> [<a href="Frenetic_OpenFlow0x01.FlowMod.html">Frenetic_OpenFlow0x01.FlowMod</a>]</td>
+<td></td></tr>
+<tr><td><a href="Frenetic_OpenFlow.Pattern.Ip.html#VALt_of_sexp">t_of_sexp</a> [<a href="Frenetic_OpenFlow.Pattern.Ip.html">Frenetic_OpenFlow.Pattern.Ip</a>]</td>
+<td></td></tr>
+<tr><td><a href="Frenetic_OpenFlow.Pattern.html#VALt_of_sexp">t_of_sexp</a> [<a href="Frenetic_OpenFlow.Pattern.html">Frenetic_OpenFlow.Pattern</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.Message.html#VALt_of_sexp">t_of_sexp</a> [<a href="Frenetic_OpenFlow0x04.Message.html">Frenetic_OpenFlow0x04.Message</a>]</td>
 <td></td></tr>
