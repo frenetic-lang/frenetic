@@ -37,8 +37,8 @@ let time f =
   let t2 = Unix.gettimeofday () in
   (t2 -. t1, r)
 
-let print_time time =
-  printf "Compilation time: %.4f\n" time
+let print_time ?(prefix="") time =
+  printf "%scompilation time: %.4f\n" prefix time
 
 let print_order () =
   Frenetic_NetKAT_Compiler.Field.(get_order ()
@@ -212,10 +212,12 @@ module Virtual = struct
     +> Flag.print_fdd
     +> Flag.dump_fdd
     +> Flag.print_global_pol
+    +> Flag.no_tables
     +> Flag.print_order
   )
 
-  let run vpol_file vrel vtopo ving_pol ving veg ptopo ping peg printfdd dumpfdd printglobal printorder () =
+  let run vpol_file vrel vtopo ving_pol ving veg ptopo ping peg printfdd dumpfdd printglobal
+    no_tables printorder () =
     (* parse files *)
     let vpol = parse_pol vpol_file in
     let vrel = parse_pred vrel in
@@ -229,10 +231,9 @@ module Virtual = struct
 
     (* compile *)
     let module Virtual = Frenetic_NetKAT_Virtual_Compiler in
-    let global_pol =
-      Virtual.compile vpol ~log:true ~vrel ~vtopo ~ving_pol ~ving ~veg ~ptopo ~ping ~peg
-    in
-    let fdd = Frenetic_NetKAT_Compiler.compile_global global_pol in
+    let (t1, global_pol) = time (fun () ->
+      Virtual.compile vpol ~log:true ~vrel ~vtopo ~ving_pol ~ving ~veg ~ptopo ~ping ~peg) in
+    let (t2, fdd) = time (fun () -> Frenetic_NetKAT_Compiler.compile_global global_pol) in
 
     (* print & dump *)
     let switches = Frenetic_NetKAT_Semantics.switches_of_policy global_pol in
@@ -243,8 +244,9 @@ module Virtual = struct
     if printorder then print_order ();
     if printfdd then print_fdd fdd;
     if dumpfdd then dump_fdd fdd ~file:(vpol_file ^ ".dot");
-    print_all_tables fdd switches
-
+    print_all_tables ~no_tables fdd switches;
+    print_time ~prefix:"virtual " t1;
+    print_time ~prefix:"global " t2;
 end
 
 
