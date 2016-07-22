@@ -44,7 +44,7 @@ let print_order () =
   Frenetic_NetKAT_Compiler.Field.(get_order ()
     |> List.map ~f:to_string
     |> String.concat ~sep:" > "
-    |> printf "%s\n")
+    |> printf "FDD field ordering: %s\n")
 
 
 (*===========================================================================*)
