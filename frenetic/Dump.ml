@@ -40,6 +40,12 @@ let time f =
 let print_time time =
   printf "Compilation time: %.4f\n" time
 
+let print_order () =
+  Frenetic_NetKAT_Compiler.Field.(get_order ()
+    |> List.map ~f:to_string
+    |> String.concat ~sep:" > "
+    |> printf "%s\n")
+
 
 (*===========================================================================*)
 (* FLAGS                                                                     *)
@@ -84,6 +90,10 @@ module Flag = struct
   let json =
     flag "--json" no_arg
       ~doc: " Parse input file as JSON."
+
+  let print_order =
+    flag "--print-order" no_arg
+      ~doc: " Print FDD field order used by the compiler."
 
   let vpol =
     flag "--vpol" (optional_with_default "vpol.dot" file)
@@ -137,9 +147,10 @@ module Local = struct
     +> Flag.dump_fdd
     +> Flag.no_tables
     +> Flag.json
+    +> Flag.print_order
   )
 
-  let run file nr_switches printfdd dumpfdd no_tables json () =
+  let run file nr_switches printfdd dumpfdd no_tables json printorder () =
     let pol = parse_pol ~json file in
     let (t, fdd) = time (fun () -> Frenetic_NetKAT_Compiler.compile_local pol) in
     let switches = match nr_switches with
@@ -150,6 +161,7 @@ module Local = struct
       printf "Number of switches not automatically recognized!\n\
               Use the --switch flag to specify it manually.\n"
     else
+      if printorder then print_order ();
       if printfdd then print_fdd fdd;
       if dumpfdd then dump_fdd fdd ~file:(file ^ ".dot");
       print_all_tables ~no_tables fdd switches;
@@ -168,12 +180,14 @@ module Global = struct
     +> Flag.dump_auto
     +> Flag.no_tables
     +> Flag.json
+    +> Flag.print_order
   )
 
-  let run file printfdd dumpfdd printauto dumpauto no_tables json () =
+  let run file printfdd dumpfdd printauto dumpauto no_tables json printorder () =
     let pol = parse_pol ~json file in
     let (t, fdd) = time (fun () -> Frenetic_NetKAT_Compiler.compile_global pol) in
     let switches = Frenetic_NetKAT_Semantics.switches_of_policy pol in
+    if printorder then print_order ();
     if printfdd then print_fdd fdd;
     if dumpfdd then dump_fdd fdd ~file:(file ^ ".dot");
     print_all_tables ~no_tables fdd switches;
@@ -198,9 +212,10 @@ module Virtual = struct
     +> Flag.print_fdd
     +> Flag.dump_fdd
     +> Flag.print_global_pol
+    +> Flag.print_order
   )
 
-  let run vpol_file vrel vtopo ving_pol ving veg ptopo ping peg printfdd dumpfdd printglobal () =
+  let run vpol_file vrel vtopo ving_pol ving veg ptopo ping peg printfdd dumpfdd printglobal printorder () =
     (* parse files *)
     let vpol = parse_pol vpol_file in
     let vrel = parse_pred vrel in
@@ -225,6 +240,7 @@ module Virtual = struct
       Format.fprintf fmt "Global Policy:@\n@[%a@]@\n@\n"
         Frenetic_NetKAT_Pretty.format_policy global_pol
     end;
+    if printorder then print_order ();
     if printfdd then print_fdd fdd;
     if dumpfdd then dump_fdd fdd ~file:(vpol_file ^ ".dot");
     print_all_tables fdd switches
