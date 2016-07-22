@@ -1,6 +1,6 @@
 {
-  "actions": [ 
-    { "type": "output", "pseudoport": { "type":"controller", "bytes":1024 }  }
+  "policies": [ 
+    { "type": "mod", "header":"location", "value": { "type":"pipe", "name":"pipe" }  }
   ],
   "switch": 843509872345, 
   "payload":  { 

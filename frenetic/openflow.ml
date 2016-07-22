@@ -2,12 +2,41 @@ open Core.Std
 open Async.Std
 open Frenetic_OpenFlow0x01
 module Log = Frenetic_Log
+module ToGeneric = Frenetic_OpenFlow.From0x01
 
-type event = [
-  | `Connect of switchId * SwitchFeatures.t
-  | `Disconnect of switchId
-  | `Message of switchId * Frenetic_OpenFlow_Header.t * Message.t
-]
+type event = Frenetic_OpenFlow.event
+
+(* TODO: This protocol needs to be cleaned up.  It makes more sense to define the 
+   RPC protocol in Frenetic_OpenFlow, but we can't at the moment because Send sends
+   OpenFlow0x01 messages.  It should be the job of openflow.ml to convert 1.x specific
+   messages to the generic OpenFlow messages and pass them over the pipe to Frenetic. 
+
+  IF YOU CHANGE THE PROTOCOL HERE, YOU MUST ALSO CHANGE IT IN Frenetic_OpenFlow0x01_Plugin.
+  Unfortunately, we can't just plop this in Frenetic_OpenFlow0x01 (because it references
+  Frenetic_OpenFlow) or Frenetic_OpenFlow (because it references Frenetic_OpenFlow0x01).  We
+  could have put it in its own module, but I dont' want to give legitimacy to something
+  that's transitional.  
+ *)
+
+type rpc_ack = RpcOk | RpcEof
+
+(* Don't send this over RPC.  You'll be sorry! *)
+type trx_status = Done | Unfulfilled of Message.t list Deferred.t
+
+type rpc_command =
+  | GetSwitches 
+  | SwitchesReply of switchId list
+  | GetSwitchFeatures of switchId
+  | SwitchFeaturesReply of SwitchFeatures.t option
+  | Send of switchId * xid * Message.t
+  | SendReply of rpc_ack
+  | SendBatch of switchId * xid * Message.t list
+  | BatchReply of rpc_ack
+  | GetEvents
+  | EventsReply of event
+  | SendTrx of switchId * Message.t
+  | TrxReply of rpc_ack * Message.t list
+  | Finished of unit  (* This is not sent by the client explicitly *)
 
 let (events, events_writer) : event Pipe.Reader.t * event Pipe.Writer.t
   = Pipe.create ()
@@ -80,7 +109,12 @@ let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit De
     | Initial, `Eof ->
       return () 
     | Initial, `Ok (hdr,Hello bytes) ->
-      (* TODO(jnf): check version? *)
+      (* We could check the version here, but OpenFlow will respond with a HELLO of
+         the latest supported version.  0x04 sends a bitmap of supported versions in the
+         payload, but that requires a 0x04 translation in a 0x01 plugin, which is crazy.
+         It's better just to blow up if the switch doesn't support 0x01, which is
+         what would happen anyway.  A 0x04 version of openflow.ml will check the version
+         correctly because it has a HELLO processor. *)
       serialize 0l SwitchFeaturesRequest;
       loop SentSwitchFeatures
     | Initial, `Ok(hdr,msg) ->
@@ -105,27 +139,31 @@ let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit De
         serialize xid msg;
         Ivar.read ivar;
         in
+      let generic_sw_f = ToGeneric.from_switch_features features in
+      let port_list = generic_sw_f.switch_ports in
       Hashtbl.Poly.add_exn switches ~key:switchId ~data:{ features; send; send_txn };
-      Log.debug "Switch %s connected" (string_of_switchId switchId);
-      Pipe.write_without_pushback events_writer (`Connect (switchId, features));
+      Log.debug "Switch %s connected%!" (string_of_switchId switchId);
+      Pipe.write_without_pushback events_writer (SwitchUp (switchId, port_list));
       loop (Connected threadState)
     (* TODO: Queue up these messages and deliver them when we're done connecting *)
     | SentSwitchFeatures, `Ok (hdr,msg) ->
-      Log.debug "Dropping unexpected msg received before SwitchFeatures response: %s" (Message.to_string msg);
+      Log.debug "Dropping unexpected msg received before SwitchFeatures response: %s%!" (Message.to_string msg);
       loop state   
 
     (* Connected *)
     | Connected threadState, `Eof ->
       Hashtbl.Poly.remove switches threadState.switchId;
-      Log.debug "Switch %s disconnected" (string_of_switchId threadState.switchId);
-      Pipe.write_without_pushback events_writer (`Disconnect threadState.switchId);
+      Log.debug "Switch %s disconnected%!" (string_of_switchId threadState.switchId);
+      Pipe.write_without_pushback events_writer (SwitchDown threadState.switchId);
       return ()
     | Connected threadState, `Ok (hdr, msg) ->
-      (* TODO: Am not sure we should be writing a transactional response to the event writer *)
-      Pipe.write_without_pushback events_writer (`Message (threadState.switchId, hdr, msg));
+      let generic_openflow_event = ToGeneric.event_from_message threadState.switchId msg in
+      let goe = Option.value ~default:(SwitchDown 0L) generic_openflow_event in
+      Log.info "Writing event response %s%!" (Frenetic_OpenFlow.string_of_event goe);
+      Pipe.write_without_pushback events_writer goe;
       (match Hashtbl.Poly.find threadState.txns hdr.xid with 
        | None -> ()
-       | Some (ivar,msgs) -> 
+       | Some (ivar ,msgs) ->
          Hashtbl.Poly.remove threadState.txns hdr.xid;
          (* Am not sure why this is a list, since there will never be more than one.  The
          above line removes the hash entry so it'll never come up again. *)
@@ -147,64 +185,73 @@ let send switchId xid msg =
   match Hashtbl.Poly.find switches switchId with
   | Some switchState -> 
     switchState.send xid msg; 
-    `Ok
+    RpcOk
   | None ->
-    `Eof
+    RpcEof
 
 let send_batch switchId xid msgs = 
   match Hashtbl.Poly.find switches switchId with
   | Some switchState ->
     List.iter msgs ~f:(switchState.send xid);
-    `Ok
+    RpcOk
   | None ->
-    `Eof
+    RpcEof
 
 let send_txn switchId msg = 
   match Hashtbl.Poly.find switches switchId with
   | Some switchState ->
     (* The following returns a Deferred which will be fulfilled when a
     matching response is received *)
-    `Ok (switchState.send_txn msg)
+    Unfulfilled (switchState.send_txn msg)
   | None -> 
-    `Eof
+    Done
 
 let rpc_handler (a:Socket.Address.Inet.t) (reader:Reader.t) (writer:Writer.t) : unit Deferred.t =
   let read () = Reader.read_marshal reader >>| function
     | `Eof -> Log.error "Upstream socket closed unexpectedly!";
-      `Finished ()
+      Finished ()
     | `Ok a -> a in
   let write = Writer.write_marshal writer ~flags:[] in
   Deferred.repeat_until_finished ()
     (fun () -> read () >>= function
-     | `Finished () -> return (`Finished ())
-     | `Get_switches ->
+     | Finished () -> return (`Finished ())
+     | GetSwitches ->
        let switches = get_switches () in
-       write (`Get_switches_resp switches);
+       write (SwitchesReply switches);
        return (`Repeat ())
-     | `Get_switch_features sw_id ->
-       write (`Get_switch_features_resp (get_switch_features sw_id));
+     | GetSwitchFeatures sw_id ->
+       write (SwitchFeaturesReply (get_switch_features sw_id));
        return (`Repeat ())
-     | `Send (sw_id, xid, msg) ->
-       write (`Send_resp (send sw_id xid msg));
+     | Send (sw_id, xid, msg) ->
+       write (SendReply (send sw_id xid msg));
        return (`Repeat ())
-     | `Send_batch (sw_id, xid, msgs) ->
-       write (`Send_batch_resp (send_batch sw_id xid msgs));
+     | SendBatch (sw_id, xid, msgs) ->
+       write (BatchReply (send_batch sw_id xid msgs));
        return (`Repeat ())
-     | `Events ->
+     | GetEvents ->
        Pipe.iter_without_pushback events
-         ~f:(fun evt ->
-             write (`Events_resp evt)) >>| fun () ->
+         ~f:(fun evt -> write (EventsReply evt)) 
+       >>| fun () ->
        Log.error "Event stream stopped unexpectedly!";
-       `Finished ()
-     | `Send_txn (swid, msg) ->
+       `Finished ()   (* You don't need a return here, because of the >>| operator *)
+     | SwitchesReply _
+     | SwitchFeaturesReply _
+     | SendReply _
+     | BatchReply _
+     | EventsReply _
+     | TrxReply (_, _) -> 
+        Log.error("Reply sent from client.  Wrong direction!"); 
+        return (`Repeat ())
+     | SendTrx (swid, msg) ->
        let run_trx = send_txn swid msg in
        let () = match run_trx with
-         | `Eof -> write (`Send_trx_rep `Eof)
-         | `Ok ivar_deferred ->
+         | Done -> write (TrxReply (RpcEof, []))
+         | Unfulfilled ivar_deferred ->
+            Log.info "Wrote Transaction repsonse";
             upon ivar_deferred
-              (fun collected_responses -> write (`Send_txn_resp (`Ok (`Ok collected_responses))))
-          in
-       return (`Repeat ()))
+              (fun collected_responses -> write (TrxReply (RpcOk, collected_responses)))
+      in
+      return (`Repeat ()))
   
 let run_server port rpc_port =
   don't_wait_for

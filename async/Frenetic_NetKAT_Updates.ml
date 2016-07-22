@@ -1,3 +1,5 @@
+(* TODO: Currently Unused.  See Frenetic_OpenFlow0x01_Controller for Future Directions *)
+
 open Core.Std
 open Async.Std
 
@@ -8,8 +10,6 @@ module SDN = Frenetic_OpenFlow
 module Log = Frenetic_Log
 module Controller = Frenetic_OpenFlow0x01_Controller
 module Comp = Frenetic_NetKAT_Compiler
-
-open Frenetic_OpenFlow.To0x01
 
 exception UpdateError
 
@@ -35,13 +35,11 @@ end
 
 module type UPDATE = sig
   val bring_up_switch :
-    ?old:Comp.t ->
     SDN.switchId ->
     Comp.t ->
     unit Deferred.t
 
   val implement_policy :
-    ?old:Comp.t ->
     Comp.t ->
     unit Deferred.t
 
@@ -49,7 +47,10 @@ module type UPDATE = sig
 end
 
 module BestEffortUpdate = struct
-  let current_compiler_options = ref Comp.default_compiler_options
+  open Frenetic_OpenFlow.To0x01
+
+  let current_compiler_options =
+    ref Comp.default_compiler_options
 
   let restrict sw_id repr =
     Comp.restrict Frenetic_NetKAT.(Switch sw_id) repr
@@ -70,7 +71,7 @@ module BestEffortUpdate = struct
       | `Eof -> raise UpdateError
       | `Ok -> return ()
 
-  let bring_up_switch ?old (sw_id : SDN.switchId) new_r =
+  let bring_up_switch (sw_id : SDN.switchId) new_r =
     let table = Comp.to_table ~options:!current_compiler_options sw_id new_r in
     Log.printf ~level:`Debug "Setting up flow table\n%s"
       (Frenetic_OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id) table);
@@ -85,10 +86,10 @@ module BestEffortUpdate = struct
         Log.flushed () >>| fun () ->
         Log.error "%s\n%!" (Exn.to_string _exn)
 
-  let implement_policy ?old repr =
+  let implement_policy repr =
     (Controller.get_switches ()) >>= fun switches ->
     Deferred.List.iter switches (fun sw_id ->
-      bring_up_switch ~old sw_id repr)
+      bring_up_switch sw_id repr)
 
   let set_current_compiler_options opt =
     current_compiler_options := opt
@@ -96,6 +97,7 @@ end
 
 module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
   open Frenetic_OpenFlow
+  open To0x01
   open Args
 
   let current_compiler_options = ref Comp.default_compiler_options
@@ -105,7 +107,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
       | `Ok dl -> return (Ok ())
       | `Eof -> return (Error UpdateError)
 
-  let install_flows_for sw_id ?old table =
+  let install_flows_for sw_id table =
     let to_flow_mod p f = M.FlowModMsg (from_flow p f) in
     let priority = ref 65536 in
     let flows = List.map table ~f:(fun flow ->
@@ -258,7 +260,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
 
   let ver = ref 1
 
-  let implement_policy ?old repr : unit Deferred.t =
+  let implement_policy repr : unit Deferred.t =
     (* XXX(seliopou): It might be better to iterate over client ids rather than
      * switch ids. A client id is guaranteed to be unique within a run of a
      * program, whereas a switch id may be reused across client ids, i.e., a
@@ -283,7 +285,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
     >>| fun () ->
       incr ver
 
-  let bring_up_switch ?old (sw_id : switchId) repr =
+  let bring_up_switch (sw_id : switchId) repr =
     Monitor.try_with ~name:"PerPacketConsistent.bring_up_switch" (fun () ->
       delete_flows_for sw_id >>= fun () ->
       internal_install_policy_for !ver repr sw_id >>= fun () ->

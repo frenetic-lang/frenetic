@@ -286,8 +286,6 @@ type packetInReason =
   | ExplicitSend
 [@@deriving sexp]
 
-type pktIn = payload * int * portId * packetInReason [@@deriving sexp]
-
 type pktOut = payload * (portId option) * (action list) [@@deriving sexp]
 
 type switchFeatures = {
@@ -296,18 +294,43 @@ type switchFeatures = {
 } [@@deriving sexp]
 
 type flowStats = {
-  flow_table_id : int8; (** ID of table flow came from. *)
+  flow_table_id : int64; (** ID of table flow came from. *)
   flow_pattern : Pattern.t;
-  flow_duration_sec: int32;
-  flow_duration_nsec: int32;
-  flow_priority: int16;
-  flow_idle_timeout: int16;
-  flow_hard_timeout: int16;
   flow_actions: action list;
+  flow_duration_sec: int64;
+  flow_duration_nsec: int64;
+  flow_priority: int64;
+  flow_idle_timeout: int64;
+  flow_hard_timeout: int64;
   flow_packet_count: int64;
   flow_byte_count: int64
 } [@@deriving sexp]
 
+type portStats =
+  { port_no : int64
+  ; port_rx_packets : int64
+  ; port_tx_packets : int64
+  ; port_rx_bytes : int64
+  ; port_tx_bytes : int64
+  ; port_rx_dropped : int64
+  ; port_tx_dropped : int64
+  ; port_rx_errors : int64
+  ; port_tx_errors : int64
+  ; port_rx_frame_err : int64
+  ; port_rx_over_err : int64
+  ; port_rx_crc_err : int64
+  ; port_collisions : int64
+} [@@deriving sexp]
+
+type event =
+  | SwitchUp of switchId * portId list
+  | SwitchDown of switchId 
+  | PortUp of switchId * portId
+  | PortDown of switchId * portId
+  | PacketIn of string * switchId * portId * payload * int * packetInReason
+  | PortStats of switchId * portStats
+  | FlowStats of switchId * flowStats
+           
 let format_modify (fmt:Format.formatter) (m:modify) : unit =
   match m with
   | SetEthSrc(dlAddr) ->
@@ -407,6 +430,7 @@ let format_flowTable (fmt:Format.formatter) (l:flowTable) : unit =
 let string_of_action = Frenetic_Util.make_string_of format_action
 let string_of_seq = Frenetic_Util.make_string_of format_seq
 let string_of_par = Frenetic_Util.make_string_of format_par
+let string_of_group = Frenetic_Util.make_string_of format_group
 let string_of_flow = Frenetic_Util.make_string_of format_flow
 
 let string_of_vlan (x : int) : string =
@@ -576,153 +600,404 @@ let string_of_flowTable ?(label="") (tbl : flowTable) : string =
   let b = bottom max_p max_a in
   String.concat (t :: l :: (List.append entry_strings [b]))
 
+let string_of_event = function
+  | SwitchUp _-> "SwitchUp"
+  | SwitchDown _-> "SwitchDown"
+  | PortUp _-> "PortUp"
+  | PortDown _-> "PortDown"
+  | PacketIn _-> "PacketIn"
+  | PortStats _-> "PortStats"
+  | FlowStats _-> "FlowStats"
+
 module To0x01 = struct
 
-exception Invalid_port of int32
+  exception Invalid_port of int32
 
-let from_portId (pport_id : portId) : OF10.portId =
-  if pport_id > 0xff00l then (* pport_id <= OFPP_MAX *)
-    raise (Invalid_port pport_id)
-  else
-    Int32.to_int_exn pport_id
+  let from_portId (pport_id : portId) : OF10.portId =
+    if pport_id > 0xff00l then (* pport_id <= OFPP_MAX *)
+      raise (Invalid_port pport_id)
+    else
+      Int32.to_int_exn pport_id
 
-let from_output (inPort : OF10.portId option) (pseudoport : pseudoport) : OF10.action =
-  match pseudoport with
-    | InPort -> Output InPort
-    | Table -> Output Table
-    | Normal -> Output Normal
-    | Flood -> Output Flood
-    | All -> Output AllPorts
-    | Physical pport_id ->
-      let pport_id = from_portId pport_id in
-      if Some pport_id = inPort then
-        Output InPort
-      else
-        Output (PhysicalPort pport_id)
-    | Controller n ->
-      Output (Controller n)
-    | Local ->
-      Output Local
+  let from_output (inPort : OF10.portId option) (pseudoport : pseudoport) : OF10.action =
+    match pseudoport with
+      | InPort -> Output InPort
+      | Table -> Output Table
+      | Normal -> Output Normal
+      | Flood -> Output Flood
+      | All -> Output AllPorts
+      | Physical pport_id ->
+        let pport_id = from_portId pport_id in
+        if Some pport_id = inPort then
+          Output InPort
+        else
+          Output (PhysicalPort pport_id)
+      | Controller n ->
+        Output (Controller n)
+      | Local ->
+        Output Local
 
-let from_action (inPort : OF10.portId option) (act : action) : OF10.action =
-  match act with
-    | Output pseudoport ->
-      from_output inPort pseudoport
-    | Enqueue (pport_id, queue_id) ->
-      let pport_id = from_portId pport_id in
-      if Some pport_id = inPort then
-        Enqueue(InPort, queue_id)
-      else
-        Enqueue (PhysicalPort pport_id, queue_id)
-    | Modify (SetEthSrc dlAddr) ->
-      SetDlSrc dlAddr
-    | Modify (SetEthDst dlAddr) ->
-      SetDlDst dlAddr
-    | Modify (SetVlan vlan) ->
-      begin match vlan with
-        | None
-        | Some(0xffff) ->
-          SetDlVlan None
-        | Some(n) ->
-          SetDlVlan (Some n)
-      end
-    | Modify (SetVlanPcp pcp) ->
-      SetDlVlanPcp pcp
-    | Modify (SetEthTyp _) ->
-      raise (Invalid_argument "cannot set Ethernet type")
-    | Modify (SetIPProto _) ->
-      raise (Invalid_argument "cannot set IP protocol")
-    | Modify (SetIP4Src nwAddr) ->
-      SetNwSrc nwAddr
-    | Modify (SetIP4Dst nwAddr) ->
-      SetNwDst nwAddr
-    | Modify (SetTCPSrcPort tp) ->
-      SetTpSrc tp
-    | Modify (SetTCPDstPort tp) ->
-      SetTpDst tp
-      (* TODO(grouptable) *)
-    | FastFail _ -> failwith "Openflow 1.0 does not support fast failover."
+  let from_action (inPort : OF10.portId option) (act : action) : OF10.action =
+    match act with
+      | Output pseudoport ->
+        from_output inPort pseudoport
+      | Enqueue (pport_id, queue_id) ->
+        let pport_id = from_portId pport_id in
+        if Some pport_id = inPort then
+          Enqueue(InPort, queue_id)
+        else
+          Enqueue (PhysicalPort pport_id, queue_id)
+      | Modify (SetEthSrc dlAddr) ->
+        SetDlSrc dlAddr
+      | Modify (SetEthDst dlAddr) ->
+        SetDlDst dlAddr
+      | Modify (SetVlan vlan) ->
+        begin match vlan with
+          | None
+          | Some(0xffff) ->
+            SetDlVlan None
+          | Some(n) ->
+            SetDlVlan (Some n)
+        end
+      | Modify (SetVlanPcp pcp) ->
+        SetDlVlanPcp pcp
+      | Modify (SetEthTyp _) ->
+        raise (Invalid_argument "cannot set Ethernet type")
+      | Modify (SetIPProto _) ->
+        raise (Invalid_argument "cannot set IP protocol")
+      | Modify (SetIP4Src nwAddr) ->
+        SetNwSrc nwAddr
+      | Modify (SetIP4Dst nwAddr) ->
+        SetNwDst nwAddr
+      | Modify (SetTCPSrcPort tp) ->
+        SetTpSrc tp
+      | Modify (SetTCPDstPort tp) ->
+        SetTpDst tp
+        (* TODO(grouptable) *)
+      | FastFail _ -> failwith "Openflow 1.0 does not support fast failover."
 
-let from_seq (inPort : OF10.portId option) (seq : seq) : OF10.action list =
-  List.map seq ~f:(from_action inPort)
+  let from_seq (inPort : OF10.portId option) (seq : seq) : OF10.action list =
+    List.map seq ~f:(from_action inPort)
 
-let from_par (inPort : OF10.portId option) (par : par) : OF10.action list =
-  List.concat (List.map par ~f:(from_seq inPort))
+  let from_par (inPort : OF10.portId option) (par : par) : OF10.action list =
+    List.concat (List.map par ~f:(from_seq inPort))
 
-let from_group (inPort : OF10.portId option) (group : group)
-  : OF10.action list =
-  match group with
-  | [] -> []
-  | [par] -> from_par inPort par
-  | _ ->
-     raise (Unsupported "OpenFlow 1.0 does not support fast-failover")
+  let from_group (inPort : OF10.portId option) (group : group)
+    : OF10.action list =
+    match group with
+    | [] -> []
+    | [par] -> from_par inPort par
+    | _ ->
+       raise (Unsupported "OpenFlow 1.0 does not support fast-failover")
 
-let from_timeout (timeout : timeout) : OF10.timeout =
-  match timeout with
-    | Permanent -> Permanent
-    | ExpiresAfter n -> ExpiresAfter n
+  let from_timeout (timeout : timeout) : OF10.timeout =
+    match timeout with
+      | Permanent -> Permanent
+      | ExpiresAfter n -> ExpiresAfter n
 
+  let from_pattern (pat : Pattern.t) : OF10.pattern =
+    { dlSrc = pat.dlSrc
+    ; dlDst = pat.dlDst
+    ; dlTyp = pat.dlTyp
+    ; dlVlan = (match pat.dlVlan with
+        | Some(0xffff) -> Some None
+        | Some(x) -> Some (Some x)
+        | None -> None)
+    ; dlVlanPcp = pat.dlVlanPcp
+    ; nwSrc = (match pat.nwSrc with
+      | None -> None
+      | Some (p,m) ->
+         let mo =
+           if m = 32l then
+             None
+           else
+             Some (Int32.(32l - m)) in
+         Some { m_value = p; m_mask = mo })
+    ; nwDst = (match pat.nwDst with
+      | None -> None
+      | Some (p,m) ->
+         let mo =
+           if m = 32l then
+             None
+           else
+             Some (Int32.(32l - m)) in
+         Some { m_value = p; m_mask = mo })
+    ; nwProto = pat.nwProto
+    ; nwTos = None
+    ; tpSrc = pat.tpSrc
+    ; tpDst = pat.tpDst
+    ; inPort = Core_kernel.Option.map pat.inPort from_portId
+    }
 
-let from_pattern (pat : Pattern.t) : OF10.pattern =
-  { dlSrc = pat.dlSrc
-  ; dlDst = pat.dlDst
-  ; dlTyp = pat.dlTyp
-  ; dlVlan = (match pat.dlVlan with
-      | Some(0xffff) -> Some None
-      | Some(x) -> Some (Some x)
-      | None -> None)
-  ; dlVlanPcp = pat.dlVlanPcp
-  ; nwSrc = (match pat.nwSrc with
-    | None -> None
-    | Some (p,m) ->
-       let mo =
-         if m = 32l then
-           None
-         else
-           Some (Int32.(32l - m)) in
-       Some { m_value = p; m_mask = mo })
-  ; nwDst = (match pat.nwDst with
-    | None -> None
-    | Some (p,m) ->
-       let mo =
-         if m = 32l then
-           None
-         else
-           Some (Int32.(32l - m)) in
-       Some { m_value = p; m_mask = mo })
-  ; nwProto = pat.nwProto
-  ; nwTos = None
-  ; tpSrc = pat.tpSrc
-  ; tpDst = pat.tpDst
-  ; inPort = Core_kernel.Option.map pat.inPort from_portId
+  let from_flow (priority : int) (flow : flow) : OF10.flowMod =
+    match flow with
+      | { pattern; action; cookie; idle_timeout; hard_timeout } ->
+        let pat = from_pattern pattern in
+        { command = AddFlow;
+          pattern = pat;
+          priority = priority;
+          actions = from_group pat.inPort action;
+          cookie = cookie;
+          idle_timeout = from_timeout idle_timeout;
+          hard_timeout = from_timeout hard_timeout;
+          notify_when_removed = false;
+          apply_to_packet = None;
+          out_port = None;
+          check_overlap = false }
+
+  let from_payload (pay : payload) : OF10.payload =
+    match pay with
+      | Buffered (buf_id, b) ->
+        Buffered (buf_id, b)
+      | NotBuffered b -> NotBuffered b
+
+  let port_config_none = OF10.{
+    down = false ; no_stp = false ; no_recv = false ; no_recv_stp = false
+    ; no_flood = false ; no_fwd = false ; no_packet_in = false
   }
 
-let from_flow (priority : int) (flow : flow) : OF10.flowMod =
-  match flow with
-    | { pattern; action; cookie; idle_timeout; hard_timeout } ->
-      let pat = from_pattern pattern in
-      { command = AddFlow;
-        pattern = pat;
-        priority = priority;
-        actions = from_group pat.inPort action;
-        cookie = cookie;
-        idle_timeout = from_timeout idle_timeout;
-        hard_timeout = from_timeout hard_timeout;
-        notify_when_removed = false;
-        apply_to_packet = None;
-        out_port = None;
-        check_overlap = false }
+  let port_features_none = OF10.{
+    f_10MBHD = false ; f_10MBFD = false ; f_100MBHD = false ; f_100MBFD = false
+    ; f_1GBHD = false ; f_1GBFD = false ; f_10GBFD = false ; copper = false
+    ; fiber = false ; autoneg = false ; pause = false ; pause_asym = false
+  }
 
-let from_payload (pay : payload) : OF10.payload =
-  match pay with
-    | Buffered (buf_id, b) ->
-      Buffered (buf_id, b)
-    | NotBuffered b -> NotBuffered b
+  let port_description_template (portId: portId) : OF10.portDescription = { 
+    port_no = Int.of_int32_exn portId ; hw_addr = 0L; name = ""; config = port_config_none
+    ; state = { down = false; stp_state = Listen} 
+    ; curr = port_features_none ; advertised = port_features_none
+    ; supported = port_features_none ; peer = port_features_none 
+  }
 
-let from_packetOut (pktOut : pktOut) : OF10.packetOut =
-  let output_payload, port_id, apply_actions = pktOut in
-  let output_payload = from_payload output_payload in
-  let port_id = Core_kernel.Option.map port_id from_portId in
-  let apply_actions = from_par port_id [apply_actions] in
-  { output_payload; port_id; apply_actions }
+  let from_switch_features (feats : switchFeatures) : OF10.SwitchFeatures.t =
+    let sp = List.map feats.switch_ports ~f:port_description_template in
+    { switch_id = feats.switch_id
+      ; num_buffers = 0l ; num_tables = 0
+      ; supported_capabilities = { 
+        flow_stats = false ; table_stats = false ; port_stats = false ; stp = false
+        ; ip_reasm = false ; queue_stats = false ; arp_match_ip = false
+      }
+      ; supported_actions = { 
+        output = false ; set_vlan_id = false ; set_vlan_pcp = false ; strip_vlan = false
+        ; set_dl_src = false ; set_dl_dst = false ; set_nw_src = false ; set_nw_dst = false
+        ; set_nw_tos = false ; set_tp_src = false ; set_tp_dst = false ; enqueue = false
+        ; vendor = false 
+      }
+      ; ports = sp 
+    }
+
+  let from_packet_in_reason (pir : packetInReason) : OF10.packetInReason =
+    match pir with 
+    | NoMatch -> NoMatch 
+    | ExplicitSend -> ExplicitSend 
+
+  let from_packetOut (pktOut : pktOut) : OF10.packetOut =
+    let output_payload, port_id, apply_actions = pktOut in
+    let output_payload = from_payload output_payload in
+    let port_id = Core_kernel.Option.map port_id from_portId in
+    let apply_actions = from_par port_id [apply_actions] in
+    { output_payload; port_id; apply_actions }
+
+  let port_status_template reason portId : OF10.PortStatus.t = {
+    reason = reason ; desc = port_description_template portId
+  }
+
+  let from_port_stats (prl : portStats) : OF10.portStats =
+    { port_no = Int.of_int64_exn prl.port_no 
+      ; rx_packets = prl.port_rx_packets ; tx_packets = prl.port_tx_packets
+      ; rx_bytes = prl.port_rx_bytes ; tx_bytes = prl.port_tx_bytes 
+      ; rx_dropped = prl.port_rx_dropped
+      ; tx_dropped = prl.port_tx_dropped ; rx_errors = prl.port_rx_errors
+      ; tx_errors = prl.port_tx_errors ; rx_frame_err = prl.port_rx_frame_err
+      ; rx_over_err = prl.port_rx_over_err ; rx_crc_err = prl.port_rx_crc_err
+      ; collisions = prl.port_collisions 
+    }  
+
+  let from_flow_stats (ifs: flowStats) : OF10.individualStats =
+    { table_id = Int.of_int64_exn ifs.flow_table_id; 
+      of_match = from_pattern ifs.flow_pattern;
+      actions = List.map ifs.flow_actions ~f:(fun act -> from_action None act);
+      duration_sec = Int32.of_int64_exn ifs.flow_duration_sec; 
+      duration_nsec = Int32.of_int64_exn ifs.flow_duration_nsec;
+      priority = Int.of_int64_exn ifs.flow_priority;
+      idle_timeout = Int.of_int64_exn ifs.flow_idle_timeout; 
+      hard_timeout = Int.of_int64_exn ifs.flow_hard_timeout;
+      packet_count = ifs.flow_packet_count; 
+      byte_count = ifs.flow_byte_count;
+      cookie = 0L
+    }
+
+  let from_payload (pl : payload) : OF10.payload =
+    match pl with
+    | Buffered (bufferId, data) -> Buffered (bufferId, data)
+    | NotBuffered data -> NotBuffered data
+
+  let message_from_event event : (switchId * OF10.Message.t) option =
+    match event with 
+    | PortUp (sw, portId) ->
+      Some (sw, PortStatusMsg (port_status_template Add portId))
+    | PortDown (sw, portId) ->
+      Some (sw, PortStatusMsg (port_status_template Delete portId))
+    | PacketIn (pipe, swId, portId, payload, total_len, reason) ->
+      let _reason = from_packet_in_reason reason in
+      Some (swId, PacketInMsg { 
+        input_payload = from_payload payload 
+        ; total_len = total_len
+        ; port = Int32.to_int_exn portId 
+        ; reason = _reason
+      })
+    | PortStats (swId, pr) ->
+       Some (swId, StatsReplyMsg (PortRep ([from_port_stats pr ])))
+    | FlowStats (swId, ifr) ->
+       Some (swId, StatsReplyMsg (IndividualFlowRep ([from_flow_stats ifr ])))
+    (* SwitchUp and SwitchDown have no analogues in OF 1.0, so drop *)
+    | SwitchUp _ | SwitchDown _ -> None
+end
+
+module From0x01 = struct
+
+  let from_switchId (swId: OF10.switchId) : switchId =
+    swId
+
+  let from_portId (pport_id : OF10.portId) : portId option =
+    (* OVS returns the local interface as 65534, but we don't want that *)
+    if pport_id > 0xff00 then (* pport_id <= OFPP_MAX *)
+      None
+    else 
+      Int.to_int32 pport_id
+
+  let from_payload (pl : OF10.payload) : payload =
+    match pl with
+    | Buffered (bufferId, data) -> Buffered (bufferId, data)
+    | NotBuffered data -> NotBuffered data
+
+  let from_switch_features (feats : OF10.SwitchFeatures.t) = 
+    let sp = List.filter_map feats.ports ~f:(fun pd -> from_portId pd.port_no) in
+    { switch_id = from_switchId feats.switch_id; switch_ports = sp}
+
+  let from_port_stats (prl : OF10.portStats) =
+    { port_no = Int64.of_int prl.port_no 
+      ; port_rx_packets = prl.rx_packets ; port_tx_packets = prl.tx_packets
+      ; port_rx_bytes = prl.rx_bytes ; port_tx_bytes = prl.tx_bytes ; port_rx_dropped = prl.rx_dropped
+      ; port_tx_dropped = prl.tx_dropped ; port_rx_errors = prl.rx_errors
+      ; port_tx_errors = prl.tx_errors ; port_rx_frame_err = prl.rx_frame_err
+      ; port_rx_over_err = prl.rx_over_err ; port_rx_crc_err = prl.rx_crc_err
+      ; port_collisions = prl.collisions 
+    }  
+
+  let from_pattern (pat : OF10.pattern) : Pattern.t =
+    { dlSrc = pat.dlSrc
+    ; dlDst = pat.dlDst
+    ; dlTyp = pat.dlTyp
+    ; dlVlan = (match pat.dlVlan with
+      | None -> None
+      | Some None -> Some (0xffff)
+      | Some (Some x) -> Some (x)
+    )
+    ; dlVlanPcp = pat.dlVlanPcp
+    ; nwSrc = (match pat.nwSrc with
+      | None -> None
+      | Some { m_value = p; m_mask = mo } ->
+        let mask = match mo with 
+        | None -> 0l
+        | Some m -> Int32.(32l - m) in
+        Some (p,mask)
+    )
+    ; nwDst = (match pat.nwDst with
+      | None -> None
+      | Some { m_value = p; m_mask = mo } ->
+        let mask = match mo with 
+        | None -> 0l
+        | Some m -> Int32.(32l - m) in
+        Some (p,mask)
+    )
+    ; nwProto = pat.nwProto
+    ; tpSrc = pat.tpSrc
+    ; tpDst = pat.tpDst
+    ; inPort = match pat.inPort with | None -> None | Some x -> Int.to_int32 x
+    }
+
+  let from_output (pp : OF10.pseudoPort) : pseudoport =
+    match pp with
+      | InPort -> InPort
+      | Table -> Table
+      | Normal -> Normal
+      | Flood -> Flood 
+      | AllPorts -> All
+      | PhysicalPort pport_id -> Physical (Int.to_int32_exn pport_id)
+      | Controller n -> Controller n
+      | Local -> Local
+
+  let from_action (act : OF10.action) : action =
+    match act with
+      | Output pseudoport -> Output (from_output pseudoport)
+      | Enqueue (PhysicalPort pport_id, queue_id) ->
+        Enqueue ((Int.to_int32_exn pport_id), queue_id)
+      | Enqueue _ -> assert false
+      | SetDlSrc dlAddr -> Modify (SetEthSrc dlAddr)
+      | SetDlDst dlAddr -> Modify (SetEthDst dlAddr)
+      | SetDlVlan vl -> 
+        Modify (SetVlan begin match vl with
+          | None -> Some(0xffff) 
+          | Some n -> Some n
+        end)
+      | SetDlVlanPcp pcp -> Modify (SetVlanPcp pcp) 
+      | SetNwSrc nwAddr -> Modify (SetIP4Src nwAddr)
+      | SetNwDst nwAddr -> Modify (SetIP4Dst nwAddr)
+      | SetTpSrc tp -> Modify (SetTCPSrcPort tp) 
+      | SetTpDst tp -> Modify (SetTCPDstPort tp) 
+      | SetNwTos _ -> assert false
+
+  let from_individual_stats (ifs: OF10.individualStats ) =
+    { flow_table_id = Int64.of_int ifs.table_id; 
+      flow_pattern = from_pattern ifs.of_match;
+      flow_actions = List.map ifs.actions ~f:from_action;
+      flow_duration_sec = Int64.of_int32 ifs.duration_sec; 
+      flow_duration_nsec = Int64.of_int32 ifs.duration_nsec;
+      flow_priority = Int64.of_int ifs.priority;
+      flow_idle_timeout = Int64.of_int ifs.idle_timeout; 
+      flow_hard_timeout = Int64.of_int ifs.hard_timeout;
+      flow_packet_count = ifs.packet_count; 
+      flow_byte_count = ifs.byte_count
+    }
+
+  let from_packet_in_reason (pir : OF10.packetInReason) : packetInReason =
+    match pir with 
+    | NoMatch -> NoMatch 
+    | ExplicitSend -> ExplicitSend 
+
+  let event_from_message (swId:OF10.switchId) (msg:OF10.Message.t) =
+    let _swId = from_switchId swId in
+    match msg with 
+    | PortStatusMsg ps -> 
+      let _portId = from_portId ps.desc.port_no in
+      (match _portId with
+      | Some _portId -> 
+        (match ps.reason with
+        | Add -> Some (PortUp (_swId, _portId))  
+        | Delete -> Some (PortDown (_swId, _portId))
+        | _ -> None   (* We ignore port modifications *)
+        )
+      | None -> None
+      )
+    | PacketInMsg pi -> 
+      let _portId = from_portId pi.port in
+      let _reason = from_packet_in_reason pi.reason in
+      let _payload = from_payload pi.input_payload in 
+      (match _portId with
+      | Some _portId -> Some (PacketIn ("", _swId, _portId, _payload, pi.total_len, _reason))
+      | None -> None
+      )
+    | StatsReplyMsg sr ->
+      (match sr with
+      | PortRep prl -> 
+        (* We only get one port stat row with Frenetic, so just grab the first *)
+        Some (PortStats (_swId, from_port_stats (List.hd_exn prl)))
+      | IndividualFlowRep ifrl ->
+        Some (FlowStats (_swId, from_individual_stats (List.hd_exn ifrl)))
+      | _ -> None
+      )        
+    | _ -> None
+
+
 end

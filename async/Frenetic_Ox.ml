@@ -75,48 +75,66 @@ module Platform = struct
     >>> fun () -> munge_exns thk
 end
 
+
 module Make (Handlers:OXMODULE) = struct
 
-  module Controller = Frenetic_OpenFlow0x01_Controller
-    
+  module Controller = Frenetic_OpenFlow0x01_Plugin.LowLevel
+
   let handle_pkt_out ((sw, xid, msg) : to_sw) : unit Deferred.t =
+    let open Frenetic_OpenFlow0x01_Plugin in
     Controller.send sw xid msg >>= function
-      | `Ok  -> 
+      | RpcOk  -> 
         return ()
-      | `Eof -> 
+      | RpcEof -> 
         Log.error ~tags 
           "unhandled exception sending message to switch %Ld" sw;
         return ()
 
-  let handler (e:Controller.event) : unit Deferred.t = 
+  let handler (evt:Frenetic_OpenFlow.event) : unit Deferred.t = 
     let open Message in
     let open FlowMod in
     let open SwitchFeatures in 
-    match e with
-    | `Connect (sw, feats) ->
+    match evt with
+    | SwitchUp (sw, feats) ->
       let res1 = Controller.send sw 0l (FlowModMsg delete_all_flows) in 
       let res2 = Controller.send sw 1l BarrierRequest in 
         (Deferred.both res1 res2 >>| function
-          | `Ok, `Ok -> 
-            let sw = feats.switch_id in
-            Handlers.switch_connected sw feats
+          | RpcOk, RpcOk ->
+            let sf = Frenetic_OpenFlow.{switch_id = sw; switch_ports = feats} in
+            Handlers.switch_connected sw (Frenetic_OpenFlow.To0x01.from_switch_features sf)
           | _ -> ())
-    | `Message (sw,hdr, msg) ->
-      return 
-	(match msg with
-	  | PacketInMsg pktIn -> Handlers.packet_in sw hdr.xid pktIn
-	  | BarrierReply -> Handlers.barrier_reply sw hdr.xid
-	  | StatsReplyMsg rep -> Handlers.stats_reply sw hdr.xid rep
-	  | msg -> Log.info ~tags "ignored a message from %Ld" sw)
-    | `Disconnect sw -> 
+    | SwitchDown sw -> 
       Log.info "switch %Ld disconnected\n%!" sw;
       return ()
+    | PortUp (sw,port) -> 
+      Log.info "Port %ld on Switch %Ld connected\n%!" port sw;
+      return ()
+    | PortDown (sw,port) ->
+      Log.info "Port %ld on Switch %Ld disconnected\n%!" port sw;
+      return ()
+    | PacketIn (pipe,sw,port,pl,total_len,reason) ->
+      let open Frenetic_OpenFlow.To0x01 in
+      let pktIn = { 
+        input_payload = from_payload pl
+        ; total_len = total_len
+        ; port = Int32.to_int_exn port
+        ; reason = from_packet_in_reason reason
+      } in  
+      return (Handlers.packet_in sw 0l pktIn)
+    | PortStats (sw,rep) -> assert false 
+    | FlowStats (sw,rep) -> assert false
+    (*
+    | PortStats (sw,rep) 
+    | FlowStats (sw,rep) ->
+      let (_, rep) = message_from_event evt in
+      return (Handlers.stats_reply sw 0l rep)
+    *)
 
   let start () : unit =
     (* intentionally on stdout *)
     Format.printf "Ox controller launching...\n%!";
     INRIASys.catch_break true;
-    Controller.init 6633 ; 
+    Controller.start 6633 ; 
     Deferred.don't_wait_for
       (Monitor.try_with ~name:"controller" (fun () ->
         Deferred.both 

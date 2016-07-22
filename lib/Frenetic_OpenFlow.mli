@@ -20,18 +20,14 @@
   supply the entire flow table at once and cannot add and remove flow table
   entries individually *)
 
+open Frenetic_Packet
+
 (** {1 OpenFlow Identifier Types}
 
   OpenFlow requires identifiers for switches, ports, transaction numbers, etc.
   The representation of these identifiers varies across different versions
   of OpenFlow, which is why they are abstract.
-
-
 *)
-
-open Frenetic_Packet
-
-module OF10 = Frenetic_OpenFlow0x01
 
 type switchId = int64 [@@deriving sexp, compare, eq]
 type portId = int32 [@@deriving sexp, compare, eq]
@@ -40,6 +36,31 @@ type bufferId = int32 [@@deriving sexp, compare, eq]
 
 exception Unsupported of string
 
+(** {1 Packet Types } *)
+
+(** Packet payloads *)
+type payload =
+  | Buffered of bufferId * Cstruct.t 
+    (** [Buffered (id, buf)] is a packet buffered on a switch *)
+  | NotBuffered of Cstruct.t
+[@@deriving sexp]
+
+(** [payload_bytes payload] returns the bytes for the given payload *)
+val payload_bytes : payload -> Cstruct.t
+
+type packetInReason =
+  | NoMatch
+  | ExplicitSend
+[@@deriving sexp]
+
+(** {1 Switch Configuaration } *)
+                                                               
+(** A simplification of the _switch features_ message from OpenFlow *)
+type switchFeatures = {
+  switch_id : switchId;
+  switch_ports : portId list
+} [@@deriving sexp]
+                                                               
 (** {1 Packet Forwarding} *)
 
 module Pattern : sig
@@ -163,57 +184,57 @@ type flow = {
 (** Priorities are implicit *)
 type flowTable = flow list [@@deriving sexp]
 
-(** {1 Controller Packet Processing} *)
+(* {1 Errors} *)
 
-(** The payload for [packetIn] and [packetOut] messages *)
-type payload =
-  | Buffered of bufferId * Cstruct.t
-    (** [Buffered (id, buf)] is a packet buffered on a switch *)
-  | NotBuffered of Cstruct.t
-[@@deriving sexp]
-
-
-(** [payload_bytes payload] returns the bytes for the given payload *)
-val payload_bytes : payload -> Cstruct.t
-
-type packetInReason =
-  | NoMatch
-  | ExplicitSend
-  [@@deriving sexp]
-
-(** [(payload, total_length, in_port, reason)] *)
-type pktIn = payload * int * portId * packetInReason [@@deriving sexp]
-
-(** [(payload, in_port option, action list)] *)
-type pktOut = payload * (portId option) * (action list) [@@deriving sexp]
-
-(* {1 Switch Configuration} *)
-
-(** A simplification of the _switch features_ message from OpenFlow *)
-type switchFeatures = {
-  switch_id : switchId;
-  switch_ports : portId list
-} [@@deriving sexp]
+(* TODO: FILL *)
 
 (* {1 Statistics} *)
 
 (** The body of a reply to an individual flow statistics request *)
 type flowStats = {
-  flow_table_id : int8; (** ID of table flow came from *)
+  flow_table_id : int64; 
   flow_pattern : Pattern.t;
-  flow_duration_sec: int32;
-  flow_duration_nsec: int32;
-  flow_priority: int16;
-  flow_idle_timeout: int16;
-  flow_hard_timeout: int16;
   flow_actions: action list;
+  flow_duration_sec: int64;
+  flow_duration_nsec: int64;
+  flow_priority: int64;
+  flow_idle_timeout: int64;
+  flow_hard_timeout: int64;
   flow_packet_count: int64;
   flow_byte_count: int64
 } [@@deriving sexp]
 
-(* {1 Errors} *)
+type portStats = 
+  { port_no : int64
+  ; port_rx_packets : int64
+  ; port_tx_packets : int64
+  ; port_rx_bytes : int64
+  ; port_tx_bytes : int64
+  ; port_rx_dropped : int64
+  ; port_tx_dropped : int64
+  ; port_rx_errors : int64
+  ; port_tx_errors : int64
+  ; port_rx_frame_err : int64
+  ; port_rx_over_err : int64
+  ; port_rx_crc_err : int64
+  ; port_collisions : int64
+} [@@deriving sexp]
 
-(* TODO: FILL *)
+(* {1 Events, switch-to-controller messages} *)
+
+type event =
+  | SwitchUp of switchId * portId list
+  | SwitchDown of switchId 
+  | PortUp of switchId * portId
+  | PortDown of switchId * portId
+  | PacketIn of string * switchId * portId * payload * int * packetInReason
+  | PortStats of switchId * portStats
+  | FlowStats of switchId * flowStats
+
+(* {1 Commands, controller-to-switch messages} *)
+
+(* TODO: Temporary *)
+type pktOut = payload * (portId option) * (action list) [@@deriving sexp]
 
 (* {1 Pretty-printing } *)
 
@@ -229,11 +250,25 @@ val string_of_action : action -> string
 val string_of_seq : seq -> string
 val string_of_par : par -> string
 val string_of_flow : flow -> string
+val string_of_group : group -> string
 val string_of_flowTable : ?label:string -> flowTable -> string
+val string_of_event : event -> string
 
+module OF10 = Frenetic_OpenFlow0x01
 module To0x01 : sig
   val from_pattern : Pattern.t -> OF10.pattern
+  val from_action : OF10.portId option -> action -> OF10.action 
   val from_flow : int -> flow -> OF10.flowMod
+  val from_switch_features : switchFeatures -> OF10.SwitchFeatures.t 
   val from_payload : payload -> OF10.payload
-  val from_packetOut : pktOut -> OF10.packetOut
+  val from_packet_in_reason : packetInReason -> OF10.packetInReason 
+  val from_packetOut : pktOut -> OF10.packetOut 
+  val message_from_event : event -> (OF10.switchId * OF10.Message.t) option
+end
+module From0x01 : sig
+  val from_action : OF10.action -> action
+  val from_switch_features : OF10.SwitchFeatures.t -> switchFeatures
+  val event_from_message : OF10.switchId -> OF10.Message.t -> event option
+  val from_port_stats : OF10.portStats -> portStats 
+  val from_individual_stats: OF10.individualStats -> flowStats
 end
