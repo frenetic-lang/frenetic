@@ -32,7 +32,7 @@ module FDD = struct
     (* ensure the field is mutable *)
     begin match hv with
       | Meta (id,_) ->
-        let _,mut = Field.Env.lookup env id in
+        let _,(_,mut) = Field.Env.lookup env id in
         if not mut then failwith "cannot modify immutable field"
       | _ -> ()
     end;
@@ -120,7 +120,7 @@ module FDD = struct
                           k (seq p' q')))
     | Star p -> of_local_pol_k env p (fun p' -> k (star p'))
     | Let (field, init, mut, p) ->
-      let env = Field.Env.add env field mut in
+      let env = Field.Env.add env field init mut in
       of_local_pol_k env p (fun p' -> k (hide env p' field init))
     | Link _ | VLink _ -> raise Non_local
 

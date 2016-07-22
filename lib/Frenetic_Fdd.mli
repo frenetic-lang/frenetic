@@ -29,8 +29,8 @@ module Field : sig
    The constructors in type t are listed in the default order, which is acceptable for many
    NetKAT programs.
 
-    This module implements the the [HashCmp] signature from the Frenetic_Vlr package, so it
-    becomes the "V" in VLR. *)
+   This module implements the the [HashCmp] signature from the Frenetic_Vlr package, so it
+   becomes the "V" in VLR. *)
   type t
     = Switch
     | Vlan
@@ -55,15 +55,14 @@ module Field : sig
     | VFabric
     [@@deriving sexp, enumerate, enum]
   type field = t
-
   include Frenetic_Vlr.HashCmp with type t := t
 
   module Env : sig
     type t
     val empty : t
     exception Full
-    val add : t -> string -> bool -> t (* may raise Full *)
-    val lookup : t -> string -> field * bool (* may raise Not_found *)
+    val add : t -> string -> Frenetic_NetKAT.meta_init -> bool -> t (* may raise Full *)
+    val lookup : t -> string -> field * (Frenetic_NetKAT.meta_init * bool) (* may raise Not_found *)
   end
 
   (** [all] returns the default field field ordering *)

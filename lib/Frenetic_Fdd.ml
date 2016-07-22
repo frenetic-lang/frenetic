@@ -68,18 +68,22 @@ module Field = struct
     type t
     val empty : t
     exception Full
-    val add : t -> string -> bool -> t (* may raise Full *)
-    val lookup : t -> string -> field * bool (* may raise Not_found *)
+    val add : t -> string -> Frenetic_NetKAT.meta_init -> bool -> t (* may raise Full *)
+    val lookup : t -> string -> field * (Frenetic_NetKAT.meta_init * bool) (* may raise Not_found *)
   end
 
   module Env : ENV = struct
 
-    type t = { alist : (string * (field * bool)) list; depth : int }
+    type t = { 
+      alist : (string * (field * (Frenetic_NetKAT.meta_init * bool))) list; 
+      depth : int
+    }
+
     let empty = { alist = []; depth = 0 }
 
     exception Full
 
-    let add env name mut =
+    let add env name init mut =
       let field =
         match env.depth with
         | 0 -> Meta0
@@ -89,7 +93,7 @@ module Field = struct
         | 4 -> Meta4
         | _ -> raise Full
       in
-      { alist = List.Assoc.add env.alist name (field, mut); depth = env.depth + 1}
+      { alist = List.Assoc.add env.alist name (field, (init, mut)); depth = env.depth + 1}
 
     let lookup env name =
       List.Assoc.find_exn env.alist name
@@ -126,23 +130,78 @@ module Field = struct
        pol for different field assignments. Don't traverse the policy
        repeatedly. Instead, write a size function that returns map from
        field assignments to sizes. *)
+
+
   let auto_order (pol : Frenetic_NetKAT.policy) : unit =
+    let one = List.fold all ~init:Map.Poly.empty ~f:(fun mp key -> Map.add mp ~key ~data:1) in
+    let inc k = Map.map ~f:(fun n -> n + k) in
+    let add = Map.merge ~f:(fun ~key -> function
+      | `Right v | `Left v -> Some v
+      | `Both (v1,v2) -> Some (v1 + v2))
+    in
+    let seq = Map.merge ~f:(fun ~key -> function
+      | `Right v | `Left v -> Some v
+      | `Both(0,_) | `Both (_, 0) -> Some 0
+      | `Both(v1,v2) -> Some (v1 + v2)) (* SJS: try * instead of +? *)
+    in
     let open Frenetic_NetKAT in
-    (* Construct map of (field,score) pairs, where score starts at 0 for every field *)
-    let count_tbl =
-      match Hashtbl.Poly.of_alist (List.map all ~f:(fun f -> (f, 0))) with
-      | `Ok tbl -> tbl
-      | `Duplicate_key _ -> assert false in (* Should never happen because assert above will catch it *)
+    let rec do_pred env pred =
+      match pred with
+      | True | False -> one
+      | Or (a, b) -> add (do_pred env a) (do_pred env b)
+      | And (a,b) -> seq (do_pred env a) (do_pred env b)
+      | Neg a -> do_pred env a
+      | Test (Frenetic_NetKAT.Meta (id,_)) ->
+        begin match Env.lookup env id with
+        | (f, (Alias hv, false)) ->
+          let f' = of_hv hv in
+          Map.add one ~key:f ~data:0
+          |> Map.add ~key:f' ~data:0
+        | (f,_) -> Map.add one ~key:f ~data:0
+        end
+      | Test hv ->
+        Map.add one ~key:(of_hv hv) ~data:0
+    in
+    let rec do_pol_k env pol k =
+      match pol with
+      | Filter pred -> k (do_pred env pred)
+      | Mod hv -> k one
+      | Union (p,q) ->
+        do_pol_k env p (fun p -> do_pol_k env q (fun q -> k (add p q)))
+      | Seq (p,q) ->
+        do_pol_k env p (fun p -> do_pol_k env q (fun q -> k (seq p q)))
+      | Let (id,init,mut,p) ->
+        let env = Env.add env id init mut in
+        do_pol_k env p k
+      | Star p ->
+        do_pol_k env p (fun p -> Map.map p ~f:(fun n -> n * n + 1) |> k) (* SJS: may be a bad idea... *)
+      | Link (sw,pt,_,_) ->
+        do_pred env (And (Test (Switch sw), Test (Location (Physical pt))))
+        |> k
+      | VLink (sw,pt,_,_) ->
+        do_pred env (And (Test (VSwitch sw), Test (VPort pt)))
+        |> k
+    in
+    do_pol_k Env.empty pol (fun m ->
+      Map.to_alist m
+      |> List.sort ~cmp:(fun (_,a) (_,b) -> Int.compare a b)
+      |> List.map ~f:fst
+      |> set_order
+    )
+
+
+
+    (* let open Frenetic_NetKAT in
+    (* Construct array of scores, where score starts at 0 for every field *)
+    let count_arr = Array.init num_fields ~f:(fun _ -> 0)
     let rec f_pred size in_product pred = match pred with
       | True -> ()
       | False -> ()
       | Test hv ->
         (* SJS: temporary hack - needs fixing *)
-        if in_product then begin try
-          let fld = of_hv hv in
-          let n = Hashtbl.Poly.find_exn count_tbl fld in
-          Hashtbl.Poly.set count_tbl ~key:fld ~data:(n + size)
-        with _ -> () end
+        if in_product then
+          let f = to_enum (of_hv hv)
+          count_arr.(f) <- count_arr(f) + size
       | Or (a, b) -> f_pred size false a; f_pred size false b
       | And (a, b) -> f_pred size true a; f_pred size true b
       | Neg a -> f_pred size in_product a in
@@ -156,7 +215,7 @@ module Field = struct
       | Union _ -> (f_union pol, lst)
       | Let (_,_,_,p) -> f_seq' p lst (* SJS: temporary, needs fixing! *)
       | Star _ | Link _ | VLink _ -> (1, lst) (* bad, but it works *)
-    and f_seq pol =
+    and f_seq pol : int =
       let (size, preds) = f_seq' pol [] in
       List.iter preds ~f:(f_pred size true);
       size
@@ -168,12 +227,12 @@ module Field = struct
       | Seq _ -> k (f_seq pol)
       | Let (_,_,_,p) -> k (f_seq p) (* SJS: temporary, needs fixing! *)
       | Star _ | Link _ | VLink _ -> k 1 (* bad, but it works *)
-    and f_union pol = f_union' pol (fun n -> n) in
-    let _ = f_seq pol in
-    Hashtbl.Poly.to_alist count_tbl
+    and f_union pol : int = f_union' pol (fun n -> n) in
+    f_seq pol;
+    Array.foldi count_arr ~init:[] ~f:(fun i acc n -> (of_enum i, n) :: acc)
     |> List.sort ~cmp:(fun (_, x) (_, y) -> Int.compare y x)
     |> List.map ~f:fst
-    |> set_order
+    |> set_order *)
 
 end
 
