@@ -33,10 +33,11 @@ module Field : sig
    becomes the "V" in VLR. *)
   type t
     = Switch
-    | Vlan
-    | VlanPcp
+    | Location
     | VSwitch
     | VPort
+    | Vlan
+    | VlanPcp
     (* SJS: for simplicity, support only up to 5 meta fields for now *)
     | Meta0
     | Meta1
@@ -51,7 +52,6 @@ module Field : sig
     | IP4Dst
     | TCPSrcPort
     | TCPDstPort
-    | Location
     | VFabric
     [@@deriving sexp, enumerate, enum]
   type field = t
