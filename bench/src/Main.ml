@@ -76,10 +76,12 @@ let compile compiler per_switch varorder tbl_opt debug filename =
     | "varorder-heuristic" -> `Heuristic
     | "varorder-fattree" ->
       `Static [ EthType; Switch; Location; EthSrc; EthDst; Vlan;
-                VlanPcp; IPProto;IP4Src; IP4Dst; TCPSrcPort; TCPDstPort; VSwitch; VPort; VFabric; ]
+                VlanPcp; IPProto;IP4Src; IP4Dst; TCPSrcPort; TCPDstPort; VSwitch; VPort; VFabric;
+                Meta0; Meta1; Meta2; Meta3; Meta4; ]
     | "varorder-zoo" ->
       `Static [ EthType; Switch; IP4Dst; Location; EthSrc; EthDst; Vlan;
-                VlanPcp; IPProto;IP4Src; TCPSrcPort; TCPDstPort; VSwitch; VPort; VFabric; ]
+                VlanPcp; IPProto;IP4Src; TCPSrcPort; TCPDstPort; VSwitch; VPort; VFabric;
+                Meta0; Meta1; Meta2; Meta3; Meta4; ]
     | _ -> assert false in
   let to_table sw fdd = match tbl_opt with
     | "tablegen-steffen" ->
@@ -133,7 +135,7 @@ let sdx filename =
   let order =
     let open Frenetic_NetKAT_Compiler.Field in
     `Static [ Location; EthDst; TCPSrcPort; TCPDstPort; IP4Src; EthType; Switch; IP4Dst;
-              EthSrc;  Vlan; VlanPcp; IPProto; VSwitch; VPort; VFabric ] in
+              EthSrc;  Vlan; VlanPcp; IPProto; VSwitch; VPort; VFabric; Meta0; Meta1; Meta2; Meta3; Meta4 ] in
   (* eprintf "Number of elements in disjoint union: %d\n%!" (List.length pols); *)
   let f pol =
     let opts = { Frenetic_NetKAT_Compiler.default_compiler_options with
