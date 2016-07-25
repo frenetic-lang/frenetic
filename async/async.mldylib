@@ -1,12 +1,11 @@
 # OASIS_START
-# DO NOT EDIT (digest: 3466627be506efa8b42f086fda405f77)
+# DO NOT EDIT (digest: 12071b8a40e0ab001eee94ec9c9581c7)
 Frenetic_Autoshell
 Frenetic_Compile_Server
 Frenetic_Log
 Frenetic_Http_Controller
-Frenetic_OpenFlow0x01_Controller
+Frenetic_OpenFlow0x01_Plugin
 Frenetic_NetKAT_Controller
-Frenetic_NetKAT_Updates
 Frenetic_Ox
 Frenetic_Common
 Frenetic_DynGraph

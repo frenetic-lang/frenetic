@@ -1,37 +1,48 @@
 open Core.Std
 open Async.Std
-open Frenetic_NetKAT
+
 open Frenetic_OpenFlow
-
-module OF10 = Frenetic_OpenFlow0x01
-module Controller = Frenetic_OpenFlow0x01_Controller
-module Log = Frenetic_Log
-module Upd = Frenetic_NetKAT_Updates
-
-val bytes_to_headers :
-	Frenetic_OpenFlow.portId ->
-	Cstruct.t ->
-	Frenetic_NetKAT_Semantics.HeadersValues.t
-
-val packet_sync_headers :
-  Frenetic_NetKAT_Semantics.packet ->
-	Frenetic_NetKAT_Semantics.packet * bool
-
-val of_to_netkat_event :
-  Frenetic_NetKAT_Compiler.t ->
-  Controller.event ->
-  Frenetic_NetKAT.event list
-
-module type CONTROLLER = sig
-  val update_policy : policy -> unit Deferred.t
-  val send_packet_out : switchId -> Frenetic_OpenFlow.pktOut -> unit Deferred.t
-  val event : unit -> event Deferred.t
-  val query : string -> (Int64.t * Int64.t) Deferred.t
-  val port_stats : switchId -> portId -> OF10.portStats list Deferred.t
-  val is_query : string -> bool
-  val start : int -> unit
-  val current_switches : unit -> (switchId * portId list) list Deferred.t
-  val set_current_compiler_options : Frenetic_NetKAT_Compiler.compiler_options -> unit
+       
+module type PLUGIN = sig
+  val start: int -> unit
+  val events : event Pipe.Reader.t
+  val switch_features : switchId -> switchFeatures option Deferred.t
+  val update : Frenetic_NetKAT_Compiler.t -> unit Deferred.t
+  val update_switch : switchId -> Frenetic_NetKAT_Compiler.t -> unit Deferred.t
+  val packet_out : switchId -> portId option -> payload -> Frenetic_NetKAT.policy list -> unit Deferred.t
+  val flow_stats : switchId -> Pattern.t -> flowStats Deferred.t
+  val port_stats : switchId -> portId -> portStats Deferred.t
 end
 
-module Make : CONTROLLER
+module type CONTROLLER = sig
+  (** [start pt] initializes the controller, listening on TCP port [pt]. *)
+  val start : int -> unit
+
+  (** [event ()] returns the next event from the network. *)
+  val event : unit -> event Deferred.t
+
+  (** [current_switches ()] returns the set of switches currently
+      connected to this controller. *)
+  val switches : unit -> (switchId * portId list) list Deferred.t
+
+  (** [port_stats sw pt] returns byte and packet counts for switch[sw] port [pt]. *)
+  val port_stats : switchId -> portId -> portStats Deferred.t
+
+  (** [update p] sets the global policy to [p]. *) 
+  val update : Frenetic_NetKAT.policy -> unit Deferred.t
+
+  (** [send_packet_out sw pd p] injects packets into the network by
+      applying [p] to [pd] at [sw]. Optional ingress port helps locate buffer. *)
+  val packet_out : switchId -> portId option -> payload -> Frenetic_NetKAT.policy list -> unit Deferred.t
+ 
+  (** [query x] returns byte and packet counts for query [x]. *)
+  val query : string -> (int64 * int64) Deferred.t
+
+  (** [set_current_compiler_options co] sets compiler options for subsequent invocations *)
+  val set_current_compiler_options : Frenetic_NetKAT_Compiler.compiler_options -> unit
+
+end
+
+module Make(P:PLUGIN) : CONTROLLER
+
+

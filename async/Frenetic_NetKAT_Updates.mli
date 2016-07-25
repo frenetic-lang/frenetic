@@ -1,11 +1,11 @@
+(* TODO: Currently Unused.  See Frenetic_OpenFlow0x01_Controller for Future Directions *)
+
 open Core.Std
 open Async.Std
 
 module Net = Frenetic_NetKAT_Net.Net
 module SDN = Frenetic_OpenFlow
 module Comp = Frenetic_NetKAT_Compiler
-
-open SDN.To0x01
 
 exception UpdateError
 
@@ -31,13 +31,11 @@ end
 
 module type UPDATE = sig
   val bring_up_switch :
-    ?old:Comp.t ->
     SDN.switchId ->
     Comp.t ->
     unit Deferred.t
 
   val implement_policy :
-    ?old:Comp.t ->
     Comp.t ->
     unit Deferred.t
 

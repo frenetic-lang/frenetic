@@ -1,114 +1,87 @@
-# Frenetic
-
-An open-source SDN controller platform.
+# Welcome to Frenetic
 
 [![Build Status](https://travis-ci.org/frenetic-lang/frenetic.svg?branch=master)](https://travis-ci.org/frenetic-lang/frenetic)
 
-## Installation
+Frenetic is an open-source Software Defined Network (SDN) controller platform designed to make SDN programming easy, modular, and semantically correct.
 
-### Installing from OPAM
+The languages used to program networks today lack modern features. Programming them is a complicated and error-prone task, and outages and infiltrations are frequent. Frenetic is a _network programming language_ with the following essential features:
 
-You can install the latest release from [OPAM](http://opam.ocamlpro.com/) using
-the following command:
+* _High-level abstractions_ that give programmers direct control over the network, allowing them to specify what they want the network to do without worrying about how to implement it.
+* _Modular constructs_ that facilitate compositional reasoning about programs.
+* _Portability_, allowing programs written for one platform to be reused with different devices.
+* _Rigorous semantic foundations_ that precisely document the meaning of the language and provide a solid platform for mechanical program analysis tools.
 
-        $ opam install frenetic
+You can build Frenetic-based network applications with:
 
-This installs the Frenetic libraries (using `ocamlfind`) and the `frenetic` executable (typically at `~/.opam/system/bin/frentic`).
+* Python
+* OCaml
+* REST and JSON (= any programming language!)
 
-### Installing an Ubuntu Package
+## Getting Started
 
-We've packaged Frenetic for Ubuntu 14.04 LTS 64-bit.
+### Installation
 
-To install the Frenetic package, add the following to the end of `/etc/apt/sources.lists`:
+1. Install VirtualBox from https://www.virtualbox.org/wiki/Downloads. Use the latest
+version platform package appropriate for your system.
+2. From http://download.frenetic-lang.org/uservm/frenetic-uservm-current download
+the latest Frentic User VM – this file is about 1.5 GB and may take about 10
+minutes or so to download.
+3. Unzip the file and import the .ova file into VirtualBox. This takes two minutes or so.
 
-    deb https://dl.bintray.com/arjunguha/deb trusty main
+### Hello SDN World
 
-Then, run `apt-get update && apt-get install frenetic`.
+1.  Start up a terminal window - – two are provided in the VM under Accessories: Byobu Terminal (which integrates nicely with tmux) and LXTerminal (which has graphical tabs). Either one will do.
+2.  Start up a Mininet sample network with a switch and 2 hosts:
 
-## Frenetic HTTP Controller
+    ```
+    $ sudo mn --topo=single,2 --controller=remote
+    ```
 
-Instead of using OCaml, you can interact with Frenetic over HTTP.
-The following command starts the Frenetic OpenFlow controller on port 6633
-and listens for HTTP requests on port 9000:
+3.  Try pinging the host h2 from the host h1:
 
-    $ frenetic http-controller
+    ```
+    mininet> h1 ping h2
+    ```
 
-For example, the following require updates the policy to send
-traffic between ports 1 and 2:
+    Unfortunately, the ping won't work because you don't have an SDN network program in place!  Press CTRL-C to stop the pinging.
+4.  Start up another terminal window and start up Frenetic:
 
-    $ curl  -X POST localhost:9000/myapp/update \
-        --data "filter (port = 1); port := 2 | filter (port = 2); port := 1"
+    ```
+    $ frenetic http-controller --verbosity debug
+    ```
+5.  In a third terminal window, start up the example program for the Python repeater:
 
-The following requests blocks until a network event occurs (switch/port
-up, packet received, etc.)
+    ```
+    $ python -m frenetic.examples.repeater
+    ```
+6.  Now, back in the window running Mininet, the ping should now succeed:
 
-    $ curl -X GET localhost:9000/myapp/event
+    ```
+    mininet> h1 ping h2
+    ```
 
-Several applications can connect to the controller simultaneously. But, the user
-muust ensure they all have different names. E.g., all the requests above use
-`myapp` as the name. All applications have separate event queues and can update
-their policies independently. In this version, the policies of all applications
-are combined using Frenetic's union operator.
+    Congratulations!  You now have a working Software Defined Network.
 
-The HTTP interface supports several other messages. E.g., it can be used
-to query statistics and update the policy in a JSON format.
+### Where to Go From Here
 
-## Programming in Python
+* Learn Frenetic programming in Python from the [Frenetic Programmers Guide](https://github.com/frenetic-lang/manual/blob/master/programmers_guide/frenetic_programmers_guide.pdf)
+* Scan the Quick Start guides in the [Wiki](https://github.com/frenetic-lang/frenetic/wiki)
+* Try some Python examples, see [Example Applications in Python](https://github.com/frenetic-lang/frenetic/wiki/Python-Examples)
+* Learn Frenetic programming in OCaml from the [Frenetic Tutorial](http://frenetic-lang.github.io/tutorials/Introduction/)
+* Learn the theory behind Frenetic by reading the papers at [http://frenetic-lang.org](http://frenetic-lang.org)
+* See examples of production Frenetic-based SDN's at [https://github.com/coscin/coscin-app](https://github.com/coscin/coscin-app) and [https://github.com/coscin/gates](https://github.com/coscin/gates).   
 
-We have developed Python bindings for Frenetic that use the HTTP interface
-described above. You can install them using pip:
+## Contributing
 
-    $ pip install frenetic
+Frenetic is an open source project, and we encourage you to contribute! 
 
-To run a Python application, you need to start the Frenetic controller first:
+* File Issues and Feature Requests in [Github Issues](https://github.com/frenetic-lang/frenetic/issues)
+* Join the [Frenetic Mailing List](http://lists.frenetic-lang.org/mailman/listinfo/frenetic-ocaml) for more in-depth guidance 
 
-    $ frenetic http-controller
+## Credits
 
-There are several examples in this directory:
+See [Frenetic Members](http://frenetic-lang.org/#members) and [Support](http://frenetic-lang.org/#support)
 
-  https://github.com/frenetic-lang/frenetic/lang/python/frenetic/examples/repeater.py
+## License
 
-These examples are included with the `pip` package:
-
-    $ python -m frenetic.examples.learning
-
-## Using Other Controllers
-
-If you want to use the Frenetic policy language with a different controller,
-you can use the Frenetic compile-server:
-
-    $ frenetic compile-server
-
-In this mode, Frenetic does not run its controller, but makes its compiler
-available over HTTP. The compiler accepts Frenetic policies in JSON format
-and produces flow tables as JSON strings. For example, using the Python
-bindings:
-
-    >>> from frenetic.syntax import *
-    >>> import urllib2
-    >>> import json
-    >>> compiler_url = "http://localhost:9000/compile"
-    >>> pol = Filter(Test(Location(Physical(1)))) >> Mod(Location(Physical(2)))
-    >>> pol_str = json.dumps(pol.to_json())
-    >>> tbls_json = json.loads(urllib2.urlopen(compiler_url, pol_str).read())
-
-## Programming in OCaml
-
-Here's how to create a controller that will do simple forwarding for a tree
-topology with fanout 2 and depth 2:
-
-```ocaml
-open Core.Std
-open Async.Std
-
-let main () =
-  let static = Frenetic_NetKAT.Policy create_from_file "examples/tree-2-2.kat" in
-  ignore(Frenetic_NetKAT_Controller.start static ()) in
-
-never_returns (Scheduler.go_main ~main ())
-```
-
-The static policy can be found in `examples/tree-2-2.kat`. Use the following
-command to run mininet with the topology for this example:
-
-    $ sudo mn --controller=remote --mac --topo=tree,2,2
+Frenetic is released under the GNU Lesser Public License, version 3.  [Details](https://github.com/frenetic-lang/frenetic/blob/master/LICENSE)

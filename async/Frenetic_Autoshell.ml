@@ -445,7 +445,7 @@ let install_fdd ?(host="localhost") ?(port=6634) (fdd:fdd) (swids:switchId list)
       let uri = Uri.make ~host:host ~port:port ~path:path () in
       try
         let table =  Compiler.to_table swid fdd in
-        let json = (Frenetic_NetKAT_SDN_Json.flowTable_to_json table) in
+        let json = (Frenetic_NetKAT_Json.flowTable_to_json table) in
         let body = Yojson.Basic.to_string json in
         log "Installing flowtable on switch %Ld:\n%s\n" swid
           (Frenetic_OpenFlow.string_of_flowTable table);

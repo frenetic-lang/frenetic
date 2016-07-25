@@ -1,16 +1,15 @@
 open Async.Std
 open Core.Std
 
-open OpenFlow0x01
-open OpenFlow0x01_Core
-open OpenFlow0x01.Message
+open Frenetic_OpenFlow0x01
+open Frenetic_OpenFlow0x01.Message
 
-module OF0x01Controller = Async_OpenFlow.OpenFlow0x01.Controller
+module OF0x01Controller = Frenetic_OpenFlow0x01_Plugin
 
 module SwitchTable = Map.Make(Int64)
 
 module EthTable = Map.Make(struct
-  type t = Int64.t sexp_opaque with sexp
+  type t = Int64.t sexp_opaque [@@deriving sexp]
   let compare = Pervasives.compare
 end)
 

@@ -84,15 +84,3 @@ type host = Frenetic_Packet.dlAddr * Frenetic_Packet.nwAddr [@@deriving sexp]
 
 type bufferId = Int32.t [@@deriving sexp] (* XXX(seliopou): different than Frenetic_OpenFlow *)
 
-type event =
-  | PacketIn of string * switchId * portId * payload * int
-  | Query of string * int64 * int64
-  | SwitchUp of switchId * portId list
-  | SwitchDown of switchId
-  | PortUp of switch_port
-  | PortDown of switch_port
-  | LinkUp of switch_port * switch_port
-  | LinkDown of switch_port * switch_port
-  | HostUp of switch_port * host
-  | HostDown of switch_port * host
-  [@@deriving sexp]

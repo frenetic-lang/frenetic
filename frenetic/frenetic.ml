@@ -138,7 +138,7 @@ let openflow13_controller : Command.t =
       +> Flag.table_fields
       ++ default_spec)
     (fun openflow_port policy_file table_fields ->
-      run (Frenetic_OpenFlow0x04_Controller.main openflow_port policy_file table_fields))
+      run (Frenetic_OpenFlow0x04_Plugin.main openflow_port policy_file table_fields))
 
 let openflow13_fault_tolerant_controller : Command.t =
   Command.basic
@@ -149,7 +149,7 @@ let openflow13_fault_tolerant_controller : Command.t =
       +> Flag.topology_file
       ++ default_spec)
     (fun openflow_port policy_file topology_file ->
-      run (Frenetic_OpenFlow0x04_Controller.fault_tolerant_main
+      run (Frenetic_OpenFlow0x04_Plugin.fault_tolerant_main
         openflow_port policy_file topology_file))
 
 let main : Command.t =
