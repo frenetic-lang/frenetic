@@ -853,7 +853,52 @@ module NetKAT_Automaton = struct
       |> List.cons gen
       |> Field.Set.union_list
 
-  let meta_deps (automaton : t) = Analysis.lfp (eq automaton)
+  module Cache = Hashable.Make(struct
+    type env = Value.t Field.Map.t [@@deriving sexp, compare]
+    type t = int * env [@@deriving sexp, compare]
+    let hash (state, env) = 
+      (state, Field.Map.to_alist env) |> Hashtbl.hash
+  end)
+
+  let erase_meta_fields (automaton : t) : t =
+    let meta_deps = Analysis.lfp (eq automaton) in
+    let cache = Cache.Table.create () in
+    let new_auto = create_t () in
+
+    let rec go (state : int) (meta_env : Value.t Field.Map.t) =
+      let deps = meta_deps state in
+      let meta_env = Field.Map.filter meta_env ~f:(fun ~key ~data -> Set.mem deps key) in
+      match Cache.Table.find cache (state, meta_env) with
+      | Some s -> s
+      | None ->
+        let s = mk_state_t new_auto in
+        Cache.Table.add_exn cache ~key:(state, meta_env) ~data:s;
+        add_to_t_with_id new_auto (go' (Tbl.find_exn automaton.states state) meta_env) s;
+        s
+    and go' (e,d) (meta_env : Value.t Field.Map.t) =
+      let e = FDD.restrict (Field.Map.to_alist meta_env) e in
+      let d =
+        Field.Map.to_alist meta_env
+        |> List.map ~f:(fun (f,v) -> (Action.F f, v))
+        |> Seq.of_alist_exn
+        |> Par.singleton
+        |> (fun a -> FDD.seq (FDD.const a) d)
+        |> FDD.map_r (fun par -> Par.fold par ~init:Par.empty ~f:(fun par seq ->
+          let env =
+            Seq.to_hvs seq
+            |> List.filter ~f:(fun (f,v) -> Field.is_meta f)
+            |> Field.Map.of_alist_exn
+          in
+          let seq = Seq.update seq Action.K ~f:(function
+            | None -> assert false
+            | Some k -> Value.of_int (go (Value.to_int_exn k) env))
+          in
+          Par.add par seq))
+      in
+      (e,d)
+    in
+    new_auto.source <- go automaton.source Field.Map.empty;
+    new_auto
 
 
   (* SJS: horrible hack *)
@@ -920,6 +965,7 @@ end
 let compile_global ?(options=default_compiler_options) (pol : Frenetic_NetKAT.policy) : FDD.t =
   prepare_compilation ~options pol;
   NetKAT_Automaton.of_policy pol
+  |> NetKAT_Automaton.erase_meta_fields
   |> NetKAT_Automaton.to_local ~pc:Field.Vlan
 
 
