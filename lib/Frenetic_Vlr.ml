@@ -82,6 +82,8 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     else
       T.get (Branch((v, l), t, f))
 
+  let unchecked_cond = mk_branch
+
   let drop = mk_leaf (R.zero)
   let id = mk_leaf (R.one)
 

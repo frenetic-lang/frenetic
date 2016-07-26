@@ -15,7 +15,6 @@ module Value = Frenetic_Fdd.Value
 module Par = Action.Par
 module Seq = Action.Seq
 
-
 (*==========================================================================*)
 (* LOCAL COMPILATION                                                        *)
 (*==========================================================================*)
@@ -25,21 +24,28 @@ module FDD = struct
 
   include FDD
 
-  let of_test hv =
-    atom (Pattern.of_hv hv) Action.one Action.zero
+  let of_test env hv =
+    atom (Pattern.of_hv ~env hv) Action.one Action.zero
 
-  let of_mod hv =
-    let k, v = Pattern.of_hv hv in
+  let of_mod env hv =
+    let k, v = Pattern.of_hv ~env hv in
+    (* ensure the field is mutable *)
+    begin match hv with
+      | Meta (id,_) ->
+        let _,(_,mut) = Field.Env.lookup env id in
+        if not mut then failwith "cannot modify immutable field"
+      | _ -> ()
+    end;
     const Action.(Par.singleton (Seq.singleton (F k) v))
 
-  let rec of_pred p =
+  let rec of_pred env p =
     match p with
     | True      -> id
     | False     -> drop
-    | Test(hv)  -> of_test hv
-    | And(p, q) -> prod (of_pred p) (of_pred q)
-    | Or (p, q) -> sum (of_pred p) (of_pred q)
-    | Neg(q)    -> map_r Action.negate (of_pred q)
+    | Test(hv)  -> of_test env hv
+    | And(p, q) -> prod (of_pred env p) (of_pred env q)
+    | Or (p, q) -> sum (of_pred env p) (of_pred env q)
+    | Neg(q)    -> map_r Action.negate (of_pred env q)
 
   let seq_tbl = BinTbl.create ~size:1000 ()
 
@@ -81,24 +87,44 @@ module FDD = struct
 
   let star t = star' id t
 
-  let rec of_local_pol_k p k =
+  let hide env t meta_field init =
+    match init with
+    | Const v ->
+      let constr = Pattern.of_hv ~env (Meta (meta_field, v)) in
+      restrict [constr] t
+    | Alias hv ->
+      let alias = Field.of_hv ~env hv in
+      let meta,_ = Field.Env.lookup env meta_field in
+      fold
+        const
+        (fun (field,v) tru fls ->
+          if field = meta then
+            cond (alias, v) tru fls
+          else
+            cond (field,v) tru fls)
+        t
+
+  let rec of_local_pol_k env p k =
     let open Frenetic_NetKAT in
     match p with
-    | Filter   p  -> k (of_pred p)
-    | Mod      m  -> k (of_mod  m)
-    | Union (p, q) -> of_local_pol_k p (fun p' ->
-                        of_local_pol_k q (fun q' ->
+    | Filter   p  -> k (of_pred env p)
+    | Mod      m  -> k (of_mod  env m)
+    | Union (p, q) -> of_local_pol_k env p (fun p' ->
+                        of_local_pol_k env q (fun q' ->
                           k (union p' q')))
-    | Seq (p, q) -> of_local_pol_k p (fun p' ->
+    | Seq (p, q) -> of_local_pol_k env p (fun p' ->
                       if FDD.equal p' FDD.drop then
                         k FDD.drop
                       else
-                        of_local_pol_k q (fun q' ->
+                        of_local_pol_k env q (fun q' ->
                           k (seq p' q')))
-    | Star p -> of_local_pol_k p (fun p' -> k (star p'))
+    | Star p -> of_local_pol_k env p (fun p' -> k (star p'))
+    | Let (field, init, mut, p) ->
+      let env = Field.Env.add env field init mut in
+      of_local_pol_k env p (fun p' -> k (hide env p' field init))
     | Link _ | VLink _ -> raise Non_local
 
-  let rec of_local_pol p = of_local_pol_k p ident
+  let rec of_local_pol ?(env=Field.Env.empty) p = of_local_pol_k env p ident
 
   let to_local_pol =
     fold
@@ -124,7 +150,7 @@ module FDD = struct
             Action.Seq.to_hvs seq |> List.map ~f:fst |> FS.of_list in
           FS.union acc (FS.diff fields seq_fields)) in
         let mods = List.filter mods ~f:(fun (f,_) -> FS.mem harmful f) in
-        List.fold mods ~init:(mk_leaf par) ~f:(fun fdd test ->
+        List.fold mods ~init:(const par) ~f:(fun fdd test ->
           cond test (map_r (Action.demod test) fdd) fdd))
       cond
       fdd
@@ -257,27 +283,31 @@ let to_action ?group_tbl (in_port : Int64.t option) r tests =
   List.fold tests ~init:r ~f:(fun a t -> Action.demod t a)
   |> Action.to_sdn ?group_tbl in_port
 
-let remove_local_fields = FDD.fold
-  (fun r -> mk_leaf (Action.Par.map r ~f:(fun s -> Action.Seq.filteri s ~f:(fun ~key ~data ->
+let erase_meta_fields = FDD.fold
+  (fun r -> const (Action.Par.map r ~f:(fun s -> Action.Seq.filteri s ~f:(fun ~key ~data ->
     match key with
-    | Action.F VPort | Action.F VSwitch -> false
+    | Action.F VPort | Action.F VSwitch
+    | Action.F Meta0 | Action.F Meta1 | Action.F Meta2
+    | Action.F Meta3 | Action.F Meta4 -> false
     | _ -> true))))
   (fun v t f ->
     match v with
-    | Field.VSwitch, _ | Field.VPort, _ -> failwith "uninitialized local field"
-    | _, _ -> mk_branch v t f)
+    | VSwitch, _ | VPort, _
+    | Meta0, _ | Meta1, _ | Meta2, _ | Meta3, _ | Meta4, _  ->
+      failwith "uninitialized meta field"
+    | _, _ -> unchecked_cond v t f)
 
 let mk_branch_or_leaf test t f =
   match t with
   | None -> Some f
-  | Some t -> Some (FDD.mk_branch test t f)
+  | Some t -> Some (FDD.unchecked_cond test t f)
 
 let opt_to_table ?group_tbl options sw_id t =
   let t =
     t
     |> restrict [(Field.Switch, Value.Const sw_id)
                 ;(Field.VFabric, Value.Const (Int64.of_int 1))]
-    |> remove_local_fields
+    |> erase_meta_fields
   in
   let rec next_table_row true_tests all_tests mk_rest t =
     match FDD.unget t with
@@ -299,7 +329,7 @@ let opt_to_table ?group_tbl options sw_id t =
   (loop t [] []) |> List.concat
 
 let rec naive_to_table ?group_tbl options sw_id (t : FDD.t) =
-  let t = FDD.(restrict [(Field.Switch, Value.Const sw_id)] t) |> remove_local_fields in
+  let t = FDD.(restrict [(Field.Switch, Value.Const sw_id)] t) |> erase_meta_fields in
   let rec dfs true_tests all_tests t = match FDD.unget t with
   | Leaf actions ->
     let openflow_instruction = [to_action ?group_tbl (get_inport true_tests) actions true_tests] in
@@ -378,7 +408,7 @@ let eval_pipes (p:Frenetic_NetKAT_Semantics.packet) (t:FDD.t) =
   Frenetic_NetKAT_Semantics.eval_pipes p Action.(to_policy (eval_to_action p t))
 
 let to_dotfile t filename =
-  let t = remove_local_fields t in
+  let t = erase_meta_fields t in
   Out_channel.with_file filename ~f:(fun chan ->
     Out_channel.output_string chan (FDD.to_dot t))
 
@@ -696,9 +726,11 @@ module NetKAT_Automaton = struct
     map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) -> (e, dedup_fdd d))
 
   let rec split_pol (automaton : t0) (pol: Pol.t) : FDD.t * FDD.t * ((int * Pol.t) list) =
+    (* SJS: temporary hack *)
+    let env = Field.Env.empty in
     match pol with
-    | Filter pred -> (FDD.of_pred pred, FDD.drop, [])
-    | Mod hv -> (FDD.of_mod hv, FDD.drop, [])
+    | Filter pred -> (FDD.of_pred env pred, FDD.drop, [])
+    | Mod hv -> (FDD.of_mod env hv, FDD.drop, [])
     | Union (p,q) ->
       let (e_p, d_p, k_p) = split_pol automaton p in
       let (e_q, d_q, k_q) = split_pol automaton q in

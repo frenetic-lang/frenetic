@@ -1,0 +1,3 @@
+(* let declares immutable variables - hence this should not compile *)
+let meta:=switch in
+meta:=1
