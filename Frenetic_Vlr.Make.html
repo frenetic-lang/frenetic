@@ -119,16 +119,6 @@ The type of the result of a decision diagram<br>
 <pre><span id="VALget"><span class="keyword">val</span> get</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEd">d</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre>
 <pre><span id="VALunget"><span class="keyword">val</span> unget</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEd">d</a></code></pre>
 <pre><span id="VALget_uid"><span class="keyword">val</span> get_uid</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> int</code></pre>
-<pre><span id="VALmk_branch"><span class="keyword">val</span> mk_branch</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEv">v</a> -><br>       <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><div class="info ">
-<code class="code">mkbranch v t f</code> Creates (or looks up if it's already been created) a diagram with pattern
-    v, true-branch t and false-branch f.  The t and f branches should already have been created,
-    so you pass indexes here.<br>
-</div>
-
-<pre><span id="VALmk_leaf"><span class="keyword">val</span> mk_leaf</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEr">r</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><div class="info ">
-<code class="code">mkleaf r</code> Creates (or looks up) a leaf.<br>
-</div>
-
 <pre><span id="VALdrop"><span class="keyword">val</span> drop</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><br>
 <code class="code">drop</code> returns the leaf for a drop operation, which is always present as a leaf node<br>
 
@@ -143,6 +133,15 @@ The type of the result of a decision diagram<br>
 <code class="code">atom v t f</code> creates a diagram that checks the variable assignment
       <code class="code">v</code> holds and returns the result <code class="code">t</code> if it does hold, and the result <code class="code">f</code>
       otherwise.<br>
+</div>
+
+<pre><span id="VALcond"><span class="keyword">val</span> cond</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEv">v</a> -><br>       <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><div class="info ">
+<code class="code">cond v t f</code> creates a diagram with pattern v, true-branch t and false-branch f.<br>
+</div>
+
+<pre><span id="VALunchecked_cond"><span class="keyword">val</span> unchecked_cond</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEv">v</a> -><br>       <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><div class="info ">
+Unsafe!! <code class="code">unchecked_cond v t f</code> behaves like <code class="code">cond v t f</code>, but always puts the pattern <code class="code">v</code>
+      in the root node, without ensuring the FDD-ordering invariant is enforced. Only use this if you know what you are doing!<br>
 </div>
 
 <pre><span id="VALrestrict"><span class="keyword">val</span> restrict</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEv">v</a> list -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><div class="info ">
@@ -166,7 +165,6 @@ The type of the result of a decision diagram<br>
       operation on the <code class="code">r</code> type is used to combine leaf nodes.<br>
 </div>
 
-<pre><span id="VALcond"><span class="keyword">val</span> cond</span> : <code class="type"><a href="Frenetic_Vlr.Make.html#TYPEv">v</a> -><br>       <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre>
 <pre><span id="VALmap"><span class="keyword">val</span> map</span> : <code class="type">(<a href="Frenetic_Vlr.Make.html#TYPEr">r</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a>) -><br>       (<a href="Frenetic_Vlr.Make.html#TYPEv">v</a> -><br>        <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a>) -><br>       <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><div class="info ">
 <code class="code">map f h t</code> traverses t in post order and first maps the leaves using
       f, and then the internal nodes using h, producing a modified diagram.<br>

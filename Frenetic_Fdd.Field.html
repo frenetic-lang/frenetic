@@ -55,14 +55,7 @@
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTt.Vlan"><span class="constructor">Vlan</span></span></code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code><span class="keyword">|</span></code></td>
-<td align="left" valign="top" >
-<code><span id="TYPEELTt.VlanPcp"><span class="constructor">VlanPcp</span></span></code></td>
+<code><span id="TYPEELTt.Location"><span class="constructor">Location</span></span></code></td>
 
 </tr>
 <tr>
@@ -77,6 +70,55 @@
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
 <code><span id="TYPEELTt.VPort"><span class="constructor">VPort</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.Vlan"><span class="constructor">Vlan</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.VlanPcp"><span class="constructor">VlanPcp</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.Meta0"><span class="constructor">Meta0</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.Meta1"><span class="constructor">Meta1</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.Meta2"><span class="constructor">Meta2</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.Meta3"><span class="constructor">Meta3</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.Meta4"><span class="constructor">Meta4</span></span></code></td>
 
 </tr>
 <tr>
@@ -139,13 +181,6 @@
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTt.Location"><span class="constructor">Location</span></span></code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code><span class="keyword">|</span></code></td>
-<td align="left" valign="top" >
 <code><span id="TYPEELTt.VFabric"><span class="constructor">VFabric</span></span></code></td>
 
 </tr></table>
@@ -161,18 +196,24 @@ Fields are analogous to binary variables in a BDD.
    NetKAT programs.
 <p>
 
-    This module implements the the <code class="code">HashCmp</code> signature from the Frenetic_Vlr package, so it
-    becomes the "V" in VLR.<br>
+   This module implements the the <code class="code">HashCmp</code> signature from the Frenetic_Vlr package, so it
+   becomes the "V" in VLR.<br>
 </div>
 
 
 <pre><span id="VALt_of_sexp"><span class="keyword">val</span> t_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Fdd.Field.html#TYPEt">t</a></code></pre>
 <pre><span id="VALsexp_of_t"><span class="keyword">val</span> sexp_of_t</span> : <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">t</a> -> Sexplib.Sexp.t</code></pre>
+<pre><span id="VALall"><span class="keyword">val</span> all</span> : <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">t</a> list</code></pre>
+<pre><span id="VALmin"><span class="keyword">val</span> min</span> : <code class="type">Ppx_deriving_runtime.int</code></pre>
+<pre><span id="VALmax"><span class="keyword">val</span> max</span> : <code class="type">Ppx_deriving_runtime.int</code></pre>
+<pre><span id="VALto_enum"><span class="keyword">val</span> to_enum</span> : <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">t</a> -> Ppx_deriving_runtime.int</code></pre>
+<pre><span id="VALof_enum"><span class="keyword">val</span> of_enum</span> : <code class="type">Ppx_deriving_runtime.int -> <a href="Frenetic_Fdd.Field.html#TYPEt">t</a> Ppx_deriving_runtime.option</code></pre>
+<pre><span id="TYPEfield"><span class="keyword">type</span> <code class="type"></code>field</span> = <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">t</a></code> </pre>
+
+
 <pre><span class="keyword">include</span> <a href="Frenetic_Vlr.HashCmp.html">Frenetic_Vlr.HashCmp</a></pre>
 
-<pre><span id="VALauto_order"><span class="keyword">val</span> auto_order</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a> -> unit</code></pre>
-<pre><span id="VALset_order"><span class="keyword">val</span> set_order</span> : <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">t</a> list -> unit</code></pre>
-<pre><span id="VALget_order"><span class="keyword">val</span> get_order</span> : <code class="type">unit -> <a href="Frenetic_Fdd.Field.html#TYPEt">t</a> list</code></pre>
+<pre><span class="keyword">module</span> <a href="Frenetic_Fdd.Field.Env.html">Env</a>: <code class="code">sig</code> <a href="Frenetic_Fdd.Field.Env.html">..</a> <code class="code">end</code></pre>
 <pre><span id="VALall"><span class="keyword">val</span> all</span> : <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">t</a> list</code></pre><div class="info ">
 <code class="code">all</code> returns the default field field ordering<br>
 </div>
@@ -182,6 +223,10 @@ Fields are analogous to binary variables in a BDD.
 </div>
 
 <pre><span id="VALhash"><span class="keyword">val</span> hash</span> : <code class="type"><a href="Frenetic_Fdd.Field.html#TYPEt">t</a> -> int</code></pre>
+<pre><span id="VALof_hv"><span class="keyword">val</span> of_hv</span> : <code class="type">?env:<a href="Frenetic_Fdd.Field.Env.html#TYPEt">Env.t</a> -><br>       <a href="Frenetic_NetKAT.html#TYPEheader_val">Frenetic_NetKAT.header_val</a> -> <a href="Frenetic_Fdd.Field.html#TYPEt">t</a></code></pre><div class="info ">
+<code class="code">of_hv header_value</code> converts a NetKAT header_value pair to a field<br>
+</div>
+
 <pre><span id="VALof_string"><span class="keyword">val</span> of_string</span> : <code class="type">string -> <a href="Frenetic_Fdd.Field.html#TYPEt">t</a></code></pre><div class="info ">
 <code class="code">of_string str</code> converts a field string to an abstract field.  Throws an exception for unrecognized strings.<br>
 </div>
