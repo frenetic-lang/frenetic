@@ -1,5 +1,5 @@
 OASISFormat: 0.4
-OCamlVersion: >= 4.02.0
+OCamlVersion: >= 4.03.0
 Name:        frenetic
 Version:     4.0.0
 Synopsis:    The Frenetic Compiler and Runtime System
