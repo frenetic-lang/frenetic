@@ -802,22 +802,59 @@ module NetKAT_Automaton = struct
       FDD.union acc fdd)
 
   (* META fields *)
-  module Property : Fix.PROPERTY = struct
+  module Property (* : Fix.PROPERTY *) = struct
     type property = Field.Set.t (* set of meta fields that a state depends on *)
-    let bottom = Field.(Set.of_list all) (* SJS *)
+    let bottom = Field.(all |> List.filter ~f:is_meta |> Set.of_list)
     let equal = Field.Set.equal
     let is_maximal = Field.Set.is_empty
   end
 
-  module Map : Fix.IMPERATIVE_MAPS = struct
+  module Map (* : Fix.IMPERATIVE_MAPS *) = struct
     include Int.Table
     let create () = create ()
     let add key data tbl = set ~key ~data tbl
     let find key tbl = find_exn tbl key
-    let iter f tbl = iteri ~f:(fun ~key ~data -> f key data) tbl
+    let iter f tbl = iteri tbl ~f:(fun ~key ~data -> f key data)
   end
 
   module Analysis = Fix.Make(Map)(Property)
+
+  let gen fdd =
+    FDD.fold
+      (fun _ -> Field.Set.empty)
+      (fun (f,_) x y -> 
+        let s = Set.union x y in
+        if Field.is_meta f then Set.add s f else s)
+      fdd
+
+  let eq (automaton : t) : Analysis.equations = fun (state : int) ->
+    let (e,d) = Tbl.find_exn automaton.states state in
+    let gen = Set.union (gen e) (gen d) in
+    let conts =
+      let open Action in
+      FDD.fold
+        (fun par -> Par.fold par ~init:Int.Map.empty ~f:(fun acc seq ->
+          let key = Value.to_int_exn (Seq.find_exn seq K) in
+          let data = List.filter_map (Seq.keys seq) ~f:(function 
+              | K -> None 
+              | F f -> if Field.is_meta f then Some f else None)
+            |> Field.Set.of_list
+          in
+          Int.Map.add ~key ~data acc))
+        (fun _ -> Int.Map.merge ~f:(fun ~key v -> Some (match v with
+          | `Left v | `Right v -> v
+          | `Both (v1,v2) -> Set.inter v1 v2)))
+        d
+      |> Int.Map.to_alist
+    in
+    fun deps ->
+      (* kill-gen analysis: gen ∪ (⋃ᵢ inᵢ - killᵢ) *)
+      List.map conts ~f:(fun (k,kill) -> Field.Set.diff (deps k) kill)
+      |> List.cons gen
+      |> Field.Set.union_list
+
+  let meta_deps (automaton : t) = Analysis.lfp (eq automaton)
+
 
   (* SJS: horrible hack *)
   let to_dot (automaton : t) =
