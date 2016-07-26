@@ -7,29 +7,33 @@ module Field = struct
 
   (** The order of the constructors defines the default variable ordering and has a massive
       performance impact. Do not change unless you know what you are doing. *)
-  type t
-    = Switch
-    | Location
-    | VSwitch
-    | VPort
-    | Vlan
-    | VlanPcp
-    (* SJS: for simplicity, support only up to 5 meta fields for now *)
-    | Meta0
-    | Meta1
-    | Meta2
-    | Meta3
-    | Meta4
-    | EthType
-    | IPProto
-    | EthSrc
-    | EthDst
-    | IP4Src
-    | IP4Dst
-    | TCPSrcPort
-    | TCPDstPort
-    | VFabric
-    [@@deriving sexp, enumerate, enum]
+  module T = struct
+    type t
+      = Switch
+      | Location
+      | VSwitch
+      | VPort
+      | Vlan
+      | VlanPcp
+      (* SJS: for simplicity, support only up to 5 meta fields for now *)
+      | Meta0
+      | Meta1
+      | Meta2
+      | Meta3
+      | Meta4
+      | EthType
+      | IPProto
+      | EthSrc
+      | EthDst
+      | IP4Src
+      | IP4Dst
+      | TCPSrcPort
+      | TCPDstPort
+      | VFabric
+      [@@deriving sexp, enumerate, enum, compare]
+  end
+  include Comparable.Make(T)
+  include T
   type field = t
 
   let num_fields = max + 1
@@ -43,7 +47,7 @@ module Field = struct
     sexp_of_t t |> Sexp.to_string
 
   let is_valid_order (lst : t list) : bool =
-    Set.Poly.(equal (of_list lst) (of_list all))
+    Set.(equal (of_list lst) (of_list all))
 
   let order = Array.init num_fields ~f:ident
 
@@ -76,8 +80,8 @@ module Field = struct
 
   module Env : ENV = struct
 
-    type t = { 
-      alist : (string * (field * (Frenetic_NetKAT.meta_init * bool))) list; 
+    type t = {
+      alist : (string * (field * (Frenetic_NetKAT.meta_init * bool))) list;
       depth : int
     }
 
@@ -159,12 +163,12 @@ module Field = struct
       | Mod _ -> k (1, lst)
       | Filter a -> k (1, (env, a) :: lst)
       | Seq (p, q) ->
-        f_seq' p lst env (fun (m, lst) -> 
+        f_seq' p lst env (fun (m, lst) ->
           f_seq' q lst env (fun (n, lst) ->
             k (m * n, lst)))
       | Union _ -> k (f_union pol env, lst)
-      | Let (id, init, mut, p) -> 
-        let env = Env.add env id init mut in 
+      | Let (id, init, mut, p) ->
+        let env = Env.add env id init mut in
         f_seq' p lst env k
       | Star p -> k (f_union p env, lst)
       | Link (sw,pt,_,_) -> k (1, (env, Test (Switch sw)) :: (env, Test (Location (Physical pt))) :: lst)
@@ -177,12 +181,12 @@ module Field = struct
       | Mod _ -> (1, lst)
       | Filter a -> (1, (env, a) :: lst)
       | Union (p, q) ->
-        f_union' p lst env (fun (m, lst) -> 
+        f_union' p lst env (fun (m, lst) ->
           f_union' q lst env (fun (n, lst) ->
             k (m + n, lst)))
       | Seq _ -> k (f_seq pol env, lst)
-      | Let (id, init, mut, p) -> 
-        let env = Env.add env id init mut in 
+      | Let (id, init, mut, p) ->
+        let env = Env.add env id init mut in
         k (f_seq p env, lst)
       | Star p -> f_union' p lst env k
       | Link (sw,pt,_,_) -> k (1, (env, Test (Switch sw)) :: (env, Test (Location (Physical pt))) :: lst)

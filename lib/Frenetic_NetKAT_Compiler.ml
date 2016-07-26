@@ -801,6 +801,24 @@ module NetKAT_Automaton = struct
       let fdd = FDD.seq guard (FDD.union e d) in
       FDD.union acc fdd)
 
+  (* META fields *)
+  module Property : Fix.PROPERTY = struct
+    type property = Field.Set.t (* set of meta fields that a state depends on *)
+    let bottom = Field.(Set.of_list all) (* SJS *)
+    let equal = Field.Set.equal
+    let is_maximal = Field.Set.is_empty
+  end
+
+  module Map : Fix.IMPERATIVE_MAPS = struct
+    include Int.Table
+    let create () = create ()
+    let add key data tbl = set ~key ~data tbl
+    let find key tbl = find_exn tbl key
+    let iter f tbl = iteri ~f:(fun ~key ~data -> f key data) tbl
+  end
+
+  module Analysis = Fix.Make(Map)(Property)
+
   (* SJS: horrible hack *)
   let to_dot (automaton : t) =
     let states = Tbl.map automaton.states ~f:(fun (e,d) -> FDD.union e d) in

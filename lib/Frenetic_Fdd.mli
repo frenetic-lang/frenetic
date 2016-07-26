@@ -57,6 +57,9 @@ module Field : sig
   type field = t
   include Frenetic_Vlr.HashCmp with type t := t
 
+  module Set : Set.S with type Elt.t = t
+  module Map : Map.S with type Key.t = t
+
   module Env : sig
     type t
     val empty : t
