@@ -535,6 +535,9 @@ module Pol = struct
             |> mk_filter
       in
       mk_big_seq [filter_loc s1 p1; Dup; post_link ]
+    | Let (metaid, Const v, _, p) ->
+      Seq (Mod (Meta (metaid, v)), of_pol ing p)
+    | Let _ -> failwith "not implemented"
     | VLink _ -> assert false (* SJS / JNF *)
 end
 
