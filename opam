@@ -21,12 +21,13 @@ remove: [
 depends: [
   "ocamlfind" {build}
   "oasis" {build}
-  "core"
-  "async"
-  "async_extended"
-  "async_parallel"
-  "fieldslib"
-  "cmdliner" {>= "0.9.5"}
+  "cppo" {build}
+  "core" {>= "113.33.03"}
+  "ppx_jane"
+  "ppx_deriving"
+  "async" {>= "113.33.03"}
+  "async_extended" {>= "113.33.03"}
+  "async_parallel" {>= "113.33.03"}
   "cstruct" {>= "1.0.1"}
   "sexplib"
   "ulex" {>= "1.1"}
