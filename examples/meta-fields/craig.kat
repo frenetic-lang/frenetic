@@ -1,0 +1,3 @@
+var suspect:=0 in
+filter switch=1 and ip4Src=8.0.0.0/8; suspect:=1; port:=5 |
+filter switch=2 and suspect=1; drop
