@@ -2,14 +2,24 @@ open Core.Std
 
 module SDN = Frenetic_OpenFlow
 
+
 module Field = struct
 
+  (** The order of the constructors defines the default variable ordering and has a massive
+      performance impact. Do not change unless you know what you are doing. *)
   type t
     = Switch
-    | Vlan
-    | VlanPcp
+    | Location
     | VSwitch
     | VPort
+    | Vlan
+    | VlanPcp
+    (* SJS: for simplicity, support only up to 5 meta fields for now *)
+    | Meta0
+    | Meta1
+    | Meta2
+    | Meta3
+    | Meta4
     | EthType
     | IPProto
     | EthSrc
@@ -18,13 +28,9 @@ module Field = struct
     | IP4Dst
     | TCPSrcPort
     | TCPDstPort
-    | Location
     | VFabric
     [@@deriving sexp, enumerate, enum]
-
-  (** The type of packet fields. This is an enumeration whose ordering has an
-      effect on the performance of Tdk operations, as well as the size of the
-      flowtables that the compiler will produce. *)
+  type field = t
 
   let num_fields = max + 1
 
@@ -39,8 +45,6 @@ module Field = struct
   let is_valid_order (lst : t list) : bool =
     Set.Poly.(equal (of_list lst) (of_list all))
 
-  (* order[i] = the position of field i in the current ordering.  Indexes are 1..15 assigned by Obj.magic,
-     so that order[1] is the index of the Switch field.  Initial order is the order in which fields appear in this file. *)
   let order = Array.init num_fields ~f:ident
 
   let set_order (lst : t list) : unit =
@@ -62,7 +66,42 @@ module Field = struct
     (* using Obj.magic instead of to_enum for bettter performance *)
     Int.compare order.(Obj.magic x) order.(Obj.magic y)
 
-  let field_of_header_val hv = match hv with
+  module type ENV = sig
+    type t
+    val empty : t
+    exception Full
+    val add : t -> string -> Frenetic_NetKAT.meta_init -> bool -> t (* may raise Full *)
+    val lookup : t -> string -> field * (Frenetic_NetKAT.meta_init * bool) (* may raise Not_found *)
+  end
+
+  module Env : ENV = struct
+
+    type t = { 
+      alist : (string * (field * (Frenetic_NetKAT.meta_init * bool))) list; 
+      depth : int
+    }
+
+    let empty = { alist = []; depth = 0 }
+
+    exception Full
+
+    let add env name init mut =
+      let field =
+        match env.depth with
+        | 0 -> Meta0
+        | 1 -> Meta1
+        | 2 -> Meta2
+        | 3 -> Meta3
+        | 4 -> Meta4
+        | _ -> raise Full
+      in
+      { alist = List.Assoc.add env.alist name (field, (init, mut)); depth = env.depth + 1}
+
+    let lookup env name =
+      List.Assoc.find_exn env.alist name
+  end
+
+  let of_hv ?(env=Env.empty) hv = match hv with
     | Frenetic_NetKAT.Switch _ -> Switch
     | Frenetic_NetKAT.Location _ -> Location
     | Frenetic_NetKAT.EthSrc _ -> EthSrc
@@ -78,6 +117,7 @@ module Field = struct
     | Frenetic_NetKAT.TCPSrcPort _ -> TCPSrcPort
     | Frenetic_NetKAT.TCPDstPort _ -> TCPDstPort
     | Frenetic_NetKAT.VFabric _ -> VFabric
+    | Frenetic_NetKAT.Meta (id,_) -> fst (Env.lookup env id)
 
   (* Heuristic to pick a variable order that operates by scoring the fields
      in a policy. A field receives a high score if, when a test field=X
@@ -93,46 +133,69 @@ module Field = struct
        field assignments to sizes. *)
   let auto_order (pol : Frenetic_NetKAT.policy) : unit =
     let open Frenetic_NetKAT in
-    (* Construct map of (field,score) pairs, where score starts at 0 for every field *)
-    let count_tbl =
-      match Hashtbl.Poly.of_alist (List.map all ~f:(fun f -> (f, 0))) with
-      | `Ok tbl -> tbl
-      | `Duplicate_key _ -> assert false in (* Should never happen because assert above will catch it *)
-    let rec f_pred size in_product pred = match pred with
+    (* Construct array of scores, where score starts at 0 for every field *)
+    let count_arr = Array.init num_fields ~f:(fun _ -> 0) in
+    let rec f_pred size (env, pred) = match pred with
       | True -> ()
       | False -> ()
+      | Test (Frenetic_NetKAT.Meta (id,_)) ->
+        begin match Env.lookup env id with
+        | (f, (Alias hv, false)) ->
+          let f = to_enum f in
+          let f' = to_enum (of_hv hv) in
+          count_arr.(f) <- count_arr.(f) + size;
+          count_arr.(f') <- count_arr.(f') + size
+        | (f,_) ->
+          let f = to_enum f in
+          count_arr.(f) <- count_arr.(f) + size
+        end
       | Test hv ->
-        if in_product then
-          let fld = field_of_header_val hv in
-          let n = Hashtbl.Poly.find_exn count_tbl fld in
-          Hashtbl.Poly.set count_tbl ~key:fld ~data:(n + size)
-      | Or (a, b) -> f_pred size false a; f_pred size false b
-      | And (a, b) -> f_pred size true a; f_pred size true b
-      | Neg a -> f_pred size in_product a in
-    let rec f_seq' pol lst = match pol with
-      | Mod _ -> (1, lst)
-      | Filter a -> (1, a :: lst)
+        let f = to_enum (of_hv hv) in
+        count_arr.(f) <- count_arr.(f) + size
+      | Or (a, b) -> f_pred size (env, a); f_pred size (env, b)
+      | And (a, b) -> f_pred size (env, a); f_pred size (env, b)
+      | Neg a -> f_pred size (env, a) in
+    let rec f_seq' pol lst env k = match pol with
+      | Mod _ -> k (1, lst)
+      | Filter a -> k (1, (env, a) :: lst)
       | Seq (p, q) ->
-        let (m, lst) = f_seq' p lst in
-        let (n, lst) = f_seq' q lst in
-        (m * n, lst)
-      | Union _ -> (f_union pol, lst)
-      | Star _ | Link _ | VLink _ -> (1, lst) (* bad, but it works *)
-    and f_seq pol =
-      let (size, preds) = f_seq' pol [] in
-      List.iter preds ~f:(f_pred size true);
+        f_seq' p lst env (fun (m, lst) -> 
+          f_seq' q lst env (fun (n, lst) ->
+            k (m * n, lst)))
+      | Union _ -> k (f_union pol env, lst)
+      | Let (id, init, mut, p) -> 
+        let env = Env.add env id init mut in 
+        f_seq' p lst env k
+      | Star p -> k (f_union p env, lst)
+      | Link (sw,pt,_,_) -> k (1, (env, Test (Switch sw)) :: (env, Test (Location (Physical pt))) :: lst)
+      | VLink (sw,pt,_,_) -> k (1, (env, Test (VSwitch sw)) :: (env, Test (VPort pt)) :: lst)
+    and f_seq pol env : int =
+      let (size, preds) = f_seq' pol [] env (fun x -> x) in
+      List.iter preds ~f:(f_pred size);
       size
-    and f_union' pol k = match pol with
-      | Mod _ -> k 1
-      | Filter _ -> k 1
+    and f_union' pol lst env k = match pol with
+      | Mod _ -> (1, lst)
+      | Filter a -> (1, (env, a) :: lst)
       | Union (p, q) ->
-        f_union' p (fun m -> f_union' q (fun n -> k (m + n)))
-      | Seq _ -> k (f_seq pol)
-      | Star _ | Link _ | VLink _ -> k 1 (* bad, but it works *)
-    and f_union pol = f_union' pol (fun n -> n) in
-    let _ = f_seq pol in
-    Hashtbl.Poly.to_alist count_tbl
-    |> List.sort ~cmp:(fun (_, x) (_, y) -> Int.compare y x)
+        f_union' p lst env (fun (m, lst) -> 
+          f_union' q lst env (fun (n, lst) ->
+            k (m + n, lst)))
+      | Seq _ -> k (f_seq pol env, lst)
+      | Let (id, init, mut, p) -> 
+        let env = Env.add env id init mut in 
+        k (f_seq p env, lst)
+      | Star p -> f_union' p lst env k
+      | Link (sw,pt,_,_) -> k (1, (env, Test (Switch sw)) :: (env, Test (Location (Physical pt))) :: lst)
+      | VLink (sw,pt,_,_) -> k (1, (env, Test (VSwitch sw)) :: (env, Test (VPort pt)) :: lst)
+    and f_union pol env : int =
+      let (size, preds) = f_union' pol [] env (fun x -> x) in
+      List.iter preds ~f:(f_pred size);
+      size
+    in
+    let _ = f_seq pol Env.empty in
+    Array.foldi count_arr ~init:[] ~f:(fun i acc n -> ((Obj.magic i, n) :: acc))
+    |> List.stable_sort ~cmp:(fun (_, x) (_, y) -> Int.compare x y)
+    |> List.rev (* SJS: do NOT remove & reverse order! Want stable sort *)
     |> List.map ~f:fst
     |> set_order
 
@@ -295,7 +358,7 @@ module Pattern = struct
   let to_int = Int64.to_int_exn
   let to_int32 = Int64.to_int32_exn
 
-  let of_hv hv =
+  let of_hv ?(env=Field.Env.empty) hv =
     let open Frenetic_NetKAT in
     match hv with
     | Switch sw_id -> (Field.Switch, Value.(Const sw_id))
@@ -319,6 +382,7 @@ module Pattern = struct
     | TCPSrcPort(tpPort) -> (Field.TCPSrcPort, Value.of_int tpPort)
     | TCPDstPort(tpPort) -> (Field.TCPDstPort, Value.of_int tpPort)
     | VFabric(vfab) -> (Field.VFabric, Value.(Const vfab))
+    | Meta(name,v) -> (fst (Field.Env.lookup env name), Value.(Const v))
 
   let to_hv (f, v) =
     let open Field in
@@ -385,7 +449,12 @@ module Pattern = struct
     | (Switch, Const _)
     | (VSwitch, Const _)
     | (VPort, Const _)
-    | (VFabric, Const _) -> assert false
+    | (VFabric, Const _)
+    | (Meta0, Const _)
+    | (Meta1, Const _)
+    | (Meta2, Const _)
+    | (Meta3, Const _)
+    | (Meta4, Const _) -> assert false
     | _, _ -> raise (FieldValue_mismatch(f, v))
 
 end
@@ -620,7 +689,7 @@ module FDD = struct
 
   include Frenetic_Vlr.Make(Field)(Value)(Action)
 
-  let mk_cont k = mk_leaf Action.(Par.singleton (Seq.singleton K (Value.of_int k)))
+  let mk_cont k = const Action.(Par.singleton (Seq.singleton K (Value.of_int k)))
 
   let conts fdd =
     fold
