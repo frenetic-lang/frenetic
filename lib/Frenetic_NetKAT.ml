@@ -11,6 +11,7 @@ type payload = Frenetic_OpenFlow.payload [@@deriving sexp]
 type vswitchId = int64 [@@deriving sexp, compare, eq]
 type vportId = int64 [@@deriving sexp, compare, eq]
 type vfabricId = int64 [@@deriving sexp, compare, eq]
+type metaId = string [@@deriving sexp, compare, eq]
 
 let string_of_fastfail = Frenetic_OpenFlow.format_list ~to_string:Int32.to_string
 
@@ -38,6 +39,7 @@ type header_val =
   | VPort of vportId
   | VFabric of vfabricId
   | Channel of int
+  | Meta of metaId * int64
   [@@deriving sexp]
 
 type pred =
@@ -49,6 +51,11 @@ type pred =
   | Neg of pred
   [@@deriving sexp]
 
+type meta_init =
+  | Alias of header_val
+  | Const of int64
+  [@@deriving sexp]
+
 type policy =
   | Filter of pred
   | Mod of header_val
@@ -57,6 +64,10 @@ type policy =
   | Star of policy
   | Link of switchId * portId * switchId * portId
   | VLink of vswitchId * vportId * vswitchId * vportId
+  (* TODO: move to inline records, as soon as derriving sexp supports them, see
+     https://github.com/janestreet/ppx_sexp_conv/issues/9 *)
+  (* | Let of { id : metaId; init : meta_init; body : policy; mut : bool } *)
+  | Let of metaId * meta_init * bool * policy
   [@@deriving sexp]
 
 let id = Filter True

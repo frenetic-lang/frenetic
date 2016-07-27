@@ -29,31 +29,42 @@ module Field : sig
    The constructors in type t are listed in the default order, which is acceptable for many
    NetKAT programs.
 
-    This module implements the the [HashCmp] signature from the Frenetic_Vlr package, so it
-    becomes the "V" in VLR. *)
+   This module implements the the [HashCmp] signature from the Frenetic_Vlr package, so it
+   becomes the "V" in VLR. *)
   type t
     = Switch
-      | Vlan
-      | VlanPcp
-      | VSwitch
-      | VPort
-      | EthType
-      | IPProto
-      | EthSrc
-      | EthDst
-      | IP4Src
-      | IP4Dst
-      | TCPSrcPort
-      | TCPDstPort
-      | Location
-      | VFabric
-      | Channel
-  [@@deriving sexp]
-
+    | Location
+    | VSwitch
+    | VPort
+    | Vlan
+    | VlanPcp
+    (* SJS: for simplicity, support only up to 5 meta fields for now *)
+    | Meta0
+    | Meta1
+    | Meta2
+    | Meta3
+    | Meta4
+    | EthType
+    | IPProto
+    | EthSrc
+    | EthDst
+    | IP4Src
+    | IP4Dst
+    | TCPSrcPort
+    | TCPDstPort
+    | VFabric
+    | Channel
+    [@@deriving sexp, enumerate, enum]
+  type field = t
   include Frenetic_Vlr.HashCmp with type t := t
-  val auto_order : Frenetic_NetKAT.policy -> unit
-  val set_order : t list -> unit
-  val get_order : unit -> t list
+
+  module Env : sig
+    type t
+    val empty : t
+    exception Full
+    val add : t -> string -> Frenetic_NetKAT.meta_init -> bool -> t (* may raise Full *)
+    val lookup : t -> string -> field * (Frenetic_NetKAT.meta_init * bool) (* may raise Not_found *)
+  end
 
   (** [all] returns the default field field ordering *)
   val all : t list
@@ -62,6 +73,9 @@ module Field : sig
   val compare : t -> t -> int
 
   val hash : t -> int
+
+  (** [of_hv header_value] converts a NetKAT header_value pair to a field *)
+  val of_hv : ?env:Env.t -> Frenetic_NetKAT.header_val -> t
 
   (** [of_string str] converts a field string to an abstract field.  Throws an exception for unrecognized strings. *)
   val of_string : string -> t
@@ -154,7 +168,7 @@ module Pattern : sig
   val equal : t -> t -> bool
 
   (** [of_hv header_value] converts a NetKAT header_value pair to a pattern *)
-  val of_hv : Frenetic_NetKAT.header_val -> t
+  val of_hv : ?env:Field.Env.t -> Frenetic_NetKAT.header_val -> t
 
   (** [to_hv p] converts a pattern to a NetKAT header_value pair *)
   val to_hv : t -> Frenetic_NetKAT.header_val
@@ -193,7 +207,7 @@ module Action : sig
     (* [equal_mod_k s1 s2] Compares two sequences for equality, ignoring K pseudo-field if it exists *)
     val equal_mod_k : Value.t t -> Value.t t -> bool
 
-    (** [to_hvs s] converts to a sequence to an HVS option list, removing K pseudo-field *)
+    (** [to_hvs s] converts to a sequence to an HVS list, removing K pseudo-field *)
     val to_hvs : Value.t t -> (Field.t * Value.t) list
   end
 
@@ -202,7 +216,7 @@ module Action : sig
      only once, which is why we use a Set here.  *)
     include Set.S with type Elt.t = Value.t Seq.t
 
-   (** [to_hvs s] converts to a sequence to an HVS option list applying sequences in the right order *)
+   (** [to_hvs s] converts to a sequence to an HVS list applying sequences in the right order *)
     val to_hvs : t -> (Field.t * Value.t) list
     val mod_k : t -> t
     val compare_mod_k : t -> t -> int

@@ -1,12 +1,12 @@
 #ifdef AST
   #define MK(arg) <:expr< arg >>
   #define ID(arg) $arg$
-  #define STR(val) $`str:val$
+  #define STR(arg) $`str:arg$
   #define AQ | `ANTIQUOT s -> Syntax.AntiquotSyntax.parse_expr _loc s
 #else
   #define MK(arg) arg
   #define ID(arg) arg
-  #define STR(val) val
+  #define STR(arg) arg
   #define AQ
 #endif
 
@@ -15,6 +15,9 @@ open Camlp4.PreCast
 module Gram = MakeGram(Frenetic_NetKAT_Lexer)
 open Frenetic_NetKAT_Lexer
 open Frenetic_NetKAT
+
+(* SJS: hack, but does the job. Reading [undef] will cause sefgault. *)
+let undef : 'a = Obj.magic 0
 
 let nk_pred_eoi = Gram.Entry.mk "nk_pred_eoi"
 let nk_pred = Gram.Entry.mk "nk_pred"
@@ -29,6 +32,8 @@ let nk_pol_seq = Gram.Entry.mk "nk_pol_seq"
 let nk_pol_star = Gram.Entry.mk "nk_pol_star"
 let nk_pol_union = Gram.Entry.mk "nk_pol_union"
 let nk_pol_cond = Gram.Entry.mk "nk_pol_cond"
+let nk_pol_meta = Gram.Entry.mk "nk_pol_meta"
+let nk_let = Gram.Entry.mk "nk_let"
 let nk_int64 = Gram.Entry.mk "nk_int64"
 let nk_int32 = Gram.Entry.mk "nk_int32"
 let nk_int = Gram.Entry.mk "nk_int"
@@ -116,6 +121,8 @@ EXTEND Gram
       MK(Test (IP4Dst (ID(n), 32l)))
     | "channel"; "="; n = nk_int ->
       MK(Test (Channel ID(n)))
+    | id=METAID; "="; n = nk_int64 ->
+      MK(Test (Meta (STR(id), ID(n))))
     AQ
   ]];
 
@@ -190,6 +197,8 @@ EXTEND Gram
       MK(Mod (TCPDstPort ID(n)))
     | "channel"; ":="; n = nk_int ->
       MK(Mod (Channel ID(n)))
+    | id=METAID; ":="; n = nk_int64 ->
+      MK(Mod (Meta (STR(id), ID(n))))
     | loc1 = nk_loc; "=>"; loc2 = nk_loc -> MK(
       let (sw1, pt1) = ID(loc1) in
       let (sw2, pt2) = ID(loc2) in
@@ -229,7 +238,42 @@ EXTEND Gram
       MK(Union(Seq(Filter ID(a), ID(p)), Seq(Filter (Neg ID(a)), ID(q))))
   ]];
 
-  nk_pol : [[ p = nk_pol_cond -> p ]];
+  nk_let : [[
+      "let" -> MK(false)
+    | "var" -> MK(true)
+  ]];
+
+  nk_pol_meta : [[
+      p = nk_pol_cond -> p
+    | mut=nk_let; id=METAID; ":="; v=nk_int64; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Const ID(v), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "switch" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (Switch undef), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "port" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (Location undef), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "ethSrc" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (EthSrc undef), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "ethDst" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (EthDst undef), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "vlanId" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (Vlan undef), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "vlanPcp" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (VlanPcp undef), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "ethTyp" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (EthType undef), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "ipProto" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (IPProto undef), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "ip4Src" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (IP4Src (Obj.magic 0, Obj.magic 0)), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "ip4Dst" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (IP4Dst (Obj.magic 0, Obj.magic 0)), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "tcpSrcPort" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (TCPSrcPort undef), ID(mut), ID(p)))
+    | mut=nk_let; id=METAID; ":="; "tcpDstPort" ; "in"; p = nk_pol_meta ->
+      MK(Let (STR(id), Alias (TCPDstPort undef), ID(mut), ID(p)))
+  ]];
+
+  nk_pol : [[ p = nk_pol_meta -> p ]];
 
   nk_pol_eoi: [[ x = nk_pol; `EOI -> x ]];
   nk_pred_eoi: [[ x = nk_pred; `EOI -> x ]];

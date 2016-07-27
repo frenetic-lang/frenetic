@@ -258,5 +258,9 @@ let switches_of_policy (p:policy) =
        collect q acc
     | Link(sw1,_,sw2,_) ->
        sw1 :: sw2 :: acc
-    | VLink _ -> acc in
+    | VLink _ ->
+      acc
+    | Let(_,_,_,p) ->
+      collect p acc
+  in
   collect p [] |> List.dedup |> List.to_list

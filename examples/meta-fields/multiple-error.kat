@@ -1,0 +1,8 @@
+(* this will fail since we currently only support up to 5 meta fields in scope at once *)
+let m1 := vlanId in
+let m2 := port in
+let m3 := 423 in
+let m4 := port in
+let m5 := 1 in
+let m6 := 2 in
+id
