@@ -1,8 +1,8 @@
 import frenetic, sys, json, time, argparse
 import os.path
 from frenetic.syntax import *
+from frenetic.packet import *
 import array
-from ryu.lib.packet import packet
 
 client_port = 1
 
@@ -33,13 +33,9 @@ class LoadBalancer(frenetic.App):
     self.state = state
 
   # Returns 0 as a default
-  def packet_src_port(payload):
-    ip = self.packet(payload, "ipv4")
-
-    if ip.proto == 6:
-      return self.packet(payload, "tcp").src_port
-    else:
-      return 0
+  def packet_src_port(self, switch_id, port_id, payload):
+    pkt = Packet.from_payload(switch_id, port_id, payload)
+    return pkt.tcpSrcPort if pkt.ipProto == 6 else 0
 
   def policy(self):
     conns = self.state.connections
@@ -63,14 +59,14 @@ class LoadBalancer(frenetic.App):
     return Filter(PortEq(self.client_port) & ~TCPSrcPortEq(known_src_ports)) >> SendToController("http")
 
   def packet_in(self, switch_id, port_id, payload):
-    src = packet_src_port(payload)
+    src = self.packet_src_port(switch_id, port_id, payload)
     server_port = self.state.new_connection(src)
     print "Sending traffic from TCP port %s to switch port %s" % (src, server_port)
     self.update(self.policy())
 
     # Assumes no address-translation
     self.pkt_out(switch_id = switch_id, payload = payload,
-                 actions = [Output(Physical(server_port))])
+                 actions = [SetPort(server_port)])
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description="A simple load balancer")

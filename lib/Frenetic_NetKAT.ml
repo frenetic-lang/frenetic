@@ -11,6 +11,7 @@ type payload = Frenetic_OpenFlow.payload [@@deriving sexp]
 type vswitchId = int64 [@@deriving sexp, compare, eq]
 type vportId = int64 [@@deriving sexp, compare, eq]
 type vfabricId = int64 [@@deriving sexp, compare, eq]
+type metaId = string [@@deriving sexp, compare, eq]
 
 let string_of_fastfail = Frenetic_OpenFlow.format_list ~to_string:Int32.to_string
 
@@ -37,6 +38,7 @@ type header_val =
   | VSwitch of vswitchId
   | VPort of vportId
   | VFabric of vfabricId
+  | Meta of metaId * int64
   [@@deriving sexp]
 
 type pred =
@@ -48,6 +50,11 @@ type pred =
   | Neg of pred
   [@@deriving sexp]
 
+type meta_init =
+  | Alias of header_val
+  | Const of int64
+  [@@deriving sexp]
+
 type policy =
   | Filter of pred
   | Mod of header_val
@@ -56,6 +63,10 @@ type policy =
   | Star of policy
   | Link of switchId * portId * switchId * portId
   | VLink of vswitchId * vportId * vswitchId * vportId
+  (* TODO: move to inline records, as soon as derriving sexp supports them, see
+     https://github.com/janestreet/ppx_sexp_conv/issues/9 *)
+  (* | Let of { id : metaId; init : meta_init; body : policy; mut : bool } *)
+  | Let of metaId * meta_init * bool * policy
   [@@deriving sexp]
 
 let id = Filter True
@@ -68,15 +79,3 @@ type host = Frenetic_Packet.dlAddr * Frenetic_Packet.nwAddr [@@deriving sexp]
 
 type bufferId = Int32.t [@@deriving sexp] (* XXX(seliopou): different than Frenetic_OpenFlow *)
 
-type event =
-  | PacketIn of string * switchId * portId * payload * int
-  | Query of string * int64 * int64
-  | SwitchUp of switchId * portId list
-  | SwitchDown of switchId
-  | PortUp of switch_port
-  | PortDown of switch_port
-  | LinkUp of switch_port * switch_port
-  | LinkDown of switch_port * switch_port
-  | HostUp of switch_port * host
-  | HostDown of switch_port * host
-  [@@deriving sexp]

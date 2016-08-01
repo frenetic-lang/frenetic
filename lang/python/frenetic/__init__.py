@@ -7,7 +7,6 @@ from tornado.ioloop import IOLoop
 from frenetic.syntax import PacketIn, PacketOut
 from tornado.concurrent import return_future
 from tornado import gen
-from ryu.lib.packet import *
 
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
@@ -43,17 +42,18 @@ class App(object):
         print "established connection to Frenetic controller"
 
     def packet(self, payload, protocol):
+        from ryu.lib.packet import packet
         pkt = packet.Packet(array.array('b', payload.data))
         for p in pkt:
             if p.protocol_name == protocol:
                 return p
         return None
 
-    def pkt_out(self, switch_id, payload, actions, in_port=None):
-        msg = PacketOut(switch=switch_id,
-                        payload=payload,
-                        actions=actions,
-                        in_port=in_port)
+    def pkt_out(self, switch_id, payload, actions, in_port=None, policies=None):
+        # Renamed actions to policies in the internal API to make it clearer, but
+        # kept actions keyword for backward compatibility.
+        _policies = policies if policies != None else actions
+        msg = PacketOut(switch=switch_id, payload=payload, policies=_policies, in_port=in_port)
         pkt_out_url = "http://%s:%s/pkt_out" % (self.frenetic_http_host, self.frenetic_http_port)
         request = HTTPRequest(pkt_out_url, method='POST', body=json.dumps(msg.to_json()))
         return self.__http_client.fetch(request)
@@ -161,8 +161,12 @@ class App(object):
     def __handle_event(self, response):
         try: 
             event =  json.loads(response.result().body)
- 
-            typ = event['type']
+            # For some reason, port stats are leaking into the event queue, so
+            # just get them out
+            if isinstance(event, list) or 'type' not in event:
+                typ = "UNKNOWN"
+            else:
+                typ = event['type']
             if typ == 'switch_up':
                 switch_id = event['switch_id']
                 ports = event['ports']
@@ -181,8 +185,6 @@ class App(object):
             elif typ == 'packet_in':
                 pk = PacketIn(event)
                 self.packet_in(pk.switch_id, pk.port_id, pk.payload)
-            else:
-                print response
 
             self.__poll_event()
 

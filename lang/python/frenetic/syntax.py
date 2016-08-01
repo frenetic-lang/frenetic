@@ -63,21 +63,52 @@ class NotBuffered(Payload):
 
 class PacketOut(object):
 
-    def __init__(self, switch, payload, actions, in_port = None):
+    def __init__(self, switch, payload, policies, in_port = None):
         assert type(switch) == int and switch >= 0
         self.switch = switch
         assert isinstance(payload,Buffered) or isinstance(payload,NotBuffered)
         self.payload = payload
-        #TODO: Can this be refined? Currently list<'instance'>
-        assert isinstance(actions,list)
-        self.actions = actions
+        assert isinstance(policies,list) or isinstance(policies, Seq) or \
+            isinstance(policies,SinglePolicy) or isinstance(policies,SetPort)
+
+        # We flatten a Sequence into a list of policies.  (We don't do this for 
+        # Unions because packet outs can't send out parallel packets except for 
+        # multiple ports, which we deal with separately.)
+        if isinstance(policies, Seq):
+            policies = policies.children
+        elif isinstance(policies,SinglePolicy) or isinstance(policies,SetPort):
+            policies = [policies]
+
+        scrubbed_policies = []
+        for action in policies:
+            assert isinstance(action, Mod) or isinstance(action, Output) or \
+                isinstance(action,SinglePolicy) or isinstance(action,SetPort) 
+            # In Frenetic 4.1, Output is no longer accepted because Output is not a NetKAT
+            # policy.  Convert all Output's to Mod(Location())
+            if isinstance(action, Output):
+                ps = action.pseudoport
+                scrubbed_policies.append(Mod(Location(ps)))
+            elif isinstance(action, Mod): 
+                if action.hv.header == "location":
+                    assert isinstance(action.hv.value, Physical), "Only port outputs are allowed in pkt_out" 
+                scrubbed_policies.append(action)
+            # A SetPort might have many destinations, so we convert them here.
+            elif isinstance(action, SetPort):
+                for p in action.port_list:
+                    scrubbed_policies.append(Mod(Location(Physical(p))))
+
+            # All others have no scrubbing involved
+            else:
+                scrubbed_policies.append(action)
+
+        self.policies = scrubbed_policies
         assert in_port == None or (type(in_port) == int and in_port >= 0)
         self.in_port = in_port
 
     def to_json(self):
         return { "switch": self.switch,
                  "in_port": self.in_port,
-                 "actions": [ action.to_json() for action in self.actions ],
+                 "policies": [ action.to_json() for action in self.policies ],
                  "payload": self.payload.to_json() }
 
 class PacketIn(object):
@@ -86,11 +117,9 @@ class PacketIn(object):
         assert (json['type'] == 'packet_in')
         assert type(json['switch_id']) == int and json['switch_id'] >= 0
         self.switch_id = json['switch_id']
-        assert type(json['port_id']) == int and json['switch_id'] >= 0
+        assert type(json['port_id']) == int and json['port_id'] >= 0
         self.port_id = json['port_id']
-        # TODO: assert isinstance(payload,Buffered) or isinstance(payload,NotBuffered)
         self.payload = Payload.from_json(json['payload'])
-
 
 class Stats(object):
 
@@ -616,17 +645,53 @@ def str_policy(klazz, value):
     assert(type(value) == str or type(value == unicode))
     return Mod(klazz(value))
 
+def int_list_policy(klazz, *values):
+    if type(values[0]) == list:
+        values = values[0]
+    vs = []
+    for v in values:
+        if type(v) == str:
+            v = int(v)
+        assert(type(v) == int and v >= 0)
+        vs.append(v)
+    expanded_preds = [ Test(klass(v)) for v in vs ]
+    if len(expanded_preds) > 1:
+        return Or(expanded_preds)
+    elif len(expanded_preds) == 0:
+        return false
+    else:
+        return expanded_preds[0]
+
+# SetPort is a unique case in modifications.  It can take more than one
+# output port, similar to a MultiPred.  
+class SetPort(Policy):
+    def __init__(self, *values):
+        if type(values[0]) == list:
+            values = values[0]
+        vs = []
+        for v in values:
+            if type(v) == str:
+                v = int(v)
+            assert(type(v) == int and v >= 1 and v <= 65535)
+            vs.append(v)
+
+        # Also unlike other Mods, we simply leave the port list alone
+        # instead of immediately turning into a HeaderValue.  That's because
+        # we might use this in a rule or a Packet Out action
+        self.port_list = vs
+
+    def to_json(self):
+        actions = [Mod(Location(Physical(p))) for p in self.port_list]
+        # If there's more than one, Union them together so packet is copied
+        if len(actions) > 1:
+            full_policy = Union(actions)
+            return full_policy.to_json()
+        else:
+            return actions[0].to_json()
+
 class SinglePolicy(Policy):
     def to_json(self):
         return self.hv.to_json()
-
-# With SetPort we do extra checking to make sure the port id is legal OpenFlow
-class SetPort(SinglePolicy):
-    def __init__(self, value):
-        if (type(value)) == str:
-            value = int(value)
-        assert(type(value) == int and value >= 1 and value <= 65535)
-        self.hv = Mod(Location(Physical(value)))
 
 class SetEthSrc(SinglePolicy):
     def __init__(self, value):
@@ -662,18 +727,14 @@ class SetTCPDstPort(SinglePolicy):
 
 # IP4Src and Ip4Dst are weird because they may contain a mask
 class SetIP4Src(SinglePolicy):
-    def __init__(self, value, mask = None):
+    def __init__(self, value):
         assert(type(value) == str or type(value == unicode))
-        if mask != None:
-            assert type(mask) == int
-        self.hv = Mod(IP4Src(value, mask))
+        self.hv = Mod(IP4Src(value, None))
 
 class SetIP4Dst(SinglePolicy):
-    def __init__(self, value, mask = None):
+    def __init__(self, value):
         assert(type(value) == str or type(value == unicode))
-        if mask != None:
-            assert type(mask) == int
-        self.hv = Mod(IP4Dst(value, mask))
+        self.hv = Mod(IP4Dst(value, None))
 
 ############### Misc.
 
@@ -681,6 +742,11 @@ class SendToController(SinglePolicy):
     def __init__(self, value):
         assert(type(value) == str or type(value == unicode))
         self.hv = Mod(Location(Pipe(value)))
+
+class SendToQuery(SinglePolicy):
+    def __init__(self, value):
+        assert(type(value) == str or type(value == unicode))
+        self.hv = Mod(Location(Query(value)))
 
 class CompilerOptions:
 

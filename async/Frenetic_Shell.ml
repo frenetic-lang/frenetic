@@ -2,8 +2,8 @@ open Core.Std
 open Async.Std
 open Frenetic_NetKAT
 
+module Controller = Frenetic_NetKAT_Controller.Make(Frenetic_OpenFlow0x01_Plugin)
 module Comp = Frenetic_NetKAT_Compiler
-module Controller = Frenetic_NetKAT_Controller.Make
 module DecideAst = Frenetic_Decide_Ast
 module DecideLexer = Frenetic_Decide_Lexer
 module DecideParser = Frenetic_Decide_Parser
@@ -417,7 +417,7 @@ let load_file (filename : string) : unit =
     | Ok p ->
        policy := (p, policy_string);
        printf "%s\n%!" policy_string;
-       don't_wait_for (Controller.update_policy p)
+       don't_wait_for (Controller.update p)
     | Error msg -> print_endline msg
   with
   | Sys_error msg -> printf "Load failed: %s\n%!" msg
@@ -429,18 +429,18 @@ let rec repl () : unit Deferred.t =
     match line with
     | `Eof -> Shutdown.shutdown 0
     | `Ok line -> match parse_command line with
-      | Some Exit | Some Quit ->
-         print_endline "Goodbye!";
-         Shutdown.shutdown 0
-      | Some (Show Ordering) -> print_order ()
-      | Some (Show Policy) -> print_policy ()
-      | Some (Show Help) -> print_help ()
-      | Some (Show (FlowTable t)) -> print_policy_table t
-      | Some (Update (pol, pol_str)) ->
-         policy := (pol, pol_str);
-         don't_wait_for (Controller.update_policy pol)
-      | Some (Load filename) -> load_file filename
-      | Some (Order order) -> set_order order
+		  | Some Exit | Some Quit ->
+		     print_endline "Goodbye!";
+		     Shutdown.shutdown 0
+		  | Some (Show Ordering) -> print_order ()
+		  | Some (Show Policy) -> print_policy ()
+		  | Some (Show Help) -> print_help ()
+		  | Some (Show (FlowTable t)) -> print_policy_table t
+		  | Some (Update (pol, pol_str)) ->
+		     policy := (pol, pol_str);
+         don't_wait_for (Controller.update pol)
+		  | Some (Load filename) -> load_file filename
+		  | Some (Order order) -> set_order order
       | Some (ToggleRemoveTailDrops) -> toggle_remove_tail_drops ()
       | Some (Felix files) -> felix files
       | Some (Decide formula) -> decide formula

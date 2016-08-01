@@ -33,7 +33,7 @@ Library frenetic
     core,
     cstruct,
     hashcons,
-    ocamlgraph (>= 1.8.6),
+    ocamlgraph (>= 1.8.7),
     ppx_jane,
     ppx_deriving.eq,
     ppx_deriving.enum,
@@ -58,7 +58,6 @@ Library frenetic
     Frenetic_NetKAT_Net,
     Frenetic_NetKAT_Parser,
     Frenetic_NetKAT_Pretty,
-    Frenetic_NetKAT_SDN_Json,
     Frenetic_NetKAT_Semantics,
     Frenetic_Decide_Lexer,
     Frenetic_Decide_Parser,
@@ -95,9 +94,8 @@ Library async
     Frenetic_Compile_Server,
     Frenetic_Log,
     Frenetic_Http_Controller,
-    Frenetic_OpenFlow0x01_Controller,
+    Frenetic_OpenFlow0x01_Plugin,
     Frenetic_NetKAT_Controller,
-    Frenetic_NetKAT_Updates,
     Frenetic_Ox
 
 Executable frenetic
@@ -173,17 +171,15 @@ Executable testtool
     frenetic,
     frenetic.async
 
-#Executable fastfailtest
-#  Path: integration
-#  MainIs: FastFailTest_Controller.ml
-#  Install: false
-#  CompiledObject: native
-#  BuildDepends:
-#    async,
-#    core,
-#    frenetic,
-#    frenetic.async,
-#    async_extended
+Executable benchmark
+  Install: false
+  Path: bench/src
+  CompiledObject: best
+  MainIs: Main.ml
+  BuildDepends:
+    core,
+    threads,
+    frenetic
 
 Test all_tests
   Run$: flag(tests)

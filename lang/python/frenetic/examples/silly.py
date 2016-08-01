@@ -18,7 +18,7 @@ class SillyRepeaterApp(frenetic.App):
         self.current_switches(callback=handle_current_switches)        
 
     def packet_in(self, switch_id, port_id, payload):
-        self.pkt_out(switch_id = switch_id, payload = payload, actions = [Output(Physical(port_id))])
+        self.pkt_out(switch_id = switch_id, payload = payload, actions = [SetPort(port_id)])
 
 if __name__ == '__main__':
     app = SillyRepeaterApp()

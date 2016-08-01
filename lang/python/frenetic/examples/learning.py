@@ -2,6 +2,7 @@ import array, base64
 from ryu.lib.packet import packet, ethernet
 import frenetic
 from frenetic.syntax import *
+from frenetic.packet import *
 
 """Ethernet Learning switch"""
 
@@ -20,8 +21,7 @@ def flood(sw):
     ports = topo[sw]
 
     def flood_port(pt):
-        outs = [_pt for _pt in ports if _pt != pt]
-        return Filter(PortEq(pt)) >> Union(SetPort(_pt) for _pt in outs)
+        return Filter(PortEq(pt)) >> SetPort([_pt for _pt in ports if _pt != pt])
     
     return Union(flood_port(port) for port in ports)
 
@@ -29,7 +29,7 @@ def flood(sw):
 # Learning switch functions
 ##
 
-def learn(app, switch_id,pkt,pt):
+def learn(app, switch_id,payload,pt):
     if switch_id not in topo:
         topo[switch_id] = []
         table[switch_id] = {}
@@ -37,7 +37,8 @@ def learn(app, switch_id,pkt,pt):
     # then don't bother recalculating.  This can happen if the rule hasn't been installed
     # fast enough.
     # TODO: Handle case of Ethernet moved
-    mac = app.packet(pkt,"ethernet").src
+    pkt = Packet.from_payload(switch_id, pt, payload)
+    mac = pkt.ethSrc
     if mac in all_ethernet:
         return "no_updates"
     print "Saw Ethernet For first time ", mac, " at switch ", switch_id, " port ", pt
@@ -112,8 +113,7 @@ class LearningApp(frenetic.App):
         self.update(policy())
 
     def packet_in(self,switch_id, port_id, payload):
-        pkt = packet.Packet(array.array('b', payload.data))
-        if learn(self, switch_id,pkt,port_id) == "updates_needed":
+        if learn(self, switch_id,payload,port_id) == "updates_needed":
             self.update(policy())
 
 if __name__ == '__main__':

@@ -1,0 +1,7 @@
+let m1 := vlanId in
+let m2 := port in
+let m3 := 423 in
+let m4 := port in
+filter m1=1 and m2=1 and m3=423; port:=pipe("success!") |
+filter m1=2 and m2=2 and m3=1;   port:=pipe("fail :(") |
+filter m1=2 and m2=2 and m4=3;   port:=pipe("fail :(")

@@ -1,4 +1,4 @@
-(* Adapted from https://github.com/jaked/ambassadortothecomputers.blogspot.com/blob/4d1bde223b1788ba52cc0f74b256760d9c059ac4/_code/camlp4-custom-lexers/jq_lexer.ml 
+(* Adapted from https://github.com/jaked/ambassadortothecomputers.blogspot.com/blob/4d1bde223b1788ba52cc0f74b256760d9c059ac4/_code/camlp4-custom-lexers/jq_lexer.ml
    This module is shared by Frenetic_NetKAT_Parser and Frenetic_Syntax_Extension_Parser
 *)
 
@@ -15,13 +15,14 @@ end
 let _ = let module M = Camlp4.ErrorHandler.Register(Error) in ()
 
 type token =
-  | KEYWORD  of string
+  | KEYWORD of string
   | INT of string
   | INT32 of string
   | INT64 of string
   | IP4ADDR of string
-  | ANTIQUOT of string 
+  | ANTIQUOT of string
   | STRING_CONSTANT of string
+  | METAID of string
   | EOI
 
 module Token = struct
@@ -40,6 +41,7 @@ module Token = struct
       | INT64 s -> sf "INT64 %s" s
       | ANTIQUOT s -> sf "ANTIQUOT %s" s
       | STRING_CONSTANT s -> sf "STRING_CONSTANT %s" s
+      | METAID s -> sf "METAID %s" s
       | EOI -> sf "EOI"
 
   let print ppf x = Format.pp_print_string ppf (to_string x)
@@ -51,8 +53,8 @@ module Token = struct
 
   let extract_string =
     function
-      | KEYWORD s | INT s | INT64 s | INT32 s | 
-        IP4ADDR s | STRING_CONSTANT s -> s
+      | KEYWORD s | INT s | INT64 s | INT32 s |
+        IP4ADDR s | STRING_CONSTANT s | METAID s -> s
       | tok ->
           invalid_arg
             ("Cannot extract a string from this token: " ^
@@ -131,24 +133,28 @@ let rec token c = lexer
   | blank+ -> token c c.lexbuf
   | decbyte '.' decbyte '.' decbyte '.' decbyte -> IP4ADDR (L.latin1_lexeme c.lexbuf)
   | hexbyte ':' hexbyte ':' hexbyte ':' hexbyte ':' hexbyte ':' hexbyte ->
-    INT64 (Int64.to_string(Frenetic_Packet.mac_of_string (L.latin1_lexeme c.lexbuf))) 
+    INT64 (Int64.to_string(Frenetic_Packet.mac_of_string (L.latin1_lexeme c.lexbuf)))
   | (hexnum | decnum)  -> INT (L.latin1_lexeme c.lexbuf)
   | (hexnum | decnum) 'l' -> INT32 (L.latin1_lexeme c.lexbuf)
   | (hexnum | decnum) 'L' -> INT64 (L.latin1_lexeme c.lexbuf)
   | "$" ident ->
      ANTIQUOT( L.latin1_sub_lexeme c.lexbuf 1 (L.lexeme_length c.lexbuf - 1))
-  | "(*" -> 
+  | "(*" ->
     set_start_loc c;
     let _ = comment c lexbuf in
-    token c c.lexbuf 
+    token c c.lexbuf
   | [ "()!+;=*+/|@" ] | ":=" | "=>" | "=>>"
     | "true" | "false" | "switch" | "port" | "vswitch" | "vport" | "vfabric"
     | "vlanId" | "vlanPcp" | "ethTyp" | "ipProto" | "tcpSrcPort" | "tcpDstPort"
     | "ethSrc" | "ethDst" | "ip4Src"| "ip4Dst" | "and" | "or" | "not" | "id"
-    | "drop" | "if" | "then" | "else" | "filter"  | "pipe" | "query" ->
+    | "drop" | "if" | "then" | "else" | "filter"  | "pipe" | "query"
+    | "begin" | "end" | "let" | "var" | "in" ->
       KEYWORD (L.latin1_lexeme c.lexbuf)
-  | "\"" arbitrary_string_without_dbl_quote "\"" -> 
+  | "\"" arbitrary_string_without_dbl_quote "\"" ->
+      (* SJS: this looks like an off-by-one bug... *)
       STRING_CONSTANT(L.latin1_sub_lexeme c.lexbuf 1 (L.lexeme_length c.lexbuf - 1))
+  | ident ->
+    METAID (L.latin1_lexeme c.lexbuf)
   | _ -> illegal c
 
 (* Swallow all characters in comments *)
