@@ -1,5 +1,0 @@
-PKG core async frenetic frenetic.async
-B _build/lib
-B _build/lib_test
-B _build/async
-B _build/frenetic
