@@ -16,6 +16,7 @@ open Test_Frenetic_OpenFlow0x04
 open Test_Frenetic_OpenFlow_Header
 open Test_Frenetic_Util
 open Test_Frenetic_Vlr
+open Test_Decide
 
-let _ = 
+let _ =
   Ppx_inline_test_lib.Runtime.summarize ()
