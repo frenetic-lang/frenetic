@@ -4,7 +4,7 @@ open Frenetic_P4
 
 module Parser = Frenetic_NetKAT_Parser
 
-let pol_file = "examples/p4.kat"
+let pol_file = "examples/p4/p4.kat"
 
 let () =
   let pol = Parser.policy_of_file pol_file in
