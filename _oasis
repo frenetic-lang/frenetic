@@ -35,6 +35,7 @@ Library frenetic
     ocamlgraph (>= 1.8.7),
     ppx_jane,
     ppx_deriving.eq,
+    ppx_deriving.show,
     ppx_deriving.enum,
     str,
     tcpip,
@@ -61,6 +62,7 @@ Library frenetic
     Frenetic_OpenFlow,
     Frenetic_OpenFlow_Header,
     Frenetic_OpenFlow0x01,
+    Frenetic_P4,
     Frenetic_Packet,
     Frenetic_Topology,
     Frenetic_Util,
@@ -108,6 +110,18 @@ Executable frenetic
 Executable openflow
   Path: frenetic
   MainIs: openflow.ml
+  Install: true
+  CompiledObject: native
+  BuildDepends:
+    async,
+    core,
+    frenetic,
+    frenetic.async,
+    async_extended
+
+Executable p4
+  Path: frenetic
+  MainIs: p4.ml
   Install: true
   CompiledObject: native
   BuildDepends:
