@@ -174,7 +174,8 @@ let rec dedup (pol:policy) : policy =
   | Star p      -> Star(dedup p)
   | Link (s1,p1,s2,p2) ->
     Seq (at_place s1 p1, to_place s2 p2)
-  | VLink _ -> failwith "Fabric: Cannot remove Dups from a policy with VLink"
+  | VLink _       -> failwith "Fabric: Cannot remove Dups from a policy with VLink"
+  | Let (_,_,_,_) -> failwith "No support for Meta fields yet"
 
 let fuse field (pos, negs) (pos', negs') =
   let pos = match pos, pos' with
@@ -337,6 +338,35 @@ end
 
 module OverPath = Graph.Path.Dijkstra(Overlay)(Weight)
 
+let overlay (places:place list) (fabric:stream list) (topo:policy) : Overlay.t =
+  let preds = find_predecessors topo in
+  let succs = find_successors topo in
+
+  (* Add vertices for all policy locations *)
+  let graph = List.fold places ~init:Overlay.empty
+      ~f:(Overlay.add_vertex) in
+
+  (* Add edges between all location pairs reachable via the fabric *)
+  let graph = ( List.fold fabric ~init:graph
+      ~f:(fun g (src, sink, condition, action) ->
+           let open OverEdge in
+           let g' = Overlay.add_edge_e g (src, Exact(condition,action) , sink) in
+           let src' = Hashtbl.Poly.find preds src in
+           let sink' = Hashtbl.Poly.find succs sink in
+           match src', sink' with
+           | Some src', Some sink' ->
+            Overlay.add_edge_e g' (src', Adjacent(condition, action), sink')
+           | _ -> g'
+         ) ) in
+
+  (* Add edges between ports of the same switch *)
+  Overlay.fold_vertex (fun (sw,pt) g ->
+      Overlay.fold_vertex (fun (sw',pt') g ->
+          if sw = sw' && not (pt = pt')
+          then Overlay.add_edge_e g ((sw,pt), Internal, (sw,pt'))
+          else g ) g g) graph graph
+
+
 let satisfy (c:condition) : policy list =
   FieldTable.fold c ~init:[] ~f:(fun ~key ~data acc -> match data with
       | Some pos, [] -> Mod( Pattern.to_hv (key, pos) )::acc
@@ -349,7 +379,7 @@ let satisfy (c:condition) : policy list =
       | None, negs ->
         (* TODO(basus) : this is incomplete. Need to find a predicate that
            doesn't match any of the negs. *)
-        acc)
+            acc)
 
 let undo c c' =
   FieldTable.fold c ~init:[] ~f:(fun ~key ~data acc ->
@@ -358,6 +388,8 @@ let undo c c' =
       | Some(Some v, _) -> Mod( Pattern.to_hv (key,v) )::acc
       | _ -> failwith "Cannot undo")
 
+
+(* Given an edge representing a fabric path (hop) and a  *)
 let generalize (hop:Overlay.E.t) (cond:condition) : policy list * policy list =
   let places_only c =
     FieldTable.fold c ~init:true ~f:(fun ~key ~data acc ->
@@ -394,12 +426,16 @@ let rec stitch (src,sink,condition,action) path tag =
       let start = pred_of_place src in
       let pred = pred_of_condition condition in
       let filter = Filter( And( start, pred )) in
-      let generalize,restore = generalize (List.hd_exn rest) condition in
-      let ingress = seq ( filter::(List.append generalize
-                                     [ Mod( Vlan tag );
-                                       Mod( Location( Physical in_pt)) ])) in
-      let ins, outs = aux rest restore in
-      (ingress::ins, outs)
+      begin match rest with
+        | [] ->
+          ([Seq(filter,Mod( Location( Physical in_pt))) ], [])
+        | hd::_ ->
+          let satisfy,restore = generalize hd condition in
+          let forward = [ Mod( Vlan tag ); Mod( Location( Physical in_pt)) ] in
+          let ingress = seq ( filter::(List.append satisfy forward)) in
+          let ins, outs = aux rest restore in
+          (ingress::ins, outs)
+      end
     | (_,Adjacent _,_)::((out_sw,out_pt),Internal,(_,in_pt))::rest ->
       let test_loc = And( Test( Switch out_sw ),
                           Test( Location( Physical out_pt ))) in
@@ -412,43 +448,15 @@ let rec stitch (src,sink,condition,action) path tag =
           let egress = seq ( filter::Mod( Vlan strip_vlan)::(List.append restore
                                                                [ mods; out]) ) in
           ([], [egress])
-        | rest ->
+        | hd::_ ->
           let out = Mod( Location( Physical in_pt )) in
-          let generalize, restore' = generalize (List.hd_exn rest) condition in
-          let modify = List.append restore generalize in
+          let satisfy, restore' = generalize hd condition in
+          let modify = List.append restore satisfy in
           let egress = seq ( filter::(List.append modify [out])) in
           let ins, outs = aux rest restore' in
           (ins, egress::outs) end
     | _ -> failwith "Malformed path" in
   aux path []
-
-let overlay (places:place list) (fabric:stream list) (topo:policy) =
-  let preds = find_predecessors topo in
-  let succs = find_successors topo in
-
-  (* Add vertices for all policy locations *)
-  let graph = List.fold places ~init:Overlay.empty
-      ~f:(Overlay.add_vertex) in
-
-  (* Add edges between all location pairs reachable via the fabric *)
-  let graph = ( List.fold fabric ~init:graph
-      ~f:(fun g (src, sink, condition, action) ->
-           let open OverEdge in
-           let g' = Overlay.add_edge_e g (src, Exact(condition,action) , sink) in
-           let src' = Hashtbl.Poly.find preds src in
-           let sink' = Hashtbl.Poly.find succs sink in
-           match src', sink' with
-           | Some src', Some sink' ->
-            Overlay.add_edge_e g' (src', Adjacent(condition, action), sink')
-           | _ -> g'
-         ) ) in
-
-  (* Add edges between ports of the same switch *)
-  Overlay.fold_vertex (fun (sw,pt) g ->
-      Overlay.fold_vertex (fun (sw',pt') g ->
-          if sw = sw' && not (pt = pt')
-          then Overlay.add_edge_e g ((sw,pt), Internal, (sw,pt'))
-          else g ) g g) graph graph
 
 let retarget (policy:stream list) (fabric:stream list) (topo:policy) =
   let places = List.fold_left policy ~init:[] ~f:(fun acc (src, sink,_,_) ->
