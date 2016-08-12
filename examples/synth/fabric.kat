@@ -1,0 +1,4 @@
+(filter switch=1 or switch=2 or switch=3;
+   (filter ip4Dst = 10.0.0.1; port:=1) |
+   (filter ip4Dst = 10.0.0.2; port:=2) |
+   (filter ip4Dst = 10.0.0.3; port:=2))

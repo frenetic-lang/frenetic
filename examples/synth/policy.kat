@@ -1,0 +1,10 @@
+if switch=5 and port=1 and tcpDst=80 then
+   (5@1 => 6@1);
+else if switch=5 and port=1 and tcpDst=22 then
+   (5@1 => 7@1)
+else if switch=6 and port=1 then
+   (6@1 => 5@1)
+else if switch=7 and port=1 then
+   (7@1 => 5@1)
+else
+   drop
