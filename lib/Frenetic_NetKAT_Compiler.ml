@@ -984,7 +984,26 @@ let rec get_ipdst patterns =
   | h::t -> match h.nwDst with
     | None -> get_ipdst t
     | Some n -> Some (Frenetic_OpenFlow.Pattern.Ip.string_of n)
-   
+    
+let rec get_srcport patterns = 
+  let open Frenetic_OpenFlow.Pattern in
+  let open Frenetic_OpenFlow in
+  match patterns with
+  | [] -> None
+  | h::t -> match h.tpSrc with
+    | None -> get_srcport t
+    | Some n -> Some (let open Frenetic_Packet in Frenetic_Packet.string_of_tpPort n)
+
+
+let rec get_dstport patterns = 
+  let open Frenetic_OpenFlow.Pattern in
+  let open Frenetic_OpenFlow in
+  match patterns with
+  | [] -> None
+  | h::t -> match h.tpDst with
+    | None -> get_dstport t
+    | Some n -> Some (let open Frenetic_Packet in Frenetic_Packet.string_of_tpPort n)
+       
 let rec get_ethsrc patterns =
   let open Frenetic_OpenFlow.Pattern in
   let open Frenetic_OpenFlow in
@@ -1009,12 +1028,16 @@ let rec to_iptables sw_id (t : FDD.t) =
     let ipsrc_str = match ipsrc with None -> "" | Some s -> " -s "^s in
     let ipdst = get_ipdst patterns in
     let ipdst_str = match ipdst with None -> "" | Some s -> " -d "^s in
+    let srcport = get_srcport patterns in
+    let srcport_str = match srcport with None -> "" | Some s -> " -p tcp --sport "^s in
+    let dstport = get_dstport patterns in
+    let dstport_str = match dstport with None -> "" | Some s -> if srcport_str = "" then " -p tcp --dport "^s else " --dport "^s in
     let ethsrc = get_ethsrc patterns in
     let ethsrc_str = match ethsrc with None -> "" | Some s -> " -m mac --mac-source "^s in
     if is_zero actions then
-      [["iptables -A INPUT" ^ ipsrc_str ^ ipdst_str ^ ethsrc_str ^ " -j DROP"]]
+      [["iptables -A INPUT" ^ ipsrc_str ^ ipdst_str ^ srcport_str ^ dstport_str ^ ethsrc_str ^ " -j DROP"]]
     else if is_one actions then
-      [["iptables -D INPUT" ^ ipsrc_str ^ ipdst_str ^ ethsrc_str ^ " -j DROP"]]
+      [["iptables -D INPUT" ^ ipsrc_str ^ ipdst_str ^ srcport_str ^ dstport_str ^ ethsrc_str ^ " -j DROP"]]
     else [[]]
     (* don't generate iptables rules for other types of actions *)
   | Branch ((Location, Pipe _), _, fls) -> dfs true_tests all_tests fls

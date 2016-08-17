@@ -2,7 +2,8 @@ open Core.Std
 
 module OF13 = Frenetic_OpenFlow0x04
 
-let rec clean_iptables_list lst = match lst with
+let rec clean_iptables_list lst = 
+  let sorted = List.rev (List.sort compare lst) in match sorted with
   (* gross hack for sometimes it generates a drop everything or id everything rule after specific filter rules *)
   | [] -> []
   | h::t -> if h = "iptables -A INPUT -j DROP" || h = "iptables -D INPUT -j DROP" then clean_iptables_list t else h::(clean_iptables_list t)

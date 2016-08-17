@@ -1,0 +1,2 @@
+filter not(tcpSrcPort=1 or ethSrc=00:00:00:00:00:01 or ip4Src=1.1.1.1);
+filter not(tcpDstPort=1 or ethDst=00:00:00:00:00:01 or ip4Dst=1.1.1.1)

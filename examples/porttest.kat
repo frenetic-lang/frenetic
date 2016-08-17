@@ -1,0 +1,1 @@
+if tcpSrcPort=1 then drop else id

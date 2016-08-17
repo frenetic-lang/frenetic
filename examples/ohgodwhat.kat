@@ -1,6 +1,0 @@
-filter switch = 1; begin
-  if ethSrc=00:00:00:00:00:01 then drop
-  else if ethSrc=00:00:00:00:00:02 then drop
-  else if ethSrc=00:00:00:00:00:03 then drop
-  else id
-end
