@@ -17,6 +17,12 @@ type place     = (switchId * portId)
 type path      = pred * place list
 type stream    = place * place * condition * Action.t
 
+(** Topology related functions. Should probably go into a module. *)
+val find_predecessors : policy -> (place, place) Hashtbl.t
+val find_successors : policy -> (place, place) Hashtbl.t
+val precedes : (place, place) Hashtbl.t -> place -> place -> portId option
+val succeeds :  (place, place) Hashtbl.t -> place -> place -> portId option
+
 val dedup : policy -> policy
 val streams_of_policy : policy -> stream list
 val string_of_stream : stream -> string
