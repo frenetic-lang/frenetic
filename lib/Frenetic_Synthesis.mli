@@ -9,5 +9,5 @@ type heuristic =
 
 type graph
 
-val create : policy -> policy -> graph
+val syngraph: policy -> policy -> graph
 val synthesize : ?heuristic:heuristic -> policy -> policy -> policy -> policy
