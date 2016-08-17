@@ -3,6 +3,19 @@ open Frenetic_NetKAT
 open Frenetic_OpenFlow
 
 module Compiler = Frenetic_NetKAT_Compiler
+module SwitchTable = Hashtbl.Make(struct
+    type t = switchId [@@deriving sexp]
+    let compare = Pervasives.compare
+    let hash = Hashtbl.hash end)
+
+type restriction = switchId * pred * switchId * pred
+type ffunc = flow list SwitchTable.t
+type heuristic =
+  | Graphical
+  | Synthesis
+  | Distance
+
+let union = Frenetic_NetKAT_Optimize.mk_big_union
 let compile_local =
   let open Compiler in
   compile_local ~options:{ default_compiler_options with cache_prepare = `Keep }
@@ -69,3 +82,16 @@ let create (fabric:policy) (topo:policy) : graph =
     ~f:(fun g sw ->
         let table = Compiler.to_table sw fdd in
         SynGraph.add_vertex g (sw,table))
+
+let synthesize ?(heuristic=Graphical) (policy:policy) (fabric:policy) (topo:policy) : policy =
+  match heuristic with
+  | Graphical ->
+    let open Frenetic_Fabric in
+    let  ins, outs = retarget (streams_of_policy policy) (streams_of_policy fabric) topo in
+    let ingress = union ins in
+    let egress  = union outs in
+    Union (ingress, egress)
+  | Synthesis -> failwith "Synthesis heuristic not yet implemented"
+  | Distance -> failwith "Distance heuristic not yet implemented"
+
+
