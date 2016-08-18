@@ -11,6 +11,7 @@ include Interp(Hist)(FloatProb)
 include Routing(Prob)
 open Pol
 
+type sd_pair = int * int
 (************************** Input and output ************************************)
 let out_dir = "data/" (* dir to store stats data in *)
 
@@ -91,6 +92,46 @@ let topo_to_pnk_lossy (topo : Topology.t) (fail_prob : Prob.t) (v_id, id_v) =
             (Drop,                  fail_prob)] in
     if pol_acc = Drop then link_prog
     else link_prog & pol_acc) topo Drop
+
+(* Topology with broken links to ProbNetKAT program *)
+let topo_to_pnk_fail_links (topo : Topology.t) (broken_links: (int*int) list) (v_id, id_v) =
+    Topology.fold_edges (fun link pol_acc ->
+    let src, src_port = Topology.edge_src link in
+    let dst, dst_port = Topology.edge_dst link in
+    let src_id = VertexMap.find_exn v_id src in
+    let dst_id = VertexMap.find_exn v_id dst in
+    let link_src_test = ??(Switch src_id) >>
+                        ??(Port (port_to_pnk src_port)) in
+    let link_dest_mod = !!(Switch dst_id) >>
+                        !!(Port (port_to_pnk dst_port)) in
+    let link_prog =
+      if List.mem broken_links (src_id, dst_id) then
+        link_src_test >> Dup >> Drop
+      else
+        link_src_test >> Dup >> link_dest_mod >> Dup in
+    if pol_acc = Drop then link_prog
+    else link_prog & pol_acc) topo Drop
+
+let spf_clockwise =
+    (??(Switch 1) >> ??(Dst 101) >> !!(Port 0))
+  & (??(Switch 1) >> ??(Dst 102) >> !!(Port 2))
+  & (??(Switch 1) >> ??(Dst 103) >> !!(Port 2))
+  & (??(Switch 1) >> ??(Dst 104) >> !!(Port 4))
+  & (??(Switch 2) >> ??(Dst 101) >> !!(Port 1))
+  & (??(Switch 2) >> ??(Dst 102) >> !!(Port 0))
+  & (??(Switch 2) >> ??(Dst 103) >> !!(Port 3))
+  & (??(Switch 2) >> ??(Dst 104) >> !!(Port 3))
+  & (??(Switch 3) >> ??(Dst 101) >> !!(Port 4))
+  & (??(Switch 3) >> ??(Dst 102) >> !!(Port 2))
+  & (??(Switch 3) >> ??(Dst 103) >> !!(Port 0))
+  & (??(Switch 3) >> ??(Dst 104) >> !!(Port 4))
+  & (??(Switch 4) >> ??(Dst 101) >> !!(Port 1))
+  & (??(Switch 4) >> ??(Dst 102) >> !!(Port 1))
+  & (??(Switch 4) >> ??(Dst 103) >> !!(Port 3))
+  & (??(Switch 4) >> ??(Dst 104) >> !!(Port 0))
+
+
+
 
 (* ProbNetKAT program to test if a packet is at a host *)
 let test_pkt_at_host (topo : Topology.t) (v_id, id_v) =
@@ -576,14 +617,20 @@ let test_global_policies topo_file dem_file output_dir = begin
 end
 
 (* Measure performance statistics for local link-based routing schemes *)
-let test_local_policies topo_file dem_file output_dir link_fail_prob = begin
+let test_local_policies topo_file dem_file output_dir link_fail_prob broken_links = begin
   let topo = Parse.from_dotfile topo_file in
   let vertex_id_bimap = gen_node_pnk_id_map topo in
   let topo_pnk = match link_fail_prob with
     | None ->
-        topo_to_pnk topo vertex_id_bimap
+        begin
+          match broken_links with
+          | (None, _) -> topo_to_pnk topo vertex_id_bimap
+          | (_, None) -> topo_to_pnk topo vertex_id_bimap
+          | (Some x, Some y) -> topo_to_pnk_fail_links topo [(x,y)] vertex_id_bimap
+        end
     | Some f_prob ->
         topo_to_pnk_lossy topo Prob.(of_float f_prob) vertex_id_bimap in
+  Printf.printf "Topo: %s\n" (Pol.to_string topo_pnk);
   let test_at_host_pnk = test_pkt_at_host topo vertex_id_bimap in
   let in_dist = read_demands dem_file topo in
   let routing_cases = StringMap.empty
@@ -619,14 +666,24 @@ let command =
   Command.Spec.(
     empty
     +> anon ("topolgy" %: string)
-    +> flag "-lfp" (optional float) ~doc:" Probability of link failure")
+    +> flag "-lfp" (optional float) ~doc:" Probability of link failure"
+    +> flag "-break-a" (optional int) ~doc:" broken link end point"
+    +> flag "-break-b" (optional int) ~doc:" broken link end point")
   (fun (topology:string)
-    (lfp:float option) () ->
+    (lfp:float option)
+    (break_a: int option)
+    (break_b: int option)
+    () ->
       let topo_file = "examples/" ^ topology ^ ".dot" in
       let dem_file = "examples/" ^ topology ^ ".dem" in
       let output_dir = match lfp with
-        | None -> out_dir ^ topology ^ "/"
+        | None -> begin
+            match (break_a, break_b) with
+            | (None, _)  ->  out_dir ^ topology ^ "/"
+            | (_, None)  ->  out_dir ^ topology ^ "/"
+            | (Some x, Some y)  ->  out_dir ^ topology ^ "_break_" ^ (string_of_int x) ^ "_" ^ (string_of_int y) ^ "/"
+          end
         | Some x -> out_dir ^ topology ^ "_fail_" ^ (string_of_float x) ^ "/" in
-      test_local_policies topo_file dem_file output_dir lfp)
+      test_local_policies topo_file dem_file output_dir lfp (break_a, break_b))
 
 let _ = Command.run command
