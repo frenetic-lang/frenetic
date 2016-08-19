@@ -35,7 +35,7 @@ type heuristic =
 
 type iter_state = {
   streams : stream list
-; options : (stream array) list
+; options : (stream array) array
 ; indices : int    array }
 
 (** Basic graph abstraction to support synthesis *)
@@ -124,11 +124,27 @@ let harmonize predecessors successors
   let satisfiable (streams: stream list) : bool = false in
 
   let pick (state:iter_state) : (stream list * iter_state * bool) =
-    ([], state, true) in
+    let working_set = Array.foldi state.options ~init:[] ~f:(fun i acc streams ->
+        let stream = streams.(state.indices.(i)) in
+        stream::acc) in
+
+    let _ = Array.foldi state.indices ~init:true ~f:(fun i incr el ->
+        if incr then begin
+          let length = Array.length state.options.(i) in
+          if ( el <  length - 1 ) then
+            begin state.indices.(i) <- (el + 1); false end
+          else if (el = length - 1) then
+            begin state.indices.(i) <- 0; true end
+          else
+            failwith "Illegal permutation index. Something has gone very wrong."
+        end else false) in
+
+    let completed = Array.for_all state.indices ~f:(fun i -> i = 0) in
+    (List.rev working_set, state, completed) in
 
   let initialize pairs =
     let streams = List.map pairs ~f:fst in
-    let options = List.map pairs ~f:(fun s -> snd s |> Array.of_list) in
+    let options = Array.of_list (List.map pairs ~f:(fun s -> snd s |> Array.of_list)) in
     let indices = Array.create ~len:(List.length pairs) 0 in
     { streams; options; indices } in
 
@@ -173,5 +189,3 @@ let synthesize ?(heuristic=Graphical) (policy:policy) (fabric:policy) (topo:poli
             (ingress::ins, egress::outs)) in
     Union(union ins, union outs)
   | Distance -> failwith "Distance heuristic not yet implemented"
-
-
