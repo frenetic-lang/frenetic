@@ -33,6 +33,11 @@ type heuristic =
   | Synthesis
   | Distance
 
+type iter_state = {
+  streams : stream list
+; options : (stream array) list
+; indices : int    array }
+
 (** Basic graph abstraction to support synthesis *)
 
 module SynNode = struct
@@ -53,7 +58,7 @@ end
 module SynEdge = struct
   open Frenetic_NetKAT
 
-  type t = (portId * portId)
+  type t = (portId *portId)
 
   let default = (0l, 0l)
 
@@ -82,14 +87,6 @@ let get_switches (topo:policy) =
                        (Frenetic_NetKAT_Pretty.string_of_policy p)) in
   populate topo SwitchSet.empty
 
-let starts_at tbl sw (src,_,_,_) =
-  (* Does sw precede (sw',pt') in the topology, using a predecessor table *)
-  let precedes sw (sw',pt') =
-    match Hashtbl.Poly.find tbl (sw',pt') with
-    | Some (pre_sw,pre_pt) -> pre_sw = sw
-    | None -> false in
-  sw = (fst src) || precedes sw src
-
 let syngraph (fabric:policy) (topo:policy) : graph =
   let fdd = compile_local fabric in
   let switches = get_switches topo in
@@ -98,8 +95,52 @@ let syngraph (fabric:policy) (topo:policy) : graph =
         let table = Compiler.to_table sw fdd in
         SynGraph.add_vertex g (sw,table))
 
-let harmonize precedes succeeds (from_policy:stream list) (from_fabric:stream list) : policy * policy =
-  (Filter True, Filter True)
+
+let starts_at tbl sw (src,_,_,_) =
+  (* Does sw precede (sw',pt') in the topology, using a predecessor table *)
+  let precedes sw (sw',pt') =
+    match Hashtbl.Poly.find tbl (sw',pt') with
+    | Some (pre_sw,pre_pt) -> pre_sw = sw
+    | None -> false in
+  sw = (fst src) || precedes sw src
+
+let stops_at tbl sw (_,dst,_,_) =
+  (* Does sw succeed (sw',pt') in the topology, using a successor table *)
+  let succeeds sw (sw',pt') =
+    match Hashtbl.Poly.find tbl (sw',pt') with
+    | Some (post_sw, _) -> post_sw = sw
+    | None -> false in
+  sw = (fst dst) || succeeds sw dst
+
+let harmonize predecessors successors
+    (from_policy:stream list) (from_fabric:stream list) : policy * policy =
+  let paired_streams = List.map from_policy ~f:(fun ((_,dst,_,_) as stream) ->
+      let possible_streams = List.filter from_fabric
+          ~f:(stops_at successors (fst dst)) in
+      (stream, possible_streams)) in
+
+  let to_programs (streams: stream list option) : policy * policy =
+    (Filter True, Filter True) in
+  let satisfiable (streams: stream list) : bool = false in
+
+  let pick (state:iter_state) : (stream list * iter_state * bool) =
+    ([], state, true) in
+
+  let initialize pairs =
+    let streams = List.map pairs ~f:fst in
+    let options = List.map pairs ~f:(fun s -> snd s |> Array.of_list) in
+    let indices = Array.create ~len:(List.length pairs) 0 in
+    { streams; options; indices } in
+
+  let rec iterate (state:iter_state) =
+    let working_set , state', completed = pick state in
+    if satisfiable working_set then Some working_set
+    else if completed then None
+    else iterate state' in
+
+  let solution = iterate (initialize paired_streams) in
+  let ins, outs = to_programs solution in
+  ins, outs
 
 let synthesize ?(heuristic=Graphical) (policy:policy) (fabric:policy) (topo:policy) : policy =
   match heuristic with
@@ -111,16 +152,15 @@ let synthesize ?(heuristic=Graphical) (policy:policy) (fabric:policy) (topo:poli
     Union (ingress, egress)
   | Synthesis ->
     let predecessors = (Fabric.find_predecessors topo) in
-    let precedes = Fabric.precedes predecessors in
-    let succeeds = Fabric.succeeds (Fabric.find_successors topo) in
-    let harmonize = harmonize precedes succeeds in
+    let successors = (Fabric.find_successors topo) in
+    let harmonize = harmonize predecessors successors in
 
-    let policy_streams = Frenetic_Fabric.streams_of_policy policy in
-    let fabric_streams = Frenetic_Fabric.streams_of_policy fabric in
+    let policy_streams = Fabric.streams_of_policy policy in
+    let fabric_streams = Fabric.streams_of_policy fabric in
 
     (* Collect all streams by source *)
     let sourced_streams = SwitchTable.create ~size:(List.length policy_streams) () in
-    List.iter policy_streams ~f:(fun ( (src,dst,conds,action) as stream ) ->
+    List.iter policy_streams ~f:(fun ( (src,_,_,_) as stream ) ->
         SwitchTable.add_multi sourced_streams (fst src) stream);
 
     (* For each source, find the fabric streams that could be used to implement
