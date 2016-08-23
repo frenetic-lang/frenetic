@@ -91,7 +91,6 @@ let read_respond_loop (reader : Reader.t)
     let header = Frenetic_OpenFlow_Header.parse (Cstruct.of_string header_buf) in
     let message_len = header.length - Frenetic_OpenFlow_Header.size in
     let message_buf = Bytes.create message_len in
-    Log.info "Got message %s" (Frenetic_OpenFlow_Header.to_string header);
     Reader.really_read reader message_buf
     >>= function
     | `Eof _ ->
