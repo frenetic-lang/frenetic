@@ -30,7 +30,8 @@ type restriction = switchId * pred * switchId * pred
 type ffunc = flow list SwitchTable.t
 type heuristic =
   | Graphical
-  | Synthesis
+  | BySource
+  | Matching
   | Distance
 
 type iter_state = {
@@ -158,6 +159,18 @@ let harmonize predecessors successors
   let ins, outs = to_programs solution in
   ins, outs
 
+let matching predecessors successors from_policy from_fabric : policy list * policy list =
+  let usable (src, dst, _,_) streams =
+    List.filter streams ~f:(fun stream' ->
+        starts_at predecessors (fst src) stream' &&
+        stops_at successors (fst dst) stream') in
+
+  let partitions = List.fold_left from_policy ~init:[] ~f:(fun acc stream ->
+      let streams = usable stream from_fabric in
+      (stream, streams)::acc) in
+
+  ([ Filter True ], [ Filter True ])
+
 let synthesize ?(heuristic=Graphical) (policy:policy) (fabric:policy) (topo:policy) : policy =
   match heuristic with
   | Graphical ->
@@ -166,11 +179,12 @@ let synthesize ?(heuristic=Graphical) (policy:policy) (fabric:policy) (topo:poli
     let ingress = union ins in
     let egress  = union outs in
     Union (ingress, egress)
-  | Synthesis ->
+  | BySource ->
     let predecessors = (Fabric.find_predecessors topo) in
     let successors = (Fabric.find_successors topo) in
     let harmonize = harmonize predecessors successors in
 
+    (* Streams are condition/modification pairs with empty actioned pairs filtered out *)
     let policy_streams = Fabric.streams_of_policy policy in
     let fabric_streams = Fabric.streams_of_policy fabric in
 
@@ -187,5 +201,19 @@ let synthesize ?(heuristic=Graphical) (policy:policy) (fabric:policy) (topo:poli
                 ~f:(starts_at predecessors sw) in
             let ingress, egress = harmonize streams fabric_streams in
             (ingress::ins, egress::outs)) in
+
     Union(union ins, union outs)
+  | Matching ->
+    let predecessors = (Fabric.find_predecessors topo) in
+    let successors = (Fabric.find_successors topo) in
+
+    (* Streams are condition/modification pairs with empty actioned pairs filtered out *)
+    let policy_streams = Fabric.streams_of_policy policy in
+    let fabric_streams = Fabric.streams_of_policy fabric in
+
+    let ins, outs = matching predecessors successors
+        policy_streams fabric_streams in
+
+    Union(union ins, union outs)
+
   | Distance -> failwith "Distance heuristic not yet implemented"

@@ -4,7 +4,8 @@ open Frenetic_OpenFlow
 
 type heuristic =
   | Graphical
-  | Synthesis
+  | BySource
+  | Matching
   | Distance
 
 type graph
