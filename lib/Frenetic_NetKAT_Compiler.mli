@@ -175,8 +175,5 @@ module Multitable : sig
                                           
   (* Produce a list of flow table entries for a multitable setup *)
   val to_multitable : ?options:compiler_options
-                      -> switchId
-                      -> flow_layout
-                      -> t
-                      -> (multitable_flow list * Frenetic_GroupTable0x04.t)
+                      -> switchId -> flow_layout -> t -> multitable_flow list
 end

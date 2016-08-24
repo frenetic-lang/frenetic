@@ -26,8 +26,7 @@ let implement_flow (writer : Writer.t) (fdd : Frenetic_NetKAT_Compiler.t)
   (sw_id : Frenetic_OpenFlow.switchId) : unit =
   let open Frenetic_OpenFlow0x04 in
   let open Frenetic_NetKAT_Compiler in
-  let (flow_rows, group_tbl) = Multitable.to_multitable sw_id layout fdd in
-  implement_group_table writer group_tbl;
+  let flow_rows = Multitable.to_multitable sw_id layout fdd in
   List.iteri flow_rows ~f:(fun i row ->
     let (tbl, m_id) = row.flowId in
     let xid = Int32.of_int_exn i in
@@ -38,8 +37,7 @@ let implement_flow (writer : Writer.t) (fdd : Frenetic_NetKAT_Compiler.t)
     let insts = match row.instruction with
       | `Action action_group -> Instructions.from_of_group action_group
       | `GotoTable (goto_t, goto_m) ->
-        [WriteMetadata (mask_meta goto_m); GotoTable goto_t]
-    in
+        [WriteMetadata (mask_meta goto_m); GotoTable goto_t] in 
     let message = Message.FlowModMsg (add_flow ~tbl ~prio ~pat ~insts) in
     Log.info "Sending flow to switch %Ld\n\ttable:%d\n\tpriority:%d\n\tpattern:%s\n\tinstructions:%s"
       sw_id tbl prio (Oxm.match_to_string pat) (Instructions.to_string insts);
