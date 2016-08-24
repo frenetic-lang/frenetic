@@ -535,6 +535,9 @@ module Pol = struct
             |> mk_filter
       in
       mk_big_seq [filter_loc s1 p1; Dup; post_link ]
+    | Let (metaid, Const v, _, p) ->
+      Seq (Mod (Meta (metaid, v)), of_pol ing p)
+    | Let _ -> failwith "not implemented"
     | VLink _ -> assert false (* SJS / JNF *)
 end
 
@@ -801,6 +804,106 @@ module NetKAT_Automaton = struct
       let fdd = FDD.seq guard (FDD.union e d) in
       FDD.union acc fdd)
 
+  (* META fields *)
+  module Property (* : Fix.PROPERTY *) = struct
+    type property = Field.Set.t (* set of meta fields that a state depends on *)
+    let bottom = Field.(all |> List.filter ~f:is_meta |> Set.of_list)
+    let equal = Field.Set.equal
+    let is_maximal = Field.Set.is_empty
+  end
+
+  module Map (* : Fix.IMPERATIVE_MAPS *) = struct
+    include Int.Table
+    let create () = create ()
+    let add key data tbl = set ~key ~data tbl
+    let find key tbl = find_exn tbl key
+    let iter f tbl = iteri tbl ~f:(fun ~key ~data -> f key data)
+  end
+
+  module Analysis = Fix.Make(Map)(Property)
+
+  let gen fdd =
+    FDD.fold
+      (fun _ -> Field.Set.empty)
+      (fun (f,_) x y -> 
+        let s = Set.union x y in
+        if Field.is_meta f then Set.add s f else s)
+      fdd
+
+  let eq (automaton : t) : Analysis.equations = fun (state : int) ->
+    let (e,d) = Tbl.find_exn automaton.states state in
+    let gen = Set.union (gen e) (gen d) in
+    let conts =
+      let open Action in
+      FDD.fold
+        (fun par -> Par.fold par ~init:Int.Map.empty ~f:(fun acc seq ->
+          let key = Value.to_int_exn (Seq.find_exn seq K) in
+          let data = List.filter_map (Seq.keys seq) ~f:(function 
+              | K -> None 
+              | F f -> if Field.is_meta f then Some f else None)
+            |> Field.Set.of_list
+          in
+          Int.Map.add ~key ~data acc))
+        (fun _ -> Int.Map.merge ~f:(fun ~key v -> Some (match v with
+          | `Left v | `Right v -> v
+          | `Both (v1,v2) -> Set.inter v1 v2)))
+        d
+      |> Int.Map.to_alist
+    in
+    fun deps ->
+      (* kill-gen analysis: gen ∪ (⋃ᵢ inᵢ - killᵢ) *)
+      List.map conts ~f:(fun (k,kill) -> Field.Set.diff (deps k) kill)
+      |> List.cons gen
+      |> Field.Set.union_list
+
+  module Cache = Hashable.Make(struct
+    type env = Value.t Field.Map.t [@@deriving sexp, compare]
+    type t = int * env [@@deriving sexp, compare]
+    let hash (state, env) = 
+      (state, Field.Map.to_alist env) |> Hashtbl.hash
+  end)
+
+  let erase_meta_fields (automaton : t) : t =
+    let meta_deps = Analysis.lfp (eq automaton) in
+    let cache = Cache.Table.create () in
+    let new_auto = create_t () in
+
+    let rec go (state : int) (meta_env : Value.t Field.Map.t) =
+      let deps = meta_deps state in
+      let meta_env = Field.Map.filter meta_env ~f:(fun ~key ~data -> Set.mem deps key) in
+      match Cache.Table.find cache (state, meta_env) with
+      | Some s -> s
+      | None ->
+        let s = mk_state_t new_auto in
+        Cache.Table.add_exn cache ~key:(state, meta_env) ~data:s;
+        add_to_t_with_id new_auto (go' (Tbl.find_exn automaton.states state) meta_env) s;
+        s
+    and go' (e,d) (meta_env : Value.t Field.Map.t) =
+      let e = FDD.restrict (Field.Map.to_alist meta_env) e in
+      let d =
+        Field.Map.to_alist meta_env
+        |> List.map ~f:(fun (f,v) -> (Action.F f, v))
+        |> Seq.of_alist_exn
+        |> Par.singleton
+        |> (fun a -> FDD.seq (FDD.const a) d)
+        |> FDD.map_r (fun par -> Par.fold par ~init:Par.empty ~f:(fun par seq ->
+          let env =
+            Seq.to_hvs seq
+            |> List.filter ~f:(fun (f,v) -> Field.is_meta f)
+            |> Field.Map.of_alist_exn
+          in
+          let seq = Seq.update seq Action.K ~f:(function
+            | None -> assert false
+            | Some k -> Value.of_int (go (Value.to_int_exn k) env))
+          in
+          Par.add par seq))
+      in
+      (e,d)
+    in
+    new_auto.source <- go automaton.source Field.Map.empty;
+    new_auto
+
+
   (* SJS: horrible hack *)
   let to_dot (automaton : t) =
     let states = Tbl.map automaton.states ~f:(fun (e,d) -> FDD.union e d) in
@@ -865,6 +968,7 @@ end
 let compile_global ?(options=default_compiler_options) (pol : Frenetic_NetKAT.policy) : FDD.t =
   prepare_compilation ~options pol;
   NetKAT_Automaton.of_policy pol
+  |> NetKAT_Automaton.erase_meta_fields
   |> NetKAT_Automaton.to_local ~pc:Field.Vlan
 
 

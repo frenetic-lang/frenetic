@@ -40,7 +40,9 @@ Library frenetic
     tcpip,
     ulex,
     yojson,
-    threads
+    threads,
+# http://gallium.inria.fr/~fpottier/fix/
+    fix
   Modules:
     Frenetic_Hashcons,
     Frenetic_Bits,
