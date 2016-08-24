@@ -90,8 +90,10 @@ Library async
     Frenetic_Log,
     Frenetic_Http_Controller,
     Frenetic_OpenFlow0x01_Plugin,
+    Frenetic_OpenFlow0x04_Plugin,
     Frenetic_NetKAT_Controller,
-    Frenetic_Ox
+    Frenetic_Ox,
+    Frenetic_P4_Plugin
 
 Executable frenetic
   Path: frenetic
@@ -193,4 +195,3 @@ Document frenetic
   Index: index.html
   XOCamlbuildPath: lib
   XOCamlbuildLibraries: frenetic
-

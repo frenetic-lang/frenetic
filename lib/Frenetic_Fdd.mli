@@ -122,9 +122,6 @@ module Value : sig
     | Mask of Int64.t * int
     | Pipe of string
     | Query of string
-    (* TODO(grouptable): HACK, should only be able to fast fail on ports.
-     * Put this somewhere else *)
-    | FastFail of Int32.t list
     [@@deriving sexp]
 
   include Frenetic_Vlr.Lattice with type t := t
@@ -168,10 +165,10 @@ module Pattern : sig
   (** [to_pred p] converts a pattern to a NetKAT predicate *)
   val to_pred : t -> Frenetic_NetKAT.pred
 
-  (* [to_sdn p] Converts a [Pattern.t] into a function that will modify a [SDN.Pattern.t]
+  (* [to_openflow p] Converts a [Pattern.t] into a function that will modify a [OpenFlow.Pattern.t]
     to check the condition represented by the [Pattern.t].  This function is used to glue
     OpenFlow match patterns into a complete match spec.  *)
-  val to_sdn : t -> Frenetic_OpenFlow.Pattern.t -> Frenetic_OpenFlow.Pattern.t
+  val to_openflow : t -> Frenetic_OpenFlow.Pattern.t -> Frenetic_OpenFlow.Pattern.t
 end
 
 module Action : sig
@@ -234,12 +231,11 @@ module Action : sig
   (** [demod pattern] removes any patterns from actions *)
   val demod : Pattern.t -> t -> t
 
-  (** [to_sdn switch action] converts a NetKAT action to an SDN action. At the moment this function
+  (** [to_openflow switch action] converts a NetKAT action to an SDN action. At the moment this function
    assumes that fields are assigned to proper bitwidth integers, and does
    no validation along those lines. If the input is derived from a NetKAT
    surface syntax program, then this assumption likely holds.    *)
-  val to_sdn : ?group_tbl:Frenetic_GroupTable0x04.t
-            -> Int64.t option -> t -> Frenetic_OpenFlow.par
+  val to_openflow : Int64.t option -> t -> Frenetic_OpenFlow.par
 
   (** [get_queries action] returns a list of queries used in actions.  May have dupes. *)
   val get_queries : t -> string list

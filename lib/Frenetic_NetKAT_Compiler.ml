@@ -231,7 +231,7 @@ let add_dependency_if_unseen all_tests pat dep =
   let dep_pat = Pattern.of_hv dep in
   match List.exists ~f:(Pattern.equal dep_pat) all_tests with
   | true -> None
-  | false -> Some (Pattern.to_sdn dep_pat pat)
+  | false -> Some (Pattern.to_openflow dep_pat pat)
 
 (* Note that although Vlan and VlanPcp technically have a dependency on the packet being an EthType 0x8100, you
    never have to include that Dependency in OpenFlow because the EthType match is always for the INNER packet. *)
@@ -261,7 +261,7 @@ let fill_in_dependencies all_tests (pat : Frenetic_OpenFlow.Pattern.t) =
   | deps -> List.filter_opt (List.map deps ~f:(add_dependency_if_unseen all_tests pat))
 
 let to_pattern hvs =
-  List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_OpenFlow.Pattern.match_all
+  List.fold_right hvs ~f:Pattern.to_openflow  ~init:Frenetic_OpenFlow.Pattern.match_all
 
 let mk_flows options true_tests all_tests action queries =
   let open Frenetic_OpenFlow.Pattern in
@@ -279,9 +279,9 @@ let get_inport hvs =
   in
   List.fold_left hvs ~init:None ~f:get_inport'
 
-let to_action ?group_tbl (in_port : Int64.t option) r tests =
+let to_action (in_port : Int64.t option) r tests =
   List.fold tests ~init:r ~f:(fun a t -> Action.demod t a)
-  |> Action.to_sdn ?group_tbl in_port
+  |> Action.to_openflow in_port
 
 let erase_meta_fields = FDD.fold
   (fun r -> const (Action.Par.map r ~f:(fun s -> Action.Seq.filteri s ~f:(fun ~key ~data ->
@@ -316,7 +316,7 @@ let opt_to_table ?group_tbl options sw_id t =
     | Branch (test, t, f) ->
       next_table_row (test::true_tests) (test::all_tests) (fun t' all_tests -> mk_rest (mk_branch_or_leaf test t' f) (test::all_tests)) t
     | Leaf actions ->
-      let openflow_instruction = [to_action ?group_tbl (get_inport true_tests) actions true_tests] in
+      let openflow_instruction = [to_action (get_inport true_tests) actions true_tests] in
       let queries = Action.get_queries actions in
       let row = mk_flows options true_tests all_tests openflow_instruction queries in
       (row, mk_rest None all_tests)
@@ -332,7 +332,7 @@ let rec naive_to_table ?group_tbl options sw_id (t : FDD.t) =
   let t = FDD.(restrict [(Field.Switch, Value.Const sw_id)] t) |> erase_meta_fields in
   let rec dfs true_tests all_tests t = match FDD.unget t with
   | Leaf actions ->
-    let openflow_instruction = [to_action ?group_tbl (get_inport true_tests) actions true_tests] in
+    let openflow_instruction = [to_action (get_inport true_tests) actions true_tests] in
     let queries = Action.get_queries actions in
     [ mk_flows options true_tests all_tests openflow_instruction queries ]
   | Branch ((Location, Pipe _), _, fls) -> dfs true_tests all_tests fls
@@ -867,13 +867,7 @@ let compile_global ?(options=default_compiler_options) (pol : Frenetic_NetKAT.po
   NetKAT_Automaton.of_policy pol
   |> NetKAT_Automaton.to_local ~pc:Field.Vlan
 
-
-
-
-
-
-
-
+module Multitable = struct
 (*==========================================================================*)
 (* MULTITABLE                                                               *)
 (*==========================================================================*)
@@ -945,7 +939,9 @@ let mk_multitable_flow options (pattern : Frenetic_OpenFlow.Pattern.t)
     Some { cookie = 0L;
            idle_timeout = Permanent;
            hard_timeout = Permanent;
-           pattern; instruction; flowId }
+           pattern; 
+           instruction; 
+           flowId }
   else
     None
 
@@ -956,7 +952,7 @@ let subtree_to_table options (subtrees : flow_subtrees) (subtree : (t * flowId))
   (t : t) (flowId : flowId) : multitable_flow option list =
     match FDD.unget t with
     | Leaf actions ->
-      let insts = [to_action (get_inport tests) actions tests ~group_tbl] in
+      let insts = [to_action (get_inport tests) actions tests] in
       [mk_multitable_flow options (to_pattern tests) (`Action insts) flowId]
     | Branch ((Location, Pipe _), _, fls) ->
       failwith "1.3 compiler does not support pipes"
@@ -992,3 +988,4 @@ let to_multitable ?(options=default_compiler_options) (sw_id : switchId) (layout
   FDD.restrict [(Field.Switch, Value.Const sw_id)] t
   |> flow_table_subtrees layout
   |> subtrees_to_multitable options
+end

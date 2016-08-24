@@ -30,7 +30,6 @@ val string_of_fastfail : int32 list -> string
 
 type location =
   | Physical of int32
-  | FastFail of int32 list
   | Pipe of string
   | Query of string
   [@@deriving sexp, compare]

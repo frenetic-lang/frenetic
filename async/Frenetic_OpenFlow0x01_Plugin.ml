@@ -213,7 +213,6 @@ let action_from_policy (pol:Frenetic_NetKAT.policy) : action option =
         begin
           match location with 
           | Physical p -> Some (Output (Physical p))
-          | FastFail _ -> None
           | Pipe _ -> Some (Output (Controller 128))
           | Query q -> None   
         end

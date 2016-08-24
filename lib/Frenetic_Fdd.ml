@@ -1,6 +1,6 @@
 open Core.Std
 
-module SDN = Frenetic_OpenFlow
+module OF = Frenetic_OpenFlow
 
 
 module Field = struct
@@ -208,9 +208,6 @@ module Value = struct
     | Mask of Int64.t * int
     | Pipe of string
     | Query of string
-    (* TODO(grouptable): HACK, should only be able to fast fail on ports.
-     * Put this somewhere else *)
-    | FastFail of Int32.t list
     [@@deriving sexp]
 
   (* subseq_eq, meet and join are defined to make this fit interface of Frenetic_Vlr.Lattice *)
@@ -232,9 +229,7 @@ module Value = struct
     | Pipe     _ ,       _
     | Query    _ ,       _
     | _          , Pipe  _
-    | _          , Query _
-    | FastFail _ , _
-    | _          , FastFail _ -> false
+    | _          , Query _ -> false
     | Mask(a, m) , Mask(b, n) -> subset_eq_mask a m  b n
     | Const a    , Mask(b, n) -> subset_eq_mask a 64 b n
 
@@ -260,9 +255,7 @@ module Value = struct
     | Pipe     _ ,       _
     | Query    _ ,       _
     | _          , Pipe  _
-    | _          , Query _
-    | FastFail _ , _
-    | _          , FastFail _ -> None
+    | _          , Query _ -> None
     | Mask(a, m) , Mask(b, n) -> meet_mask a m  b n
     | Const a, Mask(b, n)     -> meet_mask a 64 b n
 
@@ -295,9 +288,7 @@ module Value = struct
     | Pipe     _ ,       _
     | Query    _ ,       _
     | _          , Pipe  _
-    | _          , Query _
-    | FastFail _ , _
-    | _          , FastFail _ -> None
+    | _          , Query _ -> None
     | Mask(a, m) , Mask(b, n) -> join_mask a m  b n
     | Const a, Mask(b, n)     -> join_mask a 64 b n
 
@@ -310,7 +301,6 @@ module Value = struct
     | Const a, Const b -> Int64.compare a b
     | Query s1, Query s2
     | Pipe s1, Pipe s2 -> String.compare s1 s2
-    | FastFail l1, FastFail l2 -> List.compare Int32.compare l1 l2
     | Mask(a, m) , Mask(b, n) ->
       let shift = 64 - min m n in
       (match Int64.(compare (shift_right a shift) (shift_right b shift)) with
@@ -332,7 +322,6 @@ module Value = struct
     | Mask(a, m) -> Printf.sprintf "%Lu/%d" a m
     | Pipe(p) -> Printf.sprintf "Pipe(%s)" p
     | Query(p) -> Printf.sprintf "Query(%s)" p
-    | FastFail(p_lst) -> Printf.sprintf "FastFail(%s)" (Frenetic_NetKAT.string_of_fastfail p_lst)
 
   let of_int   t = Const (Int64.of_int   t)
   (* Private to this file only *)
@@ -363,8 +352,6 @@ module Pattern = struct
     match hv with
     | Switch sw_id -> (Field.Switch, Value.(Const sw_id))
     | Location(Physical p) -> (Field.Location, Value.of_int32 p)
-    (* TODO(grouptable): value hack *)
-    | Location(FastFail p_lst) -> (Field.Location, Value.(FastFail p_lst))
     | Location(Pipe p)  -> (Field.Location, Value.(Pipe p))
     | Location(Query p) -> (Field.Location, Value.(Query p))
     | EthSrc(dlAddr) -> (Field.EthSrc, Value.(Const dlAddr))
@@ -413,39 +400,39 @@ module Pattern = struct
   let to_pred (f, v) =
     Frenetic_NetKAT.Test (to_hv (f, v))
 
-  let to_sdn (f, v) : SDN.Pattern.t -> SDN.Pattern.t =
+  let to_openflow (f, v) : OF.Pattern.t -> OF.Pattern.t =
     let open Field in
     let open Value in
     match f, v with
     | (Location, Const p) -> fun pat ->
-      { pat with SDN.Pattern.inPort = Some(to_int32 p) }
+      { pat with OF.Pattern.inPort = Some(to_int32 p) }
     | (EthSrc, Const dlAddr) -> fun pat ->
-      { pat with SDN.Pattern.dlSrc = Some(dlAddr) }
+      { pat with OF.Pattern.dlSrc = Some(dlAddr) }
     | (EthDst, Const dlAddr) -> fun pat ->
-      { pat with SDN.Pattern.dlDst = Some(dlAddr) }
+      { pat with OF.Pattern.dlDst = Some(dlAddr) }
     | (Vlan    , Const vlan) -> fun pat ->
-      { pat with SDN.Pattern.dlVlan = Some(to_int vlan) }
+      { pat with OF.Pattern.dlVlan = Some(to_int vlan) }
     | (VlanPcp , Const vlanPcp) -> fun pat ->
-      { pat with SDN.Pattern.dlVlanPcp = Some(to_int vlanPcp) }
+      { pat with OF.Pattern.dlVlanPcp = Some(to_int vlanPcp) }
     | (EthType, Const dlTyp) -> fun pat ->
-      { pat with SDN.Pattern.dlTyp = Some(to_int dlTyp) }
+      { pat with OF.Pattern.dlTyp = Some(to_int dlTyp) }
     | (IPProto , Const nwProto) -> fun pat ->
-      { pat with SDN.Pattern.nwProto = Some(to_int nwProto) }
+      { pat with OF.Pattern.nwProto = Some(to_int nwProto) }
     | (IP4Src  , Mask(nwAddr, mask)) -> fun pat ->
-      { pat with SDN.Pattern.nwSrc =
+      { pat with OF.Pattern.nwSrc =
           Some(to_int32 nwAddr, Int32.of_int_exn (mask - 32)) }
     | (IP4Src  , Const nwAddr) -> fun pat ->
-      { pat with SDN.Pattern.nwSrc = Some(to_int32 nwAddr, 32l) }
+      { pat with OF.Pattern.nwSrc = Some(to_int32 nwAddr, 32l) }
     | (IP4Dst  , Mask(nwAddr, mask)) -> fun pat ->
-      { pat with SDN.Pattern.nwDst =
+      { pat with OF.Pattern.nwDst =
           Some(to_int32 nwAddr, Int32.of_int_exn (mask - 32)) }
     | (IP4Dst  , Const nwAddr) -> fun pat ->
-      { pat with SDN.Pattern.nwDst = Some(to_int32 nwAddr, 32l) }
+      { pat with OF.Pattern.nwDst = Some(to_int32 nwAddr, 32l) }
     | (TCPSrcPort, Const tpPort) -> fun pat ->
-      { pat with SDN.Pattern.tpSrc = Some(to_int tpPort) }
+      { pat with OF.Pattern.tpSrc = Some(to_int tpPort) }
     | (TCPDstPort, Const tpPort) -> fun pat ->
-      { pat with SDN.Pattern.tpDst = Some(to_int tpPort) }
-    (* Should never happen because these pseudo-fields should have been removed by the time to_sdn is used *)
+      { pat with OF.Pattern.tpDst = Some(to_int tpPort) }
+    (* Should never happen because these pseudo-fields should have been removed by the time to_openflow is used *)
     | (Switch, Const _)
     | (VSwitch, Const _)
     | (VPort, Const _)
@@ -567,7 +554,7 @@ module Action = struct
       | Some (Query str) -> str :: queries
       | _ -> queries)
 
-  let to_sdn ?group_tbl (in_port : int64 option) (t:t) : SDN.par =
+  let to_openflow (in_port : int64 option) (t:t) : OF.par =
     let to_int = Int64.to_int_exn in
     let to_int32 = Int64.to_int32_exn in
     let t = Par.filter_map t ~f:(fun seq ->
@@ -584,24 +571,18 @@ module Action = struct
       | _                   -> Some(seq))
     in
     let to_port p = match in_port with
-      | Some(p') when p = p' -> SDN.InPort
-      | _                    -> SDN.(Physical(to_int32 p))
+      | Some(p') when p = p' -> OF.InPort
+      | _                    -> OF.(Physical(to_int32 p))
     in
     Par.fold t ~init:[] ~f:(fun acc seq ->
       let open Field in
       let open Value in
       let init =
         match Seq.find seq (F Location) with
-        | None           -> [SDN.(Output(InPort))]
-        | Some (Const p) -> [SDN.(Output(to_port p))]
-        | Some (Pipe  _) -> [SDN.(Output(Controller 128))]
+        | None           -> [OF.(Output(InPort))]
+        | Some (Const p) -> [OF.(Output(to_port p))]
+        | Some (Pipe  _) -> [OF.(Output(Controller 128))]
         | Some (Query _) -> assert false
-        | Some (FastFail p_lst) ->
-           (match group_tbl with
-            | Some tbl ->
-              let gid = Frenetic_GroupTable0x04.add_fastfail_group tbl p_lst
-              in [SDN.(FastFail gid)]
-            | None -> failwith "fast failover present, but no group table provided!")
         | Some mask      -> raise (FieldValue_mismatch(Location, mask))
       in
       Seq.fold (Seq.remove seq (F Location)) ~init ~f:(fun ~key ~data acc ->
@@ -609,19 +590,19 @@ module Action = struct
         | F Switch  , Const switch -> raise Frenetic_NetKAT.Non_local
         | F Switch  , _ -> raise (FieldValue_mismatch(Switch, data))
         | F Location, _ -> assert false
-        | F EthSrc  , Const dlAddr  -> SDN.(Modify(SetEthSrc dlAddr)) :: acc
-        | F EthDst  , Const dlAddr  -> SDN.(Modify(SetEthDst dlAddr)) :: acc
-        | F Vlan    , Const vlan    -> SDN.(Modify(SetVlan(Some(to_int vlan)))) :: acc
-        | F VlanPcp , Const vlanPcp -> SDN.(Modify(SetVlanPcp (to_int vlanPcp))) :: acc
+        | F EthSrc  , Const dlAddr  -> OF.(Modify(SetEthSrc dlAddr)) :: acc
+        | F EthDst  , Const dlAddr  -> OF.(Modify(SetEthDst dlAddr)) :: acc
+        | F Vlan    , Const vlan    -> OF.(Modify(SetVlan(Some(to_int vlan)))) :: acc
+        | F VlanPcp , Const vlanPcp -> OF.(Modify(SetVlanPcp (to_int vlanPcp))) :: acc
         | F VSwitch, Const _ | F VPort, Const _ | F VFabric, Const _ -> assert false (* JNF: danger, danger *)
-        | F EthType , Const dlTyp   -> SDN.(Modify(SetEthTyp (to_int dlTyp))) :: acc
-        | F IPProto , Const nwProto -> SDN.(Modify(SetIPProto (to_int nwProto))) :: acc
+        | F EthType , Const dlTyp   -> OF.(Modify(SetEthTyp (to_int dlTyp))) :: acc
+        | F IPProto , Const nwProto -> OF.(Modify(SetIPProto (to_int nwProto))) :: acc
         | F IP4Src  , Mask (nwAddr, 64)
-        | F IP4Src  , Const nwAddr   -> SDN.(Modify(SetIP4Src(to_int32 nwAddr))) :: acc
+        | F IP4Src  , Const nwAddr   -> OF.(Modify(SetIP4Src(to_int32 nwAddr))) :: acc
         | F IP4Dst  , Mask (nwAddr, 64)
-        | F IP4Dst  , Const nwAddr   -> SDN.(Modify(SetIP4Dst(to_int32 nwAddr))) :: acc
-        | F TCPSrcPort, Const tpPort -> SDN.(Modify(SetTCPSrcPort(to_int tpPort))) :: acc
-        | F TCPDstPort, Const tpPort -> SDN.(Modify(SetTCPDstPort(to_int tpPort))) :: acc
+        | F IP4Dst  , Const nwAddr   -> OF.(Modify(SetIP4Dst(to_int32 nwAddr))) :: acc
+        | F TCPSrcPort, Const tpPort -> OF.(Modify(SetTCPSrcPort(to_int tpPort))) :: acc
+        | F TCPDstPort, Const tpPort -> OF.(Modify(SetTCPDstPort(to_int tpPort))) :: acc
         | F f, _ -> raise (FieldValue_mismatch(f, data))
         | K, _ -> assert false
       ) :: acc)
@@ -680,8 +661,6 @@ module Action = struct
     Par.fold ~init:0 ~f:(fun acc seq -> acc + (Seq.length seq))
 
   let to_string = Par.to_string
-    (* let par = to_sdn ~group_tbl:(Frenetic_GroupTable0x04.create ()) None t in
-    Printf.sprintf "[%s]" (SDN.string_of_par par) *)
 
 end
 

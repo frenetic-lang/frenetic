@@ -145,37 +145,38 @@ val options_from_json_string : string -> compiler_options
 val options_to_json_string : compiler_options -> string
 
 (* multitable support *)
+module Multitable : sig
 
-(* Each list of fields represents the fields one flow table can match on *)
-type flow_layout = Field.t list list [@@deriving sexp]
-
-(* Each flow table row has a table location, and a meta value on that table *)
-type tableId = int [@@deriving sexp]
-type metaId = int [@@deriving sexp]
-type flowId = tableId * metaId [@@deriving sexp]
-
-(* OpenFlow 1.3+ instruction types *)
-type instruction =
-  [ `Action of Frenetic_OpenFlow.group
-  | `GotoTable of flowId ]
-[@@deriving sexp]
-
-(* A flow table row, with multitable support. If goto has a Some value
- * then the 0x04 row instruction is GotoTable. *)
-type multitable_flow = {
-  pattern      : Frenetic_OpenFlow.Pattern.t;
-  cookie       : int64;
-  idle_timeout : Frenetic_OpenFlow.timeout;
-  hard_timeout : Frenetic_OpenFlow.timeout;
-  instruction  : instruction;
-  flowId       : flowId;
-} [@@deriving sexp]
-
-val layout_to_string : flow_layout -> string
-
-(* Produce a list of flow table entries for a multitable setup *)
-val to_multitable : ?options:compiler_options
-                  -> switchId
-                  -> flow_layout
-                  -> t
-                  -> (multitable_flow list * Frenetic_GroupTable0x04.t)
+  (* Each list of fields represents the fields one flow table can match on *)
+  type flow_layout = Field.t list list [@@deriving sexp]
+                             
+  (* Each flow table row has a table location, and a meta value on that table *)
+  type tableId = int [@@deriving sexp]
+  type metaId = int [@@deriving sexp]
+  type flowId = tableId * metaId [@@deriving sexp]
+                                 
+  (* instruction types *)
+  type instruction =
+    [ `Action of Frenetic_OpenFlow.group
+    | `GotoTable of flowId ]
+      [@@deriving sexp]
+      
+  (* A flow table row, with multitable support. *)
+  type multitable_flow = {
+      pattern      : Frenetic_OpenFlow.Pattern.t;
+      cookie       : int64;
+      idle_timeout : Frenetic_OpenFlow.timeout;
+      hard_timeout : Frenetic_OpenFlow.timeout;
+      instruction  : instruction;
+      flowId       : flowId;
+    } [@@deriving sexp]
+      
+  val layout_to_string : flow_layout -> string
+                                          
+  (* Produce a list of flow table entries for a multitable setup *)
+  val to_multitable : ?options:compiler_options
+                      -> switchId
+                      -> flow_layout
+                      -> t
+                      -> (multitable_flow list * Frenetic_GroupTable0x04.t)
+end

@@ -24,7 +24,7 @@ let log_outputs : (string * Async.Std.Log.Output.t Lazy.t) Command.Spec.Arg_type
       | "stdout" -> ("stdout", lazy (Async_extended.Extended_log.Console.output (Lazy.force Async.Std.Writer.stdout)))
       | filename -> (filename, lazy (Async.Std.Log.Output.file `Text filename)) )
 
-let table_fields : Frenetic_NetKAT_Compiler.flow_layout Command.Spec.Arg_type.t =
+let table_fields : Frenetic_NetKAT_Compiler.Multitable.flow_layout Command.Spec.Arg_type.t =
   let open Frenetic_Fdd.Field in
   Command.Spec.Arg_type.create
     (fun table_field_string ->
@@ -124,7 +124,7 @@ let http_controller : Command.t =
 
 let openflow13_controller : Command.t =
   Command.basic
-    ~summary:"Invokes openflow 1.3 controler."
+    ~summary:"Invokes openflow 1.3 controller."
     Command.Spec.(empty
       +> Flag.openflow_port
       +> Flag.policy_file
@@ -133,17 +133,15 @@ let openflow13_controller : Command.t =
     (fun openflow_port policy_file table_fields ->
       run (Frenetic_OpenFlow0x04_Plugin.main openflow_port policy_file table_fields))
 
-let openflow13_fault_tolerant_controller : Command.t =
+let p4_controller : Command.t =
   Command.basic
-    ~summary:"Invokes fault-tolerant openflow 1.3 controler."
+    ~summary:"Invokes P4 controller."
     Command.Spec.(empty
-      +> Flag.openflow_port
       +> Flag.policy_file
-      +> Flag.topology_file
+      +> Flag.table_fields
       ++ default_spec)
-    (fun openflow_port policy_file topology_file ->
-      run (Frenetic_OpenFlow0x04_Plugin.fault_tolerant_main
-        openflow_port policy_file topology_file))
+    (fun policy_file table_fields ->
+      run (Frenetic_P4_Plugin.main policy_file table_fields))
 
 let main : Command.t =
   Command.group
@@ -152,7 +150,7 @@ let main : Command.t =
     ; ("compile-server", compile_server)
     ; ("http-controller", http_controller)
     ; ("openflow13", openflow13_controller)
-    ; ("fault-tolerant", openflow13_fault_tolerant_controller)
+    ; ("p4", p4_controller)
     ; ("dump", Dump.main)]
 
 let () =

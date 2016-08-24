@@ -17,7 +17,6 @@ let string_of_fastfail = Frenetic_OpenFlow.format_list ~to_string:Int32.to_strin
 
 type location =
   | Physical of int32
-  | FastFail of int32 list
   | Pipe of string
   | Query of string
   [@@deriving sexp, compare]

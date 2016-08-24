@@ -43,7 +43,6 @@ let to_json_value (h : header_val) : json = match h with
   | Location (Physical n) -> `Assoc [("type", `String "physical");
                                      ("port", `Int (Int32.to_int_exn n))]
   (* TODO(grouptable) *)
-  | Location (FastFail n_lst) -> failwith "Not Yet Implemented"
   | Location (Pipe s) -> `Assoc [("type", `String "pipe");
                                  ("name", `String s)]
   | Location (Query s) -> `Assoc [("type", `String "query");
@@ -308,7 +307,6 @@ let action_to_json (a : action) : json = match a with
   | Modify m ->
      `List [`String "Modify"; modify_to_json m]
      (* TODO(grouptable): who gets this json? *)
-  | FastFail p_lst -> failwith "Not Yet Implemented"
 
 let seq_to_json (s : seq) : json =`List (List.map ~f:action_to_json s)
 

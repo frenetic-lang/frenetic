@@ -22,11 +22,11 @@ let mask_meta (meta_id : int) =
 
 (* Send FlowMod messages to switch to implement policy *)
 let implement_flow (writer : Writer.t) (fdd : Frenetic_NetKAT_Compiler.t)
-  (layout : Frenetic_NetKAT_Compiler.flow_layout)
+  (layout : Frenetic_NetKAT_Compiler.Multitable.flow_layout)
   (sw_id : Frenetic_OpenFlow.switchId) : unit =
   let open Frenetic_OpenFlow0x04 in
   let open Frenetic_NetKAT_Compiler in
-  let (flow_rows, group_tbl) = to_multitable sw_id layout fdd in
+  let (flow_rows, group_tbl) = Multitable.to_multitable sw_id layout fdd in
   implement_group_table writer group_tbl;
   List.iteri flow_rows ~f:(fun i row ->
     let (tbl, m_id) = row.flowId in
@@ -113,10 +113,10 @@ let client_handler (reader : Reader.t)
 (* Implement multi-table policies. Extract the policy from a kat file,
  * run client handler for each connecting client *)
 let main (of_port : int) (pol_file : string)
-  (layout : Frenetic_NetKAT_Compiler.flow_layout) () : unit =
+  (layout : Frenetic_NetKAT_Compiler.Multitable.flow_layout) () : unit =
   let open Frenetic_NetKAT_Compiler in
   Log.info "Starting OpenFlow 1.3 controller";
-  Log.info "Using flow tables: %s" (layout_to_string layout);
+  Log.info "Using flow tables: %s" (Multitable.layout_to_string layout);
   let pol_str = In_channel.read_all pol_file in
   let pol = Frenetic_NetKAT_Parser.policy_of_string pol_str in
   let compiler_opts = {default_compiler_options with field_order = `Static (List.concat layout)} in
