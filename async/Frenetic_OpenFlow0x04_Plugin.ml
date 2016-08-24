@@ -126,21 +126,3 @@ let main (of_port : int) (pol_file : string)
       client_handler reader message_sender flow_sender)
   in ()
 
-(* Implement fault tolerant policies. Extract the policy and topology from
- * kat and dot files, run client_handler for each connecting client
- * TODO(mulias): This is a SHAM. Parsing the topology from a .dot file is not
- * yet implemented. *)
-let fault_tolerant_main (of_port : int) (pol_file : string)
-  (topo_file : string) () : unit =
-  Log.info "Starting OpenFlow 1.3 fault tolerant controller";
-  let pol_str = In_channel.read_all pol_file in
-  let pol = Frenetic_NetKAT_Parser.policy_of_string pol_str in
-  let fdd = Frenetic_NetKAT_Compiler.compile_local pol in
-  let topo = Frenetic_NetKAT_Net.Net.Topology.empty () in
-  (* let topo = Frenetic_NetKAT_Net.Net.Parse.from_dotfile topo_file in *)
-  let _ = Tcp.Server.create ~on_handler_error:`Raise (Tcp.on_port of_port)
-    (fun _ reader writer ->
-      let message_sender = send_message writer in
-      let flow_sender = implement_tolerant_flow writer fdd topo in
-      client_handler reader message_sender flow_sender)
-  in ()

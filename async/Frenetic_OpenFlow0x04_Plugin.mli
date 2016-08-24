@@ -55,9 +55,3 @@ val client_handler :
 (* Implement multi-table policies. Extract the policy from a kat file,
  * run client handler for each connecting client *)
 val main : int -> string -> Frenetic_NetKAT_Compiler.Multitable.flow_layout -> unit -> unit
-
-(* Implement fault tolerant policies. Extract the policy and topology from
- * kat and dot files, run client_handler for each connecting client
- * TODO(mulias): This is a SHAM. Parsing the topology from a .dot file is not
- * yet implemented. *)
-val fault_tolerant_main : int -> string -> string -> unit -> unit
