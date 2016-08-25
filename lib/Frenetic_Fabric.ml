@@ -9,6 +9,7 @@ type condition = (Value.t option * Value.t list) FieldTable.t
 type place     = (switchId * portId)
 type path      = pred * place list
 type stream    = place * place * condition * Action.t
+type fabric    = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
 
 (** Import and rename utility functions *)
 let conjoin = Frenetic_NetKAT_Optimize.mk_big_and
@@ -67,7 +68,7 @@ let paths_of_string (s:string) : (path list, string) Result.t =
   | Failed (msg, e) -> Error msg
 
 
-(** Various conversations between types **)
+(** Various conversions between types **)
 let pred_of_place ((sw,pt):place) =
   And( Test( Switch sw ), Test( Location( Physical pt )))
 
@@ -110,6 +111,109 @@ let string_of_stream (s:stream) : string =
     (string_of_pred (pred_of_condition condition))
     (string_of_policy (Action.to_policy action))
 
+
+(** Fabric generators, from a topology or policy *)
+module Generators = struct
+  open Frenetic_OpenFlow
+  open Frenetic_Network
+
+  let mk_flow (pat:Pattern.t) (actions:group) : flow =
+    { pattern = pat
+    ; action = actions
+    ; cookie = 0L
+    ; idle_timeout = Permanent
+    ; hard_timeout = Permanent
+    }
+
+  let drop = mk_flow Pattern.match_all [[[]]]
+
+  let vlan_per_port (net:Net.Topology.t) : fabric =
+    let open Net.Topology in
+    let tags = Hashtbl.Poly.create ~size:(num_vertexes net) () in
+    iter_edges (fun edge ->
+        let src, port = edge_src edge in
+        let label = vertex_to_label net src in
+        let pattern = { Pattern.match_all with dlVlan =
+                                                 Some (Int32.to_int_exn port)} in
+        let actions = [ [ [ Modify(SetVlan (Some strip_vlan)); Output (Physical port) ] ] ] in
+        let flow = mk_flow pattern actions in
+        match Node.device label with
+        | Node.Switch ->
+          Hashtbl.Poly.change tags (Node.id label)
+            ~f:(fun table -> match table with
+                | Some flows -> Some( flow::flows )
+                | None -> Some [flow; drop] )
+        | _ -> ()) net;
+    tags
+
+  let shortest_path (net:Net.Topology.t)
+      (ingress:switchId list) (egress:switchId list) : fabric =
+    let open Net.Topology in
+    let vertexes = vertexes net in
+    let vertex_from_id swid =
+      let vopt = VertexSet.find vertexes (fun v ->
+          (Node.id (vertex_to_label net v)) = swid) in
+      match vopt with
+      | Some v -> v
+      | None -> failwith (Printf.sprintf "No vertex for switch id: %Ld" swid )
+    in
+
+    let mk_flow_mod (tag:int) (port:int32) : flow =
+      let pattern = { Pattern.match_all with dlVlan = Some tag } in
+      let actions = [[[ Output (Physical port) ]]] in
+      mk_flow pattern actions
+    in
+
+
+    let table = Hashtbl.Poly.create ~size:(num_vertexes net) () in
+    let tag = ref 10 in
+    List.iter ingress ~f:(fun swin ->
+        let src = vertex_from_id swin in
+        List.iter egress ~f:(fun swout ->
+            if swin = swout then ()
+            else
+              let dst = vertex_from_id swout in
+              tag := !tag + 1;
+              match Net.UnitPath.shortest_path net src dst with
+              | None -> ()
+              | Some p ->
+                List.iter p ~f:(fun edge ->
+                    let src, port = edge_src edge in
+                    let label = vertex_to_label net src in
+                    let flow_mod = mk_flow_mod !tag port in
+                    match Node.device label with
+                    | Node.Switch ->
+                      Hashtbl.Poly.change table (Node.id label)
+                        ~f:(fun table -> match table with
+                            | Some flow_mods -> Some( flow_mod::flow_mods )
+                            | None -> Some [flow_mod; drop] )
+                    | _ -> ())));
+    table
+
+  let of_local_policy (pol:policy) (sws:switchId list) : fabric =
+    let fabric = Hashtbl.Poly.create ~size:(List.length sws) () in
+    let compiled = compile_local pol in
+    List.iter sws ~f:(fun swid ->
+        let table = (Compiler.to_table swid compiled) in
+        match Hashtbl.Poly.add fabric ~key:swid ~data:table with
+        | `Ok -> ()
+        | `Duplicate -> printf "Duplicate table for switch %Ld\n" swid
+      ) ;
+    fabric
+
+
+  let of_global_policy (pol:policy) (sws:switchId list) : fabric =
+    let fabric = Hashtbl.Poly.create ~size:(List.length sws) () in
+    let compiled = Compiler.compile_global pol in
+    List.iter sws ~f:(fun swid ->
+        let table = (Compiler.to_table swid compiled) in
+        match Hashtbl.Poly.add fabric ~key:swid ~data:table with
+        | `Ok -> ()
+        | `Duplicate -> printf "Duplicate table for switch %Ld\n" swid
+      ) ;
+    fabric
+
+end
 
 (** Topology Handling: Functions for finding adjacent nodes in a given topology *)
 let find_predecessors (topo:policy) =

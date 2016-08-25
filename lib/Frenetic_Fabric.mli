@@ -16,6 +16,15 @@ type condition = (Value.t option * Value.t list) FieldTable.t
 type place     = (switchId * portId)
 type path      = pred * place list
 type stream    = place * place * condition * Action.t
+type fabric    = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
+
+(** Fabric generators, from a topology or policy *)
+module Generators : sig
+  val vlan_per_port : Net.Topology.t -> fabric
+  val shortest_path : Net.Topology.t -> switchId list -> switchId list -> fabric
+  val of_local_policy : policy -> switchId list -> fabric
+  val of_global_policy : policy -> switchId list -> fabric
+end
 
 (** Topology related functions. Should probably go into a module. *)
 val find_predecessors : policy -> (place, place) Hashtbl.t
