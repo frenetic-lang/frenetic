@@ -215,51 +215,54 @@ module Generators = struct
 
 end
 
-(** Topology Handling: Functions for finding adjacent nodes in a given topology *)
-let find_predecessors (topo:policy) =
-  let table = Hashtbl.Poly.create () in
-  let rec populate pol = match pol with
-    | Union(p1, p2) ->
-      populate p1;
-      populate p2
-    | Link (s1,p1,s2,p2) ->
-      begin match Hashtbl.Poly.add table (s2,p2) (s1,p1) with
-      | `Ok -> ()
-      | `Duplicate ->
-        let s1', p1' = Hashtbl.Poly.find_exn table (s2,p2) in
-        failwith (sprintf
-                    "Duplicate detected for (%Ld:%ld) => (%Ld:%ld). Previously had (%Ld:%ld)."
-                    s1 p1 s2 p2 s1' p1')
-      end
-    | p -> failwith (sprintf "Unexpected construct in policy: %s\n"
-                       (Frenetic_NetKAT_Pretty.string_of_policy p)) in
-  populate topo;
-  table
+(** Topology Handling: Functions for finding adjacent nodes in a given *)
+(** topology *)
+module Topo = struct
+  let predecessors (topo:policy) =
+    let table = Hashtbl.Poly.create () in
+    let rec populate pol = match pol with
+      | Union(p1, p2) ->
+        populate p1;
+        populate p2
+      | Link (s1,p1,s2,p2) ->
+        begin match Hashtbl.Poly.add table (s2,p2) (s1,p1) with
+          | `Ok -> ()
+          | `Duplicate ->
+            let s1', p1' = Hashtbl.Poly.find_exn table (s2,p2) in
+            failwith (sprintf
+                        "Duplicate detected for (%Ld:%ld) => (%Ld:%ld). Previously had (%Ld:%ld)."
+                        s1 p1 s2 p2 s1' p1')
+        end
+      | p -> failwith (sprintf "Unexpected construct in policy: %s\n"
+                         (Frenetic_NetKAT_Pretty.string_of_policy p)) in
+    populate topo;
+    table
 
-let find_successors (topo:policy) =
-  let table = Hashtbl.Poly.create () in
-  let rec populate pol = match pol with
-    | Union(p1, p2) ->
-      populate p1;
-      populate p2
-    | Link (s1,p1,s2,p2) ->
-      Hashtbl.Poly.add_exn table (s1,p1) (s2,p2);
-    | p -> failwith (sprintf "Unexpected construct in policy: %s\n"
-                       (Frenetic_NetKAT_Pretty.string_of_policy p)) in
-  populate topo;
-  table
+  let successors (topo:policy) =
+    let table = Hashtbl.Poly.create () in
+    let rec populate pol = match pol with
+      | Union(p1, p2) ->
+        populate p1;
+        populate p2
+      | Link (s1,p1,s2,p2) ->
+        Hashtbl.Poly.add_exn table (s1,p1) (s2,p2);
+      | p -> failwith (sprintf "Unexpected construct in policy: %s\n"
+                         (Frenetic_NetKAT_Pretty.string_of_policy p)) in
+    populate topo;
+    table
 
-(* Does (sw,pt) precede (sw',pt') in the topology, using the predecessor table *)
-let precedes tbl (sw,_) (sw',pt') =
-  match Hashtbl.Poly.find tbl (sw',pt') with
-  | Some (pre_sw,pre_pt) -> if pre_sw = sw then Some pre_pt else None
-  | None -> None
+  (* Does (sw,pt) precede (sw',pt') in the topology, using the predecessor table *)
+  let precedes tbl (sw,_) (sw',pt') =
+    match Hashtbl.Poly.find tbl (sw',pt') with
+    | Some (pre_sw,pre_pt) -> if pre_sw = sw then Some pre_pt else None
+    | None -> None
 
-(* Does (sw,pt) succeed (sw',pt') in the topology, using the successor table *)
-let succeeds tbl (sw,_) (sw',pt') =
-  match Hashtbl.Poly.find tbl (sw',pt') with
-  | Some (post_sw, post_pt) -> if post_sw = sw then Some post_pt else None
-  | None -> None
+  (* Does (sw,pt) succeed (sw',pt') in the topology, using the successor table *)
+  let succeeds tbl (sw,_) (sw',pt') =
+    match Hashtbl.Poly.find tbl (sw',pt') with
+    | Some (post_sw, post_pt) -> if post_sw = sw then Some post_pt else None
+    | None -> None
+end
 
 (** Code to convert policies to alpha/beta pairs (streams) **)
 (* Iterate through a policy and translates Links to matches on source and *)
@@ -443,8 +446,8 @@ end
 module OverPath = Graph.Path.Dijkstra(Overlay)(Weight)
 
 let overlay (places:place list) (fabric:stream list) (topo:policy) : Overlay.t =
-  let preds = find_predecessors topo in
-  let succs = find_successors topo in
+  let preds = Topo.predecessors topo in
+  let succs = Topo.successors topo in
 
   (* Add vertices for all policy locations *)
   let graph = List.fold places ~init:Overlay.empty

@@ -27,10 +27,12 @@ module Generators : sig
 end
 
 (** Topology related functions. Should probably go into a module. *)
-val find_predecessors : policy -> (place, place) Hashtbl.t
-val find_successors : policy -> (place, place) Hashtbl.t
-val precedes : (place, place) Hashtbl.t -> place -> place -> portId option
-val succeeds :  (place, place) Hashtbl.t -> place -> place -> portId option
+module Topo : sig
+  val predecessors : policy -> (place, place) Hashtbl.t
+  val successors : policy -> (place, place) Hashtbl.t
+  val precedes : (place, place) Hashtbl.t -> place -> place -> portId option
+  val succeeds :  (place, place) Hashtbl.t -> place -> place -> portId option
+end
 
 val dedup : policy -> policy
 val streams_of_policy : policy -> stream list

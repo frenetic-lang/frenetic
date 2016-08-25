@@ -183,8 +183,8 @@ let synthesize ?(heuristic=Graphical) (policy:policy) (fabric:policy) (topo:poli
     let egress  = union outs in
     Union (ingress, egress)
   | BySource ->
-    let predecessors = Fabric.find_predecessors topo in
-    let successors = Fabric.find_successors topo in
+    let predecessors = Fabric.Topo.predecessors topo in
+    let successors = Fabric.Topo.successors topo in
     let harmonize = harmonize predecessors successors in
 
     (* Collect all streams by source *)
@@ -203,8 +203,8 @@ let synthesize ?(heuristic=Graphical) (policy:policy) (fabric:policy) (topo:poli
 
     Union(union ins, union outs)
   | Matching ->
-    let predecessors = (Fabric.find_predecessors topo) in
-    let successors = (Fabric.find_successors topo) in
+    let predecessors = Fabric.Topo.predecessors topo in
+    let successors = Fabric.Topo.successors topo in
 
     let ins, outs = matching predecessors successors
         policy_streams fabric_streams in
