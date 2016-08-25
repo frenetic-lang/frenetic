@@ -172,21 +172,20 @@ let matching predecessors successors from_policy from_fabric : policy list * pol
   ([ Filter True ], [ Filter True ])
 
 let synthesize ?(heuristic=Graphical) (policy:policy) (fabric:policy) (topo:policy) : policy =
+  (* Streams are condition/modification pairs with empty actioned pairs filtered out *)
+  let policy_streams = Fabric.streams_of_policy policy in
+  let fabric_streams = Fabric.streams_of_policy fabric in
   match heuristic with
   | Graphical ->
     let open Frenetic_Fabric in
-    let  ins, outs = retarget (streams_of_policy policy) (streams_of_policy fabric) topo in
+    let ins, outs = retarget policy_streams fabric_streams topo in
     let ingress = union ins in
     let egress  = union outs in
     Union (ingress, egress)
   | BySource ->
-    let predecessors = (Fabric.find_predecessors topo) in
-    let successors = (Fabric.find_successors topo) in
+    let predecessors = Fabric.find_predecessors topo in
+    let successors = Fabric.find_successors topo in
     let harmonize = harmonize predecessors successors in
-
-    (* Streams are condition/modification pairs with empty actioned pairs filtered out *)
-    let policy_streams = Fabric.streams_of_policy policy in
-    let fabric_streams = Fabric.streams_of_policy fabric in
 
     (* Collect all streams by source *)
     let sourced_streams = SwitchTable.create ~size:(List.length policy_streams) () in
@@ -207,13 +206,8 @@ let synthesize ?(heuristic=Graphical) (policy:policy) (fabric:policy) (topo:poli
     let predecessors = (Fabric.find_predecessors topo) in
     let successors = (Fabric.find_successors topo) in
 
-    (* Streams are condition/modification pairs with empty actioned pairs filtered out *)
-    let policy_streams = Fabric.streams_of_policy policy in
-    let fabric_streams = Fabric.streams_of_policy fabric in
-
     let ins, outs = matching predecessors successors
         policy_streams fabric_streams in
-
     Union(union ins, union outs)
 
   | Distance -> failwith "Distance heuristic not yet implemented"
