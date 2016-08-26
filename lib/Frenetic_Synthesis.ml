@@ -30,11 +30,9 @@ type restriction = switchId * pred * switchId * pred
 type ffunc = flow list SwitchTable.t
 type heuristic =
   | Graphical
-  | BySource
-  | Matching
-  | Distance
+  | Synthesis
 
-type iter_state = {
+type perm_state = {
   streams : stream list
 ; options : (stream array) array
 ; indices : int    array }
@@ -96,74 +94,41 @@ let syngraph (fabric:policy) (topo:policy) : graph =
         let table = Compiler.to_table sw fdd in
         SynGraph.add_vertex g (sw,table))
 
+(** Functions dealing with the permutation state *)
+(* Initialize the permutation state from the pairs of streams, and candidate
+   stream lists *)
+let init_perm_state (pairs: (stream * stream list) list) : perm_state =
+  let streams = List.map pairs ~f:fst in
+  let options = Array.of_list (List.map pairs ~f:(fun s -> snd s |> Array.of_list)) in
+  let indices = Array.create ~len:(List.length pairs) 0 in
+  { streams; options; indices }
 
-let starts_at tbl sw (src,_,_,_) =
-  (* Does sw precede (sw',pt') in the topology, using a predecessor table *)
-  let precedes sw (sw',pt') =
-    match Hashtbl.Poly.find tbl (sw',pt') with
-    | Some (pre_sw,pre_pt) -> pre_sw = sw
-    | None -> false in
-  sw = (fst src) || precedes sw src
+(* Get the next permutation of candidate streams, update state accordingly, and *)
+(* provide a boolean to indicate when all permutations have been exhausted. *)
+let next_perm_state (state:perm_state) : (stream list * perm_state * bool) =
+  let working_set = Array.foldi state.options ~init:[] ~f:(fun i acc streams ->
+      let stream = streams.(state.indices.(i)) in
+      stream::acc) in
 
-let stops_at tbl sw (_,dst,_,_) =
-  (* Does sw succeed (sw',pt') in the topology, using a successor table *)
-  let succeeds sw (sw',pt') =
-    match Hashtbl.Poly.find tbl (sw',pt') with
-    | Some (post_sw, _) -> post_sw = sw
-    | None -> false in
-  sw = (fst dst) || succeeds sw dst
+  let _ = Array.foldi state.indices ~init:true ~f:(fun i incr el ->
+      if incr then begin
+        let length = Array.length state.options.(i) in
+        if ( el <  length - 1 ) then
+          begin state.indices.(i) <- (el + 1); false end
+        else if (el = length - 1) then
+          begin state.indices.(i) <- 0; true end
+        else
+          failwith "Illegal permutation index. Something has gone very wrong."
+      end else false) in
 
-let harmonize predecessors successors
-    (from_policy:stream list) (from_fabric:stream list) : policy * policy =
-  let paired_streams = List.map from_policy ~f:(fun ((_,dst,_,_) as stream) ->
-      let possible_streams = List.filter from_fabric
-          ~f:(stops_at successors (fst dst)) in
-      (stream, possible_streams)) in
-
-  let to_programs (streams: stream list option) : policy * policy =
-    (Filter True, Filter True) in
-  let satisfiable (streams: stream list) : bool = false in
-
-  let pick (state:iter_state) : (stream list * iter_state * bool) =
-    let working_set = Array.foldi state.options ~init:[] ~f:(fun i acc streams ->
-        let stream = streams.(state.indices.(i)) in
-        stream::acc) in
-
-    let _ = Array.foldi state.indices ~init:true ~f:(fun i incr el ->
-        if incr then begin
-          let length = Array.length state.options.(i) in
-          if ( el <  length - 1 ) then
-            begin state.indices.(i) <- (el + 1); false end
-          else if (el = length - 1) then
-            begin state.indices.(i) <- 0; true end
-          else
-            failwith "Illegal permutation index. Something has gone very wrong."
-        end else false) in
-
-    let completed = Array.for_all state.indices ~f:(fun i -> i = 0) in
-    (List.rev working_set, state, completed) in
-
-  let initialize pairs =
-    let streams = List.map pairs ~f:fst in
-    let options = Array.of_list (List.map pairs ~f:(fun s -> snd s |> Array.of_list)) in
-    let indices = Array.create ~len:(List.length pairs) 0 in
-    { streams; options; indices } in
-
-  let rec iterate (state:iter_state) =
-    let working_set , state', completed = pick state in
-    if satisfiable working_set then Some working_set
-    else if completed then None
-    else iterate state' in
-
-  let solution = iterate (initialize paired_streams) in
-  let ins, outs = to_programs solution in
-  ins, outs
+  let completed = Array.for_all state.indices ~f:(fun i -> i = 0) in
+  (List.rev working_set, state, completed)
 
 let matching predecessors successors from_policy from_fabric : policy list * policy list =
   let usable (src, dst, _,_) streams =
     List.filter streams ~f:(fun stream' ->
-        starts_at predecessors (fst src) stream' &&
-        stops_at successors (fst dst) stream') in
+        Fabric.Topo.starts_at predecessors (fst src) stream' &&
+        Fabric.Topo.stops_at successors (fst dst) stream') in
 
   let partitions = List.fold_left from_policy ~init:[] ~f:(fun acc stream ->
       let streams = usable stream from_fabric in
@@ -182,32 +147,10 @@ let synthesize ?(heuristic=Graphical) (policy:policy) (fabric:policy) (topo:poli
     let ingress = union ins in
     let egress  = union outs in
     Union (ingress, egress)
-  | BySource ->
+  | Synthesis ->
     let predecessors = Fabric.Topo.predecessors topo in
     let successors = Fabric.Topo.successors topo in
-    let harmonize = harmonize predecessors successors in
-
-    (* Collect all streams by source *)
-    let sourced_streams = SwitchTable.create ~size:(List.length policy_streams) () in
-    List.iter policy_streams ~f:(fun ( (src,_,_,_) as stream ) ->
-        SwitchTable.add_multi sourced_streams (fst src) stream);
-
-    (* For each source, find the fabric streams that could be used to implement
-       each stream of the policy *)
-    let ins, outs = SwitchTable.fold sourced_streams ~init:([],[])
-        ~f:(fun ~key:sw ~data:streams (ins, outs) ->
-            let fabric_streams = List.filter fabric_streams
-                ~f:(starts_at predecessors sw) in
-            let ingress, egress = harmonize streams fabric_streams in
-            (ingress::ins, egress::outs)) in
-
-    Union(union ins, union outs)
-  | Matching ->
-    let predecessors = Fabric.Topo.predecessors topo in
-    let successors = Fabric.Topo.successors topo in
-
     let ins, outs = matching predecessors successors
         policy_streams fabric_streams in
     Union(union ins, union outs)
 
-  | Distance -> failwith "Distance heuristic not yet implemented"

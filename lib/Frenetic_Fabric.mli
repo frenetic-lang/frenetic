@@ -32,6 +32,8 @@ module Topo : sig
   val successors : policy -> (place, place) Hashtbl.t
   val precedes : (place, place) Hashtbl.t -> place -> place -> portId option
   val succeeds :  (place, place) Hashtbl.t -> place -> place -> portId option
+  val starts_at : (place, place) Hashtbl.t -> switchId -> stream -> bool
+  val stops_at : (place, place) Hashtbl.t -> switchId -> stream -> bool
 end
 
 val dedup : policy -> policy

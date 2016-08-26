@@ -262,6 +262,21 @@ module Topo = struct
     match Hashtbl.Poly.find tbl (sw',pt') with
     | Some (post_sw, post_pt) -> if post_sw = sw then Some post_pt else None
     | None -> None
+
+  (* Does the stream starting at (sw',pt') start at sw, or one hop after it *)
+  let starts_at tbl sw ((sw',pt'),_,_,_) =
+    let precedes = match Hashtbl.Poly.find tbl (sw',pt') with
+      | Some (pre_sw,_) -> pre_sw = sw
+      | None -> false in
+    sw = sw' || precedes
+
+  (* Does the stream ending at (sw',pt') stop at sw, or one hop before it *)
+  let stops_at tbl sw (_,(sw',pt'),_,_) =
+    let succeeds = match Hashtbl.Poly.find tbl (sw',pt') with
+      | Some (post_sw, _) -> post_sw = sw
+      | None -> false in
+    sw = sw' || succeeds
+
 end
 
 (** Code to convert policies to alpha/beta pairs (streams) **)
