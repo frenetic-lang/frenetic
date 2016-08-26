@@ -2,11 +2,18 @@ open Core.Std
 open Frenetic_NetKAT
 open Frenetic_OpenFlow
 
-type heuristic =
+type approach =
   | Graphical
   | Synthesis
+
+type heuristic =
+  | Random of int
+  | MaxSpread
+  | MinSpread
+  | MinConflict
 
 type graph
 
 val syngraph: policy -> policy -> graph
-val synthesize : ?heuristic:heuristic -> policy -> policy -> policy -> policy
+val synthesize : ?approach:approach -> ?heuristic:heuristic ->
+  policy -> policy -> policy -> policy

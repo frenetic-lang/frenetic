@@ -28,9 +28,14 @@ module SwitchTable = Hashtbl.Make(struct
 type stream = Frenetic_Fabric.stream
 type restriction = switchId * pred * switchId * pred
 type ffunc = flow list SwitchTable.t
-type heuristic =
+type approach =
   | Graphical
   | Synthesis
+type heuristic =
+  | Random of int
+  | MaxSpread
+  | MinSpread
+  | MinConflict
 
 type perm_state = {
   streams : stream list
@@ -124,33 +129,42 @@ let next_perm_state (state:perm_state) : (stream list * perm_state * bool) =
   let completed = Array.for_all state.indices ~f:(fun i -> i = 0) in
   (List.rev working_set, state, completed)
 
-let matching predecessors successors from_policy from_fabric : policy list * policy list =
-  let usable (src, dst, _,_) streams =
-    List.filter streams ~f:(fun stream' ->
+let matching predecessors successors heuristic
+    (from_policy:stream list) (from_fabric:stream list) : policy list * policy list =
+
+  (* A fabric stream can be used to carry a policy stream if it starts and ends
+     at the same, or immediately adjacent locations *)
+  let usable (src, dst, _,_) streams = List.filter streams ~f:(fun stream' ->
         Fabric.Topo.starts_at predecessors (fst src) stream' &&
         Fabric.Topo.stops_at successors (fst dst) stream') in
 
+  (* For each policy stream, find the set of fabric streams that could be used
+     to carry it. *)
   let partitions = List.fold_left from_policy ~init:[] ~f:(fun acc stream ->
       let streams = usable stream from_fabric in
       (stream, streams)::acc) in
 
-  ([ Filter True ], [ Filter True ])
+  let ins, outs = match heuristic with
+    | Random n -> ([], [])
+    | MaxSpread
+    | MinSpread
+    | MinConflict -> ([], []) in
 
-let synthesize ?(heuristic=Graphical) (policy:policy) (fabric:policy) (topo:policy) : policy =
+  ( ins, outs )
+
+
+let synthesize ?(approach=Graphical) ?(heuristic=Random 1)
+    (policy:policy) (fabric:policy) (topo:policy) : policy =
   (* Streams are condition/modification pairs with empty actioned pairs filtered out *)
   let policy_streams = Fabric.streams_of_policy policy in
   let fabric_streams = Fabric.streams_of_policy fabric in
-  match heuristic with
+  let ins, outs = match approach with
   | Graphical ->
     let open Frenetic_Fabric in
-    let ins, outs = retarget policy_streams fabric_streams topo in
-    let ingress = union ins in
-    let egress  = union outs in
-    Union (ingress, egress)
+    retarget policy_streams fabric_streams topo
   | Synthesis ->
     let predecessors = Fabric.Topo.predecessors topo in
     let successors = Fabric.Topo.successors topo in
-    let ins, outs = matching predecessors successors
-        policy_streams fabric_streams in
-    Union(union ins, union outs)
-
+    matching predecessors successors heuristic
+      policy_streams fabric_streams in
+  Union(union ins, union outs)
