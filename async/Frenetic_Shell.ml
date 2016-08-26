@@ -232,7 +232,7 @@ let print_policy () =
 
 (* Given a policy, returns a pretty ascii table for each switch *)
 let string_of_policy (pol : policy) : string =
-  let bdd = Comp.compile_local ~options:(!current_compiler_options) pol in
+  let bdd = Comp.compile_local !current_compiler_options pol in
   let switches = Frenetic_NetKAT_Semantics.switches_of_policy pol in
   let switches' = if List.is_empty switches then [0L] else switches in
   let tbls = List.map switches'

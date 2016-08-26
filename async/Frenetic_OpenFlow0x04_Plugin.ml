@@ -25,8 +25,9 @@ let implement_flow (writer : Writer.t) (fdd : Frenetic_NetKAT_Compiler.t)
   (layout : Frenetic_NetKAT_Compiler.Multitable.flow_layout)
   (sw_id : Frenetic_OpenFlow.switchId) : unit =
   let open Frenetic_OpenFlow0x04 in
-  let open Frenetic_NetKAT_Compiler in
-  let flow_rows = Multitable.to_multitable sw_id layout fdd in
+  let open Frenetic_NetKAT_Compiler in 
+  assert false
+  (* let flow_rows = Multitable.to_multitable sw_id layout fdd in
   List.iteri flow_rows ~f:(fun i row ->
     let (tbl, m_id) = row.flowId in
     let xid = Int32.of_int_exn i in
@@ -42,7 +43,7 @@ let implement_flow (writer : Writer.t) (fdd : Frenetic_NetKAT_Compiler.t)
     Log.info "Sending flow to switch %Ld\n\ttable:%d\n\tpriority:%d\n\tpattern:%s\n\tinstructions:%s"
       sw_id tbl prio (Oxm.match_to_string pat) (Instructions.to_string insts);
     send_message writer xid message)
-
+   *)
 (* Send FlowMod messages to switch to implement the policy, use topology to
  * generate fault tolerant group tables. *)
 let implement_tolerant_flow (writer : Writer.t) (fdd : Frenetic_NetKAT_Compiler.t)
@@ -118,7 +119,7 @@ let main (of_port : int) (pol_file : string)
   let pol_str = In_channel.read_all pol_file in
   let pol = Frenetic_NetKAT_Parser.policy_of_string pol_str in
   let compiler_opts = {default_compiler_options with field_order = `Static (List.concat layout)} in
-  let fdd = compile_local pol ~options:compiler_opts in
+  let fdd = compile_local compiler_opts pol in
   let _ = Tcp.Server.create ~on_handler_error:`Raise (Tcp.on_port of_port)
     (fun _ reader writer ->
       let message_sender = send_message writer in

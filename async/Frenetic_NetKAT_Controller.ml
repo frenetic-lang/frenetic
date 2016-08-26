@@ -34,10 +34,10 @@ module Make (P:PLUGIN) : CONTROLLER = struct
   let (event_reader, event_writer) =  Pipe.create ()
   let switch_hash : (switchId, portId list) Hashtbl.Poly.t = Hashtbl.Poly.create ()
   let current_compiler_options = ref (Frenetic_NetKAT_Compiler.default_compiler_options)
-  let fdd = ref (Frenetic_NetKAT_Compiler.compile_local Frenetic_NetKAT.drop) 
+  let fdd = ref (Frenetic_NetKAT_Compiler.(compile_local default_compiler_options Frenetic_NetKAT.drop))
                                                                                
   let update (pol:policy) : unit Deferred.t =
-    fdd := Frenetic_NetKAT_Compiler.compile_local pol;    
+    fdd := Frenetic_NetKAT_Compiler.(compile_local default_compiler_options pol);    
     P.update !fdd
 
   let handle_event (evt:event) : unit Deferred.t =

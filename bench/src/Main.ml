@@ -104,7 +104,7 @@ let compile compiler per_switch varorder tbl_opt debug filename =
 	 {Frenetic_NetKAT_Compiler.default_compiler_options with
 	   field_order=order;
 	   cache_prepare=`Empty} in
-       Frenetic_NetKAT_Compiler.compile_local ~options:opts
+       Frenetic_NetKAT_Compiler.compile_local opts
     | _ -> assert false in
   let f = match per_switch with
     | "big-fdd" -> big_fdd_compilation to_table compiler_fun
@@ -142,7 +142,7 @@ let sdx filename =
 		 field_order = order;
 		 optimize = true } in
     let tbl = Frenetic_NetKAT_Compiler.to_table ~options:opts 0L
-		(Frenetic_NetKAT_Compiler.compile_local ~options:opts pol) in
+		(Frenetic_NetKAT_Compiler.compile_local opts pol) in
      (* eprintf "Table:\n%s\n%!" (Frenetic_OpenFlow.string_of_flowTable tbl); *)
     List.length tbl in
   let (compile_time, tbl_size) = profile (fun () ->

@@ -35,9 +35,9 @@ exception Non_local
     [Link] term in it. To compile policies with [Link] terms, invoke global
     compiler. *)
 
-val default_compiler_options : compiler_options
+val default_compiler_options:compiler_options
 
-val compile_local : ?options:compiler_options -> policy -> t
+val compile_local: compiler_options -> policy -> t
 (** [compile_local p] returns the intermediate representation of the local policy [p].
     You can generate a flowtable from [t] by passing it to the {!to_table}
     function below.
@@ -174,6 +174,6 @@ module Multitable : sig
   val layout_to_string : flow_layout -> string
                                           
   (* Produce a list of flow table entries for a multitable setup *)
-  val to_multitable : ?options:compiler_options
-                      -> switchId -> flow_layout -> t -> multitable_flow list
+  val to_multitable : switchId -> flow_layout -> t -> (tableId, multitable_flow list) Map.Poly.t
+
 end

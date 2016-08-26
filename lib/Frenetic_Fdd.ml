@@ -2,7 +2,6 @@ open Core.Std
 
 module OF = Frenetic_OpenFlow
 
-
 module Field = struct
 
   (** The order of the constructors defines the default variable ordering and has a massive
@@ -64,7 +63,7 @@ module Field = struct
   (* compare depends on current order! *)
   let compare (x : t) (y : t) : int =
     (* using Obj.magic instead of to_enum for bettter performance *)
-    Int.compare order.(Obj.magic x) order.(Obj.magic y)
+    Int.compare order.(to_enum x) order.(to_enum y)
 
   module type ENV = sig
     type t
@@ -312,8 +311,6 @@ module Value = struct
     | _, Mask _ -> 1
     | Query _, _ -> -1
     | _, Query _ -> 1
-    | Pipe _, _ -> -1
-    | _, Pipe _ -> 1
 
   let equal x y = compare x y = 0
 
@@ -579,11 +576,16 @@ module Action = struct
       let open Value in
       let init =
         match Seq.find seq (F Location) with
-        | None           -> [OF.(Output(InPort))]
-        | Some (Const p) -> [OF.(Output(to_port p))]
-        | Some (Pipe  _) -> [OF.(Output(Controller 128))]
-        | Some (Query _) -> assert false
-        | Some mask      -> raise (FieldValue_mismatch(Location, mask))
+        | None -> 
+           [OF.(Output(InPort))]
+        | Some (Const p) -> 
+           [OF.(Output(to_port p))]
+        | Some (Pipe  _) -> 
+           [OF.(Output(Controller 128))]
+        | Some (Query _) -> 
+           assert false
+        | Some mask      -> 
+           raise (FieldValue_mismatch(Location, mask))
       in
       Seq.fold (Seq.remove seq (F Location)) ~init ~f:(fun ~key ~data acc ->
         match key, data with
@@ -610,9 +612,10 @@ module Action = struct
   let demod (f, v) t =
     Par.fold t ~init:zero ~f:(fun acc seq ->
       let seq' = match Seq.find seq (F f) with
-        | Some(v')
-            when Value.compare v v' = 0 -> Seq.remove seq (F f)
-        | _                             -> seq
+        | Some(v') when Value.compare v v' = 0 -> 
+           Seq.remove seq (F f)
+        | _ -> 
+           seq
       in
       sum acc (Par.singleton seq'))
 

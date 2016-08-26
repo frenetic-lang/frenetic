@@ -46,7 +46,6 @@ let print_order () =
     |> String.concat ~sep:" > "
     |> printf "FDD field ordering: %s\n")
 
-
 (*===========================================================================*)
 (* FLAGS                                                                     *)
 (*===========================================================================*)
@@ -152,7 +151,7 @@ module Local = struct
 
   let run file nr_switches printfdd dumpfdd no_tables json printorder () =
     let pol = parse_pol ~json file in
-    let (t, fdd) = time (fun () -> Frenetic_NetKAT_Compiler.compile_local pol) in
+    let (t, fdd) = time (fun () -> Frenetic_NetKAT_Compiler.(compile_local default_compiler_options pol)) in
     let switches = match nr_switches with
       | None -> Frenetic_NetKAT_Semantics.switches_of_policy pol
       | Some n -> List.range 0 n |> List.map ~f:Int64.of_int

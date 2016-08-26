@@ -13,7 +13,7 @@ let current_compiler_options = ref { Comp.default_compiler_options with optimize
 let compile_respond pol =
   (* Compile pol to tables and time everything. *)
   let (time, tbls) = profile (fun () ->
-  let fdd = Comp.compile_local ~options:!current_compiler_options pol in
+  let fdd = Comp.compile_local !current_compiler_options pol in
   let sws =
     let sws = Frenetic_NetKAT_Semantics.switches_of_policy pol in
     if List.length sws = 0 then [0L] else sws in
@@ -51,7 +51,7 @@ let handle_request
            Cohttp_async.Server.respond `OK)
     | `GET, [switchId; "flow_table"] ->
        let sw = Int64.of_string switchId in
-       Comp.compile_local ~options:!current_compiler_options !policy |>
+       Comp.compile_local !current_compiler_options !policy |>
          Comp.to_table ~options:!current_compiler_options sw |>
          Frenetic_NetKAT_Json.flowTable_to_json |>
          Yojson.Basic.to_string ~std:true |>

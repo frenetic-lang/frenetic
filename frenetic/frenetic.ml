@@ -24,25 +24,6 @@ let log_outputs : (string * Async.Std.Log.Output.t Lazy.t) Command.Spec.Arg_type
       | "stdout" -> ("stdout", lazy (Async_extended.Extended_log.Console.output (Lazy.force Async.Std.Writer.stdout)))
       | filename -> (filename, lazy (Async.Std.Log.Output.file `Text filename)) )
 
-let table_fields : Frenetic_NetKAT_Compiler.Multitable.flow_layout Command.Spec.Arg_type.t =
-  let open Frenetic_Fdd.Field in
-  Command.Spec.Arg_type.create
-    (fun table_field_string ->
-      let opts = [ ("switch", Switch); ("vlan", Vlan); ("pcp", VlanPcp);
-        ("ethtype", EthType); ("ipproto", IPProto); ("ethsrc", EthSrc);
-        ("ethdst", EthDst); ("ip4src", IP4Src); ("ip4dst", IP4Dst);
-        ("tcpsrc", TCPSrcPort); ("tcpdst", TCPDstPort); ("location", Location) ] in
-      (* Break each table def into a string of fields ["ethsrc,ethdst", "ipsrc,ipdst"] *)
-      let table_list = Str.split (Str.regexp "[;]" ) table_field_string in
-      (* Break each string of fields into a list of fields: [["ethsrc","ethdst"],["ipsrc","ipdst"]] *)
-      let field_list_list = List.map ~f:(fun t_str -> Str.split (Str.regexp "[,]") t_str) table_list in
-      (* This takes a field list [ ethsrc,ethdst ] and converts to Field.t definition *)
-      let table_to_fields = List.map ~f:(fun f_str -> List.Assoc.find_exn opts f_str) in
-      (* Applies the above to each table definition *)
-      List.map ~f:table_to_fields field_list_list
-    )
-
-
 (*===========================================================================*)
 (* FLAGS                                                                     *)
 (*===========================================================================*)
@@ -63,19 +44,19 @@ module Flag = struct
       ~doc:"int HTTP port on which to listen for new policies. Defaults to 9000."
 
   let openflow_port =
-    flag "--openflow-port" (optional_with_default 6633 int)
+    flag "--controller-port" (optional_with_default 6633 int)
       ~doc:"int Port to listen on for OpenFlow switches. Defaults to 6633."
 
   let table_fields =
-    flag "--table" (optional_with_default [Frenetic_Fdd.Field.get_order ()] table_fields)
-      ~doc:"Partition of fields into Openflow 1.3 tables, e.g. ethsrc,ethdst;ipsrc,ipdst"
+    flag "--table" (optional_with_default "policy.tbl" file)
+      ~doc:"Partition of fields into P4 tables, e.g. location;ethsrc,ethdst;ipsrc,ipdst,..."
 
   let policy_file =
-    flag "--policy-file" (optional_with_default "policy.kat" file)
+    flag "--policy" (optional_with_default "policy.kat" file)
     ~doc:"File containing NetKAT policy to apply to the network. Defaults to \"policy.kat\"."
 
   let topology_file =
-    flag "--topology-file" (optional_with_default "topology.dot" file)
+    flag "--topology" (optional_with_default "topology.dot" file)
       ~doc:"File containing .dot topology of network. Defaults to \"topology.kat\"."
 end
 
@@ -128,10 +109,9 @@ let openflow13_controller : Command.t =
     Command.Spec.(empty
       +> Flag.openflow_port
       +> Flag.policy_file
-      +> Flag.table_fields
       ++ default_spec)
-    (fun openflow_port policy_file table_fields ->
-      run (Frenetic_OpenFlow0x04_Plugin.main openflow_port policy_file table_fields))
+    (fun openflow_port policy_file ->
+      run (Frenetic_OpenFlow0x04_Plugin.main openflow_port policy_file [Frenetic_Fdd.Field.get_order ()]))
 
 let p4_controller : Command.t =
   Command.basic
