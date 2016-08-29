@@ -32,7 +32,7 @@ type approach =
   | Graphical
   | Synthesis
 type heuristic =
-  | Random of int
+  | Random of int * int
   | MaxSpread
   | MinSpread
   | MinConflict
@@ -129,23 +129,46 @@ let next_perm_state (state:perm_state) : (stream list * perm_state * bool) =
   let completed = Array.for_all state.indices ~f:(fun i -> i = 0) in
   (List.rev working_set, state, completed)
 
-let matching predecessors successors heuristic
+(* Pick n random elements from options *)
+let rec random_picks options n =
+  let rec aux options n acc =
+    if n = 0 then acc
+    else
+      let index = Random.int (Array.length options) in
+      let acc' = options.(index)::acc in
+      aux options (n-1) acc' in
+  aux (Array.of_list options) n []
+
+(* A fabric stream can be used to carry a policy stream if they start and end at
+   the same, or immediately adjacent locations. This is decided using the
+   predecessor and successor tables. *)
+let adjacent preds succs (src,dst,_,_) fab_stream =
+  Fabric.Topo.starts_at preds (fst src) fab_stream &&
+  Fabric.Topo.stops_at succs (fst dst) fab_stream
+
+
+(* Given a list of policy streams, and the selected fabric stream to implement *)
+(* it, generate the appropriate NetKAT ingress and egress programs *)
+let netkatize (pairs:(stream * stream list) list) : policy list * policy list =
+  ([Filter True], [Filter True])
+
+let matching (usable: stream -> stream -> bool) heuristic
     (from_policy:stream list) (from_fabric:stream list) : policy list * policy list =
 
-  (* A fabric stream can be used to carry a policy stream if it starts and ends
-     at the same, or immediately adjacent locations *)
-  let usable (src, dst, _,_) streams = List.filter streams ~f:(fun stream' ->
-        Fabric.Topo.starts_at predecessors (fst src) stream' &&
-        Fabric.Topo.stops_at successors (fst dst) stream') in
-
   (* For each policy stream, find the set of fabric streams that could be used
-     to carry it. *)
+     to carry it. This could be extended in the future with further conditions,
+     in which case we would need more general constraints. *)
   let partitions = List.fold_left from_policy ~init:[] ~f:(fun acc stream ->
-      let streams = usable stream from_fabric in
+      let streams = List.filter from_fabric ~f:(usable stream) in
       (stream, streams)::acc) in
 
   let ins, outs = match heuristic with
-    | Random n -> ([], [])
+    | Random(num, seed) ->
+      Random.init seed;
+      let pairs = List.fold_left partitions ~init:[] ~f:(fun acc (stream, opts) ->
+          let picks = random_picks opts num in
+          (stream, picks)::acc) in
+      netkatize pairs
     | MaxSpread
     | MinSpread
     | MinConflict -> ([], []) in
@@ -153,7 +176,7 @@ let matching predecessors successors heuristic
   ( ins, outs )
 
 
-let synthesize ?(approach=Graphical) ?(heuristic=Random 1)
+let synthesize ?(approach=Graphical) ?(heuristic=Random(1,1337))
     (policy:policy) (fabric:policy) (topo:policy) : policy =
   (* Streams are condition/modification pairs with empty actioned pairs filtered out *)
   let policy_streams = Fabric.streams_of_policy policy in
@@ -165,6 +188,6 @@ let synthesize ?(approach=Graphical) ?(heuristic=Random 1)
   | Synthesis ->
     let predecessors = Fabric.Topo.predecessors topo in
     let successors = Fabric.Topo.successors topo in
-    matching predecessors successors heuristic
-      policy_streams fabric_streams in
+    let usable = adjacent predecessors successors in
+    matching usable heuristic policy_streams fabric_streams in
   Union(union ins, union outs)

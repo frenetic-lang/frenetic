@@ -7,7 +7,7 @@ type approach =
   | Synthesis
 
 type heuristic =
-  | Random of int
+  | Random of int * int
   | MaxSpread
   | MinSpread
   | MinConflict
