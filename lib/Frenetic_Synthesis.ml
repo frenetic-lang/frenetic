@@ -147,6 +147,8 @@ let adjacent preds succs (src,dst,_,_) fab_stream =
   Fabric.Topo.stops_at succs (fst dst) fab_stream
 
 
+(* Given a policy stream and a fabric stream, generate edge policies to implement *)
+(* the policy stream using the fabric stream *)
 let to_netkat (_,_,cond,_) (_,_,cond',_) : policy list * policy list =
   let open Fabric.Condition in
   if places_only cond' then [], []
@@ -178,6 +180,8 @@ let matching (usable: stream -> stream -> bool) heuristic
           let partition = (stream, streams) in
           (partition::acc)) in
 
+  (* Pick a smaller set of fabric streams to actually carry the policy streams,
+     based on a given heuristics. *)
   let pairs = match heuristic with
     | Random(num, seed) ->
       Random.init seed;
@@ -188,7 +192,9 @@ let matching (usable: stream -> stream -> bool) heuristic
     | MinSpread
     | MinConflict -> [] in
 
-
+  (* Use the policy streams and the corresponding fabric streams to generate
+     edge NetKAT programs that implement the policy streams atop the fabric
+     streams. *)
   let ins, outs, _ = List.fold_left pairs ~init:([],[], 0)
       ~f:(fun (ins, outs, tag) (stream, picks) ->
           let ins', outs' = netkatize stream picks tag in
