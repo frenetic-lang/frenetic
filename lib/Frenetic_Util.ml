@@ -30,3 +30,8 @@ let make_string_of formatter x =
   fprintf fmt "@?";
   Buffer.contents buf
 
+
+let flatten lss = List.rev (
+  List.fold lss ~init:[] ~f:(fun acc ls ->
+      List.fold ls ~init:acc ~f:(fun acc l -> l::acc)))
+
