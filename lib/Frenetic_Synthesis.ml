@@ -6,6 +6,7 @@ open Frenetic_OpenFlow
 module Compiler = Frenetic_NetKAT_Compiler
 module Fabric = Frenetic_Fabric
 
+let flatten = Frenetic_Util.flatten
 let union = Frenetic_NetKAT_Optimize.mk_big_union
 let seq   = Frenetic_NetKAT_Optimize.mk_big_seq
 let compile_local =
@@ -181,33 +182,36 @@ let to_netkat topo
     (tag:int): policy * policy =
   let open Fabric.Condition in
   let strip_vlan = 0xffff in
-  if places_only cond' then
-    let to_fabric = go_to topo src src' in
-    let to_edge   = Mod( Location (Physical (snd dst))) in
-    let in_filter  = Filter (Fabric.pred_of_condition cond) in
-    let out_filter = Filter (come_from topo dst' dst) in
-    let ingress = seq [ in_filter;  Mod( Vlan tag );     to_fabric ] in
-    let egress  = seq [ out_filter; Mod( Vlan strip_vlan ); to_edge] in
-    ingress, egress
-  else if is_subset cond' cond then
-    let mods = satisfy cond' in
-    let restore = undo cond' cond in
-    (seq mods, seq restore)
-  else
-    let mods = satisfy cond' in
-    let encapsulate = Mod( Location( Pipe( "encapsulate" ))) in
-    let restore = Mod( Location( Pipe( "decapsulate" ))) in
-    (seq ( encapsulate::mods ), restore)
+  let satisfy, restore =
+    if places_only cond' then
+      [ Mod( Vlan tag ) ], [ Mod( Vlan strip_vlan ) ]
+    else if is_subset cond' cond then
+      let satisfy = satisfy cond' in
+      let restore = undo cond' cond in
+      (satisfy, restore)
+    else
+      let mods = satisfy cond' in
+      let encapsulate = Mod( Location( Pipe( "encapsulate" ))) in
+      let restore = Mod( Location( Pipe( "decapsulate" ))) in
+      ( encapsulate::mods , [ restore ]) in
+  let to_fabric = go_to topo src src' in
+  let to_edge   = Mod( Location (Physical (snd dst))) in
+  let in_filter  = Filter (Fabric.pred_of_condition cond) in
+  let out_filter = Filter (come_from topo dst' dst) in
+  let modify = Frenetic_Fdd.Action.to_policy actions in
+  let ingress = seq ( flatten [
+      [in_filter]; satisfy; [to_fabric] ]) in
+  let egress  = seq ( flatten [
+      [out_filter]; restore; [modify]; [to_edge]]) in
+  ingress, egress
+
 
 
 (* Given a list of policy streams, and the selected fabric stream to implement *)
 (* it, generate the appropriate NetKAT ingress and egress programs *)
 let netkatize topo (pol:stream) (fabs:stream list) tag : policy * policy =
-  let ins, outs = List.map fabs ~f:(fun fabric ->
-      (* let satisfy,restore = generalize hd condition in *)
-      (* let forward = [ Mod( Vlan tag ); Mod( Location( Physical in_pt)) ] in *)
-      (* let ingress = seq ( filter::(List.append satisfy forward)) *)
-      Filter True, Filter True
+  let ins, outs = List.map fabs ~f:(fun stream ->
+      to_netkat topo pol stream tag
     ) |> List.unzip in
   (union ins, union outs)
 
