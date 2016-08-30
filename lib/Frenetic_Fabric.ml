@@ -215,8 +215,7 @@ module Generators = struct
 
 end
 
-(** Topology Handling: Functions for finding adjacent nodes in a given *)
-(** topology *)
+(** Topology Handling: Functions for finding adjacent nodes in a given topology *)
 module Topo = struct
   let predecessors (topo:policy) =
     let table = Hashtbl.Poly.create () in
@@ -489,38 +488,44 @@ let overlay (places:place list) (fabric:stream list) (topo:policy) : Overlay.t =
           else g ) g g) graph graph
 
 
-let satisfy (c:condition) : policy list =
-  FieldTable.fold c ~init:[] ~f:(fun ~key ~data acc -> match data with
-      | Some pos, [] -> Mod( Pattern.to_hv (key, pos) )::acc
-      | Some pos, negs ->
-        if List.exists negs (fun f -> f = pos)
-        then raise (ClashException (sprintf "Unsatisfiable condition %s"
-                                      (string_of_condition c)))
-        else Mod( Pattern.to_hv (key, pos) )::acc
-      | None, [] -> acc
-      | None, negs ->
-        (* TODO(basus) : this is incomplete. Need to find a predicate that
-           doesn't match any of the negs. *)
-            acc)
+module Condition = struct
+  type t = condition
 
-let undo c c' =
-  FieldTable.fold c ~init:[] ~f:(fun ~key ~data acc ->
-      let values = FieldTable.find c' key in
-      match values with
-      | Some(Some v, _) -> Mod( Pattern.to_hv (key,v) )::acc
-      | _ -> failwith "Cannot undo")
+  let satisfy (c:t) : policy list =
+    FieldTable.fold c ~init:[] ~f:(fun ~key ~data acc -> match data with
+        | Some pos, [] -> Mod( Pattern.to_hv (key, pos) )::acc
+        | Some pos, negs ->
+          if List.exists negs (fun f -> f = pos)
+          then raise (ClashException (sprintf "Unsatisfiable condition %s"
+                                        (string_of_condition c)))
+          else Mod( Pattern.to_hv (key, pos) )::acc
+        | None, [] -> acc
+        | None, negs ->
+          (* TODO(basus) : this is incomplete. Need to find a predicate that
+             doesn't match any of the negs. *)
+          acc)
 
+  let undo c c' =
+    FieldTable.fold c ~init:[] ~f:(fun ~key ~data acc ->
+        let values = FieldTable.find c' key in
+        match values with
+        | Some(Some v, _) -> Mod( Pattern.to_hv (key,v) )::acc
+        | _ -> failwith "Cannot undo")
 
-(* Given an edge representing a fabric path (hop) and a  *)
-let generalize (hop:Overlay.E.t) (cond:condition) : policy list * policy list =
   let places_only c =
     FieldTable.fold c ~init:true ~f:(fun ~key ~data acc ->
-        acc && (key = Field.Switch || key = Field.Location)) in
+        acc && (key = Field.Switch || key = Field.Location))
+
   let is_subset c c' =
     FieldTable.fold c ~init:true ~f:(fun ~key ~data acc ->
-        acc && (FieldTable.mem c' key)) in
+        acc && (FieldTable.mem c' key))
 
-  let _,fabric_path,_ = hop in
+end
+
+(* Given an edge representing a fabric path (hop) and a  *)
+let generalize ((_,fabric_path,_):Overlay.E.t) (cond:condition)
+  : policy list * policy list =
+  let open Condition in
   match fabric_path with
   | Internal -> [], []
   | Exact (cond',_)

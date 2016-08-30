@@ -26,7 +26,7 @@ module Generators : sig
   val of_global_policy : policy -> switchId list -> fabric
 end
 
-(** Topology related functions. Should probably go into a module. *)
+(** Topology Handling: Functions for finding adjacent nodes in a given topology *)
 module Topo : sig
   val predecessors : policy -> (place, place) Hashtbl.t
   val successors : policy -> (place, place) Hashtbl.t
@@ -34,6 +34,16 @@ module Topo : sig
   val succeeds :  (place, place) Hashtbl.t -> place -> place -> portId option
   val starts_at : (place, place) Hashtbl.t -> switchId -> stream -> bool
   val stops_at : (place, place) Hashtbl.t -> switchId -> stream -> bool
+end
+
+
+(** Condition related functions, useful for generating NetKAT programs from streams *)
+module Condition  : sig
+  type t = condition
+  val satisfy     : t -> policy list
+  val undo        : t -> t -> policy list
+  val places_only : t -> bool
+  val is_subset   : t -> t -> bool
 end
 
 val dedup : policy -> policy
