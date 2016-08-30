@@ -147,10 +147,24 @@ let adjacent preds succs (src,dst,_,_) fab_stream =
   Fabric.Topo.stops_at succs (fst dst) fab_stream
 
 
+let to_netkat (_,_,cond,_) (_,_,cond',_) : policy list * policy list =
+  let open Fabric.Condition in
+  if places_only cond' then [], []
+  else if is_subset cond' cond then
+    let mods = satisfy cond' in
+    let restore = undo cond' cond in
+    (mods, restore)
+  else
+    let mods = satisfy cond' in
+    let encapsulate = Mod( Location( Pipe( "encapsulate" ))) in
+    let restore = Mod( Location( Pipe( "decapsulate" ))) in
+    (encapsulate::mods, [restore])
+
+
 (* Given a list of policy streams, and the selected fabric stream to implement *)
 (* it, generate the appropriate NetKAT ingress and egress programs *)
-let netkatize (pairs:(stream * stream list) list) : policy list * policy list =
-  ([Filter True], [Filter True])
+let netkatize (pol:stream) (fabs:stream list) tag : policy list * policy list =
+ ([Filter True], [Filter True])
 
 let matching (usable: stream -> stream -> bool) heuristic
     (from_policy:stream list) (from_fabric:stream list) : policy list * policy list =
@@ -158,21 +172,27 @@ let matching (usable: stream -> stream -> bool) heuristic
   (* For each policy stream, find the set of fabric streams that could be used
      to carry it. This could be extended in the future with further conditions,
      in which case we would need more general constraints. *)
-  let partitions = List.fold_left from_policy ~init:[] ~f:(fun acc stream ->
-      let streams = List.filter from_fabric ~f:(usable stream) in
-      (stream, streams)::acc) in
+  let partitions = List.fold_left from_policy ~init:[]
+      ~f:(fun acc stream ->
+          let streams = List.filter from_fabric ~f:(usable stream) in
+          let partition = (stream, streams) in
+          (partition::acc)) in
 
-  let ins, outs = match heuristic with
+  let pairs = match heuristic with
     | Random(num, seed) ->
       Random.init seed;
-      let pairs = List.fold_left partitions ~init:[] ~f:(fun acc (stream, opts) ->
+      List.fold_left partitions ~init:[] ~f:(fun acc (stream, opts) ->
           let picks = random_picks opts num in
-          (stream, picks)::acc) in
-      netkatize pairs
+          (stream, picks)::acc)
     | MaxSpread
     | MinSpread
-    | MinConflict -> ([], []) in
+    | MinConflict -> [] in
 
+
+  let ins, outs, _ = List.fold_left pairs ~init:([],[], 0)
+      ~f:(fun (ins, outs, tag) (stream, picks) ->
+          let ins', outs' = netkatize stream picks tag in
+          (List.rev_append ins ins', List.rev_append outs outs', tag+1)) in
   ( ins, outs )
 
 
