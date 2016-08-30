@@ -49,7 +49,10 @@ end
 val dedup : policy -> policy
 val streams_of_policy : policy -> stream list
 val string_of_stream : stream -> string
+val string_of_place  : place  -> string
 val paths_of_string  : string -> (path list, string) Result.t
+val pred_of_condition : condition -> pred
+
 val assemble : policy -> policy ->
   (switchId * portId) list -> (switchId * portId) list ->
   policy

@@ -25,7 +25,8 @@ module SwitchTable = Hashtbl.Make(struct
     let hash = Hashtbl.hash end)
 
 (** Essential types *)
-type stream = Frenetic_Fabric.stream
+type place = Fabric.place
+type stream = Fabric.stream
 type restriction = switchId * pred * switchId * pred
 type ffunc = flow list SwitchTable.t
 type approach =
@@ -41,6 +42,12 @@ type perm_state = {
   streams : stream list
 ; options : (stream array) array
 ; indices : int    array }
+
+(* TODO(basus): This needs to go into a better topology module *)
+type topology = {
+  topo : policy
+; preds : (place, place) Hashtbl.t
+; succs : (place, place) Hashtbl.t }
 
 (** Basic graph abstraction to support synthesis *)
 
@@ -146,29 +153,65 @@ let adjacent preds succs (src,dst,_,_) fab_stream =
   Fabric.Topo.starts_at preds (fst src) fab_stream &&
   Fabric.Topo.stops_at succs (fst dst) fab_stream
 
+let go_to topology ((src_sw, src_pt) as src) ((dst_sw, dst_pt) as dst) =
+  let pt = if src_sw = dst_sw then dst_pt
+  else match Fabric.Topo.precedes topology.preds src dst with
+    | Some pt -> pt
+    | None ->
+      failwith (sprintf "Cannot go to %s from %s in the given topology"
+        (Fabric.string_of_place src) (Fabric.string_of_place dst)) in
+  Mod (Location (Physical pt))
+
+let come_from topology ((src_sw, src_pt) as src) ((dst_sw, dst_pt) as dst) =
+  let pt = if src_sw = dst_sw then src_pt
+    else match Fabric.Topo.succeeds topology.succs dst src with
+      | Some pt -> pt
+      | None ->
+      failwith (sprintf "Cannot go to %s from %s in the given topology"
+                  (Fabric.string_of_place src) (Fabric.string_of_place dst)) in
+  And( Test( Switch dst_sw ),
+       Test( Location( Physical pt )))
 
 (* Given a policy stream and a fabric stream, generate edge policies to implement *)
 (* the policy stream using the fabric stream *)
-let to_netkat (_,_,cond,_) (_,_,cond',_) : policy list * policy list =
+let to_netkat topo
+    ((src,dst,cond,actions) as pol)
+    ((src',dst',cond',actions') as fab)
+    (tag:int): policy * policy =
   let open Fabric.Condition in
-  if places_only cond' then [], []
+  let strip_vlan = 0xffff in
+  if places_only cond' then
+    let to_fabric = go_to topo src src' in
+    let to_edge   = Mod( Location (Physical (snd dst))) in
+    let in_filter  = Filter (Fabric.pred_of_condition cond) in
+    let out_filter = Filter (come_from topo dst' dst) in
+    let ingress = union [ in_filter;  Mod( Vlan tag );     to_fabric ] in
+    let egress  = union [ out_filter; Mod( Vlan strip_vlan ); to_edge] in
+    ingress, egress
   else if is_subset cond' cond then
     let mods = satisfy cond' in
     let restore = undo cond' cond in
-    (mods, restore)
+    (union mods, union restore)
   else
     let mods = satisfy cond' in
     let encapsulate = Mod( Location( Pipe( "encapsulate" ))) in
     let restore = Mod( Location( Pipe( "decapsulate" ))) in
-    (encapsulate::mods, [restore])
+    (union ( encapsulate::mods ), restore)
 
 
 (* Given a list of policy streams, and the selected fabric stream to implement *)
 (* it, generate the appropriate NetKAT ingress and egress programs *)
-let netkatize (pol:stream) (fabs:stream list) tag : policy list * policy list =
- ([Filter True], [Filter True])
+let netkatize topo (pol:stream) (fabs:stream list) tag : policy * policy =
+  let ins, outs = List.map fabs ~f:(fun fabric ->
+      (* let satisfy,restore = generalize hd condition in *)
+      (* let forward = [ Mod( Vlan tag ); Mod( Location( Physical in_pt)) ] in *)
+      (* let ingress = seq ( filter::(List.append satisfy forward)) *)
+      Filter True, Filter True
+    ) |> List.unzip in
+  (union ins, union outs)
 
-let matching (usable: stream -> stream -> bool) heuristic
+
+let matching (usable: stream -> stream -> bool) heuristic topology
     (from_policy:stream list) (from_fabric:stream list) : policy list * policy list =
 
   (* For each policy stream, find the set of fabric streams that could be used
@@ -197,8 +240,8 @@ let matching (usable: stream -> stream -> bool) heuristic
      streams. *)
   let ins, outs, _ = List.fold_left pairs ~init:([],[], 0)
       ~f:(fun (ins, outs, tag) (stream, picks) ->
-          let ins', outs' = netkatize stream picks tag in
-          (List.rev_append ins ins', List.rev_append outs outs', tag+1)) in
+          let ins', outs' = netkatize topology stream picks tag in
+          (ins'::ins, outs'::outs, tag+1)) in
   ( ins, outs )
 
 
@@ -212,8 +255,9 @@ let synthesize ?(approach=Graphical) ?(heuristic=Random(1,1337))
     let open Frenetic_Fabric in
     retarget policy_streams fabric_streams topo
   | Synthesis ->
-    let predecessors = Fabric.Topo.predecessors topo in
-    let successors = Fabric.Topo.successors topo in
-    let usable = adjacent predecessors successors in
-    matching usable heuristic policy_streams fabric_streams in
+    let preds = Fabric.Topo.predecessors topo in
+    let succs = Fabric.Topo.successors topo in
+    let usable = adjacent preds succs in
+    let topology = {topo; preds; succs} in
+    matching usable heuristic topology policy_streams fabric_streams in
   Union(union ins, union outs)
