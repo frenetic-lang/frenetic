@@ -7,6 +7,7 @@ module Compiler = Frenetic_NetKAT_Compiler
 module Fabric = Frenetic_Fabric
 
 let union = Frenetic_NetKAT_Optimize.mk_big_union
+let seq   = Frenetic_NetKAT_Optimize.mk_big_seq
 let compile_local =
   let open Compiler in
   compile_local ~options:{ default_compiler_options with cache_prepare = `Keep }
@@ -185,18 +186,18 @@ let to_netkat topo
     let to_edge   = Mod( Location (Physical (snd dst))) in
     let in_filter  = Filter (Fabric.pred_of_condition cond) in
     let out_filter = Filter (come_from topo dst' dst) in
-    let ingress = union [ in_filter;  Mod( Vlan tag );     to_fabric ] in
-    let egress  = union [ out_filter; Mod( Vlan strip_vlan ); to_edge] in
+    let ingress = seq [ in_filter;  Mod( Vlan tag );     to_fabric ] in
+    let egress  = seq [ out_filter; Mod( Vlan strip_vlan ); to_edge] in
     ingress, egress
   else if is_subset cond' cond then
     let mods = satisfy cond' in
     let restore = undo cond' cond in
-    (union mods, union restore)
+    (seq mods, seq restore)
   else
     let mods = satisfy cond' in
     let encapsulate = Mod( Location( Pipe( "encapsulate" ))) in
     let restore = Mod( Location( Pipe( "decapsulate" ))) in
-    (union ( encapsulate::mods ), restore)
+    (seq ( encapsulate::mods ), restore)
 
 
 (* Given a list of policy streams, and the selected fabric stream to implement *)
