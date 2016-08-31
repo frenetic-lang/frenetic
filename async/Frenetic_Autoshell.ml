@@ -98,6 +98,7 @@ type show =
 type command =
   | Load of load
   | Compile of compile
+  | Synthesize
   | Install of install
   | Show of show
   | Path of source
@@ -179,6 +180,10 @@ module Parser = struct
       (symbol "edge"    >> return CEdge)) >>=
     fun c -> return( Compile c )
 
+  (* Parser for the synthesize command. Maybe should be merged with compile. *)
+  let synthesize : (command, bytes list) MParser.t =
+    symbol "synthesize" >> return Synthesize
+
   (* Parser for the install command *)
   let install : (command, bytes list) MParser.t =
     symbol "install" >> (
@@ -215,6 +220,7 @@ module Parser = struct
   let command : (command, bytes list) MParser.t =
     load    <|>
     compile <|>
+    synthesize <|>
     install <|>
     show    <|>
     path    <|>
@@ -430,6 +436,28 @@ let compile (c:compile) : (string, string) Result.t = match c with
       | _ -> Error "Edge compilation requires naive policy, fabric and topology"
     end
 
+let synthesize () : (string, string) Result.t =
+  match state.naive, state.fabric,state.topology with
+  | Some c, Some f, Some t ->
+    let open Frenetic_Synthesis in
+    let fabric = Fabric.assemble f.config.policy t
+        f.config.ingresses f.config.egresses in
+    let policy = Fabric.assemble c.policy t c.ingresses c.egresses in
+    let edge = synthesize ~approach:Synthesis policy fabric t in
+
+    log "Pre-synthesis user policy:\n%s\n"   (string_of_policy policy);
+    log "Pre-synthesis fabric policy:\n%s\n" (string_of_policy fabric);
+    log "Synthesized edge policy:\n%s\n"     (string_of_policy edge);
+
+    let edge_fdd = Compiler.compile_local ~options:keep_cache edge in
+    state.edge <- Some { new_config with
+                         policy = edge;
+                         ingresses = c.ingresses; egresses = c.egresses;
+                         fdd = Some edge_fdd };
+   Ok "Edge policies compiled successfully"
+  | _ -> Error "Edge compilation requires naive policy, fabric and topology"
+
+
 let post (uri:Uri.t) (body:string) =
   let open Cohttp.Body in
   try_with (fun () ->
@@ -543,6 +571,8 @@ let command (com:command) = match com with
     load l |> print_result
   | Compile c ->
     compile c |> print_result
+  | Synthesize ->
+    synthesize () |> print_result
   | Install i ->
     install i |> print_deferred_results
   | Show s -> show s
