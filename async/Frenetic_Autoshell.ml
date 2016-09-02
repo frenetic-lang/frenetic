@@ -572,7 +572,12 @@ let command (com:command) = match com with
   | Compile c ->
     compile c |> print_result
   | Synthesize ->
-    synthesize () |> print_result
+    begin match synthesize () with
+    | Ok s ->
+      printf "Success: %s\n" s;
+      show (SPart SEdge);
+    | Error e -> printf "Error: %s\n" e
+    end
   | Install i ->
     install i |> print_deferred_results
   | Show s -> show s
