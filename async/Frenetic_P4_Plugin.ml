@@ -31,7 +31,7 @@ let string_of_ipProto (x : nwProto) : string =
     | 0x11 -> " (udp)"
     | _ -> ""
   in
-  Format.sprintf "ipProto = 0x%x%s" x extra
+  Format.sprintf "IpProto = 0x%x%s" x extra
 
 let string_of_ethSrc (x : dlAddr) : string =
   Format.sprintf "EthSrc = %s" (Frenetic_Packet.string_of_mac x)
