@@ -362,7 +362,7 @@ let compile_circuit (f:fabric) = match f.circuit with
   | None -> Error "No circuit specified. Please load with `load circuit` command."
   | Some (c,i,o) ->
     let l = local_policy_of_config c in
-    printf "Compiling circuit policy: %s\n%!" (string_of_policy l);
+    log "Compiling circuit policy: %s\n%!" (string_of_policy l);
     let conf = { new_config with policy    = l;
                                  ingresses = i;
                                  egresses  = o } in
@@ -516,7 +516,9 @@ let show (s:show) = match s with
       | Some f -> print_endline (string_of_config f.config)
       | None -> print_endline "No fabric defined." end
   | SPart SEdge -> begin match state.edge with
-      | Some c -> print_endline (string_of_config c)
+      | Some c ->
+        print_endline "Showing edge configuration";
+        print_endline (string_of_config c)
       | None -> print_endline "No edge defined." end
   | SPart STopology -> begin match state.topology with
       | Some t -> print_endline (string_of_policy t)
@@ -572,12 +574,7 @@ let command (com:command) = match com with
   | Compile c ->
     compile c |> print_result
   | Synthesize ->
-    begin match synthesize () with
-    | Ok s ->
-      printf "Success: %s\n" s;
-      show (SPart SEdge);
-    | Error e -> printf "Error: %s\n" e
-    end
+    synthesize () |> print_result
   | Install i ->
     install i |> print_deferred_results
   | Show s -> show s
@@ -586,8 +583,6 @@ let command (com:command) = match com with
     print_endline "Goodbye!";
     Shutdown.shutdown 0
   | Blank -> ()
-
-
 
 let handle (line: string) : unit =
   match (MParser.parse_string Parser.command line []) with

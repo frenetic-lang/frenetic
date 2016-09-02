@@ -3,3 +3,4 @@ load circuit examples/optical-fork/circuit.kat [4:2;4:3;5:2;6:2;] [4:2;4:3;5:2;6
 load topology examples/optical-fork/topo.kat
 compile circuit
 synthesize
+show edge
