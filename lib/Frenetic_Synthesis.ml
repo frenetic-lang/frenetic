@@ -140,13 +140,15 @@ let next_perm_state (state:perm_state) : (stream list * perm_state * bool) =
 
 (* Pick n random elements from options *)
 let rec random_picks options n =
-  let rec aux options n acc =
+  let options = Array.of_list options in
+  let bound = Array.length options in
+  let rec aux n acc =
     if n = 0 then acc
     else
-      let index = Random.int (Array.length options) in
+      let index = Random.int bound in
       let acc' = options.(index)::acc in
-      aux options (n-1) acc' in
-  aux (Array.of_list options) n []
+      aux (n-1) acc' in
+  if bound = -1 then [] else aux n []
 
 (* A fabric stream can be used to carry a policy stream if they start and end at
    the same, or immediately adjacent locations. This is decided using the
@@ -249,9 +251,14 @@ let matching (usable: stream -> stream -> bool) heuristic topology
      edge NetKAT programs that implement the policy streams atop the fabric
      streams. *)
   let ins, outs, _ = List.fold_left pairs ~init:([],[], 0)
-      ~f:(fun (ins, outs, tag) (stream, picks) ->
-          let ins', outs' = netkatize topology stream picks tag in
-          (ins'::ins, outs'::outs, tag+1)) in
+      ~f:(fun (ins, outs, tag) (stream, picks) -> match picks with
+          | [] ->
+            printf "No fabric streams for policy stream |%s|\n"
+              (Fabric.string_of_stream stream);
+            (ins,outs,tag)
+          | picks ->
+            let ins', outs' = netkatize topology stream picks tag in
+            (ins'::ins, outs'::outs, tag+1)) in
   ( ins, outs )
 
 
