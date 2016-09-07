@@ -216,6 +216,8 @@ let netkatize topo (pol:stream) (fabs:stream list) tag : policy * policy =
   (union ins, union outs)
 
 
+let min_conflict ((src,dst,cond,actions) as stream) options = []
+
 let matching (usable: stream -> stream -> bool) heuristic topology
     (from_policy:stream list) (from_fabric:stream list) : policy list * policy list =
 
@@ -236,9 +238,12 @@ let matching (usable: stream -> stream -> bool) heuristic topology
       List.fold_left partitions ~init:[] ~f:(fun acc (stream, opts) ->
           let picks = random_picks opts num in
           (stream, picks)::acc)
+    | MinConflict ->
+      List.fold_left partitions ~init:[] ~f:(fun acc (stream, opts) ->
+          let picks = min_conflict stream opts in
+          (stream, picks)::acc)
     | MaxSpread
-    | MinSpread
-    | MinConflict -> [] in
+    | MinSpread -> [] in
 
   (* Use the policy streams and the corresponding fabric streams to generate
      edge NetKAT programs that implement the policy streams atop the fabric
