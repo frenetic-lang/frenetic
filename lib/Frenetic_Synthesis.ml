@@ -53,63 +53,6 @@ type topology = {
 ; preds : (place, place) Hashtbl.t
 ; succs : (place, place) Hashtbl.t }
 
-(** Basic graph abstraction to support synthesis *)
-
-module SynNode = struct
-  type t = switchId * flow list
-
-  let default = (0L, [])
-
-  let compare l1 l2 = Pervasives.compare l1 l2
-  let hash l1       = Hashtbl.hash l1
-
-  let equal (sw,fls) (sw',fls') =
-    sw = sw' && fls = fls'
-
-  let to_string (sw,fls) =
-    sprintf "Switch %Ld\n%s" sw (string_of_flowTable fls)
-end
-
-module SynEdge = struct
-  open Frenetic_NetKAT
-
-  type t = (portId *portId)
-
-  let default = (0l, 0l)
-
-  let compare = Pervasives.compare
-  let hash    = Hashtbl.hash
-  let equal (s,d) (s',d') =
-    s = s' && d = d'
-end
-
-module SynGraph = struct
-  module G = Graph.Persistent.Digraph.ConcreteBidirectionalLabeled
-      (SynNode)
-      (SynEdge)
-  include G
-end
-
-type graph = SynGraph.t
-
-let get_switches (topo:policy) =
-  let rec populate topo set = match topo with
-    | Union(p1, p2) ->
-      populate p1 (populate p2 set)
-    | Link(s1,_,s2,_) ->
-      SwitchSet.add (SwitchSet.add set s1) s2
-    | p -> failwith (sprintf "Unexpected construct in topology: %s\n"
-                       (Frenetic_NetKAT_Pretty.string_of_policy p)) in
-  populate topo SwitchSet.empty
-
-let syngraph (fabric:policy) (topo:policy) : graph =
-  let fdd = compile_local fabric in
-  let switches = get_switches topo in
-  SwitchSet.fold switches ~init:SynGraph.empty
-    ~f:(fun g sw ->
-        let table = Compiler.to_table sw fdd in
-        SynGraph.add_vertex g (sw,table))
-
 (** Functions dealing with the permutation state *)
 (* Initialize the permutation state from the pairs of streams, and candidate
    stream lists *)

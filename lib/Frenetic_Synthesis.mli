@@ -13,8 +13,5 @@ type heuristic =
 
 type decider = Frenetic_Fabric.stream -> Frenetic_Fabric.stream -> bool
 
-type graph
-
-val syngraph: policy -> policy -> graph
 val synthesize : ?approach:approach -> ?heuristic:heuristic ->
   policy -> policy -> policy -> policy
