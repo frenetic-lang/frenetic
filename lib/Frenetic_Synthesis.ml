@@ -95,12 +95,13 @@ let rec random_picks options n =
       aux (n-1) acc' in
   if bound = -1 then [] else aux n []
 
+(** Topology related functions. Again, need to be replaced by a better topology module. *)
 (* Check if the fabric stream and the policy stream start and end at the same,
    or immediately adjacent locations. This is decided using predecessor and
    successor tables. *)
-let adjacent preds succs (src,dst,_,_) fab_stream =
-  Fabric.Topo.starts_at preds (fst src) fab_stream &&
-  Fabric.Topo.stops_at  succs (fst dst) fab_stream
+let adjacent topo (src,dst,_,_) fab_stream =
+  Fabric.Topo.starts_at topo.preds (fst src) fab_stream &&
+  Fabric.Topo.stops_at  topo.succs (fst dst) fab_stream
 
 let go_to topology ((src_sw, src_pt) as src) ((dst_sw, dst_pt) as dst) =
   let pt = if src_sw = dst_sw then dst_pt
@@ -121,6 +122,7 @@ let come_from topology ((src_sw, src_pt) as src) ((dst_sw, dst_pt) as dst) =
   And(Test( Switch dst_sw ),
        Test( Location( Physical pt )))
 
+(** Functions for generating edge NetKAT programs from matched streams **)
 (* Given a policy stream and a fabric stream, generate edge policies to implement *)
 (* the policy stream using the fabric stream *)
 let to_netkat topo
@@ -160,6 +162,7 @@ let netkatize topo (pol:stream) (fabs:stream list) tag : policy * policy =
     ) |> List.unzip in
   (union ins, union outs)
 
+(** Core matching function *)
 let matching (usable: decider) heuristic topology
     (from_policy:stream list) (from_fabric:stream list) : policy list * policy list =
 
@@ -207,10 +210,10 @@ let matching (usable: decider) heuristic topology
        a certain location only or
     3. The set of fields checked by the fabric stream's conditions are a subset
        of those checked by the policy stream. **)
-let unencapsulated preds succs
+let unencapsulated topo
     ((src,dst,cond,actions) as pol)
     ((src',dst',cond',actions') as fab) =
-  adjacent preds succs pol fab &&
+  adjacent topo pol fab &&
   ( Fabric.Condition.places_only cond' || Fabric.Condition.is_subset cond' cond)
 
 let synthesize ?(approach=Graphical) ?(heuristic=Random(1,1337))
@@ -218,14 +221,15 @@ let synthesize ?(approach=Graphical) ?(heuristic=Random(1,1337))
   (* Streams are condition/modification pairs with empty actioned pairs filtered out *)
   let policy_streams = Fabric.streams_of_policy policy in
   let fabric_streams = Fabric.streams_of_policy fabric in
+  let preds = Fabric.Topo.predecessors topo in
+  let succs = Fabric.Topo.successors topo in
+  let topology = { topo; preds; succs } in
   let ins, outs = match approach with
-  | Graphical ->
-    let open Frenetic_Fabric in
-    retarget policy_streams fabric_streams topo
-  | Synthesis ->
-    let preds = Fabric.Topo.predecessors topo in
-    let succs = Fabric.Topo.successors topo in
-    let usable = unencapsulated preds succs in
-    let topology = {topo; preds; succs} in
-    matching usable heuristic topology policy_streams fabric_streams in
+    | Graphical ->
+      let open Frenetic_Fabric in
+      retarget policy_streams fabric_streams topo
+    | Synthesis ->
+      let usable = unencapsulated topology in
+      let topology = {topo; preds; succs} in
+      matching usable heuristic topology policy_streams fabric_streams in
   Union(union ins, union outs)
