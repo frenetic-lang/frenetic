@@ -10,7 +10,8 @@ type heuristic =
   | Random of int * int
   | MaxSpread
   | MinSpread
-  | MinConflict
+
+type decider = Frenetic_Fabric.stream -> Frenetic_Fabric.stream -> bool
 
 type graph
 
