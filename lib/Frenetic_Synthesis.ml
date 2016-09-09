@@ -40,8 +40,6 @@ type heuristic =
   | MaxSpread
   | MinSpread
 
-type decider = stream -> stream -> bool
-
 type perm_state = {
   streams : stream list
 ; options : (stream array) array
@@ -52,6 +50,16 @@ type topology = {
   topo : policy
 ; preds : (place, place) Hashtbl.t
 ; succs : (place, place) Hashtbl.t }
+
+type decider = topology -> stream -> stream -> bool
+type generator = topology -> (stream * stream list) list -> (policy * policy)
+
+
+module type MAPPING = sig
+  val decide : topology -> stream -> stream -> bool
+  val generate : topology -> (stream * stream list) list -> (policy * policy)
+end
+
 
 (** Functions dealing with the permutation state *)
 (* Initialize the permutation state from the pairs of streams, and candidate
@@ -122,6 +130,8 @@ let come_from topology ((src_sw, src_pt) as src) ((dst_sw, dst_pt) as dst) =
   And(Test( Switch dst_sw ),
        Test( Location( Physical pt )))
 
+
+module Generic:MAPPING = struct
 (** Functions for generating edge NetKAT programs from matched streams **)
 (* Given a policy stream and a fabric stream, generate edge policies to implement *)
 (* the policy stream using the fabric stream *)
@@ -154,17 +164,81 @@ let to_netkat topo
       [out_filter]; restore; [modify]; [to_edge]]) in
   ingress, egress
 
-(* Given a list of policy streams, and the selected fabric stream to implement *)
-(* it, generate the appropriate NetKAT ingress and egress programs *)
-let netkatize topo (pol:stream) (fabs:stream list) tag : policy * policy =
-  let ins, outs = List.map fabs ~f:(fun stream ->
-      to_netkat topo pol stream tag
-    ) |> List.unzip in
-  (union ins, union outs)
+(* Given a list of (policy streams, possible fabric streams
+   generate the appropriate NetKAT ingress and egress programs *)
+let generate topo pairs : policy * policy =
+    let ins, outs, _ = List.fold_left pairs ~init:([],[], 0)
+        ~f:(fun (ins, outs, tag) (stream, picks) -> match picks with
+            | [] ->
+              printf "No available channel for policy stream |%s|\n"
+                (Fabric.string_of_stream stream);
+              (ins,outs,tag)
+            | picks ->
+              let ins', outs' = List.fold picks ~init:(ins,outs)
+                  ~f:(fun (ins, outs) fab ->
+                      let ins', outs' = to_netkat topo stream fab tag in
+                      (ins'::ins, outs'::outs)) in
+              (ins', outs', tag+1)) in
+    (union ins, union outs)
+
+(** A fabric stream can carry a policy stream, without encapsulation iff
+    1. The endpoints of the two streams are adjacent (see the `adjacent` function)
+    and
+    2. The fabric stream's conditions only require incoming traffic to enter at
+       a certain location only or
+    3. The set of fields checked by the fabric stream's conditions are a subset
+       of those checked by the policy stream. **)
+let decide topo
+    ((src,dst,cond,actions) as pol)
+    ((src',dst',cond',actions') as fab) =
+  adjacent topo pol fab &&
+  ( Fabric.Condition.places_only cond' || Fabric.Condition.is_subset cond' cond)
+end
+
+module Optical : MAPPING = struct
+  let decide topo ((_,_,cond,_) as pol) ((_,_,cond',_) as fab) =
+    adjacent topo pol fab && Fabric.Condition.places_only cond'
+
+  let to_netkat topo
+    ((src,dst,cond,actions)) ((src',dst',cond',actions'))
+    (tag:int): policy * policy =
+  let open Fabric.Condition in
+  let strip_vlan = 0xffff in
+  let to_fabric = go_to topo src src' in
+  let to_edge   = Mod( Location (Physical (snd dst))) in
+  let in_filter  = Filter (Fabric.pred_of_condition cond) in
+  let out_filter = Filter (come_from topo dst' dst) in
+  let modify = Frenetic_Fdd.Action.to_policy actions in
+  let ingress = seq ([ in_filter; Mod( Vlan tag ); to_fabric ]) in
+  let egress  = seq ([ out_filter; Mod( Vlan strip_vlan ); modify; to_edge ]) in
+  ingress, egress
+
+  (* Use the policy streams and the corresponding fabric streams to generate
+     edge NetKAT programs that implement the policy streams atop the fabric
+     streams. Use a unique integer tag per policy stream to keep them
+     separate. This may need to be changed to be a unique tag per
+     (policy stream, fabric stream) pair. *)
+  let generate topo pairs : policy * policy =
+    let ins, outs, _ = List.fold_left pairs ~init:([],[], 0)
+        ~f:(fun (ins, outs, tag) (stream, picks) -> match picks with
+            | [] ->
+              printf "No available channel for policy stream |%s|\n"
+                (Fabric.string_of_stream stream);
+              (ins,outs,tag)
+            | picks ->
+              let ins', outs' = List.fold picks ~init:(ins,outs)
+                  ~f:(fun (ins, outs) fab ->
+                      let ins', outs' = to_netkat topo stream fab tag in
+                      (ins'::ins, outs'::outs)) in
+              (ins', outs', tag+1)) in
+    (union ins, union outs)
+
+end
 
 (** Core matching function *)
-let matching (usable: decider) heuristic topology
-    (from_policy:stream list) (from_fabric:stream list) : policy list * policy list =
+let matching (usable:decider) (to_netkat:generator)
+    heuristic topology
+    (from_policy:stream list) (from_fabric:stream list) : policy * policy =
 
   (* For each policy stream, find the set of fabric streams that could be used
      to carry it. This is done using the `usable` decider function that allows
@@ -172,7 +246,7 @@ let matching (usable: decider) heuristic topology
      the properties of the fabric. *)
   let partitions = List.fold_left from_policy ~init:[]
       ~f:(fun acc stream ->
-          let streams = List.filter from_fabric ~f:(usable stream) in
+          let streams = List.filter from_fabric ~f:(usable topology stream) in
           let partition = (stream, streams) in
           (partition::acc)) in
 
@@ -187,49 +261,26 @@ let matching (usable: decider) heuristic topology
     | MaxSpread
     | MinSpread -> [] in
 
-  (* Use the policy streams and the corresponding fabric streams to generate
-     edge NetKAT programs that implement the policy streams atop the fabric
-     streams. Use a unique integer tag per policy stream to keep them
-     separate. This may need to be changed to be a unique tag per
-     (policy stream, fabric stream) pair. *)
-  let ins, outs, _ = List.fold_left pairs ~init:([],[], 0)
-      ~f:(fun (ins, outs, tag) (stream, picks) -> match picks with
-          | [] ->
-            printf "No fabric streams for policy stream |%s|\n"
-              (Fabric.string_of_stream stream);
-            (ins,outs,tag)
-          | picks ->
-            let ins', outs' = netkatize topology stream picks tag in
-            (ins'::ins, outs'::outs, tag+1)) in
-  ( ins, outs )
+  to_netkat topology pairs
 
-(** A fabric stream can carry a policy stream, without encapsulation iff
-    1. The endpoints of the two streams are adjacent (see the `adjacent` function)
-    and
-    2. The fabric stream's conditions only require incoming traffic to enter at
-       a certain location only or
-    3. The set of fields checked by the fabric stream's conditions are a subset
-       of those checked by the policy stream. **)
-let unencapsulated topo
-    ((src,dst,cond,actions) as pol)
-    ((src',dst',cond',actions') as fab) =
-  adjacent topo pol fab &&
-  ( Fabric.Condition.places_only cond' || Fabric.Condition.is_subset cond' cond)
+module Make (M:MAPPING) = struct
 
-let synthesize ?(approach=Graphical) ?(heuristic=Random(1,1337))
-    (policy:policy) (fabric:policy) (topo:policy) : policy =
-  (* Streams are condition/modification pairs with empty actioned pairs filtered out *)
-  let policy_streams = Fabric.streams_of_policy policy in
-  let fabric_streams = Fabric.streams_of_policy fabric in
-  let preds = Fabric.Topo.predecessors topo in
-  let succs = Fabric.Topo.successors topo in
-  let topology = { topo; preds; succs } in
-  let ins, outs = match approach with
-    | Graphical ->
-      let open Frenetic_Fabric in
-      retarget policy_streams fabric_streams topo
-    | Synthesis ->
-      let usable = unencapsulated topology in
-      let topology = {topo; preds; succs} in
-      matching usable heuristic topology policy_streams fabric_streams in
-  Union(union ins, union outs)
+  let synthesize ?(approach=Graphical) ?(heuristic=Random(1,1337))
+      (policy:policy) (fabric:policy) (topo:policy) : policy =
+    (* Streams are condition/modification pairs with empty actioned pairs filtered out *)
+    let policy_streams = Fabric.streams_of_policy policy in
+    let fabric_streams = Fabric.streams_of_policy fabric in
+    let preds = Fabric.Topo.predecessors topo in
+    let succs = Fabric.Topo.successors topo in
+    match approach with
+      | Graphical ->
+        let open Frenetic_Fabric in
+        let ins, outs = retarget policy_streams fabric_streams topo in
+        Union(union ins, union outs)
+      | Synthesis ->
+        let topology = {topo; preds; succs} in
+        let ingress, egress = matching M.decide M.generate heuristic topology
+            policy_streams fabric_streams in
+        Union(ingress, egress)
+
+end

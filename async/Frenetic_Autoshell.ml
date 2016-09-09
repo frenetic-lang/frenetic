@@ -440,10 +440,11 @@ let synthesize () : (string, string) Result.t =
   match state.naive, state.fabric,state.topology with
   | Some c, Some f, Some t ->
     let open Frenetic_Synthesis in
+    let module S = Make(Optical) in
     let fabric = Fabric.assemble f.config.policy t
         f.config.ingresses f.config.egresses in
     let policy = Fabric.assemble c.policy t c.ingresses c.egresses in
-    let edge = synthesize ~approach:Synthesis policy fabric t in
+    let edge = S.synthesize ~approach:Synthesis policy fabric t in
 
     log "Pre-synthesis user policy:\n%s\n"   (string_of_policy policy);
     log "Pre-synthesis fabric policy:\n%s\n" (string_of_policy fabric);
