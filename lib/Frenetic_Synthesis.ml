@@ -31,10 +31,6 @@ type stream = Fabric.stream
 type restriction = switchId * pred * switchId * pred
 type ffunc = flow list SwitchTable.t
 
-type approach =
-  | Graphical
-  | Synthesis
-
 type heuristic =
   | Random of int * int
   | MaxSpread
@@ -265,22 +261,16 @@ let matching (usable:decider) (to_netkat:generator)
 
 module Make (M:MAPPING) = struct
 
-  let synthesize ?(approach=Graphical) ?(heuristic=Random(1,1337))
+  let synthesize ?(heuristic=Random(1,1337))
       (policy:policy) (fabric:policy) (topo:policy) : policy =
     (* Streams are condition/modification pairs with empty actioned pairs filtered out *)
     let policy_streams = Fabric.streams_of_policy policy in
     let fabric_streams = Fabric.streams_of_policy fabric in
     let preds = Fabric.Topo.predecessors topo in
     let succs = Fabric.Topo.successors topo in
-    match approach with
-      | Graphical ->
-        let open Frenetic_Fabric in
-        let ins, outs = retarget policy_streams fabric_streams topo in
-        Union(union ins, union outs)
-      | Synthesis ->
-        let topology = {topo; preds; succs} in
-        let ingress, egress = matching M.decide M.generate heuristic topology
-            policy_streams fabric_streams in
-        Union(ingress, egress)
+    let topology = {topo; preds; succs} in
+    let ingress, egress = matching M.decide M.generate heuristic topology
+        policy_streams fabric_streams in
+    Union(ingress, egress)
 
 end

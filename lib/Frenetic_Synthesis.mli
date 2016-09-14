@@ -3,10 +3,6 @@ open Frenetic_NetKAT
 open Frenetic_OpenFlow
 open Frenetic_Fabric
 
-type approach =
-  | Graphical
-  | Synthesis
-
 type heuristic =
   | Random of int * int
   | MaxSpread
@@ -23,8 +19,7 @@ module type MAPPING = sig
 end
 
 module Make(M:MAPPING) : sig
-  val synthesize : ?approach:approach -> ?heuristic:heuristic ->
-    policy -> policy -> policy -> policy
+  val synthesize : ?heuristic:heuristic -> policy -> policy -> policy -> policy
 end
 
 module Optical : MAPPING
