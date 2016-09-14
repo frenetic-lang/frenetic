@@ -132,41 +132,41 @@ let come_from topology ((src_sw, src_pt) as src) ((dst_sw, dst_pt) as dst) =
 
 
 module Generic:MAPPING = struct
-(** Functions for generating edge NetKAT programs from matched streams **)
-(* Given a policy stream and a fabric stream, generate edge policies to implement *)
-(* the policy stream using the fabric stream *)
-let to_netkat topo
-    ((src,dst,cond,actions) as pol)
-    ((src',dst',cond',actions') as fab)
-    (tag:int): policy * policy =
-  let open Fabric.Condition in
-  let strip_vlan = 0xffff in
-  let satisfy, restore =
-    if places_only cond' then
-      [ Mod( Vlan tag ) ], [ Mod( Vlan strip_vlan ) ]
-    else if is_subset cond' cond then
-      let satisfy = satisfy cond' in
-      let restore = undo cond' cond in
-      (satisfy, restore)
-    else
-      let mods = satisfy cond' in
-      let encapsulate = Mod( Location( Pipe( "encapsulate" ))) in
-      let restore = Mod( Location( Pipe( "decapsulate" ))) in
-      ( encapsulate::mods , [ restore ]) in
-  let to_fabric = go_to topo src src' in
-  let to_edge   = Mod( Location (Physical (snd dst))) in
-  let in_filter  = Filter (Fabric.pred_of_condition cond) in
-  let out_filter = Filter (come_from topo dst' dst) in
-  let modify = Frenetic_Fdd.Action.to_policy actions in
-  let ingress = seq ( flatten [
-      [in_filter]; satisfy; [to_fabric] ]) in
-  let egress  = seq ( flatten [
-      [out_filter]; restore; [modify]; [to_edge]]) in
-  ingress, egress
+  (** Functions for generating edge NetKAT programs from matched streams **)
+  (* Given a policy stream and a fabric stream, generate edge policies to implement *)
+  (* the policy stream using the fabric stream *)
+  let to_netkat topo
+                ((src,dst,cond,actions) as pol)
+                ((src',dst',cond',actions') as fab)
+                (tag:int): policy * policy =
+    let open Fabric.Condition in
+    let strip_vlan = 0xffff in
+    let satisfy, restore =
+      if places_only cond' then
+        [ Mod( Vlan tag ) ], [ Mod( Vlan strip_vlan ) ]
+      else if is_subset cond' cond then
+        let satisfy = satisfy cond' in
+        let restore = undo cond' cond in
+        (satisfy, restore)
+      else
+        let mods = satisfy cond' in
+        let encapsulate = Mod( Location( Pipe( "encapsulate" ))) in
+        let restore = Mod( Location( Pipe( "decapsulate" ))) in
+        ( encapsulate::mods , [ restore ]) in
+    let to_fabric = go_to topo src src' in
+    let to_edge   = Mod( Location (Physical (snd dst))) in
+    let in_filter  = Filter (Fabric.pred_of_condition cond) in
+    let out_filter = Filter (come_from topo dst' dst) in
+    let modify = Frenetic_Fdd.Action.to_policy actions in
+    let ingress = seq ( flatten [
+                            [in_filter]; satisfy; [to_fabric] ]) in
+    let egress  = seq ( flatten [
+                            [out_filter]; restore; [modify]; [to_edge]]) in
+    ingress, egress
 
-(* Given a list of (policy streams, possible fabric streams
-   generate the appropriate NetKAT ingress and egress programs *)
-let generate topo pairs : policy * policy =
+  (* Given a list of (policy streams, possible fabric streams
+     generate the appropriate NetKAT ingress and egress programs *)
+  let generate topo pairs : policy * policy =
     let ins, outs, _ = List.fold_left pairs ~init:([],[], 0)
         ~f:(fun (ins, outs, tag) (stream, picks) -> match picks with
             | [] ->
@@ -181,18 +181,18 @@ let generate topo pairs : policy * policy =
               (ins', outs', tag+1)) in
     (union ins, union outs)
 
-(** A fabric stream can carry a policy stream, without encapsulation iff
-    1. The endpoints of the two streams are adjacent (see the `adjacent` function)
-    and
-    2. The fabric stream's conditions only require incoming traffic to enter at
+  (** A fabric stream can carry a policy stream, without encapsulation iff
+      1. The endpoints of the two streams are adjacent (see the `adjacent` function)
+      and
+      2. The fabric stream's conditions only require incoming traffic to enter at
        a certain location only or
-    3. The set of fields checked by the fabric stream's conditions are a subset
+      3. The set of fields checked by the fabric stream's conditions are a subset
        of those checked by the policy stream. **)
-let decide topo
-    ((src,dst,cond,actions) as pol)
-    ((src',dst',cond',actions') as fab) =
-  adjacent topo pol fab &&
-  ( Fabric.Condition.places_only cond' || Fabric.Condition.is_subset cond' cond)
+  let decide topo
+      ((src,dst,cond,actions) as pol)
+      ((src',dst',cond',actions') as fab) =
+    adjacent topo pol fab &&
+    ( Fabric.Condition.places_only cond' || Fabric.Condition.is_subset cond' cond)
 end
 
 module Optical : MAPPING = struct

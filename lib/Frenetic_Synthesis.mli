@@ -28,4 +28,4 @@ module Make(M:MAPPING) : sig
 end
 
 module Optical : MAPPING
-
+module Generic : MAPPING
