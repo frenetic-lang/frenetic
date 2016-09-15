@@ -13,33 +13,14 @@ let compile_local =
   let open Compiler in
   compile_local ~options:{ default_compiler_options with cache_prepare = `Keep }
 
-(** Modules *)
-
-module SwitchSet = Set.Make(struct
-    type t = switchId [@@deriving sexp]
-    let compare = Pervasives.compare
-  end)
-
-module SwitchTable = Hashtbl.Make(struct
-    type t = switchId [@@deriving sexp]
-    let compare = Pervasives.compare
-    let hash = Hashtbl.hash end)
-
 (** Essential types *)
-type place = Fabric.place
+type place  = Fabric.place
 type stream = Fabric.stream
-type restriction = switchId * pred * switchId * pred
-type ffunc = flow list SwitchTable.t
 
 type heuristic =
   | Random of int * int
   | MaxSpread
   | MinSpread
-
-type perm_state = {
-  streams : stream list
-; options : (stream array) array
-; indices : int    array }
 
 (* TODO(basus): This needs to go into a better topology module *)
 type topology = {
@@ -47,57 +28,13 @@ type topology = {
 ; preds : (place, place) Hashtbl.t
 ; succs : (place, place) Hashtbl.t }
 
-type decider = topology -> stream -> stream -> bool
+type decider   = topology -> stream -> stream -> bool
 type generator = topology -> (stream * stream list) list -> (policy * policy)
 
-
 module type MAPPING = sig
-  val decide : topology -> stream -> stream -> bool
-  val generate : topology -> (stream * stream list) list -> (policy * policy)
+  val decide   : decider
+  val generate : generator
 end
-
-
-(** Functions dealing with the permutation state *)
-(* Initialize the permutation state from the pairs of streams, and candidate
-   stream lists *)
-let init_perm_state (pairs: (stream * stream list) list) : perm_state =
-  let streams = List.map pairs ~f:fst in
-  let options = Array.of_list (List.map pairs ~f:(fun s -> snd s |> Array.of_list)) in
-  let indices = Array.create ~len:(List.length pairs) 0 in
-  { streams; options; indices }
-
-(* Get the next permutation of candidate streams, update state accordingly, and *)
-(* provide a boolean to indicate when all permutations have been exhausted. *)
-let next_perm_state (state:perm_state) : (stream list * perm_state * bool) =
-  let working_set = Array.foldi state.options ~init:[] ~f:(fun i acc streams ->
-      let stream = streams.(state.indices.(i)) in
-      stream::acc) in
-
-  let _ = Array.foldi state.indices ~init:true ~f:(fun i incr el ->
-      if incr then begin
-        let length = Array.length state.options.(i) in
-        if ( el <  length - 1 ) then
-          begin state.indices.(i) <- (el + 1); false end
-        else if (el = length - 1) then
-          begin state.indices.(i) <- 0; true end
-        else
-          failwith "Illegal permutation index. Something has gone very wrong."
-      end else false) in
-
-  let completed = Array.for_all state.indices ~f:(fun i -> i = 0) in
-  (List.rev working_set, state, completed)
-
-(* Pick n random elements from options *)
-let rec random_picks options n =
-  let options = Array.of_list options in
-  let bound = Array.length options in
-  let rec aux n acc =
-    if n = 0 then acc
-    else
-      let index = Random.int bound in
-      let acc' = options.(index)::acc in
-      aux (n-1) acc' in
-  if bound = -1 then [] else aux n []
 
 (** Topology related functions. Again, need to be replaced by a better topology module. *)
 (* Check if the fabric stream and the policy stream start and end at the same,
@@ -231,35 +168,47 @@ module Optical : MAPPING = struct
 
 end
 
-(** Core matching function *)
-let matching (usable:decider) (to_netkat:generator)
-    heuristic topology
-    (from_policy:stream list) (from_fabric:stream list) : policy * policy =
-
-  (* For each policy stream, find the set of fabric streams that could be used
-     to carry it. This is done using the `usable` decider function that allows
-     the caller to specify what criteria are important, perhaps according to
-     the properties of the fabric. *)
-  let partitions = List.fold_left from_policy ~init:[]
-      ~f:(fun acc stream ->
-          let streams = List.filter from_fabric ~f:(usable topology stream) in
-          let partition = (stream, streams) in
-          (partition::acc)) in
-
-  (* Pick a smaller set of fabric streams to actually carry the policy streams,
-     based on a given heuristic. *)
-  let pairs = match heuristic with
-    | Random(num, seed) ->
-      Random.init seed;
-      List.fold_left partitions ~init:[] ~f:(fun acc (stream, opts) ->
-          let picks = random_picks opts num in
-          (stream, picks)::acc)
-    | MaxSpread
-    | MinSpread -> [] in
-
-  to_netkat topology pairs
-
 module Make (M:MAPPING) = struct
+
+  (* Pick n random elements from options *)
+  let rec random_picks options n =
+    let options = Array.of_list options in
+    let bound = Array.length options in
+    let rec aux n acc =
+      if n = 0 then acc
+      else
+        let index = Random.int bound in
+        let acc' = options.(index)::acc in
+        aux (n-1) acc' in
+    if bound = -1 then [] else aux n []
+
+  (** Core matching function *)
+  let matching (decide:decider) (to_netkat:generator)
+      heuristic topology
+      (from_policy:stream list) (from_fabric:stream list) : policy * policy =
+
+    (* For each policy stream, find the set of fabric streams that could be used
+       to carry it. This is done using the `decide` decider function that allows
+       the caller to specify what criteria are important, perhaps according to
+       the properties of the fabric. *)
+    let partitions = List.fold_left from_policy ~init:[]
+        ~f:(fun acc stream ->
+            let streams = List.filter from_fabric ~f:(decide topology stream) in
+            let partition = (stream, streams) in
+            (partition::acc)) in
+
+    (* Pick a smaller set of fabric streams to actually carry the policy streams,
+       based on a given heuristic. *)
+    let pairs = match heuristic with
+      | Random(num, seed) ->
+        Random.init seed;
+        List.fold_left partitions ~init:[] ~f:(fun acc (stream, opts) ->
+            let picks = random_picks opts num in
+            (stream, picks)::acc)
+      | MaxSpread
+      | MinSpread -> [] in
+
+    to_netkat topology pairs
 
   let synthesize ?(heuristic=Random(1,1337))
       (policy:policy) (fabric:policy) (topo:policy) : policy =

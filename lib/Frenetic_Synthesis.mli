@@ -13,9 +13,12 @@ type topology = {
 ; preds : (place, place) Hashtbl.t
 ; succs : (place, place) Hashtbl.t }
 
+type decider   = topology -> stream -> stream -> bool
+type generator = topology -> (stream * stream list) list -> (policy * policy)
+
 module type MAPPING = sig
-  val decide : topology -> stream -> stream -> bool
-  val generate : topology -> (stream * stream list) list -> (policy * policy)
+  val decide   : decider
+  val generate : generator
 end
 
 module Make(M:MAPPING) : sig
