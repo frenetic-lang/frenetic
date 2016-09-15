@@ -26,7 +26,7 @@ depends: [
   "ppx_jane"
   "ppx_deriving"
   "async"
-  "async_extended" {= "113.24.00"}
+  "async_extended"
   "cstruct" {>= "1.0.1"}
   "sexplib"
   "ulex" {>= "1.1"}
