@@ -117,7 +117,7 @@ module Generic:MAPPING = struct
         ( encapsulate::mods , [ restore ]) in
     let to_fabric = go_to topo src src' in
     let to_edge   = Mod( Location (Physical (snd dst))) in
-    let in_filter  = Filter (Fabric.pred_of_condition cond) in
+    let in_filter  = Filter (to_pred cond) in
     let out_filter = Filter (come_from topo dst' dst) in
     let modify = Frenetic_Fdd.Action.to_policy actions in
     let ingress = seq ( flatten [
@@ -168,7 +168,7 @@ module Optical : MAPPING = struct
   let strip_vlan = 0xffff in
   let to_fabric = go_to topo src src' in
   let to_edge   = Mod( Location (Physical (snd dst))) in
-  let in_filter  = Filter (Fabric.pred_of_condition cond) in
+  let in_filter  = Filter (to_pred cond) in
   let out_filter = Filter (come_from topo dst' dst) in
   let modify = Frenetic_Fdd.Action.to_policy actions in
   let ingress = seq ([ in_filter; Mod( Vlan tag ); to_fabric ]) in

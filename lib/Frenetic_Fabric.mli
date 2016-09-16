@@ -40,6 +40,10 @@ end
 (** Condition related functions, useful for generating NetKAT programs from streams *)
 module Condition  : sig
   type t = condition
+  val of_pred     : pred -> t list
+  val to_pred     : t -> pred
+  val to_string   : t -> string
+
   val satisfy     : t -> policy list
   val undo        : t -> t -> policy list
   val places_only : t -> bool
@@ -51,7 +55,6 @@ val streams_of_policy : policy -> stream list
 val string_of_stream : stream -> string
 val string_of_place  : place  -> string
 val paths_of_string  : string -> (path list, string) Result.t
-val pred_of_condition : condition -> pred
 
 val assemble : policy -> policy ->
   (switchId * portId) list -> (switchId * portId) list ->

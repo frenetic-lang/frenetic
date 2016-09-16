@@ -72,17 +72,6 @@ let paths_of_string (s:string) : (path list, string) Result.t =
 let pred_of_place ((sw,pt):place) =
   And( Test( Switch sw ), Test( Location( Physical pt )))
 
-let pred_of_condition (c:condition) : pred =
-  let preds = FieldTable.fold c ~init:[]
-      ~f:(fun ~key:field ~data:(pos, negs) acc ->
-          let negs = List.map negs ~f:(fun v ->
-              Neg (Pattern.to_pred (field, v))) in
-          match pos with
-            | None -> (conjoin negs)::acc
-            | Some v ->
-              let p = And(conjoin negs, Pattern.to_pred (field, v)) in p::acc) in
-  conjoin preds
-
 let place_of_options sw pt = match sw, pt with
   | Some sw, Some pt -> (sw, pt)
   | None   , Some pt -> raise (IncompletePlace
@@ -98,19 +87,6 @@ let string_of_policy = Frenetic_NetKAT_Pretty.string_of_policy
 
 let string_of_place ((sw,pt):place) =
   sprintf "(%Ld:%ld)" sw pt
-
-(* TODO(basus): remove conversions to policies *)
-let string_of_condition (c:condition) : string =
-  (string_of_pred (pred_of_condition c))
-
-let string_of_stream (s:stream) : string =
-  let (sw_in, pt_in), (sw_out, pt_out), condition, action = s in
-  sprintf
-    "From: Switch:%Ld Port:%ld\nTo Switch:%Ld Port:%ld\nCondition: %s\nAction: %s\n"
-    sw_in pt_in sw_out pt_out
-    (string_of_pred (pred_of_condition condition))
-    (string_of_policy (Action.to_policy action))
-
 
 (** Fabric generators, from a topology or policy *)
 module Generators = struct
@@ -278,6 +254,113 @@ module Topo = struct
 
 end
 
+let paths_of_fdd fdd =
+  let rec traverse node path =
+    match FDD.unget node with
+    | FDD.Branch ((v,l), t, f) ->
+      let true_pred   = (v, Some l, []) in
+      let true_paths  = traverse t ( true_pred::path ) in
+      let false_pred  = (v, None, [l]) in
+      let false_paths = traverse f ( false_pred::path ) in
+      List.unordered_append true_paths false_paths
+    | FDD.Leaf r ->
+      [ (r, path) ] in
+  traverse fdd []
+
+
+let fuse field (pos, negs) (pos', negs') =
+  let pos = match pos, pos' with
+    | None, None   -> None
+    | None, Some v
+    | Some v, None -> Some v
+    | Some v1, Some v2 ->
+      let msg = sprintf "Field (%s) expected to have clashing values of (%s) and (%s) "
+          (Field.to_string field) (Value.to_string v1) (Value.to_string v2) in
+      raise (ClashException msg) in
+  let negs = match negs, negs' with
+    | [], [] -> []
+    | vs, [] -> vs
+    | [], vs -> vs
+    | vs1, vs2 -> List.unordered_append vs1 vs2 in
+  (pos, negs)
+
+
+module Condition = struct
+  type t = condition
+
+  let of_fdd_path (action,headers) : t =
+    let tbl = FieldTable.create ~size:(List.length headers) () in
+    List.iter headers ~f:(fun (field, pos, negs) ->
+        FieldTable.update tbl field ~f:(function
+            | None -> ( pos, negs )
+            | Some c -> fuse field (pos,negs) c));
+    tbl
+
+
+  let of_pred (p:pred) : t list =
+    let sentinel = Mod( Location( Pipe "sentinel" )) in
+    let pol = Seq( Filter p, sentinel ) in
+    let fdd = compile_local pol in
+    let paths = paths_of_fdd fdd in
+    List.fold_left paths ~init:[] ~f:(fun acc ((a,hs) as p) ->
+        if String.Set.mem (Action.pipes a) "sentinel"
+        then (of_fdd_path p)::acc else acc)
+
+  let to_pred (c:t) : pred =
+    let preds = FieldTable.fold c ~init:[]
+        ~f:(fun ~key:field ~data:(pos, negs) acc ->
+            let negs = List.map negs ~f:(fun v ->
+                Neg (Pattern.to_pred (field, v))) in
+            match pos with
+            | None -> (conjoin negs)::acc
+            | Some v ->
+              let p = And(conjoin negs, Pattern.to_pred (field, v)) in p::acc) in
+    conjoin preds
+
+  (* TODO(basus): remove conversions to policies *)
+  let to_string (c:t) : string =
+    (string_of_pred (to_pred c))
+
+  let satisfy (c:t) : policy list =
+    FieldTable.fold c ~init:[] ~f:(fun ~key ~data acc -> match data with
+        | Some pos, [] -> Mod( Pattern.to_hv (key, pos) )::acc
+        | Some pos, negs ->
+          if List.exists negs (fun f -> f = pos)
+          then raise (ClashException (sprintf "Unsatisfiable condition %s"
+                                        (to_string c)))
+          else Mod( Pattern.to_hv (key, pos) )::acc
+        | None, [] -> acc
+        | None, negs ->
+          (* TODO(basus) : this is incomplete. Need to find a predicate that
+             doesn't match any of the negs. *)
+          acc)
+
+  let undo c c' =
+    FieldTable.fold c ~init:[] ~f:(fun ~key ~data acc ->
+        let values = FieldTable.find c' key in
+        match values with
+        | Some(Some v, _) -> Mod( Pattern.to_hv (key,v) )::acc
+        | _ -> failwith "Cannot undo")
+
+  let places_only c =
+    FieldTable.fold c ~init:true ~f:(fun ~key ~data acc ->
+        acc && (key = Field.Switch || key = Field.Location))
+
+  let is_subset c c' =
+    FieldTable.fold c ~init:true ~f:(fun ~key ~data acc ->
+        acc && (FieldTable.mem c' key))
+
+end
+
+let string_of_stream (s:stream) : string =
+  let (sw_in, pt_in), (sw_out, pt_out), condition, action = s in
+  sprintf
+    "From: Switch:%Ld Port:%ld\nTo Switch:%Ld Port:%ld\nCondition: %s\nAction: %s\n"
+    sw_in pt_in sw_out pt_out
+    (Condition.to_string condition)
+    (string_of_policy (Action.to_policy action))
+
+
 (** Code to convert policies to alpha/beta pairs (streams) **)
 (* Iterate through a policy and translates Links to matches on source and *)
 (* modifications to the destination *)
@@ -297,22 +380,6 @@ let rec dedup (pol:policy) : policy =
     Seq (at_place s1 p1, to_place s2 p2)
   | VLink _       -> failwith "Fabric: Cannot remove Dups from a policy with VLink"
   | Let (_,_,_,_) -> failwith "No support for Meta fields yet"
-
-let fuse field (pos, negs) (pos', negs') =
-  let pos = match pos, pos' with
-    | None, None   -> None
-    | None, Some v
-    | Some v, None -> Some v
-    | Some v1, Some v2 ->
-      let msg = sprintf "Field (%s) expected to have clashing values of (%s) and (%s) "
-          (Field.to_string field) (Value.to_string v1) (Value.to_string v2) in
-      raise (ClashException msg) in
-  let negs = match negs, negs' with
-    | [], [] -> []
-    | vs, [] -> vs
-    | [], vs -> vs
-    | vs1, vs2 -> List.unordered_append vs1 vs2 in
-  (pos, negs)
 
 (* Given a policy, guard it with the ingresses, sequence and iterate with the *)
 (* topology and guard with the egresses, i.e. form in;(p.t)*;p;out *)
@@ -344,27 +411,6 @@ let destination_of_action (action:Action.t) : (switchId option * portId option *
                     (sw,pt, Action.Seq.add acc (Action.F key) data)) in
           (sw, pt, Action.Par.add acc seq'))
 
-let paths_of_fdd fdd =
-  let rec traverse node path =
-    match FDD.unget node with
-    | FDD.Branch ((v,l), t, f) ->
-      let true_pred   = (v, Some l, []) in
-      let true_paths  = traverse t ( true_pred::path ) in
-      let false_pred  = (v, None, [l]) in
-      let false_paths = traverse f ( false_pred::path ) in
-      List.unordered_append true_paths false_paths
-    | FDD.Leaf r ->
-      [ (r, path) ] in
-  traverse fdd []
-
-let condition_of_fdd_path (action,headers) : condition =
-  let tbl = FieldTable.create ~size:(List.length headers) () in
-  List.iter headers ~f:(fun (field, pos, negs) ->
-      FieldTable.update tbl field ~f:(function
-          | None -> ( pos, negs )
-          | Some c -> fuse field (pos,negs) c));
-  tbl
-
 let stream_of_fdd_path (action,headers) : stream =
   let update sw pt tbl field pos negs = match field, pos with
     | Field.Switch, Some( Value.Const sw' ) -> begin match sw with
@@ -391,16 +437,6 @@ let stream_of_fdd_path (action,headers) : stream =
   let src = place_of_options src_sw src_pt in
   let dst = place_of_options dst_sw dst_pt in
   (src, dst, tbl, action)
-
-let conditions_of_pred (p:pred) : condition list =
-  let sentinel = Mod( Location( Pipe "sentinel" )) in
-  let pol = Seq( Filter p, sentinel ) in
-  let fdd = compile_local pol in
-  let paths = paths_of_fdd fdd in
-  List.fold_left paths ~init:[] ~f:(fun acc ((a,hs) as p) ->
-      if String.Set.mem (Action.pipes a) "sentinel"
-      then (condition_of_fdd_path p)::acc else acc)
-
 
 let streams_of_policy (pol:policy) : stream list =
   let deduped = dedup pol in
@@ -487,41 +523,6 @@ let overlay (places:place list) (fabric:stream list) (topo:policy) : Overlay.t =
           then Overlay.add_edge_e g ((sw,pt), Internal, (sw,pt'))
           else g ) g g) graph graph
 
-
-module Condition = struct
-  type t = condition
-
-  let satisfy (c:t) : policy list =
-    FieldTable.fold c ~init:[] ~f:(fun ~key ~data acc -> match data with
-        | Some pos, [] -> Mod( Pattern.to_hv (key, pos) )::acc
-        | Some pos, negs ->
-          if List.exists negs (fun f -> f = pos)
-          then raise (ClashException (sprintf "Unsatisfiable condition %s"
-                                        (string_of_condition c)))
-          else Mod( Pattern.to_hv (key, pos) )::acc
-        | None, [] -> acc
-        | None, negs ->
-          (* TODO(basus) : this is incomplete. Need to find a predicate that
-             doesn't match any of the negs. *)
-          acc)
-
-  let undo c c' =
-    FieldTable.fold c ~init:[] ~f:(fun ~key ~data acc ->
-        let values = FieldTable.find c' key in
-        match values with
-        | Some(Some v, _) -> Mod( Pattern.to_hv (key,v) )::acc
-        | _ -> failwith "Cannot undo")
-
-  let places_only c =
-    FieldTable.fold c ~init:true ~f:(fun ~key ~data acc ->
-        acc && (key = Field.Switch || key = Field.Location))
-
-  let is_subset c c' =
-    FieldTable.fold c ~init:true ~f:(fun ~key ~data acc ->
-        acc && (FieldTable.mem c' key))
-
-end
-
 (* Given an edge representing a fabric path (hop) and a  *)
 let generalize ((_,fabric_path,_):Overlay.E.t) (cond:condition)
   : policy list * policy list =
@@ -551,7 +552,7 @@ let rec stitch (src,sink,condition,action) path tag =
     | [] -> ([], [])
     | (_,Internal,(_,in_pt))::rest ->
       let start = pred_of_place src in
-      let pred = pred_of_condition condition in
+      let pred = Condition.to_pred condition in
       let filter = Filter( And( start, pred )) in
       begin match rest with
         | [] ->
@@ -611,7 +612,7 @@ let project_path pred ps tag graph =
     | hd::tl -> (node,hd)::(mk_ends hd tl) in
   let endpoints = mk_ends (List.hd_exn ps) (List.tl_exn ps) in
   (* TODO(basus): Handle the case where there are multiple conditions *)
-  let cond = List.hd_exn (conditions_of_pred pred) in
+  let cond = List.hd_exn (Condition.of_pred pred) in
   let action = Action.one in
   List.fold_left endpoints ~init:([],[]) ~f:(fun (ins,outs) (src,sink) ->
       try
