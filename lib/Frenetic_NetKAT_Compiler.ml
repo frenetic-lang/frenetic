@@ -922,20 +922,20 @@ let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
   let rec subtrees_for_table (table : Field.t list) (t : t)
     (subtrees : t list) : t list =
     match FDD.unget t with
-    | Leaf _ -> subtrees
+    | Leaf _ -> 
+       t :: subtrees
     | Branch ((field, _), tru, fls) ->
       if (List.mem table field) then
         t :: subtrees
       else
         subtrees_for_table table tru subtrees
-        |> subtrees_for_table table fls
-  in
+        |> subtrees_for_table table fls in 
   let meta_id = ref 0 in
-  List.map layout ~f:(fun table -> subtrees_for_table table t [])
-  |> List.filter ~f:(fun subtrees -> subtrees <> [])
-  |> List.foldi ~init:Map.Poly.empty ~f:(fun tbl_id accum subtrees ->
+    List.map layout ~f:(fun table -> subtrees_for_table table t [])
+    |> List.filter ~f:(fun subtrees -> subtrees <> [])
+    |> List.foldi ~init:Map.Poly.empty ~f:(fun tbl_id accum subtrees ->
       List.fold_right subtrees ~init:accum ~f:(fun t accum ->
-        Map.add accum ~key:t ~data:(tbl_id,(post meta_id))))
+        Map.add accum ~key:t ~data:(tbl_id,(post meta_id)))) 
 
 (* make a flow struct that includes the table and meta id of the flow *)
 let mk_multitable_flow options (pattern : Frenetic_OpenFlow.Pattern.t)
@@ -972,7 +972,8 @@ let subtree_to_table options (subtrees : flow_subtrees) (subtree : (t * flowId))
   | Branch (test, tru, fls) ->
     List.filter_opt (List.append (dfs [test] subtrees tru flowId)
                                  (dfs [] subtrees fls flowId))
-  | Leaf _  -> assert false (* each entry in the subtree map is a branch *)
+  | Leaf _  -> 
+     List.filter_opt (dfs [] subtrees t flowId)
 
 (* Collect the flow table rows for each subtree in one list. *)
 let subtrees_to_multitable options (subtrees : flow_subtrees) : (multitable_flow list * Frenetic_GroupTable0x04.t) =
