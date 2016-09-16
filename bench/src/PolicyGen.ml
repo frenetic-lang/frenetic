@@ -102,6 +102,8 @@ let shortest_paths_global_policy ((topo, _, _, _) : topo) =
     |> List.sort ~cmp:(fun (ip,_) (ip',_) -> Int32.compare ip ip')
     |> List.group ~break:(fun (ip,_) (ip',_) -> not (Int32.equal ip ip'))
     |> List.map ~f:(function (ip,_)::_ as lst -> (ip, List.map lst ~f:snd))
+    (* SJS: disable pattern not exhasutive warning *)
+    [@@ocaml.warning "-8"]
   in
   let rec route paths =
     (* INVARIANT: all paths have same dst *)
@@ -110,8 +112,11 @@ let shortest_paths_global_policy ((topo, _, _, _) : topo) =
     |> List.map ~f:(function (hop::_)::_ as group -> (hop, List.map group ~f:List.tl_exn))
     |> List.map ~f:mk_hop
     |> mk_big_union
+    (* SJS: disable pattern not exhasutive warning *)
+    [@@ocaml.warning "-8"]
   and mk_hop (((src, src_pt),(dst,dst_pt)), rest) =
     match Node.device src with
+    | Node.Middlebox -> assert false (* SJS *)
     | Node.Host -> (* first hop from host to switch *)
       let () = assert (Node.device dst = Node.Switch) in
       let () = assert (List.for_all rest ~f:((=) [])) in
@@ -120,6 +125,7 @@ let shortest_paths_global_policy ((topo, _, _, _) : topo) =
     | Node.Switch ->
       let () = assert (List.for_all rest ~f:((<>) [])) in
       begin match Node.device dst with
+      | Node.Middlebox -> assert false (* SJS *)
       | Node.Host -> (* last hop from switch to host *)
         let rest = route rest in
         let hop = set_pt src_pt in

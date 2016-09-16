@@ -69,14 +69,14 @@ minutes or so to download.
 * Try some Python examples, see [Example Applications in Python](https://github.com/frenetic-lang/frenetic/wiki/Python-Examples)
 * Learn Frenetic programming in OCaml from the [Frenetic Tutorial](http://frenetic-lang.github.io/tutorials/Introduction/)
 * Learn the theory behind Frenetic by reading the papers at [http://frenetic-lang.org](http://frenetic-lang.org)
-* See examples of production Frenetic-based SDN's at [https://github.com/coscin/coscin-app](https://github.com/coscin/coscin-app) and [https://github.com/coscin/gates](https://github.com/coscin/gates).   
+* See examples of production Frenetic-based SDN's at [https://github.com/coscin/coscin-app](https://github.com/coscin/coscin-app) and [https://github.com/coscin/gates](https://github.com/coscin/gates).
 
 ## Contributing
 
-Frenetic is an open source project, and we encourage you to contribute! 
+Frenetic is an open source project, and we encourage you to contribute!
 
 * File Issues and Feature Requests in [Github Issues](https://github.com/frenetic-lang/frenetic/issues)
-* Join the [Frenetic Mailing List](http://lists.frenetic-lang.org/mailman/listinfo/frenetic-ocaml) for more in-depth guidance 
+* Join the [Frenetic Mailing List](http://lists.frenetic-lang.org/mailman/listinfo/frenetic-ocaml) for more in-depth guidance
 
 ## Credits
 
