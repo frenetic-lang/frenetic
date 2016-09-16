@@ -16,6 +16,17 @@ type topology = {
 type decider   = topology -> stream -> stream -> bool
 type generator = topology -> (stream * stream list) list -> (policy * policy)
 
+module SMT : sig
+  type condition
+  type action
+  type dyad
+
+  val of_condition : Frenetic_Fabric.condition -> condition
+  val of_action : Frenetic_Fdd.Action.t -> action
+
+  val of_dyad : stream -> dyad
+end
+
 module type MAPPING = sig
   val decide   : decider
   val generate : generator

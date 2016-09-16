@@ -63,6 +63,35 @@ let come_from topology ((src_sw, src_pt) as src) ((dst_sw, dst_pt) as dst) =
   And(Test( Switch dst_sw ),
        Test( Location( Physical pt )))
 
+module SMT = struct
+  open Frenetic_Fdd
+
+  type cond =
+    | Pos of Field.t * Value.t
+    | Neg of Field.t * Value.t
+
+  type condition = cond list
+
+  type action =
+    | Mod of Action.t
+    | Drop
+
+  type dyad = Dyad of condition list * action list
+
+  let of_condition (c:Fabric.condition) : condition =
+    Fabric.FieldTable.fold c ~init:[] ~f:(fun ~key:field ~data:(pos,negs) acc ->
+        let acc' = match pos with
+          | Some p -> (Pos(field, p))::acc
+          | None   -> acc in
+        List.fold negs ~init:acc' ~f:(fun acc v -> Neg(field, v)::acc))
+
+  let of_action (act:Action.t) : action =
+    if Action.is_zero act then Drop
+    else Mod act
+
+  let of_dyad (d:stream) : dyad = Dyad([],[])
+end
+
 
 module Generic:MAPPING = struct
   (** Functions for generating edge NetKAT programs from matched streams **)
