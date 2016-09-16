@@ -32,312 +32,312 @@
 <link title="Frenetic_Vlr" rel="Chapter" href="Frenetic_Vlr.html"><title>Frenetic_Packet</title>
 </head>
 <body>
-<code class="code"><span class="keyword">sig</span><br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;int8&nbsp;=&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;int8_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.int8<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_int8&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_int8&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.int8&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;int16&nbsp;=&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;int16_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.int16<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_int16&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_int16&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.int16&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;int48&nbsp;=&nbsp;int64<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;int48_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.int48<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_int48&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int48&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_int48&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int48&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.int48&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;dlAddr&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.int48<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;dlAddr_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_dlAddr&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_dlAddr&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;dlTyp&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.int16<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;dlTyp_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlTyp<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_dlTyp&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlTyp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_dlTyp&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlTyp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlTyp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;dlVlan&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.int16&nbsp;option<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;dlVlan_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlan<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_dlVlan&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlan&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_dlVlan&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlan&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlan&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;dlVlanPcp&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.int8<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;dlVlanPcp_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanPcp<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_dlVlanPcp&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanPcp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_dlVlanPcp&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanPcp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanPcp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;dlVlanDei&nbsp;=&nbsp;bool<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;dlVlanDei_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanDei<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_dlVlanDei&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanDei&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_dlVlanDei&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanDei&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanDei&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;nwAddr&nbsp;=&nbsp;int32<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;nwAddr_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_nwAddr&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_nwAddr&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;nwProto&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.int8<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;nwProto_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwProto<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_nwProto&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwProto&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_nwProto&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.nwProto&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwProto&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;nwTos&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.int8<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;nwTos_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwTos<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_nwTos&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwTos&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_nwTos&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwTos&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwTos&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;ipv6Addr&nbsp;=&nbsp;int64&nbsp;*&nbsp;int64<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;ipv6Addr_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.ipv6Addr<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_ipv6Addr&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.ipv6Addr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_ipv6Addr&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.ipv6Addr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.ipv6Addr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;tpPort&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.int16<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tpPort_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_tpPort&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_tpPort&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Tcp</span>&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Flags</span>&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ns&nbsp;:&nbsp;bool;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cwr&nbsp;:&nbsp;bool;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ece&nbsp;:&nbsp;bool;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;urg&nbsp;:&nbsp;bool;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ack&nbsp;:&nbsp;bool;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;psh&nbsp;:&nbsp;bool;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rst&nbsp;:&nbsp;bool;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;syn&nbsp;:&nbsp;bool;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fin&nbsp;:&nbsp;bool;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Tcp</span>.<span class="constructor">Flags</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Tcp</span>.<span class="constructor">Flags</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;src&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dst&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;seq&nbsp;:&nbsp;int32;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ack&nbsp;:&nbsp;int32;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;offset&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;flags&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Tcp</span>.<span class="constructor">Flags</span>.t;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;window&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;chksum&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;urgent&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;payload&nbsp;:&nbsp;<span class="constructor">Cstruct</span>.t;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Tcp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Tcp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span><br>
-&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Udp</span>&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;src&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dst&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;chksum&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;payload&nbsp;:&nbsp;<span class="constructor">Cstruct</span>.t;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Udp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Udp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span><br>
-&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Icmp</span>&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;typ&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;code&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;chksum&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;payload&nbsp;:&nbsp;<span class="constructor">Cstruct</span>.t;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Icmp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Icmp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span><br>
-&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Dns</span>&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Qd</span>&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;name&nbsp;:&nbsp;string;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;typ&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;class_&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.<span class="constructor">Qd</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.<span class="constructor">Qd</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Rr</span>&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;name&nbsp;:&nbsp;string;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;typ&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;class_&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ttl&nbsp;:&nbsp;int;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rdata&nbsp;:&nbsp;<span class="constructor">Cstruct</span>.t;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.<span class="constructor">Rr</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.<span class="constructor">Rr</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;id&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;flags&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;questions&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.<span class="constructor">Qd</span>.t&nbsp;list;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;answers&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.<span class="constructor">Rr</span>.t&nbsp;list;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;authority&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.<span class="constructor">Rr</span>.t&nbsp;list;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;additional&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.<span class="constructor">Rr</span>.t&nbsp;list;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;serialize&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Cstruct</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span><br>
-&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Igmp1and2</span>&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mrt&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;chksum&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;addr&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp1and2</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp1and2</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span><br>
-&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Igmp3</span>&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">GroupRec</span>&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;typ&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;addr&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sources&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;list;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp3</span>.<span class="constructor">GroupRec</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp3</span>.<span class="constructor">GroupRec</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;chksum&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;grs&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp3</span>.<span class="constructor">GroupRec</span>.t&nbsp;list;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp3</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp3</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span><br>
-&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Igmp</span>&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;msg&nbsp;=<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Igmp1and2</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp1and2</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Igmp3</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp3</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Unparsable</span>&nbsp;<span class="keyword">of</span>&nbsp;(<span class="constructor">Frenetic_Packet</span>.int8&nbsp;*&nbsp;<span class="constructor">Cstruct</span>.t)<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;msg_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp</span>.msg<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_msg&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp</span>.msg&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ver_and_typ&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;msg&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp</span>.msg;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span><br>
-&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Ip</span>&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;tp&nbsp;=<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Tcp</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Tcp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Udp</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Udp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Icmp</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Icmp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Igmp</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Unparsable</span>&nbsp;<span class="keyword">of</span>&nbsp;(<span class="constructor">Frenetic_Packet</span>.nwProto&nbsp;*&nbsp;<span class="constructor">Cstruct</span>.t)<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tp_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Ip</span>.tp<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_tp&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Ip</span>.tp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Flags</span>&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{&nbsp;df&nbsp;:&nbsp;bool;&nbsp;mf&nbsp;:&nbsp;bool;&nbsp;}<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Ip</span>.<span class="constructor">Flags</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Ip</span>.<span class="constructor">Flags</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tos&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwTos;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ident&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;flags&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Ip</span>.<span class="constructor">Flags</span>.t;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;frag&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ttl&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;chksum&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;src&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dst&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;options&nbsp;:&nbsp;<span class="constructor">Cstruct</span>.t;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tp&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Ip</span>.tp;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Ip</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Ip</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span><br>
-&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Arp</span>&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Query</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;*&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;*<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Reply</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;*&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;*<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;*&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Arp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Arp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span><br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;nw&nbsp;=<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Ip</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Ip</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Arp</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Arp</span>.t<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Unparsable</span>&nbsp;<span class="keyword">of</span>&nbsp;(<span class="constructor">Frenetic_Packet</span>.dlTyp&nbsp;*&nbsp;<span class="constructor">Cstruct</span>.t)<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;nw_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nw<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_nw&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nw&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;packet&nbsp;=&nbsp;{<br>
-&nbsp;&nbsp;&nbsp;&nbsp;dlSrc&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;dlDst&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;dlVlan&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlan;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;dlVlanDei&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanDei;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;dlVlanPcp&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanPcp;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;nw&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nw;<br>
-&nbsp;&nbsp;}<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;packet_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_packet&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;dlTyp&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlTyp<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;nwSrc&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;nwDst&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;nwTos&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwTos<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;nwProto&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwProto<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tpSrc&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tpDst&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;arpOperation&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;setDlSrc&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;setDlDst&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;setDlVlan&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlan&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;setDlVlanPcp&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanPcp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;setNwSrc&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;setNwDst&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;setNwTos&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwTos&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;setTpSrc&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;setTpDst&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_mac&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mac_of_string&nbsp;:&nbsp;string&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_dlAddr&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_dlTyp&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlTyp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_dlVlan&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlan&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_dlVlanPcp&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanPcp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_ip&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;ip_of_string&nbsp;:&nbsp;string&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_nwAddr&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_nwProto&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwProto&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_nwTos&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwTos&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_ipv6&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.ipv6Addr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;ipv6_of_string&nbsp;:&nbsp;string&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.ipv6Addr<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_tpPort&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;bytes_of_mac&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mac_of_bytes&nbsp;:&nbsp;string&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.int48<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;parse&nbsp;:&nbsp;<span class="constructor">Cstruct</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;len&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;marshal&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Cstruct</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;to_string&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;format_packet&nbsp;:&nbsp;<span class="constructor">Format</span>.formatter&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
+<code class="code"><span class="keyword">sig</span>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;int8&nbsp;=&nbsp;int
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;int8_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.int8
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_int8&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_int8&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.int8&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;int16&nbsp;=&nbsp;int
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;int16_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.int16
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_int16&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_int16&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.int16&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;int48&nbsp;=&nbsp;int64
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;int48_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.int48
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_int48&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int48&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_int48&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int48&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.int48&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;dlAddr&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.int48
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;dlAddr_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_dlAddr&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_dlAddr&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;dlTyp&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.int16
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;dlTyp_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlTyp
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_dlTyp&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlTyp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_dlTyp&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlTyp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlTyp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;dlVlan&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.int16&nbsp;option
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;dlVlan_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlan
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_dlVlan&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlan&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_dlVlan&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlan&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlan&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;dlVlanPcp&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.int8
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;dlVlanPcp_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanPcp
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_dlVlanPcp&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanPcp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_dlVlanPcp&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanPcp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanPcp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;dlVlanDei&nbsp;=&nbsp;bool
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;dlVlanDei_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanDei
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_dlVlanDei&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanDei&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_dlVlanDei&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanDei&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanDei&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;nwAddr&nbsp;=&nbsp;int32
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;nwAddr_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_nwAddr&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_nwAddr&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;nwProto&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.int8
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;nwProto_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwProto
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_nwProto&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwProto&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_nwProto&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.nwProto&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwProto&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;nwTos&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.int8
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;nwTos_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwTos
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_nwTos&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwTos&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_nwTos&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwTos&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwTos&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;ipv6Addr&nbsp;=&nbsp;int64&nbsp;*&nbsp;int64
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;ipv6Addr_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.ipv6Addr
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_ipv6Addr&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.ipv6Addr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_ipv6Addr&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.ipv6Addr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.ipv6Addr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;tpPort&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.int16
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tpPort_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_tpPort&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;compare_tpPort&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int
+&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Tcp</span>&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Flags</span>&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ns&nbsp;:&nbsp;bool;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cwr&nbsp;:&nbsp;bool;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ece&nbsp;:&nbsp;bool;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;urg&nbsp;:&nbsp;bool;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ack&nbsp;:&nbsp;bool;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;psh&nbsp;:&nbsp;bool;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rst&nbsp;:&nbsp;bool;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;syn&nbsp;:&nbsp;bool;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fin&nbsp;:&nbsp;bool;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Tcp</span>.<span class="constructor">Flags</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Tcp</span>.<span class="constructor">Flags</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;src&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dst&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;seq&nbsp;:&nbsp;int32;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ack&nbsp;:&nbsp;int32;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;offset&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;flags&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Tcp</span>.<span class="constructor">Flags</span>.t;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;window&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;chksum&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;urgent&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;payload&nbsp;:&nbsp;<span class="constructor">Cstruct</span>.t;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Tcp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Tcp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span>
+&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Udp</span>&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;src&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dst&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;chksum&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;payload&nbsp;:&nbsp;<span class="constructor">Cstruct</span>.t;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Udp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Udp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span>
+&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Icmp</span>&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;typ&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;code&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;chksum&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;payload&nbsp;:&nbsp;<span class="constructor">Cstruct</span>.t;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Icmp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Icmp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span>
+&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Dns</span>&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Qd</span>&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;name&nbsp;:&nbsp;string;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;typ&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;class_&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.<span class="constructor">Qd</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.<span class="constructor">Qd</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Rr</span>&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;name&nbsp;:&nbsp;string;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;typ&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;class_&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ttl&nbsp;:&nbsp;int;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rdata&nbsp;:&nbsp;<span class="constructor">Cstruct</span>.t;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.<span class="constructor">Rr</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.<span class="constructor">Rr</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;id&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;flags&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;questions&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.<span class="constructor">Qd</span>.t&nbsp;list;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;answers&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.<span class="constructor">Rr</span>.t&nbsp;list;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;authority&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.<span class="constructor">Rr</span>.t&nbsp;list;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;additional&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.<span class="constructor">Rr</span>.t&nbsp;list;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;serialize&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Dns</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Cstruct</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span>
+&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Igmp1and2</span>&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mrt&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;chksum&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;addr&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp1and2</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp1and2</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span>
+&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Igmp3</span>&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">GroupRec</span>&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;typ&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;addr&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sources&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;list;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp3</span>.<span class="constructor">GroupRec</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp3</span>.<span class="constructor">GroupRec</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;chksum&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;grs&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp3</span>.<span class="constructor">GroupRec</span>.t&nbsp;list;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp3</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp3</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span>
+&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Igmp</span>&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;msg&nbsp;=
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Igmp1and2</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp1and2</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Igmp3</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp3</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Unparsable</span>&nbsp;<span class="keyword">of</span>&nbsp;(<span class="constructor">Frenetic_Packet</span>.int8&nbsp;*&nbsp;<span class="constructor">Cstruct</span>.t)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;msg_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp</span>.msg
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_msg&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp</span>.msg&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ver_and_typ&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;msg&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp</span>.msg;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span>
+&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Ip</span>&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;tp&nbsp;=
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Tcp</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Tcp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Udp</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Udp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Icmp</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Icmp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Igmp</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Unparsable</span>&nbsp;<span class="keyword">of</span>&nbsp;(<span class="constructor">Frenetic_Packet</span>.nwProto&nbsp;*&nbsp;<span class="constructor">Cstruct</span>.t)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tp_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Ip</span>.tp
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_tp&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Ip</span>.tp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Flags</span>&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{&nbsp;df&nbsp;:&nbsp;bool;&nbsp;mf&nbsp;:&nbsp;bool;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Ip</span>.<span class="constructor">Flags</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Ip</span>.<span class="constructor">Flags</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tos&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwTos;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ident&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;flags&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Ip</span>.<span class="constructor">Flags</span>.t;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;frag&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ttl&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;chksum&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;src&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dst&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;options&nbsp;:&nbsp;<span class="constructor">Cstruct</span>.t;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tp&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Ip</span>.tp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Ip</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Ip</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span>
+&nbsp;&nbsp;<span class="keyword">module</span>&nbsp;<span class="constructor">Arp</span>&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">sig</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Query</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;*&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;*
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Reply</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;*&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;*
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;*&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Arp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Arp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">end</span>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;nw&nbsp;=
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Ip</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Ip</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Arp</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Arp</span>.t
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Unparsable</span>&nbsp;<span class="keyword">of</span>&nbsp;(<span class="constructor">Frenetic_Packet</span>.dlTyp&nbsp;*&nbsp;<span class="constructor">Cstruct</span>.t)
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;nw_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nw
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_nw&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nw&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;packet&nbsp;=&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;dlSrc&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr;
+&nbsp;&nbsp;&nbsp;&nbsp;dlDst&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr;
+&nbsp;&nbsp;&nbsp;&nbsp;dlVlan&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlan;
+&nbsp;&nbsp;&nbsp;&nbsp;dlVlanDei&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanDei;
+&nbsp;&nbsp;&nbsp;&nbsp;dlVlanPcp&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanPcp;
+&nbsp;&nbsp;&nbsp;&nbsp;nw&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nw;
+&nbsp;&nbsp;}
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;packet_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_packet&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;dlTyp&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlTyp
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;nwSrc&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;nwDst&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;nwTos&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwTos
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;nwProto&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwProto
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tpSrc&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tpDst&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;arpOperation&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;setDlSrc&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;setDlDst&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;setDlVlan&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlan&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;setDlVlanPcp&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanPcp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;setNwSrc&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;setNwDst&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;setNwTos&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwTos&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;setTpSrc&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;setTpDst&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_mac&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mac_of_string&nbsp;:&nbsp;string&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_dlAddr&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_dlTyp&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlTyp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_dlVlan&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlan&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_dlVlanPcp&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlVlanPcp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_ip&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;ip_of_string&nbsp;:&nbsp;string&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_nwAddr&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_nwProto&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwProto&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_nwTos&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwTos&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_ipv6&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.ipv6Addr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;ipv6_of_string&nbsp;:&nbsp;string&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.ipv6Addr
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;string_of_tpPort&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.tpPort&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;bytes_of_mac&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mac_of_bytes&nbsp;:&nbsp;string&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.int48
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;parse&nbsp;:&nbsp;<span class="constructor">Cstruct</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;len&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;marshal&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Cstruct</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;to_string&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;format_packet&nbsp;:&nbsp;<span class="constructor">Format</span>.formatter&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit
 <span class="keyword">end</span></code></body></html>

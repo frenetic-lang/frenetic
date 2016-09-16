@@ -32,12 +32,12 @@
 <link title="Frenetic_Vlr" rel="Chapter" href="Frenetic_Vlr.html"><title>Frenetic_Packet.Igmp1and2</title>
 </head>
 <body>
-<code class="code"><span class="keyword">sig</span><br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{<br>
-&nbsp;&nbsp;&nbsp;&nbsp;mrt&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;chksum&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;<br>
-&nbsp;&nbsp;&nbsp;&nbsp;addr&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr;<br>
-&nbsp;&nbsp;}<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp1and2</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp1and2</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
+<code class="code"><span class="keyword">sig</span>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;mrt&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;
+&nbsp;&nbsp;&nbsp;&nbsp;chksum&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
+&nbsp;&nbsp;&nbsp;&nbsp;addr&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr;
+&nbsp;&nbsp;}
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp1and2</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Igmp1and2</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 <span class="keyword">end</span></code></body></html>

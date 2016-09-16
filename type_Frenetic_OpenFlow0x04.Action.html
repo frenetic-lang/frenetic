@@ -32,16 +32,16 @@
 <link title="Frenetic_Vlr" rel="Chapter" href="Frenetic_Vlr.html"><title>Frenetic_OpenFlow0x04.Action</title>
 </head>
 <body>
-<code class="code"><span class="keyword">sig</span><br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.action<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;sequence&nbsp;=&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.actionSequence<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sizeof&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Action</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;marshal&nbsp;:&nbsp;<span class="constructor">Cstruct</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Action</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;parse&nbsp;:&nbsp;<span class="constructor">Cstruct</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Action</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;parse_sequence&nbsp;:&nbsp;<span class="constructor">Cstruct</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Action</span>.sequence<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;to_string&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Action</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;from_of_action&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.action&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Action</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;from_of_seq&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.seq&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Action</span>.sequence<br>
+<code class="code"><span class="keyword">sig</span>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.action
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;sequence&nbsp;=&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.actionSequence
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sizeof&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Action</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;marshal&nbsp;:&nbsp;<span class="constructor">Cstruct</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Action</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;parse&nbsp;:&nbsp;<span class="constructor">Cstruct</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Action</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;parse_sequence&nbsp;:&nbsp;<span class="constructor">Cstruct</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Action</span>.sequence
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;to_string&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Action</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;from_of_action&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.action&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Action</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;from_of_seq&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow</span>.seq&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Action</span>.sequence
 <span class="keyword">end</span></code></body></html>

@@ -32,16 +32,16 @@
 <link title="Frenetic_Vlr" rel="Chapter" href="Frenetic_Vlr.html"><title>Frenetic_Network.NETWORK.UnitPath</title>
 </head>
 <body>
-<code class="code"><span class="keyword">sig</span><br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;weight&nbsp;=&nbsp;int<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;<span class="constructor">Topology</span>.edge&nbsp;list<br>
-&nbsp;&nbsp;<span class="keyword">exception</span>&nbsp;<span class="constructor">NegativeCycle</span>&nbsp;<span class="keyword">of</span>&nbsp;t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;shortest_path&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Topology</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;t&nbsp;option<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;all_shortest_paths&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Topology</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Topology</span>.vertex&nbsp;<span class="constructor">Topology</span>.<span class="constructor">VertexHash</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;all_pairs_shortest_paths&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;topo:<span class="constructor">Topology</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;f:(<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;bool)&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;(weight&nbsp;*&nbsp;<span class="constructor">Topology</span>.vertex&nbsp;*&nbsp;<span class="constructor">Topology</span>.vertex&nbsp;*&nbsp;<span class="constructor">Topology</span>.edge&nbsp;list)&nbsp;list<br>
+<code class="code"><span class="keyword">sig</span>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;weight&nbsp;=&nbsp;int
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;<span class="constructor">Topology</span>.edge&nbsp;list
+&nbsp;&nbsp;<span class="keyword">exception</span>&nbsp;<span class="constructor">NegativeCycle</span>&nbsp;<span class="keyword">of</span>&nbsp;t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;shortest_path&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Topology</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;t&nbsp;option
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;all_shortest_paths&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Topology</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Topology</span>.vertex&nbsp;<span class="constructor">Topology</span>.<span class="constructor">VertexHash</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;all_pairs_shortest_paths&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;topo:<span class="constructor">Topology</span>.t&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;f:(<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;bool)&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;(weight&nbsp;*&nbsp;<span class="constructor">Topology</span>.vertex&nbsp;*&nbsp;<span class="constructor">Topology</span>.vertex&nbsp;*&nbsp;<span class="constructor">Topology</span>.edge&nbsp;list)&nbsp;list
 <span class="keyword">end</span></code></body></html>

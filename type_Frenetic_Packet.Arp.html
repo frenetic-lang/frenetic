@@ -32,12 +32,12 @@
 <link title="Frenetic_Vlr" rel="Chapter" href="Frenetic_Vlr.html"><title>Frenetic_Packet.Arp</title>
 </head>
 <body>
-<code class="code"><span class="keyword">sig</span><br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Query</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;*&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;*<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Reply</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;*&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;*<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;*&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Arp</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Arp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t<br>
+<code class="code"><span class="keyword">sig</span>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Query</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;*&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;*
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Reply</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;*&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;*
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.dlAddr&nbsp;*&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Arp</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.<span class="constructor">Arp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 <span class="keyword">end</span></code></body></html>

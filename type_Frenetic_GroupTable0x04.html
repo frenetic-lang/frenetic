@@ -32,18 +32,18 @@
 <link title="Frenetic_Vlr" rel="Chapter" href="Frenetic_Vlr.html"><title>Frenetic_GroupTable0x04</title>
 </head>
 <body>
-<code class="code"><span class="keyword">sig</span><br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;to_string&nbsp;:&nbsp;<span class="constructor">Frenetic_GroupTable0x04</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;create&nbsp;:&nbsp;unit&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_GroupTable0x04</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;add_group&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_GroupTable0x04</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupType&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.bucket&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupId<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;clear_groups&nbsp;:&nbsp;<span class="constructor">Frenetic_GroupTable0x04</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;commit&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_GroupTable0x04</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Message</span>.t&nbsp;list<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;add_fastfail_group&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_GroupTable0x04</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portId&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupId<br>
+<code class="code"><span class="keyword">sig</span>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;to_string&nbsp;:&nbsp;<span class="constructor">Frenetic_GroupTable0x04</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;create&nbsp;:&nbsp;unit&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_GroupTable0x04</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;add_group&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_GroupTable0x04</span>.t&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupType&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.bucket&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupId
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;clear_groups&nbsp;:&nbsp;<span class="constructor">Frenetic_GroupTable0x04</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;commit&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_GroupTable0x04</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Message</span>.t&nbsp;list
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;add_fastfail_group&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_GroupTable0x04</span>.t&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portId&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupId
 <span class="keyword">end</span></code></body></html>

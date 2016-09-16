@@ -32,29 +32,29 @@
 <link title="Frenetic_Vlr" rel="Chapter" href="Frenetic_Vlr.html"><title>Frenetic_NetKAT_Optimize</title>
 </head>
 <body>
-<code class="code"><span class="keyword">sig</span><br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_and&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_or&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_not&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_filter&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_union&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_seq&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_star&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;specialize_pred&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switchId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;specialize_policy&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switchId&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_big_and&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_big_or&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_big_union&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_big_seq&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;norm_policy&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;flatten_union&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;list<br>
+<code class="code"><span class="keyword">sig</span>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_and&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_or&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_not&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_filter&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_union&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_seq&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_star&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;specialize_pred&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switchId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;specialize_policy&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.switchId&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_big_and&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_big_or&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.pred
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_big_union&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mk_big_seq&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;norm_policy&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;flatten_union&nbsp;:&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_NetKAT</span>.policy&nbsp;list
 <span class="keyword">end</span></code></body></html>

@@ -32,27 +32,27 @@
 <link title="Frenetic_Vlr" rel="Chapter" href="Frenetic_Vlr.html"><title>Frenetic_Network.NETWORK.PATH</title>
 </head>
 <body>
-<code class="code"><span class="keyword">sig</span><br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;weight<br>
-&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.edge&nbsp;list<br>
-&nbsp;&nbsp;<span class="keyword">exception</span>&nbsp;<span class="constructor">NegativeCycle</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">PATH</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;shortest_path&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">PATH</span>.t&nbsp;option<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;all_shortest_paths&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.vertex<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.<span class="constructor">VertexHash</span>.t<br>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;all_pairs_shortest_paths&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;topo:<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;f:(<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;bool)&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">PATH</span>.weight&nbsp;*<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.vertex&nbsp;*<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.vertex&nbsp;*<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.edge&nbsp;list)<br>
-&nbsp;&nbsp;&nbsp;&nbsp;list<br>
+<code class="code"><span class="keyword">sig</span>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;weight
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.edge&nbsp;list
+&nbsp;&nbsp;<span class="keyword">exception</span>&nbsp;<span class="constructor">NegativeCycle</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">PATH</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;shortest_path&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.t&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">PATH</span>.t&nbsp;option
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;all_shortest_paths&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.t&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.vertex
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.<span class="constructor">VertexHash</span>.t
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;all_pairs_shortest_paths&nbsp;:
+&nbsp;&nbsp;&nbsp;&nbsp;topo:<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.t&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;f:(<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.vertex&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;bool)&nbsp;<span class="keywordsign">-&gt;</span>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">PATH</span>.weight&nbsp;*
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.vertex&nbsp;*
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.vertex&nbsp;*
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Network</span>.<span class="constructor">NETWORK</span>.<span class="constructor">Topology</span>.edge&nbsp;list)
+&nbsp;&nbsp;&nbsp;&nbsp;list
 <span class="keyword">end</span></code></body></html>
