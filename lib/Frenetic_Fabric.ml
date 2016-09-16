@@ -68,7 +68,7 @@ let paths_of_string (s:string) : (path list, string) Result.t =
   | Failed (msg, e) -> Error msg
 
 
-(** Various conversions between types **)
+(** Conversion and utility functions **)
 let pred_of_place ((sw,pt):place) =
   And( Test( Switch sw ), Test( Location( Physical pt )))
 
@@ -80,8 +80,35 @@ let place_of_options sw pt = match sw, pt with
                                  (sprintf "No port specified for switch %Ld" sw))
   | None   , None    -> raise (IncompletePlace "No switch and port specified")
 
+let paths_of_fdd fdd =
+  let rec traverse node path =
+    match FDD.unget node with
+    | FDD.Branch ((v,l), t, f) ->
+      let true_pred   = (v, Some l, []) in
+      let true_paths  = traverse t ( true_pred::path ) in
+      let false_pred  = (v, None, [l]) in
+      let false_paths = traverse f ( false_pred::path ) in
+      List.unordered_append true_paths false_paths
+    | FDD.Leaf r ->
+      [ (r, path) ] in
+  traverse fdd []
 
-(** String conversions and pretty printing **)
+let fuse field (pos, negs) (pos', negs') =
+  let pos = match pos, pos' with
+    | None, None   -> None
+    | None, Some v
+    | Some v, None -> Some v
+    | Some v1, Some v2 ->
+      let msg = sprintf "Field (%s) expected to have clashing values of (%s) and (%s) "
+          (Field.to_string field) (Value.to_string v1) (Value.to_string v2) in
+      raise (ClashException msg) in
+  let negs = match negs, negs' with
+    | [], [] -> []
+    | vs, [] -> vs
+    | [], vs -> vs
+    | vs1, vs2 -> List.unordered_append vs1 vs2 in
+  (pos, negs)
+
 let string_of_pred = Frenetic_NetKAT_Pretty.string_of_pred
 let string_of_policy = Frenetic_NetKAT_Pretty.string_of_policy
 
@@ -254,37 +281,6 @@ module Topo = struct
 
 end
 
-let paths_of_fdd fdd =
-  let rec traverse node path =
-    match FDD.unget node with
-    | FDD.Branch ((v,l), t, f) ->
-      let true_pred   = (v, Some l, []) in
-      let true_paths  = traverse t ( true_pred::path ) in
-      let false_pred  = (v, None, [l]) in
-      let false_paths = traverse f ( false_pred::path ) in
-      List.unordered_append true_paths false_paths
-    | FDD.Leaf r ->
-      [ (r, path) ] in
-  traverse fdd []
-
-
-let fuse field (pos, negs) (pos', negs') =
-  let pos = match pos, pos' with
-    | None, None   -> None
-    | None, Some v
-    | Some v, None -> Some v
-    | Some v1, Some v2 ->
-      let msg = sprintf "Field (%s) expected to have clashing values of (%s) and (%s) "
-          (Field.to_string field) (Value.to_string v1) (Value.to_string v2) in
-      raise (ClashException msg) in
-  let negs = match negs, negs' with
-    | [], [] -> []
-    | vs, [] -> vs
-    | [], vs -> vs
-    | vs1, vs2 -> List.unordered_append vs1 vs2 in
-  (pos, negs)
-
-
 module Condition = struct
   type t = condition
 
@@ -295,7 +291,6 @@ module Condition = struct
             | None -> ( pos, negs )
             | Some c -> fuse field (pos,negs) c));
     tbl
-
 
   let of_pred (p:pred) : t list =
     let sentinel = Mod( Location( Pipe "sentinel" )) in
