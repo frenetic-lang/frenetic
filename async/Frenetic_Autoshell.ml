@@ -545,13 +545,13 @@ let show (s:show) = match s with
 let path s : unit = match Source.to_string s with
   | Error e -> print_endline e
   | Ok s ->
-    begin match Fabric.paths_of_string s, state.fabric,state.topology with
+    begin match Fabric.Path.of_string s, state.fabric,state.topology with
       | Ok paths, Some f, Some topo ->
         (* TODO(basus): Update the edge configuration in the state *)
         let (fpol,fins,fouts) = (f.config.policy, f.config.ingresses, f.config.egresses) in
         let fabric      = Fabric.assemble fpol topo fins fouts in
         let fab_streams = Fabric.streams_of_policy fabric in
-        let ins, outs = Fabric.project paths fab_streams topo in
+        let ins, outs = Fabric.Path.project paths fab_streams topo in
         printf "\nIngress policy:\n";
         List.iter ins (fun p -> printf "%s\n" (string_of_policy p));
         printf "\nEgress policy:\n";

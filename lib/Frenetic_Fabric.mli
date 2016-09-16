@@ -14,7 +14,6 @@ exception CorrelationException of string
 
 type condition = (Value.t option * Value.t list) FieldTable.t
 type place     = (switchId * portId)
-type path      = pred * place list
 type stream    = place * place * condition * Action.t
 type fabric    = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
 
@@ -50,16 +49,24 @@ module Condition  : sig
   val is_subset   : t -> t -> bool
 end
 
+
+(** Module for dealing with policies specified as end-to-end paths directly, *)
+(** instead of as NetKAT programs *)
+module Path : sig
+  type t
+
+  val of_string : string -> (t list, string) Result.t
+  val project   : t list -> stream list -> policy -> (policy list * policy list)
+
+end
+
 val dedup : policy -> policy
 val streams_of_policy : policy -> stream list
 val string_of_stream : stream -> string
 val string_of_place  : place  -> string
-val paths_of_string  : string -> (path list, string) Result.t
 
 val assemble : policy -> policy ->
   (switchId * portId) list -> (switchId * portId) list ->
   policy
 val retarget : stream list -> stream list -> policy ->
-  (policy list * policy list)
-val project : path list -> stream list -> policy ->
   (policy list * policy list)

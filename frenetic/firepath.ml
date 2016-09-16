@@ -36,11 +36,11 @@ let () =
   let path_string =
     try In_channel.input_all (In_channel.create pol_path)
     with Sys_error msg -> failwith msg in
-  match Fabric.paths_of_string path_string with
+  match Fabric.Path.of_string path_string with
   | Error e -> failwith e
   | Ok paths ->
     try
-      let ins, outs = Fabric.project paths (Fabric.streams_of_policy fabric) topo in
+      let ins, outs = Fabric.Path.project paths (Fabric.streams_of_policy fabric) topo in
       let edge = Frenetic_NetKAT.Union (union ins, union outs)in
       Shell.install_fdd (compile fab)  [4L;5L;6L] |> Shell.print_deferred_results;
       Shell.install_fdd (compile edge) [1L;2L;3L] |> Shell.print_deferred_results;

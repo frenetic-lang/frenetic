@@ -7,7 +7,6 @@ module FieldTable = Hashtbl.Make(Field)
 
 type condition = (Value.t option * Value.t list) FieldTable.t
 type place     = (switchId * portId)
-type path      = pred * place list
 type stream    = place * place * condition * Action.t
 type fabric    = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
 
@@ -28,44 +27,6 @@ exception NonExistentPath of string
 exception NonFilterNode of policy
 exception ClashException of string
 exception CorrelationException of string
-
-(** Monadic parser for paths *)
-module PathParser = struct
-
-  open MParser
-  module Tokens = MParser_RE.Tokens
-
-  let symbol = Tokens.symbol
-
-  let pred : (pred, bytes list) MParser.t =
-    char '[' >>
-    many_chars_until (none_of "]") (char ']') >>= fun s ->
-    return (Frenetic_NetKAT_Parser.pred_of_string s)
-
-  let location : (place , bytes list) MParser.t =
-    many_chars_until digit (char '@') >>= fun swid ->
-    many_chars digit >>= fun ptid ->
-    return ((Int64.of_string swid),
-            (Int32.of_string ptid))
-
-  let path : (path, bytes list) MParser.t =
-    pred >>= fun p ->
-    spaces >> (char ':') >> spaces >>
-    location >>= fun start ->
-    (many_until (spaces >> symbol "==>" >> spaces >> location >>= fun l ->
-                 return l)
-       (char ';')) >>= fun ls ->
-    return (p, start::ls)
-
-  let program : (path list, bytes list) MParser.t =
-    many_until (spaces >> path) eof
-
-end
-
-let paths_of_string (s:string) : (path list, string) Result.t =
-  match (MParser.parse_string PathParser.program s []) with
-  | Success paths -> Ok paths
-  | Failed (msg, e) -> Error msg
 
 
 (** Conversion and utility functions **)
@@ -600,42 +561,83 @@ let retarget (policy:stream list) (fabric:stream list) (topo:policy) =
 
   ingresses, egresses
 
-let project_path pred ps tag graph =
-  let open OverEdge in
-  let rec mk_ends node path = match path with
-    | [] -> []
-    | hd::tl -> (node,hd)::(mk_ends hd tl) in
-  let endpoints = mk_ends (List.hd_exn ps) (List.tl_exn ps) in
-  (* TODO(basus): Handle the case where there are multiple conditions *)
-  let cond = List.hd_exn (Condition.of_pred pred) in
-  let action = Action.one in
-  List.fold_left endpoints ~init:([],[]) ~f:(fun (ins,outs) (src,sink) ->
-      try
-        let path,_ = OverPath.shortest_path graph src sink in
-        let stream = (src, sink, cond, action) in
-        let ingress, egress = stitch stream path tag in
-        ( List.rev_append ingress ins,
-          List.rev_append egress  outs)
-      with Not_found ->
-        let msg = sprintf "No path between %s and %s\n%!"
-            (string_of_place src) (string_of_place sink) in
-        raise (NonExistentPath msg))
+
+(** Monadic parser for paths *)
+module Path = struct
+
+  open MParser
+  module Tokens = MParser_RE.Tokens
+
+  type t = pred * place list
+
+  let symbol = Tokens.symbol
+
+  let pred : (pred, bytes list) MParser.t =
+    char '[' >>
+    many_chars_until (none_of "]") (char ']') >>= fun s ->
+    return (Frenetic_NetKAT_Parser.pred_of_string s)
+
+  let location : (place , bytes list) MParser.t =
+    many_chars_until digit (char '@') >>= fun swid ->
+    many_chars digit >>= fun ptid ->
+    return ((Int64.of_string swid),
+            (Int32.of_string ptid))
+
+  let path : (t, bytes list) MParser.t =
+    pred >>= fun p ->
+    spaces >> (char ':') >> spaces >>
+    location >>= fun start ->
+    (many_until (spaces >> symbol "==>" >> spaces >> location >>= fun l ->
+                 return l)
+       (char ';')) >>= fun ls ->
+    return (p, start::ls)
+
+  let program : (t list, bytes list) MParser.t =
+    many_until (spaces >> path) eof
+
+  let of_string (s:string) : (t list, string) Result.t =
+    match (MParser.parse_string program s []) with
+    | Success paths -> Ok paths
+    | Failed (msg, e) -> Error msg
 
 
-let project (paths: path list) (fabric: stream list) (topo:policy) =
-  let places = List.fold_left paths ~init:[] ~f:(fun acc (_,ps) ->
-      List.fold_left ps ~init:acc ~f:(fun acc p -> p::acc)) in
-  let graph = overlay places fabric topo in
-  let ingresses, egresses, _ = List.fold paths ~init:([],[],1)
-      ~f:(fun (ins, outs, tag) (pred, ps) ->
-          try
-            let ing, out = project_path pred ps tag graph in
-            ( List.rev_append ing ins,
-              List.rev_append out outs,
-              tag + 1 )
-          with NonExistentPath s ->
-            print_endline s;
-            (ins, outs, tag)) in
+  let implement pred ps tag graph =
+    let open OverEdge in
+    let rec mk_ends node path = match path with
+      | [] -> []
+      | hd::tl -> (node,hd)::(mk_ends hd tl) in
+    let endpoints = mk_ends (List.hd_exn ps) (List.tl_exn ps) in
+    (* TODO(basus): Handle the case where there are multiple conditions *)
+    let cond = List.hd_exn (Condition.of_pred pred) in
+    let action = Action.one in
+    List.fold_left endpoints ~init:([],[]) ~f:(fun (ins,outs) (src,sink) ->
+        try
+          let path,_ = OverPath.shortest_path graph src sink in
+          let stream = (src, sink, cond, action) in
+          let ingress, egress = stitch stream path tag in
+          ( List.rev_append ingress ins,
+            List.rev_append egress  outs)
+        with Not_found ->
+          let msg = sprintf "No path between %s and %s\n%!"
+              (string_of_place src) (string_of_place sink) in
+          raise (NonExistentPath msg))
 
-  ingresses, egresses
 
+  let project (paths: t list) (fabric: stream list) (topo:policy) =
+    let places = List.fold_left paths ~init:[] ~f:(fun acc (_,ps) ->
+        List.fold_left ps ~init:acc ~f:(fun acc p -> p::acc)) in
+    let graph = overlay places fabric topo in
+    let ingresses, egresses, _ = List.fold paths ~init:([],[],1)
+        ~f:(fun (ins, outs, tag) (pred, ps) ->
+            try
+              let ing, out = implement pred ps tag graph in
+              ( List.rev_append ing ins,
+                List.rev_append out outs,
+                tag + 1 )
+            with NonExistentPath s ->
+              print_endline s;
+              (ins, outs, tag)) in
+
+    ingresses, egresses
+
+end
