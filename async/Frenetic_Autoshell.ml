@@ -377,8 +377,8 @@ let compile_edge c f topo =
 
   let naive     = Fabric.assemble c.policy topo c.ingresses c.egresses in
   let fabric    = Fabric.assemble fpol topo fins fouts in
-  let parts     = Fabric.streams_of_policy naive in
-  let fab_parts = Fabric.streams_of_policy fabric in
+  let parts     = Fabric.Dyad.of_policy naive in
+  let fab_parts = Fabric.Dyad.of_policy fabric in
   let ins, outs = Fabric.retarget parts fab_parts topo in
 
   let ingress = Frenetic_NetKAT_Optimize.mk_big_union ins in
@@ -389,10 +389,10 @@ let compile_edge c f topo =
   log "Assembled fabric policy:\n%s\n" (string_of_policy fabric);
 
   log "Policy alpha/beta pairs:\n";
-  List.iter parts (fun s -> log "%s\n" (Fabric.string_of_stream s));
+  List.iter parts (fun s -> log "%s\n" (Fabric.Dyad.to_string s));
 
   log "Fabric alpha/beta pairs:\n";
-  List.iter fab_parts (fun s -> log "%s\n" (Fabric.string_of_stream s));
+  List.iter fab_parts (fun s -> log "%s\n" (Fabric.Dyad.to_string s));
 
   log "Retargeted ingress policy:\n%s\n" (string_of_policy ingress);
   log "Retargeted egress policy:\n%s\n" (string_of_policy egress);
@@ -550,7 +550,7 @@ let path s : unit = match Source.to_string s with
         (* TODO(basus): Update the edge configuration in the state *)
         let (fpol,fins,fouts) = (f.config.policy, f.config.ingresses, f.config.egresses) in
         let fabric      = Fabric.assemble fpol topo fins fouts in
-        let fab_streams = Fabric.streams_of_policy fabric in
+        let fab_streams = Fabric.Dyad.of_policy fabric in
         let ins, outs = Fabric.Path.project paths fab_streams topo in
         printf "\nIngress policy:\n";
         List.iter ins (fun p -> printf "%s\n" (string_of_policy p));

@@ -5,6 +5,7 @@ open Frenetic_OpenFlow
 (** Utility functions and imports *)
 module Compiler = Frenetic_NetKAT_Compiler
 module Fabric = Frenetic_Fabric
+module Dyad = Fabric.Dyad
 
 let flatten = Frenetic_Util.flatten
 let union = Frenetic_NetKAT_Optimize.mk_big_union
@@ -15,7 +16,6 @@ let compile_local =
 
 (** Essential types *)
 type place  = Fabric.place
-type stream = Fabric.stream
 
 type heuristic =
   | Random of int * int
@@ -28,8 +28,8 @@ type topology = {
 ; preds : (place, place) Hashtbl.t
 ; succs : (place, place) Hashtbl.t }
 
-type decider   = topology -> stream -> stream -> bool
-type generator = topology -> (stream * stream list) list -> (policy * policy)
+type decider   = topology -> Dyad.t -> Dyad.t -> bool
+type generator = topology -> (Dyad.t * Dyad.t list) list -> (policy * policy)
 
 module type MAPPING = sig
   val decide   : decider
@@ -78,7 +78,7 @@ module SMT = struct
 
   type dyad = Dyad of condition list * action list
 
-  let of_condition (c:Fabric.condition) : condition =
+  let of_condition (c:Fabric.Condition.t) : condition =
     Fabric.FieldTable.fold c ~init:[] ~f:(fun ~key:field ~data:(pos,negs) acc ->
         let acc' = match pos with
           | Some p -> (Pos(field, p))::acc
@@ -89,7 +89,7 @@ module SMT = struct
     if Action.is_zero act then Drop
     else Mod act
 
-  let of_dyad (d:stream) : dyad = Dyad([],[])
+  let of_dyad (d:Dyad.t) : dyad = Dyad([],[])
 end
 
 
@@ -133,7 +133,7 @@ module Generic:MAPPING = struct
         ~f:(fun (ins, outs, tag) (stream, picks) -> match picks with
             | [] ->
               printf "No available channel for policy stream |%s|\n"
-                (Fabric.string_of_stream stream);
+                (Fabric.Dyad.to_string stream);
               (ins,outs,tag)
             | picks ->
               let ins', outs' = List.fold picks ~init:(ins,outs)
@@ -185,7 +185,7 @@ module Optical : MAPPING = struct
         ~f:(fun (ins, outs, tag) (stream, picks) -> match picks with
             | [] ->
               printf "No available channel for policy stream |%s|\n"
-                (Fabric.string_of_stream stream);
+                (Fabric.Dyad.to_string stream);
               (ins,outs,tag)
             | picks ->
               let ins', outs' = List.fold picks ~init:(ins,outs)
@@ -214,7 +214,7 @@ module Make (M:MAPPING) = struct
   (** Core matching function *)
   let matching (decide:decider) (to_netkat:generator)
       heuristic topology
-      (from_policy:stream list) (from_fabric:stream list) : policy * policy =
+      (from_policy:Dyad.t list) (from_fabric:Dyad.t list) : policy * policy =
 
     (* For each policy stream, find the set of fabric streams that could be used
        to carry it. This is done using the `decide` decider function that allows
@@ -242,8 +242,8 @@ module Make (M:MAPPING) = struct
   let synthesize ?(heuristic=Random(1,1337))
       (policy:policy) (fabric:policy) (topo:policy) : policy =
     (* Streams are condition/modification pairs with empty actioned pairs filtered out *)
-    let policy_streams = Fabric.streams_of_policy policy in
-    let fabric_streams = Fabric.streams_of_policy fabric in
+    let policy_streams = Fabric.Dyad.of_policy policy in
+    let fabric_streams = Fabric.Dyad.of_policy fabric in
     let preds = Fabric.Topo.predecessors topo in
     let succs = Fabric.Topo.successors topo in
     let topology = {topo; preds; succs} in

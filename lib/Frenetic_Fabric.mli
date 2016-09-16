@@ -12,9 +12,7 @@ exception NonFilterNode of policy
 exception ClashException of string
 exception CorrelationException of string
 
-type condition = (Value.t option * Value.t list) FieldTable.t
 type place     = (switchId * portId)
-type stream    = place * place * condition * Action.t
 type fabric    = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
 
 (** Fabric generators, from a topology or policy *)
@@ -25,20 +23,10 @@ module Generators : sig
   val of_global_policy : policy -> switchId list -> fabric
 end
 
-(** Topology Handling: Functions for finding adjacent nodes in a given topology *)
-module Topo : sig
-  val predecessors : policy -> (place, place) Hashtbl.t
-  val successors : policy -> (place, place) Hashtbl.t
-  val precedes : (place, place) Hashtbl.t -> place -> place -> portId option
-  val succeeds :  (place, place) Hashtbl.t -> place -> place -> portId option
-  val starts_at : (place, place) Hashtbl.t -> switchId -> stream -> bool
-  val stops_at : (place, place) Hashtbl.t -> switchId -> stream -> bool
-end
-
-
-(** Condition related functions, useful for generating NetKAT programs from streams *)
+(** Condition related functions *)
 module Condition  : sig
-  type t = condition
+  type t = (Value.t option * Value.t list) FieldTable.t
+
   val of_pred     : pred -> t list
   val to_pred     : t -> pred
   val to_string   : t -> string
@@ -49,6 +37,12 @@ module Condition  : sig
   val is_subset   : t -> t -> bool
 end
 
+(** A dyad is an alpha/beta pair *)
+module Dyad : sig
+  type t = place * place * Condition.t * Action.t
+  val of_policy : policy -> t list
+  val to_string : t -> string
+end
 
 (** Module for dealing with policies specified as end-to-end paths directly, *)
 (** instead of as NetKAT programs *)
@@ -56,17 +50,25 @@ module Path : sig
   type t
 
   val of_string : string -> (t list, string) Result.t
-  val project   : t list -> stream list -> policy -> (policy list * policy list)
+  val project   : t list -> Dyad.t list -> policy -> (policy list * policy list)
 
 end
 
+(** Topology Handling: Functions for finding adjacent nodes in a given topology *)
+module Topo : sig
+  val predecessors : policy -> (place, place) Hashtbl.t
+  val successors : policy -> (place, place) Hashtbl.t
+  val precedes : (place, place) Hashtbl.t -> place -> place -> portId option
+  val succeeds :  (place, place) Hashtbl.t -> place -> place -> portId option
+  val starts_at : (place, place) Hashtbl.t -> switchId -> Dyad.t -> bool
+  val stops_at : (place, place) Hashtbl.t -> switchId -> Dyad.t -> bool
+end
+
 val dedup : policy -> policy
-val streams_of_policy : policy -> stream list
-val string_of_stream : stream -> string
 val string_of_place  : place  -> string
 
 val assemble : policy -> policy ->
   (switchId * portId) list -> (switchId * portId) list ->
   policy
-val retarget : stream list -> stream list -> policy ->
+val retarget : Dyad.t list -> Dyad.t list -> policy ->
   (policy list * policy list)

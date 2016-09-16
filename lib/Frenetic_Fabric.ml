@@ -5,9 +5,7 @@ open Frenetic_NetKAT
 module Compiler = Frenetic_NetKAT_Compiler
 module FieldTable = Hashtbl.Make(Field)
 
-type condition = (Value.t option * Value.t list) FieldTable.t
 type place     = (switchId * portId)
-type stream    = place * place * condition * Action.t
 type fabric    = (switchId, Frenetic_OpenFlow.flowTable) Hashtbl.t
 
 (** Import and rename utility functions *)
@@ -69,6 +67,36 @@ let fuse field (pos, negs) (pos', negs') =
     | [], vs -> vs
     | vs1, vs2 -> List.unordered_append vs1 vs2 in
   (pos, negs)
+
+(* Iterate through a policy and translates Links to matches on source and *)
+(* modifications to the destination *)
+let rec dedup (pol:policy) : policy =
+  let at_place sw pt = Filter (pred_of_place (sw,pt)) in
+  let to_place sw pt =
+    let sw_mod = Mod (Switch sw) in
+    let pt_mod = Mod (Location (Physical pt)) in
+    Seq ( sw_mod, pt_mod ) in
+  match pol with
+  | Filter a    -> Filter a
+  | Mod hv      -> Mod hv
+  | Union (p,q) -> Union(dedup p, dedup q)
+  | Seq (p,q)   -> Seq(dedup p, dedup q)
+  | Star p      -> Star(dedup p)
+  | Link (s1,p1,s2,p2) ->
+    Seq (at_place s1 p1, to_place s2 p2)
+  | VLink _       -> failwith "Fabric: Cannot remove Dups from a policy with VLink"
+  | Let (_,_,_,_) -> failwith "No support for Meta fields yet"
+
+(* Given a policy, guard it with the ingresses, sequence and iterate with the *)
+(* topology and guard with the egresses, i.e. form in;(p.t)*;p;out *)
+let assemble (pol:policy) (topo:policy) ings egs : policy =
+  let to_filter (sw,pt) = Filter( And( Test(Switch sw),
+                                       Test(Location (Physical pt)))) in
+  let ingresses = union (List.map ings ~f:to_filter) in
+  let egresses  = union (List.map egs ~f:to_filter) in
+  seq [ ingresses;
+        Star(Seq(pol, topo)); pol;
+        egresses ]
 
 let string_of_pred = Frenetic_NetKAT_Pretty.string_of_pred
 let string_of_policy = Frenetic_NetKAT_Pretty.string_of_policy
@@ -243,7 +271,7 @@ module Topo = struct
 end
 
 module Condition = struct
-  type t = condition
+  type t = (Value.t option * Value.t list) FieldTable.t
 
   let of_fdd_path (action,headers) : t =
     let tbl = FieldTable.create ~size:(List.length headers) () in
@@ -308,49 +336,23 @@ module Condition = struct
 
 end
 
-let string_of_stream (s:stream) : string =
-  let (sw_in, pt_in), (sw_out, pt_out), condition, action = s in
-  sprintf
-    "From: Switch:%Ld Port:%ld\nTo Switch:%Ld Port:%ld\nCondition: %s\nAction: %s\n"
-    sw_in pt_in sw_out pt_out
-    (Condition.to_string condition)
-    (string_of_policy (Action.to_policy action))
+
+(** Code to convert policies to alpha/beta pairs (dyads) **)
+module Dyad = struct
+  type t = place * place * Condition.t * Action.t
+
+  let to_string (s:t) : string =
+    let (sw_in, pt_in), (sw_out, pt_out), condition, action = s in
+    sprintf
+      "From: Switch:%Ld Port:%ld\nTo Switch:%Ld Port:%ld\nCondition: %s\nAction: %s\n"
+      sw_in pt_in sw_out pt_out
+      (Condition.to_string condition)
+      (string_of_policy (Action.to_policy action))
 
 
-(** Code to convert policies to alpha/beta pairs (streams) **)
-(* Iterate through a policy and translates Links to matches on source and *)
-(* modifications to the destination *)
-let rec dedup (pol:policy) : policy =
-  let at_place sw pt = Filter (pred_of_place (sw,pt)) in
-  let to_place sw pt =
-    let sw_mod = Mod (Switch sw) in
-    let pt_mod = Mod (Location (Physical pt)) in
-    Seq ( sw_mod, pt_mod ) in
-  match pol with
-  | Filter a    -> Filter a
-  | Mod hv      -> Mod hv
-  | Union (p,q) -> Union(dedup p, dedup q)
-  | Seq (p,q)   -> Seq(dedup p, dedup q)
-  | Star p      -> Star(dedup p)
-  | Link (s1,p1,s2,p2) ->
-    Seq (at_place s1 p1, to_place s2 p2)
-  | VLink _       -> failwith "Fabric: Cannot remove Dups from a policy with VLink"
-  | Let (_,_,_,_) -> failwith "No support for Meta fields yet"
-
-(* Given a policy, guard it with the ingresses, sequence and iterate with the *)
-(* topology and guard with the egresses, i.e. form in;(p.t)*;p;out *)
-let assemble (pol:policy) (topo:policy) ings egs : policy =
-  let to_filter (sw,pt) = Filter( And( Test(Switch sw),
-                                       Test(Location (Physical pt)))) in
-  let ingresses = union (List.map ings ~f:to_filter) in
-  let egresses  = union (List.map egs ~f:to_filter) in
-  seq [ ingresses;
-        Star(Seq(pol, topo)); pol;
-        egresses ]
-
-(* TODO(basus): This only keep the last destination, but there might be many *)
-let destination_of_action (action:Action.t) : (switchId option * portId option * Action.t) =
-  Action.Par.fold action ~init:(None, None, Action.Par.empty)
+  (* TODO(basus): This only keep the last destination, but there might be many *)
+  let destination_of_action (action:Action.t) : (switchId option * portId option * Action.t) =
+    Action.Par.fold action ~init:(None, None, Action.Par.empty)
       ~f:(fun (sw,pt,acc) seq ->
           let sw, pt, seq' = Action.Seq.fold_fields seq ~init:(sw,pt,Action.Seq.empty)
               ~f:(fun ~key ~data (sw,pt,acc) ->
@@ -367,39 +369,41 @@ let destination_of_action (action:Action.t) : (switchId option * portId option *
                     (sw,pt, Action.Seq.add acc (Action.F key) data)) in
           (sw, pt, Action.Par.add acc seq'))
 
-let stream_of_fdd_path (action,headers) : stream =
-  let update sw pt tbl field pos negs = match field, pos with
-    | Field.Switch, Some( Value.Const sw' ) -> begin match sw with
-        | None -> (Some sw', pt)
-        | Some sw ->
-          let msg = sprintf "Switch field has clashing values of %Ld and %Ld" sw sw' in
-          raise (ClashException msg) end
-    | Field.Location, Some( Value.Const pt' as p) -> begin match pt with
-        | None -> (sw, Some(Value.to_int32_exn p))
-        | Some pt ->
-          let msg = sprintf "Port field has clashing values of %ld and %ld" pt
-              (Value.to_int32_exn p) in
-          raise (ClashException msg) end
-    | _ ->
-      FieldTable.update tbl field ~f:(function
-          | None -> ( pos, negs )
-          | Some c -> fuse field (pos,negs) c);
-      (sw, pt) in
-  let tbl = FieldTable.create ~size:(List.length headers) () in
-  let src_sw, src_pt = List.fold_left headers ~init:(None, None)
-      ~f:(fun (sw,pt) (f, p, ns) ->
-          update sw pt tbl f p ns) in
-  let dst_sw, dst_pt, action = destination_of_action action in
-  let src = place_of_options src_sw src_pt in
-  let dst = place_of_options dst_sw dst_pt in
-  (src, dst, tbl, action)
+  let of_fdd_path (action,headers) : t =
+    let update sw pt tbl field pos negs = match field, pos with
+      | Field.Switch, Some( Value.Const sw' ) -> begin match sw with
+          | None -> (Some sw', pt)
+          | Some sw ->
+            let msg = sprintf "Switch field has clashing values of %Ld and %Ld" sw sw' in
+            raise (ClashException msg) end
+      | Field.Location, Some( Value.Const pt' as p) -> begin match pt with
+          | None -> (sw, Some(Value.to_int32_exn p))
+          | Some pt ->
+            let msg = sprintf "Port field has clashing values of %ld and %ld" pt
+                (Value.to_int32_exn p) in
+            raise (ClashException msg) end
+      | _ ->
+        FieldTable.update tbl field ~f:(function
+            | None -> ( pos, negs )
+            | Some c -> fuse field (pos,negs) c);
+        (sw, pt) in
+    let tbl = FieldTable.create ~size:(List.length headers) () in
+    let src_sw, src_pt = List.fold_left headers ~init:(None, None)
+        ~f:(fun (sw,pt) (f, p, ns) ->
+            update sw pt tbl f p ns) in
+    let dst_sw, dst_pt, action = destination_of_action action in
+    let src = place_of_options src_sw src_pt in
+    let dst = place_of_options dst_sw dst_pt in
+    (src, dst, tbl, action)
 
-let streams_of_policy (pol:policy) : stream list =
-  let deduped = dedup pol in
-  let fdd = compile_local deduped in
-  let paths = paths_of_fdd fdd in
-  List.fold_left paths ~init:[] ~f:(fun acc ((a,hs) as p) ->
-      if Action.is_zero a then acc else ( stream_of_fdd_path p )::acc)
+  let of_policy (pol:policy) : t list =
+    let deduped = dedup pol in
+    let fdd = compile_local deduped in
+    let paths = paths_of_fdd fdd in
+    List.fold_left paths ~init:[] ~f:(fun acc ((a,hs) as p) ->
+        if Action.is_zero a then acc else ( of_fdd_path p )::acc)
+
+end
 
 (** Start graph-based retargeting. *)
 
@@ -422,8 +426,8 @@ module OverEdge = struct
 
   type t =
     | Internal                            (* Between ports on the same switch *)
-    | Exact of condition * Action.t       (* The fabric delivers between those exact point *)
-    | Adjacent of condition * Action.t    (* Fabric delivers between locations attached to
+    | Exact of Condition.t * Action.t       (* The fabric delivers between those exact point *)
+    | Adjacent of Condition.t * Action.t    (* Fabric delivers between locations attached to
                                              these in the topology *)
 
   let default = Internal
@@ -451,7 +455,7 @@ end
 
 module OverPath = Graph.Path.Dijkstra(Overlay)(Weight)
 
-let overlay (places:place list) (fabric:stream list) (topo:policy) : Overlay.t =
+let overlay (places:place list) (fabric:Dyad.t list) (topo:policy) : Overlay.t =
   let preds = Topo.predecessors topo in
   let succs = Topo.successors topo in
 
@@ -480,7 +484,7 @@ let overlay (places:place list) (fabric:stream list) (topo:policy) : Overlay.t =
           else g ) g g) graph graph
 
 (* Given an edge representing a fabric path (hop) and a  *)
-let generalize ((_,fabric_path,_):Overlay.E.t) (cond:condition)
+let generalize ((_,fabric_path,_):Overlay.E.t) (cond:Condition.t)
   : policy list * policy list =
   let open Condition in
   match fabric_path with
@@ -542,7 +546,7 @@ let rec stitch (src,sink,condition,action) path tag =
     | _ -> failwith "Malformed path" in
   aux path []
 
-let retarget (policy:stream list) (fabric:stream list) (topo:policy) =
+let retarget (policy:Dyad.t list) (fabric:Dyad.t list) (topo:policy) =
   let places = List.fold_left policy ~init:[] ~f:(fun acc (src, sink,_,_) ->
       src::sink::acc) in
   let graph = overlay places fabric topo in
@@ -623,7 +627,7 @@ module Path = struct
           raise (NonExistentPath msg))
 
 
-  let project (paths: t list) (fabric: stream list) (topo:policy) =
+  let project (paths: t list) (fabric: Dyad.t list) (topo:policy) =
     let places = List.fold_left paths ~init:[] ~f:(fun acc (_,ps) ->
         List.fold_left ps ~init:acc ~f:(fun acc p -> p::acc)) in
     let graph = overlay places fabric topo in
