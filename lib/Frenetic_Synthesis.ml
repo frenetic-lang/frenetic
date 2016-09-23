@@ -29,12 +29,26 @@ type topology = {
 ; succs : (place, place) Hashtbl.t }
 
 type decider   = topology -> Dyad.t -> Dyad.t -> bool
-type generator = topology -> (Dyad.t * Dyad.t list) list -> (policy * policy)
+type chooser   = topology -> Dyad.t -> Dyad.t list -> Dyad.t
+type generator = topology -> (Dyad.t * Dyad.t) list -> (policy * policy)
 
 module type MAPPING = sig
   val decide   : decider
+  val choose   : chooser
   val generate : generator
 end
+
+(* Pick n random elements from options *)
+let rec random_picks options n =
+  let options = Array.of_list options in
+  let bound = Array.length options in
+  let rec aux n acc =
+    if n = 0 then acc
+    else
+      let index = Random.int bound in
+      let acc' = options.(index)::acc in
+      aux (n-1) acc' in
+  if bound = -1 then [] else aux n []
 
 (** Topology related functions. Again, need to be replaced by a better topology module. *)
 (* Check if the fabric stream and the policy stream start and end at the same,
@@ -126,23 +140,6 @@ module Generic:MAPPING = struct
                             [out_filter]; restore; [modify]; [to_edge]]) in
     ingress, egress
 
-  (* Given a list of (policy streams, possible fabric streams
-     generate the appropriate NetKAT ingress and egress programs *)
-  let generate topo pairs : policy * policy =
-    let ins, outs, _ = List.fold_left pairs ~init:([],[], 0)
-        ~f:(fun (ins, outs, tag) (stream, picks) -> match picks with
-            | [] ->
-              printf "No available channel for policy stream |%s|\n"
-                (Fabric.Dyad.to_string stream);
-              (ins,outs,tag)
-            | picks ->
-              let ins', outs' = List.fold picks ~init:(ins,outs)
-                  ~f:(fun (ins, outs) fab ->
-                      let ins', outs' = to_netkat topo stream fab tag in
-                      (ins'::ins, outs'::outs)) in
-              (ins', outs', tag+1)) in
-    (union ins, union outs)
-
   (** A fabric stream can carry a policy stream, without encapsulation iff
       1. The endpoints of the two streams are adjacent (see the `adjacent` function)
       and
@@ -155,12 +152,27 @@ module Generic:MAPPING = struct
       ((src',dst',cond',actions') as fab) =
     adjacent topo pol fab &&
     ( Fabric.Condition.places_only cond' || Fabric.Condition.is_subset cond' cond)
+
+  (** Just pick one possible fabric stream at random from the set of options *)
+  let choose topo stream options =
+    match random_picks options 1 with
+    | [s] -> s
+    | tl::hd -> tl
+    | [] -> failwith (sprintf "No fabric dyad for policy dyad |%s|\n"
+                        (Fabric.Dyad.to_string stream))
+      (* TODO(basus): proper error handling when there is no usable choice *)
+
+  (* Given a list of (policy streams, possible fabric streams
+     generate the appropriate NetKAT ingress and egress programs *)
+  let generate topo pairs : policy * policy =
+    let ins, outs, _ = List.fold_left pairs ~init:([],[], 0)
+        ~f:(fun (ins, outs, tag) (stream, pick) ->
+            let ins', outs' = to_netkat topo stream pick tag in
+            (ins'::ins, outs'::outs, tag+1)) in
+    (union ins, union outs)
 end
 
 module Optical : MAPPING = struct
-  let decide topo ((_,_,cond,_) as pol) ((_,_,cond',_) as fab) =
-    adjacent topo pol fab && Fabric.Condition.places_only cond'
-
   let to_netkat topo
     ((src,dst,cond,actions)) ((src',dst',cond',actions'))
     (tag:int): policy * policy =
@@ -175,6 +187,18 @@ module Optical : MAPPING = struct
   let egress  = seq ([ out_filter; Mod( Vlan strip_vlan ); modify; to_edge ]) in
   ingress, egress
 
+  let decide topo ((_,_,cond,_) as pol) ((_,_,cond',_) as fab) =
+    adjacent topo pol fab && Fabric.Condition.places_only cond'
+
+  (** Just pick one possible fabric stream at random from the set of options *)
+  let choose topo stream options =
+    match random_picks options 1 with
+    | [s] -> s
+    | tl::hd -> tl
+    | [] -> failwith (sprintf "No available channel for policy stream |%s|\n"
+                        (Fabric.Dyad.to_string stream))
+      (* TODO(basus): proper error handling when there is no usable choice *)
+
   (* Use the policy streams and the corresponding fabric streams to generate
      edge NetKAT programs that implement the policy streams atop the fabric
      streams. Use a unique integer tag per policy stream to keep them
@@ -182,38 +206,17 @@ module Optical : MAPPING = struct
      (policy stream, fabric stream) pair. *)
   let generate topo pairs : policy * policy =
     let ins, outs, _ = List.fold_left pairs ~init:([],[], 0)
-        ~f:(fun (ins, outs, tag) (stream, picks) -> match picks with
-            | [] ->
-              printf "No available channel for policy stream |%s|\n"
-                (Fabric.Dyad.to_string stream);
-              (ins,outs,tag)
-            | picks ->
-              let ins', outs' = List.fold picks ~init:(ins,outs)
-                  ~f:(fun (ins, outs) fab ->
-                      let ins', outs' = to_netkat topo stream fab tag in
-                      (ins'::ins, outs'::outs)) in
-              (ins', outs', tag+1)) in
+        ~f:(fun (ins, outs, tag) (stream, pick) ->
+            let ins', outs' = to_netkat topo stream pick tag in
+            (ins'::ins, outs'::outs, tag+1)) in
     (union ins, union outs)
 
 end
 
 module Make (M:MAPPING) = struct
 
-  (* Pick n random elements from options *)
-  let rec random_picks options n =
-    let options = Array.of_list options in
-    let bound = Array.length options in
-    let rec aux n acc =
-      if n = 0 then acc
-      else
-        let index = Random.int bound in
-        let acc' = options.(index)::acc in
-        aux (n-1) acc' in
-    if bound = -1 then [] else aux n []
-
   (** Core matching function *)
-  let matching (decide:decider) (to_netkat:generator)
-      heuristic topology
+  let matching (decide:decider) (choose:chooser) (generate:generator) topology
       (from_policy:Dyad.t list) (from_fabric:Dyad.t list) : policy * policy =
 
     (* For each policy stream, find the set of fabric streams that could be used
@@ -228,26 +231,23 @@ module Make (M:MAPPING) = struct
 
     (* Pick a smaller set of fabric streams to actually carry the policy streams,
        based on a given heuristic. *)
-    let pairs = match heuristic with
-      | Random(num, seed) ->
-        Random.init seed;
+    let pairs =
+      (* | Random(num, seed) -> *)
+      (*   Random.init seed; *)
         List.fold_left partitions ~init:[] ~f:(fun acc (stream, opts) ->
-            let picks = random_picks opts num in
-            (stream, picks)::acc)
-      | MaxSpread
-      | MinSpread -> [] in
+            let pick = choose topology stream opts in
+            (stream, pick)::acc) in
 
-    to_netkat topology pairs
+    generate topology pairs
 
-  let synthesize ?(heuristic=Random(1,1337))
-      (policy:policy) (fabric:policy) (topo:policy) : policy =
+  let synthesize (policy:policy) (fabric:policy) (topo:policy) : policy =
     (* Streams are condition/modification pairs with empty actioned pairs filtered out *)
     let policy_streams = Fabric.Dyad.of_policy policy in
     let fabric_streams = Fabric.Dyad.of_policy fabric in
     let preds = Fabric.Topo.predecessors topo in
     let succs = Fabric.Topo.successors topo in
     let topology = {topo; preds; succs} in
-    let ingress, egress = matching M.decide M.generate heuristic topology
+    let ingress, egress = matching M.decide M.choose M.generate topology
         policy_streams fabric_streams in
     Union(ingress, egress)
 

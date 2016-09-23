@@ -14,7 +14,8 @@ type topology = {
 ; succs : (place, place) Hashtbl.t }
 
 type decider   = topology -> Dyad.t -> Dyad.t -> bool
-type generator = topology -> (Dyad.t * Dyad.t list) list -> (policy * policy)
+type chooser   = topology -> Dyad.t -> Dyad.t list -> Dyad.t
+type generator = topology -> (Dyad.t * Dyad.t) list -> (policy * policy)
 
 module SMT : sig
   type condition
@@ -29,11 +30,12 @@ end
 
 module type MAPPING = sig
   val decide   : decider
+  val choose   : chooser
   val generate : generator
 end
 
 module Make(M:MAPPING) : sig
-  val synthesize : ?heuristic:heuristic -> policy -> policy -> policy -> policy
+  val synthesize : policy -> policy -> policy -> policy
 end
 
 module Optical : MAPPING
