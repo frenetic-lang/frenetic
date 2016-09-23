@@ -17,6 +17,8 @@ type decider   = topology -> Dyad.t -> Dyad.t -> bool
 type chooser   = topology -> Dyad.t -> Dyad.t list -> Dyad.t
 type generator = topology -> (Dyad.t * Dyad.t) list -> (policy * policy)
 
+exception UnmatchedDyad of Dyad.t
+
 module SMT : sig
   type condition
   type action

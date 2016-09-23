@@ -441,6 +441,8 @@ let synthesize () : (string, string) Result.t =
   | Some c, Some f, Some t ->
     let open Frenetic_Synthesis in
     let module S = Make(Optical) in
+    (* TODO(basus): Make seed a user-specified parameter *)
+    Random.init 1337;
     let fabric = Fabric.assemble f.config.policy t
         f.config.ingresses f.config.egresses in
     let policy = Fabric.assemble c.policy t c.ingresses c.egresses in
