@@ -40,3 +40,59 @@
 ;;   adjacent topo pol fab &&
 ;;   ( Fabric.Condition.places_only cond' || Fabric.Condition.is_subset cond' cond)
 
+;; NetKAT basics, based on, but different from the netkat.z3 file
+;; Values
+(define-sort Value () Int)
+
+;; Fields
+(declare-datatypes ()
+  ((Field
+      Switch
+      Location
+      EthType
+      EthSrc
+      EthDst
+      Vlan
+      VlanPcp
+      IPProto
+      IP4Src
+      IP4Dst
+      TCPSrcPort
+      TCPDstPort
+      VPort
+      VSwitch
+      VFabric
+      Channel
+      Meta
+      )))
+
+;; Predicates. Different from netkat.z3 where this is a function, not a type
+(declare-datatypes (F V) ((Predicate
+                           Tru
+                           Fls
+                           (Test (field F) (value V))
+                           (And (a1 Predicate) (a2 Predicate))
+                           (Or (o1 Predicate) (o2 Predicate))
+                           (Neg (n Predicate)))))
+
+;; Datatype for locations, pairs of switch and port
+(declare-datatypes (S P) ((Location (mk-loc (switch S) (port P)))))
+
+;; Conditions are just NetKAT predicates
+(define-sort Condition () ( Predicate Field Value ))
+
+;; Actions are just arrays of field-value pairs. Not quite right, but good
+;; enough for now.
+
+(define-sort Action () (Array Field Value))
+
+;; Datatype for dyads, parameterized on locations (L), conditions (C) and
+;; actions (A)
+
+(declare-datatypes (L C A) ((Dyad (mk-dyad (src L) (dst L) (condition C) (action A)))))
+
+;; Check if a condition is a check on locations only
+(declare-const c1 Condition)
+(declare-const c2 Condition)
+(assert (= c1 (And (Test Switch 1) (Test Location 2))))
+(assert (= c2 (And (Test Switch 3) (Test EthType 88))))
