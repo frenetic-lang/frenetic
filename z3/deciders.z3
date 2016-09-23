@@ -21,7 +21,6 @@
 ;; let decide topo ((_,_,cond,_) as pol) ((_,_,cond',_) as fab) =
 ;;   adjacent topo pol fab && Fabric.Condition.places_only cond'
 
-
 ;; Example 2:
 ;; Given a simple L2/L3 fabric, without any encapsulation capability on the edge switches,
 ;; a fabric dyad can carry a policy dyad, iff:
@@ -41,8 +40,9 @@
 ;;   ( Fabric.Condition.places_only cond' || Fabric.Condition.is_subset cond' cond)
 
 ;; NetKAT basics, based on, but different from the netkat.z3 file
+
 ;; Values
-(define-sort Value () Int)
+(define-sort Value () (_ BitVec 32))
 
 ;; Fields
 (declare-datatypes ()
@@ -72,7 +72,7 @@
                            Fls
                            (Test (field F) (value V))
                            (And (a1 Predicate) (a2 Predicate))
-                           (Or (o1 Predicate) (o2 Predicate))
+                           (Or  (o1 Predicate) (o2 Predicate))
                            (Neg (n Predicate)))))
 
 ;; Datatype for locations, pairs of switch and port
@@ -94,5 +94,5 @@
 ;; Check if a condition is a check on locations only
 (declare-const c1 Condition)
 (declare-const c2 Condition)
-(assert (= c1 (And (Test Switch 1) (Test Location 2))))
-(assert (= c2 (And (Test Switch 3) (Test EthType 88))))
+(assert (= c1 (And (Test Switch #x00000001) (Test Location #x00000002))))
+(assert (= c2 (And (Test Switch #x00000003) (Test EthType #x00000088))))
