@@ -40,7 +40,7 @@
 ;;   ( Fabric.Condition.places_only cond' || Fabric.Condition.is_subset cond' cond)
 
 ;; NetKAT basics, based on, but different from the netkat.z3 file
-
+(set-option :smt.mbqi true)
 ;; Values
 (define-sort Value () (_ BitVec 32))
 
@@ -93,6 +93,21 @@
 
 ;; Check if a condition is a check on locations only
 (declare-const c1 Condition)
-(declare-const c2 Condition)
 (assert (= c1 (And (Test Switch #x00000001) (Test Location #x00000002))))
-(assert (= c2 (And (Test Switch #x00000003) (Test EthType #x00000088))))
+
+(declare-const v1 Value)
+(declare-const v2 Value)
+(declare-const c2 Condition)
+(declare-const c3 Condition)
+(define-fun-rec places-only ((c1 Condition)) Bool
+  (or (= c1 (Test Switch v1))
+      (= c1 (Test Location v2))
+      (= c1 (And (Test Switch v1) (Test Location v2)))
+      (= c1 (And (Test Location v1) (Test Switch v2)))
+      (ite (= c1 (Or c2 c3)) (and (places-only c2) (places-only c3))
+           (ite ( = c1 (And c2 c3) ) (and (places-only c2) (places-only c3))
+                (false)))))
+
+(assert (places-only c1))
+(check-sat)
+(get-model)
