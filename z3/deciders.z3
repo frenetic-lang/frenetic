@@ -66,7 +66,10 @@
       Meta
       )))
 
-;; Predicates. Different from netkat.z3 where this is a function, not a type
+;; Predicates. Different from netkat.z3 where this is a function, not a
+;; type. This is not used in the rest of this file because there is no way to
+;; define recursive procedures or pattern matching, and Z3 does not produce
+;; inductive proofs.
 (declare-datatypes (F V) ((Predicate
                            Tru
                            Fls
@@ -78,36 +81,23 @@
 ;; Datatype for locations, pairs of switch and port
 (declare-datatypes (S P) ((Location (mk-loc (switch S) (port P)))))
 
-;; Conditions are just NetKAT predicates
-(define-sort Condition () ( Predicate Field Value ))
+;; A single conditional is a triple of (bool, field, value) where the boolean is
+;; true for a positive match, and false for a negative match. The condition for
+;; a dyad is int-indexed array of single conditionals.
+(declare-datatypes () ((Cond
+                        (mk-cond (match Bool) (field Field) (value Value)))))
 
-;; Actions are just arrays of field-value pairs. Not quite right, but good
-;; enough for now.
+(define-sort Condition () ( Array Int Cond))
 
+;; Actions are arrays with fields as indices and values as the domain. Since
+;; fields can only be assigned to once, this is fine.
 (define-sort Action () (Array Field Value))
 
 ;; Datatype for dyads, parameterized on locations (L), conditions (C) and
 ;; actions (A)
-
-(declare-datatypes (L C A) ((Dyad (mk-dyad (src L) (dst L) (condition C) (action A)))))
+(declare-datatypes (L C A) ((Dyad
+                             (mk-dyad (src L) (dst L) (condition C) (action A)))))
 
 ;; Check if a condition is a check on locations only
-(declare-const c1 Condition)
-(assert (= c1 (And (Test Switch #x00000001) (Test Location #x00000002))))
-
-(declare-const v1 Value)
-(declare-const v2 Value)
-(declare-const c2 Condition)
-(declare-const c3 Condition)
-(define-fun-rec places-only ((c1 Condition)) Bool
-  (or (= c1 (Test Switch v1))
-      (= c1 (Test Location v2))
-      (= c1 (And (Test Switch v1) (Test Location v2)))
-      (= c1 (And (Test Location v1) (Test Switch v2)))
-      (ite (= c1 (Or c2 c3)) (and (places-only c2) (places-only c3))
-           (ite ( = c1 (And c2 c3) ) (and (places-only c2) (places-only c3))
-                (false)))))
-
-(assert (places-only c1))
-(check-sat)
-(get-model)
+(declare-const p1 (Predicate Field Value) )
+(assert (= p1 (And (Test Switch #x00000001) (Test Location #x00000002))))
