@@ -108,8 +108,8 @@
 (assert (= c2 (store c2 1 (mk-cond true EthType #x00000002))))
 
 (declare-const length Int)
-(assert (= length 2))                   ; Where `10` is the length of the condition array
-(define-fun places-only ((c Condition)) Bool
+(assert (= length 2))                   ; Where `2` is the length of the condition
+(define-fun places-only ((c Condition) (length Int)) Bool
   (forall ((index Int))
           (implies
            (and (< 0 index)
