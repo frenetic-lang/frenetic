@@ -156,23 +156,17 @@
 ;; s1:p3 -- s3:p2
 (assert (= t1 (store t1 (mk-loc #x00000001 #x00000002)
                         (mk-loc #x00000002 #x00000001))))
-(assert (= t1 (store t1 (mk-loc #x00000002 #x00000001)
-                        (mk-loc #x00000001 #x00000002))))
 (assert (= t1 (store t1 (mk-loc #x00000001 #x00000003)
                         (mk-loc #x00000003 #x00000001))))
-(assert (= t1 (store t1 (mk-loc #x00000003 #x00000001)
-                        (mk-loc #x00000001 #x00000003))))
-
 
 (define-fun adjacent ((t Topology) (l1 Location) (l2 Location)) Bool
   (or (= (switch l1) (switch l2))
-      (exists ((p1 Value) (p2 Value))
-         (let ((l11 (select t l2))
-               (l21 (select t l1)))
-           (or (and (= p1 (port l11))
-                    (= (switch l1) (switch l11)))
-               (and (= p2 (port l21))
-                    (= (switch l2) (switch l21))))))))
+      (exists ((l11 Location))
+         (and (= l11 (select t l2))
+              (= (switch l1) (switch l11))))
+      (exists ((l21 Location))
+         (and (= l21 (select t l1))
+              (= (switch l2) (switch l21))))))
 
 (assert (adjacent t1 (mk-loc #x00000001 #x00000002) (mk-loc #x00000002 #x00000001)))
 (assert (adjacent t1 (mk-loc #x00000003 #x00000001) (mk-loc #x00000001 #x00000003)))
