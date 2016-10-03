@@ -79,7 +79,12 @@
                            (Neg (n Predicate)))))
 
 ;; Datatype for locations, pairs of switch and port
-(declare-datatypes (S P) ((Location (mk-loc (switch S) (port P)))))
+(declare-datatypes () ((Location (mk-loc (switch Value) (port Value)))))
+
+
+;; Encode a topology as a map from locations to an array of (connected) locations
+(define-sort Locations () (Array Int Location))
+(define-sort Topology  () (Array Location Location))
 
 ;; A single conditional is a triple of (bool, field, value) where the boolean is
 ;; true for a positive match, and false for a negative match. The condition for
@@ -144,6 +149,37 @@
                             (= (field (select c1 i1)) (field (select c2 i2)))))))))
 
 (assert ( subset-of c3 l3 c4 l4 ))
+
+;; Define the adjacency function on the topology representation
+(declare-const t1 Topology)
+;; s1:p2 -- s2:p1
+;; s1:p3 -- s3:p2
+(assert (= t1 (store t1 (mk-loc #x00000001 #x00000002)
+                        (mk-loc #x00000002 #x00000001))))
+(assert (= t1 (store t1 (mk-loc #x00000002 #x00000001)
+                        (mk-loc #x00000001 #x00000002))))
+(assert (= t1 (store t1 (mk-loc #x00000001 #x00000003)
+                        (mk-loc #x00000003 #x00000001))))
+(assert (= t1 (store t1 (mk-loc #x00000003 #x00000001)
+                        (mk-loc #x00000001 #x00000003))))
+
+
+(define-fun adjacent ((t Topology) (l1 Location) (l2 Location)) Bool
+  (or (= (switch l1) (switch l2))
+      (exists ((p1 Value) (p2 Value))
+         (let ((l11 (select t l2))
+               (l21 (select t l1)))
+           (or (and (= p1 (port l11))
+                    (= (switch l1) (switch l11)))
+               (and (= p2 (port l21))
+                    (= (switch l2) (switch l21))))))))
+
+(assert (adjacent t1 (mk-loc #x00000001 #x00000002) (mk-loc #x00000002 #x00000001)))
+(assert (adjacent t1 (mk-loc #x00000003 #x00000001) (mk-loc #x00000001 #x00000003)))
+
+(assert (adjacent t1 (mk-loc #x00000003 #x00000001) (mk-loc #x00000001 #x00000002)))
+(assert (not (adjacent t1 (mk-loc #x00000003 #x00000002) (mk-loc #x00000002 #x00000003))))
+
 
 (check-sat)
 (get-model)
