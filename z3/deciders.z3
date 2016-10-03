@@ -99,5 +99,26 @@
                              (mk-dyad (src L) (dst L) (condition C) (action A)))))
 
 ;; Check if a condition is a check on locations only
-(declare-const p1 (Predicate Field Value) )
-(assert (= p1 (And (Test Switch #x00000001) (Test Location #x00000002))))
+(declare-const c1 Condition)
+(assert (= c1 (store c1 0 (mk-cond true Switch #x00000001))))
+(assert (= c1 (store c1 1 (mk-cond true Location #x00000002))))
+
+(declare-const c2 Condition)
+(assert (= c2 (store c2 0 (mk-cond true Switch #x00000001))))
+(assert (= c2 (store c2 1 (mk-cond true EthType #x00000002))))
+
+(declare-const length Int)
+(assert (= length 2))                   ; Where `10` is the length of the condition array
+(define-fun places-only ((c Condition)) Bool
+  (forall ((index Int))
+          (implies
+           (and (< 0 index)
+                (< index length))
+           (let ((fld (field (select c index) )))
+             (or (= fld Switch) (= fld Location))))))
+
+(assert (places-only c1))
+(assert (not (places-only c2)))
+
+(check-sat)
+(get-model)
