@@ -117,8 +117,33 @@
            (let ((fld (field (select c index) )))
              (or (= fld Switch) (= fld Location))))))
 
-(assert (places-only c1))
-(assert (not (places-only c2)))
+(assert (places-only c1 length))
+(assert (not (places-only c2 length)))
+
+;; Check if one condition (c1) is a subset of another (c2)
+(declare-const c3 Condition)
+(declare-const l3 Int)
+(assert (= l3 2))
+(assert (= c3 (store c3 0 (mk-cond true Switch #x00000001))))
+(assert (= c3 (store c3 1 (mk-cond true Location #x00000002))))
+
+(declare-const c4 Condition)
+(declare-const l4 Int)
+(assert (= l4 3))
+(assert (= c4 (store c4 0 (mk-cond true Switch #x00000001))))
+(assert (= c4 (store c4 1 (mk-cond true Location #x00000002))))
+(assert (= c4 (store c4 2 (mk-cond true EthType #x00000002))))
+
+(define-fun subset-of ((c1 Condition) (l1 Int) (c2 Condition) (l2 Int)) Bool
+  (and (<= l1 l2)
+       (forall ((i1 Int))
+               (implies
+                (and (< 0 i1) (< i1 l1))
+                (exists ((i2 Int))
+                   (implies (and (< 0 i2) (< l2 l2))
+                            (= (field (select c1 i1)) (field (select c2 i2)))))))))
+
+(assert ( subset-of c3 l3 c4 l4 ))
 
 (check-sat)
 (get-model)
