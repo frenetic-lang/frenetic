@@ -341,6 +341,11 @@ end
 module Dyad = struct
   type t = place * place * Condition.t * Action.t
 
+  let src (p,_,_,_) = p
+  let dst (_,p,_,_) = p
+  let condition (_,_,c,_) = c
+  let action (_,_,_,a) = a
+
   let to_string (s:t) : string =
     let (sw_in, pt_in), (sw_out, pt_out), condition, action = s in
     sprintf

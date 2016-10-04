@@ -40,6 +40,12 @@ end
 (** A dyad is an alpha/beta pair *)
 module Dyad : sig
   type t = place * place * Condition.t * Action.t
+
+  val src : t -> place
+  val dst : t -> place
+  val condition : t -> Condition.t
+  val action : t -> Action.t
+
   val of_policy : policy -> t list
   val to_string : t -> string
 end
