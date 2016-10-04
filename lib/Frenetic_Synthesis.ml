@@ -98,12 +98,102 @@ let come_from topology ((src_sw, src_pt) as src) ((dst_sw, dst_pt) as dst) =
   And(Test( Switch dst_sw ),
        Test( Location( Physical pt )))
 
+(** Convert the synthesis types to Z3 program strings. This module might *)
+(** replace the SMT module lower down. *)
+module Z3 = struct
+
+  open Frenetic_Fdd
+
+  exception Unserializable of string
+
+  let of_int64 i =
+    sprintf "#x%016Ld" i
+
+  let of_int32 i =
+    sprintf "#x%08ld" i
+
+  let of_switchId sw =
+    (of_int32 (Int64.to_int32_exn sw))
+
+  let of_field (f:Field.t) : string = match f with
+    | Switch     -> "Switch"
+    | Location   -> "Location"
+    | VSwitch    -> "VSwitch"
+    | VPort      -> "VPort"
+    | Vlan       -> "Vlan"
+    | VFabric    -> "VFabric"
+    | VlanPcp    -> "VlanPCP"
+    | EthType    -> "EthType"
+    | IPProto    -> "IPProto"
+    | EthSrc     -> "EthSrc"
+    | EthDst     -> "EthDst"
+    | IP4Src     -> "IP4Src"
+    | IP4Dst     -> "IP4Dst"
+    | TCPSrcPort -> "TCPSrcPort"
+    | TCPDstPort -> "TCPDstPort"
+    | Channel    -> "Channel"
+    | Meta0
+    | Meta1
+    | Meta2
+    | Meta3
+    | Meta4      -> "Meta"
+
+  let of_value (v:Value.t) : string =
+    try match v with
+      | Const k ->
+        sprintf "#x%08ld" (Value.to_int32_exn v)
+      | Mask(x, 32) ->
+        of_int32 (Value.to_int32_exn v)
+      | Mask(x, 64) -> of_int64 x
+      | _ -> raise (Unserializable (Value.to_string v))
+    with _ -> raise (Unserializable (Value.to_string v))
+
+  let of_place ((sw,pt):place) : string =
+    sprintf "(mk-loc %s %s)"
+      (of_switchId sw)
+      (of_int32 pt)
+
+  let of_condition ?(name="c0") (c:Fabric.Condition.t) : string =
+    let length_name = String.tr 'c' 'l' name in
+    let const_name = sprintf "(declare-const %s Condition)" name in
+    let const_length = sprintf "(declare-const %s Int)" length_name in
+    let conds = Fabric.FieldTable.fold c ~init:[]
+        ~f:(fun ~key:field ~data:(pos,negs) acc ->
+            let acc' = match pos with
+              | Some v -> (true, field, v)::acc
+              | None -> acc in
+            List.fold negs ~init:acc'
+              ~f:(fun acc v -> (false, field, v)::acc)) in
+    let length = sprintf "(assert (= %s %d))" length_name (List.length conds) in
+
+    let header = [ length; const_length; const_name ] in
+    let _, lines = List.fold conds ~init:(0,header) ~f:(fun (i,acc) (b,f,v) ->
+        let store = sprintf "(assert (= %s (store %s %d (mk-cond %B %s %s))))"
+            name name i b (of_field f) (of_value v) in
+        (i+1, store::acc)) in
+    String.concat ~sep:"\n" (List.rev lines)
+
+  let of_topology ?(name="c0") (t:policy) =
+    let rec get_links p acc = match p with
+      | Link (s1,p1,s2,p2) -> (s1,p1,s2,p2)::acc
+      | _ -> raise (Unserializable
+                      (sprintf "Cannot serialize this policy as a topology:\n%s\n"
+                         (Frenetic_NetKAT_Pretty.string_of_policy p))) in
+    let links = get_links t [] in
+    let declare = sprintf "(declare-const %s Topology)" name in
+    let lines = List.fold links ~init:[declare] ~f:(fun acc (s1,p1,s2,p2) ->
+        let store =
+          sprintf "(assert (= %s (store %s (mk-loc %s %s) (mk-loc %s %s))))"
+            name name (of_switchId s1) (of_int32 p1) (of_switchId s2) (of_int32 p2) in
+        store::acc) in
+    String.concat ~sep:"\n" (List.rev lines)
+
+end
+
 module SMT = struct
   open Frenetic_Fdd
 
-  type cond =
-    | Pos of Field.t * Value.t
-    | Neg of Field.t * Value.t
+  type cond = Cond of bool * Field.t * Value.t
 
   type condition = cond list
 
@@ -116,15 +206,16 @@ module SMT = struct
   let of_condition (c:Fabric.Condition.t) : condition =
     Fabric.FieldTable.fold c ~init:[] ~f:(fun ~key:field ~data:(pos,negs) acc ->
         let acc' = match pos with
-          | Some p -> (Pos(field, p))::acc
+          | Some p -> (Cond(true, field, p))::acc
           | None   -> acc in
-        List.fold negs ~init:acc' ~f:(fun acc v -> Neg(field, v)::acc))
+        List.fold negs ~init:acc' ~f:(fun acc v -> Cond(false, field, v)::acc))
 
   let of_action (act:Action.t) : action =
     if Action.is_zero act then Drop
     else Mod act
 
   let of_dyad (d:Dyad.t) : dyad = Dyad([],[])
+
 end
 
 
