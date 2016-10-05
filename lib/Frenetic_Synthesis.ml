@@ -98,13 +98,20 @@ let come_from topology ((src_sw, src_pt) as src) ((dst_sw, dst_pt) as dst) =
   And(Test( Switch dst_sw ),
        Test( Location( Physical pt )))
 
-(** Convert the synthesis types to Z3 program strings. This module might *)
-(** replace the SMT module lower down. *)
+(** Convert the synthesis types to Z3 program strings. *)
 module Z3 = struct
 
   open Frenetic_Fdd
 
-  exception Unserializable of string
+  exception Inconvertible of string
+
+  type restraint =
+    | Subset
+    | Adjacent
+    | PlacesOnly
+    | Not of restraint
+    | And of restraint * restraint
+    | Or  of restraint * restraint
 
   let of_int64 i =
     sprintf "#x%016Ld" i
@@ -145,15 +152,15 @@ module Z3 = struct
       | Mask(x, 32) ->
         of_int32 (Value.to_int32_exn v)
       | Mask(x, 64) -> of_int64 x
-      | _ -> raise (Unserializable (Value.to_string v))
-    with _ -> raise (Unserializable (Value.to_string v))
+      | _ -> raise (Inconvertible (Value.to_string v))
+    with _ -> raise (Inconvertible (Value.to_string v))
 
   let of_place ((sw,pt):place) : string =
     sprintf "(mk-loc %s %s)"
       (of_switchId sw)
       (of_int32 pt)
 
-  let of_condition ?(name="c0") (c:Fabric.Condition.t) : string =
+  let of_condition ?(name="c0") (c:Fabric.Condition.t) : string * int =
     let length_name = String.tr 'c' 'l' name in
     let const_name = sprintf "(declare-const %s Condition)" name in
     let const_length = sprintf "(declare-const %s Int)" length_name in
@@ -171,15 +178,15 @@ module Z3 = struct
         let store = sprintf "(assert (= %s (store %s %d (mk-cond %B %s %s))))"
             name name i b (of_field f) (of_value v) in
         (i+1, store::acc)) in
-    String.concat ~sep:"\n" (List.rev lines)
+    ( String.concat ~sep:"\n" (List.rev lines), (List.length conds) )
 
-  let of_topology ?(name="c0") (t:policy) =
+  let of_topology ?(name="c0") (t:topology) =
     let rec get_links p acc = match p with
       | Link (s1,p1,s2,p2) -> (s1,p1,s2,p2)::acc
-      | _ -> raise (Unserializable
+      | _ -> raise (Inconvertible
                       (sprintf "Cannot serialize this policy as a topology:\n%s\n"
                          (Frenetic_NetKAT_Pretty.string_of_policy p))) in
-    let links = get_links t [] in
+    let links = get_links t.topo [] in
     let declare = sprintf "(declare-const %s Topology)" name in
     let lines = List.fold links ~init:[declare] ~f:(fun acc (s1,p1,s2,p2) ->
         let store =
@@ -188,33 +195,53 @@ module Z3 = struct
         store::acc) in
     String.concat ~sep:"\n" (List.rev lines)
 
-end
+  let of_restraint
+      ?(topo="topo") ?(fab="fab") ?(pol="pol") ?(flen=0) ?(plen=0)
+      policy fabric (r:restraint) =
+    let open Dyad in
+    let rec aux r = match r with
+      | Subset ->
+        sprintf "(subset-of %s %d %s %d)" fab flen pol plen
+      | Adjacent ->
+        sprintf "(and (adjacent %s %s %s) (adjacent %s %s %s))"
+          topo (of_place (src policy)) (of_place (src fabric))
+          topo (of_place (dst policy)) (of_place (dst fabric))
+      | PlacesOnly ->
+        sprintf "(places-only %s %d)" fab flen
+      | Not d ->
+        sprintf "(not %s)" (aux d)
+      | And(d1, d2) ->
+        sprintf "(and %s %s)" (aux d1) (aux d2)
+      | Or(d1, d2) ->
+        sprintf "(or %s %s)" (aux d1) (aux d2) in
+    aux r
 
-module SMT = struct
-  open Frenetic_Fdd
 
-  type cond = Cond of bool * Field.t * Value.t
+  let of_decision restraint topo policy fabric : string =
+    let t_z3 = of_topology ~name:"topo" topo in
+    let pol_z3, pol_len = of_condition ~name:"pol" (Dyad.condition policy) in
+    let fab_z3, fab_len = of_condition ~name:"fab" (Dyad.condition fabric) in
+    let restraints = of_restraint ~plen:pol_len ~flen:fab_len
+        policy fabric restraint in
+    let lines = [ t_z3; pol_z3; fab_z3; restraints; "(check-sat)"] in
+    String.concat ~sep:"\n\n" lines
 
-  type condition = cond list
-
-  type action =
-    | Mod of Action.t
-    | Drop
-
-  type dyad = Dyad of condition list * action list
-
-  let of_condition (c:Fabric.Condition.t) : condition =
-    Fabric.FieldTable.fold c ~init:[] ~f:(fun ~key:field ~data:(pos,negs) acc ->
-        let acc' = match pos with
-          | Some p -> (Cond(true, field, p))::acc
-          | None   -> acc in
-        List.fold negs ~init:acc' ~f:(fun acc v -> Cond(false, field, v)::acc))
-
-  let of_action (act:Action.t) : action =
-    if Action.is_zero act then Drop
-    else Mod act
-
-  let of_dyad (d:Dyad.t) : dyad = Dyad([],[])
+  let mk_decider ?(prereqs_file="z3/deciders.z3") (r:restraint) : decider =
+    let decider restraint topo policy fabric : bool =
+      let decision = of_decision restraint topo policy fabric in
+      let inc = In_channel.create prereqs_file in
+      let prereqs = In_channel.input_all inc in
+      In_channel.close inc;
+      let outc = Out_channel.create "problem.z3" in
+      Out_channel.output_string outc prereqs;
+      Out_channel.output_string outc decision;
+      Out_channel.close outc;
+      let answerc,_ = Unix.open_process "z3 problem.z3" in
+      let answer = In_channel.input_all answerc in
+      match String.substr_index answer ~pattern:"unsat" with
+      | None -> true
+      | Some i -> false in
+    decider r
 
 end
 
