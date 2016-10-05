@@ -188,11 +188,19 @@ module Z3 = struct
                          (Frenetic_NetKAT_Pretty.string_of_policy p))) in
     let links = get_links t.topo [] in
     let declare = sprintf "(declare-const %s Topology)" name in
-    let lines = List.fold links ~init:[declare] ~f:(fun acc (s1,p1,s2,p2) ->
-        let store =
-          sprintf "(assert (= %s (store %s (mk-loc %s %s) (mk-loc %s %s))))"
-            name name (of_switchId s1) (of_int32 p1) (of_switchId s2) (of_int32 p2) in
-        store::acc) in
+    let with_selects = List.fold links ~init:[declare] ~f:(fun acc (s1,p1,s2,p2) ->
+        let select =
+          sprintf "(assert (= (select %s (mk-loc %s %s)) (mk-loc %s %s)))"
+            name (of_switchId s1) (of_int32 p1) (of_switchId s2) (of_int32 p2) in
+        select::acc) in
+    let with_forall = "(assert (forall ((l1 Location)) (or (or "::with_selects in
+    let with_connects = List.fold links ~init:with_forall
+        ~f:(fun acc (s1,p1,s2,p2) ->
+            let c1 = sprintf "(= l1 (mk-loc %s %s))" (of_switchId s1) (of_int32 p1) in
+            let c2 = sprintf "(= l1 (mk-loc %s %s))" (of_switchId s2) (of_int32 p2) in
+            c2::c1::acc) in
+    let disconnected = sprintf "(= (select %s l1) disconnected)))))" name in
+    let lines = disconnected::with_connects in
     String.concat ~sep:"\n" (List.rev lines)
 
   let of_restraint
