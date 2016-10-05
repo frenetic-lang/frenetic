@@ -86,6 +86,11 @@ type compile =
   | CCircuit                    (* Compile the circuit to a fabric, & compile that *)
   | CEdge                       (* Compile the naive policy atop the fabric *)
 
+type synthesize =
+  | SGeneric
+  | SOptical
+  | SSMT
+
 type install =
   | INaive  of switchId list
   | IFabric of switchId list
@@ -98,7 +103,7 @@ type show =
 type command =
   | Load of load
   | Compile of compile
-  | Synthesize
+  | Synthesize of synthesize
   | Install of install
   | Show of show
   | Path of source
@@ -182,7 +187,11 @@ module Parser = struct
 
   (* Parser for the synthesize command. Maybe should be merged with compile. *)
   let synthesize : (command, bytes list) MParser.t =
-    symbol "synthesize" >> return Synthesize
+    symbol "synthesize" >> (
+      (symbol "generic" >> return SGeneric) <|>
+      (symbol "optical" >> return SOptical) <|>
+      (symbol "smt" >> return SSMT)) >>=
+    fun s -> return ( Synthesize s )
 
   (* Parser for the install command *)
   let install : (command, bytes list) MParser.t =
@@ -436,13 +445,18 @@ let compile (c:compile) : (string, string) Result.t = match c with
       | _ -> Error "Edge compilation requires naive policy, fabric and topology"
     end
 
-let synthesize () : (string, string) Result.t =
+let synthesize s : (string, string) Result.t =
+  let (>>=) = Result.(>>=) in
+  let open Frenetic_Synthesis in
+  Random.init 1337;
+  begin match s with
+    | SGeneric -> Ok ( module Make(Generic) : SYNTH )
+    | SOptical -> Ok ( module Make(Optical) : SYNTH )
+    | SSMT -> Error "SMT-based synthesis not yet implemented"
+  end >>= fun s ->
   match state.naive, state.fabric,state.topology with
   | Some c, Some f, Some t ->
-    let open Frenetic_Synthesis in
-    let module S = Make(Optical) in
-    (* TODO(basus): Make seed a user-specified parameter *)
-    Random.init 1337;
+    let module S = (val s) in
     let fabric = Fabric.assemble f.config.policy t
         f.config.ingresses f.config.egresses in
     let policy = Fabric.assemble c.policy t c.ingresses c.egresses in
@@ -457,7 +471,7 @@ let synthesize () : (string, string) Result.t =
                          policy = edge;
                          ingresses = c.ingresses; egresses = c.egresses;
                          fdd = Some edge_fdd };
-   Ok "Edge policies compiled successfully"
+    Ok "Edge policies compiled successfully"
   | _ -> Error "Edge compilation requires naive policy, fabric and topology"
 
 
@@ -576,8 +590,8 @@ let command (com:command) = match com with
     load l |> print_result
   | Compile c ->
     compile c |> print_result
-  | Synthesize ->
-    synthesize () |> print_result
+  | Synthesize s ->
+    synthesize s |> print_result
   | Install i ->
     install i |> print_deferred_results
   | Show s -> show s

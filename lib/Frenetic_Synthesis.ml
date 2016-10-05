@@ -35,6 +35,10 @@ module type SOLVER = sig
   val generate : generator
 end
 
+module type SYNTH = sig
+  val synthesize : policy -> policy -> policy -> policy
+end
+
 (* Pick n random elements from options *)
 let rec random_picks options n =
   let options = Array.of_list options in
@@ -332,9 +336,9 @@ module Make (S:SOLVER) = struct
     : policy * policy =
 
     (* For each policy stream, find the set of fabric streams that could be used
-       to carry it. This is done using the `decide` decider function that allows
-       the caller to specify what criteria are important, perhaps according to
-       the properties of the fabric. *)
+       to carry it. This is done using the `decide` function from the SOLVER
+       that allows the caller to specify what criteria are important, perhaps
+       according to the properties of the fabric. *)
     let partitions = List.fold_left from_policy ~init:[]
         ~f:(fun acc stream ->
             let streams = List.filter from_fabric ~f:(decide topology stream) in

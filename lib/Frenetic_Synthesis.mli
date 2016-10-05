@@ -20,6 +20,11 @@ module type SOLVER = sig
   val generate : generator
 end
 
+module type SYNTH = sig
+  val synthesize : policy -> policy -> policy -> policy
+end
+
+
 module Z3 : sig
 
   exception Inconvertible of string
@@ -35,9 +40,7 @@ module Z3 : sig
   val mk_decider : ?prereqs_file:string -> restraint -> decider
 end
 
-module Make(S:SOLVER) : sig
-  val synthesize : policy -> policy -> policy -> policy
-end
+module Make(S:SOLVER) : SYNTH
 
 module Optical : SOLVER
 module Generic : SOLVER
