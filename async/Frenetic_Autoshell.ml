@@ -452,7 +452,17 @@ let synthesize s : (string, string) Result.t =
   begin match s with
     | SGeneric -> Ok ( module Make(Generic) : SYNTH )
     | SOptical -> Ok ( module Make(Optical) : SYNTH )
-    | SSMT -> Error "SMT-based synthesis not yet implemented"
+    | SSMT ->
+      (* This is just an example to test the synthesis code. Much of this needs
+         to be parameterized. *)
+      let open Z3 in
+      let restraint = And(Adjacent, PlacesOnly) in
+      let decider = mk_decider restraint in
+      Ok ( module Make(struct
+            let decide   = decider
+            let choose   = Optical.choose
+            let generate = Optical.generate
+          end) : SYNTH )
   end >>= fun s ->
   match state.naive, state.fabric,state.topology with
   | Some c, Some f, Some t ->
