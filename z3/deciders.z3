@@ -40,7 +40,7 @@
 ;;   ( Fabric.Condition.places_only cond' || Fabric.Condition.is_subset cond' cond)
 
 ;; NetKAT basics, based on, but different from the netkat.z3 file
-(set-option :smt.mbqi true)
+
 ;; Values
 (define-sort Value () (_ BitVec 32))
 
@@ -83,7 +83,6 @@
 
 
 ;; Encode a topology as a map from locations to an array of (connected) locations
-(define-sort Locations () (Array Int Location))
 (define-sort Topology  () (Array Location Location))
 
 ;; A single conditional is a triple of (bool, field, value) where the boolean is
