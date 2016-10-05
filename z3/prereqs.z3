@@ -36,7 +36,7 @@
                            (Neg (n Predicate)))))
 
 ;; Datatype for locations, pairs of switch and port
-(declare-datatypes () ((Location (mk-loc (switch Value) (port Value)))))
+(declare-datatypes () ((Location disconnected (mk-loc (switch Value) (port Value)))))
 
 
 ;; Encode a topology as a map from locations to an array of (connected) locations
@@ -82,11 +82,15 @@
 
 
 (define-fun adjacent ((t Topology) (l1 Location) (l2 Location)) Bool
+  (ite (or (= l1 disconnected) (= l2 disconnected))
+       false
   (or (= (switch l1) (switch l2))
       (exists ((l11 Location))
          (and (= l11 (select t l2))
+              (not (= l11 disconnected))
               (= (switch l1) (switch l11))))
       (exists ((l21 Location))
          (and (= l21 (select t l1))
-              (= (switch l2) (switch l21))))))
+              (not (= l21 disconnected))
+              (= (switch l2) (switch l21)))))))
 
