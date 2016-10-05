@@ -182,6 +182,7 @@ module Z3 = struct
   let of_topology ?(name="c0") (t:topology) =
     let rec get_links p acc = match p with
       | Link (s1,p1,s2,p2) -> (s1,p1,s2,p2)::acc
+      | Union(p1, p2) -> (get_links p2 (get_links p1 acc))
       | _ -> raise (Inconvertible
                       (sprintf "Cannot serialize this policy as a topology:\n%s\n"
                          (Frenetic_NetKAT_Pretty.string_of_policy p))) in
@@ -195,7 +196,7 @@ module Z3 = struct
     String.concat ~sep:"\n" (List.rev lines)
 
   let of_restraint
-      ?(topo="topo") ?(fab="fab") ?(pol="pol") ?(flen=0) ?(plen=0)
+      ?(topo="topo") ?(fab="cfab") ?(pol="cpol") ?(flen=0) ?(plen=0)
       policy fabric (r:restraint) =
     let open Dyad in
     let rec aux r = match r with
@@ -218,14 +219,16 @@ module Z3 = struct
 
   let of_decision restraint topo policy fabric : string =
     let t_z3 = of_topology ~name:"topo" topo in
-    let pol_z3, pol_len = of_condition ~name:"pol" (Dyad.condition policy) in
-    let fab_z3, fab_len = of_condition ~name:"fab" (Dyad.condition fabric) in
+    let pol_z3, pol_len = of_condition ~name:"cpol" (Dyad.condition policy) in
+    let fab_z3, fab_len = of_condition ~name:"cfab" (Dyad.condition fabric) in
     let restraints = of_restraint ~plen:pol_len ~flen:fab_len
         policy fabric restraint in
-    let lines = [ t_z3; pol_z3; fab_z3; restraints; "(check-sat)"] in
+    let assertion = sprintf "(assert %s )" restraints in
+    printf "Constraint is |%s|\n%!" assertion;
+    let lines = [ t_z3; pol_z3; fab_z3; assertion; "(check-sat)"] in
     String.concat ~sep:"\n\n" lines
 
-  let mk_decider ?(prereqs_file="z3/deciders.z3") (r:restraint) : decider =
+  let mk_decider ?(prereqs_file="z3/prereqs.z3") (r:restraint) : decider =
     let decider restraint topo policy fabric : bool =
       let decision = of_decision restraint topo policy fabric in
       let inc = In_channel.create prereqs_file in
@@ -237,6 +240,7 @@ module Z3 = struct
       Out_channel.close outc;
       let answerc,_ = Unix.open_process "z3 problem.z3" in
       let answer = In_channel.input_all answerc in
+      printf "Response is |%s|\n%!" answer;
       match String.substr_index answer ~pattern:"unsat" with
       | None -> true
       | Some i -> false in
@@ -349,6 +353,9 @@ module Make (S:SOLVER) = struct
     let pairs =
       List.fold_left partitions ~init:[] ~f:(fun acc (stream, opts) ->
           let pick = choose topology stream opts in
+          printf "Number of choices : %d\n%!" (List.length opts);
+          (* printf "For stream \n|%s|\n picked \n|%s|\n%!" *)
+          (*   (Dyad.to_string stream) (Dyad.to_string pick); *)
           (stream, pick)::acc) in
 
     generate topology pairs
