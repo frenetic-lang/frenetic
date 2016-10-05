@@ -15,16 +15,13 @@ let compile_local =
   compile_local ~options:{ default_compiler_options with cache_prepare = `Keep }
 
 (** Essential types *)
-type place  = Fabric.place
+exception UnmatchedDyad of Dyad.t
 
-type heuristic =
-  | Random of int * int
-  | MaxSpread
-  | MinSpread
+type place  = Fabric.place
 
 (* TODO(basus): This needs to go into a better topology module *)
 type topology = {
-  topo : policy
+  topo  : policy
 ; preds : (place, place) Hashtbl.t
 ; succs : (place, place) Hashtbl.t }
 
@@ -32,9 +29,7 @@ type decider   = topology -> Dyad.t -> Dyad.t -> bool
 type chooser   = topology -> Dyad.t -> Dyad.t list -> Dyad.t
 type generator = topology -> (Dyad.t * Dyad.t) list -> (policy * policy)
 
-exception UnmatchedDyad of Dyad.t
-
-module type MAPPING = sig
+module type SOLVER = sig
   val decide   : decider
   val choose   : chooser
   val generate : generator
@@ -246,7 +241,7 @@ module Z3 = struct
 end
 
 
-module Generic:MAPPING = struct
+module Generic : SOLVER = struct
   (** Functions for generating edge NetKAT programs from matched streams **)
   (* Given a policy stream and a fabric stream, generate edge policies to implement *)
   (* the policy stream using the fabric stream *)
@@ -302,7 +297,7 @@ module Generic:MAPPING = struct
     generate_tagged to_netkat topo pairs
 end
 
-module Optical : MAPPING = struct
+module Optical : SOLVER = struct
   let to_netkat topo
     ((src,dst,cond,actions)) ((src',dst',cond',actions'))
     (tag:int): policy * policy =
@@ -329,8 +324,8 @@ module Optical : MAPPING = struct
 
 end
 
-module Make (M:MAPPING) = struct
-  open M
+module Make (S:SOLVER) = struct
+  open S
 
   (** Core matching function *)
   let matching topology (from_policy:Dyad.t list) (from_fabric:Dyad.t list)
@@ -346,8 +341,7 @@ module Make (M:MAPPING) = struct
             let partition = (stream, streams) in
             (partition::acc)) in
 
-    (* Pick a smaller set of fabric streams to actually carry the policy streams,
-       based on a given heuristic. *)
+    (* Pick a smaller set of fabric streams to actually carry the policy streams *)
     let pairs =
       List.fold_left partitions ~init:[] ~f:(fun acc (stream, opts) ->
           let pick = choose topology stream opts in
