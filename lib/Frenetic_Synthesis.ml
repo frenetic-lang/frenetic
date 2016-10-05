@@ -232,7 +232,6 @@ module Z3 = struct
     let restraints = of_restraint ~plen:pol_len ~flen:fab_len
         policy fabric restraint in
     let assertion = sprintf "(assert %s )" restraints in
-    printf "Constraint is |%s|\n%!" assertion;
     let lines = [ t_z3; pol_z3; fab_z3; assertion; "(check-sat)"] in
     String.concat ~sep:"\n\n" lines
 
@@ -248,7 +247,6 @@ module Z3 = struct
       Out_channel.close outc;
       let answerc,_ = Unix.open_process "z3 problem.z3" in
       let answer = In_channel.input_all answerc in
-      printf "Response is |%s|\n%!" answer;
       match String.substr_index answer ~pattern:"unsat" with
       | None -> true
       | Some i -> false in
@@ -361,9 +359,6 @@ module Make (S:SOLVER) = struct
     let pairs =
       List.fold_left partitions ~init:[] ~f:(fun acc (stream, opts) ->
           let pick = choose topology stream opts in
-          printf "Number of choices : %d\n%!" (List.length opts);
-          (* printf "For stream \n|%s|\n picked \n|%s|\n%!" *)
-          (*   (Dyad.to_string stream) (Dyad.to_string pick); *)
           (stream, pick)::acc) in
 
     generate topology pairs
