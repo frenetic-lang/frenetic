@@ -269,14 +269,14 @@ module Z3 = struct
     let lines = t_z3::pol_z3::fab_z3::restraints::["(check-sat)"] in
     String.concat ~sep:"\n\n" lines
 
-  let mk_decider ?(prereqs_file="z3/prereqs.z3") (r:restraint) : decider =
+  let mk_decider ?(preamble="z3/preamble.z3") (r:restraint) : decider =
     let decider restraint topo policy fabric : bool =
       let decision = of_decision restraint topo policy fabric in
-      let inc = In_channel.create prereqs_file in
-      let prereqs = In_channel.input_all inc in
+      let inc = In_channel.create preamble in
+      let preamble = In_channel.input_all inc in
       In_channel.close inc;
       let outc = Out_channel.create "problem.z3" in
-      Out_channel.output_string outc prereqs;
+      Out_channel.output_string outc preamble;
       Out_channel.output_string outc decision;
       Out_channel.close outc;
       let answerc,_ = Unix.open_process "z3 problem.z3" in

@@ -44,7 +44,7 @@ module Z3 : sig
     | And of restraint * restraint
     | Or  of restraint * restraint
 
-  val mk_decider : ?prereqs_file:string -> restraint -> decider
+  val mk_decider : ?preamble:string -> restraint -> decider
 end
 
 module Make(S:SOLVER) : SYNTH
