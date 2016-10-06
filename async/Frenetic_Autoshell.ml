@@ -457,7 +457,7 @@ let synthesize s : (string, string) Result.t =
          to be parameterized. *)
       let open Z3 in
       let places = TestsOnly(Fabric,
-                             ( Frenetic_Fabric.FieldSet.of_list [Switch; Location] )) in
+                             ( Frenetic_Fdd.FieldSet.of_list [Switch; Location] )) in
       let restraint = And(Adjacent, places) in
       let decider = mk_decider restraint in
       Ok ( module Make(struct

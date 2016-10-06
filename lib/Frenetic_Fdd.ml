@@ -203,6 +203,9 @@ module Field = struct
 
 end
 
+module FieldSet = Set.Make(Field)
+module FieldTable = Hashtbl.Make(Field)
+
 module Value = struct
 
   type t

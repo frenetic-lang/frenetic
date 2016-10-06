@@ -271,3 +271,7 @@ module FDD : sig
   val conts : t -> Int.Set.t
   val map_conts : t -> f:(int -> int) -> t
 end
+
+module FieldSet : Set.S with type Elt.t = Field.t
+module FieldTable : Hashtbl.S with type key = Field.t
+

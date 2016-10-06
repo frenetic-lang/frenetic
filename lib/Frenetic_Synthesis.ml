@@ -110,9 +110,9 @@ module Z3 = struct
     | Subset
     | Adjacent
     | Tests        of source * Field.t
-    | TestsAll     of source * Fabric.FieldSet.t
-    | TestsOnly    of source * Fabric.FieldSet.t
-    | TestsExactly of source * Fabric.FieldSet.t
+    | TestsAll     of source * FieldSet.t
+    | TestsOnly    of source * FieldSet.t
+    | TestsExactly of source * FieldSet.t
     | Not of restraint
     | And of restraint * restraint
     | Or  of restraint * restraint
@@ -168,7 +168,7 @@ module Z3 = struct
     let length_name = String.tr 'c' 'l' name in
     let const_name = sprintf "(declare-const %s Condition)" name in
     let const_length = sprintf "(declare-const %s Int)" length_name in
-    let conds = Fabric.FieldTable.fold c ~init:[]
+    let conds = FieldTable.fold c ~init:[]
         ~f:(fun ~key:field ~data:(pos,negs) acc ->
             let acc' = match pos with
               | Some v -> (true, field, v)::acc
@@ -221,12 +221,12 @@ module Z3 = struct
       | Fabric -> flen in
     let mk_asserts asserts fs =
       let declare = sprintf "(declare-const %s (Set Field))" fields in
-      let includes = Fabric.FieldSet.fold fs
+      let includes = FieldSet.fold fs
           ~init:( declare::asserts ) ~f:(fun acc f ->
               let exists = sprintf "(assert (select %s %s) )" fields (of_field f) in
               exists::acc ) in
       let excludes = List.fold Field.all ~init:includes ~f:(fun acc f ->
-          if not ( Fabric.FieldSet.mem fs f ) then
+          if not ( FieldSet.mem fs f ) then
             (sprintf "(assert (not (select %s %s)))" fields (of_field f))::acc
           else acc) in
       excludes

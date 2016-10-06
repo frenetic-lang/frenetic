@@ -4,9 +4,6 @@ open Frenetic_Network
 open Frenetic_OpenFlow
 open Frenetic_NetKAT
 
-module FieldSet : Set.S with type Elt.t = Field.t
-module FieldTable : Hashtbl.S with type key = Field.t
-
 exception IncompletePlace of string
 exception NonExistentPath of string
 exception NonFilterNode of policy
