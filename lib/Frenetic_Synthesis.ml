@@ -117,14 +117,14 @@ module Z3 = struct
     | And of restraint * restraint
     | Or  of restraint * restraint
 
-  let of_int64 i =
-    sprintf "#x%016Ld" i
-
   let of_int32 i =
     sprintf "#x%08ld" i
 
   let of_switchId sw =
     (of_int32 (Int64.to_int32_exn sw))
+
+  let of_int64 i =
+    sprintf "#x%016Ld" i
 
   let of_field (f:Field.t) : string = match f with
     | Switch     -> "Switch"
@@ -229,8 +229,10 @@ module Z3 = struct
           if not ( FieldSet.mem fs f ) then
             (sprintf "(assert (not (select %s %s)))" fields (of_field f))::acc
           else acc) in
-      excludes
-    in
+      excludes in
+    let mk_tests fn src fs asserts =
+      (sprintf "(%s %s %d %s)" fn (sname src) (slen src) fields,
+       mk_asserts asserts fs) in
     let rec aux r asserts = match r with
       | Subset ->
         sprintf "(subset-of %s %d %s %d)" fab flen pol plen, asserts
@@ -241,15 +243,9 @@ module Z3 = struct
         asserts
       | Tests (s,f) ->
         sprintf "(tests %s %d %s)" (sname s) (slen s) (of_field f), asserts
-      | TestsOnly (s,fs) ->
-        let asserts' = mk_asserts asserts fs in
-        sprintf "(tests-only %s %d %s)" (sname s) (slen s) fields, asserts'
-      | TestsAll  (s,fs) ->
-        let asserts' = mk_asserts asserts fs in
-        sprintf "(tests-all %s %d %s)" (sname s) (slen s) fields, asserts'
-      | TestsExactly (s,fs) ->
-        let asserts' = mk_asserts asserts fs in
-        sprintf "(tests-exactly %s %d %s)" (sname s) (slen s) fields, asserts'
+      | TestsOnly (s,fs)    -> mk_tests "tests-only"    s fs asserts
+      | TestsAll  (s,fs)    -> mk_tests "tests-all"     s fs asserts
+      | TestsExactly (s,fs) -> mk_tests "tests-exactly" s fs asserts
       | Not d ->
         let cond, asserts' = (aux d asserts) in
         sprintf "(not %s)" cond, asserts'
@@ -263,7 +259,6 @@ module Z3 = struct
         sprintf "(or %s %s)" cond1 cond2, asserts'' in
     let cond, asserts = aux r [] in
     String.concat ~sep:"\n" (List.rev ( (sprintf "(assert %s)" cond)::asserts) )
-
 
   let of_decision restraint topo policy fabric : string =
     let t_z3 = of_topology ~name:"topo" topo in
