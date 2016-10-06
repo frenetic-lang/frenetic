@@ -55,7 +55,10 @@
 
 ;; Actions are arrays with fields as indices and values as the domain. Since
 ;; fields can only be assigned to once, this is fine.
-(define-sort Action () (Array Field Value))
+(declare-datatypes () ((Mod
+                        preserve
+                        (modify (value Value)))))
+(define-sort Action () (Array Field Mod))
 
 ;; Datatype for dyads, parameterized on locations (L), conditions (C) and
 ;; actions (A)
@@ -63,6 +66,8 @@
                              (mk-dyad (src L) (dst L) (condition C) (action A)))))
 
 ;; Decider primitives
+
+;; Primitives on conditions
 (define-fun tests ((c Condition) (length Int) (f Field)) Bool
   (exists ((index Int))
      (implies
@@ -91,6 +96,50 @@
 (define-fun tests-exactly ((c Condition) (clen Int) (f (Set Field))) Bool
   (and (tests-only c clen f)
        (tests-all  c clen f)))
+
+;; Primitives on actions
+;; preserves and modifies are negations of each other
+;; Defining preserves-only or modifies-all, and the -exact versions seems
+;; unnecessary, but they are fairly trivial, so they are included for completeness
+
+(define-fun preserves ((a Action) (f Field)) Bool
+  (= preserve (select a f)))
+
+(define-fun modifies ((a Action) (f Field)) Bool
+  (not (preserves a f)))
+
+(define-fun preserves-all ((a Action) (f (Set Field))) Bool
+  (forall ((fld Field))
+          (implies
+           (select f fld)
+           (preserves a fld))))
+
+(define-fun preserves-only ((a Action) (f (Set Field))) Bool
+  (forall ((fld Field))
+          (implies
+           (preserves a fld)
+           (select    f fld))))
+
+(define-fun preserves-exactly ((a Action) (f (Set Field))) Bool
+  (and (preserves-only a f)
+       (preserves-all  a f)))
+
+(define-fun modifies-all ((a Action) (f (Set Field))) Bool
+  (forall ((fld Field))
+          (implies
+           (select f fld)
+           (modifies a fld))))
+
+(define-fun modifies-only ((a Action) (f (Set Field))) Bool
+  (forall ((fld Field))
+          (implies
+           (modifies a fld)
+           (select   f fld))))
+
+(define-fun modifies-exactly ((a Action) (f (Set Field))) Bool
+   (and (modifies-only a f)
+        (modifies-all  a f)))
+
 
 ;; Decider functions
 (define-fun places-only ((c Condition) (length Int)) Bool
