@@ -3,6 +3,7 @@ open Frenetic_Fdd
 open Frenetic_NetKAT
 
 module Compiler = Frenetic_NetKAT_Compiler
+module FieldSet = Set.Make(Field)
 module FieldTable = Hashtbl.Make(Field)
 
 type place     = (switchId * portId)
