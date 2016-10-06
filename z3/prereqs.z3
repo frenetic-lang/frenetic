@@ -1,3 +1,6 @@
+;; Basic set definition
+(define-sort Set (T) (Array T Bool))
+
 ;; Values
 (define-sort Value () (_ BitVec 32))
 
@@ -59,9 +62,37 @@
 (declare-datatypes (L C A) ((Dyad
                              (mk-dyad (src L) (dst L) (condition C) (action A)))))
 
-;; Decider functions
+;; Decider primitives
+(define-fun tests ((c Condition) (length Int) (f Field)) Bool
+  (exists ((index Int))
+     (implies
+      (and (< 0 index)
+           (< index length))
+      (= f (field (select c index))))))
 
-;; Places only
+(define-fun tests-only ((c Condition) (clen Int) (f (Set Field))) Bool
+  (forall ((cin Int))
+          (implies
+           (and (< 0 cin)
+                (< cin clen))
+           (exists ((fld Field))
+              (and (= fld (field (select c cin)))
+                   (select f fld))))))
+
+(define-fun tests-all ((c Condition) (clen Int) (f (Set Field))) Bool
+  (forall ((fld Field))
+          (implies
+           (select f fld)
+           (exists ((cin Int))
+              (and (< 0 cin)
+                   (< cin clen)
+                   (= fld (field (select c cin))))))))
+
+(define-fun tests-exactly ((c Condition) (clen Int) (f (Set Field))) Bool
+  (and (tests-only c clen f)
+       (tests-all  c clen f)))
+
+;; Decider functions
 (define-fun places-only ((c Condition) (length Int)) Bool
   (forall ((index Int))
           (implies
