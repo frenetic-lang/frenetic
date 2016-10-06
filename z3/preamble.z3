@@ -140,6 +140,20 @@
    (and (modifies-only a f)
         (modifies-all  a f)))
 
+;; Some useful accessors
+(declare-fun tested-fields (Condition Int) (Set Field))
+(assert
+ (forall ((c Condition) (l Int) (f Field))
+         (implies
+          (tests c l f)
+          (select (tested-fields c l) f))))
+
+(declare-fun modified-fields (Action) (Set Field))
+(assert
+ (forall ((a Action) (f Field))
+         (implies
+          (modifies a f)
+          (select (modified-fields a) f))))
 
 ;; Decider functions
 (define-fun places-only ((c Condition) (length Int)) Bool
@@ -151,15 +165,20 @@
              (or (= fld Switch) (= fld Location))))))
 
 
-(define-fun subset-of ((c1 Condition) (l1 Int) (c2 Condition) (l2 Int)) Bool
-  (and (<= l1 l2)
-       (forall ((i1 Int))
-               (implies
-                (and (< 0 i1) (< i1 l1))
-                (exists ((i2 Int))
-                   (implies (and (< 0 i2) (< l2 l2))
-                            (= (field (select c1 i1)) (field (select c2 i2)))))))))
+;; (define-fun subset-of ((c1 Condition) (l1 Int) (c2 Condition) (l2 Int)) Bool
+;;   (and (<= l1 l2)
+;;        (forall ((i1 Int))
+;;                (implies
+;;                 (and (< 0 i1) (< i1 l1))
+;;                 (exists ((i2 Int))
+;;                    (implies (and (< 0 i2) (< l2 l2))
+;;                             (= (field (select c1 i1)) (field (select c2 i2)))))))))
 
+(define-fun subset-of ((c1 Condition) (l1 Int) (c2 Condition) (l2 Int)) Bool
+  (forall ((f Field))
+          (implies
+           (select (tested-fields c1 l1) f)
+           (select (tested-fields c2 l2) f))))
 
 (define-fun adjacent ((t Topology) (l1 Location) (l2 Location)) Bool
   (ite (or (= l1 disconnected) (= l2 disconnected))
