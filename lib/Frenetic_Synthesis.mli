@@ -27,12 +27,19 @@ end
 
 module Z3 : sig
 
+  open Frenetic_Fdd
+
   exception Inconvertible of string
+
+  type source = Policy | Fabric
 
   type restraint =
     | Subset
     | Adjacent
-    | PlacesOnly
+    | Tests        of source * Field.t
+    | TestsAll     of source * FieldSet.t
+    | TestsOnly    of source * FieldSet.t
+    | TestsExactly of source * FieldSet.t
     | Not of restraint
     | And of restraint * restraint
     | Or  of restraint * restraint

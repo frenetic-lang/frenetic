@@ -104,10 +104,15 @@ module Z3 = struct
 
   exception Inconvertible of string
 
+  type source = Policy | Fabric
+
   type restraint =
     | Subset
     | Adjacent
-    | PlacesOnly
+    | Tests        of source * Field.t
+    | TestsAll     of source * Fabric.FieldSet.t
+    | TestsOnly    of source * Fabric.FieldSet.t
+    | TestsExactly of source * Fabric.FieldSet.t
     | Not of restraint
     | And of restraint * restraint
     | Or  of restraint * restraint
@@ -128,7 +133,7 @@ module Z3 = struct
     | VPort      -> "VPort"
     | Vlan       -> "Vlan"
     | VFabric    -> "VFabric"
-    | VlanPcp    -> "VlanPCP"
+    | VlanPcp    -> "VlanPcp"
     | EthType    -> "EthType"
     | IPProto    -> "IPProto"
     | EthSrc     -> "EthSrc"
@@ -204,25 +209,60 @@ module Z3 = struct
     String.concat ~sep:"\n" (List.rev lines)
 
   let of_restraint
-      ?(topo="topo") ?(fab="cfab") ?(pol="cpol") ?(flen=0) ?(plen=0)
-      policy fabric (r:restraint) =
+      ?(topo="topo") ?(fields="fields")
+      ?(fab="cfab") ?(pol="cpol") ?(flen=0) ?(plen=0)
+      policy fabric (r:restraint) : string =
     let open Dyad in
-    let rec aux r = match r with
+    let sname s = match s with
+      | Policy -> pol
+      | Fabric -> fab in
+    let slen s = match s with
+      | Policy -> plen
+      | Fabric -> flen in
+    let mk_asserts asserts fs =
+      let declare = sprintf "(declare-const %s (Set Field))" fields in
+      let includes = Fabric.FieldSet.fold fs
+          ~init:( declare::asserts ) ~f:(fun acc f ->
+              let exists = sprintf "(assert (select %s %s) )" fields (of_field f) in
+              exists::acc ) in
+      let excludes = List.fold Field.all ~init:includes ~f:(fun acc f ->
+          if not ( Fabric.FieldSet.mem fs f ) then
+            (sprintf "(assert (not (select %s %s)))" fields (of_field f))::acc
+          else acc) in
+      excludes
+    in
+    let rec aux r asserts = match r with
       | Subset ->
-        sprintf "(subset-of %s %d %s %d)" fab flen pol plen
+        sprintf "(subset-of %s %d %s %d)" fab flen pol plen, asserts
       | Adjacent ->
         sprintf "(and (adjacent %s %s %s) (adjacent %s %s %s))"
           topo (of_place (src policy)) (of_place (src fabric))
-          topo (of_place (dst policy)) (of_place (dst fabric))
-      | PlacesOnly ->
-        sprintf "(places-only %s %d)" fab flen
+          topo (of_place (dst policy)) (of_place (dst fabric)),
+        asserts
+      | Tests (s,f) ->
+        sprintf "(tests %s %d %s)" (sname s) (slen s) (of_field f), asserts
+      | TestsOnly (s,fs) ->
+        let asserts' = mk_asserts asserts fs in
+        sprintf "(tests-only %s %d %s)" (sname s) (slen s) fields, asserts'
+      | TestsAll  (s,fs) ->
+        let asserts' = mk_asserts asserts fs in
+        sprintf "(tests-all %s %d %s)" (sname s) (slen s) fields, asserts'
+      | TestsExactly (s,fs) ->
+        let asserts' = mk_asserts asserts fs in
+        sprintf "(tests-exactly %s %d %s)" (sname s) (slen s) fields, asserts'
       | Not d ->
-        sprintf "(not %s)" (aux d)
+        let cond, asserts' = (aux d asserts) in
+        sprintf "(not %s)" cond, asserts'
       | And(d1, d2) ->
-        sprintf "(and %s %s)" (aux d1) (aux d2)
+        let cond1, asserts' = aux d1 asserts in
+        let cond2, asserts'' = aux d2 asserts' in
+        sprintf "(and %s %s)" cond1 cond2, asserts''
       | Or(d1, d2) ->
-        sprintf "(or %s %s)" (aux d1) (aux d2) in
-    aux r
+        let cond1, asserts' = aux d1 asserts in
+        let cond2, asserts'' = aux d2 asserts' in
+        sprintf "(or %s %s)" cond1 cond2, asserts'' in
+    let cond, asserts = aux r [] in
+    String.concat ~sep:"\n" (List.rev ( (sprintf "(assert %s)" cond)::asserts) )
 
 
   let of_decision restraint topo policy fabric : string =
@@ -231,8 +271,7 @@ module Z3 = struct
     let fab_z3, fab_len = of_condition ~name:"cfab" (Dyad.condition fabric) in
     let restraints = of_restraint ~plen:pol_len ~flen:fab_len
         policy fabric restraint in
-    let assertion = sprintf "(assert %s )" restraints in
-    let lines = [ t_z3; pol_z3; fab_z3; assertion; "(check-sat)"] in
+    let lines = t_z3::pol_z3::fab_z3::restraints::["(check-sat)"] in
     String.concat ~sep:"\n\n" lines
 
   let mk_decider ?(prereqs_file="z3/prereqs.z3") (r:restraint) : decider =
