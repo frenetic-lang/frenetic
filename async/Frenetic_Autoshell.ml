@@ -5,6 +5,7 @@ open Frenetic_Network
 open Frenetic_Circuit_NetKAT
 
 module Fabric = Frenetic_Fabric
+module CoroNet = Frenetic_Topology.CoroNet
 module Compiler = Frenetic_NetKAT_Compiler
 module Log = Frenetic_Log
 
@@ -78,6 +79,7 @@ type load =
   | LFabric   of source * loc list * loc list
   | LCircuit  of source * loc list * loc list
   | LTopo     of source
+  | LCoronet  of source
 
 type compile =
   | CLocal                      (* Compile the naive policy as a local policy *)
@@ -172,7 +174,9 @@ module Parser = struct
       (symbol "circuit" >> guarded_source >>=
        fun (s,i,o) -> return ( LCircuit(s,i,o) )) <|>
       (symbol "topology" >>
-       source >>= fun s -> return (LTopo s))) >>=
+       source >>= fun s -> return (LTopo s)) <|>
+      (symbol "coronet" >>
+       source >>= fun s-> return (LCoronet s))) >>=
     fun l -> return ( Load l )
 
   (* Parser for the compile command *)
@@ -341,6 +345,13 @@ let load (l:load) : (string, string) Result.t =
     state.topology <- Some t;
     log "Loaded topology:\n%s\n" (string_of_policy t);
     "Loaded new topology"
+  | LCoronet s ->
+    (* TODO(basus): Allow coronet topologies to be loaded from strings as well *)
+    match s with
+    | String s -> Error "Coronet topologies must be loaded from files"
+    | Filename fn ->
+      let net = CoroNet.from_csv_file fn in
+      Ok (CoroNet.Pretty.to_string net)
 
 let compile_local (c:configuration) =
   let open Compiler in
