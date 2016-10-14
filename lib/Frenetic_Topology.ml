@@ -48,3 +48,105 @@ let edge (t: Net.Topology.t) =
         | Some _ -> acc)
     | _ -> acc)
   t []
+
+
+module CoroNode = struct
+
+  open Frenetic_Packet
+  open Frenetic_NetKAT
+
+  type t =
+    | Switch of string * switchId
+    | Repeater of switchId
+    | Host of dlAddr * nwAddr
+  [@@deriving sexp, compare]
+
+  let to_string t = match t with
+    | Switch(name, id) -> sprintf "switch %Lu @ %s" id name
+    | Repeater id      -> sprintf "repeater %Lu" id
+    | Host(dlAddr, nwAddr) ->
+      sprintf "host %s/%s" (string_of_nwAddr nwAddr) (string_of_dlAddr dlAddr)
+
+  let parse_dot _ _ = failwith "Cannot parse a Coronet node from DOT format"
+  let parse_gml _   = failwith "Cannot parse a Coronet node from GML format"
+
+  let to_dot t = match t with
+    | Switch(name, id) ->
+      sprintf "switch %s [label=%Lu]" name id
+    | Repeater id ->
+      sprintf "repeater %Lu" id
+    | Host(dlAddr, nwAddr) ->
+      sprintf "%s [label=%s]" (to_string t) (Frenetic_Packet.string_of_nwAddr nwAddr)
+
+  let to_mininet _ =
+    failwith "Cannot generate Mininet configuration for a Coronet node"
+
+end
+
+module CoroLink = struct
+  type t = float [@@deriving sexp, compare]
+
+  let to_string = string_of_float
+
+  let default = 0.0
+
+  let parse_dot _ = failwith "Cannot parse a Coronet link from DOT format"
+  let parse_gml _ = failwith "Cannot parse a Coronet link from GML format"
+
+  let to_dot = to_string
+  let to_mininet _ =
+    failwith "Cannot generate Mininet configuration for a Coronet link"
+
+end
+
+
+module CoroNet = struct
+  include Frenetic_Network.Make(CoroNode)(CoroLink)
+
+  let starts_with s c = match String.index s c with
+    | Some i -> i = 0
+    | None -> false
+
+  let from_csv_file filename =
+    let net = Topology.empty () in
+    let channel = In_channel.create filename in
+
+    let next_id    = ref 0L in
+    let id_table   = Hashtbl.Poly.create () in
+    let port_table = Hashtbl.Poly.create () in
+
+    let get_id name = match Hashtbl.Poly.find id_table name with
+      | None ->
+        Int64.incr next_id;
+        Hashtbl.Poly.add_exn id_table name ( !next_id );
+        !next_id
+      | Some i -> i in
+
+    let get_port name = match Hashtbl.Poly.find port_table name with
+      | None ->
+        Hashtbl.Poly.add_exn port_table name 0l;
+        0l
+      | Some p ->
+        Hashtbl.Poly.replace port_table name (Int32.succ p);
+        Int32.succ p in
+
+    In_channel.fold_lines channel ~init:net ~f:(fun net line ->
+        if starts_with line '#' then net
+        else
+          match String.split line ~on:',' with
+          | sname::dname::[dist] ->
+            let sid = get_id sname in
+            let sport = get_port sname in
+            let net,src = Topology.add_vertex net ( Switch(sname,sid) ) in
+
+            let did = get_id dname in
+            let dport = get_port dname in
+            let net,dst = Topology.add_vertex net ( Switch(dname,did) ) in
+
+            let distance = float_of_string dist in
+            let net,_ = Topology.add_edge net src sport distance dst dport in
+            net
+          | _ -> failwith "Expected each line in CSV to have structure (src,dst,distance)"
+      )
+
+end

@@ -16,3 +16,10 @@ val internal_ports : Net.Topology.t -> SDN.switchId -> Net.Topology.PortSet.t
 val in_edge : Net.Topology.t -> SDN.switchId -> SDN.portId -> bool
 
 val edge : Net.Topology.t -> (SDN.switchId * SDN.portId) list
+
+module CoroNode : Frenetic_Network.VERTEX
+module CoroLink : Frenetic_Network.EDGE
+module CoroNet : sig
+  include Frenetic_Network.NETWORK
+  val from_csv_file : string -> Topology.t
+end
