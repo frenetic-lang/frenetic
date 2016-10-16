@@ -58,14 +58,13 @@ module CoroNode = struct
   type t =
     | Switch of string * switchId
     | Repeater of switchId
-    | Host of dlAddr * nwAddr
+    | Host of string * dlAddr * nwAddr
   [@@deriving sexp, compare]
 
   let to_string t = match t with
-    | Switch(name, id) -> sprintf "switch %Lu @ %s" id name
-    | Repeater id      -> sprintf "repeater %Lu" id
-    | Host(dlAddr, nwAddr) ->
-      sprintf "host %s/%s" (string_of_nwAddr nwAddr) (string_of_dlAddr dlAddr)
+    | Switch(name, id) -> name
+    | Repeater id      -> sprintf "r%Lu" id
+    | Host(name, dlAddr, nwAddr) -> name
 
   let parse_dot _ _ = failwith "Cannot parse a Coronet node from DOT format"
   let parse_gml _   = failwith "Cannot parse a Coronet node from GML format"
@@ -75,11 +74,21 @@ module CoroNode = struct
       sprintf "switch %s [label=%Lu]" name id
     | Repeater id ->
       sprintf "repeater %Lu" id
-    | Host(dlAddr, nwAddr) ->
-      sprintf "%s [label=%s]" (to_string t) (Frenetic_Packet.string_of_nwAddr nwAddr)
+    | Host(name, dlAddr, nwAddr) ->
+      sprintf "%s [label=%s]" (to_string t) (string_of_nwAddr nwAddr)
 
-  let to_mininet _ =
-    failwith "Cannot generate Mininet configuration for a Coronet node"
+  let to_mininet n = match n with
+    | Switch(name, id) ->
+      sprintf "%s = net.addSwitch(\'s%Ld\', dpid=\'%s\', cls=LINCSwitch)\n"
+        name id (string_of_mac id)
+    | Repeater(id) ->
+      sprintf "r%Ld = net.addSwitch(\'r%Ld\', cls=LINCSwitch)\n" id id
+    | Host(name, mac, ip) ->
+      (* Mininet doesn't like underscores in host names *)
+      let mnname = Str.global_replace (Str.regexp "_") "" name in
+      sprintf "%s = net.addHost(\'%s\', mac=\'%s\', ip=\'%s\')\n"
+        name mnname
+        (string_of_mac mac) (string_of_ip ip)
 
 end
 
@@ -94,8 +103,6 @@ module CoroLink = struct
   let parse_gml _ = failwith "Cannot parse a Coronet link from GML format"
 
   let to_dot = to_string
-  let to_mininet _ =
-    failwith "Cannot generate Mininet configuration for a Coronet link"
 
 end
 
@@ -127,7 +134,7 @@ module CoroNet = struct
         Hashtbl.Poly.add_exn port_table name 0l;
         0l
       | Some p ->
-        Hashtbl.Poly.replace port_table name (Int32.succ p);
+        Hashtbl.Poly.set port_table name (Int32.succ p);
         Int32.succ p in
 
     In_channel.fold_lines channel ~init:net ~f:(fun net line ->

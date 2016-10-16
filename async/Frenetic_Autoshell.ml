@@ -351,7 +351,10 @@ let load (l:load) : (string, string) Result.t =
     | String s -> Error "Coronet topologies must be loaded from files"
     | Filename fn ->
       let net = CoroNet.from_csv_file fn in
-      Ok (CoroNet.Pretty.to_string net)
+      let mn = CoroNet.Pretty.to_mininet
+          ~prologue_file:"examples/linc-prologue.txt"
+          ~link_class:( Some "LINCLink" ) net in
+      Ok mn
 
 let compile_local (c:configuration) =
   let open Compiler in
