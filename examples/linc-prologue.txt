@@ -1,0 +1,21 @@
+#!/usr/bin/env python
+
+from optical import LINCNet, LINCSwitch, LINCLink
+
+from mininet.node import OVSSwitch, RemoteController
+from mininet.cli import CLI
+from mininet.net import Mininet
+from mininet.log import lg, info, error, debug, output
+
+def start(ip="127.0.0.1",port=6633):
+
+    # Set up logging etc.
+    lg.setLogLevel('info')
+    lg.setLogLevel('output')
+
+    ctrlr = lambda n: RemoteController(n, ip=ip, port=port, inNamespace=False)
+    net = LINCNet(switch=OVSSwitch, controller=ctrlr, listenPort=6635)
+    c1 = net.addController('c1')
+
+    ####### End of static Mininet prologue ######
+
