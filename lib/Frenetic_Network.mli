@@ -140,7 +140,7 @@ module type NETWORK = sig
     val to_string : Topology.t -> string
     val to_dot : Topology.t -> string
     val to_mininet : ?prologue_file:string -> ?epilogue_file:string ->
-      Topology.t -> string
+      ?link_class:string option -> Topology.t -> string
   end
 end
 

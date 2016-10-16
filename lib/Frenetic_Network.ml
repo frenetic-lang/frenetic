@@ -143,7 +143,7 @@ module type NETWORK = sig
     val to_string : Topology.t -> string
     val to_dot : Topology.t -> string
     val to_mininet : ?prologue_file:string -> ?epilogue_file:string ->
-      Topology.t -> string
+      ?link_class:string option -> Topology.t -> string
   end
 end
 
@@ -785,8 +785,9 @@ struct
 
     (* Produce a Mininet script that implements the given topology *)
     let to_mininet
-        ?(prologue_file = "static/mn_prologue.txt")
-        ?(epilogue_file = "static/mn_epilogue.txt")
+        ?(prologue_file = "examples/mn_prologue.txt")
+        ?(epilogue_file = "examples/mn_epilogue.txt")
+        ?(link_class = None)
         (t:t) : string =
       (* Load static strings (maybe there's a better way to do this?) *)
       let prologue = load_file prologue_file in
@@ -826,9 +827,12 @@ struct
               let src = Str.global_replace (Str.regexp "[ ,]") ""
                 (Vertex.to_string src_label) in
               let dst = Str.global_replace (Str.regexp "[ ,]") ""
-                (Vertex.to_string dst_label) in
-              Printf.sprintf "    net.addLink(%s, %s, %ld, %ld)\n"
-                src dst src_port dst_port
+                  (Vertex.to_string dst_label) in
+              match link_class with
+              | None -> sprintf "    net.addLink(%s, %s, %ld, %ld)\n"
+                          src dst src_port dst_port
+              | Some lc -> sprintf "    net.addLink(%s, %s, %ld, %ld, cls=%s)\n"
+                             src dst src_port dst_port lc
           in
           seen := EdgeSet.add !seen e;
           acc ^ add
