@@ -290,7 +290,7 @@ let string_of_guarded_source s i o =
 
 let string_of_config c =
   sprintf "Policy:\n%s\nIngresses: %s\nEgresses: %s\n"
-    (Frenetic_NetKAT_Pretty.string_of_policy c.policy)
+    (string_of_policy c.policy)
     (string_of_locs c.ingresses)
     (string_of_locs c.egresses)
 
@@ -354,7 +354,10 @@ let load (l:load) : (string, string) Result.t =
       let mn = CoroNet.Pretty.to_mininet
           ~prologue_file:"examples/linc-prologue.txt"
           ~link_class:( Some "LINCLink" ) net in
-      Ok mn
+      let nk = string_of_policy (CoroNet.Pretty.to_netkat net) in
+      let result = sprintf "Source: %s\n\nMininet:\n%s\n\nNetKAT:\n%s\n\n"
+          fn mn nk in
+      Ok result
 
 let compile_local (c:configuration) =
   let open Compiler in
