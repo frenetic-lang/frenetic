@@ -10,6 +10,10 @@ type node =
 module Node = struct
   type t = node [@@deriving sexp, compare]
 
+  let id t = match t with
+    | Switch(sw_id)        -> sw_id
+    | Host(dlAddr, nwAddr) -> dlAddr
+
   let to_string t = match t with
     | Switch(sw_id)       -> Printf.sprintf "switch %Lu" sw_id
     | Host(dlAddr, nwAddr) -> Printf.sprintf "host %s/%s"

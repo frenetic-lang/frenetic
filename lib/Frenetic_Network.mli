@@ -3,6 +3,7 @@ open Core_kernel.Std
 module type VERTEX = sig
   type t [@@deriving sexp]
 
+  val id : t -> Frenetic_NetKAT.switchId
   val compare : t -> t -> int
   val to_string : t -> string
   val to_dot : t -> string
@@ -141,6 +142,7 @@ module type NETWORK = sig
     val to_dot : Topology.t -> string
     val to_mininet : ?prologue_file:string -> ?epilogue_file:string ->
       ?link_class:string option -> Topology.t -> string
+    val to_netkat : Topology.t -> Frenetic_NetKAT.policy
   end
 end
 

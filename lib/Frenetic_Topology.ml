@@ -61,6 +61,12 @@ module CoroNode = struct
     | Host of string * dlAddr * nwAddr
   [@@deriving sexp, compare]
 
+
+  let id t = match t with
+    | Switch(name, id) -> id
+    | Repeater id      -> id
+    | Host(name, dlAddr, nwAddr) -> dlAddr
+
   let to_string t = match t with
     | Switch(name, id) -> name
     | Repeater id      -> sprintf "r%Lu" id

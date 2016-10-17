@@ -5,6 +5,7 @@ open Core_kernel.Std
 module type VERTEX = sig
   type t [@@deriving sexp]
 
+  val id : t -> Frenetic_NetKAT.switchId
   val compare : t -> t -> int
   val to_string : t -> string
   val to_dot : t -> string
@@ -144,6 +145,7 @@ module type NETWORK = sig
     val to_dot : Topology.t -> string
     val to_mininet : ?prologue_file:string -> ?epilogue_file:string ->
       ?link_class:string option -> Topology.t -> string
+    val to_netkat : Topology.t -> Frenetic_NetKAT.policy
   end
 end
 
@@ -839,6 +841,17 @@ struct
         )
         t "" in
       prologue ^ add_hosts ^ links ^ epilogue
+
+    let to_netkat (t:t) : Frenetic_NetKAT.policy =
+      let links = fold_edges (fun e acc ->
+          let src_vertex,src_port = edge_src e in
+          let dst_vertex,dst_port = edge_dst e in
+          let src_label = vertex_to_label t src_vertex in
+          let dst_label = vertex_to_label t dst_vertex in
+          let link = Frenetic_NetKAT.Link ((Vertex.id src_label), src_port,
+                                           (Vertex.id dst_label), dst_port) in
+          link::acc) t [] in
+      Frenetic_NetKAT_Optimize.mk_big_union links
 
   end
 end
