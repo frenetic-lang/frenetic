@@ -151,9 +151,11 @@ module CoroNet = struct
             let net,dst = Topology.add_vertex net ( Switch(dname,did) ) in
 
             let distance = float_of_string dist in
+            (* Add edges in both directions because the topology structure is directional *)
             let net,_ = Topology.add_edge net src sport distance dst dport in
+            let net,_ = Topology.add_edge net dst dport distance src sport in
             net
-          | _ -> failwith "Expected each line in CSV to have structure (src,dst,distance)"
+          | _ -> failwith "Expected each line in CSV to have structure `src,dst,distance`"
       )
 
 end
