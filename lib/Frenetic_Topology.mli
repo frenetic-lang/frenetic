@@ -21,5 +21,5 @@ module CoroNode : Frenetic_Network.VERTEX
 module CoroLink : Frenetic_Network.EDGE
 module CoroNet : sig
   include Frenetic_Network.NETWORK
-  val from_csv_file : string -> Topology.t
+  val from_csv_file : string -> ( Topology.t  * (string, Frenetic_NetKAT.switchId) Hashtbl.t)
 end

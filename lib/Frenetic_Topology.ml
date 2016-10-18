@@ -143,7 +143,7 @@ module CoroNet = struct
         Hashtbl.Poly.set port_table name (Int32.succ p);
         Int32.succ p in
 
-    In_channel.fold_lines channel ~init:net ~f:(fun net line ->
+    let net = In_channel.fold_lines channel ~init:net ~f:(fun net line ->
         if starts_with line '#' then net
         else
           match String.split line ~on:',' with
@@ -162,6 +162,7 @@ module CoroNet = struct
             let net,_ = Topology.add_edge net dst dport distance src sport in
             net
           | _ -> failwith "Expected each line in CSV to have structure `src,dst,distance`"
-      )
+      ) in
+    (net, id_table)
 
 end
