@@ -121,7 +121,9 @@ module type NETWORK = sig
     type weight
     type t = Topology.edge list
     exception NegativeCycle of t
+    exception UnjoinablePaths of string
 
+    val join : t -> t -> t
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
     val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
     val all_pairs_shortest_paths :
@@ -443,7 +445,9 @@ struct
     type weight
     type t = Topology.edge list
     exception NegativeCycle of t
+    exception UnjoinablePaths of string
 
+    val join : t -> t -> t
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
     val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
     val all_pairs_shortest_paths :
@@ -455,6 +459,9 @@ struct
   module Path = functor (Weight : WEIGHT with type edge = Topology.Edge.t) ->
   struct
     open Topology
+
+    exception NegativeCycle of edge list
+    exception UnjoinablePaths of string
 
     module WL = struct
       type t = Weight.t
@@ -471,6 +478,20 @@ struct
     type weight = Weight.t
     type t = edge list
 
+    let join p p' =
+      let p_stop = match List.last p with
+        | None -> raise (UnjoinablePaths "Cannot join empty paths")
+        | Some e -> Topology.edge_dst e in
+      let p'_start = match List.hd p with
+        | None ->  raise (UnjoinablePaths "Cannot join empty paths")
+        | Some e -> Topology.edge_src e in
+
+      if p_stop = p'_start then
+        let p'' = List.tl_exn (List.rev p) in
+        List.rev_append p'' p'
+      else
+         raise (UnjoinablePaths "Cannot join paths that do not share an endpoint")
+
     let shortest_path (t:Topology.t) (v1:vertex) (v2:vertex) : t option =
       try
         let pth,_ = Dijkstra.shortest_path t.graph v1 v2 in
@@ -478,7 +499,6 @@ struct
       with Not_found ->
         None
 
-    exception NegativeCycle of edge list
     (* Implementation of Bellman-Ford algorithm, based on that in ocamlgraph's
        Path library. Returns a hashtable mapping each node to its predecessor in
        the path *)

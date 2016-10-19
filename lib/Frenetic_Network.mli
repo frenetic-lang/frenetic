@@ -118,7 +118,9 @@ module type NETWORK = sig
     type weight
     type t = Topology.edge list
     exception NegativeCycle of t
+    exception UnjoinablePaths of string
 
+    val join : t -> t -> t
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
     val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
     val all_pairs_shortest_paths :
