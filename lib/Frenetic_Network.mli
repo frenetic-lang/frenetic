@@ -57,6 +57,9 @@ module type NETWORK = sig
     module VertexHash : Hashtbl.S
       with type key = vertex
 
+    module VertexPairHash : Hashtbl.S
+      with type key = vertex * vertex
+
     module PortSet : Set.S
       with type Elt.t = port
 
@@ -120,8 +123,7 @@ module type NETWORK = sig
     val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
     val all_pairs_shortest_paths :
         topo:Topology.t ->
-        f:(Topology.vertex -> Topology.vertex -> bool) ->
-       (weight * Topology.vertex * Topology.vertex * Topology.edge list) list
+        f:(Topology.vertex -> Topology.vertex -> bool) -> (weight * t) Topology.VertexPairHash.t
   end
 
   module Path (Weight : WEIGHT with type edge = Topology.Edge.t) :

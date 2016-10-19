@@ -59,6 +59,9 @@ module type NETWORK = sig
     module VertexHash : Hashtbl.S
       with type key = vertex
 
+    module VertexPairHash : Hashtbl.S
+      with type key = vertex * vertex
+
     module PortSet : Set.S
       with type Elt.t = port
 
@@ -124,7 +127,7 @@ module type NETWORK = sig
     val all_pairs_shortest_paths :
         topo:Topology.t ->
         f:(Topology.vertex -> Topology.vertex -> bool) ->
-       (weight * Topology.vertex * Topology.vertex * Topology.edge list) list
+        (weight * t) Topology.VertexPairHash.t
   end
 
   module Path (Weight : WEIGHT with type edge = Topology.Edge.t) :
@@ -175,15 +178,16 @@ struct
       let hash n1 = Hashtbl.hash n1.id
       let equal n1 n2 = n1.id = n2.id
       let to_string n = string_of_int n.id
-      (*
-      let sexp_of_t v = Sexp.List [Sexp.Atom "id"; sexp_of_int v.id ]
-      let t_of_sexp s = { id = int_of_sexp (Sexp.Atom "1"); label = vertex_t_of_sexp s }
-      *)
     end
 
     module VertexSet = Set.Make(VL)
     module VertexMap = Map.Make(Vertex)
     module VertexHash = Hashtbl.Make(VL)
+    module VertexPairHash = Hashtbl.Make(struct
+        type t = VL.t * VL.t [@@deriving compare,eq,sexp]
+        let hash (n1,n2) = Hashtbl.hash (n1.VL.id,n2.VL.id)
+      end)
+
     module EL = struct
       type t = { id : int;
                  label : Edge.t;
@@ -445,7 +449,7 @@ struct
     val all_pairs_shortest_paths :
         topo:Topology.t ->
         f:(Topology.vertex -> Topology.vertex -> bool) ->
-       (weight * Topology.vertex * Topology.vertex * Topology.edge list) list
+        (weight * t) Topology.VertexPairHash.t
   end
 
   module Path = functor (Weight : WEIGHT with type edge = Topology.Edge.t) ->
@@ -531,7 +535,7 @@ struct
 
     let all_pairs_shortest_paths
       ~(topo:Topology.t)
-      ~(f:Topology.vertex -> Topology.vertex -> bool) : (Weight.t * vertex * vertex * edge list) list =
+      ~(f:Topology.vertex -> Topology.vertex -> bool) : (Weight.t * t) VertexPairHash.t =
       (* Because Weight does not provide infinity, we lift Weight.t
          using an option: None corresponds to infinity, and Some w
          corresponds to a finite weight. *)
@@ -585,19 +589,19 @@ struct
           done
         done
       done;
-      let paths = ref [] in
-      Array.iteri (fun i array ->
-        Array.iteri (fun j elt ->
-          if (f (vxs.(i)) (vxs.(j))) then
-            (match elt with
+      let paths = VertexPairHash.create ~size:(Array.length matrix) () in
+      Array.iteri (fun i array -> Array.iteri (fun j elt ->
+          let src = vxs.(i) in
+          let dst = vxs.(j) in
+          if (f src dst) then
+            match elt with
               | None, _ -> ()
               | Some w, p ->
-                paths := (w, vxs.(i), vxs.(j),Lazy.force p) :: !paths)
-          else
-            ())
+                VertexPairHash.set paths ~key:(src,dst) ~data:(w, Lazy.force p)
+          else ())
           array;)
         matrix;
-      !paths
+      paths
   end
 
   module UnitPath = Path(Topology.UnitWeight)

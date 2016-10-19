@@ -41,16 +41,18 @@ let parse_topo_file ?(log=true) ?(hostlimit=1000000) filename : topo =
   (topo, vertexes, switches, hosts)
 
 let shortest_paths ((topo, _, _, _) : topo) =
+  let module VPH = Topology.VertexPairHash in
   printf "Calculating all-pairs shortest paths...\n%!";
   let paths = Path.all_pairs_shortest_paths ~topo ~f:(fun vx1 vx2 ->
     match (Node.device (Topology.vertex_to_label topo vx1),
            Node.device (Topology.vertex_to_label topo vx2)) with
       | Node.Host, Node.Host -> true
       | _ -> false) in
-  printf "Calculating policy (linking %d pairs of hosts).\n%!..." (List.length paths);
-  let route (_, _, dst, path) =
+  printf "Calculating policy (linking %d pairs of hosts).\n%!..."
+    (VPH.length paths);
+  let route ~key:(_,dst) ~data:(_, path) acc =
     let dst_ip = Node.ip (Topology.vertex_to_label topo dst) in
-    List.map path ~f:(fun edge ->
+    let p = List.map path ~f:(fun edge ->
       let v, pt = Topology.edge_src edge in
       let n = Topology.vertex_to_label topo v in
       match Node.device n with
@@ -59,7 +61,8 @@ let shortest_paths ((topo, _, _, _) : topo) =
         Seq (Filter (And (Test (Switch i), Test (IP4Dst (dst_ip, 32l)))),
             Mod (Location (Physical pt)))
       | _ -> Filter False) |> Frenetic_NetKAT_Optimize.mk_big_union in
-  List.map paths ~f:route |> Frenetic_NetKAT_Optimize.mk_big_union
+      p:: acc in
+  VPH.fold paths ~init:[] ~f:route |> Frenetic_NetKAT_Optimize.mk_big_union
 
 let vertex_to_switch_port topo (vertex, pt) =
     let node = Topology.vertex_to_label topo vertex in
@@ -92,13 +95,14 @@ let shortest_paths_global_policy ((topo, _, _, _) : topo) =
              Node.device (vertex_to_label vx2)) with
         | Node.Host, Node.Host -> true
         | _ -> false)
-    |> List.filter_map ~f:(fun (_,_,dst,path) ->
+    |> Topology.VertexPairHash.fold ~init:[]
+      ~f:(fun ~key:(_,dst) ~data:(_,path) acc ->
       match path with
-      | [] -> None
+      | [] -> acc
       | _ ->
         let path = List.rev_map path ~f:(unwrap_edge topo) in
         let dst = Node.ip (vertex_to_label dst) in
-        Some (dst, path))
+        (dst, path)::acc)
     |> List.sort ~cmp:(fun (ip,_) (ip',_) -> Int32.compare ip ip')
     |> List.group ~break:(fun (ip,_) (ip',_) -> not (Int32.equal ip ip'))
     |> List.map ~f:(function (ip,_)::_ as lst -> (ip, List.map lst ~f:snd))
