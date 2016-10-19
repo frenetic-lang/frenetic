@@ -328,6 +328,29 @@ let get_state_fdd (s:state_part) = match s with
       | None -> Error "No topology defined."
       | Some t -> Error "Topology has no FDD." end
 
+let load_coronet (fn:string) (east:string list) (west:string list) =
+  let net,id_tbl = CoroNet.from_csv_file fn in
+  let mn = CoroNet.Pretty.to_mininet ~prologue_file:"examples/linc-prologue.txt"
+      ~link_class:( Some "LINCLink" ) net in
+  let nk = string_of_policy (CoroNet.Pretty.to_netkat net) in
+  try
+    let show = function
+      | Some p -> CoroNet.CoroPath.to_string net p
+      | None -> "" in
+    let paths = CoroNet.cross_connect net id_tbl east west in
+    let src     = sprintf "Source: %s" fn in
+    let mininet = sprintf "Mininet:\n%s\n" mn in
+    let netkat  = sprintf "NetKAT:\n%s\n" nk in
+    let body = List.map paths ~f:(fun (shortest,local,across) ->
+        sprintf "Shortest: [%s]\nLocal First: [%s]\nAcross First: [%s]"
+          (show shortest) (show local) (show across)) in
+    Ok (String.concat ~sep:"\n" ( src::mininet::netkat::body ))
+  with
+  | CoroNet.NonexistentNode s ->
+    Error (sprintf "No node %s in topology read from %s\n" s fn)
+  | CoroNet.CoroPath.UnjoinablePaths s ->
+    Error (sprintf "Unjoinable paths while loading %s: %s\n" fn s)
+
 let load (l:load) : (string, string) Result.t =
   let (>>=) = Result.(>>=) in
   match l with
@@ -360,19 +383,7 @@ let load (l:load) : (string, string) Result.t =
     (* TODO(basus): Allow coronet topologies to be loaded from strings as well *)
     match s with
     | String s -> Error "Coronet topologies must be loaded from files"
-    | Filename fn ->
-      let net,id_tbl = CoroNet.from_csv_file fn in
-      let mn = CoroNet.Pretty.to_mininet
-          ~prologue_file:"examples/linc-prologue.txt"
-          ~link_class:( Some "LINCLink" ) net in
-      let nk = string_of_policy (CoroNet.Pretty.to_netkat net) in
-      try
-        let _ = CoroNet.cross_connect net id_tbl east west in
-        let result = sprintf "Source: %s\n\nMininet:\n%s\n\nNetKAT:\n%s\n\n"
-            fn mn nk in
-        Ok result
-      with CoroNet.NonexistentNode s ->
-        Error (sprintf "No node %s in topology read from %s\n" s fn)
+    | Filename fn -> load_coronet fn east west
 
 let compile_local (c:configuration) =
   let open Compiler in
