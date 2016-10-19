@@ -123,7 +123,11 @@ module type NETWORK = sig
     exception NegativeCycle of t
     exception UnjoinablePaths of string
 
-    val join : t -> t -> t
+    val join  : t -> t -> t
+    val start : t -> Topology.vertex
+    val stop  : t -> Topology.vertex
+    val to_string : Topology.t -> t -> string
+
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
     val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
     val all_pairs_shortest_paths :
@@ -447,7 +451,13 @@ struct
     exception NegativeCycle of t
     exception UnjoinablePaths of string
 
-    val join : t -> t -> t
+    (* Utility functions *)
+    val join  : t -> t -> t
+    val start : t -> Topology.vertex
+    val stop  : t -> Topology.vertex
+    val to_string : Topology.t -> t -> string
+
+    (* Path finding functions *)
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
     val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
     val all_pairs_shortest_paths :
@@ -491,6 +501,20 @@ struct
         List.rev_append p'' p'
       else
          raise (UnjoinablePaths "Cannot join paths that do not share an endpoint")
+
+    let start t =
+      fst ( Topology.edge_src (List.hd_exn t) )
+
+    let stop t =
+      fst ( Topology.edge_dst (List.last_exn t) )
+
+    let to_string net t =
+      let open Topology in
+      let strs = List.map t ~f:(fun edge ->
+          sprintf "%s => %s"
+            (vertex_to_string net (fst (edge_src edge) ))
+            (vertex_to_string net (fst (edge_dst edge) ))) in
+      String.concat ~sep:"; " strs
 
     let shortest_path (t:Topology.t) (v1:vertex) (v2:vertex) : t option =
       try
