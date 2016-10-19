@@ -6,6 +6,7 @@ open Core.Std
 
 module Net = Frenetic_NetKAT_Net.Net
 module SDN = Frenetic_OpenFlow
+type id_table = (string, Frenetic_NetKAT.switchId) Hashtbl.t
 
 let switch_ids (t : Net.Topology.t) : SDN.switchId list =
   let open Net.Topology in
@@ -116,9 +117,12 @@ end
 module CoroNet = struct
   include Frenetic_Network.Make(CoroNode)(CoroLink)
 
-  let starts_with s c = match String.index s c with
-    | Some i -> i = 0
-    | None -> false
+  exception NonexistentNode of string
+
+  let find_label id_tbl name =
+    match Hashtbl.Poly.find id_tbl name with
+        | Some sw -> CoroNode.Switch(name, sw)
+        | None -> raise (NonexistentNode name)
 
   let from_csv_file filename =
     let net = Topology.empty () in
@@ -127,6 +131,10 @@ module CoroNet = struct
     let next_id    = ref 0L in
     let id_table   = Hashtbl.Poly.create () in
     let port_table = Hashtbl.Poly.create () in
+
+    let starts_with s c = match String.index s c with
+      | Some i -> i = 0
+      | None -> false in
 
     let get_id name = match Hashtbl.Poly.find id_table name with
       | None ->
@@ -165,4 +173,13 @@ module CoroNet = struct
       ) in
     (net, id_table)
 
+  let find_triple_path net easts wests e w = ([], [], [])
+
+  let cross_connect (net:Topology.t) id_tbl (e:string list) (w:string list) =
+    let east = List.map e ~f:(find_label id_tbl) in
+    let west = List.map w ~f:(find_label id_tbl) in
+    let find_paths = find_triple_path net east west in
+    List.fold east ~init:[] ~f:(fun acc e ->
+        List.fold west ~init:acc ~f:(fun acc w ->
+            (find_paths e w ::acc)))
 end

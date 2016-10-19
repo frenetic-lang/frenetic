@@ -7,6 +7,8 @@ open Core.Std
 module Net = Frenetic_NetKAT_Net.Net
 module SDN = Frenetic_OpenFlow
 
+type id_table = (string, Frenetic_NetKAT.switchId) Hashtbl.t
+
 val switch_ids : Net.Topology.t -> SDN.switchId list
 
 (* Topology detection doesn't really detect hosts. So, I treat any
@@ -21,5 +23,10 @@ module CoroNode : Frenetic_Network.VERTEX
 module CoroLink : Frenetic_Network.EDGE
 module CoroNet : sig
   include Frenetic_Network.NETWORK
-  val from_csv_file : string -> ( Topology.t  * (string, Frenetic_NetKAT.switchId) Hashtbl.t)
+
+  exception NonexistentNode of string
+
+  val from_csv_file : string -> ( Topology.t  * id_table)
+  val cross_connect : Topology.t -> id_table -> string list -> string list ->
+    (UnitPath.t * UnitPath.t * UnitPath.t) list
 end

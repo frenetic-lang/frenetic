@@ -78,8 +78,8 @@ type load =
   | LNaive    of source * loc list * loc list
   | LFabric   of source * loc list * loc list
   | LCircuit  of source * loc list * loc list
+  | LCoronet  of source * string list * string list
   | LTopo     of source
-  | LCoronet  of source
 
 type compile =
   | CLocal                      (* Compile the naive policy as a local policy *)
@@ -161,6 +161,12 @@ module Parser = struct
          (fun egs ->
             return (pol, ings, egs)))))
 
+  let coronet : ((source * string list * string list), bytes list) MParser.t =
+    source >>= fun s -> blank >>
+    string_list >>= fun east -> blank >>
+    string_list >>= fun west ->
+    return (s, east, west)
+
   (* Parser for parts of the state *)
   let state_part : (state_part, bytes list) MParser.t =
       (symbol "policy"   >> return SNaive) <|>
@@ -178,10 +184,10 @@ module Parser = struct
        fun (s,i,o) -> return ( LFabric(s,i,o) )) <|>
       (symbol "circuit" >> guarded_source >>=
        fun (s,i,o) -> return ( LCircuit(s,i,o) )) <|>
+      (symbol "coronet" >> coronet >>=
+       fun (s,e,w) -> return (LCoronet(s,e,w))) <|>
       (symbol "topology" >>
-       source >>= fun s -> return (LTopo s)) <|>
-      (symbol "coronet" >>
-       source >>= fun s-> return (LCoronet s))) >>=
+       source >>= fun s -> return (LTopo s))) >>=
     fun l -> return ( Load l )
 
   (* Parser for the compile command *)
@@ -350,19 +356,23 @@ let load (l:load) : (string, string) Result.t =
     state.topology <- Some t;
     log "Loaded topology:\n%s\n" (string_of_policy t);
     "Loaded new topology"
-  | LCoronet s ->
+  | LCoronet (s,east,west) ->
     (* TODO(basus): Allow coronet topologies to be loaded from strings as well *)
     match s with
     | String s -> Error "Coronet topologies must be loaded from files"
     | Filename fn ->
-      let net,_ = CoroNet.from_csv_file fn in
+      let net,id_tbl = CoroNet.from_csv_file fn in
       let mn = CoroNet.Pretty.to_mininet
           ~prologue_file:"examples/linc-prologue.txt"
           ~link_class:( Some "LINCLink" ) net in
       let nk = string_of_policy (CoroNet.Pretty.to_netkat net) in
-      let result = sprintf "Source: %s\n\nMininet:\n%s\n\nNetKAT:\n%s\n\n"
-          fn mn nk in
-      Ok result
+      try
+        let _ = CoroNet.cross_connect net id_tbl east west in
+        let result = sprintf "Source: %s\n\nMininet:\n%s\n\nNetKAT:\n%s\n\n"
+            fn mn nk in
+        Ok result
+      with CoroNet.NonexistentNode s ->
+        Error (sprintf "No node %s in topology read from %s\n" s fn)
 
 let compile_local (c:configuration) =
   let open Compiler in
