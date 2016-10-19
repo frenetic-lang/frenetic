@@ -113,11 +113,21 @@ module CoroLink = struct
 
 end
 
+module Distance = struct
+  type edge = CoroLink.t [@@deriving sexp, compare]
+  type t = float [@@deriving sexp, compare]
+
+  let weight l = l
+  let add = (+.)
+  let zero = 0.
+end
 
 module CoroNet = struct
   include Frenetic_Network.Make(CoroNode)(CoroLink)
 
   exception NonexistentNode of string
+
+  module CoroPath = Path(Distance)
 
   let find_label id_tbl name =
     match Hashtbl.Poly.find id_tbl name with
