@@ -128,11 +128,16 @@ module CoroNet = struct
   exception NonexistentNode of string
 
   module CoroPath = Path(Distance)
+  type path = CoroPath.t
 
   let find_label id_tbl name =
     match Hashtbl.Poly.find id_tbl name with
         | Some sw -> CoroNode.Switch(name, sw)
         | None -> raise (NonexistentNode name)
+
+  let find_vertex net id_tbl name =
+    let label = find_label id_tbl name in
+    Topology.vertex_of_label net label
 
   let from_csv_file filename =
     let net = Topology.empty () in
@@ -183,13 +188,57 @@ module CoroNet = struct
       ) in
     (net, id_table)
 
-  let find_triple_path net easts wests e w = ([], [], [])
+  let find_triple_path net local across src dst =
+    let show = Topology.vertex_to_string net in
+    let shortest = CoroPath.shortest_path net src dst in
+    let local_next,_,p = Topology.VertexHash.find_exn local src in
+    let local_across = match CoroPath.shortest_path net local_next dst with
+      | Some p' -> Some ( CoroPath.join p p' )
+      | None ->
+        printf "No path between %s and %s" (show local_next) (show dst);
+        None in
+
+    let across_next,_,p = Topology.VertexHash.find_exn across src in
+    let across_local = match CoroPath.shortest_path net across_next dst with
+      | Some p' -> Some ( CoroPath.join p p' )
+      | None ->
+        printf "No path between %s and %s" (show across_next) (show dst);
+        None in
+
+    (shortest, local_across, across_local)
+
+  let closest tbl =
+    let open Topology in
+    let tbl' = VertexHash.create ~size:(VertexPairHash.length tbl) () in
+    VertexPairHash.iteri tbl ~f:(fun ~key:(src,dst) ~data:(w,p) ->
+        VertexHash.update tbl' src ~f:(fun value -> match value with
+            | None -> (dst,w,p)
+            | Some(dst',w',p') ->
+              if w < w' then (dst,w,p) else (dst',w',p)));
+    tbl'
 
   let cross_connect (net:Topology.t) id_tbl (e:string list) (w:string list) =
-    let east = List.map e ~f:(find_label id_tbl) in
-    let west = List.map w ~f:(find_label id_tbl) in
-    let find_paths = find_triple_path net east west in
-    List.fold east ~init:[] ~f:(fun acc e ->
-        List.fold west ~init:acc ~f:(fun acc w ->
-            (find_paths e w ::acc)))
+    let module VS = Topology.VertexSet in
+    let east = List.fold e ~init:VS.empty ~f:(fun acc node ->
+        let v = find_vertex net id_tbl node in
+        VS.add acc v) in
+    let west = List.fold w ~init:VS.empty ~f:(fun acc node ->
+        let v = find_vertex net id_tbl node in
+        VS.add acc v) in
+
+    let east_paths = CoroPath.all_pairs_shortest_paths ~topo:net
+        ~f:(fun v1 v2 -> VS.mem east v1 && VS.mem east v2) |> closest in
+    let west_paths = CoroPath.all_pairs_shortest_paths ~topo:net
+        ~f:(fun v1 v2 -> VS.mem west v1 && VS.mem west v2) |> closest in
+
+    let cross_paths = CoroPath.all_pairs_shortest_paths ~topo:net
+        ~f:(fun v1 v2 -> ( VS.mem west v1 && VS.mem east v2 ) ||
+                         ( VS.mem west v2 && VS.mem east v1 )) |> closest in
+
+    let east_to_west = find_triple_path net east_paths cross_paths in
+    let west_to_east = find_triple_path net west_paths cross_paths in
+
+    VS.fold east ~init:[] ~f:(fun acc e ->
+        VS.fold west ~init:acc ~f:(fun acc w ->
+            (east_to_west e w)::(west_to_east w e)::acc))
 end
