@@ -141,6 +141,11 @@ module Parser = struct
         (char ']') >>=
      (fun ints -> return ints))
 
+  (* Parser for list of strings *)
+  let string_list : (string list, bytes list) MParser.t =
+    (char '[' >> many_until (many_chars_until letter (char ';')) (char ']') >>=
+     (fun strings -> return strings))
+
   (* Parser for sources *)
   let source : (source, bytes list) MParser.t =
     (char '"' >> many_chars_until any_char (char '"') >>=
