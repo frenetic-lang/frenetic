@@ -69,7 +69,7 @@ module CoroNode = struct
     | Host(name, dlAddr, nwAddr) -> dlAddr
 
   let to_string t = match t with
-    | Switch(name, id) -> name
+    | Switch(name, id) -> sprintf "%s@%Lu" name id
     | Repeater id      -> sprintf "r%Lu" id
     | Host(name, dlAddr, nwAddr) -> name
 
@@ -190,17 +190,22 @@ module CoroNet = struct
 
   let find_triple_path net local across src dst =
     let show = Topology.vertex_to_string net in
+    printf "Findings paths between %s and %s\n%!" (show src) (show dst);
     let shortest = CoroPath.shortest_path net src dst in
     let local_next,_,p = Topology.VertexHash.find_exn local src in
     let local_across = match CoroPath.shortest_path net local_next dst with
-      | Some p' -> Some ( CoroPath.join p p' )
+      | Some p' ->
+        printf "Trying to find local first path\n%!";
+        Some ( CoroPath.join p p' )
       | None ->
         printf "No path between %s and %s" (show local_next) (show dst);
         None in
 
     let across_next,_,p = Topology.VertexHash.find_exn across src in
     let across_local = match CoroPath.shortest_path net across_next dst with
-      | Some p' -> Some ( CoroPath.join p p' )
+      | Some p' ->
+        printf "Trying to find across first path\n%!";
+        Some ( CoroPath.join p p' )
       | None ->
         printf "No path between %s and %s" (show across_next) (show dst);
         None in
@@ -216,6 +221,14 @@ module CoroNet = struct
             | Some(dst',w',p') ->
               if w < w' then (dst,w,p) else (dst',w',p)));
     tbl'
+
+  let print_closest net tbl =
+    Topology.VertexHash.iteri tbl ~f:(fun ~key:src ~data:(dst, weight, path) ->
+        printf "%s => %s ; weight=%f; %s\n%!"
+          ( Topology.vertex_to_string net src )
+          ( Topology.vertex_to_string net dst )
+          weight
+          ( CoroPath.to_string path ))
 
   let cross_connect (net:Topology.t) id_tbl (e:string list) (w:string list) =
     let module VS = Topology.VertexSet in
@@ -234,6 +247,13 @@ module CoroNet = struct
     let cross_paths = CoroPath.all_pairs_shortest_paths ~topo:net
         ~f:(fun v1 v2 -> ( VS.mem west v1 && VS.mem east v2 ) ||
                          ( VS.mem west v2 && VS.mem east v1 )) |> closest in
+
+    print_endline "\nEast paths:";
+    print_closest net east_paths;
+    print_endline "\nWest paths:";
+    print_closest net west_paths;
+    print_endline "\nCross paths:";
+    print_closest net cross_paths;
 
     let east_to_west = find_triple_path net east_paths cross_paths in
     let west_to_east = find_triple_path net west_paths cross_paths in
