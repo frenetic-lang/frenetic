@@ -499,16 +499,18 @@ struct
     let join p p' =
       let p_stop = match List.last p with
         | None -> raise (UnjoinablePaths "Cannot join empty paths")
-        | Some e -> Topology.edge_dst e in
-      let p'_start = match List.hd p with
+        | Some e -> fst ( Topology.edge_dst e ) in
+      let p'_start = match List.hd p' with
         | None ->  raise (UnjoinablePaths "Cannot join empty paths")
-        | Some e -> Topology.edge_src e in
+        | Some e -> fst ( Topology.edge_src e ) in
 
       if p_stop = p'_start then
         let p'' = List.tl_exn (List.rev p) in
         List.rev_append p'' p'
       else
-         raise (UnjoinablePaths "Cannot join paths that do not share an endpoint")
+        let msg = sprintf "Cannot join paths that do not share an endpoint: [%s] and [%s]"
+            (to_string p) (to_string p') in
+        raise (UnjoinablePaths msg)
 
     let start t =
       fst ( Topology.edge_src (List.hd_exn t) )
