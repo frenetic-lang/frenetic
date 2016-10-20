@@ -335,14 +335,15 @@ let load_coronet (fn:string) (east:string list) (west:string list) =
   let nk = string_of_policy (CoroNet.Pretty.to_netkat net) in
   try
     let show = function
-      | Some p -> CoroNet.CoroPath.to_string p
+      | Some (p,ch) ->
+        sprintf "%d@[%s]" ch ( CoroNet.CoroPath.to_string p )
       | None -> "" in
     let paths = CoroNet.cross_connect net id_tbl east west in
     let src     = sprintf "Source: %s" fn in
     let mininet = sprintf "Mininet:\n%s\n" mn in
     let netkat  = sprintf "NetKAT:\n%s\n" nk in
     let body = List.map paths ~f:(fun (shortest,local,across) ->
-        sprintf "Shortest: [%s]\nLocal First: [%s]\nAcross First: [%s]"
+        sprintf "Shortest:\n%s\nLocal First:\n%s\nAcross First:\n%s\n\n"
           (show shortest) (show local) (show across)) in
     Ok (String.concat ~sep:"\n" ( src::mininet::netkat::body ))
   with

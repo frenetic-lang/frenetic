@@ -126,9 +126,8 @@ module CoroNet = struct
   include Frenetic_Network.Make(CoroNode)(CoroLink)
 
   exception NonexistentNode of string
-
   module CoroPath = Path(Distance)
-  type path = CoroPath.t
+  type path = CoroPath.t * int
 
   module Debug = struct
     let vertex = Topology.vertex_to_string
@@ -207,25 +206,27 @@ module CoroNet = struct
       ) in
     (net, id_table)
 
-  let find_triple_path net local across src dst =
-    let shortest = CoroPath.shortest_path net src dst in
+  let find_paths net local across channel src dst =
+    let shortest = match CoroPath.shortest_path net src dst with
+      | Some p -> Some (p, channel)
+      | None -> None in
     let local_next,_,p = Topology.VertexHash.find_exn local src in
     let local_across = match CoroPath.shortest_path net local_next dst with
       | Some p' ->
-        Some ( CoroPath.join p p' )
+        Some ( CoroPath.join p p', channel + 1)
       | None ->
         None in
 
     let across_next,_,p = Topology.VertexHash.find_exn across src in
     let across_local = match CoroPath.shortest_path net across_next dst with
       | Some p' ->
-        Some ( CoroPath.join p p' )
+        Some ( CoroPath.join p p', channel + 2)
       | None ->
         printf "No path between %s and %s"
           (Debug.vertex net across_next) (Debug.vertex net dst);
         None in
 
-    (shortest, local_across, across_local)
+    shortest, local_across, across_local
 
   let closest tbl =
     let open Topology in
@@ -257,10 +258,11 @@ module CoroNet = struct
         ~f:(fun v1 v2 -> ( VS.mem west v1 && VS.mem east v2 ) ||
                          ( VS.mem west v2 && VS.mem east v1 )) |> closest in
 
-    let east_to_west = find_triple_path net east_paths cross_paths in
-    let west_to_east = find_triple_path net west_paths cross_paths in
+    let east_to_west = find_paths net east_paths cross_paths in
+    let west_to_east = find_paths net west_paths cross_paths in
 
-    VS.fold east ~init:[] ~f:(fun acc e ->
-        VS.fold west ~init:acc ~f:(fun acc w ->
-            (east_to_west e w)::(west_to_east w e)::acc))
+    let paths,_ = VS.fold east ~init:([], 1) ~f:(fun (acc,ch) e ->
+        VS.fold west ~init:(acc,ch) ~f:(fun (acc,ch) w ->
+            ( (east_to_west (ch+3) e w)::(west_to_east ch w e)::acc, ch+6 ))) in
+    paths
 end

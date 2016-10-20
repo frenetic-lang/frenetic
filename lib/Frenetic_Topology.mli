@@ -30,7 +30,7 @@ module CoroNet : sig
 
   module CoroPath : PATH with type weight = Distance.t
 
-  type path = CoroPath.t
+  type path = CoroPath.t * int
 
   val from_csv_file : string -> ( Topology.t  * id_table)
   val cross_connect : Topology.t -> id_table -> string list -> string list ->
