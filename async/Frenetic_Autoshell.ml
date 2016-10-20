@@ -335,7 +335,7 @@ let load_coronet (fn:string) (east:string list) (west:string list) =
   let nk = string_of_policy (CoroNet.Pretty.to_netkat net) in
   try
     let show = function
-      | Some p -> CoroNet.CoroPath.to_string net p
+      | Some p -> CoroNet.CoroPath.to_string p
       | None -> "" in
     let paths = CoroNet.cross_connect net id_tbl east west in
     let src     = sprintf "Source: %s" fn in
