@@ -126,7 +126,7 @@ module type NETWORK = sig
     val join  : t -> t -> t
     val start : t -> Topology.vertex
     val stop  : t -> Topology.vertex
-    val to_string : Topology.t -> t -> string
+    val to_string : t -> string
 
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
     val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
@@ -183,7 +183,7 @@ struct
       let compare n1 n2 = Int.compare n1.id n2.id
       let hash n1 = Hashtbl.hash n1.id
       let equal n1 n2 = n1.id = n2.id
-      let to_string n = string_of_int n.id
+      let to_string n = Vertex.to_string n.label
     end
 
     module VertexSet = Set.Make(VL)
@@ -455,7 +455,7 @@ struct
     val join  : t -> t -> t
     val start : t -> Topology.vertex
     val stop  : t -> Topology.vertex
-    val to_string : Topology.t -> t -> string
+    val to_string : t -> string
 
     (* Path finding functions *)
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
@@ -488,6 +488,14 @@ struct
     type weight = Weight.t
     type t = edge list
 
+    let to_string t =
+      let open Topology in
+      let strs = List.map t ~f:(fun edge ->
+          sprintf "%s => %s"
+            (Vertex.to_string (fst (edge_src edge)).VL.label )
+            (Vertex.to_string (fst (edge_dst edge)).VL.label )) in
+      String.concat ~sep:"; " strs
+
     let join p p' =
       let p_stop = match List.last p with
         | None -> raise (UnjoinablePaths "Cannot join empty paths")
@@ -507,14 +515,6 @@ struct
 
     let stop t =
       fst ( Topology.edge_dst (List.last_exn t) )
-
-    let to_string net t =
-      let open Topology in
-      let strs = List.map t ~f:(fun edge ->
-          sprintf "%s => %s"
-            (vertex_to_string net (fst (edge_src edge) ))
-            (vertex_to_string net (fst (edge_dst edge) ))) in
-      String.concat ~sep:"; " strs
 
     let shortest_path (t:Topology.t) (v1:vertex) (v2:vertex) : t option =
       try

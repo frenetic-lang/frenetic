@@ -124,7 +124,7 @@ module type NETWORK = sig
     val join  : t -> t -> t
     val start : t -> Topology.vertex
     val stop  : t -> Topology.vertex
-    val to_string : Topology.t -> t -> string
+    val to_string : t -> string
 
     (* Path finding functions *)
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
