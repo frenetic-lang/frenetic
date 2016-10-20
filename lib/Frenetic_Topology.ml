@@ -219,7 +219,7 @@ module CoroNet = struct
         VertexHash.update tbl' src ~f:(fun value -> match value with
             | None -> (dst,w,p)
             | Some(dst',w',p') ->
-              if w < w' then (dst,w,p) else (dst',w',p)));
+              if w < w' then (dst,w,p) else (dst',w',p')));
     tbl'
 
   let print_closest net tbl =
@@ -240,9 +240,11 @@ module CoroNet = struct
         VS.add acc v) in
 
     let east_paths = CoroPath.all_pairs_shortest_paths ~topo:net
-        ~f:(fun v1 v2 -> VS.mem east v1 && VS.mem east v2) |> closest in
+        ~f:(fun v1 v2 -> ( VS.mem east v1 && VS.mem east v2 ) &&
+                         (not ( v1 = v2 ))) |> closest in
     let west_paths = CoroPath.all_pairs_shortest_paths ~topo:net
-        ~f:(fun v1 v2 -> VS.mem west v1 && VS.mem west v2) |> closest in
+        ~f:(fun v1 v2 -> ( VS.mem west v1 && VS.mem west v2) &&
+                         (not ( v1 = v2 ))) |> closest in
 
     let cross_paths = CoroPath.all_pairs_shortest_paths ~topo:net
         ~f:(fun v1 v2 -> ( VS.mem west v1 && VS.mem east v2 ) ||
