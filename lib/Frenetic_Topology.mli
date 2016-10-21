@@ -31,8 +31,17 @@ module CoroNet : sig
   module CoroPath : PATH with type weight = Distance.t
 
   type path = CoroPath.t * int
+  type pathset = { src : Topology.vertex
+                 ; dst : Topology.vertex
+                 ; shortest : path option
+                 ; local    : path option
+                 ; across   : path option
+                 }
+
+  val string_of_path : path -> string
+  val string_of_pathset : Topology.t -> pathset -> string
 
   val from_csv_file : string -> ( Topology.t  * id_table)
   val cross_connect : Topology.t -> id_table -> string list -> string list ->
-    (path option * path option * path option) list
+    pathset list
 end

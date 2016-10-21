@@ -69,7 +69,7 @@ module CoroNode = struct
     | Host(name, dlAddr, nwAddr) -> dlAddr
 
   let to_string t = match t with
-    | Switch(name, id) -> sprintf "%s@%Lu" name id
+    | Switch(name, id) -> name
     | Repeater id      -> sprintf "r%Lu" id
     | Host(name, dlAddr, nwAddr) -> name
 
@@ -123,11 +123,31 @@ module Distance = struct
 end
 
 module CoroNet = struct
+  exception NonexistentNode of string
+
   include Frenetic_Network.Make(CoroNode)(CoroLink)
 
-  exception NonexistentNode of string
   module CoroPath = Path(Distance)
   type path = CoroPath.t * int
+  type pathset = { src : Topology.vertex
+                 ; dst : Topology.vertex
+                 ; shortest : path option
+                 ; local    : path option
+                 ; across   : path option
+                 }
+
+  let string_of_path (p,ch) =
+    sprintf "%d@[%s]" ch ( CoroPath.to_string p )
+
+  let string_of_pathset net ps =
+    let show = function
+      | Some (p,ch) ->
+        sprintf "%d@[%s]" ch ( CoroPath.to_string p )
+      | None -> "" in
+    sprintf "From:%s\nTo:%s\nShortest:\n%s\nLocal First:\n%s\nAcross First:\n%s\n\n"
+      (Topology.vertex_to_string net ps.src)
+      (Topology.vertex_to_string net ps.dst)
+      (show ps.shortest) (show ps.local) (show ps.across)
 
   module Debug = struct
     let vertex = Topology.vertex_to_string
@@ -238,6 +258,9 @@ module CoroNet = struct
               if w < w' then (dst,w,p) else (dst',w',p')));
     tbl'
 
+  let pack src dst (s,l,a) =
+    { src = src; dst = dst; shortest = s; local = l; across = a}
+
   let cross_connect (net:Topology.t) id_tbl (e:string list) (w:string list) =
     let module VS = Topology.VertexSet in
     let east = List.fold e ~init:VS.empty ~f:(fun acc node ->
@@ -263,6 +286,8 @@ module CoroNet = struct
 
     let paths,_ = VS.fold east ~init:([], 1) ~f:(fun (acc,ch) e ->
         VS.fold west ~init:(acc,ch) ~f:(fun (acc,ch) w ->
-            ( (east_to_west (ch+3) e w)::(west_to_east ch w e)::acc, ch+6 ))) in
+            let wtoe = pack w e (west_to_east ch w e) in
+            let etow = pack e w ( east_to_west (ch+3) e w ) in
+            ( etow::wtoe::acc, ch+6 ))) in
     paths
 end
