@@ -329,6 +329,8 @@ let get_state_fdd (s:state_part) = match s with
       | Some t -> Error "Topology has no FDD." end
 
 let load_coronet (fn:string) (east:string list) (west:string list) =
+  let append opt ls = match opt with
+    | Some x -> x::ls | None -> ls in
   let net,id_tbl = CoroNet.from_csv_file fn in
   let mn = CoroNet.Pretty.to_mininet ~prologue_file:"examples/linc-prologue.txt"
       ~link_class:( Some "LINCLink" ) net in
@@ -338,8 +340,20 @@ let load_coronet (fn:string) (east:string list) (west:string list) =
     let src     = sprintf "Source: %s" fn in
     let mininet = sprintf "Mininet:\n%s\n" mn in
     let netkat  = sprintf "NetKAT:\n%s\n" nk in
-    let body = List.map paths ~f:(CoroNet.string_of_pathset net) in
-    Ok (String.concat ~sep:"\n" ( src::mininet::netkat::body ))
+
+    (* Convert the redundant paths to optical circuits. A config is a list of circuits. *)
+    let config = List.fold paths ~init:[] ~f:(fun acc ps ->
+        let (shortest, local, across) = CoroNet.circuits_of_pathset net 1l 1l ps in
+        (append shortest acc) |> (append local) |> (append across)) in
+    let policy = Frenetic_Circuit_NetKAT.local_policy_of_config config in
+
+    let result = String.concat ~sep:"\n" [
+        src; mininet; netkat;
+        (String.concat ~sep:"\n"
+           (List.map paths ~f:(CoroNet.string_of_pathset net)));
+        (Frenetic_Circuit_NetKAT.string_of_config config);
+        (string_of_policy policy) ] in
+    Ok result
   with
   | CoroNet.NonexistentNode s ->
     Error (sprintf "No node %s in topology read from %s\n" s fn)

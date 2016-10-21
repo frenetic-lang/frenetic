@@ -197,10 +197,11 @@ module CoroNet = struct
         !next_id
       | Some i -> i in
 
+    (* Start ports at 1, so that port 0 can be used to connect a host. *)
     let get_port name = match Hashtbl.Poly.find port_table name with
       | None ->
-        Hashtbl.Poly.add_exn port_table name 0l;
-        0l
+        Hashtbl.Poly.add_exn port_table name 1l;
+        1l
       | Some p ->
         Hashtbl.Poly.set port_table name (Int32.succ p);
         Int32.succ p in
