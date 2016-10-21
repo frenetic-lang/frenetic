@@ -290,4 +290,26 @@ module CoroNet = struct
             let etow = pack e w ( east_to_west (ch+3) e w ) in
             ( etow::wtoe::acc, ch+6 ))) in
     paths
+
+  let circuit_of_path net src sport dst dport (p:path option) = match p with
+    | Some p ->
+      let open Frenetic_Circuit_NetKAT in
+      let source = ( CoroNode.id (Topology.vertex_to_label net src), sport ) in
+      let sink   = ( CoroNode.id (Topology.vertex_to_label net dst), dport ) in
+      let channel = snd p in
+      let path = List.map (fst p) ~f:(fun edge ->
+          let sv,spt = Topology.edge_src edge in
+          let ssw    = CoroNode.id (Topology.vertex_to_label net sv) in
+          let dv,dpt = Topology.edge_dst edge in
+          let dsw    = CoroNode.id (Topology.vertex_to_label net dv) in
+          (ssw,spt,dsw,dpt)) in
+      Some { source; sink; path; channel }
+    | None -> None
+
+  let circuits_of_pathset net sport dport ps =
+    let (>>=) = Option.(>>=) in
+    circuit_of_path net ps.src sport ps.dst dport ps.shortest >>= fun s ->
+    circuit_of_path net ps.src sport ps.dst dport ps.local >>= fun l ->
+    circuit_of_path net ps.src sport ps.dst dport ps.across >>= fun a ->
+    Option.return (s, l, a)
 end
