@@ -8,6 +8,7 @@ module Net = Frenetic_NetKAT_Net.Net
 module SDN = Frenetic_OpenFlow
 
 type id_table = (string, Frenetic_NetKAT.switchId) Hashtbl.t
+type circuit = Frenetic_Circuit_NetKAT.circuit
 
 val switch_ids : Net.Topology.t -> SDN.switchId list
 
@@ -44,4 +45,14 @@ module CoroNet : sig
   val from_csv_file : string -> ( Topology.t  * id_table)
   val cross_connect : Topology.t -> id_table -> string list -> string list ->
     pathset list
+
+  val circuit_of_path : Topology.t ->
+    Topology.vertex -> Frenetic_NetKAT.portId ->
+    Topology.vertex -> Frenetic_NetKAT.portId ->
+    path option -> circuit option
+
+  val circuits_of_pathset : Topology.t ->
+    Frenetic_NetKAT.portId -> Frenetic_NetKAT.portId ->
+    pathset -> (circuit option * circuit option * circuit option)
+
 end

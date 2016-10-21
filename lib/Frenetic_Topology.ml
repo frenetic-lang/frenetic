@@ -7,6 +7,7 @@ open Core.Std
 module Net = Frenetic_NetKAT_Net.Net
 module SDN = Frenetic_OpenFlow
 type id_table = (string, Frenetic_NetKAT.switchId) Hashtbl.t
+type circuit = Frenetic_Circuit_NetKAT.circuit
 
 let switch_ids (t : Net.Topology.t) : SDN.switchId list =
   let open Net.Topology in
@@ -307,9 +308,8 @@ module CoroNet = struct
     | None -> None
 
   let circuits_of_pathset net sport dport ps =
-    let (>>=) = Option.(>>=) in
-    circuit_of_path net ps.src sport ps.dst dport ps.shortest >>= fun s ->
-    circuit_of_path net ps.src sport ps.dst dport ps.local >>= fun l ->
-    circuit_of_path net ps.src sport ps.dst dport ps.across >>= fun a ->
-    Option.return (s, l, a)
+    ( circuit_of_path net ps.src sport ps.dst dport ps.shortest,
+      circuit_of_path net ps.src sport ps.dst dport ps.local,
+      circuit_of_path net ps.src sport ps.dst dport ps.across )
+
 end
