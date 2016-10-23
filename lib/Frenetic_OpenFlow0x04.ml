@@ -3987,7 +3987,7 @@ module FlowMod = struct
        | Some bid -> bid);
     set_ofp_flow_mod_out_port buf
       (match fm.mfOut_port with
-       | None -> 0l
+       | None -> PseudoPort.marshal Any
        | Some port -> PseudoPort.marshal port);
     set_ofp_flow_mod_out_group buf
       (match fm.mfOut_group with
