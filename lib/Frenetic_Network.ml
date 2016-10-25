@@ -122,12 +122,18 @@ module type NETWORK = sig
     type t = Topology.edge list
     exception NegativeCycle of t
     exception UnjoinablePaths of string
+    exception InvalidPath of string
 
+    (* Utility functions *)
     val join  : t -> t -> t
     val start : t -> Topology.vertex
     val stop  : t -> Topology.vertex
     val to_string : t -> string
 
+    (* Constructors *)
+    val from_vertexes : Topology.t -> Topology.vertex list -> t
+
+    (* Path finding functions *)
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
     val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
     val all_pairs_shortest_paths :
@@ -450,12 +456,16 @@ struct
     type t = Topology.edge list
     exception NegativeCycle of t
     exception UnjoinablePaths of string
+    exception InvalidPath of string
 
     (* Utility functions *)
     val join  : t -> t -> t
     val start : t -> Topology.vertex
     val stop  : t -> Topology.vertex
     val to_string : t -> string
+
+    (* Constructors *)
+    val from_vertexes : Topology.t -> Topology.vertex list -> t
 
     (* Path finding functions *)
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
@@ -472,6 +482,7 @@ struct
 
     exception NegativeCycle of edge list
     exception UnjoinablePaths of string
+    exception InvalidPath of string
 
     module WL = struct
       type t = Weight.t
@@ -515,6 +526,20 @@ struct
 
     let stop t =
       fst ( Topology.edge_dst (List.last_exn t) )
+
+    let from_vertexes net vs  : t =
+      let rec aux vs = match vs with
+        | [] -> []
+        | [v] -> raise (InvalidPath (sprintf "Cannot create path from a single vertex:%s"
+                                       (Topology.vertex_to_string net v)))
+        | [v1;v2] ->
+          let edge = Topology.find_edge net v1 v2 in
+          [edge]
+        | v1::v2::rest ->
+          let edge = Topology.find_edge net v1 v2 in
+          edge::(aux rest)
+      in
+      aux vs
 
     let shortest_path (t:Topology.t) (v1:vertex) (v2:vertex) : t option =
       try

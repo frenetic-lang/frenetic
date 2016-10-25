@@ -119,12 +119,16 @@ module type NETWORK = sig
     type t = Topology.edge list
     exception NegativeCycle of t
     exception UnjoinablePaths of string
+    exception InvalidPath of string
 
     (* Utility functions *)
     val join  : t -> t -> t
     val start : t -> Topology.vertex
     val stop  : t -> Topology.vertex
     val to_string : t -> string
+
+    (* Constructors *)
+    val from_vertexes : Topology.t -> Topology.vertex list -> t
 
     (* Path finding functions *)
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
