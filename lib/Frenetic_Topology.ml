@@ -178,6 +178,21 @@ module CoroNet = struct
     let label = find_label id_tbl name in
     Topology.vertex_of_label net label
 
+  let from_path_file net filename =
+    let channel = In_channel.create filename in
+    let vertexes = Topology.vertexes net in
+
+    let name_tbl = Hashtbl.Poly.create ~size:(Topology.VertexSet.length vertexes) () in
+    Topology.VertexSet.iter vertexes ~f:(fun v ->
+        let label = Topology.vertex_to_label net v in
+        Hashtbl.Poly.add_exn name_tbl (CoroNode.to_string label) v);
+
+    In_channel.fold_lines channel ~init:[] ~f:(fun acc line ->
+        let words = String.split line ~on:';' in
+        let vertices = List.map words ~f:(fun w ->
+            Hashtbl.Poly.find_exn name_tbl (String.strip w)) in
+        (CoroPath.from_vertexes net vertices)::acc)
+
   let from_csv_file filename =
     let net = Topology.empty () in
     let channel = In_channel.create filename in
