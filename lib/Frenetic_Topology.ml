@@ -6,7 +6,6 @@ open Core.Std
 
 module Net = Frenetic_NetKAT_Net.Net
 module SDN = Frenetic_OpenFlow
-type id_table = (string, Frenetic_NetKAT.switchId) Hashtbl.t
 type circuit = Frenetic_Circuit_NetKAT.circuit
 
 let switch_ids (t : Net.Topology.t) : SDN.switchId list =
@@ -123,6 +122,8 @@ module Distance = struct
   let zero = 0.
 end
 
+type name_table = (string, CoroNode.t) Hashtbl.t
+
 module CoroNet = struct
   exception NonexistentNode of string
 
@@ -169,13 +170,13 @@ module CoroNet = struct
 
   end
 
-  let find_label id_tbl name =
-    match Hashtbl.Poly.find id_tbl name with
-        | Some sw -> CoroNode.Switch(name, sw)
+  let find_label tbl name =
+    match Hashtbl.Poly.find tbl name with
+        | Some l -> l
         | None -> raise (NonexistentNode name)
 
-  let find_vertex net id_tbl name =
-    let label = find_label id_tbl name in
+  let find_vertex net tbl name =
+    let label = find_label tbl name in
     Topology.vertex_of_label net label
 
   let from_path_file net filename =
@@ -198,19 +199,20 @@ module CoroNet = struct
     let channel = In_channel.create filename in
 
     let next_id    = ref 0L in
-    let id_table   = Hashtbl.Poly.create () in
+    let name_table = Hashtbl.Poly.create () in
     let port_table = Hashtbl.Poly.create () in
 
     let starts_with s c = match String.index s c with
       | Some i -> i = 0
       | None -> false in
 
-    let get_id name = match Hashtbl.Poly.find id_table name with
+    let get_label name = match Hashtbl.Poly.find name_table name with
       | None ->
         Int64.incr next_id;
-        Hashtbl.Poly.add_exn id_table name ( !next_id );
-        !next_id
-      | Some i -> i in
+        let sw = CoroNode.Switch(name, !next_id ) in
+        Hashtbl.Poly.add_exn name_table name sw;
+        sw
+      | Some l -> l in
 
     (* Start ports at 1, so that port 0 can be used to connect a host. *)
     let get_port name = match Hashtbl.Poly.find port_table name with
@@ -226,13 +228,13 @@ module CoroNet = struct
         else
           match String.split line ~on:',' with
           | sname::dname::[dist] ->
-            let sid = get_id sname in
+            let slabel = get_label sname in
             let sport = get_port sname in
-            let net,src = Topology.add_vertex net ( Switch(sname,sid) ) in
+            let net,src = Topology.add_vertex net slabel in
 
-            let did = get_id dname in
+            let dlabel = get_label dname in
             let dport = get_port dname in
-            let net,dst = Topology.add_vertex net ( Switch(dname,did) ) in
+            let net,dst = Topology.add_vertex net dlabel in
 
             let distance = float_of_string dist in
             (* Add edges in both directions because the topology structure is directional *)
@@ -241,7 +243,7 @@ module CoroNet = struct
             net
           | _ -> failwith "Expected each line in CSV to have structure `src,dst,distance`"
       ) in
-    (net, id_table)
+    (net, name_table)
 
   let find_paths net local across channel src dst =
     let shortest = match CoroPath.shortest_path net src dst with

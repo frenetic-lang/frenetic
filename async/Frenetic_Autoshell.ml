@@ -6,6 +6,7 @@ open Frenetic_Circuit_NetKAT
 
 module Fabric = Frenetic_Fabric
 module CoroNet = Frenetic_Topology.CoroNet
+module CoroNode = Frenetic_Topology.CoroNode
 module Compiler = Frenetic_NetKAT_Compiler
 module Log = Frenetic_Log
 
@@ -61,13 +62,13 @@ let state = { naive    = None
             }
 
 type coronet_state = { mutable network : CoroNet.Topology.t option
-                     ; mutable ids     : Frenetic_Topology.id_table option
+                     ; mutable names   : Frenetic_Topology.name_table option
                      ; mutable east    : string list
                      ; mutable west    : string list
                      }
 
 let coronet_state = { network = None
-                 ; ids = None
+                 ; names = None
                  ; east = []
                  ; west = []
                  }
@@ -529,7 +530,7 @@ let coronet c = match c with
   | CLoad ( String s ) -> Error "Coronet topologies must be loaded from files"
   (* TODO(basus): Allow coronet topologies to be loaded from strings as well *)
   | CLoad ( Filename fn ) ->
-    let net,id_tbl = CoroNet.from_csv_file fn in
+    let net,name_tbl = CoroNet.from_csv_file fn in
     let mn = CoroNet.Pretty.to_mininet ~prologue_file:"examples/linc-prologue.txt"
         ~link_class:( Some "LINCLink" ) net in
     let nk = string_of_policy (CoroNet.Pretty.to_netkat net) in
@@ -537,18 +538,18 @@ let coronet c = match c with
     let mininet = sprintf "Mininet:\n%s\n" mn in
     let netkat  = sprintf "NetKAT:\n%s\n" nk in
     let result = String.concat ~sep:"\n" [src; mininet; netkat] in
-    coronet_state.network <- Some net; coronet_state.ids <- Some id_tbl;
+    coronet_state.network <- Some net; coronet_state.names <- Some name_tbl;
     Ok result
   | CEast e -> coronet_state.east <- e; Ok "East nodes loaded"
   | CWest w -> coronet_state.west <- w; Ok "West nodes loaded"
-  | CSynthesize -> begin match coronet_state.network, coronet_state.ids with
+  | CSynthesize -> begin match coronet_state.network, coronet_state.names with
       | _, None
       | None, _ ->
         Error "Coronet synthesize requires loading a Coronet topology first"
-      | Some net, Some id_tbl -> try
+      | Some net, Some name_tbl -> try
           let append opt ls = match opt with
             | Some x -> x::ls | None -> ls in
-          let paths = CoroNet.cross_connect net id_tbl
+          let paths = CoroNet.cross_connect net name_tbl
               coronet_state.east coronet_state.west in
           (* Convert the redundant paths to optical circuits. A config is a list of circuits. *)
           let config = List.fold paths ~init:[] ~f:(fun acc ps ->
@@ -568,7 +569,19 @@ let coronet c = match c with
         | CoroNet.CoroPath.UnjoinablePaths s ->
           Error (sprintf "Unjoinable paths %s\n" s)
     end
-  | CPath(src, dst) -> Error "Coronet path finding not yet implemented"
+  | CPath(s, d) -> begin match coronet_state.network, coronet_state.names with
+      | None, _
+      | _, None -> Error "Finding a path requires loading a Coronet topology"
+      | Some net, Some names ->
+        let open CoroNet in
+        let src = Hashtbl.Poly.find_exn names s in
+        let dst = Hashtbl.Poly.find_exn names d in
+        let src' = Topology.vertex_of_label net src in
+        let dst' = Topology.vertex_of_label net dst in
+        match CoroPath.shortest_path net src' dst' with
+        | Some p -> Ok (CoroPath.to_string p)
+        | None -> Error (sprintf "No path between %s and %s" s d )
+    end
 
 let post (uri:Uri.t) (body:string) =
   let open Cohttp.Body in

@@ -7,9 +7,6 @@ open Core.Std
 module Net = Frenetic_NetKAT_Net.Net
 module SDN = Frenetic_OpenFlow
 
-type id_table = (string, Frenetic_NetKAT.switchId) Hashtbl.t
-type circuit = Frenetic_Circuit_NetKAT.circuit
-
 val switch_ids : Net.Topology.t -> SDN.switchId list
 
 (* Topology detection doesn't really detect hosts. So, I treat any
@@ -23,6 +20,9 @@ val edge : Net.Topology.t -> (SDN.switchId * SDN.portId) list
 module CoroNode : Frenetic_Network.VERTEX
 module CoroLink : Frenetic_Network.EDGE
 module Distance : Frenetic_Network.WEIGHT
+
+type name_table = (string, CoroNode.t) Hashtbl.t
+type circuit = Frenetic_Circuit_NetKAT.circuit
 
 module CoroNet : sig
   include Frenetic_Network.NETWORK
@@ -42,8 +42,8 @@ module CoroNet : sig
   val string_of_path : path -> string
   val string_of_pathset : Topology.t -> pathset -> string
 
-  val from_csv_file : string -> ( Topology.t  * id_table)
-  val cross_connect : Topology.t -> id_table -> string list -> string list ->
+  val from_csv_file : string -> ( Topology.t  * name_table)
+  val cross_connect : Topology.t -> name_table -> string list -> string list ->
     pathset list
 
   val circuit_of_path : Topology.t ->
@@ -55,4 +55,7 @@ module CoroNet : sig
     Frenetic_NetKAT.portId -> Frenetic_NetKAT.portId ->
     pathset -> (circuit option * circuit option * circuit option)
 
-end
+end with type Topology.Vertex.t = CoroNode.t
+     and type Topology.Edge.t = CoroLink.t
+
+
