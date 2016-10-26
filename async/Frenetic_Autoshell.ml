@@ -60,6 +60,18 @@ let state = { naive    = None
             ; topology = None
             }
 
+type coronet_state = { mutable network : CoroNet.Topology.t option
+                     ; mutable ids     : Frenetic_Topology.id_table option
+                     ; mutable east    : string list
+                     ; mutable west    : string list
+                     }
+
+let coronet_state = { network = None
+                 ; ids = None
+                 ; east = []
+                 ; west = []
+                 }
+
 type state_part =
   | SNaive
   | SFabric
@@ -78,7 +90,6 @@ type load =
   | LNaive    of source * loc list * loc list
   | LFabric   of source * loc list * loc list
   | LCircuit  of source * loc list * loc list
-  | LCoronet  of source * string list * string list
   | LTopo     of source
 
 type compile =
@@ -93,6 +104,13 @@ type synthesize =
   | SOptical
   | SSMT
 
+type coronet =
+  | CLoad of source
+  | CEast of string list
+  | CWest of string list
+  | CPath of string * string
+  | CSynthesize
+
 type install =
   | INaive  of switchId list
   | IFabric of switchId list
@@ -106,6 +124,7 @@ type command =
   | Load of load
   | Compile of compile
   | Synthesize of synthesize
+  | Coronet of coronet
   | Install of install
   | Show of show
   | Path of source
@@ -161,12 +180,6 @@ module Parser = struct
          (fun egs ->
             return (pol, ings, egs)))))
 
-  let coronet : ((source * string list * string list), bytes list) MParser.t =
-    source >>= fun s -> blank >>
-    string_list >>= fun east -> blank >>
-    string_list >>= fun west ->
-    return (s, east, west)
-
   (* Parser for parts of the state *)
   let state_part : (state_part, bytes list) MParser.t =
       (symbol "policy"   >> return SNaive) <|>
@@ -184,8 +197,6 @@ module Parser = struct
        fun (s,i,o) -> return ( LFabric(s,i,o) )) <|>
       (symbol "circuit" >> guarded_source >>=
        fun (s,i,o) -> return ( LCircuit(s,i,o) )) <|>
-      (symbol "coronet" >> coronet >>=
-       fun (s,e,w) -> return (LCoronet(s,e,w))) <|>
       (symbol "topology" >>
        source >>= fun s -> return (LTopo s))) >>=
     fun l -> return ( Load l )
@@ -207,6 +218,18 @@ module Parser = struct
       (symbol "optical" >> return SOptical) <|>
       (symbol "smt" >> return SSMT)) >>=
     fun s -> return ( Synthesize s )
+
+  (* Parser for the Coronet command. *)
+  let coronet : (command, bytes list) MParser.t =
+    symbol "coronet" >> (
+      (symbol "synthesize" >> return CSynthesize) <|>
+      (symbol "load" >> source >>= fun s -> return ( CLoad s )) <|>
+      (symbol "east" >> string_list >>= fun e -> return ( CEast e )) <|>
+      (symbol "west" >> string_list >>= fun w -> return ( CWest w )) <|>
+      (symbol "path" >> many_chars_until any_char blank >>= fun src ->
+       blank >> many_chars_until any_char blank >>= fun dst ->
+       return ( CPath (src, dst)))) >>=
+    fun c -> return (Coronet c)
 
   (* Parser for the install command *)
   let install : (command, bytes list) MParser.t =
@@ -245,6 +268,7 @@ module Parser = struct
     load    <|>
     compile <|>
     synthesize <|>
+    coronet <|>
     install <|>
     show    <|>
     path    <|>
@@ -328,38 +352,6 @@ let get_state_fdd (s:state_part) = match s with
       | None -> Error "No topology defined."
       | Some t -> Error "Topology has no FDD." end
 
-let load_coronet (fn:string) (east:string list) (west:string list) =
-  let append opt ls = match opt with
-    | Some x -> x::ls | None -> ls in
-  let net,id_tbl = CoroNet.from_csv_file fn in
-  let mn = CoroNet.Pretty.to_mininet ~prologue_file:"examples/linc-prologue.txt"
-      ~link_class:( Some "LINCLink" ) net in
-  let nk = string_of_policy (CoroNet.Pretty.to_netkat net) in
-  try
-    let paths = CoroNet.cross_connect net id_tbl east west in
-    let src     = sprintf "Source: %s" fn in
-    let mininet = sprintf "Mininet:\n%s\n" mn in
-    let netkat  = sprintf "NetKAT:\n%s\n" nk in
-
-    (* Convert the redundant paths to optical circuits. A config is a list of circuits. *)
-    let config = List.fold paths ~init:[] ~f:(fun acc ps ->
-        let (shortest, local, across) = CoroNet.circuits_of_pathset net 1l 1l ps in
-        (append shortest acc) |> (append local) |> (append across)) in
-    let policy = Frenetic_Circuit_NetKAT.local_policy_of_config config in
-
-    let result = String.concat ~sep:"\n" [
-        src; mininet; netkat;
-        (String.concat ~sep:"\n"
-           (List.map paths ~f:(CoroNet.string_of_pathset net)));
-        (Frenetic_Circuit_NetKAT.string_of_config config);
-        (string_of_policy policy) ] in
-    Ok result
-  with
-  | CoroNet.NonexistentNode s ->
-    Error (sprintf "No node %s in topology read from %s\n" s fn)
-  | CoroNet.CoroPath.UnjoinablePaths s ->
-    Error (sprintf "Unjoinable paths while loading %s: %s\n" fn s)
-
 let load (l:load) : (string, string) Result.t =
   let (>>=) = Result.(>>=) in
   match l with
@@ -388,11 +380,6 @@ let load (l:load) : (string, string) Result.t =
     state.topology <- Some t;
     log "Loaded topology:\n%s\n" (string_of_policy t);
     "Loaded new topology"
-  | LCoronet (s,east,west) ->
-    (* TODO(basus): Allow coronet topologies to be loaded from strings as well *)
-    match s with
-    | String s -> Error "Coronet topologies must be loaded from files"
-    | Filename fn -> load_coronet fn east west
 
 let compile_local (c:configuration) =
   let open Compiler in
@@ -538,6 +525,50 @@ let synthesize s : (string, string) Result.t =
     Ok "Edge policies compiled successfully"
   | _ -> Error "Edge compilation requires naive policy, fabric and topology"
 
+let coronet c = match c with
+  | CLoad ( String s ) -> Error "Coronet topologies must be loaded from files"
+  (* TODO(basus): Allow coronet topologies to be loaded from strings as well *)
+  | CLoad ( Filename fn ) ->
+    let net,id_tbl = CoroNet.from_csv_file fn in
+    let mn = CoroNet.Pretty.to_mininet ~prologue_file:"examples/linc-prologue.txt"
+        ~link_class:( Some "LINCLink" ) net in
+    let nk = string_of_policy (CoroNet.Pretty.to_netkat net) in
+    let src     = sprintf "Source: %s" fn in
+    let mininet = sprintf "Mininet:\n%s\n" mn in
+    let netkat  = sprintf "NetKAT:\n%s\n" nk in
+    let result = String.concat ~sep:"\n" [src; mininet; netkat] in
+    coronet_state.network <- Some net; coronet_state.ids <- Some id_tbl;
+    Ok result
+  | CEast e -> coronet_state.east <- e; Ok "East nodes loaded"
+  | CWest w -> coronet_state.west <- w; Ok "West nodes loaded"
+  | CSynthesize -> begin match coronet_state.network, coronet_state.ids with
+      | _, None
+      | None, _ ->
+        Error "Coronet synthesize requires loading a Coronet topology first"
+      | Some net, Some id_tbl -> try
+          let append opt ls = match opt with
+            | Some x -> x::ls | None -> ls in
+          let paths = CoroNet.cross_connect net id_tbl
+              coronet_state.east coronet_state.west in
+          (* Convert the redundant paths to optical circuits. A config is a list of circuits. *)
+          let config = List.fold paths ~init:[] ~f:(fun acc ps ->
+              let (shortest, local, across) = CoroNet.circuits_of_pathset net 1l 1l ps in
+              (append shortest acc) |> (append local) |> (append across)) in
+          let policy = Frenetic_Circuit_NetKAT.local_policy_of_config config in
+
+          let result = String.concat ~sep:"\n" [
+              (String.concat ~sep:"\n"
+                 (List.map paths ~f:(CoroNet.string_of_pathset net)));
+              (Frenetic_Circuit_NetKAT.string_of_config config);
+              (string_of_policy policy) ] in
+          Ok result
+        with
+        | CoroNet.NonexistentNode s ->
+          Error (sprintf "No node %s in topology\n" s)
+        | CoroNet.CoroPath.UnjoinablePaths s ->
+          Error (sprintf "Unjoinable paths %s\n" s)
+    end
+  | CPath(src, dst) -> Error "Coronet path finding not yet implemented"
 
 let post (uri:Uri.t) (body:string) =
   let open Cohttp.Body in
@@ -656,6 +687,8 @@ let command (com:command) = match com with
     compile c |> print_result
   | Synthesize s ->
     synthesize s |> print_result
+  | Coronet c ->
+    coronet c |> print_result
   | Install i ->
     install i |> print_deferred_results
   | Show s -> show s
