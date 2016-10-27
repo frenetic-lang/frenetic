@@ -329,6 +329,7 @@ module CoroNet = struct
         let v = find_vertex net tbl name in
         VS.add acc v) in
 
+    (* This could be optimized by precomputing the prefix and suffixes *)
     let paths,_ = VS.fold east ~init:([],1) ~f:(fun (acc, ch) e ->
         VS.fold west ~init:(acc,ch) ~f:(fun (acc,ch) w ->
             List.fold ps ~init:(acc,ch) ~f:(fun (acc,ch) path ->
@@ -350,24 +351,24 @@ module CoroNet = struct
                                          (show stop) (show w))))) in
     paths
 
-  let circuit_of_path net src sport dst dport (p:path option) = match p with
-    | Some p ->
-      let open Frenetic_Circuit_NetKAT in
-      let source = ( CoroNode.id (Topology.vertex_to_label net src), sport ) in
-      let sink   = ( CoroNode.id (Topology.vertex_to_label net dst), dport ) in
-      let channel = snd p in
-      let path = List.map (fst p) ~f:(fun edge ->
-          let sv,spt = Topology.edge_src edge in
-          let ssw    = CoroNode.id (Topology.vertex_to_label net sv) in
-          let dv,dpt = Topology.edge_dst edge in
-          let dsw    = CoroNode.id (Topology.vertex_to_label net dv) in
-          (ssw,spt,dsw,dpt)) in
-      Some { source; sink; path; channel }
-    | None -> None
+  let circuit_of_path net src sport dst dport (p:path) =
+    let open Frenetic_Circuit_NetKAT in
+    let source = ( CoroNode.id (Topology.vertex_to_label net src), sport ) in
+    let sink   = ( CoroNode.id (Topology.vertex_to_label net dst), dport ) in
+    let channel = snd p in
+    let path = List.map (fst p) ~f:(fun edge ->
+        let sv,spt = Topology.edge_src edge in
+        let ssw    = CoroNode.id (Topology.vertex_to_label net sv) in
+        let dv,dpt = Topology.edge_dst edge in
+        let dsw    = CoroNode.id (Topology.vertex_to_label net dv) in
+        (ssw,spt,dsw,dpt)) in
+    { source; sink; path; channel }
 
   let circuits_of_pathset net sport dport ps =
-    ( circuit_of_path net ps.src sport ps.dst dport ps.shortest,
-      circuit_of_path net ps.src sport ps.dst dport ps.local,
-      circuit_of_path net ps.src sport ps.dst dport ps.across )
+    let (>>|) = Option.(>>|) in
+    let to_circuit = circuit_of_path net ps.src sport ps.dst dport in
+    ( ps.shortest >>| to_circuit,
+      ps.local    >>| to_circuit,
+      ps.across   >>| to_circuit )
 
 end

@@ -65,13 +65,15 @@ type coronet_state = { mutable network : CoroNet.Topology.t option
                      ; mutable names   : Frenetic_Topology.name_table option
                      ; mutable east    : string list
                      ; mutable west    : string list
+                     ; mutable paths   : CoroNet.CoroPath.t list
                      }
 
-let coronet_state = { network = None
-                 ; names = None
-                 ; east = []
-                 ; west = []
-                 }
+let coronet_state = { network  = None
+                    ; names    = None
+                    ; east     = []
+                    ; west     = []
+                    ; paths    = []
+                    }
 
 type state_part =
   | SNaive
@@ -545,21 +547,18 @@ let coronet c = match c with
   | CSynthesize -> begin match coronet_state.network, coronet_state.names with
       | _, None
       | None, _ ->
-        Error "Coronet synthesize requires loading a Coronet topology first"
+        Error "Coronet synthesis requires loading a Coronet topology first"
       | Some net, Some name_tbl -> try
-          let append opt ls = match opt with
-            | Some x -> x::ls | None -> ls in
-          let paths = CoroNet.cross_connect net name_tbl
-              coronet_state.east coronet_state.west in
-          (* Convert the redundant paths to optical circuits. A config is a list of circuits. *)
-          let config = List.fold paths ~init:[] ~f:(fun acc ps ->
-              let (shortest, local, across) = CoroNet.circuits_of_pathset net 1l 1l ps in
-              (append shortest acc) |> (append local) |> (append across)) in
+          let waypaths = CoroNet.path_connect net name_tbl
+              coronet_state.east coronet_state.west coronet_state.paths in
+          let config = List.fold waypaths ~init:[] ~f:(fun acc p ->
+              let path = (p.path, p.channel) in
+              let circuit = CoroNet.circuit_of_path net p.start 0l p.stop 0l
+                  path in
+              circuit::acc) in
           let policy = Frenetic_Circuit_NetKAT.local_policy_of_config config in
 
           let result = String.concat ~sep:"\n" [
-              (String.concat ~sep:"\n"
-                 (List.map paths ~f:(CoroNet.string_of_pathset net)));
               (Frenetic_Circuit_NetKAT.string_of_config config);
               (string_of_policy policy) ] in
           Ok result

@@ -57,7 +57,7 @@ module CoroNet : sig
   val circuit_of_path : Topology.t ->
     Topology.vertex -> Frenetic_NetKAT.portId ->
     Topology.vertex -> Frenetic_NetKAT.portId ->
-    path option -> circuit option
+    path -> circuit
 
   val circuits_of_pathset : Topology.t ->
     Frenetic_NetKAT.portId -> Frenetic_NetKAT.portId ->
