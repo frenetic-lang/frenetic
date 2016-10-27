@@ -578,7 +578,9 @@ let coronet c = match c with
         let src' = Topology.vertex_of_label net src in
         let dst' = Topology.vertex_of_label net dst in
         match CoroPath.shortest_path net src' dst' with
-        | Some p -> Ok (CoroPath.to_string p)
+        | Some p ->
+          coronet_state.paths <- p::coronet_state.paths;
+          Ok (sprintf "Loaded [%s]\n" ( CoroPath.to_string p) )
         | None -> Error (sprintf "No path between %s and %s" s d )
     end
 
