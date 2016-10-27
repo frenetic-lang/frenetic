@@ -280,13 +280,14 @@ module CoroNet = struct
   let pack src dst (s,l,a) =
     { src = src; dst = dst; shortest = s; local = l; across = a}
 
-  let cross_connect (net:Topology.t) id_tbl (e:string list) (w:string list) =
+  let cross_connect (net:Topology.t) (tbl:name_table)
+      (e:string list) (w:string list) =
     let module VS = Topology.VertexSet in
-    let east = List.fold e ~init:VS.empty ~f:(fun acc node ->
-        let v = find_vertex net id_tbl node in
+    let east = List.fold e ~init:VS.empty ~f:(fun acc name ->
+        let v = find_vertex net tbl name in
         VS.add acc v) in
-    let west = List.fold w ~init:VS.empty ~f:(fun acc node ->
-        let v = find_vertex net id_tbl node in
+    let west = List.fold w ~init:VS.empty ~f:(fun acc name ->
+        let v = find_vertex net tbl name in
         VS.add acc v) in
 
     let east_paths = CoroPath.all_pairs_shortest_paths ~topo:net
