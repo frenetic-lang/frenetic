@@ -137,6 +137,12 @@ module CoroNet = struct
                  ; local    : path option
                  ; across   : path option
                  }
+  type waypath = { path : CoroPath.t
+                 ; start : Topology.vertex
+                 ; stop  : Topology.vertex
+                 ; waypoints : Topology.vertex list
+                 ; channel : int
+                 }
 
   let string_of_path (p,ch) =
     sprintf "%d@[%s]" ch ( CoroPath.to_string p )
@@ -309,6 +315,39 @@ module CoroNet = struct
             let wtoe = pack w e (west_to_east ch w e) in
             let etow = pack e w ( east_to_west (ch+3) e w ) in
             ( etow::wtoe::acc, ch+6 ))) in
+    paths
+
+  (* Asumme that the cross country paths are east to west *)
+  let path_connect (net:Topology.t) (tbl:name_table)
+      (e:string list) (w:string list) (ps:CoroPath.t list) =
+    let module VS = Topology.VertexSet in
+    let show = Topology.vertex_to_string net in
+    let east = List.fold e ~init:VS.empty ~f:(fun acc name ->
+        let v = find_vertex net tbl name in
+        VS.add acc v) in
+    let west = List.fold w ~init:VS.empty ~f:(fun acc name ->
+        let v = find_vertex net tbl name in
+        VS.add acc v) in
+
+    let paths,_ = VS.fold east ~init:([],1) ~f:(fun (acc, ch) e ->
+        VS.fold west ~init:(acc,ch) ~f:(fun (acc,ch) w ->
+            List.fold ps ~init:(acc,ch) ~f:(fun (acc,ch) path ->
+                let start = CoroPath.start path in
+                let stop  = CoroPath.stop  path in
+                let prefix = CoroPath.shortest_path net e start in
+                let suffix = CoroPath.shortest_path net stop w in
+                match prefix, suffix with
+                | Some p, Some s ->
+                  let path' = CoroPath.join p (CoroPath.join path s) in
+                  let waypath = { path = path'; start = e; stop = w;
+                                  waypoints = [ start; stop ]; channel = ch } in
+                  let waypath' = { path = List.rev path'; start = w; stop = e;
+                                   waypoints = [ stop; start ]; channel = ch } in
+                  (waypath::waypath'::acc, ch+1)
+                | None, _ -> failwith (sprintf "No path between %s and %s"
+                                         (show e) (show start))
+                | _, None -> failwith (sprintf "No path between %s and %s"
+                                         (show stop) (show w))))) in
     paths
 
   let circuit_of_path net src sport dst dport (p:path option) = match p with

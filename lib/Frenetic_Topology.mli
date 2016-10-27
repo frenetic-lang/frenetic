@@ -38,6 +38,12 @@ module CoroNet : sig
                  ; local    : path option
                  ; across   : path option
                  }
+  type waypath = { path : CoroPath.t
+                 ; start : Topology.vertex
+                 ; stop  : Topology.vertex
+                 ; waypoints : Topology.vertex list
+                 ; channel : int
+                 }
 
   val string_of_path : path -> string
   val string_of_pathset : Topology.t -> pathset -> string
@@ -45,6 +51,8 @@ module CoroNet : sig
   val from_csv_file : string -> ( Topology.t  * name_table)
   val cross_connect : Topology.t -> name_table -> string list -> string list ->
     pathset list
+  val path_connect : Topology.t -> name_table -> string list -> string list ->
+    CoroPath.t list -> waypath list
 
   val circuit_of_path : Topology.t ->
     Topology.vertex -> Frenetic_NetKAT.portId ->
