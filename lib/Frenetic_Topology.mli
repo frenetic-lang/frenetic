@@ -54,7 +54,8 @@ module CoroNet : sig
       list -> CoroPath.t list -> Topology.t
   val cross_connect : Topology.t -> name_table -> string list -> string list ->
     pathset list
-  val path_connect : Topology.t -> name_table -> string list -> string list ->
+  val path_connect : Topology.t -> name_table -> port_table ->
+    string list -> string list ->
     CoroPath.t list -> waypath list
 
   val circuit_of_path : Topology.t ->

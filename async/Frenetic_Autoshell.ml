@@ -556,7 +556,7 @@ let coronet c = match c with
             ( coronet_state.names, coronet_state.ports,
               coronet_state.east, coronet_state.west, coronet_state.paths ) in
           let net = CoroNet.surround net names ports east west paths in
-          let waypaths = CoroNet.path_connect net names east west paths in
+          let waypaths = CoroNet.path_connect net names ports east west paths in
           let config, z3 = List.foldi waypaths ~init:([],[]) ~f:(fun i (cs,zs) p ->
               let path = (p.path, p.channel) in
               let circuit = CoroNet.circuit_of_path net p.start 0l p.stop 0l

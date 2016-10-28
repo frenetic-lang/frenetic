@@ -138,6 +138,8 @@ module CoroNet = struct
                  ; local    : path option
                  ; across   : path option
                  }
+
+  (* TODO(basus): Add start and stop ports for proper circuit generation *)
   type waypath = { path : CoroPath.t
                  ; start : Topology.vertex
                  ; stop  : Topology.vertex
@@ -358,20 +360,22 @@ module CoroNet = struct
     paths
 
   (* Asumme that the cross country paths are east to west *)
-  let path_connect (net:Topology.t) (tbl:name_table)
+  let path_connect (net:Topology.t) (ntbl:name_table) (ptbl:port_table)
       (e:string list) (w:string list) (ps:CoroPath.t list) =
     let module VS = Topology.VertexSet in
     let show = Topology.vertex_to_string net in
     let east = List.fold e ~init:VS.empty ~f:(fun acc name ->
-        let v = find_vertex net tbl name in
+        let v = find_vertex net ntbl name in
         VS.add acc v) in
     let west = List.fold w ~init:VS.empty ~f:(fun acc name ->
-        let v = find_vertex net tbl name in
+        let v = find_vertex net ntbl name in
         VS.add acc v) in
 
     (* This could be optimized by precomputing the prefix and suffixes *)
     let paths,_ = VS.fold east ~init:([],1) ~f:(fun (acc, ch) e ->
         VS.fold west ~init:(acc,ch) ~f:(fun (acc,ch) w ->
+            let e_port = Hashtbl.Poly.find_exn ptbl (show e) in
+            let w_port = Hashtbl.Poly.find_exn ptbl (show w) in
             List.fold ps ~init:(acc,ch) ~f:(fun (acc,ch) path ->
                 let start = CoroPath.start path in
                 let stop  = CoroPath.stop  path in
