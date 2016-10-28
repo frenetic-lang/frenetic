@@ -532,7 +532,7 @@ let coronet c = match c with
   | CLoad ( String s ) -> Error "Coronet topologies must be loaded from files"
   (* TODO(basus): Allow coronet topologies to be loaded from strings as well *)
   | CLoad ( Filename fn ) ->
-    let net,name_tbl = CoroNet.from_csv_file fn in
+    let net,name_tbl,port_tbl = CoroNet.from_csv_file fn in
     let mn = CoroNet.Pretty.to_mininet ~prologue_file:"examples/linc-prologue.txt"
         ~link_class:( Some "LINCLink" ) net in
     let nk = string_of_policy (CoroNet.Pretty.to_netkat net) in

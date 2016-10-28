@@ -123,6 +123,7 @@ module Distance = struct
 end
 
 type name_table = (string, CoroNode.t) Hashtbl.t
+type port_table = (string, Frenetic_NetKAT.portId) Hashtbl.t
 
 module CoroNet = struct
   exception NonexistentNode of string
@@ -220,7 +221,7 @@ module CoroNet = struct
         sw
       | Some l -> l in
 
-    (* Start ports at 1, so that port 0 can be used to connect a host. *)
+    (* Start ports at 1. *)
     let get_port name = match Hashtbl.Poly.find port_table name with
       | None ->
         Hashtbl.Poly.add_exn port_table name 1l;
@@ -249,7 +250,7 @@ module CoroNet = struct
             net
           | _ -> failwith "Expected each line in CSV to have structure `src,dst,distance`"
       ) in
-    (net, name_table)
+    (net, name_table, port_table)
 
   let find_paths net local across channel src dst =
     let shortest = match CoroPath.shortest_path net src dst with

@@ -22,6 +22,7 @@ module CoroLink : Frenetic_Network.EDGE
 module Distance : Frenetic_Network.WEIGHT
 
 type name_table = (string, CoroNode.t) Hashtbl.t
+type port_table = (string, SDN.portId) Hashtbl.t
 type circuit = Frenetic_Circuit_NetKAT.circuit
 
 module CoroNet : sig
@@ -48,7 +49,7 @@ module CoroNet : sig
   val string_of_path : path -> string
   val string_of_pathset : Topology.t -> pathset -> string
 
-  val from_csv_file : string -> ( Topology.t  * name_table)
+  val from_csv_file : string -> ( Topology.t  * name_table * port_table)
   val cross_connect : Topology.t -> name_table -> string list -> string list ->
     pathset list
   val path_connect : Topology.t -> name_table -> string list -> string list ->
