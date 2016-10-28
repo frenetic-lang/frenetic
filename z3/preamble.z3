@@ -45,6 +45,10 @@
 ;; Encode a topology as a map from locations to an array of (connected) locations
 (define-sort Topology  () (Array Location Location))
 
+;; Define a path, mostly for membership checking. Int is the index type so that
+;; we can implement predecessor or successor checking on hops later
+(define-sort Path () (Array Int Value))
+
 ;; A single conditional is a triple of (bool, field, value) where the boolean is
 ;; true for a positive match, and false for a negative match. The condition for
 ;; a dyad is int-indexed array of single conditionals.
@@ -193,3 +197,10 @@
               (not (= l21 disconnected))
               (= (switch l2) (switch l21)))))))
 
+;; Check if a particular switch is on a path
+(define-fun on-path ((p Path) (length Int) (s Value)) Bool
+  (exists ((index Int))
+          (implies
+           (and (< 0 index)
+                (< index length))
+           (= (select p index) s))))
