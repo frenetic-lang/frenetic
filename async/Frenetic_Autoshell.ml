@@ -62,14 +62,16 @@ let state = { naive    = None
             }
 
 type coronet_state = { mutable network : CoroNet.Topology.t option
-                     ; mutable names   : Frenetic_Topology.name_table option
+                     ; mutable names   : Frenetic_Topology.name_table
+                     ; mutable ports   : Frenetic_Topology.port_table
                      ; mutable east    : string list
                      ; mutable west    : string list
                      ; mutable paths   : CoroNet.CoroPath.t list
                      }
 
 let coronet_state = { network  = None
-                    ; names    = None
+                    ; names    = Hashtbl.Poly.create ~size:0 ()
+                    ; ports    = Hashtbl.Poly.create ~size:0 ()
                     ; east     = []
                     ; west     = []
                     ; paths    = []
@@ -540,17 +542,21 @@ let coronet c = match c with
     let mininet = sprintf "Mininet:\n%s\n" mn in
     let netkat  = sprintf "NetKAT:\n%s\n" nk in
     let result = String.concat ~sep:"\n" [src; mininet; netkat] in
-    coronet_state.network <- Some net; coronet_state.names <- Some name_tbl;
+    coronet_state.network <- Some net; coronet_state.names <- name_tbl;
+    coronet_state.ports <- port_tbl;
     Ok result
   | CEast e -> coronet_state.east <- e; Ok "East nodes loaded"
   | CWest w -> coronet_state.west <- w; Ok "West nodes loaded"
-  | CSynthesize -> begin match coronet_state.network, coronet_state.names with
-      | _, None
-      | None, _ ->
+  | CSynthesize ->
+    begin match coronet_state.network with
+      | None ->
         Error "Coronet synthesis requires loading a Coronet topology first"
-      | Some net, Some name_tbl -> try
-          let waypaths = CoroNet.path_connect net name_tbl
-              coronet_state.east coronet_state.west coronet_state.paths in
+      | Some net -> try
+          let names, ports, east, west, paths =
+            ( coronet_state.names, coronet_state.ports,
+              coronet_state.east, coronet_state.west, coronet_state.paths ) in
+          let net = CoroNet.surround net names ports east west paths in
+          let waypaths = CoroNet.path_connect net names east west paths in
           let config, z3 = List.foldi waypaths ~init:([],[]) ~f:(fun i (cs,zs) p ->
               let path = (p.path, p.channel) in
               let circuit = CoroNet.circuit_of_path net p.start 0l p.stop 0l
@@ -570,11 +576,11 @@ let coronet c = match c with
         | CoroNet.CoroPath.UnjoinablePaths s ->
           Error (sprintf "Unjoinable paths %s\n" s)
     end
-  | CPath(s, d) -> begin match coronet_state.network, coronet_state.names with
-      | None, _
-      | _, None -> Error "Finding a path requires loading a Coronet topology"
-      | Some net, Some names ->
+  | CPath(s, d) -> begin match coronet_state.network with
+      | None -> Error "Finding a path requires loading a Coronet topology"
+      | Some net ->
         let open CoroNet in
+        let names = coronet_state.names in
         let src = Hashtbl.Poly.find_exn names s in
         let dst = Hashtbl.Poly.find_exn names d in
         let src' = Topology.vertex_of_label net src in

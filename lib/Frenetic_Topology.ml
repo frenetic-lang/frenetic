@@ -201,11 +201,27 @@ module CoroNet = struct
             Hashtbl.Poly.find_exn name_tbl (String.strip w)) in
         (CoroPath.from_vertexes net vertices)::acc)
 
+  let get_label tbl name = match Hashtbl.Poly.find tbl name with
+    | None ->
+      let next = Int64.of_int ( (Hashtbl.Poly.length tbl) + 1 ) in
+      let sw = CoroNode.Switch(name, next) in
+      Hashtbl.Poly.add_exn tbl name sw;
+      sw
+    | Some l -> l
+
+  (* Start ports at 1. *)
+  let get_port tbl name = match Hashtbl.Poly.find tbl name with
+    | None ->
+      Hashtbl.Poly.add_exn tbl name 1l;
+      1l
+    | Some p ->
+      Hashtbl.Poly.set tbl name (Int32.succ p);
+      Int32.succ p
+
   let from_csv_file filename =
     let net = Topology.empty () in
     let channel = In_channel.create filename in
 
-    let next_id    = ref 0L in
     let name_table = Hashtbl.Poly.create () in
     let port_table = Hashtbl.Poly.create () in
 
@@ -213,34 +229,17 @@ module CoroNet = struct
       | Some i -> i = 0
       | None -> false in
 
-    let get_label name = match Hashtbl.Poly.find name_table name with
-      | None ->
-        Int64.incr next_id;
-        let sw = CoroNode.Switch(name, !next_id ) in
-        Hashtbl.Poly.add_exn name_table name sw;
-        sw
-      | Some l -> l in
-
-    (* Start ports at 1. *)
-    let get_port name = match Hashtbl.Poly.find port_table name with
-      | None ->
-        Hashtbl.Poly.add_exn port_table name 1l;
-        1l
-      | Some p ->
-        Hashtbl.Poly.set port_table name (Int32.succ p);
-        Int32.succ p in
-
     let net = In_channel.fold_lines channel ~init:net ~f:(fun net line ->
         if starts_with line '#' then net
         else
           match String.split line ~on:',' with
           | sname::dname::[dist] ->
-            let slabel = get_label sname in
-            let sport = get_port sname in
+            let slabel = get_label name_table sname in
+            let sport = get_port port_table sname in
             let net,src = Topology.add_vertex net slabel in
 
-            let dlabel = get_label dname in
-            let dport = get_port dname in
+            let dlabel = get_label name_table dname in
+            let dport = get_port port_table dname in
             let net,dst = Topology.add_vertex net dlabel in
 
             let distance = float_of_string dist in
@@ -251,6 +250,46 @@ module CoroNet = struct
           | _ -> failwith "Expected each line in CSV to have structure `src,dst,distance`"
       ) in
     (net, name_table, port_table)
+
+  let surround net names ports east west paths =
+    let range i = List.range ~start:`inclusive ~stop:`exclusive 0
+        (List.length paths * i) in
+    let mk_host name id =
+      let hostname = sprintf "h%s" name in
+      let host = CoroNode.Host(hostname, id, Int32.of_int64_exn id) in
+      host in
+
+    let aux net nodes range =
+      List.fold nodes ~init:net ~f:(fun net e ->
+          let label = Hashtbl.Poly.find_exn names e in
+          let optcl = Topology.vertex_of_label net label in
+
+          (* Add a packet switch to this optical node *)
+          let port = Int32.succ (Hashtbl.Poly.find_exn ports e) in
+          let name  = sprintf "sw%s" e in
+          let pktsw = get_label names name in
+          let net,pkt = Topology.add_vertex net pktsw in
+
+          (* Add a host to the packet switch *)
+          let host = mk_host e (CoroNode.id label) in
+          let net,hv = Topology.add_vertex net host in
+          let net,_ = Topology.add_edge net hv 0l 0.0 pkt 0l in
+          let net,_ = Topology.add_edge net pkt 0l 0.0 hv 0l in
+
+          (* Add one edge between the optical and packet switch for each channel
+             connecting this optical switch to another. Assumes that `range`
+             starts from 0. *)
+          List.fold range ~init:net ~f:(fun net i ->
+              let open Int32 in
+              let i = of_int_exn i in
+              let net,_ = Topology.add_edge net pkt (i+1l) 0.0 optcl (port+i) in
+              fst ( Topology.add_edge net optcl (port+i) 0.0 pkt (i+1l)) ))
+    in
+
+    let westward = range (List.length west) in
+    let eastward = range (List.length east) in
+    let net' = aux net east westward in
+    aux net' west eastward
 
   let find_paths net local across channel src dst =
     let shortest = match CoroPath.shortest_path net src dst with
