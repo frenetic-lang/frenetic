@@ -168,16 +168,6 @@
            (let ((fld (field (select c index) )))
              (or (= fld Switch) (= fld Location))))))
 
-
-;; (define-fun subset-of ((c1 Condition) (l1 Int) (c2 Condition) (l2 Int)) Bool
-;;   (and (<= l1 l2)
-;;        (forall ((i1 Int))
-;;                (implies
-;;                 (and (< 0 i1) (< i1 l1))
-;;                 (exists ((i2 Int))
-;;                    (implies (and (< 0 i2) (< l2 l2))
-;;                             (= (field (select c1 i1)) (field (select c2 i2)))))))))
-
 (define-fun subset-of ((c1 Condition) (l1 Int) (c2 Condition) (l2 Int)) Bool
   (forall ((f Field))
           (implies
