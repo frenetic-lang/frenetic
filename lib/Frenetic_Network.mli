@@ -126,6 +126,7 @@ module type NETWORK = sig
     val start : t -> Topology.vertex
     val stop  : t -> Topology.vertex
     val to_string : t -> string
+    val to_vertexes : t -> Topology.vertex list
 
     (* Constructors *)
     val from_vertexes : Topology.t -> Topology.vertex list -> t

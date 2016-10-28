@@ -129,6 +129,7 @@ module type NETWORK = sig
     val start : t -> Topology.vertex
     val stop  : t -> Topology.vertex
     val to_string : t -> string
+    val to_vertexes : t -> Topology.vertex list
 
     (* Constructors *)
     val from_vertexes : Topology.t -> Topology.vertex list -> t
@@ -463,6 +464,7 @@ struct
     val start : t -> Topology.vertex
     val stop  : t -> Topology.vertex
     val to_string : t -> string
+    val to_vertexes : t -> Topology.vertex list
 
     (* Constructors *)
     val from_vertexes : Topology.t -> Topology.vertex list -> t
@@ -526,6 +528,25 @@ struct
 
     let stop t =
       fst ( Topology.edge_dst (List.last_exn t) )
+
+    let to_vertexes p =
+      let rec aux p = match p with
+        | [] -> []
+        | [last] -> [ fst ( Topology.edge_dst last ) ]
+        | e1::e2::rest ->
+          let v1 = fst ( Topology.edge_dst e1 ) in
+          let v2 = fst ( Topology.edge_src e2 ) in
+          if v1 = v2 then v1::(aux rest)
+          else
+            let (_,l1,_) = e1 in
+            let (_,l2,_) = e2 in
+            let msg = sprintf "Edge %s and %s do not share a vertex"
+                        (EL.to_string l1) (EL.to_string l2) in
+            raise ( InvalidPath msg ) in
+      match p with
+      | [] -> []
+      | [e] -> [ (fst ( Topology.edge_src e));(fst( Topology.edge_dst e)) ]
+      | hd::tl -> (fst (Topology.edge_src hd))::(aux tl)
 
     let from_vertexes net vs  : t =
       let rec aux vs = match vs with
