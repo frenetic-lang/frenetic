@@ -551,11 +551,13 @@ let coronet c = match c with
       | Some net, Some name_tbl -> try
           let waypaths = CoroNet.path_connect net name_tbl
               coronet_state.east coronet_state.west coronet_state.paths in
-          let config = List.fold waypaths ~init:[] ~f:(fun acc p ->
+          let config, z3 = List.foldi waypaths ~init:([],[]) ~f:(fun i (cs,zs) p ->
               let path = (p.path, p.channel) in
               let circuit = CoroNet.circuit_of_path net p.start 0l p.stop 0l
                   path in
-              circuit::acc) in
+              let z3 = Frenetic_Synthesis.Z3.of_coropath
+                  ~path:(sprintf "path%d" i) net p.path in
+              (circuit::cs, z3::zs)) in
           let policy = Frenetic_Circuit_NetKAT.local_policy_of_config config in
 
           let result = String.concat ~sep:"\n" [

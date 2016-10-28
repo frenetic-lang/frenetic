@@ -45,6 +45,9 @@ module Z3 : sig
     | Or  of restraint * restraint
 
   val mk_decider : ?preamble:string -> restraint -> decider
+
+  val of_coropath : ?path:string -> Frenetic_Topology.CoroNet.Topology.t ->
+    Frenetic_Topology.CoroNet.CoroPath.t -> string
 end
 
 module Make(S:SOLVER) : SYNTH

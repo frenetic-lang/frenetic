@@ -4,6 +4,8 @@ open Frenetic_OpenFlow
 
 (** Utility functions and imports *)
 module Compiler = Frenetic_NetKAT_Compiler
+module CoroNet = Frenetic_Topology.CoroNet
+module CoroNode = Frenetic_Topology.CoroNode
 module Fabric = Frenetic_Fabric
 module Dyad = Fabric.Dyad
 
@@ -286,6 +288,14 @@ module Z3 = struct
       | Some i -> false in
     decider r
 
+  let of_coropath ?(path="path") net p =
+    let vertices = CoroNet.CoroPath.to_vertexes p in
+    let header = sprintf "(declare-const %s Path)" path in
+    let asserts = List.mapi vertices ~f:(fun i v ->
+        let node = CoroNet.Topology.vertex_to_label net v in
+        let id = CoroNode.id node in
+        sprintf "(assert (= (select %s %d) %Lu ))" path i id) in
+    String.concat ~sep:"\n" ( header::asserts )
 end
 
 
