@@ -22,6 +22,11 @@ let keep_cache = { Compiler.default_compiler_options
 
 type loc = (switchId * portId)
 
+module PathTable = Hashtbl.Make (struct
+    type t = switchId * portId * switchId * portId [@@deriving sexp,compare]
+    let hash = Hashtbl.hash
+  end )
+
 type source =
   | String of string
   | Filename of string
@@ -67,14 +72,16 @@ type coronet_state = { mutable network : CoroNet.Topology.t option
                      ; mutable east    : string list
                      ; mutable west    : string list
                      ; mutable paths   : CoroNet.CoroPath.t list
+                     ; mutable circuits : (CoroNet.path * circuit * string) PathTable.t
                      }
 
 let coronet_state = { network  = None
-                    ; names    = Hashtbl.Poly.create ~size:0 ()
-                    ; ports    = Hashtbl.Poly.create ~size:0 ()
+                    ; names    = String.Table.create ~size:0 ()
+                    ; ports    = String.Table.create ~size:0 ()
                     ; east     = []
                     ; west     = []
                     ; paths    = []
+                    ; circuits = PathTable.create ()
                     }
 
 type state_part =
@@ -561,9 +568,13 @@ let coronet c = match c with
               let path = (p.path, p.channel) in
               let sv, sp = p.start in
               let dv, dp = p.stop in
+              let ssw = CoroNet.Topology.vertex_to_id net sv in
+              let dsw = CoroNet.Topology.vertex_to_id net dv in
               let circuit = CoroNet.circuit_of_path net sv sp dv dp path in
               let z3 = Frenetic_Synthesis.Z3.of_coropath
                   ~path:(sprintf "path%d" i) net p.path in
+              PathTable.set coronet_state.circuits ~key:(ssw, sp, dsw, dp)
+                ~data:(path, circuit, z3);
               (circuit::cs, z3::zs)) in
           let policy = Frenetic_Circuit_NetKAT.local_policy_of_config config in
 
