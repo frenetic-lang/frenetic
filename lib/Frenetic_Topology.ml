@@ -181,7 +181,7 @@ module CoroNet = struct
   end
 
   let find_label tbl name =
-    match Hashtbl.Poly.find tbl name with
+    match Hashtbl.find tbl name with
         | Some l -> l
         | None -> raise (NonexistentNode name)
 
@@ -193,40 +193,40 @@ module CoroNet = struct
     let channel = In_channel.create filename in
     let vertexes = Topology.vertexes net in
 
-    let name_tbl = Hashtbl.Poly.create ~size:(Topology.VertexSet.length vertexes) () in
+    let name_tbl = String.Table.create ~size:(Topology.VertexSet.length vertexes) () in
     Topology.VertexSet.iter vertexes ~f:(fun v ->
         let label = Topology.vertex_to_label net v in
-        Hashtbl.Poly.add_exn name_tbl (CoroNode.to_string label) v);
+        Hashtbl.add_exn name_tbl (CoroNode.to_string label) v);
 
     In_channel.fold_lines channel ~init:[] ~f:(fun acc line ->
         let words = String.split line ~on:';' in
         let vertices = List.map words ~f:(fun w ->
-            Hashtbl.Poly.find_exn name_tbl (String.strip w)) in
+            Hashtbl.find_exn name_tbl (String.strip w)) in
         (CoroPath.from_vertexes net vertices)::acc)
 
-  let get_label tbl name = match Hashtbl.Poly.find tbl name with
+  let get_label tbl name = match Hashtbl.find tbl name with
     | None ->
-      let next = Int64.of_int ( (Hashtbl.Poly.length tbl) + 1 ) in
+      let next = Int64.of_int ( (Hashtbl.length tbl) + 1 ) in
       let sw = CoroNode.Switch(name, next) in
-      Hashtbl.Poly.add_exn tbl name sw;
+      Hashtbl.add_exn tbl name sw;
       sw
     | Some l -> l
 
   (* Start ports at 1. *)
-  let get_port tbl name = match Hashtbl.Poly.find tbl name with
+  let get_port tbl name = match Hashtbl.find tbl name with
     | None ->
-      Hashtbl.Poly.add_exn tbl name 1l;
+      Hashtbl.add_exn tbl name 1l;
       1l
     | Some p ->
-      Hashtbl.Poly.set tbl name (Int32.succ p);
+      Hashtbl.set tbl name (Int32.succ p);
       Int32.succ p
 
   let from_csv_file filename =
     let net = Topology.empty () in
     let channel = In_channel.create filename in
 
-    let name_table = Hashtbl.Poly.create () in
-    let port_table = Hashtbl.Poly.create () in
+    let name_table = String.Table.create () in
+    let port_table = String.Table.create () in
 
     let starts_with s c = match String.index s c with
       | Some i -> i = 0
@@ -407,9 +407,9 @@ module CoroNet = struct
     let channel = snd p in
     let path = List.map (fst p) ~f:(fun edge ->
         let sv,spt = Topology.edge_src edge in
-        let ssw    = CoroNode.id (Topology.vertex_to_label net sv) in
+        let ssw    = (Topology.vertex_to_id net sv) in
         let dv,dpt = Topology.edge_dst edge in
-        let dsw    = CoroNode.id (Topology.vertex_to_label net dv) in
+        let dsw    = (Topology.vertex_to_id net dv) in
         (ssw,spt,dsw,dpt)) in
     { source; sink; path; channel }
 
