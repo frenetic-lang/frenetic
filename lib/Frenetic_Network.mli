@@ -85,6 +85,7 @@ module type NETWORK = sig
     val inverse_edge : t -> edge -> edge option
 
     (* Label Accessors *)
+    val vertex_to_id : t -> vertex -> Frenetic_NetKAT.switchId
     val vertex_to_string : t -> vertex -> string
     val vertex_to_label : t -> vertex -> Vertex.t
     val vertex_of_label : t -> Vertex.t -> vertex

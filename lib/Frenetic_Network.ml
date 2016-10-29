@@ -87,6 +87,7 @@ module type NETWORK = sig
     val inverse_edge : t -> edge -> edge option
 
     (* Label Accessors *)
+    val vertex_to_id : t -> vertex -> Frenetic_NetKAT.switchId
     val vertex_to_string : t -> vertex -> string
     val vertex_to_label : t -> vertex -> Vertex.t
     val vertex_of_label : t -> Vertex.t -> vertex
@@ -190,6 +191,7 @@ struct
       let compare n1 n2 = Int.compare n1.id n2.id
       let hash n1 = Hashtbl.hash n1.id
       let equal n1 n2 = n1.id = n2.id
+      let to_id n = Vertex.id n.label
       let to_string n = Vertex.to_string n.label
     end
 
@@ -324,6 +326,9 @@ struct
     let find_all_edges (t:t) (src:vertex) (dst:vertex) : EdgeSet.t =
       List.fold_left (P.find_all_edges t.graph src dst)  ~init:EdgeSet.empty
 	~f:EdgeSet.add
+
+    let vertex_to_id (t:t) (v:vertex) : Frenetic_NetKAT.switchId =
+      VL.to_id v
 
     let vertex_to_string (t:t) (v:vertex) : string =
       VL.to_string v
