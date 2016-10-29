@@ -7,6 +7,7 @@ open Core.Std
 module Net = Frenetic_NetKAT_Net.Net
 module SDN = Frenetic_OpenFlow
 type circuit = Frenetic_Circuit_NetKAT.circuit
+type portId = Frenetic_NetKAT.portId
 
 let switch_ids (t : Net.Topology.t) : SDN.switchId list =
   let open Net.Topology in
@@ -141,8 +142,8 @@ module CoroNet = struct
 
   (* TODO(basus): Add start and stop ports for proper circuit generation *)
   type waypath = { path : CoroPath.t
-                 ; start : Topology.vertex
-                 ; stop  : Topology.vertex
+                 ; start : Topology.vertex * portId
+                 ; stop  : Topology.vertex * portId
                  ; waypoints : Topology.vertex list
                  ; channel : int
                  }
@@ -376,7 +377,11 @@ module CoroNet = struct
         VS.fold west ~init:(acc,ch) ~f:(fun (acc,ch) w ->
             let e_port = Hashtbl.Poly.find_exn ptbl (show e) in
             let w_port = Hashtbl.Poly.find_exn ptbl (show w) in
-            List.fold ps ~init:(acc,ch) ~f:(fun (acc,ch) path ->
+            List.foldi ps ~init:(acc,ch) ~f:(fun i (acc,ch) path ->
+                let open Int32 in
+                let i = of_int_exn i in
+                let e' = (e, e_port + i) in
+                let w' = (w, w_port + i) in
                 let start = CoroPath.start path in
                 let stop  = CoroPath.stop  path in
                 let prefix = CoroPath.shortest_path net e start in
@@ -384,11 +389,11 @@ module CoroNet = struct
                 match prefix, suffix with
                 | Some p, Some s ->
                   let path' = CoroPath.join p (CoroPath.join path s) in
-                  let waypath = { path = path'; start = e; stop = w;
+                  let waypath = { path = path'; start = e'; stop = w';
                                   waypoints = [ start; stop ]; channel = ch } in
-                  let waypath' = { path = List.rev path'; start = w; stop = e;
+                  let waypath' = { path = List.rev path'; start = w'; stop = e';
                                    waypoints = [ stop; start ]; channel = ch } in
-                  (waypath::waypath'::acc, ch+1)
+                  (waypath::waypath'::acc, Pervasives.succ ch)
                 | None, _ -> failwith (sprintf "No path between %s and %s"
                                          (show e) (show start))
                 | _, None -> failwith (sprintf "No path between %s and %s"
@@ -397,8 +402,8 @@ module CoroNet = struct
 
   let circuit_of_path net src sport dst dport (p:path) =
     let open Frenetic_Circuit_NetKAT in
-    let source = ( CoroNode.id (Topology.vertex_to_label net src), sport ) in
-    let sink   = ( CoroNode.id (Topology.vertex_to_label net dst), dport ) in
+    let source = ( Topology.vertex_to_id net src, sport ) in
+    let sink   = ( Topology.vertex_to_id net dst, dport ) in
     let channel = snd p in
     let path = List.map (fst p) ~f:(fun edge ->
         let sv,spt = Topology.edge_src edge in

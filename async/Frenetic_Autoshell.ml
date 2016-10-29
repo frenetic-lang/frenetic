@@ -559,8 +559,9 @@ let coronet c = match c with
           let waypaths = CoroNet.path_connect net names ports east west paths in
           let config, z3 = List.foldi waypaths ~init:([],[]) ~f:(fun i (cs,zs) p ->
               let path = (p.path, p.channel) in
-              let circuit = CoroNet.circuit_of_path net p.start 0l p.stop 0l
-                  path in
+              let sv, sp = p.start in
+              let dv, dp = p.stop in
+              let circuit = CoroNet.circuit_of_path net sv sp dv dp path in
               let z3 = Frenetic_Synthesis.Z3.of_coropath
                   ~path:(sprintf "path%d" i) net p.path in
               (circuit::cs, z3::zs)) in

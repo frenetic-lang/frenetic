@@ -24,6 +24,7 @@ module Distance : Frenetic_Network.WEIGHT
 type name_table = (string, CoroNode.t) Hashtbl.t
 type port_table = (string, SDN.portId) Hashtbl.t
 type circuit = Frenetic_Circuit_NetKAT.circuit
+type portId = Frenetic_NetKAT.portId
 
 module CoroNet : sig
   include Frenetic_Network.NETWORK
@@ -39,9 +40,10 @@ module CoroNet : sig
                  ; local    : path option
                  ; across   : path option
                  }
+
   type waypath = { path : CoroPath.t
-                 ; start : Topology.vertex
-                 ; stop  : Topology.vertex
+                 ; start : Topology.vertex * portId
+                 ; stop  : Topology.vertex * portId
                  ; waypoints : Topology.vertex list
                  ; channel : int
                  }
