@@ -581,6 +581,7 @@ let coronet c = match c with
       | None ->
         Error "Coronet synthesis requires loading a Coronet topology first"
       | Some net -> try
+          let open Frenetic_NetKAT in
           let names, ports, east, west, paths =
             ( coronet_state.names, coronet_state.ports,
               coronet_state.east, coronet_state.west, coronet_state.paths ) in
@@ -612,8 +613,14 @@ let coronet c = match c with
               (circuit::cs, z3::zs)) in
           let fabric = Frenetic_Circuit_NetKAT.local_policy_of_config config in
 
-          (* Generate user policies *)
-          let policies = CoroNet.policies net wptbl [] in
+          (* Generate user policies, using hardcoded predicates for now *)
+          let join = Frenetic_NetKAT_Optimize.mk_big_and in
+          let preds = [
+            join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 22) ];
+            join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 80) ];
+            join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 443) ];
+            join [ Test( EthType 0x0800); Test( IPProto 17) ]] in
+          let policies = CoroNet.policies net wptbl preds in
           let policy = Frenetic_NetKAT_Optimize.mk_big_union policies in
 
           let result = String.concat ~sep:"\n"

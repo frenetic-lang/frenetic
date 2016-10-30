@@ -423,7 +423,7 @@ module CoroNet = struct
             let sedge = match Topology.next_hop net fsv fspt with
               | Some e -> e | None -> failwith "No src edge to connect fabric" in
             let dedge = match Topology.next_hop net fdv fdpt with
-              | Some e -> e | None -> failwith "No dest edge to connect fabric" in
+              | Some e -> e | None -> failwith "No dst edge to connect fabric" in
             let psv, psppt = Topology.edge_dst sedge in
             let pdv, pdppt = Topology.edge_dst dedge in
             let pred' = Frenetic_NetKAT_Optimize.mk_big_and
