@@ -372,16 +372,26 @@ module CoroNet = struct
         let v = find_vertex net ntbl name in
         VS.add acc v) in
 
+    let ptbl' = String.Table.create ~size:(String.Table.length ptbl) () in
     (* This could be optimized by precomputing the prefix and suffixes *)
     let paths,_ = VS.fold east ~init:([],1) ~f:(fun (acc, ch) e ->
+        let open Int32 in
+        let e_name = show e in
+        String.Table.update ptbl' e_name ~f:(fun popt -> match popt with
+                | None -> ( String.Table.find_exn ptbl e_name )
+                | Some p -> p);
+
         VS.fold west ~init:(acc,ch) ~f:(fun (acc,ch) w ->
-            let e_port = Hashtbl.Poly.find_exn ptbl (show e) in
-            let w_port = Hashtbl.Poly.find_exn ptbl (show w) in
+            let w_name = show w in
+            String.Table.update ptbl' w_name ~f:(fun popt -> match popt with
+                | None -> ( String.Table.find_exn ptbl w_name)
+                | Some p -> p);
+
             List.foldi ps ~init:(acc,ch) ~f:(fun i (acc,ch) path ->
-                let open Int32 in
-                let i = of_int_exn i in
-                let e' = (e, e_port + i) in
-                let w' = (w, w_port + i) in
+                let e_port = get_port ptbl' e_name in
+                let w_port = get_port ptbl' w_name in
+                let e' = (e, e_port) in
+                let w' = (w, w_port) in
                 let start = CoroPath.start path in
                 let stop  = CoroPath.stop  path in
                 let prefix = CoroPath.shortest_path net e start in
