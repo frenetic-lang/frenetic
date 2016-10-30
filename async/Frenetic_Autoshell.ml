@@ -565,7 +565,9 @@ let coronet c = match c with
           (* Attach hosts and packet switches to the optical switches *)
           let net = CoroNet.surround net names ports east west paths in
           (* Connect bicoastal pairs of nodes using the specified paths *)
-          let waypaths = CoroNet.path_connect net names ports east west paths in
+          let waypaths,wptbl = CoroNet.path_connect net names ports east west paths in
+
+          (* Generate the optical fabric based on the given paths *)
           let config, z3 = List.foldi waypaths ~init:([],[]) ~f:(fun i (cs,zs) p ->
               (* Calculate the Z3 representation of this path *)
               let z3 = Frenetic_Synthesis.Z3.of_coropath
@@ -584,12 +586,18 @@ let coronet c = match c with
                 ~data:(path, circuit, z3);
 
               (circuit::cs, z3::zs)) in
+          let fabric = Frenetic_Circuit_NetKAT.local_policy_of_config config in
 
-          let policy = Frenetic_Circuit_NetKAT.local_policy_of_config config in
+          (* Generate user policies *)
+          let policies = CoroNet.policies net wptbl [] in
+          let policy = Frenetic_NetKAT_Optimize.mk_big_union policies in
+
           let result = String.concat ~sep:"\n"
               (  "\nOptical Channel Configuration"::
                  (Frenetic_Circuit_NetKAT.string_of_config config)::
                  "\nFabric Policy:"::
+                 (string_of_policy fabric)::
+                 "\nUser Policy"::
                  (string_of_policy policy)::
                  "\nZ3 Configuration"::
                  z3  )in

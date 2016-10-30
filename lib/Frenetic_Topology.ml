@@ -140,13 +140,13 @@ module CoroNet = struct
                  ; across   : path option
                  }
 
-  (* TODO(basus): Add start and stop ports for proper circuit generation *)
   type waypath = { path : CoroPath.t
                  ; start : Topology.vertex * portId
                  ; stop  : Topology.vertex * portId
                  ; waypoints : Topology.vertex list
                  ; channel : int
                  }
+  type wptable = ((string * string), waypath list) Hashtbl.t
 
   let string_of_path (p,ch) =
     sprintf "%d@[%s]" ch ( CoroPath.to_string p )
@@ -372,10 +372,10 @@ module CoroNet = struct
         let v = find_vertex net ntbl name in
         VS.add acc v) in
 
+    let wptbl = Hashtbl.Poly.create ~size:((List.length e) * (List.length w)) () in
     let ptbl' = String.Table.create ~size:(String.Table.length ptbl) () in
     (* This could be optimized by precomputing the prefix and suffixes *)
     let paths,_ = VS.fold east ~init:([],1) ~f:(fun (acc, ch) e ->
-        let open Int32 in
         let e_name = show e in
         String.Table.update ptbl' e_name ~f:(fun popt -> match popt with
                 | None -> ( String.Table.find_exn ptbl e_name )
@@ -403,12 +403,37 @@ module CoroNet = struct
                                   waypoints = [ start; stop ]; channel = ch } in
                   let waypath' = { path = List.rev path'; start = w'; stop = e';
                                    waypoints = [ stop; start ]; channel = ch } in
-                  (waypath::waypath'::acc, Pervasives.succ ch)
+                  Hashtbl.Poly.add_multi wptbl (e_name, w_name) waypath;
+                  Hashtbl.Poly.add_multi wptbl (w_name, e_name) waypath';
+                  (waypath::waypath'::acc, succ ch)
                 | None, _ -> failwith (sprintf "No path between %s and %s"
                                          (show e) (show start))
                 | _, None -> failwith (sprintf "No path between %s and %s"
                                          (show stop) (show w))))) in
-    paths
+    paths, wptbl
+
+
+  let policies (net:Topology.t) (wptbl:wptable) (preds:Frenetic_NetKAT.pred list) =
+    Hashtbl.Poly.fold wptbl ~init:[] ~f:(fun ~key:(s,d) ~data:wps pols ->
+        List.fold2_exn wps preds ~init:pols ~f:(fun pols wp pred ->
+            let open Frenetic_NetKAT in
+            let fsv, fspt = wp.start in
+            let fdv, fdpt = wp.stop  in
+            let sedge = match Topology.next_hop net fsv fspt with
+              | Some e -> e | None -> failwith "No src edge to connect fabric" in
+            let dedge = match Topology.next_hop net fdv fdpt with
+              | Some e -> e | None -> failwith "No dest edge to connect fabric" in
+            let psv, psppt = Topology.edge_dst sedge in
+            let pdv, pdppt = Topology.edge_dst dedge in
+            let pred' = Frenetic_NetKAT_Optimize.mk_big_and
+                [pred;
+                 Test( Switch (Topology.vertex_to_id net psv));
+                 Test( Location (Physical psppt) ) ] in
+            let modify = [ Mod( Switch( Topology.vertex_to_id net pdv));
+                           Mod( Location( Physical pdppt)) ] in
+            let policy = Frenetic_NetKAT_Optimize.mk_big_seq (( Filter pred')::modify ) in
+            policy::pols
+          ))
 
   let circuit_of_path net ( src, sport ) ( dst, dport ) (p:path) =
     let open Frenetic_Circuit_NetKAT in

@@ -48,17 +48,23 @@ module CoroNet : sig
                  ; channel : int
                  }
 
+  type wptable = ((string * string), waypath list) Hashtbl.t
+
   val string_of_path : path -> string
   val string_of_pathset : Topology.t -> pathset -> string
 
   val from_csv_file : string -> ( Topology.t  * name_table * port_table)
   val surround : Topology.t -> name_table -> port_table -> string list -> string
       list -> CoroPath.t list -> Topology.t
+
   val cross_connect : Topology.t -> name_table -> string list -> string list ->
     pathset list
   val path_connect : Topology.t -> name_table -> port_table ->
-    string list -> string list ->
-    CoroPath.t list -> waypath list
+    string list -> string list -> CoroPath.t list ->
+    ( waypath list * wptable )
+
+  val policies : Topology.t -> wptable -> Frenetic_NetKAT.pred list ->
+    Frenetic_NetKAT.policy list
 
   val circuit_of_path : Topology.t ->
     ( Topology.vertex * Frenetic_NetKAT.portId ) ->
