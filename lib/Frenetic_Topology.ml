@@ -399,9 +399,10 @@ module CoroNet = struct
                 match prefix, suffix with
                 | Some p, Some s ->
                   let path' = CoroPath.join p (CoroPath.join path s) in
+                  let rpath' = CoroPath.reverse net path' in
                   let waypath = { path = path'; start = e'; stop = w';
                                   waypoints = [ start; stop ]; channel = ch } in
-                  let waypath' = { path = List.rev path'; start = w'; stop = e';
+                  let waypath' = { path = rpath'; start = w'; stop = e';
                                    waypoints = [ stop; start ]; channel = ch } in
                   Hashtbl.Poly.add_multi wptbl (e_name, w_name) waypath;
                   Hashtbl.Poly.add_multi wptbl (w_name, e_name) waypath';

@@ -592,8 +592,10 @@ let coronet c = match c with
           (* Generate the optical fabric based on the given paths *)
           let config, z3 = List.foldi waypaths ~init:([],[]) ~f:(fun i (cs,zs) p ->
               (* Calculate the Z3 representation of this path *)
-              let z3 = Frenetic_Synthesis.Z3.of_coropath
-                  ~path:(sprintf "path%d" i) net p.path in
+              let z3 = try
+                  Frenetic_Synthesis.Z3.of_coropath ~path:(sprintf "path%d" i) net p.path
+                with CoroNet.CoroPath.InvalidPath s ->
+                  sprintf "\n%s in\n %s" s (CoroNet.CoroPath.to_string p.path) in
 
               (* Calculate the optical channel for implementing this path *)
               let path = (p.path, p.channel) in
