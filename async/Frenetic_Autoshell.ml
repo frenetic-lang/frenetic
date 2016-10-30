@@ -238,8 +238,9 @@ module Parser = struct
       (symbol "load" >> source >>= fun s -> return ( CLoad s )) <|>
       (symbol "east" >> string_list >>= fun e -> return ( CEast e )) <|>
       (symbol "west" >> string_list >>= fun w -> return ( CWest w )) <|>
-      (symbol "path" >> many_chars_until any_char blank >>= fun src ->
-       blank >> many_chars_until any_char blank >>= fun dst ->
+      (symbol "path" >>
+       many_chars alphanum >>= fun src -> spaces >>
+       many_chars alphanum >>= fun dst ->
        return ( CPath (src, dst)))) >>=
     fun c -> return (Coronet c)
 
@@ -621,7 +622,7 @@ let coronet c = match c with
         match CoroPath.shortest_path net src' dst' with
         | Some p ->
           coronet_state.paths <- p::coronet_state.paths;
-          Ok (sprintf "Loaded [%s]\n" ( CoroPath.to_string p) )
+          Ok (sprintf "Path from %s to %s: [%s]\n" s d ( CoroPath.to_string p) )
         | None -> Error (sprintf "No path between %s and %s" s d )
     end
 
