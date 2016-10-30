@@ -123,6 +123,7 @@ module type NETWORK = sig
     exception InvalidPath of string
 
     (* Utility functions *)
+    val reverse : Topology.t -> t -> t
     val join  : t -> t -> t
     val start : t -> Topology.vertex
     val stop  : t -> Topology.vertex

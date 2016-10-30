@@ -126,6 +126,7 @@ module type NETWORK = sig
     exception InvalidPath of string
 
     (* Utility functions *)
+    val reverse : Topology.t -> t -> t
     val join  : t -> t -> t
     val start : t -> Topology.vertex
     val stop  : t -> Topology.vertex
@@ -211,7 +212,7 @@ struct
       let compare e1 e2 = Int.compare e1.id e2.id
       let hash e1 = Hashtbl.hash e1.id
       let equal e1 e2 = e1.id = e2.id
-      let to_string e = string_of_int e.id
+      let to_string e = Edge.to_string e.label
       let default =
         { id = 0;
           label = Edge.default;
@@ -465,6 +466,7 @@ struct
     exception InvalidPath of string
 
     (* Utility functions *)
+    val reverse : Topology.t -> t -> t
     val join  : t -> t -> t
     val start : t -> Topology.vertex
     val stop  : t -> Topology.vertex
@@ -514,6 +516,17 @@ struct
             (Vertex.to_string (fst (edge_dst edge)).VL.label )) in
       String.concat ~sep:"; " strs
 
+    let reverse net p =
+      List.fold p ~init:[] ~f:(fun acc edge ->
+          match Topology.inverse_edge net edge with
+          | Some e -> e::acc
+          | None ->
+            let (s,_,d) = edge in
+            let msg = sprintf "Cannot invert edge %s=>%s"
+                (Vertex.to_string s.VL.label)
+                (Vertex.to_string d.VL.label) in
+            raise (InvalidPath msg))
+
     let join p p' = match p,p' with
       | [], [] -> []
       | [], _ -> p'
@@ -541,17 +554,20 @@ struct
         | e1::e2::rest ->
           let v1 = fst ( Topology.edge_dst e1 ) in
           let v2 = fst ( Topology.edge_src e2 ) in
-          if v1 = v2 then v1::(aux rest)
+          if v1 = v2 then v1::(aux (e2::rest))
           else
-            let (_,l1,_) = e1 in
-            let (_,l2,_) = e2 in
-            let msg = sprintf "Edge %s and %s do not share a vertex"
-                        (EL.to_string l1) (EL.to_string l2) in
+            let (s1,l1,d1) = e1 in
+            let (s2,l2,d2) = e2 in
+            let msg = sprintf "Edge %s=>%s and %s=>%s do not share a vertex"
+                (Vertex.to_string s1.VL.label)
+                (Vertex.to_string d1.VL.label)
+                (Vertex.to_string s2.VL.label)
+                (Vertex.to_string d2.VL.label) in
             raise ( InvalidPath msg ) in
       match p with
       | [] -> []
       | [e] -> [ (fst ( Topology.edge_src e));(fst( Topology.edge_dst e)) ]
-      | hd::tl -> (fst (Topology.edge_src hd))::(aux tl)
+      | hd::tl -> (fst (Topology.edge_src hd))::(aux p)
 
     let from_vertexes net vs  : t =
       let rec aux vs = match vs with
@@ -563,7 +579,7 @@ struct
           [edge]
         | v1::v2::rest ->
           let edge = Topology.find_edge net v1 v2 in
-          edge::(aux rest)
+          edge::(aux ( v2::rest ))
       in
       aux vs
 
