@@ -41,6 +41,9 @@ module CoroNet : sig
                  ; across   : path option
                  }
 
+  (* A waypath connects transceiver ports on optical nodes on separate coasts
+     using a predetermined physical path. The `waypoints` are at least the
+     endpoints of the predetermined path. *)
   type waypath = { path : CoroPath.t
                  ; start : Topology.vertex * portId
                  ; stop  : Topology.vertex * portId

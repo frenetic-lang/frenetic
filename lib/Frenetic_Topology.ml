@@ -388,14 +388,20 @@ module CoroNet = struct
                 | Some p -> p);
 
             List.foldi ps ~init:(acc,ch) ~f:(fun i (acc,ch) path ->
+                (* These are the transceiver ports on optical nodes that
+                   connect to the edge packet nodes *)
                 let e_port = get_port ptbl' e_name in
                 let w_port = get_port ptbl' w_name in
                 let e' = (e, e_port) in
                 let w' = (w, w_port) in
+
+                (* Find the paths connecting the optical edge nodes to the
+                   predetermined disjoint physical paths*)
                 let start = CoroPath.start path in
                 let stop  = CoroPath.stop  path in
                 let prefix = CoroPath.shortest_path net e start in
                 let suffix = CoroPath.shortest_path net stop w in
+
                 match prefix, suffix with
                 | Some p, Some s ->
                   let path' = CoroPath.join p (CoroPath.join path s) in
@@ -418,14 +424,21 @@ module CoroNet = struct
     Hashtbl.Poly.fold wptbl ~init:[] ~f:(fun ~key:(s,d) ~data:wps pols ->
         List.fold2_exn wps preds ~init:pols ~f:(fun pols wp pred ->
             let open Frenetic_NetKAT in
+            (* The waypath gives the optical node endpoints of a fabric path *)
             let fsv, fspt = wp.start in
             let fdv, fdpt = wp.stop  in
+
+            (* Use the topology to find the packet switch and ports connected
+               the optical fabric endpoints *)
             let sedge = match Topology.next_hop net fsv fspt with
               | Some e -> e | None -> failwith "No src edge to connect fabric" in
             let dedge = match Topology.next_hop net fdv fdpt with
               | Some e -> e | None -> failwith "No dst edge to connect fabric" in
             let psv, psppt = Topology.edge_dst sedge in
             let pdv, pdppt = Topology.edge_dst dedge in
+
+            (* Generate a predicate using the packet switch and port, and the
+               provided predicate *)
             let pred' = Frenetic_NetKAT_Optimize.mk_big_and
                 [pred;
                  Test( Switch (Topology.vertex_to_id net psv));
