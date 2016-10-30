@@ -117,7 +117,8 @@ type synthesize =
   | SSMT
 
 type coronet =
-  | CLoad of source
+  | CLoadTopo of source
+  | CLoadPaths of source
   | CEast of string list
   | CWest of string list
   | CPath of string * string
@@ -235,7 +236,9 @@ module Parser = struct
   let coronet : (command, bytes list) MParser.t =
     symbol "coronet" >> (
       (symbol "synthesize" >> return CSynthesize) <|>
-      (symbol "load" >> source >>= fun s -> return ( CLoad s )) <|>
+      (symbol "load" >>
+       ((symbol "topo" >> source >>= fun s -> return ( CLoadTopo s )) <|>
+        (symbol "paths" >> source >>= fun s -> return ( CLoadPaths s )))) <|>
       (symbol "east" >> string_list >>= fun e -> return ( CEast e )) <|>
       (symbol "west" >> string_list >>= fun w -> return ( CWest w )) <|>
       (symbol "path" >>
@@ -539,9 +542,9 @@ let synthesize s : (string, string) Result.t =
   | _ -> Error "Edge compilation requires naive policy, fabric and topology"
 
 let coronet c = match c with
-  | CLoad ( String s ) -> Error "Coronet topologies must be loaded from files"
   (* TODO(basus): Allow coronet topologies to be loaded from strings as well *)
-  | CLoad ( Filename fn ) ->
+  | CLoadTopo ( String s ) -> Error "Coronet topologies must be loaded from files"
+  | CLoadTopo ( Filename fn ) ->
     let net,name_tbl,port_tbl = CoroNet.from_csv_file fn in
     let mn = CoroNet.Pretty.to_mininet ~prologue_file:"examples/linc-prologue.txt"
         ~link_class:( Some "LINCLink" ) net in
@@ -553,10 +556,28 @@ let coronet c = match c with
     coronet_state.network <- Some net; coronet_state.names <- name_tbl;
     coronet_state.ports <- port_tbl;
     Ok result
+
+  | CLoadPaths (String s ) -> Error "Coronet path list must be loaded from files"
+  | CLoadPaths ( Filename fn ) -> begin match coronet_state.network with
+      | None -> Error "Loading a path file requires loading a Coronet topology first"
+      | Some net ->
+        let channel = In_channel.create fn in
+        let paths = In_channel.fold_lines channel ~init:[] ~f:(fun acc line ->
+            let stops = String.split ~on:';' line in
+            let vertexes = List.map stops ~f:(fun n ->
+                let name = String.strip n in
+                let label = Hashtbl.find_exn coronet_state.names name in
+                CoroNet.Topology.vertex_of_label net label) in
+            let path = CoroNet.CoroPath.from_vertexes net vertexes in
+            path::acc) in
+        coronet_state.paths <- paths;
+        Ok "Loaded paths"
+    end
+
   | CEast e -> coronet_state.east <- e; Ok "East nodes loaded"
   | CWest w -> coronet_state.west <- w; Ok "West nodes loaded"
-  | CSynthesize ->
-    begin match coronet_state.network with
+
+  | CSynthesize -> begin match coronet_state.network with
       | None ->
         Error "Coronet synthesis requires loading a Coronet topology first"
       | Some net -> try
