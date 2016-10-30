@@ -400,7 +400,7 @@ module CoroNet = struct
                                          (show stop) (show w))))) in
     paths
 
-  let circuit_of_path net src sport dst dport (p:path) =
+  let circuit_of_path net ( src, sport ) ( dst, dport ) (p:path) =
     let open Frenetic_Circuit_NetKAT in
     let source = ( Topology.vertex_to_id net src, sport ) in
     let sink   = ( Topology.vertex_to_id net dst, dport ) in
@@ -415,7 +415,7 @@ module CoroNet = struct
 
   let circuits_of_pathset net sport dport ps =
     let (>>|) = Option.(>>|) in
-    let to_circuit = circuit_of_path net ps.src sport ps.dst dport in
+    let to_circuit = circuit_of_path net ( ps.src,sport ) ( ps.dst,dport ) in
     ( ps.shortest >>| to_circuit,
       ps.local    >>| to_circuit,
       ps.across   >>| to_circuit )

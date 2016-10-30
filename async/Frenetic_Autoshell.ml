@@ -562,32 +562,45 @@ let coronet c = match c with
           let names, ports, east, west, paths =
             ( coronet_state.names, coronet_state.ports,
               coronet_state.east, coronet_state.west, coronet_state.paths ) in
+          (* Attach hosts and packet switches to the optical switches *)
           let net = CoroNet.surround net names ports east west paths in
+          (* Connect bicoastal pairs of nodes using the specified paths *)
           let waypaths = CoroNet.path_connect net names ports east west paths in
           let config, z3 = List.foldi waypaths ~init:([],[]) ~f:(fun i (cs,zs) p ->
+              (* Calculate the Z3 representation of this path *)
+              let z3 = Frenetic_Synthesis.Z3.of_coropath
+                  ~path:(sprintf "path%d" i) net p.path in
+
+              (* Calculate the optical channel for implementing this path *)
               let path = (p.path, p.channel) in
+              let circuit = CoroNet.circuit_of_path net p.start p.stop path in
+
+              (* Record information about this path for later *)
               let sv, sp = p.start in
               let dv, dp = p.stop in
               let ssw = CoroNet.Topology.vertex_to_id net sv in
               let dsw = CoroNet.Topology.vertex_to_id net dv in
-              let circuit = CoroNet.circuit_of_path net sv sp dv dp path in
-              let z3 = Frenetic_Synthesis.Z3.of_coropath
-                  ~path:(sprintf "path%d" i) net p.path in
               PathTable.set coronet_state.circuits ~key:(ssw, sp, dsw, dp)
                 ~data:(path, circuit, z3);
-              (circuit::cs, z3::zs)) in
-          let policy = Frenetic_Circuit_NetKAT.local_policy_of_config config in
 
-          let result = String.concat ~sep:"\n" [
-              (Frenetic_Circuit_NetKAT.string_of_config config);
-              (string_of_policy policy) ] in
+              (circuit::cs, z3::zs)) in
+
+          let policy = Frenetic_Circuit_NetKAT.local_policy_of_config config in
+          let result = String.concat ~sep:"\n"
+              (  "\nOptical Channel Configuration"::
+                 (Frenetic_Circuit_NetKAT.string_of_config config)::
+                 "\nFabric Policy:"::
+                 (string_of_policy policy)::
+                 "\nZ3 Configuration"::
+                 z3  )in
           Ok result
+
         with
         | CoroNet.NonexistentNode s ->
           Error (sprintf "No node %s in topology\n" s)
         | CoroNet.CoroPath.UnjoinablePaths s ->
-          Error (sprintf "Unjoinable paths %s\n" s)
-    end
+          Error (sprintf "Unjoinable paths %s\n" s) end
+
   | CPath(s, d) -> begin match coronet_state.network with
       | None -> Error "Finding a path requires loading a Coronet topology"
       | Some net ->
