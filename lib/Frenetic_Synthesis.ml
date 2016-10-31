@@ -223,7 +223,7 @@ module Z3 = struct
   let of_restraint
       ?(topo="topo") ?(fields="fields")
       ?(fab="cfab") ?(pol="cpol") ?(flen=0) ?(plen=0)
-      policy fabric (r:restraint) : string =
+      (psrc, pdst) (fsrc, fdst) (r:restraint) : string =
     let open Dyad in
     let sname s = match s with
       | Policy -> pol
@@ -250,8 +250,8 @@ module Z3 = struct
         sprintf "(subset-of %s %d %s %d)" fab flen pol plen, asserts
       | Adjacent ->
         sprintf "(and (adjacent %s %s %s) (adjacent %s %s %s))"
-          topo (of_place (src policy)) (of_place (src fabric))
-          topo (of_place (dst policy)) (of_place (dst fabric)),
+          topo (of_place psrc) (of_place fsrc)
+          topo (of_place pdst) (of_place fdst),
         asserts
       | Tests (s,f) ->
         sprintf "(tests %s %d %s)" (sname s) (slen s) (of_field f), asserts
@@ -277,7 +277,8 @@ module Z3 = struct
     let pol_z3, pol_len = of_condition ~name:"cpol" (Dyad.condition policy) in
     let fab_z3, fab_len = of_condition ~name:"cfab" (Dyad.condition fabric) in
     let restraints = of_restraint ~plen:pol_len ~flen:fab_len
-        policy fabric restraint in
+        ((Dyad.src policy), (Dyad.dst policy))
+        ((Dyad.src fabric), (Dyad.dst fabric)) restraint in
     let lines = t_z3::pol_z3::fab_z3::restraints::["(check-sat)"] in
     String.concat ~sep:"\n\n" lines
 
@@ -454,7 +455,26 @@ module Coronet : FIBER_SOLVER = struct
     let egress  = seq ([ out_filter; Mod( Vlan strip_vlan ); modify; to_edge ]) in
     ingress, egress
 
-  let decide topo fabric policy = false
+  let decide topo fabric policy =
+    let open Z3 in
+    let open Frenetic_Topology.CoroNet.Waypath in
+    let places = TestsOnly(Fabric,
+                           ( Frenetic_Fdd.FieldSet.of_list [Switch; Location] )) in
+    let restraint = And(Adjacent, places) in
+    let t_z3 = of_topology ~name:"topo" topo in
+    let pol_z3, pol_len = of_condition ~name:"cpol" policy.condition in
+    let fab_z3, fab_len = of_condition ~name:"cfab" fabric.condition in
+    let fab_path = of_points ~path:"pfab" fabric.points in
+    let fab_plen = List.length fabric.points in
+    let restraints = of_restraint ~plen:pol_len ~flen:fab_len
+        (policy.src, policy.dst) (fabric.src, fabric.dst) restraint in
+    let waypoints = List.map policy.points ~f:(fun sw ->
+        sprintf "(assert (on-path %s %d %s))" "pfab" fab_plen (of_int64 sw)) in
+    let on_path = String.concat ~sep:"\n" waypoints in
+    let lines = t_z3::pol_z3::fab_z3::fab_path::restraints::on_path::["(check-sat)"] in
+    let problem = String.concat ~sep:"\n\n" lines in
+    false
+
 
   (** Just pick one possible fabric fiber at random from the set of options *)
   let choose topo fiber options = match options with
