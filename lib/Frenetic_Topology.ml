@@ -151,6 +151,8 @@ module CoroNet = struct
 
   type wptable = ((string * string), waypath list) Hashtbl.t
 
+  type fiber = Frenetic_Fabric.Dyad.t list * Topology.vertex list
+
   type policy = place * place * pred * Topology.vertex list
 
   let string_of_path (p,ch) =
@@ -476,4 +478,19 @@ module CoroNet = struct
       ps.local    >>| to_circuit,
       ps.across   >>| to_circuit )
 
+  let fiber_of_waypath net wp =
+    let open Frenetic_NetKAT in
+    let srcid = Topology.vertex_to_id net (fst wp.start) in
+    let dstid = Topology.vertex_to_id net (fst wp.stop) in
+    let src = (srcid, (snd wp.start)) in
+    let dst = (dstid, (snd wp.stop)) in
+    let condition = (And (Test (Switch srcid),
+                          (Test (Location (Physical (snd wp.start)))))) in
+    let action = [ Mod( Switch dstid );
+                   Mod( Location( Physical( snd wp.stop ))) ] in
+    let policy = Frenetic_NetKAT_Optimize.mk_big_seq
+        ( ( Filter condition )::action ) in
+    let dyad = Frenetic_Fabric.Dyad.of_policy policy in
+    (dyad, wp.waypoints)
+    
 end

@@ -55,6 +55,7 @@ module CoroNet : sig
 
   type wptable = ((string * string), waypath list) Hashtbl.t
 
+  type fiber = Frenetic_Fabric.Dyad.t list * Topology.vertex list
   type policy = place * place * pred * Topology.vertex list
 
   val string_of_path : path -> string
@@ -81,6 +82,8 @@ module CoroNet : sig
   val circuits_of_pathset : Topology.t ->
     Frenetic_NetKAT.portId -> Frenetic_NetKAT.portId ->
     pathset -> (circuit option * circuit option * circuit option)
+
+  val fiber_of_waypath : Topology.t -> waypath -> fiber
 
 end with type Topology.Vertex.t = CoroNode.t
      and type Topology.Edge.t = CoroLink.t

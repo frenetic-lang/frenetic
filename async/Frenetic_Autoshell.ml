@@ -591,13 +591,7 @@ let coronet c = match c with
           let waypaths,wptbl = CoroNet.path_connect net names ports east west paths in
 
           (* Generate the optical fabric based on the given paths *)
-          let config, z3 = List.foldi waypaths ~init:([],[]) ~f:(fun i (cs,zs) p ->
-              (* Calculate the Z3 representation of this path *)
-              let z3 = try
-                  Frenetic_Synthesis.Z3.of_coropath ~path:(sprintf "path%d" i) net p.path
-                with CoroNet.CoroPath.InvalidPath s ->
-                  sprintf "\n%s in\n %s" s (CoroNet.CoroPath.to_string p.path) in
-
+          let config = List.foldi waypaths ~init:[] ~f:(fun i cs p ->
               (* Calculate the optical channel for implementing this path *)
               let path = (p.path, p.channel) in
               let circuit = CoroNet.circuit_of_path net p.start p.stop path in
@@ -608,10 +602,10 @@ let coronet c = match c with
               let ssw = CoroNet.Topology.vertex_to_id net sv in
               let dsw = CoroNet.Topology.vertex_to_id net dv in
               PathTable.set coronet_state.circuits ~key:(ssw, sp, dsw, dp)
-                ~data:(path, circuit, z3);
+                ~data:(path, circuit, "");
 
-              (circuit::cs, z3::zs)) in
-          let fabric = Frenetic_Circuit_NetKAT.local_policy_of_config config in
+              circuit::cs) in
+          let local_fabric = Frenetic_Circuit_NetKAT.local_policy_of_config config in
 
           (* Generate user policies, using hardcoded predicates for now *)
           let join = Frenetic_NetKAT_Optimize.mk_big_and in
@@ -622,15 +616,16 @@ let coronet c = match c with
             join [ Test( EthType 0x0800); Test( IPProto 17) ]] in
           let policies = CoroNet.policies net wptbl preds in
 
+          (* Randomly permute the configuration and the policies so that
+             they're not lined up anymore. *)
+          let policies = List.permute policies in
+          let fibers = List.permute ( List.map waypaths ~f:( CoroNet.fiber_of_waypath net ) ) in
+
           let result = String.concat ~sep:"\n"
-              ( "\nOptical Channel Configuration"::
-                (Frenetic_Circuit_NetKAT.string_of_config config)::
-                "\nFabric Policy:"::
-                (string_of_policy fabric)::
-                "\nUser Policy"::
-                (* (string_of_policy policy):: *)
-                "\nZ3 Configuration"::
-                z3 ) in
+              [ "\nOptical Channel Configuration";
+                (Frenetic_Circuit_NetKAT.string_of_config config);
+                "\nFabric Policy:";
+                (string_of_policy local_fabric) ] in
           Ok result
 
         with
