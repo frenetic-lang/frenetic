@@ -420,6 +420,10 @@ module CoroNet = struct
     paths, wptbl
 
 
+  (* Construct dup-free policies that connect up packet switches connected to
+     the optical endpoints of waypaths, using the specified predicates. The
+     number of predicates should match the number of disjoint cross-country
+     physical paths. *)
   let policies (net:Topology.t) (wptbl:wptable) (preds:Frenetic_NetKAT.pred list) =
     Hashtbl.Poly.fold wptbl ~init:[] ~f:(fun ~key:(s,d) ~data:wps pols ->
         List.fold2_exn wps preds ~init:pols ~f:(fun pols wp pred ->
@@ -437,14 +441,16 @@ module CoroNet = struct
             let psv, psppt = Topology.edge_dst sedge in
             let pdv, pdppt = Topology.edge_dst dedge in
 
-            (* Generate a predicate using the packet switch and port, and the
-               provided predicate *)
+            (* Generate a entry predicate using the packet switch and one of the
+               provided predicates. Send traffic to the packet port on the other
+               end. Connect ports 0 because they are reservered for hosts. This
+               may need to be changed. *)
             let pred' = Frenetic_NetKAT_Optimize.mk_big_and
                 [pred;
                  Test( Switch (Topology.vertex_to_id net psv));
-                 Test( Location (Physical psppt) ) ] in
+                 Test( Location (Physical 0l) ) ] in
             let modify = [ Mod( Switch( Topology.vertex_to_id net pdv));
-                           Mod( Location( Physical pdppt)) ] in
+                           Mod( Location( Physical 0l)) ] in
             let policy = Frenetic_NetKAT_Optimize.mk_big_seq (( Filter pred')::modify ) in
             policy::pols
           ))
