@@ -27,15 +27,18 @@ type topology = {
 ; preds : (place, place) Hashtbl.t
 ; succs : (place, place) Hashtbl.t }
 
-type decider   = topology -> Dyad.t -> Dyad.t -> bool
-type chooser   = topology -> Dyad.t -> Dyad.t list -> Dyad.t
-type generator = topology -> (Dyad.t * Dyad.t) list -> (policy * policy)
+type 'a decider   = topology -> 'a -> 'a -> bool
+type 'a chooser   = topology -> 'a -> 'a list -> 'a
+type 'a generator = topology -> ('a * 'a) list -> (policy * policy)
 
 module type SOLVER = sig
-  val decide   : decider
-  val choose   : chooser
-  val generate : generator
+  type t
+  val decide   : t decider
+  val choose   : t chooser
+  val generate : t generator
 end
+
+module type DYAD_SOLVER = SOLVER with type t = Dyad.t
 
 module type SYNTH = sig
   val synthesize : policy -> policy -> policy -> policy
@@ -262,7 +265,7 @@ module Z3 = struct
     let cond, asserts = aux r [] in
     String.concat ~sep:"\n" (List.rev ( (sprintf "(assert %s)" cond)::asserts) )
 
-  let of_decision restraint topo policy fabric : string =
+  let of_dyad_decision restraint topo policy fabric : string =
     let t_z3 = of_topology ~name:"topo" topo in
     let pol_z3, pol_len = of_condition ~name:"cpol" (Dyad.condition policy) in
     let fab_z3, fab_len = of_condition ~name:"cfab" (Dyad.condition fabric) in
@@ -271,9 +274,9 @@ module Z3 = struct
     let lines = t_z3::pol_z3::fab_z3::restraints::["(check-sat)"] in
     String.concat ~sep:"\n\n" lines
 
-  let mk_decider ?(preamble="z3/preamble.z3") (r:restraint) : decider =
+  let mk_dyad_decider ?(preamble="z3/preamble.z3") (r:restraint) : Dyad.t decider =
     let decider restraint topo policy fabric : bool =
-      let decision = of_decision restraint topo policy fabric in
+      let decision = of_dyad_decision restraint topo policy fabric in
       let inc = In_channel.create preamble in
       let preamble = In_channel.input_all inc in
       In_channel.close inc;
@@ -288,18 +291,29 @@ module Z3 = struct
       | Some i -> false in
     decider r
 
-  let of_coropath ?(path="path") net p =
-    let vertices = CoroNet.CoroPath.to_vertexes p in
+  (* let of_coropath ?(path="path") net p = *)
+  (*   let vertices = CoroNet.CoroPath.to_vertexes p in *)
+  (*   let header = sprintf "(declare-const %s Path)" path in *)
+  (*   let asserts = List.mapi vertices ~f:(fun i v -> *)
+  (*       let node = CoroNet.Topology.vertex_to_label net v in *)
+  (*       let id = CoroNode.id node in *)
+  (*       sprintf "(assert (= (select %s %d) %Lu ))" path i id) in *)
+  (*   String.concat ~sep:"\n" ( header::asserts ) *)
+
+  let of_points ?(path="path") points =
     let header = sprintf "(declare-const %s Path)" path in
-    let asserts = List.mapi vertices ~f:(fun i v ->
-        let node = CoroNet.Topology.vertex_to_label net v in
-        let id = CoroNode.id node in
-        sprintf "(assert (= (select %s %d) %Lu ))" path i id) in
+    let asserts = List.mapi points ~f:(fun i p ->
+        let id = of_int64 p in
+        sprintf "(assert (= (select %s %d) %s ))" path i id) in
     String.concat ~sep:"\n" ( header::asserts )
+
 end
 
 
-module Generic : SOLVER = struct
+module Generic : DYAD_SOLVER = struct
+
+  type t = Dyad.t
+
   (** Functions for generating edge NetKAT programs from matched streams **)
   (* Given a policy stream and a fabric stream, generate edge policies to implement *)
   (* the policy stream using the fabric stream *)
@@ -355,7 +369,10 @@ module Generic : SOLVER = struct
     generate_tagged to_netkat topo pairs
 end
 
-module Optical : SOLVER = struct
+module Optical : DYAD_SOLVER = struct
+
+  type t = Dyad.t
+
   let to_netkat topo
     ((src,dst,cond,actions)) ((src',dst',cond',actions'))
     (tag:int): policy * policy =
@@ -382,7 +399,7 @@ module Optical : SOLVER = struct
 
 end
 
-module Make (S:SOLVER) = struct
+module MakeForDyads (S:SOLVER with type t = Dyad.t) = struct
   open S
 
   (** Core matching function *)

@@ -505,8 +505,8 @@ let synthesize s : (string, string) Result.t =
   let open Frenetic_Synthesis in
   Random.init 1337;
   begin match s with
-    | SGeneric -> Ok ( module Make(Generic) : SYNTH )
-    | SOptical -> Ok ( module Make(Optical) : SYNTH )
+    | SGeneric -> Ok ( module MakeForDyads(Generic) : SYNTH )
+    | SOptical -> Ok ( module MakeForDyads(Optical) : SYNTH )
     | SSMT ->
       (* This is just an example to test the synthesis code. Much of this needs
          to be parameterized. *)
@@ -514,8 +514,9 @@ let synthesize s : (string, string) Result.t =
       let places = TestsOnly(Fabric,
                              ( Frenetic_Fdd.FieldSet.of_list [Switch; Location] )) in
       let restraint = And(Adjacent, places) in
-      let decider = mk_decider restraint in
-      Ok ( module Make(struct
+      let decider = mk_dyad_decider restraint in
+      Ok ( module MakeForDyads(struct
+            type t = Fabric.Dyad.t
             let decide   = decider
             let choose   = Optical.choose
             let generate = Optical.generate
