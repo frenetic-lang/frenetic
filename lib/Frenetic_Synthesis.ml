@@ -9,6 +9,9 @@ module CoroNode = Frenetic_Topology.CoroNode
 module Fabric = Frenetic_Fabric
 module Dyad = Fabric.Dyad
 
+type place  = Fabric.place
+type fiber = Frenetic_Topology.CoroNet.Waypath.fiber
+
 let flatten = Frenetic_Util.flatten
 let union = Frenetic_NetKAT_Optimize.mk_big_union
 let seq   = Frenetic_NetKAT_Optimize.mk_big_seq
@@ -18,8 +21,7 @@ let compile_local =
 
 (** Essential types *)
 exception UnmatchedDyad of Dyad.t
-
-type place  = Fabric.place
+exception UnmatchedFiber of fiber
 
 (* TODO(basus): This needs to go into a better topology module *)
 type topology = {
@@ -39,9 +41,14 @@ module type SOLVER = sig
 end
 
 module type DYAD_SOLVER = SOLVER with type t = Dyad.t
+module type FIBER_SOLVER = SOLVER with type t = fiber
 
 module type SYNTH = sig
   val synthesize : policy -> policy -> policy -> policy
+end
+
+module type COROSYNTH = sig
+  val synthesize : fiber list -> fiber list -> policy -> policy
 end
 
 (* Pick n random elements from options *)
@@ -291,15 +298,6 @@ module Z3 = struct
       | Some i -> false in
     decider r
 
-  (* let of_coropath ?(path="path") net p = *)
-  (*   let vertices = CoroNet.CoroPath.to_vertexes p in *)
-  (*   let header = sprintf "(declare-const %s Path)" path in *)
-  (*   let asserts = List.mapi vertices ~f:(fun i v -> *)
-  (*       let node = CoroNet.Topology.vertex_to_label net v in *)
-  (*       let id = CoroNode.id node in *)
-  (*       sprintf "(assert (= (select %s %d) %Lu ))" path i id) in *)
-  (*   String.concat ~sep:"\n" ( header::asserts ) *)
-
   let of_points ?(path="path") points =
     let header = sprintf "(declare-const %s Path)" path in
     let asserts = List.mapi points ~f:(fun i p ->
@@ -433,6 +431,82 @@ module MakeForDyads (S:SOLVER with type t = Dyad.t) = struct
     let topology = {topo; preds; succs} in
     let ingress, egress = matching topology
         policy_streams fabric_streams in
+    Union(ingress, egress)
+
+end
+
+
+module Coronet : FIBER_SOLVER = struct
+
+  type t = fiber
+
+  let to_netkat topo pol fab
+      (tag:int): policy * policy =
+    let open Fabric.Condition in
+    let open Frenetic_Topology.CoroNet.Waypath in
+    let strip_vlan = 0xffff in
+    let to_fabric = go_to topo pol.src fab.src in
+    let to_edge   = Mod( Location (Physical (snd pol.dst))) in
+    let in_filter  = Filter (to_pred pol.condition) in
+    let out_filter = Filter (come_from topo fab.dst pol.dst) in
+    let modify = Frenetic_Fdd.Action.to_policy pol.action in
+    let ingress = seq ([ in_filter; Mod( Vlan tag ); to_fabric ]) in
+    let egress  = seq ([ out_filter; Mod( Vlan strip_vlan ); modify; to_edge ]) in
+    ingress, egress
+
+  let decide topo fabric policy = false
+
+  (** Just pick one possible fabric fiber at random from the set of options *)
+  let choose topo fiber options = match options with
+  | [] -> raise ( UnmatchedFiber fiber )
+  | [d] -> d
+  | options ->
+    let opts = Array.of_list options in
+    let index = Random.int (Array.length opts) in
+    opts.(index)
+
+  let generate topo pairs : policy * policy =
+    let tagged to_netkat topo pairs =
+      let ins, outs, _ = List.fold_left pairs ~init:([],[], 0)
+          ~f:(fun (ins, outs, tag) (fiber, pick) ->
+              let ins', outs' = to_netkat topo fiber pick tag in
+              (ins'::ins, outs'::outs, tag+1)) in
+      (union ins, union outs) in
+    tagged to_netkat topo pairs
+
+end
+
+module MakeForFibers (S:SOLVER with type t = fiber) = struct
+
+  (** Core matching function *)
+  let matching topology (from_policy:S.t list) (from_fabric:S.t list)
+    : policy * policy =
+
+    (* For each policy fiber, find the set of fabric fibers that could be used
+       to carry it. This is done using the `decide` function from the SOLVER
+       that allows the caller to specify what criteria are important, perhaps
+       according to the properties of the fabric. *)
+    let partitions = List.fold_left from_policy ~init:[]
+        ~f:(fun acc fiber ->
+            let fibers = List.filter from_fabric ~f:(S.decide topology fiber) in
+            let partition = (fiber, fibers) in
+            (partition::acc)) in
+
+    (* Pick a smaller set of fabric fibers to actually carry the policy fibers *)
+    let pairs =
+      List.fold_left partitions ~init:[] ~f:(fun acc (fiber, opts) ->
+          let pick = S.choose topology fiber opts in
+          (fiber, pick)::acc) in
+
+    S.generate topology pairs
+
+
+  let synthesize (policy:S.t list) (fabric:S.t list) (topo:policy) =
+    let preds = Fabric.Topo.predecessors topo in
+    let succs = Fabric.Topo.successors topo in
+    let topology = {topo; preds; succs} in
+    let ingress, egress = matching topology
+        policy fabric in
     Union(ingress, egress)
 
 end

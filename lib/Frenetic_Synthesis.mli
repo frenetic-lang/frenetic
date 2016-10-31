@@ -3,7 +3,10 @@ open Frenetic_NetKAT
 open Frenetic_OpenFlow
 open Frenetic_Fabric
 
+type fiber = Frenetic_Topology.CoroNet.Waypath.fiber
+
 exception UnmatchedDyad of Dyad.t
+exception UnmatchedFiber of fiber
 
 type topology = {
   topo  : policy
@@ -22,11 +25,15 @@ module type SOLVER = sig
 end
 
 module type DYAD_SOLVER = SOLVER with type t = Dyad.t
+module type FIBER_SOLVER = SOLVER with type t = fiber
 
 module type SYNTH = sig
   val synthesize : policy -> policy -> policy -> policy
 end
 
+module type COROSYNTH = sig
+  val synthesize : fiber list -> fiber list -> policy -> policy
+end
 
 module Z3 : sig
 
@@ -51,6 +58,8 @@ module Z3 : sig
 end
 
 module MakeForDyads(S:DYAD_SOLVER) : SYNTH
+module MakeForFibers(S:FIBER_SOLVER) : COROSYNTH
 
 module Optical : DYAD_SOLVER
 module Generic : DYAD_SOLVER
+module Coronet : FIBER_SOLVER
