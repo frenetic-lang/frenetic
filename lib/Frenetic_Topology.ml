@@ -8,6 +8,8 @@ module Net = Frenetic_NetKAT_Net.Net
 module SDN = Frenetic_OpenFlow
 type circuit = Frenetic_Circuit_NetKAT.circuit
 type portId = Frenetic_NetKAT.portId
+type place = Frenetic_Fabric.place
+type pred = Frenetic_NetKAT.pred
 
 let switch_ids (t : Net.Topology.t) : SDN.switchId list =
   let open Net.Topology in
@@ -146,7 +148,10 @@ module CoroNet = struct
                  ; waypoints : Topology.vertex list
                  ; channel : int
                  }
+
   type wptable = ((string * string), waypath list) Hashtbl.t
+
+  type policy = place * place * pred * Topology.vertex list
 
   let string_of_path (p,ch) =
     sprintf "%d@[%s]" ch ( CoroPath.to_string p )
@@ -424,10 +429,10 @@ module CoroNet = struct
      the optical endpoints of waypaths, using the specified predicates. The
      number of predicates should match the number of disjoint cross-country
      physical paths. *)
-  let policies (net:Topology.t) (wptbl:wptable) (preds:Frenetic_NetKAT.pred list) =
+  let policies (net:Topology.t) (wptbl:wptable) (preds:Frenetic_NetKAT.pred list)
+    : policy list =
     Hashtbl.Poly.fold wptbl ~init:[] ~f:(fun ~key:(s,d) ~data:wps pols ->
         List.fold2_exn wps preds ~init:pols ~f:(fun pols wp pred ->
-            let open Frenetic_NetKAT in
             (* The waypath gives the optical node endpoints of a fabric path *)
             let fsv, fspt = wp.start in
             let fdv, fdpt = wp.stop  in
@@ -440,18 +445,14 @@ module CoroNet = struct
               | Some e -> e | None -> failwith "No dst edge to connect fabric" in
             let psv, psppt = Topology.edge_dst sedge in
             let pdv, pdppt = Topology.edge_dst dedge in
+            let srcid = Topology.vertex_to_id net psv in
+            let dstid = Topology.vertex_to_id net pdv in
 
-            (* Generate a entry predicate using the packet switch and one of the
-               provided predicates. Send traffic to the packet port on the other
-               end. Connect ports 0 because they are reservered for hosts. This
-               may need to be changed. *)
-            let pred' = Frenetic_NetKAT_Optimize.mk_big_and
-                [pred;
-                 Test( Switch (Topology.vertex_to_id net psv));
-                 Test( Location (Physical 0l) ) ] in
-            let modify = [ Mod( Switch( Topology.vertex_to_id net pdv));
-                           Mod( Location( Physical 0l)) ] in
-            let policy = Frenetic_NetKAT_Optimize.mk_big_seq (( Filter pred')::modify ) in
+            (* The policy is composed of the packet switches as source and
+               destination, the supplied NetKAT predicate, and the list of
+               waypoints that define this waypath. Connect ports 0 because they
+               are reservered for hosts. This may need to be changed. *)
+            let policy = ((srcid, 0l), (dstid, 0l), pred, wp.waypoints) in
             policy::pols
           ))
 

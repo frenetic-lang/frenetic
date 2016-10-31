@@ -620,8 +620,7 @@ let coronet c = match c with
             join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 80) ];
             join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 443) ];
             join [ Test( EthType 0x0800); Test( IPProto 17) ]] in
-          let policy = CoroNet.policies net wptbl preds |>
-                       Frenetic_NetKAT_Optimize.mk_big_union in
+          let policies = CoroNet.policies net wptbl preds in
 
           let result = String.concat ~sep:"\n"
               ( "\nOptical Channel Configuration"::
@@ -629,7 +628,7 @@ let coronet c = match c with
                 "\nFabric Policy:"::
                 (string_of_policy fabric)::
                 "\nUser Policy"::
-                (string_of_policy policy)::
+                (* (string_of_policy policy):: *)
                 "\nZ3 Configuration"::
                 z3 ) in
           Ok result

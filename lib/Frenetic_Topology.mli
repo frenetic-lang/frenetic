@@ -25,6 +25,8 @@ type name_table = (string, CoroNode.t) Hashtbl.t
 type port_table = (string, SDN.portId) Hashtbl.t
 type circuit = Frenetic_Circuit_NetKAT.circuit
 type portId = Frenetic_NetKAT.portId
+type place = Frenetic_Fabric.place
+type pred = Frenetic_NetKAT.pred
 
 module CoroNet : sig
   include Frenetic_Network.NETWORK
@@ -53,6 +55,8 @@ module CoroNet : sig
 
   type wptable = ((string * string), waypath list) Hashtbl.t
 
+  type policy = place * place * pred * Topology.vertex list
+
   val string_of_path : path -> string
   val string_of_pathset : Topology.t -> pathset -> string
 
@@ -67,7 +71,7 @@ module CoroNet : sig
     ( waypath list * wptable )
 
   val policies : Topology.t -> wptable -> Frenetic_NetKAT.pred list ->
-    Frenetic_NetKAT.policy list
+    policy list
 
   val circuit_of_path : Topology.t ->
     ( Topology.vertex * Frenetic_NetKAT.portId ) ->
