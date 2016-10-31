@@ -7,6 +7,7 @@ open Core.Std
 module Net = Frenetic_NetKAT_Net.Net
 module SDN = Frenetic_OpenFlow
 type circuit = Frenetic_Circuit_NetKAT.circuit
+type switchId = Frenetic_NetKAT.switchId
 type portId = Frenetic_NetKAT.portId
 type place = Frenetic_Fabric.place
 type pred = Frenetic_NetKAT.pred
@@ -141,20 +142,6 @@ module CoroNet = struct
                  ; local    : path option
                  ; across   : path option
                  }
-
-  type waypath = { path : CoroPath.t
-                 ; start : Topology.vertex * portId
-                 ; stop  : Topology.vertex * portId
-                 ; waypoints : Topology.vertex list
-                 ; channel : int
-                 }
-
-  type wptable = ((string * string), waypath list) Hashtbl.t
-
-  type fiber = Frenetic_Fabric.Dyad.t list * Topology.vertex list
-
-  type policy = place * place * pred * Topology.vertex list
-
   let string_of_path (p,ch) =
     sprintf "%d@[%s]" ch ( CoroPath.to_string p )
 
@@ -367,96 +354,204 @@ module CoroNet = struct
             ( etow::wtoe::acc, ch+6 ))) in
     paths
 
-  (* Asumme that the cross country paths are east to west *)
-  let path_connect (net:Topology.t) (ntbl:name_table) (ptbl:port_table)
-      (e:string list) (w:string list) (ps:CoroPath.t list) =
-    let module VS = Topology.VertexSet in
-    let show = Topology.vertex_to_string net in
-    let east = List.fold e ~init:VS.empty ~f:(fun acc name ->
-        let v = find_vertex net ntbl name in
-        VS.add acc v) in
-    let west = List.fold w ~init:VS.empty ~f:(fun acc name ->
-        let v = find_vertex net ntbl name in
-        VS.add acc v) in
+  module Waypath = struct
 
-    let wptbl = Hashtbl.Poly.create ~size:((List.length e) * (List.length w)) () in
-    let ptbl' = String.Table.create ~size:(String.Table.length ptbl) () in
-    (* This could be optimized by precomputing the prefix and suffixes *)
-    let paths,_ = VS.fold east ~init:([],1) ~f:(fun (acc, ch) e ->
-        let e_name = show e in
-        String.Table.update ptbl' e_name ~f:(fun popt -> match popt with
-                | None -> ( String.Table.find_exn ptbl e_name )
-                | Some p -> p);
+    type t = { start : Topology.vertex * switchId * portId
+             ; stop  : Topology.vertex * switchId * portId
+             ; waypoints : Topology.vertex list
+             ; path : CoroPath.t
+             ; channel : int
+             }
 
-        VS.fold west ~init:(acc,ch) ~f:(fun (acc,ch) w ->
-            let w_name = show w in
-            String.Table.update ptbl' w_name ~f:(fun popt -> match popt with
-                | None -> ( String.Table.find_exn ptbl w_name)
-                | Some p -> p);
+    type fiber = { src : place
+                 ; dst : place
+                 ; condition : Frenetic_Fabric.Condition.t
+                 ; action : Frenetic_Fdd.Action.t
+                 ; points : switchId list
+                 }
 
-            List.foldi ps ~init:(acc,ch) ~f:(fun i (acc,ch) path ->
-                (* These are the transceiver ports on optical nodes that
-                   connect to the edge packet nodes *)
-                let e_port = get_port ptbl' e_name in
-                let w_port = get_port ptbl' w_name in
-                let e' = (e, e_port) in
-                let w' = (w, w_port) in
+    type endtable = ((string * string), t list) Hashtbl.t
 
-                (* Find the paths connecting the optical edge nodes to the
-                   predetermined disjoint physical paths*)
-                let start = CoroPath.start path in
-                let stop  = CoroPath.stop  path in
-                let prefix = CoroPath.shortest_path net e start in
-                let suffix = CoroPath.shortest_path net stop w in
+    let places wp =
+      let _,ssw,spt = wp.start in
+      let _,dsw,dpt = wp.stop in
+      ((ssw,spt), (dsw,dpt))
 
-                match prefix, suffix with
-                | Some p, Some s ->
-                  let path' = CoroPath.join p (CoroPath.join path s) in
-                  let rpath' = CoroPath.reverse net path' in
-                  let waypath = { path = path'; start = e'; stop = w';
-                                  waypoints = [ start; stop ]; channel = ch } in
-                  let waypath' = { path = rpath'; start = w'; stop = e';
-                                   waypoints = [ stop; start ]; channel = ch } in
-                  Hashtbl.Poly.add_multi wptbl (e_name, w_name) waypath;
-                  Hashtbl.Poly.add_multi wptbl (w_name, e_name) waypath';
-                  (waypath::waypath'::acc, succ ch)
-                | None, _ -> failwith (sprintf "No path between %s and %s"
-                                         (show e) (show start))
-                | _, None -> failwith (sprintf "No path between %s and %s"
-                                         (show stop) (show w))))) in
-    paths, wptbl
+    let vertexes wp =
+      let sv,_,_ = wp.start in
+      let dv,_,_ = wp.stop in
+      (dv,sv)
+
+    (* Asumme that the cross country paths are east to west *)
+    let of_coronet (net:Topology.t) (ntbl:name_table) (ptbl:port_table)
+        (e:string list) (w:string list) (ps:CoroPath.t list) =
+      let module VS = Topology.VertexSet in
+      let show = Topology.vertex_to_string net in
+      let east = List.fold e ~init:VS.empty ~f:(fun acc name ->
+          let v = find_vertex net ntbl name in
+          VS.add acc v) in
+      let west = List.fold w ~init:VS.empty ~f:(fun acc name ->
+          let v = find_vertex net ntbl name in
+          VS.add acc v) in
+
+      let wptbl = Hashtbl.Poly.create ~size:((List.length e) * (List.length w)) () in
+      let ptbl' = String.Table.create ~size:(String.Table.length ptbl) () in
+      (* This could be optimized by precomputing the prefix and suffixes *)
+      let paths,_ = VS.fold east ~init:([],1) ~f:(fun (acc, ch) e ->
+          let e_name = show e in
+          String.Table.update ptbl' e_name ~f:(fun popt -> match popt with
+              | None -> ( String.Table.find_exn ptbl e_name )
+              | Some p -> p);
+
+          VS.fold west ~init:(acc,ch) ~f:(fun (acc,ch) w ->
+              let w_name = show w in
+              String.Table.update ptbl' w_name ~f:(fun popt -> match popt with
+                  | None -> ( String.Table.find_exn ptbl w_name)
+                  | Some p -> p);
+
+              List.foldi ps ~init:(acc,ch) ~f:(fun i (acc,ch) path ->
+                  (* These are the transceiver ports on optical nodes that
+                     connect to the edge packet nodes *)
+                  let e_port = get_port ptbl' e_name in
+                  let w_port = get_port ptbl' w_name in
+                  let e' = (e, Topology.vertex_to_id net e, e_port) in
+                  let w' = (w, Topology.vertex_to_id net w, w_port) in
+
+                  (* Find the paths connecting the optical edge nodes to the
+                     predetermined disjoint physical paths*)
+                  let start = CoroPath.start path in
+                  let stop  = CoroPath.stop  path in
+                  let prefix = CoroPath.shortest_path net e start in
+                  let suffix = CoroPath.shortest_path net stop w in
+
+                  match prefix, suffix with
+                  | Some p, Some s ->
+                    let path' = CoroPath.join p (CoroPath.join path s) in
+                    let rpath' = CoroPath.reverse net path' in
+                    let waypath = { path = path'; start = e'; stop = w';
+                                    waypoints = [ start; stop ]; channel = ch } in
+                    let waypath' = { path = rpath'; start = w'; stop = e';
+                                     waypoints = [ stop; start ]; channel = ch } in
+                    Hashtbl.Poly.add_multi wptbl (e_name, w_name) waypath;
+                    Hashtbl.Poly.add_multi wptbl (w_name, e_name) waypath';
+                    (waypath::waypath'::acc, succ ch)
+                  | None, _ -> failwith (sprintf "No path between %s and %s"
+                                           (show e) (show start))
+                  | _, None -> failwith (sprintf "No path between %s and %s"
+                                           (show stop) (show w))))) in
+      paths, wptbl
+
+    let to_circuit wp net =
+      let open Frenetic_Circuit_NetKAT in
+      let source,sink = places wp in
+      let path = List.map wp.path ~f:(fun edge ->
+          let sv,spt = Topology.edge_src edge in
+          let ssw    = (Topology.vertex_to_id net sv) in
+          let dv,dpt = Topology.edge_dst edge in
+          let dsw    = (Topology.vertex_to_id net dv) in
+          (ssw,spt,dsw,dpt)) in
+      let channel = wp.channel in
+      { source; sink; path; channel }
+
+    let to_policy wp net pred =
+      (* Use the topology to find the packet switch and ports connected the
+         optical fabric endpoints *)
+      let open Frenetic_NetKAT in
+      let fsv,_,fspt = wp.start in
+      let fdv, _, fdpt = wp.stop  in
+      let sedge = match Topology.next_hop net fsv fspt with
+        | Some e -> e | None -> failwith "No src edge to connect fabric" in
+      let dedge = match Topology.next_hop net fdv fdpt with
+        | Some e -> e | None -> failwith "No dst edge to connect fabric" in
+      let psv, psppt = Topology.edge_dst sedge in
+      let pdv, pdppt = Topology.edge_dst dedge in
+      let srcid = Topology.vertex_to_id net psv in
+      let dstid = Topology.vertex_to_id net pdv in
+
+      (* The policy is composed of the packet switches as source and
+         destination, the supplied NetKAT predicate, and the list of waypoints that
+         define this waypath. Connect ports 0 because they are reservered for
+         hosts. This may need to be changed. *)
+      let condition = Frenetic_NetKAT_Optimize.mk_big_and
+          [ pred; Test (Switch srcid); Test (Location (Physical 0l)) ] in
+      let action = [ Mod( Switch dstid );
+                     Mod( Location( Physical( 0l))) ] in
+      Frenetic_NetKAT_Optimize.mk_big_seq
+        ( ( Filter condition )::action )
 
 
-  (* Construct dup-free policies that connect up packet switches connected to
-     the optical endpoints of waypaths, using the specified predicates. The
-     number of predicates should match the number of disjoint cross-country
-     physical paths. *)
-  let policies (net:Topology.t) (wptbl:wptable) (preds:Frenetic_NetKAT.pred list)
-    : policy list =
-    Hashtbl.Poly.fold wptbl ~init:[] ~f:(fun ~key:(s,d) ~data:wps pols ->
-        List.fold2_exn wps preds ~init:pols ~f:(fun pols wp pred ->
-            (* The waypath gives the optical node endpoints of a fabric path *)
-            let fsv, fspt = wp.start in
-            let fdv, fdpt = wp.stop  in
+    (* Construct dup-free policies that connect up packet switches connected to
+       the optical endpoints of waypaths, using the specified predicates. The
+       number of predicates should match the number of disjoint cross-country
+       physical paths. *)
+    let to_policies wptbl net preds =
+      Hashtbl.Poly.fold wptbl ~init:[] ~f:(fun ~key:(s,d) ~data:wps pols ->
+          List.fold2_exn wps preds ~init:pols ~f:(fun pols wp pred ->
+              let policy = to_policy wp net pred in
+              policy::pols))
 
-            (* Use the topology to find the packet switch and ports connected
-               the optical fabric endpoints *)
-            let sedge = match Topology.next_hop net fsv fspt with
-              | Some e -> e | None -> failwith "No src edge to connect fabric" in
-            let dedge = match Topology.next_hop net fdv fdpt with
-              | Some e -> e | None -> failwith "No dst edge to connect fabric" in
-            let psv, psppt = Topology.edge_dst sedge in
-            let pdv, pdppt = Topology.edge_dst dedge in
-            let srcid = Topology.vertex_to_id net psv in
-            let dstid = Topology.vertex_to_id net pdv in
+    let to_fab wp net =
+      let open Frenetic_NetKAT in
+      let _, srcid, srcpt = wp.start in
+      let _, dstid, dstpt = wp.stop in
+      let condition = (And (Test (Switch srcid),
+                            (Test (Location (Physical srcpt))))) in
+      let action = [ Mod( Switch dstid );
+                     Mod( Location( Physical( dstpt))) ] in
+      let policy = Frenetic_NetKAT_Optimize.mk_big_seq
+          ( ( Filter condition )::action ) in
+      let dyads = Frenetic_Fabric.Dyad.of_policy policy in
+      let points = List.map ( CoroPath.to_vertexes wp.path )
+          ~f:(Topology.vertex_to_id net) in
+      List.map dyads ~f:(fun d ->
+          let src, dst, condition, action = d in
+          { src; dst; condition; action; points })
 
-            (* The policy is composed of the packet switches as source and
-               destination, the supplied NetKAT predicate, and the list of
-               waypoints that define this waypath. Connect ports 0 because they
-               are reservered for hosts. This may need to be changed. *)
-            let policy = ((srcid, 0l), (dstid, 0l), pred, wp.waypoints) in
-            policy::pols
-          ))
+    let to_fabric_fibers wps net =
+      List.fold wps ~init:[] ~f:(fun acc wp ->
+          let dyads = (to_fab wp net) in
+          List.fold dyads ~init:acc ~f:(fun acc dyad ->
+          if Frenetic_Fdd.Action.is_zero dyad.action then acc else dyad::acc))
+
+    let to_pol wp net pred =
+      (* Use the topology to find the packet switch and ports connected the
+         optical fabric endpoints *)
+      let open Frenetic_NetKAT in
+      let fsv,_,fspt = wp.start in
+      let fdv, _, fdpt = wp.stop  in
+      let sedge = match Topology.next_hop net fsv fspt with
+        | Some e -> e | None -> failwith "No src edge to connect fabric" in
+      let dedge = match Topology.next_hop net fdv fdpt with
+        | Some e -> e | None -> failwith "No dst edge to connect fabric" in
+      let psv, psppt = Topology.edge_dst sedge in
+      let pdv, pdppt = Topology.edge_dst dedge in
+      let srcid = Topology.vertex_to_id net psv in
+      let dstid = Topology.vertex_to_id net pdv in
+
+      (* The policy is composed of the packet switches as source and
+         destination, the supplied NetKAT predicate, and the list of waypoints that
+         define this waypath. Connect ports 0 because they are reservered for
+         hosts. This may need to be changed. *)
+      let condition = Frenetic_NetKAT_Optimize.mk_big_and
+          [ pred; Test (Switch srcid); Test (Location (Physical 0l)) ] in
+      let action = [ Mod( Switch dstid );
+                     Mod( Location( Physical( 0l))) ] in
+      let policy = Frenetic_NetKAT_Optimize.mk_big_seq
+          ( ( Filter condition )::action ) in
+      let dyads = Frenetic_Fabric.Dyad.of_policy policy in
+      let points = List.map wp.waypoints ~f:(Topology.vertex_to_id net) in
+      List.map dyads ~f:(fun d ->
+          let src, dst, condition, action = d in
+          { src; dst; condition; action; points })
+
+    let to_policy_fibers wptbl net preds =
+      Hashtbl.Poly.fold wptbl ~init:[] ~f:(fun ~key:(s,d) ~data:wps pols ->
+          List.fold2_exn wps preds ~init:pols ~f:(fun acc wp pred ->
+              let dyads = (to_pol wp net pred) in
+              List.fold dyads ~init:acc ~f:(fun acc dyad ->
+                  if Frenetic_Fdd.Action.is_zero dyad.action then acc else dyad::acc)))
+
+  end
 
   let circuit_of_path net ( src, sport ) ( dst, dport ) (p:path) =
     let open Frenetic_Circuit_NetKAT in
@@ -478,19 +573,4 @@ module CoroNet = struct
       ps.local    >>| to_circuit,
       ps.across   >>| to_circuit )
 
-  let fiber_of_waypath net wp =
-    let open Frenetic_NetKAT in
-    let srcid = Topology.vertex_to_id net (fst wp.start) in
-    let dstid = Topology.vertex_to_id net (fst wp.stop) in
-    let src = (srcid, (snd wp.start)) in
-    let dst = (dstid, (snd wp.stop)) in
-    let condition = (And (Test (Switch srcid),
-                          (Test (Location (Physical (snd wp.start)))))) in
-    let action = [ Mod( Switch dstid );
-                   Mod( Location( Physical( snd wp.stop ))) ] in
-    let policy = Frenetic_NetKAT_Optimize.mk_big_seq
-        ( ( Filter condition )::action ) in
-    let dyad = Frenetic_Fabric.Dyad.of_policy policy in
-    (dyad, wp.waypoints)
-    
 end

@@ -24,6 +24,7 @@ module Distance : Frenetic_Network.WEIGHT
 type name_table = (string, CoroNode.t) Hashtbl.t
 type port_table = (string, SDN.portId) Hashtbl.t
 type circuit = Frenetic_Circuit_NetKAT.circuit
+type switchId = Frenetic_NetKAT.switchId
 type portId = Frenetic_NetKAT.portId
 type place = Frenetic_Fabric.place
 type pred = Frenetic_NetKAT.pred
@@ -43,20 +44,44 @@ module CoroNet : sig
                  ; across   : path option
                  }
 
-  (* A waypath connects transceiver ports on optical nodes on separate coasts
-     using a predetermined physical path. The `waypoints` are at least the
-     endpoints of the predetermined path. *)
-  type waypath = { path : CoroPath.t
-                 ; start : Topology.vertex * portId
-                 ; stop  : Topology.vertex * portId
-                 ; waypoints : Topology.vertex list
-                 ; channel : int
+  module Waypath : sig
+
+    (* A waypath connects transceiver ports on optical nodes on separate coasts
+       using a predetermined physical path. The `waypoints` are at least the
+       endpoints of the predetermined path. *)
+    type t = { start : Topology.vertex * switchId * portId
+             ; stop  : Topology.vertex * switchId * portId
+             ; waypoints : Topology.vertex list
+             ; path : CoroPath.t
+             ; channel : int
+             }
+
+    type fiber = { src : place
+                 ; dst : place
+                 ; condition : Frenetic_Fabric.Condition.t
+                 ; action : Frenetic_Fdd.Action.t
+                 ; points : switchId list
                  }
 
-  type wptable = ((string * string), waypath list) Hashtbl.t
+    type endtable = ((string * string), t list) Hashtbl.t
 
-  type fiber = Frenetic_Fabric.Dyad.t list * Topology.vertex list
-  type policy = place * place * pred * Topology.vertex list
+    val places : t -> place * place
+    val vertexes : t -> Topology.vertex * Topology.vertex
+
+    val of_coronet : Topology.t -> name_table -> port_table ->
+      string list -> string list -> CoroPath.t list ->
+      ( t list * endtable )
+
+    val to_circuit : t -> Topology.t -> circuit
+
+    val to_policy : t -> Topology.t -> pred -> Frenetic_NetKAT.policy
+    val to_policies : endtable -> Topology.t -> pred list ->
+      Frenetic_NetKAT.policy list
+
+    val to_fabric_fibers : t list -> Topology.t -> fiber list
+    val to_policy_fibers : endtable -> Topology.t -> pred list -> fiber list
+
+  end
 
   val string_of_path : path -> string
   val string_of_pathset : Topology.t -> pathset -> string
@@ -67,12 +92,6 @@ module CoroNet : sig
 
   val cross_connect : Topology.t -> name_table -> string list -> string list ->
     pathset list
-  val path_connect : Topology.t -> name_table -> port_table ->
-    string list -> string list -> CoroPath.t list ->
-    ( waypath list * wptable )
-
-  val policies : Topology.t -> wptable -> Frenetic_NetKAT.pred list ->
-    policy list
 
   val circuit_of_path : Topology.t ->
     ( Topology.vertex * Frenetic_NetKAT.portId ) ->
@@ -83,7 +102,6 @@ module CoroNet : sig
     Frenetic_NetKAT.portId -> Frenetic_NetKAT.portId ->
     pathset -> (circuit option * circuit option * circuit option)
 
-  val fiber_of_waypath : Topology.t -> waypath -> fiber
 
 end with type Topology.Vertex.t = CoroNode.t
      and type Topology.Edge.t = CoroLink.t

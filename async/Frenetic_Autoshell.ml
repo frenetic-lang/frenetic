@@ -588,24 +588,12 @@ let coronet c = match c with
           (* Attach hosts and packet switches to the optical switches *)
           let net = CoroNet.surround net names ports east west paths in
           (* Connect bicoastal pairs of nodes using the specified paths *)
-          let waypaths,wptbl = CoroNet.path_connect net names ports east west paths in
+          let waypaths,wptbl = CoroNet.Waypath.of_coronet net names ports east west paths in
 
           (* Generate the optical fabric based on the given paths *)
-          let config = List.foldi waypaths ~init:[] ~f:(fun i cs p ->
-              (* Calculate the optical channel for implementing this path *)
-              let path = (p.path, p.channel) in
-              let circuit = CoroNet.circuit_of_path net p.start p.stop path in
-
-              (* Record information about this path for later *)
-              let sv, sp = p.start in
-              let dv, dp = p.stop in
-              let ssw = CoroNet.Topology.vertex_to_id net sv in
-              let dsw = CoroNet.Topology.vertex_to_id net dv in
-              PathTable.set coronet_state.circuits ~key:(ssw, sp, dsw, dp)
-                ~data:(path, circuit, "");
-
-              circuit::cs) in
-          let local_fabric = Frenetic_Circuit_NetKAT.local_policy_of_config config in
+          let circuits = List.map waypaths ~f:(fun wp ->
+              CoroNet.Waypath.to_circuit wp net ) in
+          let fabric = Frenetic_Circuit_NetKAT.local_policy_of_config circuits in
 
           (* Generate user policies, using hardcoded predicates for now *)
           let join = Frenetic_NetKAT_Optimize.mk_big_and in
@@ -614,18 +602,19 @@ let coronet c = match c with
             join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 80) ];
             join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 443) ];
             join [ Test( EthType 0x0800); Test( IPProto 17) ]] in
-          let policies = CoroNet.policies net wptbl preds in
+          let policies = CoroNet.Waypath.to_policies wptbl net preds in
 
-          (* Randomly permute the configuration and the policies so that
-             they're not lined up anymore. *)
-          let policies = List.permute policies in
-          let fibers = List.permute ( List.map waypaths ~f:( CoroNet.fiber_of_waypath net ) ) in
+          (* Generate the fibers to be passed to the synthesis backend *)
+          let fsfabric = CoroNet.Waypath.to_fabric_fibers waypaths net in
+          let fspolicy = CoroNet.Waypath.to_policy_fibers wptbl net preds in
 
           let result = String.concat ~sep:"\n"
               [ "\nOptical Channel Configuration";
-                (Frenetic_Circuit_NetKAT.string_of_config config);
-                "\nFabric Policy:";
-                (string_of_policy local_fabric) ] in
+                (Frenetic_Circuit_NetKAT.string_of_config circuits);
+                "\nFabric NetKAT Program:";
+                (string_of_policy fabric);
+                "\nPolicy NetKAT Program:";
+                (String.concat ~sep:"\n" (List.map policies ~f:(string_of_policy)))] in
           Ok result
 
         with
