@@ -473,7 +473,19 @@ module Coronet : FIBER_SOLVER = struct
     let on_path = String.concat ~sep:"\n" waypoints in
     let lines = t_z3::pol_z3::fab_z3::fab_path::restraints::on_path::["(check-sat)"] in
     let problem = String.concat ~sep:"\n\n" lines in
-    false
+
+    let inc = In_channel.create "z3/preamble.z3" in
+    let preamble = In_channel.input_all inc in
+    In_channel.close inc;
+    let outc = Out_channel.create "problem.z3" in
+    Out_channel.output_string outc preamble;
+    Out_channel.output_string outc problem;
+    Out_channel.close outc;
+    let answerc,_ = Unix.open_process "z3 problem.z3" in
+    let answer = In_channel.input_all answerc in
+    match String.substr_index answer ~pattern:"unsat" with
+    | None -> true
+    | Some i -> false
 
 
   (** Just pick one possible fabric fiber at random from the set of options *)
