@@ -609,13 +609,21 @@ let coronet c = match c with
           let fsfabric = CoroNet.Waypath.to_fabric_fibers waypaths net in
           let fspolicy = CoroNet.Waypath.to_policy_fibers wptbl net preds in
 
+          let module C =
+            Frenetic_Synthesis.MakeForFibers(Frenetic_Synthesis.Coronet) in
+          let edge = C.synthesize fspolicy fsfabric (CoroNet.Pretty.to_netkat net) in
+
           let result = String.concat ~sep:"\n"
               [ "\nOptical Channel Configuration";
                 (Frenetic_Circuit_NetKAT.string_of_config circuits);
                 "\nFabric NetKAT Program:";
                 (string_of_policy fabric);
                 "\nPolicy NetKAT Program:";
-                (String.concat ~sep:"\n" (List.map policies ~f:(string_of_policy)))] in
+                (String.concat ~sep:"\n"
+                   (List.map policies ~f:(string_of_policy)));
+                "\nEdge NetKAT program";
+                (string_of_policy edge)
+              ] in
           Ok result
 
         with
