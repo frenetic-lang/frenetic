@@ -230,6 +230,7 @@ module Action : sig
 
   (** [one] returns identify action, which is a modification representing "no modifications" *)
   val one : t
+  val is_one : t -> bool
 
   (** [zero] returns empty action, which consistently with OpenFlow, means "drop" *)
   val zero : t

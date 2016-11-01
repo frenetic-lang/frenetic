@@ -405,7 +405,9 @@ module Dyad = struct
     let fdd = compile_local deduped in
     let paths = paths_of_fdd fdd in
     List.fold_left paths ~init:[] ~f:(fun acc ((a,hs) as p) ->
-        if Action.is_zero a then acc else ( of_fdd_path p )::acc)
+        if ( Action.is_zero a || Action.is_one a )
+        then acc
+        else ( of_fdd_path p )::acc)
 
 end
 
