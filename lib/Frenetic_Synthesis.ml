@@ -294,7 +294,7 @@ module Z3 = struct
       Out_channel.close outc;
       let answerc,_ = Unix.open_process "z3 problem.z3" in
       let answer = In_channel.input_all answerc in
-      match String.substr_index answer ~pattern:"unsat" with
+        match String.substr_index answer ~pattern:"unsat" with
       | None -> true
       | Some i -> false in
     decider r
@@ -302,7 +302,7 @@ module Z3 = struct
   let of_points ?(path="path") points =
     let header = sprintf "(declare-const %s Path)" path in
     let asserts = List.mapi points ~f:(fun i p ->
-        let id = of_int64 p in
+        let id = of_int32 (Int32.of_int64_exn p) in
         sprintf "(assert (= (select %s %d) %s ))" path i id) in
     String.concat ~sep:"\n" ( header::asserts )
 
@@ -469,7 +469,8 @@ module Coronet : FIBER_SOLVER = struct
     let restraints = of_restraint ~plen:pol_len ~flen:fab_len
         (policy.src, policy.dst) (fabric.src, fabric.dst) restraint in
     let waypoints = List.map policy.points ~f:(fun sw ->
-        sprintf "(assert (on-path %s %d %s))" "pfab" fab_plen (of_int64 sw)) in
+        let sw' = of_int32 (Int32.of_int64_exn sw) in
+        sprintf "(assert (on-path %s %d %s))" "pfab" fab_plen sw') in
     let on_path = String.concat ~sep:"\n" waypoints in
     let lines = t_z3::pol_z3::fab_z3::fab_path::restraints::on_path::["(check-sat)"] in
     let problem = String.concat ~sep:"\n\n" lines in
@@ -481,8 +482,14 @@ module Coronet : FIBER_SOLVER = struct
     Out_channel.output_string outc preamble;
     Out_channel.output_string outc problem;
     Out_channel.close outc;
-    let answerc,_ = Unix.open_process "z3 problem.z3" in
-    let answer = In_channel.input_all answerc in
+    let inc,outc = Unix.open_process "z3 problem.z3" in
+    let answer = In_channel.input_all inc in
+    printf "%s\n\n%!" answer;
+    In_channel.close inc;
+    Out_channel.close outc;
+    let _ = match String.substr_index answer ~pattern:"error" with
+      | None -> ()
+      | Some i -> failwith "Z3 error" in
     match String.substr_index answer ~pattern:"unsat" with
     | None -> true
     | Some i -> false
