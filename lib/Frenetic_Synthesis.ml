@@ -455,9 +455,10 @@ module Coronet : FIBER_SOLVER = struct
     let egress  = seq ([ out_filter; Mod( Vlan strip_vlan ); modify; to_edge ]) in
     ingress, egress
 
-  let decide topo fabric policy =
+  let decide topo policy fabric =
     let open Z3 in
     let open Frenetic_Topology.CoroNet.Waypath in
+    (* Generate the Z3 problem *)
     let places = TestsOnly(Fabric,
                            ( Frenetic_Fdd.FieldSet.of_list [Switch; Location] )) in
     let restraint = And(Adjacent, places) in
@@ -475,6 +476,7 @@ module Coronet : FIBER_SOLVER = struct
     let lines = t_z3::pol_z3::fab_z3::fab_path::restraints::on_path::["(check-sat)"] in
     let problem = String.concat ~sep:"\n\n" lines in
 
+    (* Write out the problem and call Z3 to solve it *)
     let inc = In_channel.create "z3/preamble.z3" in
     let preamble = In_channel.input_all inc in
     In_channel.close inc;
@@ -482,17 +484,27 @@ module Coronet : FIBER_SOLVER = struct
     Out_channel.output_string outc preamble;
     Out_channel.output_string outc problem;
     Out_channel.close outc;
-    let inc,outc = Unix.open_process "z3 problem.z3" in
-    let answer = In_channel.input_all inc in
-    printf "%s\n\n%!" answer;
-    In_channel.close inc;
-    Out_channel.close outc;
-    let _ = match String.substr_index answer ~pattern:"error" with
-      | None -> ()
-      | Some i -> failwith "Z3 error" in
-    match String.substr_index answer ~pattern:"unsat" with
-    | None -> true
-    | Some i -> false
+
+    let name = String.substr_replace_all policy.name ~pattern:"sw" ~with_:"" in
+    if name = fabric.name then
+      let name = String.substr_replace_all (sprintf "%s.z3" name) ~pattern:"=>"
+          ~with_:"" in
+      let chan = Out_channel.create name in
+      Out_channel.output_string chan preamble;
+      Out_channel.output_string chan problem;
+      Out_channel.close chan;
+      let inc,outc = Unix.open_process "z3 problem.z3" in
+      let answer = In_channel.input_all inc in
+      (* printf "Tring to decide %s with %s %s\n%!" policy.name fabric.name answer; *)
+      let _ = Unix.close_process ( inc, outc ) in
+      let _ = match String.substr_index answer ~pattern:"error" with
+        | None -> ()
+        | Some i -> failwith "Z3 error" in
+      match String.substr_index answer ~pattern:"unsat" with
+      | None -> true
+      | Some i -> false
+    else false
+
 
 
   (** Just pick one possible fabric fiber at random from the set of options *)
@@ -518,17 +530,17 @@ end
 module MakeForFibers (S:SOLVER with type t = fiber) = struct
 
   (** Core matching function *)
-  let matching topology (from_policy:S.t list) (from_fabric:S.t list)
+  let matching topology (policy:S.t list) (fabric:S.t list)
     : policy * policy =
 
     (* For each policy fiber, find the set of fabric fibers that could be used
        to carry it. This is done using the `decide` function from the SOLVER
        that allows the caller to specify what criteria are important, perhaps
        according to the properties of the fabric. *)
-    let partitions = List.fold_left from_policy ~init:[]
-        ~f:(fun acc fiber ->
-            let fibers = List.filter from_fabric ~f:(S.decide topology fiber) in
-            let partition = (fiber, fibers) in
+    let partitions = List.fold_left policy ~init:[]
+        ~f:(fun acc pol ->
+            let fibers = List.filter fabric ~f:(S.decide topology pol) in
+            let partition = (pol, fibers) in
             (partition::acc)) in
 
     (* Pick a smaller set of fabric fibers to actually carry the policy fibers *)
