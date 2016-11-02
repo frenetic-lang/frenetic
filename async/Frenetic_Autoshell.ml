@@ -517,6 +517,8 @@ let synthesize s : (string, string) Result.t =
       let decider = mk_dyad_decider restraint in
       Ok ( module MakeForDyads(struct
             type t = Fabric.Dyad.t
+            let gen_time = ref 0L
+            let synth_time = ref 0L
             let decide   = decider
             let choose   = Optical.choose
             let generate = Optical.generate
@@ -582,21 +584,27 @@ let coronet c = match c with
       | None ->
         Error "Coronet synthesis requires loading a Coronet topology first"
       | Some net -> try
+          let open Frenetic_Time in
           let open Frenetic_NetKAT in
           let names, ports, east, west, paths =
             ( coronet_state.names, coronet_state.ports,
               coronet_state.east, coronet_state.west, coronet_state.paths ) in
           (* Attach hosts and packet switches to the optical switches *)
+          printf "Generating topology\n%!";
           let net = CoroNet.surround net names ports east west paths in
+
           (* Connect bicoastal pairs of nodes using the specified paths *)
+          printf "Generating waypointed paths\n%!";
           let waypaths,wptbl = CoroNet.Waypath.of_coronet net names ports east west paths in
 
           (* Generate the optical fabric based on the given paths *)
+          printf "Generating optical circuits\n%!";
           let circuits = List.map waypaths ~f:(fun wp ->
               CoroNet.Waypath.to_circuit wp net ) in
           match Frenetic_Circuit_NetKAT.validate_config circuits with
           | Error e -> Error e
           | Ok circuits ->
+            printf "Generating fabric program\n%!";
             let fabric = Frenetic_Circuit_NetKAT.local_policy_of_config circuits in
 
             (* Generate user policies, using hardcoded predicates for now *)
@@ -606,27 +614,36 @@ let coronet c = match c with
               join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 80) ];
               join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 443) ];
               join [ Test( EthType 0x0800); Test( IPProto 17) ]] in
+            printf "Generating policy program\n%!";
             let policies = CoroNet.Waypath.to_policies wptbl net preds in
 
+            let start = time () in
             (* Generate the fibers to be passed to the synthesis backend *)
+            printf "Generating fibers\n%!";
             let fsfabric = CoroNet.Waypath.to_fabric_fibers waypaths net in
             let fspolicy = CoroNet.Waypath.to_policy_fibers wptbl net preds in
+            let preproc_time = from start in
 
             let module C =
               Frenetic_Synthesis.MakeForFibers(Frenetic_Synthesis.Coronet) in
-            let edge = C.synthesize fspolicy fsfabric (CoroNet.Pretty.to_netkat net) in
+            let edge, gen_time, synth_time = C.synthesize fspolicy fsfabric
+                (CoroNet.Pretty.to_netkat net) in
 
-            let result = String.concat ~sep:"\n"
-                [ "\nOptical Channel Configuration";
-                  (Frenetic_Circuit_NetKAT.string_of_config circuits);
-                  "\nFabric NetKAT Program:";
-                  (string_of_policy fabric);
-                  "\nPolicy NetKAT Program:";
-                  (String.concat ~sep:"\n"
-                     (List.map policies ~f:(string_of_policy)));
-                  "\nEdge NetKAT program";
-                  (string_of_policy edge)
-                ] in
+            let result = sprintf "\nPreprocessing time:%Ld\tGeneration time: %Ld\t Solution time: %Ld\n"
+                (to_secs preproc_time) (to_secs gen_time) (to_secs synth_time) in
+
+            (* let result = String.concat ~sep:"\n" *)
+            (*     [ "\nOptical Channel Configuration"; *)
+            (*       (Frenetic_Circuit_NetKAT.string_of_config circuits); *)
+            (*       "\nFabric NetKAT Program:"; *)
+            (*       (string_of_policy fabric); *)
+            (*       "\nPolicy NetKAT Program:"; *)
+            (*       (String.concat ~sep:"\n" *)
+            (*          (List.map policies ~f:(string_of_policy))); *)
+            (*       "\nEdge NetKAT program"; *)
+            (*       (string_of_policy edge) *)
+            (*     ] in *)
+
             Ok result
 
         with

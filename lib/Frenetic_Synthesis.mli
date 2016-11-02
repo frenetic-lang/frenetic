@@ -19,6 +19,8 @@ type 'a generator = topology -> ('a * 'a) list -> (policy * policy)
 
 module type SOLVER = sig
   type t
+  val synth_time : Int64.t ref
+  val gen_time : Int64.t ref
   val decide   : t decider
   val choose   : t chooser
   val generate : t generator
@@ -32,7 +34,7 @@ module type SYNTH = sig
 end
 
 module type COROSYNTH = sig
-  val synthesize : fiber list -> fiber list -> policy -> policy
+  val synthesize : fiber list -> fiber list -> policy -> (policy * Int64.t * Int64.t)
 end
 
 module Z3 : sig

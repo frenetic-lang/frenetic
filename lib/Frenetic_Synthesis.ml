@@ -35,6 +35,8 @@ type 'a generator = topology -> ('a * 'a) list -> (policy * policy)
 
 module type SOLVER = sig
   type t
+  val synth_time : Int64.t ref
+  val gen_time : Int64.t ref
   val decide   : t decider
   val choose   : t chooser
   val generate : t generator
@@ -48,7 +50,7 @@ module type SYNTH = sig
 end
 
 module type COROSYNTH = sig
-  val synthesize : fiber list -> fiber list -> policy -> policy
+  val synthesize : fiber list -> fiber list -> policy -> policy * int64 * int64
 end
 
 (* Pick n random elements from options *)
@@ -313,6 +315,10 @@ module Generic : DYAD_SOLVER = struct
 
   type t = Dyad.t
 
+  let gen_time = ref 0L
+  let synth_time = ref 0L
+
+
   (** Functions for generating edge NetKAT programs from matched streams **)
   (* Given a policy stream and a fabric stream, generate edge policies to implement *)
   (* the policy stream using the fabric stream *)
@@ -371,6 +377,10 @@ end
 module Optical : DYAD_SOLVER = struct
 
   type t = Dyad.t
+
+  let gen_time = ref 0L
+  let synth_time = ref 0L
+
 
   let to_netkat topo
     ((src,dst,cond,actions)) ((src',dst',cond',actions'))
@@ -441,6 +451,9 @@ module Coronet : FIBER_SOLVER = struct
 
   type t = fiber
 
+  let gen_time = ref 0L
+  let synth_time = ref 0L
+
   let to_netkat topo pol fab
       (tag:int): policy * policy =
     let open Fabric.Condition in
@@ -457,8 +470,11 @@ module Coronet : FIBER_SOLVER = struct
 
   let decide topo policy fabric =
     let open Z3 in
+    let open Frenetic_Time in
     let open Frenetic_Topology.CoroNet.Waypath in
+
     (* Generate the Z3 problem *)
+    let start = time () in
     let places = TestsOnly(Fabric,
                            ( Frenetic_Fdd.FieldSet.of_list [Switch; Location] )) in
     let restraint = And(Adjacent, places) in
@@ -475,6 +491,7 @@ module Coronet : FIBER_SOLVER = struct
     let on_path = String.concat ~sep:"\n" waypoints in
     let lines = t_z3::pol_z3::fab_z3::fab_path::restraints::on_path::["(check-sat)"] in
     let problem = String.concat ~sep:"\n\n" lines in
+    let gtime = from start in
 
     (* Write out the problem and call Z3 to solve it *)
     let inc = In_channel.create "z3/preamble.z3" in
@@ -485,6 +502,7 @@ module Coronet : FIBER_SOLVER = struct
     Out_channel.output_string outc problem;
     Out_channel.close outc;
 
+    let start = time () in
     let name = String.substr_replace_all policy.name ~pattern:"sw" ~with_:"" in
     if name = fabric.name then
       let name = String.substr_replace_all (sprintf "%s.z3" name) ~pattern:"=>"
@@ -500,9 +518,15 @@ module Coronet : FIBER_SOLVER = struct
       let _ = match String.substr_index answer ~pattern:"error" with
         | None -> ()
         | Some i -> failwith "Z3 error" in
-      match String.substr_index answer ~pattern:"unsat" with
+      let result = match String.substr_index answer ~pattern:"unsat" with
       | None -> true
-      | Some i -> false
+      | Some i -> false in
+
+      let (+) = Int64.(+) in
+      let stime = from start in
+      gen_time := !gen_time + gtime;
+      synth_time := !synth_time + stime;
+      result
     else false
 
 
@@ -527,7 +551,7 @@ module Coronet : FIBER_SOLVER = struct
 
 end
 
-module MakeForFibers (S:SOLVER with type t = fiber) = struct
+module MakeForFibers (S:FIBER_SOLVER with type t = fiber) = struct
 
   (** Core matching function *)
   let matching topology (policy:S.t list) (fabric:S.t list)
@@ -558,6 +582,6 @@ module MakeForFibers (S:SOLVER with type t = fiber) = struct
     let topology = {topo; preds; succs} in
     let ingress, egress = matching topology
         policy fabric in
-    Union(ingress, egress)
+    Union(ingress, egress), !S.gen_time, !S.synth_time
 
 end
