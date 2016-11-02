@@ -363,7 +363,8 @@ module CoroNet = struct
              ; channel : int
              }
 
-    type fiber = { src : place
+    type fiber = { name : string
+                 ; src : place
                  ; dst : place
                  ; condition : Frenetic_Fabric.Condition.t
                  ; action : Frenetic_Fdd.Action.t
@@ -380,7 +381,7 @@ module CoroNet = struct
     let vertexes wp =
       let sv,_,_ = wp.start in
       let dv,_,_ = wp.stop in
-      (dv,sv)
+      (sv,dv)
 
     (* Asumme that the cross country paths are east to west *)
     let of_coronet (net:Topology.t) (ntbl:name_table) (ptbl:port_table)
@@ -431,10 +432,10 @@ module CoroNet = struct
                     let waypath = { path = path'; start = e'; stop = w';
                                     waypoints = [ start; stop ]; channel = ch } in
                     let waypath' = { path = rpath'; start = w'; stop = e';
-                                     waypoints = [ stop; start ]; channel = ch } in
+                                     waypoints = [ stop; start ]; channel = ch+1 } in
                     Hashtbl.Poly.add_multi wptbl (e_name, w_name) waypath;
                     Hashtbl.Poly.add_multi wptbl (w_name, e_name) waypath';
-                    (waypath::waypath'::acc, succ ch)
+                    (waypath::waypath'::acc, ch+2)
                   | None, _ -> failwith (sprintf "No path between %s and %s"
                                            (show e) (show start))
                   | _, None -> failwith (sprintf "No path between %s and %s"
@@ -490,28 +491,27 @@ module CoroNet = struct
               let policy = to_policy wp net pred in
               policy::pols))
 
-    let to_fab wp net =
-      let open Frenetic_NetKAT in
-      let _, srcid, srcpt = wp.start in
-      let _, dstid, dstpt = wp.stop in
-      let condition = (And (Test (Switch srcid),
-                            (Test (Location (Physical srcpt))))) in
-      let action = [ Mod( Switch dstid );
-                     Mod( Location( Physical( dstpt))) ] in
-      let policy = Frenetic_NetKAT_Optimize.mk_big_seq
-          ( ( Filter condition )::action ) in
-      let dyads = Frenetic_Fabric.Dyad.of_policy policy in
-      let points = List.map ( CoroPath.to_vertexes wp.path )
-          ~f:(Topology.vertex_to_id net) in
-      List.map dyads ~f:(fun d ->
-          let src, dst, condition, action = d in
-          { src; dst; condition; action; points })
-
     let to_fabric_fibers wps net =
+      let topo = Pretty.to_netkat net in
+      let to_fab wp =
+        let src,dst = places wp in
+        let sv,dv = vertexes wp in
+        let circuit = to_circuit wp net in
+        let pgm = Frenetic_Circuit_NetKAT.local_policy_of_config [ circuit ] in
+        let fabric = Frenetic_Fabric.assemble pgm topo [src] [dst] in
+        let dyads = Frenetic_Fabric.Dyad.of_policy fabric in
+        let points = List.map ( CoroPath.to_vertexes wp.path )
+            ~f:(Topology.vertex_to_id net) in
+        let name = sprintf "%s=>%s"
+            (Topology.vertex_to_string net sv)
+            (Topology.vertex_to_string net dv) in
+        List.map dyads ~f:(fun d ->
+            let src, dst, condition, action = d in
+            { name; src; dst; condition; action; points }) in
+
       List.fold wps ~init:[] ~f:(fun acc wp ->
-          let dyads = (to_fab wp net) in
-          List.fold dyads ~init:acc ~f:(fun acc dyad ->
-          if Frenetic_Fdd.Action.is_zero dyad.action then acc else dyad::acc))
+          let dyads = to_fab wp in
+          List.fold dyads ~init:acc ~f:(fun acc dyad -> dyad::acc))
 
     let to_pol wp net pred =
       (* Use the topology to find the packet switch and ports connected the
@@ -540,9 +540,12 @@ module CoroNet = struct
           ( ( Filter condition )::action ) in
       let dyads = Frenetic_Fabric.Dyad.of_policy policy in
       let points = List.map wp.waypoints ~f:(Topology.vertex_to_id net) in
+      let name = sprintf "%s=>%s"
+          (Topology.vertex_to_string net psv)
+          (Topology.vertex_to_string net pdv) in
       List.map dyads ~f:(fun d ->
           let src, dst, condition, action = d in
-          { src; dst; condition; action; points })
+          { name; src; dst; condition; action; points })
 
     let to_policy_fibers wptbl net preds =
       Hashtbl.Poly.fold wptbl ~init:[] ~f:(fun ~key:(s,d) ~data:wps pols ->

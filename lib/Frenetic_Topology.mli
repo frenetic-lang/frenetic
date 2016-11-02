@@ -56,7 +56,8 @@ module CoroNet : sig
              ; channel : int
              }
 
-    type fiber = { src : place
+    type fiber = { name : string
+                 ; src : place
                  ; dst : place
                  ; condition : Frenetic_Fabric.Condition.t
                  ; action : Frenetic_Fdd.Action.t
