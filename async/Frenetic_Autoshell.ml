@@ -569,9 +569,12 @@ let coronet c = match c with
         let paths = In_channel.fold_lines channel ~init:[] ~f:(fun acc line ->
             let stops = String.split ~on:';' line in
             let vertexes = List.map stops ~f:(fun n ->
-                let name = String.strip n in
-                let label = Hashtbl.find_exn coronet_state.names name in
-                CoroNet.Topology.vertex_of_label net label) in
+                try
+                  let name = String.strip n in
+                  let label = Hashtbl.find_exn coronet_state.names name in
+                  CoroNet.Topology.vertex_of_label net label
+                with Not_found -> failwith (sprintf "No vertex named (%s)%!" n))
+            in
             let path = CoroNet.CoroPath.from_vertexes net vertexes in
             path::acc) in
         coronet_state.paths <- paths;
