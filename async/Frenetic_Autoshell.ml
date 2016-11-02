@@ -594,37 +594,40 @@ let coronet c = match c with
           (* Generate the optical fabric based on the given paths *)
           let circuits = List.map waypaths ~f:(fun wp ->
               CoroNet.Waypath.to_circuit wp net ) in
-          let fabric = Frenetic_Circuit_NetKAT.local_policy_of_config circuits in
+          match Frenetic_Circuit_NetKAT.validate_config circuits with
+          | Error e -> Error e
+          | Ok circuits ->
+            let fabric = Frenetic_Circuit_NetKAT.local_policy_of_config circuits in
 
-          (* Generate user policies, using hardcoded predicates for now *)
-          let join = Frenetic_NetKAT_Optimize.mk_big_and in
-          let preds = [
-            join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 22) ];
-            join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 80) ];
-            join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 443) ];
-            join [ Test( EthType 0x0800); Test( IPProto 17) ]] in
-          let policies = CoroNet.Waypath.to_policies wptbl net preds in
+            (* Generate user policies, using hardcoded predicates for now *)
+            let join = Frenetic_NetKAT_Optimize.mk_big_and in
+            let preds = [
+              join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 22) ];
+              join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 80) ];
+              join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 443) ];
+              join [ Test( EthType 0x0800); Test( IPProto 17) ]] in
+            let policies = CoroNet.Waypath.to_policies wptbl net preds in
 
-          (* Generate the fibers to be passed to the synthesis backend *)
-          let fsfabric = CoroNet.Waypath.to_fabric_fibers waypaths net in
-          let fspolicy = CoroNet.Waypath.to_policy_fibers wptbl net preds in
+            (* Generate the fibers to be passed to the synthesis backend *)
+            let fsfabric = CoroNet.Waypath.to_fabric_fibers waypaths net in
+            let fspolicy = CoroNet.Waypath.to_policy_fibers wptbl net preds in
 
-          let module C =
-            Frenetic_Synthesis.MakeForFibers(Frenetic_Synthesis.Coronet) in
-          let edge = C.synthesize fspolicy fsfabric (CoroNet.Pretty.to_netkat net) in
+            let module C =
+              Frenetic_Synthesis.MakeForFibers(Frenetic_Synthesis.Coronet) in
+            let edge = C.synthesize fspolicy fsfabric (CoroNet.Pretty.to_netkat net) in
 
-          let result = String.concat ~sep:"\n"
-              [ "\nOptical Channel Configuration";
-                (Frenetic_Circuit_NetKAT.string_of_config circuits);
-                "\nFabric NetKAT Program:";
-                (string_of_policy fabric);
-                "\nPolicy NetKAT Program:";
-                (String.concat ~sep:"\n"
-                   (List.map policies ~f:(string_of_policy)));
-                "\nEdge NetKAT program";
-                (string_of_policy edge)
-              ] in
-          Ok result
+            let result = String.concat ~sep:"\n"
+                [ "\nOptical Channel Configuration";
+                  (Frenetic_Circuit_NetKAT.string_of_config circuits);
+                  "\nFabric NetKAT Program:";
+                  (string_of_policy fabric);
+                  "\nPolicy NetKAT Program:";
+                  (String.concat ~sep:"\n"
+                     (List.map policies ~f:(string_of_policy)));
+                  "\nEdge NetKAT program";
+                  (string_of_policy edge)
+                ] in
+            Ok result
 
         with
         | CoroNet.NonexistentNode s ->
