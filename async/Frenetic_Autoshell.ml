@@ -549,15 +549,16 @@ let coronet c = match c with
   | CLoadTopo ( String s ) -> Error "Coronet topologies must be loaded from files"
   | CLoadTopo ( Filename fn ) ->
     let net,name_tbl,port_tbl = CoroNet.from_csv_file fn in
-    let mn = CoroNet.Pretty.to_mininet ~prologue_file:"examples/linc-prologue.txt"
-        ~link_class:( Some "LINCLink" ) net in
-    let nk = string_of_policy (CoroNet.Pretty.to_netkat net) in
-    let src     = sprintf "Source: %s" fn in
-    let mininet = sprintf "Mininet:\n%s\n" mn in
-    let netkat  = sprintf "NetKAT:\n%s\n" nk in
-    let result = String.concat ~sep:"\n" [src; mininet; netkat] in
+    (* let mn = CoroNet.Pretty.to_mininet ~prologue_file:"examples/linc-prologue.txt" *)
+    (*     ~link_class:( Some "LINCLink" ) net in *)
+    (* let nk = string_of_policy (CoroNet.Pretty.to_netkat net) in *)
+    (* let src     = sprintf "Source: %s" fn in *)
+    (* let mininet = sprintf "Mininet:\n%s\n" mn in *)
+    (* let netkat  = sprintf "NetKAT:\n%s\n" nk in *)
+    (* let result = String.concat ~sep:"\n" [src; mininet; netkat] in *)
     coronet_state.network <- Some net; coronet_state.names <- name_tbl;
     coronet_state.ports <- port_tbl;
+    let result = sprintf "Successfully loaded topology from %s\n" fn in
     Ok result
 
   | CLoadPaths (String s ) -> Error "Coronet path list must be loaded from files"
@@ -629,8 +630,9 @@ let coronet c = match c with
             let edge, gen_time, synth_time = C.synthesize fspolicy fsfabric
                 (CoroNet.Pretty.to_netkat net) in
 
-            let result = sprintf "\nPreprocessing time:%Ld\tGeneration time: %Ld\t Solution time: %Ld\n"
-                (to_secs preproc_time) (to_secs gen_time) (to_secs synth_time) in
+            let nodes = ( List.length east ) + ( List.length west ) in
+            let result = sprintf "|%d\t%Ld\t%Ld\t%Ld\n"
+                nodes (to_msecs preproc_time) (to_msecs gen_time ) (to_secs synth_time) in
 
             (* let result = String.concat ~sep:"\n" *)
             (*     [ "\nOptical Channel Configuration"; *)
@@ -786,7 +788,10 @@ let command (com:command) = match com with
   | Synthesize s ->
     synthesize s |> print_result
   | Coronet c ->
-    coronet c |> print_result
+    let r = coronet c in
+    ( match r with
+      | Ok msg  -> printf "%s\n" msg
+      | Error e -> printf "Error: %s\n" e)
   | Install i ->
     install i |> print_deferred_results
   | Show s -> show s
