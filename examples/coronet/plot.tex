@@ -1,0 +1,35 @@
+\documentclass{article}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.13}
+\begin{document}
+
+\begin{tikzpicture}
+
+  \begin{axis}[
+      axis y line*=left,
+      xlabel={Number of edge nodes},
+      ylabel={Time in ms},
+      legend style = {at={(0.33,.9)}, anchor=north }]
+    \addplot table [x=Edge Nodes, y=Pre-processing(msecs), col sep=tab]
+             {coronet-30.results};
+             \label{pre};
+    \addplot table [x=Edge Nodes, y=Generation(msecs), col sep=tab]
+             {coronet-30.results};
+             \label{gen};
+  \end{axis}
+
+  \begin{axis}[
+      axis y line*=right,
+      xlabel={Number of edge nodes},
+      ylabel={Time in s},
+      legend style = {at={(0.33,.9)}, anchor=north }]
+    \addlegendimage{/pgfplots/refstyle=pre}\addlegendentry{Pre-processing(ms)};
+    \addlegendimage{/pgfplots/refstyle=gen}\addlegendentry{Generation(ms)};
+    \addplot[mark=*,green] table [x=Edge Nodes, y=Solution(secs), col sep=tab]
+             {coronet-30.results};
+             \label{sol};
+             \addlegendentry{Solution(s)};
+
+  \end{axis}
+\end{tikzpicture}
+\end{document}
