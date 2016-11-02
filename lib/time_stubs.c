@@ -17,7 +17,7 @@
 #include <caml/alloc.h>
 #include <caml/fail.h>
 
-CAMLprim value frenetic_time() {
+CAMLprim value frenetic_gettime() {
   CAMLparam0();
 
   CAMLlocal1(res);

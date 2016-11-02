@@ -1,6 +1,6 @@
-external merlin_gettime : unit -> Int64.t = "merlin_gettime"
+external frenetic_gettime : unit -> Int64.t = "frenetic_gettime"
 
-let time () = merlin_gettime ()
+let time () = frenetic_gettime ()
 
 let from (start:Int64.t) =
   Int64.sub (time ()) start
