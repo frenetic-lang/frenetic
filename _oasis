@@ -25,6 +25,14 @@ PostBuildCommand:
 
 Library frenetic
   Path: lib
+  CSources:
+    time_stubs.c
+  if system(linux)
+    CCLib:
+      -lrt
+  if system(macosx)
+    CCOpt:
+      -Wno-unused-command-line-argument-hard-error-in-future
   BuildDepends:
     base64 (>= 2.0.0),
     camlp4.lib,
@@ -70,7 +78,8 @@ Library frenetic
     Frenetic_Synthesis,
     Frenetic_Topology,
     Frenetic_Util,
-    Frenetic_Vlr
+    Frenetic_Vlr,
+    Frenetic_Time
 
 Library async
   Findlibparent: frenetic

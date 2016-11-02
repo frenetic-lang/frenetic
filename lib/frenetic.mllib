@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: c04754593693ee79e37889d187c2006a)
+# DO NOT EDIT (digest: bbae66b367564b9a3ecff875bd893d08)
 Frenetic_Hashcons
 Frenetic_Bits
 Frenetic_Fdd
@@ -26,4 +26,5 @@ Frenetic_Synthesis
 Frenetic_Topology
 Frenetic_Util
 Frenetic_Vlr
+Frenetic_Time
 # OASIS_STOP

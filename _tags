@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 30f32729beec71b7a65fef9a763ad10d)
+# DO NOT EDIT (digest: 8e203de63e818a25990a5efa63c2cd71)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -16,6 +16,14 @@ true: annot, bin_annot
 "_darcs": not_hygienic
 # Library frenetic
 "lib/frenetic.cmxs": use_frenetic
+<lib/*.ml{,i,y}>: oasis_library_frenetic_ccopt
+"lib/time_stubs.c": oasis_library_frenetic_ccopt
+<lib/frenetic.{cma,cmxa}>: oasis_library_frenetic_cclib
+"lib/libfrenetic_stubs.lib": oasis_library_frenetic_cclib
+"lib/dllfrenetic_stubs.dll": oasis_library_frenetic_cclib
+"lib/libfrenetic_stubs.a": oasis_library_frenetic_cclib
+"lib/dllfrenetic_stubs.so": oasis_library_frenetic_cclib
+<lib/frenetic.{cma,cmxa}>: use_libfrenetic_stubs
 <lib/*.ml{,i,y}>: package(base64)
 <lib/*.ml{,i,y}>: package(camlp4)
 <lib/*.ml{,i,y}>: package(camlp4.extend)
@@ -34,6 +42,24 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: package(threads)
 <lib/*.ml{,i,y}>: package(ulex)
 <lib/*.ml{,i,y}>: package(yojson)
+"lib/time_stubs.c": package(base64)
+"lib/time_stubs.c": package(camlp4)
+"lib/time_stubs.c": package(camlp4.extend)
+"lib/time_stubs.c": package(camlp4.lib)
+"lib/time_stubs.c": package(core)
+"lib/time_stubs.c": package(cstruct)
+"lib/time_stubs.c": package(mparser)
+"lib/time_stubs.c": package(mparser.re)
+"lib/time_stubs.c": package(ocamlgraph)
+"lib/time_stubs.c": package(ppx_deriving.enum)
+"lib/time_stubs.c": package(ppx_deriving.eq)
+"lib/time_stubs.c": package(ppx_deriving.show)
+"lib/time_stubs.c": package(ppx_jane)
+"lib/time_stubs.c": package(str)
+"lib/time_stubs.c": package(tcpip)
+"lib/time_stubs.c": package(threads)
+"lib/time_stubs.c": package(ulex)
+"lib/time_stubs.c": package(yojson)
 # Library async
 "async/async.cmxs": use_async
 <async/*.ml{,i,y}>: package(async)
