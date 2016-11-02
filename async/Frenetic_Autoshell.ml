@@ -592,7 +592,7 @@ let coronet c = match c with
               coronet_state.east, coronet_state.west, coronet_state.paths ) in
           (* Attach hosts and packet switches to the optical switches *)
           printf "Generating topology\n%!";
-          let net = CoroNet.surround net names ports east west paths in
+          let net, ids = CoroNet.surround net names ports east west paths in
 
           (* Connect bicoastal pairs of nodes using the specified paths *)
           printf "Generating waypointed paths\n%!";
@@ -630,9 +630,17 @@ let coronet c = match c with
             let edge, gen_time, synth_time = C.synthesize fspolicy fsfabric
                 (CoroNet.Pretty.to_netkat net) in
 
+            let compiled = Compiler.compile_local ~options:keep_cache edge in
+            let num_flows = List.fold ids ~init:0 ~f:(fun num id ->
+                let flows = Frenetic_NetKAT_Compiler.to_table id compiled in
+                (List.length flows) + num) in
+
             let nodes = ( List.length east ) + ( List.length west ) in
-            let result = sprintf "|%d\t%Ld\t%Ld\t%Ld\n"
-                nodes (to_msecs preproc_time) (to_msecs gen_time ) (to_secs synth_time) in
+            let result = sprintf "|%d\t%Ld\t%Ld\t%Ld\t%d\n"
+                nodes
+                (to_msecs preproc_time) (to_msecs gen_time ) (to_secs synth_time)
+                num_flows
+            in
 
             (* let result = String.concat ~sep:"\n" *)
             (*     [ "\nOptical Channel Configuration"; *)

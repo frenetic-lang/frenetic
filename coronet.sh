@@ -3,7 +3,7 @@
 EX_DIR="examples/coronet"
 FSH="./frenetic.native autoshell"
 
-echo "Edge Nodes	Pre-processing(msecs)	Generation(msecs)	Solution(secs)"
+echo "Edge Nodes	Pre-processing(msecs)	Generation(msecs)	Solution(secs)	Rules"
 
 for i in {1..4}
 do

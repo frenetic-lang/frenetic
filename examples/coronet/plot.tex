@@ -13,9 +13,9 @@
     \addplot table [x=Edge Nodes, y=Pre-processing(msecs), col sep=tab]
              {coronet-30.results};
              \label{pre};
-    \addplot table [x=Edge Nodes, y=Generation(msecs), col sep=tab]
-             {coronet-30.results};
-             \label{gen};
+             \addplot table [x=Edge Nodes, y=Generation(msecs), col sep=tab]
+                      {coronet-30.results};
+                      \label{gen};
   \end{axis}
 
   \begin{axis}[
@@ -26,10 +26,23 @@
     \addlegendimage{/pgfplots/refstyle=pre}\addlegendentry{Pre-processing(ms)};
     \addlegendimage{/pgfplots/refstyle=gen}\addlegendentry{Generation(ms)};
     \addplot[mark=*,green] table [x=Edge Nodes, y=Solution(secs), col sep=tab]
-             {coronet-30.results};
-             \label{sol};
-             \addlegendentry{Solution(s)};
-
+            {coronet-30.results};
+            \label{sol};
+            \addlegendentry{Solution(s)};
   \end{axis}
+
+\end{tikzpicture}
+
+
+\begin{tikzpicture}
+  \begin{axis}[
+      xlabel={Number of edge nodes},
+      ylabel={Number of flow rules},
+      legend style = {at={(0.33,.9)}, anchor=north }]
+    \addplot table [x=Edge Nodes, y=Rules, col sep=tab]
+             {coronet-30.results};
+             \label{flows};
+  \end{axis}
+
 \end{tikzpicture}
 \end{document}

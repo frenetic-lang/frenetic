@@ -256,8 +256,8 @@ module CoroNet = struct
       let host = CoroNode.Host(hostname, id, Int32.of_int64_exn id) in
       host in
 
-    let aux net nodes range =
-      List.fold nodes ~init:net ~f:(fun net e ->
+    let aux net ids nodes range =
+      List.fold nodes ~init:(net,ids) ~f:(fun (net,ids) e ->
           let label = Hashtbl.Poly.find_exn names e in
           let optcl = Topology.vertex_of_label net label in
 
@@ -276,17 +276,19 @@ module CoroNet = struct
           (* Add one edge between the optical and packet switch for each channel
              connecting this optical switch to another. Assumes that `range`
              starts from 0. *)
-          List.fold range ~init:net ~f:(fun net i ->
+          let net = List.fold range ~init:net ~f:(fun net i ->
               let open Int32 in
               let i = of_int_exn i in
               let net,_ = Topology.add_edge net pkt (i+1l) 0.0 optcl (port+i) in
-              fst ( Topology.add_edge net optcl (port+i) 0.0 pkt (i+1l)) ))
+              fst ( Topology.add_edge net optcl (port+i) 0.0 pkt (i+1l))) in
+
+          (net, (CoroNode.id label)::ids))
     in
 
     let westward = range (List.length west) in
     let eastward = range (List.length east) in
-    let net' = aux net east westward in
-    aux net' west eastward
+    let net',ids = aux net [] east westward in
+    aux net' ids west eastward
 
   let find_paths net local across channel src dst =
     let shortest = match CoroPath.shortest_path net src dst with

@@ -1,5 +1,5 @@
-Edge Nodes	Pre-processing(msecs)	Generation(msecs)	Solution(secs)
-2	107	44	3
-4	350	300	18
-6	824	739	58
-8	1611	1634	134
+Edge Nodes	Pre-processing(msecs)	Generation(msecs)	Solution(secs)	Rules
+2	101	48	3	12
+4	377	290	19	24
+6	835	797	61	36
+8	1585	1807	139	48

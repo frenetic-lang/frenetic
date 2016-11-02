@@ -89,7 +89,7 @@ module CoroNet : sig
 
   val from_csv_file : string -> ( Topology.t  * name_table * port_table)
   val surround : Topology.t -> name_table -> port_table -> string list -> string
-      list -> CoroPath.t list -> Topology.t
+      list -> CoroPath.t list -> Topology.t * switchId list
 
   val cross_connect : Topology.t -> name_table -> string list -> string list ->
     pathset list
