@@ -27,14 +27,13 @@ module type SOLVER = sig
 end
 
 module type DYAD_SOLVER = SOLVER with type t = Dyad.t
-module type FIBER_SOLVER = SOLVER with type t = fiber
 
 module type SYNTH = sig
   val synthesize : policy -> policy -> policy -> policy
 end
 
 module type COROSYNTH = sig
-  val synthesize : fiber list -> fiber list -> policy -> (policy * Int64.t * Int64.t)
+ val synthesize : fiber list -> fiber list -> policy -> (policy * Int64.t * Int64.t)
 end
 
 module Z3 : sig
@@ -60,8 +59,8 @@ module Z3 : sig
 end
 
 module MakeForDyads(S:DYAD_SOLVER) : SYNTH
-module MakeForFibers(S:FIBER_SOLVER) : COROSYNTH
 
 module Optical : DYAD_SOLVER
 module Generic : DYAD_SOLVER
-module Coronet : FIBER_SOLVER
+
+module Coronet : COROSYNTH

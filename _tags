@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 8e203de63e818a25990a5efa63c2cd71)
+# DO NOT EDIT (digest: 32dbe3245f83f207c095cba92b70be10)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -24,6 +24,7 @@ true: annot, bin_annot
 "lib/libfrenetic_stubs.a": oasis_library_frenetic_cclib
 "lib/dllfrenetic_stubs.so": oasis_library_frenetic_cclib
 <lib/frenetic.{cma,cmxa}>: use_libfrenetic_stubs
+<lib/*.ml{,i,y}>: package(async)
 <lib/*.ml{,i,y}>: package(base64)
 <lib/*.ml{,i,y}>: package(camlp4)
 <lib/*.ml{,i,y}>: package(camlp4.extend)
@@ -42,6 +43,7 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: package(threads)
 <lib/*.ml{,i,y}>: package(ulex)
 <lib/*.ml{,i,y}>: package(yojson)
+"lib/time_stubs.c": package(async)
 "lib/time_stubs.c": package(base64)
 "lib/time_stubs.c": package(camlp4)
 "lib/time_stubs.c": package(camlp4.extend)
@@ -222,6 +224,7 @@ true: annot, bin_annot
 <frenetic/*.ml{,i,y}>: use_frenetic
 # Library syntax
 "syntax/syntax.cmxs": use_syntax
+<syntax/*.ml{,i,y}>: package(async)
 <syntax/*.ml{,i,y}>: package(base64)
 <syntax/*.ml{,i,y}>: package(camlp4)
 <syntax/*.ml{,i,y}>: package(camlp4.extend)
@@ -245,6 +248,7 @@ true: annot, bin_annot
 <syntax/*.ml{,i,y}>: use_frenetic
 # Library test_frenetic
 "lib_test/lib/test_frenetic.cmxs": use_test_frenetic
+<lib_test/lib/*.ml{,i,y}>: package(async)
 <lib_test/lib/*.ml{,i,y}>: package(base64)
 <lib_test/lib/*.ml{,i,y}>: package(camlp4)
 <lib_test/lib/*.ml{,i,y}>: package(camlp4.extend)
@@ -323,6 +327,7 @@ true: annot, bin_annot
 <lib_test/*.ml{,i,y}>: use_frenetic
 <lib_test/*.ml{,i,y}>: use_test_frenetic
 # Executable benchmark
+<bench/src/Main.{native,byte}>: package(async)
 <bench/src/Main.{native,byte}>: package(base64)
 <bench/src/Main.{native,byte}>: package(camlp4)
 <bench/src/Main.{native,byte}>: package(camlp4.extend)
@@ -342,6 +347,7 @@ true: annot, bin_annot
 <bench/src/Main.{native,byte}>: package(ulex)
 <bench/src/Main.{native,byte}>: package(yojson)
 <bench/src/Main.{native,byte}>: use_frenetic
+<bench/src/*.ml{,i,y}>: package(async)
 <bench/src/*.ml{,i,y}>: package(base64)
 <bench/src/*.ml{,i,y}>: package(camlp4)
 <bench/src/*.ml{,i,y}>: package(camlp4.extend)

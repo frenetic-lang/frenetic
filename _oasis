@@ -34,6 +34,7 @@ Library frenetic
     CCOpt:
       -Wno-unused-command-line-argument-hard-error-in-future
   BuildDepends:
+    async,
     base64 (>= 2.0.0),
     camlp4.lib,
     camlp4.extend,

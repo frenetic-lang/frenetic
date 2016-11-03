@@ -628,8 +628,7 @@ let coronet c = match c with
             let fspolicy = CoroNet.Waypath.to_policy_fibers wptbl net preds in
             let preproc_time = from start in
 
-            let module C =
-              Frenetic_Synthesis.MakeForFibers(Frenetic_Synthesis.Coronet) in
+            let module C = Frenetic_Synthesis.Coronet in
             let edge, gen_time, synth_time = C.synthesize fspolicy fsfabric
                 (CoroNet.Pretty.to_netkat net) in
 
@@ -642,23 +641,8 @@ let coronet c = match c with
             let result = sprintf "|%d\t%Ld\t%Ld\t%Ld\t%d\n"
                 nodes
                 (to_msecs preproc_time) (to_msecs gen_time ) (to_secs synth_time)
-                num_flows
-            in
-
-            (* let result = String.concat ~sep:"\n" *)
-            (*     [ "\nOptical Channel Configuration"; *)
-            (*       (Frenetic_Circuit_NetKAT.string_of_config circuits); *)
-            (*       "\nFabric NetKAT Program:"; *)
-            (*       (string_of_policy fabric); *)
-            (*       "\nPolicy NetKAT Program:"; *)
-            (*       (String.concat ~sep:"\n" *)
-            (*          (List.map policies ~f:(string_of_policy))); *)
-            (*       "\nEdge NetKAT program"; *)
-            (*       (string_of_policy edge) *)
-            (*     ] in *)
-
+                num_flows in
             Ok result
-
         with
         | CoroNet.NonexistentNode s ->
           Error (sprintf "No node %s in topology\n" s)

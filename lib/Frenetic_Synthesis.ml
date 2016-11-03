@@ -381,7 +381,6 @@ module Optical : DYAD_SOLVER = struct
   let gen_time = ref 0L
   let synth_time = ref 0L
 
-
   let to_netkat topo
     ((src,dst,cond,actions)) ((src',dst',cond',actions'))
     (tag:int): policy * policy =
@@ -447,7 +446,7 @@ module MakeForDyads (S:SOLVER with type t = Dyad.t) = struct
 end
 
 
-module Coronet : FIBER_SOLVER = struct
+module Coronet = struct
 
   type t = fiber
 
@@ -468,11 +467,10 @@ module Coronet : FIBER_SOLVER = struct
     let egress  = seq ([ out_filter; Mod( Vlan strip_vlan ); modify; to_edge ]) in
     ingress, egress
 
-  let decide topo policy fabric =
+  let to_z3 topo policy fabric =
     let open Z3 in
     let open Frenetic_Time in
     let open Frenetic_Topology.CoroNet.Waypath in
-
     (* Generate the Z3 problem *)
     let start = time () in
     let places = TestsOnly(Fabric,
@@ -492,53 +490,62 @@ module Coronet : FIBER_SOLVER = struct
     let lines = t_z3::pol_z3::fab_z3::fab_path::restraints::on_path::["(check-sat)"] in
     let problem = String.concat ~sep:"\n\n" lines in
     let gtime = from start in
+    gen_time := Int64.(+) !gen_time gtime;
+    problem
 
-    (* Write out the problem and call Z3 to solve it *)
-    let inc = In_channel.create "z3/preamble.z3" in
-    let preamble = In_channel.input_all inc in
-    In_channel.close inc;
-    let outc = Out_channel.create "problem.z3" in
-    Out_channel.output_string outc preamble;
-    Out_channel.output_string outc problem;
-    Out_channel.close outc;
-
-    let start = time () in
+  let decide topo policy fabric : (fiber * bool) Async.Std.Deferred.t =
+    let open Frenetic_Time in
+    let open Frenetic_Topology.CoroNet.Waypath in
+    let (>>=) = Async.Std.Deferred.(>>=) in
+    let return = Async.Std.return in
     let name = String.substr_replace_all policy.name ~pattern:"sw" ~with_:"" in
     if name = fabric.name then
-      let name = String.substr_replace_all (sprintf "%s.z3" name) ~pattern:"=>"
-          ~with_:"" in
-      let chan = Out_channel.create name in
-      Out_channel.output_string chan preamble;
-      Out_channel.output_string chan problem;
-      Out_channel.close chan;
-      let inc,outc = Unix.open_process "z3 problem.z3" in
-      let answer = In_channel.input_all inc in
-      (* printf "Tring to decide %s with %s %s\n%!" policy.name fabric.name answer; *)
-      let _ = Unix.close_process ( inc, outc ) in
-      let _ = match String.substr_index answer ~pattern:"error" with
-        | None -> ()
-        | Some i -> failwith "Z3 error" in
-      let result = match String.substr_index answer ~pattern:"unsat" with
-      | None -> true
-      | Some i -> false in
+      let problem = to_z3 topo policy fabric in
+      let name = String.substr_replace_all
+          (sprintf "%s.z3" name) ~pattern:"=>" ~with_:"" in
 
-      let (+) = Int64.(+) in
-      let stime = from start in
-      gen_time := !gen_time + gtime;
-      synth_time := !synth_time + stime;
-      result
-    else false
+      (* Write out the problem and call Z3 to solve it *)
+      let inc = In_channel.create "z3/preamble.z3" in
+      let preamble = In_channel.input_all inc in
+      In_channel.close inc;
+      let outc = Out_channel.create name in
+      Out_channel.output_string outc preamble;
+      Out_channel.output_string outc problem;
+      Out_channel.close outc;
 
+      Async.Std.Process.create ~prog:"z3" ~args:[name] () >>= ( fun p ->
+      match p with
+      | Error _ -> return (fabric, false)
+      | Ok proc ->
+        let out = Async.Std.Process.stdout proc in
+        Async_unix.Reader.contents out >>= fun s ->
+        (* ignore (match String.substr_index s ~pattern:"error" with *)
+        (*   | None -> () *)
+        (*   | Some i -> printf "Z3 error"); *)
+        match String.substr_index s ~pattern:"unsat" with
+          | None -> return (fabric, true)
+          | Some i -> return (fabric, false) )
+    else
+      return (fabric, false)
 
+    (*   let inc,outc = Unix.open_process "z3 problem.z3" in *)
+    (*   let answer = In_channel.input_all inc in *)
+    (*   (\* printf "Tring to decide %s with %s %s\n%!" policy.name fabric.name answer; *\) *)
+    (*   let _ = Unix.close_process ( inc, outc ) in *)
+    (*   let (+) = Int64.(+) in *)
+    (*   let stime = from start in *)
+    (*   synth_time := !synth_time + stime; *)
+    (*   result *)
+    (* else false *)
 
   (** Just pick one possible fabric fiber at random from the set of options *)
   let choose topo fiber options = match options with
-  | [] -> raise ( UnmatchedFiber fiber )
-  | [d] -> d
-  | options ->
-    let opts = Array.of_list options in
-    let index = Random.int (Array.length opts) in
-    opts.(index)
+    | [] -> raise ( UnmatchedFiber fiber )
+    | [d] -> d
+    | options ->
+      let opts = Array.of_list options in
+      let index = Random.int (Array.length opts) in
+      opts.(index)
 
   let generate topo pairs : policy * policy =
     let tagged to_netkat topo pairs =
@@ -549,39 +556,44 @@ module Coronet : FIBER_SOLVER = struct
       (union ins, union outs) in
     tagged to_netkat topo pairs
 
-end
-
-module MakeForFibers (S:FIBER_SOLVER with type t = fiber) = struct
-
   (** Core matching function *)
-  let matching topology (policy:S.t list) (fabric:S.t list)
+  let matching topology (policy:t list) (fabric:t list)
     : policy * policy =
+    let rec wait ls = match Async.Std.Deferred.peek ls with
+      | Some ls -> ls
+      | None -> wait ls in
 
     (* For each policy fiber, find the set of fabric fibers that could be used
-       to carry it. This is done using the `decide` function from the SOLVER
+       to carry it. This is done using the `decide` function from the LVER
        that allows the caller to specify what criteria are important, perhaps
        according to the properties of the fabric. *)
+    let start = Frenetic_Time.time () in
     let partitions = List.fold_left policy ~init:[]
         ~f:(fun acc pol ->
-            let fibers = List.filter fabric ~f:(S.decide topology pol) in
+            let deferreds = List.map fabric ~f:(decide topology pol) in
+            let fbs = wait ( Async.Std.Deferred.all deferreds ) in
+            let fibers = List.fold fbs ~init:[] ~f:(fun acc (f,b) ->
+                if b then f::acc else acc) in
+            (* let fibers = List.filter fabric ~f:(decide topology pol) in *)
             let partition = (pol, fibers) in
             (partition::acc)) in
+    let stime = Frenetic_Time.from start in
+    synth_time := Int64.(+) !synth_time stime;
+
 
     (* Pick a smaller set of fabric fibers to actually carry the policy fibers *)
     let pairs =
       List.fold_left partitions ~init:[] ~f:(fun acc (fiber, opts) ->
-          let pick = S.choose topology fiber opts in
+          let pick = choose topology fiber opts in
           (fiber, pick)::acc) in
+    generate topology pairs
 
-    S.generate topology pairs
-
-
-  let synthesize (policy:S.t list) (fabric:S.t list) (topo:policy) =
+  let synthesize (policy:t list) (fabric:t list) (topo:policy) =
     let preds = Fabric.Topo.predecessors topo in
     let succs = Fabric.Topo.successors topo in
     let topology = {topo; preds; succs} in
     let ingress, egress = matching topology
         policy fabric in
-    Union(ingress, egress), !S.gen_time, !S.synth_time
+    Union(ingress, egress), !gen_time, !synth_time
 
 end
