@@ -88,6 +88,7 @@ let default_spec =
   Command.Spec.(empty +> Flag.verbosity +> Flag.log)
 
 let run cmd verbosity log =
+  Async_parallel_deprecated.Std.Parallel.init ();
   let (log_path, log_output) = log in
   Frenetic_Log.set_level verbosity;
   Frenetic_Log.set_output [Lazy.force log_output];

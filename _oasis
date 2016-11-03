@@ -35,6 +35,7 @@ Library frenetic
       -Wno-unused-command-line-argument-hard-error-in-future
   BuildDepends:
     async,
+    async_parallel,
     base64 (>= 2.0.0),
     camlp4.lib,
     camlp4.extend,
