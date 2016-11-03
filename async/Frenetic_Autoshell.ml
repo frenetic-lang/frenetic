@@ -629,8 +629,8 @@ let coronet c = match c with
             let preproc_time = from start in
 
             let module C = Frenetic_Synthesis.Coronet in
-            let edge, gen_time, synth_time = C.synthesize fspolicy fsfabric
-                (CoroNet.Pretty.to_netkat net) in
+            C.synthesize fspolicy fsfabric (CoroNet.Pretty.to_netkat net) >>=
+            (fun ( edge, gen_time, synth_time ) ->
 
             let compiled = Compiler.compile_local ~options:keep_cache edge in
             let num_flows = List.fold ids ~init:0 ~f:(fun num id ->
@@ -642,7 +642,12 @@ let coronet c = match c with
                 nodes
                 (to_msecs preproc_time) (to_msecs gen_time ) (to_secs synth_time)
                 num_flows in
-            Ok result
+            return ( Ok result )) >>> ( function r ->
+              match r with
+              | Ok msg  -> printf "%s\n%!" msg
+              | Error e -> printf "Error: %s\n" e);
+            Ok "success"
+
         with
         | CoroNet.NonexistentNode s ->
           Error (sprintf "No node %s in topology\n" s)

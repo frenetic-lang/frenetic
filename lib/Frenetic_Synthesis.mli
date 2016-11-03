@@ -33,7 +33,8 @@ module type SYNTH = sig
 end
 
 module type COROSYNTH = sig
- val synthesize : fiber list -> fiber list -> policy -> (policy * Int64.t * Int64.t)
+  val synthesize : fiber list -> fiber list -> policy ->
+    (policy * Int64.t * Int64.t) Async.Std.Deferred.t
 end
 
 module Z3 : sig
