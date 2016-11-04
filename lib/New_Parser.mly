@@ -14,7 +14,7 @@
 #endif
 
 %{
-open NetKAT
+open Frenetic_NetKAT
 #ifdef EXT
 open Ast_convenience
 #endif
@@ -54,7 +54,9 @@ open Ast_convenience
 
 %%
 pol_eof:
-  | p=pol; EOF { p }
+  | p=pol; EOF
+      AST( p )
+      PPX( Frenetic_NetKAT.([%e p]))
   ;
 
 pred_eof:
