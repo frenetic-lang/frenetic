@@ -23,7 +23,17 @@ PreBuildCommand:
 PostBuildCommand:
   rm lib/Frenetic_NetKAT_Parser.ml syntax/Frenetic_Syntax_Extension_Parser.ml
 
+Library newsyntax
+  Path: syntax
+  BuildDepends:
+    compiler-libs.common,
+    ppx_core,
+    ppx_driver
+  Modules:
+    Frenetic_NetKAT_PPX
+
 Library frenetic
+  Build: false
   Path: lib
   BuildDepends:
     base64 (>= 2.0.0),
@@ -67,6 +77,7 @@ Library frenetic
     Frenetic_Vlr
 
 Library async
+  Build: false
   Findlibparent: frenetic
   Findlibname: async
   Path: async
@@ -94,6 +105,7 @@ Library async
     Frenetic_Ox
 
 Executable frenetic
+  Build: false
   Path: frenetic
   MainIs: frenetic.ml
   Install: true
@@ -106,6 +118,7 @@ Executable frenetic
     async_extended
 
 Executable openflow
+  Build: false
   Path: frenetic
   MainIs: openflow.ml
   Install: true
@@ -118,6 +131,7 @@ Executable openflow
     async_extended
 
 Library syntax
+  Build: false
   Path: syntax
   Findlibparent: frenetic
   Findlibname: syntax
@@ -137,6 +151,7 @@ Library syntax
   XMETADescription: Syntax extension writing NetKAT expressions
 
 Library test_frenetic
+  Build: false
   Findlibparent: frenetic
   Findlibname: test
   Path: lib_test/lib
@@ -156,6 +171,7 @@ Library test_frenetic
     Flowterp
 
 Executable testtool
+  Build: false
   Path: lib_test
   MainIs: Test.ml
   Install: false
@@ -167,6 +183,7 @@ Executable testtool
     frenetic.async
 
 Executable benchmark
+  Build: false
   Install: false
   Path: bench/src
   CompiledObject: best
