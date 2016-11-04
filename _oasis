@@ -23,14 +23,14 @@ PreBuildCommand:
 PostBuildCommand:
   rm lib/Frenetic_NetKAT_Parser.ml syntax/Frenetic_Syntax_Extension_Parser.ml
 
-Library newsyntax
+Executable newsyntax
   Path: syntax
   BuildDepends:
     compiler-libs.common,
     ppx_core,
     ppx_driver
-  Modules:
-    Frenetic_NetKAT_PPX
+  MainIs: ppx.ml
+  CompiledObject: best
 
 Library frenetic
   Build: false

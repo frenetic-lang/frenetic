@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 572f9c83a733d5895c66da2c6606e0fc)
+# DO NOT EDIT (digest: bb03eac58437cbaad8846d861825f0c1)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -14,8 +14,10 @@ true: annot, bin_annot
 ".git": not_hygienic
 "_darcs": -traverse
 "_darcs": not_hygienic
-# Library newsyntax
-"syntax/newsyntax.cmxs": use_newsyntax
+# Executable newsyntax
+<syntax/ppx.{native,byte}>: package(compiler-libs.common)
+<syntax/ppx.{native,byte}>: package(ppx_core)
+<syntax/ppx.{native,byte}>: package(ppx_driver)
 <syntax/*.ml{,i,y}>: package(compiler-libs.common)
 <syntax/*.ml{,i,y}>: package(ppx_core)
 <syntax/*.ml{,i,y}>: package(ppx_driver)
