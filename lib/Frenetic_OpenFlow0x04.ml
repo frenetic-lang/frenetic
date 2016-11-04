@@ -2001,7 +2001,12 @@ module Oxm = struct
       end
     | OxmVlanVId vid ->
       set_ofp_oxm buf ofc OFPXMT_OFB_VLAN_VID (match vid.m_mask with None -> 0 | _ -> 1) l;
-      set_ofp_uint16_value buf2 vid.m_value;
+      (* Set OFPVID_PRESENT bits of ofp_vlan_id field.
+       * Without this flag set, openflow ignores the vid being matched against or set.
+       *
+       * NOTE: Are there cases where we would explicitly match against or set the vlan_id
+       * field for which these bits should be set to OFPVID_NONE? *)
+      set_ofp_uint16_value buf2 (vid.m_value lor 0x1000);
       begin match vid.m_mask with
         | None ->
           sizeof_ofp_oxm + l
