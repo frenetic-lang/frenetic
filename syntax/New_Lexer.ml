@@ -1,7 +1,5 @@
-open Frenetic_NetKAT_Tokens
-
-(* if in ppx mode, enable antiquotations *)
-let ppx = ref true
+type token = [%import: Frenetic_NetKAT_Tokens.token]
+   [@@deriving show]
 
 (* use custom lexbuffer to keep track of source location *)
 module Sedlexing = LexBuffer
@@ -9,6 +7,7 @@ open LexBuffer
 
 (** Signals a lexing error at the provided source location.  *)
 exception LexError of (Lexing.position * string)
+exception ParseError of (token * Lexing.position * Lexing.position)
 let failwith buf s = raise (LexError (buf.pos, s))
 
 let illegal buf c =
@@ -32,11 +31,11 @@ let blank = [%sedlex.regexp? ' ' | '\t' ]
 let newline = [%sedlex.regexp? '\r' | '\n' | "\r\n" ]
 
 (* SJS: ensure this gives longest match *)
-let rec token buf =
+let rec token ~ppx buf =
   match%sedlex buf with
   | eof -> EOF
-  | newline -> token buf
-  | Plus blank -> token buf
+  | newline -> token ~ppx buf
+  | Plus blank -> token ~ppx buf
   (* values *)
   | decbyte,'.',decbyte,'.',decbyte,'.',decbyte -> 
     IP4ADDR (ascii buf)
@@ -50,14 +49,14 @@ let rec token buf =
   | '"', Star (Compl '"'), '"' -> STRING (ascii ~skip:1 ~drop:1 buf)
   (* antiquotations *)
   | '$', id ->
-    if !ppx then
+    if ppx then
       ANTIQ (ascii ~skip:1 buf)
     else
       illegal buf '$'
   (* comments *)
   | "(*" ->
     comment 1 buf;
-    token buf
+    token ~ppx buf
   (* predicates *)
   | "true" -> TRUE
   | "false" -> FALSE
@@ -118,8 +117,22 @@ and comment depth buf =
   | any -> comment depth buf
   | _ -> assert false
 
-let loc_token buf =
+let loc_token ~ppx buf =
   let start = buf.pos in
-  let t = token buf in
+  let t = token ~ppx buf in
   let end_pos = buf.pos in
   (t, start, end_pos)
+
+(* menhir interface *)
+let parse ?(ppx=false) p buf =
+  let last_token = ref Lexing.(EOF, dummy_pos, dummy_pos) in
+  let next_token () = last_token := loc_token ~ppx buf; !last_token in
+  try MenhirLib.Convert.Simplified.traditional2revised p next_token with
+  | LexError (pos, s) -> raise (LexError (pos, s))
+  | _ -> raise (ParseError (!last_token))
+
+let parse_string ?pos ?ppx s p =
+  parse ?ppx p (LexBuffer.of_ascii_string ?pos s)
+
+let parse_file ?ppx ~file p =
+  parse ?ppx p (LexBuffer.of_ascii_file file)

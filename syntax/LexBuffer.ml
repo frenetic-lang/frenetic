@@ -22,7 +22,10 @@ let of_sedlex ?(file="<n/a>") ?pos buf =
   in
   {  buf; pos; pos_mark = pos; last_char = None; last_char_mark = None; }
 
-let of_file file =
+let of_ascii_string ?pos s =
+  of_sedlex ?pos Sedlexing.(Latin1.from_string s) 
+
+let of_ascii_file file =
   let chan = In_channel.create file in
   of_sedlex ~file Sedlexing.(Latin1.from_channel chan)
 
