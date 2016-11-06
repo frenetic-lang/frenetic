@@ -1,14 +1,23 @@
 open Ppx_core.Std
 open Parsetree
-open Frenetic_NetKAT_PPX_Parser
 
 (* extension is triggered by keword 'nk' *)
 let ext_keyw = "nk"
 
+let parser buf =
+  MenhirLib.Convert.Simplified.traditional2revised
+    Frenetic_NetKAT_PPX_Parser.pol_eof
+    (fun () -> New_Lexer.loc_token buf)
+
 (* expands `s` in `let%nk x = {| s |}` *)
 let expand_nk_string ~loc s =
+  let pos = Location.(loc.loc_start) in
+  let sedlex = Sedlexing.(Latin1.from_string s) in
+  let buf = LexBuffer.of_sedlex ~pos sedlex in
+  parser buf
+
   (* FIXME: this is where we would call the NetKAT parser, together with a source location *)
-    Pexp_constant (Pconst_string ("NetKAT is awesome!!!", None))
+    (* Pexp_constant (Pconst_string ("NetKAT is awesome!!!", None)) *)
 
 (* expands `e` in `let%nk x = e` *)
 let expand_bound_expr expr =
@@ -16,7 +25,8 @@ let expand_bound_expr expr =
   match expr.pexp_desc with
   (* only expand e if e = {| s |} *)
   | Pexp_constant (Pconst_string (s, Some "")) ->
-    { expr with pexp_desc = expand_nk_string ~loc s }
+    (* { expr with pexp_desc = expand_nk_string ~loc s } *)
+    expand_nk_string ~loc s
   | _ ->
     Location.raise_errorf ~loc "'let%%%s' may only bind quoted NetKAT" ext_keyw
 

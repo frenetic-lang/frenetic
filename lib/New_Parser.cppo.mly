@@ -35,10 +35,10 @@ let int64 ?loc ?attrs x =
 
 (* fields *)
 %token SWITCH PORT ETHSRC ETHDST VLAN VLANPCP ETHTYPE IPPROTO IP4SRC IP4DST TCPSRCPORT TCPDSTPORT
-%token <string> QUERY PIPE
 
 (* values *)
-%token <string> INT IP4ADDR
+%token QUERY PIPE
+%token <string> INT IP4ADDR MAC STRING
 
 (* primitives *)
 %token LPAR RPAR BEGIN END EOF
@@ -147,12 +147,12 @@ header_val(BINOP):
   | PORT; BINOP; n=int32
       AST( Location (Physical n) )
       PPX( Location (Physical [%e n]) )
-  | PORT; BINOP; s=PIPE
+  | PORT; BINOP; s=pipe
       AST( Location (Pipe s) )
-      PPX( Location (Pipe [%e str s]) )
-  | PORT; BINOP; s=QUERY
+      PPX( Location (Pipe [%e s]) )
+  | PORT; BINOP; s=query
       AST( Location (Query s) )
-      PPX( Location (Query [%e str s]) )
+      PPX( Location (Query [%e s]) )
   | VLAN; BINOP; n=int
       AST( Vlan n )
       PPX( Vlan [%e n] )
@@ -162,9 +162,15 @@ header_val(BINOP):
   | ETHTYPE; BINOP; n=int
       AST( EthType n )
       PPX( EthType [%e n] )
+  | ETHSRC; BINOP; m=mac
+      AST( EthSrc m )
+      PPX( EthSrc [%e m] )
   | ETHSRC; BINOP; n=int64
       AST( EthSrc n )
       PPX( EthSrc [%e n] )
+  | ETHDST; BINOP; m=mac
+      AST( EthDst m )
+      PPX( EthDst [%e m] )
   | ETHDST; BINOP; n=int64
       AST( EthDst n )
       PPX( EthDst [%e n] )
@@ -206,14 +212,21 @@ int32:
 
 int64:
   | n=INT
-      AST( Int64.of_string n )
+      AST(            Int64.of_string n )
       PPX( [%e int64 (Int64.of_string n)] )
   AQ
   ;
 
+mac:
+  | s = MAC
+
+      AST( Frenetic_Packet.mac_of_string         s  )
+      PPX( Frenetic_Packet.mac_of_string [%e str s] )
+  ;
+
 ip4addr:
   | s = IP4ADDR
-      AST( Ipaddr.V4.(to_int32 (of_string_exn s)) )
+      AST( Ipaddr.V4.(to_int32 (of_string_exn         s )) )
       PPX( Ipaddr.V4.(to_int32 (of_string_exn [%e str s])) )
   ;
 
@@ -221,3 +234,13 @@ ipmask:
   | SLASH; m=int32 { m }
   | AST( 32l ) PPX( 32l )
   ;
+
+pipe:
+  | PIPE; LPAR; s=STRING; RPAR
+      AST( s )
+      PPX( [%e str s] )
+
+query:
+  | QUERY; LPAR; s=STRING; RPAR
+      AST( s )
+      PPX( [%e str s] )

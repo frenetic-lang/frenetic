@@ -72,15 +72,26 @@ Library frenetic
     Frenetic_Util,
     Frenetic_Vlr
 
+Library parser
+  Path: syntax
+  BuildDepends:
+    core,
+    sedlex,
+    ppx_tools, # (> 5.0), not available yet
+    ppx_tools.metaquot,
+    menhirlib,
+    frenetic
+  Modules:
+    LexBuffer,
+    New_Lexer
+
 Executable newsyntax
   Path: syntax
   BuildDepends:
     compiler-libs.common,
-    ppx_tools, # (> 5.0), not available yet
-    ppx_tools.metaquot,
     ppx_core,
     ppx_driver,
-    frenetic
+    parser
   MainIs: ppx.ml
   CompiledObject: best
 
