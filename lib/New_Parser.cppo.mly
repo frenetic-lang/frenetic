@@ -12,6 +12,7 @@
   #define POLTY Frenetic_NetKAT.policy
   #define PREDTY Frenetic_NetKAT.pred
 #endif
+#define BOTH(arg) AST(arg) PPX(arg)
 
 %{
 open Core.Std
@@ -99,11 +100,17 @@ pol:
       AST( Star p )
       PPX( Star [%e p] )
   | LET; id=METAID; ASSIGN; v=metaval; IN; p=pol
-      AST( Let(id         , Const v.    , false, p.    ) )
+      AST( Let(id         , Const v     , false, p     ) )
       PPX( Let([%e str id], Const [%e v], false, [%e p]) )
+  | LET; id=METAID; ASSIGN; a=alias; IN; p=pol
+      AST( Let(id         , Alias a    , false, p      ) )
+      PPX( Let([%e str id], Alias [%e a], false, [%e p]) )
   | VAR; id=METAID; ASSIGN; v=metaval; IN; p=pol
-      AST( Let(id         , Const v.    , true, p.    ) )
+      AST( Let(id         , Const v    , true, p      ) )
       PPX( Let([%e str id], Const [%e v], true, [%e p]) )
+  | VAR; id=METAID; ASSIGN; a=alias; IN; p=pol
+      AST( Let(id         , Alias a     , true, p     ) )
+      PPX( Let([%e str id], Alias [%e a], true, [%e p]) )
   | sw1=int64; AT; pt1=int32; LINK; sw2=int64; AT; pt2=int32
       AST( Link (sw1, pt1, sw2, pt2) )
       PPX( Link ([%e sw1], [%e pt1], [%e sw2], [%e pt2]) )
@@ -155,15 +162,9 @@ header_val(BINOP):
   | SWITCH; BINOP; n=int64
       AST( Switch n )
       PPX( Switch [%e n])
-  | PORT; BINOP; n=int32
-      AST( Location (Physical n) )
-      PPX( Location (Physical [%e n]) )
-  | PORT; BINOP; s=pipe
-      AST( Location (Pipe s) )
-      PPX( Location (Pipe [%e s]) )
-  | PORT; BINOP; s=query
-      AST( Location (Query s) )
-      PPX( Location (Query [%e s]) )
+  | PORT; BINOP; p=portval
+      AST( Location p )
+      PPX( Location [%e p] )
   | VLAN; BINOP; n=int
       AST( Vlan n )
       PPX( Vlan [%e n] )
@@ -204,6 +205,33 @@ header_val(BINOP):
       AST( Meta (id, n) )
       PPX( Meta ([%e str id], [%e n]) )
   ;
+
+(*********************** aliases *************************)
+alias:
+  | SWITCH
+    BOTH( switch (Obj.magic 0) )
+  | PORT
+    BOTH( Location (Obj.magic 0) )
+  | ETHSRC
+    BOTH( EthSrc (Obj.magic 0) )
+  | ETHDST
+    BOTH( EthDst (Obj.magic 0) )
+  | VLAN
+    BOTH( Vlan (Obj.magic 0) )
+  | VLANPCP
+    BOTH( VlanPcp (Obj.magic 0) )
+  | ETHTYPE
+    BOTH( EthType (Obj.magic 0) )
+  | TCPSRCPORT
+    BOTH( TCPSrcPort (Obj.magic 0) )
+  | TCPDSTPORT
+    BOTH( TCPDstPort (Obj.magic 0) )
+  | IPPROTO
+    BOTH( IPProto (Obj.magic 0) )
+  | IP4SRC
+    BOTH( IP4Src (Obj.magic 0) )
+  | IP4DST
+    BOTH( IP4Dst (Obj.magic 0) )
 
 
 (*********************** VALUES *************************)
@@ -248,15 +276,16 @@ ipmask:
   | AST( 32l ) PPX( 32l )
   ;
 
-pipe:
+portval:
+  | n=int32
+      AST( Physical n )
+      PPX( Physical [%e n] )
   | PIPE; LPAR; s=STRING; RPAR
-      AST( s )
-      PPX( [%e str s] )
-
-query:
+      AST( Pipe s )
+      PPX( Pipe [%e str s] )
   | QUERY; LPAR; s=STRING; RPAR
-      AST( s )
-      PPX( [%e str s] )
+      AST( Query s )
+      PPX( Query [%e str s] )
 
 metaval:
   | n=int64 { n }
