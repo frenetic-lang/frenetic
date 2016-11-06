@@ -22,6 +22,7 @@ depends: [
   "ocamlfind" {build}
   "oasis" {build}
   "cppo" {build}
+  "menhir" {build}
   "core"
   "ppx_jane"
   "ppx_deriving"

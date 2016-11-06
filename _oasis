@@ -6,28 +6,87 @@ Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     https://github.com/frenetic-lang/frenetic/contributors
 License:     LGPL
 Plugins:     META (0.3)
-AlphaFeatures: 
-  no_automatic_syntax,
-  ocamlbuild_more_args
-XOCamlbuildExtraArgs: -cflags -w,-40,-short-paths
 BuildTools:
   ocamlbuild,
   ocamldoc
+AlphaFeatures:
+  ocamlbuild_more_args,
+  source_patterns
+XOCamlbuildExtraArgs:
+  -use-menhir
+  -cflags -w,-40,-short-paths
+# avoids warnings
+ImplementationPatterns+:
+ ${module}.cppo.mly
+
 # generate standard parser and syntax extension parser from common file
 PreBuildCommand:
-  cppo -q \
-    lib/Frenetic_NetKAT_Parser.cppo.ml -o lib/Frenetic_NetKAT_Parser.ml
-  cppo -q -I lib \
-    syntax/Frenetic_Syntax_Extension_Parser.cppo.ml -o \
-    syntax/Frenetic_Syntax_Extension_Parser.ml
+  cppo -n \
+    lib/Frenetic_NetKAT_Parser.cppo.mly \
+    -o lib/Frenetic_NetKAT_Parser.mly
+  cppo -n \
+    syntax/Frenetic_NetKAT_PPX_Parser.cppo.mly \
+    -o syntax/Frenetic_NetKAT_PPX_Parser.mly
 PostBuildCommand:
-  rm lib/Frenetic_NetKAT_Parser.ml syntax/Frenetic_Syntax_Extension_Parser.ml
+  rm -f syntax/Frenetic_NetKAT_PPX_Parser.mly
+  rm -f lib/Frenetic_NetKAT_Parser.mly
+
+Library frenetic
+  Path: lib
+  BuildDepends:
+    base64 (>= 2.0.0),
+    core,
+    cstruct,
+    ulex,
+    ocamlgraph (>= 1.8.7),
+    ppx_jane,
+    ppx_deriving.eq,
+    ppx_deriving.enum,
+    str,
+    tcpip,
+    ulex,
+    yojson,
+    threads
+  Modules:
+    Frenetic_Hashcons,
+    Frenetic_Bits,
+    Frenetic_Fdd,
+    Frenetic_OpenFlow0x04,
+    Frenetic_GroupTable0x04,
+    Frenetic_NetKAT,
+    Frenetic_NetKAT_Optimize,
+    Frenetic_NetKAT_Json,
+    Frenetic_NetKAT_Lexer,
+    Frenetic_NetKAT_Compiler,
+    Frenetic_NetKAT_Virtual_Compiler,
+    Frenetic_NetKAT_Net,
+    Frenetic_NetKAT_Parser,
+    Frenetic_NetKAT_Pretty,
+    Frenetic_NetKAT_Semantics,
+    Frenetic_Network,
+    Frenetic_OpenFlow,
+    Frenetic_OpenFlow_Header,
+    Frenetic_OpenFlow0x01,
+    Frenetic_Packet,
+    Frenetic_Topology,
+    Frenetic_Util,
+    Frenetic_Vlr
 
 Executable newsyntax
   Path: syntax
   BuildDepends:
     compiler-libs.common,
+    ppx_tools, # (> 5.0), not available yet
+    ppx_tools.metaquot,
     ppx_core,
-    ppx_driver
+    ppx_driver,
+    frenetic
   MainIs: ppx.ml
   CompiledObject: best
+
+#Library parser
+#  Path: lib
+#  BuildDepends:
+#     menhir
+#  Modules:
+#    New_Parser

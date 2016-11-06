@@ -14,9 +14,17 @@
 #endif
 
 %{
+open Core.Std
 open Frenetic_NetKAT
 #ifdef EXT
+open Parsetree
+open Ast_helper
 open Ast_convenience
+(* FIXME: temporary, until these are included in the next Ast_convenience release *)
+let int32 ?loc ?attrs x =
+  Exp.constant ?loc ?attrs (Pconst_integer (Int32.to_string x, Some 'l'))
+let int64 ?loc ?attrs x =
+  Exp.constant ?loc ?attrs (Pconst_integer (Int64.to_string x, Some 'L'))
 #endif
 %}
 
@@ -56,7 +64,7 @@ open Ast_convenience
 pol_eof:
   | p=pol; EOF
       AST( p )
-      PPX( Frenetic_NetKAT.([%e p]))
+      PPX( [%e p] )
   ;
 
 pred_eof:
@@ -74,8 +82,8 @@ pol:
       AST( Filter a )
       PPX( Filter [%e a] )
   | hv=header_val(ASSIGN)
-      AST( Modify hv )
-      PPX( Modify [%e hv] )
+      AST( Mod hv )
+      PPX( Mod [%e hv] )
   | p=pol; PLUS; q=pol
       AST( Union (p, q) )
       PPX( Union ([%e p], [%e q]) )
@@ -89,11 +97,11 @@ pol:
       AST( Link (sw1, pt1, sw2, pt2) )
       PPX( Link ([%e sw1], [%e pt1], [%e sw2], [%e pt2]) )
   | IF; a=pred; THEN; p=pol; ELSE; q=pol 
-      AST( Union (Seq (Filter a, p), Seq (Filter (Neg a), q)) )
+      AST( Union (Seq (Filter a, p)          , Seq (Filter (Neg a)     , q)) )
       PPX( Union (Seq (Filter [%e a], [%e p]), Seq (Filter (Neg [%e a]), [%e q])) )
   | WHILE; a=pred; DO; p=pol
-      AST( Seq (Star (Seq (a, p)), Neq a) )
-      PPX( Seq(Star (Seq ([%e a], [%e p])), Neg [%e a]) )
+      AST( Seq (Star (Seq (Filter a, p))          , Filter (Neg a)) )
+      PPX( Seq (Star (Seq (Filter [%e a], [%e p])), Filter (Neg [%e a])) )
   | LPAR; p=pol; RPAR
       { p }
   | BEGIN p=pol; END
@@ -170,12 +178,13 @@ header_val(BINOP):
       AST( IPProto n )
       PPX( IPProto [%e n] )
   | IP4SRC; BINOP; n=ip4addr; m=ipmask
-      AST( Ip4Src (n,m) )
-      PPX( Ip4Src [%e n] )
+      AST( IP4Src (n,m) )
+      PPX( IP4Src ([%e n],[%e m]) )
   | IP4DST; BINOP; n=ip4addr; m=ipmask
-      AST( Ip4Dst n )
-      PPX( Ip4Dst ([%e n],[%e m]) )
+      AST( IP4Dst (n,m) )
+      PPX( IP4Dst ([%e n],[%e m]) )
   AQ
+  ;
 
 
 (*********************** VALUES *************************)
@@ -198,17 +207,17 @@ int32:
 int64:
   | n=INT
       AST( Int64.of_string n )
-      PPX( [%e int64 (Int32.of_string n) )
+      PPX( [%e int64 (Int64.of_string n)] )
   AQ
   ;
 
 ip4addr:
   | s = IP4ADDR
       AST( Ipaddr.V4.(to_int32 (of_string_exn s)) )
-      PPX( [%expr Ipaddr.V4.(to_int32 (of_string_exn [%e str s]))] )
+      PPX( Ipaddr.V4.(to_int32 (of_string_exn [%e str s])) )
   ;
 
 ipmask:
   | SLASH; m=int32 { m }
-  | AST( 32 ) PPX( [%expr 32] )
+  | AST( 32l ) PPX( 32l )
   ;

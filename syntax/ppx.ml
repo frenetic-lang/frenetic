@@ -1,5 +1,6 @@
 open Ppx_core.Std
 open Parsetree
+open Frenetic_NetKAT_PPX_Parser
 
 (* extension is triggered by keword 'nk' *)
 let ext_keyw = "nk"

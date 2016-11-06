@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: fd642fedb9bbc1fe6ae32c129cbb96f5)
+# DO NOT EDIT (digest: 32d95e2d774296d72ab079f4b05d9466)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -14,18 +14,59 @@ true: annot, bin_annot
 ".git": not_hygienic
 "_darcs": -traverse
 "_darcs": not_hygienic
+# Library frenetic
+"lib/frenetic.cmxs": use_frenetic
+<lib/*.ml{,i,y}>: package(base64)
+<lib/*.ml{,i,y}>: package(core)
+<lib/*.ml{,i,y}>: package(cstruct)
+<lib/*.ml{,i,y}>: package(ocamlgraph)
+<lib/*.ml{,i,y}>: package(ppx_deriving.enum)
+<lib/*.ml{,i,y}>: package(ppx_deriving.eq)
+<lib/*.ml{,i,y}>: package(ppx_jane)
+<lib/*.ml{,i,y}>: package(str)
+<lib/*.ml{,i,y}>: package(tcpip)
+<lib/*.ml{,i,y}>: package(threads)
+<lib/*.ml{,i,y}>: package(ulex)
+<lib/*.ml{,i,y}>: package(yojson)
 # Executable newsyntax
+<syntax/ppx.{native,byte}>: package(base64)
 <syntax/ppx.{native,byte}>: package(compiler-libs.common)
+<syntax/ppx.{native,byte}>: package(core)
+<syntax/ppx.{native,byte}>: package(cstruct)
+<syntax/ppx.{native,byte}>: package(ocamlgraph)
 <syntax/ppx.{native,byte}>: package(ppx_core)
+<syntax/ppx.{native,byte}>: package(ppx_deriving.enum)
+<syntax/ppx.{native,byte}>: package(ppx_deriving.eq)
 <syntax/ppx.{native,byte}>: package(ppx_driver)
+<syntax/ppx.{native,byte}>: package(ppx_jane)
+<syntax/ppx.{native,byte}>: package(ppx_tools)
+<syntax/ppx.{native,byte}>: package(ppx_tools.metaquot)
+<syntax/ppx.{native,byte}>: package(str)
+<syntax/ppx.{native,byte}>: package(tcpip)
+<syntax/ppx.{native,byte}>: package(threads)
+<syntax/ppx.{native,byte}>: package(ulex)
+<syntax/ppx.{native,byte}>: package(yojson)
+<syntax/ppx.{native,byte}>: use_frenetic
+<syntax/*.ml{,i,y}>: package(base64)
 <syntax/*.ml{,i,y}>: package(compiler-libs.common)
+<syntax/*.ml{,i,y}>: package(core)
+<syntax/*.ml{,i,y}>: package(cstruct)
+<syntax/*.ml{,i,y}>: package(ocamlgraph)
 <syntax/*.ml{,i,y}>: package(ppx_core)
+<syntax/*.ml{,i,y}>: package(ppx_deriving.enum)
+<syntax/*.ml{,i,y}>: package(ppx_deriving.eq)
 <syntax/*.ml{,i,y}>: package(ppx_driver)
+<syntax/*.ml{,i,y}>: package(ppx_jane)
+<syntax/*.ml{,i,y}>: package(ppx_tools)
+<syntax/*.ml{,i,y}>: package(ppx_tools.metaquot)
+<syntax/*.ml{,i,y}>: package(str)
+<syntax/*.ml{,i,y}>: package(tcpip)
+<syntax/*.ml{,i,y}>: package(threads)
+<syntax/*.ml{,i,y}>: package(ulex)
+<syntax/*.ml{,i,y}>: package(yojson)
+<syntax/*.ml{,i,y}>: use_frenetic
 # OASIS_STOP
-<lib/Frenetic_NetKAT_Parser.ml{,i}>: syntax_camlp4o
 <lib/Frenetic_NetKAT_Lexer.ml{,i}>: syntax_camlp4o
-<syntax/Frenetic_Syntax_Extension_Parser.ml{,i}>: syntax_camlp4o
-<syntax/Frenetic_Syntax_Extension_Quotations.ml{,i}>: syntax_camlp4o
 <lib_test/*.ml{,i}>: predicate(ppx_driver)
 <lib_test/*.ml{,i}>: pp(ppx-jane -dump-ast -inline-test-lib frenetic)
 true: thread
