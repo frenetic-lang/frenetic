@@ -74,8 +74,9 @@ true: annot, bin_annot
 <syntax/*.ml{,i,y}>: use_frenetic
 <syntax/*.ml{,i,y}>: use_parser
 # OASIS_STOP
-<lib/Frenetic_NetKAT_Lexer.ml{,i}>: syntax_camlp4o
 <lib_test/*.ml{,i}>: predicate(ppx_driver)
 <lib_test/*.ml{,i}>: pp(ppx-jane -dump-ast -inline-test-lib frenetic)
 true: thread
 true: -traverse
+# SJS: use shared extern token file
+true: extern_tokens

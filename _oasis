@@ -19,7 +19,7 @@ XOCamlbuildExtraArgs:
 ImplementationPatterns+:
  ${module}.cppo.mly
 
-# generate standard parser and syntax extension parser from common file
+# generate standard parser, syntax extension parser, and tokenss from common file
 PreBuildCommand:
   cppo -n \
     lib/Frenetic_NetKAT_Parser.cppo.mly \
@@ -27,9 +27,12 @@ PreBuildCommand:
   cppo -n \
     syntax/Frenetic_NetKAT_PPX_Parser.cppo.mly \
     -o syntax/Frenetic_NetKAT_PPX_Parser.mly
+  menhir --only-tokens lib/Frenetic_NetKAT_Parser.mly \
+    --base lib/Frenetic_NetKAT_Tokens
 PostBuildCommand:
   rm -f syntax/Frenetic_NetKAT_PPX_Parser.mly
   rm -f lib/Frenetic_NetKAT_Parser.mly
+  rm -f lib/Frenetic_NetKAT_Tokens*
 
 Library frenetic
   Path: lib

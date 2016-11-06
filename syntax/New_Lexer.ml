@@ -1,10 +1,6 @@
-(* Adapted from https://github.com/jaked/ambassadortothecomputers.blogspot.com/blob/4d1bde223b1788ba52cc0f74b256760d9c059ac4/_code/camlp4-custom-lexers/jq_lexer.ml
-   This module is shared by Frenetic_NetKAT_Parser and Frenetic_Syntax_Extension_Parser
-*)
+open Frenetic_NetKAT_Tokens
 
-open Core.Std
-open Frenetic_NetKAT_PPX_Parser
-
+(* if in ppx mode, enable antiquotations *)
 let ppx = ref true
 
 (* use custom lexbuffer to keep track of source location *)
@@ -105,7 +101,7 @@ let rec token buf =
   | "begin" -> BEGIN
   | "end" -> END
   (* SJS / TODO: meta fields *)
-  | _ -> illegal buf (Char.of_int_exn (next buf))
+  | _ -> illegal buf (Char.chr (next buf))
 
 (* allow nested comments, like OCaml *)
 and comment depth buf =

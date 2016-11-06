@@ -244,3 +244,6 @@ query:
   | QUERY; LPAR; s=STRING; RPAR
       AST( s )
       PPX( [%e str s] )
+
+%%
+let x = 2

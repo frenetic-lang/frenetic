@@ -896,4 +896,8 @@ let dispatch_default = MyOCamlbuildBase.dispatch_default conf package_default;;
 
 # 898 "myocamlbuild.ml"
 (* OASIS_STOP *)
+
+(* SJS: use shared extern token file *)
+flag ["ocaml"; "menhir"; "extern_tokens"] & S[A"--external-tokens"; A"Frenetic_NetKAT_Tokens"];
+
 Ocamlbuild_plugin.dispatch dispatch_default;;
