@@ -29,12 +29,28 @@ let hexbyte = [%sedlex.regexp? hex,hex ]
 let blank = [%sedlex.regexp? ' ' | '\t' ]
 let newline = [%sedlex.regexp? '\r' | '\n' | "\r\n" ]
 
-(* SJS: ensure this gives longest match *)
-let rec token ~ppx buf =
+
+let rec garbage buf =
+  match%sedlex buf with
+  | newline -> garbage buf
+  | Plus blank -> garbage buf
+  | "(*" -> comment 1 buf
+  | _ -> ()
+
+(* allow nested comments, like OCaml *)
+and comment depth buf =
+  if depth = 0 then garbage buf else
+  match%sedlex buf with
+  | eof -> failwith buf "Unterminated comment at EOF" 
+  | "(*" -> comment (depth + 1) buf
+  | "*)" -> comment (depth - 1) buf
+  | any -> comment depth buf
+  | _ -> assert false
+
+let token ~ppx buf =
+  garbage buf;
   match%sedlex buf with
   | eof -> EOF
-  | newline -> token ~ppx buf
-  | Plus blank -> token ~ppx buf
   (* values *)
   | decbyte,'.',decbyte,'.',decbyte,'.',decbyte -> 
     IP4ADDR (ascii buf)
@@ -52,10 +68,6 @@ let rec token ~ppx buf =
       ANTIQ (ascii ~skip:1 buf)
     else
       illegal buf '$'
-  (* comments *)
-  | "(*" ->
-    comment 1 buf;
-    token ~ppx buf
   (* predicates *)
   | "true" -> TRUE
   | "false" -> FALSE
@@ -106,23 +118,16 @@ let rec token ~ppx buf =
   | metaid -> METAID (ascii buf)
   | _ -> illegal buf (Char.chr (next buf))
 
-(* allow nested comments, like OCaml *)
-and comment depth buf =
-  if depth = 0 then () else
-  match%sedlex buf with
-  | eof -> failwith buf "Unterminated comment at EOF" 
-  | "(*" -> comment (depth + 1) buf
-  | "*)" -> comment (depth - 1) buf
-  | any -> comment depth buf
-  | _ -> assert false
-
+(** wrapper around `token` that records start and end locations *)
 let loc_token ~ppx buf =
-  let start = buf.pos in
+  let () = garbage buf in (* dispose of garbage before recording start location *)
+  let start_pos = next_loc buf in
   let t = token ~ppx buf in
-  let end_pos = buf.pos in
-  (t, start, end_pos)
+  let end_pos = next_loc buf in
+  (t, start_pos, end_pos)
 
-(* menhir interface *)
+
+(** menhir interface *)
 let parse ?(ppx=false) p buf =
   let last_token = ref Lexing.(EOF, dummy_pos, dummy_pos) in
   let next_token () = last_token := loc_token ~ppx buf; !last_token in

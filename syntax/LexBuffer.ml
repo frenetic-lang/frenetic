@@ -66,6 +66,9 @@ let next lexbuf =
   lexbuf.last_char <- Some c;
   c
 
+let next_loc lexbuf =
+  { lexbuf.pos with Lexing.pos_cnum = lexbuf.pos.pos_cnum + 1 }
+
 let raw lexbuf : int array =
   Sedlexing.lexeme lexbuf.buf
 
