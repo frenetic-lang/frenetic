@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 61d6bfed6e9ac2ccc84502e05bf4965b)
+# DO NOT EDIT (digest: 47e7f08f9a7ec4340cfc50a06d8d923f)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -20,13 +20,9 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: package(core)
 <lib/*.ml{,i,y}>: package(cstruct)
 <lib/*.ml{,i,y}>: package(ocamlgraph)
-<lib/*.ml{,i,y}>: package(ppx_deriving.enum)
-<lib/*.ml{,i,y}>: package(ppx_deriving.eq)
-<lib/*.ml{,i,y}>: package(ppx_jane)
 <lib/*.ml{,i,y}>: package(str)
 <lib/*.ml{,i,y}>: package(tcpip)
 <lib/*.ml{,i,y}>: package(threads)
-<lib/*.ml{,i,y}>: package(ulex)
 <lib/*.ml{,i,y}>: package(yojson)
 # Library parser
 "syntax/parser.cmxs": use_parser
@@ -38,17 +34,14 @@ true: annot, bin_annot
 <syntax/ppx.{native,byte}>: package(menhirlib)
 <syntax/ppx.{native,byte}>: package(ocamlgraph)
 <syntax/ppx.{native,byte}>: package(ppx_core)
-<syntax/ppx.{native,byte}>: package(ppx_deriving.enum)
-<syntax/ppx.{native,byte}>: package(ppx_deriving.eq)
 <syntax/ppx.{native,byte}>: package(ppx_driver)
-<syntax/ppx.{native,byte}>: package(ppx_jane)
+<syntax/ppx.{native,byte}>: package(ppx_import)
 <syntax/ppx.{native,byte}>: package(ppx_tools)
 <syntax/ppx.{native,byte}>: package(ppx_tools.metaquot)
 <syntax/ppx.{native,byte}>: package(sedlex)
 <syntax/ppx.{native,byte}>: package(str)
 <syntax/ppx.{native,byte}>: package(tcpip)
 <syntax/ppx.{native,byte}>: package(threads)
-<syntax/ppx.{native,byte}>: package(ulex)
 <syntax/ppx.{native,byte}>: package(yojson)
 <syntax/ppx.{native,byte}>: use_frenetic
 <syntax/ppx.{native,byte}>: use_parser
@@ -59,23 +52,21 @@ true: annot, bin_annot
 <syntax/*.ml{,i,y}>: package(menhirlib)
 <syntax/*.ml{,i,y}>: package(ocamlgraph)
 <syntax/*.ml{,i,y}>: package(ppx_core)
-<syntax/*.ml{,i,y}>: package(ppx_deriving.enum)
-<syntax/*.ml{,i,y}>: package(ppx_deriving.eq)
 <syntax/*.ml{,i,y}>: package(ppx_driver)
-<syntax/*.ml{,i,y}>: package(ppx_jane)
+<syntax/*.ml{,i,y}>: package(ppx_import)
 <syntax/*.ml{,i,y}>: package(ppx_tools)
 <syntax/*.ml{,i,y}>: package(ppx_tools.metaquot)
 <syntax/*.ml{,i,y}>: package(sedlex)
 <syntax/*.ml{,i,y}>: package(str)
 <syntax/*.ml{,i,y}>: package(tcpip)
 <syntax/*.ml{,i,y}>: package(threads)
-<syntax/*.ml{,i,y}>: package(ulex)
 <syntax/*.ml{,i,y}>: package(yojson)
 <syntax/*.ml{,i,y}>: use_frenetic
 <syntax/*.ml{,i,y}>: use_parser
 # OASIS_STOP
-<lib_test/*.ml{,i}>: predicate(ppx_driver)
-<lib_test/*.ml{,i}>: pp(ppx-jane -dump-ast -inline-test-lib frenetic)
+# see https://github.com/janestreet/ppx_inline_test/issues/3
+# <lib_test/*.ml{,i}>: predicate(ppx_driver)
+# <lib_test/*.ml{,i}>: pp(ppx-jane -dump-ast -inline-test-lib frenetic)
 true: thread
 true: -traverse
 # SJS: use shared extern token file

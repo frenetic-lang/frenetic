@@ -1,5 +1,4 @@
-type token = [%import: Frenetic_NetKAT_Tokens.token]
-   [@@deriving show]
+type token = [%import: Frenetic_NetKAT_Tokens.token] [@@deriving show]
 
 (* use custom lexbuffer to keep track of source location *)
 module Sedlexing = LexBuffer

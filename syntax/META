@@ -1,8 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: 78ffe8b8d246613f469f2d5b1d3cf13d)
+# DO NOT EDIT (digest: cac59e53938f903dcdfee4c5b1f93ace)
 version = "4.0.0"
 description = "The Frenetic Compiler and Runtime System"
-requires = "core sedlex ppx_tools ppx_tools.metaquot menhirlib frenetic"
+requires =
+"core sedlex ppx_tools ppx_tools.metaquot ppx_import menhirlib frenetic"
 archive(byte) = "parser.cma"
 archive(byte, plugin) = "parser.cma"
 archive(native) = "parser.cmxa"
