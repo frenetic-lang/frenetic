@@ -50,7 +50,7 @@ let nk_ext_expr =
     expand_let_expr
 
 let () =
-  (* SJS: deprecated; use rule instead *)
   Ppx_driver.register_transformation "netkat"
     ~extensions:[nk_ext_expr; nk_ext_struct];
+  (* FIXME: just for testing. Replace with Ppx_driver.run_as_ppx_rewriter *)
   Ppx_driver.standalone ()
