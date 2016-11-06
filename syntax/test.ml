@@ -1,11 +1,11 @@
 (* let declaration *)
-let%nk x = {| hi |}
+let%nk x = {| hi |} and y = {| foo |}
 
 let%nk p = {| foo |}
 
 let test =
   (* let expression*)
-  let%nk p = {| more |} in
+  let%nk p = {| more |} and q = {| more |} in
   p
 
 (* in *)
