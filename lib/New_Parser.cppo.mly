@@ -36,6 +36,10 @@ let int64 ?loc ?attrs x =
 (* fields *)
 %token SWITCH PORT ETHSRC ETHDST VLAN VLANPCP ETHTYPE IPPROTO IP4SRC IP4DST TCPSRCPORT TCPDSTPORT
 
+(* meta fields *)
+%token <string> METAID
+%token LET VAR IN
+
 (* values *)
 %token QUERY PIPE
 %token <string> INT IP4ADDR MAC STRING
@@ -47,6 +51,7 @@ let int64 ?loc ?attrs x =
 %token <string> ANTIQ
 
 (* precedence and associativity - from lowest to highest *)
+%nonassoc IN (* let meta := 1 in p + q == let meta := 1 in (p + q) *)
 %left PLUS
 %left SEMICOLON
 %nonassoc ELSE (* if a then p else q; r == (if a then p else q); r *)
@@ -93,6 +98,12 @@ pol:
   | p=pol; STAR
       AST( Star p )
       PPX( Star [%e p] )
+  | LET; id=METAID; ASSIGN; v=metaval; IN; p=pol
+      AST( Let(id         , Const v.    , false, p.    ) )
+      PPX( Let([%e str id], Const [%e v], false, [%e p]) )
+  | VAR; id=METAID; ASSIGN; v=metaval; IN; p=pol
+      AST( Let(id         , Const v.    , true, p.    ) )
+      PPX( Let([%e str id], Const [%e v], true, [%e p]) )
   | sw1=int64; AT; pt1=int32; LINK; sw2=int64; AT; pt2=int32
       AST( Link (sw1, pt1, sw2, pt2) )
       PPX( Link ([%e sw1], [%e pt1], [%e sw2], [%e pt2]) )
@@ -189,7 +200,9 @@ header_val(BINOP):
   | IP4DST; BINOP; n=ip4addr; m=ipmask
       AST( IP4Dst (n,m) )
       PPX( IP4Dst ([%e n],[%e m]) )
-  AQ
+  | id=METAID; BINOP; n=metaval
+      AST( Meta (id, n) )
+      PPX( Meta ([%e str id], [%e n]) )
   ;
 
 
@@ -245,5 +258,13 @@ query:
       AST( s )
       PPX( [%e str s] )
 
+metaval:
+  | n=int64 { n }
+  | m=mac { m }
+  | ip=ip4addr
+    AST( Int64.of_int32 ip )
+    PPX( Int64.of_int32 [%e ip] )
+  ;
+
 %%
-let x = 2
+

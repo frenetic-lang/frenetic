@@ -22,6 +22,7 @@ let digit = [%sedlex.regexp? '0'..'9']
 let id_init = [%sedlex.regexp? letter  | '_']
 let id_cont = [%sedlex.regexp? id_init | Chars ".\'" | digit ]
 let id = [%sedlex.regexp? id_init, Star id_cont ]
+let metaid = [%sedlex.regexp? 'A'..'Z', Star id_cont ]
 let hex = [%sedlex.regexp? digit | 'a'..'f' | 'A'..'F' ]
 let hexnum = [%sedlex.regexp? '0', 'x', Plus hex ]
 let decnum = [%sedlex.regexp? Plus digit]
@@ -100,7 +101,11 @@ let rec token buf =
   | ')' -> RPAR
   | "begin" -> BEGIN
   | "end" -> END
-  (* SJS / TODO: meta fields *)
+  (* meta fields *)
+  | "let" -> LET
+  | "var" -> VAR
+  | "in" -> IN
+  | metaid -> METAID (ascii buf)
   | _ -> illegal buf (Char.chr (next buf))
 
 (* allow nested comments, like OCaml *)
