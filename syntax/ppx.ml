@@ -12,9 +12,14 @@ let parser buf =
 (* expands `s` in `let%nk x = {| s |}` *)
 let expand_nk_string ~loc s =
   let pos = Location.(loc.loc_start) in
+  (* the first two characters are '{' and '|' *)
+  let pos = Lexing.{ pos with pos_cnum = pos.pos_cnum + 2 } in
   let sedlex = Sedlexing.(Latin1.from_string s) in
   let buf = LexBuffer.of_sedlex ~pos sedlex in
-  parser buf
+  try parser buf with
+  | New_Lexer.LexError (pos, s) ->
+    let loc = Location.{ loc_start = pos; loc_end = pos; loc_ghost = false} in
+    Location.raise_errorf ~loc "%s" s
 
   (* FIXME: this is where we would call the NetKAT parser, together with a source location *)
     (* Pexp_constant (Pconst_string ("NetKAT is awesome!!!", None)) *)
@@ -25,8 +30,7 @@ let expand_bound_expr expr =
   match expr.pexp_desc with
   (* only expand e if e = {| s |} *)
   | Pexp_constant (Pconst_string (s, Some "")) ->
-    (* { expr with pexp_desc = expand_nk_string ~loc s } *)
-    expand_nk_string ~loc s
+    { (expand_nk_string ~loc s) with pexp_loc = loc }
   | _ ->
     Location.raise_errorf ~loc "'let%%%s' may only bind quoted NetKAT" ext_keyw
 

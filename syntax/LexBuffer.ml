@@ -14,25 +14,19 @@ type t = {
 }
 
 let of_sedlex ?(file="<n/a>") ?pos buf =
-  let pos' = Lexing.{
+  let pos = Option.value pos ~default:Lexing.{
     pos_fname = file;
     pos_lnum = 1; (* line number *)
     pos_bol = 0; (* offset of beginning of current line *)
-    pos_cnum = 0; (* total offset *)}
+    pos_cnum = 0; (* total offset *) }
   in
-  let pos =
-    match pos with
-    | None -> pos'
-    | Some pos -> pos
-  in
-  let last_char = None and last_char_mark = None in
-  {  buf; pos; pos_mark = pos; last_char; last_char_mark; }
+  {  buf; pos; pos_mark = pos; last_char = None; last_char_mark = None; }
 
 let of_file file =
   let chan = In_channel.create file in
   of_sedlex ~file Sedlexing.(Latin1.from_channel chan)
 
-(** The next four functions are used by ulex internally.
+(** The next four functions are used by sedlex internally.
     See https://www.lexifi.com/sedlex/libdoc/Sedlexing.html.  *)
 let mark lexbuf p =
   lexbuf.pos_mark <- lexbuf.pos;

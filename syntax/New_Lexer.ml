@@ -16,21 +16,20 @@ exception LexError of (Lexing.position * string)
 let failwith buf s = raise (LexError (buf.pos, s))
 
 let illegal buf c =
-  let s = Printf.sprintf "Illegal character in NetKAT expression: '%c'" c in
+  let s = Printf.sprintf "unexpected character in NetKAT expression: '%c'" c in
   failwith buf s
 
 
 (** regular expressions  *)
-let alpha = [%sedlex.regexp? 'A'..'Z' | 'a'..'z']
-let num = [%sedlex.regexp? '0'..'9']
-let alpha_num = [%sedlex.regexp? alpha | num ]
-let id_init = [%sedlex.regexp? alpha  | '_']
-let id_cont = [%sedlex.regexp? id_init | Chars ".\'" | num ]
-let ident = [%sedlex.regexp? id_init, Star id_cont ]
-let hex = [%sedlex.regexp? num | 'a'..'f' | 'A'..'F' ]
+let letter = [%sedlex.regexp? 'A'..'Z' | 'a'..'z']
+let digit = [%sedlex.regexp? '0'..'9']
+let id_init = [%sedlex.regexp? letter  | '_']
+let id_cont = [%sedlex.regexp? id_init | Chars ".\'" | digit ]
+let id = [%sedlex.regexp? id_init, Star id_cont ]
+let hex = [%sedlex.regexp? digit | 'a'..'f' | 'A'..'F' ]
 let hexnum = [%sedlex.regexp? '0', 'x', Plus hex ]
-let decnum = [%sedlex.regexp? Plus num]
-let decbyte = [%sedlex.regexp? (num,num,num) | (num,num) | num ]
+let decnum = [%sedlex.regexp? Plus digit]
+let decbyte = [%sedlex.regexp? (digit,digit,digit) | (digit,digit) | digit ]
 let hexbyte = [%sedlex.regexp? hex,hex ]
 let blank = [%sedlex.regexp? ' ' | '\t' ]
 let newline = [%sedlex.regexp? '\r' | '\n' | "\r\n" ]
@@ -53,7 +52,7 @@ let rec token buf =
   | "query" -> QUERY
   | '"', Star (Compl '"'), '"' -> STRING (ascii ~skip:1 ~drop:1 buf)
   (* antiquotations *)
-  | '$', ident ->
+  | '$', id ->
     if !ppx then
       ANTIQ (ascii ~skip:1 buf)
     else
