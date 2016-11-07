@@ -28,7 +28,6 @@ depends: [
   "ppx_import"
   "ppx_deriving"
   "sedlex"
-  "menhirlib"
   "async"
   "async_extended"
   "cstruct" {>= "1.0.1"}
