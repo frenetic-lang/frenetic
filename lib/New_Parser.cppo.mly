@@ -99,18 +99,12 @@ pol:
   | p=pol; STAR
       AST( Star p )
       PPX( Star [%e p] )
-  | LET; id=METAID; ASSIGN; v=metaval; IN; p=pol
-      AST( Let(id         , Const v     , false, p     ) )
-      PPX( Let([%e str id], Const [%e v], false, [%e p]) )
-  | LET; id=METAID; ASSIGN; a=alias; IN; p=pol
-      AST( Let(id         , Alias a    , false, p      ) )
-      PPX( Let([%e str id], Alias [%e a], false, [%e p]) )
-  | VAR; id=METAID; ASSIGN; v=metaval; IN; p=pol
-      AST( Let(id         , Const v    , true, p      ) )
-      PPX( Let([%e str id], Const [%e v], true, [%e p]) )
-  | VAR; id=METAID; ASSIGN; a=alias; IN; p=pol
-      AST( Let(id         , Alias a     , true, p     ) )
-      PPX( Let([%e str id], Alias [%e a], true, [%e p]) )
+  | mut=letexp; id=METAID; ASSIGN; v=metaval; IN; p=pol
+      AST( Let(id         , Const v     , mut     , p     ) )
+      PPX( Let([%e str id], Const [%e v], [%e mut], [%e p]) )
+  | mut=letexp; id=METAID; ASSIGN; a=alias; IN; p=pol
+      AST( Let(id         , Alias a     , mut.    , p     ) )
+      PPX( Let([%e str id], Alias [%e a], [%e mut], [%e p]) )
   | sw1=int64; AT; pt1=int32; LINK; sw2=int64; AT; pt2=int32
       AST( Link (sw1, pt1, sw2, pt2) )
       PPX( Link ([%e sw1], [%e pt1], [%e sw2], [%e pt2]) )
@@ -127,6 +121,10 @@ pol:
   AQ
   ;
 
+%inline
+letexp:
+  | LET BOTH( false )
+  | VAR BOTH( true )
 
 pred:
   | FALSE

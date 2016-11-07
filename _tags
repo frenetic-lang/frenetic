@@ -65,9 +65,9 @@ true: annot, bin_annot
 <syntax/*.ml{,i,y}>: use_parser
 # OASIS_STOP
 # see https://github.com/janestreet/ppx_inline_test/issues/3
-# <lib_test/*.ml{,i}>: predicate(ppx_driver)
-# <lib_test/*.ml{,i}>: pp(ppx-jane -dump-ast -inline-test-lib frenetic)
+<lib_test/*.ml{,i}>: predicate(ppx_driver)
+<lib_test/*.ml{,i}>: pp(ppx-jane -dump-ast -inline-test-lib frenetic)
 true: thread
 true: -traverse
-# SJS: use shared extern token file
+# SJS: use shared extern token file (-> see myocamlbuild.ml)
 true: extern_tokens
