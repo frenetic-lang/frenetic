@@ -4,10 +4,10 @@ open Parsetree
 (* extension is triggered by keword 'nk' *)
 let ext_keyw = "nk"
 
-(* expands `s` in `let%nk x = {| s |}` *)
+(** expands `s` in `let%nk x = {| s |}` *)
 let expand_nk_string ~loc s =
   let pos = Location.(loc.loc_start) in
-  (* the first two characters are '{' and '|' *)
+  (* string starts after '{' and '|' *)
   let pos = Lexing.{ pos with pos_cnum = pos.pos_cnum + 2 } in
   try New_Lexer.parse_string ~ppx:true ~pos s Frenetic_NetKAT_PPX_Parser.pol_eof with
   | New_Lexer.LexError (pos, s) ->
@@ -18,7 +18,7 @@ let expand_nk_string ~loc s =
     New_Lexer.show_token token
     |> Location.raise_errorf ~loc "parse error while reading token '%s'"
 
-(* expands `e` in `let%nk x = e` *)
+(** expands `e` in `let%nk x = e` *)
 let expand_bound_expr expr =
   let loc = expr.pexp_loc in
   match expr.pexp_desc with
@@ -28,7 +28,7 @@ let expand_bound_expr expr =
   | _ ->
     Location.raise_errorf ~loc "'let%%%s' may only bind quoted NetKAT" ext_keyw
 
-(* expands `x=e` in `let%nk x = e` *)
+(** expands `x=e` in `let%nk x = e` *)
 let expand_binding binding =
   { binding with pvb_expr = expand_bound_expr binding.pvb_expr }
 
@@ -37,12 +37,12 @@ let expand_let_decl ~loc ~path:_ bindings =
   let module B = Ast_builder.Make(struct let loc = loc end) in
   B.(pstr_value Nonrecursive (List.map expand_binding bindings))
 
-(* expands `let%nk <bindings> in body` *)
+(** expands `let%nk <bindings> in body` *)
 let expand_let_expr ~loc ~path:_ bindings body =
   let module B = Ast_builder.Make(struct let loc = loc end) in
   B.(pexp_let Nonrecursive (List.map expand_binding bindings) body)
 
-(* declare `let%nk x = e` extension *)
+(** declare `let%nk x = e` extension *)
 let nk_ext_struct =
   Extension.V2.declare
     ext_keyw
@@ -50,7 +50,7 @@ let nk_ext_struct =
     Ast_pattern.(pstr (pstr_value nonrecursive __ ^:: nil))
     expand_let_decl
 
-(* declare `let%nk x = e in b` extension *)
+(** declare `let%nk x = e in b` extension *)
 let nk_ext_expr =
   Extension.V2.declare
     ext_keyw

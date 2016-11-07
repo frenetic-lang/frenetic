@@ -6,12 +6,14 @@ open LexBuffer
 
 (** Signals a lexing error at the provided source location.  *)
 exception LexError of (Lexing.position * string)
+(** Signals a parsing error at the provided token and its start and end locations. *)
 exception ParseError of (token * Lexing.position * Lexing.position)
+
 let failwith buf s = raise (LexError (buf.pos, s))
 
 let illegal buf c =
-  let s = Printf.sprintf "unexpected character in NetKAT expression: '%c'" c in
-  failwith buf s
+  Printf.sprintf "unexpected character in NetKAT expression: '%c'" c
+  |> failwith buf
 
 
 (** regular expressions  *)
@@ -29,7 +31,7 @@ let hexbyte = [%sedlex.regexp? hex,hex ]
 let blank = [%sedlex.regexp? ' ' | '\t' ]
 let newline = [%sedlex.regexp? '\r' | '\n' | "\r\n" ]
 
-
+(** swallows whitespace and comments *)
 let rec garbage buf =
   match%sedlex buf with
   | newline -> garbage buf
@@ -47,6 +49,7 @@ and comment depth buf =
   | any -> comment depth buf
   | _ -> assert false
 
+(** returns the next token *)
 let token ~ppx buf =
   garbage buf;
   match%sedlex buf with
