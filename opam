@@ -25,11 +25,13 @@ depends: [
   "menhir" {build}
   "core"
   "ppx_jane"
+  "ppx_import"
   "ppx_deriving"
+  "sedlex"
+  "menhirlib"
   "async"
   "async_extended"
   "cstruct" {>= "1.0.1"}
-  "ulex" {>= "1.1"}
   "ipaddr" {>= "2.5.0"}
   "yojson" {>= "1.2.0"}
   "base64" {>= "2.0.0"}
