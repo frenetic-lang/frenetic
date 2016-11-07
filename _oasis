@@ -8,7 +8,9 @@ License:     LGPL
 Plugins:     META (0.3)
 BuildTools:
   ocamlbuild,
-  ocamldoc
+  ocamldoc,
+  menhir,
+  cppo
 AlphaFeatures:
   ocamlbuild_more_args,
   source_patterns
