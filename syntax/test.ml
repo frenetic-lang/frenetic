@@ -3,4 +3,5 @@ let%nk p = {| drop |}
 let%nk q = {| filter true; $p; (port:=2 + port:=pipe("test") ) |}
 let%nk egress = {| filter (switch=1 and port=1) |}
 let%nk r = {| while !$egress do $q |}
-let%nk r = {| let Inport = port in while !$egress do $q + drop |}
+let%nk r = {| let `inport := port in while !$egress do $q + drop |}
+(* let%nk s = {| filter typo = 1 |} *)
