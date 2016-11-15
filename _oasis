@@ -25,6 +25,7 @@ PostBuildCommand:
 
 Library frenetic
   Path: lib
+  Findlibname: frenetic
   BuildDepends:
     base64 (>= 2.0.0),
     camlp4.lib,
