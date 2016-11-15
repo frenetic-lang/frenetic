@@ -1,3 +1,8 @@
+module Location = struct
+  include Location
+  let pp = print
+end
+
 type token = [%import: Frenetic_NetKAT_Tokens.token] [@@deriving show]
 
 (* use custom lexbuffer to keep track of source location *)
@@ -49,7 +54,7 @@ and comment depth buf =
   | _ -> assert false
 
 (** returns the next token *)
-let token ~ppx buf =
+let token ~ppx ~loc_start buf =
   garbage buf;
   match%sedlex buf with
   | eof -> EOF
@@ -67,7 +72,9 @@ let token ~ppx buf =
   (* antiquotations *)
   | '$', id ->
     if ppx then
-      ANTIQ (ascii ~skip:1 buf)
+      let loc_end = next_loc buf in
+      let loc = Location.{ loc_start; loc_end; loc_ghost = false } in
+      ANTIQ (ascii ~skip:1 buf, loc)
     else
       illegal buf '$'
   (* predicates *)
@@ -123,10 +130,10 @@ let token ~ppx buf =
 (** wrapper around `token` that records start and end locations *)
 let loc_token ~ppx buf =
   let () = garbage buf in (* dispose of garbage before recording start location *)
-  let start_pos = next_loc buf in
-  let t = token ~ppx buf in
-  let end_pos = next_loc buf in
-  (t, start_pos, end_pos)
+  let loc_start = next_loc buf in
+  let t = token ~ppx ~loc_start buf in
+  let loc_end = next_loc buf in
+  (t, loc_start, loc_end)
 
 
 (** menhir interface *)

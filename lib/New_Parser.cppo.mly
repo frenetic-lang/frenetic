@@ -2,7 +2,7 @@
 #ifdef EXT
   #define AST(arg)
   #define PPX(arg) {[%expr arg]}
-  #define AQ | s=ANTIQ { Ast_convenience.evar s }
+  #define AQ | x=ANTIQ { Ast_convenience.evar (fst x) ~loc:(snd x) }
   #define POLTY Parsetree.expression
   #define PREDTY Parsetree.expression
 #else
@@ -49,7 +49,7 @@ let int64 ?loc ?attrs x =
 %token LPAR RPAR BEGIN END EOF
 
 (* antiquotations (for ppx syntax extension ) *)
-%token <string> ANTIQ
+%token <string * Location.t> ANTIQ
 
 (* precedence and associativity - from lowest to highest *)
 %nonassoc IN (* let meta := 1 in p + q == let meta := 1 in (p + q) *)
@@ -296,4 +296,3 @@ metaval:
   ;
 
 %%
-
