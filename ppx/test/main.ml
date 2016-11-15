@@ -1,2 +1,3 @@
 open Frenetic_NetKAT
-let%nk p = {| drops |}
+let%nk p = {| id |}
+let%nk p = {| drop |}
