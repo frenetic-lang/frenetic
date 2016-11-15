@@ -70,11 +70,13 @@ let int64 ?loc ?attrs x =
 pol_eof:
   | p=pol; EOF
       AST( p )
-      PPX( [%e p] )
+      PPX( let open Frenetic_NetKAT in [%e p] )
   ;
 
 pred_eof:
-  | a=pred; EOF { a }
+  | a=pred; EOF
+      AST( a )
+      PPX( let open Frenetic_NetKAT in [%e a] )
   ;
 
 pol:
