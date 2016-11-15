@@ -12,8 +12,7 @@ BuildTools:
   menhir,
   cppo
 BetaFeatures:
-  findlib_extra_files,
-  findlib_directory
+  findlib_extra_files
 AlphaFeatures:
   ocamlbuild_more_args,
   source_patterns
@@ -82,7 +81,6 @@ Library frenetic
 
 Library ppx
   Findlibparent: frenetic
-  Findlibdirectory: ppx
   # need custom meta file
   XMETAEnable: false
   Path: ppx
@@ -101,6 +99,7 @@ Executable ppx
     frenetic.ppx
   MainIs: ppx.ml
   CompiledObject: best
+  Install: false
 
 Library async
   Findlibparent: frenetic
