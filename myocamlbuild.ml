@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 842d9dc744ffe515267875bdc5c20104) *)
+(* DO NOT EDIT (digest: 04d7d86b1b0ddcfbb8cfbd2b4486d580) *)
 module OASISGettext = struct
 (* # 22 "src/oasis/OASISGettext.ml" *)
 
@@ -883,10 +883,10 @@ open Ocamlbuild_plugin;;
 let package_default =
   {
      MyOCamlbuildBase.lib_ocaml =
-       [("frenetic", ["lib"], []); ("parser", ["syntax"], [])];
+       [("frenetic", ["lib"], []); ("ppx", ["ppx"], [])];
      lib_c = [];
      flags = [];
-     includes = [("syntax", ["lib"])]
+     includes = [("ppx", ["lib"])]
   }
   ;;
 

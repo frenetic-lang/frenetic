@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 47e7f08f9a7ec4340cfc50a06d8d923f)
+# DO NOT EDIT (digest: 3773056e12f15821ad8dbc700514e5b3)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -24,45 +24,39 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: package(tcpip)
 <lib/*.ml{,i,y}>: package(threads)
 <lib/*.ml{,i,y}>: package(yojson)
-# Library parser
-"syntax/parser.cmxs": use_parser
-# Executable newsyntax
-<syntax/ppx.{native,byte}>: package(base64)
-<syntax/ppx.{native,byte}>: package(compiler-libs.common)
-<syntax/ppx.{native,byte}>: package(core)
-<syntax/ppx.{native,byte}>: package(cstruct)
-<syntax/ppx.{native,byte}>: package(menhirlib)
-<syntax/ppx.{native,byte}>: package(ocamlgraph)
-<syntax/ppx.{native,byte}>: package(ppx_core)
-<syntax/ppx.{native,byte}>: package(ppx_driver)
-<syntax/ppx.{native,byte}>: package(ppx_import)
-<syntax/ppx.{native,byte}>: package(ppx_tools)
-<syntax/ppx.{native,byte}>: package(ppx_tools.metaquot)
-<syntax/ppx.{native,byte}>: package(sedlex)
-<syntax/ppx.{native,byte}>: package(str)
-<syntax/ppx.{native,byte}>: package(tcpip)
-<syntax/ppx.{native,byte}>: package(threads)
-<syntax/ppx.{native,byte}>: package(yojson)
-<syntax/ppx.{native,byte}>: use_frenetic
-<syntax/ppx.{native,byte}>: use_parser
-<syntax/*.ml{,i,y}>: package(base64)
-<syntax/*.ml{,i,y}>: package(compiler-libs.common)
-<syntax/*.ml{,i,y}>: package(core)
-<syntax/*.ml{,i,y}>: package(cstruct)
-<syntax/*.ml{,i,y}>: package(menhirlib)
-<syntax/*.ml{,i,y}>: package(ocamlgraph)
-<syntax/*.ml{,i,y}>: package(ppx_core)
-<syntax/*.ml{,i,y}>: package(ppx_driver)
-<syntax/*.ml{,i,y}>: package(ppx_import)
-<syntax/*.ml{,i,y}>: package(ppx_tools)
-<syntax/*.ml{,i,y}>: package(ppx_tools.metaquot)
-<syntax/*.ml{,i,y}>: package(sedlex)
-<syntax/*.ml{,i,y}>: package(str)
-<syntax/*.ml{,i,y}>: package(tcpip)
-<syntax/*.ml{,i,y}>: package(threads)
-<syntax/*.ml{,i,y}>: package(yojson)
-<syntax/*.ml{,i,y}>: use_frenetic
-<syntax/*.ml{,i,y}>: use_parser
+# Library ppx
+"ppx/ppx.cmxs": use_ppx
+# Executable ppx
+<ppx/ppx.{native,byte}>: package(base64)
+<ppx/ppx.{native,byte}>: package(core)
+<ppx/ppx.{native,byte}>: package(cstruct)
+<ppx/ppx.{native,byte}>: package(menhirlib)
+<ppx/ppx.{native,byte}>: package(ocamlgraph)
+<ppx/ppx.{native,byte}>: package(ppx_import)
+<ppx/ppx.{native,byte}>: package(ppx_tools)
+<ppx/ppx.{native,byte}>: package(ppx_tools.metaquot)
+<ppx/ppx.{native,byte}>: package(sedlex)
+<ppx/ppx.{native,byte}>: package(str)
+<ppx/ppx.{native,byte}>: package(tcpip)
+<ppx/ppx.{native,byte}>: package(threads)
+<ppx/ppx.{native,byte}>: package(yojson)
+<ppx/ppx.{native,byte}>: use_frenetic
+<ppx/ppx.{native,byte}>: use_ppx
+<ppx/*.ml{,i,y}>: package(base64)
+<ppx/*.ml{,i,y}>: package(core)
+<ppx/*.ml{,i,y}>: package(cstruct)
+<ppx/*.ml{,i,y}>: package(menhirlib)
+<ppx/*.ml{,i,y}>: package(ocamlgraph)
+<ppx/*.ml{,i,y}>: package(ppx_import)
+<ppx/*.ml{,i,y}>: package(ppx_tools)
+<ppx/*.ml{,i,y}>: package(ppx_tools.metaquot)
+<ppx/*.ml{,i,y}>: package(sedlex)
+<ppx/*.ml{,i,y}>: package(str)
+<ppx/*.ml{,i,y}>: package(tcpip)
+<ppx/*.ml{,i,y}>: package(threads)
+<ppx/*.ml{,i,y}>: package(yojson)
+<ppx/*.ml{,i,y}>: use_frenetic
+<ppx/*.ml{,i,y}>: use_ppx
 # OASIS_STOP
 # see https://github.com/janestreet/ppx_inline_test/issues/3
 <lib_test/*.ml{,i}>: predicate(ppx_driver)

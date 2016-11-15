@@ -1,0 +1,19 @@
+OASISFormat: 0.4
+OCamlVersion: >= 4.03.0
+Name:        parsertyp
+Version:     0.1
+Synopsis:    NetKAT ppx test
+Authors:     Steffen Smolka
+License:     LGPL
+Plugins:     DevFiles (0.4)
+XDevFilesEnableMakefile: true
+BuildTools:
+  ocamlbuild
+
+Executable main
+  Path: .
+  BuildDepends:
+    frenetic,
+    frenetic.ppx,
+    threads
+  MainIs: main.ml

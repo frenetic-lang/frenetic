@@ -19,7 +19,15 @@ setup.log
 *.dot
 *.png
 *.svg
+*.mldylib
+*.mllib
 
+# ppx/test
+ppx/test/Makefile
+ppx/test/_tags
+ppx/test/configure
+ppx/test/myocamlbuild.ml
+ppx/test/setup.ml
 
 # Emacs Temp Files
 [#]*

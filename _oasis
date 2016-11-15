@@ -5,12 +5,15 @@ Version:     4.0.0
 Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     https://github.com/frenetic-lang/frenetic/contributors
 License:     LGPL
-Plugins:     META (0.3)
+Plugins:     META (0.4)
 BuildTools:
   ocamlbuild,
   ocamldoc,
   menhir,
   cppo
+BetaFeatures:
+  findlib_extra_files,
+  findlib_directory
 AlphaFeatures:
   ocamlbuild_more_args,
   source_patterns
@@ -29,12 +32,12 @@ PreBuildCommand:
     lib/Frenetic_NetKAT_Parser.cppo.mly \
     -o lib/Frenetic_NetKAT_Parser.mly
   cppo -n \
-    syntax/Frenetic_NetKAT_PPX_Parser.cppo.mly \
-    -o syntax/Frenetic_NetKAT_PPX_Parser.mly
+    ppx/Frenetic_NetKAT_PPX_Parser.cppo.mly \
+    -o ppx/Frenetic_NetKAT_PPX_Parser.mly
   menhir --only-tokens lib/Frenetic_NetKAT_Parser.mly \
     --base lib/Frenetic_NetKAT_Tokens
 PostBuildCommand:
-  rm -f syntax/Frenetic_NetKAT_PPX_Parser.mly
+  rm -f ppx/Frenetic_NetKAT_PPX_Parser.mly
   rm -f lib/Frenetic_NetKAT_Parser.mly
   rm -f lib/Frenetic_NetKAT_Tokens*
 
@@ -72,33 +75,30 @@ Library frenetic
     Frenetic_Util,
     Frenetic_Vlr
 
-Library parser
-  Path: syntax
+Library ppx
+  Findlibparent: frenetic
+  Findlibdirectory: ppx
+  # need custom meta file
+  XMETAEnable: false
+  Path: ppx
   BuildDepends:
     core,
     sedlex,
-    ppx_tools, # (> 5.0), not available yet
+    ppx_tools, # (> 5.0) once available
     ppx_tools.metaquot,
     ppx_import,
     menhirlib,
     frenetic
   Modules:
     LexBuffer,
-    New_Lexer
+    New_Lexer,
+    PPX_NetKAT
+  FindlibExtraFiles:
+    ../ppx.native
 
-Executable newsyntax
-  Path: syntax
+Executable ppx
+  Path: ppx
   BuildDepends:
-    compiler-libs.common,
-    ppx_core,
-    ppx_driver,
-    parser
+    frenetic.ppx
   MainIs: ppx.ml
   CompiledObject: best
-
-#Library parser
-#  Path: lib
-#  BuildDepends:
-#     menhir
-#  Modules:
-#    New_Parser
