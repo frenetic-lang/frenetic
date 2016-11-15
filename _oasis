@@ -103,7 +103,6 @@ Library async
     Frenetic_Common,
     Frenetic_DynGraph
   Modules:
-    Frenetic_Autoshell,
     Frenetic_Compile_Server,
     Frenetic_Log,
     Frenetic_Http_Controller,
@@ -135,17 +134,30 @@ Executable openflow
     frenetic.async,
     async_extended
 
-Executable firepath
+Executable fresh
   Path: frenetic
-  MainIs: firepath.ml
+  MainIs: fresh.ml
   Install: true
   CompiledObject: native
   BuildDepends:
-    async,
     core,
-    frenetic,
-    frenetic.async,
-    async_extended
+    async,
+    async_extended,
+    cohttp,
+    cohttp.async,
+    frenetic
+
+# Executable firepath
+#   Path: frenetic
+#   MainIs: firepath.ml
+#   Install: true
+#   CompiledObject: native
+#   BuildDepends:
+#     async,
+#     core,
+#     frenetic,
+#     frenetic.async,
+#     async_extended
 
 Executable p4
   Path: frenetic

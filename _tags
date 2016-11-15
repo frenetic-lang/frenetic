@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 53ca3d29efc0cb81082c5722c9476c5c)
+# DO NOT EDIT (digest: 071c27e6f3e6e0b2b786525e87c0cfc6)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -147,34 +147,31 @@ true: annot, bin_annot
 "frenetic/openflow.native": package(yojson)
 "frenetic/openflow.native": use_async
 "frenetic/openflow.native": use_frenetic
-# Executable firepath
-"frenetic/firepath.native": package(async)
-"frenetic/firepath.native": package(async_extended)
-"frenetic/firepath.native": package(async_parallel)
-"frenetic/firepath.native": package(base64)
-"frenetic/firepath.native": package(camlp4)
-"frenetic/firepath.native": package(camlp4.extend)
-"frenetic/firepath.native": package(camlp4.lib)
-"frenetic/firepath.native": package(cohttp)
-"frenetic/firepath.native": package(cohttp.async)
-"frenetic/firepath.native": package(core)
-"frenetic/firepath.native": package(cstruct)
-"frenetic/firepath.native": package(cstruct.async)
-"frenetic/firepath.native": package(mparser)
-"frenetic/firepath.native": package(mparser.re)
-"frenetic/firepath.native": package(ocamlgraph)
-"frenetic/firepath.native": package(ppx_deriving.enum)
-"frenetic/firepath.native": package(ppx_deriving.eq)
-"frenetic/firepath.native": package(ppx_deriving.show)
-"frenetic/firepath.native": package(ppx_jane)
-"frenetic/firepath.native": package(ppx_sexp_conv)
-"frenetic/firepath.native": package(str)
-"frenetic/firepath.native": package(tcpip)
-"frenetic/firepath.native": package(threads)
-"frenetic/firepath.native": package(ulex)
-"frenetic/firepath.native": package(yojson)
-"frenetic/firepath.native": use_async
-"frenetic/firepath.native": use_frenetic
+# Executable fresh
+"frenetic/fresh.native": package(async)
+"frenetic/fresh.native": package(async_extended)
+"frenetic/fresh.native": package(async_parallel)
+"frenetic/fresh.native": package(base64)
+"frenetic/fresh.native": package(camlp4)
+"frenetic/fresh.native": package(camlp4.extend)
+"frenetic/fresh.native": package(camlp4.lib)
+"frenetic/fresh.native": package(cohttp)
+"frenetic/fresh.native": package(cohttp.async)
+"frenetic/fresh.native": package(core)
+"frenetic/fresh.native": package(cstruct)
+"frenetic/fresh.native": package(mparser)
+"frenetic/fresh.native": package(mparser.re)
+"frenetic/fresh.native": package(ocamlgraph)
+"frenetic/fresh.native": package(ppx_deriving.enum)
+"frenetic/fresh.native": package(ppx_deriving.eq)
+"frenetic/fresh.native": package(ppx_deriving.show)
+"frenetic/fresh.native": package(ppx_jane)
+"frenetic/fresh.native": package(str)
+"frenetic/fresh.native": package(tcpip)
+"frenetic/fresh.native": package(threads)
+"frenetic/fresh.native": package(ulex)
+"frenetic/fresh.native": package(yojson)
+"frenetic/fresh.native": use_frenetic
 # Executable p4
 "frenetic/p4.native": package(async)
 "frenetic/p4.native": package(async_extended)
