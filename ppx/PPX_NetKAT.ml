@@ -10,18 +10,8 @@ let expand_nk_string ~loc ~pred s =
   let pos = Location.(loc.loc_start) in
   (* string starts after '{' and '|' *)
   let pos = Lexing.{ pos with pos_cnum = pos.pos_cnum + 2 } in
-  let parser =
-    let open Frenetic_NetKAT_PPX_Parser in
-    if pred then pred_eof else pol_eof
-  in
-  try New_Lexer.parse_string ~ppx:true ~pos s parser with
-  | New_Lexer.LexError (pos, s) ->
-    let loc = Location.{ loc_start = pos; loc_end = pos; loc_ghost = false} in
-    Location.raise_errorf ~loc "%s" s
-  | New_Lexer.ParseError (token, loc_start, loc_end) ->
-    let loc = Location.{ loc_start; loc_end; loc_ghost = false} in
-    New_Lexer.show_token token
-    |> Location.raise_errorf ~loc "parse error while reading token '%s'"
+  New_Lexer.parse_string ~ppx:true ~pos s
+    Frenetic_NetKAT_PPX_Parser.(if pred then pred_eof else pol_eof)
 
 (** expands `e` in `let%nk x = e` *)
 let expand_bound_expr ~pred expr =

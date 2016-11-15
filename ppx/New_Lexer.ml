@@ -11,15 +11,31 @@ open LexBuffer
 
 (** Signals a lexing error at the provided source location.  *)
 exception LexError of (Lexing.position * string)
+
 (** Signals a parsing error at the provided token and its start and end locations. *)
 exception ParseError of (token * Lexing.position * Lexing.position)
+
+(** Register exceptions for pretty printing *)
+let _ =
+  let open Location in
+  register_error_of_exn (function
+    | LexError (pos, msg) ->
+      let loc = { loc_start = pos; loc_end = pos; loc_ghost = false} in
+      Some { loc; msg; sub=[]; if_highlight=""; }
+    | ParseError (token, loc_start, loc_end) ->
+      let loc = Location.{ loc_start; loc_end; loc_ghost = false} in
+      let msg =
+        show_token token
+        |> Printf.sprintf "parse error while reading token '%s'" in
+      Some { loc; msg; sub=[]; if_highlight=""; }
+    | _ -> None)
 
 let failwith buf s = raise (LexError (buf.pos, s))
 
 let illegal buf c =
-  Printf.sprintf "unexpected character in NetKAT expression: '%c'" c
+  Char.escaped c
+  |> Printf.sprintf "unexpected character in NetKAT expression: '%s'"
   |> failwith buf
-
 
 (** regular expressions  *)
 let letter = [%sedlex.regexp? 'A'..'Z' | 'a'..'z']
