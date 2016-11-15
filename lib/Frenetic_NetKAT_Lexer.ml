@@ -153,15 +153,17 @@ let loc_token ~ppx buf =
 
 
 (** menhir interface *)
-let parse ?(ppx=false) p buf =
+type ('token, 'a) parser = ('token, 'a) MenhirLib.Convert.traditional
+
+let parse ?(ppx=false) buf p =
   let last_token = ref Lexing.(EOF, dummy_pos, dummy_pos) in
   let next_token () = last_token := loc_token ~ppx buf; !last_token in
   try MenhirLib.Convert.Simplified.traditional2revised p next_token with
   | LexError (pos, s) -> raise (LexError (pos, s))
   | _ -> raise (ParseError (!last_token))
 
-let parse_string ?pos ?ppx s p =
-  parse ?ppx p (LexBuffer.of_ascii_string ?pos s)
+let parse_string ?ppx ?pos s p =
+  parse ?ppx (LexBuffer.of_ascii_string ?pos s) p
 
 let parse_file ?ppx ~file p =
-  parse ?ppx p (LexBuffer.of_ascii_file file)
+  parse ?ppx (LexBuffer.of_ascii_file file) p

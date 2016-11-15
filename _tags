@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 3773056e12f15821ad8dbc700514e5b3)
+# DO NOT EDIT (digest: 0e911ed417743ca2db53c911e1b778dd)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -19,7 +19,10 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: package(base64)
 <lib/*.ml{,i,y}>: package(core)
 <lib/*.ml{,i,y}>: package(cstruct)
+<lib/*.ml{,i,y}>: package(menhirlib)
 <lib/*.ml{,i,y}>: package(ocamlgraph)
+<lib/*.ml{,i,y}>: package(ppx_import)
+<lib/*.ml{,i,y}>: package(sedlex)
 <lib/*.ml{,i,y}>: package(str)
 <lib/*.ml{,i,y}>: package(tcpip)
 <lib/*.ml{,i,y}>: package(threads)

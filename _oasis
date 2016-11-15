@@ -51,6 +51,9 @@ Library frenetic
     str,
     tcpip,
     yojson,
+    ppx_import,
+    sedlex,
+    menhirlib,
     threads
   Modules:
     Frenetic_Hashcons,
@@ -59,6 +62,8 @@ Library frenetic
     Frenetic_OpenFlow0x04,
     Frenetic_GroupTable0x04,
     Frenetic_NetKAT,
+    LexBuffer,
+    Frenetic_NetKAT_Lexer,
     Frenetic_NetKAT_Optimize,
     Frenetic_NetKAT_Json,
     Frenetic_NetKAT_Compiler,
@@ -82,16 +87,10 @@ Library ppx
   XMETAEnable: false
   Path: ppx
   BuildDepends:
-    core,
-    sedlex,
     ppx_tools, # (> 5.0) once available
     ppx_tools.metaquot,
-    ppx_import,
-    menhirlib,
     frenetic
   Modules:
-    LexBuffer,
-    New_Lexer,
     PPX_NetKAT
   FindlibExtraFiles:
     ../ppx.native

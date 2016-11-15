@@ -1,8 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: f7d7f83370d0d7e0d02e862149fa7d72)
+# DO NOT EDIT (digest: c17148f1b5dc03b0feacb77d73a0fc89)
 version = "4.0.0"
 description = "The Frenetic Compiler and Runtime System"
-requires = "base64 core cstruct ocamlgraph str tcpip yojson threads"
+requires =
+"base64 core cstruct ocamlgraph str tcpip yojson ppx_import sedlex menhirlib threads"
 archive(byte) = "frenetic.cma"
 archive(byte, plugin) = "frenetic.cma"
 archive(native) = "frenetic.cmxa"
@@ -17,12 +18,12 @@ package "ppx" (
 
   # The following line must list the ppx dependencies of the rewriter
   # itself, such as ppx_core, ppx_type_conv, ...
-  requires = "ppx_driver ppx_tools ppx_tools.metaquot ppx_import"
+  requires = "ppx_driver ppx_tools ppx_tools ppx_tools.metaquot"
 
   # The following line is optional, here you can list normal libraries
   # that you are using inside the ppx rewriter. For instance if you are
   # using the "str" library in the rewriter itself, put it here
-  requires(ppx_driver) = "core sedlex menhirlib frenetic"
+  requires(ppx_driver) = "frenetic"
 
   # The following line is for runtime dependencies, this allow users to
   # just put ppx_foo as dependency and get both the rewriter and the

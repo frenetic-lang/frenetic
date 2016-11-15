@@ -1,6 +1,9 @@
 open Ppx_core.Std
 open Parsetree
 
+module Lexer = Frenetic_NetKAT_Lexer
+module Parser = Frenetic_NetKAT_PPX_Parser
+
 (* extension is triggered by keword 'nk' *)
 let ext_keyw = "nk"
 let ext_keyw_pred = ext_keyw ^ "_pred"
@@ -10,8 +13,7 @@ let expand_nk_string ~loc ~pred s =
   let pos = Location.(loc.loc_start) in
   (* string starts after '{' and '|' *)
   let pos = Lexing.{ pos with pos_cnum = pos.pos_cnum + 2 } in
-  New_Lexer.parse_string ~ppx:true ~pos s
-    Frenetic_NetKAT_PPX_Parser.(if pred then pred_eof else pol_eof)
+  Lexer.parse_string ~ppx:true ~pos s Parser.(if pred then pred_eof else pol_eof)
 
 (** expands `e` in `let%nk x = e` *)
 let expand_bound_expr ~pred expr =
