@@ -1,3 +1,4 @@
+module Printexn = Printexc
 open Core.Std
 
 (*===========================================================================*)
@@ -156,4 +157,7 @@ let main : Command.t =
     ; ("dump", Dump.main)]
 
 let () =
+  Printexn.register_printer (fun exn -> Option.try_with (fun () ->
+    Location.report_exception Format.str_formatter exn;
+    Format.flush_str_formatter ()));
   Command.run ~version: "5.0" ~build_info: "RWO" main
