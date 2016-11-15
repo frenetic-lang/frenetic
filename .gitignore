@@ -21,6 +21,7 @@ setup.log
 *.svg
 *.mldylib
 *.mllib
+*.odocl
 
 # ppx/test
 ppx/test/_tags

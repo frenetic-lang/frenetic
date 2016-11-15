@@ -1,2 +1,2 @@
 #define EXT
-#include "../lib/New_Parser.cppo.mly"
+#include "../lib/Parser.cppo.mly"

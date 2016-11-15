@@ -105,7 +105,7 @@ pol:
       AST( Let(id         , Const v     , mut     , p     ) )
       PPX( Let([%e str id], Const [%e v], [%e mut], [%e p]) )
   | mut=letexp; id=METAID; ASSIGN; a=alias; IN; p=pol
-      AST( Let(id         , Alias a     , mut.    , p     ) )
+      AST( Let(id         , Alias a     , mut    , p     ) )
       PPX( Let([%e str id], Alias [%e a], [%e mut], [%e p]) )
   | sw1=int64; AT; pt1=int32; LINK; sw2=int64; AT; pt2=int32
       AST( Link (sw1, pt1, sw2, pt2) )
@@ -209,7 +209,7 @@ header_val(BINOP):
 (*********************** aliases *************************)
 alias:
   | SWITCH
-    BOTH( switch (Obj.magic 0) )
+    BOTH( Switch (Obj.magic 0) )
   | PORT
     BOTH( Location (Obj.magic 0) )
   | ETHSRC
@@ -229,9 +229,9 @@ alias:
   | IPPROTO
     BOTH( IPProto (Obj.magic 0) )
   | IP4SRC
-    BOTH( IP4Src (Obj.magic 0) )
+    BOTH( IP4Src (Obj.magic 0, Obj.magic 0) )
   | IP4DST
-    BOTH( IP4Dst (Obj.magic 0) )
+    BOTH( IP4Dst (Obj.magic 0, Obj.magic 0) )
 
 
 (*********************** VALUES *************************)

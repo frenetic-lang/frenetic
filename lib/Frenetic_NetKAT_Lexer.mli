@@ -5,7 +5,9 @@ type ('token, 'a) parser =
 
 val parse : ?ppx:bool -> LexBuffer.t 
   -> (token,'a) parser -> 'a
+
 val parse_string : ?ppx:bool -> ?pos:Lexing.position -> string 
   -> (token,'a) parser -> 'a
+  
 val parse_file : ?ppx:bool -> file:string 
   -> (token,'a) parser -> 'a
