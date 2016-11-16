@@ -500,8 +500,8 @@ module CoroNet = struct
         let sv,dv = vertexes wp in
         let circuit = to_circuit wp net in
         let pgm = Frenetic_Circuit_NetKAT.local_policy_of_config [ circuit ] in
-        let fabric = Frenetic_Fabric.assemble pgm topo [src] [dst] in
-        let dyads = Frenetic_Fabric.Dyad.of_policy fabric in
+        let fabric = Frenetic_Fabric.Assemblage.assemble pgm topo [src] [dst] in
+        let dyads = Frenetic_Fabric.Assemblage.to_dyads fabric in
         let points = List.map ( CoroPath.to_vertexes wp.path )
             ~f:(Topology.vertex_to_id net) in
         let name = sprintf "%s=>%s"

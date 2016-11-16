@@ -437,20 +437,21 @@ let compile_circuit (f:fabric) = match f.circuit with
 
 let compile_edge c f topo =
   let open Compiler in
+  let module A = Fabric.Assemblage in
   let (fpol,fins,fouts) = (f.config.policy, f.config.ingresses, f.config.egresses) in
 
-  let naive     = Fabric.assemble c.policy topo c.ingresses c.egresses in
-  let fabric    = Fabric.assemble fpol topo fins fouts in
-  let parts     = Fabric.Dyad.of_policy naive in
-  let fab_parts = Fabric.Dyad.of_policy fabric in
+  let naive     = A.assemble c.policy topo c.ingresses c.egresses in
+  let fabric    = A.assemble fpol topo fins fouts in
+  let parts     = A.to_dyads naive in
+  let fab_parts = A.to_dyads fabric in
   let ins, outs = Fabric.retarget parts fab_parts topo in
 
   let ingress = Frenetic_NetKAT_Optimize.mk_big_union ins in
   let egress  = Frenetic_NetKAT_Optimize.mk_big_union outs in
   let edge    = Frenetic_NetKAT.Union (ingress, egress) in
 
-  log "Assembled naive policy:\n%s\n" (string_of_policy naive);
-  log "Assembled fabric policy:\n%s\n" (string_of_policy fabric);
+  log "Assembled naive policy:\n%s\n" (string_of_policy (A.program naive));
+  log "Assembled fabric policy:\n%s\n" (string_of_policy (A.program fabric ));
 
   log "Policy alpha/beta pairs:\n";
   List.iter parts (fun s -> log "%s\n" (Fabric.Dyad.to_string s));
@@ -527,13 +528,14 @@ let synthesize s : (string, string) Result.t =
   match state.naive, state.fabric,state.topology with
   | Some c, Some f, Some t ->
     let module S = (val s) in
-    let fabric = Fabric.assemble f.config.policy t
+    let module A = Fabric.Assemblage in
+    let fabric = A.assemble f.config.policy t
         f.config.ingresses f.config.egresses in
-    let policy = Fabric.assemble c.policy t c.ingresses c.egresses in
+    let policy = A.assemble c.policy t c.ingresses c.egresses in
     let edge = S.synthesize policy fabric t in
 
-    log "Pre-synthesis user policy:\n%s\n"   (string_of_policy policy);
-    log "Pre-synthesis fabric policy:\n%s\n" (string_of_policy fabric);
+    log "Pre-synthesis user policy:\n%s\n"   (string_of_policy (A.program policy));
+    log "Pre-synthesis fabric policy:\n%s\n" (string_of_policy (A.program fabric ));
     log "Synthesized edge policy:\n%s\n"     (string_of_policy edge);
 
     let edge_fdd = Compiler.compile_local ~options:keep_cache edge in
@@ -760,8 +762,8 @@ let path s : unit = match Source.to_string s with
       | Ok paths, Some f, Some topo ->
         (* TODO(basus): Update the edge configuration in the state *)
         let (fpol,fins,fouts) = (f.config.policy, f.config.ingresses, f.config.egresses) in
-        let fabric      = Fabric.assemble fpol topo fins fouts in
-        let fab_streams = Fabric.Dyad.of_policy fabric in
+        let fabric      = Fabric.Assemblage.assemble fpol topo fins fouts in
+        let fab_streams = Fabric.Assemblage.to_dyads fabric in
         let ins, outs = Fabric.Path.project paths fab_streams topo in
         printf "\nIngress policy:\n";
         List.iter ins (fun p -> printf "%s\n" (string_of_policy p));

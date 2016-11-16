@@ -14,6 +14,7 @@ module Dyad = Fabric.Dyad
 
 type place  = Fabric.place
 type fiber = Frenetic_Topology.CoroNet.Waypath.fiber
+type assemblage = Fabric.Assemblage.t
 
 let return = Deferred.return
 let flatten = Frenetic_Util.flatten
@@ -50,7 +51,7 @@ module type DYAD_SOLVER = SOLVER with type t = Dyad.t
 module type FIBER_SOLVER = SOLVER with type t = fiber
 
 module type SYNTH = sig
-  val synthesize : policy -> policy -> policy -> policy
+  val synthesize : assemblage -> assemblage -> policy -> policy
 end
 
 module type COROSYNTH = sig
@@ -437,10 +438,10 @@ module MakeForDyads (S:SOLVER with type t = Dyad.t) = struct
 
     generate topology pairs
 
-  let synthesize (policy:policy) (fabric:policy) (topo:policy) : policy =
+  let synthesize (policy:assemblage) (fabric:assemblage) (topo:policy) : policy =
     (* Streams are condition/modification pairs with empty actioned pairs filtered out *)
-    let policy_streams = Fabric.Dyad.of_policy policy in
-    let fabric_streams = Fabric.Dyad.of_policy fabric in
+    let policy_streams = Fabric.Assemblage.to_dyads policy in
+    let fabric_streams = Fabric.Assemblage.to_dyads fabric in
     let preds = Fabric.Topo.predecessors topo in
     let succs = Fabric.Topo.successors topo in
     let topology = {topo; preds; succs} in

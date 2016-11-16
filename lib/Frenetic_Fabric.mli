@@ -35,7 +35,10 @@ module Condition  : sig
   val is_subset   : t -> t -> bool
 end
 
-(** A dyad is an alpha/beta pair *)
+(** A dyad is an alpha/beta pair.
+
+    The `of_policy` function is provided as a convenience, but typically Dyads
+    should be constructed from an `Assemblage.t`, as described below. *)
 module Dyad : sig
   type t = place * place * Condition.t * Action.t
 
@@ -46,6 +49,15 @@ module Dyad : sig
 
   val of_policy : policy -> t list
   val to_string : t -> string
+end
+
+module Assemblage : sig
+  type t
+
+  val program  : t -> policy
+  val policy   : t -> policy
+  val assemble : policy -> policy -> place list -> place list -> t
+  val to_dyads : t -> Dyad.t list
 end
 
 (** Module for dealing with policies specified as end-to-end paths directly, *)
@@ -71,8 +83,5 @@ end
 val dedup : policy -> policy
 val string_of_place  : place  -> string
 
-val assemble : policy -> policy ->
-  (switchId * portId) list -> (switchId * portId) list ->
-  policy
 val retarget : Dyad.t list -> Dyad.t list -> policy ->
   (policy list * policy list)

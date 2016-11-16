@@ -86,17 +86,6 @@ let rec dedup (pol:policy) : policy =
   | VLink _       -> failwith "Fabric: Cannot remove Dups from a policy with VLink"
   | Let (_,_,_,_) -> failwith "No support for Meta fields yet"
 
-(* Given a policy, guard it with the ingresses, sequence and iterate with the *)
-(* topology and guard with the egresses, i.e. form in;(p.t)*;p;out *)
-let assemble (pol:policy) (topo:policy) ings egs : policy =
-  let to_filter (sw,pt) = Filter( And( Test(Switch sw),
-                                       Test(Location (Physical pt)))) in
-  let ingresses = union (List.map ings ~f:to_filter) in
-  let egresses  = union (List.map egs ~f:to_filter) in
-  seq [ ingresses;
-        Star(Seq(pol, topo)); pol;
-        egresses ]
-
 let string_of_pred = Frenetic_NetKAT_Pretty.string_of_pred
 let string_of_policy = Frenetic_NetKAT_Pretty.string_of_policy
 
@@ -408,6 +397,41 @@ module Dyad = struct
         if ( Action.is_zero a || Action.is_one a )
         then acc
         else ( of_fdd_path p )::acc)
+
+end
+
+module Assemblage = struct
+  type t = { policy : policy
+           ; topology : policy
+           ; ingresses : place list
+           ; egresses : place list
+           ; assemblage : policy
+           }
+
+  (* Given a policy, guard it with the ingresses, sequence and iterate with the *)
+  (* topology and guard with the egresses, i.e. form in;(p.t)*;p;out *)
+  let assemble (policy:policy) (topology:policy) ingresses egresses : t =
+    let to_filter (sw,pt) = Filter( And( Test(Switch sw),
+                                         Test(Location (Physical pt)))) in
+    let ings = union (List.map ingresses ~f:to_filter) in
+    let egs = union (List.map egresses ~f:to_filter) in
+    let assemblage = seq [ ings;
+                           Star(Seq(policy, topology)); policy;
+                           egs ] in
+    { policy; topology; ingresses; egresses; assemblage }
+
+  let program a = a.assemblage
+
+  let policy a = a.policy
+
+  let to_dyads (a:t) : Dyad.t list =
+    let deduped = dedup a.assemblage in
+    let fdd = compile_local deduped in
+    let paths = paths_of_fdd fdd in
+    List.fold_left paths ~init:[] ~f:(fun acc ((a,hs) as p) ->
+        if ( Action.is_zero a || Action.is_one a )
+        then acc
+        else ( Dyad.of_fdd_path p )::acc)
 
 end
 

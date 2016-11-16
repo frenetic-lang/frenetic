@@ -4,6 +4,7 @@ open Frenetic_OpenFlow
 open Frenetic_Fabric
 
 type fiber = Frenetic_Topology.CoroNet.Waypath.fiber
+type assemblage = Assemblage.t
 
 exception UnmatchedDyad of Dyad.t
 exception UnmatchedFiber of fiber
@@ -29,7 +30,7 @@ end
 module type DYAD_SOLVER = SOLVER with type t = Dyad.t
 
 module type SYNTH = sig
-  val synthesize : policy -> policy -> policy -> policy
+  val synthesize : assemblage -> assemblage -> policy -> policy
 end
 
 module type COROSYNTH = sig
