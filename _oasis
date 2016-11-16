@@ -53,7 +53,7 @@ Library frenetic
     ipaddr,
     ppx_import,
     sedlex,
-    menhirlib,
+    menhirLib,
     threads
   Modules:
     Frenetic_Hashcons,
