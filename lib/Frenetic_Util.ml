@@ -19,6 +19,9 @@
  * If after all that you're still without the function you need, have at it
  * below.
  *)
+
+(* prevent core from overwriting this *)
+module Printexn = Printexc
 open Core.Std
 
 let make_string_of formatter x =
@@ -30,3 +33,7 @@ let make_string_of formatter x =
   fprintf fmt "@?";
   Buffer.contents buf
 
+let pp_exceptions () =
+  Printexn.register_printer (fun exn -> Option.try_with (fun () ->
+    Location.report_exception Format.str_formatter exn;
+    Format.flush_str_formatter ()))

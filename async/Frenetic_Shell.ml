@@ -311,7 +311,7 @@ let rec repl () : unit Deferred.t =
   printf "frenetic> %!";
   Reader.read_line (Lazy.force Reader.stdin) >>= fun input ->
   let handle line =
-    match line with
+    try match line with
     | `Eof -> Shutdown.shutdown 0
     | `Ok line -> match parse_command line with
 		  | Some Exit | Some Quit ->
@@ -328,6 +328,7 @@ let rec repl () : unit Deferred.t =
 		  | Some (Order order) -> set_order order
       | Some (ToggleRemoveTailDrops) -> toggle_remove_tail_drops ()
 		  | None -> ()
+    with exn -> Location.report_exception Format.std_formatter exn
   in handle input; repl ()
 
 let log_file = "frenetic.log"
