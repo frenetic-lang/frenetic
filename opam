@@ -23,7 +23,7 @@ depends: [
   "oasis" {build}
   "cppo" {build}
   "menhir" {build}
-  "compiler-libs.common"
+  "compiler-libs"
   "core"
   "ppx_jane"
   "ppx_import"
