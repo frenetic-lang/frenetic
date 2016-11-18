@@ -1,5 +1,5 @@
-(* if EXT is set, produce OCaml (PPX) AST; otherwise, produce normal NetKAT AST *)
-#ifdef EXT
+(* if MAKE_PPX is set, produce OCaml (PPX) AST; otherwise, produce normal NetKAT AST *)
+#ifdef MAKE_PPX
   #define AST(arg)
   #define PPX(arg) {[%expr arg]}
   #define AQ | x=ANTIQ { Ast_convenience.evar (fst x) ~loc:(snd x) }
@@ -17,7 +17,7 @@
 %{
 open Core.Std
 open Frenetic_NetKAT
-#ifdef EXT
+#ifdef MAKE_PPX
 open Parsetree
 open Ast_helper
 open Ast_convenience
@@ -49,7 +49,9 @@ let int64 ?loc ?attrs x =
 %token LPAR RPAR BEGIN END EOF
 
 (* antiquotations (for ppx syntax extension ) *)
+#ifdef MAKE_PPX
 %token <string * Location.t> ANTIQ
+#endif
 
 (* precedence and associativity - from lowest to highest *)
 %nonassoc IN (* let meta := 1 in p + q == let meta := 1 in (p + q) *)

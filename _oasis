@@ -21,24 +21,23 @@ XOCamlbuildExtraArgs:
   -package ppx_deriving,ppx_deriving.eq,ppx_deriving.enum,ppx_deriving.show,ppx_jane
   -use-menhir
   -cflags -w,-40,-short-paths
-# avoids warnings
-ImplementationPatterns+:
- ${module}.cppo.mly
 
-# generate standard parser, syntax extension parser, and tokenss from common file
+# generate standard parser, syntax extension parser, and tokens from common file
 PreBuildCommand:
   cppo -n \
-    lib/Frenetic_NetKAT_Parser.cppo.mly \
-    -o lib/Frenetic_NetKAT_Parser.mly
+    lib/Frenetic_NetKAT_Generated_Parser.cppo.mly \
+    -o lib/Frenetic_NetKAT_Generated_Parser.mly
   cppo -n \
-    ppx/Frenetic_NetKAT_PPX_Parser.cppo.mly \
-    -o ppx/Frenetic_NetKAT_PPX_Parser.mly
-  menhir --only-tokens lib/Frenetic_NetKAT_Parser.mly \
+    ppx/PPX_NetKAT_Parser.cppo.mly \
+    -o ppx/PPX_NetKAT_Parser.mly
+  menhir --only-tokens ppx/PPX_NetKAT_Parser.mly \
     --base lib/Frenetic_NetKAT_Tokens
 PostBuildCommand:
-  rm -f ppx/Frenetic_NetKAT_PPX_Parser.mly
-  rm -f lib/Frenetic_NetKAT_Parser.mly
+  rm -f ppx/PPX_NetKAT_Parser.mly
+  rm -f lib/Frenetic_NetKAT_Generated_Parser.mly
   rm -f lib/Frenetic_NetKAT_Tokens*
+ImplementationPatterns:
+  ${module}.cppo.mly
 
 Library frenetic
   Path: lib
@@ -56,6 +55,10 @@ Library frenetic
     sedlex,
     menhirLib,
     threads
+  InternalModules:
+    LexBuffer,
+    Frenetic_NetKAT_Lexer,
+    Frenetic_NetKAT_Generated_Parser
   Modules:
     Frenetic_Hashcons,
     Frenetic_Bits,
@@ -63,8 +66,7 @@ Library frenetic
     Frenetic_OpenFlow0x04,
     Frenetic_GroupTable0x04,
     Frenetic_NetKAT,
-    LexBuffer,
-    Frenetic_NetKAT_Lexer,
+    Frenetic_NetKAT_Tokens,
     Frenetic_NetKAT_Parser,
     Frenetic_NetKAT_Optimize,
     Frenetic_NetKAT_Json,
@@ -91,6 +93,8 @@ Library ppx
     ppx_tools, # (> 5.0) once available
     ppx_tools.metaquot,
     frenetic
+  InternalModules:
+    PPX_NetKAT_Parser
   Modules:
     PPX_NetKAT
   FindlibExtraFiles:

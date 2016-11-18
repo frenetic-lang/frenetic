@@ -1,6 +1,4 @@
 open Core.Std
-module Parser = Frenetic_NetKAT_Parser
-module Lexer = Frenetic_NetKAT_Lexer
 
 (*===========================================================================*)
 (* UTILITY FUNCTIONS                                                         *)
@@ -8,12 +6,12 @@ module Lexer = Frenetic_NetKAT_Lexer
 
 let parse_pol ?(json=false) file =
   match json with
-  | false -> Lexer.parse_file ~file Parser.pol_eof
+  | false -> Frenetic_NetKAT_Parser.pol_of_file file
   | true ->
     In_channel.create file
-    |> Frenetic_NetKAT_Json.policy_of_json_channel
+    |> Frenetic_NetKAT_Json.pol_of_json_channel
 
-let parse_pred file = Lexer.parse_file ~file Parser.pred_eof
+let parse_pred file = Frenetic_NetKAT_Parser.pred_of_file file
 
 let fmt = Format.formatter_of_out_channel stdout
 let _ = Format.pp_set_margin fmt 120

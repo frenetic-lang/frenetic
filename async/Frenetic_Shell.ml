@@ -5,9 +5,7 @@ open Frenetic_NetKAT
 module Controller = Frenetic_NetKAT_Controller.Make(Frenetic_OpenFlow0x01_Plugin)
 module Comp = Frenetic_NetKAT_Compiler
 module Field = Frenetic_Fdd.Field
-module Log = Frenetic_Log
-module Parse = Frenetic_NetKAT_Parser
-module Lex = Frenetic_NetKAT_Lexer 
+module Log = Frenetic_Log 
 
 type showable =
   (* usage: order
@@ -98,7 +96,7 @@ module Parser = struct
 
     (* Use the netkat parser to parse policies *)
     let parse_policy ?(name = "") (pol_str : string) : (policy, string) Result.t =
-      Ok (Lex.parse_string pol_str Parse.pol_eof)
+      Ok (Frenetic_NetKAT_Parser.pol_of_string pol_str)
 
     (* Parser for netkat policies *)
     let policy' : ((policy * string), bytes list) MParser.t =

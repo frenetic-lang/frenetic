@@ -2,7 +2,7 @@ open Ppx_core.Std
 open Parsetree
 
 module Lexer = Frenetic_NetKAT_Lexer
-module Parser = Frenetic_NetKAT_PPX_Parser
+module Parser = PPX_NetKAT_Parser
 
 (* extension is triggered by keword 'nk' *)
 let ext_keyw = "nk"

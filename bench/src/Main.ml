@@ -29,7 +29,7 @@ let fattree_json ~(k : int) ~(out_file : string) : unit =
 
 let pretty_json filename =
   let pol = In_channel.with_file filename
-    ~f:Frenetic_NetKAT_Json.policy_of_json_channel
+    ~f:Frenetic_NetKAT_Json.pol_of_json_channel
     |> Frenetic_NetKAT_Pretty.pretty_assoc
   in
   print_endline (Frenetic_NetKAT_Pretty.string_of_policy pol)
@@ -111,13 +111,13 @@ let compile compiler per_switch varorder tbl_opt debug filename =
     | "per-switch" -> per_switch_compilation to_table compiler_fun
     | _ -> assert false in
   let pol = In_channel.with_file filename
-    ~f:Frenetic_NetKAT_Json.policy_of_json_channel in
+    ~f:Frenetic_NetKAT_Json.pol_of_json_channel in
   let (compile_time, tbl_size) = profile (fun () -> f pol) in
   printf "%s,%s,%s,%s,%s,%d,%f\n" filename compiler per_switch varorder tbl_opt tbl_size compile_time
 
 let policy_size filename =
   let pol = In_channel.with_file filename
-    ~f:Frenetic_NetKAT_Json.policy_of_json_channel in
+    ~f:Frenetic_NetKAT_Json.pol_of_json_channel in
   let size = Frenetic_NetKAT_Semantics.size pol in
   printf "%s,%d\n" filename size
 
@@ -128,7 +128,7 @@ let sdx filename =
     let open Yojson.Basic.Util in
     assert (json |> member "type" |> to_string = "disjoint");
     json |> member "pols" |> to_list
-      |> List.map ~f:Frenetic_NetKAT_Json.policy_of_json in
+      |> List.map ~f:Frenetic_NetKAT_Json.pol_of_json in
   let open Frenetic_NetKAT_Pretty in
   (* let _ = List.iteri pols ~f:(fun i pol -> *)
     (* string_of_policy pol |> printf "Policy %d:\n%s\n\n%!" i) in *)

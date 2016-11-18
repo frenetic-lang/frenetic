@@ -1,13 +1,12 @@
 # OASIS_START
-# DO NOT EDIT (digest: 2c8a57c9252dd99fae64f370dcb5aee9)
+# DO NOT EDIT (digest: 3f3ec16553b786ddbaa1d1faeab3cb0f)
 Frenetic_Hashcons
 Frenetic_Bits
 Frenetic_Fdd
 Frenetic_OpenFlow0x04
 Frenetic_GroupTable0x04
 Frenetic_NetKAT
-LexBuffer
-Frenetic_NetKAT_Lexer
+Frenetic_NetKAT_Tokens
 Frenetic_NetKAT_Parser
 Frenetic_NetKAT_Optimize
 Frenetic_NetKAT_Json
@@ -24,4 +23,7 @@ Frenetic_Packet
 Frenetic_Topology
 Frenetic_Util
 Frenetic_Vlr
+LexBuffer
+Frenetic_NetKAT_Lexer
+Frenetic_NetKAT_Generated_Parser
 # OASIS_STOP
