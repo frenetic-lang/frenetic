@@ -23,6 +23,9 @@ setup.log
 *.mllib
 *.odocl
 
+# auto generated files
+lib/Frenetic_NetKAT_Tokens*
+
 # ppx/test
 ppx/test/_tags
 ppx/test/configure

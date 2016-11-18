@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: fba283aabf41b614acd864e5e14fee68)
+# DO NOT EDIT (digest: ba41b7a3892fcb579fff9f31ac261b0d)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -17,6 +17,7 @@ true: annot, bin_annot
 # Library frenetic
 "lib/frenetic.cmxs": use_frenetic
 <lib/*.ml{,i,y}>: package(base64)
+<lib/*.ml{,i,y}>: package(compiler-libs.common)
 <lib/*.ml{,i,y}>: package(core)
 <lib/*.ml{,i,y}>: package(cstruct)
 <lib/*.ml{,i,y}>: package(ipaddr)
@@ -32,6 +33,7 @@ true: annot, bin_annot
 "ppx/ppx.cmxs": use_ppx
 # Executable ppx
 <ppx/ppx.{native,byte}>: package(base64)
+<ppx/ppx.{native,byte}>: package(compiler-libs.common)
 <ppx/ppx.{native,byte}>: package(core)
 <ppx/ppx.{native,byte}>: package(cstruct)
 <ppx/ppx.{native,byte}>: package(ipaddr)
@@ -49,6 +51,7 @@ true: annot, bin_annot
 <ppx/ppx.{native,byte}>: use_ppx
 # Executable ppx_standalone
 <ppx/ppx_standalone.{native,byte}>: package(base64)
+<ppx/ppx_standalone.{native,byte}>: package(compiler-libs.common)
 <ppx/ppx_standalone.{native,byte}>: package(core)
 <ppx/ppx_standalone.{native,byte}>: package(cstruct)
 <ppx/ppx_standalone.{native,byte}>: package(ipaddr)
@@ -65,6 +68,7 @@ true: annot, bin_annot
 <ppx/ppx_standalone.{native,byte}>: use_frenetic
 <ppx/ppx_standalone.{native,byte}>: use_ppx
 <ppx/*.ml{,i,y}>: package(base64)
+<ppx/*.ml{,i,y}>: package(compiler-libs.common)
 <ppx/*.ml{,i,y}>: package(core)
 <ppx/*.ml{,i,y}>: package(cstruct)
 <ppx/*.ml{,i,y}>: package(ipaddr)
@@ -86,6 +90,7 @@ true: annot, bin_annot
 <async/*.ml{,i,y}>: package(base64)
 <async/*.ml{,i,y}>: package(cohttp)
 <async/*.ml{,i,y}>: package(cohttp.async)
+<async/*.ml{,i,y}>: package(compiler-libs.common)
 <async/*.ml{,i,y}>: package(core)
 <async/*.ml{,i,y}>: package(cstruct)
 <async/*.ml{,i,y}>: package(cstruct.async)
@@ -108,6 +113,7 @@ true: annot, bin_annot
 "frenetic/frenetic.native": package(base64)
 "frenetic/frenetic.native": package(cohttp)
 "frenetic/frenetic.native": package(cohttp.async)
+"frenetic/frenetic.native": package(compiler-libs.common)
 "frenetic/frenetic.native": package(core)
 "frenetic/frenetic.native": package(cstruct)
 "frenetic/frenetic.native": package(cstruct.async)
@@ -131,6 +137,7 @@ true: annot, bin_annot
 "frenetic/openflow.native": package(base64)
 "frenetic/openflow.native": package(cohttp)
 "frenetic/openflow.native": package(cohttp.async)
+"frenetic/openflow.native": package(compiler-libs.common)
 "frenetic/openflow.native": package(core)
 "frenetic/openflow.native": package(cstruct)
 "frenetic/openflow.native": package(cstruct.async)
@@ -153,6 +160,7 @@ true: annot, bin_annot
 <frenetic/*.ml{,i,y}>: package(base64)
 <frenetic/*.ml{,i,y}>: package(cohttp)
 <frenetic/*.ml{,i,y}>: package(cohttp.async)
+<frenetic/*.ml{,i,y}>: package(compiler-libs.common)
 <frenetic/*.ml{,i,y}>: package(core)
 <frenetic/*.ml{,i,y}>: package(cstruct)
 <frenetic/*.ml{,i,y}>: package(cstruct.async)
@@ -173,6 +181,7 @@ true: annot, bin_annot
 # Library test_frenetic
 "lib_test/lib/test_frenetic.cmxs": use_test_frenetic
 <lib_test/lib/*.ml{,i,y}>: package(base64)
+<lib_test/lib/*.ml{,i,y}>: package(compiler-libs.common)
 <lib_test/lib/*.ml{,i,y}>: package(core)
 <lib_test/lib/*.ml{,i,y}>: package(cstruct)
 <lib_test/lib/*.ml{,i,y}>: package(ipaddr)
@@ -191,6 +200,7 @@ true: annot, bin_annot
 "lib_test/Test.byte": package(base64)
 "lib_test/Test.byte": package(cohttp)
 "lib_test/Test.byte": package(cohttp.async)
+"lib_test/Test.byte": package(compiler-libs.common)
 "lib_test/Test.byte": package(core)
 "lib_test/Test.byte": package(cstruct)
 "lib_test/Test.byte": package(cstruct.async)
@@ -215,6 +225,7 @@ true: annot, bin_annot
 <lib_test/*.ml{,i,y}>: package(base64)
 <lib_test/*.ml{,i,y}>: package(cohttp)
 <lib_test/*.ml{,i,y}>: package(cohttp.async)
+<lib_test/*.ml{,i,y}>: package(compiler-libs.common)
 <lib_test/*.ml{,i,y}>: package(core)
 <lib_test/*.ml{,i,y}>: package(cstruct)
 <lib_test/*.ml{,i,y}>: package(cstruct.async)
@@ -237,6 +248,7 @@ true: annot, bin_annot
 <lib_test/*.ml{,i,y}>: use_test_frenetic
 # Executable benchmark
 <bench/src/Main.{native,byte}>: package(base64)
+<bench/src/Main.{native,byte}>: package(compiler-libs.common)
 <bench/src/Main.{native,byte}>: package(core)
 <bench/src/Main.{native,byte}>: package(cstruct)
 <bench/src/Main.{native,byte}>: package(ipaddr)
@@ -250,6 +262,7 @@ true: annot, bin_annot
 <bench/src/Main.{native,byte}>: package(yojson)
 <bench/src/Main.{native,byte}>: use_frenetic
 <bench/src/*.ml{,i,y}>: package(base64)
+<bench/src/*.ml{,i,y}>: package(compiler-libs.common)
 <bench/src/*.ml{,i,y}>: package(core)
 <bench/src/*.ml{,i,y}>: package(cstruct)
 <bench/src/*.ml{,i,y}>: package(ipaddr)

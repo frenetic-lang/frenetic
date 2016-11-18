@@ -35,7 +35,8 @@ PreBuildCommand:
 PostBuildCommand:
   rm -f ppx/PPX_NetKAT_Parser.mly
   rm -f lib/Frenetic_NetKAT_Generated_Parser.mly
-  rm -f lib/Frenetic_NetKAT_Tokens*
+  # do not delete so ocamldoc is happy!
+  # rm -f lib/Frenetic_NetKAT_Tokens*
 ImplementationPatterns:
   ${module}.cppo.mly
 
@@ -54,7 +55,8 @@ Library frenetic
     ppx_import,
     sedlex,
     menhirLib,
-    threads
+    threads,
+    compiler-libs.common
   InternalModules:
     LexBuffer,
     Frenetic_NetKAT_Lexer,
