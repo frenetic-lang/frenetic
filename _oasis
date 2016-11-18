@@ -171,7 +171,7 @@ Library test_frenetic
   Findlibname: test
   Path: lib_test/lib
   Build$: flag(tests)
-  Install: true
+  Install: false
   BuildDepends:
     frenetic,
     quickcheck
@@ -196,6 +196,11 @@ Executable testtool
     frenetic,
     frenetic.async
 
+Test all_tests
+  Run$: flag(tests)
+  Command: $testtool inline-test-runner frenetic
+  TestTools: testtool
+
 Executable benchmark
   Install: false
   Path: bench/src
@@ -205,12 +210,6 @@ Executable benchmark
     core,
     threads,
     frenetic
-
-Test all_tests
-  Run$: flag(tests)
-  # -only-test Test_Frenetic_GroupTable0x04.ml
-  Command: $testtool inline-test-runner frenetic
-  TestTools: testtool
 
 Document frenetic
   Title: Frenetic API docs
