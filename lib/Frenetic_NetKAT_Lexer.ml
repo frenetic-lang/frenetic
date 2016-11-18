@@ -98,7 +98,7 @@ let token ~ppx ~loc_start buf =
   | "false" -> FALSE
   | "and" -> AND
   | "or" -> OR
-  | "!" -> NOT
+  | "not" -> NOT
   | '=' -> EQUALS
   (* policies *)
   | "id" -> ID
@@ -107,7 +107,7 @@ let token ~ppx ~loc_start buf =
   | ":=" -> ASSIGN
   | ';' -> SEMICOLON
   (* SJS: let's start using `+` instead of `|` ? *)
-  | '+' -> PLUS
+  | '|' -> MID
   | '*' -> STAR
   | "=>" -> LINK
   | "@" -> AT
@@ -117,8 +117,8 @@ let token ~ppx ~loc_start buf =
   | "port" -> PORT
   | "ethSrc" -> ETHSRC
   | "ethDst" -> ETHDST
-  | "vlan" -> VLAN
-  | "vlanId" -> VLANPCP
+  | "vlanId" -> VLAN
+  | "vlanPcp" -> VLANPCP
   | "ethTyp" -> ETHTYPE
   | "ipProto" -> IPPROTO
   | "ip4Src" -> IP4SRC

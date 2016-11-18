@@ -31,7 +31,7 @@ let int64 ?loc ?attrs x =
 
 (* predicates and policies *)
 %token TRUE FALSE AND OR NOT EQUALS
-%token ID DROP FILTER ASSIGN SEMICOLON PLUS STAR LINK AT SLASH
+%token ID DROP FILTER ASSIGN SEMICOLON MID STAR LINK AT SLASH
 %token IF THEN ELSE WHILE DO
 
 (* fields *)
@@ -55,7 +55,7 @@ let int64 ?loc ?attrs x =
 
 (* precedence and associativity - from lowest to highest *)
 %nonassoc IN (* let meta := 1 in p + q == let meta := 1 in (p + q) *)
-%left PLUS
+%left MID
 %left SEMICOLON
 %nonassoc ELSE (* if a then p else q; r == (if a then p else q); r *)
 %nonassoc DO
@@ -94,7 +94,7 @@ pol:
   | hv=header_val(ASSIGN)
       AST( Mod hv )
       PPX( Mod [%e hv] )
-  | p=pol; PLUS; q=pol
+  | p=pol; MID; q=pol
       AST( Union (p, q) )
       PPX( Union ([%e p], [%e q]) )
   | p=pol; SEMICOLON; q=pol
