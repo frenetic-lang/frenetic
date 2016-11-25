@@ -1,5 +1,10 @@
 external frenetic_gettime : unit -> Int64.t = "frenetic_gettime"
 
+type timing = (string * Int64.t)
+
+let string_of_timing t =
+  Printf.sprintf "%s: %Ld" (fst t) (snd t)
+
 let time () = frenetic_gettime ()
 
 let from (start:Int64.t) =
