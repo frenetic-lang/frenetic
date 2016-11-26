@@ -72,7 +72,10 @@ type coronet_state = { mutable network : CoroNet.Topology.t option
                      ; mutable east    : string list
                      ; mutable west    : string list
                      ; mutable paths   : CoroNet.CoroPath.t list
+                     ; mutable preproc : Int64.t
                      ; mutable circuits : (CoroNet.path * circuit * string) PathTable.t
+                     ; mutable result  : (Frenetic_Synthesis.result Async.Std.Deferred.t *
+                                          switchId list)
                      }
 
 let coronet_state = { network  = None
@@ -81,7 +84,9 @@ let coronet_state = { network  = None
                     ; east     = []
                     ; west     = []
                     ; paths    = []
+                    ; preproc = 0L
                     ; circuits = PathTable.create ()
+                    ; result   = ( Async.Std.Deferred.return (Filter False, []), [] )
                     }
 
 type state_part =
@@ -122,6 +127,7 @@ type coronet =
   | CEast of string list
   | CWest of string list
   | CPath of string * string
+  | CPeek
   | CSynthesize
 
 type install =
@@ -241,6 +247,7 @@ module Parser = struct
         (symbol "paths" >> source >>= fun s -> return ( CLoadPaths s )))) <|>
       (symbol "east" >> string_list >>= fun e -> return ( CEast e )) <|>
       (symbol "west" >> string_list >>= fun w -> return ( CWest w )) <|>
+      (symbol "peek" >> return CPeek) <|>
       (symbol "path" >>
        many_chars alphanum >>= fun src -> spaces >>
        many_chars alphanum >>= fun dst ->
@@ -506,8 +513,8 @@ let synthesize s : (string, string) Result.t =
   let open Frenetic_Synthesis in
   Random.init 1337;
   begin match s with
-    | SGeneric -> Ok ( module MakeForDyads(Generic) : SYNTH )
-    | SOptical -> Ok ( module MakeForDyads(Optical) : SYNTH )
+    | SGeneric -> Ok ( module MakeStrict(Generic) : DYADIC )
+    | SOptical -> Ok ( module MakeStrict(Optical) : DYADIC )
     | SSMT ->
       (* This is just an example to test the synthesis code. Much of this needs
          to be parameterized. *)
@@ -516,14 +523,12 @@ let synthesize s : (string, string) Result.t =
                              ( Frenetic_Fdd.FieldSet.of_list [Switch; Location] )) in
       let restraint = And(Adjacent, places) in
       let decider = mk_dyad_decider restraint in
-      Ok ( module MakeForDyads(struct
+      Ok ( module MakeStrict(struct
             type t = Fabric.Dyad.t
-            let gen_time = ref 0L
-            let synth_time = ref 0L
             let decide   = decider
             let choose   = Optical.choose
             let generate = Optical.generate
-          end) : SYNTH )
+          end) : DYADIC )
   end >>= fun s ->
   match state.naive, state.fabric,state.topology with
   | Some c, Some f, Some t ->
@@ -532,7 +537,7 @@ let synthesize s : (string, string) Result.t =
     let fabric = A.assemble f.config.policy t
         f.config.ingresses f.config.egresses in
     let policy = A.assemble c.policy t c.ingresses c.egresses in
-    let edge = S.synthesize policy fabric t in
+    let edge,_ = S.synthesize (A.to_dyads policy) (A.to_dyads fabric) t in
 
     log "Pre-synthesis user policy:\n%s\n"   (string_of_policy (A.program policy));
     log "Pre-synthesis fabric policy:\n%s\n" (string_of_policy (A.program fabric ));
@@ -546,18 +551,11 @@ let synthesize s : (string, string) Result.t =
     Ok "Edge policies compiled successfully"
   | _ -> Error "Edge compilation requires naive policy, fabric and topology"
 
-let coronet c = match c with
+let rec coronet c = match c with
   (* TODO(basus): Allow coronet topologies to be loaded from strings as well *)
   | CLoadTopo ( String s ) -> Error "Coronet topologies must be loaded from files"
   | CLoadTopo ( Filename fn ) ->
     let net,name_tbl,port_tbl = CoroNet.from_csv_file fn in
-    (* let mn = CoroNet.Pretty.to_mininet ~prologue_file:"examples/linc-prologue.txt" *)
-    (*     ~link_class:( Some "LINCLink" ) net in *)
-    (* let nk = string_of_policy (CoroNet.Pretty.to_netkat net) in *)
-    (* let src     = sprintf "Source: %s" fn in *)
-    (* let mininet = sprintf "Mininet:\n%s\n" mn in *)
-    (* let netkat  = sprintf "NetKAT:\n%s\n" nk in *)
-    (* let result = String.concat ~sep:"\n" [src; mininet; netkat] in *)
     coronet_state.network <- Some net; coronet_state.names <- name_tbl;
     coronet_state.ports <- port_tbl;
     let result = sprintf "Successfully loaded topology from %s\n" fn in
@@ -628,33 +626,52 @@ let coronet c = match c with
             printf "Generating fibers\n%!";
             let fsfabric = CoroNet.Waypath.to_fabric_fibers waypaths net in
             let fspolicy = CoroNet.Waypath.to_policy_fibers wptbl net preds in
-            let preproc_time = from start in
+            coronet_state.preproc <- from start;
 
+            (* Call the synthesis back-end *)
             let module C = Frenetic_Synthesis.Coronet in
-            C.synthesize fspolicy fsfabric (CoroNet.Pretty.to_netkat net) >>=
-            (fun ( edge, gen_time, synth_time ) ->
+            let netkat = (CoroNet.Pretty.to_netkat net) in
+            let results = C.synthesize fspolicy fsfabric netkat in
+            coronet_state.result <- (results, ids);
 
-            let compiled = Compiler.compile_local ~options:keep_cache edge in
-            let num_flows = List.fold ids ~init:0 ~f:(fun num id ->
-                let flows = Frenetic_NetKAT_Compiler.to_table id compiled in
-                (List.length flows) + num) in
+            (* Register a callback to print the results when they're ready *)
+            Deferred.upon results (fun r ->
+                printf "Coronet Synthesis complete";
+                match coronet CPeek with
+                | Ok result -> printf "%s\n" result
+                | Error e -> printf "Error:%s\n" e
+                (* The shell could be terminated at this point, if being run in
+                   batch mode to gather experimental numbers. *)
+              );
 
-            let nodes = ( List.length east ) + ( List.length west ) in
-            let result = sprintf "|%d\t%Ld\t%Ld\t%Ld\t%d\n"
-                nodes
-                (to_msecs preproc_time) (to_msecs gen_time ) (to_secs synth_time)
-                num_flows in
-            return ( Ok result )) >>> ( function r ->
-              match r with
-              | Ok msg  -> printf "%s\n%!" msg
-              | Error e -> printf "Error: %s\n" e);
-            Ok "success"
-
+            Ok "Coronet Solution started"
         with
         | CoroNet.NonexistentNode s ->
           Error (sprintf "No node %s in topology\n" s)
         | CoroNet.CoroPath.UnjoinablePaths s ->
           Error (sprintf "Unjoinable paths %s\n" s) end
+
+  | CPeek ->
+    begin match Async.Std.Deferred.peek (fst coronet_state.result ) with
+      | None -> Error "No result available yet"
+      | Some (edge, [gen_time;synth_time]) ->
+        let open Frenetic_Time in
+        let ids = snd coronet_state.result in
+        let compiled = Compiler.compile_local ~options:keep_cache edge in
+        let num_flows = List.fold ids ~init:0 ~f:(fun num id ->
+            let flows = Frenetic_NetKAT_Compiler.to_table id compiled in
+            (List.length flows) + num) in
+
+        let nodes = ( List.length coronet_state.east ) +
+                    ( List.length coronet_state.west ) in
+        let result = sprintf "|%d\t%Ld\t%Ld\t%Ld\t%d\n"
+            nodes
+            (to_msecs coronet_state.preproc)
+            (to_msecs (snd gen_time)) (to_secs (snd synth_time))
+            num_flows in
+        Ok result
+      | Some (edge, _) -> Ok (string_of_policy edge)
+    end
 
   | CPath(s, d) -> begin match coronet_state.network with
       | None -> Error "Finding a path requires loading a Coronet topology"
@@ -818,8 +835,10 @@ let rec repl ?(prompt="powershell> ") () : unit Deferred.t =
         handle line;
         repl ())
 
-let main () : unit =
+let () : unit =
+  Async_parallel_deprecated.Std.Parallel.init ();
   Log.set_output [Async.Std.Log.Output.file `Text log_filename];
   printf "Frenetic PowerShell v 1.0\n%!";
   printf "Type `help` for a list of commands\n%!";
-  ignore(repl ())
+  ignore(repl ());
+  never_returns (Async.Std.Scheduler.go ())

@@ -5,7 +5,6 @@ open Frenetic_OpenFlow
 (** Utility functions and imports *)
 module Parallel = Async_parallel_deprecated.Std.Parallel
 module Deferred = Async.Std.Deferred
-module Deferred_list = Async.Std.Deferred.List
 module Compiler = Frenetic_NetKAT_Compiler
 module CoroNet = Frenetic_Topology.CoroNet
 module CoroNode = Frenetic_Topology.CoroNode
@@ -15,6 +14,9 @@ module Dyad = Fabric.Dyad
 type place  = Fabric.place
 type fiber = Frenetic_Topology.CoroNet.Waypath.fiber
 type assemblage = Fabric.Assemblage.t
+
+type timings = (string * Int64.t) list
+type result = policy * timings
 
 let return = Deferred.return
 let flatten = Frenetic_Util.flatten
@@ -38,27 +40,23 @@ type 'a decider   = topology -> 'a -> 'a -> bool
 type 'a chooser   = topology -> 'a -> 'a list -> 'a
 type 'a generator = topology -> ('a * 'a) list -> (policy * policy)
 
-module type SOLVER = sig
+module type COMPARATOR = sig
   type t
-  val synth_time : Int64.t ref
-  val gen_time : Int64.t ref
   val decide   : t decider
   val choose   : t chooser
   val generate : t generator
 end
 
-module type DYAD_SOLVER = SOLVER with type t = Dyad.t
-module type FIBER_SOLVER = SOLVER with type t = fiber
-
-module type SYNTH = sig
-  val synthesize : assemblage -> assemblage -> policy -> policy
+module type SYNTHESIZER = sig
+  type input
+  type solution
+  val synthesize : input -> input -> policy -> solution
 end
 
-module type COROSYNTH = sig
-  val synthesize : fiber list -> fiber list -> policy ->
-    ( policy * int64 * int64 ) Deferred.t
-end
+module type DYADIC = SYNTHESIZER with
+  type input = Dyad.t list and type solution = result
 
+(** Utility functions that can be reused across modules *)
 (* Pick n random elements from options *)
 let rec random_picks options n =
   let options = Array.of_list options in
@@ -90,6 +88,7 @@ let generate_tagged to_netkat topo pairs =
           (ins'::ins, outs'::outs, tag+1)) in
   (union ins, union outs)
 
+
 (** Topology related functions. Again, need to be replaced by a better topology module. *)
 (* Check if the fabric stream and the policy stream start and end at the same,
    or immediately adjacent locations. This is decided using predecessor and
@@ -117,7 +116,8 @@ let come_from topology ((src_sw, src_pt) as src) ((dst_sw, dst_pt) as dst) =
   And(Test( Switch dst_sw ),
        Test( Location( Physical pt )))
 
-(** Convert the synthesis types to Z3 program strings. *)
+
+(** Module to convert the synthesis types to Z3 program strings. *)
 module Z3 = struct
 
   open Frenetic_Fdd
@@ -317,7 +317,7 @@ module Z3 = struct
 end
 
 
-module Generic : DYAD_SOLVER = struct
+module Generic = struct
 
   type t = Dyad.t
 
@@ -380,7 +380,7 @@ module Generic : DYAD_SOLVER = struct
     generate_tagged to_netkat topo pairs
 end
 
-module Optical : DYAD_SOLVER = struct
+module Optical = struct
 
   type t = Dyad.t
 
@@ -413,51 +413,45 @@ module Optical : DYAD_SOLVER = struct
 
 end
 
-module MakeForDyads (S:SOLVER with type t = Dyad.t) = struct
-  open S
+module MakeStrict(C:COMPARATOR) = struct
+  type input = C.t list
+  type solution = result
 
   (** Core matching function *)
-  let matching topology (from_policy:Dyad.t list) (from_fabric:Dyad.t list)
-    : policy * policy =
-
+  let matching topology (from_policy:C.t list) from_fabric =
     (* For each policy stream, find the set of fabric streams that could be used
        to carry it. This is done using the `decide` function from the SOLVER
        that allows the caller to specify what criteria are important, perhaps
        according to the properties of the fabric. *)
     let partitions = List.fold_left from_policy ~init:[]
         ~f:(fun acc stream ->
-            let streams = List.filter from_fabric ~f:(decide topology stream) in
+            let streams = List.filter from_fabric ~f:(C.decide topology stream) in
             let partition = (stream, streams) in
             (partition::acc)) in
 
     (* Pick a smaller set of fabric streams to actually carry the policy streams *)
-    let pairs =
-      List.fold_left partitions ~init:[] ~f:(fun acc (stream, opts) ->
-          let pick = choose topology stream opts in
-          (stream, pick)::acc) in
+    let pairs = List.fold_left partitions
+        ~init:[] ~f:(fun acc (stream, opts) ->
+            let pick = C.choose topology stream opts in
+            (stream, pick)::acc) in
 
-    generate topology pairs
+    C.generate topology pairs
 
-  let synthesize (policy:assemblage) (fabric:assemblage) (topo:policy) : policy =
+  let synthesize (policy:C.t list) (fabric:C.t list) (topo:policy) : solution =
     (* Streams are condition/modification pairs with empty actioned pairs filtered out *)
-    let policy_streams = Fabric.Assemblage.to_dyads policy in
-    let fabric_streams = Fabric.Assemblage.to_dyads fabric in
     let preds = Fabric.Topo.predecessors topo in
     let succs = Fabric.Topo.successors topo in
     let topology = {topo; preds; succs} in
-    let ingress, egress = matching topology
-        policy_streams fabric_streams in
-    Union(ingress, egress)
+    let ingress, egress = matching topology policy fabric in
+    ( Union(ingress, egress), [] )
 
 end
-
 
 module Coronet = struct
 
   type t = fiber
-
-  let gen_time = ref 0L
-  let synth_time = ref 0L
+  type input = t list
+  type solution = result Async.Std.Deferred.t
 
   let to_netkat topo pol fab
       (tag:int): policy * policy =
@@ -540,6 +534,9 @@ module Coronet = struct
   let matching topo policy fabrics =
     let open Async.Std in
     let open Frenetic_Time in
+    let gen_time = ref 0L in
+    let synth_time = ref 0L in
+
     let partitions = List.map policy ~f:(fun policy ->
 
         let start = time () in
@@ -569,14 +566,16 @@ module Coronet = struct
       List.fold_left ps ~init:[] ~f:(fun acc (fiber, opts) ->
           let pick = select topo fiber opts in
           (fiber, pick)::acc) in
-    generate topo pairs
+    let timings = [ ("Generation time", !gen_time);
+                    ("Solution time", !synth_time) ] in
+    let ingress, egress = generate topo pairs in
+    ( Union(ingress, egress), timings )
 
   let synthesize (policy:t list) (fabric:t list) (topo:policy) =
     let open Async.Std in
     let preds = Fabric.Topo.predecessors topo in
     let succs = Fabric.Topo.successors topo in
     let topology = {topo; preds; succs} in
-    matching topology policy fabric >>| fun ( ingress, egress ) ->
-    Union(ingress, egress), !gen_time, !synth_time
+    matching topology policy fabric
 
 end
