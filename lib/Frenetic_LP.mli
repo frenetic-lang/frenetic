@@ -25,7 +25,9 @@ type expr =
   | Mult  of expr * expr
   | Div   of expr * expr
 
-type const = Constraint of expr * rel * expr
+type const =
+  | Constraint of expr * rel * int64
+  | Indicator  of string * bool * expr * rel * int64
 
 type constraints = const list
 
@@ -38,5 +40,7 @@ type objective =
   | Minimize of expr list
 
 type t = LP of objective * constraints * bounds * types * sos
+
+val sum : expr list -> expr
 
 val to_string : t -> string

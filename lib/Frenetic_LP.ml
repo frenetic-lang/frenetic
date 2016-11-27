@@ -25,7 +25,9 @@ type expr =
   | Mult  of expr * expr
   | Div   of expr * expr
 
-type const = Constraint of expr * rel * expr
+type const =
+  | Constraint of expr * rel * int64
+  | Indicator  of string * bool * expr * rel * int64
 
 type constraints = const list
 
@@ -76,7 +78,17 @@ module Buf = struct
       add_string buf "\n";
       of_relop y buf;
       add_string buf " ";
-      of_linear_expr z buf
+      add_string buf (Int64.to_string z)
+    | Indicator(v,b,x,y,z) ->
+      add_string buf v;
+      add_string buf " = " ;
+      if b then add_string buf "1" else add_string buf "0";
+      add_string buf " -> ";
+      of_linear_expr x buf;
+      add_string buf "\n";
+      of_relop y buf;
+      add_string buf " ";
+      add_string buf (Int64.to_string z)
 
   let of_bound c buf =
     match c with
@@ -146,5 +158,10 @@ module Buf = struct
     add_string buf "\nEnd";
     buf
 end
+
+let rec sum es = match es with
+  | [] -> Int 0L
+  | [e] -> e
+  | hd::tl -> Plus( hd, sum tl )
 
 let to_string lp = Buffer.contents ( Buf.of_lp lp )
