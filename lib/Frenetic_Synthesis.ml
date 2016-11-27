@@ -647,10 +647,59 @@ module Gurobi = struct
     let sos = NoSos in
     LP (objective, constraints, bounds, bools, sos)
 
+
+  let clean fname = match Sys.file_exists fname with
+      | `Yes -> Sys.remove fname
+      | _ -> ()
+
+  let write fname string =
+    let outc = Out_channel.create fname in
+    Out_channel.output_string outc string;
+    Out_channel.close outc
+
+  let read fname =
+    let chan = In_channel.create fname in
+    In_channel.fold_lines chan ~init:[] ~f:(fun acc line ->
+        match String.index line '#' with
+        | Some i -> acc
+        | None -> begin match String.lsplit2 line ~on:' ' with
+            | Some (var, value) ->
+              if Int64.of_string value = 1L then var::acc
+              else acc
+            | None ->
+              printf "Unparseable:|%s|\n" line;
+              acc end)
+
+  let pair policy fabric solns =
+    List.map solns ~f:(fun soln -> match String.split soln ~on:'_' with
+        | ["v";p;f] ->
+          let p_id = Int.of_string p in
+          let f_id = Int.of_string f in
+          let pol = List.find_exn policy ~f:(fun d -> (uid d) = p_id) in
+          let fab = List.find_exn fabric ~f:(fun d -> (uid d) = f_id) in
+          (pol, fab)
+        | _ -> failwith (sprintf "Unmatchable: %s\n" soln ))
+
   let synthesize (policy:input) (fabric:input) (topo:policy) =
+    let lp_file = "merlin.lp" in
+    let sol_file = "merlin.sol" in
+
     let preds = Fabric.Topo.predecessors topo in
     let succs = Fabric.Topo.successors topo in
     let topology = {topo; preds; succs} in
+
     let lp = to_lp policy fabric topology in
-    (Filter False, [])
+    let cmd = sprintf "gurobi_cl ResultFile=%s %s > gurobi_output.log"
+        sol_file lp_file in
+    clean sol_file;
+    clean lp_file;
+    write lp_file (Frenetic_LP.to_string lp);
+    Sys.command_exn cmd;
+
+    let soln = read sol_file in
+    let pairs = pair policy fabric soln in
+    let ingress, egress = Optical.generate topology pairs in
+    ( Union(ingress, egress), [] )
+
+
 end
