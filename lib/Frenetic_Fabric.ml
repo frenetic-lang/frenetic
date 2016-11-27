@@ -293,6 +293,8 @@ module Condition = struct
   let to_string (c:t) : string =
     (string_of_pred (to_pred c))
 
+  let checked c fld = FieldTable.mem c fld
+
   let satisfy (c:t) : policy list =
     FieldTable.fold c ~init:[] ~f:(fun ~key ~data acc -> match data with
         | Some pos, [] -> Mod( Pattern.to_hv (key, pos) )::acc
@@ -329,7 +331,7 @@ end
 module Dyad = struct
   type t = int * place * place * Condition.t * Action.t
 
-  let id  (i,_,_,_,_) = i
+  let uid (i,_,_,_,_) = i
   let src (_,p,_,_,_) = p
   let dst (_,_,p,_,_) = p
   let condition (_,_,_,c,_) = c

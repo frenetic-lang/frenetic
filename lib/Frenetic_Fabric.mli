@@ -29,6 +29,7 @@ module Condition  : sig
   val to_pred     : t -> pred
   val to_string   : t -> string
 
+  val checked     : t -> Field.t -> bool
   val satisfy     : t -> policy list
   val undo        : t -> t -> policy list
   val places_only : t -> bool
@@ -42,6 +43,7 @@ end
 module Dyad : sig
   type t = int * place * place * Condition.t * Action.t
 
+  val uid : t -> int
   val src : t -> place
   val dst : t -> place
   val condition : t -> Condition.t
