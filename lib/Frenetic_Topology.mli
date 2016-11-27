@@ -73,6 +73,7 @@ module CoroNet : sig
       string list -> string list -> CoroPath.t list ->
       ( t list * endtable )
 
+    val to_dyad : t -> Frenetic_Fabric.Dyad.t
     val to_circuit : t -> Topology.t -> circuit
 
     val to_policy : t -> Topology.t -> pred -> Frenetic_NetKAT.policy

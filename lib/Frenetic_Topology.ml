@@ -444,6 +444,9 @@ module CoroNet = struct
                                            (show stop) (show w))))) in
       paths, wptbl
 
+    let to_dyad wp =
+      wp.src, wp.dst, wp.condition, wp.action
+
     let to_circuit wp net =
       let open Frenetic_Circuit_NetKAT in
       let source,sink = places wp in
