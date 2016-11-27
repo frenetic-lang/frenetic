@@ -49,14 +49,16 @@ module CoroNet : sig
     (* A waypath connects transceiver ports on optical nodes on separate coasts
        using a predetermined physical path. The `waypoints` are at least the
        endpoints of the predetermined path. *)
-    type t = { start : Topology.vertex * switchId * portId
+    type t = { uid : int
+             ; start : Topology.vertex * switchId * portId
              ; stop  : Topology.vertex * switchId * portId
              ; waypoints : Topology.vertex list
              ; path : CoroPath.t
              ; channel : int
              }
 
-    type fiber = { name : string
+    type fiber = { uid : int
+                 ; name : string
                  ; src : place
                  ; dst : place
                  ; condition : Frenetic_Fabric.Condition.t
@@ -73,7 +75,7 @@ module CoroNet : sig
       string list -> string list -> CoroPath.t list ->
       ( t list * endtable )
 
-    val to_dyad : t -> Frenetic_Fabric.Dyad.t
+    val to_dyad : fiber -> Frenetic_Fabric.Dyad.t
     val to_circuit : t -> Topology.t -> circuit
 
     val to_policy : t -> Topology.t -> pred -> Frenetic_NetKAT.policy

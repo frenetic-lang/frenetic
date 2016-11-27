@@ -40,7 +40,7 @@ end
     The `of_policy` function is provided as a convenience, but typically Dyads
     should be constructed from an `Assemblage.t`, as described below. *)
 module Dyad : sig
-  type t = place * place * Condition.t * Action.t
+  type t = int * place * place * Condition.t * Action.t
 
   val src : t -> place
   val dst : t -> place

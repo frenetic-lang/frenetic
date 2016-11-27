@@ -93,7 +93,7 @@ let generate_tagged to_netkat topo pairs =
 (* Check if the fabric stream and the policy stream start and end at the same,
    or immediately adjacent locations. This is decided using predecessor and
    successor tables. *)
-let adjacent topo (src,dst,_,_) fab_stream =
+let adjacent topo (_,src,dst,_,_) fab_stream =
   Fabric.Topo.starts_at topo.preds (fst src) fab_stream &&
   Fabric.Topo.stops_at  topo.succs (fst dst) fab_stream
 
@@ -329,8 +329,8 @@ module Generic = struct
   (* Given a policy stream and a fabric stream, generate edge policies to implement *)
   (* the policy stream using the fabric stream *)
   let to_netkat topo
-                ((src,dst,cond,actions) as pol)
-                ((src',dst',cond',actions') as fab)
+                ((_,src,dst,cond,actions) as pol)
+                ((_,src',dst',cond',actions') as fab)
                 (tag:int): policy * policy =
     let open Fabric.Condition in
     let strip_vlan = 0xffff in
@@ -365,8 +365,8 @@ module Generic = struct
       3. The set of fields checked by the fabric stream's conditions are a subset
        of those checked by the policy stream. **)
   let decide topo
-      ((src,dst,cond,actions) as pol)
-      ((src',dst',cond',actions') as fab) =
+      ((_,src,dst,cond,actions) as pol)
+      ((_,src',dst',cond',actions') as fab) =
     adjacent topo pol fab &&
     ( Fabric.Condition.places_only cond' || Fabric.Condition.is_subset cond' cond)
 
@@ -388,7 +388,7 @@ module Optical = struct
   let synth_time = ref 0L
 
   let to_netkat topo
-    ((src,dst,cond,actions)) ((src',dst',cond',actions'))
+    ((_,src,dst,cond,actions)) ((_,src',dst',cond',actions'))
     (tag:int): policy * policy =
   let open Fabric.Condition in
   let strip_vlan = 0xffff in
@@ -401,7 +401,7 @@ module Optical = struct
   let egress  = seq ([ out_filter; Mod( Vlan strip_vlan ); modify; to_edge ]) in
   ingress, egress
 
-  let decide topo ((_,_,cond,_) as pol) ((_,_,cond',_) as fab) =
+  let decide topo ((_,_,_,cond,_) as pol) ((_,_,_,cond',_) as fab) =
     adjacent topo pol fab && Fabric.Condition.places_only cond'
 
   (** Just pick one possible fabric stream at random from the set of options *)

@@ -358,14 +358,16 @@ module CoroNet = struct
 
   module Waypath = struct
 
-    type t = { start : Topology.vertex * switchId * portId
+    type t = { uid : int
+             ; start : Topology.vertex * switchId * portId
              ; stop  : Topology.vertex * switchId * portId
              ; waypoints : Topology.vertex list
              ; path : CoroPath.t
              ; channel : int
              }
 
-    type fiber = { name : string
+    type fiber = { uid : int
+                 ; name : string
                  ; src : place
                  ; dst : place
                  ; condition : Frenetic_Fabric.Condition.t
@@ -431,9 +433,9 @@ module CoroNet = struct
                   | Some p, Some s ->
                     let path' = CoroPath.join p (CoroPath.join path s) in
                     let rpath' = CoroPath.reverse net path' in
-                    let waypath = { path = path'; start = e'; stop = w';
+                    let waypath = { uid = ch; path = path'; start = e'; stop = w';
                                     waypoints = [ start; stop ]; channel = ch } in
-                    let waypath' = { path = rpath'; start = w'; stop = e';
+                    let waypath' = { uid = ch; path = rpath'; start = w'; stop = e';
                                      waypoints = [ stop; start ]; channel = ch+1 } in
                     Hashtbl.Poly.add_multi wptbl (e_name, w_name) waypath;
                     Hashtbl.Poly.add_multi wptbl (w_name, e_name) waypath';
@@ -444,8 +446,8 @@ module CoroNet = struct
                                            (show stop) (show w))))) in
       paths, wptbl
 
-    let to_dyad wp =
-      wp.src, wp.dst, wp.condition, wp.action
+    let to_dyad (f:fiber) : Frenetic_Fabric.Dyad.t =
+      f.uid, f.src, f.dst, f.condition, f.action
 
     let to_circuit wp net =
       let open Frenetic_Circuit_NetKAT in
@@ -498,7 +500,7 @@ module CoroNet = struct
 
     let to_fabric_fibers wps net =
       let topo = Pretty.to_netkat net in
-      let to_fab wp =
+      let to_fab id wp =
         let src,dst = places wp in
         let sv,dv = vertexes wp in
         let circuit = to_circuit wp net in
@@ -510,15 +512,19 @@ module CoroNet = struct
         let name = sprintf "%s=>%s"
             (Topology.vertex_to_string net sv)
             (Topology.vertex_to_string net dv) in
-        List.map dyads ~f:(fun d ->
-            let src, dst, condition, action = d in
-            { name; src; dst; condition; action; points }) in
+        List.fold dyads ~init:([],id) ~f:(fun (acc,uid) d ->
+            let _, src, dst, condition, action = d in
+            let f = { uid; name; src; dst; condition; action; points } in
+            (f::acc, uid+1)) in
 
-      List.fold wps ~init:[] ~f:(fun acc wp ->
-          let dyads = to_fab wp in
-          List.fold dyads ~init:acc ~f:(fun acc dyad -> dyad::acc))
+      let fibers,_ = List.fold wps ~init:([], 1)  ~f:(fun (acc,i) wp ->
+          let (fibers, last) = to_fab i wp in
+          let acc' = List.fold fibers ~init:acc ~f:(fun acc fiber -> fiber::acc) in
+          let next = last + 1 in
+          (acc', next)) in
+      fibers
 
-    let to_pol wp net pred =
+    let to_pol i wp net pred =
       (* Use the topology to find the packet switch and ports connected the
          optical fabric endpoints *)
       let open Frenetic_NetKAT in
@@ -548,16 +554,21 @@ module CoroNet = struct
       let name = sprintf "%s=>%s"
           (Topology.vertex_to_string net psv)
           (Topology.vertex_to_string net pdv) in
-      List.map dyads ~f:(fun d ->
-          let src, dst, condition, action = d in
-          { name; src; dst; condition; action; points })
+      List.fold dyads ~init:([],i) ~f:(fun (acc,uid) d ->
+          let _, src, dst, condition, action = d in
+          let f = { uid; name; src; dst; condition; action; points } in
+          (f::acc, uid+1))
 
     let to_policy_fibers wptbl net preds =
-      Hashtbl.Poly.fold wptbl ~init:[] ~f:(fun ~key:(s,d) ~data:wps pols ->
-          List.fold2_exn wps preds ~init:pols ~f:(fun acc wp pred ->
-              let dyads = (to_pol wp net pred) in
-              List.fold dyads ~init:acc ~f:(fun acc dyad ->
-                  if Frenetic_Fdd.Action.is_zero dyad.action then acc else dyad::acc)))
+      let fibers,_ = Hashtbl.Poly.fold wptbl ~init:([],1)
+          ~f:(fun ~key:(s,d) ~data:wps (pols,i) ->
+              List.fold2_exn wps preds ~init:(pols,i) ~f:(fun (acc,i) wp pred ->
+                  let fibers,last = (to_pol i wp net pred) in
+                  let acc' = List.fold fibers ~init:acc
+                      ~f:(fun acc fiber -> fiber::acc) in
+                  let next = last + 1 in
+                  (acc', next))) in
+      fibers
 
   end
 

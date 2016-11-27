@@ -243,14 +243,14 @@ module Topo = struct
     | None -> None
 
   (* Does the stream starting at (sw',pt') start at sw, or one hop after it *)
-  let starts_at tbl sw ((sw',pt'),_,_,_) =
+  let starts_at tbl sw (_,(sw',pt'),_,_,_) =
     let precedes = match Hashtbl.Poly.find tbl (sw',pt') with
       | Some (pre_sw,_) -> pre_sw = sw
       | None -> false in
     sw = sw' || precedes
 
   (* Does the stream ending at (sw',pt') stop at sw, or one hop before it *)
-  let stops_at tbl sw (_,(sw',pt'),_,_) =
+  let stops_at tbl sw (_,_,(sw',pt'),_,_) =
     let succeeds = match Hashtbl.Poly.find tbl (sw',pt') with
       | Some (post_sw, _) -> post_sw = sw
       | None -> false in
@@ -327,18 +327,19 @@ end
 
 (** Code to convert policies to alpha/beta pairs (dyads) **)
 module Dyad = struct
-  type t = place * place * Condition.t * Action.t
+  type t = int * place * place * Condition.t * Action.t
 
-  let src (p,_,_,_) = p
-  let dst (_,p,_,_) = p
-  let condition (_,_,c,_) = c
-  let action (_,_,_,a) = a
+  let id  (i,_,_,_,_) = i
+  let src (_,p,_,_,_) = p
+  let dst (_,_,p,_,_) = p
+  let condition (_,_,_,c,_) = c
+  let action (_,_,_,_,a) = a
 
   let to_string (s:t) : string =
-    let (sw_in, pt_in), (sw_out, pt_out), condition, action = s in
+    let uid, (sw_in, pt_in), (sw_out, pt_out), condition, action = s in
     sprintf
-      "From: Switch:%Ld Port:%ld\nTo Switch:%Ld Port:%ld\nCondition: %s\nAction: %s\n"
-      sw_in pt_in sw_out pt_out
+      "Id:%d\nFrom: Switch:%Ld Port:%ld\nTo Switch:%Ld Port:%ld\nCondition: %s\nAction: %s\n"
+      uid sw_in pt_in sw_out pt_out
       (Condition.to_string condition)
       (string_of_policy (Action.to_policy action))
 
@@ -362,7 +363,7 @@ module Dyad = struct
                     (sw,pt, Action.Seq.add acc (Action.F key) data)) in
           (sw, pt, Action.Par.add acc seq'))
 
-  let of_fdd_path (action,headers) : t =
+  let of_fdd_path (action,headers) i : t =
     let update sw pt tbl field pos negs = match field, pos with
       | Field.Switch, Some( Value.Const sw' ) -> begin match sw with
           | None -> (Some sw', pt)
@@ -387,16 +388,17 @@ module Dyad = struct
     let dst_sw, dst_pt, action = destination_of_action action in
     let src = place_of_options src_sw src_pt in
     let dst = place_of_options dst_sw dst_pt in
-    (src, dst, tbl, action)
+    (i, src, dst, tbl, action)
 
   let of_policy (pol:policy) : t list =
     let deduped = dedup pol in
     let fdd = compile_local deduped in
     let paths = paths_of_fdd fdd in
-    List.fold_left paths ~init:[] ~f:(fun acc ((a,hs) as p) ->
+    let dyads,_ = List.fold_left paths ~init:([],1) ~f:(fun (acc,i) ((a,hs) as p) ->
         if ( Action.is_zero a || Action.is_one a )
-        then acc
-        else ( of_fdd_path p )::acc)
+        then (acc,i)
+        else (( of_fdd_path p i )::acc,i+1)) in
+    dyads
 
 end
 
@@ -428,10 +430,12 @@ module Assemblage = struct
     let deduped = dedup a.assemblage in
     let fdd = compile_local deduped in
     let paths = paths_of_fdd fdd in
-    List.fold_left paths ~init:[] ~f:(fun acc ((a,hs) as p) ->
-        if ( Action.is_zero a || Action.is_one a )
-        then acc
-        else ( Dyad.of_fdd_path p )::acc)
+    let dyads,_ = List.fold_left paths ~init:([],1)
+        ~f:(fun (acc,i) ((a,hs) as p) ->
+            if ( Action.is_zero a || Action.is_one a )
+            then (acc,i)
+            else (( Dyad.of_fdd_path p i )::acc, i+1 )) in
+    dyads
 
 end
 
@@ -495,7 +499,7 @@ let overlay (places:place list) (fabric:Dyad.t list) (topo:policy) : Overlay.t =
 
   (* Add edges between all location pairs reachable via the fabric *)
   let graph = ( List.fold fabric ~init:graph
-      ~f:(fun g (src, sink, condition, action) ->
+      ~f:(fun g (_,src, sink, condition, action) ->
            let open OverEdge in
            let g' = Overlay.add_edge_e g (src, Exact(condition,action) , sink) in
            let src' = Hashtbl.Poly.find preds src in
@@ -577,14 +581,14 @@ let rec stitch (src,sink,condition,action) path tag =
   aux path []
 
 let retarget (policy:Dyad.t list) (fabric:Dyad.t list) (topo:policy) =
-  let places = List.fold_left policy ~init:[] ~f:(fun acc (src, sink,_,_) ->
+  let places = List.fold_left policy ~init:[] ~f:(fun acc (_,src, sink,_,_) ->
       src::sink::acc) in
   let graph = overlay places fabric topo in
   let ingresses, egresses, _ = List.fold policy ~init:([],[],1)
-      ~f:(fun (ins, outs, tag) ((src,sink,_,_) as stream) ->
+      ~f:(fun (ins, outs, tag) (_,src,sink,c,a) ->
           try
             let path,_ = OverPath.shortest_path graph src sink in
-            let ingress, egress = stitch stream path tag in
+            let ingress, egress = stitch (src,sink,c,a) path tag in
             ( List.rev_append ingress ins,
               List.rev_append egress  outs,
               tag + 1 )
