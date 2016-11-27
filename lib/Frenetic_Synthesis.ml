@@ -582,10 +582,75 @@ end
 
 module Gurobi = struct
   open Frenetic_LP
+  module Field = Frenetic_Fdd.Field
 
   type input = Dyad.t list
   type solution = result
 
+  let checked = Frenetic_Fabric.Condition.checked
+  let condition = Frenetic_Fabric.Dyad.condition
+  let uid = Frenetic_Fabric.Dyad.uid
+
+  let matchup pol fab =
+    let fc  = condition fab in
+    List.fold Field.all ~init:([],[]) ~f:(fun (checks, vars) field ->
+        if checked fc field then
+          let fname = (Field.to_string field) in
+          let pol_var = sprintf "p_%d_%s" (uid pol) fname in
+          let fab_var = sprintf "f_%d_%s" (uid fab) fname in
+          let check_var = sprintf "v_%d_%d_%s" (uid pol) (uid fab)
+              fname in
+          let expr = Minus( Var fab_var, Var pol_var ) in
+          let check = Indicator (check_var, true, expr, Eq, 1L) in
+          ( check::checks, (Var check_var)::vars )
+        else (checks, vars))
+
+  let constrain dyad field prefix =
+    let cond = condition dyad in
+    let fname = (Field.to_string field) in
+    let var = sprintf "%s_%d_%s" prefix (uid dyad) fname in
+    if checked cond field then
+      Constraint (Var var, Eq, 1L)
+    else
+      Constraint (Var var, Eq, 0L)
+
+  let to_lp policy fabric topo =
+    let tbl = Hashtbl.Poly.create ~size:(List.length policy) () in
+    let policy_consts = List.fold policy ~init:[]
+        ~f:(fun acc pol -> List.fold Field.all ~init:acc ~f:(fun acc field ->
+            ( constrain pol field "p" )::acc)) in
+
+    let fabric_consts = List.fold fabric ~init:[]
+        ~f:(fun acc fab -> List.fold Field.all ~init:acc ~f:(fun acc field ->
+            ( constrain fab field "f" )::acc)) in
+
+    let vars, matches = List.fold policy ~init:([],[]) ~f:(fun (vars,consts) pol ->
+        List.fold fabric ~init:(vars,consts) ~f:(fun (vars,consts) fab ->
+            if not ( adjacent topo pol fab ) then (vars,consts)
+            else
+              let var = sprintf "v_%d_%d" (uid pol) (uid fab) in
+              Hashtbl.Poly.add_multi tbl (uid pol) var;
+              let checks, cvars = matchup pol fab in
+              let expr = sum cvars in
+              let valid = Indicator( var, true, expr, Eq, 1L ) in
+              var::vars, valid::(checks@consts))) in
+
+    let allocs = Hashtbl.Poly.fold tbl ~init:[] ~f:(fun ~key:id ~data:vars acc ->
+        let vars = List.map vars ~f:(fun v -> Var v) in
+        let expr = sum vars in
+        Constraint(expr, Eq, 1L)::acc) in
+
+    let objective = Minimize( [sum (List.map vars ~f:(fun v -> Var v))]) in
+    let constraints = policy_consts@fabric_consts@matches@allocs in
+    let bounds = [] in
+    let bools = [ Binary vars ] in
+    let sos = NoSos in
+    LP (objective, constraints, bounds, bools, sos)
+
   let synthesize (policy:input) (fabric:input) (topo:policy) =
+    let preds = Fabric.Topo.predecessors topo in
+    let succs = Fabric.Topo.successors topo in
+    let topology = {topo; preds; succs} in
+    let lp = to_lp policy fabric topology in
     (Filter False, [])
 end
