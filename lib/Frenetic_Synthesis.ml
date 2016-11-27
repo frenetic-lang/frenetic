@@ -579,3 +579,13 @@ module Coronet = struct
     matching topology policy fabric
 
 end
+
+module Gurobi = struct
+  open Frenetic_LP
+
+  type input = Dyad.t list
+  type solution = result
+
+  let synthesize (policy:input) (fabric:input) (topo:policy) =
+    (Filter False, [])
+end

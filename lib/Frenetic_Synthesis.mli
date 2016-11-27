@@ -43,6 +43,12 @@ module MakeStrict(C:COMPARATOR) : SYNTHESIZER with
 module Coronet : SYNTHESIZER with
   type input = fiber list and type solution = result Async.Std.Deferred.t
 
+module Gurobi : SYNTHESIZER with
+  type input = Dyad.t list and type solution = result
+
+module Optical : COMPARATOR with type t = Dyad.t
+module Generic : COMPARATOR with type t = Dyad.t
+
 module Z3 : sig
 
   open Frenetic_Fdd
@@ -64,6 +70,3 @@ module Z3 : sig
 
   val mk_dyad_decider : ?preamble:string -> restraint -> Dyad.t decider
 end
-
-module Optical : COMPARATOR with type t = Dyad.t
-module Generic : COMPARATOR with type t = Dyad.t
