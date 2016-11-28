@@ -120,6 +120,7 @@ type synthesize =
   | SGeneric
   | SOptical
   | SSMT
+  | SLP
 
 type coronet =
   | CLoadTopo of source
@@ -235,7 +236,8 @@ module Parser = struct
     symbol "synthesize" >> (
       (symbol "generic" >> return SGeneric) <|>
       (symbol "optical" >> return SOptical) <|>
-      (symbol "smt" >> return SSMT)) >>=
+      (symbol "smt" >> return SSMT) <|>
+      (symbol "lp" >> return SLP)) >>=
     fun s -> return ( Synthesize s )
 
   (* Parser for the Coronet command. *)
@@ -515,6 +517,7 @@ let synthesize s : (string, string) Result.t =
   begin match s with
     | SGeneric -> Ok ( module MakeStrict(Generic) : DYADIC )
     | SOptical -> Ok ( module MakeStrict(Optical) : DYADIC )
+    | SLP -> Ok ( module Gurobi )
     | SSMT ->
       (* This is just an example to test the synthesis code. Much of this needs
          to be parameterized. *)
