@@ -122,7 +122,16 @@ The exception that's thrown when the local compiler is given a policy with a
     function below.<br>
 </div>
 
-<pre><span id="VALcompile_global"><span class="keyword">val</span> compile_global</span> : <code class="type">?options:<a href="Frenetic_NetKAT_Compiler.html#TYPEcompiler_options">compiler_options</a> -><br>       <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a> -> <a href="Frenetic_NetKAT_Compiler.html#TYPEt">t</a></code></pre>
+<pre><span id="VALcompile_global"><span class="keyword">val</span> compile_global</span> : <code class="type">?options:<a href="Frenetic_NetKAT_Compiler.html#TYPEcompiler_options">compiler_options</a> -><br>       ?pc:Field.t -> <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a> -> <a href="Frenetic_NetKAT_Compiler.html#TYPEt">t</a></code></pre><div class="info ">
+<code class="code">compile_global p</code> returns the intermediate representation of the global
+    policy <code class="code">p</code>. The pc field is used for internal bookkeeping and must *not* be
+    accessed or written to by the input policy <code class="code">p</code>.
+<p>
+
+    You can generate a flowtable from <code class="code">t</code> by passing it to the <a href="Frenetic_NetKAT_Compiler.html#VALto_table"><code class="code">Frenetic_NetKAT_Compiler.to_table</code></a>
+    function below.<br>
+</div>
+
 <pre><span id="VALrestrict"><span class="keyword">val</span> restrict</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEheader_val">Frenetic_NetKAT.header_val</a> -><br>       <a href="Frenetic_NetKAT_Compiler.html#TYPEt">t</a> -> <a href="Frenetic_NetKAT_Compiler.html#TYPEt">t</a></code></pre><div class="info ">
 <code class="code">restrict hv t</code> returns the fragment of <code class="code">t</code> that applies when the assignment
     <code class="code">hv</code> is true. The result will no longer make any reference to the header
