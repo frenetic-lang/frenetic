@@ -43,7 +43,7 @@ val compile_local : ?options:compiler_options -> policy -> t
     function below.
  *)
 
-val compile_global : ?options:compiler_options -> policy -> t
+val compile_global : ?options:compiler_options -> ?pc:Field.t -> policy -> t
 
 val restrict : header_val -> t -> t
 (** [restrict hv t] returns the fragment of [t] that applies when the assignment

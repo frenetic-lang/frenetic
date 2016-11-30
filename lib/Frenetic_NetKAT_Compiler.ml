@@ -862,10 +862,10 @@ module NetKAT_Automaton = struct
     Buffer.contents buf
 end
 
-let compile_global ?(options=default_compiler_options) (pol : Frenetic_NetKAT.policy) : FDD.t =
+let compile_global ?(options=default_compiler_options) ?(pc=Field.Vlan) pol : FDD.t =
   prepare_compilation ~options pol;
   NetKAT_Automaton.of_policy pol
-  |> NetKAT_Automaton.to_local ~pc:Field.Vlan
+  |> NetKAT_Automaton.to_local ~pc
 
 
 
