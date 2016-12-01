@@ -223,8 +223,21 @@ Document frenetic
   BuildTools+: ocamldoc
   Install: true
   Format: html
+  PreCommand:
+    cppo -n \
+         lib/Frenetic_NetKAT_Generated_Parser.cppo.mly \
+         -o lib/Frenetic_NetKAT_Generated_Parser.mly
+    cppo -n \
+        ppx/PPX_NetKAT_Parser.cppo.mly \
+        -o ppx/PPX_NetKAT_Parser.mly
+    menhir --only-tokens ppx/PPX_NetKAT_Parser.mly \
+        --base lib/Frenetic_NetKAT_Tokens
   # This is needed because travis.docgen expects docs to be in _build/frenetic.docdir
-  PostCommand: mv _build/lib/frenetic.docdir _build
+  PostCommand:
+    mv _build/lib/frenetic.docdir _build
+    rm -f ppx/PPX_NetKAT_Parser.mly
+    rm -f lib/Frenetic_NetKAT_Generated_Parser.mly
+    rm -f lib/Frenetic_NetKAT_Tokens*
   Index: index.html
   XOCamlbuildPath: lib
   XOCamlbuildLibraries: frenetic
