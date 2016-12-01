@@ -43,7 +43,14 @@ val compile_local : ?options:compiler_options -> policy -> t
     function below.
  *)
 
-val compile_global : ?options:compiler_options -> policy -> t
+val compile_global : ?options:compiler_options -> ?pc:Field.t -> policy -> t
+(** [compile_global p] returns the intermediate representation of the global
+    policy [p]. The pc field is used for internal bookkeeping and must *not* be
+    accessed or written to by the input policy [p].
+
+    You can generate a flowtable from [t] by passing it to the {!to_table}
+    function below.
+ *)
 
 val restrict : header_val -> t -> t
 (** [restrict hv t] returns the fragment of [t] that applies when the assignment
