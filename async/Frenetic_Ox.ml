@@ -105,6 +105,7 @@ module Make (Handlers:OXMODULE) = struct
           | _ -> ())
     | SwitchDown sw -> 
       Log.info "switch %Ld disconnected\n%!" sw;
+      Handlers.switch_disconnected sw;
       return ()
     | PortUp (sw,port) -> 
       Log.info "Port %ld on Switch %Ld connected\n%!" port sw;
