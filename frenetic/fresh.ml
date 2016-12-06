@@ -687,6 +687,36 @@ let rec coronet c =
 
         Ok "Coronet Solution started" end
 
+  | CSynthesize SLP -> begin match state.policy, state.fabric, state.network with
+      | _, None, _
+      | None, _, _
+      | _, _, None ->
+        Error "Load and preprocess Coronet topologies and paths first"
+      | Some policy, Some fabric, Some net ->
+        let module A = Fabric.Assemblage in
+        let topo = (CoroNet.Pretty.to_netkat net) in
+        (* TODO(basus) : get correct ingress & egress from Coronet `surround` function *)
+        let pins, pouts = [], [] in
+        let fins, fouts  = [], [] in
+        let fabric = A.assemble fabric topo fins fouts in
+        let policy = A.assemble policy topo pins pouts in
+        ( try
+            let edge,_ = Frenetic_Synthesis.Gurobi.synthesize
+                (A.to_dyads policy) (A.to_dyads fabric) topo in
+
+            log "Pre-synthesis user policy:\n%s\n"   (string_of_policy (A.program policy));
+            log "Pre-synthesis fabric policy:\n%s\n" (string_of_policy (A.program fabric ));
+            log "Synthesized edge policy:\n%s\n"     (string_of_policy edge);
+
+            (* let edge_fdd = Compiler.compile_local ~options:keep_cache edge in *)
+            (* state.edge <- Some { new_config with *)
+            (*                      policy = edge; *)
+            (*                      ingresses = c.ingresses; egresses = c.egresses; *)
+            (*                      fdd = Some edge_fdd }; *)
+            Ok "Edge policies compiled successfully"
+          with
+          | Frenetic_Synthesis.LPParseError e ->
+            Error (sprintf "Cannot parse LP Solution: %s\n" e)) end
   | CSynthesize _ -> Error "Only SMT based synthesis supported for Coronet topologies"
 
   | CPeek ->
