@@ -540,18 +540,21 @@ let synthesize s : (string, string) Result.t =
     let fabric = A.assemble f.config.policy t
         f.config.ingresses f.config.egresses in
     let policy = A.assemble c.policy t c.ingresses c.egresses in
-    let edge,_ = S.synthesize (A.to_dyads policy) (A.to_dyads fabric) t in
+    ( try
+        let edge,_ = S.synthesize (A.to_dyads policy) (A.to_dyads fabric) t in
 
-    log "Pre-synthesis user policy:\n%s\n"   (string_of_policy (A.program policy));
-    log "Pre-synthesis fabric policy:\n%s\n" (string_of_policy (A.program fabric ));
-    log "Synthesized edge policy:\n%s\n"     (string_of_policy edge);
+        log "Pre-synthesis user policy:\n%s\n"   (string_of_policy (A.program policy));
+        log "Pre-synthesis fabric policy:\n%s\n" (string_of_policy (A.program fabric ));
+        log "Synthesized edge policy:\n%s\n"     (string_of_policy edge);
 
-    let edge_fdd = Compiler.compile_local ~options:keep_cache edge in
-    state.edge <- Some { new_config with
-                         policy = edge;
-                         ingresses = c.ingresses; egresses = c.egresses;
-                         fdd = Some edge_fdd };
-    Ok "Edge policies compiled successfully"
+        let edge_fdd = Compiler.compile_local ~options:keep_cache edge in
+        state.edge <- Some { new_config with
+                             policy = edge;
+                             ingresses = c.ingresses; egresses = c.egresses;
+                             fdd = Some edge_fdd };
+        Ok "Edge policies compiled successfully"
+      with
+      | LPParseError e -> Error (sprintf "Cannot parse LP Solution: %s\n" e))
   | _ -> Error "Edge compilation requires naive policy, fabric and topology"
 
 let rec coronet c = match c with

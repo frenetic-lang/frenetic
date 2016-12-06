@@ -6,8 +6,9 @@ open Frenetic_Fabric
 type fiber = Frenetic_Topology.CoroNet.Waypath.fiber
 type assemblage = Assemblage.t
 
-exception UnmatchedDyad of Dyad.t
+exception UnmatchedDyad  of Dyad.t
 exception UnmatchedFiber of fiber
+exception LPParseError   of string
 
 type topology = {
   topo  : policy

@@ -27,8 +27,9 @@ let compile_local =
   compile_local ~options:{ default_compiler_options with cache_prepare = `Keep }
 
 (** Essential types *)
-exception UnmatchedDyad of Dyad.t
+exception UnmatchedDyad  of Dyad.t
 exception UnmatchedFiber of fiber
+exception LPParseError   of string
 
 (* TODO(basus): This needs to go into a better topology module *)
 type topology = {
@@ -667,22 +668,32 @@ module Gurobi = struct
               if Int64.of_string value = 1L then var::acc
               else acc
             | None ->
-              printf "Unparseable:|%s|\n" line;
-              acc end)
+              let msg = sprintf "Solution Line: |%s|\n" line in
+              raise (LPParseError msg) end)
 
   let pair policy fabric solns =
-    List.map solns ~f:(fun soln -> match String.split soln ~on:'_' with
+    List.fold solns ~init:[] ~f:(fun acc soln ->
+        match String.split soln ~on:'_' with
         | ["v";p;f] ->
           let p_id = Int.of_string p in
           let f_id = Int.of_string f in
           let pol = List.find_exn policy ~f:(fun d -> (uid d) = p_id) in
           let fab = List.find_exn fabric ~f:(fun d -> (uid d) = f_id) in
-          (pol, fab)
-        | _ -> failwith (sprintf "Unmatchable: %s\n" soln ))
+          (pol, fab)::acc
+        | ["v";_;_;field]
+        | ["f";_;field]
+        | ["p";_;field] ->
+          ( try let _ = Field.of_string field in acc with
+            | _ ->
+              let msg = sprintf "Variable: %s\n" soln in
+              raise (LPParseError msg))
+        | _ ->
+          let msg = sprintf "Variable: %s\n" soln in
+          raise (LPParseError msg))
 
   let synthesize (policy:input) (fabric:input) (topo:policy) =
-    let lp_file = "merlin.lp" in
-    let sol_file = "merlin.sol" in
+    let lp_file = "synthesis.lp" in
+    let sol_file = "synthesis.sol" in
 
     let preds = Fabric.Topo.predecessors topo in
     let succs = Fabric.Topo.successors topo in
