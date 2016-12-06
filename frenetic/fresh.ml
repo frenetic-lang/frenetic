@@ -40,10 +40,12 @@ module Coronet = struct
                ; mutable east    : string list
                ; mutable west    : string list
                ; mutable paths   : CoroNet.CoroPath.t list
+               ; mutable switches : switchId list
+               ; mutable fabric  : policy option
+               ; mutable policy  : policy option
+               ; mutable fibers  : CoroNet.Waypath.fiber list * CoroNet.Waypath.fiber list
                ; mutable preproc : Int64.t
-               ; mutable circuits : (CoroNet.path * circuit * string) PathTable.t
-               ; mutable result  : (Frenetic_Synthesis.result Async.Std.Deferred.t *
-                                    switchId list)
+               ; mutable result  : Frenetic_Synthesis.result Async.Std.Deferred.t
                }
 
   let state = { network  = None
@@ -52,9 +54,12 @@ module Coronet = struct
               ; east     = []
               ; west     = []
               ; paths    = []
+              ; switches = []
+              ; fibers   = ([], [])
+              ; fabric   = None
+              ; policy   = None
               ; preproc = 0L
-              ; circuits = PathTable.create ()
-              ; result   = ( Async.Std.Deferred.return (Filter False, []), [] )
+              ; result   = Async.Std.Deferred.return (Filter False, [])
               }
 
   type t =
@@ -64,6 +69,7 @@ module Coronet = struct
     | CWest of string list
     | CPath of string * string
     | CPeek
+    | CPreprocess
     | CSynthesize
 end
 
@@ -250,6 +256,7 @@ module Parser = struct
     let open Coronet in
     symbol "coronet" >> (
       (symbol "synthesize" >> return CSynthesize) <|>
+      (symbol "preprocess" >> return CPreprocess) <|>
       (symbol "load" >>
        ((symbol "topo" >> source >>= fun s -> return ( CLoadTopo s )) <|>
         (symbol "paths" >> source >>= fun s -> return ( CLoadPaths s )))) <|>
@@ -598,18 +605,19 @@ let rec coronet c =
   | CEast e -> state.east <- e; Ok "East nodes loaded"
   | CWest w -> state.west <- w; Ok "West nodes loaded"
 
-  | CSynthesize -> begin match state.network with
+  | CPreprocess ->  begin match state.network with
       | None ->
         Error "Coronet synthesis requires loading a Coronet topology first"
       | Some net -> try
           let open Frenetic_Time in
           let open Frenetic_NetKAT in
           let names, ports, east, west, paths =
-            ( state.names, state.ports,
-              state.east, state.west, state.paths ) in
+            ( state.names, state.ports, state.east, state.west, state.paths ) in
           (* Attach hosts and packet switches to the optical switches *)
           printf "Generating topology\n%!";
           let net, ids = CoroNet.surround net names ports east west paths in
+          state.network <- Some net;
+          state.switches <- ids;
 
           (* Connect bicoastal pairs of nodes using the specified paths *)
           printf "Generating waypointed paths\n%!";
@@ -619,11 +627,13 @@ let rec coronet c =
           printf "Generating optical circuits\n%!";
           let circuits = List.map waypaths ~f:(fun wp ->
               CoroNet.Waypath.to_circuit wp net ) in
+
           match Frenetic_Circuit_NetKAT.validate_config circuits with
           | Error e -> Error e
           | Ok circuits ->
             printf "Generating fabric program\n%!";
-            let fabric = Frenetic_Circuit_NetKAT.local_policy_of_config circuits in
+            state.fabric <- Some (
+                Frenetic_Circuit_NetKAT.local_policy_of_config circuits );
 
             (* Generate user policies, using hardcoded predicates for now *)
             let join = Frenetic_NetKAT_Optimize.mk_big_and in
@@ -633,44 +643,53 @@ let rec coronet c =
               join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 443) ];
               join [ Test( EthType 0x0800); Test( IPProto 17) ]] in
             printf "Generating policy program\n%!";
-            let policies = CoroNet.Waypath.to_policies wptbl net preds in
+            state.policy <- Some ( Frenetic_NetKAT_Optimize.mk_big_union(
+                CoroNet.Waypath.to_policies wptbl net preds));
 
+            (* Generate the fibers to be passed to the SMT synthesis backend *)
             let start = time () in
-            (* Generate the fibers to be passed to the synthesis backend *)
             printf "Generating fibers\n%!";
             let fsfabric = CoroNet.Waypath.to_fabric_fibers waypaths net in
             let fspolicy = CoroNet.Waypath.to_policy_fibers wptbl net preds in
             state.preproc <- from start;
+            state.fibers  <- (fspolicy, fsfabric);
 
-            (* Call the synthesis back-end *)
-            let module C = Frenetic_Synthesis.Coronet in
-            let netkat = (CoroNet.Pretty.to_netkat net) in
-            let results = C.synthesize fspolicy fsfabric netkat in
-            state.result <- (results, ids);
-
-            (* Register a callback to print the results when they're ready *)
-            Deferred.upon results (fun r ->
-                printf "Coronet Synthesis complete";
-                match coronet CPeek with
-                | Ok result -> printf "%s\n" result
-                | Error e -> printf "Error:%s\n" e
-                (* The shell could be terminated at this point, if being run in
-                   batch mode to gather experimental numbers. *)
-              );
-
-            Ok "Coronet Solution started"
+            Ok "Coronet experiment preprocessed"
         with
         | CoroNet.NonexistentNode s ->
           Error (sprintf "No node %s in topology\n" s)
         | CoroNet.CoroPath.UnjoinablePaths s ->
           Error (sprintf "Unjoinable paths %s\n" s) end
 
+  | CSynthesize -> begin match state.fibers, state.network with
+      | _, None
+      | ([], []), _ ->
+        Error "Load and preprocess Coronet topologies and paths first"
+      | (fspolicy, fsfabric), Some net ->
+        (* Call the synthesis back-end *)
+        let module C = Frenetic_Synthesis.Coronet in
+        let netkat = (CoroNet.Pretty.to_netkat net) in
+        let results = C.synthesize fspolicy fsfabric netkat in
+        state.result <- results;
+
+        (* Register a callback to print the results when they're ready *)
+        Deferred.upon results (fun r ->
+            printf "Coronet Synthesis complete";
+            match coronet CPeek with
+            | Ok result -> printf "%s\n" result
+            | Error e -> printf "Error:%s\n" e
+            (* The shell could be terminated at this point, if being run in
+               batch mode to gather experimental numbers. *)
+          );
+
+        Ok "Coronet Solution started" end
+
   | CPeek ->
-    begin match Async.Std.Deferred.peek (fst state.result ) with
+    begin match Async.Std.Deferred.peek state.result with
       | None -> Error "No result available yet"
       | Some (edge, [gen_time;synth_time]) ->
         let open Frenetic_Time in
-        let ids = snd state.result in
+        let ids = state.switches in
         let compiled = Compiler.compile_local ~options:keep_cache edge in
         let num_flows = List.fold ids ~init:0 ~f:(fun num id ->
             let flows = Frenetic_NetKAT_Compiler.to_table id compiled in
