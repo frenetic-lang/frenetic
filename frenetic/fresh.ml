@@ -26,6 +26,12 @@ type source =
   | String of string
   | Filename of string
 
+type synthesize =
+  | SGeneric
+  | SOptical
+  | SSMT
+  | SLP
+
 module PathTable = Hashtbl.Make (struct
     type t = switchId * portId * switchId * portId [@@deriving sexp,compare]
     let hash = Hashtbl.hash
@@ -70,7 +76,7 @@ module Coronet = struct
     | CPath of string * string
     | CPeek
     | CPreprocess
-    | CSynthesize
+    | CSynthesize of synthesize
 end
 
 type element =
@@ -134,12 +140,6 @@ type compile =
   | CFabric                     (* Compile the fabric as a local policy *)
   | CCircuit                    (* Compile the circuit to a fabric, & compile that *)
   | CEdge                       (* Compile the naive policy atop the fabric *)
-
-type synthesize =
-  | SGeneric
-  | SOptical
-  | SSMT
-  | SLP
 
 type install =
   | INaive  of switchId list
@@ -243,19 +243,22 @@ module Parser = struct
     fun c -> return( Compile c )
 
   (* Parser for the synthesize command. Maybe should be merged with compile. *)
+  let engines : (synthesize, bytes list) MParser.t =
+    (symbol "generic" >> return SGeneric) <|>
+    (symbol "optical" >> return SOptical) <|>
+    (symbol "smt" >> return SSMT) <|>
+    (symbol "lp" >> return SLP)
+
   let synthesize : (command, bytes list) MParser.t =
-    symbol "synthesize" >> (
-      (symbol "generic" >> return SGeneric) <|>
-      (symbol "optical" >> return SOptical) <|>
-      (symbol "smt" >> return SSMT) <|>
-      (symbol "lp" >> return SLP)) >>=
-    fun s -> return ( Synthesize s )
+    symbol "synthesize" >> engines >>=
+    fun e -> return ( Synthesize e )
 
   (* Parser for the Coronet command. *)
   let coronet : (command, bytes list) MParser.t =
     let open Coronet in
     symbol "coronet" >> (
-      (symbol "synthesize" >> return CSynthesize) <|>
+      (symbol "synthesize" >> engines >>=
+       fun e -> return (CSynthesize e)) <|>
       (symbol "preprocess" >> return CPreprocess) <|>
       (symbol "load" >>
        ((symbol "topo" >> source >>= fun s -> return ( CLoadTopo s )) <|>
@@ -661,7 +664,7 @@ let rec coronet c =
         | CoroNet.CoroPath.UnjoinablePaths s ->
           Error (sprintf "Unjoinable paths %s\n" s) end
 
-  | CSynthesize -> begin match state.fibers, state.network with
+  | CSynthesize SSMT -> begin match state.fibers, state.network with
       | _, None
       | ([], []), _ ->
         Error "Load and preprocess Coronet topologies and paths first"
@@ -683,6 +686,8 @@ let rec coronet c =
           );
 
         Ok "Coronet Solution started" end
+
+  | CSynthesize _ -> Error "Only SMT based synthesis supported for Coronet topologies"
 
   | CPeek ->
     begin match Async.Std.Deferred.peek state.result with
