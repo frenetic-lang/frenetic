@@ -22,14 +22,50 @@ let keep_cache = { Compiler.default_compiler_options
 
 type loc = (switchId * portId)
 
+type source =
+  | String of string
+  | Filename of string
+
 module PathTable = Hashtbl.Make (struct
     type t = switchId * portId * switchId * portId [@@deriving sexp,compare]
     let hash = Hashtbl.hash
   end )
 
-type source =
-  | String of string
-  | Filename of string
+module Coronet = struct
+  (** Module to hold state and functions for the Coronet examples *)
+
+  type state = { mutable network : CoroNet.Topology.t option
+               ; mutable names   : Frenetic_Topology.name_table
+               ; mutable ports   : Frenetic_Topology.port_table
+               ; mutable east    : string list
+               ; mutable west    : string list
+               ; mutable paths   : CoroNet.CoroPath.t list
+               ; mutable preproc : Int64.t
+               ; mutable circuits : (CoroNet.path * circuit * string) PathTable.t
+               ; mutable result  : (Frenetic_Synthesis.result Async.Std.Deferred.t *
+                                    switchId list)
+               }
+
+  let state = { network  = None
+              ; names    = String.Table.create ~size:0 ()
+              ; ports    = String.Table.create ~size:0 ()
+              ; east     = []
+              ; west     = []
+              ; paths    = []
+              ; preproc = 0L
+              ; circuits = PathTable.create ()
+              ; result   = ( Async.Std.Deferred.return (Filter False, []), [] )
+              }
+
+  type t =
+    | CLoadTopo of source
+    | CLoadPaths of source
+    | CEast of string list
+    | CWest of string list
+    | CPath of string * string
+    | CPeek
+    | CSynthesize
+end
 
 type element =
   | Policy of policy
@@ -66,29 +102,6 @@ let state = { naive    = None
             ; topology = None
             }
 
-type coronet_state = { mutable network : CoroNet.Topology.t option
-                     ; mutable names   : Frenetic_Topology.name_table
-                     ; mutable ports   : Frenetic_Topology.port_table
-                     ; mutable east    : string list
-                     ; mutable west    : string list
-                     ; mutable paths   : CoroNet.CoroPath.t list
-                     ; mutable preproc : Int64.t
-                     ; mutable circuits : (CoroNet.path * circuit * string) PathTable.t
-                     ; mutable result  : (Frenetic_Synthesis.result Async.Std.Deferred.t *
-                                          switchId list)
-                     }
-
-let coronet_state = { network  = None
-                    ; names    = String.Table.create ~size:0 ()
-                    ; ports    = String.Table.create ~size:0 ()
-                    ; east     = []
-                    ; west     = []
-                    ; paths    = []
-                    ; preproc = 0L
-                    ; circuits = PathTable.create ()
-                    ; result   = ( Async.Std.Deferred.return (Filter False, []), [] )
-                    }
-
 type state_part =
   | SNaive
   | SFabric
@@ -122,15 +135,6 @@ type synthesize =
   | SSMT
   | SLP
 
-type coronet =
-  | CLoadTopo of source
-  | CLoadPaths of source
-  | CEast of string list
-  | CWest of string list
-  | CPath of string * string
-  | CPeek
-  | CSynthesize
-
 type install =
   | INaive  of switchId list
   | IFabric of switchId list
@@ -144,7 +148,7 @@ type command =
   | Load of load
   | Compile of compile
   | Synthesize of synthesize
-  | Coronet of coronet
+  | Coronet of Coronet.t
   | Install of install
   | Show of show
   | Path of source
@@ -152,6 +156,7 @@ type command =
   | Quit
 
 (** Useful modules, mostly for code clarity *)
+
 module Parser = struct
 
   (** Monadic Parsers for the command line *)
@@ -242,6 +247,7 @@ module Parser = struct
 
   (* Parser for the Coronet command. *)
   let coronet : (command, bytes list) MParser.t =
+    let open Coronet in
     symbol "coronet" >> (
       (symbol "synthesize" >> return CSynthesize) <|>
       (symbol "load" >>
@@ -557,18 +563,20 @@ let synthesize s : (string, string) Result.t =
       | LPParseError e -> Error (sprintf "Cannot parse LP Solution: %s\n" e))
   | _ -> Error "Edge compilation requires naive policy, fabric and topology"
 
-let rec coronet c = match c with
+let rec coronet c =
+  let open Coronet in
+  match c with
   (* TODO(basus): Allow coronet topologies to be loaded from strings as well *)
   | CLoadTopo ( String s ) -> Error "Coronet topologies must be loaded from files"
   | CLoadTopo ( Filename fn ) ->
     let net,name_tbl,port_tbl = CoroNet.from_csv_file fn in
-    coronet_state.network <- Some net; coronet_state.names <- name_tbl;
-    coronet_state.ports <- port_tbl;
+    state.network <- Some net; state.names <- name_tbl;
+    state.ports <- port_tbl;
     let result = sprintf "Successfully loaded topology from %s\n" fn in
     Ok result
 
   | CLoadPaths (String s ) -> Error "Coronet path list must be loaded from files"
-  | CLoadPaths ( Filename fn ) -> begin match coronet_state.network with
+  | CLoadPaths ( Filename fn ) -> begin match state.network with
       | None -> Error "Loading a path file requires loading a Coronet topology first"
       | Some net ->
         let channel = In_channel.create fn in
@@ -577,28 +585,28 @@ let rec coronet c = match c with
             let vertexes = List.map stops ~f:(fun n ->
                 try
                   let name = String.strip n in
-                  let label = Hashtbl.find_exn coronet_state.names name in
+                  let label = Hashtbl.find_exn state.names name in
                   CoroNet.Topology.vertex_of_label net label
                 with Not_found -> failwith (sprintf "No vertex named (%s)%!" n))
             in
             let path = CoroNet.CoroPath.from_vertexes net vertexes in
             path::acc) in
-        coronet_state.paths <- paths;
+        state.paths <- paths;
         Ok "Loaded paths"
     end
 
-  | CEast e -> coronet_state.east <- e; Ok "East nodes loaded"
-  | CWest w -> coronet_state.west <- w; Ok "West nodes loaded"
+  | CEast e -> state.east <- e; Ok "East nodes loaded"
+  | CWest w -> state.west <- w; Ok "West nodes loaded"
 
-  | CSynthesize -> begin match coronet_state.network with
+  | CSynthesize -> begin match state.network with
       | None ->
         Error "Coronet synthesis requires loading a Coronet topology first"
       | Some net -> try
           let open Frenetic_Time in
           let open Frenetic_NetKAT in
           let names, ports, east, west, paths =
-            ( coronet_state.names, coronet_state.ports,
-              coronet_state.east, coronet_state.west, coronet_state.paths ) in
+            ( state.names, state.ports,
+              state.east, state.west, state.paths ) in
           (* Attach hosts and packet switches to the optical switches *)
           printf "Generating topology\n%!";
           let net, ids = CoroNet.surround net names ports east west paths in
@@ -632,13 +640,13 @@ let rec coronet c = match c with
             printf "Generating fibers\n%!";
             let fsfabric = CoroNet.Waypath.to_fabric_fibers waypaths net in
             let fspolicy = CoroNet.Waypath.to_policy_fibers wptbl net preds in
-            coronet_state.preproc <- from start;
+            state.preproc <- from start;
 
             (* Call the synthesis back-end *)
             let module C = Frenetic_Synthesis.Coronet in
             let netkat = (CoroNet.Pretty.to_netkat net) in
             let results = C.synthesize fspolicy fsfabric netkat in
-            coronet_state.result <- (results, ids);
+            state.result <- (results, ids);
 
             (* Register a callback to print the results when they're ready *)
             Deferred.upon results (fun r ->
@@ -658,39 +666,39 @@ let rec coronet c = match c with
           Error (sprintf "Unjoinable paths %s\n" s) end
 
   | CPeek ->
-    begin match Async.Std.Deferred.peek (fst coronet_state.result ) with
+    begin match Async.Std.Deferred.peek (fst state.result ) with
       | None -> Error "No result available yet"
       | Some (edge, [gen_time;synth_time]) ->
         let open Frenetic_Time in
-        let ids = snd coronet_state.result in
+        let ids = snd state.result in
         let compiled = Compiler.compile_local ~options:keep_cache edge in
         let num_flows = List.fold ids ~init:0 ~f:(fun num id ->
             let flows = Frenetic_NetKAT_Compiler.to_table id compiled in
             (List.length flows) + num) in
 
-        let nodes = ( List.length coronet_state.east ) +
-                    ( List.length coronet_state.west ) in
+        let nodes = ( List.length state.east ) +
+                    ( List.length state.west ) in
         let result = sprintf "|%d\t%Ld\t%Ld\t%Ld\t%d\n"
             nodes
-            (to_msecs coronet_state.preproc)
+            (to_msecs state.preproc)
             (to_msecs (snd gen_time)) (to_secs (snd synth_time))
             num_flows in
         Ok result
       | Some (edge, _) -> Ok (string_of_policy edge)
     end
 
-  | CPath(s, d) -> begin match coronet_state.network with
+  | CPath(s, d) -> begin match state.network with
       | None -> Error "Finding a path requires loading a Coronet topology"
       | Some net ->
         let open CoroNet in
-        let names = coronet_state.names in
+        let names = state.names in
         let src = Hashtbl.Poly.find_exn names s in
         let dst = Hashtbl.Poly.find_exn names d in
         let src' = Topology.vertex_of_label net src in
         let dst' = Topology.vertex_of_label net dst in
         match CoroPath.shortest_path net src' dst' with
         | Some p ->
-          coronet_state.paths <- p::coronet_state.paths;
+          state.paths <- p::state.paths;
           Ok (sprintf "Path from %s to %s: [%s]\n" s d ( CoroPath.to_string p) )
         | None -> Error (sprintf "No path between %s and %s" s d )
     end
