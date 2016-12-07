@@ -699,7 +699,7 @@ let rec coronet c =
         let fabric = A.assemble fabric topo fedge fedge in
         let policy = A.assemble policy topo pedge pedge in
         ( try
-            let edge,_ = Frenetic_Synthesis.Gurobi.synthesize
+            let edge, timings = Frenetic_Synthesis.Gurobi.synthesize
                 (A.to_dyads policy) (A.to_dyads fabric) topo in
 
             log "Pre-synthesis user policy:\n%s\n"   (string_of_policy (A.program policy));
@@ -711,7 +711,8 @@ let rec coronet c =
             (*                      policy = edge; *)
             (*                      ingresses = c.ingresses; egresses = c.egresses; *)
             (*                      fdd = Some edge_fdd }; *)
-            Ok "Edge policies compiled successfully"
+            let report = Frenetic_Time.columnize timings in
+            Ok ( "Edge policies compiled successfully" ^ report )
           with
           | Frenetic_Synthesis.LPParseError e ->
             Error (sprintf "Cannot parse LP Solution: %s\n" e)) end

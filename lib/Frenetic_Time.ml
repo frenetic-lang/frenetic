@@ -16,3 +16,10 @@ let to_msecs nsecs = Int64.div nsecs 1000000L
 
 let to_fsecs nsecs = (Int64.to_float nsecs) /. (Int64.to_float 1000000000L)
 
+let columnize ?(prefix="|") timings =
+  let open Core.Std in
+  let header = String.concat ~sep:"\t" ( prefix::(List.map ~f:fst timings) ) in
+  let data = String.concat ~sep:"\t" (prefix::(List.map ~f:(fun t ->
+      sprintf "%Ld" (to_msecs (snd t)))
+      timings)) in
+  header ^ "\n" ^ data
