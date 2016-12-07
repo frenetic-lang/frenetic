@@ -1,9 +1,9 @@
 (* let declaration *)
 let%nk p = {| drop |}
-let%nk q = {| filter true; $p; (port:=2 | port:=pipe("test") ) |}
+let%nk q = {| filter true; $p; (port:=2 + port:=pipe("test") ) |}
 let%nk_pred egress = {| switch=1 and port=1 |}
 let%nk egress' = {| filter $egress |}
-let%nk r = {| let `inport := port in while not $egress do $q | drop |}
+let%nk r = {| let `inport := port in while not $egress do $q + drop |}
 
 (* can have open terms *)
 let%nk r = {| `inport := 1 |}

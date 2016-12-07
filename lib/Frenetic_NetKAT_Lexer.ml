@@ -106,8 +106,7 @@ let token ~ppx ~loc_start buf =
   | "filter" -> FILTER
   | ":=" -> ASSIGN
   | ';' -> SEMICOLON
-  (* SJS: let's start using `+` instead of `|` ? *)
-  | '|' -> MID
+  | '+' -> PLUS
   | '*' -> STAR
   | "=>" -> LINK
   | "@" -> AT
