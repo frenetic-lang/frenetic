@@ -692,6 +692,7 @@ module Gurobi = struct
           raise (LPParseError msg))
 
   let synthesize (policy:input) (fabric:input) (topo:policy) =
+    let open Frenetic_Time in
     let lp_file = "synthesis.lp" in
     let sol_file = "synthesis.sol" in
 
@@ -699,18 +700,38 @@ module Gurobi = struct
     let succs = Fabric.Topo.successors topo in
     let topology = {topo; preds; succs} in
 
+    let start = time () in
     let lp = to_lp policy fabric topology in
+    let form_time = from start in
+
     let cmd = sprintf "gurobi_cl ResultFile=%s %s > gurobi_output.log"
         sol_file lp_file in
     clean sol_file;
     clean lp_file;
-    write lp_file (Frenetic_LP.to_string lp);
-    Sys.command_exn cmd;
 
+    let start = time () in
+    write lp_file (Frenetic_LP.to_string lp);
+    let write_time = from start in
+
+    let start = time () in
+    Sys.command_exn cmd;
+    let soln_time = from start in
+
+    let start = time () in
     let soln = read sol_file in
     let pairs = pair policy fabric soln in
+    let read_time = from start in
+
+    let start = time () in
     let ingress, egress = Optical.generate topology pairs in
-    ( Union(ingress, egress), [] )
+    let gen_time = from start in
+
+    let timings = [ ("Formulation time:" , form_time)
+                  ; ("Write time:"       , write_time)
+                  ; ("Solution time:"    , soln_time)
+                  ; ("Read time:"        , read_time)
+                  ; ("Generation time:"  , gen_time) ] in
+    ( Union(ingress, egress), timings )
 
 
 end
