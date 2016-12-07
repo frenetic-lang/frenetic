@@ -47,8 +47,8 @@ module Coronet = struct
                ; mutable west    : string list
                ; mutable paths   : CoroNet.CoroPath.t list
                ; mutable switches : switchId list
-               ; mutable fabric  : policy option
-               ; mutable policy  : policy option
+               ; mutable fabric  : (policy * loc list) option
+               ; mutable policy  : (policy * loc list) option
                ; mutable fibers  : CoroNet.Waypath.fiber list * CoroNet.Waypath.fiber list
                ; mutable preproc : Int64.t
                ; mutable result  : Frenetic_Synthesis.result Async.Std.Deferred.t
@@ -618,7 +618,7 @@ let rec coronet c =
             ( state.names, state.ports, state.east, state.west, state.paths ) in
           (* Attach hosts and packet switches to the optical switches *)
           printf "Generating topology\n%!";
-          let net, ids = CoroNet.surround net names ports east west paths in
+          let net, ids, fedge, pedge = CoroNet.surround net names ports east west paths in
           state.network <- Some net;
           state.switches <- ids;
 
@@ -635,8 +635,8 @@ let rec coronet c =
           | Error e -> Error e
           | Ok circuits ->
             printf "Generating fabric program\n%!";
-            state.fabric <- Some (
-                Frenetic_Circuit_NetKAT.local_policy_of_config circuits );
+            let fab = Frenetic_Circuit_NetKAT.local_policy_of_config circuits in
+            state.fabric <- Some (fab, fedge);
 
             (* Generate user policies, using hardcoded predicates for now *)
             let join = Frenetic_NetKAT_Optimize.mk_big_and in
@@ -646,8 +646,9 @@ let rec coronet c =
               join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 443) ];
               join [ Test( EthType 0x0800); Test( IPProto 17) ]] in
             printf "Generating policy program\n%!";
-            state.policy <- Some ( Frenetic_NetKAT_Optimize.mk_big_union(
-                CoroNet.Waypath.to_policies wptbl net preds));
+            let pol =  Frenetic_NetKAT_Optimize.mk_big_union(
+                CoroNet.Waypath.to_policies wptbl net preds ) in
+            state.policy <- Some (pol, pedge);
 
             (* Generate the fibers to be passed to the SMT synthesis backend *)
             let start = time () in
@@ -692,14 +693,11 @@ let rec coronet c =
       | None, _, _
       | _, _, None ->
         Error "Load and preprocess Coronet topologies and paths first"
-      | Some policy, Some fabric, Some net ->
+      | Some (policy,pedge), Some (fabric,fedge), Some net ->
         let module A = Fabric.Assemblage in
         let topo = (CoroNet.Pretty.to_netkat net) in
-        (* TODO(basus) : get correct ingress & egress from Coronet `surround` function *)
-        let pins, pouts = [], [] in
-        let fins, fouts  = [], [] in
-        let fabric = A.assemble fabric topo fins fouts in
-        let policy = A.assemble policy topo pins pouts in
+        let fabric = A.assemble fabric topo fedge fedge in
+        let policy = A.assemble policy topo pedge pedge in
         ( try
             let edge,_ = Frenetic_Synthesis.Gurobi.synthesize
                 (A.to_dyads policy) (A.to_dyads fabric) topo in

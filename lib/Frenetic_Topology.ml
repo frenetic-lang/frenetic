@@ -256,39 +256,50 @@ module CoroNet = struct
       let host = CoroNode.Host(hostname, id, Int32.of_int64_exn id) in
       host in
 
-    let aux net ids nodes range =
-      List.fold nodes ~init:(net,ids) ~f:(fun (net,ids) e ->
-          let label = Hashtbl.Poly.find_exn names e in
-          let optcl = Topology.vertex_of_label net label in
+    let aux init nodes range =
+      List.fold nodes ~init:init ~f:(fun acc e ->
+          (* frim is the edge locations of the fabric. prim are the edge
+             locations of the packet switches. *)
+          let (net,ids,frim,prim) = acc in
+          let optlabel = Hashtbl.Poly.find_exn names e in
+          let opt = Topology.vertex_of_label net optlabel in
 
           (* Add a packet switch to this optical node *)
           let port = Int32.succ (Hashtbl.Poly.find_exn ports e) in
           let name  = sprintf "sw%s" e in
-          let pktsw = get_label names name in
-          let net,pkt = Topology.add_vertex net pktsw in
+          let pktlabel = get_label names name in
+          let net,pkt = Topology.add_vertex net pktlabel in
 
           (* Add a host to the packet switch *)
-          let host = mk_host e (CoroNode.id label) in
+          let host = mk_host e (CoroNode.id optlabel) in
           let net,hv = Topology.add_vertex net host in
           let net,_ = Topology.add_edge net hv 0l 0.0 pkt 0l in
           let net,_ = Topology.add_edge net pkt 0l 0.0 hv 0l in
 
+          (* Get the switch ids to construct the edge locations *)
+          let optid = CoroNode.id optlabel in
+          let pktid = CoroNode.id pktlabel in
+
           (* Add one edge between the optical and packet switch for each channel
              connecting this optical switch to another. Assumes that `range`
              starts from 0. *)
-          let net = List.fold range ~init:net ~f:(fun net i ->
+          let net', prim' = List.fold range ~init:(net,prim) ~f:(fun (net,prim) i ->
               let open Int32 in
               let i = of_int_exn i in
-              let net,_ = Topology.add_edge net pkt (i+1l) 0.0 optcl (port+i) in
-              fst ( Topology.add_edge net optcl (port+i) 0.0 pkt (i+1l))) in
+              let net',_ = Topology.add_edge net pkt (i+1l) 0.0 opt (port+i) in
+              let net',_ = Topology.add_edge net' opt (port+i) 0.0 pkt (i+1l) in
+              (net',(optid, port+i)::prim)) in
 
-          (net, (CoroNode.id label)::ids))
+          let ids' = (CoroNode.id pktlabel)::ids in
+          let frim' = (pktid,0l)::frim in
+          (net, ids',frim',prim'))
     in
 
     let westward = range (List.length west) in
     let eastward = range (List.length east) in
-    let net',ids = aux net [] east westward in
-    aux net' ids west eastward
+    let init = (net, [], [], []) in
+    let init' = aux init east westward in
+    aux init' west eastward
 
   let find_paths net local across channel src dst =
     let shortest = match CoroPath.shortest_path net src dst with
