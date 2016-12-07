@@ -283,16 +283,16 @@ module CoroNet = struct
           (* Add one edge between the optical and packet switch for each channel
              connecting this optical switch to another. Assumes that `range`
              starts from 0. *)
-          let net', prim' = List.fold range ~init:(net,prim) ~f:(fun (net,prim) i ->
+          let net', frim' = List.fold range ~init:(net,prim) ~f:(fun (net,prim) i ->
               let open Int32 in
               let i = of_int_exn i in
               let net',_ = Topology.add_edge net pkt (i+1l) 0.0 opt (port+i) in
               let net',_ = Topology.add_edge net' opt (port+i) 0.0 pkt (i+1l) in
-              (net',(optid, port+i)::prim)) in
+              (net',(optid, port+i)::frim)) in
 
           let ids' = (CoroNode.id pktlabel)::ids in
-          let frim' = (pktid,0l)::frim in
-          (net, ids',frim',prim'))
+          let prim' = (pktid,0l)::prim in
+          (net', ids',frim',prim'))
     in
 
     let westward = range (List.length west) in

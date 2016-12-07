@@ -20,6 +20,6 @@ let columnize ?(prefix="|") timings =
   let open Core.Std in
   let header = String.concat ~sep:"\t" ( prefix::(List.map ~f:fst timings) ) in
   let data = String.concat ~sep:"\t" (prefix::(List.map ~f:(fun t ->
-      sprintf "%Ld" (to_msecs (snd t)))
+      sprintf "%Ld" (snd t))
       timings)) in
   header ^ "\n" ^ data
