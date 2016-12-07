@@ -133,7 +133,7 @@ Library async
     cstruct,
     cstruct.async,
     frenetic,
-    mparser (= 1.2),
+    mparser,
     mparser.re,
     ppx_sexp_conv,
     str
