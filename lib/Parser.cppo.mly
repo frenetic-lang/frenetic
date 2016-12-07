@@ -35,7 +35,7 @@ let int64 ?loc ?attrs x =
 %token IF THEN ELSE WHILE DO
 
 (* fields *)
-%token SWITCH PORT ETHSRC ETHDST VLAN VLANPCP ETHTYPE IPPROTO IP4SRC IP4DST TCPSRCPORT TCPDSTPORT
+%token SWITCH PORT VSWITCH VPORT VFABRIC ETHSRC ETHDST VLAN VLANPCP ETHTYPE IPPROTO IP4SRC IP4DST TCPSRCPORT TCPDSTPORT
 
 (* meta fields *)
 %token <string> METAID
@@ -166,6 +166,15 @@ header_val(BINOP):
   | PORT; BINOP; p=portval
       AST( Location p )
       PPX( Location [%e p] )
+  | VSWITCH; BINOP; n=int64
+    AST( VSwitch n )
+    PPX( VSwitch [%e n] )
+  | VPORT; BINOP; n=int64
+    AST( VPort n )
+    PPX( VPort [%e n] )
+  | VFABRIC; BINOP; n=int64
+    AST( VFabric n )
+    PPX( VFabric [%e n] )
   | VLAN; BINOP; n=int
       AST( Vlan n )
       PPX( Vlan [%e n] )
@@ -213,6 +222,12 @@ alias:
     BOTH( Switch (Obj.magic 0) )
   | PORT
     BOTH( Location (Obj.magic 0) )
+  | VSWITCH
+    BOTH( VSwitch (Obj.magic 0) )
+  | VPORT
+    BOTH( VPort (Obj.magic 0) )
+  | VFABRIC
+    BOTH( VFabric (Obj.magic 0) )
   | ETHSRC
     BOTH( EthSrc (Obj.magic 0) )
   | ETHDST
