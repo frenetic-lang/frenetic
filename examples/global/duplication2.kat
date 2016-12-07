@@ -8,5 +8,5 @@
 
 *)
 
-(filter (switch=1 and port = 1); port := 2; 1@2 => 2@2; port := 1) |
+(filter (switch=1 and port = 1); port := 2; 1@2 => 2@2; port := 1) +
 (filter (switch=1 and port = 1 and ip4Dst = 10.0.0.1); port := 2; 1@2 => 2@2; port := 1)

@@ -15,6 +15,6 @@
 *)
 
 filter switch=1;(
-  filter port=1; port:=5; 1@5=>3@5; port:=1 |
+  filter port=1; port:=5; 1@5=>3@5; port:=1 +
   filter port=2; port:=6; 1@6=>3@6; port:=2
 )
