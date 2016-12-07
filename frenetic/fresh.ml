@@ -77,6 +77,15 @@ module Coronet = struct
     | CPeek
     | CPreprocess
     | CSynthesize of synthesize
+
+  let lp_result (nodes:int) timings =
+    let nodes_col = "Edge Nodes" in
+    let nodes_val = sprintf "%d" nodes in
+    let columns = List.map timings ~f:fst in
+    let times = List.map timings ~f:(fun t -> snd t |> Int64.to_string )in
+    let header = String.concat ~sep:"\t" ( nodes_col::columns ) in
+    let values = String.concat ~sep:"\t" ( nodes_val::times ) in
+    [ header; values ]
 end
 
 type element =
@@ -711,8 +720,11 @@ let rec coronet c =
             (*                      policy = edge; *)
             (*                      ingresses = c.ingresses; egresses = c.egresses; *)
             (*                      fdd = Some edge_fdd }; *)
-            let report = Frenetic_Time.columnize timings in
-            Ok ( "Edge policies compiled successfully" ^ report )
+            let nodes = ( List.length state.east ) +
+                        ( List.length state.west ) in
+            let report = Coronet.lp_result nodes timings in
+            let msg = String.concat ~sep:"\n" ("Edge policies compiled successfully" :: report ) in
+            Ok msg
           with
           | Frenetic_Synthesis.LPParseError e ->
             Error (sprintf "Cannot parse LP Solution: %s\n" e)) end

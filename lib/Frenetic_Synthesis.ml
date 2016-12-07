@@ -726,11 +726,11 @@ module Gurobi = struct
     let ingress, egress = Optical.generate topology pairs in
     let gen_time = from start in
 
-    let timings = [ ("Formulation time:" , form_time)
-                  ; ("Write time:"       , write_time)
-                  ; ("Solution time:"    , soln_time)
-                  ; ("Read time:"        , read_time)
-                  ; ("Generation time:"  , gen_time) ] in
+    let timings = [ ("Formulation time" , form_time)
+                  ; ("Write time"       , write_time)
+                  ; ("Solution time"    , soln_time)
+                  ; ("Read time"        , read_time)
+                  ; ("Generation time"  , gen_time) ] in
     ( Union(ingress, egress), timings )
 
 
