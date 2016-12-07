@@ -1,9 +1,9 @@
 #!/bin/bash
 
 EX_DIR="examples/coronet"
-FSH="./frenetic.native autoshell"
+FSH="./fresh.native"
 
-echo "Edge Nodes	Pre-processing(msecs)	Generation(msecs)	Solution(secs)	Rules"
+echo "EdgeNodes	Formulation(msecs)	Write(msecs)	Solution(msecs)	Read(msecs)	Generation(msecs)	Rules"
 
 for i in {1..4}
 do
