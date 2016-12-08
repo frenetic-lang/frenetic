@@ -14,7 +14,7 @@ open Yojson.Basic
 (* {1 Json Serialization/Deserialization} *)
 
 (** Deserialize a Yojson repesentation of a NetKAT policy *)
-val policy_of_json : json -> policy
+val pol_of_json : json -> policy
 
 (** Serialize a NetKAT policy to Yojson format.  Note: errors may occur when converting between 64-bit values and
     JSON-representable integers. *)
@@ -22,14 +22,14 @@ val policy_to_json : policy -> json
 
 val from_json_header_val : json -> header_val
 
-(** Same as policy_of_json, but reads json from input channel *)
-val policy_of_json_channel : In_channel.t -> policy
+(** Same as pol_of_json, but reads json from input channel *)
+val pol_of_json_channel : In_channel.t -> policy
 
 (** Same as event_to_json but returns json string *)
 val event_to_json_string : event -> string
 
-(** Same as policy_of_json, but receives json string *)
-val policy_of_json_string : string -> policy
+(** Same as pol_of_json, but receives json string *)
+val pol_of_json_string : string -> policy
 
 val policy_to_json_string : policy -> string
 

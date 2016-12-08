@@ -2,6 +2,10 @@ all: build
 
 J=4
 
+# SJS: Suppress duplicate topdirs.cmi warnings.
+OCAMLFIND_IGNORE_DUPS_IN = $(shell ocamlfind query compiler-libs)
+export OCAMLFIND_IGNORE_DUPS_IN
+
 setup.ml: _oasis
 	oasis setup
 

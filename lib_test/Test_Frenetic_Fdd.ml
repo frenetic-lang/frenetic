@@ -16,7 +16,7 @@ let%test_module _ = (module struct
     Obj.magic One = 0 && Obj.magic Two = 1 && Obj.magic Three = 2
 
   let%test "Field.compare returns comparison value between two fields in the current ordering" =
-    compare VlanPcp Location = -1
+    compare Location VlanPcp = -1
 
   let%test "Field.of_string converts field string to abstract field" =
     of_string "Vlan" = Vlan
@@ -53,7 +53,7 @@ let%test_module _ = (module struct
 
   let%test "Field.get_order gets currently stored field order" =
     let () = set_order all in  (* Set back to default order *)
-    List.nth_exn (get_order ()) 11 = IPProto
+    List.nth_exn (get_order ()) 12 = IPProto
 
   let%test "Field.auto_order sorts referenced Test field to top" =
     let open Frenetic_NetKAT in
@@ -66,7 +66,7 @@ let%test_module _ = (module struct
     let open Frenetic_NetKAT_Parser in
     let () = set_order all in  (* Set back to default order *)
     let nk_str = In_channel.read_all pol_file in
-    let pol = policy_of_string nk_str in
+    let pol = pol_of_string nk_str in
     auto_order pol
 
   let%test "Field.auto_order on example places Location at the top" =
@@ -75,7 +75,7 @@ let%test_module _ = (module struct
 
   let%test "Field.auto_order on fall through optimization example places Vlan at the top" =
     let () = auto_order_on_file_policy "examples/fall-through-optimization.kat" in
-    List.hd_exn (get_order()) = Vlan
+    List.hd_exn (get_order()) = VlanPcp
 
   (* TODO(cr396): More examples ... once I've figured out the actual heuristic function of auto-order *)
 end)

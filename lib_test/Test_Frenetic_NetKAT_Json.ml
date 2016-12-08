@@ -5,20 +5,20 @@ open Frenetic_NetKAT_Json
 (* TODO: Right now, NetKAT_Parser does not do optimization, but NetKAT_Json does, making it tough to do
    more extensive testing.  When that's worked out, add more tests here. *)
 
-let%test "policy_of_json deserializes a NetKAT-Json from example1 into a NetKAT policy" =
-  let nk_policy = Frenetic_NetKAT_Parser.policy_of_string (In_channel.read_all "examples/example1.kat") in
+let%test "pol_of_json deserializes a NetKAT-Json from example1 into a NetKAT policy" =
+  let nk_policy = Frenetic_NetKAT_Parser.pol_of_string (In_channel.read_all "examples/example1.kat") in
   let example1_json = from_string (In_channel.read_all "lib_test/data/example1_reversed.json") in
-  policy_of_json example1_json = nk_policy
+  pol_of_json example1_json = nk_policy
 
-let%test "policy_of_json deserializes a NetKAT-Json from fall-through-optimization into a NetKAT policy" =
+let%test "pol_of_json deserializes a NetKAT-Json from fall-through-optimization into a NetKAT policy" =
   (* Note: we can't just read the policy from fall-through-optimization.kat like we did in the last test case
-    because policy_of_json does optimizations that policy_of_string doesn't do.
+    because pol_of_json does optimizations that pol_of_string doesn't do.
   *)
   let fall_json = from_string (In_channel.read_all "lib_test/data/fall-through-optimization.json") in
-  policy_of_json fall_json = Filter ( Test_Frenetic_NetKAT_Parser.and3 (Test(Vlan(1))) (Test(VlanPcp(1))) (Test(TCPSrcPort(1))) ) 
+  pol_of_json fall_json = Filter ( Test_Frenetic_NetKAT_Parser.and3 (Test(Vlan(1))) (Test(VlanPcp(1))) (Test(TCPSrcPort(1))) ) 
 
 let%test "policy_to_json serializes a NetKAT policy like example1.kat" = 
-  let nk_policy = Frenetic_NetKAT_Parser.policy_of_string (In_channel.read_all "examples/example1.kat") in
+  let nk_policy = Frenetic_NetKAT_Parser.pol_of_string (In_channel.read_all "examples/example1.kat") in
   let example1_json = from_string (In_channel.read_all "lib_test/data/example1.json") in
   (to_string example1_json) = (to_string (policy_to_json nk_policy))
 
@@ -100,10 +100,10 @@ let%test "port_stats_to_json serializes an OpenFlow stats response like port_sta
   let port_stats_json = In_channel.read_all "lib_test/data/port_stats.json" in
   port_stat_to_json_string sample_port_stats_response = port_stats_json 
 
-let%test "policy_of_json_string deserializes a NetKAT-Json string from example1 into a NetKAT policy" =
-  let nk_policy = Frenetic_NetKAT_Parser.policy_of_string (In_channel.read_all "examples/example1.kat") in
+let%test "pol_of_json_string deserializes a NetKAT-Json string from example1 into a NetKAT policy" =
+  let nk_policy = Frenetic_NetKAT_Parser.pol_of_string (In_channel.read_all "examples/example1.kat") in
   let example1_json_str = In_channel.read_all "lib_test/data/example1_reversed.json" in
-  policy_of_json_string example1_json_str = nk_policy
+  pol_of_json_string example1_json_str = nk_policy
 
 let%test "event_to_json_string serializes an OpenFlow FlowStats event with a format like flow_stats.json" = 
   let query_event = Frenetic_OpenFlow.FlowStats(
@@ -114,7 +114,7 @@ let%test "event_to_json_string serializes an OpenFlow FlowStats event with a for
   event_to_json_string query_event = query_json_str
 
 let%test "policy_to_json_string serializes a NetKAT policy like example1.kat" = 
-  let nk_policy = Frenetic_NetKAT_Parser.policy_of_string (In_channel.read_all "examples/example1.kat") in
+  let nk_policy = Frenetic_NetKAT_Parser.pol_of_string (In_channel.read_all "examples/example1.kat") in
   let example1_json_str = In_channel.read_all "lib_test/data/example1.json" in
   example1_json_str = policy_to_json_string nk_policy
 

@@ -1,186 +1,171 @@
-(* Adapted from https://github.com/jaked/ambassadortothecomputers.blogspot.com/blob/4d1bde223b1788ba52cc0f74b256760d9c059ac4/_code/camlp4-custom-lexers/jq_lexer.ml
-   This module is shared by Frenetic_NetKAT_Parser and Frenetic_Syntax_Extension_Parser
-*)
-
-open Core.Std
-
-module Loc = Camlp4.PreCast.Loc
-
-module Error = struct
-  type t = string
-  exception E of string
-  let print = Format.pp_print_string
-  let to_string x = x
-end
-let _ = let module M = Camlp4.ErrorHandler.Register(Error) in ()
-
-type token =
-  | KEYWORD of string
-  | INT of string
-  | INT32 of string
-  | INT64 of string
-  | IP4ADDR of string
-  | ANTIQUOT of string
-  | STRING_CONSTANT of string
-  | METAID of string
-  | EOI
-
-module Token = struct
-  module Loc = Loc
-  module Error = Error
-
-  type t = token
-
-  let to_string t =
-    let sf = Printf.sprintf in
-    match t with
-      | KEYWORD s -> sf "KEYWORD %s" s
-      | IP4ADDR s -> sf "IP4ADDR %s" s
-      | INT s -> sf "INT %s" s
-      | INT32 s -> sf "INT32 %s" s
-      | INT64 s -> sf "INT64 %s" s
-      | ANTIQUOT s -> sf "ANTIQUOT %s" s
-      | STRING_CONSTANT s -> sf "STRING_CONSTANT %s" s
-      | METAID s -> sf "METAID %s" s
-      | EOI -> sf "EOI"
-
-  let print ppf x = Format.pp_print_string ppf (to_string x)
-
-  let match_keyword kwd =
-    function
-      | KEYWORD kwd' when kwd = kwd' -> true
-      | _ -> false
-
-  let extract_string =
-    function
-      | KEYWORD s | INT s | INT64 s | INT32 s |
-        IP4ADDR s | STRING_CONSTANT s | METAID s -> s
-      | tok ->
-          invalid_arg
-            ("Cannot extract a string from this token: " ^
-               to_string tok)
-
-  module Filter = struct
-    type token_filter = (t, Loc.t) Camlp4.Sig.stream_filter
-    type t = unit
-    let mk _ = ()
-    let filter _ strm = strm
-    let define_filter _ _ = ()
-    let keyword_added _ _ _ = ()
-    let keyword_removed _ _ = ()
-  end
-
+module Location = struct
+  include Location
+  let pp = print
 end
 
-module L = Ulexing
+type token = [%import: Frenetic_NetKAT_Tokens.token] [@@deriving show]
 
-type context = {
-  mutable loc : Loc.t;
-  mutable start_loc : Loc.t option; (* if set, start lexeme here *)
-  antiquots   : bool;
-  lexbuf      : Ulexing.lexbuf;
-  enc         : Ulexing.enc ref;
-}
+(* use custom lexbuffer to keep track of source location *)
+module Sedlexing = LexBuffer
+open LexBuffer
 
-let current_loc c =
-  let (fn, bl, bb, bo, el, eb, _, g) = Loc.to_tuple c.loc in
-  let bl, bb, bo =
-    match c.start_loc with
-      | Some loc ->
-          let (_, bl, bb, bo, _, _, _, _) = Loc.to_tuple loc in
-          bl, bb, bo
-      | None -> bl, bb, Ulexing.lexeme_start c.lexbuf in
-  let eo = Ulexing.lexeme_end c.lexbuf in
-  c.loc <- Loc.of_tuple (fn, bl, bb, bo, el, eb, eo, g);
-  c.start_loc <- None;
-  c.loc
+(** Signals a lexing error at the provided source location.  *)
+exception LexError of (Lexing.position * string)
 
-let set_start_loc c =
-  let (fn, bl, bb, bo, el, eb, eo, g) = Loc.to_tuple c.loc in
-  let bo = Ulexing.lexeme_start c.lexbuf in
-  let eo = Ulexing.lexeme_end c.lexbuf in
-  c.start_loc <- Some (Loc.of_tuple (fn, bl, bb, bo, el, eb, eo, g))
+(** Signals a parsing error at the provided token and its start and end locations. *)
+exception ParseError of (token * Lexing.position * Lexing.position)
 
-let next_line c =
-  let (fn, bl, bb, bo, el, eb, eo, g) = Loc.to_tuple c.loc in
-  let bl = bl + 1 in
-  let el = el + 1 in
-  let bb = Ulexing.lexeme_end c.lexbuf in
-  let eb = bb in
-  c.loc <- Loc.of_tuple (fn, bl, bb, bo, el, eb, eo, g)
+(** Register exceptions for pretty printing *)
+let _ =
+  let open Location in
+  register_error_of_exn (function
+    | LexError (pos, msg) ->
+      let loc = { loc_start = pos; loc_end = pos; loc_ghost = false} in
+      Some { loc; msg; sub=[]; if_highlight=""; }
+    | ParseError (token, loc_start, loc_end) ->
+      let loc = Location.{ loc_start; loc_end; loc_ghost = false} in
+      let msg =
+        show_token token
+        |> Printf.sprintf "parse error while reading token '%s'" in
+      Some { loc; msg; sub=[]; if_highlight=""; }
+    | _ -> None)
 
-let error c s = Loc.raise (current_loc c) (Error.E s)
+let failwith buf s = raise (LexError (buf.pos, s))
 
-let regexp identinit = ['A'-'Z' 'a'-'z' '_' ]
-let regexp identchar = (identinit | [".'_" ] | [ '0'-'9' ])
-let regexp ident = identinit identchar*
-let regexp hex = ['0'-'9''a'-'f''A'-'F']
-let regexp hexnum = '0' 'x' hex+
-let regexp decnum = ['0'-'9']+
-let regexp decbyte = (['0'-'9'] ['0'-'9'] ['0'-'9']) | (['0'-'9'] ['0'-'9']) | ['0'-'9']
-let regexp hexbyte = hex hex
-let regexp arbitrary_string_without_dbl_quote = [^"\""]+
+let illegal buf c =
+  Char.escaped c
+  |> Printf.sprintf "unexpected character in NetKAT expression: '%s'"
+  |> failwith buf
 
-let regexp newline = ('\010' | '\013' | "\013\010")
-let regexp blank = [' ' '\009']
+(** regular expressions  *)
+let letter = [%sedlex.regexp? 'A'..'Z' | 'a'..'z']
+let digit = [%sedlex.regexp? '0'..'9']
+let id_init = [%sedlex.regexp? letter  | '_']
+let id_cont = [%sedlex.regexp? id_init | Chars ".\'" | digit ]
+let id = [%sedlex.regexp? id_init, Star id_cont ]
+let hex = [%sedlex.regexp? digit | 'a'..'f' | 'A'..'F' ]
+let hexnum = [%sedlex.regexp? '0', 'x', Plus hex ]
+let decnum = [%sedlex.regexp? Plus digit]
+let decbyte = [%sedlex.regexp? (digit,digit,digit) | (digit,digit) | digit ]
+let hexbyte = [%sedlex.regexp? hex,hex ]
+let blank = [%sedlex.regexp? ' ' | '\t' ]
+let newline = [%sedlex.regexp? '\r' | '\n' | "\r\n" ]
 
-let illegal c = error c "Illegal character in NetKAT expression"
+(** swallows whitespace and comments *)
+let rec garbage buf =
+  match%sedlex buf with
+  | newline -> garbage buf
+  | Plus blank -> garbage buf
+  | "(*" -> comment 1 buf
+  | _ -> ()
 
-let rec token c = lexer
-  | ">>" -> EOI
-  | eof -> EOI
-  | newline -> next_line c; token c c.lexbuf
-  | blank+ -> token c c.lexbuf
-  | decbyte '.' decbyte '.' decbyte '.' decbyte -> IP4ADDR (L.latin1_lexeme c.lexbuf)
-  | hexbyte ':' hexbyte ':' hexbyte ':' hexbyte ':' hexbyte ':' hexbyte ->
-    INT64 (Int64.to_string(Frenetic_Packet.mac_of_string (L.latin1_lexeme c.lexbuf)))
-  | (hexnum | decnum)  -> INT (L.latin1_lexeme c.lexbuf)
-  | (hexnum | decnum) 'l' -> INT32 (L.latin1_lexeme c.lexbuf)
-  | (hexnum | decnum) 'L' -> INT64 (L.latin1_lexeme c.lexbuf)
-  | "$" ident ->
-     ANTIQUOT( L.latin1_sub_lexeme c.lexbuf 1 (L.lexeme_length c.lexbuf - 1))
-  | "(*" ->
-    set_start_loc c;
-    let _ = comment c lexbuf in
-    token c c.lexbuf
-  | [ "()!+;=*+/|@" ] | ":=" | "=>" | "=>>"
-    | "true" | "false" | "switch" | "port" | "vswitch" | "vport" | "vfabric"
-    | "vlanId" | "vlanPcp" | "ethTyp" | "ipProto" | "tcpSrcPort" | "tcpDstPort"
-    | "ethSrc" | "ethDst" | "ip4Src"| "ip4Dst" | "and" | "or" | "not" | "id"
-    | "drop" | "if" | "then" | "else" | "filter"  | "pipe" | "query"
-    | "begin" | "end" | "let" | "var" | "in" ->
-      KEYWORD (L.latin1_lexeme c.lexbuf)
-  | "\"" arbitrary_string_without_dbl_quote "\"" ->
-      (* SJS: this looks like an off-by-one bug... *)
-      STRING_CONSTANT(L.latin1_sub_lexeme c.lexbuf 1 (L.lexeme_length c.lexbuf - 1))
-  | ident ->
-    METAID (L.latin1_lexeme c.lexbuf)
-  | _ -> illegal c
+(* allow nested comments, like OCaml *)
+and comment depth buf =
+  if depth = 0 then garbage buf else
+  match%sedlex buf with
+  | eof -> failwith buf "Unterminated comment at EOF" 
+  | "(*" -> comment (depth + 1) buf
+  | "*)" -> comment (depth - 1) buf
+  | any -> comment depth buf
+  | _ -> assert false
 
-(* Swallow all characters in comments *)
-and comment c = lexer
-  | eof -> error c "Unterminated comment"
-  | "*)" -> ()
-  | _ -> comment c c.lexbuf
+(** returns the next token *)
+let token ~ppx ~loc_start buf =
+  garbage buf;
+  match%sedlex buf with
+  | eof -> EOF
+  (* values *)
+  | decbyte,'.',decbyte,'.',decbyte,'.',decbyte -> 
+    IP4ADDR (ascii buf)
+  | hexbyte,':',hexbyte,':',hexbyte,':',hexbyte,':',hexbyte,':',hexbyte ->
+    MAC (ascii buf)
+  | (hexnum | decnum)      -> INT (ascii buf)
+  | (hexnum | decnum), 'l' -> INT (ascii buf)
+  | (hexnum | decnum), 'L' -> INT (ascii buf)
+  | "pipe" -> PIPE
+  | "query" -> QUERY
+  | '"', Star (Compl '"'), '"' -> STRING (ascii ~skip:1 ~drop:1 buf)
+  (* antiquotations *)
+  | '$', id ->
+    if ppx then
+      let loc_end = next_loc buf in
+      let loc = Location.{ loc_start; loc_end; loc_ghost = false } in
+      ANTIQ (ascii ~skip:1 buf, loc)
+    else
+      illegal buf '$'
+  (* predicates *)
+  | "true" -> TRUE
+  | "false" -> FALSE
+  | "and" -> AND
+  | "or" -> OR
+  | "not" -> NOT
+  | '=' -> EQUALS
+  (* policies *)
+  | "id" -> ID
+  | "drop" -> DROP
+  | "filter" -> FILTER
+  | ":=" -> ASSIGN
+  | ';' -> SEMICOLON
+  | '+' -> PLUS
+  | '*' -> STAR
+  | "=>" -> LINK
+  | "@" -> AT
+  | '/' -> SLASH
+  (* fields *)
+  | "switch" -> SWITCH
+  | "port" -> PORT
+  | "vswitch" -> VSWITCH
+  | "vport" -> VPORT
+  | "vfrabric" -> VFABRIC
+  | "ethSrc" -> ETHSRC
+  | "ethDst" -> ETHDST
+  | "vlanId" -> VLAN
+  | "vlanPcp" -> VLANPCP
+  | "ethTyp" -> ETHTYPE
+  | "ipProto" -> IPPROTO
+  | "ip4Src" -> IP4SRC
+  | "ip4Dst" -> IP4DST
+  | "tcpSrcPort" -> TCPSRCPORT
+  | "tcpDstPort" -> TCPDSTPORT
+  (* syntax sugar *)
+  | "if" -> IF
+  | "then" -> THEN
+  | "else" -> ELSE
+  | "while" -> WHILE
+  | "do" -> DO
+  (* parenths *)
+  | '(' -> LPAR
+  | ')' -> RPAR
+  | "begin" -> BEGIN
+  | "end" -> END
+  (* meta fields *)
+  | "let" -> LET
+  | "var" -> VAR
+  | "in" -> IN
+  | '`', id -> METAID (ascii buf ~skip:1)
+  | _ -> illegal buf (Char.chr (next buf))
+
+(** wrapper around `token` that records start and end locations *)
+let loc_token ~ppx buf =
+  let () = garbage buf in (* dispose of garbage before recording start location *)
+  let loc_start = next_loc buf in
+  let t = token ~ppx ~loc_start buf in
+  let loc_end = next_loc buf in
+  (t, loc_start, loc_end)
 
 
-let mk () start_loc cs =
-  let enc = ref Ulexing.Latin1 in
-  let lb = L.from_var_enc_stream enc cs in
-  let c = {
-    loc        = start_loc;
-    start_loc  = None;
-    antiquots  = !Camlp4_config.antiquotations;
-    lexbuf     = lb;
-    enc        = enc;
-  } in
-  let next _ =
-    let tok =
-      try token c c.lexbuf
-      with
-        | Ulexing.Error -> error c "Unexpected character"
-        | Ulexing.InvalidCodepoint i -> error c "Code point invalid for the current encoding"
-    in
-    Some (tok, current_loc c)
-  in
-  Stream.from next
+(** menhir interface *)
+type ('token, 'a) parser = ('token, 'a) MenhirLib.Convert.traditional
+
+let parse ?(ppx=false) buf p =
+  let last_token = ref Lexing.(EOF, dummy_pos, dummy_pos) in
+  let next_token () = last_token := loc_token ~ppx buf; !last_token in
+  try MenhirLib.Convert.Simplified.traditional2revised p next_token with
+  | LexError (pos, s) -> raise (LexError (pos, s))
+  | _ -> raise (ParseError (!last_token))
+
+let parse_string ?ppx ?pos s p =
+  parse ?ppx (LexBuffer.of_ascii_string ?pos s) p
+
+let parse_file ?ppx ~file p =
+  parse ?ppx (LexBuffer.of_ascii_file file) p

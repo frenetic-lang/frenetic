@@ -357,21 +357,21 @@ let set_vloc' vv =
   match G.Virt.V.label vv with
   | InPort (vsw, vpt) | OutPort (vsw, vpt) -> set_vloc (vsw, vpt)
 
-let rec policy_of_path path =
+let rec pol_of_path path =
   match path with
   | (OutPort (sw1, pt1), (InPort (sw2, pt2))) :: path' ->
      if sw1 = sw2 then begin
        assert (pt1 = pt2);
-       policy_of_path path'
+       pol_of_path path'
      end
      else
-       mk_seq (Link (sw1, pt1, sw2, pt2)) (policy_of_path path')
+       mk_seq (Link (sw1, pt1, sw2, pt2)) (pol_of_path path')
   | (InPort (sw, pt), (OutPort (sw', pt'))) :: path' ->
      assert (sw = sw');
      if pt = pt' then
-       policy_of_path path'
+       pol_of_path path'
      else
-       mk_seq (Mod (Location (Physical (pt')))) (policy_of_path path')
+       mk_seq (Mod (Location (Physical (pt')))) (pol_of_path path')
   | [] -> id
   | _ -> assert false
 
@@ -398,7 +398,7 @@ let fabric_atom_of_prod_edge ?record_paths path_oracle v1 v2 =
     let path = path_oracle pv1 pv2 in
     let _ = Core.Std.Option.(record_paths >>| print_path path) in
     let fabric =
-      [match_vloc' vv; match_ploc' pv1; policy_of_path path; set_vloc' vv]
+      [match_vloc' vv; match_ploc' pv1; pol_of_path path; set_vloc' vv]
       |> mk_big_seq
     in
     begin match l with

@@ -156,4 +156,5 @@ let main : Command.t =
     ; ("dump", Dump.main)]
 
 let () =
+  Frenetic_Util.pp_exceptions ();
   Command.run ~version: "5.0" ~build_info: "RWO" main

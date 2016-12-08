@@ -1,4 +1,4 @@
-let x:=1 in
-filter x=0; port:=0 |
-filter x=1; port:=1 |
-filter x=2; port:=2
+let `x:=1 in
+filter `x=0; port:=0 +
+filter `x=1; port:=1 +
+filter `x=2; port:=2

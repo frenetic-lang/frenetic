@@ -3,20 +3,20 @@ open Frenetic_NetKAT_Pretty
 module SDN = Frenetic_OpenFlow
 
 let parse_pretty str =
-  string_of_policy (Frenetic_NetKAT_Parser.policy_of_string str)
+  string_of_policy (Frenetic_NetKAT_Parser.pol_of_string str)
 
 let test_parse p_str =
   try
-    let _ = Frenetic_NetKAT_Parser.policy_of_string p_str in
+    let _ = Frenetic_NetKAT_Parser.pol_of_string p_str in
     true
   with _ ->
     Printf.printf "Can't parse {%s}\n%!" p_str;
     false
 
 let test_pretty p_str =
-  let p_ast1 = Frenetic_NetKAT_Parser.policy_of_string p_str in
+  let p_ast1 = Frenetic_NetKAT_Parser.pol_of_string p_str in
   let p_str' = string_of_policy p_ast1 in
-  let p_ast2 = Frenetic_NetKAT_Parser.policy_of_string p_str' in
+  let p_ast2 = Frenetic_NetKAT_Parser.pol_of_string p_str' in
   p_ast1 = p_ast2
 
 let p_str1 = "filter port = 1"
@@ -32,7 +32,7 @@ let%test "assoc par" = test_pretty p_str3 = true
 let%test "conditional parses" = test_parse "if port = 1 then drop else id"
 let%test "prettified conditional parses" =
   test_parse (string_of_policy (
-    Frenetic_NetKAT_Parser.policy_of_string "filter not port = 1; drop"))
+    Frenetic_NetKAT_Parser.pol_of_string "filter not port = 1; drop"))
 let%test "conditional" = test_pretty "if port = 1 then drop else id" = true
 
 let%test "line wrap" =
@@ -60,7 +60,7 @@ let testable_pol_to_bool =
 let prop_parse_pol_idempotent (p : policy) : bool =
   try
     let s = string_of_policy p in
-    let p' = Frenetic_NetKAT_Parser.policy_of_string s in
+    let p' = Frenetic_NetKAT_Parser.pol_of_string s in
     (if p <> p' then Printf.printf "[|%s|]\n%!" s);
     p = p'
   with _ ->

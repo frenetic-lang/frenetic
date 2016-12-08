@@ -1,9 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: 2aed45dcfbabaef0cfd87efd10e22d19)
+# DO NOT EDIT (digest: 9b183f54481457fffcb95045f4a0f9cc)
 version = "4.0.0"
 description = "The Frenetic Compiler and Runtime System"
 requires =
-"base64 camlp4.lib camlp4.extend camlp4 core cstruct ocamlgraph ppx_jane ppx_deriving.eq ppx_deriving.enum str tcpip ulex yojson threads"
+"base64 core cstruct ocamlgraph str tcpip yojson ipaddr ppx_import sedlex menhirLib threads compiler-libs.common"
 archive(byte) = "frenetic.cma"
 archive(byte, plugin) = "frenetic.cma"
 archive(native) = "frenetic.cmxa"
@@ -20,16 +20,6 @@ package "test" (
  exists_if = "test_frenetic.cma"
 )
 
-package "syntax" (
- version = "4.0.0"
- description = "Syntax extension writing NetKAT expressions"
- requires = "camlp4 ulex ipaddr frenetic"
- archive(syntax, preprocessor) = "syntax.cma"
- archive(syntax, toploop) = "syntax.cma"
- archive(syntax, preprocessor, native) = "syntax.cmxa"
- archive(syntax, preprocessor, native, plugin) = "syntax.cmxs"
- exists_if = "syntax.cma"
-)
 
 package "async" (
  version = "4.0.0"
@@ -44,3 +34,44 @@ package "async" (
 )
 # OASIS_STOP
 
+
+package "ppx" (
+  version = "0.1"
+  description = "NetKAT syntax extension"
+
+  # The following line must list the ppx dependencies of the rewriter
+  # itself, such as ppx_core, ppx_type_conv, ...
+  requires = "ppx_driver ppx_tools ppx_tools ppx_tools.metaquot"
+
+  # The following line is optional, here you can list normal libraries
+  # that you are using inside the ppx rewriter. For instance if you are
+  # using the "str" library in the rewriter itself, put it here
+  requires(ppx_driver) = "frenetic"
+
+  # The following line is for runtime dependencies, this allow users to
+  # just put ppx_foo as dependency and get both the rewriter and the
+  # runtime dependencies
+  requires(-ppx_driver)        += ""
+
+  # The following line is optional, it is currently only used by
+  # toplevel_expect_test, which is a toplevel where the rewriting
+  # happens in the same process as the toplevel itself. This is useful
+  # for defining transformations and testing them immediately after
+  requires(ppx_driver,toploop) += ""
+
+  # The next 5 lines are classic. The only difference with a normal
+  # library is that the archive is linked only if the "ppx_driver"
+  # predicate is present. This is to avoid linked them in the final
+  # executable itself
+  archive(ppx_driver, byte  ) = "ppx.cma"
+  archive(ppx_driver, native) = "ppx.cmxa"
+  plugin(ppx_driver, byte  ) = "ppx.cma"
+  plugin(ppx_driver, native) = "ppx.cmxs"
+  exists_if = "ppx.cma"
+
+  # The following line instruct ocamlfind to pass "-ppx ./ppx" to the
+  # OCaml compiler when none of the "ppx_driver" or "custom_ppx"
+  # predicates are present. This explains why we need to
+  # "predicate(custom_ppx)" when using ppx_driver
+  ppx(-ppx_driver,-custom_ppx) = "./ppx.native"
+)

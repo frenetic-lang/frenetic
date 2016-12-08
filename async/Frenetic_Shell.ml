@@ -5,7 +5,7 @@ open Frenetic_NetKAT
 module Controller = Frenetic_NetKAT_Controller.Make(Frenetic_OpenFlow0x01_Plugin)
 module Comp = Frenetic_NetKAT_Compiler
 module Field = Frenetic_Fdd.Field
-module Log = Frenetic_Log
+module Log = Frenetic_Log 
 
 type showable =
   (* usage: order
@@ -96,13 +96,7 @@ module Parser = struct
 
     (* Use the netkat parser to parse policies *)
     let parse_policy ?(name = "") (pol_str : string) : (policy, string) Result.t =
-      try
-        Ok (Frenetic_NetKAT_Parser.policy_of_string pol_str)
-      with Camlp4.PreCast.Loc.Exc_located (error_loc,x) ->
-        Error (
-          sprintf "Error: %s\n%s"
-          (Camlp4.PreCast.Loc.to_string error_loc)
-          (Exn.to_string x))
+      Ok (Frenetic_NetKAT_Parser.pol_of_string pol_str)
 
     (* Parser for netkat policies *)
     let policy' : ((policy * string), bytes list) MParser.t =
@@ -315,7 +309,7 @@ let rec repl () : unit Deferred.t =
   printf "frenetic> %!";
   Reader.read_line (Lazy.force Reader.stdin) >>= fun input ->
   let handle line =
-    match line with
+    try match line with
     | `Eof -> Shutdown.shutdown 0
     | `Ok line -> match parse_command line with
 		  | Some Exit | Some Quit ->
@@ -332,6 +326,7 @@ let rec repl () : unit Deferred.t =
 		  | Some (Order order) -> set_order order
       | Some (ToggleRemoveTailDrops) -> toggle_remove_tail_drops ()
 		  | None -> ()
+    with exn -> Location.report_exception Format.std_formatter exn
   in handle input; repl ()
 
 let log_file = "frenetic.log"
