@@ -5,7 +5,7 @@
 <meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
 <link rel="Start" href="index.html">
 <link rel="previous" href="Frenetic_NetKAT_Optimize.html">
-<link rel="next" href="Frenetic_NetKAT_Lexer.html">
+<link rel="next" href="Frenetic_NetKAT_Compiler.html">
 <link rel="Up" href="index.html">
 <link title="Index of types" rel=Appendix href="index_types.html">
 <link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
@@ -18,13 +18,13 @@
 <link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
+<link title="Frenetic_NetKAT_Tokens" rel="Chapter" href="Frenetic_NetKAT_Tokens.html">
+<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
-<link title="Frenetic_NetKAT_Lexer" rel="Chapter" href="Frenetic_NetKAT_Lexer.html">
 <link title="Frenetic_NetKAT_Compiler" rel="Chapter" href="Frenetic_NetKAT_Compiler.html">
 <link title="Frenetic_NetKAT_Virtual_Compiler" rel="Chapter" href="Frenetic_NetKAT_Virtual_Compiler.html">
 <link title="Frenetic_NetKAT_Net" rel="Chapter" href="Frenetic_NetKAT_Net.html">
-<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
 <link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
@@ -39,7 +39,7 @@
 <body>
 <div class="navbar"><a class="pre" href="Frenetic_NetKAT_Optimize.html" title="Frenetic_NetKAT_Optimize">Previous</a>
 &nbsp;<a class="up" href="index.html" title="Index">Up</a>
-&nbsp;<a class="post" href="Frenetic_NetKAT_Lexer.html" title="Frenetic_NetKAT_Lexer">Next</a>
+&nbsp;<a class="post" href="Frenetic_NetKAT_Compiler.html" title="Frenetic_NetKAT_Compiler">Next</a>
 </div>
 <h1>Module <a href="type_Frenetic_NetKAT_Json.html">Frenetic_NetKAT_Json</a></h1>
 
@@ -56,7 +56,7 @@ JSON serialization/deserialization of NetKAT messages.
 </div>
 <hr width="100%">
 
-<pre><span id="VALpolicy_of_json"><span class="keyword">val</span> policy_of_json</span> : <code class="type">Yojson.Basic.json -> <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a></code></pre><div class="info ">
+<pre><span id="VALpol_of_json"><span class="keyword">val</span> pol_of_json</span> : <code class="type">Yojson.Basic.json -> <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a></code></pre><div class="info ">
 Deserialize a Yojson repesentation of a NetKAT policy<br>
 </div>
 
@@ -66,16 +66,16 @@ Serialize a NetKAT policy to Yojson format.  Note: errors may occur when convert
 </div>
 
 <pre><span id="VALfrom_json_header_val"><span class="keyword">val</span> from_json_header_val</span> : <code class="type">Yojson.Basic.json -> <a href="Frenetic_NetKAT.html#TYPEheader_val">Frenetic_NetKAT.header_val</a></code></pre>
-<pre><span id="VALpolicy_of_json_channel"><span class="keyword">val</span> policy_of_json_channel</span> : <code class="type">Core.Std.In_channel.t -> <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a></code></pre><div class="info ">
-Same as policy_of_json, but reads json from input channel<br>
+<pre><span id="VALpol_of_json_channel"><span class="keyword">val</span> pol_of_json_channel</span> : <code class="type">Core.Std.In_channel.t -> <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a></code></pre><div class="info ">
+Same as pol_of_json, but reads json from input channel<br>
 </div>
 
 <pre><span id="VALevent_to_json_string"><span class="keyword">val</span> event_to_json_string</span> : <code class="type"><a href="Frenetic_OpenFlow.html#TYPEevent">Frenetic_OpenFlow.event</a> -> string</code></pre><div class="info ">
 Same as event_to_json but returns json string<br>
 </div>
 
-<pre><span id="VALpolicy_of_json_string"><span class="keyword">val</span> policy_of_json_string</span> : <code class="type">string -> <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a></code></pre><div class="info ">
-Same as policy_of_json, but receives json string<br>
+<pre><span id="VALpol_of_json_string"><span class="keyword">val</span> pol_of_json_string</span> : <code class="type">string -> <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a></code></pre><div class="info ">
+Same as pol_of_json, but receives json string<br>
 </div>
 
 <pre><span id="VALpolicy_to_json_string"><span class="keyword">val</span> policy_to_json_string</span> : <code class="type"><a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a> -> string</code></pre>

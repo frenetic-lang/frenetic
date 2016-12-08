@@ -18,13 +18,13 @@
 <link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
+<link title="Frenetic_NetKAT_Tokens" rel="Chapter" href="Frenetic_NetKAT_Tokens.html">
+<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
-<link title="Frenetic_NetKAT_Lexer" rel="Chapter" href="Frenetic_NetKAT_Lexer.html">
 <link title="Frenetic_NetKAT_Compiler" rel="Chapter" href="Frenetic_NetKAT_Compiler.html">
 <link title="Frenetic_NetKAT_Virtual_Compiler" rel="Chapter" href="Frenetic_NetKAT_Virtual_Compiler.html">
 <link title="Frenetic_NetKAT_Net" rel="Chapter" href="Frenetic_NetKAT_Net.html">
-<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
 <link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
@@ -68,45 +68,30 @@ Library for constructing, marshaling and parsing data packets.  These packets ar
 </div>
 
 
-<pre><span id="VALint8_of_sexp"><span class="keyword">val</span> int8_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEint8">int8</a></code></pre>
-<pre><span id="VALsexp_of_int8"><span class="keyword">val</span> sexp_of_int8</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEint8">int8</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALcompare_int8"><span class="keyword">val</span> compare_int8</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEint8">int8</a> -> <a href="Frenetic_Packet.html#TYPEint8">int8</a> -> int</code></pre>
 <pre><span id="TYPEint16"><span class="keyword">type</span> <code class="type"></code>int16</span> = <code class="type">int</code> </pre>
 <div class="info ">
 <code class="code">int16</code> is the type of 16-bit integers.<br>
 </div>
 
 
-<pre><span id="VALint16_of_sexp"><span class="keyword">val</span> int16_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEint16">int16</a></code></pre>
-<pre><span id="VALsexp_of_int16"><span class="keyword">val</span> sexp_of_int16</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEint16">int16</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALcompare_int16"><span class="keyword">val</span> compare_int16</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEint16">int16</a> -> <a href="Frenetic_Packet.html#TYPEint16">int16</a> -> int</code></pre>
 <pre><span id="TYPEint48"><span class="keyword">type</span> <code class="type"></code>int48</span> = <code class="type">int64</code> </pre>
 <div class="info ">
 <code class="code">int48</code> is the type of 48-bit integers.<br>
 </div>
 
 
-<pre><span id="VALint48_of_sexp"><span class="keyword">val</span> int48_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEint48">int48</a></code></pre>
-<pre><span id="VALsexp_of_int48"><span class="keyword">val</span> sexp_of_int48</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEint48">int48</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALcompare_int48"><span class="keyword">val</span> compare_int48</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEint48">int48</a> -> <a href="Frenetic_Packet.html#TYPEint48">int48</a> -> int</code></pre>
 <pre><span id="TYPEdlAddr"><span class="keyword">type</span> <code class="type"></code>dlAddr</span> = <code class="type"><a href="Frenetic_Packet.html#TYPEint48">int48</a></code> </pre>
 <div class="info ">
 <code class="code">dlAddr</code> is the type of Ethernet addresses.<br>
 </div>
 
 
-<pre><span id="VALdlAddr_of_sexp"><span class="keyword">val</span> dlAddr_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEdlAddr">dlAddr</a></code></pre>
-<pre><span id="VALsexp_of_dlAddr"><span class="keyword">val</span> sexp_of_dlAddr</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlAddr">dlAddr</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALcompare_dlAddr"><span class="keyword">val</span> compare_dlAddr</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlAddr">dlAddr</a> -> <a href="Frenetic_Packet.html#TYPEdlAddr">dlAddr</a> -> int</code></pre>
 <pre><span id="TYPEdlTyp"><span class="keyword">type</span> <code class="type"></code>dlTyp</span> = <code class="type"><a href="Frenetic_Packet.html#TYPEint16">int16</a></code> </pre>
 <div class="info ">
 <code class="code">dlTyp</code> is the type of Ethernet frame types.<br>
 </div>
 
 
-<pre><span id="VALdlTyp_of_sexp"><span class="keyword">val</span> dlTyp_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEdlTyp">dlTyp</a></code></pre>
-<pre><span id="VALsexp_of_dlTyp"><span class="keyword">val</span> sexp_of_dlTyp</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlTyp">dlTyp</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALcompare_dlTyp"><span class="keyword">val</span> compare_dlTyp</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlTyp">dlTyp</a> -> <a href="Frenetic_Packet.html#TYPEdlTyp">dlTyp</a> -> int</code></pre>
 <pre><span id="TYPEdlVlan"><span class="keyword">type</span> <code class="type"></code>dlVlan</span> = <code class="type"><a href="Frenetic_Packet.html#TYPEint16">int16</a> option</code> </pre>
 <div class="info ">
 <code class="code">dlVlan</code> is the type of VLAN identifiers.  A value of <code class="code">None</code>
@@ -115,72 +100,48 @@ Library for constructing, marshaling and parsing data packets.  These packets ar
 </div>
 
 
-<pre><span id="VALdlVlan_of_sexp"><span class="keyword">val</span> dlVlan_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEdlVlan">dlVlan</a></code></pre>
-<pre><span id="VALsexp_of_dlVlan"><span class="keyword">val</span> sexp_of_dlVlan</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlVlan">dlVlan</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALcompare_dlVlan"><span class="keyword">val</span> compare_dlVlan</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlVlan">dlVlan</a> -> <a href="Frenetic_Packet.html#TYPEdlVlan">dlVlan</a> -> int</code></pre>
 <pre><span id="TYPEdlVlanPcp"><span class="keyword">type</span> <code class="type"></code>dlVlanPcp</span> = <code class="type"><a href="Frenetic_Packet.html#TYPEint8">int8</a></code> </pre>
 <div class="info ">
 <code class="code">dlVlanPcp</code> is the type of 802.1Q (VLAN) priorities.<br>
 </div>
 
 
-<pre><span id="VALdlVlanPcp_of_sexp"><span class="keyword">val</span> dlVlanPcp_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEdlVlanPcp">dlVlanPcp</a></code></pre>
-<pre><span id="VALsexp_of_dlVlanPcp"><span class="keyword">val</span> sexp_of_dlVlanPcp</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlVlanPcp">dlVlanPcp</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALcompare_dlVlanPcp"><span class="keyword">val</span> compare_dlVlanPcp</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlVlanPcp">dlVlanPcp</a> -> <a href="Frenetic_Packet.html#TYPEdlVlanPcp">dlVlanPcp</a> -> int</code></pre>
 <pre><span id="TYPEdlVlanDei"><span class="keyword">type</span> <code class="type"></code>dlVlanDei</span> = <code class="type">bool</code> </pre>
 <div class="info ">
 <code class="code">dlVlanDei</code> is the type of 802.1Q (VLAN) drop eligible indicator.<br>
 </div>
 
 
-<pre><span id="VALdlVlanDei_of_sexp"><span class="keyword">val</span> dlVlanDei_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEdlVlanDei">dlVlanDei</a></code></pre>
-<pre><span id="VALsexp_of_dlVlanDei"><span class="keyword">val</span> sexp_of_dlVlanDei</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlVlanDei">dlVlanDei</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALcompare_dlVlanDei"><span class="keyword">val</span> compare_dlVlanDei</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEdlVlanDei">dlVlanDei</a> -> <a href="Frenetic_Packet.html#TYPEdlVlanDei">dlVlanDei</a> -> int</code></pre>
 <pre><span id="TYPEnwAddr"><span class="keyword">type</span> <code class="type"></code>nwAddr</span> = <code class="type">int32</code> </pre>
 <div class="info ">
 <code class="code">nwAddr</code> is the type of IPv4 addresses.<br>
 </div>
 
 
-<pre><span id="VALnwAddr_of_sexp"><span class="keyword">val</span> nwAddr_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEnwAddr">nwAddr</a></code></pre>
-<pre><span id="VALsexp_of_nwAddr"><span class="keyword">val</span> sexp_of_nwAddr</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEnwAddr">nwAddr</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALcompare_nwAddr"><span class="keyword">val</span> compare_nwAddr</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEnwAddr">nwAddr</a> -> <a href="Frenetic_Packet.html#TYPEnwAddr">nwAddr</a> -> int</code></pre>
 <pre><span id="TYPEnwProto"><span class="keyword">type</span> <code class="type"></code>nwProto</span> = <code class="type"><a href="Frenetic_Packet.html#TYPEint8">int8</a></code> </pre>
 <div class="info ">
 <code class="code">nwProto</code> is the type of IPv4 protocol numbers.<br>
 </div>
 
 
-<pre><span id="VALnwProto_of_sexp"><span class="keyword">val</span> nwProto_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEnwProto">nwProto</a></code></pre>
-<pre><span id="VALsexp_of_nwProto"><span class="keyword">val</span> sexp_of_nwProto</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEnwProto">nwProto</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALcompare_nwProto"><span class="keyword">val</span> compare_nwProto</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEnwProto">nwProto</a> -> <a href="Frenetic_Packet.html#TYPEnwProto">nwProto</a> -> int</code></pre>
 <pre><span id="TYPEnwTos"><span class="keyword">type</span> <code class="type"></code>nwTos</span> = <code class="type"><a href="Frenetic_Packet.html#TYPEint8">int8</a></code> </pre>
 <div class="info ">
 <code class="code">nwTos</code> is the type of IPv4 types of service.<br>
 </div>
 
 
-<pre><span id="VALnwTos_of_sexp"><span class="keyword">val</span> nwTos_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEnwTos">nwTos</a></code></pre>
-<pre><span id="VALsexp_of_nwTos"><span class="keyword">val</span> sexp_of_nwTos</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEnwTos">nwTos</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALcompare_nwTos"><span class="keyword">val</span> compare_nwTos</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEnwTos">nwTos</a> -> <a href="Frenetic_Packet.html#TYPEnwTos">nwTos</a> -> int</code></pre>
 <pre><span id="TYPEipv6Addr"><span class="keyword">type</span> <code class="type"></code>ipv6Addr</span> = <code class="type">int64 * int64</code> </pre>
 <div class="info ">
 <code class="code">ipv6Addr</code> is the type of IPv6 addresses.<br>
 </div>
 
 
-<pre><span id="VALipv6Addr_of_sexp"><span class="keyword">val</span> ipv6Addr_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEipv6Addr">ipv6Addr</a></code></pre>
-<pre><span id="VALsexp_of_ipv6Addr"><span class="keyword">val</span> sexp_of_ipv6Addr</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEipv6Addr">ipv6Addr</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALcompare_ipv6Addr"><span class="keyword">val</span> compare_ipv6Addr</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEipv6Addr">ipv6Addr</a> -> <a href="Frenetic_Packet.html#TYPEipv6Addr">ipv6Addr</a> -> int</code></pre>
 <pre><span id="TYPEtpPort"><span class="keyword">type</span> <code class="type"></code>tpPort</span> = <code class="type"><a href="Frenetic_Packet.html#TYPEint16">int16</a></code> </pre>
 <div class="info ">
 <code class="code">tpPort</code> is the type of transport protocol ports.<br>
 </div>
 
 
-<pre><span id="VALtpPort_of_sexp"><span class="keyword">val</span> tpPort_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEtpPort">tpPort</a></code></pre>
-<pre><span id="VALsexp_of_tpPort"><span class="keyword">val</span> sexp_of_tpPort</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEtpPort">tpPort</a> -> Sexplib.Sexp.t</code></pre>
-<pre><span id="VALcompare_tpPort"><span class="keyword">val</span> compare_tpPort</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEtpPort">tpPort</a> -> <a href="Frenetic_Packet.html#TYPEtpPort">tpPort</a> -> int</code></pre>
 <pre><span class="keyword">module</span> <a href="Frenetic_Packet.Tcp.html">Tcp</a>: <code class="code">sig</code> <a href="Frenetic_Packet.Tcp.html">..</a> <code class="code">end</code></pre><div class="info">
 TCP frame of a packet.
 </div>
@@ -243,7 +204,11 @@ Address Resolution Protocol (ARP).<br>
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
 <code><span id="TYPEELTnw.Unparsable"><span class="constructor">Unparsable</span></span> <span class="keyword">of</span> <code class="type">(<a href="Frenetic_Packet.html#TYPEdlTyp">dlTyp</a> * Cstruct.t)</code></code></td>
-
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" ><div class="info ">
+The EtherType code accompanied by the
+                                  uninterpreted ethernet payload.<br>
+</div>
+</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
 </tr></table>
 
 <div class="info ">
@@ -251,8 +216,6 @@ The type <code class="code">nw</code> represents a packet at the network protoco
 </div>
 
 
-<pre><span id="VALnw_of_sexp"><span class="keyword">val</span> nw_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEnw">nw</a></code></pre>
-<pre><span id="VALsexp_of_nw"><span class="keyword">val</span> sexp_of_nw</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEnw">nw</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEpacket"><span class="keyword">type</span> <code class="type"></code>packet</span> = {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -318,13 +281,8 @@ Network payload.<br>
 </tr></table>
 }
 
-<div class="info ">
-The type <code class="code">packet</code> represents a packet at the ethernet protocol level.<br>
-</div>
 
-
-<pre><span id="VALpacket_of_sexp"><span class="keyword">val</span> packet_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_Packet.html#TYPEpacket">packet</a></code></pre>
-<pre><span id="VALsexp_of_packet"><span class="keyword">val</span> sexp_of_packet</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> Sexplib.Sexp.t</code></pre><br>
+<br>
 <div class="h9" id="accs">Accessors</div><br>
 
 <pre><span id="VALdlTyp"><span class="keyword">val</span> dlTyp</span> : <code class="type"><a href="Frenetic_Packet.html#TYPEpacket">packet</a> -> <a href="Frenetic_Packet.html#TYPEdlTyp">dlTyp</a></code></pre><div class="info ">

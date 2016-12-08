@@ -18,13 +18,13 @@
 <link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
+<link title="Frenetic_NetKAT_Tokens" rel="Chapter" href="Frenetic_NetKAT_Tokens.html">
+<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
-<link title="Frenetic_NetKAT_Lexer" rel="Chapter" href="Frenetic_NetKAT_Lexer.html">
 <link title="Frenetic_NetKAT_Compiler" rel="Chapter" href="Frenetic_NetKAT_Compiler.html">
 <link title="Frenetic_NetKAT_Virtual_Compiler" rel="Chapter" href="Frenetic_NetKAT_Virtual_Compiler.html">
 <link title="Frenetic_NetKAT_Net" rel="Chapter" href="Frenetic_NetKAT_Net.html">
-<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
 <link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
@@ -50,5 +50,9 @@ Utility functions for Frenetic.  These are used in multiple modules and don't ha
 
 <pre><span id="VALmake_string_of"><span class="keyword">val</span> make_string_of</span> : <code class="type">(Format.formatter -> 'a -> 'b) -> 'a -> string</code></pre><div class="info ">
 Given a user-defined formatter and a type, make a string.  This is a lot like sprintf, and encourages sharing the formatting code.<br>
+</div>
+
+<pre><span id="VALpp_exceptions"><span class="keyword">val</span> pp_exceptions</span> : <code class="type">unit -> unit</code></pre><div class="info ">
+register pretty printer for located exceptions Location.exception<br>
 </div>
 </body></html>

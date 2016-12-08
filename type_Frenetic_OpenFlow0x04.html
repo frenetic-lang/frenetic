@@ -13,13 +13,13 @@
 <link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
+<link title="Frenetic_NetKAT_Tokens" rel="Chapter" href="Frenetic_NetKAT_Tokens.html">
+<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
-<link title="Frenetic_NetKAT_Lexer" rel="Chapter" href="Frenetic_NetKAT_Lexer.html">
 <link title="Frenetic_NetKAT_Compiler" rel="Chapter" href="Frenetic_NetKAT_Compiler.html">
 <link title="Frenetic_NetKAT_Virtual_Compiler" rel="Chapter" href="Frenetic_NetKAT_Virtual_Compiler.html">
 <link title="Frenetic_NetKAT_Net" rel="Chapter" href="Frenetic_NetKAT_Net.html">
-<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
 <link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
@@ -34,73 +34,31 @@
 <body>
 <code class="code"><span class="keyword">sig</span>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;<span class="keywordsign">'</span>a&nbsp;mask&nbsp;=&nbsp;{&nbsp;m_value&nbsp;:&nbsp;<span class="keywordsign">'</span>a;&nbsp;m_mask&nbsp;:&nbsp;<span class="keywordsign">'</span>a&nbsp;option;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;mask_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="keywordsign">'</span>a)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="keywordsign">'</span>a&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.mask
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_mask&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;(<span class="keywordsign">'</span>a&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t)&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="keywordsign">'</span>a&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.mask&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;<span class="keywordsign">'</span>a&nbsp;asyncMask&nbsp;=&nbsp;{&nbsp;m_master&nbsp;:&nbsp;<span class="keywordsign">'</span>a;&nbsp;m_slave&nbsp;:&nbsp;<span class="keywordsign">'</span>a;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;asyncMask_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="keywordsign">'</span>a)&nbsp;<span class="keywordsign">-&gt;</span>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="keywordsign">'</span>a&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.asyncMask
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_asyncMask&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;(<span class="keywordsign">'</span>a&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t)&nbsp;<span class="keywordsign">-&gt;</span>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">'</span>a&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.asyncMask&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;payload&nbsp;=&nbsp;<span class="constructor">Buffered</span>&nbsp;<span class="keyword">of</span>&nbsp;int32&nbsp;*&nbsp;<span class="constructor">Cstruct</span>.t&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">NotBuffered</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Cstruct</span>.t
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;payload_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.payload
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_payload&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.payload&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;xid&nbsp;=&nbsp;<span class="constructor">Frenetic_OpenFlow_Header</span>.xid
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;xid_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.xid
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_xid&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.xid&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;int12&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.int16
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;int12_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.int12
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_int12&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.int12&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;int24&nbsp;=&nbsp;int32
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;int24_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.int24
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_int24&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.int24&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;int128&nbsp;=&nbsp;int64&nbsp;*&nbsp;int64
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;int128_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.int128
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_int128&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.int128&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;val_to_mask&nbsp;:&nbsp;<span class="keywordsign">'</span>a1&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="keywordsign">'</span>a1&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.mask
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;ip_to_mask&nbsp;:
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;*&nbsp;int32&nbsp;<span class="keywordsign">-&gt;</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_Packet</span>.nwAddr&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.mask
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;switchId&nbsp;=&nbsp;int64
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;switchId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.switchId
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_switchId&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.switchId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;groupId&nbsp;=&nbsp;int32
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;groupId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupId
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_groupId&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;portId&nbsp;=&nbsp;int32
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;portId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portId
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_portId&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;tableId&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.int8
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tableId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableId
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_tableId&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;bufferId&nbsp;=&nbsp;int32
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;bufferId_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.bufferId
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_bufferId&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.bufferId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;switchFlags&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;frag_normal&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;frag_drop&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;frag_reasm&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;switchFlags_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.switchFlags
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_switchFlags&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.switchFlags&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;switchConfig&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;flags&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.switchFlags;
 &nbsp;&nbsp;&nbsp;&nbsp;miss_send_len&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;switchConfig_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.switchConfig
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_switchConfig&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.switchConfig&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;helloFailed&nbsp;=&nbsp;<span class="constructor">HelloIncompatible</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">HelloPermError</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;helloFailed_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.helloFailed
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_helloFailed&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.helloFailed&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;badRequest&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">ReqBadVersion</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ReqBadType</span>
@@ -116,8 +74,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ReqBadPort</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ReqBadPacket</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ReqMultipartBufOverflow</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;badRequest_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.badRequest
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_badRequest&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.badRequest&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;badAction&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">ActBadType</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ActBadLen</span>
@@ -135,8 +91,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ActBadSetTyp</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ActBadSetLen</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ActBadSetArg</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;badAction_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.badAction
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_badAction&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.badAction&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;badInstruction&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">InstUnknownInst</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">InstBadTableId</span>
@@ -147,10 +101,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">InstBadExpTyp</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">InstBadLen</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">InstPermError</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;badInstruction_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.badInstruction
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_badInstruction&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.badInstruction&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;badMatch&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">MatBadTyp</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">MatBadLen</span>
@@ -164,8 +114,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">MatBadPrereq</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">MatDupField</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">MatPermError</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;badMatch_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.badMatch
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_badMatch&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.badMatch&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;flowModFailed&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">FlUnknown</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">FlTableFull</span>
@@ -175,10 +123,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">FlBadTimeout</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">FlBadCommand</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">FlBadFlags</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;flowModFailed_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowModFailed
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_flowModFailed&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowModFailed&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;groupModFailed&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">GrGroupExists</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">GrInvalidGroup</span>
@@ -195,40 +139,16 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">GrBadBucket</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">GrBadWatch</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">GrPermError</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;groupModFailed_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupModFailed
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_groupModFailed&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupModFailed&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;portModFailed&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">PoBadPort</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">PoBadHwAddr</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">PoBadConfig</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">PoBadAdvertise</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">PoPermError</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;portModFailed_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portModFailed
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_portModFailed&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portModFailed&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;tableModFailed&nbsp;=&nbsp;<span class="constructor">TaBadTable</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">TaBadConfig</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">TaPermError</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tableModFailed_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableModFailed
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_tableModFailed&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableModFailed&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;queueOpFailed&nbsp;=&nbsp;<span class="constructor">QuBadPort</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">QuBadQueue</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">QuPermError</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;queueOpFailed_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.queueOpFailed
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_queueOpFailed&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.queueOpFailed&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;switchConfigFailed&nbsp;=&nbsp;<span class="constructor">ScBadFlags</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ScBadLen</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ScPermError</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;switchConfigFailed_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.switchConfigFailed
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_switchConfigFailed&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.switchConfigFailed&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;roleReqFailed&nbsp;=&nbsp;<span class="constructor">RoStale</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">RoUnsup</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">RoBadRole</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;roleReqFailed_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.roleReqFailed
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_roleReqFailed&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.roleReqFailed&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;meterModFailed&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">MeUnknown</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">MeMeterExists</span>
@@ -242,10 +162,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">MeBadBandValue</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">MeOutOfMeters</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">MeOutOfBands</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;meterModFailed_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterModFailed
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_meterModFailed&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterModFailed&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;tableFeatFailed&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TfBadTable</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">TfBadMeta</span>
@@ -253,18 +169,10 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">TfBadLen</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">TfBadArg</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">TfPermError</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tableFeatFailed_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableFeatFailed
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_tableFeatFailed&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableFeatFailed&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;experimenterFailed&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;exp_typ&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
 &nbsp;&nbsp;&nbsp;&nbsp;exp_id&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;experimenterFailed_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.experimenterFailed
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_experimenterFailed&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.experimenterFailed&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;errorTyp&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">HelloFailed</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.helloFailed
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">BadRequest</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.badRequest
@@ -281,11 +189,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">MeterModFailed</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterModFailed
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">TableFeatFailed</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableFeatFailed
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ExperimenterFailed</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.experimenterFailed
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;errorTyp_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.errorTyp
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_errorTyp&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.errorTyp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;length&nbsp;=&nbsp;<span class="constructor">Frenetic_Packet</span>.int16
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;length_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.length
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_length&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.length&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;oxmIPv6ExtHdr&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;noext&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;esp&nbsp;:&nbsp;bool;
@@ -297,10 +201,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;unrep&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;unseq&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;oxmIPv6ExtHdr_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.oxmIPv6ExtHdr
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_oxmIPv6ExtHdr&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.oxmIPv6ExtHdr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;oxm&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">OxmInPort</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portId
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">OxmInPhyPort</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portId
@@ -344,11 +244,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">OxmPBBIsid</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.int24&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.mask
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">OxmIPv6ExtHdr</span>&nbsp;<span class="keyword">of</span>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.oxmIPv6ExtHdr&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.mask
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;oxm_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.oxm
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_oxm&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.oxm&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;oxmMatch&nbsp;=&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.oxm&nbsp;list
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;oxmMatch_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.oxmMatch
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_oxmMatch&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.oxmMatch&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;parse_payload&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.payload&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;marshal_payload&nbsp;:
 &nbsp;&nbsp;&nbsp;&nbsp;int32&nbsp;option&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.packet&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.payload
@@ -363,8 +259,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Controller</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.int16
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Local</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Any</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;pseudoPort_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.pseudoPort
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_pseudoPort&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.pseudoPort&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;actionHdr&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">OutputHdr</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">GroupHdr</span>
@@ -383,8 +277,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">DecMplsTtlHdr</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">SetQueueHdr</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ExperimenterAHdr</span>&nbsp;<span class="keyword">of</span>&nbsp;int32
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;actionHdr_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.actionHdr
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_actionHdr&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.actionHdr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;action&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Output</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.pseudoPort
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Group</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupId
@@ -403,13 +295,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">DecMplsTtl</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">SetQueue</span>&nbsp;<span class="keyword">of</span>&nbsp;int32
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Experimenter</span>&nbsp;<span class="keyword">of</span>&nbsp;int32
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;action_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.action
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_action&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.action&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;actionSequence&nbsp;=&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.action&nbsp;list
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;actionSequence_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.actionSequence
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_actionSequence&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.actionSequence&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;instructionHdr&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">GotoTableHdr</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ApplyActionsHdr</span>
@@ -418,10 +304,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ClearHdr</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">MeterHdr</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ExperimenterHdr</span>&nbsp;<span class="keyword">of</span>&nbsp;int32
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;instructionHdr_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.instructionHdr
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_instructionHdr&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.instructionHdr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;instruction&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">GotoTable</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableId
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ApplyActions</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.actionSequence
@@ -430,21 +312,13 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Clear</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Meter</span>&nbsp;<span class="keyword">of</span>&nbsp;int32
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Experimenter</span>&nbsp;<span class="keyword">of</span>&nbsp;int32
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;instruction_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.instruction
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_instruction&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.instruction&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;bucket&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;bu_weight&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
 &nbsp;&nbsp;&nbsp;&nbsp;bu_watch_port&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portId&nbsp;option;
 &nbsp;&nbsp;&nbsp;&nbsp;bu_watch_group&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupId&nbsp;option;
 &nbsp;&nbsp;&nbsp;&nbsp;bu_actions&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.actionSequence;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;bucket_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.bucket
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_bucket&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.bucket&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;groupType&nbsp;=&nbsp;<span class="constructor">All</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Select</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Indirect</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">FF</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;groupType_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupType
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_groupType&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupType&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;groupMod&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">AddGroup</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupType&nbsp;*
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupId&nbsp;*&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.bucket&nbsp;list
@@ -452,21 +326,13 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupId
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ModifyGroup</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupType&nbsp;*
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupId&nbsp;*&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.bucket&nbsp;list
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;groupMod_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupMod
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_groupMod&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupMod&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;timeout&nbsp;=&nbsp;<span class="constructor">Permanent</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ExpiresAfter</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_Packet</span>.int16
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;timeout_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.timeout
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_timeout&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.timeout&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;flowModCommand&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">AddFlow</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ModFlow</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ModStrictFlow</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">DeleteFlow</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">DeleteStrictFlow</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;flowModCommand_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowModCommand
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_flowModCommand&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowModCommand&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;flowModFlags&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;fmf_send_flow_rem&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;fmf_check_overlap&nbsp;:&nbsp;bool;
@@ -474,10 +340,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;fmf_no_pkt_counts&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;fmf_no_byt_counts&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;flowModFlags_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowModFlags
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_flowModFlags&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowModFlags&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;flowMod&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;mfCookie&nbsp;:&nbsp;int64&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.mask;
 &nbsp;&nbsp;&nbsp;&nbsp;mfTable_id&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableId;
@@ -492,8 +354,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;mfOfp_match&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.oxmMatch;
 &nbsp;&nbsp;&nbsp;&nbsp;mfInstructions&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.instruction&nbsp;list;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;flowMod_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowMod
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_flowMod&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowMod&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;add_flow&nbsp;:
 &nbsp;&nbsp;&nbsp;&nbsp;tbl:<span class="constructor">Frenetic_OpenFlow0x04</span>.tableId&nbsp;<span class="keywordsign">-&gt;</span>
 &nbsp;&nbsp;&nbsp;&nbsp;prio:<span class="constructor">Frenetic_Packet</span>.int16&nbsp;<span class="keywordsign">-&gt;</span>
@@ -503,10 +363,6 @@
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;delete_all_flows&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowMod
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;delete_all_groups&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupMod
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;packetInReason&nbsp;=&nbsp;<span class="constructor">NoMatch</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ExplicitSend</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">InvalidTTL</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;packetInReason_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.packetInReason
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_packetInReason&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.packetInReason&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;packetIn&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;pi_total_len&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
 &nbsp;&nbsp;&nbsp;&nbsp;pi_reason&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.packetInReason;
@@ -515,15 +371,11 @@
 &nbsp;&nbsp;&nbsp;&nbsp;pi_ofp_match&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.oxmMatch;
 &nbsp;&nbsp;&nbsp;&nbsp;pi_payload&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.payload;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;packetIn_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.packetIn
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_packetIn&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.packetIn&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;flowReason&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">FlowIdleTimeout</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">FlowHardTiemout</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">FlowDelete</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">FlowGroupDelete</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;flowReason_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowReason
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_flowReason&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowReason&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;flowRemoved&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;cookie&nbsp;:&nbsp;int64;
 &nbsp;&nbsp;&nbsp;&nbsp;priority&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
@@ -537,10 +389,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;byte_count&nbsp;:&nbsp;int64;
 &nbsp;&nbsp;&nbsp;&nbsp;oxm&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.oxmMatch;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;flowRemoved_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowRemoved
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_flowRemoved&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowRemoved&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;capabilities&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;flow_stats&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;table_stats&nbsp;:&nbsp;bool;
@@ -550,21 +398,13 @@
 &nbsp;&nbsp;&nbsp;&nbsp;queue_stats&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;port_blocked&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;capabilities_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.capabilities
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_capabilities&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.capabilities&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;portState&nbsp;=&nbsp;{&nbsp;link_down&nbsp;:&nbsp;bool;&nbsp;blocked&nbsp;:&nbsp;bool;&nbsp;live&nbsp;:&nbsp;bool;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;portState_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portState
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_portState&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portState&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;portConfig&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;port_down&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;no_recv&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;no_fwd&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;no_packet_in&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;portConfig_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portConfig
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_portConfig&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portConfig&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;portFeatures&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;rate_10mb_hd&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;rate_10mb_fd&nbsp;:&nbsp;bool;
@@ -583,10 +423,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;pause&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;pause_asym&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;portFeatures_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portFeatures
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_portFeatures&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portFeatures&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;portDesc&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;port_no&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portId;
 &nbsp;&nbsp;&nbsp;&nbsp;hw_addr&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int48;
@@ -600,8 +436,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;curr_speed&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;&nbsp;&nbsp;max_speed&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;portDesc_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portDesc
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_portDesc&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portDesc&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;portMod&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;mpPortNo&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portId;
 &nbsp;&nbsp;&nbsp;&nbsp;mpHw_addr&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int48;
@@ -609,35 +443,19 @@
 &nbsp;&nbsp;&nbsp;&nbsp;mpMask&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;&nbsp;&nbsp;mpAdvertise&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portFeatures;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;portMod_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portMod
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_portMod&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portMod&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;portReason&nbsp;=&nbsp;<span class="constructor">PortAdd</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">PortDelete</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">PortModify</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;portReason_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portReason
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_portReason&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portReason&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;portStatus&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;reason&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portReason;
 &nbsp;&nbsp;&nbsp;&nbsp;desc&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portDesc;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;portStatus_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portStatus
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_portStatus&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portStatus&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;packetOut&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;po_payload&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.payload;
 &nbsp;&nbsp;&nbsp;&nbsp;po_port_id&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portId&nbsp;option;
 &nbsp;&nbsp;&nbsp;&nbsp;po_actions&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.actionSequence;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;packetOut_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.packetOut
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_packetOut&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.packetOut&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;rate&nbsp;=&nbsp;int32
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;rate_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.rate
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_rate&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.rate&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;burst&nbsp;=&nbsp;int32
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;burst_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.burst
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_burst&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.burst&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;experimenterId&nbsp;=&nbsp;int32
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;experimenterId_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.experimenterId
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_experimenterId&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.experimenterId&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;meterBand&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Drop</span>&nbsp;<span class="keyword">of</span>&nbsp;(<span class="constructor">Frenetic_OpenFlow0x04</span>.rate&nbsp;*&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.burst)
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">DscpRemark</span>&nbsp;<span class="keyword">of</span>
@@ -646,29 +464,19 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ExpMeter</span>&nbsp;<span class="keyword">of</span>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">Frenetic_OpenFlow0x04</span>.rate&nbsp;*&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.burst&nbsp;*
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.experimenterId)
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;meterBand_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterBand
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_meterBand&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterBand&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;meterCommand&nbsp;=&nbsp;<span class="constructor">AddMeter</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ModifyMeter</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">DeleteMeter</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;meterCommand_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterCommand
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_meterCommand&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterCommand&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;meterFlags&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;kbps&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;pktps&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;burst&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;stats&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;meterFlags_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterFlags
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_meterFlags&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterFlags&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;meterMod&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;command&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterCommand;
 &nbsp;&nbsp;&nbsp;&nbsp;flags&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterFlags;
 &nbsp;&nbsp;&nbsp;&nbsp;meter_id&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;&nbsp;&nbsp;bands&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterBand&nbsp;list;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;meterMod_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterMod
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_meterMod&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterMod&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;flowRequest&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;fr_table_id&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableId;
 &nbsp;&nbsp;&nbsp;&nbsp;fr_out_port&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portId;
@@ -676,26 +484,14 @@
 &nbsp;&nbsp;&nbsp;&nbsp;fr_cookie&nbsp;:&nbsp;int64&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.mask;
 &nbsp;&nbsp;&nbsp;&nbsp;fr_match&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.oxmMatch;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;flowRequest_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowRequest
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_flowRequest&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowRequest&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;queueRequest&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;port_number&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portId;
 &nbsp;&nbsp;&nbsp;&nbsp;queue_id&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;queueRequest_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.queueRequest
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_queueRequest&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.queueRequest&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;experimenter&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;exp_id&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.experimenterId;
 &nbsp;&nbsp;&nbsp;&nbsp;exp_type&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;experimenter_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.experimenter
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_experimenter&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.experimenter&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;tableFeatureProp&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">TfpInstruction</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.instructionHdr&nbsp;list
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">TfpInstructionMiss</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.instructionHdr&nbsp;list
@@ -713,15 +509,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">TfpApplySetFieldMiss</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.oxm&nbsp;list
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">TfpExperimenter</span>&nbsp;<span class="keyword">of</span>&nbsp;(<span class="constructor">Frenetic_OpenFlow0x04</span>.experimenter&nbsp;*&nbsp;<span class="constructor">Cstruct</span>.t)
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">TfpExperimenterMiss</span>&nbsp;<span class="keyword">of</span>&nbsp;(<span class="constructor">Frenetic_OpenFlow0x04</span>.experimenter&nbsp;*&nbsp;<span class="constructor">Cstruct</span>.t)
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tableFeatureProp_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableFeatureProp
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_tableFeatureProp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableFeatureProp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;tableConfig&nbsp;=&nbsp;<span class="constructor">Deprecated</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tableConfig_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableConfig
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_tableConfig&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableConfig&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;tableFeatures&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;length&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
 &nbsp;&nbsp;&nbsp;&nbsp;table_id&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableId;
@@ -732,10 +520,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;max_entries&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;&nbsp;&nbsp;feature_prop&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableFeatureProp&nbsp;list;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tableFeatures_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableFeatures
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_tableFeatures&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableFeatures&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;multipartType&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">SwitchDescReq</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">PortsDescReq</span>
@@ -752,18 +536,10 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">MeterFeatReq</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">TableFeatReq</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableFeatures&nbsp;list&nbsp;option
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ExperimentReq</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.experimenter
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;multipartType_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.multipartType
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_multipartType&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.multipartType&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;multipartRequest&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;mpr_type&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.multipartType;
 &nbsp;&nbsp;&nbsp;&nbsp;mpr_flags&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;multipartRequest_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.multipartRequest
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_multipartRequest&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.multipartRequest&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;portDescReq&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.multipartRequest
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;switchDesc&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;mfr_desc&nbsp;:&nbsp;string;
@@ -772,8 +548,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;serial_num&nbsp;:&nbsp;string;
 &nbsp;&nbsp;&nbsp;&nbsp;dp_desc&nbsp;:&nbsp;string;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;switchDesc_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.switchDesc
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_switchDesc&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.switchDesc&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;flowStats&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;table_id&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableId;
 &nbsp;&nbsp;&nbsp;&nbsp;duration_sec&nbsp;:&nbsp;int32;
@@ -788,25 +562,17 @@
 &nbsp;&nbsp;&nbsp;&nbsp;ofp_match&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.oxmMatch;
 &nbsp;&nbsp;&nbsp;&nbsp;instructions&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.instruction&nbsp;list;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;flowStats_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowStats
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_flowStats&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowStats&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;aggregStats&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;packet_count&nbsp;:&nbsp;int64;
 &nbsp;&nbsp;&nbsp;&nbsp;byte_count&nbsp;:&nbsp;int64;
 &nbsp;&nbsp;&nbsp;&nbsp;flow_count&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;aggregStats_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.aggregStats
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_aggregStats&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.aggregStats&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;tableStats&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;table_id&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableId;
 &nbsp;&nbsp;&nbsp;&nbsp;active_count&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;&nbsp;&nbsp;lookup_count&nbsp;:&nbsp;int64;
 &nbsp;&nbsp;&nbsp;&nbsp;matched_count&nbsp;:&nbsp;int64;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tableStats_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableStats
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_tableStats&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableStats&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;portStats&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;psPort_no&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portId;
 &nbsp;&nbsp;&nbsp;&nbsp;rx_packets&nbsp;:&nbsp;int64;
@@ -824,8 +590,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;duration_sec&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;&nbsp;&nbsp;duration_nsec&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;portStats_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portStats
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_portStats&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portStats&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;queueStats&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;qsPort_no&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portId;
 &nbsp;&nbsp;&nbsp;&nbsp;queue_id&nbsp;:&nbsp;int32;
@@ -835,13 +599,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;duration_sec&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;&nbsp;&nbsp;duration_nsec&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;queueStats_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.queueStats
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_queueStats&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.queueStats&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;bucketStats&nbsp;=&nbsp;{&nbsp;packet_count&nbsp;:&nbsp;int64;&nbsp;byte_count&nbsp;:&nbsp;int64;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;bucketStats_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.bucketStats
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_bucketStats&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.bucketStats&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;groupStats&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;length&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
 &nbsp;&nbsp;&nbsp;&nbsp;group_id&nbsp;:&nbsp;int32;
@@ -852,36 +610,24 @@
 &nbsp;&nbsp;&nbsp;&nbsp;duration_nsec&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;&nbsp;&nbsp;bucket_stats&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.bucketStats&nbsp;list;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;groupStats_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupStats
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_groupStats&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupStats&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;groupDesc&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;length&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
 &nbsp;&nbsp;&nbsp;&nbsp;typ&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupType;
 &nbsp;&nbsp;&nbsp;&nbsp;group_id&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;&nbsp;&nbsp;bucket&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.bucket&nbsp;list;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;groupDesc_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupDesc
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_groupDesc&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupDesc&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;groupCapabilities&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;select_weight&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;select_liveness&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;chaining&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;chaining_checks&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;groupCapabilities_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupCapabilities
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_groupCapabilities&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupCapabilities&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;groupTypeMap&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;all&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;select&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;indirect&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;ff&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;groupTypeMap_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupTypeMap
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_groupTypeMap&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupTypeMap&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;actionTypeMap&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;output&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;copy_ttl_out&nbsp;:&nbsp;bool;
@@ -900,10 +646,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;push_pbb&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;pop_pbb&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;actionTypeMap_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.actionTypeMap
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_actionTypeMap&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.actionTypeMap&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;groupFeatures&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;typ&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupTypeMap;
 &nbsp;&nbsp;&nbsp;&nbsp;capabilities&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupCapabilities;
@@ -916,18 +658,10 @@
 &nbsp;&nbsp;&nbsp;&nbsp;actions_indirect&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.actionTypeMap;
 &nbsp;&nbsp;&nbsp;&nbsp;actions_ff&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.actionTypeMap;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;groupFeatures_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupFeatures
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_groupFeatures&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.groupFeatures&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;meterBandStats&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;packet_band_count&nbsp;:&nbsp;int64;
 &nbsp;&nbsp;&nbsp;&nbsp;byte_band_count&nbsp;:&nbsp;int64;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;meterBandStats_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterBandStats
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_meterBandStats&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterBandStats&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;meterStats&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;meter_id&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;&nbsp;&nbsp;len&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
@@ -938,23 +672,13 @@
 &nbsp;&nbsp;&nbsp;&nbsp;duration_nsec&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;&nbsp;&nbsp;band&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterBandStats&nbsp;list;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;meterStats_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterStats
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_meterStats&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterStats&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;meterConfig&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;length&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.length;
 &nbsp;&nbsp;&nbsp;&nbsp;flags&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterFlags;
 &nbsp;&nbsp;&nbsp;&nbsp;meter_id&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;&nbsp;&nbsp;bands&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterBand&nbsp;list;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;meterConfig_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterConfig
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_meterConfig&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterConfig&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;meterBandMaps&nbsp;=&nbsp;{&nbsp;drop&nbsp;:&nbsp;bool;&nbsp;dscpRemark&nbsp;:&nbsp;bool;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;meterBandMaps_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterBandMaps
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_meterBandMaps&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterBandMaps&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;meterFeatures&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;max_meter&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;&nbsp;&nbsp;band_typ&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterBandMaps;
@@ -962,10 +686,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;max_band&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;
 &nbsp;&nbsp;&nbsp;&nbsp;max_color&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int8;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;meterFeatures_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterFeatures
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_meterFeatures&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterFeatures&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;multipartReplyTyp&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">PortsDescReply</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portDesc&nbsp;list
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">SwitchDescReply</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.switchDesc
@@ -981,104 +701,50 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">MeterReply</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterStats&nbsp;list
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">MeterConfig</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterConfig&nbsp;list
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">MeterFeaturesReply</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.meterFeatures
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;multipartReplyTyp_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.multipartReplyTyp
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_multipartReplyTyp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.multipartReplyTyp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;multipartReply&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;mpreply_typ&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.multipartReplyTyp;
 &nbsp;&nbsp;&nbsp;&nbsp;mpreply_flags&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;multipartReply_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.multipartReply
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_multipartReply&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.multipartReply&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;tableMod&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;table_id&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableId;
 &nbsp;&nbsp;&nbsp;&nbsp;config&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableConfig;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tableMod_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableMod
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_tableMod&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.tableMod&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;rateQueue&nbsp;=&nbsp;<span class="constructor">Rate</span>&nbsp;<span class="keyword">of</span>&nbsp;int&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Disabled</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;rateQueue_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.rateQueue
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_rateQueue&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.rateQueue&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;queueProp&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">MinRateProp</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.rateQueue
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">MaxRateProp</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.rateQueue
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ExperimenterProp</span>&nbsp;<span class="keyword">of</span>&nbsp;int32
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;queueProp_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.queueProp
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_queueProp&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.queueProp&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;queueDesc&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;queue_id&nbsp;:&nbsp;int32;
 &nbsp;&nbsp;&nbsp;&nbsp;port&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portId;
 &nbsp;&nbsp;&nbsp;&nbsp;len&nbsp;:&nbsp;<span class="constructor">Frenetic_Packet</span>.int16;
 &nbsp;&nbsp;&nbsp;&nbsp;properties&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.queueProp&nbsp;list;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;queueDesc_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.queueDesc
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_queueDesc&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.queueDesc&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;queueConfReq&nbsp;=&nbsp;{&nbsp;port&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portId;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;queueConfReq_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.queueConfReq
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_queueConfReq&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.queueConfReq&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;queueConfReply&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;port&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portId;
 &nbsp;&nbsp;&nbsp;&nbsp;queues&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.queueDesc&nbsp;list;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;queueConfReply_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.queueConfReply
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_queueConfReply&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.queueConfReply&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;controllerRole&nbsp;=&nbsp;<span class="constructor">NoChangeRole</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">EqualRole</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">MasterRole</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">SlaveRole</span>
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;controllerRole_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.controllerRole
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_controllerRole&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.controllerRole&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;roleRequest&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;role&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.controllerRole;
 &nbsp;&nbsp;&nbsp;&nbsp;generation_id&nbsp;:&nbsp;int64;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;roleRequest_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.roleRequest
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_roleRequest&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.roleRequest&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;supportedList&nbsp;=&nbsp;int&nbsp;list
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;supportedList_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.supportedList
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_supportedList&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.supportedList&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;element&nbsp;=&nbsp;<span class="constructor">VersionBitMap</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.supportedList
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;element_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.element
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_element&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.element&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;helloElement&nbsp;=&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.element&nbsp;list
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;helloElement_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.helloElement
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_helloElement&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.helloElement&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;packetInReasonMap&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;table_miss&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;apply_action&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;invalid_ttl&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;packetInReasonMap_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.packetInReasonMap
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_packetInReasonMap&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.packetInReasonMap&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;portReasonMap&nbsp;=&nbsp;{&nbsp;add&nbsp;:&nbsp;bool;&nbsp;delete&nbsp;:&nbsp;bool;&nbsp;modify&nbsp;:&nbsp;bool;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;portReasonMap_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portReasonMap
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_portReasonMap&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.portReasonMap&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;flowReasonMask&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;idle_timeout&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;hard_timeout&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;delete&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;&nbsp;&nbsp;group_delete&nbsp;:&nbsp;bool;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;flowReasonMask_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowReasonMask
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_flowReasonMask&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowReasonMask&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;asyncConfig&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;packet_in&nbsp;:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.packetInReasonMap&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.asyncMask;
@@ -1087,10 +753,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;flow_removed&nbsp;:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.flowReasonMask&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.asyncMask;
 &nbsp;&nbsp;}
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;asyncConfig_of_sexp&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.asyncConfig
-&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_asyncConfig&nbsp;:
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.asyncConfig&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;msg_code&nbsp;=
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">HELLO</span>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ERROR</span>
@@ -1635,8 +1297,6 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">GetAsyncReply</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">AsyncConfig</span>.t
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">SetAsync</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">AsyncConfig</span>.t
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Error</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Error</span>.t
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;t_of_sexp&nbsp;:&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Message</span>.t
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sexp_of_t&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Message</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Sexplib</span>.<span class="constructor">Sexp</span>.t
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sizeof&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Message</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;to_string&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Message</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;blit_message&nbsp;:&nbsp;<span class="constructor">Frenetic_OpenFlow0x04</span>.<span class="constructor">Message</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Cstruct</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int

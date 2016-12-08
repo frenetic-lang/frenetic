@@ -4,7 +4,7 @@
 <link rel="stylesheet" href="style.css" type="text/css">
 <meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
 <link rel="Start" href="index.html">
-<link rel="previous" href="Frenetic_NetKAT_Lexer.html">
+<link rel="previous" href="Frenetic_NetKAT_Json.html">
 <link rel="next" href="Frenetic_NetKAT_Virtual_Compiler.html">
 <link rel="Up" href="index.html">
 <link title="Index of types" rel=Appendix href="index_types.html">
@@ -18,13 +18,13 @@
 <link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
+<link title="Frenetic_NetKAT_Tokens" rel="Chapter" href="Frenetic_NetKAT_Tokens.html">
+<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
-<link title="Frenetic_NetKAT_Lexer" rel="Chapter" href="Frenetic_NetKAT_Lexer.html">
 <link title="Frenetic_NetKAT_Compiler" rel="Chapter" href="Frenetic_NetKAT_Compiler.html">
 <link title="Frenetic_NetKAT_Virtual_Compiler" rel="Chapter" href="Frenetic_NetKAT_Virtual_Compiler.html">
 <link title="Frenetic_NetKAT_Net" rel="Chapter" href="Frenetic_NetKAT_Net.html">
-<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
 <link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
@@ -41,7 +41,7 @@
 <title>Frenetic_NetKAT_Compiler</title>
 </head>
 <body>
-<div class="navbar"><a class="pre" href="Frenetic_NetKAT_Lexer.html" title="Frenetic_NetKAT_Lexer">Previous</a>
+<div class="navbar"><a class="pre" href="Frenetic_NetKAT_Json.html" title="Frenetic_NetKAT_Json">Previous</a>
 &nbsp;<a class="up" href="index.html" title="Index">Up</a>
 &nbsp;<a class="post" href="Frenetic_NetKAT_Virtual_Compiler.html" title="Frenetic_NetKAT_Virtual_Compiler">Next</a>
 </div>
@@ -237,29 +237,18 @@ The exception that's thrown when the local compiler is given a policy with a
 <pre><span id="TYPEflow_layout"><span class="keyword">type</span> <code class="type"></code>flow_layout</span> = <code class="type">Field.t list list</code> </pre>
 
 
-<pre><span id="VALflow_layout_of_sexp"><span class="keyword">val</span> flow_layout_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT_Compiler.html#TYPEflow_layout">flow_layout</a></code></pre>
-<pre><span id="VALsexp_of_flow_layout"><span class="keyword">val</span> sexp_of_flow_layout</span> : <code class="type"><a href="Frenetic_NetKAT_Compiler.html#TYPEflow_layout">flow_layout</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="TYPEtableId"><span class="keyword">type</span> <code class="type"></code>tableId</span> = <code class="type">int</code> </pre>
 
 
-<pre><span id="VALtableId_of_sexp"><span class="keyword">val</span> tableId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT_Compiler.html#TYPEtableId">tableId</a></code></pre>
-<pre><span id="VALsexp_of_tableId"><span class="keyword">val</span> sexp_of_tableId</span> : <code class="type"><a href="Frenetic_NetKAT_Compiler.html#TYPEtableId">tableId</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="TYPEmetaId"><span class="keyword">type</span> <code class="type"></code>metaId</span> = <code class="type">int</code> </pre>
 
 
-<pre><span id="VALmetaId_of_sexp"><span class="keyword">val</span> metaId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT_Compiler.html#TYPEmetaId">metaId</a></code></pre>
-<pre><span id="VALsexp_of_metaId"><span class="keyword">val</span> sexp_of_metaId</span> : <code class="type"><a href="Frenetic_NetKAT_Compiler.html#TYPEmetaId">metaId</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="TYPEflowId"><span class="keyword">type</span> <code class="type"></code>flowId</span> = <code class="type"><a href="Frenetic_NetKAT_Compiler.html#TYPEtableId">tableId</a> * <a href="Frenetic_NetKAT_Compiler.html#TYPEmetaId">metaId</a></code> </pre>
 
 
-<pre><span id="VALflowId_of_sexp"><span class="keyword">val</span> flowId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT_Compiler.html#TYPEflowId">flowId</a></code></pre>
-<pre><span id="VALsexp_of_flowId"><span class="keyword">val</span> sexp_of_flowId</span> : <code class="type"><a href="Frenetic_NetKAT_Compiler.html#TYPEflowId">flowId</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="TYPEinstruction"><span class="keyword">type</span> <code class="type"></code>instruction</span> = <code class="type">[ `Action of <a href="Frenetic_OpenFlow.html#TYPEgroup">Frenetic_OpenFlow.group</a><br>       | `GotoTable of <a href="Frenetic_NetKAT_Compiler.html#TYPEflowId">flowId</a> ]</code> </pre>
 
 
-<pre><span id="VALinstruction_of_sexp"><span class="keyword">val</span> instruction_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT_Compiler.html#TYPEinstruction">instruction</a></code></pre>
-<pre><span id="VAL__instruction_of_sexp__"><span class="keyword">val</span> __instruction_of_sexp__</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT_Compiler.html#TYPEinstruction">instruction</a></code></pre>
-<pre><span id="VALsexp_of_instruction"><span class="keyword">val</span> sexp_of_instruction</span> : <code class="type"><a href="Frenetic_NetKAT_Compiler.html#TYPEinstruction">instruction</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEmultitable_flow"><span class="keyword">type</span> <code class="type"></code>multitable_flow</span> = {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -307,7 +296,5 @@ The exception that's thrown when the local compiler is given a policy with a
 
 
 
-<pre><span id="VALmultitable_flow_of_sexp"><span class="keyword">val</span> multitable_flow_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_NetKAT_Compiler.html#TYPEmultitable_flow">multitable_flow</a></code></pre>
-<pre><span id="VALsexp_of_multitable_flow"><span class="keyword">val</span> sexp_of_multitable_flow</span> : <code class="type"><a href="Frenetic_NetKAT_Compiler.html#TYPEmultitable_flow">multitable_flow</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="VALlayout_to_string"><span class="keyword">val</span> layout_to_string</span> : <code class="type"><a href="Frenetic_NetKAT_Compiler.html#TYPEflow_layout">flow_layout</a> -> string</code></pre>
 <pre><span id="VALto_multitable"><span class="keyword">val</span> to_multitable</span> : <code class="type">?options:<a href="Frenetic_NetKAT_Compiler.html#TYPEcompiler_options">compiler_options</a> -><br>       <a href="Frenetic_OpenFlow.html#TYPEswitchId">Frenetic_OpenFlow.switchId</a> -><br>       <a href="Frenetic_NetKAT_Compiler.html#TYPEflow_layout">flow_layout</a> -><br>       <a href="Frenetic_NetKAT_Compiler.html#TYPEt">t</a> -><br>       <a href="Frenetic_NetKAT_Compiler.html#TYPEmultitable_flow">multitable_flow</a> list * <a href="Frenetic_GroupTable0x04.html#TYPEt">Frenetic_GroupTable0x04.t</a></code></pre></body></html>

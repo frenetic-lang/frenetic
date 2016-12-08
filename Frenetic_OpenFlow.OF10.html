@@ -18,13 +18,13 @@
 <link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
+<link title="Frenetic_NetKAT_Tokens" rel="Chapter" href="Frenetic_NetKAT_Tokens.html">
+<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
-<link title="Frenetic_NetKAT_Lexer" rel="Chapter" href="Frenetic_NetKAT_Lexer.html">
 <link title="Frenetic_NetKAT_Compiler" rel="Chapter" href="Frenetic_NetKAT_Compiler.html">
 <link title="Frenetic_NetKAT_Virtual_Compiler" rel="Chapter" href="Frenetic_NetKAT_Virtual_Compiler.html">
 <link title="Frenetic_NetKAT_Net" rel="Chapter" href="Frenetic_NetKAT_Net.html">
-<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
 <link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
@@ -80,23 +80,15 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALmask_of_sexp"><span class="keyword">val</span> mask_of_sexp</span> : <code class="type">(Sexplib.Sexp.t -> 'a) -> Sexplib.Sexp.t -> 'a <a href="Frenetic_OpenFlow0x01.html#TYPEmask">mask</a></code></pre>
-<pre><span id="VALsexp_of_mask"><span class="keyword">val</span> sexp_of_mask</span> : <code class="type">('a -> Sexplib.Sexp.t) -> 'a <a href="Frenetic_OpenFlow0x01.html#TYPEmask">mask</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="TYPEswitchId"><span class="keyword">type</span> <code class="type"></code>switchId</span> = <code class="type">int64</code> </pre>
 
 
-<pre><span id="VALswitchId_of_sexp"><span class="keyword">val</span> switchId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEswitchId">switchId</a></code></pre>
-<pre><span id="VALsexp_of_switchId"><span class="keyword">val</span> sexp_of_switchId</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEswitchId">switchId</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="TYPEportId"><span class="keyword">type</span> <code class="type"></code>portId</span> = <code class="type"><a href="Frenetic_Packet.html#TYPEint16">Frenetic_Packet.int16</a></code> </pre>
 
 
-<pre><span id="VALportId_of_sexp"><span class="keyword">val</span> portId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEportId">portId</a></code></pre>
-<pre><span id="VALsexp_of_portId"><span class="keyword">val</span> sexp_of_portId</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEportId">portId</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="TYPEqueueId"><span class="keyword">type</span> <code class="type"></code>queueId</span> = <code class="type">int32</code> </pre>
 
 
-<pre><span id="VALqueueId_of_sexp"><span class="keyword">val</span> queueId_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEqueueId">queueId</a></code></pre>
-<pre><span id="VALsexp_of_queueId"><span class="keyword">val</span> sexp_of_queueId</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEqueueId">queueId</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span id="TYPExid"><span class="keyword">type</span> <code class="type"></code>xid</span> = <code class="type"><a href="Frenetic_OpenFlow_Header.html#TYPExid">Frenetic_OpenFlow_Header.xid</a></code> </pre>
 
 
@@ -189,8 +181,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALpattern_of_sexp"><span class="keyword">val</span> pattern_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEpattern">pattern</a></code></pre>
-<pre><span id="VALsexp_of_pattern"><span class="keyword">val</span> sexp_of_pattern</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEpattern">pattern</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEpseudoPort"><span class="keyword">type</span> <code class="type"></code>pseudoPort</span> = </code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -251,8 +241,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALpseudoPort_of_sexp"><span class="keyword">val</span> pseudoPort_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEpseudoPort">pseudoPort</a></code></pre>
-<pre><span id="VALsexp_of_pseudoPort"><span class="keyword">val</span> sexp_of_pseudoPort</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEpseudoPort">pseudoPort</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEaction"><span class="keyword">type</span> <code class="type"></code>action</span> = </code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -334,8 +322,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALaction_of_sexp"><span class="keyword">val</span> action_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEaction">action</a></code></pre>
-<pre><span id="VALsexp_of_action"><span class="keyword">val</span> sexp_of_action</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEaction">action</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEtimeout"><span class="keyword">type</span> <code class="type"></code>timeout</span> = </code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -354,8 +340,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALtimeout_of_sexp"><span class="keyword">val</span> timeout_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEtimeout">timeout</a></code></pre>
-<pre><span id="VALsexp_of_timeout"><span class="keyword">val</span> sexp_of_timeout</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEtimeout">timeout</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEflowModCommand"><span class="keyword">type</span> <code class="type"></code>flowModCommand</span> = </code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -395,8 +379,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALflowModCommand_of_sexp"><span class="keyword">val</span> flowModCommand_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEflowModCommand">flowModCommand</a></code></pre>
-<pre><span id="VALsexp_of_flowModCommand"><span class="keyword">val</span> sexp_of_flowModCommand</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEflowModCommand">flowModCommand</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEflowMod"><span class="keyword">type</span> <code class="type"></code>flowMod</span> = {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -479,8 +461,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALflowMod_of_sexp"><span class="keyword">val</span> flowMod_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEflowMod">flowMod</a></code></pre>
-<pre><span id="VALsexp_of_flowMod"><span class="keyword">val</span> sexp_of_flowMod</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEflowMod">flowMod</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEpayload"><span class="keyword">type</span> <code class="type"></code>payload</span> = </code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -499,8 +479,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALpayload_of_sexp"><span class="keyword">val</span> payload_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEpayload">payload</a></code></pre>
-<pre><span id="VALsexp_of_payload"><span class="keyword">val</span> sexp_of_payload</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEpayload">payload</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEpacketInReason"><span class="keyword">type</span> <code class="type"></code>packetInReason</span> = </code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -519,8 +497,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALpacketInReason_of_sexp"><span class="keyword">val</span> packetInReason_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEpacketInReason">packetInReason</a></code></pre>
-<pre><span id="VALsexp_of_packetInReason"><span class="keyword">val</span> sexp_of_packetInReason</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEpacketInReason">packetInReason</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEpacketIn"><span class="keyword">type</span> <code class="type"></code>packetIn</span> = {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -554,8 +530,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALpacketIn_of_sexp"><span class="keyword">val</span> packetIn_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEpacketIn">packetIn</a></code></pre>
-<pre><span id="VALsexp_of_packetIn"><span class="keyword">val</span> sexp_of_packetIn</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEpacketIn">packetIn</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEflowRemovedReason"><span class="keyword">type</span> <code class="type"></code>flowRemovedReason</span> = </code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -581,8 +555,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALflowRemovedReason_of_sexp"><span class="keyword">val</span> flowRemovedReason_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEflowRemovedReason">flowRemovedReason</a></code></pre>
-<pre><span id="VALsexp_of_flowRemovedReason"><span class="keyword">val</span> sexp_of_flowRemovedReason</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEflowRemovedReason">flowRemovedReason</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEflowRemoved"><span class="keyword">type</span> <code class="type"></code>flowRemoved</span> = {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -651,8 +623,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALflowRemoved_of_sexp"><span class="keyword">val</span> flowRemoved_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEflowRemoved">flowRemoved</a></code></pre>
-<pre><span id="VALsexp_of_flowRemoved"><span class="keyword">val</span> sexp_of_flowRemoved</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEflowRemoved">flowRemoved</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEpacketOut"><span class="keyword">type</span> <code class="type"></code>packetOut</span> = {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -679,8 +649,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALpacketOut_of_sexp"><span class="keyword">val</span> packetOut_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEpacketOut">packetOut</a></code></pre>
-<pre><span id="VALsexp_of_packetOut"><span class="keyword">val</span> sexp_of_packetOut</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEpacketOut">packetOut</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEstatsReq"><span class="keyword">type</span> <code class="type"></code>statsReq</span> = {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -707,8 +675,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALstatsReq_of_sexp"><span class="keyword">val</span> statsReq_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEstatsReq">statsReq</a></code></pre>
-<pre><span id="VALsexp_of_statsReq"><span class="keyword">val</span> sexp_of_statsReq</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEstatsReq">statsReq</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPErequest"><span class="keyword">type</span> <code class="type"></code>request</span> = </code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -748,8 +714,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALrequest_of_sexp"><span class="keyword">val</span> request_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPErequest">request</a></code></pre>
-<pre><span id="VALsexp_of_request"><span class="keyword">val</span> sexp_of_request</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPErequest">request</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEdescriptionStats"><span class="keyword">type</span> <code class="type"></code>descriptionStats</span> = {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -790,8 +754,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALdescriptionStats_of_sexp"><span class="keyword">val</span> descriptionStats_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEdescriptionStats">descriptionStats</a></code></pre>
-<pre><span id="VALsexp_of_descriptionStats"><span class="keyword">val</span> sexp_of_descriptionStats</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEdescriptionStats">descriptionStats</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEindividualStats"><span class="keyword">type</span> <code class="type"></code>individualStats</span> = {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -874,8 +836,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALindividualStats_of_sexp"><span class="keyword">val</span> individualStats_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEindividualStats">individualStats</a></code></pre>
-<pre><span id="VALsexp_of_individualStats"><span class="keyword">val</span> sexp_of_individualStats</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEindividualStats">individualStats</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEaggregateStats"><span class="keyword">type</span> <code class="type"></code>aggregateStats</span> = {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -902,8 +862,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALaggregateStats_of_sexp"><span class="keyword">val</span> aggregateStats_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEaggregateStats">aggregateStats</a></code></pre>
-<pre><span id="VALsexp_of_aggregateStats"><span class="keyword">val</span> sexp_of_aggregateStats</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEaggregateStats">aggregateStats</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEportStats"><span class="keyword">type</span> <code class="type"></code>portStats</span> = {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -1000,8 +958,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALportStats_of_sexp"><span class="keyword">val</span> portStats_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEportStats">portStats</a></code></pre>
-<pre><span id="VALsexp_of_portStats"><span class="keyword">val</span> sexp_of_portStats</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEportStats">portStats</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEreply"><span class="keyword">type</span> <code class="type"></code>reply</span> = </code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -1034,8 +990,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALreply_of_sexp"><span class="keyword">val</span> reply_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEreply">reply</a></code></pre>
-<pre><span id="VALsexp_of_reply"><span class="keyword">val</span> sexp_of_reply</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEreply">reply</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEwildcards"><span class="keyword">type</span> <code class="type"></code>wildcards</span> = {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -1125,8 +1079,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALwildcards_of_sexp"><span class="keyword">val</span> wildcards_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEwildcards">wildcards</a></code></pre>
-<pre><span id="VALsexp_of_wildcards"><span class="keyword">val</span> sexp_of_wildcards</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEwildcards">wildcards</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEportConfig"><span class="keyword">type</span> <code class="type"></code>portConfig</span> = {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -1181,8 +1133,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALportConfig_of_sexp"><span class="keyword">val</span> portConfig_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEportConfig">portConfig</a></code></pre>
-<pre><span id="VALsexp_of_portConfig"><span class="keyword">val</span> sexp_of_portConfig</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEportConfig">portConfig</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEstpState"><span class="keyword">type</span> <code class="type"></code>stpState</span> = </code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -1215,8 +1165,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALstpState_of_sexp"><span class="keyword">val</span> stpState_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEstpState">stpState</a></code></pre>
-<pre><span id="VALsexp_of_stpState"><span class="keyword">val</span> sexp_of_stpState</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEstpState">stpState</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEportState"><span class="keyword">type</span> <code class="type"></code>portState</span> = {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -1236,8 +1184,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALportState_of_sexp"><span class="keyword">val</span> portState_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEportState">portState</a></code></pre>
-<pre><span id="VALsexp_of_portState"><span class="keyword">val</span> sexp_of_portState</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEportState">portState</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEportFeatures"><span class="keyword">type</span> <code class="type"></code>portFeatures</span> = {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -1327,8 +1273,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALportFeatures_of_sexp"><span class="keyword">val</span> portFeatures_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEportFeatures">portFeatures</a></code></pre>
-<pre><span id="VALsexp_of_portFeatures"><span class="keyword">val</span> sexp_of_portFeatures</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEportFeatures">portFeatures</a> -> Sexplib.Sexp.t</code></pre>
 <pre><code><span id="TYPEportDescription"><span class="keyword">type</span> <code class="type"></code>portDescription</span> = {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
@@ -1397,8 +1341,6 @@ parser is not yet equipped to handle.<br>
 
 
 
-<pre><span id="VALportDescription_of_sexp"><span class="keyword">val</span> portDescription_of_sexp</span> : <code class="type">Sexplib.Sexp.t -> <a href="Frenetic_OpenFlow0x01.html#TYPEportDescription">portDescription</a></code></pre>
-<pre><span id="VALsexp_of_portDescription"><span class="keyword">val</span> sexp_of_portDescription</span> : <code class="type"><a href="Frenetic_OpenFlow0x01.html#TYPEportDescription">portDescription</a> -> Sexplib.Sexp.t</code></pre>
 <pre><span class="keyword">module</span> <a href="Frenetic_OpenFlow0x01.Wildcards.html">Wildcards</a>: <code class="code">sig</code> <a href="Frenetic_OpenFlow0x01.Wildcards.html">..</a> <code class="code">end</code></pre>
 <pre><span class="keyword">module</span> <a href="Frenetic_OpenFlow0x01.Match.html">Match</a>: <code class="code">sig</code> <a href="Frenetic_OpenFlow0x01.Match.html">..</a> <code class="code">end</code></pre>
 <pre><span class="keyword">module</span> <a href="Frenetic_OpenFlow0x01.PseudoPort.html">PseudoPort</a>: <code class="code">sig</code> <a href="Frenetic_OpenFlow0x01.PseudoPort.html">..</a> <code class="code">end</code></pre>

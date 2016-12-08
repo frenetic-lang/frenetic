@@ -14,13 +14,13 @@
 <link title="Frenetic_OpenFlow0x04" rel="Chapter" href="Frenetic_OpenFlow0x04.html">
 <link title="Frenetic_GroupTable0x04" rel="Chapter" href="Frenetic_GroupTable0x04.html">
 <link title="Frenetic_NetKAT" rel="Chapter" href="Frenetic_NetKAT.html">
+<link title="Frenetic_NetKAT_Tokens" rel="Chapter" href="Frenetic_NetKAT_Tokens.html">
+<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
 <link title="Frenetic_NetKAT_Optimize" rel="Chapter" href="Frenetic_NetKAT_Optimize.html">
 <link title="Frenetic_NetKAT_Json" rel="Chapter" href="Frenetic_NetKAT_Json.html">
-<link title="Frenetic_NetKAT_Lexer" rel="Chapter" href="Frenetic_NetKAT_Lexer.html">
 <link title="Frenetic_NetKAT_Compiler" rel="Chapter" href="Frenetic_NetKAT_Compiler.html">
 <link title="Frenetic_NetKAT_Virtual_Compiler" rel="Chapter" href="Frenetic_NetKAT_Virtual_Compiler.html">
 <link title="Frenetic_NetKAT_Net" rel="Chapter" href="Frenetic_NetKAT_Net.html">
-<link title="Frenetic_NetKAT_Parser" rel="Chapter" href="Frenetic_NetKAT_Parser.html">
 <link title="Frenetic_NetKAT_Pretty" rel="Chapter" href="Frenetic_NetKAT_Pretty.html">
 <link title="Frenetic_NetKAT_Semantics" rel="Chapter" href="Frenetic_NetKAT_Semantics.html">
 <link title="Frenetic_Network" rel="Chapter" href="Frenetic_Network.html">
@@ -96,8 +96,6 @@ See the <code class="code">ofp_capabilities</code> enumeration in section 7.3.1 
 <tr><td><a href="Frenetic_OpenFlow0x01.FlowMod.Command.html">Command</a> [<a href="Frenetic_OpenFlow0x01.FlowMod.html">Frenetic_OpenFlow0x01.FlowMod</a>]</td>
 <td></td></tr>
 <tr><td align="left"><br>D</td></tr>
-<tr><td><a href="Frenetic_NetKAT_Semantics.HeadersValues.Fields.Direct.html">Direct</a> [<a href="Frenetic_NetKAT_Semantics.HeadersValues.Fields.html">Frenetic_NetKAT_Semantics.HeadersValues.Fields</a>]</td>
-<td></td></tr>
 <tr><td><a href="Frenetic_Packet.Dns.html">Dns</a> [<a href="Frenetic_Packet.html">Frenetic_Packet</a>]</td>
 <td><div class="info">
 Basic DNS packet type.
@@ -120,10 +118,6 @@ Hello Element structure.
 An error message.
 </div>
 </td></tr>
-<tr><td><a href="Frenetic_NetKAT_Lexer.Token.Error.html">Error</a> [<a href="Frenetic_NetKAT_Lexer.Token.html">Frenetic_NetKAT_Lexer.Token</a>]</td>
-<td></td></tr>
-<tr><td><a href="Frenetic_NetKAT_Lexer.Error.html">Error</a> [<a href="Frenetic_NetKAT_Lexer.html">Frenetic_NetKAT_Lexer</a>]</td>
-<td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow0x04.Error.html">Error</a> [<a href="Frenetic_OpenFlow0x04.html">Frenetic_OpenFlow0x04</a>]</td>
 <td><div class="info">
 Error message structure.
@@ -135,10 +129,6 @@ Error message structure.
 <tr><td><a href="Frenetic_NetKAT_Compiler.Field.html">Field</a> [<a href="Frenetic_NetKAT_Compiler.html">Frenetic_NetKAT_Compiler</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_Fdd.Field.html">Field</a> [<a href="Frenetic_Fdd.html">Frenetic_Fdd</a>]</td>
-<td></td></tr>
-<tr><td><a href="Frenetic_NetKAT_Semantics.HeadersValues.Fields.html">Fields</a> [<a href="Frenetic_NetKAT_Semantics.HeadersValues.html">Frenetic_NetKAT_Semantics.HeadersValues</a>]</td>
-<td></td></tr>
-<tr><td><a href="Frenetic_NetKAT_Lexer.Token.Filter.html">Filter</a> [<a href="Frenetic_NetKAT_Lexer.Token.html">Frenetic_NetKAT_Lexer.Token</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_Packet.Ip.Flags.html">Flags</a> [<a href="Frenetic_Packet.Ip.html">Frenetic_Packet.Ip</a>]</td>
 <td></td></tr>
@@ -213,11 +203,6 @@ The type of the intermediate compiler representation (FDD).
 JSON serialization/deserialization of NetKAT messages.
 </div>
 </td></tr>
-<tr><td><a href="Frenetic_NetKAT_Lexer.html">Frenetic_NetKAT_Lexer</a> </td>
-<td><div class="info">
-Lexical analyzer for NetKAT
-</div>
-</td></tr>
 <tr><td><a href="Frenetic_NetKAT_Net.html">Frenetic_NetKAT_Net</a> </td>
 <td></td></tr>
 <tr><td><a href="Frenetic_NetKAT_Optimize.html">Frenetic_NetKAT_Optimize</a> </td>
@@ -227,7 +212,7 @@ Warning: will re-order the elements in a union
 </td></tr>
 <tr><td><a href="Frenetic_NetKAT_Parser.html">Frenetic_NetKAT_Parser</a> </td>
 <td><div class="info">
-Same as policy_of_string, but NetKAT policy read from character stream
+parsing NetKAT polcies and predicates
 </div>
 </td></tr>
 <tr><td><a href="Frenetic_NetKAT_Pretty.html">Frenetic_NetKAT_Pretty</a> </td>
@@ -237,6 +222,8 @@ Same as policy_of_string, but NetKAT policy read from character stream
 Packets
 </div>
 </td></tr>
+<tr><td><a href="Frenetic_NetKAT_Tokens.html">Frenetic_NetKAT_Tokens</a> </td>
+<td></td></tr>
 <tr><td><a href="Frenetic_NetKAT_Virtual_Compiler.html">Frenetic_NetKAT_Virtual_Compiler</a> </td>
 <td></td></tr>
 <tr><td><a href="Frenetic_Network.html">Frenetic_Network</a> </td>
@@ -364,10 +351,6 @@ IPv4 frame of a packet.
 <tr><td><a href="Frenetic_Network.Link.html">Link</a> [<a href="Frenetic_Network.html">Frenetic_Network</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_NetKAT_Net.Link.html">Link</a> [<a href="Frenetic_NetKAT_Net.html">Frenetic_NetKAT_Net</a>]</td>
-<td></td></tr>
-<tr><td><a href="Frenetic_NetKAT_Lexer.Token.Loc.html">Loc</a> [<a href="Frenetic_NetKAT_Lexer.Token.html">Frenetic_NetKAT_Lexer.Token</a>]</td>
-<td></td></tr>
-<tr><td><a href="Frenetic_NetKAT_Lexer.Loc.html">Loc</a> [<a href="Frenetic_NetKAT_Lexer.html">Frenetic_NetKAT_Lexer</a>]</td>
 <td></td></tr>
 <tr><td align="left"><br>M</td></tr>
 <tr><td><a href="Frenetic_Vlr.Make.html">Make</a> [<a href="Frenetic_Vlr.html">Frenetic_Vlr</a>]</td>
@@ -646,8 +629,6 @@ TCP frame of a packet.
 <tr><td><a href="Frenetic_OpenFlow0x01.Timeout.html">Timeout</a> [<a href="Frenetic_OpenFlow0x01.html">Frenetic_OpenFlow0x01</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_OpenFlow.To0x01.html">To0x01</a> [<a href="Frenetic_OpenFlow.html">Frenetic_OpenFlow</a>]</td>
-<td></td></tr>
-<tr><td><a href="Frenetic_NetKAT_Lexer.Token.html">Token</a> [<a href="Frenetic_NetKAT_Lexer.html">Frenetic_NetKAT_Lexer</a>]</td>
 <td></td></tr>
 <tr><td><a href="Frenetic_Network.NETWORK.Topology.html">Topology</a> [<a href="Frenetic_Network.NETWORK.html">Frenetic_Network.NETWORK</a>]</td>
 <td></td></tr>
