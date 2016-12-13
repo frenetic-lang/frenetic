@@ -10,7 +10,11 @@ type order
     | `Static of Field.t list
     | `Heuristic ]
 
-type t
+module FDD : sig
+  include module type of Frenetic_Fdd.FDD
+end
+
+type t = FDD.t
 (** The type of the intermediate compiler representation (FDD). *)
 
 val to_dot : t -> string
