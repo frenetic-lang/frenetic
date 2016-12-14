@@ -108,6 +108,7 @@ let size (pol:policy) : int =
       | Union(pol1, pol2)
       | Seq(pol1, pol2) -> size pol1 (fun spol1 -> size pol2 (fun spol2 -> f (1 + spol1 + spol2)))
       | Star(pol) -> size pol (fun spol -> f (1 + spol))
+      | Let (id, init, mut, pol) -> size pol (fun s -> f (s+1))
       | Link(_,_,_,_) -> f 5
       | VLink(_,_,_,_) -> f 5 in
   size pol (fun spol -> spol)
@@ -133,7 +134,8 @@ let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
         Frenetic_OpenFlow.Pattern.Ip.less_eq (pkt.headers.ipDst, 32l) (n, m)
       | TCPSrcPort n -> pkt.headers.tcpSrcPort = n
       | TCPDstPort n -> pkt.headers.tcpDstPort = n
-      | VSwitch n | VPort n | VFabric n -> true (* SJS *)
+      | VSwitch _ | VPort _ | VFabric _ | Meta _ ->
+        failwith "meta fields not currently supported"
     end
   | And (pr1, pr2) -> eval_pred pkt pr1 && eval_pred pkt pr2
   | Or (pr1, pr2) -> eval_pred pkt pr1 || eval_pred pkt pr2
@@ -166,7 +168,8 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
         { pkt with headers = { pkt.headers with tcpSrcPort = n }}
       | TCPDstPort n ->
         { pkt with headers = { pkt.headers with tcpDstPort = n }}
-      | VSwitch n | VPort n | VFabric n -> pkt (* SJS *) in
+      | VSwitch _ | VPort _ | VFabric _ | Meta _ ->
+        failwith "meta fields not currently supported" in
     PacketSet.singleton pkt'
   | Union (pol1, pol2) ->
     PacketSet.union (eval pkt pol1) (eval pkt pol2)
@@ -180,10 +183,11 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
       let acc'' = PacketSet.union acc acc' in
       if PacketSet.equal acc acc'' then acc else loop acc'' in
       loop (PacketSet.singleton pkt)
-  | Link(sw,pt,sw',pt') ->
-    PacketSet.empty (* TODO(JNF): yeah no *)
-  | VLink(vsw,vpt,vsw',vpt') ->
-    PacketSet.empty (* SJS *)
+  | Link _ | VLink _ ->
+    failwith "global policies not currently supported"
+  | Let _ ->
+    failwith "meta fields not currently supported"
+
 
 let eval_pipes (packet:packet) (pol:Frenetic_NetKAT.policy)
   : (string * packet) list *
@@ -226,7 +230,9 @@ let queries_of_policy (pol : policy) : string list =
       if List.mem acc str then acc else str :: acc
     | Filter _ | Mod _ | Link _ | VLink _ -> acc
     | Union (p, q) | Seq (p, q) -> loop q (loop p acc)
-    | Star p -> loop p acc in
+    | Star p -> loop p acc
+    | Let (id, init, mut, body) -> loop body acc
+  in
   loop pol []
 
 (* JNF: is this dead code? *)

@@ -536,6 +536,7 @@ module Pol = struct
       in
       mk_big_seq [filter_loc s1 p1; Dup; post_link ]
     | VLink _ -> assert false (* SJS / JNF *)
+    | Let _ -> failwith "meta fields not supported by global compiler yet"
 end
 
 

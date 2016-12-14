@@ -56,6 +56,8 @@ let to_json_value (h : header_val) : json = match h with
   | TCPDstPort n -> `Int n
   | IP4Src (addr, mask)
   | IP4Dst (addr, mask) -> to_json_ip (addr, mask)
+  (* SJS: can we use ppx_deriving_yojson to do this stuff automatically? *)
+  | Meta _ -> failwith "meta fields not supported yet"
 
 let to_json_header (h : header_val) : json =
   let str = match h with
@@ -73,7 +75,8 @@ let to_json_header (h : header_val) : json =
     | IP4Dst _ -> "ip4dst"
     | TCPSrcPort _ -> "tcpsrcport"
     | TCPDstPort _ -> "tcpdstport"
-    | VFabric _ -> "vfabric" in
+    | VFabric _ -> "vfabric"
+    | Meta _ -> failwith "meta fields not supported yet" in
   `String str
 
 
@@ -116,6 +119,7 @@ let rec policy_to_json (pol : policy) : json = match pol with
             ("pt1", `Int (Int64.to_int_exn pt1));
             ("sw2", `Int (Int64.to_int_exn sw2));
             ("pt2", `Int (Int64.to_int_exn pt2))]
+  | Let _ -> failwith "meta fields not supported yet"
 
 
 (** From JSON **)
