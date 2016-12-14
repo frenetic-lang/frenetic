@@ -4,7 +4,7 @@ export OCAMLFIND_IGNORE_DUPS_IN
 
 .NOTPARALLEL:
 
-go: install-frenetic-deps oasis all
+go: clean install-frenetic-deps oasis enabletest all
 
 install-frenetic-deps:
 	cd ../.. && make uninstall && make && make reinstall
@@ -12,6 +12,9 @@ install-frenetic-deps:
 oasis:
 	oasis setup-clean
 	oasis setup
+
+enabletest: CONFIGUREFLAGS+=--enable-tests
+enabletest: configure
 
 # OASIS_START
 # DO NOT EDIT (digest: a3c674b4239234cbbe53afe090018954)
