@@ -95,7 +95,8 @@ module Field = struct
         | 4 -> Meta4
         | _ -> raise Full
       in
-      { alist = List.Assoc.add env.alist name (field, (init, mut)); depth = env.depth + 1}
+      { alist = List.Assoc.add env.alist name (field, (init, mut));
+        depth = env.depth + 1}
 
     let lookup env name =
       List.Assoc.find_exn env.alist name
