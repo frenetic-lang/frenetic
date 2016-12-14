@@ -20,7 +20,8 @@ XOCamlbuildExtraArgs:
   # SJS: importing these here ensures they are run last, after ppx_import
   -package ppx_deriving,ppx_deriving.eq,ppx_deriving.enum,ppx_deriving.show,ppx_jane
   -use-menhir
-  -cflags -w,-40,-short-paths
+  # see https://caml.inria.fr/pub/docs/manual-ocaml/native.html
+  -cflags -w,@5+8@11@12-40,-short-paths
 
 # generate standard parser, syntax extension parser, and tokens from common file
 PreBuildCommand:
