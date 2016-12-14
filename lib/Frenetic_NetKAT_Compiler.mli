@@ -10,10 +10,7 @@ type order
     | `Static of Field.t list
     | `Heuristic ]
 
-module FDD : sig
-  include module type of Frenetic_Fdd.FDD
-end
-
+module FDD : module type of Frenetic_Fdd.FDD
 type t = FDD.t
 (** The type of the intermediate compiler representation (FDD). *)
 
