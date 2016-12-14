@@ -116,7 +116,7 @@ let token ~ppx ~loc_start buf =
   | "port" -> PORT
   | "vswitch" -> VSWITCH
   | "vport" -> VPORT
-  | "vfrabric" -> VFABRIC
+  | "vfabric" -> VFABRIC
   | "ethSrc" -> ETHSRC
   | "ethDst" -> ETHDST
   | "vlanId" -> VLAN
