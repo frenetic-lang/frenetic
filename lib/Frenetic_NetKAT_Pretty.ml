@@ -8,12 +8,14 @@ module Formatting = struct
 
   type predicate_context = OR_L | OR_R | AND_L | AND_R | NEG | PAREN_PR
 
-  let format_header_val (fmt : formatter) (hv : header_val) (asgn : string) : unit = match hv with
+  let format_header_val (fmt : formatter) (hv : header_val) (asgn : string) : unit =
+    match hv with
+    | Meta (id, n) -> fprintf fmt "@[`%s %s %Lu@]" id asgn n
     | Switch(n) -> fprintf fmt "@[switch %s %Lu@]" asgn n
     | Location(Physical n) -> fprintf fmt "@[port %s %lu@]" asgn n
     | Location(FastFail n_lst) -> fprintf fmt "@[fastFail ports %s %s@]" asgn (string_of_fastfail n_lst)
-    | Location(Pipe x) -> fprintf fmt "@[port %s pipe(%s)@]" asgn x
-    | Location(Query x) -> fprintf fmt "@[port %s query(%s)@]" asgn x
+    | Location(Pipe x) -> fprintf fmt "@[port %s pipe(\"%s\")@]" asgn x
+    | Location(Query x) -> fprintf fmt "@[port %s query(\"%s\")@]" asgn x
     | EthSrc(n) -> fprintf fmt "@[ethSrc %s %s@]" asgn (Frenetic_Packet.string_of_mac n)
     | EthDst(n) -> fprintf fmt "@[ethDst %s %s@]" asgn (Frenetic_Packet.string_of_mac n)
     | Vlan(n) -> fprintf fmt "@[vlanId %s %d@]" asgn n
@@ -68,12 +70,17 @@ module Formatting = struct
     | STAR 
     | PAREN
 
+  let meta_init (fmt : formatter) (init : meta_init) : unit =
+    match init with
+    | Const int64 -> fprintf fmt "%Lu" int64
+    | Alias hv -> fprintf fmt "%s" Frenetic_Fdd.Field.(of_hv hv |> to_string)
+
   let rec pol (cxt : policy_context) (fmt : formatter) (p : policy) : unit =
     match p with
       | Filter (True as pr) | Filter (False as pr) ->  
-	pred PAREN_PR fmt pr
+        pred PAREN_PR fmt pr
       | Filter pr -> 
-	fprintf fmt "filter "; pred PAREN_PR fmt pr
+        fprintf fmt "filter "; pred PAREN_PR fmt pr
       | Mod hv -> 
         format_header_val fmt hv ":="
       | Star p' -> 
@@ -85,8 +92,8 @@ module Formatting = struct
       | Union (p1, p2) -> 
         begin match cxt with
           | PAREN
-          | PAR_L -> fprintf fmt "@[%a |@ %a@]" (pol PAR_L) p1 (pol PAR_R) p2
-          | _ -> fprintf fmt "@[(@[%a |@ %a@])@]" (pol PAR_L) p1 (pol PAR_R) p2
+          | PAR_L -> fprintf fmt "@[%a +@ %a@]" (pol PAR_L) p1 (pol PAR_R) p2
+          | _ -> fprintf fmt "@[(@[%a +@ %a@])@]" (pol PAR_L) p1 (pol PAR_R) p2
         end
       | Seq (p1, p2) -> 
         begin match cxt with
@@ -96,6 +103,12 @@ module Formatting = struct
           | SEQ_L -> fprintf fmt "@[%a;@ %a@]" (pol SEQ_L) p1 (pol SEQ_R) p2
           | _ -> fprintf fmt "@[(@[%a;@ %a@])@]" (pol SEQ_L) p1 (pol SEQ_R) p2
         end
+      | Let (id, init, mut, p) ->
+        fprintf fmt "@[%s %s := %a in %a@]"
+          (if mut then "var" else "let")
+          id
+          meta_init init
+          (pol PAREN) p
       | Link (sw,pt,sw',pt') ->
         fprintf fmt "@[%Lu@@%lu =>@ %Lu@@%lu@]"
           sw pt sw' pt'
@@ -120,6 +133,7 @@ let rec pretty_assoc (p : policy) : policy = match p with
   | Union (p1, p2) -> pretty_assoc_par p
   | Seq (p1, p2) -> pretty_assoc_seq p
   | Star p' -> Star (pretty_assoc p')
+  | Let (id, init, mut, p) -> Let (id, init, mut, pretty_assoc p)
 and pretty_assoc_par (p : policy) : policy = match p with
   | Union (p1, Union (p2, p3)) ->
     Union (pretty_assoc_par (Union (p1, p2)), pretty_assoc_par p3)

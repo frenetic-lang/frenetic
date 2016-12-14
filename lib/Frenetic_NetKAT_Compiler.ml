@@ -87,7 +87,8 @@ module FDD = struct
 
   let star t = star' id t
 
-  let hide env t meta_field init =
+  (** Erases (all matches on) meta field. No need to erase modifications. *)
+  let erase env t meta_field init =
     match init with
     | Const v ->
       let constr = Pattern.of_hv ~env (Meta (meta_field, v)) in
@@ -121,7 +122,7 @@ module FDD = struct
     | Star p -> of_local_pol_k env p (fun p' -> k (star p'))
     | Let (field, init, mut, p) ->
       let env = Field.Env.add env field init mut in
-      of_local_pol_k env p (fun p' -> k (hide env p' field init))
+      of_local_pol_k env p (fun p' -> k (erase env p' field init))
     | Link _ | VLink _ -> raise Non_local
 
   let rec of_local_pol ?(env=Field.Env.empty) p = of_local_pol_k env p ident
@@ -536,6 +537,7 @@ module Pol = struct
       in
       mk_big_seq [filter_loc s1 p1; Dup; post_link ]
     | VLink _ -> assert false (* SJS / JNF *)
+    | Let _ -> failwith "meta fields not supported by global compiler yet"
 end
 
 

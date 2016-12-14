@@ -57,12 +57,18 @@ module Field : sig
   type field = t
   include Frenetic_Vlr.HashCmp with type t := t
 
+  (** environment, mapping meta field identifiers to static FDD fields, and,
+      for convenience, the initializer and mutability of the identifier *)
   module Env : sig
     type t
     val empty : t
     exception Full
-    val add : t -> string -> Frenetic_NetKAT.meta_init -> bool -> t (* may raise Full *)
-    val lookup : t -> string -> field * (Frenetic_NetKAT.meta_init * bool) (* may raise Not_found *)
+
+    (** may raise Full *)
+    val add : t -> string -> Frenetic_NetKAT.meta_init -> bool -> t
+
+    (** may raise Not_found *)
+    val lookup : t -> string -> field * (Frenetic_NetKAT.meta_init * bool)
   end
 
   (** [all] returns the default field field ordering *)

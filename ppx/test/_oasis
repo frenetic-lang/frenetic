@@ -10,7 +10,6 @@ XDevFilesEnableMakefile: true
 BuildTools:
   ocamlbuild
 
-
 Executable main
   Path: .
   BuildDepends:
@@ -18,3 +17,10 @@ Executable main
     frenetic.ppx,
     threads
   MainIs: main.ml
+  CompiledObject: byte
+  Install: false
+
+Test main
+  TestTools: main
+  Command: ./main.byte
+  Run: true
