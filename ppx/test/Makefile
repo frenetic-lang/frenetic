@@ -2,6 +2,8 @@
 OCAMLFIND_IGNORE_DUPS_IN = $(shell ocamlfind query compiler-libs)
 export OCAMLFIND_IGNORE_DUPS_IN
 
+.NOTPARALLEL:
+
 go: install-frenetic-deps oasis all
 
 install-frenetic-deps:
