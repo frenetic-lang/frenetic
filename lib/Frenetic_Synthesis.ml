@@ -735,3 +735,18 @@ module LP_Pairs = struct
 
 
 end
+
+module LP_Config = struct
+
+  type input = assemblage
+
+  type solution = result
+
+  let synthesize (policy:input) (fabric:input) (topo:policy) =
+
+    let timings = [] in
+    let ingress = Filter True in
+    let egress = Filter False in
+    ( Union(ingress, egress), timings )
+    
+end
