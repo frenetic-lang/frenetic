@@ -542,7 +542,7 @@ let synthesize s : (string, string) Result.t =
   begin match s with
     | SGeneric -> Ok ( module MakeStrict(Generic) : DYADIC )
     | SOptical -> Ok ( module MakeStrict(Optical) : DYADIC )
-    | SLP -> Ok ( module Gurobi )
+    | SLP -> Ok ( module LP_Pairs )
     | SSMT ->
       (* This is just an example to test the synthesis code. Much of this needs
          to be parameterized. *)
@@ -708,7 +708,7 @@ let rec coronet c =
         let fabric = A.assemble fabric topo fedge fedge in
         let policy = A.assemble policy topo pedge pedge in
         ( try
-            let edge, timings = Frenetic_Synthesis.Gurobi.synthesize
+            let edge, timings = Frenetic_Synthesis.LP_Pairs.synthesize
                 (A.to_dyads policy) (A.to_dyads fabric) topo in
 
             log "Pre-synthesis user policy:\n%s\n"   (string_of_policy (A.program policy));

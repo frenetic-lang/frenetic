@@ -581,7 +581,7 @@ module Coronet = struct
 
 end
 
-module Gurobi = struct
+module LP_Pairs = struct
   open Frenetic_LP
   module Field = Frenetic_Fdd.Field
 
