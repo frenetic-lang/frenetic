@@ -581,7 +581,15 @@ module Coronet = struct
 
 end
 
-module LP_Pairs = struct
+(** This module uses the Gurobi solver to solve an LP problem that provides the
+    mapping from policy to fabric dyads. This version first eliminates possible
+    matchings that do not share endpoints (the `adjacent` function returns
+    false. The remaining are compared on the basis of their predicates: The
+    fabric predicate must test the same, or fewer fields than the predicate. As
+    of 2016-12-15 this approach does not seem correct---it is not useful
+    constrain matches based on predicate conflicts since they can be obviated
+    using tunneling. This approach is left here for completeness' sake. *)
+module LP_Predicated = struct
   open Frenetic_LP
   module Field = Frenetic_Fdd.Field
 

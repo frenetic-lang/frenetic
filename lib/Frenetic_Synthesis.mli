@@ -44,7 +44,7 @@ module MakeStrict(C:COMPARATOR) : SYNTHESIZER with
 module Coronet : SYNTHESIZER with
   type input = fiber list and type solution = result Async.Std.Deferred.t
 
-module LP_Pairs : SYNTHESIZER with
+module LP_Predicated : SYNTHESIZER with
   type input = Dyad.t list and type solution = result
 
 module Optical : COMPARATOR with type t = Dyad.t
