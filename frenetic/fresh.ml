@@ -30,6 +30,7 @@ type synthesize =
   | SGeneric
   | SOptical
   | SSMT
+  | SSAT_E
   | SLP
 
 module PathTable = Hashtbl.Make (struct
@@ -256,6 +257,7 @@ module Parser = struct
     (symbol "generic" >> return SGeneric) <|>
     (symbol "optical" >> return SOptical) <|>
     (symbol "smt" >> return SSMT) <|>
+    (symbol "sate" >> return SSAT_E) <|>
     (symbol "lp" >> return SLP)
 
   let synthesize : (command, bytes list) MParser.t =
@@ -543,6 +545,7 @@ let synthesize s : (string, string) Result.t =
     | SGeneric -> Ok ( module MakeStrict(Generic) : DYADIC )
     | SOptical -> Ok ( module MakeStrict(Optical) : DYADIC )
     | SLP -> Ok ( module LP_Predicated )
+    | SSAT_E -> Ok ( module SAT_Endpoints )
     | SSMT ->
       (* This is just an example to test the synthesis code. Much of this needs
          to be parameterized. *)

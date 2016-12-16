@@ -744,6 +744,101 @@ module LP_Predicated = struct
 
 end
 
+module SAT_Endpoints = struct
+
+  type input = Dyad.t list
+
+  type solution = result
+
+  let serialize policy fabric topo =
+    let open Frenetic_Time in
+    let init = ([],[],[],[]) in
+    let name = "problem.z3" in
+
+    let start = time () in
+    let acc = List.foldi policy ~init:init ~f:(fun pi acc pol ->
+        List.foldi fabric ~init:acc ~f:(fun fi acc fab ->
+            let dec_vars, dec_compats, implies, compats = acc in
+            let var = sprintf "(declare-var v%d%d Bool)" pi fi in
+            let comp = sprintf "(declare-var c%d%d Bool)" pi fi in
+            let imply = sprintf "(assert (implies v%d%d c%d%d))" pi fi pi fi in
+            let compat = if ( adjacent topo pol fab ) then
+                sprintf "(assert c%d%d)" pi fi
+              else sprintf "(assert (not c%d%d))" pi fi in
+            var::dec_vars, comp::dec_compats, imply::implies, compat::compats))
+    in
+    let dec_vars, dec_compats, implies, compats = acc in
+
+    let selects = List.foldi policy ~init:[] ~f:(fun pi acc pol ->
+
+        let vars = List.mapi fabric  ~f:(fun fi fab ->
+            sprintf "v%d%d" pi fi) in
+
+        let ands = List.foldi vars ~init:[ "))" ] ~f:(fun truei acc truevar ->
+            let checks = List.foldi vars ~init:[ ")" ] ~f:(fun i acc var ->
+                let str = if i = truei then var else sprintf "(not %s)" var in
+                str::acc) in
+            let check = String.concat ~sep:" " ( "(and"::checks ) in
+            check::acc) in
+
+        let select = String.concat ~sep:"\n" ( "(assert (or "::ands ) in
+        select::acc) in
+
+    let problem = String.concat ~sep:"\n\n" [
+        String.concat ~sep:"\n" dec_vars;
+        String.concat ~sep:"\n" dec_compats;
+        String.concat ~sep:"\n" implies;
+        String.concat ~sep:"\n" compats;
+        String.concat ~sep:"\n" selects;
+        "(check-sat)";
+        "(get-model)"] in
+
+    let gen_time = from start in
+    let outc = Out_channel.create name in
+    Out_channel.output_string outc problem;
+    Out_channel.close outc;
+    gen_time
+
+  let solve () =
+    let open Frenetic_Time in
+    let name = "problem.z3" in
+    let cmd = sprintf "z3 %s" name in
+
+    let start = time () in
+    let inc,outc = Unix.open_process cmd in
+    let answer = In_channel.input_all inc in
+    let _ = Unix.close_process ( inc, outc ) in
+    let solve_time = from start in
+
+    match String.substr_index answer ~pattern:"unsat" with
+    | None ->
+      printf "Result:\n";
+      printf "%s\n%!" answer;
+      true, solve_time
+    | Some i -> false, solve_time
+
+
+  let synthesize (policy:input) (fabric:input) (topo:policy) =
+    let open Frenetic_Time in
+    let preds = Fabric.Topo.predecessors topo in
+    let succs = Fabric.Topo.successors topo in
+    let topology = {topo; preds; succs} in
+
+    let form_time = serialize policy fabric topology in
+    let solution, soln_time = solve () in
+
+    let start = time () in
+    let ingress, egress = if solution then Filter True, Filter True
+      else Filter False, Filter False in
+    let gen_time = from start in
+
+    let timings = [ ("Formulation time" , form_time)
+                  ; ("Solution time"    , soln_time)
+                  ; ("Generation time"  , gen_time) ] in
+
+    ( Union(ingress, egress), timings )
+end
+
 module LP_Config = struct
 
   type input = assemblage
@@ -756,5 +851,5 @@ module LP_Config = struct
     let ingress = Filter True in
     let egress = Filter False in
     ( Union(ingress, egress), timings )
-    
+
 end
