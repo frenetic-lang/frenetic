@@ -750,6 +750,47 @@ module SAT_Endpoints = struct
 
   type solution = result
 
+  let parse chan =
+    let open MParser in
+    let module Tokens = MParser_RE.Tokens in
+    let symbol = Tokens.symbol in
+
+    let unsat = symbol "unsat" >> return [] in
+
+    let variable =
+      (char 'v' <|> char 'c') >>= fun c ->
+      char '_' >> many_chars digit >>= fun s ->
+      char '_' >> many_chars digit >>= fun d ->
+      match c with
+      | 'v' -> return (Some (s,d))
+      | _ -> return None in
+
+    let define_fun =
+      skip_many_until space ( char '(' ) >> symbol "define-fun" >>
+      variable >>= fun var -> blank >>
+      symbol "()" >> symbol "Bool" >>
+      ( (symbol "true" >> match var with None -> return None
+                                      | Some s -> return var ) <|>
+        (symbol "false" >> return None) ) >>= fun f ->
+      char ')' >> newline >> return f in
+
+    let model =
+      char '(' >> symbol "model" >>
+      many_until define_fun (char ')') >>= fun pairs ->
+      let result = List.fold pairs ~init:[] ~f:(fun acc p -> match p with
+          | Some (s,d) -> (int_of_string s,int_of_string d)::acc
+          | None -> acc) in
+      return result in
+
+    let sat = symbol "sat" >> model in
+
+    let result =
+      sat <|> unsat in
+
+    match MParser.parse_string result (In_channel.input_all chan) [] with
+    | Failed (msg, e) -> printf "%s\n%!" msg; []
+    | Success t -> t
+
   let serialize policy fabric topo =
     let open Frenetic_Time in
     let init = ([],[],[],[]) in
@@ -759,12 +800,12 @@ module SAT_Endpoints = struct
     let acc = List.foldi policy ~init:init ~f:(fun pi acc pol ->
         List.foldi fabric ~init:acc ~f:(fun fi acc fab ->
             let dec_vars, dec_compats, implies, compats = acc in
-            let var = sprintf "(declare-var v%d%d Bool)" pi fi in
-            let comp = sprintf "(declare-var c%d%d Bool)" pi fi in
-            let imply = sprintf "(assert (implies v%d%d c%d%d))" pi fi pi fi in
+            let var = sprintf "(declare-var v_%d_%d Bool)" pi fi in
+            let comp = sprintf "(declare-var c_%d_%d Bool)" pi fi in
+            let imply = sprintf "(assert (implies v_%d_%d c_%d_%d))" pi fi pi fi in
             let compat = if ( adjacent topo pol fab ) then
-                sprintf "(assert c%d%d)" pi fi
-              else sprintf "(assert (not c%d%d))" pi fi in
+                sprintf "(assert c_%d_%d)" pi fi
+              else sprintf "(assert (not c_%d_%d))" pi fi in
             var::dec_vars, comp::dec_compats, imply::implies, compat::compats))
     in
     let dec_vars, dec_compats, implies, compats = acc in
@@ -772,7 +813,7 @@ module SAT_Endpoints = struct
     let selects = List.foldi policy ~init:[] ~f:(fun pi acc pol ->
 
         let vars = List.mapi fabric  ~f:(fun fi fab ->
-            sprintf "v%d%d" pi fi) in
+            sprintf "v_%d_%d" pi fi) in
 
         let ands = List.foldi vars ~init:[ "))" ] ~f:(fun truei acc truevar ->
             let checks = List.foldi vars ~init:[ ")" ] ~f:(fun i acc var ->
@@ -799,24 +840,28 @@ module SAT_Endpoints = struct
     Out_channel.close outc;
     gen_time
 
-  let solve () =
+  let solve policy fabric topo =
     let open Frenetic_Time in
     let name = "problem.z3" in
     let cmd = sprintf "z3 %s" name in
 
     let start = time () in
     let inc,outc = Unix.open_process cmd in
-    let answer = In_channel.input_all inc in
-    let _ = Unix.close_process ( inc, outc ) in
-    let solve_time = from start in
+    let soln_time = from start in
 
-    match String.substr_index answer ~pattern:"unsat" with
-    | None ->
-      printf "Result:\n";
-      printf "%s\n%!" answer;
-      true, solve_time
-    | Some i -> false, solve_time
-
+    let indices = parse inc in
+    printf "Indices: %d\n%!" (List.length indices);
+    let start = time () in
+    let pairs = List.fold indices ~init:[] ~f:(fun acc (p,f) ->
+        match List.nth policy p, List.nth fabric f with
+        | Some p, Some f -> (p,f)::acc
+        | _, None -> printf "Unkown fabric index"; acc
+        | None, _ -> printf "Unkown policy index"; acc
+        | None, None ->  printf "Unkown indices"; acc
+      ) in
+    let ingress, egress = Optical.generate topo pairs in
+    let gen_time = from start in
+    Union(ingress, egress), soln_time, gen_time
 
   let synthesize (policy:input) (fabric:input) (topo:policy) =
     let open Frenetic_Time in
@@ -825,18 +870,13 @@ module SAT_Endpoints = struct
     let topology = {topo; preds; succs} in
 
     let form_time = serialize policy fabric topology in
-    let solution, soln_time = solve () in
-
-    let start = time () in
-    let ingress, egress = if solution then Filter True, Filter True
-      else Filter False, Filter False in
-    let gen_time = from start in
+    let solution, soln_time, gen_time = solve policy fabric topology in
 
     let timings = [ ("Formulation time" , form_time)
                   ; ("Solution time"    , soln_time)
                   ; ("Generation time"  , gen_time) ] in
 
-    ( Union(ingress, egress), timings )
+    ( solution, timings )
 end
 
 module LP_Config = struct
