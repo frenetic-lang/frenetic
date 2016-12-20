@@ -633,6 +633,7 @@ let corosynth (policy,pedge) (fabric,fedge) net cs =
   let policy = A.assemble policy topo pedge pedge in
 
   begin match cs with
+    | SOptical -> Ok ( module MakeStrict(Optical) : DYADIC )
     | SLP_E -> Ok ( module LP_Endpoints : DYADIC )
     | SSAT_E -> Ok ( module SAT_Endpoints : DYADIC )
     | _ -> Error "Coronet synthesis only works with LP and SATE"
