@@ -642,7 +642,7 @@ module LP_Predicated = struct
               let checks, cvars = matchup pol fab in
               let expr = sum cvars in
               let valid = Indicator( var, true, expr, Eq, 1L ) in
-              var::vars, valid::(checks@consts))) in
+            var::vars, valid::(checks@  consts))) in
 
     let allocs = Hashtbl.Poly.fold tbl ~init:[] ~f:(fun ~key:id ~data:vars acc ->
         let vars = List.map vars ~f:(fun v -> Var v) in
@@ -878,17 +878,56 @@ module SAT_Endpoints = struct
     ( solution, timings )
 end
 
-module LP_Config = struct
-
-  type input = assemblage
+module LP_Endpoints = struct
+  open Frenetic_LP
+ 
+  type input = Dyad.t list
 
   type solution = result
 
-  let synthesize (policy:input) (fabric:input) (topo:policy) =
+  let uid = Frenetic_Fabric.Dyad.uid
 
-    let timings = [] in
-    let ingress = Filter True in
-    let egress = Filter False in
-    ( Union(ingress, egress), timings )
+  let to_lp policy fabric topo =
+    let tbl = Hashtbl.Poly.create ~size:(List.length policy) () in
+
+    let vars, checks = List.fold policy ~init:([],[]) ~f:(fun (vars,checks) pol ->
+        List.fold fabric ~init:(vars,checks) ~f:(fun (vars,checks) fab ->
+            let var = sprintf "v_%d_%d" (uid pol) (uid fab) in
+            Hashtbl.Poly.add_multi tbl (uid pol) var;
+            let check = if ( adjacent topo pol fab ) then
+                Constraint( Var var, Eq, 1L)
+              else Constraint( Var var, Eq, 0L) in
+            var::vars, check::checks)) in
+
+    let allocs = Hashtbl.Poly.fold tbl ~init:[] ~f:(fun ~key:id ~data:vars acc ->
+        let vars = List.map vars ~f:(fun v -> Var v) in
+        let expr = sum vars in
+        Constraint(expr, Eq, 1L)::acc) in
+
+    let objective = Minimize( [sum (List.map vars ~f:(fun v -> Var v))]) in
+    let constraints = checks@allocs in
+    let bounds = [] in
+    let bools = [ Binary vars ] in
+    let sos = NoSos in
+    LP (objective, constraints, bounds, bools, sos)
+
+
+  let synthesize (policy:input) (fabric:input) (topo:policy) =
+    let open Frenetic_Time in
+    let preds = Fabric.Topo.predecessors topo in
+    let succs = Fabric.Topo.successors topo in
+    let topology = {topo; preds; succs} in
+
+    let start = time () in
+    let lp = to_lp policy fabric topology in
+    let form_time = from start in
+    (* let solution, soln_time, gen_time = solve policy fabric topology in *)
+    let solution, soln_time, gen_time = [], 0L, 0L in
+
+    let timings = [ ("Formulation time" , form_time)
+                  ; ("Solution time"    , soln_time)
+                  ; ("Generation time"  , gen_time) ] in
+
+    ( solution, timings )
 
 end
