@@ -83,7 +83,7 @@ module Coronet = struct
 
   let result (nodes:int) timings =
     let nodes_col = "Edge Nodes" in
-    let nodes_val = sprintf "|%d" nodes in
+    let nodes_val = sprintf "***%d" nodes in
     let columns = List.map timings ~f:fst in
     let times = List.map timings ~f:(fun t -> snd t |> Int64.to_string )in
     let header = String.concat ~sep:"\t" ( nodes_col::columns ) in
@@ -641,12 +641,12 @@ let corosynth (policy,pedge) (fabric,fedge) net cs =
 
   let module S = (val s) in
   try
-    let edge, timings = S.synthesize
-        (A.to_dyads policy) (A.to_dyads fabric) topo in
-
     log "Pre-synthesis user policy:\n%s\n"   (string_of_policy (A.program policy));
     log "Pre-synthesis fabric policy:\n%s\n" (string_of_policy (A.program fabric ));
-    log "Synthesized edge policy:\n%s\n"     (string_of_policy edge);
+    let edge, timings = S.synthesize
+        (A.to_dyads policy) (A.to_dyads fabric) topo in
+    log "Synthesized edge policy:\n%s\n%!"     (string_of_policy edge);
+
     (* let edge_fdd = Compiler.compile_local ~options:keep_cache edge in *)
     (* state.edge <- Some { new_config with *)
     (*                      policy = edge; *)
@@ -655,7 +655,8 @@ let corosynth (policy,pedge) (fabric,fedge) net cs =
     let nodes = ( List.length state.east ) +
                 ( List.length state.west ) in
     let report = result nodes timings in
-    let msg = String.concat ~sep:"\n" ("Edge policies compiled successfully" :: report ) in
+    let edge' = string_of_policy edge in
+    let msg = String.concat ~sep:"\n" ("Edge policies compiled successfully" :: edge':: report ) in
     Ok msg
   with
   | Frenetic_LP.LPParseError e ->
@@ -797,7 +798,15 @@ let rec coronet c =
       | _, _, None ->
         Error "Load and preprocess Coronet topologies and paths first"
       | Some p, Some f, Some net ->
-        corosynth p f net cs end
+        try corosynth p f net cs
+        with
+        | Frenetic_Synthesis.UnmatchedDyad d ->
+          let fabric = string_of_policy (fst f) in
+          let net' = sprintf "Surrounded topology:\n%s\n%!"
+              (CoroNet.Pretty.to_mininet net) in
+          let msg = sprintf "Unmatched dyad:%s\n" (Frenetic_Fabric.Dyad.to_string d) in
+          Error ( fabric ^ net' ^ msg)
+    end
 
 let post (uri:Uri.t) (body:string) =
   let open Cohttp.Body in

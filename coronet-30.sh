@@ -9,4 +9,4 @@ do
 done
 
 echo "EdgeNodes	Formulation(msecs)	Solution(msecs)	Generation(msecs)"
-cat results.txt | grep "|" | tr -d "|"
+cat results.txt | grep "\*\*\*" | tr -d "***"
