@@ -871,10 +871,10 @@ module LP_Endpoints = struct
         List.fold fabric ~init:(vars,checks) ~f:(fun (vars,checks) fab ->
             let var = sprintf "v_%d_%d" (uid pol) (uid fab) in
             Hashtbl.Poly.add_multi tbl (uid pol) var;
-            let check = if ( adjacent topo pol fab ) then
-                Constraint( Var var, Eq, 1L)
-              else Constraint( Var var, Eq, 0L) in
-            var::vars, check::checks)) in
+            let checks = if not (adjacent topo pol fab ) then
+                Constraint( Var var, Eq, 0L)::checks
+              else checks in
+            var::vars, checks)) in
 
     let allocs = Hashtbl.Poly.fold tbl ~init:[] ~f:(fun ~key:id ~data:vars acc ->
         let vars = List.map vars ~f:(fun v -> Var v) in
