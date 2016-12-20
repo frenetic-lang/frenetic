@@ -385,6 +385,13 @@ let string_of_config c =
     (string_of_locs c.ingresses)
     (string_of_locs c.egresses)
 
+let result timings =
+    let columns = List.map timings ~f:fst in
+    let times = List.map timings ~f:(fun t -> snd t |> Int64.to_string )in
+    let header = String.concat ~sep:"\t" columns in
+    let values = String.concat ~sep:"\t" times in
+    [ header; values ]
+
 let config (s:source) (i:loc list) (o:loc list) : (configuration, string) Result.t =
   Source.to_policy s >>| fun pol ->
   { new_config with policy = pol ;
@@ -574,7 +581,7 @@ let synthesize s : (string, string) Result.t =
         f.config.ingresses f.config.egresses in
     let policy = A.assemble c.policy t c.ingresses c.egresses in
     ( try
-        let edge,_ = S.synthesize (A.to_dyads policy) (A.to_dyads fabric) t in
+        let edge, timings = S.synthesize (A.to_dyads policy) (A.to_dyads fabric) t in
 
         log "Pre-synthesis user policy:\n%s\n"   (string_of_policy (A.program policy));
         log "Pre-synthesis fabric policy:\n%s\n" (string_of_policy (A.program fabric ));
@@ -585,7 +592,10 @@ let synthesize s : (string, string) Result.t =
                              policy = edge;
                              ingresses = c.ingresses; egresses = c.egresses;
                              fdd = Some edge_fdd };
-        Ok "Edge policies compiled successfully"
+        let report = result timings in
+        let msg = String.concat ~sep:"\n"
+            ("Edge policies compiled successfully"::report) in
+        Ok msg
       with
       | LPParseError e -> Error (sprintf "Cannot parse LP Solution: %s\n" e))
   | _ -> Error "Edge compilation requires naive policy, fabric and topology"
