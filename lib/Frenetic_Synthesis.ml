@@ -880,7 +880,7 @@ end
 
 module LP_Endpoints = struct
   open Frenetic_LP
- 
+
   type input = Dyad.t list
 
   type solution = result
@@ -911,9 +911,47 @@ module LP_Endpoints = struct
     let sos = NoSos in
     LP (objective, constraints, bounds, bools, sos)
 
+  let clean fname = match Sys.file_exists fname with
+      | `Yes -> Sys.remove fname
+      | _ -> ()
+
+  let write fname string =
+    let outc = Out_channel.create fname in
+    Out_channel.output_string outc string;
+    Out_channel.close outc
+
+  let read fname =
+    let chan = In_channel.create fname in
+    In_channel.fold_lines chan ~init:[] ~f:(fun acc line ->
+        match String.index line '#' with
+        | Some i -> acc
+        | None -> begin match String.lsplit2 line ~on:' ' with
+            | Some (var, value) ->
+              if Int64.of_string value = 1L then var::acc
+              else acc
+            | None ->
+              let msg = sprintf "Solution Line: |%s|\n" line in
+              raise (LPParseError msg) end)
+
+  let pair policy fabric solns =
+    List.fold solns ~init:[] ~f:(fun acc soln ->
+        match String.split soln ~on:'_' with
+        | ["v";p;f] ->
+          let p_id = Int.of_string p in
+          let f_id = Int.of_string f in
+          let pol = List.find_exn policy ~f:(fun d -> (uid d) = p_id) in
+          let fab = List.find_exn fabric ~f:(fun d -> (uid d) = f_id) in
+          (pol, fab)::acc
+        | _ ->
+          let msg = sprintf "Variable: %s\n" soln in
+          raise (LPParseError msg))
+
 
   let synthesize (policy:input) (fabric:input) (topo:policy) =
     let open Frenetic_Time in
+    let lp_file = "synthesis.lp" in
+    let sol_file = "synthesis.sol" in
+
     let preds = Fabric.Topo.predecessors topo in
     let succs = Fabric.Topo.successors topo in
     let topology = {topo; preds; succs} in
@@ -921,13 +959,28 @@ module LP_Endpoints = struct
     let start = time () in
     let lp = to_lp policy fabric topology in
     let form_time = from start in
-    (* let solution, soln_time, gen_time = solve policy fabric topology in *)
-    let solution, soln_time, gen_time = [], 0L, 0L in
+
+    clean sol_file;
+    clean lp_file;
+    write lp_file (Frenetic_LP.to_string lp);
+
+    let cmd = sprintf "gurobi_cl ResultFile=%s %s > gurobi_output.log"
+        sol_file lp_file in
+    let start = time () in
+    Sys.command_exn cmd;
+    let soln_time = from start in
+
+    let soln = read sol_file in
+    let pairs = pair policy fabric soln in
+
+    let start = time () in
+    let ingress, egress = Optical.generate topology pairs in
+    let gen_time = from start in
 
     let timings = [ ("Formulation time" , form_time)
                   ; ("Solution time"    , soln_time)
                   ; ("Generation time"  , gen_time) ] in
 
-    ( solution, timings )
+    ( Union(ingress, egress), timings )
 
 end

@@ -50,6 +50,9 @@ module LP_Predicated : SYNTHESIZER with
 module SAT_Endpoints : SYNTHESIZER with
   type input = Dyad.t list and type solution = result
 
+module LP_Endpoints : SYNTHESIZER with
+  type input = Dyad.t list and type solution = result
+
 module Optical : COMPARATOR with type t = Dyad.t
 module Generic : COMPARATOR with type t = Dyad.t
 

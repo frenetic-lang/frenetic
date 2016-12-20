@@ -31,6 +31,7 @@ type synthesize =
   | SOptical
   | SSMT
   | SSAT_E
+  | SLP_E
   | SLP
 
 module PathTable = Hashtbl.Make (struct
@@ -259,6 +260,7 @@ module Parser = struct
     (symbol "optical" >> return SOptical) <|>
     (symbol "smt" >> return SSMT) <|>
     (symbol "sate" >> return SSAT_E) <|>
+    (symbol "lpe" >> return SLP_E) <|>
     (symbol "lp" >> return SLP)
 
   let synthesize : (command, bytes list) MParser.t =
@@ -548,6 +550,7 @@ let synthesize s : (string, string) Result.t =
     | SOptical -> Ok ( module MakeStrict(Optical) : DYADIC )
     | SLP -> Ok ( module LP_Predicated )
     | SSAT_E -> Ok ( module SAT_Endpoints )
+    | SLP_E  -> Ok ( module LP_Endpoints )
     | SSMT ->
       (* This is just an example to test the synthesis code. Much of this needs
          to be parameterized. *)
@@ -620,7 +623,7 @@ let corosynth (policy,pedge) (fabric,fedge) net cs =
   let policy = A.assemble policy topo pedge pedge in
 
   begin match cs with
-    | SLP -> Ok ( module LP_Predicated : DYADIC )
+    | SLP -> Ok ( module LP_Endpoints : DYADIC )
     | SSAT_E -> Ok ( module SAT_Endpoints : DYADIC )
     | _ -> Error "Coronet synthesis only works with LP and SATE"
   end >>= fun s ->
