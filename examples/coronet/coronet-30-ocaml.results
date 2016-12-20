@@ -1,0 +1,5 @@
+EdgeNodes       Formulation(msecs)      Solution(msecs) Generation(msecs)
+2       0       19619   7025
+4       0       94791   11714
+6       0       314766  18611
+8       0       642240  24449

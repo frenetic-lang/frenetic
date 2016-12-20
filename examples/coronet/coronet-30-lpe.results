@@ -1,0 +1,5 @@
+EdgeNodes       Formulation(nsecs)      Solution(nsecs) Generation(nsecs)
+2       55414   9377747 17798
+4       337270  15667222        29099
+6       2568204 23006021        61039
+8       7218939 21033073        75451
