@@ -850,13 +850,12 @@ module SAT_Endpoints = struct
     let soln_time = from start in
 
     let indices = parse inc in
-    printf "Indices: %d\n%!" (List.length indices);
     let start = time () in
     let pairs = List.fold indices ~init:[] ~f:(fun acc (p,f) ->
         match List.nth policy p, List.nth fabric f with
         | Some p, Some f -> (p,f)::acc
-        | _, None -> printf "Unkown fabric index"; acc
-        | None, _ -> printf "Unkown policy index"; acc
+        | Some _, None -> printf "Unkown fabric index"; acc
+        | None, Some _ -> printf "Unkown policy index"; acc
         | None, None ->  printf "Unkown indices"; acc
       ) in
     let ingress, egress = Optical.generate topo pairs in

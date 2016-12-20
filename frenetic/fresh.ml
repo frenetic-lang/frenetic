@@ -76,10 +76,11 @@ module Coronet = struct
     | CWest of string list
     | CPath of string * string
     | CPeek
+    | CSMT
     | CPreprocess
     | CSynthesize of synthesize
 
-  let lp_result (nodes:int) timings =
+  let result (nodes:int) timings =
     let nodes_col = "Edge Nodes" in
     let nodes_val = sprintf "%d" nodes in
     let columns = List.map timings ~f:fst in
@@ -277,6 +278,7 @@ module Parser = struct
       (symbol "east" >> string_list >>= fun e -> return ( CEast e )) <|>
       (symbol "west" >> string_list >>= fun w -> return ( CWest w )) <|>
       (symbol "peek" >> return CPeek) <|>
+      (symbol "smt" >> return CSMT) <|>
       (symbol "path" >>
        many_chars alphanum >>= fun src -> spaces >>
        many_chars alphanum >>= fun dst ->
@@ -585,6 +587,66 @@ let synthesize s : (string, string) Result.t =
       | LPParseError e -> Error (sprintf "Cannot parse LP Solution: %s\n" e))
   | _ -> Error "Edge compilation requires naive policy, fabric and topology"
 
+let cpeek () =
+  let state = Coronet.state in
+  match Async.Std.Deferred.peek state.result with
+  | None -> Error "No result available yet"
+  | Some (edge, [gen_time;synth_time]) ->
+    let open Frenetic_Time in
+    let ids = state.switches in
+    let compiled = Compiler.compile_local ~options:keep_cache edge in
+    let num_flows = List.fold ids ~init:0 ~f:(fun num id ->
+        let flows = Frenetic_NetKAT_Compiler.to_table id compiled in
+        (List.length flows) + num) in
+    let nodes = ( List.length state.east ) +
+                ( List.length state.west ) in
+    let result = sprintf "|%d\t%Ld\t%Ld\t%Ld\t%d\n"
+        nodes
+        (to_msecs state.preproc)
+        (to_msecs (snd gen_time)) (to_secs (snd synth_time))
+        num_flows in
+    Ok result
+  | Some (edge, _) -> Ok (string_of_policy edge)
+
+
+let corosynth (policy,pedge) (fabric,fedge) net cs =
+  let (>>=) = Result.(>>=) in
+  let state = Coronet.state in
+  let result = Coronet.result in
+  let open Frenetic_Synthesis in
+  let module A = Fabric.Assemblage in
+  let topo = (CoroNet.Pretty.to_netkat net) in
+  let fabric = A.assemble fabric topo fedge fedge in
+  let policy = A.assemble policy topo pedge pedge in
+
+  begin match cs with
+    | SLP -> Ok ( module LP_Predicated : DYADIC )
+    | SSAT_E -> Ok ( module SAT_Endpoints : DYADIC )
+    | _ -> Error "Coronet synthesis only works with LP and SATE"
+  end >>= fun s ->
+
+  let module S = (val s) in
+  try
+    let edge, timings = S.synthesize
+        (A.to_dyads policy) (A.to_dyads fabric) topo in
+
+    log "Pre-synthesis user policy:\n%s\n"   (string_of_policy (A.program policy));
+    log "Pre-synthesis fabric policy:\n%s\n" (string_of_policy (A.program fabric ));
+    log "Synthesized edge policy:\n%s\n"     (string_of_policy edge);
+    (* let edge_fdd = Compiler.compile_local ~options:keep_cache edge in *)
+    (* state.edge <- Some { new_config with *)
+    (*                      policy = edge; *)
+    (*                      ingresses = c.ingresses; egresses = c.egresses; *)
+    (*                      fdd = Some edge_fdd }; *)
+    let nodes = ( List.length state.east ) +
+                ( List.length state.west ) in
+    let report = result nodes timings in
+    let msg = String.concat ~sep:"\n" ("Edge policies compiled successfully" :: report ) in
+    Ok msg
+  with
+  | Frenetic_Synthesis.LPParseError e ->
+    Error (sprintf "Cannot parse LP Solution: %s\n" e)
+
 let rec coronet c =
   let open Coronet in
   match c with
@@ -677,84 +739,6 @@ let rec coronet c =
         | CoroNet.CoroPath.UnjoinablePaths s ->
           Error (sprintf "Unjoinable paths %s\n" s) end
 
-  | CSynthesize SSMT -> begin match state.fibers, state.network with
-      | _, None
-      | ([], []), _ ->
-        Error "Load and preprocess Coronet topologies and paths first"
-      | (fspolicy, fsfabric), Some net ->
-        (* Call the synthesis back-end *)
-        let module C = Frenetic_Synthesis.Coronet in
-        let netkat = (CoroNet.Pretty.to_netkat net) in
-        let results = C.synthesize fspolicy fsfabric netkat in
-        state.result <- results;
-
-        (* Register a callback to print the results when they're ready *)
-        Deferred.upon results (fun r ->
-            printf "Coronet Synthesis complete";
-            match coronet CPeek with
-            | Ok result -> printf "%s\n" result
-            | Error e -> printf "Error:%s\n" e
-            (* The shell could be terminated at this point, if being run in
-               batch mode to gather experimental numbers. *)
-          );
-
-        Ok "Coronet Solution started" end
-
-  | CSynthesize SLP -> begin match state.policy, state.fabric, state.network with
-      | _, None, _
-      | None, _, _
-      | _, _, None ->
-        Error "Load and preprocess Coronet topologies and paths first"
-      | Some (policy,pedge), Some (fabric,fedge), Some net ->
-        let module A = Fabric.Assemblage in
-        let topo = (CoroNet.Pretty.to_netkat net) in
-        let fabric = A.assemble fabric topo fedge fedge in
-        let policy = A.assemble policy topo pedge pedge in
-        ( try
-            let edge, timings = Frenetic_Synthesis.LP_Predicated.synthesize
-                (A.to_dyads policy) (A.to_dyads fabric) topo in
-
-            log "Pre-synthesis user policy:\n%s\n"   (string_of_policy (A.program policy));
-            log "Pre-synthesis fabric policy:\n%s\n" (string_of_policy (A.program fabric ));
-            log "Synthesized edge policy:\n%s\n"     (string_of_policy edge);
-
-            (* let edge_fdd = Compiler.compile_local ~options:keep_cache edge in *)
-            (* state.edge <- Some { new_config with *)
-            (*                      policy = edge; *)
-            (*                      ingresses = c.ingresses; egresses = c.egresses; *)
-            (*                      fdd = Some edge_fdd }; *)
-            let nodes = ( List.length state.east ) +
-                        ( List.length state.west ) in
-            let report = Coronet.lp_result nodes timings in
-            let msg = String.concat ~sep:"\n" ("Edge policies compiled successfully" :: report ) in
-            Ok msg
-          with
-          | Frenetic_Synthesis.LPParseError e ->
-            Error (sprintf "Cannot parse LP Solution: %s\n" e)) end
-  | CSynthesize _ -> Error "Only SMT based synthesis supported for Coronet topologies"
-
-  | CPeek ->
-    begin match Async.Std.Deferred.peek state.result with
-      | None -> Error "No result available yet"
-      | Some (edge, [gen_time;synth_time]) ->
-        let open Frenetic_Time in
-        let ids = state.switches in
-        let compiled = Compiler.compile_local ~options:keep_cache edge in
-        let num_flows = List.fold ids ~init:0 ~f:(fun num id ->
-            let flows = Frenetic_NetKAT_Compiler.to_table id compiled in
-            (List.length flows) + num) in
-
-        let nodes = ( List.length state.east ) +
-                    ( List.length state.west ) in
-        let result = sprintf "|%d\t%Ld\t%Ld\t%Ld\t%d\n"
-            nodes
-            (to_msecs state.preproc)
-            (to_msecs (snd gen_time)) (to_secs (snd synth_time))
-            num_flows in
-        Ok result
-      | Some (edge, _) -> Ok (string_of_policy edge)
-    end
-
   | CPath(s, d) -> begin match state.network with
       | None -> Error "Finding a path requires loading a Coronet topology"
       | Some net ->
@@ -770,6 +754,36 @@ let rec coronet c =
           Ok (sprintf "Path from %s to %s: [%s]\n" s d ( CoroPath.to_string p) )
         | None -> Error (sprintf "No path between %s and %s" s d )
     end
+  | CSMT -> begin match state.fibers, state.network with
+      | _, None
+      | ([], []), _ ->
+        Error "Load and preprocess Coronet topologies and paths first"
+      | (fspolicy, fsfabric), Some net ->
+        (* Call the synthesis back-end *)
+        let module C = Frenetic_Synthesis.Coronet in
+        let netkat = (CoroNet.Pretty.to_netkat net) in
+        let results = C.synthesize fspolicy fsfabric netkat in
+        state.result <- results;
+
+        (* Register a callback to print the results when they're ready *)
+        Deferred.upon results (fun r ->
+            printf "Coronet Synthesis complete";
+            match cpeek () with
+            | Ok result -> printf "%s\n" result
+            | Error e -> printf "Error:%s\n" e
+            (* The shell could be terminated at this point, if being run in
+               batch mode to gather experimental numbers. *)
+          );
+        Ok "Coronet Solution started" end
+
+  | CPeek -> cpeek ()
+  | CSynthesize cs -> begin match state.policy, state.fabric, state.network with
+      | _, None, _
+      | None, _, _
+      | _, _, None ->
+        Error "Load and preprocess Coronet topologies and paths first"
+      | Some p, Some f, Some net ->
+        corosynth p f net cs end
 
 let post (uri:Uri.t) (body:string) =
   let open Cohttp.Body in
