@@ -265,7 +265,6 @@ module CoroNet = struct
           let opt = Topology.vertex_of_label net optlabel in
 
           (* Add a packet switch to this optical node *)
-          let port = Int32.succ (Hashtbl.Poly.find_exn ports e) in
           let name  = sprintf "sw%s" e in
           let pktlabel = get_label names name in
           let net,pkt = Topology.add_vertex net pktlabel in
@@ -283,7 +282,8 @@ module CoroNet = struct
           (* Add one edge between the optical and packet switch for each channel
              connecting this optical switch to another. Assumes that `range`
              starts from 0. *)
-          let net', frim' = List.fold range ~init:(net,prim) ~f:(fun (net,prim) i ->
+          let port = Int32.succ (Hashtbl.Poly.find_exn ports e) in
+          let net', frim' = List.fold range ~init:(net,frim) ~f:(fun (net,frim) i ->
               let open Int32 in
               let i = of_int_exn i in
               let net',_ = Topology.add_edge net pkt (i+1l) 0.0 opt (port+i) in
