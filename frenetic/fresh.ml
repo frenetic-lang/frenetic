@@ -83,7 +83,7 @@ module Coronet = struct
 
   let result (nodes:int) timings =
     let nodes_col = "Edge Nodes" in
-    let nodes_val = sprintf "%d" nodes in
+    let nodes_val = sprintf "|%d" nodes in
     let columns = List.map timings ~f:fst in
     let times = List.map timings ~f:(fun t -> snd t |> Int64.to_string )in
     let header = String.concat ~sep:"\t" ( nodes_col::columns ) in
@@ -633,7 +633,7 @@ let corosynth (policy,pedge) (fabric,fedge) net cs =
   let policy = A.assemble policy topo pedge pedge in
 
   begin match cs with
-    | SLP -> Ok ( module LP_Endpoints : DYADIC )
+    | SLP_E -> Ok ( module LP_Endpoints : DYADIC )
     | SSAT_E -> Ok ( module SAT_Endpoints : DYADIC )
     | _ -> Error "Coronet synthesis only works with LP and SATE"
   end >>= fun s ->
