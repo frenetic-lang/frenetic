@@ -1,48 +1,60 @@
 \documentclass{article}
+\usepackage{savetrees}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.13}
 \begin{document}
 
-\begin{tikzpicture}
-
-  \begin{axis}[
-      axis y line*=left,
-      xlabel={Number of edge nodes},
-      ylabel={Time in ms},
-      legend style = {at={(0.33,.9)}, anchor=north }]
-    \addplot table [x=Edge Nodes, y=Pre-processing(msecs), col sep=tab]
-             {coronet-30.results};
-             \label{pre};
-             \addplot table [x=Edge Nodes, y=Generation(msecs), col sep=tab]
-                      {coronet-30.results};
-                      \label{gen};
-  \end{axis}
-
-  \begin{axis}[
-      axis y line*=right,
-      xlabel={Number of edge nodes},
-      ylabel={Time in s},
-      legend style = {at={(0.33,.9)}, anchor=north }]
-    \addlegendimage{/pgfplots/refstyle=pre}\addlegendentry{Pre-processing(ms)};
-    \addlegendimage{/pgfplots/refstyle=gen}\addlegendentry{Generation(ms)};
-    \addplot[mark=*,green] table [x=Edge Nodes, y=Solution(secs), col sep=tab]
-            {coronet-30.results};
-            \label{sol};
-            \addlegendentry{Solution(s)};
-  \end{axis}
-
-\end{tikzpicture}
-
-
+\begin{figure}
 \begin{tikzpicture}
   \begin{axis}[
       xlabel={Number of edge nodes},
-      ylabel={Number of flow rules},
-      legend style = {at={(0.33,.9)}, anchor=north }]
-    \addplot table [x=Edge Nodes, y=Rules, col sep=tab]
-             {coronet-30.results};
-             \label{flows};
+      ylabel={Time(in ns)},
+      legend style = {at={(0.33,.9)}, anchor=north },
+      legend entries={Solution Time,Generation Time}]
+    \addplot table [x=EdgeNodes, y=Solution(nsecs), col sep=space]
+             {coronet-30-ocaml.results};
+             \addplot table [x=EdgeNodes, y=Generation(nsecs), col sep=space]
+                      {coronet-30-ocaml.results};
   \end{axis}
-
 \end{tikzpicture}
+\caption{Endpoint matching in OCaml}
+\end{figure}
+
+\begin{figure}
+\begin{tikzpicture}
+  \begin{axis}[
+      xlabel={Number of edge nodes},
+      ylabel={Time(in ns)},
+      legend style = {at={(0.33,.9)}, anchor=north },
+      legend entries={Formulation Time,Solution Time,Generation Time}]
+    \addplot table [x=EdgeNodes, y=Formulation(nsecs), col sep=space]
+             {coronet-30-lpe.results};
+             \addplot table [x=EdgeNodes, y=Solution(nsecs), col sep=space]
+                      {coronet-30-lpe.results};
+                      \addplot table [x=EdgeNodes, y=Generation(nsecs), col sep=space]
+                               {coronet-30-lpe.results};
+  \end{axis}
+\end{tikzpicture}
+\caption{Endpoint matching using an LP Solver}
+\end{figure}
+
+\begin{figure}
+\begin{tikzpicture}
+  \begin{axis}[
+      xlabel={Number of edge nodes},
+      ylabel={Time(in ns)},
+      legend style = {at={(0.33,.9)}, anchor=north },
+    legend entries={Formulation Time,Solution Time,Generation Time}]
+    \addplot table [x=EdgeNodes, y=Formulation(nsecs), col sep=space]
+             {coronet-30-sate.results};
+             \addplot table [x=EdgeNodes, y=Solution(nsecs), col sep=space]
+                      {coronet-30-sate.results};
+                      \addplot table [x=EdgeNodes, y=Generation(nsecs), col sep=space]
+                               {coronet-30-sate.results};
+  \end{axis}
+\end{tikzpicture}
+\caption{Endpoint matching using a SAT solver}
+
+\end{figure}
+
 \end{document}
