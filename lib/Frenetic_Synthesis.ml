@@ -419,6 +419,8 @@ module MakeStrict(C:COMPARATOR) = struct
 
   (** Core matching function *)
   let matching topology (from_policy:C.t list) from_fabric =
+    let open Frenetic_Time in
+    let start = time () in
     (* For each policy stream, find the set of fabric streams that could be used
        to carry it. This is done using the `decide` function from the SOLVER
        that allows the caller to specify what criteria are important, perhaps
@@ -435,15 +437,24 @@ module MakeStrict(C:COMPARATOR) = struct
             let pick = C.choose topology stream opts in
             (stream, pick)::acc) in
 
-    C.generate topology pairs
+    let soln_time = from start in
+
+    let start = time () in
+    let ingress, egress = C.generate topology pairs in
+    let gen_time = from start in
+    ( Union(ingress, egress), soln_time, gen_time )
 
   let synthesize (policy:C.t list) (fabric:C.t list) (topo:policy) : solution =
     (* Streams are condition/modification pairs with empty actioned pairs filtered out *)
     let preds = Fabric.Topo.predecessors topo in
     let succs = Fabric.Topo.successors topo in
     let topology = {topo; preds; succs} in
-    let ingress, egress = matching topology policy fabric in
-    ( Union(ingress, egress), [] )
+    let edge, soln_time, gen_time = matching topology policy fabric in
+
+    let timings = [ ("Formulation time" , 0L)
+                  ; ("Solution time"    , soln_time)
+                  ; ("Generation time"  , gen_time) ] in
+    ( edge, timings )
 
 end
 
