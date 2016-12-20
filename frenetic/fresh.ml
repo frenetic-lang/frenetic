@@ -597,7 +597,7 @@ let synthesize s : (string, string) Result.t =
             ("Edge policies compiled successfully"::report) in
         Ok msg
       with
-      | LPParseError e -> Error (sprintf "Cannot parse LP Solution: %s\n" e))
+      | Frenetic_LP.LPParseError e -> Error (sprintf "Cannot parse LP Solution: %s\n" e))
   | _ -> Error "Edge compilation requires naive policy, fabric and topology"
 
 let cpeek () =
@@ -657,7 +657,7 @@ let corosynth (policy,pedge) (fabric,fedge) net cs =
     let msg = String.concat ~sep:"\n" ("Edge policies compiled successfully" :: report ) in
     Ok msg
   with
-  | Frenetic_Synthesis.LPParseError e ->
+  | Frenetic_LP.LPParseError e ->
     Error (sprintf "Cannot parse LP Solution: %s\n" e)
 
 let rec coronet c =

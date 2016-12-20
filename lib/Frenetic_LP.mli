@@ -1,5 +1,7 @@
 (** Types representing Gurobi LP file format *)
 
+exception LPParseError of string
+
 type sos = Sos of string | NoSos
 
 type rel =
@@ -44,3 +46,7 @@ type t = LP of objective * constraints * bounds * types * sos
 val sum : expr list -> expr
 
 val to_string : t -> string
+
+val clean : string -> unit
+val write : string -> string -> unit
+val read : string -> string list

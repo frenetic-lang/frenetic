@@ -1,4 +1,5 @@
 (** Types representing Gurobi LP file format *)
+exception LPParseError of string
 
 type sos = Sos of string | NoSos
 
@@ -165,3 +166,30 @@ let rec sum es = match es with
   | hd::tl -> Plus( hd, sum tl )
 
 let to_string lp = Buffer.contents ( Buf.of_lp lp )
+
+let clean fname =
+  let open Core.Std in
+  match Sys.file_exists fname with
+  | `Yes -> Sys.remove fname
+  | _ -> ()
+
+let write fname string =
+  let open Core.Std in
+  let outc = Out_channel.create fname in
+  Out_channel.output_string outc string;
+  Out_channel.close outc
+
+let read fname =
+  let open Core.Std in
+  let chan = In_channel.create fname in
+  In_channel.fold_lines chan ~init:[] ~f:(fun acc line ->
+      match String.index line '#' with
+      | Some i -> acc
+      | None -> begin match String.lsplit2 line ~on:' ' with
+          | Some (var, value) ->
+            if Int64.of_string value = 1L then var::acc
+            else acc
+          | None ->
+            let msg = sprintf "Solution Line: |%s|\n" line in
+            raise (LPParseError msg) end)
+

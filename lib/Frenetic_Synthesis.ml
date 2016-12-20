@@ -29,7 +29,6 @@ let compile_local =
 (** Essential types *)
 exception UnmatchedDyad  of Dyad.t
 exception UnmatchedFiber of fiber
-exception LPParseError   of string
 
 (* TODO(basus): This needs to go into a better topology module *)
 type topology = {
@@ -656,29 +655,6 @@ module LP_Predicated = struct
     let sos = NoSos in
     LP (objective, constraints, bounds, bools, sos)
 
-
-  let clean fname = match Sys.file_exists fname with
-      | `Yes -> Sys.remove fname
-      | _ -> ()
-
-  let write fname string =
-    let outc = Out_channel.create fname in
-    Out_channel.output_string outc string;
-    Out_channel.close outc
-
-  let read fname =
-    let chan = In_channel.create fname in
-    In_channel.fold_lines chan ~init:[] ~f:(fun acc line ->
-        match String.index line '#' with
-        | Some i -> acc
-        | None -> begin match String.lsplit2 line ~on:' ' with
-            | Some (var, value) ->
-              if Int64.of_string value = 1L then var::acc
-              else acc
-            | None ->
-              let msg = sprintf "Solution Line: |%s|\n" line in
-              raise (LPParseError msg) end)
-
   let pair policy fabric solns =
     List.fold solns ~init:[] ~f:(fun acc soln ->
         match String.split soln ~on:'_' with
@@ -700,6 +676,7 @@ module LP_Predicated = struct
           raise (LPParseError msg))
 
   let synthesize (policy:input) (fabric:input) (topo:policy) =
+    let open Frenetic_LP in
     let open Frenetic_Time in
     let lp_file = "synthesis.lp" in
     let sol_file = "synthesis.sol" in
@@ -911,28 +888,6 @@ module LP_Endpoints = struct
     let sos = NoSos in
     LP (objective, constraints, bounds, bools, sos)
 
-  let clean fname = match Sys.file_exists fname with
-      | `Yes -> Sys.remove fname
-      | _ -> ()
-
-  let write fname string =
-    let outc = Out_channel.create fname in
-    Out_channel.output_string outc string;
-    Out_channel.close outc
-
-  let read fname =
-    let chan = In_channel.create fname in
-    In_channel.fold_lines chan ~init:[] ~f:(fun acc line ->
-        match String.index line '#' with
-        | Some i -> acc
-        | None -> begin match String.lsplit2 line ~on:' ' with
-            | Some (var, value) ->
-              if Int64.of_string value = 1L then var::acc
-              else acc
-            | None ->
-              let msg = sprintf "Solution Line: |%s|\n" line in
-              raise (LPParseError msg) end)
-
   let pair policy fabric solns =
     List.fold solns ~init:[] ~f:(fun acc soln ->
         match String.split soln ~on:'_' with
@@ -948,6 +903,7 @@ module LP_Endpoints = struct
 
 
   let synthesize (policy:input) (fabric:input) (topo:policy) =
+    let open Frenetic_LP in
     let open Frenetic_Time in
     let lp_file = "synthesis.lp" in
     let sol_file = "synthesis.sol" in
