@@ -1,13 +1,13 @@
 #!/bin/bash
 
 EX_DIR="examples/coronet"
-FSH="./frenetic.native autoshell"
+FSH="./fresh.native"
 
-echo "Edge Nodes	Pre-processing(msecs)	Generation(msecs)	Solution(secs)	Rules"
-
-for i in {1..10}
+for i in {1..4}
 do
-    cat $EX_DIR/coronet-60-$i.ash | $FSH | grep "|" | tr -d "|"
+    cat $EX_DIR/coronet-30-$i.ash | $FSH >> results.txt
 done
 
+echo "EdgeNodes	Formulation(msecs)	Solution(msecs)	Generation(msecs)"
+cat results.txt | grep "\*\*\*" | tr -d "***"
 
