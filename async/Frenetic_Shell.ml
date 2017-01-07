@@ -5,6 +5,7 @@ open Frenetic_NetKAT
 module Controller = Frenetic_NetKAT_Controller.Make(Frenetic_OpenFlow0x01_Plugin)
 module Comp = Frenetic_NetKAT_Compiler
 module DecideAst = Frenetic_Decide_Ast
+module DecideDeriv = Frenetic_Decide_Deriv
 module DecideLexer = Frenetic_Decide_Lexer
 module DecideParser = Frenetic_Decide_Parser
 module DecideUtil = Frenetic_Decide_Util
@@ -282,6 +283,32 @@ let parse_exn parser_function lexbuf (filename: string) =
       raise (ParseError (filename, line, char, token))
     end
 
+let print_list (xs: 'a list) (f: 'a -> string) : unit =
+    List.iter xs ~f:(fun x -> printf "%s\n" (f x))
+
+let print_points (points: DecideAst.point list) : unit =
+    print_list points DecideAst.point_to_string
+
+let term_to_points (t: DecideAst.Term.t) : DecideAst.point list =
+  let module DerivTerm = DecideDeriv.BDDDeriv in
+  let tvals = DecideAst.Term.values t in
+  ignore (DecideUtil.set_univ [tvals]);
+  let t' = DerivTerm.make_term (DecideAst.TermSet.singleton t) in
+  let q_E = DerivTerm.get_e t' in
+  let points = DerivTerm.EMatrix.fold q_E ~init:[] ~f:(fun a p -> p :: a) in
+  List.filter points ~f:(fun (alpha, beta) ->
+    let no_snowman pkt =
+      let snowman = "☃" in
+      DecideAst.FieldMap.fold ~init:true ~f:(
+        fun ~key ~data b ->
+          DecideUtil.Field.to_string key <> snowman &&
+          DecideUtil.Value.to_string data <> snowman &&
+          b
+      ) pkt
+    in
+    no_snowman alpha && no_snowman beta
+  )
+
 let felix ({q; _} as files: felix_files) : unit =
   (* Generate a lexbuf from filename, and then parse it with parser_function. *)
   let parse_file_exn parser_function (filename: string) =
@@ -309,7 +336,20 @@ let felix ({q; _} as files: felix_files) : unit =
     let network = network_of_files files in
     let query = query_of_file q in
     let compiled = Felix.compile network query in
-    print_endline (DecideAst.Term.to_string compiled)
+
+    print_endline "Query";
+    print_endline "=====";
+    print_endline (Felix.Query.to_string query);
+    print_endline "";
+
+    print_endline "Compiled Terms";
+    print_endline "=============";
+    print_endline (DecideAst.Term.to_string compiled);
+    print_endline "";
+
+    print_endline "(alpha, beta) pairs";
+    print_endline "===================";
+    print_points (term_to_points compiled);
   with
   | Sys_error msg -> printf "Load failed: %s\n%!" msg
   | ParseError (filename, line, char, token) ->
