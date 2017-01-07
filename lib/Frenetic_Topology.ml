@@ -505,8 +505,11 @@ module CoroNet = struct
        physical paths. *)
     let to_policies wptbl net preds =
       Hashtbl.Poly.fold wptbl ~init:[] ~f:(fun ~key:(s,d) ~data:wps pols ->
-          List.fold2_exn wps preds ~init:pols ~f:(fun pols wp pred ->
-              let policy = to_policy wp net pred in
+          let wps = Array.of_list wps in
+          let len = Array.length wps in
+          List.foldi preds ~init:pols ~f:(fun n pols pred ->
+              let i = n mod len in
+              let policy = to_policy wps.(i) net pred in
               policy::pols))
 
     let to_fabric_fibers wps net =
