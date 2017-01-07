@@ -38,6 +38,7 @@ echo >> $COLLECTED
 echo "===" >> $COLLECTED
 echo "Date: " $(date "+%Y-%m-%d %T %Z") >> $COLLECTED
 echo "Machine: " $(hostname) >> $COLLECTED
+echo "Engine: " $1 >> $COLLECTED
 column -t $DISPLAY >> $COLLECTED
 echo "===" >> $COLLECTED
 
