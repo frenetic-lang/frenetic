@@ -623,6 +623,7 @@ let cpeek () =
 
 
 let corosynth (policy,pedge) (fabric,fedge) net cs =
+  let module T = Frenetic_Time in
   let (>>=) = Result.(>>=) in
   let state = Coronet.state in
   let result = Coronet.result in
@@ -641,10 +642,13 @@ let corosynth (policy,pedge) (fabric,fedge) net cs =
 
   let module S = (val s) in
   try
+    let start = T.time () in
+    let pol = A.to_dyads policy in
+    let fab = A.to_dyads fabric in
+    let pre_proc = ("Pre-processing time", T.from start) in
     log "Pre-synthesis user policy:\n%s\n"   (string_of_policy (A.program policy));
     log "Pre-synthesis fabric policy:\n%s\n" (string_of_policy (A.program fabric ));
-    let edge, timings = S.synthesize
-        (A.to_dyads policy) (A.to_dyads fabric) topo in
+    let edge, timings = S.synthesize pol fab topo in
     log "Synthesized edge policy:\n%s\n%!"     (string_of_policy edge);
 
     (* let edge_fdd = Compiler.compile_local ~options:keep_cache edge in *)
@@ -654,7 +658,7 @@ let corosynth (policy,pedge) (fabric,fedge) net cs =
     (*                      fdd = Some edge_fdd }; *)
     let nodes = ( List.length state.east ) +
                 ( List.length state.west ) in
-    let report = result nodes timings in
+    let report = result nodes (pre_proc::timings) in
     let edge' = string_of_policy edge in
     let msg = String.concat ~sep:"\n" ("Edge policies compiled successfully" :: edge':: report ) in
     Ok msg
