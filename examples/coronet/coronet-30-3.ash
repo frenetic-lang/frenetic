@@ -3,5 +3,5 @@ coronet load paths examples/coronet/coronet-30.paths
 coronet east [NewYork;Boston;Philadelphia;]
 coronet west [Sacramento;Seattle;SanFrancisco;]
 coronet preprocess
-coronet synthesize optical$1
+coronet synthesize native$1
 
