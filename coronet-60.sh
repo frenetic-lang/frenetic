@@ -15,7 +15,7 @@ then
 else
     echo "Altering Coronet-60 scripts to use $1 backend."
     # Doesn't keep backups of the original script since the changes are tiny
-    sed -i '' 's/\(coronet synthesize \)\([a-zA-Z]*\)/\1'$1'/' \
+    sed -i -- 's/\(coronet synthesize \)\([a-zA-Z]*\)/\1'$1'/' \
         examples/coronet/coronet-60-*.ash
 fi
 
