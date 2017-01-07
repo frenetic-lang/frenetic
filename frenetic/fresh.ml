@@ -27,6 +27,7 @@ type source =
   | Filename of string
 
 type synthesize =
+  | SNative
   | SGeneric
   | SOptical
   | SSMT
@@ -256,6 +257,7 @@ module Parser = struct
 
   (* Parser for the synthesize command. Maybe should be merged with compile. *)
   let engines : (synthesize, bytes list) MParser.t =
+    (symbol "native" >> return SNative) <|>
     (symbol "generic" >> return SGeneric) <|>
     (symbol "optical" >> return SOptical) <|>
     (symbol "smt" >> return SSMT) <|>
@@ -553,6 +555,7 @@ let synthesize s : (string, string) Result.t =
   let open Frenetic_Synthesis in
   Random.init 1337;
   begin match s with
+    | SNative  -> Ok ( module MakeStrict(Optical) : DYADIC )
     | SGeneric -> Ok ( module MakeStrict(Generic) : DYADIC )
     | SOptical -> Ok ( module MakeStrict(Optical) : DYADIC )
     | SLP -> Ok ( module LP_Predicated )
@@ -634,6 +637,7 @@ let corosynth (policy,pedge) (fabric,fedge) net cs =
   let policy = A.assemble policy topo pedge pedge in
 
   begin match cs with
+    | SNative  -> Ok ( module MakeStrict(Optical) : DYADIC )
     | SOptical -> Ok ( module MakeStrict(Optical) : DYADIC )
     | SLP_E -> Ok ( module LP_Endpoints : DYADIC )
     | SSAT_E -> Ok ( module SAT_Endpoints : DYADIC )
