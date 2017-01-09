@@ -997,18 +997,19 @@ module LP_Waypointing = struct
         Constraint(expr, Eq, 1L)::acc) in
 
     (* Generate a constraint Fnj = 0 if node n is NOT on the path for dyad j *)
-    let pathpts = Hashtbl.Poly.fold ftbl ~init:choose ~f:(fun ~key:fid ~data:swids acc ->
+    let pathpts, fabs = Hashtbl.Poly.fold ftbl ~init:(choose,[]) ~f:(fun ~key:fid ~data:swids acc ->
         List.fold swids ~init:acc ~f:(fun acc swid ->
+            let ps, fabs = acc in
             let path = Hashtbl.Poly.find_exn paths fid in
             if List.mem path swid then acc
             else
               let var = sprintf "f_%Ld_%d" swid fid in
-              Constraint(Var var, Eq, 0L)::acc)) in
+              Constraint(Var var, Eq, 0L)::ps, var::fabs)) in
 
     let objective = Minimize( [sum (List.map vars ~f:(fun v -> Var v))]) in
     let constraints = pathpts in
     let bounds = [] in
-    let bools = [ Binary vars ] in
+    let bools = [ Binary vars ; Binary fabs] in
     let sos = NoSos in
     LP (objective, constraints, bounds, bools, sos)
 
