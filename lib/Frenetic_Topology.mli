@@ -67,6 +67,7 @@ module CoroNet : sig
                  }
 
     type endtable = ((string * string), t list) Hashtbl.t
+    type pointtable = (switchId * switchId, switchId list list) Hashtbl.t
 
     val places : t -> place * place
     val vertexes : t -> Topology.vertex * Topology.vertex
@@ -78,9 +79,10 @@ module CoroNet : sig
     val to_dyad : fiber -> Frenetic_Fabric.Dyad.t
     val to_circuit : t -> Topology.t -> circuit
 
-    val to_policy : t -> Topology.t -> pred -> Frenetic_NetKAT.policy
+    val to_policy : pointtable -> Topology.t ->
+      t -> pred -> Frenetic_NetKAT.policy
     val to_policies : endtable -> Topology.t -> pred list ->
-      Frenetic_NetKAT.policy list
+      Frenetic_NetKAT.policy list * pointtable
 
     val to_fabric_fibers : t list -> Topology.t -> fiber list
     val to_policy_fibers : endtable -> Topology.t -> pred list -> fiber list

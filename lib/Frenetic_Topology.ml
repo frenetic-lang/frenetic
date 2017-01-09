@@ -387,6 +387,7 @@ module CoroNet = struct
                  }
 
     type endtable = ((string * string), t list) Hashtbl.t
+    type pointtable = (switchId * switchId, switchId list list) Hashtbl.t
 
     let places wp =
       let _,ssw,spt = wp.start in
@@ -472,7 +473,7 @@ module CoroNet = struct
       let channel = wp.channel in
       { source; sink; path; channel }
 
-    let to_policy wp net pred =
+    let to_policy tbl net wp pred =
       (* Use the topology to find the packet switch and ports connected the
          optical fabric endpoints *)
       let open Frenetic_NetKAT in
@@ -487,10 +488,12 @@ module CoroNet = struct
       let srcid = Topology.vertex_to_id net psv in
       let dstid = Topology.vertex_to_id net pdv in
 
+      Hashtbl.Poly.add_multi tbl (srcid,dstid)
+        (List.map wp.waypoints ~f:(Topology.vertex_to_id net));
+
       (* The policy is composed of the packet switches as source and
-         destination, the supplied NetKAT predicate, and the list of waypoints that
-         define this waypath. Connect ports 0 because they are reservered for
-         hosts. This may need to be changed. *)
+         destination, the supplied NetKAT predicate. Connect ports 0 because
+         they are reservered for hosts. This may need to be changed. *)
       let condition = Frenetic_NetKAT_Optimize.mk_big_and
           [ pred; Test (Switch srcid); Test (Location (Physical 0l)) ] in
       let action = [ Mod( Switch dstid );
@@ -504,13 +507,15 @@ module CoroNet = struct
        number of predicates should match the number of disjoint cross-country
        physical paths. *)
     let to_policies wptbl net preds =
-      Hashtbl.Poly.fold wptbl ~init:[] ~f:(fun ~key:(s,d) ~data:wps pols ->
+      let tbl = Hashtbl.Poly.create ~size:(Hashtbl.length wptbl) () in
+      let pols = Hashtbl.Poly.fold wptbl ~init:[] ~f:(fun ~key:(s,d) ~data:wps pols ->
           let wps = Array.of_list wps in
           let len = Array.length wps in
           List.foldi preds ~init:pols ~f:(fun n pols pred ->
               let i = n mod len in
-              let policy = to_policy wps.(i) net pred in
-              policy::pols))
+              let policy = to_policy tbl net wps.(i) pred in
+              policy::pols)) in
+      pols, tbl
 
     let to_fabric_fibers wps net =
       let topo = Pretty.to_netkat net in

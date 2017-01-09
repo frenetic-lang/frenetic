@@ -34,6 +34,7 @@ type synthesize =
   | SSAT_E
   | SLP_E
   | SLP
+  | SLP_W
 
 module PathTable = Hashtbl.Make (struct
     type t = switchId * portId * switchId * portId [@@deriving sexp,compare]
@@ -56,6 +57,8 @@ module Coronet = struct
                ; mutable fibers  : CoroNet.Waypath.fiber list * CoroNet.Waypath.fiber list
                ; mutable preproc : Int64.t
                ; mutable result  : Frenetic_Synthesis.result Async.Std.Deferred.t
+               ; mutable pointtbl : CoroNet.Waypath.pointtable
+               ; pathtbl : ((loc * loc), switchId list) Hashtbl.t
                }
 
   let state = { network  = None
@@ -71,6 +74,8 @@ module Coronet = struct
               ; policy   = None
               ; preproc = 0L
               ; result   = Async.Std.Deferred.return (Filter False, [])
+              ; pointtbl = Hashtbl.Poly.create ()
+              ; pathtbl  = Hashtbl.Poly.create ()
               }
 
   type t =
@@ -266,6 +271,7 @@ module Parser = struct
     (symbol "smt" >> return SSMT) <|>
     (symbol "sate" >> return SSAT_E) <|>
     (symbol "lpe" >> return SLP_E) <|>
+    (symbol "lpew" >> return SLP_E) <|>
     (symbol "lp" >> return SLP)
 
   let synthesize : (command, bytes list) MParser.t =
@@ -566,6 +572,7 @@ let synthesize s : (string, string) Result.t =
     | SLP -> Ok ( module LP_Predicated )
     | SSAT_E -> Ok ( module SAT_Endpoints )
     | SLP_E  -> Ok ( module LP_Endpoints )
+    | SLP_W -> Ok ( module LP_Endpoints )
     | SSMT ->
       (* This is just an example to test the synthesis code. Much of this needs
          to be parameterized. *)
@@ -628,6 +635,50 @@ let cpeek () =
         num_flows in
     Ok result
   | Some (edge, _) -> Ok (string_of_policy edge)
+
+
+let coroway (policy,pedge) (fabric,fedge) net =
+  let module T = Frenetic_Time in
+  let module S = Frenetic_Synthesis.LP_Waypointing in
+  let module A = Fabric.Assemblage in
+  let state = Coronet.state in
+  let result = Coronet.result in
+  let topo = (CoroNet.Pretty.to_netkat net) in
+  let fabric = A.assemble fabric topo fedge fedge in
+  let policy = A.assemble policy topo pedge pedge in
+
+  let start = T.time () in
+  let pol = A.to_dyads policy in
+  let pol' = List.map pol ~f:(fun dyad ->
+      let src,_ = Fabric.Dyad.src dyad in
+      let dst,_ = Fabric.Dyad.dst dyad in
+      let pointsls = Hashtbl.Poly.find_exn Coronet.state.pointtbl (src,dst) in
+      let i = Random.int (List.length pointsls) in
+      let points = List.nth_exn pointsls i in
+      dyad,points) in
+  let pol_time = ("Policy time", T.from start) in
+
+  let start = T.time () in
+  let fab = A.to_dyads fabric in
+  let fab' = List.map fab ~f:(fun dyad ->
+      let src = Fabric.Dyad.src dyad in
+      let dst = Fabric.Dyad.dst dyad in
+      let path = Hashtbl.Poly.find_exn Coronet.state.pathtbl (src,dst) in
+      dyad,path ) in
+  let fab_time = ("Fabric time", T.from start) in
+
+  try
+    let edge, results = S.synthesize pol' fab' topo in
+    let nodes = ( List.length state.east ) +
+                ( List.length state.west ) in
+    let report = result nodes (pol_time::fab_time::results) in
+    let edge' = string_of_policy edge in
+    let msg = String.concat ~sep:"\n"
+        ("Edge policies compiled successfully" :: edge':: report ) in
+    Ok msg
+  with
+  | Frenetic_LP.LPParseError e ->
+    Error (sprintf "Cannot parse LP Solution: %s\n" e)
 
 
 let corosynth (policy,pedge) (fabric,fedge) net cs =
@@ -723,6 +774,7 @@ let rec coronet c =
       | Some net -> try
           let open Frenetic_Time in
           let open Frenetic_NetKAT in
+
           let names, ports, east, west, paths =
             ( state.names, state.ports, state.east, state.west, state.paths ) in
           (* Attach hosts and packet switches to the optical switches *)
@@ -735,10 +787,17 @@ let rec coronet c =
           printf "Generating waypointed paths\n%!";
           let waypaths,wptbl = CoroNet.Waypath.of_coronet net names ports east west paths in
 
-          (* Generate the optical fabric based on the given paths *)
+          (* Generate the optical fabric based on the given paths. Also the
+             record the switches making up each path for waypointing. *)
           printf "Generating optical circuits\n%!";
           let circuits = List.map waypaths ~f:(fun wp ->
-              CoroNet.Waypath.to_circuit wp net ) in
+              let open CoroNet.Waypath in
+              let _,ss,sp = wp.start in
+              let _,ds,dp = wp.stop  in
+              let points = List.map wp.waypoints
+                  ~f:(CoroNet.Topology.vertex_to_id net) in
+              Hashtbl.Poly.add_exn state.pathtbl ((ss,sp),(ds,dp)) points;
+              to_circuit wp net ) in
 
           match Frenetic_Circuit_NetKAT.validate_config circuits with
           | Error e -> Error e
@@ -754,17 +813,18 @@ let rec coronet c =
               | None   -> CoroNet.predicates (List.length state.paths) in
 
             printf "Generating policy program\n%!";
-            let pol =  Frenetic_NetKAT_Optimize.mk_big_union(
-                CoroNet.Waypath.to_policies wptbl net preds ) in
+            let pols, tbl = CoroNet.Waypath.to_policies wptbl net preds in
+            let pol = Frenetic_NetKAT_Optimize.mk_big_union pols in
+            state.pointtbl <- tbl;
             state.policy <- Some (pol, pedge);
 
             (* Generate the fibers to be passed to the SMT synthesis backend *)
-            let start = time () in
-            printf "Generating fibers\n%!";
-            let fsfabric = CoroNet.Waypath.to_fabric_fibers waypaths net in
-            let fspolicy = CoroNet.Waypath.to_policy_fibers wptbl net preds in
-            state.preproc <- from start;
-            state.fibers  <- (fspolicy, fsfabric);
+            (* let start = time () in *)
+            (* printf "Generating fibers\n%!"; *)
+            (* let fsfabric = CoroNet.Waypath.to_fabric_fibers waypaths net in *)
+            (* let fspolicy = CoroNet.Waypath.to_policy_fibers wptbl net preds in *)
+            (* state.preproc <- from start; *)
+            (* state.fibers  <- (fspolicy, fsfabric); *)
 
             Ok "Coronet experiment preprocessed"
         with
@@ -817,7 +877,9 @@ let rec coronet c =
       | _, _, None ->
         Error "Load and preprocess Coronet topologies and paths first"
       | Some p, Some f, Some net ->
-        try corosynth p f net cs
+        try ( match cs with
+            | SLP_W -> coroway p f net
+            | _ -> corosynth p f net cs )
         with
         | Frenetic_Synthesis.UnmatchedDyad d ->
           let fabric = string_of_policy (fst f) in
