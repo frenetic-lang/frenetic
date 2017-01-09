@@ -106,6 +106,7 @@ module CoroNet : sig
     Frenetic_NetKAT.portId -> Frenetic_NetKAT.portId ->
     pathset -> (circuit option * circuit option * circuit option)
 
+  val predicates : int -> pred list
 
 end with type Topology.Vertex.t = CoroNode.t
      and type Topology.Edge.t = CoroLink.t

@@ -49,6 +49,7 @@ module Coronet = struct
                ; mutable east    : string list
                ; mutable west    : string list
                ; mutable paths   : CoroNet.CoroPath.t list
+               ; mutable classes : int option
                ; mutable switches : switchId list
                ; mutable fabric  : (policy * loc list) option
                ; mutable policy  : (policy * loc list) option
@@ -64,6 +65,7 @@ module Coronet = struct
               ; west     = []
               ; paths    = []
               ; switches = []
+              ; classes  = None
               ; fibers   = ([], [])
               ; fabric   = None
               ; policy   = None
@@ -77,6 +79,7 @@ module Coronet = struct
     | CEast of string list
     | CWest of string list
     | CPath of string * string
+    | CClasses of int
     | CPeek
     | CSMT
     | CPreprocess
@@ -283,6 +286,8 @@ module Parser = struct
       (symbol "west" >> string_list >>= fun w -> return ( CWest w )) <|>
       (symbol "peek" >> return CPeek) <|>
       (symbol "smt" >> return CSMT) <|>
+      (symbol "classes" >> many_chars digit >>= fun c ->
+       return (CClasses (Int.of_string c))) <|>
       (symbol "path" >>
        many_chars alphanum >>= fun src -> spaces >>
        many_chars alphanum >>= fun dst ->
@@ -702,8 +707,11 @@ let rec coronet c =
         Ok "Loaded paths"
     end
 
-  | CEast e -> state.east <- e; Ok "East nodes loaded"
-  | CWest w -> state.west <- w; Ok "West nodes loaded"
+  | CEast e    -> state.east <- e; Ok "East nodes loaded"
+  | CWest w    -> state.west <- w; Ok "West nodes loaded"
+  | CClasses i ->
+    state.classes <- Some i;
+    Ok (sprintf "Ready to generate %d traffic classes" i)
 
   | CPreprocess ->  begin match state.network with
       | None ->
@@ -735,13 +743,12 @@ let rec coronet c =
             let fab = Frenetic_Circuit_NetKAT.local_policy_of_config circuits in
             state.fabric <- Some (fab, fedge);
 
-            (* Generate user policies, using hardcoded predicates for now *)
-            let join = Frenetic_NetKAT_Optimize.mk_big_and in
-            let preds = [
-              join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 22) ];
-              join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 80) ];
-              join [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort 443) ];
-              join [ Test( EthType 0x0800); Test( IPProto 17) ]] in
+            (* Generate user policies, either using the number of given traffic
+               classes, or the number of phsyical paths. *)
+            let preds = match state.classes with
+              | Some c -> CoroNet.predicates c
+              | None   -> CoroNet.predicates (List.length state.paths) in
+
             printf "Generating policy program\n%!";
             let pol =  Frenetic_NetKAT_Optimize.mk_big_union(
                 CoroNet.Waypath.to_policies wptbl net preds ) in

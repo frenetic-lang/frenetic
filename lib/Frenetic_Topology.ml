@@ -606,4 +606,9 @@ module CoroNet = struct
       ps.local    >>| to_circuit,
       ps.across   >>| to_circuit )
 
+  let predicates n =
+    let open Frenetic_NetKAT in
+    let tests = List.init n ~f:(fun i ->
+        [ Test( EthType 0x0800); Test( IPProto 6); Test(TCPDstPort (i+1)) ]) in
+    List.map tests ~f:Frenetic_NetKAT_Optimize.mk_big_and
 end
