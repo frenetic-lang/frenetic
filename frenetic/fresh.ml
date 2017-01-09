@@ -974,6 +974,13 @@ let rec repl ?(prompt="powershell> ") () : unit Deferred.t =
         repl ())
 
 let () : unit =
+  Gc.set { (Gc.get()) with
+    Gc.Control.space_overhead = 500;
+    Gc.Control.minor_heap_size = 32 * 1024 * 1024;
+    Gc.Control.major_heap_increment = 256 * 1024 * 1024;
+    Gc.Control.max_overhead = 700;
+  };
+
   Async_parallel_deprecated.Std.Parallel.init ();
   Log.set_output [Async.Std.Log.Output.file `Text log_filename];
   printf "Frenetic PowerShell v 1.0\n%!";
