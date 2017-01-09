@@ -76,7 +76,7 @@ module Buf = struct
     match c with
     | Constraint(x,y,z) ->
       of_linear_expr x buf;
-      add_string buf "\n";
+      add_string buf " ";
       of_relop y buf;
       add_string buf " ";
       add_string buf (Int64.to_string z)
@@ -86,7 +86,7 @@ module Buf = struct
       if b then add_string buf "1" else add_string buf "0";
       add_string buf " -> ";
       of_linear_expr x buf;
-      add_string buf "\n";
+      add_string buf " ";
       of_relop y buf;
       add_string buf " ";
       add_string buf (Int64.to_string z)
