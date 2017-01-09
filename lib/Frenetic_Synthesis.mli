@@ -3,6 +3,7 @@ open Frenetic_NetKAT
 open Frenetic_OpenFlow
 open Frenetic_Fabric
 
+type path  = Dyad.t * ( switchId list )
 type fiber = Frenetic_Topology.CoroNet.Waypath.fiber
 type assemblage = Assemblage.t
 
@@ -51,6 +52,9 @@ module SAT_Endpoints : SYNTHESIZER with
 
 module LP_Endpoints : SYNTHESIZER with
   type input = Dyad.t list and type solution = result
+
+module LP_Waypointing : SYNTHESIZER with
+  type input = path list and type solution = result
 
 module Optical : COMPARATOR with type t = Dyad.t
 module Generic : COMPARATOR with type t = Dyad.t
