@@ -653,8 +653,12 @@ let corosynth (policy,pedge) (fabric,fedge) net cs =
   try
     let start = T.time () in
     let pol = A.to_dyads policy in
+    let pol_time = ("Policy time", T.from start) in
+
+    let start = T.time () in
     let fab = A.to_dyads fabric in
-    let pre_proc = ("Pre-processing time", T.from start) in
+    let fab_time = ("Fabric time", T.from start) in
+
     log "Pre-synthesis user policy:\n%s\n"   (string_of_policy (A.program policy));
     log "Pre-synthesis fabric policy:\n%s\n" (string_of_policy (A.program fabric ));
     let edge, timings = S.synthesize pol fab topo in
@@ -667,7 +671,7 @@ let corosynth (policy,pedge) (fabric,fedge) net cs =
     (*                      fdd = Some edge_fdd }; *)
     let nodes = ( List.length state.east ) +
                 ( List.length state.west ) in
-    let report = result nodes (pre_proc::timings) in
+    let report = result nodes (pol_time::fab_time::timings) in
     let edge' = string_of_policy edge in
     let msg = String.concat ~sep:"\n" ("Edge policies compiled successfully" :: edge':: report ) in
     Ok msg

@@ -30,7 +30,7 @@ do
 done
 
 # Extract relevant information for display purposes
-echo "EdgeNodes Pre-processing Formulation Solution Generation" > $DISPLAY
+echo "EdgeNodes Policy Fabric Formulation Solution Generation" > $DISPLAY
 cat $CURRENT | grep "\*\*\*" | tr -d "***" >> $DISPLAY
 
 # Collect and save the results of this run
