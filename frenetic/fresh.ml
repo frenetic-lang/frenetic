@@ -271,7 +271,7 @@ module Parser = struct
     (symbol "smt" >> return SSMT) <|>
     (symbol "sate" >> return SSAT_E) <|>
     (symbol "lpe" >> return SLP_E) <|>
-    (symbol "lpew" >> return SLP_E) <|>
+    (symbol "lpw" >> return SLP_W) <|>
     (symbol "lp" >> return SLP)
 
   let synthesize : (command, bytes list) MParser.t =
