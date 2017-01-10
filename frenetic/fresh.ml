@@ -13,6 +13,8 @@ module Log = Frenetic_Log
 type fdd = Compiler.t
 type automaton = Compiler.automaton
 
+exception ShortPath of string
+
 (** Utility functions and shorthands *)
 let log_filename = "frenetic.log"
 let log = Log.printf
@@ -51,6 +53,7 @@ module Coronet = struct
                ; mutable west    : string list
                ; mutable paths   : CoroNet.CoroPath.t list
                ; mutable classes : int option
+               ; mutable waypoints : int option
                ; mutable switches : switchId list
                ; mutable fabric  : (policy * loc list) option
                ; mutable policy  : (policy * loc list) option
@@ -69,6 +72,7 @@ module Coronet = struct
               ; paths    = []
               ; switches = []
               ; classes  = None
+              ; waypoints = None
               ; fibers   = ([], [])
               ; fabric   = None
               ; policy   = None
@@ -85,6 +89,7 @@ module Coronet = struct
     | CWest of string list
     | CPath of string * string
     | CClasses of int
+    | CWaypoints of int
     | CPeek
     | CSMT
     | CPreprocess
@@ -294,6 +299,8 @@ module Parser = struct
       (symbol "smt" >> return CSMT) <|>
       (symbol "classes" >> many_chars digit >>= fun c ->
        return (CClasses (Int.of_string c))) <|>
+      (symbol "waypoints" >> many_chars digit >>= fun c ->
+       return (CWaypoints (Int.of_string c))) <|>
       (symbol "path" >>
        many_chars alphanum >>= fun src -> spaces >>
        many_chars alphanum >>= fun dst ->
@@ -647,28 +654,36 @@ let coroway (policy,pedge) (fabric,fedge) net =
   let fabric = A.assemble fabric topo fedge fedge in
   let policy = A.assemble policy topo pedge pedge in
 
-  let start = T.time () in
-  let pol = A.to_dyads policy in
-  let pol' = List.map pol ~f:(fun dyad ->
-      let src,_ = Fabric.Dyad.src dyad in
-      let dst,_ = Fabric.Dyad.dst dyad in
-      let pointsls = Hashtbl.Poly.find_exn Coronet.state.pointtbl (src,dst) in
-      let i = Random.int (List.length pointsls) in
-      let points = List.nth_exn pointsls i in
-      dyad,points) in
-  let pol_time = ("Policy time", T.from start) in
-
-  let start = T.time () in
-  let fab = A.to_dyads fabric in
-  let fab' = List.map fab ~f:(fun dyad ->
-      let src = Fabric.Dyad.src dyad in
-      let dst = Fabric.Dyad.dst dyad in
-      let path = Hashtbl.Poly.find_exn Coronet.state.pathtbl (src,dst) in
-      dyad,path ) in
-  let fab_time = ("Fabric time", T.from start) in
+  let pts, ptmsg = match state.waypoints with
+    | Some i -> i, sprintf "Using %d waypoints" i
+    | None -> 2, sprintf "No waypoints specified, using 2" in
 
   try
+    let start = T.time () in
+    let pol = A.to_dyads policy in
+    let pol' = List.map pol ~f:(fun dyad ->
+        let src,_ = Fabric.Dyad.src dyad in
+        let dst,_ = Fabric.Dyad.dst dyad in
+        let paths = List.permute
+            (Hashtbl.Poly.find_exn Coronet.state.pointtbl (src,dst)) in
+        let points = match List.findi paths ~f:(fun _ p -> List.length p >= pts) with
+          | Some (_,p) -> fst( List.split_n p pts)
+          | None -> raise (ShortPath (sprintf "Can't find path with %d points" pts)) in
+        dyad,points) in
+    let pol_time = ("Policy time", T.from start) in
+
+    let start = T.time () in
+    let fab = A.to_dyads fabric in
+    let fab' = List.map fab ~f:(fun dyad ->
+        let src = Fabric.Dyad.src dyad in
+        let dst = Fabric.Dyad.dst dyad in
+        let path = Hashtbl.Poly.find_exn Coronet.state.pathtbl (src,dst) in
+        dyad,path ) in
+    let fab_time = ("Fabric time", T.from start) in
+
     let edge, results = S.synthesize pol' fab' topo in
+    log "Synthesized edge policy:\n%s\n%!" (string_of_policy edge);
+
     let nodes = ( List.length state.east ) +
                 ( List.length state.west ) in
     let report = result nodes (pol_time::fab_time::results) in
@@ -677,6 +692,8 @@ let coroway (policy,pedge) (fabric,fedge) net =
         ("Edge policies compiled successfully" :: edge':: report ) in
     Ok msg
   with
+  | ShortPath e ->
+    Error e
   | Frenetic_LP.LPParseError e ->
     Error (sprintf "Cannot parse LP Solution: %s\n" e)
 
@@ -767,6 +784,9 @@ let rec coronet c =
   | CClasses i ->
     state.classes <- Some i;
     Ok (sprintf "Ready to generate %d traffic classes" i)
+  | CWaypoints i ->
+    state.waypoints <- Some i;
+    Ok (sprintf "Requiring %d waypoints per path" i)
 
   | CPreprocess ->  begin match state.network with
       | None ->

@@ -488,8 +488,10 @@ module CoroNet = struct
       let srcid = Topology.vertex_to_id net psv in
       let dstid = Topology.vertex_to_id net pdv in
 
-      Hashtbl.Poly.add_multi tbl (srcid,dstid)
-        (List.map wp.waypoints ~f:(Topology.vertex_to_id net));
+      (* Update the list of paths that can connect these endpoints *)
+      let path = CoroPath.to_vertexes wp.path in
+      let swids = List.map path ~f:(Topology.vertex_to_id net) in
+      Hashtbl.Poly.add_multi tbl (srcid,dstid) swids;
 
       (* The policy is composed of the packet switches as source and
          destination, the supplied NetKAT predicate. Connect ports 0 because
@@ -515,6 +517,9 @@ module CoroNet = struct
               let i = n mod len in
               let policy = to_policy tbl net wps.(i) pred in
               policy::pols)) in
+
+      (* Deduplicate the endpoints -> path table *)
+      Hashtbl.map_inplace tbl ~f:(fun data -> (List.dedup data));
       pols, tbl
 
     let to_fabric_fibers wps net =
