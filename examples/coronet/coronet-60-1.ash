@@ -3,5 +3,6 @@ coronet load paths examples/coronet/coronet-60.paths
 coronet east [Philadelphia;]
 coronet west [SanFrancisco;]
 coronet preprocess
+coronet waypoints 2
 coronet synthesize native
 
