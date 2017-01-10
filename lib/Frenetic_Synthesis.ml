@@ -781,9 +781,15 @@ module SAT_Endpoints = struct
     | Success t -> t
 
   let serialize policy fabric topo =
+    let open Buffer in
     let open Frenetic_Time in
     let init = ([],[],[],[]) in
     let name = "problem.z3" in
+
+    (* buf_size is just a very approximate, order of magnitude calculation *)
+    let buf_size = (List.length policy) * (List.length fabric) * 100 in
+    let buffer = Buffer.create buf_size in
+    let add_line v = add_string buffer v; add_string buffer "\n" in
 
     let start = time () in
     let acc = List.foldi policy ~init:init ~f:(fun pi acc pol ->
@@ -799,30 +805,31 @@ module SAT_Endpoints = struct
     in
     let dec_vars, dec_compats, implies, compats = acc in
 
-    let selects = List.foldi policy ~init:[] ~f:(fun pi acc pol ->
+    List.iter dec_vars ~f:add_line;
+    List.iter dec_compats ~f:add_line;
+    List.iter implies ~f:add_line;
+    List.iter compats ~f:add_line;
 
+    List.iteri policy ~f:(fun pi pol ->
         let vars = List.mapi fabric  ~f:(fun fi fab ->
             sprintf "v_%d_%d" pi fi) in
 
-        let ands = List.foldi vars ~init:[ "))" ] ~f:(fun truei acc truevar ->
-            let checks = List.foldi vars ~init:[ ")" ] ~f:(fun i acc var ->
-                let str = if i = truei then var else sprintf "(not %s)" var in
-                str::acc) in
-            let check = String.concat ~sep:" " ( "(and"::checks ) in
-            check::acc) in
+        add_string buffer "(assert (or \n";
 
-        let select = String.concat ~sep:"\n" ( "(assert (or "::ands ) in
-        select::acc) in
+        List.iteri vars ~f:(fun truei truevar ->
+            add_string buffer "(and ";
+            List.iteri vars ~f:(fun i var ->
+                if i = truei
+                then add_string buffer var
+                else add_string buffer (sprintf "(not %s)" var);
+                add_string buffer " ";);
+            add_string buffer ")");
+        add_string buffer "))\n");
 
-    let problem = String.concat ~sep:"\n\n" [
-        String.concat ~sep:"\n" dec_vars;
-        String.concat ~sep:"\n" dec_compats;
-        String.concat ~sep:"\n" implies;
-        String.concat ~sep:"\n" compats;
-        String.concat ~sep:"\n" selects;
-        "(check-sat)";
-        "(get-model)"] in
+    add_string buffer "(check-sat)";
+    add_string buffer "(get-model)";
 
+    let problem = contents buffer in
     let gen_time = from start in
     let outc = Out_channel.create name in
     Out_channel.output_string outc problem;
