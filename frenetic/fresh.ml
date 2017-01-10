@@ -727,10 +727,8 @@ let corosynth (policy,pedge) (fabric,fedge) net cs =
     let fab = A.to_dyads fabric in
     let fab_time = ("Fabric time", T.from start) in
 
-    log "Pre-synthesis user policy:\n%s\n"   (string_of_policy (A.program policy));
-    log "Pre-synthesis fabric policy:\n%s\n" (string_of_policy (A.program fabric ));
+    log "Pre-synthesis user policy:\n%s\n%!"   (string_of_policy (A.program policy));
     let edge, timings = S.synthesize pol fab topo in
-    log "Synthesized edge policy:\n%s\n%!"     (string_of_policy edge);
 
     (* let edge_fdd = Compiler.compile_local ~options:keep_cache edge in *)
     (* state.edge <- Some { new_config with *)
@@ -741,7 +739,7 @@ let corosynth (policy,pedge) (fabric,fedge) net cs =
                 ( List.length state.west ) in
     let report = result nodes (pol_time::fab_time::timings) in
     let edge' = string_of_policy edge in
-    let msg = String.concat ~sep:"\n" ("Edge policies compiled successfully" :: edge':: report ) in
+    let msg = String.concat ~sep:"\n" ("Edge policies compiled successfully" :: report ) in
     Ok msg
   with
   | Frenetic_LP.LPParseError e ->

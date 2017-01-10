@@ -431,8 +431,10 @@ module CoroNet = struct
                      connect to the edge packet nodes *)
                   let e_port = get_port ptbl' e_name in
                   let w_port = get_port ptbl' w_name in
-                  let e' = (e, Topology.vertex_to_id net e, e_port) in
-                  let w' = (w, Topology.vertex_to_id net w, w_port) in
+                  let e_id = Topology.vertex_to_id net e in
+                  let w_id = Topology.vertex_to_id net w in
+                  let e' = (e, e_id, e_port) in
+                  let w' = (w, w_id, w_port) in
 
                   (* Find the paths connecting the optical edge nodes to the
                      predetermined disjoint physical paths*)
