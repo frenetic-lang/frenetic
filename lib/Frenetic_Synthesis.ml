@@ -84,8 +84,8 @@ let random_one dyad options= match options with
    unique integer tag per (policy dyad, fabric dyad) to keep them separate. *)
 let generate_tagged to_netkat topo pairs =
   let ins, outs, _ = List.fold_left pairs ~init:([],[], 0)
-      ~f:(fun (ins, outs, tag) (dyad, pick) ->
-          let ins', outs' = to_netkat topo dyad pick tag in
+      ~f:(fun (ins, outs, tag) (pol, fab) ->
+          let ins', outs' = to_netkat topo pol fab tag in
           (ins'::ins, outs'::outs, tag+1)) in
   (union ins, union outs)
 
@@ -391,12 +391,14 @@ module Optical = struct
   let to_netkat topo
     ((_,src,dst,cond,actions)) ((_,src',dst',cond',actions'))
     (tag:int): policy * policy =
-  let open Fabric.Condition in
+    let open Fabric.Condition in
+
   let strip_vlan = 0xffff in
   let to_fabric = go_to topo src src' in
   let to_edge   = Mod( Location (Physical (snd dst))) in
   let in_filter  = Filter (to_pred cond) in
-  let out_filter = Filter (come_from topo dst' dst) in
+  let out_filter = Filter (And( come_from topo dst' dst,
+                                Test( Vlan tag))) in
   let modify = Frenetic_Fdd.Action.to_policy actions in
   let ingress = seq ([ in_filter; Mod( Vlan tag ); to_fabric ]) in
   let egress  = seq ([ out_filter; Mod( Vlan strip_vlan ); modify; to_edge ]) in
