@@ -13,10 +13,32 @@ then
     echo "No synthesis backend specified. Using existing backends specified in scripts."
     echo "Available backends are optical, lpe and sate."
 else
-    echo "Altering Coronet-60 scripts to use $1 backend."
-    # Doesn't keep backups of the original script since the changes are tiny
-    sed -i -- 's/\(coronet synthesize \)\([a-zA-Z]*\)/\1'$1'/' \
-        examples/coronet/coronet-60-*.ash
+    case $1 in
+        "lpw")
+            if [ -z "$2" ]
+            then
+                echo "LP Waypoint backend requires number of waypoints"
+                echo "Usage: $0 $1 <number>"
+                exit
+            else
+                sed -i -- 's/\(coronet synthesize \)\([a-zA-Z]*\)/\1lpw/' \
+                    examples/coronet/coronet-60-*.ash
+
+                sed -i -- 's/\(coronet waypoints \)\([0-9]*\)/\1'$2'/' \
+                    examples/coronet/coronet-60-*.ash
+            fi
+            ;;
+
+        "native"|"lpe"|"sate")
+            echo "Altering Coronet-60 scripts to use $1 backend."
+            sed -i -- 's/\(coronet synthesize \)\([a-zA-Z]*\)/\1'$1'/' \
+                examples/coronet/coronet-60-*.ash
+            ;;
+
+        *)
+            echo "Unknown backend:" $1
+            exit
+    esac
 fi
 
 # Run the actual Frenetic shell scripts to perform the experiments. Save them to
@@ -39,6 +61,12 @@ echo "===" >> $COLLECTED
 echo "Date: " $(date "+%Y-%m-%d %T %Z") >> $COLLECTED
 echo "Machine: " $(hostname) >> $COLLECTED
 echo "Engine: " $1 >> $COLLECTED
+if [[ $1 = "lpw" ]]
+then
+    echo "Waypoints: " $2 >> $COLLECTED
+else
+    echo
+fi
 column -t $DISPLAY >> $COLLECTED
 echo "===" >> $COLLECTED
 
