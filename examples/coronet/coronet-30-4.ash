@@ -1,8 +1,8 @@
 coronet load topo examples/coronet/coronet-30.csv
 coronet load paths examples/coronet/coronet-30.paths
 coronet east [Baltimore;Miami;NewYork;Boston;Philadelphia;]
-coronet west [Sacramento;Seattle;SanFrancisco;]
+coronet west [Sacramento;Seattle;SanFrancisco;LosAngeles;]
 coronet preprocess
 coronet waypoints 1
-coronet synthesize lpw
+coronet synthesize native
 

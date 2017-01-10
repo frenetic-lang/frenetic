@@ -4,5 +4,5 @@ coronet east [NewYork;Boston;Philadelphia;]
 coronet west [Sacramento;Seattle;SanFrancisco;]
 coronet preprocess
 coronet waypoints 1
-coronet synthesize lpw
+coronet synthesize native
 
