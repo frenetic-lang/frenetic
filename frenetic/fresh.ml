@@ -727,9 +727,10 @@ let corosynth (policy,pedge) (fabric,fedge) net cs =
     let fab = A.to_dyads fabric in
     let fab_time = ("Fabric time", T.from start) in
 
-    log "Pre-synthesis user policy:\n%s\n%!"   (string_of_policy (A.program policy));
     let edge, timings = S.synthesize pol fab topo in
 
+    log "Pre-synthesis user policy:\n%s\n%!" (string_of_policy (A.program policy));
+    log "Synthesized edge policy:\n%s\n%!"   (string_of_policy edge);
     (* let edge_fdd = Compiler.compile_local ~options:keep_cache edge in *)
     (* state.edge <- Some { new_config with *)
     (*                      policy = edge; *)

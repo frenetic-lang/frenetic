@@ -499,7 +499,8 @@ module CoroNet = struct
          destination, the supplied NetKAT predicate. Connect ports 0 because
          they are reservered for hosts. This may need to be changed. *)
       let condition = Frenetic_NetKAT_Optimize.mk_big_and
-          [ pred; Test (Switch srcid); Test (Location (Physical 0l)) ] in
+          [ Test( EthSrc srcid ); Test( EthDst dstid );
+            Test( Switch srcid ); Test( Location( Physical 0l)); pred ] in
       let action = [ Mod( Switch dstid );
                      Mod( Location( Physical( 0l))) ] in
       Frenetic_NetKAT_Optimize.mk_big_seq
@@ -511,6 +512,7 @@ module CoroNet = struct
        number of predicates should match the number of disjoint cross-country
        physical paths. *)
     let to_policies wptbl net preds =
+      let open Frenetic_NetKAT in
       let tbl = Hashtbl.Poly.create ~size:(Hashtbl.length wptbl) () in
       let pols = Hashtbl.Poly.fold wptbl ~init:[] ~f:(fun ~key:(s,d) ~data:wps pols ->
           let wps = Array.of_list wps in
