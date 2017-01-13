@@ -5,20 +5,22 @@ module Tbl = Core.Std.Hashtbl.Poly
 module Sexp = Core.Std.Sexp
 
 module type FABRIC_GEN = sig
-  val generate_fabrics :
-    ?log:bool ->
-    ?record_paths:string ->
-    pred ->
-    policy ->
-    pred ->
-    pred ->
-    policy ->
-    pred ->
-    pred ->
-    policy list * policy list
+  type fabric = policy list * policy list
+
+  val generate_fabric : ?log:bool
+    -> ?record_paths:string
+    -> vrel:pred
+    -> vtopo:policy
+    -> ving:pred
+    -> veg:pred
+    -> ptopo:policy
+    -> ping:pred
+    -> peg:pred
+    -> fabric
 end
 
 module FabricGen = struct
+  type fabric = policy list * policy list
 
   (* auxilliary list functions *)
   let inters xs ys = List.find_all (fun x -> List.mem x ys) xs
@@ -434,10 +436,10 @@ module FabricGen = struct
       let _ = Core.Std.Option.(record_paths >>| close_out) in
       fabric
 
-  let generate_fabrics ?(log=true) ?record_paths vrel v_topo v_ing v_eg p_topo p_ing p_eg  =
-    let vgraph = G.Virt.make v_ing v_eg v_topo in
-    let pgraph = G.Phys.make p_ing p_eg p_topo in
-    let prod_ing, prod_graph = make_product_graph vgraph pgraph v_ing vrel in
+  let generate_fabric ?(log=true) ?record_paths ~vrel ~vtopo ~ving ~veg ~ptopo ~ping ~peg  =
+    let vgraph = G.Virt.make ving veg vtopo in
+    let pgraph = G.Phys.make ping peg ptopo in
+    let prod_ing, prod_graph = make_product_graph vgraph pgraph ving vrel in
 
     let unwrap_e e = (G.Phys.V.label (G.Phys.E.src e), G.Phys.V.label (G.Phys.E.dst e)) in
     let unwrap_path path = List.map unwrap_e path in
