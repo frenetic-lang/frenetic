@@ -8,6 +8,8 @@ module Sexp = Core.Std.Sexp
 
 module Make(FG:FABRIC_GEN) =
 struct
+  include FG
+
 (*
   Vingress defines the virtual ingress. Examples:
 
@@ -59,10 +61,6 @@ struct
         (mk_filter (mk_and (Test (VSwitch vsw1)) (Test (VPort vpt1))))
         (mk_seq (Mod (VSwitch vsw2)) (Mod (VPort vpt2)))
     | _ -> vtopo
-
-  let generate_fabric ?(log=true) ?(record_paths : string option)
-      ~(vrel : pred) ~(vtopo : policy) ~ving ~veg ~ptopo ~ping ~peg  =
-    FG.generate_fabric ~log ?record_paths ~vrel ~vtopo ~ving ~veg ~ptopo ~ping ~peg
 
   let compile_with_fabric ?(log=true) ?(record_paths : string option)
       ~(vtopo : policy) ~(ving_pol : policy) ~(ving : pred) ~(veg : pred)
