@@ -230,7 +230,8 @@ module Virtual = struct
     let peg = parse_pred peg in
 
     (* compile *)
-    let module Virtual = Frenetic_NetKAT_Virtual_Compiler in
+    let module FG = Frenetic_NetKAT_FabricGen.FabricGen in
+    let module Virtual = Frenetic_NetKAT_Virtual_Compiler.Make(FG) in
     let (t1, global_pol) = time (fun () ->
       Virtual.compile vpol ~log:true ~vrel ~vtopo ~ving_pol ~ving ~veg ~ptopo ~ping ~peg) in
     let (t2, fdd) = time (fun () -> Frenetic_NetKAT_Compiler.compile_global global_pol) in
