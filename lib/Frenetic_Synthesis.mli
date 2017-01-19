@@ -10,11 +10,7 @@ type assemblage = Assemblage.t
 exception UnmatchedDyad  of Dyad.t
 exception UnmatchedFiber of fiber
 
-type topology = {
-  topo  : policy
-; preds : (place, place) Hashtbl.t
-; succs : (place, place) Hashtbl.t }
-
+type topology = Frenetic_Fabric.Topo.t
 type timings = (string * Int64.t) list
 type result = policy * timings
 

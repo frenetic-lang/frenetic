@@ -62,28 +62,27 @@ module Assemblage : sig
   val to_dyads : t -> Dyad.t list
 end
 
-(** Module for dealing with policies specified as end-to-end paths directly, *)
-(** instead of as NetKAT programs *)
-module Path : sig
-  type t
-
-  val of_string : string -> (t list, string) Result.t
-  val project   : t list -> Dyad.t list -> policy -> (policy list * policy list)
-
-end
-
 (** Topology Handling: Functions for finding adjacent nodes in a given topology *)
 module Topo : sig
+  type t = {
+    topo  : policy
+  ; preds : (place, place) Hashtbl.t
+  ; succs : (place, place) Hashtbl.t }
+
   val predecessors : policy -> (place, place) Hashtbl.t
   val successors : policy -> (place, place) Hashtbl.t
   val precedes : (place, place) Hashtbl.t -> place -> place -> portId option
   val succeeds :  (place, place) Hashtbl.t -> place -> place -> portId option
   val starts_at : (place, place) Hashtbl.t -> switchId -> Dyad.t -> bool
   val stops_at : (place, place) Hashtbl.t -> switchId -> Dyad.t -> bool
+
+  val adjacent : t -> Dyad.t -> Dyad.t -> bool
+  val go_to : t -> place -> place -> policy
+  val come_from : t -> place -> place -> pred
 end
 
 val dedup : policy -> policy
 val string_of_place  : place  -> string
 
-val retarget : Dyad.t list -> Dyad.t list -> policy ->
-  (policy list * policy list)
+(* val retarget : Dyad.t list -> Dyad.t list -> policy -> *)
+(*   (policy list * policy list) *)

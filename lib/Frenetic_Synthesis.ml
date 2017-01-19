@@ -31,12 +31,7 @@ let compile_local =
 exception UnmatchedDyad  of Dyad.t
 exception UnmatchedFiber of fiber
 
-(* TODO(basus): This needs to go into a better topology module *)
-type topology = {
-  topo  : policy
-; preds : (place, place) Hashtbl.t
-; succs : (place, place) Hashtbl.t }
-
+type topology = Fabric.Topo.t
 type 'a decider   = topology -> 'a -> 'a -> bool
 type 'a chooser   = topology -> 'a -> 'a list -> 'a
 type 'a generator = topology -> ('a * 'a) list -> (policy * policy)
@@ -88,34 +83,6 @@ let generate_tagged to_netkat topo pairs =
           let ins', outs' = to_netkat topo pol fab tag in
           (ins'::ins, outs'::outs, tag+1)) in
   (union ins, union outs)
-
-
-(** Topology related functions. Again, need to be replaced by a better topology module. *)
-(* Check if the fabric stream and the policy stream start and end at the same,
-   or immediately adjacent locations. This is decided using predecessor and
-   successor tables. *)
-let adjacent topo (_,src,dst,_,_) fab_stream =
-  Fabric.Topo.starts_at topo.preds (fst src) fab_stream &&
-  Fabric.Topo.stops_at  topo.succs (fst dst) fab_stream
-
-let go_to topology ((src_sw, src_pt) as src) ((dst_sw, dst_pt) as dst) =
-  let pt = if src_sw = dst_sw then dst_pt
-  else match Fabric.Topo.precedes topology.preds src dst with
-    | Some pt -> pt
-    | None ->
-      failwith (sprintf "Cannot go to %s from %s in the given topology"
-        (Fabric.string_of_place src) (Fabric.string_of_place dst)) in
-  Mod (Location (Physical pt))
-
-let come_from topology ((src_sw, src_pt) as src) ((dst_sw, dst_pt) as dst) =
-  let pt = if src_sw = dst_sw then src_pt
-    else match Fabric.Topo.succeeds topology.succs dst src with
-      | Some pt -> pt
-      | None ->
-      failwith (sprintf "Cannot go to %s from %s in the given topology"
-                  (Fabric.string_of_place src) (Fabric.string_of_place dst)) in
-  And(Test( Switch dst_sw ),
-       Test( Location( Physical pt )))
 
 
 (** Module to convert the synthesis types to Z3 program strings. *)
@@ -320,11 +287,12 @@ end
 
 module Generic = struct
 
+  open Fabric.Topo
+
   type t = Dyad.t
 
   let gen_time = ref 0L
   let synth_time = ref 0L
-
 
   (** Functions for generating edge NetKAT programs from matched streams **)
   (* Given a policy stream and a fabric stream, generate edge policies to implement *)
@@ -382,6 +350,7 @@ module Generic = struct
 end
 
 module Optical = struct
+  open Fabric.Topo
 
   type t = Dyad.t
 
@@ -417,6 +386,8 @@ module Optical = struct
 end
 
 module MakeStrict(C:COMPARATOR) = struct
+  open Fabric.Topo
+
   type input = C.t list
   type solution = result
 
@@ -462,6 +433,7 @@ module MakeStrict(C:COMPARATOR) = struct
 end
 
 module Coronet = struct
+  open Fabric.Topo
 
   type t = fiber
   type input = t list
@@ -604,6 +576,8 @@ end
     using tunneling. This approach is left here for completeness' sake. *)
 module LP_Predicated = struct
   open Frenetic_LP
+  open Fabric.Topo
+
   module Field = Frenetic_Fdd.Field
 
   type input = Dyad.t list
@@ -736,6 +710,7 @@ module LP_Predicated = struct
 end
 
 module SAT_Endpoints = struct
+  open Fabric.Topo
 
   type input = Dyad.t list
 
@@ -877,6 +852,7 @@ module SAT_Endpoints = struct
 end
 
 module LP_Endpoints = struct
+  open Fabric.Topo
   open Frenetic_LP
 
   type input = Dyad.t list
@@ -964,6 +940,7 @@ end
 
 
 module LP_Waypointing = struct
+  open Fabric.Topo
   open Frenetic_LP
 
   type input = path list

@@ -197,6 +197,11 @@ end
 
 (** Topology Handling: Functions for finding adjacent nodes in a given topology *)
 module Topo = struct
+  type t = {
+    topo  : policy
+  ; preds : (place, place) Hashtbl.t
+  ; succs : (place, place) Hashtbl.t }
+
   let predecessors (topo:policy) =
     let table = Hashtbl.Poly.create () in
     let rec populate pol = match pol with
@@ -255,6 +260,33 @@ module Topo = struct
       | Some (post_sw, _) -> post_sw = sw
       | None -> false in
     sw = sw' || succeeds
+
+  (* Check if the fabric stream and the policy stream start and end at the same,
+     or immediately adjacent locations. This is decided using predecessor and
+     successor tables. *)
+  let adjacent topo (_,src,dst,_,_) fab_stream =
+    starts_at topo.preds (fst src) fab_stream &&
+    stops_at  topo.succs (fst dst) fab_stream
+
+  let go_to topology ((src_sw, src_pt) as src) ((dst_sw, dst_pt) as dst) =
+    let pt = if src_sw = dst_sw then dst_pt
+      else match precedes topology.preds src dst with
+        | Some pt -> pt
+        | None ->
+          failwith (sprintf "Cannot go to %s from %s in the given topology"
+                      (string_of_place src) (string_of_place dst)) in
+    Mod (Location (Physical pt))
+
+  let come_from topology ((src_sw, src_pt) as src) ((dst_sw, dst_pt) as dst) =
+    let pt = if src_sw = dst_sw then src_pt
+      else match succeeds topology.succs dst src with
+        | Some pt -> pt
+        | None ->
+          failwith (sprintf "Cannot go to %s from %s in the given topology"
+                      (string_of_place src) (string_of_place dst)) in
+    And(Test( Switch dst_sw ),
+        Test( Location( Physical pt )))
+
 
 end
 
@@ -438,246 +470,5 @@ module Assemblage = struct
             then (acc,i)
             else (( Dyad.of_fdd_path p i )::acc, i+1 )) in
     dyads
-
-end
-
-(** Start graph-based retargeting. *)
-
-module OverNode = struct
-  type t = (switchId * portId)
-
-  let default = (0L, 0l)
-
-  let compare l1 l2 = Pervasives.compare l1 l2
-  let hash l1       = Hashtbl.hash l1
-
-  let equal (sw,pt) (sw',pt') =
-    sw = sw' && pt = pt'
-
-  let to_string (sw,pt) = sprintf "(%Ld:%ld)" sw pt
-end
-
-module OverEdge = struct
-  open Frenetic_NetKAT
-
-  type t =
-    | Internal                            (* Between ports on the same switch *)
-    | Exact of Condition.t * Action.t       (* The fabric delivers between those exact point *)
-    | Adjacent of Condition.t * Action.t    (* Fabric delivers between locations attached to
-                                             these in the topology *)
-
-  let default = Internal
-
-  let compare = Pervasives.compare
-  let hash    = Hashtbl.hash
-  let equal   = (=)
-end
-
-module Overlay = struct
-  module G = Graph.Persistent.Digraph.ConcreteBidirectionalLabeled
-      (OverNode)
-      (OverEdge)
-  include G
-end
-
-module Weight = struct
-  type t = int
-  type edge = Overlay.E.t
-  let weight e = 1
-  let compare = Int.compare
-  let add = (+)
-  let zero = 0
-end
-
-module OverPath = Graph.Path.Dijkstra(Overlay)(Weight)
-
-let overlay (places:place list) (fabric:Dyad.t list) (topo:policy) : Overlay.t =
-  let preds = Topo.predecessors topo in
-  let succs = Topo.successors topo in
-
-  (* Add vertices for all policy locations *)
-  let graph = List.fold places ~init:Overlay.empty
-      ~f:(Overlay.add_vertex) in
-
-  (* Add edges between all location pairs reachable via the fabric *)
-  let graph = ( List.fold fabric ~init:graph
-      ~f:(fun g (_,src, sink, condition, action) ->
-           let open OverEdge in
-           let g' = Overlay.add_edge_e g (src, Exact(condition,action) , sink) in
-           let src' = Hashtbl.Poly.find preds src in
-           let sink' = Hashtbl.Poly.find succs sink in
-           match src', sink' with
-           | Some src', Some sink' ->
-            Overlay.add_edge_e g' (src', Adjacent(condition, action), sink')
-           | _ -> g'
-         ) ) in
-
-  (* Add edges between ports of the same switch *)
-  Overlay.fold_vertex (fun (sw,pt) g ->
-      Overlay.fold_vertex (fun (sw',pt') g ->
-          if sw = sw' && not (pt = pt')
-          then Overlay.add_edge_e g ((sw,pt), Internal, (sw,pt'))
-          else g ) g g) graph graph
-
-(* Given an edge representing a fabric path (hop) and a  *)
-let generalize ((_,fabric_path,_):Overlay.E.t) (cond:Condition.t)
-  : policy list * policy list =
-  let open Condition in
-  match fabric_path with
-  | Internal -> [], []
-  | Exact (cond',_)
-  | Adjacent (cond',_) ->
-    if places_only cond' then [], []
-    else if is_subset cond' cond then
-      let mods = satisfy cond' in
-      let restore = undo cond' cond in
-      (mods, restore)
-    else
-      let mods = satisfy cond' in
-      let encapsulate = Mod( Location( Pipe( "encapsulate" ))) in
-      let restore = Mod( Location( Pipe( "decapsulate" ))) in
-      (encapsulate::mods, [restore])
-
-(* Given a list of hops consisting of alternating fabric paths and internal
-   forwards on edge switches, generate ingress, egress, or bounce rules to
-   stitch the hops together, forming a VLAN-tagged path between the naive
-   policy endpoints *)
-let rec stitch (src,sink,condition,action) path tag =
-  let open OverEdge in
-  let rec aux path restore = match path with
-    | [] -> ([], [])
-    | (_,Internal,(_,in_pt))::rest ->
-      let start = pred_of_place src in
-      let pred = Condition.to_pred condition in
-      let filter = Filter( And( start, pred )) in
-      begin match rest with
-        | [] ->
-          ([Seq(filter,Mod( Location( Physical in_pt))) ], [])
-        | hd::_ ->
-          let satisfy,restore = generalize hd condition in
-          let forward = [ Mod( Vlan tag ); Mod( Location( Physical in_pt)) ] in
-          let ingress = seq ( filter::(List.append satisfy forward)) in
-          let ins, outs = aux rest restore in
-          (ingress::ins, outs)
-      end
-    | (_,Adjacent _,_)::((out_sw,out_pt),Internal,(_,in_pt))::rest ->
-      let test_loc = And( Test( Switch out_sw ),
-                          Test( Location( Physical out_pt ))) in
-      let filter = Filter( And( Test( Vlan tag ),
-                                test_loc )) in
-      begin match rest with
-        | [] ->
-          let mods = Action.to_policy action in
-          let out = Mod( Location( Physical (snd sink) )) in
-          let egress = seq ( filter::Mod( Vlan strip_vlan)::(List.append restore
-                                                               [ mods; out]) ) in
-          ([], [egress])
-        | hd::_ ->
-          let out = Mod( Location( Physical in_pt )) in
-          let satisfy, restore' = generalize hd condition in
-          let modify = List.append restore satisfy in
-          let egress = seq ( filter::(List.append modify [out])) in
-          let ins, outs = aux rest restore' in
-          (ins, egress::outs) end
-    | _ -> failwith "Malformed path" in
-  aux path []
-
-let retarget (policy:Dyad.t list) (fabric:Dyad.t list) (topo:policy) =
-  let places = List.fold_left policy ~init:[] ~f:(fun acc (_,src, sink,_,_) ->
-      src::sink::acc) in
-  let graph = overlay places fabric topo in
-  let ingresses, egresses, _ = List.fold policy ~init:([],[],1)
-      ~f:(fun (ins, outs, tag) (_,src,sink,c,a) ->
-          try
-            let path,_ = OverPath.shortest_path graph src sink in
-            let ingress, egress = stitch (src,sink,c,a) path tag in
-            ( List.rev_append ingress ins,
-              List.rev_append egress  outs,
-              tag + 1 )
-          with Not_found ->
-            printf "No path between %s and %s\n%!"
-              (string_of_place src) (string_of_place sink);
-            (ins,outs, tag)) in
-
-  ingresses, egresses
-
-
-(** Monadic parser for paths *)
-module Path = struct
-
-  open MParser
-  module Tokens = MParser_RE.Tokens
-
-  type t = pred * place list
-
-  let symbol = Tokens.symbol
-
-  let pred : (pred, bytes list) MParser.t =
-    char '[' >>
-    many_chars_until (none_of "]") (char ']') >>= fun s ->
-    return (Frenetic_NetKAT_Parser.pred_of_string s)
-
-  let location : (place , bytes list) MParser.t =
-    many_chars_until digit (char '@') >>= fun swid ->
-    many_chars digit >>= fun ptid ->
-    return ((Int64.of_string swid),
-            (Int32.of_string ptid))
-
-  let path : (t, bytes list) MParser.t =
-    pred >>= fun p ->
-    spaces >> (char ':') >> spaces >>
-    location >>= fun start ->
-    (many_until (spaces >> symbol "==>" >> spaces >> location >>= fun l ->
-                 return l)
-       (char ';')) >>= fun ls ->
-    return (p, start::ls)
-
-  let program : (t list, bytes list) MParser.t =
-    many_until (spaces >> path) eof
-
-  let of_string (s:string) : (t list, string) Result.t =
-    match (MParser.parse_string program s []) with
-    | Success paths -> Ok paths
-    | Failed (msg, e) -> Error msg
-
-
-  let implement pred ps tag graph =
-    let open OverEdge in
-    let rec mk_ends node path = match path with
-      | [] -> []
-      | hd::tl -> (node,hd)::(mk_ends hd tl) in
-    let endpoints = mk_ends (List.hd_exn ps) (List.tl_exn ps) in
-    (* TODO(basus): Handle the case where there are multiple conditions *)
-    let cond = List.hd_exn (Condition.of_pred pred) in
-    let action = Action.one in
-    List.fold_left endpoints ~init:([],[]) ~f:(fun (ins,outs) (src,sink) ->
-        try
-          let path,_ = OverPath.shortest_path graph src sink in
-          let stream = (src, sink, cond, action) in
-          let ingress, egress = stitch stream path tag in
-          ( List.rev_append ingress ins,
-            List.rev_append egress  outs)
-        with Not_found ->
-          let msg = sprintf "No path between %s and %s\n%!"
-              (string_of_place src) (string_of_place sink) in
-          raise (NonExistentPath msg))
-
-
-  let project (paths: t list) (fabric: Dyad.t list) (topo:policy) =
-    let places = List.fold_left paths ~init:[] ~f:(fun acc (_,ps) ->
-        List.fold_left ps ~init:acc ~f:(fun acc p -> p::acc)) in
-    let graph = overlay places fabric topo in
-    let ingresses, egresses, _ = List.fold paths ~init:([],[],1)
-        ~f:(fun (ins, outs, tag) (pred, ps) ->
-            try
-              let ing, out = implement pred ps tag graph in
-              ( List.rev_append ing ins,
-                List.rev_append out outs,
-                tag + 1 )
-            with NonExistentPath s ->
-              print_endline s;
-              (ins, outs, tag)) in
-
-    ingresses, egresses
 
 end

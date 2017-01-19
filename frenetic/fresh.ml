@@ -59,7 +59,7 @@ module Coronet = struct
                ; mutable policy  : (policy * loc list) option
                ; mutable fibers  : CoroNet.Waypath.fiber list * CoroNet.Waypath.fiber list
                ; mutable preproc : Int64.t
-               ; mutable result  : Frenetic_Synthesis.result Async.Std.Deferred.t
+               ; mutable result  : Frenetic_Edge.result Async.Std.Deferred.t
                ; mutable pointtbl : CoroNet.Waypath.pointtable
                ; pathtbl : ((loc * loc), switchId list) Hashtbl.t
                }
@@ -183,7 +183,7 @@ type command =
   | Coronet of Coronet.t
   | Install of install
   | Show of show
-  | Path of source
+  (* | Path of source *)
   | Blank
   | Quit
 
@@ -328,9 +328,9 @@ module Parser = struct
        fun sp -> return( Show( STable(sp, swid) ))))
 
   (* Parser for the path command *)
-  let path: (command, bytes list) MParser.t =
-    symbol "path" >> (
-      source >>= fun s -> return (Path s))
+  (* let path: (command, bytes list) MParser.t = *)
+  (*   symbol "path" >> ( *)
+  (*     source >>= fun s -> return (Path s)) *)
 
   (* Parser for a blank line *)
   let blank : (command, bytes list) MParser.t =
@@ -347,7 +347,7 @@ module Parser = struct
     coronet <|>
     install <|>
     show    <|>
-    path    <|>
+    (* path    <|> *)
     blank   <|>
     quit
 
@@ -505,17 +505,14 @@ let compile_circuit (f:fabric) = match f.circuit with
 let compile_edge c f topo =
   let open Compiler in
   let module A = Fabric.Assemblage in
+  let module M = Frenetic_Edge.GraphicalMatching in
   let (fpol,fins,fouts) = (f.config.policy, f.config.ingresses, f.config.egresses) in
 
   let naive     = A.assemble c.policy topo c.ingresses c.egresses in
   let fabric    = A.assemble fpol topo fins fouts in
   let parts     = A.to_dyads naive in
   let fab_parts = A.to_dyads fabric in
-  let ins, outs = Fabric.retarget parts fab_parts topo in
-
-  let ingress = Frenetic_NetKAT_Optimize.mk_big_union ins in
-  let egress  = Frenetic_NetKAT_Optimize.mk_big_union outs in
-  let edge    = Frenetic_NetKAT.Union (ingress, egress) in
+  let edge, _   = M.synthesize parts fab_parts topo in
 
   log "Assembled naive policy:\n%s\n" (string_of_policy (A.program naive));
   log "Assembled fabric policy:\n%s\n" (string_of_policy (A.program fabric ));
@@ -526,8 +523,7 @@ let compile_edge c f topo =
   log "Fabric alpha/beta pairs:\n";
   List.iter fab_parts (fun s -> log "%s\n" (Fabric.Dyad.to_string s));
 
-  log "Retargeted ingress policy:\n%s\n" (string_of_policy ingress);
-  log "Retargeted egress policy:\n%s\n" (string_of_policy egress);
+  log "Synthesized edge policy:\n%s\n" (string_of_policy edge);
 
   let edge_fdd = compile_local ~options:keep_cache edge in
   Ok { new_config with policy = edge;
@@ -991,22 +987,20 @@ let show (s:show) = match s with
       | Error s ->
         print_endline s end
 
-let path s : unit = match Source.to_string s with
-  | Error e -> print_endline e
-  | Ok s ->
-    begin match Fabric.Path.of_string s, state.fabric,state.topology with
-      | Ok paths, Some f, Some topo ->
-        (* TODO(basus): Update the edge configuration in the state *)
-        let (fpol,fins,fouts) = (f.config.policy, f.config.ingresses, f.config.egresses) in
-        let fabric      = Fabric.Assemblage.assemble fpol topo fins fouts in
-        let fab_streams = Fabric.Assemblage.to_dyads fabric in
-        let ins, outs = Fabric.Path.project paths fab_streams topo in
-        printf "\nIngress policy:\n";
-        List.iter ins (fun p -> printf "%s\n" (string_of_policy p));
-        printf "\nEgress policy:\n";
-        List.iter outs (fun p -> printf "%s\n" (string_of_policy p));
-      | Ok paths, _, _ -> print_endline "Pathfinding needs both fabric and topology"
-      | Error e, _, _ -> print_endline e end
+(* let path s : unit = match Source.to_string s with *)
+(*   | Error e -> print_endline e *)
+(*   | Ok s -> *)
+(*     let module E = Frenetic_Edge in *)
+(*     begin match E.Path.of_string s, state.fabric,state.topology with *)
+(*       | Ok paths, Some f, Some topo -> *)
+(*         (\* TODO(basus): Update the edge configuration in the state *\) *)
+(*         let (fpol,fins,fouts) = (f.config.policy, f.config.ingresses, f.config.egresses) in *)
+(*         let fabric      = Fabric.Assemblage.assemble fpol topo fins fouts in *)
+(*         let fab_streams = Fabric.Assemblage.to_dyads fabric in *)
+(*         let edge = E.GraphicalStitching.synthesize paths fab_streams topo in *)
+(*         Ok (sprintf "%s\n" (string_of_policy p)) *)
+(*       | Ok paths, _, _ -> print_endline "Pathfinding needs both fabric and topology" *)
+(*       | Error e, _, _ -> print_endline e end *)
 
 let print_result r : unit = match r with
   | Ok msg  -> printf "Success: %s\n" msg
@@ -1033,7 +1027,7 @@ let command (com:command) = match com with
   | Install i ->
     install i |> print_deferred_results
   | Show s -> show s
-  | Path s -> path s
+  (* | Path s -> path s *)
   | Quit ->
     print_endline "Goodbye!";
     Shutdown.shutdown 0
