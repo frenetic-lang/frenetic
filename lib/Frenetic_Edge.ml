@@ -35,7 +35,7 @@ end
 module type MATCHER = SYNTHESIZER with
   type input = Dyad.t list and type solution = result
 
-module type STITCHER = SYNTHESIZER with
+module type SEGMENTER = SYNTHESIZER with
   type input = path list and type solution = result
 
 module type DIVERSIFIER = SYNTHESIZER with
@@ -294,7 +294,7 @@ module GraphicalMatching = struct
 
 end
 
-module GraphicalStitching = struct
+module GraphicalSegmenting = struct
   type input = path list
   type solution = result
 
@@ -440,7 +440,107 @@ module LinearMatching = struct
 
 end
 
-module LinearStitching = struct
+
+module LinearSegmenting = struct
+  open Fabric.Topo
+  open Frenetic_LP
+
+  type input = path list
+  type solution = result
+
+  let uid = Frenetic_Fabric.Dyad.uid
+
+  let to_lp policy fabric topo =
+    let ptbl = Hashtbl.Poly.create ~size:(List.length policy) () in
+    let ftbl = Hashtbl.Poly.create ~size:(List.length fabric) () in
+    let paths = Hashtbl.Poly.create ~size:(List.length fabric) () in
+
+    (* Generate a variable Vij if policy dyad i can be implemented on fabric
+       dyad j (ie, they share the same endpoints) *)
+    let vars, checks = List.fold policy ~init:([],[]) ~f:(fun (vars,checks) (pol,ppath) ->
+        List.fold fabric ~init:(vars,checks) ~f:(fun (vars,checks) (fab,fpath) ->
+            let fid = uid fab in
+            let var = sprintf "v_%d_%d" (uid pol) (uid fab) in
+            Hashtbl.Poly.add_multi ptbl (uid pol) var;
+            Hashtbl.Poly.set paths fid fpath;
+
+            let checks =
+              if not (adjacent topo pol fab ) then
+                Constraint( Var var, Eq, 0L)::checks
+              else
+                checks in
+           var::vars, checks)) in
+
+    (* Generate a constraint that chooses one fabric dyad for each policy dyad *)
+    let choose = Hashtbl.Poly.fold ptbl ~init:checks ~f:(fun ~key:id ~data:vars acc ->
+        let vars = List.map vars ~f:(fun v -> Var v) in
+        let expr = sum vars in
+        Constraint(expr, Eq, 1L)::acc) in
+
+    let objective = Minimize( [sum (List.map vars ~f:(fun v -> Var v))]) in
+    let constraints = choose in
+    let bounds = [] in
+    let bools = [ Binary vars ] in
+    let sos = NoSos in
+    LP (objective, constraints, bounds, bools, sos)
+
+
+  let pair policy fabric solns =
+    List.fold solns ~init:[] ~f:(fun acc soln ->
+        match String.split soln ~on:'_' with
+        | ["v";p;f] ->
+          let p_id = Int.of_string p in
+          let f_id = Int.of_string f in
+          let pol = List.find_exn policy ~f:(fun (d,_) -> (uid d) = p_id) in
+          let fab = List.find_exn fabric ~f:(fun (d,_) -> (uid d) = f_id) in
+          (fst pol, fst fab)::acc
+        | ["f";p;f] -> acc
+        | _ ->
+          let msg = sprintf "Variable: %s\n" soln in
+          raise (LPParseError msg))
+
+  let synthesize (policy:input) (fabric:input) (topo:policy) =
+    let open Frenetic_LP in
+    let open Frenetic_Time in
+    let lp_file = "synthesis.lp" in
+    let sol_file = "synthesis.sol" in
+
+    let preds = Fabric.Topo.predecessors topo in
+    let succs = Fabric.Topo.successors topo in
+    let topology = {topo; preds; succs} in
+
+    let start = time () in
+    let lp = to_lp policy fabric topology in
+    let form_time = from start in
+
+    clean sol_file;
+    clean lp_file;
+    write lp_file (Frenetic_LP.to_string lp);
+
+    let cmd = sprintf "gurobi_cl ResultFile=%s %s > gurobi_output.log"
+        sol_file lp_file in
+    let start = time () in
+    Sys.command_exn cmd;
+    let soln_time = from start in
+
+    let soln = read sol_file in
+    let pairs = pair policy fabric soln in
+
+    let start = time () in
+    let ingress, egress = generate topology pairs in
+    let gen_time = from start in
+
+    let timings = [ ("Formulation time" , form_time)
+                  ; ("Solution time"    , soln_time)
+                  ; ("Generation time"  , gen_time) ] in
+
+    ( Union(ingress, egress), timings )
+
+
+end
+
+(* This is not path diversification, it is waypointing.  *)
+module LinearDiverse = struct
   open Fabric.Topo
   open Frenetic_LP
 

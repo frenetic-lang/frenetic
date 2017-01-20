@@ -35,7 +35,7 @@ end
 module type MATCHER = SYNTHESIZER with
   type input = Dyad.t list and type solution = result
 
-module type STITCHER = SYNTHESIZER with
+module type SEGMENTER = SYNTHESIZER with
   type input = path list and type solution = result
 
 module type DIVERSIFIER = SYNTHESIZER with
@@ -45,10 +45,10 @@ module GraphicalMatching : MATCHER
 
 module LinearMatching : MATCHER
 
-module GraphicalStitching : STITCHER
+module GraphicalSegmenting : SEGMENTER
 
-module LinearStitching : STITCHER
+module LinearSegmenting : SEGMENTER
 
 (* module GraphicalDiverse : DIVERSIFIER *)
 
-(* module LinearDiverse : DIVERSIFIER *)
+module LinearDiverse : SEGMENTER
