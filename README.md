@@ -23,10 +23,10 @@ You can build Frenetic-based network applications with:
 
 1. Install VirtualBox from https://www.virtualbox.org/wiki/Downloads. Use the latest
 version platform package appropriate for your system.
-2. From http://download.frenetic-lang.org/uservm/frenetic-uservm-current download
-the latest Frentic User VM – this file is about 1.5 GB and may take about 10
+2. From https://s3.amazonaws.com/plasma-umass/frenetic-tutorial-vm.ova download
+the latest Frentic User VM – this file is about 2.8 GB and may take about 10
 minutes or so to download.
-3. Unzip the file and import the .ova file into VirtualBox. This takes two minutes or so.
+3. Import the .ova file into VirtualBox. This takes two minutes or so.
 
 ### Hello SDN World
 
