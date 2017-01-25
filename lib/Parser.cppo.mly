@@ -31,7 +31,7 @@ let int64 ?loc ?attrs x =
 
 (* predicates and policies *)
 %token TRUE FALSE AND OR NOT EQUALS
-%token ID DROP FILTER ASSIGN SEMICOLON PLUS STAR LINK AT SLASH
+%token ID DROP FILTER ASSIGN SEMICOLON PLUS STAR LINK VLINK AT SLASH
 %token IF THEN ELSE WHILE DO
 
 (* fields *)
@@ -112,6 +112,9 @@ pol:
   | sw1=int64; AT; pt1=int32; LINK; sw2=int64; AT; pt2=int32
       AST( Link (sw1, pt1, sw2, pt2) )
       PPX( Link ([%e sw1], [%e pt1], [%e sw2], [%e pt2]) )
+  | sw1=int64; AT; pt1=int64; VLINK; sw2=int64; AT; pt2=int64
+      AST( VLink (sw1, pt1, sw2, pt2) )
+      PPX( VLink ([%e sw1], [%e pt1], [%e sw2], [%e pt2]) )
   | IF; a=pred; THEN; p=pol; ELSE; q=pol 
       AST( Union (Seq (Filter a, p)          , Seq (Filter (Neg a)     , q)) )
       PPX( Union (Seq (Filter [%e a], [%e p]), Seq (Filter (Neg [%e a]), [%e q])) )

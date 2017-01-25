@@ -109,6 +109,7 @@ let token ~ppx ~loc_start buf =
   | '+' -> PLUS
   | '*' -> STAR
   | "=>" -> LINK
+  | "=>>" -> VLINK
   | "@" -> AT
   | '/' -> SLASH
   (* fields *)
