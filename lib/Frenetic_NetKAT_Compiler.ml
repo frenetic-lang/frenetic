@@ -515,8 +515,13 @@ module Pol = struct
     let t1 = Test (Switch sw) in
     let t2 = Test (Location (Physical pt)) in
     Frenetic_NetKAT_Optimize.mk_and t1 t2
+  let match_vloc sw pt =
+    let t1 = Test (VSwitch sw) in
+    let t2 = Test (VPort pt) in
+    Frenetic_NetKAT_Optimize.mk_and t1 t2
 
   let filter_loc sw pt = match_loc sw pt |> mk_filter
+  let filter_vloc sw pt = match_vloc sw pt |> mk_filter
 
   let rec of_pol (ing : Frenetic_NetKAT.pred option) (pol : Frenetic_NetKAT.policy) : t =
     match pol with
@@ -526,17 +531,25 @@ module Pol = struct
     | Seq (p,q) -> Seq (of_pol ing p, of_pol ing q)
     | Star p -> Star (of_pol ing p)
     | Link (s1,p1,s2,p2) ->
-      (* SJS: This is not the true sematnics of a link! This is a hack that works for now,
-         but we will need to use the correct encoding once we start doing things like global
-         optimization or deciding equivalence. *)
       let post_link = match ing with
-        | None -> filter_loc s2 p2
+        | None ->
+          mk_seq (mk_mod (Switch s2)) (mk_mod (Location (Physical p2)))
         | Some ing ->
-            Frenetic_NetKAT_Optimize.(mk_and (Test (Switch s2)) (mk_not ing))
-            |> mk_filter
+          mk_big_seq [mk_filter (Frenetic_NetKAT_Optimize.mk_not ing);
+                      mk_mod (Switch s2);
+                      mk_mod (Location (Physical p2))]
       in
-      mk_big_seq [filter_loc s1 p1; Dup; post_link ]
-    | VLink _ -> assert false (* SJS / JNF *)
+      mk_big_seq [Dup; filter_loc s1 p1; post_link; Dup; filter_loc s2 p2]
+    | VLink (s1,p1,s2,p2) ->
+      let post_link = match ing with
+        | None ->
+          mk_seq (mk_mod (VSwitch s2)) (mk_mod (VPort p2))
+        | Some ing ->
+          mk_big_seq [mk_filter (Frenetic_NetKAT_Optimize.mk_not ing);
+                      mk_mod (VSwitch s2);
+                      mk_mod (VPort p2)]
+      in
+      mk_big_seq [Dup; filter_vloc s1 p1; post_link; Dup; filter_vloc s2 p2]
     | Let _ -> failwith "meta fields not supported by global compiler yet"
 end
 
