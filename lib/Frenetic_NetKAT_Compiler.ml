@@ -298,6 +298,13 @@ let erase_meta_fields = FDD.fold
       failwith "uninitialized meta field"
     | _, _ -> unchecked_cond v t f)
 
+let erase_switch_fields = FDD.fold
+    (fun r -> const (Action.Par.map r ~f:(fun s -> Action.Seq.filteri s ~f:(fun ~key ~data ->
+         match key with
+         | Action.F Switch -> false
+         | _ -> true))))
+    unchecked_cond
+
 let mk_branch_or_leaf test t f =
   match t with
   | None -> Some f
@@ -309,6 +316,7 @@ let opt_to_table ?group_tbl options sw_id t =
     |> restrict [(Field.Switch, Value.Const sw_id)
                 ;(Field.VFabric, Value.Const (Int64.of_int 1))]
     |> erase_meta_fields
+    |> erase_switch_fields
   in
   let rec next_table_row true_tests all_tests mk_rest t =
     match FDD.unget t with
@@ -330,7 +338,9 @@ let opt_to_table ?group_tbl options sw_id t =
   (loop t [] []) |> List.concat
 
 let rec naive_to_table ?group_tbl options sw_id (t : FDD.t) =
-  let t = FDD.(restrict [(Field.Switch, Value.Const sw_id)] t) |> erase_meta_fields in
+  let t = FDD.(restrict [(Field.Switch, Value.Const sw_id)] t)
+          |> erase_meta_fields
+          |> erase_switch_fields in
   let rec dfs true_tests all_tests t = match FDD.unget t with
   | Leaf actions ->
     let openflow_instruction = [to_action ?group_tbl (get_inport true_tests) actions true_tests] in
@@ -537,7 +547,7 @@ module Pol = struct
           Frenetic_NetKAT_Optimize.(mk_and (Test (Switch s2)) (mk_not ing))
           |> mk_filter in
       let link = mk_seq (mk_mod (Switch s2)) (mk_mod (Location (Physical p2))) in
-      mk_big_seq [Dup; filter_loc s1 p1; link; Dup; post_link]
+      mk_big_seq [filter_loc s1 p1; link; Dup; post_link]
     | VLink (s1,p1,s2,p2) ->
       let post_link = match ing with
         | None -> filter_vloc s2 p2
@@ -545,7 +555,7 @@ module Pol = struct
           Frenetic_NetKAT_Optimize.(mk_and (Test (VSwitch s2)) (mk_not ing))
           |> mk_filter in
       let link = mk_seq (mk_mod (VSwitch s2)) (mk_mod (VPort p2)) in
-      mk_big_seq [Dup; filter_vloc s1 p1; link; Dup; post_link]
+      mk_big_seq [filter_vloc s1 p1; link; Dup; post_link]
     | Let _ -> failwith "meta fields not supported by global compiler yet"
 end
 
