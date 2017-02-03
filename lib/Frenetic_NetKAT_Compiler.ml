@@ -298,13 +298,6 @@ let erase_meta_fields = FDD.fold
       failwith "uninitialized meta field"
     | _, _ -> unchecked_cond v t f)
 
-let erase_switch_fields = FDD.fold
-    (fun r -> const (Action.Par.map r ~f:(fun s -> Action.Seq.filteri s ~f:(fun ~key ~data ->
-         match key with
-         | Action.F Switch -> false
-         | _ -> true))))
-    unchecked_cond
-
 let mk_branch_or_leaf test t f =
   match t with
   | None -> Some f
@@ -316,7 +309,6 @@ let opt_to_table ?group_tbl options sw_id t =
     |> restrict [(Field.Switch, Value.Const sw_id)
                 ;(Field.VFabric, Value.Const (Int64.of_int 1))]
     |> erase_meta_fields
-    |> erase_switch_fields
   in
   let rec next_table_row true_tests all_tests mk_rest t =
     match FDD.unget t with
@@ -339,8 +331,7 @@ let opt_to_table ?group_tbl options sw_id t =
 
 let rec naive_to_table ?group_tbl options sw_id (t : FDD.t) =
   let t = FDD.(restrict [(Field.Switch, Value.Const sw_id)] t)
-          |> erase_meta_fields
-          |> erase_switch_fields in
+          |> erase_meta_fields in
   let rec dfs true_tests all_tests t = match FDD.unget t with
   | Leaf actions ->
     let openflow_instruction = [to_action ?group_tbl (get_inport true_tests) actions true_tests] in
