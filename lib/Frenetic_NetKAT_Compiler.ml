@@ -729,6 +729,7 @@ module NetKAT_Automaton = struct
     let dedup_fdd = FDD.map_r ~f:determinize_action in
     map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) -> (e, dedup_fdd d))
 
+  (** symbolic antimirov derivatives *)
   let rec split_pol (automaton : t0) (pol: Pol.t) : FDD.t * FDD.t * ((int * Pol.t) list) =
     (* SJS: temporary hack *)
     let env = Field.Env.empty in
