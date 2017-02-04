@@ -4,8 +4,7 @@
 <link rel="stylesheet" href="style.css" type="text/css">
 <meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
 <link rel="Start" href="index.html">
-<link rel="previous" href="Frenetic_NetKAT_Compiler.Field.html">
-<link rel="next" href="Frenetic_NetKAT_Compiler.NetKAT_Automaton.html">
+<link rel="previous" href="Frenetic_NetKAT_Compiler.FDD.html">
 <link rel="Up" href="Frenetic_NetKAT_Compiler.html">
 <link title="Index of types" rel=Appendix href="index_types.html">
 <link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
@@ -35,14 +34,20 @@
 <link title="Frenetic_Packet" rel="Chapter" href="Frenetic_Packet.html">
 <link title="Frenetic_Topology" rel="Chapter" href="Frenetic_Topology.html">
 <link title="Frenetic_Util" rel="Chapter" href="Frenetic_Util.html">
-<link title="Frenetic_Vlr" rel="Chapter" href="Frenetic_Vlr.html"><title>Frenetic_NetKAT_Compiler.FDD</title>
+<link title="Frenetic_Vlr" rel="Chapter" href="Frenetic_Vlr.html"><title>Frenetic_NetKAT_Compiler.NetKAT_Automaton</title>
 </head>
 <body>
-<div class="navbar"><a class="pre" href="Frenetic_NetKAT_Compiler.Field.html" title="Frenetic_NetKAT_Compiler.Field">Previous</a>
+<div class="navbar"><a class="pre" href="Frenetic_NetKAT_Compiler.FDD.html" title="Frenetic_NetKAT_Compiler.FDD">Previous</a>
 &nbsp;<a class="up" href="Frenetic_NetKAT_Compiler.html" title="Frenetic_NetKAT_Compiler">Up</a>
-&nbsp;<a class="post" href="Frenetic_NetKAT_Compiler.NetKAT_Automaton.html" title="Frenetic_NetKAT_Compiler.NetKAT_Automaton">Next</a>
-</div>
-<h1>Module <a href="type_Frenetic_NetKAT_Compiler.FDD.html">Frenetic_NetKAT_Compiler.FDD</a></h1>
+&nbsp;</div>
+<h1>Module <a href="type_Frenetic_NetKAT_Compiler.NetKAT_Automaton.html">Frenetic_NetKAT_Compiler.NetKAT_Automaton</a></h1>
 
-<pre><span class="keyword">module</span> FDD: <code class="type">module type of <a href="Frenetic_Fdd.FDD.html">Frenetic_Fdd.FDD</a></code></pre><hr width="100%">
-</body></html>
+<pre><span class="keyword">module</span> NetKAT_Automaton: <code class="code">sig</code> <a href="Frenetic_NetKAT_Compiler.NetKAT_Automaton.html">..</a> <code class="code">end</code></pre><hr width="100%">
+
+<pre><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> </pre>
+
+
+<pre><span id="VALfold_reachable"><span class="keyword">val</span> fold_reachable</span> : <code class="type">?order:[< `Post | `Pre > `Pre ] -><br>       <a href="Frenetic_NetKAT_Compiler.NetKAT_Automaton.html#TYPEt">t</a> -><br>       init:'a -><br>       f:('a -><br>          int -><br>          Frenetic_NetKAT_Compiler.FDD.t * Frenetic_NetKAT_Compiler.FDD.t -> 'a) -><br>       'a</code></pre>
+<pre><span id="VALof_policy"><span class="keyword">val</span> of_policy</span> : <code class="type">?dedup:bool -><br>       ?ing:<a href="Frenetic_NetKAT.html#TYPEpred">Frenetic_NetKAT.pred</a> -><br>       ?cheap_minimize:bool -><br>       <a href="Frenetic_NetKAT.html#TYPEpolicy">Frenetic_NetKAT.policy</a> -> <a href="Frenetic_NetKAT_Compiler.NetKAT_Automaton.html#TYPEt">t</a></code></pre>
+<pre><span id="VALto_local"><span class="keyword">val</span> to_local</span> : <code class="type">pc:Field.t -><br>       <a href="Frenetic_NetKAT_Compiler.NetKAT_Automaton.html#TYPEt">t</a> -> Frenetic_NetKAT_Compiler.FDD.t</code></pre>
+<pre><span id="VALto_dot"><span class="keyword">val</span> to_dot</span> : <code class="type"><a href="Frenetic_NetKAT_Compiler.NetKAT_Automaton.html#TYPEt">t</a> -> string</code></pre></body></html>
