@@ -795,60 +795,46 @@ module NetKAT_Automaton = struct
       (fun par -> Action.Par.for_all par ~f:(fun seq -> not (Action.(Seq.mem seq (F pc)))))
       (fun (f,_) l r -> l && r && f<>pc)
       fdd
-  let topo_mod_unused fdd =
-    FDD.fold
-      (fun par -> Action.Par.for_all par ~f:(fun seq -> not (Action.(Seq.mem seq (F Field.Switch)))))
-      (fun _ l r -> l && r)
-      fdd
 
-  let filter_topo_states (automaton : t) : t =
-    let t = create_t () in
-    let t = fold_reachable automaton ~init:t
-        ~f:(fun acc id (e,d) ->
-            if topo_mod_unused e && topo_mod_unused d
-            then
-              begin
-                let d =
-                  let open Action in
-                  FDD.map_r
-                    (Par.map ~f:(fun seq -> match Seq.find seq K with
-                         | None -> failwith "transition function must specify next state!"
-                         | Some data ->
-                           let _,topo_fdd = Tbl.find_exn automaton.states (Value.to_int_exn data) in
-                           let topo_r = match FDD.unget topo_fdd with
-                             | Leaf r -> r
-                             | _ -> failwith "Link states must have unique successor states" in
-                           let _ = assert (Action.Par.length topo_r = 1) in
-                           let topo_seq = Action.Par.choose_exn topo_r in
-                           match Seq.find topo_seq K with
-                           | None -> failwith "transition function must specify next state!"
-                           | Some topo_data -> Seq.add seq ~key:K ~data:topo_data))
-                    d in
-                add_to_t_with_id acc (e, d) id;
-                acc
-              end
-            else
-              acc) in
-    t.source <- automaton.source;
-    t
+  (** Assumes [automaton] is a bipartite automaton in which switch states and
+      topology states alternate, with the start state being a switch state.
+      Modifies automaton by skipping topology states and transitioning straight
+      to the (unique) next switch states. *)
+  let skip_topo_states (automaton : t) : unit =
+    let rec loop seen (id : int) =
+      if S.mem seen id then seen else
+      let seen = S.add seen id in
+      let (e,d) = Tbl.find_exn automaton.states id in
+      let d = FDD.map_conts d ~f:(fun k ->
+        Tbl.find_exn automaton.states k
+        |> snd
+        |> FDD.conts
+        |> Set.to_list
+        |> (function
+           | [k'] -> k'
+           | _ -> failwith "topology state expected to have unique successor"))
+      in
+      Tbl.set automaton.states ~key:id ~data:(e,d);
+      Int.Set.fold (FDD.conts d) ~init:seen ~f:loop
+    in
+    ignore (loop S.empty automaton.source)
 
   let to_local ~(pc : Field.t) (automaton : t) : FDD.t =
-    let t = filter_topo_states automaton in
-    fold_reachable t ~init:FDD.drop ~f:(fun acc id (e,d) ->
-        let _ = assert (pc_unused pc e && pc_unused pc d) in
-        let d =
-          let open Action in
-          FDD.map_r
-            (Par.map ~f:(fun seq -> match Seq.find seq K with
-                 | None -> failwith "transition function must specify next state!"
-                 | Some data -> Seq.remove seq K |> Seq.add ~key:(F pc) ~data))
-            d
-        in
-        let guard =
-          if id = t.source then FDD.id
-          else FDD.atom (pc, Value.of_int id) Action.one Action.zero in
-        let fdd = FDD.seq guard (FDD.union e d) in
-        FDD.union acc fdd)
+    skip_topo_states automaton;
+    fold_reachable automaton ~init:FDD.drop ~f:(fun acc id (e,d) ->
+      let _ = assert (pc_unused pc e && pc_unused pc d) in
+      let d =
+        FDD.map_r
+          Action.(Par.map ~f:(fun seq -> match Seq.find seq K with
+               | None -> failwith "transition function must specify next state!"
+               | Some data -> Seq.remove seq K |> Seq.add ~key:(F pc) ~data))
+          d
+      in
+      let guard =
+        if id = automaton.source then FDD.id
+        else FDD.atom (pc, Value.of_int id) Action.one Action.zero in
+      let fdd = FDD.seq guard (FDD.union e d) in
+      FDD.union acc fdd)
 
   (* SJS: horrible hack *)
   let to_dot (automaton : t) =
