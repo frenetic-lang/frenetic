@@ -62,14 +62,13 @@ module FDD = struct
                             of the decision variables in [u] need to be
                             removed because there are none. *)
     | Branch _ ->
-      dp_map
-        (fun par ->
+      dp_map t
+        ~f:(fun par ->
           Action.Par.fold par ~init:drop ~f:(fun acc seq ->
             let u' = restrict (Action.Seq.to_hvs seq) u in
             (sum (prod (const Action.Par.(singleton seq)) u') acc)))
-        (fun v t f -> cond v t f)
+        ~g:(fun v t f -> cond v t f)
         ~find_or_add:(fun t -> BinTbl.find_or_add seq_tbl (t,u))
-        t
 
   let union t u = sum t u
 
@@ -96,14 +95,11 @@ module FDD = struct
     | Alias hv ->
       let alias = Field.of_hv ~env hv in
       let meta,_ = Field.Env.lookup env meta_field in
-      fold
-        const
-        (fun (field,v) tru fls ->
-          if field = meta then
-            cond (alias, v) tru fls
-          else
-            cond (field,v) tru fls)
-        t
+      fold t ~f:const ~g:(fun (field,v) tru fls ->
+        if field = meta then
+          cond (alias, v) tru fls
+        else
+          cond (field,v) tru fls)
 
   let rec of_local_pol_k env p k =
     let open Frenetic_NetKAT in
@@ -127,18 +123,16 @@ module FDD = struct
 
   let rec of_local_pol ?(env=Field.Env.empty) p = of_local_pol_k env p ident
 
-  let to_local_pol =
-    fold
-      (fun r -> Action.to_policy r)
-      (fun v t f ->
-        let p = Pattern.to_pred v in
-        match t, f with
-        | Filter t, Filter f ->
-          Frenetic_NetKAT_Optimize.(mk_filter (mk_or (mk_and p t)
-                                                 (mk_and (mk_not p) f)))
-        | _       , _        ->
-          Frenetic_NetKAT_Optimize.(mk_union (mk_seq (mk_filter p) t)
-                                      (mk_seq (mk_filter (mk_not p)) f)))
+  let to_local_pol t =
+    fold t ~f:Action.to_policy ~g:(fun v t f ->
+      let p = Pattern.to_pred v in
+      match t, f with
+      | Filter t, Filter f ->
+        Frenetic_NetKAT_Optimize.(mk_filter (mk_or (mk_and p t)
+                                               (mk_and (mk_not p) f)))
+      | _       , _        ->
+        Frenetic_NetKAT_Optimize.(mk_union (mk_seq (mk_filter p) t)
+                                    (mk_seq (mk_filter (mk_not p)) f)))
 
   let dedup fdd =
     let module FS = Set.Make(Field) in
@@ -284,19 +278,22 @@ let to_action ?group_tbl (in_port : Int64.t option) r tests =
   List.fold tests ~init:r ~f:(fun a t -> Action.demod t a)
   |> Action.to_sdn ?group_tbl in_port
 
-let erase_meta_fields = FDD.fold
-  (fun r -> const (Action.Par.map r ~f:(fun s -> Action.Seq.filteri s ~f:(fun ~key ~data ->
+let erase_meta_fields fdd = 
+  let erase_meta_mods = Action.(Par.map ~f:(Seq.filteri ~f:(fun ~key ~data ->
     match key with
     | Action.F VPort | Action.F VSwitch
     | Action.F Meta0 | Action.F Meta1 | Action.F Meta2
     | Action.F Meta3 | Action.F Meta4 -> false
-    | _ -> true))))
-  (fun v t f ->
-    match v with
-    | VSwitch, _ | VPort, _
-    | Meta0, _ | Meta1, _ | Meta2, _ | Meta3, _ | Meta4, _  ->
-      failwith "uninitialized meta field"
-    | _, _ -> unchecked_cond v t f)
+    | _ -> true)))
+  in
+  FDD.fold fdd 
+    ~f:(fun act -> FDD.const (erase_meta_mods act))
+    ~g:(fun v t f ->
+      match v with
+      | VSwitch, _ | VPort, _
+      | Meta0, _ | Meta1, _ | Meta2, _ | Meta3, _ | Meta4, _  ->
+        failwith "uninitialized meta field"
+      | _, _ -> unchecked_cond v t f)
 
 let mk_branch_or_leaf test t f =
   match t with
@@ -364,32 +361,27 @@ let to_table ?(options=default_compiler_options) ?group_tbl swId t =
   List.map ~f:fst (to_table' ~options ?group_tbl swId t)
 
 let pipes t =
-  let ps = FDD.fold
-    (fun r -> Action.pipes r)
-    (fun _ t f -> String.Set.union t f)
-    t
-  in
-  String.Set.to_list ps
+  FDD.fold t ~f:Action.pipes ~g:(fun _ -> Set.union)
+  |> Set.to_list
 
 let queries t =
-  let module S = Set.Poly in
-  let qs = FDD.fold
-    (fun r ->
-      let qs = Action.queries r in
-      S.of_list (List.map qs ~f:(fun q -> (q, Frenetic_NetKAT.True))))
-    (fun v t f ->
+  FDD.fold t 
+  ~f:(fun r ->
+    Action.queries r
+    |> List.map ~f:(fun q -> (q, Frenetic_NetKAT.True))
+    |> Set.Poly.of_list)
+  ~g:(fun v t f ->
       let p = Pattern.to_pred v in
       let open Frenetic_NetKAT_Optimize in
-      S.(union (map t ~f:(fun (q, p') -> (q, mk_and p p')))
-               (map t ~f:(fun (q, p') -> (q, mk_and (mk_not p) p')))))
-    t
-  in
-  S.to_list qs
+      Set.Poly.(union 
+        (map t ~f:(fun (q, p') -> (q, mk_and p p')))
+        (map f ~f:(fun (q, p') -> (q, mk_and (mk_not p) p')))))
+  |> Set.to_list
 
 let size =
   FDD.fold
-    (fun r -> 1)
-    (fun v t f -> 1 + t + f)
+    ~f:(fun r -> 1)
+    ~g:(fun v t f -> 1 + t + f)
 
 let compression_ratio t = (FDD.compressed_size t, FDD.uncompressed_size t)
 
@@ -734,7 +726,7 @@ module NetKAT_Automaton = struct
           List.hd_exn group |> Action.Seq.add ~key:K ~data:(Value.of_int k))
       |> Action.Par.of_list
     in
-    let dedup_fdd = FDD.map_r determinize_action in
+    let dedup_fdd = FDD.map_r ~f:determinize_action in
     map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) -> (e, dedup_fdd d))
 
   let rec split_pol (automaton : t0) (pol: Pol.t) : FDD.t * FDD.t * ((int * Pol.t) list) =
@@ -791,10 +783,9 @@ module NetKAT_Automaton = struct
     automaton
 
   let pc_unused pc fdd =
-    FDD.fold
-      (fun par -> Action.Par.for_all par ~f:(fun seq -> not (Action.(Seq.mem seq (F pc)))))
-      (fun (f,_) l r -> l && r && f<>pc)
-      fdd
+    FDD.fold fdd
+      ~f:Action.(Par.for_all ~f:(fun seq -> not (Seq.mem seq (F pc))))
+      ~g:(fun (f,_) l r -> l && r && f<>pc)
 
   (** Assumes [automaton] is a bipartite automaton in which switch states and
       topology states alternate, with the start state being a switch state.

@@ -97,17 +97,17 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
        Printf.sprintf "(%s = %s ? %s : %s)"
    (V.to_string v) (L.to_string l) (to_string t) (to_string f)
 
-  let rec fold g h t = match T.unget t with
-    | Leaf r -> g r
-    | Branch((v, l), t, f) ->
-      h (v, l) (fold g h t) (fold g h f)
+  let rec fold ~f ~g t = match T.unget t with
+    | Leaf r -> f r
+    | Branch((v, l), tru, fls) ->
+      g (v, l) (fold ~f ~g tru) (fold ~f ~g fls)
 
   let const r = mk_leaf r
   let atom (v,l) t f = mk_branch (v,l) (const t) (const f)
 
-  let rec map_r g = fold
-    (fun r          -> const (g r))
-    (fun (v, l) t f -> mk_branch (v,l) t f)
+  let rec map_r ~f t = fold t
+    ~f:(fun r -> const (f r))
+    ~g:(fun (v, l) tru fls -> mk_branch (v,l) tru fls)
 
   let restrict lst u =
     let rec loop xs u =
@@ -175,26 +175,26 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
       (sum (prod (atom v R.one R.zero) t)
            (prod (atom v R.zero R.one) f))
 
-  let map (g : R.t -> t)
-          (h : V.t * L.t -> t -> t -> t)
-          (t : t) : t =
-    let rec f t = match unget t with
-      | Leaf r -> g r
-      | Branch ((v, l), tru, fls) -> h (v,l) (f tru) (f fls) in
-    f t
+  let map ~(f : R.t -> t)
+          ~(g : V.t * L.t -> t -> t -> t)
+           (t : t) : t =
+    let rec map t = match unget t with
+      | Leaf r -> f r
+      | Branch ((v, l), tru, fls) -> g (v,l) (map tru) (map fls) in
+    map t
 
-  let dp_map (g : R.t -> t)
-             (h : V.t * L.t -> t -> t -> t)
+  let dp_map ~(f : R.t -> t)
+             ~(g : V.t * L.t -> t -> t -> t)
              (t : t)
              ~find_or_add
              : t =
-    let rec f t =
-      find_or_add t ~default:(fun () -> f' t)
-    and f' t =
+    let rec map t =
+      find_or_add t ~default:(fun () -> map' t)
+    and map' t =
       match unget t with
-        | Leaf r -> g r
-        | Branch ((v, l), tru, fls) -> h (v,l) (f tru) (f fls) in
-    f t
+        | Leaf r -> f r
+        | Branch ((v, l), tru, fls) -> g (v,l) (map tru) (map fls) in
+    map t
 
   let compressed_size (node : t) : int =
     let rec f (node : t) (seen : Int.Set.t) =
