@@ -801,10 +801,7 @@ module NetKAT_Automaton = struct
       Modifies automaton by skipping topology states and transitioning straight
       to the (unique) next switch states. *)
   let skip_topo_states (automaton : t) : unit =
-    let rec loop seen (id : int) =
-      if S.mem seen id then seen else
-      let seen = S.add seen id in
-      let (e,d) = Tbl.find_exn automaton.states id in
+    map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) ->
       let d = FDD.map_conts d ~f:(fun k ->
         Tbl.find_exn automaton.states k
         |> snd
@@ -813,11 +810,7 @@ module NetKAT_Automaton = struct
         |> (function
            | [k'] -> k'
            | _ -> failwith "topology state expected to have unique successor"))
-      in
-      Tbl.set automaton.states ~key:id ~data:(e,d);
-      Int.Set.fold (FDD.conts d) ~init:seen ~f:loop
-    in
-    ignore (loop S.empty automaton.source)
+      in (e,d))
 
   let to_local ~(pc : Field.t) (automaton : t) : FDD.t =
     skip_topo_states automaton;
