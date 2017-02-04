@@ -330,7 +330,8 @@ let opt_to_table ?group_tbl options sw_id t =
   (loop t [] []) |> List.concat
 
 let rec naive_to_table ?group_tbl options sw_id (t : FDD.t) =
-  let t = FDD.(restrict [(Field.Switch, Value.Const sw_id)] t) |> erase_meta_fields in
+  let t = FDD.(restrict [(Field.Switch, Value.Const sw_id)] t)
+          |> erase_meta_fields in
   let rec dfs true_tests all_tests t = match FDD.unget t with
   | Leaf actions ->
     let openflow_instruction = [to_action ?group_tbl (get_inport true_tests) actions true_tests] in
@@ -515,8 +516,13 @@ module Pol = struct
     let t1 = Test (Switch sw) in
     let t2 = Test (Location (Physical pt)) in
     Frenetic_NetKAT_Optimize.mk_and t1 t2
+  let match_vloc sw pt =
+    let t1 = Test (VSwitch sw) in
+    let t2 = Test (VPort pt) in
+    Frenetic_NetKAT_Optimize.mk_and t1 t2
 
   let filter_loc sw pt = match_loc sw pt |> mk_filter
+  let filter_vloc sw pt = match_vloc sw pt |> mk_filter
 
   let rec of_pol (ing : Frenetic_NetKAT.pred option) (pol : Frenetic_NetKAT.policy) : t =
     match pol with
@@ -526,17 +532,21 @@ module Pol = struct
     | Seq (p,q) -> Seq (of_pol ing p, of_pol ing q)
     | Star p -> Star (of_pol ing p)
     | Link (s1,p1,s2,p2) ->
-      (* SJS: This is not the true sematnics of a link! This is a hack that works for now,
-         but we will need to use the correct encoding once we start doing things like global
-         optimization or deciding equivalence. *)
+      let link = mk_seq (mk_mod (Switch s2)) (mk_mod (Location (Physical p2))) in
       let post_link = match ing with
         | None -> filter_loc s2 p2
         | Some ing ->
-            Frenetic_NetKAT_Optimize.(mk_and (Test (Switch s2)) (mk_not ing))
-            |> mk_filter
-      in
-      mk_big_seq [filter_loc s1 p1; Dup; post_link ]
-    | VLink _ -> assert false (* SJS / JNF *)
+          Frenetic_NetKAT_Optimize.(mk_and (Test (Switch s2)) (mk_not ing))
+          |> mk_filter in
+      mk_big_seq [filter_loc s1 p1; Dup; link; Dup; post_link]
+    | VLink (s1,p1,s2,p2) ->
+      let link = mk_seq (mk_mod (VSwitch s2)) (mk_mod (VPort p2)) in
+      let post_link = match ing with
+        | None -> filter_vloc s2 p2
+        | Some ing ->
+          Frenetic_NetKAT_Optimize.(mk_and (Test (VSwitch s2)) (mk_not ing))
+          |> mk_filter in
+      mk_big_seq [filter_vloc s1 p1; Dup; link; Dup; post_link]
     | Let _ -> failwith "meta fields not supported by global compiler yet"
 end
 
@@ -786,15 +796,31 @@ module NetKAT_Automaton = struct
       (fun (f,_) l r -> l && r && f<>pc)
       fdd
 
+  (** Assumes [automaton] is a bipartite automaton in which switch states and
+      topology states alternate, with the start state being a switch state.
+      Modifies automaton by skipping topology states and transitioning straight
+      to the (unique) next switch states. *)
+  let skip_topo_states (automaton : t) : unit =
+    map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) ->
+      let d = FDD.map_conts d ~f:(fun k ->
+        Tbl.find_exn automaton.states k
+        |> snd
+        |> FDD.conts
+        |> Set.to_list
+        |> (function
+           | [k'] -> k'
+           | _ -> failwith "topology state expected to have unique successor"))
+      in (e,d))
+
   let to_local ~(pc : Field.t) (automaton : t) : FDD.t =
+    skip_topo_states automaton;
     fold_reachable automaton ~init:FDD.drop ~f:(fun acc id (e,d) ->
       let _ = assert (pc_unused pc e && pc_unused pc d) in
       let d =
-        let open Action in
         FDD.map_r
-          (Par.map ~f:(fun seq -> match Seq.find seq K with
-            | None -> failwith "transition function must specify next state!"
-            | Some data -> Seq.remove seq K |> Seq.add ~key:(F pc) ~data))
+          Action.(Par.map ~f:(fun seq -> match Seq.find seq K with
+               | None -> failwith "transition function must specify next state!"
+               | Some data -> Seq.remove seq K |> Seq.add ~key:(F pc) ~data))
           d
       in
       let guard =
