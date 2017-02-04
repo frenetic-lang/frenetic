@@ -175,16 +175,16 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   (** [prod a b] returns the conjunction of the two diagrams. The [prod]
       operation on the [r] type is used to combine leaf nodes. *)
 
-  val map : (r -> t) -> (v -> t -> t -> t) -> t -> t
+  val map : f:(r -> t) -> g:(v -> t -> t -> t) -> t -> t
   (** [map f h t] traverses t in post order and first maps the leaves using
       f, and then the internal nodes using h, producing a modified diagram. *)
 
-  val dp_map : (r -> t) -> (v -> t -> t -> t) -> t
+  val dp_map : f:(r -> t) -> g:(v -> t -> t -> t) -> t
              -> find_or_add:(t -> default:(unit -> t) -> t)
              -> t
   (** [dp_map f h cache t] is equal to [map f h t], but uses [cache] for memoization *)
 
-  val map_r : (r -> r) -> t -> t
+  val map_r : f:(r -> r) -> t -> t
   (** [map_r f t] returns a diagram with the same structure but whose leaf
       nodes have been modified according the function [f].
 
@@ -195,8 +195,8 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
           [let neg = map_r (fun r -> not r)] *)
 
   val fold
-    :  (r -> 'a)
-    -> (v -> 'a -> 'a -> 'a)
+    :  f:(r -> 'a)
+    -> g:(v -> 'a -> 'a -> 'a)
     -> t
     -> 'a
   (** [fold f g t] traverses the diagram, replacing leaf nodes with

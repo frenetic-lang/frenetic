@@ -693,14 +693,13 @@ module FDD = struct
   let mk_cont k = const Action.(Par.singleton (Seq.singleton K (Value.of_int k)))
 
   let conts fdd =
-    fold
-      (fun par ->
+    fold fdd
+      ~f:(fun par ->
         Action.Par.fold par ~init:Int.Set.empty ~f:(fun acc seq ->
           match Action.(Seq.find seq K) with
           | None -> acc
           | Some k -> Value.to_int_exn k |> Int.Set.add acc))
-      (fun _ t f -> Set.union t f)
-      fdd
+      ~g:(fun _ t f -> Set.union t f)
 
   let map_conts fdd ~(f: int -> int) =
     let open Action in
