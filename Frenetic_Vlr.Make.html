@@ -166,16 +166,16 @@ Unsafe!! <code class="code">unchecked_cond v t f</code> behaves like <code class
       operation on the <code class="code">r</code> type is used to combine leaf nodes.<br>
 </div>
 
-<pre><span id="VALmap"><span class="keyword">val</span> map</span> : <code class="type">(<a href="Frenetic_Vlr.Make.html#TYPEr">r</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a>) -><br>       (<a href="Frenetic_Vlr.Make.html#TYPEv">v</a> -><br>        <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a>) -><br>       <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><div class="info ">
+<pre><span id="VALmap"><span class="keyword">val</span> map</span> : <code class="type">f:(<a href="Frenetic_Vlr.Make.html#TYPEr">r</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a>) -><br>       g:(<a href="Frenetic_Vlr.Make.html#TYPEv">v</a> -><br>          <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a>) -><br>       <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><div class="info ">
 <code class="code">map f h t</code> traverses t in post order and first maps the leaves using
       f, and then the internal nodes using h, producing a modified diagram.<br>
 </div>
 
-<pre><span id="VALdp_map"><span class="keyword">val</span> dp_map</span> : <code class="type">(<a href="Frenetic_Vlr.Make.html#TYPEr">r</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a>) -><br>       (<a href="Frenetic_Vlr.Make.html#TYPEv">v</a> -><br>        <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a>) -><br>       <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -><br>       find_or_add:(<a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -><br>                    default:(unit -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a>) -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a>) -><br>       <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><div class="info ">
+<pre><span id="VALdp_map"><span class="keyword">val</span> dp_map</span> : <code class="type">f:(<a href="Frenetic_Vlr.Make.html#TYPEr">r</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a>) -><br>       g:(<a href="Frenetic_Vlr.Make.html#TYPEv">v</a> -><br>          <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a>) -><br>       <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -><br>       find_or_add:(<a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -><br>                    default:(unit -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a>) -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a>) -><br>       <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><div class="info ">
 <code class="code">dp_map f h cache t</code> is equal to <code class="code">map f h t</code>, but uses <code class="code">cache</code> for memoization<br>
 </div>
 
-<pre><span id="VALmap_r"><span class="keyword">val</span> map_r</span> : <code class="type">(<a href="Frenetic_Vlr.Make.html#TYPEr">r</a> -> <a href="Frenetic_Vlr.Make.html#TYPEr">r</a>) -><br>       <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><div class="info ">
+<pre><span id="VALmap_r"><span class="keyword">val</span> map_r</span> : <code class="type">f:(<a href="Frenetic_Vlr.Make.html#TYPEr">r</a> -> <a href="Frenetic_Vlr.Make.html#TYPEr">r</a>) -><br>       <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a></code></pre><div class="info ">
 <code class="code">map_r f t</code> returns a diagram with the same structure but whose leaf
       nodes have been modified according the function <code class="code">f</code>.
 <p>
@@ -188,7 +188,7 @@ Unsafe!! <code class="code">unchecked_cond v t f</code> behaves like <code class
           <code class="code">let neg = map_r (fun r -&gt; not r)</code><br>
 </div>
 
-<pre><span id="VALfold"><span class="keyword">val</span> fold</span> : <code class="type">(<a href="Frenetic_Vlr.Make.html#TYPEr">r</a> -> 'a) -><br>       (<a href="Frenetic_Vlr.Make.html#TYPEv">v</a> -> 'a -> 'a -> 'a) -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> 'a</code></pre><div class="info ">
+<pre><span id="VALfold"><span class="keyword">val</span> fold</span> : <code class="type">f:(<a href="Frenetic_Vlr.Make.html#TYPEr">r</a> -> 'a) -><br>       g:(<a href="Frenetic_Vlr.Make.html#TYPEv">v</a> -> 'a -> 'a -> 'a) -> <a href="Frenetic_Vlr.Make.html#TYPEt">t</a> -> 'a</code></pre><div class="info ">
 <code class="code">fold f g t</code> traverses the diagram, replacing leaf nodes with
       applications of <code class="code">f</code> to the values that they hold, and branches on
       variables with applications of <code class="code">g</code>.<br>
