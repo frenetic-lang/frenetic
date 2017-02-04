@@ -532,20 +532,20 @@ module Pol = struct
     | Seq (p,q) -> Seq (of_pol ing p, of_pol ing q)
     | Star p -> Star (of_pol ing p)
     | Link (s1,p1,s2,p2) ->
+      let link = mk_seq (mk_mod (Switch s2)) (mk_mod (Location (Physical p2))) in
       let post_link = match ing with
         | None -> filter_loc s2 p2
         | Some ing ->
           Frenetic_NetKAT_Optimize.(mk_and (Test (Switch s2)) (mk_not ing))
           |> mk_filter in
-      let link = mk_seq (mk_mod (Switch s2)) (mk_mod (Location (Physical p2))) in
       mk_big_seq [filter_loc s1 p1; Dup; link; Dup; post_link]
     | VLink (s1,p1,s2,p2) ->
+      let link = mk_seq (mk_mod (VSwitch s2)) (mk_mod (VPort p2)) in
       let post_link = match ing with
         | None -> filter_vloc s2 p2
         | Some ing ->
           Frenetic_NetKAT_Optimize.(mk_and (Test (VSwitch s2)) (mk_not ing))
           |> mk_filter in
-      let link = mk_seq (mk_mod (VSwitch s2)) (mk_mod (VPort p2)) in
       mk_big_seq [filter_vloc s1 p1; Dup; link; Dup; post_link]
     | Let _ -> failwith "meta fields not supported by global compiler yet"
 end
