@@ -1,5 +1,7 @@
+(** Strategy for generating fabric used by virtual compiler *)
 open Frenetic_NetKAT
 
+(** FabricGen signature *)
 module type FABRIC_GEN = sig
   (** A [fabric] is a pair of policies [(fin,fout)] used to maintain consistency
    * of a packet's virtual and physical locations during virtual compilation. *)
@@ -17,4 +19,5 @@ module type FABRIC_GEN = sig
     -> fabric
 end
 
+(** Two-Player Adversarial Strategy *)
 module FabricGen : FABRIC_GEN
