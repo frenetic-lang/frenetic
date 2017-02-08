@@ -66,7 +66,7 @@ struct
       ~(vtopo : policy) ~(ving_pol : policy) ~(ving : pred) ~(veg : pred)
       ~(ptopo : policy)                      ~(ping : pred) ~(peg : pred)
       ~(vpol : policy) (fabric : FG.fabric) : policy =
-    let (fin_set, fout_set) = fabric in
+    let (fout_set, fin_set) = fabric in
     let fout = mk_big_union fout_set in
     let fin = mk_big_union fin_set in
     let ing = mk_big_seq [Filter ping; ving_pol; Filter ving] in
