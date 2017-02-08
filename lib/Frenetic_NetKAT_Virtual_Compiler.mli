@@ -1,8 +1,11 @@
+(** Comping Virtual NetKAT Programs *)
 open Core.Std
 open Frenetic_NetKAT
 open Frenetic_NetKAT_FabricGen
 
+(** Virtual Compiler generator parameterized by Fabric Generation strategy *)
 module Make(FG:FABRIC_GEN) : sig
+  (** Generate a fabric for use by virtual compiler *)
   val generate_fabric : ?log:bool
     -> ?record_paths:string
     -> vrel:pred
@@ -14,6 +17,7 @@ module Make(FG:FABRIC_GEN) : sig
     -> peg:pred
     -> FG.fabric
 
+  (** Compile virtual policy reusing precomputed fabric *)
   val compile_with_fabric : ?log:bool
     -> ?record_paths:string
     -> vtopo:policy
@@ -27,6 +31,7 @@ module Make(FG:FABRIC_GEN) : sig
     -> FG.fabric
     -> policy
 
+  (** Generate fabric and use it to compile virtual policy *)
   val compile : ?log:bool
     -> ?record_paths:string
     -> vrel:pred
