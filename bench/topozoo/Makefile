@@ -5,7 +5,7 @@ COMPILEKAT="../../_build/bench/src/Main.native"
 all: run
 
 %.dot:
-	wget http://storage.googleapis.com/compilekat/dots/topozoo/$@
+	wget https://s3.amazonaws.com/compilekat/dots/topozoo/$@
 
 %.json: %.dot
 	$(COMPILEKAT) dot-to-json $^ $@
