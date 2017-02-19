@@ -155,7 +155,7 @@ let dot_to_virtual ~in_file =
   let open Frenetic_NetKAT_Pretty in
   let open Out_channel in
   let () = () in
-  List.iter [("vpol", vpol); ("vtopo", vtopo); ("ptopo", ptopo)]
+  List.iter [("vpol", vpol); ("vtopo", vtopo); ("vingpol", vingpol); ("ptopo", ptopo)]
     ~f:(fun (file, pol) -> write_all (file ^ ".kat") ~data:(string_of_policy pol));
   List.iter [("vrel", vrel); ("vinout", vinout); ("pinout", pinout)]
     ~f:(fun (file, pred) -> write_all (file ^ ".kat") ~data:(string_of_pred pred))
