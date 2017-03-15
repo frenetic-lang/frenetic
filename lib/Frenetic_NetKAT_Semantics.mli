@@ -18,6 +18,8 @@ module HeadersValues : sig
     ; ethDst : dlAddr
     ; vlan : int16
     ; vlanPcp : dlVlanPcp
+    ; vswitch : int64
+    ; vport : int64
     ; ethType : dlTyp
     ; ipProto : nwProto
     ; ipSrc : nwAddr

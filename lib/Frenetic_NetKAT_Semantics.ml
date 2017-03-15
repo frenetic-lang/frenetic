@@ -12,6 +12,8 @@ module HeadersValues = struct
     ; ethDst : dlAddr
     ; vlan : int16
     ; vlanPcp : dlVlanPcp
+    ; vswitch : int64
+    ; vport : int64
     ; ethType : dlTyp
     ; ipProto : nwProto
     ; ipSrc : nwAddr
@@ -37,6 +39,8 @@ module HeadersValues = struct
       ~ethDst:Int64.(g to_string)
       ~vlan:Int.(g to_string)
       ~vlanPcp:Int.(g to_string)
+      ~vswitch:Int64.(g to_string)
+      ~vport:Int64.(g to_string)
       ~ethType:Int.(g to_string)
       ~ipProto:Int.(g to_string)
       ~ipSrc:Int32.(g to_string)
@@ -54,6 +58,8 @@ module HeadersValues = struct
       ~ethDst:(conv (fun x -> EthDst x))
       ~vlan:(conv (fun x -> Vlan x))
       ~vlanPcp:(conv (fun x -> VlanPcp x))
+      ~vswitch:(conv (fun x -> VSwitch x))
+      ~vport:(conv (fun x -> VPort x))
       ~ethType:(conv (fun x -> EthType x))
       ~ipProto:(conv (fun x -> IPProto x))
       ~ipSrc:(conv (fun x -> IP4Src(x, 32l)))
@@ -134,7 +140,9 @@ let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
         Frenetic_OpenFlow.Pattern.Ip.less_eq (pkt.headers.ipDst, 32l) (n, m)
       | TCPSrcPort n -> pkt.headers.tcpSrcPort = n
       | TCPDstPort n -> pkt.headers.tcpDstPort = n
-      | VSwitch _ | VPort _ | VFabric _ | Meta _ ->
+      | VSwitch n -> pkt.headers.vswitch = n
+      | VPort n -> pkt.headers.vport = n
+      | VFabric _ | Meta _ ->
         failwith "meta fields not currently supported"
     end
   | And (pr1, pr2) -> eval_pred pkt pr1 && eval_pred pkt pr2
@@ -168,7 +176,11 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
         { pkt with headers = { pkt.headers with tcpSrcPort = n }}
       | TCPDstPort n ->
         { pkt with headers = { pkt.headers with tcpDstPort = n }}
-      | VSwitch _ | VPort _ | VFabric _ | Meta _ ->
+      | VSwitch n ->
+        { pkt with headers = { pkt.headers with vswitch = n }}
+      | VPort n ->
+        { pkt with headers = { pkt.headers with vport = n }}
+      | VFabric _ | Meta _ ->
         failwith "meta fields not currently supported" in
     PacketSet.singleton pkt'
   | Union (pol1, pol2) ->
@@ -183,8 +195,14 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
       let acc'' = PacketSet.union acc acc' in
       if PacketSet.equal acc acc'' then acc else loop acc'' in
       loop (PacketSet.singleton pkt)
-  | Link _ | VLink _ ->
-    failwith "global policies not currently supported"
+  | Link (from_sw, from_pt, to_sw, to_pt) ->
+    let open HeadersValues in
+    if from_sw = pkt.switch && Physical(from_pt) = pkt.headers.location then
+      PacketSet.singleton { pkt with switch = to_sw; headers = { pkt.headers with location = Physical(to_pt) }}
+    else
+      PacketSet.empty
+  | VLink _ ->
+    failwith "virtual links not currently supported"
   | Let _ ->
     failwith "meta fields not currently supported"
 
