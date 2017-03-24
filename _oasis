@@ -48,6 +48,7 @@ Library frenetic
     base64 (>= 2.0.0),
     core,
     cstruct,
+    cstruct.ppx,
     ocamlgraph (>= 1.8.7),
     str,
     tcpip,
