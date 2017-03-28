@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
   name = 'frenetic',
   packages = [ 'frenetic' ],
-  version = '4.0.0',
+  version = '4.1.0',
   description = 'Python bindings for Frenetic',
   author = 'Arjun Guha',
   author_email = 'arjun@cs.umass.edu',
