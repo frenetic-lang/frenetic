@@ -44,7 +44,7 @@ fi
 # Run the actual Frenetic shell scripts to perform the experiments. Save them to
 # the current experimental file.
 rm -f $CURRENT
-for i in {1..10}
+for i in {1..9}
 do
     nodes=$(($i * 2))
     echo "Running script" $EX_DIR/coronet-60-$i.ash "with $nodes edge nodes."
