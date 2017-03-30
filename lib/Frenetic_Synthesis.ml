@@ -930,9 +930,12 @@ module LP_Endpoints = struct
     let ingress, egress = Optical.generate topology pairs in
     let gen_time = from start in
 
+    let size = Int64.of_int (List.length pairs) in
+
     let timings = [ ("Formulation time" , form_time)
                   ; ("Solution time"    , soln_time)
-                  ; ("Generation time"  , gen_time) ] in
+                  ; ("Generation time"  , gen_time)
+                  ; ("Pairs", size)] in
 
     ( Union(ingress, egress), timings )
 
@@ -1045,9 +1048,12 @@ module LP_Waypointing = struct
     let ingress, egress = Optical.generate topology pairs in
     let gen_time = from start in
 
+    let size = Int64.of_int (List.length pairs) in
+
     let timings = [ ("Formulation time" , form_time)
                   ; ("Solution time"    , soln_time)
-                  ; ("Generation time"  , gen_time) ] in
+                  ; ("Generation time"  , gen_time)
+                  ; ("Pairs", size)] in
 
     ( Union(ingress, egress), timings )
 
