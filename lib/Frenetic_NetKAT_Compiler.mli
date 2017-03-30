@@ -16,7 +16,8 @@ type t = FDD.t
 
 val to_dot : t -> string
 
-module NetKAT_Automaton : sig
+(** Intermediate representation of global compiler: NetKAT Automata *)
+module Automaton : sig
   type t
 
   val fold_reachable: ?order:[< `Post | `Pre > `Pre ]

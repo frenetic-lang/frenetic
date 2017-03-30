@@ -119,7 +119,7 @@ module FDD = struct
     | Let (field, init, mut, p) ->
       let env = Field.Env.add env field init mut in
       of_local_pol_k env p (fun p' -> k (erase env p' field init))
-    | Link _ | VLink _ -> raise Non_local
+    | Link _ | VLink _ | Dup -> raise Non_local
 
   let rec of_local_pol ?(env=Field.Env.empty) p = of_local_pol_k env p ident
 
@@ -540,12 +540,13 @@ module Pol = struct
           |> mk_filter in
       mk_big_seq [filter_vloc s1 p1; Dup; link; Dup; post_link]
     | Let _ -> failwith "meta fields not supported by global compiler yet"
+    | Dup -> Dup
 end
 
 
 
-(* Symbolic NetKAT Automata *)
-module NetKAT_Automaton = struct
+(* Symbolic NetKAT Automata (intermediate representation of global compiler) *)
+module Automaton = struct
 
   (* table *)
   module Tbl = Int.Table
@@ -884,8 +885,8 @@ end
 
 let compile_global ?(options=default_compiler_options) ?(pc=Field.Vlan) pol : FDD.t =
   prepare_compilation ~options pol;
-  NetKAT_Automaton.of_policy pol
-  |> NetKAT_Automaton.to_local ~pc
+  Automaton.of_policy pol
+  |> Automaton.to_local ~pc
 
 
 
