@@ -67,6 +67,7 @@ type policy =
      https://github.com/janestreet/ppx_sexp_conv/issues/9 *)
   (* | Let of { id : metaId; init : meta_init; body : policy; mut : bool } *)
   | Let of metaId * meta_init * bool * policy
+  | Dup
   [@@deriving sexp]
 
 let id = Filter True
