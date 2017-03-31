@@ -205,6 +205,8 @@ module Action : sig
 
     (** [to_hvs s] converts to a sequence to an HVS list, removing K pseudo-field *)
     val to_hvs : Value.t t -> (Field.t * Value.t) list
+
+    val to_string : Value.t t -> string
   end
 
   module Par : sig
@@ -217,6 +219,8 @@ module Action : sig
     val mod_k : t -> t
     val compare_mod_k : t -> t -> int
     val equal_mod_k : t -> t -> bool
+
+    val to_string : t -> string
   end
 
 

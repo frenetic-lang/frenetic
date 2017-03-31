@@ -26,7 +26,7 @@ let dump_fdd fdd ~file =
   dump ~file (Frenetic_NetKAT_Compiler.to_dot fdd)
 
 let dump_auto auto ~file =
-  dump ~file (Frenetic_NetKAT_Compiler.Automaton.to_dot auto)
+  dump ~file (Frenetic_NetKAT_Compiler.Automaton.to_dot' auto)
 
 let print_table fdd sw =
   Frenetic_NetKAT_Compiler.to_table sw fdd
@@ -266,9 +266,10 @@ module Auto = struct
 
   let run file json printorder () =
     let pol = parse_pol ~json file in
-    let (t, auto) = time (fun () -> Frenetic_NetKAT_Compiler.Automaton.of_policy pol) in
+    let open Frenetic_NetKAT_Compiler in
+    let (t, auto) = time (fun () -> Automaton.of_policy pol ~dedup:false ~cheap_minimize:false) in
     if printorder then print_order ();
-    dump_auto auto ~file:(file ^ "auto.dot");
+    dump_auto auto ~file:(file ^ ".auto.dot");
     print_time t;
 
 end
