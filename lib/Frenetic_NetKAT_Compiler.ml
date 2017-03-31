@@ -840,7 +840,7 @@ module Automaton = struct
       fprintf fmt ";}@\n";
       (* -- *)
       fprintf fmt "\n# mark start state\n";
-      fprintf fmt "%a [style=bold, color=red];@\n" state_lbl automaton.source;
+      fprintf fmt "%a [style=bold, color=red, shape=octagon];@\n" state_lbl automaton.source;
       (* -- *)
       fprintf fmt "\n# connect state nodes to FDDs\n";
       Hashtbl.iteri states ~f:(fun ~key:id ~data:fdd ->
@@ -868,8 +868,7 @@ module Automaton = struct
         do_fdds seen (a::b::worklist)
       | Leaf par ->
         fprintf fmt "subgraph cluster_%a {@\n" fdd_lbl fdd;
-        fprintf fmt "\trank = sink;@\n" ;
-        fprintf fmt "\tshape = box;@\n" ;
+        fprintf fmt "\trank=sink;@\n";
         fprintf fmt "\t%a [shape = point];@\n" fdd_lbl fdd;
         let transitions = List.mapi (Action.Par.to_list par) ~f:(do_seq fdd) in
         fprintf fmt "}@\n";
