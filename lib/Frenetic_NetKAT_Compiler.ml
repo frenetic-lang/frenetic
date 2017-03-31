@@ -835,7 +835,7 @@ module Automaton = struct
     (* auxillary functions *)
     let rec do_states () =
       fprintf fmt "# put state nodes on top\n";
-      fprintf fmt "{rank=source; shape = box;";
+      fprintf fmt "{rank=source;";
       List.iter (Hashtbl.keys states) ~f:(fprintf fmt " %a" state_lbl);
       fprintf fmt ";}@\n";
       (* -- *)
@@ -892,13 +892,14 @@ module Automaton = struct
       Buffer.contents buf
     end
 
+end
+(* END: module Automaton *)
+
 
 let compile_global ?(options=default_compiler_options) ?(pc=Field.Vlan) pol : FDD.t =
   prepare_compilation ~options pol;
   Automaton.of_policy pol
   |> Automaton.to_local ~pc
-
-
 
 
 

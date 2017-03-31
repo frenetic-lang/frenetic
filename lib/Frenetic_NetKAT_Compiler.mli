@@ -30,7 +30,6 @@ module Automaton : sig
   val to_local: pc:Field.t -> t -> FDD.t
 
   val to_dot: t -> string
-  val to_dot' : t -> string
 end
 
 type cache

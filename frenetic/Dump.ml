@@ -26,7 +26,7 @@ let dump_fdd fdd ~file =
   dump ~file (Frenetic_NetKAT_Compiler.to_dot fdd)
 
 let dump_auto auto ~file =
-  dump ~file (Frenetic_NetKAT_Compiler.Automaton.to_dot' auto)
+  dump ~file (Frenetic_NetKAT_Compiler.Automaton.to_dot auto)
 
 let print_table fdd sw =
   Frenetic_NetKAT_Compiler.to_table sw fdd
@@ -136,6 +136,14 @@ module Flag = struct
   let peg =
     flag "--peg" (optional_with_default "peg.kat" file)
       ~doc: "file Physical egress predicate. If not specified, defaults to peg.kat"
+
+  let determinize =
+    flag "--determinize" (optional_with_default false bool)
+      ~doc:"bool Determinize automaton."
+
+  let minimize =
+    flag "--minimize" (optional_with_default false bool)
+      ~doc:"bool Minimize automaton (heuristically)."
 end
 
 
@@ -262,12 +270,14 @@ module Auto = struct
     +> anon ("file" %: file)
     +> Flag.json
     +> Flag.print_order
+    +> Flag.determinize
+    +> Flag.minimize
   )
 
-  let run file json printorder () =
+  let run file json printorder dedup cheap_minimize () =
     let pol = parse_pol ~json file in
-    let open Frenetic_NetKAT_Compiler in
-    let (t, auto) = time (fun () -> Automaton.of_policy pol ~dedup:false ~cheap_minimize:false) in
+    let (t, auto) = time (fun () ->
+      Frenetic_NetKAT_Compiler.Automaton.of_policy pol ~dedup ~cheap_minimize) in
     if printorder then print_order ();
     dump_auto auto ~file:(file ^ ".auto.dot");
     print_time t;
