@@ -26,5 +26,6 @@ dot -Tpng <.dot-file> -O  # or, create png file
 Run `frenetic dump help auto` to see a list of all options. Currently, two flags are supported:
   * --determinize: determinize the automaton using powerset construction
   * --minimize: (heuristically) minimize the automaton
+
 By default, the automaton is neither minimized nor determinized.
 
