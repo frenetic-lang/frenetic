@@ -120,6 +120,7 @@ let rec policy_to_json (pol : policy) : json = match pol with
             ("sw2", `Int (Int64.to_int_exn sw2));
             ("pt2", `Int (Int64.to_int_exn pt2))]
   | Let _ -> failwith "meta fields not supported yet"
+  | Dup -> failwith "dup not supported"
 
 
 (** From JSON **)
