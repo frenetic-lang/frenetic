@@ -90,7 +90,7 @@ pol:
       AST( id )
       PPX( id )
   | DUP
-      BOTH( id )
+      BOTH( Dup )
   | FILTER; a=pred
       AST( Filter a )
       PPX( Filter [%e a] )

@@ -138,12 +138,12 @@ module Flag = struct
       ~doc: "file Physical egress predicate. If not specified, defaults to peg.kat"
 
   let determinize =
-    flag "--determinize" (optional_with_default false bool)
-      ~doc:"bool Determinize automaton."
+    flag "--determinize" no_arg
+      ~doc:"Determinize automaton."
 
   let minimize =
-    flag "--minimize" (optional_with_default false bool)
-      ~doc:"bool Minimize automaton (heuristically)."
+    flag "--minimize" no_arg
+      ~doc:"Minimize automaton (heuristically)."
 end
 
 
