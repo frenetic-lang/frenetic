@@ -109,14 +109,16 @@ let size_pred (pr:pred) : int =
 let size (pol:policy) : int =
   let rec size (pol:policy) f : int =
     match pol with
-      | Filter pr -> f (size_pred pr + 1)
-      | Mod(_) -> f 1
-      | Union(pol1, pol2)
-      | Seq(pol1, pol2) -> size pol1 (fun spol1 -> size pol2 (fun spol2 -> f (1 + spol1 + spol2)))
-      | Star(pol) -> size pol (fun spol -> f (1 + spol))
-      | Let (id, init, mut, pol) -> size pol (fun s -> f (s+1))
-      | Link(_,_,_,_) -> f 5
-      | VLink(_,_,_,_) -> f 5 in
+    | Filter pr -> f (size_pred pr + 1)
+    | Mod(_) -> f 1
+    | Union(pol1, pol2)
+    | Seq(pol1, pol2) -> size pol1 (fun spol1 -> size pol2 (fun spol2 -> f (1 + spol1 + spol2)))
+    | Star(pol) -> size pol (fun spol -> f (1 + spol))
+    | Let (id, init, mut, pol) -> size pol (fun s -> f (s+1))
+    | Link(_,_,_,_) -> f 5
+    | VLink(_,_,_,_) -> f 5
+    | Dup -> f 1
+  in
   size pol (fun spol -> spol)
 
 let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
@@ -205,6 +207,9 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
     failwith "virtual links not currently supported"
   | Let _ ->
     failwith "meta fields not currently supported"
+  | Dup ->
+    (* dup is just a no-op *)
+    eval pkt Frenetic_NetKAT.id
 
 
 let eval_pipes (packet:packet) (pol:Frenetic_NetKAT.policy)
@@ -246,7 +251,7 @@ let queries_of_policy (pol : policy) : string list =
   let rec loop (pol : policy) (acc : string list) : string list = match pol with
     | Mod (Location (Query str)) ->
       if List.mem acc str then acc else str :: acc
-    | Filter _ | Mod _ | Link _ | VLink _ -> acc
+    | Filter _ | Mod _ | Link _ | VLink _ | Dup -> acc
     | Union (p, q) | Seq (p, q) -> loop q (loop p acc)
     | Star p -> loop p acc
     | Let (id, init, mut, body) -> loop body acc
@@ -277,7 +282,7 @@ let switches_of_policy (p:policy) =
        collect q acc
     | Link(sw1,_,sw2,_) ->
        sw1 :: sw2 :: acc
-    | VLink _ ->
+    | VLink _ | Dup ->
       acc
     | Let(_,_,_,p) ->
       collect p acc

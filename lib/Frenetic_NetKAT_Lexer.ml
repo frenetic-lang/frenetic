@@ -85,6 +85,7 @@ let token ~ppx ~loc_start buf =
   | "pipe" -> PIPE
   | "query" -> QUERY
   | '"', Star (Compl '"'), '"' -> STRING (ascii ~skip:1 ~drop:1 buf)
+  | "dup" -> DUP
   (* antiquotations *)
   | '$', id ->
     if ppx then

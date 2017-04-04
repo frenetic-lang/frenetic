@@ -33,6 +33,7 @@ let int64 ?loc ?attrs x =
 %token TRUE FALSE AND OR NOT EQUALS
 %token ID DROP FILTER ASSIGN SEMICOLON PLUS STAR LINK VLINK AT SLASH
 %token IF THEN ELSE WHILE DO
+%token DUP
 
 (* fields *)
 %token SWITCH PORT VSWITCH VPORT VFABRIC ETHSRC ETHDST VLAN VLANPCP ETHTYPE IPPROTO IP4SRC IP4DST TCPSRCPORT TCPDSTPORT
@@ -88,6 +89,8 @@ pol:
   | ID
       AST( id )
       PPX( id )
+  | DUP
+      BOTH( Dup )
   | FILTER; a=pred
       AST( Filter a )
       PPX( Filter [%e a] )

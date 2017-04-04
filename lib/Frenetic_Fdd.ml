@@ -170,6 +170,7 @@ module Field = struct
       | Star p -> k (f_union p env, lst)
       | Link (sw,pt,_,_) -> k (1, (env, Test (Switch sw)) :: (env, Test (Location (Physical pt))) :: lst)
       | VLink (sw,pt,_,_) -> k (1, (env, Test (VSwitch sw)) :: (env, Test (VPort pt)) :: lst)
+      | Dup -> k (1, lst)
     and f_seq pol env : int =
       let (size, preds) = f_seq' pol [] env (fun x -> x) in
       List.iter preds ~f:(f_pred size);
@@ -188,6 +189,7 @@ module Field = struct
       | Star p -> f_union' p lst env k
       | Link (sw,pt,_,_) -> k (1, (env, Test (Switch sw)) :: (env, Test (Location (Physical pt))) :: lst)
       | VLink (sw,pt,_,_) -> k (1, (env, Test (VSwitch sw)) :: (env, Test (VPort pt)) :: lst)
+      | Dup -> k (1, lst)
     and f_union pol env : int =
       let (size, preds) = f_union' pol [] env (fun x -> x) in
       List.iter preds ~f:(f_pred size);

@@ -19,9 +19,14 @@ let _ = Format.pp_set_margin fmt 120
 let print_fdd fdd =
   printf "%s\n" (Frenetic_NetKAT_Compiler.to_string fdd)
 
-let dump_fdd fdd ~file =
-  let data = Frenetic_NetKAT_Compiler.to_dot fdd in
+let dump data ~file =
   Out_channel.write_all file ~data
+
+let dump_fdd fdd ~file =
+  dump ~file (Frenetic_NetKAT_Compiler.to_dot fdd)
+
+let dump_auto auto ~file =
+  dump ~file (Frenetic_NetKAT_Compiler.Automaton.to_dot auto)
 
 let print_table fdd sw =
   Frenetic_NetKAT_Compiler.to_table sw fdd
@@ -131,11 +136,19 @@ module Flag = struct
   let peg =
     flag "--peg" (optional_with_default "peg.kat" file)
       ~doc: "file Physical egress predicate. If not specified, defaults to peg.kat"
+
+  let determinize =
+    flag "--determinize" no_arg
+      ~doc:"Determinize automaton."
+
+  let minimize =
+    flag "--minimize" no_arg
+      ~doc:"Minimize automaton (heuristically)."
 end
 
 
 (*===========================================================================*)
-(* COMMANDS: Local, Global, Virtual                                          *)
+(* COMMANDS: Local, Global, Virtual, Auto                                    *)
 (*===========================================================================*)
 
 module Local = struct
@@ -251,6 +264,27 @@ module Virtual = struct
 end
 
 
+module Auto = struct
+  let spec = Command.Spec.(
+    empty
+    +> anon ("file" %: file)
+    +> Flag.json
+    +> Flag.print_order
+    +> Flag.determinize
+    +> Flag.minimize
+  )
+
+  let run file json printorder dedup cheap_minimize () =
+    let pol = parse_pol ~json file in
+    let (t, auto) = time (fun () ->
+      Frenetic_NetKAT_Compiler.Automaton.of_policy pol ~dedup ~cheap_minimize) in
+    if printorder then print_order ();
+    dump_auto auto ~file:(file ^ ".auto.dot");
+    print_time t;
+
+end
+
+
 
 (*===========================================================================*)
 (* BASIC SPECIFICATION OF COMMANDS                                           *)
@@ -277,8 +311,15 @@ let virt : Command.t =
     Virtual.spec
     Virtual.run
 
+let auto : Command.t =
+  Command.basic
+    ~summary:"Converts program to automaton and dumps it."
+    (* ~readme: *)
+    Auto.spec
+    Auto.run
+
 let main : Command.t =
   Command.group
     ~summary:"Runs (local/global/virtual) compiler and dumps resulting tables."
     (* ~readme: *)
-    [("local", local); ("global", global); ("virtual", virt)]
+    [("local", local); ("global", global); ("virtual", virt); ("auto", auto)]

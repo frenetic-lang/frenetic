@@ -104,7 +104,7 @@ let specialize_policy sw pol =
         loop pol (fun p -> k (mk_star p))
       | Let (id, init, mut, pol) ->
         loop pol (fun p -> k (Let (id, init, mut, p)))
-      | Link _ | VLink _ ->
+      | Link _ | VLink _ | Dup ->
         failwith "cannot specialize global policy" in
   loop pol (fun x -> x)
 
@@ -159,6 +159,7 @@ let rec norm_policy (pol : policy) : policy = match pol with
     mk_big_seq (list_of_seq pol')
   | Let (id, init, mut, pol) ->
     Let (id, init, mut, norm_policy pol)
+  | Dup -> Dup
 
 (*
    TODO(car): flatten_union in Optimize outputs the unioned policies in reverse order.  While this is semantically equivalent,

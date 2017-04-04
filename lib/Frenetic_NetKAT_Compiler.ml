@@ -119,7 +119,7 @@ module FDD = struct
     | Let (field, init, mut, p) ->
       let env = Field.Env.add env field init mut in
       of_local_pol_k env p (fun p' -> k (erase env p' field init))
-    | Link _ | VLink _ -> raise Non_local
+    | Link _ | VLink _ | Dup -> raise Non_local
 
   let rec of_local_pol ?(env=Field.Env.empty) p = of_local_pol_k env p ident
 
@@ -455,6 +455,7 @@ let options_to_json_string opt =
   ] |> pretty_to_string
 
 
+
 (*==========================================================================*)
 (* GLOBAL COMPILATION                                                       *)
 (*==========================================================================*)
@@ -540,12 +541,13 @@ module Pol = struct
           |> mk_filter in
       mk_big_seq [filter_vloc s1 p1; Dup; link; Dup; post_link]
     | Let _ -> failwith "meta fields not supported by global compiler yet"
+    | Dup -> Dup
 end
 
 
 
-(* Symbolic NetKAT Automata *)
-module NetKAT_Automaton = struct
+(* Symbolic NetKAT Automata (intermediate representation of global compiler) *)
+module Automaton = struct
 
   (* table *)
   module Tbl = Int.Table
@@ -821,75 +823,82 @@ module NetKAT_Automaton = struct
       let fdd = FDD.seq guard (FDD.union e d) in
       FDD.union acc fdd)
 
-  (* SJS: horrible hack *)
   let to_dot (automaton : t) =
-    let states = Tbl.map automaton.states ~f:(fun (e,d) -> FDD.union e d) in
     let open Format in
     let buf = Buffer.create 200 in
     let fmt = formatter_of_buffer buf in
-    let seen = FDD.Tbl.create () ~size:20 in
-    pp_set_margin fmt (1 lsl 29);
-    fprintf fmt "digraph fdd {@\n";
-    let rec node_loop node =
-      if not (FDD.Tbl.mem seen node) then begin
-        FDD.Tbl.add_exn seen node ();
-        match FDD.unget node with
-        | Leaf par ->
-          let node = (node : FDD.t :> int) in
-          let seqId = ref 0 in
-          let edges = ref [] in
-          fprintf fmt "subgraph cluster_%d {@\n" node;
-          fprintf fmt "\trank = sink;@\n" ;
-          fprintf fmt "\tshape = box;@\n" ;
-          fprintf fmt "\t%d [shape = point];@\n" node;
-          Action.Par.iter par ~f:(fun seq ->
-            let id : string = sprintf "\"%dS%d\"" node (!seqId) in
-            let cont = Action.Seq.find seq K
-              |> Option.map ~f:(fun v -> Tbl.find_exn states (Value.to_int_exn v)) in
-            let label = Action.to_string (Action.Par.singleton seq) in
-            fprintf fmt "\t%s [shape=box, label=\"%s\"];@\n" id label;
-            Option.iter cont ~f:(fun k ->
-              edges := sprintf "%s -> %d [style=bold, color=blue];@\n"
-                id (k : FDD.t :> int) :: (!edges));
-            incr seqId;
-          );
-          fprintf fmt "}@\n";
-          List.iter (!edges) ~f:(fprintf fmt "%s")
-        | Branch((f, v), a, b) ->
-          let node = (node : FDD.t :> int) in
-          fprintf fmt "%d [label=\"%s = %s\"];@\n" node (Field.to_string f) (Value.to_string v);
-          fprintf fmt "%d -> %d;@\n" node (a : FDD.t :> int);
-          fprintf fmt "%d -> %d [style=\"dashed\"];@\n" node (b : FDD.t :> int);
-          node_loop a;
-          node_loop b
-      end
-    in
-    let fdds = ref [] in
-    let rec fdd_loop fddId =
-      let fdd = Tbl.find_exn states fddId in
-      let conts = FDD.conts fdd in
-      fdds := fdd :: (!fdds);
-      node_loop fdd;
-      Set.iter conts ~f:fdd_loop
-    in
-    fdd_loop automaton.source;
-    fprintf fmt "%d [style=bold, color=red];@\n"
-      (Tbl.find_exn states automaton.source : FDD.t :> int);
-    fprintf fmt "{rank=source; ";
-    List.iter (!fdds) ~f:(fun fdd -> fprintf fmt "%d " (fdd : FDD.t :> int));
-    fprintf fmt ";}@\n";
-    fprintf fmt "}@.";
-    Buffer.contents buf
+    let states = Hashtbl.map automaton.states ~f:(fun (e,d) -> FDD.union e d) in
+    let state_lbl fmt = fprintf fmt "state_%d" in
+    let fdd_lbl fmt fdd = fprintf fmt "fdd_%d" (fdd : FDD.t :> int) in
+    let fdd_leaf_lbl fmt (i,fdd) = fprintf fmt "seq_%d_%d" (fdd : FDD.t :> int) i in
+
+    (* auxillary functions *)
+    let rec do_states () =
+      fprintf fmt "# put state nodes on top\n";
+      fprintf fmt "{rank=source;";
+      List.iter (Hashtbl.keys states) ~f:(fprintf fmt " %a" state_lbl);
+      fprintf fmt ";}@\n";
+      (* -- *)
+      fprintf fmt "\n# mark start state\n";
+      fprintf fmt "%a [style=bold, color=red, shape=octagon];@\n" state_lbl automaton.source;
+      (* -- *)
+      fprintf fmt "\n# connect state nodes to FDDs\n";
+      Hashtbl.iteri states ~f:(fun ~key:id ~data:fdd ->
+        fprintf fmt "%a -> %a;@\n" state_lbl id fdd_lbl fdd);
+      (* -- *)
+      fprintf fmt "\n# define FDDs\n";
+      do_fdds Int.Set.empty (Hashtbl.data states)
+
+    and do_fdds seen worklist =
+      match worklist with
+      | [] -> ()
+      | fdd::worklist ->
+        let uid = (fdd : FDD.t :> int) in
+        if Set.mem seen uid then 
+          do_fdds seen worklist 
+        else
+          do_node (Set.add seen uid) worklist fdd
+
+    and do_node seen worklist fdd =
+      match FDD.unget fdd with
+      | Branch((f, v), a, b) ->
+        fprintf fmt "%a [label=\"%s = %s\"];\n" fdd_lbl fdd (Field.to_string f) (Value.to_string v);
+        fprintf fmt "%a -> %a;\n" fdd_lbl fdd fdd_lbl a;
+        fprintf fmt "%a -> %a [style=\"dashed\"];\n" fdd_lbl fdd fdd_lbl b;
+        do_fdds seen (a::b::worklist)
+      | Leaf par ->
+        fprintf fmt "subgraph cluster_%a {@\n" fdd_lbl fdd;
+        fprintf fmt "\trank=sink;@\n";
+        fprintf fmt "\t%a [shape = point];@\n" fdd_lbl fdd;
+        let transitions = List.mapi (Action.Par.to_list par) ~f:(do_seq fdd) in
+        fprintf fmt "}@\n";
+        List.iter transitions ~f:(function 
+          | None -> () 
+          | Some (s,t) ->
+            fprintf fmt "%a -> %a [style=bold, color=blue];@\n" fdd_leaf_lbl s state_lbl t);
+        do_fdds seen worklist
+
+    and do_seq fdd i seq =
+      let label = Action.Seq.to_string seq in
+      fprintf fmt "\t%a [shape=box, label=\"%s\"];@\n" fdd_leaf_lbl (i,fdd) label;
+      Option.map (Action.Seq.find seq K) ~f:(fun v -> 
+        ((i, fdd), Value.to_int_exn v))
+    
+    in begin
+      fprintf fmt "digraph automaton {@\n";
+      do_states ();
+      fprintf fmt "}@.";
+      Buffer.contents buf
+    end
+
 end
+(* END: module Automaton *)
+
 
 let compile_global ?(options=default_compiler_options) ?(pc=Field.Vlan) pol : FDD.t =
   prepare_compilation ~options pol;
-  NetKAT_Automaton.of_policy pol
-  |> NetKAT_Automaton.to_local ~pc
-
-
-
-
+  Automaton.of_policy pol
+  |> Automaton.to_local ~pc
 
 
 
