@@ -222,6 +222,8 @@ module FromPipe = struct
       vlan = 0;
       vlanPcp = 0;
       ethType = 0;
+      vswitch = 0L;
+      vport = 0L;
       ipProto = 0;
       ipSrc = 0l;
       ipDst = 0l;
@@ -387,6 +389,7 @@ let get_masking_test =
   let headers =
     { HeadersValues.location = Frenetic_NetKAT.Physical 0l
     ; ethSrc = 0L ; ethDst = 0L ; vlan = 0 ; vlanPcp = 0 ; ethType = 0
+    ; vswitch = 0L; vport = 0L
     ; ipProto = 0 ; ipSrc = ip1 ; ipDst = 0l ; tcpSrcPort = 0 ; tcpDstPort = 0
     } in
   let payload = Frenetic_OpenFlow.NotBuffered (Cstruct.create 0) in

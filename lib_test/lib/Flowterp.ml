@@ -36,6 +36,8 @@ module Headers = struct
       ~vlan:(matches pat.dlVlan)
       ~vlanPcp:(matches pat.dlVlanPcp)
       ~ethType:(matches pat.dlTyp)
+      ~vswitch:(fun _ -> true (* TODO FIXME *))
+      ~vport:(fun _ -> true (* TODO FIXME *))
       ~ipProto:(matches pat.nwProto)
       ~ipSrc:(matches_mask pat.nwSrc)
       ~ipDst:(matches_mask pat.nwDst)

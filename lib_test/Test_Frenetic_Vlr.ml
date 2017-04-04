@@ -135,9 +135,9 @@ let%test_module _ = (module struct
   let%test "S.fold does the normal fold operation over a diagram" =
     let fdd = two_level_tree in
     (* This is nonsensical, but easy to test.  It just doubles the leaf values, then adds them together with the test pattern values *)
-    let add_across (v,l) m n = l + m + n in
-    let double x = x * 2 in
-    fold double add_across fdd = 2450
+    let add_across (v,l) m n : int = l + m + n in
+    let double x : int = x * 2 in
+    fold ~f:double ~g:add_across fdd = 2450
 
   let%test "S.map_r does the normal map operation, applying function to all leaf nodes and ignoring branch nodes" =
     let fdd = two_level_tree in
