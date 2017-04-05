@@ -134,12 +134,86 @@ module FDD = struct
         Frenetic_NetKAT_Optimize.(mk_union (mk_seq (mk_filter p) t)
                                     (mk_seq (mk_filter (mk_not p)) f)))
 
+  (**
+    Prevent NetKAT from creating spurious duplicate packets.
+
+    Problem:
+    ========
+
+    Consider the program p := (f=n); (id + f:=n). It is equivalent to the
+    program p' := (f=n). So clearly p should never produce more than one output
+    packet per input packet.
+
+    Unfortunately, naive translation of p will yield the FDD
+
+                                f=n
+                              /     \
+                        {f:=n, 1}    {}
+
+    which translates to the open flow table
+
+                      match | action
+                     =======+==========
+                      f=n   | f:=n + id
+                      *     | drop
+
+    which produces TWO output packets for packets satisfying f=n.
+
+    The issue is that the two actions "f:=n" and "id" are equivalent for packets
+    satisfying "f=n".
+
+    A more subtle version of the same problem occurs for the program
+      q := (g:=m) + id
+    It is equivalent to the program
+      q' := (g=m; 1) + (g!=m; (g:=m + id))
+    Thus q should produce only a single output packet if the input packet
+    satisfies "g=m". Unfortunately, naive compilation of q yields the table
+
+                        match | action
+                       =======+==========
+                        *     | g:=m + id
+
+    which always generates TWO output packets.
+
+    Solution:
+    =========
+
+    For action sequents a, b we can define the weakest precondition for equality
+    of a and b, denoted wpe(a,b), as follows:
+    wpe(a,b) is the (unique) NetKAT predicate satisfying
+      π ⊢ wpe(a,b) <=> [[a]](π) = [[b]](π)
+    i.e. a packet π satisfies wpe(a,b) iff the actions a and b produce the same
+    output on input π.
+    Semantically, we can define wpe(a,b) as the set of packets on which a and b
+    agree, i.e. { π | [[a]](π) = [[b]](π) }.
+
+    Then to avoid spurious duplicate packets, we would replace
+      (a + b)
+    with
+      if wpe(a,b) then a else (a + b).
+
+    The idea generalized to actions (i.e., sets of action sequents) by applying
+    the above construction repeatedly; note that this can lead to a tree of
+    conditionals whose size is exponential in the number of sequents in the
+    worst case. Luckily, packet duplication is uncommon in practise.
+
+    Implementation:
+    ===============
+
+    The [dedup fdd] function replaces all actions occuring in [fdd] with their
+    respective trees of conditionals, as described above. The details of the
+    construction differ slightly as the algorithms works syntactically rather
+    than semantically, and uses an overapproximation of wpe for simplicity.
+
+  *)
   let dedup fdd =
     let module FS = Set.Make(Field) in
     FDD.map
       (fun par ->
         let mods = Action.Par.to_hvs par in
         let fields = List.map mods ~f:fst |> FS.of_list in
+        (* only fields that DO NOT occur in all sequents can contribute to the
+           wpe (weakeast precondition for equality) *)
         let harmful = Action.Par.fold par ~init:FS.empty ~f:(fun acc seq ->
           let seq_fields =
             Action.Seq.to_hvs seq |> List.map ~f:fst |> FS.of_list in
