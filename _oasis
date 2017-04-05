@@ -75,6 +75,7 @@ Library frenetic
     Frenetic_NetKAT_Optimize,
     Frenetic_NetKAT_Json,
     Frenetic_NetKAT_Compiler,
+    Frenetic_NetKAT_Equivalence,
     Frenetic_NetKAT_FabricGen,
     Frenetic_NetKAT_Virtual_Compiler,
     Frenetic_NetKAT_Net,

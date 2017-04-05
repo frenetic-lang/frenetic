@@ -18,7 +18,11 @@ val to_dot : t -> string
 
 (** Intermediate representation of global compiler: NetKAT Automata *)
 module Automaton : sig
-  type t
+  type t = private
+    { states : (FDD.t * FDD.t) Int.Table.t;
+      has_state : int FDD.BinTbl.t;
+      mutable source : int;
+      mutable nextState : int }
 
   val fold_reachable: ?order:[< `Post | `Pre > `Pre ]
     -> t

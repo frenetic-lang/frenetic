@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 35df006ca2eac8c1341346e61ce5231a) *)
+(* DO NOT EDIT (digest: 6461dd9639d34b17f1cbbce97fba55a2) *)
 module OASISGettext = struct
 (* # 22 "src/oasis/OASISGettext.ml" *)
 
@@ -746,9 +746,6 @@ module MyOCamlbuildBase = struct
 (* # 110 "src/plugins/ocamlbuild/MyOCamlbuildBase.ml" *)
 
 
-  let env_filename = Pathname.basename BaseEnvLight.default_filename
-
-
   let dispatch_combine lst =
     fun e ->
       List.iter
@@ -881,7 +878,7 @@ module MyOCamlbuildBase = struct
 end
 
 
-# 884 "myocamlbuild.ml"
+# 881 "myocamlbuild.ml"
 open Ocamlbuild_plugin;;
 let package_default =
   {
@@ -910,7 +907,7 @@ let conf = {MyOCamlbuildFindlib.no_automatic_syntax = false}
 
 let dispatch_default = MyOCamlbuildBase.dispatch_default conf package_default;;
 
-# 914 "myocamlbuild.ml"
+# 911 "myocamlbuild.ml"
 (* OASIS_STOP *)
 
 (* SJS: use shared extern token file *)
