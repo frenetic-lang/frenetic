@@ -1,28 +1,7 @@
 open Core.Std
 
 module A = Frenetic_NetKAT_Compiler.Automaton
-module FDD = struct
-  include Frenetic_NetKAT_Compiler.FDD
-  include (struct include Frenetic_NetKAT_Compiler end : sig
-    val seq : t -> t -> t
-  end)
-
-  let rec strict_equal (x : t) (y : t) =
-    match unget x, unget y with
-    | Branch((vx, lx), tx, fx), Branch((vy, ly), ty, fy) ->
-      begin match Frenetic_Fdd.Field.compare vx vy with
-      |  0 ->
-        begin match Frenetic_Fdd.Value.compare lx ly with
-        |  0 -> strict_equal tx ty && strict_equal fx fy
-        | -1 -> failwith "todo"
-        |  1 -> failwith "todo"
-        |  _ -> assert false
-        end
-      | -1 -> failwith "todo"
-      |  1 -> failwith "todo"
-      |  _ -> assert false
-      end
-end
+module FDD = Frenetic_NetKAT_Compiler.FDD
 
 
 module Naive = struct
@@ -30,8 +9,8 @@ module Naive = struct
   type state = int
 
   module SymPkt = struct
-    include Map.Make(FDD.Field) with type 'a = FDD.Value.t
-    let all = emtpy
+    include Map.Make(Frenetic_Fdd.Field)
+    let all = empty
   end
 
   let equiv ?(pk=SymPkt.all) (a1 : A.t) (a2 : A.t) =
@@ -49,43 +28,43 @@ module Naive = struct
       end
 
     and eq_es pk = eq_fdd pk ~leaf_eq: begin fun pk par1 par2 ->
-      let pks1 = Set.Poly.map par1 ~f:(Map.fold ~init:pk ~f:SymPkt.add) in
-      let pks2 = Set.Poly.map par2 ~f:(Map.fold ~init:pk ~f:SymPkt.add) in
-      Set.Poly.equal (SymPkt.equal FDD.Value.equal) pks1 pks2
+      (* let add ~key ~data m = SymPkt.add m ~key ~data in *)
+      (* let pks1 = Set.Poly.map par1 ~f:(Map.fold ~init:pk ~f:add) in *)
+      (* let pks2 = Set.Poly.map par2 ~f:(Map.fold ~init:pk ~f:add) in *)
+      (* Set.equal pks1 pks2 *)
+      failwith "todo"
     end
 
     and eq_ds pk = eq_fdd pk ~leaf_eq: begin fun pk par1 par2 ->
       failwith "todo"
     end
 
-    and eq_fdd ~leaf_eq pk fdd1 fdd2 =
-      match FDD.(unget fdd1, fdd1, unget fdd2, fdd2) with
-      | Leaf r1,_, Leaf r2,_ ->
+    and eq_fdd ~leaf_eq pk x y =
+      let check_with pk f n x y =
+        match SymPkt.find pk f with
+        | None ->
+          eq_fdd ~leaf_eq (SymPkt.add pk ~key:f ~data:n) x y
+        | Some m -> 
+          m <> n || eq_fdd ~leaf_eq pk x y
+      in
+      match FDD.(unget x, unget y) with
+      | Leaf r1, Leaf r2 ->
         leaf_eq pk r1 r2
-      | Leaf _,fdd, Leaf ((f,n), tru, fls),_
-      | Leaf ((f,n), tru, fls),_, Leaf _,fdd ->
-        eq_fdd ~leaf_eq pk fdd fls && begin
-          let pk' = SymPkt.add pk ~key:f ~data:n in
-          match SymPkt.find pk f with
-          | None 
-          | Some m when m = n -> eq_fdd ~leaf_eq pk' fdd1 fls
-          | _ -> true
-        end
-      | Branch((vx, lx), tx, fx), Branch((vy, ly), ty, fy) ->
-        begin match V.compare vx vy with
-        |  0 ->
-          begin match L.compare lx ly with
-          |  0 -> mk_branch (vx,lx) (sum tx ty) (sum fx fy)
-          | -1 -> mk_branch (vx,lx) (sum tx (restrict [(vx, lx)] y)) (sum fx y)
-          |  1 -> mk_branch (vy,ly) (sum (restrict [(vy, ly)] x) ty) (sum x fy)
-          |  _ -> assert false
-          end
-        | -1 -> mk_branch (vx,lx) (sum tx y) (sum fx y)
-        |  1 -> mk_branch (vy,ly) (sum x ty) (sum x fy)
-        |  _ -> assert false
+      | Branch ((f,n), xt, xf), Leaf _ ->
+        check_with pk f n xt y && eq_fdd ~leaf_eq pk xf y
+      | Leaf _, Branch ((g,m), yt, yf) ->
+        check_with pk g m x yt && eq_fdd ~leaf_eq pk x yf
+      | Branch((f, n), xt, xf), Branch((g, m), yt, yf) ->
+        begin match Frenetic_Fdd.(Field.compare f g, Value.compare m n) with
+        |  0,  0 -> check_with pk f n xt yt && eq_fdd ~leaf_eq pk xf yf 
+        | -1,  _
+        |  0, -1 -> check_with pk f n xt y && eq_fdd ~leaf_eq pk xf y
+        |  1,  _
+        |  0,  1 -> check_with pk g m x yt && eq_fdd ~leaf_eq pk x yf
+        |  _     -> assert false
         end
 
     in
-    eq_states (mask, a1.source) (mask, a2.source)
+    eq_states pk a1.source a2.source
 
 end
