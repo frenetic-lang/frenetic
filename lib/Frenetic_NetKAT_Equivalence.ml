@@ -9,9 +9,26 @@ module Naive = struct
   type state = int
 
   module SymPkt = struct
-    include Map.Make(Frenetic_Fdd.Field)
+    module T = Map.Make(Frenetic_Fdd.Field)
+    include T
+
     let all = empty
+
+    module Set = Set.Make(struct
+      type t = Frenetic_Fdd.Value.t T.t [@@deriving sexp]
+      let compare = compare Frenetic_Fdd.Value.compare
+    end)
+
+    let apply_seq pk seq =
+      Frenetic_Fdd.Action.Seq.to_hvs seq
+      |> List.fold ~init:pk ~f:(fun pk (key,data) -> add pk ~key ~data)
+
+    let apply_par pk par : Set.t =
+      Frenetic_Fdd.Action.Par.fold par ~init:Set.empty ~f:(fun pks seq ->
+        Set.add pks (apply_seq pk seq))
   end
+
+
 
   let equiv ?(pk=SymPkt.all) (a1 : A.t) (a2 : A.t) =
     let cache = Hash_set.Poly.create () in
@@ -27,13 +44,8 @@ module Naive = struct
         eq_es pk e1 e2 && eq_ds pk d1 d2
       end
 
-    and eq_es pk = eq_fdd pk ~leaf_eq: begin fun pk par1 par2 ->
-      (* let add ~key ~data m = SymPkt.add m ~key ~data in *)
-      (* let pks1 = Set.Poly.map par1 ~f:(Map.fold ~init:pk ~f:add) in *)
-      (* let pks2 = Set.Poly.map par2 ~f:(Map.fold ~init:pk ~f:add) in *)
-      (* Set.equal pks1 pks2 *)
-      failwith "todo"
-    end
+    and eq_es pk = eq_fdd pk ~leaf_eq:(fun pk par1 par2 ->
+      SymPkt.(Set.equal (apply_par pk par1) (apply_par pk par1)))
 
     and eq_ds pk = eq_fdd pk ~leaf_eq: begin fun pk par1 par2 ->
       failwith "todo"
