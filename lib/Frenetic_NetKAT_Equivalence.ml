@@ -165,3 +165,11 @@ module Make_Naive(Upto : UPTO) = struct
     eq_state_ids pk a1.source a2.source
 
 end
+
+
+(*===========================================================================*)
+(* Instantiations                                                            *)
+(*===========================================================================*)
+
+module Hopcroft = Make_Naive(Upto_Trans ())
+module Simple = Make_Naive(Upto_Sym ())
