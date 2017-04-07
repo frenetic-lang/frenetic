@@ -102,11 +102,20 @@ module Make_Naive(Upto : UPTO) = struct
 
 
   let equiv ?(pk=SymPkt.all) (a1 : Automaton.t) (a2 : Automaton.t) =
+
+    let rec eq_state_ids pk (s1 : int) (s2 : int) =
+      eq_states pk (Hashtbl.find_exn a1.states s1) (Hashtbl.find_exn a2.states s2)
+
+    and eq_state_id_sets pk (s1s : Int.Set.t) (s2s : Int.Set.t) =
+      let merge (a : Automaton.t) states =
+        Int.Set.fold states ~init:(FDD.drop, FDD.drop) ~f:(fun (e,d) s ->
+          let (e',d') = Hashtbl.find_exn a.states s in
+          FDD.(union e e', union d d'))
+      in
+      eq_states pk (merge a1 s1s) (merge a2 s2s)
     
-    let rec eq_states pk (s1 : int) (s2 : int) =
+    and eq_states pk ((e1, d1) : FDD.t * FDD.t) ((e2, d2) : FDD.t * FDD.t) =
       let mask = SymPkt.to_alist pk in
-      let (e1, d1) = Hashtbl.find_exn a1.states s1 in
-      let (e2, d2) = Hashtbl.find_exn a1.states s2 in
       let ((e1, d1) as s1) = FDD.(restrict mask e1, restrict mask d1) in
       let ((e2, d2) as s2) = FDD.(restrict mask e2, restrict mask d2) in
       Upto.equiv s1 s2 || begin
@@ -117,9 +126,15 @@ module Make_Naive(Upto : UPTO) = struct
     and eq_es pk = eq_fdd pk ~leaf_eq:(fun pk par1 par2 ->
       SymPkt.Set.equal (SymPkt.apply_par pk par1) (SymPkt.apply_par pk par2))
 
-    and eq_ds pk = eq_fdd pk ~leaf_eq: begin fun pk par1 par2 ->
-      failwith "todo"
-    end
+    and eq_ds pk = eq_fdd pk ~leaf_eq:(fun pk par1 par2 ->
+      eq_trans_tree pk (Trans_Tree.(sum (of_left_par par1) (of_right_par par2))))
+
+    and eq_trans_tree pk tree =
+      match Trans_Tree.unget tree with
+      | Leaf (ksl, ksr) ->
+        eq_state_id_sets pk ksl ksr
+      | Branch ((f,n), tru, fls) ->
+        eq_trans_tree (SymPkt.add pk f n) tru && eq_trans_tree pk fls
 
     and eq_fdd ~leaf_eq pk x y =
       let check_with pk f n x y =
@@ -147,6 +162,6 @@ module Make_Naive(Upto : UPTO) = struct
         end
 
     in
-    eq_states pk a1.source a2.source
+    eq_state_ids pk a1.source a2.source
 
 end

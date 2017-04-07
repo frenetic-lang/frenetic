@@ -10,7 +10,13 @@ type order
     | `Static of Field.t list
     | `Heuristic ]
 
-module FDD : module type of Frenetic_Fdd.FDD
+module FDD : sig
+  include module type of Frenetic_Fdd.FDD
+  val union : t -> t -> t
+  val seq : t -> t -> t
+  val star : t -> t
+end
+
 type t = FDD.t
 (** The type of the intermediate compiler representation (FDD). *)
 
