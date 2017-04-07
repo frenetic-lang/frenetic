@@ -3,10 +3,21 @@ open Core.Std
 module A = Frenetic_NetKAT_Compiler.Automaton
 module FDD = Frenetic_NetKAT_Compiler.FDD
 
+type state = FDD.t * FDD.t
 
-module Naive = struct
+module type UPTO = sig
+  val add_equiv : state -> state -> unit
+  val equiv : state -> state -> bool
+end
 
-  type state = int
+module Upto_Sym () : UPTO = struct
+  (* FIXME: avoid polymorphic hash/max/min *)
+  let cache = Hash_set.Poly.create ()
+  let equiv s1 s2 = Hash_set.mem cache (min s1 s2, max s1 s2)
+  let add_equiv s1 s2 = Hash_set.add cache (min s1 s2, max s1 s2)
+end
+
+module Make_Naive(Upto : UPTO) = struct
 
   module SymPkt = struct
     module T = Map.Make(Frenetic_Fdd.Field)
@@ -31,21 +42,20 @@ module Naive = struct
 
 
   let equiv ?(pk=SymPkt.all) (a1 : A.t) (a2 : A.t) =
-    let cache = Hash_set.Poly.create () in
     
-    let rec eq_states pk (s1 : state) (s2 : state) =
+    let rec eq_states pk (s1 : int) (s2 : int) =
       let mask = SymPkt.to_alist pk in
       let (e1, d1) = Hashtbl.find_exn a1.states s1 in
       let (e2, d2) = Hashtbl.find_exn a1.states s2 in
-      let (e1, d1) = FDD.(restrict mask e1, restrict mask d1) in
-      let (e2, d2) = FDD.(restrict mask e2, restrict mask d2) in
-      Hash_set.mem cache (e1,d1,e2,d2) || begin
-        Hash_set.add cache (e1,d1,e2,d2);
+      let ((e1, d1) as s1) = FDD.(restrict mask e1, restrict mask d1) in
+      let ((e2, d2) as s2) = FDD.(restrict mask e2, restrict mask d2) in
+      Upto.equiv s1 s2 || begin
+        Upto.add_equiv s1 s2;
         eq_es pk e1 e2 && eq_ds pk d1 d2
       end
 
     and eq_es pk = eq_fdd pk ~leaf_eq:(fun pk par1 par2 ->
-      SymPkt.Set.equal (SymPkt.apply_par pk par1) (SymPkt.apply_par pk par2)
+      SymPkt.Set.equal (SymPkt.apply_par pk par1) (SymPkt.apply_par pk par2))
 
     and eq_ds pk = eq_fdd pk ~leaf_eq: begin fun pk par1 par2 ->
       failwith "todo"
