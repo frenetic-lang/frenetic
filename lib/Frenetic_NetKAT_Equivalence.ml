@@ -45,7 +45,7 @@ module Naive = struct
       end
 
     and eq_es pk = eq_fdd pk ~leaf_eq:(fun pk par1 par2 ->
-      SymPkt.(Set.equal (apply_par pk par1) (apply_par pk par1)))
+      SymPkt.Set.equal (SymPkt.apply_par pk par1) (SymPkt.apply_par pk par2)
 
     and eq_ds pk = eq_fdd pk ~leaf_eq: begin fun pk par1 par2 ->
       failwith "todo"
