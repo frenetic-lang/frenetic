@@ -3,6 +3,11 @@ open Core.Std
 module Automaton = Frenetic_NetKAT_Compiler.Automaton
 module FDD = Frenetic_NetKAT_Compiler.FDD
 
+
+(*===========================================================================*)
+(* UPTO                                                                      *)
+(*===========================================================================*)
+
 type state = FDD.t * FDD.t
 
 module type UPTO = sig
@@ -10,6 +15,7 @@ module type UPTO = sig
   val equiv : state -> state -> bool
 end
 
+(* upto reflexivity & symmetry *)
 module Upto_Sym () : UPTO = struct
   (* FIXME: avoid polymorphic hash/max/min/equality *)
   let cache = Hash_set.Poly.create ()
@@ -17,6 +23,7 @@ module Upto_Sym () : UPTO = struct
   let add_equiv s1 s2 = Hash_set.add cache (min s1 s2, max s1 s2)
 end
 
+(* upto reflexivity & symmetry & transitivity (Hopcroft-Karp) *)
 module Upto_Trans () : UPTO = struct
   (* FIXME: avoid polymorphic hash/max/min/equality *)
   let cache = Hashtbl.Poly.create ()
@@ -24,6 +31,33 @@ module Upto_Trans () : UPTO = struct
   let equiv s1 s2 = (s1 = s2) || Union_find.same_class (find s1) (find s2)
   let add_equiv s1 s2 = Union_find.union (find s1) (find s2)
 end
+
+
+
+(*===========================================================================*)
+(* Transition Trees                                                          *)
+(*===========================================================================*)
+
+module Trans_Tree = Frenetic_Vlr.Make(Frenetic_Fdd.Field)(Frenetic_Fdd.Value)(struct
+
+  type t = Int.Set.t * Int.Set.t [@@deriving sexp, compare]
+  let hash = Hashtbl.hash
+  let to_string t = sexp_of_t t |> Sexp.to_string
+
+  let zero = (Int.Set.empty, Int.Set.empty)
+  let sum (l1, r1) (l2, r2) = (Set.union l1 l2, Set.union r1 r2)
+
+  (* SJS: no one or product *)
+  let one = zero
+  let prod _ _ = failwith "no product"
+
+end)
+
+
+
+(*===========================================================================*)
+(* Decision Procedure                                                        *)
+(*===========================================================================*)
 
 module Make_Naive(Upto : UPTO) = struct
 
