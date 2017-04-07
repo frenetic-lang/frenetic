@@ -5,3 +5,77 @@
 (port := 3; switch := 4) == (switch := 4; port := 3);;
 (port := 1; filter switch = 2) == (filter switch = 2; port := 1);;
 (dup; filter port = 3) == (filter port = 3; dup)
+
+(*
+(port = 3; port:= 3) == (port = 3);;
+(port := 3; port:=4 ) == (port := 4);;
+(port = 3; port = 4) == drop;;
+(port = 3 + port != 3) == id;;
+(port != 3) <= port != 4;;
+(port := 3; port :=4; port := 5) == port:=5;;
+(port := 3; port :=4; port := 2; port := 5) == port:=5;;
+(port := 3; port :=4; port := 2; port := 1; port := 5) == port:=5;;
+(port := 3; port :=4; port := 2; port := 1; port := 0; port := 5) == port:=5;;
+(port := 3; port :=4; port := 2; port := 1; port := 0; port := 6; port := 5) == port:=5;;
+(port := 3; port :=4; port := 2; port := 1; port := 0; port := 6; port := 7; port := 5) == port:=5
+(port := 3; switch :=4; port := 2; switch := 1; port := 0; switch := 6; port := 7; port := 5) == port:=5; switch := 6
+(switch := 1; port := 0; switch := 6; port := 5) == port:=5; switch := 6
+port := 0; switch := 6; port := 5 == port := 5; switch := 6
+z := 3; switch := 6; port := 5 <= z := 4; port := 5 switch := 6
+(port = 3 + z = 4) + drop == (port = 3 + z = 4)
+(port = 3 + z = 4) + (port = 3 + z = 4) == (port = 3 + z = 4)
+id; (port = 3 + z = 4) == (port = 3 + z = 4)
+(port = 3 + z = 4); id == (port = 3 + z = 4)
+(switch = 2);(port = 3 + z = 4) == (switch = 2);(port = 3) + (switch = 2);(z = 4)
+(port = 3 + z = 4);(switch = 2) == (port = 3);(switch = 2) + (z = 4);(switch = 2)
+port = 3 <= port = 4
+drop; (port = 3 + z = 4) == drop
+(port = 3 + z = 4); drop == drop
+id + (port = 3 + z = 4); (port = 3 + z = 4)* == (port = 3 + z = 4)*
+
+(*  this is a trolltastic test.  it's true because both sides are equivalent *)
+(*  to the sum of all tests. *)
+(z = 5) + ((port = 3 + z = 4); (port = 3 + z = 4)* ) <= z = 5 + (port = 3 + z = 4)*
+(* BOOLEAN ALGEBRA TIME! *)
+(port = 4) + not (port = 4) == id
+(port = 4); not (port = 4) == drop
+(* DUP-TACULAR! *)
+dup; port = 5 == port = 5; dup
+
+(* PACKET ALGEBRA *)
+port := 4; port = 4 == port:= 4
+port = 4; port := 4 == port = 4
+port = 3; port = 5 == drop
+
+(* from the other project *)
+( switch = 0; (switch := 1))* <= drop
+
+(port := 4; port:= 3; port = 3)* == id + port := 3
+
+(port := 4; port:= 3; port = 3) <= id + port := 3
+
+(port := 4; port:= 3; port = 3) ==  port := 3
+
+
+(* simple hops through the network *)
+
+sw = 0; sw := 1; dup; sw = 1; sw := 2; dup  ==  sw = 0; sw := 1; dup; sw := 2; dup
+
+sw = 0; sw := 1; dup; sw = 1 == sw = 0; sw := 1; dup
+
+(switch = 3 + z = 4;z := 4)*;(switch = 4 + z = 5)*== (switch = 3 + z = 4; z := 4)*;(switch = 4 + z = 5)*
+
+(a=3);(b=4);(c=2;c:=3 + c=3;c:=2)*;(d=1);(e=4);(f=0) <= a = 0
+
+id + (a=1;b:=2);(c=3;drop) + (c=3;drop) <= c=3;drop
+
+id <= drop
+
+port = 1; dup <= dup
+
+(* This eportploits non-canonicity of FDDs, naive implementation gets it wrong *)
+f:=1;g := 2 == f:=1;g:=2 + g=2;f := 1
+
+f=0;g:=0 + f=1;g:=1 + f!=1;g:=0 == f=1;g:=1 + f!=1;g:=0
+
+*)
