@@ -100,7 +100,7 @@ module Make_Naive(Upto : UPTO) = struct
   end
 
 
-
+  (** decides equivalence of symbolic NetKAT NFAs *)
   let equiv ?(pk=SymPkt.all) (a1 : Automaton.t) (a2 : Automaton.t) =
 
     let rec eq_state_ids pk (s1 : int) (s2 : int) =
