@@ -43,7 +43,7 @@ let time f =
   (t2 -. t1, r)
 
 let print_time ?(prefix="") time =
-  printf "%scompilation time: %.4f\n" prefix time
+  printf "%stime: %.4f\n" prefix time
 
 let print_order () =
   Frenetic_NetKAT_Compiler.Field.(get_order ()
@@ -178,7 +178,7 @@ module Local = struct
       if printfdd then print_fdd fdd;
       if dumpfdd then dump_fdd fdd ~file:(file ^ ".dot");
       print_all_tables ~no_tables fdd switches;
-      print_time t;
+      print_time ~prefix:"compilation " t;
 end
 
 
@@ -204,7 +204,7 @@ module Global = struct
     if printfdd then print_fdd fdd;
     if dumpfdd then dump_fdd fdd ~file:(file ^ ".dot");
     print_all_tables ~no_tables fdd switches;
-    print_time t;
+    print_time ~prefix:"compilation " t;
 
 end
 
@@ -259,8 +259,8 @@ module Virtual = struct
     if printfdd then print_fdd fdd;
     if dumpfdd then dump_fdd fdd ~file:(vpol_file ^ ".dot");
     print_all_tables ~no_tables fdd switches;
-    print_time ~prefix:"virtual " t1;
-    print_time ~prefix:"global " t2;
+    print_time ~prefix:"virtual compilation " t1;
+    print_time ~prefix:"global compilation " t2;
 end
 
 
@@ -304,10 +304,10 @@ module Decision = struct
     let module Hopcroft = Frenetic_NetKAT_Equivalence.Hopcroft in
     let module Simple = Frenetic_NetKAT_Equivalence.Simple in
     let (th, h) = time (fun () -> Hopcroft.equiv a1 a2) in
-    let(ts, s) = time (fun () -> Simple.equiv a1 a2) in
-    printf "equivalent (Hopcroft): %s" (Bool.to_string h);
+    let (ts, s) = time (fun () -> Simple.equiv a1 a2) in
+    printf "equivalent (Hopcroft): %s\n" (Bool.to_string h);
     print_time th;
-    printf "\nequivalent (Simple): %s" (Bool.to_string s);
+    printf "\nequivalent (Simple): %s\n" (Bool.to_string s);
     print_time ts
 
 end

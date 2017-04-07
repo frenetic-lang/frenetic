@@ -1,5 +1,5 @@
 # Decision Procedure
-This directory contains pairs of NetKAT programs that can be checked for equivalence.
+This directory contains (pairs of) NetKAT programs that can be checked for equivalence.
 
 ## Requirements
 The frenetic executable must be installed:
