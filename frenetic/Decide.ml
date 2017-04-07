@@ -25,7 +25,7 @@ module Main = struct
       let open Frenetic_NetKAT_Pretty in
       printf "===================================================\n";
       printf "(%s)  ==  (%s)\n\n" (string_of_policy p) (string_of_policy q);
-      Dump.print_time ~prefix:"automaton construction " ta;
+      Dump.print_time ~prefix:"automata construction " ta;
       printf "\nHopcroft: %s\n" (Bool.to_string rh);
       Dump.print_time th;
       printf "\nSimple: %s\n" (Bool.to_string rs);
