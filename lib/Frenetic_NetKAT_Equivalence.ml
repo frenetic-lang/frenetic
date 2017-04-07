@@ -13,6 +13,7 @@ type state = FDD.t * FDD.t
 module type UPTO = sig
   val add_equiv : state -> state -> unit
   val equiv : state -> state -> bool
+  val clear : unit -> unit
 end
 
 (* upto reflexivity & symmetry *)
@@ -21,6 +22,7 @@ module Upto_Sym () : UPTO = struct
   let cache = Hash_set.Poly.create ()
   let equiv s1 s2 = (s1 = s2) || Hash_set.mem cache (min s1 s2, max s1 s2)
   let add_equiv s1 s2 = Hash_set.add cache (min s1 s2, max s1 s2)
+  let clear () = Hash_set.clear cache
 end
 
 (* upto reflexivity & symmetry & transitivity (Hopcroft-Karp) *)
@@ -30,6 +32,7 @@ module Upto_Trans () : UPTO = struct
   let find = Hashtbl.find_or_add cache ~default:Union_find.create
   let equiv s1 s2 = (s1 = s2) || Union_find.same_class (find s1) (find s2)
   let add_equiv s1 s2 = Union_find.union (find s1) (find s2)
+  let clear () = Hashtbl.clear cache
 end
 
 
@@ -162,6 +165,7 @@ module Make_Naive(Upto : UPTO) = struct
         end
 
     in
+    Upto.clear ();
     eq_state_ids pk a1.source a2.source
 
 end

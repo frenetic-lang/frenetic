@@ -94,6 +94,10 @@ let token ~ppx ~loc_start buf =
       ANTIQ (ascii ~skip:1 buf, loc)
     else
       illegal buf '$'
+  (* equivalence *)
+  | "==" -> EQUIVALENT
+  | "<=" -> LEQ
+  | ";;" -> DOUBLESEMICOLON
   (* predicates *)
   | "true" -> TRUE
   | "false" -> FALSE

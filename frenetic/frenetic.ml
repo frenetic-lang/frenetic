@@ -153,7 +153,8 @@ let main : Command.t =
     ; ("http-controller", http_controller)
     ; ("openflow13", openflow13_controller)
     ; ("fault-tolerant", openflow13_fault_tolerant_controller)
-    ; ("dump", Dump.main)]
+    ; ("dump", Dump.main)
+    ; ("decide", Decide.main)]
 
 let () =
   Frenetic_Util.pp_exceptions ();
