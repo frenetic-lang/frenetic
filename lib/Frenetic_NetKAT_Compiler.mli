@@ -36,7 +36,7 @@ module Automaton : sig
     -> f:('a -> int -> (FDD.t * FDD.t) -> 'a)
     -> 'a
 
-  val of_policy: ?dedup:bool -> ?ing:pred -> ?cheap_minimize:bool -> policy -> t
+  val of_pol: ?dedup:bool -> ?ing:pred -> ?cheap_minimize:bool -> policy -> t
   val to_local: pc:Field.t -> t -> FDD.t
 
   val to_dot: t -> string
