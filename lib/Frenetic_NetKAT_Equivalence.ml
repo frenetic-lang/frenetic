@@ -38,20 +38,38 @@ end
 (* Transition Trees                                                          *)
 (*===========================================================================*)
 
-module Trans_Tree = Frenetic_Vlr.Make(Frenetic_Fdd.Field)(Frenetic_Fdd.Value)(struct
+module Trans_Tree = struct
+  include Frenetic_Vlr.Make(Frenetic_Fdd.Field)(Frenetic_Fdd.Value)(struct
+    type t = Int.Set.t * Int.Set.t [@@deriving sexp, compare]
+    let hash = Hashtbl.hash
+    let to_string t = sexp_of_t t |> Sexp.to_string
 
-  type t = Int.Set.t * Int.Set.t [@@deriving sexp, compare]
-  let hash = Hashtbl.hash
-  let to_string t = sexp_of_t t |> Sexp.to_string
+    let zero = (Int.Set.empty, Int.Set.empty)
+    let sum (l1, r1) (l2, r2) = (Set.union l1 l2, Set.union r1 r2)
 
-  let zero = (Int.Set.empty, Int.Set.empty)
-  let sum (l1, r1) (l2, r2) = (Set.union l1 l2, Set.union r1 r2)
+    (* SJS: no one or product *)
+    let one = zero
+    let prod _ _ = failwith "no product"
+  end)
 
-  (* SJS: no one or product *)
-  let one = zero
-  let prod _ _ = failwith "no product"
+  let of_seq inj seq =
+    let leaf =
+      Frenetic_Fdd.Action.(Seq.find_exn seq K)
+      |> Frenetic_Fdd.Value.to_int_exn
+      |> inj
+      |> const
+    in
+    Frenetic_Fdd.Action.Seq.to_hvs seq
+    |> List.fold ~init:leaf ~f:(fun tree test -> cond test tree drop)
 
-end)
+  let of_par inj par =
+    Frenetic_Fdd.Action.Par.fold par
+      ~init:drop 
+      ~f:(fun acc seq -> sum acc (of_seq inj seq))
+
+  let of_left_par = of_par (fun i -> (Int.Set.singleton i, Int.Set.empty))
+  let of_right_par = of_par (fun i -> (Int.Set.empty, Int.Set.singleton i))
+end
 
 
 
