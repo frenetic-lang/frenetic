@@ -86,20 +86,56 @@ module Make_Naive(Upto : UPTO) = struct
     module T = Map.Make(Frenetic_Fdd.Field)
     include T
 
+    module Value = struct
+      include Frenetic_Fdd.Value
+      module Set = Set.Make(Frenetic_Fdd.Value)
+    end
+
     let all = empty
 
+    type constr =
+      | Eq of Value.t
+      | Neq of Value.Set.t
+      [@@deriving sexp, compare]
+
     module Set = Set.Make(struct
-      type t = Frenetic_Fdd.Value.t T.t [@@deriving sexp]
-      let compare = compare Frenetic_Fdd.Value.compare
+      type t = constr T.t [@@deriving sexp]
+      let compare = T.compare compare_constr
     end)
 
     let apply_seq pk seq =
-      Frenetic_Fdd.Action.Seq.to_hvs seq
-      |> List.fold ~init:pk ~f:(fun pk (key,data) -> add pk ~key ~data)
+      Frenetic_Fdd.Action.Seq.fold seq ~init:pk ~f:(fun ~key ~data pk ->
+        match key with
+        | K -> pk
+        | F f -> T.add pk ~key:f ~data:(Eq data))
 
     let apply_par pk par : Set.t =
       Frenetic_Fdd.Action.Par.fold par ~init:Set.empty ~f:(fun pks seq ->
         Set.add pks (apply_seq pk seq))
+
+    let rec restrict_fdd pk fdd =
+      match FDD.unget fdd with
+      | Leaf _ -> fdd
+      | Branch ((f,v), left, right) ->
+        begin match T.find pk f with
+        | Some (Eq v') when v = v'              -> restrict_fdd pk left
+        | Some (Eq v')                          -> restrict_fdd pk right
+        | Some (Neq vs) when Value.Set.mem vs v -> restrict_fdd pk right
+        | Some (Neq _) | None                   ->
+          FDD.unchecked_cond (f,v) (restrict_fdd pk left) (restrict_fdd pk right)
+        end
+
+    let set_eq pk f n =
+      T.add pk f (Eq n)
+
+    let branch pk f n =
+      match T.find pk f with
+      | Some (Eq m) when m = n                -> `Left pk
+      | Some (Eq m)                           -> `Right pk
+      | Some (Neq ms) when Value.Set.mem ms n -> `Right pk
+      | Some (Neq _) | None ->
+        `Both (T.add pk f (Eq n), T.add pk f (Neq (Value.Set.singleton n)))
+
   end
 
 
@@ -118,9 +154,8 @@ module Make_Naive(Upto : UPTO) = struct
       eq_states pk (merge a1 s1s) (merge a2 s2s)
     
     and eq_states pk ((e1, d1) : FDD.t * FDD.t) ((e2, d2) : FDD.t * FDD.t) =
-      let mask = SymPkt.to_alist pk in
-      let ((e1, d1) as s1) = FDD.(restrict mask e1, restrict mask d1) in
-      let ((e2, d2) as s2) = FDD.(restrict mask e2, restrict mask d2) in
+      let ((e1, d1) as s1) = SymPkt.(restrict_fdd pk e1, restrict_fdd pk d1) in
+      let ((e2, d2) as s2) = SymPkt.(restrict_fdd pk e2, restrict_fdd pk d2) in
       Upto.equiv s1 s2 || begin
         Upto.add_equiv s1 s2;
         eq_es pk e1 e2 && eq_ds pk d1 d2
@@ -137,30 +172,29 @@ module Make_Naive(Upto : UPTO) = struct
       | Leaf (ksl, ksr) ->
         eq_state_id_sets pk ksl ksr
       | Branch ((f,n), tru, fls) ->
-        eq_trans_tree (SymPkt.add pk f n) tru && eq_trans_tree pk fls
+        eq_trans_tree (SymPkt.set_eq pk f n) tru && eq_trans_tree pk fls
 
     and eq_fdd ~leaf_eq pk x y =
-      let check_with pk f n x y =
-        match SymPkt.find pk f with
-        | None ->
-          eq_fdd ~leaf_eq (SymPkt.add pk ~key:f ~data:n) x y
-        | Some m -> 
-          m <> n || eq_fdd ~leaf_eq pk x y
+      let check_branches f n (lx, ly) (rx, ry) =
+        match SymPkt.branch pk f n with
+        | `Left pk -> eq_fdd ~leaf_eq pk lx ly
+        | `Right pk -> eq_fdd ~leaf_eq pk rx ry
+        | `Both (lpk, rpk) -> eq_fdd ~leaf_eq lpk lx ly && eq_fdd ~leaf_eq rpk rx ry
       in
       match FDD.(unget x, unget y) with
       | Leaf r1, Leaf r2 ->
         leaf_eq pk r1 r2
-      | Branch ((f,n), xt, xf), Leaf _ ->
-        check_with pk f n xt y && eq_fdd ~leaf_eq pk xf y
-      | Leaf _, Branch ((g,m), yt, yf) ->
-        check_with pk g m x yt && eq_fdd ~leaf_eq pk x yf
-      | Branch((f, n), xt, xf), Branch((g, m), yt, yf) ->
+      | Branch ((f,n), lx, rx), Leaf _ ->
+        check_branches f n (lx, y) (rx, y)
+      | Leaf _, Branch ((g,m), ly, ry) ->
+        check_branches g m (x, ly) (x, ly)
+      | Branch((f, n), lx, rx), Branch((g, m), ly, ry) ->
         begin match Frenetic_Fdd.(Field.compare f g, Value.compare m n) with
-        |  0,  0 -> check_with pk f n xt yt && eq_fdd ~leaf_eq pk xf yf 
+        |  0,  0 -> check_branches f n (lx, ly) (rx, ry)
         | -1,  _
-        |  0, -1 -> check_with pk f n xt y && eq_fdd ~leaf_eq pk xf y
+        |  0, -1 -> check_branches f n (lx, y) (rx, y)
         |  1,  _
-        |  0,  1 -> check_with pk g m x yt && eq_fdd ~leaf_eq pk x yf
+        |  0,  1 -> check_branches g m (x, ly) (x, ry)
         |  _     -> assert false
         end
 
