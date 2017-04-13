@@ -16,23 +16,25 @@ module type UPTO = sig
   val clear : unit -> unit
 end
 
-(* upto reflexivity & symmetry *)
-module Upto_Sym () : UPTO = struct
+(* upto nothing; reflexivity and symmetry DO NOT hold *)
+module Upto_Nada () : UPTO = struct
   (* FIXME: avoid polymorphic hash/max/min/equality *)
   let cache = Hash_set.Poly.create ()
-  let equiv s1 s2 = (s1 = s2) || Hash_set.mem cache (min s1 s2, max s1 s2)
-  let add_equiv s1 s2 = Hash_set.add cache (min s1 s2, max s1 s2)
+  let equiv s1 s2 = Hash_set.mem cache (s1, s2)
+  let add_equiv s1 s2 = Hash_set.add cache (s1, s2)
   let clear () = Hash_set.clear cache
 end
 
-(* upto reflexivity & symmetry & transitivity (Hopcroft-Karp) *)
+(* upto transitivity (Hopcroft-Karp) *)
 module Upto_Trans () : UPTO = struct
   (* FIXME: avoid polymorphic hash/max/min/equality *)
-  let cache = Hashtbl.Poly.create ()
-  let find = Hashtbl.find_or_add cache ~default:Union_find.create
-  let equiv s1 s2 = (s1 = s2) || Union_find.same_class (find s1) (find s2)
-  let add_equiv s1 s2 = Union_find.union (find s1) (find s2)
-  let clear () = Hashtbl.clear cache
+  let cache_left = FDD.BinTbl.create ()
+  let cache_right = FDD.BinTbl.create ()
+  let find_left = FDD.BinTbl.find_or_add cache_left ~default:Union_find.create
+  let find_right = FDD.BinTbl.find_or_add cache_right ~default:Union_find.create
+  let equiv s1 s2 = Union_find.same_class (find_left s1) (find_right s2)
+  let add_equiv s1 s2 = Union_find.union (find_left s1) (find_right s2)
+  let clear () = FDD.BinTbl.clear cache_left; FDD.BinTbl.clear cache_right
 end
 
 
@@ -80,10 +82,13 @@ end
 (* Decision Procedure                                                        *)
 (*===========================================================================*)
 
-module Make_Naive(Upto : UPTO) = struct
+module Make_Naive (Upto : UPTO) = struct
 
   module SymPkt = struct
-    module T = Map.Make(Frenetic_Fdd.Field)
+
+    module Field = Frenetic_Fdd.Field
+
+    module T = Map.Make(Field)
     include T
 
     module Value = struct
@@ -136,6 +141,16 @@ module Make_Naive(Upto : UPTO) = struct
       | Some (Neq _) | None ->
         `Both (T.add pk f (Eq n), T.add pk f (Neq (Value.Set.singleton n)))
 
+    let to_string pk =
+      List.to_string (to_alist pk) ~f:(function
+        | (f, Eq v) ->
+          sprintf "%s=%s" (Field.to_string f) (Value.to_string v)
+        | (f, Neq vs) ->
+          Value.Set.to_list vs
+          |> List.to_string ~f:Value.to_string
+          |> sprintf "%s!=%s" (Field.to_string f))
+      |>  sprintf "[%s]"
+
   end
 
 
@@ -146,20 +161,33 @@ module Make_Naive(Upto : UPTO) = struct
       eq_states pk (Hashtbl.find_exn a1.states s1) (Hashtbl.find_exn a2.states s2)
 
     and eq_state_id_sets pk (s1s : Int.Set.t) (s2s : Int.Set.t) =
+      let to_s set = List.to_string ~f:Int.to_string (Set.to_list set) in 
+      printf "\n[eq_state_id_sets] ----------------------------------\n";
+      printf "pk = %s\n" (SymPkt.to_string pk);
+      printf "%s = %s?\n" (to_s s1s) (to_s s2s);
       let merge (a : Automaton.t) states =
         Int.Set.fold states ~init:(FDD.drop, FDD.drop) ~f:(fun (e,d) s ->
           let (e',d') = Hashtbl.find_exn a.states s in
           FDD.(union e e', union d d'))
       in
-      eq_states pk (merge a1 s1s) (merge a2 s2s)
+      let eq = eq_states pk (merge a1 s1s) (merge a2 s2s) in
+      printf "-> %s\n" (Bool.to_string eq); eq
     
     and eq_states pk ((e1, d1) : FDD.t * FDD.t) ((e2, d2) : FDD.t * FDD.t) =
+      printf "\n[eq_states ----------------------------------\n";
+      printf "pk = %s\n" (SymPkt.to_string pk);
+      printf "%s = %s\nand\n%s = %s\n?\n" (FDD.to_string e1) (FDD.to_string e2)
+        (FDD.to_string d1) (FDD.to_string d2);
       let ((e1, d1) as s1) = SymPkt.(restrict_fdd pk e1, restrict_fdd pk d1) in
       let ((e2, d2) as s2) = SymPkt.(restrict_fdd pk e2, restrict_fdd pk d2) in
-      Upto.equiv s1 s2 || begin
+      printf "suffices:\n%s = %s\nand\n%s = %s\n?\n"
+        (FDD.to_string e1) (FDD.to_string e2)
+        (FDD.to_string d1) (FDD.to_string d2);
+      let eq = Upto.equiv s1 s2 || begin
         Upto.add_equiv s1 s2;
         eq_es pk e1 e2 && eq_ds pk d1 d2
-      end
+      end in
+      printf "-> %s\n" (Bool.to_string eq); eq
 
     and eq_es pk = eq_fdd pk ~leaf_eq:(fun pk par1 par2 ->
       SymPkt.Set.equal (SymPkt.apply_par pk par1) (SymPkt.apply_par pk par2))
@@ -168,11 +196,17 @@ module Make_Naive(Upto : UPTO) = struct
       eq_trans_tree pk (Trans_Tree.(sum (of_left_par par1) (of_right_par par2))))
 
     and eq_trans_tree pk tree =
+      printf "\n[eq_trans_tree] ----------------------------------\n";
+      printf "pk = %s\n" (SymPkt.to_string pk);
+      printf "%s" (Trans_Tree.to_string tree);
+      printf "\n";
       match Trans_Tree.unget tree with
       | Leaf (ksl, ksr) ->
-        eq_state_id_sets pk ksl ksr
+        let eq = eq_state_id_sets pk ksl ksr in
+        printf "-> %s\n" (Bool.to_string eq); eq
       | Branch ((f,n), tru, fls) ->
-        eq_trans_tree (SymPkt.set_eq pk f n) tru && eq_trans_tree pk fls
+        let eq = eq_trans_tree (SymPkt.set_eq pk f n) tru && eq_trans_tree pk fls in
+        printf "-> %s\n" (Bool.to_string eq); eq
 
     and eq_fdd ~leaf_eq pk x y =
       let check_branches f n (lx, ly) (rx, ry) =
@@ -187,7 +221,7 @@ module Make_Naive(Upto : UPTO) = struct
       | Branch ((f,n), lx, rx), Leaf _ ->
         check_branches f n (lx, y) (rx, y)
       | Leaf _, Branch ((g,m), ly, ry) ->
-        check_branches g m (x, ly) (x, ly)
+        check_branches g m (x, ly) (x, ry)
       | Branch((f, n), lx, rx), Branch((g, m), ly, ry) ->
         begin match Frenetic_Fdd.(Field.compare f g, Value.compare m n) with
         |  0,  0 -> check_branches f n (lx, ly) (rx, ry)
@@ -210,4 +244,4 @@ end
 (*===========================================================================*)
 
 module Hopcroft = Make_Naive(Upto_Trans ())
-module Simple = Make_Naive(Upto_Sym ())
+module Simple = Make_Naive(Upto_Nada ())
