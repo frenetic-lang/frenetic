@@ -162,32 +162,32 @@ module Make_Naive (Upto : UPTO) = struct
 
     and eq_state_id_sets pk (s1s : Int.Set.t) (s2s : Int.Set.t) =
       let to_s set = List.to_string ~f:Int.to_string (Set.to_list set) in 
-      printf "\n[eq_state_id_sets] ----------------------------------\n";
-      printf "pk = %s\n" (SymPkt.to_string pk);
-      printf "%s = %s?\n" (to_s s1s) (to_s s2s);
+      (* printf "\n[eq_state_id_sets] ----------------------------------\n"; *)
+      (* printf "pk = %s\n" (SymPkt.to_string pk); *)
+      (* printf "%s = %s?\n" (to_s s1s) (to_s s2s); *)
       let merge (a : Automaton.t) states =
         Int.Set.fold states ~init:(FDD.drop, FDD.drop) ~f:(fun (e,d) s ->
           let (e',d') = Hashtbl.find_exn a.states s in
           FDD.(union e e', union d d'))
       in
       let eq = eq_states pk (merge a1 s1s) (merge a2 s2s) in
-      printf "-> %s\n" (Bool.to_string eq); eq
+      (* printf "-> %s\n" (Bool.to_string eq); *) eq
     
     and eq_states pk ((e1, d1) : FDD.t * FDD.t) ((e2, d2) : FDD.t * FDD.t) =
-      printf "\n[eq_states ----------------------------------\n";
-      printf "pk = %s\n" (SymPkt.to_string pk);
-      printf "%s = %s\nand\n%s = %s\n?\n" (FDD.to_string e1) (FDD.to_string e2)
-        (FDD.to_string d1) (FDD.to_string d2);
+      (* printf "\n[eq_states ----------------------------------\n"; *)
+      (* printf "pk = %s\n" (SymPkt.to_string pk); *)
+      (* printf "%s = %s\nand\n%s = %s\n?\n" (FDD.to_string e1) (FDD.to_string e2)
+        (FDD.to_string d1) (FDD.to_string d2); *)
       let ((e1, d1) as s1) = SymPkt.(restrict_fdd pk e1, restrict_fdd pk d1) in
       let ((e2, d2) as s2) = SymPkt.(restrict_fdd pk e2, restrict_fdd pk d2) in
-      printf "suffices:\n%s = %s\nand\n%s = %s\n?\n"
+      (* printf "suffices:\n%s = %s\nand\n%s = %s\n?\n"
         (FDD.to_string e1) (FDD.to_string e2)
-        (FDD.to_string d1) (FDD.to_string d2);
+        (FDD.to_string d1) (FDD.to_string d2); *)
       let eq = Upto.equiv s1 s2 || begin
         Upto.add_equiv s1 s2;
         eq_es pk e1 e2 && eq_ds pk d1 d2
       end in
-      printf "-> %s\n" (Bool.to_string eq); eq
+      (* printf "-> %s\n" (Bool.to_string eq); *) eq
 
     and eq_es pk = eq_fdd pk ~leaf_eq:(fun pk par1 par2 ->
       SymPkt.Set.equal (SymPkt.apply_par pk par1) (SymPkt.apply_par pk par2))
@@ -196,17 +196,17 @@ module Make_Naive (Upto : UPTO) = struct
       eq_trans_tree pk (Trans_Tree.(sum (of_left_par par1) (of_right_par par2))))
 
     and eq_trans_tree pk tree =
-      printf "\n[eq_trans_tree] ----------------------------------\n";
-      printf "pk = %s\n" (SymPkt.to_string pk);
-      printf "%s" (Trans_Tree.to_string tree);
-      printf "\n";
+      (* printf "\n[eq_trans_tree] ----------------------------------\n"; *)
+      (* printf "pk = %s\n" (SymPkt.to_string pk); *)
+      (* printf "%s" (Trans_Tree.to_string tree); *)
+      (* printf "\n"; *)
       match Trans_Tree.unget tree with
       | Leaf (ksl, ksr) ->
         let eq = eq_state_id_sets pk ksl ksr in
-        printf "-> %s\n" (Bool.to_string eq); eq
+        (* printf "-> %s\n" (Bool.to_string eq); *) eq
       | Branch ((f,n), tru, fls) ->
         let eq = eq_trans_tree (SymPkt.set_eq pk f n) tru && eq_trans_tree pk fls in
-        printf "-> %s\n" (Bool.to_string eq); eq
+        (* printf "-> %s\n" (Bool.to_string eq); *) eq
 
     and eq_fdd ~leaf_eq pk x y =
       let check_branches f n (lx, ly) (rx, ry) =
