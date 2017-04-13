@@ -33,7 +33,7 @@ let int64 ?loc ?attrs x =
 %token EQUIVALENT LEQ DOUBLESEMICOLON
 
 (* predicates and policies *)
-%token TRUE FALSE AND OR NOT EQUALS
+%token TRUE FALSE AND OR NOT EQUALS NEQUALS
 %token ID DROP FILTER ASSIGN SEMICOLON PLUS STAR LINK VLINK AT SLASH
 %token IF THEN ELSE WHILE DO
 %token DUP
@@ -171,6 +171,9 @@ pred:
   | hv=header_val(EQUALS)
       AST( Test hv )
       PPX( Test [%e hv] )
+  | hv=header_val(NEQUALS)
+      AST( Neg (Test hv) )
+      PPX( Neg (Test [%e hv]) )
   | NOT; a=pred
       AST( Neg a )
       PPX( Neg [%e a] )

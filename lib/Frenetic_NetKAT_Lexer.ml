@@ -105,6 +105,7 @@ let token ~ppx ~loc_start buf =
   | "or" -> OR
   | "not" -> NOT
   | '=' -> EQUALS
+  | "!=" -> NEQUALS
   (* policies *)
   | "id" -> ID
   | "drop" -> DROP
