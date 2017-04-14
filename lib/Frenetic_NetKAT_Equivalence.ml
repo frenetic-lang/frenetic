@@ -77,82 +77,87 @@ module Trans_Tree = struct
 end
 
 
+(*===========================================================================*)
+(* Symbolic Packets                                                          *)
+(*===========================================================================*)
+
+module SymPkt = struct
+
+  module Field = Frenetic_Fdd.Field
+
+  module Value = struct
+    include Frenetic_Fdd.Value
+    module Set = Set.Make(Frenetic_Fdd.Value)
+  end
+
+  module T = Map.Make(Field)
+  include T
+
+  let all = empty
+
+  type constr =
+    | Eq of Value.t
+    | Neq of Value.Set.t
+    [@@deriving sexp, compare]
+
+  module Set = Set.Make(struct
+    type t = constr T.t [@@deriving sexp]
+    let compare = T.compare compare_constr
+  end)
+
+  let apply_seq pk seq =
+    Frenetic_Fdd.Action.Seq.fold seq ~init:pk ~f:(fun ~key ~data pk ->
+      match key with
+      | K -> pk
+      | F f -> T.add pk ~key:f ~data:(Eq data))
+
+  let apply_par pk par : Set.t =
+    Frenetic_Fdd.Action.Par.fold par ~init:Set.empty ~f:(fun pks seq ->
+      Set.add pks (apply_seq pk seq))
+
+  let rec restrict_fdd pk fdd =
+    match FDD.unget fdd with
+    | Leaf _ -> fdd
+    | Branch ((f,v), left, right) ->
+      begin match T.find pk f with
+      | Some (Eq v') when v = v'              -> restrict_fdd pk left
+      | Some (Eq v')                          -> restrict_fdd pk right
+      | Some (Neq vs) when Value.Set.mem vs v -> restrict_fdd pk right
+      | Some (Neq _) | None                   ->
+        FDD.unchecked_cond (f,v) (restrict_fdd pk left) (restrict_fdd pk right)
+      end
+
+  let set_eq pk f n =
+    T.add pk f (Eq n)
+
+  let branch pk f v =
+    match T.find pk f with
+    | Some (Eq v') when v' = v              -> `Left pk
+    | Some (Eq v')                          -> `Right pk
+    | Some (Neq vs) when Value.Set.mem vs v -> `Right pk
+    | Some (Neq vs) ->
+      `Both (T.add pk f (Eq v), T.add pk f (Neq Value.Set.(add vs v)))
+    | None ->
+      `Both (T.add pk f (Eq v), T.add pk f (Neq Value.Set.(singleton v)))
+
+  let to_string pk =
+    List.to_string (to_alist pk) ~f:(function
+      | (f, Eq v) ->
+        sprintf "%s=%s" (Field.to_string f) (Value.to_string v)
+      | (f, Neq vs) ->
+        Value.Set.to_list vs
+        |> List.to_string ~f:Value.to_string
+        |> sprintf "%s!=%s" (Field.to_string f))
+    |>  sprintf "[%s]"
+
+end
+
 
 (*===========================================================================*)
 (* Decision Procedure                                                        *)
 (*===========================================================================*)
 
 module Make_Naive (Upto : UPTO) = struct
-
-  module SymPkt = struct
-
-    module Field = Frenetic_Fdd.Field
-
-    module T = Map.Make(Field)
-    include T
-
-    module Value = struct
-      include Frenetic_Fdd.Value
-      module Set = Set.Make(Frenetic_Fdd.Value)
-    end
-
-    let all = empty
-
-    type constr =
-      | Eq of Value.t
-      | Neq of Value.Set.t
-      [@@deriving sexp, compare]
-
-    module Set = Set.Make(struct
-      type t = constr T.t [@@deriving sexp]
-      let compare = T.compare compare_constr
-    end)
-
-    let apply_seq pk seq =
-      Frenetic_Fdd.Action.Seq.fold seq ~init:pk ~f:(fun ~key ~data pk ->
-        match key with
-        | K -> pk
-        | F f -> T.add pk ~key:f ~data:(Eq data))
-
-    let apply_par pk par : Set.t =
-      Frenetic_Fdd.Action.Par.fold par ~init:Set.empty ~f:(fun pks seq ->
-        Set.add pks (apply_seq pk seq))
-
-    let rec restrict_fdd pk fdd =
-      match FDD.unget fdd with
-      | Leaf _ -> fdd
-      | Branch ((f,v), left, right) ->
-        begin match T.find pk f with
-        | Some (Eq v') when v = v'              -> restrict_fdd pk left
-        | Some (Eq v')                          -> restrict_fdd pk right
-        | Some (Neq vs) when Value.Set.mem vs v -> restrict_fdd pk right
-        | Some (Neq _) | None                   ->
-          FDD.unchecked_cond (f,v) (restrict_fdd pk left) (restrict_fdd pk right)
-        end
-
-    let set_eq pk f n =
-      T.add pk f (Eq n)
-
-    let branch pk f n =
-      match T.find pk f with
-      | Some (Eq m) when m = n                -> `Left pk
-      | Some (Eq m)                           -> `Right pk
-      | Some (Neq ms) when Value.Set.mem ms n -> `Right pk
-      | Some (Neq _) | None ->
-        `Both (T.add pk f (Eq n), T.add pk f (Neq (Value.Set.singleton n)))
-
-    let to_string pk =
-      List.to_string (to_alist pk) ~f:(function
-        | (f, Eq v) ->
-          sprintf "%s=%s" (Field.to_string f) (Value.to_string v)
-        | (f, Neq vs) ->
-          Value.Set.to_list vs
-          |> List.to_string ~f:Value.to_string
-          |> sprintf "%s!=%s" (Field.to_string f))
-      |>  sprintf "[%s]"
-
-  end
-
 
   (** decides equivalence of symbolic NetKAT NFAs *)
   let equiv ?(pk=SymPkt.all) (a1 : Automaton.t) (a2 : Automaton.t) =
@@ -176,18 +181,19 @@ module Make_Naive (Upto : UPTO) = struct
     and eq_states pk ((e1, d1) : FDD.t * FDD.t) ((e2, d2) : FDD.t * FDD.t) =
       (* printf "\n[eq_states ----------------------------------\n"; *)
       (* printf "pk = %s\n" (SymPkt.to_string pk); *)
-      (* printf "%s = %s\nand\n%s = %s\n?\n" (FDD.to_string e1) (FDD.to_string e2)
-        (FDD.to_string d1) (FDD.to_string d2); *)
+      (* printf "%s = %s\nand\n%s = %s\n?\n" (FDD.to_string e1) (FDD.to_string e2) *)
+        (* (FDD.to_string d1) (FDD.to_string d2); *)
       let ((e1, d1) as s1) = SymPkt.(restrict_fdd pk e1, restrict_fdd pk d1) in
       let ((e2, d2) as s2) = SymPkt.(restrict_fdd pk e2, restrict_fdd pk d2) in
-      (* printf "suffices:\n%s = %s\nand\n%s = %s\n?\n"
-        (FDD.to_string e1) (FDD.to_string e2)
-        (FDD.to_string d1) (FDD.to_string d2); *)
+      (* printf "suffices:\n%s = %s\nand\n%s = %s\n?\n" *)
+        (* (FDD.to_string e1) (FDD.to_string e2) *)
+        (* (FDD.to_string d1) (FDD.to_string d2); *)
       let eq = Upto.equiv s1 s2 || begin
         Upto.add_equiv s1 s2;
         eq_es pk e1 e2 && eq_ds pk d1 d2
       end in
-      (* printf "-> %s\n" (Bool.to_string eq); *) eq
+      (* printf "-> %s\n" (Bool.to_string eq); *)
+      eq
 
     and eq_es pk = eq_fdd pk ~leaf_eq:(fun pk par1 par2 ->
       SymPkt.Set.equal (SymPkt.apply_par pk par1) (SymPkt.apply_par pk par2))
@@ -209,28 +215,35 @@ module Make_Naive (Upto : UPTO) = struct
         (* printf "-> %s\n" (Bool.to_string eq); *) eq
 
     and eq_fdd ~leaf_eq pk x y =
+      (* printf "\n[eq_fdd ----------------------------------\n"; *)
+      (* printf "pk = %s\n" (SymPkt.to_string pk); *)
+      (* printf "%s = %s\n?\n" (FDD.to_string x) (FDD.to_string y); *)
       let check_branches f n (lx, ly) (rx, ry) =
         match SymPkt.branch pk f n with
         | `Left pk -> eq_fdd ~leaf_eq pk lx ly
         | `Right pk -> eq_fdd ~leaf_eq pk rx ry
         | `Both (lpk, rpk) -> eq_fdd ~leaf_eq lpk lx ly && eq_fdd ~leaf_eq rpk rx ry
       in
-      match FDD.(unget x, unget y) with
-      | Leaf r1, Leaf r2 ->
-        leaf_eq pk r1 r2
-      | Branch ((f,n), lx, rx), Leaf _ ->
-        check_branches f n (lx, y) (rx, y)
-      | Leaf _, Branch ((g,m), ly, ry) ->
-        check_branches g m (x, ly) (x, ry)
-      | Branch((f, n), lx, rx), Branch((g, m), ly, ry) ->
-        begin match Frenetic_Fdd.(Field.compare f g, Value.compare m n) with
-        |  0,  0 -> check_branches f n (lx, ly) (rx, ry)
-        | -1,  _
-        |  0, -1 -> check_branches f n (lx, y) (rx, y)
-        |  1,  _
-        |  0,  1 -> check_branches g m (x, ly) (x, ry)
-        |  _     -> assert false
-        end
+      let eq =
+        match FDD.(unget x, unget y) with
+        | Leaf r1, Leaf r2 ->
+          leaf_eq pk r1 r2
+        | Branch ((f,n), lx, rx), Leaf _ ->
+          check_branches f n (lx, y) (rx, y)
+        | Leaf _, Branch ((g,m), ly, ry) ->
+          check_branches g m (x, ly) (x, ry)
+        | Branch((fx, vx), lx, rx), Branch((fy, vy), ly, ry) ->
+          begin match Frenetic_Fdd.(Field.compare fx fy, Value.compare vx vy) with
+          |  0,  0 -> check_branches fx vx (lx, ly) (rx, ry)
+          | -1,  _
+          |  0, -1 -> check_branches fx vx (lx, y) (rx, y)
+          |  1,  _
+          |  0,  1 -> check_branches fy vy (x, ly) (x, ry)
+          |  _     -> assert false
+          end
+        in
+          (* printf "-> %s\n" (Bool.to_string eq); *)
+          eq
 
     in
     Upto.clear ();
