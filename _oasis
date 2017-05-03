@@ -31,11 +31,15 @@ PreBuildCommand:
   cppo -n \
     ppx/PPX_NetKAT_Parser.cppo.mly \
     -o ppx/PPX_NetKAT_Parser.mly
+  cppo -n \
+    lib/Frenetic_NetKAT_Portless_Generated_Parser.cppo.mly \
+    -o lib/Frenetic_NetKAT_Portless_Generated_Parser.mly
   menhir --only-tokens ppx/PPX_NetKAT_Parser.mly \
     --base lib/Frenetic_NetKAT_Tokens
 PostBuildCommand:
   rm -f ppx/PPX_NetKAT_Parser.mly
   rm -f lib/Frenetic_NetKAT_Generated_Parser.mly
+  rm -f lib/Frenetic_NetKAT_Portless_Generated_Parser.mly
   # do not delete so ocamldoc is happy!
   # rm -f lib/Frenetic_NetKAT_Tokens*
 ImplementationPatterns:
@@ -62,11 +66,14 @@ Library frenetic
   InternalModules:
     LexBuffer,
     Frenetic_NetKAT_Lexer,
-    Frenetic_NetKAT_Generated_Parser
+    Frenetic_NetKAT_Generated_Parser,
+    Frenetic_NetKAT_Portless_Lexer,
+    Frenetic_NetKAT_Portless_Generated_Parser
   Modules:
     Frenetic_Hashcons,
     Frenetic_Bits,
     Frenetic_Fdd,
+    Frenetic_Portless_Fdd,
     Frenetic_OpenFlow0x04,
     Frenetic_GroupTable0x04,
     Frenetic_NetKAT,
@@ -80,6 +87,10 @@ Library frenetic
     Frenetic_NetKAT_Net,
     Frenetic_NetKAT_Pretty,
     Frenetic_NetKAT_Semantics,
+    Frenetic_NetKAT_Portless,
+    Frenetic_NetKAT_Portless_Compiler,
+    Frenetic_NetKAT_Portless_Optimize,
+    Frenetic_NetKAT_Portless_Parser,
     Frenetic_Network,
     Frenetic_OpenFlow,
     Frenetic_OpenFlow_Header,
