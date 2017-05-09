@@ -116,7 +116,7 @@ Executable ppx
 # just for testing and experimentation
 Executable ppx_standalone
   # don't build by default
-  Build: false
+  Build: true
   Path: ppx
   BuildDepends:
     frenetic.ppx
@@ -174,41 +174,6 @@ Executable openflow
     frenetic,
     frenetic.async,
     async_extended
-
-Library test_frenetic
-  Findlibparent: frenetic
-  Findlibname: test
-  Path: lib_test/lib
-  Build$: flag(tests)
-  Install: false
-  BuildDepends:
-    frenetic,
-    quickcheck
-  Modules:
-    Arbitrary_Base,
-    Arbitrary_Frenetic_NetKAT,
-    Arbitrary_Frenetic_OpenFlow,
-    Arbitrary_Frenetic_OpenFlow0x01,
-    Arbitrary_Frenetic_OpenFlow0x04,
-    Arbitrary_Frenetic_OpenFlow_Header,
-    Arbitrary_Frenetic_Packet,
-    Flowterp
-
-Executable testtool
-  Path: lib_test
-  MainIs: Test.ml
-  Install: false
-  Build$: flag(tests)
-  BuildDepends:
-    ppx_inline_test,
-    frenetic.test,
-    frenetic,
-    frenetic.async
-
-Test all_tests
-  Run$: flag(tests)
-  Command: $testtool inline-test-runner frenetic
-  TestTools: testtool
 
 Executable benchmark
   Install: false

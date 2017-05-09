@@ -1,3 +1,5 @@
+open Core.Std
+
 (* let declaration *)
 let%nk p = {| drop |}
 let%nk q = {| filter true; $p; (port:=2 + port:=pipe("test") ) |}
@@ -25,6 +27,26 @@ let%nk illegal = {| `ip := 255.255.255.255 |}
 let%nk iverson = {| [2 = 1+1]; port:=pipe("true") + [2=1]; port:=pipe("false")  |}
 let%nk iverson_pred = {| filter [2 > 1]; [2 < 1] |}
 
+(* advanced iverson examples *)
+let mk_link adj a b =
+  let src,dst = Int32.(of_int_exn adj.(a).(b), of_int_exn adj.(b).(a)) in
+  let a,b = Int64.(of_int a + 1L, of_int b + 1L) in
+  let%nk l = {| [src <> 0l]; filter (switch=$a and port=$src); switch:=$b; port:=$dst  |} in
+  l
+
+let mk_links adj =
+  let open Frenetic_NetKAT_Optimize in
+  let n = Array.length adj in
+  List.init n ~f:(fun a -> List.init n ~f:(fun b -> mk_link adj a b))
+  |> List.concat
+  |> mk_big_union
+
+let advanced_iverson = mk_links [|
+  [|  0; 12;  0; |];
+  [| 21;  0; 23; |];
+  [|  0; 32;  0; |];
+|]
+
 (* The declarations below should cause compile-time errors with approproate
    source locations. *)
 (* let%nk s = {| filter typo = 1 |} *)
@@ -48,4 +70,5 @@ let () =
   printf "illegal = %s\n" (string_of_policy illegal);
   printf "iverson = %s\n" (string_of_policy iverson);
   printf "iverson_pred = %s\n" (string_of_policy iverson_pred);
+  printf "advanced_iverson = %s\n" (string_of_policy advanced_iverson);
   ()
