@@ -21,11 +21,17 @@ let%nk ip_and_mac = {| `ip := 255.255.255.0; `mac := ff:ff:ff:ff:ff:ff |}
 (* above maximum, but still accepted by parser currently *)
 let%nk illegal = {| `ip := 255.255.255.255 |}
 
+(* iverson bracket's allow one to use OCaml predicates right in NetKAT *)
+let%nk iverson = {| [2 = 1+1]; port:=pipe("true") + [2=1]; port:=pipe("false")  |}
+let%nk iverson_pred = {| filter [2 > 1]; [2 < 1] |}
+
 (* The declarations below should cause compile-time errors with approproate
    source locations. *)
 (* let%nk s = {| filter typo = 1 |} *)
 (* let%nk r = {| while not $egress' do $q |} *)
 (* let%nk r = {| `inport := port |} *)
+(* let%nk iverson_pred = {| filter [2 > 1]; [2 < ( 1] |} *)
+(* let%nk iverson_pred = {| filter [2 > 1]; |} *)
 
 let () =
   let open Frenetic_NetKAT_Pretty in
@@ -40,4 +46,6 @@ let () =
   printf "addresses = %s\n" (string_of_policy addresses);
   printf "ip_and_mac = %s\n" (string_of_policy ip_and_mac);
   printf "illegal = %s\n" (string_of_policy illegal);
+  printf "iverson = %s\n" (string_of_policy iverson);
+  printf "iverson_pred = %s\n" (string_of_policy iverson_pred);
   ()
