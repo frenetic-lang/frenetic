@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: fb400d341cf21ccc3a8f860f68623a18) *)
+(* DO NOT EDIT (digest: 35df006ca2eac8c1341346e61ce5231a) *)
 module OASISGettext = struct
 (* # 22 "src/oasis/OASISGettext.ml" *)
 
@@ -889,13 +889,16 @@ let package_default =
        [
           ("frenetic", ["lib"], []);
           ("ppx", ["ppx"], []);
-          ("async", ["async"], [])
+          ("async", ["async"], []);
+          ("test_frenetic", ["lib_test/lib"], [])
        ];
      lib_c = [];
      flags = [];
      includes =
        [
           ("ppx", ["lib"]);
+          ("lib_test/lib", ["lib"]);
+          ("lib_test", ["async"; "lib"; "lib_test/lib"]);
           ("frenetic", ["async"; "lib"]);
           ("bench/src", ["lib"]);
           ("async", ["lib"])
@@ -907,7 +910,7 @@ let conf = {MyOCamlbuildFindlib.no_automatic_syntax = false}
 
 let dispatch_default = MyOCamlbuildBase.dispatch_default conf package_default;;
 
-# 911 "myocamlbuild.ml"
+# 914 "myocamlbuild.ml"
 (* OASIS_STOP *)
 
 (* SJS: use shared extern token file *)

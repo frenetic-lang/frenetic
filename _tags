@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 20989c8c88b5c4a315200be805f11641)
+# DO NOT EDIT (digest: 3d9efb891e56aba78b68a50dc47b632e)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -186,6 +186,77 @@ true: annot, bin_annot
 <frenetic/*.ml{,i,y}>: package(yojson)
 <frenetic/*.ml{,i,y}>: use_async
 <frenetic/*.ml{,i,y}>: use_frenetic
+# Library test_frenetic
+"lib_test/lib/test_frenetic.cmxs": use_test_frenetic
+<lib_test/lib/*.ml{,i,y}>: package(base64)
+<lib_test/lib/*.ml{,i,y}>: package(compiler-libs.common)
+<lib_test/lib/*.ml{,i,y}>: package(core)
+<lib_test/lib/*.ml{,i,y}>: package(cstruct)
+<lib_test/lib/*.ml{,i,y}>: package(cstruct.ppx)
+<lib_test/lib/*.ml{,i,y}>: package(ipaddr)
+<lib_test/lib/*.ml{,i,y}>: package(menhirLib)
+<lib_test/lib/*.ml{,i,y}>: package(ocamlgraph)
+<lib_test/lib/*.ml{,i,y}>: package(ppx_import)
+<lib_test/lib/*.ml{,i,y}>: package(quickcheck)
+<lib_test/lib/*.ml{,i,y}>: package(sedlex)
+<lib_test/lib/*.ml{,i,y}>: package(str)
+<lib_test/lib/*.ml{,i,y}>: package(tcpip)
+<lib_test/lib/*.ml{,i,y}>: package(threads)
+<lib_test/lib/*.ml{,i,y}>: package(yojson)
+<lib_test/lib/*.ml{,i,y}>: use_frenetic
+# Executable testtool
+"lib_test/Test.byte": package(async)
+"lib_test/Test.byte": package(base64)
+"lib_test/Test.byte": package(cohttp)
+"lib_test/Test.byte": package(cohttp.async)
+"lib_test/Test.byte": package(compiler-libs.common)
+"lib_test/Test.byte": package(core)
+"lib_test/Test.byte": package(cstruct)
+"lib_test/Test.byte": package(cstruct.async)
+"lib_test/Test.byte": package(cstruct.ppx)
+"lib_test/Test.byte": package(ipaddr)
+"lib_test/Test.byte": package(menhirLib)
+"lib_test/Test.byte": package(mparser)
+"lib_test/Test.byte": package(mparser.re)
+"lib_test/Test.byte": package(ocamlgraph)
+"lib_test/Test.byte": package(ppx_import)
+"lib_test/Test.byte": package(ppx_inline_test)
+"lib_test/Test.byte": package(ppx_sexp_conv)
+"lib_test/Test.byte": package(quickcheck)
+"lib_test/Test.byte": package(sedlex)
+"lib_test/Test.byte": package(str)
+"lib_test/Test.byte": package(tcpip)
+"lib_test/Test.byte": package(threads)
+"lib_test/Test.byte": package(yojson)
+"lib_test/Test.byte": use_async
+"lib_test/Test.byte": use_frenetic
+"lib_test/Test.byte": use_test_frenetic
+<lib_test/*.ml{,i,y}>: package(async)
+<lib_test/*.ml{,i,y}>: package(base64)
+<lib_test/*.ml{,i,y}>: package(cohttp)
+<lib_test/*.ml{,i,y}>: package(cohttp.async)
+<lib_test/*.ml{,i,y}>: package(compiler-libs.common)
+<lib_test/*.ml{,i,y}>: package(core)
+<lib_test/*.ml{,i,y}>: package(cstruct)
+<lib_test/*.ml{,i,y}>: package(cstruct.async)
+<lib_test/*.ml{,i,y}>: package(cstruct.ppx)
+<lib_test/*.ml{,i,y}>: package(ipaddr)
+<lib_test/*.ml{,i,y}>: package(menhirLib)
+<lib_test/*.ml{,i,y}>: package(mparser)
+<lib_test/*.ml{,i,y}>: package(mparser.re)
+<lib_test/*.ml{,i,y}>: package(ocamlgraph)
+<lib_test/*.ml{,i,y}>: package(ppx_import)
+<lib_test/*.ml{,i,y}>: package(ppx_inline_test)
+<lib_test/*.ml{,i,y}>: package(ppx_sexp_conv)
+<lib_test/*.ml{,i,y}>: package(quickcheck)
+<lib_test/*.ml{,i,y}>: package(sedlex)
+<lib_test/*.ml{,i,y}>: package(str)
+<lib_test/*.ml{,i,y}>: package(tcpip)
+<lib_test/*.ml{,i,y}>: package(threads)
+<lib_test/*.ml{,i,y}>: package(yojson)
+<lib_test/*.ml{,i,y}>: use_async
+<lib_test/*.ml{,i,y}>: use_frenetic
+<lib_test/*.ml{,i,y}>: use_test_frenetic
 # Executable benchmark
 <bench/src/Main.{native,byte}>: package(base64)
 <bench/src/Main.{native,byte}>: package(compiler-libs.common)
