@@ -69,6 +69,20 @@ and comment depth buf =
   | any -> comment depth buf
   | _ -> assert false
 
+(** anitquotation brackets  *)
+let antiq ~loc_start buf =
+  match%sedlex buf with
+  | Star (Compl '}') ->
+    let code = ascii buf in
+    begin match%sedlex buf with
+    | '}' -> ()
+    | _ -> failwith buf "unterminated anitquotation brace"
+    end;
+    let loc_end = next_loc buf in
+    let loc = Location.{ loc_start; loc_end; loc_ghost = false } in
+    ANTIQ (code, loc)
+  | _ -> assert false
+
 (** iverson brackets  *)
 let iverson ~loc_start buf =
   match%sedlex buf with
@@ -101,13 +115,11 @@ let token ~ppx ~loc_start buf =
   | '"', Star (Compl '"'), '"' -> STRING (ascii ~skip:1 ~drop:1 buf)
   | "dup" -> DUP
   (* antiquotations *)
-  | '$', id ->
-    if ppx then
-      let loc_end = next_loc buf in
-      let loc = Location.{ loc_start; loc_end; loc_ghost = false } in
-      ANTIQ (ascii ~skip:1 buf, loc)
+  | '{' ->
+    if not ppx then
+      illegal buf '{'
     else
-      illegal buf '$'
+      antiq ~loc_start buf
   | '[' ->
     if not ppx then
       illegal buf '['

@@ -2,14 +2,14 @@ open Core.Std
 
 (* let declaration *)
 let%nk p = {| drop |}
-let%nk q = {| filter true; $p; (port:=2 + port:=pipe("test") ) |}
+let%nk q = {| filter true; {p}; (port:=2 + port:=pipe("test") ) |}
 let%nk_pred egress = {| switch=1 and port=1 |}
-let%nk egress' = {| filter $egress |}
-let%nk loop = {| let `inport := port in while not $egress do $q + drop |}
+let%nk egress' = {| filter {egress} |}
+let%nk loop = {| let `inport := port in while not {egress} do {q} + drop |}
 
 (* let expressions *)
 let letin =
-  let%nk s = {| $p; ($q + $loop) |} in
+  let%nk s = {| {p}; ({q} + {loop}) |} in
   let open Frenetic_NetKAT_Optimize in
   mk_seq s s
 
@@ -31,7 +31,7 @@ let%nk iverson_pred = {| filter [2 > 1]; [2 < 1] |}
 let mk_link adj a b =
   let src,dst = Int32.(of_int_exn adj.(a).(b), of_int_exn adj.(b).(a)) in
   let a,b = Int64.(of_int a + 1L, of_int b + 1L) in
-  let%nk l = {| [src <> 0l]; filter (switch=$a and port=$src); switch:=$b; port:=$dst  |} in
+  let%nk l = {| [src <> 0l]; filter (switch={a} and port={src}); switch:={b}; port:={dst} |} in
   l
 
 let mk_links adj =
@@ -50,7 +50,7 @@ let advanced_iverson = mk_links [|
 (* The declarations below should cause compile-time errors with approproate
    source locations. *)
 (* let%nk s = {| filter typo = 1 |} *)
-(* let%nk r = {| while not $egress' do $q |} *)
+(* let%nk r = {| while not {egress'} do {q} |} *)
 (* let%nk r = {| `inport := port |} *)
 (* let%nk iverson_pred = {| filter [2 > 1]; [2 < ( 1] |} *)
 (* let%nk iverson_pred = {| filter [2 > 1]; |} *)
