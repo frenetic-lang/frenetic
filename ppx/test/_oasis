@@ -13,6 +13,7 @@ BuildTools:
 Executable main
   Path: .
   BuildDepends:
+    core,
     frenetic,
     frenetic.ppx,
     threads
