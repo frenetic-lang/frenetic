@@ -11,6 +11,14 @@ type 'domain_witness codepoint = int
 module type S = sig
   type domain_witness
 
+  (** Encoding of packet in n dimensional space.
+      More precisely, a packet is encoded as a point in a hypercube, with the
+      coordinates being of type int.
+      If [dimension] = {k1, ..., kn}, then the hypercube is given by
+        {0, ..., k1} x ... x {0, ..., kn}.
+      The points within this cube are represented as lists, rather than tuples,
+      because n is not known at compile time.
+  *)
   module rec Hyperpoint : sig
     type t = domain_witness hyperpoint
     val dimension : int list
@@ -20,6 +28,7 @@ module type S = sig
     val of_pk : pk -> t
   end
 
+  (** Encoding of packets as integers, i.e. points in single dimensional space. *)
   and Codepoint : sig
     type t = domain_witness codepoint
     val to_hyperpoint : t -> Hyperpoint.t
