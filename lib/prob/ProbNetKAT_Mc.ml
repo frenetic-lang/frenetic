@@ -44,6 +44,15 @@ module Make(Nom : ProbNetKAT_NomPacket.S) = struct
     | Seq (p, q) -> gemm (of_pol p) (of_pol q)
     | Ite (a, p, q) ->
       let (a, p, q) = (of_pol a, of_pol p, of_pol q) in
+      (* FIXME: incorrect  *)
       Mat.add (gemm a p) (gemm a q)
-    | While (a,p) -> failwith "todo"
+    | While (a,p) -> loop (of_pol a) (of_pol p)
+
+  and loop a p =
+    (* reorder indices such that exactly the first k packets satisfy a *)
+    (* let (k, swaps) = normal_form a p in *)
+    (* let fundamental = Mat.sub (Mat.identity k) p *)
+    (* let absorption_matrix = gemm ~m:n ~n  *)
+    p
+
 end
