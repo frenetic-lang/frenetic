@@ -43,16 +43,19 @@ end) : S = struct
     type t = domain_witness hyperpoint
 
     let dimension =
-      List.map domain ~f:(Fn.compose List.length snd)
+      List.map domain ~f:(fun (_,vs) -> List.length vs + 1)
 
-    let injection : (Field.t * (Value.t -> int)) list =
+    let injection : (Field.t * (Value.t option -> int)) list =
       List.Assoc.map domain ~f:(fun vs ->
         List.mapi vs ~f:(fun i v -> (v, i+1))
         |> Value.Map.of_alist_exn
-        |> (fun m v -> Option.value (Map.find m v) ~default:0))
+        |> (fun m -> function
+            | None -> 0
+            | Some v -> Option.value (Map.find m v) ~default:0))
 
-    let ejection : (Field.t * (int -> Value.t)) list =
-      List.Assoc.map domain ~f:(fun vs _ -> failwith "todo")
+    let ejection : (Field.t * (int -> Value.t option)) list =
+      List.Assoc.map domain ~f:List.to_array
+      |> List.Assoc.map ~f:(fun inj v -> if v = 0 then None else Some inj.(v-1))
 
 
     let to_codepoint t =
@@ -66,10 +69,12 @@ end) : S = struct
 
     let to_pk t =
       List.fold2_exn t ejection ~init:Field.Map.empty ~f:(fun pk v (f, vej) ->
-        Field.Map.add pk f (vej v))
+        Option.value_map (vej v)
+          ~f:(fun data -> Field.Map.add pk ~key:f ~data)
+          ~default:pk)
 
     let of_pk pk =
-      List.map injection ~f:(fun (f, vinj) -> vinj (Field.Map.find_exn pk f))
+      List.map injection ~f:(fun (f, vinj) -> vinj (Field.Map.find pk f))
   end
 
   module Codepoint = struct
