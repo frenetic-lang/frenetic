@@ -31,6 +31,7 @@ module type S = sig
   (** Encoding of packets as integers, i.e. points in single dimensional space. *)
   and Codepoint : sig
     type t = domain_witness codepoint
+    val max : t
     val to_hyperpoint : t -> Hyperpoint.t
     val of_hyperpoint : Hyperpoint.t -> t
     val to_pk : t -> pk
@@ -92,6 +93,7 @@ end) : S = struct
     let of_hyperpoint = Hyperpoint.to_codepoint
     let to_pk = Fn.compose Hyperpoint.to_pk to_hyperpoint
     let of_pk = Fn.compose of_hyperpoint Hyperpoint.of_pk
+    let max = (List.fold ~init:1 ~f:( * ) Hyperpoint.dimension) - 1
   end
 
 end
