@@ -36,13 +36,12 @@ module type S = sig
     val of_hyperpoint : Hyperpoint.t -> t
     val to_pk : t -> pk
     val of_pk : pk -> t
+    val to_idx : t -> int (** non-negative matrix index *)
   end
 end
 
 
-module Make(D : sig 
-  val domain : domain
-end) : S = struct
+module Make(D : ProbNetKAT.Domain) : S = struct
 
   let domain : (Field.t * Value.t list) list =
     Map.to_alist (Map.map D.domain ~f:Value.Set.to_list)
@@ -94,6 +93,7 @@ end) : S = struct
     let to_pk = Fn.compose Hyperpoint.to_pk to_hyperpoint
     let of_pk = Fn.compose of_hyperpoint Hyperpoint.of_pk
     let max = (List.fold ~init:1 ~f:( * ) Hyperpoint.dimension) - 1
+    let to_idx cp = cp + 1
   end
 
 end

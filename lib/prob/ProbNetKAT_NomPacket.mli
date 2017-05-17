@@ -25,10 +25,9 @@ module type S = sig
     val of_hyperpoint : Hyperpoint.t -> t
     val to_pk : t -> pk
     val of_pk : pk -> t
+    val to_idx : t -> int (** non-negative matrix index *)
   end
 end
 
 
-module Make(D : sig 
-  val domain : domain
-end) : S
+module Make(D : ProbNetKAT.Domain) : S

@@ -14,7 +14,7 @@ type policy =
   | Modify of field * value
   | Seq of policy * policy
   | Ite of policy * policy * policy
-  | While of policy * policy * policy
+  | While of policy * policy
   [@@deriving sexp, show, compare, eq]
 
 
@@ -33,10 +33,14 @@ let domain pol : domain =
       Field.Map.update d f ~f:(function 
         | None -> Value.Set.singleton n 
         | Some ns -> Value.Set.add ns n)
-    | Seq (p,q) ->
+    | Seq (p,q) | While (p,q) ->
       d |> domain p |> domain q
-    | Ite (p,q,r) | While (p,q,r) ->
+    | Ite (p,q,r) ->
       d |> domain p |> domain q |> domain r
   in
   domain pol Field.Map.empty
+
+module type Domain = sig
+  val domain : domain
+end
 
