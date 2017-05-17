@@ -1,5 +1,7 @@
 open Core.Std
 open Lacaml.D (* double precision real *)
+open ProbNetKAT
+open ProbNetKAT_NomPacket
 
 let printf = Printf.printf
 let mat = Mat.random 100 100
