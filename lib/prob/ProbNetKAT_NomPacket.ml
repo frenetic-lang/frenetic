@@ -9,9 +9,7 @@ type 'domain_witness hyperpoint = int list
 type 'domain_witness codepoint = int
 
 module type S = sig
-  val domain : domain
   type domain_witness
-  val fields : Field.t list
 
   module rec Hyperpoint : sig
     type t = domain_witness hyperpoint
@@ -36,19 +34,26 @@ module Make(D : sig
   val domain : domain
 end) : S = struct
 
-  let domain = D.domain
+  let domain : (Field.t * Value.t list) list =
+    Map.to_alist (Map.map D.domain ~f:Value.Set.to_list)
+
   type domain_witness
-  let fields = Map.keys domain
 
   module Hyperpoint = struct
     type t = domain_witness hyperpoint
 
     let dimension =
-      List.map fields ~f:(fun f -> Set.length (Map.find_exn domain f))
+      List.map domain ~f:(Fn.compose List.length snd)
 
-    let values = []
+    let injection : (Field.t * (Value.t -> int)) list =
+      List.Assoc.map domain ~f:(fun vs ->
+        List.mapi vs ~f:(fun i v -> (v, i+1))
+        |> Value.Map.of_alist_exn
+        |> (fun m v -> Option.value (Map.find m v) ~default:0))
 
-    let inv = []
+    let ejection : (Field.t * (int -> Value.t)) list =
+      List.Assoc.map domain ~f:(fun vs _ -> failwith "todo")
+
 
     let to_codepoint t =
       List.fold2_exn t dimension ~init:0 ~f:(fun cp v n -> v + n * cp)
@@ -60,11 +65,11 @@ end) : S = struct
       |> snd
 
     let to_pk t =
-      List.fold2_exn t inv ~init:Field.Map.empty ~f:(fun pk vidx (f, vinv) ->
-        Field.Map.add pk f vinv.(vidx))
+      List.fold2_exn t ejection ~init:Field.Map.empty ~f:(fun pk v (f, vej) ->
+        Field.Map.add pk f (vej v))
 
     let of_pk pk =
-      List.map2_exn fields values ~f:(fun f vinj -> vinj (Field.Map.find_exn pk f))
+      List.map injection ~f:(fun (f, vinj) -> vinj (Field.Map.find_exn pk f))
   end
 
   module Codepoint = struct
