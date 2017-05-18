@@ -28,7 +28,8 @@ Executable decide
   Path: lib/prob
   BuildDepends:
     core,
-    lacaml
+    lacaml,
+    owl
   MainIs: decide.ml
   CompiledObject: native
   Install: false

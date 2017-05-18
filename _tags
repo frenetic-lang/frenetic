@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 87c36ab5088c184eb7092eab8dd700a1)
+# DO NOT EDIT (digest: 34ebe302dc7a938f5d789fb69f276e8e)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -17,8 +17,10 @@ true: annot, bin_annot
 # Executable decide
 "lib/prob/decide.native": package(core)
 "lib/prob/decide.native": package(lacaml)
+"lib/prob/decide.native": package(owl)
 <lib/prob/*.ml{,i,y}>: package(core)
 <lib/prob/*.ml{,i,y}>: package(lacaml)
+<lib/prob/*.ml{,i,y}>: package(owl)
 # OASIS_STOP
 # see https://github.com/janestreet/ppx_inline_test/issues/3
 <lib_test/*.ml{,i}>: predicate(ppx_driver)

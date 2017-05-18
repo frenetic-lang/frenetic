@@ -1,10 +1,13 @@
 open Core.Std
-open Lacaml.D
+(* open Lacaml.D *)
 open ProbNetKAT
+
+module Dense = Owl.Dense.Matrix.D
+module Sparse = Owl.Sparse.Matrix.D
 
 module Make(Nom : ProbNetKAT_NomPacket.S) = struct
   include Nom
-  let n = (Codepoint.(to_idx max)) + 1
+  let n = Codepoint.(to_idx max) + 1
   let empty = n
 
   let dirac (f : int -> int) =
@@ -13,13 +16,17 @@ module Make(Nom : ProbNetKAT_NomPacket.S) = struct
     failwith "todo"
 
   let test f v idx : bool =
-    failwith "todo"
+    Codepoint.(of_idx idx |> to_pk)
+    |> ProbNetKAT_Packet.test f v
 
   let modify f v idx : int =
-    failwith "todo"
+    Codepoint.(of_idx idx |> to_pk)
+    |> ProbNetKAT_Packet.modify f v
+    |> Codepoint.of_pk
+    |> Codepoint.to_idx
 
 
-  let rec of_pol p : Mat.t =
+(*   let rec of_pol p : Mat.t =
     (* FIXME: allocate matrices statically *)
     match p with
     | Skip -> Mat.identity n
@@ -53,6 +60,6 @@ module Make(Nom : ProbNetKAT_NomPacket.S) = struct
     (* let (k, swaps) = normal_form a p in *)
     (* let fundamental = Mat.sub (Mat.identity k) p *)
     (* let absorption_matrix = gemm ~m:n ~n  *)
-    p
+    p *)
 
 end

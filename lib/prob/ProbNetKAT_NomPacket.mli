@@ -1,7 +1,5 @@
 open ProbNetKAT
-
-type t = value Field.Map.t
-type pk = t
+open ProbNetKAT_Packet
 
 type 'domain_witness hyperpoint = private int list
 type 'domain_witness codepoint = private int
@@ -26,6 +24,7 @@ module type S = sig
     val to_pk : t -> pk
     val of_pk : pk -> t
     val to_idx : t -> int (** non-negative matrix index *)
+    val of_idx : int -> t (** unsafe! *)
   end
 end
 

@@ -1,9 +1,7 @@
 (** nominal packet encoding  *)
 open Core.Std
 open ProbNetKAT
-
-type t = value Field.Map.t
-type pk = t
+open ProbNetKAT_Packet
 
 type 'domain_witness hyperpoint = int list
 type 'domain_witness codepoint = int
@@ -37,6 +35,7 @@ module type S = sig
     val to_pk : t -> pk
     val of_pk : pk -> t
     val to_idx : t -> int (** non-negative matrix index *)
+    val of_idx : int -> t (** unsafe! *)
   end
 end
 
@@ -94,6 +93,7 @@ module Make(D : ProbNetKAT.Domain) : S = struct
     let of_pk = Fn.compose of_hyperpoint Hyperpoint.of_pk
     let max = (List.fold ~init:1 ~f:( * ) Hyperpoint.dimension) - 1
     let to_idx cp = cp + 1
+    let of_idx i = i + 1
   end
 
 end
