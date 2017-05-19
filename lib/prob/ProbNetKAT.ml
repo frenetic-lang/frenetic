@@ -6,13 +6,6 @@ module Field = Int
 type value = int [@@deriving sexp, show, compare, eq]
 module Value = Int
 
-module Prob = struct
-  include Q
-  let t_of_sexp _ = failwith "nnot implemented"
-  let sexp_of_t _ = failwith "nnot implemented"
-  let pp = pp_print
-end
-
 type policy =
   | Skip
   | Drop

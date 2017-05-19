@@ -27,7 +27,7 @@ module type S = sig
     val of_pk : pk -> t
   end
 
-  (** Encoding of packets as integers, i.e. points in single dimensional space. *)
+  (** Encoding of packets as integers >= 0, i.e. points in single dimensional space. *)
   and Codepoint : sig
     type t = domain_witness codepoint
     val max : t
@@ -35,11 +35,11 @@ module type S = sig
     val of_hyperpoint : Hyperpoint.t -> t
     val to_pk : t -> pk
     val of_pk : pk -> t
-    val to_index : t -> Index.t (** non-negative matrix index *)
-    val of_index : Index.t -> t (** unsafe! *)
+    val to_index : t -> Index.t
+    val of_index : Index.t -> t
   end
 
-  (** Encoding of packets as positive integers, i.e. matrix indices. *)
+  (** Encoding of packets as strictly positive integers, i.e. matrix indices. *)
   and Index : sig
     type t = domain_witness index
     val max : t
@@ -47,9 +47,10 @@ module type S = sig
     val to_pk : t -> pk
     val test : Field.t -> Value.t -> t -> bool
     val modify : Field.t -> Value.t -> t -> t
+    val test' : Field.t -> Value.t -> int -> bool
+    val modify' : Field.t -> Value.t -> int -> int
   end
 end
-
 
 module Make(D : ProbNetKAT.Domain) : S = struct
 
@@ -114,6 +115,8 @@ module Make(D : ProbNetKAT.Domain) : S = struct
     let max = Codepoint.(to_index max)
     let test f n t = ProbNetKAT_Packet.test f n (to_pk t)
     let modify f n t = of_pk (ProbNetKAT_Packet.modify f n (to_pk t))
+    let test' f n i = test f n { i = i }
+    let modify' f n i = (modify f n { i = i }).i
   end
 
 end
