@@ -35,8 +35,8 @@ module type S = sig
     val of_hyperpoint : Hyperpoint.t -> t
     val to_pk : t -> pk
     val of_pk : pk -> t
-    val to_index : t -> int (** non-negative matrix index *)
-    val of_index : int -> t (** unsafe! *)
+    val to_index : t -> Index.t (** non-negative matrix index *)
+    val of_index : Index.t -> t (** unsafe! *)
   end
 
   (** Encoding of packets as positive integers, i.e. matrix indices. *)
