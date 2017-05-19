@@ -1,7 +1,7 @@
 open Core.Std
 open Lacaml.D (* double precision real *)
 open ProbNetKAT
-open ProbNetKAT_NomPacket
+open ProbNetKAT_Packet_Repr
 open ProbNetKAT_Mc
 
 let printf = Printf.printf
@@ -9,7 +9,9 @@ let mat = Mat.random 100 100
 
 let pp_mat out = Lacaml.Io.pp_lfmat () (Format.formatter_of_out_channel out)
 
-include ProbNetKAT_NomPacket.Make(struct let domain = domain Skip end)
+module Repr = ProbNetKAT_Packet_Repr.Make(struct let domain = domain Skip end)
+module Mc = ProbNetKAT_Mc.Make(Repr)
+include Repr
 
 let () = begin
   printf "Hello, World!\n";

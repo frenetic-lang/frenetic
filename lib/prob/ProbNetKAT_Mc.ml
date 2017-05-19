@@ -5,7 +5,7 @@ open ProbNetKAT
 module Dense = Owl.Dense.Matrix.D
 module Sparse = Owl.Sparse.Matrix.D
 
-module Make(Nom : ProbNetKAT_NomPacket.S) = struct
+module Make(Nom : ProbNetKAT_Packet_Repr.S) = struct
   include Nom
   let (n, empty) = (Index.max.i + 1, Index.max.i + 1)
 
