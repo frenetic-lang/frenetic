@@ -6,6 +6,13 @@ module Field = Int
 type value = int [@@deriving sexp, show, compare, eq]
 module Value = Int
 
+module Prob = struct
+  include Q
+  let t_of_sexp _ = failwith "nnot implemented"
+  let sexp_of_t _ = failwith "nnot implemented"
+  let pp = pp_print
+end
+
 type policy =
   | Skip
   | Drop
@@ -15,10 +22,15 @@ type policy =
   | Seq of policy * policy
   | Ite of policy * policy * policy
   | While of policy * policy
+  | Choice of (policy * Prob.t) list
   [@@deriving sexp, show, compare, eq]
 
 
 type domain = Value.Set.t Field.Map.t
+
+module type Domain = sig
+  val domain : domain
+end
 
 (* compute domain of each field *)
 let domain pol : domain =
@@ -37,10 +49,9 @@ let domain pol : domain =
       d |> domain p |> domain q
     | Ite (p,q,r) ->
       d |> domain p |> domain q |> domain r
+    | Choice ps ->
+      List.fold ps ~init:d ~f:(fun d (p,_) -> domain p d)
   in
   domain pol Field.Map.empty
 
-module type Domain = sig
-  val domain : domain
-end
 
