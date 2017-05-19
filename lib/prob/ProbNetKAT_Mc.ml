@@ -8,12 +8,14 @@ module Sparse = Owl.Sparse.Matrix.D
 module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
   include Repr
 
-  let (n, empty) = (Index.max.i + 1, Index.max.i + 1)
+  (* empty is not index of matrix *)
+  let (n, empty) = (Index.max.i, Index.max.i + 1)
 
   let dirac ?(n=n) (f : int -> int) : Sparse.mat =
     let mat = Sparse.zeros n n in
     for row = 1 to n do
-      Sparse.set mat row (f row) 1.0
+      let col = f row in
+      if col <> empty then Sparse.set mat row col 1.0
     done;
     mat
 
@@ -45,8 +47,19 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
         q
       in
       Sparse.add p' q'
-    (* | While(a,p) -> *)
+    | While(a,p) ->
+      let (a,p) = (of_pol a, of_pol p |> Sparse.to_dense) in
+      let transient = Sparse.nnz_rows a in
+      let recurrent = transient in
+      let tn = Array.length transient in
+      let rn = n - tn in
+      let qr = Dense.rows p transient in
+      let (q,r) = (Dense.cols qr transient, Dense.cols qr recurrent) in
+      let n = Lin.inv Dense.(sub (eye tn) q) in
+      Dense.(dot n r)
+      |> Dense.to_sparse
       
+
 
 
 
