@@ -5,6 +5,7 @@ open ProbNetKAT_Packet
 
 type 'domain_witness hyperpoint = int list
 type 'domain_witness codepoint = int
+type 'domain_witness index = { i : int }
 
 module type S = sig
   type domain_witness
@@ -34,8 +35,18 @@ module type S = sig
     val of_hyperpoint : Hyperpoint.t -> t
     val to_pk : t -> pk
     val of_pk : pk -> t
-    val to_idx : t -> int (** non-negative matrix index *)
-    val of_idx : int -> t (** unsafe! *)
+    val to_index : t -> int (** non-negative matrix index *)
+    val of_index : int -> t (** unsafe! *)
+  end
+
+  (** Encoding of packets as positive integers, i.e. matrix indices. *)
+  and Index : sig
+    type t = domain_witness index
+    val max : t
+    val of_pk : pk -> t
+    val to_pk : t -> pk
+    val test : Field.t -> Value.t -> t -> bool
+    val modify : Field.t -> Value.t -> t -> t
   end
 end
 
@@ -92,8 +103,17 @@ module Make(D : ProbNetKAT.Domain) : S = struct
     let to_pk = Fn.compose Hyperpoint.to_pk to_hyperpoint
     let of_pk = Fn.compose of_hyperpoint Hyperpoint.of_pk
     let max = (List.fold ~init:1 ~f:( * ) Hyperpoint.dimension) - 1
-    let to_idx cp = cp + 1
-    let of_idx i = i + 1
+    let to_index cp = { i = cp + 1 }
+    let of_index idx = idx.i - 1
+  end
+
+  module Index = struct
+    type t = domain_witness index
+    let of_pk = Fn.compose Codepoint.to_index Codepoint.of_pk
+    let to_pk = Fn.compose Codepoint.to_pk Codepoint.of_index
+    let max = Codepoint.(to_index max)
+    let test f n t = ProbNetKAT_Packet.test f n (to_pk t)
+    let modify f n t = of_pk (ProbNetKAT_Packet.modify f n (to_pk t))
   end
 
 end

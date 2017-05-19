@@ -7,23 +7,7 @@ module Sparse = Owl.Sparse.Matrix.D
 
 module Make(Nom : ProbNetKAT_NomPacket.S) = struct
   include Nom
-  let n = Codepoint.(to_idx max) + 1
-  let empty = n
-
-  let dirac (f : int -> int) =
-    (* efficient implementation of row-wise initialization, where non-zero entry
-       is computed only once *)
-    failwith "todo"
-
-  let test f v idx : bool =
-    Codepoint.(of_idx idx |> to_pk)
-    |> ProbNetKAT_Packet.test f v
-
-  let modify f v idx : int =
-    Codepoint.(of_idx idx |> to_pk)
-    |> ProbNetKAT_Packet.modify f v
-    |> Codepoint.of_pk
-    |> Codepoint.to_idx
+  let (n, empty) = (Index.max.i + 1, Index.max.i + 1)
 
   (*   let rec of_pol p : Mat.t =
     (* FIXME: allocate matrices statically *)
