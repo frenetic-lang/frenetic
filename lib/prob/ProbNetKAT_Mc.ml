@@ -1,9 +1,10 @@
-open Core.Std
+open Core
 (* open Lacaml.D *)
 open ProbNetKAT
+open Owl
 
-module Dense = Owl.Dense.Matrix.D
-module Sparse = Owl.Sparse.Matrix.D
+module Dense = Dense.Matrix.D
+module Sparse = Sparse.Matrix.D
 
 module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
   include Repr
@@ -52,12 +53,12 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
       let transient = Sparse.nnz_rows a in
       let recurrent = transient in
       let tn = Array.length transient in
-      let rn = n - tn in
+      (* let rn = n - tn in *)
       let qr = Dense.rows p transient in
       let (q,r) = (Dense.cols qr transient, Dense.cols qr recurrent) in
-      let n = Lin.inv Dense.(sub (eye tn) q) in
+      let n = Linalg.inv Dense.(sub (eye tn) q) in
       Dense.(dot n r)
-      |> Dense.to_sparse
+      |> Sparse.of_dense
       
 
 

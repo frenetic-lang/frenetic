@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Lacaml.D (* double precision real *)
 open ProbNetKAT
 open ProbNetKAT_Packet_Repr

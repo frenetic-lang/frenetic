@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 8296c782446589bd651805c42cddc965)
+# DO NOT EDIT (digest: f672378f3b6751c138819b60b9c4783b)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -18,12 +18,24 @@ true: annot, bin_annot
 "lib/prob/decide.native": package(core)
 "lib/prob/decide.native": package(lacaml)
 "lib/prob/decide.native": package(owl)
+"lib/prob/decide.native": package(ppx_compare)
+"lib/prob/decide.native": package(ppx_deriving)
+"lib/prob/decide.native": package(ppx_deriving.enum)
+"lib/prob/decide.native": package(ppx_deriving.eq)
+"lib/prob/decide.native": package(ppx_deriving.show)
 "lib/prob/decide.native": package(ppx_import)
+"lib/prob/decide.native": package(ppx_sexp_conv)
 "lib/prob/decide.native": package(zarith)
 <lib/prob/*.ml{,i,y}>: package(core)
 <lib/prob/*.ml{,i,y}>: package(lacaml)
 <lib/prob/*.ml{,i,y}>: package(owl)
+<lib/prob/*.ml{,i,y}>: package(ppx_compare)
+<lib/prob/*.ml{,i,y}>: package(ppx_deriving)
+<lib/prob/*.ml{,i,y}>: package(ppx_deriving.enum)
+<lib/prob/*.ml{,i,y}>: package(ppx_deriving.eq)
+<lib/prob/*.ml{,i,y}>: package(ppx_deriving.show)
 <lib/prob/*.ml{,i,y}>: package(ppx_import)
+<lib/prob/*.ml{,i,y}>: package(ppx_sexp_conv)
 <lib/prob/*.ml{,i,y}>: package(zarith)
 # OASIS_STOP
 # see https://github.com/janestreet/ppx_inline_test/issues/3

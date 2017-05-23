@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open ProbNetKAT
 
 type pk = value Field.Map.t

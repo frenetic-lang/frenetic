@@ -18,7 +18,7 @@ AlphaFeatures:
   source_patterns
 XOCamlbuildExtraArgs:
   # SJS: importing these here ensures they are run last, after ppx_import
-  -package ppx_deriving,ppx_deriving.eq,ppx_deriving.enum,ppx_deriving.show,ppx_jane
+  # -package 
   -use-menhir
   # see https://caml.inria.fr/pub/docs/manual-ocaml/native.html
   -cflags -w,@5+8@11@12-40,-short-paths
@@ -28,7 +28,13 @@ Executable decide
   Path: lib/prob
   BuildDepends:
     core,
+    ppx_deriving,
+    ppx_deriving.eq,
+    ppx_deriving.enum,
+    ppx_deriving.show,
     ppx_import,
+    ppx_compare,
+    ppx_sexp_conv,
     zarith,
     lacaml,
     owl

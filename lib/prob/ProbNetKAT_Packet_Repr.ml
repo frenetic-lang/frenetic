@@ -1,5 +1,5 @@
 (** nominal packet encoding  *)
-open Core.Std
+open Core
 open ProbNetKAT
 open ProbNetKAT_Packet
 

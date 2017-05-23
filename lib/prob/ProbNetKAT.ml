@@ -1,7 +1,7 @@
-open Core.Std
+open Core
 
-type field = int [@@deriving sexp, show, compare, eq]
-module Field = Int
+type field = string [@@deriving sexp, show, compare, eq]
+module Field = String
 
 type value = int [@@deriving sexp, show, compare, eq]
 module Value = Int
