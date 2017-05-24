@@ -1,10 +1,9 @@
-open Core
-(* open Lacaml.D *)
 open ProbNetKAT
 open Owl
 
 module Dense = Dense.Matrix.D
 module Sparse = Sparse.Matrix.D
+module List = Core.List
 
 module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
   include Repr
@@ -39,65 +38,77 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
       |> List.fold ~init:(Sparse.zeros n n) ~f:Sparse.add
     | Ite (a,p,q) ->
       let (a,p,q) = (of_pol a, of_pol p, of_pol q) in
+      let a = Sparse.(diag a |> to_dense) in
       let p' = Sparse.mapi_nz 
-        (fun row _ v -> if Sparse.get a row row <> 0.0 then v else 0.0)
+        (fun row _ v -> if Dense.get a row 1 <> 0.0 then v else 0.0)
         p
       in
       let q' = Sparse.mapi_nz
-        (fun row _ v -> if Sparse.get a row row <> 0.0 then 0.0 else v)
+        (fun row _ v -> if Dense.get a row 1 <> 0.0 then 0.0 else v)
         q
       in
       Sparse.add p' q'
     | While(a,p) ->
-      let (a,p) = (of_pol a, of_pol p |> Sparse.to_dense) in
-      let transient = Sparse.nnz_rows a in
-      let recurrent = transient in
-      let tn = Array.length transient in
-      (* let rn = n - tn in *)
-      let qr = Dense.rows p transient in
-      let (q,r) = (Dense.cols qr transient, Dense.cols qr recurrent) in
-      let n = Linalg.inv Dense.(sub (eye tn) q) in
-      Dense.(dot n r)
-      |> Sparse.of_dense
-      
+      let (a,p) = (of_pol a |> Sparse.diag |> Sparse.to_dense, of_pol p) in
 
+      (* rearrange indices so that packets 1 to nq satisfy a (these are the
+         transient states of the while loop); and packets nq+1 to n do not
+         satisfy a (these are the absorbing states).
 
+         swap.(i) = new index of ith packet
+         swap.(0) = undefined
+      *)
+      let swap = Array.init (n+1) (fun i -> i) in
+      (* Scan packets from left and right ends of [1, ..., n]. If we find packets
+         left < right such that left does not satisfy a, but right does, we
+         swap them. Thus, when the loop terminates packets 1 to nq will satisfy
+         a, and packets (nq+1) to n will not satisfy a.
+      *)
+      let left = ref 1 and right = ref n in
+      while !left < !right do
+        (* increment left until it corresponds to a packet not satisfying a *)
+        while !left < !right && Dense.get a (!left) 1 == 1.0 do
+          incr left
+        done;
+        (* decrement right until it corresponds to a packet satisfying a *)
+        while !left < !right && Dense.get a (!right) 1 == 0.0 do
+          decr right
+        done;
+        if !left < !right then begin
+          swap.(!left) <- !right;
+          swap.(!right) <- !left;
+        end
+      done;
+      let nq = if Dense.get a (!left) 1 == 1.0 then !left else !left - 1 in
+      let nr = n - nq in
 
+      (* extract q and r from p *)
+      let q = Dense.zeros nq nq and r = Dense.zeros nq nr in
+      let () = Sparse.iteri_nz (fun i j v ->
+        let i = swap.(i) and j = swap.(j) in
+        if i <= nq && j <= nq then
+          Dense.set q i j v
+        else if i <= nq && j > nq then
+          Dense.set r i j v)
+        p
+      in
 
-(*   let rec of_pol p : Mat.t =
-    (* FIXME: allocate matrices statically *)
-    match p with
-    | Skip -> Mat.identity n
-    | Drop -> Mat.init_cols n n (fun _ c -> if c = empty then 1.0 else 0.0)
-    | TestEq (f, v) ->
-      Mat.init_rows n n (fun r c ->
-        (** FIXME: recomputing test every time is inefficient *)
-        if test f v r then
-          if c = r then 1.0 else 0.0
+      (* calculate absorption probabilities *)
+      let qstar = Linalg.inv Dense.(sub (eye nq) q) in
+      let absorption = Dense.(dot qstar r) in
+      let pstar = Sparse.reset p; p in
+      for i = 1 to n do
+        let i = swap.(i) in
+        if i > nq then
+          Sparse.set pstar i i 1.0
         else
-          if c = empty then 1.0 else 0.0)
-    | TestNeq (f, v) ->
-      Mat.init_rows n n (fun r c ->
-        (** FIXME: recomputing test every time is inefficient *)
-        if test f v r then
-          if c = empty then 1.0 else 0.0
-        else
-          if c = r then 1.0 else 0.0)
-    | Modify (f, v) ->
-      (** FIXME: recomputing modify every time is inefficient *)
-      Mat.init_rows n n (fun r c -> if modify f v r = c then 1.0 else 0.0)
-    | Seq (p, q) -> gemm (of_pol p) (of_pol q)
-    | Ite (a, p, q) ->
-      let (a, p, q) = (of_pol a, of_pol p, of_pol q) in
-      (* FIXME: incorrect  *)
-      Mat.add (gemm a p) (gemm a q)
-    | While (a,p) -> loop (of_pol a) (of_pol p)
-
-  and loop a p =
-    (* reorder indices such that exactly the first k packets satisfy a *)
-    (* let (k, swaps) = normal_form a p in *)
-    (* let fundamental = Mat.sub (Mat.identity k) p *)
-    (* let absorption_matrix = gemm ~m:n ~n  *)
-    p *)
+          for j = 1 to n do
+            let j = swap.(j) in
+            if j > nq then
+              Dense.get absorption i (j-nq)
+              |> Sparse.set pstar i j
+          done
+      done;
+      pstar
 
 end
