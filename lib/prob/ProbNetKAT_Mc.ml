@@ -23,7 +23,7 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
     mat
 
   let rec of_pol p : Sparse.mat =
-    match p with
+    match p.p with
     | Skip ->
       Sparse.eye n
     | Drop ->
