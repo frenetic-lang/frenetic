@@ -48,6 +48,10 @@ let () = begin
       !!("f", 1), Q.(0//1)
     ])
   in
+  let dependent =
+    ?@[ !!("f", 1), 1//2; !!("f", 2), 1//2] >>
+    Ite( ??("f", 1), !!("g", 1), !!("g", 2) )
+  in
   Sparse.(print (eye 3));
   run Skip;
   run Drop;
@@ -57,6 +61,7 @@ let () = begin
   run (pwhile 100);
   run (pwhile 100_000_000);
   try run pwhile' with e -> printf "%s\n" (Exn.to_string e);
+  run dependent;
 (*   let uniform =
     seqi 4 ~f:(fun i -> let l = sprintf "l%d" i in 
                 ?@[!!(l,0), Q.(1//2);
