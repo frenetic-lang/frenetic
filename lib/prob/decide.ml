@@ -9,6 +9,10 @@ let fprintf = Format.(fprintf std_formatter)
 module Dense = Owl.Dense.Matrix.D
 module Sparse = Owl.Sparse.Matrix.D
 
+let run p = 
+  fprintf "%a\n%!" pp_policy p;
+  Sparse.(print Mc.(of_pol p))
+
 let () = begin
 (*   printf "Hello, World!\n";
   printf "Here is a nice matrix:\n\n%a\n" pp_mat mat;
@@ -25,9 +29,9 @@ let () = begin
     ])
   in
   Sparse.(print (eye 3));
-  Sparse.(print Mc.(of_pol Skip));
-  Sparse.(print Mc.(of_pol Drop));
-  Sparse.(print Mc.(of_pol ??("f", 0)));
-  fprintf "%a\n%!" pp_policy pwhile;
-  Sparse.(print Mc.(of_pol pwhile));
+  run Skip;
+  run Drop;
+  run (??("f", 0));
+  run (While (??("f", 0), !!("f", 1)));
+  run pwhile;
 end

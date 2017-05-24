@@ -13,18 +13,13 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
   let (n, empty) = (Index.max.i + 1, Index.max.i + 1)
 
   let dirac ?(n=n) (f : int -> int) : Sparse.mat =
-    printf "entering [dirac]...\n%!";
     let mat = Sparse.zeros n n in
-    printf "mat created\n%!";
     for row = 0 to n-1 do
       let col = f row in
-      printf "  n = %d, row = %d, col = %d\n%!" n row col;
       if col < n then begin
-        printf "  -> modify...\n%!";
         Sparse.set mat row col 1.0
       end
     done;
-    printf "exiting [dirac]!\n\n%!";
     mat
 
   let rec of_pol p : Sparse.mat =
@@ -108,12 +103,12 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
       let pstar = Sparse.reset p; p in
       for i = 0 to n-1 do
         let i = swap.(i) in
-        if i > nq then
+        if i >= nq then
           Sparse.set pstar i i 1.0
         else
           for j = 0 to n-1 do
             let j = swap.(j) in
-            if j > nq then
+            if j >= nq then
               Dense.get absorption i (j-nq)
               |> Sparse.set pstar i j
           done
