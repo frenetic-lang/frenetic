@@ -19,23 +19,30 @@ let time f =
 let print_time time =
   printf "time: %.4f\n" time
 
-let pp_sparse m =
-  Sparse.to_dense m
-  |> fprintf fmt "%a\n" Owl_pretty.pp_fmat
-
-let run ?(print=true) p =
+let run ?(print=true) ?(lbl=true) p =
   fprintf fmt "\n===========================================================\n\n%!";
   fprintf fmt "policy = %a\n\n%!" pp_policy p;
   let dom = domain p in
   let module Repr = ProbNetKAT_Packet_Repr.Make(struct let domain = dom end) in
-  let n = Repr.Index.max.i + 1 in
+  let n = Repr.Index0.max.i + 1 in
   let module Mc = ProbNetKAT_Mc.MakeOwl(Repr) in
-  if print then fprintf fmt "index packet mapping:\n%!";
-  if print then Array.init n ~f:ident
-    |> Array.iter ~f:(fun i -> fprintf fmt " %d = %a\n%!" i Repr.Index.pp' i);
-  if print then fprintf fmt "\n%!";
+  if print && not lbl then begin
+    fprintf fmt "index packet mapping:\n%!";
+    Array.init n ~f:ident
+    |> Array.iter ~f:(fun i -> fprintf fmt " %d = %a\n%!" i Repr.Index0.pp' i);
+    fprintf fmt "\n%!";
+  end;
   let (t, mc) = time (fun () -> Mc.of_pol p) in
-  if print then pp_sparse mc;
+  if print then begin Sparse.to_dense mc |>
+    if lbl then
+      fprintf fmt "%a\n\n" (Owl_pretty.pp_labeled_fmat 
+        ~pp_left:(Some (fun fmt -> fprintf fmt "%a|" Repr.Index.pp')) 
+        ~pp_head:None
+        ~pp_foot:None
+        ~pp_right:None ())
+    else
+      fprintf fmt "%a\n\n" Owl_pretty.pp_fmat
+  end;
   print_time t;
   ()
 
