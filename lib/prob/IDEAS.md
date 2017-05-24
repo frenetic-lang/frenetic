@@ -11,6 +11,12 @@
     - erased once they go out of scope
 
 
+BLAS (lacaml):
+* predicates = vectors
+* not a = 1 - a
+* convert to polish notation, allocate matrices ahead of time
+
+
 # TODO:
 * predicates (need at least and & or)
     - GADTs?
