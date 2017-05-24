@@ -126,28 +126,23 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
   (** ATTENTION: Fortran uses column-major layout!!! Therefore, use left-stochastic
       matrices *)
 
-  type _ v_or_m =
-    | V : vec -> vec v_or_m
-    | M : mat -> mat v_or_m
+  type v_or_m =
+    | V of vec
+    | M of mat
 
   (* empty is not index of matrix *)
   let (n, empty) = (Index.max.i, Index.max.i + 1)
 
-  let dirac ?(n=n) (f : int -> int) : mat =
-    failwith "todo"
-(*     let mat = Sparse.zeros n n in
-    for row = 0 to n-1 do
-      let col = f row in
-      if col < n then begin
-        Sparse.set mat row col 1.0
-      end
-    done;
-    mat *)
+  let dirac ?(n=n) (f : int -> int) : v_or_m =
+    M (Mat.of_col_vecs (Array.init n ~f:(fun i0 ->
+      let v = Vec.make0 n in
+      v.{f (i0+1)} <- 1.0;
+      v)))
 
   let one = Vec.make n 1.0
   let zero = Vec.make0 n
 
-  let rec of_pol p : _ v_or_m =
+  let rec of_pol p : v_or_m =
     match p.p with
     | Skip ->
       V one
@@ -166,7 +161,7 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
       | _ -> assert false
       end
     | Modify (f,n) ->
-      failwith "todo" 
+      dirac (fun i -> Index.modify' f n i)
     | Seq (p,q) ->
       (* Sparse.dot (of_pol p) (of_pol q) *)
       failwith "todo"
