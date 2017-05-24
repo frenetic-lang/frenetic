@@ -75,12 +75,10 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
       while !left < !right do
         (* increment left until it corresponds to a packet not satisfying a *)
         while !left < !right && Dense.get a (!left) 0 = 1.0 do
-          printf ".%!";
           incr left
         done;
         (* decrement right until it corresponds to a packet satisfying a *)
         while !left < !right && Dense.get a (!right) 0 = 0.0 do
-          printf "-%!";
           decr right
         done;
         if !left < !right then begin
