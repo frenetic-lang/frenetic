@@ -1,3 +1,4 @@
+open Core
 open ProbNetKAT
 open Owl
 
@@ -9,14 +10,21 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
   include Repr
 
   (* empty is not index of matrix *)
-  let (n, empty) = (Index.max.i, Index.max.i + 1)
+  let (n, empty) = (Index.max.i + 1, Index.max.i + 1)
 
   let dirac ?(n=n) (f : int -> int) : Sparse.mat =
+    printf "entering [dirac]...\n%!";
     let mat = Sparse.zeros n n in
-    for row = 1 to n do
+    printf "mat created\n%!";
+    for row = 0 to n-1 do
       let col = f row in
-      if col <> empty then Sparse.set mat row col 1.0
+      printf "  n = %d, row = %d, col = %d\n%!" n row col;
+      if col < n then begin
+        printf "  -> modify...\n%!";
+        Sparse.set mat row col 1.0
+      end
     done;
+    printf "exiting [dirac]!\n\n%!";
     mat
 
   let rec of_pol p : Sparse.mat =
@@ -56,22 +64,21 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
          satisfy a (these are the absorbing states).
 
          swap.(i) = new index of ith packet
-         swap.(0) = undefined
       *)
-      let swap = Array.init (n+1) (fun i -> i) in
-      (* Scan packets from left and right ends of [1, ..., n]. If we find packets
+      let swap = Array.init n (fun i -> i) in
+      (* Scan packets from left and right ends of [0, ..., n-1]. If we find packets
          left < right such that left does not satisfy a, but right does, we
-         swap them. Thus, when the loop terminates packets 1 to nq will satisfy
-         a, and packets (nq+1) to n will not satisfy a.
+         swap them. Thus, when the loop terminates packets 0 to nq-1 will satisfy
+         a, and packets nq to n-1 will not satisfy a.
       *)
-      let left = ref 1 and right = ref n in
+      let left = ref 0 and right = ref (n-1) in
       while !left < !right do
         (* increment left until it corresponds to a packet not satisfying a *)
-        while !left < !right && Dense.get a (!left) 1 == 1.0 do
+        while !left < !right && Dense.get a (!left) 1 = 1.0 do
           incr left
         done;
         (* decrement right until it corresponds to a packet satisfying a *)
-        while !left < !right && Dense.get a (!right) 1 == 0.0 do
+        while !left < !right && Dense.get a (!right) 1 = 0.0 do
           decr right
         done;
         if !left < !right then begin
@@ -79,7 +86,7 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
           swap.(!right) <- !left;
         end
       done;
-      let nq = if Dense.get a (!left) 1 == 1.0 then !left else !left - 1 in
+      let nq = if Dense.get a (!left) 1 = 1.0 then !left + 1 else !left in
       let nr = n - nq in
 
       (* extract q and r from p *)
@@ -97,12 +104,12 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
       let qstar = Linalg.inv Dense.(sub (eye nq) q) in
       let absorption = Dense.(dot qstar r) in
       let pstar = Sparse.reset p; p in
-      for i = 1 to n do
+      for i = 0 to n-1 do
         let i = swap.(i) in
         if i > nq then
           Sparse.set pstar i i 1.0
         else
-          for j = 1 to n do
+          for j = 0 to n-1 do
             let j = swap.(j) in
             if j > nq then
               Dense.get absorption i (j-nq)
@@ -112,3 +119,11 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
       pstar
 
 end
+
+let of_pol p =
+  let domain = ProbNetKAT.domain p in
+  let module Domain = struct let domain = domain end in
+  let module Repr = ProbNetKAT_Packet_Repr.Make(Domain) in
+  let module Mc = Make(Repr) in
+  printf "n = %d\n%!" Mc.n;
+  Mc.of_pol p

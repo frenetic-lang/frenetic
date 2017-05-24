@@ -104,8 +104,8 @@ module Make(D : ProbNetKAT.Domain) : S = struct
     let to_pk = Fn.compose Hyperpoint.to_pk to_hyperpoint
     let of_pk = Fn.compose of_hyperpoint Hyperpoint.of_pk
     let max = (List.fold ~init:1 ~f:( * ) Hyperpoint.dimension) - 1
-    let to_index cp = { i = cp + 1 }
-    let of_index idx = idx.i - 1
+    let to_index cp = { i = cp }
+    let of_index idx = idx.i
   end
 
   module Index = struct
