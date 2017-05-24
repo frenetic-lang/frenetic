@@ -40,6 +40,7 @@ let () = begin
       !!("f", 1), Q.(1//n)
     ])
   in
+  (** this while loop is singular: it never terminates  *)
   let pwhile' =
     While (??("f", 0),
     ?@[
