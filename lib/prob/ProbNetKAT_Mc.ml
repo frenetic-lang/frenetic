@@ -75,15 +75,19 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
       while !left < !right do
         (* increment left until it corresponds to a packet not satisfying a *)
         while !left < !right && Dense.get a (!left) 0 = 1.0 do
+          printf ".%!";
           incr left
         done;
         (* decrement right until it corresponds to a packet satisfying a *)
         while !left < !right && Dense.get a (!right) 0 = 0.0 do
+          printf "-%!";
           decr right
         done;
         if !left < !right then begin
           swap.(!left) <- !right;
           swap.(!right) <- !left;
+          incr left;
+          decr right;
         end
       done;
       let nq = if Dense.get a (!left) 0 = 1.0 then !left + 1 else !left in
@@ -93,10 +97,10 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
       let q = Dense.zeros nq nq and r = Dense.zeros nq nr in
       let () = Sparse.iteri_nz (fun i j v ->
         let i = swap.(i) and j = swap.(j) in
-        if i <= nq && j <= nq then
+        if i < nq && j < nq then
           Dense.set q i j v
-        else if i <= nq && j > nq then
-          Dense.set r i j v)
+        else if i < nq && j >= nq then
+          Dense.set r i (j-nq) v)
         p
       in
 
