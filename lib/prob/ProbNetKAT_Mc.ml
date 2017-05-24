@@ -48,11 +48,11 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
       let (a,p,q) = (of_pol a, of_pol p, of_pol q) in
       let a = Sparse.(diag a |> to_dense) in
       let p' = Sparse.mapi_nz 
-        (fun row _ v -> if Dense.get a row 1 <> 0.0 then v else 0.0)
+        (fun row _ v -> if Dense.get a row 0 <> 0.0 then v else 0.0)
         p
       in
       let q' = Sparse.mapi_nz
-        (fun row _ v -> if Dense.get a row 1 <> 0.0 then 0.0 else v)
+        (fun row _ v -> if Dense.get a row 0 <> 0.0 then 0.0 else v)
         q
       in
       Sparse.add p' q'
@@ -74,11 +74,11 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
       let left = ref 0 and right = ref (n-1) in
       while !left < !right do
         (* increment left until it corresponds to a packet not satisfying a *)
-        while !left < !right && Dense.get a (!left) 1 = 1.0 do
+        while !left < !right && Dense.get a (!left) 0 = 1.0 do
           incr left
         done;
         (* decrement right until it corresponds to a packet satisfying a *)
-        while !left < !right && Dense.get a (!right) 1 = 0.0 do
+        while !left < !right && Dense.get a (!right) 0 = 0.0 do
           decr right
         done;
         if !left < !right then begin
@@ -86,7 +86,7 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
           swap.(!right) <- !left;
         end
       done;
-      let nq = if Dense.get a (!left) 1 = 1.0 then !left + 1 else !left in
+      let nq = if Dense.get a (!left) 0 = 1.0 then !left + 1 else !left in
       let nr = n - nq in
 
       (* extract q and r from p *)
