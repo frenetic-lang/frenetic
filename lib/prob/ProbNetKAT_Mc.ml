@@ -28,10 +28,10 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
       Sparse.eye n
     | Drop ->
       dirac (fun _ -> empty)
-    | TestEq (f,n) ->
+    | Test (f,n) ->
       dirac (fun row -> if Index.test' f n row then row else empty)
-    | TestNeq (f,n) ->
-      dirac (fun row -> if Index.test' f n row then empty else row)
+    | Neg a ->
+      Sparse.(sub (eye n) (of_pol a))
     | Modify (f,n) ->
       dirac Index.(modify' f n)
     | Seq (p,q) ->

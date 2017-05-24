@@ -42,32 +42,30 @@ let () = begin
   printf "codepoint = %d\n" (Codepoint.(of_pk pk) :> int);
   printf "max codepoint = %d\n" (Codepoint.max :> int);
   ignore (Codepoint.to_pk Codepoint.max); *)
-  let open ProbNetKAT.Syntax in
-  let open ProbNetKAT.Convenience in
+  (* let open ProbNetKAT.Syntax in *)
+  let open ProbNetKAT.Syntax.Dumb in
   let pwhile n =
-    While (??("f", 0),
-    ?@[
-      Skip       @ (n-1)//n;
+    mk_while ??("f", 0) ?@[
+      skip       @ (n-1)//n;
       !!("f", 1) @ 1//n
-    ])
+    ]
   in
   (** this while loop is singular: it never terminates  *)
   let pwhile' =
-    While (??("f", 0),
-    ?@[
-      Skip       @ 1//1;
+    mk_while ??("f", 0) ?@[
+      skip       @ 1//1;
       !!("f", 1) @ 0//1
-    ])
+    ]
   in
   let dependent =
     ?@[ !!("f", 1) @ 1//2; !!("f", 2) @ 1//2] >>
-    Ite( ??("f", 1), !!("g", 1), !!("g", 2) )
+    ite ??("f", 1)  !!("g", 1) !!("g", 2)
   in
   Sparse.(print (eye 3));
-  run Skip;
-  run Drop;
+  run skip;
+  run drop;
   run (??("f", 0));
-  run (While (??("f", 0), !!("f", 1)));
+  run (mk_while ??("f", 0) !!("f", 1));
   run (pwhile 10);
   run (pwhile 100);
   run (pwhile 100_000_000);
@@ -85,7 +83,7 @@ let () = begin
                 ?@[!!(l,0), Q.(1//2);
                    !!(l,1), Q.(1//2)])
     >>
-    While (
+    mk_while (
       seqi 4 ~f:(fun i -> let l = sprintf "l%d" i in
                           let t = sprintf "take%d" i in
                           )) *)
