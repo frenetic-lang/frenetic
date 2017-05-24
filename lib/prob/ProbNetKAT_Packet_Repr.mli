@@ -47,6 +47,8 @@ module type S = sig
     val modify : Field.t -> Value.t -> t -> t
     val test' : Field.t -> Value.t -> int -> bool
     val modify' : Field.t -> Value.t -> int -> int
+    val pp : Format.formatter -> t -> unit
+    val pp' : Format.formatter -> int -> unit
   end
 end
 

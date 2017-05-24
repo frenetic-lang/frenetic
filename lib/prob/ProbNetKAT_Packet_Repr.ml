@@ -49,6 +49,8 @@ module type S = sig
     val modify : Field.t -> Value.t -> t -> t
     val test' : Field.t -> Value.t -> int -> bool
     val modify' : Field.t -> Value.t -> int -> int
+    val pp : Format.formatter -> t -> unit
+    val pp' : Format.formatter -> int -> unit
   end
 end
 
@@ -117,6 +119,8 @@ module Make(D : ProbNetKAT.Domain) : S = struct
     let modify f n t = of_pk (ProbNetKAT_Packet.modify f n (to_pk t))
     let test' f n i = test f n { i = i }
     let modify' f n i = (modify f n { i = i }).i
+    let pp fmt t = ProbNetKAT_Packet.pp fmt (to_pk t)
+    let pp' fmt i = ProbNetKAT_Packet.pp fmt (to_pk { i = i })
   end
 
 end

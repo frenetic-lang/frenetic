@@ -8,3 +8,9 @@ let test (f : field) (v : value) (pk : pk) : bool =
 
 let modify (f : field) (v : value) (pk : pk) : pk =
   Map.add pk ~key:f ~data:v
+
+let pp fmt pk =
+  Format.fprintf fmt "@[";
+  Map.iteri pk ~f:(fun ~key ~data -> Format.fprintf fmt "@[%s=%d@]@ " key data);
+  Format.fprintf fmt "@]";
+  ()

@@ -89,3 +89,13 @@ module Syntax = struct
   let ( ?@ ) dist = Choice dist (* ?@[p , 1//2; q , 1//2] *)
 end
 
+
+module Convenience = struct
+  let seqi n ~f =
+    Array.init n ~f
+    |> Array.fold ~init:Drop ~f:(fun p q -> if p = Drop then q else Seq(p, q))
+
+  let choicei n ~f =
+    Array.init n ~f
+    |> (fun a -> Choice (Array.to_list a))
+end
