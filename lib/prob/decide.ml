@@ -10,18 +10,29 @@ let fmt = Format.std_formatter
 module Dense = Owl.Dense.Matrix.D
 module Sparse = Owl.Sparse.Matrix.D
 
-let run p =
+let time f =
+  let t1 = Unix.gettimeofday () in
+  let r = f () in
+  let t2 = Unix.gettimeofday () in
+  (t2 -. t1, r)
+
+let print_time time =
+  printf "time: %.4f\n" time
+
+let run ?(print=true) p =
   fprintf fmt "\n===========================================================\n\n%!";
   fprintf fmt "policy = %a\n\n%!" pp_policy p;
   let dom = domain p in
   let module Repr = ProbNetKAT_Packet_Repr.Make(struct let domain = dom end) in
   let n = Repr.Index.max.i + 1 in
   let module Mc = ProbNetKAT_Mc.Make(Repr) in
-  fprintf fmt "index packet mapping:\n%!";
-  Array.init n ~f:ident
-  |> Array.iter ~f:(fun i -> fprintf fmt " %d = %a\n%!" i Repr.Index.pp' i);
-  fprintf fmt "\n%!";
-  Sparse.print (Mc.of_pol p);
+  if print then fprintf fmt "index packet mapping:\n%!";
+  if print then Array.init n ~f:ident
+    |> Array.iter ~f:(fun i -> fprintf fmt " %d = %a\n%!" i Repr.Index.pp' i);
+  if print then fprintf fmt "\n%!";
+  let (t, mc) = time (fun () -> Mc.of_pol p) in
+  if print then Sparse.print mc;
+  print_time t;
   ()
 
 let () = begin
@@ -36,20 +47,20 @@ let () = begin
   let pwhile n =
     While (??("f", 0),
     ?@[
-      Skip,       Q.(Int.(n-1)//n);
-      !!("f", 1), Q.(1//n)
+      Skip       @ (n-1)//n;
+      !!("f", 1) @ 1//n
     ])
   in
   (** this while loop is singular: it never terminates  *)
   let pwhile' =
     While (??("f", 0),
     ?@[
-      Skip,       Q.(1//1);
-      !!("f", 1), Q.(0//1)
+      Skip       @ 1//1;
+      !!("f", 1) @ 0//1
     ])
   in
   let dependent =
-    ?@[ !!("f", 1), 1//2; !!("f", 2), 1//2] >>
+    ?@[ !!("f", 1) @ 1//2; !!("f", 2) @ 1//2] >>
     Ite( ??("f", 1), !!("g", 1), !!("g", 2) )
   in
   Sparse.(print (eye 3));
@@ -62,6 +73,13 @@ let () = begin
   run (pwhile 100_000_000);
   try run pwhile' with e -> printf "%s\n" (Exn.to_string e);
   run dependent;
+
+  let blowup n =
+    seqi n ~f:(fun i -> let l = sprintf "l%d" i in
+                ?@[ !!(l,0) @ 1//2; !!(l,1) @ 1//2])
+  in
+  run (blowup 3);
+  run (blowup 10) ~print:false;
 (*   let uniform =
     seqi 4 ~f:(fun i -> let l = sprintf "l%d" i in 
                 ?@[!!(l,0), Q.(1//2);

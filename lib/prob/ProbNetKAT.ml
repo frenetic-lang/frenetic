@@ -88,6 +88,7 @@ module Syntax = struct
   let ( >> ) p q = Seq (p, q)
   let ( ?@ ) dist = Choice dist (* ?@[p , 1//2; q , 1//2] *)
   let ( // ) m n = Q.(m // n)
+  let ( @ ) p r = (p,r)
 end
 
 
