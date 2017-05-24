@@ -25,7 +25,7 @@ let run ?(print=true) p =
   let dom = domain p in
   let module Repr = ProbNetKAT_Packet_Repr.Make(struct let domain = dom end) in
   let n = Repr.Index.max.i + 1 in
-  let module Mc = ProbNetKAT_Mc.Make(Repr) in
+  let module Mc = ProbNetKAT_Mc.MakeOwl(Repr) in
   if print then fprintf fmt "index packet mapping:\n%!";
   if print then Array.init n ~f:ident
     |> Array.iter ~f:(fun i -> fprintf fmt " %d = %a\n%!" i Repr.Index.pp' i);

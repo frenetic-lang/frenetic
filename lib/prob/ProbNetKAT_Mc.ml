@@ -2,15 +2,15 @@ open Core
 open ProbNetKAT
 open Owl
 
-module Dense = Dense.Matrix.D
-module Sparse = Sparse.Matrix.D
-module List = Core.List
-
-module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
+module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
   include Repr
 
+  module Dense = Dense.Matrix.D
+  module Sparse = Sparse.Matrix.D
+
+
   (* empty is not index of matrix *)
-  let (n, empty) = (Index.max.i + 1, Index.max.i + 1)
+  let (n, empty) = (Index0.max.i + 1, Index0.max.i + 1)
 
   let dirac ?(n=n) (f : int -> int) : Sparse.mat =
     let mat = Sparse.zeros n n in
@@ -29,11 +29,11 @@ module Make(Repr : ProbNetKAT_Packet_Repr.S) = struct
     | Drop ->
       dirac (fun _ -> empty)
     | Test (f,n) ->
-      dirac (fun row -> if Index.test' f n row then row else empty)
+      dirac (fun row -> if Index0.test' f n row then row else empty)
     | Neg a ->
       Sparse.(sub (eye n) (of_pol a))
     | Modify (f,n) ->
-      dirac Index.(modify' f n)
+      dirac Index0.(modify' f n)
     | Seq (p,q) ->
       Sparse.dot (of_pol p) (of_pol q)
     | Choice ps ->
@@ -121,6 +121,6 @@ let of_pol p =
   let domain = ProbNetKAT.domain p in
   let module Domain = struct let domain = domain end in
   let module Repr = ProbNetKAT_Packet_Repr.Make(Domain) in
-  let module Mc = Make(Repr) in
+  let module Mc = MakeOwl(Repr) in
   printf "n = %d\n%!" Mc.n;
   Mc.of_pol p

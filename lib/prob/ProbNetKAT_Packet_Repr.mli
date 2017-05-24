@@ -4,6 +4,7 @@ open ProbNetKAT_Packet
 type 'domain_witness hyperpoint = private int list
 type 'domain_witness codepoint = private int
 type 'domain_witness index = private { i : int }
+type 'domain_witness index0 = { i : int }
 
 module type S = sig
   type domain_witness
@@ -35,11 +36,27 @@ module type S = sig
     val of_pk : pk -> t
     val to_index : t -> Index.t
     val of_index : Index.t -> t
+    val to_index0 : t -> Index0.t
+    val of_index0 : Index0.t -> t
   end
 
   (** Encoding of packets as strictly positive integers, i.e. matrix indices. *)
   and Index : sig
     type t = domain_witness index
+    val max : t
+    val of_pk : pk -> t
+    val to_pk : t -> pk
+    val test : Field.t -> Value.t -> t -> bool
+    val modify : Field.t -> Value.t -> t -> t
+    val test' : Field.t -> Value.t -> int -> bool
+    val modify' : Field.t -> Value.t -> int -> int
+    val pp : Format.formatter -> t -> unit
+    val pp' : Format.formatter -> int -> unit
+  end
+
+  (** Encoding of packets as positive integers (including 0), i.e. matrix indices. *)
+  and Index0 : sig
+    type t = domain_witness index0
     val max : t
     val of_pk : pk -> t
     val to_pk : t -> pk

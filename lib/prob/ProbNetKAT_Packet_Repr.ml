@@ -6,6 +6,7 @@ open ProbNetKAT_Packet
 type 'domain_witness hyperpoint = int list
 type 'domain_witness codepoint = int
 type 'domain_witness index = { i : int }
+type 'domain_witness index0 = { i : int }
 
 module type S = sig
   type domain_witness
@@ -37,11 +38,27 @@ module type S = sig
     val of_pk : pk -> t
     val to_index : t -> Index.t
     val of_index : Index.t -> t
+    val to_index0 : t -> Index0.t
+    val of_index0 : Index0.t -> t
   end
 
   (** Encoding of packets as strictly positive integers, i.e. matrix indices. *)
   and Index : sig
     type t = domain_witness index
+    val max : t
+    val of_pk : pk -> t
+    val to_pk : t -> pk
+    val test : Field.t -> Value.t -> t -> bool
+    val modify : Field.t -> Value.t -> t -> t
+    val test' : Field.t -> Value.t -> int -> bool
+    val modify' : Field.t -> Value.t -> int -> int
+    val pp : Format.formatter -> t -> unit
+    val pp' : Format.formatter -> int -> unit
+  end
+
+  (** Encoding of packets as positive integers (including 0), i.e. matrix indices. *)
+  and Index0 : sig
+    type t = domain_witness index0
     val max : t
     val of_pk : pk -> t
     val to_pk : t -> pk
@@ -106,8 +123,10 @@ module Make(D : ProbNetKAT.Domain) : S = struct
     let to_pk = Fn.compose Hyperpoint.to_pk to_hyperpoint
     let of_pk = Fn.compose of_hyperpoint Hyperpoint.of_pk
     let max = (List.fold ~init:1 ~f:( * ) Hyperpoint.dimension) - 1
-    let to_index cp = { i = cp }
-    let of_index idx = idx.i
+    let to_index cp : domain_witness index = { i = cp + 1  }
+    let of_index (idx : domain_witness index) = idx.i - 1
+    let to_index0 cp : domain_witness index0 = { i = cp }
+    let of_index0 (idx : domain_witness index0) = idx.i 
   end
 
   module Index = struct
@@ -115,6 +134,19 @@ module Make(D : ProbNetKAT.Domain) : S = struct
     let of_pk = Fn.compose Codepoint.to_index Codepoint.of_pk
     let to_pk = Fn.compose Codepoint.to_pk Codepoint.of_index
     let max = Codepoint.(to_index max)
+    let test f n t = ProbNetKAT_Packet.test f n (to_pk t)
+    let modify f n t = of_pk (ProbNetKAT_Packet.modify f n (to_pk t))
+    let test' f n i = test f n { i = i }
+    let modify' f n i = (modify f n { i = i }).i
+    let pp fmt t = ProbNetKAT_Packet.pp fmt (to_pk t)
+    let pp' fmt i = ProbNetKAT_Packet.pp fmt (to_pk { i = i })
+  end
+
+  module Index0 = struct
+    type t = domain_witness index0
+    let of_pk = Fn.compose Codepoint.to_index0 Codepoint.of_pk
+    let to_pk = Fn.compose Codepoint.to_pk Codepoint.of_index0
+    let max = Codepoint.(to_index0 max)
     let test f n t = ProbNetKAT_Packet.test f n (to_pk t)
     let modify f n t = of_pk (ProbNetKAT_Packet.modify f n (to_pk t))
     let test' f n i = test f n { i = i }
