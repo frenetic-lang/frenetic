@@ -19,6 +19,10 @@ let time f =
 let print_time time =
   printf "time: %.4f\n" time
 
+let pp_sparse m =
+  Sparse.to_dense m
+  |> fprintf fmt "%a\n" Owl_pretty.pp_fmat
+
 let run ?(print=true) p =
   fprintf fmt "\n===========================================================\n\n%!";
   fprintf fmt "policy = %a\n\n%!" pp_policy p;
@@ -31,7 +35,7 @@ let run ?(print=true) p =
     |> Array.iter ~f:(fun i -> fprintf fmt " %d = %a\n%!" i Repr.Index.pp' i);
   if print then fprintf fmt "\n%!";
   let (t, mc) = time (fun () -> Mc.of_pol p) in
-  if print then Sparse.print mc;
+  if print then pp_sparse mc;
   print_time t;
   ()
 
