@@ -28,8 +28,8 @@ let pp_hv op fmt hv =
 let pp_policy fmt p =
   let rec pol ctxt fmt p =
     match p with
-    | Skip -> fprintf fmt "@[0@]"
-    | Drop -> fprintf fmt "@[1@]"
+    | Skip -> fprintf fmt "@[1@]"
+    | Drop -> fprintf fmt "@[0@]"
     | TestEq hv -> pp_hv "=" fmt hv
     | TestNeq hv -> pp_hv "!=" fmt hv
     | Modify hv -> pp_hv "<-" fmt hv

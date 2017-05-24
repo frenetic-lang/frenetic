@@ -2,8 +2,16 @@
 
 * Use sub-stochastic matrices instead of stochastic ones?
     - this should work!
-    - http://people.brandeis.edu/~igusa/Math56aS08/Math56a_S08_notes0162.pdf
+    - -> done!
 * Instead of using one global domain, refine domain during matrix compilation?
 * more efficient predicate encoding!
     - arrays?
     - decision diagramms?
+* local fields can help with state space explosion!
+    - erased once they go out of scope
+
+
+# TODO:
+* predicates (need at least and & or)
+    - GADTs?
+* parser
