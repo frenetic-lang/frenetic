@@ -118,11 +118,18 @@ end
 
 module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
   include Repr
+  open Lacaml.D
+  (** ATTENTION: Fortran uses column-major layout!!! Therefore, use left-stochastic
+      matrices *)
+
+  type _ v_or_m =
+    | V : vec -> vec v_or_m
+    | M : mat -> mat v_or_m
 
   (* empty is not index of matrix *)
   let (n, empty) = (Index.max.i, Index.max.i + 1)
 
-  let dirac ?(n=n) (f : int -> int) (* : Sparse.mat *) =
+  let dirac ?(n=n) (f : int -> int) : mat =
     failwith "todo"
 (*     let mat = Sparse.zeros n n in
     for row = 0 to n-1 do
@@ -133,23 +140,24 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
     done;
     mat *)
 
-  let rec of_pol p (* : Sparse.mat *) =
+  let one = Vec.make n 1.0
+  let zero = Vec.make0 n
+
+  let rec of_pol p : _ v_or_m =
     match p.p with
     | Skip ->
-      (* Sparse.eye n *)
-      failwith "todo"
+      V one
     | Drop ->
-      (* dirac (fun _ -> empty) *)
-      failwith "todo"
+      V zero
     | Test (f,n) ->
-      (* dirac (fun row -> if Index0.test' f n row then row else empty) *)
-      failwith "todo"
+      V (Vec.init n (fun i -> if Index.test' f n i then 1.0 else 0.0))
     | Neg a ->
-      (* Sparse.(sub (eye n) (of_pol a)) *)
-      failwith "todo"
+      begin match of_pol a with
+      | V v -> V Vec.(sub one v)
+      | _ -> assert false
+      end
     | Modify (f,n) ->
-      (* dirac Index0.(modify' f n) *)
-      failwith "todo"
+      failwith "todo" 
     | Seq (p,q) ->
       (* Sparse.dot (of_pol p) (of_pol q) *)
       failwith "todo"
