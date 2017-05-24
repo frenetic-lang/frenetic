@@ -26,7 +26,7 @@ let () = begin
     ])
   in
   fprintf "%a\n%!" pp_policy p;
-  (* let m = Mc.of_pol p in *)
+  let m = Mc.of_pol p in
   ()
   (* Owl.Sparse.Matrix.D.print m *)
 end
