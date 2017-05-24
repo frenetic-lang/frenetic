@@ -31,6 +31,10 @@ module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
       dirac (fun row -> if Index0.test' f n row then row else empty)
     | Neg a ->
       Sparse.(sub (eye n) (of_pol a))
+    | Or (a,b) ->
+      let a,b = (of_pol a, of_pol b) in
+      Sparse.iteri_nz (fun i j v -> Sparse.set b i j v) a;
+      b
     | Modify (f,n) ->
       dirac Index0.(modify' f n)
     | Seq (p,q) ->
@@ -154,6 +158,11 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
     | Neg a ->
       begin match of_pol a with
       | V v -> V Vec.(sub one v)
+      | _ -> assert false
+      end
+    | Or (a,b) ->
+      begin match of_pol a, of_pol b with
+      | V a, V b -> V Vec.(max2 a b)
       | _ -> assert false
       end
     | Modify (f,n) ->

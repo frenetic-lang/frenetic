@@ -22,6 +22,7 @@ and policy0 =
   | Test of headerval
   | Modify of headerval
   | Neg of policy
+  | Or of policy * policy
   | Seq of policy * policy
   | Ite of policy * policy * policy
   | While of policy * policy
@@ -39,6 +40,12 @@ let pp_policy fmt p =
     | Test hv -> pp_hv "=" fmt hv
     | Modify hv -> pp_hv "<-" fmt hv
     | Neg p -> fprintf fmt "@[¬%a@]" (pol `Neg) p
+    | Or (a1, a2) ->
+      begin match ctxt with
+        | `PAREN
+        | `Or -> fprintf fmt "@[%a@ or@ %a@]" (pol `Or) a1 (pol `Or) a2
+        | _ -> fprintf fmt "@[(@[%a@ or@ %a@])@]" (pol `Or) a1 (pol `Or) a2
+      end
     | Seq (p1, p2) ->
       begin match ctxt with
         | `PAREN
@@ -79,7 +86,7 @@ let domain pol : domain =
         | None -> Value.Set.singleton n 
         | Some ns -> Value.Set.add ns n)
     | Neg p -> domain p d
-    | Seq (p,q) | While (p,q) ->
+    | Or(p,q) | Seq (p,q) | While (p,q) ->
       d |> domain p |> domain q
     | Ite (p,q,r) ->
       d |> domain p |> domain q |> domain r
@@ -98,6 +105,10 @@ module Constructors = struct
     let neg a =
       assert (a.determ && a.pred);
       { a with p = Neg a }
+    let disj a b =
+      assert (a.determ && a.pred);
+      assert (b.determ && b.pred);
+      { a with p = Or (a,b) }
     let seq p q = { p = Seq(p,q); pred = p.pred && q.pred; determ = p.determ && q.determ }
     let choice ps =
       assert (List.fold ~init:Q.zero ~f:Q.(+) (List.map ps ~f:snd) = Q.one);
@@ -129,12 +140,16 @@ module Constructors = struct
       match a.p with
       | Neg { p } -> { a with p }
       | _ -> Dumb.neg a
+
+    let disj a b =
+      if a = skip || b = drop then a else
+      if b = skip || a = drop then b else
+      Dumb.disj a b
     
     let seq p q =
       (* use physical equality? *)
-      if p = drop || q = drop then drop else
-      if p = skip then q else
-      if q = skip then p else
+      if p = drop || q = skip then p else
+      if q = drop || p = skip then q else
       Dumb.seq p q
     
     let choice ps =
