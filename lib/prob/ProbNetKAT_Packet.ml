@@ -11,7 +11,7 @@ let modify (f : field) (v : value) (pk : pk) : pk =
 
 let pp fmt pk =
   Format.fprintf fmt "@[";
-  if Map.is_empty pk then Format.fprintf fmt "*@ ";
+  if Map.is_empty pk then Format.fprintf fmt "*@ " else
   Map.iteri pk ~f:(fun ~key ~data -> Format.fprintf fmt "@[%s=%d@]@ " key data);
   Format.fprintf fmt "@]";
   ()
