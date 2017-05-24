@@ -1,10 +1,9 @@
 open Core
 open ProbNetKAT
-open Owl
 
 module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
   include Repr
-
+  open Owl
   module Dense = Dense.Matrix.D
   module Sparse = Sparse.Matrix.D
 
@@ -114,6 +113,65 @@ module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
           done
       done;
       pstar
+
+end
+
+module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
+  include Repr
+
+  (* empty is not index of matrix *)
+  let (n, empty) = (Index.max.i, Index.max.i + 1)
+
+  let dirac ?(n=n) (f : int -> int) (* : Sparse.mat *) =
+    failwith "todo"
+(*     let mat = Sparse.zeros n n in
+    for row = 0 to n-1 do
+      let col = f row in
+      if col < n then begin
+        Sparse.set mat row col 1.0
+      end
+    done;
+    mat *)
+
+  let rec of_pol p (* : Sparse.mat *) =
+    match p.p with
+    | Skip ->
+      (* Sparse.eye n *)
+      failwith "todo"
+    | Drop ->
+      (* dirac (fun _ -> empty) *)
+      failwith "todo"
+    | Test (f,n) ->
+      (* dirac (fun row -> if Index0.test' f n row then row else empty) *)
+      failwith "todo"
+    | Neg a ->
+      (* Sparse.(sub (eye n) (of_pol a)) *)
+      failwith "todo"
+    | Modify (f,n) ->
+      (* dirac Index0.(modify' f n) *)
+      failwith "todo"
+    | Seq (p,q) ->
+      (* Sparse.dot (of_pol p) (of_pol q) *)
+      failwith "todo"
+    | Choice ps ->
+(*       List.map ps ~f:(fun (p,w) -> Sparse.mul_scalar (of_pol p) (Prob.to_float w))
+      |> List.fold ~init:(Sparse.zeros n n) ~f:Sparse.add *)
+      failwith "todo"
+    | Ite (a,p,q) ->
+      (* let (a,p,q) = (of_pol a, of_pol p, of_pol q) in
+      let a = Sparse.(diag a |> to_dense) in
+      let p' = Sparse.mapi_nz 
+        (fun row _ v -> if Dense.get a row 0 <> 0.0 then v else 0.0)
+        p
+      in
+      let q' = Sparse.mapi_nz
+        (fun row _ v -> if Dense.get a row 0 <> 0.0 then 0.0 else v)
+        q
+      in
+      Sparse.add p' q' *)
+      failwith "todo"
+    | While(a,p) ->
+      failwith "todo"
 
 end
 
