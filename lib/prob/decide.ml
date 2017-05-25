@@ -34,7 +34,7 @@ let run ?(print=true) ?(lbl=true) p =
   end;
   let (t, mc) = time (fun () -> Mc.of_pol p) in
   if print then begin Sparse.to_dense mc |>
-    Format.printf "@[<2>MATRIX:@\n%a@\n@]@."
+    Format.printf "@[MATRIX:@\n%a@\n@]@."
       (if not lbl then Owl_pretty.pp_fmat else
          Owl_pretty.pp_labeled_fmat 
           ~pp_left:(Some (fun fmt -> fprintf fmt "%a|" Repr.Index.pp')) 
