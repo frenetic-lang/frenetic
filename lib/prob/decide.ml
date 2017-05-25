@@ -20,7 +20,7 @@ let print_time time =
   printf "time: %.4f\n" time
 
 let run ?(print=true) ?(lbl=true) p =
-  fprintf fmt "\n===========================================================\n\n%!";
+  printf "\n========================= EIGEN ==========================\n\n%!";
   fprintf fmt "policy = %a\n\n%!" pp_policy p;
   let dom = domain p in
   let module Repr = ProbNetKAT_Packet_Repr.Make(struct let domain = dom end) in
@@ -47,7 +47,7 @@ let run ?(print=true) ?(lbl=true) p =
   ()
 
 let run' ?(print=true) ?(lbl=true) p =
-  fprintf fmt "\n===========================================================\n\n%!";
+  printf "\n========================== BLAS ==========================\n\n%!";
   fprintf fmt "policy = %a\n\n%!" pp_policy p;
   let dom = domain p in
   let module Repr = ProbNetKAT_Packet_Repr.Make(struct let domain = dom end) in
