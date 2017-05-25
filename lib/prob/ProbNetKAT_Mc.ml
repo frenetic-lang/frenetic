@@ -148,8 +148,8 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
       V one
     | Drop ->
       V zero
-    | Test (f,n) ->
-      V (Vec.init n (fun i -> if Index.test' f n i then 1.0 else 0.0))
+    | Test (f,v) ->
+      V (Vec.init n (fun i -> if Index.test' f v i then 1.0 else 0.0))
     | Neg a ->
       begin match of_pol a with
       | V v -> V Vec.(sub one v)
@@ -160,8 +160,8 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
       | V a, V b -> V Vec.(max2 a b)
       | _ -> assert false
       end
-    | Modify (f,n) ->
-      dirac (fun i -> Index.modify' f n i)
+    | Modify (f,v) ->
+      dirac (fun i -> Index.modify' f v i)
     | Seq (p,q) ->
       (* Sparse.dot (of_pol p) (of_pol q) *)
       failwith "todo"

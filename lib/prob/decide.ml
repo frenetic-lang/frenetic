@@ -35,13 +35,45 @@ let run ?(print=true) ?(lbl=true) p =
   let (t, mc) = time (fun () -> Mc.of_pol p) in
   if print then begin Sparse.to_dense mc |>
     if lbl then
-      fprintf fmt "%a\n\n" (Owl_pretty.pp_labeled_fmat 
+      fprintf fmt "@[%a@]@." (Owl_pretty.pp_labeled_fmat 
         ~pp_left:(Some (fun fmt -> fprintf fmt "%a|" Repr.Index.pp')) 
         ~pp_head:None
         ~pp_foot:None
         ~pp_right:None ())
     else
-      fprintf fmt "%a\n\n" Owl_pretty.pp_fmat
+      fprintf fmt "@[%a@]@." Owl_pretty.pp_fmat
+  end;
+  print_time t;
+  ()
+
+let run' ?(print=true) ?(lbl=true) p =
+  fprintf fmt "\n===========================================================\n\n%!";
+  fprintf fmt "policy = %a\n\n%!" pp_policy p;
+  let dom = domain p in
+  let module Repr = ProbNetKAT_Packet_Repr.Make(struct let domain = dom end) in
+  let module Mc = ProbNetKAT_Mc.MakeLacaml(Repr) in
+  let n = Repr.Index.max.i in
+  fprintf fmt "domain size n = %d\n%!" n;
+  if print && not lbl then begin
+    fprintf fmt "index packet mapping:\n%!";
+    Array.init n ~f:ident
+    |> Array.iter ~f:(fun i -> fprintf fmt " %d = %a\n%!" i Repr.Index0.pp' i);
+    fprintf fmt "\n%!";
+  end;
+  let (t, mc) = time (fun () -> Mc.of_pol p) in
+  let mc =
+    match mc with
+    | M m -> assert Lacaml.D.Mat.(dim1 m = n && dim2 m = n); m
+    | V v -> assert Lacaml.D.Vec.(dim v = n); Lacaml.D.Mat.of_diag v
+  in
+  if print then begin mc |>
+  Format.printf "@[<2>@\n%a@\n@]@."
+    (Lacaml.Io.pp_lfmat
+      ~row_labels:
+        (Array.init n (fun i -> Format.asprintf "%a%!" Repr.Index0.pp' i))
+      ~ellipsis:"*"
+      ~print_right:false
+      ~print_foot:false ())
   end;
   print_time t;
   ()
@@ -88,7 +120,11 @@ let () = begin
                 ?@[ !!(l,0) @ 1//2; !!(l,1) @ 1//2])
   in
   run (blowup 3);
-  run (blowup 10) ~print:false;
+  (* run (blowup 10) ~print:false; *)
+  run' skip;
+  run' drop;
+  run' (??("f", 0));
+  (* run' (mk_while ??("f", 0) !!("f", 1)); *)
 (*   let uniform =
     seqi 4 ~f:(fun i -> let l = sprintf "l%d" i in 
                 ?@[!!(l,0), Q.(1//2);
