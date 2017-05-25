@@ -163,24 +163,20 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
     | Modify (f,v) ->
       dirac (fun i -> Index.modify' f v i)
     | Seq (p,q) ->
-      (* Sparse.dot (of_pol p) (of_pol q) *)
-      failwith "todo"
+      (** we're using *left*-stochastic matrices, so we need to swap before multiplying *)
+      begin match of_pol p, of_pol q with
+      | V p, V q -> V (Vec.mul p q)
+      | M p, M q -> M (gemm q p)
+      | M p, V q -> M (gemm (Mat.of_diag q) p)
+      | V p, M q -> M (gemm q (Mat.of_diag p))
+      end
     | Choice ps ->
-(*       List.map ps ~f:(fun (p,w) -> Sparse.mul_scalar (of_pol p) (Prob.to_float w))
-      |> List.fold ~init:(Sparse.zeros n n) ~f:Sparse.add *)
-      failwith "todo"
+      let y = Mat.make0 n n in
+      List.iter ps ~f:(fun (p,r) -> match of_pol p with
+        | V _ -> assert false
+        | M x -> Mat.axpy ~alpha:(Prob.to_float r) x y);
+      M y
     | Ite (a,p,q) ->
-      (* let (a,p,q) = (of_pol a, of_pol p, of_pol q) in
-      let a = Sparse.(diag a |> to_dense) in
-      let p' = Sparse.mapi_nz 
-        (fun row _ v -> if Dense.get a row 0 <> 0.0 then v else 0.0)
-        p
-      in
-      let q' = Sparse.mapi_nz
-        (fun row _ v -> if Dense.get a row 0 <> 0.0 then 0.0 else v)
-        q
-      in
-      Sparse.add p' q' *)
       failwith "todo"
     | While(a,p) ->
       failwith "todo"
