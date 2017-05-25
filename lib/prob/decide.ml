@@ -34,14 +34,13 @@ let run ?(print=true) ?(lbl=true) p =
   end;
   let (t, mc) = time (fun () -> Mc.of_pol p) in
   if print then begin Sparse.to_dense mc |>
-    if lbl then
-      fprintf fmt "@[%a@]@." (Owl_pretty.pp_labeled_fmat 
-        ~pp_left:(Some (fun fmt -> fprintf fmt "%a|" Repr.Index.pp')) 
-        ~pp_head:None
-        ~pp_foot:None
-        ~pp_right:None ())
-    else
-      fprintf fmt "@[%a@]@." Owl_pretty.pp_fmat
+    Format.printf "@[<2>MATRIX:@\n%a@\n@]@."
+      (if not lbl then Owl_pretty.pp_fmat else
+         Owl_pretty.pp_labeled_fmat 
+          ~pp_left:(Some (fun fmt -> fprintf fmt "%a|" Repr.Index.pp')) 
+          ~pp_head:None
+          ~pp_foot:None
+          ~pp_right:None ())
   end;
   print_time t;
   ()
@@ -53,7 +52,6 @@ let run' ?(print=true) ?(lbl=true) p =
   let module Repr = ProbNetKAT_Packet_Repr.Make(struct let domain = dom end) in
   let module Mc = ProbNetKAT_Mc.MakeLacaml(Repr) in
   let n = Repr.Index.max.i in
-  fprintf fmt "domain size n = %d\n%!" n;
   if print && not lbl then begin
     fprintf fmt "index packet mapping:\n%!";
     Array.init n ~f:ident
@@ -67,7 +65,7 @@ let run' ?(print=true) ?(lbl=true) p =
     | V v -> assert Lacaml.D.Vec.(dim v = n); Lacaml.D.Mat.of_diag v
   in
   if print then begin mc |>
-  Format.printf "@[<2>@\n%a@\n@]@."
+  Format.printf "@[<2>MATRIX:@\n%a@\n@]@."
     (Lacaml.Io.pp_lfmat
       ~row_labels:
         (Array.init n (fun i -> Format.asprintf "%a%!" Repr.Index0.pp' i))
