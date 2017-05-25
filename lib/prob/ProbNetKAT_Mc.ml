@@ -120,6 +120,13 @@ module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
 
 end
 
+(**
+TODO:
+  * use more efficient m * diag(v)
+  * more efficent choice (don't allocate zero-matrix)
+  * less wastefulallocation
+*)
+
 module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
   include Repr
   open Lacaml.D
@@ -173,7 +180,7 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
     | Choice ps ->
       let y = Mat.make0 n n in
       List.iter ps ~f:(fun (p,r) -> match of_pol p with
-        | V _ -> assert false
+        | V _ -> assert false (* FIXME: actually, this can happen! *)
         | M x -> Mat.axpy ~alpha:(Prob.to_float r) x y);
       M y
     | Ite (a,p,q) ->
