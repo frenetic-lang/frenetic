@@ -122,6 +122,7 @@ let () = begin
   run' skip;
   run' drop;
   run' (??("f", 0));
+  run' (blowup 8) ~print:false;
   (* run' (mk_while ??("f", 0) !!("f", 1)); *)
 (*   let uniform =
     seqi 4 ~f:(fun i -> let l = sprintf "l%d" i in 

@@ -174,8 +174,8 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
       begin match of_pol p, of_pol q with
       | V p, V q -> V (Vec.mul p q)
       | M p, M q -> M (gemm q p)
-      | M p, V q -> M (gemm (Mat.of_diag q) p)
-      | V p, M q -> M (gemm q (Mat.of_diag p))
+      | (M p as m), V q -> Mat.scal_cols p q; m
+      | V p, (M q as m) -> Mat.scal_rows p q; m
       end
     | Choice ps ->
       let y = Mat.make0 n n in
