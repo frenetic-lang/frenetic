@@ -187,7 +187,7 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
       begin match of_pol a, of_pol p, of_pol q with
       | V a, (M p as m), M q ->
         Mat.scal_rows a p;
-        Mat.scal_rows (Vec.map (fun f -> 1.0 -. f) a) q;
+        Mat.scal_rows (Vec.sub one a) q;
         Mat.axpy q p;
         m
       end
