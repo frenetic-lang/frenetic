@@ -57,8 +57,8 @@ module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
     | While(a,p) ->
       let (a,p) = (of_pol a |> Sparse.diag |> Sparse.to_dense, of_pol p) in
 
-      (* rearrange indices so that packets 1 to nq satisfy a (these are the
-         transient states of the while loop); and packets nq+1 to n do not
+      (* rearrange indices so that packets 0 to nq-1 satisfy a (these are the
+         transient states of the while loop); and packets nq to n-1 do not
          satisfy a (these are the absorbing states).
 
          swap.(i) = new index of ith packet
@@ -210,7 +210,68 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
       | _ -> assert false
       end
     | While(a,p) ->
-      failwith "todo"
+      let V a, (M p as m) = of_pol a, of_pol p in
+      (* rearrange indices so that packets 1 to nq satisfy a (these are the
+         transient states of the while loop); and packets nq+1 to n do not
+         satisfy a (these are the absorbing states).
+
+         swap.(i) = new index of ith packet
+      *)
+      let swap = Array.init (n+1) (fun i -> i) in
+      (* Scan packets from left and right ends of [1, ..., n-]. If we find packets
+         left < right such that left does not satisfy a, but right does, we
+         swap them. Thus, when the loop terminates packets 1 to nq will satisfy
+         a, and packets nq+1 to n will not satisfy a.
+      *)
+      let left = ref 1 and right = ref n in
+      while !left < !right do
+        (* increment left until it corresponds to a packet not satisfying a *)
+        while !left < !right && a.{!left} = 1.0 do
+          incr left
+        done;
+        (* decrement right until it corresponds to a packet satisfying a *)
+        while !left < !right && a.{!right} = 0.0 do
+          decr right
+        done;
+        if !left < !right then begin
+          swap.(!left) <- !right;
+          swap.(!right) <- !left;
+          incr left;
+          decr right;
+        end
+      done;
+      let nq = if a.{!left} = 1.0 then !left else !left - 1 in
+      let nr = n - nq in
+
+      (* extract q and r from p *)
+(*       let q = Dense.zeros nq nq and r = Dense.zeros nq nr in
+      let () = Sparse.iteri_nz (fun i j v ->
+        let i = swap.(i) and j = swap.(j) in
+        if i < nq && j < nq then
+          Dense.set q i j v
+        else if i < nq && j >= nq then
+          Dense.set r i (j-nq) v)
+        p
+      in
+
+      (* calculate absorption probabilities *)
+      let qstar = Linalg.inv Dense.(sub (eye nq) q) in
+      let absorption = Dense.(dot qstar r) in
+      let pstar = Sparse.reset p; p in
+      for i = 0 to n-1 do
+        let i = swap.(i) in
+        if i >= nq then
+          Sparse.set pstar i i 1.0
+        else
+          for j = 0 to n-1 do
+            let j = swap.(j) in
+            if j >= nq then
+              Dense.get absorption i (j-nq)
+              |> Sparse.set pstar i j
+          done
+      done; *)
+      m
+      [@@warning "-8"] (* accept inexhaustive pattern match *)
 
 end
 
