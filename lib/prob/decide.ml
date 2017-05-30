@@ -19,7 +19,7 @@ let time f =
 let print_time time =
   printf "time: %.4f\n" time
 
-let run ?(print=true) ?(lbl=true) p =
+let run ?(print=true) ?(lbl=true) ?(transpose=false) p =
   printf "\n========================= EIGEN ==========================\n\n%!";
   fprintf fmt "policy = %a\n\n%!" pp_policy p;
   let dom = domain p in
@@ -33,7 +33,7 @@ let run ?(print=true) ?(lbl=true) p =
     fprintf fmt "\n%!";
   end;
   let (t, mc) = time (fun () -> Mc.of_pol p) in
-  if print then begin Sparse.to_dense mc |>
+  if print then begin (if transpose then Sparse.transpose else ident) mc |> Sparse.to_dense |>
     Format.printf "@[MATRIX:@\n%a@\n@]@."
       (if not lbl then Owl_pretty.pp_fmat else
          Owl_pretty.pp_labeled_fmat 

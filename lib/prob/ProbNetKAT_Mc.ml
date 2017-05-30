@@ -184,7 +184,13 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
         | M x -> Mat.axpy ~alpha:(Prob.to_float r) x y);
       M y
     | Ite (a,p,q) ->
-      failwith "todo"
+      begin match of_pol a, of_pol p, of_pol q with
+      | V a, (M p as m), M q ->
+        Mat.scal_rows a p;
+        Mat.scal_rows (Vec.map (fun f -> 1.0 -. f) a) q;
+        Mat.axpy q p;
+        m
+      end
     | While(a,p) ->
       failwith "todo"
 
