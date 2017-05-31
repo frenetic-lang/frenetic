@@ -4,9 +4,6 @@
     - this should work!
     - -> done!
 * Instead of using one global domain, refine domain during matrix compilation?
-* more efficient predicate encoding!
-    - arrays?
-    - decision diagramms?
 * local fields can help with state space explosion!
     - erased once they go out of scope
 
@@ -18,6 +15,6 @@ BLAS (lacaml):
 
 
 # TODO:
-* predicates (need at least and & or)
-    - GADTs?
+* pass all arguments explicit (-> less computation)
+* carefully examine allocation
 * parser
