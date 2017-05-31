@@ -180,7 +180,10 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
     | Choice ps ->
       let y = Mat.make0 n n in
       List.iter ps ~f:(fun (p,r) -> match of_pol p with
-        | V _ -> assert false (* FIXME: actually, this can happen! *)
+        | V x ->
+          for i = 1 to n do
+            y.{i,i} <- y.{i,i} +. (Prob.to_float r) *. x.{i}
+          done
         | M x -> Mat.axpy ~alpha:(Prob.to_float r) x y);
       M y
     | Ite (a,p,q) ->
@@ -218,6 +221,9 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
          swap.(i) = new index of ith packet
       *)
       let swap = Lacaml.Common.create_int32_vec n in
+      for i = 1 to n do
+        swap.{i} <- Int32.of_int_exn i
+      done;
       (* Scan packets from left and right ends of [1, ..., n-]. If we find packets
          left < right such that left does not satisfy a, but right does, we
          swap them. Thus, when the loop terminates packets 1 to nq will satisfy
@@ -227,12 +233,10 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
       while !left < !right do
         (* increment left until it corresponds to a packet not satisfying a *)
         while !left < !right && a.{!left} = 1.0 do
-          swap.{!left} <- Int32.of_int_exn (!left);
           incr left
         done;
         (* decrement right until it corresponds to a packet satisfying a *)
         while !left < !right && a.{!right} = 0.0 do
-          swap.{!right} <- Int32.of_int_exn (!right);
           decr right
         done;
         if !left < !right then begin
@@ -242,28 +246,30 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
           decr right;
         end
       done;
-      if !left = !right then swap.{!left} <- Int32.of_int_exn (!left);
       let nq = if a.{!left} = 1.0 then !left else !left - 1 in
       let nr = n - nq in
 
       (* forward and backward swapping is actually the same for our permutation;
          in particular, swap o swap = id *)
-      laswp p swap;
-      lapmt p swap;
+      let () = laswp p swap in
+      let () = lapmt p swap in
       let absorption = Mat.make0 n n in
       for i = nq+1 to n do
         absorption.{i,i} <- 1.0
       done;
 
       (* calculate pstar *)
-      getri ~n:nq p;
+      for i = 1 to nq do
+        p.{i,i} <- 1.0 -. p.{i,i}
+      done;
+      getri ~n:nq ~ar:1 ~ac:1 p;
       let _ = gemm ~m:nr ~n:nq ~k:nq ~c:absorption ~cr:(nq+1) ~cc:1 p ~ar:(nq+1) ~ac:1 p ~br:1 ~bc:1 in
 
       (* unswap *)
-      laswp p swap;
-      lapmt p swap;
+      laswp absorption swap;
+      lapmt absorption swap;
 
-      m
+      M absorption
       [@@warning "-8"] (* accept inexhaustive pattern match *)
 
 end

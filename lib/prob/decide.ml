@@ -102,7 +102,10 @@ let () = begin
     ?@[ !!("f", 1) @ 1//2; !!("f", 2) @ 1//2] >>
     ite ??("f", 1)  !!("g", 1) !!("g", 2)
   in
-  Sparse.(print (eye 3));
+    let blowup n =
+    seqi n ~f:(fun i -> let l = sprintf "l%d" i in
+                ?@[ !!(l,0) @ 1//2; !!(l,1) @ 1//2])
+  in
   run skip;
   run drop;
   run (??("f", 0));
@@ -112,17 +115,21 @@ let () = begin
   run (pwhile 100_000_000);
   try run pwhile' with e -> printf "%s\n" (Exn.to_string e);
   run dependent;
-
-  let blowup n =
-    seqi n ~f:(fun i -> let l = sprintf "l%d" i in
-                ?@[ !!(l,0) @ 1//2; !!(l,1) @ 1//2])
-  in
   run (blowup 3);
   (* run (blowup 10) ~print:false; *)
+
   run' skip;
   run' drop;
   run' (??("f", 0));
-  run' (blowup 8) ~print:false;
+  run' (mk_while ??("f", 0) !!("f", 1));
+  run' (pwhile 10);
+  run' (pwhile 100);
+  run' (pwhile 100_000_000);
+  try run' pwhile' with e -> printf "%s\n" (Exn.to_string e);
+  run' dependent;
+  run' (blowup 3);
+  (* run (blowup 10) ~print:false; *)
+
   (* run' (mk_while ??("f", 0) !!("f", 1)); *)
 (*   let uniform =
     seqi 4 ~f:(fun i -> let l = sprintf "l%d" i in 
