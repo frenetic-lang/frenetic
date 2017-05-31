@@ -172,10 +172,10 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
     | Seq (p,q) ->
       (** we're using *left*-stochastic matrices, so we need to swap before multiplying *)
       begin match of_pol p, of_pol q with
-      | V p, V q -> V (Vec.mul p q)
+      | V p, V q -> V (Vec.mul q p)
       | M p, M q -> M (gemm q p)
-      | (M p as m), V q -> Mat.scal_cols p q; m
-      | V p, (M q as m) -> Mat.scal_rows p q; m
+      | (M p as m), V q -> Mat.scal_rows q p; m
+      | V p, (M q as m) -> Mat.scal_cols q p; m
       end
     | Choice ps ->
       let y = Mat.make0 n n in
@@ -217,7 +217,7 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
 
          swap.(i) = new index of ith packet
       *)
-      let swap = Array.init (n+1) (fun i -> i) in
+      let swap = Lacaml.Common.create_int32_vec n in
       (* Scan packets from left and right ends of [1, ..., n-]. If we find packets
          left < right such that left does not satisfy a, but right does, we
          swap them. Thus, when the loop terminates packets 1 to nq will satisfy
@@ -227,49 +227,42 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
       while !left < !right do
         (* increment left until it corresponds to a packet not satisfying a *)
         while !left < !right && a.{!left} = 1.0 do
+          swap.{!left} <- Int32.of_int_exn (!left);
           incr left
         done;
         (* decrement right until it corresponds to a packet satisfying a *)
         while !left < !right && a.{!right} = 0.0 do
+          swap.{!right} <- Int32.of_int_exn (!right);
           decr right
         done;
         if !left < !right then begin
-          swap.(!left) <- !right;
-          swap.(!right) <- !left;
+          swap.{!left} <- Int32.of_int_exn (!right);
+          swap.{!right} <- Int32.of_int_exn (!left);
           incr left;
           decr right;
         end
       done;
+      if !left = !right then swap.{!left} <- Int32.of_int_exn (!left);
       let nq = if a.{!left} = 1.0 then !left else !left - 1 in
       let nr = n - nq in
 
-      (* extract q and r from p *)
-(*       let q = Dense.zeros nq nq and r = Dense.zeros nq nr in
-      let () = Sparse.iteri_nz (fun i j v ->
-        let i = swap.(i) and j = swap.(j) in
-        if i < nq && j < nq then
-          Dense.set q i j v
-        else if i < nq && j >= nq then
-          Dense.set r i (j-nq) v)
-        p
-      in
+      (* forward and backward swapping is actually the same for our permutation;
+         in particular, swap o swap = id *)
+      laswp p swap;
+      lapmt p swap;
+      let absorption = Mat.make0 n n in
+      for i = nq+1 to n do
+        absorption.{i,i} <- 1.0
+      done;
 
-      (* calculate absorption probabilities *)
-      let qstar = Linalg.inv Dense.(sub (eye nq) q) in
-      let absorption = Dense.(dot qstar r) in
-      let pstar = Sparse.reset p; p in
-      for i = 0 to n-1 do
-        let i = swap.(i) in
-        if i >= nq then
-          Sparse.set pstar i i 1.0
-        else
-          for j = 0 to n-1 do
-            let j = swap.(j) in
-            if j >= nq then
-              Dense.get absorption i (j-nq)
-              |> Sparse.set pstar i j
-          done
-      done; *)
+      (* calculate pstar *)
+      getri ~n:nq p;
+      let _ = gemm ~m:nr ~n:nq ~k:nq ~c:absorption ~cr:(nq+1) ~cc:1 p ~ar:(nq+1) ~ac:1 p ~br:1 ~bc:1 in
+
+      (* unswap *)
+      laswp p swap;
+      lapmt p swap;
+
       m
       [@@warning "-8"] (* accept inexhaustive pattern match *)
 
