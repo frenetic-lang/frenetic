@@ -1,20 +1,24 @@
 ## IDEAS
-
-* Use sub-stochastic matrices instead of stochastic ones?
-    - this should work!
-    - -> done!
+* sparse matrix inversion:
+    - https://stackoverflow.com/questions/25929311/how-can-i-calculate-inverse-of-sparse-matrix-in-eigen-library
 * Instead of using one global domain, refine domain during matrix compilation?
 * local fields can help with state space explosion!
     - erased once they go out of scope
+* exploit independence for better performance?
+    - analyze blowup example
 
+
+
+# TODO:
+* carefully examine allocation!
+* pass all arguments explicit (-> less computation)
+* parser
+
+# OLD
+* Use sub-stochastic matrices instead of stochastic ones?
+    - this should work!
+    - -> done!
 
 BLAS (lacaml):
 * predicates = vectors
 * not a = 1 - a
-* convert to polish notation, allocate matrices ahead of time
-
-
-# TODO:
-* pass all arguments explicit (-> less computation)
-* carefully examine allocation
-* parser
