@@ -116,7 +116,7 @@ let () = begin
   try run pwhile' with e -> printf "%s\n" (Exn.to_string e);
   run dependent;
   run (blowup 3);
-  (* run (blowup 10) ~print:false; *)
+  run (blowup 9) ~print:false;
 
   run' skip;
   run' drop;
@@ -128,7 +128,7 @@ let () = begin
   try run' pwhile' with e -> printf "%s\n" (Exn.to_string e);
   run' dependent;
   run' (blowup 3);
-  (* run (blowup 10) ~print:false; *)
+  run' (blowup 7) ~print:false;
 
   (* run' (mk_while ??("f", 0) !!("f", 1)); *)
 (*   let uniform =
