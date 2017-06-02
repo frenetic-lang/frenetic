@@ -102,7 +102,7 @@ let () = begin
     ?@[ !!("f", 1) @ 1//2; !!("f", 2) @ 1//2] >>
     ite ??("f", 1)  !!("g", 1) !!("g", 2)
   in
-    let blowup n =
+  let blowup n =
     seqi n ~f:(fun i -> let l = sprintf "l%d" i in
                 ?@[ !!(l,0) @ 1//2; !!(l,1) @ 1//2])
   in
