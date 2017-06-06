@@ -73,33 +73,39 @@ let sexp_of_bytes s =
   done;
   Sexp.Atom (Buffer.contents buf)
 
-type bytes = Cstruct.t
+module Types = struct
+  open Core
 
-type int8 = int [@@deriving sexp, compare]
+  type bytes = Cstruct.t
 
-type int16 = int [@@deriving sexp, compare]
+  type int8 = int [@@deriving sexp, compare]
 
-type int48 = int64 [@@deriving sexp, compare]
+  type int16 = int [@@deriving sexp, compare]
 
-type dlAddr = int48 [@@deriving sexp, compare]
+  type int48 = int64 [@@deriving sexp, compare]
 
-type dlTyp = int16 [@@deriving sexp, compare]
+  type dlAddr = int48 [@@deriving sexp, compare]
 
-type dlVlan = int16 option [@@deriving sexp, compare]
+  type dlTyp = int16 [@@deriving sexp, compare]
 
-type dlVlanPcp = int8 [@@deriving sexp, compare]
+  type dlVlan = int16 option [@@deriving sexp, compare]
 
-type dlVlanDei = bool [@@deriving sexp, compare]
+  type dlVlanPcp = int8 [@@deriving sexp, compare]
 
-type nwAddr = int32 [@@deriving sexp, compare]
+  type dlVlanDei = bool [@@deriving sexp, compare]
 
-type nwProto = int8 [@@deriving sexp, compare]
+  type nwAddr = int32 [@@deriving sexp, compare]
 
-type nwTos = int8 [@@deriving sexp, compare]
+  type nwProto = int8 [@@deriving sexp, compare]
 
-type ipv6Addr = int64*int64 [@@deriving sexp, compare]
+  type nwTos = int8 [@@deriving sexp, compare]
 
-type tpPort = int16 [@@deriving sexp, compare]
+  type ipv6Addr = int64*int64 [@@deriving sexp, compare]
+
+  type tpPort = int16 [@@deriving sexp, compare]
+end
+
+include Types
 
 module Tcp = struct
 

@@ -106,6 +106,10 @@ let () = begin
     seqi n ~f:(fun i -> let l = sprintf "l%d" i in
                 ?@[ !!(l,0) @ 1//2; !!(l,1) @ 1//2])
   in
+
+  let kfail n k =
+    failwith "todo"
+  in
   run skip;
   run drop;
   run (??("f", 0));

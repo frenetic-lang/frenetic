@@ -6,6 +6,7 @@
     - erased once they go out of scope
 * exploit independence for better performance?
     - analyze blowup example
+* sometimes all rows are the same
 
 
 

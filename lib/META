@@ -1,37 +1,14 @@
 # OASIS_START
-# DO NOT EDIT (digest: d2ef86454616396aaa2097e17e7f647a)
+# DO NOT EDIT (digest: ade7ec94ac9cc02d9ca4e9e66209b627)
 version = "4.0.0"
 description = "The Frenetic Compiler and Runtime System"
 requires =
-"base64 core cstruct cstruct.ppx ocamlgraph str tcpip yojson ipaddr ppx_import sedlex menhirLib threads compiler-libs.common"
-archive(byte) = "frenetic.cma"
-archive(byte, plugin) = "frenetic.cma"
-archive(native) = "frenetic.cmxa"
-archive(native, plugin) = "frenetic.cmxs"
-exists_if = "frenetic.cma"
-package "test" (
- version = "4.0.0"
- description = "The Frenetic Compiler and Runtime System"
- requires = "frenetic quickcheck"
- archive(byte) = "test_frenetic.cma"
- archive(byte, plugin) = "test_frenetic.cma"
- archive(native) = "test_frenetic.cmxa"
- archive(native, plugin) = "test_frenetic.cmxs"
- exists_if = "test_frenetic.cma"
-)
-
-
-package "async" (
- version = "4.0.0"
- description = "The Frenetic Compiler and Runtime System"
- requires =
- "async cohttp cohttp.async core cstruct cstruct.async frenetic mparser mparser.re ppx_sexp_conv str"
- archive(byte) = "async.cma"
- archive(byte, plugin) = "async.cma"
- archive(native) = "async.cmxa"
- archive(native, plugin) = "async.cmxs"
- exists_if = "async.cma"
-)
+"base64 core ppx_deriving ppx_deriving.eq ppx_deriving.enum ppx_deriving.show ppx_compare ppx_sexp_conv ppx_import cstruct cstruct.ppx ocamlgraph str tcpip yojson ipaddr compiler-libs.common"
+archive(byte) = "topology.cma"
+archive(byte, plugin) = "topology.cma"
+archive(native) = "topology.cmxa"
+archive(native, plugin) = "topology.cmxs"
+exists_if = "topology.cma"
 # OASIS_STOP
 
 
