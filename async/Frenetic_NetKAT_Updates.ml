@@ -1,6 +1,6 @@
 (* TODO: Currently Unused.  See Frenetic_OpenFlow0x01_Controller for Future Directions *)
 
-open Core.Std
+open Core
 open Async.Std
 
 module OF10 = Frenetic_OpenFlow0x01

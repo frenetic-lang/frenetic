@@ -1,6 +1,6 @@
 module INRIASys = Sys
 
-open Core.Std
+open Core
 open Async.Std
 open Printf
 open Frenetic_Packet
@@ -48,7 +48,7 @@ let (pkt_out : to_sw Pipe.Reader.t), (defer : to_sw option -> unit) =
   | Some to_sw -> Pipe.write_without_pushback w to_sw
                                               
 let munge_exns ?(name="munge_exns") thunk =
-  let open Core.Std in
+  let open Core in
   Monitor.try_with ~name (fun () -> return (thunk ()))
   >>> function
   | Ok () -> ()

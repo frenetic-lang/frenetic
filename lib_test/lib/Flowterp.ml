@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 module HVSet = Set.Make(struct
   open Frenetic_NetKAT_Semantics
@@ -72,7 +72,7 @@ module Headers = struct
         end
 
   let eval_par port (hdrs : HeadersValues.t) (par : par) : HVSet.t =
-    let open Core.Std in
+    let open Core in
     List.fold par ~init:HVSet.empty ~f:(fun acc actions ->
       HVSet.add acc (List.fold actions ~init:hdrs ~f:(eval_action port)))
 
@@ -113,7 +113,7 @@ module Packet = struct
       (pkt : Frenetic_NetKAT_Semantics.packet)
       (flow : Frenetic_OpenFlow.flow)
     : PacketSet.t option =
-    let open Core.Std in
+    let open Core in
     Option.map (Headers.eval_flow port pkt.Frenetic_NetKAT_Semantics.headers flow) (of_hv_set pkt)
 
   let eval

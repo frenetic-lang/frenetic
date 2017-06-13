@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Async.Std
 
 (** A node in a dynamic dataflow graph that receives values of type 'b and

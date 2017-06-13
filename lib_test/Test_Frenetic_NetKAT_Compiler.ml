@@ -203,7 +203,7 @@ let%test "expand_rules" =
        flow Pattern.match_all [a]]
 
 module FromPipe = struct
-  open Core.Std
+  open Core
 
   module PipeSet = Set.Make(struct
     type t = string [@@deriving sexp]
