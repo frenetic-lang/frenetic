@@ -3,8 +3,8 @@ open Frenetic_NetKAT_FabricGen
 open Frenetic_NetKAT_Optimize
 open Frenetic_NetKAT_Pretty
 
-module Tbl = Core.Std.Hashtbl.Poly
-module Sexp = Core.Std.Sexp
+module Tbl = Core.Hashtbl.Poly
+module Sexp = Core.Sexp
 
 module Make(FG:FABRIC_GEN) =
 struct

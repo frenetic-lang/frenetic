@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_Fdd
 open Frenetic_NetKAT
 
@@ -491,7 +491,7 @@ let field_order_from_string = function
     |> List.map ~f:Field.of_string in
    let compose f g x = f (g x) in
    let curr_order = Field.all in
-   let removed = List.filter curr_order (compose not (List.mem ls)) in
+   let removed = List.filter curr_order ~f:(compose not (List.mem ~equal:(=) ls)) in
    (* Tags all specified Fields at the highest priority *)
    let new_order = List.append (List.rev ls) removed in
    (`Static new_order)
@@ -734,7 +734,7 @@ module Automaton = struct
 
   let lex_sort (t0 : t0) =
     let rec loop acc stateId =
-      if List.mem acc stateId then acc else
+      if List.mem ~equal:(=) acc stateId then acc else
       let init = stateId :: acc in
       let (_,d) = Lazy.force (Tbl.find_exn t0.states stateId) in
       Set.fold (FDD.conts d) ~init ~f:loop
@@ -1028,7 +1028,7 @@ let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
     | Leaf _ -> 
        t :: subtrees
     | Branch ((field, _), tru, fls) ->
-      if (List.mem table field) then
+      if (List.mem ~equal:(=) table field) then
         t :: subtrees
       else
         subtrees_for_table table tru subtrees

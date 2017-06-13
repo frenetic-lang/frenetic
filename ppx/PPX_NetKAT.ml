@@ -1,6 +1,5 @@
-open Ppx_core.Std
+open Ppx_core
 open Parsetree
-
 module Lexer = Frenetic_NetKAT_Lexer
 module Parser = PPX_NetKAT_Parser
 

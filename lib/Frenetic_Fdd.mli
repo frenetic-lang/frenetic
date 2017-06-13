@@ -17,7 +17,7 @@
   using the full well-established theory of BDD's.
 *)
 
-open Core.Std
+open Core
 
 module Field : sig
 
@@ -53,7 +53,7 @@ module Field : sig
     | TCPSrcPort
     | TCPDstPort
     | VFabric
-    [@@deriving sexp, enumerate, enum]
+    [@@deriving sexp, enumerate]
   type field = t
   include Frenetic_Vlr.HashCmp with type t := t
 

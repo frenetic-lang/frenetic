@@ -15,7 +15,7 @@
 #define BOTH(arg) AST(arg) PPX(arg)
 
 %{
-open Core.Std
+open Core
 open Frenetic_NetKAT
 #ifdef MAKE_PPX
 open Parsetree

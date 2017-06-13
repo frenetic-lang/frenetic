@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 type xid = Int32.t [@@deriving sexp]
 
