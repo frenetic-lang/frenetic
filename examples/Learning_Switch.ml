@@ -1,4 +1,4 @@
-open Async.Std
+open Async
 open Core
 
 open Frenetic_OpenFlow0x01

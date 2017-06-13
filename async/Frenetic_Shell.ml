@@ -1,5 +1,5 @@
 open Core
-open Async.Std
+open Async
 open Frenetic_NetKAT
 
 module Controller = Frenetic_NetKAT_Controller.Make(Frenetic_OpenFlow0x01_Plugin)

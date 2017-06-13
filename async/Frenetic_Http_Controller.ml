@@ -1,5 +1,5 @@
 open Core
-open Async.Std
+open Async
 open Cohttp_async
 open Frenetic_NetKAT
 open Frenetic_Common

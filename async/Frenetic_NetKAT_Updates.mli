@@ -1,7 +1,7 @@
 (* TODO: Currently Unused.  See Frenetic_OpenFlow0x01_Controller for Future Directions *)
 
 open Core
-open Async.Std
+open Async
 
 module Net = Frenetic_NetKAT_Net.Net
 module SDN = Frenetic_OpenFlow

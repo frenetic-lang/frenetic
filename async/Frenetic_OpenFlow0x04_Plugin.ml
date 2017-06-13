@@ -1,5 +1,5 @@
 open Core
-open Async.Std
+open Async
 module Log = Frenetic_Log
 
 (* Marshal and send a message to the switch *)

@@ -1,4 +1,4 @@
-open Async.Std
+open Async
 open Core
 
 open OpenFlow0x04

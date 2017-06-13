@@ -1,5 +1,5 @@
 open Core
-open Async.Std
+open Async
 
 module Log = Log.Make_global ()
 include Log

@@ -1,7 +1,7 @@
 module INRIASys = Sys
 
 open Core
-open Async.Std
+open Async
 open Printf
 open Frenetic_Packet
 open Frenetic_OpenFlow_Header

@@ -1,5 +1,5 @@
 open Core
-open Async.Std
+open Async
 open Frenetic_OpenFlow0x01
 module Log = Frenetic_Log
 module ToGeneric = Frenetic_OpenFlow.From0x01

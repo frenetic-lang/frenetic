@@ -1,5 +1,5 @@
 open Core
-open Async.Std
+open Async
 open Frenetic_NetKAT
 
 let initial_policy : policy = <:netkat<drop>>

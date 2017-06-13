@@ -1,5 +1,5 @@
 open Core
-open Async.Std
+open Async
 
 (** A node in a dynamic dataflow graph that receives values of type 'b and
  * produces values of type 'a. *)
