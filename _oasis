@@ -62,7 +62,8 @@ Executable decide
     ppx_sexp_conv,
     zarith,
     lacaml,
-    owl
+    owl,
+    topology
   MainIs: decide.ml
   CompiledObject: native
   Install: false

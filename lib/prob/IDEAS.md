@@ -7,6 +7,7 @@
 * exploit independence for better performance?
     - analyze blowup example
 * sometimes all rows are the same
+* solve kleene star one connected component at a time
 
 
 
