@@ -70,23 +70,23 @@ let handle_request
   Log.info "%s %s" (Cohttp.Code.string_of_method request.meth)
     (Uri.path (Request.uri request));
   match request.meth, extract_path request with
-    | `GET, ["version"] -> Server.respond_with_string "4"
+    | `GET, ["version"] -> Server.respond_string "4"
     | `GET, ["port_stats"; switch_id; port_id] ->
        port_stats (Int64.of_string switch_id) (Int32.of_string port_id)
        >>= fun portStats ->
-       Server.respond_with_string (Frenetic_NetKAT_Json.port_stat_to_json_string portStats)
+       Server.respond_string (Frenetic_NetKAT_Json.port_stat_to_json_string portStats)
     | `GET, ["current_switches"] ->
       switches () >>= fun switches ->
-      Server.respond_with_string (current_switches_to_json_string switches)
+      Server.respond_string (current_switches_to_json_string switches)
     | `GET, ["query"; name] ->
        (* TODO: check if query exists *)
        query name
        >>= fun stats ->
-       Server.respond_with_string (Frenetic_NetKAT_Json.stats_to_json_string stats)
+       Server.respond_string (Frenetic_NetKAT_Json.stats_to_json_string stats)
     (* begin *)
     (*   Log.info "query %s is not defined in the current policy" name; *)
     (*   let headers = Cohttp.Header.init_with "X-Query-Not-Defined" "true" in *)
-    (*   Server.respond_with_string ~headers *)
+    (*   Server.respond_string ~headers *)
     (*     (Frenetic_NetKAT_Json.stats_to_json_string (0L, 0L)) *)
     (* end *)
     | `GET, [clientId; "event"] ->
@@ -95,7 +95,7 @@ let handle_request
       Pipe.read curr_client.event_reader
       >>= (function
       | `Eof -> assert false
-      | `Ok response -> Server.respond_with_string response)
+      | `Ok response -> Server.respond_string response)
     | `POST, ["pkt_out"] ->
       handle_parse_errors' body
         (fun str ->
@@ -124,7 +124,7 @@ let handle_request
     | `GET, ["config"] ->
        printf "GET /config";
        Comp.options_to_json_string !current_compiler_options |>
-       Cohttp_async.Server.respond_with_string
+       Cohttp_async.Server.respond_string
      | _, _ ->
       Log.error "Unknown method/path (404 error)";
       Cohttp_async.Server.respond `Not_found

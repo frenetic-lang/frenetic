@@ -26,7 +26,7 @@ let compile_respond pol =
   let resp = Yojson.Basic.to_string ~std:true (`List json_tbls) in
   let headers = Cohttp.Header.init_with
   "X-Compile-Time" (Float.to_string time) in
-  Cohttp_async.Server.respond_with_string ~headers resp
+  Cohttp_async.Server.respond_string ~headers resp
 
 let handle_request
   ~(body : Cohttp_async.Body.t)
@@ -55,7 +55,7 @@ let handle_request
          Comp.to_table ~options:!current_compiler_options sw |>
          Frenetic_NetKAT_Json.flowTable_to_json |>
          Yojson.Basic.to_string ~std:true |>
-         Cohttp_async.Server.respond_with_string
+         Cohttp_async.Server.respond_string
     | `POST, ["config"] ->
        printf "POST /config";
        handle_parse_errors body parse_config_json
@@ -63,7 +63,7 @@ let handle_request
     | `GET, ["config"] ->
        printf "GET /config";
        Comp.options_to_json_string !current_compiler_options |>
-       Cohttp_async.Server.respond_with_string
+       Cohttp_async.Server.respond_string
     | _, _ ->
        printf "Malformed request from cilent";
        Cohttp_async.Server.respond `Not_found
