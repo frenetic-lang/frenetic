@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: cec4286f549c0c9cc34d4200f903a721)
+# DO NOT EDIT (digest: f672378f3b6751c138819b60b9c4783b)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -14,25 +14,6 @@ true: annot, bin_annot
 ".git": not_hygienic
 "_darcs": -traverse
 "_darcs": not_hygienic
-# Library topology
-"lib/topology.cmxs": use_topology
-<lib/*.ml{,i,y}>: package(base64)
-<lib/*.ml{,i,y}>: package(compiler-libs.common)
-<lib/*.ml{,i,y}>: package(core)
-<lib/*.ml{,i,y}>: package(cstruct)
-<lib/*.ml{,i,y}>: package(cstruct.ppx)
-<lib/*.ml{,i,y}>: package(ipaddr)
-<lib/*.ml{,i,y}>: package(ocamlgraph)
-<lib/*.ml{,i,y}>: package(ppx_compare)
-<lib/*.ml{,i,y}>: package(ppx_deriving)
-<lib/*.ml{,i,y}>: package(ppx_deriving.enum)
-<lib/*.ml{,i,y}>: package(ppx_deriving.eq)
-<lib/*.ml{,i,y}>: package(ppx_deriving.show)
-<lib/*.ml{,i,y}>: package(ppx_import)
-<lib/*.ml{,i,y}>: package(ppx_sexp_conv)
-<lib/*.ml{,i,y}>: package(str)
-<lib/*.ml{,i,y}>: package(tcpip)
-<lib/*.ml{,i,y}>: package(yojson)
 # Executable decide
 "lib/prob/decide.native": package(core)
 "lib/prob/decide.native": package(lacaml)

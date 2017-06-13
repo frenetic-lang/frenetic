@@ -23,30 +23,30 @@ XOCamlbuildExtraArgs:
   # see https://caml.inria.fr/pub/docs/manual-ocaml/native.html
   -cflags -w,@5+8@11@12-40,-short-paths
 
-Library topology
-   Path: lib
-   Findlibname: topology
-   BuildDepends:
-     base64 (>= 2.0.0),
-     core,
-     ppx_deriving,
-     ppx_deriving.eq,
-     ppx_deriving.enum,
-     ppx_deriving.show,
-     ppx_compare,
-     ppx_sexp_conv,
-     ppx_import,
-     cstruct,
-     cstruct.ppx,
-     ocamlgraph (>= 1.8.7),
-     str,
-     tcpip,
-     yojson,
-     ipaddr,
-     compiler-libs.common
-   Modules:
-     Frenetic_Network,
-     Frenetic_Topology
+## Library topology
+##    Path: lib
+##    Findlibname: topology
+##    BuildDepends:
+##      base64 (>= 2.0.0),
+##      core,
+##      ppx_deriving,
+##      ppx_deriving.eq,
+##      ppx_deriving.enum,
+##      ppx_deriving.show,
+##      ppx_compare,
+##      ppx_sexp_conv,
+##      ppx_import,
+##      cstruct,
+##      cstruct.ppx,
+##      ocamlgraph (>= 1.8.7),
+##      str,
+##      tcpip,
+##      yojson,
+##      ipaddr,
+##      compiler-libs.common
+##    Modules:
+##      Frenetic_Network,
+##      Frenetic_Topology
 
 
 Executable decide
@@ -62,8 +62,8 @@ Executable decide
     ppx_sexp_conv,
     zarith,
     lacaml,
-    owl,
-    topology
+    owl
+    # topology
   MainIs: decide.ml
   CompiledObject: native
   Install: false
