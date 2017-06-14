@@ -86,7 +86,7 @@ module Make (P:PLUGIN) : CONTROLLER = struct
       (Hashtbl.Poly.keys switch_hash) 
       ~f:(fun sw_id ->
         let pats = List.filter_map (get_table sw_id) ~f:(fun (flow, names) ->
-          if List.mem names name then
+          if List.mem names name ~equal:String.equal then
             Some flow.pattern
           else
             None) in

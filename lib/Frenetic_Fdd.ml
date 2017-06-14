@@ -66,6 +66,8 @@ module Field = struct
     (* using Obj.magic instead of to_enum for bettter performance *)
     Int.compare order.(Obj.magic x) order.(Obj.magic y)
 
+  let equal x y = x = y
+
   module type ENV = sig
     type t
     val empty : t

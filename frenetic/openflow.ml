@@ -299,6 +299,6 @@ let run =
                                                
        in
        ignore (main ());
-       Core.Std.never_returns (Async.Std.Scheduler.go ()))
+       Core.never_returns (Async.Scheduler.go ()))
 
 let _ = Command.run ~version:"1.0" ~build_info:"RWO" run

@@ -2,7 +2,7 @@ open Frenetic_OpenFlow
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Pretty
 open Frenetic_NetKAT_Compiler
-module Exn = Core.Std.Exn
+module Exn = Core.Exn
 
 let%test "Can test locations, even when they are set to pipes" =
   let p = Filter (Test (Location (Pipe "web"))) in

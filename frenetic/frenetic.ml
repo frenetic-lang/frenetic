@@ -4,7 +4,7 @@ open Core
 (* AUXILLIARY FUNCTIONS                                                      *)
 (*===========================================================================*)
 
-let verbosity_levels : Async.Std.Log.Level.t Command.Spec.Arg_type.t =
+let verbosity_levels : Async.Log.Level.t Command.Spec.Arg_type.t =
   Command.Spec.Arg_type.create
     (function
       | "info" -> `Info
@@ -15,14 +15,14 @@ let verbosity_levels : Async.Std.Log.Level.t Command.Spec.Arg_type.t =
         exit 1)
 
 let default_log_device =
-  ("stderr", lazy (Async_extended.Extended_log.Console.output (Lazy.force Async.Std.Writer.stderr)))
+  ("stderr", lazy (Async_extended.Extended_log.Console.output (Lazy.force Async.Writer.stderr)))
 
-let log_outputs : (string * Async.Std.Log.Output.t Lazy.t) Command.Spec.Arg_type.t =
+let log_outputs : (string * Async.Log.Output.t Lazy.t) Command.Spec.Arg_type.t =
   Command.Spec.Arg_type.create
     (function
       | "stderr" -> default_log_device
-      | "stdout" -> ("stdout", lazy (Async_extended.Extended_log.Console.output (Lazy.force Async.Std.Writer.stdout)))
-      | filename -> (filename, lazy (Async.Std.Log.Output.file `Text filename)) )
+      | "stdout" -> ("stdout", lazy (Async_extended.Extended_log.Console.output (Lazy.force Async.Writer.stdout)))
+      | filename -> (filename, lazy (Async.Log.Output.file `Text filename)) )
 
 let table_fields : Frenetic_NetKAT_Compiler.flow_layout Command.Spec.Arg_type.t =
   let open Frenetic_Fdd.Field in
@@ -37,7 +37,7 @@ let table_fields : Frenetic_NetKAT_Compiler.flow_layout Command.Spec.Arg_type.t 
       (* Break each string of fields into a list of fields: [["ethsrc","ethdst"],["ipsrc","ipdst"]] *)
       let field_list_list = List.map ~f:(fun t_str -> Str.split (Str.regexp "[,]") t_str) table_list in
       (* This takes a field list [ ethsrc,ethdst ] and converts to Field.t definition *)
-      let table_to_fields = List.map ~f:(fun f_str -> List.Assoc.find_exn opts f_str) in
+      let table_to_fields = List.map ~f:(List.Assoc.find_exn opts ~equal:String.equal) in
       (* Applies the above to each table definition *)
       List.map ~f:table_to_fields field_list_list
     )
@@ -92,7 +92,7 @@ let run cmd verbosity log =
   Frenetic_Log.set_level verbosity;
   Frenetic_Log.set_output [Lazy.force log_output];
   ignore (cmd ());
-  never_returns (Async.Std.Scheduler.go ())
+  never_returns (Async.Scheduler.go ())
 
 let shell : Command.t =
   Command.basic

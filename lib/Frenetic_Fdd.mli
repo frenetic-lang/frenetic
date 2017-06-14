@@ -77,6 +77,8 @@ module Field : sig
   (** [compare f1 f2] compares two fields in the current ordering in the usual way. *)
   val compare : t -> t -> int
 
+  val equal : t -> t -> bool
+
   val hash : t -> int
 
   (** [of_hv header_value] converts a NetKAT header_value pair to a field *)

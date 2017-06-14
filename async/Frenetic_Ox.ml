@@ -71,7 +71,7 @@ module Platform = struct
     defer (Some (sw, xid, BarrierRequest))
           
   let timeout (n : float) (thk : unit -> unit) : unit = 
-    after (Core.Std.Time.Span.of_sec n)
+    after (Core.Time.Span.of_sec n)
     >>> fun () -> munge_exns thk
 end
 
@@ -148,5 +148,5 @@ module Make (Handlers:OXMODULE) = struct
             Log.error ~tags "Unexpected exception: %s\n%!"
               (Exn.to_string exn);
             exit 1);
-    Core.Std.never_returns (Async.Std.Scheduler.go ())
+    Core.never_returns (Async.Scheduler.go ())
 end
