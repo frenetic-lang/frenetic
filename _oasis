@@ -17,9 +17,7 @@ AlphaFeatures:
   ocamlbuild_more_args,
   source_patterns
 XOCamlbuildExtraArgs:
-  # SJS: importing these here ensures they are run last, after ppx_import
   -use-menhir
-  -package ppx_deriving.std
   # see https://caml.inria.fr/pub/docs/manual-ocaml/native.html
   -cflags -w,@5+8@11@12-40,-short-paths
 
@@ -54,6 +52,7 @@ Library frenetic
     tcpip,
     yojson,
     ipaddr,
+    ppx_deriving.std,
     ppx_compare,
     ppx_enumerate,
     ppx_fields_conv,
