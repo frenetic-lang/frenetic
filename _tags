@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: c80c970b141d5604a4d09ff46e18bb0a)
+# DO NOT EDIT (digest: 6142c144feb90c8a2ead398d183df5a5)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -117,6 +117,7 @@ true: annot, bin_annot
 <async/*.ml{,i,y}>: package(compiler-libs.common)
 <async/*.ml{,i,y}>: package(core)
 <async/*.ml{,i,y}>: package(cstruct)
+<async/*.ml{,i,y}>: package(cstruct-async)
 <async/*.ml{,i,y}>: package(cstruct.async)
 <async/*.ml{,i,y}>: package(cstruct.ppx)
 <async/*.ml{,i,y}>: package(ipaddr)
@@ -145,6 +146,7 @@ true: annot, bin_annot
 "frenetic/frenetic.native": package(compiler-libs.common)
 "frenetic/frenetic.native": package(core)
 "frenetic/frenetic.native": package(cstruct)
+"frenetic/frenetic.native": package(cstruct-async)
 "frenetic/frenetic.native": package(cstruct.async)
 "frenetic/frenetic.native": package(cstruct.ppx)
 "frenetic/frenetic.native": package(ipaddr)
@@ -174,6 +176,7 @@ true: annot, bin_annot
 "frenetic/openflow.native": package(compiler-libs.common)
 "frenetic/openflow.native": package(core)
 "frenetic/openflow.native": package(cstruct)
+"frenetic/openflow.native": package(cstruct-async)
 "frenetic/openflow.native": package(cstruct.async)
 "frenetic/openflow.native": package(cstruct.ppx)
 "frenetic/openflow.native": package(ipaddr)
@@ -202,6 +205,7 @@ true: annot, bin_annot
 <frenetic/*.ml{,i,y}>: package(compiler-libs.common)
 <frenetic/*.ml{,i,y}>: package(core)
 <frenetic/*.ml{,i,y}>: package(cstruct)
+<frenetic/*.ml{,i,y}>: package(cstruct-async)
 <frenetic/*.ml{,i,y}>: package(cstruct.async)
 <frenetic/*.ml{,i,y}>: package(cstruct.ppx)
 <frenetic/*.ml{,i,y}>: package(ipaddr)
@@ -253,6 +257,7 @@ true: annot, bin_annot
 "lib_test/Test.byte": package(compiler-libs.common)
 "lib_test/Test.byte": package(core)
 "lib_test/Test.byte": package(cstruct)
+"lib_test/Test.byte": package(cstruct-async)
 "lib_test/Test.byte": package(cstruct.async)
 "lib_test/Test.byte": package(cstruct.ppx)
 "lib_test/Test.byte": package(ipaddr)
@@ -283,6 +288,7 @@ true: annot, bin_annot
 <lib_test/*.ml{,i,y}>: package(compiler-libs.common)
 <lib_test/*.ml{,i,y}>: package(core)
 <lib_test/*.ml{,i,y}>: package(cstruct)
+<lib_test/*.ml{,i,y}>: package(cstruct-async)
 <lib_test/*.ml{,i,y}>: package(cstruct.async)
 <lib_test/*.ml{,i,y}>: package(cstruct.ppx)
 <lib_test/*.ml{,i,y}>: package(ipaddr)

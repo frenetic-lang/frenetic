@@ -1,5 +1,5 @@
 OASISFormat: 0.4
-OCamlVersion: >= 4.03.0
+OCamlVersion: >= 4.04.0
 Name:        frenetic
 Version:     4.0.0
 Synopsis:    The Frenetic Compiler and Runtime System
@@ -47,7 +47,7 @@ Library frenetic
   BuildDepends:
     base64 (>= 2.0.0),
     core,
-    cstruct,
+    cstruct (>= 3.0.2),
     cstruct.ppx,
     ocamlgraph (>= 1.8.7),
     str,
@@ -139,6 +139,7 @@ Library async
     cohttp.async,
     core,
     cstruct,
+    cstruct-async,
     cstruct.async,
     frenetic,
     mparser,
