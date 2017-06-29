@@ -31,6 +31,7 @@ depends: [
   "async"  {>= "0.9.0"}
   "async_extended"
   "cstruct" {>= "1.0.1"}
+  "cstruct-async"
   "ipaddr" {>= "2.5.0"}
   "yojson" {>= "1.2.0"}
   "base64" {>= "2.0.0"}
