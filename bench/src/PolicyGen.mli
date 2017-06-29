@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_NetKAT
 
 module Net = Frenetic_Network.Net

@@ -1,5 +1,5 @@
-open Async.Std
-open Core.Std
+open Async
+open Core
 
 open Frenetic_OpenFlow0x01
 open Frenetic_OpenFlow0x01.Message

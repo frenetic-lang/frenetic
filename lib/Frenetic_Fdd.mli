@@ -17,7 +17,7 @@
   using the full well-established theory of BDD's.
 *)
 
-open Core.Std
+open Core
 
 module Field : sig
 
@@ -53,7 +53,7 @@ module Field : sig
     | TCPSrcPort
     | TCPDstPort
     | VFabric
-    [@@deriving sexp, enumerate, enum]
+    [@@deriving sexp, enumerate]
   type field = t
   include Frenetic_Vlr.HashCmp with type t := t
 
@@ -76,6 +76,8 @@ module Field : sig
 
   (** [compare f1 f2] compares two fields in the current ordering in the usual way. *)
   val compare : t -> t -> int
+
+  val equal : t -> t -> bool
 
   val hash : t -> int
 

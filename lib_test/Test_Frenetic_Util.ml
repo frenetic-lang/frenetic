@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_Util
 
 let%test "make_string_of applies a formatter to a type and returns a string" = 

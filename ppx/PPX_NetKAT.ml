@@ -1,6 +1,7 @@
-open Ppx_core.Std
-open Parsetree
+open Core
+open Ppx_core
 
+(* open Parsetree *)
 module Lexer = Frenetic_NetKAT_Lexer
 module Parser = PPX_NetKAT_Parser
 
@@ -9,11 +10,12 @@ let ext_keyw = "nk"
 let ext_keyw_pred = ext_keyw ^ "_pred"
 
 (** expands `s` in `let%nk x = {| s |}` *)
-let expand_nk_string ~loc ~pred s =
+let expand_nk_string ~loc ~pred s : expression =
   let pos = Location.(loc.loc_start) in
   (* string starts after '{' and '|' *)
   let pos = Lexing.{ pos with pos_cnum = pos.pos_cnum + 2 } in
   Lexer.parse_string ~ppx:true ~pos s Parser.(if pred then pred_eof else pol_eof)
+  |> Selected_ast.(of_ocaml Type.Expression)
 
 (** expands `e` in `let%nk x = e` *)
 let expand_bound_expr ~pred expr =
@@ -32,12 +34,12 @@ let expand_binding ~pred binding =
 (* expands `let%nk <bindings>` *)
 let expand_let_decl ~loc ~path:_ ~pred bindings =
   let module B = Ast_builder.Make(struct let loc = loc end) in
-  B.(pstr_value Nonrecursive (List.map (expand_binding ~pred) bindings))
+  B.(pstr_value Nonrecursive (List.map bindings ~f:(expand_binding ~pred)))
 
 (** expands `let%nk <bindings> in body` *)
 let expand_let_expr ~loc ~path:_ ~pred bindings body =
   let module B = Ast_builder.Make(struct let loc = loc end) in
-  B.(pexp_let Nonrecursive (List.map (expand_binding ~pred) bindings) body)
+  B.(pexp_let Nonrecursive (List.map bindings ~f:(expand_binding ~pred)) body)
 
 (** declare `let%nk x = e` extension *)
 let nk_ext_struct pred =

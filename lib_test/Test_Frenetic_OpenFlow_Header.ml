@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_OpenFlow_Header
 
 let%test "size returns 8 bytes" =

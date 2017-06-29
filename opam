@@ -1,6 +1,6 @@
 opam-version: "1.2"
-available: [ ocaml-version >= "4.03.0" ]
-version: "4.0.0"
+available: [ ocaml-version >= "4.04.0" ]
+version: "4.1.0"
 maintainer: "Arjun Guha <arjun@cs.umass.edu>"
 authors: "Arjun Guha <arjun@cs.umass.edu>, Nate Foster <jnfoster@cs.cornell.edu>"
 homepage: "http://frenetic-lang.org"
@@ -23,14 +23,15 @@ depends: [
   "oasis" {build}
   "cppo" {build}
   "menhir" {build}
-  "core"
+  "core"   {>= "0.9.0"}
   "ppx_jane"
   "ppx_import"
   "ppx_deriving"
   "sedlex"
-  "async"
+  "async"  {>= "0.9.0"}
   "async_extended"
   "cstruct" {>= "1.0.1"}
+  "cstruct-async"
   "ipaddr" {>= "2.5.0"}
   "yojson" {>= "1.2.0"}
   "base64" {>= "2.0.0"}

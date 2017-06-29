@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 module type HASHTYPE = sig
   type t

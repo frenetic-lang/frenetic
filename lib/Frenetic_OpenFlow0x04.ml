@@ -2,7 +2,7 @@
 
 (** OpenFlow 1.3 (protocol version 0x04) *)
 
-open Core.Std
+open Core
 open Printf
 open Cstruct
 open Cstruct.BE

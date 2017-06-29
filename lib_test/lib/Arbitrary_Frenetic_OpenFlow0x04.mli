@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_OpenFlow0x04
 
 val sample_single_action : action list

@@ -1,5 +1,5 @@
-open Core.Std
-open Async.Std
+open Core
+open Async
 open Frenetic_OpenFlow0x01
 module Log = Frenetic_Log
 module ToGeneric = Frenetic_OpenFlow.From0x01
@@ -299,6 +299,6 @@ let run =
                                                
        in
        ignore (main ());
-       Core.Std.never_returns (Async.Std.Scheduler.go ()))
+       Core.never_returns (Async.Scheduler.go ()))
 
 let _ = Command.run ~version:"1.0" ~build_info:"RWO" run

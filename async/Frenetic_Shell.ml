@@ -1,5 +1,5 @@
-open Core.Std
-open Async.Std
+open Core
+open Async
 open Frenetic_NetKAT
 
 module Controller = Frenetic_NetKAT_Controller.Make(Frenetic_OpenFlow0x01_Plugin)
@@ -180,7 +180,7 @@ let rec check_duplicates (fs : Field.t list) (acc : Field.t list) : bool =
   match fs with
   | [] -> false
   | (f::rest) ->
-     if List.mem acc f
+     if List.mem acc f ~equal:Field.equal
      then
        (printf "Invalid ordering: %s < %s" (Field.to_string f) (Field.to_string f);
 	false)
@@ -205,7 +205,7 @@ let set_order (o : Comp.order) : unit =
       | `Default -> Field.all
       | `Static fields -> fields
      in
-     let removed = List.filter curr_order (compose not (List.mem ls)) in
+     let removed = List.filter curr_order (compose not (List.mem ls ~equal:Field.equal)) in
      (* Tags all specified Fields at the highest priority *)
      let new_order = List.append (List.rev ls) removed in
      set_field_order (`Static new_order);
@@ -332,7 +332,7 @@ let rec repl () : unit Deferred.t =
 let log_file = "frenetic.log"
 
 let main (openflow_port : int) () : unit =
-  Log.set_output [Async.Std.Log.Output.file `Text log_file];
+  Log.set_output [Async.Log.Output.file `Text log_file];
   printf "Frenetic Shell v 4.0\n%!";
   printf "Type `help` for a list of commands\n%!";
   Controller.start openflow_port;

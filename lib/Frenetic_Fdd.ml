@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 module SDN = Frenetic_OpenFlow
 
@@ -66,6 +66,8 @@ module Field = struct
     (* using Obj.magic instead of to_enum for bettter performance *)
     Int.compare order.(Obj.magic x) order.(Obj.magic y)
 
+  let equal x y = x = y
+
   module type ENV = sig
     type t
     val empty : t
@@ -95,11 +97,11 @@ module Field = struct
         | 4 -> Meta4
         | _ -> raise Full
       in
-      { alist = List.Assoc.add env.alist name (field, (init, mut));
+      { alist = List.Assoc.add ~equal:(=) env.alist name (field, (init, mut));
         depth = env.depth + 1}
 
     let lookup env name =
-      List.Assoc.find_exn env.alist name
+      List.Assoc.find_exn ~equal:(=) env.alist name
   end
 
   let of_hv ?(env=Env.empty) hv = match hv with

@@ -1,5 +1,5 @@
-open Async.Std
-open Core.Std
+open Async
+open Core
 
 open OpenFlow0x04
 open OpenFlow0x04_Core

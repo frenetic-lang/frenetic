@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 open Frenetic_NetKAT
 open Frenetic_Packet
@@ -250,7 +250,7 @@ let eval_pipes (packet:packet) (pol:Frenetic_NetKAT.policy)
 let queries_of_policy (pol : policy) : string list =
   let rec loop (pol : policy) (acc : string list) : string list = match pol with
     | Mod (Location (Query str)) ->
-      if List.mem acc str then acc else str :: acc
+      if List.mem ~equal:(=) acc str then acc else str :: acc
     | Filter _ | Mod _ | Link _ | VLink _ | Dup -> acc
     | Union (p, q) | Seq (p, q) -> loop q (loop p acc)
     | Star p -> loop p acc

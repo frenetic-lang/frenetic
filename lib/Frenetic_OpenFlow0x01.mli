@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_Packet
 
 (** [Unparsable msg] signals an error in parsing, such as when a bit sequence

@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 let%test_module _ = (module struct
   open Frenetic_Fdd.Field

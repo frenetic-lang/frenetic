@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Yojson.Basic
 open Frenetic_NetKAT_Json
 

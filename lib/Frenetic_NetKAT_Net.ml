@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 module SDN = Frenetic_OpenFlow
 

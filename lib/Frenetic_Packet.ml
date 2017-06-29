@@ -1,3 +1,4 @@
+open Core
 open Sexplib
 open Sexplib.Std
 open Frenetic_Bits
@@ -16,23 +17,23 @@ let tcp_code = 0x06
 let udp_code = 0x11
 
 let bytes_of_mac (x:int64) : string =
-  let byte n = Char.chr (get_byte x n) in
+  let byte n = Char.of_int_exn (get_byte x n) in
   Format.sprintf "%c%c%c%c%c%c"
     (byte 5) (byte 4) (byte 3)
     (byte 2) (byte 1) (byte 0)
 
 let mac_of_bytes (str:string) : int64 =
-  if String.length str != 6 then
+  if String.length str <> 6 then
     raise (Invalid_argument
              (Format.sprintf "mac_of_bytes expected six-byte string, got %d
                               bytes" (String.length str)));
-  let byte n = Int64.of_int (Char.code (String.get str n)) in
+  let byte n = Int64.of_int (Char.to_int (String.get str n)) in
   let open Int64 in
-  logor (shift_left (byte 0) (8 * 5))
-    (logor (shift_left (byte 1) (8 * 4))
-       (logor (shift_left (byte 2) (8 * 3))
-          (logor (shift_left (byte 3) (8 * 2))
-             (logor (shift_left (byte 4) (8 * 1))
+  bit_or (shift_left (byte 0) Int.(8 * 5))
+    (bit_or (shift_left (byte 1) Int.(8 * 4))
+       (bit_or (shift_left (byte 2) Int.(8 * 3))
+          (bit_or (shift_left (byte 3) Int.(8 * 2))
+             (bit_or (shift_left (byte 4) Int.(8 * 1))
                 (byte 5)))))
 
 let string_of_ip (ip : Int32.t) : string =
@@ -74,7 +75,7 @@ let sexp_of_bytes s =
   Sexp.Atom (Buffer.contents buf)
 
 type bytes = Cstruct.t
-
+                      
 type int8 = int [@@deriving sexp, compare]
 
 type int16 = int [@@deriving sexp, compare]
@@ -132,7 +133,7 @@ module Tcp = struct
       let ret = bit ret 6 f.rst in
       let ret = bit ret 7 f.syn in
       let ret = bit ret 8 f.fin in
-      Int32.to_int ret
+      Int32.to_int_exn ret
 
     let of_int d =
       { ns  = test_bit 0 d
@@ -186,7 +187,7 @@ module Tcp = struct
     let offset = get_tcp_offset_flags bits in
     let offset = offset lsr 12 in
     let _ = offset land 0x0f in
-    let flags = Flags.of_int (Int32.of_int (get_tcp_offset_flags bits)) in
+    let flags = Flags.of_int (Int32.of_int_exn (get_tcp_offset_flags bits)) in
     let window = get_tcp_window bits in
     let chksum = get_tcp_chksum bits in
     let urgent = get_tcp_urgent bits in
@@ -347,7 +348,7 @@ module Dns = struct
                             let bits = Cstruct.shift bits (len + 1) in
                             if len > 0 then get_pieces bits acc
                             else acc) in
-    String.concat "." (get_pieces bits []);;
+    String.concat ~sep:"." (get_pieces bits []);;
 
   (* DNS string encoding requires 1 byte per '.' separated piece; since the
      '.' is not included, we gain 1 for the first piece, plus NULL term *)
@@ -362,7 +363,7 @@ module Dns = struct
                   Cstruct.set_uint8 bits acc len;
                   Cstruct.blit_from_string piece 0 bits (acc + 1) len;
                   (acc + len + 1)) in
-    let end_pos = List.fold_left helper 0 pieces in
+    let end_pos = List.fold_left ~f:helper ~init:0 pieces in
     Cstruct.set_uint8 bits end_pos 0; (* NULL terminator *)
     Cstruct.shift bits (end_pos + 1)
 
@@ -440,7 +441,7 @@ module Dns = struct
         raise (UnparsablePacket "not enough bytes for RR record");
       let typ = get_rr_typ bits in
       let class_ = get_rr_class_ bits in
-      let ttl = Int32.to_int (get_rr_ttl bits) in
+      let ttl = Int32.to_int_exn (get_rr_ttl bits) in
       let rdlen = get_rr_rdlen bits in
       let rdata = Cstruct.sub bits sizeof_rr rdlen in
       { name = name; typ = typ; class_ = class_;
@@ -453,7 +454,7 @@ module Dns = struct
       let bits = set_dns_name bits rr.name in
       set_rr_typ bits rr.typ;
       set_rr_class_ bits rr.class_;
-      set_rr_ttl bits (Int32.of_int rr.ttl);
+      set_rr_ttl bits (Int32.of_int_exn rr.ttl);
       let rdlen = Cstruct.len rr.rdata in
       set_rr_rdlen bits rdlen;
       Cstruct.blit rr.rdata 0 bits sizeof_rr rdlen;
@@ -475,11 +476,10 @@ module Dns = struct
   let format fmt v =
     let open Format in
     fprintf fmt "@[id=%x;flags=%x@]" v.id v.flags;
-    List.iter (Qd.format fmt) v.questions;
-    List.iter (Rr.format fmt) v.answers;
-    List.iter (Rr.format fmt) v.authority;
-    List.iter (Rr.format fmt) v.additional
-
+    List.iter ~f:(Qd.format fmt) v.questions;
+    List.iter ~f:(Rr.format fmt) v.answers;
+    List.iter ~f:(Rr.format fmt) v.authority;
+    List.iter ~f:(Rr.format fmt) v.additional
 
   [%%cstruct
   type dns= {
@@ -500,7 +500,7 @@ module Dns = struct
                           let x = pf bits in
                           offset := (!offset + lf x);
                           x) in
-    (List.map get_x indices, !offset)
+    (List.map ~f:get_x indices, !offset)
 
   let parse (bits : Cstruct.t) =
     if Cstruct.len bits < sizeof_dns then
@@ -517,7 +517,7 @@ module Dns = struct
 
   let len (pkt : t) =
     let tally = fun lfun lst ->
-                    List.fold_left (fun acc x -> acc + (lfun x)) 0 lst in
+                    List.fold_left ~f:(fun acc x -> acc + (lfun x)) ~init:0 lst in
     let qd_len = tally Qd.len pkt.questions in
     let an_len = tally Rr.len pkt.answers in
     let ns_len = tally Rr.len pkt.authority in
@@ -533,10 +533,10 @@ module Dns = struct
     set_dns_nscount bits (List.length pkt.authority);
     set_dns_arcount bits (List.length pkt.additional);
     let bits = Cstruct.shift bits sizeof_dns in
-    let bits = List.fold_left Qd.marshal bits pkt.questions in
-    let bits = List.fold_left Rr.marshal bits pkt.answers in
-    let bits = List.fold_left Rr.marshal bits pkt.authority in
-    ignore (List.fold_left Rr.marshal bits pkt.additional)
+    let bits = List.fold_left ~f:Qd.marshal ~init:bits pkt.questions in
+    let bits = List.fold_left ~f:Rr.marshal ~init:bits pkt.answers in
+    let bits = List.fold_left ~f:Rr.marshal ~init:bits pkt.authority in
+    ignore (List.fold_left ~f:Rr.marshal ~init:bits pkt.additional)
 
   let serialize (dns : t) =
     let bits = Cstruct.create (len dns) in
@@ -612,7 +612,7 @@ module Igmp3 = struct
       fprintf fmt "@[;(typ=%x;addr=%s;sources=%s)@]"
         v.typ
         (string_of_ip v.addr)
-        (String.concat "," (List.map string_of_ip v.sources))
+        (String.concat ~sep:"," (List.map ~f:string_of_ip v.sources))
 
     let parse (bits : Cstruct.t) =
       if Cstruct.len bits < sizeof_grouprec then
@@ -622,7 +622,7 @@ module Igmp3 = struct
       let addr = get_grouprec_addr bits in
       let indices = indicies_maker num_sources in
       let get_source = fun i -> Cstruct.BE.get_uint32 bits (sizeof_grouprec + ((i-1) * 4)) in
-      let sources = List.map get_source indices in
+      let sources = List.map ~f:get_source indices in
       { typ = typ; addr = addr; sources = sources }
 
     let len (gr : t) = sizeof_grouprec + (4 * List.length gr.sources)
@@ -633,7 +633,7 @@ module Igmp3 = struct
       set_grouprec_num_sources bits (List.length gr.sources);
       set_grouprec_addr bits gr.addr;
       let bits = Cstruct.shift bits sizeof_grouprec in
-      List.iteri (fun i v -> Cstruct.BE.set_uint32 bits (i * 4) v) gr.sources;
+      List.iteri ~f:(fun i v -> Cstruct.BE.set_uint32 bits (i * 4) v) gr.sources;
       Cstruct.shift bits (4 * List.length gr.sources)
 
   end
@@ -656,7 +656,7 @@ module Igmp3 = struct
     let open Format in
     fprintf fmt "@[num_records=%d@]"
         (List.length v.grs);
-    List.iter (GroupRec.format fmt) v.grs
+    List.iter ~f:(GroupRec.format fmt) v.grs
 
   let parse (bits : Cstruct.t) =
     if Cstruct.len bits < sizeof_igmp3 then
@@ -669,11 +669,11 @@ module Igmp3 = struct
                             let gr = GroupRec.parse bits in
                             offset := (!offset + GroupRec.len gr);
                             gr) in
-    let grs = List.map get_gr indices in
+    let grs = List.map ~f:get_gr indices in
     { chksum = chksum; grs = grs}
 
   let len (msg: t) =
-    let grs_len = List.fold_left (fun acc gr -> acc + (GroupRec.len gr)) 0 msg.grs in
+    let grs_len = List.fold_left ~f:(fun acc gr -> acc + (GroupRec.len gr)) ~init:0 msg.grs in
     sizeof_igmp3 + grs_len
 
   (* Assumes that bits has enough room. *)
@@ -681,7 +681,7 @@ module Igmp3 = struct
     set_igmp3_chksum bits 0;
     set_igmp3_num_records bits (List.length msg.grs);
     let gr_bits = Cstruct.shift bits sizeof_igmp3 in
-    ignore (List.fold_left GroupRec.marshal gr_bits msg.grs);
+    ignore (List.fold_left ~f:GroupRec.marshal ~init:gr_bits msg.grs);
     (* ADF: hack since Igmp.sizeof_igmp not defined at this point *)
     let igmp_hdr = Cstruct.sub bits (-1) (1 + len msg) in
     let chksum = Tcpip_checksum.ones_complement igmp_hdr in
@@ -802,7 +802,7 @@ module Ip = struct
       let ret = Int32.zero in
       let ret = bit ret 1 v.df in
       let ret = bit ret 2 v.mf in
-      Int32.to_int ret
+      Int32.to_int_exn ret
 
   end
 
@@ -865,7 +865,7 @@ module Ip = struct
     let ihl = vhl land 0x0f in
     let tos = get_ip_tos bits in
     let frag = get_ip_frag bits in
-    let flags = Flags.of_int (Int32.of_int (frag lsr 13)) in
+    let flags = Flags.of_int (Int32.of_int_exn (frag lsr 13)) in
     let frag = frag land 0x1fff in
     let ttl = get_ip_ttl bits in
     let ident = get_ip_ident bits in
@@ -1317,7 +1317,7 @@ let parse (bits : Cstruct.t) =
 
 let len (pkt : packet) =
   let eth_len =
-    if pkt.dlVlan != None then sizeof_vlan
+    if pkt.dlVlan <> None then sizeof_vlan
     else sizeof_eth in
   let nw_len = match pkt.nw with
     | Ip ip -> Ip.len ip
@@ -1365,24 +1365,24 @@ let marshal (pkt:packet) : Cstruct.t =
 
 let ip_of_string (s : string) : nwAddr =
   let b = Str.split (Str.regexp "\\.") s in
+  assert (List.length b = 4);
   let open Int32 in
-    assert (List.length b = 4);
-    (logor (shift_left (of_string (List.nth b 0)) 24)
-       (logor (shift_left (of_string (List.nth b 1)) 16)
-          (logor (shift_left (of_string (List.nth b 2)) 8)
-             (of_string (List.nth b 3)))))
+    (bit_or (shift_left (of_string (List.nth_exn b 0)) 24)
+       (bit_or (shift_left (of_string (List.nth_exn b 1)) 16)
+          (bit_or (shift_left (of_string (List.nth_exn b 2)) 8)
+             (of_string (List.nth_exn b 3)))))
 
 let mac_of_string (s : string) : dlAddr =
   let b = Str.split (Str.regexp ":") s in
   let parse_byte str = Int64.of_string ("0x" ^ str) in
+  assert (List.length b = 6);
   let open Int64 in
-    assert (List.length b = 6);
-    (logor (shift_left (parse_byte (List.nth b 0)) 40)
-       (logor (shift_left (parse_byte (List.nth b 1)) 32)
-          (logor (shift_left (parse_byte (List.nth b 2)) 24)
-             (logor (shift_left (parse_byte (List.nth b 3)) 16)
-                (logor (shift_left (parse_byte (List.nth b 4)) 8)
-                   (parse_byte (List.nth b 5)))))))
+    (bit_or (shift_left (parse_byte (List.nth_exn b 0)) 40)
+       (bit_or (shift_left (parse_byte (List.nth_exn b 1)) 32)
+          (bit_or (shift_left (parse_byte (List.nth_exn b 2)) 24)
+             (bit_or (shift_left (parse_byte (List.nth_exn b 3)) 16)
+                (bit_or (shift_left (parse_byte (List.nth_exn b 4)) 8)
+                   (parse_byte (List.nth_exn b 5)))))))
 
 let ipv6_of_string (s : string) : ipv6Addr =
   let b = Str.split (Str.regexp ":") s in
@@ -1398,12 +1398,12 @@ let ipv6_of_string (s : string) : ipv6Addr =
   let b = fill_bytes b in
   let parse_byte str = Int64.of_string ("0x" ^ str) in
   let open Int64 in
-      (logor (shift_left (parse_byte (List.nth b 0)) 48)
-         (logor (shift_left (parse_byte (List.nth b 1)) 32)
-            (logor (shift_left (parse_byte (List.nth b 2)) 16)
-               (parse_byte (List.nth b 3))))),
-      (logor (shift_left (parse_byte (List.nth b 4)) 48)
-         (logor (shift_left (parse_byte (List.nth b 5)) 32)
-            (logor (shift_left (parse_byte (List.nth b 6)) 16)
-               (parse_byte (List.nth b 7)))))
+      (bit_or (shift_left (parse_byte (List.nth_exn b 0)) 48)
+         (bit_or (shift_left (parse_byte (List.nth_exn b 1)) 32)
+            (bit_or (shift_left (parse_byte (List.nth_exn b 2)) 16)
+               (parse_byte (List.nth_exn b 3))))),
+      (bit_or (shift_left (parse_byte (List.nth_exn b 4)) 48)
+         (bit_or (shift_left (parse_byte (List.nth_exn b 5)) 32)
+            (bit_or (shift_left (parse_byte (List.nth_exn b 6)) 16)
+               (parse_byte (List.nth_exn b 7)))))
 

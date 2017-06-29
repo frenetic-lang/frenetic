@@ -1,5 +1,5 @@
 open QuickCheck
-open Core.Std
+open Core
 open Frenetic_OpenFlow
 
 module Gen = QuickCheck_gen

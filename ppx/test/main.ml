@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 (* let declaration *)
 let%nk p = {| drop |}
