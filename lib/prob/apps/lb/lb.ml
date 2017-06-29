@@ -38,47 +38,123 @@ end = struct
 end
 
 (******* routing policy ************************)
-(* Each switch has the same policy: spray packets on downlink ports *)
 type match_action = policy * policy
 
-let pkt_spray_pol ~(k : int) : policy =
-  (* There are k ports (numbered 1 to k),
-     randomly forward traffic through each port *)
-  choicei k ~f:(fun outport -> (!!("Port", outport + 1), 1//k))
+module type Routing = sig
+  val routing_policy : int -> policy
+end
 
-let core_switch_policy ~(k : int) (core : int) : match_action =
-  let pol = pkt_spray_pol k in
+module PerHop : Routing = struct
+  (* Each switch has the same policy: spray packets on downlink ports *)
+
+  let pkt_spray_pol ~(k : int) : policy =
+    (* There are k ports (numbered 1 to k),
+       randomly forward traffic through each port *)
+    choicei k ~f:(fun outport -> (!!("Port", outport + 1), 1//k))
+
+  let core_switch_policy ~(k : int) (core : int) : match_action =
+    let pol = pkt_spray_pol k in
+    let sw_id = Switch.get_id (Core { k; core }) in
+    (??("Switch", sw_id), pol)
+
+  let core_policy ~(k : int) : match_action list =
+    [core_switch_policy ~k 0]
+
+  let aggregation_switch_policy ~(k : int) (cluster : int) : match_action =
+    let pol = pkt_spray_pol k in
+    let sw_id = Switch.get_id (Aggregation { k; cluster }) in
+    (??("Switch", sw_id), pol)
+
+  let aggregation_policy ~(k : int) : match_action list =
+    build_list k ~f:(aggregation_switch_policy ~k)
+
+  let edge_switch_policy ~(k : int) ~(cluster : int) ~(edge : int) : match_action =
+    let pol = pkt_spray_pol k in
+    let sw_id = Switch.get_id (Edge { k; cluster; edge }) in
+    (??("Switch", sw_id), pol)
+
+  let edge_policy ~(k : int) : match_action list =
+    build_list k ~f:(fun cluster ->
+      build_list k ~f:(fun edge ->
+        edge_switch_policy ~k ~cluster ~edge))
+    |> List.concat_no_order
+
+  let routing_policy k : policy =
+    let core = core_policy ~k in
+    let aggregation = aggregation_policy ~k in
+    let edge = edge_policy ~k in
+    mk_big_ite ~default:drop (List.concat_no_order [core; aggregation; edge])
+end
+
+module CoreDecision : Routing = struct
+  (* Core switch decides the destination server and updates the destination IP.
+     Forwarding is done based on destination IP *)
+
+  let core_switch_policy ~(k : int) (core : int) : match_action =
+    (* Pick a destination IP at uniform. *)
+    let lb_pol =
+      build_list k ~f:(fun cluster ->
+        build_list k ~f:(fun edge ->
+          build_list k ~f:(fun host ->
+            let host_id = Switch.get_id (Host { k; cluster; edge; host }) in
+            (!!("DestIP", host_id), 1//(k*k*k))))
+        |> List.concat_no_order)
+      |> List.concat_no_order
+      |> choice in
+  (* Destination based forwarding *)
+  let route_pol =
+      build_list k ~f:(fun cluster ->
+        build_list k ~f:(fun edge ->
+          build_list k ~f:(fun host ->
+            let host_id = Switch.get_id (Host { k; cluster; edge; host }) in
+            (??("DestIP", host_id), !!("Port", cluster+1))))
+        |> List.concat_no_order)
+      |> List.concat_no_order
+      |> mk_big_ite ~default:drop in
   let sw_id = Switch.get_id (Core { k; core }) in
-  (??("Switch", sw_id), pol)
+  (??("Switch", sw_id), lb_pol >> route_pol)
 
-let core_policy ~(k : int) : match_action list =
-  [core_switch_policy ~k 0]
+  let core_policy ~(k : int) : match_action list =
+    [core_switch_policy ~k 0]
 
-let aggregation_switch_policy ~(k : int) (cluster : int) : match_action =
-  let pol = pkt_spray_pol k in
-  let sw_id = Switch.get_id (Aggregation { k; cluster }) in
-  (??("Switch", sw_id), pol)
+  let aggregation_switch_policy ~(k : int) (cluster : int) : match_action =
+    (* Destination based forwarding *)
+    let pol =
+      build_list k ~f:(fun edge ->
+        build_list k ~f:(fun host ->
+          let host_id = Switch.get_id (Host { k; cluster; edge; host }) in
+          (??("DestIP", host_id), !!("Port", edge+1))))
+      |> List.concat_no_order
+      |> mk_big_ite ~default:drop in
+    let sw_id = Switch.get_id (Aggregation { k; cluster }) in
+    (??("Switch", sw_id), pol)
 
-let aggregation_policy ~(k : int) : match_action list =
-  build_list k ~f:(aggregation_switch_policy ~k)
+  let aggregation_policy ~(k : int) : match_action list =
+    build_list k ~f:(aggregation_switch_policy ~k)
 
-let edge_switch_policy ~(k : int) ~(cluster : int) ~(edge : int) : match_action =
-  let pol = pkt_spray_pol k in
-  let sw_id = Switch.get_id (Edge { k; cluster; edge }) in
-  (??("Switch", sw_id), pol)
+  let edge_switch_policy ~(k : int) ~(cluster : int) ~(edge : int) : match_action =
+    (* Destination based forwarding *)
+    let pol =
+        build_list k ~f:(fun host ->
+          let host_id = Switch.get_id (Host { k; cluster; edge; host }) in
+          (??("DestIP", host_id), !!("Port", edge+1)))
+      |> mk_big_ite ~default:drop in
 
-let edge_policy ~(k : int) : match_action list =
-  build_list k ~f:(fun cluster ->
-    build_list k ~f:(fun edge ->
-      edge_switch_policy ~k ~cluster ~edge))
-  |> List.concat_no_order
+    let sw_id = Switch.get_id (Edge { k; cluster; edge }) in
+    (??("Switch", sw_id), pol)
 
-let routing_policy ~(k : int) : policy =
-  let core = core_policy ~k in
-  let aggregation = aggregation_policy ~k in
-  let edge = edge_policy ~k in
-  mk_big_ite ~default:skip (List.concat_no_order [core; aggregation; edge])
+  let edge_policy ~(k : int) : match_action list =
+    build_list k ~f:(fun cluster ->
+      build_list k ~f:(fun edge ->
+        edge_switch_policy ~k ~cluster ~edge))
+    |> List.concat_no_order
 
+  let routing_policy k : policy =
+    let core = core_policy ~k in
+    let aggregation = aggregation_policy ~k in
+    let edge = edge_policy ~k in
+    mk_big_ite ~default:skip (List.concat_no_order [core; aggregation; edge])
+end
 
 (************* Topology program for a simple tree *****************)
 (* Port 0 of each switch connects to it's parent.
@@ -142,6 +218,7 @@ let delivered_to_host ~(k : int) : policy =
   |> List.concat_no_order
   |> mk_big_union ~init:drop
 
+(* Policy to test if a packet is still inside the network *)
 let in_network ~(k : int) : policy =
   let core = 0 in
   let core_sw_id = Switch.get_id (Core { k; core }) in
@@ -163,7 +240,8 @@ let in_traffic ~(k : int) : policy =
 let lb_policy ~(k : int) : policy list =
   let ingress = in_traffic ~k in
   let t = topology_program ~k in
-  let p = routing_policy ~k in
+  let p = PerHop.routing_policy k in
+  (* let p = CoreDecision.routing_policy k in *)
   let egress = delivered_to_host ~k in
   let within_network = in_network ~k in
   [ ingress >> mk_while (neg egress) (p >> t) >> egress;
