@@ -126,8 +126,10 @@ let access_links ~(k : int) : link list =
   |> List.concat_no_order
 
 let topology_program ~(k : int) : policy =
-  mk_big_ite (List.concat_no_order
-                [(core_agg_links ~k); (agg_edge_links ~k); (access_links ~k)])
+  let core = core_agg_links ~k in
+  let aggregation = agg_edge_links ~k in
+  let edge = access_links ~k in
+  mk_big_ite (List.concat_no_order [core; aggregation; edge])
 
 (* Policy to test if a packet has reached a server *)
 let delivered_to_host ~(k : int) : policy =
