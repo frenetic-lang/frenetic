@@ -77,7 +77,7 @@ let routing_policy ~(k : int) : policy =
   let core = core_policy ~k in
   let aggregation = aggregation_policy ~k in
   let edge = edge_policy ~k in
-  mk_big_ite (List.concat_no_order [core; aggregation; edge])
+  mk_big_ite ~default:skip (List.concat_no_order [core; aggregation; edge])
 
 
 (************* Topology program for a simple tree *****************)
@@ -129,7 +129,7 @@ let topology_program ~(k : int) : policy =
   let core = core_agg_links ~k in
   let aggregation = agg_edge_links ~k in
   let edge = access_links ~k in
-  mk_big_ite (List.concat_no_order [core; aggregation; edge])
+  mk_big_ite ~default:drop (List.concat_no_order [core; aggregation; edge])
 
 (* Policy to test if a packet has reached a server *)
 let delivered_to_host ~(k : int) : policy =
@@ -137,10 +137,21 @@ let delivered_to_host ~(k : int) : policy =
     build_list k ~f:(fun edge ->
       build_list k ~f:(fun host ->
         let host_id = Switch.get_id (Host { k; cluster; edge; host }) in
-        ??("Switch", host_id))
-      |> mk_big_union)
-    |> mk_big_union)
-  |> mk_big_union
+        ??("Switch", host_id)))
+    |> List.concat_no_order)
+  |> List.concat_no_order
+  |> mk_big_union ~init:drop
+
+let in_network ~(k : int) : policy =
+  let core = 0 in
+  let core_sw_id = Switch.get_id (Core { k; core }) in
+  build_list k ~f:(fun cluster ->
+    let aggregation_sw_id = Switch.get_id (Aggregation { k; cluster }) in
+    build_list k ~f:(fun edge ->
+      let edge_sw_id = Switch.get_id (Edge { k; cluster; edge }) in
+      ??("Switch", edge_sw_id))
+    |> mk_big_union ~init:??("Switch", aggregation_sw_id))
+  |> mk_big_union ~init:??("Switch", core_sw_id)
 
 (* Policy to generate packets at core *)
 let in_traffic ~(k : int) : policy =
@@ -149,16 +160,17 @@ let in_traffic ~(k : int) : policy =
   !!("Switch", core_sw_id) >> !!("Port", 0)
 
 (* Load-balancer program with traffic *)
-let lb_policy ~(k : int) : policy =
+let lb_policy ~(k : int) : policy list =
   let ingress = in_traffic ~k in
   let t = topology_program ~k in
   let p = routing_policy ~k in
   let egress = delivered_to_host ~k in
-  (* TODO: with while *)
-  (* ingress >> mk_while (neg egress) (p >> t) >> egress *)
-  ingress >> (p >> t) >> (p >> t) >> (p >> t) >> egress
+  let within_network = in_network ~k in
+  [ ingress >> mk_while (neg egress) (p >> t) >> egress;
+    ingress >> mk_while (within_network) (p >> t) >> egress;
+    ingress >> (p >> t) >> (p >> t) >> (p >> t) >> egress ]
 
 let () = begin
-  let k = 2 in
-  run (lb_policy ~k)
+  let k = 1 in
+  List.iter (lb_policy ~k) ~f:run
 end

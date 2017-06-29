@@ -91,6 +91,13 @@ let () = begin
       !!("f", 1) @ 1//n
     ]
   in
+  let qwhile n =
+    mk_while (neg ??("f", 1)) ?@[
+      skip       @ (n-2)//n;
+      !!("f", 1) @ 1//n;
+      !!("f", 2) @ 1//n
+    ]
+  in
   (** this while loop is singular: it never terminates  *)
   let pwhile' =
     mk_while ??("f", 0) ?@[
@@ -115,6 +122,7 @@ let () = begin
   run (??("f", 0));
   run (mk_while ??("f", 0) !!("f", 1));
   run (pwhile 10);
+  run (qwhile 10);
   run (pwhile 100);
   run (pwhile 100_000_000);
   try run pwhile' with e -> printf "%s\n" (Exn.to_string e);

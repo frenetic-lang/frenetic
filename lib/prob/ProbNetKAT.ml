@@ -130,8 +130,9 @@ module Constructors = struct
       |> choice
 
     let mk_union = disj
-    let mk_big_union = List.fold ~init:drop ~f:mk_union
-    let mk_big_ite = List.fold ~init:drop ~f:(fun q (a, p) -> ite a p q)
+    let mk_big_union ~init = List.fold ~init ~f:(fun p q -> if p = drop then q
+                                                  else mk_union p q)
+    let mk_big_ite ~default = List.fold ~init:default ~f:(fun q (a, p) -> ite a p q)
 
   end
 
