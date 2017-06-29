@@ -39,96 +39,95 @@ end
 
 (******* routing policy ************************)
 (* Each switch has the same policy: spray packets on downlink ports *)
+type match_action = policy * policy
 
 let pkt_spray_pol ~(k : int) : policy =
   (* There are k ports (numbered 1 to k),
      randomly forward traffic through each port *)
   choicei k ~f:(fun outport -> (!!("Port", outport + 1), 1//k))
 
-let core_switch_policy ~(k : int) (core : int) : policy =
+let core_switch_policy ~(k : int) (core : int) : match_action =
   let pol = pkt_spray_pol k in
   let sw_id = Switch.get_id (Core { k; core }) in
-  ??("Switch", sw_id) >> pol
+  (??("Switch", sw_id), pol)
 
-let core_policy ~(k : int) : policy =
-  core_switch_policy ~k 0
+let core_policy ~(k : int) : match_action list =
+  [core_switch_policy ~k 0]
 
-let aggregation_switch_policy ~(k : int) (cluster : int) : policy =
+let aggregation_switch_policy ~(k : int) (cluster : int) : match_action =
   let pol = pkt_spray_pol k in
   let sw_id = Switch.get_id (Aggregation { k; cluster }) in
-  ??("Switch", sw_id) >> pol
+  (??("Switch", sw_id), pol)
 
-let aggregation_policy ~(k : int) : policy =
-  build_list k ~f:(aggregation_switch_policy ~k) |> mk_big_union
+let aggregation_policy ~(k : int) : match_action list =
+  build_list k ~f:(aggregation_switch_policy ~k)
 
-let edge_switch_policy ~(k : int) ~(cluster : int) ~(edge : int) : policy =
+let edge_switch_policy ~(k : int) ~(cluster : int) ~(edge : int) : match_action =
   let pol = pkt_spray_pol k in
   let sw_id = Switch.get_id (Edge { k; cluster; edge }) in
-  ??("Switch", sw_id) >> pol
+  (??("Switch", sw_id), pol)
 
-let edge_policy ~(k : int) : policy =
+let edge_policy ~(k : int) : match_action list =
   build_list k ~f:(fun cluster ->
     build_list k ~f:(fun edge ->
-      edge_switch_policy ~k ~cluster ~edge)
-    |> mk_big_union)
-  |> mk_big_union
+      edge_switch_policy ~k ~cluster ~edge))
+  |> List.concat_no_order
 
 let routing_policy ~(k : int) : policy =
   let core = core_policy ~k in
   let aggregation = aggregation_policy ~k in
   let edge = edge_policy ~k in
-  mk_big_union [core; aggregation; edge]
+  mk_big_ite (List.concat_no_order [core; aggregation; edge])
 
 
 (************* Topology program for a simple tree *****************)
 (* Port 0 of each switch connects to it's parent.
    Ports 1 to k connect a switch to it's k children from left to right *)
+type link = policy * policy
 
-let core_agg_links ~(k : int) : policy =
+let core_agg_links ~(k : int) : link list =
   (* A single core switch (root) is connected to k aggregation switches *)
   let core = 0 in
   let core_sw_id = Switch.get_id (Core { k; core }) in
   build_list k ~f:(fun cluster ->
       let agg_sw_id = Switch.get_id (Aggregation { k; cluster }) in
-      mk_union
-        (??("Switch", core_sw_id) >> ??("Port", cluster + 1) >>
-         !!("Switch", agg_sw_id) >> !!("Port", 0))
-        (??("Switch", agg_sw_id) >> ??("Port", 0) >>
-         !!("Switch", core_sw_id) >> !!("Port", cluster + 1)))
-  |> mk_big_union
+      [(??("Switch", core_sw_id) >> ??("Port", cluster + 1),
+        !!("Switch", agg_sw_id) >> !!("Port", 0));
+       (??("Switch", agg_sw_id) >> ??("Port", 0),
+        !!("Switch", core_sw_id) >> !!("Port", cluster + 1))])
+  |> List.concat_no_order
 
-let agg_edge_links ~(k : int) : policy =
+let agg_edge_links ~(k : int) : link list =
   (* Each aggregation switch is connected to k edge switches *)
   build_list k ~f:(fun cluster ->
     let agg_sw_id = Switch.get_id (Aggregation { k; cluster }) in
     build_list k ~f:(fun edge ->
       let edge_sw_id = Switch.get_id (Edge { k; cluster; edge }) in
-        mk_union
-          (??("Switch", agg_sw_id) >> ??("Port", edge + 1) >>
-           !!("Switch", edge_sw_id) >> !!("Port", 0))
-          (??("Switch", edge_sw_id) >> ??("Port", 0) >>
-           !!("Switch", agg_sw_id) >> !!("Port", edge + 1)))
-    |> mk_big_union)
-  |> mk_big_union
+      [(??("Switch", agg_sw_id) >> ??("Port", edge + 1),
+        !!("Switch", edge_sw_id) >> !!("Port", 0));
+       (??("Switch", edge_sw_id) >> ??("Port", 0),
+        !!("Switch", agg_sw_id) >> !!("Port", edge + 1))])
+    |> List.concat_no_order)
+  |> List.concat_no_order
 
-let access_links ~(k : int) : policy =
+let access_links ~(k : int) : link list =
   (* Each edge switch is connected to k hosts *)
   build_list k ~f:(fun cluster ->
     build_list k ~f:(fun edge ->
       let edge_sw_id = Switch.get_id (Edge { k; cluster; edge }) in
       build_list k ~f:(fun host ->
         let host_id = Switch.get_id (Host { k; cluster; edge; host}) in
-        mk_union
-          (??("Switch", edge_sw_id) >> ??("Port", host + 1) >>
-           !!("Switch", host_id) >> !!("Port", 0))
-          (??("Switch", host_id) >> ??("Port", 0) >>
-           !!("Switch", edge_sw_id) >> !!("Port", host + 1)))
-      |> mk_big_union)
-    |> mk_big_union)
-  |> mk_big_union
+        [(??("Switch", edge_sw_id) >> ??("Port", host + 1),
+          !!("Switch", host_id) >> !!("Port", 0));
+         (??("Switch", host_id) >> ??("Port", 0),
+          !!("Switch", edge_sw_id) >> !!("Port", host + 1))])
+      |> List.concat_no_order)
+    |> List.concat_no_order)
+  |> List.concat_no_order
 
 let topology_program ~(k : int) : policy =
-  mk_big_union [(core_agg_links ~k); (agg_edge_links ~k); (access_links ~k)]
+  mk_big_ite (List.concat_no_order
+                [(core_agg_links ~k); (agg_edge_links ~k); (access_links ~k)])
 
 (* Policy to test if a packet has reached a server *)
 let delivered_to_host ~(k : int) : policy =

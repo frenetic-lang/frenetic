@@ -52,6 +52,21 @@ XOCamlbuildExtraArgs:
 Executable decide
   Path: lib/prob
   BuildDepends:
+    probnetkat
+  MainIs: decide.ml
+  CompiledObject: native
+  Install: false
+
+Test decide
+  TestTools: decide
+  Command: ./decide.native
+  Run: true
+
+Library probnetkat
+  Path: lib/prob
+  CompiledObject: best
+  Build: true
+  BuildDepends:
     core,
     ppx_deriving,
     ppx_deriving.eq,
@@ -63,15 +78,30 @@ Executable decide
     zarith,
     lacaml,
     owl
-    # topology
-  MainIs: decide.ml
-  CompiledObject: native
-  Install: false
+  Modules:
+    ProbNetKAT_Mc
 
-Test decide
-  TestTools: decide
-  Command: ./decide.native
-  Run: true
+Executable lb
+  Path: lib/prob/apps/lb
+  CompiledObject: best
+  BuildDepends:
+    probnetkat
+  MainIs: lb.ml
+
+# Executable probnetkat_te
+#   Path: lib/prob/apps/TE
+#   CompiledObject: best
+#   BuildDepends:
+#     probnetkat,
+#     core,
+#     ppx_deriving.enum,
+#     ppx_deriving.show,
+#     ppx_deriving.make,
+#     ppx_jane,
+#     str,
+#     topology
+#   MainIs: Frenetic_ProbNetKAT_TE.ml
+
 
 # generate standard parser, syntax extension parser, and tokens from common file
 # PreBuildCommand:

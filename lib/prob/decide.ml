@@ -36,8 +36,8 @@ let run ?(print=true) ?(lbl=true) ?(transpose=false) p =
   if print then begin (if transpose then Sparse.transpose else ident) mc |> Sparse.to_dense |>
     Format.printf "@[MATRIX:@\n%a@\n@]@."
       (if not lbl then Owl_pretty.pp_fmat else
-         Owl_pretty.pp_labeled_fmat 
-          ~pp_left:(Some (fun fmt -> fprintf fmt "%a|" Repr.Index.pp')) 
+         Owl_pretty.pp_labeled_fmat
+          ~pp_left:(Some (fun fmt -> fprintf fmt "%a|" Repr.Index.pp'))
           ~pp_head:None
           ~pp_foot:None
           ~pp_right:None ())
@@ -136,7 +136,7 @@ let () = begin
 
   (* run' (mk_while ??("f", 0) !!("f", 1)); *)
 (*   let uniform =
-    seqi 4 ~f:(fun i -> let l = sprintf "l%d" i in 
+    seqi 4 ~f:(fun i -> let l = sprintf "l%d" i in
                 ?@[!!(l,0), Q.(1//2);
                    !!(l,1), Q.(1//2)])
     >>

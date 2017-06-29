@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: f672378f3b6751c138819b60b9c4783b)
+# DO NOT EDIT (digest: cd4e4d57cb244d731e5b5f6b775af1bd)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -14,6 +14,8 @@ true: annot, bin_annot
 ".git": not_hygienic
 "_darcs": -traverse
 "_darcs": not_hygienic
+# Library probnetkat
+"lib/prob/probnetkat.cmxs": use_probnetkat
 # Executable decide
 "lib/prob/decide.native": package(core)
 "lib/prob/decide.native": package(lacaml)
@@ -26,6 +28,7 @@ true: annot, bin_annot
 "lib/prob/decide.native": package(ppx_import)
 "lib/prob/decide.native": package(ppx_sexp_conv)
 "lib/prob/decide.native": package(zarith)
+"lib/prob/decide.native": use_probnetkat
 <lib/prob/*.ml{,i,y}>: package(core)
 <lib/prob/*.ml{,i,y}>: package(lacaml)
 <lib/prob/*.ml{,i,y}>: package(owl)
@@ -37,6 +40,32 @@ true: annot, bin_annot
 <lib/prob/*.ml{,i,y}>: package(ppx_import)
 <lib/prob/*.ml{,i,y}>: package(ppx_sexp_conv)
 <lib/prob/*.ml{,i,y}>: package(zarith)
+<lib/prob/*.ml{,i,y}>: use_probnetkat
+# Executable lb
+<lib/prob/apps/lb/lb.{native,byte}>: package(core)
+<lib/prob/apps/lb/lb.{native,byte}>: package(lacaml)
+<lib/prob/apps/lb/lb.{native,byte}>: package(owl)
+<lib/prob/apps/lb/lb.{native,byte}>: package(ppx_compare)
+<lib/prob/apps/lb/lb.{native,byte}>: package(ppx_deriving)
+<lib/prob/apps/lb/lb.{native,byte}>: package(ppx_deriving.enum)
+<lib/prob/apps/lb/lb.{native,byte}>: package(ppx_deriving.eq)
+<lib/prob/apps/lb/lb.{native,byte}>: package(ppx_deriving.show)
+<lib/prob/apps/lb/lb.{native,byte}>: package(ppx_import)
+<lib/prob/apps/lb/lb.{native,byte}>: package(ppx_sexp_conv)
+<lib/prob/apps/lb/lb.{native,byte}>: package(zarith)
+<lib/prob/apps/lb/lb.{native,byte}>: use_probnetkat
+<lib/prob/apps/lb/*.ml{,i,y}>: package(core)
+<lib/prob/apps/lb/*.ml{,i,y}>: package(lacaml)
+<lib/prob/apps/lb/*.ml{,i,y}>: package(owl)
+<lib/prob/apps/lb/*.ml{,i,y}>: package(ppx_compare)
+<lib/prob/apps/lb/*.ml{,i,y}>: package(ppx_deriving)
+<lib/prob/apps/lb/*.ml{,i,y}>: package(ppx_deriving.enum)
+<lib/prob/apps/lb/*.ml{,i,y}>: package(ppx_deriving.eq)
+<lib/prob/apps/lb/*.ml{,i,y}>: package(ppx_deriving.show)
+<lib/prob/apps/lb/*.ml{,i,y}>: package(ppx_import)
+<lib/prob/apps/lb/*.ml{,i,y}>: package(ppx_sexp_conv)
+<lib/prob/apps/lb/*.ml{,i,y}>: package(zarith)
+<lib/prob/apps/lb/*.ml{,i,y}>: use_probnetkat
 # OASIS_STOP
 # see https://github.com/janestreet/ppx_inline_test/issues/3
 <lib_test/*.ml{,i}>: predicate(ppx_driver)

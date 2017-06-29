@@ -77,13 +77,13 @@ end
 let domain pol : domain =
   let rec domain pol d =
     match pol.p with
-    | Skip 
+    | Skip
     | Drop ->
       d
     | Test (f,n)
     | Modify (f,n) ->
-      Field.Map.update d f ~f:(function 
-        | None -> Value.Set.singleton n 
+      Field.Map.update d f ~f:(function
+        | None -> Value.Set.singleton n
         | Some ns -> Value.Set.add ns n)
     | Neg p -> domain p d
     | Or(p,q) | Seq (p,q) | While (p,q) ->
@@ -128,6 +128,11 @@ module Constructors = struct
       Array.init n ~f
       |> Array.to_list
       |> choice
+
+    let mk_union = disj
+    let mk_big_union = List.fold ~init:drop ~f:mk_union
+    let mk_big_ite = List.fold ~init:drop ~f:(fun q (a, p) -> ite a p q)
+
   end
 
   module Smart = struct
@@ -135,7 +140,7 @@ module Constructors = struct
     let skip = Dumb.skip
     let test = Dumb.test
     let modify = Dumb.modify
-    
+
     let neg a =
       match a.p with
       | Neg { p } -> { a with p }
@@ -145,13 +150,13 @@ module Constructors = struct
       if a = skip || b = drop then a else
       if b = skip || a = drop then b else
       Dumb.disj a b
-    
+
     let seq p q =
       (* use physical equality? *)
       if p = drop || q = skip then p else
       if q = drop || p = skip then q else
       Dumb.seq p q
-    
+
     let choice ps =
       (* smash equal -> requires hashconsing *)
       match List.filter ps ~f:(fun (p,r) -> not Q.(equal r zero)) with
@@ -178,6 +183,7 @@ module Syntax = struct
     let ( ?? ) hv = test hv
     let ( !! ) hv = modify hv
     let ( >> ) p q = seq p q
+    let ( & ) a b = disj a b
     let ( ?@ ) dist = choice dist (* ?@[p , 1//2; q , 1//2] *)
     let ( // ) m n = Q.(m // n)
     let ( @ ) p r = (p,r)
@@ -188,6 +194,7 @@ module Syntax = struct
     let ( ?? ) hv = test hv
     let ( !! ) hv = modify hv
     let ( >> ) p q = seq p q
+    let ( & ) a b = disj a b
     let ( ?@ ) dist = choice dist (* ?@[p , 1//2; q , 1//2] *)
     let ( // ) m n = Q.(m // n)
     let ( @ ) p r = (p,r)

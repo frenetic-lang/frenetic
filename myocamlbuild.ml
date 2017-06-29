@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 9bd78b75e5e0b109a1abb54bf043b292) *)
+(* DO NOT EDIT (digest: 4dfe97adce0f9ca518a27c963c1e0dac) *)
 module OASISGettext = struct
 (* # 22 "src/oasis/OASISGettext.ml" *)
 
@@ -878,14 +878,19 @@ end
 # 878 "myocamlbuild.ml"
 open Ocamlbuild_plugin;;
 let package_default =
-  {MyOCamlbuildBase.lib_ocaml = []; lib_c = []; flags = []; includes = []}
+  {
+     MyOCamlbuildBase.lib_ocaml = [("probnetkat", ["lib/prob"], [])];
+     lib_c = [];
+     flags = [];
+     includes = [("lib/prob/apps/lb", ["lib/prob"])]
+  }
   ;;
 
 let conf = {MyOCamlbuildFindlib.no_automatic_syntax = false}
 
 let dispatch_default = MyOCamlbuildBase.dispatch_default conf package_default;;
 
-# 889 "myocamlbuild.ml"
+# 894 "myocamlbuild.ml"
 (* OASIS_STOP *)
 
 (* SJS: use shared extern token file *)
