@@ -19,7 +19,7 @@ let time f =
 let print_time time =
   printf "time: %.4f\n" time
 
-let run ?(print=true) ?(lbl=true) ?(transpose=false) p =
+let run ?(print=true) ?(lbl=true) ?(transpose=false) ?(debug=false) p =
   printf "\n========================= EIGEN ==========================\n\n%!";
   fprintf fmt "policy = %a\n\n%!" pp_policy p;
   let dom = domain p in
@@ -32,7 +32,7 @@ let run ?(print=true) ?(lbl=true) ?(transpose=false) p =
     |> Array.iter ~f:(fun i -> fprintf fmt " %d = %a\n%!" i Repr.Index0.pp' i);
     fprintf fmt "\n%!";
   end;
-  let (t, mc) = time (fun () -> Mc.of_pol p) in
+  let (t, mc) = time (fun () -> Mc.of_pol ~debug p) in
   if print then begin (if transpose then Sparse.transpose else ident) mc |> Sparse.to_dense |>
     Format.printf "@[MATRIX:@\n%a@\n@]@."
       (if not lbl then Owl_pretty.pp_fmat else
@@ -124,7 +124,7 @@ let () = begin
   run (pwhile 10);
   run (neg ??("f", 1));
   run (qwhile 10);
-  run' (qwhile 10);
+  (* run' (qwhile 10); *)
   (* run (pwhile 100);
   run (pwhile 100_000_000);
   try run pwhile' with e -> printf "%s\n" (Exn.to_string e);

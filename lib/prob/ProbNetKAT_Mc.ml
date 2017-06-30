@@ -7,11 +7,11 @@ module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
   module Dense = Dense.Matrix.D
   module Sparse = Sparse.Matrix.D
 
-  let show mc =
+  let show ?(label=true) mc =
     Sparse.to_dense (mc) |>
     Format.printf "@[MATRIX:@\n%a@\n@]@.%!"
       (Owl_pretty.pp_labeled_fmat
-          ~pp_left:(Some (fun fmt -> fprintf fmt "%a|" Repr.Index.pp'))
+          ~pp_left:(if label then Some (fun fmt -> fprintf fmt "%a|" Repr.Index.pp') else None)
           ~pp_head:None
           ~pp_foot:None
           ~pp_right:None ())
@@ -30,123 +30,143 @@ module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
     done;
     mat
 
-  let rec ?(debug=true) of_pol p : Sparse.mat =
-    let mc = of_pol' p in
-    if debug then begin
-      fprintf (Format.std_formatter) "%a\n%!" pp_policy p;
-      show mc;
-    end
-    mc
+  let of_pol ?(debug=true) p = 
+    let rec of_pol p : Sparse.mat =
+      let mc = of_pol' p in
+      if debug then begin
+        fprintf (Format.std_formatter) "%a\n%!" pp_policy p;
+        show mc;
+      end;
+      mc
 
-  and of_pol' p : Sparse.mat =
-    match p.p with
-    | Skip ->
-      Sparse.eye n
-    | Drop ->
-      dirac (fun _ -> empty)
-    | Test (f,n) ->
-      dirac (fun row -> if Index0.test' f n row then row else empty)
-    | Neg a ->
-      Sparse.(sub (eye n) (of_pol a))
-    | Or (a,b) ->
-      let a,b = (of_pol a, of_pol b) in
-      Sparse.iteri_nz (fun i j v -> Sparse.set b i j v) a;
-      b
-    | Modify (f,n) ->
-      dirac Index0.(modify' f n)
-    | Seq (p,q) ->
-      Sparse.dot (of_pol p) (of_pol q)
-    | Choice ps ->
-      List.map ps ~f:(fun (p,w) -> Sparse.mul_scalar (of_pol p) (Prob.to_float w))
-      |> List.fold ~init:(Sparse.zeros n n) ~f:Sparse.add
-    | Ite (a,p,q) ->
-      let (a,p,q) = (of_pol a, of_pol p, of_pol q) in
-      let a = Sparse.(diag a |> to_dense) in
-      let p' = Sparse.mapi_nz 
-        (fun row _ v -> if Dense.get a row 0 <> 0.0 then v else 0.0)
-        p
-      in
-      let q' = Sparse.mapi_nz
-        (fun row _ v -> if Dense.get a row 0 <> 0.0 then 0.0 else v)
-        q
-      in
-      Sparse.add p' q'
-    | While(a,p) ->
-      let (a,p) = (of_pol a |> Sparse.diag |> Sparse.to_dense, of_pol p) in
+    and of_pol' p : Sparse.mat =
+      match p.p with
+      | Skip ->
+        Sparse.eye n
+      | Drop ->
+        dirac (fun _ -> empty)
+      | Test (f,n) ->
+        dirac (fun row -> if Index0.test' f n row then row else empty)
+      | Neg a ->
+        Sparse.(sub (eye n) (of_pol a))
+      | Or (a,b) ->
+        let a,b = (of_pol a, of_pol b) in
+        Sparse.iteri_nz (fun i j v -> Sparse.set b i j v) a;
+        b
+      | Modify (f,n) ->
+        dirac Index0.(modify' f n)
+      | Seq (p,q) ->
+        Sparse.dot (of_pol p) (of_pol q)
+      | Choice ps ->
+        List.map ps ~f:(fun (p,w) -> Sparse.mul_scalar (of_pol p) (Prob.to_float w))
+        |> List.fold ~init:(Sparse.zeros n n) ~f:Sparse.add
+      | Ite (a,p,q) ->
+        let (a,p,q) = (of_pol a, of_pol p, of_pol q) in
+        let a = Sparse.(diag a |> to_dense) in
+        let p' = Sparse.mapi_nz 
+          (fun row _ v -> if Dense.get a row 0 <> 0.0 then v else 0.0)
+          p
+        in
+        let q' = Sparse.mapi_nz
+          (fun row _ v -> if Dense.get a row 0 <> 0.0 then 0.0 else v)
+          q
+        in
+        Sparse.add p' q'
+      | While(a,p) ->
+        let a, p = of_pol a, of_pol p in
 
-      (* rearrange indices so that packets 0 to nq-1 satisfy a (these are the
-         transient states of the while loop); and packets nq to n-1 do not
-         satisfy a (these are the absorbing states).
+        (* rearrange indices so that packets 0 to nq-1 satisfy a (these are the
+           transient states of the while loop); and packets nq to n-1 do not
+           satisfy a (these are the absorbing states).
 
-         swap.(i) = new index of ith packet
-      *)
-      let swap = Array.init n (fun i -> i) in
-      (* Scan packets from left and right ends of [0, ..., n-1]. If we find packets
-         left < right such that left does not satisfy a, but right does, we
-         swap them. Thus, when the loop terminates packets 0 to nq-1 will satisfy
-         a, and packets nq to n-1 will not satisfy a.
-      *)
-      let left = ref 0 and right = ref (n-1) in
-      while !left < !right do
-        (* increment left until it corresponds to a packet not satisfying a *)
-        while !left < !right && Dense.get a (!left) 0 = 1.0 do
-          incr left
+           swap.(i) = new index of ith packet
+        *)
+        let swap = Array.init n (fun i -> i) in
+        (* Scan packets from left and right ends of [0, ..., n-1]. If we find packets
+           left < right such that left does not satisfy a, but right does, we
+           swap them. Thus, when the loop terminates packets 0 to nq-1 will satisfy
+           a, and packets nq to n-1 will not satisfy a.
+        *)
+        let left = ref 0 and right = ref (n-1) in
+        let nq = ref 0 in (* number of transient states *)
+        while !left < !right do
+          (* increment left until it corresponds to a packet not satisfying a *)
+          while !left < !right && Sparse.get a (!left) (!left) = 1.0 do
+            incr left;
+            incr nq;
+          done;
+          (* decrement right until it corresponds to a packet satisfying a *)
+          while !left < !right && Sparse.get a (!right) (!right) = 0.0 do
+            decr right
+          done;
+          if !left < !right then begin
+            swap.(!left) <- !right;
+            swap.(!right) <- !left;
+            incr left;
+            decr right;
+            incr nq;
+          end
         done;
-        (* decrement right until it corresponds to a packet satisfying a *)
-        while !left < !right && Dense.get a (!right) 0 = 0.0 do
-          decr right
+
+        (* number of transient states *)
+        let nq = !nq in
+        (* number of absorbing states *)
+        let nr = n - nq in
+        if debug then printf "n = %d, nq = %d, nr = %d\n\n" n nq nr;
+
+        (* There may not be any *proper* absorbing states, i.e. the only absorbing
+           state is the empty set. In this case, the while loop is equvialent to
+           drop.
+         *)
+        if nr = 0 then of_pol ProbNetKAT.Syntax.Smart.drop else begin
+
+        (* extract q and r from p *)
+        let q = Dense.zeros nq nq and r = Dense.zeros nq nr in
+        let () = Sparse.iteri_nz (fun i j v ->
+          let i = swap.(i) and j = swap.(j) in
+          if i < nq && j < nq then
+            Dense.set q i j v
+          else if i < nq && j >= nq then
+            Dense.set r i (j-nq) v)
+          p
+        in
+
+        if debug then begin
+          printf "transient matrix Q:\n%!";
+          show ~label:false (Sparse.of_dense q);
+          printf "trans-to-absorbing matrix R:\n%!";
+          show ~label:false (Sparse.of_dense r);
+        end;
+
+        (* calculate absorption probabilities *)
+        let qstar = Linalg.inv Dense.(sub (eye nq) q) in
+        let absorption = Dense.(dot qstar r) in
+        if debug then begin
+          printf "absorption matrix (I-Q)^-1:\n%!";
+          show ~label:false (Sparse.of_dense absorption);
+        end;
+
+        let pstar = Sparse.reset p; p in
+
+        (* transient states... *)
+        for i = 0 to nq-1 do
+          (* ... transitient to absorbing states... *)
+          for j = nq to n-1 do
+            (* ... with a certain absorption probabilitiy *)
+            Dense.get absorption i (j-nq)
+            |> Sparse.set pstar swap.(i) swap.(j)
+          done
         done;
-        if !left < !right then begin
-          swap.(!left) <- !right;
-          swap.(!right) <- !left;
-          incr left;
-          decr right;
+
+        (* absorbing states transitien to themselves with probability 1 *)
+        for i = nq to n-1 do
+          Sparse.set pstar swap.(i) swap.(i) 1.0
+        done;
+
+        pstar
         end
-      done;
-      (* number of transient states *)
-      let nq = if Dense.get a (!left) 0 = 1.0 then !left + 1 else !left in
-      (* number of absorbing states *)
-      let nr = n - nq in
-
-      (* There may not be any *proper* absorbing states, i.e. the only absorbing
-         state is the empty set. In this case, the while loop is equvialent to
-         drop.
-       *)
-      if nr = 0 then of_pol ProbNetKAT.Syntax.Smart.drop else begin
-
-      (* extract q and r from p *)
-      let q = Dense.zeros nq nq and r = Dense.zeros nq nr in
-      let () = Sparse.iteri_nz (fun i j v ->
-        let i = swap.(i) and j = swap.(j) in
-        if i < nq && j < nq then
-          Dense.set q i j v
-        else if i < nq && j >= nq then
-          Dense.set r i (j-nq) v)
-        p
       in
-
-      (* calculate absorption probabilities *)
-      let qstar = Linalg.inv Dense.(sub (eye nq) q) in
-      let absorption = Dense.(dot qstar r) in
-      let pstar = Sparse.reset p; p in
-
-      (* transient states... *)
-      for i = 0 to nq-1 do
-        (* ... transitient to absorbing states... *)
-        for j = nq to n-1 do
-          (* ... with a certain absorption probabilitiy *)
-          Dense.get absorption i (j-nq)
-          |> Sparse.set pstar swap.(i) swap.(j)
-        done
-      done;
-
-      (* absorbing states transitien to themselves with probability 1 *)
-      for i = nq to n-1 do
-        Sparse.set pstar swap.(i) swap.(i) 1.0
-      done;
-
-      pstar
-      end
+      of_pol p
 
 end
 
