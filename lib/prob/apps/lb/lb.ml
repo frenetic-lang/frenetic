@@ -102,7 +102,7 @@ module CoreDecision : Routing = struct
       |> List.concat_no_order
       |> choice in
   (* Destination based forwarding *)
-  let route_pol =
+    let route_pol =
       build_list k ~f:(fun cluster ->
         build_list k ~f:(fun edge ->
           build_list k ~f:(fun host ->
@@ -140,6 +140,55 @@ module CoreDecision : Routing = struct
           (??("DestIP", host_id), !!("Port", edge+1)))
       |> mk_big_ite ~default:drop in
 
+    let sw_id = Switch.get_id (Edge { k; cluster; edge }) in
+    (??("Switch", sw_id), pol)
+
+  let edge_policy ~(k : int) : match_action list =
+    build_list k ~f:(fun cluster ->
+      build_list k ~f:(fun edge ->
+        edge_switch_policy ~k ~cluster ~edge))
+    |> List.concat_no_order
+
+  let routing_policy k : policy =
+    let core = core_policy ~k in
+    let aggregation = aggregation_policy ~k in
+    let edge = edge_policy ~k in
+    mk_big_ite ~default:skip (List.concat_no_order [core; aggregation; edge])
+end
+
+module EcmpLite : Routing = struct
+  (* Each switch decides next hop based on hash of a particular field. The
+     field depends on the layer of switch. Core - SrcPort, Aggregation -
+     DstPort, Edge - SrcIP. This is deterministic, and we assume we know the
+     hash values. *)
+
+  let core_switch_policy ~(k : int) (core : int) : match_action =
+    let pol =
+      build_list k ~f:(fun cluster ->
+            (??("SrcPortHash%k", cluster), !!("Port", cluster+1)))
+      |> mk_big_ite ~default:drop in
+  let sw_id = Switch.get_id (Core { k; core }) in
+  (??("Switch", sw_id), pol)
+
+  let core_policy ~(k : int) : match_action list =
+    [core_switch_policy ~k 0]
+
+  let aggregation_switch_policy ~(k : int) (cluster : int) : match_action =
+    let pol =
+      build_list k ~f:(fun edge ->
+            (??("DstPortHash%k", edge), !!("Port", edge+1)))
+      |> mk_big_ite ~default:drop in
+    let sw_id = Switch.get_id (Aggregation { k; cluster }) in
+    (??("Switch", sw_id), pol)
+
+  let aggregation_policy ~(k : int) : match_action list =
+    build_list k ~f:(aggregation_switch_policy ~k)
+
+  let edge_switch_policy ~(k : int) ~(cluster : int) ~(edge : int) : match_action =
+    let pol =
+      build_list k ~f:(fun host ->
+            (??("SrcIPHash%k", host), !!("Port", host+1)))
+      |> mk_big_ite ~default:drop in
     let sw_id = Switch.get_id (Edge { k; cluster; edge }) in
     (??("Switch", sw_id), pol)
 
@@ -242,6 +291,7 @@ let lb_policy ~(k : int) : policy list =
   let t = topology_program ~k in
   let p = PerHop.routing_policy k in
   (* let p = CoreDecision.routing_policy k in *)
+  (* let p = EcmpLite.routing_policy k in *)
   let egress = delivered_to_host ~k in
   let within_network = in_network ~k in
   [ ingress >> mk_while (neg egress) (p >> t) >> egress;
