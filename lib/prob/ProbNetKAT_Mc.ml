@@ -280,10 +280,12 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
          a, and packets nq+1 to n will not satisfy a.
       *)
       let left = ref 1 and right = ref n in
+      let nq = ref 0 in (* number of transient states *)
       while !left < !right do
         (* increment left until it corresponds to a packet not satisfying a *)
         while !left < !right && a.{!left} = 1.0 do
-          incr left
+          incr left;
+          incr nq;
         done;
         (* decrement right until it corresponds to a packet satisfying a *)
         while !left < !right && a.{!right} = 0.0 do
@@ -294,10 +296,11 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
           swap.{!right} <- Int32.of_int_exn (!left);
           incr left;
           decr right;
+          incr nq;
         end
       done;
       (* number of transient states *)
-      let nq = if a.{!left} = 1.0 then !left else !left - 1 in
+      let nq = !nq in
       (* number of absorbing states *)
       let nr = n - nq in
 

@@ -124,7 +124,7 @@ let () = begin
   run (pwhile 10);
   run (neg ??("f", 1));
   run (qwhile 10);
-  (* run' (qwhile 10); *)
+  run' (qwhile 10);
   (* run (pwhile 100);
   run (pwhile 100_000_000);
   try run pwhile' with e -> printf "%s\n" (Exn.to_string e);
