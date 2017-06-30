@@ -7,6 +7,15 @@ module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
   module Dense = Dense.Matrix.D
   module Sparse = Sparse.Matrix.D
 
+  let show mc =
+    Sparse.to_dense (mc) |>
+    Format.printf "@[MATRIX:@\n%a@\n@]@.%!"
+      (Owl_pretty.pp_labeled_fmat
+          ~pp_left:(Some (fun fmt -> fprintf fmt "%a|" Repr.Index.pp'))
+          ~pp_head:None
+          ~pp_foot:None
+          ~pp_right:None ())
+
 
   (* empty is not index of matrix *)
   let (n, empty) = (Index0.max.i + 1, Index0.max.i + 1)
@@ -21,7 +30,15 @@ module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
     done;
     mat
 
-  let rec of_pol p : Sparse.mat =
+  let rec ?(debug=true) of_pol p : Sparse.mat =
+    let mc = of_pol' p in
+    if debug then begin
+      fprintf (Format.std_formatter) "%a\n%!" pp_policy p;
+      show mc;
+    end
+    mc
+
+  and of_pol' p : Sparse.mat =
     match p.p with
     | Skip ->
       Sparse.eye n
@@ -112,18 +129,22 @@ module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
       let qstar = Linalg.inv Dense.(sub (eye nq) q) in
       let absorption = Dense.(dot qstar r) in
       let pstar = Sparse.reset p; p in
-      for i = 0 to n-1 do
-        let i = swap.(i) in
-        if i >= nq then
-          Sparse.set pstar i i 1.0
-        else
-          for j = 0 to n-1 do
-            let j = swap.(j) in
-            if j >= nq then
-              Dense.get absorption i (j-nq)
-              |> Sparse.set pstar i j
-          done
+
+      (* transient states... *)
+      for i = 0 to nq-1 do
+        (* ... transitient to absorbing states... *)
+        for j = nq to n-1 do
+          (* ... with a certain absorption probabilitiy *)
+          Dense.get absorption i (j-nq)
+          |> Sparse.set pstar swap.(i) swap.(j)
+        done
       done;
+
+      (* absorbing states transitien to themselves with probability 1 *)
+      for i = nq to n-1 do
+        Sparse.set pstar swap.(i) swap.(i) 1.0
+      done;
+
       pstar
       end
 
