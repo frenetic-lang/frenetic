@@ -86,8 +86,16 @@ module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
           decr right;
         end
       done;
+      (* number of transient states *)
       let nq = if Dense.get a (!left) 0 = 1.0 then !left + 1 else !left in
+      (* number of absorbing states *)
       let nr = n - nq in
+
+      (* There may not be any *proper* absorbing states, i.e. the only absorbing
+         state is the empty set. In this case, the while loop is equvialent to
+         drop.
+       *)
+      if nr = 0 then of_pol ProbNetKAT.Syntax.Smart.drop else begin
 
       (* extract q and r from p *)
       let q = Dense.zeros nq nq and r = Dense.zeros nq nr in
@@ -117,6 +125,7 @@ module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
           done
       done;
       pstar
+      end
 
 end
 
@@ -246,8 +255,16 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
           decr right;
         end
       done;
+      (* number of transient states *)
       let nq = if a.{!left} = 1.0 then !left else !left - 1 in
+      (* number of absorbing states *)
       let nr = n - nq in
+
+      (* There may not be any *proper* absorbing states, i.e. the only absorbing
+         state is the empty set. In this case, the while loop is equvialent to
+         drop.
+       *)
+      if nr = 0 then of_pol ProbNetKAT.Syntax.Smart.drop else begin
 
       (* forward and backward swapping is actually the same for our permutation;
          in particular, swap o swap = id *)
@@ -270,6 +287,7 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
       lapmt absorption swap;
 
       M absorption
+      end
       [@@warning "-8"] (* accept inexhaustive pattern match *)
 
 end
