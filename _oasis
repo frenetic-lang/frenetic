@@ -86,7 +86,7 @@ Executable lb
   CompiledObject: best
   BuildDepends:
     probnetkat
-  MainIs: lb.ml
+  MainIs: LoadBalancer.ml
 
 # Executable probnetkat_te
 #   Path: lib/prob/apps/TE

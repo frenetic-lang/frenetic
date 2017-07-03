@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: cd4e4d57cb244d731e5b5f6b775af1bd)
+# DO NOT EDIT (digest: 64093794592f361ed038d0e6e9e8fe66)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -42,18 +42,18 @@ true: annot, bin_annot
 <lib/prob/*.ml{,i,y}>: package(zarith)
 <lib/prob/*.ml{,i,y}>: use_probnetkat
 # Executable lb
-<lib/prob/apps/lb/lb.{native,byte}>: package(core)
-<lib/prob/apps/lb/lb.{native,byte}>: package(lacaml)
-<lib/prob/apps/lb/lb.{native,byte}>: package(owl)
-<lib/prob/apps/lb/lb.{native,byte}>: package(ppx_compare)
-<lib/prob/apps/lb/lb.{native,byte}>: package(ppx_deriving)
-<lib/prob/apps/lb/lb.{native,byte}>: package(ppx_deriving.enum)
-<lib/prob/apps/lb/lb.{native,byte}>: package(ppx_deriving.eq)
-<lib/prob/apps/lb/lb.{native,byte}>: package(ppx_deriving.show)
-<lib/prob/apps/lb/lb.{native,byte}>: package(ppx_import)
-<lib/prob/apps/lb/lb.{native,byte}>: package(ppx_sexp_conv)
-<lib/prob/apps/lb/lb.{native,byte}>: package(zarith)
-<lib/prob/apps/lb/lb.{native,byte}>: use_probnetkat
+<lib/prob/apps/lb/LoadBalancer.{native,byte}>: package(core)
+<lib/prob/apps/lb/LoadBalancer.{native,byte}>: package(lacaml)
+<lib/prob/apps/lb/LoadBalancer.{native,byte}>: package(owl)
+<lib/prob/apps/lb/LoadBalancer.{native,byte}>: package(ppx_compare)
+<lib/prob/apps/lb/LoadBalancer.{native,byte}>: package(ppx_deriving)
+<lib/prob/apps/lb/LoadBalancer.{native,byte}>: package(ppx_deriving.enum)
+<lib/prob/apps/lb/LoadBalancer.{native,byte}>: package(ppx_deriving.eq)
+<lib/prob/apps/lb/LoadBalancer.{native,byte}>: package(ppx_deriving.show)
+<lib/prob/apps/lb/LoadBalancer.{native,byte}>: package(ppx_import)
+<lib/prob/apps/lb/LoadBalancer.{native,byte}>: package(ppx_sexp_conv)
+<lib/prob/apps/lb/LoadBalancer.{native,byte}>: package(zarith)
+<lib/prob/apps/lb/LoadBalancer.{native,byte}>: use_probnetkat
 <lib/prob/apps/lb/*.ml{,i,y}>: package(core)
 <lib/prob/apps/lb/*.ml{,i,y}>: package(lacaml)
 <lib/prob/apps/lb/*.ml{,i,y}>: package(owl)

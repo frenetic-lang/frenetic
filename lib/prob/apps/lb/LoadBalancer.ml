@@ -258,14 +258,15 @@ let topology_program ~(k : int) : policy =
 
 (* Policy to test if a packet has reached a server *)
 let delivered_to_host ~(k : int) : policy =
-  build_list k ~f:(fun cluster ->
+  (build_list k ~f:(fun cluster ->
     build_list k ~f:(fun edge ->
       build_list k ~f:(fun host ->
         let host_id = Switch.get_id (Host { k; cluster; edge; host }) in
         ??("Switch", host_id)))
     |> List.concat_no_order)
   |> List.concat_no_order
-  |> mk_big_union ~init:drop
+  |> mk_big_union ~init:drop)
+  >> ??("Port", 0)
 
 (* Policy to test if a packet is still inside the network *)
 let in_network ~(k : int) : policy =
@@ -283,10 +284,10 @@ let in_network ~(k : int) : policy =
 let in_traffic ~(k : int) : policy =
   let core = 0 in
   let core_sw_id = Switch.get_id (Core { k; core }) in
-  !!("Switch", core_sw_id) >> !!("Port", 0)
+  ??("Switch", core_sw_id) >> ??("Port", 0)
 
 (* Load-balancer program with traffic *)
-let lb_policy ~(k : int) : policy list =
+let lb_policy ~(k : int) =
   let ingress = in_traffic ~k in
   let t = topology_program ~k in
   let p = PerHop.routing_policy k in
@@ -294,11 +295,11 @@ let lb_policy ~(k : int) : policy list =
   (* let p = EcmpLite.routing_policy k in *)
   let egress = delivered_to_host ~k in
   let within_network = in_network ~k in
-  [ ingress >> mk_while (neg egress) (p >> t) >> egress;
-    ingress >> mk_while (within_network) (p >> t) >> egress;
-    ingress >> (p >> t) >> (p >> t) >> (p >> t) >> egress ]
-
+  let pol = ingress >> mk_while (neg egress) (p >> t) >> egress in
+  (* let pol = ingress >> mk_while (within_network) (p >> t) >> egress in *)
+  (* let pol = ingress >> (p >> t) >> (p >> t) >> (p >> t) >> egress in *)
+  run pol ~row_query:ingress ~col_query:egress
 let () = begin
-  let k = 1 in
-  List.iter (lb_policy ~k) ~f:run
+  let k = 2 in
+  lb_policy ~k
 end
