@@ -384,7 +384,7 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
         end;
 
         (* unswap *)
-        laswp absorption swap;
+        laswp ~k1:1 ~k2:nq absorption swap;
         lapmt absorption swap;
 
         M absorption
