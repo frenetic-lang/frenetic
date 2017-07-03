@@ -360,7 +360,7 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
           printf "P (rows & cols swapped):\n%!";
           show ~label:false (M p);
           printf "transient matrix Q:\n%!";
-          show ~label:false (M (lacpy ~m:nq ~n:nq ~ar:1      ~ac:1 p ));
+          show ~label:false (M (lacpy ~m:nq ~n:nq ~ar:1      ~ac:1 p));
           printf "trans-to-absorbing matrix R:\n%!";
           show ~label:false (M (lacpy ~m:nr ~n:nq ~ar:(nq+1) ~ac:1 p));
         end;
@@ -375,6 +375,10 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
           p.{i,i} <- 1.0 -. p.{i,i}
         done;
         getri ~n:nq ~ar:1 ~ac:1 p;
+        if debug then begin
+          printf "infinite sum (I-Q)^-1:\n%!";
+          show ~label:false (M (lacpy ~m:nq ~n:nq ~ar:1      ~ac:1 p));
+        end;
         let _ = gemm ~m:nr ~n:nq ~k:nq ~c:absorption ~cr:(nq+1) ~cc:1 p ~ar:(nq+1) ~ac:1 p ~br:1 ~bc:1 in
 
         (* calculate absorption probabilities *)
