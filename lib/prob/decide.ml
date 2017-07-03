@@ -19,12 +19,24 @@ let time f =
 let print_time time =
   printf "time: %.4f\n" time
 
+let print_dom_size n dom = begin
+  printf "size of state space = %s" (Int.to_string_hum n);
+  if Map.length dom > 1 then
+    Map.data dom 
+    |> List.map ~f:(fun vs -> Int.to_string (Set.length vs + 1))
+    |> String.concat ~sep:" x "
+    |> printf " (%s)";
+  printf "\n\n%!";
+end
+
+
 let run ?(print=true) ?(lbl=true) ?(transpose=false) ?(debug=false) p =
   printf "\n========================= EIGEN ==========================\n\n%!";
   fprintf fmt "policy = %a\n\n%!" pp_policy p;
   let dom = domain p in
   let module Repr = ProbNetKAT_Packet_Repr.Make(struct let domain = dom end) in
   let n = Repr.Index0.max.i + 1 in
+  print_dom_size n dom;
   let module Mc = ProbNetKAT_Mc.MakeOwl(Repr) in
   if print && not lbl then begin
     fprintf fmt "index packet mapping:\n%!";
@@ -52,6 +64,7 @@ let run' ?(print=true) ?(lbl=true) ?(debug=false) p =
   let module Repr = ProbNetKAT_Packet_Repr.Make(struct let domain = dom end) in
   let module Mc = ProbNetKAT_Mc.MakeLacaml(Repr) in
   let n = Repr.Index.max.i in
+  print_dom_size n dom;
   if print && not lbl then begin
     fprintf fmt "index packet mapping:\n%!";
     Array.init n ~f:ident
@@ -123,8 +136,9 @@ let () = begin
   run (mk_while ??("f", 0) !!("f", 1));
   run (pwhile 10);
   run (neg ??("f", 1));
-  run ~debug:true (qwhile 10);
-  run' ~debug:true (qwhile 10);
+  run ~debug:false (qwhile 10);
+  run' ~debug:false (qwhile 10);
+  run (blowup 9) ~print:false;
   (* run (pwhile 100);
   run (pwhile 100_000_000);
   try run pwhile' with e -> printf "%s\n" (Exn.to_string e);
