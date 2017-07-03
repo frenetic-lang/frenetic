@@ -132,6 +132,10 @@ module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
         in
 
         if debug then begin
+          printf "full matrix p:\n";
+          show (Sparse.to_dense p);
+          printf "swap vector:\n";
+          Array.iter swap ~f:(printf "%d "); printf "%\n\n%!";
           printf "transient matrix Q:\n%!";
           show ~label:false (Sparse.of_dense q);
           printf "trans-to-absorbing matrix R:\n%!";
@@ -142,6 +146,8 @@ module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
         let qstar = Linalg.inv Dense.(sub (eye nq) q) in
         let absorption = Dense.(dot qstar r) in
         if debug then begin
+          printf "infinite sum (I-Q)^-1:\n%!";
+          show ~label:false (Sparse.of_dense qstar);
           printf "absorption matrix (I-Q)^-1 * R:\n%!";
           show ~label:false (Sparse.of_dense absorption);
         end;
