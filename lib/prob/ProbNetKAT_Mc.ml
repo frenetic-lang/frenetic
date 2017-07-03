@@ -329,7 +329,11 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
         (* number of absorbing states *)
         let nr = n - nq in
 
-        if debug then printf "n = %d, nq = %d, nr = %d\n\n" n nq nr;
+        if debug then begin
+          printf "n = %d, nq = %d, nr = %d\n\n" n nq nr;
+          printf "swap vector:\n";
+          fprintf (Format.std_formatter) "%a\n\n%!" Lacaml.Io.pp_rivec swap;
+        end;
 
         (* There may not be any *proper* absorbing states, i.e. the only absorbing
            state is the empty set. In this case, the while loop is equvialent to
@@ -339,14 +343,26 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
 
         (* forward and backward swapping is actually the same for our permutation;
            in particular, swap o swap = id *)
-        let () = laswp p swap in
+        if debug then begin
+          printf "full matrix P:\n%!";
+          show ~label:false (M p);
+        end;
+
+        let () = laswp ~n ~k1:1 ~k2:nq p swap in
+        if debug then begin
+          printf "P (rows swapped):\n%!";
+          show ~label:false (M p);
+        end;
+
         let () = lapmt p swap in
 
         if debug then begin
+          printf "P (rows & cols swapped):\n%!";
+          show ~label:false (M p);
           printf "transient matrix Q:\n%!";
-          show ~label:false (M (Mat.trunc ~m:nq ~n:nq ~ar:1      ~ac:1 p ));
+          show ~label:false (M (lacpy ~m:nq ~n:nq ~ar:1      ~ac:1 p ));
           printf "trans-to-absorbing matrix R:\n%!";
-          show ~label:false (M (Mat.trunc ~m:nr ~n:nq ~ar:(nq+1) ~ac:1 p));
+          show ~label:false (M (lacpy ~m:nr ~n:nq ~ar:(nq+1) ~ac:1 p));
         end;
 
         let absorption = Mat.make0 n n in
