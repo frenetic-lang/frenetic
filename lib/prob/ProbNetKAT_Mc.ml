@@ -190,6 +190,18 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
   (* empty is not index of matrix *)
   let (n, empty) = (Index.max.i, Index.max.i + 1)
 
+  let show (mc : v_or_m) : unit = 
+    begin match mc with
+      | M m -> m
+      | V v -> Mat.of_diag v
+    end
+    |> Format.printf "@[<2>MATRIX:@\n%a@\n@]@.%!" (Lacaml.Io.pp_lfmat
+        ~row_labels:
+          (Array.init n (fun i -> Format.asprintf "%a%!" Repr.Index0.pp' i))
+        ~ellipsis:"*"
+        ~print_right:false
+        ~print_foot:false ())
+
   let dirac ?(n=n) (f : int -> int) : v_or_m =
     M (Mat.of_col_vecs (Array.init n ~f:(fun i0 ->
       let v = Vec.make0 n in
@@ -199,140 +211,152 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
   let one = Vec.make n 1.0
   let zero = Vec.make0 n
 
-  let rec of_pol p : v_or_m =
-    match p.p with
-    | Skip ->
-      V one
-    | Drop ->
-      V zero
-    | Test (f,v) ->
-      V (Vec.init n (fun i -> if Index.test' f v i then 1.0 else 0.0))
-    | Neg a ->
-      begin match of_pol a with
-      | V v -> V Vec.(sub one v)
-      | _ -> assert false
-      end
-    | Or (a,b) ->
-      begin match of_pol a, of_pol b with
-      | V a, V b -> V Vec.(max2 a b)
-      | _ -> assert false
-      end
-    | Modify (f,v) ->
-      dirac (fun i -> Index.modify' f v i)
-    | Seq (p,q) ->
-      (** we're using *left*-stochastic matrices, so we need to swap before multiplying *)
-      begin match of_pol p, of_pol q with
-      | V p, V q -> V (Vec.mul q p)
-      | M p, M q -> M (gemm q p)
-      | (M p as m), V q -> Mat.scal_rows q p; m
-      | V p, (M q as m) -> Mat.scal_cols q p; m
-      end
-    | Choice ps ->
-      let y = Mat.make0 n n in
-      List.iter ps ~f:(fun (p,r) -> match of_pol p with
-        | V x ->
-          for i = 1 to n do
-            y.{i,i} <- y.{i,i} +. (Prob.to_float r) *. x.{i}
-          done
-        | M x -> Mat.axpy ~alpha:(Prob.to_float r) x y);
-      M y
-    | Ite (a,p,q) ->
-      begin match of_pol a, of_pol p, of_pol q with
-      | V a, M p, (M q as m) ->
-        Mat.scal_rows a p;
-        Mat.scal_rows (Vec.sub one a) q;
-        Mat.axpy p q;
-        m
-      | V a, V p, (V q as v) ->
-        axpy (Vec.mul a p) Vec.(mul (sub one a) q);
-        v
-      | V a, (M p as m), V q ->
-        Mat.scal_rows a p;
-        for i = 1 to n do
-          if a.{i} = 0.0 then
-            p.{i,i} <- q.{i}
-        done;
-        m
-      | V a, V p, (M q as m) ->
-        Mat.scal_rows (Vec.sub one a) q;
-        for i = 1 to n do
-          if a.{i} = 1.0 then
-            q.{i,i} <- p.{i}
-        done;
-        m
-      | _ -> assert false
-      end
-    | While(a,p) ->
-      let V a, (M p as m) = of_pol a, of_pol p in
-      (* rearrange indices so that packets 1 to nq satisfy a (these are the
-         transient states of the while loop); and packets nq+1 to n do not
-         satisfy a (these are the absorbing states).
+  let of_pol ?(debug=false) p : v_or_m =
+    let rec of_pol p =
+      let mc = of_pol' p in
+      if debug then begin
+        fprintf (Format.std_formatter) "%a\n%!" pp_policy p;
+        show mc;
+      end;
+      mc
 
-         swap.(i) = new index of ith packet
-      *)
-      let swap = Lacaml.Common.create_int32_vec n in
-      for i = 1 to n do
-        swap.{i} <- Int32.of_int_exn i
-      done;
-      (* Scan packets from left and right ends of [1, ..., n-]. If we find packets
-         left < right such that left does not satisfy a, but right does, we
-         swap them. Thus, when the loop terminates packets 1 to nq will satisfy
-         a, and packets nq+1 to n will not satisfy a.
-      *)
-      let left = ref 1 and right = ref n in
-      let nq = ref 0 in (* number of transient states *)
-      while !left < !right do
-        (* increment left until it corresponds to a packet not satisfying a *)
-        while !left < !right && a.{!left} = 1.0 do
-          incr left;
-          incr nq;
-        done;
-        (* decrement right until it corresponds to a packet satisfying a *)
-        while !left < !right && a.{!right} = 0.0 do
-          decr right
-        done;
-        if !left < !right then begin
-          swap.{!left} <- Int32.of_int_exn (!right);
-          swap.{!right} <- Int32.of_int_exn (!left);
-          incr left;
-          decr right;
-          incr nq;
+    and of_pol' p =
+      match p.p with
+      | Skip ->
+        V one
+      | Drop ->
+        V zero
+      | Test (f,v) ->
+        V (Vec.init n (fun i -> if Index.test' f v i then 1.0 else 0.0))
+      | Neg a ->
+        begin match of_pol a with
+        | V v -> V Vec.(sub one v)
+        | _ -> assert false
         end
-      done;
-      (* number of transient states *)
-      let nq = !nq in
-      (* number of absorbing states *)
-      let nr = n - nq in
+      | Or (a,b) ->
+        begin match of_pol a, of_pol b with
+        | V a, V b -> V Vec.(max2 a b)
+        | _ -> assert false
+        end
+      | Modify (f,v) ->
+        dirac (fun i -> Index.modify' f v i)
+      | Seq (p,q) ->
+        (** we're using *left*-stochastic matrices, so we need to swap before multiplying *)
+        begin match of_pol p, of_pol q with
+        | V p, V q -> V (Vec.mul q p)
+        | M p, M q -> M (gemm q p)
+        | (M p as m), V q -> Mat.scal_rows q p; m
+        | V p, (M q as m) -> Mat.scal_cols q p; m
+        end
+      | Choice ps ->
+        let y = Mat.make0 n n in
+        List.iter ps ~f:(fun (p,r) -> match of_pol p with
+          | V x ->
+            for i = 1 to n do
+              y.{i,i} <- y.{i,i} +. (Prob.to_float r) *. x.{i}
+            done
+          | M x -> Mat.axpy ~alpha:(Prob.to_float r) x y);
+        M y
+      | Ite (a,p,q) ->
+        begin match of_pol a, of_pol p, of_pol q with
+        | V a, M p, (M q as m) ->
+          Mat.scal_rows a p;
+          Mat.scal_rows (Vec.sub one a) q;
+          Mat.axpy p q;
+          m
+        | V a, V p, (V q as v) ->
+          axpy (Vec.mul a p) Vec.(mul (sub one a) q);
+          v
+        | V a, (M p as m), V q ->
+          Mat.scal_rows a p;
+          for i = 1 to n do
+            if a.{i} = 0.0 then
+              p.{i,i} <- q.{i}
+          done;
+          m
+        | V a, V p, (M q as m) ->
+          Mat.scal_rows (Vec.sub one a) q;
+          for i = 1 to n do
+            if a.{i} = 1.0 then
+              q.{i,i} <- p.{i}
+          done;
+          m
+        | _ -> assert false
+        end
+      | While(a,p) ->
+        let V a, (M p as m) = of_pol a, of_pol p in
+        (* rearrange indices so that packets 1 to nq satisfy a (these are the
+           transient states of the while loop); and packets nq+1 to n do not
+           satisfy a (these are the absorbing states).
 
-      (* There may not be any *proper* absorbing states, i.e. the only absorbing
-         state is the empty set. In this case, the while loop is equvialent to
-         drop.
-       *)
-      if nr = 0 then of_pol ProbNetKAT.Syntax.Smart.drop else begin
+           swap.(i) = new index of ith packet
+        *)
+        let swap = Lacaml.Common.create_int32_vec n in
+        for i = 1 to n do
+          swap.{i} <- Int32.of_int_exn i
+        done;
+        (* Scan packets from left and right ends of [1, ..., n-]. If we find packets
+           left < right such that left does not satisfy a, but right does, we
+           swap them. Thus, when the loop terminates packets 1 to nq will satisfy
+           a, and packets nq+1 to n will not satisfy a.
+        *)
+        let left = ref 1 and right = ref n in
+        let nq = ref 0 in (* number of transient states *)
+        while !left < !right do
+          (* increment left until it corresponds to a packet not satisfying a *)
+          while !left < !right && a.{!left} = 1.0 do
+            incr left;
+            incr nq;
+          done;
+          (* decrement right until it corresponds to a packet satisfying a *)
+          while !left < !right && a.{!right} = 0.0 do
+            decr right
+          done;
+          if !left < !right then begin
+            swap.{!left} <- Int32.of_int_exn (!right);
+            swap.{!right} <- Int32.of_int_exn (!left);
+            incr left;
+            decr right;
+            incr nq;
+          end
+        done;
+        (* number of transient states *)
+        let nq = !nq in
+        (* number of absorbing states *)
+        let nr = n - nq in
 
-      (* forward and backward swapping is actually the same for our permutation;
-         in particular, swap o swap = id *)
-      let () = laswp p swap in
-      let () = lapmt p swap in
-      let absorption = Mat.make0 n n in
-      for i = nq+1 to n do
-        absorption.{i,i} <- 1.0
-      done;
+        (* There may not be any *proper* absorbing states, i.e. the only absorbing
+           state is the empty set. In this case, the while loop is equvialent to
+           drop.
+         *)
+        if nr = 0 then of_pol ProbNetKAT.Syntax.Smart.drop else begin
 
-      (* calculate pstar *)
-      for i = 1 to nq do
-        p.{i,i} <- 1.0 -. p.{i,i}
-      done;
-      getri ~n:nq ~ar:1 ~ac:1 p;
-      let _ = gemm ~m:nr ~n:nq ~k:nq ~c:absorption ~cr:(nq+1) ~cc:1 p ~ar:(nq+1) ~ac:1 p ~br:1 ~bc:1 in
+        (* forward and backward swapping is actually the same for our permutation;
+           in particular, swap o swap = id *)
+        let () = laswp p swap in
+        let () = lapmt p swap in
+        let absorption = Mat.make0 n n in
+        for i = nq+1 to n do
+          absorption.{i,i} <- 1.0
+        done;
 
-      (* unswap *)
-      laswp absorption swap;
-      lapmt absorption swap;
+        (* calculate pstar *)
+        for i = 1 to nq do
+          p.{i,i} <- 1.0 -. p.{i,i}
+        done;
+        getri ~n:nq ~ar:1 ~ac:1 p;
+        let _ = gemm ~m:nr ~n:nq ~k:nq ~c:absorption ~cr:(nq+1) ~cc:1 p ~ar:(nq+1) ~ac:1 p ~br:1 ~bc:1 in
 
-      M absorption
-      end
-      [@@warning "-8"] (* accept inexhaustive pattern match *)
+        (* unswap *)
+        laswp absorption swap;
+        lapmt absorption swap;
+
+        M absorption
+        end
+        [@@warning "-8"] (* accept inexhaustive pattern match *)
+
+      in
+      of_pol p
 
 end
 

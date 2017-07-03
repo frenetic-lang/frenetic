@@ -45,7 +45,7 @@ let run ?(print=true) ?(lbl=true) ?(transpose=false) ?(debug=false) p =
   print_time t;
   ()
 
-let run' ?(print=true) ?(lbl=true) p =
+let run' ?(print=true) ?(lbl=true) ?(debug=false) p =
   printf "\n========================== BLAS ==========================\n\n%!";
   fprintf fmt "policy = %a\n\n%!" pp_policy p;
   let dom = domain p in
@@ -58,7 +58,7 @@ let run' ?(print=true) ?(lbl=true) p =
     |> Array.iter ~f:(fun i -> fprintf fmt " %d = %a\n%!" i Repr.Index0.pp' i);
     fprintf fmt "\n%!";
   end;
-  let (t, mc) = time (fun () -> Mc.of_pol p) in
+  let (t, mc) = time (fun () -> Mc.of_pol ~debug p) in
   let mc =
     match mc with
     | M m -> assert Lacaml.D.Mat.(dim1 m = n && dim2 m = n); m
@@ -123,8 +123,8 @@ let () = begin
   run (mk_while ??("f", 0) !!("f", 1));
   run (pwhile 10);
   run (neg ??("f", 1));
-  run (qwhile 10);
-  run' (qwhile 10);
+  run ~debug:true (qwhile 10);
+  run' ~debug:true (qwhile 10);
   (* run (pwhile 100);
   run (pwhile 100_000_000);
   try run pwhile' with e -> printf "%s\n" (Exn.to_string e);
