@@ -142,7 +142,7 @@ module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
         let qstar = Linalg.inv Dense.(sub (eye nq) q) in
         let absorption = Dense.(dot qstar r) in
         if debug then begin
-          printf "absorption matrix (I-Q)^-1:\n%!";
+          printf "absorption matrix (I-Q)^-1 * R:\n%!";
           show ~label:false (Sparse.of_dense absorption);
         end;
 
@@ -190,16 +190,20 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
   (* empty is not index of matrix *)
   let (n, empty) = (Index.max.i, Index.max.i + 1)
 
-  let show (mc : v_or_m) : unit = 
+  let show ?(label=true) (mc : v_or_m) : unit = 
     begin match mc with
       | M m -> m
       | V v -> Mat.of_diag v
     end
     |> Format.printf "@[<2>MATRIX:@\n%a@\n@]@.%!" (Lacaml.Io.pp_lfmat
-        ~row_labels:
-          (Array.init n (fun i -> Format.asprintf "%a%!" Repr.Index0.pp' i))
+        ?row_labels:
+          (if label then 
+              Some (Array.init n (fun i -> Format.asprintf "%a%!" Repr.Index0.pp' i))
+           else
+              None)
         ~ellipsis:"*"
         ~print_right:false
+        ~print_left:label
         ~print_foot:false ())
 
   let dirac ?(n=n) (f : int -> int) : v_or_m =
@@ -295,7 +299,7 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
         for i = 1 to n do
           swap.{i} <- Int32.of_int_exn i
         done;
-        (* Scan packets from left and right ends of [1, ..., n-]. If we find packets
+        (* Scan packets from left and right ends of [1, ..., n]. If we find packets
            left < right such that left does not satisfy a, but right does, we
            swap them. Thus, when the loop terminates packets 1 to nq will satisfy
            a, and packets nq+1 to n will not satisfy a.
@@ -325,6 +329,8 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
         (* number of absorbing states *)
         let nr = n - nq in
 
+        if debug then printf "n = %d, nq = %d, nr = %d\n\n" n nq nr;
+
         (* There may not be any *proper* absorbing states, i.e. the only absorbing
            state is the empty set. In this case, the while loop is equvialent to
            drop.
@@ -335,6 +341,14 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
            in particular, swap o swap = id *)
         let () = laswp p swap in
         let () = lapmt p swap in
+
+        if debug then begin
+          printf "transient matrix Q:\n%!";
+          show ~label:false (M (Mat.trunc ~m:nq ~n:nq ~ar:1      ~ac:1 p ));
+          printf "trans-to-absorbing matrix R:\n%!";
+          show ~label:false (M (Mat.trunc ~m:nr ~n:nq ~ar:(nq+1) ~ac:1 p));
+        end;
+
         let absorption = Mat.make0 n n in
         for i = nq+1 to n do
           absorption.{i,i} <- 1.0
@@ -346,6 +360,12 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
         done;
         getri ~n:nq ~ar:1 ~ac:1 p;
         let _ = gemm ~m:nr ~n:nq ~k:nq ~c:absorption ~cr:(nq+1) ~cc:1 p ~ar:(nq+1) ~ac:1 p ~br:1 ~bc:1 in
+
+        (* calculate absorption probabilities *)
+        if debug then begin
+          printf "absorption matrix (I-Q)^-1 * R:\n%!";
+          show ~label:false (M absorption);
+        end;
 
         (* unswap *)
         laswp absorption swap;
