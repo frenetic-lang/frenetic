@@ -33,8 +33,7 @@ let rec test_filter test_fn (query:policy) i =
     test_filter test_fn a1 i && test_filter test_fn a2 i
   | _ -> failwith "Invalid query"
 
-let run ?(print=true) ?(lbl=true) ?(transpose=false) ?(debug=false)
-      ?(row_query=skip) ?(col_query=skip) p =
+let run ?(print=true) ?(lbl=true) ?(transpose=false) ?(debug=false) p =
   printf "\n========================= EIGEN ==========================\n\n%!";
   fprintf fmt "policy = %a\n\n%!" pp_policy p;
   let dom = domain p in
@@ -45,11 +44,6 @@ let run ?(print=true) ?(lbl=true) ?(transpose=false) ?(debug=false)
   if print then begin
     let dense_mc = (if transpose then Sparse.transpose else ident) mc |>
                    Sparse.to_dense in
-    let rows = Dense.filteri_rows (fun i _ -> test_filter Repr.Index.test' row_query i) dense_mc in
-    let cols = Dense.filteri_cols (fun i _ -> test_filter Repr.Index.test' col_query i) dense_mc in
-    let fd_mc = Dense.rows dense_mc (Array.map ~f:(fun i -> i - 1) rows) in
-    let fd_mc = Dense.cols fd_mc (Array.map ~f:(fun i -> i - 1) cols) in
-    (* let fd_mc = Dense.cols fd_mc cols in *)
     let print_mat ?(row_map=identity) ?(col_map=identity) =
       Format.printf "@[MATRIX:@\n%a@\n@]@."
         (if not lbl then Owl_pretty.pp_fmat else
@@ -58,8 +52,7 @@ let run ?(print=true) ?(lbl=true) ?(transpose=false) ?(debug=false)
              ~pp_head:(Some (fun fmt i -> fprintf fmt "%a|" Repr.Index.pp' (col_map i)))
              ~pp_foot:None
              ~pp_right:None ()) in
-    print_mat ~row_map:(fun x -> Array.nget rows (x-1)) ~col_map:(fun x -> Array.nget cols (x-1)) fd_mc;
-    (* print_mat dense_mc; *)
+    print_mat dense_mc;
   end;
   print_time t;
   ()

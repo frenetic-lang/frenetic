@@ -1,0 +1,37 @@
+digraph topology {
+
+s1[type=switch,id=1,mac="20:00:00:00:00:01",ip="192.168.1.1"];
+s2[type=switch,id=2,mac="20:00:00:00:00:02",ip="192.168.1.2"];
+s3[type=switch,id=3,mac="20:00:00:00:00:03",ip="192.168.1.3"];
+s4[type=switch,id=4,mac="20:00:00:00:00:04",ip="192.168.1.4"];
+
+h1[type=host,mac="00:00:00:00:00:01",ip="10.0.0.1"];
+h2[type=host,mac="00:00:00:00:00:02",ip="10.0.0.2"];
+h3[type=host,mac="00:00:00:00:00:03",ip="10.0.0.3"];
+h4[type=host,mac="00:00:00:00:00:04",ip="10.0.0.4"];
+
+s1 -> s2 [src_port=2, dst_port=1, cost=0, capacity="1Gbps"];
+s2 -> s1 [src_port=1, dst_port=2, cost=0, capacity="1Gbps"];
+
+s2 -> s3 [src_port=3, dst_port=2, cost=0, capacity="1Gbps"];
+s3 -> s2 [src_port=2, dst_port=3, cost=0, capacity="1Gbps"];
+
+s3 -> s4 [src_port=4, dst_port=3, cost=0, capacity="1Gbps"];
+s4 -> s3 [src_port=3, dst_port=4, cost=0, capacity="1Gbps"];
+
+s4 -> s1 [src_port=1, dst_port=4, cost=0, capacity="1Gbps"];
+s1 -> s4 [src_port=4, dst_port=1, cost=0, capacity="1Gbps"];
+
+h1 -> s1 [src_port=0, dst_port=0, cost=0, capacity="5Gbps"];
+s1 -> h1 [src_port=0, dst_port=0, cost=0, capacity="5Gbps"];
+
+h2 -> s2 [src_port=0, dst_port=0, cost=0, capacity="5Gbps"];
+s2 -> h2 [src_port=0, dst_port=0, cost=0, capacity="5Gbps"];
+
+h3 -> s3 [src_port=0, dst_port=0, cost=0, capacity="5Gbps"];
+s3 -> h3 [src_port=0, dst_port=0, cost=0, capacity="5Gbps"];
+
+h4 -> s4 [src_port=0, dst_port=0, cost=0, capacity="5Gbps"];
+s4 -> h4 [src_port=0, dst_port=0, cost=0, capacity="5Gbps"];
+
+}

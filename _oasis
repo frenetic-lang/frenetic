@@ -88,19 +88,13 @@ Executable lb
     probnetkat
   MainIs: LoadBalancer.ml
 
-# Executable probnetkat_te
-#   Path: lib/prob/apps/TE
-#   CompiledObject: best
-#   BuildDepends:
-#     probnetkat,
-#     core,
-#     ppx_deriving.enum,
-#     ppx_deriving.show,
-#     ppx_deriving.make,
-#     ppx_jane,
-#     str,
-#     topology
-#   MainIs: Frenetic_ProbNetKAT_TE.ml
+Executable probnetkat_te
+  Path: lib/prob/apps/te
+  CompiledObject: best
+  BuildDepends:
+    probnetkat,
+    frenetic
+  MainIs: Frenetic_ProbNetKAT_TE.ml
 
 
 # generate standard parser, syntax extension parser, and tokens from common file
