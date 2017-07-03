@@ -112,7 +112,11 @@ module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
         let nq = !nq in
         (* number of absorbing states *)
         let nr = n - nq in
-        if debug then printf "n = %d, nq = %d, nr = %d\n\n" n nq nr;
+        if debug then begin
+            printf "n = %d, nq = %d, nr = %d\n\n" n nq nr;
+            printf "swap vector:\n";
+            Array.iter swap ~f:(printf "%d "); printf "\n\n%!";
+        end;
 
         (* There may not be any *proper* absorbing states, i.e. the only absorbing
            state is the empty set. In this case, the while loop is equvialent to
@@ -133,9 +137,7 @@ module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
 
         if debug then begin
           printf "full matrix p:\n";
-          show (Sparse.to_dense p);
-          printf "swap vector:\n";
-          Array.iter swap ~f:(printf "%d "); printf "%\n\n%!";
+          show p;
           printf "transient matrix Q:\n%!";
           show ~label:false (Sparse.of_dense q);
           printf "trans-to-absorbing matrix R:\n%!";
@@ -377,8 +379,9 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
         done;
 
         (* calculate pstar *)
+        let () = Mat.scal ~m:nq ~n:nq ~ar:1 ~ac:1 (-1.) p in
         for i = 1 to nq do
-          p.{i,i} <- 1.0 -. p.{i,i}
+          p.{i,i} <- p.{i,i} +. 1.0;
         done;
         getri ~n:nq ~ar:1 ~ac:1 p;
         if debug then begin
