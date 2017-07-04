@@ -174,6 +174,20 @@ module Constructors = struct
       if a = drop then skip else
       Dumb.mk_while a p
 
+    let seqi n ~f =
+      Array.init n ~f
+      |> Array.fold ~init:skip ~f:seq
+
+    let choicei n ~f =
+      Array.init n ~f
+      |> Array.to_list
+      |> choice
+
+    let mk_union = disj
+    let mk_big_union ~init = List.fold ~init ~f:(fun p q -> if p = drop then q
+                                                  else mk_union p q)
+    let mk_big_ite ~default = List.fold ~init:default ~f:(fun q (a, p) -> ite a p q)
+
   end
 end
 

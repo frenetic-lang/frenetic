@@ -1,5 +1,6 @@
 open Core
 open ProbNetKAT
+open ProbNetKAT_Util
 
 module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
   include Repr
@@ -30,12 +31,20 @@ module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
     done;
     mat
 
-  let of_pol ?(debug=true) p = 
+  let of_pol ?(debug=false) ?(verbose=false) p = 
     let rec of_pol p : Sparse.mat =
-      let mc = of_pol' p in
+      let (t, mc) = time of_pol' p in
       if debug then begin
         fprintf (Format.std_formatter) "%a\n%!" pp_policy p;
-        show mc;
+        if verbose then show mc;
+        print_time t;
+        let nnz = Sparse.nnz mc and nnzc = Array.length (Sparse.nnz_cols mc) in
+        printf "# nonzero entries: %d (%.3f%%)\n" nnz Float.(of_int nnz / of_int Int.(n*n) * 100.0);
+        printf "# nonzero cols = %d (%.3f%%)\n" nnzc Float.(of_int nnzc / of_int n * 100.0);
+        printf "sparsety = (%.2f, %.2f, %.2f)\n\n%!"
+          Float.(of_int nnz / of_int n)
+          Float.(of_int nnz / (of_int n |> fun n -> n * log n))
+          Float.(of_int nnz / of_int Int.(n * n));
       end;
       mc
 
@@ -223,12 +232,13 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
   let one = Vec.make n 1.0
   let zero = Vec.make0 n
 
-  let of_pol ?(debug=false) p : v_or_m =
+  let of_pol ?(debug=false) ?(verbose=false) p : v_or_m =
     let rec of_pol p =
-      let mc = of_pol' p in
+      let (t, mc) = time of_pol' p in
       if debug then begin
         fprintf (Format.std_formatter) "%a\n%!" pp_policy p;
-        show mc;
+        if verbose then show mc;
+        print_time t;
       end;
       mc
 

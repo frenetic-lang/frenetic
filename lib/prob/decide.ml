@@ -1,6 +1,7 @@
 open Core
 open ProbNetKAT
 open ProbNetKAT_Packet_Repr
+open ProbNetKAT_Util
 
 module Mc = ProbNetKAT_Mc
 
@@ -9,15 +10,6 @@ let fmt = Format.std_formatter
 
 module Dense = Owl.Dense.Matrix.D
 module Sparse = Owl.Sparse.Matrix.D
-
-let time f =
-  let t1 = Unix.gettimeofday () in
-  let r = f () in
-  let t2 = Unix.gettimeofday () in
-  (t2 -. t1, r)
-
-let print_time time =
-  printf "time: %.4f\n" time
 
 let print_dom_size n dom = begin
   printf "size of state space = %s" (Int.to_string_hum n);
@@ -30,7 +22,7 @@ let print_dom_size n dom = begin
 end
 
 
-let run ?(print=true) ?(lbl=true) ?(transpose=false) ?(debug=false) p =
+let run ?(print=true) ?(lbl=true) ?(transpose=false) ?(debug=false) ?(verbose=false) p =
   printf "\n========================= EIGEN ==========================\n\n%!";
   fprintf fmt "policy = %a\n\n%!" pp_policy p;
   let dom = domain p in
@@ -44,7 +36,7 @@ let run ?(print=true) ?(lbl=true) ?(transpose=false) ?(debug=false) p =
     |> Array.iter ~f:(fun i -> fprintf fmt " %d = %a\n%!" i Repr.Index0.pp' i);
     fprintf fmt "\n%!";
   end;
-  let (t, mc) = time (fun () -> Mc.of_pol ~debug p) in
+  let (t, mc) = time (Mc.of_pol ~debug ~verbose) p in
   if print then begin (if transpose then Sparse.transpose else ident) mc |> Sparse.to_dense |>
     Format.printf "@[MATRIX:@\n%a@\n@]@."
       (if not lbl then Owl_pretty.pp_fmat else
@@ -71,7 +63,7 @@ let run' ?(print=true) ?(lbl=true) ?(debug=false) p =
     |> Array.iter ~f:(fun i -> fprintf fmt " %d = %a\n%!" i Repr.Index0.pp' i);
     fprintf fmt "\n%!";
   end;
-  let (t, mc) = time (fun () -> Mc.of_pol ~debug p) in
+  let (t, mc) = time (Mc.of_pol ~debug) p in
   let mc =
     match mc with
     | M m -> assert Lacaml.D.Mat.(dim1 m = n && dim2 m = n); m
@@ -97,7 +89,7 @@ let () = begin
   printf "max codepoint = %d\n" (Codepoint.max :> int);
   ignore (Codepoint.to_pk Codepoint.max); *)
   (* let open ProbNetKAT.Syntax in *)
-  let open ProbNetKAT.Syntax.Dumb in
+  let open ProbNetKAT.Syntax.Smart in
   let pwhile n =
     mk_while ??("f", 0) ?@[
       skip       @ (n-1)//n;
@@ -138,7 +130,7 @@ let () = begin
   run (neg ??("f", 1));
   run ~debug:false (qwhile 10);
   run' ~debug:false (qwhile 10);
-  run (blowup 9) ~print:false;
+  run (blowup 9) ~print:false ~debug:true;
   (* run (pwhile 100);
   run (pwhile 100_000_000);
   try run pwhile' with e -> printf "%s\n" (Exn.to_string e);
