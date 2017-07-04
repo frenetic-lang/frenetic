@@ -44,9 +44,15 @@ module type Routing = sig
   val routing_policy : int -> policy
 end
 
+type lb_algs = | PerHop | CoreDecision | ECMPLite
+
+let alg_to_string = function
+    PerHop -> "PerHop"
+  | CoreDecision -> "CoreDecision"
+  | ECMPLite -> "ECMPLite"
+
 module PerHop : Routing = struct
   (* Each switch has the same policy: spray packets on downlink ports *)
-
   let pkt_spray_pol ~(k : int) : policy =
     (* There are k ports (numbered 1 to k),
        randomly forward traffic through each port *)
@@ -161,7 +167,6 @@ module EcmpLite : Routing = struct
      field depends on the layer of switch. Core - SrcPort, Aggregation -
      DstPort, Edge - SrcIP. This is deterministic, and we assume we know the
      hash values. *)
-
   let core_switch_policy ~(k : int) (core : int) : match_action =
     let pol =
       build_list k ~f:(fun cluster ->
@@ -287,19 +292,27 @@ let in_traffic ~(k : int) : policy =
   ??("Switch", core_sw_id) >> ??("Port", 0)
 
 (* Load-balancer program with traffic *)
-let lb_policy ~(k : int) =
+let lb_policy ~(k : int) ~(alg : lb_algs)=
   let ingress = in_traffic ~k in
   let t = topology_program ~k in
-  let p = PerHop.routing_policy k in
-  (* let p = CoreDecision.routing_policy k in *)
-  (* let p = EcmpLite.routing_policy k in *)
+  let p = match alg with
+    | PerHop -> PerHop.routing_policy k
+    | CoreDecision -> CoreDecision.routing_policy k
+    | ECMPLite -> EcmpLite.routing_policy k in
   let egress = delivered_to_host ~k in
   let within_network = in_network ~k in
   let pol = ingress >> mk_while (neg egress) (p >> t) >> egress in
   (* let pol = ingress >> mk_while (within_network) (p >> t) >> egress in *)
   (* let pol = ingress >> (p >> t) >> (p >> t) >> (p >> t) >> egress in *)
   run pol ~row_query:ingress ~col_query:egress
+
 let () = begin
   let k = 2 in
-  lb_policy ~k
+  let lbmap = List.fold ~init:String.Map.empty
+    ~f:(fun acc alg -> String.Map.add acc ~key:(alg_to_string alg) ~data:(lb_policy ~k ~alg))
+    [PerHop; CoreDecision; ECMPLite] in
+  let m1 = String.Map.find_exn lbmap (alg_to_string PerHop) in
+  let m2 = String.Map.find_exn lbmap (alg_to_string CoreDecision) in
+  Printf.printf "%b\n" (m1=m2);
+  ()
 end

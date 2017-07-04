@@ -33,6 +33,17 @@ let rec test_filter test_fn (query:policy) i =
     test_filter test_fn a1 i && test_filter test_fn a2 i
   | _ -> failwith "Invalid query"
 
+let print_dom_size n dom = begin
+  printf "size of state space = %s" (Int.to_string_hum n);
+  if Map.length dom > 1 then
+    Map.data dom
+    |> List.map ~f:(fun vs -> Int.to_string (Set.length vs + 1))
+    |> String.concat ~sep:" x "
+    |> printf " (%s)";
+  printf "\n\n%!";
+end
+
+
 let run ?(print=true) ?(lbl=true) ?(transpose=false) ?(debug=false)
       ?(row_query=skip) ?(col_query=skip) p =
   printf "\n========================= EIGEN ==========================\n\n%!";
@@ -40,11 +51,12 @@ let run ?(print=true) ?(lbl=true) ?(transpose=false) ?(debug=false)
   let dom = domain p in
   let module Repr = ProbNetKAT_Packet_Repr.Make(struct let domain = dom end) in
   let n = Repr.Index0.max.i + 1 in
+  print_dom_size n dom;
   let module Mc = ProbNetKAT_Mc.MakeOwl(Repr) in
   let (t, mc) = time (fun () -> Mc.of_pol ~debug p) in
-  if print then begin
-    let dense_mc = (if transpose then Sparse.transpose else ident) mc |>
+  let dense_mc = (if transpose then Sparse.transpose else ident) mc |>
                    Sparse.to_dense in
+  if print then begin
     let rows = Dense.filteri_rows (fun i _ -> test_filter Repr.Index.test' row_query i) dense_mc in
     let cols = Dense.filteri_cols (fun i _ -> test_filter Repr.Index.test' col_query i) dense_mc in
     let fd_mc = Dense.rows dense_mc (Array.map ~f:(fun i -> i - 1) rows) in
@@ -62,4 +74,4 @@ let run ?(print=true) ?(lbl=true) ?(transpose=false) ?(debug=false)
     (* print_mat dense_mc; *)
   end;
   print_time t;
-  ()
+  dense_mc
