@@ -371,7 +371,7 @@ let uniform_ingress_tm =
   ?@[(!!("SrcPortHash%k", 0), 1//2) ; (!!("SrcPortHash%k", 1), 1//2)] >>
   ?@[(!!("DstPortHash%k", 0), 1//2) ; (!!("DstPortHash%k", 1), 1//2)]
 
-let test ~(k : int) (algs : lb_algs * lb_algs) : bool =
+let test ?(use_while=true) ~(k : int) (algs : lb_algs * lb_algs) : bool =
   let (alg1, alg2) = algs in
   let oc = Out_channel.create ((alg_to_string alg1) ^ "_" ^ (alg_to_string alg2) ^ ".txt") in
   let fmt = Format.formatter_of_out_channel oc in
@@ -381,8 +381,10 @@ let test ~(k : int) (algs : lb_algs * lb_algs) : bool =
   let egress = (delivered_to_host ~k) in
   let p1 = alg_to_routing alg1 k in
   let p2 = alg_to_routing alg2 k in
-  let pol1 = ingress >> mk_while (neg egress) (p1 >> t) >> egress in
-  let pol2 = ingress >> mk_while (neg egress) (p2 >> t) >> egress in
+  let pol1 = if use_while then ingress >> mk_while (neg egress) (p1 >> t) >> egress
+    else ingress >> (p1 >> t) >>(p1 >> t) >>(p1 >> t) >> egress in
+  let pol2 = if use_while then ingress >> mk_while (neg egress) (p2 >> t) >> egress
+    else ingress >> (p1 >> t) >>(p1 >> t) >>(p2 >> t) >> egress in
   let row_query = ingress in
   let col_query = egress >> (test_reset_tmp_fields [p1; p2]) in
   let reset_fn = reset_tmp_fields [p1; p2] in
@@ -397,6 +399,6 @@ let test ~(k : int) (algs : lb_algs * lb_algs) : bool =
 let () = begin
   let k = 2 in
   Printf.printf "CoreDecision = PerHop: %b\n%!" (test ~k (CoreDecision, PerHop));
-  Printf.printf "PerHop = EcmpLite: %b\n%!" (test ~k (PerHop, EcmpLite));
-  Printf.printf "CoreDecision = EcmpLite: %b\n%!" (test ~k (CoreDecision, EcmpLite))
+  Printf.printf "PerHop = EcmpLite: %b\n%!" (test ~use_while:false ~k (PerHop, EcmpLite));
+  Printf.printf "CoreDecision = EcmpLite: %b\n%!" (test ~use_while:false ~k (CoreDecision, EcmpLite))
 end
