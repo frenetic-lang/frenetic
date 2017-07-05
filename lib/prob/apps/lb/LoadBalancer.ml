@@ -384,11 +384,12 @@ let test ?(use_while=true) ~(k : int) (algs : lb_algs * lb_algs) : bool =
   let pol1 = if use_while then ingress >> mk_while (neg egress) (p1 >> t) >> egress
     else ingress >> (p1 >> t) >>(p1 >> t) >>(p1 >> t) >> egress in
   let pol2 = if use_while then ingress >> mk_while (neg egress) (p2 >> t) >> egress
-    else ingress >> (p1 >> t) >>(p1 >> t) >>(p2 >> t) >> egress in
+    else ingress >> (p2 >> t) >> (p2 >> t) >> (p2 >> t) >> egress in
   let row_query = ingress in
   let col_query = egress >> (test_reset_tmp_fields [p1; p2]) in
   let reset_fn = reset_tmp_fields [p1; p2] in
-  let matrices = compare ~row_query ~col_query ~reset_fn ~fmt pol1 pol2 in
+  let print_dense = use_while in
+  let matrices = compare ~print_dense ~row_query ~col_query ~reset_fn ~fmt pol1 pol2 in
   let (f1, m1) = List.nth_exn matrices 0 in
   let (f2, m2) = List.nth_exn matrices 1 in
   fprintf fmt "Matrix with filtered rows and cols are equal: %b\n" (f1=f2);
