@@ -10,17 +10,6 @@ let build_list (n : int) ~(f : int -> 'a) : 'a list =
       h :: loop (i + 1) in
   loop 0
 
-type core = { k: int; core: int }
-type aggregation =  { k: int; cluster: int }
-type edge = { k: int; cluster: int; edge: int }
-type host = { k: int; cluster: int; edge: int; host: int }
-
-type switch
-  = Core of core
-  | Aggregation of aggregation
-  | Edge of edge
-  | Host of host
-
 let persistent_fields =
   List.fold ["Switch"; "Port"] ~f:Field.Set.add ~init:Field.Set.empty
 
@@ -53,8 +42,34 @@ let rec get_fields (p:policy) : Field.Set.t =
   | While(a,p) ->
     Field.Set.union (get_fields a) (get_fields p)
 
-let get_tmp_fields (p:policy) =
-  Field.Set.diff (get_fields p) persistent_fields
+let get_tmp_fields (ps: policy list) =
+  let fields =
+    List.fold ps ~init:Field.Set.empty
+      ~f:(fun acc p ->
+        Field.Set.union (get_fields p) acc) in
+  Field.Set.diff fields persistent_fields
+
+let reset_tmp_fields (ps: policy list) =
+  get_tmp_fields ps |>
+  Field.Set.fold ~init:skip
+    ~f:(fun acc f -> acc >> !!(f, 0))
+
+let test_reset_tmp_fields (ps : policy list) =
+  get_tmp_fields ps |>
+  Field.Set.fold ~init:skip
+    ~f:(fun acc f -> acc >> ??(f, 0))
+
+(*** Topology and scheduling algorithms ***)
+type core = { k: int; core: int }
+type aggregation =  { k: int; cluster: int }
+type edge = { k: int; cluster: int; edge: int }
+type host = { k: int; cluster: int; edge: int; host: int }
+
+type switch
+  = Core of core
+  | Aggregation of aggregation
+  | Edge of edge
+  | Host of host
 
 module Switch : sig
   val get_id : switch -> int
@@ -80,15 +95,11 @@ module type Routing = sig
   val routing_policy : int -> policy
 end
 
-type lb_algs = | PerHop | CoreDecision | ECMPLite
-
-let alg_to_string = function
-    PerHop -> "PerHop"
-  | CoreDecision -> "CoreDecision"
-  | ECMPLite -> "ECMPLite"
+type lb_algs = | PerHop | CoreDecision | EcmpLite
 
 module PerHop : Routing = struct
   (* Each switch has the same policy: spray packets on downlink ports *)
+
   let pkt_spray_pol ~(k : int) : policy =
     (* There are k ports (numbered 1 to k),
        randomly forward traffic through each port *)
@@ -203,6 +214,7 @@ module EcmpLite : Routing = struct
      field depends on the layer of switch. Core - SrcPort, Aggregation -
      DstPort, Edge - SrcIP. This is deterministic, and we assume we know the
      hash values. *)
+
   let core_switch_policy ~(k : int) (core : int) : match_action =
     let pol =
       build_list k ~f:(fun cluster ->
@@ -246,6 +258,16 @@ module EcmpLite : Routing = struct
     mk_big_ite ~default:skip (List.concat_no_order [core; aggregation; edge])
 end
 
+let alg_to_routing = function
+    PerHop -> PerHop.routing_policy
+  | CoreDecision -> CoreDecision.routing_policy
+  | EcmpLite -> EcmpLite.routing_policy
+
+let alg_to_string = function
+    PerHop -> "PerHop"
+  | CoreDecision -> "CoreDecision"
+  | EcmpLite -> "EcmpLite"
+
 (************* Topology program for a simple tree *****************)
 (* Port 0 of each switch connects to it's parent.
    Ports 1 to k connect a switch to it's k children from left to right *)
@@ -283,7 +305,7 @@ let access_links ~(k : int) : link list =
       let edge_sw_id = Switch.get_id (Edge { k; cluster; edge }) in
       build_list k ~f:(fun host ->
         let host_id = Switch.get_id (Host { k; cluster; edge; host}) in
-        Printf.printf "hostid: %d cluster %d edge %d host %d\n" host_id cluster edge host;
+        (* Printf.printf "hostid: %d cluster %d edge %d host %d\n" host_id cluster edge host; *)
         [(??("Switch", edge_sw_id) >> ??("Port", host + 1),
           !!("Switch", host_id) >> !!("Port", 0));
          (??("Switch", host_id) >> ??("Port", 0),
@@ -329,29 +351,19 @@ let in_traffic ~(k : int) : policy =
   ??("Switch", core_sw_id) >> ??("Port", 0) >> ??("DstIP", 0)
 
 (* Load-balancer program with traffic *)
-let lb_policy ~(k : int) ~(alg : lb_algs)=
-  let t = topology_program ~k in
-  let ingress = in_traffic ~k in
-  let p = match alg with
-    | PerHop -> PerHop.routing_policy k
-    | CoreDecision -> CoreDecision.routing_policy k
-    | ECMPLite -> EcmpLite.routing_policy k in
-  let egress = delivered_to_host ~k in
-  let within_network = in_network ~k in
-  let pol = ingress >> mk_while (neg egress) (p >> t) >> egress in
-  (* let pol = ingress >> mk_while (within_network) (p >> t) >> egress in *)
-  (* let pol = ingress >> (p >> t) >> (p >> t) >> (p >> t) >> egress in *)
-  run pol ~row_query:ingress ~col_query:egress
-
-let reset_tmp_fields p =
-  get_tmp_fields p |>
-  Field.Set.fold ~init:skip
-    ~f:(fun acc f -> acc >> !!(f, 0))
-
-let test_reset_tmp_fields p =
-  get_tmp_fields p |>
-  Field.Set.fold ~init:skip
-    ~f:(fun acc f -> acc >> ??(f, 0))
+(* let lb_policy ~(k : int) ~(alg : lb_algs)= *)
+  (* let t = topology_program ~k in *)
+  (* let ingress = in_traffic ~k in *)
+  (* let p = match alg with *)
+    (* | PerHop -> PerHop.routing_policy k *)
+    (* | CoreDecision -> CoreDecision.routing_policy k *)
+    (* | EcmpLite -> EcmpLite.routing_policy k in *)
+  (* let egress = delivered_to_host ~k in *)
+  (* let within_network = in_network ~k in *)
+  (* let pol = ingress >> mk_while (neg egress) (p >> t) >> egress in *)
+  (* (* let pol = ingress >> mk_while (within_network) (p >> t) >> egress in *) *)
+  (* (* let pol = ingress >> (p >> t) >> (p >> t) >> (p >> t) >> egress in *) *)
+  (* run pol ~row_query:ingress ~col_query:egress *)
 
 let uniform_ingress_tm =
   !!("Switch", 0) >> !!("Port", 0) >> !!("DstIP", 0) >>
@@ -359,36 +371,32 @@ let uniform_ingress_tm =
   ?@[(!!("SrcPortHash%k", 0), 1//2) ; (!!("SrcPortHash%k", 1), 1//2)] >>
   ?@[(!!("DstPortHash%k", 0), 1//2) ; (!!("DstPortHash%k", 1), 1//2)]
 
-let test ~(k : int) =
+let test ~(k : int) (algs : lb_algs * lb_algs) : bool =
+  let (alg1, alg2) = algs in
+  let oc = Out_channel.create ((alg_to_string alg1) ^ "_" ^ (alg_to_string alg2) ^ ".txt") in
+  let fmt = Format.formatter_of_out_channel oc in
+  fprintf fmt "Comparing %s (#1) and %s(#2)\n" (alg_to_string alg1) (alg_to_string alg2);
   let t = topology_program ~k in
   let ingress = in_traffic ~k in
-  let p1 = PerHop.routing_policy k in
-  let p2 = CoreDecision.routing_policy k in
-  let p3 = EcmpLite.routing_policy k in
   let egress = (delivered_to_host ~k) in
-  let output_query = egress >> (test_reset_tmp_fields p2) in
-  let within_network = in_network ~k in
-  let pol1 = ingress >> mk_while (neg egress) (p1 >> t) >> egress >> (reset_tmp_fields p2) in
-  let pol2 = ingress >> mk_while (neg egress) (p2 >> t) >> egress >> (reset_tmp_fields p2) in
-  let pol3 = ingress >> mk_while (neg egress) (p3 >> t) >> egress >> (reset_tmp_fields p2) in
-  (* let pol = ingress >> mk_while (within_network) (p >> t) >> egress in *)
-  (* let pol = ingress >> (p >> t) >> (p >> t) >> (p >> t) >> egress in *)
-  (* run' pol1 pol2 pol3 ~row_query:ingress ~col_query:egress *)
-  let matrices = run' ~row_query:ingress ~col_query:output_query [pol1; pol2] pol2 in
+  let p1 = alg_to_routing alg1 k in
+  let p2 = alg_to_routing alg2 k in
+  let pol1 = ingress >> mk_while (neg egress) (p1 >> t) >> egress in
+  let pol2 = ingress >> mk_while (neg egress) (p2 >> t) >> egress in
+  let row_query = ingress in
+  let col_query = egress >> (test_reset_tmp_fields [p1; p2]) in
+  let reset_fn = reset_tmp_fields [p1; p2] in
+  let matrices = compare ~row_query ~col_query ~reset_fn ~fmt pol1 pol2 in
   let (f1, m1) = List.nth_exn matrices 0 in
   let (f2, m2) = List.nth_exn matrices 1 in
-  Printf.printf "%b\n" (f1=f2);
-  Printf.printf "%b\n" (m1=m2)
-
+  fprintf fmt "Matrix with filtered rows and cols are equal: %b\n" (f1=f2);
+  fprintf fmt "Full dense matrices are equal: %b\n" (m1=m2);
+  Out_channel.close oc;
+  f1 = f2
 
 let () = begin
   let k = 2 in
-  let _ = test ~k in
-  (* let lbmap = List.fold ~init:String.Map.empty *)
-    (* ~f:(fun acc alg -> String.Map.add acc ~key:(alg_to_string alg) ~data:(lb_policy ~k ~alg)) *)
-    (* [PerHop; CoreDecision; ECMPLite] in *)
-  (* let m1 = String.Map.find_exn lbmap (alg_to_string PerHop) in *)
-  (* let m2 = String.Map.find_exn lbmap (alg_to_string CoreDecision) in *)
-  (* Printf.printf "%b\n" (m1=m2); *)
-  ()
+  Printf.printf "CoreDecision = PerHop: %b\n%!" (test ~k (CoreDecision, PerHop));
+  Printf.printf "PerHop = EcmpLite: %b\n%!" (test ~k (PerHop, EcmpLite));
+  Printf.printf "CoreDecision = EcmpLite: %b\n%!" (test ~k (CoreDecision, EcmpLite))
 end
