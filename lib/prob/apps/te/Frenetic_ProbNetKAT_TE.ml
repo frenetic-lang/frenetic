@@ -571,7 +571,8 @@ let test_policies topo_file dem_file algorithms output_dir link_fail_prob broken
       let routes_pnk = source_routes_to_local_pnk topo per_hop_scheme vertex_id_bimap in
       Format.fprintf Format.std_formatter "Routing policy = %a\n\n%!" pp_policy routes_pnk;
       (* let network_pnk = (Star (topo_pnk >> routes_pnk)) >> topo_pnk in *)
-      let network_pnk = topo_pnk >> mk_while (neg test_at_host_pnk) (routes_pnk >> topo_pnk) in
+      (* let network_pnk = topo_pnk >> mk_while (neg test_at_host_pnk) (routes_pnk >> topo_pnk) in *)
+      let network_pnk = topo_pnk >> (routes_pnk >> topo_pnk) in
       let stats = analyze_routing_scheme topo vertex_id_bimap network_pnk in_dist test_at_host_pnk in
       ());
   end
