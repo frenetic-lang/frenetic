@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 3c3c2d4d029db5b398f8680014835aff)
+# DO NOT EDIT (digest: f22546ce9da983e47567e5e5ab12ef5e)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -112,8 +112,8 @@ true: annot, bin_annot
 <ppx/*.ml{,i,y}>: package(yojson)
 <ppx/*.ml{,i,y}>: use_frenetic
 <ppx/*.ml{,i,y}>: use_ppx
-# Library async
-"async/async.cmxs": use_async
+# Library frenetic_async
+"async/frenetic_async.cmxs": use_frenetic_async
 <async/*.ml{,i,y}>: package(async)
 <async/*.ml{,i,y}>: package(base64)
 <async/*.ml{,i,y}>: package(cohttp)
@@ -171,8 +171,8 @@ true: annot, bin_annot
 "frenetic/frenetic.native": package(tcpip)
 "frenetic/frenetic.native": package(threads)
 "frenetic/frenetic.native": package(yojson)
-"frenetic/frenetic.native": use_async
 "frenetic/frenetic.native": use_frenetic
+"frenetic/frenetic.native": use_frenetic_async
 # Executable openflow
 "frenetic/openflow.native": package(async)
 "frenetic/openflow.native": package(async_extended)
@@ -202,8 +202,8 @@ true: annot, bin_annot
 "frenetic/openflow.native": package(tcpip)
 "frenetic/openflow.native": package(threads)
 "frenetic/openflow.native": package(yojson)
-"frenetic/openflow.native": use_async
 "frenetic/openflow.native": use_frenetic
+"frenetic/openflow.native": use_frenetic_async
 <frenetic/*.ml{,i,y}>: package(async)
 <frenetic/*.ml{,i,y}>: package(async_extended)
 <frenetic/*.ml{,i,y}>: package(base64)
@@ -232,8 +232,8 @@ true: annot, bin_annot
 <frenetic/*.ml{,i,y}>: package(tcpip)
 <frenetic/*.ml{,i,y}>: package(threads)
 <frenetic/*.ml{,i,y}>: package(yojson)
-<frenetic/*.ml{,i,y}>: use_async
 <frenetic/*.ml{,i,y}>: use_frenetic
+<frenetic/*.ml{,i,y}>: use_frenetic_async
 # Library test_frenetic
 "lib_test/lib/test_frenetic.cmxs": use_test_frenetic
 <lib_test/lib/*.ml{,i,y}>: package(base64)
@@ -288,8 +288,8 @@ true: annot, bin_annot
 "lib_test/Test.byte": package(tcpip)
 "lib_test/Test.byte": package(threads)
 "lib_test/Test.byte": package(yojson)
-"lib_test/Test.byte": use_async
 "lib_test/Test.byte": use_frenetic
+"lib_test/Test.byte": use_frenetic_async
 "lib_test/Test.byte": use_test_frenetic
 <lib_test/*.ml{,i,y}>: package(async)
 <lib_test/*.ml{,i,y}>: package(base64)
@@ -320,8 +320,8 @@ true: annot, bin_annot
 <lib_test/*.ml{,i,y}>: package(tcpip)
 <lib_test/*.ml{,i,y}>: package(threads)
 <lib_test/*.ml{,i,y}>: package(yojson)
-<lib_test/*.ml{,i,y}>: use_async
 <lib_test/*.ml{,i,y}>: use_frenetic
+<lib_test/*.ml{,i,y}>: use_frenetic_async
 <lib_test/*.ml{,i,y}>: use_test_frenetic
 # Executable benchmark
 <bench/src/Main.{native,byte}>: package(base64)
