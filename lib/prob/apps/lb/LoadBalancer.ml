@@ -95,7 +95,7 @@ module type Routing = sig
   val routing_policy : int -> policy
 end
 
-type lb_algs = | PerHop | CoreDecision | EcmpLite
+type lb_algs = | PerHop | CoreDecision | EcmpLite | RandomWalk
 
 module PerHop : Routing = struct
   (* Each switch has the same policy: spray packets on downlink ports *)
@@ -123,6 +123,52 @@ module PerHop : Routing = struct
 
   let edge_switch_policy ~(k : int) ~(cluster : int) ~(edge : int) : match_action =
     let pol = pkt_spray_pol k in
+    let sw_id = Switch.get_id (Edge { k; cluster; edge }) in
+    (??("Switch", sw_id), pol)
+
+  let edge_policy ~(k : int) : match_action list =
+    build_list k ~f:(fun cluster ->
+      build_list k ~f:(fun edge ->
+        edge_switch_policy ~k ~cluster ~edge))
+    |> List.concat_no_order
+
+  let routing_policy k : policy =
+    let core = core_policy ~k in
+    let aggregation = aggregation_policy ~k in
+    let edge = edge_policy ~k in
+    mk_big_ite ~default:drop (List.concat_no_order [core; aggregation; edge])
+end
+
+module RandomWalk : Routing = struct
+  (* Each switch has the same policy: spray packets on downlink ports *)
+
+  let pkt_spray_pol ~(k : int) : policy =
+    (* There are k ports (numbered 1 to k),
+       randomly forward traffic through each port *)
+    choicei k ~f:(fun outport -> (!!("Port", outport + 1), 1//k))
+
+  let pkt_spray_rw_pol ~(k : int) : policy =
+    choicei (k+1) ~f:(fun outport -> (!!("Port", outport), 1//(k+1)))
+
+
+  let core_switch_policy ~(k : int) (core : int) : match_action =
+    let pol = pkt_spray_pol k in
+    let sw_id = Switch.get_id (Core { k; core }) in
+    (??("Switch", sw_id), pol)
+
+  let core_policy ~(k : int) : match_action list =
+    [core_switch_policy ~k 0]
+
+  let aggregation_switch_policy ~(k : int) (cluster : int) : match_action =
+    let pol = pkt_spray_rw_pol k in
+    let sw_id = Switch.get_id (Aggregation { k; cluster }) in
+    (??("Switch", sw_id), pol)
+
+  let aggregation_policy ~(k : int) : match_action list =
+    build_list k ~f:(aggregation_switch_policy ~k)
+
+  let edge_switch_policy ~(k : int) ~(cluster : int) ~(edge : int) : match_action =
+    let pol = pkt_spray_rw_pol k in
     let sw_id = Switch.get_id (Edge { k; cluster; edge }) in
     (??("Switch", sw_id), pol)
 
@@ -262,11 +308,13 @@ let alg_to_routing = function
     PerHop -> PerHop.routing_policy
   | CoreDecision -> CoreDecision.routing_policy
   | EcmpLite -> EcmpLite.routing_policy
+  | RandomWalk -> RandomWalk.routing_policy
 
 let alg_to_string = function
     PerHop -> "PerHop"
   | CoreDecision -> "CoreDecision"
   | EcmpLite -> "EcmpLite"
+  | RandomWalk -> "RandomWalk"
 
 (************* Topology program for a simple tree *****************)
 (* Port 0 of each switch connects to it's parent.
@@ -392,13 +440,17 @@ let test ?(use_while=true) ~(k : int) (algs : lb_algs * lb_algs) : bool =
   let matrices = compare ~print_dense ~row_query ~col_query ~reset_fn ~fmt pol1 pol2 in
   let (f1, m1) = List.nth_exn matrices 0 in
   let (f2, m2) = List.nth_exn matrices 1 in
-  fprintf fmt "Matrix with filtered rows and cols are equal: %b\n" (f1=f2);
-  fprintf fmt "Full dense matrices are equal: %b\n" (m1=m2);
+  fprintf fmt "Matrix with filtered rows and cols are equal: %b\n"
+    (Owl.Dense.Matrix.D.for_all ((>) 1.0e-8) (Owl.Dense.Matrix.D.sub f1 f2));
+  fprintf fmt "Full dense matrices are equal: %b\n"
+    (Owl.Dense.Matrix.D.for_all ((>) 1.0e-8) (Owl.Dense.Matrix.D.sub m1 m2));
   Out_channel.close oc;
-  f1 = f2
+  (* Owl.Dense.Matrix.D.print (Owl.Dense.Matrix.D.sub f1 f2); *)
+  (Owl.Dense.Matrix.D.for_all ((>) 1.0e-8) (Owl.Dense.Matrix.D.sub f1 f2))
 
 let () = begin
   let k = 2 in
+  Printf.printf "RandomWalk = PerHop: %b\n%!" (test ~k (RandomWalk, PerHop));
   Printf.printf "CoreDecision = PerHop: %b\n%!" (test ~k (CoreDecision, PerHop));
   Printf.printf "PerHop = EcmpLite: %b\n%!" (test ~use_while:false ~k (PerHop, EcmpLite));
   Printf.printf "CoreDecision = EcmpLite: %b\n%!" (test ~use_while:false ~k (CoreDecision, EcmpLite))
