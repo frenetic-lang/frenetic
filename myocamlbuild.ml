@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 4921765884100f14cd3f5e58817eaf87) *)
+(* DO NOT EDIT (digest: b18ef2d8ab84de2bc4fb39e6c8c99d8b) *)
 module OASISGettext = struct
 (* # 22 "src/oasis/OASISGettext.ml" *)
 
@@ -883,7 +883,7 @@ let package_default =
        [
           ("frenetic", ["lib"], []);
           ("ppx", ["ppx"], []);
-          ("async", ["async"], []);
+          ("frenetic_async", ["async"], []);
           ("test_frenetic", ["lib_test/lib"], [])
        ];
      lib_c = [];

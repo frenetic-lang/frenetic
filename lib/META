@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: a87ef06a4b443c14452a3fcb364244be)
+# DO NOT EDIT (digest: 2e401f7c35ba8defd58a88a36ce6a1e7)
 version = "4.0.0"
 description = "The Frenetic Compiler and Runtime System"
 requires =
@@ -26,11 +26,11 @@ package "async" (
  description = "The Frenetic Compiler and Runtime System"
  requires =
  "async cohttp cohttp.async core cstruct cstruct-async cstruct.async frenetic mparser mparser.re ppx_sexp_conv str"
- archive(byte) = "async.cma"
- archive(byte, plugin) = "async.cma"
- archive(native) = "async.cmxa"
- archive(native, plugin) = "async.cmxs"
- exists_if = "async.cma"
+ archive(byte) = "frenetic_async.cma"
+ archive(byte, plugin) = "frenetic_async.cma"
+ archive(native) = "frenetic_async.cmxa"
+ archive(native, plugin) = "frenetic_async.cmxs"
+ exists_if = "frenetic_async.cma"
 )
 # OASIS_STOP
 
