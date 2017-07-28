@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: f22546ce9da983e47567e5e5ab12ef5e)
+# DO NOT EDIT (digest: 6700910c6486c724facae7aabf067905)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -34,6 +34,7 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: package(sexplib)
 <lib/*.ml{,i,y}>: package(str)
 <lib/*.ml{,i,y}>: package(tcpip)
+<lib/*.ml{,i,y}>: package(tcpip.unix)
 <lib/*.ml{,i,y}>: package(threads)
 <lib/*.ml{,i,y}>: package(yojson)
 # Library ppx
@@ -59,6 +60,7 @@ true: annot, bin_annot
 <ppx/ppx.{native,byte}>: package(sexplib)
 <ppx/ppx.{native,byte}>: package(str)
 <ppx/ppx.{native,byte}>: package(tcpip)
+<ppx/ppx.{native,byte}>: package(tcpip.unix)
 <ppx/ppx.{native,byte}>: package(threads)
 <ppx/ppx.{native,byte}>: package(yojson)
 <ppx/ppx.{native,byte}>: use_frenetic
@@ -84,6 +86,7 @@ true: annot, bin_annot
 <ppx/ppx_standalone.{native,byte}>: package(sexplib)
 <ppx/ppx_standalone.{native,byte}>: package(str)
 <ppx/ppx_standalone.{native,byte}>: package(tcpip)
+<ppx/ppx_standalone.{native,byte}>: package(tcpip.unix)
 <ppx/ppx_standalone.{native,byte}>: package(threads)
 <ppx/ppx_standalone.{native,byte}>: package(yojson)
 <ppx/ppx_standalone.{native,byte}>: use_frenetic
@@ -108,6 +111,7 @@ true: annot, bin_annot
 <ppx/*.ml{,i,y}>: package(sexplib)
 <ppx/*.ml{,i,y}>: package(str)
 <ppx/*.ml{,i,y}>: package(tcpip)
+<ppx/*.ml{,i,y}>: package(tcpip.unix)
 <ppx/*.ml{,i,y}>: package(threads)
 <ppx/*.ml{,i,y}>: package(yojson)
 <ppx/*.ml{,i,y}>: use_frenetic
@@ -139,6 +143,7 @@ true: annot, bin_annot
 <async/*.ml{,i,y}>: package(sexplib)
 <async/*.ml{,i,y}>: package(str)
 <async/*.ml{,i,y}>: package(tcpip)
+<async/*.ml{,i,y}>: package(tcpip.unix)
 <async/*.ml{,i,y}>: package(threads)
 <async/*.ml{,i,y}>: package(yojson)
 <async/*.ml{,i,y}>: use_frenetic
@@ -169,6 +174,7 @@ true: annot, bin_annot
 "frenetic/frenetic.native": package(sexplib)
 "frenetic/frenetic.native": package(str)
 "frenetic/frenetic.native": package(tcpip)
+"frenetic/frenetic.native": package(tcpip.unix)
 "frenetic/frenetic.native": package(threads)
 "frenetic/frenetic.native": package(yojson)
 "frenetic/frenetic.native": use_frenetic
@@ -200,6 +206,7 @@ true: annot, bin_annot
 "frenetic/openflow.native": package(sexplib)
 "frenetic/openflow.native": package(str)
 "frenetic/openflow.native": package(tcpip)
+"frenetic/openflow.native": package(tcpip.unix)
 "frenetic/openflow.native": package(threads)
 "frenetic/openflow.native": package(yojson)
 "frenetic/openflow.native": use_frenetic
@@ -230,6 +237,7 @@ true: annot, bin_annot
 <frenetic/*.ml{,i,y}>: package(sexplib)
 <frenetic/*.ml{,i,y}>: package(str)
 <frenetic/*.ml{,i,y}>: package(tcpip)
+<frenetic/*.ml{,i,y}>: package(tcpip.unix)
 <frenetic/*.ml{,i,y}>: package(threads)
 <frenetic/*.ml{,i,y}>: package(yojson)
 <frenetic/*.ml{,i,y}>: use_frenetic
@@ -255,6 +263,7 @@ true: annot, bin_annot
 <lib_test/lib/*.ml{,i,y}>: package(sexplib)
 <lib_test/lib/*.ml{,i,y}>: package(str)
 <lib_test/lib/*.ml{,i,y}>: package(tcpip)
+<lib_test/lib/*.ml{,i,y}>: package(tcpip.unix)
 <lib_test/lib/*.ml{,i,y}>: package(threads)
 <lib_test/lib/*.ml{,i,y}>: package(yojson)
 <lib_test/lib/*.ml{,i,y}>: use_frenetic
@@ -286,6 +295,7 @@ true: annot, bin_annot
 "lib_test/Test.byte": package(sexplib)
 "lib_test/Test.byte": package(str)
 "lib_test/Test.byte": package(tcpip)
+"lib_test/Test.byte": package(tcpip.unix)
 "lib_test/Test.byte": package(threads)
 "lib_test/Test.byte": package(yojson)
 "lib_test/Test.byte": use_frenetic
@@ -318,6 +328,7 @@ true: annot, bin_annot
 <lib_test/*.ml{,i,y}>: package(sexplib)
 <lib_test/*.ml{,i,y}>: package(str)
 <lib_test/*.ml{,i,y}>: package(tcpip)
+<lib_test/*.ml{,i,y}>: package(tcpip.unix)
 <lib_test/*.ml{,i,y}>: package(threads)
 <lib_test/*.ml{,i,y}>: package(yojson)
 <lib_test/*.ml{,i,y}>: use_frenetic
@@ -342,6 +353,7 @@ true: annot, bin_annot
 <bench/src/Main.{native,byte}>: package(sexplib)
 <bench/src/Main.{native,byte}>: package(str)
 <bench/src/Main.{native,byte}>: package(tcpip)
+<bench/src/Main.{native,byte}>: package(tcpip.unix)
 <bench/src/Main.{native,byte}>: package(threads)
 <bench/src/Main.{native,byte}>: package(yojson)
 <bench/src/Main.{native,byte}>: use_frenetic
@@ -363,6 +375,7 @@ true: annot, bin_annot
 <bench/src/*.ml{,i,y}>: package(sexplib)
 <bench/src/*.ml{,i,y}>: package(str)
 <bench/src/*.ml{,i,y}>: package(tcpip)
+<bench/src/*.ml{,i,y}>: package(tcpip.unix)
 <bench/src/*.ml{,i,y}>: package(threads)
 <bench/src/*.ml{,i,y}>: package(yojson)
 <bench/src/*.ml{,i,y}>: use_frenetic
