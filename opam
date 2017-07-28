@@ -36,6 +36,7 @@ depends: [
   "yojson" {>= "1.2.0"}
   "base64" {>= "2.0.0"}
   "cohttp"
+  "cohttp-async"
   "tcpip"
   "mparser"
   "ocamlgraph" {>= "1.8.7"}
