@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Parser
 

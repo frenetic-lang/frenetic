@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_NetKAT
 
 let%test "string_of_fastfail gives a list of fastfail nodes" =

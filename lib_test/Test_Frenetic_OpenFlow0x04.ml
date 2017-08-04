@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_OpenFlow0x04
 open Arbitrary_Frenetic_OpenFlow0x04
 

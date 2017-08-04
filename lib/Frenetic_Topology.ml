@@ -2,7 +2,7 @@
  * Frenetic-specific topology module that includes the ocaml-topology module.
  *)
 
-open Core.Std
+open Core
 
 module Net = Frenetic_NetKAT_Net.Net
 module SDN = Frenetic_OpenFlow

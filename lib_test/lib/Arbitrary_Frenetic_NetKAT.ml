@@ -163,6 +163,8 @@ let arbitrary_tcp : Frenetic_NetKAT_Semantics.packet QuickCheck_gen.gen =
   let ip = map_gen (fun i -> Ip i) (Parb.arbitrary_ip tcp) in
   Parb.arbitrary_packet ip >>= fun pkt ->
     arbitrary_int32 >>= fun port_id ->
+    arbitrary_int64 >>= fun vswitch_id ->
+    arbitrary_int64 >>= fun vport_id ->
       let headers =
         { HeadersValues.location = Frenetic_NetKAT.Physical port_id
         ; ethSrc = pkt.dlSrc
@@ -175,6 +177,8 @@ let arbitrary_tcp : Frenetic_NetKAT_Semantics.packet QuickCheck_gen.gen =
         ; ipDst = (try nwDst pkt with Invalid_argument(_) -> 0l)
         ; tcpSrcPort = (try tpSrc pkt with Invalid_argument(_) -> 0)
         ; tcpDstPort = (try tpDst pkt with Invalid_argument(_) -> 0)
+        ; vswitch = vswitch_id
+        ; vport = vport_id
         } in
       arbitrary_int64 >>= fun switch_id ->
         payload >>= fun payload ->

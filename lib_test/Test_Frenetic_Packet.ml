@@ -1,7 +1,7 @@
 open Frenetic_Packet
 open QuickCheck
 open Arbitrary_Base
-open Core.Std
+open Core
 
 module Gen = QuickCheck_gen
 module Arb = Arbitrary_Frenetic_Packet

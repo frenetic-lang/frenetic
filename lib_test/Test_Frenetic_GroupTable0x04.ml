@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_OpenFlow0x04
 open Frenetic_GroupTable0x04
 

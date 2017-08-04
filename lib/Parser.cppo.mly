@@ -2,7 +2,7 @@
 #ifdef MAKE_PPX
   #define AST(arg)
   #define PPX(arg) {[%expr arg]}
-  #define AQ | x=ANTIQ { Ast_convenience.evar (fst x) ~loc:(snd x) }
+  #define AQ | x=ANTIQ { parse_ocaml_expr x }
   #define POLTY Parsetree.expression
   #define PREDTY Parsetree.expression
 #else
@@ -15,7 +15,7 @@
 #define BOTH(arg) AST(arg) PPX(arg)
 
 %{
-open Core.Std
+open Core
 open Frenetic_NetKAT
 #ifdef MAKE_PPX
 open Parsetree
@@ -26,6 +26,11 @@ let int32 ?loc ?attrs x =
   Exp.constant ?loc ?attrs (Pconst_integer (Int32.to_string x, Some 'l'))
 let int64 ?loc ?attrs x =
   Exp.constant ?loc ?attrs (Pconst_integer (Int64.to_string x, Some 'L'))
+let parse_ocaml_expr (s,loc) =
+  let buf = Lexing.from_string s in
+  buf.lex_start_p <- Location.(loc.loc_start);
+  buf.lex_curr_p <- Location.(loc.loc_start);
+  Parse.expression buf
 #endif
 %}
 
@@ -54,7 +59,9 @@ let int64 ?loc ?attrs x =
 
 (* antiquotations (for ppx syntax extension ) *)
 #ifdef MAKE_PPX
-%token <string * Location.t> ANTIQ
+  %token <string * Location.t> ANTIQ
+  (* iverson brackets *)
+  %token <string * Location.t> IVERSON
 #endif
 
 (* precedence and associativity - from lowest to highest *)
@@ -154,6 +161,12 @@ pol:
   | BEGIN p=pol; END
       { p }
   AQ
+#ifdef MAKE_PPX
+  | code=IVERSON {
+    let phi = parse_ocaml_expr code in
+    [%expr if [%e phi] then id else drop]
+  }
+#endif
   ;
 
 %inline
@@ -188,6 +201,12 @@ pred:
   | BEGIN a=pred; END
       { a }
   AQ
+#ifdef MAKE_PPX
+  | code=IVERSON {
+    let phi = parse_ocaml_expr code in
+    [%expr if [%e phi] then True else False]
+  }
+#endif
   ;
 
 

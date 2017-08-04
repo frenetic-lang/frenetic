@@ -1,5 +1,5 @@
 OASISFormat: 0.4
-OCamlVersion: >= 4.03.0
+OCamlVersion: >= 4.04.0
 Name:        frenetic
 Version:     4.0.0
 Synopsis:    The Frenetic Compiler and Runtime System
@@ -17,8 +17,6 @@ AlphaFeatures:
   ocamlbuild_more_args,
   source_patterns
 XOCamlbuildExtraArgs:
-  # SJS: importing these here ensures they are run last, after ppx_import
-  -package ppx_deriving,ppx_deriving.eq,ppx_deriving.enum,ppx_deriving.show,ppx_jane
   -use-menhir
   # see https://caml.inria.fr/pub/docs/manual-ocaml/native.html
   -cflags -w,@5+8@11@12-40,-short-paths
@@ -47,14 +45,21 @@ Library frenetic
   BuildDepends:
     base64 (>= 2.0.0),
     core,
-    cstruct,
+    cstruct (>= 3.0.2),
     cstruct.ppx,
     ocamlgraph (>= 1.8.7),
     str,
     tcpip,
+    tcpip.unix,
     yojson,
     ipaddr,
-    ppx_import,
+    ppx_deriving.std,
+    ppx_compare,
+    ppx_enumerate,
+    ppx_fields_conv,
+    ppx_type_conv,
+    ppx_sexp_conv,
+    sexplib,
     sedlex,
     menhirLib,
     threads,
@@ -125,7 +130,7 @@ Executable ppx_standalone
   CompiledObject: best
   Install: false
 
-Library async
+Library frenetic_async
   Findlibparent: frenetic
   Findlibname: async
   Path: async
@@ -135,6 +140,7 @@ Library async
     cohttp.async,
     core,
     cstruct,
+    cstruct-async,
     cstruct.async,
     frenetic,
     mparser,

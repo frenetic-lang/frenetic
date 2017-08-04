@@ -1,5 +1,5 @@
 (** Comping Virtual NetKAT Programs *)
-open Core.Std
+open Core
 open Frenetic_NetKAT
 open Frenetic_NetKAT_FabricGen
 

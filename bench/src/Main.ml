@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_NetKAT
 open Benchmarking_Util
 
@@ -7,7 +7,7 @@ let to_table = Frenetic_NetKAT_Compiler.to_table
 let print_flowtables tbls =
   List.iter tbls ~f:(fun tbl ->
     Frenetic_OpenFlow.format_flowTable Format.std_formatter tbl;
-    print_newline ())
+    printf "\n%!")
 
 let dst_based_routing ~(in_file : string) ~(out_file : string) ~kind : unit =
   printf "Parsing topology file...\n%!";

@@ -1,9 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: d2ef86454616396aaa2097e17e7f647a)
+# DO NOT EDIT (digest: a51cdb81c903d6676f1c30ba79355add)
 version = "4.0.0"
 description = "The Frenetic Compiler and Runtime System"
 requires =
-"base64 core cstruct cstruct.ppx ocamlgraph str tcpip yojson ipaddr ppx_import sedlex menhirLib threads compiler-libs.common"
+"base64 core cstruct cstruct.ppx ocamlgraph str tcpip tcpip.unix yojson ipaddr ppx_deriving.std ppx_compare ppx_enumerate ppx_fields_conv ppx_type_conv ppx_sexp_conv sexplib sedlex menhirLib threads compiler-libs.common"
 archive(byte) = "frenetic.cma"
 archive(byte, plugin) = "frenetic.cma"
 archive(native) = "frenetic.cmxa"
@@ -25,12 +25,12 @@ package "async" (
  version = "4.0.0"
  description = "The Frenetic Compiler and Runtime System"
  requires =
- "async cohttp cohttp.async core cstruct cstruct.async frenetic mparser mparser.re ppx_sexp_conv str"
- archive(byte) = "async.cma"
- archive(byte, plugin) = "async.cma"
- archive(native) = "async.cmxa"
- archive(native, plugin) = "async.cmxs"
- exists_if = "async.cma"
+ "async cohttp cohttp.async core cstruct cstruct-async cstruct.async frenetic mparser mparser.re ppx_sexp_conv str"
+ archive(byte) = "frenetic_async.cma"
+ archive(byte, plugin) = "frenetic_async.cma"
+ archive(native) = "frenetic_async.cmxa"
+ archive(native, plugin) = "frenetic_async.cmxs"
+ exists_if = "frenetic_async.cma"
 )
 # OASIS_STOP
 

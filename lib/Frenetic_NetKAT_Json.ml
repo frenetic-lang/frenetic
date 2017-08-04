@@ -1,11 +1,11 @@
-(* NOTE(arjun): Core.Std.Int32.of_int_exn will throw an exception if it receives a positive
+(* NOTE(arjun): Core.Int32.of_int_exn will throw an exception if it receives a positive
    integer value >= 0x1fffffff. However, OpenFlow ports are unsigned integers,
    so these are legitimate port numbers, IIRC. *)
 let int_to_uint32 = Int32.of_int
 
 (* NOTE(arjun): Do not open Frenetic_OpenFlow in this module. If you need to serialize
    one of those types, it should probably go in Frentic_NetKAT_SDN_Json instead. *)
-open Core.Std
+open Core
 open Yojson.Basic
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Optimize

@@ -1,5 +1,5 @@
-open Core.Std
-open Async.Std
+open Core
+open Async
 
 open Frenetic_OpenFlow0x04_Controller
 open Frenetic_NetKAT_Compiler

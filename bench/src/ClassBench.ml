@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_NetKAT_Optimize
 open Frenetic_NetKAT
 

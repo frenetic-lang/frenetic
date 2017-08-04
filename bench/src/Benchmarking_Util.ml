@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 let profile f =
   let t1 = Unix.gettimeofday () in

@@ -751,14 +751,8 @@ struct
   module Pretty = struct
     open Topology
 
-    let load_file f =
-      let open In_channel in
-      let ic = open_in f in
-      let n = Int64.to_int_exn (length ic) in
-      let s = String.create n in
-      let _ = really_input ic s 0 n in
-      close ic;
-      (s)
+    let load_file fn =
+      In_channel.(with_file fn ~f:input_all)
 
     let to_dot (t:t) =
       let es = (EdgeSet.fold (edges t) ~init:"" ~f:(fun acc (s,l,d) ->

@@ -22,7 +22,7 @@
 
 (* prevent core from overwriting this *)
 module Printexn = Printexc
-open Core.Std
+open Core
 
 let make_string_of formatter x =
   let open Format in

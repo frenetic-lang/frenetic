@@ -69,6 +69,34 @@ and comment depth buf =
   | any -> comment depth buf
   | _ -> assert false
 
+(** anitquotation brackets  *)
+let antiq ~loc_start buf =
+  match%sedlex buf with
+  | Star (Compl '}') ->
+    let code = ascii buf in
+    begin match%sedlex buf with
+    | '}' -> ()
+    | _ -> failwith buf "unterminated anitquotation brace"
+    end;
+    let loc_end = next_loc buf in
+    let loc = Location.{ loc_start; loc_end; loc_ghost = false } in
+    ANTIQ (code, loc)
+  | _ -> assert false
+
+(** iverson brackets  *)
+let iverson ~loc_start buf =
+  match%sedlex buf with
+  | Star (Compl ']') ->
+    let code = ascii buf in
+    begin match%sedlex buf with
+    | ']' -> ()
+    | _ -> failwith buf "unterminated iverson bracket"
+    end;
+    let loc_end = next_loc buf in
+    let loc = Location.{ loc_start; loc_end; loc_ghost = false } in
+    IVERSON (code, loc)
+  | _ -> assert false
+
 (** returns the next token *)
 let token ~ppx ~loc_start buf =
   garbage buf;
@@ -87,13 +115,16 @@ let token ~ppx ~loc_start buf =
   | '"', Star (Compl '"'), '"' -> STRING (ascii ~skip:1 ~drop:1 buf)
   | "dup" -> DUP
   (* antiquotations *)
-  | '$', id ->
-    if ppx then
-      let loc_end = next_loc buf in
-      let loc = Location.{ loc_start; loc_end; loc_ghost = false } in
-      ANTIQ (ascii ~skip:1 buf, loc)
+  | '{' ->
+    if not ppx then
+      illegal buf '{'
     else
-      illegal buf '$'
+      antiq ~loc_start buf
+  | '[' ->
+    if not ppx then
+      illegal buf '['
+    else
+      iverson ~loc_start buf
   (* equivalence *)
   | "==" -> EQUIVALENT
   | "<=" -> LEQ
@@ -168,7 +199,7 @@ let parse ?(ppx=false) buf p =
   let last_token = ref Lexing.(EOF, dummy_pos, dummy_pos) in
   let next_token () = last_token := loc_token ~ppx buf; !last_token in
   try MenhirLib.Convert.Simplified.traditional2revised p next_token with
-  | LexError (pos, s) -> raise (LexError (pos, s))
+  | (LexError _ as e) | (Syntaxerr.Error _ as e) -> raise e
   | _ -> raise (ParseError (!last_token))
 
 let parse_string ?ppx ?pos s p =

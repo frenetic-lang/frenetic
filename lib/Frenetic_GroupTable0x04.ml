@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_OpenFlow0x04
 open Frenetic_Packet
 
@@ -77,7 +77,7 @@ let port_to_forward_bucket ((port, weight) : portId * int16) =
     bu_actions = [Output(PhysicalPort port)] }
 
 let add_fastfail_group (tbl : t) (ports : portId list) =
-  let open Core.Std in
+  let open Core in
   let buckets = List.zip_exn ports (List.range ~stride:(-1) (List.length ports) 0)
                 |> List.map ~f:port_to_forward_bucket
   in add_group tbl FF buckets

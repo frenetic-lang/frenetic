@@ -8,7 +8,7 @@ script:
   - bash -ex .travis-docgen.sh
 env:
   matrix:
-  - OCAML_VERSION=4.03 PACKAGE=frenetic TESTS=true BASE_REMOTE=https://opam.ocaml.org KEEP=1
+  - OCAML_VERSION=4.04 PACKAGE=frenetic TESTS=true BASE_REMOTE=https://opam.ocaml.org KEEP=1 FORK_USER=frenetic-lang PRE_INSTALL_HOOK="oasis setup"
   global:
     secure: Knubza2foy3fm4iKfXTE+DBxQE0XjeT8PN4O1aXZpLqZAGuCt3UU1gOs03lUzbqjU6IOzV8H2y4ctQ7eHiTK9G/kQawSZZtOb15oDOGa8zBM/1tA06GjrBIJhqOk3R6ro0V8eU3W3BqqrbR0cZhGaASFJ2tTDiX53G9dEFJWqho=
 notifications:
