@@ -34,8 +34,11 @@ let parse_ocaml_expr (s,loc) =
 #endif
 %}
 
+(* equivalence *)
+%token EQUIVALENT LEQ DOUBLESEMICOLON
+
 (* predicates and policies *)
-%token TRUE FALSE AND OR NOT EQUALS
+%token TRUE FALSE AND OR NOT EQUALS NEQUALS
 %token ID DROP FILTER ASSIGN SEMICOLON PLUS STAR LINK VLINK AT SLASH
 %token IF THEN ELSE WHILE DO
 %token DUP
@@ -76,7 +79,29 @@ let parse_ocaml_expr (s,loc) =
 %start <POLTY> pol_eof
 %start <PREDTY> pred_eof
 
+(* don't support equations in syntax extension for now *)
+#ifndef MAKE_PPX
+%start <(POLTY*POLTY) list> pol_eqs_eof
+#endif
+
 %%
+
+(* don't support equations in syntax extension for now *)
+#ifndef MAKE_PPX
+pol_eqs_eof:
+  | eqs=separated_list(DOUBLESEMICOLON, pol_eq); EOF
+      { eqs }
+  ;
+
+pol_eq:
+  | p=pol; EQUIVALENT; q=pol
+      { (p, q) }
+  | p=pol; LEQ; q=pol
+      { (Union (p, q), q) }
+  ;
+#endif
+
+
 pol_eof:
   | p=pol; EOF
       AST( p )
@@ -159,6 +184,9 @@ pred:
   | hv=header_val(EQUALS)
       AST( Test hv )
       PPX( Test [%e hv] )
+  | hv=header_val(NEQUALS)
+      AST( Neg (Test hv) )
+      PPX( Neg (Test [%e hv]) )
   | NOT; a=pred
       AST( Neg a )
       PPX( Neg [%e a] )

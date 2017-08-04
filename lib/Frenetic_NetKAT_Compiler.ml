@@ -851,7 +851,7 @@ module Automaton = struct
     in
     Tbl.add_exn automaton.states ~key:id ~data:(Lazy.from_fun f)
 
-  let of_policy ?(dedup=true) ?ing ?(cheap_minimize=true) (pol : Frenetic_NetKAT.policy) : t =
+  let of_pol ?(dedup=true) ?ing ?(cheap_minimize=true) (pol : Frenetic_NetKAT.policy) : t =
     let automaton = create_t0 () in
     let pol = Pol.of_pol ing pol in
     let () = add_policy automaton (automaton.source, pol) in
@@ -971,7 +971,7 @@ end
 
 let compile_global ?(options=default_compiler_options) ?(pc=Field.Vlan) pol : FDD.t =
   prepare_compilation ~options pol;
-  Automaton.of_policy pol
+  Automaton.of_pol pol
   |> Automaton.to_local ~pc
 
 

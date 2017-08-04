@@ -10,7 +10,13 @@ type order
     | `Static of Field.t list
     | `Heuristic ]
 
-module FDD : module type of Frenetic_Fdd.FDD
+module FDD : sig
+  include module type of Frenetic_Fdd.FDD
+  val union : t -> t -> t
+  val seq : t -> t -> t
+  val star : t -> t
+end
+
 type t = FDD.t
 (** The type of the intermediate compiler representation (FDD). *)
 
@@ -18,7 +24,11 @@ val to_dot : t -> string
 
 (** Intermediate representation of global compiler: NetKAT Automata *)
 module Automaton : sig
-  type t
+  type t = private
+    { states : (FDD.t * FDD.t) Int.Table.t;
+      has_state : int FDD.BinTbl.t;
+      mutable source : int;
+      mutable nextState : int }
 
   val fold_reachable: ?order:[< `Post | `Pre > `Pre ]
     -> t
@@ -26,7 +36,7 @@ module Automaton : sig
     -> f:('a -> int -> (FDD.t * FDD.t) -> 'a)
     -> 'a
 
-  val of_policy: ?dedup:bool -> ?ing:pred -> ?cheap_minimize:bool -> policy -> t
+  val of_pol: ?dedup:bool -> ?ing:pred -> ?cheap_minimize:bool -> policy -> t
   val to_local: pc:Field.t -> t -> FDD.t
 
   val to_dot: t -> string

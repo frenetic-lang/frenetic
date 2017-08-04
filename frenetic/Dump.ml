@@ -43,7 +43,7 @@ let time f =
   (t2 -. t1, r)
 
 let print_time ?(prefix="") time =
-  printf "%scompilation time: %.4f\n" prefix time
+  printf "%stime: %.4f\n" prefix time
 
 let print_order () =
   Frenetic_NetKAT_Compiler.Field.(get_order ()
@@ -148,7 +148,7 @@ end
 
 
 (*===========================================================================*)
-(* COMMANDS: Local, Global, Virtual, Auto                                    *)
+(* COMMANDS: Local, Global, Virtual, Auto, Decision                          *)
 (*===========================================================================*)
 
 module Local = struct
@@ -178,7 +178,7 @@ module Local = struct
       if printfdd then print_fdd fdd;
       if dumpfdd then dump_fdd fdd ~file:(file ^ ".dot");
       print_all_tables ~no_tables fdd switches;
-      print_time t;
+      print_time ~prefix:"compilation " t;
 end
 
 
@@ -204,7 +204,7 @@ module Global = struct
     if printfdd then print_fdd fdd;
     if dumpfdd then dump_fdd fdd ~file:(file ^ ".dot");
     print_all_tables ~no_tables fdd switches;
-    print_time t;
+    print_time ~prefix:"compilation " t;
 
 end
 
@@ -259,8 +259,8 @@ module Virtual = struct
     if printfdd then print_fdd fdd;
     if dumpfdd then dump_fdd fdd ~file:(vpol_file ^ ".dot");
     print_all_tables ~no_tables fdd switches;
-    print_time ~prefix:"virtual " t1;
-    print_time ~prefix:"global " t2;
+    print_time ~prefix:"virtual compilation " t1;
+    print_time ~prefix:"global compilation " t2;
 end
 
 
@@ -277,10 +277,38 @@ module Auto = struct
   let run file json printorder dedup cheap_minimize () =
     let pol = parse_pol ~json file in
     let (t, auto) = time (fun () ->
-      Frenetic_NetKAT_Compiler.Automaton.of_policy pol ~dedup ~cheap_minimize) in
+      Frenetic_NetKAT_Compiler.Automaton.of_pol pol ~dedup ~cheap_minimize) in
     if printorder then print_order ();
     dump_auto auto ~file:(file ^ ".auto.dot");
     print_time t;
+
+end
+
+module Decision = struct
+  let spec = Command.Spec.(
+    empty
+    +> anon ("file-1" %: file)
+    +> anon ("file-2" %: file)
+    +> Flag.dump_auto
+    +> Flag.json
+    +> Flag.print_order
+  )
+
+  let run file1 file2 dumpauto json printorder () =
+    let pol1 = parse_pol ~json file1 in
+    let pol2 = parse_pol ~json file2 in
+    let (a1, a2) = Frenetic_NetKAT_Compiler.Automaton.(of_pol pol1, of_pol pol2) in
+    if printorder then print_order ();
+    if dumpauto then dump_auto a1 ~file:(file1 ^ ".auto.dot");
+    if dumpauto then dump_auto a2 ~file:(file2 ^ ".auto.dot");
+    let module Hopcroft = Frenetic_NetKAT_Equivalence.Hopcroft in
+    let module Simple = Frenetic_NetKAT_Equivalence.Simple in
+    let (th, h) = time (fun () -> Hopcroft.equiv a1 a2) in
+    let (ts, s) = time (fun () -> Simple.equiv a1 a2) in
+    printf "equivalent (Hopcroft): %s\n" (Bool.to_string h);
+    print_time th;
+    printf "\nequivalent (Simple): %s\n" (Bool.to_string s);
+    print_time ts
 
 end
 
@@ -318,8 +346,16 @@ let auto : Command.t =
     Auto.spec
     Auto.run
 
+let decision : Command.t =
+  Command.basic
+    ~summary:"Decides program equivalence."
+    (* ~readme: *)
+    Decision.spec
+    Decision.run
+
 let main : Command.t =
   Command.group
     ~summary:"Runs (local/global/virtual) compiler and dumps resulting tables."
     (* ~readme: *)
-    [("local", local); ("global", global); ("virtual", virt); ("auto", auto)]
+    [("local", local); ("global", global); ("virtual", virt); ("auto", auto);
+     ("decision", decision)]

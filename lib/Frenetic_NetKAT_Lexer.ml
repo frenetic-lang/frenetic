@@ -125,6 +125,10 @@ let token ~ppx ~loc_start buf =
       illegal buf '['
     else
       iverson ~loc_start buf
+  (* equivalence *)
+  | "==" -> EQUIVALENT
+  | "<=" -> LEQ
+  | ";;" -> DOUBLESEMICOLON
   (* predicates *)
   | "true" -> TRUE
   | "false" -> FALSE
@@ -132,6 +136,7 @@ let token ~ppx ~loc_start buf =
   | "or" -> OR
   | "not" -> NOT
   | '=' -> EQUALS
+  | "!=" -> NEQUALS
   (* policies *)
   | "id" -> ID
   | "drop" -> DROP

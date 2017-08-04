@@ -1,0 +1,86 @@
+(* RANDOM CRAP. *)
+(* ASSAGE. *)
+(port:=3; filter port=3) == (port:=3);;
+(filter port=3; filter switch=4) == (filter switch=4; filter port=3);;
+(port:=3; switch:=4) == (switch:=4; port:=3);;
+(port:=1; filter switch=2) == (filter switch=2; port:=1);;
+(dup; filter port=3) == (filter port=3; dup);;
+(filter port=3; port:=3) == (filter port=3);;
+(port:=3; port:=4 ) == (port:=4);;
+(filter port=3; filter port=4) == drop;;
+(filter port=3 + filter port != 3) == id;;
+(* FALSE!! *) (* (filter port != 3) <= filter port != 4;; *)
+(port:=3; port :=4; port:=5) == port:=5;;
+(port:=3; port :=4; port:=2; port:=5) == port:=5;;
+(port:=3; port :=4; port:=2; port:=1; port:=5) == port:=5;;
+(port:=3; port :=4; port:=2; port:=1; port:=0; port:=5) == port:=5;;
+(port:=3; port :=4; port:=2; port:=1; port:=0; port:=6; port:=5) == port:=5;;
+(port:=3; port :=4; port:=2; port:=1; port:=0; port:=6; port:=7; port:=5) == port:=5;;
+(port:=3; switch :=4; port:=2; switch:=1; port:=0; switch:=6; port:=7; port:=5) == port:=5; switch:=6;;
+(switch:=1; port:=0; switch:=6; port:=5) == port:=5; switch:=6;;
+port:=0; switch:=6; port:=5 == port:=5; switch:=6;;
+(* FALSE!! *) (* vlanId:=3; switch:=6; port:=5 <= vlanId:=4; port:=5; switch:=6;; *)
+(filter port=3 or vlanId=4) + drop == (filter port=3 or vlanId=4);;
+(filter port=3 or vlanId=4) + (filter port=3 or vlanId=4) == (filter port=3 or vlanId=4);;
+id; (filter port=3 or vlanId=4) == (filter port=3 or vlanId=4);;
+(filter port=3 or vlanId=4); id == (filter port=3 or vlanId=4);;
+(filter switch=2);(filter port=3 + filter vlanId=4) == (filter switch=2);(filter port=3) + (filter switch=2);(filter vlanId=4);;
+(filter port=3 + filter vlanId=4);(filter switch=2) == (filter port=3);(filter switch=2) + (filter vlanId=4);(filter switch=2);;
+(* FALSE!! *) (* filter port=3 <= filter port=4;; *)
+drop; (filter port=3 + filter vlanId=4) == drop;;
+(filter port=3 + filter vlanId=4); drop == drop;;
+id + (filter port=3 + filter vlanId=4); (filter port=3 + filter vlanId=4)* == (filter port=3 + filter vlanId=4)*;;
+
+(*  this is a trolltastic test.  it's true because both sides are equivalent *)
+(*  to the sum of all tests. *)
+(* (vlanId=5) + ((port=3 + vlanId=4); (port=3 + vlanId=4)* ) <= vlanId=5 + (port=3 + vlanId=4)* *)
+
+
+(* BOOLEAN ALGEBRA TIME! *)
+(filter port=4) + (filter port != 4) == id;;
+(filter port=4); (filter port != 4) == drop;;
+
+(* DUP-TACULAR! *)
+dup; filter port=5 == filter port=5; dup;;
+
+(* PACKET ALGEBRA *)
+port:=4; filter port=4 == port:=4;;
+filter port=4; port:=4 == filter port=4;;
+filter port=3; filter port=5 == drop;;
+
+
+(* from the other project *)
+(filter switch=0; (switch:=1))* <= id + switch:=1;;
+
+(port:=4; port:=3; filter port=3)* == id + port:=3;;
+
+(port:=4; port:=3; filter port=3) <= id + port:=3;;
+
+(port:=4; port:=3; filter port=3) ==  port:=3;;
+
+
+(* simple hops through the network *)
+
+filter(switch=0); switch:=1; dup; filter(switch=1); switch:=2; dup  ==  filter(switch=0); switch:=1; dup; switch:=2; dup;;
+
+filter(switch=0); switch:=1; dup; filter(switch=1) == filter(switch=0); switch:=1; dup;;
+
+(filter switch=3 + filter vlanId=4; vlanId:=4)*; (filter switch=4 + filter vlanId=5)* == (filter switch=3 + filter vlanId=4; vlanId:=4)*; (filter switch=4 + filter vlanId=5)*;;
+
+(filter port=3); (filter switch=4); (filter vlanId=2; vlanId:=3 + filter vlanId=3; vlanId:=2)*; (filter vport=1);
+(filter vswitch=4) <= filter port=0;;
+
+id + (filter port=1; switch:=2);(filter vlanId=3; drop) + (filter vlanId=3;drop) <= filter vlanId=3; drop;;
+
+(* FALSE !! *) (* id <= drop;; *)
+
+filter port=1; dup <= dup;;
+
+(* This eportploits non-canonicity of FDDs, naive implementation gets it wrong *)
+port:=1; switch:=2 == port:=1; switch:=2 + filter switch=2; port:=1;;
+
+filter port=0; switch:=0 + filter port=1; switch:=1 + filter port!=1; switch:=0
+  == filter port=1; switch:=1 + filter port!=1; switch:=0;;
+
+filter port=0; switch:=0 + filter port!=1; switch:=0
+  == filter port!=1; switch:=0
