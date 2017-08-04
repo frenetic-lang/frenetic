@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 module Automaton = Frenetic_NetKAT_Compiler.Automaton
 module FDD = Frenetic_NetKAT_Compiler.FDD
