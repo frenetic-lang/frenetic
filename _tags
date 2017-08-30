@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: cea6fa374886210cdb1a7930c48805e8)
+# DO NOT EDIT (digest: 5bea5e200051e647e98111e4c831aec8)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -28,6 +28,7 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: package(ppx_deriving.std)
 <lib/*.ml{,i,y}>: package(ppx_enumerate)
 <lib/*.ml{,i,y}>: package(ppx_fields_conv)
+<lib/*.ml{,i,y}>: package(ppx_hash)
 <lib/*.ml{,i,y}>: package(ppx_sexp_conv)
 <lib/*.ml{,i,y}>: package(ppx_type_conv)
 <lib/*.ml{,i,y}>: package(sedlex)
@@ -50,6 +51,7 @@ true: annot, bin_annot
 "nominal/nominal.byte": package(ppx_deriving.std)
 "nominal/nominal.byte": package(ppx_enumerate)
 "nominal/nominal.byte": package(ppx_fields_conv)
+"nominal/nominal.byte": package(ppx_hash)
 "nominal/nominal.byte": package(ppx_sexp_conv)
 "nominal/nominal.byte": package(ppx_type_conv)
 "nominal/nominal.byte": package(sedlex)
@@ -72,6 +74,7 @@ true: annot, bin_annot
 <nominal/*.ml{,i,y}>: package(ppx_deriving.std)
 <nominal/*.ml{,i,y}>: package(ppx_enumerate)
 <nominal/*.ml{,i,y}>: package(ppx_fields_conv)
+<nominal/*.ml{,i,y}>: package(ppx_hash)
 <nominal/*.ml{,i,y}>: package(ppx_sexp_conv)
 <nominal/*.ml{,i,y}>: package(ppx_type_conv)
 <nominal/*.ml{,i,y}>: package(sedlex)

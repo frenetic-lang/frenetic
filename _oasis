@@ -56,6 +56,7 @@ Library frenetic
     ppx_deriving.std,
     ppx_compare,
     ppx_enumerate,
+    ppx_hash,
     ppx_fields_conv,
     ppx_type_conv,
     ppx_sexp_conv,

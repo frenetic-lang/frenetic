@@ -29,12 +29,10 @@ module Field = struct
     | TCPSrcPort
     | TCPDstPort
     | VFabric
-    [@@deriving sexp, enumerate, enum]
+    [@@deriving sexp, enumerate, enum, hash]
   type field = t
 
   let num_fields = max + 1
-
-  let hash = Hashtbl.hash
 
   let of_string s =
     Sexp.of_string s |> t_of_sexp

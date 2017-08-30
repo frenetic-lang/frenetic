@@ -203,6 +203,13 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
       applications of [f] to the values that they hold, and branches on
       variables with applications of [g]. *)
 
+  val fold'
+    :  init:'a
+    -> f:(init:'a -> r -> 'a)
+    -> g:(init:'a -> v -> 'a)
+    -> t
+    -> 'a
+
   val equal : t -> t -> bool
   (** [equal a b] returns whether or not the two diagrams are structurally
       equal.
