@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: a51cdb81c903d6676f1c30ba79355add)
+# DO NOT EDIT (digest: a2276269624d550539c5c0045a6f5fd2)
 version = "4.0.0"
 description = "The Frenetic Compiler and Runtime System"
 requires =
@@ -9,29 +9,6 @@ archive(byte, plugin) = "frenetic.cma"
 archive(native) = "frenetic.cmxa"
 archive(native, plugin) = "frenetic.cmxs"
 exists_if = "frenetic.cma"
-package "test" (
- version = "4.0.0"
- description = "The Frenetic Compiler and Runtime System"
- requires = "frenetic quickcheck"
- archive(byte) = "test_frenetic.cma"
- archive(byte, plugin) = "test_frenetic.cma"
- archive(native) = "test_frenetic.cmxa"
- archive(native, plugin) = "test_frenetic.cmxs"
- exists_if = "test_frenetic.cma"
-)
-
-
-package "async" (
- version = "4.0.0"
- description = "The Frenetic Compiler and Runtime System"
- requires =
- "async cohttp cohttp.async core cstruct cstruct-async cstruct.async frenetic mparser mparser.re ppx_sexp_conv str"
- archive(byte) = "frenetic_async.cma"
- archive(byte, plugin) = "frenetic_async.cma"
- archive(native) = "frenetic_async.cmxa"
- archive(native, plugin) = "frenetic_async.cmxs"
- exists_if = "frenetic_async.cma"
-)
 # OASIS_STOP
 
 

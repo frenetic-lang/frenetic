@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: b18ef2d8ab84de2bc4fb39e6c8c99d8b) *)
+(* DO NOT EDIT (digest: ae183b6a05a6e6a4835ed9f254bb913f) *)
 module OASISGettext = struct
 (* # 22 "src/oasis/OASISGettext.ml" *)
 
@@ -879,24 +879,10 @@ end
 open Ocamlbuild_plugin;;
 let package_default =
   {
-     MyOCamlbuildBase.lib_ocaml =
-       [
-          ("frenetic", ["lib"], []);
-          ("ppx", ["ppx"], []);
-          ("frenetic_async", ["async"], []);
-          ("test_frenetic", ["lib_test/lib"], [])
-       ];
+     MyOCamlbuildBase.lib_ocaml = [("frenetic", ["lib"], [])];
      lib_c = [];
      flags = [];
-     includes =
-       [
-          ("ppx", ["lib"]);
-          ("lib_test/lib", ["lib"]);
-          ("lib_test", ["async"; "lib"; "lib_test/lib"]);
-          ("frenetic", ["async"; "lib"]);
-          ("bench/src", ["lib"]);
-          ("async", ["lib"])
-       ]
+     includes = [("nominal", ["lib"])]
   }
   ;;
 
@@ -904,7 +890,7 @@ let conf = {MyOCamlbuildFindlib.no_automatic_syntax = false}
 
 let dispatch_default = MyOCamlbuildBase.dispatch_default conf package_default;;
 
-# 908 "myocamlbuild.ml"
+# 894 "myocamlbuild.ml"
 (* OASIS_STOP *)
 
 (* SJS: use shared extern token file *)
