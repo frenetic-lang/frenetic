@@ -7,8 +7,6 @@ module Seq = Action.Seq
 
 module Automaton = struct
 
-  let x = 2
-
   type constr =
   | Eq of int * int (* Eq n m: field number n is equal to value number m *)
   | Neq of int * int (* Neq n m: field number n is not equal to value number m *)
@@ -46,7 +44,7 @@ module Automaton = struct
       let id = Hashtbl.find_exn state_map id in
       let d = FDD.map_conts d ~f:(Hashtbl.find_exn state_map) in
       NetKAT_Auto.add_to_t_with_id new_auto (e,d) id);
-    assert (auto.source = Hashtbl.find_exn state_map auto.source);
+    assert (new_auto.source = Hashtbl.find_exn state_map auto.source);
     new_auto
 
   (* fold over all FDDs in a NetKAT automaton *)
@@ -108,4 +106,8 @@ module Automaton = struct
         of_state id fdds @ acc)
     in
     { nr_of_states; nr_of_constants; nr_of_fields; edges }
+
+    let of_pol p =
+      NetKAT_Auto.of_policy ~dedup:true ~cheap_minimize:true p
+      |> of_netkat_auto
 end

@@ -1,0 +1,31 @@
+OASISFormat: 0.4
+OCamlVersion: >= 4.03.0
+Name:        nominal
+Version:     0.1
+Synopsis:    NetKAT nominal
+Authors:     Steffen Smolka
+License:     LGPL
+Plugins:     DevFiles (0.4)
+XDevFilesEnableMakefile: true
+BuildTools:
+  ocamlbuild
+
+Executable nominal
+  Path: .
+  BuildDepends:
+    core,
+    frenetic,
+    frenetic.ppx,
+    threads,
+    ppx_deriving.std,
+    yojson,
+    ppx_deriving_yojson,
+    ppx_hash
+  MainIs: nominal.ml
+  CompiledObject: byte
+  Install: false
+
+Test nominal
+  TestTools: nominal
+  Command: ./nominal.byte
+  Run: true

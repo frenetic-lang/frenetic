@@ -95,14 +95,26 @@ Library frenetic
     Frenetic_Util,
     Frenetic_Vlr
 
-Executable nominal
-  Install: false
-  Path: nominal
-  MainIs: nominal.ml
+Library ppx
+  Findlibparent: frenetic
+  # need custom meta file
+  XMETAEnable: false
+  Path: ppx
   BuildDepends:
-    core,
-    threads,
-    frenetic,
-    ppx_deriving.std,
-    ppx_deriving_yojson,
-    ppx_hash
+    ppx_tools, # (> 5.0) once available
+    ppx_tools.metaquot,
+    frenetic
+  InternalModules:
+    PPX_NetKAT_Parser
+  Modules:
+    PPX_NetKAT
+  FindlibExtraFiles:
+    ../ppx.native
+
+Executable ppx
+  Path: ppx
+  BuildDepends:
+    frenetic.ppx
+  MainIs: ppx.ml
+  CompiledObject: best
+  Install: false
