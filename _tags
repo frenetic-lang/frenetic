@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 5bea5e200051e647e98111e4c831aec8)
+# DO NOT EDIT (digest: be2338ce5d67ff2071c134d37dad7337)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -49,6 +49,7 @@ true: annot, bin_annot
 "nominal/nominal.byte": package(ocamlgraph)
 "nominal/nominal.byte": package(ppx_compare)
 "nominal/nominal.byte": package(ppx_deriving.std)
+"nominal/nominal.byte": package(ppx_deriving_yojson)
 "nominal/nominal.byte": package(ppx_enumerate)
 "nominal/nominal.byte": package(ppx_fields_conv)
 "nominal/nominal.byte": package(ppx_hash)
@@ -72,6 +73,7 @@ true: annot, bin_annot
 <nominal/*.ml{,i,y}>: package(ocamlgraph)
 <nominal/*.ml{,i,y}>: package(ppx_compare)
 <nominal/*.ml{,i,y}>: package(ppx_deriving.std)
+<nominal/*.ml{,i,y}>: package(ppx_deriving_yojson)
 <nominal/*.ml{,i,y}>: package(ppx_enumerate)
 <nominal/*.ml{,i,y}>: package(ppx_fields_conv)
 <nominal/*.ml{,i,y}>: package(ppx_hash)

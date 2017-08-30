@@ -24,13 +24,27 @@ val to_dot : t -> string
 
 (** Intermediate representation of global compiler: NetKAT Automata *)
 module Automaton : sig
-  type t
+  type t = private {
+    states : (int, FDD.t * FDD.t) Hashtbl.t;
+    has_state : (FDD.t * FDD.t, int) Hashtbl.t;
+    mutable source : int;
+    mutable nextState : int
+  }
+
+  val create_t : unit -> t
+
+  val add_to_t_with_id : t -> (FDD.t * FDD.t) -> int -> unit
 
   val fold_reachable: ?order:[< `Post | `Pre > `Pre ]
     -> t
     -> init:'a
     -> f:('a -> int -> (FDD.t * FDD.t) -> 'a)
     -> 'a
+
+  val iter_reachable: ?order:[< `Post | `Pre > `Pre ]
+    -> t
+    -> f:(int -> (FDD.t * FDD.t) -> unit)
+    -> unit
 
   val of_policy: ?dedup:bool -> ?ing:pred -> ?cheap_minimize:bool -> policy -> t
   val to_local: pc:Field.t -> t -> FDD.t

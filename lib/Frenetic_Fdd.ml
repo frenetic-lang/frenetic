@@ -711,4 +711,14 @@ module FDD = struct
     in
     map_r f fdd
 
+  (** fold over FDD in post-traversal order, applying [ftest] to branches and
+      [fmod] to modifications in leaves  *)
+  let deep_fold ~init ~ftest ~fmod fdd =
+    fold' fdd ~init ~g:ftest ~f:(fun ~init par -> 
+      Action.Par.fold par ~init ~f:(fun init seq ->
+        Action.Seq.fold seq ~init ~f:(fun ~key:f ~data:v init ->
+          match f with
+          | Action.K -> init
+          | Action.F f -> fmod ~init (f,v))))
+
 end

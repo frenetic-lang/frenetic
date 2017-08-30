@@ -102,4 +102,7 @@ Executable nominal
   BuildDepends:
     core,
     threads,
-    frenetic
+    frenetic,
+    ppx_deriving.std,
+    ppx_deriving_yojson,
+    ppx_hash
