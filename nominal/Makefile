@@ -6,6 +6,8 @@ export OCAMLFIND_IGNORE_DUPS_IN
 
 go: oasis clean install-frenetic-deps enabletest all
 
+fast: all
+
 install-frenetic-deps:
 	cd .. && make uninstall && make && make reinstall
 
