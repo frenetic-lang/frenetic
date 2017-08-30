@@ -1,9 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: 5330cd1d1f80983442c376a20472e418)
+# DO NOT EDIT (digest: 26152a799c2c95f989025d1e11e49cee)
 version = "4.0.0"
 description = "The Frenetic Compiler and Runtime System"
 requires =
-"base64 core cstruct cstruct.ppx ocamlgraph str tcpip tcpip.unix yojson ipaddr ppx_deriving.std ppx_compare ppx_enumerate ppx_hash ppx_fields_conv ppx_type_conv ppx_sexp_conv sexplib sedlex menhirLib threads compiler-libs.common"
+"base64 core cstruct cstruct.ppx ocamlgraph str tcpip tcpip.unix yojson ipaddr sexplib sedlex menhirLib threads compiler-libs.common"
 archive(byte) = "frenetic.cma"
 archive(byte, plugin) = "frenetic.cma"
 archive(native) = "frenetic.cmxa"
