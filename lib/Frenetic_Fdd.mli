@@ -268,6 +268,9 @@ end
 module FDD : sig
   (** An FDD is an instance of a Variable-Lattice-Result (VLR) structure.  *)
   include module type of Frenetic_Vlr.Make(Field)(Value)(Action)
+    with type r = Action.t
+    and  type v = Field.t * Value.t
+
   val mk_cont : int -> t
   val conts : t -> Int.Set.t
   val map_conts : t -> f:(int -> int) -> t

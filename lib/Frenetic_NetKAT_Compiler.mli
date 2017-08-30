@@ -4,6 +4,8 @@ open Frenetic_NetKAT_Semantics
 open Frenetic_OpenFlow
 
 module Field = Frenetic_Fdd.Field
+module Action = Frenetic_Fdd.Action
+module Value = Frenetic_Fdd.Value
 
 type order
   = [ `Default
@@ -11,6 +13,10 @@ type order
     | `Heuristic ]
 
 module FDD : module type of Frenetic_Fdd.FDD
+  with type t = Frenetic_Fdd.FDD.t
+  and  type r = Action.t
+  and  type v = Field.t * Value.t
+
 type t = FDD.t
 (** The type of the intermediate compiler representation (FDD). *)
 
