@@ -29,10 +29,11 @@ end *)
 
 (* takes NetKAT policy file; overwrites file with json representation of automaton *)
 let main file =
-  Frenetic_NetKAT_Parser.pol_of_file file
-  |> Automaton.of_pol
-  |> Automaton.to_yojson
-  |> Yojson.Safe.to_file ~std:true file;
+  let pol = Frenetic_NetKAT_Parser.pol_of_file file in
+  Out_channel.with_file file ~f:(fun out ->
+    Automaton.of_pol pol
+    |> Automaton.to_yojson
+    |> Yojson.Safe.to_channel ~std:true out);
   exit 0
 
 
