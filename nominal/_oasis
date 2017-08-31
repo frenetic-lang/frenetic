@@ -16,7 +16,7 @@ XOCamlbuildExtraArgs:
   # (jane street ppx must be run after other ppx)
   -package ppx_deriving.std,ppx_sexp_conv,ppx_deriving_yojson
 
-Executable nominal
+Executable frenetic-nominal
   Path: .
   BuildDepends:
     core,
@@ -25,10 +25,10 @@ Executable nominal
     threads,
     yojson
   MainIs: nominal.ml
-  CompiledObject: byte
-  Install: false
+  CompiledObject: native
+  Install: true
 
 Test nominal
-  TestTools: nominal
-  Command: ./nominal.byte
+  TestTools: frenetic-nominal
+  Command: ./nominal.native
   Run: true
