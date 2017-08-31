@@ -11,10 +11,10 @@ module Automaton = struct
   | Eq of int * int (* Eq n m: field number n is equal to value number m *)
   | Neq of int * int (* Neq n m: field number n is not equal to value number m *)
   | MkEq of int * int
-  [@@deriving sexp, yojson, hash, compare]
+  [@@deriving sexp, yojson]
 
   type edge = int * constr list * int
-    [@@deriving sexp, yojson, hash, compare]
+    [@@deriving sexp, yojson]
 
   type t = {
     (* integer >=2; by convention, 0 is the start state, n-1 = nr_of_states-1 is
@@ -23,7 +23,7 @@ module Automaton = struct
     nr_of_constants : int; (* integer >= 0 *)
     nr_of_fields : int; (* integer >= 0 *)
     edges : edge list
-  } [@@deriving sexp, yojson, hash, compare]
+  } [@@deriving sexp, yojson]
 
   let cont_of_seq seq =
     match Seq.find seq Action.K with

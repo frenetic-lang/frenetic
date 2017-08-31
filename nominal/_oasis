@@ -9,6 +9,12 @@ Plugins:     DevFiles (0.4)
 XDevFilesEnableMakefile: true
 BuildTools:
   ocamlbuild
+AlphaFeatures:
+  ocamlbuild_more_args
+XOCamlbuildExtraArgs:
+  # hack to make things compile
+  # (jane street ppx must be run after other ppx)
+  -package ppx_deriving.std,ppx_sexp_conv,ppx_deriving_yojson
 
 Executable nominal
   Path: .
@@ -17,10 +23,7 @@ Executable nominal
     frenetic,
     frenetic.ppx,
     threads,
-    ppx_deriving.std,
-    yojson,
-    ppx_deriving_yojson,
-    ppx_hash
+    yojson
   MainIs: nominal.ml
   CompiledObject: byte
   Install: false
