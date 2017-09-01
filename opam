@@ -12,6 +12,7 @@ build: [
 ]
 install: [make "install"]
 build-test: [
+  ["./configure" "--enable-tests" "--prefix" prefix ]
   [make "test"]
 ]
 remove: [
