@@ -1,0 +1,11 @@
+opam-version: "1.2"
+available: [ ocaml-version >= "4.04.0" ]
+version: "4.2.0"
+maintainer: "Arjun Guha <arjun@cs.umass.edu>"
+authors: "Arjun Guha <arjun@cs.umass.edu>, Nate Foster <jnfoster@cs.cornell.edu>"
+homepage: "http://frenetic-lang.org"
+bug-reports: "https://github.com/frenetic-lang/frenetic/issues"
+dev-repo: "https://github.com/frenetic-lang/frenetic.git"
+build: [
+  ["jbuilder" "build" "--root" "." "-j" jobs "@install"]
+]
