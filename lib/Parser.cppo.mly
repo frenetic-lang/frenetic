@@ -21,11 +21,7 @@ open Frenetic_NetKAT
 open Parsetree
 open Ast_helper
 open Ast_convenience
-(* FIXME: temporary, until these are included in the next Ast_convenience release *)
-let int32 ?loc ?attrs x =
-  Exp.constant ?loc ?attrs (Pconst_integer (Int32.to_string x, Some 'l'))
-let int64 ?loc ?attrs x =
-  Exp.constant ?loc ?attrs (Pconst_integer (Int64.to_string x, Some 'L'))
+
 let parse_ocaml_expr (s,loc) =
   let buf = Lexing.from_string s in
   buf.lex_start_p <- Location.(loc.loc_start);
