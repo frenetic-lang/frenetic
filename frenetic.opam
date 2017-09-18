@@ -7,5 +7,5 @@ homepage: "http://frenetic-lang.org"
 bug-reports: "https://github.com/frenetic-lang/frenetic/issues"
 dev-repo: "https://github.com/frenetic-lang/frenetic.git"
 build: [
-  ["jbuilder" "build" "--root" "." "-j" jobs "@install"]
+  ["jbuilder" "build" "-p" name "-j" jobs]
 ]

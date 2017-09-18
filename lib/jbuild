@@ -1,21 +1,63 @@
 (jbuild_version 1)
 
-;; This declare the hello_world executable implemented by hello_world.ml
-;; (executable
-;;  ((name hello_world)))
-
 ;; preprocessing using cppo
 (rule
  ((targets (Frenetic_NetKAT_Generated_Parser.mly))
-  (deps    (Frenetic_NetKAT_Generated_Parser.cppo.mly Frenetic_NetKAT.ml))
+  (deps    (Frenetic_NetKAT_Generated_Parser.cppo.mly Parser.cppo.mly))
   (action  (run ${bin:cppo} ${<} -n -o ${@}))))
+(rule
+ ((targets (Frenetic_NetKAT_Tokens.mly))
+  (deps    (Parser.cppo.mly))
+  (action  (run ${bin:cppo} ${<} -D MAKE_PPX -n -o ${@}))))
+
+;; generate menhir tokens
+(rule
+ ((targets (Frenetic_NetKAT_Tokens.ml))
+  (deps    (Frenetic_NetKAT_Tokens.mly))
+  (action  (run ${bin:menhir} --only-tokens ${<}))))
+
+;; generate parser
+(menhir
+ (
+  (flags (--external-tokens Frenetic_NetKAT_Tokens))
+  (modules (Frenetic_NetKAT_Generated_Parser))))
+
+;; generate lexer -- temporary hack!!
+(rule
+ ((targets (Frenetic_NetKAT_Lexer.ml))
+  (deps    (Frenetic_NetKAT_Lexer.sedlex.ml))
+  (action  (run ${ocaml_where}/../sedlex/ppx_sedlex ${<} -o ${@}))))
 
 (library
  ((name        frenetic)
   (public_name frenetic)
-  (libraries (core cppo))
-  (preprocess (pps (ppx_jane)))
-  (preprocess (action (run ${bin:cppo} -V OCAML:${ocaml_version} ${<})))  
+  (libraries 
+    (core
+     base64
+     cstruct
+     ocamlgraph
+     str
+     tcpip
+     tcpip.unix
+     yojson
+     ipaddr
+     sedlex
+     sexplib
+     menhirLib
+     threads
+     compiler-libs.common
+    )
+  )
+  (virtual_deps (cppo menhir ppx_import))
+  (preprocess (pps (ppx_cstruct
+                    ppx_deriving.std
+                    ppx_enumerate
+                    ppx_compare
+                    ppx_fields_conv
+                    ppx_type_conv
+                    ppx_sexp_conv
+                    ocaml-migrate-parsetree.driver-main -no-check
+                   )))
  )
 )
 

@@ -1,4 +1,4 @@
-type token = [%import: Frenetic_NetKAT_Tokens.token] [@@deriving show]
+type token = Frenetic_NetKAT_Tokens.token
 
 type ('token, 'a) parser =
   (Lexing.lexbuf -> 'token) -> Lexing.lexbuf -> 'a
