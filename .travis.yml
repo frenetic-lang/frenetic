@@ -1,11 +1,10 @@
 language: c
 env:
-  - OCAML=4.05.0
+  - OCAML=4.04.2
 script:
   - echo "yes" | sudo add-apt-repository ppa:avsm/ppa
   - sudo apt-get update -qq
   - sudo apt-get install -qq opam
-  - export OPAMYES=1
   - opam init --auto-setup --compiler=$OCAML
   - eval `opam config env`
   - opam pin add --no-action frenetic .
