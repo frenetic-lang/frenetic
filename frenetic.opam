@@ -13,14 +13,15 @@ build-test: ["jbuilder" "runtest" "-p" name "-j" jobs]
 install: ["jbuilder" "install" "-p" name "-j" jobs]
 
 depends: [
-  "cppo" {build}
-  "jbuilder" {build & >="1.0+beta13"}
-  "odoc" {build}
+  "cppo"
+  "jbuilder" {>="1.0+beta13"}
+  "odoc"
   #########################
   "async"  {>= "0.9.0"}
   "async_extended"
   "base64" {>= "2.0.0"}
   "cohttp"
+  "cohttp-async"
   "core"   {>= "0.9.0"}
   "cstruct" {>= "1.0.1"}
   "cstruct-async"
