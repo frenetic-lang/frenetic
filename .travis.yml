@@ -6,9 +6,8 @@ script:
   - sudo apt-get update -qq
   - sudo apt-get install -qq opam
   - export OPAMYES=1
-  - opam init
+  - opam init --auto-setup --compiler=$OCAML
   - eval `opam config env`
-  - opam switch $OCAML
   - opam pin add --no-action frenetic .
   - opam install --deps-only frenetic
   - opam install --verbose --build-doc --build-test frenetic
