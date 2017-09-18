@@ -9,5 +9,5 @@ script:
   - opam init --auto-setup --compiler=$OCAML
   - eval `opam config env`
   - opam pin add --no-action frenetic .
-  - opam install --yes --deps-only --build-doc --build-test frenetic
+  - opam install --yes --deps-only frenetic
   - opam install --yes --verbose --build-doc --build-test frenetic
