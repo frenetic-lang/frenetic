@@ -49,6 +49,7 @@
      ipaddr
      sedlex
      sexplib
+     str
      menhirLib
      compiler-libs.common
     )
