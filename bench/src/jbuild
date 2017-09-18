@@ -1,0 +1,8 @@
+(jbuild_version 1)
+
+(executable
+ ((name        benchmark)
+  ;; by default, do not install
+  (public_name -)
+  (libraries (core frenetic))
+))
