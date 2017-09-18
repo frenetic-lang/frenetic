@@ -1,7 +1,9 @@
 (* if MAKE_PPX is set, produce OCaml (PPX) AST; otherwise, produce normal NetKAT AST *)
 #ifdef MAKE_PPX
   #define AST(arg)
-  #define PPX(arg) {[%expr arg]}
+  (* don't trigger warning if loc is not used *)
+  #define PPX(arg) {begin[@warning "-26"]let loc = Location.{loc_start=$symbolstartpos;loc_end=$endpos;loc_ghost=false} in [%expr arg] end}
+  #define PPX_(arg) begin[@warning "-26"]let loc = Location.{loc_start=$symbolstartpos;loc_end=$endpos;loc_ghost=false} in [%expr arg] end
   #define AQ | x=ANTIQ { parse_ocaml_expr x }
   #define POLTY Parsetree.expression
   #define PREDTY Parsetree.expression
@@ -18,6 +20,7 @@
 open Core
 open Frenetic_NetKAT
 #ifdef MAKE_PPX
+open Ppx_tools_405
 open Parsetree
 open Ast_helper
 open Ast_convenience
@@ -135,7 +138,7 @@ pol:
 #ifdef MAKE_PPX
   | code=IVERSON {
     let phi = parse_ocaml_expr code in
-    [%expr if [%e phi] then id else drop]
+    PPX_( if [%e phi] then id else drop )
   }
 #endif
   ;
@@ -172,7 +175,7 @@ pred:
 #ifdef MAKE_PPX
   | code=IVERSON {
     let phi = parse_ocaml_expr code in
-    [%expr if [%e phi] then True else False]
+    PPX_( if [%e phi] then True else False )
   }
 #endif
   ;

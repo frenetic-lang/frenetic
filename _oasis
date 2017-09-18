@@ -59,58 +59,6 @@ Executable ppx_standalone
   CompiledObject: best
   Install: false
 
-Library frenetic_async
-  Findlibparent: frenetic
-  Findlibname: async
-  Path: async
-  BuildDepends:
-    async,
-    cohttp,
-    cohttp.async,
-    core,
-    cstruct,
-    cstruct-async,
-    cstruct.async,
-    frenetic,
-    mparser,
-    mparser.re,
-    ppx_sexp_conv,
-    str
-  InternalModules:
-    Frenetic_Common,
-    Frenetic_DynGraph
-  Modules:
-    Frenetic_Compile_Server,
-    Frenetic_Log,
-    Frenetic_Http_Controller,
-    Frenetic_OpenFlow0x01_Plugin,
-    Frenetic_NetKAT_Controller,
-    Frenetic_Ox
-
-Executable frenetic
-  Path: frenetic
-  MainIs: frenetic.ml
-  Install: true
-  CompiledObject: native
-  BuildDepends:
-    async,
-    core,
-    frenetic,
-    frenetic.async,
-    async_extended
-
-Executable openflow
-  Path: frenetic
-  MainIs: openflow.ml
-  Install: true
-  CompiledObject: native
-  BuildDepends:
-    async,
-    core,
-    frenetic,
-    frenetic.async,
-    async_extended
-
 Library test_frenetic
   Findlibparent: frenetic
   Findlibname: test
@@ -145,13 +93,3 @@ Test all_tests
   Run$: flag(tests)
   Command: $testtool inline-test-runner frenetic
   TestTools: testtool
-
-Executable benchmark
-  Install: false
-  Path: bench/src
-  CompiledObject: best
-  MainIs: Main.ml
-  BuildDepends:
-    core,
-    threads,
-    frenetic
