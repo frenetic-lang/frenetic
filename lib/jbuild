@@ -44,15 +44,12 @@
      base64
      cstruct
      ocamlgraph
-     str
      tcpip
-     tcpip.unix
      yojson
      ipaddr
      sedlex
      sexplib
      menhirLib
-     threads
      compiler-libs.common
     )
   )
@@ -62,7 +59,6 @@
                     ppx_enumerate
                     ppx_compare
                     ppx_fields_conv
-                    ppx_type_conv
                     ppx_sexp_conv
                     ocaml-migrate-parsetree.driver-main -no-check
                    )))

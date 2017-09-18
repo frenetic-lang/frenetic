@@ -10,7 +10,6 @@
      cohttp.async
      core
      cstruct
-     cstruct-async
      cstruct.async
      frenetic
      mparser
