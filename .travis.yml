@@ -1,7 +1,8 @@
 language: c
 env:
   - OCAML=4.04.2
-  - OCAML=4.05.0
+  # FIXME: add back
+  # - OCAML=4.05.0
 script:
   - echo "yes" | sudo add-apt-repository ppa:avsm/ppa
   - sudo apt-get update -qq
