@@ -1,0 +1,23 @@
+(jbuild_version 1)
+
+(library
+ ((name        frenetic_async)
+  (public_name frenetic.async)
+  (wrapped false) ;; should change this to true and remove ugly "Frenetic_" prefixes
+  (libraries 
+    (async
+     cohttp
+     cohttp.async
+     core
+     cstruct
+     cstruct-async
+     cstruct.async
+     frenetic
+     mparser
+     mparser.re
+     str
+    )
+  )
+  (preprocess (pps (ppx_sexp_conv)))
+ )
+)

@@ -38,6 +38,7 @@
 (library
  ((name        frenetic)
   (public_name frenetic)
+  (wrapped false) ;; should change this to true and remove ugly "Frenetic_" prefixes
   (libraries 
     (core
      base64
