@@ -9,7 +9,7 @@ module Parser = Ppx_parser
 let ext_keyw = "nk"
 let ext_keyw_pred = ext_keyw ^ "_pred"
 
-(** expands `s` in `let%nk x = {| s |}` *)
+(* expands `s` in `let%nk x = {| s |}` *)
 let expand_nk_string ~loc ~pred s : expression =
   let pos = Location.(loc.loc_start) in
   (* string starts after '{' and '|' *)
@@ -17,7 +17,7 @@ let expand_nk_string ~loc ~pred s : expression =
   Lexer.parse_string ~ppx:true ~pos s Parser.(if pred then pred_eof else pol_eof)
   |> Selected_ast.(of_ocaml Type.Expression)
 
-(** expands `e` in `let%nk x = e` *)
+(* expands `e` in `let%nk x = e` *)
 let expand_bound_expr ~pred expr =
   let loc = expr.pexp_loc in
   match expr.pexp_desc with
@@ -27,7 +27,7 @@ let expand_bound_expr ~pred expr =
   | _ ->
     Location.raise_errorf ~loc "'let%%%s' may only bind quoted NetKAT" ext_keyw
 
-(** expands `x=e` in `let%nk x = e` *)
+(* expands `x=e` in `let%nk x = e` *)
 let expand_binding ~pred binding =
   { binding with pvb_expr = expand_bound_expr ~pred binding.pvb_expr }
 
@@ -36,12 +36,12 @@ let expand_let_decl ~loc ~path:_ ~pred bindings =
   let module B = Ast_builder.Make(struct let loc = loc end) in
   B.(pstr_value Nonrecursive (List.map bindings ~f:(expand_binding ~pred)))
 
-(** expands `let%nk <bindings> in body` *)
+(* expands `let%nk <bindings> in body` *)
 let expand_let_expr ~loc ~path:_ ~pred bindings body =
   let module B = Ast_builder.Make(struct let loc = loc end) in
   B.(pexp_let Nonrecursive (List.map bindings ~f:(expand_binding ~pred)) body)
 
-(** declare `let%nk x = e` extension *)
+(* declare `let%nk x = e` extension *)
 let nk_ext_struct pred =
   Extension.V2.declare
     (if pred then ext_keyw_pred else ext_keyw)
@@ -49,7 +49,7 @@ let nk_ext_struct pred =
     Ast_pattern.(pstr (pstr_value nonrecursive __ ^:: nil))
     (expand_let_decl ~pred)
 
-(** declare `let%nk x = e in b` extension *)
+(* declare `let%nk x = e in b` extension *)
 let nk_ext_expr pred =
   Extension.V2.declare
     (if pred then ext_keyw_pred else ext_keyw)

@@ -6,11 +6,15 @@ authors: "Arjun Guha <arjun@cs.umass.edu>, Nate Foster <jnfoster@cs.cornell.edu>
 homepage: "http://frenetic-lang.org"
 bug-reports: "https://github.com/frenetic-lang/frenetic/issues"
 dev-repo: "https://github.com/frenetic-lang/frenetic.git"
-build: [
-  ["jbuilder" "build" "-p" name "-j" jobs]
-]
+
+build: ["jbuilder" "build" "-p" name "-j" jobs]
+build-doc: ["jbuilder" "build" "@doc" "-p" name "-j" jobs]
+build-test: ["jbuilder" "runtest" "-p" name "-j" jobs]
+install: ["jbuilder" "install" "-p" name "-j" jobs]
+remove: ["jbuilder" "uninstall" "-p" name "-j" jobs]
+
 depends: [
-  "jbuilder" {build >="1.0+beta13"}
+  "jbuilder" {build & >="1.0+beta13"}
   "cppo" {build}
   "menhir" {build}
   "odoc" {build}
