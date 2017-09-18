@@ -17,7 +17,7 @@ clean:
 doc:
 	jbuilder build @doc
 
-test: build
-	# TODO
+test:
+	jbuilder build @runtest
 
 .PHONY: build install uninstall reinstall clean doc
