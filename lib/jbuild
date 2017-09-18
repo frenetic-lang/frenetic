@@ -16,17 +16,24 @@
   (deps    (Frenetic_NetKAT_Tokens.mly))
   (action  (run ${bin:menhir} --only-tokens ${<}))))
 
-;; generate parser
-(menhir
- (
-  (flags (--external-tokens Frenetic_NetKAT_Tokens))
-  (modules (Frenetic_NetKAT_Generated_Parser))))
-
-;; generate lexer -- temporary hack while ppx_sedlex is incompatible with jbuilder!!
+;; generate lexer -- temporary hack while ppx_sedlex and ppx_import are incompatible with jbuilder!!
+(rule
+ ((targets (Frenetic_NetKAT_Lexer.sedlex.ml))
+  (deps    (Frenetic_NetKAT_Lexer.cppo.sedlex.ml Frenetic_NetKAT_Tokens.ml))
+  (action  (run ${bin:cppo} ${<} -n -o ${@}))))
+(rule
+ ((targets (Frenetic_NetKAT_Lexer.mli))
+  (deps    (Frenetic_NetKAT_Lexer.cppo.mli Frenetic_NetKAT_Tokens.ml))
+  (action  (run ${bin:cppo} ${<} -n -o ${@}))))
 (rule
  ((targets (Frenetic_NetKAT_Lexer.ml))
   (deps    (Frenetic_NetKAT_Lexer.sedlex.ml))
   (action  (run ${ocaml_where}/../sedlex/ppx_sedlex ${<} -o ${@}))))
+
+;; generate parser
+(menhir
+ ((flags (--external-tokens Frenetic_NetKAT_Lexer))
+  (modules (Frenetic_NetKAT_Generated_Parser))))
 
 (library
  ((name        frenetic)
@@ -48,7 +55,7 @@
      compiler-libs.common
     )
   )
-  (virtual_deps (cppo menhir ppx_import))
+  (virtual_deps (cppo menhir))
   (preprocess (pps (ppx_cstruct
                     ppx_deriving.std
                     ppx_enumerate

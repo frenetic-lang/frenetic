@@ -6,14 +6,8 @@ end
 (* FIXME: while ppx_import is not compatible with jbuilder, simply copy and paste
    token type here as a workaround. *)
 (* type token = [@import Frenetic_NetKAT_Tokens.token] [@@deriving show] *)
-type token = Frenetic_NetKAT_Tokens.token =
-  |WHILE|VSWITCH|VPORT|VLINK|VLANPCP|VLAN|VFABRIC|VAR|TRUE|THEN
-  |TCPSRCPORT|TCPDSTPORT|SWITCH|STRING of (string)|STAR|SLASH|SEMICOLON|RPAR
-  |QUERY|PORT|PLUS|PIPE|OR|NOT|METAID of (string)|MAC of (string)|LPAR|LINK|LET
-  |IVERSON of (string * Location.t)|IPPROTO|IP4SRC|IP4DST|IP4ADDR of (string)
-  |INT of (string)|IN|IF|ID|FILTER|FALSE|ETHTYPE|ETHSRC|ETHDST|EQUALS|EOF|END
-  |ELSE|DUP|DROP|DO|BEGIN|AT|ASSIGN|ANTIQ of (string * Location.t)|AND
-  [@@deriving show]
+#include "Frenetic_NetKAT_Tokens.ml"
+[@@deriving show]
 
 (* use custom lexbuffer to keep track of source location *)
 module Sedlexing = LexBuffer
