@@ -1,4 +1,3 @@
-open Core
 open Ppx_core
 
 (* open Parsetree *)
@@ -10,12 +9,11 @@ let ext_keyw = "nk"
 let ext_keyw_pred = ext_keyw ^ "_pred"
 
 (* expands `s` in `let%nk x = {| s |}` *)
-let expand_nk_string ~loc ~pred s : expression =
+let expand_nk_string ~loc ~pred s =
   let pos = Location.(loc.loc_start) in
   (* string starts after '{' and '|' *)
   let pos = Lexing.{ pos with pos_cnum = pos.pos_cnum + 2 } in
   Lexer.parse_string ~ppx:true ~pos s Parser.(if pred then pred_eof else pol_eof)
-  |> Selected_ast.(of_ocaml Type.Expression)
 
 (* expands `e` in `let%nk x = e` *)
 let expand_bound_expr ~pred expr =
@@ -51,7 +49,7 @@ let nk_ext_struct pred =
 
 (* declare `let%nk x = e in b` extension *)
 let nk_ext_expr pred =
-  Extension.V2.declare
+  Extension.declare
     (if pred then ext_keyw_pred else ext_keyw)
     Extension.Context.expression
     Ast_pattern.(single_expr_payload (pexp_let nonrecursive __ __))

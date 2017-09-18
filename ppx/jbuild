@@ -15,5 +15,5 @@
  ((name frenetic_ppx)
   (public_name frenetic.ppx)
   (kind ppx_rewriter)
-  (libraries (ppx_driver ppx_core ppx_tools_versioned frenetic))
+  (libraries (ppx_driver ppx_core frenetic))
   (preprocess (pps (ppx_metaquot)))))
