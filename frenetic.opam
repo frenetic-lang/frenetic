@@ -9,3 +9,16 @@ dev-repo: "https://github.com/frenetic-lang/frenetic.git"
 build: [
   ["jbuilder" "build" "-p" name "-j" jobs]
 ]
+depends: [
+  "jbuilder" {build, >=1.0+beta13}
+  "cppo" {build}
+  "menhir" {build}
+  "ppx_deriving" {>= "4.2"}
+  "core"   {>= "0.9.0"}
+  "async"  {>= "0.9.0"}
+  "async_extended"
+  "sedlex"
+  "cstruct" {>= "1.0.1"}
+  "cstruct-async"
+  "ppx_cstruct"
+]
