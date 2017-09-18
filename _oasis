@@ -24,40 +24,6 @@ XOCamlbuildExtraArgs:
   # (jane street stuff must run after ppx_cstruct/cstruct.ppx)
   -package ppx_deriving,ppx_deriving.std,ppx_sexp_conv,ppx_fields_conv,ppx_type_conv,ppx_enumerate,ppx_compare
 
-Library ppx
-  Findlibparent: frenetic
-  # need custom meta file
-  XMETAEnable: false
-  Path: ppx
-  BuildDepends:
-    ppx_tools, # (> 5.0) once available
-    ppx_tools.metaquot,
-    frenetic
-  InternalModules:
-    PPX_NetKAT_Parser
-  Modules:
-    PPX_NetKAT
-  FindlibExtraFiles:
-    ../ppx.native
-
-Executable ppx
-  Path: ppx
-  BuildDepends:
-    frenetic.ppx
-  MainIs: ppx.ml
-  CompiledObject: best
-  Install: false
-
-# just for testing and experimentation
-Executable ppx_standalone
-  # don't build by default
-  Build: false
-  Path: ppx
-  BuildDepends:
-    frenetic.ppx
-  MainIs: ppx_standalone.ml
-  CompiledObject: best
-  Install: false
 
 Library test_frenetic
   Findlibparent: frenetic

@@ -2,7 +2,6 @@
 
 (executable
  ((name        benchmark)
-  ;; by default, do not install
-  (public_name -)
+  (public_name frenetic.benchmark)
   (libraries (core frenetic))
 ))
