@@ -1,6 +1,6 @@
 open Core
-open Frenetic_NetKAT_Optimize
-open Frenetic_NetKAT
+open Netkat.Optimize
+open Netkat.Syntax
 
 type typ = Src | Dst
 

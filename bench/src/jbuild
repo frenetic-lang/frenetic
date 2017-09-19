@@ -2,7 +2,7 @@
 
 (executable
  ((name        benchmark)
-  (libraries (core frenetic))
+  (libraries (core frenetic.netkat))
 ))
 
 ;; makes sure the executable is built in test mode

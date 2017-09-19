@@ -83,13 +83,13 @@ open Core
 pol_eof:
   | p=pol; EOF
       AST( p )
-      PPX( let open Syntax in [%e p] )
+      PPX( let open Netkat.Syntax in [%e p] )
   ;
 
 pred_eof:
   | a=pred; EOF
       AST( a )
-      PPX( let open Syntax in [%e a] )
+      PPX( let open Netkat.Syntax in [%e a] )
   ;
 
 pol:

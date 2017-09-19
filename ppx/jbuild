@@ -15,5 +15,6 @@
  ((name frenetic_ppx)
   (public_name frenetic.ppx)
   (kind ppx_rewriter)
-  (libraries (ppx_driver ppx_core frenetic frenetic.netkat))
+  (libraries (ppx_driver ppx_core frenetic.netkat))
+  (ppx_runtime_libraries (frenetic.netkat))
   (preprocess (pps (ppx_metaquot)))))
