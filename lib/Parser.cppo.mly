@@ -1,9 +1,9 @@
 (* if MAKE_PPX is set, produce OCaml (PPX) AST; otherwise, produce normal NetKAT AST *)
 #ifdef MAKE_PPX
   #define AST(arg)
-  (* don't trigger warning if loc is not used *)
-  #define PPX(arg) {begin[@warning "-26"]let loc = Location.{loc_start=$symbolstartpos;loc_end=$endpos;loc_ghost=false} in [%expr arg] end}
-  #define PPX_(arg) begin[@warning "-26"]let loc = Location.{loc_start=$symbolstartpos;loc_end=$endpos;loc_ghost=false} in [%expr arg] end
+  #define LOC Location.{ loc_start = $symbolstartpos; loc_end = $endpos; loc_ghost = false}
+  #define PPX(arg) {let loc = LOC in [%expr arg]}
+  #define PPX_(arg) let loc = LOC in [%expr arg]
   #define AQ | x=ANTIQ { parse_ocaml_expr x }
   #define POLTY Ppx_core.Parsetree.expression
   #define PREDTY Ppx_core.Parsetree.expression
@@ -17,6 +17,8 @@
 #define BOTH(arg) AST(arg) PPX(arg)
 
 %{
+(* ignore warnings in parser, since it is auto-generated *)
+[@@@warning "-3-26"]
 #ifdef MAKE_PPX
 open Ppx_core
 open Ast_builder.Default
@@ -31,7 +33,6 @@ let parse_ocaml_expr (s,loc) =
 
 open Frenetic_NetKAT
 open Core
-module Obj = Caml.Obj
 %}
 
 (* predicates and policies *)
