@@ -13,13 +13,13 @@ DOCDIR=.gh-pages
 if [ -n "$KEEP" ]; then trap "rm -rf $DOCDIR" EXIT; fi
 rm -rf $DOCDIR
 
-cp $DOCSRC/* $DOCDIR
-
 # Error out if $GH_TOKEN is empty or unset
 : ${GH_TOKEN:?"GH_TOKEN need to be uploaded via travis-encrypt"}
 
 git clone https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG} $DOCDIR 2>&1 | sed -e "s/$GH_TOKEN/!REDACTED!/g"
 git -C $DOCDIR checkout gh-pages || git -C $DOCDIR checkout --orphan gh-pages
+
+cp $DOCSRC/* $DOCDIR
 
 git -C $DOCDIR config user.email "travis@travis-ci.org"
 git -C $DOCDIR config user.name "Travis"
