@@ -1,7 +1,10 @@
 language: c
 env:
-  - OCAML=4.04.2
-  - OCAML=4.05.0
+  global:
+    secure:  Knubza2foy3fm4iKfXTE+DBxQE0XjeT8PN4O1aXZpLqZAGuCt3UU1gOs03lUzbqjU6IOzV8H2y4ctQ7eHiTK9G/kQawSZZtOb15oDOGa8zBM/1tA06GjrBIJhqOk3R6ro0V8eU3W3BqqrbR0cZhGaASFJ2tTDiX53G9dEFJWqho=
+  matrix:
+    - OCAML=4.04.2
+    - OCAML=4.05.0
 script:
   - echo "yes" | sudo add-apt-repository ppa:avsm/ppa
   - sudo apt-get update -qq
