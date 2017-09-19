@@ -1,6 +1,6 @@
 (* FIXME: while ppx_import is not compatible with jbuilder, simply copy and paste
    token type here as a workaround. *)
-(* type token = [@import Frenetic_NetKAT_Tokens.token] [@@deriving show] *)
+(* type token = [@import: Frenetic_NetKAT_Tokens.token] [@@deriving show] *)
 #include "Frenetic_NetKAT_Tokens.ml"
 [@@deriving show]
 
