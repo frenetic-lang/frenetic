@@ -21,6 +21,8 @@ setup.log
 *.svg
 *.mldylib
 *.mllib
+.merlin
+*.install
 
 # auto generated files
 lib/Frenetic_NetKAT_Tokens*

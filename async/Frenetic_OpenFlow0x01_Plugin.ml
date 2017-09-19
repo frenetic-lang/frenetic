@@ -42,15 +42,10 @@ module LowLevel = struct
   module OF10 = Frenetic_OpenFlow0x01 
 
   let openflow_executable () =
-    let prog_alt1 = Filename.dirname(Sys.executable_name) ^ "/openflow" in
-    let prog_alt2 = Filename.dirname(Sys.executable_name) ^ "/openflow.native" in
-    Sys.file_exists prog_alt1 
-    >>= function
-    | `Yes -> return prog_alt1
-    | _ -> Sys.file_exists prog_alt2 
-           >>= function
-           | `Yes -> return prog_alt2
-           | _ -> failwith (Printf.sprintf "Can't find OpenFlow executable %s!" prog_alt2)
+    let prog = Filename.dirname(Sys.executable_name) ^ "/frenetic.openflow" in
+    Sys.file_exists prog >>= function
+    | `Yes -> return prog
+    | _ -> failwith (Printf.sprintf "Can't find OpenFlow executable %s!" prog)
 
 
   let start port =

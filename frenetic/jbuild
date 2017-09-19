@@ -1,0 +1,7 @@
+(jbuild_version 1)
+
+(executables
+ ((names        (frenetic openflow))
+  (public_names (frenetic frenetic.openflow))
+  (libraries (core async async_extended frenetic frenetic.async))
+))

@@ -1,10 +1,12 @@
 (* if MAKE_PPX is set, produce OCaml (PPX) AST; otherwise, produce normal NetKAT AST *)
 #ifdef MAKE_PPX
   #define AST(arg)
-  #define PPX(arg) {[%expr arg]}
+  #define LOC Location.{ loc_start = $symbolstartpos; loc_end = $endpos; loc_ghost = false}
+  #define PPX(arg) {let loc = LOC in [%expr arg]}
+  #define PPX_(arg) let loc = LOC in [%expr arg]
   #define AQ | x=ANTIQ { parse_ocaml_expr x }
-  #define POLTY Parsetree.expression
-  #define PREDTY Parsetree.expression
+  #define POLTY Ppx_core.Parsetree.expression
+  #define PREDTY Ppx_core.Parsetree.expression
 #else
   #define AST(arg) {arg}
   #define PPX(arg)
@@ -15,23 +17,22 @@
 #define BOTH(arg) AST(arg) PPX(arg)
 
 %{
-open Core
-open Frenetic_NetKAT
+(* ignore warnings in parser, since it is auto-generated *)
+[@@@warning "-3-26"]
 #ifdef MAKE_PPX
-open Parsetree
-open Ast_helper
-open Ast_convenience
-(* FIXME: temporary, until these are included in the next Ast_convenience release *)
-let int32 ?loc ?attrs x =
-  Exp.constant ?loc ?attrs (Pconst_integer (Int32.to_string x, Some 'l'))
-let int64 ?loc ?attrs x =
-  Exp.constant ?loc ?attrs (Pconst_integer (Int64.to_string x, Some 'L'))
+open Ppx_core
+open Ast_builder.Default
+
 let parse_ocaml_expr (s,loc) =
   let buf = Lexing.from_string s in
   buf.lex_start_p <- Location.(loc.loc_start);
   buf.lex_curr_p <- Location.(loc.loc_start);
   Parse.expression buf
+#else
 #endif
+
+open Frenetic_NetKAT
+open Core
 %}
 
 (* predicates and policies *)
@@ -115,10 +116,10 @@ pol:
       PPX( Star [%e p] )
   | mut=letexp; id=METAID; ASSIGN; v=metaval; IN; p=pol
       AST( Let(id         , Const v     , mut     , p     ) )
-      PPX( Let([%e str id], Const [%e v], [%e mut], [%e p]) )
+      PPX( Let([%e estring ~loc id], Const [%e v], [%e mut], [%e p]) )
   | mut=letexp; id=METAID; ASSIGN; a=alias; IN; p=pol
       AST( Let(id         , Alias a     , mut    , p     ) )
-      PPX( Let([%e str id], Alias [%e a], [%e mut], [%e p]) )
+      PPX( Let([%e estring ~loc id], Alias [%e a], [%e mut], [%e p]) )
   | sw1=int64; AT; pt1=int32; LINK; sw2=int64; AT; pt2=int32
       AST( Link (sw1, pt1, sw2, pt2) )
       PPX( Link ([%e sw1], [%e pt1], [%e sw2], [%e pt2]) )
@@ -139,7 +140,7 @@ pol:
 #ifdef MAKE_PPX
   | code=IVERSON {
     let phi = parse_ocaml_expr code in
-    [%expr if [%e phi] then id else drop]
+    PPX_( if [%e phi] then id else drop )
   }
 #endif
   ;
@@ -176,7 +177,7 @@ pred:
 #ifdef MAKE_PPX
   | code=IVERSON {
     let phi = parse_ocaml_expr code in
-    [%expr if [%e phi] then True else False]
+    PPX_( if [%e phi] then True else False )
   }
 #endif
   ;
@@ -238,7 +239,7 @@ header_val(BINOP):
       PPX( IP4Dst ([%e n],[%e m]) )
   | id=METAID; BINOP; n=metaval
       AST( Meta (id, n) )
-      PPX( Meta ([%e str id], [%e n]) )
+      PPX( Meta ([%e estring ~loc id], [%e n]) )
   ;
 
 (*********************** aliases *************************)
@@ -281,21 +282,21 @@ alias:
 int:
   | n=INT
       AST( Int.of_string n )
-      PPX( [%e int (Int.of_string n)] )
+      PPX( [%e eint ~loc (Int.of_string n)] )
   AQ
   ;
 
 int32:
   | n=INT
       AST( Int32.of_string n )
-      PPX( [%e int32 (Int32.of_string n)] )
+      PPX( [%e eint32 ~loc (Int32.of_string n)] )
   AQ
   ;
 
 int64:
   | n=INT
       AST(            Int64.of_string n )
-      PPX( [%e int64 (Int64.of_string n)] )
+      PPX( [%e eint64 ~loc (Int64.of_string n)] )
   AQ
   ;
 
@@ -303,13 +304,13 @@ mac:
   | s = MAC
 
       AST( Frenetic_Packet.mac_of_string         s  )
-      PPX( Frenetic_Packet.mac_of_string [%e str s] )
+      PPX( Frenetic_Packet.mac_of_string [%e estring ~loc s] )
   ;
 
 ip4addr:
   | s = IP4ADDR
       AST( Ipaddr.V4.(to_int32 (of_string_exn         s )) )
-      PPX( Ipaddr.V4.(to_int32 (of_string_exn [%e str s])) )
+      PPX( Ipaddr.V4.(to_int32 (of_string_exn [%e estring ~loc s])) )
   ;
 
 ipmask:
@@ -323,10 +324,10 @@ portval:
       PPX( Physical [%e n] )
   | PIPE; LPAR; s=STRING; RPAR
       AST( Pipe s )
-      PPX( Pipe [%e str s] )
+      PPX( Pipe [%e estring ~loc s] )
   | QUERY; LPAR; s=STRING; RPAR
       AST( Query s )
-      PPX( Query [%e str s] )
+      PPX( Query [%e estring ~loc s] )
 
 metaval:
   | n=int64 { n }

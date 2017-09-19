@@ -1,4 +1,8 @@
-type token = [%import: Frenetic_NetKAT_Tokens.token] [@@deriving show]
+(* FIXME: while ppx_import is not compatible with jbuilder, simply copy and paste
+   token type here as a workaround. *)
+(* type token = [@import: Frenetic_NetKAT_Tokens.token] [@@deriving show] *)
+#include "Frenetic_NetKAT_Tokens.ml"
+[@@deriving show]
 
 type ('token, 'a) parser =
   (Lexing.lexbuf -> 'token) -> Lexing.lexbuf -> 'a

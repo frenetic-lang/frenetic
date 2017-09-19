@@ -3,7 +3,11 @@ module Location = struct
   let pp = print
 end
 
-type token = [%import: Frenetic_NetKAT_Tokens.token] [@@deriving show]
+(* FIXME: while ppx_import is not compatible with jbuilder, simply copy and paste
+   token type here as a workaround. *)
+(* type token = [@import Frenetic_NetKAT_Tokens.token] [@@deriving show] *)
+#include "Frenetic_NetKAT_Tokens.ml"
+[@@deriving show]
 
 (* use custom lexbuffer to keep track of source location *)
 module Sedlexing = LexBuffer
@@ -194,8 +198,11 @@ let parse ?(ppx=false) buf p =
   let last_token = ref Lexing.(EOF, dummy_pos, dummy_pos) in
   let next_token () = last_token := loc_token ~ppx buf; !last_token in
   try MenhirLib.Convert.Simplified.traditional2revised p next_token with
-  | (LexError _ as e) | (Syntaxerr.Error _ as e) -> raise e
-  | _ -> raise (ParseError (!last_token))
+  | e ->
+    begin match e with
+    | LexError _ | Syntaxerr.Error _ -> raise e
+    | _ -> raise (ParseError (!last_token))
+    end
 
 let parse_string ?ppx ?pos s p =
   parse ?ppx (LexBuffer.of_ascii_string ?pos s) p

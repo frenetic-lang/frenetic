@@ -1,0 +1,12 @@
+(jbuild_version 1)
+
+(executable
+ ((name        benchmark)
+  (libraries (core frenetic))
+))
+
+;; makes sure the executable is built in test mode
+(alias
+  ((name    runtest)
+   (deps ((file benchmark.exe)))
+))
