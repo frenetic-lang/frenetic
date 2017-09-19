@@ -1,13 +1,18 @@
 language: c
 env:
-  - OCAML=4.04.2
-  - OCAML=4.05.0
+  global:
+    - secure:  Knubza2foy3fm4iKfXTE+DBxQE0XjeT8PN4O1aXZpLqZAGuCt3UU1gOs03lUzbqjU6IOzV8H2y4ctQ7eHiTK9G/kQawSZZtOb15oDOGa8zBM/1tA06GjrBIJhqOk3R6ro0V8eU3W3BqqrbR0cZhGaASFJ2tTDiX53G9dEFJWqho=
+    - PACKAGE=frenetic
+  matrix:
+    - OCAML=4.04.2
+    - OCAML=4.05.0
 script:
   - echo "yes" | sudo add-apt-repository ppa:avsm/ppa
   - sudo apt-get update -qq
   - sudo apt-get install -qq opam
   - opam init --auto-setup --compiler=$OCAML
   - eval `opam config env`
-  - opam pin add --no-action frenetic .
-  - opam install --yes --deps-only frenetic
-  - opam install --yes --verbose --build-doc --build-test frenetic
+  - opam pin add --no-action $PACKAGE .
+  - opam install --yes --deps-only $PACKAGE
+  - opam install --yes --verbose --build-doc --build-test --keep-build-dir $PACKAGE
+  - bash -ex .travis.docgen.sh
