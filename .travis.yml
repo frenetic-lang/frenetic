@@ -15,4 +15,4 @@ script:
   - opam pin add --no-action $PACKAGE .
   - opam install --yes --deps-only $PACKAGE
   - opam install --yes --verbose --build-doc --build-test --keep-build-dir $PACKAGE
-  - bash -e .travis.docgen.sh
+  - bash -ex .travis.docgen.sh
