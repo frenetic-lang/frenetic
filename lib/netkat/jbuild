@@ -1,0 +1,75 @@
+(jbuild_version 1)
+
+;; preprocessing using cppo
+(rule
+ ((targets (Generated_Parser.mly))
+  (deps    (Parser.cppo.mly))
+  (action  (run ${bin:cppo} ${<} -U MAKE_PPX -n -o ${@}))))
+(rule
+ ((targets (Tokens.mly))
+  (deps    (Parser.cppo.mly))
+  (action  (run ${bin:cppo} ${<} -D MAKE_PPX -n -o ${@}))))
+
+;; generate menhir tokens
+(rule
+ ((targets (Tokens.ml))
+  (deps    (Tokens.mly))
+  (action  (run ${bin:menhir} --only-tokens ${<}))))
+
+;; generate lexer -- temporary hack while ppx_sedlex and ppx_import are incompatible with jbuilder!!
+(rule
+ ((targets (Lexer.sedlex.ml))
+  (deps    (Lexer.cppo.sedlex.ml Tokens.ml))
+  (action  (run ${bin:cppo} ${<} -n -o ${@}))))
+(rule
+ ((targets (Lexer.mli))
+  (deps    (Lexer.cppo.mli Tokens.ml))
+  (action  (run ${bin:cppo} ${<} -n -o ${@}))))
+(rule
+ ((targets (Lexer.ml))
+  (deps    (Lexer.sedlex.ml))
+  (action  (run ${ocaml_where}/../sedlex/ppx_sedlex ${<} -o ${@}))))
+
+;; generate parser
+(menhir
+ ((flags (--external-tokens Lexer))
+  (modules (Generated_Parser))))
+
+(library
+ ((name        netkat)
+  (public_name frenetic.netkat)
+  (wrapped true)
+  (libraries 
+    (frenetic
+     core
+     base64
+     cstruct
+     ocamlgraph
+     tcpip
+     yojson
+     ipaddr
+     sedlex
+     sexplib
+     str
+     menhirLib
+     compiler-libs.common
+    )
+  )
+  (virtual_deps (cppo menhir))
+  (preprocess (pps (ppx_cstruct
+                    ppx_deriving.std
+                    ppx_enumerate
+                    ppx_compare
+                    ppx_fields_conv
+                    ppx_sexp_conv
+                    ocaml-migrate-parsetree.driver-main -no-check
+                   )))
+ )
+)
+
+;; TODO: toplevel
+;; (executable
+;;  ((name       mytoplevel)
+;;   (libraries  (compiler-libs.toplevel mylib))
+;;   (link_flags (-linkall))
+;;   (modes      (byte))))

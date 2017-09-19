@@ -3,7 +3,7 @@
 (library
  ((name        frenetic_async)
   (public_name frenetic.async)
-  (wrapped false) ;; should change this to true and remove ugly "Frenetic_" prefixes
+  (wrapped true)
   (libraries 
     (async
      cohttp
@@ -12,6 +12,7 @@
      cstruct
      cstruct.async
      frenetic
+     frenetic.netkat
      mparser
      mparser.re
      str

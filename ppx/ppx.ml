@@ -1,7 +1,7 @@
 open Ppx_core
 
 (* open Parsetree *)
-module Lexer = Frenetic_NetKAT_Lexer
+module Lexer = Netkat.Lexer
 module Parser = Ppx_parser
 
 (* extension is triggered by keword 'nk' *)
