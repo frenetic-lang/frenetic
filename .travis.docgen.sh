@@ -1,8 +1,8 @@
 #!/bin/bash
 # From https://github.com/simonjbeaumont/ocaml-travis-gh-pages
 
-if [ -z "$TRAVIS" -o "$TRAVIS_PULL_REQUEST" != "false" ]; then
-  echo "[docgen] This is not a push Travis-ci build, doing nothing..."
+if [[ -z "$TRAVIS" || "$TRAVIS_PULL_REQUEST" != "false" || "$TRAVIS_BRANCH" != "master" ]]; then
+  echo "[docgen] This is not a push-to-master Travis build, doing nothing..."
   exit 0
 else
   echo "[docgen] Updating docs on Github pages..."
@@ -19,7 +19,7 @@ rm -rf $DOCDIR
 git clone https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG} $DOCDIR 2>&1 | sed -e "s/$GH_TOKEN/!REDACTED!/g"
 git -C $DOCDIR checkout gh-pages || git -C $DOCDIR checkout --orphan gh-pages
 
-cp -R "$DOCSRC/*" $DOCDIR
+mv $DOCSRC $DOCDIR
 
 git -C $DOCDIR config user.email "travis@travis-ci.org"
 git -C $DOCDIR config user.name "Travis"
