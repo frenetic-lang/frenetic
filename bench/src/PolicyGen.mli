@@ -1,7 +1,7 @@
 open Core
-open Frenetic_NetKAT
+open Netkat.Syntax
 
-module Net = Frenetic_Network.Net
+module Net = Frenetic.Network.Net
 module Topology = Net.Topology
 type topo = Net.Topology.t * Topology.VertexSet.t * Topology.VertexSet.t *
   Topology.VertexSet.t

@@ -1,21 +1,21 @@
 open Core
 open Async
-open Frenetic_OpenFlow0x01
-module Log = Frenetic_Log
-module ToGeneric = Frenetic_OpenFlow.From0x01
+open Frenetic.OpenFlow0x01
+module Logging = Frenetic_async.Logging
+module ToGeneric = Frenetic.OpenFlow.From0x01
 
-type event = Frenetic_OpenFlow.event
+type event = Frenetic.OpenFlow.event
 
-(* TODO: This protocol needs to be cleaned up.  It makes more sense to define the 
-   RPC protocol in Frenetic_OpenFlow, but we can't at the moment because Send sends
+(* TODO: This protocol needs to be cleaned up.  It makes more sense to define the
+   RPC protocol in Frenetic.OpenFlow, but we can't at the moment because Send sends
    OpenFlow0x01 messages.  It should be the job of openflow.ml to convert 1.x specific
-   messages to the generic OpenFlow messages and pass them over the pipe to Frenetic. 
+   messages to the generic OpenFlow messages and pass them over the pipe to Frenetic.
 
-  IF YOU CHANGE THE PROTOCOL HERE, YOU MUST ALSO CHANGE IT IN Frenetic_OpenFlow0x01_Plugin.
-  Unfortunately, we can't just plop this in Frenetic_OpenFlow0x01 (because it references
-  Frenetic_OpenFlow) or Frenetic_OpenFlow (because it references Frenetic_OpenFlow0x01).  We
+  IF YOU CHANGE THE PROTOCOL HERE, YOU MUST ALSO CHANGE IT IN Frenetic_async.OpenFlow0x01_Plugin.
+  Unfortunately, we can't just plop this in Frenetic.OpenFlow0x01 (because it references
+  Frenetic.OpenFlow) or Frenetic.OpenFlow (because it references Frenetic.OpenFlow0x01).  We
   could have put it in its own module, but I dont' want to give legitimacy to something
-  that's transitional.  
+  that's transitional.
  *)
 
 type rpc_ack = RpcOk | RpcEof
@@ -24,7 +24,7 @@ type rpc_ack = RpcOk | RpcEof
 type trx_status = Done | Unfulfilled of Message.t list Deferred.t
 
 type rpc_command =
-  | GetSwitches 
+  | GetSwitches
   | SwitchesReply of switchId list
   | GetSwitchFeatures of switchId
   | SwitchFeaturesReply of SwitchFeatures.t option
@@ -41,28 +41,28 @@ type rpc_command =
 let (events, events_writer) : event Pipe.Reader.t * event Pipe.Writer.t
   = Pipe.create ()
 
-let openflow_events (r:Reader.t) : (Frenetic_OpenFlow_Header.t * Message.t) Pipe.Reader.t =
+let openflow_events (r:Reader.t) : (Frenetic.OpenFlow_Header.t * Message.t) Pipe.Reader.t =
 
   let reader,writer = Pipe.create () in
 
   let rec loop () =
-    let header_str = String.create Frenetic_OpenFlow_Header.size in
-    Reader.really_read r header_str >>= function 
-    | `Eof _ -> 
+    let header_str = String.create Frenetic.OpenFlow_Header.size in
+    Reader.really_read r header_str >>= function
+    | `Eof _ ->
       Pipe.close writer;
       return ()
-    | `Ok -> 
-      let header = Frenetic_OpenFlow_Header.parse (Cstruct.of_string header_str) in
-      let body_len = header.length - Frenetic_OpenFlow_Header.size in
+    | `Ok ->
+      let header = Frenetic.OpenFlow_Header.parse (Cstruct.of_string header_str) in
+      let body_len = header.length - Frenetic.OpenFlow_Header.size in
       let body_str = String.create body_len in
       Reader.really_read r body_str >>= function
-      | `Eof _ -> 
+      | `Eof _ ->
         Pipe.close writer;
         return ()
-      | `Ok -> 
+      | `Ok ->
         let _,message = Message.parse header body_str in
         Pipe.write_without_pushback writer (header,message);
-        loop () in 
+        loop () in
   don't_wait_for (loop ());
   reader
 
@@ -86,14 +86,14 @@ type state =
 let socket_id = ref 0
 
 let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit Deferred.t =
-  let open Message in 
+  let open Message in
 
-  let serialize (xid:xid) (msg:Message.t) : unit = 
-    let header = Message.header_of xid msg in 
-    let buf = Cstruct.create header.length in 
-    Frenetic_OpenFlow_Header.marshal buf header;
-    Message.marshal_body msg (Cstruct.shift buf Frenetic_OpenFlow_Header.size);
-    Async_cstruct.schedule_write w buf in 
+  let serialize (xid:xid) (msg:Message.t) : unit =
+    let header = Message.header_of xid msg in
+    let buf = Cstruct.create header.length in
+    Frenetic.OpenFlow_Header.marshal buf header;
+    Message.marshal_body msg (Cstruct.shift buf Frenetic.OpenFlow_Header.size);
+    Async_cstruct.schedule_write w buf in
 
   let my_events = openflow_events r in
 
@@ -107,7 +107,7 @@ let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit De
 
     (* Initial *)
     | Initial, `Eof ->
-      return () 
+      return ()
     | Initial, `Ok (hdr,Hello bytes) ->
       (* We could check the version here, but OpenFlow will respond with a HELLO of
          the latest supported version.  0x04 sends a bitmap of supported versions in the
@@ -142,26 +142,26 @@ let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit De
       let generic_sw_f = ToGeneric.from_switch_features features in
       let port_list = generic_sw_f.switch_ports in
       Hashtbl.Poly.add_exn switches ~key:switchId ~data:{ features; send; send_txn };
-      Log.debug "Switch %s connected%!" (string_of_switchId switchId);
+      Logging.debug "Switch %s connected%!" (string_of_switchId switchId);
       Pipe.write_without_pushback events_writer (SwitchUp (switchId, port_list));
       loop (Connected threadState)
     (* TODO: Queue up these messages and deliver them when we're done connecting *)
     | SentSwitchFeatures, `Ok (hdr,msg) ->
-      Log.debug "Dropping unexpected msg received before SwitchFeatures response: %s%!" (Message.to_string msg);
-      loop state   
+      Logging.debug "Dropping unexpected msg received before SwitchFeatures response: %s%!" (Message.to_string msg);
+      loop state
 
     (* Connected *)
     | Connected threadState, `Eof ->
       Hashtbl.Poly.remove switches threadState.switchId;
-      Log.debug "Switch %s disconnected%!" (string_of_switchId threadState.switchId);
+      Logging.debug "Switch %s disconnected%!" (string_of_switchId threadState.switchId);
       Pipe.write_without_pushback events_writer (SwitchDown threadState.switchId);
       return ()
     | Connected threadState, `Ok (hdr, msg) ->
       let generic_openflow_event = ToGeneric.event_from_message threadState.switchId msg in
       let goe = Option.value ~default:(SwitchDown 0L) generic_openflow_event in
-      Log.info "Writing event response %s%!" (Frenetic_OpenFlow.string_of_event goe);
+      Logging.info "Writing event response %s%!" (Frenetic.OpenFlow.string_of_event goe);
       Pipe.write_without_pushback events_writer goe;
-      (match Hashtbl.Poly.find threadState.txns hdr.xid with 
+      (match Hashtbl.Poly.find threadState.txns hdr.xid with
        | None -> ()
        | Some (ivar ,msgs) ->
          Hashtbl.Poly.remove threadState.txns hdr.xid;
@@ -173,23 +173,23 @@ let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit De
   serialize 0l (Hello (Cstruct.create 0));
   loop Initial
 
-let get_switches () = 
+let get_switches () =
   Hashtbl.Poly.keys switches
 
-let get_switch_features switchId = 
-  match Hashtbl.Poly.find switches switchId with 
+let get_switch_features switchId =
+  match Hashtbl.Poly.find switches switchId with
   | Some switchState -> Some switchState.features
   | None -> None
 
-let send switchId xid msg = 
+let send switchId xid msg =
   match Hashtbl.Poly.find switches switchId with
-  | Some switchState -> 
-    switchState.send xid msg; 
+  | Some switchState ->
+    switchState.send xid msg;
     RpcOk
   | None ->
     RpcEof
 
-let send_batch switchId xid msgs = 
+let send_batch switchId xid msgs =
   match Hashtbl.Poly.find switches switchId with
   | Some switchState ->
     List.iter msgs ~f:(switchState.send xid);
@@ -197,18 +197,18 @@ let send_batch switchId xid msgs =
   | None ->
     RpcEof
 
-let send_txn switchId msg = 
+let send_txn switchId msg =
   match Hashtbl.Poly.find switches switchId with
   | Some switchState ->
     (* The following returns a Deferred which will be fulfilled when a
     matching response is received *)
     Unfulfilled (switchState.send_txn msg)
-  | None -> 
+  | None ->
     Done
 
 let rpc_handler (a:Socket.Address.Inet.t) (reader:Reader.t) (writer:Writer.t) : unit Deferred.t =
   let read () = Reader.read_marshal reader >>| function
-    | `Eof -> Log.error "Upstream socket closed unexpectedly!";
+    | `Eof -> Logging.error "Upstream socket closed unexpectedly!";
       Finished ()
     | `Ok a -> a in
   let write = Writer.write_marshal writer ~flags:[] in
@@ -230,41 +230,41 @@ let rpc_handler (a:Socket.Address.Inet.t) (reader:Reader.t) (writer:Writer.t) : 
        return (`Repeat ())
      | GetEvents ->
        Pipe.iter_without_pushback events
-         ~f:(fun evt -> write (EventsReply evt)) 
+         ~f:(fun evt -> write (EventsReply evt))
        >>| fun () ->
-       Log.error "Event stream stopped unexpectedly!";
+       Logging.error "Event stream stopped unexpectedly!";
        `Finished ()   (* You don't need a return here, because of the >>| operator *)
      | SwitchesReply _
      | SwitchFeaturesReply _
      | SendReply _
      | BatchReply _
      | EventsReply _
-     | TrxReply (_, _) -> 
-        Log.error("Reply sent from client.  Wrong direction!"); 
+     | TrxReply (_, _) ->
+        Logging.error("Reply sent from client.  Wrong direction!");
         return (`Repeat ())
      | SendTrx (swid, msg) ->
        let run_trx = send_txn swid msg in
        let () = match run_trx with
          | Done -> write (TrxReply (RpcEof, []))
          | Unfulfilled ivar_deferred ->
-            Log.info "Wrote Transaction repsonse";
+            Logging.info "Wrote Transaction repsonse";
             upon ivar_deferred
               (fun collected_responses -> write (TrxReply (RpcOk, collected_responses)))
       in
       return (`Repeat ()))
-  
+
 let run_server port rpc_port =
   don't_wait_for
     (Tcp.Server.create
        ~on_handler_error:`Raise
        (Tcp.on_port port)
-       client_handler >>= fun _ -> 
+       client_handler >>= fun _ ->
      return ());
   Tcp.Server.create
     ~on_handler_error:`Raise
     (Tcp.on_port rpc_port)
     rpc_handler >>= fun _ -> return ()
-  
+
 let spec =
   let open Command.Spec in
   empty
@@ -279,24 +279,24 @@ let run =
     spec
     (fun port rpc_port log_file verbose () ->
        let log_output = lazy (Async_extended.Std.Log.Output.file `Text log_file) in
-       Frenetic_Log.set_output [Lazy.force log_output];
+       Frenetic_async.Logging.set_output [Lazy.force log_output];
        let log_level = match verbose with
-         | true -> Log.info "Setting log_level to Debug";
+         | true -> Logging.info "Setting log_level to Debug";
            `Debug
-         | false -> Log.info "Setting log_level to Info";
+         | false -> Logging.info "Setting log_level to Info";
            `Info in
-       Log.set_level log_level;
+       Logging.set_level log_level;
        let main () = Deferred.don't_wait_for (
          Signal.(handle terminating
                    ~f:(fun t ->
-                       Log.info "Received signal %s" (to_string t);
+                       Logging.info "Received signal %s" (to_string t);
                        shutdown 0));
          Monitor.try_with (fun () -> run_server port rpc_port)
          >>| function
-         | Error exn -> Log.error "Caught an exception!";
-           Log.error "%s" (Exn.to_string exn)
+         | Error exn -> Logging.error "Caught an exception!";
+           Logging.error "%s" (Exn.to_string exn)
          | Ok () -> ());
-                                               
+
        in
        ignore (main ());
        Core.never_returns (Async.Scheduler.go ()))

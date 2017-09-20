@@ -10,7 +10,7 @@ let%nk loop = {| let `inport := port in while not {egress} do {q} + drop |}
 (* let expressions *)
 let letin =
   let%nk s = {| {p}; ({q} + {loop}) |} in
-  let open Frenetic_NetKAT_Optimize in
+  let open Netkat.Optimize in
   mk_seq s s
 
 (* can have open terms *)
@@ -35,7 +35,7 @@ let mk_link adj a b =
   l
 
 let mk_links adj =
-  let open Frenetic_NetKAT_Optimize in
+  let open Netkat.Optimize in
   let n = Array.length adj in
   List.init n ~f:(fun a -> List.init n ~f:(fun b -> mk_link adj a b))
   |> List.concat
@@ -56,7 +56,7 @@ let advanced_iverson = mk_links [|
 (* let%nk iverson_pred = {| filter [2 > 1]; |} *)
 
 let () =
-  let open Frenetic_NetKAT_Pretty in
+  let open Netkat.Pretty in
   let open Printf in
   printf "p = %s\n" (string_of_policy p);
   printf "q = %s\n" (string_of_policy q);

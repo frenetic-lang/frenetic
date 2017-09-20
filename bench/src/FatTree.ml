@@ -1,6 +1,6 @@
 open Core
-open Frenetic_NetKAT
-open Frenetic_NetKAT_Optimize
+open Netkat.Syntax
+open Netkat.Optimize
 
 let build_list (n : int) ~(f : int -> 'a) : 'a list =
   let rec loop (i : int): 'a list =
@@ -42,8 +42,6 @@ let core_switch_policy ~(k : int) (sw : int) : policy =
     let pod = Int32.of_int_exn pod in
     let prefix = Int32.(0x0a000000l + shift_left pod 16) in
     (* <:netkat< filter (ethType = 0x800 && ip4Dst = $prefix/16); port := $pod >> *)
-    let open Frenetic_NetKAT_Optimize in 
-    let open Frenetic_NetKAT in 
     mk_seq
       (mk_filter (mk_big_and [Test(EthType 0x800); Test(IP4Dst(prefix,16l))]))
       (Mod(Location(Physical(pod))))
@@ -51,8 +49,6 @@ let core_switch_policy ~(k : int) (sw : int) : policy =
   let pol = mk_big_union pols in
   let sw_id = Switch.get_id (Core { k; sw }) in
   (* <:netkat< filter (switch = $sw_id); $pol >> *)
-  let open Frenetic_NetKAT_Optimize in 
-  let open Frenetic_NetKAT in 
   mk_seq (mk_filter (Test(Switch sw_id))) pol
 
 let core_policy ~(k : int) : policy =
@@ -74,16 +70,12 @@ let aggregation_to_core_hashed ~(k : int) ~(pod : int) ~(sw : int) : policy =
     (* 10.i0.0.0/15 *)
     let prefix = Int32.(shift_left 0x0al 24 + shift_left (2l * i) 16) in
     (* <:netkat<filter (ip4Dst = $prefix/15); port := $i>> *)
-    let open Frenetic_NetKAT_Optimize in 
-    let open Frenetic_NetKAT in 
     mk_seq (mk_filter (Test(IP4Dst(prefix,15l)))) (Mod(Location(Physical(i)))))
     |> mk_big_union in
   (* 10.pod.0.0/16 *)
   let local = Int32.(shift_left 0x0al 24 +
                      shift_left (of_int_exn pod) 16) in
   (* <:netkat<filter (ethType = 0x800 && !(ip4Dst = $local/16)); $pol>> *)
-  let open Frenetic_NetKAT_Optimize in 
-  let open Frenetic_NetKAT in 
   mk_seq
     (mk_filter (mk_big_and [Test(EthType 0x800); mk_not (Test(IP4Src(local,16l)))]))
     pol
@@ -101,9 +93,7 @@ let aggregation_switch_policy
     let k = Int32.of_int_exn k in
     let pt = Int32.(sw' + (k / 2l)) in
     (* <:netkat< filter (ethType = 0x800 && ip4Dst = $prefix/24); port := $pt >> *)
-    let open Frenetic_NetKAT_Optimize in 
-    let open Frenetic_NetKAT in 
-    mk_seq 
+    mk_seq
       (mk_filter (mk_big_and [Test(EthType 0x800); Test(IP4Dst(prefix,24l))]))
       (Mod(Location(Physical(pt)))))
     |> mk_big_union in
@@ -112,9 +102,7 @@ let aggregation_switch_policy
   let to_core = to_core ~k ~pod ~sw in
   let sw_id = Switch.get_id (Aggregation { k; pod; sw }) in
   (* <:netkat< filter (switch = $sw_id); ($to_edge + $to_core) >> *)
-  let open Frenetic_NetKAT_Optimize in 
-  let open Frenetic_NetKAT in 
-  mk_seq 
+  mk_seq
     (mk_filter (Test(Switch sw_id)))
     (mk_union to_edge to_core)
 
@@ -133,8 +121,6 @@ let edge_to_aggregation_hashed ~(k : int) ~(pod : int) ~(sw : int) : policy =
     (* 10.i0.0.0/15 *)
     let prefix = Int32.(shift_left 0x0al 24 + shift_left (2l * i) 16) in
     (* <:netkat<filter (ip4Dst = $prefix/15); port := $i>> *)
-    let open Frenetic_NetKAT_Optimize in 
-    let open Frenetic_NetKAT in 
     mk_seq (mk_filter (Test(IP4Dst(prefix,15l)))) (Mod(Location(Physical(i)))))
     |> mk_big_union in
   (* 10.pod.sw.0/24 *)
@@ -142,9 +128,7 @@ let edge_to_aggregation_hashed ~(k : int) ~(pod : int) ~(sw : int) : policy =
                      shift_left (of_int_exn pod) 16 +
                      shift_left (of_int_exn sw) 8) in
   (* <:netkat<filter (ethType = 0x800 && !(ip4Dst = $local/24)); $pol>> *)
-  let open Frenetic_NetKAT_Optimize in 
-  let open Frenetic_NetKAT in 
-  mk_seq 
+  mk_seq
     (mk_filter (mk_big_and [Test(EthType 0x800); mk_not (Test(IP4Src(local,24l)))]))
     pol
 
@@ -160,9 +144,7 @@ let edge_switch_policy
     let ip = Int32.(prefix + of_int_exn n) in
     let pt = Int32.of_int_exn n in
     (* <:netkat< filter (ethType = 0x800 && ip4Dst = $ip/32); port := $pt >> *)
-    let open Frenetic_NetKAT_Optimize in 
-    let open Frenetic_NetKAT in 
-    mk_seq 
+    mk_seq
       (mk_filter (mk_big_and [Test(EthType 0x800); Test(IP4Dst(ip,32l))]))
       (Mod(Location(Physical(pt)))))
     |> mk_big_union in
@@ -171,8 +153,6 @@ let edge_switch_policy
   let to_aggregation = edge_to_aggregation_hashed ~k ~pod ~sw in
   let sw_id = Switch.get_id (Edge { k; pod; sw }) in
   (* <:netkat<filter (switch = $sw_id); ($to_hosts + $to_aggregation)>> *)
-  let open Frenetic_NetKAT_Optimize in 
-  let open Frenetic_NetKAT in 
   mk_seq (mk_filter (Test(Switch sw_id))) (mk_union to_hosts to_aggregation)
 
 let edge_policy ~(k : int) : policy =
@@ -188,6 +168,4 @@ let fattree_routing ~(k : int) : policy =
   let aggregation = aggregation_policy ~k in
   let edge = edge_policy ~k in
   (* <:netkat<$core + $aggregation + $edge>> *)
-  let open Frenetic_NetKAT_Optimize in 
-  let open Frenetic_NetKAT in 
   mk_big_union [core; aggregation; edge]

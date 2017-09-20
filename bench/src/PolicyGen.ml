@@ -1,10 +1,10 @@
 open Core
-open Frenetic_NetKAT
-open Frenetic_NetKAT_Optimize
+open Netkat.Syntax
+open Netkat.Optimize
 
-module Net = Frenetic_Network.Net
+module Net = Frenetic.Network.Net
 module Topology = Net.Topology
-module Node = Frenetic_Network.Node
+module Node = Frenetic.Network.Node
 module Path = Net.UnitPath
 
 let is_host topo v =
@@ -58,8 +58,8 @@ let shortest_paths ((topo, _, _, _) : topo) =
         let i = Node.id n in
         Seq (Filter (And (Test (Switch i), Test (IP4Dst (dst_ip, 32l)))),
             Mod (Location (Physical pt)))
-      | _ -> Filter False) |> Frenetic_NetKAT_Optimize.mk_big_union in
-  List.map paths ~f:route |> Frenetic_NetKAT_Optimize.mk_big_union
+      | _ -> Filter False) |> mk_big_union in
+  List.map paths ~f:route |> mk_big_union
 
 let vertex_to_switch_port topo (vertex, pt) =
     let node = Topology.vertex_to_label topo vertex in
@@ -198,7 +198,7 @@ let hosts_of_topo (topo : Topology.t) =
   Topology.fold_edges (fun e hs -> Option.to_list (host_of_edge topo e) @ hs) topo []
 
 let topo_policy (topo : Topology.t) =
-  Topology.fold_edges (fun e t -> Frenetic_NetKAT_Optimize.mk_union t (edge_to_link topo e)) topo drop
+  Topology.fold_edges (fun e t -> mk_union t (edge_to_link topo e)) topo drop
 
 let rec join ?(s=",") lst =
   match lst with
