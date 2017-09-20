@@ -114,7 +114,7 @@ let size (pol:policy) : int =
     | Union(pol1, pol2)
     | Seq(pol1, pol2) -> size pol1 (fun spol1 -> size pol2 (fun spol2 -> f (1 + spol1 + spol2)))
     | Star(pol) -> size pol (fun spol -> f (1 + spol))
-    | Let (id, init, mut, pol) -> size pol (fun s -> f (s+1))
+    | Let {body; _} -> size body (fun s -> f (s+1))
     | Link(_,_,_,_) -> f 5
     | VLink(_,_,_,_) -> f 5
     | Dup -> f 1
@@ -254,7 +254,7 @@ let queries_of_policy (pol : policy) : string list =
     | Filter _ | Mod _ | Link _ | VLink _ | Dup -> acc
     | Union (p, q) | Seq (p, q) -> loop q (loop p acc)
     | Star p -> loop p acc
-    | Let (id, init, mut, body) -> loop body acc
+    | Let {body; _} -> loop body acc
   in
   loop pol []
 
@@ -284,7 +284,7 @@ let switches_of_policy (p:policy) =
        sw1 :: sw2 :: acc
     | VLink _ | Dup ->
       acc
-    | Let(_,_,_,p) ->
-      collect p acc
+    | Let {body; _} ->
+      collect body acc
   in
   collect p [] |> List.dedup |> List.to_list

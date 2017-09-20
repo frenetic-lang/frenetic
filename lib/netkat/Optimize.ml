@@ -102,8 +102,8 @@ let specialize_policy sw pol =
         loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (mk_seq p1 p2)))
       | Star pol ->
         loop pol (fun p -> k (mk_star p))
-      | Let (id, init, mut, pol) ->
-        loop pol (fun p -> k (Let (id, init, mut, p)))
+      | Let {id; init; mut; body} ->
+        loop body (fun body -> k (Let {id; init; mut; body}))
       | Link _ | VLink _ | Dup ->
         failwith "cannot specialize global policy" in
   loop pol (fun x -> x)
@@ -157,8 +157,8 @@ let rec norm_policy (pol : policy) : policy = match pol with
   | Seq (p, q) ->
     let pol' = Seq (norm_policy p, norm_policy q) in
     mk_big_seq (list_of_seq pol')
-  | Let (id, init, mut, pol) ->
-    Let (id, init, mut, norm_policy pol)
+  | Let {id; init; mut; body} ->
+    Let {id; init; mut; body = norm_policy body}
   | Dup -> Dup
 
 (*
