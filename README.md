@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/frenetic-lang/frenetic.svg?branch=master)](https://travis-ci.org/frenetic-lang/frenetic)
 
+[Library Documentation](http://frenetic-lang.github.io/frenetic/)
+
 Frenetic is an open-source Software Defined Network (SDN) controller platform designed to make SDN programming easy, modular, and semantically correct.
 
 The languages used to program networks today lack modern features. Programming them is a complicated and error-prone task, and outages and infiltrations are frequent. Frenetic is a _network programming language_ with the following essential features:
