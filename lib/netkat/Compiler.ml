@@ -116,7 +116,7 @@ module FDD = struct
                         of_local_pol_k env q (fun q' ->
                           k (seq p' q')))
     | Star p -> of_local_pol_k env p (fun p' -> k (star p'))
-    | Let (field, init, mut, p) ->
+    | Let { id=field; init; mut; body=p } ->
       let env = Field.Env.add env field init mut in
       of_local_pol_k env p (fun p' -> k (erase env p' field init))
     | Link _ | VLink _ | Dup -> raise Non_local

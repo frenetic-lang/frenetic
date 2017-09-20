@@ -103,7 +103,7 @@ module Formatting = struct
           | SEQ_L -> fprintf fmt "@[%a;@ %a@]" (pol SEQ_L) p1 (pol SEQ_R) p2
           | _ -> fprintf fmt "@[(@[%a;@ %a@])@]" (pol SEQ_L) p1 (pol SEQ_R) p2
         end
-      | Let (id, init, mut, p) ->
+      | Let {id; init; mut; body} ->
         fprintf fmt "@[%s %s := %a in %a@]"
           (if mut then "var" else "let")
           id
@@ -135,7 +135,7 @@ let rec pretty_assoc (p : policy) : policy = match p with
   | Union (p1, p2) -> pretty_assoc_par p
   | Seq (p1, p2) -> pretty_assoc_seq p
   | Star p' -> Star (pretty_assoc p')
-  | Let (id, init, mut, p) -> Let (id, init, mut, pretty_assoc p)
+  | Let {id; init; mut; body} -> Let {id; init; mut; body = pretty_assoc body}
 and pretty_assoc_par (p : policy) : policy = match p with
   | Union (p1, Union (p2, p3)) ->
     Union (pretty_assoc_par (Union (p1, p2)), pretty_assoc_par p3)

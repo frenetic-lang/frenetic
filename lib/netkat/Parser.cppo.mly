@@ -117,11 +117,11 @@ pol:
       AST( Star p )
       PPX( Star [%e p] )
   | mut=letexp; id=METAID; ASSIGN; v=metaval; IN; p=pol
-      AST( Let(id         , Const v     , mut     , p     ) )
-      PPX( Let([%e estring ~loc id], Const [%e v], [%e mut], [%e p]) )
+      AST( Let{id                     ; init=Const v     ; mut         ; body=p     } )
+      PPX( Let{id=[%e estring ~loc id]; init=Const [%e v]; mut=[%e mut]; body=[%e p]} )
   | mut=letexp; id=METAID; ASSIGN; a=alias; IN; p=pol
-      AST( Let(id         , Alias a     , mut    , p     ) )
-      PPX( Let([%e estring ~loc id], Alias [%e a], [%e mut], [%e p]) )
+      AST( Let{id                     ; init=Alias a     ; mut         ; body=p     } )
+      PPX( Let{id=[%e estring ~loc id]; init=Alias [%e a]; mut=[%e mut]; body=[%e p]} )
   | sw1=int64; AT; pt1=int32; LINK; sw2=int64; AT; pt2=int32
       AST( Link (sw1, pt1, sw2, pt2) )
       PPX( Link ([%e sw1], [%e pt1], [%e sw2], [%e pt2]) )

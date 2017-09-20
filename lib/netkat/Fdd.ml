@@ -166,7 +166,7 @@ module Field = struct
           f_seq' q lst env (fun (n, lst) ->
             k (m * n, lst)))
       | Union _ -> k (f_union pol env, lst)
-      | Let (id, init, mut, p) ->
+      | Let { id; init; mut; body=p } ->
         let env = Env.add env id init mut in
         f_seq' p lst env k
       | Star p -> k (f_union p env, lst)
@@ -185,7 +185,7 @@ module Field = struct
           f_union' q lst env (fun (n, lst) ->
             k (m + n, lst)))
       | Seq _ -> k (f_seq pol env, lst)
-      | Let (id, init, mut, p) ->
+      | Let { id; init; mut; body=p } ->
         let env = Env.add env id init mut in
         k (f_seq p env, lst)
       | Star p -> f_union' p lst env k

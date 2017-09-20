@@ -22,4 +22,4 @@ test:
 
 all: build test doc
 
-.PHONY: build install uninstall reinstall clean doc all
+.PHONY: build install uninstall reinstall clean doc test all
