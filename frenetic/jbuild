@@ -3,5 +3,5 @@
 (executables
  ((names        (main openflow))
   (public_names (frenetic frenetic.openflow))
-  (libraries (core async async_extended frenetic frenetic.async frenetic.netkat))
+  (libraries (core async async_extended frenetic))
 ))

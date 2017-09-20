@@ -36,11 +36,11 @@
   (modules (Generated_Parser))))
 
 (library
- ((name        netkat)
+ ((name        frenetic_netkat)
   (public_name frenetic.netkat)
   (wrapped true)
   (libraries 
-    (frenetic
+    (frenetic.base
      core
      base64
      cstruct

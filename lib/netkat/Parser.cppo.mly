@@ -29,7 +29,7 @@ let parse_ocaml_expr (s,loc) =
   buf.lex_curr_p <- Location.(loc.loc_start);
   Parse.expression buf
 
-open Netkat.Syntax
+open Frenetic_netkat.Syntax
 #else
 open Syntax
 #endif
@@ -83,13 +83,13 @@ open Core
 pol_eof:
   | p=pol; EOF
       AST( p )
-      PPX( let open Netkat.Syntax in [%e p] )
+      PPX( let open Frenetic_netkat.Syntax in [%e p] )
   ;
 
 pred_eof:
   | a=pred; EOF
       AST( a )
-      PPX( let open Netkat.Syntax in [%e a] )
+      PPX( let open Frenetic_netkat.Syntax in [%e a] )
   ;
 
 pol:
@@ -305,8 +305,8 @@ int64:
 mac:
   | s = MAC
 
-      AST( Frenetic.Packet.mac_of_string         s  )
-      PPX( Frenetic.Packet.mac_of_string [%e estring ~loc s] )
+      AST( Frenetic_base.Packet.mac_of_string         s  )
+      PPX( Frenetic_base.Packet.mac_of_string [%e estring ~loc s] )
   ;
 
 ip4addr:

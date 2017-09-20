@@ -16,16 +16,16 @@ module Formatting = struct
     | Location(FastFail n_lst) -> fprintf fmt "@[fastFail ports %s %s@]" asgn (string_of_fastfail n_lst)
     | Location(Pipe x) -> fprintf fmt "@[port %s pipe(\"%s\")@]" asgn x
     | Location(Query x) -> fprintf fmt "@[port %s query(\"%s\")@]" asgn x
-    | EthSrc(n) -> fprintf fmt "@[ethSrc %s %s@]" asgn (Frenetic.Packet.string_of_mac n)
-    | EthDst(n) -> fprintf fmt "@[ethDst %s %s@]" asgn (Frenetic.Packet.string_of_mac n)
+    | EthSrc(n) -> fprintf fmt "@[ethSrc %s %s@]" asgn (Frenetic_base.Packet.string_of_mac n)
+    | EthDst(n) -> fprintf fmt "@[ethDst %s %s@]" asgn (Frenetic_base.Packet.string_of_mac n)
     | Vlan(n) -> fprintf fmt "@[vlanId %s %d@]" asgn n
     | VlanPcp(n) -> fprintf fmt "@[vlanPcp %s %u@]" asgn n
     | EthType(n) -> fprintf fmt "@[ethTyp %s 0x%x@]" asgn n
     | IPProto(n) -> fprintf fmt "@[ipProto %s 0x%x@]" asgn n
-    | IP4Src(n,32l) -> fprintf fmt "@[ipSrc %s %s@]" asgn (Frenetic.Packet.string_of_ip n)
-    | IP4Dst(n,32l) -> fprintf fmt "@[ipDst %s %s@]" asgn (Frenetic.Packet.string_of_ip n)
-    | IP4Src(n,m) -> fprintf fmt "@[ipSrc %s %s/%lu@]" asgn (Frenetic.Packet.string_of_ip n) m
-    | IP4Dst(n,m) -> fprintf fmt "@[ipDst %s %s/%lu@]" asgn (Frenetic.Packet.string_of_ip n) m
+    | IP4Src(n,32l) -> fprintf fmt "@[ipSrc %s %s@]" asgn (Frenetic_base.Packet.string_of_ip n)
+    | IP4Dst(n,32l) -> fprintf fmt "@[ipDst %s %s@]" asgn (Frenetic_base.Packet.string_of_ip n)
+    | IP4Src(n,m) -> fprintf fmt "@[ipSrc %s %s/%lu@]" asgn (Frenetic_base.Packet.string_of_ip n) m
+    | IP4Dst(n,m) -> fprintf fmt "@[ipDst %s %s/%lu@]" asgn (Frenetic_base.Packet.string_of_ip n) m
     | TCPSrcPort(n) -> fprintf fmt "@[tcpSrcPort %s %u@]" asgn n
     | TCPDstPort(n) -> fprintf fmt "@[tcpDstPort %s %u@]" asgn n
     | VSwitch(n) -> fprintf fmt "@[vswitch %s %Lu@]" asgn n
@@ -122,9 +122,9 @@ let format_policy = Formatting.pol Formatting.PAREN
 
 let format_pred = Formatting.pred Formatting.PAREN_PR
 
-let string_of_policy = Frenetic.Util.make_string_of format_policy
+let string_of_policy = Frenetic_base.Util.make_string_of format_policy
 
-let string_of_pred = Frenetic.Util.make_string_of format_pred
+let string_of_pred = Frenetic_base.Util.make_string_of format_pred
 
 let rec pretty_assoc (p : policy) : policy = match p with
   | Filter _

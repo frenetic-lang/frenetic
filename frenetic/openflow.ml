@@ -1,7 +1,7 @@
 open Core
 open Async
 open Frenetic.OpenFlow0x01
-module Logging = Frenetic_async.Logging
+module Logging = Frenetic.Async.Logging
 module ToGeneric = Frenetic.OpenFlow.From0x01
 
 type event = Frenetic.OpenFlow.event
@@ -11,7 +11,7 @@ type event = Frenetic.OpenFlow.event
    OpenFlow0x01 messages.  It should be the job of openflow.ml to convert 1.x specific
    messages to the generic OpenFlow messages and pass them over the pipe to Frenetic.
 
-  IF YOU CHANGE THE PROTOCOL HERE, YOU MUST ALSO CHANGE IT IN Frenetic_async.OpenFlow0x01_Plugin.
+  IF YOU CHANGE THE PROTOCOL HERE, YOU MUST ALSO CHANGE IT IN Frenetic.Async.OpenFlow0x01_Plugin.
   Unfortunately, we can't just plop this in Frenetic.OpenFlow0x01 (because it references
   Frenetic.OpenFlow) or Frenetic.OpenFlow (because it references Frenetic.OpenFlow0x01).  We
   could have put it in its own module, but I dont' want to give legitimacy to something
@@ -279,7 +279,7 @@ let run =
     spec
     (fun port rpc_port log_file verbose () ->
        let log_output = lazy (Async_extended.Std.Log.Output.file `Text log_file) in
-       Frenetic_async.Logging.set_output [Lazy.force log_output];
+       Frenetic.Async.Logging.set_output [Lazy.force log_output];
        let log_level = match verbose with
          | true -> Logging.info "Setting log_level to Debug";
            `Debug

@@ -5,27 +5,8 @@
   (public_name frenetic)
   (wrapped true)
   (libraries 
-    (core
-     base64
-     cstruct
-     ocamlgraph
-     tcpip
-     yojson
-     ipaddr
-     sedlex
-     sexplib
-     str
-     menhirLib
-     compiler-libs.common
-    )
+    (frenetic.netkat
+     frenetic.async
+     frenetic.base)
   )
-  (preprocess (pps (ppx_cstruct
-                    ppx_deriving.std
-                    ppx_enumerate
-                    ppx_compare
-                    ppx_fields_conv
-                    ppx_sexp_conv
-                    ocaml-migrate-parsetree.driver-main -no-check
-                   )))
- )
-)
+))

@@ -1,16 +1,16 @@
 open Core
 open Async
 
-open Netkat.Syntax
-open Frenetic.OpenFlow
+open Frenetic_netkat.Syntax
+open Frenetic_base.OpenFlow
 
 module type PLUGIN = sig
   val start: int -> unit
   val events : event Pipe.Reader.t
   val switch_features : switchId -> switchFeatures option Deferred.t
-  val update : Netkat.Compiler.t -> unit Deferred.t
-  val update_switch : switchId -> Netkat.Compiler.t -> unit Deferred.t
-  val packet_out : switchId -> portId option -> payload -> Netkat.Syntax.policy list -> unit Deferred.t
+  val update : Frenetic_netkat.Compiler.t -> unit Deferred.t
+  val update_switch : switchId -> Frenetic_netkat.Compiler.t -> unit Deferred.t
+  val packet_out : switchId -> portId option -> payload -> Frenetic_netkat.Syntax.policy list -> unit Deferred.t
   val flow_stats : switchId -> Pattern.t -> flowStats Deferred.t
   val port_stats : switchId -> portId -> portStats Deferred.t
 end
@@ -20,10 +20,10 @@ module type CONTROLLER = sig
   val event : unit -> event Deferred.t
   val switches : unit -> (switchId * portId list) list Deferred.t
   val port_stats : switchId -> portId -> portStats Deferred.t
-  val update : Netkat.Syntax.policy -> unit Deferred.t
-  val packet_out : switchId -> portId option -> payload -> Netkat.Syntax.policy list -> unit Deferred.t
+  val update : Frenetic_netkat.Syntax.policy -> unit Deferred.t
+  val packet_out : switchId -> portId option -> payload -> Frenetic_netkat.Syntax.policy list -> unit Deferred.t
   val query : string -> (int64 * int64) Deferred.t
-  val set_current_compiler_options : Netkat.Compiler.compiler_options -> unit
+  val set_current_compiler_options : Frenetic_netkat.Compiler.compiler_options -> unit
 end
 
 module Make (P:PLUGIN) : CONTROLLER = struct
@@ -31,11 +31,11 @@ module Make (P:PLUGIN) : CONTROLLER = struct
   let (pol_reader, pol_writer) = Pipe.create ()
   let (event_reader, event_writer) =  Pipe.create ()
   let switch_hash : (switchId, portId list) Hashtbl.Poly.t = Hashtbl.Poly.create ()
-  let current_compiler_options = ref (Netkat.Compiler.default_compiler_options)
-  let fdd = ref (Netkat.Compiler.compile_local Netkat.Syntax.drop)
+  let current_compiler_options = ref (Frenetic_netkat.Compiler.default_compiler_options)
+  let fdd = ref (Frenetic_netkat.Compiler.compile_local Frenetic_netkat.Syntax.drop)
 
   let update (pol:policy) : unit Deferred.t =
-    fdd := Netkat.Compiler.compile_local pol;
+    fdd := Frenetic_netkat.Compiler.compile_local pol;
     P.update !fdd
 
   let handle_event (evt:event) : unit Deferred.t =
@@ -68,8 +68,8 @@ module Make (P:PLUGIN) : CONTROLLER = struct
   let packet_out (sw:switchId) (ingress_port:portId option) (pay:payload) (pol:policy list) : unit Deferred.t =
     P.packet_out sw ingress_port pay pol
 
-  let get_table (sw_id : switchId) : (Frenetic.OpenFlow.flow * string list) list =
-    Netkat.Compiler.to_table' sw_id !fdd
+  let get_table (sw_id : switchId) : (Frenetic_base.OpenFlow.flow * string list) list =
+    Frenetic_netkat.Compiler.to_table' sw_id !fdd
 
   let sum_stat_pairs stats =
      List.fold stats ~init:(0L, 0L)

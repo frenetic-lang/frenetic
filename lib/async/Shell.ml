@@ -1,10 +1,10 @@
 open Core
 open Async
-open Netkat.Syntax
+open Frenetic_netkat.Syntax
 
 module Controller = NetKAT_Controller.Make(OpenFlow0x01_Plugin)
-module Comp = Netkat.Compiler
-module Field = Netkat.Fdd.Field
+module Comp = Frenetic_netkat.Compiler
+module Field = Frenetic_netkat.Fdd.Field
 
 type showable =
   (* usage: order
@@ -31,7 +31,7 @@ type command =
    * constructing the BDD.
    * Valid orderings:
    *   heuristic - Uses a heuristic to select the order of fields
-   *   default - Uses the default ordering as specified in Netkat.LocalCompiler
+   *   default - Uses the default ordering as specified in Frenetic_netkat.LocalCompiler
    *   f_1 < f_2 [ < f_3 < ... < f_n ] - Given two or more fields, ensures the
    *                                     order of the specified fields is maintained. *)
   | Order of Comp.order
@@ -95,7 +95,7 @@ module Parser = struct
 
     (* Use the netkat parser to parse policies *)
     let parse_policy ?(name = "") (pol_str : string) : (policy, string) Result.t =
-      Ok (Netkat.Parser.pol_of_string pol_str)
+      Ok (Frenetic_netkat.Parser.pol_of_string pol_str)
 
     (* Parser for netkat policies *)
     let policy' : ((policy * string), bytes list) MParser.t =
@@ -226,11 +226,11 @@ let print_policy () =
 (* Given a policy, returns a pretty ascii table for each switch *)
 let string_of_policy (pol : policy) : string =
   let bdd = Comp.compile_local ~options:(!current_compiler_options) pol in
-  let switches = Netkat.Semantics.switches_of_policy pol in
+  let switches = Frenetic_netkat.Semantics.switches_of_policy pol in
   let switches' = if List.is_empty switches then [0L] else switches in
   let tbls = List.map switches'
 		      (fun sw_id -> Comp.to_table ~options:(!current_compiler_options) sw_id bdd |>
-				      Frenetic.OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id)) in
+				      Frenetic_base.OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id)) in
   String.concat ~sep:"\n\n" tbls
 
 (* Given a policy, print the flowtables associated with it *)
