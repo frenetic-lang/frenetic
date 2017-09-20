@@ -72,6 +72,7 @@ minutes or so to download.
 * Learn Frenetic programming in OCaml from the [Frenetic Tutorial](http://frenetic-lang.github.io/tutorials/Introduction/)
 * Learn the theory behind Frenetic by reading the papers at [http://frenetic-lang.org](http://frenetic-lang.org)
 * See examples of production Frenetic-based SDN's at [https://github.com/coscin/coscin-app](https://github.com/coscin/coscin-app) and [https://github.com/coscin/gates](https://github.com/coscin/gates).
+* Consult the Frenetic [API documentation](http://frenetic-lang.github.io/frenetic/).
 
 ## Contributing
 
