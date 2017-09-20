@@ -1,7 +1,7 @@
 open Core
 open Syntax
 open Semantics
-open Frenetic.OpenFlow
+open Frenetic_std.OpenFlow
 
 module Field = Fdd.Field
 module Action = Fdd.Action
@@ -85,12 +85,12 @@ val restrict : header_val -> t -> t
     should run on a single switch. *)
 
 val to_table : ?options:compiler_options
-            -> ?group_tbl:Frenetic.GroupTable0x04.t -> switchId -> t
+            -> ?group_tbl:Frenetic_std.GroupTable0x04.t -> switchId -> t
             -> flow list
 (** [to_table sw t] returns a flowtable that implements [t] for switch [sw]. *)
 
 val to_table' : ?options:compiler_options
-             -> ?group_tbl:Frenetic.GroupTable0x04.t -> switchId -> t
+             -> ?group_tbl:Frenetic_std.GroupTable0x04.t -> switchId -> t
              -> (flow * string list) list
 
 (** {2 Composition} *)
@@ -122,7 +122,7 @@ val pipes : t -> string list
 
 val queries : t -> (string * pred) list
 (** [queries t] returns the list of queries that occur in [t] along with the
-    predicates associated with the query. Frenetic.Packet and byte counts of flows that
+    predicates associated with the query. Frenetic_std.Packet and byte counts of flows that
     match the predicate should count towards its associated query. *)
 
 val equal : t -> t -> bool
@@ -186,17 +186,17 @@ type flowId = tableId * metaId [@@deriving sexp]
 
 (* OpenFlow 1.3+ instruction types *)
 type instruction =
-  [ `Action of Frenetic.OpenFlow.group
+  [ `Action of Frenetic_std.OpenFlow.group
   | `GotoTable of flowId ]
 [@@deriving sexp]
 
 (* A flow table row, with multitable support. If goto has a Some value
  * then the 0x04 row instruction is GotoTable. *)
 type multitable_flow = {
-  pattern      : Frenetic.OpenFlow.Pattern.t;
+  pattern      : Frenetic_std.OpenFlow.Pattern.t;
   cookie       : int64;
-  idle_timeout : Frenetic.OpenFlow.timeout;
-  hard_timeout : Frenetic.OpenFlow.timeout;
+  idle_timeout : Frenetic_std.OpenFlow.timeout;
+  hard_timeout : Frenetic_std.OpenFlow.timeout;
   instruction  : instruction;
   flowId       : flowId;
 } [@@deriving sexp]
@@ -208,4 +208,4 @@ val to_multitable : ?options:compiler_options
                   -> switchId
                   -> flow_layout
                   -> t
-                  -> (multitable_flow list * Frenetic.GroupTable0x04.t)
+                  -> (multitable_flow list * Frenetic_std.GroupTable0x04.t)

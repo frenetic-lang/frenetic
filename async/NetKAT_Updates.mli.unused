@@ -3,9 +3,9 @@
 open Core
 open Async
 
-module Net = Frenetic.Net.Net
-module SDN = Frenetic.OpenFlow
-module Comp = Netkat.Compiler
+module Net = Frenetic_std.Net.Net
+module SDN = Frenetic_std.OpenFlow
+module Comp = Frenetic_netkat.Compiler
 
 exception UpdateError
 

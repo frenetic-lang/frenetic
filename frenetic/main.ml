@@ -24,8 +24,8 @@ let log_outputs : (string * Async.Log.Output.t Lazy.t) Command.Spec.Arg_type.t =
       | "stdout" -> ("stdout", lazy (Async_extended.Extended_log.Console.output (Lazy.force Async.Writer.stdout)))
       | filename -> (filename, lazy (Async.Log.Output.file `Text filename)) )
 
-let table_fields : Netkat.Compiler.flow_layout Command.Spec.Arg_type.t =
-  let open Netkat.Fdd.Field in
+let table_fields : Frenetic.Netkat.Compiler.flow_layout Command.Spec.Arg_type.t =
+  let open Frenetic.Netkat.Fdd.Field in
   Command.Spec.Arg_type.create
     (fun table_field_string ->
       let opts = [ ("switch", Switch); ("vlan", Vlan); ("pcp", VlanPcp);
@@ -67,7 +67,7 @@ module Flag = struct
       ~doc:"int Port to listen on for OpenFlow switches. Defaults to 6633."
 
   let table_fields =
-    flag "--table" (optional_with_default [Netkat.Fdd.Field.get_order ()] table_fields)
+    flag "--table" (optional_with_default [Frenetic.Netkat.Fdd.Field.get_order ()] table_fields)
       ~doc:"Partition of fields into Openflow 1.3 tables, e.g. ethsrc,ethdst;ipsrc,ipdst"
 
   let policy_file =
@@ -89,8 +89,8 @@ let default_spec =
 
 let run cmd verbosity log =
   let (log_path, log_output) = log in
-  Frenetic_async.Logging.set_level verbosity;
-  Frenetic_async.Logging.set_output [Lazy.force log_output];
+  Frenetic.Async.Logging.set_level verbosity;
+  Frenetic.Async.Logging.set_output [Lazy.force log_output];
   ignore (cmd ());
   never_returns (Async.Scheduler.go ())
 
@@ -101,7 +101,7 @@ let shell : Command.t =
       +> Flag.openflow_port
       ++ default_spec)
     (fun openflow_port ->
-      run (Frenetic_async.Shell.main openflow_port))
+      run (Frenetic.Async.Shell.main openflow_port))
 
 let compile_server : Command.t =
   Command.basic
@@ -110,7 +110,7 @@ let compile_server : Command.t =
       +> Flag.http_port
       ++ default_spec)
     (fun http_port ->
-      run (Frenetic_async.Compile_Server.main http_port))
+      run (Frenetic.Async.Compile_Server.main http_port))
 
 let http_controller : Command.t =
   Command.basic
@@ -120,7 +120,7 @@ let http_controller : Command.t =
       +> Flag.openflow_port
       ++ default_spec)
     (fun http_port openflow_port ->
-      run (Frenetic_async.Http_Controller.main http_port openflow_port))
+      run (Frenetic.Async.Http_Controller.main http_port openflow_port))
 
 let openflow13_controller : Command.t =
   Command.basic
@@ -131,7 +131,7 @@ let openflow13_controller : Command.t =
       +> Flag.table_fields
       ++ default_spec)
     (fun openflow_port policy_file table_fields ->
-      run (Frenetic_async.OpenFlow0x04_Plugin.main openflow_port policy_file table_fields))
+      run (Frenetic.Async.OpenFlow0x04_Plugin.main openflow_port policy_file table_fields))
 
 let openflow13_fault_tolerant_controller : Command.t =
   Command.basic
@@ -142,7 +142,7 @@ let openflow13_fault_tolerant_controller : Command.t =
       +> Flag.topology_file
       ++ default_spec)
     (fun openflow_port policy_file topology_file ->
-      run (Frenetic_async.OpenFlow0x04_Plugin.fault_tolerant_main
+      run (Frenetic.Async.OpenFlow0x04_Plugin.fault_tolerant_main
         openflow_port policy_file topology_file))
 
 let main : Command.t =

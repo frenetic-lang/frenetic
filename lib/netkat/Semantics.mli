@@ -1,9 +1,9 @@
 open Core
 
 open Syntax
-open Frenetic.Packet
+open Frenetic_std.Packet
 
-(** {2 Frenetic.Packets}
+(** {2 Frenetic_std.Packets}
 
   If we only defined the semantics and were not building a system, a
   packet would only be a record of headers. However, the runtime needs to

@@ -8,7 +8,7 @@
 
 ;; generate parser
 (menhir
- ((flags (--external-tokens Netkat.Lexer))
+ ((flags (--external-tokens Frenetic_netkat.Lexer))
   (modules (Ppx_parser))))
 
 (library
