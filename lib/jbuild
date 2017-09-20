@@ -7,6 +7,6 @@
   (libraries 
     (frenetic.netkat
      frenetic.async
-     frenetic.std)
+     frenetic.base)
   )
 ))

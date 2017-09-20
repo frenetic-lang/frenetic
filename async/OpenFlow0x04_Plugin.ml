@@ -2,14 +2,14 @@ open Core
 open Async
 
 (* Marshal and send a message to the switch *)
-let send_message (to_client : Writer.t) (xid : Frenetic_std.OpenFlow_Header.xid)
-  (message : Frenetic_std.OpenFlow0x04.Message.t) : unit =
-  let raw_message = Frenetic_std.OpenFlow0x04.Message.marshal xid message in
+let send_message (to_client : Writer.t) (xid : Frenetic_base.OpenFlow_Header.xid)
+  (message : Frenetic_base.OpenFlow0x04.Message.t) : unit =
+  let raw_message = Frenetic_base.OpenFlow0x04.Message.marshal xid message in
   Writer.write to_client raw_message
 
 (* Send group messages to switch to make group table *)
-let implement_group_table (writer : Writer.t) (tbl : Frenetic_std.GroupTable0x04.t) : unit =
-  let msgs = Frenetic_std.GroupTable0x04.commit tbl in
+let implement_group_table (writer : Writer.t) (tbl : Frenetic_base.GroupTable0x04.t) : unit =
+  let msgs = Frenetic_base.GroupTable0x04.commit tbl in
   let msg_num = List.length msgs in
   List.iteri msgs ~f:(fun i msg -> send_message writer (Int32.of_int_exn (9000 + i)) msg);
   if msg_num <> 0 then
@@ -17,13 +17,13 @@ let implement_group_table (writer : Writer.t) (tbl : Frenetic_std.GroupTable0x04
 
 (* Add mask so that the meta value can be changed *)
 let mask_meta (meta_id : int) =
-  Frenetic_std.OpenFlow0x04.{ m_value = Int64.of_int meta_id; m_mask = Some 64L }
+  Frenetic_base.OpenFlow0x04.{ m_value = Int64.of_int meta_id; m_mask = Some 64L }
 
 (* Send FlowMod messages to switch to implement policy *)
 let implement_flow (writer : Writer.t) (fdd : Frenetic_netkat.Compiler.t)
   (layout : Frenetic_netkat.Compiler.flow_layout)
-  (sw_id : Frenetic_std.OpenFlow.switchId) : unit =
-  let open Frenetic_std.OpenFlow0x04 in
+  (sw_id : Frenetic_base.OpenFlow.switchId) : unit =
+  let open Frenetic_base.OpenFlow0x04 in
   let open Frenetic_netkat.Compiler in
   let (flow_rows, group_tbl) = to_multitable sw_id layout fdd in
   implement_group_table writer group_tbl;
@@ -47,9 +47,9 @@ let implement_flow (writer : Writer.t) (fdd : Frenetic_netkat.Compiler.t)
 (* Send FlowMod messages to switch to implement the policy, use topology to
  * generate fault tolerant group tables. *)
 let implement_tolerant_flow (writer : Writer.t) (fdd : Frenetic_netkat.Compiler.t)
-  (topo : Frenetic_std.Net.Net.Topology.t) (sw_id : Frenetic_std.OpenFlow.switchId)
+  (topo : Frenetic_base.Net.Net.Topology.t) (sw_id : Frenetic_base.OpenFlow.switchId)
   : unit =
-  let open Frenetic_std.OpenFlow0x04 in
+  let open Frenetic_base.OpenFlow0x04 in
   let flowtable = Frenetic_netkat.Compiler.to_table sw_id fdd in
   List.iteri flowtable ~f:(fun i row ->
     let tbl = 1 in
@@ -63,10 +63,10 @@ let implement_tolerant_flow (writer : Writer.t) (fdd : Frenetic_netkat.Compiler.
     send_message writer xid message)
 
 (* Respond to message from switch *)
-let process_message (xid : Frenetic_std.OpenFlow_Header.xid) (message : Frenetic_std.OpenFlow0x04.Message.t)
-  (message_sender : (Frenetic_std.OpenFlow_Header.xid -> Frenetic_std.OpenFlow0x04.Message.t -> unit))
-  (flow_sender : Frenetic_std.OpenFlow.switchId -> unit) : unit =
-  let open Frenetic_std.OpenFlow0x04 in
+let process_message (xid : Frenetic_base.OpenFlow_Header.xid) (message : Frenetic_base.OpenFlow0x04.Message.t)
+  (message_sender : (Frenetic_base.OpenFlow_Header.xid -> Frenetic_base.OpenFlow0x04.Message.t -> unit))
+  (flow_sender : Frenetic_base.OpenFlow.switchId -> unit) : unit =
+  let open Frenetic_base.OpenFlow0x04 in
   match message with
   | Message.EchoRequest bytes -> message_sender xid (Message.EchoReply bytes)
   | Message.Hello _           -> message_sender 10l Message.FeaturesRequest
@@ -77,18 +77,18 @@ let process_message (xid : Frenetic_std.OpenFlow_Header.xid) (message : Frenetic
 (* Parse incoming client messages and respond. `Finished is sent if an
  * error occurs, otherwise `Repeat indefinitely. *)
 let read_respond_loop (reader : Reader.t)
-  (message_sender : (Frenetic_std.OpenFlow_Header.xid -> Frenetic_std.OpenFlow0x04.Message.t -> unit))
-  (flow_sender : Frenetic_std.OpenFlow.switchId -> unit) ()
+  (message_sender : (Frenetic_base.OpenFlow_Header.xid -> Frenetic_base.OpenFlow0x04.Message.t -> unit))
+  (flow_sender : Frenetic_base.OpenFlow.switchId -> unit) ()
   : [ `Finished of unit | `Repeat of unit ] Deferred.t =
-  let header_buf = Bytes.create Frenetic_std.OpenFlow_Header.size in
+  let header_buf = Bytes.create Frenetic_base.OpenFlow_Header.size in
   Reader.really_read reader header_buf
   >>= function
   | `Eof _ ->
     Logging.info "Connection closed reading header";
     return (`Finished ())
   | `Ok ->
-    let header = Frenetic_std.OpenFlow_Header.parse (Cstruct.of_string header_buf) in
-    let message_len = header.length - Frenetic_std.OpenFlow_Header.size in
+    let header = Frenetic_base.OpenFlow_Header.parse (Cstruct.of_string header_buf) in
+    let message_len = header.length - Frenetic_base.OpenFlow_Header.size in
     let message_buf = Bytes.create message_len in
     Reader.really_read reader message_buf
     >>= function
@@ -96,16 +96,16 @@ let read_respond_loop (reader : Reader.t)
       Logging.info "Error reading client message";
       return (`Finished ())
     | `Ok ->
-      let (xid, body) = Frenetic_std.OpenFlow0x04.Message.parse header message_buf in
+      let (xid, body) = Frenetic_base.OpenFlow0x04.Message.parse header message_buf in
       process_message xid body message_sender flow_sender;
       return (`Repeat ())
 
 (* Send the initil handshake, loop on client response *)
 let client_handler (reader : Reader.t)
-  (message_sender : (Frenetic_std.OpenFlow_Header.xid -> Frenetic_std.OpenFlow0x04.Message.t -> unit))
-  (flow_sender : Frenetic_std.OpenFlow.switchId -> unit) : unit Deferred.t =
+  (message_sender : (Frenetic_base.OpenFlow_Header.xid -> Frenetic_base.OpenFlow0x04.Message.t -> unit))
+  (flow_sender : Frenetic_base.OpenFlow.switchId -> unit) : unit Deferred.t =
   Logging.info "Client connected";
-  message_sender 0l (Frenetic_std.OpenFlow0x04.Message.Hello [VersionBitMap [0x04]]);
+  message_sender 0l (Frenetic_base.OpenFlow0x04.Message.Hello [VersionBitMap [0x04]]);
   Logging.info "Sent Hello";
   Deferred.repeat_until_finished () (read_respond_loop reader message_sender flow_sender)
 
@@ -135,8 +135,8 @@ let fault_tolerant_main (of_port : int) (pol_file : string)
   Logging.info "Starting OpenFlow 1.3 fault tolerant controller";
   let pol = Frenetic_netkat.Parser.pol_of_file pol_file in
   let fdd = Frenetic_netkat.Compiler.compile_local pol in
-  let topo = Frenetic_std.Net.Net.Topology.empty () in
-  (* let topo = Frenetic_std.Net.Net.Parse.from_dotfile topo_file in *)
+  let topo = Frenetic_base.Net.Net.Topology.empty () in
+  (* let topo = Frenetic_base.Net.Net.Parse.from_dotfile topo_file in *)
   let _ = Tcp.Server.create ~on_handler_error:`Raise (Tcp.on_port of_port)
     (fun _ reader writer ->
       let message_sender = send_message writer in

@@ -48,7 +48,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
    * *)
 
   type t = int [@@deriving sexp, compare, eq]
-  module T = Frenetic_std.Hashcons.Make(struct
+  module T = Frenetic_base.Hashcons.Make(struct
       type t = d [@@deriving sexp, compare]
 
       let hash t = match t with

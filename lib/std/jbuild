@@ -1,8 +1,8 @@
 (jbuild_version 1)
 
 (library
- ((name        frenetic_std)
-  (public_name frenetic.std)
+ ((name        frenetic_base)
+  (public_name frenetic.base)
   (wrapped true)
   (libraries 
     (core

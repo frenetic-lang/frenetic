@@ -1,8 +1,8 @@
 open Core
 open Async
 
-open Frenetic_std.OpenFlow
-module OF10 = Frenetic_std.OpenFlow0x01
+open Frenetic_base.OpenFlow
+module OF10 = Frenetic_base.OpenFlow0x01
 
 (* TODO: See openflow.ml for discussion.  This is transitional.
 
@@ -38,7 +38,7 @@ let read_outstanding = ref false
 let read_finished = Condition.create ()
 
 module LowLevel = struct
-  module OF10 = Frenetic_std.OpenFlow0x01
+  module OF10 = Frenetic_base.OpenFlow0x01
 
   let openflow_executable () =
     let prog = Filename.dirname(Sys.executable_name) ^ "/frenetic.openflow" in
@@ -246,7 +246,7 @@ let packet_out
   (* Turn this into a generic PktOut event, then run it through OF10 translator *)
   let actions = actions_from_policies pol_list in
   let openflow_generic_pkt_out = (payload, ingress_port, actions) in
-  let pktout0x01 = Frenetic_std.OpenFlow.To0x01.from_packetOut openflow_generic_pkt_out in
+  let pktout0x01 = Frenetic_base.OpenFlow.To0x01.from_packetOut openflow_generic_pkt_out in
   LowLevel.send swid 0l (OF10.Message.PacketOutMsg pktout0x01) >>= function
     | RpcEof -> return ()
     | RpcOk -> return ()
@@ -302,7 +302,7 @@ let port_stats (sw_id : switchId) (pid : portId) : portStats Deferred.t =
       | [] -> Logging.info "Got an empty list"; return bogus_port_stats
       | [hd] -> ( match hd with
         | StatsReplyMsg (PortRep psl) ->
-          return (Frenetic_std.OpenFlow.From0x01.from_port_stats (List.hd_exn psl))
+          return (Frenetic_base.OpenFlow.From0x01.from_port_stats (List.hd_exn psl))
         | _ -> Logging.error "Got a reply, but the type is wrong"; return bogus_port_stats
       )
       | hd :: tl -> Logging.info "Got a > 2 element list"; return bogus_port_stats
@@ -321,14 +321,14 @@ let get_switches () =
 
 (* TODO: The following is ripped out of Frenetic_netkat.Updates.  Turns out you can't call
 stuff in that because of a circular dependency.  In a later version, we should implement
-generic commands in Frenetic_std.OpenFlow (similar to events, but going the opposite
+generic commands in Frenetic_base.OpenFlow (similar to events, but going the opposite
 directions), and let openflow.ml translate these to the specifc version of OpenFlow.  That
 way, we can simply pass a plugin instance where the update can write to. *)
 
 module BestEffortUpdate0x01 = struct
   module Comp = Frenetic_netkat.Compiler
   module M = OF10.Message
-  open Frenetic_std.OpenFlow.To0x01
+  open Frenetic_base.OpenFlow.To0x01
 
   exception UpdateError
 
@@ -357,7 +357,7 @@ module BestEffortUpdate0x01 = struct
   let bring_up_switch (sw_id : switchId) new_r =
     let table = Comp.to_table ~options:!current_compiler_options sw_id new_r in
     Logging.debug "Setting up flow table\n%s"
-      (Frenetic_std.OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id) table);
+      (Frenetic_base.OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id) table);
     Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
       delete_flows_for sw_id >>= fun _ ->
       install_flows_for sw_id table)

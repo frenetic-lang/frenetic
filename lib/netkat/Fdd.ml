@@ -1,6 +1,6 @@
 open Core
 
-module SDN = Frenetic_std.OpenFlow
+module SDN = Frenetic_base.OpenFlow
 
 
 module Field = struct
@@ -603,7 +603,7 @@ module Action = struct
         | Some (FastFail p_lst) ->
            (match group_tbl with
             | Some tbl ->
-              let gid = Frenetic_std.GroupTable0x04.add_fastfail_group tbl p_lst
+              let gid = Frenetic_base.GroupTable0x04.add_fastfail_group tbl p_lst
               in [SDN.(FastFail gid)]
             | None -> failwith "fast failover present, but no group table provided!")
         | Some mask      -> raise (FieldValue_mismatch(Location, mask))
@@ -684,7 +684,7 @@ module Action = struct
     Par.fold ~init:0 ~f:(fun acc seq -> acc + (Seq.length seq))
 
   let to_string = Par.to_string
-    (* let par = to_sdn ~group_tbl:(Frenetic_std.GroupTable0x04.create ()) None t in
+    (* let par = to_sdn ~group_tbl:(Frenetic_base.GroupTable0x04.create ()) None t in
     Printf.sprintf "[%s]" (SDN.string_of_par par) *)
 
 end

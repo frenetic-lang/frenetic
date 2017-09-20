@@ -20,4 +20,6 @@ doc:
 test:
 	jbuilder build @runtest
 
-.PHONY: build install uninstall reinstall clean doc
+all: build test doc
+
+.PHONY: build install uninstall reinstall clean doc all
