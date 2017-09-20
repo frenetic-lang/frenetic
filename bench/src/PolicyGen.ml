@@ -1,6 +1,6 @@
 open Core
-open Netkat.Syntax
-open Netkat.Optimize
+open Frenetic.Netkat.Syntax
+open Frenetic.Netkat.Optimize
 
 module Net = Frenetic.Network.Net
 module Topology = Net.Topology

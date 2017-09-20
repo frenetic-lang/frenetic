@@ -1,6 +1,6 @@
 open Core
-open Netkat.Syntax
-open Netkat.Optimize
+open Frenetic.Netkat.Syntax
+open Frenetic.Netkat.Optimize
 
 let build_list (n : int) ~(f : int -> 'a) : 'a list =
   let rec loop (i : int): 'a list =
