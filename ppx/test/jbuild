@@ -2,7 +2,7 @@
 
 (executable
  ((name         main)
-  (libraries (core frenetic))
+  (libraries (core))
   (preprocess (pps (frenetic.ppx)))
 ))
 
