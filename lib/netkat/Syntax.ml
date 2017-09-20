@@ -63,10 +63,7 @@ type policy =
   | Star of policy
   | Link of switchId * portId * switchId * portId
   | VLink of vswitchId * vportId * vswitchId * vportId
-  (* TODO: move to inline records, as soon as derriving sexp supports them, see
-     https://github.com/janestreet/ppx_sexp_conv/issues/9 *)
-  (* | Let of { id : metaId; init : meta_init; body : policy; mut : bool } *)
-  | Let of metaId * meta_init * bool * policy
+  | Let of { id : metaId; init : meta_init; mut : bool; body : policy }
   | Dup
   [@@deriving sexp]
 
