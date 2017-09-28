@@ -8,6 +8,8 @@ module HeadersValues = struct
 
   type t =
     { location : location sexp_opaque
+    ; from : abstract_location
+    ; abstractLoc : abstract_location
     ; ethSrc : dlAddr
     ; ethDst : dlAddr
     ; vlan : int16
@@ -35,6 +37,8 @@ module HeadersValues = struct
         | FastFail n_lst -> Printf.sprintf "%s" (string_of_fastfail n_lst)
         | Pipe x     -> Printf.sprintf "pipe(%s)" x
         | Query x    -> Printf.sprintf "query(%s)" x))
+      ~from:(g (fun x -> Core.Sexp.to_string (sexp_of_abstract_location x)))
+      ~abstractLoc:(g (fun x -> Core.Sexp.to_string (sexp_of_abstract_location x)))
       ~ethSrc:Int64.(g to_string)
       ~ethDst:Int64.(g to_string)
       ~vlan:Int.(g to_string)
@@ -54,6 +58,8 @@ module HeadersValues = struct
     Fields.fold
       ~init:[]
       ~location:(conv (fun x -> Location x))
+      ~from:(conv (fun x -> From x))
+      ~abstractLoc:(conv (fun x -> AbstractLoc x))
       ~ethSrc:(conv (fun x -> EthSrc x))
       ~ethDst:(conv (fun x -> EthDst x))
       ~vlan:(conv (fun x -> Vlan x))
@@ -130,6 +136,8 @@ let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
       match hv with
       | Switch n -> pkt.switch = n
       | Location l -> pkt.headers.location = l
+      | From l -> pkt.headers.from = l
+      | AbstractLoc l -> pkt.headers.abstractLoc = l
       | EthSrc n -> pkt.headers.ethSrc = n
       | EthDst n -> pkt.headers.ethDst = n
       | Vlan n -> pkt.headers.vlan = n
@@ -162,6 +170,8 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
     let pkt' = match hv with
       | Switch n -> { pkt with switch = n }
       | Location l -> { pkt with headers = { pkt.headers with location = l }}
+      | From l -> { pkt with headers = { pkt.headers with from = l }}
+      | AbstractLoc l -> { pkt with headers = { pkt.headers with abstractLoc = l }}
       | EthSrc n -> { pkt with headers = { pkt.headers with ethSrc = n }}
       | EthDst n -> { pkt with headers = { pkt.headers with ethDst = n }}
       | Vlan n -> { pkt with headers = { pkt.headers with vlan = n }}

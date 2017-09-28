@@ -38,6 +38,8 @@ let from_json_ip (json : json) : Frenetic_base.Packet.nwAddr * int32 =
 let to_json_value (h : header_val) : json = match h with
   | Switch n | VSwitch n | VPort n | VFabric n -> `String (string_of_int (Int64.to_int_exn n))
   (* JavaScript can't represent large 64-bit numbers *)
+  | From loc | AbstractLoc loc ->
+    `String (Core.Sexp.to_string (sexp_of_abstract_location loc))
   | EthSrc n
   | EthDst n -> `String (string_of_mac n)
   | Location (Physical n) -> `Assoc [("type", `String "physical");
@@ -63,6 +65,8 @@ let to_json_header (h : header_val) : json =
   let str = match h with
     | Switch _ -> "switch"
     | Location _ -> "location"
+    | From _ -> "from"
+    | AbstractLoc _ -> "abstractloc"
     | EthSrc _ -> "ethsrc"
     | EthDst _ -> "ethdst"
     | Vlan _ -> "vlan"

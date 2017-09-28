@@ -14,6 +14,8 @@ open Frenetic_base.Packet
 module HeadersValues : sig
   type t =
     { location : location
+    ; from : abstract_location
+    ; abstractLoc : abstract_location
     ; ethSrc : dlAddr
     ; ethDst : dlAddr
     ; vlan : int16
