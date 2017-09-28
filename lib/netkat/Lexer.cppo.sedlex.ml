@@ -164,6 +164,9 @@ let token ~ppx ~loc_start buf =
   | "ip4Dst" -> IP4DST
   | "tcpSrcPort" -> TCPSRCPORT
   | "tcpDstPort" -> TCPDSTPORT
+  (* portless *)
+  | "from" -> FROM
+  | "loc" -> ABSTRACTLOC
   (* syntax sugar *)
   | "if" -> IF
   | "then" -> THEN

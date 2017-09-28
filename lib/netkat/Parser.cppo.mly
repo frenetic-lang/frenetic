@@ -57,6 +57,9 @@ open Core
 (* primitives *)
 %token LPAR RPAR BEGIN END EOF
 
+(* portless extension *)
+%token FROM ABSTRACTLOC
+
 (* antiquotations (for ppx syntax extension ) *)
 #ifdef MAKE_PPX
   %token <string * Location.t> ANTIQ
@@ -188,12 +191,27 @@ pred:
 (*********************** HEADER VALUES *************************)
 
 header_val(BINOP):
+#ifdef PORTLESS
+  | SWITCH; BINOP; n=int64
+      BOTH( raise (Failure "cannot access switch field in portless mode") )
+  | PORT; BINOP; _=portval
+      BOTH( raise (Failure "cannot access port field in portless mode") )
+  | FROM; BINOP; s=STRING
+      BOTH( From s )
+  | ABSTRACTLOC; BINOP; s=STRING
+      BOTH( AbstractLoc s )
+#else
   | SWITCH; BINOP; n=int64
       AST( Switch n )
       PPX( Switch [%e n])
   | PORT; BINOP; p=portval
       AST( Location p )
       PPX( Location [%e p] )
+  | FROM; BINOP; _=STRING
+      BOTH( raise (Failure "from field only available in portless mode") )
+  | ABSTRACTLOC; BINOP; _=STRING
+      BOTH( raise (Failure "loc field only available in portless mode") )
+#endif
   | VSWITCH; BINOP; n=int64
     AST( VSwitch n )
     PPX( VSwitch [%e n] )
