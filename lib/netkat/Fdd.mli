@@ -34,6 +34,8 @@ module Field : sig
   type t
     = Switch
     | Location
+    | From
+    | AbstractLoc
     | VSwitch
     | VPort
     | Vlan
@@ -128,6 +130,7 @@ module Value : sig
   type t =
       Const of Int64.t
     | Mask of Int64.t * int
+    | AbstractLocation of string
     | Pipe of string
     | Query of string
     (* TODO(grouptable): HACK, should only be able to fast fail on ports.

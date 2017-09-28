@@ -1,5 +1,6 @@
 open Syntax
 
+module Sexp = Core.Sexp
 module Formatting = struct
   open Format
 
@@ -16,6 +17,10 @@ module Formatting = struct
     | Location(FastFail n_lst) -> fprintf fmt "@[fastFail ports %s %s@]" asgn (string_of_fastfail n_lst)
     | Location(Pipe x) -> fprintf fmt "@[port %s pipe(\"%s\")@]" asgn x
     | Location(Query x) -> fprintf fmt "@[port %s query(\"%s\")@]" asgn x
+    | From(l) -> fprintf fmt "@[from %s \"%s\"@]" asgn
+                   (Sexp.to_string (sexp_of_abstract_location l))
+    | AbstractLoc(l) -> fprintf fmt "@[from %s \"%s\"@]" asgn
+                          (Sexp.to_string (sexp_of_abstract_location l))
     | EthSrc(n) -> fprintf fmt "@[ethSrc %s %s@]" asgn (Frenetic_base.Packet.string_of_mac n)
     | EthDst(n) -> fprintf fmt "@[ethDst %s %s@]" asgn (Frenetic_base.Packet.string_of_mac n)
     | Vlan(n) -> fprintf fmt "@[vlanId %s %d@]" asgn n

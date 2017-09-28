@@ -10,6 +10,8 @@ module Field = struct
   type t
     = Switch
     | Location
+    | From
+    | AbstractLoc
     | VSwitch
     | VPort
     | Vlan
@@ -107,6 +109,8 @@ module Field = struct
   let of_hv ?(env=Env.empty) hv = match hv with
     | Syntax.Switch _ -> Switch
     | Syntax.Location _ -> Location
+    | Syntax.From _ -> From
+    | Syntax.AbstractLoc _ -> AbstractLoc
     | Syntax.EthSrc _ -> EthSrc
     | Syntax.EthDst _ -> EthDst
     | Syntax.Vlan _ -> Vlan
@@ -211,6 +215,7 @@ module Value = struct
   type t
     = Const of Int64.t
     | Mask of Int64.t * int
+    | AbstractLocation of Syntax.abstract_location
     | Pipe of string
     | Query of string
     (* TODO(grouptable): HACK, should only be able to fast fail on ports.
@@ -228,20 +233,23 @@ module Value = struct
           Int64.shift_right_logical a (64-n) = Int64.shift_right_logical b (64-n)
     in
     match a, b with
-    | Const  a   , Const b
+    | Const  a           , Const b
     (* Note that comparing a mask to a constant requires the mask to be all 64 bits, otherwise they fail the lesser mask test *)
-    | Mask(a, 64), Const b -> a = b
-    | Pipe   a   , Pipe  b
-    | Query  a   , Query b -> a = b
-    | Mask     _ , Const _
-    | Pipe     _ ,       _
-    | Query    _ ,       _
-    | _          , Pipe  _
-    | _          , Query _
-    | FastFail _ , _
-    | _          , FastFail _ -> false
-    | Mask(a, m) , Mask(b, n) -> subset_eq_mask a m  b n
-    | Const a    , Mask(b, n) -> subset_eq_mask a 64 b n
+    | Mask(a, 64)        , Const b -> a = b
+    | AbstractLocation a , AbstractLocation b -> a = b
+    | Pipe   a           , Pipe  b
+    | Query  a           , Query b -> a = b
+    | Mask             _ , Const            _
+    | AbstractLocation _ ,                  _
+    | Pipe             _ ,                  _
+    | Query            _ ,                  _
+    | FastFail         _ ,                  _
+    | _                  , AbstractLocation _
+    | _                  , Pipe             _
+    | _                  , Query            _
+    | _                  , FastFail         _ -> false
+    | Mask(a, m)         , Mask(b, n) -> subset_eq_mask a m  b n
+    | Const a            , Mask(b, n) -> subset_eq_mask a 64 b n
 
   let meet ?(tight=false) a b =
     let meet_mask a m b n =
@@ -257,6 +265,10 @@ module Value = struct
         None
     in
     match a, b with
+    | AbstractLocation a , AbstractLocation b ->
+      if Syntax.equal_abstract_location a b then Some(AbstractLocation a) else None
+    | AbstractLocation _ , _
+    | _ , AbstractLocation _ -> None
     | Const  a   , Const b
     | Mask(a, 64), Const b -> if a = b then Some(Const a) else None
     | Pipe   a   , Pipe  b -> if a = b then Some(Pipe a) else None
@@ -292,6 +304,10 @@ module Value = struct
           None (* XXX(seliopou): complete definition *)
     in
     match a, b with
+    | AbstractLocation a , AbstractLocation b ->
+      if Syntax.equal_abstract_location a b then Some(AbstractLocation a) else None
+    | AbstractLocation _ , _
+    | _ , AbstractLocation _ -> None
     | Const  a   , Const b
     | Mask(a, 64), Const b -> if a = b then Some(Const a) else None
     | Pipe   a   , Pipe  b -> if a = b then Some(Pipe a) else None
@@ -321,10 +337,14 @@ module Value = struct
       (match Int64.(compare (shift_right a shift) (shift_right b shift)) with
        | 0 -> Int.compare n m
        | c -> c)
+    | AbstractLocation a , AbstractLocation b ->
+      Syntax.compare_abstract_location a b
     | Const _ , _ -> -1
     | _, Const _ -> 1
     | Mask _, _ -> -1
     | _, Mask _ -> 1
+    | AbstractLocation _ , _ -> -1
+    | _ , AbstractLocation _ -> 1
     | Query _, _ -> -1
     | _, Query _ -> 1
     | Pipe _, _ -> -1
@@ -335,6 +355,7 @@ module Value = struct
   let to_string = function
     | Const(a)   -> Printf.sprintf "%Lu" a
     | Mask(a, m) -> Printf.sprintf "%Lu/%d" a m
+    | AbstractLocation(s) -> Printf.sprintf "%s" s
     | Pipe(p) -> Printf.sprintf "Pipe(%s)" p
     | Query(p) -> Printf.sprintf "Query(%s)" p
     | FastFail(p_lst) -> Printf.sprintf "FastFail(%s)" (Syntax.string_of_fastfail p_lst)
@@ -368,6 +389,8 @@ module Pattern = struct
     match hv with
     | Switch sw_id -> (Field.Switch, Value.(Const sw_id))
     | Location(Physical p) -> (Field.Location, Value.of_int32 p)
+    | From loc -> (Field.From, Value.AbstractLocation loc)
+    | AbstractLoc loc -> (Field.AbstractLoc, Value.AbstractLocation loc)
     (* TODO(grouptable): value hack *)
     | Location(FastFail p_lst) -> (Field.Location, Value.(FastFail p_lst))
     | Location(Pipe p)  -> (Field.Location, Value.(Pipe p))
@@ -397,6 +420,8 @@ module Pattern = struct
     | (Location, Const p) -> Syntax.(Location (Physical (to_int32 p)))
     | (Location, Pipe  p) -> Syntax.(Location (Pipe p))
     | (Location, Query q) -> Syntax.(Location (Query q))
+    | (From, AbstractLocation l) -> Syntax.From l
+    | (AbstractLoc, AbstractLocation l) -> Syntax.AbstractLoc l
     | (EthSrc  , Const dlAddr) -> Syntax.(EthSrc dlAddr)
     | (EthDst  , Const dlAddr) -> Syntax.(EthDst dlAddr)
     | (Vlan    , Const vlan) -> Syntax.(Vlan(to_int vlan))
@@ -451,6 +476,8 @@ module Pattern = struct
       { pat with SDN.Pattern.tpDst = Some(to_int tpPort) }
     (* Should never happen because these pseudo-fields should have been removed by the time to_sdn is used *)
     | (Switch, Const _)
+    | (From, AbstractLocation _)
+    | (AbstractLoc, AbstractLocation _)
     | (VSwitch, Const _)
     | (VPort, Const _)
     | (VFabric, Const _)
@@ -610,6 +637,8 @@ module Action = struct
       in
       Seq.fold (Seq.remove seq (F Location)) ~init ~f:(fun ~key ~data acc ->
         match key, data with
+        | F From       , AbstractLocation loc -> raise Syntax.Non_local
+        | F AbstractLoc, AbstractLocation loc -> raise Syntax.Non_local
         | F Switch  , Const switch -> raise Syntax.Non_local
         | F Switch  , _ -> raise (FieldValue_mismatch(Switch, data))
         | F Location, _ -> assert false
