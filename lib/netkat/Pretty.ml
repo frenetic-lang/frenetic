@@ -19,7 +19,7 @@ module Formatting = struct
     | Location(Query x) -> fprintf fmt "@[port %s query(\"%s\")@]" asgn x
     | From(l) -> fprintf fmt "@[from %s \"%s\"@]" asgn
                    (Sexp.to_string (sexp_of_abstract_location l))
-    | AbstractLoc(l) -> fprintf fmt "@[from %s \"%s\"@]" asgn
+    | AbstractLoc(l) -> fprintf fmt "@[loc %s \"%s\"@]" asgn
                           (Sexp.to_string (sexp_of_abstract_location l))
     | EthSrc(n) -> fprintf fmt "@[ethSrc %s %s@]" asgn (Frenetic_base.Packet.string_of_mac n)
     | EthDst(n) -> fprintf fmt "@[ethDst %s %s@]" asgn (Frenetic_base.Packet.string_of_mac n)
