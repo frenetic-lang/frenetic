@@ -15,3 +15,13 @@ val internal_ports : Net.Topology.t -> SDN.switchId -> Net.Topology.PortSet.t
 val in_edge : Net.Topology.t -> SDN.switchId -> SDN.portId -> bool
 
 val edge : Net.Topology.t -> (SDN.switchId * SDN.portId) list
+
+module Mininet: sig
+  type topo_name =
+    | Tree of int * int
+    | Linear of int
+    | Single of int
+    | Minimal
+
+  val topo_from_name: topo_name -> Network.Net.Topology.t
+end
