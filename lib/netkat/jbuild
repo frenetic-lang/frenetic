@@ -4,11 +4,15 @@
 (rule
  ((targets (Generated_Parser.mly))
   (deps    (Parser.cppo.mly))
-  (action  (run ${bin:cppo} ${<} -U MAKE_PPX -n -o ${@}))))
+  (action  (run ${bin:cppo} ${<} -U MAKE_PPX -U PORTLESS -n -o ${@}))))
+(rule
+ ((targets (Portless_Generated_Parser.mly))
+  (deps    (Parser.cppo.mly))
+  (action  (run ${bin:cppo} ${<} -U MAKE_PPX -D PORTLESS -n -o ${@}))))
 (rule
  ((targets (Tokens.mly))
   (deps    (Parser.cppo.mly))
-  (action  (run ${bin:cppo} ${<} -D MAKE_PPX -n -o ${@}))))
+  (action  (run ${bin:cppo} ${<} -D MAKE_PPX -D PORTLESS -n -o ${@}))))
 
 ;; generate menhir tokens
 (rule
@@ -34,6 +38,9 @@
 (menhir
  ((flags (--external-tokens Lexer))
   (modules (Generated_Parser))))
+(menhir
+ ((flags (--external-tokens Lexer))
+  (modules (Portless_Generated_Parser))))
 
 (library
  ((name        frenetic_netkat)

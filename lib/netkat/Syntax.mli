@@ -23,6 +23,7 @@ type vswitchId = int64 [@@deriving sexp, compare, eq]
 type vportId = int64 [@@deriving sexp, compare, eq]
 type vfabricId = int64 [@@deriving sexp, compare, eq]
 type metaId = string [@@deriving sexp, compare, eq]
+type abstract_location = string [@@deriving sexp, compare, eq]
 
 (** {2 Policies} *)
 
@@ -52,6 +53,8 @@ type header_val =
   | VPort of vportId
   | VFabric of vfabricId
   | Meta of metaId * int64
+  | From of abstract_location
+  | AbstractLoc of abstract_location
   [@@deriving sexp]
 
 type pred =

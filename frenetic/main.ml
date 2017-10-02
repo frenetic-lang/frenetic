@@ -42,6 +42,26 @@ let table_fields : Frenetic.Netkat.Compiler.flow_layout Command.Spec.Arg_type.t 
       List.map ~f:table_to_fields field_list_list
     )
 
+let topology_name : Frenetic.Topology.Mininet.topo_name Command.Spec.Arg_type.t =
+  let open Frenetic.Topology.Mininet in
+  let num_arg = ",\\([1-9][0-9]*\\)" in
+  let tree = Str.regexp ("tree" ^ num_arg ^ num_arg ^ "$") in
+  let linear = Str.regexp ("linear" ^ num_arg ^ "$") in
+  let single = Str.regexp ("single" ^ num_arg ^ "$") in
+  let minimal = Str.regexp "minimal$" in
+  Command.Spec.Arg_type.create
+    (function x ->
+       if Str.string_match tree x 0 then
+         Tree (Int.of_string (Str.matched_group 1 x), Int.of_string (Str.matched_group 2 x))
+       else if Str.string_match linear x 0 then
+         Linear (Int.of_string (Str.matched_group 1 x))
+       else if Str.string_match single x 0 then
+         Single (Int.of_string (Str.matched_group 1 x))
+       else if Str.string_match minimal x 0 then
+         Minimal
+       else
+         (eprintf "'%s' is not a legal topology name.  Choose 'tree,n,o', 'linear,n', 'single,n', 'minimal' \n" x;
+          exit 1))
 
 (*===========================================================================*)
 (* FLAGS                                                                     *)
@@ -77,6 +97,10 @@ module Flag = struct
   let topology_file =
     flag "--topology-file" (optional_with_default "topology.dot" file)
       ~doc:"File containing .dot topology of network. Defaults to \"topology.kat\"."
+
+  let topology_name =
+    flag "--topology-name" (optional topology_name)
+      ~doc:"topology_name The name of the topology. Same as mn --topo value."
 end
 
 
@@ -145,6 +169,33 @@ let openflow13_fault_tolerant_controller : Command.t =
       run (Frenetic.Async.OpenFlow0x04_Plugin.fault_tolerant_main
         openflow_port policy_file topology_file))
 
+let portless_controller : Command.t =
+  Command.basic
+    ~summary:"Starts a controller with specified topology and installed rules generated from portless policy."
+    Command.Spec.(empty
+                  +> Flag.openflow_port
+                  +> Flag.topology_name
+                  +> Flag.topology_file
+                  +> Flag.policy_file
+                  ++ default_spec)
+    (fun openflow_port topology_name topology_file policy_file ->
+       run (
+         let pol = Frenetic.Netkat.Parser.Portless.pol_of_file policy_file in
+
+         (* If the topology_name is specified, use that. If not, use the topology_file. *)
+         let topo = match topology_name with
+           | Some name -> Frenetic.Topology.Mininet.topo_from_name name
+           | None -> Frenetic.Network.Net.Parse.from_dotfile topology_file in
+
+         let module Controller = Frenetic.Async.NetKAT_Controller.Make (Frenetic.Async.OpenFlow0x01_Plugin) in
+         Controller.start openflow_port;
+         Frenetic.Netkat.Portless_Compiler.compile pol topo
+         |> Controller.update
+         |> Async.Deferred.don't_wait_for;
+         never_returns (Async.Scheduler.go ());
+       )
+    )
+
 let main : Command.t =
   Command.group
     ~summary:"Invokes the specified Frenetic module."
@@ -153,6 +204,7 @@ let main : Command.t =
     ; ("http-controller", http_controller)
     ; ("openflow13", openflow13_controller)
     ; ("fault-tolerant", openflow13_fault_tolerant_controller)
+    ; ("portless-controller", portless_controller)
     ; ("dump", Dump.main)]
 
 let () =
