@@ -899,7 +899,6 @@ module Automaton = struct
                               Seq.find seq (F Location),
                               Seq.find seq K) with
           | Some (Const sw), Some (Const pt), Some (Const k) ->
-            let k = Int64.of_int64_exn k in
             ignore (Int64.Table.add loc_map ~key:k ~data:(sw,pt));
             Hashtbl.Poly.update state_map (sw,pt) ~f:(function
               | None -> Int64.Set.singleton k
@@ -934,7 +933,7 @@ module Automaton = struct
           | None -> failwith "transition function must specify next state!"
           | Some k ->
             let k = Value.to_int64_exn k in
-            let (pc_val, unique) = get_pc (Int64.of_int64_exn k) in
+            let (pc_val, unique) = get_pc k in
             let seq = Seq.remove seq K in
             if unique then
               seq
