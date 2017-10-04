@@ -886,7 +886,10 @@ module Automaton = struct
       let d = FDD.map_conts d ~f:(fun k ->
         match Tbl.find_exn automaton.states k |> snd |> FDD.unget with
         | Leaf par ->
-          let [seq] = Par.to_list par in
+          let seq = match Par.to_list par with
+            | [seq] -> seq
+            | _ -> failwith "malformed topology state"
+          in
           begin match Action.(Seq.find seq (F Switch),
                               Seq.find seq (F Location),
                               Seq.find seq K) with
@@ -920,7 +923,8 @@ module Automaton = struct
       let d =
         FDD.map_r (Par.map ~f:(fun seq -> match Seq.find seq K with
           | None -> failwith "transition function must specify next state!"
-          | Some (Value.Const k) ->
+          | Some k ->
+            let k = Value.to_int64_exn k in
             let (pc_val, unique) = get_pc (Int64.of_int64_exn k) in
             let seq = Seq.remove seq K in
             if unique then
