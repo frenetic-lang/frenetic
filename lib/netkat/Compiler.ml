@@ -864,36 +864,73 @@ module Automaton = struct
       ~f:Action.(Par.for_all ~f:(fun seq -> not (Seq.mem seq (F pc))))
       ~g:(fun (f,_) l r -> l && r && f<>pc)
 
+  (** a physical location is a switch-port-pair *)
+  type ploc = int64 * int64
+
   (** Assumes [automaton] is a bipartite automaton in which switch states and
       topology states alternate, with the start state being a switch state.
       Modifies automaton by skipping topology states and transitioning straight
       to the (unique) next switch states. *)
-  let skip_topo_states (automaton : t) : unit =
+  let skip_topo_states (automaton : t)
+    : ((int, ploc) Hashtbl.t * (ploc, int list) Hashtbl.t) =
+    (* maps continuations to their physical locations *)
+    let loc_map : (int, ploc) Hashtbl.t = Int.Table.create () in
+    (* maps physical locations to *)
+    let state_map : (ploc, int list) Hashtbl.t = Hashtbl.Poly.create () in
+    (*  *)
     map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) ->
       let d = FDD.map_conts d ~f:(fun k ->
-        Tbl.find_exn automaton.states k
-        |> snd
-        |> FDD.conts
-        |> Set.to_list
-        |> (function
-           | [k'] -> k'
-           | _ -> failwith "topology state expected to have unique successor"))
-      in (e,d))
+        match Tbl.find_exn automaton.states k |> snd |> FDD.unget with
+        | Leaf par ->
+          let [seq] = Par.to_list par in
+          begin match Action.(Seq.find seq (F Switch),
+                              Seq.find seq (F Location),
+                              Seq.find seq K) with
+          | Some (Const sw), Some (Const pt), Some (Const k) ->
+            let k = Int.of_int64_exn k in
+            ignore (Int.Table.add loc_map ~key:k ~data:(sw,pt));
+            Hashtbl.Poly.add_multi state_map ~key:(sw,pt) ~data:k;
+            k
+          | _ -> failwith "malformed topology state"
+          end
+        | _ -> failwith "malformed topology state")
+      in (e,d));
+    (loc_map, Hashtbl.Poly.map state_map ~f:List.dedup)
 
   let to_local ~(pc : Field.t) (automaton : t) : FDD.t =
-    skip_topo_states automaton;
+    let (loc_map, state_map) = skip_topo_states automaton in
+    (** maps state ids to their pc-value, using loc_map and state_map for
+        inspiration *)
+    let get_pc (id : int) : (Value.t * bool) =
+      let ploc = Int.Table.find_exn loc_map id in
+      let ploc_states = Hashtbl.Poly.find_exn state_map ploc in
+      let index = List.findi ploc_states ~f:(fun _i id' -> id=id')
+        |> function
+          | Some (i, _) -> Value.of_int i
+          | _ -> assert false
+      in
+      (index, match ploc_states with | _::_::_ -> false | _ -> true)
+    in
     fold_reachable automaton ~init:FDD.drop ~f:(fun acc id (e,d) ->
       let _ = assert (pc_unused pc e && pc_unused pc d) in
       let d =
-        FDD.map_r
-          Action.(Par.map ~f:(fun seq -> match Seq.find seq K with
-               | None -> failwith "transition function must specify next state!"
-               | Some data -> Seq.remove seq K |> Seq.add ~key:(F pc) ~data))
+        FDD.map_r (Par.map ~f:(fun seq -> match Seq.find seq K with
+          | None -> failwith "transition function must specify next state!"
+          | Some (Value.Const k) ->
+            let (pc_val, unique) = get_pc (Int.of_int64_exn k) in
+            let seq = Seq.remove seq K in
+            if unique then
+              seq
+            else
+              Seq.add seq ~key:(F pc) ~data:pc_val
+          ))
           d
       in
       let guard =
-        if id = automaton.source then FDD.id
-        else FDD.atom (pc, Value.of_int id) Action.one Action.zero in
+        if id = automaton.source then FDD.id else
+        let (pc_val, unique) = get_pc id in
+        if unique then FDD.id else
+        FDD.atom (pc, pc_val) Action.one Action.zero in
       let fdd = FDD.seq guard (FDD.union e d) in
       FDD.union acc fdd)
 
