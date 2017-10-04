@@ -29,7 +29,7 @@ module Automaton : sig
   val fold_reachable: ?order:[< `Post | `Pre > `Pre ]
     -> t
     -> init:'a
-    -> f:('a -> int -> (FDD.t * FDD.t) -> 'a)
+    -> f:('a -> int64 -> (FDD.t * FDD.t) -> 'a)
     -> 'a
 
   val of_policy: ?dedup:bool -> ?ing:pred -> ?cheap_minimize:bool -> policy -> t
