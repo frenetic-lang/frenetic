@@ -874,14 +874,19 @@ module Automaton = struct
   (** Assumes [automaton] is a bipartite automaton in which switch states and
       topology states alternate, with the start state being a switch state.
       Modifies automaton by skipping topology states and transitioning straight
-      to the (unique) next switch states. *)
+      to the (unique) next switch states.
+
+      In the process, creates a [loc_map] : State -> Ploc that maps a switch state
+      to its physical location, and a [state_map] : Ploc -> State Set that maps
+      a physical location to the set of states this location can be in.
+    *)
   let skip_topo_states (automaton : t)
-    : ((int64, ploc) Hashtbl.t * (ploc, int64 list) Hashtbl.t) =
-    (* maps continuations to their physical locations *)
+    : ((int64, ploc) Hashtbl.t * (ploc, Int64.Set.t) Hashtbl.t) =
+    (* maps switch states to their physical locations *)
     let loc_map : (int64, ploc) Hashtbl.t = Int64.Table.create () in
-    (* maps physical locations to *)
-    let state_map : (ploc, int64 list) Hashtbl.t = Hashtbl.Poly.create () in
-    (*  *)
+    (* maps physical locations to set of states it can be in *)
+    let state_map : (ploc, Int64.Set.t) Hashtbl.t = Hashtbl.Poly.create () in
+    (* remove topology states and populate maps in the process *)
     map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) ->
       let d = FDD.map_conts d ~f:(fun k ->
         match Tbl.find_exn automaton.states k |> snd |> FDD.unget with
@@ -896,27 +901,31 @@ module Automaton = struct
           | Some (Const sw), Some (Const pt), Some (Const k) ->
             let k = Int64.of_int64_exn k in
             ignore (Int64.Table.add loc_map ~key:k ~data:(sw,pt));
-            Hashtbl.Poly.add_multi state_map ~key:(sw,pt) ~data:k;
+            Hashtbl.Poly.update state_map (sw,pt) ~f:(function
+              | None -> Int64.Set.singleton k
+              | Some ks -> Set.add ks k);
             k
           | _ -> failwith "malformed topology state"
           end
         | _ -> failwith "malformed topology state")
       in (e,d));
-    (loc_map, Hashtbl.Poly.map state_map ~f:List.dedup)
+    (loc_map, state_map)
 
   let to_local ~(pc : Field.t) (automaton : t) : FDD.t =
     let (loc_map, state_map) = skip_topo_states automaton in
+    let state_map = Hashtbl.Poly.map state_map ~f:(fun states ->
+      Set.to_list states
+      |> List.mapi ~f:(fun i state -> (state, i))
+      |> Int64.Map.of_alist_exn)
+    in
     (** maps state ids to their pc-value, using loc_map and state_map for
-        inspiration *)
+        inspiration to allocate pc-values economically. Returns boolean indicating
+        whether a state is unique to its location. *)
     let get_pc (id : int64) : (Value.t * bool) =
       let ploc = Int64.Table.find_exn loc_map id in
       let ploc_states = Hashtbl.Poly.find_exn state_map ploc in
-      let index = List.findi ploc_states ~f:(fun _i id' -> id=id')
-        |> function
-          | Some (i, _) -> Value.of_int i
-          | _ -> assert false
-      in
-      (index, match ploc_states with | _::_::_ -> false | _ -> true)
+      let index = Int64.Map.find_exn ploc_states id in
+      (Value.of_int index, Map.length ploc_states = 1)
     in
     fold_reachable automaton ~init:FDD.drop ~f:(fun acc id (e,d) ->
       let _ = assert (pc_unused pc e && pc_unused pc d) in
