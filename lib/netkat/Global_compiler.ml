@@ -12,7 +12,8 @@ module Seq = Action.Seq
 (*==========================================================================*)
 
 
-(* internal policy representation that allows to inject fdds into policies *)
+(** internal policy representation that allows to inject fdds into policies, and
+    uses DUP's instead of links. *)
 module Pol = struct
 
   type t =
@@ -21,8 +22,8 @@ module Pol = struct
     | Union of t * t
     | Seq of t * t
     | Star of t
-    | Dup (* we can handle all of NetKAT *)
-    | FDD of FDD.t * FDD.t (* FDD injection. E and D matrix. *)
+    | Dup (** we can handle all of NetKAT *)
+    | FDD of FDD.t * FDD.t (** FDD injection. E and D matrix. *)
 
   let drop = Filter False
   let id = Filter True
@@ -97,7 +98,7 @@ end
 
 
 
-(* Symbolic NetKAT Automata (intermediate representation of global compiler) *)
+(** Symbolic NetKAT Automata (intermediate representation of global compiler) *)
 module Automaton = struct
 
   (* state id tables: id |-> 'a *)
