@@ -1,6 +1,7 @@
 open Core
 open Fdd
 open Syntax
+open Frenetic_base
 
 module Field = Fdd.Field
 exception Non_local = Syntax.Non_local
@@ -862,6 +863,81 @@ module Automaton = struct
     let automaton = t_of_t0 ~cheap_minimize automaton in
     let () = if dedup then determinize automaton in
     automaton
+
+  module Value = struct
+    include Value
+    module Set = Set.Make(Value)
+  end
+
+  module Field = struct
+    include Field
+    module Map = Map.Make(Field)
+  end
+
+  type cnstr =
+    | Eq of Value.t
+    | Neq of Value.Set.t
+
+  type pred = cnstr Field.Map.t
+
+  let pred_to_fdd pred = 
+    Map.fold pred ~init:FDD.id ~f:(fun ~key:f ~data:c acc ->
+      match c with
+      | Eq v -> FDD.unchecked_cond (f,v) acc FDD.drop
+      | Neq vs -> Set.fold vs ~init:acc ~f:(fun acc v ->
+          FDD.unchecked_cond (f,v) FDD.drop acc
+        )
+    )
+
+  (** Compute the "reach" of each state, i.e. a boolean predicate phi_s such that
+      a pk can be in state s iff it satisfies phi_s.
+      Not to be confused with the "domain" of a state, i.e. the predicate psi_s
+      such that a pk in s produces some output iff it satisfies psi_s.
+
+      We could compute this precisely, but for now a overapproximation will do.
+  *)
+  let reach (automaton : t) : (int64, FDD.t) Hashtbl.t =
+    let reach = Int64.Table.create () in
+    (** initialize reach to false *)
+    List.iter (Hashtbl.keys automaton.states) ~f:(fun id ->
+      Hashtbl.add_exn reach ~key:id ~data:FDD.drop);
+    let rec go worklist =
+      match worklist with | [] -> () | (pred, id)::worklist ->
+      let pred = pred_to_fdd pred in
+      let phi = Hashtbl.find_exn reach id in
+      let phi' = FDD.union phi pred in
+      if not (FDD.equal phi phi') then
+      ignore (Hashtbl.add reach ~key:id ~data:phi');
+      let (_, d) = Hashtbl.find_exn automaton.states id in
+      let conts = FDD.fold d
+        ~f:(fun par -> 
+          Par.to_list par 
+          |> List.map ~f:(fun seq ->
+            Seq.to_alist seq
+            |> List.filter_map ~f:(function 
+              | Action.K, v -> None
+              | Action.F f, v -> Some (f, Eq v)
+              )
+            |> Field.Map.of_alist_exn
+            |> fun constr -> (constr, Seq.find_exn seq Action.K |> Value.to_int64_exn)
+          )
+        )
+        ~g:(fun (f,v) tru fls ->
+          let tru = Util.map_fst tru ~f:(fun tru ->
+            Map.update tru f ~f:(function None -> Eq v | Some c -> c)) in
+          let fls = Util.map_fst fls ~f:(fun fls ->
+            Map.update fls f ~f:(function
+            | None -> Neq (Value.Set.singleton v)
+            | Some (Neq vs) -> Neq (Value.Set.add vs v)
+            | Some eq -> eq))
+          in
+          tru @ fls
+        )
+      in
+      go (conts @ worklist)
+    in
+    go [(Field.Map.empty, automaton.source)];
+    reach
 
   let pc_unused pc fdd =
     FDD.fold fdd
