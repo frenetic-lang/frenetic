@@ -13,8 +13,8 @@ val mask_meta : int -> int64 Frenetic_base.OpenFlow0x04.mask
 (* Send FlowMod messages to switch to implement policy *)
 val implement_flow :
   Writer.t
-  -> Frenetic_netkat.Compiler.t
-  -> Frenetic_netkat.Compiler.flow_layout
+  -> Frenetic_netkat.Local_compiler.t
+  -> Frenetic_netkat.Local_compiler.flow_layout
   -> Frenetic_base.OpenFlow.switchId
   -> unit
 
@@ -22,7 +22,7 @@ val implement_flow :
  * generate fault tolerant group tables. *)
 val implement_tolerant_flow :
   Writer.t
-  -> Frenetic_netkat.Compiler.t
+  -> Frenetic_netkat.Local_compiler.t
   -> Frenetic_base.Net.Net.Topology.t
   -> Frenetic_base.OpenFlow.switchId
   -> unit
@@ -53,7 +53,7 @@ val client_handler :
 
 (* Implement multi-table policies. Extract the policy from a kat file,
  * run client handler for each connecting client *)
-val main : int -> string -> Frenetic_netkat.Compiler.flow_layout -> unit -> unit
+val main : int -> string -> Frenetic_netkat.Local_compiler.flow_layout -> unit -> unit
 
 (* Implement fault tolerant policies. Extract the policy and topology from
  * kat and dot files, run client_handler for each connecting client

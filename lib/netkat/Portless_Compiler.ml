@@ -78,7 +78,7 @@ let portify_pred pred (topo: topo) =
       | x -> k (Test x) in
   portify_pred' pred (fun x -> x)
 
-let portify_pol_fdd (portless_pol_fdd: Compiler.t) (topo: topo): policy =
+let portify_pol_fdd (portless_pol_fdd: Local_compiler.t) (topo: topo): policy =
   let rec portify_pol' portless_pol k =
     match portless_pol with
     | Union (pol1, pol2) ->
@@ -106,7 +106,7 @@ let portify_pol_fdd (portless_pol_fdd: Compiler.t) (topo: topo): policy =
       | From loc -> k id
       | Switch _ | Location _ -> failwith "cannot specify switch and port for portless policies"
       | x -> k (Mod x) in
-  let portless_pol = Compiler.to_local_pol portless_pol_fdd in
+  let portless_pol = Local_compiler.to_local_pol portless_pol_fdd in
   portify_pol' portless_pol (fun x -> x)
 
 let make_topo (network: Topology.t): topo =
@@ -118,5 +118,5 @@ let make_topo (network: Topology.t): topo =
 
 let compile portless_pol (network: Topology.t) =
   let topo = make_topo network in
-  let portless_pol_fdd = Compiler.compile_local portless_pol in
+  let portless_pol_fdd = Local_compiler.compile portless_pol in
   portify_pol_fdd portless_pol_fdd topo

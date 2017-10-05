@@ -327,7 +327,7 @@ directions), and let openflow.ml translate these to the specifc version of OpenF
 way, we can simply pass a plugin instance where the update can write to. *)
 
 module BestEffortUpdate0x01 = struct
-  module Comp = Frenetic_netkat.Compiler
+  module Comp = Frenetic_netkat.Local_compiler
   module M = OF10.Message
   open Frenetic_base.OpenFlow.To0x01
 
@@ -379,8 +379,8 @@ module BestEffortUpdate0x01 = struct
     current_compiler_options := opt
 end
 
-let update (compiler: Frenetic_netkat.Compiler.t) =
+let update (compiler: Frenetic_netkat.Local_compiler.t) =
   BestEffortUpdate0x01.implement_policy compiler
 
-let update_switch (swid: switchId) (compiler: Frenetic_netkat.Compiler.t) =
+let update_switch (swid: switchId) (compiler: Frenetic_netkat.Local_compiler.t) =
   BestEffortUpdate0x01.bring_up_switch swid compiler

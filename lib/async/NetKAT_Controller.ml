@@ -8,8 +8,8 @@ module type PLUGIN = sig
   val start: int -> unit
   val events : event Pipe.Reader.t
   val switch_features : switchId -> switchFeatures option Deferred.t
-  val update : Frenetic_netkat.Compiler.t -> unit Deferred.t
-  val update_switch : switchId -> Frenetic_netkat.Compiler.t -> unit Deferred.t
+  val update : Frenetic_netkat.Local_compiler.t -> unit Deferred.t
+  val update_switch : switchId -> Frenetic_netkat.Local_compiler.t -> unit Deferred.t
   val packet_out : switchId -> portId option -> payload -> Frenetic_netkat.Syntax.policy list -> unit Deferred.t
   val flow_stats : switchId -> Pattern.t -> flowStats Deferred.t
   val port_stats : switchId -> portId -> portStats Deferred.t
@@ -23,7 +23,7 @@ module type CONTROLLER = sig
   val update : Frenetic_netkat.Syntax.policy -> unit Deferred.t
   val packet_out : switchId -> portId option -> payload -> Frenetic_netkat.Syntax.policy list -> unit Deferred.t
   val query : string -> (int64 * int64) Deferred.t
-  val set_current_compiler_options : Frenetic_netkat.Compiler.compiler_options -> unit
+  val set_current_compiler_options : Frenetic_netkat.Local_compiler.compiler_options -> unit
 end
 
 module Make (P:PLUGIN) : CONTROLLER = struct
@@ -31,11 +31,11 @@ module Make (P:PLUGIN) : CONTROLLER = struct
   let (pol_reader, pol_writer) = Pipe.create ()
   let (event_reader, event_writer) =  Pipe.create ()
   let switch_hash : (switchId, portId list) Hashtbl.Poly.t = Hashtbl.Poly.create ()
-  let current_compiler_options = ref (Frenetic_netkat.Compiler.default_compiler_options)
-  let fdd = ref (Frenetic_netkat.Compiler.compile_local Frenetic_netkat.Syntax.drop)
+  let current_compiler_options = ref (Frenetic_netkat.Local_compiler.default_compiler_options)
+  let fdd = ref (Frenetic_netkat.Local_compiler.compile Frenetic_netkat.Syntax.drop)
 
   let update (pol:policy) : unit Deferred.t =
-    fdd := Frenetic_netkat.Compiler.compile_local pol;
+    fdd := Frenetic_netkat.Local_compiler.compile pol;
     P.update !fdd
 
   let handle_event (evt:event) : unit Deferred.t =
@@ -69,7 +69,7 @@ module Make (P:PLUGIN) : CONTROLLER = struct
     P.packet_out sw ingress_port pay pol
 
   let get_table (sw_id : switchId) : (Frenetic_base.OpenFlow.flow * string list) list =
-    Frenetic_netkat.Compiler.to_table' sw_id !fdd
+    Frenetic_netkat.Local_compiler.to_table' sw_id !fdd
 
   let sum_stat_pairs stats =
      List.fold stats ~init:(0L, 0L)

@@ -16,9 +16,9 @@ val flow_stats : switchId -> Pattern.t -> flowStats Deferred.t
 
 val port_stats : switchId -> portId -> portStats Deferred.t
 
-val update : Frenetic_netkat.Compiler.t -> unit Deferred.t
+val update : Frenetic_netkat.Local_compiler.t -> unit Deferred.t
 
-val update_switch : switchId -> Frenetic_netkat.Compiler.t -> unit Deferred.t
+val update_switch : switchId -> Frenetic_netkat.Local_compiler.t -> unit Deferred.t
 
 (* Low-level interface for Frenetic_base.Ox programming *)
 

@@ -12,31 +12,26 @@ type order
     | `Static of Field.t list
     | `Heuristic ]
 
-module FDD : module type of Fdd.FDD
-  with type t = Fdd.FDD.t
-  and  type r = Action.t
-  and  type v = Field.t * Value.t
+module FDD : sig
+  include module type of Fdd.FDD
+    with type t = Fdd.FDD.t
+    and  type r = Action.t
+    and  type v = Field.t * Value.t
+
+  val of_pred : Field.Env.t -> pred -> t
+  val of_mod : Field.Env.t -> header_val -> t
+
+  val union : t -> t -> t
+  val seq : t -> t -> t
+  val star : t -> t
+
+  val big_union : t list -> t
+end
 
 type t = FDD.t
 (** The type of the intermediate compiler representation (FDD). *)
 
 val to_dot : t -> string
-
-(** Intermediate representation of global compiler: NetKAT Automata *)
-module Automaton : sig
-  type t
-
-  val fold_reachable: ?order:[< `Post | `Pre > `Pre ]
-    -> t
-    -> init:'a
-    -> f:('a -> int64 -> (FDD.t * FDD.t) -> 'a)
-    -> 'a
-
-  val of_policy: ?dedup:bool -> ?ing:pred -> ?cheap_minimize:bool -> policy -> t
-  val to_local: pc:Field.t -> t -> FDD.t
-
-  val to_dot: t -> string
-end
 
 type cache
   = [ `Keep
@@ -60,17 +55,10 @@ exception Non_local
 
 val default_compiler_options : compiler_options
 
-val compile_local : ?options:compiler_options -> policy -> t
-(** [compile_local p] returns the intermediate representation of the local policy [p].
-    You can generate a flowtable from [t] by passing it to the {!to_table}
-    function below.
- *)
+val prepare_compilation : options:compiler_options -> policy -> unit
 
-val compile_global : ?options:compiler_options -> ?pc:Field.t -> policy -> t
-(** [compile_global p] returns the intermediate representation of the global
-    policy [p]. The pc field is used for internal bookkeeping and must *not* be
-    accessed or written to by the input policy [p].
-
+val compile : ?options:compiler_options -> policy -> t
+(** [compile p] returns the intermediate representation of the local policy [p].
     You can generate a flowtable from [t] by passing it to the {!to_table}
     function below.
  *)

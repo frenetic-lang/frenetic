@@ -3,7 +3,7 @@ open Async
 open Frenetic_netkat.Syntax
 
 module Controller = NetKAT_Controller.Make(OpenFlow0x01_Plugin)
-module Comp = Frenetic_netkat.Compiler
+module Comp = Frenetic_netkat.Local_compiler
 module Field = Frenetic_netkat.Fdd.Field
 
 type showable =
@@ -225,7 +225,7 @@ let print_policy () =
 
 (* Given a policy, returns a pretty ascii table for each switch *)
 let string_of_policy (pol : policy) : string =
-  let bdd = Comp.compile_local ~options:(!current_compiler_options) pol in
+  let bdd = Comp.compile ~options:(!current_compiler_options) pol in
   let switches = Frenetic_netkat.Semantics.switches_of_policy pol in
   let switches' = if List.is_empty switches then [0L] else switches in
   let tbls = List.map switches'

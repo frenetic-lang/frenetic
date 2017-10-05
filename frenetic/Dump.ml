@@ -1,4 +1,5 @@
 open Core
+module Netkat = Frenetic.Netkat
 
 (*===========================================================================*)
 (* UTILITY FUNCTIONS                                                         *)
@@ -6,30 +7,30 @@ open Core
 
 let parse_pol ?(json=false) file =
   match json with
-  | false -> Frenetic.Netkat.Parser.pol_of_file file
+  | false -> Netkat.Parser.pol_of_file file
   | true ->
     In_channel.create file
-    |> Frenetic.Netkat.Json.pol_of_json_channel
+    |> Netkat.Json.pol_of_json_channel
 
-let parse_pred file = Frenetic.Netkat.Parser.pred_of_file file
+let parse_pred file = Netkat.Parser.pred_of_file file
 
 let fmt = Format.formatter_of_out_channel stdout
 let _ = Format.pp_set_margin fmt 120
 
 let print_fdd fdd =
-  printf "%s\n" (Frenetic.Netkat.Compiler.to_string fdd)
+  printf "%s\n" (Netkat.Local_compiler.to_string fdd)
 
 let dump data ~file =
   Out_channel.write_all file ~data
 
 let dump_fdd fdd ~file =
-  dump ~file (Frenetic.Netkat.Compiler.to_dot fdd)
+  dump ~file (Netkat.Local_compiler.to_dot fdd)
 
 let dump_auto auto ~file =
-  dump ~file (Frenetic.Netkat.Compiler.Automaton.to_dot auto)
+  dump ~file (Netkat.Global_compiler.Automaton.to_dot auto)
 
 let print_table fdd sw =
-  Frenetic.Netkat.Compiler.to_table sw fdd
+  Netkat.Local_compiler.to_table sw fdd
   |> Frenetic.OpenFlow.string_of_flowTable ~label:(sprintf "Switch %Ld" sw)
   |> printf "%s\n"
 
@@ -46,7 +47,7 @@ let print_time ?(prefix="") time =
   printf "%scompilation time: %.4f\n" prefix time
 
 let print_order () =
-  Frenetic.Netkat.Compiler.Field.(get_order ()
+  Netkat.Local_compiler.Field.(get_order ()
     |> List.map ~f:to_string
     |> String.concat ~sep:" > "
     |> printf "FDD field ordering: %s\n")
@@ -165,9 +166,9 @@ module Local = struct
 
   let run file nr_switches printfdd dumpfdd no_tables json printorder () =
     let pol = parse_pol ~json file in
-    let (t, fdd) = time (fun () -> Frenetic.Netkat.Compiler.compile_local pol) in
+    let (t, fdd) = time (fun () -> Netkat.Local_compiler.compile pol) in
     let switches = match nr_switches with
-      | None -> Frenetic.Netkat.Semantics.switches_of_policy pol
+      | None -> Netkat.Semantics.switches_of_policy pol
       | Some n -> List.range 0 n |> List.map ~f:Int64.of_int
     in
     if Option.is_none nr_switches && List.is_empty switches then
@@ -198,8 +199,8 @@ module Global = struct
 
   let run file printfdd dumpfdd printauto dumpauto no_tables json printorder () =
     let pol = parse_pol ~json file in
-    let (t, fdd) = time (fun () -> Frenetic.Netkat.Compiler.compile_global pol) in
-    let switches = Frenetic.Netkat.Semantics.switches_of_policy pol in
+    let (t, fdd) = time (fun () -> Netkat.Global_compiler.compile pol) in
+    let switches = Netkat.Semantics.switches_of_policy pol in
     if printorder then print_order ();
     if printfdd then print_fdd fdd;
     if dumpfdd then dump_fdd fdd ~file:(file ^ ".dot");
@@ -243,17 +244,17 @@ module Virtual = struct
     let peg = parse_pred peg in
 
     (* compile *)
-    let module FG = Frenetic.Netkat.FabricGen.FabricGen in
-    let module Virtual = Frenetic.Netkat.Virtual_Compiler.Make(FG) in
+    let module FG = Netkat.FabricGen.FabricGen in
+    let module Virtual = Netkat.Virtual_Compiler.Make(FG) in
     let (t1, global_pol) = time (fun () ->
       Virtual.compile vpol ~log:true ~vrel ~vtopo ~ving_pol ~ving ~veg ~ptopo ~ping ~peg) in
-    let (t2, fdd) = time (fun () -> Frenetic.Netkat.Compiler.compile_global global_pol) in
+    let (t2, fdd) = time (fun () -> Netkat.Global_compiler.compile global_pol) in
 
     (* print & dump *)
-    let switches = Frenetic.Netkat.Semantics.switches_of_policy global_pol in
+    let switches = Netkat.Semantics.switches_of_policy global_pol in
     if printglobal then begin
       Format.fprintf fmt "Global Policy:@\n@[%a@]@\n@\n"
-        Frenetic.Netkat.Pretty.format_policy global_pol
+        Netkat.Pretty.format_policy global_pol
     end;
     if printorder then print_order ();
     if printfdd then print_fdd fdd;
@@ -277,7 +278,7 @@ module Auto = struct
   let run file json printorder dedup cheap_minimize () =
     let pol = parse_pol ~json file in
     let (t, auto) = time (fun () ->
-      Frenetic.Netkat.Compiler.Automaton.of_policy pol ~dedup ~cheap_minimize) in
+      Netkat.Global_compiler.Automaton.of_policy pol ~dedup ~cheap_minimize) in
     if printorder then print_order ();
     dump_auto auto ~file:(file ^ ".auto.dot");
     print_time t;

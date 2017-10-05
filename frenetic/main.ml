@@ -1,4 +1,5 @@
 open Core
+module Netkat = Frenetic.Netkat
 
 (*===========================================================================*)
 (* AUXILLIARY FUNCTIONS                                                      *)
@@ -24,8 +25,8 @@ let log_outputs : (string * Async.Log.Output.t Lazy.t) Command.Spec.Arg_type.t =
       | "stdout" -> ("stdout", lazy (Async_extended.Extended_log.Console.output (Lazy.force Async.Writer.stdout)))
       | filename -> (filename, lazy (Async.Log.Output.file `Text filename)) )
 
-let table_fields : Frenetic.Netkat.Compiler.flow_layout Command.Spec.Arg_type.t =
-  let open Frenetic.Netkat.Fdd.Field in
+let table_fields : Netkat.Local_compiler.flow_layout Command.Spec.Arg_type.t =
+  let open Netkat.Fdd.Field in
   Command.Spec.Arg_type.create
     (fun table_field_string ->
       let opts = [ ("switch", Switch); ("vlan", Vlan); ("pcp", VlanPcp);
@@ -87,7 +88,7 @@ module Flag = struct
       ~doc:"int Port to listen on for OpenFlow switches. Defaults to 6633."
 
   let table_fields =
-    flag "--table" (optional_with_default [Frenetic.Netkat.Fdd.Field.get_order ()] table_fields)
+    flag "--table" (optional_with_default [Netkat.Fdd.Field.get_order ()] table_fields)
       ~doc:"Partition of fields into Openflow 1.3 tables, e.g. ethsrc,ethdst;ipsrc,ipdst"
 
   let policy_file =
@@ -180,7 +181,7 @@ let portless_controller : Command.t =
                   ++ default_spec)
     (fun openflow_port topology_name topology_file policy_file ->
        run (
-         let pol = Frenetic.Netkat.Parser.Portless.pol_of_file policy_file in
+         let pol = Netkat.Parser.Portless.pol_of_file policy_file in
 
          (* If the topology_name is specified, use that. If not, use the topology_file. *)
          let topo = match topology_name with
@@ -189,7 +190,7 @@ let portless_controller : Command.t =
 
          let module Controller = Frenetic.Async.NetKAT_Controller.Make (Frenetic.Async.OpenFlow0x01_Plugin) in
          Controller.start openflow_port;
-         Frenetic.Netkat.Portless_Compiler.compile pol topo
+         Netkat.Portless_Compiler.compile pol topo
          |> Controller.update
          |> Async.Deferred.don't_wait_for;
          never_returns (Async.Scheduler.go ());
