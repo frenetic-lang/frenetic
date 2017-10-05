@@ -1000,6 +1000,15 @@ module Automaton = struct
   module G = Imperative.Graph.Abstract(Int64)
   module C = Coloring.Mark(G)
 
+  let min_coloring g =
+    let rec bin_search i j =
+      if i = j then i else
+      let k = i + (j-i)/2 in
+      try C.coloring g k; bin_search i k with
+      | _ -> bin_search (k+1) j
+    in
+    bin_search 1 (G.nb_vertex g)
+
   let merge_states (automaton : t) reach loc_map (state_map : (ploc, Int64.Set.t) Hashtbl.t)
     : (ploc, Int64.Set.t) Hashtbl.t =
     let fuse ploc states =
@@ -1031,14 +1040,8 @@ module Automaton = struct
             G.add_edge g i j
         ) g
       ) g;
-      let min_coloring =
-        Array.init (n-1) ~f:(fun i -> i+1)
-        |> Array.findi ~f:(fun _ k -> 
-          try (C.coloring g k; true) with _ -> false)
-      in
-      match min_coloring with
-      | None -> states
-      | Some (_,k) ->
+      let k = min_coloring g in
+      if k = n then states else begin
         printf "Found %d-coloring of %d states!\n" k n;
         let partition = Array.init k ~f:(fun _ -> Int64.Set.empty) in
         G.iter_vertex (fun v ->
@@ -1048,6 +1051,7 @@ module Automaton = struct
         ) g;
         Array.map partition ~f:(fuse ploc)
         |> Int64.Set.of_array
+      end
     in
     Hashtbl.mapi state_map ~f:(merge)
 
