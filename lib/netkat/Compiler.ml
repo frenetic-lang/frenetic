@@ -880,12 +880,26 @@ module Automaton = struct
 
   type pred = cnstr Field.Map.t
 
-  let pred_to_fdd pred = 
-    Map.fold pred ~init:FDD.id ~f:(fun ~key:f ~data:c acc ->
+  module Bool = struct
+    include Bool
+    let zero = false
+    let one = true
+    let prod = (&&)
+    let sum = (||)
+  end
+
+  module BDD = struct
+    include Vlr.Make(Field)(Value)(Bool)
+    let not a = map_r ~f:(function true -> false | false -> true) a
+    let disjoint a b = equal drop (prod a b)
+  end
+
+  let pred_to_bdd pred = 
+    Map.fold pred ~init:BDD.id ~f:(fun ~key:f ~data:c acc ->
       match c with
-      | Eq v -> FDD.unchecked_cond (f,v) acc FDD.drop
+      | Eq v -> BDD.unchecked_cond (f,v) acc BDD.drop
       | Neq vs -> Set.fold vs ~init:acc ~f:(fun acc v ->
-          FDD.unchecked_cond (f,v) FDD.drop acc
+          BDD.unchecked_cond (f,v) BDD.drop acc
         )
     )
 
@@ -896,17 +910,17 @@ module Automaton = struct
 
       We could compute this precisely, but for now a overapproximation will do.
   *)
-  let reach (automaton : t) : (int64, FDD.t) Hashtbl.t =
+  let reach (automaton : t) : (int64, BDD.t) Hashtbl.t =
     let reach = Int64.Table.create () in
     (** initialize reach to false *)
     List.iter (Hashtbl.keys automaton.states) ~f:(fun id ->
-      Hashtbl.add_exn reach ~key:id ~data:FDD.drop);
+      Hashtbl.add_exn reach ~key:id ~data:BDD.drop);
     let rec go worklist =
       match worklist with | [] -> () | (pred, id)::worklist ->
-      let pred = pred_to_fdd pred in
+      let pred = pred_to_bdd pred in
       let phi = Hashtbl.find_exn reach id in
-      let phi' = FDD.union phi pred in
-      if not (FDD.equal phi phi') then
+      let phi' = BDD.sum phi pred in
+      if not (BDD.equal phi phi') then
       ignore (Hashtbl.add reach ~key:id ~data:phi');
       let (_, d) = Hashtbl.find_exn automaton.states id in
       let conts = FDD.fold d
