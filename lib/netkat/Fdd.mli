@@ -150,8 +150,8 @@ module Value : sig
   (** [of_int64 i]  converts a 64-bit integer to a Const value *)
   val of_int64 : int64 -> t
 
-  (** [to_int_exn value] returns just the integer for Const values, or an exception otherwise *)
-  val to_int_exn : t -> int
+  (** [to_int64_exn value] returns just the integer for Const values, or an exception otherwise *)
+  val to_int64_exn : t -> int64
 end
 
 exception FieldValue_mismatch of Field.t * Value.t
@@ -274,7 +274,7 @@ module FDD : sig
     with type r = Action.t
     and  type v = Field.t * Value.t
 
-  val mk_cont : int -> t
-  val conts : t -> Int.Set.t
-  val map_conts : t -> f:(int -> int) -> t
+  val mk_cont : int64 -> t
+  val conts : t -> Int64.Set.t
+  val map_conts : t -> f:(int64 -> int64) -> t
 end

@@ -364,8 +364,8 @@ module Value = struct
   (* Private to this file only *)
   let of_int32 t = Const (Int64.of_int32 t)
   let of_int64 t = Const t
-  let to_int_exn = function
-    | Const k -> Int64.to_int_exn k
+  let to_int64_exn = function
+    | Const k -> k
     | _ -> assert false
 end
 
@@ -722,22 +722,22 @@ module FDD = struct
 
   include Vlr.Make(Field)(Value)(Action)
 
-  let mk_cont k = const Action.(Par.singleton (Seq.singleton K (Value.of_int k)))
+  let mk_cont k = const Action.(Par.singleton (Seq.singleton K (Value.of_int64 k)))
 
   let conts fdd =
     fold fdd
       ~f:(fun par ->
-        Action.Par.fold par ~init:Int.Set.empty ~f:(fun acc seq ->
+        Action.Par.fold par ~init:Int64.Set.empty ~f:(fun acc seq ->
           match Action.(Seq.find seq K) with
           | None -> acc
-          | Some k -> Value.to_int_exn k |> Int.Set.add acc))
+          | Some k -> Value.to_int64_exn k |> Int64.Set.add acc))
       ~g:(fun _ t f -> Set.union t f)
 
-  let map_conts fdd ~(f: int -> int) =
+  let map_conts fdd ~(f: int64 -> int64) =
     let open Action in
     let f par = Par.map par ~f:(fun seq -> Seq.change seq K (function
       | None -> failwith "continuation expected, but none found"
-      | Some k -> Some (k |> Value.to_int_exn |> f |> Value.of_int)))
+      | Some k -> Some (k |> Value.to_int64_exn |> f |> Value.of_int64)))
     in
     map_r f fdd
 
