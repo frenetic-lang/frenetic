@@ -129,8 +129,6 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   module Tbl : Hashtbl.S with type key = t
   module BinTbl : Hashtbl.S with type key = (t * t)
 
-  val apply : (r -> r -> r) -> r -> cache:((t*t, t) Hashtbl.t) -> t -> t -> t
-
   val get : d -> t
   (* Given a tree structure, return the cache index for it *)
 
