@@ -7,3 +7,6 @@ val make_string_of : (Format.formatter -> 'a -> 'b) -> 'a -> string
 
 (** register pretty printer for located exceptions Location.exception *)
 val pp_exceptions : unit -> unit
+
+val map_fst : ('a * 'b) list -> f:('a -> 'c) -> ('c * 'b) list
+val map_snd : ('a * 'b) list -> f:( 'b -> 'c) -> ('a * 'c) list
