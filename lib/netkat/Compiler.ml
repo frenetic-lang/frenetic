@@ -986,8 +986,62 @@ module Automaton = struct
       in (e,d));
     (loc_map, state_map)
 
+  let disjoint phi psi =
+    FDD.(equal drop (prod phi psi))
+
+  open Graph
+  module G = Imperative.Graph.Abstract(Int64)
+  module C = Coloring.Mark(G)
+
+  let merge_states (automaton : t) (state_map : (ploc, Int64.Set.t) Hashtbl.t)
+    : (ploc, Int64.Set.t) Hashtbl.t =
+    let reach = reach automaton in
+    let fuse states =
+      let (e,d,phi) = 
+        Int64.Set.fold states ~init:FDD.(drop, drop, drop) ~f:(fun (e,d,phi) id ->
+          let e',d' = Hashtbl.find_exn automaton.states id in
+          let psi = Hashtbl.find_exn reach id in
+          let e',d' = FDD.(prod psi e', prod psi d') in
+          FDD.(union e e', union d d', prod phi psi))
+      in
+      let id = add_to_t automaton (e,d) in
+      Hashtbl.update reach id ~f:(function None -> phi | Some psi -> FDD.prod phi psi);
+      id
+    in
+    let merge states =
+      let n = Set.length states in
+      (* create contraint graph *)
+      let g = G.create () in
+      Set.iter states ~f:(fun i -> G.add_vertex g G.V.(create i));
+      G.iter_vertex (fun i -> 
+        G.iter_vertex (fun j ->
+          let ii = G.V.label i and jj = G.V.label j in
+          if ii < jj && not (disjoint (Hashtbl.find_exn reach ii) (Hashtbl.find_exn reach jj)) then
+            G.add_edge g i j
+        ) g
+      ) g;
+      let min_coloring =
+        Array.init (n-1) ~f:(fun i -> i+1)
+        |> Array.findi ~f:(fun _ i -> 
+          try (C.coloring g i; true) with _ -> false)
+      in
+      match min_coloring with
+      | None -> states
+      | Some (_,k) ->
+        let partition = Array.init k ~f:(fun _ -> Int64.Set.empty) in
+        G.iter_vertex (fun v ->
+          let i = G.V.label v in
+          let c = G.Mark.get v in
+          partition.(c) <- Set.add partition.(c) i
+        ) g;
+        Array.map partition ~f:fuse
+        |> Int64.Set.of_array
+    in
+    Hashtbl.map state_map ~f:(merge)
+
   let to_local ~(pc : Field.t) (automaton : t) : FDD.t =
     let (loc_map, state_map) = skip_topo_states automaton in
+    let state_map = merge_states automaton state_map in
     let state_map = Hashtbl.Poly.map state_map ~f:(fun states ->
       Set.to_list states
       |> List.mapi ~f:(fun i state -> (state, i))
