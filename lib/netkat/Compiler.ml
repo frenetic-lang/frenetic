@@ -903,11 +903,10 @@ module Automaton = struct
       Hashtbl.add_exn reach ~key:id ~data:FDD.drop);
     let rec go worklist =
       match worklist with | [] -> () | (pred, id)::worklist ->
-      let pred = pred_to_fdd pred in
       let phi = Hashtbl.find_exn reach id in
-      let phi' = FDD.union phi pred in
+      let phi' = FDD.union phi (pred_to_fdd pred) in
       if not (FDD.equal phi phi') then
-      ignore (Hashtbl.add reach ~key:id ~data:phi');
+      Hashtbl.set reach ~key:id ~data:phi';
       let (_, d) = Hashtbl.find_exn automaton.states id in
       let conts = FDD.fold d
         ~f:(fun par -> 
@@ -933,6 +932,14 @@ module Automaton = struct
           in
           tru @ fls
         )
+        |> Util.map_fst ~f:(fun pred' -> Field.Map.merge pred pred' ~f:(fun ~key v ->
+          match v with
+          | `Left c | `Right c -> Some c
+          | `Both (_, (Eq _ as c)) -> Some c
+          | `Both (Neq vs, Neq vs') -> Some (Neq Set.(union vs vs'))
+          | `Both (Eq _, Neq _) -> assert false
+        ))
+        |> Util.map_fst ~f:Field.(fun pred -> Map.remove (Map.remove pred VPort) VSwitch)
       in
       go (conts @ worklist)
     in
@@ -975,7 +982,7 @@ module Automaton = struct
                               Seq.find seq (F Location),
                               Seq.find seq K) with
           | Some (Const sw), Some (Const pt), Some (Const k) ->
-            ignore (Int64.Table.add loc_map ~key:k ~data:(sw,pt));
+            Int64.Table.set loc_map ~key:k ~data:(sw,pt);
             Hashtbl.Poly.update state_map (sw,pt) ~f:(function
               | None -> Int64.Set.singleton k
               | Some ks -> Set.add ks k);
@@ -993,9 +1000,8 @@ module Automaton = struct
   module G = Imperative.Graph.Abstract(Int64)
   module C = Coloring.Mark(G)
 
-  let merge_states (automaton : t) loc_map (state_map : (ploc, Int64.Set.t) Hashtbl.t)
+  let merge_states (automaton : t) reach loc_map (state_map : (ploc, Int64.Set.t) Hashtbl.t)
     : (ploc, Int64.Set.t) Hashtbl.t =
-    let reach = reach automaton in
     let fuse ploc states =
       let (e,d,phi) = 
         Int64.Set.fold states ~init:FDD.(drop, drop, drop) ~f:(fun (e,d,phi) id ->
@@ -1006,7 +1012,7 @@ module Automaton = struct
       in
       let id = add_to_t automaton (e,d) in
       Hashtbl.update reach id ~f:(function None -> phi | Some psi -> FDD.union phi psi);
-      ignore (Hashtbl.add loc_map ~key:id ~data:ploc);
+      Hashtbl.set loc_map ~key:id ~data:ploc;
       map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) ->
         let d = FDD.map_conts d ~f:(fun k -> if Set.mem states k then id else k) in
         (e,d)
@@ -1028,7 +1034,7 @@ module Automaton = struct
       let min_coloring =
         Array.init (n-1) ~f:(fun i -> i+1)
         |> Array.findi ~f:(fun _ k -> 
-          try (C.coloring g k; printf "found %d-coloring!\n" k; true) with _ -> false)
+          try (C.coloring g k; true) with _ -> false)
       in
       match min_coloring with
       | None -> states
@@ -1046,8 +1052,9 @@ module Automaton = struct
     Hashtbl.mapi state_map ~f:(merge)
 
   let to_local ~(pc : Field.t) (automaton : t) : FDD.t =
+    let reach = reach automaton in
     let (loc_map, state_map) = skip_topo_states automaton in
-    let state_map = merge_states automaton loc_map state_map in
+    let state_map = merge_states automaton reach loc_map state_map in
     let state_map = Hashtbl.Poly.map state_map ~f:(fun states ->
       Set.to_list states
       |> List.mapi ~f:(fun i state -> (state, i))
