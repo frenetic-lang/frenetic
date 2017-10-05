@@ -883,9 +883,9 @@ module Automaton = struct
   let pred_to_fdd pred = 
     Map.fold pred ~init:FDD.id ~f:(fun ~key:f ~data:c acc ->
       match c with
-      | Eq v -> FDD.unchecked_cond (f,v) acc FDD.drop
+      | Eq v -> FDD.cond (f,v) acc FDD.drop
       | Neq vs -> Set.fold vs ~init:acc ~f:(fun acc v ->
-          FDD.unchecked_cond (f,v) FDD.drop acc
+          FDD.cond (f,v) FDD.drop acc
         )
     )
 
@@ -987,28 +987,33 @@ module Automaton = struct
     (loc_map, state_map)
 
   let disjoint phi psi =
-    FDD.(equal drop (prod phi psi))
+    FDD.(equal drop (seq phi psi))
 
   open Graph
   module G = Imperative.Graph.Abstract(Int64)
   module C = Coloring.Mark(G)
 
-  let merge_states (automaton : t) (state_map : (ploc, Int64.Set.t) Hashtbl.t)
+  let merge_states (automaton : t) loc_map (state_map : (ploc, Int64.Set.t) Hashtbl.t)
     : (ploc, Int64.Set.t) Hashtbl.t =
     let reach = reach automaton in
-    let fuse states =
+    let fuse ploc states =
       let (e,d,phi) = 
         Int64.Set.fold states ~init:FDD.(drop, drop, drop) ~f:(fun (e,d,phi) id ->
           let e',d' = Hashtbl.find_exn automaton.states id in
           let psi = Hashtbl.find_exn reach id in
-          let e',d' = FDD.(prod psi e', prod psi d') in
-          FDD.(union e e', union d d', prod phi psi))
+          let e',d' = FDD.(seq psi e', seq psi d') in
+          FDD.(union e e', union d d', union phi psi))
       in
       let id = add_to_t automaton (e,d) in
-      Hashtbl.update reach id ~f:(function None -> phi | Some psi -> FDD.prod phi psi);
+      Hashtbl.update reach id ~f:(function None -> phi | Some psi -> FDD.union phi psi);
+      ignore (Hashtbl.add loc_map ~key:id ~data:ploc);
+      map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) ->
+        let d = FDD.map_conts d ~f:(fun k -> if Set.mem states k then id else k) in
+        (e,d)
+      );
       id
     in
-    let merge states =
+    let merge ~key:ploc ~data:states =
       let n = Set.length states in
       (* create contraint graph *)
       let g = G.create () in
@@ -1022,26 +1027,27 @@ module Automaton = struct
       ) g;
       let min_coloring =
         Array.init (n-1) ~f:(fun i -> i+1)
-        |> Array.findi ~f:(fun _ i -> 
-          try (C.coloring g i; true) with _ -> false)
+        |> Array.findi ~f:(fun _ k -> 
+          try (C.coloring g k; printf "found %d-coloring!\n" k; true) with _ -> false)
       in
       match min_coloring with
       | None -> states
       | Some (_,k) ->
+        printf "Found %d-coloring of %d states!\n" k n;
         let partition = Array.init k ~f:(fun _ -> Int64.Set.empty) in
         G.iter_vertex (fun v ->
           let i = G.V.label v in
-          let c = G.Mark.get v in
+          let c = G.Mark.get v - 1 in
           partition.(c) <- Set.add partition.(c) i
         ) g;
-        Array.map partition ~f:fuse
+        Array.map partition ~f:(fuse ploc)
         |> Int64.Set.of_array
     in
-    Hashtbl.map state_map ~f:(merge)
+    Hashtbl.mapi state_map ~f:(merge)
 
   let to_local ~(pc : Field.t) (automaton : t) : FDD.t =
     let (loc_map, state_map) = skip_topo_states automaton in
-    let state_map = merge_states automaton state_map in
+    let state_map = merge_states automaton loc_map state_map in
     let state_map = Hashtbl.Poly.map state_map ~f:(fun states ->
       Set.to_list states
       |> List.mapi ~f:(fun i state -> (state, i))
