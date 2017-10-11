@@ -23,9 +23,7 @@ setup.log
 *.mllib
 .merlin
 *.install
-
-# auto generated files
-lib/Frenetic_NetKAT_Tokens*
+*.pdf
 
 # ppx/test
 ppx/test/_tags
