@@ -368,7 +368,7 @@ module Automaton = struct
 
   (** Compute the "reach" of each state, i.e. a boolean predicate phi_s such that
       a pk can be in state s iff it satisfies phi_s.
-      Not to be confused with the "domain" of a state, i.e. the predicate psi_s
+      Not to be confused with the "support" of a state, i.e. the predicate psi_s
       such that a pk in s produces some output iff it satisfies psi_s.
 
       We could compute this precisely, but for now a overapproximation will do.
