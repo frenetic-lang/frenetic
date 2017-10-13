@@ -18,13 +18,11 @@ module Make(FG:FABRIC_GEN) : sig
     -> FG.fabric
 
   (** Compile virtual policy reusing precomputed fabric *)
-  val compile_with_fabric : ?log:bool
-    -> ?record_paths:string
-    -> vtopo:policy
+  val compile_with_fabric :
+       vtopo:policy
     -> ving_pol:policy
     -> ving:pred
     -> veg:pred
-    -> ptopo:policy
     -> ping:pred
     -> peg:pred
     -> vpol:policy
