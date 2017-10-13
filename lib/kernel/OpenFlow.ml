@@ -113,7 +113,8 @@ module Pattern = struct
       ; nwProto : nwProto option
       ; tpSrc : tpPort option
       ; tpDst : tpPort option
-      ; inPort : portId option }
+      ; inPort : portId option
+      ; wavelength : wavelength option }
     [@@deriving sexp]
 
   let match_all =
@@ -127,7 +128,8 @@ module Pattern = struct
       ; nwProto = None
       ; tpSrc = None
       ; tpDst = None
-      ; inPort = None }
+      ; inPort = None
+      ; wavelength = None }
 
   (* TODO(jnf): rename subseteq ?*)
   let less_eq p1 p2 =
@@ -189,7 +191,8 @@ module Pattern = struct
     ; nwProto = joiner eq_join p1.nwProto p2.nwProto
     ; tpSrc = joiner eq_join p1.tpSrc p2.tpSrc
     ; tpDst = joiner eq_join p1.tpDst p2.tpDst
-    ; inPort = joiner eq_join p1.inPort p2.inPort }
+    ; inPort = joiner eq_join p1.inPort p2.inPort
+    ; wavelength = joiner eq_join p1.wavelength p2.wavelength }
 
   let format (fmt:Format.formatter) (p:t) : unit =
     let first = ref true in
@@ -228,6 +231,7 @@ type modify =
   | SetIP4Dst of nwAddr
   | SetTCPSrcPort of tpPort
   | SetTCPDstPort of tpPort
+  | SetWavelength of wavelength
 [@@deriving sexp]
 
 type pseudoport =
@@ -355,6 +359,8 @@ let format_modify (fmt:Format.formatter) (m:modify) : unit =
     Format.fprintf fmt "SetField(tcpSrcPort, %a)" format_int tpPort
   | SetTCPDstPort(tpPort) ->
     Format.fprintf fmt "SetField(tcpDstPort, %a)" format_int tpPort
+  | SetWavelength(lambda) ->
+    Format.fprintf fmt "SetField(wavelength, %a)" format_int lambda
 
 let format_pseudoport (fmt:Format.formatter) (p:pseudoport) : unit =
   match p with
@@ -674,6 +680,8 @@ module To0x01 = struct
       | Modify (SetTCPDstPort tp) ->
         SetTpDst tp
         (* TODO(grouptable) *)
+      | Modify (SetWavelength lambda) ->
+        failwith "no wavelength support"
       | FastFail _ -> failwith "Openflow 1.0 does not support fast failover."
 
   let from_seq (inPort : OF10.portId option) (seq : seq) : OF10.action list =
@@ -914,7 +922,8 @@ module From0x01 = struct
     ; nwProto = pat.nwProto
     ; tpSrc = pat.tpSrc
     ; tpDst = pat.tpDst
-    ; inPort = match pat.inPort with | None -> None | Some x -> Int.to_int32 x
+    ; inPort = (match pat.inPort with | None -> None | Some x -> Int.to_int32 x)
+    ; wavelength = None
     }
 
   let from_output (pp : OF10.pseudoPort) : pseudoport =

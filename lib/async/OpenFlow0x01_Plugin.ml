@@ -231,7 +231,7 @@ let action_from_policy (pol:Frenetic_netkat.Syntax.policy) : action option =
         Some (Modify(SetTCPSrcPort tpPort))
       | TCPDstPort tpPort ->
         Some (Modify(SetTCPDstPort tpPort))
-      | Switch _ | VSwitch _ | VPort _ | VFabric _ | Meta _
+      | Wavelength _ | Switch _ | VSwitch _ | VPort _ | VFabric _ | Meta _
       | From _ | AbstractLoc _ -> None
     end
   | _ -> None

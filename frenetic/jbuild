@@ -1,7 +1,7 @@
 (jbuild_version 1)
 
 (executables
- ((names        (main openflow))
-  (public_names (frenetic frenetic.openflow))
+ ((names        (main openflow staged_server))
+  (public_names (frenetic frenetic.openflow frenetic.vserver))
   (libraries (core async async_extended frenetic))
 ))

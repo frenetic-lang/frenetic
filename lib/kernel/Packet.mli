@@ -51,6 +51,9 @@ type ipv6Addr = int64*int64 [@@deriving sexp, compare]
 (** [tpPort] is the type of transport protocol ports. *)
 type tpPort = int16 [@@deriving sexp, compare]
 
+
+type wavelength = int8 [@@deriving sexp, compare]
+
 (** TCP frame of a packet. *)
 module Tcp : sig
 

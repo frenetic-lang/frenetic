@@ -55,6 +55,7 @@ type header_val =
   | Meta of metaId * int64
   | From of abstract_location
   | AbstractLoc of abstract_location
+  | Wavelength of int8
   [@@deriving sexp]
 
 type pred =
@@ -94,4 +95,10 @@ type switch_port = switchId * portId [@@deriving sexp]
 type host = Frenetic_kernel.Packet.dlAddr * Frenetic_kernel.Packet.nwAddr [@@deriving sexp]
 
 type bufferId = Int32.t [@@deriving sexp] (* XXX(seliopou): different than OpenFlow *)
+
+(** {3 Virtualization} *)
+val virtualize_pol : policy -> policy
+val virtualize_pred : pred -> pred
+val virtualize_hv : header_val -> header_val
+
 

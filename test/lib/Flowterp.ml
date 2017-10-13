@@ -69,6 +69,7 @@ module Headers = struct
           | SetIP4Dst nwDst -> { hdrs with ipDst = nwDst }
           | SetTCPSrcPort tpSrc -> { hdrs with tcpSrcPort = tpSrc }
           | SetTCPDstPort tpDst -> { hdrs with tcpDstPort = tpDst }
+          | SetWavelength lambda -> { hdrs with wavelength = lambda }
         end
 
   let eval_par port (hdrs : HeadersValues.t) (par : par) : HVSet.t =

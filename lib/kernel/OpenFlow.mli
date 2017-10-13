@@ -108,7 +108,8 @@ module Pattern : sig
       ; nwProto : nwProto option
       ; tpSrc : tpPort option
       ; tpDst : tpPort option
-      ; inPort : portId option }
+      ; inPort : portId option
+      ; wavelength : wavelength option }
     [@@deriving sexp]
 
   (** [match_all] is pattern that matches any packet *)
@@ -140,6 +141,7 @@ type modify =
   | SetIP4Dst of nwAddr
   | SetTCPSrcPort of tpPort
   | SetTCPDstPort of tpPort
+  | SetWavelength of wavelength
 [@@deriving sexp]
 
 type pseudoport =

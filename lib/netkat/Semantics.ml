@@ -152,6 +152,7 @@ let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
       | TCPDstPort n -> pkt.headers.tcpDstPort = n
       | VSwitch n -> pkt.headers.vswitch = n
       | VPort n -> pkt.headers.vport = n
+      | Wavelength n -> true (* SJS *)
       | VFabric _ | Meta _ ->
         failwith "meta fields not currently supported"
     end
@@ -192,6 +193,8 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
         { pkt with headers = { pkt.headers with vswitch = n }}
       | VPort n ->
         { pkt with headers = { pkt.headers with vport = n }}
+      | Wavelength l ->
+        pkt (* SJS *)
       | VFabric _ | Meta _ ->
         failwith "meta fields not currently supported" in
     PacketSet.singleton pkt'

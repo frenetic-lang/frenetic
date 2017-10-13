@@ -42,6 +42,7 @@ type header_val =
   | Meta of metaId * int64
   | From of abstract_location
   | AbstractLoc of abstract_location
+  | Wavelength of int8
   [@@deriving sexp]
 
 type pred =
@@ -79,4 +80,38 @@ type switch_port = switchId * portId [@@deriving sexp]
 type host = Frenetic_kernel.Packet.dlAddr * Frenetic_kernel.Packet.nwAddr [@@deriving sexp]
 
 type bufferId = Int32.t [@@deriving sexp] (* XXX(seliopou): different than OpenFlow *)
+
+
+let rec virtualize_pol pol = match pol with
+  | Filter pred -> Filter (virtualize_pred pred)
+  | Mod hv -> Mod (virtualize_hv hv)
+  | Union (p,q) -> Union (virtualize_pol p, virtualize_pol q)
+  | Seq (p,q) -> Seq (virtualize_pol p, virtualize_pol q)
+  | Star p -> Star (virtualize_pol p)
+  | Link (s,p,s',p') ->
+    let s = virtualize_hv (Switch s) in
+    let p = virtualize_hv (Location (Physical p)) in
+    let s' = virtualize_hv (Switch s') in
+    let p' = virtualize_hv (Location (Physical p')) in
+    let match_vloc = Filter (And (Test s, Test p)) in
+    let set_vloc = Seq (Mod s', Mod p') in
+    Seq (match_vloc, set_vloc)
+  | Dup | VLink _ | Let _ ->
+    let err = Format.(fprintf str_formatter "unexpected primtive %a in virtual policy"
+      Sexp.pp_hum (sexp_of_policy pol);
+      flush_str_formatter ())
+    in
+    failwith err
+
+and virtualize_pred pred = match pred with
+  | True | False -> pred
+  | Test hv -> Test (virtualize_hv hv)
+  | And (p,q) -> And (virtualize_pred p, virtualize_pred q)
+  | Or (p,q) -> Or (virtualize_pred p, virtualize_pred q)
+  | Neg p -> Neg (virtualize_pred p)
+
+and virtualize_hv hv = match hv with
+  | Switch s -> VSwitch s
+  | Location (Physical p) -> VPort (Int64.of_int32 p)
+  | _ -> hv
 

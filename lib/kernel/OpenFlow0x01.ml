@@ -371,7 +371,7 @@ let match_all = {
   nwTos = None;
   tpSrc = None;
   tpDst = None;
-  inPort = None
+  inPort = None;
 }
 
 let delete_all_flows =

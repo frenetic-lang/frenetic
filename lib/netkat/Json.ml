@@ -58,6 +58,7 @@ let to_json_value (h : header_val) : json = match h with
   | TCPDstPort n -> `Int n
   | IP4Src (addr, mask)
   | IP4Dst (addr, mask) -> to_json_ip (addr, mask)
+  | Wavelength l -> `Int l
   (* SJS: can we use ppx_deriving_yojson to do this stuff automatically? *)
   | Meta _ -> failwith "meta fields not supported yet"
 
@@ -80,6 +81,7 @@ let to_json_header (h : header_val) : json =
     | TCPSrcPort _ -> "tcpsrcport"
     | TCPDstPort _ -> "tcpdstport"
     | VFabric _ -> "vfabric"
+    | Wavelength _ -> "wavelength"
     | Meta _ -> failwith "meta fields not supported yet" in
   `String str
 
@@ -154,6 +156,7 @@ let from_json_header_val (json : json) : header_val =
   | "ip4dst" -> let (x,y) = from_json_ip value in IP4Dst (x,y)
   | "tcpsrcport" -> TCPSrcPort (value |> to_int)
   | "tcpdstport" -> TCPDstPort (value |> to_int)
+  | "wavelength" -> Wavelength (value |> to_string |> Int.of_string)
   | str -> raise (Invalid_argument ("invalid header " ^ str))
 
 let rec from_json_pred (json : json) : pred =
@@ -307,6 +310,8 @@ let modify_to_json (m : modify) : json = match m with
      `List [`String "SetTpSrc"; `Int n]
   | SetTCPDstPort n ->
      `List [`String "SetTpDst"; `Int n]
+  | SetWavelength l ->
+     `List [`String "SetWavelength"; `Int l]
 
 let action_to_json (a : action) : json = match a with
   | Output p -> `List [`String "Output"; pseudoport_to_json p]

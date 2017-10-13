@@ -55,6 +55,7 @@ module Field : sig
     | TCPSrcPort
     | TCPDstPort
     | VFabric
+    | Wavelength
     [@@deriving sexp, enumerate]
   type field = t
   include Vlr.HashCmp with type t := t

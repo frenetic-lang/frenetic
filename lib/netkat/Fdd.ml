@@ -31,6 +31,7 @@ module Field = struct
     | TCPSrcPort
     | TCPDstPort
     | VFabric
+    | Wavelength
     [@@deriving sexp, enumerate, enum]
   type field = t
 
@@ -125,6 +126,7 @@ module Field = struct
     | Syntax.TCPDstPort _ -> TCPDstPort
     | Syntax.VFabric _ -> VFabric
     | Syntax.Meta (id,_) -> fst (Env.lookup env id)
+    | Syntax.Wavelength _ -> Wavelength
 
   (* Heuristic to pick a variable order that operates by scoring the fields
      in a policy. A field receives a high score if, when a test field=X
@@ -411,6 +413,7 @@ module Pattern = struct
     | TCPDstPort(tpPort) -> (Field.TCPDstPort, Value.of_int tpPort)
     | VFabric(vfab) -> (Field.VFabric, Value.(Const vfab))
     | Meta(name,v) -> (fst (Field.Env.lookup env name), Value.(Const v))
+    | Wavelength lambda -> (Field.Wavelength, Value.of_int lambda)
 
   let to_hv (f, v) =
     let open Field in
@@ -437,6 +440,7 @@ module Pattern = struct
     | (TCPSrcPort, Const tpPort) -> Syntax.(TCPSrcPort(to_int tpPort))
     | (TCPDstPort, Const tpPort) -> Syntax.(TCPDstPort(to_int tpPort))
     | (VFabric, Const vfab) -> Syntax.VFabric vfab
+    | (Wavelength, Const lambda) -> Syntax.Wavelength (to_int lambda)
     | _, _ -> raise (FieldValue_mismatch(f, v))
 
   let to_pred (f, v) =
@@ -474,6 +478,8 @@ module Pattern = struct
       { pat with SDN.Pattern.tpSrc = Some(to_int tpPort) }
     | (TCPDstPort, Const tpPort) -> fun pat ->
       { pat with SDN.Pattern.tpDst = Some(to_int tpPort) }
+    | (Wavelength, Const lambda) -> fun pat ->
+      { pat with SDN.Pattern.wavelength = Some(to_int lambda) }
     (* Should never happen because these pseudo-fields should have been removed by the time to_sdn is used *)
     | (Switch, Const _)
     | (From, AbstractLocation _)
@@ -655,6 +661,7 @@ module Action = struct
         | F IP4Dst  , Const nwAddr   -> SDN.(Modify(SetIP4Dst(to_int32 nwAddr))) :: acc
         | F TCPSrcPort, Const tpPort -> SDN.(Modify(SetTCPSrcPort(to_int tpPort))) :: acc
         | F TCPDstPort, Const tpPort -> SDN.(Modify(SetTCPDstPort(to_int tpPort))) :: acc
+        | F Wavelength, Const lambda -> SDN.(Modify(SetWavelength(to_int lambda))) :: acc
         | F f, _ -> raise (FieldValue_mismatch(f, data))
         | K, _ -> assert false
       ) :: acc)

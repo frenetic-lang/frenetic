@@ -3360,6 +3360,7 @@ module Action = struct
       | SetIP4Dst nwAddr     -> OxmIP4Dst (val_to_mask nwAddr)
       | SetTCPSrcPort tpPort -> OxmTCPSrc tpPort
       | SetTCPDstPort tpPort -> OxmTCPDst tpPort
+      | SetWavelength _ -> failwith "not implemented"
       in SetField oxm)
     | OpenFlow.FastFail gid -> Group gid
     | Enqueue _ -> failwith "Not Yet Implemented"
