@@ -437,9 +437,22 @@ module FabricGen = struct
       let _ = Core.Option.(record_paths >>| Out_channel.close) in
       fabric
 
-  let default_ving_pol ~vrel ~ving : policy option = None
-    (* let vrel' = get_vrel vrel in *)
-
+  let default_ving_pol ~vrel ~ping : policy option =
+    let vrel' : (vloc, ploc list) Hashtbl.t = parse_vrel vrel in
+    let vrel : (ploc, vloc list) Hashtbl.t = Tbl.create () in
+    Tbl.iteri vrel' ~f:(fun ~key:v ~data:ps -> List.iter ps ~f:(fun p ->
+      Tbl.add_multi vrel ~key:p ~data:v
+    ));
+    let open Optimize in
+    try
+      G.Phys.locs_from_pred ping
+      |> List.map ~f:(fun ploc -> match Tbl.find vrel ploc with
+        | Some [vloc] -> mk_seq (match_ploc ploc) (set_vloc vloc)
+        | _ -> failwith "vrel must map physical ingress uniquely to virtual ingress")
+      |> mk_big_union
+      |> Option.some
+    with
+    | Failure _ -> None
 
   let generate_fabric ?(log=true) ?record_paths ~vrel ~vtopo ~ving ~veg ~ptopo ~ping ~peg  =
     let vgraph = G.Virt.make ving veg vtopo in
