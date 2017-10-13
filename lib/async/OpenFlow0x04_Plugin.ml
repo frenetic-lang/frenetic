@@ -20,11 +20,11 @@ let mask_meta (meta_id : int) =
   Frenetic_base.OpenFlow0x04.{ m_value = Int64.of_int meta_id; m_mask = Some 64L }
 
 (* Send FlowMod messages to switch to implement policy *)
-let implement_flow (writer : Writer.t) (fdd : Frenetic_netkat.Compiler.t)
-  (layout : Frenetic_netkat.Compiler.flow_layout)
+let implement_flow (writer : Writer.t) (fdd : Frenetic_netkat.Local_compiler.t)
+  (layout : Frenetic_netkat.Local_compiler.flow_layout)
   (sw_id : Frenetic_base.OpenFlow.switchId) : unit =
   let open Frenetic_base.OpenFlow0x04 in
-  let open Frenetic_netkat.Compiler in
+  let open Frenetic_netkat.Local_compiler in
   let (flow_rows, group_tbl) = to_multitable sw_id layout fdd in
   implement_group_table writer group_tbl;
   List.iteri flow_rows ~f:(fun i row ->
@@ -46,11 +46,11 @@ let implement_flow (writer : Writer.t) (fdd : Frenetic_netkat.Compiler.t)
 
 (* Send FlowMod messages to switch to implement the policy, use topology to
  * generate fault tolerant group tables. *)
-let implement_tolerant_flow (writer : Writer.t) (fdd : Frenetic_netkat.Compiler.t)
+let implement_tolerant_flow (writer : Writer.t) (fdd : Frenetic_netkat.Local_compiler.t)
   (topo : Frenetic_base.Net.Net.Topology.t) (sw_id : Frenetic_base.OpenFlow.switchId)
   : unit =
   let open Frenetic_base.OpenFlow0x04 in
-  let flowtable = Frenetic_netkat.Compiler.to_table sw_id fdd in
+  let flowtable = Frenetic_netkat.Local_compiler.to_table sw_id fdd in
   List.iteri flowtable ~f:(fun i row ->
     let tbl = 1 in
     let xid= Int32.of_int_exn i in
@@ -112,13 +112,13 @@ let client_handler (reader : Reader.t)
 (* Implement multi-table policies. Extract the policy from a kat file,
  * run client handler for each connecting client *)
 let main (of_port : int) (pol_file : string)
-  (layout : Frenetic_netkat.Compiler.flow_layout) () : unit =
-  let open Frenetic_netkat.Compiler in
+  (layout : Frenetic_netkat.Local_compiler.flow_layout) () : unit =
+  let open Frenetic_netkat.Local_compiler in
   Logging.info "Starting OpenFlow 1.3 controller";
   Logging.info "Using flow tables: %s" (layout_to_string layout);
   let pol = Frenetic_netkat.Parser.pol_of_file pol_file in
   let compiler_opts = {default_compiler_options with field_order = `Static (List.concat layout)} in
-  let fdd = compile_local pol ~options:compiler_opts in
+  let fdd = compile pol ~options:compiler_opts in
   let _ = Tcp.Server.create ~on_handler_error:`Raise (Tcp.on_port of_port)
     (fun _ reader writer ->
       let message_sender = send_message writer in
@@ -134,7 +134,7 @@ let fault_tolerant_main (of_port : int) (pol_file : string)
   (topo_file : string) () : unit =
   Logging.info "Starting OpenFlow 1.3 fault tolerant controller";
   let pol = Frenetic_netkat.Parser.pol_of_file pol_file in
-  let fdd = Frenetic_netkat.Compiler.compile_local pol in
+  let fdd = Frenetic_netkat.Local_compiler.compile pol in
   let topo = Frenetic_base.Net.Net.Topology.empty () in
   (* let topo = Frenetic_base.Net.Net.Parse.from_dotfile topo_file in *)
   let _ = Tcp.Server.create ~on_handler_error:`Raise (Tcp.on_port of_port)

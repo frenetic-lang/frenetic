@@ -7,8 +7,8 @@ module type PLUGIN = sig
   val start: int -> unit
   val events : event Pipe.Reader.t
   val switch_features : switchId -> switchFeatures option Deferred.t
-  val update : Frenetic_netkat.Compiler.t -> unit Deferred.t
-  val update_switch : switchId -> Frenetic_netkat.Compiler.t -> unit Deferred.t
+  val update : Frenetic_netkat.Local_compiler.t -> unit Deferred.t
+  val update_switch : switchId -> Frenetic_netkat.Local_compiler.t -> unit Deferred.t
   val packet_out : switchId -> portId option -> payload -> Frenetic_netkat.Syntax.policy list -> unit Deferred.t
   val flow_stats : switchId -> Pattern.t -> flowStats Deferred.t
   val port_stats : switchId -> portId -> portStats Deferred.t
@@ -39,7 +39,7 @@ module type CONTROLLER = sig
   val query : string -> (int64 * int64) Deferred.t
 
   (** [set_current_compiler_options co] sets compiler options for subsequent invocations *)
-  val set_current_compiler_options : Frenetic_netkat.Compiler.compiler_options -> unit
+  val set_current_compiler_options : Frenetic_netkat.Local_compiler.compiler_options -> unit
 
 end
 

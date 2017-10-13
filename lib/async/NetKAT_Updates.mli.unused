@@ -5,7 +5,7 @@ open Async
 
 module Net = Frenetic_base.Net.Net
 module SDN = Frenetic_base.OpenFlow
-module Comp = Frenetic_netkat.Compiler
+module Comp = Frenetic_netkat.Local_compiler
 
 exception UpdateError
 

@@ -8,7 +8,7 @@ module M = OF10.Message
 module Net = Frenetic_base.Net.Net
 module SDN = Frenetic_base.OpenFlow
 module Controller = OpenFlow0x01_Controller
-module Comp = Frenetic_netkat.Compiler
+module Comp = Frenetic_netkat.Local_compiler
 
 exception UpdateError
 

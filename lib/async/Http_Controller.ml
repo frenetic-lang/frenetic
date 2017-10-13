@@ -4,7 +4,7 @@ open Cohttp_async
 open Frenetic_netkat.Syntax
 open Common
 module Server = Cohttp_async.Server
-module Comp = Frenetic_netkat.Compiler
+module Comp = Frenetic_netkat.Local_compiler
 
 type client = {
   (* Write new policies to this node *)
