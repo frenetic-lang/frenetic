@@ -1,8 +1,8 @@
 open Syntax
 open Optimize
+open Core
 
-module Tbl = Core.Hashtbl.Poly
-module Sexp = Core.Sexp
+module Tbl = Hashtbl.Poly
 
 module type FABRIC_GEN = sig
   type fabric = policy list * policy list
@@ -23,9 +23,7 @@ module FabricGen = struct
   type fabric = policy list * policy list
 
   (* auxilliary list functions *)
-  let inters xs ys = List.find_all (fun x -> List.mem x ys) xs
-  let product xs ys =
-    List.fold_right (fun x l -> List.fold_right (fun y l -> (x,y)::l) ys l) xs []
+  let inters xs ys = List.filter xs ~f:(List.mem ~equal:(=) ys)
   let minimize xs obj =
     let f best x =
       let v = obj x in
@@ -35,7 +33,7 @@ module FabricGen = struct
       | Some (y, v'),None -> best
       | Some (y, v'), Some v -> if v<v' then Some (x, v) else best
     in
-    List.fold_left f None xs
+    List.fold xs ~init:None ~f
 
   (* physical location *)
   type ploc = switchId * portId [@@deriving compare, eq]
@@ -109,9 +107,9 @@ module FabricGen = struct
         fold_vertex (fun v1 g' -> fold_vertex (fun v2 g' -> connect_switch_ports' v1 v2 g') g g') g g
 
       let make (ingress : pred) (egress : pred) (topo : policy) =
-        empty |> List.fold_right add_link (links_from_topo topo)
-        |> List.fold_right add_loc (locs_from_pred ingress)
-        |> List.fold_right add_loc (locs_from_pred egress)
+        empty |> Caml.List.fold_right add_link (links_from_topo topo)
+        |> Caml.List.fold_right add_loc (locs_from_pred ingress)
+        |> Caml.List.fold_right add_loc (locs_from_pred egress)
         |> connect_switch_ports
 
       (* dot file encoding *)
@@ -202,7 +200,7 @@ module FabricGen = struct
 
   end
 
-  let parse_vrel (vrel : pred) =
+  let parse_vrel (vrel : pred) : (vloc, ploc list) Hashtbl.t =
     let rec parse_physical pred alist =
       match pred with
       | Or (p1, p2) -> parse_physical p1 alist |> parse_physical p2
@@ -227,9 +225,11 @@ module FabricGen = struct
     let vrel (vsw, vpt) = Tbl.find vrel_tbl (vsw, vpt) |> Core.Option.value ~default:[] in
     (fun vv -> match G.Virt.V.label vv with
        | InPort (vsw, vpt) ->
-         vrel (vsw, vpt) |> List.map (fun (sw, pt) -> G.Phys.V.create (InPort (sw, pt)))
+         vrel (vsw, vpt)
+         |> List.map ~f:(fun (sw, pt) -> G.Phys.V.create (InPort (sw, pt)))
        | OutPort (vsw, vpt) ->
-         vrel (vsw, vpt) |> List.map (fun (sw, pt) -> G.Phys.V.create (OutPort (sw, pt))))
+         vrel (vsw, vpt)
+         |> List.map ~f:(fun (sw, pt) -> G.Phys.V.create (OutPort (sw, pt))))
 
   let make_product_graph (vgraph : G.Virt.t) (pgraph : G.Phys.t) (ving : pred) (vrel : pred) =
     begin
@@ -249,20 +249,21 @@ module FabricGen = struct
       in
 
       let virt_ing =
-        List.map (fun (vsw, vpt) -> InPort (vsw, vpt) |> G.Virt.V.create) (G.Virt.locs_from_pred ving)
+        List.map (G.Virt.locs_from_pred ving)
+          ~f:(fun (vsw, vpt) -> InPort (vsw, vpt) |> G.Virt.V.create) 
       in
 
       let prod_ing =
-        List.map (fun vv -> product [vv] (vrel' vv)) virt_ing
-        |> List.flatten
-        |> List.map (fun (vv, pv) -> G.Prod.V.create (ConsistentIn (vv, pv)))
+        List.map virt_ing ~f:(fun vv -> List.cartesian_product [vv] (vrel' vv))
+        |> List.concat
+        |> List.map ~f:(fun (vv, pv) -> G.Prod.V.create (ConsistentIn (vv, pv)))
       in
 
       let step v =
         begin match G.Prod.V.label v with
           | ConsistentIn (vv, pv)  ->
             let virtual_sucs = G.Virt.succ vgraph vv in
-            List.map (fun vv -> InconsistentOut (vv, pv) |> G.Prod.V.create) virtual_sucs
+            List.map virtual_sucs ~f:(fun vv -> InconsistentOut (vv, pv) |> G.Prod.V.create)
           | InconsistentOut (vv, pv) ->
             let physical_sucs =
               match vrel' vv with
@@ -270,11 +271,11 @@ module FabricGen = struct
                       to interpret it as false *)
               | [] -> G.Phys.succ pgraph_closure pv
               | logical_sucs -> inters logical_sucs (G.Phys.succ pgraph_closure pv) in
-            List.map (fun psuc -> ConsistentOut (vv, psuc) |> G.Prod.V.create) physical_sucs
+            List.map physical_sucs ~f:(fun psuc -> ConsistentOut (vv, psuc) |> G.Prod.V.create)
           | ConsistentOut (vv, pv) ->
             (* SJS: check that if there are no successors, we have reached the egress *)
             let virtual_sucs = G.Virt.succ vgraph vv in
-            List.map (fun vsuc -> InconsistentIn (vsuc, pv) |> G.Prod.V.create) virtual_sucs
+            List.map virtual_sucs ~f:(fun vsuc -> InconsistentIn (vsuc, pv) |> G.Prod.V.create)
           | InconsistentIn (vv, pv) ->
             let physical_sucs =
               match vrel' vv with
@@ -282,7 +283,7 @@ module FabricGen = struct
                       to interpret it as false *)
               | [] -> G.Phys.succ pgraph_closure pv
               | logical_sucs -> inters logical_sucs (G.Phys.succ pgraph_closure pv) in
-            List.map (fun pv -> ConsistentIn (vv, pv) |> G.Prod.V.create) physical_sucs
+            List.map physical_sucs ~f:(fun pv -> ConsistentIn (vv, pv) |> G.Prod.V.create)
         end
       in
 
@@ -290,14 +291,14 @@ module FabricGen = struct
         begin match work_list with
           | [] ->
             (* add edges after all vertices are inserted *)
-            List.fold_left (fun g (v1, v2) -> G.Prod.add_edge g v1 v2) g edges
+            List.fold edges ~init:g ~f:(fun g (v1, v2) -> G.Prod.add_edge g v1 v2)
           | v::vs ->
             if G.Prod.mem_vertex g v then
               make vs edges g
             else
               let g' = G.Prod.add_vertex g v in
               let sucs = step v in
-              let edges' = List.fold_left (fun edges suc -> (v, suc)::edges) edges sucs in
+              let edges' = List.fold sucs ~init:edges ~f:(fun edges suc -> (v, suc)::edges) in
               make (sucs@work_list) edges' g'
         end
       in
@@ -352,7 +353,7 @@ module FabricGen = struct
     and select' v v' g' =
       G.Prod.add_edge (select v' g') v v'
     in
-    List.fold_right select ing G.Prod.empty
+    Caml.List.fold_right select ing G.Prod.empty
 
   (* functions for fabric generation *)
   let match_ploc (sw,pt) = Filter (And (Test(Switch sw), Test(Location(Physical(pt)))))
@@ -423,18 +424,22 @@ module FabricGen = struct
     | _ -> assert false
 
   let fabric_of_fabric_graph ?record_paths g ing path_oracle =
-    if not (List.for_all (G.Prod.mem_vertex g) ing) then
+    if not (List.for_all ing ~f:(G.Prod.mem_vertex g)) then
       failwith "virtual compiler: specification allows for no valid fabric"
     else
-      let record_paths = Core.Option.(record_paths >>| open_out) in
+      let record_paths = Core.Option.(record_paths >>| Out_channel.create) in
       let f v1 v2 ((fout, fin) as fs) =
         match fabric_atom_of_prod_edge ?record_paths path_oracle v1 v2 with
         | `None -> fs
         | `Out f -> (f::fout, fin)
         | `In f -> (fout, f::fin) in
       let fabric = G.Prod.fold_edges f g ([], []) in
-      let _ = Core.Option.(record_paths >>| close_out) in
+      let _ = Core.Option.(record_paths >>| Out_channel.close) in
       fabric
+
+  let default_ving_pol ~vrel ~ving : policy option = None
+    (* let vrel' = get_vrel vrel in *)
+
 
   let generate_fabric ?(log=true) ?record_paths ~vrel ~vtopo ~ving ~veg ~ptopo ~ping ~peg  =
     let vgraph = G.Virt.make ving veg vtopo in
@@ -442,7 +447,7 @@ module FabricGen = struct
     let prod_ing, prod_graph = make_product_graph vgraph pgraph ving vrel in
 
     let unwrap_e e = (G.Phys.V.label (G.Phys.E.src e), G.Phys.V.label (G.Phys.E.dst e)) in
-    let unwrap_path path = List.map unwrap_e path in
+    let unwrap_path path = List.map path ~f:unwrap_e in
 
     let module WEIGHT = struct
       type edge = G.Phys.E.t
@@ -507,33 +512,33 @@ module FabricGen = struct
     let g_raw_file = "g_raw.dot" in
     let g_pruned_file = "g_pruned.dot" in
     let g_fabric_file = "g_fabric.dot" in
-    let vg_ch = open_out vg_file in
-    let pg_ch = open_out pg_file in
-    let g_raw_ch = open_out g_raw_file in
-    let g_pruned_ch = open_out g_pruned_file in
-    let g_fabric_ch = open_out g_fabric_file in
+    let vg_ch = Out_channel.create vg_file in
+    let pg_ch = Out_channel.create pg_file in
+    let g_raw_ch = Out_channel.create g_raw_file in
+    let g_pruned_ch = Out_channel.create g_pruned_file in
+    let g_fabric_ch = Out_channel.create g_fabric_file in
     if log then begin
       Printf.printf "[virtual] Statistics:\n";
       Printf.printf "  |V(vgraph)|: %i\n" (G.Virt.nb_vertex vgraph);
       Printf.printf "  |E(vgraph)|: %i\n" (G.Virt.nb_edges vgraph);
       G.Virt.Dot.output_graph vg_ch vgraph;
-      close_out vg_ch;
+      Out_channel.close vg_ch;
       Printf.printf "  |V(pgraph)|: %i\n" (G.Phys.nb_vertex pgraph);
       Printf.printf "  |E(pgraph)|: %i\n" (G.Phys.nb_edges pgraph);
       G.Phys.Dot.output_graph pg_ch pgraph;
-      close_out pg_ch;
+      Out_channel.close pg_ch;
       Printf.printf "  |V(prod_graph)|: %i\n" (G.Prod.nb_vertex prod_graph);
       Printf.printf "  |E(prod_graph)|: %i\n" (G.Prod.nb_edges prod_graph);
       G.Prod.Dot.output_graph g_raw_ch prod_graph;
-      close_out g_raw_ch;
+      Out_channel.close g_raw_ch;
       Printf.printf "  |V(pruned_graph)|: %i\n" (G.Prod.nb_vertex (Lazy.force pruned_graph));
       Printf.printf "  |E(pruned_graph)|: %i\n" (G.Prod.nb_edges (Lazy.force pruned_graph));
       G.Prod.Dot.output_graph g_pruned_ch (Lazy.force pruned_graph);
-      close_out g_pruned_ch;
+      Out_channel.close g_pruned_ch;
       Printf.printf "  |V(fabric_graph)|: %i\n" (G.Prod.nb_vertex (Lazy.force fabric_graph));
       Printf.printf "  |E(fabric_graph)|: %i\n" (G.Prod.nb_edges (Lazy.force fabric_graph));
       G.Prod.Dot.output_graph g_fabric_ch (Lazy.force fabric_graph);
-      close_out g_fabric_ch;
+      Out_channel.close g_fabric_ch;
       Printf.printf "\n";
     end;
     Lazy.force fabric
