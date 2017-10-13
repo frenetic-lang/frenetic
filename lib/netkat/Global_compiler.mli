@@ -1,6 +1,5 @@
 open Syntax
 open Core
-
 module FDD : module type of Local_compiler.FDD
 
 (** Intermediate representation of global compiler: NetKAT Automata *)

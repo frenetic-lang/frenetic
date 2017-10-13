@@ -659,6 +659,7 @@ module Automaton = struct
 end
 (* END: module Automaton *)
 
+open Local_compiler
 let compile ?(options=default_compiler_options) ?(pc=Field.Vlan) ?ing pol : FDD.t =
   prepare_compilation ~options pol;
   Automaton.of_policy ?ing pol
