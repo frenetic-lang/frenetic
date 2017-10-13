@@ -2,9 +2,9 @@ open Core
 open Fdd
 open Syntax
 open Frenetic_kernel
-open Local_compiler
 
 exception Non_local = Syntax.Non_local
+module FDD = Local_compiler.FDD
 module Par = Action.Par
 module Seq = Action.Seq
 (*==========================================================================*)
@@ -645,8 +645,8 @@ module Automaton = struct
 end
 (* END: module Automaton *)
 
-
-let compile ?(options=default_compiler_options) ?(pc=Field.Vlan) pol : FDD.t =
+open Local_compiler
+let compile ?(options=default_compiler_options) ?(pc=Field.Vlan) ?ing pol : FDD.t =
   prepare_compilation ~options pol;
   Automaton.of_policy pol
   |> Automaton.to_local ~pc
