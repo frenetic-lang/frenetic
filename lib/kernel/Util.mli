@@ -1,4 +1,4 @@
-(** Utility functions for Frenetic_base.  These are used in multiple modules and don't have an obvious home type. *)
+(** Utility functions for Frenetic_kernel.  These are used in multiple modules and don't have an obvious home type. *)
 
 open Core
 

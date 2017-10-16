@@ -9,7 +9,7 @@
 open Core
 open Yojson.Basic
 
-open Frenetic_base.OpenFlow
+open Frenetic_kernel.OpenFlow
 open Syntax
 
 (* {1 Json Serialization/Deserialization} *)

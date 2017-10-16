@@ -1,7 +1,7 @@
 open Core
 open Async
 
-open Frenetic_base.OpenFlow
+open Frenetic_kernel.OpenFlow
 
 module type PLUGIN = sig
   val start: int -> unit

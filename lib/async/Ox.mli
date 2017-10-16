@@ -1,5 +1,5 @@
 (** Launches an Ox application. *)
-open Frenetic_base.OpenFlow0x01
+open Frenetic_kernel.OpenFlow0x01
 
 (** Provides default implementations for some advanced event handlers,
     reducing clutter in simple controllers.
@@ -49,7 +49,7 @@ end
 (** [Platform] defines functions for sending OpenFlow messages to
 switches and wrapping thunks with timeouts. *)
 module Platform : sig
-  open Frenetic_base.OpenFlow0x01
+  open Frenetic_kernel.OpenFlow0x01
   val send_packet_out : switchId -> xid -> packetOut -> unit
   val send_flow_mod : switchId -> xid -> flowMod -> unit
   val send_stats_request : switchId -> xid -> request -> unit

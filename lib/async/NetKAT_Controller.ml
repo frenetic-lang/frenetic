@@ -2,7 +2,7 @@ open Core
 open Async
 
 open Frenetic_netkat.Syntax
-open Frenetic_base.OpenFlow
+open Frenetic_kernel.OpenFlow
 
 module type PLUGIN = sig
   val start: int -> unit
@@ -68,7 +68,7 @@ module Make (P:PLUGIN) : CONTROLLER = struct
   let packet_out (sw:switchId) (ingress_port:portId option) (pay:payload) (pol:policy list) : unit Deferred.t =
     P.packet_out sw ingress_port pay pol
 
-  let get_table (sw_id : switchId) : (Frenetic_base.OpenFlow.flow * string list) list =
+  let get_table (sw_id : switchId) : (Frenetic_kernel.OpenFlow.flow * string list) list =
     Frenetic_netkat.Local_compiler.to_table' sw_id !fdd
 
   let sum_stat_pairs stats =

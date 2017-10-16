@@ -9,16 +9,16 @@
 
 open Sexplib.Conv
 open Core
-open Frenetic_base.Packet
+open Frenetic_kernel.Packet
 
 (** {2 Basics} *)
 (* thrown whenever local policy is expected, but global policy
   (i.e. policy containing links) is encountered *)
 exception Non_local
 
-type switchId = Frenetic_base.OpenFlow.switchId [@@deriving sexp, compare, eq]
-type portId = Frenetic_base.OpenFlow.portId [@@deriving sexp, compare, eq]
-type payload = Frenetic_base.OpenFlow.payload [@@deriving sexp]
+type switchId = Frenetic_kernel.OpenFlow.switchId [@@deriving sexp, compare, eq]
+type portId = Frenetic_kernel.OpenFlow.portId [@@deriving sexp, compare, eq]
+type payload = Frenetic_kernel.OpenFlow.payload [@@deriving sexp]
 type vswitchId = int64 [@@deriving sexp, compare, eq]
 type vportId = int64 [@@deriving sexp, compare, eq]
 type vfabricId = int64 [@@deriving sexp, compare, eq]
@@ -88,10 +88,10 @@ val drop : policy
 
 (** {3 Applications} *)
 
-type action = Frenetic_base.OpenFlow.action
+type action = Frenetic_kernel.OpenFlow.action
 
 type switch_port = switchId * portId [@@deriving sexp]
-type host = Frenetic_base.Packet.dlAddr * Frenetic_base.Packet.nwAddr [@@deriving sexp]
+type host = Frenetic_kernel.Packet.dlAddr * Frenetic_kernel.Packet.nwAddr [@@deriving sexp]
 
 type bufferId = Int32.t [@@deriving sexp] (* XXX(seliopou): different than OpenFlow *)
 

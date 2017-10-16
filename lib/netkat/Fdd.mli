@@ -182,7 +182,7 @@ module Pattern : sig
   (* [to_sdn p] Converts a [Pattern.t] into a function that will modify a [SDN.Pattern.t]
     to check the condition represented by the [Pattern.t].  This function is used to glue
     OpenFlow match patterns into a complete match spec.  *)
-  val to_sdn : t -> Frenetic_base.OpenFlow.Pattern.t -> Frenetic_base.OpenFlow.Pattern.t
+  val to_sdn : t -> Frenetic_kernel.OpenFlow.Pattern.t -> Frenetic_kernel.OpenFlow.Pattern.t
 end
 
 module Action : sig
@@ -253,8 +253,8 @@ module Action : sig
    assumes that fields are assigned to proper bitwidth integers, and does
    no validation along those lines. If the input is derived from a NetKAT
    surface syntax program, then this assumption likely holds.    *)
-  val to_sdn : ?group_tbl:Frenetic_base.GroupTable0x04.t
-            -> Int64.t option -> t -> Frenetic_base.OpenFlow.par
+  val to_sdn : ?group_tbl:Frenetic_kernel.GroupTable0x04.t
+            -> Int64.t option -> t -> Frenetic_kernel.OpenFlow.par
 
   (** [get_queries action] returns a list of queries used in actions.  May have dupes. *)
   val get_queries : t -> string list

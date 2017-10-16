@@ -1,7 +1,7 @@
 open Core
 open Syntax
 
-module Network = Frenetic_base.Network
+module Network = Frenetic_kernel.Network
 module Net = Network.Net
 module Topology = Net.Topology
 

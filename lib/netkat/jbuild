@@ -47,7 +47,7 @@
   (public_name frenetic.netkat)
   (wrapped true)
   (libraries 
-    (frenetic.base
+    (frenetic.kernel
      core
      base64
      cstruct

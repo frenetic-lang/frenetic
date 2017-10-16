@@ -3,21 +3,21 @@
 open Core
 open Async
 
-module OF10 = Frenetic_base.OpenFlow0x01
+module OF10 = Frenetic_kernel.OpenFlow0x01
 module M = OF10.Message
-module Net = Frenetic_base.Net.Net
-module SDN = Frenetic_base.OpenFlow
+module Net = Frenetic_kernel.Net.Net
+module SDN = Frenetic_kernel.OpenFlow
 module Controller = OpenFlow0x01_Controller
 module Comp = Frenetic_netkat.Local_compiler
 
 exception UpdateError
 
 module SwitchMap = Map.Make(struct
-  type t = Frenetic_base.OpenFlow.switchId [@@deriving sexp]
+  type t = Frenetic_kernel.OpenFlow.switchId [@@deriving sexp]
   let compare = compare
 end)
 
-type edge = (Frenetic_base.OpenFlow.flow * int) list SwitchMap.t
+type edge = (Frenetic_kernel.OpenFlow.flow * int) list SwitchMap.t
 
 module type UPDATE_ARGS = sig
   val get_order : unit -> Comp.order
@@ -46,7 +46,7 @@ module type UPDATE = sig
 end
 
 module BestEffortUpdate = struct
-  open Frenetic_base.OpenFlow.To0x01
+  open Frenetic_kernel.OpenFlow.To0x01
 
   let current_compiler_options =
     ref Comp.default_compiler_options
@@ -73,7 +73,7 @@ module BestEffortUpdate = struct
   let bring_up_switch (sw_id : SDN.switchId) new_r =
     let table = Comp.to_table ~options:!current_compiler_options sw_id new_r in
     Logging.printf ~level:`Debug "Setting up flow table\n%s"
-      (Frenetic_base.OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id) table);
+      (Frenetic_kernel.OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id) table);
     Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
       delete_flows_for sw_id >>= fun _ ->
       install_flows_for sw_id table)
@@ -95,7 +95,7 @@ module BestEffortUpdate = struct
 end
 
 module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
-  open Frenetic_base.OpenFlow
+  open Frenetic_kernel.OpenFlow
   open To0x01
   open Args
 
@@ -181,7 +181,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
     Monitor.try_with ~name:"PerPacketConsistent.internal_install_policy_for" (fun () ->
       let table0 = Comp.to_table sw_id repr in
       let table1 = specialize_internal_to
-        ver (Frenetic_base.Topology.internal_ports (get_nib ()) sw_id) table0 in
+        ver (Frenetic_kernel.Topology.internal_ports (get_nib ()) sw_id) table0 in
       assert (List.length table1 > 0);
       install_flows_for  sw_id table1)
     >>= fun () -> barrier sw_id
@@ -196,8 +196,8 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
 
   (* Comparison should be made based on patterns only, not actions *)
   (* Assumes both FT are sorted in descending order by priority *)
-  let rec flowtable_diff (ft1 : (Frenetic_base.OpenFlow.flow*int) list) (ft2 : (Frenetic_base.OpenFlow.flow*int) list) =
-    let open Frenetic_base.OpenFlow in
+  let rec flowtable_diff (ft1 : (Frenetic_kernel.OpenFlow.flow*int) list) (ft2 : (Frenetic_kernel.OpenFlow.flow*int) list) =
+    let open Frenetic_kernel.OpenFlow in
     match ft1,ft2 with
     | (flow1,pri1)::ft1, (flow2,pri2)::ft2 ->
       if pri1 > pri2 then
@@ -245,7 +245,7 @@ module PerPacketConsistent (Args : CONSISTENT_UPDATE_ARGS) : UPDATE = struct
     Monitor.try_with ~name:"PerPacketConsistent.edge_install_policy_for" (fun () ->
       let table = Comp.to_table sw_id repr in
       let edge_table = specialize_edge_to
-        ver (Frenetic_base.Topology.internal_ports (get_nib ()) sw_id) table in
+        ver (Frenetic_kernel.Topology.internal_ports (get_nib ()) sw_id) table in
       Logging.debug
         "switch %Lu: Installing edge table for ver %d" sw_id ver;
       swap_update_for sw_id sw_id edge_table)

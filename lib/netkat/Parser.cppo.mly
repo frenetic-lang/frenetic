@@ -323,8 +323,8 @@ int64:
 mac:
   | s = MAC
 
-      AST( Frenetic_base.Packet.mac_of_string         s  )
-      PPX( Frenetic_base.Packet.mac_of_string [%e estring ~loc s] )
+      AST( Frenetic_kernel.Packet.mac_of_string         s  )
+      PPX( Frenetic_kernel.Packet.mac_of_string [%e estring ~loc s] )
   ;
 
 ip4addr:
