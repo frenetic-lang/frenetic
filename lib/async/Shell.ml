@@ -230,7 +230,7 @@ let string_of_policy (pol : policy) : string =
   let switches' = if List.is_empty switches then [0L] else switches in
   let tbls = List.map switches'
 		      (fun sw_id -> Comp.to_table ~options:(!current_compiler_options) sw_id bdd |>
-				      Frenetic_base.OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id)) in
+				      Frenetic_kernel.OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id)) in
   String.concat ~sep:"\n\n" tbls
 
 (* Given a policy, print the flowtables associated with it *)

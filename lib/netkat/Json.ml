@@ -13,20 +13,20 @@ open Optimize
 
 (** Optimize & MAC Addresses **)
 
-let string_of_mac = Frenetic_base.Packet.string_of_mac
-let mac_of_string = Frenetic_base.Packet.mac_of_string
+let string_of_mac = Frenetic_kernel.Packet.string_of_mac
+let mac_of_string = Frenetic_kernel.Packet.mac_of_string
 
-let string_of_ip = Frenetic_base.Packet.string_of_ip
-let ip_of_string = Frenetic_base.Packet.ip_of_string
+let string_of_ip = Frenetic_kernel.Packet.string_of_ip
+let ip_of_string = Frenetic_kernel.Packet.ip_of_string
 
-let to_json_ip (addr, mask : Frenetic_base.Packet.nwAddr * int32) : json =
+let to_json_ip (addr, mask : Frenetic_kernel.Packet.nwAddr * int32) : json =
   let addr = ("addr", `String (string_of_ip addr)) in
   let mask = Int32.to_int_exn mask |> function
     | 32 -> []
     | m -> [("mask", `Int m)] in
   `Assoc (addr :: mask)
 
-let from_json_ip (json : json) : Frenetic_base.Packet.nwAddr * int32 =
+let from_json_ip (json : json) : Frenetic_kernel.Packet.nwAddr * int32 =
   let open Yojson.Basic.Util in
   let addr = json |> member "addr" |> to_string |> ip_of_string in
   let mask = json |> member "mask" |> function
@@ -202,7 +202,7 @@ let stats_to_json ((pkts, bytes) : Int64.t * Int64.t) : json =
 let stats_to_json_string (stats : Int64.t * Int64.t) : string =
   Yojson.Basic.to_string ~std:true (stats_to_json stats)
 
-open Frenetic_base.OpenFlow
+open Frenetic_kernel.OpenFlow
 let pseudoport_from_json (json : json) : pseudoport =
   let open Yojson.Basic.Util in
   match json |> member "type" |> to_string with
@@ -274,8 +274,8 @@ let pattern_to_json (p:Pattern.t) : json =
     | None -> `Null
     | Some x -> `Int (f x) in
   `Assoc [
-     ("dlSrc", str_field Frenetic_base.Packet.string_of_mac p.dlSrc);
-     ("dlDst", str_field Frenetic_base.Packet.string_of_mac p.dlDst);
+     ("dlSrc", str_field Frenetic_kernel.Packet.string_of_mac p.dlSrc);
+     ("dlDst", str_field Frenetic_kernel.Packet.string_of_mac p.dlDst);
      ("dlTyp", int_field ident p.dlTyp);
      ("dlVlan", int_field ident p.dlVlan);
      ("dlVlanPcp", int_field ident p.dlVlanPcp);
@@ -288,9 +288,9 @@ let pattern_to_json (p:Pattern.t) : json =
 
 let modify_to_json (m : modify) : json = match m with
   | SetEthSrc m ->
-     `List [`String "SetDlSrc"; `String (Frenetic_base.Packet.string_of_mac m)]
+     `List [`String "SetDlSrc"; `String (Frenetic_kernel.Packet.string_of_mac m)]
   | SetEthDst m ->
-     `List [`String "SetDlDst"; `String (Frenetic_base.Packet.string_of_mac m)]
+     `List [`String "SetDlDst"; `String (Frenetic_kernel.Packet.string_of_mac m)]
   | SetVlan o ->
      `List [`String "SetVlan"; `Int (match o with None -> 0xffff | Some n ->  n)]
   | SetVlanPcp n ->
@@ -300,9 +300,9 @@ let modify_to_json (m : modify) : json = match m with
   | SetIPProto n ->
      `List [`String "SetNwProto"; `Int n]
   | SetIP4Src n ->
-     `List [`String "SetNwSrc"; `String (Frenetic_base.Packet.string_of_ip n)]
+     `List [`String "SetNwSrc"; `String (Frenetic_kernel.Packet.string_of_ip n)]
   | SetIP4Dst n ->
-     `List [`String "SetNwDst"; `String (Frenetic_base.Packet.string_of_ip n)]
+     `List [`String "SetNwDst"; `String (Frenetic_kernel.Packet.string_of_ip n)]
   | SetTCPSrcPort n ->
      `List [`String "SetTpSrc"; `Int n]
   | SetTCPDstPort n ->
@@ -345,7 +345,7 @@ let flowTable_to_json (tbl : flowTable) : json =
   let priorities = List.range ~stride:(-1) 65535 (65535 - List.length tbl) in
   `List (List.map2_exn ~f:flow_to_json priorities tbl)
 
-let port_stat_to_json (portStat: Frenetic_base.OpenFlow.portStats) : json =
+let port_stat_to_json (portStat: Frenetic_kernel.OpenFlow.portStats) : json =
   `Assoc [("port_no", `Int (Int64.to_int_exn portStat.port_no));
     ("rx_packets", `Int (Int64.to_int_exn portStat.port_rx_packets));
     ("tx_packets", `Int (Int64.to_int_exn portStat.port_tx_packets));
@@ -360,14 +360,14 @@ let port_stat_to_json (portStat: Frenetic_base.OpenFlow.portStats) : json =
     ("rx_crc_err", `Int (Int64.to_int_exn portStat.port_rx_crc_err));
     ("collisions", `Int (Int64.to_int_exn portStat.port_collisions))]
 
-let port_stat_to_json_string (portStat: Frenetic_base.OpenFlow.portStats) : string =
+let port_stat_to_json_string (portStat: Frenetic_kernel.OpenFlow.portStats) : string =
   Yojson.Basic.to_string ~std:true (port_stat_to_json portStat)
 
 let event_to_json (event : event) : json =
   let open Yojson.Basic.Util in
   match event with
   | PacketIn (pipe, sw_id, pt_id, payload, len, reason) ->
-    let buffer = Frenetic_base.OpenFlow.payload_bytes payload |>
+    let buffer = Frenetic_kernel.OpenFlow.payload_bytes payload |>
       Cstruct.to_string |>
       B64.encode in
     `Assoc [
@@ -378,7 +378,7 @@ let event_to_json (event : event) : json =
         ("payload", `Assoc [
             ("buffer", `String buffer);
             ("id", match payload with
-              | Frenetic_base.OpenFlow.Buffered (id, _) -> `Int (Int32.to_int_exn id)
+              | Frenetic_kernel.OpenFlow.Buffered (id, _) -> `Int (Int32.to_int_exn id)
               | _  -> `Null)
         ]);
         ("length", `Int len)

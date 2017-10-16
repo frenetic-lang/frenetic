@@ -3,9 +3,9 @@ module INRIASys = Sys
 open Core
 open Async
 open Printf
-open Frenetic_base.Packet
-open Frenetic_base.OpenFlow_Header
-open Frenetic_base.OpenFlow0x01
+open Frenetic_kernel.Packet
+open Frenetic_kernel.OpenFlow_Header
+open Frenetic_kernel.OpenFlow0x01
 open Message
 
 let _ = Logging.set_level `Info
@@ -88,7 +88,7 @@ module Make (Handlers:OXMODULE) = struct
           "unhandled exception sending message to switch %Ld" sw;
         return ()
 
-  let handler (evt:Frenetic_base.OpenFlow.event) : unit Deferred.t =
+  let handler (evt:Frenetic_kernel.OpenFlow.event) : unit Deferred.t =
     let open Message in
     let open FlowMod in
     let open SwitchFeatures in
@@ -98,8 +98,8 @@ module Make (Handlers:OXMODULE) = struct
       let res2 = Controller.send sw 1l BarrierRequest in
         (Deferred.both res1 res2 >>| function
           | RpcOk, RpcOk ->
-            let sf = Frenetic_base.OpenFlow.{switch_id = sw; switch_ports = feats} in
-            Handlers.switch_connected sw (Frenetic_base.OpenFlow.To0x01.from_switch_features sf)
+            let sf = Frenetic_kernel.OpenFlow.{switch_id = sw; switch_ports = feats} in
+            Handlers.switch_connected sw (Frenetic_kernel.OpenFlow.To0x01.from_switch_features sf)
           | _ -> ())
     | SwitchDown sw ->
       Logging.info "switch %Ld disconnected\n%!" sw;
@@ -112,7 +112,7 @@ module Make (Handlers:OXMODULE) = struct
       Logging.info "Port %ld on Switch %Ld disconnected\n%!" port sw;
       return ()
     | PacketIn (pipe,sw,port,pl,total_len,reason) ->
-      let open Frenetic_base.OpenFlow.To0x01 in
+      let open Frenetic_kernel.OpenFlow.To0x01 in
       let pktIn = {
         input_payload = from_payload pl
         ; total_len = total_len

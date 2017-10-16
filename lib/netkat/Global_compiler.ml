@@ -1,7 +1,7 @@
 open Core
 open Fdd
 open Syntax
-open Frenetic_base
+open Frenetic_kernel
 open Local_compiler
 
 exception Non_local = Syntax.Non_local
@@ -357,7 +357,7 @@ module Automaton = struct
 
   type pred = cnstr Field.Map.t
 
-  let pred_to_fdd pred = 
+  let pred_to_fdd pred =
     Map.fold pred ~init:FDD.id ~f:(fun ~key:f ~data:c acc ->
       match c with
       | Eq v -> FDD.cond (f,v) acc FDD.drop
@@ -386,11 +386,11 @@ module Automaton = struct
       Hashtbl.set reach ~key:id ~data:phi';
       let (_, d) = Hashtbl.find_exn automaton.states id in
       let conts = FDD.fold d
-        ~f:(fun par -> 
-          Par.to_list par 
+        ~f:(fun par ->
+          Par.to_list par
           |> List.map ~f:(fun seq ->
             Seq.to_alist seq
-            |> List.filter_map ~f:(function 
+            |> List.filter_map ~f:(function
               | Action.K, v -> None
               | Action.F f, v -> Some (f, Eq v)
               )
@@ -489,7 +489,7 @@ module Automaton = struct
   let merge_states (automaton : t) reach loc_map (state_map : (ploc, Int64.Set.t) Hashtbl.t)
     : (ploc, Int64.Set.t) Hashtbl.t =
     let fuse ploc states =
-      let (e,d,phi) = 
+      let (e,d,phi) =
         Int64.Set.fold states ~init:FDD.(drop, drop, drop) ~f:(fun (e,d,phi) id ->
           let e',d' = Hashtbl.find_exn automaton.states id in
           let psi = Hashtbl.find_exn reach id in
@@ -510,7 +510,7 @@ module Automaton = struct
       (* create contraint graph *)
       let g = G.create () in
       Set.iter states ~f:(fun i -> G.add_vertex g G.V.(create i));
-      G.iter_vertex (fun i -> 
+      G.iter_vertex (fun i ->
         G.iter_vertex (fun j ->
           let ii = G.V.label i and jj = G.V.label j in
           if ii < jj && not (disjoint (Hashtbl.find_exn reach ii) (Hashtbl.find_exn reach jj)) then

@@ -1,7 +1,7 @@
 open Core
 open Fdd
 open Syntax
-open Frenetic_base
+open Frenetic_kernel
 
 module Field = Fdd.Field
 exception Non_local = Syntax.Non_local
@@ -288,7 +288,7 @@ end
 let compile ?(options=default_compiler_options) pol =
   prepare_compilation ~options pol; of_local_pol pol
 
-let is_valid_pattern options (pat : Frenetic_base.OpenFlow.Pattern.t) : bool =
+let is_valid_pattern options (pat : Frenetic_kernel.OpenFlow.Pattern.t) : bool =
   (Option.is_none pat.dlTyp ==>
      (Option.is_none pat.nwProto &&
       Option.is_none pat.nwSrc &&
@@ -305,8 +305,8 @@ let add_dependency_if_unseen all_tests pat dep =
 
 (* Note that although Vlan and VlanPcp technically have a dependency on the packet being an EthType 0x8100, you
    never have to include that Dependency in OpenFlow because the EthType match is always for the INNER packet. *)
-let fill_in_dependencies all_tests (pat : Frenetic_base.OpenFlow.Pattern.t) =
-  let open Frenetic_base.OpenFlow.Pattern in
+let fill_in_dependencies all_tests (pat : Frenetic_kernel.OpenFlow.Pattern.t) =
+  let open Frenetic_kernel.OpenFlow.Pattern in
   let all_dependencies =
     if (Option.is_some pat.nwSrc || Option.is_some pat.nwDst) && Option.is_none pat.dlTyp then
       [ EthType(0x800); EthType(0x806) ]
@@ -331,11 +331,11 @@ let fill_in_dependencies all_tests (pat : Frenetic_base.OpenFlow.Pattern.t) =
   | deps -> List.filter_opt (List.map deps ~f:(add_dependency_if_unseen all_tests pat))
 
 let to_pattern hvs =
-  List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_base.OpenFlow.Pattern.match_all
+  List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_kernel.OpenFlow.Pattern.match_all
 
 let mk_flows options true_tests all_tests action queries =
-  let open Frenetic_base.OpenFlow.Pattern in
-  let open Frenetic_base.OpenFlow in
+  let open Frenetic_kernel.OpenFlow.Pattern in
+  let open Frenetic_kernel.OpenFlow in
   let patterns = to_pattern true_tests |> fill_in_dependencies all_tests in
   List.map patterns ~f:(fun p ->
     ({ pattern=p; action; cookie=0L; idle_timeout=Permanent; hard_timeout=Permanent }, queries)
@@ -419,7 +419,7 @@ let remove_tail_drops fl =
     match fl with
     | [] -> fl
     | h :: t ->
-      let actions = (fst h).Frenetic_base.OpenFlow.action in
+      let actions = (fst h).Frenetic_kernel.OpenFlow.action in
       match (List.concat (List.concat actions)) with
       | [] -> remove_tail_drop t
       | _ -> h :: t in
@@ -555,17 +555,17 @@ type flow_subtrees = (t, flowId) Map.Poly.t
 
 (* OpenFlow 1.3+ instruction types *)
 type instruction =
-  [ `Action of Frenetic_base.OpenFlow.group
+  [ `Action of Frenetic_kernel.OpenFlow.group
   | `GotoTable of flowId ]
   [@@deriving sexp]
 
 (* A flow table row, with multitable support. If goto has a Some value
  * then the 0x04 row instruction is GotoTable. *)
 type multitable_flow = {
-  pattern      : Frenetic_base.OpenFlow.Pattern.t;
+  pattern      : Frenetic_kernel.OpenFlow.Pattern.t;
   cookie       : int64;
-  idle_timeout : Frenetic_base.OpenFlow.timeout;
-  hard_timeout : Frenetic_base.OpenFlow.timeout;
+  idle_timeout : Frenetic_kernel.OpenFlow.timeout;
+  hard_timeout : Frenetic_kernel.OpenFlow.timeout;
   instruction  : instruction;
   flowId       : flowId;
 } [@@deriving sexp]
@@ -596,7 +596,7 @@ let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
         Map.add accum ~key:t ~data:(tbl_id,(post meta_id))))
 
 (* make a flow struct that includes the table and meta id of the flow *)
-let mk_multitable_flow options (pattern : Frenetic_base.OpenFlow.Pattern.t)
+let mk_multitable_flow options (pattern : Frenetic_kernel.OpenFlow.Pattern.t)
   (instruction : instruction) (flowId : flowId) : multitable_flow option =
   (* TODO: Fill in dependencies, similar to mk_flows above *)
   if is_valid_pattern options pattern then
@@ -609,7 +609,7 @@ let mk_multitable_flow options (pattern : Frenetic_base.OpenFlow.Pattern.t)
 
 (* Create flow table rows for one subtree *)
 let subtree_to_table options (subtrees : flow_subtrees) (subtree : (t * flowId))
-  (group_tbl : Frenetic_base.GroupTable0x04.t) : multitable_flow list =
+  (group_tbl : Frenetic_kernel.GroupTable0x04.t) : multitable_flow list =
   let rec dfs (tests : (Field.t * Value.t) list) (subtrees : flow_subtrees)
   (t : t) (flowId : flowId) : multitable_flow option list =
     match FDD.unget t with
@@ -634,8 +634,8 @@ let subtree_to_table options (subtrees : flow_subtrees) (subtree : (t * flowId))
      List.filter_opt (dfs [] subtrees t flowId)
 
 (* Collect the flow table rows for each subtree in one list. *)
-let subtrees_to_multitable options (subtrees : flow_subtrees) : (multitable_flow list * Frenetic_base.GroupTable0x04.t) =
-  let group_table = (Frenetic_base.GroupTable0x04.create ()) in
+let subtrees_to_multitable options (subtrees : flow_subtrees) : (multitable_flow list * Frenetic_kernel.GroupTable0x04.t) =
+  let group_table = (Frenetic_kernel.GroupTable0x04.create ()) in
   Map.to_alist subtrees
   |> List.rev
   |> List.map ~f:(fun subtree -> subtree_to_table options subtrees subtree group_table)
@@ -644,7 +644,7 @@ let subtrees_to_multitable options (subtrees : flow_subtrees) : (multitable_flow
 
 (* Produce a list of flow table entries for a multitable setup *)
 let to_multitable ?(options=default_compiler_options) (sw_id : switchId) (layout : flow_layout) t
-  : (multitable_flow list * Frenetic_base.GroupTable0x04.t) =
+  : (multitable_flow list * Frenetic_kernel.GroupTable0x04.t) =
   (* restrict to only instructions for this switch, get subtrees,
    * turn subtrees into list of multitable flow rows *)
   FDD.restrict [(Field.Switch, Value.Const sw_id)] t

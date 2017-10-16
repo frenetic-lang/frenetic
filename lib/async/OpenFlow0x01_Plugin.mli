@@ -1,6 +1,6 @@
 open Core
 open Async
-open Frenetic_base.OpenFlow
+open Frenetic_kernel.OpenFlow
 
 (* plugin function implementations *)
 
@@ -20,12 +20,12 @@ val update : Frenetic_netkat.Local_compiler.t -> unit Deferred.t
 
 val update_switch : switchId -> Frenetic_netkat.Local_compiler.t -> unit Deferred.t
 
-(* Low-level interface for Frenetic_base.Ox programming *)
+(* Low-level interface for Frenetic_kernel.Ox programming *)
 
 type rpc_ack  = RpcOk | RpcEof
 
 module LowLevel : sig
-  module OF10 = Frenetic_base.OpenFlow0x01
+  module OF10 = Frenetic_kernel.OpenFlow0x01
 
   val start: int -> unit
 
