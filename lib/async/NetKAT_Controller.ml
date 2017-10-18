@@ -21,6 +21,7 @@ module type CONTROLLER = sig
   val switches : unit -> (switchId * portId list) list Deferred.t
   val port_stats : switchId -> portId -> portStats Deferred.t
   val update : Frenetic_netkat.Syntax.policy -> unit Deferred.t
+  val update_fdd : Frenetic_netkat.Local_compiler.t -> unit Deferred.t
   val packet_out : switchId -> portId option -> payload -> Frenetic_netkat.Syntax.policy list -> unit Deferred.t
   val query : string -> (int64 * int64) Deferred.t
   val set_current_compiler_options : Frenetic_netkat.Local_compiler.compiler_options -> unit
@@ -36,6 +37,10 @@ module Make (P:PLUGIN) : CONTROLLER = struct
 
   let update (pol:policy) : unit Deferred.t =
     fdd := Frenetic_netkat.Local_compiler.compile pol;
+    P.update !fdd
+
+  let update_fdd new_fdd : unit Deferred.t =
+    fdd := new_fdd;
     P.update !fdd
 
   let handle_event (evt:event) : unit Deferred.t =
