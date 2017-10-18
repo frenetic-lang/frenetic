@@ -160,7 +160,7 @@ module Flag = struct
       ~doc: "file Translate compiler output to local program and dump it to file"
 
   let dump_global =
-    flag "--dump-local" (optional file)
+    flag "--dump-global" (optional file)
       ~doc: "file Translate compiler output to global program and dump it to file"
 
   let determinize =
@@ -173,7 +173,11 @@ module Flag = struct
 
   let update_controller =
     flag "--update-controller" no_arg
-      ~doc: "port Push flow tables to OpenFlow controller"
+      ~doc:"Push flow tables to OpenFlow controller"
+
+  let remove_topo =
+    flag "--remove-topo" no_arg
+      ~doc:"Remove topology states from automaton. (Not equivalence preserving!)"
 end
 
 
@@ -290,7 +294,7 @@ module Virtual = struct
     let module Virtual = Netkat.Virtual_Compiler.Make(FG) in
     let (t1, global_pol) = time (fun () ->
       Virtual.compile vpol ~log:true ~vrel ~vtopo ~ving_pol ~ving ~veg ~ptopo ~ping ~peg) in
-    let (t2, fdd) = time (fun () -> Netkat.Global_compiler.compile global_pol ~ing:ping) in
+    let (t2, fdd) = time (fun () -> Netkat.Global_compiler.compile global_pol) in
 
     (* print & dump *)
     let switches = Netkat.Semantics.switches_of_policy global_pol in
@@ -324,12 +328,15 @@ module Auto = struct
     +> Flag.print_order
     +> Flag.determinize
     +> Flag.minimize
+    +> Flag.remove_topo
   )
 
-  let run file json printorder dedup cheap_minimize () =
+  let run file json printorder dedup cheap_minimize remove_topo () =
+    let open Netkat.Global_compiler in
     let pol = parse_pol ~json file in
     let (t, auto) = time (fun () ->
-      Netkat.Global_compiler.Automaton.of_policy pol ~dedup ~cheap_minimize) in
+      Automaton.of_policy pol ~dedup ~cheap_minimize) in
+    if remove_topo then ignore (Automaton.skip_topo_states auto);
     if printorder then print_order ();
     dump_auto auto ~file:(file ^ ".auto.dot");
     print_time t;

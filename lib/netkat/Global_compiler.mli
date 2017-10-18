@@ -1,4 +1,6 @@
 open Syntax
+open Core
+
 module FDD : module type of Local_compiler.FDD
 
 (** Intermediate representation of global compiler: NetKAT Automata *)
@@ -15,6 +17,9 @@ module Automaton : sig
   val to_local: pc:Fdd.Field.t -> t -> FDD.t
 
   val to_dot: t -> string
+
+  val skip_topo_states : t
+    -> ((int64, (int64 * int64)) Hashtbl.t * ((int64 * int64), Int64.Set.t) Hashtbl.t)
 end
 
 

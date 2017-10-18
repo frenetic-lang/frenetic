@@ -550,6 +550,7 @@ module Automaton = struct
       let index = Int64.Map.find_exn ploc_states id in
       (Value.of_int index, Map.length ploc_states = 1)
     in
+    let pop_vlan = FDD.of_mod Field.Env.empty (Vlan 0xffff) in
     fold_reachable automaton ~init:FDD.drop ~f:(fun acc id (e,d) ->
       let _ = assert (pc_unused pc e && pc_unused pc d) in
       let d =
@@ -565,6 +566,13 @@ module Automaton = struct
               Seq.add seq ~key:(F pc) ~data:pc_val
           ))
           d
+      in
+      let e =
+        (* SJS: Vlan specific hack. Ideally, this should be more general *)
+        if pc = Field.Vlan then
+          FDD.seq e pop_vlan
+        else
+          e
       in
       let guard =
         if id = automaton.source then FDD.id else
@@ -582,6 +590,12 @@ module Automaton = struct
     let state_lbl fmt = fprintf fmt "state_%Ld" in
     let fdd_lbl fmt fdd = fprintf fmt "fdd_%d" (fdd : FDD.t :> int) in
     let fdd_leaf_lbl fmt (i,fdd) = fprintf fmt "seq_%d_%d" (fdd : FDD.t :> int) i in
+
+    (* remove unreachable states *)
+    let reachable = fold_reachable automaton ~init:Int64.Set.empty
+      ~f:(fun reachable id _ -> Int64.Set.add reachable id) in
+    List.iter (Hashtbl.keys states) ~f:(fun id ->
+      if not (Int64.Set.mem reachable id) then Hashtbl.remove states id);
 
     (* auxillary functions *)
     let rec do_states () =
