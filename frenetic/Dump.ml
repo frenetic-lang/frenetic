@@ -29,6 +29,10 @@ let dump_local fdd ~file =
   |> Netkat.Pretty.string_of_policy
   |> dump ~file
 
+let dump_pol pol ~file =
+  Netkat.Pretty.string_of_policy pol
+  |> dump ~file
+
 let dump_fdd fdd ~file =
   dump ~file (Netkat.Local_compiler.to_dot fdd)
 
@@ -155,6 +159,10 @@ module Flag = struct
     flag "--dump-local" (optional file)
       ~doc: "file Translate compiler output to local program and dump it to file"
 
+  let dump_global =
+    flag "--dump-local" (optional file)
+      ~doc: "file Translate compiler output to global program and dump it to file"
+
   let determinize =
     flag "--determinize" no_arg
       ~doc:"Determinize automaton."
@@ -261,10 +269,11 @@ module Virtual = struct
     +> Flag.print_order
     +> Flag.dump_local
     +> Flag.update_controller
+    +> Flag.dump_global
   )
 
   let run vpol_file vrel vtopo ving_pol ving veg ptopo ping peg printfdd dumpfdd printglobal
-    no_tables printorder dumplocal updatecontroller () =
+    no_tables printorder dumplocal updatecontroller dumpglobal () =
     (* parse files *)
     let vpol = parse_pol vpol_file in
     let vrel = parse_pred vrel in
@@ -281,13 +290,17 @@ module Virtual = struct
     let module Virtual = Netkat.Virtual_Compiler.Make(FG) in
     let (t1, global_pol) = time (fun () ->
       Virtual.compile vpol ~log:true ~vrel ~vtopo ~ving_pol ~ving ~veg ~ptopo ~ping ~peg) in
-    let (t2, fdd) = time (fun () -> Netkat.Global_compiler.compile global_pol) in
+    let (t2, fdd) = time (fun () -> Netkat.Global_compiler.compile global_pol ~ing:ping) in
 
     (* print & dump *)
     let switches = Netkat.Semantics.switches_of_policy global_pol in
     if printglobal then begin
       Format.fprintf fmt "Global Policy:@\n@[%a@]@\n@\n"
         Netkat.Pretty.format_policy global_pol
+    end;
+    begin match dumpglobal with
+      | Some file -> dump_pol global_pol ~file
+      | None -> ()
     end;
     if printorder then print_order ();
     if printfdd then print_fdd fdd;

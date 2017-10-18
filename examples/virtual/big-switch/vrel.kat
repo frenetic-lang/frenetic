@@ -1,4 +1,4 @@
-(* Virtual Relation. Determines how virtual and physical locations are related. See sketch.txt for details. *)
+(* Virtual Relation. Determines how virtual and physical locations are related. *)
 
 ((vswitch=1 and vport=3) and (switch=3 and port=0)) or
 ((vswitch=1 and vport=4) and (switch=4 and port=0)) or
