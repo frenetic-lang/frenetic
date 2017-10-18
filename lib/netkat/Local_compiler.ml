@@ -370,10 +370,27 @@ let erase_meta_fields fdd =
         failwith "uninitialized meta field"
       | _, _ -> unchecked_cond v t f)
 
-let mk_branch_or_leaf test t f =
+
+(** returns the "all-false-branch" of an FDD with respect to a particular field,
+    i.e. the sub FDD obtained by, starting from the root, taking the false branch
+    until the top-most field is not equal to the given [field] *)
+let rec get_all_false field fdd =
+  match FDD.unget fdd with
+  | Leaf _ -> fdd
+  | Branch ((field',_), _, fls) ->
+    if Field.equal field field' then
+      get_all_false field fls
+    else
+      fdd
+
+let mk_branch_or_leaf ((field,_) as test) t f =
   match t with
   | None -> Some f
-  | Some t -> Some (FDD.unchecked_cond test t f)
+  | Some t ->
+    if FDD.equal t (get_all_false field f) then
+      Some f
+    else
+      Some (FDD.unchecked_cond test t f)
 
 let opt_to_table ?group_tbl options sw_id t =
   let t =
