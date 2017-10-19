@@ -39,9 +39,7 @@ module MakeOwl(Repr : Packet_Repr.S) = struct
         if verbose then show mc;
         print_time t;
         let nnz = Sparse.nnz mc and nnzc = Array.length (Sparse.nnz_cols mc) in
-        printf "# nonzero entries: %d (%.3f%%)\n" nnz Float.(of_int nnz / of_int Int.(n*n) * 100.0);
-        printf "# nonzero cols = %d (%.3f%%)\n" nnzc Float.(of_int nnzc / of_int n * 100.0);
-        printf "sparsety = (%.2f, %.2f, %.2f)\n\n%!"
+        printf "sparsety = (%.2fn, %.2f*nlog(n), %.2f*n^2)\n\n%!"
           Float.(of_int nnz / of_int n)
           Float.(of_int nnz / (of_int n |> fun n -> n * log n))
           Float.(of_int nnz / of_int Int.(n * n));
