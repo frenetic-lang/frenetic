@@ -11,23 +11,22 @@ module Value = Int
 type headerval = field * value [@@deriving sexp, compare, eq]
 
 (** TODO: make private in mli  *)
-type policy =
-  { p : policy0;
-    pred : bool;
-    determ : bool;
-  }
-and policy0 =
+type 'pol policy0 =
   | Skip
   | Drop
   | Test of headerval
   | Modify of headerval
-  | Neg of policy
-  | Or of policy * policy
-  | Seq of policy * policy
-  | Ite of policy * policy * policy
-  | While of policy * policy
-  | Choice of (policy * Prob.t) list
+  | Neg of 'pol
+  | Or of 'pol * 'pol
+  | Seq of 'pol * 'pol
+  | Ite of 'pol * 'pol * 'pol
+  | While of 'pol * 'pol
+  | Choice of ('pol * Prob.t) list
   [@@deriving sexp, compare, eq]
+
+type policy = { p : policy policy0;
+                pred : bool;
+                determ : bool }
 
 let pp_hv op fmt hv =
   fprintf fmt "@[%s%s%d@]" (fst hv) op (snd hv)
