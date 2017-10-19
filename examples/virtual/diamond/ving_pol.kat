@@ -1,2 +1,0 @@
-(*virtual ingress policy*)
-vswitch:=1; vport:=0

@@ -1,39 +1,25 @@
-all: build
+INSTALL_ARGS := $(if $(PREFIX),--prefix $(PREFIX),)
 
-J=4
+build:
+	time -p jbuilder build @install
 
-# SJS: Suppress duplicate topdirs.cmi warnings.
-OCAMLFIND_IGNORE_DUPS_IN = $(shell ocamlfind query compiler-libs)
-export OCAMLFIND_IGNORE_DUPS_IN
+install:
+	jbuilder install $(INSTALL_ARGS)
 
-setup.ml: _oasis
-	oasis setup
+uninstall:
+	jbuilder uninstall $(INSTALL_ARGS)
 
-setup.data: setup.ml
-	./configure
-
-build: setup.data setup.ml
-	ocaml setup.ml -build -j $(J)
-
-install: setup.data setup.ml
-	ocaml setup.ml -install
-
-reinstall: setup.ml
-	ocaml setup.ml -reinstall
-
-uninstall: setup.ml
-	ocaml setup.ml -uninstall
-
-test: setup.ml build
-	ocaml setup.ml -test $(TESTFLAGS)
+reinstall: uninstall reinstall
 
 clean:
-	ocamlbuild -clean
-	rm -f setup.data setup.log
-
-distclean:
-	ocaml setup.ml -distclean
-	rm -f setup.data setup.log
+	jbuilder clean
 
 doc:
-	ocaml setup.ml -doc
+	jbuilder build @doc
+
+test:
+	jbuilder build @runtest
+
+all: build test doc
+
+.PHONY: build install uninstall reinstall clean doc test all

@@ -1,6 +1,0 @@
-{
-  "type":"seq", "pols": [
-    { "type":"filter", "pred": { "type": "true" } },
-    { "type": "mod", "header": "location", "value": {"type":"pipe", "name": "my_app"} }
-  ]
-}

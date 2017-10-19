@@ -1,3 +1,0 @@
-(* let declares immutable variables - hence this should not compile *)
-let `meta:=0 in
-`meta:=1

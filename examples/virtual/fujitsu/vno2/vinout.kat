@@ -1,2 +1,0 @@
-(vswitch=1 and vport=1) or (* Host 4 *)
-(vswitch=1 and vport=2)    (* Host 5 *)

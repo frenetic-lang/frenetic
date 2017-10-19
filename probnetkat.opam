@@ -1,0 +1,19 @@
+opam-version: "1.2"
+available: [ ocaml-version >= "4.05.0" ]
+version: "0.1"
+maintainer: "Steffen Smolka <smolka@cs.cornell.edu>"
+homepage: "http://frenetic-lang.org"
+bug-reports: "https://github.com/frenetic-lang/frenetic/issues"
+dev-repo: "https://github.com/frenetic-lang/frenetic.git"
+
+build: ["jbuilder" "build" "-p" name "-j" jobs]
+build-doc: ["jbuilder" "build" "@doc" "-p" name "-j" jobs]
+build-test: ["jbuilder" "runtest" "-p" name "-j" jobs]
+install: ["jbuilder" "install" "-p" name "-j" jobs]
+
+depends: [
+  "jbuilder" {>="1.0+beta13"}
+  "core"   {>= "0.9.0"}
+  "owl"
+  "lacaml"
+]

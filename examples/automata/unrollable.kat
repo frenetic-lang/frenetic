@@ -1,7 +1,0 @@
-(* NetKAT automata have the strange property that they can sometimes be unrolled
-   into a loop-free automaton. This is an example for such an automaton.
-*)
-
-vlanId:=0;
-(dup; (filter vlanId=0; vlanId:=1 + filter vlanId=1; vlanId:=2))*;
-filter vlanId=1

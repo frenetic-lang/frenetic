@@ -1,1 +1,0 @@
-{"port_no":1000,"rx_packets":2000000000,"tx_packets":3000000000,"rx_bytes":4000000000,"tx_bytes":5000000000,"rx_dropped":6000000000,"tx_dropped":7000000000,"rx_errors":8000000000,"tx_errors":9000000000,"rx_fram_err":10000000000,"rx_over_err":11000000000,"rx_crc_err":12000000000,"collisions":13000000000}

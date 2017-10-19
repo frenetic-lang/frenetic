@@ -1,3 +1,0 @@
-filter port = 1; port := pipe("ctrl") +
-filter port = 2; port := query("qry") +
-filter port = 3; port := 1
