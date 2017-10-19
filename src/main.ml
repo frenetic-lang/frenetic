@@ -1,9 +1,7 @@
 open Core
-open ProbNetKAT
-open ProbNetKAT_Packet_Repr
-open ProbNetKAT_Util
-
-module Mc = ProbNetKAT_Mc
+open Probnetkat
+open Packet_Repr
+open Util
 
 let fprintf = Format.fprintf
 let fmt = Format.std_formatter
@@ -26,10 +24,10 @@ let run ?(print=true) ?(lbl=true) ?(transpose=false) ?(debug=false) ?(verbose=fa
   printf "\n========================= EIGEN ==========================\n\n%!";
   fprintf fmt "policy = %a\n\n%!" pp_policy p;
   let dom = domain p in
-  let module Repr = ProbNetKAT_Packet_Repr.Make(struct let domain = dom end) in
+  let module Repr = Packet_Repr.Make(struct let domain = dom end) in
   let n = Repr.Index0.max.i + 1 in
   print_dom_size n dom;
-  let module Mc = ProbNetKAT_Mc.MakeOwl(Repr) in
+  let module Mc = Markov_chain.MakeOwl(Repr) in
   if print && not lbl then begin
     fprintf fmt "index packet mapping:\n%!";
     Array.init n ~f:ident
@@ -53,8 +51,8 @@ let run' ?(print=true) ?(lbl=true) ?(debug=false) p =
   printf "\n========================== BLAS ==========================\n\n%!";
   fprintf fmt "policy = %a\n\n%!" pp_policy p;
   let dom = domain p in
-  let module Repr = ProbNetKAT_Packet_Repr.Make(struct let domain = dom end) in
-  let module Mc = ProbNetKAT_Mc.MakeLacaml(Repr) in
+  let module Repr = Packet_Repr.Make(struct let domain = dom end) in
+  let module Mc = Markov_chain.MakeLacaml(Repr) in
   let n = Repr.Index.max.i in
   print_dom_size n dom;
   if print && not lbl then begin
@@ -88,8 +86,8 @@ let () = begin
   printf "codepoint = %d\n" (Codepoint.(of_pk pk) :> int);
   printf "max codepoint = %d\n" (Codepoint.max :> int);
   ignore (Codepoint.to_pk Codepoint.max); *)
-  (* let open ProbNetKAT.Syntax in *)
-  let open ProbNetKAT.Syntax.Smart in
+  (* let open Probnetkat.Syntax in *)
+  let open Probnetkat.Syntax.Smart in
   let pwhile n =
     mk_while ??("f", 0) ?@[
       skip       @ (n-1)//n;

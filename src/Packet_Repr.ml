@@ -1,7 +1,7 @@
 (** nominal packet encoding  *)
 open Core
-open ProbNetKAT
-open ProbNetKAT_Packet
+open Probnetkat
+open Packet
 
 type 'domain_witness hyperpoint = int list
 type 'domain_witness codepoint = int
@@ -71,7 +71,7 @@ module type S = sig
   end
 end
 
-module Make(D : ProbNetKAT.Domain) : S = struct
+module Make(D : Probnetkat.Domain) : S = struct
 
   let domain : (Field.t * Value.t list) list =
     Map.to_alist (Map.map D.domain ~f:Value.Set.to_list)
@@ -126,7 +126,7 @@ module Make(D : ProbNetKAT.Domain) : S = struct
     let to_index cp : domain_witness index = { i = cp + 1  }
     let of_index (idx : domain_witness index) = idx.i - 1
     let to_index0 cp : domain_witness index0 = { i = cp }
-    let of_index0 (idx : domain_witness index0) = idx.i 
+    let of_index0 (idx : domain_witness index0) = idx.i
   end
 
   module Index = struct
@@ -134,12 +134,12 @@ module Make(D : ProbNetKAT.Domain) : S = struct
     let of_pk = Fn.compose Codepoint.to_index Codepoint.of_pk
     let to_pk = Fn.compose Codepoint.to_pk Codepoint.of_index
     let max = Codepoint.(to_index max)
-    let test f n t = ProbNetKAT_Packet.test f n (to_pk t)
-    let modify f n t = of_pk (ProbNetKAT_Packet.modify f n (to_pk t))
+    let test f n t = Packet.test f n (to_pk t)
+    let modify f n t = of_pk (Packet.modify f n (to_pk t))
     let test' f n i = test f n { i = i }
     let modify' f n i = (modify f n { i = i }).i
-    let pp fmt t = ProbNetKAT_Packet.pp fmt (to_pk t)
-    let pp' fmt i = ProbNetKAT_Packet.pp fmt (to_pk { i = i })
+    let pp fmt t = Packet.pp fmt (to_pk t)
+    let pp' fmt i = Packet.pp fmt (to_pk { i = i })
   end
 
   module Index0 = struct
@@ -147,12 +147,12 @@ module Make(D : ProbNetKAT.Domain) : S = struct
     let of_pk = Fn.compose Codepoint.to_index0 Codepoint.of_pk
     let to_pk = Fn.compose Codepoint.to_pk Codepoint.of_index0
     let max = Codepoint.(to_index0 max)
-    let test f n t = ProbNetKAT_Packet.test f n (to_pk t)
-    let modify f n t = of_pk (ProbNetKAT_Packet.modify f n (to_pk t))
+    let test f n t = Packet.test f n (to_pk t)
+    let modify f n t = of_pk (Packet.modify f n (to_pk t))
     let test' f n i = test f n { i = i }
     let modify' f n i = (modify f n { i = i }).i
-    let pp fmt t = ProbNetKAT_Packet.pp fmt (to_pk t)
-    let pp' fmt i = ProbNetKAT_Packet.pp fmt (to_pk { i = i })
+    let pp fmt t = Packet.pp fmt (to_pk t)
+    let pp' fmt i = Packet.pp fmt (to_pk { i = i })
   end
 
 end

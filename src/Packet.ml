@@ -1,5 +1,5 @@
 open Core
-open ProbNetKAT
+open Probnetkat
 
 type pk = value Field.Map.t
 

@@ -1,5 +1,5 @@
-open ProbNetKAT
-open ProbNetKAT_Packet
+open Probnetkat
+open Packet
 
 type 'domain_witness hyperpoint = private int list
 type 'domain_witness codepoint = private int
@@ -70,4 +70,4 @@ module type S = sig
 end
 
 
-module Make(D : ProbNetKAT.Domain) : S
+module Make(D : Probnetkat.Domain) : S

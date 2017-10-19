@@ -1,8 +1,8 @@
 open Core
-open ProbNetKAT
-open ProbNetKAT_Util
+open Probnetkat
+open Util
 
-module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
+module MakeOwl(Repr : Packet_Repr.S) = struct
   include Repr
   open Owl
   module Dense = Dense.Matrix.D
@@ -131,7 +131,7 @@ module MakeOwl(Repr : ProbNetKAT_Packet_Repr.S) = struct
            state is the empty set. In this case, the while loop is equvialent to
            drop.
          *)
-        if nr = 0 then of_pol ProbNetKAT.Syntax.Smart.drop else begin
+        if nr = 0 then of_pol Probnetkat.Syntax.Smart.drop else begin
 
         (* extract q and r from p *)
         let q = Dense.zeros nq nq and r = Dense.zeros nq nr in
@@ -194,7 +194,7 @@ TODO:
   * less wastefulallocation
 *)
 
-module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
+module MakeLacaml(Repr : Packet_Repr.S) = struct
   include Repr
   open Lacaml.D
   (** ATTENTION: Fortran uses column-major layout!!! Therefore, use left-stochastic
@@ -357,7 +357,7 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
            state is the empty set. In this case, the while loop is equvialent to
            drop.
          *)
-        if nr = 0 then of_pol ProbNetKAT.Syntax.Smart.drop else begin
+        if nr = 0 then of_pol Probnetkat.Syntax.Smart.drop else begin
 
         (* forward and backward swapping is actually the same for our permutation;
            in particular, swap o swap = id *)
@@ -420,9 +420,9 @@ module MakeLacaml(Repr : ProbNetKAT_Packet_Repr.S) = struct
 end
 
 let of_pol p =
-  let domain = ProbNetKAT.domain p in
+  let domain = Probnetkat.domain p in
   let module Domain = struct let domain = domain end in
-  let module Repr = ProbNetKAT_Packet_Repr.Make(Domain) in
+  let module Repr = Packet_Repr.Make(Domain) in
   let module Mc = MakeOwl(Repr) in
   printf "n = %d\n%!" Mc.n;
   Mc.of_pol p
