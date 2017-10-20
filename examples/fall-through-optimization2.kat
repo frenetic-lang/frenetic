@@ -7,7 +7,7 @@
                   /          \
              vlanPcp=1     vlanPcp=1
             /        \       /   \
-      tcpSrcPort=1   id    drop   id
+        port=1       id    drop   id
         /     \
        id     drop
 
@@ -23,6 +23,6 @@ if vlanId=1 then
   if not (vlanPcp=1) then 
     id 
   else
-    if tcpSrcPort=1 then id else drop
+    if port=1 then id else drop
 else
   if not (vlanPcp=1) then id else drop

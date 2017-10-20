@@ -1,6 +1,6 @@
 #!/bin/bash
 
-frenetic dump virtual vpol.kat
+frenetic dump virtual vpol.kat "$@"
 
 
 if which dot >/dev/null

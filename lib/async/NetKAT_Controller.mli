@@ -31,6 +31,9 @@ module type CONTROLLER = sig
   (** [update p] sets the global policy to [p]. *)
   val update : Frenetic_netkat.Syntax.policy -> unit Deferred.t
 
+  (** [update_fdd fdd] sets the global policy to the one encoded by the FDD. *)
+  val update_fdd : Frenetic_netkat.Local_compiler.t -> unit Deferred.t
+
   (** [send_packet_out sw pd p] injects packets into the network by
       applying [p] to [pd] at [sw]. Optional ingress port helps locate buffer. *)
   val packet_out : switchId -> portId option -> payload -> Frenetic_netkat.Syntax.policy list -> unit Deferred.t

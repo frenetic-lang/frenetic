@@ -62,9 +62,9 @@ struct
         (mk_seq (Mod (VSwitch vsw2)) (Mod (VPort vpt2)))
     | _ -> vtopo
 
-  let compile_with_fabric ?(log=true) ?(record_paths : string option)
+  let compile_with_fabric
       ~(vtopo : policy) ~(ving_pol : policy) ~(ving : pred) ~(veg : pred)
-      ~(ptopo : policy)                      ~(ping : pred) ~(peg : pred)
+      ~(ping : pred) ~(peg : pred)
       ~(vpol : policy) (fabric : FG.fabric) : policy =
     let (fout_set, fin_set) = fabric in
     let fout = mk_big_union fout_set in
@@ -73,18 +73,12 @@ struct
     let eg = Filter (mk_and veg peg) in
     let p = mk_seq vpol fout in
     let t = mk_seq (encode_vlinks vtopo) fin in
-    (* ing; (p;t)^*; p  *)
-    (* Printf.printf "ing: %s\n\n%!" (Pretty.string_of_policy ing);
-       Printf.printf "fout: %s\n\n%!" (Pretty.string_of_policy fout);
-       Printf.printf "fin: %s\n\n%!" (Pretty.string_of_policy fin);
-       Printf.printf "vpol: %s\n\n%!" (Pretty.string_of_policy vpol);
-       Printf.printf "vtopo: %s\n\n%!" (Pretty.string_of_policy vtopo); *)
     mk_big_seq [ing; mk_star (mk_seq p t); p; eg]
 
   let compile ?(log=true) ?(record_paths : string option)
       ~(vrel : pred) ~(vtopo : policy) ~(ving_pol : policy) ~(ving : pred) ~(veg : pred)
       ~(ptopo : policy)                                     ~(ping : pred) ~(peg : pred)
       (vpol : policy) : policy =
-    generate_fabric ~log ?record_paths ~vrel ~vtopo ~ving ~veg ~ptopo ~ping ~peg |>
-    compile_with_fabric ~log ?record_paths ~vtopo ~ving_pol ~ving ~veg ~ptopo ~ping ~peg ~vpol
+    generate_fabric ~log ?record_paths ~vrel ~vtopo ~ving ~veg ~ptopo ~ping ~peg
+    |> compile_with_fabric ~vtopo ~ving_pol ~ving ~veg ~ping ~peg ~vpol
 end
