@@ -1,11 +1,9 @@
 open Core
 open Probnetkat
-open Packet_Repr
-open Util
 
 let fprintf = Format.fprintf
 let fmt = Format.std_formatter
-
+(*
 module Dense = Owl.Dense.Matrix.D
 module Sparse = Owl.Sparse.Matrix.D
 
@@ -159,4 +157,4 @@ let () = begin
                           let t = sprintf "take%d" i in
                           )) *)
 
-end
+end *)

@@ -1,76 +1,95 @@
 open Core
 
+[@@@ocaml.warning "-30"]
+
 let fprintf = Format.fprintf
 
-type field = string [@@deriving sexp, show, compare, eq]
+
+(** {2} fields and values *)
+type field = string [@@deriving sexp, show, compare, eq, hash]
 module Field = String
 
-type value = int [@@deriving sexp, show, compare, eq]
+type value = int [@@deriving sexp, show, compare, eq, hash]
 module Value = Int
 
-type headerval = field * value [@@deriving sexp, compare, eq]
+type headerval = field * value [@@deriving sexp, compare, eq, hash]
 
-(** TODO: make private in mli  *)
-type 'pol policy0 =
-  | Skip
-  | Drop
+
+(** {2} predicates and policies; open types, in case we want to add hash-consing later *)
+type 'pred pred0 =
+  | True
+  | False
   | Test of headerval
-  | Modify of headerval
-  | Neg of 'pol
-  | Or of 'pol * 'pol
-  | Seq of 'pol * 'pol
-  | Ite of 'pol * 'pol * 'pol
-  | While of 'pol * 'pol
-  | Choice of ('pol * Prob.t) list
-  [@@deriving sexp, compare, eq]
+  | And of 'pred * 'pred
+  | Or of 'pred * 'pred
+  | Neg of 'pred
+  [@@deriving sexp, compare, hash]
 
-type policy = { p : policy policy0;
-                pred : bool;
-                determ : bool }
+and ('pol, 'pred) policy0 =
+  | Filter of 'pred
+  | Modify of headerval
+  | Ite of 'pred * 'pol * 'pol
+  | While of 'pred * 'pol
+  | Choice of ('pol * Prob.t) list
+  [@@deriving sexp, compare, hash]
+
+type pred = { kind: pred pred0 }
+and policy = { kind: (policy, pred) policy0 }
 
 let pp_hv op fmt hv =
   fprintf fmt "@[%s%s%d@]" (fst hv) op (snd hv)
 
-let pp_policy fmt p =
-  let rec pol ctxt fmt p =
-    match p.p with
-    | Skip -> fprintf fmt "@[1@]"
-    | Drop -> fprintf fmt "@[0@]"
-    | Test hv -> pp_hv "=" fmt hv
+let pp_policy0 fmt (p : policy) =
+  let rec do_pol ctxt fmt (p : policy) = do_pol0 ctxt fmt p.kind
+  and do_pol0 ctxt fmt (p : ('a, 'b) policy0) =
+    match p with
+    | Filter pred -> do_pred ctxt fmt pred
     | Modify hv -> pp_hv "<-" fmt hv
-    | Neg p -> fprintf fmt "@[¬%a@]" (pol `Neg) p
-    | Or (a1, a2) ->
-      begin match ctxt with
-        | `PAREN
-        | `Or -> fprintf fmt "@[%a@ or@ %a@]" (pol `Or) a1 (pol `Or) a2
-        | _ -> fprintf fmt "@[(@[%a@ or@ %a@])@]" (pol `Or) a1 (pol `Or) a2
-      end
-    | Seq (p1, p2) ->
-      begin match ctxt with
-        | `PAREN
-        | `SEQ_L
-        | `SEQ_R -> fprintf fmt "@[%a;@ %a@]" (pol `SEQ_L) p1 (pol `SEQ_R) p2
-        | _ -> fprintf fmt "@[(@[%a;@ %a@])@]" (pol `SEQ_L) p1 (pol `SEQ_R) p2
-      end
     | While (a,p) ->
       fprintf fmt "@[WHILE@ @[<2>%a@]@ DO@ @[<2>%a@]@]"
-        (pol `COND) a (pol `While) p
+        (do_pred `COND) a (do_pol `While) p
     | Ite (a, p, q) ->
       fprintf fmt "@[IF@ @[<2>%a@]@ THEN@ @[<2>%a@]@ ELSE@ @[<2>%a@]@]"
-        (pol `COND) a (pol `ITE_L) p (pol `ITE_R) q
+        (do_pred `COND) a (do_pol `ITE_L) p (do_pol `ITE_R) q
     | Choice ps ->
       fprintf fmt "@[?{@;<1-2>";
       List.iter ps ~f:(fun (p,q) ->
-        fprintf fmt "@[%a@ %@@ %a;@;@]" (pol `CHOICE) p Q.pp_print q);
+        fprintf fmt "@[%a@ %@@ %a;@;@]" (do_pol `CHOICE) p Q.pp_print q);
       fprintf fmt "@;<1-0>}@]"
+  and do_pred ctxt fmt (p : pred) = do_pred0 ctxt fmt p.kind
+  and do_pred0 ctxt fmt p =
+    match p with
+    | True -> fprintf fmt "@[1@]"
+    | False -> fprintf fmt "@[0@]"
+    | Test hv -> pp_hv "=" fmt hv
+    | Neg p -> fprintf fmt "@[¬%a@]" (do_pred `Neg) p
+    | Or (a1, a2) ->
+      begin match ctxt with
+        | `PAREN
+        | `Or -> fprintf fmt "@[%a@ or@ %a@]" (do_pred `Or) a1 (do_pred `Or) a2
+        | _ -> fprintf fmt "@[(@[%a@ or@ %a@])@]" (do_pred `Or) a1 (do_pred `Or) a2
+      end
+    | And (p1, p2) ->
+      begin match ctxt with
+        | `PAREN
+        | `SEQ_L
+        | `SEQ_R -> fprintf fmt "@[%a;@ %a@]" (do_pred `SEQ_L) p1 (do_pred `SEQ_R) p2
+        | _ -> fprintf fmt "@[(@[%a;@ %a@])@]" (do_pred `SEQ_L) p1 (do_pred `SEQ_R) p2
+      end
   in
-  pol `PAREN fmt p
+  do_pol `PAREN fmt p
+
+(*
 
 type domain = Value.Set.t Field.Map.t
 
 module type Domain = sig
   val domain : domain
 end
+
+*)
+
+(*
 
 (* compute domain of each field *)
 let domain pol : domain =
@@ -214,3 +233,4 @@ module Syntax = struct
     let ( @ ) p r = (p,r)
   end
 end
+ *)
