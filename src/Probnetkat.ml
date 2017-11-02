@@ -12,14 +12,21 @@ module Field = String
 type value = int [@@deriving sexp, show, compare, eq, hash]
 module Value = Int
 
-type headerval = field * value [@@deriving sexp, compare, eq, hash]
+type header_val = field * value [@@deriving sexp, compare, eq, hash]
 
 
 (** {2} predicates and policies; open types, in case we want to add hash-consing later *)
+
+(* we may want to add local fields *)
+type meta_init =
+  | Alias of header_val
+  | Const of int64
+  [@@deriving sexp]
+
 type 'pred pred0 =
   | True
   | False
-  | Test of headerval
+  | Test of header_val
   | And of 'pred * 'pred
   | Or of 'pred * 'pred
   | Neg of 'pred
@@ -27,7 +34,7 @@ type 'pred pred0 =
 
 and ('pol, 'pred) policy0 =
   | Filter of 'pred
-  | Modify of headerval
+  | Modify of header_val
   | Ite of 'pred * 'pol * 'pol
   | While of 'pred * 'pol
   | Choice of ('pol * Prob.t) list

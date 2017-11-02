@@ -1,37 +1,27 @@
 open Core
 
-module SDN = Frenetic_kernel.OpenFlow
-
 
 module Field = struct
 
   (** The order of the constructors defines the default variable ordering and has a massive
       performance impact. Do not change unless you know what you are doing. *)
   type t
-    = Switch
-    | Location
-    | From
-    | AbstractLoc
-    | VSwitch
-    | VPort
-    | Vlan
-    | VlanPcp
-    (* SJS: for simplicity, support only up to 5 meta fields for now *)
+    =
+    | F0
+    | F1
+    | F2
+    | F3
+    | F4
+    | F5
+    | F6
+    | F7
+    | F8
     | Meta0
     | Meta1
     | Meta2
     | Meta3
     | Meta4
-    | EthType
-    | IPProto
-    | EthSrc
-    | EthDst
-    | IP4Src
-    | IP4Dst
-    | TCPSrcPort
-    | TCPDstPort
-    | VFabric
-    [@@deriving sexp, enumerate, enum]
+    [@@deriving sexp, enumerate, enum, eq, hash]
   type field = t
 
   let num_fields = max + 1
@@ -68,20 +58,18 @@ module Field = struct
     (* using Obj.magic instead of to_enum for bettter performance *)
     Int.compare order.(Obj.magic x) order.(Obj.magic y)
 
-  let equal x y = x = y
-
   module type ENV = sig
     type t
     val empty : t
     exception Full
-    val add : t -> string -> Syntax.meta_init -> bool -> t (* may raise Full *)
-    val lookup : t -> string -> field * (Syntax.meta_init * bool) (* may raise Not_found *)
+    val add : t -> string -> Probnetkat.meta_init -> bool -> t (* may raise Full *)
+    val lookup : t -> string -> field * (Probnetkat.meta_init * bool) (* may raise Not_found *)
   end
 
   module Env : ENV = struct
 
     type t = {
-      alist : (string * (field * (Syntax.meta_init * bool))) list;
+      alist : (string * (field * (Probnetkat.meta_init * bool))) list;
       depth : int
     }
 
@@ -105,27 +93,7 @@ module Field = struct
     let lookup env name =
       List.Assoc.find_exn ~equal:(=) env.alist name
   end
-
-  let of_hv ?(env=Env.empty) hv = match hv with
-    | Syntax.Switch _ -> Switch
-    | Syntax.Location _ -> Location
-    | Syntax.From _ -> From
-    | Syntax.AbstractLoc _ -> AbstractLoc
-    | Syntax.EthSrc _ -> EthSrc
-    | Syntax.EthDst _ -> EthDst
-    | Syntax.Vlan _ -> Vlan
-    | Syntax.VlanPcp _ -> VlanPcp
-    | Syntax.VSwitch _ -> VSwitch
-    | Syntax.VPort _ -> VPort
-    | Syntax.EthType _ -> EthType
-    | Syntax.IPProto _ -> IPProto
-    | Syntax.IP4Src _ -> IP4Src
-    | Syntax.IP4Dst _ -> IP4Dst
-    | Syntax.TCPSrcPort _ -> TCPSrcPort
-    | Syntax.TCPDstPort _ -> TCPDstPort
-    | Syntax.VFabric _ -> VFabric
-    | Syntax.Meta (id,_) -> fst (Env.lookup env id)
-
+(*
   (* Heuristic to pick a variable order that operates by scoring the fields
      in a policy. A field receives a high score if, when a test field=X
      is false, the policy can be shrunk substantially.
@@ -138,14 +106,14 @@ module Field = struct
        pol for different field assignments. Don't traverse the policy
        repeatedly. Instead, write a size function that returns map from
        field assignments to sizes. *)
-  let auto_order (pol : Syntax.policy) : unit =
-    let open Syntax in
+  let auto_order (pol : Probnetkat.policy) : unit =
+    let open Probnetkat in
     (* Construct array of scores, where score starts at 0 for every field *)
     let count_arr = Array.init num_fields ~f:(fun _ -> 0) in
     let rec f_pred size (env, pred) = match pred with
       | True -> ()
       | False -> ()
-      | Test (Syntax.Meta (id,_)) ->
+      | Test (Probnetkat.Meta (id,_)) ->
         begin match Env.lookup env id with
         | (f, (Alias hv, false)) ->
           let f = to_enum f in
@@ -206,186 +174,49 @@ module Field = struct
     |> List.stable_sort ~cmp:(fun (_, x) (_, y) -> Int.compare x y)
     |> List.rev (* SJS: do NOT remove & reverse order! Want stable sort *)
     |> List.map ~f:fst
-    |> set_order
+    |> set_order *)
 
 end
 
 module Value = struct
+  include Int
 
-  type t
-    = Const of Int64.t
-    | Mask of Int64.t * int
-    | AbstractLocation of Syntax.abstract_location
-    | Pipe of string
-    | Query of string
-    (* TODO(grouptable): HACK, should only be able to fast fail on ports.
-     * Put this somewhere else *)
-    | FastFail of Int32.t list
-    [@@deriving sexp]
 
-  (* subseq_eq, meet and join are defined to make this fit interface of Vlr.Lattice *)
-  let subset_eq a b =
-    (* Note that Mask checking is a lot like OpenFlow.Pattern.Ip, but the int's are different sizes *)
-    let subset_eq_mask a m b n =
-      if m < n
-        then false
-        else
-          Int64.shift_right_logical a (64-n) = Int64.shift_right_logical b (64-n)
-    in
-    match a, b with
-    | Const  a           , Const b
-    (* Note that comparing a mask to a constant requires the mask to be all 64 bits, otherwise they fail the lesser mask test *)
-    | Mask(a, 64)        , Const b -> a = b
-    | AbstractLocation a , AbstractLocation b -> a = b
-    | Pipe   a           , Pipe  b
-    | Query  a           , Query b -> a = b
-    | Mask             _ , Const            _
-    | AbstractLocation _ ,                  _
-    | Pipe             _ ,                  _
-    | Query            _ ,                  _
-    | FastFail         _ ,                  _
-    | _                  , AbstractLocation _
-    | _                  , Pipe             _
-    | _                  , Query            _
-    | _                  , FastFail         _ -> false
-    | Mask(a, m)         , Mask(b, n) -> subset_eq_mask a m  b n
-    | Const a            , Mask(b, n) -> subset_eq_mask a 64 b n
+  let subset_eq _ _ =
+    failwith "not implemented"
+  (** [subset_eq a b] returns [true] if [a] and [b] in the partial ordering of
+      the lattice. This relation should be reflexive, transitive, and
+      antisymmetric. *)
 
-  let meet ?(tight=false) a b =
-    let meet_mask a m b n =
-      let lt = subset_eq (Mask(a, m)) (Mask(b, n)) in
-      let gt = subset_eq (Mask(b, n)) (Mask(a, m)) in
-      if lt && gt then
-        Some(Mask(a, m))
-      else if lt then
-        if (not tight) || (m = (n + 1)) then Some(Mask(a, m)) else None
-      else if gt then
-        if (not tight) || (n = (m + 1)) then Some(Mask(b, n)) else None
-      else
-        None
-    in
-    match a, b with
-    | AbstractLocation a , AbstractLocation b ->
-      if Syntax.equal_abstract_location a b then Some(AbstractLocation a) else None
-    | AbstractLocation _ , _
-    | _ , AbstractLocation _ -> None
-    | Const  a   , Const b
-    | Mask(a, 64), Const b -> if a = b then Some(Const a) else None
-    | Pipe   a   , Pipe  b -> if a = b then Some(Pipe a) else None
-    | Query  a   , Query b -> if a = b then Some(Query a) else None
-    | Mask     _ , Const _
-    | Pipe     _ ,       _
-    | Query    _ ,       _
-    | _          , Pipe  _
-    | _          , Query _
-    | FastFail _ , _
-    | _          , FastFail _ -> None
-    | Mask(a, m) , Mask(b, n) -> meet_mask a m  b n
-    | Const a, Mask(b, n)     -> meet_mask a 64 b n
+  let meet ?tight _ _ =
+    failwith "not implemented"
+  (** [meet ~tight a b] returns the greatest lower bound of the elements [a]
+      and [b], if one exists. This operation should be associative, commutative,
+      and idempotent. If the optional argument [tight] is set to [true], then
+      the result [c] should satisfy the additional property:
 
-  let join ?(tight=false) a b =
-    (* The intent here looks a lot like OpenFlow.Pattern.Ip.join, but the notion of "tightness" might not
-       not apply.  Look at perhaps sharing the logic between the two, abstracting out bit length since this deals with
-       64 bit ints *)
-    let join_mask a m b n =
-      let lt = subset_eq (Mask(a, m)) (Mask(b, n)) in
-      let gt = subset_eq (Mask(b, n)) (Mask(a, m)) in
-      if lt && gt then
-        Some(Mask(a, m))
-      else if lt then
-        if (not tight) || (n = (m - 1)) then Some(Mask(b, n)) else None
-      else if gt then
-        if (not tight) || (m = (n - 1)) then Some(Mask(a, m)) else None
-      else
-        if (not tight) || m = n then
-          let x, y = (Mask(a, m - 1), Mask(b, n - 1)) in
-          if subset_eq x y && subset_eq y x then Some(x) else None
-        else
-          None (* XXX(seliopou): complete definition *)
-    in
-    match a, b with
-    | AbstractLocation a , AbstractLocation b ->
-      if Syntax.equal_abstract_location a b then Some(AbstractLocation a) else None
-    | AbstractLocation _ , _
-    | _ , AbstractLocation _ -> None
-    | Const  a   , Const b
-    | Mask(a, 64), Const b -> if a = b then Some(Const a) else None
-    | Pipe   a   , Pipe  b -> if a = b then Some(Pipe a) else None
-    | Query  a   , Query b -> if a = b then Some(Query a) else None
-    | Mask     _ , Const _
-    | Pipe     _ ,       _
-    | Query    _ ,       _
-    | _          , Pipe  _
-    | _          , Query _
-    | FastFail _ , _
-    | _          , FastFail _ -> None
-    | Mask(a, m) , Mask(b, n) -> join_mask a m  b n
-    | Const a, Mask(b, n)     -> join_mask a 64 b n
+          ∀x, [subset_eq c x] <=> [subset_eq a x || subset_eq b x || equal c x].
 
-  let hash = Hashtbl.hash
+      In other words, elements related to the greatest lower bound should be
+      related transitively through [a] and [b], or be equal to the greatest
+      lower bound itself.
 
-  (* Value compare is used in Pattern below, but is not public *)
-  let compare x y = match (x, y) with
-    | Const a, Mask (b, 64)
-    | Mask (a, 64), Const b
-    | Const a, Const b -> Int64.compare a b
-    | Query s1, Query s2
-    | Pipe s1, Pipe s2 -> String.compare s1 s2
-    | FastFail l1, FastFail l2 -> List.compare Int32.compare l1 l2
-    | Mask(a, m) , Mask(b, n) ->
-      let shift = 64 - min m n in
-      (match Int64.(compare (shift_right a shift) (shift_right b shift)) with
-       | 0 -> Int.compare n m
-       | c -> c)
-    | AbstractLocation a , AbstractLocation b ->
-      Syntax.compare_abstract_location a b
-    | Const _ , _ -> -1
-    | _, Const _ -> 1
-    | Mask _, _ -> -1
-    | _, Mask _ -> 1
-    | AbstractLocation _ , _ -> -1
-    | _ , AbstractLocation _ -> 1
-    | Query _, _ -> -1
-    | _, Query _ -> 1
-    | Pipe _, _ -> -1
-    | _, Pipe _ -> 1
+      TODO: tightness doesn't seem to be used anywhere in Frenetic, and can probably
+      be removed.  *)
 
-  let equal x y = compare x y = 0
-
-  let to_string = function
-    | Const(a)   -> Printf.sprintf "%Lu" a
-    | Mask(a, m) -> Printf.sprintf "%Lu/%d" a m
-    | AbstractLocation(s) -> Printf.sprintf "%s" s
-    | Pipe(p) -> Printf.sprintf "Pipe(%s)" p
-    | Query(p) -> Printf.sprintf "Query(%s)" p
-    | FastFail(p_lst) -> Printf.sprintf "FastFail(%s)" (Syntax.string_of_fastfail p_lst)
-
-  let of_int   t = Const (Int64.of_int   t)
-  (* Private to this file only *)
-  let of_int32 t = Const (Int64.of_int32 t)
-  let of_int64 t = Const t
-  let to_int64_exn = function
-    | Const k -> k
-    | _ -> assert false
+  let join ?tight:bool _ _ =
+    failwith "not implemented"
 end
-
-exception FieldValue_mismatch of Field.t * Value.t
 
 module Pattern = struct
   type t = Field.t * Value.t
-  [@@deriving compare]
+  [@@deriving compare, eq, hash]
 
   let to_string (f, v) =
     Printf.sprintf "%s = %s" (Field.to_string f) (Value.to_string v)
 
-  let equal a b =
-    compare a b = 0
-
-  let to_int = Int64.to_int_exn
-  let to_int32 = Int64.to_int32_exn
-
-  let of_hv ?(env=Field.Env.empty) hv =
-    let open Syntax in
+(*   let of_hv ?(env=Field.Env.empty) hv =
+    let open Probnetkat in
     match hv with
     | Switch sw_id -> (Field.Switch, Value.(Const sw_id))
     | Location(Physical p) -> (Field.Location, Value.of_int32 p)
@@ -416,161 +247,60 @@ module Pattern = struct
     let open Field in
     let open Value in
     match f, v with
-    | (Switch  , Const sw) -> Syntax.Switch sw
-    | (Location, Const p) -> Syntax.(Location (Physical (to_int32 p)))
-    | (Location, Pipe  p) -> Syntax.(Location (Pipe p))
-    | (Location, Query q) -> Syntax.(Location (Query q))
-    | (From, AbstractLocation l) -> Syntax.From l
-    | (AbstractLoc, AbstractLocation l) -> Syntax.AbstractLoc l
-    | (EthSrc  , Const dlAddr) -> Syntax.(EthSrc dlAddr)
-    | (EthDst  , Const dlAddr) -> Syntax.(EthDst dlAddr)
-    | (Vlan    , Const vlan) -> Syntax.(Vlan(to_int vlan))
-    | (VlanPcp , Const vlanPcp) -> Syntax.(VlanPcp (to_int vlanPcp))
-    | (VSwitch  , Const vsw) -> Syntax.VSwitch vsw
-    | (VPort  , Const vpt) -> Syntax.VPort vpt
-    | (EthType , Const dlTyp) -> Syntax.(EthType (to_int dlTyp))
-    | (IPProto , Const nwProto) -> Syntax.(IPProto (to_int nwProto))
-    | (IP4Src  , Mask(nwAddr, mask)) -> Syntax.(IP4Src(to_int32 nwAddr, Int32.of_int_exn (mask - 32)))
-    | (IP4Src  , Const nwAddr) -> Syntax.(IP4Src(to_int32 nwAddr, 32l))
-    | (IP4Dst  , Mask(nwAddr, mask)) -> Syntax.(IP4Dst(to_int32 nwAddr, Int32.of_int_exn (mask - 32)))
-    | (IP4Dst  , Const nwAddr) -> Syntax.(IP4Dst(to_int32 nwAddr, 32l))
-    | (TCPSrcPort, Const tpPort) -> Syntax.(TCPSrcPort(to_int tpPort))
-    | (TCPDstPort, Const tpPort) -> Syntax.(TCPDstPort(to_int tpPort))
-    | (VFabric, Const vfab) -> Syntax.VFabric vfab
+    | (Switch  , Const sw) -> Probnetkat.Switch sw
+    | (Location, Const p) -> Probnetkat.(Location (Physical (to_int32 p)))
+    | (Location, Pipe  p) -> Probnetkat.(Location (Pipe p))
+    | (Location, Query q) -> Probnetkat.(Location (Query q))
+    | (From, AbstractLocation l) -> Probnetkat.From l
+    | (AbstractLoc, AbstractLocation l) -> Probnetkat.AbstractLoc l
+    | (EthSrc  , Const dlAddr) -> Probnetkat.(EthSrc dlAddr)
+    | (EthDst  , Const dlAddr) -> Probnetkat.(EthDst dlAddr)
+    | (Vlan    , Const vlan) -> Probnetkat.(Vlan(to_int vlan))
+    | (VlanPcp , Const vlanPcp) -> Probnetkat.(VlanPcp (to_int vlanPcp))
+    | (VSwitch  , Const vsw) -> Probnetkat.VSwitch vsw
+    | (VPort  , Const vpt) -> Probnetkat.VPort vpt
+    | (EthType , Const dlTyp) -> Probnetkat.(EthType (to_int dlTyp))
+    | (IPProto , Const nwProto) -> Probnetkat.(IPProto (to_int nwProto))
+    | (IP4Src  , Mask(nwAddr, mask)) -> Probnetkat.(IP4Src(to_int32 nwAddr, Int32.of_int_exn (mask - 32)))
+    | (IP4Src  , Const nwAddr) -> Probnetkat.(IP4Src(to_int32 nwAddr, 32l))
+    | (IP4Dst  , Mask(nwAddr, mask)) -> Probnetkat.(IP4Dst(to_int32 nwAddr, Int32.of_int_exn (mask - 32)))
+    | (IP4Dst  , Const nwAddr) -> Probnetkat.(IP4Dst(to_int32 nwAddr, 32l))
+    | (TCPSrcPort, Const tpPort) -> Probnetkat.(TCPSrcPort(to_int tpPort))
+    | (TCPDstPort, Const tpPort) -> Probnetkat.(TCPDstPort(to_int tpPort))
+    | (VFabric, Const vfab) -> Probnetkat.VFabric vfab
     | _, _ -> raise (FieldValue_mismatch(f, v))
 
   let to_pred (f, v) =
-    Syntax.Test (to_hv (f, v))
-
-  let to_sdn (f, v) : SDN.Pattern.t -> SDN.Pattern.t =
-    let open Field in
-    let open Value in
-    match f, v with
-    | (Location, Const p) -> fun pat ->
-      { pat with SDN.Pattern.inPort = Some(to_int32 p) }
-    | (EthSrc, Const dlAddr) -> fun pat ->
-      { pat with SDN.Pattern.dlSrc = Some(dlAddr) }
-    | (EthDst, Const dlAddr) -> fun pat ->
-      { pat with SDN.Pattern.dlDst = Some(dlAddr) }
-    | (Vlan    , Const vlan) -> fun pat ->
-      { pat with SDN.Pattern.dlVlan = Some(to_int vlan) }
-    | (VlanPcp , Const vlanPcp) -> fun pat ->
-      { pat with SDN.Pattern.dlVlanPcp = Some(to_int vlanPcp) }
-    | (EthType, Const dlTyp) -> fun pat ->
-      { pat with SDN.Pattern.dlTyp = Some(to_int dlTyp) }
-    | (IPProto , Const nwProto) -> fun pat ->
-      { pat with SDN.Pattern.nwProto = Some(to_int nwProto) }
-    | (IP4Src  , Mask(nwAddr, mask)) -> fun pat ->
-      { pat with SDN.Pattern.nwSrc =
-          Some(to_int32 nwAddr, Int32.of_int_exn (mask - 32)) }
-    | (IP4Src  , Const nwAddr) -> fun pat ->
-      { pat with SDN.Pattern.nwSrc = Some(to_int32 nwAddr, 32l) }
-    | (IP4Dst  , Mask(nwAddr, mask)) -> fun pat ->
-      { pat with SDN.Pattern.nwDst =
-          Some(to_int32 nwAddr, Int32.of_int_exn (mask - 32)) }
-    | (IP4Dst  , Const nwAddr) -> fun pat ->
-      { pat with SDN.Pattern.nwDst = Some(to_int32 nwAddr, 32l) }
-    | (TCPSrcPort, Const tpPort) -> fun pat ->
-      { pat with SDN.Pattern.tpSrc = Some(to_int tpPort) }
-    | (TCPDstPort, Const tpPort) -> fun pat ->
-      { pat with SDN.Pattern.tpDst = Some(to_int tpPort) }
-    (* Should never happen because these pseudo-fields should have been removed by the time to_sdn is used *)
-    | (Switch, Const _)
-    | (From, AbstractLocation _)
-    | (AbstractLoc, AbstractLocation _)
-    | (VSwitch, Const _)
-    | (VPort, Const _)
-    | (VFabric, Const _)
-    | (Meta0, Const _)
-    | (Meta1, Const _)
-    | (Meta2, Const _)
-    | (Meta3, Const _)
-    | (Meta4, Const _) -> assert false
-    | _, _ -> raise (FieldValue_mismatch(f, v))
+    Probnetkat.Test (to_hv (f, v)) *)
 
 end
 
 
 module Action = struct
 
-  type field_or_cont =
-    | F of Field.t
-    | K
-  [@@deriving sexp, compare]
+  type t = unit
 
-  module Seq = struct
-    include Map.Make(struct
-      type t = field_or_cont [@@deriving sexp, compare]
-    end)
+  let zero = ()
+  let one = ()
+  let is_one _ = true
+  let is_zero _ = true
 
-    let compare = compare_direct Value.compare
-
-    let fold_fields seq ~init ~f =
-      fold seq ~init ~f:(fun ~key ~data acc -> match key with
-        | F key -> f ~key ~data acc
-        | _ -> acc)
-
-    let equal_mod_k s1 s2 =
-      equal (Value.equal) (remove s1 K) (remove s2 K)
-
-    let compare_mod_k s1 s2 =
-      compare (remove s1 K) (remove s2 K)
-
-    let to_hvs seq =
-      seq |> to_alist |> List.filter_map ~f:(function (F f,v) -> Some (f,v) | _ -> None)
-
-    let to_string (t : Value.t t) : string =
-      let s = to_alist t
-        |> List.map ~f:(fun (f,v) ->
-            let f = match f with
-              | K -> "state"
-              | F f -> Field.to_string f
-            in
-            sprintf "%s := %s" f (Value.to_string v))
-        |> String.concat ~sep:", "
-      in "[" ^ s ^ "]"
-  end
-
-  module Par = struct
-    include Set.Make(struct
-    type t = Value.t Seq.t [@@deriving sexp]
-    let compare = Seq.compare
-    end)
-
-    let to_hvs par =
-      fold par ~init:[] ~f:(fun acc seq -> Seq.to_hvs seq @ acc)
-
-    let to_string t : string =
-      let s = to_list t
-        |> List.map ~f:Seq.to_string
-        |> String.concat ~sep:"; "
-      in "{" ^ s ^ "}"
-
-    let mod_k = map ~f:(fun seq -> Seq.remove seq K)
-
-    let compare_mod_k p1 p2 =
-      compare (mod_k p1) (mod_k p2)
-
-    let equal_mod_k p1 p2 =
-      equal (mod_k p1) (mod_k p2)
-  end
-
-  type t = Par.t [@@deriving sexp]
-
-  let one = Par.singleton Seq.empty
+(*   let one = Par.singleton Seq.empty
   let zero = Par.empty
   let is_one = Par.equal one
   let is_zero = Par.is_empty
-
+ *)
   let sum (a:t) (b:t) : t =
+    failwith "not implemented"
     (* This implements parallel composition specifically for NetKAT
        modifications. *)
-    if is_zero a then b            (* 0 + p = p *)
+(*     if is_zero a then b            (* 0 + p = p *)
     else if is_zero b then a       (* p + 0 = p *)
-    else Par.union a b
+    else Par.union a b *)
 
   let prod (a:t) (b:t) : t =
-    (* This implements sequential composition specifically for NetKAT
+    failwith "not implemented"
+(*     (* This implements sequential composition specifically for NetKAT
        modifications and makes use of NetKAT laws to simplify results.*)
     if is_zero a then zero       (* 0; p == 0 *)
     else if is_zero b then zero  (* p; 0 == 0 *)
@@ -585,91 +315,19 @@ module Action = struct
           Seq.merge seq1 seq2 ~f:(fun ~key m ->
             match m with | `Both(_, v) | `Left v | `Right v -> Some(v)))
         in
-        Par.union acc r)
+        Par.union acc r) *)
 
   let negate t : t =
-    (* This implements negation for the [zero] and [one] actions. Any
-       non-[zero] action will be mapped to [zero] by this function. *)
-    if is_zero t then one else zero
+    failwith "not implemented"
+(*     This implements negation for the [zero] and [one] actions. Any
+       non-[zero] action will be mapped to [zero] by this function.
+    if is_zero t then one else zero *)
 
-  let get_queries (t : t) : string list =
-    Par.fold t ~init:[] ~f:(fun queries seq ->
-      match Seq.find seq (F Location) with
-      | Some (Query str) -> str :: queries
-      | _ -> queries)
 
-  let to_sdn ?group_tbl (in_port : int64 option) (t:t) : SDN.par =
-    let to_int = Int64.to_int_exn in
-    let to_int32 = Int64.to_int32_exn in
-    let t = Par.filter_map t ~f:(fun seq ->
-      (* Queries are equivalent to drop, so remove any [Seq.t]'s from the
-       * [Par.t] that set the location to a query.
-       *
-       * Pipe locations are no longer relevant to compilation, so rewrite all
-       * all of them to the empty string. This will allow multiple singleton
-       * [Seq.t]'s of port location assignments in a [Par.t] to be collapsed
-       * into into one. *)
-      match Seq.find seq (F Field.Location) with
-      | Some(Value.Query _) -> None
-      | Some(Value.Pipe  _) -> Some(Seq.add seq (F Field.Location) (Value.Pipe ""))
-      | _                   -> Some(seq))
-    in
-    let to_port p = match in_port with
-      | Some(p') when p = p' -> SDN.InPort
-      | _                    -> SDN.(Physical(to_int32 p))
-    in
-    Par.fold t ~init:[] ~f:(fun acc seq ->
-      let open Field in
-      let open Value in
-      let init =
-        match Seq.find seq (F Location) with
-        | None           -> [SDN.(Output(InPort))]
-        | Some (Const p) -> [SDN.(Output(to_port p))]
-        | Some (Pipe  _) -> [SDN.(Output(Controller 128))]
-        | Some (Query _) -> assert false
-        | Some (FastFail p_lst) ->
-           (match group_tbl with
-            | Some tbl ->
-              let gid = Frenetic_kernel.GroupTable0x04.add_fastfail_group tbl p_lst
-              in [SDN.(FastFail gid)]
-            | None -> failwith "fast failover present, but no group table provided!")
-        | Some mask      -> raise (FieldValue_mismatch(Location, mask))
-      in
-      Seq.fold (Seq.remove seq (F Location)) ~init ~f:(fun ~key ~data acc ->
-        match key, data with
-        | F From       , AbstractLocation loc -> raise Syntax.Non_local
-        | F AbstractLoc, AbstractLocation loc -> raise Syntax.Non_local
-        | F Switch  , Const switch -> raise Syntax.Non_local
-        | F Switch  , _ -> raise (FieldValue_mismatch(Switch, data))
-        | F Location, _ -> assert false
-        | F EthSrc  , Const dlAddr  -> SDN.(Modify(SetEthSrc dlAddr)) :: acc
-        | F EthDst  , Const dlAddr  -> SDN.(Modify(SetEthDst dlAddr)) :: acc
-        | F Vlan    , Const vlan    -> SDN.(Modify(SetVlan(Some(to_int vlan)))) :: acc
-        | F VlanPcp , Const vlanPcp -> SDN.(Modify(SetVlanPcp (to_int vlanPcp))) :: acc
-        | F VSwitch, Const _ | F VPort, Const _ | F VFabric, Const _ -> assert false (* JNF: danger, danger *)
-        | F EthType , Const dlTyp   -> SDN.(Modify(SetEthTyp (to_int dlTyp))) :: acc
-        | F IPProto , Const nwProto -> SDN.(Modify(SetIPProto (to_int nwProto))) :: acc
-        | F IP4Src  , Mask (nwAddr, 64)
-        | F IP4Src  , Const nwAddr   -> SDN.(Modify(SetIP4Src(to_int32 nwAddr))) :: acc
-        | F IP4Dst  , Mask (nwAddr, 64)
-        | F IP4Dst  , Const nwAddr   -> SDN.(Modify(SetIP4Dst(to_int32 nwAddr))) :: acc
-        | F TCPSrcPort, Const tpPort -> SDN.(Modify(SetTCPSrcPort(to_int tpPort))) :: acc
-        | F TCPDstPort, Const tpPort -> SDN.(Modify(SetTCPDstPort(to_int tpPort))) :: acc
-        | F f, _ -> raise (FieldValue_mismatch(f, data))
-        | K, _ -> assert false
-      ) :: acc)
-
-  let demod (f, v) t =
-    Par.fold t ~init:zero ~f:(fun acc seq ->
-      let seq' = match Seq.find seq (F f) with
-        | Some(v')
-            when Value.compare v v' = 0 -> Seq.remove seq (F f)
-        | _                             -> seq
-      in
-      sum acc (Par.singleton seq'))
 
   let to_policy t =
-    let open Syntax in
+    failwith "not implemented"
+    (* let open Probnetkat in
     Par.fold t ~init:drop ~f:(fun acc seq ->
       let seq' = Seq.fold_fields seq ~init:id ~f:(fun ~key ~data acc ->
         let hv = match Pattern.to_hv (key, data) with
@@ -680,65 +338,16 @@ module Action = struct
         in
         Optimize.mk_seq (Mod(hv)) acc)
       in
-      Optimize.mk_union seq' acc)
+      Optimize.mk_union seq' acc) *)
 
-  let fold_fv t ~(init : 'a) ~(f : 'a -> field:Field.t -> value:Value.t -> 'a) : 'a =
+ (*  let fold_fv t ~(init : 'a) ~(f : 'a -> field:Field.t -> value:Value.t -> 'a) : 'a =
     Par.fold t ~init ~f:(fun acc seq ->
       Seq.fold seq ~init:acc ~f:(fun ~key ~data acc -> match key with
         | F key -> f acc ~field:key ~value:data
-        | _ -> acc))
-
-  let pipes t =
-    fold_fv t ~init:String.Set.empty ~f:(fun acc ~field ~value ->
-      match field, value with
-      | Field.Location, Value.Pipe q -> Set.add acc q
-      | _, _ -> acc)
-
-  let queries t =
-    fold_fv t ~init:String.Set.empty ~f:(fun acc ~field ~value ->
-      match field, value with
-      | Field.Location, Value.Query q -> Set.add acc q
-      | _, _ -> acc)
-    |> Set.to_list
-
-  let hash t =
-    (* XXX(seliopou): Hashtbl.hash does not work because the same set can have
-     * multiple representations. Pick a better hash function. *)
-    Hashtbl.hash (List.map (Par.to_list t) ~f:(fun seq -> Seq.to_alist seq))
-
-  let compare =
-    Par.compare
-
-  let size =
-    Par.fold ~init:0 ~f:(fun acc seq -> acc + (Seq.length seq))
-
-  let to_string = Par.to_string
-    (* let par = to_sdn ~group_tbl:(Frenetic_kernel.GroupTable0x04.create ()) None t in
-    Printf.sprintf "[%s]" (SDN.string_of_par par) *)
-
+        | _ -> acc)) *)
 end
 
-module FDD = struct
-
-  include Vlr.Make(Field)(Value)(Action)
-
-  let mk_cont k = const Action.(Par.singleton (Seq.singleton K (Value.of_int64 k)))
-
-  let conts fdd =
-    fold fdd
-      ~f:(fun par ->
-        Action.Par.fold par ~init:Int64.Set.empty ~f:(fun acc seq ->
-          match Action.(Seq.find seq K) with
-          | None -> acc
-          | Some k -> Value.to_int64_exn k |> Int64.Set.add acc))
-      ~g:(fun _ t f -> Set.union t f)
-
-  let map_conts fdd ~(f: int64 -> int64) =
-    let open Action in
-    let f par = Par.map par ~f:(fun seq -> Seq.change seq K (function
-      | None -> failwith "continuation expected, but none found"
-      | Some k -> Some (k |> Value.to_int64_exn |> f |> Value.of_int64)))
-    in
-    map_r f fdd
-
-end
+module FDD = Vlr.Make
+  (Field)
+  (Value)
+  (Action)
