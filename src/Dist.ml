@@ -34,6 +34,17 @@ module Make (Dom : Vlr.HashCmp) = struct
       | `Both (v1, v2) -> Prob.(v1 + v2)
       | `Left v | `Right v -> v))
 
+  let prod_with t1 t2 ~(f: Dom.t -> Dom.t -> Dom.t) =
+    T.fold t1 ~init:empty ~f:(fun ~key:x ~data:p1 init ->
+      T.fold t2 ~init ~f:(fun ~key:y ~data:p2 dist ->
+        let p = Prob.(p1 * p2) in
+        T.update dist (f x y) ~f:(function
+          | None -> p
+          | Some p' -> Prob.(p' + p)
+        )
+      )
+    )
+
   let scale t ~(scalar : Prob.t) : t =
     T.map t ~f:(fun p -> Prob.(p * scalar))
 

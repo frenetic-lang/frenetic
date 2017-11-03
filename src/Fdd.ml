@@ -3,8 +3,6 @@ open Core
 
 module Field = struct
 
-  (** The order of the constructors defines the default variable ordering and has a massive
-      performance impact. Do not change unless you know what you are doing. *)
   type t
     =
     | F0
@@ -25,10 +23,10 @@ module Field = struct
   let hash = Hashtbl.hash
 
   let of_string s =
-    Sexp.of_string s |> t_of_sexp
+    t_of_sexp (Sexp.of_string s)
 
   let to_string t =
-    sexp_of_t t |> Sexp.to_string
+    Sexp.to_string (sexp_of_t t)
 
   let is_valid_order (lst : t list) : bool =
     Set.Poly.(equal (of_list lst) (of_list all))
@@ -253,6 +251,13 @@ module Action = struct
   let one = empty
   let hash_fold_t = Map.hash_fold_direct Field.hash_fold_t
 
+  let prod x y =
+    (* Favor modifications to the right *)
+    merge x y ~f:(fun ~key m ->
+      match m with | `Both(_, v) | `Left v | `Right v -> Some(v))
+
+  let sum x y = failwith "multicast not implemented!"
+
   let to_string (t : Value.t t) : string =
     let s = to_alist t
       |> List.map ~f:(fun (f,v) ->
@@ -283,53 +288,12 @@ module ActionDist = struct
 
   let sum = T.sum
 
-  let prod (a:t) (b:t) : t =
-    failwith "not implemented"
-(*     (* This implements sequential composition specifically for NetKAT
-       modifications and makes use of NetKAT laws to simplify results.*)
-    if is_zero a then zero       (* 0; p == 0 *)
-    else if is_zero b then zero  (* p; 0 == 0 *)
-    else if is_one a then b      (* 1; p == p *)
-    else if is_one b then a      (* p; 1 == p *)
-    else
-      Par.fold a ~init:zero ~f:(fun acc seq1 ->
-        (* cannot implement sequential composition of this kind here *)
-        let _ = assert (match Seq.find seq1 K with None -> true | _ -> false) in
-        let r = Par.map b ~f:(fun seq2 ->
-          (* Favor modifications to the right *)
-          Seq.merge seq1 seq2 ~f:(fun ~key m ->
-            match m with | `Both(_, v) | `Left v | `Right v -> Some(v)))
-        in
-        Par.union acc r) *)
+  let prod = T.prod_with ~f:Action.prod
 
   let negate t : t =
-    failwith "not implemented"
-(*     This implements negation for the [zero] and [one] actions. Any
-       non-[zero] action will be mapped to [zero] by this function.
-    if is_zero t then one else zero *)
-
-
-
-  let to_policy t =
-    failwith "not implemented"
-    (* let open Probnetkat in
-    Par.fold t ~init:drop ~f:(fun acc seq ->
-      let seq' = Seq.fold_fields seq ~init:id ~f:(fun ~key ~data acc ->
-        let hv = match Pattern.to_hv (key, data) with
-          | IP4Src(nwAddr, 32l) -> IP4Src(nwAddr, 32l)
-          | IP4Dst(nwAddr, 32l) -> IP4Dst(nwAddr, 32l)
-          | IP4Src _ | IP4Dst _ -> raise (FieldValue_mismatch(key, data))
-          | hv -> hv
-        in
-        Optimize.mk_seq (Mod(hv)) acc)
-      in
-      Optimize.mk_union seq' acc) *)
-
- (*  let fold_fv t ~(init : 'a) ~(f : 'a -> field:Field.t -> value:Value.t -> 'a) : 'a =
-    Par.fold t ~init ~f:(fun acc seq ->
-      Seq.fold seq ~init:acc ~f:(fun ~key ~data acc -> match key with
-        | F key -> f acc ~field:key ~value:data
-        | _ -> acc)) *)
+    (* This implements negation for the [zero] and [one] actions. Any
+       non-[zero] action will be mapped to [zero] by this function. *)
+    if is_zero t then one else zero
 end
 
 module FDD = Vlr.Make

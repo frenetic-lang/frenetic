@@ -10,5 +10,9 @@ module Make(Dom: Vlr.HashCmp) : sig
 
   val dirac : Dom.t -> t
 
+  (** pointwise sum *)
   val sum : t -> t -> t
+
+  (** pushforward along f of the product distribution *)
+  val prod_with : t -> t -> f:(Dom.t -> Dom.t -> Dom.t) -> t
 end
