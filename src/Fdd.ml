@@ -12,10 +12,6 @@ module Field = struct
     | F2
     | F3
     | F4
-    | F5
-    | F6
-    | F7
-    | F8
     | Meta0
     | Meta1
     | Meta2
@@ -279,17 +275,16 @@ end
 module Action = struct
 
   type t = unit
+    [@@deriving compare, eq, compare, hash, sexp]
+
+  let to_string t =
+    sexp_of_t t |> Sexp.to_string
 
   let zero = ()
   let one = ()
   let is_one _ = true
   let is_zero _ = true
 
-(*   let one = Par.singleton Seq.empty
-  let zero = Par.empty
-  let is_one = Par.equal one
-  let is_zero = Par.is_empty
- *)
   let sum (a:t) (b:t) : t =
     failwith "not implemented"
     (* This implements parallel composition specifically for NetKAT
