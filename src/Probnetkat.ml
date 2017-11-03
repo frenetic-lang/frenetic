@@ -12,45 +12,49 @@ module Field = String
 type value = int [@@deriving sexp, show, compare, eq, hash]
 module Value = Int
 
-type header_val = field * value [@@deriving sexp, compare, eq, hash]
+type 'field header_val = 'field * value [@@deriving sexp, compare, eq, hash]
 
 
 (** {2} predicates and policies; open types, in case we want to add hash-consing later *)
 
-(* we may want to add local fields *)
+(* local/meta fields *)
 type meta_init =
-  | Alias of header_val
-  | Const of int64
-  [@@deriving sexp]
+  | Alias of field
+  | Const of value
+  [@@deriving sexp, compare, hash]
 
-type 'pred pred0 =
+type ('pred, 'field) pred0 =
   | True
   | False
-  | Test of header_val
+  | Test of 'field header_val
   | And of 'pred * 'pred
   | Or of 'pred * 'pred
   | Neg of 'pred
   [@@deriving sexp, compare, hash]
 
-and ('pol, 'pred) policy0 =
+and ('pol, 'pred, 'field) policy0 =
   | Filter of 'pred
-  | Modify of header_val
+  | Modify of 'field header_val
   | Ite of 'pred * 'pol * 'pol
   | While of 'pred * 'pol
   | Choice of ('pol * Prob.t) list
+  | Let of { id : string; init : meta_init; mut : bool; body : 'pol }
   [@@deriving sexp, compare, hash]
 
-type pred = { kind: pred pred0 }
+type 'field pred1 = { kind: ('field pred1, 'field) pred0 }
   [@@deriving sexp, compare, hash] [@@unboxed]
-and policy = { kind: (policy, pred) policy0 }
+and 'field policy1 = { kind: ('field policy1, 'field pred1, 'field) policy0 }
   [@@deriving sexp, compare, hash] [@@unboxed]
+
+type pred = field pred1 [@@deriving sexp, compare, hash]
+and policy = field policy1 [@@deriving sexp, compare, hash]
 
 let pp_hv op fmt hv =
   fprintf fmt "@[%s%s%d@]" (fst hv) op (snd hv)
 
 let pp_policy0 fmt (p : policy) =
   let rec do_pol ctxt fmt (p : policy) = do_pol0 ctxt fmt p.kind
-  and do_pol0 ctxt fmt (p : ('a, 'b) policy0) =
+  and do_pol0 ctxt fmt (p : ('a, 'b, 'c) policy0) =
     match p with
     | Filter pred -> do_pred ctxt fmt pred
     | Modify hv -> pp_hv "<-" fmt hv
@@ -60,6 +64,9 @@ let pp_policy0 fmt (p : policy) =
     | Ite (a, p, q) ->
       fprintf fmt "@[IF@ @[<2>%a@]@ THEN@ @[<2>%a@]@ ELSE@ @[<2>%a@]@]"
         (do_pred `COND) a (do_pol `ITE_L) p (do_pol `ITE_R) q
+    | Let { id; init; mut; body } ->
+      fprintf fmt "@[@[%a@]@ IN@ @[<0>%a@]"
+        do_binding (id, init, mut) (do_pol `PAREN) body
     | Choice ps ->
       fprintf fmt "@[?{@;<1-2>";
       List.iter ps ~f:(fun (p,q) ->
@@ -85,6 +92,14 @@ let pp_policy0 fmt (p : policy) =
         | `SEQ_R -> fprintf fmt "@[%a;@ %a@]" (do_pred `SEQ_L) p1 (do_pred `SEQ_R) p2
         | _ -> fprintf fmt "@[(@[%a;@ %a@])@]" (do_pred `SEQ_L) p1 (do_pred `SEQ_R) p2
       end
+  and do_binding fmt (id, init, mut) =
+    fprintf fmt "%s@ %s@ :=@ %s"
+      (if mut then "var" else "let")
+      id
+      (match init with
+        | Alias f -> f
+        | Const v -> Int.to_string v)
+
   in
   do_pol `PAREN fmt p
 

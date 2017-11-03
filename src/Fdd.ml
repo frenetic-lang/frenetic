@@ -56,22 +56,39 @@ module Field = struct
     type t
     val empty : t
     exception Full
-    val add : t -> string -> Probnetkat.meta_init -> bool -> t (* may raise Full *)
-    val lookup : t -> string -> field * (Probnetkat.meta_init * bool) (* may raise Not_found *)
+    val add_static : t -> string -> t (* may raise Full *)
+    val add_meta : t -> string -> Probnetkat.meta_init -> bool -> t (* may raise Full *)
+    val lookup_static : t -> string -> field (* may raise Not_found *)
+    val lookup_meta : t -> string -> field * (Probnetkat.meta_init * bool) (* may raise Not_found *)
   end
 
   module Env : ENV = struct
 
     type t = {
-      alist : (string * (field * (Probnetkat.meta_init * bool))) list;
-      depth : int
+      static_map : (string * field) list;
+      meta_map : (string * (field * (Probnetkat.meta_init * bool))) list;
+      statics : int;
+      depth : int;
     }
 
-    let empty = { alist = []; depth = 0 }
+    let empty = { static_map = []; meta_map = []; statics = 0; depth = 0 }
 
     exception Full
 
-    let add env name init mut =
+    let add_static env name =
+      let field = match env.depth with
+        | 0 -> F0
+        | 1 -> F1
+        | 2 -> F2
+        | 3 -> F3
+        | 4 -> F4
+        | _ -> raise Full
+      in
+      let static_map = List.Assoc.add ~equal:(=) env.static_map name field in
+      let statics = env.statics + 1 in
+      { env with static_map; statics }
+
+    let add_meta env name init mut =
       let field =
         match env.depth with
         | 0 -> Meta0
@@ -81,11 +98,15 @@ module Field = struct
         | 4 -> Meta4
         | _ -> raise Full
       in
-      { alist = List.Assoc.add ~equal:(=) env.alist name (field, (init, mut));
-        depth = env.depth + 1}
+      let meta_map = List.Assoc.add ~equal:(=) env.meta_map name (field, (init, mut)) in
+      let depth = env.depth + 1 in
+      { env with meta_map; depth }
 
-    let lookup env name =
-      List.Assoc.find_exn ~equal:(=) env.alist name
+    let lookup_static env name =
+      List.Assoc.find_exn ~equal:(=) env.static_map name
+
+    let lookup_meta env name =
+      List.Assoc.find_exn ~equal:(=) env.meta_map name
   end
 (*
   (* Heuristic to pick a variable order that operates by scoring the fields
@@ -184,8 +205,9 @@ module Pattern = struct
   let to_string (f, v) =
     Printf.sprintf "%s = %s" (Field.to_string f) (Value.to_string v)
 
-(*   let of_hv ?(env=Field.Env.empty) hv =
-    let open Probnetkat in
+  let of_hv ?(env=Field.Env.empty) hv =
+    failwith "not implemented"
+(*     let open Probnetkat in
     match hv with
     | Switch sw_id -> (Field.Switch, Value.(Const sw_id))
     | Location(Physical p) -> (Field.Location, Value.of_int32 p)
@@ -210,9 +232,9 @@ module Pattern = struct
     | TCPSrcPort(tpPort) -> (Field.TCPSrcPort, Value.of_int tpPort)
     | TCPDstPort(tpPort) -> (Field.TCPDstPort, Value.of_int tpPort)
     | VFabric(vfab) -> (Field.VFabric, Value.(Const vfab))
-    | Meta(name,v) -> (fst (Field.Env.lookup env name), Value.(Const v))
+    | Meta(name,v) -> (fst (Field.Env.lookup env name), Value.(Const v)) *)
 
-  let to_hv (f, v) =
+(*   let to_hv (f, v) =
     let open Field in
     let open Value in
     match f, v with
@@ -296,7 +318,55 @@ module ActionDist = struct
     if is_zero t then one else zero
 end
 
-module FDD = Vlr.Make
-  (Field)
-  (Value)
-  (ActionDist)
+
+
+
+module FDD = struct
+
+  (** internal policy representation in which string fields have been replaced
+      with FDD fields *)
+  module Pol = struct
+    type pred = Field.t Probnetkat.pred1
+    type policy = Field.t Probnetkat.policy1
+
+    let of_pol (pol : Probnetkat.policy) : policy * (Field.t Probnetkat.Field.Map.t) =
+      let tbl : (Probnetkat.field, Field.t) Hashtbl.t = Probnetkat.Field.Table.create () in
+      let rec do_pol (p : Probnetkat.policy) : policy =
+        Probnetkat.{ kind = do_pol' p.kind }
+      and do_pol' p =
+        let open Probnetkat in
+        match p with
+        | Filter pred -> Filter True
+        | _ -> failwith "not implemented"
+       (*  | Modify (f,v) -> Modify hv
+        | Ite of 'pred * 'pol * 'pol
+        | While of 'pred * 'pol
+        | Choice of ('pol * Prob.t) list
+        | Let of { id : string; init : meta_init; mut : bool; body : 'pol } *)
+      and do_pred (p : Probnetkat.pred) : pred =
+        Probnetkat.{ kind = do_pred' p.kind }
+      and do_pred' p =
+        let open Probnetkat in
+        match p with
+        | True -> True
+        | False -> False
+        (* | Test of 'field header_val
+        | And of 'pred * 'pred
+        | Or of 'pred * 'pred
+        | Neg of 'pred *)
+        | _ -> failwith "to do"
+      in
+      let pol : policy = do_pol pol in
+      let field_map = Probnetkat.Field.(Map.of_alist_exn (Table.to_alist tbl)) in
+      (pol, field_map)
+  end
+
+  include Vlr.Make
+            (Field)
+            (Value)
+            (ActionDist)
+
+   let of_test env hv =
+    atom (Pattern.of_hv ~env hv) ActionDist.one ActionDist.zero
+
+end
