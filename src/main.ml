@@ -1,6 +1,7 @@
 open Core
 open Probnetkat
 open Fdd
+open Dist
 
 let fprintf = Format.fprintf
 let fmt = Format.std_formatter

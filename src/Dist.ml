@@ -4,19 +4,28 @@
 
 open Core
 
-module Make (Domain : Map.Key) = struct
+module Make (Dom : Vlr.HashCmp) = struct
 
-  module T = Map.Make(Domain) (* Domain.t -> 'a *)
+  module Dom = Dom
 
-  type t = Prob.t T.t [@@deriving sexp] (* Domain.t -> Prob.t *)
+  module T = struct
+    include Map.Make(Dom) (* Dom.t -> 'a *)
+
+    let hash_fold_t = Map.hash_fold_direct Dom.hash_fold_t
+  end
+
+  type t = Prob.t T.t [@@deriving sexp, compare, eq, hash] (* Dom.t -> Prob.t *)
+
+  let to_string _ = failwith "not implemented"
 
   let empty : t = T.empty
+  let is_empty = T.is_empty
   let fold = T.fold
   let filter_map = T.filter_map
   let filter_keys = T.filter_keys
 
   (* point mass distribution *)
-  let dirac (p : Domain.t) : t = T.singleton p Prob.one
+  let dirac (p : Dom.t) : t = T.singleton p Prob.one
 
   (* pointwise sum of distributions *)
   let sum t1 t2 : t =
@@ -33,18 +42,18 @@ module Make (Domain : Map.Key) = struct
     |> List.fold ~init:empty ~f:sum
 
   (* expectation of random variable [f] w.r.t distribution [t] *)
-  let expectation t ~(f : Domain.t -> Prob.t) : Prob.t =
+  let expectation t ~(f : Dom.t -> Prob.t) : Prob.t =
     T.fold t ~init:Prob.zero ~f:(fun ~key:point ~data:prob acc ->
       Prob.(acc + prob * f point))
 
   (* variance of random variable [f] w.r.t distribution [t] *)
-  let variance t ~(f : Domain.t -> Prob.t) : Prob.t =
+  let variance t ~(f : Dom.t -> Prob.t) : Prob.t =
     let mean = expectation t f in
     expectation t ~f:(fun point -> Prob.((f point - mean) * (f point - mean)))
 
   (* Markov Kernel *)
   module Kernel = struct
-    type kernel = Domain.t -> t
+    type kernel = Dom.t -> t
 
     (* lift Markov Kernel to measure transformer *)
     let lift (k : kernel) (dist : t) : t =

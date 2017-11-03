@@ -176,32 +176,7 @@ end
 
 module Value = struct
   include Int
-
-
-  let subset_eq _ _ =
-    failwith "not implemented"
-  (** [subset_eq a b] returns [true] if [a] and [b] in the partial ordering of
-      the lattice. This relation should be reflexive, transitive, and
-      antisymmetric. *)
-
-  let meet ?tight _ _ =
-    failwith "not implemented"
-  (** [meet ~tight a b] returns the greatest lower bound of the elements [a]
-      and [b], if one exists. This operation should be associative, commutative,
-      and idempotent. If the optional argument [tight] is set to [true], then
-      the result [c] should satisfy the additional property:
-
-          ∀x, [subset_eq c x] <=> [subset_eq a x || subset_eq b x || equal c x].
-
-      In other words, elements related to the greatest lower bound should be
-      related transitively through [a] and [b], or be equal to the greatest
-      lower bound itself.
-
-      TODO: tightness doesn't seem to be used anywhere in Frenetic, and can probably
-      be removed.  *)
-
-  let join ?tight:bool _ _ =
-    failwith "not implemented"
+  let subset_eq = equal
 end
 
 module Pattern = struct
@@ -271,27 +246,42 @@ module Pattern = struct
 
 end
 
-
 module Action = struct
+  include Map.Make(Field)
 
-  type t = unit
-    [@@deriving compare, eq, compare, hash, sexp]
+  let compare = compare_direct Value.compare
+  let one = empty
+  let hash_fold_t = Map.hash_fold_direct Field.hash_fold_t
 
-  let to_string t =
-    sexp_of_t t |> Sexp.to_string
+  let to_string (t : Value.t t) : string =
+    let s = to_alist t
+      |> List.map ~f:(fun (f,v) ->
+          sprintf "%s := %s" (Field.to_string f) (Value.to_string v))
+      |> String.concat ~sep:", "
+    in "[" ^ s ^ "]"
+end
 
-  let zero = ()
-  let one = ()
-  let is_one _ = true
-  let is_zero _ = true
 
-  let sum (a:t) (b:t) : t =
-    failwith "not implemented"
-    (* This implements parallel composition specifically for NetKAT
-       modifications. *)
-(*     if is_zero a then b            (* 0 + p = p *)
-    else if is_zero b then a       (* p + 0 = p *)
-    else Par.union a b *)
+module ActionDist = struct
+
+  module T = Dist.Make(struct
+    type t = Value.t Action.t [@@deriving sexp, eq, hash]
+    let to_string = Action.to_string
+    let compare = Action.compare
+  end)
+
+  include T
+
+  let zero = T.empty
+  let is_zero = T.is_empty
+
+  let one = T.dirac Action.one
+  let is_one d = match Map.find d Action.one with
+    | None -> false
+    | Some p when not Prob.(equal p one) -> false
+    | Some _ -> Map.length d = 1
+
+  let sum = T.sum
 
   let prod (a:t) (b:t) : t =
     failwith "not implemented"
@@ -345,4 +335,4 @@ end
 module FDD = Vlr.Make
   (Field)
   (Value)
-  (Action)
+  (ActionDist)

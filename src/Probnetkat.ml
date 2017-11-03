@@ -41,9 +41,9 @@ and ('pol, 'pred) policy0 =
   [@@deriving sexp, compare, hash]
 
 type pred = { kind: pred pred0 }
-  [@@deriving sexp, compare, hash]
+  [@@deriving sexp, compare, hash] [@@unboxed]
 and policy = { kind: (policy, pred) policy0 }
-  [@@deriving sexp, compare, hash]
+  [@@deriving sexp, compare, hash] [@@unboxed]
 
 let pp_hv op fmt hv =
   fprintf fmt "@[%s%s%d@]" (fst hv) op (snd hv)

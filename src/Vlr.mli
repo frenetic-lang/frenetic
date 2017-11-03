@@ -2,10 +2,8 @@ open Core
 
 (** The signature for a type that can be compared and hashed *)
 module type HashCmp = sig
-  include Hashtbl.Key
-
+  type t [@@deriving sexp, compare, eq, hash]
   val to_string : t -> string
-  (** [to_string t] returns a string representation of the value. *)
 end
 
 (** The signature for a type that has a lattice structure. *)
@@ -16,33 +14,6 @@ module type Lattice = sig
   (** [subset_eq a b] returns [true] if [a] and [b] in the partial ordering of
       the lattice. This relation should be reflexive, transitive, and
       antisymmetric. *)
-
-  val meet : ?tight:bool -> t -> t -> t option
-  (** [meet ~tight a b] returns the greatest lower bound of the elements [a]
-      and [b], if one exists. This operation should be associative, commutative,
-      and idempotent. If the optional argument [tight] is set to [true], then
-      the result [c] should satisfy the additional property:
-
-          ∀x, [subset_eq c x] <=> [subset_eq a x || subset_eq b x || equal c x].
-
-      In other words, elements related to the greatest lower bound should be
-      related transitively through [a] and [b], or be equal to the greatest
-      lower bound itself.
-
-      TODO: tightness doesn't seem to be used anywhere in Frenetic, and can probably
-      be removed.  *)
-
-  val join : ?tight:bool -> t -> t -> t option
-  (** [join ~tight a b] returns the least upper bound of the elements [a] and
-      [b], if one exists. This operation should be associative, commutative, and
-      idempotent. If the optional argument [tight] is set to [true], then the
-      result [c] should satisfy the additional property:
-
-          ∀x, [subset_eq x c] <=> [subset_eq x a || subset_eq x b || equal x c].
-
-      In other words, elements related to the least upper bound should be
-      related transitively through [a] and [b], or be equal to the least upper
-      bound itself. *)
 
 end
 

@@ -1,15 +1,13 @@
 open Core
 
 module type HashCmp = sig
-  include Hashtbl.Key
+  type t [@@deriving sexp, compare, eq, hash]
   val to_string : t -> string
 end
 
 module type Lattice = sig
   include HashCmp
   val subset_eq : t -> t -> bool
-  val meet : ?tight:bool -> t -> t -> t option
-  val join : ?tight:bool -> t -> t -> t option
 end
 
 module type Result = sig
