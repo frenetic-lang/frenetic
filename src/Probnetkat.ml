@@ -15,7 +15,7 @@ module Value = Int
 type 'field header_val = 'field * value [@@deriving sexp, compare, eq, hash]
 
 
-(** {2} predicates and policies; open types, in case we want to add hash-consing later *)
+(** {2} predicates and policies *)
 
 (* local/meta fields *)
 type meta_init =
@@ -23,38 +23,29 @@ type meta_init =
   | Const of value
   [@@deriving sexp, compare, hash]
 
-type ('pred, 'field) pred0 =
+type 'field pred =
   | True
   | False
   | Test of 'field header_val
-  | And of 'pred * 'pred
-  | Or of 'pred * 'pred
-  | Neg of 'pred
+  | And of 'field pred * 'field pred
+  | Or of 'field pred * 'field pred
+  | Neg of 'field pred
   [@@deriving sexp, compare, hash]
 
-and ('pol, 'pred, 'field) policy0 =
-  | Filter of 'pred
+type 'field  policy =
+  | Filter of 'field pred
   | Modify of 'field header_val
-  | Ite of 'pred * 'pol * 'pol
-  | While of 'pred * 'pol
-  | Choice of ('pol * Prob.t) list
-  | Let of { id : string; init : meta_init; mut : bool; body : 'pol }
+  | Ite of 'field pred * 'field policy * 'field policy
+  | While of 'field pred * 'field policy
+  | Choice of ('field policy * Prob.t) list
+  | Let of { id : string; init : meta_init; mut : bool; body : 'field policy }
   [@@deriving sexp, compare, hash]
-
-type 'field pred1 = { kind: ('field pred1, 'field) pred0 }
-  [@@deriving sexp, compare, hash] [@@unboxed]
-and 'field policy1 = { kind: ('field policy1, 'field pred1, 'field) policy0 }
-  [@@deriving sexp, compare, hash] [@@unboxed]
-
-type pred = field pred1 [@@deriving sexp, compare, hash]
-and policy = field policy1 [@@deriving sexp, compare, hash]
 
 let pp_hv op fmt hv =
   fprintf fmt "@[%s%s%d@]" (fst hv) op (snd hv)
 
-let pp_policy0 fmt (p : policy) =
-  let rec do_pol ctxt fmt (p : policy) = do_pol0 ctxt fmt p.kind
-  and do_pol0 ctxt fmt (p : ('a, 'b, 'c) policy0) =
+let pp_policy fmt (p : string policy) =
+  let rec do_pol ctxt fmt (p : string policy) =
     match p with
     | Filter pred -> do_pred ctxt fmt pred
     | Modify hv -> pp_hv "<-" fmt hv
@@ -72,8 +63,7 @@ let pp_policy0 fmt (p : policy) =
       List.iter ps ~f:(fun (p,q) ->
         fprintf fmt "@[%a@ %@@ %a;@;@]" (do_pol `CHOICE) p Q.pp_print q);
       fprintf fmt "@;<1-0>}@]"
-  and do_pred ctxt fmt (p : pred) = do_pred0 ctxt fmt p.kind
-  and do_pred0 ctxt fmt p =
+  and do_pred ctxt fmt (p : string pred) =
     match p with
     | True -> fprintf fmt "@[1@]"
     | False -> fprintf fmt "@[0@]"

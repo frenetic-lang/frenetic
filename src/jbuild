@@ -3,7 +3,12 @@
 (executable
  ((name         main)
   (public_name  probnetkat)
-  (libraries (core owl lacaml zarith))
+  (libraries (
+    core
+    ;; owl
+    ;; lacaml
+    zarith
+  ))
   (preprocess (pps (ppx_deriving.std
                     ppx_enumerate
                     ppx_compare
