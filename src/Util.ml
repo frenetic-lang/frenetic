@@ -8,3 +8,9 @@ let time f x =
 
 let print_time time =
   printf "time: %.4f\n" time
+
+let map_fst xs ~f =
+  List.map xs ~f:(fun (x,y) -> (f x, y))
+
+let map_snd xs ~f =
+  List.map xs ~f:(fun (x,y) -> (x, f y))

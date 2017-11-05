@@ -7,10 +7,7 @@ let fprintf = Format.fprintf
 
 (** {2} fields and values *)
 type field = string [@@deriving sexp, show, compare, eq, hash]
-module Field = String
-
 type value = int [@@deriving sexp, show, compare, eq, hash]
-module Value = Int
 
 type 'field header_val = 'field * value [@@deriving sexp, compare, eq, hash]
 

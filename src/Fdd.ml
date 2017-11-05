@@ -1,6 +1,5 @@
 open Core
 
-
 module Field = struct
 
   type t
@@ -56,39 +55,22 @@ module Field = struct
     type t
     val empty : t
     exception Full
-    val add_static : t -> string -> t (* may raise Full *)
-    val add_meta : t -> string -> Probnetkat.meta_init -> bool -> t (* may raise Full *)
-    val lookup_static : t -> string -> field (* may raise Not_found *)
-    val lookup_meta : t -> string -> field * (Probnetkat.meta_init * bool) (* may raise Not_found *)
+    val add : t -> string -> Probnetkat.meta_init -> bool -> t (* may raise Full *)
+    val lookup : t -> string -> field * (Probnetkat.meta_init * bool) (* may raise Not_found *)
   end
 
   module Env : ENV = struct
 
     type t = {
-      static_map : (string * field) list;
-      meta_map : (string * (field * (Probnetkat.meta_init * bool))) list;
-      statics : int;
-      depth : int;
+      alist : (string * (field * (Probnetkat.meta_init * bool))) list;
+      depth : int
     }
 
-    let empty = { static_map = []; meta_map = []; statics = 0; depth = 0 }
+    let empty = { alist = []; depth = 0 }
 
     exception Full
 
-    let add_static env name =
-      let field = match env.depth with
-        | 0 -> F0
-        | 1 -> F1
-        | 2 -> F2
-        | 3 -> F3
-        | 4 -> F4
-        | _ -> raise Full
-      in
-      let static_map = List.Assoc.add ~equal:(=) env.static_map name field in
-      let statics = env.statics + 1 in
-      { env with static_map; statics }
-
-    let add_meta env name init mut =
+    let add env name init mut =
       let field =
         match env.depth with
         | 0 -> Meta0
@@ -98,15 +80,11 @@ module Field = struct
         | 4 -> Meta4
         | _ -> raise Full
       in
-      let meta_map = List.Assoc.add ~equal:(=) env.meta_map name (field, (init, mut)) in
-      let depth = env.depth + 1 in
-      { env with meta_map; depth }
+      { alist = List.Assoc.add ~equal:(=) env.alist name (field, (init, mut));
+        depth = env.depth + 1}
 
-    let lookup_static env name =
-      List.Assoc.find_exn ~equal:(=) env.static_map name
-
-    let lookup_meta env name =
-      List.Assoc.find_exn ~equal:(=) env.meta_map name
+    let lookup env name =
+      List.Assoc.find_exn ~equal:(=) env.alist name
   end
 (*
   (* Heuristic to pick a variable order that operates by scoring the fields
@@ -323,48 +301,59 @@ end
 
 module FDD = struct
 
-  (** internal policy representation in which string fields have been replaced
-      with FDD fields *)
-  module Pol = struct
-    type pred = Field.t Probnetkat.pred1
-    type policy = Field.t Probnetkat.policy1
-
-    let of_pol (pol : Probnetkat.policy) : policy * (Field.t Probnetkat.Field.Map.t) =
-      let tbl : (Probnetkat.field, Field.t) Hashtbl.t = Probnetkat.Field.Table.create () in
-      let rec do_pol (p : Probnetkat.policy) : policy =
-        Probnetkat.{ kind = do_pol' p.kind }
-      and do_pol' p =
-        let open Probnetkat in
-        match p with
-        | Filter pred -> Filter True
-        | _ -> failwith "not implemented"
-       (*  | Modify (f,v) -> Modify hv
-        | Ite of 'pred * 'pol * 'pol
-        | While of 'pred * 'pol
-        | Choice of ('pol * Prob.t) list
-        | Let of { id : string; init : meta_init; mut : bool; body : 'pol } *)
-      and do_pred (p : Probnetkat.pred) : pred =
-        Probnetkat.{ kind = do_pred' p.kind }
-      and do_pred' p =
-        let open Probnetkat in
-        match p with
-        | True -> True
-        | False -> False
-        (* | Test of 'field header_val
-        | And of 'pred * 'pred
-        | Or of 'pred * 'pred
-        | Neg of 'pred *)
-        | _ -> failwith "to do"
-      in
-      let pol : policy = do_pol pol in
-      let field_map = Probnetkat.Field.(Map.of_alist_exn (Table.to_alist tbl)) in
-      (pol, field_map)
-  end
-
   include Vlr.Make
-            (Field)
-            (Value)
-            (ActionDist)
+          (Field)
+          (Value)
+          (ActionDist)
+
+  let allocate_fields (pol : string Probnetkat.policy) 
+    : Field.t Probnetkat.policy * Field.t String.Map.t =
+    let tbl : (string, Field.t) Hashtbl.t = String.Table.create () in
+    let next = ref 0 in
+    let do_field env (f : string) : Field.t =
+      match Field.Env.lookup env f with
+      | (field, _) -> field 
+      | exception Not_found -> String.Table.find_or_add tbl f ~default:(fun () ->
+        let open Field in
+        let field = match !next with
+          | 0 -> F0
+          | 1 -> F1
+          | 2 -> F2
+          | 3 -> F3
+          | 4 -> F4
+          | _ -> failwith "too many fields! (only up to 5 supported)"
+        in incr next; field)
+    in
+    let open Probnetkat in
+    let rec do_pol env (p : string policy) : Field.t policy =
+      match p with
+      | Filter pred ->
+        Filter (do_pred env pred)
+      | Modify (f,v) ->
+        Modify (do_field env f, v)
+      | Ite (a, p, q) ->
+        Ite (do_pred env a, do_pol env p, do_pol env q)
+      | While (a, p) ->
+        While (do_pred env a, do_pol env p)
+      | Choice dist ->
+        Choice (Util.map_fst dist ~f:(do_pol env))
+      | Let { id : string; init : meta_init; mut : bool; body : 'pol } ->
+        let env = Field.Env.add env id init mut in
+        let body = do_pol env body in
+        Let { id; init; mut; body; }
+    and do_pred env (p : string pred) : Field.t pred =
+      match p with
+      | True -> True
+      | False -> False
+      (* | Test of 'field header_val
+      | And of 'pred * 'pred
+      | Or of 'pred * 'pred
+      | Neg of 'pred *)
+      | _ -> failwith "to do"
+    in
+    let pol = do_pol Field.Env.empty pol in
+    let field_map = String.(Map.of_alist_exn (Table.to_alist tbl)) in
+    (pol, field_map)
 
    let of_test env hv =
     atom (Pattern.of_hv ~env hv) ActionDist.one ActionDist.zero
