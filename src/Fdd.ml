@@ -345,17 +345,16 @@ module FDD = struct
       match p with
       | True -> True
       | False -> False
-      (* | Test of 'field header_val
-      | And of 'pred * 'pred
-      | Or of 'pred * 'pred
-      | Neg of 'pred *)
-      | _ -> failwith "to do"
+      | Test (f, v) -> Test (do_field env f, v)
+      | And (p, q) -> And (do_pred env p, do_pred env q)
+      | Or (p, q) -> Or (do_pred env p, do_pred env q)
+      | Neg p -> Neg (do_pred env p)
     in
     let pol = do_pol Field.Env.empty pol in
     let field_map = String.(Map.of_alist_exn (Table.to_alist tbl)) in
     (pol, field_map)
 
-   let of_test env hv =
+  let of_test env hv =
     atom (Pattern.of_hv ~env hv) ActionDist.one ActionDist.zero
 
 end
