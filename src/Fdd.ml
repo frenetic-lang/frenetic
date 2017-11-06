@@ -342,6 +342,10 @@ module FDD = struct
 
   let big_union fdds = List.fold ~init:drop ~f:union fdds
 
+  (* while a do p == (a; p)*; ¬a *)
+  let iterate a p =
+    failwith "todo"
+
   (** Erases (all matches on) meta field. No need to erase modifications. *)
   let erase t meta_field init =
     match init with
@@ -379,7 +383,10 @@ module FDD = struct
             k @@ union (prod a p) (prod (negate a) q)
           )
         )
-    | While (a, p) -> failwith "todo"
+    | While (a, p) ->
+      of_local_pol_k p (fun p ->
+        k @@ iterate (of_pred a) p
+      )
     | Choice dist ->
       List.map dist ~f:(fun (p, prob) ->
         of_local_pol_k p (map_r ~f:(ActionDist.scale ~scalar:prob))
