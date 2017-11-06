@@ -1,3 +1,4 @@
-function [] = main(file)
-x = eye(10000)
-fprintf("Hello, World!")
+function [] = main(file) %#codegen
+% M = load('matrix.m');
+fprintf('Input file:%s\n', file);
+end

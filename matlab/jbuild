@@ -6,3 +6,9 @@
   (action   (run matlab -nodesktop -nojvm -nodisplay -r "make; quit"))
  )
 )
+
+(install
+  ((section bin)
+   (files   ((main as probnetkat.matlab.exe)))
+   (package probnetkat)
+  ))
