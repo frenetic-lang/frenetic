@@ -241,13 +241,13 @@ module FDD = struct
           (ActionDist)
   open Probnetkat
 
-  let allocate_fields (pol : string policy) 
+  let allocate_fields (pol : string policy)
     : Field.t policy * Field.t String.Map.t =
     let tbl : (string, Field.t) Hashtbl.t = String.Table.create () in
     let next = ref 0 in
     let do_field env (f : string) : Field.t =
       match Field.Env.lookup env f with
-      | (field, _) -> field 
+      | (field, _) -> field
       | exception Not_found -> String.Table.find_or_add tbl f ~default:(fun () ->
         let open Field in
         let field = match !next with
@@ -301,6 +301,9 @@ module FDD = struct
   let of_mod (f,v) =
     const (ActionDist.dirac (Action.singleton f v))
 
+  let negate fdd =
+    map_r fdd ~f:ActionDist.negate
+
   let rec of_pred p =
     match p with
     | True      -> id
@@ -308,7 +311,7 @@ module FDD = struct
     | Test(hv)  -> of_test hv
     | And(p, q) -> prod (of_pred p) (of_pred q)
     | Or (p, q) -> sum (of_pred p) (of_pred q)
-    | Neg(q)    -> map_r ActionDist.negate (of_pred q)
+    | Neg(q)    -> negate (of_pred q)
 
   let seq_tbl = BinTbl.create ~size:1000 ()
 
@@ -358,16 +361,24 @@ module FDD = struct
       k (of_pred p)
     | Modify m ->
       k (of_mod  m)
-    | Seq (p, q) -> of_local_pol_k p (fun p' ->
-                      if equal p' drop then
-                        k drop
-                      else
-                        of_local_pol_k q (fun q' ->
-                          k (seq p' q')))
-
-    | Ite (a, p, q) -> of_local_pol_k p (fun p' ->
-                        of_local_pol_k q (fun q' ->
-                          k (union p' q')))
+    | Seq (p, q) ->
+      of_local_pol_k p (fun p' ->
+        if equal p' drop then
+          k drop
+        else
+          of_local_pol_k q (fun q' -> k (seq p' q')))
+    | Ite (a, p, q) ->
+      let a = of_pred a in
+      if equal a id then
+        of_local_pol_k p k
+      else if equal a drop then
+        of_local_pol_k q k
+      else
+        of_local_pol_k p (fun p ->
+          of_local_pol_k q (fun q ->
+            k @@ union (prod a p) (prod (negate a) q)
+          )
+        )
     | While (a, p) -> failwith "todo"
     | Choice dist ->
       List.map dist ~f:(fun (p, prob) ->
