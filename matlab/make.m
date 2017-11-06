@@ -1,0 +1,1 @@
+codegen -config:exe -args [string] -d . main.m;

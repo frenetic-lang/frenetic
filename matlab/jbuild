@@ -1,0 +1,8 @@
+(jbuild_version 1)
+
+(rule
+ ((targets  (main))
+  (deps     (main.m make.m))
+  (action   (run matlab -nodesktop -nojvm -nodisplay -r "make; quit"))
+ )
+)
