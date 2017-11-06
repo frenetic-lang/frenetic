@@ -23,6 +23,7 @@ module Make (Dom : Vlr.HashCmp) = struct
   let fold = T.fold
   let filter_map = T.filter_map
   let filter_keys = T.filter_keys
+  let to_alist = T.to_alist ~key_order:`Increasing
 
   (* point mass distribution *)
   let dirac (p : Dom.t) : t = T.singleton p Prob.one
@@ -33,6 +34,14 @@ module Make (Dom : Vlr.HashCmp) = struct
       Some (match vals with
       | `Both (v1, v2) -> Prob.(v1 + v2)
       | `Left v | `Right v -> v))
+
+  let pushforward t ~(f: Dom.t -> Dom.t) : t =
+    T.fold t ~init:empty ~f:(fun ~key:x ~data:p dist ->
+      T.update dist (f x) ~f:(function
+        | None -> p
+        | Some p' -> Prob.(p' + p)
+      )
+    )
 
   let prod_with t1 t2 ~(f: Dom.t -> Dom.t -> Dom.t) =
     T.fold t1 ~init:empty ~f:(fun ~key:x ~data:p1 init ->

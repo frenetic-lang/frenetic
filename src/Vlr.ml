@@ -121,6 +121,20 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     in
     loop (List.sort (fun (u, _) (v, _) -> V.compare u v) lst) u
 
+  (** ASSUMPTION: lst is in ascending order *)
+  let restrict_map lst t ~f =
+    let rec loop xs t = match xs, T.unget t with
+      | []          , _ -> map_r ~f t
+      | _           , Leaf a -> const (f a)
+      | (v,l) :: xs', Branch((v', l'), tru, fls) ->
+        match V.compare v v' with
+        |  0 -> if L.subset_eq l l' then loop xs' tru else loop xs fls
+        | -1 -> loop xs' t
+        |  1 -> mk_branch (v',l') (loop xs tru) (loop xs fls)
+        |  _ -> assert false
+    in
+    loop lst t
+
   let apply f zero ~(cache: (t*t, t) Hashtbl.t) =
     let rec sum x y =
       BinTbl.find_or_add cache (x, y) ~default:(fun () -> sum' x y)

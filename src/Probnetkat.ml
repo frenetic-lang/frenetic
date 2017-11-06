@@ -15,8 +15,8 @@ type 'field header_val = 'field * value [@@deriving sexp, compare, eq, hash]
 (** {2} predicates and policies *)
 
 (* local/meta fields *)
-type meta_init =
-  | Alias of field
+type 'field meta_init =
+  | Alias of 'field
   | Const of value
   [@@deriving sexp, compare, hash]
 
@@ -32,10 +32,11 @@ type 'field pred =
 type 'field  policy =
   | Filter of 'field pred
   | Modify of 'field header_val
+  | Seq of 'field policy * 'field policy
   | Ite of 'field pred * 'field policy * 'field policy
   | While of 'field pred * 'field policy
   | Choice of ('field policy * Prob.t) list
-  | Let of { id : string; init : meta_init; mut : bool; body : 'field policy }
+  | Let of { id : 'field; init : 'field meta_init; mut : bool; body : 'field policy }
   [@@deriving sexp, compare, hash]
 
 let pp_hv op fmt hv =
@@ -46,6 +47,13 @@ let pp_policy fmt (p : string policy) =
     match p with
     | Filter pred -> do_pred ctxt fmt pred
     | Modify hv -> pp_hv "<-" fmt hv
+    | Seq (p1, p2) ->
+      begin match ctxt with
+        | `PAREN
+        | `SEQ_L
+        | `SEQ_R -> fprintf fmt "@[%a;@ %a@]" (do_pol `SEQ_L) p1 (do_pol `SEQ_R) p2
+        | _ -> fprintf fmt "@[(@[%a;@ %a@])@]" (do_pol `SEQ_L) p1 (do_pol `SEQ_R) p2
+      end
     | While (a,p) ->
       fprintf fmt "@[WHILE@ @[<2>%a@]@ DO@ @[<2>%a@]@]"
         (do_pred `COND) a (do_pol `While) p

@@ -55,14 +55,14 @@ module Field = struct
     type t
     val empty : t
     exception Full
-    val add : t -> string -> Probnetkat.meta_init -> bool -> t (* may raise Full *)
-    val lookup : t -> string -> field * (Probnetkat.meta_init * bool) (* may raise Not_found *)
+    val add : t -> string -> field Probnetkat.meta_init -> bool -> t (* may raise Full *)
+    val lookup : t -> string -> field * (field Probnetkat.meta_init * bool) (* may raise Not_found *)
   end
 
   module Env : ENV = struct
 
     type t = {
-      alist : (string * (field * (Probnetkat.meta_init * bool))) list;
+      alist : (string * (field * (field Probnetkat.meta_init * bool))) list;
       depth : int
     }
 
@@ -176,74 +176,6 @@ module Value = struct
   let subset_eq = equal
 end
 
-module Pattern = struct
-  type t = Field.t * Value.t
-  [@@deriving compare, eq, hash]
-
-  let to_string (f, v) =
-    Printf.sprintf "%s = %s" (Field.to_string f) (Value.to_string v)
-
-  let of_hv ?(env=Field.Env.empty) hv =
-    failwith "not implemented"
-(*     let open Probnetkat in
-    match hv with
-    | Switch sw_id -> (Field.Switch, Value.(Const sw_id))
-    | Location(Physical p) -> (Field.Location, Value.of_int32 p)
-    | From loc -> (Field.From, Value.AbstractLocation loc)
-    | AbstractLoc loc -> (Field.AbstractLoc, Value.AbstractLocation loc)
-    (* TODO(grouptable): value hack *)
-    | Location(FastFail p_lst) -> (Field.Location, Value.(FastFail p_lst))
-    | Location(Pipe p)  -> (Field.Location, Value.(Pipe p))
-    | Location(Query p) -> (Field.Location, Value.(Query p))
-    | EthSrc(dlAddr) -> (Field.EthSrc, Value.(Const dlAddr))
-    | EthDst(dlAddr) -> (Field.EthDst, Value.(Const dlAddr))
-    | Vlan(vlan) -> (Field.Vlan, Value.of_int vlan)
-    | VlanPcp(vlanPcp) -> (Field.VlanPcp, Value.of_int vlanPcp)
-    | VSwitch(vsw_id) -> (Field.VSwitch, Value.(Const vsw_id))
-    | VPort(vpt) ->  (Field.VPort, Value.(Const vpt))
-    | EthType(dlTyp) -> (Field.EthType, Value.of_int dlTyp)
-    | IPProto(nwProto) -> (Field.IPProto, Value.of_int nwProto)
-    | IP4Src(nwAddr, mask) ->
-      (Field.IP4Src, Value.(Mask(Int64.of_int32 nwAddr, 32 + (Int32.to_int_exn mask))))
-    | IP4Dst(nwAddr, mask) ->
-      (Field.IP4Dst, Value.(Mask(Int64.of_int32 nwAddr, 32 + (Int32.to_int_exn mask))))
-    | TCPSrcPort(tpPort) -> (Field.TCPSrcPort, Value.of_int tpPort)
-    | TCPDstPort(tpPort) -> (Field.TCPDstPort, Value.of_int tpPort)
-    | VFabric(vfab) -> (Field.VFabric, Value.(Const vfab))
-    | Meta(name,v) -> (fst (Field.Env.lookup env name), Value.(Const v)) *)
-
-(*   let to_hv (f, v) =
-    let open Field in
-    let open Value in
-    match f, v with
-    | (Switch  , Const sw) -> Probnetkat.Switch sw
-    | (Location, Const p) -> Probnetkat.(Location (Physical (to_int32 p)))
-    | (Location, Pipe  p) -> Probnetkat.(Location (Pipe p))
-    | (Location, Query q) -> Probnetkat.(Location (Query q))
-    | (From, AbstractLocation l) -> Probnetkat.From l
-    | (AbstractLoc, AbstractLocation l) -> Probnetkat.AbstractLoc l
-    | (EthSrc  , Const dlAddr) -> Probnetkat.(EthSrc dlAddr)
-    | (EthDst  , Const dlAddr) -> Probnetkat.(EthDst dlAddr)
-    | (Vlan    , Const vlan) -> Probnetkat.(Vlan(to_int vlan))
-    | (VlanPcp , Const vlanPcp) -> Probnetkat.(VlanPcp (to_int vlanPcp))
-    | (VSwitch  , Const vsw) -> Probnetkat.VSwitch vsw
-    | (VPort  , Const vpt) -> Probnetkat.VPort vpt
-    | (EthType , Const dlTyp) -> Probnetkat.(EthType (to_int dlTyp))
-    | (IPProto , Const nwProto) -> Probnetkat.(IPProto (to_int nwProto))
-    | (IP4Src  , Mask(nwAddr, mask)) -> Probnetkat.(IP4Src(to_int32 nwAddr, Int32.of_int_exn (mask - 32)))
-    | (IP4Src  , Const nwAddr) -> Probnetkat.(IP4Src(to_int32 nwAddr, 32l))
-    | (IP4Dst  , Mask(nwAddr, mask)) -> Probnetkat.(IP4Dst(to_int32 nwAddr, Int32.of_int_exn (mask - 32)))
-    | (IP4Dst  , Const nwAddr) -> Probnetkat.(IP4Dst(to_int32 nwAddr, 32l))
-    | (TCPSrcPort, Const tpPort) -> Probnetkat.(TCPSrcPort(to_int tpPort))
-    | (TCPDstPort, Const tpPort) -> Probnetkat.(TCPDstPort(to_int tpPort))
-    | (VFabric, Const vfab) -> Probnetkat.VFabric vfab
-    | _, _ -> raise (FieldValue_mismatch(f, v))
-
-  let to_pred (f, v) =
-    Probnetkat.Test (to_hv (f, v)) *)
-
-end
-
 module Action = struct
   include Map.Make(Field)
 
@@ -257,6 +189,8 @@ module Action = struct
       match m with | `Both(_, v) | `Left v | `Right v -> Some(v))
 
   let sum x y = failwith "multicast not implemented!"
+
+  let to_hvs = to_alist ~key_order:`Increasing
 
   let to_string (t : Value.t t) : string =
     let s = to_alist t
@@ -305,9 +239,10 @@ module FDD = struct
           (Field)
           (Value)
           (ActionDist)
+  open Probnetkat
 
-  let allocate_fields (pol : string Probnetkat.policy) 
-    : Field.t Probnetkat.policy * Field.t String.Map.t =
+  let allocate_fields (pol : string policy) 
+    : Field.t policy * Field.t String.Map.t =
     let tbl : (string, Field.t) Hashtbl.t = String.Table.create () in
     let next = ref 0 in
     let do_field env (f : string) : Field.t =
@@ -324,21 +259,27 @@ module FDD = struct
           | _ -> failwith "too many fields! (only up to 5 supported)"
         in incr next; field)
     in
-    let open Probnetkat in
     let rec do_pol env (p : string policy) : Field.t policy =
       match p with
       | Filter pred ->
         Filter (do_pred env pred)
       | Modify (f,v) ->
         Modify (do_field env f, v)
+      | Seq (p, q) ->
+        Seq (do_pol env p, do_pol env q)
       | Ite (a, p, q) ->
         Ite (do_pred env a, do_pol env p, do_pol env q)
       | While (a, p) ->
         While (do_pred env a, do_pol env p)
       | Choice dist ->
         Choice (Util.map_fst dist ~f:(do_pol env))
-      | Let { id : string; init : meta_init; mut : bool; body : 'pol } ->
+      | Let { id; init; mut; body; } ->
+        let init = match init with
+          | Alias f -> Alias (do_field env f)
+          | Const v -> Const v
+        in
         let env = Field.Env.add env id init mut in
+        let (id,_) = Field.Env.lookup env id in
         let body = do_pol env body in
         Let { id; init; mut; body; }
     and do_pred env (p : string pred) : Field.t pred =
@@ -354,7 +295,89 @@ module FDD = struct
     let field_map = String.(Map.of_alist_exn (Table.to_alist tbl)) in
     (pol, field_map)
 
-  let of_test env hv =
-    atom (Pattern.of_hv ~env hv) ActionDist.one ActionDist.zero
+  let of_test hv =
+    atom hv ActionDist.one ActionDist.zero
+
+  let of_mod (f,v) =
+    const (ActionDist.dirac (Action.singleton f v))
+
+  let rec of_pred p =
+    match p with
+    | True      -> id
+    | False     -> drop
+    | Test(hv)  -> of_test hv
+    | And(p, q) -> prod (of_pred p) (of_pred q)
+    | Or (p, q) -> sum (of_pred p) (of_pred q)
+    | Neg(q)    -> map_r ActionDist.negate (of_pred q)
+
+  let seq_tbl = BinTbl.create ~size:1000 ()
+
+  let clear_cache ~preserve = begin
+    BinTbl.clear seq_tbl;
+    clear_cache preserve;
+  end
+
+  let seq t u =
+    match unget u with
+    | Leaf _ -> prod t u (* This is an optimization. If [u] is an
+                            [Action.Par.t], then it will compose with [t]
+                            regardless of however [t] modifies packets. None
+                            of the decision variables in [u] need to be
+                            removed because there are none. *)
+    | Branch _ ->
+      dp_map t
+        ~f:(fun dist ->
+          List.map (ActionDist.to_alist dist) ~f:(fun (action, prob) ->
+            restrict_map (Action.to_hvs action) u ~f:(fun leaf ->
+              ActionDist.scale leaf ~scalar:prob))
+          |> List.fold ~init:drop ~f:sum
+        )
+        ~g:(fun v t f -> cond v t f)
+        ~find_or_add:(fun t -> BinTbl.find_or_add seq_tbl (t,u))
+
+  let union t u = sum t u
+
+  let big_union fdds = List.fold ~init:drop ~f:union fdds
+
+  (** Erases (all matches on) meta field. No need to erase modifications. *)
+  let erase t meta_field init =
+    match init with
+    | Const v ->
+      restrict [(meta_field,v)] t
+    | Alias alias ->
+      fold t ~f:const ~g:(fun (field,v) tru fls ->
+        if field = meta_field then
+          cond (alias, v) tru fls
+        else
+          cond (field,v) tru fls)
+
+  let rec of_local_pol_k p k =
+    let open Probnetkat in
+    match p with
+    | Filter p ->
+      k (of_pred p)
+    | Modify m ->
+      k (of_mod  m)
+    | Seq (p, q) -> of_local_pol_k p (fun p' ->
+                      if equal p' drop then
+                        k drop
+                      else
+                        of_local_pol_k q (fun q' ->
+                          k (seq p' q')))
+
+    | Ite (a, p, q) -> of_local_pol_k p (fun p' ->
+                        of_local_pol_k q (fun q' ->
+                          k (union p' q')))
+    | While (a, p) -> failwith "todo"
+    | Choice dist ->
+      List.map dist ~f:(fun (p, prob) ->
+        of_local_pol_k p (map_r ~f:(ActionDist.scale ~scalar:prob))
+      )
+      |> big_union
+      |> k
+    | Let { id=field; init; mut; body=p } ->
+      of_local_pol_k p (fun p' -> k (erase p' field init))
+
+  and of_local_pol p = of_local_pol_k p ident
 
 end

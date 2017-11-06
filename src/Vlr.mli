@@ -138,6 +138,11 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
       variable assignments. If the list assigns multiple values to a variable,
       then the behavior is unspecified. *)
 
+  val restrict_map : v list -> t -> f:(r -> r) -> t
+  (** similar to restrict, but also maps leave nodes. Assume list is sorted in
+      ascending order
+  *)
+
   val sum : t -> t -> t
   (** [sum a b] returns the disjunction of the two diagrams. The [sum]
       operation on the [r] type is used to combine leaf nodes. *)
