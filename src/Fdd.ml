@@ -1,23 +1,36 @@
 open Core
+module Sparse = Owl.Sparse.Matrix.D
 
 module Field = struct
+  module T = struct
+    type t
+      =
+      | F0
+      | F1
+      | F2
+      | F3
+      | F4
+      | Meta0
+      | Meta1
+      | Meta2
+      | Meta3
+      | Meta4
+      [@@deriving sexp, enumerate, enum, eq, hash]
 
-  type t
-    =
-    | F0
-    | F1
-    | F2
-    | F3
-    | F4
-    | Meta0
-    | Meta1
-    | Meta2
-    | Meta3
-    | Meta4
-    [@@deriving sexp, enumerate, enum, eq, hash]
+    let num_fields = max + 1
+
+    let order = Array.init num_fields ~f:ident
+
+    (* compare depends on current order! *)
+    let compare (x : t) (y : t) : int =
+      (* using Obj.magic instead of to_enum for bettter performance *)
+      Int.compare order.(Obj.magic x) order.(Obj.magic y)
+  end
+
+  include T
+  module Map = Map.Make(T)
+
   type field = t
-
-  let num_fields = max + 1
 
   let hash = Hashtbl.hash
 
@@ -29,8 +42,6 @@ module Field = struct
 
   let is_valid_order (lst : t list) : bool =
     Set.Poly.(equal (of_list lst) (of_list all))
-
-  let order = Array.init num_fields ~f:ident
 
   let set_order (lst : t list) : unit =
     assert (is_valid_order lst);
@@ -45,11 +56,6 @@ module Field = struct
   let get_order () =
     Array.to_list (invert order)
     |> List.filter_map ~f:of_enum
-
-  (* compare depends on current order! *)
-  let compare (x : t) (y : t) : int =
-    (* using Obj.magic instead of to_enum for bettter performance *)
-    Int.compare order.(Obj.magic x) order.(Obj.magic y)
 
   module type ENV = sig
     type t
@@ -233,7 +239,7 @@ end
 
 
 
-module FDD = struct
+module Fdd = struct
 
   include Vlr.Make
           (Field)
@@ -342,7 +348,8 @@ module FDD = struct
 
   let big_union fdds = List.fold ~init:drop ~f:union fdds
 
-  let py = Lymp.init ~exec:"python3" "."
+  let pypath = "."
+  let py = Lymp.init ~exec:"python3" pypath
   let pyiterate = Lymp.get_module py "probnetkat"
 
   (* while a do p == (a; p)*; ¬a == X
@@ -406,8 +413,83 @@ module FDD = struct
 
   and of_pol p = of_pol_k p ident
 
+
+  (*===========================================================================*)
+  (* Fdd <-> matrix conversion                                                 *)
+  (*===========================================================================*)
+  type fieldval =
+    | Const of Value.t
+    | Atom (** An atom in the sense of nominal sets. Some fixed that value that is different
+               from all constants. To a first approximation, a sort of wildcard, but it ranges
+               only over values that do not appear as constants.
+            *)
+    [@@deriving compare, sexp]
+
+  module Valset = Set.Make(struct type t = fieldval [@@deriving sexp, compare] end)
+
+  type domain = Valset.t Field.Map.t
+
+  let merge_domains d1 d2 =
+    Map.merge d1 d2 ~f:(fun ~key -> function
+      | `Left s | `Right s -> Some s
+      | `Both (l,r) -> Some (Valset.union l r))
+
+  let get_domain fdd =
+    let rec for_fdd dom fdd =
+      match unget fdd with
+      | Leaf r ->
+        for_leaf dom r
+      | Branch ((field,_),_,_) ->
+        let (vs, residuals, all_false) = for_field field fdd [] [] in
+        let vs =
+          List.map vs ~f:(fun v -> Const v)
+          |> (fun vs -> if equal drop all_false then vs else Atom::vs)
+          |> Valset.of_list
+        in
+        let dom = Map.update dom field ~f:(function
+          | None -> vs
+          | Some vs' -> Set.union vs vs')
+        in
+        List.fold residuals ~init:dom ~f:for_fdd
+
+    (** returns list of values appearing in tests with field [f] in [fdd], and
+        residual trees below f-tests, and the all-false branch with respect to
+        field f. *)
+    and for_field f fdd vs residual =
+      match unget fdd with
+      | Branch ((f',v), tru, fls) when f' = f ->
+        for_field f fls (v::vs) (tru::residual)
+      | Branch _ | Leaf _ ->
+        (vs, fdd::residual, fdd)
+
+    and for_leaf dom dist =
+      ActionDist.support dist
+      |> List.fold ~init:dom ~f:for_action
+
+    and for_action dom action =
+      Action.to_alist action
+      |> Util.map_snd ~f:(fun v -> Valset.singleton (Const v))
+      |> Field.Map.of_alist_exn
+      |> merge_domains dom
+
+    in
+    for_fdd Field.Map.empty fdd
+
+end
+
+(** matrix representation of Fdd *)
+module Matrix = struct
+  type t = private
+    { dom : Fdd.domain;
+      matrix : Sparse.mat
+    }
+
+  let of_fdd fdd =
+    let dom = Fdd.get_domain fdd in
+    failwith "not implemented"
+
 end
 
 let of_pol p =
-  let (p, map) = FDD.allocate_fields p in
-  FDD.of_pol p
+  let (p, map) = Fdd.allocate_fields p in
+  Fdd.of_pol p

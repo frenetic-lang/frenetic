@@ -1,7 +1,7 @@
 open Core
 open Probnetkat
-open Fdd
 open Dist
+open Packet
 
 let fprintf = Format.fprintf
 let fmt = Format.std_formatter
@@ -9,7 +9,7 @@ let fmt = Format.std_formatter
 
 let () = begin
   Fdd.of_pol Syntax.(??("sw", 1) >> !!("port", 1))
-  |> FDD.to_string
+  |> Fdd.Fdd.to_string
   |> printf "%s"
 
 end

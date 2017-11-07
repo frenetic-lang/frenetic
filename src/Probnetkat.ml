@@ -98,41 +98,6 @@ let pp_policy fmt (p : string policy) =
   in
   do_pol `PAREN fmt p
 
-(*
-
-type domain = Value.Set.t Field.Map.t
-
-module type Domain = sig
-  val domain : domain
-end
-
-*)
-
-(*
-
-(* compute domain of each field *)
-let domain pol : domain =
-  let rec domain pol d =
-    match pol.p with
-    | Skip
-    | Drop ->
-      d
-    | Test (f,n)
-    | Modify (f,n) ->
-      Field.Map.update d f ~f:(function
-        | None -> Value.Set.singleton n
-        | Some ns -> Value.Set.add ns n)
-    | Neg p -> domain p d
-    | Or(p,q) | Seq (p,q) | While (p,q) ->
-      d |> domain p |> domain q
-    | Ite (p,q,r) ->
-      d |> domain p |> domain q |> domain r
-    | Choice ps ->
-      List.fold ps ~init:d ~f:(fun d (p,_) -> domain p d)
-  in
-  domain pol Field.Map.empty
-
-*)
 
 (** constructors *)
 module Constructors = struct

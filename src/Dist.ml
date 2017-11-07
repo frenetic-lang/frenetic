@@ -16,6 +16,8 @@ module Make (Dom : Vlr.HashCmp) = struct
 
   type t = Prob.t T.t [@@deriving sexp, compare, eq, hash] (* Dom.t -> Prob.t *)
 
+  let support = T.keys
+
   let to_string t =
     T.sexp_of_t Prob.sexp_of_t t
     |> Sexp.to_string
