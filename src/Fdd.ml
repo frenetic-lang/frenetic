@@ -342,7 +342,10 @@ module FDD = struct
 
   let big_union fdds = List.fold ~init:drop ~f:union fdds
 
-  (* while a do p == (a; p)*; ¬a *)
+  (* while a do p == (a; p)*; ¬a == X
+     Thus  ¬A + APX = X.
+     Thus (I - AP) X = ¬A
+  *)
   let iterate a p =
     failwith "todo"
 
