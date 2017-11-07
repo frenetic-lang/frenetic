@@ -342,11 +342,16 @@ module FDD = struct
 
   let big_union fdds = List.fold ~init:drop ~f:union fdds
 
+  let py = Lymp.init ~exec:"python3" "."
+  let pyiterate = Lymp.get_module py "probnetkat"
+
   (* while a do p == (a; p)*; ¬a == X
      Thus  ¬A + APX = X.
      Thus (I - AP) X = ¬A
   *)
   let iterate a p =
+(*     let pyscript = Findlib.package_directory "probnetkat"
+    let (inch, outch) = Unix.open_process "python3" in *)
     failwith "todo"
 
   (** Erases (all matches on) meta field. No need to erase modifications. *)
@@ -361,7 +366,7 @@ module FDD = struct
         else
           cond (field,v) tru fls)
 
-  let rec of_local_pol_k p k =
+  let rec of_pol_k p k =
     let open Probnetkat in
     match p with
     | Filter p ->
@@ -369,36 +374,40 @@ module FDD = struct
     | Modify m ->
       k (of_mod  m)
     | Seq (p, q) ->
-      of_local_pol_k p (fun p' ->
+      of_pol_k p (fun p' ->
         if equal p' drop then
           k drop
         else
-          of_local_pol_k q (fun q' -> k (seq p' q')))
+          of_pol_k q (fun q' -> k (seq p' q')))
     | Ite (a, p, q) ->
       let a = of_pred a in
       if equal a id then
-        of_local_pol_k p k
+        of_pol_k p k
       else if equal a drop then
-        of_local_pol_k q k
+        of_pol_k q k
       else
-        of_local_pol_k p (fun p ->
-          of_local_pol_k q (fun q ->
+        of_pol_k p (fun p ->
+          of_pol_k q (fun q ->
             k @@ union (prod a p) (prod (negate a) q)
           )
         )
     | While (a, p) ->
-      of_local_pol_k p (fun p ->
+      of_pol_k p (fun p ->
         k @@ iterate (of_pred a) p
       )
     | Choice dist ->
       List.map dist ~f:(fun (p, prob) ->
-        of_local_pol_k p (map_r ~f:(ActionDist.scale ~scalar:prob))
+        of_pol_k p (map_r ~f:(ActionDist.scale ~scalar:prob))
       )
       |> big_union
       |> k
     | Let { id=field; init; mut; body=p } ->
-      of_local_pol_k p (fun p' -> k (erase p' field init))
+      of_pol_k p (fun p' -> k (erase p' field init))
 
-  and of_local_pol p = of_local_pol_k p ident
+  and of_pol p = of_pol_k p ident
 
 end
+
+let of_pol p =
+  let (p, map) = FDD.allocate_fields p in
+  FDD.of_pol p

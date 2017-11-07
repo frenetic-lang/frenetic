@@ -8,6 +8,8 @@
     ;; owl
     ;; lacaml
     zarith
+    findlib
+    lymp
   ))
   (preprocess (pps (ppx_deriving.std
                     ppx_enumerate

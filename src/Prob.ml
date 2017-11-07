@@ -13,6 +13,6 @@ type t = Q.t = {
 
 include (Q : module type of Q with type t := t)
 
-let t_of_sexp _ = failwith "not implemented"
-let sexp_of_t _ = failwith "not implemented"
+let t_of_sexp s = of_float (Float.t_of_sexp s)
+let sexp_of_t t = Float.sexp_of_t (to_float t)
 let pp = pp_print

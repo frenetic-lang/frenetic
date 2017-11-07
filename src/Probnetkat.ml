@@ -132,30 +132,22 @@ let domain pol : domain =
   in
   domain pol Field.Map.empty
 
+*)
+
 (** constructors *)
 module Constructors = struct
-  module Dumb = struct
-    let drop = { p = Drop; pred = true; determ = true }
-    let skip = { p = Skip; pred = true; determ = true }
-    let test hv = { p = Test hv; pred = true; determ = true }
-    let modify hv = { p = Modify hv; pred = true; determ = true }
-    let neg a =
-      assert (a.determ && a.pred);
-      { a with p = Neg a }
-    let disj a b =
-      assert (a.determ && a.pred);
-      assert (b.determ && b.pred);
-      { a with p = Or (a,b) }
-    let seq p q = { p = Seq(p,q); pred = p.pred && q.pred; determ = p.determ && q.determ }
-    let choice ps =
-      assert (List.fold ~init:Q.zero ~f:Q.(+) (List.map ps ~f:snd) = Q.one);
-      { p = Choice ps; pred = false; determ = false }
-    let ite a p q =
-      assert (a.determ && a.pred);
-      { p = Ite (a,p,q); pred = p.pred && q.pred; determ = p.determ && q.determ }
-    let mk_while a p =
-      assert (a.determ && a.pred);
-      { p with p = While(a,p) }
+  (* module Dumb = struct *)
+    let drop = Filter False
+    let skip = Filter True
+    let test hv = Test hv
+    let filter a = Filter a
+    let modify hv = Modify hv
+    let neg a = Neg a
+    let disj a b = Or (a,b)
+    let seq p q = Seq (p, q)
+    let choice ps = Choice ps
+    let ite a p q = Ite (a, p, q)
+    let mk_while a p = While (a, p)
 
     let seqi n ~f =
       Array.init n ~f
@@ -166,14 +158,11 @@ module Constructors = struct
       |> Array.to_list
       |> choice
 
-    let mk_union = disj
-    let mk_big_union ~init = List.fold ~init ~f:(fun p q -> if p = drop then q
-                                                  else mk_union p q)
     let mk_big_ite ~default = List.fold ~init:default ~f:(fun q (a, p) -> ite a p q)
 
-  end
+end
 
-  module Smart = struct
+  (* module Smart = struct
     let drop = Dumb.drop
     let skip = Dumb.skip
     let test = Dumb.test
@@ -226,30 +215,14 @@ module Constructors = struct
     let mk_big_ite ~default = List.fold ~init:default ~f:(fun q (a, p) -> ite a p q)
 
   end
-end
-
-
+end *)
 module Syntax = struct
-  module Dumb = struct
-    include Constructors.Dumb
-    let ( ?? ) hv = test hv
-    let ( !! ) hv = modify hv
-    let ( >> ) p q = seq p q
-    let ( & ) a b = disj a b
-    let ( ?@ ) dist = choice dist (* ?@[p , 1//2; q , 1//2] *)
-    let ( // ) m n = Q.(m // n)
-    let ( @ ) p r = (p,r)
-  end
-
-  module Smart = struct
-    include Constructors.Smart
-    let ( ?? ) hv = test hv
-    let ( !! ) hv = modify hv
-    let ( >> ) p q = seq p q
-    let ( & ) a b = disj a b
-    let ( ?@ ) dist = choice dist (* ?@[p , 1//2; q , 1//2] *)
-    let ( // ) m n = Q.(m // n)
-    let ( @ ) p r = (p,r)
-  end
+  include Constructors
+  let ( ?? ) hv = filter (test hv)
+  let ( !! ) hv = modify hv
+  let ( >> ) p q = Seq(p, q)
+  let ( & ) a b = disj a b
+  let ( ?@ ) dist = choice dist (* ?@[p , 1//2; q , 1//2] *)
+  let ( // ) m n = Q.(m // n)
+  let ( @ ) p r = (p,r)
 end
- *)

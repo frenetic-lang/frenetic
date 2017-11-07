@@ -5,6 +5,15 @@ open Dist
 
 let fprintf = Format.fprintf
 let fmt = Format.std_formatter
+
+
+let () = begin
+  Fdd.of_pol Syntax.(??("sw", 1) >> !!("port", 1))
+  |> FDD.to_string
+  |> printf "%s"
+
+end
+
 (*
 module Dense = Owl.Dense.Matrix.D
 module Sparse = Owl.Sparse.Matrix.D
