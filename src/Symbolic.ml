@@ -527,13 +527,21 @@ end
 
 (** matrix representation of Fdd *)
 module Matrix = struct
-  type t = private
-    { dom : Fdd.domain;
-      matrix : Sparse.mat
-    }
+  type t = {
+    dom : Fdd.domain;
+    matrix : Sparse.mat
+  }
+
+  let maplet_to_matrix_entry dom (pk, act, prob) =
+    failwith "not implemented"
 
   let of_fdd fdd =
     let dom = Fdd.get_domain fdd in
-    failwith "not implemented"
+    let n = failwith "not implemented" in
+    let matrix = Sparse.zeros n n in
+    Fdd.to_maplets fdd
+    |> List.concat_map ~f:(maplet_to_matrix_entry dom)
+    |> List.iter ~f:(fun (i,j,v) -> Sparse.set matrix i j Prob.(to_float v));
+    { dom; matrix}
 
 end
