@@ -42,7 +42,7 @@ module type S = sig
     val of_index0 : Index0.t -> t
   end
 
-  (** Encoding of packets as strictly positive integers, i.e. matrix indices. *)
+  (** Encoding of packets as strictly positive integers, i.e. 1-based matrix indices. *)
   and Index : sig
     type t = domain_witness index
     val max : t
@@ -56,7 +56,7 @@ module type S = sig
     val pp' : Format.formatter -> int -> unit
   end
 
-  (** Encoding of packets as positive integers (including 0), i.e. matrix indices. *)
+  (** Encoding of packets as positive integers (including 0), i.e. 0-based matrix indices. *)
   and Index0 : sig
     type t = domain_witness index0
     val max : t

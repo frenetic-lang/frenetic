@@ -519,6 +519,9 @@ module Domain = struct
     in
     for_fdd Field.Map.empty fdd
 
+  let size (dom : t) : int =
+    Map.fold dom ~init:1 ~f:(fun ~key ~data:vs acc -> acc * (Valset.length vs))
+
 end
 
 
@@ -534,7 +537,7 @@ module Matrix = struct
 
   let of_fdd fdd =
     let dom = Domain.of_fdd fdd in
-    let n = failwith "not implemented" in
+    let n = Domain.size dom in
     let matrix = Sparse.zeros n n in
     Fdd.to_maplets fdd
     |> List.concat_map ~f:(maplet_to_matrix_entry dom)
