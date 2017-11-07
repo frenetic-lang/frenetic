@@ -1,0 +1,14 @@
+(jbuild_version 1)
+
+(rule
+ ((targets  (absorption.pyc))
+  (deps     (absorption.py))
+  (action   (run python -m compileall .))
+ )
+)
+
+(install
+  ((section bin)
+   (files   (absorption.pyc))
+   (package probnetkat)
+  ))
