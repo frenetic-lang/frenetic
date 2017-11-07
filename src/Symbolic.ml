@@ -452,61 +452,6 @@ module Fdd = struct
     let (p, map) = allocate_fields p in
     of_symbolic_pol p
 
-
-
-  (*===========================================================================*)
-  (* Fdd <-> matrix conversion                                                 *)
-  (*===========================================================================*)
-  module Valset = Set.Make(struct type t = Packet.nomval [@@deriving sexp, compare] end)
-  type domain = Valset.t Field.Map.t
-
-
-  let merge_domains d1 d2 : domain =
-    Map.merge d1 d2 ~f:(fun ~key -> function
-      | `Left s | `Right s -> Some s
-      | `Both (l,r) -> Some (Set.union l r))
-
-  let get_domain (fdd : t) : domain =
-    let rec for_fdd dom fdd =
-      match unget fdd with
-      | Leaf r ->
-        for_leaf dom r
-      | Branch ((field,_),_,_) ->
-        let (vs, residuals, all_false) = for_field field fdd [] [] in
-        let vs =
-          List.map vs ~f:(fun v -> Packet.Const v)
-          |> (fun vs -> if equal drop all_false then vs else Atom::vs)
-          |> Valset.of_list
-        in
-        let dom = Map.update dom field ~f:(function
-          | None -> vs
-          | Some vs' -> Set.union vs vs')
-        in
-        List.fold residuals ~init:dom ~f:for_fdd
-
-    (** returns list of values appearing in tests with field [f] in [fdd], and
-        residual trees below f-tests, and the all-false branch with respect to
-        field f. *)
-    and for_field f fdd vs residual =
-      match unget fdd with
-      | Branch ((f',v), tru, fls) when f' = f ->
-        for_field f fls (v::vs) (tru::residual)
-      | Branch _ | Leaf _ ->
-        (vs, fdd::residual, fdd)
-
-    and for_leaf dom dist =
-      ActionDist.support dist
-      |> List.fold ~init:dom ~f:for_action
-
-    and for_action dom action =
-      Action.to_alist action
-      |> Util.map_snd ~f:(fun v -> Valset.singleton (Const v))
-      |> Field.Map.of_alist_exn
-      |> merge_domains dom
-
-    in
-    for_fdd Field.Map.empty fdd
-
   let to_maplets fdd : (Packet.t * action * Prob.t) list =
     let rec of_node fdd pk acc =
       match unget fdd with
@@ -521,14 +466,66 @@ module Fdd = struct
     in
     of_node fdd Packet.empty []
 
+end
 
+module Domain = struct
+  module Valset = Set.Make(struct type t = Packet.nomval [@@deriving sexp, compare] end)
+  type t = Valset.t Field.Map.t
+
+
+  let merge d1 d2 : t =
+    Map.merge d1 d2 ~f:(fun ~key -> function
+      | `Left s | `Right s -> Some s
+      | `Both (l,r) -> Some (Set.union l r))
+
+  let of_fdd (fdd : Fdd.t) : t =
+    let rec for_fdd dom fdd =
+      match Fdd.unget fdd with
+      | Leaf r ->
+        for_leaf dom r
+      | Branch ((field,_),_,_) ->
+        let (vs, residuals, all_false) = for_field field fdd [] [] in
+        let vs =
+          List.map vs ~f:(fun v -> Packet.Const v)
+          |> (fun vs -> if Fdd.(equal drop all_false) then vs else Atom::vs)
+          |> Valset.of_list
+        in
+        let dom = Map.update dom field ~f:(function
+          | None -> vs
+          | Some vs' -> Set.union vs vs')
+        in
+        List.fold residuals ~init:dom ~f:for_fdd
+
+    (** returns list of values appearing in tests with field [f] in [fdd], and
+        residual trees below f-tests, and the all-false branch with respect to
+        field f. *)
+    and for_field f fdd vs residual =
+      match Fdd.unget fdd with
+      | Branch ((f',v), tru, fls) when f' = f ->
+        for_field f fls (v::vs) (tru::residual)
+      | Branch _ | Leaf _ ->
+        (vs, fdd::residual, fdd)
+
+    and for_leaf dom dist =
+      ActionDist.support dist
+      |> List.fold ~init:dom ~f:for_action
+
+    and for_action dom action =
+      Action.to_alist action
+      |> Util.map_snd ~f:(fun v -> Valset.singleton (Const v))
+      |> Field.Map.of_alist_exn
+      |> merge dom
+
+    in
+    for_fdd Field.Map.empty fdd
 
 end
+
 
 (** matrix representation of Fdd *)
 module Matrix = struct
   type t = {
-    dom : Fdd.domain;
+    dom : Domain.t;
     matrix : Sparse.mat
   }
 
@@ -536,7 +533,7 @@ module Matrix = struct
     failwith "not implemented"
 
   let of_fdd fdd =
-    let dom = Fdd.get_domain fdd in
+    let dom = Domain.of_fdd fdd in
     let n = failwith "not implemented" in
     let matrix = Sparse.zeros n n in
     Fdd.to_maplets fdd
