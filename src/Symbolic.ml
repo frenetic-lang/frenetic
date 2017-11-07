@@ -236,6 +236,39 @@ module ActionDist = struct
     if is_zero t then one else zero
 end
 
+module Packet = struct
+  type nomval =
+    | Const of Value.t
+    | Atom (** An atom in the sense of nominal sets. Some fixed that value that is different
+               from all constants. To a first approximation, a sort of wildcard, but it ranges
+               only over values that do not appear as constants.
+            *)
+    [@@deriving compare, sexp]
+
+  type t = nomval Field.Map.t
+  (** Symbolic packet. Represents a set of concrete packets { π }.
+
+      f |-> Const v  means π.f = v
+      f |-> Atom     means π.f \in { values not appearing as f-values }
+      f |-> ⊥        means π.f can have any value
+
+      In particular, the empty map represents the set of all packets, and a map
+      that associates a constant with every field represents a singleton set.
+  *)
+
+  let empty = Field.Map.empty
+
+  let modify (pk : t) (f : Field.t) (v : nomval) : t =
+    Map.add pk ~key:f ~data:v
+
+  let pp fmt pk =
+    Format.fprintf fmt "@[";
+    if Map.is_empty pk then Format.fprintf fmt "*@ " else
+    Map.iteri pk ~f:(fun ~key ~data -> Format.fprintf fmt "@[%s=%d@]@ " key data);
+    Format.fprintf fmt "@]";
+    ()
+end
+
 
 
 
@@ -246,6 +279,8 @@ module Fdd = struct
           (Value)
           (ActionDist)
   open Probnetkat
+
+  type action = Value.t Action.t
 
   let allocate_fields (pol : string policy)
     : Field.t policy * Field.t String.Map.t =
@@ -411,30 +446,27 @@ module Fdd = struct
     | Let { id=field; init; mut; body=p } ->
       of_pol_k p (fun p' -> k (erase p' field init))
 
-  and of_pol p = of_pol_k p ident
+  and of_symbolic_pol p = of_pol_k p ident
+
+  let of_pol p =
+    let (p, map) = allocate_fields p in
+    of_symbolic_pol p
+
 
 
   (*===========================================================================*)
   (* Fdd <-> matrix conversion                                                 *)
   (*===========================================================================*)
-  type fieldval =
-    | Const of Value.t
-    | Atom (** An atom in the sense of nominal sets. Some fixed that value that is different
-               from all constants. To a first approximation, a sort of wildcard, but it ranges
-               only over values that do not appear as constants.
-            *)
-    [@@deriving compare, sexp]
-
-  module Valset = Set.Make(struct type t = fieldval [@@deriving sexp, compare] end)
-
+  module Valset = Set.Make(struct type t = Packet.nomval [@@deriving sexp, compare] end)
   type domain = Valset.t Field.Map.t
 
-  let merge_domains d1 d2 =
+
+  let merge_domains d1 d2 : domain =
     Map.merge d1 d2 ~f:(fun ~key -> function
       | `Left s | `Right s -> Some s
-      | `Both (l,r) -> Some (Valset.union l r))
+      | `Both (l,r) -> Some (Set.union l r))
 
-  let get_domain fdd =
+  let get_domain (fdd : t) : domain =
     let rec for_fdd dom fdd =
       match unget fdd with
       | Leaf r ->
@@ -442,7 +474,7 @@ module Fdd = struct
       | Branch ((field,_),_,_) ->
         let (vs, residuals, all_false) = for_field field fdd [] [] in
         let vs =
-          List.map vs ~f:(fun v -> Const v)
+          List.map vs ~f:(fun v -> Packet.Const v)
           |> (fun vs -> if equal drop all_false then vs else Atom::vs)
           |> Valset.of_list
         in
@@ -475,6 +507,22 @@ module Fdd = struct
     in
     for_fdd Field.Map.empty fdd
 
+  let to_maplets fdd : (Packet.t * action * Prob.t) list =
+    let rec of_node fdd pk acc =
+      match unget fdd with
+      | Leaf r ->
+        of_leaf r pk acc
+      | Branch ((f,v), tru, fls) ->
+        of_node tru Packet.(modify pk f (Const v)) acc
+        |> of_node fls Packet.(modify pk f Atom)
+    and of_leaf dist pk acc =
+      ActionDist.to_alist dist
+      |> List.fold ~init:acc ~f:(fun acc (act, prob) -> (pk, act, prob) :: acc)
+    in
+    of_node fdd Packet.empty []
+
+
+
 end
 
 (** matrix representation of Fdd *)
@@ -489,7 +537,3 @@ module Matrix = struct
     failwith "not implemented"
 
 end
-
-let of_pol p =
-  let (p, map) = Fdd.allocate_fields p in
-  Fdd.of_pol p
