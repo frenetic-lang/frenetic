@@ -2,7 +2,7 @@ open Core
 open Probnetkat
 open Dist
 open Symbolic
-(* open Packet_Repr *)
+open Packet_Repr
 
 let fprintf = Format.fprintf
 let fmt = Format.std_formatter

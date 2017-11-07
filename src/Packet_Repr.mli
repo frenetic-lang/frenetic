@@ -1,10 +1,14 @@
 open Probnetkat
-open Packet
+open Symbolic
 
 type 'domain_witness hyperpoint = private int list
 type 'domain_witness codepoint = private int
-type 'domain_witness index = private { i : int }
-type 'domain_witness index0 = { i : int }
+type 'domain_witness index = private { i : int } [@@unboxed]
+type 'domain_witness index0 = private { i : int } [@@unboxed]
+
+module type DOM = sig
+  val domain : Domain.t
+end
 
 module type S = sig
   type domain_witness
@@ -22,8 +26,8 @@ module type S = sig
     val dimension : int list
     val to_codepoint : t -> Codepoint.t
     val of_codepoint : Codepoint.t -> t
-    val to_pk : t -> pk
-    val of_pk : pk -> t
+    val to_pk : t -> Packet.t
+    val of_pk : Packet.t -> t
   end
 
   (** Encoding of packets as integers >= 0, i.e. points in single dimensional space. *)
@@ -32,8 +36,8 @@ module type S = sig
     val max : t
     val to_hyperpoint : t -> Hyperpoint.t
     val of_hyperpoint : Hyperpoint.t -> t
-    val to_pk : t -> pk
-    val of_pk : pk -> t
+    val to_pk : t -> Packet.t
+    val of_pk : Packet.t -> t
     val to_index : t -> Index.t
     val of_index : Index.t -> t
     val to_index0 : t -> Index0.t
@@ -44,30 +48,30 @@ module type S = sig
   and Index : sig
     type t = domain_witness index
     val max : t
-    val of_pk : pk -> t
-    val to_pk : t -> pk
-    val test : Field.t -> Value.t -> t -> bool
-    val modify : Field.t -> Value.t -> t -> t
-    val test' : Field.t -> Value.t -> int -> bool
-    val modify' : Field.t -> Value.t -> int -> int
-    val pp : Format.formatter -> t -> unit
-    val pp' : Format.formatter -> int -> unit
+    val of_pk : Packet.t -> t
+    val to_pk : t -> Packet.t
+    (* val test : Field.t -> Packet.nomval -> t -> bool *)
+    val modify : Field.t -> Packet.nomval -> t -> t
+    (* val test' : Field.t -> Packet.nomval -> int -> bool *)
+    val modify' : Field.t -> Packet.nomval -> int -> int
+(*     val pp : Format.formatter -> t -> unit
+    val pp' : Format.formatter -> int -> unit *)
   end
 
   (** Encoding of packets as positive integers (including 0), i.e. matrix indices. *)
   and Index0 : sig
     type t = domain_witness index0
     val max : t
-    val of_pk : pk -> t
-    val to_pk : t -> pk
-    val test : Field.t -> Value.t -> t -> bool
-    val modify : Field.t -> Value.t -> t -> t
-    val test' : Field.t -> Value.t -> int -> bool
-    val modify' : Field.t -> Value.t -> int -> int
-    val pp : Format.formatter -> t -> unit
-    val pp' : Format.formatter -> int -> unit
+    val of_pk : Packet.t -> t
+    val to_pk : t -> Packet.t
+    (* val test : Field.t -> Packet.nomval -> t -> bool *)
+    val modify : Field.t -> Packet.nomval -> t -> t
+    (* val test' : Field.t -> Packet.nomval -> int -> bool *)
+    val modify' : Field.t -> Packet.nomval -> int -> int
+(*     val pp : Format.formatter -> t -> unit
+    val pp' : Format.formatter -> int -> unit *)
   end
 end
 
 
-module Make(D : Probnetkat.Domain) : S
+module Make(D : DOM) : S
