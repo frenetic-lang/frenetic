@@ -182,6 +182,8 @@ module Value = struct
   let subset_eq = equal
 end
 
+
+
 module Action = struct
   include Map.Make(Field)
 
@@ -205,6 +207,7 @@ module Action = struct
       |> String.concat ~sep:", "
     in "[" ^ s ^ "]"
 end
+
 
 
 module ActionDist = struct
@@ -236,6 +239,8 @@ module ActionDist = struct
     if is_zero t then one else zero
 end
 
+
+(** symbolic packets *)
 module Packet = struct
   type nomval =
     | Const of Value.t
@@ -468,6 +473,9 @@ module Fdd = struct
 
 end
 
+
+
+(** domain of an Fdd *)
 module Domain = struct
   module Valset = Set.Make(struct type t = Packet.nomval [@@deriving sexp, compare] end)
   type t = Valset.t Field.Map.t
@@ -523,6 +531,7 @@ module Domain = struct
     Map.fold dom ~init:1 ~f:(fun ~key ~data:vs acc -> acc * (Valset.length vs))
 
 end
+
 
 
 (** matrix representation of Fdd *)
