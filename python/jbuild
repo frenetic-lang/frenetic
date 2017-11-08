@@ -3,12 +3,12 @@
 (rule
  ((targets  (absorption.pyc))
   (deps     (absorption.py))
-  (action   (run python -m compileall .))
+  (action   (run python3 -m compileall -b ${^}))
  )
 )
 
 (install
-  ((section bin)
+  ((section lib)
    (files   (absorption.pyc))
    (package probnetkat)
   ))
