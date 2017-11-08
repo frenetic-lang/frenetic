@@ -61,6 +61,11 @@ module Make (Dom : Vlr.HashCmp) = struct
   let scale t ~(scalar : Prob.t) : t =
     T.map t ~f:(fun p -> Prob.(p * scalar))
 
+  let add t p x : t =
+    T.update t x (function
+      | None -> p
+      | Some p' -> Prob.(p + p'))
+
   let weighted_sum (list : (t * Prob.t) list) : t =
     List.map list ~f:(fun (t, p) -> scale t ~scalar:p)
     |> List.fold ~init:empty ~f:sum

@@ -271,6 +271,11 @@ module Packet = struct
       | `Left v -> Some v
       | `Right v | `Both (_,v) -> Some (Const v))
 
+  let to_action pk =
+    Map.filter_map pk ~f:(function
+      | Const v -> Some v
+      | Atom -> None)
+
 (*   let pp fmt pk =
     Format.fprintf fmt "@[";
     if Map.is_empty pk then Format.fprintf fmt "*@ " else
@@ -534,6 +539,7 @@ module Matrix = struct
   type t = {
     matrix : Sparse.mat;
     conversion : (module CODING);
+    dom : Domain.t;
   }
 
   let packet_variants (pk : Packet.t) (dom : Domain.t) : Packet.t list =
@@ -558,15 +564,39 @@ module Matrix = struct
 
   let of_fdd fdd (conversion : (module CODING)) =
     let module Conversion = (val conversion : CODING) in
-    let n = Domain.size Conversion.dom in
+    let dom = Conversion.dom in
+    let n = Domain.size dom in
     let matrix = Sparse.zeros n n in
     Fdd0.to_maplets fdd
     |> List.concat_map ~f:(maplet_to_matrix_entries conversion)
     |> List.iter ~f:(fun (i,j,v) -> Sparse.set matrix i j Prob.(to_float v));
-    { matrix; conversion }
+    { matrix; conversion; dom }
+
+
 
   let get_pk_action t pk : ActionDist.t =
-    failwith "not implemented"
+    let module Conversion = (val t.conversion : CODING) in
+    let row_to_action row : ActionDist.t =
+      Sparse.foldi_nz (fun _i j dist prob ->
+          Conversion.Index.to_pk { i = j }
+          |> Packet.to_action
+          |> ActionDist.add dist (Prob.of_float prob)
+        )
+        ActionDist.empty
+        row
+    in
+    let total_pk_action pk : ActionDist.t =
+      let i = (Conversion.Index.of_pk pk).i in
+      let rowi = Sparse.row t.matrix i in
+      row_to_action rowi
+    in
+    (* FIXME: inefficient solution for now for safety! *)
+    packet_variants pk t.dom
+    |> List.map ~f:total_pk_action
+    |> List.group ~break:(fun x y -> not (ActionDist.equal x y))
+    |> function
+      | [act::_] -> act
+      | _ -> assert false
 
 end
 
@@ -720,7 +750,7 @@ module Fdd = struct
       | dir ->
         dir ^ script_name
       | exception Findlib.No_such_package _ ->
-        failwith ("missing runtime dependency: " ^ script_name)
+        failwith ("missing ocamlfind dependency: " ^ pkg_name)
     in
     let cmd = "python3 " ^ pyscript in
     let (from_py, to_py) = Unix.open_process cmd in
@@ -735,6 +765,7 @@ module Fdd = struct
     end in
     send_matrix ap_mat.matrix;
     Out_channel.fprintf to_py "\n";
+    (* this matrix has a lot (!) of structure; maybe we can do something smarter *)
     send_matrix not_a_mat.matrix;
     Out_channel.close to_py;
 

@@ -18,6 +18,8 @@ module Make(Dom: Vlr.HashCmp) : sig
   (** pointwise sum *)
   val sum : t -> t -> t
 
+  val add : t -> Prob.t -> Dom.t -> t
+
   (** pushforward along f *)
   val pushforward : t -> f:(Dom.t -> Dom.t) -> t
 
