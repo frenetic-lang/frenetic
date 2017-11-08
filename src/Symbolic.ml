@@ -562,7 +562,6 @@ module Matrix = struct
     )
 
   let of_fdd fdd (conversion : (module CODING)) =
-    printf "[Matrix.of_fdd] called\n%!";
     let module Conversion = (val conversion : CODING) in
     let dom = Conversion.dom in
     let n = Domain.size dom in
@@ -570,7 +569,6 @@ module Matrix = struct
     Fdd0.to_maplets fdd
     |> List.concat_map ~f:(maplet_to_matrix_entries conversion)
     |> List.iter ~f:(fun (i,j,v) ->
-      printf "[Matrix.of_fdd] Sparse.set<n=%d> %d %d %f\n%!" n i j Prob.(to_float v);
       Sparse.set matrix i j Prob.(to_float v));
     { matrix; conversion; dom }
 
@@ -589,7 +587,6 @@ module Matrix = struct
     in
     let total_pk_action pk : ActionDist.t =
       let i = (Conversion.Index0.of_pk pk).i in
-      printf "[Matrix.total_pk_action] Sparse.row %d\n%!" i;
       let rowi = Sparse.row t.matrix i in
       row_to_action rowi
     in
@@ -765,10 +762,9 @@ module Fdd = struct
     let send_matrix mat = begin
       Out_channel.fprintf to_py "%d %d\n" n n;
       Sparse.iteri (fun i j v -> Out_channel.fprintf to_py "%d %d %f\n" i j v) mat;
+      Out_channel.fprintf to_py "\n%!";
     end in
     send_matrix ap_mat.matrix;
-    Out_channel.fprintf to_py "\n";
-    (* this matrix has a lot (!) of structure; maybe we can do something smarter *)
     send_matrix not_a_mat.matrix;
     Out_channel.close to_py;
 
