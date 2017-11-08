@@ -7,11 +7,27 @@ open Packet_Repr
 let fprintf = Format.fprintf
 let fmt = Format.std_formatter
 
+let run p =
+  Fdd.of_pol p
+  |> Fdd.to_string
+  |> printf "%s\n"
 
 let () = begin
-  Fdd.of_pol Syntax.(??("sw", 1) >> !!("port", 1))
-  |> Fdd.to_string
-  |> printf "%s"
+  let open Syntax in
+
+  run (??("sw", 1) >> !!("port", 1));
+
+  run (?@[ !!("x", 1) @ 1//2 ;
+           !!("x", 2) @ 1//2 ] >>
+       ?@[ !!("y", 1) @ 1//2 ;
+           !!("y", 2) @ 1//2 ]
+      );
+
+  run(
+    whl (???("x", 0)) (
+      ?@[ !!("x", 1) @ 1//2 ; skip @ 1//2 ]
+    )
+  );
 
 end
 

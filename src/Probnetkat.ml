@@ -112,6 +112,7 @@ module Constructors = struct
     let seq p q = Seq (p, q)
     let choice ps = Choice ps
     let ite a p q = Ite (a, p, q)
+    let whl a p = While (a, p)
     let mk_while a p = While (a, p)
 
     let seqi n ~f =
@@ -184,6 +185,7 @@ end *)
 module Syntax = struct
   include Constructors
   let ( ?? ) hv = filter (test hv)
+  let ( ??? ) hv = test hv
   let ( !! ) hv = modify hv
   let ( >> ) p q = Seq(p, q)
   let ( & ) a b = disj a b
