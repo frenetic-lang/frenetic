@@ -712,8 +712,16 @@ module Matrix = struct
     conversion : (module S);
   }
 
-  let packet_variants pk dom : Packet.t list =
-    failwith "not implemented"
+  let packet_variants (pk : Packet.t) (dom : Domain.t) : Packet.t list =
+    Field.Map.fold2 pk dom ~init:[pk] ~f:(fun ~key:f ~data pks ->
+      match data with
+      | `Both _ -> pks
+      | `Left _ -> assert false
+      | `Right vs -> List.concat_map pks ~f:(fun pk ->
+          Set.to_list vs
+          |> List.map ~f:(fun v -> Field.Map.add pk ~key:f ~data:v)
+        )
+    )
 
   let maplet_to_matrix_entries dom (conversion : (module S)) (pk, act, prob)
     : (int * int * Prob.t) list =
