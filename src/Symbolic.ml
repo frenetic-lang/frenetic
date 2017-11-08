@@ -533,7 +533,6 @@ end
 
 
 
-
 (** matrix representation of Fdd0 *)
 module Matrix = struct
   type t = {
@@ -559,17 +558,20 @@ module Matrix = struct
     packet_variants pk Conv.dom
     |> List.map ~f:(fun pk ->
       let pk' = Packet.apply pk act in
-      ((Conv.Index.of_pk pk).i, (Conv.Index.of_pk pk').i, prob)
+      ((Conv.Index0.of_pk pk).i, (Conv.Index0.of_pk pk').i, prob)
     )
 
   let of_fdd fdd (conversion : (module CODING)) =
+    printf "[Matrix.of_fdd] called\n%!";
     let module Conversion = (val conversion : CODING) in
     let dom = Conversion.dom in
     let n = Domain.size dom in
     let matrix = Sparse.zeros n n in
     Fdd0.to_maplets fdd
     |> List.concat_map ~f:(maplet_to_matrix_entries conversion)
-    |> List.iter ~f:(fun (i,j,v) -> Sparse.set matrix i j Prob.(to_float v));
+    |> List.iter ~f:(fun (i,j,v) ->
+      printf "[Matrix.of_fdd] Sparse.set<n=%d> %d %d %f\n%!" n i j Prob.(to_float v);
+      Sparse.set matrix i j Prob.(to_float v));
     { matrix; conversion; dom }
 
 
@@ -578,7 +580,7 @@ module Matrix = struct
     let module Conversion = (val t.conversion : CODING) in
     let row_to_action row : ActionDist.t =
       Sparse.foldi_nz (fun _i j dist prob ->
-          Conversion.Index.to_pk { i = j }
+          Conversion.Index0.to_pk { i = j }
           |> Packet.to_action
           |> ActionDist.add dist (Prob.of_float prob)
         )
@@ -586,7 +588,8 @@ module Matrix = struct
         row
     in
     let total_pk_action pk : ActionDist.t =
-      let i = (Conversion.Index.of_pk pk).i in
+      let i = (Conversion.Index0.of_pk pk).i in
+      printf "[Matrix.total_pk_action] Sparse.row %d\n%!" i;
       let rowi = Sparse.row t.matrix i in
       row_to_action rowi
     in
@@ -748,7 +751,7 @@ module Fdd = struct
     let script_name = "absorption.pyc" in
     let pyscript = match Findlib.package_directory pkg_name with
       | dir ->
-        dir ^ script_name
+        dir ^ "/" ^ script_name
       | exception Findlib.No_such_package _ ->
         failwith ("missing ocamlfind dependency: " ^ pkg_name)
     in
@@ -771,12 +774,17 @@ module Fdd = struct
 
     (* read back matrix returned by python *)
     let iterated = Matrix.{ ap_mat with matrix = Sparse.zeros n n } in
-    let line () = In_channel.input_line_exn from_py in
+    let line () =
+      let l = In_channel.input_line_exn from_py in
+      printf "[python reply] %s\n%!" l;
+      l
+    in
     begin try
       let (m,n') = String.lsplit2_exn (line ()) ~on:' ' in
       let (m,n') = Int.(of_string m, of_string n') in
       if m <> n || n' <> n then failwith "no bueno"
     with
+      | End_of_file -> failwith "python process closed prematurely."
       | _ -> failwith "malformed first output line"
     end;
 
