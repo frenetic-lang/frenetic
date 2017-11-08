@@ -377,6 +377,7 @@ end
 
 module type CODING = sig
   type domain_witness
+  val dom : Domain.t
 
   (** Encoding of packet in n dimensional space.
       More precisely, a packet is encoded as a point in a hypercube, with the
@@ -440,6 +441,7 @@ end
 
 module Coding(D : DOM) : CODING = struct
 
+  let dom : Domain.t = D.domain
   let domain : (Field.t * Packet.nomval list) list =
     Map.to_alist (Map.map D.domain ~f:Set.to_list)
 
@@ -530,7 +532,6 @@ end
 (** matrix representation of Fdd0 *)
 module Matrix = struct
   type t = {
-    dom : Domain.t;
     matrix : Sparse.mat;
     conversion : (module CODING);
   }
@@ -546,72 +547,26 @@ module Matrix = struct
         )
     )
 
-  let maplet_to_matrix_entries dom (conversion : (module CODING)) (pk, act, prob)
+  let maplet_to_matrix_entries (conversion : (module CODING)) (pk, act, prob)
     : (int * int * Prob.t) list =
     let module Conv = (val conversion : CODING) in
-    packet_variants pk dom
+    packet_variants pk Conv.dom
     |> List.map ~f:(fun pk ->
       let pk' = Packet.apply pk act in
       ((Conv.Index.of_pk pk).i, (Conv.Index.of_pk pk').i, prob)
     )
 
-  let of_fdd fdd =
-    let dom = Domain.of_fdd fdd in
-    let module Conversion = Coding(struct let domain = dom end) in
-    let conversion = (module Conversion : CODING) in
-    let n = Domain.size dom in
+  let of_fdd fdd (conversion : (module CODING)) =
+    let module Conversion = (val conversion : CODING) in
+    let n = Domain.size Conversion.dom in
     let matrix = Sparse.zeros n n in
     Fdd0.to_maplets fdd
-    |> List.concat_map ~f:(maplet_to_matrix_entries dom conversion)
+    |> List.concat_map ~f:(maplet_to_matrix_entries conversion)
     |> List.iter ~f:(fun (i,j,v) -> Sparse.set matrix i j Prob.(to_float v));
-    { dom; matrix; conversion }
+    { matrix; conversion }
 
-  let iterate t : t =
-    (* setup external python script *)
-    (* FIXME: hardcoded package and script names! *)
-    let pkg_name = "probnetkat" in
-    let script_name = "absorption.pyc" in
-    let pyscript = match Findlib.package_directory pkg_name with
-      | dir ->
-        dir ^ script_name
-      | exception Findlib.No_such_package _ ->
-        failwith ("missing runtime dependency: " ^ script_name)
-    in
-    let cmd = "python3 " ^ pyscript in
-    let (from_py, to_py) = Unix.open_process cmd in
-
-    (* serialize matrix and send it to python process *)
-    let (m,n) = Sparse.shape t.matrix in
-    Out_channel.fprintf to_py "%d %d\n" m n;
-    Sparse.iteri (fun i j v -> Out_channel.fprintf to_py "%d %d %f\n" i j v) t.matrix;
-    Out_channel.close to_py;
-
-    (* read back matrix returned by python *)
-    let iterated = { t with matrix = Sparse.zeros n n } in
-    let line () = In_channel.input_line_exn from_py in
-    begin try
-      let (m,n') = String.lsplit2_exn (line ()) ~on:' ' in
-      let (m,n') = Int.(of_string m, of_string n') in
-      if m <> n || n' <> n then failwith "no bueno"
-    with
-      | _ -> failwith "malformed first output line"
-    end;
-
-    begin try while true do
-      match String.split (line ()) ~on:' ' with
-      | [i; j; v] ->
-        let i,j = Int.(of_string i, of_string j) in
-        let v = Float.of_string v in
-        Sparse.set iterated.matrix i j v
-      | _ ->
-        failwith "malformed output line"
-    done with
-      | End_of_file -> ()
-      | _ -> failwith "malformed output line"
-    end;
-
-    (* return iterated matrix *)
-    iterated
+  let get_pk_action t pk : ActionDist.t =
+    failwith "not implemented"
 
 end
 
@@ -723,10 +678,94 @@ module Fdd = struct
 
   let big_union fdds = List.fold ~init:drop ~f:union fdds
 
+
+  let from_mat (matrix : Matrix.t) ~(skeleton: t) : t =
+    let rec do_node skeleton pk =
+      match unget skeleton with
+      | Leaf r ->
+        const (Matrix.get_pk_action matrix pk)
+      | Branch ((f,v), tru, fls) ->
+        let tru = do_node tru Packet.(modify pk f (Const v)) in
+        let fls = do_node fls Packet.(modify pk f Atom) in
+        unchecked_cond (f,v) tru fls
+    in
+    do_node skeleton Packet.empty
+
+
+  (*          X = (AP)*¬A
+    Thus  X = ¬A + (AP)X
+     <=>  (I-AP)X = ¬A
+     We are looking for X. We solve the linear (sparse) system to compute it.
+  *)
   let iterate a p =
-(*     let pyscript = Findlib.package_directory "probnetkat"
-    let (inch, outch) = Unix.open_process "python3" in *)
-    failwith "todo"
+    (* transition matrix for transient states, i.e. those satisfying predicate [a] *)
+    let ap = prod a p in
+    (* transition matrix for absorbing states, i.e. those not satisfying [a] *)
+    let not_a = negate a in
+
+    (* compute domain of FDDs; i.e., how many indices do we need for the matrix
+       representation and what does each index preresent? *)
+    let dom = Domain.(merge (of_fdd ap) (of_fdd not_a)) in
+    let module Conversion = Coding(struct let domain = dom end) in
+    let conversion = (module Conversion : CODING) in
+
+    (* convert FDDs to matrices *)
+    let ap_mat = Matrix.of_fdd ap conversion in
+    let not_a_mat = Matrix.of_fdd not_a conversion in
+
+    (* setup external python script to solve linear system, start in seperate process *)
+    let pkg_name = "probnetkat" in
+    let script_name = "absorption.pyc" in
+    let pyscript = match Findlib.package_directory pkg_name with
+      | dir ->
+        dir ^ script_name
+      | exception Findlib.No_such_package _ ->
+        failwith ("missing runtime dependency: " ^ script_name)
+    in
+    let cmd = "python3 " ^ pyscript in
+    let (from_py, to_py) = Unix.open_process cmd in
+
+    (* serialize matrices and send it to python process *)
+    let (m,n) = Sparse.shape ap_mat.matrix in
+    let (m',n') = Sparse.shape not_a_mat.matrix in
+    assert (m = n && n = m' && m' = n');
+    let send_matrix mat = begin
+      Out_channel.fprintf to_py "%d %d\n" n n;
+      Sparse.iteri (fun i j v -> Out_channel.fprintf to_py "%d %d %f\n" i j v) mat;
+    end in
+    send_matrix ap_mat.matrix;
+    Out_channel.fprintf to_py "\n";
+    send_matrix not_a_mat.matrix;
+    Out_channel.close to_py;
+
+    (* read back matrix returned by python *)
+    let iterated = Matrix.{ ap_mat with matrix = Sparse.zeros n n } in
+    let line () = In_channel.input_line_exn from_py in
+    begin try
+      let (m,n') = String.lsplit2_exn (line ()) ~on:' ' in
+      let (m,n') = Int.(of_string m, of_string n') in
+      if m <> n || n' <> n then failwith "no bueno"
+    with
+      | _ -> failwith "malformed first output line"
+    end;
+
+    begin try while true do
+      match String.split (line ()) ~on:' ' with
+      | [i; j; v] ->
+        let i,j = Int.(of_string i, of_string j) in
+        let v = Float.of_string v in
+        Sparse.set iterated.matrix i j v
+      | _ ->
+        failwith "malformed output line"
+    done with
+      | End_of_file -> ()
+      | _ -> failwith "malformed output line"
+    end;
+
+    (* convert matrix back to FDD *)
+    from_mat iterated ~skeleton:ap
+
+
 
   (** Erases (all matches on) meta field. No need to erase modifications. *)
   let erase t meta_field init =
