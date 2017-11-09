@@ -1,5 +1,9 @@
 open Probnetkat
 
+(* check basic axioms using qcheck?
+   https://github.com/c-cube/qcheck
+*)
+
 let add () =
     Alcotest.(check int) "1+1=2" (1+1) 3
 
