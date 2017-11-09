@@ -1,9 +1,11 @@
 (jbuild_version 1)
 
-;;(executable
-;; ((name test)
-;;  (libraries (alcotest))))
+(executable
+ ((name test)
+  (libraries (probnetkat alcotest))))
 
-;;(alias
-;; ((name DEFAULT)
-;;  (deps (test.exe))))
+(alias
+ ((name runtest)
+  (deps (test.exe))
+  (action (run ${exe:test.exe}))
+))
