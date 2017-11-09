@@ -56,6 +56,21 @@ let blowup' m n =
   )
   |> mk_while (conji m ~f:(fun i -> ???(field i, 0)) |> neg)
 
+let blowup' m n =
+  let open Syntax in
+  let field i = sprintf "F%d" i in
+  seqi m ~f:(fun i ->
+    ite (???("X", i)) (
+      uniform n ~f:(fun j ->
+        !!(field i, j)
+      ) >>
+      !! ("X", (i+1) mod m)
+    ) (
+      skip
+    )
+  )
+  |> mk_while (conji m ~f:(fun i -> ???(field i, 0)) |> neg)
+
 let () = begin
   let open Syntax in
 
@@ -76,7 +91,7 @@ let () = begin
   run ~print:false (blowup 15);
   (* run ~print:false (blowup 20); *)
 
-  run ~print:false (blowup' 6 2);
+  run ~print:false (blowup' 5 2);
 
 end
 
