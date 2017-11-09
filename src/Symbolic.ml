@@ -276,12 +276,19 @@ module Packet = struct
       | Const v -> Some v
       | Atom -> None)
 
-(*   let pp fmt pk =
+  let pp fmt (pk:t) : unit =
     Format.fprintf fmt "@[";
     if Map.is_empty pk then Format.fprintf fmt "*@ " else
-    Map.iteri pk ~f:(fun ~key ~data -> Format.fprintf fmt "@[%s=%d@]@ " key data);
-    Format.fprintf fmt "@]";
-    () *)
+    Map.iteri pk ~f:(fun ~key ~data -> Format.fprintf fmt "@[%s=%s@]@ "
+      (Field.to_string key)
+      begin match data with
+      | Atom -> "*"
+      | Const v -> Int.to_string v
+      end);
+    Format.fprintf fmt "@]"
+
+  let to_string pk : string =
+    Format.asprintf "%a" pp pk
 end
 
 
@@ -383,6 +390,7 @@ end
 module type CODING = sig
   type domain_witness
   val dom : Domain.t
+  val print : unit -> unit
 
   (** Encoding of packet in n dimensional space.
       More precisely, a packet is encoded as a point in a hypercube, with the
@@ -425,8 +433,8 @@ module type CODING = sig
     val modify : Field.t -> Packet.nomval -> t -> t
     (* val test' : Field.t -> Packet.nomval -> int -> bool *)
     val modify' : Field.t -> Packet.nomval -> int -> int
-(*     val pp : Format.formatter -> t -> unit
-    val pp' : Format.formatter -> int -> unit *)
+    val pp : Format.formatter -> t -> unit
+    val pp' : Format.formatter -> int -> unit
   end
 
   (** Encoding of packets as positive integers (including 0), i.e. 0-based matrix indices. *)
@@ -439,8 +447,8 @@ module type CODING = sig
     val modify : Field.t -> Packet.nomval -> t -> t
     (* val test' : Field.t -> Packet.nomval -> int -> bool *)
     val modify' : Field.t -> Packet.nomval -> int -> int
-(*     val pp : Format.formatter -> t -> unit
-    val pp' : Format.formatter -> int -> unit *)
+    val pp : Format.formatter -> t -> unit
+    val pp' : Format.formatter -> int -> unit
   end
 end
 
@@ -482,9 +490,9 @@ module Coding(D : DOM) : CODING = struct
       List.fold2_exn t ejection ~init:Field.Map.empty ~f:(fun pk v (f, veject) ->
         Field.Map.add pk ~key:f ~data:(veject v))
 
-
     let of_pk pk =
       List.map injection ~f:(fun (f, vinj) -> vinj (Field.Map.find_exn pk f))
+
   end
 
   module Codepoint = struct
@@ -509,8 +517,8 @@ module Coding(D : DOM) : CODING = struct
     let modify f n t = of_pk (Packet.modify (to_pk t) f n)
     (* let test' f n i = test f n { i = i } *)
     let modify' f n i = (modify f n { i = i }).i
-(*     let pp fmt t = Packet.pp fmt (to_pk t)
-    let pp' fmt i = Packet.pp fmt (to_pk { i = i }) *)
+    let pp fmt t = Packet.pp fmt (to_pk t)
+    let pp' fmt i = Packet.pp fmt (to_pk { i = i })
   end
 
   module Index0 = struct
@@ -522,8 +530,19 @@ module Coding(D : DOM) : CODING = struct
     let modify f n t = of_pk (Packet.modify (to_pk t) f n)
     (* let test' f n i = test f n { i = i } *)
     let modify' f n i = (modify f n { i = i }).i
-(*     let pp fmt t = Packet.pp fmt (to_pk t)
-    let pp' fmt i = Packet.pp fmt (to_pk { i = i }) *)
+    let pp fmt t = Packet.pp fmt (to_pk t)
+    let pp' fmt i = Packet.pp fmt (to_pk { i = i })
+  end
+
+  let print () = begin
+    let fmt = Format.std_formatter in
+    let fprintf = Format.fprintf in
+    let n = Domain.size dom in
+    fprintf fmt "domain size = %d\n" n;
+    fprintf fmt "index packet mapping:\n%!";
+    Array.init n ~f:ident
+    |> Array.iter ~f:(fun i -> fprintf fmt " %d = %a\n%!" i Index0.pp' i);
+    fprintf fmt "\n%!";
   end
 
 end
@@ -537,7 +556,7 @@ end
 module Matrix = struct
   type t = {
     matrix : Sparse.mat;
-    conversion : (module CODING);
+    coding : (module CODING);
     dom : Domain.t;
   }
 
@@ -552,33 +571,39 @@ module Matrix = struct
         )
     )
 
-  let maplet_to_matrix_entries (conversion : (module CODING)) (pk, act, prob)
+  let maplet_to_matrix_entries (coding : (module CODING)) (pk, act, prob)
     : (int * int * Prob.t) list =
-    let module Conv = (val conversion : CODING) in
+    let module Conv = (val coding : CODING) in
     packet_variants pk Conv.dom
     |> List.map ~f:(fun pk ->
       let pk' = Packet.apply pk act in
       ((Conv.Index0.of_pk pk).i, (Conv.Index0.of_pk pk').i, prob)
     )
 
-  let of_fdd fdd (conversion : (module CODING)) =
-    let module Conversion = (val conversion : CODING) in
-    let dom = Conversion.dom in
+  let of_fdd fdd (coding : (module CODING)) =
+    let module Coding = (val coding : CODING) in
+    let dom = Coding.dom in
     let n = Domain.size dom in
     let matrix = Sparse.zeros n n in
     Fdd0.to_maplets fdd
-    |> List.concat_map ~f:(maplet_to_matrix_entries conversion)
+    |> Util.tap ~f:(List.map ~f:(fun (pk, act, p) ->
+      printf "< pk = %s\n; action = %s\n; prob = %f\n>\n%!"
+        (Packet.to_string pk)
+        (Action.to_string act)
+        (Prob.to_float p)
+    ))
+    |> List.concat_map ~f:(maplet_to_matrix_entries coding)
     |> List.iter ~f:(fun (i,j,v) ->
       Sparse.set matrix i j Prob.(to_float v));
-    { matrix; conversion; dom }
+    { matrix; coding; dom }
 
 
 
   let get_pk_action t pk : ActionDist.t =
-    let module Conversion = (val t.conversion : CODING) in
+    let module Coding = (val t.coding : CODING) in
     let row_to_action row : ActionDist.t =
       Sparse.foldi_nz (fun _i j dist prob ->
-          Conversion.Index0.to_pk { i = j }
+          Coding.Index0.to_pk { i = j }
           |> Packet.to_action
           |> ActionDist.add dist (Prob.of_float prob)
         )
@@ -586,7 +611,7 @@ module Matrix = struct
         row
     in
     let total_pk_action pk : ActionDist.t =
-      let i = (Conversion.Index0.of_pk pk).i in
+      let i = (Coding.Index0.of_pk pk).i in
       let rowi = Sparse.row t.matrix i in
       row_to_action rowi
     in
@@ -736,12 +761,13 @@ module Fdd = struct
     (* compute domain of FDDs; i.e., how many indices do we need for the matrix
        representation and what does each index preresent? *)
     let dom = Domain.(merge (of_fdd ap) (of_fdd not_a)) in
-    let module Conversion = Coding(struct let domain = dom end) in
-    let conversion = (module Conversion : CODING) in
+    let module Coding = Coding(struct let domain = dom end) in
+    Coding.print();
+    let coding = (module Coding : CODING) in
 
     (* convert FDDs to matrices *)
-    let ap_mat = Matrix.of_fdd ap conversion in
-    let not_a_mat = Matrix.of_fdd not_a conversion in
+    let ap_mat = Matrix.of_fdd ap coding in
+    let not_a_mat = Matrix.of_fdd not_a coding in
 
     (* setup external python script to solve linear system, start in seperate process *)
     let pkg_name = "probnetkat" in

@@ -12,6 +12,41 @@ let run p =
   |> Fdd.to_string
   |> printf "%s\n"
 
+
+module Dense = Owl.Dense.Matrix.D
+module Sparse = Owl.Sparse.Matrix.D
+
+let run ?(print=true) ?(lbl=false) ?(debug=false) ?(verbose=false) p =
+  printf "\n========================= EIGEN ==========================\n\n%!";
+  fprintf fmt "policy = %a\n\n%!" pp_policy p;
+  let fdd = Symbolic.Fdd.of_pol p in
+  fprintf fmt "fdd = %s\n\n%!" (Symbolic.Fdd.to_string fdd);
+  let dom = Symbolic.Domain.of_fdd fdd in
+  fprintf fmt "domain size = %d\n" (Domain.size dom);
+  let module Repr = Symbolic.Coding(struct let domain = dom end) in
+  let repr = (module Repr : CODING) in
+  let n = Repr.Index0.max.i + 1 in
+  if print && not lbl then begin
+    fprintf fmt "index packet mapping:\n%!";
+    Array.init n ~f:ident
+    |> Array.iter ~f:(fun i -> fprintf fmt " %d = %a\n%!" i Repr.Index0.pp' i);
+    fprintf fmt "\n%!";
+  end;
+  let matrix = Matrix.of_fdd fdd repr in
+  let mc = matrix.matrix in
+  (* let (t, mc) = time (Mc.of_pol ~debug ~verbose) p in *)
+  if print then begin
+    Owl.Sparse.Matrix.Generic.pp_spmat mc
+(*       (if not lbl then Owl_pretty.print else
+         Owl_pretty.pp_labeled_fmat
+          ~pp_left:(Some (fun fmt -> fprintf fmt "%a|" Repr.Index.pp'))
+          ~pp_head:None
+          ~pp_foot:None
+          ~pp_right:None ()) *)
+  end;
+  (* print_time t; *)
+  ()
+
 let () = begin
   let open Syntax in
 
@@ -44,34 +79,6 @@ let print_dom_size n dom = begin
     |> printf " (%s)";
   printf "\n\n%!";
 end
-
-
-let run ?(print=true) ?(lbl=true) ?(transpose=false) ?(debug=false) ?(verbose=false) p =
-  printf "\n========================= EIGEN ==========================\n\n%!";
-  fprintf fmt "policy = %a\n\n%!" pp_policy p;
-  let dom = domain p in
-  let module Repr = Packet_Repr.Make(struct let domain = dom end) in
-  let n = Repr.Index0.max.i + 1 in
-  print_dom_size n dom;
-  let module Mc = Markov_chain.MakeOwl(Repr) in
-  if print && not lbl then begin
-    fprintf fmt "index packet mapping:\n%!";
-    Array.init n ~f:ident
-    |> Array.iter ~f:(fun i -> fprintf fmt " %d = %a\n%!" i Repr.Index0.pp' i);
-    fprintf fmt "\n%!";
-  end;
-  let (t, mc) = time (Mc.of_pol ~debug ~verbose) p in
-(*   if print then begin (if transpose then Sparse.transpose else ident) mc |> Sparse.to_dense |>
-    Format.printf "@[MATRIX:@\n%a@\n@]@."
-      (if not lbl then Owl_pretty.pp_fmat else
-         Owl_pretty.pp_labeled_fmat
-          ~pp_left:(Some (fun fmt -> fprintf fmt "%a|" Repr.Index.pp'))
-          ~pp_head:None
-          ~pp_foot:None
-          ~pp_right:None ())
-  end; *)
-  print_time t;
-  ()
 
 let run' ?(print=true) ?(lbl=true) ?(debug=false) p =
   printf "\n========================== BLAS ==========================\n\n%!";

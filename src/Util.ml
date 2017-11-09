@@ -14,3 +14,6 @@ let map_fst xs ~f =
 
 let map_snd xs ~f =
   List.map xs ~f:(fun (x,y) -> (x, f y))
+
+let tap x ~f =
+  f x; x
