@@ -109,11 +109,16 @@ module Constructors = struct
     let modify hv = Modify hv
     let neg a = Neg a
     let disj a b = Or (a,b)
+    let conj a b = And (a,b)
     let seq p q = Seq (p, q)
     let choice ps = Choice ps
     let ite a p q = Ite (a, p, q)
     let whl a p = While (a, p)
     let mk_while a p = While (a, p)
+
+    let conji n ~f =
+      Array.init n ~f
+      |> Array.fold ~init:True ~f:conj
 
     let seqi n ~f =
       Array.init n ~f
@@ -123,6 +128,9 @@ module Constructors = struct
       Array.init n ~f
       |> Array.to_list
       |> choice
+
+    let uniform n ~f =
+      choicei n ~f:(fun i -> (f i, Prob.(1//n)))
 
     let mk_big_ite ~default = List.fold ~init:default ~f:(fun q (a, p) -> ite a p q)
 

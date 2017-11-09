@@ -13,9 +13,11 @@ def main():
 
     # # load matrices
     (Q, (nt,nt_)) = read_matrix()
+    eprint("[python] Q received (%dx%d)!" % (nt, nt_), flush=True)
     (R, (nt__,na)) = read_matrix()
+    eprint("[python] R received (%dx%d)!" % (nt__, na), flush=True)
     assert(nt == nt_ == nt__ == na)
-    # eprint("[python] %dx%d matrices received!" % (nt, nt))
+    eprint("[python] %dx%d matrices received!" % (nt, nt))
 
 
     # compute absorption probabilities: n_t x n_a matrix

@@ -46,6 +46,16 @@ let blowup n =
   seqi n ~f:(fun i -> let l = sprintf "l%d" i in
               ?@[ !!(l,0) @ 1//2; !!(l,1) @ 1//2])
 
+let blowup' m n =
+  let open Syntax in
+  let field i = sprintf "F%d" i in
+  uniform m ~f:(fun i -> 
+    uniform n ~f:(fun j ->
+      !!(field i, j)
+    )
+  )
+  |> mk_while (conji m ~f:(fun i -> ???(field i, 0)) |> neg)
+
 let () = begin
   let open Syntax in
 
@@ -65,6 +75,8 @@ let () = begin
 
   run ~print:false (blowup 15);
   (* run ~print:false (blowup 20); *)
+
+  run ~print:false (blowup' 6 2);
 
 end
 
