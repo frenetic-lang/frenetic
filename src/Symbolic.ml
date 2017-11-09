@@ -798,7 +798,7 @@ module Fdd = struct
     end;
 
     (* convert matrix back to FDD *)
-    from_mat iterated ~skeleton:ap
+    from_mat iterated ~skeleton:(union ap (map_r not_a ~f:(ActionDist.scale ~scalar:Prob.(of_int 2))))
 
 
 
