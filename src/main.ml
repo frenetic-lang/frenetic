@@ -26,10 +26,10 @@ let run ?(print=true) ?(lbl=false) ?(debug=false) ?(verbose=false) p =
   let module Repr = Symbolic.Coding(struct let domain = dom end) in
   let repr = (module Repr : CODING) in
   (* Repr.print(); *)
-  let matrix = Matrix.of_fdd fdd repr in
-  let mc = matrix.matrix in
   (* let (t, mc) = time (Mc.of_pol ~debug ~verbose) p in *)
   if print then begin
+    let matrix = Matrix.of_fdd fdd repr in
+    let mc = matrix.matrix in
     Owl.Sparse.Matrix.Generic.pp_spmat mc
 (*       (if not lbl then Owl_pretty.print else
          Owl_pretty.pp_labeled_fmat
@@ -63,7 +63,7 @@ let () = begin
     )
   );
 
-  run (blowup 10);
+  run ~print:false (blowup 10);
 
 end
 
