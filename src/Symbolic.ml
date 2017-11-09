@@ -15,6 +15,16 @@ module Field = struct
       | F7
       | F8
       | F9
+      | F10
+      | F11
+      | F12
+      | F13
+      | F14
+      | F15
+      | F16
+      | F17
+      | F18
+      | F19
       | Meta0
       | Meta1
       | Meta2
@@ -689,7 +699,17 @@ module Fdd = struct
           | 7 -> F7
           | 8 -> F8
           | 9 -> F9
-          | _ -> failwith "too many fields! (only up to 5 supported)"
+          | 10 -> F10
+          | 11 -> F11
+          | 12 -> F12
+          | 13 -> F13
+          | 14 -> F14
+          | 15 -> F15
+          | 16 -> F16
+          | 17 -> F17
+          | 18 -> F18
+          | 19 -> F19
+          | _ -> failwith "too many fields! (only up to 20 supported)"
         in incr next; field)
     in
     let rec do_pol env (p : string policy) : Field.t policy =

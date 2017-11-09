@@ -20,7 +20,7 @@ let run ?(print=true) ?(lbl=false) ?(debug=false) ?(verbose=false) p =
   printf "\n========================= EIGEN ==========================\n\n%!";
   fprintf fmt "policy = %a\n\n%!" pp_policy p;
   let fdd = Symbolic.Fdd.of_pol p in
-  fprintf fmt "fdd = %s\n\n%!" (Symbolic.Fdd.to_string fdd);
+  (* fprintf fmt "fdd = %s\n\n%!" (Symbolic.Fdd.to_string fdd); *)
   let dom = Symbolic.Domain.of_fdd fdd in
   fprintf fmt "domain size = %d\n" (Domain.size dom);
   let module Repr = Symbolic.Coding(struct let domain = dom end) in
@@ -63,7 +63,8 @@ let () = begin
     )
   );
 
-  run ~print:false (blowup 10);
+  run ~print:false (blowup 15);
+  (* run ~print:false (blowup 20); *)
 
 end
 
