@@ -76,14 +76,14 @@ module Field = struct
     type t
     val empty : t
     exception Full
-    val add : t -> string -> field Probnetkat.meta_init -> bool -> t (* may raise Full *)
-    val lookup : t -> string -> field * (field Probnetkat.meta_init * bool) (* may raise Not_found *)
+    val add : t -> string -> field Syntax.meta_init -> bool -> t (* may raise Full *)
+    val lookup : t -> string -> field * (field Syntax.meta_init * bool) (* may raise Not_found *)
   end
 
   module Env : ENV = struct
 
     type t = {
-      alist : (string * (field * (field Probnetkat.meta_init * bool))) list;
+      alist : (string * (field * (field Syntax.meta_init * bool))) list;
       depth : int
     }
 
@@ -120,14 +120,14 @@ module Field = struct
        pol for different field assignments. Don't traverse the policy
        repeatedly. Instead, write a size function that returns map from
        field assignments to sizes. *)
-  let auto_order (pol : Probnetkat.policy) : unit =
-    let open Probnetkat in
+  let auto_order (pol : Syntax.policy) : unit =
+    let open Syntax in
     (* Construct array of scores, where score starts at 0 for every field *)
     let count_arr = Array.init num_fields ~f:(fun _ -> 0) in
     let rec f_pred size (env, pred) = match pred with
       | True -> ()
       | False -> ()
-      | Test (Probnetkat.Meta (id,_)) ->
+      | Test (Syntax.Meta (id,_)) ->
         begin match Env.lookup env id with
         | (f, (Alias hv, false)) ->
           let f = to_enum f in
@@ -379,7 +379,7 @@ module Domain = struct
     if Map.is_empty dom then Format.fprintf fmt "*@ " else
     Map.iteri dom ~f:(fun ~key ~data -> Format.fprintf fmt "@[%s=%s@]@ "
       (Field.to_string key)
-      begin 
+      begin
         Set.to_list data
         |> List.to_string ~f:(function
           | Packet.Atom -> "*"
@@ -677,7 +677,7 @@ end
 module Fdd = struct
 
   include Fdd0
-  open Probnetkat
+  open Syntax
 
   let allocate_fields (pol : string policy)
     : Field.t policy * Field.t String.Map.t =
@@ -912,8 +912,7 @@ module Fdd = struct
         else
           cond (field,v) tru fls)
 
-  let rec of_pol_k p k =
-    let open Probnetkat in
+  let rec of_pol_k (p : Field.t policy) k : t =
     match p with
     | Filter p ->
       k (of_pred p)
@@ -921,7 +920,7 @@ module Fdd = struct
       k (of_mod  m)
     | Seq (p, q) ->
       of_pol_k p (fun p' ->
-        if equal p' drop then
+        if equal p' Fdd0.drop then
           k drop
         else
           of_pol_k q (fun q' -> k (seq p' q')))
@@ -950,9 +949,9 @@ module Fdd = struct
     | Let { id=field; init; mut; body=p } ->
       of_pol_k p (fun p' -> k (erase p' field init))
 
-  and of_symbolic_pol p = of_pol_k p ident
+  and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
 
-  let of_pol p =
+  let of_pol (p : string policy) : t =
     let (p, map) = allocate_fields p in
     of_symbolic_pol p
 

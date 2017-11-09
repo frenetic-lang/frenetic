@@ -1,5 +1,6 @@
 open Core
 open Probnetkat
+open Syntax
 open Dist
 open Symbolic
 open Packet_Repr
@@ -37,13 +38,13 @@ let run ?(print=true) ?(debug=false) ?(verbose=false) p =
   ()
 
 let blowup n =
-  let open Syntax in
+  let open PNK in
   seqi n ~f:(fun i -> let l = sprintf "l%d" i in
               ?@[ !!(l,0) @ 1//2; !!(l,1) @ 1//2])
 
 
 let blowup' m n =
-  let open Syntax in
+  let open PNK in
   let field i = sprintf "F%d" i in
   seqi m ~f:(fun i ->
     ite (???("X", i)) (
@@ -59,7 +60,7 @@ let blowup' m n =
   |> (fun p -> seq p (!!("X", 0)))
 
 let () = begin
-  let open Syntax in
+  let open PNK in
 
   run (??("sw", 1) >> !!("port", 1));
 
@@ -79,7 +80,7 @@ let () = begin
   (* run ~print:false (blowup 20); *)
 
   run ~print:false (blowup' 19 10);
-(* 
+(*
   run(
     neg (???("X", 0)) |> filter
   ) *)

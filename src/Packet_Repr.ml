@@ -1,6 +1,6 @@
 (** nominal packet encoding  *)
 open Core
-open Probnetkat
+open Syntax
 open Symbolic
 
 type 'domain_witness hyperpoint = int list

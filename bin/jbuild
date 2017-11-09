@@ -1,17 +1,14 @@
 (jbuild_version 1)
 
 
-(library
- ((name        probnetkat)
+(executable
+ ((name        main)
   (public_name probnetkat)
-  (wrapped true)
   (libraries (
     core
     owl
-    ;; lacaml
     zarith
-    findlib
-    lymp
+    probnetkat
   ))
   (preprocess (pps (ppx_deriving.std
                     ppx_enumerate

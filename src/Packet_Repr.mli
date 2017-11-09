@@ -1,4 +1,4 @@
-open Probnetkat
+open Syntax
 open Symbolic
 
 type 'domain_witness hyperpoint = private int list
