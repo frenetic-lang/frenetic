@@ -21,8 +21,8 @@ def main():
 
 
     # compute absorption probabilities: n_t x n_a matrix
-    # eprint("[python] Q =\n", Q.toarray())
-    # eprint("[python] R =\n", R.toarray())
+    eprint("[python] Q =\n", Q.toarray())
+    eprint("[python] R =\n", R.toarray())
     A = sparse.eye(nt) - Q
     A = A.tocsc();
     R = R.tocsc();

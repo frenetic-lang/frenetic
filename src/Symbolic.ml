@@ -808,6 +808,16 @@ module Fdd = struct
     in
     do_node skeleton Packet.empty
 
+  (* computes upto 1024 = 2^10 iterations; this is much higher than the
+     maximum TTL (255) *)
+  let iterate' a p =
+    let ap = prod a p in
+    let not_a = negate a in
+    let p0 = union ap not_a in
+    let rec loop p n =
+      if n <= 0 then p else loop (seq p p) (n-1)
+    in
+    seq (loop p0 10) not_a
 
   (*          X = (AP)*¬A
     Thus  X = ¬A + (AP)X
@@ -824,7 +834,7 @@ module Fdd = struct
        representation and what does each index preresent? *)
     let dom = Domain.(merge (of_fdd ap) (of_fdd not_a)) in
     let module Coding = Coding(struct let domain = dom end) in
-    (* Coding.print(); *)
+    Coding.print();
     let coding = (module Coding : CODING) in
 
     (* convert FDDs to matrices *)
@@ -929,7 +939,7 @@ module Fdd = struct
         )
     | While (a, p) ->
       of_pol_k p (fun p ->
-        k @@ iterate (of_pred a) p
+        k @@ iterate' (of_pred a) p
       )
     | Choice dist ->
       List.map dist ~f:(fun (p, prob) ->

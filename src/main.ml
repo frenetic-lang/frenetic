@@ -16,29 +16,24 @@ let run p =
 module Dense = Owl.Dense.Matrix.D
 module Sparse = Owl.Sparse.Matrix.D
 
-let run ?(print=true) ?(lbl=false) ?(debug=false) ?(verbose=false) p =
-  printf "\n========================= EIGEN ==========================\n\n%!";
+let run ?(print=true) ?(debug=false) ?(verbose=false) p =
+  printf "\n========================= Probnetkat ==========================\n%!";
   fprintf fmt "policy = %a\n\n%!" pp_policy p;
   let fdd = Symbolic.Fdd.of_pol p in
-  (* fprintf fmt "fdd = %s\n\n%!" (Symbolic.Fdd.to_string fdd); *)
+  fprintf fmt "fdd = %s\n\n%!" (Symbolic.Fdd.to_string fdd);
   let dom = Symbolic.Domain.of_fdd fdd in
-  fprintf fmt "domain size = %d\n" (Domain.size dom);
+  (* fprintf fmt "domain size = %d\n" (Domain.size dom); *)
   let module Repr = Symbolic.Coding(struct let domain = dom end) in
   let repr = (module Repr : CODING) in
   (* Repr.print(); *)
-  (* let (t, mc) = time (Mc.of_pol ~debug ~verbose) p in *)
   if print then begin
     let matrix = Matrix.of_fdd fdd repr in
     let mc = matrix.matrix in
-    Owl.Sparse.Matrix.Generic.pp_spmat mc
-(*       (if not lbl then Owl_pretty.print else
-         Owl_pretty.pp_labeled_fmat
-          ~pp_left:(Some (fun fmt -> fprintf fmt "%a|" Repr.Index.pp'))
-          ~pp_head:None
-          ~pp_foot:None
-          ~pp_right:None ()) *)
+    Owl.Sparse.Matrix.Generic.pp_spmat mc;
+    let module Coding = (val matrix.coding : CODING) in
+    (* Coding.print(); *)
+    ()
   end;
-  (* print_time t; *)
   ()
 
 let blowup n =
@@ -46,15 +41,6 @@ let blowup n =
   seqi n ~f:(fun i -> let l = sprintf "l%d" i in
               ?@[ !!(l,0) @ 1//2; !!(l,1) @ 1//2])
 
-let blowup' m n =
-  let open Syntax in
-  let field i = sprintf "F%d" i in
-  uniform m ~f:(fun i -> 
-    uniform n ~f:(fun j ->
-      !!(field i, j)
-    )
-  )
-  |> mk_while (conji m ~f:(fun i -> ???(field i, 0)) |> neg)
 
 let blowup' m n =
   let open Syntax in
@@ -70,6 +56,7 @@ let blowup' m n =
     )
   )
   |> mk_while (conji m ~f:(fun i -> ???(field i, 0)) |> neg)
+  |> (fun p -> seq p (!!("X", 0)))
 
 let () = begin
   let open Syntax in
@@ -88,10 +75,14 @@ let () = begin
     )
   );
 
-  run ~print:false (blowup 15);
+  (* run ~print:false (blowup 15); *)
   (* run ~print:false (blowup 20); *)
 
-  run ~print:false (blowup' 5 2);
+  run ~print:false (blowup' 19 10);
+(* 
+  run(
+    neg (???("X", 0)) |> filter
+  ) *)
 
 end
 
