@@ -10,6 +10,11 @@ module Field = struct
       | F2
       | F3
       | F4
+      | F5
+      | F6
+      | F7
+      | F8
+      | F9
       | Meta0
       | Meta1
       | Meta2
@@ -618,12 +623,12 @@ module Matrix = struct
     let n = Domain.size dom in
     let matrix = Sparse.zeros n n in
     Fdd0.to_maplets fdd ~dom
-    |> Util.tap ~f:(List.map ~f:(fun (dom, act, p) ->
+(*     |> Util.tap ~f:(List.map ~f:(fun (dom, act, p) ->
       printf "< pk = %s\n; action = %s\n; prob = %f\n>\n%!"
         (Domain.to_string dom)
         (Action.to_string act)
         (Prob.to_float p)
-    ))
+    )) *)
     |> List.concat_map ~f:(maplet_to_matrix_entries coding)
     |> List.iter ~f:(fun (i,j,v) ->
       Sparse.set matrix i j Prob.(to_float v));
@@ -679,6 +684,11 @@ module Fdd = struct
           | 2 -> F2
           | 3 -> F3
           | 4 -> F4
+          | 5 -> F5
+          | 6 -> F6
+          | 7 -> F7
+          | 8 -> F8
+          | 9 -> F9
           | _ -> failwith "too many fields! (only up to 5 supported)"
         in incr next; field)
     in
@@ -794,7 +804,7 @@ module Fdd = struct
        representation and what does each index preresent? *)
     let dom = Domain.(merge (of_fdd ap) (of_fdd not_a)) in
     let module Coding = Coding(struct let domain = dom end) in
-    Coding.print();
+    (* Coding.print(); *)
     let coding = (module Coding : CODING) in
 
     (* convert FDDs to matrices *)
@@ -830,7 +840,7 @@ module Fdd = struct
     let iterated = Matrix.{ ap_mat with matrix = Sparse.zeros n n } in
     let line () =
       let l = In_channel.input_line_exn from_py in
-      printf "[python reply] %s\n%!" l;
+      (* printf "[python reply] %s\n%!" l; *)
       l
     in
     begin try

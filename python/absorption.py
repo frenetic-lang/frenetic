@@ -15,17 +15,17 @@ def main():
     (Q, (nt,nt_)) = read_matrix()
     (R, (nt__,na)) = read_matrix()
     assert(nt == nt_ == nt__ == na)
-    eprint("[python] %dx%d matrices received!" % (nt, nt))
+    # eprint("[python] %dx%d matrices received!" % (nt, nt))
 
 
     # compute absorption probabilities: n_t x n_a matrix
-    eprint("[python] Q =\n", Q.toarray())
-    eprint("[python] R =\n", R.toarray())
+    # eprint("[python] Q =\n", Q.toarray())
+    # eprint("[python] R =\n", R.toarray())
     A = sparse.eye(nt) - Q
     A = A.tocsc();
     R = R.tocsc();
     X = linalg.spsolve(A, R)
-    eprint("[python] X =\n", X.toarray())
+    # eprint("[python] X =\n", X.toarray())
 
     # write matrix back
     write_matrix(X)

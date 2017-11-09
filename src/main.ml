@@ -25,13 +25,7 @@ let run ?(print=true) ?(lbl=false) ?(debug=false) ?(verbose=false) p =
   fprintf fmt "domain size = %d\n" (Domain.size dom);
   let module Repr = Symbolic.Coding(struct let domain = dom end) in
   let repr = (module Repr : CODING) in
-  let n = Repr.Index0.max.i + 1 in
-  if print && not lbl then begin
-    fprintf fmt "index packet mapping:\n%!";
-    Array.init n ~f:ident
-    |> Array.iter ~f:(fun i -> fprintf fmt " %d = %a\n%!" i Repr.Index0.pp' i);
-    fprintf fmt "\n%!";
-  end;
+  (* Repr.print(); *)
   let matrix = Matrix.of_fdd fdd repr in
   let mc = matrix.matrix in
   (* let (t, mc) = time (Mc.of_pol ~debug ~verbose) p in *)
@@ -46,6 +40,11 @@ let run ?(print=true) ?(lbl=false) ?(debug=false) ?(verbose=false) p =
   end;
   (* print_time t; *)
   ()
+
+let blowup n =
+  let open Syntax in
+  seqi n ~f:(fun i -> let l = sprintf "l%d" i in
+              ?@[ !!(l,0) @ 1//2; !!(l,1) @ 1//2])
 
 let () = begin
   let open Syntax in
@@ -63,6 +62,8 @@ let () = begin
       ?@[ !!("x", 1) @ 1//2 ; skip @ 1//2 ]
     )
   );
+
+  run (blowup 10);
 
 end
 
