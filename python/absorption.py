@@ -25,7 +25,7 @@ def main():
     A = A.tocsc();
     R = R.tocsc();
     X = linalg.spsolve(A, R)
-    eprint("[python] X = " + str(X))
+    eprint("[python] X =\n", X.toarray())
 
     # write matrix back
     write_matrix(X)

@@ -293,25 +293,7 @@ end
 
 
 
-module Fdd0 = struct
-  include Vlr.Make(Field)(Value)(ActionDist)
-
-  type action = Value.t Action.t
-
-  let to_maplets fdd : (Packet.t * action * Prob.t) list =
-    let rec of_node fdd pk acc =
-      match unget fdd with
-      | Leaf r ->
-        of_leaf r pk acc
-      | Branch ((f,v), tru, fls) ->
-        of_node tru Packet.(modify pk f (Const v)) acc
-        |> of_node fls Packet.(modify pk f Atom)
-    and of_leaf dist pk acc =
-      ActionDist.to_alist dist
-      |> List.fold ~init:acc ~f:(fun acc (act, prob) -> (pk, act, prob) :: acc)
-    in
-    of_node fdd Packet.empty []
-end
+module Fdd00 = Vlr.Make(Field)(Value)(ActionDist)
 
 
 
@@ -326,16 +308,16 @@ module Domain = struct
       | `Left s | `Right s -> Some s
       | `Both (l,r) -> Some (Set.union l r))
 
-  let of_fdd (fdd : Fdd0.t) : t =
+  let of_fdd (fdd : Fdd00.t) : t =
     let rec for_fdd dom fdd =
-      match Fdd0.unget fdd with
+      match Fdd00.unget fdd with
       | Leaf r ->
         for_leaf dom r
       | Branch ((field,_),_,_) ->
         let (vs, residuals, all_false) = for_field field fdd [] [] in
         let vs =
           List.map vs ~f:(fun v -> Packet.Const v)
-          |> (fun vs -> if Fdd0.(equal drop all_false) then vs else Atom::vs)
+          |> (fun vs -> if Fdd00.(equal drop all_false) then vs else Atom::vs)
           |> Valset.of_list
         in
         let dom = Map.update dom field ~f:(function
@@ -348,7 +330,7 @@ module Domain = struct
         residual trees below f-tests, and the all-false branch with respect to
         field f. *)
     and for_field f fdd vs residual =
-      match Fdd0.unget fdd with
+      match Fdd00.unget fdd with
       | Branch ((f',v), tru, fls) when f' = f ->
         for_field f fls (v::vs) (tru::residual)
       | Branch _ | Leaf _ ->
@@ -370,8 +352,31 @@ module Domain = struct
   let size (dom : t) : int =
     Map.fold dom ~init:1 ~f:(fun ~key ~data:vs acc -> acc * (Valset.length vs))
 
-end
+  let variants (dom : t) : Packet.t list =
+    Map.fold dom ~init:[Packet.empty] ~f:(fun ~key:f ~data:vs pks ->
+      Valset.to_list vs
+      |> List.concat_map ~f:(fun v -> List.map pks ~f:(fun pk ->
+        Packet.modify pk f v))
+    )
 
+  let pp fmt (dom:t) : unit =
+    Format.fprintf fmt "@[";
+    if Map.is_empty dom then Format.fprintf fmt "*@ " else
+    Map.iteri dom ~f:(fun ~key ~data -> Format.fprintf fmt "@[%s=%s@]@ "
+      (Field.to_string key)
+      begin 
+        Set.to_list data
+        |> List.to_string ~f:(function
+          | Packet.Atom -> "*"
+          | Packet.Const v -> Int.to_string v)
+      end
+    );
+    Format.fprintf fmt "@]"
+
+  let to_string dom : string =
+    Format.asprintf "%a" pp dom
+
+end
 
 
 
@@ -550,6 +555,33 @@ end
 
 
 
+module Fdd0 = struct
+  include Fdd00
+
+  type action = Value.t Action.t
+
+  let to_maplets fdd ~dom : (Domain.t * action * Prob.t) list =
+    let rec of_node fdd dom acc =
+      match unget fdd with
+      | Leaf r ->
+        of_leaf r dom acc
+      | Branch ((f,v), tru, fls) ->
+        let v = Packet.Const v in
+        let tru_dom = Map.add dom ~key:f ~data:Domain.Valset.(singleton v) in
+        let fls_dom = Map.update dom f ~f:(function
+          | None -> assert false
+          | Some vs -> Set.remove vs v)
+        in
+        of_node tru tru_dom acc
+        |> of_node fls fls_dom
+    and of_leaf dist dom acc =
+      ActionDist.to_alist dist
+      |> List.fold ~init:acc ~f:(fun acc (act, prob) -> (dom, act, prob) :: acc)
+    in
+    of_node fdd dom []
+end
+
+
 
 
 (** matrix representation of Fdd0 *)
@@ -571,10 +603,10 @@ module Matrix = struct
         )
     )
 
-  let maplet_to_matrix_entries (coding : (module CODING)) (pk, act, prob)
+  let maplet_to_matrix_entries (coding : (module CODING)) (dom, act, prob)
     : (int * int * Prob.t) list =
     let module Conv = (val coding : CODING) in
-    packet_variants pk Conv.dom
+    Domain.variants dom
     |> List.map ~f:(fun pk ->
       let pk' = Packet.apply pk act in
       ((Conv.Index0.of_pk pk).i, (Conv.Index0.of_pk pk').i, prob)
@@ -585,10 +617,10 @@ module Matrix = struct
     let dom = Coding.dom in
     let n = Domain.size dom in
     let matrix = Sparse.zeros n n in
-    Fdd0.to_maplets fdd
-    |> Util.tap ~f:(List.map ~f:(fun (pk, act, p) ->
+    Fdd0.to_maplets fdd ~dom
+    |> Util.tap ~f:(List.map ~f:(fun (dom, act, p) ->
       printf "< pk = %s\n; action = %s\n; prob = %f\n>\n%!"
-        (Packet.to_string pk)
+        (Domain.to_string dom)
         (Action.to_string act)
         (Prob.to_float p)
     ))
