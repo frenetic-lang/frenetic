@@ -56,7 +56,7 @@ let blowup' m n =
       skip
     )
   )
-  |> mk_while (conji m ~f:(fun i -> ???(field (i+1), 0)) |> neg)
+  |> whl (conji m ~f:(fun i -> ???(field (i+1), 0)) |> neg)
   |> (fun p -> seq p (!!(field 0, 0)))
 
 let () = begin
@@ -143,13 +143,13 @@ let () = begin
   (* let open Probnetkat.Syntax in *)
   let open Probnetkat.Syntax.Smart in
   let pwhile n =
-    mk_while ??("f", 0) ?@[
+    whl ??("f", 0) ?@[
       skip       @ (n-1)//n;
       !!("f", 1) @ 1//n
     ]
   in
   let qwhile n =
-    mk_while (neg ??("f", 1)) ?@[
+    whl (neg ??("f", 1)) ?@[
       skip       @ (n-2)//n;
       !!("f", 1) @ 1//n;
       !!("f", 2) @ 1//n
@@ -157,7 +157,7 @@ let () = begin
   in
   (** this while loop is singular: it never terminates  *)
   let pwhile' =
-    mk_while ??("f", 0) ?@[
+    whl ??("f", 0) ?@[
       skip       @ 1//1;
       !!("f", 1) @ 0//1
     ]
@@ -177,7 +177,7 @@ let () = begin
   run skip;
   run drop;
   run (??("f", 0));
-  run (mk_while ??("f", 0) !!("f", 1));
+  run (whl ??("f", 0) !!("f", 1));
   run (pwhile 10);
   run (neg ??("f", 1));
   run ~debug:false (qwhile 10);
@@ -193,7 +193,7 @@ let () = begin
   run' skip;
   run' drop;
   run' (??("f", 0));
-  run' (mk_while ??("f", 0) !!("f", 1));
+  run' (whl ??("f", 0) !!("f", 1));
   run' (pwhile 10);
   run' (pwhile 100);
   run' (pwhile 100_000_000);
@@ -202,13 +202,13 @@ let () = begin
   run' (blowup 3);
   run' (blowup 7) ~print:false; *)
 
-  (* run' (mk_while ??("f", 0) !!("f", 1)); *)
+  (* run' (whl ??("f", 0) !!("f", 1)); *)
 (*   let uniform =
     seqi 4 ~f:(fun i -> let l = sprintf "l%d" i in
                 ?@[!!(l,0), Q.(1//2);
                    !!(l,1), Q.(1//2)])
     >>
-    mk_while (
+    whl (
       seqi 4 ~f:(fun i -> let l = sprintf "l%d" i in
                           let t = sprintf "take%d" i in
                           )) *)

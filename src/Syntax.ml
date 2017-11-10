@@ -107,14 +107,47 @@ module Constructors = struct
     let test hv = Test hv
     let filter a = Filter a
     let modify hv = Modify hv
-    let neg a = Neg a
-    let disj a b = Or (a,b)
-    let conj a b = And (a,b)
-    let seq p q = Seq (p, q)
-    let choice ps = Choice ps
-    let ite a p q = Ite (a, p, q)
-    let whl a p = While (a, p)
-    let mk_while a p = While (a, p)
+
+    let neg a = match a with
+      | Neg a -> a
+      | _ -> Neg a
+
+    let disj a b = match a,b with
+      | True, _ 
+      | _, True -> True
+      | False, c
+      | c, False -> c
+      | _ -> Or (a, b)
+
+    let conj a b = match a,b with
+      | False, _
+      | _, False -> False
+      | True, c
+      | c, True -> c
+      | _ -> And (a,b)
+
+    let seq p q = match p,q with
+      | Filter False, _
+      | _, Filter False -> Filter False
+      | Filter True, c
+      | c, Filter True -> c
+      | _ -> Seq (p, q)
+
+    let choice ps =
+      (* smash equal -> requires hashconsing *)
+      match List.filter ps ~f:(fun (p,r) -> not Q.(equal r zero)) with
+      | [(p,r)] -> assert Q.(equal r one); p
+      | ps -> Choice ps
+
+    let ite a p q = match a with
+      | True -> p
+      | False -> q
+      | _ -> Ite (a, p, q)
+
+    let whl a p = match a with
+      | True -> drop
+      | False -> skip
+      | _ -> While (a,p)
 
     let conji n ~f =
       Array.init n ~f
@@ -136,60 +169,6 @@ module Constructors = struct
 
 end
 
-  (* module Smart = struct
-    let drop = Dumb.drop
-    let skip = Dumb.skip
-    let test = Dumb.test
-    let modify = Dumb.modify
-
-    let neg a =
-      match a.p with
-      | Neg { p } -> { a with p }
-      | _ -> Dumb.neg a
-
-    let disj a b =
-      if a = skip || b = drop then a else
-      if b = skip || a = drop then b else
-      Dumb.disj a b
-
-    let seq p q =
-      (* use physical equality? *)
-      if p = drop || q = skip then p else
-      if q = drop || p = skip then q else
-      Dumb.seq p q
-
-    let choice ps =
-      (* smash equal -> requires hashconsing *)
-      match List.filter ps ~f:(fun (p,r) -> not Q.(equal r zero)) with
-      | [(p,r)] -> assert Q.(equal r one); p
-      | ps -> Dumb.choice ps
-
-    let ite a p q =
-      if a = drop then q else
-      if a = skip then p else
-      (* if p = q then p else *)
-      Dumb.ite a p q
-
-    let mk_while a p =
-      if a = drop then skip else
-      Dumb.mk_while a p
-
-    let seqi n ~f =
-      Array.init n ~f
-      |> Array.fold ~init:skip ~f:seq
-
-    let choicei n ~f =
-      Array.init n ~f
-      |> Array.to_list
-      |> choice
-
-    let mk_union = disj
-    let mk_big_union ~init = List.fold ~init ~f:(fun p q -> if p = drop then q
-                                                  else mk_union p q)
-    let mk_big_ite ~default = List.fold ~init:default ~f:(fun q (a, p) -> ite a p q)
-
-  end
-end *)
 module PNK = struct
   include Constructors
   let ( ?? ) hv = filter (test hv)
