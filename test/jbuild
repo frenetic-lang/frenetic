@@ -2,10 +2,10 @@
 
 (executable
  ((name test)
-  (libraries (probnetkat alcotest))))
+  (libraries (probnetkat alcotest qcheck))))
 
 (alias
  ((name runtest)
   (deps (test.exe))
-  (action (run ${exe:test.exe}))
+  (action (run ${<} --color=always))
 ))

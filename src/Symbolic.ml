@@ -263,9 +263,9 @@ module Packet = struct
                from all constants. To a first approximation, a sort of wildcard, but it ranges
                only over values that do not appear as constants.
             *)
-    [@@deriving compare, sexp]
+    [@@deriving compare, eq, sexp]
 
-  type t = nomval Field.Map.t
+  type t = nomval Field.Map.t [@@deriving compare, eq]
   (** Symbolic packet. Represents a set of concrete packets { π }.
 
       f |-> Const v  means π.f = v
@@ -954,5 +954,50 @@ module Fdd = struct
   let of_pol (p : string policy) : t =
     let (p, map) = allocate_fields p in
     of_symbolic_pol p
+
+  type weighted_pk = Packet.t * Prob.t [@@deriving compare, eq] 
+
+  let equivalent t1 t2 =
+    let rec do_nodes t1 t2 pk =
+      match unget t1, unget t2 with
+      | Branch ((f1,v1), l1, r1), Branch ((f2,v2), l2, r2) ->
+        begin match Field.compare f1 f2 with
+        | -1 -> 
+          do_nodes l1 t2 (Packet.modify pk f1 (Const v1)) &&
+          do_nodes r1 t2 pk
+        | 1 ->
+          do_nodes t1 l2 (Packet.modify pk f2 (Const v2)) &&
+          do_nodes t1 r2 pk
+        | 0 ->
+          begin match Value.compare v1 v2 with
+          | 0 ->
+            do_nodes l1 l2 (Packet.modify pk f1 (Const v1)) &&
+            do_nodes r1 r2 pk
+          | -1 ->
+            do_nodes l1 r2 (Packet.modify pk f1 (Const v1)) &&
+            do_nodes r1 t2 pk
+          | 1 ->
+            do_nodes r1 l2 (Packet.modify pk f2 (Const v2)) &&
+            do_nodes t1 r2 pk
+          | _ -> assert false
+          end   
+        | _ -> assert false
+        end
+      | Branch ((f1,v1), l1, r1), Leaf _ ->
+        do_nodes l1 t2 (Packet.modify pk f1 (Const v1)) &&
+        do_nodes r1 t2 pk
+      | Leaf _, Branch ((f2,v2), l2, r2) ->
+        do_nodes t1 l2 (Packet.modify pk f2 (Const v2)) &&
+        do_nodes t1 r2 pk
+      | Leaf d1, Leaf d2 ->
+        do_leaves d1 d2 pk
+    and do_leaves d1 d2 pk =
+     List.equal ~equal:equal_weighted_pk (normalize d1 pk) (normalize d2 pk) 
+    and normalize dist pk =
+      ActionDist.to_alist dist
+      |> Util.map_fst ~f:(Packet.apply pk)
+      |> List.sort ~cmp:compare_weighted_pk
+    in
+    do_nodes t1 t2 Packet.empty
 
 end
