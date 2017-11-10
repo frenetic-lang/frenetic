@@ -24,8 +24,6 @@ def main():
     eprint("[python] Q =\n", Q.toarray())
     eprint("[python] R =\n", R.toarray())
     A = sparse.eye(nt) - Q
-    A = A.tocsc();
-    R = R.tocsc();
     X = linalg.spsolve(A, R)
     # eprint("[python] X =\n", X.toarray())
 
@@ -40,8 +38,8 @@ def read_matrix():
     for line in sys.stdin:
         parts = line.split()
         if len(parts) == 0:
-            # end of matrix
-            return (A, shape)
+            # end of input
+            return (A.tocsc(), shape)
         elif len(parts) == 3:
             (i, j, a) = parts
             A[int(i), int(j)] = np.float64(a)

@@ -47,22 +47,22 @@ let blowup' m n =
   let open PNK in
   let field i = sprintf "F%d" i in
   seqi m ~f:(fun i ->
-    ite (???("X", i)) (
+    ite (???(field 0, i)) (
       uniform n ~f:(fun j ->
-        !!(field i, j)
+        !!(field (i+1), j)
       ) >>
-      !! ("X", (i+1) mod m)
+      !! (field 0, (i+1) mod m)
     ) (
       skip
     )
   )
-  |> mk_while (conji m ~f:(fun i -> ???(field i, 0)) |> neg)
-  |> (fun p -> seq p (!!("X", 0)))
+  |> mk_while (conji m ~f:(fun i -> ???(field (i+1), 0)) |> neg)
+  |> (fun p -> seq p (!!(field 0, 0)))
 
 let () = begin
   let open PNK in
 
-  run (??("sw", 1) >> !!("port", 1));
+(*   run (??("sw", 1) >> !!("port", 1));
 
   run (?@[ !!("x", 1) @ 1//2 ;
            !!("x", 2) @ 1//2 ] >>
@@ -74,12 +74,12 @@ let () = begin
     whl (???("x", 0)) (
       ?@[ !!("x", 1) @ 1//2 ; skip @ 1//2 ]
     )
-  );
+  ); *)
 
   (* run ~print:false (blowup 15); *)
   (* run ~print:false (blowup 20); *)
 
-  run ~print:false (blowup' 19 10);
+  run ~print:true (blowup' 1 1);
 (*
   run(
     neg (???("X", 0)) |> filter
