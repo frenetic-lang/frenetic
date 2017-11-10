@@ -808,18 +808,8 @@ module Fdd = struct
     in
     do_node skeleton Packet.empty
 
-  (* computes upto 1024 = 2^10 iterations; this is much higher than the
-     maximum TTL (255) *)
-  let iterate' a p =
-    let ap = prod a p in
-    let not_a = negate a in
-    let p0 = union ap not_a in
-    let rec loop p n =
-      if n <= 0 then p else loop (seq p p) (n-1)
-    in
-    seq (loop p0 10) not_a
 
-  (*          X = (AP)*¬A
+  (*      X = (AP)*¬A
     Thus  X = ¬A + (AP)X
      <=>  (I-AP)X = ¬A
      We are looking for X. We solve the linear (sparse) system to compute it.
@@ -830,15 +820,37 @@ module Fdd = struct
     (* transition matrix for absorbing states, i.e. those not satisfying [a] *)
     let not_a = negate a in
 
+    (* first, try compuyting naive fixed-point *)
+    let rec loop p n =
+      if n <= 1 then p else loop (seq p p) (n-1)
+    in
+    let (p512, p1024) =
+      let p1 = union ap not_a in
+      let p512 = loop p1 9 in
+      let p1024 = seq p512 p512 in
+      (p512, p1024)
+    in
+    if equal p512 p1024 then seq p1024 not_a else
+
     (* compute domain of FDDs; i.e., how many indices do we need for the matrix
        representation and what does each index preresent? *)
     let dom = Domain.(merge (of_fdd ap) (of_fdd not_a)) in
     let module Coding = Coding(struct let domain = dom end) in
-    Coding.print();
     let coding = (module Coding : CODING) in
+    Coding.print();
+
+    (* need to unfold loop at least |dom| times to determine which states can
+       reach absorbing states *)
+    let n = Domain.size dom in
+    let m = 1024 in
+    let rec loop x m =
+      if m >= n then x else loop (seq x x) (m*2)
+    in
+    let x = loop p1024 m in
 
     (* convert FDDs to matrices *)
     let ap_mat = Matrix.of_fdd ap coding in
+    let x_mat = Matrix.of_fdd x coding in
     let not_a_mat = Matrix.of_fdd not_a coding in
 
     (* setup external python script to solve linear system, start in seperate process *)
@@ -863,6 +875,7 @@ module Fdd = struct
       Out_channel.fprintf to_py "\n%!";
     end in
     send_matrix ap_mat.matrix;
+    send_matrix x_mat.matrix;
     send_matrix not_a_mat.matrix;
     Out_channel.close to_py;
 
@@ -897,6 +910,7 @@ module Fdd = struct
 
     (* convert matrix back to FDD *)
     from_mat iterated ~skeleton:(union ap (map_r not_a ~f:(ActionDist.scale ~scalar:Prob.(of_int 2))))
+
 
 
 
