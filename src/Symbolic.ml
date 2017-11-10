@@ -938,7 +938,7 @@ module Fdd = struct
         )
     | While (a, p) ->
       of_pol_k p (fun p ->
-        k @@ iterate' (of_pred a) p
+        k @@ iterate (of_pred a) p
       )
     | Choice dist ->
       List.map dist ~f:(fun (p, prob) ->
