@@ -79,7 +79,9 @@ let () = begin
   (* run ~print:false (blowup 15); *)
   (* run ~print:false (blowup 20); *)
 
-  run ~print:true (blowup' 1 1);
+  (* run ~print:true (blowup' 1 1); *)
+
+  run (While (True, skip));
 (*
   run(
     neg (???("X", 0)) |> filter
