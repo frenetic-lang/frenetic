@@ -3,25 +3,30 @@ open Probnetkat
 open Symbolic
 open Syntax
 
-module Fdd = struct
+module Fdd_eq = struct
   include Fdd
   let pp fmt fdd = Format.fprintf fmt "%s" (to_string fdd)
+end
+
+let fdd_eq = (module Fdd_eq : Alcotest.TESTABLE with type t = Fdd.t)
+
+module Fdd_equiv = struct
+  include Fdd_eq
   let equal = equivalent
 end
 
-let fdd = (module Fdd : Alcotest.TESTABLE with type t = Fdd.t)
+let fdd_equiv = (module Fdd_equiv : Alcotest.TESTABLE with type t = Fdd.t) 
 
+let test kind name p q = 
+  (name, `Quick, fun () -> Alcotest.check kind "" (Fdd.of_pol p) (Fdd.of_pol q))
 
-let fdd_test_eq name p q = 
-  (name, `Quick, fun () -> Alcotest.check fdd "" (Fdd.of_pol p) (Fdd.of_pol q))
-
-let fdd_test_neq name p q =
-  (name, `Quick, fun () -> Alcotest.(check (neg fdd) "" (Fdd.of_pol p) (Fdd.of_pol q)))
+let test_not kind p q =
+  test (Alcotest.neg kind) p q
 
 let basic_positive = [
 
   (* coin flip example *)
-  fdd_test_eq "coin flip terminates"
+  test fdd_equiv "coin flip terminates"
     PNK.(
       whl (???("c",0)) @@ ?@[
         !!("c", 1) @ 1//2;
@@ -34,7 +39,7 @@ let basic_positive = [
       );
 
   (* distributivity *)
-  fdd_test_eq "distributivity ; ⊕"
+  test fdd_equiv "distributivity ; ⊕"
     PNK.(
       ?@[
         !!("a", 0) @ 1//2;
@@ -55,6 +60,7 @@ let basic_positive = [
     );
 
   (* sparse multi-coin convergence *)
+  begin 
   let field i = sprintf "F%d" i in
   let multi_coin m n =
     let open PNK in
@@ -72,13 +78,25 @@ let basic_positive = [
     end >> (!!("X", 0))
   in
   let m, n = 1,2 in
-  fdd_test_eq "multi-coin convergence" 
+  test fdd_equiv "multi-coin convergence" 
     PNK.( !!("X", 0) >> seqi m ~f:(fun i -> !!(field i, 0)) )
     (multi_coin m n)
+  end;
+
+  (* fdd equivalence *)
+  test fdd_equiv "equivalent but not equal fdds: equivalent"
+    PNK.( ite (???("x", 0)) skip         skip )
+    PNK.( ite (???("x", 0)) (!!("x", 0)) skip );
+  test_not fdd_eq "equivalent but not equal fdds: not equal"
+    PNK.( ite (???("x", 0)) skip         skip )
+    PNK.( ite (???("x", 0)) (!!("x", 0)) skip );
+
+
 ]
 
 let basic_negative = [
-  fdd_test_neq "skip ≠ drop" PNK.skip PNK.drop
+  test_not fdd_eq "skip ≠ drop" PNK.skip PNK.drop;
+
 ]
 
 (* let qcheck_tests = [
