@@ -71,10 +71,10 @@ let basic_positive = [
       )
     end >> (!!("X", 0))
   in
-  let m, n = 2,2 in
-  fdd_test_eq "multi-coin convergence" (multi_coin m n) PNK.(
-    !!("X", 0) >> seqi m ~f:(fun i -> !!(field i, 0))
-  )
+  let m, n = 1,2 in
+  fdd_test_eq "multi-coin convergence" 
+    PNK.( !!("X", 0) >> seqi m ~f:(fun i -> !!(field i, 0)) )
+    (multi_coin m n)
 ]
 
 let basic_negative = [
