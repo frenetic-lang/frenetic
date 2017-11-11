@@ -649,8 +649,7 @@ module Matrix = struct
         (Prob.to_float p)
     )) *)
     |> List.concat_map ~f:(maplet_to_matrix_entries coding)
-    |> List.iter ~f:(fun (i,j,v) ->
-      Sparse.set matrix i j Prob.(to_float v));
+    |> List.iter ~f:(fun (i,j,v) -> Sparse.set matrix i j Prob.(to_float v));
     { matrix; coding; dom }
 
 
@@ -884,7 +883,7 @@ module Fdd = struct
     assert (m = n && n = m' && m' = n');
     let send_matrix mat = begin
       Out_channel.fprintf to_py "%d %d\n" n n;
-      Sparse.iteri (fun i j v -> Out_channel.fprintf to_py "%d %d %f\n" i j v) mat;
+      Sparse.iteri_nz (fun i j v -> Out_channel.fprintf to_py "%d %d %f\n" i j v) mat;
       Out_channel.fprintf to_py "\n%!";
     end in
     send_matrix ap_mat.matrix;
