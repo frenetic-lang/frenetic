@@ -11,24 +11,48 @@ def eprint(*args, **kwargs):
 def main():
     eprint("[python] waiting for input matrices ...")
 
-    # # load matrices
-    (Q, (nt,nt_)) = read_matrix()
-    eprint("[python] Q received (%dx%d)!" % (nt, nt_), flush=True)
-    (R, (nt__,na)) = read_matrix()
-    eprint("[python] R received (%dx%d)!" % (nt__, na), flush=True)
-    assert(nt == nt_ == nt__ == na)
-    eprint("[python] %dx%d matrices received!" % (nt, nt))
+    # load matrices
+    (Q, (nq,nq_)) = read_matrix()
+    eprint("[python] Q received (%dx%d)!" % (nq, nq_), flush=True)
+    (X, (nx,nx_)) = read_matrix()
+    eprint("[python] X received (%dx%d)!" % (nx, nx_), flush=True)
+    (R, (nr,nr_)) = read_matrix()
+    eprint("[python] R received (%dx%d)!" % (nr, nr_), flush=True)
+    assert(nq == nq_ == nx == nx_ == nr == nr_)
+    n = nq
+    eprint("[python] %dx%d matrices received!" % (n, n))
 
-
-    # compute absorption probabilities: n_t x n_a matrix
+    # print received matrices
     eprint("[python] Q =\n", Q.toarray())
+    eprint("[python] X =\n", X.toarray())
     eprint("[python] R =\n", R.toarray())
-    A = sparse.eye(nt) - Q
+
+    # need to handle 1-dimensional case seperately
+    if n == 1:
+        if R[0] == 1:
+            # return all-ones matrix
+            write_matrix(R)
+        else:
+            # return all-zeros matrix
+            write_matrix(sparse.dok_matrix((1,1), dtype='d'))
+        exit(0)
+
+    # first, check wich states can even reach an absorbing state ever
+    non_sing = np.any(X, axis=1)
+    eprint("[python] non-singular = non_sing", non_sing)
+
+    # set up system just for the non singular states
+    Q = Q[non_sing, non_sing]
+    R = R[non_sing, non_sing]
+    A = eqe(np.sum(non_sing)) - Q
+    A.tocsc()
+    R.tocsc()
     X = linalg.spsolve(A, R)
-    # eprint("[python] X =\n", X.toarray())
+    XX = sparse.dok_matrix((n, n), dtype='d')
+    XX[non_sing, non_sing] = X
 
     # write matrix back
-    write_matrix(X)
+    write_matrix(XX)
 
 
 def read_matrix():
@@ -39,7 +63,7 @@ def read_matrix():
         parts = line.split()
         if len(parts) == 0:
             # end of input
-            return (A.tocsc(), shape)
+            return (A, shape)
         elif len(parts) == 3:
             (i, j, a) = parts
             A[int(i), int(j)] = np.float64(a)

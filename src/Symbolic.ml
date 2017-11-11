@@ -830,7 +830,7 @@ module Fdd = struct
       let p1024 = seq p512 p512 in
       (p512, p1024)
     in
-    if equal p512 p1024 then seq p1024 not_a else
+    (* if equal p512 p1024 then seq p1024 not_a else *)
 
     (* compute domain of FDDs; i.e., how many indices do we need for the matrix
        representation and what does each index preresent? *)
@@ -846,7 +846,7 @@ module Fdd = struct
     let rec loop x m =
       if m >= n then x else loop (seq x x) (m*2)
     in
-    let x = loop p1024 m in
+    let x = seq (loop p1024 m) not_a in
 
     (* convert FDDs to matrices *)
     let ap_mat = Matrix.of_fdd ap coding in
