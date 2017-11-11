@@ -19,6 +19,7 @@ module Make (Dom : Vlr.HashCmp) = struct
   let support = T.keys
 
   let to_string t =
+    if T.is_empty t then "⊥" else
     T.sexp_of_t Prob.sexp_of_t t
     |> Sexp.to_string
 

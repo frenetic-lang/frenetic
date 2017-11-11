@@ -12,26 +12,26 @@ def main():
     eprint("[python] waiting for input matrices ...")
 
     # load matrices
-    (Q, (nq,nq_)) = read_matrix()
-    eprint("[python] Q received (%dx%d)!" % (nq, nq_), flush=True)
+    (AP, (nq,nq_)) = read_matrix()
+    eprint("[python] AP received (%dx%d)!" % (nq, nq_), flush=True)
     (X, (nx,nx_)) = read_matrix()
     eprint("[python] X received (%dx%d)!" % (nx, nx_), flush=True)
-    (R, (nr,nr_)) = read_matrix()
-    eprint("[python] R received (%dx%d)!" % (nr, nr_), flush=True)
-    assert(nq == nq_ == nx == nx_ == nr == nr_)
+    (not_a, nr) = read_vector()
+    eprint("[python] not_a received (%dx1)!" % nr, flush=True)
+    assert(nq == nq_ == nx == nx_ == nr)
     n = nq
     eprint("[python] %dx%d matrices received!" % (n, n))
 
     # print received matrices
-    eprint("[python] Q =\n", Q.toarray())
+    eprint("[python] AP =\n", AP.toarray())
     eprint("[python] X =\n", X.toarray())
-    eprint("[python] R =\n", R.toarray())
+    eprint("[python] not_a =\n", not_a)
 
-    # need to handle 1-dimensional case seperately
+    # need to handle 1-dimensionoal case seperately
     if n == 1:
-        if R[0] == 1:
+        if not_a[0] == 1:
             # return all-ones matrix
-            write_matrix(R)
+            write_matrix(sparse.eye(1, 1))
         else:
             # return all-zeros matrix
             write_matrix(sparse.dok_matrix((1,1), dtype='d'))
@@ -42,12 +42,12 @@ def main():
     eprint("[python] non-singular = non_sing", non_sing)
 
     # set up system just for the non singular states
-    Q = Q[non_sing, non_sing]
-    R = R[non_sing, non_sing]
-    A = eqe(np.sum(non_sing)) - Q
+    AP = AP[non_sing, non_sing]
+    NA = NA[non_sing, non_sing]
+    A = eqe(np.sum(non_sing)) - AP
     A.tocsc()
-    R.tocsc()
-    X = linalg.spsolve(A, R)
+    NA.tocsc()
+    X = linalg.spsolve(A, NA)
     XX = sparse.dok_matrix((n, n), dtype='d')
     XX[non_sing, non_sing] = X
 
@@ -70,6 +70,25 @@ def read_matrix():
         else:
             raise NameError("unepexted input line: %s" % line)
     raise NameError("reachead end of input stream before end of matrix!")
+
+def read_vector():
+    (M, N) = sys.stdin.readline().split()
+    assert(M == N)
+    v = np.zeros(int(M), dtype='d')
+    for line in sys.stdin:
+        eprint("[python] received: \"%s\"" % line)
+        parts = line.split()
+        if len(parts) == 0:
+            # end of input
+            return (v, shape)
+        elif len(parts) == 3:
+            (i, j, a) = parts
+            i,j = int(i), int(j)
+            assert(i == j)
+            v[i] = np.float64(a)
+        else:
+            raise NameError("unepexted input line: %s" % line)
+    raise NameError("reachead end of input stream before end of vector!")
 
 
 def write_matrix(A):

@@ -252,6 +252,15 @@ module ActionDist = struct
     (* This implements negation for the [zero] and [one] actions. Any
        non-[zero] action will be mapped to [zero] by this function. *)
     if is_zero t then one else zero
+
+  let to_string t =
+    if is_empty t then "⊥" else
+    to_alist t
+    |> List.map ~f:(fun (act, prob) -> sprintf "%s @ %s" 
+                    (Action.to_string act) 
+                    (Prob.to_string prob))
+    |> String.concat ~sep:"; "
+    |> sprintf "{ %s }"
 end
 
 
@@ -820,6 +829,9 @@ module Fdd = struct
     (* transition matrix for absorbing states, i.e. those not satisfying [a] *)
     let not_a = negate a in
 
+    printf "ap = %s\n%!" (to_string ap);
+    printf "not_a = %s\n%!" (to_string not_a);
+
     (* first, try compuyting naive fixed-point *)
     let rec loop p n =
       if n <= 1 then p else loop (seq p p) (n-1)
@@ -830,6 +842,7 @@ module Fdd = struct
       let p1024 = seq p512 p512 in
       (p512, p1024)
     in
+    (* FIXME: add this line back! *)
     (* if equal p512 p1024 then seq p1024 not_a else *)
 
     (* compute domain of FDDs; i.e., how many indices do we need for the matrix

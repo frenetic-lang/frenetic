@@ -62,26 +62,26 @@ let blowup' m n =
 let () = begin
   let open PNK in
 
-(*   run (??("sw", 1) >> !!("port", 1));
-
+  (* run (??("sw", 1) >> !!("port", 1)); *)
+(* 
   run (?@[ !!("x", 1) @ 1//2 ;
            !!("x", 2) @ 1//2 ] >>
        ?@[ !!("y", 1) @ 1//2 ;
            !!("y", 2) @ 1//2 ]
       );
-
+ *)
   run(
     whl (???("x", 0)) (
       ?@[ !!("x", 1) @ 1//2 ; skip @ 1//2 ]
     )
-  ); *)
+  );
 
   (* run ~print:false (blowup 15); *)
   (* run ~print:false (blowup 20); *)
 
   (* run ~print:true (blowup' 1 1); *)
 
-  run (While (True, skip));
+  (* run (While (True, skip)); *)
 (*
   run(
     neg (???("X", 0)) |> filter
