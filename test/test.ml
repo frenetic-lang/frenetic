@@ -25,6 +25,20 @@ let test_not kind p q =
 
 let basic_positive = [
 
+  (* degenerate non-terminating loop *)
+  test fdd_equiv "degenerate non-terminating loop"
+    PNK.( whl True skip )
+    PNK.( drop );
+
+  (* non-degenerate non-terminating loop *)
+  test fdd_equiv "non-degenerate non-terminating loop"
+    PNK.( whl True @@ ?@[
+            !!("x", 0) @ 1//3;
+            ??("x", 1) @ 2//3;
+          ] 
+    )
+    PNK.( drop );
+
   (* coin flip example *)
   test fdd_equiv "coin flip terminates"
     PNK.(
@@ -64,7 +78,7 @@ let basic_positive = [
   let field i = sprintf "F%d" i in
   let multi_coin m n =
     let open PNK in
-    mk_while (neg @@ conji m ~f:(fun i -> ???(field i, 0))) begin
+    whl (neg @@ conji m ~f:(fun i -> ???(field i, 0))) begin
       seqi m ~f:(fun i ->
         ite (???("X", i)) (
           uniform n ~f:(fun j ->
