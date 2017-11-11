@@ -38,8 +38,8 @@ def main():
         exit(0)
 
     # first, check wich states can even reach an absorbing state ever
-    non_sing = np.any(X, axis=1)
-    eprint("[python] non-singular = non_sing", non_sing)
+    non_sing = X.dot(not_a)
+    eprint("[python] non-singular = ", non_sing)
 
     # set up system just for the non singular states
     AP = AP[non_sing, non_sing]
@@ -74,9 +74,10 @@ def read_matrix():
 def read_vector():
     (M, N) = sys.stdin.readline().split()
     assert(M == N)
-    v = np.zeros(int(M), dtype='d')
+    shape = int(M)
+    v = np.zeros(shape, dtype='d')
     for line in sys.stdin:
-        eprint("[python] received: \"%s\"" % line)
+        eprint("[python] received: \"%s\"" % line.strip())
         parts = line.split()
         if len(parts) == 0:
             # end of input
