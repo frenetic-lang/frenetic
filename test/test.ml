@@ -82,9 +82,10 @@ let basic_positive = [
 
   (* sparse multi-coin convergence *)
   begin 
-  let field i = sprintf "F%d" i in
+  let field i = sprintf "Y%d" i in
   let multi_coin m n =
     let open PNK in
+    (!!("X", 0)) >>
     whl (neg @@ conji m ~f:(fun i -> ???(field i, 0))) begin
       seqi m ~f:(fun i ->
         ite (???("X", i)) (

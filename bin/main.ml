@@ -57,7 +57,7 @@ let blowup' m n =
     )
   )
   |> whl (conji m ~f:(fun i -> ???(field (i+1), 0)) |> neg)
-  |> (fun p -> seq p (!!(field 0, 0)))
+  |> (fun p -> (!!(field 0, 0)) >> p >> (!!(field 0, 0)))
 
 let () = begin
   let open PNK in
@@ -71,9 +71,7 @@ let () = begin
       );
  *)
   
-  run( ite (???("X",0)) (!!("X", 1)) skip 
-          >> filter( neg (???("X", 0)) )
-    )
+  run( blowup' 1 1 )
 
   (* run ~print:false (blowup 15); *)
   (* run ~print:false (blowup 20); *)
