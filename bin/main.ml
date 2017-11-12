@@ -22,14 +22,14 @@ let run ?(print=true) ?(debug=false) ?(verbose=false) p =
   fprintf fmt "policy = %a\n\n%!" pp_policy p;
   let fdd = Symbolic.Fdd.of_pol p in
   if print then fprintf fmt "fdd = %s\n\n%!" (Symbolic.Fdd.to_string fdd);
-  if print then begin
+(*   if print then begin
     let dom = Symbolic.Domain.of_fdd fdd in
     let module Repr = Symbolic.Coding(struct let domain = dom end) in
     let repr = (module Repr : CODING) in
     Repr.print();
     let matrix = Matrix.of_fdd fdd repr in
     Owl.Sparse.Matrix.Generic.pp_spmat matrix.matrix;
-  end;
+  end; *)
   ()
 
 let blowup n =
@@ -71,7 +71,7 @@ let () = begin
   (* run ~print:false (blowup 15); *)
   (* run ~print:false (blowup 20); *)
 
-  run ~print:true (blowup' 2 3);
+  run ~print:true (blowup' 5 2);
 
   (* run (While (True, skip)); *)
 (*

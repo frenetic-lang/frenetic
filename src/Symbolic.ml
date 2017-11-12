@@ -836,10 +836,10 @@ module Fdd = struct
 
     (* first, try computing naive fixed-point *)
     let rec loop p n =
-      printf "[ocaml] power iteration, n = %d\n%!" n;
+      printf "[ocaml] naive fixed-point, n = %d\n%!" n;
       if n <= 1 then p else loop (seq p p) (n-1)
     in
-    let (p512, p1024) = Util.timed "power iteration" (fun () ->
+    let (p512, p1024) = Util.timed "naive fixed-point" (fun () ->
       let p1 = union ap not_a in
       let p512 = loop p1 9 in
       let p1024 = seq p512 p512 in
@@ -890,10 +890,11 @@ module Fdd = struct
       Sparse.iteri_nz (fun i j v -> Out_channel.fprintf to_py "%d %d %f\n" i j v) mat;
       Out_channel.fprintf to_py "\n%!";
     end in
-    send_matrix ap_mat.matrix;
-    send_matrix x_mat.matrix;
-    send_matrix not_a_mat.matrix;
-    Out_channel.close to_py;
+    Util.timed "sending matrices to python" (fun () ->
+      send_matrix ap_mat.matrix;
+      send_matrix x_mat.matrix;
+      send_matrix not_a_mat.matrix;
+      Out_channel.close to_py);
 
     (* read back matrix returned by python *)
     let iterated = Matrix.{ ap_mat with matrix = Sparse.zeros n n } in
@@ -902,27 +903,29 @@ module Fdd = struct
       (* printf "[python reply] %s\n%!" l; *)
       l
     in
-    begin try
-      let (m,n') = String.lsplit2_exn (line ()) ~on:' ' in
-      let (m,n') = Int.(of_string m, of_string n') in
-      if m <> n || n' <> n then failwith "no bueno"
-    with
-      | End_of_file -> failwith "python process closed prematurely."
-      | _ -> failwith "malformed first output line"
-    end;
+    Util.timed "waiting for pyton" (fun () ->
+      begin try
+        let (m,n') = String.lsplit2_exn (line ()) ~on:' ' in
+        let (m,n') = Int.(of_string m, of_string n') in
+        if m <> n || n' <> n then failwith "no bueno"
+      with
+        | End_of_file -> failwith "python process closed prematurely."
+        | _ -> failwith "malformed first output line"
+      end;
 
-    begin try while true do
-      match String.split (line ()) ~on:' ' with
-      | [i; j; v] ->
-        let i,j = Int.(of_string i, of_string j) in
-        let v = Float.of_string v in
-        Sparse.set iterated.matrix i j v
-      | _ ->
-        failwith "malformed output line"
-    done with
-      | End_of_file -> ()
-      | _ -> failwith "malformed output line"
-    end;
+      begin try while true do
+        match String.split (line ()) ~on:' ' with
+        | [i; j; v] ->
+          let i,j = Int.(of_string i, of_string j) in
+          let v = Float.of_string v in
+          Sparse.set iterated.matrix i j v
+        | _ ->
+          failwith "malformed output line"
+      done with
+        | End_of_file -> ()
+        | _ -> failwith "malformed output line"
+      end;
+    );
 
     (* convert matrix back to FDD *)
     from_mat iterated ~skeleton:(union ap (map_r not_a ~f:(ActionDist.scale ~scalar:Prob.(of_int 2))))
