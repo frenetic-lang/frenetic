@@ -843,8 +843,7 @@ module Fdd = struct
       (p512, p1024)
     in
     printf "p1024 = %s\n" (to_string p1024);
-    (* FIXME: add this line back! *)
-    (* if equal p512 p1024 then seq p1024 not_a else *)
+    if equal p512 p1024 then seq p1024 not_a else
 
     (* compute domain of FDDs; i.e., how many indices do we need for the matrix
        representation and what does each index preresent? *)
