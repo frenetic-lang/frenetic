@@ -834,16 +834,16 @@ module Fdd = struct
     (* printf "ap = %s\n%!" (to_string ap); *)
     (* printf "not_a = %s\n%!" (to_string not_a); *)
 
-    (* first, try compuyting naive fixed-point *)
+    (* first, try computing naive fixed-point *)
     let rec loop p n =
       printf "[ocaml] power iteration, n = %d\n%!" n;
       if n <= 1 then p else loop (seq p p) (n-1)
     in
-    let (p512, p1024) =
+    let (p512, p1024) = Util.timed "power iteration" (fun () ->
       let p1 = union ap not_a in
       let p512 = loop p1 9 in
       let p1024 = seq p512 p512 in
-      (p512, p1024)
+      (p512, p1024))
     in
     (* printf "p1024 = %s\n" (to_string p1024); *)
     if equal p512 p1024 then seq p1024 not_a else
@@ -866,9 +866,8 @@ module Fdd = struct
     (* printf "x = %s\n" (to_string x); *)
 
     (* convert FDDs to matrices *)
-    let ap_mat = Matrix.of_fdd ap coding in
-    let x_mat = Matrix.of_fdd x coding in
-    let not_a_mat = Matrix.of_fdd not_a coding in
+    let ap_mat, x_mat, not_a_mat = Util.timed "fdd to matrix conversion" (fun () ->
+      Matrix.(of_fdd ap coding, of_fdd x coding, of_fdd not_a coding)) in
 
     (* setup external python script to solve linear system, start in seperate process *)
     let pkg_name = "probnetkat" in

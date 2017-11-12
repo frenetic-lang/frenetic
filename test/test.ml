@@ -23,6 +23,24 @@ let test kind name p q =
 let test_not kind p q =
   test (Alcotest.neg kind) p q
 
+
+let field i = sprintf "Y%d" i
+let multi_coin m n =
+  let open PNK in
+  (!!("X", 0)) >>
+  whl (neg @@ conji m ~f:(fun i -> ???(field i, 0))) begin
+    seqi m ~f:(fun i ->
+      ite (???("X", i)) (
+        uniform n ~f:(fun j ->
+          !!(field i, j)
+        ) >>
+        !! ("X", (i+1) mod m)
+      ) (
+        skip
+      )
+    )
+  end >> (!!("X", 0))
+
 let basic_positive = [
 
   (* predicate *)
@@ -81,26 +99,15 @@ let basic_positive = [
     );
 
   (* sparse multi-coin convergence *)
-  begin 
-  let field i = sprintf "Y%d" i in
-  let multi_coin m n =
-    let open PNK in
-    (!!("X", 0)) >>
-    whl (neg @@ conji m ~f:(fun i -> ???(field i, 0))) begin
-      seqi m ~f:(fun i ->
-        ite (???("X", i)) (
-          uniform n ~f:(fun j ->
-            !!(field i, j)
-          ) >>
-          !! ("X", (i+1) mod m)
-        ) (
-          skip
-        )
-      )
-    end >> (!!("X", 0))
-  in
-  let m, n = 4,2 in
+  begin let m,n = 4,2 in
   test fdd_equiv "multi-coin convergence" 
+    PNK.( !!("X", 0) >> seqi m ~f:(fun i -> !!(field i, 0)) )
+    (multi_coin m n)
+  end;
+
+  (* sparse multi-coin convergence *)
+  begin let m,n = 1,3 in
+  test fdd_equiv "multi-coin with three fields convergence" 
     PNK.( !!("X", 0) >> seqi m ~f:(fun i -> !!(field i, 0)) )
     (multi_coin m n)
   end;

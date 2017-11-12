@@ -7,9 +7,9 @@ let time f x =
   (t2 -. t1, r)
 
 let timed descr f =
-  printf "%s...%!" descr;
+  printf "starting %s...\n%!" descr;
   let t, y = time f () in
-  printf " %f" t;
+  printf "%s done! %f seconds\n%!" descr t;
   y
 
 let print_time time =
