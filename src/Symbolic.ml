@@ -820,6 +820,54 @@ module Fdd = struct
     do_node skeleton Packet.empty
 
 
+  let naive_iterate ap not_a =
+    let rec loop p n =
+      printf "[ocaml] naive fixed-point, n = %d\n%!" n;
+      if n <= 1 then 
+        (p, false) 
+      else
+        let p2 = seq p p in
+        if equal p p2 then (p, true) else loop p2 (n-1)
+    in
+    Util.timed "naive fixed-point" (fun () -> loop (sum ap not_a) 8)
+
+
+  let python_iterate ap not_a (coding : (module CODING)) to_py =
+    let module Coding = (val coding : CODING) in
+    let n = Domain.size Coding.dom in
+
+    (* convert FDDs to matrices *)
+    let ap, not_a = Util.timed "fdd to matrix conversion" (fun () ->
+      Matrix.(of_fdd ap coding, of_fdd not_a coding))
+    in
+
+    (* naive matrix fixedpoint *)
+    let x = Util.timed "iterate matrix squaring" (fun () ->
+      let rec loop mat m =
+        printf "[ocaml] naive matrix fixed-point, n = %d\n%!" m;
+        if m >= n then mat else loop Sparse.(dot mat mat) (m*2)
+      in
+      loop Sparse.(ap.matrix + not_a.matrix) 1
+    )
+    in
+
+    (* FIXME: don't send X; send X * vec(not_a) *)
+
+    (* serialize matrices and send it to python process *)
+    let send_matrix mat =
+      Out_channel.fprintf to_py "%d %d\n" n n;
+      Sparse.iteri_nz (fun i j v -> Out_channel.fprintf to_py "%d %d %f\n" i j v) mat;
+      Out_channel.fprintf to_py "\n%!";
+    in
+
+    Util.timed "sending matrices to python" (fun () ->
+      send_matrix ap.matrix;
+      send_matrix x;
+      send_matrix not_a.matrix;
+      Out_channel.close to_py
+    )
+
+
   (*      X = (AP)*¬A
     Thus  X = ¬A + (AP)X
      <=>  (I-AP)X = ¬A
@@ -834,53 +882,6 @@ module Fdd = struct
     (* printf "ap = %s\n%!" (to_string ap); *)
     (* printf "not_a = %s\n%!" (to_string not_a); *)
 
-    (* first, try computing naive fixed-point *)
-    let rec loop p n =
-      printf "[ocaml] naive fixed-point, n = %d\n%!" n;
-      if n <= 1 then p else loop (seq p p) (n-1)
-    in
-    let (p512, p1024) = Util.timed "naive fixed-point" (fun () ->
-      let p1 = union ap not_a in
-      let p512 = loop p1 9 in
-      let p1024 = seq p512 p512 in
-      (p512, p1024))
-    in
-    (* printf "p1024 = %s\n" (to_string p1024); *)
-    if equal p512 p1024 then seq p1024 not_a else
-
-    (* compute domain of FDDs; i.e., how many indices do we need for the matrix
-       representation and what does each index preresent? *)
-    let dom = Domain.(merge (of_fdd ap) (of_fdd not_a)) in
-    let module Coding = Coding(struct let domain = dom end) in
-    let coding = (module Coding : CODING) in
-    (* Coding.print(); *)
-
-    (* need to unfold loop at least |dom| times to determine which states can
-       reach absorbing states *)
-    let n = Domain.size dom in
-    let m = 1024 in
-    let rec loop x m =
-      if m >= n then x else loop (seq x x) (m*2)
-    in
-    let x = Util.timed (sprintf "more naive fixed-point to p^%d" n) (fun () -> loop p1024 m) in
-    (* printf "x = %s\n" (to_string x); *)
-
-    (* convert FDDs to matrices *)
-    let ap_mat, x_mat, not_a_mat = Util.timed "fdd to matrix conversion" (fun () ->
-      Matrix.(of_fdd ap coding, of_fdd x coding, of_fdd not_a coding)) in
-
-    (* temporary experiment: square matrix instead of FDD *)
-    let _ = Util.timed "iterate matrix squaring" (fun () ->
-      let mat = Util.timed "martrix(ap + ¬a)" (fun () ->
-        Matrix.of_fdd (union ap not_a) coding) in
-      let rec loop mat m =
-        printf "[ocaml] naive matrix fixed-point, n = %d\n%!" m;
-        if m >= n then mat else loop Sparse.(dot mat mat) (m*2)
-      in
-      loop mat.matrix 1
-    )
-    in
-
     (* setup external python script to solve linear system, start in seperate process *)
     let pkg_name = "probnetkat" in
     let script_name = "absorption.pyc" in
@@ -893,54 +894,58 @@ module Fdd = struct
     let cmd = "python3 " ^ pyscript in
     let (from_py, to_py) = Unix.open_process cmd in
 
-    (* serialize matrices and send it to python process *)
-    let (m,n) = Sparse.shape ap_mat.matrix in
-    let (m',n') = Sparse.shape not_a_mat.matrix in
-    assert (m = n && n = m' && m' = n');
-    let send_matrix mat = begin
-      Out_channel.fprintf to_py "%d %d\n" n n;
-      Sparse.iteri_nz (fun i j v -> Out_channel.fprintf to_py "%d %d %f\n" i j v) mat;
-      Out_channel.fprintf to_py "\n%!";
-    end in
-    Util.timed "sending matrices to python" (fun () ->
-      send_matrix ap_mat.matrix;
-      send_matrix x_mat.matrix;
-      send_matrix not_a_mat.matrix;
-      Out_channel.close to_py);
+    (* compute domain of FDDs; i.e., how many indices do we need for the matrix
+       representation and what does each index preresent?
+    *)
+    let dom = Domain.(merge (of_fdd ap) (of_fdd not_a)) in
+    let module Coding = Coding(struct let domain = dom end) in
+    let coding = (module Coding : CODING) in
 
-    (* read back matrix returned by python *)
-    let iterated = Matrix.{ ap_mat with matrix = Sparse.zeros n n } in
-    let line () =
-      let l = In_channel.input_line_exn from_py in
-      (* printf "[python reply] %s\n%!" l; *)
-      l
-    in
-    Util.timed "waiting for pyton" (fun () ->
-      begin try
-        let (m,n') = String.lsplit2_exn (line ()) ~on:' ' in
-        let (m,n') = Int.(of_string m, of_string n') in
-        if m <> n || n' <> n then failwith "no bueno"
-      with
-        | End_of_file -> failwith "python process closed prematurely."
-        | _ -> failwith "malformed first output line"
-      end;
+    (* try computing naive fixed-point and analytical fixed-point in parallel *)
+    match Unix.fork () with
+    | `In_the_child ->
+      (python_iterate ap not_a coding to_py; exit 0)
+    | `In_the_parent child -> begin
+      (* parent process *)
+      let res, converged = naive_iterate ap not_a in
+      if converged then
+        (* kill forked process and return result *)
+        (Signal.(send_i kill (`Pid child)); res)
+      else
+        (* wait for reply from Python *)
+        let n = Domain.size dom in
+        let iterated = Sparse.zeros n n in
+        let line () = In_channel.input_line_exn from_py in
+        
+        Unix.waitpid_exn child;
+        Util.timed "waiting for python" (fun () ->
+          begin try
+            let (m,n') = String.lsplit2_exn (line ()) ~on:' ' in
+            let (m,n') = Int.(of_string m, of_string n') in
+            if m <> n || n' <> n then failwith "no bueno"
+          with
+            | End_of_file -> failwith "python process closed prematurely."
+            | _ -> failwith "malformed first output line"
+          end;
 
-      begin try while true do
-        match String.split (line ()) ~on:' ' with
-        | [i; j; v] ->
-          let i,j = Int.(of_string i, of_string j) in
-          let v = Float.of_string v in
-          Sparse.set iterated.matrix i j v
-        | _ ->
-          failwith "malformed output line"
-      done with
-        | End_of_file -> ()
-        | _ -> failwith "malformed output line"
-      end;
-    );
+          begin try while true do
+            match String.split (line ()) ~on:' ' with
+            | [i; j; v] ->
+              let i,j = Int.(of_string i, of_string j) in
+              let v = Float.of_string v in
+              Sparse.set iterated i j v
+            | _ ->
+              failwith "malformed output line"
+          done with
+            | End_of_file -> ()
+            | _ -> failwith "malformed output line"
+          end;
+        );
 
-    (* convert matrix back to FDD *)
-    from_mat iterated ~skeleton:(union ap (map_r not_a ~f:(ActionDist.scale ~scalar:Prob.(of_int 2))))
+        (* convert matrix back to FDD *)
+        let iterated = Matrix.{ matrix = iterated; dom; coding } in
+        from_mat iterated ~skeleton:(union ap (map_r not_a ~f:(ActionDist.scale ~scalar:Prob.(of_int 2))))
+    end
 
 
 
