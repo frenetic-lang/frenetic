@@ -38,18 +38,17 @@ def main():
         exit(0)
 
     # first, check wich states can even reach an absorbing state ever
-    non_sing = X.dot(not_a)
+    (non_sing,) = np.nonzero(X.dot(not_a))
     eprint("[python] non-singular = ", non_sing)
+    slice = np.ix_(non_sing, non_sing)
 
     # set up system just for the non singular states
-    AP = AP[non_sing, non_sing]
-    NA = NA[non_sing, non_sing]
-    A = eqe(np.sum(non_sing)) - AP
-    A.tocsc()
-    NA.tocsc()
+    A = sparse.eye(non_sing.size) - AP[slice]
+    A = A.tocsc()
+    NA = sparse.diags(not_a[non_sing]).tocsc()
     X = linalg.spsolve(A, NA)
     XX = sparse.dok_matrix((n, n), dtype='d')
-    XX[non_sing, non_sing] = X
+    XX[slice] = X
 
     # write matrix back
     write_matrix(XX)
@@ -77,7 +76,7 @@ def read_vector():
     shape = int(M)
     v = np.zeros(shape, dtype='d')
     for line in sys.stdin:
-        eprint("[python] received: \"%s\"" % line.strip())
+        # eprint("[python] received: \"%s\"" % line.strip())
         parts = line.split()
         if len(parts) == 0:
             # end of input

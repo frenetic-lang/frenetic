@@ -25,6 +25,13 @@ let test_not kind p q =
 
 let basic_positive = [
 
+  (* predicate *)
+  test fdd_equiv "predicate sequentially composed on right"
+    PNK.( ite (???("X",0)) (!!("X", 1)) skip 
+          >> filter( neg (???("X", 0)) )
+    )
+    PNK.( ite (???("X",0)) (!!("X", 1)) skip );
+
   (* degenerate non-terminating loop *)
   test fdd_equiv "degenerate non-terminating loop"
     PNK.( whl True skip )
@@ -42,10 +49,10 @@ let basic_positive = [
   (* coin flip example *)
   test fdd_equiv "coin flip terminates"
     PNK.(
-      whl (???("c",0)) @@ ?@[
-        !!("c", 1) @ 1//2;
-        skip       @ 1//2
-      ])
+      whl (???("c",0)) (
+        ?@[ !!("c", 1) @ 1//2; skip @ 1//2 ]
+      )
+    )
     PNK.(
       ite (???("c", 0)) 
         (!!("c", 1)) 

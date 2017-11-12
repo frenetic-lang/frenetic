@@ -70,11 +70,10 @@ let () = begin
            !!("y", 2) @ 1//2 ]
       );
  *)
-  run(
-    whl (???("x", 0)) (
-      ?@[ !!("x", 1) @ 1//2 ; skip @ 1//2 ]
+  
+  run( ite (???("X",0)) (!!("X", 1)) skip 
+          >> filter( neg (???("X", 0)) )
     )
-  );
 
   (* run ~print:false (blowup 15); *)
   (* run ~print:false (blowup 20); *)

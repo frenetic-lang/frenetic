@@ -256,9 +256,9 @@ module ActionDist = struct
   let to_string t =
     if is_empty t then "⊥" else
     to_alist t
-    |> List.map ~f:(fun (act, prob) -> sprintf "%s @ %s" 
+    |> List.map ~f:(fun (act, prob) -> sprintf "%s @ %f" 
                     (Action.to_string act) 
-                    (Prob.to_string prob))
+                    (Prob.to_float prob))
     |> String.concat ~sep:"; "
     |> sprintf "{ %s }"
 end
@@ -841,6 +841,7 @@ module Fdd = struct
       let p1024 = seq p512 p512 in
       (p512, p1024)
     in
+    printf "p1024 = %s\n" (to_string p1024);
     (* FIXME: add this line back! *)
     (* if equal p512 p1024 then seq p1024 not_a else *)
 
@@ -858,7 +859,8 @@ module Fdd = struct
     let rec loop x m =
       if m >= n then x else loop (seq x x) (m*2)
     in
-    let x = seq (loop p1024 m) not_a in
+    let x = loop p1024 m in
+    printf "x = %s\n" (to_string x);
 
     (* convert FDDs to matrices *)
     let ap_mat = Matrix.of_fdd ap coding in
