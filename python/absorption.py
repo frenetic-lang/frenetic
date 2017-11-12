@@ -6,7 +6,7 @@ from scipy.sparse import linalg
 import fileinput
 import time
 
-verbosity = 1
+verbosity = 0
 
 def eprint(*args, verb=0, **kwargs):
     if verb <= verbosity:
@@ -53,7 +53,7 @@ def main():
     n_trans = transient.size
     tt_slice = np.ix_(transient, transient)
     ta_slice = np.ix_(transient, absorbing)
-    eprint("--> python slice computation: %f seconds" % (time.process_time() - start), verb=0)
+    eprint("--> python reachabilty & slice computation: %f seconds" % (time.process_time() - start), verb=0)
     eprint("[python] non-singular transient = ", transient, verb=2)
     eprint("[python] n = %d, n_abs = %d, n_trans = %d, n_singular = %d" 
            % (n, n_abs, n_trans, n - n_abs - n_trans), verb=1)

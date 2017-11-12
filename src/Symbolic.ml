@@ -822,7 +822,7 @@ module Fdd = struct
 
   let naive_iterate ap not_a =
     let rec loop p n =
-      printf "[ocaml] naive fixed-point, n = %d\n%!" n;
+      (* printf "[ocaml] naive fixed-point, n = %d\n%!" n; *)
       if n <= 1 then 
         (p, false) 
       else
@@ -841,18 +841,6 @@ module Fdd = struct
       Matrix.(of_fdd ap coding, of_fdd not_a coding))
     in
 
-    (* naive matrix fixedpoint *)
-(*     let x = Util.timed "iterate matrix squaring" (fun () ->
-      let rec loop mat m =
-        printf "[ocaml] naive matrix fixed-point, n = %d\n%!" m;
-        if m >= n then mat else loop Sparse.(dot mat mat) (m*2)
-      in
-      loop Sparse.(ap.matrix + not_a.matrix) 1
-    )
-    in *)
-
-    (* FIXME: don't send X; send X * vec(not_a) *)
-
     (* serialize matrices and send it to python process *)
     let send_matrix mat =
       Out_channel.fprintf to_py "%d %d\n" n n;
@@ -862,7 +850,6 @@ module Fdd = struct
 
     Util.timed "sending matrices to python" (fun () ->
       Util.timed "sending ap" (fun () -> send_matrix ap.matrix);
-      (* Util.timed "sending x" (fun () -> send_matrix x); *)
       Util.timed "sending not_a" (fun () -> send_matrix not_a.matrix);
       Out_channel.close to_py
     )
@@ -988,7 +975,8 @@ module Fdd = struct
         )
     | While (a, p) ->
       of_pol_k p (fun p ->
-        k @@ iterate (of_pred a) p
+        let a = of_pred a in
+        k @@ Util.timed "while loop" (fun () -> iterate a p)
       )
     | Choice dist ->
       List.map dist ~f:(fun (p, prob) ->
