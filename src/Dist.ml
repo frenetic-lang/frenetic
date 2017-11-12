@@ -31,7 +31,7 @@ module Make (Dom : Vlr.HashCmp) = struct
   let to_alist = T.to_alist ~key_order:`Increasing
 
   (* point mass distribution *)
-  let dirac (p : Dom.t) : t = T.singleton p Prob.one
+  let dirac ?(weight=Prob.one) (p : Dom.t) : t = T.singleton p weight
 
   (* pointwise sum of distributions *)
   let sum t1 t2 : t =

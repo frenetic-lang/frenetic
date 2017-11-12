@@ -792,8 +792,9 @@ module Fdd = struct
       dp_map t
         ~f:(fun dist ->
           List.map (ActionDist.to_alist dist) ~f:(fun (action, prob) ->
-            restrict_map (Action.to_hvs action) u ~f:(fun leaf ->
-              ActionDist.scale leaf ~scalar:prob))
+            restrict (Action.to_hvs action) u
+            |> prod (const ActionDist.(dirac  action ~weight:prob))
+          )
           |> List.fold ~init:drop ~f:sum
         )
         ~g:(fun v t f -> cond v t f)
