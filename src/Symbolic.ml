@@ -842,14 +842,14 @@ module Fdd = struct
     in
 
     (* naive matrix fixedpoint *)
-    let x = Util.timed "iterate matrix squaring" (fun () ->
+(*     let x = Util.timed "iterate matrix squaring" (fun () ->
       let rec loop mat m =
         printf "[ocaml] naive matrix fixed-point, n = %d\n%!" m;
         if m >= n then mat else loop Sparse.(dot mat mat) (m*2)
       in
       loop Sparse.(ap.matrix + not_a.matrix) 1
     )
-    in
+    in *)
 
     (* FIXME: don't send X; send X * vec(not_a) *)
 
@@ -861,9 +861,9 @@ module Fdd = struct
     in
 
     Util.timed "sending matrices to python" (fun () ->
-      send_matrix ap.matrix;
-      send_matrix x;
-      send_matrix not_a.matrix;
+      Util.timed "sending ap" (fun () -> send_matrix ap.matrix);
+      (* Util.timed "sending x" (fun () -> send_matrix x); *)
+      Util.timed "sending not_a" (fun () -> send_matrix not_a.matrix);
       Out_channel.close to_py
     )
 

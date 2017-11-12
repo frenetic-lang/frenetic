@@ -73,6 +73,12 @@ let () = begin
 
   run ~print:true (blowup' 6 2);
 
+(*   run (
+    whl (???("c",0)) (
+        ?@[ !!("c", 1) @ 1//2; skip @ 1//2 ]
+    )
+  ) *)
+
   (* run (While (True, skip)); *)
 (*
   run(

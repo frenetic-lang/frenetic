@@ -6,30 +6,27 @@ from scipy.sparse import linalg
 import fileinput
 import time
 
-debug = False
+verbosity = 1
 
-def eprint(*args, **kwargs):
-    if debug:
+def eprint(*args, verb=0, **kwargs):
+    if verb <= verbosity:
         print(*args, file=sys.stderr, **kwargs)
 
 def main():
-    eprint("[python] waiting for input matrices ...")
+    eprint("[python] waiting for input matrices ...", verb=1)
 
     # load matrices
     (AP, (nq,nq_)) = read_matrix()
-    eprint("[python] AP received (%dx%d)!" % (nq, nq_), flush=True)
-    (X, (nx,nx_)) = read_matrix()
-    eprint("[python] X received (%dx%d)!" % (nx, nx_), flush=True)
+    eprint("[python] AP received (%dx%d)!" % (nq, nq_), flush=True, verb=2)
     (not_a, nr) = read_vector()
-    eprint("[python] not_a received (%dx1)!" % nr, flush=True)
-    assert(nq == nq_ == nx == nx_ == nr)
+    eprint("[python] not_a received (%dx1)!" % nr, flush=True, verb=2)
+    assert(nq == nq_ == nr)
     n = nq
-    eprint("[python] %dx%d matrices received!" % (n, n))
+    eprint("[python] %dx%d matrices received!" % (n, n), verb=1)
 
     # print received matrices
-    eprint("[python] AP =\n", AP.toarray())
-    eprint("[python] X =\n", X.toarray())
-    eprint("[python] not_a =\n", not_a)
+    eprint("[python] AP =\n", AP.toarray(), verb=3)
+    eprint("[python] not_a =\n", not_a, verb=3)
 
     # need to handle 1-dimensionoal case seperately
     if n == 1:
@@ -41,25 +38,38 @@ def main():
             write_matrix(sparse.dok_matrix((1,1), dtype='d'))
         exit(0)
 
-    # take time
-    start = time.process_time()
-
     # first, check wich states can even reach an absorbing state ever
-    (non_sing,) = np.nonzero(X.dot(not_a))
-    eprint("[python] non-singular = ", non_sing)
-    slice = np.ix_(non_sing, non_sing)
+    start = time.process_time()
+    X = (AP + sparse.diags(not_a)).tocsc()
+    n_abs = sum(not_a)
+    n_trans_upper_bound = n - n_abs
+    i = 1
+    while i < n_trans_upper_bound:
+        eprint("[python] i = ", i, verb=3)
+        X = X.dot(X)
+        i *= 2
+    (absorbing,) = np.nonzero(not_a)
+    (transient,) = np.nonzero((1 - not_a) * X.dot(not_a)) # reachabilty from a using X to not-a
+    n_trans = transient.size
+    tt_slice = np.ix_(transient, transient)
+    ta_slice = np.ix_(transient, absorbing)
+    eprint("--> python slice computation: %f seconds" % (time.process_time() - start), verb=0)
+    eprint("[python] non-singular transient = ", transient, verb=2)
+    eprint("[python] n = %d, n_abs = %d, n_trans = %d, n_singular = %d" 
+           % (n, n_abs, n_trans, n - n_abs - n_trans), verb=1)
 
-    # set up system just for the non singular states
-    A = sparse.eye(non_sing.size) - AP[slice]
-    A = A.tocsc()
-    NA = sparse.diags(not_a[non_sing]).tocsc()
-    X = linalg.spsolve(A, NA)
+    # solve sparse linear system to compute absorption probabilities
+    start = time.process_time()
+    A = sparse.eye(transient.size) - AP[tt_slice]
+    R = AP[ta_slice]
+    X = linalg.spsolve(A.tocsc(), R.tocsc())
     XX = sparse.dok_matrix((n, n), dtype='d')
-    XX[slice] = X
+    XX[ta_slice] = X
+    for i in absorbing:
+        XX[i,i] = 1
 
-    # take time
-    end = time.process_time()
-    print("--> python solver time: %f seconds" % (end - start), file=sys.stderr)
+    # print time
+    eprint("--> python solver time: %f seconds" % (time.process_time() - start), verb=0)
 
     # write matrix back
     write_matrix(XX)
