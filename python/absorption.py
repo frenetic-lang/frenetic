@@ -4,6 +4,7 @@ import numpy as np
 from scipy import sparse
 from scipy.sparse import linalg
 import fileinput
+import time
 
 debug = False
 
@@ -40,6 +41,9 @@ def main():
             write_matrix(sparse.dok_matrix((1,1), dtype='d'))
         exit(0)
 
+    # take time
+    start = time.process_time()
+
     # first, check wich states can even reach an absorbing state ever
     (non_sing,) = np.nonzero(X.dot(not_a))
     eprint("[python] non-singular = ", non_sing)
@@ -52,6 +56,10 @@ def main():
     X = linalg.spsolve(A, NA)
     XX = sparse.dok_matrix((n, n), dtype='d')
     XX[slice] = X
+
+    # take time
+    end = time.process_time()
+    print("--> python solver time: %f seconds" % (end - start), file=sys.stderr)
 
     # write matrix back
     write_matrix(XX)

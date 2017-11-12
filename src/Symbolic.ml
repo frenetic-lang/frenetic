@@ -862,12 +862,24 @@ module Fdd = struct
     let rec loop x m =
       if m >= n then x else loop (seq x x) (m*2)
     in
-    let x = loop p1024 m in
+    let x = Util.timed (sprintf "more naive fixed-point to p^%d" n) (fun () -> loop p1024 m) in
     (* printf "x = %s\n" (to_string x); *)
 
     (* convert FDDs to matrices *)
     let ap_mat, x_mat, not_a_mat = Util.timed "fdd to matrix conversion" (fun () ->
       Matrix.(of_fdd ap coding, of_fdd x coding, of_fdd not_a coding)) in
+
+    (* temporary experiment: square matrix instead of FDD *)
+    let _ = Util.timed "iterate matrix squaring" (fun () ->
+      let mat = Util.timed "martrix(ap + ¬a)" (fun () ->
+        Matrix.of_fdd (union ap not_a) coding) in
+      let rec loop mat m =
+        printf "[ocaml] naive matrix fixed-point, n = %d\n%!" m;
+        if m >= n then mat else loop Sparse.(dot mat mat) (m*2)
+      in
+      loop mat.matrix 1
+    )
+    in
 
     (* setup external python script to solve linear system, start in seperate process *)
     let pkg_name = "probnetkat" in
