@@ -5,8 +5,11 @@ from scipy import sparse
 from scipy.sparse import linalg
 import fileinput
 
+debug = False
+
 def eprint(*args, **kwargs):
-    print(*args, file=sys.stderr, **kwargs)
+    if debug:
+        print(*args, file=sys.stderr, **kwargs)
 
 def main():
     eprint("[python] waiting for input matrices ...")

@@ -829,8 +829,8 @@ module Fdd = struct
     (* transition matrix for absorbing states, i.e. those not satisfying [a] *)
     let not_a = negate a in
 
-    printf "ap = %s\n%!" (to_string ap);
-    printf "not_a = %s\n%!" (to_string not_a);
+    (* printf "ap = %s\n%!" (to_string ap); *)
+    (* printf "not_a = %s\n%!" (to_string not_a); *)
 
     (* first, try compuyting naive fixed-point *)
     let rec loop p n =
@@ -842,7 +842,7 @@ module Fdd = struct
       let p1024 = seq p512 p512 in
       (p512, p1024)
     in
-    printf "p1024 = %s\n" (to_string p1024);
+    (* printf "p1024 = %s\n" (to_string p1024); *)
     if equal p512 p1024 then seq p1024 not_a else
 
     (* compute domain of FDDs; i.e., how many indices do we need for the matrix
@@ -850,7 +850,7 @@ module Fdd = struct
     let dom = Domain.(merge (of_fdd ap) (of_fdd not_a)) in
     let module Coding = Coding(struct let domain = dom end) in
     let coding = (module Coding : CODING) in
-    Coding.print();
+    (* Coding.print(); *)
 
     (* need to unfold loop at least |dom| times to determine which states can
        reach absorbing states *)
@@ -860,7 +860,7 @@ module Fdd = struct
       if m >= n then x else loop (seq x x) (m*2)
     in
     let x = loop p1024 m in
-    printf "x = %s\n" (to_string x);
+    (* printf "x = %s\n" (to_string x); *)
 
     (* convert FDDs to matrices *)
     let ap_mat = Matrix.of_fdd ap coding in

@@ -99,7 +99,7 @@ let basic_positive = [
       )
     end >> (!!("X", 0))
   in
-  let m, n = 1,2 in
+  let m, n = 4,2 in
   test fdd_equiv "multi-coin convergence" 
     PNK.( !!("X", 0) >> seqi m ~f:(fun i -> !!(field i, 0)) )
     (multi_coin m n)

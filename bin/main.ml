@@ -21,19 +21,18 @@ let run ?(print=true) ?(debug=false) ?(verbose=false) p =
   printf "\n========================= Probnetkat ==========================\n%!";
   fprintf fmt "policy = %a\n\n%!" pp_policy p;
   let fdd = Symbolic.Fdd.of_pol p in
-  fprintf fmt "fdd = %s\n\n%!" (Symbolic.Fdd.to_string fdd);
-  let dom = Symbolic.Domain.of_fdd fdd in
-  (* fprintf fmt "domain size = %d\n" (Domain.size dom); *)
-  let module Repr = Symbolic.Coding(struct let domain = dom end) in
-  let repr = (module Repr : CODING) in
+  if print then fprintf fmt "fdd = %s\n\n%!" (Symbolic.Fdd.to_string fdd);
   (* Repr.print(); *)
   if print then begin
+      let dom = Symbolic.Domain.of_fdd fdd in
+    fprintf fmt "domain size = %d\n" (Domain.size dom);
+    let module Repr = Symbolic.Coding(struct let domain = dom end) in
+    let repr = (module Repr : CODING) in
     let matrix = Matrix.of_fdd fdd repr in
     let mc = matrix.matrix in
-    Owl.Sparse.Matrix.Generic.pp_spmat mc;
     let module Coding = (val matrix.coding : CODING) in
-    (* Coding.print(); *)
-    ()
+    Coding.print();
+    Owl.Sparse.Matrix.Generic.pp_spmat mc;
   end;
   ()
 
@@ -71,7 +70,7 @@ let () = begin
       );
  *)
   
-  run( blowup' 1 1 )
+  run ~print:false ( blowup' 5 2 )
 
   (* run ~print:false (blowup 15); *)
   (* run ~print:false (blowup 20); *)
