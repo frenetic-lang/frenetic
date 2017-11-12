@@ -568,10 +568,12 @@ module Coding(D : DOM) : CODING = struct
     let fprintf = Format.fprintf in
     let n = Domain.size dom in
     fprintf fmt "domain size = %d\n" n;
-    fprintf fmt "index packet mapping:\n%!";
-    Array.init n ~f:ident
-    |> Array.iter ~f:(fun i -> fprintf fmt " %d = %a\n%!" i Index0.pp' i);
-    fprintf fmt "\n%!";
+    if n < 50 then begin
+      fprintf fmt "index packet mapping:\n%!";
+      Array.init n ~f:ident
+      |> Array.iter ~f:(fun i -> fprintf fmt " %d = %a\n%!" i Index0.pp' i);
+      fprintf fmt "\n%!";
+    end
   end
 
 end
@@ -834,6 +836,7 @@ module Fdd = struct
 
     (* first, try compuyting naive fixed-point *)
     let rec loop p n =
+      printf "[ocaml] power iteration, n = %d\n%!" n;
       if n <= 1 then p else loop (seq p p) (n-1)
     in
     let (p512, p1024) =

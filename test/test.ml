@@ -113,6 +113,18 @@ let basic_positive = [
     PNK.( ite (???("x", 0)) skip         skip )
     PNK.( ite (???("x", 0)) (!!("x", 0)) skip );
 
+  (* loop-free speed *)
+  begin
+    let l i = sprintf "l%d" i in
+    let n = 10 in
+    test fdd_equiv "speed test: large matrix, but small FDD"
+      PNK.( seqi n ~f:(fun i -> ?@[ !!(l i, 0) @ 1//2; !!(l i, 1) @ 1//2]) )
+      PNK.( uniform (Int.pow 2 n) ~f:(fun code -> 
+        seqi n ~f:(fun i ->
+          !!(l i, Int.shift_right code i mod 2)
+        )
+      ));
+  end;
 
 ]
 

@@ -5,7 +5,7 @@ from scipy import sparse
 from scipy.sparse import linalg
 import fileinput
 
-debug = False
+debug = True
 
 def eprint(*args, **kwargs):
     if debug:
