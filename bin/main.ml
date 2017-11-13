@@ -71,7 +71,7 @@ let () = begin
   (* run ~print:false (blowup 15); *)
   (* run ~print:false (blowup 20); *)
 
-  run ~print:true (blowup' 7 2);
+  run ~print:true (blowup' 6 2);
 
 (*   run (
     whl (???("c",0)) (

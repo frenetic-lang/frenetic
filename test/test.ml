@@ -51,7 +51,7 @@ let basic_positive = [
     PNK.( ite (???("X",0)) (!!("X", 1)) skip );
 
   (* deterministic loop *)
-  test fdd_equiv "deterministic loop"
+  (* test fdd_equiv "deterministic loop" *)
 
   (* degenerate non-terminating loop *)
   test fdd_equiv "degenerate non-terminating loop"

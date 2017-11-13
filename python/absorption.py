@@ -12,6 +12,27 @@ def eprint(*args, verb=0, **kwargs):
     if verb <= verbosity:
         print(*args, file=sys.stderr, **kwargs)
 
+def reaches(X, absorbing):
+    X = X.tocsc()
+    reaches = [False for _ in range(len(absorbing))]
+    (worklist,) = np.nonzero(absorbing)
+    worklist = worklist.tolist()
+    
+    preds = [[] for _ in range(len(absorbing))]
+    ii,jj = X.nonzero()
+    for i,j in zip(ii,jj):
+        preds[j].append(i)
+
+    while worklist:
+        s = worklist.pop()
+        for pred in preds[s]:
+            if reaches[pred]: continue
+            reaches[pred] = True
+            worklist.append(pred)
+    return np.nonzero(reaches)
+
+
+
 def main():
     eprint("[python] waiting for input matrices ...", verb=1)
 
@@ -25,8 +46,8 @@ def main():
     eprint("[python] %dx%d matrices received!" % (n, n), verb=1)
 
     # print received matrices
-    eprint("[python] AP =\n", AP.toarray(), verb=3)
-    eprint("[python] not_a =\n", not_a, verb=3)
+    # eprint("[python] AP =\n", AP.toarray(), verb=3)
+    # eprint("[python] not_a =\n", not_a, verb=3)
 
     # need to handle 1-dimensionoal case seperately
     if n == 1:
@@ -40,19 +61,20 @@ def main():
 
     # first, check wich states can even reach an absorbing state ever
     start = time.process_time()
-    X = (AP + sparse.diags(not_a)).tocsc()
+    (transient,) = reaches(AP, not_a)
+    # X = (AP + sparse.diags(not_a)).tocsc()
     n_abs = sum(not_a)
     n_trans_upper_bound = n - n_abs
-    i = 1
-    while i < n_trans_upper_bound:
-        eprint("[python] i = ", i, verb=3)
-        X = X.dot(X)
-        i *= 2
+    # i = 1
+    # while i < n_trans_upper_bound:
+    #     eprint("[python] i = ", i, verb=3)
+    #     X = X.dot(X)
+    #     i *= 2
     eprint("--> python reachabilty computation: %f seconds" % (time.process_time() - start), verb=0)
 
     start = time.process_time()
     (absorbing,) = np.nonzero(not_a)
-    (transient,) = np.nonzero((1 - not_a) * X.dot(not_a)) # reachabilty from a using X to not-a
+    # (transient,) = np.nonzero((1 - not_a) * X.dot(not_a)) # reachabilty from a using X to not-a
     n_trans = transient.size
     eprint("--> python index computation: %f seconds" % (time.process_time() - start), verb=0)
     eprint("[python] non-singular transient = ", transient, verb=2)
