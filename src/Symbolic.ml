@@ -586,11 +586,11 @@ module Fdd0 = struct
 
   type action = Value.t Action.t
 
-  let to_maplets fdd ~dom : (Domain.t * action * Prob.t) list =
-    let rec of_node fdd dom acc =
+  let iter_maplets fdd ~dom ~(f : (Domain.t * action * Prob.t) -> unit) : unit =
+    let rec of_node fdd dom =
       match unget fdd with
       | Leaf r ->
-        of_leaf r dom acc
+        of_leaf r dom
       | Branch ((f,v), tru, fls) ->
         let v = Packet.Const v in
         let tru_dom = Map.add dom ~key:f ~data:Domain.Valset.(singleton v) in
@@ -598,13 +598,13 @@ module Fdd0 = struct
           | None -> assert false
           | Some vs -> Set.remove vs v)
         in
-        of_node tru tru_dom acc
-        |> of_node fls fls_dom
-    and of_leaf dist dom acc =
+        of_node tru tru_dom;
+        of_node fls fls_dom
+    and of_leaf dist dom =
       ActionDist.to_alist dist
-      |> List.fold ~init:acc ~f:(fun acc (act, prob) -> (dom, act, prob) :: acc)
+      |> List.iter ~f:(fun (act, prob) -> f (dom, act, prob))
     in
-    of_node fdd dom []
+    of_node fdd dom
 end
 
 
@@ -638,22 +638,13 @@ module Matrix = struct
       ((Conv.Index0.of_pk pk).i, (Conv.Index0.of_pk pk').i, prob)
     )
 
-  let of_fdd fdd (coding : (module CODING)) =
+  let iter_fdd_entries fdd (coding : (module CODING)) ~f =
     let module Coding = (val coding : CODING) in
     let dom = Coding.dom in
-    let n = Domain.size dom in
-    let matrix = Sparse.zeros n n in
-    Fdd0.to_maplets fdd ~dom
-(*     |> Util.tap ~f:(List.map ~f:(fun (dom, act, p) ->
-      printf "< pk = %s\n; action = %s\n; prob = %f\n>\n%!"
-        (Domain.to_string dom)
-        (Action.to_string act)
-        (Prob.to_float p)
-    )) *)
-    |> List.concat_map ~f:(maplet_to_matrix_entries coding)
-    |> List.iter ~f:(fun (i,j,v) -> Sparse.set matrix i j Prob.(to_float v));
-    { matrix; coding; dom }
-
+    Fdd0.iter_maplets fdd ~dom ~f:(fun maplet ->
+      maplet_to_matrix_entries coding maplet
+      |> List.iter ~f
+    )
 
 
   let get_pk_action t pk : ActionDist.t =
@@ -836,21 +827,17 @@ module Fdd = struct
     let module Coding = (val coding : CODING) in
     let n = Domain.size Coding.dom in
 
-    (* convert FDDs to matrices *)
-    let ap, not_a = Util.timed "fdd to matrix conversion" (fun () ->
-      Matrix.(of_fdd ap coding, of_fdd not_a coding))
-    in
-
     (* serialize matrices and send it to python process *)
-    let send_matrix mat =
+    let send_matrix fdd =
       Out_channel.fprintf to_py "%d %d\n" n n;
-      Sparse.iteri_nz (fun i j v -> Out_channel.fprintf to_py "%d %d %f\n" i j v) mat;
+      Matrix.iter_fdd_entries fdd coding ~f:(fun (i,j,p) ->
+        Out_channel.fprintf to_py "%d %d %f\n" i j Prob.(to_float p));
       Out_channel.fprintf to_py "\n%!";
     in
 
-    Util.timed "sending matrices to python" (fun () ->
-      Util.timed "sending ap" (fun () -> send_matrix ap.matrix);
-      Util.timed "sending not_a" (fun () -> send_matrix not_a.matrix);
+    Util.timed "sending fdds as matrices to python" (fun () ->
+      Util.timed "sending ap" (fun () -> send_matrix ap);
+      Util.timed "sending not_a" (fun () -> send_matrix not_a);
       Out_channel.close to_py
     )
 
