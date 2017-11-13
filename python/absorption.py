@@ -12,9 +12,8 @@ def eprint(*args, verb=0, **kwargs):
     if verb <= verbosity:
         print(*args, file=sys.stderr, **kwargs)
 
-def reaches(X, absorbing):
-    X = X.tocsc()
-    reaches = [False for _ in range(len(absorbing))]
+def get_transient(X, absorbing):
+    transient = [False for _ in range(len(absorbing))]
     (worklist,) = np.nonzero(absorbing)
     worklist = worklist.tolist()
     
@@ -26,10 +25,10 @@ def reaches(X, absorbing):
     while worklist:
         s = worklist.pop()
         for pred in preds[s]:
-            if reaches[pred]: continue
-            reaches[pred] = True
+            if transient[pred]: continue
+            transient[pred] = True
             worklist.append(pred)
-    return np.nonzero(reaches)
+    return np.nonzero(transient)
 
 
 
@@ -61,7 +60,7 @@ def main():
 
     # first, check wich states can even reach an absorbing state ever
     start = time.process_time()
-    (transient,) = reaches(AP, not_a)
+    (transient,) = get_transient(AP, not_a)
     # X = (AP + sparse.diags(not_a)).tocsc()
     n_abs = sum(not_a)
     n_trans_upper_bound = n - n_abs
