@@ -51,8 +51,6 @@ def main():
     (absorbing,) = np.nonzero(not_a)
     (transient,) = np.nonzero((1 - not_a) * X.dot(not_a)) # reachabilty from a using X to not-a
     n_trans = transient.size
-    tt_slice = np.ix_(transient, transient)
-    ta_slice = np.ix_(transient, absorbing)
     eprint("--> python reachabilty & slice computation: %f seconds" % (time.process_time() - start), verb=0)
     eprint("[python] non-singular transient = ", transient, verb=2)
     eprint("[python] n = %d, n_abs = %d, n_trans = %d, n_singular = %d" 
@@ -60,15 +58,16 @@ def main():
 
     # solve sparse linear system to compute absorption probabilities
     start = time.process_time()
-    A = sparse.eye(transient.size) - AP[tt_slice]
-    R = AP[ta_slice]
+    AP = AP.tocsr()[transient,:].tocsc()
+    A = sparse.eye(transient.size).tocsc() - AP[:,transient]
+    R = AP[:, absorbing]
     eprint("--> python slicing time: %f seconds" % (time.process_time() - start), verb=0)
 
     start = time.process_time()
     X = linalg.spsolve(A, R)
     eprint("--> python solver time: %f seconds" % (time.process_time() - start), verb=0)
     XX = sparse.lil_matrix((n, n), dtype='d')
-    XX[ta_slice] = X
+    XX[np.ix_(transient, absorbing)] = X
     for i in absorbing:
         XX[i,i] = 1
 
