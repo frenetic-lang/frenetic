@@ -256,8 +256,8 @@ module ActionDist = struct
   let to_string t =
     if is_empty t then "⊥" else
     to_alist t
-    |> List.map ~f:(fun (act, prob) -> sprintf "%s @ %f" 
-                    (Action.to_string act) 
+    |> List.map ~f:(fun (act, prob) -> sprintf "%s @ %f"
+                    (Action.to_string act)
                     (Prob.to_float prob))
     |> String.concat ~sep:"; "
     |> sprintf "{ %s }"
@@ -811,14 +811,14 @@ module Fdd = struct
     do_node skeleton Packet.empty
 
 
-  let naive_iterate ap not_a =
+  let naive_fixedpoint ap not_a =
     let rec loop p n =
       (* printf "[ocaml] naive fixed-point, n = %d\n%!" n; *)
-      if n <= 1 then 
-        (p, false) 
+      if n <= 1 then
+        None
       else
         let p2 = seq p p in
-        if equal p p2 then (p, true) else loop p2 (n-1)
+        if equal p p2 then Some p else loop p2 (n-1)
     in
     Util.timed "naive fixed-point" (fun () -> loop (sum ap not_a) 8)
 
@@ -878,19 +878,21 @@ module Fdd = struct
     (* try computing naive fixed-point and analytical fixed-point in parallel *)
     match Unix.fork () with
     | `In_the_child ->
-      (python_iterate ap not_a coding to_py; exit 0)
-    | `In_the_parent child -> begin
+      python_iterate ap not_a coding to_py;
+      exit 0
+    | `In_the_parent child ->
       (* parent process *)
-      let res, converged = naive_iterate ap not_a in
-      if converged then
+      begin match naive_fixedpoint ap not_a with
+      | Some fixpoint ->
         (* kill forked process and return result *)
-        (Signal.(send_i kill (`Pid child)); res)
-      else
+        Signal.(send_i kill (`Pid child));
+        fixpoint
+      | None ->
         (* wait for reply from Python *)
         let n = Domain.size dom in
         let iterated = Sparse.zeros n n in
         let line () = In_channel.input_line_exn from_py in
-        
+
         Unix.waitpid_exn child;
         Util.timed "waiting for python" (fun () ->
           begin try
@@ -919,7 +921,7 @@ module Fdd = struct
         (* convert matrix back to FDD *)
         let iterated = Matrix.{ matrix = iterated; dom; coding } in
         from_mat iterated ~skeleton:(union ap (map_r not_a ~f:(ActionDist.scale ~scalar:Prob.(of_int 2))))
-    end
+      end
 
 
 
@@ -980,14 +982,14 @@ module Fdd = struct
     let (p, map) = allocate_fields p in
     of_symbolic_pol p
 
-  type weighted_pk = Packet.t * Prob.t [@@deriving compare, eq] 
+  type weighted_pk = Packet.t * Prob.t [@@deriving compare, eq]
 
   let equivalent t1 t2 =
     let rec do_nodes t1 t2 pk =
       match unget t1, unget t2 with
       | Branch ((f1,v1), l1, r1), Branch ((f2,v2), l2, r2) ->
         begin match Field.compare f1 f2 with
-        | -1 -> 
+        | -1 ->
           do_nodes l1 t2 (Packet.modify pk f1 (Const v1)) &&
           do_nodes r1 t2 pk
         | 1 ->
@@ -1005,7 +1007,7 @@ module Fdd = struct
             do_nodes r1 l2 (Packet.modify pk f2 (Const v2)) &&
             do_nodes t1 r2 pk
           | _ -> assert false
-          end   
+          end
         | _ -> assert false
         end
       | Branch ((f1,v1), l1, r1), Leaf _ ->
@@ -1017,7 +1019,7 @@ module Fdd = struct
       | Leaf d1, Leaf d2 ->
         do_leaves d1 d2 pk
     and do_leaves d1 d2 pk =
-     List.equal ~equal:equal_weighted_pk (normalize d1 pk) (normalize d2 pk) 
+     List.equal ~equal:equal_weighted_pk (normalize d1 pk) (normalize d2 pk)
     and normalize dist pk =
       ActionDist.to_alist dist
       |> Util.map_fst ~f:(Packet.apply pk)
