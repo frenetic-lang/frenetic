@@ -810,17 +810,19 @@ module Fdd = struct
     in
     do_node skeleton Packet.empty
 
+  let has_terminated pid =
+    Option.is_some Unix.(wait_nohang@@ `Pid pid)
 
-  let naive_fixedpoint ap not_a =
-    let rec loop p n =
+  let naive_fixedpoint ap not_a ~competitor =
+    let rec loop p =
       (* printf "[ocaml] naive fixed-point, n = %d\n%!" n; *)
-      if n <= 1 then
+      if has_terminated competitor then
         None
       else
         let p2 = seq p p in
-        if equal p p2 then Some p else loop p2 (n-1)
+        if equal p p2 then Some p else loop p2
     in
-    Util.timed "naive fixed-point" (fun () -> loop (sum ap not_a) 8)
+    Util.timed "naive fixed-point" (fun () -> loop (sum ap not_a))
 
 
   let python_iterate ap not_a (coding : (module CODING)) to_py =
@@ -866,7 +868,7 @@ module Fdd = struct
         failwith ("missing ocamlfind dependency: " ^ pkg_name)
     in
     let cmd = "python3 " ^ pyscript in
-    let (from_py, to_py) = Unix.open_process cmd in
+    let (pid_py,from_py, to_py) = Util.Unix.open_process cmd in
 
     (* compute domain of FDDs; i.e., how many indices do we need for the matrix
        representation and what does each index preresent?
@@ -882,10 +884,11 @@ module Fdd = struct
       exit 0
     | `In_the_parent child ->
       (* parent process *)
-      begin match naive_fixedpoint ap not_a with
+      begin match naive_fixedpoint ap not_a ~competitor:pid_py with
       | Some fixpoint ->
         (* kill forked process and return result *)
         Signal.(send_i kill (`Pid child));
+        Signal.(send_i kill (`Pid pid_py));
         fixpoint
       | None ->
         (* wait for reply from Python *)

@@ -58,21 +58,21 @@ let () = begin
   let open PNK in
 
   (* run (??("sw", 1) >> !!("port", 1)); *)
-(* 
+(*
   run (?@[ !!("x", 1) @ 1//2 ;
            !!("x", 2) @ 1//2 ] >>
        ?@[ !!("y", 1) @ 1//2 ;
            !!("y", 2) @ 1//2 ]
       );
  *)
-  
+
   (* run ~print:false ( blowup' 10 2 ) *)
 
   (* run ~print:false (blowup 15); *)
   (* run ~print:false (blowup 20); *)
 
-  (* run ~print:true (blowup' 6 2); *)
-  run ~print:true (blowup' 4 4);
+  run ~print:true (blowup' 6 2);
+  (* run ~print:true (blowup' 4 4); *)
 
 (*   run (
     whl (???("c",0)) (

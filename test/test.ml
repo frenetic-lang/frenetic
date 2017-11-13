@@ -15,9 +15,9 @@ module Fdd_equiv = struct
   let equal = equivalent
 end
 
-let fdd_equiv = (module Fdd_equiv : Alcotest.TESTABLE with type t = Fdd.t) 
+let fdd_equiv = (module Fdd_equiv : Alcotest.TESTABLE with type t = Fdd.t)
 
-let test kind name p q = 
+let test kind name p q =
   (name, `Quick, fun () -> Alcotest.check kind "" (Fdd.of_pol p) (Fdd.of_pol q))
 
 let test_not kind p q =
@@ -45,7 +45,7 @@ let basic_positive = [
 
   (* predicate *)
   test fdd_equiv "predicate sequentially composed on right"
-    PNK.( ite (???("X",0)) (!!("X", 1)) skip 
+    PNK.( ite (???("X",0)) (!!("X", 1)) skip
           >> filter( neg (???("X", 0)) )
     )
     PNK.( ite (???("X",0)) (!!("X", 1)) skip );
@@ -63,7 +63,7 @@ let basic_positive = [
     PNK.( whl True @@ ?@[
             !!("x", 0) @ 1//3;
             ??("x", 1) @ 2//3;
-          ] 
+          ]
     )
     PNK.( drop );
 
@@ -75,8 +75,8 @@ let basic_positive = [
       )
     )
     PNK.(
-      ite (???("c", 0)) 
-        (!!("c", 1)) 
+      ite (???("c", 0))
+        (!!("c", 1))
         skip
       );
 
@@ -102,15 +102,16 @@ let basic_positive = [
     );
 
   (* sparse multi-coin convergence *)
+  (* FIXME: increase m as a regression test *)
   begin let m,n = 4,2 in
-  test fdd_equiv "multi-coin convergence" 
+  test fdd_equiv "multi-coin convergence"
     PNK.( !!("X", 0) >> seqi m ~f:(fun i -> !!(field i, 0)) )
     (multi_coin m n)
   end;
 
   (* sparse multi-coin convergence *)
   begin let m,n = 1,3 in
-  test fdd_equiv "multi-coin with three fields convergence" 
+  test fdd_equiv "multi-coin with three fields convergence"
     PNK.( !!("X", 0) >> seqi m ~f:(fun i -> !!(field i, 0)) )
     (multi_coin m n)
   end;
@@ -129,7 +130,7 @@ let basic_positive = [
     let n = 10 in
     test fdd_equiv "speed test: large matrix, but small FDD"
       PNK.( seqi n ~f:(fun i -> ?@[ !!(l i, 0) @ 1//2; !!(l i, 1) @ 1//2]) )
-      PNK.( uniform (Int.pow 2 n) ~f:(fun code -> 
+      PNK.( uniform (Int.pow 2 n) ~f:(fun code ->
         seqi n ~f:(fun i ->
           !!(l i, Int.shift_right code i mod 2)
         )
