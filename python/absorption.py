@@ -48,10 +48,13 @@ def main():
         eprint("[python] i = ", i, verb=3)
         X = X.dot(X)
         i *= 2
+    eprint("--> python reachabilty computation: %f seconds" % (time.process_time() - start), verb=0)
+
+    start = time.process_time()
     (absorbing,) = np.nonzero(not_a)
     (transient,) = np.nonzero((1 - not_a) * X.dot(not_a)) # reachabilty from a using X to not-a
     n_trans = transient.size
-    eprint("--> python reachabilty & slice computation: %f seconds" % (time.process_time() - start), verb=0)
+    eprint("--> python index computation: %f seconds" % (time.process_time() - start), verb=0)
     eprint("[python] non-singular transient = ", transient, verb=2)
     eprint("[python] n = %d, n_abs = %d, n_trans = %d, n_singular = %d" 
            % (n, n_abs, n_trans, n - n_abs - n_trans), verb=1)
