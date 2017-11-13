@@ -62,14 +62,16 @@ def main():
     start = time.process_time()
     A = sparse.eye(transient.size) - AP[tt_slice]
     R = AP[ta_slice]
-    X = linalg.spsolve(A.tocsc(), R.tocsc())
-    XX = sparse.dok_matrix((n, n), dtype='d')
+    eprint("--> python slicing time: %f seconds" % (time.process_time() - start), verb=0)
+
+    start = time.process_time()
+    X = linalg.spsolve(A, R)
+    eprint("--> python solver time: %f seconds" % (time.process_time() - start), verb=0)
+    XX = sparse.lil_matrix((n, n), dtype='d')
     XX[ta_slice] = X
     for i in absorbing:
         XX[i,i] = 1
 
-    # print time
-    eprint("--> python solver time: %f seconds" % (time.process_time() - start), verb=0)
 
     # write matrix back
     write_matrix(XX)
@@ -78,7 +80,7 @@ def main():
 def read_matrix():
     (M, N) = sys.stdin.readline().split()
     shape = (int(M), int(N))
-    A = sparse.dok_matrix(shape, dtype='d')
+    A = sparse.lil_matrix(shape, dtype='d')
     for line in sys.stdin:
         parts = line.split()
         if len(parts) == 0:
