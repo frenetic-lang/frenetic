@@ -9,7 +9,7 @@ import argparse
 import networkx as nx
 from topolib import *
 
-def mk_topo(n, k, r, bw):
+def mk_topo(n, k, r, bw='1Gbps'):
     # n switches, each with k ports. r ports are used to connect to other
     # switches.
     num_hosts    = n * (k - r)

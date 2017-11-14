@@ -11,7 +11,7 @@ import argparse
 import networkx as nx
 from topolib import *
 
-def mk_topo(pods, bw):
+def mk_topo(pods, bw='1Gbps'):
     num_hosts         = (pods ** 3)/4
     num_agg_switches  = pods * pods
     num_core_switches = (pods * pods)/4

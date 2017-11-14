@@ -33,7 +33,7 @@ def k_lift(g, k):
         g.add_edge(u, v)
     return g
 
-def mk_topo(n, k, r, bw, lift_k=2):
+def mk_topo(n, k, r, bw='1Gbps', lift_k=2):
     # n switches, each with k ports. r ports are used to connect to other
     # switches.
 
