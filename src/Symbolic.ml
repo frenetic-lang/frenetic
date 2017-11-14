@@ -898,8 +898,7 @@ module Fdd = struct
         let iterated = Sparse.zeros n n in
         let line () = In_channel.input_line_exn from_py in
 
-        Unix.waitpid_exn child;
-        Util.timed "waiting for python" (fun () ->
+        Util.timed "receive result from python" (fun () ->
           begin try
             let (m,n') = String.lsplit2_exn (line ()) ~on:' ' in
             let (m,n') = Int.(of_string m, of_string n') in
@@ -925,7 +924,12 @@ module Fdd = struct
 
         (* convert matrix back to FDD *)
         let iterated = Matrix.{ matrix = iterated; dom; coding } in
-        from_mat iterated ~skeleton:(union ap (map_r not_a ~f:(ActionDist.scale ~scalar:Prob.(of_int 2))))
+        Util.timed "matrix -> fdd conversion" (fun () ->
+          let not_a_unique =
+            map_r not_a ~f:(ActionDist.scale ~scalar:Prob.(of_int 2)) in
+          let skeleton = union ap not_a_unique in
+          from_mat iterated ~skeleton
+        )
       end
 
 

@@ -61,19 +61,11 @@ def main():
     # first, check wich states can even reach an absorbing state ever
     start = time.process_time()
     (transient,) = get_transient(AP, not_a)
-    # X = (AP + sparse.diags(not_a)).tocsc()
     n_abs = sum(not_a)
-    n_trans_upper_bound = n - n_abs
-    # i = 1
-    # while i < n_trans_upper_bound:
-    #     eprint("[python] i = ", i, verb=3)
-    #     X = X.dot(X)
-    #     i *= 2
     eprint("--> python reachabilty computation: %f seconds" % (time.process_time() - start), verb=0)
 
     start = time.process_time()
     (absorbing,) = np.nonzero(not_a)
-    # (transient,) = np.nonzero((1 - not_a) * X.dot(not_a)) # reachabilty from a using X to not-a
     n_trans = transient.size
     eprint("--> python index computation: %f seconds" % (time.process_time() - start), verb=0)
     eprint("[python] non-singular transient = ", transient, verb=2)
