@@ -81,6 +81,11 @@ module Make (Dom : Vlr.HashCmp) = struct
     let mean = expectation t f in
     expectation t ~f:(fun point -> Prob.((f point - mean) * (f point - mean)))
 
+  let normalize t =
+    let open Prob in
+    let mass = T.fold t ~init:zero ~f:(fun ~key ~data:p acc -> p + acc) in
+    T.map t ~f:(fun p -> p / mass)
+
   (* Markov Kernel *)
   module Kernel = struct
     type kernel = Dom.t -> t

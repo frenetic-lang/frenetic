@@ -25,4 +25,7 @@ module Make(Dom: Vlr.HashCmp) : sig
 
   (** pushforward along f of the product distribution *)
   val prod_with : t -> t -> f:(Dom.t -> Dom.t -> Dom.t) -> t
+
+  (** normalize probabilities so they sum up to 1 *)
+  val normalize : t -> t
 end
