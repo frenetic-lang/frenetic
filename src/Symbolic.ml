@@ -833,7 +833,10 @@ module Fdd = struct
     let send_matrix fdd =
       Out_channel.fprintf to_py "%d %d\n" n n;
       Matrix.iter_fdd_entries fdd coding ~f:(fun (i,j,p) ->
-        Out_channel.fprintf to_py "%d %d %f\n" i j Prob.(to_float p));
+        Prob.to_float p
+        |> Float.to_string_round_trippable
+        |> Out_channel.fprintf to_py "%d %d %s\n" i j
+      );
       Out_channel.fprintf to_py "\n%!";
     in
 
