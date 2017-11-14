@@ -19,11 +19,15 @@ def mk_topo(pods, bw='1Gbps'):
     hosts = [('h' + str(i), {'type':'host', 'mac':mk_mac(i), 'ip':mk_ip(i)})
              for i in range (1, num_hosts + 1)]
 
-    core_switches = [('s' + str(i), {'type':'switch','id':i})
+    core_switches = [('s' + str(i), {'type':'switch', 'level':'core', 'id':i})
                        for i in range(1,num_core_switches + 1)]
 
-    agg_switches = [('s' + str(i), {'type':'switch','id':i})
+    agg_switches = [('s' + str(i), {'type':'switch', 'level':'aggregation', 'id':i})
                     for i in range(num_core_switches + 1,num_core_switches + num_agg_switches+ 1)]
+    for pod in range(pods):
+        for sw in range(pods/2,pods):
+            agg_switches[(pod*pods) + sw][1]['level'] = 'edge'
+
 
     g = nx.DiGraph()
     g.add_nodes_from(hosts)

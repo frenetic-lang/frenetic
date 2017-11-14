@@ -18,7 +18,7 @@ def mk_topo(n, k, r, bw='1Gbps'):
     hosts = [('h' + str(i), {'type':'host', 'mac':mk_mac(i), 'ip':mk_ip(i)})
              for i in range (1, num_hosts + 1)]
 
-    switches = [('s' + str(i), {'type':'switch','id':i})
+    switches = [('s' + str(i), {'type':'switch', 'level':'edge', 'id':i})
                        for i in range(1,num_switches + 1)]
 
     switch_labels = dict()

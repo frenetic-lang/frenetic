@@ -44,14 +44,13 @@ def mk_topo(n, k, r, bw='1Gbps', lift_k=2):
         h = k_lift(h, lift_k)
 
     num_switches = int(math.ceil((r + 1) * math.pow(lift_k, num_lifts)))
-    print num_switches, nx.number_of_nodes(h)
     assert(nx.number_of_nodes(h) == num_switches)
     num_hosts = num_switches * (k - r)
 
     hosts = [('h' + str(i), {'type':'host', 'mac':mk_mac(i), 'ip':mk_ip(i)})
              for i in range (1, num_hosts + 1)]
 
-    switches = [('s' + str(i), {'type':'switch','id':i})
+    switches = [('s' + str(i), {'type':'switch', 'level':'edge', 'id':i})
                        for i in range(1,num_switches + 1)]
 
     switch_labels = dict()
