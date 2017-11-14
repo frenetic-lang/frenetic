@@ -90,6 +90,17 @@ module Unix = struct
     end in
     close out_read;
     close in_write;
-    (Core.Pid.of_int pid, inchan, outchan)
+
+    (* non-blocking polling *)
+    set_nonblock in_read;
+    let buf = Bytes.create 1 in
+    let poll_inchan () =
+      match read in_read buf 0 1 with
+      | 0 -> false
+      | _ -> clear_nonblock in_read; true
+      | exception Unix_error (EAGAIN, _, _) -> false
+      | exception Unix_error (EWOULDBLOCK, _, _) -> false
+    in
+    (Core.Pid.of_int pid, inchan, outchan, poll_inchan)
 
 end

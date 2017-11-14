@@ -6,7 +6,7 @@ from scipy.sparse import linalg
 import fileinput
 import time
 
-verbosity = 0
+verbosity = 1
 
 def eprint(*args, verb=0, **kwargs):
     if verb <= verbosity:
@@ -97,21 +97,30 @@ def main():
 
 
     # write matrix back
+    notify_ocaml()
     write_matrix(XX)
 
+# send single byte. OCaml will discard it.
+def notify_ocaml():
+    sys.stdout.buffer.write(b"0")
 
 def read_matrix():
     (M, N) = sys.stdin.readline().split()
     shape = (int(M), int(N))
-    A = sparse.lil_matrix(shape, dtype='d')
+    eprint("[python] receiving matrix of size %sx%s" % (M,N), verb=1)
+    I = []; J = []; V = [];
+    # A = sparse.lil_matrix(shape, dtype='d')
     for line in sys.stdin:
         parts = line.split()
         if len(parts) == 0:
             # end of input
+            A = sparse.csr_matrix((V,(I,J)), shape=shape)
             return (A, shape)
         elif len(parts) == 3:
             (i, j, a) = parts
-            A[int(i), int(j)] = np.float64(a)
+            I.append(int(i))
+            J.append(int(j))
+            V.append(np.float64(a))
         else:
             raise NameError("unepexted input line: %s" % line)
     raise NameError("reachead end of input stream before end of matrix!")
