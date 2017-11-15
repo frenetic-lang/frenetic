@@ -95,6 +95,7 @@ def main():
 # send single byte. OCaml will discard it.
 def notify_ocaml():
     sys.stdout.buffer.write(b"0")
+    sys.stdout.flush()
 
 def read_matrix():
     (M, N) = sys.stdin.readline().split()
