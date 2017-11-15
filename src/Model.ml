@@ -18,15 +18,31 @@ module Make(Params: sig
 
   (* the topology *)
   val topo : Net.Topology.t
+  val ingress : string pred
+  val eggress : string pred
 end) = struct
 
+include Params
+
 let rec make () : string policy =
+  PNK.(
+    filter ingress >>
+    whl (neg eggress) (
+      inner_hop ()
+    ) >>
+    final_hop ()
+  )
+
+and inner_hop () =
   failwith "not implemented"
 
 and for_switch sw =
   failwith "not implemented"
 
 and init_up_bits sw =
+  failwith "not implemented"
+
+and final_hop () =
   failwith "not implemented"
 
 
