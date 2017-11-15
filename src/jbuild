@@ -8,10 +8,8 @@
   (libraries (
     core
     owl
-    ;; lacaml
     zarith
     findlib
-    ;; lymp
     frenetic
   ))
   (preprocess (pps (ppx_deriving.std

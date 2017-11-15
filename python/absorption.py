@@ -87,7 +87,6 @@ def main():
     for i in absorbing:
         XX[i,i] = 1
 
-
     # write matrix back
     write_matrix(XX)
 

@@ -700,8 +700,10 @@ module Matrix = struct
     |> List.group ~break:(fun x y -> not (ActionDist.equal x y))
     |> function
       | [act::_] -> act
-      | (act::_)::_ ->
+      | ((act::_)::_) as actions->
         eprintf "!!! WARNING: possibly unsounds matix -> Fdd conversion\n%!";
+        List.concat actions
+        |> List.iter ~f:(fun dist -> printf "  %s\n" (ActionDist.to_string dist));
         act
       | _ -> assert false
 
@@ -980,17 +982,24 @@ module Fdd = struct
 
 
 
-  (** Erases (all matches on) meta field. No need to erase modifications. *)
+  (** Erases (all matches on) meta field, then all modifications. *)
   let erase t meta_field init =
+    let erase_mods =
+      ActionDist.pushforward ~f:(fun act -> Action.remove act meta_field)
+    in
     match init with
     | Const v ->
       restrict [(meta_field,v)] t
+      |> map_r ~f:erase_mods
     | Alias alias ->
-      fold t ~f:const ~g:(fun (field,v) tru fls ->
-        if field = meta_field then
-          cond (alias, v) tru fls
-        else
-          cond (field,v) tru fls)
+      fold t
+        ~f:(fun dist -> const (erase_mods dist))
+        ~g:(fun (field,v) tru fls ->
+          if field = meta_field then
+            cond (alias, v) tru fls
+          else
+            cond (field,v) tru fls
+        )
 
   let rec of_pol_k (p : Field.t policy) k : t =
     match p with

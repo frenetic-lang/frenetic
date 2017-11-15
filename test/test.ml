@@ -137,6 +137,17 @@ let basic_positive = [
       ));
   end;
 
+  (* local fields *)
+  test fdd_equiv "local field loop"
+    PNK.(
+      local ("x", 0) ~mut:true (
+        whl (neg @@ ???("x", 1)) (
+          ?@[ !!("x", 1) @ 1//2; skip @ 1//2 ]
+        )
+      )
+    )
+    PNK.( skip )
+
 ]
 
 let basic_negative = [
