@@ -30,6 +30,21 @@ module Field = struct
       | Meta2
       | Meta3
       | Meta4
+      | Meta5
+      | Meta6
+      | Meta7
+      | Meta8
+      | Meta9
+      | Meta10
+      | Meta11
+      | Meta12
+      | Meta13
+      | Meta14
+      | Meta15
+      | Meta16
+      | Meta17
+      | Meta18
+      | Meta19
       [@@deriving sexp, enumerate, enum, eq, hash]
 
     let num_fields = max + 1
@@ -99,6 +114,21 @@ module Field = struct
         | 2 -> Meta2
         | 3 -> Meta3
         | 4 -> Meta4
+        | 5 -> Meta5
+        | 6 -> Meta6
+        | 7 -> Meta7
+        | 8 -> Meta8
+        | 9 -> Meta9
+        | 10 -> Meta10
+        | 11 -> Meta11
+        | 12 -> Meta12
+        | 13 -> Meta13
+        | 14 -> Meta14
+        | 15 -> Meta15
+        | 16 -> Meta16
+        | 17 -> Meta17
+        | 18 -> Meta18
+        | 19 -> Meta19
         | _ -> raise Full
       in
       { alist = List.Assoc.add ~equal:(=) env.alist name (field, (init, mut));
