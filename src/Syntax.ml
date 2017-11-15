@@ -179,4 +179,8 @@ module PNK = struct
   let ( ?@ ) dist = choice dist (* ?@[p , 1//2; q , 1//2] *)
   let ( // ) m n = Q.(m // n)
   let ( @ ) p r = (p,r)
+  let alias (id, aliasee) ~(mut:bool) body =
+    Let { id; init = Alias aliasee; mut; body }
+  let local (id, value) ~(mut:bool) body =
+    Let { id; init = Const value; mut; body }
 end
