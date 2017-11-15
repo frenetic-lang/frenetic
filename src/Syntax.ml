@@ -113,7 +113,7 @@ module Constructors = struct
       | _ -> Neg a
 
     let disj a b = match a,b with
-      | True, _ 
+      | True, _
       | _, True -> True
       | False, c
       | c, False -> c
@@ -144,6 +144,13 @@ module Constructors = struct
       | False -> q
       | _ -> Ite (a, p, q)
 
+    let ite_cascade (xs : 'a list) ~(otherwise: 'field policy)
+      ~(f : 'a -> 'field pred * 'field policy) : 'field policy =
+      List.fold_right xs ~init:otherwise ~f:(fun x acc ->
+        let guard, body = f x in
+        ite guard body acc
+        )
+
     let whl a p = match a with
       | True -> drop
       | False -> skip
@@ -157,6 +164,9 @@ module Constructors = struct
       Array.init n ~f
       |> Array.fold ~init:skip ~f:seq
 
+    let mk_big_seq pols =
+      List.fold pols ~init:skip ~f:seq
+
     let choicei n ~f =
       Array.init n ~f
       |> Array.to_list
@@ -166,6 +176,16 @@ module Constructors = struct
       choicei n ~f:(fun i -> (f i, Prob.(1//n)))
 
     let mk_big_ite ~default = List.fold ~init:default ~f:(fun q (a, p) -> ite a p q)
+
+    let alias (id, aliasee) ~(mut:bool) body =
+      Let { id; init = Alias aliasee; mut; body }
+    let local (id, value) ~(mut:bool) body =
+      Let { id; init = Const value; mut; body }
+
+    let locals binds body =
+      List.fold_right binds ~init:body ~f:(fun (id, value, mut) body ->
+        local (id,value) ~mut body
+      )
 
 end
 
@@ -179,8 +199,4 @@ module PNK = struct
   let ( ?@ ) dist = choice dist (* ?@[p , 1//2; q , 1//2] *)
   let ( // ) m n = Q.(m // n)
   let ( @ ) p r = (p,r)
-  let alias (id, aliasee) ~(mut:bool) body =
-    Let { id; init = Alias aliasee; mut; body }
-  let local (id, value) ~(mut:bool) body =
-    Let { id; init = Const value; mut; body }
 end
