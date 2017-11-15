@@ -670,6 +670,9 @@ module Matrix = struct
     |> List.group ~break:(fun x y -> not (ActionDist.equal x y))
     |> function
       | [act::_] -> act
+      | (act::_)::_ ->
+        eprintf "!!! WARNING: possibly unsounds matix -> Fdd conversion\n%!";
+        act
       | _ -> assert false
 
 end

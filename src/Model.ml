@@ -14,7 +14,7 @@ module Make(Params: sig
   val pt : string
   val up : int -> int -> string
 
-  (* switch and topo terms for a particular switch *)
+  (* switch term for a particular switch *)
   val sw_pol : Topo.vertex -> int -> string policy
 
   (* probability of link failure for particular link (sw,pt) *)
@@ -30,9 +30,9 @@ end) = struct
 
   let rec make () : string policy =
     PNK.(
+      (* in; (¬eg; p; t)*; eg *)
       filter (Topology.ingress topo) >>
       whl (neg egress) (
-        (* p; t *)
         hop ()
       )
     )
