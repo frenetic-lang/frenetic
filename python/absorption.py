@@ -143,7 +143,7 @@ def write_matrix(A):
     print('%d %d' % (M, N))
     A = A.tocoo()
     for i,j,v in zip(A.row, A.col, A.data):
-        print('%d %d %f' % (i,j,v))
+        print('%d %d %s' % (i,j,repr(v)))
 
 
 if __name__ == '__main__':

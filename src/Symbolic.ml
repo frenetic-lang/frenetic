@@ -256,9 +256,9 @@ module ActionDist = struct
   let to_string t =
     if is_empty t then "⊥" else
     to_alist t
-    |> List.map ~f:(fun (act, prob) -> sprintf "%s @ %f"
+    |> List.map ~f:(fun (act, prob) -> sprintf "%s @ %s"
                     (Action.to_string act)
-                    (Prob.to_float prob))
+                    (Prob.to_float prob |> Float.to_string_round_trippable))
     |> String.concat ~sep:"; "
     |> sprintf "{ %s }"
 end
@@ -657,6 +657,7 @@ module Matrix = struct
         )
         ActionDist.empty
         row
+      |> ActionDist.normalize
     in
     let total_pk_action pk : ActionDist.t =
       let i = (Coding.Index0.of_pk pk).i in
@@ -833,7 +834,10 @@ module Fdd = struct
     let send_matrix fdd =
       Out_channel.fprintf to_py "%d %d\n" n n;
       Matrix.iter_fdd_entries fdd coding ~f:(fun (i,j,p) ->
-        Out_channel.fprintf to_py "%d %d %f\n" i j Prob.(to_float p));
+        Prob.to_float p
+        |> Float.to_string_round_trippable
+        |> Out_channel.fprintf to_py "%d %d %s\n" i j
+      );
       Out_channel.fprintf to_py "\n%!";
     in
 
