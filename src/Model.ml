@@ -63,14 +63,14 @@ end) = struct
     )
 
   and with_init_up_bits sw pts body =
-    let up_bits = List.map pts ~f:(fun pt -> (up sw pt, 0, true)) in
+    let up_bits = List.map pts ~f:(fun pt -> (up sw pt, 1, true)) in
     PNK.locals up_bits body
 
   and init_up_bits sw pts =
     let open PNK in
     List.map pts ~f:(fun pt ->
       let p = failure_prob sw pt in
-      ?@[ !!(up sw pt, 1) @ p; !!(up sw pt, 0) @ Prob.(one - p) ]
+      ?@[ !!(up sw pt, 0) @ p; skip @ Prob.(one - p) ]
     )
     |> mk_big_seq
 
