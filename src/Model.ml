@@ -33,24 +33,22 @@ end) = struct
       filter (Topology.ingress topo) >>
       whl (neg egress) (
         (* p; t *)
-        hop ~final:false ()
-      ) >>
-      (* p *)
-      hop ~final:true ()
+        hop ()
+      )
     )
 
-  and hop ~final () =
+  and hop () =
     let open PNK in
     ite_cascade (Topology.locs topo) ~otherwise:drop ~f:(fun (sw, pts) ->
       let sw_id = Topology.sw_val topo sw in
       let guard = ???(Params.sw, sw_id) in
       let body =
-        (if final then ident else with_init_up_bits sw_id pts) begin
+        with_init_up_bits sw_id pts @@ begin
           ite_cascade pts ~otherwise:drop ~f:(fun pt_id ->
             (???(pt, pt_id), for_loc sw pt_id)
           )
           >>
-          if final then skip else Topology.links_from topo sw ~guard_links:true
+          Topology.links_from topo sw ~guard_links:true
         end
 
       in
@@ -72,11 +70,4 @@ end) = struct
     )
     |> mk_big_seq
 
-end
-
-
-module DefaultParams = struct
-  let sw = "sw"
-  let pt = "pt"
-  let up _sw pt = sprintf "up_%d" pt
 end
