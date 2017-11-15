@@ -43,7 +43,7 @@ let () = begin
   let topo_prog = Topo.to_probnetkat topo ~guard_links:true in
   Format.printf "%a\n\n" Syntax.pp_policy topo_prog;
   Util.timed "topo to Fdd" (fun () -> ignore (Symbolic.Fdd.of_pol topo_prog));
-  let model = Util.timed "building model" (fun () -> Model.make ()) in
+  let model = Util.timed "building model" (fun () -> Model.hop () ~final:false) in
   Format.printf "%a\n\n" Syntax.pp_policy model;
   Util.timed "model to Fdd" (fun () -> ignore (Symbolic.Fdd.of_pol model));
 end

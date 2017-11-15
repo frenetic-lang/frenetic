@@ -18,9 +18,9 @@ let pt_val pt : int =
   Int.of_int32_exn pt
 
 let sw_val topo sw : int =
-  vertex_to_string topo sw
-  (* |> Util.tap ~f:(eprintf "switch \"%s\"\n") *)
-  |> Int.of_string
+  vertex_to_label topo sw
+  |> Node.id
+  |> Int.of_int64_exn
 
 
 let switches topo : vertex list =
