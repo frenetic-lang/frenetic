@@ -1,0 +1,12 @@
+(jbuild_version 1)
+
+(library
+ ((name        frenetic)
+  (public_name frenetic)
+  (wrapped true)
+  (libraries 
+    (frenetic.netkat
+     frenetic.async
+     frenetic.kernel)
+  )
+))
