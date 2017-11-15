@@ -32,6 +32,11 @@ let switches topo : vertex list =
   |> Set.to_list
   (* |> List.map ~f:(Topology.sw_val topo) *)
 
+let is_host topo v =
+  match Node.device (vertex_to_label topo v) with
+  | Node.Host -> true
+  | Node.Middlebox | Node.Switch -> false
+
 let locs topo : (vertex * int list) list =
   List.map (switches topo) ~f:(fun sw ->
     let pts =
@@ -85,5 +90,18 @@ end) = struct
     |> List.map ~f:(find_edge topo sw)
     |> List.map ~f:(link_of_edge topo ~guard:guard_links)
     |> PNK.(mk_big_ite ~default:drop)
+
+  let ingress (topo : Net.Topology.t) : string pred =
+    fold_edges (fun edge acc ->
+      let (src_vertex,src_pt) = edge_src edge in
+      if not (is_host topo src_vertex) then acc else
+      let (dst_sw,dst_pt) = edge_dst edge in
+      let dst_sw = sw_val topo dst_sw in
+      let dst_pt = pt_val dst_pt in
+      PNK.(disj acc (???(sw, dst_sw) & ???(pt, dst_pt)))
+    )
+      topo
+      False
+
 
 end

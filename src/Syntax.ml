@@ -119,6 +119,9 @@ module Constructors = struct
       | c, False -> c
       | _ -> Or (a, b)
 
+    let mk_big_disj =
+      List.fold ~init:False ~f:disj
+
     let conj a b = match a,b with
       | False, _
       | _, False -> False

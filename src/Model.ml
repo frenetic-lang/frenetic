@@ -22,15 +22,15 @@ module Make(Params: sig
 
   (* the topology *)
   val topo : Net.Topology.t
-  val ingress : string pred
   val eggress : string pred
 end) = struct
 
   include Params
+  module Topology = Topology.Make(Params)
 
   let rec make () : string policy =
     PNK.(
-      filter ingress >>
+      filter (Topology.ingress topo) >>
       whl (neg eggress) (
         (* p; t *)
         hop ~final:false ()
@@ -50,7 +50,7 @@ end) = struct
             (???(pt, pt_id), for_loc sw_id pt_id)
           )
           >>
-          if final then skip else Topology.links_from topo sw ~guard:true
+          if final then skip else Topology.links_from topo sw ~guard_links:true
         end
 
       in
