@@ -42,7 +42,7 @@ let blowup' m n =
   let field i = sprintf "F%d" i in
   seqi m ~f:(fun i ->
     ite (???(field 0, i)) (
-      uniform n ~f:(fun j ->
+      uniformi n ~f:(fun j ->
         !!(field (i+1), j)
       ) >>
       !! (field 0, (i+1) mod m)
@@ -203,7 +203,7 @@ let () = begin
   run' (blowup 7) ~print:false; *)
 
   (* run' (whl ??("f", 0) !!("f", 1)); *)
-(*   let uniform =
+(*   let uniformi =
     seqi 4 ~f:(fun i -> let l = sprintf "l%d" i in
                 ?@[!!(l,0), Q.(1//2);
                    !!(l,1), Q.(1//2)])

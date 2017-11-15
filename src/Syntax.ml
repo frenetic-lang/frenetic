@@ -175,8 +175,14 @@ module Constructors = struct
       |> Array.to_list
       |> choice
 
-    let uniform n ~f =
+    let uniformi n ~f =
       choicei n ~f:(fun i -> (f i, Prob.(1//n)))
+
+    let uniform ps =
+      let ps = Array.of_list ps in
+      let n = Array.length ps in
+      uniformi n ~f:(fun i -> ps.(i))
+
 
     let mk_big_ite ~default = List.fold ~init:default ~f:(fun q (a, p) -> ite a p q)
 

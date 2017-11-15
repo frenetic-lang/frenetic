@@ -15,14 +15,14 @@ module Make(Params: sig
   val up : int -> int -> string
 
   (* switch and topo terms for a particular switch *)
-  val sw_pol : int -> int -> string policy
+  val sw_pol : Topo.vertex -> int -> string policy
 
   (* probability of link failure for particular link (sw,pt) *)
   val failure_prob : int -> int -> Prob.t
 
   (* the topology *)
   val topo : Net.Topology.t
-  val eggress : string pred
+  val egress : string pred
 end) = struct
 
   include Params
@@ -31,7 +31,7 @@ end) = struct
   let rec make () : string policy =
     PNK.(
       filter (Topology.ingress topo) >>
-      whl (neg eggress) (
+      whl (neg egress) (
         (* p; t *)
         hop ~final:false ()
       ) >>
@@ -47,7 +47,7 @@ end) = struct
       let body =
         (if final then ident else with_init_up_bits sw_id pts) begin
           ite_cascade pts ~otherwise:drop ~f:(fun pt_id ->
-            (???(pt, pt_id), for_loc sw_id pt_id)
+            (???(pt, pt_id), for_loc sw pt_id)
           )
           >>
           if final then skip else Topology.links_from topo sw ~guard_links:true
