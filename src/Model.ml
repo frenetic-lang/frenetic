@@ -15,7 +15,9 @@ module Make(Params: sig
   val up : int -> int -> string
 
   (* switch term for a particular switch *)
-  val sw_pol : Topo.vertex -> int -> string policy
+  val sw_pol : [ `Switchwise of Topo.vertex -> string policy
+               | `Portwise   of Topo.vertex -> int -> string policy
+               ]
 
   (* probability of link failure for particular link (sw,pt) *)
   val failure_prob : int -> int -> Prob.t
@@ -44,9 +46,14 @@ end) = struct
       let guard = ???(Params.sw, sw_id) in
       let body =
         with_init_up_bits sw_id pts @@ begin
-          ite_cascade pts ~otherwise:drop ~f:(fun pt_id ->
-            (???(pt, pt_id), for_loc sw pt_id)
-          )
+          begin match sw_pol with
+          | `Switchwise pol ->
+            pol sw
+          | `Portwise pol ->
+            ite_cascade pts ~otherwise:drop ~f:(fun pt_id ->
+              (???(pt, pt_id), pol sw pt_id)
+            )
+          end
           >>
           Topology.links_from topo sw ~guard_links:true
         end
@@ -54,9 +61,6 @@ end) = struct
       in
       (guard, body)
     )
-
-  and for_loc sw pt =
-    Params.sw_pol sw pt
 
   and with_init_up_bits sw pts body =
     let up_bits = List.map pts ~f:(fun pt -> (up sw pt, 0, true)) in

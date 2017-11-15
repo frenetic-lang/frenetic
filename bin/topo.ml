@@ -27,12 +27,12 @@ module Parameters = struct
   (* different routing schemes *)
   module Schemes = struct
 
-    let random_walk sw _inpt =
+    let random_walk sw =
       Topology.vertex_to_ports topo sw
       |> List.map ~f:(fun out_pt_id -> PNK.( !!(pt, Topology.pt_val out_pt_id) ))
       |> PNK.uniform
 
-    let resilient_random_walk sw _inpt =
+    let resilient_random_walk sw =
       let pts = Topology.vertex_to_ports topo sw
         |> List.map ~f:Topology.pt_val
       in
@@ -41,13 +41,13 @@ module Parameters = struct
         |> mk_big_disj
       )
       in
-      let choose_port = random_walk sw _inpt in
+      let choose_port = random_walk sw in
       PNK.( choose_port >> whl (neg good_pt) choose_port )
 
   end
 
   (* the actual program to run on the switches *)
-  let sw_pol = Schemes.resilient_random_walk
+  let sw_pol = `Switchwise Schemes.resilient_random_walk
 
 
 end
@@ -63,4 +63,5 @@ let () = begin
   let model = Util.timed "building model" (fun () -> Model.make ()) in
   Format.printf "%a\n\n" Syntax.pp_policy model;
   Util.timed "model to Fdd" (fun () -> ignore (Symbolic.Fdd.of_pol model));
+  printf ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> DONE\n%!"
 end

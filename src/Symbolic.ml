@@ -895,8 +895,8 @@ module Fdd = struct
       | Some fixpoint ->
         eprintf "*** ocaml won race!\n";
         (* kill forked process and return result *)
-        Signal.(send_i kill (`Pid child));
         Signal.(send_i kill (`Pid pid_py));
+        Signal.(send_i kill (`Pid child));
         fixpoint
       | None ->
         eprintf "*** python won race!\n";
