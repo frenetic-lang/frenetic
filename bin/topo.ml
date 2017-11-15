@@ -3,6 +3,7 @@ open Probnetkat
 open Probnetkat.Syntax
 open Frenetic.Network
 
+
 module Parameters = struct
   (* switch field *)
   let sw = "sw"
@@ -23,12 +24,31 @@ module Parameters = struct
     ???(sw, 1) & ???(pt, 1)
   )
 
+  (* different routing schemes *)
+  module Schemes = struct
+
+    let random_walk sw _inpt =
+      Topology.vertex_to_ports topo sw
+      |> List.map ~f:(fun out_pt_id -> PNK.( !!(pt, Topology.pt_val out_pt_id) ))
+      |> PNK.uniform
+
+    let resilient_random_walk sw _inpt =
+      let pts = Topology.vertex_to_ports topo sw
+        |> List.map ~f:Topology.pt_val
+      in
+      let good_pt = PNK.(
+        List.map pts ~f:(fun pt_val -> ???(pt,pt_val) & ???(up sw pt_val, 1))
+        |> mk_big_disj
+      )
+      in
+      let choose_port = random_walk sw _inpt in
+      PNK.( choose_port >> whl (neg good_pt) choose_port )
+
+  end
+
   (* the actual program to run on the switches *)
-  let sw_pol sw _inpt =
-    (* random walk *)
-    Topology.vertex_to_ports topo sw
-    |> List.map ~f:(fun out_pt_id -> PNK.( !!(pt, Topology.pt_val out_pt_id) ))
-    |> PNK.uniform
+  let sw_pol = Schemes.resilient_random_walk
+
 
 end
 
