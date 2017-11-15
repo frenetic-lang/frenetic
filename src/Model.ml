@@ -16,7 +16,6 @@ module Make(Params: sig
 
   (* switch and topo terms for a particular switch *)
   val sw_pol : int -> int -> string policy
-  val links_from : Topo.vertex -> string policy
 
   (* probability of link failure for particular link (sw,pt) *)
   val failure_prob : int -> int -> Prob.t
@@ -51,7 +50,7 @@ end) = struct
             (???(pt, pt_id), for_loc sw_id pt_id)
           )
           >>
-          if final then skip else links_from sw
+          if final then skip else Topology.links_from topo sw ~guard:true
         end
 
       in
