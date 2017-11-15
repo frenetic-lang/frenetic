@@ -76,7 +76,6 @@ module type NETWORK = sig
     val neighbors : t -> vertex -> VertexSet.t
     val find_edge : t -> vertex -> vertex -> edge
     val find_all_edges : t -> vertex -> vertex -> EdgeSet.t
-    val vertex_to_ports : t -> vertex -> PortSet.t
     val next_hop : t -> vertex -> port -> edge option
     val edge_src : edge -> (vertex * port)
     val edge_dst : edge -> (vertex * port)
@@ -349,9 +348,6 @@ struct
             then Some e
             else (loop es') in
       loop (P.succ_e t.graph v1)
-
-    let vertex_to_ports (t:t) (v1:vertex) : PortSet.t =
-      _node_ports t v1.VL.label
 
     (* Iterators *)
     let fold_vertexes (f:vertex -> 'a -> 'a) (t:t) (init:'a) : 'a =

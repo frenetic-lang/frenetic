@@ -74,7 +74,6 @@ module type NETWORK = sig
     val neighbors : t -> vertex -> VertexSet.t
     val find_edge : t -> vertex -> vertex -> edge
     val find_all_edges : t -> vertex -> vertex -> EdgeSet.t
-    val vertex_to_ports : t -> vertex -> PortSet.t
     val next_hop : t -> vertex -> port -> edge option
     val edge_src : edge -> (vertex * port)
     val edge_dst : edge -> (vertex * port)
@@ -181,9 +180,9 @@ module Link : sig
 
 end
 
-module Net : NETWORK 
+module Net : NETWORK
   with type Topology.Vertex.t = Node.t
   and type Topology.Edge.t = Link.t
 
-module NetPath : Net.PATH 
+module NetPath : Net.PATH
   with type weight = float
