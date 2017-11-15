@@ -31,7 +31,7 @@ let multi_coin m n =
   whl (neg @@ conji m ~f:(fun i -> ???(field i, 0))) begin
     seqi m ~f:(fun i ->
       ite (???("X", i)) (
-        uniform n ~f:(fun j ->
+        uniformi n ~f:(fun j ->
           !!(field i, j)
         ) >>
         !! ("X", (i+1) mod m)
@@ -130,7 +130,7 @@ let basic_positive = [
     let n = 10 in
     test fdd_equiv "speed test: large matrix, but small FDD"
       PNK.( seqi n ~f:(fun i -> ?@[ !!(l i, 0) @ 1//2; !!(l i, 1) @ 1//2]) )
-      PNK.( uniform (Int.pow 2 n) ~f:(fun code ->
+      PNK.( uniformi (Int.pow 2 n) ~f:(fun code ->
         seqi n ~f:(fun i ->
           !!(l i, Int.shift_right code i mod 2)
         )
