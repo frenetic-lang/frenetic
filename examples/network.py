@@ -12,6 +12,9 @@ def generate_topology(topo_args):
     if targs[0] == 'fattree':
         pods = int(targs[1])
         topo = fattree.mk_topo(pods)
+    elif targs[0] == 'abfattree':
+        pods = int(targs[1])
+        topo = fattree.mk_topo(pods)
     elif targs[0] == 'jellyfish':
         n = int(targs[1])
         k = int(targs[2])
