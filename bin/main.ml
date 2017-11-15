@@ -70,7 +70,7 @@ let () = begin
   (* run ~print:false (blowup 15); *)
   (* run ~print:false (blowup 20); *)
 
-  run ~print:true (blowup' 1 3);
+  run ~print:true (blowup' 8 2);
   (* run ~print:true (blowup' 4 4); *)
 
 (*   run (

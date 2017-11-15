@@ -817,14 +817,22 @@ module Fdd = struct
   let has_terminated pid =
     Option.is_some Unix.(wait_nohang@@ `Pid pid)
 
-  let fixpoint_race ap not_a ~poll_py =
+  let fixpoint_race ap not_a ~child =
+    let open Caml.Unix in
     let rec loop p =
       (* printf "[ocaml] naive fixed-point, n = %d\n%!" n; *)
-      if poll_py () then
-        None
-      else
+      match waitpid [WNOHANG] child with
+      | 0,_ ->
+        (* child process still working; do another iteration *)
         let p2 = seq p p in
         if equal p p2 then Some p else loop p2
+      | pid, WEXITED 0 when pid = child ->
+        (* child processs finished succesfully; stop naive fixpoint and wait for python reply *)
+        None
+      | pid, _ when pid = child ->
+        failwith "OCaml child process exited abnormally"
+      | _ ->
+        assert false
     in
     Util.timed "fixpoint race" (fun () -> loop (sum ap not_a))
 
@@ -875,7 +883,7 @@ module Fdd = struct
         failwith ("missing ocamlfind dependency: " ^ pkg_name)
     in
     let cmd = "python3 " ^ pyscript in
-    let (pid_py,from_py, to_py, poll_py) = Util.Unix.open_process cmd in
+    let (pid_py, from_py, to_py) = Util.Unix.open_process cmd in
 
     (* compute domain of FDDs; i.e., how many indices do we need for the matrix
        representation and what does each index preresent?
@@ -891,15 +899,15 @@ module Fdd = struct
       exit 0
     | `In_the_parent child ->
       (* parent process *)
-      begin match fixpoint_race ap not_a ~poll_py with
+      begin match fixpoint_race ap not_a ~child:(Pid.to_int child) with
       | Some fixpoint ->
-        eprintf "*** ocaml won race!\n";
+        printf "*** ocaml won race!\n";
         (* kill forked process and return result *)
         Signal.(send_i kill (`Pid pid_py));
         Signal.(send_i kill (`Pid child));
         fixpoint
       | None ->
-        eprintf "*** python won race!\n";
+        printf "*** python won race!\n";
         (* wait for reply from Python *)
         let n = Domain.size dom in
         let iterated = Sparse.zeros n n in
