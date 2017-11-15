@@ -75,11 +75,8 @@ end) = struct
 end
 
 
-module DefaultParams() = struct
+module DefaultParams = struct
   let sw = "sw"
   let pt = "pt"
   let up _sw pt = sprintf "up_%d" pt
-
-  let failure_prob = PNK.(1 // 10)
-
 end
