@@ -1,9 +1,9 @@
 (jbuild_version 1)
 
 
-(executable
- ((name        main)
-  (public_name probnetkat)
+(executables
+ ((names        (main topo))
+  (public_names (probnetkat probnetkat.topo))
   (libraries (
     core
     owl

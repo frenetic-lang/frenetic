@@ -12,6 +12,7 @@
     zarith
     findlib
     ;; lymp
+    frenetic
   ))
   (preprocess (pps (ppx_deriving.std
                     ppx_enumerate
