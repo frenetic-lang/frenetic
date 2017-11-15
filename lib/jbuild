@@ -6,7 +6,6 @@
   (wrapped true)
   (libraries 
     (frenetic.netkat
-     frenetic.async
      frenetic.kernel)
   )
 ))
