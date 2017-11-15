@@ -12,17 +12,11 @@ module Parameters = struct
   let up sw pt = sprintf "up_%d" pt
 end
 
-module Topology = struct
-  include Topology
-  include Topology.Make(Parameters)
-end
-
-
+module Topo = Topology.Make(Parameters)
 
 let () = begin
-
-let topo = Topology.parse (Sys.argv.(1)) in
-let topo_prog = Topology.to_probnetkat topo ~guard_links:true in
-Format.printf "%a\n" Syntax.pp_policy topo_prog;
-Util.timed "topo to Fdd" (fun () -> Symbolic.Fdd.of_pol topo_prog; ())
+  let topo = Topo.parse (Sys.argv.(1)) in
+  let topo_prog = Topo.to_probnetkat topo ~guard_links:true in
+  Format.printf "%a\n" Syntax.pp_policy topo_prog;
+  Util.timed "topo to Fdd" (fun () -> Symbolic.Fdd.of_pol topo_prog; ())
 end
