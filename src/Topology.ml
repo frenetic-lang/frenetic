@@ -22,29 +22,34 @@ let sw_val topo sw : int =
   |> Node.id
   |> Int.of_int64_exn
 
-
-let switches topo : vertex list =
-  vertexes topo
-  |> Set.filter ~f:(fun v -> match Node.device (vertex_to_label topo v) with
-      | Node.Switch -> true
-      | Node.Middlebox | Node.Host -> false
-  )
-  |> Set.to_list
-  (* |> List.map ~f:(Topology.sw_val topo) *)
+let is_switch topo v =
+  match Node.device (vertex_to_label topo v) with
+  | Node.Switch -> true
+  | Node.Middlebox | Node.Host -> false
 
 let is_host topo v =
   match Node.device (vertex_to_label topo v) with
   | Node.Host -> true
   | Node.Middlebox | Node.Switch -> false
 
+let switches topo : vertex list =
+  vertexes topo
+  |> Set.filter ~f:(is_switch topo)
+  |> Set.to_list
+  (* |> List.map ~f:(Topology.sw_val topo) *)
+
+let vertex_to_ports topo vertex =
+  neighbors topo vertex
+  |> Set.to_list
+  |> List.map ~f:(fun neigb -> find_edge topo vertex neigb)
+  |> List.map ~f:edge_src
+  |> List.map ~f:(fun (_,src_pt) -> src_pt)
+
 let locs topo : (vertex * int list) list =
   List.map (switches topo) ~f:(fun sw ->
-    let pts =
-      vertex_to_ports topo sw
-      |> Set.to_list
-      |> List.map ~f:pt_val
-    in
-    (sw, pts)
+    vertex_to_ports topo sw
+    |> List.map ~f:pt_val
+    |> (fun pts -> (sw, pts))
   )
 
 end

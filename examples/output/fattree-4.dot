@@ -24,7 +24,7 @@ strict digraph "" {
 		type=host];
 	s7	 [id=7,
 		level="edge",
-		type=switch];
+		type="switch"];
 	h2 -> s7	 [capacity="1Gbps",
 		cost=1,
 		dst_port=3,
