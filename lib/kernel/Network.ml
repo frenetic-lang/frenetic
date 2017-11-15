@@ -966,6 +966,7 @@ module Node = struct
       | Dot_ast.Ident("id") -> {n with partial_dev_id = Some (int64_of_id vo)}
       | Dot_ast.Ident("ip") -> {n with partial_ip = Some (ip_of vo)}
       | Dot_ast.Ident("mac") -> {n with partial_mac = Some (mac_of vo)}
+      | Dot_ast.Ident(s) -> eprintf "ignoring unknown node attribute: %s\n" s; n
       | _ -> failwith "Unknown node attribute\n"
 
   (* Take the partial node record and remove the option types, or
@@ -1068,7 +1069,8 @@ module Link = struct
       | Dot_ast.Ident("cost") -> {edge with cost = int64_of_id valopt }
       | Dot_ast.Ident("capacity") -> {edge with capacity = capacity_of_id valopt }
       | Dot_ast.Ident(s) -> edge
-      | _ -> failwith ("Unknown edge attribute\n")
+      (* FIXME/SJS *)
+      | _ -> eprintf "ignoring uknown edge attribute\n"; edge
 
   let update_gml_attr edge (key, value) = match key with
     | _ -> edge
