@@ -55,7 +55,8 @@ end) = struct
             )
           end
           >>
-          Topology.links_from topo sw ~guard_links:true
+          (* SJS: a subtle point: we model only switch-to-switch links! *)
+          Topology.links_from topo sw ~guard_links:true ~dst_filter:(Topology.is_switch topo)
         end
 
       in
