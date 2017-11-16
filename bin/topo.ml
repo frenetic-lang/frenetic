@@ -27,7 +27,7 @@ module Parameters = struct
   module Schemes = struct
 
     let random_walk sw =
-      Topology.vertex_to_ports topo sw
+      Topology.vertex_to_ports topo sw ~dst_filter:(Topology.is_switch topo)
       |> List.map ~f:(fun out_pt_id -> PNK.( !!(pt, Topology.pt_val out_pt_id) ))
       |> PNK.uniform
 

@@ -38,8 +38,9 @@ let switches topo : vertex list =
   |> Set.to_list
   (* |> List.map ~f:(Topology.sw_val topo) *)
 
-let vertex_to_ports topo vertex =
+let vertex_to_ports ?(dst_filter=fun _ -> true) topo vertex =
   neighbors topo vertex
+  |> Set.filter ~f:dst_filter
   |> Set.to_list
   |> List.map ~f:(fun neigb -> find_edge topo vertex neigb)
   |> List.map ~f:edge_src
