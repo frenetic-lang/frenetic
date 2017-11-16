@@ -137,6 +137,25 @@ let basic_positive = [
       ));
   end;
 
+  (* reweighting *)
+  test fdd_equiv "loop reweights mass"
+    PNK.(
+      whl (???("a",0)) (
+        ?@[
+          !!("a", 0) @ 3//6;
+          !!("a", 1) @ 2//6;
+          drop       @ 1//6;
+        ]
+      )
+    )
+    PNK.(
+      ite (???("a",0)) (
+        ?@[ !!("a", 1) @ 2//3; drop @ 1//3; ]
+      ) (
+        skip
+      )
+    );
+
   (* local fields *)
   test fdd_equiv "local field loop"
     PNK.(
