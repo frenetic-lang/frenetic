@@ -445,7 +445,6 @@ module Domain = struct
         let (vs, residuals, all_false) = for_field field fdd [] [] in
         let vs =
           List.map vs ~f:(fun v -> PrePacket.Const v)
-          |> (fun vs -> if Fdd00.(equal drop all_false) then vs else Atom::vs)
           |> Valset.of_list
         in
         let dom = Map.update dom field ~f:(function
@@ -481,6 +480,8 @@ module Domain = struct
 
     in
     for_fdd Field.Map.empty fdd
+    (* SJS: this is a sound overapproximation, but a very expensive one!! *)
+    |> Field.Map.map ~f:(fun vs -> Set.add vs PrePacket.Atom)
 
   let size (dom : t) : int =
     (* SJS: +1 for the empty set! *)
@@ -1089,6 +1090,8 @@ module Fdd = struct
             match String.split (line ()) ~on:' ' with
             | [i; j; v] ->
               let i,j = Int.(of_string i, of_string j) in
+              assert (0 <= i && i < n);
+              assert (0 <= j && j < n);
               let v = Float.of_string v in
               Sparse.set iterated i j v
             | _ ->
