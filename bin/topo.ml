@@ -62,6 +62,7 @@ let () = begin
   Util.timed "topo to Fdd" (fun () -> ignore (Symbolic.Fdd.of_pol topo_prog));
   let model = Util.timed "building model" (fun () -> Model.make ()) in
   Format.printf "%a\n\n" Syntax.pp_policy model;
-  Util.timed "model to Fdd" (fun () -> ignore (Symbolic.Fdd.of_pol model));
-  printf ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> DONE\n%!"
+  let fdd = Util.timed "model to Fdd" (fun () -> Symbolic.Fdd.of_pol model) in
+  printf ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> DONE\n%!";
+  printf "%s" (Symbolic.Fdd.to_string fdd)
 end
