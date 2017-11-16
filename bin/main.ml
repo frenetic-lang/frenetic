@@ -70,7 +70,16 @@ let () = begin
   (* run ~print:false (blowup 15); *)
   (* run ~print:false (blowup 20); *)
 
-  run ~print:true (blowup' 9 2);
+  run (
+    ?@[
+        !!("a", 1)  , 1//4;
+        !!("a", 2)  , 1//4;
+        !!("a", 3)  , 1//4;
+        !!("a", 4)  , 1//4;
+      ]
+    );
+
+  (* run ~print:true (blowup' 9 2); *)
   (* run ~print:true (blowup' 4 4); *)
 
 (*   run (
