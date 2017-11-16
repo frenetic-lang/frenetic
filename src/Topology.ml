@@ -90,7 +90,7 @@ end) = struct
       (if guard then ???(up src_sw src_pt, 1) else True)
     )
     in
-    (guard, PNK.( !!(sw, dst_pt) >> !!(pt, dst_pt) ))
+    (guard, PNK.( !!(sw, dst_sw) >> !!(pt, dst_pt) ))
 
   let to_probnetkat (topo : Net.Topology.t) ~(guard_links:bool) : string policy =
     fold_edges (fun edge t ->
@@ -100,8 +100,10 @@ end) = struct
       topo
       PNK.drop
 
-  let links_from (topo : Net.Topology.t) sw ~(guard_links: bool) : string policy =
+  let links_from ?(dst_filter=fun _ -> true)
+  (topo : Net.Topology.t) sw ~(guard_links: bool) : string policy =
     neighbors topo sw
+    |> Set.filter ~f:dst_filter
     |> Set.to_list
     |> List.map ~f:(find_edge topo sw)
     |> List.map ~f:(link_of_edge topo ~guard:guard_links)
