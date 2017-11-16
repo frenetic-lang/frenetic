@@ -28,7 +28,7 @@ module Parameters = struct
      a failure if it occurs on a link that is incident to the current location
      of the packet, indepedently of whether the packet was planning to use that
      link or not. *)
-  let max_failures = Some 1
+  let max_failures = Some 2
 
   (* topology *)
   let topo = Topology.parse (base_name ^ ".dot")
@@ -83,4 +83,5 @@ let () = begin
   printf "teleport = %s\n" (Fdd.to_string teleport);
   let is_teleport = Fdd.equivalent fdd teleport in
   printf "equivalent to teleportation: %s\n" (Bool.to_string is_teleport);
+  Fdd.to_dotfile fdd (base_name ^ ".fdd.dot");
 end
