@@ -958,7 +958,7 @@ module Fdd = struct
       )
     )
 
-  let from_mat (matrix : Matrix.t) : t =
+  let of_mat (matrix : Matrix.t) : t =
     let skeleton = mk_skeleton Matrix.(matrix.dom) in
     let rec do_node skeleton pk =
       match unget skeleton with
@@ -1102,7 +1102,7 @@ module Fdd = struct
         (* convert matrix back to FDD *)
         let iterated = Matrix.{ matrix = iterated; dom; coding } in
         Util.timed "matrix -> fdd conversion" (fun () ->
-          from_mat iterated
+          of_mat iterated
         )
       end
 
