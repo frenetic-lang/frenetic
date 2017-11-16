@@ -18,6 +18,8 @@ module Make (Dom : Vlr.HashCmp) = struct
 
   let support = T.keys
 
+  let mass = T.fold ~init:Prob.zero ~f:(fun ~key:_ ~data:p acc -> Prob.(p + acc))
+
   let to_string t =
     if T.is_empty t then "⊥" else
     T.sexp_of_t Prob.sexp_of_t t

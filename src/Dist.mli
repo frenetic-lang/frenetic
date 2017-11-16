@@ -4,6 +4,7 @@ module Make(Dom: Vlr.HashCmp) : sig
   type t [@@deriving sexp, hash, compare, eq]
 
   val support : t -> Dom.t list
+  val mass : t -> Prob.t
 
   val to_string : t -> string
   val to_alist : t -> (Dom.t * Prob.t) list
