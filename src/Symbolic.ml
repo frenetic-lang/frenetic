@@ -59,6 +59,7 @@ module Field = struct
 
   include T
   module Map = Map.Make(T)
+  module Set = Set.Make(T)
 
   type field = t
 
@@ -77,7 +78,7 @@ module Field = struct
     | Some s -> s
 
   let is_valid_order (lst : t list) : bool =
-    Set.Poly.(equal (of_list lst) (of_list all))
+    Set.(equal (of_list lst) (of_list all))
 
   let set_order (lst : t list) : unit =
     assert (is_valid_order lst);
@@ -1316,4 +1317,22 @@ module Fdd = struct
     in
     do_nodes t1 t2 PrePacket.empty
 
+  (** removes all modifications of the provied list of fields  *)
+  let modulo t fields : t =
+    (* translate strings to Field.t's *)
+    let fields =
+      List.map fields ~f:(Hashtbl.find_exn field_allocation_tbl)
+      |> Field.Set.of_list
+    in
+    let open Action in
+    map_r t ~f:(fun dist ->
+      ActionDist.pushforward dist ~f:(function
+      | Drop ->
+        Drop
+      | Action act ->
+        Action (Field.Map.filteri act ~f:(fun ~key:f ~data:_->
+          not (Set.mem fields f)
+        ))
+      )
+    )
 end
