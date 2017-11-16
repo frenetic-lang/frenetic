@@ -323,7 +323,7 @@ end
 
 
 (** symbolic packets *)
-module Packet = struct
+module PrePacket = struct
   type nomval =
     | Const of Value.t
     | Atom (** An atom in the sense of nominal sets. Some fixed that value that is different
@@ -332,7 +332,7 @@ module Packet = struct
             *)
     [@@deriving compare, eq, sexp]
 
-  type t = nomval Field.Map.t [@@deriving compare, eq]
+  type t = nomval Field.Map.t [@@deriving compare, eq, sexp]
   (** Symbolic packet. Represents a set of concrete packets { π }.
 
       f |-> Const v  means π.f = v
@@ -348,12 +348,12 @@ module Packet = struct
   let modify (pk : t) (f : Field.t) (v : nomval) : t =
     Map.add pk ~key:f ~data:v
 
-  let apply (pk : t) (action : Action.t) : t =
+  let apply (pk : t) (action : PreAction.t) : t =
     Field.Map.merge pk action ~f:(fun ~key:_ -> function
       | `Left v -> Some v
       | `Right v | `Both (_,v) -> Some (Const v))
 
-  let to_action pk =
+  let to_preaction pk =
     Map.filter_map pk ~f:(function
       | Const v -> Some v
       | Atom -> None)
@@ -373,6 +373,42 @@ module Packet = struct
     Format.asprintf "%a" pp pk
 end
 
+(** "packet" is a bad name and used just for historicaly reasons. It's a symbolic
+    encoding of a packet set (possibly the empty set).
+*)
+module Packet = struct
+  type t =
+    | Emptyset
+    | Pk of PrePacket.t
+    [@@deriving compare, eq, sexp]
+
+  let modify (pk : t) (f : Field.t) (v : PrePacket.nomval) : t =
+    match pk with
+    | Emptyset -> Emptyset
+    | Pk pk -> Pk (PrePacket.modify pk f v)
+
+  let apply (pk : t) (act : Action.t) : t =
+    match pk, act with
+    | Emptyset, _
+    | _, Drop ->
+      Emptyset
+    | Pk pk, Action act ->
+      Pk (PrePacket.apply pk act)
+
+  let to_action pk =
+    match pk with
+    | Emptyset -> Action.Drop
+    | Pk pk -> Action.Action (PrePacket.to_preaction pk)
+
+  let pp fmt (pk:t) : unit =
+    match pk with
+    | Emptyset -> Format.fprintf fmt "@[∅]"
+    | Pk pk -> PrePacket.pp fmt pk
+
+  let to_string pk : string =
+    Format.asprintf "%a" pp pk
+end
+
 
 
 module Fdd00 = Vlr.Make(Field)(Value)(ActionDist)
@@ -381,7 +417,7 @@ module Fdd00 = Vlr.Make(Field)(Value)(ActionDist)
 
 (** domain of an Fdd *)
 module Domain = struct
-  module Valset = Set.Make(struct type t = Packet.nomval [@@deriving sexp, compare] end)
+  module Valset = Set.Make(struct type t = PrePacket.nomval [@@deriving sexp, compare] end)
   type t = Valset.t Field.Map.t
 
 
@@ -398,7 +434,7 @@ module Domain = struct
       | Branch ((field,_),_,_) ->
         let (vs, residuals, all_false) = for_field field fdd [] [] in
         let vs =
-          List.map vs ~f:(fun v -> Packet.Const v)
+          List.map vs ~f:(fun v -> PrePacket.Const v)
           |> (fun vs -> if Fdd00.(equal drop all_false) then vs else Atom::vs)
           |> Valset.of_list
         in
@@ -423,7 +459,12 @@ module Domain = struct
       |> List.fold ~init:dom ~f:for_action
 
     and for_action dom action =
-      Action.to_alist action
+      match action with
+      | Drop -> dom
+      | Action action -> for_preaction dom action
+
+    and for_preaction dom action =
+      PreAction.T.to_alist action
       |> Util.map_snd ~f:(fun v -> Valset.singleton (Const v))
       |> Field.Map.of_alist_exn
       |> merge dom
@@ -432,14 +473,21 @@ module Domain = struct
     for_fdd Field.Map.empty fdd
 
   let size (dom : t) : int =
+    (* SJS: +1 for the empty set! *)
     Map.fold dom ~init:1 ~f:(fun ~key ~data:vs acc -> acc * (Valset.length vs))
+    + 1
 
-  let variants (dom : t) : Packet.t list =
-    Map.fold dom ~init:[Packet.empty] ~f:(fun ~key:f ~data:vs pks ->
+  let pre_variants (dom : t) : PrePacket.t list =
+    Map.fold dom ~init:[PrePacket.empty] ~f:(fun ~key:f ~data:vs pks ->
       Valset.to_list vs
       |> List.concat_map ~f:(fun v -> List.map pks ~f:(fun pk ->
-        Packet.modify pk f v))
+        PrePacket.modify pk f v))
     )
+
+  let variants (dom : t) : Packet.t list =
+    pre_variants dom
+    |> List.map ~f:(fun pk -> Packet.Pk pk)
+    |> List.cons (Packet.Emptyset)
 
   let pp fmt (dom:t) : unit =
     Format.fprintf fmt "@[";
@@ -449,8 +497,8 @@ module Domain = struct
       begin
         Set.to_list data
         |> List.to_string ~f:(function
-          | Packet.Atom -> "*"
-          | Packet.Const v -> Int.to_string v)
+          | PrePacket.Atom -> "*"
+          | PrePacket.Const v -> Int.to_string v)
       end
     );
     Format.fprintf fmt "@]"
@@ -491,16 +539,19 @@ module type CODING = sig
     type t = domain_witness hyperpoint
     val dimension : int list
     val to_codepoint : t -> Codepoint.t
-    val of_codepoint : Codepoint.t -> t
-    val to_pk : t -> Packet.t
-    val of_pk : Packet.t -> t
+    (* codepoints can represent the empty set, but hyperpoints cannot *)
+    val of_codepoint : Codepoint.t -> t option
+    val to_pre_pk : t -> PrePacket.t
+    val of_pre_pk : PrePacket.t -> t
   end
 
   (** Encoding of packets as integers >= 0, i.e. points in single dimensional space. *)
   and Codepoint : sig
     type t = domain_witness codepoint
     val max : t
-    val to_hyperpoint : t -> Hyperpoint.t
+    val emptyset : t
+    (* option, because the empty set is not a hyperpoint *)
+    val to_hyperpoint : t -> Hyperpoint.t option
     val of_hyperpoint : Hyperpoint.t -> t
     val to_pk : t -> Packet.t
     val of_pk : Packet.t -> t
@@ -514,12 +565,13 @@ module type CODING = sig
   and Index : sig
     type t = domain_witness index
     val max : t
+    val emptyset : t
     val of_pk : Packet.t -> t
     val to_pk : t -> Packet.t
-    (* val test : Field.t -> Packet.nomval -> t -> bool *)
-    val modify : Field.t -> Packet.nomval -> t -> t
-    (* val test' : Field.t -> Packet.nomval -> int -> bool *)
-    val modify' : Field.t -> Packet.nomval -> int -> int
+    (* val test : Field.t -> PrePacket.nomval -> t -> bool *)
+    val modify : Field.t -> PrePacket.nomval -> t -> t
+    (* val test' : Field.t -> PrePacket.nomval -> int -> bool *)
+    val modify' : Field.t -> PrePacket.nomval -> int -> int
     val pp : Format.formatter -> t -> unit
     val pp' : Format.formatter -> int -> unit
   end
@@ -528,12 +580,13 @@ module type CODING = sig
   and Index0 : sig
     type t = domain_witness index0
     val max : t
+    val emptyset : t
     val of_pk : Packet.t -> t
     val to_pk : t -> Packet.t
-    (* val test : Field.t -> Packet.nomval -> t -> bool *)
-    val modify : Field.t -> Packet.nomval -> t -> t
-    (* val test' : Field.t -> Packet.nomval -> int -> bool *)
-    val modify' : Field.t -> Packet.nomval -> int -> int
+    (* val test : Field.t -> PrePacket.nomval -> t -> bool *)
+    val modify : Field.t -> PrePacket.nomval -> t -> t
+    (* val test' : Field.t -> PrePacket.nomval -> int -> bool *)
+    val modify' : Field.t -> PrePacket.nomval -> int -> int
     val pp : Format.formatter -> t -> unit
     val pp' : Format.formatter -> int -> unit
   end
@@ -542,7 +595,7 @@ end
 module Coding(D : DOM) : CODING = struct
 
   let dom : Domain.t = D.domain
-  let domain : (Field.t * Packet.nomval list) list =
+  let domain : (Field.t * PrePacket.nomval list) list =
     Map.to_alist (Map.map D.domain ~f:Set.to_list)
 
   type domain_witness
@@ -553,42 +606,52 @@ module Coding(D : DOM) : CODING = struct
     let dimension =
       List.map domain ~f:(fun (_,vs) -> List.length vs)
 
-    let injection : (Field.t * (Packet.nomval -> int)) list =
+    let injection : (Field.t * (PrePacket.nomval -> int)) list =
       List.Assoc.map domain ~f:(fun vs ->
         List.mapi vs ~f:(fun i v -> (v, i))
         |> Map.Poly.of_alist_exn
         |> Map.Poly.find_exn)
 
-    let ejection : (Field.t * (int -> Packet.nomval)) list =
+    let ejection : (Field.t * (int -> PrePacket.nomval)) list =
       List.Assoc.map domain ~f:List.to_array
       |> List.Assoc.map ~f:(fun inj v -> inj.(v))
 
 
     let to_codepoint t =
-      List.fold2_exn t dimension ~init:0 ~f:(fun cp v n -> v + n * cp)
+      (* SJS: +1 for empty set *)
+      1 + List.fold2_exn t dimension ~init:0 ~f:(fun cp v n -> v + n * cp)
 
     let of_codepoint cp =
-      List.fold_right dimension ~init:(cp,[]) ~f:(fun n (cp, hp) ->
+      (* SJS: 0 = empty set *)
+      if cp = 0 then None else
+      List.fold_right dimension ~init:(cp-1,[]) ~f:(fun n (cp, hp) ->
         let (cp, v) = Int.(cp /% n, cp % n) in
         (cp, v::hp))
       |> snd
+      |> Option.some
 
-    let to_pk t =
+    let to_pre_pk t =
       List.fold2_exn t ejection ~init:Field.Map.empty ~f:(fun pk v (f, veject) ->
         Field.Map.add pk ~key:f ~data:(veject v))
 
-    let of_pk pk =
+    let of_pre_pk pk =
       List.map injection ~f:(fun (f, vinj) -> vinj (Field.Map.find_exn pk f))
 
   end
 
   module Codepoint = struct
     type t = domain_witness codepoint
+    let emptyset = 0
     let to_hyperpoint = Hyperpoint.of_codepoint
     let of_hyperpoint = Hyperpoint.to_codepoint
-    let to_pk = Fn.compose Hyperpoint.to_pk to_hyperpoint
-    let of_pk = Fn.compose of_hyperpoint Hyperpoint.of_pk
-    let max = (List.fold ~init:1 ~f:( * ) Hyperpoint.dimension) - 1
+    let to_pre_pk cp = Option.(to_hyperpoint cp >>| Hyperpoint.to_pre_pk)
+    let of_pre_pk = Fn.compose of_hyperpoint Hyperpoint.of_pre_pk
+    let to_pk cp = if cp = emptyset then Packet.Emptyset else
+      Packet.Pk (Option.value_exn (to_pre_pk cp))
+    let of_pk pk = match pk with
+      | Packet.Emptyset -> emptyset
+      | Packet.Pk pk -> of_pre_pk pk
+    let max = List.fold ~init:1 ~f:( * ) Hyperpoint.dimension
     let to_index cp : domain_witness index = { i = cp + 1  }
     let of_index (idx : domain_witness index) = idx.i - 1
     let to_index0 cp : domain_witness index0 = { i = cp }
@@ -600,6 +663,7 @@ module Coding(D : DOM) : CODING = struct
     let of_pk = Fn.compose Codepoint.to_index Codepoint.of_pk
     let to_pk = Fn.compose Codepoint.to_pk Codepoint.of_index
     let max = Codepoint.(to_index max)
+    let emptyset = Codepoint.(to_index emptyset)
     (* let test f n t = Packet.test f n (to_pk t) *)
     let modify f n t = of_pk (Packet.modify (to_pk t) f n)
     (* let test' f n i = test f n { i = i } *)
@@ -613,6 +677,7 @@ module Coding(D : DOM) : CODING = struct
     let of_pk = Fn.compose Codepoint.to_index0 Codepoint.of_pk
     let to_pk = Fn.compose Codepoint.to_pk Codepoint.of_index0
     let max = Codepoint.(to_index0 max)
+    let emptyset = Codepoint.(to_index0 emptyset)
     (* let test f n t = Packet.test f n (to_pk t) *)
     let modify f n t = of_pk (Packet.modify (to_pk t) f n)
     (* let test' f n i = test f n { i = i } *)
@@ -648,7 +713,7 @@ module Fdd0 = struct
       | Leaf r ->
         of_leaf r dom
       | Branch ((f,v), tru, fls) ->
-        let v = Packet.Const v in
+        let v = PrePacket.Const v in
         let tru_dom = Map.add dom ~key:f ~data:Domain.Valset.(singleton v) in
         let fls_dom = Map.update dom f ~f:(function
           | None -> assert false
@@ -674,7 +739,7 @@ module Matrix = struct
     dom : Domain.t;
   }
 
-  let packet_variants (pk : Packet.t) (dom : Domain.t) : Packet.t list =
+  let pre_packet_variants (pk : PrePacket.t) (dom : Domain.t) : PrePacket.t list =
     Field.Map.fold2 pk dom ~init:[pk] ~f:(fun ~key:f ~data pks ->
       match data with
       | `Both _ -> pks
@@ -684,6 +749,13 @@ module Matrix = struct
           |> List.map ~f:(fun v -> Field.Map.add pk ~key:f ~data:v)
         )
     )
+
+  let packet_variants (pk : Packet.t) (dom : Domain.t) : Packet.t list =
+    match pk with
+    | Emptyset -> [pk]
+    | Packet.Pk pk ->
+      pre_packet_variants pk dom
+      |> List.map ~f:(fun pk -> Packet.Pk pk)
 
   let maplet_to_matrix_entries (coding : (module CODING)) (dom, act, prob)
     : (int * int * Prob.t) list =
@@ -703,7 +775,7 @@ module Matrix = struct
     )
 
 
-  let get_pk_action t pk : ActionDist.t =
+  let get_pk_action t (pk : PrePacket.t) : ActionDist.t =
     let module Coding = (val t.coding : CODING) in
     let row_to_action row : ActionDist.t =
       Sparse.foldi_nz (fun _i j dist prob ->
@@ -716,12 +788,12 @@ module Matrix = struct
       |> ActionDist.normalize
     in
     let total_pk_action pk : ActionDist.t =
-      let i = (Coding.Index0.of_pk pk).i in
+      let i = (Coding.Index0.of_pk (Packet.Pk pk)).i in
       let rowi = Sparse.row t.matrix i in
       row_to_action rowi
     in
     (* FIXME: inefficient solution for now for safety! *)
-    packet_variants pk t.dom
+    pre_packet_variants pk t.dom
     |> List.map ~f:total_pk_action
     |> List.group ~break:(fun x y -> not (ActionDist.equal x y))
     |> function
@@ -815,7 +887,7 @@ module Fdd = struct
     atom hv ActionDist.one ActionDist.zero
 
   let of_mod (f,v) =
-    const (ActionDist.dirac (Action.singleton f v))
+    const (ActionDist.dirac (Action.Action (PreAction.T.singleton f v)))
 
   let negate fdd =
     map_r fdd ~f:ActionDist.negate
@@ -847,8 +919,11 @@ module Fdd = struct
       dp_map t
         ~f:(fun dist ->
           List.map (ActionDist.to_alist dist) ~f:(fun (action, prob) ->
-            restrict (Action.to_hvs action) u
-            |> prod (const ActionDist.(dirac  action ~weight:prob))
+            match action with
+            | Drop -> drop
+            | Action preact ->
+              restrict (PreAction.to_hvs preact) u
+              |> prod (const ActionDist.(dirac action ~weight:prob))
           )
           |> List.fold ~init:drop ~f:sum
         )
@@ -866,14 +941,11 @@ module Fdd = struct
       | Leaf r ->
         const (Matrix.get_pk_action matrix pk)
       | Branch ((f,v), tru, fls) ->
-        let tru = do_node tru Packet.(modify pk f (Const v)) in
-        let fls = do_node fls Packet.(modify pk f Atom) in
+        let tru = do_node tru PrePacket.(modify pk f (Const v)) in
+        let fls = do_node fls PrePacket.(modify pk f Atom) in
         unchecked_cond (f,v) tru fls
     in
-    do_node skeleton Packet.empty
-
-  let has_terminated pid =
-    Option.is_some Unix.(wait_nohang@@ `Pid pid)
+    do_node skeleton PrePacket.empty
 
   let fixpoint_race ap not_a ~child =
     let open Caml.Unix in
@@ -899,14 +971,21 @@ module Fdd = struct
     let module Coding = (val coding : CODING) in
     let n = Domain.size Coding.dom in
 
+    let send_matrix_entry (i,j,p) : unit =
+      Prob.to_float p
+      |> Float.to_string_round_trippable
+      |> Out_channel.fprintf to_py "%d %d %s\n" i j
+    in
+
     (* serialize matrices and send it to python process *)
     let send_matrix fdd =
       Out_channel.fprintf to_py "%d %d\n" n n;
-      Matrix.iter_fdd_entries fdd coding ~f:(fun (i,j,p) ->
-        Prob.to_float p
-        |> Float.to_string_round_trippable
-        |> Out_channel.fprintf to_py "%d %d %s\n" i j
-      );
+      Matrix.iter_fdd_entries fdd coding ~f:send_matrix_entry;
+      (* SJS: although it is implicit in the FDD, the emptyset transitions with
+         probability 1 to the emptyset
+      *)
+      let emptyset = Coding.Index0.emptyset in
+      send_matrix_entry (emptyset.i, emptyset.i, Prob.one);
       Out_channel.fprintf to_py "\n%!";
     in
 
@@ -1011,7 +1090,9 @@ module Fdd = struct
   (** Erases (all matches on) meta field, then all modifications. *)
   let erase t meta_field init =
     let erase_mods =
-      ActionDist.pushforward ~f:(fun act -> Action.remove act meta_field)
+      ActionDist.pushforward ~f:(function
+        | Drop -> Drop
+        | Action act -> Action (PreAction.T.remove act meta_field))
     in
     match init with
     | Const v ->
@@ -1079,41 +1160,41 @@ module Fdd = struct
       | Branch ((f1,v1), l1, r1), Branch ((f2,v2), l2, r2) ->
         begin match Field.compare f1 f2 with
         | -1 ->
-          do_nodes l1 t2 (Packet.modify pk f1 (Const v1)) &&
+          do_nodes l1 t2 (PrePacket.modify pk f1 (Const v1)) &&
           do_nodes r1 t2 pk
         | 1 ->
-          do_nodes t1 l2 (Packet.modify pk f2 (Const v2)) &&
+          do_nodes t1 l2 (PrePacket.modify pk f2 (Const v2)) &&
           do_nodes t1 r2 pk
         | 0 ->
           begin match Value.compare v1 v2 with
           | 0 ->
-            do_nodes l1 l2 (Packet.modify pk f1 (Const v1)) &&
+            do_nodes l1 l2 (PrePacket.modify pk f1 (Const v1)) &&
             do_nodes r1 r2 pk
           | -1 ->
-            do_nodes l1 r2 (Packet.modify pk f1 (Const v1)) &&
+            do_nodes l1 r2 (PrePacket.modify pk f1 (Const v1)) &&
             do_nodes r1 t2 pk
           | 1 ->
-            do_nodes r1 l2 (Packet.modify pk f2 (Const v2)) &&
+            do_nodes r1 l2 (PrePacket.modify pk f2 (Const v2)) &&
             do_nodes t1 r2 pk
           | _ -> assert false
           end
         | _ -> assert false
         end
       | Branch ((f1,v1), l1, r1), Leaf _ ->
-        do_nodes l1 t2 (Packet.modify pk f1 (Const v1)) &&
+        do_nodes l1 t2 (PrePacket.modify pk f1 (Const v1)) &&
         do_nodes r1 t2 pk
       | Leaf _, Branch ((f2,v2), l2, r2) ->
-        do_nodes t1 l2 (Packet.modify pk f2 (Const v2)) &&
+        do_nodes t1 l2 (PrePacket.modify pk f2 (Const v2)) &&
         do_nodes t1 r2 pk
       | Leaf d1, Leaf d2 ->
         do_leaves d1 d2 pk
     and do_leaves d1 d2 pk =
-     List.equal ~equal:equal_weighted_pk (normalize d1 pk) (normalize d2 pk)
+      List.equal ~equal:equal_weighted_pk (normalize d1 pk) (normalize d2 pk)
     and normalize dist pk =
       ActionDist.to_alist dist
-      |> Util.map_fst ~f:(Packet.apply pk)
+      |> Util.map_fst ~f:(Packet.(apply (Pk pk)))
       |> List.sort ~cmp:compare_weighted_pk
     in
-    do_nodes t1 t2 Packet.empty
+    do_nodes t1 t2 PrePacket.empty
 
 end
