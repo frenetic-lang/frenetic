@@ -6,6 +6,9 @@ open Symbolic
 
 
 module Parameters = struct
+
+  let base_name = Sys.argv.(1)
+
   (* switch field *)
   let sw = "sw"
 
@@ -19,7 +22,7 @@ module Parameters = struct
   let failure_prob _sw _pt = Prob.(1//10)
 
   (* topology *)
-  let topo = Topology.parse (Sys.argv.(1))
+  let topo = Topology.parse (base_name ^ ".dot")
 
   let destination = PNK.( ???(sw, 3) )
 
@@ -43,6 +46,8 @@ module Parameters = struct
       let choose_port = random_walk sw in
       PNK.( choose_port >> whl (neg good_pt) choose_port )
 
+    (* let shortest_path sw = *)
+
   end
 
   (* the actual program to run on the switches *)
@@ -55,7 +60,7 @@ module Topo = Topology.Make(Parameters)
 module Model = Model.Make(Parameters)
 
 let () = begin
-  let topo = Topo.parse (Sys.argv.(1)) in
+  let open Parameters in
   let topo_prog = Topo.to_probnetkat topo ~guard_links:true in
   Format.printf "%a\n\n" Syntax.pp_policy topo_prog;
   Util.timed "topo to Fdd" (fun () -> ignore (Fdd.of_pol topo_prog));
