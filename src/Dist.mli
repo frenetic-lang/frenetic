@@ -12,6 +12,7 @@ module Make(Dom: Vlr.HashCmp) : sig
   val is_empty : t -> bool
 
   val dirac : ?weight:Prob.t -> Dom.t -> t
+  val is_dirac: t -> Dom.t option
 
   val scale : t -> scalar:Prob.t -> t
 

@@ -33,6 +33,15 @@ module Make (Dom : Vlr.HashCmp) = struct
   (* point mass distribution *)
   let dirac ?(weight=Prob.one) (p : Dom.t) : t = T.singleton p weight
 
+  let is_dirac (t : t) : Dom.t option =
+    if T.length t = 1 then
+      match T.to_alist t with
+      | [(d, p)] when Prob.(equal p one) -> Some d
+      | [_] -> None
+      | _ -> assert false
+    else
+      None
+
   (* pointwise sum of distributions *)
   let sum t1 t2 : t =
     Map.merge t1 t2 ~f:(fun ~key vals ->

@@ -229,54 +229,83 @@ end
 
 
 
-module Action = struct
-  include Field.Map
+module PreAction = struct
+  module T = Field.Map
+  open T
+
+  type t = Value.t Field.Map.t [@@deriving sexp, eq]
 
   let compare = compare_direct Value.compare
   let one = empty
-  let hash_fold_t = Map.hash_fold_direct Field.hash_fold_t
+  let hash_fold_t = Map.hash_fold_direct Field.hash_fold_t Value.hash_fold_t
 
   let prod x y =
     (* Favor modifications to the right *)
     merge x y ~f:(fun ~key m ->
       match m with | `Both(_, v) | `Left v | `Right v -> Some(v))
 
-  let sum x y = failwith "multicast not implemented!"
-
   let to_hvs = to_alist ~key_order:`Increasing
 
-  let to_string (t : Value.t t) : string =
-    let s = to_alist t
-      |> List.map ~f:(fun (f,v) ->
-          sprintf "%s := %s" (Field.to_string f) (Value.to_string v))
-      |> String.concat ~sep:", "
-    in "[" ^ s ^ "]"
+  let to_string (t : t) : string =
+    if T.is_empty t then "skip" else
+    to_alist t
+    |> List.map ~f:(fun (f,v) ->
+        sprintf "%s := %s" (Field.to_string f) (Value.to_string v))
+    |> String.concat ~sep:", "
+    |> sprintf "[%s]"
+end
+
+module Action = struct
+  type t =
+  | Drop
+  | Action of PreAction.t
+  [@@deriving sexp, compare, hash, eq]
+
+  let zero = Drop
+  let one = Action PreAction.one
+
+  let prod x y =
+    match x,y with
+    | Drop, _
+    | _, Drop -> Drop
+    | Action a1, Action a2 -> Action (PreAction.prod a1 a2)
+
+  let sum x y = failwith "multicast not implemented!"
+
+  let to_hvs t = match t with
+    | Drop -> None
+    | Action a -> Some (PreAction.to_hvs a)
+
+  let to_string (t : t) : string =
+    match t with
+    | Drop -> "drop"
+    | Action a -> PreAction.to_string a
 end
 
 
 
 module ActionDist = struct
 
-  module T = Dist.Make(struct
-    type t = Value.t Action.t [@@deriving sexp, eq, hash]
-    let to_string = Action.to_string
-    let compare = Action.compare
-  end)
-
+  module T = Dist.Make(Action)
   include T
 
-  let zero = T.empty
-  let is_zero = T.is_empty
+  let zero = dirac Action.zero
+  let is_zero = T.equal zero
 
   let one = T.dirac Action.one
-  let is_one d = match Map.find d Action.one with
-    | None -> false
-    | Some p when not Prob.(equal p one) -> false
-    | Some _ -> Map.length d = 1
+  let is_one = T.equal one
 
   let sum = T.sum
 
-  let prod = T.prod_with ~f:Action.prod
+  let prod x y =
+    if is_zero x || is_zero y then
+      zero
+    else if is_one x then
+      y
+    else if is_one y then
+      x
+    else
+      T.prod_with ~f:Action.prod x y
 
   let negate t : t =
     (* This implements negation for the [zero] and [one] actions. Any
@@ -284,7 +313,6 @@ module ActionDist = struct
     if is_zero t then one else zero
 
   let to_string t =
-    if is_empty t then "⊥" else
     to_alist t
     |> List.map ~f:(fun (act, prob) -> sprintf "%s @ %s"
                     (Action.to_string act)
@@ -320,7 +348,7 @@ module Packet = struct
   let modify (pk : t) (f : Field.t) (v : nomval) : t =
     Map.add pk ~key:f ~data:v
 
-  let apply (pk : t) (action : Value.t Action.t) : t =
+  let apply (pk : t) (action : Action.t) : t =
     Field.Map.merge pk action ~f:(fun ~key:_ -> function
       | `Left v -> Some v
       | `Right v | `Both (_,v) -> Some (Const v))
@@ -614,9 +642,7 @@ end
 module Fdd0 = struct
   include Fdd00
 
-  type action = Value.t Action.t
-
-  let iter_maplets fdd ~dom ~(f : (Domain.t * action * Prob.t) -> unit) : unit =
+  let iter_maplets fdd ~dom ~(f : (Domain.t * Action.t * Prob.t) -> unit) : unit =
     let rec of_node fdd dom =
       match unget fdd with
       | Leaf r ->
