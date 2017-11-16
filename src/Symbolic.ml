@@ -67,8 +67,14 @@ module Field = struct
   let of_string s =
     t_of_sexp (Sexp.of_string s)
 
+  (** Hack: this way we always know what the abstract fields refer to *)
+  let field_to_str_map : string Map.t ref = ref Map.empty
+
+  (** SJS: of_string o to_string may fail *)
   let to_string t =
-    Sexp.to_string (sexp_of_t t)
+    match Map.find (!field_to_str_map) t with
+    | None -> sprintf "<abstract %s>" @@ Sexp.to_string (sexp_of_t t)
+    | Some s -> s
 
   let is_valid_order (lst : t list) : bool =
     Set.Poly.(equal (of_list lst) (of_list all))
@@ -826,8 +832,7 @@ module Fdd = struct
   include Fdd0
   open Syntax
 
-  let allocate_fields (pol : string policy)
-    : Field.t policy * Field.t String.Map.t =
+  let allocate_fields (pol : string policy) : Field.t policy =
     let tbl : (string, Field.t) Hashtbl.t = String.Table.create () in
     let next = ref 0 in
     let do_field env (f : string) : Field.t =
@@ -892,8 +897,13 @@ module Fdd = struct
       | Neg p -> Neg (do_pred env p)
     in
     let pol = do_pol Field.Env.empty pol in
-    let field_map = String.(Map.of_alist_exn (Table.to_alist tbl)) in
-    (pol, field_map)
+    let field_map =
+      String.Table.to_alist tbl
+      |> List.map ~f:(fun (str, field) -> (field, str))
+      |> Field.Map.of_alist_exn
+    in
+    Field.field_to_str_map := field_map;
+    pol
 
   let of_test hv =
     atom hv ActionDist.one ActionDist.zero
@@ -1176,8 +1186,8 @@ module Fdd = struct
   and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
 
   let of_pol (p : string policy) : t =
-    let (p, map) = allocate_fields p in
-    of_symbolic_pol p
+    allocate_fields p
+    |> of_symbolic_pol
 
   type weighted_pk = Packet.t * Prob.t [@@deriving compare, eq]
 
