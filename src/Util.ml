@@ -39,6 +39,10 @@ let n_ary_to_binary_right_associative_probs ps =
     (prod, b_i::acc)
   )
   |> fun (_, acc) -> List.rev acc
+  |> tap ~f:(fun ps ->
+      List.iter ps ~f:(fun p -> Format.printf "%a; " Prob.pp p);
+      printf "\n"
+    )
 
 
 (* adapted from https://github.com/ocaml/ocaml/blob/

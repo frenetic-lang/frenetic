@@ -318,9 +318,9 @@ module ActionDist = struct
 
   let to_string t =
     to_alist t
-    |> List.map ~f:(fun (act, prob) -> sprintf "%s @ %s"
-                    (Action.to_string act)
-                    (Prob.to_float prob |> Float.to_string_round_trippable))
+    |> List.map ~f:(fun (act, prob) ->
+        sprintf "%s @ %s" (Action.to_string act) (Prob.to_string prob)
+      )
     |> String.concat ~sep:"; "
     |> sprintf "{ %s }"
 
@@ -966,21 +966,29 @@ module Fdd = struct
     in
     sum t1 t2
 
-  let n_ary_convex_sum ts : t =
-    let (ts, probs) = List.unzip ts in
-    let probs = Util.n_ary_to_binary_right_associative_probs probs in
-    (* To implement an n-ary convex sum, we only need n-1 binary convex sums.
-       Hence, we expose of the right-most probability. Moreover, we reverse
-       the list of Fdds, because the binary sums are associated to the right.
-     *)
-    match List.rev ts, List.rev probs with
-    | t::ts, _::probs ->
-      List.zip_exn ts probs
-      (* because we are doing a fold_left over the reversed list, the accumulator
-         is the right-hand fdd, and the current fdd goes on the left. *)
-      |> List.fold_left ~init:t ~f:(fun tr (tl, p) -> convex_sum tl p tr)
-    | _ ->
-      failwith "0-ary convex sum is undefined!"
+  let n_ary_convex_sum xs : t =
+    let xs = Array.of_list xs in
+    (* responsible for k with i <= k < j *)
+    let rec devide_and_conquer i j =
+      (* number of elements responible for *)
+      let n = j - i in
+      match n with
+      | 0 ->
+        (drop, Prob.zero)
+      | 1 ->
+        xs.(i)
+      | _ ->
+        assert (n >= 2);
+        let k = i + n/2 in
+        let (t1,p1) = devide_and_conquer i k in
+        let (t2,p2) = devide_and_conquer k j in
+        let mass = Prob.(p1 + p2) in
+        let p = Prob.(p1 / mass) in
+        (convex_sum t1 p t2, mass)
+    in
+    let (t, mass) = devide_and_conquer 0 (Array.length xs) in
+    assert Prob.(equal mass one);
+    t
 
 
   let seq_tbl = BinTbl.create ~size:1000 ()
