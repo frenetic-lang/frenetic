@@ -836,25 +836,26 @@ module Fdd = struct
       that are compiled to Fdds one after another
   *)
   let field_allocation_tbl : (string, Field.t) Hashtbl.t = String.Table.create ()
+  let next_field = ref 0
 
   (* sound, but could be better *)
   let clear_cache ~(preserve:Int.Set.t) : unit =
     clear_cache ~preserve;
     if Set.is_empty preserve then (
       Hashtbl.clear field_allocation_tbl;
+      next_field := 0;
       Field.field_to_str_map := Field.Map.empty
     );
     ()
 
   let allocate_fields (pol : string policy) : Field.t policy =
-    let next = ref 0 in
     let do_field env (f : string) : Field.t =
       match Field.Env.lookup env f with
       | (field, _) -> field
       | exception Not_found ->
         String.Table.find_or_add field_allocation_tbl f ~default:(fun () ->
           let open Field in
-          let field = match !next with
+          let field = match !next_field with
             | 0 -> F0
             | 1 -> F1
             | 2 -> F2
@@ -876,7 +877,7 @@ module Fdd = struct
             | 18 -> F18
             | 19 -> F19
             | _ -> failwith "too many fields! (may need to clear the cache?)"
-          in incr next; field)
+          in incr next_field; field)
     in
     let rec do_pol env (p : string policy) : Field.t policy =
       match p with
@@ -915,11 +916,6 @@ module Fdd = struct
       String.Table.to_alist field_allocation_tbl
       |> List.map ~f:(fun (str, field) -> (field, str))
       |> Field.Map.of_alist_exn
-      |> Field.Map.merge (!Field.field_to_str_map) ~f:(fun ~key -> function
-          | `Right s | `Left s -> Some s
-          | `Both (s,s') when s = s' -> Some s
-          | `Both (s,s') -> failwith "inconsistent state!"
-        )
     in
     Field.field_to_str_map := field_map;
     pol
