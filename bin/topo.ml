@@ -15,11 +15,20 @@ module Parameters = struct
   (* port field *)
   let pt = "pt"
 
+  (* counter field *)
+  let counter = "failures"
+
   (* up bit associated with link *)
   let up sw pt = sprintf "up_%d" pt
 
   (* link failure probabilities *)
   let failure_prob _sw _pt = Prob.(1//10)
+
+  (* Limit on maximum failures "encountered" by a packet. A packet encounters
+     a failure if it occurs on a link that is incident to the current location
+     of the packet, indepedently of whether the packet was planning to use that
+     link or not. *)
+  let max_failures = Some 1
 
   (* topology *)
   let topo = Topology.parse (base_name ^ ".dot")
@@ -68,10 +77,10 @@ let () = begin
   Format.printf "%a\n\n" Syntax.pp_policy model;
   let fdd = Util.timed "model to Fdd" (fun () -> Fdd.of_pol model) in
   printf ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> DONE\n%!";
-  let fdd = Fdd.modulo fdd [Parameters.pt] in
+  let fdd = Fdd.modulo fdd [Parameters.pt; Parameters.counter] in
   printf "fdd mod final port = %s\n" Fdd.(to_string (simplify fdd));
   let teleport = Fdd.of_pol (Model.teleportation ()) in
   printf "teleport = %s\n" (Fdd.to_string teleport);
-  let is_teleport = Fdd.equivalent ~modulo:[Parameters.pt] fdd teleport in
+  let is_teleport = Fdd.equivalent fdd teleport in
   printf "equivalent to teleportation: %s\n" (Bool.to_string is_teleport);
 end

@@ -12,6 +12,7 @@ module Topo = Net.Topology
 module Make(Params: sig
   val sw : string
   val pt : string
+  val counter : string (* failure counter *)
   val up : int -> int -> string
 
   (* switch term for a particular switch *)
@@ -21,6 +22,8 @@ module Make(Params: sig
 
   (* probability of link failure for particular link (sw,pt) *)
   val failure_prob : int -> int -> Prob.t
+
+  val max_failures : int option
 
   (* the topology *)
   val topo : Net.Topology.t
@@ -32,6 +35,7 @@ end) = struct
 
   let rec make () : string policy =
     PNK.(
+      (if Option.is_none max_failures then skip else !!(counter, 0)) >>
       (* in; (¬eg; p; t)*; eg *)
       filter (Topology.ingress topo) >>
       whl (neg destination) (
@@ -69,11 +73,28 @@ end) = struct
 
   and init_up_bits sw pts =
     let open PNK in
-    List.map pts ~f:(fun pt ->
-      let p = failure_prob sw pt in
-      ?@[ !!(up sw pt, 0) @ p; skip @ Prob.(one - p) ]
-    )
-    |> mk_big_seq
+    match max_failures with
+    | None ->
+      List.map pts ~f:(fun pt ->
+        let p = failure_prob sw pt in
+        ?@[ !!(up sw pt, 0) @ p; skip @ Prob.(one - p) ]
+      )
+      |> mk_big_seq
+    | Some bound ->
+      List.map pts ~f:(fun pt ->
+        List.range 0 bound ~start:`inclusive ~stop:`exclusive
+        |> ite_cascade ~otherwise:skip ~f:(fun f ->
+          let p = failure_prob sw pt in
+          let guard = ???(counter, f) in
+          let body =
+            ?@[ !!(up sw pt, 0) >> !!(counter, f+1) , p;
+                skip                                , Prob.(one - p);
+              ]
+          in
+          (guard, body)
+        )
+      )
+      |> mk_big_seq
 
   (** teleport from ingress straight to destination  *)
   let teleportation () =
