@@ -12,15 +12,21 @@ module Make(Dom: Vlr.HashCmp) : sig
   val empty : t
   val is_empty : t -> bool
 
-  val dirac : ?weight:Prob.t -> Dom.t -> t
+  val dirac : Dom.t -> t
   val is_dirac: t -> Dom.t option
 
-  val scale : t -> scalar:Prob.t -> t
+  (* DO NOT EXPOSE: we want full distributions only *)
+  (* val scale : t -> scalar:Prob.t -> t *)
 
   (** pointwise sum *)
-  val sum : t -> t -> t
+  (* SJS: do not expose *)
+  (* val sum : t -> t -> t *)
 
-  val add : t -> Prob.t -> Dom.t -> t
+  (* this is safe to expose *)
+  val convex_sum : t -> Prob.t -> t -> t
+
+  (* SJS: Unsafe!! *)
+  val unsafe_add : t -> Prob.t -> Dom.t -> t
 
   (** pushforward along f *)
   val pushforward : t -> f:(Dom.t -> Dom.t) -> t
@@ -29,5 +35,5 @@ module Make(Dom: Vlr.HashCmp) : sig
   val prod_with : t -> t -> f:(Dom.t -> Dom.t -> Dom.t) -> t
 
   (** normalize probabilities so they sum up to 1 *)
-  val normalize : t -> t
+  val unsafe_normalize : t -> t
 end

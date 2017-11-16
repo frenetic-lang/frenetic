@@ -797,11 +797,11 @@ module Matrix = struct
       Sparse.foldi_nz (fun _i j dist prob ->
           Coding.Index0.to_pk { i = j }
           |> Packet.to_action
-          |> ActionDist.add dist (Prob.of_float prob)
+          |> ActionDist.unsafe_add dist (Prob.of_float prob)
         )
         ActionDist.empty
         row
-      |> ActionDist.normalize
+      |> ActionDist.unsafe_normalize
     in
     let total_pk_action pk : ActionDist.t =
       let i = (Coding.Index0.of_pk (Packet.Pk pk)).i in
@@ -953,21 +953,24 @@ module Fdd = struct
     | Branch _ ->
       dp_map t
         ~f:(fun dist ->
-          List.map (ActionDist.to_alist dist) ~f:(fun (action, prob) ->
+          (* SJS: this needs to be implemented using a convex n-ary sum. *)
+          failwith "todo"
+          (* List.map (ActionDist.to_alist dist) ~f:(fun (action, prob) ->
             match action with
             | Drop -> drop
             | Action preact ->
               restrict (PreAction.to_hvs preact) u
               |> prod (const ActionDist.(dirac action ~weight:prob))
           )
-          |> List.fold ~init:drop ~f:sum
+          |> List.fold ~init:drop ~f:sum *)
         )
         ~g:(fun v t f -> cond v t f)
         ~find_or_add:(fun t -> BinTbl.find_or_add seq_tbl (t,u))
 
-  let union t u = sum t u
-
-  let big_union fdds = List.fold ~init:(const ActionDist.empty) ~f:union fdds
+  (* SJS: the fragment of ProbNetKAT we are using does not have a union operator!
+     We only have boolean disjunction and disjoint union.
+   *)
+  (* let union t u = sum t u *)
 
   (* FIXME: this skeleton is very large, so this may become a bottleneck.
      I used to use a smaller skeleton computed from ap and not_a, but I am not
@@ -1177,7 +1180,11 @@ module Fdd = struct
       else
         of_pol_k p (fun p ->
           of_pol_k q (fun q ->
-            k @@ union (prod a p) (prod (negate a) q)
+            (* SJS: Disjoint union. Ideally, we would have a safe primitive for
+               this purpose. Either way, the implementation of sum currently
+               enforces that nothing can go wrong here.
+             *)
+            k @@ sum (prod a p) (prod (negate a) q)
           )
         )
     | While (a, p) ->
@@ -1188,10 +1195,12 @@ module Fdd = struct
         k @@ Util.timed "while loop" (fun () -> iterate a p)
       )
     | Choice dist ->
-      List.map dist ~f:(fun (p, prob) ->
+      (* SJS: use n-ary convex sum *)
+      failwith "not implemented"
+(*       List.map dist ~f:(fun (p, prob) ->
         of_pol_k p (map_r ~f:(ActionDist.scale ~scalar:prob))
       )
-      |> big_union
+      |> big_union *)
       |> k
     | Let { id=field; init; mut; body=p } ->
       of_pol_k p (fun p' -> k (erase p' field init))
