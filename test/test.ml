@@ -104,7 +104,7 @@ let basic_positive = [
 
   (* sparse multi-coin convergence *)
   (* FIXME: increase m as a regression test *)
-  begin let m,n = 4,2 in
+  begin let m,n = 6,2 in
   test fdd_equiv "multi-coin convergence"
     PNK.( !!("X", 0) >> seqi m ~f:(fun i -> !!(field i, 0)) )
     (multi_coin m n)
