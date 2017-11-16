@@ -20,9 +20,7 @@ module Parameters = struct
   (* topology *)
   let topo = Topology.parse (Sys.argv.(1))
 
-  let egress = PNK.(
-    ???(sw, 1) & ???(pt, 1)
-  )
+  let destination = PNK.( ???(sw, 3) )
 
   (* different routing schemes *)
   module Schemes = struct

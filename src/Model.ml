@@ -24,7 +24,7 @@ module Make(Params: sig
 
   (* the topology *)
   val topo : Net.Topology.t
-  val egress : string pred
+  val destination : string pred
 end) = struct
 
   include Params
@@ -34,7 +34,7 @@ end) = struct
     PNK.(
       (* in; (¬eg; p; t)*; eg *)
       filter (Topology.ingress topo) >>
-      whl (neg egress) (
+      whl (neg destination) (
         hop ()
       )
     )
