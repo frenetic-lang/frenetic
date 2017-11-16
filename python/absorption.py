@@ -20,7 +20,9 @@ def get_transient(X, absorbing):
     preds = [[] for _ in range(len(absorbing))]
     ii,jj = X.nonzero()
     for i,j in zip(ii,jj):
-        preds[j].append(i)
+        # don't consider predecessors of the emtpy set!
+        if j != 0:
+            preds[j].append(i)
 
     while worklist:
         s = worklist.pop()
@@ -48,18 +50,19 @@ def main():
     eprint("[python] AP =\n", AP.toarray(), verb=3)
     eprint("[python] not_a =\n", not_a, verb=3)
 
-    # need to handle 1-dimensionoal case seperately
-    if n == 1:
-        if not_a[0] == 1:
-            # return all-ones matrix
-            write_matrix(sparse.eye(1, 1))
-        else:
-            # return all-zeros matrix
-            write_matrix(sparse.dok_matrix((1,1), dtype='d'))
-        exit(0)
+    # # need to handle 1-dimensionoal case seperately
+    # if n == 1:
+    #     if not_a[0] == 1:
+    #         # return all-ones matrix
+    #         write_matrix(sparse.eye(1, 1))
+    #     else:
+    #         # return all-zeros matrix
+    #         write_matrix(sparse.dok_matrix((1,1), dtype='d'))
+    #     exit(0)
 
     # first, check wich states can even reach an absorbing state ever
     start = time.process_time()
+    AP[0,0] = 0 # the empty set is always absorbing
     (transient,) = get_transient(AP, not_a)
     n_abs = sum(not_a)
     eprint("--> python reachabilty computation: %f seconds" % (time.process_time() - start), verb=0)
@@ -117,7 +120,7 @@ def read_vector():
     shape = int(M)
     v = np.zeros(shape, dtype='d')
     for line in sys.stdin:
-        # eprint("[python] received: \"%s\"" % line.strip())
+        eprint("[python] received: \"%s\"" % line.strip())
         parts = line.split()
         if len(parts) == 0:
             # end of input
@@ -125,8 +128,16 @@ def read_vector():
         elif len(parts) == 3:
             (i, j, a) = parts
             i,j = int(i), int(j)
-            assert(j == i or j == 0)
-            v[i] = np.float64(a)
+            a = np.float64(a)
+
+            # we are parsing a predicate
+            # hence, entries must be in {0,1} ...
+            assert (a == 1)
+            # ... and nonzero entries are either on the diagonal or in the 0-column
+            if j == i:
+                v[i] = a
+            else:
+                assert (j == 0)
         else:
             raise NameError("unepexted input line: %s" % line)
     raise NameError("reachead end of input stream before end of vector!")
