@@ -324,15 +324,13 @@ module ActionDist = struct
     |> String.concat ~sep:"; "
     |> sprintf "{ %s }"
 
+  (* sum = ampersand (and ampersand only!). It should ever only be used to
+     implement disjunction. Thus, we must have x,y \in {0,1}  *)
   let sum x y =
     if is_zero x then y else
     if is_zero y then x else
-    let m1 = mass x in
-    let m2 = mass y in
-    if Prob.(compare (m1+m2) one) <= 0 then
-      T.sum x y
-    else
-      failwith (sprintf "multicast not implemented! cannot add %s and %s"
+    if is_one x && is_one y then x else
+      failwith (sprintf "multicast not implemented! cannot add (in the sense of &) %s and %s"
         (to_string x) (to_string y)
       )
 end
