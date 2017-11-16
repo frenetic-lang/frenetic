@@ -1000,16 +1000,15 @@ module Fdd = struct
     | Branch _ ->
       dp_map t
         ~f:(fun dist ->
-          (* SJS: this needs to be implemented using a convex n-ary sum. *)
-          failwith "todo"
-          (* List.map (ActionDist.to_alist dist) ~f:(fun (action, prob) ->
+          ActionDist.to_alist dist
+          |> Util.map_fst ~f:(fun action ->
             match action with
-            | Drop -> drop
-            | Action preact ->
+            | Action.Drop -> drop
+            | Action.Action preact ->
               restrict (PreAction.to_hvs preact) u
-              |> prod (const ActionDist.(dirac action ~weight:prob))
+              |> prod (const @@ ActionDist.dirac action)
           )
-          |> List.fold ~init:drop ~f:sum *)
+          |> n_ary_convex_sum
         )
         ~g:(fun v t f -> cond v t f)
         ~find_or_add:(fun t -> BinTbl.find_or_add seq_tbl (t,u))
