@@ -15,7 +15,7 @@ module Parameters = struct
   let up sw pt = sprintf "up_%d" pt
 
   (* link failure probabilities *)
-  let failure_prob _sw _pt = PNK.(1 // 10)
+  let failure_prob _sw _pt = Prob.(zero)
 
   (* topology *)
   let topo = Topology.parse (Sys.argv.(1))

@@ -1155,8 +1155,10 @@ module Fdd = struct
           )
         )
     | While (a, p) ->
+      let a = of_pred a in
+      if equal a id then k drop else
+      if equal a drop then k id else
       of_pol_k p (fun p ->
-        let a = of_pred a in
         k @@ Util.timed "while loop" (fun () -> iterate a p)
       )
     | Choice dist ->
