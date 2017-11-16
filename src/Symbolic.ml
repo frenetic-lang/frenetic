@@ -1241,12 +1241,8 @@ module Fdd = struct
         k @@ Util.timed "while loop" (fun () -> iterate a p)
       )
     | Choice dist ->
-      (* SJS: use n-ary convex sum *)
-      failwith "not implemented"
-(*       List.map dist ~f:(fun (p, prob) ->
-        of_pol_k p (map_r ~f:(ActionDist.scale ~scalar:prob))
-      )
-      |> big_union *)
+      Util.map_fst dist ~f:of_symbolic_pol
+      |> n_ary_convex_sum
       |> k
     | Let { id=field; init; mut; body=p } ->
       of_pol_k p (fun p' -> k (erase p' field init))
