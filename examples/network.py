@@ -3,7 +3,7 @@ import networkx as nx
 import sys
 
 from topologies import fattree,jellyfish,xpander
-from routing import spf,disjointtrees,routing_lib
+from routing import allsp,spf,disjointtrees,routing_lib
 
 def generate_topology(topo_args):
     targs = topo_args.split(',')
@@ -33,6 +33,8 @@ def routing_trees(topo, routing_alg, dest):
     trees = None
     if routing_alg == 'spf':
         trees = spf.route(topo, dest)
+    elif routing_alg == 'allsp':
+        trees = allsp.route(topo, dest)
     elif routing_alg == 'disjointtrees':
         trees = disjointtrees.route(topo, dest)
     else:
@@ -58,8 +60,8 @@ def network(topo_args, routing_algs, topo_name):
     # Routing. Fix destination. Generate routing tree(s) to this desitnation
     alg_list = routing_algs.split(',')
     for alg in alg_list:
-        trees = routing_trees(topo, alg, 's1')
-        routing_lib.serialize_trees(trees, topo_name+'-'+alg)
+        routes = routing_trees(topo, alg, 's1')
+        routing_lib.serialize_routes(routes, topo_name+'-'+alg)
 
 
 def parse_args():
