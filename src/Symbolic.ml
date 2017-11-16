@@ -1264,59 +1264,6 @@ module Fdd = struct
 
   type weighted_pk = Packet.t * Prob.t [@@deriving compare, eq]
 
-  let equivalent ?(modulo=[]) t1 t2 =
-    let rec do_nodes t1 t2 pk =
-      match unget t1, unget t2 with
-      | Branch ((f1,v1), l1, r1), Branch ((f2,v2), l2, r2) ->
-        begin match Field.compare f1 f2 with
-        | -1 ->
-          do_nodes l1 t2 (PrePacket.modify pk f1 (Const v1)) &&
-          do_nodes r1 t2 pk
-        | 1 ->
-          do_nodes t1 l2 (PrePacket.modify pk f2 (Const v2)) &&
-          do_nodes t1 r2 pk
-        | 0 ->
-          begin match Value.compare v1 v2 with
-          | 0 ->
-            do_nodes l1 l2 (PrePacket.modify pk f1 (Const v1)) &&
-            do_nodes r1 r2 pk
-          | -1 ->
-            do_nodes l1 r2 (PrePacket.modify pk f1 (Const v1)) &&
-            do_nodes r1 t2 pk
-          | 1 ->
-            do_nodes r1 l2 (PrePacket.modify pk f2 (Const v2)) &&
-            do_nodes t1 r2 pk
-          | _ -> assert false
-          end
-        | _ -> assert false
-        end
-      | Branch ((f1,v1), l1, r1), Leaf _ ->
-        do_nodes l1 t2 (PrePacket.modify pk f1 (Const v1)) &&
-        do_nodes r1 t2 pk
-      | Leaf _, Branch ((f2,v2), l2, r2) ->
-        do_nodes t1 l2 (PrePacket.modify pk f2 (Const v2)) &&
-        do_nodes t1 r2 pk
-      | Leaf d1, Leaf d2 ->
-        do_leaves d1 d2 pk
-    and do_leaves d1 d2 pk =
-      List.equal ~equal:equal_weighted_pk (normalize d1 pk) (normalize d2 pk)
-    and normalize dist pk =
-      ActionDist.to_alist dist
-      |> Util.map_fst ~f:modulo_mods
-      |> Util.map_fst ~f:(Packet.(apply (Pk pk)))
-      |> List.sort ~cmp:compare_weighted_pk
-    and modulo_mods act =
-      match act with
-      | Drop -> Drop
-      | Action act ->
-        let act = Field.Map.filteri act~f:(fun ~key:f ~data:_ ->
-          let f = Map.find_exn (!Field.field_to_str_map) f in
-          not @@ List.mem modulo f ~equal:String.equal)
-        in
-        Action act
-    in
-    do_nodes t1 t2 PrePacket.empty
-
   (** removes all modifications of the provied list of fields  *)
   let modulo t fields : t =
     (* translate strings to Field.t's *)
@@ -1358,5 +1305,60 @@ module Fdd = struct
         else
           unchecked_cond (f,v) tru fls
         )
+
+
+  let equivalent ?(modulo=[]) t1 t2 =
+    let rec do_nodes t1 t2 pk =
+      match unget t1, unget t2 with
+      | Branch ((f1,v1), l1, r1), Branch ((f2,v2), l2, r2) ->
+        begin match Field.compare f1 f2 with
+        | -1 ->
+          do_nodes l1 t2 (PrePacket.modify pk f1 (Const v1)) &&
+          do_nodes r1 t2 pk
+        | 1 ->
+          do_nodes t1 l2 (PrePacket.modify pk f2 (Const v2)) &&
+          do_nodes t1 r2 pk
+        | 0 ->
+          begin match Value.compare v1 v2 with
+          | 0 ->
+            do_nodes l1 l2 (PrePacket.modify pk f1 (Const v1)) &&
+            do_nodes r1 r2 pk
+          | -1 ->
+            do_nodes l1 (get_all_false f1 r2) (PrePacket.modify pk f1 (Const v1)) &&
+            do_nodes r1 t2 pk
+          | 1 ->
+            do_nodes (get_all_false f2 r1) l2 (PrePacket.modify pk f2 (Const v2)) &&
+            do_nodes t1 r2 pk
+          | _ -> assert false
+          end
+        | _ -> assert false
+        end
+      | Branch ((f1,v1), l1, r1), Leaf _ ->
+        do_nodes l1 t2 (PrePacket.modify pk f1 (Const v1)) &&
+        do_nodes r1 t2 pk
+      | Leaf _, Branch ((f2,v2), l2, r2) ->
+        do_nodes t1 l2 (PrePacket.modify pk f2 (Const v2)) &&
+        do_nodes t1 r2 pk
+      | Leaf d1, Leaf d2 ->
+        do_leaves d1 d2 pk
+    and do_leaves d1 d2 pk =
+      List.equal ~equal:equal_weighted_pk (normalize d1 pk) (normalize d2 pk)
+    and normalize dist pk =
+      ActionDist.to_alist dist
+      |> Util.map_fst ~f:modulo_mods
+      |> Util.map_fst ~f:(Packet.(apply (Pk pk)))
+      |> List.sort ~cmp:compare_weighted_pk
+    and modulo_mods act =
+      match act with
+      | Drop -> Drop
+      | Action act ->
+        let act = Field.Map.filteri act~f:(fun ~key:f ~data:_ ->
+          let f = Map.find_exn (!Field.field_to_str_map) f in
+          not @@ List.mem modulo f ~equal:String.equal)
+        in
+        Action act
+    in
+    do_nodes t1 t2 PrePacket.empty
+
 
 end

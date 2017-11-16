@@ -63,11 +63,8 @@ let () = begin
   Format.printf "%a\n\n" Syntax.pp_policy model;
   let fdd = Util.timed "model to Fdd" (fun () -> Fdd.of_pol model) in
   printf ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> DONE\n%!";
-  let fdd =
-    Fdd.modulo fdd [Parameters.pt]
-    |> Fdd.simplify
-  in
-  printf "fdd mod final port = %s\n" (Fdd.to_string fdd);
+  let fdd = Fdd.modulo fdd [Parameters.pt] in
+  printf "fdd mod final port = %s\n" Fdd.(to_string (simplify fdd));
   let teleport = Fdd.of_pol (Model.teleportation ()) in
   printf "teleport = %s\n" (Fdd.to_string teleport);
   let is_teleport = Fdd.equivalent ~modulo:[Parameters.pt] fdd teleport in
