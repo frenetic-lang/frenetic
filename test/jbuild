@@ -6,6 +6,6 @@
 
 (alias
  ((name runtest)
-  (deps (test.exe))
+  (deps (test.exe ${ROOT}/python/absorption.pyc))
   (action (run ${<} --color=always))
 ))

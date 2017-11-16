@@ -13,7 +13,7 @@ def eprint(*args, verb=0, **kwargs):
         print(*args, file=sys.stderr, **kwargs)
 
 def get_transient(X, absorbing):
-    transient = [False for _ in range(len(absorbing))]
+    transient = np.zeros(len(absorbing), dtype='bool_')
     (worklist,) = np.nonzero(absorbing)
     worklist = worklist.tolist()
     
@@ -30,7 +30,10 @@ def get_transient(X, absorbing):
             if transient[pred]: continue
             transient[pred] = True
             worklist.append(pred)
-    return np.nonzero(transient)
+    (transient_idxs,) = np.nonzero(transient)
+    # states that are neither transient not absorbing are singular
+    (singular_idxs,) = np.nonzero((~transient) & (~absorbing))
+    return transient_idxs, singular_idxs
 
 
 
@@ -63,13 +66,16 @@ def main():
     # first, check wich states can even reach an absorbing state ever
     start = time.process_time()
     AP[0,0] = 0 # the empty set is always absorbing
-    (transient,) = get_transient(AP, not_a)
+    (transient,singular) = get_transient(AP, not_a)
     n_abs = sum(not_a)
     eprint("--> python reachabilty computation: %f seconds" % (time.process_time() - start), verb=0)
 
     start = time.process_time()
     (absorbing,) = np.nonzero(not_a)
     n_trans = transient.size
+    n_sing = singular.size
+    # the state space is partioned into singular, transient, and absorbing states
+    assert(n_sing + n_trans + n_abs == n)
     eprint("--> python index computation: %f seconds" % (time.process_time() - start), verb=0)
     eprint("[python] non-singular transient = ", transient, verb=2)
     eprint("[python] n = %d, n_abs = %d, n_trans = %d, n_singular = %d" 
@@ -89,6 +95,7 @@ def main():
     XX[np.ix_(transient, absorbing)] = X
     for i in absorbing:
         XX[i,i] = 1
+    XX[singular,0] = 1
 
     # write matrix back
     write_matrix(XX)
@@ -118,7 +125,7 @@ def read_vector():
     (M, N) = sys.stdin.readline().split()
     assert(M == N)
     shape = int(M)
-    v = np.zeros(shape, dtype='d')
+    v = np.zeros(shape, dtype='bool_')
     for line in sys.stdin:
         # eprint("[python] received: \"%s\"" % line.strip(), verb=4)
         parts = line.split()
@@ -128,11 +135,11 @@ def read_vector():
         elif len(parts) == 3:
             (i, j, a) = parts
             i,j = int(i), int(j)
-            a = np.float64(a)
+            a = bool(a)
 
             # we are parsing a predicate
             # hence, entries must be in {0,1} ...
-            assert (a == 1)
+            assert (a == True)
             # ... and nonzero entries are either on the diagonal or in the 0-column
             if j == i:
                 v[i] = a
