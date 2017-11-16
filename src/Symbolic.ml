@@ -1335,4 +1335,28 @@ module Fdd = struct
         ))
       )
     )
+
+  (** returns the "all-false-branch" of an FDD with respect to a particular field,
+    i.e. the sub FDD obtained by, starting from the root, taking the false branch
+    until the top-most field is not equal to the given [field] *)
+  let rec get_all_false field fdd =
+    match unget fdd with
+    | Leaf _ -> fdd
+    | Branch ((field',_), _, fls) ->
+      if Field.equal field field' then
+        get_all_false field fls
+      else
+        fdd
+
+  (** applies fall-through optimization.  *)
+  let simplify t : t =
+    map t
+      ~f:(fun leaf -> const leaf)
+      ~g:(fun (f,v) tru fls ->
+        if equal tru (get_all_false f fls) then
+          fls
+        else
+          unchecked_cond (f,v) tru fls
+        )
+
 end
