@@ -19,7 +19,11 @@ end
 let fdd_equiv = (module Fdd_equiv : Alcotest.TESTABLE with type t = Fdd.t)
 
 let test kind name p q =
-  (name, `Quick, fun () -> Alcotest.check kind "" (Fdd.of_pol p) (Fdd.of_pol q))
+  (name, `Quick, (fun () ->
+      Alcotest.check kind "" (Fdd.of_pol p) (Fdd.of_pol q);
+      Fdd.clear_cache ~preserve:Int.Set.empty
+    )
+  )
 
 let test_not kind p q =
   test (Alcotest.neg kind) p q

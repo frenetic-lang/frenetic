@@ -832,37 +832,51 @@ module Fdd = struct
   include Fdd0
   open Syntax
 
+  (** SJS: keep global string |-> Field.t map so that we can compare policies
+      that are compiled to Fdds one after another
+  *)
+  let field_allocation_tbl : (string, Field.t) Hashtbl.t = String.Table.create ()
+
+  (* sound, but could be better *)
+  let clear_cache ~(preserve:Int.Set.t) : unit =
+    clear_cache ~preserve;
+    if Set.is_empty preserve then (
+      Hashtbl.clear field_allocation_tbl;
+      Field.field_to_str_map := Field.Map.empty
+    );
+    ()
+
   let allocate_fields (pol : string policy) : Field.t policy =
-    let tbl : (string, Field.t) Hashtbl.t = String.Table.create () in
     let next = ref 0 in
     let do_field env (f : string) : Field.t =
       match Field.Env.lookup env f with
       | (field, _) -> field
-      | exception Not_found -> String.Table.find_or_add tbl f ~default:(fun () ->
-        let open Field in
-        let field = match !next with
-          | 0 -> F0
-          | 1 -> F1
-          | 2 -> F2
-          | 3 -> F3
-          | 4 -> F4
-          | 5 -> F5
-          | 6 -> F6
-          | 7 -> F7
-          | 8 -> F8
-          | 9 -> F9
-          | 10 -> F10
-          | 11 -> F11
-          | 12 -> F12
-          | 13 -> F13
-          | 14 -> F14
-          | 15 -> F15
-          | 16 -> F16
-          | 17 -> F17
-          | 18 -> F18
-          | 19 -> F19
-          | _ -> failwith "too many fields! (only up to 20 supported)"
-        in incr next; field)
+      | exception Not_found ->
+        String.Table.find_or_add field_allocation_tbl f ~default:(fun () ->
+          let open Field in
+          let field = match !next with
+            | 0 -> F0
+            | 1 -> F1
+            | 2 -> F2
+            | 3 -> F3
+            | 4 -> F4
+            | 5 -> F5
+            | 6 -> F6
+            | 7 -> F7
+            | 8 -> F8
+            | 9 -> F9
+            | 10 -> F10
+            | 11 -> F11
+            | 12 -> F12
+            | 13 -> F13
+            | 14 -> F14
+            | 15 -> F15
+            | 16 -> F16
+            | 17 -> F17
+            | 18 -> F18
+            | 19 -> F19
+            | _ -> failwith "too many fields! (may need to clear the cache?)"
+          in incr next; field)
     in
     let rec do_pol env (p : string policy) : Field.t policy =
       match p with
@@ -898,9 +912,14 @@ module Fdd = struct
     in
     let pol = do_pol Field.Env.empty pol in
     let field_map =
-      String.Table.to_alist tbl
+      String.Table.to_alist field_allocation_tbl
       |> List.map ~f:(fun (str, field) -> (field, str))
       |> Field.Map.of_alist_exn
+      |> Field.Map.merge (!Field.field_to_str_map) ~f:(fun ~key -> function
+          | `Right s | `Left s -> Some s
+          | `Both (s,s') when s = s' -> Some s
+          | `Both (s,s') -> failwith "inconsistent state!"
+        )
     in
     Field.field_to_str_map := field_map;
     pol
