@@ -24,27 +24,6 @@ let map_snd xs ~f =
 let tap x ~f =
   f x; x
 
-(* Given p_1, ..., p_n s.t. sum p_i = 1, we are looking for
-         b_1, ..., b_n s.t.
-      b1 = p1
-  /\  (1-b1)b2 = p2
-  /\  (1-b1)(1-b2)b3 = p3 ... etc.
-  Solving for b_i, we get b_i = p_i/(\prod_{j<i}(1-b_i))
-*)
-let n_ary_to_binary_right_associative_probs ps =
-  let init = (Prob.one, []) in
-  List.fold_left ps ~init ~f:(fun (prod, acc) p_i ->
-    let b_i = Prob.(p_i / prod) in
-    let prod = Prob.(prod * (one - p_i)) in
-    (prod, b_i::acc)
-  )
-  |> fun (_, acc) -> List.rev acc
-  |> tap ~f:(fun ps ->
-      List.iter ps ~f:(fun p -> Format.printf "%a; " Prob.pp p);
-      printf "\n"
-    )
-
-
 (* adapted from https://github.com/ocaml/ocaml/blob/
    c5fe6932b2151d0e4426072b4df3510318bc4edc/otherlibs/unix/unix.ml
 *)
