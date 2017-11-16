@@ -6,7 +6,7 @@ from scipy.sparse import linalg
 import fileinput
 import time
 
-verbosity = 9
+verbosity = 0
 
 def eprint(*args, verb=0, **kwargs):
     if verb <= verbosity:
@@ -47,8 +47,8 @@ def main():
     eprint("[python] %dx%d matrices received!" % (n, n), verb=1)
 
     # print received matrices
-    eprint("[python] AP =\n", AP.toarray(), verb=3)
-    eprint("[python] not_a =\n", not_a, verb=3)
+    # eprint("[python] AP =\n", AP.toarray(), verb=3)
+    # eprint("[python] not_a =\n", not_a, verb=3)
 
     # # need to handle 1-dimensionoal case seperately
     # if n == 1:
@@ -120,7 +120,7 @@ def read_vector():
     shape = int(M)
     v = np.zeros(shape, dtype='d')
     for line in sys.stdin:
-        eprint("[python] received: \"%s\"" % line.strip())
+        # eprint("[python] received: \"%s\"" % line.strip(), verb=4)
         parts = line.split()
         if len(parts) == 0:
             # end of input
