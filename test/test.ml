@@ -29,26 +29,17 @@ let test_not kind p q =
   test (Alcotest.neg kind) p q
 
 
-let field i = sprintf "Y%d" i
-let multi_coin m n =
-  let open PNK in
-  (!!("X", 0)) >>
-  whl (neg @@ conji m ~f:(fun i -> ???(field i, 0))) begin
-    seqi m ~f:(fun i ->
-      ite (???("X", i)) (
-        uniformi n ~f:(fun j ->
-          !!(field i, j)
-        ) >>
-        !! ("X", (i+1) mod m)
-      ) (
-        skip
-      )
-    )
-  end >> (!!("X", 0))
 
-let basic_positive = [
 
-  (* predicate *)
+(*===========================================================================*)
+(* DETERMINISTIC TESTS (WITHOUT ⊕)                                           *)
+(*===========================================================================*)
+
+let basic_deterministic = [
+
+  test_not fdd_eq "skip ≠ drop" PNK.skip PNK.drop;
+
+ (* predicate *)
   test fdd_equiv "predicate sequentially composed on right"
     PNK.( ite (???("X",0)) (!!("X", 1)) skip
           >> filter( neg (???("X", 0)) )
@@ -71,6 +62,45 @@ let basic_positive = [
           ]
     )
     PNK.( drop );
+
+   (* fdd equivalence *)
+  test fdd_equiv "equivalent but not equal fdds: equivalent"
+    PNK.( ite (???("x", 0)) skip         skip )
+    PNK.( ite (???("x", 0)) (!!("x", 0)) skip );
+  test_not fdd_eq "equivalent but not equal fdds: not equal"
+    PNK.( ite (???("x", 0)) skip         skip )
+    PNK.( ite (???("x", 0)) (!!("x", 0)) skip );
+]
+
+
+
+
+(*===========================================================================*)
+(* DETERMINISTIC TEST (WITH ⊕)                                               *)
+(*===========================================================================*)
+
+
+let field i = sprintf "Y%d" i
+let multi_coin m n =
+  let open PNK in
+  (!!("X", 0)) >>
+  whl (neg @@ conji m ~f:(fun i -> ???(field i, 0))) begin
+    seqi m ~f:(fun i ->
+      ite (???("X", i)) (
+        uniformi n ~f:(fun j ->
+          !!(field i, j)
+        ) >>
+        !! ("X", (i+1) mod m)
+      ) (
+        skip
+      )
+    )
+  end >> (!!("X", 0))
+
+
+
+let basic_probabilistic = [
+
 
   (* coin flip example *)
   test fdd_equiv "coin flip terminates"
@@ -121,14 +151,6 @@ let basic_positive = [
     (multi_coin m n)
   end;
 
-  (* fdd equivalence *)
-  test fdd_equiv "equivalent but not equal fdds: equivalent"
-    PNK.( ite (???("x", 0)) skip         skip )
-    PNK.( ite (???("x", 0)) (!!("x", 0)) skip );
-  test_not fdd_eq "equivalent but not equal fdds: not equal"
-    PNK.( ite (???("x", 0)) skip         skip )
-    PNK.( ite (???("x", 0)) (!!("x", 0)) skip );
-
   (* loop-free speed *)
   begin
     let l i = sprintf "l%d" i in
@@ -170,12 +192,7 @@ let basic_positive = [
         )
       )
     )
-    PNK.( skip )
-
-]
-
-let basic_negative = [
-  test_not fdd_eq "skip ≠ drop" PNK.skip PNK.drop;
+    PNK.( skip );
 
 ]
 
@@ -185,7 +202,7 @@ let basic_negative = [
 
 let () =
   Alcotest.run "Probnetkat" [
-    "fdd positive", basic_positive;
-    "fdd negative", basic_negative;
+    "fdd deterministic", basic_deterministic;
+    "fdd probabilistic", basic_probabilistic;
     (* "qcheck", qcheck_tests; *)
   ]
