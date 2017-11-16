@@ -295,11 +295,6 @@ module ActionDist = struct
   let one = T.dirac Action.one
   let is_one = T.equal one
 
-  let sum x y =
-    if is_zero x then y else
-    if is_zero y then x else
-    failwith "multicast not implemented!"
-
   let prod x y =
     if is_zero x || is_zero y then
       zero
@@ -322,6 +317,18 @@ module ActionDist = struct
                     (Prob.to_float prob |> Float.to_string_round_trippable))
     |> String.concat ~sep:"; "
     |> sprintf "{ %s }"
+
+  let sum x y =
+    if is_zero x then y else
+    if is_zero y then x else
+    let m1 = mass x in
+    let m2 = mass y in
+    if Prob.(compare (m1+m2) one) <= 0 then
+      T.sum x y
+    else
+      failwith (sprintf "multicast not implemented! cannot add %s and %s"
+        (to_string x) (to_string y)
+      )
 end
 
 
@@ -763,8 +770,9 @@ module Matrix = struct
   let maplet_to_matrix_entries (coding : (module CODING)) (dom, act, prob)
     : (int * int * Prob.t) list =
     let module Conv = (val coding : CODING) in
-    Domain.variants dom
+    Domain.pre_variants dom
     |> List.map ~f:(fun pk ->
+      let pk = Packet.Pk pk in
       let pk' = Packet.apply pk act in
       ((Conv.Index0.of_pk pk).i, (Conv.Index0.of_pk pk').i, prob)
     )
@@ -804,7 +812,7 @@ module Matrix = struct
       | ((act::_)::_) as actions->
         eprintf "!!! WARNING: possibly unsounds matix -> Fdd conversion\n%!";
         List.concat actions
-        |> List.iter ~f:(fun dist -> printf "  %s\n" (ActionDist.to_string dist));
+        |> List.iter ~f:(fun dist -> eprintf "  %s\n" (ActionDist.to_string dist));
         act
       | _ -> assert false
 
@@ -935,10 +943,23 @@ module Fdd = struct
 
   let union t u = sum t u
 
-  let big_union fdds = List.fold ~init:drop ~f:union fdds
+  let big_union fdds = List.fold ~init:(const ActionDist.empty) ~f:union fdds
 
+  (* FIXME: this skeleton is very large, so this may become a bottleneck.
+     I used to use a smaller skeleton computed from ap and not_a, but I am not
+     sure this was sound. Reconsider should this become a bottleneck in the
+     future. *)
+  let mk_skeleton dom =
+    Field.Map.fold dom ~init:id ~f:(fun ~key:field ~data:vs init ->
+      Set.fold vs ~init ~f:(fun init v ->
+        match v with
+        | PrePacket.Atom -> init
+        | PrePacket.Const v -> cond (field,v) init (negate init)
+      )
+    )
 
-  let from_mat (matrix : Matrix.t) ~(skeleton: t) : t =
+  let from_mat (matrix : Matrix.t) : t =
+    let skeleton = mk_skeleton Matrix.(matrix.dom) in
     let rec do_node skeleton pk =
       match unget skeleton with
       | Leaf r ->
@@ -1005,6 +1026,7 @@ module Fdd = struct
      We are looking for X. We solve the linear (sparse) system to compute it.
   *)
   let iterate a p =
+    (* printf "a = %s\n" (to_string a); *)
     (* transition matrix for transient states, i.e. those satisfying predicate [a] *)
     let ap = prod a p in
     (* transition matrix for absorbing states, i.e. those not satisfying [a] *)
@@ -1080,10 +1102,7 @@ module Fdd = struct
         (* convert matrix back to FDD *)
         let iterated = Matrix.{ matrix = iterated; dom; coding } in
         Util.timed "matrix -> fdd conversion" (fun () ->
-          let not_a_unique =
-            map_r not_a ~f:(ActionDist.scale ~scalar:Prob.(of_int 2)) in
-          let skeleton = union ap not_a_unique in
-          from_mat iterated ~skeleton
+          from_mat iterated
         )
       end
 
