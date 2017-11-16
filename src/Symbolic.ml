@@ -295,7 +295,10 @@ module ActionDist = struct
   let one = T.dirac Action.one
   let is_one = T.equal one
 
-  let sum = T.sum
+  let sum x y =
+    if is_zero x then y else
+    if is_zero y then x else
+    failwith "multicast not implemented!"
 
   let prod x y =
     if is_zero x || is_zero y then
