@@ -65,7 +65,7 @@ end) = struct
 
   and with_init_up_bits sw pts body =
     let up_bits = List.map pts ~f:(fun pt -> (up sw pt, 1, true)) in
-    PNK.locals up_bits body
+    PNK.locals up_bits PNK.(init_up_bits sw pts >> body)
 
   and init_up_bits sw pts =
     let open PNK in
