@@ -1362,6 +1362,10 @@ module Fdd = struct
 
   let to_dotfile t filename =
     Out_channel.with_file filename ~f:(fun chan ->
-      Out_channel.output_string chan (to_dot t))
+      simplify t
+      |> to_dot
+      |>
+      Out_channel.output_string chan
+    )
 
 end
