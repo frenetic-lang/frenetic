@@ -33,7 +33,7 @@ module Make (Dom : Vlr.HashCmp) = struct
   let to_alist = T.to_alist ~key_order:`Increasing
 
   (* point mass distribution *)
-  let dirac ?(weight=Prob.one) (p : Dom.t) : t = T.singleton p weight
+  let dirac (p : Dom.t) : t = T.singleton p Prob.one
 
   let is_dirac (t : t) : Dom.t option =
     if T.length t = 1 then
@@ -50,6 +50,14 @@ module Make (Dom : Vlr.HashCmp) = struct
       Some (match vals with
       | `Both (v1, v2) -> Prob.(v1 + v2)
       | `Left v | `Right v -> v))
+
+  let convex_sum t1 p t2 : t =
+    Map.merge t1 t2 ~f:(fun ~key vals ->
+      Some (match vals with
+      | `Both (v1, v2) -> Prob.(p*v1 + (one-p)*v2)
+      | `Left v1 -> Prob.(p*v1)
+      | `Right v2 -> Prob.((one-p)*v2)
+    ))
 
   let pushforward t ~(f: Dom.t -> Dom.t) : t =
     T.fold t ~init:empty ~f:(fun ~key:x ~data:p dist ->
@@ -73,7 +81,7 @@ module Make (Dom : Vlr.HashCmp) = struct
   let scale t ~(scalar : Prob.t) : t =
     T.map t ~f:(fun p -> Prob.(p * scalar))
 
-  let add t p x : t =
+  let unsafe_add t p x : t =
     T.update t x (function
       | None -> p
       | Some p' -> Prob.(p + p'))
@@ -92,7 +100,7 @@ module Make (Dom : Vlr.HashCmp) = struct
     let mean = expectation t f in
     expectation t ~f:(fun point -> Prob.((f point - mean) * (f point - mean)))
 
-  let normalize t =
+  let unsafe_normalize t =
     let open Prob in
     let mass = T.fold t ~init:zero ~f:(fun ~key ~data:p acc -> p + acc) in
     T.map t ~f:(fun p -> p / mass)
