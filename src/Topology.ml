@@ -52,6 +52,16 @@ let locs topo : (vertex * int list) list =
     |> (fun pts -> (sw, pts))
   )
 
+let ingress_locs topo : (vertex * int) list =
+  fold_edges (fun edge acc ->
+      let (src_vertex,src_pt) = edge_src edge in
+      if not (is_host topo src_vertex) then acc else
+      let (dst_sw,dst_pt) = edge_dst edge in
+      (dst_sw, pt_val dst_pt) :: acc
+    )
+      topo
+      []
+
 end
 
 include Generic
@@ -97,16 +107,11 @@ end) = struct
     |> PNK.(mk_big_ite ~default:drop)
 
   let ingress (topo : Net.Topology.t) : string pred =
-    fold_edges (fun edge acc ->
-      let (src_vertex,src_pt) = edge_src edge in
-      if not (is_host topo src_vertex) then acc else
-      let (dst_sw,dst_pt) = edge_dst edge in
-      let dst_sw = sw_val topo dst_sw in
-      let dst_pt = pt_val dst_pt in
-      PNK.(disj acc (???(sw, dst_sw) & ???(pt, dst_pt)))
-    )
-      topo
-      False
+    ingress_locs topo
+    |> List.map ~f:(fun (sw_v, pt_id) ->
+        PNK.( ???(sw, sw_val topo sw_v) & ???(pt, pt_id))
+      )
+    |> PNK.mk_big_disj
 
 
 end

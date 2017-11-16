@@ -74,4 +74,11 @@ end) = struct
     )
     |> mk_big_seq
 
+  (** teleport from ingress straight to destination  *)
+  let teleportation () =
+    PNK.(
+      filter (Topology.ingress topo) >>
+      Syntax.positive_pred_to_mod destination
+    )
+
 end

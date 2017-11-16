@@ -2,6 +2,7 @@ open! Core
 open Probnetkat
 open Probnetkat.Syntax
 open Frenetic.Network
+open Symbolic
 
 
 module Parameters = struct
@@ -15,7 +16,7 @@ module Parameters = struct
   let up sw pt = sprintf "up_%d" pt
 
   (* link failure probabilities *)
-  let failure_prob _sw _pt = Prob.(zero)
+  let failure_prob _sw _pt = Prob.(1//10)
 
   (* topology *)
   let topo = Topology.parse (Sys.argv.(1))
@@ -57,10 +58,14 @@ let () = begin
   let topo = Topo.parse (Sys.argv.(1)) in
   let topo_prog = Topo.to_probnetkat topo ~guard_links:true in
   Format.printf "%a\n\n" Syntax.pp_policy topo_prog;
-  Util.timed "topo to Fdd" (fun () -> ignore (Symbolic.Fdd.of_pol topo_prog));
+  Util.timed "topo to Fdd" (fun () -> ignore (Fdd.of_pol topo_prog));
   let model = Util.timed "building model" (fun () -> Model.make ()) in
   Format.printf "%a\n\n" Syntax.pp_policy model;
-  let fdd = Util.timed "model to Fdd" (fun () -> Symbolic.Fdd.of_pol model) in
+  let fdd = Util.timed "model to Fdd" (fun () -> Fdd.of_pol model) in
   printf ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> DONE\n%!";
-  printf "%s" (Symbolic.Fdd.to_string fdd)
+  printf "%s\n" (Fdd.to_string fdd);
+  let teleport = Fdd.of_pol (Model.teleportation ()) in
+  printf "teleport = %s\n" (Fdd.to_string teleport);
+  let is_teleport = Fdd.equivalent ~modulo:[Parameters.pt] fdd teleport in
+  printf "equivalent to teleportation: %s\n" (Bool.to_string is_teleport);
 end

@@ -209,3 +209,15 @@ module PNK = struct
   let ( // ) m n = Q.(m // n)
   let ( @ ) p r = (p,r)
 end
+
+
+(** useful auxilliary functions  *)
+
+let rec positive_pred_to_mod pred =
+  let open PNK in
+  match pred with
+  | True -> skip
+  | False -> drop
+  | Test (f,v) -> Modify (f,v)
+  | And (p, q) -> positive_pred_to_mod p >> positive_pred_to_mod q
+  | Or _ | Neg _ -> failwith "not a positive predicate!"

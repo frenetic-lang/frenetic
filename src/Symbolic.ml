@@ -1191,7 +1191,7 @@ module Fdd = struct
 
   type weighted_pk = Packet.t * Prob.t [@@deriving compare, eq]
 
-  let equivalent t1 t2 =
+  let equivalent ?(modulo=[]) t1 t2 =
     let rec do_nodes t1 t2 pk =
       match unget t1, unget t2 with
       | Branch ((f1,v1), l1, r1), Branch ((f2,v2), l2, r2) ->
@@ -1229,8 +1229,18 @@ module Fdd = struct
       List.equal ~equal:equal_weighted_pk (normalize d1 pk) (normalize d2 pk)
     and normalize dist pk =
       ActionDist.to_alist dist
+      |> Util.map_fst ~f:modulo_mods
       |> Util.map_fst ~f:(Packet.(apply (Pk pk)))
       |> List.sort ~cmp:compare_weighted_pk
+    and modulo_mods act =
+      match act with
+      | Drop -> Drop
+      | Action act ->
+        let act = Field.Map.filteri act~f:(fun ~key:f ~data:_ ->
+          let f = Map.find_exn (!Field.field_to_str_map) f in
+          not @@ List.mem modulo f ~equal:String.equal)
+        in
+        Action act
     in
     do_nodes t1 t2 PrePacket.empty
 

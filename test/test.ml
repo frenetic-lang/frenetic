@@ -13,7 +13,7 @@ let fdd_eq = (module Fdd_eq : Alcotest.TESTABLE with type t = Fdd.t)
 
 module Fdd_equiv = struct
   include Fdd_eq
-  let equal = equivalent
+  let equal = equivalent ~modulo:[]
 end
 
 let fdd_equiv = (module Fdd_equiv : Alcotest.TESTABLE with type t = Fdd.t)
