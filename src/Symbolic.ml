@@ -936,6 +936,37 @@ module Fdd = struct
     | Or (p, q) -> sum (of_pred p) (of_pred q)
     | Neg(q)    -> negate (of_pred q)
 
+
+  (* SJS: copied and adopted apply algorithm from Vlr.ml *)
+  let convex_sum t1 prob t2 : t =
+    (* the function to apply at the leaves *)
+    let f x y = ActionDist.convex_sum x prob y in
+    let cache : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 () in
+    let rec sum x y =
+      BinTbl.find_or_add cache (x, y) ~default:(fun () -> sum' x y)
+    and sum' x y =
+      match unget x, unget y with
+      | Leaf x, _      ->
+        map_r (fun y -> f x y) y
+      | _     , Leaf y ->
+        map_r (fun x -> f x y) x
+      | Branch((vx, lx), tx, fx), Branch((vy, ly), ty, fy) ->
+        begin match Field.compare vx vy with
+        |  0 ->
+          begin match Value.compare lx ly with
+          |  0 -> unchecked_cond (vx,lx) (sum tx ty) (sum fx fy)
+          | -1 -> unchecked_cond (vx,lx) (sum tx (restrict [(vx, lx)] y)) (sum fx y)
+          |  1 -> unchecked_cond (vy,ly) (sum (restrict [(vy, ly)] x) ty) (sum x fy)
+          |  _ -> assert false
+          end
+        | -1 -> unchecked_cond (vx,lx) (sum tx y) (sum fx y)
+        |  1 -> unchecked_cond (vy,ly) (sum x ty) (sum x fy)
+        |  _ -> assert false
+        end
+    in
+    sum t1 t2
+
+
   let seq_tbl = BinTbl.create ~size:1000 ()
 
   let clear_cache ~preserve = begin
