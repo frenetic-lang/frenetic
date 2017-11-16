@@ -966,6 +966,22 @@ module Fdd = struct
     in
     sum t1 t2
 
+  let n_ary_convex_sum ts : t =
+    let (ts, probs) = List.unzip ts in
+    let probs = Util.n_ary_to_binary_right_associative_probs probs in
+    (* To implement an n-ary convex sum, we only need n-1 binary convex sums.
+       Hence, we expose of the right-most probability. Moreover, we reverse
+       the list of Fdds, because the binary sums are associated to the right.
+     *)
+    match List.rev ts, List.rev probs with
+    | t::ts, _::probs ->
+      List.zip_exn ts probs
+      (* because we are doing a fold_left over the reversed list, the accumulator
+         is the right-hand fdd, and the current fdd goes on the left. *)
+      |> List.fold_left ~init:t ~f:(fun tr (tl, p) -> convex_sum tl p tr)
+    | _ ->
+      failwith "0-ary convex sum is undefined!"
+
 
   let seq_tbl = BinTbl.create ~size:1000 ()
 
