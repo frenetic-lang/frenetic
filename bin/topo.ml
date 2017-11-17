@@ -4,6 +4,14 @@ open Probnetkat.Syntax
 open Frenetic.Network
 open Symbolic
 
+module Int2 = struct
+  module T = struct
+    type t = int*int [@@deriving sexp, hash, compare]
+  end
+  include T
+  module Tbl = Hashtbl.Make(T)
+  module Map = Map.Make(T)
+end
 
 module Parameters = struct
 
@@ -49,11 +57,40 @@ module Parameters = struct
       topo
       Int.Map.empty
 
+  let edge_map : Net.Topology.edge Int2.Map.t =
+    Net.Topology.fold_edges (fun edge map ->
+      let (src,_) = Net.Topology.edge_src edge in
+      let (dst,_) = Net.Topology.edge_dst edge in
+      let key = Topology.(sw_val topo src, sw_val topo dst) in
+      Map.add map ~key ~data:edge
+    )
+      topo
+      Int2.Map.empty
 
-  let find_edge src_id dst_id : Net.Topology.edge =
-    let src = Map.find_exn switch_map src_id in
-    let dst = Map.find_exn switch_map dst_id in
-    Net.Topology.find_edge topo src dst
+  let parse_sw sw =
+    assert (String.get sw 0 = 's');
+    String.slice sw 1 (String.length sw)
+    |> Int.of_string
+
+  (* switch to port mapping *)
+  let parse_spf_trees () : (int list) Int.Table.t =
+    let tbl = Int.Table.create () in
+    let spf_file = base_name ^ "-spf.trees" in
+    In_channel.(with_file spf_file ~f:(iter_lines ~f:(fun l ->
+      let l = String.strip l in
+      if not (String.get l 0 = '#') then
+      match String.split ~on:' ' l with
+      | [src; _; dst] ->
+        let src = parse_sw src in
+        let dst = parse_sw dst in
+        let edge = Map.find_exn edge_map (src,dst) in
+        let (_, out_port) = Net.Topology.edge_src edge in
+        (* find destination port *)
+        Int.Table.add_multi tbl ~key:src ~data:(Topology.pt_val out_port)
+      | _ ->
+        failwith "unexpected format"
+    )));
+    tbl
 
 
 (*===========================================================================*)
@@ -80,26 +117,6 @@ module Parameters = struct
       let choose_port = random_walk sw in
       PNK.( choose_port >> whl (neg good_pt) choose_port )
 
-    (* switch to port mapping *)
-    let parse_spf_trees () : (int list) Int.Table.t =
-      let tbl = Int.Table.create () in
-      let spf_file = base_name ^ "-spf.trees" in
-      In_channel.(with_file spf_file ~f:(iter_lines ~f:(fun l ->
-        let l = String.strip l in
-        if not (String.get l 0 = '#') then
-        match String.split ~on:' ' l with
-        | [src; _; dst] ->
-          let src = Int.of_string src in
-          let dst = Int.of_string dst in
-          let edge = find_edge src dst in
-          let (_, out_port) = Net.Topology.edge_src edge in
-          (* find destination port *)
-          Int.Table.add_multi tbl ~key:src ~data:(Topology.pt_val out_port)
-        | _ ->
-          failwith "unexpected format"
-      )));
-      tbl
-
     (* let shortest_path sw = *)
 
 
@@ -116,7 +133,7 @@ module Model = Model.Make(Parameters)
 
 let () = begin
   let open Parameters in
-  let topo_prog = Topo.to_probnetkat topo ~guard_links:true in
+(*   let topo_prog = Topo.to_probnetkat topo ~guard_links:true in
   Format.printf "%a\n\n" Syntax.pp_policy topo_prog;
   Util.timed "topo to Fdd" (fun () -> ignore (Fdd.of_pol topo_prog));
   let model = Util.timed "building model" (fun () -> Model.make ()) in
@@ -129,5 +146,7 @@ let () = begin
   printf "teleport = %s\n" (Fdd.to_string teleport);
   let is_teleport = Fdd.equivalent fdd teleport in
   printf "equivalent to teleportation: %s\n" (Bool.to_string is_teleport);
-  Fdd.to_dotfile fdd (base_name ^ ".fdd.dot");
+  Fdd.to_dotfile fdd (base_name ^ ".fdd.dot"); *)
+
+  ignore (parse_spf_trees ());
 end
