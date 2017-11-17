@@ -193,7 +193,7 @@ module Parameters = struct
           eprintf "switch %d cannot reach destination\n" sw_val;
           failwith "network disconnected!"
 
-    let reslient_ecmp : Net.Topology.vertex -> string policy =
+    let resilient_ecmp : Net.Topology.vertex -> string policy =
       let port_map = parse_nexthops (base_name ^ "-allsp.nexthops") in
       fun sw ->
         let sw_val = Topology.sw_val topo sw in
@@ -235,7 +235,7 @@ module Parameters = struct
   end
 
   (* the actual program to run on the switches *)
-  let sw_pol = `Portwise Schemes.deterministic_car
+  let sw_pol = `Switchwise Schemes.resilient_ecmp
 
 
 end
@@ -249,6 +249,28 @@ module Model = Model.Make(Parameters)
 (* Analyses                                                                  *)
 (*===========================================================================*)
 
+
+(* report whether fdd is equivalent to teleportation, modulo fields *)
+let equivalent_to_teleport =
+  let teleport = Fdd.of_pol (Model.teleportation ()) in
+  let modulo = [Parameters.pt; Parameters.counter] in
+  fun fdd ->
+    let is_teleport = Fdd.equivalent fdd teleport ~modulo in
+    printf "equivalent to teleportation: %s\n" (Bool.to_string is_teleport);
+    is_teleport
+
+(* report on probability of delivery *)
+(* let probability_of_delivery fdd =
+  let ingress_locs = Topo.ingress_locs Parameters.topo in
+  List.iter ingress_locs ~f:(fun (sw, pt_val) ->
+    let sw_val = Topo.sw_val topo sw in
+    match Fdd.(unget (restrict fdd []))
+    )
+ *)
+
+(* compute path stretch *)
+
+
 let () = begin
   let open Parameters in
 
@@ -260,16 +282,21 @@ let () = begin
   (* TEST PARSING *)
   (* ignore (parse_trees @@ base_name ^ "-disjointtrees.trees"); *)
 
+  (* Make model and compile it into an Fdd. *)
   let model = Util.timed "building model" (fun () -> Model.make ()) in
   Format.printf "%a\n\n" Syntax.pp_policy model;
   let fdd = Util.timed "model to Fdd" (fun () -> Fdd.of_pol model) in
-  printf ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> DONE\n%!";
-  let fdd = Fdd.modulo fdd [Parameters.pt; Parameters.counter] in
-  printf "fdd mod final port = %s\n" Fdd.(to_string (simplify fdd));
-  let teleport = Fdd.of_pol (Model.teleportation ()) in
-  printf "teleport = %s\n" (Fdd.to_string teleport);
-  let is_teleport = Fdd.equivalent fdd teleport in
-  printf "equivalent to teleportation: %s\n" (Bool.to_string is_teleport);
+  printf ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> COMPILATION DONE\n%!";
+
+  (* erase final port and counter values *)
+  (* SJS: we might want to look at the expected number of failures, actually *)
+  let fdd' = Fdd.modulo fdd [Parameters.pt; Parameters.counter] in
+  printf "fdd mod final port & counter = %s\n" Fdd.(to_string (simplify fdd'));
+
+  (* do we gurantee packet delivery? *)
+  ignore (equivalent_to_teleport fdd');
+
+  (*  *)
   Fdd.to_dotfile fdd (base_name ^ ".fdd.dot");
 
 end
