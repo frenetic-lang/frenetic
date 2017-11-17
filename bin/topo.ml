@@ -30,7 +30,7 @@ module Parameters = struct
   let up sw pt = sprintf "up_%d" pt
 
   (* link failure probabilities *)
-  let failure_prob _sw _pt = Prob.(0//10)
+  let failure_prob _sw _pt = Prob.(1//10)
 
   (* Limit on maximum failures "encountered" by a packet. A packet encounters
      a failure if it occurs on a link that is incident to the current location
@@ -80,7 +80,7 @@ module Parameters = struct
       let l = String.strip l in
       if not (String.get l 0 = '#') then
       match String.split ~on:' ' l with
-      | [src; _; dst] ->
+      | [src; "--"; dst] ->
         let src = parse_sw src in
         let dst = parse_sw dst in
         let edge = Map.find_exn edge_map (src,dst) in
@@ -91,6 +91,33 @@ module Parameters = struct
         failwith "unexpected format"
     )));
     tbl
+
+  (* switch to port mapping *)
+  let parse_nexthops file : (int list) Int.Table.t =
+    let tbl = Int.Table.create () in
+    In_channel.(with_file file ~f:(iter_lines ~f:(fun l ->
+      let l = String.strip l in
+      if not (String.get l 0 = '#') then
+      match String.split ~on:' ' l with
+      | src::":"::dsts ->
+        let src = parse_sw src in
+        List.map dsts ~f:(fun dst ->
+          let dst = parse_sw dst in
+          let edge = Map.find_exn edge_map (src,dst) in
+          let (_, out_port) = Net.Topology.edge_src edge in
+          Topology.pt_val out_port
+        )
+        |> fun data -> Int.Table.add_exn tbl ~key:src ~data
+      | _ ->
+        failwith "unexpected format"
+    )));
+    tbl
+
+  (* am I at a good port? *)
+  let at_good_pt sw pts = PNK.(
+    List.map pts ~f:(fun pt_val -> ???(pt,pt_val) & ???(up sw pt_val, 1))
+    |> mk_big_disj
+  )
 
 
 (*===========================================================================*)
@@ -109,13 +136,8 @@ module Parameters = struct
       let pts = Topology.vertex_to_ports topo sw
         |> List.map ~f:Topology.pt_val
       in
-      let good_pt = PNK.(
-        List.map pts ~f:(fun pt_val -> ???(pt,pt_val) & ???(up sw pt_val, 1))
-        |> mk_big_disj
-      )
-      in
       let choose_port = random_walk sw in
-      PNK.( choose_port >> whl (neg good_pt) choose_port )
+      PNK.( choose_port >> whl (neg (at_good_pt sw pts)) choose_port )
 
     let shortest_path : Net.Topology.vertex -> string policy =
       let port_map = parse_trees (base_name ^ "-spf.trees") in
@@ -127,22 +149,33 @@ module Parameters = struct
           eprintf "switch %d cannot reach destination\n" sw_val;
           failwith "network disconnected!"
 
-    let resilient_shortest_path : Net.Topology.vertex -> string policy =
-      let port_map = parse_trees (base_name ^ "-spf.trees") in
+    let ecmp : Net.Topology.vertex -> string policy =
+      let port_map = parse_nexthops (base_name ^ "-allsp.nexthops") in
       fun sw ->
         let sw_val = Topology.sw_val topo sw in
         match Hashtbl.find port_map sw_val with
         | Some pts -> PNK.(
-          ite_cascade pts ~otherwise:drop ~f:(fun pt_val ->
-            let guard = ???(up sw_val pt_val, 1) in
-            let body = !!(pt, pt_val) in
-            (guard, body)
+            List.map pts ~f:(fun pt_val -> !!(pt, pt_val))
+            |> uniform
           )
-        )
         | _ ->
           eprintf "switch %d cannot reach destination\n" sw_val;
           failwith "network disconnected!"
 
+    let reslient_ecmp : Net.Topology.vertex -> string policy =
+      let port_map = parse_nexthops (base_name ^ "-allsp.nexthops") in
+      fun sw ->
+        let sw_val = Topology.sw_val topo sw in
+        match Hashtbl.find port_map sw_val with
+        | Some pts -> PNK.(
+            whl (neg (at_good_pt sw pts)) (
+              List.map pts ~f:(fun pt_val -> !!(pt, pt_val))
+              |> uniform
+            )
+          )
+        | _ ->
+          eprintf "switch %d cannot reach destination\n" sw_val;
+          failwith "network disconnected!"
 
   end
 
@@ -154,6 +187,12 @@ end
 
 module Topo = Topology.Make(Parameters)
 module Model = Model.Make(Parameters)
+
+
+
+(*===========================================================================*)
+(* Analyses                                                                  *)
+(*===========================================================================*)
 
 let () = begin
   let open Parameters in
