@@ -58,11 +58,22 @@ module Parameters = struct
       topo
       Int.Map.empty
 
+  (* (src_sw,dst_sw) |-> edge *)
   let edge_map : Net.Topology.edge Int2.Map.t =
     Net.Topology.fold_edges (fun edge map ->
       let (src,_) = Net.Topology.edge_src edge in
       let (dst,_) = Net.Topology.edge_dst edge in
       let key = Topology.(sw_val topo src, sw_val topo dst) in
+      Map.add map ~key ~data:edge
+    )
+      topo
+      Int2.Map.empty
+
+  (* (sw,pt) |-> out edge *)
+  let hop_map : Net.Topology.edge Int2.Map.t =
+    Net.Topology.fold_edges (fun edge map ->
+      let (src_sw, src_pt) = Net.Topology.edge_src edge in
+      let key = Topology.(sw_val topo src_sw, pt_val src_pt) in
       Map.add map ~key ~data:edge
     )
       topo
@@ -119,15 +130,15 @@ module Parameters = struct
     |> mk_big_disj
   )
 
+  (* given a current switch and the inport, what tree are we on? *)
   let mk_current_tree_map (port_map : (int list) Int.Table.t) : int Int2.Map.t =
+    (* the port map maps a switch to the out_ports in order of the tree preference *)
     Hashtbl.fold port_map ~init:Int2.Map.empty ~f:(fun ~key:src_sw ~data:src_pts init ->
       List.foldi src_pts ~init ~f:(fun i init src_pt ->
-        let src_sw = Map.find_exn switch_map src_sw in
-        match Net.Topology.next_hop topo src_sw (Int32.of_int_exn src_pt) with
-        | None -> assert false
-        | Some edge ->
-          let (dst_sw, dst_pt) = Net.Topology.edge_dst edge in
-          Map.add init ~key:(Topology.sw_val topo dst_sw, Topology.pt_val dst_pt) ~data:i
+        let edge = Map.find_exn hop_map (src_sw, src_pt) in
+        let (dst_sw, dst_pt) = Net.Topology.edge_dst edge in
+        let key = Topology.(sw_val topo dst_sw, Topology.pt_val dst_pt) in
+        Map.add init ~key ~data:i
       )
     )
 
@@ -195,24 +206,28 @@ module Parameters = struct
       let port_tbl = Int.Table.map port_tbl ~f:Array.of_list in
       fun sw in_pt ->
         let sw_val = Topology.sw_val topo sw in
-        let i = Map.find_exn current_tree_map (sw_val, in_pt) in
-        let pts = Hashtbl.find_exn port_tbl sw_val in
-        let n = Array.length pts in
-        (* the order in which we should try ports, i.e. starting from i *)
-        let pts = Array.init n (fun j -> pts.((i+j) mod n)) in
-        PNK.(
-          Array.to_list pts
-          |> ite_cascade ~otherwise:drop ~f:(fun pt_val ->
-              let guard = ???(up sw_val pt_val, 1) in
-              let body = !!(pt, pt_val) in
-              (guard, body)
-            )
-        )
+        match Map.find current_tree_map (sw_val, in_pt) with
+        | None ->
+          eprintf "verify that packets never enter switch %d at port %d\n" sw_val in_pt;
+          PNK.( drop )
+        | Some i ->
+          let pts = Hashtbl.find_exn port_tbl sw_val in
+          let n = Array.length pts in
+          (* the order in which we should try ports, i.e. starting from i *)
+          let pts = Array.init n (fun j -> pts.((i+j) mod n)) in
+          PNK.(
+            Array.to_list pts
+            |> ite_cascade ~otherwise:drop ~f:(fun pt_val ->
+                let guard = ???(up sw_val pt_val, 1) in
+                let body = !!(pt, pt_val) in
+                (guard, body)
+              )
+          )
 
   end
 
   (* the actual program to run on the switches *)
-  let sw_pol = `Switchwise Schemes.shortest_path
+  let sw_pol = `Portwise Schemes.deterministic_car
 
 
 end
