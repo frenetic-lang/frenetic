@@ -35,6 +35,31 @@ module Parameters = struct
 
   let destination = PNK.( ???(sw, 3) )
 
+
+(*===========================================================================*)
+(* AUXILLIARY                                                          *)
+(*===========================================================================*)
+
+  let switch_map : Net.Topology.vertex Int.Map.t =
+    let open Net.Topology in
+    fold_vertexes (fun v map ->
+      let id = Topology.sw_val topo v in
+      Int.Map.add map ~key:id ~data:v
+    )
+      topo
+      Int.Map.empty
+
+
+  let find_edge src_id dst_id : Net.Topology.edge =
+    let src = Map.find_exn switch_map src_id in
+    let dst = Map.find_exn switch_map dst_id in
+    Net.Topology.find_edge topo src dst
+
+
+(*===========================================================================*)
+(* ROUTING SCHEMES                                                           *)
+(*===========================================================================*)
+
   (* different routing schemes *)
   module Schemes = struct
 
@@ -55,7 +80,28 @@ module Parameters = struct
       let choose_port = random_walk sw in
       PNK.( choose_port >> whl (neg good_pt) choose_port )
 
+    (* switch to port mapping *)
+    let parse_spf_trees () : (int list) Int.Table.t =
+      let tbl = Int.Table.create () in
+      let spf_file = base_name ^ "-spf.trees" in
+      In_channel.(with_file spf_file ~f:(iter_lines ~f:(fun l ->
+        let l = String.strip l in
+        if not (String.get l 0 = '#') then
+        match String.split ~on:' ' l with
+        | [src; _; dst] ->
+          let src = Int.of_string src in
+          let dst = Int.of_string dst in
+          let edge = find_edge src dst in
+          let (_, out_port) = Net.Topology.edge_src edge in
+          (* find destination port *)
+          Int.Table.add_multi tbl ~key:src ~data:(Topology.pt_val out_port)
+        | _ ->
+          failwith "unexpected format"
+      )));
+      tbl
+
     (* let shortest_path sw = *)
+
 
   end
 
