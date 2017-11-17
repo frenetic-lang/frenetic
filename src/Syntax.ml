@@ -159,6 +159,9 @@ module Constructors = struct
       | False -> skip
       | _ -> While (a,p)
 
+    let do_whl a p =
+      seq p (whl a p)
+
     let conji n ~f =
       Array.init n ~f
       |> Array.fold ~init:True ~f:conj

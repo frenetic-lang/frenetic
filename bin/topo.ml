@@ -119,6 +119,18 @@ module Parameters = struct
     |> mk_big_disj
   )
 
+  let mk_current_tree_map (port_map : (int list) Int.Table.t) : int Int2.Map.t =
+    Hashtbl.fold port_map ~init:Int2.Map.empty ~f:(fun ~key:src_sw ~data:src_pts init ->
+      List.foldi src_pts ~init ~f:(fun i init src_pt ->
+        let src_sw = Map.find_exn switch_map src_sw in
+        match Net.Topology.next_hop topo src_sw (Int32.of_int_exn src_pt) with
+        | None -> assert false
+        | Some edge ->
+          let (dst_sw, dst_pt) = Net.Topology.edge_dst edge in
+          Map.add init ~key:(Topology.sw_val topo dst_sw, Topology.pt_val dst_pt) ~data:i
+      )
+    )
+
 
 (*===========================================================================*)
 (* ROUTING SCHEMES                                                           *)
@@ -137,7 +149,7 @@ module Parameters = struct
         |> List.map ~f:Topology.pt_val
       in
       let choose_port = random_walk sw in
-      PNK.( choose_port >> whl (neg (at_good_pt sw pts)) choose_port )
+      PNK.( do_whl (neg (at_good_pt sw pts)) choose_port )
 
     let shortest_path : Net.Topology.vertex -> string policy =
       let port_map = parse_trees (base_name ^ "-spf.trees") in
@@ -168,7 +180,7 @@ module Parameters = struct
         let sw_val = Topology.sw_val topo sw in
         match Hashtbl.find port_map sw_val with
         | Some pts -> PNK.(
-            whl (neg (at_good_pt sw pts)) (
+            do_whl (neg (at_good_pt sw pts)) (
               List.map pts ~f:(fun pt_val -> !!(pt, pt_val))
               |> uniform
             )
@@ -176,6 +188,26 @@ module Parameters = struct
         | _ ->
           eprintf "switch %d cannot reach destination\n" sw_val;
           failwith "network disconnected!"
+
+    let deterministic_car : Net.Topology.vertex -> int -> string policy =
+      let port_tbl = parse_trees (base_name ^ "-disjointtrees.trees") in
+      let current_tree_map = mk_current_tree_map port_tbl in
+      let port_tbl = Int.Table.map port_tbl ~f:Array.of_list in
+      fun sw in_pt ->
+        let sw_val = Topology.sw_val topo sw in
+        let i = Map.find_exn current_tree_map (sw_val, in_pt) in
+        let pts = Hashtbl.find_exn port_tbl sw_val in
+        let n = Array.length pts in
+        (* the order in which we should try ports, i.e. starting from i *)
+        let pts = Array.init n (fun j -> pts.((i+j) mod n)) in
+        PNK.(
+          Array.to_list pts
+          |> ite_cascade ~otherwise:drop ~f:(fun pt_val ->
+              let guard = ???(up sw_val pt_val, 1) in
+              let body = !!(pt, pt_val) in
+              (guard, body)
+            )
+        )
 
   end
 
