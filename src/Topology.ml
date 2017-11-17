@@ -11,16 +11,9 @@ module Node = Frenetic.Network.Node
 
 (** things that don't need to be parameterized  *)
 module Generic = struct
+
 let parse : string -> Net.Topology.t =
   Net.Parse.from_dotfile
-
-let pt_val pt : int =
-  Int.of_int32_exn pt
-
-let sw_val topo sw : int =
-  vertex_to_label topo sw
-  |> Node.id
-  |> Int.of_int64_exn
 
 let is_switch topo v =
   match Node.device (vertex_to_label topo v) with
@@ -37,6 +30,15 @@ let switches topo : vertex list =
   |> Set.filter ~f:(is_switch topo)
   |> Set.to_list
   (* |> List.map ~f:(Topology.sw_val topo) *)
+
+let pt_val pt : int =
+  Int.of_int32_exn pt
+
+let sw_val topo sw : int =
+  assert (is_switch topo sw);
+  vertex_to_label topo sw
+  |> Node.id
+  |> Int.of_int64_exn
 
 let vertex_to_ports ?(dst_filter=fun _ -> true) topo vertex =
   neighbors topo vertex

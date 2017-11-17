@@ -9,8 +9,7 @@ module Int2 = struct
     type t = int*int [@@deriving sexp, hash, compare]
   end
   include T
-  module Tbl = Hashtbl.Make(T)
-  module Map = Map.Make(T)
+  module Table = Hashtbl.Make(T)
 end
 
 module Parameters = struct
@@ -30,13 +29,13 @@ module Parameters = struct
   let up sw pt = sprintf "up_%d" pt
 
   (* link failure probabilities *)
-  let failure_prob _sw _pt = Prob.(1//10)
+  let failure_prob _sw _pt = Prob.(0//10)
 
   (* Limit on maximum failures "encountered" by a packet. A packet encounters
      a failure if it occurs on a link that is incident to the current location
      of the packet, indepedently of whether the packet was planning to use that
      link or not. *)
-  let max_failures = Some 2
+  let max_failures = None
 
   (* topology *)
   let topo = Topology.parse (base_name ^ ".dot")
@@ -49,35 +48,41 @@ module Parameters = struct
 (* AUXILLIARY                                                          *)
 (*===========================================================================*)
 
-  let switch_map : Net.Topology.vertex Int.Map.t =
+  let switch_tbl : Net.Topology.vertex Int.Table.t =
     let open Net.Topology in
-    fold_vertexes (fun v map ->
-      let id = Topology.sw_val topo v in
-      Int.Map.add map ~key:id ~data:v
+    let tbl = Int.Table.create () in
+    iter_vertexes (fun v ->
+      if Topology.is_switch topo v then
+        let id = Topology.sw_val topo v in
+        Hashtbl.add_exn tbl ~key:id ~data:v
     )
-      topo
-      Int.Map.empty
+      topo;
+    tbl
 
   (* (src_sw,dst_sw) |-> edge *)
-  let edge_map : Net.Topology.edge Int2.Map.t =
-    Net.Topology.fold_edges (fun edge map ->
+  let edge_tbl : Net.Topology.edge Int2.Table.t =
+    let tbl = Int2.Table.create () in
+    Net.Topology.iter_edges (fun edge ->
       let (src,_) = Net.Topology.edge_src edge in
       let (dst,_) = Net.Topology.edge_dst edge in
-      let key = Topology.(sw_val topo src, sw_val topo dst) in
-      Map.add map ~key ~data:edge
+      if Topology.(is_switch topo src && is_switch topo dst) then
+        let key = Topology.(sw_val topo src, sw_val topo dst) in
+        Hashtbl.add_exn tbl ~key ~data:edge
     )
-      topo
-      Int2.Map.empty
+      topo;
+    tbl
 
   (* (sw,pt) |-> out edge *)
-  let hop_map : Net.Topology.edge Int2.Map.t =
-    Net.Topology.fold_edges (fun edge map ->
+  let hop_tbl : Net.Topology.edge Int2.Table.t =
+    let tbl = Int2.Table.create () in
+    Net.Topology.iter_edges (fun edge ->
       let (src_sw, src_pt) = Net.Topology.edge_src edge in
-      let key = Topology.(sw_val topo src_sw, pt_val src_pt) in
-      Map.add map ~key ~data:edge
-    )
-      topo
-      Int2.Map.empty
+      if Topology.is_switch topo src_sw then
+        let key = Topology.(sw_val topo src_sw, pt_val src_pt) in
+        Hashtbl.add_exn tbl ~key ~data:edge
+      )
+      topo;
+    tbl
 
   let parse_sw sw =
     assert (String.get sw 0 = 's');
@@ -94,10 +99,10 @@ module Parameters = struct
       | [src; "--"; dst] ->
         let src = parse_sw src in
         let dst = parse_sw dst in
-        let edge = Map.find_exn edge_map (src,dst) in
+        let edge = Hashtbl.find_exn edge_tbl (src,dst) in
         let (_, out_port) = Net.Topology.edge_src edge in
         (* find destination port *)
-        Int.Table.add_multi tbl ~key:src ~data:(Topology.pt_val out_port)
+        Hashtbl.add_multi tbl ~key:src ~data:(Topology.pt_val out_port)
       | _ ->
         failwith "unexpected format"
     )));
@@ -117,11 +122,11 @@ module Parameters = struct
         let src = parse_sw src in
         List.map dsts ~f:(fun dst ->
           let dst = parse_sw dst in
-          let edge = Map.find_exn edge_map (src,dst) in
+          let edge = Hashtbl.find_exn edge_tbl (src,dst) in
           let (_, out_port) = Net.Topology.edge_src edge in
           Topology.pt_val out_port
         )
-        |> fun data -> Int.Table.add_exn tbl ~key:src ~data
+        |> fun data -> Hashtbl.add_exn tbl ~key:src ~data
       | _ ->
         failwith "unexpected format"
     )));
@@ -134,21 +139,23 @@ module Parameters = struct
   )
 
   (* given a current switch and the inport, what tree are we on? *)
-  let mk_current_tree_map (port_map : (int list) Int.Table.t) : int Int2.Map.t =
+  let mk_current_tree_tbl (port_tbl : (int list) Int.Table.t) : int Int2.Table.t =
+    let tbl = Int2.Table.create () in
     (* the port map maps a switch to the out_ports in order of the tree preference *)
-    Hashtbl.fold port_map ~init:Int2.Map.empty ~f:(fun ~key:src_sw ~data:src_pts init ->
-      List.foldi src_pts ~init ~f:(fun i init src_pt ->
+    Hashtbl.iteri port_tbl ~f:(fun ~key:src_sw ~data:src_pts ->
+      List.iteri src_pts ~f:(fun i src_pt ->
         (* if we are on tree i, we go from src_sw to src_pt across the following edge: *)
-        let edge = Map.find_exn hop_map (src_sw, src_pt) in
+        let edge = Hashtbl.find_exn hop_tbl (src_sw, src_pt) in
         (* thus, we would end up at the following switch: *)
         let (dst_sw, dst_pt) = Net.Topology.edge_dst edge in
         (* thus, we can infer from entering switch `dst_sw` at port `dst_pt` that
            we must be on tree i
         *)
         let key = Topology.(sw_val topo dst_sw, Topology.pt_val dst_pt) in
-        Map.add init ~key ~data:i
+        Hashtbl.add_exn tbl ~key ~data:i
       )
-    )
+    );
+    tbl
 
 
 (*===========================================================================*)
@@ -171,20 +178,20 @@ module Parameters = struct
       PNK.( do_whl (neg (at_good_pt sw pts)) choose_port )
 
     let shortest_path : Net.Topology.vertex -> string policy =
-      let port_map = parse_trees (base_name ^ "-spf.trees") in
+      let port_tbl = parse_trees (base_name ^ "-spf.trees") in
       fun sw ->
         let sw_val = Topology.sw_val topo sw in
-        match Hashtbl.find port_map sw_val with
+        match Hashtbl.find port_tbl sw_val with
         | Some (pt_val::_) -> PNK.( !!(pt, pt_val) )
         | _ ->
           eprintf "switch %d cannot reach destination\n" sw_val;
           failwith "network disconnected!"
 
     let ecmp : Net.Topology.vertex -> string policy =
-      let port_map = parse_nexthops (base_name ^ "-allsp.nexthops") in
+      let port_tbl = parse_nexthops (base_name ^ "-allsp.nexthops") in
       fun sw ->
         let sw_val = Topology.sw_val topo sw in
-        match Hashtbl.find port_map sw_val with
+        match Hashtbl.find port_tbl sw_val with
         | Some pts -> PNK.(
             List.map pts ~f:(fun pt_val -> !!(pt, pt_val))
             |> uniform
@@ -194,10 +201,10 @@ module Parameters = struct
           failwith "network disconnected!"
 
     let resilient_ecmp : Net.Topology.vertex -> string policy =
-      let port_map = parse_nexthops (base_name ^ "-allsp.nexthops") in
+      let port_tbl = parse_nexthops (base_name ^ "-allsp.nexthops") in
       fun sw ->
         let sw_val = Topology.sw_val topo sw in
-        match Hashtbl.find port_map sw_val with
+        match Hashtbl.find port_tbl sw_val with
         | Some pts -> PNK.(
             do_whl (neg (at_good_pt sw pts)) (
               List.map pts ~f:(fun pt_val -> !!(pt, pt_val))
@@ -210,11 +217,11 @@ module Parameters = struct
 
     let deterministic_car : Net.Topology.vertex -> int -> string policy =
       let port_tbl = parse_trees (base_name ^ "-disjointtrees.trees") in
-      let current_tree_map = mk_current_tree_map port_tbl in
+      let current_tree_tbl = mk_current_tree_tbl port_tbl in
       let port_tbl = Int.Table.map port_tbl ~f:Array.of_list in
       fun sw in_pt ->
         let sw_val = Topology.sw_val topo sw in
-        match Map.find current_tree_map (sw_val, in_pt) with
+        match Hashtbl.find current_tree_tbl (sw_val, in_pt) with
         | None ->
           eprintf "verify that packets never enter switch %d at port %d\n" sw_val in_pt;
           PNK.( drop )
