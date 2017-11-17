@@ -1268,7 +1268,7 @@ module Fdd = struct
   let modulo t fields : t =
     (* translate strings to Field.t's *)
     let fields =
-      List.map fields ~f:(Hashtbl.find_exn field_allocation_tbl)
+      List.filter_map fields ~f:(Hashtbl.find field_allocation_tbl)
       |> Field.Set.of_list
     in
     let open Action in
