@@ -29,13 +29,13 @@ module Parameters = struct
   let up sw pt = sprintf "up_%d" pt
 
   (* link failure probabilities *)
-  let failure_prob _sw _pt = Prob.(0//10)
+  let failure_prob _sw _pt = Prob.(1//10)
 
   (* Limit on maximum failures "encountered" by a packet. A packet encounters
      a failure if it occurs on a link that is incident to the current location
      of the packet, indepedently of whether the packet was planning to use that
      link or not. *)
-  let max_failures = None
+  let max_failures = Some 1
 
   (* topology *)
   let topo = Topology.parse (base_name ^ ".dot")
@@ -155,6 +155,11 @@ module Parameters = struct
         Hashtbl.add_exn tbl ~key ~data:i
       )
     );
+    (* for ingress ports, simply start at tree 0 *)
+    List.iter (Topology.ingress_locs topo) ~f:(fun (sw, pt_val) ->
+      let key = (Topology.sw_val topo sw, pt_val) in
+      Hashtbl.add_exn tbl ~key ~data:0
+    );
     tbl
 
 
@@ -215,7 +220,8 @@ module Parameters = struct
           eprintf "switch %d cannot reach destination\n" sw_val;
           failwith "network disconnected!"
 
-    let deterministic_car : Net.Topology.vertex -> int -> string policy =
+    let car ~(style: [`Deterministic|`Probabilistic])
+      : Net.Topology.vertex -> int -> string policy =
       let port_tbl = parse_trees (base_name ^ "-disjointtrees.trees") in
       let current_tree_tbl = mk_current_tree_tbl port_tbl in
       let port_tbl = Int.Table.map port_tbl ~f:Array.of_list in
@@ -223,26 +229,30 @@ module Parameters = struct
         let sw_val = Topology.sw_val topo sw in
         match Hashtbl.find current_tree_tbl (sw_val, in_pt) with
         | None ->
-          eprintf "verify that packets never enter switch %d at port %d\n" sw_val in_pt;
+          (* eprintf "verify that packets never enter switch %d at port %d\n" sw_val in_pt; *)
           PNK.( drop )
         | Some i ->
           let pts = Hashtbl.find_exn port_tbl sw_val in
-          let n = Array.length pts in
-          (* the order in which we should try ports, i.e. starting from i *)
-          let pts = Array.init n (fun j -> pts.((i+j) mod n)) in
-          PNK.(
-            Array.to_list pts
-            |> ite_cascade ~otherwise:drop ~f:(fun pt_val ->
-                let guard = ???(up sw_val pt_val, 1) in
-                let body = !!(pt, pt_val) in
-                (guard, body)
-              )
-          )
-
+          begin match style with
+          | `Deterministic ->
+            let n = Array.length pts in
+            (* the order in which we should try ports, i.e. starting from i *)
+            let pts = Array.init n (fun j -> pts.((i+j) mod n)) in
+            PNK.(
+              Array.to_list pts
+              |> ite_cascade ~otherwise:drop ~f:(fun pt_val ->
+                  let guard = ???(up sw_val pt_val, 1) in
+                  let body = !!(pt, pt_val) in
+                  (guard, body)
+                )
+            )
+          | `Probabilistic ->
+            failwith "not implemented"
+          end
   end
 
   (* the actual program to run on the switches *)
-  let sw_pol = `Switchwise Schemes.resilient_ecmp
+  let sw_pol = `Portwise (Schemes.car ~style:`Deterministic)
 
 
 end
