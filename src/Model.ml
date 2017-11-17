@@ -27,7 +27,7 @@ module Make(Params: sig
 
   (* the topology *)
   val topo : Net.Topology.t
-  val destination : string pred
+  val destination : int
 end) = struct
 
   include Params
@@ -38,14 +38,16 @@ end) = struct
       (if Option.is_none max_failures then skip else !!(counter, 0)) >>
       (* in; (¬eg; p; t)*; eg *)
       filter (Topology.ingress topo) >>
-      whl (neg destination) (
+      whl (neg (???(sw, destination))) (
         hop ()
       )
     )
 
   and hop () =
     let open PNK in
-    ite_cascade (Topology.locs topo) ~otherwise:drop ~f:(fun (sw, pts) ->
+    Topology.locs topo
+    |> List.filter ~f:(fun (sw,_pt) -> Topology.sw_val topo sw <> destination)
+    |> ite_cascade ~otherwise:drop ~f:(fun (sw, pts) ->
       let sw_id = Topology.sw_val topo sw in
       let guard = ???(Params.sw, sw_id) in
       let body =
@@ -100,7 +102,7 @@ end) = struct
   let teleportation () =
     PNK.(
       filter (Topology.ingress topo) >>
-      Syntax.positive_pred_to_mod destination
+      !!(sw, destination)
     )
 
 end

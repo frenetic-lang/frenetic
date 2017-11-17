@@ -30,7 +30,7 @@ module Parameters = struct
   let up sw pt = sprintf "up_%d" pt
 
   (* link failure probabilities *)
-  let failure_prob _sw _pt = Prob.(1//10)
+  let failure_prob _sw _pt = Prob.(0//10)
 
   (* Limit on maximum failures "encountered" by a packet. A packet encounters
      a failure if it occurs on a link that is incident to the current location
@@ -41,7 +41,8 @@ module Parameters = struct
   (* topology *)
   let topo = Topology.parse (base_name ^ ".dot")
 
-  let destination = PNK.( ???(sw, 3) )
+  (* destination host *)
+  let destination = 1
 
 
 (*===========================================================================*)
@@ -116,31 +117,37 @@ module Parameters = struct
       let choose_port = random_walk sw in
       PNK.( choose_port >> whl (neg good_pt) choose_port )
 
-    let shortest_path : int -> string policy =
+    let shortest_path : Net.Topology.vertex -> string policy =
       let port_map = parse_trees (base_name ^ "-spf.trees") in
       fun sw ->
-        match Hashtbl.find port_map sw with
+        let sw_val = Topology.sw_val topo sw in
+        match Hashtbl.find port_map sw_val with
         | Some (pt_val::_) -> PNK.( !!(pt, pt_val) )
-        | _ -> failwith "network disconnected!"
+        | _ ->
+          eprintf "switch %d cannot reach destination\n" sw_val;
+          failwith "network disconnected!"
 
-    let resilient_shortest_path : int -> string policy =
+    let resilient_shortest_path : Net.Topology.vertex -> string policy =
       let port_map = parse_trees (base_name ^ "-spf.trees") in
       fun sw ->
-        match Hashtbl.find port_map sw with
+        let sw_val = Topology.sw_val topo sw in
+        match Hashtbl.find port_map sw_val with
         | Some pts -> PNK.(
           ite_cascade pts ~otherwise:drop ~f:(fun pt_val ->
-            let guard = ???(up sw pt_val, 1) in
+            let guard = ???(up sw_val pt_val, 1) in
             let body = !!(pt, pt_val) in
             (guard, body)
           )
         )
-        | _ -> failwith "network disconnected!"
+        | _ ->
+          eprintf "switch %d cannot reach destination\n" sw_val;
+          failwith "network disconnected!"
 
 
   end
 
   (* the actual program to run on the switches *)
-  let sw_pol = `Switchwise Schemes.resilient_random_walk
+  let sw_pol = `Switchwise Schemes.shortest_path
 
 
 end
@@ -150,9 +157,15 @@ module Model = Model.Make(Parameters)
 
 let () = begin
   let open Parameters in
-(*   let topo_prog = Topo.to_probnetkat topo ~guard_links:true in
-  Format.printf "%a\n\n" Syntax.pp_policy topo_prog;
-  Util.timed "topo to Fdd" (fun () -> ignore (Fdd.of_pol topo_prog));
+
+  (* TEST TOPOLOGY *)
+  (* let topo_prog = Topo.to_probnetkat topo ~guard_links:true in *)
+  (* Format.printf "%a\n\n" Syntax.pp_policy topo_prog; *)
+  (* Util.timed "topo to Fdd" (fun () -> ignore (Fdd.of_pol topo_prog)); *)
+
+  (* TEST PARSING *)
+  (* ignore (parse_trees @@ base_name ^ "-disjointtrees.trees"); *)
+
   let model = Util.timed "building model" (fun () -> Model.make ()) in
   Format.printf "%a\n\n" Syntax.pp_policy model;
   let fdd = Util.timed "model to Fdd" (fun () -> Fdd.of_pol model) in
@@ -163,7 +176,6 @@ let () = begin
   printf "teleport = %s\n" (Fdd.to_string teleport);
   let is_teleport = Fdd.equivalent fdd teleport in
   printf "equivalent to teleportation: %s\n" (Bool.to_string is_teleport);
-  Fdd.to_dotfile fdd (base_name ^ ".fdd.dot"); *)
+  Fdd.to_dotfile fdd (base_name ^ ".fdd.dot");
 
-  ignore (parse_trees @@ base_name ^ "-disjointtrees.trees");
 end
