@@ -30,13 +30,13 @@ module Parameters = struct
   let up sw pt = sprintf "up_%d" pt
 
   (* link failure probabilities *)
-  let failure_prob _sw _pt = Prob.(1//10)
+  let failure_prob _sw _pt = Prob.(0//10)
 
   (* Limit on maximum failures "encountered" by a packet. A packet encounters
      a failure if it occurs on a link that is incident to the current location
      of the packet, indepedently of whether the packet was planning to use that
      link or not. *)
-  let max_failures = Some 2
+  let max_failures = None
 
   (* topology *)
   let topo = Topology.parse (base_name ^ ".dot")
@@ -49,6 +49,7 @@ module Parameters = struct
 (* AUXILLIARY                                                          *)
 (*===========================================================================*)
 
+  (* switch id to switch node map *)
   let switch_map : Net.Topology.vertex Int.Map.t =
     let open Net.Topology in
     fold_vertexes (fun v map ->
@@ -136,19 +137,28 @@ module Parameters = struct
   (* given a current switch and the inport, what tree are we on? *)
   let mk_current_tree_map (port_map : (int list) Int.Table.t) : int Int2.Map.t =
     (* the port map maps a switch to the out_ports in order of the tree preference *)
-    Hashtbl.fold port_map ~init:Int2.Map.empty ~f:(fun ~key:src_sw ~data:src_pts init ->
-      List.foldi src_pts ~init ~f:(fun i init src_pt ->
-        (* if we are on tree i, we go from src_sw to src_pt across the following edge: *)
-        let edge = Map.find_exn hop_map (src_sw, src_pt) in
-        (* thus, we would end up at the following switch: *)
-        let (dst_sw, dst_pt) = Net.Topology.edge_dst edge in
-        (* thus, we can infer from entering switch `dst_sw` at port `dst_pt` that
-           we must be on tree i
-        *)
-        let key = Topology.(sw_val topo dst_sw, Topology.pt_val dst_pt) in
-        Map.add init ~key ~data:i
+    let s2s_map =
+      Hashtbl.fold port_map ~init:Int2.Map.empty ~f:(fun ~key:src_sw ~data:src_pts init ->
+        List.foldi src_pts ~init ~f:(fun i init src_pt ->
+          (* if we are on tree i, we go from src_sw to src_pt across the following edge: *)
+          let edge = Map.find_exn hop_map (src_sw, src_pt) in
+          (* thus, we would end up at the following switch: *)
+          let (dst_sw, dst_pt) = Net.Topology.edge_dst edge in
+          (* thus, we can infer from entering switch `dst_sw` at port `dst_pt` that
+             we must be on tree i
+          *)
+          let key = Topology.(sw_val topo dst_sw, Topology.pt_val dst_pt) in
+          Map.add init ~key ~data:i
+        )
       )
+    in
+    (* to get a complete map, also need to consider ingress locations! *)
+    Topology.ingress_locs topo
+    |> List.fold ~init:s2s_map ~f:(fun map (sw, pt_id) ->
+      let key = Topology.(sw_val topo sw, pt_id) in
+      Map.add map ~key ~data:0
     )
+
 
 
 (*===========================================================================*)
@@ -235,7 +245,7 @@ module Parameters = struct
   end
 
   (* the actual program to run on the switches *)
-  let sw_pol = `Switchwise Schemes.resilient_ecmp
+  let sw_pol = `Portwise Schemes.deterministic_car
 
 
 end
