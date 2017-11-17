@@ -73,10 +73,9 @@ module Parameters = struct
     |> Int.of_string
 
   (* switch to port mapping *)
-  let parse_spf_trees () : (int list) Int.Table.t =
+  let parse_trees file : (int list) Int.Table.t =
     let tbl = Int.Table.create () in
-    let spf_file = base_name ^ "-spf.trees" in
-    In_channel.(with_file spf_file ~f:(iter_lines ~f:(fun l ->
+    In_channel.(with_file file ~f:(iter_lines ~f:(fun l ->
       let l = String.strip l in
       if not (String.get l 0 = '#') then
       match String.split ~on:' ' l with
@@ -90,6 +89,9 @@ module Parameters = struct
       | _ ->
         failwith "unexpected format"
     )));
+    Int.Table.iteri tbl ~f:(fun ~key:sw ~data:pts ->
+      printf "s%d: %s\n" sw (List.to_string pts ~f:Int.to_string)
+    );
     tbl
 
 
@@ -148,5 +150,5 @@ let () = begin
   printf "equivalent to teleportation: %s\n" (Bool.to_string is_teleport);
   Fdd.to_dotfile fdd (base_name ^ ".fdd.dot"); *)
 
-  ignore (parse_spf_trees ());
+  ignore (parse_trees @@ base_name ^ "-disjointtrees.trees");
 end
