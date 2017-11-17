@@ -21,15 +21,16 @@ def mk_topo(k, bw='1Gbps'):
     hosts = [('h' + str(i), {'type':'host', 'mac':mk_mac(i), 'ip':mk_ip(i)})
              for i in range (1, num_hosts + 1)]
 
-    core_switches = [('s' + str(i), {'type':'switch', 'level':'core', 'id':i})
-                       for i in range(1,num_core_switches + 1)]
+    edge_switches = [('s' + str(i), {'type':'switch', 'level':'edge', 'id':i})
+                    for i in range(1, num_edge_switches + 1)]
 
     agg_switches = [('s' + str(i), {'type':'switch', 'level':'aggregation', 'id':i})
-                    for i in range(num_core_switches + 1,num_core_switches + num_agg_switches+ 1)]
+                    for i in range(num_edge_switches + 1, num_edge_switches + num_agg_switches+ 1)]
 
-    edge_switches = [('s' + str(i), {'type':'switch', 'level':'edge', 'id':i})
-                    for i in range(num_core_switches + num_agg_switches + 1,
-                                   num_core_switches + num_agg_switches + num_edge_switches + 1)]
+    core_switches = [('s' + str(i), {'type':'switch', 'level':'core', 'id':i})
+                       for i in range(num_edge_switches + num_agg_switches + 1,
+                                   num_edge_switches + num_agg_switches + num_core_switches + 1)]
+
 
     g = nx.DiGraph()
     g.add_nodes_from(hosts)
