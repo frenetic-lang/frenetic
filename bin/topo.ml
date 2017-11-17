@@ -89,9 +89,6 @@ module Parameters = struct
       | _ ->
         failwith "unexpected format"
     )));
-    Int.Table.iteri tbl ~f:(fun ~key:sw ~data:pts ->
-      printf "s%d: %s\n" sw (List.to_string pts ~f:Int.to_string)
-    );
     tbl
 
 
@@ -119,7 +116,25 @@ module Parameters = struct
       let choose_port = random_walk sw in
       PNK.( choose_port >> whl (neg good_pt) choose_port )
 
-    (* let shortest_path sw = *)
+    let shortest_path : int -> string policy =
+      let port_map = parse_trees (base_name ^ "-spf.trees") in
+      fun sw ->
+        match Hashtbl.find port_map sw with
+        | Some (pt_val::_) -> PNK.( !!(pt, pt_val) )
+        | _ -> failwith "network disconnected!"
+
+    let resilient_shortest_path : int -> string policy =
+      let port_map = parse_trees (base_name ^ "-spf.trees") in
+      fun sw ->
+        match Hashtbl.find port_map sw with
+        | Some pts -> PNK.(
+          ite_cascade pts ~otherwise:drop ~f:(fun pt_val ->
+            let guard = ???(up sw pt_val, 1) in
+            let body = !!(pt, pt_val) in
+            (guard, body)
+          )
+        )
+        | _ -> failwith "network disconnected!"
 
 
   end
