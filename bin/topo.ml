@@ -101,6 +101,9 @@ module Parameters = struct
       | _ ->
         failwith "unexpected format"
     )));
+    Hashtbl.iteri tbl ~f:(fun ~key:sw ~data:pts ->
+      printf "sw %d: %s\n" sw (List.to_string pts ~f:Int.to_string)
+    );
     tbl
 
   (* switch to port mapping *)
@@ -135,8 +138,13 @@ module Parameters = struct
     (* the port map maps a switch to the out_ports in order of the tree preference *)
     Hashtbl.fold port_map ~init:Int2.Map.empty ~f:(fun ~key:src_sw ~data:src_pts init ->
       List.foldi src_pts ~init ~f:(fun i init src_pt ->
+        (* if we are on tree i, we go from src_sw to src_pt across the following edge: *)
         let edge = Map.find_exn hop_map (src_sw, src_pt) in
+        (* thus, we would end up at the following switch: *)
         let (dst_sw, dst_pt) = Net.Topology.edge_dst edge in
+        (* thus, we can infer from entering switch `dst_sw` at port `dst_pt` that
+           we must be on tree i
+        *)
         let key = Topology.(sw_val topo dst_sw, Topology.pt_val dst_pt) in
         Map.add init ~key ~data:i
       )
