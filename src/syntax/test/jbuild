@@ -9,5 +9,7 @@
 ;; makes sure the executable is built in test mode
 (alias
   ((name    runtest)
-   (deps ((file main.exe)))
-))
+   (deps (main.exe))
+   (action (run ${<}))
+  )
+)
