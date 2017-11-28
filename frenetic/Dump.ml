@@ -1,4 +1,6 @@
 open Core
+module Netkat = Frenetic.Netkat
+open Async_unix
 
 (*===========================================================================*)
 (* UTILITY FUNCTIONS                                                         *)
@@ -17,19 +19,35 @@ let fmt = Format.formatter_of_out_channel stdout
 let _ = Format.pp_set_margin fmt 120
 
 let print_fdd fdd =
-  printf "%s\n" (Netkat.Compiler.to_string fdd)
+  printf "%s\n" (Netkat.Local_compiler.to_string fdd)
 
 let dump data ~file =
   Out_channel.write_all file ~data
 
+let dump_local fdd ~file =
+  Netkat.Local_compiler.to_local_pol fdd
+  |> Netkat.Pretty.string_of_policy
+  |> dump ~file
+
+let dump_pol pol ~file =
+  Netkat.Pretty.string_of_policy pol
+  |> dump ~file
+
 let dump_fdd fdd ~file =
-  dump ~file (Netkat.Compiler.to_dot fdd)
+  dump ~file (Netkat.Local_compiler.to_dot fdd)
 
 let dump_auto auto ~file =
-  dump ~file (Netkat.Compiler.Automaton.to_dot auto)
+  dump ~file (Netkat.Global_compiler.Automaton.to_dot auto)
+
+open Frenetic.Async
+module Controller = NetKAT_Controller.Make(OpenFlow0x01_Plugin)
+
+let update_controller ?(port=6633) fdd : unit =
+  Controller.start port;
+  Thread_safe.block_on_async_exn (fun () -> Controller.update_fdd fdd)
 
 let print_table fdd sw =
-  Netkat.Compiler.to_table sw fdd
+  Netkat.Local_compiler.to_table sw fdd
   |> Frenetic.OpenFlow.string_of_flowTable ~label:(sprintf "Switch %Ld" sw)
   |> printf "%s\n"
 
@@ -46,7 +64,7 @@ let print_time ?(prefix="") time =
   printf "%scompilation time: %.4f\n" prefix time
 
 let print_order () =
-  Netkat.Compiler.Field.(get_order ()
+  Netkat.Local_compiler.Field.(get_order ()
     |> List.map ~f:to_string
     |> String.concat ~sep:" > "
     |> printf "FDD field ordering: %s\n")
@@ -137,6 +155,14 @@ module Flag = struct
     flag "--peg" (optional_with_default "peg.kat" file)
       ~doc: "file Physical egress predicate. If not specified, defaults to peg.kat"
 
+  let dump_local =
+    flag "--dump-local" (optional file)
+      ~doc: "file Translate compiler output to local program and dump it to file"
+
+  let dump_global =
+    flag "--dump-global" (optional file)
+      ~doc: "file Translate compiler output to global program and dump it to file"
+
   let determinize =
     flag "--determinize" no_arg
       ~doc:"Determinize automaton."
@@ -144,6 +170,14 @@ module Flag = struct
   let minimize =
     flag "--minimize" no_arg
       ~doc:"Minimize automaton (heuristically)."
+
+  let update_controller =
+    flag "--update-controller" no_arg
+      ~doc:"Push flow tables to OpenFlow controller"
+
+  let remove_topo =
+    flag "--remove-topo" no_arg
+      ~doc:"Remove topology states from automaton. (Not equivalence preserving!)"
 end
 
 
@@ -161,11 +195,12 @@ module Local = struct
     +> Flag.no_tables
     +> Flag.json
     +> Flag.print_order
+    +> Flag.update_controller
   )
 
-  let run file nr_switches printfdd dumpfdd no_tables json printorder () =
+  let run file nr_switches printfdd dumpfdd no_tables json printorder updatecontroller () =
     let pol = parse_pol ~json file in
-    let (t, fdd) = time (fun () -> Netkat.Compiler.compile_local pol) in
+    let (t, fdd) = time (fun () -> Netkat.Local_compiler.compile pol) in
     let switches = match nr_switches with
       | None -> Netkat.Semantics.switches_of_policy pol
       | Some n -> List.range 0 n |> List.map ~f:Int64.of_int
@@ -177,6 +212,7 @@ module Local = struct
       if printorder then print_order ();
       if printfdd then print_fdd fdd;
       if dumpfdd then dump_fdd fdd ~file:(file ^ ".dot");
+      if updatecontroller then update_controller fdd;
       print_all_tables ~no_tables fdd switches;
       print_time t;
 end
@@ -194,15 +230,23 @@ module Global = struct
     +> Flag.no_tables
     +> Flag.json
     +> Flag.print_order
+    +> Flag.dump_local
+    +> Flag.update_controller
   )
 
-  let run file printfdd dumpfdd printauto dumpauto no_tables json printorder () =
+  let run file printfdd dumpfdd printauto dumpauto no_tables json printorder
+    dumplocal updatecontroller () =
     let pol = parse_pol ~json file in
-    let (t, fdd) = time (fun () -> Netkat.Compiler.compile_global pol) in
+    let (t, fdd) = time (fun () -> Netkat.Global_compiler.compile pol) in
     let switches = Netkat.Semantics.switches_of_policy pol in
     if printorder then print_order ();
     if printfdd then print_fdd fdd;
     if dumpfdd then dump_fdd fdd ~file:(file ^ ".dot");
+    begin match dumplocal with
+      | Some file -> dump_local fdd ~file
+      | None -> ()
+    end;
+    if updatecontroller then update_controller fdd;
     print_all_tables ~no_tables fdd switches;
     print_time t;
 
@@ -227,10 +271,13 @@ module Virtual = struct
     +> Flag.print_global_pol
     +> Flag.no_tables
     +> Flag.print_order
+    +> Flag.dump_local
+    +> Flag.update_controller
+    +> Flag.dump_global
   )
 
   let run vpol_file vrel vtopo ving_pol ving veg ptopo ping peg printfdd dumpfdd printglobal
-    no_tables printorder () =
+    no_tables printorder dumplocal updatecontroller dumpglobal () =
     (* parse files *)
     let vpol = parse_pol vpol_file in
     let vrel = parse_pred vrel in
@@ -247,7 +294,7 @@ module Virtual = struct
     let module Virtual = Netkat.Virtual_Compiler.Make(FG) in
     let (t1, global_pol) = time (fun () ->
       Virtual.compile vpol ~log:true ~vrel ~vtopo ~ving_pol ~ving ~veg ~ptopo ~ping ~peg) in
-    let (t2, fdd) = time (fun () -> Netkat.Compiler.compile_global global_pol) in
+    let (t2, fdd) = time (fun () -> Netkat.Global_compiler.compile global_pol) in
 
     (* print & dump *)
     let switches = Netkat.Semantics.switches_of_policy global_pol in
@@ -255,9 +302,18 @@ module Virtual = struct
       Format.fprintf fmt "Global Policy:@\n@[%a@]@\n@\n"
         Netkat.Pretty.format_policy global_pol
     end;
+    begin match dumpglobal with
+      | Some file -> dump_pol global_pol ~file
+      | None -> ()
+    end;
     if printorder then print_order ();
     if printfdd then print_fdd fdd;
     if dumpfdd then dump_fdd fdd ~file:(vpol_file ^ ".dot");
+    begin match dumplocal with
+      | Some file -> dump_local fdd ~file
+      | None -> ()
+    end;
+    if updatecontroller then update_controller fdd;
     print_all_tables ~no_tables fdd switches;
     print_time ~prefix:"virtual " t1;
     print_time ~prefix:"global " t2;
@@ -272,12 +328,15 @@ module Auto = struct
     +> Flag.print_order
     +> Flag.determinize
     +> Flag.minimize
+    +> Flag.remove_topo
   )
 
-  let run file json printorder dedup cheap_minimize () =
+  let run file json printorder dedup cheap_minimize remove_topo () =
+    let open Netkat.Global_compiler in
     let pol = parse_pol ~json file in
     let (t, auto) = time (fun () ->
-      Netkat.Compiler.Automaton.of_policy pol ~dedup ~cheap_minimize) in
+      Automaton.of_policy pol ~dedup ~cheap_minimize) in
+    if remove_topo then ignore (Automaton.skip_topo_states auto);
     if printorder then print_order ();
     dump_auto auto ~file:(file ^ ".auto.dot");
     print_time t;

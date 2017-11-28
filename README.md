@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/frenetic-lang/frenetic.svg?branch=master)](https://travis-ci.org/frenetic-lang/frenetic)
 
+[Library Documentation](http://frenetic-lang.github.io/frenetic/)
+
 Frenetic is an open-source Software Defined Network (SDN) controller platform designed to make SDN programming easy, modular, and semantically correct.
 
 The languages used to program networks today lack modern features. Programming them is a complicated and error-prone task, and outages and infiltrations are frequent. Frenetic is a _network programming language_ with the following essential features:
@@ -70,6 +72,7 @@ minutes or so to download.
 * Learn Frenetic programming in OCaml from the [Frenetic Tutorial](http://frenetic-lang.github.io/tutorials/Introduction/)
 * Learn the theory behind Frenetic by reading the papers at [http://frenetic-lang.org](http://frenetic-lang.org)
 * See examples of production Frenetic-based SDN's at [https://github.com/coscin/coscin-app](https://github.com/coscin/coscin-app) and [https://github.com/coscin/gates](https://github.com/coscin/gates).
+* Consult the Frenetic [API documentation](http://frenetic-lang.github.io/frenetic/).
 
 ## Contributing
 

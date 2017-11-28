@@ -4,11 +4,15 @@
 (rule
  ((targets (Generated_Parser.mly))
   (deps    (Parser.cppo.mly))
-  (action  (run ${bin:cppo} ${<} -U MAKE_PPX -n -o ${@}))))
+  (action  (run ${bin:cppo} ${<} -U MAKE_PPX -U PORTLESS -n -o ${@}))))
+(rule
+ ((targets (Portless_Generated_Parser.mly))
+  (deps    (Parser.cppo.mly))
+  (action  (run ${bin:cppo} ${<} -U MAKE_PPX -D PORTLESS -n -o ${@}))))
 (rule
  ((targets (Tokens.mly))
   (deps    (Parser.cppo.mly))
-  (action  (run ${bin:cppo} ${<} -D MAKE_PPX -n -o ${@}))))
+  (action  (run ${bin:cppo} ${<} -D MAKE_PPX -D PORTLESS -n -o ${@}))))
 
 ;; generate menhir tokens
 (rule
@@ -28,19 +32,22 @@
 (rule
  ((targets (Lexer.ml))
   (deps    (Lexer.sedlex.ml))
-  (action  (run ${ocaml_where}/../sedlex/ppx_sedlex ${<} -o ${@}))))
+  (action  (run ${lib:sedlex:ppx_sedlex} ${<} -o ${@}))))
 
 ;; generate parser
 (menhir
  ((flags (--external-tokens Lexer))
   (modules (Generated_Parser))))
+(menhir
+ ((flags (--external-tokens Lexer))
+  (modules (Portless_Generated_Parser))))
 
 (library
- ((name        netkat)
+ ((name        frenetic_netkat)
   (public_name frenetic.netkat)
   (wrapped true)
   (libraries 
-    (frenetic
+    (frenetic.kernel
      core
      base64
      cstruct

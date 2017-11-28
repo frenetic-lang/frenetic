@@ -1,10 +1,10 @@
 open Core
 open Async
 open Cohttp_async
-open Netkat.Syntax
+open Frenetic_netkat.Syntax
 open Common
 module Server = Cohttp_async.Server
-module Comp = Netkat.Compiler
+module Comp = Frenetic_netkat.Local_compiler
 
 type client = {
   (* Write new policies to this node *)
@@ -42,7 +42,7 @@ let iter_clients (f : string -> client -> unit) : unit =
 let rec propogate_events event =
   event () >>=
   fun evt ->
-  let response = Netkat.Json.event_to_json_string evt in
+  let response = Frenetic_netkat.Json.event_to_json_string evt in
   (* TODO(jcollard): Is there a mapM equivalent here? *)
   Hashtbl.iteri clients (fun ~key ~data:client ->
     Pipe.write_without_pushback client.event_writer response);
@@ -73,7 +73,7 @@ let handle_request
     | `GET, ["port_stats"; switch_id; port_id] ->
        port_stats (Int64.of_string switch_id) (Int32.of_string port_id)
        >>= fun portStats ->
-       Server.respond_string (Netkat.Json.port_stat_to_json_string portStats)
+       Server.respond_string (Frenetic_netkat.Json.port_stat_to_json_string portStats)
     | `GET, ["current_switches"] ->
       switches () >>= fun switches ->
       Server.respond_string (current_switches_to_json_string switches)
@@ -81,12 +81,12 @@ let handle_request
        (* TODO: check if query exists *)
        query name
        >>= fun stats ->
-       Server.respond_string (Netkat.Json.stats_to_json_string stats)
+       Server.respond_string (Frenetic_netkat.Json.stats_to_json_string stats)
     (* begin *)
     (*   Logging.info "query %s is not defined in the current policy" name; *)
     (*   let headers = Cohttp.Header.init_with "X-Query-Not-Defined" "true" in *)
     (*   Server.respond_string ~headers *)
-    (*     (Netkat.Json.stats_to_json_string (0L, 0L)) *)
+    (*     (Frenetic_netkat.Json.stats_to_json_string (0L, 0L)) *)
     (* end *)
     | `GET, [clientId; "event"] ->
       let curr_client = get_client clientId in
@@ -99,7 +99,7 @@ let handle_request
       handle_parse_errors' body
         (fun str ->
            let json = Yojson.Basic.from_string str in
-           Netkat.Json.pkt_out_from_json json)
+           Frenetic_netkat.Json.pkt_out_from_json json)
         (fun (sw_id, port_id, payload, policies) ->
            packet_out sw_id port_id payload policies >>= fun () ->
            Cohttp_async.Server.respond `OK)

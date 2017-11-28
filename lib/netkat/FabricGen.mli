@@ -20,4 +20,7 @@ module type FABRIC_GEN = sig
 end
 
 (** Two-Player Adversarial Strategy *)
-module FabricGen : FABRIC_GEN
+module FabricGen : sig
+  include FABRIC_GEN
+  val default_ving_pol : vrel: pred -> ping: pred -> policy option
+end

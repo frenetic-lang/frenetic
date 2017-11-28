@@ -1,9 +1,9 @@
 open Core
 
 open Syntax
-open Frenetic.Packet
+open Frenetic_kernel.Packet
 
-(** {2 Frenetic.Packets}
+(** {2 Frenetic_kernel.Packets}
 
   If we only defined the semantics and were not building a system, a
   packet would only be a record of headers. However, the runtime needs to
@@ -14,6 +14,8 @@ open Frenetic.Packet
 module HeadersValues : sig
   type t =
     { location : location
+    ; from : abstract_location
+    ; abstractLoc : abstract_location
     ; ethSrc : dlAddr
     ; ethDst : dlAddr
     ; vlan : int16

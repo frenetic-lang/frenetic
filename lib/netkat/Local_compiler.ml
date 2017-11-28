@@ -1,6 +1,7 @@
 open Core
 open Fdd
 open Syntax
+open Frenetic_kernel
 
 module Field = Fdd.Field
 exception Non_local = Syntax.Non_local
@@ -284,10 +285,10 @@ let prepare_compilation ~options pol = begin
    | `Static flds -> Field.set_order flds)
 end
 
-let compile_local ?(options=default_compiler_options) pol =
+let compile ?(options=default_compiler_options) pol =
   prepare_compilation ~options pol; of_local_pol pol
 
-let is_valid_pattern options (pat : Frenetic.OpenFlow.Pattern.t) : bool =
+let is_valid_pattern options (pat : Frenetic_kernel.OpenFlow.Pattern.t) : bool =
   (Option.is_none pat.dlTyp ==>
      (Option.is_none pat.nwProto &&
       Option.is_none pat.nwSrc &&
@@ -304,8 +305,8 @@ let add_dependency_if_unseen all_tests pat dep =
 
 (* Note that although Vlan and VlanPcp technically have a dependency on the packet being an EthType 0x8100, you
    never have to include that Dependency in OpenFlow because the EthType match is always for the INNER packet. *)
-let fill_in_dependencies all_tests (pat : Frenetic.OpenFlow.Pattern.t) =
-  let open Frenetic.OpenFlow.Pattern in
+let fill_in_dependencies all_tests (pat : Frenetic_kernel.OpenFlow.Pattern.t) =
+  let open Frenetic_kernel.OpenFlow.Pattern in
   let all_dependencies =
     if (Option.is_some pat.nwSrc || Option.is_some pat.nwDst) && Option.is_none pat.dlTyp then
       [ EthType(0x800); EthType(0x806) ]
@@ -330,11 +331,11 @@ let fill_in_dependencies all_tests (pat : Frenetic.OpenFlow.Pattern.t) =
   | deps -> List.filter_opt (List.map deps ~f:(add_dependency_if_unseen all_tests pat))
 
 let to_pattern hvs =
-  List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic.OpenFlow.Pattern.match_all
+  List.fold_right hvs ~f:Pattern.to_sdn  ~init:Frenetic_kernel.OpenFlow.Pattern.match_all
 
 let mk_flows options true_tests all_tests action queries =
-  let open Frenetic.OpenFlow.Pattern in
-  let open Frenetic.OpenFlow in
+  let open Frenetic_kernel.OpenFlow.Pattern in
+  let open Frenetic_kernel.OpenFlow in
   let patterns = to_pattern true_tests |> fill_in_dependencies all_tests in
   List.map patterns ~f:(fun p ->
     ({ pattern=p; action; cookie=0L; idle_timeout=Permanent; hard_timeout=Permanent }, queries)
@@ -369,10 +370,27 @@ let erase_meta_fields fdd =
         failwith "uninitialized meta field"
       | _, _ -> unchecked_cond v t f)
 
-let mk_branch_or_leaf test t f =
+
+(** returns the "all-false-branch" of an FDD with respect to a particular field,
+    i.e. the sub FDD obtained by, starting from the root, taking the false branch
+    until the top-most field is not equal to the given [field] *)
+let rec get_all_false field fdd =
+  match FDD.unget fdd with
+  | Leaf _ -> fdd
+  | Branch ((field',_), _, fls) ->
+    if Field.equal field field' then
+      get_all_false field fls
+    else
+      fdd
+
+let mk_branch_or_leaf ((field,_) as test) t f =
   match t with
   | None -> Some f
-  | Some t -> Some (FDD.unchecked_cond test t f)
+  | Some t ->
+    if FDD.equal t (get_all_false field f) then
+      Some f
+    else
+      Some (FDD.unchecked_cond test t f)
 
 let opt_to_table ?group_tbl options sw_id t =
   let t =
@@ -418,7 +436,7 @@ let remove_tail_drops fl =
     match fl with
     | [] -> fl
     | h :: t ->
-      let actions = (fst h).Frenetic.OpenFlow.action in
+      let actions = (fst h).Frenetic_kernel.OpenFlow.action in
       match (List.concat (List.concat actions)) with
       | [] -> remove_tail_drop t
       | _ -> h :: t in
@@ -530,452 +548,6 @@ let options_to_json_string opt =
 
 
 
-(*==========================================================================*)
-(* GLOBAL COMPILATION                                                       *)
-(*==========================================================================*)
-
-
-(* internal policy representation that allows to inject fdds into policies *)
-module Pol = struct
-
-  type t =
-    | Filter of pred
-    | Mod of header_val
-    | Union of t * t
-    | Seq of t * t
-    | Star of t
-    | Dup (* we can handle all of NetKAT *)
-    | FDD of FDD.t * FDD.t (* FDD injection. E and D matrix. *)
-
-  let drop = Filter False
-  let id = Filter True
-
-  let mk_filter pred = Filter pred
-  let mk_mod hv = Mod hv
-
-  let mk_union pol1 pol2 =
-    match pol1, pol2 with
-    | Filter False, _ -> pol2
-    | _, Filter False -> pol1
-    | _ -> Union (pol1,pol2)
-
-  let mk_seq pol1 pol2 =
-    match pol1, pol2 with
-    | Filter True, _ -> pol2
-    | _, Filter True -> pol1
-    | Filter False, _ | _, Filter False -> drop
-    | _ -> Seq (pol1,pol2)
-
-  let mk_star pol =
-    match pol with
-    | Filter True | Filter False -> id
-    | Star _ -> pol
-    | _ -> Star(pol)
-
-  let mk_fdd e d =
-    if FDD.equal e FDD.drop && FDD.equal d FDD.drop then drop
-    else FDD (e, d)
-
-  let mk_big_union = List.fold ~init:drop ~f:mk_union
-  let mk_big_seq = List.fold ~init:id ~f:mk_seq
-
-  let match_loc sw pt =
-    let t1 = Test (Switch sw) in
-    let t2 = Test (Location (Physical pt)) in
-    Optimize.mk_and t1 t2
-  let match_vloc sw pt =
-    let t1 = Test (VSwitch sw) in
-    let t2 = Test (VPort pt) in
-    Optimize.mk_and t1 t2
-
-  let filter_loc sw pt = match_loc sw pt |> mk_filter
-  let filter_vloc sw pt = match_vloc sw pt |> mk_filter
-
-  let rec of_pol (ing : Syntax.pred option) (pol : Syntax.policy) : t =
-    match pol with
-    | Filter a -> Filter a
-    | Mod hv -> Mod hv
-    | Union (p,q) -> Union (of_pol ing p, of_pol ing q)
-    | Seq (p,q) -> Seq (of_pol ing p, of_pol ing q)
-    | Star p -> Star (of_pol ing p)
-    | Link (s1,p1,s2,p2) ->
-      let link = mk_seq (mk_mod (Switch s2)) (mk_mod (Location (Physical p2))) in
-      let post_link = match ing with
-        | None -> filter_loc s2 p2
-        | Some ing ->
-          Optimize.(mk_and (Test (Switch s2)) (mk_not ing))
-          |> mk_filter in
-      mk_big_seq [filter_loc s1 p1; Dup; link; Dup; post_link]
-    | VLink (s1,p1,s2,p2) ->
-      let link = mk_seq (mk_mod (VSwitch s2)) (mk_mod (VPort p2)) in
-      let post_link = match ing with
-        | None -> filter_vloc s2 p2
-        | Some ing ->
-          Optimize.(mk_and (Test (VSwitch s2)) (mk_not ing))
-          |> mk_filter in
-      mk_big_seq [filter_vloc s1 p1; Dup; link; Dup; post_link]
-    | Let _ -> failwith "meta fields not supported by global compiler yet"
-    | Dup -> Dup
-end
-
-
-
-(* Symbolic NetKAT Automata (intermediate representation of global compiler) *)
-module Automaton = struct
-
-  (* table *)
-  module Tbl = Int.Table
-
-  (* untable (inverse table) *)
-  module Untbl = FDD.BinTbl
-
-  (* (hashable) int sets *)
-  module S = struct
-    module S = struct
-      include Set.Make(Int)
-      let hash = Hashtbl.hash
-    end
-    include Hashable.Make(S)
-    include S
-  end
-
-  (* main data structure of symbolic NetKAT automaton *)
-  type t =
-    { states : (FDD.t * FDD.t) Tbl.t;
-      has_state : int Untbl.t;
-      mutable source : int;
-      mutable nextState : int }
-
-  (* lazy intermediate presentation to avoid compiling uncreachable automata states *)
-  type t0 =
-    { states : (FDD.t * FDD.t) Lazy.t Tbl.t;
-      source : int;
-      mutable nextState : int }
-
-  let create_t0 () : t0 =
-    let states = Tbl.create () ~size:100 in
-    let source = 0 in
-    { states; source; nextState = source+1 }
-
-  let create_t () : t =
-    let states = Tbl.create () ~size:100 in
-    let has_state = Untbl.create () ~size:100 in
-    let source = 0 in
-    { states; has_state; source; nextState = source+1 }
-
-  let mk_state_t0 (automaton : t0) : int =
-    let id = automaton.nextState in
-    automaton.nextState <- id + 1;
-    id
-
-  let mk_state_t (automaton : t) : int =
-    let id = automaton.nextState in
-    automaton.nextState <- id + 1;
-    id
-
-  let add_to_t (automaton : t) (state : (FDD.t * FDD.t)) : int =
-    match Untbl.find automaton.has_state state with
-    | Some k -> k
-    | None ->
-      let k = mk_state_t automaton in
-      Tbl.add_exn automaton.states ~key:k ~data:state;
-      Untbl.add_exn automaton.has_state ~key:state ~data:k;
-      k
-
-  let add_to_t_with_id (automaton : t) (state : (FDD.t * FDD.t)) (id : int) : unit = begin
-      assert (not (Tbl.mem automaton.states id));
-      Tbl.add_exn automaton.states ~key:id ~data:state;
-      Untbl.set automaton.has_state ~key:state ~data:id;
-    end
-
-  let map_reachable ?(order = `Pre) (automaton : t) ~(f: int -> (FDD.t * FDD.t) -> (FDD.t * FDD.t)) : unit =
-    let rec loop seen (id : int) =
-      if S.mem seen id then seen else
-        let seen = S.add seen id in
-        let state = Tbl.find_exn automaton.states id in
-        let this seen =
-          let state = f id state in
-          Tbl.set automaton.states ~key:id ~data:state; (seen, state) in
-        let that (seen, (_,d)) = Set.fold (FDD.conts d) ~init:seen ~f:loop in
-        match order with
-        | `Pre -> seen |> this |> that
-        | `Post -> (seen, state) |> that |> this |> fst
-    in
-    loop S.empty automaton.source |> ignore
-
-  let fold_reachable ?(order = `Pre) (automaton : t) ~(init : 'a) ~(f: 'a -> int -> (FDD.t * FDD.t) -> 'a) =
-    let rec loop (acc, seen) (id : int) =
-      if S.mem seen id then (acc, seen) else
-        let seen = S.add seen id in
-        let (_,d) as state = Tbl.find_exn automaton.states id in
-        let this (acc, seen) = (f acc id state, seen) in
-        let that (acc, seen) = Set.fold (FDD.conts d) ~init:(acc, seen) ~f:loop in
-        match order with
-        | `Pre -> (acc, seen) |> this |> that
-        | `Post -> (acc, seen) |> that |> this
-    in
-    loop (init, S.empty) automaton.source |> fst
-
-  let iter_reachable ?(order = `Pre) (automaton : t) ~(f: int -> (FDD.t * FDD.t) -> unit) : unit =
-    fold_reachable automaton ~order ~init:() ~f:(fun _ -> f)
-
-  let t_of_t0' (automaton : t0) =
-    let t = create_t () in
-    let rec add id =
-      if not (Tbl.mem t.states id) then
-        let _ = t.nextState <- max t.nextState (id + 1) in
-        let (_,d) as state = Lazy.force (Tbl.find_exn automaton.states id) in
-        Tbl.add_exn t.states ~key:id ~data:state;
-        Set.iter (FDD.conts d) ~f:add
-    in
-    add automaton.source;
-    t.source <- automaton.source;
-    t
-
-  let lex_sort (t0 : t0) =
-    let rec loop acc stateId =
-      if List.mem ~equal:(=) acc stateId then acc else
-      let init = stateId :: acc in
-      let (_,d) = Lazy.force (Tbl.find_exn t0.states stateId) in
-      Set.fold (FDD.conts d) ~init ~f:loop
-    in
-    loop [] t0.source
-
-  let t_of_t0 ?(cheap_minimize=true) (t0 : t0) =
-    if not cheap_minimize then t_of_t0' t0 else
-    let t = create_t () in
-    (* table that maps old ids to new ids *)
-    let newId = Int.Table.create () ~size:100 in
-    lex_sort t0
-    |> List.iter ~f:(fun id ->
-        let (e,d) = Lazy.force (Tbl.find_exn t0.states id) in
-        (* SJS: even though we are traversing the graph in reverse-lexiographic order,
-           a node may be visited prior to one of its sucessors because there may be cylces *)
-        let d = FDD.map_conts d ~f:(Tbl.find_or_add newId ~default:(fun () -> mk_state_t t)) in
-        (* check if new id was already assigned *)
-        match Tbl.find newId id with
-        | None ->
-          let new_id = add_to_t t (e,d) in
-          Tbl.add_exn newId ~key:id ~data:new_id
-        | Some new_id ->
-          add_to_t_with_id t (e,d) new_id
-      );
-    t.source <- Tbl.find_exn newId t0.source;
-    t
-
-  (* classic powerset construction, performed on symbolic automaton *)
-  let determinize (automaton : t) : unit =
-    (* table of type : int set -> int *)
-    let tbl : int S.Table.t = S.Table.create () ~size:10 in
-    (* table of type : int -> int set *)
-    let untbl : S.t Int.Table.t = Int.Table.create () ~size:10 in
-    let unmerge k = Int.Table.find untbl k |> Option.value ~default:(S.singleton k) in
-    let merge ks =
-      let () = assert (S.length ks > 1) in
-      let ks = S.fold ks ~init:S.empty ~f:(fun acc k -> S.union acc (unmerge k)) in
-      match S.Table.find tbl ks with
-      | Some k -> k
-      | None ->
-        let (es, ds) =
-          S.to_list ks
-          |> List.map ~f:(Tbl.find_exn automaton.states)
-          |> List.unzip in
-        let fdd = (FDD.big_union es, FDD.big_union ds) in
-        let k = add_to_t automaton fdd in
-        S.Table.add_exn tbl ~key:ks ~data:k;
-        (* k may not be fresh, since there could have been an FDD equvialent to fdd
-           present in the automaton already; therefore, simply ignore warning *)
-        ignore (Int.Table.add untbl ~key:k ~data:ks);
-        k
-    in
-    let determinize_action par =
-      par
-      |> Action.Par.to_list
-      |> List.sort ~cmp:Action.Seq.compare_mod_k
-      |> List.group ~break:(fun s1 s2 -> not (Action.Seq.equal_mod_k s1 s2))
-      |> List.map ~f:(function
-        | [seq] -> seq
-        | group ->
-          let ks = List.map group ~f:(fun s -> Action.Seq.find_exn s K |> Value.to_int_exn)
-                   |> S.of_list in
-          let k = merge ks in
-          List.hd_exn group |> Action.Seq.add ~key:K ~data:(Value.of_int k))
-      |> Action.Par.of_list
-    in
-    let dedup_fdd = FDD.map_r ~f:determinize_action in
-    map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) -> (e, dedup_fdd d))
-
-  (** symbolic antimirov derivatives *)
-  let rec split_pol (automaton : t0) (pol: Pol.t) : FDD.t * FDD.t * ((int * Pol.t) list) =
-    (* SJS: temporary hack *)
-    let env = Field.Env.empty in
-    match pol with
-    | Filter pred -> (FDD.of_pred env pred, FDD.drop, [])
-    | Mod hv -> (FDD.of_mod env hv, FDD.drop, [])
-    | Union (p,q) ->
-      let (e_p, d_p, k_p) = split_pol automaton p in
-      let (e_q, d_q, k_q) = split_pol automaton q in
-      let e = FDD.union e_p e_q in
-      let d = FDD.union d_p d_q in
-      let k = k_p @ k_q in
-      (e, d, k)
-    | Seq (p,q) ->
-      (* TODO: short-circuit *)
-      let (e_p, d_p, k_p) = split_pol automaton p in
-      let (e_q, d_q, k_q) = split_pol automaton q in
-      let e = FDD.seq e_p e_q in
-      let d = FDD.union d_p (FDD.seq e_p d_q) in
-      let q' = Pol.mk_fdd e_q d_q in
-      let k = (List.map k_p ~f:(fun (id,p) -> (id, Pol.mk_seq p q'))) @ k_q in
-      (e, d, k)
-    | Star p ->
-      let (e_p, d_p, k_p) = split_pol automaton p in
-      let e = FDD.star e_p in
-      let d = FDD.seq e d_p in
-      let pol' = Pol.mk_fdd e d in
-      let k = List.map k_p ~f:(fun (id,k) -> (id, Pol.mk_seq k pol')) in
-      (e, d, k)
-    | Dup ->
-      let id = mk_state_t0 automaton in
-      let e = FDD.drop in
-      let d = FDD.mk_cont id in
-      let k = [(id, Pol.id)] in
-      (e, d, k)
-    | FDD (e,d) -> (e,d,[])
-
-  let rec add_policy (automaton : t0) (id, pol : int * Pol.t) : unit =
-    let f () =
-      let (e,d,k) = split_pol automaton pol in
-      List.iter k ~f:(add_policy automaton);
-      (e, d)
-    in
-    Tbl.add_exn automaton.states ~key:id ~data:(Lazy.from_fun f)
-
-  let of_policy ?(dedup=true) ?ing ?(cheap_minimize=true) (pol : Syntax.policy) : t =
-    let automaton = create_t0 () in
-    let pol = Pol.of_pol ing pol in
-    let () = add_policy automaton (automaton.source, pol) in
-    let automaton = t_of_t0 ~cheap_minimize automaton in
-    let () = if dedup then determinize automaton in
-    automaton
-
-  let pc_unused pc fdd =
-    FDD.fold fdd
-      ~f:Action.(Par.for_all ~f:(fun seq -> not (Seq.mem seq (F pc))))
-      ~g:(fun (f,_) l r -> l && r && f<>pc)
-
-  (** Assumes [automaton] is a bipartite automaton in which switch states and
-      topology states alternate, with the start state being a switch state.
-      Modifies automaton by skipping topology states and transitioning straight
-      to the (unique) next switch states. *)
-  let skip_topo_states (automaton : t) : unit =
-    map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) ->
-      let d = FDD.map_conts d ~f:(fun k ->
-        Tbl.find_exn automaton.states k
-        |> snd
-        |> FDD.conts
-        |> Set.to_list
-        |> (function
-           | [k'] -> k'
-           | _ -> failwith "topology state expected to have unique successor"))
-      in (e,d))
-
-  let to_local ~(pc : Field.t) (automaton : t) : FDD.t =
-    skip_topo_states automaton;
-    fold_reachable automaton ~init:FDD.drop ~f:(fun acc id (e,d) ->
-      let _ = assert (pc_unused pc e && pc_unused pc d) in
-      let d =
-        FDD.map_r
-          Action.(Par.map ~f:(fun seq -> match Seq.find seq K with
-               | None -> failwith "transition function must specify next state!"
-               | Some data -> Seq.remove seq K |> Seq.add ~key:(F pc) ~data))
-          d
-      in
-      let guard =
-        if id = automaton.source then FDD.id
-        else FDD.atom (pc, Value.of_int id) Action.one Action.zero in
-      let fdd = FDD.seq guard (FDD.union e d) in
-      FDD.union acc fdd)
-
-  let to_dot (automaton : t) =
-    let open Format in
-    let buf = Buffer.create 200 in
-    let fmt = formatter_of_buffer buf in
-    let states = Hashtbl.map automaton.states ~f:(fun (e,d) -> FDD.union e d) in
-    let state_lbl fmt = fprintf fmt "state_%d" in
-    let fdd_lbl fmt fdd = fprintf fmt "fdd_%d" (fdd : FDD.t :> int) in
-    let fdd_leaf_lbl fmt (i,fdd) = fprintf fmt "seq_%d_%d" (fdd : FDD.t :> int) i in
-
-    (* auxillary functions *)
-    let rec do_states () =
-      fprintf fmt "# put state nodes on top\n";
-      fprintf fmt "{rank=source;";
-      List.iter (Hashtbl.keys states) ~f:(fprintf fmt " %a" state_lbl);
-      fprintf fmt ";}@\n";
-      (* -- *)
-      fprintf fmt "\n# mark start state\n";
-      fprintf fmt "%a [style=bold, color=red, shape=octagon];@\n" state_lbl automaton.source;
-      (* -- *)
-      fprintf fmt "\n# connect state nodes to FDDs\n";
-      Hashtbl.iteri states ~f:(fun ~key:id ~data:fdd ->
-        fprintf fmt "%a -> %a;@\n" state_lbl id fdd_lbl fdd);
-      (* -- *)
-      fprintf fmt "\n# define FDDs\n";
-      do_fdds Int.Set.empty (Hashtbl.data states)
-
-    and do_fdds seen worklist =
-      match worklist with
-      | [] -> ()
-      | fdd::worklist ->
-        let uid = (fdd : FDD.t :> int) in
-        if Set.mem seen uid then
-          do_fdds seen worklist
-        else
-          do_node (Set.add seen uid) worklist fdd
-
-    and do_node seen worklist fdd =
-      match FDD.unget fdd with
-      | Branch((f, v), a, b) ->
-        fprintf fmt "%a [label=\"%s = %s\"];\n" fdd_lbl fdd (Field.to_string f) (Value.to_string v);
-        fprintf fmt "%a -> %a;\n" fdd_lbl fdd fdd_lbl a;
-        fprintf fmt "%a -> %a [style=\"dashed\"];\n" fdd_lbl fdd fdd_lbl b;
-        do_fdds seen (a::b::worklist)
-      | Leaf par ->
-        fprintf fmt "subgraph cluster_%a {@\n" fdd_lbl fdd;
-        fprintf fmt "\trank=sink;@\n";
-        fprintf fmt "\t%a [shape = point];@\n" fdd_lbl fdd;
-        let transitions = List.mapi (Action.Par.to_list par) ~f:(do_seq fdd) in
-        fprintf fmt "}@\n";
-        List.iter transitions ~f:(function
-          | None -> ()
-          | Some (s,t) ->
-            fprintf fmt "%a -> %a [style=bold, color=blue];@\n" fdd_leaf_lbl s state_lbl t);
-        do_fdds seen worklist
-
-    and do_seq fdd i seq =
-      let label = Action.Seq.to_string seq in
-      fprintf fmt "\t%a [shape=box, label=\"%s\"];@\n" fdd_leaf_lbl (i,fdd) label;
-      Option.map (Action.Seq.find seq K) ~f:(fun v ->
-        ((i, fdd), Value.to_int_exn v))
-
-    in begin
-      fprintf fmt "digraph automaton {@\n";
-      do_states ();
-      fprintf fmt "}@.";
-      Buffer.contents buf
-    end
-
-end
-(* END: module Automaton *)
-
-
-let compile_global ?(options=default_compiler_options) ?(pc=Field.Vlan) pol : FDD.t =
-  prepare_compilation ~options pol;
-  Automaton.of_policy pol
-  |> Automaton.to_local ~pc
-
-
-
 
 (*==========================================================================*)
 (* MULTITABLE                                                               *)
@@ -1000,17 +572,17 @@ type flow_subtrees = (t, flowId) Map.Poly.t
 
 (* OpenFlow 1.3+ instruction types *)
 type instruction =
-  [ `Action of Frenetic.OpenFlow.group
+  [ `Action of Frenetic_kernel.OpenFlow.group
   | `GotoTable of flowId ]
   [@@deriving sexp]
 
 (* A flow table row, with multitable support. If goto has a Some value
  * then the 0x04 row instruction is GotoTable. *)
 type multitable_flow = {
-  pattern      : Frenetic.OpenFlow.Pattern.t;
+  pattern      : Frenetic_kernel.OpenFlow.Pattern.t;
   cookie       : int64;
-  idle_timeout : Frenetic.OpenFlow.timeout;
-  hard_timeout : Frenetic.OpenFlow.timeout;
+  idle_timeout : Frenetic_kernel.OpenFlow.timeout;
+  hard_timeout : Frenetic_kernel.OpenFlow.timeout;
   instruction  : instruction;
   flowId       : flowId;
 } [@@deriving sexp]
@@ -1041,7 +613,7 @@ let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
         Map.add accum ~key:t ~data:(tbl_id,(post meta_id))))
 
 (* make a flow struct that includes the table and meta id of the flow *)
-let mk_multitable_flow options (pattern : Frenetic.OpenFlow.Pattern.t)
+let mk_multitable_flow options (pattern : Frenetic_kernel.OpenFlow.Pattern.t)
   (instruction : instruction) (flowId : flowId) : multitable_flow option =
   (* TODO: Fill in dependencies, similar to mk_flows above *)
   if is_valid_pattern options pattern then
@@ -1054,7 +626,7 @@ let mk_multitable_flow options (pattern : Frenetic.OpenFlow.Pattern.t)
 
 (* Create flow table rows for one subtree *)
 let subtree_to_table options (subtrees : flow_subtrees) (subtree : (t * flowId))
-  (group_tbl : Frenetic.GroupTable0x04.t) : multitable_flow list =
+  (group_tbl : Frenetic_kernel.GroupTable0x04.t) : multitable_flow list =
   let rec dfs (tests : (Field.t * Value.t) list) (subtrees : flow_subtrees)
   (t : t) (flowId : flowId) : multitable_flow option list =
     match FDD.unget t with
@@ -1079,8 +651,8 @@ let subtree_to_table options (subtrees : flow_subtrees) (subtree : (t * flowId))
      List.filter_opt (dfs [] subtrees t flowId)
 
 (* Collect the flow table rows for each subtree in one list. *)
-let subtrees_to_multitable options (subtrees : flow_subtrees) : (multitable_flow list * Frenetic.GroupTable0x04.t) =
-  let group_table = (Frenetic.GroupTable0x04.create ()) in
+let subtrees_to_multitable options (subtrees : flow_subtrees) : (multitable_flow list * Frenetic_kernel.GroupTable0x04.t) =
+  let group_table = (Frenetic_kernel.GroupTable0x04.create ()) in
   Map.to_alist subtrees
   |> List.rev
   |> List.map ~f:(fun subtree -> subtree_to_table options subtrees subtree group_table)
@@ -1089,7 +661,7 @@ let subtrees_to_multitable options (subtrees : flow_subtrees) : (multitable_flow
 
 (* Produce a list of flow table entries for a multitable setup *)
 let to_multitable ?(options=default_compiler_options) (sw_id : switchId) (layout : flow_layout) t
-  : (multitable_flow list * Frenetic.GroupTable0x04.t) =
+  : (multitable_flow list * Frenetic_kernel.GroupTable0x04.t) =
   (* restrict to only instructions for this switch, get subtrees,
    * turn subtrees into list of multitable flow rows *)
   FDD.restrict [(Field.Switch, Value.Const sw_id)] t

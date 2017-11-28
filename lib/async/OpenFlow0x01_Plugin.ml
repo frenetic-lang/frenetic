@@ -1,8 +1,8 @@
 open Core
 open Async
 
-open Frenetic.OpenFlow
-module OF10 = Frenetic.OpenFlow0x01
+open Frenetic_kernel.OpenFlow
+module OF10 = Frenetic_kernel.OpenFlow0x01
 
 (* TODO: See openflow.ml for discussion.  This is transitional.
 
@@ -38,7 +38,7 @@ let read_outstanding = ref false
 let read_finished = Condition.create ()
 
 module LowLevel = struct
-  module OF10 = Frenetic.OpenFlow0x01
+  module OF10 = Frenetic_kernel.OpenFlow0x01
 
   let openflow_executable () =
     let prog = Filename.dirname(Sys.executable_name) ^ "/frenetic.openflow" in
@@ -198,7 +198,7 @@ let switch_features (switch_id : switchId)  =
     assert false
 
 (* We just brute-force this, even though there's significant overlap with from_action *)
-let action_from_policy (pol:Netkat.Syntax.policy) : action option =
+let action_from_policy (pol:Frenetic_netkat.Syntax.policy) : action option =
   match pol with
   | Mod hv ->
     begin
@@ -231,7 +231,8 @@ let action_from_policy (pol:Netkat.Syntax.policy) : action option =
         Some (Modify(SetTCPSrcPort tpPort))
       | TCPDstPort tpPort ->
         Some (Modify(SetTCPDstPort tpPort))
-      | Switch _ | VSwitch _ | VPort _ | VFabric _ | Meta _ -> None
+      | Switch _ | VSwitch _ | VPort _ | VFabric _ | Meta _
+      | From _ | AbstractLoc _ -> None
     end
   | _ -> None
 
@@ -242,11 +243,11 @@ let packet_out
   (swid:int64)
   (ingress_port:portId option)
   (payload:payload)
-  (pol_list:Netkat.Syntax.policy list) =
+  (pol_list:Frenetic_netkat.Syntax.policy list) =
   (* Turn this into a generic PktOut event, then run it through OF10 translator *)
   let actions = actions_from_policies pol_list in
   let openflow_generic_pkt_out = (payload, ingress_port, actions) in
-  let pktout0x01 = Frenetic.OpenFlow.To0x01.from_packetOut openflow_generic_pkt_out in
+  let pktout0x01 = Frenetic_kernel.OpenFlow.To0x01.from_packetOut openflow_generic_pkt_out in
   LowLevel.send swid 0l (OF10.Message.PacketOutMsg pktout0x01) >>= function
     | RpcEof -> return ()
     | RpcOk -> return ()
@@ -302,7 +303,7 @@ let port_stats (sw_id : switchId) (pid : portId) : portStats Deferred.t =
       | [] -> Logging.info "Got an empty list"; return bogus_port_stats
       | [hd] -> ( match hd with
         | StatsReplyMsg (PortRep psl) ->
-          return (Frenetic.OpenFlow.From0x01.from_port_stats (List.hd_exn psl))
+          return (Frenetic_kernel.OpenFlow.From0x01.from_port_stats (List.hd_exn psl))
         | _ -> Logging.error "Got a reply, but the type is wrong"; return bogus_port_stats
       )
       | hd :: tl -> Logging.info "Got a > 2 element list"; return bogus_port_stats
@@ -319,16 +320,16 @@ let get_switches () =
       LowLevel.signal_read (); resp
   | _ -> Logging.error "Received a reply that's not SwitchesReply to a GetSwitches"; assert false
 
-(* TODO: The following is ripped out of Netkat.Updates.  Turns out you can't call
+(* TODO: The following is ripped out of Frenetic_netkat.Updates.  Turns out you can't call
 stuff in that because of a circular dependency.  In a later version, we should implement
-generic commands in Frenetic.OpenFlow (similar to events, but going the opposite
+generic commands in Frenetic_kernel.OpenFlow (similar to events, but going the opposite
 directions), and let openflow.ml translate these to the specifc version of OpenFlow.  That
 way, we can simply pass a plugin instance where the update can write to. *)
 
 module BestEffortUpdate0x01 = struct
-  module Comp = Netkat.Compiler
+  module Comp = Frenetic_netkat.Local_compiler
   module M = OF10.Message
-  open Frenetic.OpenFlow.To0x01
+  open Frenetic_kernel.OpenFlow.To0x01
 
   exception UpdateError
 
@@ -336,7 +337,7 @@ module BestEffortUpdate0x01 = struct
     ref Comp.default_compiler_options
 
   let restrict sw_id repr =
-    Comp.restrict Netkat.Syntax.(Switch sw_id) repr
+    Comp.restrict Frenetic_netkat.Syntax.(Switch sw_id) repr
 
   let install_flows_for sw_id table =
     let to_flow_mod p f = M.FlowModMsg (from_flow p f) in
@@ -357,7 +358,7 @@ module BestEffortUpdate0x01 = struct
   let bring_up_switch (sw_id : switchId) new_r =
     let table = Comp.to_table ~options:!current_compiler_options sw_id new_r in
     Logging.debug "Setting up flow table\n%s"
-      (Frenetic.OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id) table);
+      (Frenetic_kernel.OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id) table);
     Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
       delete_flows_for sw_id >>= fun _ ->
       install_flows_for sw_id table)
@@ -378,8 +379,8 @@ module BestEffortUpdate0x01 = struct
     current_compiler_options := opt
 end
 
-let update (compiler: Netkat.Compiler.t) =
+let update (compiler: Frenetic_netkat.Local_compiler.t) =
   BestEffortUpdate0x01.implement_policy compiler
 
-let update_switch (swid: switchId) (compiler: Netkat.Compiler.t) =
+let update_switch (swid: switchId) (compiler: Frenetic_netkat.Local_compiler.t) =
   BestEffortUpdate0x01.bring_up_switch swid compiler

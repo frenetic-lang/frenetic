@@ -1,8 +1,9 @@
 open Core
-open Netkat.Syntax
+open Frenetic.Netkat.Syntax
 open Benchmarking_Util
+module Netkat = Frenetic.Netkat
 
-let to_table = Netkat.Compiler.to_table
+let to_table = Netkat.Local_compiler.to_table
 
 let print_flowtables tbls =
   List.iter tbls ~f:(fun tbl ->
@@ -71,7 +72,7 @@ let compile compiler per_switch varorder tbl_opt debug filename =
     | "false" -> false
     | _ -> assert false in
   let order =
-    let open Netkat.Compiler.Field in
+    let open Netkat.Local_compiler.Field in
     match varorder with
     | "varorder-heuristic" -> `Heuristic
     | "varorder-fattree" ->
@@ -85,9 +86,9 @@ let compile compiler per_switch varorder tbl_opt debug filename =
     | _ -> assert false in
   let to_table sw fdd = match tbl_opt with
     | "tablegen-steffen" ->
-       Netkat.Compiler.(to_table ~options:{default_compiler_options with optimize=true; dedup_flows=true } sw fdd)
+       Netkat.Local_compiler.(to_table ~options:{default_compiler_options with optimize=true; dedup_flows=true } sw fdd)
     | "tablegen-naive" ->
-       Netkat.Compiler.(to_table ~options:{default_compiler_options with optimize=false; dedup_flows=true } sw fdd)
+       Netkat.Local_compiler.(to_table ~options:{default_compiler_options with optimize=false; dedup_flows=true } sw fdd)
     | _ -> assert false in
   let to_table sw fdd = match is_debug with
     | false -> to_table sw fdd
@@ -95,16 +96,16 @@ let compile compiler per_switch varorder tbl_opt debug filename =
   let compiler_fun = match compiler with
     | "global" ->
        (fun pol ->
-	let fdd = Netkat.Compiler.compile_global pol in
+	let fdd = Netkat.Global_compiler.compile pol in
         (if not is_debug then
-           Netkat.Compiler.to_dotfile fdd "fdk.dot");
+           Netkat.Local_compiler.to_dotfile fdd "fdk.dot");
 	fdd)
     | "local" ->
        let opts =
-	 {Netkat.Compiler.default_compiler_options with
+	 {Netkat.Local_compiler.default_compiler_options with
 	   field_order=order;
 	   cache_prepare=`Empty} in
-       Netkat.Compiler.compile_local ~options:opts
+       Netkat.Local_compiler.compile ~options:opts
     | _ -> assert false in
   let f = match per_switch with
     | "big-fdd" -> big_fdd_compilation to_table compiler_fun
@@ -133,16 +134,16 @@ let sdx filename =
   (* let _ = List.iteri pols ~f:(fun i pol -> *)
     (* string_of_policy pol |> printf "Policy %d:\n%s\n\n%!" i) in *)
   let order =
-    let open Netkat.Compiler.Field in
+    let open Netkat.Local_compiler.Field in
     `Static [ Location; EthDst; TCPSrcPort; TCPDstPort; IP4Src; EthType; Switch; IP4Dst;
               EthSrc;  Vlan; VlanPcp; IPProto; VSwitch; VPort; VFabric; Meta0; Meta1; Meta2; Meta3; Meta4 ] in
   (* eprintf "Number of elements in disjoint union: %d\n%!" (List.length pols); *)
   let f pol =
-    let opts = { Netkat.Compiler.default_compiler_options with
+    let opts = { Netkat.Local_compiler.default_compiler_options with
 		 field_order = order;
 		 optimize = true } in
-    let tbl = Netkat.Compiler.to_table ~options:opts 0L
-		(Netkat.Compiler.compile_local ~options:opts pol) in
+    let tbl = Netkat.Local_compiler.to_table ~options:opts 0L
+		(Netkat.Local_compiler.compile ~options:opts pol) in
      (* eprintf "Table:\n%s\n%!" (Frenetic.OpenFlow.string_of_flowTable tbl); *)
     List.length tbl in
   let (compile_time, tbl_size) = profile (fun () ->
@@ -155,9 +156,9 @@ let dot_to_virtual ~in_file =
   let open Netkat.Pretty in
   let open Out_channel in
   let () = () in
-  List.iter [("vpol", vpol); ("vtopo", vtopo); ("vingpol", vingpol); ("ptopo", ptopo)]
+  List.iter [("vpol", vpol); ("vtopo", vtopo); ("ving_pol", vingpol); ("ptopo", ptopo)]
     ~f:(fun (file, pol) -> write_all (file ^ ".kat") ~data:(string_of_policy pol));
-  List.iter [("vrel", vrel); ("vinout", vinout); ("pinout", pinout)]
+  List.iter [("vrel", vrel); ("ving", vinout); ("veg", vinout); ("ping", pinout); ("peg", pinout)]
     ~f:(fun (file, pred) -> write_all (file ^ ".kat") ~data:(string_of_pred pred))
 
 

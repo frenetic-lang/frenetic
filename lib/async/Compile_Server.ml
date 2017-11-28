@@ -1,28 +1,28 @@
 open Core
 open Async
 open Cohttp_async
-open Netkat.Syntax
+open Frenetic_netkat.Syntax
 module Server = Cohttp_async.Server
 open Common
-module Comp = Netkat.Compiler
+module Comp = Frenetic_netkat.Local_compiler
 
-let policy = ref Netkat.Syntax.drop
+let policy = ref Frenetic_netkat.Syntax.drop
 
 let current_compiler_options = ref { Comp.default_compiler_options with optimize = false }
 
 let compile_respond pol =
   (* Compile pol to tables and time everything. *)
   let (time, tbls) = profile (fun () ->
-  let fdd = Comp.compile_local ~options:!current_compiler_options pol in
+  let fdd = Comp.compile ~options:!current_compiler_options pol in
   let sws =
-    let sws = Netkat.Semantics.switches_of_policy pol in
+    let sws = Frenetic_netkat.Semantics.switches_of_policy pol in
     if List.length sws = 0 then [0L] else sws in
   List.map sws ~f:(fun sw ->
     (sw, Comp.to_table ~options:!current_compiler_options sw fdd))) in
   (* JSON conversion is not timed. *)
   let json_tbls = List.map tbls ~f:(fun (sw, tbl) ->
   `Assoc [("switch_id", `Int (Int64.to_int_exn sw));
-         ("tbl", Netkat.Json.flowTable_to_json tbl)]) in
+         ("tbl", Frenetic_netkat.Json.flowTable_to_json tbl)]) in
   let resp = Yojson.Basic.to_string ~std:true (`List json_tbls) in
   let headers = Cohttp.Header.init_with
   "X-Compile-Time" (Float.to_string time) in
@@ -41,7 +41,7 @@ let handle_request
       handle_parse_errors body
         (fun body ->
            Body.to_string body >>= fun str ->
-           return (Netkat.Json.pol_of_json_string str))
+           return (Frenetic_netkat.Json.pol_of_json_string str))
         compile_respond
     | `POST, ["update"] ->
       printf "POST /update";
@@ -51,9 +51,9 @@ let handle_request
            Cohttp_async.Server.respond `OK)
     | `GET, [switchId; "flow_table"] ->
        let sw = Int64.of_string switchId in
-       Comp.compile_local ~options:!current_compiler_options !policy |>
+       Comp.compile ~options:!current_compiler_options !policy |>
          Comp.to_table ~options:!current_compiler_options sw |>
-         Netkat.Json.flowTable_to_json |>
+         Frenetic_netkat.Json.flowTable_to_json |>
          Yojson.Basic.to_string ~std:true |>
          Cohttp_async.Server.respond_string
     | `POST, ["config"] ->

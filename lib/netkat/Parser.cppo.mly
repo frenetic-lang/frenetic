@@ -29,7 +29,7 @@ let parse_ocaml_expr (s,loc) =
   buf.lex_curr_p <- Location.(loc.loc_start);
   Parse.expression buf
 
-open Netkat.Syntax
+open Frenetic_netkat.Syntax
 #else
 open Syntax
 #endif
@@ -57,6 +57,9 @@ open Core
 (* primitives *)
 %token LPAR RPAR BEGIN END EOF
 
+(* portless extension *)
+%token FROM ABSTRACTLOC
+
 (* antiquotations (for ppx syntax extension ) *)
 #ifdef MAKE_PPX
   %token <string * Location.t> ANTIQ
@@ -83,13 +86,13 @@ open Core
 pol_eof:
   | p=pol; EOF
       AST( p )
-      PPX( let open Netkat.Syntax in [%e p] )
+      PPX( let open Frenetic_netkat.Syntax in [%e p] )
   ;
 
 pred_eof:
   | a=pred; EOF
       AST( a )
-      PPX( let open Netkat.Syntax in [%e a] )
+      PPX( let open Frenetic_netkat.Syntax in [%e a] )
   ;
 
 pol:
@@ -188,12 +191,27 @@ pred:
 (*********************** HEADER VALUES *************************)
 
 header_val(BINOP):
+#ifdef PORTLESS
+  | SWITCH; BINOP; n=int64
+      BOTH( raise (Failure "cannot access switch field in portless mode") )
+  | PORT; BINOP; _=portval
+      BOTH( raise (Failure "cannot access port field in portless mode") )
+  | FROM; BINOP; s=STRING
+      BOTH( From s )
+  | ABSTRACTLOC; BINOP; s=STRING
+      BOTH( AbstractLoc s )
+#else
   | SWITCH; BINOP; n=int64
       AST( Switch n )
       PPX( Switch [%e n])
   | PORT; BINOP; p=portval
       AST( Location p )
       PPX( Location [%e p] )
+  | FROM; BINOP; _=STRING
+      BOTH( raise (Failure "from field only available in portless mode") )
+  | ABSTRACTLOC; BINOP; _=STRING
+      BOTH( raise (Failure "loc field only available in portless mode") )
+#endif
   | VSWITCH; BINOP; n=int64
     AST( VSwitch n )
     PPX( VSwitch [%e n] )
@@ -305,8 +323,8 @@ int64:
 mac:
   | s = MAC
 
-      AST( Frenetic.Packet.mac_of_string         s  )
-      PPX( Frenetic.Packet.mac_of_string [%e estring ~loc s] )
+      AST( Frenetic_kernel.Packet.mac_of_string         s  )
+      PPX( Frenetic_kernel.Packet.mac_of_string [%e estring ~loc s] )
   ;
 
 ip4addr:

@@ -49,12 +49,12 @@ let handle_parse_errors'
       Cohttp_async.Server.respond `Bad_request
 
 let parse_update body = Body.to_string body >>= fun pol_str ->
-  return (Netkat.Parser.pol_of_string pol_str)
+  return (Frenetic_netkat.Parser.pol_of_string pol_str)
 
 let parse_update_json body =
   Body.to_string body >>= fun str ->
-  return (Netkat.Json.pol_of_json_string str)
+  return (Frenetic_netkat.Json.pol_of_json_string str)
 
 let parse_config_json body =
   Body.to_string body >>= fun str ->
-  return (Netkat.Compiler.options_from_json_string str)
+  return (Frenetic_netkat.Local_compiler.options_from_json_string str)

@@ -1,4 +1,5 @@
 open Core
+module Netkat = Frenetic.Netkat
 
 (*===========================================================================*)
 (* AUXILLIARY FUNCTIONS                                                      *)
@@ -24,7 +25,7 @@ let log_outputs : (string * Async.Log.Output.t Lazy.t) Command.Spec.Arg_type.t =
       | "stdout" -> ("stdout", lazy (Async_extended.Extended_log.Console.output (Lazy.force Async.Writer.stdout)))
       | filename -> (filename, lazy (Async.Log.Output.file `Text filename)) )
 
-let table_fields : Netkat.Compiler.flow_layout Command.Spec.Arg_type.t =
+let table_fields : Netkat.Local_compiler.flow_layout Command.Spec.Arg_type.t =
   let open Netkat.Fdd.Field in
   Command.Spec.Arg_type.create
     (fun table_field_string ->
@@ -42,6 +43,26 @@ let table_fields : Netkat.Compiler.flow_layout Command.Spec.Arg_type.t =
       List.map ~f:table_to_fields field_list_list
     )
 
+let topology_name : Frenetic.Topology.Mininet.topo_name Command.Spec.Arg_type.t =
+  let open Frenetic.Topology.Mininet in
+  let num_arg = ",\\([1-9][0-9]*\\)" in
+  let tree = Str.regexp ("tree" ^ num_arg ^ num_arg ^ "$") in
+  let linear = Str.regexp ("linear" ^ num_arg ^ "$") in
+  let single = Str.regexp ("single" ^ num_arg ^ "$") in
+  let minimal = Str.regexp "minimal$" in
+  Command.Spec.Arg_type.create
+    (function x ->
+       if Str.string_match tree x 0 then
+         Tree (Int.of_string (Str.matched_group 1 x), Int.of_string (Str.matched_group 2 x))
+       else if Str.string_match linear x 0 then
+         Linear (Int.of_string (Str.matched_group 1 x))
+       else if Str.string_match single x 0 then
+         Single (Int.of_string (Str.matched_group 1 x))
+       else if Str.string_match minimal x 0 then
+         Minimal
+       else
+         (eprintf "'%s' is not a legal topology name.  Choose 'tree,n,o', 'linear,n', 'single,n', 'minimal' \n" x;
+          exit 1))
 
 (*===========================================================================*)
 (* FLAGS                                                                     *)
@@ -77,6 +98,10 @@ module Flag = struct
   let topology_file =
     flag "--topology-file" (optional_with_default "topology.dot" file)
       ~doc:"File containing .dot topology of network. Defaults to \"topology.kat\"."
+
+  let topology_name =
+    flag "--topology-name" (optional topology_name)
+      ~doc:"topology_name The name of the topology. Same as mn --topo value."
 end
 
 
@@ -89,8 +114,8 @@ let default_spec =
 
 let run cmd verbosity log =
   let (log_path, log_output) = log in
-  Frenetic_async.Logging.set_level verbosity;
-  Frenetic_async.Logging.set_output [Lazy.force log_output];
+  Frenetic.Async.Logging.set_level verbosity;
+  Frenetic.Async.Logging.set_output [Lazy.force log_output];
   ignore (cmd ());
   never_returns (Async.Scheduler.go ())
 
@@ -101,7 +126,7 @@ let shell : Command.t =
       +> Flag.openflow_port
       ++ default_spec)
     (fun openflow_port ->
-      run (Frenetic_async.Shell.main openflow_port))
+      run (Frenetic.Async.Shell.main openflow_port))
 
 let compile_server : Command.t =
   Command.basic
@@ -110,7 +135,7 @@ let compile_server : Command.t =
       +> Flag.http_port
       ++ default_spec)
     (fun http_port ->
-      run (Frenetic_async.Compile_Server.main http_port))
+      run (Frenetic.Async.Compile_Server.main http_port))
 
 let http_controller : Command.t =
   Command.basic
@@ -120,7 +145,7 @@ let http_controller : Command.t =
       +> Flag.openflow_port
       ++ default_spec)
     (fun http_port openflow_port ->
-      run (Frenetic_async.Http_Controller.main http_port openflow_port))
+      run (Frenetic.Async.Http_Controller.main http_port openflow_port))
 
 let openflow13_controller : Command.t =
   Command.basic
@@ -131,7 +156,7 @@ let openflow13_controller : Command.t =
       +> Flag.table_fields
       ++ default_spec)
     (fun openflow_port policy_file table_fields ->
-      run (Frenetic_async.OpenFlow0x04_Plugin.main openflow_port policy_file table_fields))
+      run (Frenetic.Async.OpenFlow0x04_Plugin.main openflow_port policy_file table_fields))
 
 let openflow13_fault_tolerant_controller : Command.t =
   Command.basic
@@ -142,8 +167,35 @@ let openflow13_fault_tolerant_controller : Command.t =
       +> Flag.topology_file
       ++ default_spec)
     (fun openflow_port policy_file topology_file ->
-      run (Frenetic_async.OpenFlow0x04_Plugin.fault_tolerant_main
+      run (Frenetic.Async.OpenFlow0x04_Plugin.fault_tolerant_main
         openflow_port policy_file topology_file))
+
+let portless_controller : Command.t =
+  Command.basic
+    ~summary:"Starts a controller with specified topology and installed rules generated from portless policy."
+    Command.Spec.(empty
+                  +> Flag.openflow_port
+                  +> Flag.topology_name
+                  +> Flag.topology_file
+                  +> Flag.policy_file
+                  ++ default_spec)
+    (fun openflow_port topology_name topology_file policy_file ->
+       run (
+         let pol = Netkat.Parser.Portless.pol_of_file policy_file in
+
+         (* If the topology_name is specified, use that. If not, use the topology_file. *)
+         let topo = match topology_name with
+           | Some name -> Frenetic.Topology.Mininet.topo_from_name name
+           | None -> Frenetic.Network.Net.Parse.from_dotfile topology_file in
+
+         let module Controller = Frenetic.Async.NetKAT_Controller.Make (Frenetic.Async.OpenFlow0x01_Plugin) in
+         Controller.start openflow_port;
+         Netkat.Portless_Compiler.compile pol topo
+         |> Controller.update
+         |> Async.Deferred.don't_wait_for;
+         never_returns (Async.Scheduler.go ());
+       )
+    )
 
 let main : Command.t =
   Command.group
@@ -153,6 +205,7 @@ let main : Command.t =
     ; ("http-controller", http_controller)
     ; ("openflow13", openflow13_controller)
     ; ("fault-tolerant", openflow13_fault_tolerant_controller)
+    ; ("portless-controller", portless_controller)
     ; ("dump", Dump.main)]
 
 let () =

@@ -34,6 +34,8 @@ module Field : sig
   type t
     = Switch
     | Location
+    | From
+    | AbstractLoc
     | VSwitch
     | VPort
     | Vlan
@@ -128,6 +130,7 @@ module Value : sig
   type t =
       Const of Int64.t
     | Mask of Int64.t * int
+    | AbstractLocation of string
     | Pipe of string
     | Query of string
     (* TODO(grouptable): HACK, should only be able to fast fail on ports.
@@ -147,8 +150,8 @@ module Value : sig
   (** [of_int64 i]  converts a 64-bit integer to a Const value *)
   val of_int64 : int64 -> t
 
-  (** [to_int_exn value] returns just the integer for Const values, or an exception otherwise *)
-  val to_int_exn : t -> int
+  (** [to_int64_exn value] returns just the integer for Const values, or an exception otherwise *)
+  val to_int64_exn : t -> int64
 end
 
 exception FieldValue_mismatch of Field.t * Value.t
@@ -179,7 +182,7 @@ module Pattern : sig
   (* [to_sdn p] Converts a [Pattern.t] into a function that will modify a [SDN.Pattern.t]
     to check the condition represented by the [Pattern.t].  This function is used to glue
     OpenFlow match patterns into a complete match spec.  *)
-  val to_sdn : t -> Frenetic.OpenFlow.Pattern.t -> Frenetic.OpenFlow.Pattern.t
+  val to_sdn : t -> Frenetic_kernel.OpenFlow.Pattern.t -> Frenetic_kernel.OpenFlow.Pattern.t
 end
 
 module Action : sig
@@ -250,8 +253,8 @@ module Action : sig
    assumes that fields are assigned to proper bitwidth integers, and does
    no validation along those lines. If the input is derived from a NetKAT
    surface syntax program, then this assumption likely holds.    *)
-  val to_sdn : ?group_tbl:Frenetic.GroupTable0x04.t
-            -> Int64.t option -> t -> Frenetic.OpenFlow.par
+  val to_sdn : ?group_tbl:Frenetic_kernel.GroupTable0x04.t
+            -> Int64.t option -> t -> Frenetic_kernel.OpenFlow.par
 
   (** [get_queries action] returns a list of queries used in actions.  May have dupes. *)
   val get_queries : t -> string list
@@ -271,7 +274,7 @@ module FDD : sig
     with type r = Action.t
     and  type v = Field.t * Value.t
 
-  val mk_cont : int -> t
-  val conts : t -> Int.Set.t
-  val map_conts : t -> f:(int -> int) -> t
+  val mk_cont : int64 -> t
+  val conts : t -> Int64.Set.t
+  val map_conts : t -> f:(int64 -> int64) -> t
 end

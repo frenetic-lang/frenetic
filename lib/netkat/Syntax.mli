@@ -9,20 +9,21 @@
 
 open Sexplib.Conv
 open Core
-open Frenetic.Packet
+open Frenetic_kernel.Packet
 
 (** {2 Basics} *)
 (* thrown whenever local policy is expected, but global policy
   (i.e. policy containing links) is encountered *)
 exception Non_local
 
-type switchId = Frenetic.OpenFlow.switchId [@@deriving sexp, compare, eq]
-type portId = Frenetic.OpenFlow.portId [@@deriving sexp, compare, eq]
-type payload = Frenetic.OpenFlow.payload [@@deriving sexp]
+type switchId = Frenetic_kernel.OpenFlow.switchId [@@deriving sexp, compare, eq]
+type portId = Frenetic_kernel.OpenFlow.portId [@@deriving sexp, compare, eq]
+type payload = Frenetic_kernel.OpenFlow.payload [@@deriving sexp]
 type vswitchId = int64 [@@deriving sexp, compare, eq]
 type vportId = int64 [@@deriving sexp, compare, eq]
 type vfabricId = int64 [@@deriving sexp, compare, eq]
 type metaId = string [@@deriving sexp, compare, eq]
+type abstract_location = string [@@deriving sexp, compare, eq]
 
 (** {2 Policies} *)
 
@@ -52,6 +53,8 @@ type header_val =
   | VPort of vportId
   | VFabric of vfabricId
   | Meta of metaId * int64
+  | From of abstract_location
+  | AbstractLoc of abstract_location
   [@@deriving sexp]
 
 type pred =
@@ -85,10 +88,10 @@ val drop : policy
 
 (** {3 Applications} *)
 
-type action = Frenetic.OpenFlow.action
+type action = Frenetic_kernel.OpenFlow.action
 
 type switch_port = switchId * portId [@@deriving sexp]
-type host = Frenetic.Packet.dlAddr * Frenetic.Packet.nwAddr [@@deriving sexp]
+type host = Frenetic_kernel.Packet.dlAddr * Frenetic_kernel.Packet.nwAddr [@@deriving sexp]
 
 type bufferId = Int32.t [@@deriving sexp] (* XXX(seliopou): different than OpenFlow *)
 

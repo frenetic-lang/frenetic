@@ -37,3 +37,9 @@ let pp_exceptions () =
   Printexn.register_printer (fun exn -> Option.try_with (fun () ->
     Location.report_exception Format.str_formatter exn;
     Format.flush_str_formatter ()))
+
+let map_fst lst ~f =
+  List.map lst ~f:(fun (x,y) -> (f x, y))
+
+let map_snd lst ~f =
+  List.map lst ~f:(fun (x,y) -> (x, f y))

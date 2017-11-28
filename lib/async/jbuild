@@ -11,7 +11,7 @@
      core
      cstruct
      cstruct.async
-     frenetic
+     frenetic.kernel
      frenetic.netkat
      mparser
      mparser.re

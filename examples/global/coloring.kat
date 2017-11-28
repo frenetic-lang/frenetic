@@ -1,0 +1,8 @@
+(* Ideally, this policy should not require the use of any tags.
+   Switch 2 should match on the ip4Dst to forward packets appropriately.
+*)
+
+filter switch=1;(
+  filter ip4Dst=10.0.0.2; port:=2; 1@2=>2@1; port:=2 +
+  filter ip4Dst=10.0.0.3; port:=2; 1@2=>2@1; port:=3
+)

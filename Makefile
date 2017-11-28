@@ -9,7 +9,7 @@ install:
 uninstall:
 	jbuilder uninstall $(INSTALL_ARGS)
 
-reinstall: uninstall reinstall
+reinstall: uninstall install
 
 clean:
 	jbuilder clean
@@ -20,4 +20,6 @@ doc:
 test:
 	jbuilder build @runtest
 
-.PHONY: build install uninstall reinstall clean doc test
+all: build test doc
+
+.PHONY: build install uninstall reinstall clean doc test all
