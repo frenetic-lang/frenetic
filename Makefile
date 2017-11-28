@@ -18,7 +18,7 @@ doc:
 	jbuilder build @doc
 
 test:
-	jbuilder build @runtest
+	jbuilder build @runtest --no-buffer
 
 all: build test doc
 
