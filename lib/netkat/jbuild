@@ -32,7 +32,7 @@
 (rule
  ((targets (Lexer.ml))
   (deps    (Lexer.sedlex.ml))
-  (action  (run ${ocaml_where}/../sedlex/ppx_sedlex ${<} -o ${@}))))
+  (action  (run ${lib:sedlex:ppx_sedlex} ${<} -o ${@}))))
 
 ;; generate parser
 (menhir
