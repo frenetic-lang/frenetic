@@ -108,7 +108,7 @@ module Formatting = struct
           | SEQ_L -> fprintf fmt "@[%a;@ %a@]" (pol SEQ_L) p1 (pol SEQ_R) p2
           | _ -> fprintf fmt "@[(@[%a;@ %a@])@]" (pol SEQ_L) p1 (pol SEQ_R) p2
         end
-      | Let {id; init; mut; body} ->
+      | Let {id; init; mut; body=p} ->
         fprintf fmt "@[%s %s := %a in %a@]"
           (if mut then "var" else "let")
           id
