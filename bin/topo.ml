@@ -29,7 +29,7 @@ module Parameters = struct
   let up sw pt = sprintf "up_%d" pt
 
   (* link failure probabilities *)
-  let failure_prob _sw _pt = Prob.(0//10)
+  let failure_prob _sw _pt = Prob.(1//10)
 
   (* Limit on maximum failures "encountered" by a packet. A packet encounters
      a failure if it occurs on a link that is incident to the current location
@@ -254,7 +254,7 @@ module Parameters = struct
   end
 
   (* the actual program to run on the switches *)
-  let sw_pol = `Portwise (Schemes.car ~style:`Deterministic)
+  let sw_pol = `Switchwise Schemes.resilient_ecmp
 
 
 end
@@ -316,6 +316,6 @@ let () = begin
   ignore (equivalent_to_teleport fdd');
 
   (*  *)
-  Fdd.to_dotfile fdd (base_name ^ ".fdd.dot");
+  Fdd.render fdd' ~title:base_name;
 
 end

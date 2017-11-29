@@ -1,4 +1,4 @@
-open Core
+open! Core
 
 let time f x =
   let t1 = Unix.gettimeofday () in
@@ -23,6 +23,57 @@ let map_snd xs ~f =
 
 let tap x ~f =
   f x; x
+
+
+(*===========================================================================*)
+(* open files with default application                                       *)
+(*===========================================================================*)
+
+type os =
+  | MacOS
+  | Linux
+
+let detect_os () : os =
+  let open Caml in
+  let ic = Unix.open_process_in "uname" in
+  let uname = input_line ic in
+  close_in ic;
+  match uname with
+  | "Darwin" -> MacOS
+  | "Linux" -> Linux
+  | _ -> failwith "unknown operating system"
+
+let open_cmd =
+  match detect_os () with
+  | MacOS -> "open"
+  | Linux -> "xdg-open"
+
+let open_file f =
+  Format.sprintf "%s %s" open_cmd f
+  |> Caml.Unix.system
+  |> ignore
+
+(*===========================================================================*)
+(* Graphviz                                                                  *)
+(*===========================================================================*)
+
+let compile_dot ?(format="pdf") ?(title="dot") data : string =
+  let output_file = Filename.temp_file (title ^ "_") ("." ^ format) in
+  let to_dot = Unix.open_process_out (sprintf "dot -T%s -o %s" format output_file) in
+  Out_channel.output_string to_dot data;
+  Out_channel.close to_dot;
+  ignore (Unix.close_process_out to_dot);
+  output_file
+
+let show_dot ?format ?title data : unit =
+  compile_dot ?format ?title data
+  |> open_file
+
+
+
+(*===========================================================================*)
+(* modified Unix module                                                      *)
+(*===========================================================================*)
 
 (* adapted from https://github.com/ocaml/ocaml/blob/
    c5fe6932b2151d0e4426072b4df3510318bc4edc/otherlibs/unix/unix.ml

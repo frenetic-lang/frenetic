@@ -1364,8 +1364,12 @@ module Fdd = struct
     Out_channel.with_file filename ~f:(fun chan ->
       simplify t
       |> to_dot
-      |>
-      Out_channel.output_string chan
+      |> Out_channel.output_string chan
     )
+
+  let render ?(format="pdf") ?(title="FDD") t =
+    simplify t
+    |> to_dot
+    |> Util.show_dot ~format ~title
 
 end
