@@ -1,6 +1,6 @@
 opam-version: "1.2"
 available: [ ocaml-version >= "4.04.0" ]
-version: "4.2.0"
+version: "5.0.0"
 maintainer: "Arjun Guha <arjun@cs.umass.edu>"
 authors: "Arjun Guha <arjun@cs.umass.edu>, Nate Foster <jnfoster@cs.cornell.edu>"
 homepage: "http://frenetic-lang.org"
@@ -13,9 +13,9 @@ build-test: ["jbuilder" "runtest" "-p" name "-j" jobs]
 install: ["jbuilder" "install" "-p" name "-j" jobs]
 
 depends: [
-  "cppo"
-  "jbuilder" {>="1.0+beta13"}
-  "odoc"
+  "cppo" {build}
+  "jbuilder" {build & >="1.0+beta13"}
+  "odoc" {doc}
   #########################
   "async"  {>= "0.9.0"}
   "async_extended"
