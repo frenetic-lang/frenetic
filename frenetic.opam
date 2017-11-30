@@ -12,9 +12,9 @@ build-doc: ["jbuilder" "build" "@doc" "-p" name "-j" jobs]
 build-test: ["jbuilder" "runtest" "-p" name "-j" jobs]
 
 depends: [
-  "cppo" {build}
-  "jbuilder" {build & >="1.0+beta13"}
-  "odoc" {doc}
+  "cppo"
+  "jbuilder" {>="1.0+beta13"}
+  "odoc"
   #########################
   "async"  {>= "0.9.0"}
   "async_extended"
