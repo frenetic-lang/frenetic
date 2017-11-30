@@ -1,8 +1,8 @@
 opam-version: "1.2"
 available: [ ocaml-version >= "4.04.0" ]
 version: "5.0.0"
-maintainer: "Arjun Guha <arjun@cs.umass.edu>"
-authors: "Arjun Guha <arjun@cs.umass.edu>, Nate Foster <jnfoster@cs.cornell.edu>"
+maintainer: "Steffen Smolka <smolka@cs.cornell.edu>"
+authors: "Arjun Guha <arjun@cs.umass.edu>, Nate Foster <jnfoster@cs.cornell.edu>, Steffen Smolka <smolka@cs.cornell.edu>"
 homepage: "http://frenetic-lang.org"
 bug-reports: "https://github.com/frenetic-lang/frenetic/issues"
 dev-repo: "https://github.com/frenetic-lang/frenetic.git"
@@ -10,7 +10,6 @@ dev-repo: "https://github.com/frenetic-lang/frenetic.git"
 build: ["jbuilder" "build" "-p" name "-j" jobs]
 build-doc: ["jbuilder" "build" "@doc" "-p" name "-j" jobs]
 build-test: ["jbuilder" "runtest" "-p" name "-j" jobs]
-install: ["jbuilder" "install" "-p" name "-j" jobs]
 
 depends: [
   "cppo" {build}
