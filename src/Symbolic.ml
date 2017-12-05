@@ -341,7 +341,7 @@ end
 module PrePacket = struct
   type nomval =
     | Const of Value.t
-    | Atom (** An atom in the sense of nominal sets. Some fixed that value that is different
+    | Atom (** An atom in the sense of nominal sets. Some fixed value that is different
                from all constants. To a first approximation, a sort of wildcard, but it ranges
                only over values that do not appear as constants.
             *)
@@ -1372,4 +1372,13 @@ module Fdd = struct
     |> to_dot
     |> Util.show_dot ~format ~title
 
+  (* minimum action probability for action other than drop *)
+  let min_nondrop_prob fdd =
+    fold fdd
+    ~f:(fun dist ->
+      ActionDist.to_alist dist
+      |> List.filter_map ~f:(function (Action.Drop,_) -> None | (_,p) -> Some p)
+      |> List.fold ~init:Prob.zero ~f:Prob.min
+      )
+    ~g:(fun _ p1 p2 -> Prob.min p1 p2)
 end
