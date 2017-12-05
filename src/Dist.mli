@@ -37,6 +37,9 @@ module Make(Dom: Vlr.HashCmp) : sig
   (** normalize probabilities so they sum up to 1 *)
   val unsafe_normalize : t -> t
 
+  (** probability that predicate holds *)
+  val prob : t -> f:(Dom.t -> bool) -> Prob.t
+
   (** expected value *)
   val expectation : t -> f:(Dom.t -> Q.t) -> Q.t
 end

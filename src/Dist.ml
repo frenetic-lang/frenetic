@@ -105,6 +105,10 @@ module Make (Dom : Vlr.HashCmp) = struct
     let mass = T.fold t ~init:zero ~f:(fun ~key ~data:p acc -> p + acc) in
     T.map t ~f:(fun p -> p / mass)
 
+  let prob t ~(f : Dom.t -> bool) : Prob.t =
+    T.fold t ~init:Prob.zero ~f:(fun ~key:x ~data:p acc ->
+      if f x then Prob.(p + acc) else acc
+    )
 
   let expectation t ~(f : Dom.t -> Q.t) : Q.t =
     T.fold t ~init:Q.zero ~f:(fun ~key:x ~data:p acc ->
