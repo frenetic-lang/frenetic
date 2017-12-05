@@ -316,6 +316,6 @@ let () = begin
   ignore (equivalent_to_teleport fdd');
 
   (*  *)
-  Fdd.render fdd' ~title:base_name;
+  Fdd.render fdd' ~title:base_name ~format:"svg";
 
 end
