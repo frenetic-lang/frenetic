@@ -345,7 +345,7 @@ module PrePacket = struct
                from all constants. To a first approximation, a sort of wildcard, but it ranges
                only over values that do not appear as constants.
             *)
-    [@@deriving compare, eq, sexp]
+    [@@deriving compare, eq, sexp, hash]
 
   type t = nomval Field.Map.t [@@deriving compare, eq, sexp]
   (** Symbolic packet. Represents a set of concrete packets { π }.
@@ -357,6 +357,8 @@ module PrePacket = struct
       In particular, the empty map represents the set of all packets, and a map
       that associates a constant with every field represents a singleton set.
   *)
+
+  let hash_fold_t = Map.hash_fold_direct Field.hash_fold_t hash_fold_nomval
 
   let empty = Field.Map.empty
 
@@ -392,10 +394,20 @@ end
     encoding of a packet set (possibly the empty set).
 *)
 module Packet = struct
-  type t =
-    | Emptyset
-    | Pk of PrePacket.t
-    [@@deriving compare, eq, sexp]
+  module T = struct
+    type t =
+      | Emptyset
+      | Pk of PrePacket.t
+      [@@deriving compare, eq, sexp, hash]
+
+    let to_string t =
+      match t with
+      | Emptyset -> "∅"
+      | Pk pk -> PrePacket.to_string pk
+  end
+  include T
+
+  module Dist = Dist.Make(T)
 
   let modify (pk : t) (f : Field.t) (v : PrePacket.nomval) : t =
     match pk with
@@ -422,8 +434,8 @@ module Packet = struct
 
   let to_string pk : string =
     Format.asprintf "%a" pp pk
-end
 
+end
 
 
 module Fdd00 = Vlr.Make(Field)(Value)(ActionDist)
@@ -1381,4 +1393,29 @@ module Fdd = struct
       |> List.fold ~init:Prob.zero ~f:Prob.min
       )
     ~g:(fun _ p1 p2 -> Prob.min p1 p2)
+
+  let output_dist t ~(input_dist : Packet.Dist.t) =
+    let rec do_node t =
+      match unget t with
+      | Leaf a ->
+        do_leaf a
+      | Branch ((f,v), tru, fls) ->
+        let tru, fls = do_node tru, do_node fls in
+        let p = Packet.Dist.prob input_dist ~f:(function
+          | Emptyset ->
+            failwith "input must not be empty"
+          | Pk pk ->
+            Map.find pk f = Some (Const v)
+        )
+        in
+        Packet.Dist.convex_sum tru p fls
+    and do_leaf action =
+      Packet.Dist.(input_dist >>= fun pk ->
+        ActionDist.to_alist action
+        |> Util.map_fst ~f:(Packet.apply pk)
+        |> Packet.Dist.of_alist_exn
+      )
+    in
+    do_node t
+
 end

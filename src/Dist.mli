@@ -42,4 +42,13 @@ module Make(Dom: Vlr.HashCmp) : sig
 
   (** expected value *)
   val expectation : t -> f:(Dom.t -> Q.t) -> Q.t
+
+  (** Monad primitives *)
+  val bind  : t -> (Dom.t -> t) -> t
+  val (>>=) : t -> (Dom.t -> t) -> t
+  val return : Dom.t -> t
+
+  (** UNSAFE  *)
+  val to_alist : t -> (Dom.t * Prob.t) list
+  val of_alist_exn : (Dom.t * Prob.t) list -> t
 end

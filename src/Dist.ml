@@ -90,16 +90,6 @@ module Make (Dom : Vlr.HashCmp) = struct
     List.map list ~f:(fun (t, p) -> scale t ~scalar:p)
     |> List.fold ~init:empty ~f:sum
 
-  (* expectation of random variable [f] w.r.t distribution [t] *)
-  let expectation t ~(f : Dom.t -> Prob.t) : Prob.t =
-    T.fold t ~init:Prob.zero ~f:(fun ~key:point ~data:prob acc ->
-      Prob.(acc + prob * f point))
-
-  (* variance of random variable [f] w.r.t distribution [t] *)
-  let variance t ~(f : Dom.t -> Prob.t) : Prob.t =
-    let mean = expectation t f in
-    expectation t ~f:(fun point -> Prob.((f point - mean) * (f point - mean)))
-
   let unsafe_normalize t =
     let open Prob in
     let mass = T.fold t ~init:zero ~f:(fun ~key ~data:p acc -> p + acc) in
@@ -114,6 +104,11 @@ module Make (Dom : Vlr.HashCmp) = struct
     T.fold t ~init:Q.zero ~f:(fun ~key:x ~data:p acc ->
       Prob.(acc + p * f(x))
     )
+
+  (* variance of random variable [f] w.r.t distribution [t] *)
+  let variance t ~(f : Dom.t -> Prob.t) : Prob.t =
+    let mean = expectation t f in
+    expectation t ~f:(fun point -> Prob.((f point - mean) * (f point - mean)))
 
   (* Markov Kernel *)
   module Kernel = struct
@@ -144,5 +139,17 @@ module Make (Dom : Vlr.HashCmp) = struct
     end
     include Let_syntax
   end
+  include Monad
+
+  (* UNSAFE *)
+  let to_alist = T.to_alist ~key_order:`Increasing
+
+  let of_alist_exn l =
+    let mass =
+      List.map l  ~f:snd
+      |> List.fold ~init:Prob.zero ~f:Prob.(+)
+    in
+    assert Prob.(equal mass one);
+    T.of_alist_exn l
 
 end
