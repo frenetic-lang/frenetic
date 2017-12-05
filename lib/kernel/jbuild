@@ -9,7 +9,6 @@
      base64
      cstruct
      ocamlgraph
-     tcpip
      yojson
      ipaddr
      sedlex

@@ -1,2 +1,2 @@
 include Frenetic_kernel
-module Netkat = Frenetic_netkat
+(* module Netkat = Frenetic_netkat *)

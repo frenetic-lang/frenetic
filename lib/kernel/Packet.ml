@@ -229,12 +229,7 @@ module Tcp = struct
       Cstruct.set_uint8     pseudo_header 8  0;
       Cstruct.set_uint8     pseudo_header 9  0x6;
       Cstruct.BE.set_uint16 pseudo_header 10 length in
-    set_tcp_chksum bits 0;
-    let chksum = Tcpip_checksum.ones_complement_list
-      (if (length mod 2) = 0
-        then [pseudo_header; Cstruct.sub bits 0 length]
-        else [pseudo_header; Cstruct.sub bits 0 length; Cstruct.of_string "\x00"]) in
-    set_tcp_chksum bits chksum
+    set_tcp_chksum bits 0
 end
 
 module Udp = struct
@@ -578,11 +573,7 @@ module Igmp1and2 = struct
   let marshal (bits : Cstruct.t) (msg : t) =
     set_igmp1and2_mrt bits msg.mrt;
     set_igmp1and2_chksum bits 0;
-    set_igmp1and2_addr bits msg.addr;
-    (* ADF: hack since Igmp.sizeof_igmp not defined at this point *)
-    let igmp_hdr = Cstruct.sub bits (-1) (1 + sizeof_igmp1and2) in
-    let chksum = Tcpip_checksum.ones_complement igmp_hdr in
-    set_igmp1and2_chksum bits chksum;
+    set_igmp1and2_addr bits msg.addr
 
 
 end
@@ -681,11 +672,7 @@ module Igmp3 = struct
     set_igmp3_chksum bits 0;
     set_igmp3_num_records bits (List.length msg.grs);
     let gr_bits = Cstruct.shift bits sizeof_igmp3 in
-    ignore (List.fold_left ~f:GroupRec.marshal ~init:gr_bits msg.grs);
-    (* ADF: hack since Igmp.sizeof_igmp not defined at this point *)
-    let igmp_hdr = Cstruct.sub bits (-1) (1 + len msg) in
-    let chksum = Tcpip_checksum.ones_complement igmp_hdr in
-    set_igmp3_chksum bits chksum;
+    ignore (List.fold_left ~f:GroupRec.marshal ~init:gr_bits msg.grs)
 
 end
 
@@ -928,8 +915,6 @@ module Ip = struct
     set_ip_dst bits pkt.dst;
     Cstruct.blit pkt.options 0 bits sizeof_ip (Cstruct.len pkt.options);
     set_ip_chksum bits 0;
-    let chksum = Tcpip_checksum.ones_complement (Cstruct.sub bits 0 header_len) in
-    set_ip_chksum bits chksum;
     let bits = Cstruct.shift bits header_len in
     match pkt.tp with
       | Tcp tcp ->

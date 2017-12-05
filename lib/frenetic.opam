@@ -41,6 +41,5 @@ depends: [
   "ppx_tools_versioned"
   "sedlex"
   "sexplib"
-  "tcpip"
   "yojson" {>= "1.2.0"}
 ]
