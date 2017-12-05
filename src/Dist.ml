@@ -105,6 +105,12 @@ module Make (Dom : Vlr.HashCmp) = struct
     let mass = T.fold t ~init:zero ~f:(fun ~key ~data:p acc -> p + acc) in
     T.map t ~f:(fun p -> p / mass)
 
+
+  let expectation t ~(f : Dom.t -> Q.t) : Q.t =
+    T.fold t ~init:Q.zero ~f:(fun ~key:x ~data:p acc ->
+      Prob.(acc + p * f(x))
+    )
+
   (* Markov Kernel *)
   module Kernel = struct
     type kernel = Dom.t -> t
