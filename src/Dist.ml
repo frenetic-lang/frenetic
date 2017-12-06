@@ -27,7 +27,7 @@ module Make (Dom : Vlr.HashCmp) = struct
       sprintf "%s\t@ %s" (Dom.to_string x) (Prob.to_string p)
     )
     |> String.concat ~sep:";\n  "
-    |> sprintf "[\n  %s;\n]"
+    |> sprintf "{\n  %s;\n}"
 
   let empty : t = T.empty
   let is_empty = T.is_empty

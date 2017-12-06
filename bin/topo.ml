@@ -301,6 +301,9 @@ let () = begin
   (* TEST PARSING *)
   (* ignore (parse_trees @@ base_name ^ "-disjointtrees.trees"); *)
 
+  (* show topology *)
+  Util.show_dot_file ~engine:"fdp" ~format:"svg" ~title:base_name (base_name ^ ".dot");
+
   (* Make model and compile it into an Fdd. *)
   let model = Util.timed "building model" (fun () -> Model.make ()) in
   Format.printf "%a\n\n" Syntax.pp_policy model;
@@ -322,4 +325,14 @@ let () = begin
   let input_dist = Topo.uniform_ingress topo ~dst:destination in
   let output_dist = Fdd.output_dist fdd ~input_dist in
   printf "output distribution:\n%s\n\n" (Packet.Dist.to_string output_dist);
+
+  (* print ingress *)
+  Topology.ingress_locs topo ~dst:destination
+  |> List.map ~f:fst
+  |> List.map ~f:(Topology.sw_val topo)
+  |> List.sort ~cmp:Int.compare
+  |> List.dedup
+  |> List.map ~f:(sprintf "%d")
+  |> String.concat ~sep:", "
+  |> printf "ingress switches: %s.\n";
 end
