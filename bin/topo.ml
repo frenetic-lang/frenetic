@@ -315,7 +315,10 @@ let () = begin
   (* do we gurantee packet delivery? *)
   ignore (equivalent_to_teleport fdd');
 
-  (*  *)
+  (* show fdd *)
   Fdd.render fdd' ~title:base_name ~format:"svg";
 
+  (* compute output distribution *)
+(*   let inp_dist =
+  let out_dist = *)
 end

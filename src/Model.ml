@@ -34,10 +34,11 @@ end) = struct
   module Topology = Topology.Make(Params)
 
   let rec make () : string policy =
+    let ingress = Topology.ingress topo ~exclude:(fun (sw,pt) -> sw = Params.destination) in
     PNK.(
       (if Option.is_none max_failures then skip else !!(counter, 0)) >>
       (* in; (¬eg; p; t)*; eg *)
-      filter (Topology.ingress topo) >>
+      filter ingress >>
       whl (neg (???(sw, destination))) (
         hop ()
       )

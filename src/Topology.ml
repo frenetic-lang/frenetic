@@ -111,10 +111,12 @@ end) = struct
     |> List.map ~f:(link_of_edge topo ~guard:guard_links)
     |> PNK.(mk_big_ite ~default:drop)
 
-  let ingress (topo : Net.Topology.t) : string pred =
+  let ingress ?(exclude=fun (sw,pt) -> false) (topo : Net.Topology.t) : string pred =
     ingress_locs topo
-    |> List.map ~f:(fun (sw_v, pt_id) ->
-        PNK.( ???(sw, sw_val topo sw_v) & ???(pt, pt_id))
+    |> Util.map_fst ~f:(sw_val topo)
+    |> List.filter ~f:Fn.(compose not exclude)
+    |> List.map ~f:(fun (sw_id, pt_id) ->
+        PNK.( ???(sw, sw_id) & ???(pt, pt_id))
       )
     |> PNK.mk_big_disj
 
