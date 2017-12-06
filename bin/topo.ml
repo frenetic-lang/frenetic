@@ -321,6 +321,10 @@ let () = begin
   (* show fdd *)
   Fdd.render fdd' ~title:base_name ~format:"svg";
 
+  (* FIXME: should really use hoare style reasoning instead of adhoc mechansim
+     for this
+  *)
+
   (* compute output distribution *)
   let input_dist = Topo.uniform_ingress topo ~dst:destination in
   let output_dist = Fdd.output_dist fdd ~input_dist in
