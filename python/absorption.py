@@ -162,4 +162,9 @@ if __name__ == '__main__':
     if len(sys.argv) != 1:
         print("usage: %s" % sys.argv[0])
         exit(1)
-    main()
+    try:
+        main()
+    except BrokenPipeError:
+        eprint("[python] pipe closed, shutting down...")
+    finally:
+        exit(0)
