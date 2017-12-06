@@ -14,6 +14,8 @@ install: ["jbuilder" "install" "-p" name "-j" jobs]
 depends: [
   "jbuilder" {>="1.0+beta13"}
   "core"   {>= "0.9.0"}
-  # "owl"
+  "owl"
+  "joyson"
+  "ppx_deriving_yojson"
   # "lacaml"
 ]

@@ -11,4 +11,5 @@ type data = {
   equivalent_to_teleport : bool;
   min_prob_of_delivery : float;
   avg_prob_of_delivery : float;
+  time : float;
 } [@@deriving yojson]
