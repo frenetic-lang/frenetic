@@ -1,0 +1,18 @@
+(jbuild_version 1)
+
+(executable
+ ((name        dump)
+  (public_name probnetkat.dump)
+  (libraries (
+    core
+    owl
+    zarith
+    probnetkat
+    yojson
+    ppx_deriving_yojson.runtime
+  ))
+  (preprocess (pps (ppx_deriving.std
+                    ppx_deriving_yojson
+                   )))
+  ;;(preprocess (action (run ppxfind -legacy ppx_deriving_yojson --as-pp ${<})))
+))
