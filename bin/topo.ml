@@ -35,7 +35,7 @@ module Parameters = struct
      a failure if it occurs on a link that is incident to the current location
      of the packet, indepedently of whether the packet was planning to use that
      link or not. *)
-  let max_failures = Some 1
+  let max_failures = None
 
   (* topology *)
   let topo = Topology.parse (base_name ^ ".dot")
@@ -337,11 +337,11 @@ let () = begin
     |> Fdd.seq fdd
     |> Fdd.min_nondrop_prob ~support:(Packet.Dist.support input_dist)
   in
-  let exp_p = Packet.Dist.prob output_dist ~f:(fun pk ->
+  let avg_p = Packet.Dist.prob output_dist ~f:(fun pk ->
     Packet.test pk (Fdd.abstract_field sw) destination)
   in
   printf "min prob of delivery: %s\n" (Prob.to_string min_p);
-  printf "exp prob of delivery: %s\n" (Prob.to_string exp_p);
+  printf "avg prob of delivery: %s\n" (Prob.to_string avg_p);
 
   (* print ingress *)
   Topology.ingress_locs topo ~dst:destination
