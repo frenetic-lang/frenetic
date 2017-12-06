@@ -1,8 +1,8 @@
 open! Core
 open Probnetkat
 open Probnetkat.Syntax
+open Probnetkat.Symbolic
 open Frenetic.Network
-open Symbolic
 
 module Int2 = struct
   module T = struct
@@ -157,7 +157,7 @@ module Parameters = struct
       )
     );
     (* for ingress ports, simply start at tree 0 *)
-    List.iter (Topology.ingress_locs topo) ~f:(fun (sw, pt_val) ->
+    List.iter (Topology.ingress_locs topo ~dst:destination) ~f:(fun (sw, pt_val) ->
       let key = (Topology.sw_val topo sw, pt_val) in
       Hashtbl.add_exn tbl ~key ~data:0
     );
