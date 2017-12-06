@@ -320,6 +320,6 @@ let () = begin
 
   (* compute output distribution *)
   let input_dist = Topo.uniform_ingress topo ~dst:destination in
-  let output_dist = Fdd.output_dist fdd' ~input_dist in
+  let output_dist = Fdd.output_dist fdd ~input_dist in
   printf "output distribution:\n%s\n\n" (Packet.Dist.to_string output_dist);
 end

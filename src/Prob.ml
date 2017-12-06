@@ -26,4 +26,4 @@ let to_string t =
   if Z.(t.den <= of_int 100) then
     to_string t
   else
-    sprintf "%.3f" (to_float t)
+    sprintf "%.2g" (to_float t)
