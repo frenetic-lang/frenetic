@@ -327,6 +327,18 @@ let () = begin
   printf "input distribution: %s\n\n" (Packet.Dist.to_string input_dist);
   printf "output distribution: %s\n\n" (Packet.Dist.to_string output_dist);
 
+  (* probability of delivery *)
+  let min_p =
+    Fdd.of_pol PNK.( ??(sw, destination) )
+    |> Fdd.seq fdd
+    |> Fdd.min_nondrop_prob ~support:(Packet.Dist.support input_dist)
+  in
+  let exp_p = Packet.Dist.prob output_dist ~f:(fun pk ->
+    Packet.test pk (Fdd.abstract_field sw) destination)
+  in
+  printf "min prob of delivery: %s\n" (Prob.to_string min_p);
+  printf "exp prob of delivery: %s\n" (Prob.to_string exp_p);
+
   (* print ingress *)
   Topology.ingress_locs topo ~dst:destination
   |> List.map ~f:fst

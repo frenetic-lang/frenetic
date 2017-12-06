@@ -365,6 +365,11 @@ module PrePacket = struct
   let modify (pk : t) (f : Field.t) (v : nomval) : t =
     Map.add pk ~key:f ~data:v
 
+  let test (pk : t) (f : Field.t) (v : Value.t) : bool =
+    match Map.find pk f with
+    | Some (Const v') when v' = v -> true
+    | _ -> false
+
   let apply (pk : t) (action : PreAction.t) : t =
     Field.Map.merge pk action ~f:(fun ~key:_ -> function
       | `Left v -> Some v
@@ -414,6 +419,11 @@ module Packet = struct
     match pk with
     | Emptyset -> Emptyset
     | Pk pk -> Pk (PrePacket.modify pk f v)
+
+  let test (pk : t) (f : Field.t) (v : Value.t) : bool =
+    match pk with
+    | Emptyset -> false
+    | Pk pk -> PrePacket.test pk f v
 
   let apply (pk : t) (act : Action.t) : t =
     match pk, act with
@@ -1406,21 +1416,11 @@ module Fdd = struct
     |> to_dot
     |> Util.show_dot ~format ~title
 
-  (* minimum action probability for action other than drop *)
-  let min_nondrop_prob fdd =
-    fold fdd
-    ~f:(fun dist ->
-      ActionDist.to_alist dist
-      |> List.filter_map ~f:(function (Action.Drop,_) -> None | (_,p) -> Some p)
-      |> List.fold ~init:Prob.zero ~f:Prob.min
-      )
-    ~g:(fun _ p1 p2 -> Prob.min p1 p2)
-
   let output_dist t ~(input_dist : Packet.Dist.t) =
     Packet.Dist.to_alist input_dist
     |> Util.map_fst ~f:(fun pk ->
       seq (const @@ ActionDist.dirac @@ Packet.to_action pk) t
-      )
+    )
     |> n_ary_convex_sum
     |> unget
     |> function
@@ -1428,5 +1428,25 @@ module Fdd = struct
         failwith "underspecified input distribution"
       | Leaf dist ->
         Packet.Dist.of_action_dist dist
+
+
+  (* minimum probability of not dropping packet *)
+  let min_nondrop_prob t ~(support : Packet.t list) =
+    List.map support ~f:(fun pk ->
+      seq (const @@ ActionDist.dirac @@ Packet.to_action pk) t
+      |> unget
+      |> function
+      | Branch _ ->
+        failwith "underspecified input support"
+      | Leaf dist ->
+        ActionDist.to_alist dist
+        |> List.filter_map ~f:(function
+            | (Action.Drop,_) -> None
+            | (_,p) -> Some p
+        )
+        |> List.fold ~init:Prob.zero ~f:Prob.(+)
+    )
+    |> List.fold ~init:Prob.one ~f:Prob.min
+
 
 end
