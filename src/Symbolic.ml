@@ -375,6 +375,9 @@ module PrePacket = struct
       | Const v -> Some v
       | Atom -> None)
 
+  let of_preaction a =
+    Map.map a ~f:(fun v -> Const v)
+
   let pp fmt (pk:t) : unit =
     Format.fprintf fmt "@[";
     if Map.is_empty pk then Format.fprintf fmt "*@ " else
@@ -407,8 +410,6 @@ module Packet = struct
   end
   include T
 
-  module Dist = Dist.Make(T)
-
   let modify (pk : t) (f : Field.t) (v : PrePacket.nomval) : t =
     match pk with
     | Emptyset -> Emptyset
@@ -427,6 +428,11 @@ module Packet = struct
     | Emptyset -> Action.Drop
     | Pk pk -> Action.Action (PrePacket.to_preaction pk)
 
+  let of_action a =
+    match a with
+    | Action.Drop -> Emptyset
+    | Action.Action a -> Pk (PrePacket.of_preaction a)
+
   let pp fmt (pk:t) : unit =
     match pk with
     | Emptyset -> Format.fprintf fmt "@[∅]"
@@ -436,6 +442,15 @@ module Packet = struct
     Format.asprintf "%a" pp pk
 
   let empty = Pk PrePacket.empty
+
+  module Dist = struct
+    include Dist.Make(T)
+
+    let of_action_dist d =
+      ActionDist.to_alist d
+      |> Util.map_fst ~f:of_action
+      |> of_alist_exn
+  end
 
 end
 
@@ -1402,27 +1417,16 @@ module Fdd = struct
     ~g:(fun _ p1 p2 -> Prob.min p1 p2)
 
   let output_dist t ~(input_dist : Packet.Dist.t) =
-    let rec do_node t =
-      match unget t with
-      | Leaf a ->
-        do_leaf a
-      | Branch ((f,v), tru, fls) ->
-        let tru, fls = do_node tru, do_node fls in
-        let p = Packet.Dist.prob input_dist ~f:(function
-          | Emptyset ->
-            failwith "input must not be empty"
-          | Pk pk ->
-            Map.find pk f = Some (Const v)
-        )
-        in
-        Packet.Dist.convex_sum tru p fls
-    and do_leaf action =
-      Packet.Dist.(input_dist >>= fun pk ->
-        ActionDist.to_alist action
-        |> Util.map_fst ~f:(Packet.apply pk)
-        |> Packet.Dist.of_alist_exn
+    Packet.Dist.to_alist input_dist
+    |> Util.map_fst ~f:(fun pk ->
+      seq (const @@ ActionDist.dirac @@ Packet.to_action pk) t
       )
-    in
-    do_node t
+    |> n_ary_convex_sum
+    |> unget
+    |> function
+      | Branch _ ->
+        failwith "underspecified input distribution"
+      | Leaf dist ->
+        Packet.Dist.of_action_dist dist
 
 end
