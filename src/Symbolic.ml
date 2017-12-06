@@ -435,6 +435,8 @@ module Packet = struct
   let to_string pk : string =
     Format.asprintf "%a" pp pk
 
+  let empty = Pk PrePacket.empty
+
 end
 
 
@@ -848,6 +850,11 @@ module Fdd = struct
   *)
   let field_allocation_tbl : (string, Field.t) Hashtbl.t = String.Table.create ()
   let next_field = ref 0
+
+  let abstract_field name =
+    Hashtbl.find_exn field_allocation_tbl name
+
+
 
   (* sound, but could be better *)
   let clear_cache ~(preserve:Int.Set.t) : unit =

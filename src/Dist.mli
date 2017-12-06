@@ -15,6 +15,8 @@ module Make(Dom: Vlr.HashCmp) : sig
   val dirac : Dom.t -> t
   val is_dirac: t -> Dom.t option
 
+  val uniform : Dom.t list -> t
+
   (* DO NOT EXPOSE: we want full distributions only *)
   (* val scale : t -> scalar:Prob.t -> t *)
 

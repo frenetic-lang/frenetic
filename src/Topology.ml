@@ -121,5 +121,17 @@ end) = struct
       )
     |> PNK.mk_big_disj
 
+  let uniform_ingress (topo : Net.Topology.t) ~(dst: int) : Symbolic.Packet.Dist.t =
+    let open Symbolic in
+    let sw = Fdd.abstract_field Parameters.sw in
+    let pt = Fdd.abstract_field Parameters.pt in
+    ingress_locs topo ~dst
+    |> Util.map_fst ~f:(sw_val topo)
+    |> Util.map_both ~f:(fun v -> PrePacket.Const v)
+    |> List.map ~f:(fun (sw_v, pt_v) ->
+      Packet.(modify (modify empty sw sw_v) pt pt_v)
+    )
+    |> Packet.Dist.uniform
+
 
 end

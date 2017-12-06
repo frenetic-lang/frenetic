@@ -21,6 +21,9 @@ let map_fst xs ~f =
 let map_snd xs ~f =
   List.map xs ~f:(fun (x,y) -> (x, f y))
 
+let map_both xs ~f =
+  List.map xs ~f:(fun (x,y) -> (f x, f y))
+
 let tap x ~f =
   f x; x
 
@@ -49,7 +52,8 @@ let open_cmd =
   | Linux -> "xdg-open"
 
 let open_file f =
-  Format.sprintf "%s %s" open_cmd f
+  let silence = "&> /dev/null" in
+  Format.sprintf "%s %s % s" open_cmd f silence
   |> Caml.Unix.system
   |> ignore
 

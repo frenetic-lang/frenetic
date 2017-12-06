@@ -22,8 +22,12 @@ module Make (Dom : Vlr.HashCmp) = struct
 
   let to_string t =
     if T.is_empty t then "⊥" else
-    T.sexp_of_t Prob.sexp_of_t t
-    |> Sexp.to_string
+    T.to_alist t
+    |> List.map ~f:(fun (x, p) ->
+      sprintf "%s\t@ %s" (Dom.to_string x) (Prob.to_string p)
+    )
+    |> String.concat ~sep:";\n  "
+    |> sprintf "[\n  %s;\n]"
 
   let empty : t = T.empty
   let is_empty = T.is_empty
@@ -43,6 +47,12 @@ module Make (Dom : Vlr.HashCmp) = struct
       | _ -> assert false
     else
       None
+
+  let uniform xs =
+    let n = List.length xs in
+    let p = Prob.(1 // n) in
+    List.map xs ~f:(fun x -> (x, p))
+    |> T.of_alist_exn
 
   (* pointwise sum of distributions *)
   let sum t1 t2 : t =

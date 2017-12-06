@@ -319,6 +319,7 @@ let () = begin
   Fdd.render fdd' ~title:base_name ~format:"svg";
 
   (* compute output distribution *)
-(*   let inp_dist =
-  let out_dist = *)
+  let input_dist = Topo.uniform_ingress topo ~dst:destination in
+  let output_dist = Fdd.output_dist fdd' ~input_dist in
+  printf "output distribution:\n%s\n\n" (Packet.Dist.to_string output_dist);
 end
