@@ -68,6 +68,7 @@ and analyze_model model ~topo =
   let open Params in
 
   (* COMPILATION *)
+  Fdd.clear_cache ~preserve:Int.Set.empty;
   let compilation_time, fdd = Util.time Fdd.of_pol model in
   printf "\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> COMPILATION DONE\n%!";
 
