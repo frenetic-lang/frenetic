@@ -109,18 +109,24 @@ and equivalent_to_teleport fdd ~topo =
   is_teleport
 
 
+let parse_list l ~f =
+  String.split l ~on:','
+  |> List.map ~f:(fun x -> f (String.strip x))
+
 let () =
   match Sys.argv with
-  | [| _; base_name; max_failures; failure_numerator; failure_denominator; |] ->
+  | [| _; base_name; max_failures; failure_probs; |] ->
     let dir = Filename.dirname base_name in
-    let max_failures = Int.of_string max_failures in
-    let failure_numerator = Int.of_string failure_numerator in
-    let failure_denominator = Int.of_string failure_denominator in
-    let failure_prob = Prob.(failure_numerator // failure_denominator) in
-    analyze base_name ~max_failures ~failure_prob
-    |> List.iter ~f:(dump_data ~dir)
+    let max_failures = parse_list max_failures ~f:Int.of_string in
+    let failure_probs = parse_list failure_probs ~f:Q.of_string in
+    List.iter max_failures ~f:(fun max_failures ->
+      List.iter failure_probs ~f:(fun failure_prob ->
+        analyze base_name ~max_failures ~failure_prob
+        |> List.iter ~f:(dump_data ~dir)
+      )
+    )
   | _ ->
-    printf "usage: %s [topology] [max failures] [numerator of Pr(failure)] [denominator of Pr(failure)]\n"
+    printf "usage: %s [topology] [max failures] [Pr(failure)]\n"
       Sys.argv.(0)
 
 
