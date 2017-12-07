@@ -150,4 +150,14 @@ module Unix = struct
     close in_write;
     (Core.Pid.of_int pid, inchan, outchan)
 
+  let rec waitpid_non_intr pid =
+    try waitpid [] pid
+    with Unix_error (EINTR, _, _) -> waitpid_non_intr pid
+
+  let close_process (pid, inchan, outchan) =
+    Core.Signal.(send_i kill (`Pid pid));
+    Caml.close_in inchan;
+    begin try Caml.close_out outchan with Sys_error _ -> () end;
+    ignore (waitpid_non_intr (Core.Pid.to_int pid))
+
 end

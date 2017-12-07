@@ -1171,7 +1171,7 @@ module Fdd = struct
         failwith ("missing ocamlfind dependency: " ^ pkg_name)
     in
     let cmd = "python3 " ^ pyscript in
-    let (pid_py, from_py, to_py) = Util.Unix.open_process cmd in
+    let (pid_py, from_py, to_py) as py = Util.Unix.open_process cmd in
 
     (* compute domain of FDDs; i.e., how many indices do we need for the matrix
        representation and what does each index preresent?
@@ -1191,7 +1191,7 @@ module Fdd = struct
       | Some fixpoint ->
         printf "*** ocaml won race!\n";
         (* kill forked process and return result *)
-        Signal.(send_i kill (`Pid pid_py));
+        Util.Unix.close_process py;
         Signal.(send_i kill (`Pid child));
         fixpoint
       | None ->
@@ -1222,8 +1222,10 @@ module Fdd = struct
             | _ ->
               failwith "malformed output line"
           done with
-            | End_of_file -> ()
-            | _ -> failwith "malformed output line"
+            | End_of_file ->
+              Util.Unix.close_process py
+            | _ ->
+              failwith "malformed output line"
           end;
         );
 
