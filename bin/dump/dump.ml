@@ -9,7 +9,7 @@ type data = {
   topology : string;
   routing_scheme : string;
   max_failures : int; (* -1 means no limit *)
-  failure_prob : float;
+  failure_prob : int * int;
   equivalent_to_teleport : bool;
   min_prob_of_delivery : float;
   avg_prob_of_delivery : float;
@@ -23,7 +23,7 @@ let empty = {
   topology = "undefined";
   routing_scheme = "undefined";
   max_failures = -2;
-  failure_prob = -2.0;
+  failure_prob = (0, 0);
   equivalent_to_teleport = false;
   min_prob_of_delivery = -2.0;
   avg_prob_of_delivery = -2.0;
@@ -31,17 +31,34 @@ let empty = {
   equivalence_time = -2.0;
 }
 
+let dump_data data ~dir : unit =
+  let scheme = String.tr data.routing_scheme ~target:' ' ~replacement:'_' in
+  let dir = sprintf "%s/%s-%s" dir data.topology scheme in
+  Unix.mkdir_p dir;
+  let file = sprintf "%s/%d-%d-%d.dat" dir
+    data.max_failures (fst data.failure_prob) (snd data.failure_prob)
+  in
+  Out_channel.with_file file ~f:(fun chan ->
+    data_to_yojson data
+    |> Yojson.Safe.to_string
+    |> Out_channel.output_string chan
+  )
+
+
 let rec analyze base_name ~failure_prob ~max_failures : data list =
   let topo = Topology.parse (Params.topo_file base_name) in
   (* SJS: constant failure probabilities *)
   Schemes.get_all topo base_name
   |> List.map ~f:(fun (routing_scheme, sw_pol) ->
-    let model = Model.make ~sw_pol ~topo ~failure_prob:(fun _ _ -> failure_prob) ~max_failures in
+    let model = Model.make ~sw_pol ~topo 
+      ~failure_prob:(fun _ _ -> failure_prob)
+      ~max_failures:(if max_failures = -1 then None else Some max_failures) 
+    in
     { (analyze_model model ~topo) with
       routing_scheme;
       topology = Filename.basename base_name;
-      max_failures = (match max_failures with None -> -1 | Some k -> k);
-      failure_prob = Prob.to_float failure_prob;
+      max_failures;
+      failure_prob = Z.(to_int Prob.(num failure_prob), to_int Prob.(den failure_prob));
     }
   )
 
@@ -89,4 +106,20 @@ and equivalent_to_teleport fdd ~topo =
   let is_teleport = Fdd.equivalent fdd teleport ~modulo in
   printf "equivalent to teleportation: %s\n" (Bool.to_string is_teleport);
   is_teleport
+
+
+let () =
+  match Sys.argv with
+  | [| _; base_name; max_failures; failure_numerator; failure_denominator; |] ->
+    let dir = Filename.dirname base_name in
+    let max_failures = Int.of_string max_failures in
+    let failure_numerator = Int.of_string failure_numerator in
+    let failure_denominator = Int.of_string failure_denominator in
+    let failure_prob = Prob.(failure_numerator // failure_denominator) in
+    analyze base_name ~max_failures ~failure_prob
+    |> List.iter ~f:(dump_data ~dir)
+  | _ ->
+    printf "usage: %s [topology] [max failures] [numerator of Pr(failure)] [denominator of Pr(failure)]\n"
+      Sys.argv.(0)
+
 
