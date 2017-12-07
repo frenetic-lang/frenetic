@@ -26,8 +26,9 @@ type topo = {
   hop_tbl : Net.Topology.edge Int2.Table.t;     (* src_sw,src_pt -> out edge *)
 }
 
-let parse_topo (file : string) : topo =
-  let topo = Topology.parse file in
+let parse_topo (base_name : string) : topo =
+  let file = base_name ^ ".dot" in
+  let topo = Net.Parse.from_dotfile file in
 
   (* switch id to switch node map *)
   let switch_tbl : Net.Topology.vertex Int.Table.t =
@@ -75,7 +76,7 @@ let parse_topo (file : string) : topo =
 
 
 (*===========================================================================*)
-(* ROUTING SCHEME PARSING                                                    *)
+(* ROUTING SCHEME PARSING & PROCESSING                                       *)
 (*===========================================================================*)
 
 let parse_sw sw =
@@ -126,122 +127,129 @@ let parse_nexthops topo file : (int list) Int.Table.t =
   )));
   tbl
 
+open Params
+
+(* am I at a good port? *)
+let at_good_pt sw pts = PNK.(
+  List.map pts ~f:(fun pt_val -> ???(pt,pt_val) & ???(up sw pt_val, 1))
+  |> mk_big_disj
+)
+
+(* given a current switch and the inport, what tree are we on? *)
+let mk_current_tree_tbl topo (port_tbl : (int list) Int.Table.t) : int Int2.Table.t =
+  let tbl = Int2.Table.create () in
+  (* the port map maps a switch to the out_ports in order of the tree preference *)
+  Hashtbl.iteri port_tbl ~f:(fun ~key:src_sw ~data:src_pts ->
+    List.iteri src_pts ~f:(fun i src_pt ->
+      (* if we are on tree i, we go from src_sw to src_pt across the following edge: *)
+      let edge = Hashtbl.find_exn topo.hop_tbl (src_sw, src_pt) in
+      (* thus, we would end up at the following switch: *)
+      let (dst_sw, dst_pt) = Net.Topology.edge_dst edge in
+      (* thus, we can infer from entering switch `dst_sw` at port `dst_pt` that
+         we must be on tree i
+      *)
+      let key = Topology.(sw_val topo.graph dst_sw, Topology.pt_val dst_pt) in
+      Hashtbl.add_exn tbl ~key ~data:i
+    )
+  );
+  (* for ingress ports, simply start at tree 0 *)
+  List.iter (Topology.ingress_locs topo.graph ~dst:destination) ~f:(fun (sw, pt_val) ->
+    let key = (Topology.sw_val topo.graph sw, pt_val) in
+    Hashtbl.add_exn tbl ~key ~data:0
+  );
+  tbl
+
+
 
 (*===========================================================================*)
 (* ROUTING SCHEMES                                                           *)
 (*===========================================================================*)
 
-(* different routing schemes *)
-module Schemes = struct
-
-  (* am I at a good port? *)
-  let at_good_pt sw pts = PNK.(
-    List.map pts ~f:(fun pt_val -> ???(pt,pt_val) & ???(up sw pt_val, 1))
-    |> mk_big_disj
-  )
-
-  (* given a current switch and the inport, what tree are we on? *)
-  let mk_current_tree_tbl (port_tbl : (int list) Int.Table.t) : int Int2.Table.t =
-    let tbl = Int2.Table.create () in
-    (* the port map maps a switch to the out_ports in order of the tree preference *)
-    Hashtbl.iteri port_tbl ~f:(fun ~key:src_sw ~data:src_pts ->
-      List.iteri src_pts ~f:(fun i src_pt ->
-        (* if we are on tree i, we go from src_sw to src_pt across the following edge: *)
-        let edge = Hashtbl.find_exn hop_tbl (src_sw, src_pt) in
-        (* thus, we would end up at the following switch: *)
-        let (dst_sw, dst_pt) = Net.Topology.edge_dst edge in
-        (* thus, we can infer from entering switch `dst_sw` at port `dst_pt` that
-           we must be on tree i
-        *)
-        let key = Topology.(sw_val topo dst_sw, Topology.pt_val dst_pt) in
-        Hashtbl.add_exn tbl ~key ~data:i
-      )
-    );
-    (* for ingress ports, simply start at tree 0 *)
-    List.iter (Topology.ingress_locs topo ~dst:destination) ~f:(fun (sw, pt_val) ->
-      let key = (Topology.sw_val topo sw, pt_val) in
-      Hashtbl.add_exn tbl ~key ~data:0
-    );
-    tbl
-
-
-  let random_walk sw =
-    Topology.vertex_to_ports topo sw ~dst_filter:(Topology.is_switch topo)
+let random_walk base_name : Net.Topology.vertex -> string policy =
+  let topo = parse_topo base_name in
+  fun sw ->
+    Topology.vertex_to_ports topo.graph sw ~dst_filter:(Topology.is_switch topo.graph)
     |> List.map ~f:(fun out_pt_id -> PNK.( !!(pt, Topology.pt_val out_pt_id) ))
     |> PNK.uniform
 
-  let resilient_random_walk sw =
-    let pts = Topology.vertex_to_ports topo sw
+let resilient_random_walk base_name : Net.Topology.vertex -> string policy =
+  let topo = parse_topo base_name in
+  fun sw -> 
+    let pts =
+      Topology.vertex_to_ports topo.graph sw
       |> List.map ~f:Topology.pt_val
     in
-    let choose_port = random_walk sw in
+    let choose_port = random_walk topo sw in
     PNK.( do_whl (neg (at_good_pt sw pts)) choose_port )
 
-  let shortest_path : Net.Topology.vertex -> string policy =
-    let port_tbl = parse_trees (base_name ^ "-spf.trees") in
-    fun sw ->
-      let sw_val = Topology.sw_val topo sw in
-      match Hashtbl.find port_tbl sw_val with
-      | Some (pt_val::_) -> PNK.( !!(pt, pt_val) )
-      | _ ->
-        eprintf "switch %d cannot reach destination\n" sw_val;
-        failwith "network disconnected!"
+let shortest_path base_name : Net.Topology.vertex -> string policy =
+  let topo = parse_topo base_name in
+  let port_tbl = parse_trees topo (base_name ^ "-spf.trees") in
+  fun sw ->
+    let sw_val = Topology.sw_val topo.graph sw in
+    match Hashtbl.find port_tbl sw_val with
+    | Some (pt_val::_) -> PNK.( !!(pt, pt_val) )
+    | _ ->
+      eprintf "switch %d cannot reach destination\n" sw_val;
+      failwith "network disconnected!"
 
-  let ecmp : Net.Topology.vertex -> string policy =
-    let port_tbl = parse_nexthops (base_name ^ "-allsp.nexthops") in
-    fun sw ->
-      let sw_val = Topology.sw_val topo sw in
-      match Hashtbl.find port_tbl sw_val with
-      | Some pts -> PNK.(
+let ecmp base_name : Net.Topology.vertex -> string policy =
+  let topo = parse_topo base_name in
+  let port_tbl = parse_nexthops topo (base_name ^ "-allsp.nexthops") in
+  fun sw ->
+    let sw_val = Topology.sw_val topo.graph sw in
+    match Hashtbl.find port_tbl sw_val with
+    | Some pts -> PNK.(
+        List.map pts ~f:(fun pt_val -> !!(pt, pt_val))
+        |> uniform
+      )
+    | _ ->
+      eprintf "switch %d cannot reach destination\n" sw_val;
+      failwith "network disconnected!"
+
+let resilient_ecmp base_name : Net.Topology.vertex -> string policy =
+  let topo = parse_topo base_name in
+  let port_tbl = parse_nexthops topo (base_name ^ "-allsp.nexthops") in
+  fun sw ->
+    let sw_val = Topology.sw_val topo sw in
+    match Hashtbl.find port_tbl sw_val with
+    | Some pts -> PNK.(
+        do_whl (neg (at_good_pt sw pts)) (
           List.map pts ~f:(fun pt_val -> !!(pt, pt_val))
           |> uniform
         )
-      | _ ->
-        eprintf "switch %d cannot reach destination\n" sw_val;
-        failwith "network disconnected!"
+      )
+    | _ ->
+      eprintf "switch %d cannot reach destination\n" sw_val;
+      failwith "network disconnected!"
 
-  let resilient_ecmp : Net.Topology.vertex -> string policy =
-    let port_tbl = parse_nexthops (base_name ^ "-allsp.nexthops") in
-    fun sw ->
-      let sw_val = Topology.sw_val topo sw in
-      match Hashtbl.find port_tbl sw_val with
-      | Some pts -> PNK.(
-          do_whl (neg (at_good_pt sw pts)) (
-            List.map pts ~f:(fun pt_val -> !!(pt, pt_val))
-            |> uniform
-          )
+let car base_name ~(style: [`Deterministic|`Probabilistic])
+  : Net.Topology.vertex -> int -> string policy =
+  let topo = parse_topo base_name in
+  let port_tbl = parse_trees topo (base_name ^ "-disjointtrees.trees") in
+  let current_tree_tbl = mk_current_tree_tbl topo port_tbl in
+  let port_tbl = Int.Table.map port_tbl ~f:Array.of_list in
+  fun sw in_pt ->
+    let sw_val = Topology.sw_val topo sw in
+    match Hashtbl.find current_tree_tbl (sw_val, in_pt) with
+    | None ->
+      (* eprintf "verify that packets never enter switch %d at port %d\n" sw_val in_pt; *)
+      PNK.( drop )
+    | Some i ->
+      let pts = Hashtbl.find_exn port_tbl sw_val in
+      begin match style with
+      | `Deterministic ->
+        let n = Array.length pts in
+        (* the order in which we should try ports, i.e. starting from i *)
+        let pts = Array.init n (fun j -> pts.((i+j) mod n)) in
+        PNK.(
+          Array.to_list pts
+          |> ite_cascade ~otherwise:drop ~f:(fun pt_val ->
+              let guard = ???(up sw_val pt_val, 1) in
+              let body = !!(pt, pt_val) in
+              (guard, body)
+            )
         )
-      | _ ->
-        eprintf "switch %d cannot reach destination\n" sw_val;
-        failwith "network disconnected!"
-
-  let car ~(style: [`Deterministic|`Probabilistic])
-    : Net.Topology.vertex -> int -> string policy =
-    let port_tbl = parse_trees (base_name ^ "-disjointtrees.trees") in
-    let current_tree_tbl = mk_current_tree_tbl port_tbl in
-    let port_tbl = Int.Table.map port_tbl ~f:Array.of_list in
-    fun sw in_pt ->
-      let sw_val = Topology.sw_val topo sw in
-      match Hashtbl.find current_tree_tbl (sw_val, in_pt) with
-      | None ->
-        (* eprintf "verify that packets never enter switch %d at port %d\n" sw_val in_pt; *)
-        PNK.( drop )
-      | Some i ->
-        let pts = Hashtbl.find_exn port_tbl sw_val in
-        begin match style with
-        | `Deterministic ->
-          let n = Array.length pts in
-          (* the order in which we should try ports, i.e. starting from i *)
-          let pts = Array.init n (fun j -> pts.((i+j) mod n)) in
-          PNK.(
-            Array.to_list pts
-            |> ite_cascade ~otherwise:drop ~f:(fun pt_val ->
-                let guard = ???(up sw_val pt_val, 1) in
-                let body = !!(pt, pt_val) in
-                (guard, body)
-              )
-          )
-        | `Probabilistic ->
-          failwith "not implemented"
-        end
-end
+      | `Probabilistic ->
+        failwith "not implemented"
+      end
