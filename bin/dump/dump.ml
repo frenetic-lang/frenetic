@@ -33,7 +33,7 @@ let empty = {
 
 let dump_data data ~dir : unit =
   let scheme = String.tr data.routing_scheme ~target:' ' ~replacement:'_' in
-  let dir = sprintf "%s/%s-%s" dir data.topology scheme in
+  let dir = sprintf "%s/results/%s-%s" dir data.topology scheme in
   Unix.mkdir_p dir;
   (* SJS: use '_' as seperator, to avoid confusion with '-' in '-1' *)
   let file = sprintf "%s/%d_%d_%d.dat" dir
