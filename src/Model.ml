@@ -31,7 +31,6 @@ module Make(Params: sig
 end) = struct
 
   include Params
-  module Topology = Topology.Make(Params)
 
   let rec make () : string policy =
     let ingress = Topology.ingress topo ~dst:destination in

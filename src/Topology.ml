@@ -3,14 +3,12 @@
 *)
 open! Core
 open Syntax
+open Params
 
 module Net = Frenetic.Network.Net
 open Net.Topology
 module Node = Frenetic.Network.Node
 
-
-(** things that don't need to be parameterized  *)
-module Generic = struct
 
 let parse : string -> Net.Topology.t =
   Net.Parse.from_dotfile
@@ -67,71 +65,53 @@ let ingress_locs topo ~(dst: int) : (vertex * int) list =
       topo
       []
 
-end
+let link_of_edge (topo : Net.Topology.t) edge ~(guard:bool) : (string pred * string policy) =
+  let (src_sw,src_pt) = edge_src edge in
+  let (dst_sw,dst_pt) = edge_dst edge in
+  let src_sw = sw_val topo src_sw in
+  let dst_sw = sw_val topo dst_sw in
+  let src_pt = pt_val src_pt in
+  let dst_pt = pt_val dst_pt in
+  let guard = PNK.(
+    ???(sw, src_sw) & ???(pt, src_pt) &
+    (if guard then ???(up src_sw src_pt, 1) else True)
+  )
+  in
+  (guard, PNK.( !!(sw, dst_sw) >> !!(pt, dst_pt) ))
 
-include Generic
-
-
-(** make this a functor, so we can parameterize over various configurations  *)
-module Make(Parameters: sig
-  val sw : string
-  val pt : string
-  val up : int -> int -> string
-end) = struct
-
-  open Parameters
-  include Generic
-
-  let link_of_edge (topo : Net.Topology.t) edge ~(guard:bool) : (string pred * string policy) =
-    let (src_sw,src_pt) = edge_src edge in
-    let (dst_sw,dst_pt) = edge_dst edge in
-    let src_sw = sw_val topo src_sw in
-    let dst_sw = sw_val topo dst_sw in
-    let src_pt = pt_val src_pt in
-    let dst_pt = pt_val dst_pt in
-    let guard = PNK.(
-      ???(sw, src_sw) & ???(pt, src_pt) &
-      (if guard then ???(up src_sw src_pt, 1) else True)
+let to_probnetkat (topo : Net.Topology.t) ~(guard_links:bool) : string policy =
+  fold_edges (fun edge t ->
+      let (guard, action) = link_of_edge topo edge ~guard:guard_links in
+      PNK.ite guard action t
     )
-    in
-    (guard, PNK.( !!(sw, dst_sw) >> !!(pt, dst_pt) ))
+    topo
+    PNK.drop
 
-  let to_probnetkat (topo : Net.Topology.t) ~(guard_links:bool) : string policy =
-    fold_edges (fun edge t ->
-        let (guard, action) = link_of_edge topo edge ~guard:guard_links in
-        PNK.ite guard action t
-      )
-      topo
-      PNK.drop
+let links_from ?(dst_filter=fun _ -> true)
+(topo : Net.Topology.t) sw ~(guard_links: bool) : string policy =
+  neighbors topo sw
+  |> Set.filter ~f:dst_filter
+  |> Set.to_list
+  |> List.map ~f:(find_edge topo sw)
+  |> List.map ~f:(link_of_edge topo ~guard:guard_links)
+  |> PNK.(mk_big_ite ~default:drop)
 
-  let links_from ?(dst_filter=fun _ -> true)
-  (topo : Net.Topology.t) sw ~(guard_links: bool) : string policy =
-    neighbors topo sw
-    |> Set.filter ~f:dst_filter
-    |> Set.to_list
-    |> List.map ~f:(find_edge topo sw)
-    |> List.map ~f:(link_of_edge topo ~guard:guard_links)
-    |> PNK.(mk_big_ite ~default:drop)
-
-  let ingress (topo : Net.Topology.t) ~(dst: int) : string pred =
-    ingress_locs topo ~dst
-    |> Util.map_fst ~f:(sw_val topo)
-    |> List.map ~f:(fun (sw_id, pt_id) ->
-        PNK.( ???(sw, sw_id) & ???(pt, pt_id))
-      )
-    |> PNK.mk_big_disj
-
-  let uniform_ingress (topo : Net.Topology.t) ~(dst: int) : Symbolic.Packet.Dist.t =
-    let open Symbolic in
-    let sw = Fdd.abstract_field Parameters.sw in
-    let pt = Fdd.abstract_field Parameters.pt in
-    ingress_locs topo ~dst
-    |> Util.map_fst ~f:(sw_val topo)
-    |> Util.map_both ~f:(fun v -> PrePacket.Const v)
-    |> List.map ~f:(fun (sw_v, pt_v) ->
-      Packet.(modify (modify empty sw sw_v) pt pt_v)
+let ingress (topo : Net.Topology.t) ~(dst: int) : string pred =
+  ingress_locs topo ~dst
+  |> Util.map_fst ~f:(sw_val topo)
+  |> List.map ~f:(fun (sw_id, pt_id) ->
+      PNK.( ???(sw, sw_id) & ???(pt, pt_id))
     )
-    |> Packet.Dist.uniform
+  |> PNK.mk_big_disj
 
-
-end
+let uniform_ingress (topo : Net.Topology.t) ~(dst: int) : Symbolic.Packet.Dist.t =
+  let open Symbolic in
+  let sw = Fdd.abstract_field Params.sw in
+  let pt = Fdd.abstract_field Params.pt in
+  ingress_locs topo ~dst
+  |> Util.map_fst ~f:(sw_val topo)
+  |> Util.map_both ~f:(fun v -> PrePacket.Const v)
+  |> List.map ~f:(fun (sw_v, pt_v) ->
+    Packet.(modify (modify empty sw sw_v) pt pt_v)
+  )
+  |> Packet.Dist.uniform

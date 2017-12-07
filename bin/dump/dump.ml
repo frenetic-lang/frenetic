@@ -4,12 +4,21 @@ open Probnetkat.Syntax
 open Probnetkat.Symbolic
 open Frenetic.Network
 
+(** raw data from experiment *)
 type data = {
-  name : string;
+  topology : string;
+  routing_schme : string;
   max_failures : int; (* -1 means no limit *)
   failure_prob : float;
   equivalent_to_teleport : bool;
   min_prob_of_delivery : float;
   avg_prob_of_delivery : float;
-  time : float;
+
+  (* various times *)
+  compilation_time : float;
 } [@@deriving yojson]
+
+
+let analyze ~topology ~routing_schme ~max_failures ~failure_prob =
+  failwith "not implemented"
+
