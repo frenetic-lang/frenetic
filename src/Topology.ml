@@ -4,8 +4,14 @@
 open! Core
 open Syntax
 open Params
-open Frenetic.Network
-open Frenetic.Network.Net.Topology
+
+module Net = Frenetic.Network.Net
+open Net.Topology
+module Node = Frenetic.Network.Node
+
+
+let parse : string -> Net.Topology.t =
+  Net.Parse.from_dotfile
 
 let is_switch topo v =
   match Node.device (vertex_to_label topo v) with

@@ -11,16 +11,14 @@ open Symbolic
     every time. Thus we compute it once and for all and cache it in a more
     accessible format.
 *)
-type topo = {
+type enriched_topo = {
   graph : Frenetic.Network.Net.Topology.t;
   switch_tbl : Net.Topology.vertex Int.Table.t; (* sw id -> vertex *)
   edge_tbl : Net.Topology.edge Int2.Table.t;    (* src_sw,dst_sw -> edge *)
   hop_tbl : Net.Topology.edge Int2.Table.t;     (* src_sw,src_pt -> out edge *)
 }
 
-let parse_topo (base_name : string) : topo =
-  let file = base_name ^ ".dot" in
-  let topo = Net.Parse.from_dotfile file in
+let enrich_topo (topo : Net.Topology.t) : enriched_topo =
 
   (* switch id to switch node map *)
   let switch_tbl : Net.Topology.vertex Int.Table.t =
@@ -157,15 +155,13 @@ let mk_current_tree_tbl topo (port_tbl : (int list) Int.Table.t) : int Int2.Tabl
 (* ROUTING SCHEMES                                                           *)
 (*===========================================================================*)
 
-let random_walk base_name : Net.Topology.vertex -> string policy =
-  let topo = parse_topo base_name in
+let random_walk topo : Net.Topology.vertex -> string policy =
   fun sw ->
     Topology.vertex_to_ports topo.graph sw ~dst_filter:(Topology.is_switch topo.graph)
     |> List.map ~f:(fun out_pt_id -> PNK.( !!(pt, Topology.pt_val out_pt_id) ))
     |> PNK.uniform
 
-let resilient_random_walk base_name : Net.Topology.vertex -> string policy =
-  let topo = parse_topo base_name in
+let resilient_random_walk topo : Net.Topology.vertex -> string policy =
   fun sw -> 
     let pts =
       Topology.vertex_to_ports topo.graph sw
@@ -174,9 +170,8 @@ let resilient_random_walk base_name : Net.Topology.vertex -> string policy =
     let choose_port = random_walk topo sw in
     PNK.( do_whl (neg (at_good_pt sw pts)) choose_port )
 
-let shortest_path base_name : Net.Topology.vertex -> string policy =
-  let topo = parse_topo base_name in
-  let port_tbl = parse_trees topo (base_name ^ "-spf.trees") in
+let shortest_path topo base_name : Net.Topology.vertex -> string policy =
+  let port_tbl = parse_trees topo (Params.spf_file base_name) in
   fun sw ->
     let sw_val = Topology.sw_val topo.graph sw in
     match Hashtbl.find port_tbl sw_val with
@@ -185,9 +180,8 @@ let shortest_path base_name : Net.Topology.vertex -> string policy =
       eprintf "switch %d cannot reach destination\n" sw_val;
       failwith "network disconnected!"
 
-let ecmp base_name : Net.Topology.vertex -> string policy =
-  let topo = parse_topo base_name in
-  let port_tbl = parse_nexthops topo (base_name ^ "-allsp.nexthops") in
+let ecmp topo base_name : Net.Topology.vertex -> string policy =
+  let port_tbl = parse_nexthops topo (Params.ecmp_file base_name) in
   fun sw ->
     let sw_val = Topology.sw_val topo.graph sw in
     match Hashtbl.find port_tbl sw_val with
@@ -199,11 +193,10 @@ let ecmp base_name : Net.Topology.vertex -> string policy =
       eprintf "switch %d cannot reach destination\n" sw_val;
       failwith "network disconnected!"
 
-let resilient_ecmp base_name : Net.Topology.vertex -> string policy =
-  let topo = parse_topo base_name in
-  let port_tbl = parse_nexthops topo (base_name ^ "-allsp.nexthops") in
+let resilient_ecmp topo base_name : Net.Topology.vertex -> string policy =
+  let port_tbl = parse_nexthops topo (Params.ecmp_file base_name) in
   fun sw ->
-    let sw_val = Topology.sw_val topo sw in
+    let sw_val = Topology.sw_val topo.graph sw in
     match Hashtbl.find port_tbl sw_val with
     | Some pts -> PNK.(
         do_whl (neg (at_good_pt sw pts)) (
@@ -215,14 +208,13 @@ let resilient_ecmp base_name : Net.Topology.vertex -> string policy =
       eprintf "switch %d cannot reach destination\n" sw_val;
       failwith "network disconnected!"
 
-let car base_name ~(style: [`Deterministic|`Probabilistic])
+let car topo base_name ~(style: [`Deterministic|`Probabilistic])
   : Net.Topology.vertex -> int -> string policy =
-  let topo = parse_topo base_name in
-  let port_tbl = parse_trees topo (base_name ^ "-disjointtrees.trees") in
+  let port_tbl = parse_trees topo (Params.car_file base_name) in
   let current_tree_tbl = mk_current_tree_tbl topo port_tbl in
   let port_tbl = Int.Table.map port_tbl ~f:Array.of_list in
   fun sw in_pt ->
-    let sw_val = Topology.sw_val topo sw in
+    let sw_val = Topology.sw_val topo.graph sw in
     match Hashtbl.find current_tree_tbl (sw_val, in_pt) with
     | None ->
       (* eprintf "verify that packets never enter switch %d at port %d\n" sw_val in_pt; *)
@@ -245,3 +237,29 @@ let car base_name ~(style: [`Deterministic|`Probabilistic])
       | `Probabilistic ->
         failwith "not implemented"
       end
+
+type scheme = [
+  | `Switchwise of Net.Topology.vertex -> string policy
+  | `Portwise  of Net.Topology.vertex -> int -> string policy
+]
+
+let get_all base_name topo : (string * scheme) list =
+  let topo = enrich_topo topo in
+  let random_walk () = `Switchwise (random_walk topo) in
+  let resilient_random_walk () = `Switchwise (resilient_random_walk topo) in
+  let shortest_path () = `Switchwise (shortest_path topo base_name) in
+  let ecmp () = `Switchwise (ecmp topo base_name) in
+  let resilient_ecmp () = `Switchwise (resilient_ecmp topo base_name) in
+  let car () = `Portwise (car topo base_name ~style:`Deterministic) in
+  [ "random walk",            random_walk;
+    "resilient random walk",  resilient_random_walk;
+    "shortest path",          shortest_path;
+    "ecmp",                   ecmp;
+    "resilient ecmp",         resilient_ecmp;
+    "car",                    car;
+  ]
+  |> List.filter_map ~f:(fun (name, make) ->
+    match make () with
+    | scheme -> Some (name, scheme)
+    | exception _ -> None
+  )

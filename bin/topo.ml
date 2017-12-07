@@ -4,7 +4,6 @@ open Probnetkat.Syntax
 open Probnetkat.Symbolic
 open Frenetic.Network
 
-
 let base_name = Sys.argv.(1)
 
 module Params = struct
@@ -21,10 +20,10 @@ module Params = struct
 
   (* topology *)
   let topo = Topology.parse (base_name ^ ".dot")
+  let topo' = Schemes.enrich_topo topo
 
   (* the actual program to run on the switches *)
-  let sw_pol = `Switchwise Schemes.resilient_ecmp
-
+  let sw_pol = `Switchwise (Schemes.resilient_ecmp topo' base_name)
 
 end
 
@@ -44,17 +43,6 @@ let equivalent_to_teleport =
     let is_teleport = Fdd.equivalent fdd teleport ~modulo in
     printf "equivalent to teleportation: %s\n" (Bool.to_string is_teleport);
     is_teleport
-
-(* report on probability of delivery *)
-(* let probability_of_delivery fdd =
-  let ingress_locs = Topology.ingress_locs Params.topo in
-  List.iter ingress_locs ~f:(fun (sw, pt_val) ->
-    let sw_val = Topology.sw_val topo sw in
-    match Fdd.(unget (restrict fdd []))
-    )
- *)
-
-(* compute path stretch *)
 
 
 let () = begin
