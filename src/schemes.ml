@@ -243,7 +243,7 @@ type scheme = [
   | `Portwise  of Net.Topology.vertex -> int -> string policy
 ]
 
-let get_all base_name topo : (string * scheme) list =
+let get_all topo base_name : (string * scheme) list =
   let topo = enrich_topo topo in
   let random_walk () = `Switchwise (random_walk topo) in
   let resilient_random_walk () = `Switchwise (resilient_random_walk topo) in
