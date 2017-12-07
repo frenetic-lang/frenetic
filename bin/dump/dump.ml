@@ -19,6 +19,12 @@ type data = {
 } [@@deriving yojson]
 
 
+(* module type Params : sig
+  include module type of Probnetkat.Params in
+  
+
 let analyze ~topology ~routing_schme ~max_failures ~failure_prob =
   failwith "not implemented"
 
+let analyze_model (model : module Model) =
+ *)

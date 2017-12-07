@@ -9,28 +9,14 @@ module Net = Frenetic.Network.Net
 module Node = Frenetic.Network.Node
 module Topo = Net.Topology
 
-module Make(Params: sig
-  val sw : string
-  val pt : string
-  val counter : string (* failure counter *)
-  val up : int -> int -> string
+let make 
+  ~(failure_prob : int -> int -> Prob.t) 
+  ~(max_failures : int option)
+  ~(sw_pol : Schemes.scheme)
+  ~(topo : Net.Topology.t)
+  =
 
-  (* switch term for a particular switch *)
-  val sw_pol : [ `Switchwise of Topo.vertex -> string policy
-               | `Portwise   of Topo.vertex -> int -> string policy
-               ]
-
-  (* probability of link failure for particular link (sw,pt) *)
-  val failure_prob : int -> int -> Prob.t
-
-  val max_failures : int option
-
-  (* the topology *)
-  val topo : Net.Topology.t
-  val destination : int
-end) = struct
-
-  include Params
+  let open Params in
 
   let rec make () : string policy =
     let ingress = Topology.ingress topo ~dst:destination in
@@ -98,11 +84,12 @@ end) = struct
       )
       |> mk_big_seq
 
-  (** teleport from ingress straight to destination  *)
-  let teleportation () =
-    PNK.(
-      filter (Topology.ingress topo ~dst:destination) >>
-      !!(sw, destination)
-    )
+  in
+  make ()
 
-end
+(** teleport from ingress straight to destination  *)
+let teleportation topo =
+  PNK.(
+    filter (Topology.ingress topo ~dst:Params.destination) >>
+    !!(Params.sw, Params.destination)
+  )
