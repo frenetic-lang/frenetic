@@ -13,10 +13,12 @@ type data = {
   equivalent_to_teleport : bool;
   min_prob_of_delivery : float;
   avg_prob_of_delivery : float;
+  hop_count_cdf : float list;
 
   (* various times *)
   compilation_time : float;
   equivalence_time : float;
+  hop_count_time   : float;
 } [@@deriving yojson]
 
 let empty = {
@@ -27,8 +29,10 @@ let empty = {
   equivalent_to_teleport = false;
   min_prob_of_delivery = -2.0;
   avg_prob_of_delivery = -2.0;
+  hop_count_cdf = [];
   compilation_time = -2.0;
   equivalence_time = -2.0;
+  hop_count_time = -2.0;
 }
 
 let dump_data data ~dir : unit =
@@ -51,15 +55,24 @@ let rec analyze base_name ~failure_prob ~max_failures : data list =
   (* SJS: constant failure probabilities *)
   Schemes.get_all topo base_name
   |> List.map ~f:(fun (routing_scheme, sw_pol) ->
-    let model = Model.make ~sw_pol ~topo 
+    let model = Model.make ~sw_pol ~topo
       ~failure_prob:(fun _ _ -> failure_prob)
-      ~max_failures:(if max_failures = -1 then None else Some max_failures) 
+      ~max_failures:(if max_failures = -1 then None else Some max_failures)
+    in
+    let hop_count_time, hop_count_cdf =
+      Util.time (fun () ->
+        analyze_hop_count ~sw_pol ~topo
+          ~failure_prob:(fun _ _ -> failure_prob)
+          ~max_failures:(if max_failures = -1 then None else Some max_failures)
+      ) ()
     in
     { (analyze_model model ~topo) with
       routing_scheme;
       topology = Filename.basename base_name;
       max_failures;
       failure_prob = Z.(to_int Prob.(num failure_prob), to_int Prob.(den failure_prob));
+      hop_count_cdf;
+      hop_count_time;
     }
   )
 
@@ -94,7 +107,7 @@ and analyze_model model ~topo =
   printf "min prob of delivery: %s\n" (Prob.to_string min_p);
   printf "avg prob of delivery: %s\n" (Prob.to_string avg_p);
 
-  { empty with 
+  { empty with
     compilation_time;
     equivalent_to_teleport;
     equivalence_time;
@@ -108,6 +121,9 @@ and equivalent_to_teleport fdd ~topo =
   let is_teleport = Fdd.equivalent fdd teleport ~modulo in
   printf "equivalent to teleportation: %s\n" (Bool.to_string is_teleport);
   is_teleport
+
+and analyze_hop_count ~sw_pol ~topo ~failure_prob ~max_failures =
+  failwith "not implemented"
 
 
 let parse_list l ~f =
