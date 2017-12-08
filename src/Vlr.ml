@@ -277,4 +277,37 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
           Int.Set.add (f lo (f hi seen)) node in
     f t Int.Set.empty
 
+  let rec node_to_sexp node =
+    let open Sexplib.Sexp in
+    match node with
+    | Leaf r ->
+      List [Atom "Leaf"; R.sexp_of_t r]
+    | Branch (test, tru, fls) ->
+      let tru = node_to_sexp @@ unget tru in
+      let fls = node_to_sexp @@ unget fls in
+      List [Atom "Branch"; sexp_of_v test; tru; fls]
+
+  let rec node_of_sexp sexp =
+    let open Sexplib.Sexp in
+    match sexp with
+    | List [Atom "Leaf"; sexp] ->
+      Leaf (R.t_of_sexp sexp)
+    | List [Atom "Branch"; test; tru; fls] ->
+      let test = v_of_sexp test in
+      let tru = node_of_sexp tru in
+      let fls = node_of_sexp fls in
+      Branch (test, get tru, get fls)
+    | _ ->
+      failwith "unsexpected s-expression!"
+
+
+  let serialize (t : t) : string =
+    unget t
+    |> node_to_sexp
+    |> Sexp.to_string
+
+  let deserialize (s : string) : t =
+    Sexp.of_string s
+    |> node_of_sexp
+    |> get
 end

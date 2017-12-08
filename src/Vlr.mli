@@ -216,4 +216,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
   val refs : t -> Int.Set.t
   (** [refs t] returns set of subdiagrams in this diagram. *)
+
+  val serialize : t -> string
+  val deserialize : string -> t
 end

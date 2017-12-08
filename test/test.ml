@@ -8,15 +8,21 @@ module Fdd_eq = struct
   include Fdd
   let pp fmt fdd = Format.fprintf fmt "%s" (to_string fdd)
 end
-
 let fdd_eq = (module Fdd_eq : Alcotest.TESTABLE with type t = Fdd.t)
 
 module Fdd_equiv = struct
   include Fdd_eq
   let equal = equivalent ~modulo:[]
 end
-
 let fdd_equiv = (module Fdd_equiv : Alcotest.TESTABLE with type t = Fdd.t)
+
+module Fdd_ser_eq = struct
+  include Fdd_eq
+  let equal x y =
+    String.equal (serialize x) (serialize y) &&
+    equivalent x y
+end
+let fdd_ser_eq = (module Fdd_ser_eq : Alcotest.TESTABLE with type t = Fdd.t)
 
 let test kind name p q =
   (name, `Quick, (fun () ->
@@ -28,6 +34,50 @@ let test kind name p q =
 let test_not kind p q =
   test (Alcotest.neg kind) p q
 
+
+(*===========================================================================*)
+(* FDD SERIALIZATION TESTS                                                   *)
+(*===========================================================================*)
+
+let serialization_roundtrips p = begin
+  "serialization roundtrips",
+  `Quick,
+  fun () -> Alcotest.check fdd_ser_eq ""
+    (p |> Fdd.of_pol)
+    (p |> Fdd.of_pol |> Fdd.serialize |> Fdd.deserialize)
+end
+
+let serialization_without_cache_roundtrips p = begin
+  "serialization roundtrips despite cache clearance",
+  `Quick,
+  fun () -> Alcotest.check fdd_ser_eq ""
+    (p |> Fdd.of_pol)
+    (p |> Fdd.of_pol |> Fdd.serialize |> (fun s ->
+      Fdd.clear_cache ~preserve:Int.Set.empty;
+      Fdd.deserialize s
+    ))
+end
+
+let p1 = PNK.(
+  whl (???("a",0)) (
+    ?@[
+      !!("a", 0) @ 3//6;
+      !!("a", 1) @ 2//6;
+      drop       @ 1//6;
+    ]
+  )
+)
+
+let serialization_tests = [
+
+  serialization_roundtrips PNK.( skip );
+  serialization_without_cache_roundtrips PNK.( skip );
+
+  serialization_roundtrips PNK.( p1 );
+  serialization_without_cache_roundtrips PNK.( p1 );
+
+
+]
 
 
 
@@ -76,7 +126,7 @@ let basic_deterministic = [
 
 
 (*===========================================================================*)
-(* DETERMINISTIC TEST (WITH ⊕)                                               *)
+(* PROBABILISTIC TESTS (WITH ⊕)                                              *)
 (*===========================================================================*)
 
 
@@ -196,12 +246,16 @@ let basic_probabilistic = [
 
 ]
 
+
+
+
 (* let qcheck_tests = [
   "round-trip", `Quick, fun () -> QCheck.Test.check_exn failing
 ] *)
 
 let () =
   Alcotest.run "Probnetkat" [
+    "fdd serialization", serialization_tests;
     "fdd deterministic", basic_deterministic;
     "fdd probabilistic", basic_probabilistic;
     (* "qcheck", qcheck_tests; *)
