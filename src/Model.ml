@@ -9,11 +9,13 @@ module Net = Frenetic.Network.Net
 module Node = Frenetic.Network.Node
 module Topo = Net.Topology
 
-let make 
-  ~(failure_prob : int -> int -> Prob.t) 
+let make
+  ?(bound : int option)
+  ~(failure_prob : int -> int -> Prob.t)
   ~(max_failures : int option)
   ~(sw_pol : Schemes.scheme)
   ~(topo : Net.Topology.t)
+  ()
   =
 
   let open Params in
@@ -24,9 +26,15 @@ let make
       (if Option.is_none max_failures then skip else !!(counter, 0)) >>
       (* in; (¬eg; p; t)*; eg *)
       filter ingress >>
-      whl (neg (???(sw, destination))) (
-        hop ()
-      )
+      match bound with
+      | None ->
+        whl (neg (???(sw, destination))) (
+          hop ()
+        )
+      | Some bound ->
+        bounded_whl ~bound (neg (???(sw, destination))) (
+          hop ()
+        )
     )
 
   and hop () =

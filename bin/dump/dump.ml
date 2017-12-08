@@ -58,6 +58,7 @@ let rec analyze base_name ~failure_prob ~max_failures : data list =
     let model = Model.make ~sw_pol ~topo
       ~failure_prob:(fun _ _ -> failure_prob)
       ~max_failures:(if max_failures = -1 then None else Some max_failures)
+      ()
     in
     let hop_count_time, hop_count_cdf =
       Util.time (fun () ->

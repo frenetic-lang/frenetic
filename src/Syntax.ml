@@ -159,6 +159,11 @@ module Constructors = struct
       | False -> skip
       | _ -> While (a,p)
 
+    let bounded_whl a p ~bound = match a with
+      | True -> drop
+      | False -> skip
+      | _ -> Util.iter bound ~init:(filter (neg a)) ~f:(seq (ite a p skip))
+
     let do_whl a p =
       seq p (whl a p)
 

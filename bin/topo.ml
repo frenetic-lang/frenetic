@@ -53,8 +53,8 @@ let () = begin
   Util.show_dot_file ~engine:"fdp" ~format:"svg" ~title:base_name (base_name ^ ".dot");
 
   (* Make model and compile it into an Fdd. *)
-  let model = Util.timed "building model" (fun () -> 
-    Model.make ~topo ~max_failures ~failure_prob ~sw_pol) 
+  let model = Util.timed "building model"
+    (Model.make ~topo ~max_failures ~failure_prob ~sw_pol)
   in
   Format.printf "%a\n\n" Syntax.pp_policy model;
   let fdd = Util.timed "model to Fdd" (fun () -> Fdd.of_pol model) in

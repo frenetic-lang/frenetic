@@ -1,5 +1,6 @@
 open! Core
 
+(** {2} timing function calls *)
 let time f x =
   let t1 = Unix.gettimeofday () in
   let r = f x in
@@ -15,6 +16,8 @@ let timed descr f =
 let print_time time =
   printf "time: %.4f\n" time
 
+
+(** {2} mapping pairs  *)
 let map_fst xs ~f =
   List.map xs ~f:(fun (x,y) -> (f x, y))
 
@@ -24,8 +27,16 @@ let map_snd xs ~f =
 let map_both xs ~f =
   List.map xs ~f:(fun (x,y) -> (f x, f y))
 
+
+
+(** {2} useful higher order functions  *)
 let tap x ~f =
   f x; x
+
+let iter n ~f ~init =
+  let rec loop n acc = if n <= 0 then acc else loop (n-1) (f acc) in
+  loop n init
+
 
 
 (*===========================================================================*)
