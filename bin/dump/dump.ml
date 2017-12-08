@@ -135,7 +135,10 @@ and analyze_hop_count ~sw_pol ~topo ~failure_prob ~max_failures =
     let prob = Packet.Dist.prob output_dist ~f:(fun pk ->
       Packet.test pk (Fdd.abstract_field sw) destination)
     in
-    loop (bound + 1) (prob::acc)
+    if Prob.(equal prob one) then
+      prob::acc
+    else
+      loop (bound + 1) (prob::acc)
   in
   Fdd.clear_cache ~preserve:Int.Set.empty;
   loop 1 []
