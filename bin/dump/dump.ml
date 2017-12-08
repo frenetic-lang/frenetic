@@ -72,7 +72,7 @@ let rec analyze base_name ~failure_prob ~max_failures : data list =
       topology = Filename.basename base_name;
       max_failures;
       failure_prob = Z.(to_int Prob.(num failure_prob), to_int Prob.(den failure_prob));
-      hop_count_cdf;
+      hop_count_cdf = List.map hop_count_cdf ~f:Prob.to_float;
       hop_count_time;
     }
   )
@@ -124,7 +124,22 @@ and equivalent_to_teleport fdd ~topo =
   is_teleport
 
 and analyze_hop_count ~sw_pol ~topo ~failure_prob ~max_failures =
-  failwith "not implemented"
+  let max_count = 2 * List.length (Topology.switches topo) in
+  let rec loop bound acc =
+    let open Params in
+    if bound > max_count then acc else
+    let model = Model.make ~bound ~sw_pol ~topo ~failure_prob ~max_failures () in
+    let fdd = Fdd.of_pol model in
+    let input_dist = Topology.uniform_ingress topo ~dst:destination in
+    let output_dist = Fdd.output_dist fdd ~input_dist in
+    let prob = Packet.Dist.prob output_dist ~f:(fun pk ->
+      Packet.test pk (Fdd.abstract_field sw) destination)
+    in
+    loop (bound + 1) (prob::acc)
+  in
+  Fdd.clear_cache ~preserve:Int.Set.empty;
+  loop 1 []
+  |> List.rev
 
 
 let parse_list l ~f =
