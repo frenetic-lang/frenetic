@@ -1210,6 +1210,11 @@ module Fdd = struct
         let fixpoint = Util.timed "deserializing & receiving Fdd" (fun () ->
           deserialize (In_channel.input_line_exn from_caml)) in
         In_channel.close from_caml;
+
+        (* clean up *)
+        ignore (Unix.waitpid py_child);
+        ignore (Unix.waitpid caml_child);
+
         fixpoint
       | { read = fd::_; _ } when Unix.File_descr.equal fd from_py_fd ->
         printf "*** python won race!\n%!";
@@ -1251,6 +1256,10 @@ module Fdd = struct
               failwith "malformed output line"
           end;
         );
+
+        (* clean up *)
+        ignore (Unix.waitpid py_child);
+        ignore (Unix.waitpid caml_child);
 
         (* convert matrix back to FDD *)
         let iterated = Matrix.{ matrix = iterated; dom; coding } in
