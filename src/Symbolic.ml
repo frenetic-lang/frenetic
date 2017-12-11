@@ -1097,24 +1097,12 @@ module Fdd = struct
     in
     do_node skeleton PrePacket.empty
 
-  let fixpoint_race ap not_a ~child =
-    let open Caml.Unix in
+  let ocaml_iterate ap not_a =
     let rec loop p =
-      (* printf "[ocaml] naive fixed-point, n = %d\n%!" n; *)
-      match waitpid [WNOHANG] child with
-      | 0,_ ->
-        (* child process still working; do another iteration *)
-        let p2 = seq p p in
-        if equal p p2 then Some p else loop p2
-      | pid, WEXITED 0 when pid = child ->
-        (* child processs finished succesfully; stop naive fixpoint and wait for python reply *)
-        None
-      | pid, _ when pid = child ->
-        failwith "OCaml child process exited abnormally"
-      | _ ->
-        assert false
+      let p2 = seq p p in
+      if equal p p2 then p else loop p2
     in
-    Util.timed "fixpoint race" (fun () -> loop (sum ap not_a))
+    loop (sum ap not_a)
 
 
   let python_iterate ap not_a (coding : (module CODING)) to_py =
@@ -1144,6 +1132,15 @@ module Fdd = struct
       Util.timed "sending not_a" (fun () -> send_matrix not_a);
       Out_channel.close to_py
     )
+
+  let fork2 () =
+    match Unix.fork () with
+    | `In_the_child -> `In_first_child
+    | `In_the_parent child1 ->
+      begin match Unix.fork () with
+      | `In_the_child -> `In_second_child
+      | `In_the_parent child2 -> `In_the_parent (child1, child2)  
+      end
 
 
   (*      X = (AP)*¬A
@@ -1180,22 +1177,48 @@ module Fdd = struct
     let module Coding = Coding(struct let domain = dom end) in
     let coding = (module Coding : CODING) in
 
+
+    (* pipe for communicating with OCaml child that will try to compute fixpoint *)
+    let (from_caml_fd, to_parent_fd) = Unix.pipe () in
+
     (* try computing naive fixed-point and analytical fixed-point in parallel *)
-    match Unix.fork () with
-    | `In_the_child ->
+    match fork2 () with
+    | `In_first_child ->
       python_iterate ap not_a coding to_py;
       exit 0
-    | `In_the_parent child ->
-      (* parent process *)
-      begin match fixpoint_race ap not_a ~child:(Pid.to_int child) with
-      | Some fixpoint ->
+    | `In_second_child ->
+      let fixpoint = Util.timed "naive fixpoint" (fun () -> ocaml_iterate ap not_a) in
+      let to_parent = Unix.out_channel_of_descr to_parent_fd in
+      (* Out_channel.set_binary_mode_out to_parent false; *)
+      Out_channel.output_string to_parent (serialize fixpoint);
+      Out_channel.close to_parent;
+      exit 0
+    | `In_the_parent (py_child, caml_child) ->
+      let from_py_fd = Unix.descr_of_in_channel from_py in
+      (* wait for first result to become available, Python or OCaml *)
+      match
+        Unix.select ~restart:true ~read:[from_py_fd; from_caml_fd] 
+          ~write:[] ~except:[] ~timeout:`Never ()
+      with
+      | { read = fd::_; _ } when Unix.File_descr.equal fd from_caml_fd ->
         printf "*** ocaml won race!\n";
-        (* kill forked process and return result *)
+        (* kill Python processes *)
         Util.Unix.close_process py;
-        Signal.(send_i kill (`Pid child));
+        Signal.(send_i kill (`Pid py_child));
+        (* read fixpoint *)
+        let from_caml = Unix.in_channel_of_descr from_caml_fd in
+        (* Out_channel.set_binary_mode_in to_parent false; *)
+        let fixpoint = deserialize (In_channel.input_all from_caml) in
+        In_channel.close from_caml;
         fixpoint
-      | None ->
+      | { read = fd::_; _ } when Unix.File_descr.equal fd from_py_fd ->
         printf "*** python won race!\n";
+
+        (* kill OCaml process *)
+        Signal.(send_i kill (`Pid caml_child));
+        Unix.close from_caml_fd;
+        Unix.close to_parent_fd;
+
         (* wait for reply from Python *)
         let n = Domain.size dom in
         let iterated = Sparse.zeros n n in
@@ -1234,7 +1257,8 @@ module Fdd = struct
         Util.timed "matrix -> fdd conversion" (fun () ->
           of_mat iterated
         )
-      end
+      | _ ->
+        failwith "unexpected behavior"
 
 
 
