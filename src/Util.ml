@@ -109,14 +109,14 @@ let with_logged_stdio ~log f =
   )
 
 let green = "\027[32m"
-let red = "\027[32m"
+let red = "\027[31m"
 let no_color = "\027[0m"
 
 let timed' descr ~log ~f =
   printf "%s%!" descr;
   match with_logged_stdio ~log (time f) with
   | exception e ->
-    printf "\t%s[Err]%s\n%!" red no_color;
+    printf "\t%s[ERR]%s\n%!" red no_color;
     raise e
   | (t,x) as result ->
     printf "\t%s[OK]%s\t(%.3f seconds)\n%!" green no_color t;
