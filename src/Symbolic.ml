@@ -1207,6 +1207,10 @@ module Fdd = struct
       with
       | { read = fd::_; _ } when Unix.File_descr.equal fd from_caml_fd ->
         printf "*** ocaml won race!\n%!";
+
+        (* kill other process *)
+        Signal.(send_i kill (`Pid py_pid));
+
         Util.timed "deserializing & receiving Fdd" (fun () ->
           Unix.in_channel_of_descr from_caml_fd
           |> In_channel.input_line_exn
@@ -1215,7 +1219,7 @@ module Fdd = struct
       | { read = fd::_; _ } when Unix.File_descr.equal fd from_py_fd ->
         printf "*** python won race!\n%!";
 
-        (* kill OCaml process *)
+        (* kill other process *)
         Signal.(send_i kill (`Pid caml_pid));
 
         (* wait for reply from Python *)
@@ -1244,18 +1248,14 @@ module Fdd = struct
             | _ ->
               failwith "malformed output line"
           done with
-            | End_of_file ->
-              ()
-            | _ ->
-              failwith "malformed output line"
+            | End_of_file -> ()
+            | _ -> failwith "malformed output line"
           end;
         );
 
         (* convert matrix back to FDD *)
         let iterated = Matrix.{ matrix = iterated; dom; coding } in
-        Util.timed "matrix -> fdd conversion" (fun () ->
-          of_mat iterated
-        )
+        Util.timed "matrix -> fdd conversion" (fun () -> of_mat iterated)
       | _ ->
         failwith "unexpected behavior"
     )
