@@ -945,6 +945,8 @@ module Fdd = struct
         let (id,_) = Field.Env.lookup env id in
         let body = do_pol env body in
         Let { id; init; mut; body; }
+      | Repeat (n, p) ->
+        Repeat (n, do_pol env p)
     and do_pred env (p : string pred) : Field.t pred =
       match p with
       | True -> True
@@ -1261,6 +1263,15 @@ module Fdd = struct
     )
 
 
+  let repeat n p =
+    let rec loop i p_2n acc =
+      if i = 1 then
+        List.fold acc ~init:p_2n ~f:seq
+      else
+        let acc = if i%2 = 0 then acc else p_2n :: acc in
+        loop (i / 2) (seq p_2n p_2n) acc
+    in
+    if n <= 0 then drop else loop n p []
 
 
 
@@ -1326,6 +1337,8 @@ module Fdd = struct
       |> k
     | Let { id=field; init; mut; body=p } ->
       of_pol_k p (fun p' -> k (erase p' field init))
+    | Repeat (n, p) ->
+      of_pol_k p (fun p -> repeat n p)
 
   and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
 
