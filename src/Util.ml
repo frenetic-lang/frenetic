@@ -87,3 +87,39 @@ let show_dot ?format ?title ?engine data : unit =
 let show_dot_file ?format ?title ?engine file : unit =
   In_channel.read_all file
   |> show_dot ?format ?title ?engine
+
+
+
+(*===========================================================================*)
+(* Logging                                                                   *)
+(*===========================================================================*)
+
+let with_logged_stdio ~log f =
+  let module Unix = Caml.Unix in
+  let stdout = Unix.dup Unix.stdout in
+  let stderr = Unix.dup Unix.stderr in
+  let log = Unix.descr_of_out_channel log in
+  (* redirect stderr and stdout to log  *)
+  Out_channel.(flush stdout); Unix.dup2 log Unix.stdout;
+  Out_channel.(flush stderr); Unix.dup2 log Unix.stderr;
+  protect ~f ~finally:(fun () ->
+    (* restore stderr and stdout *)
+    Unix.dup2 stdout Unix.stdout;
+    Unix.dup2 stderr Unix.stderr;
+  )
+
+let green = "\027[32m"
+let red = "\027[32m"
+let no_color = "\027[0m"
+
+let timed' descr ~log ~f =
+  printf "%s%!" descr;
+  match with_logged_stdio ~log (time f) with
+  | exception e ->
+    printf "\t%s[Err]%s\n%!" red no_color;
+    raise e
+  | (t,x) as result ->
+    printf "\t%s[OK]%s\t(%.3f seconds)\n%!" green no_color t;
+    result
+
+

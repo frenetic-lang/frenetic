@@ -50,32 +50,37 @@ let dump_data data ~dir : unit =
   )
 
 
-let rec analyze base_name ~failure_prob ~max_failures : data list =
+let rec analyze base_name ~failure_prob ~max_failures ~log : data list =
   let topo = Topology.parse (Params.topo_file base_name) in
   (* SJS: constant failure probabilities *)
   Schemes.get_all topo base_name
-  |> List.map ~f:(fun (routing_scheme, sw_pol) ->
-    let model = Model.make ~sw_pol ~topo
+  |> List.map ~f:(analyze_scheme base_name ~failure_prob ~max_failures ~topo ~log)
+
+and analyze_scheme base_name (routing_scheme, sw_pol) ~failure_prob ~max_failures ~topo ~log =
+  printf "\n%s:\n" routing_scheme;
+  let _, model = Util.timed' " - model" ~log ~f:(fun () ->
+    Model.make ~sw_pol ~topo
       ~failure_prob:(fun _ _ -> failure_prob)
       ~max_failures:(if max_failures = -1 then None else Some max_failures)
       ()
-    in
-    let hop_count_time, hop_count_cdf =
-      Util.time (fun () ->
-        analyze_hop_count ~sw_pol ~topo
-          ~failure_prob:(fun _ _ -> failure_prob)
-          ~max_failures:(if max_failures = -1 then None else Some max_failures)
-      ) ()
-    in
-    { (analyze_model model ~topo) with
-      routing_scheme;
-      topology = Filename.basename base_name;
-      max_failures;
-      failure_prob = Z.(to_int Prob.(num failure_prob), to_int Prob.(den failure_prob));
-      hop_count_cdf = List.map hop_count_cdf ~f:Prob.to_float;
-      hop_count_time;
-    }
   )
+  in
+  let hop_count_time, hop_count_cdf =
+    Util.timed' " - hop count" ~log  ~f:(fun () ->
+      analyze_hop_count ~sw_pol ~topo
+        ~failure_prob:(fun _ _ -> failure_prob)
+        ~max_failures:(if max_failures = -1 then None else Some max_failures)
+    )
+  in
+  let _,data = Util.timed' " - other" ~log ~f:(fun () -> analyze_model model ~topo) in
+  { data with
+    routing_scheme;
+    topology = Filename.basename base_name;
+    max_failures;
+    failure_prob = Z.(to_int Prob.(num failure_prob), to_int Prob.(den failure_prob));
+    hop_count_cdf = List.map hop_count_cdf ~f:Prob.to_float;
+    hop_count_time;
+  }
 
 and analyze_model model ~topo =
 
@@ -93,8 +98,8 @@ and analyze_model model ~topo =
   (* OUTPUT DISTRIBUTION *)
   let input_dist = Topology.uniform_ingress topo ~dst:destination in
   let output_dist = Fdd.output_dist fdd ~input_dist in
-  printf "input distribution: %s\n\n" (Packet.Dist.to_string input_dist);
-  printf "output distribution: %s\n\n" (Packet.Dist.to_string output_dist);
+  (* printf "input distribution: %s\n\n" (Packet.Dist.to_string input_dist); *)
+  (* printf "output distribution: %s\n\n" (Packet.Dist.to_string output_dist); *)
 
   (* probability of delivery *)
   let min_p =
@@ -105,8 +110,8 @@ and analyze_model model ~topo =
   let avg_p = Packet.Dist.prob output_dist ~f:(fun pk ->
     Packet.test pk (Fdd.abstract_field sw) destination)
   in
-  printf "min prob of delivery: %s\n" (Prob.to_string min_p);
-  printf "avg prob of delivery: %s\n" (Prob.to_string avg_p);
+  (* printf "min prob of delivery: %s\n" (Prob.to_string min_p); *)
+  (* printf "avg prob of delivery: %s\n" (Prob.to_string avg_p); *)
 
   { empty with
     compilation_time;
@@ -120,7 +125,7 @@ and equivalent_to_teleport fdd ~topo =
   let teleport = Fdd.of_pol (Model.teleportation topo) in
   let modulo = [Params.pt; Params.counter] in
   let is_teleport = Fdd.equivalent fdd teleport ~modulo in
-  printf "equivalent to teleportation: %s\n" (Bool.to_string is_teleport);
+  (* printf "equivalent to teleportation: %s\n" (Bool.to_string is_teleport); *)
   is_teleport
 
 and analyze_hop_count ~sw_pol ~topo ~failure_prob ~max_failures =
@@ -155,10 +160,16 @@ let () =
     let dir = Filename.dirname base_name in
     let max_failures = parse_list max_failures ~f:Int.of_string in
     let failure_probs = parse_list failure_probs ~f:Q.of_string in
-    List.iter max_failures ~f:(fun max_failures ->
-      List.iter failure_probs ~f:(fun failure_prob ->
-        analyze base_name ~max_failures ~failure_prob
-        |> List.iter ~f:(dump_data ~dir)
+    Out_channel.with_file "results.log" ~f:(fun log ->
+      List.iter max_failures ~f:(fun max_failures ->
+        List.iter failure_probs ~f:(fun failure_prob ->
+          printf "%s, Pr[failure] = %s, max failures = %d.\n" base_name
+            (Prob.to_string failure_prob) max_failures;
+          printf "================================================================\n";
+          analyze base_name ~max_failures ~failure_prob ~log
+          |> List.iter ~f:(dump_data ~dir);
+          printf "\n";
+        )
       )
     )
   | _ ->

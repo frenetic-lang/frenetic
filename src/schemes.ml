@@ -91,9 +91,9 @@ let parse_trees topo file : (int list) Int.Table.t =
     | _ ->
       failwith "unexpected format"
   )));
-  Hashtbl.iteri tbl ~f:(fun ~key:sw ~data:pts ->
+(*   Hashtbl.iteri tbl ~f:(fun ~key:sw ~data:pts ->
     printf "sw %d: %s\n" sw (List.to_string pts ~f:Int.to_string)
-  );
+  ); *)
   tbl
 
 (* switch to port mapping *)
@@ -162,7 +162,7 @@ let random_walk topo : Net.Topology.vertex -> string policy =
     |> PNK.uniform
 
 let resilient_random_walk topo : Net.Topology.vertex -> string policy =
-  fun sw -> 
+  fun sw ->
     let pts =
       Topology.vertex_to_ports topo.graph sw
       |> List.map ~f:Topology.pt_val
