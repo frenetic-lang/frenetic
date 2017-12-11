@@ -160,10 +160,10 @@ let () =
     let dir = Filename.dirname base_name in
     let max_failures = parse_list max_failures ~f:Int.of_string in
     let failure_probs = parse_list failure_probs ~f:Q.of_string in
-    Out_channel.with_file "results.log" ~f:(fun log ->
+    Out_channel.with_file (dir ^ "results.log") ~f:(fun log ->
       List.iter max_failures ~f:(fun max_failures ->
         List.iter failure_probs ~f:(fun failure_prob ->
-          printf "%s, Pr[failure] = %s, max failures = %d.\n" base_name
+          printf "\n%s, Pr[failure] = %s, max failures = %d.\n" base_name
             (Prob.to_string failure_prob) max_failures;
           printf "================================================================\n";
           analyze base_name ~max_failures ~failure_prob ~log
