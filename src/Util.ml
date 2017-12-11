@@ -122,4 +122,16 @@ let timed' descr ~log ~f =
     printf "\t%s[OK]%s\t(%.3f seconds)\n%!" green no_color t;
     result
 
+let stdout = Caml.Unix.(dup stdout)
+let stderr = Caml.Unix.(dup stderr)
+let devnull = Caml.Unix.(openfile "/dev/null" [O_WRONLY] 0o777)
 
+let shutup () = begin
+  Out_channel.(flush stdout); Caml.Unix.dup2 devnull Caml.Unix.stdout;
+  Out_channel.(flush stderr); Caml.Unix.dup2 devnull Caml.Unix.stderr;
+end
+
+let talk_again () = begin
+  Caml.Unix.dup2 stdout Caml.Unix.stdout;
+  Caml.Unix.dup2 stderr Caml.Unix.stderr;
+end
