@@ -1133,15 +1133,13 @@ module Fdd = struct
       Out_channel.close to_py
     )
 
-  let fork2 () =
-    match Unix.fork () with
-    | `In_the_child -> `In_first_child
-    | `In_the_parent child1 ->
-      begin match Unix.fork () with
-      | `In_the_child -> `In_second_child
-      | `In_the_parent child2 -> `In_the_parent (child1, child2)  
-      end
 
+  let fork f : Pid.t =
+    match Unix.fork () with
+    | `In_the_child ->
+      f (); exit 0
+    | `In_the_parent pid ->
+      pid
 
   (*      X = (AP)*¬A
     Thus  X = ¬A + (AP)X
@@ -1158,6 +1156,13 @@ module Fdd = struct
     (* printf "ap = %s\n%!" (to_string ap); *)
     (* printf "not_a = %s\n%!" (to_string not_a); *)
 
+    (* compute domain of FDDs; i.e., how many indices do we need for the matrix
+       representation and what does each index preresent?
+    *)
+    let dom = Domain.(merge (of_fdd ap) (of_fdd not_a)) in
+    let module Coding = Coding(struct let domain = dom end) in
+    let coding = (module Coding : CODING) in
+
     (* setup external python script to solve linear system, start in seperate process *)
     let pkg_name = "probnetkat" in
     let script_name = "absorption.pyc" in
@@ -1168,61 +1173,50 @@ module Fdd = struct
         failwith ("missing ocamlfind dependency: " ^ pkg_name)
     in
     let cmd = "python3 " ^ pyscript in
-    let (pid_py, from_py, to_py) as py = Util.Unix.open_process cmd in
-
-    (* compute domain of FDDs; i.e., how many indices do we need for the matrix
-       representation and what does each index preresent?
-    *)
-    let dom = Domain.(merge (of_fdd ap) (of_fdd not_a)) in
-    let module Coding = Coding(struct let domain = dom end) in
-    let coding = (module Coding : CODING) in
-
+    let (from_py, to_py) as py = Unix.open_process cmd in
 
     (* pipe for communicating with OCaml child that will try to compute fixpoint *)
     let (from_caml_fd, to_parent_fd) = Unix.pipe () in
 
+
     (* try computing naive fixed-point and analytical fixed-point in parallel *)
-    match fork2 () with
-    | `In_first_child ->
-      python_iterate ap not_a coding to_py;
-      exit 0
-    | `In_second_child ->
+    let py_pid = fork (fun () -> python_iterate ap not_a coding to_py) in
+    let caml_pid = fork (fun () ->
       let fixpoint = Util.timed "naive fixpoint" (fun () -> ocaml_iterate ap not_a) in
-      let to_parent = Unix.out_channel_of_descr to_parent_fd in
       Util.timed "serializing & sending Fdd" (fun () ->
-        Out_channel.output_lines to_parent [serialize fixpoint]);
-      Out_channel.close to_parent;
-      exit 0
-    | `In_the_parent (py_child, caml_child) ->
+        [serialize fixpoint]
+        |> Out_channel.output_lines (Unix.out_channel_of_descr to_parent_fd)
+      )
+    )
+    in
+
+    (* wait for first result to become available, Python or OCaml *)
+    protect ~finally:(fun () ->
+      Signal.(send_i kill (`Pid py_pid));
+      Signal.(send_i kill (`Pid caml_pid));
+      Unix.close from_caml_fd;
+      Unix.close to_parent_fd;
+      ignore (Unix.waitpid py_pid);
+      ignore (Unix.waitpid caml_pid);
+      ignore (Unix.close_process py);
+    ) ~f:(fun () ->
       let from_py_fd = Unix.descr_of_in_channel from_py in
-      (* wait for first result to become available, Python or OCaml *)
       match
-        Unix.select ~restart:true ~read:[from_py_fd; from_caml_fd] 
+        Unix.select ~restart:true ~read:[from_py_fd; from_caml_fd]
           ~write:[] ~except:[] ~timeout:`Never ()
       with
       | { read = fd::_; _ } when Unix.File_descr.equal fd from_caml_fd ->
         printf "*** ocaml won race!\n%!";
-        (* kill Python processes *)
-        Util.Unix.close_process py;
-        Signal.(send_i kill (`Pid py_child));
-        (* read fixpoint *)
-        let from_caml = Unix.in_channel_of_descr from_caml_fd in
-        let fixpoint = Util.timed "deserializing & receiving Fdd" (fun () ->
-          deserialize (In_channel.input_line_exn from_caml)) in
-        In_channel.close from_caml;
-
-        (* clean up *)
-        ignore (Unix.waitpid py_child);
-        ignore (Unix.waitpid caml_child);
-
-        fixpoint
+        Util.timed "deserializing & receiving Fdd" (fun () ->
+          Unix.in_channel_of_descr from_caml_fd
+          |> In_channel.input_line_exn
+          |> deserialize
+        )
       | { read = fd::_; _ } when Unix.File_descr.equal fd from_py_fd ->
         printf "*** python won race!\n%!";
 
         (* kill OCaml process *)
-        Signal.(send_i kill (`Pid caml_child));
-        Unix.close from_caml_fd;
-        Unix.close to_parent_fd;
+        Signal.(send_i kill (`Pid caml_pid));
 
         (* wait for reply from Python *)
         let n = Domain.size dom in
@@ -1251,15 +1245,11 @@ module Fdd = struct
               failwith "malformed output line"
           done with
             | End_of_file ->
-              Util.Unix.close_process py
+              ()
             | _ ->
               failwith "malformed output line"
           end;
         );
-
-        (* clean up *)
-        ignore (Unix.waitpid py_child);
-        ignore (Unix.waitpid caml_child);
 
         (* convert matrix back to FDD *)
         let iterated = Matrix.{ matrix = iterated; dom; coding } in
@@ -1268,6 +1258,8 @@ module Fdd = struct
         )
       | _ ->
         failwith "unexpected behavior"
+    )
+
 
 
 
