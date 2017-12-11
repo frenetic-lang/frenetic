@@ -1189,8 +1189,8 @@ module Fdd = struct
     | `In_second_child ->
       let fixpoint = Util.timed "naive fixpoint" (fun () -> ocaml_iterate ap not_a) in
       let to_parent = Unix.out_channel_of_descr to_parent_fd in
-      (* Out_channel.set_binary_mode_out to_parent false; *)
-      Out_channel.output_string to_parent (serialize fixpoint);
+      Util.timed "serializing & sending Fdd" (fun () ->
+        Out_channel.output_lines to_parent [serialize fixpoint]);
       Out_channel.close to_parent;
       exit 0
     | `In_the_parent (py_child, caml_child) ->
@@ -1201,18 +1201,18 @@ module Fdd = struct
           ~write:[] ~except:[] ~timeout:`Never ()
       with
       | { read = fd::_; _ } when Unix.File_descr.equal fd from_caml_fd ->
-        printf "*** ocaml won race!\n";
+        printf "*** ocaml won race!\n%!";
         (* kill Python processes *)
         Util.Unix.close_process py;
         Signal.(send_i kill (`Pid py_child));
         (* read fixpoint *)
         let from_caml = Unix.in_channel_of_descr from_caml_fd in
-        (* Out_channel.set_binary_mode_in to_parent false; *)
-        let fixpoint = deserialize (In_channel.input_all from_caml) in
+        let fixpoint = Util.timed "deserializing & receiving Fdd" (fun () ->
+          deserialize (In_channel.input_line_exn from_caml)) in
         In_channel.close from_caml;
         fixpoint
       | { read = fd::_; _ } when Unix.File_descr.equal fd from_py_fd ->
-        printf "*** python won race!\n";
+        printf "*** python won race!\n%!";
 
         (* kill OCaml process *)
         Signal.(send_i kill (`Pid caml_child));
