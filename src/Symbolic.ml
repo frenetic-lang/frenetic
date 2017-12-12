@@ -370,6 +370,11 @@ module PrePacket = struct
     | Some (Const v') when v' = v -> true
     | _ -> false
 
+  let test_with (pk : t) (field : Field.t) (v : Value.t) ~f : bool =
+    match Map.find pk field with
+    | Some (Const v') when f v' v -> true
+    | _ -> false
+
   let apply (pk : t) (action : PreAction.t) : t =
     Field.Map.merge pk action ~f:(fun ~key:_ -> function
       | `Left v -> Some v
@@ -424,6 +429,11 @@ module Packet = struct
     match pk with
     | Emptyset -> false
     | Pk pk -> PrePacket.test pk f v
+
+  let test_with (pk : t) (field : Field.t) (v : Value.t) ~f : bool =
+    match pk with
+    | Emptyset -> false
+    | Pk pk -> PrePacket.test_with pk field v ~f
 
   let apply (pk : t) (act : Action.t) : t =
     match pk, act with

@@ -32,10 +32,18 @@ let make
           hop ()
         )
       | Some bound ->
-        bounded_whl ~bound (neg (???(sw, destination))) (
-          hop ()
+        !!(ttl, bound) >>
+        whl (neg (???(sw, destination))) (
+          hop () >> begin
+            List.range 1 bound ~stop:`inclusive
+            |> ite_cascade ~otherwise:drop ~f:(fun ttl_val ->
+              ???(ttl, ttl_val), !!(ttl, ttl_val - 1)
+            )
+          end
         )
     )
+
+
 
   and hop () =
     let open PNK in

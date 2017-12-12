@@ -39,9 +39,10 @@ let dump_data data ~dir : unit =
   let scheme = String.tr data.routing_scheme ~target:' ' ~replacement:'_' in
   let dir = sprintf "%s/results/%s-%s" dir data.topology scheme in
   Unix.mkdir_p dir;
-  (* SJS: use '_' as seperator, to avoid confusion with '-' in '-1' *)
-  let file = sprintf "%s/%d_%d_%d.json" dir
-    data.max_failures (fst data.failure_prob) (snd data.failure_prob)
+  let max_failures =
+    if data.max_failures < 0 then "inf" else Int.to_string data.max_failures in
+  let file = sprintf "%s/%s-%d-%d.json" dir
+    max_failures (fst data.failure_prob) (snd data.failure_prob)
   in
   Out_channel.with_file file ~f:(fun chan ->
     data_to_yojson data
@@ -129,24 +130,19 @@ and equivalent_to_teleport fdd ~topo =
   is_teleport
 
 and analyze_hop_count ~sw_pol ~topo ~failure_prob ~max_failures =
-  let max_count = 2 * List.length (Topology.switches topo) in
-  let rec loop bound acc =
-    let open Params in
-    if bound > max_count then acc else
-    let model = Model.make ~bound ~sw_pol ~topo ~failure_prob ~max_failures () in
-    let fdd = Fdd.of_pol model in
-    let input_dist = Topology.uniform_ingress topo ~dst:destination in
-    let output_dist = Fdd.output_dist fdd ~input_dist in
-    let prob = Packet.Dist.prob output_dist ~f:(fun pk ->
-      Packet.test pk (Fdd.abstract_field sw) destination)
-    in
-    if Prob.(equal prob one) then
-      prob::acc
-    else
-      loop (bound + 1) (prob::acc)
-  in
   Fdd.clear_cache ~preserve:Int.Set.empty;
-  loop 1 []
+  let open Params in
+  let bound = 2 * List.length (Topology.switches topo) in
+  let model = Model.make ~bound ~sw_pol ~topo ~failure_prob ~max_failures () in
+  let fdd = Fdd.of_pol model in
+  let input_dist = Topology.uniform_ingress topo ~dst:destination in
+  let output_dist = Fdd.output_dist fdd ~input_dist in
+  List.init bound ~f:(fun ttl_val ->
+    Packet.Dist.prob output_dist ~f:(fun pk ->
+      Packet.test pk (Fdd.abstract_field sw) destination &&
+      Packet.test_with ~f:(>=) pk (Fdd.abstract_field ttl) ttl_val
+    )
+  )
   |> List.rev
 
 
