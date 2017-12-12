@@ -39,9 +39,10 @@ let dump_data data ~dir : unit =
   let scheme = String.tr data.routing_scheme ~target:' ' ~replacement:'_' in
   let dir = sprintf "%s/results/%s-%s" dir data.topology scheme in
   Unix.mkdir_p dir;
-  (* SJS: use '_' as seperator, to avoid confusion with '-' in '-1' *)
-  let file = sprintf "%s/%d_%d_%d.dat" dir
-    data.max_failures (fst data.failure_prob) (snd data.failure_prob)
+  let max_failures =
+    if data.max_failures < 0 then "inf" else Int.to_string data.max_failures in
+  let file = sprintf "%s/%s-%d-%d.json" dir
+    max_failures (fst data.failure_prob) (snd data.failure_prob)
   in
   Out_channel.with_file file ~f:(fun chan ->
     data_to_yojson data
@@ -58,19 +59,21 @@ let rec analyze base_name ~failure_prob ~max_failures ~log : data list =
 
 and analyze_scheme base_name (routing_scheme, sw_pol) ~failure_prob ~max_failures ~topo ~log =
   printf "\n%s:\n" routing_scheme;
-  let _, model = Util.timed' " - model" ~log ~f:(fun () ->
-    Model.make ~sw_pol ~topo
-      ~failure_prob:(fun _ _ -> failure_prob)
-      ~max_failures:(if max_failures = -1 then None else Some max_failures)
-      ()
-  )
-  in
+  Fdd.clear_cache ~preserve:Int.Set.empty;
+  let _ = Util.timed' " - gc" ~log ~f:Gc.compact in
   let hop_count_time, hop_count_cdf =
     Util.timed' " - hop count" ~log  ~f:(fun () ->
       analyze_hop_count ~sw_pol ~topo
         ~failure_prob:(fun _ _ -> failure_prob)
         ~max_failures:(if max_failures = -1 then None else Some max_failures)
     )
+  in
+  Fdd.clear_cache ~preserve:Int.Set.empty;
+  let _ = Util.timed' " - gc" ~log ~f:Gc.compact in
+  let model = Model.make ~sw_pol ~topo
+      ~failure_prob:(fun _ _ -> failure_prob)
+      ~max_failures:(if max_failures = -1 then None else Some max_failures)
+      ()
   in
   let _,data = Util.timed' " - other" ~log ~f:(fun () -> analyze_model model ~topo) in
   { data with
@@ -87,7 +90,6 @@ and analyze_model model ~topo =
   let open Params in
 
   (* COMPILATION *)
-  Fdd.clear_cache ~preserve:Int.Set.empty;
   let compilation_time, fdd = Util.time Fdd.of_pol model in
   printf "\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> COMPILATION DONE\n%!";
 
@@ -129,24 +131,18 @@ and equivalent_to_teleport fdd ~topo =
   is_teleport
 
 and analyze_hop_count ~sw_pol ~topo ~failure_prob ~max_failures =
-  let max_count = 2 * List.length (Topology.switches topo) in
-  let rec loop bound acc =
-    let open Params in
-    if bound > max_count then acc else
-    let model = Model.make ~bound ~sw_pol ~topo ~failure_prob ~max_failures () in
-    let fdd = Fdd.of_pol model in
-    let input_dist = Topology.uniform_ingress topo ~dst:destination in
-    let output_dist = Fdd.output_dist fdd ~input_dist in
-    let prob = Packet.Dist.prob output_dist ~f:(fun pk ->
-      Packet.test pk (Fdd.abstract_field sw) destination)
-    in
-    if Prob.(equal prob one) then
-      prob::acc
-    else
-      loop (bound + 1) (prob::acc)
-  in
-  Fdd.clear_cache ~preserve:Int.Set.empty;
-  loop 1 []
+  let open Params in
+  let bound = 2 * List.length (Topology.switches topo) in
+  let model = Model.make ~bound ~sw_pol ~topo ~failure_prob ~max_failures () in
+  let fdd = Fdd.of_pol model in
+  let input_dist = Topology.uniform_ingress topo ~dst:destination in
+  let output_dist = Fdd.output_dist fdd ~input_dist in
+  List.init bound ~f:(fun ttl_val ->
+    Packet.Dist.prob output_dist ~f:(fun pk ->
+      Packet.test pk (Fdd.abstract_field sw) destination &&
+      Packet.test_with ~f:(>=) pk (Fdd.abstract_field ttl) ttl_val
+    )
+  )
   |> List.rev
 
 

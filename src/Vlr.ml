@@ -167,10 +167,27 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   let prod_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
   let prod = apply R.prod R.one ~cache:prod_tbl
 
+  let childreen t =
+    let rec loop t acc =
+      match unget t with
+      | Leaf _ -> acc
+      | Branch (_, l, r) ->
+        l::r::acc
+        |> loop l
+        |> loop r
+    in
+    loop t []
+
   let clear_cache ~(preserve : Int.Set.t) =
     (* SJS: the interface exposes `id` and `drop` as constants,
        so they must NEVER be cleared from the cache *)
-    let preserve = Int.Set.(add (add preserve drop) id) in begin
+    let preserve =
+      Int.Set.(add (add preserve drop) id)
+      |> fun init -> Int.Set.fold init ~init ~f:(fun init root ->
+        List.fold (childreen root) ~init ~f:Int.Set.add
+      )
+    in
+    begin
       BinTbl.clear sum_tbl;
       BinTbl.clear prod_tbl;
       T.clear preserve;
