@@ -1268,10 +1268,9 @@ module Fdd = struct
       if i = 1 then
         List.fold acc ~init:p_2n ~f:seq
       else
-        let acc = if i%2 = 0 then acc else p_2n :: acc in
-        loop (i / 2) (seq p_2n p_2n) acc
+        loop (i/2) (seq p_2n p_2n) (if i%2 = 0 then acc else p_2n :: acc)
     in
-    if n <= 0 then drop else loop n p []
+    if n <= 0 then id else loop n p []
 
 
 

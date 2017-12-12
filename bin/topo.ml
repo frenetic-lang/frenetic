@@ -20,7 +20,7 @@ let topo = Topology.parse (base_name ^ ".dot")
 let topo' = Schemes.enrich_topo topo
 
 (* the actual program to run on the switches *)
-let sw_pol = `Switchwise (Schemes.resilient_ecmp topo' base_name)
+let sw_pol = `Switchwise (Schemes.resilient_random_walk topo')
 
 
 (*===========================================================================*)
