@@ -40,7 +40,7 @@ let dump_data data ~dir : unit =
   let dir = sprintf "%s/results/%s-%s" dir data.topology scheme in
   Unix.mkdir_p dir;
   (* SJS: use '_' as seperator, to avoid confusion with '-' in '-1' *)
-  let file = sprintf "%s/%d_%d_%d.dat" dir
+  let file = sprintf "%s/%d_%d_%d.json" dir
     data.max_failures (fst data.failure_prob) (snd data.failure_prob)
   in
   Out_channel.with_file file ~f:(fun chan ->
