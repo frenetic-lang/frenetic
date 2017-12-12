@@ -1149,7 +1149,13 @@ module Fdd = struct
   let fork f : Pid.t =
     match Unix.fork () with
     | `In_the_child ->
-      f (); exit 0
+      begin try
+        f (); exit 0
+      with e ->
+        printf "Uncaught exception in forked process:\n\t%s\n%!" (Exn.to_string e);
+        printf "%s\n%!" (Exn.backtrace ());
+        exit 1
+      end
     | `In_the_parent pid ->
       pid
 
@@ -1194,7 +1200,11 @@ module Fdd = struct
     (* try computing naive fixed-point and analytical fixed-point in parallel *)
     let py_pid = fork (fun () -> python_iterate ap not_a coding to_py) in
     let caml_pid = fork (fun () ->
-      let fixpoint = Util.timed "naive fixpoint" (fun () -> ocaml_iterate ap not_a) in
+      let fixpoint = Util.timed "naive fixpoint" (fun () ->
+        clear_cache ~preserve:(Int.Set.of_list ([ap; not_a] : t list :> int list));
+        ocaml_iterate ap not_a
+      )
+      in
       Util.timed "serializing & sending Fdd" (fun () ->
         [serialize fixpoint]
         |> Out_channel.output_lines (Unix.out_channel_of_descr to_parent_fd)

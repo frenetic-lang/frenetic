@@ -59,19 +59,21 @@ let rec analyze base_name ~failure_prob ~max_failures ~log : data list =
 
 and analyze_scheme base_name (routing_scheme, sw_pol) ~failure_prob ~max_failures ~topo ~log =
   printf "\n%s:\n" routing_scheme;
-  let _, model = Util.timed' " - model" ~log ~f:(fun () ->
-    Model.make ~sw_pol ~topo
-      ~failure_prob:(fun _ _ -> failure_prob)
-      ~max_failures:(if max_failures = -1 then None else Some max_failures)
-      ()
-  )
-  in
+  Fdd.clear_cache ~preserve:Int.Set.empty;
+  let _ = Util.timed' " - gc" ~log ~f:Gc.compact in
   let hop_count_time, hop_count_cdf =
     Util.timed' " - hop count" ~log  ~f:(fun () ->
       analyze_hop_count ~sw_pol ~topo
         ~failure_prob:(fun _ _ -> failure_prob)
         ~max_failures:(if max_failures = -1 then None else Some max_failures)
     )
+  in
+  Fdd.clear_cache ~preserve:Int.Set.empty;
+  let _ = Util.timed' " - gc" ~log ~f:Gc.compact in
+  let model = Model.make ~sw_pol ~topo
+      ~failure_prob:(fun _ _ -> failure_prob)
+      ~max_failures:(if max_failures = -1 then None else Some max_failures)
+      ()
   in
   let _,data = Util.timed' " - other" ~log ~f:(fun () -> analyze_model model ~topo) in
   { data with
@@ -88,7 +90,6 @@ and analyze_model model ~topo =
   let open Params in
 
   (* COMPILATION *)
-  Fdd.clear_cache ~preserve:Int.Set.empty;
   let compilation_time, fdd = Util.time Fdd.of_pol model in
   printf "\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> COMPILATION DONE\n%!";
 
@@ -130,7 +131,6 @@ and equivalent_to_teleport fdd ~topo =
   is_teleport
 
 and analyze_hop_count ~sw_pol ~topo ~failure_prob ~max_failures =
-  Fdd.clear_cache ~preserve:Int.Set.empty;
   let open Params in
   let bound = 2 * List.length (Topology.switches topo) in
   let model = Model.make ~bound ~sw_pol ~topo ~failure_prob ~max_failures () in
