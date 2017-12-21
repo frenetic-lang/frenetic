@@ -1195,6 +1195,8 @@ module Fdd = struct
 
     (* pipe for communicating with OCaml child that will try to compute fixpoint *)
     let (from_caml_fd, to_parent_fd) = Unix.pipe () in
+    let from_caml = Unix.in_channel_of_descr from_caml_fd in
+    let to_parent = Unix.out_channel_of_descr to_parent_fd in
 
 
     (* try computing naive fixed-point and analytical fixed-point in parallel *)
@@ -1206,8 +1208,7 @@ module Fdd = struct
       )
       in
       Util.timed "serializing & sending Fdd" (fun () ->
-        [serialize fixpoint]
-        |> Out_channel.output_lines (Unix.out_channel_of_descr to_parent_fd)
+        Out_channel.output_lines to_parent [serialize fixpoint]
       )
     )
     in
@@ -1216,11 +1217,11 @@ module Fdd = struct
     protect ~finally:(fun () ->
       Signal.(send_i kill (`Pid py_pid));
       Signal.(send_i kill (`Pid caml_pid));
-      Unix.close from_caml_fd;
-      Unix.close to_parent_fd;
+      ignore (Unix.close_process py);
+      In_channel.close from_caml;
+      Out_channel.close to_parent;
       ignore (Unix.waitpid py_pid);
       ignore (Unix.waitpid caml_pid);
-      ignore (Unix.close_process py);
     ) ~f:(fun () ->
       let from_py_fd = Unix.descr_of_in_channel from_py in
       match
@@ -1234,8 +1235,7 @@ module Fdd = struct
         Signal.(send_i kill (`Pid py_pid));
 
         Util.timed "deserializing & receiving Fdd" (fun () ->
-          Unix.in_channel_of_descr from_caml_fd
-          |> In_channel.input_line_exn
+          In_channel.input_line_exn from_caml
           |> deserialize
         )
       | { read = fd::_; _ } when Unix.File_descr.equal fd from_py_fd ->
