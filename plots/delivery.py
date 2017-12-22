@@ -15,6 +15,8 @@ if len(argv) != 3:
 
 folder = argv[1]
 topo = argv[2]
+failure_prob = [1,8]
+
 data = defaultdict(dict)
 
 
@@ -22,7 +24,7 @@ for file in glob(os.path.join(folder, '*/*.json')):
   print(file)
   raw_data = Path(file).read_text()
   this = json.loads(raw_data)
-  if this['topology'] == topo and this['failure_prob'] == [1,8]:
+  if this['topology'] == topo and this['failure_prob'] == failure_prob:
     data[this['routing_scheme']][this['max_failures']] = this
   elif this['topology'] == topo and this['failure_prob'] == [0,1]:
     data[this['routing_scheme']][0] = this
@@ -45,6 +47,7 @@ for scheme, probs in data.items():
 ticks = range(0,max_x+2)
 tick_lbls = [str(t) for t in range(0,max_x+1)] + [' ∞ ']
 plt.xticks(ticks, tick_lbls)
+plt.title("Pr[failure] = %d/%d" % (failure_prob[0], failure_prob[1]))
 plt.legend()
 plt.xlabel("max #failures")
 plt.ylabel("Pr[delivery | #failures ≤ x]")
