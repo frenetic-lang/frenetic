@@ -47,7 +47,7 @@ for scheme, probs in data.items():
 ticks = range(0,max_x+2)
 tick_lbls = [str(t) for t in range(0,max_x+1)] + [' ∞ ']
 plt.xticks(ticks, tick_lbls)
-plt.title("Pr[failure] = %d/%d" % (failure_prob[0], failure_prob[1]))
+plt.title("%s, Pr[failure] = %d/%d" % (topo, failure_prob[0], failure_prob[1]))
 plt.legend()
 plt.xlabel("max #failures")
 plt.ylabel("Pr[delivery | #failures ≤ x]")

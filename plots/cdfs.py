@@ -23,8 +23,8 @@ for file in glob(os.path.join(folder, '*/*.json')):
   if this['topology'] == topo and this['failure_prob'] == failure_prob and this['max_failures'] == max_failures:
     plt.plot(range(1,33), this['hop_count_cdf'], label=this['routing_scheme'])
 
-plt.title("Pr[failure] = %d/%d, max failures = %s" % 
-             (failure_prob[0], failure_prob[1], '∞' if max_failures == -1 else str(max_failures)))
+plt.title("%s, Pr[failure] = %d/%d, max failures = %s" % 
+             (topo, failure_prob[0], failure_prob[1], '∞' if max_failures == -1 else str(max_failures)))
 plt.legend()
 plt.xlabel("#hops")
 plt.ylabel("Pr[#hops ≤ x]")
