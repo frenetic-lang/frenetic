@@ -145,6 +145,9 @@ and analyze_hop_count ~sw_pol ~topo ~failure_prob ~max_failures =
     )
   )
   |> List.rev
+  (* hop_count[i] = Pr[π.ttl >= bound - (i+1) ]
+                  = Pr[#hops(π) <= i+1]
+   *)
 
 
 let parse_list l ~f =
