@@ -13,7 +13,7 @@ if len(argv) != 3:
 
 folder = argv[1]
 topo = argv[2]
-failure_prob = [0,1]
+failure_prob = [1,16]
 max_failures = -1
 
 for file in glob(os.path.join(folder, '*/*.json')):
