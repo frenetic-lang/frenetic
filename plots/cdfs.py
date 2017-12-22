@@ -18,7 +18,7 @@ for file in glob(os.path.join(folder, '*/*.json')):
   print(file)
   raw_data = Path(file).read_text()
   this = json.loads(raw_data)
-  if this['topology'] == topo and this['failure_prob'] == [1,32] and this['max_failures'] == -1:
+  if this['topology'] == topo and this['failure_prob'] == [0,1] and this['max_failures'] == -1:
     plt.plot(range(1,33), this['hop_count_cdf'], label=this['routing_scheme'])
 
 

@@ -86,7 +86,6 @@ let parse_trees topo file : (int list) Int.Table.t =
       let dst = parse_sw dst in
       let edge = Hashtbl.find_exn topo.edge_tbl (src,dst) in
       let (_, out_port) = Net.Topology.edge_src edge in
-      (* find destination port *)
       Hashtbl.add_multi tbl ~key:src ~data:(Topology.pt_val out_port)
     | _ ->
       failwith "unexpected format"

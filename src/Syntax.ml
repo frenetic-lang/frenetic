@@ -157,7 +157,7 @@ module Constructors = struct
       List.fold_right xs ~init:otherwise ~f:(fun x acc ->
         let guard, body = f x in
         ite guard body acc
-        )
+      )
 
     let whl a p = match a with
       | True -> drop
