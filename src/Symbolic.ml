@@ -363,7 +363,7 @@ module PrePacket = struct
   let empty = Field.Map.empty
 
   let modify (pk : t) (f : Field.t) (v : nomval) : t =
-    Map.add pk ~key:f ~data:v
+    Map.set pk ~key:f ~data:v
 
   let test (pk : t) (f : Field.t) (v : Value.t) : bool =
     match Map.find pk f with
@@ -697,7 +697,7 @@ module Coding(D : DOM) : CODING = struct
 
     let to_pre_pk t =
       List.fold2_exn t ejection ~init:Field.Map.empty ~f:(fun pk v (f, veject) ->
-        Field.Map.add pk ~key:f ~data:(veject v))
+        Field.Map.set pk ~key:f ~data:(veject v))
 
     let of_pre_pk pk =
       List.map injection ~f:(fun (f, vinj) -> vinj (Field.Map.find_exn pk f))
@@ -779,7 +779,7 @@ module Fdd0 = struct
         of_leaf r dom
       | Branch ((f,v), tru, fls) ->
         let v = PrePacket.Const v in
-        let tru_dom = Map.add dom ~key:f ~data:Domain.Valset.(singleton v) in
+        let tru_dom = Map.set dom ~key:f ~data:Domain.Valset.(singleton v) in
         let fls_dom = Map.update dom f ~f:(function
           | None -> assert false
           | Some vs -> Set.remove vs v)
@@ -811,7 +811,7 @@ module Matrix = struct
       | `Left _ -> assert false
       | `Right vs -> List.concat_map pks ~f:(fun pk ->
           Set.to_list vs
-          |> List.map ~f:(fun v -> Field.Map.add pk ~key:f ~data:v)
+          |> List.map ~f:(fun v -> Field.Map.set pk ~key:f ~data:v)
         )
     )
 
@@ -1123,7 +1123,7 @@ module Fdd = struct
 
     let send_matrix_entry (i,j,p) : unit =
       Prob.to_float p
-      |> Float.to_string_round_trippable
+      |> Float.to_string
       |> Out_channel.fprintf to_py "%d %d %s\n" i j
     in
 
@@ -1153,7 +1153,7 @@ module Fdd = struct
         f (); exit 0
       with e ->
         printf "Uncaught exception in forked process:\n\t%s\n%!" (Exn.to_string e);
-        printf "%s\n%!" (Exn.backtrace ());
+        (* printf "%s\n%!" (Exn.backtrace ()); *)
         exit 1
       end
     | `In_the_parent pid ->
