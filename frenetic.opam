@@ -1,5 +1,5 @@
 opam-version: "1.2"
-available: [ ocaml-version >= "4.04.0" ]
+available: [ ocaml-version >= "4.05.0" ]
 version: "4.2.0"
 maintainer: "Arjun Guha <arjun@cs.umass.edu>"
 authors: "Arjun Guha <arjun@cs.umass.edu>, Nate Foster <jnfoster@cs.cornell.edu>"
