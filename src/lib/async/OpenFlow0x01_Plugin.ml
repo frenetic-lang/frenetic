@@ -65,7 +65,7 @@ module LowLevel = struct
         | Ok proc ->
           Logging.info "Successfully launched OpenFlow controller with pid %s" (Pid.to_string (Process.pid proc));
           (* Redirect stdout of the child proc to out stdout for logging *)
-          let buf = String.create 1000 in
+          let buf = Bytes.create 1000 in
           don't_wait_for (Deferred.repeat_until_finished () (fun () ->
               Reader.read (Process.stdout proc) buf >>| function
               | `Eof -> `Finished ()

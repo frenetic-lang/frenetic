@@ -46,7 +46,7 @@ let openflow_events (r:Reader.t) : (Frenetic.OpenFlow_Header.t * Message.t) Pipe
   let reader,writer = Pipe.create () in
 
   let rec loop () =
-    let header_str = String.create Frenetic.OpenFlow_Header.size in
+    let header_str = Bytes.create Frenetic.OpenFlow_Header.size in
     Reader.really_read r header_str >>= function
     | `Eof _ ->
       Pipe.close writer;
@@ -54,7 +54,7 @@ let openflow_events (r:Reader.t) : (Frenetic.OpenFlow_Header.t * Message.t) Pipe
     | `Ok ->
       let header = Frenetic.OpenFlow_Header.parse (Cstruct.of_string header_str) in
       let body_len = header.length - Frenetic.OpenFlow_Header.size in
-      let body_str = String.create body_len in
+      let body_str = Bytes.create body_len in
       Reader.really_read r body_str >>= function
       | `Eof _ ->
         Pipe.close writer;

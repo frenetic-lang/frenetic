@@ -80,7 +80,7 @@ let read_respond_loop (reader : Reader.t)
   (message_sender : (Frenetic_kernel.OpenFlow_Header.xid -> Frenetic_kernel.OpenFlow0x04.Message.t -> unit))
   (flow_sender : Frenetic_kernel.OpenFlow.switchId -> unit) ()
   : [ `Finished of unit | `Repeat of unit ] Deferred.t =
-  let header_buf = String.create Frenetic_kernel.OpenFlow_Header.size in
+  let header_buf = Bytes.create Frenetic_kernel.OpenFlow_Header.size in
   Reader.really_read reader header_buf
   >>= function
   | `Eof _ ->
@@ -89,7 +89,7 @@ let read_respond_loop (reader : Reader.t)
   | `Ok ->
     let header = Frenetic_kernel.OpenFlow_Header.parse (Cstruct.of_string header_buf) in
     let message_len = header.length - Frenetic_kernel.OpenFlow_Header.size in
-    let message_buf = String.create message_len in
+    let message_buf = Bytes.create message_len in
     Reader.really_read reader message_buf
     >>= function
     | `Eof _ ->
