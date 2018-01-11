@@ -1,5 +1,5 @@
 opam-version: "1.2"
-available: [ ocaml-version >= "4.04.0" ]
+available: [ ocaml-version >= "4.05.0" ]
 version: "4.2.0"
 maintainer: "Arjun Guha <arjun@cs.umass.edu>"
 authors: "Arjun Guha <arjun@cs.umass.edu>, Nate Foster <jnfoster@cs.cornell.edu>"
@@ -22,7 +22,7 @@ depends: [
   "base64" {>= "2.0.0"}
   "cohttp"
   "cohttp-async"
-  "core"   {>= "0.9.0"}
+  "core"   {>= "v0.9.0" & < "v0.10.0"}
   "cstruct" {>= "1.0.1"}
   "cstruct-async"
   "ipaddr" {>= "2.5.0"}
