@@ -18,7 +18,7 @@
 (rule
  ((targets (Tokens.ml))
   (deps    (Tokens.mly))
-  (action  (run ${bin:menhir} --only-tokens ${<}))))
+  (action  (run ${bin:menhir} --only-tokens --infer ${<}))))
 
 ;; generate lexer -- temporary hack while ppx_sedlex and ppx_import are incompatible with jbuilder!!
 (rule

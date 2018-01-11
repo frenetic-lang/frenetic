@@ -611,7 +611,7 @@ module Action = struct
        * into into one. *)
       match Seq.find seq (F Field.Location) with
       | Some(Value.Query _) -> None
-      | Some(Value.Pipe  _) -> Some(Seq.add seq (F Field.Location) (Value.Pipe ""))
+      | Some(Value.Pipe  _) -> Some(Seq.set seq (F Field.Location) (Value.Pipe ""))
       | _                   -> Some(seq))
     in
     let to_port p = match in_port with
