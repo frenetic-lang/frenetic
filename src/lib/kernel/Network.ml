@@ -584,17 +584,14 @@ struct
         done
       done;
       let paths = ref [] in
-      Array.iteri (fun i array ->
-        Array.iteri (fun j elt ->
-          if (f (vxs.(i)) (vxs.(j))) then
-            (match elt with
-              | None, _ -> ()
-              | Some w, p ->
-                paths := (w, vxs.(i), vxs.(j),Lazy.force p) :: !paths)
-          else
-            ())
-          array;)
-        matrix;
+      Array.iteri matrix ~f:(fun i array ->
+        Array.iteri array ~f:(fun j elt ->
+          match elt with
+          | Some w, p when f (vxs.(i)) (vxs.(j)) ->
+            paths := (w, vxs.(i), vxs.(j),Lazy.force p) :: !paths
+          | _ -> ()
+        )
+      );
       !paths
   end
 

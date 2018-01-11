@@ -257,12 +257,12 @@ let run_server port rpc_port =
   don't_wait_for
     (Tcp.Server.create
        ~on_handler_error:`Raise
-       (Tcp.on_port port)
+       (Tcp.Where_to_listen.of_port port)
        client_handler >>= fun _ ->
      return ());
   Tcp.Server.create
     ~on_handler_error:`Raise
-    (Tcp.on_port rpc_port)
+    (Tcp.Where_to_listen.of_port rpc_port)
     rpc_handler >>= fun _ -> return ()
 
 let spec =
@@ -274,7 +274,7 @@ let spec =
   +> flag "-v" no_arg ~doc:" enable verbose logging (`Debug level)"
 
 let run =
-  Command.basic
+  Command.basic_spec
     ~summary:"Run OpenFlow0x01 controller"
     spec
     (fun port rpc_port log_file verbose () ->

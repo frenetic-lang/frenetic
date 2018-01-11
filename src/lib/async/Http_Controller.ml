@@ -140,7 +140,7 @@ let listen ~http_port ~openflow_port =
   let on_handler_error = `Call print_error in
   let _ = Cohttp_async.Server.create
     ~on_handler_error
-    (Tcp.on_port http_port)
+    (Tcp.Where_to_listen.of_port http_port)
     (handle_request (module Controller)) in
   let (_, pol_reader) = DynGraph.to_pipe pol in
   let _ = Pipe.iter pol_reader ~f:(fun pol -> Controller.update pol) in

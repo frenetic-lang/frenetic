@@ -119,7 +119,7 @@ let main (of_port : int) (pol_file : string)
   let pol = Frenetic_netkat.Parser.pol_of_file pol_file in
   let compiler_opts = {default_compiler_options with field_order = `Static (List.concat layout)} in
   let fdd = compile pol ~options:compiler_opts in
-  let _ = Tcp.Server.create ~on_handler_error:`Raise (Tcp.on_port of_port)
+  let _ = Tcp.Server.create ~on_handler_error:`Raise (Tcp.Where_to_listen.of_port of_port)
     (fun _ reader writer ->
       let message_sender = send_message writer in
       let flow_sender = implement_flow writer fdd layout in
@@ -137,7 +137,7 @@ let fault_tolerant_main (of_port : int) (pol_file : string)
   let fdd = Frenetic_netkat.Local_compiler.compile pol in
   let topo = Frenetic_kernel.Net.Net.Topology.empty () in
   (* let topo = Frenetic_kernel.Net.Net.Parse.from_dotfile topo_file in *)
-  let _ = Tcp.Server.create ~on_handler_error:`Raise (Tcp.on_port of_port)
+  let _ = Tcp.Server.create ~on_handler_error:`Raise (Tcp.Where_to_listen.of_port of_port)
     (fun _ reader writer ->
       let message_sender = send_message writer in
       let flow_sender = implement_tolerant_flow writer fdd topo in

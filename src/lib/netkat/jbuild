@@ -69,6 +69,7 @@
                     ppx_compare
                     ppx_fields_conv
                     ppx_sexp_conv
+                    ppx_hash
                     ocaml-migrate-parsetree.driver-main -no-check
                    )))
  )

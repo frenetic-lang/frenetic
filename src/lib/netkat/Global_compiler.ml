@@ -111,7 +111,8 @@ module Automaton = struct
   module S = struct
     module S = struct
       include Set.Make(Int64)
-      let hash = Hashtbl.hash
+      let hash_fold_t state x = [%hash_fold: Int64.t list] state (to_list x)
+      let hash = Ppx_hash_lib.Std.Hash.run hash_fold_t
     end
     include Hashable.Make(S)
     include S
