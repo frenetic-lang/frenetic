@@ -22,7 +22,7 @@ depends: [
   "base64" {>= "2.0.0"}
   "cohttp"
   "cohttp-async"
-  "core"   {>= "0.9.0"}
+  "core"   {>= "v0.9.0" & < "v0.10.0"}
   "cstruct" {>= "1.0.1"}
   "cstruct-async"
   "ipaddr" {>= "2.5.0"}
