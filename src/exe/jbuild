@@ -4,4 +4,5 @@
  ((names        (main openflow))
   (public_names (frenetic frenetic.openflow))
   (libraries (core async async_extended frenetic))
+  (flags (:standard -safe-string))
 ))

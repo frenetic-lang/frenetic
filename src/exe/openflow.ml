@@ -52,7 +52,7 @@ let openflow_events (r:Reader.t) : (Frenetic.OpenFlow_Header.t * Message.t) Pipe
       Pipe.close writer;
       return ()
     | `Ok ->
-      let header = Frenetic.OpenFlow_Header.parse (Cstruct.of_string header_str) in
+      let header = Frenetic.OpenFlow_Header.parse (Cstruct.of_bytes header_str) in
       let body_len = header.length - Frenetic.OpenFlow_Header.size in
       let body_str = Bytes.create body_len in
       Reader.really_read r body_str >>= function
@@ -60,7 +60,7 @@ let openflow_events (r:Reader.t) : (Frenetic.OpenFlow_Header.t * Message.t) Pipe
         Pipe.close writer;
         return ()
       | `Ok ->
-        let _,message = Message.parse header body_str in
+        let _,message = Message.parse header (Bytes.to_string body_str) in
         Pipe.write_without_pushback writer (header,message);
         loop () in
   don't_wait_for (loop ());

@@ -69,7 +69,7 @@ module LowLevel = struct
           don't_wait_for (Deferred.repeat_until_finished () (fun () ->
               Reader.read (Process.stdout proc) buf >>| function
               | `Eof -> `Finished ()
-              | `Ok n -> `Repeat (Writer.write (Lazy.force Writer.stdout) ~len:n buf)));
+              | `Ok n -> `Repeat (Writer.write (Lazy.force Writer.stdout) ~len:n (Bytes.to_string buf))));
           Logging.info "Connecting to first OpenFlow server socket";
           let rec wait_for_server () =
             Monitor.try_with ~extract_exn:true (fun () -> Socket.connect (Socket.create Socket.Type.tcp) sock_addr) >>= function

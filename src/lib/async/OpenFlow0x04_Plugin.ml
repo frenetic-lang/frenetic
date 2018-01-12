@@ -87,7 +87,7 @@ let read_respond_loop (reader : Reader.t)
     Logging.info "Connection closed reading header";
     return (`Finished ())
   | `Ok ->
-    let header = Frenetic_kernel.OpenFlow_Header.parse (Cstruct.of_string header_buf) in
+    let header = Frenetic_kernel.OpenFlow_Header.parse (Cstruct.of_bytes header_buf) in
     let message_len = header.length - Frenetic_kernel.OpenFlow_Header.size in
     let message_buf = Bytes.create message_len in
     Reader.really_read reader message_buf
@@ -96,7 +96,7 @@ let read_respond_loop (reader : Reader.t)
       Logging.info "Error reading client message";
       return (`Finished ())
     | `Ok ->
-      let (xid, body) = Frenetic_kernel.OpenFlow0x04.Message.parse header message_buf in
+      let (xid, body) = Frenetic_kernel.OpenFlow0x04.Message.parse header (Bytes.to_string message_buf) in
       process_message xid body message_sender flow_sender;
       return (`Repeat ())
 
