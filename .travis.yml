@@ -4,8 +4,8 @@ env:
   - PACKAGE=frenetic
   - secure: S2gNgyfUoFT0UZp0AFh34Rh6teIQ2dC8qjrsN+Lr7IWsjglre0HnSfzpFwpCES810LcZanHT3V7BKwbOUse/1pjqW2bXYPqbbdplwaY+PK6gkc9JDEOgXOyoPHbtmBAT2n20OAvz7Ih0CUMlLwBJyBlpi6LA+Zk2uYUhjUY32us=
   matrix:
-  - OCAML=4.04.2
   - OCAML=4.05.0
+  - OCAML=4.06.0
 script:
 - echo "yes" | sudo add-apt-repository ppa:avsm/ppa
 - sudo apt-get update -qq
