@@ -112,8 +112,12 @@ module Mininet = struct
       | Host id -> Network.Node.Host, id in
 
     (* Get all unique locations *)
-    let locations = List.dedup (List.fold location_tuples ~init:[]
-        ~f:(fun acc (x, y) -> location_to_id x :: location_to_id y :: acc)) in
+    let locations =
+      List.fold location_tuples ~init:[] ~f:(fun acc (x, y) -> 
+        location_to_id x :: location_to_id y :: acc
+      )
+      |> List.dedup_and_sort
+    in
 
     (* Get a topology with all vertices *)
     let topo_with_vertexes, loc_tup_to_vertex_table = List.fold locations ~init:(Network.Net.Topology.empty (), [])

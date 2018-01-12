@@ -111,7 +111,8 @@ module Automaton = struct
   module S = struct
     module S = struct
       include Set.Make(Int64)
-      let hash = Hashtbl.hash
+      let hash_fold_t state x = [%hash_fold: Int64.t list] state (to_list x)
+      let hash = Ppx_hash_lib.Std.Hash.run hash_fold_t
     end
     include Hashable.Make(S)
     include S
@@ -281,7 +282,7 @@ module Automaton = struct
             |> S.of_list
           in
           let k = merge ks in
-          List.hd_exn group |> Action.Seq.add ~key:K ~data:(Value.of_int64 k))
+          List.hd_exn group |> Action.Seq.set ~key:K ~data:(Value.of_int64 k))
       |> Action.Par.of_list
     in
     let dedup_fdd = FDD.map_r ~f:determinize_action in
@@ -563,7 +564,7 @@ module Automaton = struct
             if unique then
               seq
             else
-              Seq.add seq ~key:(F pc) ~data:pc_val
+              Seq.set seq ~key:(F pc) ~data:pc_val
           ))
           d
       in

@@ -120,7 +120,7 @@ let run cmd verbosity log =
   never_returns (Async.Scheduler.go ())
 
 let shell : Command.t =
-  Command.basic
+  Command.basic_spec
     ~summary:"Invokes frenetic shell."
     Command.Spec.(empty
       +> Flag.openflow_port
@@ -129,7 +129,7 @@ let shell : Command.t =
       run (Frenetic.Async.Shell.main openflow_port))
 
 let compile_server : Command.t =
-  Command.basic
+  Command.basic_spec
     ~summary:"Invokes compile server."
     Command.Spec.(empty
       +> Flag.http_port
@@ -138,7 +138,7 @@ let compile_server : Command.t =
       run (Frenetic.Async.Compile_Server.main http_port))
 
 let http_controller : Command.t =
-  Command.basic
+  Command.basic_spec
     ~summary:"Invokes http controler."
     Command.Spec.(empty
       +> Flag.http_port
@@ -148,7 +148,7 @@ let http_controller : Command.t =
       run (Frenetic.Async.Http_Controller.main http_port openflow_port))
 
 let openflow13_controller : Command.t =
-  Command.basic
+  Command.basic_spec
     ~summary:"Invokes openflow 1.3 controler."
     Command.Spec.(empty
       +> Flag.openflow_port
@@ -159,7 +159,7 @@ let openflow13_controller : Command.t =
       run (Frenetic.Async.OpenFlow0x04_Plugin.main openflow_port policy_file table_fields))
 
 let openflow13_fault_tolerant_controller : Command.t =
-  Command.basic
+  Command.basic_spec
     ~summary:"Invokes fault-tolerant openflow 1.3 controler."
     Command.Spec.(empty
       +> Flag.openflow_port
@@ -171,7 +171,7 @@ let openflow13_fault_tolerant_controller : Command.t =
         openflow_port policy_file topology_file))
 
 let portless_controller : Command.t =
-  Command.basic
+  Command.basic_spec
     ~summary:"Starts a controller with specified topology and installed rules generated from portless policy."
     Command.Spec.(empty
                   +> Flag.openflow_port

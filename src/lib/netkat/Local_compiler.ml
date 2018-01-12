@@ -610,7 +610,7 @@ let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
     |> List.filter ~f:(fun subtrees -> subtrees <> [])
     |> List.foldi ~init:Map.Poly.empty ~f:(fun tbl_id accum subtrees ->
       List.fold_right subtrees ~init:accum ~f:(fun t accum ->
-        Map.add accum ~key:t ~data:(tbl_id,(post meta_id))))
+        Map.set accum ~key:t ~data:(tbl_id,(post meta_id))))
 
 (* make a flow struct that includes the table and meta id of the flow *)
 let mk_multitable_flow options (pattern : Frenetic_kernel.OpenFlow.Pattern.t)

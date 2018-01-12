@@ -46,21 +46,21 @@ let openflow_events (r:Reader.t) : (Frenetic.OpenFlow_Header.t * Message.t) Pipe
   let reader,writer = Pipe.create () in
 
   let rec loop () =
-    let header_str = String.create Frenetic.OpenFlow_Header.size in
+    let header_str = Bytes.create Frenetic.OpenFlow_Header.size in
     Reader.really_read r header_str >>= function
     | `Eof _ ->
       Pipe.close writer;
       return ()
     | `Ok ->
-      let header = Frenetic.OpenFlow_Header.parse (Cstruct.of_string header_str) in
+      let header = Frenetic.OpenFlow_Header.parse (Cstruct.of_bytes header_str) in
       let body_len = header.length - Frenetic.OpenFlow_Header.size in
-      let body_str = String.create body_len in
+      let body_str = Bytes.create body_len in
       Reader.really_read r body_str >>= function
       | `Eof _ ->
         Pipe.close writer;
         return ()
       | `Ok ->
-        let _,message = Message.parse header body_str in
+        let _,message = Message.parse header (Bytes.to_string body_str) in
         Pipe.write_without_pushback writer (header,message);
         loop () in
   don't_wait_for (loop ());
@@ -257,12 +257,12 @@ let run_server port rpc_port =
   don't_wait_for
     (Tcp.Server.create
        ~on_handler_error:`Raise
-       (Tcp.on_port port)
+       (Tcp.Where_to_listen.of_port port)
        client_handler >>= fun _ ->
      return ());
   Tcp.Server.create
     ~on_handler_error:`Raise
-    (Tcp.on_port rpc_port)
+    (Tcp.Where_to_listen.of_port rpc_port)
     rpc_handler >>= fun _ -> return ()
 
 let spec =
@@ -274,7 +274,7 @@ let spec =
   +> flag "-v" no_arg ~doc:" enable verbose logging (`Debug level)"
 
 let run =
-  Command.basic
+  Command.basic_spec
     ~summary:"Run OpenFlow0x01 controller"
     spec
     (fun port rpc_port log_file verbose () ->

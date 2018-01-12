@@ -1,4 +1,4 @@
-open Core
+ open Core
 open Async
 open Cohttp_async
 open Frenetic_netkat.Syntax
@@ -69,7 +69,12 @@ let handle_request
        Cohttp_async.Server.respond `Not_found
 
 let listen ?(port=9000) () =
-  ignore (Cohttp_async.Server.create (Tcp.on_port port) handle_request)
+  Cohttp_async.Server.create
+    ~on_handler_error:`Raise
+    (Tcp.Where_to_listen.of_port port)
+    handle_request
+  |> ignore
 
-let main (http_port : int) () : unit = listen ~port:http_port ()
+let main (http_port : int) () : unit =
+  listen ~port:http_port ()
 

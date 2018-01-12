@@ -18,7 +18,7 @@
 (rule
  ((targets (Tokens.ml))
   (deps    (Tokens.mly))
-  (action  (run ${bin:menhir} --only-tokens ${<}))))
+  (action  (run ${bin:menhir} --only-tokens --infer ${<}))))
 
 ;; generate lexer -- temporary hack while ppx_sedlex and ppx_import are incompatible with jbuilder!!
 (rule
@@ -69,8 +69,10 @@
                     ppx_compare
                     ppx_fields_conv
                     ppx_sexp_conv
+                    ppx_hash
                     ocaml-migrate-parsetree.driver-main -no-check
                    )))
+  (flags (:standard -safe-string))
  )
 )
 
