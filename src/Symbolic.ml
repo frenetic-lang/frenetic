@@ -1,5 +1,4 @@
 open Core
-module Sparse = Owl.Sparse.Matrix.D
 
 module Field = struct
   module T = struct
@@ -844,13 +843,11 @@ module Matrix = struct
   let get_pk_action t (pk : PrePacket.t) : ActionDist.t =
     let module Coding = (val t.coding : CODING) in
     let row_to_action row : ActionDist.t =
-      Sparse.foldi_nz (fun _i j dist prob ->
-          Coding.Index0.to_pk { i = j }
-          |> Packet.to_action
-          |> ActionDist.unsafe_add dist (Prob.of_float prob)
-        )
-        ActionDist.empty
-        row
+      Sparse.foldi_nz row ~init:ActionDist.empty ~f:(fun _i j dist prob ->
+        Coding.Index0.to_pk { i = j }
+        |> Packet.to_action
+        |> ActionDist.unsafe_add dist (Prob.of_float prob)
+      )
       |> ActionDist.unsafe_normalize
     in
     let total_pk_action pk : ActionDist.t =

@@ -12,9 +12,9 @@ let run p =
   |> Fdd.to_string
   |> printf "%s\n"
 
-
+(* 
 module Dense = Owl.Dense.Matrix.D
-module Sparse = Owl.Sparse.Matrix.D
+module Sparse = Owl.Sparse.Matrix.D *)
 
 let run ?(print=true) ?(debug=false) ?(verbose=false) p =
   printf "\n========================= Probnetkat ==========================\n%!";

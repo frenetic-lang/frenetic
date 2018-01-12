@@ -250,13 +250,13 @@ struct
         let id = t.next_node + 1 in
         let v = { id = id; label = l } in
         let g = P.add_vertex t.graph v in
-        let nl = VertexMap.add t.node_info l (v, PortSet.empty) in
+        let nl = VertexMap.set t.node_info l (v, PortSet.empty) in
         ({ t with graph=g; node_info=nl; next_node = id}, v)
 
     let add_port (t:t) (v:vertex) (p:port) : t =
       let l = v.VL.label in
       let v, ps = VertexMap.find_exn t.node_info l in
-      let node_info = VertexMap.add t.node_info l (v, PortSet.add ps p) in
+      let node_info = VertexMap.set t.node_info l (v, PortSet.add ps p) in
       { t with node_info }
 
     let add_edge (t:t) (v1:vertex) (p1:port) (l:Edge.t) (v2:vertex) (p2:port) : t * edge =
@@ -374,7 +374,7 @@ struct
     let remove_port (t:t) (v:vertex) (p:port) : t =
       let v, ps = VertexMap.find_exn t.node_info v.VL.label in
       let ps = PortSet.remove ps p in
-      let node_info = VertexMap.add t.node_info v.VL.label (v, ps) in
+      let node_info = VertexMap.set t.node_info v.VL.label (v, ps) in
       { t with node_info }
 
     let remove_edge (t:t) (e:edge) : t =
@@ -390,7 +390,7 @@ struct
       let v, p = ep in
       let v, ps = VertexMap.find_exn t.node_info v.VL.label in
       let ps = PortSet.remove ps p in
-      let node_info = VertexMap.add t.node_info v.VL.label (v, ps) in
+      let node_info = VertexMap.set t.node_info v.VL.label (v, ps) in
       { t with node_info }
 
    let remove_port (t:t) (v:vertex) (p:port) =
@@ -617,7 +617,7 @@ struct
           { t with graph = P.remove_edge_e t.graph e }
         let add_vertex t v =
           { t with graph = P.add_vertex t.graph v ;
-            node_info = VertexMap.add t.node_info v.Topology.VL.label (v, PortSet.empty) ;
+            node_info = VertexMap.set t.node_info v.Topology.VL.label (v, PortSet.empty) ;
             next_node = v.Topology.VL.id + 1}
         let add_edge t v1 v2 =
           { t with graph = P.add_edge t.graph v1 v2 ; next_edge = t.next_edge + 1}

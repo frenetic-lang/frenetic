@@ -98,7 +98,7 @@ let () = begin
   |> List.map ~f:fst
   |> List.map ~f:(Topology.sw_val topo)
   |> List.sort ~cmp:Int.compare
-  |> List.dedup
+  |> List.dedup_and_sort
   |> List.map ~f:(sprintf "%d")
   |> String.concat ~sep:", "
   |> printf "ingress switches: %s.\n";
