@@ -2,7 +2,7 @@
 
 (executable
  ((name test)
-  (libraries (probnetkat alcotest qcheck))))
+  (libraries (probnetkat alcotest))))
 
 (alias
  ((name runtest)
