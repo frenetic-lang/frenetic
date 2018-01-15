@@ -1,15 +1,16 @@
 open Core
 module Netkat = Frenetic.Netkat
-open Async_unix
 
 (*===========================================================================*)
 (* UTILITY FUNCTIONS                                                         *)
 (*===========================================================================*)
 
-let parse_pol ?(json=false) file =
-  match json with
-  | false -> Netkat.Parser.pol_of_file file
-  | true ->
+let parse_pol ?(json=false) (policy : [`File of string | `String of string]) =
+  match json, policy with
+  | false, `String s -> Netkat.Parser.pol_of_string s
+  | false, `File file -> Netkat.Parser.pol_of_file file
+  | true, `String s -> Netkat.Json.pol_of_json_string s
+  | true, `File file ->
     In_channel.create file
     |> Netkat.Json.pol_of_json_channel
 
@@ -44,7 +45,7 @@ module Controller = NetKAT_Controller.Make(OpenFlow0x01_Plugin)
 
 let update_controller ?(port=6633) fdd : unit =
   Controller.start port;
-  Thread_safe.block_on_async_exn (fun () -> Controller.update_fdd fdd)
+  Async_unix.Thread_safe.block_on_async_exn (fun () -> Controller.update_fdd fdd)
 
 let print_table fdd sw =
   Netkat.Local_compiler.to_table sw fdd
@@ -178,6 +179,10 @@ module Flag = struct
   let remove_topo =
     flag "--remove-topo" no_arg
       ~doc:"Remove topology states from automaton. (Not equivalence preserving!)"
+
+  let stdin =
+    flag "--stdin" no_arg
+      ~doc:"Read policy from stdin instead of from file."
 end
 
 
@@ -196,10 +201,12 @@ module Local = struct
     +> Flag.json
     +> Flag.print_order
     +> Flag.update_controller
+    +> Flag.stdin
   )
 
-  let run file nr_switches printfdd dumpfdd no_tables json printorder updatecontroller () =
-    let pol = parse_pol ~json file in
+  let run file_or_pol nr_switches printfdd dumpfdd no_tables json printorder updatecontroller stdin () =
+    let pol =
+      parse_pol ~json (if stdin then `String file_or_pol else `File file_or_pol) in
     let (t, fdd) = time (fun () -> Netkat.Local_compiler.compile pol) in
     let switches = match nr_switches with
       | None -> Netkat.Semantics.switches_of_policy pol
@@ -211,6 +218,7 @@ module Local = struct
     else
       if printorder then print_order ();
       if printfdd then print_fdd fdd;
+      let file = if stdin then Sys.getcwd () ^ "stdin" else file_or_pol in
       if dumpfdd then dump_fdd fdd ~file:(file ^ ".dot");
       if updatecontroller then update_controller fdd;
       print_all_tables ~no_tables fdd switches;
@@ -232,15 +240,18 @@ module Global = struct
     +> Flag.print_order
     +> Flag.dump_local
     +> Flag.update_controller
+    +> Flag.stdin
   )
 
-  let run file printfdd dumpfdd printauto dumpauto no_tables json printorder
-    dumplocal updatecontroller () =
-    let pol = parse_pol ~json file in
+  let run file_or_pol printfdd dumpfdd printauto dumpauto no_tables json printorder
+    dumplocal updatecontroller stdin () =
+    let pol =
+      parse_pol ~json (if stdin then `String file_or_pol else `File file_or_pol) in
     let (t, fdd) = time (fun () -> Netkat.Global_compiler.compile pol) in
     let switches = Netkat.Semantics.switches_of_policy pol in
     if printorder then print_order ();
     if printfdd then print_fdd fdd;
+    let file = if stdin then Sys.getcwd () ^ "stdin" else file_or_pol in
     if dumpfdd then dump_fdd fdd ~file:(file ^ ".dot");
     begin match dumplocal with
       | Some file -> dump_local fdd ~file
@@ -274,18 +285,19 @@ module Virtual = struct
     +> Flag.dump_local
     +> Flag.update_controller
     +> Flag.dump_global
+    +> Flag.stdin
   )
 
-  let run vpol_file vrel vtopo ving_pol ving veg ptopo ping peg printfdd dumpfdd printglobal
-    no_tables printorder dumplocal updatecontroller dumpglobal () =
+  let run vpol_file_or_str vrel vtopo ving_pol ving veg ptopo ping peg printfdd dumpfdd printglobal
+    no_tables printorder dumplocal updatecontroller dumpglobal stdin () =
     (* parse files *)
-    let vpol = parse_pol vpol_file in
+    let vpol = parse_pol (if stdin then `String vpol_file_or_str else `File vpol_file_or_str) in
     let vrel = parse_pred vrel in
-    let vtopo = parse_pol vtopo in
-    let ving_pol = parse_pol ving_pol in
+    let vtopo = parse_pol (`File vtopo) in
+    let ving_pol = parse_pol (`File ving_pol) in
     let ving = parse_pred ving in
     let veg = parse_pred veg in
-    let ptopo = parse_pol ptopo in
+    let ptopo = parse_pol (`File ptopo) in
     let ping = parse_pred ping in
     let peg = parse_pred peg in
 
@@ -308,7 +320,8 @@ module Virtual = struct
     end;
     if printorder then print_order ();
     if printfdd then print_fdd fdd;
-    if dumpfdd then dump_fdd fdd ~file:(vpol_file ^ ".dot");
+    let file = if stdin then Sys.getcwd () ^ "stdin" else vpol_file_or_str in
+    if dumpfdd then dump_fdd fdd ~file:(file ^ ".dot");
     begin match dumplocal with
       | Some file -> dump_local fdd ~file
       | None -> ()
@@ -333,7 +346,7 @@ module Auto = struct
 
   let run file json printorder dedup cheap_minimize remove_topo () =
     let open Netkat.Global_compiler in
-    let pol = parse_pol ~json file in
+    let pol = parse_pol ~json (`File file) in
     let (t, auto) = time (fun () ->
       Automaton.of_policy pol ~dedup ~cheap_minimize) in
     if remove_topo then ignore (Automaton.skip_topo_states auto);
