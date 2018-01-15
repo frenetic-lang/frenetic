@@ -28,8 +28,11 @@ module type CONTROLLER = sig
   (** [port_stats sw pt] returns byte and packet counts for switch[sw] port [pt]. *)
   val port_stats : switchId -> portId -> portStats Deferred.t
 
-  (** [update p] sets the global policy to [p]. *)
+  (** [update p] sets to local policy [p]. *)
   val update : Frenetic_netkat.Syntax.policy -> unit Deferred.t
+
+  (** [update p] sets to global policy [p]. *)
+  val update_global : Frenetic_netkat.Syntax.policy -> unit Deferred.t
 
   (** [update_fdd fdd] sets the global policy to the one encoded by the FDD. *)
   val update_fdd : Frenetic_netkat.Local_compiler.t -> unit Deferred.t
