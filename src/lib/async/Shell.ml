@@ -2,9 +2,9 @@ open Core
 open Async
 open Frenetic_netkat.Syntax
 
+module Netkat = Frenetic_netkat
 module Controller = NetKAT_Controller.Make(OpenFlow0x01_Plugin)
-module Comp = Frenetic_netkat.Local_compiler
-module Field = Frenetic_netkat.Fdd.Field
+module Field = Netkat.Fdd.Field
 
 type showable =
   (* usage: order
@@ -14,18 +14,21 @@ type showable =
    * Shows the policy that is currently active.   *)
   | Policy
   (* usage: flow-table [policy]
-   * Shows the flow-table produced by the specified policy.
-   * If no policy is specified, the current policy is used. *)
-  | FlowTable of (policy * string) option
+   * Shows the flow-table produced by current policy *)
+  | FlowTable
   (* usage: help
    * Displays a helpful message. *)
   | Help
 
 type command =
   (* usage: update <policy>
-   * Compiles the specified policy using the current ordering
+   * Compiles the specified local policy using the current ordering
    * and updates the controller with the new flow-table *)
   | Update of (policy * string)
+  (* usage: update-global <policy>
+   * Compiles the specified global policy using the current ordering
+   * and updates the controller with the new flow-table *)
+  | UpdateGlobal of (policy * string)
   (* usage: order <ordering>
    * Sets the order which the compiler will select field names when
    * constructing the BDD.
@@ -34,7 +37,7 @@ type command =
    *   default - Uses the default ordering as specified in Frenetic_netkat.LocalCompiler
    *   f_1 < f_2 [ < f_3 < ... < f_n ] - Given two or more fields, ensures the
    *                                     order of the specified fields is maintained. *)
-  | Order of Comp.order
+  | Order of Netkat.Local_compiler.order
   (* usage: remove_tail_drops
    * Remove any drop rules at the end of each flow table.  Toggles setting.
   *)
@@ -46,11 +49,15 @@ type command =
    * Exits the shell. *)
   | Quit
   (* usage: load <filename>
-   * Loads the specified file as a policy and compiles it updating the controller with
-   * the new flow table. *)
+   * Loads the specified file as a local policy and compiles it updating
+     the controller with the new flow table. *)
   | Load of string
+  (* usage: load-global <filename>
+   * Like load, but for global policy *)
+  | LoadGlobal of string
   (* See showables for more details *)
   | Show of showable
+
 
 module Parser = struct
 
@@ -99,18 +106,23 @@ module Parser = struct
 
     (* Parser for netkat policies *)
     let policy' : ((policy * string), bytes list) MParser.t =
-      many_until any_char eof >>=
-	(fun pol_chars ->
-	 let pol_str = String.of_char_list pol_chars in
-	 match parse_policy pol_str with
-	 | Ok pol -> return (pol, pol_str)
-	 | Error msg -> fail msg)
+      many_until any_char eof >>= fun pol_chars ->
+      let pol_str = String.of_char_list pol_chars in
+      match parse_policy pol_str with
+      | Ok pol -> return (pol, pol_str)
+      | Error msg -> fail msg
 
     (* Parser for the Update command *)
     let update : (command, bytes list) MParser.t =
       Tokens.symbol "update" >>
-	policy' >>=
-	(fun pol -> return (Update pol))
+    	policy' >>=
+    	(fun pol -> return (Update pol))
+
+    (* Parser for the Update global command *)
+    let update_global : (command, bytes list) MParser.t =
+      Tokens.symbol "update-global" >>
+      policy' >>=
+      (fun pol -> return (UpdateGlobal pol))
 
     (* Parser for the help command *)
     let help : (command, bytes list) MParser.t =
@@ -127,8 +139,14 @@ module Parser = struct
     (* Parser for the load command *)
     let load : (command, bytes list) MParser.t =
       Tokens.symbol "load" >>
-	many_until any_char eof >>=
-	(fun filename -> return (Load (String.of_char_list filename)))
+    	many_until any_char eof >>=
+    	(fun filename -> return (Load (String.of_char_list filename)))
+
+    (* Parser for the load-global command *)
+    let load_global : (command, bytes list) MParser.t =
+      Tokens.symbol "load-global" >>
+      many_until any_char eof >>=
+      (fun filename -> return (LoadGlobal (String.of_char_list filename)))
 
     (* Parser for the policy command *)
     let policy : (command, bytes list) MParser.t =
@@ -141,36 +159,38 @@ module Parser = struct
     (* Parser for the flow-table command *)
     let flowtable : (command, bytes list) MParser.t =
       Tokens.symbol "flow-table" >>
-	(eof >> return (Show (FlowTable None)) <|>
-	(policy' >>=
-	   (fun pol -> return (Show (FlowTable (Some pol))))))
+    	eof >> 
+      return (Show FlowTable)
 
    (* Parser for commands *)
     let command : (command, bytes list) MParser.t =
       order <|>
-	update <|>
-	policy <|>
-	help <|>
-	flowtable <|>
-  remove_tail_drops <|>
-	load <|>
-	exit <|>
-  quit
+      update_global <|>
+    	update <|>
+    	policy <|>
+    	help <|>
+    	flowtable <|>
+      remove_tail_drops <|>
+      load_global <|>
+    	load <|>
+    	exit <|>
+      quit
 
 end
 
-(* For convenience *)
-let compose f g x = f (g x)
 
 (* TODO(jcollard): The cache flag here is actually a problem. Changing ordering won't work as expected. *)
-let current_compiler_options = ref { Comp.default_compiler_options with cache_prepare = `Keep }
+let current_compiler_options =
+  ref { Netkat.Local_compiler.default_compiler_options with cache_prepare = `Keep }
 
 let set_field_order ord : unit =
   current_compiler_options := { !current_compiler_options with field_order = ord }
 
 (* Prints the current ordering mode. *)
 let print_order () : unit =
-  printf "Ordering Mode: %s\n%!" (Comp.field_order_to_string (!current_compiler_options).field_order)
+  (!current_compiler_options).field_order
+  |> Netkat.Local_compiler.field_order_to_string
+  |> printf "Ordering Mode: %s\n%!"
 
 (* Convenience function that checks that an ordering doesn't contain
  * duplicates. This is used in favor of List.contains_dup so a better
@@ -188,7 +208,7 @@ let rec check_duplicates (fs : Field.t list) (acc : Field.t list) : bool =
 (* Given an ordering, sets the order reference.
  * If a Static ordering is given with duplicates, the ordering
  * is not updated and an error message is printed *)
-let set_order (o : Comp.order) : unit =
+let set_order (o : Netkat.Local_compiler.order) : unit =
   match o with
   | `Heuristic ->
      set_field_order `Heuristic;
@@ -204,7 +224,7 @@ let set_order (o : Comp.order) : unit =
       | `Default -> Field.all
       | `Static fields -> fields
      in
-     let removed = List.filter curr_order (compose not (List.mem ls ~equal:Field.equal)) in
+     let removed = List.filter curr_order (Fn.compose not (List.mem ls ~equal:Field.equal)) in
      (* Tags all specified Fields at the highest priority *)
      let new_order = List.append (List.rev ls) removed in
      set_field_order (`Static new_order);
@@ -216,31 +236,33 @@ let toggle_remove_tail_drops () =
   printf "Remove Tail Drops: %B\n%!" (!current_compiler_options).remove_tail_drops
 
 (* A reference to the current policy and the associated string. *)
-let policy : (policy * string) ref = ref (drop, "drop")
+let policy : [`Local of (policy * string) | `Global of (policy * string) ] ref = 
+  ref (`Local (drop, "drop"))
+
+let compile_current () = match !policy with
+  | `Local (p,_) ->
+    Netkat.Local_compiler.compile ~options:(!current_compiler_options) p
+  | `Global (p,_) ->
+    Netkat.Global_compiler.compile ~options:(!current_compiler_options) p
 
 (* Prints the current policy *)
 let print_policy () =
   match !policy with
-    (_, p) -> printf "%s\n%!" p
+  | `Local (_, p) -> printf "Local policy:\n%s\n%!" p
+  | `Global (_, p) -> printf "Global policy:\n%s\n%!" p
 
-(* Given a policy, returns a pretty ascii table for each switch *)
-let string_of_policy (pol : policy) : string =
-  let bdd = Comp.compile ~options:(!current_compiler_options) pol in
+(* Print the flowtables associated with the current policy *)
+let print_policy_table () : unit =
+  let pol = match !policy with `Local (p,_) | `Global (p,_) -> p in
+  let fdd = compile_current () in
   let switches = Frenetic_netkat.Semantics.switches_of_policy pol in
-  let switches' = if List.is_empty switches then [0L] else switches in
-  let tbls = List.map switches'
-		      (fun sw_id -> Comp.to_table ~options:(!current_compiler_options) sw_id bdd |>
-				      Frenetic_kernel.OpenFlow.string_of_flowTable ~label:(Int64.to_string sw_id)) in
-  String.concat ~sep:"\n\n" tbls
+  (if List.is_empty switches then [0L] else switches)
+  |> List.map ~f:(fun sw -> 
+    Netkat.Local_compiler.to_table ~options:(!current_compiler_options) sw fdd 
+    |> Frenetic_kernel.OpenFlow.string_of_flowTable ~label:(Int64.to_string sw))
+  |> String.concat ~sep:"\n\n"
+  |> printf "%s%!"
 
-(* Given a policy, print the flowtables associated with it *)
-let print_policy_table (pol : (policy * string) option) : unit =
-  let (p, str) =
-    match pol with
-    | None -> !policy
-    | Some x -> x
-  in
-  printf "%s%!" (string_of_policy p)
 
 let parse_command (line : string) : command option =
   match (MParser.parse_string Parser.command line []) with
@@ -264,14 +286,19 @@ let help =
   "";
   "  policy              - Displays the policy that is currently active.";
   "";
-  "  flow-table [policy] - Displays the flow-table produced by the specified policy.";
+  "  flow-table          - Displays the flow-table produced by the specified policy.";
   "                        If no policy is specified, the current policy is used.";
   "";
-  "  update <policy>     - Compiles the specified policy using the current ordering";
+  "  update <policy>     - Compiles the specified local policy using the current";
+  "                        ordering and updates the controller with the resulting";
+  "                        flow-table.";
+  "";
+  "  update-global <pol> - Like update, but with a global policy.";
+  "";
+  "  load <file>         - Loads local policy from the specified file, compiles it,";
   "                        and updates the controller with the resulting flow-table.";
   "";
-  "  load <filename>     - Loads a policy from the specified file, compiles it, and";
-  "                        updates the controller with the resulting flow-table.";
+  "  load-global <file>  - Like load, but with global policy.";
   "";
   "  remove_tail_drops   - Remove drop rules at the end of each flow-table.  Toggles ";
   "                        setting.";
@@ -288,7 +315,7 @@ let print_help () : unit =
   printf "%s\n%!" help
 
 (* Loads a policy from a file and updates the controller *)
-let load_file (filename : string) : unit =
+let load_file (typ : [`Local | `Global]) (filename : string) : unit =
   try
     let open In_channel in
     let chan = create filename in
@@ -297,9 +324,14 @@ let load_file (filename : string) : unit =
     close chan;
     match pol with
     | Ok p ->
-       policy := (p, policy_string);
-       printf "%s\n%!" policy_string;
-       don't_wait_for (Controller.update p)
+      policy := begin match typ with 
+        | `Local -> `Local (p, policy_string)
+        | `Global -> `Global (p, policy_string)
+      end;
+      print_policy ();
+      compile_current ()
+      |> Controller.update_fdd
+      |> don't_wait_for
     | Error msg -> print_endline msg
   with
   | Sys_error msg -> printf "Load failed: %s\n%!" msg
@@ -317,11 +349,19 @@ let rec repl () : unit Deferred.t =
 		  | Some (Show Ordering) -> print_order ()
 		  | Some (Show Policy) -> print_policy ()
 		  | Some (Show Help) -> print_help ()
-		  | Some (Show (FlowTable t)) -> print_policy_table t
+		  | Some (Show FlowTable) -> print_policy_table ()
 		  | Some (Update (pol, pol_str)) ->
-		     policy := (pol, pol_str);
-         don't_wait_for (Controller.update pol)
-		  | Some (Load filename) -> load_file filename
+		     policy := `Local (pol, pol_str);
+         compile_current ()
+         |> Controller.update_fdd
+         |> don't_wait_for
+      | Some (UpdateGlobal (pol, pol_str)) ->
+         policy := `Global (pol, pol_str);
+         compile_current ()
+         |> Controller.update_fdd
+         |> don't_wait_for
+		  | Some (Load filename) -> load_file `Local filename
+      | Some (LoadGlobal filename) -> load_file `Global filename
 		  | Some (Order order) -> set_order order
       | Some (ToggleRemoveTailDrops) -> toggle_remove_tail_drops ()
 		  | None -> ()
