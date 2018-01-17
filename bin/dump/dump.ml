@@ -35,7 +35,7 @@ let empty = {
   hop_count_time = -2.0;
 }
 
-let dump_data data ~dir : unit =
+let dump_data (data : data) ~dir : unit =
   let scheme = String.tr data.routing_scheme ~target:' ' ~replacement:'_' in
   let dir = sprintf "%s/results/%s-%s" dir data.topology scheme in
   Unix.mkdir_p dir;
@@ -173,7 +173,6 @@ let () =
       )
     )
   | _ ->
-    printf "usage: %s [topology] [max failures] [Pr(failure)]\n"
-      Sys.argv.(0)
+    printf "usage: %s [topology] [max failures] [Pr(failure)]\n" Sys.argv.(0)
 
 
