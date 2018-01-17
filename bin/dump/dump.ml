@@ -61,7 +61,7 @@ and analyze_scheme base_name (routing_scheme, sw_pol) ~failure_prob ~max_failure
   printf "\n%s:\n" routing_scheme;
   Fdd.clear_cache ~preserve:Int.Set.empty;
   let _ = Util.timed' " - gc\t" ~log ~f:Gc.compact in
-  let hop_count_time, hop_count_cdf =
+(*   let hop_count_time, hop_count_cdf =
     Util.timed' " - hop count" ~log  ~f:(fun () ->
       analyze_hop_count ~sw_pol ~topo
         ~failure_prob:(fun _ _ -> failure_prob)
@@ -69,7 +69,7 @@ and analyze_scheme base_name (routing_scheme, sw_pol) ~failure_prob ~max_failure
     )
   in
   Fdd.clear_cache ~preserve:Int.Set.empty;
-  let _ = Util.timed' " - gc\t" ~log ~f:Gc.compact in
+  let _ = Util.timed' " - gc\t" ~log ~f:Gc.compact in *)
   let model = Model.make ~sw_pol ~topo
       ~failure_prob:(fun _ _ -> failure_prob)
       ~max_failures:(if max_failures = -1 then None else Some max_failures)
@@ -81,8 +81,8 @@ and analyze_scheme base_name (routing_scheme, sw_pol) ~failure_prob ~max_failure
     topology = Filename.basename base_name;
     max_failures;
     failure_prob = Z.(to_int Prob.(num failure_prob), to_int Prob.(den failure_prob));
-    hop_count_cdf = List.map hop_count_cdf ~f:Prob.to_float;
-    hop_count_time;
+    (* hop_count_cdf = List.map hop_count_cdf ~f:Prob.to_float; *)
+    (* hop_count_time; *)
   }
 
 and analyze_model model ~topo =
