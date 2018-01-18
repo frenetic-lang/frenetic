@@ -19,6 +19,7 @@ let destination = 1
 
 (** up bit associated with link *)
 let up sw pt = sprintf "up_%d" pt
+let is_up_field f = String.is_prefix ~prefix:"up_" f
 
 (** various files *)
 let topo_file base_name = base_name ^ ".dot"

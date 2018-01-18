@@ -9,6 +9,46 @@ module Net = Frenetic.Network.Net
 module Node = Frenetic.Network.Node
 module Topo = Net.Topology
 
+(* statically evaluate all up bit tests to True *)
+let delete_up_bits p =
+  let open Syntax.Constructors in
+  let rec do_pred a =
+    match a with
+    | Test (f,v) when Params.is_up_field f ->
+      True
+    | Test _ | True | False ->
+      a
+    | And (a,b) ->
+      conj (do_pred a) (do_pred b)
+    | Or (a,b) ->
+      disj (do_pred a) (do_pred b)
+    | Neg a ->
+      neg (do_pred a)
+  in
+  let rec do_pol p =
+    match p with
+    | Filter a ->
+      Filter (do_pred a)
+    | Modify (f,v) when Params.is_up_field f ->
+      skip
+    | Modify _ ->
+      p
+    | Seq (p,q) ->
+      seq (do_pol p) (do_pol q)
+    | Ite (a,p,q) ->
+      ite (do_pred a) (do_pol p) (do_pol q)
+    | While (a,p) ->
+      whl (do_pred a) (do_pol p)
+    | Choice choices ->
+      choice (Util.map_fst choices ~f:do_pol)
+    | Let { id; init; mut; body } ->
+      Let { id; init; mut; body = do_pol body }
+    | Repeat (n,p) ->
+      Repeat (n, do_pol p)
+  in
+  do_pol p
+
+
 let make
   ?(bound : int option)
   ~(failure_prob : int -> int -> Prob.t)
@@ -19,11 +59,19 @@ let make
   =
 
   let open Params in
+  let no_failures =
+    max_failures = Some 0 || List.for_all (Topology.locs topo) ~f:(fun (sw,pts) ->
+      List.for_all pts ~f:(fun pt ->
+        failure_prob (Topology.sw_val topo sw) pt
+        |> Prob.(equal zero)
+      )
+    )
+  in
 
   let rec make () : string policy =
     let ingress = Topology.ingress topo ~dst:destination in
     PNK.(
-      (if Option.is_none max_failures then skip else !!(counter, 0)) >>
+      (if Option.is_none max_failures || no_failures then skip else !!(counter, 0)) >>
       (* in; (¬eg; p; t)*; eg *)
       filter ingress >>
       match bound with
@@ -63,9 +111,12 @@ let make
               (???(pt, pt_id), pol sw pt_id)
             )
           end
+          |> (if no_failures then delete_up_bits else ident)
           >>
           (* SJS: a subtle point: we model only switch-to-switch links! *)
-          Topology.links_from topo sw ~guard_links:true ~dst_filter:(Topology.is_switch topo)
+          Topology.links_from topo sw
+            ~guard_links:(not no_failures)
+            ~dst_filter:(Topology.is_switch topo)
         end
 
       in
@@ -73,8 +124,11 @@ let make
     )
 
   and with_init_up_bits sw pts body =
-    let up_bits = List.map pts ~f:(fun pt -> (up sw pt, 1, true)) in
-    PNK.locals up_bits PNK.(init_up_bits sw pts >> body)
+    if no_failures then
+      body
+    else
+      let up_bits = List.map pts ~f:(fun pt -> (up sw pt, 1, true)) in
+      PNK.locals up_bits PNK.(init_up_bits sw pts >> body)
 
   and init_up_bits sw pts =
     let open PNK in
