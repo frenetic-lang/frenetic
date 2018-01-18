@@ -1317,7 +1317,16 @@ module Fdd = struct
         )
 
   let rec of_pol_k (p : Field.t policy) k : t =
-    printf "Cache size: %d\n%!" (cache_size ());
+    printf "Cache size: %d (before %s)\n%!" (cache_size ())
+      (match p with
+        | Filter _ -> "filter a"
+        | Modify _ -> "f<-n"
+        | Seq _ -> "p;q"
+        | Ite _ -> "if a then p else q"
+        | While _ -> "while a do p"
+        | Choice _ -> "choice { q_1 @ p_1; ...; q_k @ p_k }"
+        | Let _ -> "let x = n in p"
+        | Repeat _ -> "do n times p");
     match p with
     | Filter p ->
       k (of_pred p)
