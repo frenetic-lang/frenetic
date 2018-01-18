@@ -1358,6 +1358,35 @@ module Fdd = struct
 
   and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
 
+
+  let rec of_pol_cps (k : t) (p : Field.t policy) : t =
+    if equal k drop then drop else
+    match p with
+    | Filter a ->
+      seq k (of_pred a)
+    | Modify m ->
+      prod k (of_mod m)
+    | Seq (p, q) ->
+      of_pol_cps (of_pol_cps k p) q
+    | Ite (a, p, q) ->
+      let a = of_pred a in
+      let tru = seq k a in
+      let fls = seq k (negate a) in
+      sum (of_pol_cps tru p) (of_pol_cps fls q)
+    | While (a, p) ->
+      let a = of_pred a in
+      if equal drop (seq k a) then 
+        seq k (negate a)
+      else
+        Util.timed "while loop" (fun () -> iterate a (of_pol_cps a p))
+    | Choice dist ->
+      n_ary_convex_sum (Util.map_fst dist ~f:(of_pol_cps k))
+    | Let { id=field; init; mut; body=p } ->
+      (* SJS: this is safe, right? *)
+      erase (of_pol_cps k p) field init
+    | Repeat (n, p) ->
+      seq k (repeat n (of_pol_cps id p))
+
   let of_pol (p : string policy) : t =
     allocate_fields p
     |> of_symbolic_pol
