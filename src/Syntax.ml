@@ -40,6 +40,20 @@ type 'field  policy =
   | Repeat of int * 'field policy
   [@@deriving sexp, compare, hash]
 
+let nr_of_loops p =
+  let rec do_pol p acc =
+    match p with
+    | Filter _ | Modify _ ->
+      acc
+    | Seq(p,q) | Ite(_,p,q) ->
+      do_pol p (do_pol q acc)
+    | While (_,body) | Let { body; _ } | Repeat (_,body) ->
+      do_pol body acc
+    | Choice choices ->
+      List.fold choices ~init:acc ~f:(fun acc (p,_) -> do_pol p acc)
+  in
+  do_pol p 0
+
 let pp_hv op fmt hv =
   fprintf fmt "@[%s%s%d@]" (fst hv) op (snd hv)
 
