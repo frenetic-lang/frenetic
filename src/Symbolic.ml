@@ -1165,8 +1165,12 @@ module Fdd = struct
     (* printf "a = %s\n" (to_string a); *)
     (* transition matrix for transient states, i.e. those satisfying predicate [a] *)
     let ap = prod a p in
+
     (* transition matrix for absorbing states, i.e. those not satisfying [a] *)
     let not_a = negate a in
+
+    (* optimize special case where a single iteration suffices *)
+    if equal drop ap || equal drop (seq ap a) then sum ap not_a else
 
     (* printf "ap = %s\n%!" (to_string ap); *)
     (* printf "not_a = %s\n%!" (to_string not_a); *)
