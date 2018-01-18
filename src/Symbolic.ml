@@ -1317,6 +1317,7 @@ module Fdd = struct
         )
 
   let rec of_pol_k (p : Field.t policy) k : t =
+    printf "Cache size: %d\n%!" (cache_size ());
     match p with
     | Filter p ->
       k (of_pred p)

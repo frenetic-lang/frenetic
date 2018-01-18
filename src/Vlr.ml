@@ -57,6 +57,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
 
     end)
 
+  let cache_size = T.cache_size
   let get = T.get
   let unget = T.unget
   let get_uid (t:t) : int = t

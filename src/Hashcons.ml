@@ -5,6 +5,7 @@ module type HASHTYPE = sig
   val get : t -> int
   val unget : int -> t
   val clear : Int.Set.t -> unit
+  val cache_size : unit -> int
 end
 
 module Make (Value : Hashtbl.Key) : HASHTYPE with type t = Value.t = struct
@@ -43,5 +44,8 @@ module Make (Value : Hashtbl.Key) : HASHTYPE with type t = Value.t = struct
       n)
 
   let unget (idx : int) : t = U.find_exn untbl idx
+
+  let cache_size () : int =
+    T.length tbl
 
 end
