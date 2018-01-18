@@ -47,7 +47,9 @@ let nr_of_loops p =
       acc
     | Seq(p,q) | Ite(_,p,q) ->
       do_pol p (do_pol q acc)
-    | While (_,body) | Let { body; _ } | Repeat (_,body) ->
+    | While (_,body) ->
+      do_pol body (acc + 1)
+    | Let { body; _ } | Repeat (_,body) ->
       do_pol body acc
     | Choice choices ->
       List.fold choices ~init:acc ~f:(fun acc (p,_) -> do_pol p acc)
