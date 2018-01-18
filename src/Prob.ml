@@ -16,7 +16,7 @@ end
 
 type t = Q.t = {
     num: Z.t; (** Numerator. *)
-    den: Z.t; (** Denominator, >= 0 *)
+    den: Z.t; (** * Denominator, >= 0 *)
 } [@@deriving hash, sexp]
 
 include (Q : module type of Q with type t := t)
@@ -32,3 +32,12 @@ let to_string t =
     to_string t
   else
     sprintf "%.2g" (to_float t)
+
+let to_q t = t
+
+
+(* open Core
+include Float
+
+let to_q = Q.of_float
+let ( // ) x y = Float.(of_int x / of_int y) *)

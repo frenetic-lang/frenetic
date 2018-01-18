@@ -1041,7 +1041,7 @@ module Fdd = struct
         (convex_sum t1 p t2, mass)
     in
     let (t, mass) = devide_and_conquer 0 (Array.length xs) in
-    assert Prob.(equal mass one);
+    (* assert Prob.(equal mass one); *)
     t
 
 

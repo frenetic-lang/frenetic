@@ -76,11 +76,15 @@ and analyze_scheme base_name (routing_scheme, sw_pol) ~failure_prob ~max_failure
       ()
   in
   let _,data = Util.timed' " - other" ~log ~f:(fun () -> analyze_model model ~topo) in
+  let failure_prob =
+    Prob.to_q failure_prob
+    |> (fun q -> Z.(to_int q.num, to_int q.den))
+  in
   { data with
     routing_scheme;
     topology = Filename.basename base_name;
     max_failures;
-    failure_prob = Z.(to_int Prob.(num failure_prob), to_int Prob.(den failure_prob));
+    failure_prob;
     (* hop_count_cdf = List.map hop_count_cdf ~f:Prob.to_float; *)
     (* hop_count_time; *)
   }
@@ -160,7 +164,7 @@ let () =
   | [| _; base_name; max_failures; failure_probs; |] ->
     let dir = Filename.dirname base_name in
     let max_failures = parse_list max_failures ~f:Int.of_string in
-    let failure_probs = parse_list failure_probs ~f:Q.of_string in
+    let failure_probs = parse_list failure_probs ~f:Prob.of_string in
     Out_channel.with_file (dir ^ "/results.log") ~f:(fun log ->
       List.iter max_failures ~f:(fun max_failures ->
         List.iter failure_probs ~f:(fun failure_prob ->

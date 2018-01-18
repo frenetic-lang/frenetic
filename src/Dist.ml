@@ -112,13 +112,13 @@ module Make (Dom : Vlr.HashCmp) = struct
 
   let expectation t ~(f : Dom.t -> Q.t) : Q.t =
     T.fold t ~init:Q.zero ~f:(fun ~key:x ~data:p acc ->
-      Prob.(acc + p * f(x))
+      Q.(acc + Prob.to_q p * f(x))
     )
 
   (* variance of random variable [f] w.r.t distribution [t] *)
-  let variance t ~(f : Dom.t -> Prob.t) : Prob.t =
+  let variance t ~(f : Dom.t -> Q.t) : Q.t =
     let mean = expectation t f in
-    expectation t ~f:(fun point -> Prob.((f point - mean) * (f point - mean)))
+    expectation t ~f:(fun point -> Q.((f point - mean) * (f point - mean)))
 
   (* Markov Kernel *)
   module Kernel = struct

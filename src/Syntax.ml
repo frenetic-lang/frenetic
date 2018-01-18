@@ -70,7 +70,7 @@ let pp_policy fmt (p : string policy) =
     | Choice ps ->
       fprintf fmt "@[?{@;<1-2>";
       List.iter ps ~f:(fun (p,q) ->
-        fprintf fmt "@[%a@ %@@ %a;@;@]" (do_pol `CHOICE) p Q.pp_print q);
+        fprintf fmt "@[%a@ %@@ %a;@;@]" (do_pol `CHOICE) p Prob.pp q);
       fprintf fmt "@;<1-0>}@]"
   and do_pred ctxt fmt (p : string pred) =
     match p with
@@ -143,8 +143,8 @@ module Constructors = struct
 
     let choice ps =
       (* smash equal -> requires hashconsing *)
-      match List.filter ps ~f:(fun (p,r) -> not Q.(equal r zero)) with
-      | [(p,r)] -> assert Q.(equal r one); p
+      match List.filter ps ~f:(fun (p,r) -> not Prob.(equal r zero)) with
+      | [(p,r)] -> assert Prob.(equal r one); p
       | ps -> Choice ps
 
     let ite a p q = match a with
@@ -219,7 +219,7 @@ module PNK = struct
   let ( >> ) p q = seq p q
   let ( & ) a b = conj a b
   let ( ?@ ) dist = choice dist (* ?@[p , 1//2; q , 1//2] *)
-  let ( // ) m n = Q.(m // n)
+  let ( // ) m n = Prob.(m // n)
   let ( @ ) p r = (p,r)
 end
 
