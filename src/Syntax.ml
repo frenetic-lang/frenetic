@@ -37,7 +37,7 @@ type 'field  policy =
   | While of 'field pred * 'field policy
   | Choice of ('field policy * Prob.t) list
   | Let of { id : 'field; init : 'field meta_init; mut : bool; body : 'field policy }
-  | Repeat of int * 'field policy
+  (* | Repeat of int * 'field policy *)
   [@@deriving sexp, compare, hash]
 
 let nr_of_loops p =
@@ -49,7 +49,7 @@ let nr_of_loops p =
       do_pol p (do_pol q acc)
     | While (_,body) ->
       do_pol body (acc + 1)
-    | Let { body; _ } | Repeat (_,body) ->
+    | Let { body; _ } (* | Repeat (_,body) *) ->
       do_pol body acc
     | Choice choices ->
       List.fold choices ~init:acc ~f:(fun acc (p,_) -> do_pol p acc)
@@ -74,9 +74,9 @@ let pp_policy fmt (p : string policy) =
     | While (a,p) ->
       fprintf fmt "@[WHILE@ @[<2>%a@]@ DO@ @[<2>%a@]@]"
         (do_pred `COND) a (do_pol `While) p
-    | Repeat (n,p) ->
+(*     | Repeat (n,p) ->
       fprintf fmt "@[REPEAT@ @[<2>%d@]@ TIMES@ @[<2>%a@]@]"
-        n (do_pol `While) p
+        n (do_pol `While) p *)
     | Ite (a, p, q) ->
       fprintf fmt "@[IF@ @[<2>%a@]@ THEN@ @[<2>%a@]@ ELSE@ @[<2>%a@]@]"
         (do_pred `COND) a (do_pol `ITE_L) p (do_pol `ITE_R) q
@@ -127,7 +127,7 @@ module Constructors = struct
     let test hv = Test hv
     let filter a = Filter a
     let modify hv = Modify hv
-    let repeat n p = Repeat (n,p)
+    (* let repeat n p = Repeat (n,p) *)
 
     let neg a = match a with
       | Neg a -> a
@@ -180,10 +180,10 @@ module Constructors = struct
       | False -> skip
       | _ -> While (a,p)
 
-    let bounded_whl a p ~bound = match a with
+(*     let bounded_whl a p ~bound = match a with
       | True -> drop
       | False -> skip
-      | _ -> repeat bound (ite a p skip)
+      | _ -> repeat bound (ite a p skip) *)
 
     let do_whl a p =
       seq p (whl a p)

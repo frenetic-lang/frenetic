@@ -43,8 +43,8 @@ let delete_up_bits p =
       choice (Util.map_fst choices ~f:do_pol)
     | Let { id; init; mut; body } ->
       Let { id; init; mut; body = do_pol body }
-    | Repeat (n,p) ->
-      Repeat (n, do_pol p)
+(*     | Repeat (n,p) ->
+      Repeat (n, do_pol p) *)
   in
   do_pol p
 

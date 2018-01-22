@@ -155,6 +155,7 @@ let mk_current_tree_tbl topo (port_tbl : (int list) Int.Table.t) : int Int2.Tabl
 (*===========================================================================*)
 
 let random_walk topo : Net.Topology.vertex -> string policy =
+  (* current switch |-> routing program *)
   fun sw ->
     Topology.vertex_to_ports topo.graph sw ~dst_filter:(Topology.is_switch topo.graph)
     |> List.map ~f:(fun out_pt_id -> PNK.( !!(pt, Topology.pt_val out_pt_id) ))
@@ -212,6 +213,7 @@ let car topo base_name ~(style: [`Deterministic|`Probabilistic])
   let port_tbl = parse_trees topo (Params.car_file base_name) in
   let current_tree_tbl = mk_current_tree_tbl topo port_tbl in
   let port_tbl = Int.Table.map port_tbl ~f:Array.of_list in
+  (* (current switch, inport) |-> routing policy *)
   fun sw in_pt ->
     let sw_val = Topology.sw_val topo.graph sw in
     match Hashtbl.find current_tree_tbl (sw_val, in_pt) with
@@ -219,6 +221,8 @@ let car topo base_name ~(style: [`Deterministic|`Probabilistic])
       (* eprintf "verify that packets never enter switch %d at port %d\n" sw_val in_pt; *)
       PNK.( drop )
     | Some i ->
+      (* ports correspondiong to trees *)
+      (* pts.(i) = out port corresponding to tree i *)
       let pts = Hashtbl.find_exn port_tbl sw_val in
       begin match style with
       | `Deterministic ->

@@ -143,7 +143,7 @@ module Field = struct
     let lookup env name =
       List.Assoc.find_exn ~equal:(=) env.alist name
   end
-(*
+
   (* Heuristic to pick a variable order that operates by scoring the fields
      in a policy. A field receives a high score if, when a test field=X
      is false, the policy can be shrunk substantially.
@@ -156,75 +156,88 @@ module Field = struct
        pol for different field assignments. Don't traverse the policy
        repeatedly. Instead, write a size function that returns map from
        field assignments to sizes. *)
-  let auto_order (pol : Syntax.policy) : unit =
+  let auto_order (pol : t Syntax.policy) : unit =
     let open Syntax in
     (* Construct array of scores, where score starts at 0 for every field *)
     let count_arr = Array.init num_fields ~f:(fun _ -> 0) in
-    let rec f_pred size (env, pred) = match pred with
-      | True -> ()
-      | False -> ()
-      | Test (Syntax.Meta (id,_)) ->
-        begin match Env.lookup env id with
-        | (f, (Alias hv, false)) ->
-          let f = to_enum f in
-          let f' = to_enum (of_hv hv) in
-          count_arr.(f) <- count_arr.(f) + size;
-          count_arr.(f') <- count_arr.(f') + size
-        | (f,_) ->
-          let f = to_enum f in
-          count_arr.(f) <- count_arr.(f) + size
-        end
-      | Test hv ->
-        let f = to_enum (of_hv hv) in
+    let rec f_pred size (pred : t Syntax.pred) =
+      match pred with
+      | True | False ->
+        ()
+      | Test (f,_) ->
+        let f = to_enum f in
         count_arr.(f) <- count_arr.(f) + size
-      | Or (a, b) -> f_pred size (env, a); f_pred size (env, b)
-      | And (a, b) -> f_pred size (env, a); f_pred size (env, b)
-      | Neg a -> f_pred size (env, a) in
-    let rec f_seq' pol lst env k = match pol with
-      | Mod _ -> k (1, lst)
-      | Filter a -> k (1, (env, a) :: lst)
-      | Seq (p, q) ->
-        f_seq' p lst env (fun (m, lst) ->
-          f_seq' q lst env (fun (n, lst) ->
-            k (m * n, lst)))
-      | Union _ -> k (f_union pol env, lst)
-      | Let { id; init; mut; body=p } ->
-        let env = Env.add env id init mut in
-        f_seq' p lst env k
-      | Star p -> k (f_union p env, lst)
-      | Link (sw,pt,_,_) -> k (1, (env, Test (Switch sw)) :: (env, Test (Location (Physical pt))) :: lst)
-      | VLink (sw,pt,_,_) -> k (1, (env, Test (VSwitch sw)) :: (env, Test (VPort pt)) :: lst)
-      | Dup -> k (1, lst)
-    and f_seq pol env : int =
-      let (size, preds) = f_seq' pol [] env (fun x -> x) in
-      List.iter preds ~f:(f_pred size);
-      size
-    and f_union' pol lst env k = match pol with
-      | Mod _ -> (1, lst)
-      | Filter a -> (1, (env, a) :: lst)
-      | Union (p, q) ->
-        f_union' p lst env (fun (m, lst) ->
-          f_union' q lst env (fun (n, lst) ->
-            k (m + n, lst)))
-      | Seq _ -> k (f_seq pol env, lst)
-      | Let { id; init; mut; body=p } ->
-        let env = Env.add env id init mut in
-        k (f_seq p env, lst)
-      | Star p -> f_union' p lst env k
-      | Link (sw,pt,_,_) -> k (1, (env, Test (Switch sw)) :: (env, Test (Location (Physical pt))) :: lst)
-      | VLink (sw,pt,_,_) -> k (1, (env, Test (VSwitch sw)) :: (env, Test (VPort pt)) :: lst)
-      | Dup -> k (1, lst)
-    and f_union pol env : int =
-      let (size, preds) = f_union' pol [] env (fun x -> x) in
-      List.iter preds ~f:(f_pred size);
-      size
+      | Or (a, b) | And (a, b) ->
+        f_pred size a; f_pred size b
+      | Neg a -> 
+        f_pred size a
     in
-    let _ = f_seq pol Env.empty in
+    let rec f_seq' (pol : t Syntax.policy) lst k =
+      match pol with
+      | Modify _ -> 
+        k (1, lst)
+      | Filter a ->
+        k (1, a :: lst)
+      | Seq (p, q) ->
+        f_seq' p lst (fun (m, lst) ->
+          f_seq' q lst (fun (n, lst) ->
+            k (m * n, lst)
+          )
+        )
+      | Ite (a,p,q) -> 
+        k (f_union a p q, lst)
+      | Choice ps ->
+        k (f_choice ps, lst)
+      | Let { id; init; mut; body=p } ->
+        f_seq' p lst k
+      | While (a,p) -> k (f_union a p PNK.skip, lst)
+    and f_seq pol : int =
+      let (size, preds) = f_seq' pol [] (fun x -> x) in
+      List.iter preds ~f:(f_pred size);
+      size
+    and f_union' pol lst k = match pol with
+      | Modify _ ->
+        k (1, lst)
+      | Filter a ->
+        k (1, a :: lst)
+      | Ite (a, p, q) ->
+        f_union' p lst (fun (m, lst) ->
+          f_union' q lst (fun (n, lst) ->
+            k (m + n, a::lst)))
+      | Choice ps ->
+        List.map ps ~f:fst
+        |> List.map ~f:(fun p -> f_union' p [] ident)
+        |> List.fold ~init:(0,[]) ~f:(fun (n,l) (n',l') -> (n+n', l@l'))
+        |> k
+      | Seq _ ->
+        k (f_seq pol, lst)
+      | Let { id; init; mut; body=p } ->
+        k (f_seq p, lst)
+      | While (a,p) ->
+        f_union' p lst (fun (m, lst) ->
+          k (m, a::lst)
+        )
+    and f_union a p q : int =
+      let (p_size, p_preds) = f_union' p [] (fun x -> x) in
+      let (q_size, q_preds) = f_union' q [] (fun x -> x) in
+      let size = p_size + q_size in
+      List.iter p_preds ~f:(f_pred p_size);
+      List.iter q_preds ~f:(f_pred q_size);
+      f_pred size a;
+      size
+    and f_choice ps : int =
+      List.map ps ~f:fst
+      |> List.map ~f:(fun p -> f_union' p [] ident)
+      |> Util.tap ~f:(List.iter ~f:(fun (size, preds) -> List.iter preds ~f:(f_pred size)))
+      |> List.map ~f:fst
+      |> List.fold ~init:0 ~f:(+)
+    in
+    let _ = f_seq pol in
     Array.foldi count_arr ~init:[] ~f:(fun i acc n -> ((Obj.magic i, n) :: acc))
     |> List.stable_sort ~cmp:(fun (_, x) (_, y) -> Int.compare x y)
     |> List.rev (* SJS: do NOT remove & reverse order! Want stable sort *)
     |> List.map ~f:fst
-    |> set_order *)
+    |> set_order 
 
 end
 
@@ -952,8 +965,8 @@ module Fdd = struct
         let (id,_) = Field.Env.lookup env id in
         let body = do_pol env body in
         Let { id; init; mut; body; }
-      | Repeat (n, p) ->
-        Repeat (n, do_pol env p)
+(*       | Repeat (n, p) ->
+        Repeat (n, do_pol env p) *)
     and do_pred env (p : string pred) : Field.t pred =
       match p with
       | True -> True
@@ -1326,7 +1339,8 @@ module Fdd = struct
         | While _ -> "while a do p"
         | Choice _ -> "choice { q_1 @ p_1; ...; q_k @ p_k }"
         | Let _ -> "let x = n in p"
-        | Repeat _ -> "do n times p");
+        (* | Repeat _ -> "do n times p" *)
+      );
     match p with
     | Filter p ->
       k (of_pred p)
@@ -1367,8 +1381,8 @@ module Fdd = struct
       |> k
     | Let { id=field; init; mut; body=p } ->
       of_pol_k p (fun p' -> k (erase p' field init))
-    | Repeat (n, p) ->
-      of_pol_k p (fun p -> repeat n p)
+(*     | Repeat (n, p) ->
+      of_pol_k p (fun p -> repeat n p) *)
 
   and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
 
@@ -1398,8 +1412,8 @@ module Fdd = struct
     | Let { id=field; init; mut; body=p } ->
       (* SJS: this is safe, right? *)
       erase (of_pol_cps k p) field init
-    | Repeat (n, p) ->
-      seq k (repeat n (of_pol_cps id p))
+(*     | Repeat (n, p) ->
+      seq k (repeat n (of_pol_cps id p)) *)
 
   let of_pol (p : string policy) : t =
     allocate_fields p
