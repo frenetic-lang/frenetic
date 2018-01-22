@@ -97,6 +97,7 @@ and analyze_model model ~topo =
   Format.printf "\nProbNetKAT model:\n# while loops = %d\n%a\n%!"
     (Syntax.nr_of_loops model)
     Syntax.pp_policy model;
+  Fdd.set_order [Params.sw; Params.pt; Params.counter; Params.ttl ];
   let compilation_time, fdd = Util.time Fdd.of_pol model in
   printf "\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> COMPILATION DONE\n%!";
 

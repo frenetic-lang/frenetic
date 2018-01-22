@@ -985,6 +985,42 @@ module Fdd = struct
     Field.field_to_str_map := field_map;
     pol
 
+  let deallocate_fields (pol : Field.t policy) : string policy =
+    let do_field : Field.t -> string = Field.to_string in
+    let rec do_pol p =
+      match p with
+      | Filter pred ->
+        Filter (do_pred pred)
+      | Modify (f,v) ->
+        Modify (do_field f, v)
+      | Seq (p, q) ->
+        Seq (do_pol p, do_pol q)
+      | Ite (a, p, q) ->
+        Ite (do_pred a, do_pol p, do_pol q)
+      | While (a, p) ->
+        While (do_pred a, do_pol p)
+      | Choice dist ->
+        Choice (Util.map_fst dist ~f:(do_pol))
+      | Let { id; init; mut; body; } ->
+        let init = match init with
+          | Alias f -> Alias (do_field f)
+          | Const v -> Const v
+        in
+        let id = "<N/A>" in
+        let body = do_pol body in
+        Let { id; init; mut; body; }
+    and do_pred a =
+      match a with
+      | True -> True
+      | False -> False
+      | Test (f, v) -> Test (do_field f, v)
+      | And (p, q) -> And (do_pred p, do_pred q)
+      | Or (p, q) -> Or (do_pred p, do_pred q)
+      | Neg p -> Neg (do_pred p)
+    in
+    do_pol pol
+
+
   let of_test hv =
     atom hv ActionDist.one ActionDist.zero
 
@@ -1341,6 +1377,13 @@ module Fdd = struct
         | Let _ -> "let x = n in p"
         (* | Repeat _ -> "do n times p" *)
       );
+    begin match p with
+    | Filter _ ->
+      deallocate_fields p
+      |> Format.printf "%a\n\n%!" Syntax.pp_policy
+    | _ ->
+      ()
+    end;
     match p with
     | Filter p ->
       k (of_pred p)
@@ -1561,5 +1604,26 @@ module Fdd = struct
     )
     |> List.fold ~init:Prob.one ~f:Prob.min
 
+  let set_order order =
+    let meta_fields = Field.[ 
+      Meta0; Meta1; Meta2; Meta3; Meta4; Meta5; Meta6; Meta7; Meta8; Meta9;
+      Meta10; Meta11; Meta12; Meta13; Meta14; Meta15; Meta16; Meta17; Meta18;
+      Meta19 
+    ]
+    in
+    let global_fields =
+      List.filter_map order ~f:(fun f -> match abstract_field f with
+        | x -> Some x
+        | exception _ -> None
+      )
+    in
+    let missing_fields =
+      List.filter Field.all ~f:(fun f ->
+        let mem = List.mem ~equal:Field.equal in
+        not (mem global_fields f) && not (mem meta_fields f)
+      )
+    in
+    let order = global_fields @ missing_fields @ meta_fields in
+    Field.set_order order
 
 end
