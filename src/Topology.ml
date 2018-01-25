@@ -53,6 +53,14 @@ let locs topo : (vertex * int list) list =
     |> (fun pts -> (sw, pts))
   )
 
+(* return (sw, host-connected-ports, switch-connected-ports) triples  *)
+let locs' topo : (vertex * int list * int list) list =
+  List.map (switches topo) ~f:(fun sw ->
+    let host_ports = vertex_to_ports topo sw ~dst_filter:(is_host topo) in
+    let sw_ports = vertex_to_ports topo sw ~dst_filter:(is_switch topo) in
+    (sw, List.map host_ports ~f:pt_val, List.map sw_ports ~f:pt_val)
+  )
+
 let ingress_locs topo ~(dst: int) : (vertex * int) list =
   fold_edges (fun edge acc ->
       let (src_vertex,src_pt) = edge_src edge in

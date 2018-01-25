@@ -96,18 +96,22 @@ let make
 
   and hop () =
     let open PNK in
-    Topology.locs topo
-    |> List.filter ~f:(fun (sw,_pt) -> Topology.sw_val topo sw <> destination)
-    |> ite_cascade ~otherwise:drop ~f:(fun (sw, pts) ->
+    Topology.locs' topo
+    |> List.filter ~f:(fun (sw,_,_) -> Topology.sw_val topo sw <> destination)
+    |> ite_cascade ~otherwise:drop ~f:(fun (sw, host_pts, sw_pts) ->
       let sw_id = Topology.sw_val topo sw in
       let guard = ???(Params.sw, sw_id) in
       let body =
-        with_init_up_bits sw_id pts @@ begin
+        with_init_up_bits sw_id sw_pts @@ begin
           begin match sw_pol with
           | `Switchwise pol ->
             pol sw
           | `Portwise pol ->
-            ite_cascade pts ~otherwise:drop ~f:(fun pt_id ->
+            (* want rules for both ports connecting to hosts and ports connecting
+               to other switches
+             *)
+            List.append host_pts sw_pts
+            |> ite_cascade ~otherwise:drop ~f:(fun pt_id ->
               (???(pt, pt_id), pol sw pt_id)
             )
           end
