@@ -2,7 +2,7 @@ import argparse
 import networkx as nx
 import sys
 
-from topologies import fattree,jellyfish,xpander
+from topologies import fattree,abfattree,jellyfish,xpander
 from routing import allsp,spf,disjointtrees,routing_lib
 
 def generate_topology(topo_args):
@@ -14,7 +14,7 @@ def generate_topology(topo_args):
         topo = fattree.mk_topo(pods)
     elif targs[0] == 'abfattree':
         pods = int(targs[1])
-        topo = fattree.mk_topo(pods)
+        topo = abfattree.mk_topo(pods)
     elif targs[0] == 'jellyfish':
         n = int(targs[1])
         k = int(targs[2])
