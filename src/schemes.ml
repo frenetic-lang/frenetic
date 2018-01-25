@@ -118,6 +118,54 @@ let parse_nexthops topo file : (int list) Int.Table.t =
 
 open Params
 
+(* switch to distance-to-destination-in-a-tree mapping *)
+let mk_distance_in_tree_tbl topo port_tbl : (int list) Int.Table.t =
+  let port_list = Hashtbl.to_alist port_tbl in
+  (* map from a switch to it's distance from destination in the tree *)
+  let dist_map = Int.Table.create () in
+  let num_trees = List.length (List.hd_exn (Hashtbl.data port_tbl)) in
+  let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
+  List.iter (range 0 num_trees) ~f:(fun tree_idx ->
+    (* map from a switch to it's previous switch in the tree *)
+    let prev = Int.Table.create () in
+    List.iter ~f:(fun (src_sw, out_pts) ->
+      let src_pt = List.nth_exn out_pts tree_idx in
+      let edge = Hashtbl.find_exn topo.hop_tbl (src_sw, src_pt) in
+      let (dst_sw, _) = Net.Topology.edge_dst edge in
+      Hashtbl.add_multi prev ~key:Topology.(sw_val topo.graph dst_sw) ~data:src_sw) port_list;
+    let rec traverse nodes level =
+      if nodes = [] then () else
+      let next_nodes = List.fold_left ~init:[] ~f:(fun acc sw ->
+        Hashtbl.add_multi dist_map ~key:sw ~data:level;
+        match Hashtbl.find prev sw with
+        | Some srcs -> srcs@acc
+        | None -> acc) nodes in
+      traverse next_nodes (level + 1) in
+    traverse [destination] 0);
+  (* Hashtbl.iteri dist_map ~f:(fun ~key:sw ~data:dists ->
+    printf "sw %d: %s\n" sw (List.to_string dists ~f:Int.to_string)
+  ); *)
+  dist_map
+
+(* switch to index-of-tree-with-shortest-distance-to-dest mapping *)
+let mk_shortest_tree_tbl topo port_tbl : int Int.Table.t =
+  let dist_tbl = mk_distance_in_tree_tbl topo port_tbl in
+  let tbl = Int.Table.create () in
+  let min_idx l =
+      let rec findmin start_i start_x i l = match l with
+        | [] -> (start_i, start_x)
+        | x::xs -> if x < start_x then findmin i x (i+1) xs else findmin start_i start_x (i+1) xs in
+      match l with
+        | [] -> failwith "Empty list"
+        | _ -> findmin 0 Int.max_value 0 l in
+  Hashtbl.iteri dist_tbl ~f:(fun ~key:sw ~data:dists ->
+    let shortest_tree_idx,_ = min_idx dists in
+    Hashtbl.add_exn tbl ~key:sw ~data:shortest_tree_idx);
+  (* Hashtbl.iteri tbl ~f:(fun ~key:sw ~data:idx ->
+    printf "sw %d: %d\n" sw idx
+  ); *)
+  tbl
+
 (* am I at a good port? *)
 let at_good_pt sw pts = PNK.(
   List.map pts ~f:(fun pt_val -> ???(pt,pt_val) & ???(up sw pt_val, 1))
@@ -125,7 +173,8 @@ let at_good_pt sw pts = PNK.(
 )
 
 (* given a current switch and the inport, what tree are we on? *)
-let mk_current_tree_tbl topo (port_tbl : (int list) Int.Table.t) : int Int2.Table.t =
+let mk_current_tree_tbl topo (port_tbl : (int list) Int.Table.t)
+        (shortest_tree_idx_tbl : int Int.Table.t) : int Int2.Table.t =
   let tbl = Int2.Table.create () in
   (* the port map maps a switch to the out_ports in order of the tree preference *)
   Hashtbl.iteri port_tbl ~f:(fun ~key:src_sw ~data:src_pts ->
@@ -141,10 +190,11 @@ let mk_current_tree_tbl topo (port_tbl : (int list) Int.Table.t) : int Int2.Tabl
       Hashtbl.add_exn tbl ~key ~data:i
     )
   );
-  (* for ingress ports, simply start at tree 0 *)
+  (* for ingress ports, start at tree with shortest distance to destination *)
   List.iter (Topology.ingress_locs topo.graph ~dst:destination) ~f:(fun (sw, pt_val) ->
     let key = (Topology.sw_val topo.graph sw, pt_val) in
-    Hashtbl.add_exn tbl ~key ~data:0
+    let data = Hashtbl.find_exn shortest_tree_idx_tbl Topology.(sw_val topo.graph sw) in
+    Hashtbl.add_exn tbl ~key ~data
   );
   tbl
 
@@ -211,7 +261,8 @@ let resilient_ecmp topo base_name : Net.Topology.vertex -> string policy =
 let car topo base_name ~(style: [`Deterministic|`Probabilistic])
   : Net.Topology.vertex -> int -> string policy =
   let port_tbl = parse_trees topo (Params.car_file base_name) in
-  let current_tree_tbl = mk_current_tree_tbl topo port_tbl in
+  let shortest_tree_idx_tbl = mk_shortest_tree_tbl topo port_tbl in
+  let current_tree_tbl = mk_current_tree_tbl topo port_tbl shortest_tree_idx_tbl in
   let port_tbl = Int.Table.map port_tbl ~f:Array.of_list in
   (* (current switch, inport) |-> routing policy *)
   fun sw in_pt ->
