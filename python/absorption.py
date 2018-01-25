@@ -64,33 +64,33 @@ def main():
     #     exit(0)
 
     # first, check wich states can even reach an absorbing state ever
-    start = time.process_time()
+    start = time.time()
     AP[0,0] = 0 # the empty set is always absorbing
     (transient,singular) = get_transient(AP, not_a)
     n_abs = sum(not_a)
-    eprint("--> python reachabilty computation: %f seconds" % (time.process_time() - start), verb=0)
+    eprint("--> python reachabilty computation: %f seconds" % (time.time() - start), verb=0)
 
-    start = time.process_time()
+    start = time.time()
     (absorbing,) = np.nonzero(not_a)
     n_trans = transient.size
     n_sing = singular.size
     # the state space is partioned into singular, transient, and absorbing states
     assert(n_sing + n_trans + n_abs == n)
-    eprint("--> python index computation: %f seconds" % (time.process_time() - start), verb=0)
+    eprint("--> python index computation: %f seconds" % (time.time() - start), verb=0)
     eprint("[python] non-singular transient = ", transient, verb=2)
     eprint("[python] n = %d, n_abs = %d, n_trans = %d, n_singular = %d" 
            % (n, n_abs, n_trans, n - n_abs - n_trans), verb=1)
 
     # solve sparse linear system to compute absorption probabilities
-    start = time.process_time()
+    start = time.time()
     AP = AP.tocsr()[transient,:].tocsc()
     A = sparse.eye(transient.size).tocsc() - AP[:,transient]
     R = AP[:, absorbing]
-    eprint("--> python slicing time: %f seconds" % (time.process_time() - start), verb=0)
+    eprint("--> python slicing time: %f seconds" % (time.time() - start), verb=0)
 
-    start = time.process_time()
+    start = time.time()
     X = linalg.spsolve(A, R)
-    eprint("--> python solver time: %f seconds" % (time.process_time() - start), verb=0)
+    eprint("--> python solver time: %f seconds" % (time.time() - start), verb=0)
     XX = sparse.lil_matrix((n, n), dtype='d')
     XX[np.ix_(transient, absorbing)] = X
     for i in absorbing:
