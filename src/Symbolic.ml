@@ -256,6 +256,7 @@ module PreAction = struct
 
   let compare = compare_direct Value.compare
   let one = empty
+  let is_one = is_empty
   let hash_fold_t = Map.hash_fold_direct Field.hash_fold_t Value.hash_fold_t
 
   let prod x y =
@@ -282,6 +283,10 @@ module Action = struct
 
   let zero = Drop
   let one = Action PreAction.one
+
+  let is_one = function
+    | Drop -> false
+    | Action a -> PreAction.is_one a
 
   let prod x y =
     match x,y with
@@ -371,14 +376,14 @@ end = struct
 end
 
 (* hacky *)
-module ActionSmartDist : sig
+module FactorizedActionDist : sig
   type t [@@deriving sexp, hash, compare, eq]
   val zero : t
   val one : t
   val prod : t -> t -> t
   val sum : t -> t -> t
   val negate : t -> t
-  (* val convex_sum : t -> Prob.t -> t -> t *)
+  val convex_sum : t -> Prob.t -> t -> t
 
   val to_string : t -> string
   val to_alist : t -> (Action.t * Prob.t) list
@@ -391,15 +396,23 @@ module ActionSmartDist : sig
   val empty : t
   val unsafe_add : t -> Prob.t -> Action.t -> t
   val unsafe_normalize : t -> t
+
+  val factorize : ActionDist.t -> t
+  val to_joined : t -> ActionDist.t
 end = struct
   type t = ActionDist.t list
   [@@deriving sexp, hash, compare, eq]
 
+  (** avoid having lots of skips *)
+  let canonicalize t =
+    List.filter t ~f:(fun d -> not (ActionDist.is_one d))
+
   (* invariant? *)
   let zero = [ActionDist.zero]
-  let one = [ActionDist.one]
+  let one = []
   let empty = [ActionDist.empty]
-  let dirac x = [ActionDist.dirac x]
+  let dirac x = canonicalize [ActionDist.dirac x]
+
 
   let is_zero t =
     match t with
@@ -408,7 +421,7 @@ end = struct
 
   let is_one t =
     match t with
-    | [d] -> ActionDist.is_one d
+    | [] -> true
     | _ -> false
 
   let unsafe_add t p act =
@@ -421,13 +434,17 @@ end = struct
       in this module *)
   let pushforward t ~f =
     List.map t ~f:(ActionDist.pushforward ~f)
+    |> canonicalize
 
   let to_joined t =
     List.fold t ~init:ActionDist.one ~f:ActionDist.prod
 
+  (** SJS: very poor factorization... *)
+  let factorize dist =
+    canonicalize [dist]
+
   (* try to factorize joint distribution *)
-  let of_joined d =
-    failwith "not implemented"
+  let of_joined = factorize
 
 
   let to_alist = Fn.compose ActionDist.to_alist to_joined
@@ -497,7 +514,6 @@ end = struct
     let (common, t1) = List.partition_tf t1 ~f:(List.mem t2 ~equal:ActionDist.equal) in
     let t2 = List.filter t2 ~f:(fun d -> not (List.mem common d ~equal:ActionDist.equal)) in
     ActionDist.convex_sum (to_joined t1) p (to_joined t2) :: common
-
 
 end
 
@@ -640,7 +656,7 @@ module Packet = struct
 end
 
 
-module Fdd00 = Vlr.Make(Field)(Value)(ActionDist)
+module Fdd00 = Vlr.Make(Field)(Value)(FactorizedActionDist)
 
 
 
@@ -683,7 +699,7 @@ module Domain = struct
         (vs, fdd::residual, fdd)
 
     and for_leaf dom dist =
-      ActionDist.support dist
+      FactorizedActionDist.support dist
       |> List.fold ~init:dom ~f:for_action
 
     and for_action dom action =
@@ -952,7 +968,7 @@ module Fdd0 = struct
         of_node tru tru_dom;
         of_node fls fls_dom
     and of_leaf dist dom =
-      ActionDist.to_alist dist
+      FactorizedActionDist.to_alist dist
       |> List.iter ~f:(fun (act, prob) -> f (dom, act, prob))
     in
     of_node fdd dom
@@ -1175,13 +1191,13 @@ module Fdd = struct
 
 
   let of_test hv =
-    atom hv ActionDist.one ActionDist.zero
+    atom hv FactorizedActionDist.one FactorizedActionDist.zero
 
   let of_mod (f,v) =
-    const (ActionDist.dirac (Action.Action (PreAction.T.singleton f v)))
+    const (FactorizedActionDist.dirac (Action.Action (PreAction.T.singleton f v)))
 
   let negate fdd =
-    map_r fdd ~f:ActionDist.negate
+    map_r fdd ~f:FactorizedActionDist.negate
 
   let rec of_pred p =
     match p with
@@ -1196,7 +1212,7 @@ module Fdd = struct
   (* SJS: copied and adopted apply algorithm from Vlr.ml *)
   let convex_sum t1 prob t2 : t =
     (* the function to apply at the leaves *)
-    let f x y = ActionDist.convex_sum x prob y in
+    let f x y = FactorizedActionDist.convex_sum x prob y in
     let cache : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 () in
     let rec sum x y =
       BinTbl.find_or_add cache (x, y) ~default:(fun () -> sum' x y)
@@ -1259,7 +1275,7 @@ module Fdd = struct
     clear_cache preserve;
   end
 
-  (** sequence of ActionDist.t and t  *)
+  (** sequence of FactorizedActionDist.t and t  *)
   let rec seq' dist u =
     let t = const dist in
     if equal t drop then drop else
@@ -1267,7 +1283,7 @@ module Fdd = struct
     BinTbl.find_or_add seq_tbl (t,u) ~default:(fun () ->
       match unget u with
       | Leaf dist' ->
-        const (ActionDist.prod dist dist')
+        const (FactorizedActionDist.prod dist dist')
       | Branch (test, tru, fls) ->
         let ((yes,p_yes), (no, p_no), (maybe, p_maybe)) = split dist test in
         n_ary_convex_sum [
@@ -1286,7 +1302,7 @@ module Fdd = struct
       together with their weights dist(A), dist(B), dist(C).
   *)
   and split dist (f,n) =
-    ActionDist.to_alist dist
+    FactorizedActionDist.to_alist dist
     |> List.fold ~init:([], [], []) ~f:(fun (yes, no, mb) ((act, p) as outcome) ->
         match act with
         | Action.Drop ->
@@ -1304,7 +1320,7 @@ module Fdd = struct
       )
     |> fun (yes, no, mb) ->
       let finish dist =
-        if List.is_empty dist then (ActionDist.zero, Prob.zero) else
+        if List.is_empty dist then (FactorizedActionDist.zero, Prob.zero) else
         let mass =
           List.map dist ~f:snd
           |> List.fold ~init:Prob.zero ~f:Prob.(+)
@@ -1317,7 +1333,7 @@ module Fdd = struct
             )
             |> String.concat ~sep:";\n"
             |> printf "{\n%s\n}\n%!")
-          |> ActionDist.of_alist_exn
+          |> FactorizedActionDist.of_alist_exn
         in
         (dist, mass)
       in
@@ -1370,7 +1386,7 @@ module Fdd = struct
     let rec do_node skeleton pk =
       match unget skeleton with
       | Leaf r ->
-        const (Matrix.get_pk_action matrix pk)
+        const (Matrix.get_pk_action matrix pk |> FactorizedActionDist.factorize)
       | Branch ((f,v), tru, fls) ->
         let tru = do_node tru PrePacket.(modify pk f (Const v)) in
         let fls = do_node fls PrePacket.(modify pk f Atom) in
@@ -1570,7 +1586,7 @@ module Fdd = struct
   (** Erases (all matches on) meta field, then all modifications. *)
   let erase t meta_field init =
     let erase_mods =
-      ActionDist.pushforward ~f:(function
+      FactorizedActionDist.pushforward ~f:(function
         | Drop -> Drop
         | Action act -> Action (PreAction.T.remove act meta_field))
     in
@@ -1696,7 +1712,7 @@ module Fdd = struct
     in
     let open Action in
     map_r t ~f:(fun dist ->
-      ActionDist.pushforward dist ~f:(function
+      FactorizedActionDist.pushforward dist ~f:(function
       | Drop ->
         Drop
       | Action act ->
@@ -1767,7 +1783,7 @@ module Fdd = struct
     and do_leaves d1 d2 pk =
       List.equal ~equal:equal_weighted_pk (normalize d1 pk) (normalize d2 pk)
     and normalize dist pk =
-      ActionDist.to_alist dist
+      FactorizedActionDist.to_alist dist
       |> Util.map_fst ~f:modulo_mods
       |> Util.map_fst ~f:(Packet.(apply (Pk pk)))
       |> List.sort ~cmp:compare_weighted_pk
@@ -1798,7 +1814,7 @@ module Fdd = struct
   let output_dist t ~(input_dist : Packet.Dist.t) =
     Packet.Dist.to_alist input_dist
     |> Util.map_fst ~f:(fun pk ->
-      seq (const @@ ActionDist.dirac @@ Packet.to_action pk) t
+      seq (const @@ FactorizedActionDist.dirac @@ Packet.to_action pk) t
     )
     |> n_ary_convex_sum
     |> unget
@@ -1806,19 +1822,20 @@ module Fdd = struct
       | Branch _ ->
         failwith "underspecified input distribution"
       | Leaf dist ->
-        Packet.Dist.of_action_dist dist
+        FactorizedActionDist.to_joined dist
+        |> Packet.Dist.of_action_dist
 
 
   (* minimum probability of not dropping packet *)
   let min_nondrop_prob t ~(support : Packet.t list) =
     List.map support ~f:(fun pk ->
-      seq (const @@ ActionDist.dirac @@ Packet.to_action pk) t
+      seq (const @@ FactorizedActionDist.dirac @@ Packet.to_action pk) t
       |> unget
       |> function
       | Branch _ ->
         failwith "underspecified input support"
       | Leaf dist ->
-        ActionDist.to_alist dist
+        FactorizedActionDist.to_alist dist
         |> List.filter_map ~f:(function
             | (Action.Drop,_) -> None
             | (_,p) -> Some p

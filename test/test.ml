@@ -253,15 +253,20 @@ let basic_performance = [
 
   (* joint distribution of n independent binary coins *)
   begin
-    let n = 19 in
+    let n = 20 in
     let field i = sprintf "x%d" i in
-    let p =
-      PNK.seqi n ~f:(fun i ->
-        PNK.(?@[
-          !!(field i, 0) , 1//2;
-          !!(field i, 1) , 1//2;
-        ])
-      )
+    let local_field i = sprintf "y%d" i in
+    let p =PNK.(
+      seqi n ~f:(fun i -> ?@[
+        !!(field i, 0) , 1//2;
+        !!(field i, 1) , 1//2;
+      ]) >>
+      seqi n ~f:(fun i -> ?@[
+        !!(local_field i, 0) , 1//2;
+        !!(local_field i, 1) , 1//2;
+      ])
+      |> locals (List.init n ~f:(fun i -> (local_field i, 0, true)))
+    )
     in
     test fdd_eq "joint distribution of independent binary variables" p p
   end;
