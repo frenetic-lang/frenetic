@@ -1072,7 +1072,10 @@ module Fdd = struct
     sum t1 t2
 
   let n_ary_convex_sum xs : t =
-    let xs = Array.of_list xs in
+    let xs =
+      List.filter xs ~f:(fun (_, p) -> Prob.(p>zero))
+      |> Array.of_list
+    in
     (* responsible for k with i <= k < j *)
     let rec devide_and_conquer i j =
       (* number of elements responible for *)
@@ -1105,6 +1108,8 @@ module Fdd = struct
 
   (** sequence of ActionDist.t and t  *)
   let rec seq' dist u =
+    if ActionDist.is_zero dist then drop else
+    if ActionDist.is_one dist then u else
     match unget u with
     | Leaf dist' ->
       const (ActionDist.prod dist dist')
