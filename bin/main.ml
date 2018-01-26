@@ -8,8 +8,9 @@ let fprintf = Format.fprintf
 let fmt = Format.std_formatter
 
 
-let run ?(print=true) ?(debug=false) ?(verbose=false) p =
+let run ?(print=true) ?(debug=false) ?(verbose=false) ?(order=[]) p =
   Fdd.clear_cache ~preserve:Int.Set.empty;
+  Fdd.set_order order;
   printf "\n========================= Probnetkat ==========================\n%!";
   fprintf fmt "policy = %a\n\n%!" pp_policy p;
   let fdd = Symbolic.Fdd.of_pol p in
@@ -72,24 +73,9 @@ let () = begin
       ]
     );
 
-  begin
-    let n = 20 in
-    let field i = sprintf "x%d" i in
-    let local_field i = sprintf "y%d" i in
-    let p =PNK.(
-      seqi n ~f:(fun i -> ?@[
-        !!(field i, 0) , 1//2;
-        !!(field i, 1) , 1//2;
-      ]) >>
-      seqi n ~f:(fun i -> ?@[
-        !!(local_field i, 0) , 1//2;
-        !!(local_field i, 1) , 1//2;
-      ])
-      |> locals (List.init n ~f:(fun i -> (local_field i, 0, true)))
-    )
-    in
-    run p
-  end;
+  run ~order:["a"; "b"] (
+    ??("a", 0) >> ??("b", 0)
+  );
 
   (* run ~print:true (blowup' 9 2); *)
   (* run ~print:true (blowup' 4 4); *)

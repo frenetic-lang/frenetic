@@ -68,11 +68,11 @@ module Field = struct
     t_of_sexp (Sexp.of_string s)
 
   (** Hack: this way we always know what the abstract fields refer to *)
-  let field_to_str_map : string Map.t ref = ref Map.empty
+  let field_to_str_map : (t, string) Hashtbl.t = Hashtbl.Poly.create ()
 
   (** SJS: of_string o to_string may fail *)
   let to_string t =
-    match Map.find (!field_to_str_map) t with
+    match Hashtbl.find field_to_str_map t with
     | None -> sprintf "<abstract %s>" @@ Sexp.to_string (sexp_of_t t)
     | Some s -> s
 
@@ -1075,47 +1075,53 @@ module Fdd = struct
     if Set.is_empty preserve then (
       Hashtbl.clear field_allocation_tbl;
       next_field := 0;
-      Field.field_to_str_map := Field.Map.empty
+      Hashtbl.clear Field.field_to_str_map;
     );
     ()
 
+  let allocate_field env (f : string) : Field.t =
+    match Field.Env.lookup env f with
+    | (field, _) -> field
+    | exception Not_found ->
+      String.Table.find_or_add field_allocation_tbl f ~default:(fun () ->
+        let open Field in
+        let field = match !next_field with
+          | 0 -> F0
+          | 1 -> F1
+          | 2 -> F2
+          | 3 -> F3
+          | 4 -> F4
+          | 5 -> F5
+          | 6 -> F6
+          | 7 -> F7
+          | 8 -> F8
+          | 9 -> F9
+          | 10 -> F10
+          | 11 -> F11
+          | 12 -> F12
+          | 13 -> F13
+          | 14 -> F14
+          | 15 -> F15
+          | 16 -> F16
+          | 17 -> F17
+          | 18 -> F18
+          | 19 -> F19
+          | _ -> failwith "too many fields! (may need to clear the cache?)"
+        in
+        incr next_field;
+        Hashtbl.add_exn Field.field_to_str_map field f;
+        field
+      )
+
+  let allocate_global_field = allocate_field Field.Env.empty
+
   let allocate_fields (pol : string policy) : Field.t policy =
-    let do_field env (f : string) : Field.t =
-      match Field.Env.lookup env f with
-      | (field, _) -> field
-      | exception Not_found ->
-        String.Table.find_or_add field_allocation_tbl f ~default:(fun () ->
-          let open Field in
-          let field = match !next_field with
-            | 0 -> F0
-            | 1 -> F1
-            | 2 -> F2
-            | 3 -> F3
-            | 4 -> F4
-            | 5 -> F5
-            | 6 -> F6
-            | 7 -> F7
-            | 8 -> F8
-            | 9 -> F9
-            | 10 -> F10
-            | 11 -> F11
-            | 12 -> F12
-            | 13 -> F13
-            | 14 -> F14
-            | 15 -> F15
-            | 16 -> F16
-            | 17 -> F17
-            | 18 -> F18
-            | 19 -> F19
-            | _ -> failwith "too many fields! (may need to clear the cache?)"
-          in incr next_field; field)
-    in
     let rec do_pol env (p : string policy) : Field.t policy =
       match p with
       | Filter pred ->
         Filter (do_pred env pred)
       | Modify (f,v) ->
-        Modify (do_field env f, v)
+        Modify (allocate_field env f, v)
       | Seq (p, q) ->
         Seq (do_pol env p, do_pol env q)
       | Ite (a, p, q) ->
@@ -1126,7 +1132,7 @@ module Fdd = struct
         Choice (Util.map_fst dist ~f:(do_pol env))
       | Let { id; init; mut; body; } ->
         let init = match init with
-          | Alias f -> Alias (do_field env f)
+          | Alias f -> Alias (allocate_field env f)
           | Const v -> Const v
         in
         let env = Field.Env.add env id init mut in
@@ -1139,18 +1145,12 @@ module Fdd = struct
       match p with
       | True -> True
       | False -> False
-      | Test (f, v) -> Test (do_field env f, v)
+      | Test (f, v) -> Test (allocate_field env f, v)
       | And (p, q) -> And (do_pred env p, do_pred env q)
       | Or (p, q) -> Or (do_pred env p, do_pred env q)
       | Neg p -> Neg (do_pred env p)
     in
     let pol = do_pol Field.Env.empty pol in
-    let field_map =
-      String.Table.to_alist field_allocation_tbl
-      |> List.map ~f:(fun (str, field) -> (field, str))
-      |> Field.Map.of_alist_exn
-    in
-    Field.field_to_str_map := field_map;
     pol
 
   let deallocate_fields (pol : Field.t policy) : string policy =
@@ -1778,7 +1778,7 @@ module Fdd = struct
       | Drop -> Drop
       | Action act ->
         let act = Field.Map.filteri act~f:(fun ~key:f ~data:_ ->
-          let f = Map.find_exn (!Field.field_to_str_map) f in
+          let f = Hashtbl.find_exn Field.field_to_str_map f in
           not @@ List.mem modulo f ~equal:String.equal)
         in
         Action act
@@ -1841,12 +1841,7 @@ module Fdd = struct
       Meta19
     ]
     in
-    let global_fields =
-      List.filter_map order ~f:(fun f -> match abstract_field f with
-        | x -> Some x
-        | exception _ -> None
-      )
-    in
+    let global_fields = List.map order ~f:allocate_global_field in
     let missing_fields =
       List.filter Field.all ~f:(fun f ->
         let mem = List.mem ~equal:Field.equal in
@@ -1854,6 +1849,7 @@ module Fdd = struct
       )
     in
     let order = global_fields @ missing_fields @ meta_fields in
+    printf "[fdd] setting order to %s\n%!" (List.to_string order ~f:Field.to_string);
     Field.set_order order
 
 end

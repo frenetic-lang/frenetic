@@ -274,7 +274,19 @@ let basic_performance = [
 ]
 
 
-
+let misc_tests = [
+  (* make sure we can change the order of fdd fields *)
+  "fdd order", `Quick, (fun () ->
+    Alcotest.(check bool) "is true" true begin
+      let open Symbolic in
+      Fdd.set_order ["a"; "b"];
+      let a = Fdd.abstract_field "a" in
+      let b = Fdd.abstract_field "b" in
+      Field.compare a b = -1 &&
+      (Fdd.set_order ["b"; "a"]; Field.compare a b = 1)
+    end
+  );
+]
 
 
 (* let qcheck_tests = [
@@ -284,6 +296,7 @@ let basic_performance = [
 let () =
   Alcotest.run "Probnetkat" [
     "fdd serialization", serialization_tests;
+    "fdd misc",          misc_tests;
     "fdd deterministic", basic_deterministic;
     "fdd probabilistic", basic_probabilistic;
     "fdd performance",   basic_performance;
