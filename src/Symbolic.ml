@@ -394,8 +394,7 @@ module FactorizedActionDist : sig
   val pushforward : t -> f:(Action.t -> Action.t) -> t
 
   val empty : t
-  val unsafe_add : t -> Prob.t -> Action.t -> t
-  val unsafe_normalize : t -> t
+  (* val unsafe_normalize : t -> t *)
 
   val factorize : ActionDist.t -> t
   val to_joined : t -> ActionDist.t
@@ -424,12 +423,6 @@ end = struct
     | [] -> true
     | _ -> false
 
-  let unsafe_add t p act =
-    List.map t ~f:(fun dist -> ActionDist.unsafe_add dist p act)
-
-  let unsafe_normalize t =
-    List.map t ~f:ActionDist.unsafe_normalize
-
   (** this is not correct in general, but works for the uses of `pushforward`
       in this module *)
   let pushforward t ~f =
@@ -451,10 +444,11 @@ end = struct
   let of_alist_exn = Fn.compose of_joined ActionDist.of_alist_exn
 
   let support t =
-    List.map t ~f:ActionDist.support
+    ActionDist.support (to_joined t)
+(*     List.map t ~f:ActionDist.support
     |> List.fold ~init:[Action.one] ~f:(fun supp_left supp_right ->
       List.concat_map supp_left ~f:(fun left -> List.map supp_right ~f:(Action.prod left))
-    )
+    ) *)
 
   let to_string t =
     List.map t ~f:ActionDist.to_string
@@ -508,12 +502,17 @@ end = struct
       in
       loop t1 t2
 
+  (** SJS: we ought to be able to do better...but it does the trick for now  *)
   let convex_sum t1 p t2 =
+    factorize ActionDist.(convex_sum (to_joined t1) p (to_joined t2))
+    (* SJS: the implementation below tried to be clever, but that turns out to
+       be prohibitively expensive
+    *)
     (** intuitively, we pull out the common factors and only take the convex
         combination of the rest *)
-    let (common, t1) = List.partition_tf t1 ~f:(List.mem t2 ~equal:ActionDist.equal) in
+(*     let (common, t1) = List.partition_tf t1 ~f:(List.mem t2 ~equal:ActionDist.equal) in
     let t2 = List.filter t2 ~f:(fun d -> not (List.mem common d ~equal:ActionDist.equal)) in
-    ActionDist.convex_sum (to_joined t1) p (to_joined t2) :: common
+    ActionDist.convex_sum (to_joined t1) p (to_joined t2) :: common *)
 
 end
 
