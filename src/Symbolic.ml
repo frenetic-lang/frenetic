@@ -375,7 +375,7 @@ module ActionSmartDist : sig
   type t [@@deriving sexp, hash, compare, eq]
   val zero : t
   val one : t
-  (* val prod : t -> t -> t *)
+  val prod : t -> t -> t
   val sum : t -> t -> t
   val negate : t -> t
   (* val convex_sum : t -> Prob.t -> t -> t *)
@@ -455,6 +455,40 @@ end = struct
     (* This implements negation for the [zero] and [one] actions. Any
        non-[zero] action will be mapped to [zero] by this function. *)
     if is_zero t then one else zero
+
+
+  let prod t1 t2 =
+    if is_zero t1 || is_one t2 then t1 else
+    if is_zero t2 || is_one t1 then t2 else
+    let rec loop t1 t2 = match t2 with
+      | [] ->
+        t1
+      | d::t2 ->
+        let supp_d = ActionDist.support d in
+        let has_drop_d = List.mem supp_d Drop ~equal:Action.equal in
+        let has_field_d =
+          List.concat_map supp_d ~f:(function
+            | Drop -> []
+            | Action act -> PreAction.T.keys act
+          )
+          |> Field.Set.of_list
+          |> Field.Set.mem
+        in
+        let is_conflicted d' =
+          ActionDist.support d'
+          |> List.exists ~f:(function
+            | Action.Drop ->
+              has_drop_d
+            | Action.Action act ->
+              List.exists (PreAction.T.keys act) ~f:has_field_d
+          )
+        in
+        let (dependend, independend) = List.partition_tf t1 ~f:is_conflicted in
+        let d = List.fold_right dependend ~init:d ~f:ActionDist.prod in
+        loop (d::independend) t2
+      in
+      loop t1 t2
+
 
 end
 
