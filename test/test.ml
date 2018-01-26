@@ -91,10 +91,13 @@ let basic_deterministic = [
 
  (* predicate *)
   test fdd_equiv "predicate sequentially composed on right"
-    PNK.( ite (???("X",0)) (!!("X", 1)) skip
-          >> filter( neg (???("X", 0)) )
+    PNK.(
+      ite (???("X",0)) (!!("X", 1)) skip
     )
-    PNK.( ite (???("X",0)) (!!("X", 1)) skip );
+    PNK.(
+      ite (???("X",0)) (!!("X", 1)) skip
+      >> filter( neg (???("X", 0)) )
+    );
 
   (* deterministic loop *)
   (* test fdd_equiv "deterministic loop" *)
@@ -246,6 +249,31 @@ let basic_probabilistic = [
 
 ]
 
+let basic_performance = [
+
+  (* joint distribution of n independent binary coins *)
+  begin
+    let n = 20 in
+    let field i = sprintf "x%d" i in
+    let local_field i = sprintf "y%d" i in
+    let p =PNK.(
+      seqi n ~f:(fun i -> ?@[
+        !!(field i, 0) , 1//2;
+        !!(field i, 1) , 1//2;
+      ]) >>
+      seqi n ~f:(fun i -> ?@[
+        !!(local_field i, 0) , 1//2;
+        !!(local_field i, 1) , 1//2;
+      ])
+      |> locals (List.init n ~f:(fun i -> (local_field i, 0, true)))
+    )
+    in
+    test fdd_eq "joint distribution of independent binary variables" p p
+  end;
+
+]
+
+
 
 
 
@@ -258,5 +286,6 @@ let () =
     "fdd serialization", serialization_tests;
     "fdd deterministic", basic_deterministic;
     "fdd probabilistic", basic_probabilistic;
+    "fdd performance",   basic_performance;
     (* "qcheck", qcheck_tests; *)
   ]
