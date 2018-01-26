@@ -307,6 +307,8 @@ module ActionDist : sig
   type t [@@deriving sexp, hash, compare, eq]
   val zero : t
   val one : t
+  val is_zero : t -> bool
+  val is_one : t -> bool
   val prod : t -> t -> t
   val sum : t -> t -> t
   val negate : t -> t
@@ -366,6 +368,94 @@ end = struct
       failwith (sprintf "multicast not implemented! cannot add (in the sense of &) %s and %s"
         (to_string x) (to_string y)
       )
+end
+
+(* hacky *)
+module ActionSmartDist : sig
+  type t [@@deriving sexp, hash, compare, eq]
+  val zero : t
+  val one : t
+  (* val prod : t -> t -> t *)
+  val sum : t -> t -> t
+  val negate : t -> t
+  (* val convex_sum : t -> Prob.t -> t -> t *)
+
+  val to_string : t -> string
+  val to_alist : t -> (Action.t * Prob.t) list
+  val of_alist_exn : (Action.t * Prob.t) list -> t
+
+  val support : t -> Action.t list
+  val dirac : Action.t -> t
+  val pushforward : t -> f:(Action.t -> Action.t) -> t
+
+  val empty : t
+  val unsafe_add : t -> Prob.t -> Action.t -> t
+  val unsafe_normalize : t -> t
+end = struct
+  type t = ActionDist.t list
+  [@@deriving sexp, hash, compare, eq]
+
+  (* invariant? *)
+  let zero = [ActionDist.zero]
+  let one = [ActionDist.one]
+  let empty = [ActionDist.empty]
+  let dirac x = [ActionDist.dirac x]
+
+  let is_zero t =
+    match t with
+    | [d] -> ActionDist.is_zero d
+    | _ -> false
+
+  let is_one t =
+    match t with
+    | [d] -> ActionDist.is_one d
+    | _ -> false
+
+  let unsafe_add t p act =
+    List.map t ~f:(fun dist -> ActionDist.unsafe_add dist p act)
+
+  let unsafe_normalize t =
+    List.map t ~f:ActionDist.unsafe_normalize
+
+  (** this is not correct in general, but works for the uses of `pushforward`
+      in this module *)
+  let pushforward t ~f =
+    List.map t ~f:(ActionDist.pushforward ~f)
+
+  let to_joined t =
+    List.fold t ~init:ActionDist.one ~f:ActionDist.prod
+
+  (* try to factorize joint distribution *)
+  let of_joined d =
+    failwith "not implemented"
+
+
+  let to_alist = Fn.compose ActionDist.to_alist to_joined
+  let of_alist_exn = Fn.compose of_joined ActionDist.of_alist_exn
+
+  let support t =
+    List.map t ~f:ActionDist.support
+    |> List.fold ~init:[Action.one] ~f:(fun supp_left supp_right ->
+      List.concat_map supp_left ~f:(fun left -> List.map supp_right ~f:(Action.prod left))
+    )
+
+  let to_string = List.to_string ~f:ActionDist.to_string
+
+  (* sum = ampersand (and ampersand only!). It should ever only be used to
+   implement disjunction. Thus, we must have x,y \in {0,1}  *)
+  let sum x y =
+    if is_zero x then y else
+    if is_zero y then x else
+    if is_one x && is_one y then x else
+      failwith (sprintf "multicast not implemented! cannot add (in the sense of &) %s and %s"
+        (to_string x) (to_string y)
+      )
+
+  let negate t : t =
+    (* This implements negation for the [zero] and [one] actions. Any
+       non-[zero] action will be mapped to [zero] by this function. *)
+    if is_zero t then one else zero
+
 end
 
 
