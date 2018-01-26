@@ -8,7 +8,7 @@ import argparse
 import networkx as nx
 from topolib import *
 
-def mk_topo(di, da, rack_size, bw):
+def mk_topo(da, di, rack_size, bw):
     num_core_switches = da/2
     num_agg_switches  = di
     num_tor_switches  = (da * di)/4
@@ -83,7 +83,7 @@ def parse_args():
                         help='Number of ports in an aggregation switch (parameter D_A in the paper)')
     parser.add_argument('-i','--di',type=int,action='store',dest='di',
                         default=4,
-                        help='Number of ports in an Intermediate switch (parameter D_I in the paper)')
+                        help='Number of ports in an intermediate switch (parameter D_I in the paper)')
     parser.add_argument('-r','--rack_size',type=int,action='store',dest='rack_size',
                         default=2,
                         help='Number of servers connected to a ToR switch')
@@ -98,7 +98,7 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    topo = mk_topo(args.di, args.da, args.rack_size, args.bw)
+    topo = mk_topo(args.da, args.di, args.rack_size, args.bw)
 
     if args.output:
         nx.drawing.nx_agraph.write_dot(topo, args.output+'.dot')

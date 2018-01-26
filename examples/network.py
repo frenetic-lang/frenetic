@@ -48,19 +48,26 @@ def routing_trees(topo, routing_alg, dest):
     return trees
 
 def network(topo_args, routing_algs, topo_name):
+    if topo_name is None:
+        topo_name = 'output/'+'_'.join(topo_args.split(','))
     # Generate topology
     topo = generate_topology(topo_args)
     if topo is None:
         print "ERROR: Failed to generate topology"
         return
-    # Export the topology
-    nx.drawing.nx_agraph.write_dot(topo, topo_name + '.dot')
 
-    # Create a graph of only switches
     hosts = []
+    num_switches = 0
     for n,d in topo.nodes(data=True):
         if d['type'] == 'host':
             hosts.append(n)
+        elif d['type'] == 'switch':
+            num_switches += 1
+
+    # Export the topology
+    nx.drawing.nx_agraph.write_dot(topo, topo_name + '_sw_' + str(num_switches) +'.dot')
+
+    # Create a graph of only switches
     topo.remove_nodes_from(hosts)
 
     # Routing. Fix destination. Generate routing tree(s) to this desitnation
