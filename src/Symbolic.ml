@@ -303,7 +303,27 @@ end
 
 
 
-module ActionDist = struct
+module ActionDist : sig
+  type t [@@deriving sexp, hash, compare, eq]
+  val zero : t
+  val one : t
+  val prod : t -> t -> t
+  val sum : t -> t -> t
+  val negate : t -> t
+  val convex_sum : t -> Prob.t -> t -> t
+
+  val to_string : t -> string
+  val to_alist : t -> (Action.t * Prob.t) list
+  val of_alist_exn : (Action.t * Prob.t) list -> t
+
+  val support : t -> Action.t list
+  val dirac : Action.t -> t
+  val pushforward : t -> f:(Action.t -> Action.t) -> t
+
+  val empty : t
+  val unsafe_add : t -> Prob.t -> Action.t -> t
+  val unsafe_normalize : t -> t
+end = struct
 
   module T = Dist.Make(Action)
   include T
