@@ -7,7 +7,6 @@ module Make(Dom: Vlr.HashCmp) : sig
   val mass : t -> Prob.t
 
   val to_string : t -> string
-  val to_alist : t -> (Dom.t * Prob.t) list
 
   val empty : t
   val is_empty : t -> bool
