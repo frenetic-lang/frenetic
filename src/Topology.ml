@@ -38,7 +38,7 @@ let sw_val topo sw : int =
   |> Node.id
   |> Int.of_int64_exn
 
-let vertex_to_ports ?(dst_filter=fun _ -> true) topo vertex =
+let vertex_to_ports ~dst_filter topo vertex =
   neighbors topo vertex
   |> Set.filter ~f:dst_filter
   |> Set.to_list
@@ -48,7 +48,7 @@ let vertex_to_ports ?(dst_filter=fun _ -> true) topo vertex =
 
 let locs topo : (vertex * int list) list =
   List.map (switches topo) ~f:(fun sw ->
-    vertex_to_ports topo sw
+    vertex_to_ports ~dst_filter:(fun _ -> true) topo sw
     |> List.map ~f:pt_val
     |> (fun pts -> (sw, pts))
   )
