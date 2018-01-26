@@ -489,6 +489,13 @@ end = struct
       in
       loop t1 t2
 
+  let convex_sum t1 p t2 =
+    (** intuitively, we pull out the common factors and only take the convex
+        combination of the rest *)
+    let (common, t1) = List.partition_tf t1 ~f:(List.mem t2 ~equal:ActionDist.equal) in
+    let t2 = List.filter t2 ~f:(fun d -> not (List.mem common d ~equal:ActionDist.equal)) in
+    ActionDist.convex_sum (to_joined t1) p (to_joined t2) :: common
+
 
 end
 
