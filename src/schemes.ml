@@ -214,7 +214,7 @@ let random_walk topo : Net.Topology.vertex -> string policy =
 let resilient_random_walk topo : Net.Topology.vertex -> string policy =
   fun sw ->
     let pts =
-      Topology.(vertex_to_ports topo.graph sw ~dst_filter:(is_host topo.graph))
+      Topology.(vertex_to_ports topo.graph sw ~dst_filter:(is_switch topo.graph))
       |> List.map ~f:Topology.pt_val
     in
     let choose_port = random_walk topo sw in
