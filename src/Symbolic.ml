@@ -439,7 +439,9 @@ end = struct
       List.concat_map supp_left ~f:(fun left -> List.map supp_right ~f:(Action.prod left))
     )
 
-  let to_string = List.to_string ~f:ActionDist.to_string
+  let to_string t =
+    List.map t ~f:ActionDist.to_string
+    |> String.concat ~sep:" x "
 
   (* sum = ampersand (and ampersand only!). It should ever only be used to
    implement disjunction. Thus, we must have x,y \in {0,1}  *)
