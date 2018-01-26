@@ -1806,8 +1806,12 @@ module Fdd = struct
     |> n_ary_convex_sum
     |> unget
     |> function
-      | Branch _ ->
-        failwith "underspecified input distribution"
+      | Branch ((f,_),_,_) as fdd ->
+        sprintf "Underspecified input distribution. Branching on %s, but input distribution is %s.\n%s\n"
+          (Field.to_string f)
+          (Packet.Dist.to_string input_dist)
+          (to_string (get fdd))
+        |> failwith
       | Leaf dist ->
         FactorizedActionDist.to_joined dist
         |> Packet.Dist.of_action_dist
