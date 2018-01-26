@@ -1108,18 +1108,21 @@ module Fdd = struct
 
   (** sequence of ActionDist.t and t  *)
   let rec seq' dist u =
-    if ActionDist.is_zero dist then drop else
-    if ActionDist.is_one dist then u else
-    match unget u with
-    | Leaf dist' ->
-      const (ActionDist.prod dist dist')
-    | Branch (test, tru, fls) ->
-      let ((yes,p_yes), (no, p_no), (maybe, p_maybe)) = split dist test in
-      n_ary_convex_sum [
-        seq' yes tru, p_yes;
-        seq' no fls, p_no;
-        unchecked_cond test (seq' maybe tru) (seq' maybe fls), p_maybe;
-      ]
+    let t = const dist in
+    if equal t drop then drop else
+    if equal t id  then u else
+    BinTbl.find_or_add seq_tbl (t,u) ~default:(fun () ->
+      match unget u with
+      | Leaf dist' ->
+        const (ActionDist.prod dist dist')
+      | Branch (test, tru, fls) ->
+        let ((yes,p_yes), (no, p_no), (maybe, p_maybe)) = split dist test in
+        n_ary_convex_sum [
+          seq' yes tru, p_yes;
+          seq' no fls, p_no;
+          unchecked_cond test (seq' maybe tru) (seq' maybe fls), p_maybe;
+        ]
+    )
   (** The three events
         A = "f<-n",
         B = "f<-m for m!=n", and
