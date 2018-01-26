@@ -24,3 +24,4 @@ setup.log
 *.install
 *.merlin
 *.pyc
+examples/output/results*
