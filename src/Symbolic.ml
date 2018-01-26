@@ -169,12 +169,12 @@ module Field = struct
         count_arr.(f) <- count_arr.(f) + size
       | Or (a, b) | And (a, b) ->
         f_pred size a; f_pred size b
-      | Neg a -> 
+      | Neg a ->
         f_pred size a
     in
     let rec f_seq' (pol : t Syntax.policy) lst k =
       match pol with
-      | Modify _ -> 
+      | Modify _ ->
         k (1, lst)
       | Filter a ->
         k (1, a :: lst)
@@ -184,7 +184,7 @@ module Field = struct
             k (m * n, lst)
           )
         )
-      | Ite (a,p,q) -> 
+      | Ite (a,p,q) ->
         k (f_union a p q, lst)
       | Choice ps ->
         k (f_choice ps, lst)
@@ -237,7 +237,7 @@ module Field = struct
     |> List.stable_sort ~cmp:(fun (_, x) (_, y) -> Int.compare x y)
     |> List.rev (* SJS: do NOT remove & reverse order! Want stable sort *)
     |> List.map ~f:fst
-    |> set_order 
+    |> set_order
 
 end
 
@@ -1067,6 +1067,8 @@ module Fdd = struct
         |  _ -> assert false
         end
     in
+    if Prob.(equal zero prob) then t2 else
+    if Prob.(equal one prob) then t1 else
     sum t1 t2
 
   let n_ary_convex_sum xs : t =
@@ -1101,6 +1103,65 @@ module Fdd = struct
     clear_cache preserve;
   end
 
+  (** sequence of ActionDist.t and t  *)
+  let rec seq' dist u =
+    match unget u with
+    | Leaf dist' ->
+      const (ActionDist.prod dist dist')
+    | Branch (test, tru, fls) ->
+      let ((yes,p_yes), (no, p_no), (maybe, p_maybe)) = split dist test in
+      n_ary_convex_sum [
+        seq' yes tru, p_yes;
+        seq' no fls, p_no;
+        unchecked_cond test (seq' maybe tru) (seq' maybe fls), p_maybe;
+      ]
+  (** The three events
+        A = "f<-n",
+        B = "f<-m for m!=n", and
+        C = "no assignment to f"
+      are a parition of the probability space. Split the input distribution
+      into the three conditional distributions
+        dist|A, dist|B, dist|C
+      together with their weights dist(A), dist(B), dist(C).
+  *)
+  and split dist (f,n) =
+    ActionDist.to_alist dist
+    |> List.fold ~init:([], [], []) ~f:(fun (yes, no, mb) ((act, p) as outcome) ->
+        match act with
+        | Action.Drop ->
+          (yes, no, outcome::mb)
+        | Action.Action act ->
+          begin match PreAction.T.find act f with
+          | None ->
+            (yes, no, outcome::mb)
+          | Some n' ->
+            if n = n' then
+              (outcome::yes, no, mb)
+            else
+              (yes, outcome::no, mb)
+          end
+      )
+    |> fun (yes, no, mb) ->
+      let finish dist =
+        if List.is_empty dist then (ActionDist.zero, Prob.zero) else
+        let mass =
+          List.map dist ~f:snd
+          |> List.fold ~init:Prob.zero ~f:Prob.(+)
+        in
+        let dist =
+          Util.map_snd dist ~f:(fun p -> Prob.(p/mass))
+          |> Util.tap ~f:(fun alist ->
+            List.map alist ~f:(fun (a,p) ->
+              sprintf "  %s @ %s" (Action.to_string a) (Prob.to_string p)
+            )
+            |> String.concat ~sep:";\n"
+            |> printf "{\n%s\n}\n%!")
+          |> ActionDist.of_alist_exn
+        in
+        (dist, mass)
+      in
+      (finish yes, finish no, finish mb)
+
   let seq t u =
     match unget u with
     | Leaf _ -> prod t u (* This is an optimization. If [u] is an
@@ -1111,7 +1172,8 @@ module Fdd = struct
     | Branch _ ->
       dp_map t
         ~f:(fun dist ->
-          ActionDist.to_alist dist
+            seq' dist u
+(*           ActionDist.to_alist dist
           |> Util.map_fst ~f:(fun action ->
             match action with
             | Action.Drop -> drop
@@ -1119,7 +1181,7 @@ module Fdd = struct
               restrict (PreAction.to_hvs preact) u
               |> prod (const @@ ActionDist.dirac action)
           )
-          |> n_ary_convex_sum
+          |> n_ary_convex_sum *)
         )
         ~g:(fun v t f -> cond v t f)
         ~find_or_add:(fun t -> BinTbl.find_or_add seq_tbl (t,u))
@@ -1446,7 +1508,7 @@ module Fdd = struct
       sum (of_pol_cps tru p) (of_pol_cps fls q)
     | While (a, p) ->
       let a = of_pred a in
-      if equal drop (seq k a) then 
+      if equal drop (seq k a) then
         seq k (negate a)
       else
         Util.timed "while loop" (fun () -> iterate a (of_pol_cps a p))
@@ -1605,10 +1667,10 @@ module Fdd = struct
     |> List.fold ~init:Prob.one ~f:Prob.min
 
   let set_order order =
-    let meta_fields = Field.[ 
+    let meta_fields = Field.[
       Meta0; Meta1; Meta2; Meta3; Meta4; Meta5; Meta6; Meta7; Meta8; Meta9;
       Meta10; Meta11; Meta12; Meta13; Meta14; Meta15; Meta16; Meta17; Meta18;
-      Meta19 
+      Meta19
     ]
     in
     let global_fields =

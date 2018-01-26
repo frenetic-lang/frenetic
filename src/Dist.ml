@@ -156,10 +156,11 @@ module Make (Dom : Vlr.HashCmp) = struct
 
   let of_alist_exn l =
     let mass =
-      List.map l  ~f:snd
+      List.map l ~f:snd
       |> List.fold ~init:Prob.zero ~f:Prob.(+)
     in
     assert Prob.(equal mass one);
-    T.of_alist_exn l
+    List.filter l ~f:(fun (x,p) -> Prob.(p > zero))
+    |> T.of_alist_exn
 
 end
