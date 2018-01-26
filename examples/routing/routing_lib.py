@@ -5,13 +5,14 @@ def serialize_trees(trees, outfile):
     with open(outfile+'.trees', 'w') as f:
         for tree in trees:
             f.write('# TREE: ' + str(counter) + '\n')
-            for (u,v) in tree:
+            for (u,v) in sorted(tree):
                 f.write(str(u) + ' -- ' + str(v) + '\n')
             counter += 1
 
 def serialize_nexthops(allnhs, outfile):
     with open(outfile+'.nexthops', 'w') as f:
-        for s,nhs in allnhs.iteritems():
+        for s in sorted(allnhs.keys()):
+            nhs = allnhs[s]
             f.write(str(s) + " : " + " ".join([str(v) for v in sorted(nhs)]) + '\n')
 
 def serialize_routes(routes, outfile):

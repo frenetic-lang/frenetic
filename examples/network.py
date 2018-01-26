@@ -2,8 +2,10 @@ import argparse
 import networkx as nx
 import sys
 
-from topologies import fattree,jellyfish,xpander
+from topologies import abfattree,fattree,jellyfish,vl2,xpander
 from routing import allsp,spf,disjointtrees,routing_lib
+
+DESTINATION = 's1'
 
 def generate_topology(topo_args):
     targs = topo_args.split(',')
@@ -14,7 +16,11 @@ def generate_topology(topo_args):
         topo = fattree.mk_topo(pods)
     elif targs[0] == 'abfattree':
         pods = int(targs[1])
-        topo = fattree.mk_topo(pods)
+        topo = abfattree.mk_topo(pods)
+    elif targs[0] == 'vl2':
+        da = int(targs[1])
+        di = int(targs[2])
+        topo = vl2.mk_topo(da, di, rack_size=1, bw='10Gbps')
     elif targs[0] == 'jellyfish':
         n = int(targs[1])
         k = int(targs[2])
@@ -42,25 +48,32 @@ def routing_trees(topo, routing_alg, dest):
     return trees
 
 def network(topo_args, routing_algs, topo_name):
+    if topo_name is None:
+        topo_name = 'output/'+'_'.join(topo_args.split(','))
     # Generate topology
     topo = generate_topology(topo_args)
     if topo is None:
         print "ERROR: Failed to generate topology"
         return
-    # Export the topology
-    nx.drawing.nx_agraph.write_dot(topo, topo_name + '.dot')
 
-    # Create a graph of only switches
     hosts = []
+    num_switches = 0
     for n,d in topo.nodes(data=True):
         if d['type'] == 'host':
             hosts.append(n)
+        elif d['type'] == 'switch':
+            num_switches += 1
+
+    # Export the topology
+    nx.drawing.nx_agraph.write_dot(topo, topo_name + '_sw_' + str(num_switches) +'.dot')
+
+    # Create a graph of only switches
     topo.remove_nodes_from(hosts)
 
     # Routing. Fix destination. Generate routing tree(s) to this desitnation
     alg_list = routing_algs.split(',')
     for alg in alg_list:
-        routes = routing_trees(topo, alg, 's1')
+        routes = routing_trees(topo, alg, DESTINATION)
         routing_lib.serialize_routes(routes, topo_name+'-'+alg)
 
 

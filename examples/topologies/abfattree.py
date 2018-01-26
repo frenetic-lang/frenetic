@@ -72,6 +72,7 @@ def mk_topo(k, bw='1Gbps'):
                     core_ports[core[0]] += 1
                 j += 1
         else:
+            # Type B
             j = 0
             for agg in pod_agg_switches:
                 core_sw_idxs = [j + x * p for x in range(pods/2)]
