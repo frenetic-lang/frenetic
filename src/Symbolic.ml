@@ -1327,12 +1327,6 @@ module Fdd = struct
         in
         let dist =
           Util.map_snd dist ~f:(fun p -> Prob.(p/mass))
-          |> Util.tap ~f:(fun alist ->
-            List.map alist ~f:(fun (a,p) ->
-              sprintf "  %s @ %s" (Action.to_string a) (Prob.to_string p)
-            )
-            |> String.concat ~sep:";\n"
-            |> printf "{\n%s\n}\n%!")
           |> FactorizedActionDist.of_alist_exn
         in
         (dist, mass)
@@ -1616,13 +1610,6 @@ module Fdd = struct
         | Let _ -> "let x = n in p"
         (* | Repeat _ -> "do n times p" *)
       );
-    begin match p with
-    | Filter _ ->
-      deallocate_fields p
-      |> Format.printf "%a\n\n%!" Syntax.pp_policy
-    | _ ->
-      ()
-    end;
     match p with
     | Filter p ->
       k (of_pred p)
