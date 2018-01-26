@@ -2,8 +2,10 @@ import argparse
 import networkx as nx
 import sys
 
-from topologies import fattree,abfattree,jellyfish,xpander
+from topologies import abfattree,fattree,jellyfish,vl2,xpander
 from routing import allsp,spf,disjointtrees,routing_lib
+
+DESTINATION = 's1'
 
 def generate_topology(topo_args):
     targs = topo_args.split(',')
@@ -15,6 +17,10 @@ def generate_topology(topo_args):
     elif targs[0] == 'abfattree':
         pods = int(targs[1])
         topo = abfattree.mk_topo(pods)
+    elif targs[0] == 'vl2':
+        da = int(targs[1])
+        di = int(targs[2])
+        topo = vl2.mk_topo(da, di, rack_size=1, bw='10Gbps')
     elif targs[0] == 'jellyfish':
         n = int(targs[1])
         k = int(targs[2])
@@ -60,7 +66,7 @@ def network(topo_args, routing_algs, topo_name):
     # Routing. Fix destination. Generate routing tree(s) to this desitnation
     alg_list = routing_algs.split(',')
     for alg in alg_list:
-        routes = routing_trees(topo, alg, 's1')
+        routes = routing_trees(topo, alg, DESTINATION)
         routing_lib.serialize_routes(routes, topo_name+'-'+alg)
 
 
