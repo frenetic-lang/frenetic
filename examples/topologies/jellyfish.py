@@ -22,16 +22,17 @@ def mk_topo(n, k, r, bw='1Gbps'):
                        for i in range(1,num_switches + 1)]
 
     switch_labels = dict()
-    switch_props = dict()
+    switch_props_id = dict()
     for i in range(1, num_switches + 1):
         sw = 's' + str(i)
         switch_labels[i-1] = sw
-        switch_props[sw] = {'type':'switch','id':i}
+        switch_props_id[sw] = i
 
     # Create random regular graph of ToRs
     h = nx.random_regular_graph(r, n)
     g = nx.relabel_nodes(h.to_directed(), switch_labels)
-    nx.set_node_attributes(g, switch_props)
+    nx.set_node_attributes(g, 'id', switch_props_id)
+    nx.set_node_attributes(g, 'type', 'switch')
     # Add hosts
     g.add_nodes_from(hosts)
     for sw in g.nodes():
