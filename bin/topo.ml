@@ -7,7 +7,7 @@ open Frenetic.Network
 let base_name = Sys.argv.(1)
 
 (* link failure probabilities *)
-let failure_prob _sw _pt = Prob.(1//10)
+let failure_prob _sw _pt = Prob.zero
 
 (* Limit on maximum failures "encountered" by a packet. A packet encounters
    a failure if it occurs on a link that is incident to the current location
@@ -20,7 +20,7 @@ let topo = Topology.parse (base_name ^ ".dot")
 let topo' = Schemes.enrich_topo topo
 
 (* the actual program to run on the switches *)
-let sw_pol = `Switchwise (Schemes.resilient_random_walk topo')
+let sw_pol = `Switchwise (Schemes.ecmp topo' base_name)
 
 
 (*===========================================================================*)

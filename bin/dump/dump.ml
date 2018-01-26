@@ -46,8 +46,7 @@ let dump_data (data : data) ~dir : unit =
   in
   Out_channel.with_file file ~f:(fun chan ->
     data_to_yojson data
-    |> Yojson.Safe.to_string
-    |> Out_channel.output_string chan
+    |> Yojson.Safe.pretty_to_channel chan
   )
 
 
