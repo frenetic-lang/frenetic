@@ -73,7 +73,7 @@ module Field = struct
   (** SJS: of_string o to_string may fail *)
   let to_string t =
     match Hashtbl.find field_to_str_map t with
-    | None -> sprintf "<abstract %s>" @@ Sexp.to_string (sexp_of_t t)
+    | None -> sprintf "<%s>" @@ Sexp.to_string (sexp_of_t t)
     | Some s -> s
 
   let is_valid_order (lst : t list) : bool =
@@ -1315,11 +1315,11 @@ module Fdd = struct
     let cache : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 () in
     let rec sum x y =
       let result = BinTbl.find_or_add cache (x, y) ~default:(fun () -> sum' x y) in
-      printf "%s-convex combination of\n  %s\nand\n  %s\nis\n  %s\n\n%!"
+(*       printf "%s-convex combination of\n  %s\nand\n  %s\nis\n  %s\n\n%!"
         (Prob.to_string prob)
         (to_string x)
         (to_string y)
-        (to_string result);
+        (to_string result); *)
       result
     and sum' x y =
       match unget x, unget y with
@@ -1401,10 +1401,10 @@ module Fdd = struct
           ]
       )
     in
-    printf "Seq of\n  %s\nand\n  %s\nis\n  %s\n\n%!"
+(*     printf "Seq of\n  %s\nand\n  %s\nis\n  %s\n\n%!"
       (FactorizedActionDist.to_string dist)
       (to_string u)
-      (to_string result);
+      (to_string result); *)
     result
 
   let seq t u =

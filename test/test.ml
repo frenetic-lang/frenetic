@@ -296,9 +296,9 @@ let basic_performance = [
     test fdd_eq "simplified failure model with up bits should scale O(n), not O(2^n)" p p
   end;
 
-(*   (* up-bit example *)
+  (* full up-bit example *)
   begin
-    let n = 16 in
+    let n = 2 in
     let up i = sprintf "up_%d" i in
     let p = PNK.(
       seqi n ~f:(fun i -> ?@[
@@ -311,11 +311,11 @@ let basic_performance = [
         let body = !!("pt", i+1 mod n) in
         (guard, body)
       )
-      |> locals (List.init n ~f:(fun i -> (up i, 0, true)))
+      (* |> locals (List.init n ~f:(fun i -> (up i, 0, true))) *)
     )
     in
-    test fdd_eq "failure model with up bits should scale O(n), not O(2^n)" p p
-  end; *)
+    test_not fdd_eq "failure model with up bits should scale O(n), not O(2^n)" p p
+  end;
 
 ]
 
