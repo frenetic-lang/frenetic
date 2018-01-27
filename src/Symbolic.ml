@@ -594,7 +594,10 @@ end = struct
     | [d] ->
       let yes, no, mb = ActionDist.split_into_conditionals d (f,n) in
       let finish_conditional (dist, mass) =
-        (canonicalize @@ dist::f_independent_factors, mass)
+        if ActionDist.is_zero dist then
+          (zero, mass)
+        else
+          (canonicalize @@ dist::f_independent_factors, mass)
       in
       finish_conditional yes, finish_conditional no, finish_conditional mb
 
@@ -1361,22 +1364,29 @@ module Fdd = struct
   (** sequence of FactorizedActionDist.t and t  *)
   let rec seq' dist u =
     let t = const dist in
-    if equal t drop then drop else
-    if equal t id  then u else
-    BinTbl.find_or_add seq_tbl (t,u) ~default:(fun () ->
-      match unget u with
-      | Leaf dist' ->
-        const (FactorizedActionDist.prod dist dist')
-      | Branch (test, tru, fls) ->
-        let ((yes,p_yes), (no, p_no), (maybe, p_maybe)) =
-          FactorizedActionDist.split_into_conditionals dist test
-        in
-        n_ary_convex_sum [
-          seq' yes tru, p_yes;
-          seq' no fls, p_no;
-          unchecked_cond test (seq' maybe tru) (seq' maybe fls), p_maybe;
-        ]
-    )
+    let result =
+      if equal t drop then drop else
+      if equal t id  then u else
+      BinTbl.find_or_add seq_tbl (t,u) ~default:(fun () ->
+        match unget u with
+        | Leaf dist' ->
+          const (FactorizedActionDist.prod dist dist')
+        | Branch (test, tru, fls) ->
+          let ((yes,p_yes), (no, p_no), (maybe, p_maybe)) =
+            FactorizedActionDist.split_into_conditionals dist test
+          in
+          n_ary_convex_sum [
+            seq' yes tru, p_yes;
+            seq' no fls, p_no;
+            unchecked_cond test (seq' maybe tru) (seq' maybe fls), p_maybe;
+          ]
+      )
+    in
+    printf "Seq of\n  %s\nand\n  %s\nis\n  %s\n\n%!"
+      (FactorizedActionDist.to_string dist)
+      (to_string u)
+      (to_string result);
+    result
 
   let seq t u =
     match unget u with
