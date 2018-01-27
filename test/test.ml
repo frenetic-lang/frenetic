@@ -279,9 +279,13 @@ let basic_performance = [
     test fdd_eq "joint distribution of independent binary variables" p p
   end;
 
-  (* simplified up-bit example *)
+  (* simplified up-bit example; we could do this efficiently with a better
+     FactorizedActionDist.convex_sum, but that slows other things down too much
+     and is currently not worth it.
+  *)
   begin
-    let n = 20 in
+    (* works with n=20 with somewhat smart, hacky convex_sum enabled *)
+    let n = 2 in
     let up i = sprintf "up_%d" i in
     let p = PNK.(
       seqi n ~f:(fun i -> ?@[

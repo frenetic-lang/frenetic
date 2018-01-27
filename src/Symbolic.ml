@@ -566,16 +566,16 @@ end = struct
   let convex_sum t1 p t2 =
     if Prob.(equal zero p) then t2 else
     if Prob.(equal one p) then t1 else
-    let drop p = ActionDist.(convex_sum zero p one) in
+    (* let drop p = ActionDist.(convex_sum zero p one) in *)
     (** SJS: this is a hideous hack, but seems to work.
         The proper way would be to handle Skip differently somehow.
         Maybe we should use factored subproability distributions?
      *)
-    if is_zero t1 then
+(*     if is_zero t1 then
       drop p :: t2
     else if is_zero t2 then
       drop Prob.(one - p) :: t1
-    else
+    else *)
       factorize ActionDist.(convex_sum (to_joined t1) p (to_joined t2))
 
     (* SJS: the implementation below tried to be clever, but that turns out to
