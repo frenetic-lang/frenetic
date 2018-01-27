@@ -1,26 +1,21 @@
-## IDEAS
-* sparse matrix inversion:
-    - https://stackoverflow.com/questions/25929311/how-can-i-calculate-inverse-of-sparse-matrix-in-eigen-library
+# IDEAS
+
+## Bayesian Networks
+Representing joint distributions naively does not scale in general. For example, the joint distribution of n Bernoulli variables is given by 2^n parameters. But if the variables are independent, n parameters suffice.
+Can we use ideas from Bayesian networks to keep the representation of distributions factorized?
+-> study the literature
+
+## Maintain factorization when converting to linear system and back
+Factorization is of little use if we have to "mutiply-out" and thus incur an exponential blowup when we iterate (i.e., use the linear algebra backend). Can we keep things factorized even when iterating? I.e., maybe there is a "factorized" linear system that is smaller than the naive linear system would be?
+
+
+## Local fields
+Reason about fact that local fields go out of scope eventually. This can be exploited for optimization. How to implement such optimizations? Algebraic manipulations? See my notes.
+
+## Quickcheck
+There are various undocumented invariances and properties that hold of the implementation. Would be great to write these down as quickcheck properties.
+
+
 * Instead of using one global domain, refine domain during matrix compilation?
-* local fields can help with state space explosion!
-    - erased once they go out of scope
-* exploit independence for better performance?
-    - analyze blowup example
-* sometimes all rows are the same
-* solve kleene star one connected component at a time
-
-
-
-# TODO:
-* carefully examine allocation!
-* pass all arguments explicit (-> less computation)
-* parser
-
-# OLD
-* Use sub-stochastic matrices instead of stochastic ones?
-    - this should work!
-    - -> done!
-
-BLAS (lacaml):
-* predicates = vectors
-* not a = 1 - a
+* One bottleneck: matrix -> fdd
+    - how can we speed this up?
