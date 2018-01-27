@@ -16,6 +16,14 @@ module Fdd_equiv = struct
 end
 let fdd_equiv = (module Fdd_equiv : Alcotest.TESTABLE with type t = Fdd.t)
 
+module Fdd_equiv_mod (M : sig val modulo : string list end) = struct
+  include Fdd_equiv
+  let equal = equivalent ~modulo:M.modulo
+end
+let fdd_equiv_mod modulo =
+  let module Fdd_equiv_mod = Fdd_equiv_mod (struct let modulo = modulo end) in
+  (module Fdd_equiv_mod : Alcotest.TESTABLE with type t = Fdd.t)
+
 module Fdd_ser_eq = struct
   include Fdd_eq
   let equal x y =
@@ -286,6 +294,15 @@ let misc_tests = [
       (Fdd.set_order ["b"; "a"]; Field.compare a b = 1)
     end
   );
+
+  test (fdd_equiv_mod ["x"]) "fdd equivalence modulo"
+    PNK.(
+      !!("y", 1)
+    )
+    PNK.(?@[
+      !!("x", 1) >> !!("y", 1) , 1//2;
+      !!("x", 2) >> !!("y", 1) , 1//2;
+    ]);
 ]
 
 
