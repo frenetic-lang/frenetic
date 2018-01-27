@@ -258,6 +258,39 @@ let resilient_ecmp topo base_name : Net.Topology.vertex -> string policy =
       eprintf "switch %d cannot reach destination\n" sw_val;
       failwith "network disconnected!"
 
+let f10 topo base_name : Net.Topology.vertex -> int -> string policy =
+  let port_tbl = parse_nexthops topo (Params.ecmp_file base_name) in
+  fun sw in_pt ->
+    let sw_val = Topology.sw_val topo.graph sw in
+    match Hashtbl.find port_tbl sw_val with
+    | Some pts -> (
+      match pts with
+      | [] ->
+         eprintf "switch %d doesn't have a forwading entry\n" sw_val;
+         failwith "network disconnected!"
+      | [dnwd_pt] ->
+          (* Going downwards, if this port is up, forward. Else, find all
+          downward going ports to other type subtree, and select a random port,
+          from this list, which is up. (Scheme 1) *)
+        let alt_dnwd_pts = Topology.vertex_to_ports topo.graph sw ~dst_filter:(fun neigh ->
+          Topology.(is_switch topo.graph neigh) && Topology.(sw_val topo.graph neigh) < sw_val)
+          |> List.map ~f:Topology.pt_val
+          |> List.filter ~f:(fun pv -> pv%2 <> dnwd_pt%2) in
+        PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+                (List.map alt_dnwd_pts ~f:(fun pt_val ->
+                  !!(pt, pt_val)) |> uniform)))
+      | hd::tl -> PNK.(
+          do_whl (disj (neg (at_good_pt sw pts)) ???(pt, in_pt) ) (
+            List.map pts ~f:(fun pt_val -> !!(pt, pt_val))
+            |> uniform
+          )
+        )
+      )
+    | _ ->
+      eprintf "switch %d cannot reach destination\n" sw_val;
+      failwith "network disconnected!"
+
+
 let car topo base_name ~(style: [`Deterministic|`Probabilistic])
   : Net.Topology.vertex -> int -> string policy =
   let port_tbl = parse_trees topo (Params.car_file base_name) in
