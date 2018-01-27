@@ -4,6 +4,9 @@ open Probnetkat.Syntax
 open Probnetkat.Symbolic
 open Frenetic.Network
 
+(* throw exception upon interrupt *)
+let () = Caml.Sys.catch_break true
+
 (** raw data from experiment *)
 type data = {
   topology : string;
@@ -54,7 +57,13 @@ let rec analyze base_name ~failure_prob ~max_failures ~log : data list =
   let topo = Topology.parse (Params.topo_file base_name) in
   (* SJS: constant failure probabilities *)
   Schemes.get_all topo base_name
-  |> List.map ~f:(analyze_scheme base_name ~failure_prob ~max_failures ~topo ~log)
+  |> List.filter_map ~f:(fun scheme ->
+    try
+      analyze_scheme ~failure_prob ~max_failures ~topo ~log base_name scheme
+      |> Option.some
+    with Caml.Sys.Break ->
+      None
+  )
 
 and analyze_scheme base_name (routing_scheme, sw_pol) ~failure_prob ~max_failures ~topo ~log =
   printf "\n%s:\n" routing_scheme;
@@ -87,6 +96,7 @@ and analyze_scheme base_name (routing_scheme, sw_pol) ~failure_prob ~max_failure
     (* hop_count_cdf = List.map hop_count_cdf ~f:Prob.to_float; *)
     (* hop_count_time; *)
   }
+
 
 and analyze_model model ~topo =
 
@@ -161,6 +171,8 @@ let parse_list l ~f =
   String.split l ~on:','
   |> List.map ~f:(fun x -> f (String.strip x))
 
+
+
 let () =
   match Sys.argv with
   | [| _; base_name; max_failures; failure_probs; |] ->
@@ -181,5 +193,4 @@ let () =
     )
   | _ ->
     printf "usage: %s [topology] [max failures] [Pr(failure)]\n" Sys.argv.(0)
-
 
