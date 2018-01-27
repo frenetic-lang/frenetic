@@ -64,7 +64,7 @@ let () = begin
   (* run ~print:false (blowup 15); *)
   (* run ~print:false (blowup 20); *)
 
-  run (
+(*   run (
     ?@[
         !!("a", 1)  , 1//4;
         !!("a", 2)  , 1//4;
@@ -75,6 +75,17 @@ let () = begin
 
   run ~order:["a"; "b"] (
     ??("a", 0) >> ??("b", 0)
+  );
+ *)
+  run (
+    let n = 2 in
+    let up i = sprintf "up_%d" i in
+    seqi n ~f:(fun i -> ?@[
+      !!(up i, 0) , 1//2;
+      !!(up i, 1) , 1//2;
+    ])
+    >> uniformi n ~f:(fun i -> !!("pt",i))
+    >> ??("pt", 0)
   );
 
   (* run ~print:true (blowup' 9 2); *)

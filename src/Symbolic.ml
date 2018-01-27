@@ -564,7 +564,20 @@ end = struct
 
   (** SJS: we ought to be able to do better...but it does the trick for now  *)
   let convex_sum t1 p t2 =
-    factorize ActionDist.(convex_sum (to_joined t1) p (to_joined t2))
+    if Prob.(equal zero p) then t2 else
+    if Prob.(equal one p) then t1 else
+    let drop p = ActionDist.(convex_sum zero p one) in
+    (** SJS: this is a hideous hack, but seems to work.
+        The proper way would be to handle Skip differently somehow.
+        Maybe we should use factored subproability distributions?
+     *)
+    if is_zero t1 then
+      drop p :: t2
+    else if is_zero t2 then
+      drop Prob.(one - p) :: t1
+    else
+      factorize ActionDist.(convex_sum (to_joined t1) p (to_joined t2))
+
     (* SJS: the implementation below tried to be clever, but that turns out to
        be prohibitively expensive
     *)
@@ -1301,7 +1314,13 @@ module Fdd = struct
     let f x y = FactorizedActionDist.convex_sum x prob y in
     let cache : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 () in
     let rec sum x y =
-      BinTbl.find_or_add cache (x, y) ~default:(fun () -> sum' x y)
+      let result = BinTbl.find_or_add cache (x, y) ~default:(fun () -> sum' x y) in
+      printf "%s-convex combination of\n  %s\nand\n  %s\nis\n  %s\n\n%!"
+        (Prob.to_string prob)
+        (to_string x)
+        (to_string y)
+        (to_string result);
+      result
     and sum' x y =
       match unget x, unget y with
       | Leaf x, _      ->

@@ -289,14 +289,11 @@ let basic_performance = [
         !!(up i, 1) , 1//2;
       ])
       >> uniformi n ~f:(fun i -> !!("pt",i))
-      >> ite (???(up 4, 1)) skip drop
-(*       >> ite_cascade (List.range 0 n) ~otherwise:drop ~f:(fun i ->
-        ???(up i, 1), skip
-      ) *)
+      >> ??("pt", 0)
       |> locals (List.init n ~f:(fun i -> (up i, 0, true)))
     )
     in
-    test_not fdd_eq "simplified failure model with up bits should scale O(n), not O(2^n)" p p
+    test fdd_eq "simplified failure model with up bits should scale O(n), not O(2^n)" p p
   end;
 
 (*   (* up-bit example *)
