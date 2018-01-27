@@ -1733,6 +1733,10 @@ module Fdd = struct
 
 
   let equivalent ?(modulo=[]) t1 t2 =
+    let modulo =
+      List.filter_map modulo ~f:(Hashtbl.find field_allocation_tbl)
+      |> Field.Set.of_list
+    in
     let rec do_nodes t1 t2 pk =
       match unget t1, unget t2 with
       | Branch ((f1,v1), l1, r1), Branch ((f2,v2), l2, r2) ->
@@ -1769,19 +1773,19 @@ module Fdd = struct
     and do_leaves d1 d2 pk =
       List.equal ~equal:equal_weighted_pk (normalize d1 pk) (normalize d2 pk)
     and normalize dist pk =
-      FactorizedActionDist.to_alist dist
-      |> Util.map_fst ~f:modulo_mods
+      modulo_mods dist
+      |> FactorizedActionDist.to_alist
       |> Util.map_fst ~f:(Packet.(apply (Pk pk)))
       |> List.sort ~cmp:compare_weighted_pk
-    and modulo_mods act =
-      match act with
-      | Drop -> Drop
+    and modulo_mods dist =
+      FactorizedActionDist.pushforward dist ~f:(function
+      | Drop ->
+        Drop
       | Action act ->
-        let act = Field.Map.filteri act~f:(fun ~key:f ~data:_ ->
-          let f = Hashtbl.find_exn Field.field_to_str_map f in
-          not @@ List.mem modulo f ~equal:String.equal)
-        in
-        Action act
+        Action (Field.Map.filteri act ~f:(fun ~key:f ~data:_->
+          not (Set.mem modulo f)
+        ))
+      )
     in
     do_nodes t1 t2 PrePacket.empty
 
