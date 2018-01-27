@@ -84,7 +84,12 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   type d
     = private
     | Leaf of r
-    | Branch of v * t * t
+    | Branch of { 
+        test : v;
+        tru : t; 
+        fls : t;
+        all_fls : t;
+      }
   (* A tree structure representing the decision diagram. The [Leaf] variant
    * represents a constant function. The [Branch(v, l, t, f)] represents an
    * if-then-else. When variable [v] takes on the value [l], then [t] should
@@ -139,11 +144,6 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
       This function assumes that a variable will only appear once in the list of
       variable assignments. If the list assigns multiple values to a variable,
       then the behavior is unspecified. *)
-
-  val restrict_map : v list -> t -> f:(r -> r) -> t
-  (** similar to restrict, but also maps leave nodes. Assume list is sorted in
-      ascending order
-  *)
 
   val sum : t -> t -> t
   (** [sum a b] returns the disjunction of the two diagrams. The [sum]
@@ -204,12 +204,6 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
   val clear_cache : preserve:Int.Set.t -> unit
   (** [clear_cache ()] clears the internal cache of diagrams. *)
-
-  val compressed_size : t -> int
-  (** [compressed_size t] returns the number of nodes in the diagram, duplicates not counted *)
-
-  val uncompressed_size : t -> int
-  (** [uncompressed_size t] returns the number of nodes in the diagram, duplicates counted *)
 
   val to_dot : t -> string
   (** [to_dot t] returns a string representation of the diagram using the DOT

@@ -775,7 +775,7 @@ module Domain = struct
       match Fdd00.unget fdd with
       | Leaf r ->
         for_leaf dom r
-      | Branch ((field,_),_,_) ->
+      | Branch {test=(field,_)} ->
         let (vs, residuals, all_false) = for_field field fdd [] [] in
         let vs =
           List.map vs ~f:(fun v -> PrePacket.Const v)
@@ -792,7 +792,7 @@ module Domain = struct
         field f. *)
     and for_field f fdd vs residual =
       match Fdd00.unget fdd with
-      | Branch ((f',v), tru, fls) when f' = f ->
+      | Branch {test=(f',v); tru; fls} when f' = f ->
         for_field f fls (v::vs) (tru::residual)
       | Branch _ | Leaf _ ->
         (vs, fdd::residual, fdd)
@@ -1057,7 +1057,7 @@ module Fdd0 = struct
       match unget fdd with
       | Leaf r ->
         of_leaf r dom
-      | Branch ((f,v), tru, fls) ->
+      | Branch {test=(f,v); tru; fls} ->
         let v = PrePacket.Const v in
         let tru_dom = Map.set dom ~key:f ~data:Domain.Valset.(singleton v) in
         let fls_dom = Map.update dom f ~f:(function
@@ -1327,7 +1327,7 @@ module Fdd = struct
         map_r (fun y -> f x y) y
       | _     , Leaf y ->
         map_r (fun x -> f x y) x
-      | Branch((vx, lx), tx, fx), Branch((vy, ly), ty, fy) ->
+      | Branch{test=(vx, lx); tru=tx; fls=fx}, Branch{test=(vy, ly); tru=ty; fls=fy} ->
         begin match Field.compare vx vy with
         |  0 ->
           begin match Value.compare lx ly with
@@ -1390,7 +1390,7 @@ module Fdd = struct
         match unget u with
         | Leaf dist' ->
           const (FactorizedActionDist.prod dist dist')
-        | Branch (test, tru, fls) ->
+        | Branch {test; tru; fls} ->
           let ((yes,p_yes), (no, p_no), (maybe, p_maybe)) =
             FactorizedActionDist.split_into_conditionals dist test
           in
@@ -1455,7 +1455,7 @@ module Fdd = struct
       match unget skeleton with
       | Leaf r ->
         const (Matrix.get_pk_action matrix pk |> FactorizedActionDist.factorize)
-      | Branch ((f,v), tru, fls) ->
+      | Branch {test=(f,v); tru; fls} ->
         let tru = do_node tru PrePacket.(modify pk f (Const v)) in
         let fls = do_node fls PrePacket.(modify pk f Atom) in
         unchecked_cond (f,v) tru fls
@@ -1783,29 +1783,6 @@ module Fdd = struct
       )
     )
 
-  (** returns the "all-false-branch" of an FDD with respect to a particular field,
-    i.e. the sub FDD obtained by, starting from the root, taking the false branch
-    until the top-most field is not equal to the given [field] *)
-  let rec get_all_false field fdd =
-    match unget fdd with
-    | Leaf _ -> fdd
-    | Branch ((field',_), _, fls) ->
-      if Field.equal field field' then
-        get_all_false field fls
-      else
-        fdd
-
-  (** applies fall-through optimization.  *)
-  let simplify t : t =
-    map t
-      ~f:(fun leaf -> const leaf)
-      ~g:(fun (f,v) tru fls ->
-        if equal tru (get_all_false f fls) then
-          fls
-        else
-          unchecked_cond (f,v) tru fls
-        )
-
 
   let equivalent ?(modulo=[]) t1 t2 =
     let modulo =
@@ -1814,7 +1791,8 @@ module Fdd = struct
     in
     let rec do_nodes t1 t2 pk =
       match unget t1, unget t2 with
-      | Branch ((f1,v1), l1, r1), Branch ((f2,v2), l2, r2) ->
+      | Branch {test=(f1,v1); tru=l1; fls=r1; all_fls=all_fls_1},
+        Branch {test=(f2,v2); tru=l2; fls=r2; all_fls=all_fls_2} ->
         begin match Field.compare f1 f2 with
         | -1 ->
           do_nodes l1 t2 (PrePacket.modify pk f1 (Const v1)) &&
@@ -1828,19 +1806,19 @@ module Fdd = struct
             do_nodes l1 l2 (PrePacket.modify pk f1 (Const v1)) &&
             do_nodes r1 r2 pk
           | -1 ->
-            do_nodes l1 (get_all_false f1 r2) (PrePacket.modify pk f1 (Const v1)) &&
+            do_nodes l1 all_fls_2 (PrePacket.modify pk f1 (Const v1)) &&
             do_nodes r1 t2 pk
           | 1 ->
-            do_nodes (get_all_false f2 r1) l2 (PrePacket.modify pk f2 (Const v2)) &&
+            do_nodes all_fls_1 l2 (PrePacket.modify pk f2 (Const v2)) &&
             do_nodes t1 r2 pk
           | _ -> assert false
           end
         | _ -> assert false
         end
-      | Branch ((f1,v1), l1, r1), Leaf _ ->
+      | Branch {test=(f1,v1); tru=l1; fls=r1}, Leaf _ ->
         do_nodes l1 t2 (PrePacket.modify pk f1 (Const v1)) &&
         do_nodes r1 t2 pk
-      | Leaf _, Branch ((f2,v2), l2, r2) ->
+      | Leaf _, Branch {test=(f2,v2); tru=l2; fls=r2} ->
         do_nodes t1 l2 (PrePacket.modify pk f2 (Const v2)) &&
         do_nodes t1 r2 pk
       | Leaf d1, Leaf d2 ->
@@ -1866,15 +1844,11 @@ module Fdd = struct
 
   let to_dotfile t filename =
     Out_channel.with_file filename ~f:(fun chan ->
-      simplify t
-      |> to_dot
-      |> Out_channel.output_string chan
+      Out_channel.output_string chan (to_dot t)
     )
 
   let render ?(format="pdf") ?(title="FDD") t =
-    simplify t
-    |> to_dot
-    |> Util.show_dot ~format ~title
+    Util.show_dot ~format ~title (to_dot t)
 
   let output_dist t ~(input_dist : Packet.Dist.t) =
     Packet.Dist.to_alist input_dist
@@ -1884,7 +1858,7 @@ module Fdd = struct
     |> n_ary_convex_sum
     |> unget
     |> function
-      | Branch ((f,_),_,_) as fdd ->
+      | Branch {test=(f,_)} as fdd ->
         sprintf "Underspecified input distribution. Branching on %s, but input distribution is %s.\n%s\n"
           (Field.to_string f)
           (Packet.Dist.to_string input_dist)

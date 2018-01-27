@@ -26,13 +26,18 @@ end
 module IntPairTbl = Hashtbl.Make(IntPair)
 
 module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
-  type v = V.t * L.t [@@deriving sexp, compare]
-  type r = R.t [@@deriving sexp, compare]
+  type v = V.t * L.t [@@deriving sexp, compare, hash]
+  type r = R.t [@@deriving sexp, compare, hash]
 
   type d
     = Leaf of r
-    | Branch of v * int * int
-  [@@deriving sexp, compare]
+    | Branch of { 
+        test : v;
+        tru : int; 
+        fls : int;
+        all_fls : int [@compare.ignore] (* implies [@hash.ignore] *);
+      }
+    [@@deriving sexp, compare, hash]
   (* A tree structure representing the decision diagram. The [Leaf] variant
    * represents a constant function. The [Branch(v, l, t, f)] represents an
    * if-then-else. When variable [v] takes on the value [l], then [t] should
@@ -47,15 +52,8 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
 
   type t = int [@@deriving sexp, compare, eq]
   module T = Hashcons.Make(struct
-      type t = d [@@deriving sexp, compare]
-
-      let hash t = match t with
-        | Leaf r ->
-          (R.hash r) lsl 1
-        | Branch((v, l), t, f) ->
-          (1021 * (V.hash v) + 1031 * (L.hash l) + 1033 * t + 1039 * f) lor 0x1
-
-    end)
+    type t = d [@@deriving sexp, compare, hash]
+  end)
 
   let cache_size = T.cache_size
   let get = T.get
@@ -68,7 +66,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
 
   let mk_leaf r = T.get (Leaf r)
 
-  let mk_branch (v,l) t f =
+  let mk_branch ((v,l) as test) tru fls =
     (* When the ids of the diagrams are equal, then the diagram will take on the
        same value regardless of variable assignment. The node that's being
        constructed can therefore be eliminated and replaced with one of the
@@ -76,10 +74,16 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
 
        If the ids are distinct, then the node has to be constructed and assigned
        a new id. *)
-    if equal t f then
-      t
-    else
-      T.get (Branch((v, l), t, f))
+    if equal tru fls then
+      fls
+    else match unget fls with
+    | Branch { test = (v',_); all_fls; _ } when v=v' ->
+      if all_fls = tru then
+        fls
+      else
+        T.get (Branch { test; tru; fls; all_fls })
+    | _ ->
+      T.get (Branch { test; tru; fls; all_fls = fls})
 
   let unchecked_cond = mk_branch
 
@@ -92,13 +96,13 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     match T.unget t with
     | Leaf r ->
        Printf.sprintf "%s" (R.to_string r)
-    | Branch((v, l), t, f) ->
+    | Branch { test = (v, l);  tru; fls } ->
        Printf.sprintf "(%s = %s ? %s : %s)"
-   (V.to_string v) (L.to_string l) (to_string t) (to_string f)
+   (V.to_string v) (L.to_string l) (to_string tru) (to_string fls)
 
   let rec fold ~f ~g t = match T.unget t with
     | Leaf r -> f r
-    | Branch((v, l), tru, fls) ->
+    | Branch { test = (v, l);  tru; fls } ->
       g (v, l) (fold ~f ~g tru) (fold ~f ~g fls)
 
   let const r = mk_leaf r
@@ -113,7 +117,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
       match xs, T.unget u with
       | []          , _
       | _           , Leaf _ -> u
-      | (v,l) :: xs', Branch((v', l'), t, f) ->
+      | (v,l) :: xs', Branch { test = (v', l'); tru = t; fls = f } ->
         match V.compare v v' with
         |  0 -> if L.subset_eq l l' then loop xs' t else loop xs f
         | -1 -> loop xs' u
@@ -121,20 +125,6 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
         |  _ -> assert false
     in
     loop (List.sort (fun (u, _) (v, _) -> V.compare u v) lst) u
-
-  (** ASSUMPTION: lst is in ascending order *)
-  let restrict_map lst t ~f =
-    let rec loop xs t = match xs, T.unget t with
-      | []          , _ -> map_r ~f t
-      | _           , Leaf a -> const (f a)
-      | (v,l) :: xs', Branch((v', l'), tru, fls) ->
-        match V.compare v v' with
-        |  0 -> if L.subset_eq l l' then loop xs' tru else loop xs fls
-        | -1 -> loop xs' t
-        |  1 -> mk_branch (v',l') (loop xs tru) (loop xs fls)
-        |  _ -> assert false
-    in
-    loop lst t
 
   let apply f zero ~(cache: (t*t, t) Hashtbl.t) =
     let rec sum x y =
@@ -147,7 +137,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
       | _     , Leaf r ->
         if R.compare zero r = 0 then x
         else map_r (fun x -> f x r) x
-      | Branch((vx, lx), tx, fx), Branch((vy, ly), ty, fy) ->
+      | Branch {test=(vx, lx); tru=tx; fls=fx}, Branch{test=(vy, ly); tru=ty; fls=fy} ->
         begin match V.compare vx vy with
         |  0 ->
           begin match L.compare lx ly with
@@ -172,7 +162,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     let rec loop t acc =
       match unget t with
       | Leaf _ -> acc
-      | Branch (_, l, r) ->
+      | Branch { tru=l; fls=r } ->
         l::r::acc
         |> loop l
         |> loop r
@@ -198,7 +188,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     let ok t =
       match unget t with
       | Leaf _ -> true
-      | Branch ((f',v'), _, _) -> V.compare (fst v) f' = -1
+      | Branch { test = (f',v') } -> V.compare (fst v) f' = -1
     in
     if equal t f then t else
     if ok t && ok f then mk_branch v t f else
@@ -210,7 +200,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
            (t : t) : t =
     let rec map t = match unget t with
       | Leaf r -> f r
-      | Branch ((v, l), tru, fls) -> g (v,l) (map tru) (map fls) in
+      | Branch { test=(v, l); tru; fls } -> g (v,l) (map tru) (map fls) in
     map t
 
   let dp_map ~(f : R.t -> t)
@@ -223,28 +213,8 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     and map' t =
       match unget t with
         | Leaf r -> f r
-        | Branch ((v, l), tru, fls) -> g (v,l) (map tru) (map fls) in
+        | Branch { test=(v, l); tru; fls } -> g (v,l) (map tru) (map fls) in
     map t
-
-  let compressed_size (node : t) : int =
-    let rec f (node : t) (seen : Int.Set.t) =
-      if Int.Set.mem seen node then
-        (0, seen)
-      else
-        match T.unget node with
-        | Leaf _ -> (1, Int.Set.add seen node)
-        | Branch (_, hi, lo) ->
-          (* Due to variable-ordering, there is no need to add node.id to seen
-             in the recursive calls *)
-          let (hi_size, seen) = f hi seen in
-          let (lo_size, seen) = f lo seen in
-          (1 + hi_size + lo_size, Int.Set.add seen node) in
-    let (size, _) = f node Int.Set.empty in
-    size
-
-  let rec uncompressed_size (node : t) : int = match T.unget node with
-    | Leaf _ -> 1
-    | Branch (_, hi, lo) -> 1 + uncompressed_size hi + uncompressed_size lo
 
   let to_dot t =
     let open Format in
@@ -260,7 +230,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
         match T.unget t with
         | Leaf r ->
           fprintf fmt "%d [shape=box label=\"%s\"];@\n" t (R.to_string r)
-        | Branch((v, l), a, b) ->
+        | Branch { test=(v, l); tru=a; fls=b } ->
           begin
             try Hash_set.add (Hashtbl.find_exn rank (v, l)) t
             with Not_found ->
@@ -291,7 +261,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
       else
         match T.unget node with
         | Leaf _ -> Int.Set.add seen node
-        | Branch (_, hi, lo) ->
+        | Branch { tru=hi; fls=lo } ->
           Int.Set.add (f lo (f hi seen)) node in
     f t Int.Set.empty
 
@@ -300,7 +270,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     match node with
     | Leaf r ->
       List [Atom "Leaf"; R.sexp_of_t r]
-    | Branch (test, tru, fls) ->
+    | Branch { test; tru; fls } ->
       let tru = node_to_sexp @@ unget tru in
       let fls = node_to_sexp @@ unget fls in
       List [Atom "Branch"; sexp_of_v test; tru; fls]
@@ -309,12 +279,12 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     let open Sexplib.Sexp in
     match sexp with
     | List [Atom "Leaf"; sexp] ->
-      Leaf (R.t_of_sexp sexp)
+      get (Leaf (R.t_of_sexp sexp))
     | List [Atom "Branch"; test; tru; fls] ->
       let test = v_of_sexp test in
       let tru = node_of_sexp tru in
       let fls = node_of_sexp fls in
-      Branch (test, get tru, get fls)
+      mk_branch test tru fls
     | _ ->
       failwith "unsexpected s-expression!"
 
@@ -327,5 +297,4 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   let deserialize (s : string) : t =
     Sexp.of_string s
     |> node_of_sexp
-    |> get
 end
