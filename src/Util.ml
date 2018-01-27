@@ -112,12 +112,27 @@ let green = "\027[32m"
 let red = "\027[31m"
 let no_color = "\027[0m"
 
-let timed' descr ~log ~f =
-  printf "%s%!" descr;
-  match with_logged_stdio ~log (time f) with
+let timed' ?timeout descr ~log ~f =
+  let timed_out = ref false in
+  match
+    begin match timeout with
+      | None -> ()
+      | Some t ->
+        let my_pid = Unix.getpid () in
+        Signal.Expert.handle Signal.alrm (fun _ ->
+          timed_out := true;
+          Signal.(send_exn int (`Pid my_pid));
+        );
+        ignore (Unix.alarm t)
+    end;
+    printf "%s%!" descr;
+    with_logged_stdio ~log (time f)
+  with
   | exception e ->
     printf "\t%s[%s]%s\n%!" red
-      (match e with | Caml.Sys.Break -> "INT" | _ -> "ERR")
+      (match e with
+        | Caml.Sys.Break -> if !timed_out then "TOUT" else "INT"
+        | _ -> "ERR")
       no_color;
     raise e
   | (t,x) as result ->
@@ -137,3 +152,6 @@ let talk_again () = begin
   Caml.Unix.dup2 stdout Caml.Unix.stdout;
   Caml.Unix.dup2 stderr Caml.Unix.stderr;
 end
+
+let attempt f =
+  try f () with _ -> ()
