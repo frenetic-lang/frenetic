@@ -330,6 +330,19 @@ module ActionDist : sig
   val empty : t
   val unsafe_add : t -> Prob.t -> Action.t -> t
   val unsafe_normalize : t -> t
+
+  (**
+    The three events
+      A = "f<-n",
+      B = "f<-m for m!=n", and
+      C = "no assignment to f"
+    are a parition of the probability space. Split the input distribution
+    into the three conditional distributions
+      dist|A, dist|B, dist|C
+    together with their weights dist(A), dist(B), dist(C).
+  *)
+  val split_into_conditionals :
+    t -> Field.t * Value.t -> ((t * Prob.t) * (t * Prob.t) * (t * Prob.t))
 end = struct
 
   module T = Dist.Make(Action)
@@ -373,6 +386,38 @@ end = struct
       failwith (sprintf "multicast not implemented! cannot add (in the sense of &) %s and %s"
         (to_string x) (to_string y)
       )
+
+  let split_into_conditionals dist (f,n) =
+    let (yes, no, mb) =
+      List.partition3_map (to_alist dist) ~f:(fun ((act, p) as outcome) ->
+        match act with
+        | Action.Drop ->
+          `Trd outcome
+        | Action.Action act ->
+          begin match PreAction.T.find act f with
+          | None ->
+            `Trd outcome
+          | Some n' ->
+            if n = n' then
+              `Fst outcome
+            else
+              `Snd outcome
+          end
+      )
+    in
+    let finish_conditional dist =
+      if List.is_empty dist then (zero, Prob.zero) else
+      let mass =
+        List.map dist ~f:snd
+        |> List.fold ~init:Prob.zero ~f:Prob.(+)
+      in
+      let dist =
+        Util.map_snd dist ~f:(fun p -> Prob.(p/mass))
+        |> of_alist_exn
+      in
+      (dist, mass)
+    in
+    (finish_conditional yes, finish_conditional no, finish_conditional mb)
 end
 
 (* hacky *)
@@ -387,7 +432,9 @@ module FactorizedActionDist : sig
 
   val to_string : t -> string
   val to_alist : t -> (Action.t * Prob.t) list
-  val of_alist_exn : (Action.t * Prob.t) list -> t
+
+  (* SJS: do not expose, since it will screw up factorization *)
+  (* val of_alist_exn : (Action.t * Prob.t) list -> t *)
 
   val support : t -> Action.t list
   val dirac : Action.t -> t
@@ -398,6 +445,19 @@ module FactorizedActionDist : sig
 
   val factorize : ActionDist.t -> t
   val to_joined : t -> ActionDist.t
+
+  (** The three events
+        A = "f<-n",
+        B = "f<-m for m!=n", and
+        C = "no assignment to f"
+      are a parition of the probability space. Split the input distribution
+      into the three conditional distributions
+        dist|A, dist|B, dist|C
+      together with their weights dist(A), dist(B), dist(C).
+  *)
+  val split_into_conditionals :
+    t -> Field.t * Value.t -> ((t * Prob.t) * (t * Prob.t) * (t * Prob.t))
+
 end = struct
   type t = ActionDist.t list
   [@@deriving sexp, hash, compare, eq]
@@ -513,6 +573,30 @@ end = struct
 (*     let (common, t1) = List.partition_tf t1 ~f:(List.mem t2 ~equal:ActionDist.equal) in
     let t2 = List.filter t2 ~f:(fun d -> not (List.mem common d ~equal:ActionDist.equal)) in
     ActionDist.convex_sum (to_joined t1) p (to_joined t2) :: common *)
+
+  let split_into_conditionals t (f, n) =
+    let (f_dependent_factors, f_independent_factors) =
+      List.partition_tf t ~f:(fun d ->
+        ActionDist.support d
+        |> List.exists ~f:(function
+          | Action.Drop ->
+            false
+          | Action.Action act ->
+            List.mem (PreAction.T.keys act) f ~equal:Field.equal
+        )
+      )
+    in
+    match f_dependent_factors with
+    | [] ->
+      ((zero, Prob.zero), (zero, Prob.zero), (t, Prob.one))
+    | _::_::_ ->
+      failwith "bug: must have at most a single f dependent factor"
+    | [d] ->
+      let yes, no, mb = ActionDist.split_into_conditionals d (f,n) in
+      let finish_conditional (dist, mass) =
+        (canonicalize @@ dist::f_independent_factors, mass)
+      in
+      finish_conditional yes, finish_conditional no, finish_conditional mb
 
 end
 
@@ -1284,53 +1368,15 @@ module Fdd = struct
       | Leaf dist' ->
         const (FactorizedActionDist.prod dist dist')
       | Branch (test, tru, fls) ->
-        let ((yes,p_yes), (no, p_no), (maybe, p_maybe)) = split dist test in
+        let ((yes,p_yes), (no, p_no), (maybe, p_maybe)) =
+          FactorizedActionDist.split_into_conditionals dist test
+        in
         n_ary_convex_sum [
           seq' yes tru, p_yes;
           seq' no fls, p_no;
           unchecked_cond test (seq' maybe tru) (seq' maybe fls), p_maybe;
         ]
     )
-  (** The three events
-        A = "f<-n",
-        B = "f<-m for m!=n", and
-        C = "no assignment to f"
-      are a parition of the probability space. Split the input distribution
-      into the three conditional distributions
-        dist|A, dist|B, dist|C
-      together with their weights dist(A), dist(B), dist(C).
-  *)
-  and split dist (f,n) =
-    FactorizedActionDist.to_alist dist
-    |> List.fold ~init:([], [], []) ~f:(fun (yes, no, mb) ((act, p) as outcome) ->
-        match act with
-        | Action.Drop ->
-          (yes, no, outcome::mb)
-        | Action.Action act ->
-          begin match PreAction.T.find act f with
-          | None ->
-            (yes, no, outcome::mb)
-          | Some n' ->
-            if n = n' then
-              (outcome::yes, no, mb)
-            else
-              (yes, outcome::no, mb)
-          end
-      )
-    |> fun (yes, no, mb) ->
-      let finish dist =
-        if List.is_empty dist then (FactorizedActionDist.zero, Prob.zero) else
-        let mass =
-          List.map dist ~f:snd
-          |> List.fold ~init:Prob.zero ~f:Prob.(+)
-        in
-        let dist =
-          Util.map_snd dist ~f:(fun p -> Prob.(p/mass))
-          |> FactorizedActionDist.of_alist_exn
-        in
-        (dist, mass)
-      in
-      (finish yes, finish no, finish mb)
 
   let seq t u =
     match unget u with
