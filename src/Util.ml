@@ -116,7 +116,9 @@ let timed' descr ~log ~f =
   printf "%s%!" descr;
   match with_logged_stdio ~log (time f) with
   | exception e ->
-    printf "\t%s[ERR]%s\n%!" red no_color;
+    printf "\t%s[%s]%s\n%!" red
+      (match e with | Caml.Sys.Break -> "INT" | _ -> "ERR")
+      no_color;
     raise e
   | (t,x) as result ->
     printf "\t%s[OK]%s\t(%.3f seconds)\n%!" green no_color t;
