@@ -192,6 +192,10 @@ module Constructors = struct
       Array.init n ~f
       |> Array.fold ~init:True ~f:conj
 
+    let disji n ~f =
+      Array.init n ~f
+      |> Array.fold ~init:False ~f:disj
+
     let seqi n ~f =
       Array.init n ~f
       |> Array.fold ~init:skip ~f:seq
