@@ -279,6 +279,47 @@ let basic_performance = [
     test fdd_eq "joint distribution of independent binary variables" p p
   end;
 
+  (* simplified up-bit example *)
+  begin
+    let n = 20 in
+    let up i = sprintf "up_%d" i in
+    let p = PNK.(
+      seqi n ~f:(fun i -> ?@[
+        !!(up i, 0) , 1//2;
+        !!(up i, 1) , 1//2;
+      ])
+      >> uniformi n ~f:(fun i -> !!("pt",i))
+      >> ite (???(up 4, 1)) skip drop
+(*       >> ite_cascade (List.range 0 n) ~otherwise:drop ~f:(fun i ->
+        ???(up i, 1), skip
+      ) *)
+      |> locals (List.init n ~f:(fun i -> (up i, 0, true)))
+    )
+    in
+    test_not fdd_eq "simplified failure model with up bits should scale O(n), not O(2^n)" p p
+  end;
+
+(*   (* up-bit example *)
+  begin
+    let n = 16 in
+    let up i = sprintf "up_%d" i in
+    let p = PNK.(
+      seqi n ~f:(fun i -> ?@[
+        !!(up i, 0) , 1//2;
+        !!(up i, 1) , 1//2;
+      ])
+      >> uniformi n ~f:(fun i -> !!("pt",i))
+      >> ite_cascade (List.range 0 n) ~otherwise:drop ~f:(fun i ->
+        let guard = ???(up i, 1) & ???("pt", i) in
+        let body = !!("pt", i+1 mod n) in
+        (guard, body)
+      )
+      |> locals (List.init n ~f:(fun i -> (up i, 0, true)))
+    )
+    in
+    test fdd_eq "failure model with up bits should scale O(n), not O(2^n)" p p
+  end; *)
+
 ]
 
 
