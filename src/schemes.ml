@@ -338,12 +338,15 @@ let get_all topo base_name : (string * scheme) list =
   let ecmp () = `Switchwise (ecmp topo base_name) in
   let resilient_ecmp () = `Switchwise (resilient_ecmp topo base_name) in
   let car () = `Portwise (car topo base_name ~style:`Deterministic) in
-  [ "random walk",            random_walk;
-    "resilient random walk",  resilient_random_walk;
+  (* SJS: for convenience, run fast-to-analyze before slow-to-analyze schemes *)
+  [
     "shortest path",          shortest_path;
+    "car",                    car;
     "ecmp",                   ecmp;
     "resilient ecmp",         resilient_ecmp;
-    "car",                    car;
+
+    "random walk",            random_walk;
+    "resilient random walk",  resilient_random_walk;
   ]
   |> List.filter_map ~f:(fun (name, make) ->
     match make () with
