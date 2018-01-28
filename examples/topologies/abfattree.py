@@ -37,6 +37,9 @@ def mk_topo(k, bw='1Gbps'):
     g.add_nodes_from(core_switches)
     g.add_nodes_from(agg_switches)
     g.add_nodes_from(edge_switches)
+    core_ports = dict()
+    for core in core_switches:
+      core_ports[core[0]] = 0
 
     host_offset = 0
     for pod in range(pods):
@@ -55,9 +58,6 @@ def mk_topo(k, bw='1Gbps'):
             up_port += 1
 
         # connect aggregate and core switches
-        core_ports = dict()
-        for core in core_switches:
-            core_ports[core[0]] = 0
         if pod%2 == 0:
             # Type A
             j = 0
@@ -65,6 +65,7 @@ def mk_topo(k, bw='1Gbps'):
                 cores = core_switches[j*pods/2:(j+1)*pods/2]
                 for core in cores:
                     core_port = core_ports[core[0]]
+                    print core_port
                     g.add_edge(agg[0],core[0],
                            src_port=pods+j, dst_port=core_port, capacity=bw, cost=1)
                     g.add_edge(core[0],agg[0],
@@ -79,6 +80,7 @@ def mk_topo(k, bw='1Gbps'):
                 cores = [core_switches[x] for x in core_sw_idxs]
                 for core in cores:
                     core_port = core_ports[core[0]]
+                    print core_port
                     g.add_edge(agg[0],core[0],
                            src_port=pods+j, dst_port=core_port, capacity=bw, cost=1)
                     g.add_edge(core[0],agg[0],
