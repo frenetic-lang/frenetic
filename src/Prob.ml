@@ -36,6 +36,10 @@ let to_string t =
 let to_q t = t
 
 
+let to_int_frac t =
+   Z.(to_int t.num, to_int t.den)
+
+
 (* open Core
 include Float
 

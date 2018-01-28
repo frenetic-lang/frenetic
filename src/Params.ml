@@ -27,3 +27,10 @@ let spf_file base_name = base_name ^ "-spf.trees"
 let ecmp_file base_name = base_name ^ "-allsp.nexthops"
 let car_file base_name = base_name ^ "-disjointtrees.trees"
 let log_file base_name = base_name ^ ".log"
+let dump_file base_name ~routing_scheme ~max_failures ~failure_prob =
+  let scheme = String.tr routing_scheme ~target:' ' ~replacement:'_' in
+  let dir, topology = Filename.split base_name in
+  let dir = sprintf "%s/results/%s-%s" dir topology scheme in
+  let mf = if max_failures < 0 then "inf" else Int.to_string max_failures in
+  let p_num, p_den = Prob.to_int_frac failure_prob in
+  sprintf "%s/%s-%d-%d.json" dir mf p_num p_den

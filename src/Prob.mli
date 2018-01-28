@@ -16,5 +16,6 @@ val to_string : t -> string
 val of_string : string -> t
 
 val to_q : t -> Q.t
+val to_int_frac : t -> int * int
 val to_float : t -> float
 val of_float : float -> t

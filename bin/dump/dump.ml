@@ -26,15 +26,11 @@ type data = {
   mutable hop_count_times   : float list;
 } [@@deriving yojson]
 
-let prob_to_frac p =
-  let q = Prob.to_q p in
-   Z.(to_int q.num, to_int q.den)
-
 let empty ~routing_scheme ~topology ~max_failures ~failure_prob =
   { topology;
     routing_scheme ;
     max_failures;
-    failure_prob = prob_to_frac failure_prob;
+    failure_prob = Prob.to_int_frac failure_prob;
     equivalent_to_teleport = false;
     min_prob_of_delivery = -2.0;
     avg_prob_of_delivery = -2.0;
@@ -64,7 +60,7 @@ let load base_name ~routing_scheme ~max_failures ~failure_prob
   let dir, topology = Filename.split base_name in
   let dir = sprintf "%s/results/%s-%s" dir topology scheme in
   let mf = if max_failures < 0 then "inf" else Int.to_string max_failures in
-  let p_num, p_den = prob_to_frac failure_prob in
+  let p_num, p_den = Prob.to_int_frac failure_prob in
   let file = sprintf "%s/%s-%d-%d.json" dir mf p_num p_den in
   if is_ok (Unix.access file [`Exists]) then
     let data = load_file file in
