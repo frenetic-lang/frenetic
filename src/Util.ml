@@ -7,6 +7,8 @@ let time f x =
   let t2 = Unix.gettimeofday () in
   (t2 -. t1, r)
 
+let time' f = time f ()
+
 let timed descr f =
   printf "start %s...\n%!" descr;
   let t, y = time f () in
@@ -94,64 +96,67 @@ let show_dot_file ?format ?title ?engine file : unit =
 (* Logging                                                                   *)
 (*===========================================================================*)
 
-let with_logged_stdio ~log f =
-  let module Unix = Caml.Unix in
-  let stdout = Unix.dup Unix.stdout in
-  let stderr = Unix.dup Unix.stderr in
-  let log = Unix.descr_of_out_channel log in
-  (* redirect stderr and stdout to log  *)
-  Out_channel.(flush stdout); Unix.dup2 log Unix.stdout;
-  Out_channel.(flush stderr); Unix.dup2 log Unix.stderr;
-  protect ~f ~finally:(fun () ->
-    (* restore stderr and stdout *)
-    Unix.dup2 stdout Unix.stdout;
-    Unix.dup2 stderr Unix.stderr;
-  )
+let sandboxed ?timeout ~logfile ~f : [`Ok | `Tout | `Err | `Int ] =
+  let read_done_fd, write_done_fd = Unix.pipe () in
+  let read_done = Unix.in_channel_of_descr read_done_fd in
+  let write_done = Unix.out_channel_of_descr write_done_fd in
+  match Unix.fork () with
+  | `In_the_child ->
+    Out_channel.with_file logfile ~append:true ~f:(fun log ->
+      let log = Unix.descr_of_out_channel log in
+      (* redirect stderr and stdout to log  *)
+      Unix.dup2 log Unix.stdout;
+      Unix.dup2 log Unix.stderr;
+      match f () with
+      | exception _ ->
+        Out_channel.fprintf write_done "Err\n%!";
+        exit 1
+      | () ->
+        Out_channel.fprintf write_done "Ok\n%!";
+        exit 0
+    )
+  | `In_the_parent pid ->
+    protect ~finally:(fun () ->
+      Signal.(send_i kill (`Pid pid));
+      Caml.Sys.catch_break false;
+      In_channel.close read_done;
+      Out_channel.close write_done;
+    ) ~f:(fun () ->
+      match
+        (* throw exception upon interrupt *)
+        Caml.Sys.catch_break true;
+        let timeout = match timeout with
+          | None -> `Never
+          | Some t -> `After (Time_ns.Span.of_sec (Float.of_int t))
+        in
+        Unix.select ~restart:true ~read:[read_done_fd] ~write:[]
+          ~except:[] ~timeout ()
+        |> ignore;
+        In_channel.input_line read_done
+      with
+        | None -> `Tout
+        | Some "Ok" -> `Ok
+        | Some "Err" -> `Err
+        | Some _ -> failwith "unexpected message"
+        | exception Caml.Sys.Break -> `Int
+    )
+
 
 let green = "\027[32m"
 let red = "\027[31m"
 let no_color = "\027[0m"
+let ok = sprintf "%s[OK]%s" green no_color
+let err = sprintf "%s[ERR]%s" red no_color
+let intr = sprintf "%s[INTR]%s" red no_color
+let tout = sprintf "%s[TOUT]%s" red no_color
 
-let timed' ?timeout descr ~log ~f =
-  let timed_out = ref false in
-  match
-    begin match timeout with
-      | None -> ()
-      | Some t ->
-        let my_pid = Unix.getpid () in
-        Signal.Expert.handle Signal.alrm (fun _ ->
-          timed_out := true;
-          Signal.(send_exn int (`Pid my_pid));
-        );
-        ignore (Unix.alarm t)
-    end;
-    printf "%s%!" descr;
-    with_logged_stdio ~log (time f)
-  with
-  | exception e ->
-    printf "\t%s[%s]%s\n%!" red
-      (match e with
-        | Caml.Sys.Break -> if !timed_out then "TOUT" else "INT"
-        | _ -> "ERR")
-      no_color;
-    raise e
-  | (t,x) as result ->
-    printf "\t%s[OK]%s\t(%.3f seconds)\n%!" green no_color t;
-    result
-
-let stdout = Caml.Unix.(dup stdout)
-let stderr = Caml.Unix.(dup stderr)
-let devnull = Caml.Unix.(openfile "/dev/null" [O_WRONLY] 0o777)
-
-let shutup () = begin
-  Out_channel.(flush stdout); Caml.Unix.dup2 devnull Caml.Unix.stdout;
-  Out_channel.(flush stderr); Caml.Unix.dup2 devnull Caml.Unix.stderr;
-end
-
-let talk_again () = begin
-  Caml.Unix.dup2 stdout Caml.Unix.stdout;
-  Caml.Unix.dup2 stderr Caml.Unix.stderr;
-end
-
-let attempt f =
-  try f () with _ -> ()
+let log_and_sandbox ?timeout ~logfile descr ~f : unit =
+  printf "%s%!\t" descr;
+  let t, status = time (fun () -> sandboxed ?timeout ~logfile ~f) () in
+  begin match status with
+  | `Ok -> printf "%s" ok
+  | `Err -> printf "%s" err
+  | `Int -> printf "%s" intr
+  | `Tout -> printf "%s" tout
+  end;
+  printf "\t(%.3f seconds)\n%!" t

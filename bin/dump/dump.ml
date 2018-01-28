@@ -4,9 +4,6 @@ open Probnetkat.Syntax
 open Probnetkat.Symbolic
 open Frenetic.Network
 
-(* throw exception upon interrupt *)
-let () = Caml.Sys.catch_break true
-
 
 (*===========================================================================*)
 (* Data from experiments                                                     *)
@@ -88,13 +85,21 @@ let equivalent_to_teleport fdd ~topo =
 
 let hop_count_analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data =
   let open Params in
+
+  (* model *)
   let bound = 2 * List.length (Topology.switches topo) in
   let bound = min Params.max_ttl bound in
   let model = Model.make ~bound ~sw_pol ~topo ~failure_prob ~max_failures () in
-  let fdd = Fdd.of_pol model in
-  let input_dist = Topology.uniform_ingress topo ~dst:destination in
-  let output_dist = Fdd.output_dist fdd ~input_dist in
-  let cdf =
+
+  let time, cdf = Util.time' (fun () ->
+    (* compilation *)
+    let fdd = Fdd.of_pol model in
+
+    (* analysis *)
+    let input_dist = Topology.uniform_ingress topo ~dst:destination in
+    let output_dist = Fdd.output_dist fdd ~input_dist in
+
+    (* cdf *)
     List.init bound ~f:(fun ttl_val ->
       Packet.Dist.prob output_dist ~f:(fun pk ->
         Packet.test pk (Fdd.abstract_field sw) destination &&
@@ -102,15 +107,19 @@ let hop_count_analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data =
       )
     )
     |> List.rev
+  )
   in
-  data.hop_count_cdf <- List.map cdf ~f:Prob.to_float
   (* hop_count[i] = Pr[π.ttl >= bound - (i+1) ]
                   = Pr[#hops(π) <= i+1]
    *)
+  data.hop_count_cdf <- List.map cdf ~f:Prob.to_float;
+  data.hop_count_time <- time
 
-let basic_analysis model ~topo ~data =
-
+let basic_analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data =
   let open Params in
+
+  (* MODEL *)
+  let model = Model.make ~sw_pol ~topo ~max_failures ~failure_prob () in
 
   (* COMPILATION *)
   Format.printf "\nProbNetKAT model:\n# while loops = %d\n%a\n%!"
@@ -122,10 +131,11 @@ let basic_analysis model ~topo ~data =
   printf "\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> COMPILATION DONE\n%!";
 
   (* EQUIVALENCE *)
-  let equivalence_time, equivalent_to_teleport =
-    Util.time (equivalent_to_teleport ~topo) fdd in
-  data.equivalence_time <- equivalence_time;
-  data.equivalent_to_teleport <- equivalent_to_teleport;
+  match Util.time (equivalent_to_teleport ~topo) fdd with
+  | t, eq -> begin
+    data.equivalence_time <- t;
+    data.equivalent_to_teleport <- eq;
+  end;
 
   (* OUTPUT DISTRIBUTION *)
   let input_dist = Topology.uniform_ingress topo ~dst:destination in
@@ -147,57 +157,40 @@ let basic_analysis model ~topo ~data =
   data.min_prob_of_delivery <- Prob.to_float min_p;
   data.avg_prob_of_delivery <- Prob.to_float avg_p
 
+
+
 let analyze_scheme base_name (routing_scheme, sw_pol)
-  ~failure_prob ~max_failures ~topo ~log ~timeout ~data ~hopcount =
+~failure_prob ~max_failures ~topo ~timeout ~hopcount =
+  (* load existing data *)
+  let file, data, history =
+    load base_name ~routing_scheme ~max_failures ~failure_prob
+  in
+  begin match history with
+  | `Fresh -> printf "\n%s (*):\n" routing_scheme
+  | `Existed -> printf "\n%s:\n" routing_scheme
+  end;
 
-  (* clear memory *)
-  Fdd.clear_cache ~preserve:Int.Set.empty;
-  let _ = Util.timed' " - gc\t" ~log ~f:Gc.compact in
+  (* prepare analysis *)
+  let failure_prob = fun _ _ -> failure_prob in
+  let max_failures = if max_failures = -1 then None else Some max_failures in
+  let descr = if hopcount then " - hopcount" else " - basic " in
+  let dir = Filename.dirname base_name in
+  let logfile = dir ^ "/results.log" in
+  let analysis = if hopcount then hop_count_analysis else basic_analysis in
 
-  (* hop count analysis *)
-  if hopcount then Util.attempt (fun () ->
-    let hop_count_time, () =
-      Util.timed' " - hop count" ~log ~timeout ~f:(fun () ->
-        hop_count_analysis ~sw_pol ~topo ~data
-          ~failure_prob:(fun _ _ -> failure_prob)
-          ~max_failures:(if max_failures = -1 then None else Some max_failures)
-
-      )
-    in
-    data.hop_count_time <- hop_count_time;
-  );
-
-  (* other analyses *)
-  if not hopcount then Util.attempt (fun () ->
-    let model = Model.make ~sw_pol ~topo
-        ~failure_prob:(fun _ _ -> failure_prob)
-        ~max_failures:(if max_failures = -1 then None else Some max_failures)
-        ()
-    in
-    ignore (Util.timed' " - analysis" ~log  ~timeout ~f:(fun () -> basic_analysis model ~topo ~data))
+  (* run analysis & dump data *)
+  Util.log_and_sandbox ~timeout ~logfile descr ~f:(fun () ->
+    analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data;
+    dump data file
   )
+
 
 let analyze_all base_name ~failure_prob ~max_failures ~timeout ~hopcount : unit =
   let topo = Topology.parse (Params.topo_file base_name) in
   Schemes.get_all topo base_name
-  |> List.iter ~f:(fun ((routing_scheme, _) as scheme) ->
-    try
-      let file, data, history = load base_name ~routing_scheme ~max_failures ~failure_prob in
-      begin match history with
-      | `Fresh -> printf "\n%s (*):\n" routing_scheme
-      | `Existed -> printf "\n%s:\n" routing_scheme
-      end;
-      let dir = Filename.dirname base_name in
-      Out_channel.with_file (dir ^ "/results.log") ~f:(fun log ->
-        analyze_scheme ~failure_prob ~max_failures ~topo ~log ~timeout ~data ~hopcount
-          base_name scheme
-      );
-      dump data ~file;
-    with Caml.Sys.Break ->
-      ();
+  |> List.iter ~f:(analyze_scheme base_name ~failure_prob ~max_failures ~topo
+    ~timeout ~hopcount
   )
-
-
 
 
 (*===========================================================================*)
