@@ -122,7 +122,7 @@ let basic_analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data =
   let model = Model.make ~sw_pol ~topo ~max_failures ~failure_prob () in
 
   (* COMPILATION *)
-  Format.printf "\nProbNetKAT model:\n# while loops = %d\n%a\n%!"
+  Format.printf "ProbNetKAT model:\n# while loops = %d\n%a\n%!"
     (Syntax.nr_of_loops model)
     Syntax.pp_policy model;
   Fdd.set_order [Params.sw; Params.pt; Params.counter; Params.ttl ];
@@ -173,7 +173,7 @@ let analyze_scheme base_name (routing_scheme, sw_pol)
   (* prepare analysis *)
   let failure_prob = fun _ _ -> failure_prob in
   let max_failures = if max_failures = -1 then None else Some max_failures in
-  let descr = if hopcount then " - hopcount" else " - basic " in
+  let descr = if hopcount then " - hopcount analysis" else " - basic analysis" in
   let logfile = Params.log_file base_name in
   let analysis = if hopcount then hop_count_analysis else basic_analysis in
 
