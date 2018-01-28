@@ -20,10 +20,10 @@ type data = {
   mutable avg_prob_of_delivery : float;
   mutable hop_count_cdf : float list;
 
-  (* various times *)
-  mutable compilation_time : float;
-  mutable equivalence_time : float;
-  mutable hop_count_time   : float;
+  (* various times. Lists so we can safe times from several experiments. *)
+  mutable compilation_times : float list;
+  mutable equivalence_times : float list;
+  mutable hop_count_times   : float list;
 } [@@deriving yojson]
 
 let prob_to_frac p =
@@ -39,9 +39,9 @@ let empty ~routing_scheme ~topology ~max_failures ~failure_prob =
     min_prob_of_delivery = -2.0;
     avg_prob_of_delivery = -2.0;
     hop_count_cdf = [];
-    compilation_time = -2.0;
-    equivalence_time = -2.0;
-    hop_count_time = -2.0;
+    compilation_times = [];
+    equivalence_times = [];
+    hop_count_times = [];
   }
 
 let dump (data : data) ~file : unit =
@@ -113,7 +113,7 @@ let hop_count_analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data =
                   = Pr[#hops(π) <= i+1]
    *)
   data.hop_count_cdf <- List.map cdf ~f:Prob.to_float;
-  data.hop_count_time <- time
+  data.hop_count_times <- time :: data.hop_count_times
 
 let basic_analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data =
   let open Params in
@@ -126,14 +126,14 @@ let basic_analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data =
     (Syntax.nr_of_loops model)
     Syntax.pp_policy model;
   Fdd.set_order [Params.sw; Params.pt; Params.counter; Params.ttl ];
-  let compilation_time, fdd = Util.time Fdd.of_pol model in
-  data.compilation_time <- compilation_time;
+  let time, fdd = Util.time Fdd.of_pol model in
+  data.compilation_times <- time :: data.compilation_times;
   printf "\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> COMPILATION DONE\n%!";
 
   (* EQUIVALENCE *)
   match Util.time (equivalent_to_teleport ~topo) fdd with
   | t, eq -> begin
-    data.equivalence_time <- t;
+    data.equivalence_times <- t :: data.equivalence_times;
     data.equivalent_to_teleport <- eq;
   end;
 
@@ -176,6 +176,8 @@ let analyze_scheme base_name (routing_scheme, sw_pol)
   let descr = if hopcount then " - hopcount" else " - basic " in
   let dir = Filename.dirname base_name in
   let logfile = dir ^ "/results.log" in
+  (* start with clean logfile *)
+  Sys.remove logfile;
   let analysis = if hopcount then hop_count_analysis else basic_analysis in
 
   (* run analysis & dump data *)
