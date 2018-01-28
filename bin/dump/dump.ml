@@ -7,6 +7,11 @@ open Frenetic.Network
 (* throw exception upon interrupt *)
 let () = Caml.Sys.catch_break true
 
+
+(*===========================================================================*)
+(* Data from experiments                                                     *)
+(*===========================================================================*)
+
 (** raw data from experiment *)
 type data = {
   topology : string;
@@ -70,58 +75,38 @@ let load base_name ~routing_scheme ~max_failures ~failure_prob : string * data *
     file, data, true
 
 
-let rec analyze_all base_name ~failure_prob ~max_failures ~timeout ~hopcount : unit =
-  let topo = Topology.parse (Params.topo_file base_name) in
-  Schemes.get_all topo base_name
-  |> List.iter ~f:(fun ((routing_scheme, _) as scheme) ->
-    try
-      let file, data, fresh = load base_name ~routing_scheme ~max_failures ~failure_prob in
-      if fresh then
-        printf "\n%s (*):\n" routing_scheme
-      else
-        printf "\n%s:\n" routing_scheme;
-      let dir = Filename.dirname base_name in
-      Out_channel.with_file (dir ^ "/results.log") ~f:(fun log ->
-        analyze_scheme ~failure_prob ~max_failures ~topo ~log ~timeout ~data ~hopcount
-          base_name scheme
-      );
-      dump data ~file;
-    with Caml.Sys.Break ->
-      ();
-  )
+(*===========================================================================*)
+(* Analyses                                                                  *)
+(*===========================================================================*)
 
-and analyze_scheme base_name (routing_scheme, sw_pol)
-  ~failure_prob ~max_failures ~topo ~log ~timeout ~data ~hopcount =
 
-  (* clear memory *)
-  Fdd.clear_cache ~preserve:Int.Set.empty;
-  let _ = Util.timed' " - gc\t" ~log ~f:Gc.compact in
+let equivalent_to_teleport fdd ~topo =
+  let teleport = Fdd.of_pol (Model.teleportation topo) in
+  Fdd.equivalent fdd teleport ~modulo:[Params.pt; Params.counter]
 
-  (* hop count analysis *)
-  if hopcount then Util.attempt (fun () ->
-    let hop_count_time, () =
-      Util.timed' " - hop count" ~log ~timeout ~f:(fun () ->
-        analyze_hop_count ~sw_pol ~topo ~data
-          ~failure_prob:(fun _ _ -> failure_prob)
-          ~max_failures:(if max_failures = -1 then None else Some max_failures)
-
+let hop_count_analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data =
+  let open Params in
+  let bound = 2 * List.length (Topology.switches topo) in
+  let bound = min Params.max_ttl bound in
+  let model = Model.make ~bound ~sw_pol ~topo ~failure_prob ~max_failures () in
+  let fdd = Fdd.of_pol model in
+  let input_dist = Topology.uniform_ingress topo ~dst:destination in
+  let output_dist = Fdd.output_dist fdd ~input_dist in
+  let cdf =
+    List.init bound ~f:(fun ttl_val ->
+      Packet.Dist.prob output_dist ~f:(fun pk ->
+        Packet.test pk (Fdd.abstract_field sw) destination &&
+        Packet.test_with ~f:(>=) pk (Fdd.abstract_field ttl) ttl_val
       )
-    in
-    data.hop_count_time <- hop_count_time;
-  );
+    )
+    |> List.rev
+  in
+  data.hop_count_cdf <- List.map cdf ~f:Prob.to_float
+  (* hop_count[i] = Pr[π.ttl >= bound - (i+1) ]
+                  = Pr[#hops(π) <= i+1]
+   *)
 
-  (* other analyses *)
-  if not hopcount then Util.attempt (fun () ->
-    let model = Model.make ~sw_pol ~topo
-        ~failure_prob:(fun _ _ -> failure_prob)
-        ~max_failures:(if max_failures = -1 then None else Some max_failures)
-        ()
-    in
-    ignore (Util.timed' " - analysis" ~log  ~timeout ~f:(fun () -> analyze_model model ~topo ~data))
-  )
-
-
-and analyze_model model ~topo ~data =
+let basic_analysis model ~topo ~data =
 
   let open Params in
 
@@ -160,35 +145,62 @@ and analyze_model model ~topo ~data =
   data.min_prob_of_delivery <- Prob.to_float min_p;
   data.avg_prob_of_delivery <- Prob.to_float avg_p
 
-and equivalent_to_teleport fdd ~topo =
-  let teleport = Fdd.of_pol (Model.teleportation topo) in
-  let modulo = [Params.pt; Params.counter] in
-  let is_teleport = Fdd.equivalent fdd teleport ~modulo in
-  (* printf "equivalent to teleportation: %s\n" (Bool.to_string is_teleport); *)
-  is_teleport
+let analyze_scheme base_name (routing_scheme, sw_pol)
+  ~failure_prob ~max_failures ~topo ~log ~timeout ~data ~hopcount =
 
-and analyze_hop_count ~sw_pol ~topo ~failure_prob ~max_failures ~data =
-  let open Params in
-  let bound = 2 * List.length (Topology.switches topo) in
-  let bound = min Params.max_ttl bound in
-  let model = Model.make ~bound ~sw_pol ~topo ~failure_prob ~max_failures () in
-  let fdd = Fdd.of_pol model in
-  let input_dist = Topology.uniform_ingress topo ~dst:destination in
-  let output_dist = Fdd.output_dist fdd ~input_dist in
-  let cdf =
-    List.init bound ~f:(fun ttl_val ->
-      Packet.Dist.prob output_dist ~f:(fun pk ->
-        Packet.test pk (Fdd.abstract_field sw) destination &&
-        Packet.test_with ~f:(>=) pk (Fdd.abstract_field ttl) ttl_val
+  (* clear memory *)
+  Fdd.clear_cache ~preserve:Int.Set.empty;
+  let _ = Util.timed' " - gc\t" ~log ~f:Gc.compact in
+
+  (* hop count analysis *)
+  if hopcount then Util.attempt (fun () ->
+    let hop_count_time, () =
+      Util.timed' " - hop count" ~log ~timeout ~f:(fun () ->
+        hop_count_analysis ~sw_pol ~topo ~data
+          ~failure_prob:(fun _ _ -> failure_prob)
+          ~max_failures:(if max_failures = -1 then None else Some max_failures)
+
       )
-    )
-    |> List.rev
-  in
-  data.hop_count_cdf <- List.map cdf ~f:Prob.to_float
-  (* hop_count[i] = Pr[π.ttl >= bound - (i+1) ]
-                  = Pr[#hops(π) <= i+1]
-   *)
+    in
+    data.hop_count_time <- hop_count_time;
+  );
 
+  (* other analyses *)
+  if not hopcount then Util.attempt (fun () ->
+    let model = Model.make ~sw_pol ~topo
+        ~failure_prob:(fun _ _ -> failure_prob)
+        ~max_failures:(if max_failures = -1 then None else Some max_failures)
+        ()
+    in
+    ignore (Util.timed' " - analysis" ~log  ~timeout ~f:(fun () -> basic_analysis model ~topo ~data))
+  )
+
+let analyze_all base_name ~failure_prob ~max_failures ~timeout ~hopcount : unit =
+  let topo = Topology.parse (Params.topo_file base_name) in
+  Schemes.get_all topo base_name
+  |> List.iter ~f:(fun ((routing_scheme, _) as scheme) ->
+    try
+      let file, data, fresh = load base_name ~routing_scheme ~max_failures ~failure_prob in
+      if fresh then
+        printf "\n%s (*):\n" routing_scheme
+      else
+        printf "\n%s:\n" routing_scheme;
+      let dir = Filename.dirname base_name in
+      Out_channel.with_file (dir ^ "/results.log") ~f:(fun log ->
+        analyze_scheme ~failure_prob ~max_failures ~topo ~log ~timeout ~data ~hopcount
+          base_name scheme
+      );
+      dump data ~file;
+    with Caml.Sys.Break ->
+      ();
+  )
+
+
+
+
+(*===========================================================================*)
+(* CLI                                                                       *)
+(*===========================================================================*)
 
 let parse_list l ~f =
   String.split l ~on:','
@@ -205,13 +217,10 @@ let parse_flag flags =
   |> String.Table.of_alist_exn
   |> String.Table.find
 
-
-
 let () =
   match Array.to_list Sys.argv with
   | _::base_name::max_failures::failure_probs::flags ->
     let parse_flag = parse_flag flags in
-    let dir = Filename.dirname base_name in
     let max_failures = parse_list max_failures ~f:Int.of_string in
     let failure_probs = parse_list failure_probs ~f:Prob.of_string in
     let timeout = Option.(
