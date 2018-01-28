@@ -24,15 +24,15 @@ type data = {
   mutable hop_count_time   : float;
 } [@@deriving yojson]
 
-let data ~routing_scheme ~topology ~max_failures ~failure_prob =
-  let failure_prob =
-    Prob.to_q failure_prob
-    |> (fun q -> Z.(to_int q.num, to_int q.den))
-  in
+let prob_to_frac p =
+  let q = Prob.to_q p in
+   Z.(to_int q.num, to_int q.den)
+
+let empty ~routing_scheme ~topology ~max_failures ~failure_prob =
   { topology;
-    routing_scheme;
+    routing_scheme ;
     max_failures;
-    failure_prob;
+    failure_prob = prob_to_frac failure_prob;
     equivalent_to_teleport = false;
     min_prob_of_delivery = -2.0;
     avg_prob_of_delivery = -2.0;
@@ -42,39 +42,56 @@ let data ~routing_scheme ~topology ~max_failures ~failure_prob =
     hop_count_time = -2.0;
   }
 
-let dump_data (data : data) ~dir : unit =
-  let scheme = String.tr data.routing_scheme ~target:' ' ~replacement:'_' in
-  let dir = sprintf "%s/results/%s-%s" dir data.topology scheme in
+let dump (data : data) ~file : unit =
+  let dir = Filename.dirname file in
   Unix.mkdir_p dir;
-  let max_failures =
-    if data.max_failures < 0 then "inf" else Int.to_string data.max_failures in
-  let file = sprintf "%s/%s-%d-%d.json" dir
-    max_failures (fst data.failure_prob) (snd data.failure_prob)
-  in
+  let json = data_to_yojson data in
   Out_channel.with_file file ~f:(fun chan ->
-    data_to_yojson data
-    |> Yojson.Safe.pretty_to_channel chan
+    Yojson.Safe.pretty_to_channel chan json
   )
 
+let load_file file : data =
+  Yojson.Safe.from_file file
+  |> data_of_yojson
+  |> Result.ok_or_failwith
 
-let rec analyze base_name ~failure_prob ~max_failures ~log ~timeout ~hopcount : data list =
+let load base_name ~routing_scheme ~max_failures ~failure_prob : string * data * bool =
+  let scheme = String.tr routing_scheme ~target:' ' ~replacement:'_' in
+  let dir, topology = Filename.split base_name in
+  let dir = sprintf "%s/results/%s-%s" dir topology scheme in
+  let mf = if max_failures < 0 then "inf" else Int.to_string max_failures in
+  let p_num, p_den = prob_to_frac failure_prob in
+  let file = sprintf "%s/%s-%d-%d.json" dir mf p_num p_den in
+  if is_ok (Unix.access file [`Exists]) then
+    let data = load_file file in
+    file, data, false
+  else
+    let data = empty ~routing_scheme ~topology ~max_failures ~failure_prob in
+    file, data, true
+
+
+let rec analyze_all base_name ~failure_prob ~max_failures ~timeout ~hopcount : unit =
   let topo = Topology.parse (Params.topo_file base_name) in
-  (* SJS: constant failure probabilities *)
   Schemes.get_all topo base_name
-  |> List.filter_map ~f:(fun ((scheme_name, _) as scheme) ->
+  |> List.iter ~f:(fun ((routing_scheme, _) as scheme) ->
     try
-      let topology = Filename.basename base_name in
-      let data = data ~routing_scheme:scheme_name ~topology ~max_failures ~failure_prob in
-      analyze_scheme ~failure_prob ~max_failures ~topo ~log ~timeout ~data ~hopcount
-        base_name scheme;
-      Some data
+      let file, data, fresh = load base_name ~routing_scheme ~max_failures ~failure_prob in
+      if fresh then
+        printf "\n%s (*):\n" routing_scheme
+      else
+        printf "\n%s:\n" routing_scheme;
+      let dir = Filename.dirname base_name in
+      Out_channel.with_file (dir ^ "/results.log") ~f:(fun log ->
+        analyze_scheme ~failure_prob ~max_failures ~topo ~log ~timeout ~data ~hopcount
+          base_name scheme
+      );
+      dump data ~file;
     with Caml.Sys.Break ->
-      None
+      ();
   )
 
 and analyze_scheme base_name (routing_scheme, sw_pol)
   ~failure_prob ~max_failures ~topo ~log ~timeout ~data ~hopcount =
-  printf "\n%s:\n" routing_scheme;
 
   (* clear memory *)
   Fdd.clear_cache ~preserve:Int.Set.empty;
@@ -204,17 +221,14 @@ let () =
     )
     in
     let hopcount = Option.is_some (parse_flag "hopcount") in
-    Out_channel.with_file (dir ^ "/results.log") ~f:(fun log ->
-      List.iter max_failures ~f:(fun max_failures ->
-        List.iter failure_probs ~f:(fun failure_prob ->
-          printf "\n%s, Pr[failure] = %s, max failures = %d, timeout = %d sec\n"
-            (Filename.basename base_name)
-            (Prob.to_string failure_prob) max_failures timeout;
-          printf "=======================================================================\n";
-          analyze base_name ~max_failures ~failure_prob ~log ~timeout ~hopcount
-          |> List.iter ~f:(dump_data ~dir);
-          printf "\n";
-        )
+    List.iter max_failures ~f:(fun max_failures ->
+      List.iter failure_probs ~f:(fun failure_prob ->
+        printf "\n%s, Pr[failure] = %s, max failures = %d, timeout = %d sec\n"
+          (Filename.basename base_name)
+          (Prob.to_string failure_prob) max_failures timeout;
+        printf "=======================================================================\n";
+        analyze_all base_name ~max_failures ~failure_prob ~timeout ~hopcount;
+        printf "\n";
       )
     )
   | _ ->
