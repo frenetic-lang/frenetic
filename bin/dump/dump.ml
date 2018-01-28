@@ -60,7 +60,9 @@ let load_file file : data =
   |> data_of_yojson
   |> Result.ok_or_failwith
 
-let load base_name ~routing_scheme ~max_failures ~failure_prob : string * data * bool =
+(* returns file, data read from file, and if the file is fresh or existed already *)
+let load base_name ~routing_scheme ~max_failures ~failure_prob
+: string * data * [`Fresh | `Existed] =
   let scheme = String.tr routing_scheme ~target:' ' ~replacement:'_' in
   let dir, topology = Filename.split base_name in
   let dir = sprintf "%s/results/%s-%s" dir topology scheme in
@@ -69,10 +71,10 @@ let load base_name ~routing_scheme ~max_failures ~failure_prob : string * data *
   let file = sprintf "%s/%s-%d-%d.json" dir mf p_num p_den in
   if is_ok (Unix.access file [`Exists]) then
     let data = load_file file in
-    file, data, false
+    file, data, `Existed
   else
     let data = empty ~routing_scheme ~topology ~max_failures ~failure_prob in
-    file, data, true
+    file, data, `Fresh
 
 
 (*===========================================================================*)
@@ -180,11 +182,11 @@ let analyze_all base_name ~failure_prob ~max_failures ~timeout ~hopcount : unit 
   Schemes.get_all topo base_name
   |> List.iter ~f:(fun ((routing_scheme, _) as scheme) ->
     try
-      let file, data, fresh = load base_name ~routing_scheme ~max_failures ~failure_prob in
-      if fresh then
-        printf "\n%s (*):\n" routing_scheme
-      else
-        printf "\n%s:\n" routing_scheme;
+      let file, data, history = load base_name ~routing_scheme ~max_failures ~failure_prob in
+      begin match history with
+      | `Fresh -> printf "\n%s (*):\n" routing_scheme
+      | `Existed -> printf "\n%s:\n" routing_scheme
+      end;
       let dir = Filename.dirname base_name in
       Out_channel.with_file (dir ^ "/results.log") ~f:(fun log ->
         analyze_scheme ~failure_prob ~max_failures ~topo ~log ~timeout ~data ~hopcount
