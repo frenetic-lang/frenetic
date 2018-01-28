@@ -37,6 +37,10 @@ def mk_topo(k, bw='1Gbps'):
     g.add_nodes_from(core_switches)
     g.add_nodes_from(agg_switches)
     g.add_nodes_from(edge_switches)
+    used_ports = set() 
+    core_ports = dict()
+    for core in core_switches:
+      core_ports[core[0]] = 0
 
     host_offset = 0
     for pod in range(pods):
@@ -47,6 +51,11 @@ def mk_topo(k, bw='1Gbps'):
             # connect aggregate and edge switches
             down_port = 0
             for edge in pod_edge_switches:
+                # Assert to check that we aren't resuing the same port twice
+                assert((edge[0], up_port) not in used_ports)
+                assert((agg[0], down_port) not in used_ports)
+                used_ports.add((edge[0], up_port))
+                used_ports.add((agg[0], down_port))
                 g.add_edge(agg[0],edge[0],
                            src_port=down_port, dst_port=up_port, capacity=bw, cost=1)
                 g.add_edge(edge[0],agg[0],
@@ -55,36 +64,39 @@ def mk_topo(k, bw='1Gbps'):
             up_port += 1
 
         # connect aggregate and core switches
-        core_ports = dict()
-        for core in core_switches:
-            core_ports[core[0]] = 0
         if pod%2 == 0:
             # Type A
-            j = 0
-            for agg in pod_agg_switches:
+            for j, agg in enumerate(pod_agg_switches):
                 cores = core_switches[j*pods/2:(j+1)*pods/2]
-                for core in cores:
+                for cidx, core in enumerate(cores):
                     core_port = core_ports[core[0]]
+                    agg_port = p + cidx
+                    assert((agg[0], agg_port) not in used_ports)
+                    assert((core[0], core_port) not in used_ports)
+                    used_ports.add((agg[0], agg_port))
+                    used_ports.add((core[0], core_port))
                     g.add_edge(agg[0],core[0],
-                           src_port=pods+j, dst_port=core_port, capacity=bw, cost=1)
+                           src_port=agg_port, dst_port=core_port, capacity=bw, cost=1)
                     g.add_edge(core[0],agg[0],
-                           src_port=core_port, dst_port=pods+j, capacity=bw, cost=1)
+                           src_port=core_port, dst_port=agg_port, capacity=bw, cost=1)
                     core_ports[core[0]] += 1
-                j += 1
         else:
             # Type B
-            j = 0
-            for agg in pod_agg_switches:
+            for j, agg in enumerate(pod_agg_switches):
                 core_sw_idxs = [j + x * p for x in range(pods/2)]
                 cores = [core_switches[x] for x in core_sw_idxs]
-                for core in cores:
+                for cidx, core in enumerate(cores):
                     core_port = core_ports[core[0]]
+                    agg_port = p + cidx
+                    assert((agg[0], agg_port) not in used_ports)
+                    assert((core[0], core_port) not in used_ports)
+                    used_ports.add((agg[0], agg_port))
+                    used_ports.add((core[0], core_port))
                     g.add_edge(agg[0],core[0],
-                           src_port=pods+j, dst_port=core_port, capacity=bw, cost=1)
+                           src_port=agg_port, dst_port=core_port, capacity=bw, cost=1)
                     g.add_edge(core[0],agg[0],
-                           src_port=core_port, dst_port=pods+j, capacity=bw, cost=1)
+                           src_port=core_port, dst_port=agg_port, capacity=bw, cost=1)
                     core_ports[core[0]] += 1
-                j += 1
 
     for idx in range(len(edge_switches)):
         edge = edge_switches[idx]
@@ -92,6 +104,8 @@ def mk_topo(k, bw='1Gbps'):
         for port in range(pods/2):
             host_idx = idx*(pods/2) + port
             host = hosts[host_idx][0]
+            assert((edge[0], port) not in used_ports)
+            used_ports.add((edge[0], port))
             # All hosts connect on port 0
             g.add_edge(edge[0],host,
                        src_port=port, dst_port=0, capacity=bw, cost=1)
