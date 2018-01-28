@@ -174,25 +174,28 @@ let analyze_scheme base_name (routing_scheme, sw_pol)
   let failure_prob = fun _ _ -> failure_prob in
   let max_failures = if max_failures = -1 then None else Some max_failures in
   let descr = if hopcount then " - hopcount" else " - basic " in
-  let dir = Filename.dirname base_name in
-  let logfile = dir ^ "/results.log" in
-  (* start with clean logfile *)
-  Sys.remove logfile;
+  let logfile = Params.log_file base_name in
   let analysis = if hopcount then hop_count_analysis else basic_analysis in
 
   (* run analysis & dump data *)
   Util.log_and_sandbox ~timeout ~logfile descr ~f:(fun () ->
+    printf "\nScheme: %s\n%!" routing_scheme;
     analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data;
     dump data file
   )
 
 
 let analyze_all base_name ~failure_prob ~max_failures ~timeout ~hopcount : unit =
+  printf "\n%s, Pr[failure] = %s, max failures = %d, timeout = %d sec\n"
+    (Filename.basename base_name)
+    (Prob.to_string failure_prob) max_failures timeout;
+  printf "=======================================================================\n";
   let topo = Topology.parse (Params.topo_file base_name) in
   Schemes.get_all topo base_name
   |> List.iter ~f:(analyze_scheme base_name ~failure_prob ~max_failures ~topo
     ~timeout ~hopcount
-  )
+  );
+  printf "\n"
 
 
 (*===========================================================================*)
@@ -227,14 +230,14 @@ let () =
     )
     in
     let hopcount = Option.is_some (parse_flag "hopcount") in
+
+    (* start with clean logfile *)
+    let time = Core.Time.(to_string @@ now ()) in
+    Out_channel.write_all (Params.log_file base_name) ~data:time;
+
     List.iter max_failures ~f:(fun max_failures ->
       List.iter failure_probs ~f:(fun failure_prob ->
-        printf "\n%s, Pr[failure] = %s, max failures = %d, timeout = %d sec\n"
-          (Filename.basename base_name)
-          (Prob.to_string failure_prob) max_failures timeout;
-        printf "=======================================================================\n";
-        analyze_all base_name ~max_failures ~failure_prob ~timeout ~hopcount;
-        printf "\n";
+        analyze_all base_name ~max_failures ~failure_prob ~timeout ~hopcount
       )
     )
   | _ ->
