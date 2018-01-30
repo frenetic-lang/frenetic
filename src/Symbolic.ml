@@ -1509,7 +1509,6 @@ module Fdd = struct
           let backtrace = Backtrace.Exn.most_recent () in
           Format.printf "Uncaught exception in forked process:\n%a\n%!" Exn.pp e;
           Format.printf "%s\n%!" (Backtrace.to_string backtrace);
-          (* printf "%s\n%!" (Exn.backtrace ()); *)
           exit 1
         end
       )

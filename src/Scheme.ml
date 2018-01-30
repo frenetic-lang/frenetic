@@ -265,6 +265,10 @@ let resilient_ecmp topo base_name : Net.Topology.vertex -> string policy =
       eprintf "switch %d cannot reach destination\n" sw_val;
       failwith "network disconnected!"
 
+
+(* The "scheme 2" field must be initialized to 0 *)
+let f10_init = Some PNK.( !!(Params.f10s2, 0) )
+
 let f10 topo base_name : Net.Topology.vertex -> int -> string policy =
   let port_tbl = parse_nexthops topo (Params.ecmp_file base_name) in
   fun sw in_pt ->
@@ -392,26 +396,48 @@ let car topo base_name ~(style: [`Deterministic|`Probabilistic])
         failwith "not implemented"
       end
 
-type scheme = [
-  | `Switchwise of Net.Topology.vertex -> string policy
-  | `Portwise  of Net.Topology.vertex -> int -> string policy
-]
 
-let get_all topo base_name : (string * scheme) list =
+(* routing schemes *)
+type t =
+| Switchwise of {
+    (* switch -> policy mapping *)
+    policy : Net.Topology.vertex -> string policy;
+    (* some policies require that certain fields be initialized at the network ingress *)
+    init : string policy option
+  }
+| Portwise of {
+    (* switch * port -> policy mapping *)
+    policy : Net.Topology.vertex -> int -> string policy;
+    (* some policies require that certain fields be initialized at the network ingress *)
+    init : string policy option
+  }
+
+let get_all topo base_name : (string * t) list =
   let topo = enrich_topo topo in
-  let random_walk () = `Switchwise (random_walk topo) in
-  let resilient_random_walk () = `Switchwise (resilient_random_walk topo) in
-  let shortest_path () = `Switchwise (shortest_path topo base_name) in
-  let ecmp () = `Switchwise (ecmp topo base_name) in
-  let resilient_ecmp () = `Switchwise (resilient_ecmp topo base_name) in
-  let car () = `Portwise (car topo base_name ~style:`Deterministic) in
-  (* let f10 () = `Portwise (f10 topo base_name) in *)
+  let random_walk () =
+    Switchwise { policy =  random_walk topo; init = None } in
+  let resilient_random_walk () =
+    Switchwise { policy = resilient_random_walk topo; init = None } in
+  let shortest_path () =
+    Switchwise { policy = shortest_path topo base_name; init = None } in
+  let ecmp () =
+    Switchwise { policy = ecmp topo base_name; init = None } in
+  let resilient_ecmp () =
+    Switchwise { policy = resilient_ecmp topo base_name; init = None } in
+  let car () =
+    Portwise { policy = car topo base_name ~style:`Deterministic; init = None } in
+  let f10 () = Portwise {
+    policy = f10 topo base_name;
+    init = f10_init
+  } in
   (* SJS: for convenience, run fast-to-analyze before slow-to-analyze schemes *)
   [
     "shortest path",          shortest_path;
     "car",                    car;
     "ecmp",                   ecmp;
     "resilient ecmp",         resilient_ecmp;
+
+    "f10", f10;
 
     "random walk",            random_walk;
     "resilient random walk",  resilient_random_walk;

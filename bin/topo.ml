@@ -17,10 +17,10 @@ let max_failures = None
 
 (* topology *)
 let topo = Topology.parse (base_name ^ ".dot")
-let topo' = Schemes.enrich_topo topo
+let topo' = Scheme.enrich_topo topo
 
 (* the actual program to run on the switches *)
-let sw_pol = `Switchwise (Schemes.ecmp topo' base_name)
+let scheme = Scheme.(Switchwise { policy = ecmp topo' base_name; init = None })
 
 
 (*===========================================================================*)
@@ -54,7 +54,7 @@ let () = begin
 
   (* Make model and compile it into an Fdd. *)
   let model = Util.timed "building model"
-    (Model.make ~topo ~max_failures ~failure_prob ~sw_pol)
+    (Model.make ~topo ~max_failures ~failure_prob ~scheme)
   in
   Format.printf "%a\n\n" Syntax.pp_policy model;
   let fdd = Util.timed "model to Fdd" (fun () -> Fdd.of_pol model) in

@@ -53,7 +53,7 @@ let make
   ?(bound : int option)
   ~(failure_prob : int -> int -> Prob.t)
   ~(max_failures : int option)
-  ~(sw_pol : Schemes.scheme)
+  ~(scheme : Scheme.t)
   ~(topo : Net.Topology.t)
   ()
   =
@@ -70,8 +70,10 @@ let make
 
   let rec make () : string policy =
     let ingress = Topology.ingress topo ~dst:destination in
+    let init = match scheme with Switchwise {init;_} | Portwise {init;_} -> init in
     PNK.(
       (if Option.is_none max_failures || no_failures then skip else !!(counter, 0)) >>
+      (Option.value init ~default:skip) >>
       (* in; (¬eg; p; t)*; eg *)
       filter ingress >>
       match bound with
@@ -82,7 +84,7 @@ let make
       | Some bound ->
         !!(ttl, bound) >>
         whl (neg (???(sw, destination))) (
-          hop () >> 
+          hop () >>
           begin
             List.range 1 bound ~stop:`inclusive
             |> ite_cascade ~otherwise:drop ~f:(fun ttl_val ->
@@ -103,16 +105,16 @@ let make
       let guard = ???(Params.sw, sw_id) in
       let body =
         with_init_up_bits sw_id sw_pts @@ begin
-          begin match sw_pol with
-          | `Switchwise pol ->
-            pol sw
-          | `Portwise pol ->
+          begin match scheme with
+          | Switchwise { policy } ->
+            policy sw
+          | Portwise { policy } ->
             (* want rules for both ports connecting to hosts and ports connecting
                to other switches
              *)
             List.append host_pts sw_pts
             |> ite_cascade ~otherwise:drop ~f:(fun pt_id ->
-              (???(pt, pt_id), pol sw pt_id)
+              (???(pt, pt_id), policy sw pt_id)
             )
           end
           |> (if no_failures then delete_up_bits else ident)
