@@ -1036,30 +1036,35 @@ module Link = struct
 
   type t = { cost : int64 ;
              capacity : int64 ;
-             mutable weight : float } [@@deriving sexp, compare]
+             mutable weight : float ;
+             abtype: int64 ; } [@@deriving sexp, compare]
 
   let default = { cost = 1L;
                   capacity = Int64.of_int64 0x7FFFFFFFFFFFFFFFL;
-                  weight = 1. }
+                  weight = 1.;
+                  abtype = 0L }
 
   let create (cost:int64) (cap:int64) : t =
     { default with cost = cost; capacity = cap }
 
   let cost (l:t) = l.cost
   let capacity (l:t) = l.capacity
+  let abtype (l:t) = l.abtype
 
   let weight (l:t) = l.weight
   let set_weight (l:t) (w:float) = l.weight <- w
 
   let to_string (l:t) : string =
-    Printf.sprintf " cost = %s; capacity = %s; "
+    Printf.sprintf " cost = %s; capacity = %s; abtype = %s;"
       (Int64.to_string l.cost)
       (Int64.to_string l.capacity)
+      (Int64.to_string l.abtype)
 
   let to_dot = to_string
 
   let update_dot_attr edge (key,valopt) =
     match key with
+      | Dot_ast.Ident("abtype") -> {edge with abtype = int64_of_id valopt }
       | Dot_ast.Ident("cost") -> {edge with cost = int64_of_id valopt }
       | Dot_ast.Ident("capacity") -> {edge with capacity = capacity_of_id valopt }
       | Dot_ast.Ident(s) -> edge

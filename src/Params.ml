@@ -21,6 +21,9 @@ let destination = 1
 let up sw pt = sprintf "up_%d" pt
 let is_up_field f = String.is_prefix ~prefix:"up_" f
 
+(** Extra bit needed for F10 scheme 2 re-routing **)
+let f10s2 = "f10s2"
+
 (** various files *)
 let topo_file base_name = base_name ^ ".dot"
 let spf_file base_name = base_name ^ "-spf.trees"

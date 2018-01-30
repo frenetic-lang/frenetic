@@ -174,6 +174,7 @@ module Link : sig
   val create : int64 -> int64 -> t
   val cost : t -> int64
   val capacity : t -> int64
+  val abtype : t -> int64
 
   val weight : t -> float
   val set_weight : t -> float -> unit
