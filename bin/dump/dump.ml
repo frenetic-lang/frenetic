@@ -26,9 +26,9 @@ type data = {
   mutable hop_count_times   : float list;
 } [@@deriving yojson]
 
-let empty ~scheme_name ~topology ~max_failures ~failure_prob =
+let empty ~routing_scheme ~topology ~max_failures ~failure_prob =
   { topology;
-    routing_scheme = scheme_name ;
+    routing_scheme ;
     max_failures;
     failure_prob = Prob.to_int_frac failure_prob;
     equivalent_to_teleport = false;
@@ -54,9 +54,9 @@ let load_file file : data =
   |> Result.ok_or_failwith
 
 (* returns file, data read from file, and if the file is fresh or existed already *)
-let load base_name ~scheme_name ~max_failures ~failure_prob
+let load base_name ~routing_scheme ~max_failures ~failure_prob
 : string * data * [`Fresh | `Existed] =
-  let scheme = String.tr scheme_name ~target:' ' ~replacement:'_' in
+  let scheme = String.tr routing_scheme ~target:' ' ~replacement:'_' in
   let dir, topology = Filename.split base_name in
   let dir = sprintf "%s/results/%s-%s" dir topology scheme in
   let mf = if max_failures < 0 then "inf" else Int.to_string max_failures in
@@ -66,7 +66,7 @@ let load base_name ~scheme_name ~max_failures ~failure_prob
     let data = load_file file in
     file, data, `Existed
   else
-    let data = empty ~scheme_name ~topology ~max_failures ~failure_prob in
+    let data = empty ~routing_scheme ~topology ~max_failures ~failure_prob in
     file, data, `Fresh
 
 
@@ -79,13 +79,13 @@ let equivalent_to_teleport fdd ~topo =
   let teleport = Fdd.of_pol (Model.teleportation topo) in
   Fdd.equivalent fdd teleport ~modulo:[Params.pt; Params.counter]
 
-let hop_count_analysis ~scheme ~topo ~failure_prob ~max_failures ~data =
+let hop_count_analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data =
   let open Params in
 
   (* model *)
   let bound = 2 * List.length (Topology.switches topo) in
   let bound = min Params.max_ttl bound in
-  let model = Model.make ~bound ~scheme ~topo ~failure_prob ~max_failures () in
+  let model = Model.make ~bound ~sw_pol ~topo ~failure_prob ~max_failures () in
 
   let time, cdf = Util.time' (fun () ->
     (* compilation *)
@@ -111,11 +111,11 @@ let hop_count_analysis ~scheme ~topo ~failure_prob ~max_failures ~data =
   data.hop_count_cdf <- List.map cdf ~f:Prob.to_float;
   data.hop_count_times <- time :: data.hop_count_times
 
-let basic_analysis ~scheme ~topo ~failure_prob ~max_failures ~data =
+let basic_analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data =
   let open Params in
 
   (* MODEL *)
-  let model = Model.make ~scheme ~topo ~max_failures ~failure_prob () in
+  let model = Model.make ~sw_pol ~topo ~max_failures ~failure_prob () in
 
   (* COMPILATION *)
   Format.printf "ProbNetKAT model:\n# while loops = %d\n%a\n%!"
@@ -155,15 +155,15 @@ let basic_analysis ~scheme ~topo ~failure_prob ~max_failures ~data =
 
 
 
-let analyze_scheme base_name (scheme_name, scheme)
+let analyze_scheme base_name (routing_scheme, sw_pol)
 ~failure_prob ~max_failures ~topo ~timeout ~hopcount =
   (* load existing data *)
   let file, data, history =
-    load base_name ~scheme_name ~max_failures ~failure_prob
+    load base_name ~routing_scheme ~max_failures ~failure_prob
   in
   begin match history with
-  | `Fresh -> printf "\n%s (*):\n" scheme_name
-  | `Existed -> printf "\n%s:\n" scheme_name
+  | `Fresh -> printf "\n%s (*):\n" routing_scheme
+  | `Existed -> printf "\n%s:\n" routing_scheme
   end;
 
   (* prepare analysis *)
@@ -175,8 +175,8 @@ let analyze_scheme base_name (scheme_name, scheme)
 
   (* run analysis & dump data *)
   Util.log_and_sandbox ~timeout ~logfile descr ~f:(fun () ->
-    printf "\nScheme: %s\n%!" scheme_name;
-    analysis ~scheme ~topo ~failure_prob ~max_failures ~data;
+    printf "\nScheme: %s\n%!" routing_scheme;
+    analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data;
     dump data file
   )
 
@@ -187,7 +187,7 @@ let analyze_all base_name ~failure_prob ~max_failures ~timeout ~hopcount : unit 
     (Prob.to_string failure_prob) max_failures timeout;
   printf "=======================================================================\n";
   let topo = Topology.parse (Params.topo_file base_name) in
-  Scheme.get_all topo base_name
+  Schemes.get_all topo base_name
   |> List.iter ~f:(analyze_scheme base_name ~failure_prob ~max_failures ~topo
     ~timeout ~hopcount
   );
