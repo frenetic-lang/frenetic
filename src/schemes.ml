@@ -269,93 +269,100 @@ let f10 topo base_name : Net.Topology.vertex -> int -> string policy =
   let port_tbl = parse_nexthops topo (Params.ecmp_file base_name) in
   fun sw in_pt ->
     let sw_val = Topology.sw_val topo.graph sw in
+    let is_ingress =
+      Hashtbl.find_exn topo.hop_tbl (sw_val, in_pt)
+      |> Net.Topology.edge_dst
+      |> fst
+      |> Topology.is_host topo.graph
+    in
+    let with_init p =
+      if is_ingress then
+        PNK.( !!(f10s2, 0) >> p )
+      else
+        p
+    in
+    with_init @@
     match Hashtbl.find port_tbl sw_val with
-    | Some pts -> (
-      match pts with
-      | [] ->
-         eprintf "switch %d doesn't have a forwading entry\n" sw_val;
-         failwith "network disconnected!"
-      | [dnwd_pt] -> (
-          (* Going downwards, if this port is up, forward. Else, find all
-          downward going ports to other type subtree, and select a random port,
-          from this list, which is up. (Scheme 1).
-          If none of the ports to a different type subtree are up, then forward
-          to a child on the same subtree, but set a field to non-default
-          routing at the next hop. *)
-        let subtree_type = abtype_of_swpt topo sw_val dnwd_pt in
-        let diff_type_dnwd_pts = Topology.vertex_to_ports topo.graph sw ~dst_filter:(fun neigh ->
-          Topology.(is_switch topo.graph neigh) && Topology.(sw_val topo.graph neigh) < sw_val)
-          |> List.map ~f:Topology.pt_val
-          |> List.filter ~f:(fun pv -> (abtype_of_swpt topo sw_val pv) <> subtree_type) in
-        let same_type_dnwd_pts = Topology.vertex_to_ports topo.graph sw ~dst_filter:(fun neigh ->
-          Topology.(is_switch topo.graph neigh) && Topology.(sw_val topo.graph neigh) < sw_val)
-          |> List.map ~f:Topology.pt_val
-          |> List.filter ~f:(fun pv -> (abtype_of_swpt topo sw_val pv) = subtree_type && pv <> dnwd_pt) in
-
-        let some_diff_type_subtree_up = PNK.(
-          List.map diff_type_dnwd_pts ~f:(fun pt_val ->
-            ???(up sw_val pt_val, 1)) |> mk_big_disj) in
-        let some_same_type_subtree_up = PNK.(
-          List.map same_type_dnwd_pts ~f:(fun pt_val ->
-            ???(up sw_val pt_val, 1)) |> mk_big_disj) in
-
-        let fwd_diff_type_subtree = PNK.(
-            do_whl (neg (at_good_pt sw diff_type_dnwd_pts)) (
-              List.map diff_type_dnwd_pts ~f:(fun pt_val -> !!(pt, pt_val))
-              |> uniform
-            )
-          ) in
-
-        let fwd_same_type_subtree = PNK.(
-            !!(f10s2, 1) >>
-            do_whl (neg (at_good_pt sw same_type_dnwd_pts)) (
-              List.map same_type_dnwd_pts ~f:(fun pt_val -> !!(pt, pt_val))
-              |> uniform
-            )
-          ) in
-        match (diff_type_dnwd_pts, same_type_dnwd_pts) with
-        | ([], []) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt), drop))
-        | ([], _ ) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
-                  Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop)))
-        | (_, [] ) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
-                Ite (some_diff_type_subtree_up, fwd_diff_type_subtree, drop)))
-        | (_, _) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
-                Ite (some_diff_type_subtree_up, fwd_diff_type_subtree,
-                  (* Scheme 2 *)
-                  Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop))))
-        )
-      | hd::tl -> (
-          (* Going upwards. Do resilient ECMP, and don't send back on the
-             incoming port. If at scheme 2 re-routing second hop 'y', then fwd
-             to random child if exists. Else, perfrom default forwarding *)
-        let epts = List.filter pts ~f:(fun pv -> pv <> in_pt) in
-        let def_fwding = PNK.(
-          do_whl (neg (at_good_pt sw epts))  (
-            List.map epts ~f:(fun pt_val -> !!(pt, pt_val))
-            |> uniform
-          )) in
-        let rev_in_edge = Hashtbl.find_exn topo.hop_tbl (sw_val, in_pt) in
-        let (prev_sw, _) = Net.Topology.edge_dst rev_in_edge in
-        if not (Topology.is_switch topo.graph prev_sw) then def_fwding else
-        let prev_sw_val = Topology.sw_val topo.graph prev_sw in
-        if prev_sw_val < sw_val then def_fwding
-        else
-          let children_pts = Topology.vertex_to_ports topo.graph sw ~dst_filter:(fun neigh ->
-            Topology.(is_switch topo.graph neigh) && Topology.(sw_val topo.graph neigh) < sw_val)
-            |> List.map ~f:Topology.pt_val in
-          match children_pts with
-          | [] -> PNK.(!!(f10s2, 0) >> def_fwding)
-          | _ ->
-            let fwd_children = PNK.(
-              do_whl (neg (at_good_pt sw children_pts)) (
-                List.map children_pts ~f:(fun pt_val -> !!(pt, pt_val))
-                |> uniform)) in
-            PNK.(Ite (???(f10s2, 1), !!(f10s2, 0) >> fwd_children, def_fwding))
-        )
-      )
-    | _ ->
+    | None | Some [] ->
       eprintf "switch %d cannot reach destination\n" sw_val;
       failwith "network disconnected!"
+    | Some [dnwd_pt] ->
+      (* Going downwards, if this port is up, forward. Else, find all
+      downward going ports to other type subtree, and select a random port,
+      from this list, which is up. (Scheme 1).
+      If none of the ports to a different type subtree are up, then forward
+      to a child on the same subtree, but set a field to non-default
+      routing at the next hop. *)
+      let subtree_type = abtype_of_swpt topo sw_val dnwd_pt in
+      let diff_type_dnwd_pts = Topology.vertex_to_ports topo.graph sw ~dst_filter:(fun neigh ->
+        Topology.(is_switch topo.graph neigh) && Topology.(sw_val topo.graph neigh) < sw_val)
+        |> List.map ~f:Topology.pt_val
+        |> List.filter ~f:(fun pv -> (abtype_of_swpt topo sw_val pv) <> subtree_type) in
+      let same_type_dnwd_pts = Topology.vertex_to_ports topo.graph sw ~dst_filter:(fun neigh ->
+        Topology.(is_switch topo.graph neigh) && Topology.(sw_val topo.graph neigh) < sw_val)
+        |> List.map ~f:Topology.pt_val
+        |> List.filter ~f:(fun pv -> (abtype_of_swpt topo sw_val pv) = subtree_type && pv <> dnwd_pt) in
+
+      let some_diff_type_subtree_up = PNK.(
+        List.map diff_type_dnwd_pts ~f:(fun pt_val ->
+          ???(up sw_val pt_val, 1)) |> mk_big_disj) in
+      let some_same_type_subtree_up = PNK.(
+        List.map same_type_dnwd_pts ~f:(fun pt_val ->
+          ???(up sw_val pt_val, 1)) |> mk_big_disj) in
+
+      let fwd_diff_type_subtree = PNK.(
+          do_whl (neg (at_good_pt sw diff_type_dnwd_pts)) (
+            List.map diff_type_dnwd_pts ~f:(fun pt_val -> !!(pt, pt_val))
+            |> uniform
+          )
+        ) in
+
+      let fwd_same_type_subtree = PNK.(
+          !!(f10s2, 1) >>
+          do_whl (neg (at_good_pt sw same_type_dnwd_pts)) (
+            List.map same_type_dnwd_pts ~f:(fun pt_val -> !!(pt, pt_val))
+            |> uniform
+          )
+        ) in
+      begin match (diff_type_dnwd_pts, same_type_dnwd_pts) with
+      | ([], []) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt), drop))
+      | ([], _ ) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+                Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop)))
+      | (_, [] ) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+              Ite (some_diff_type_subtree_up, fwd_diff_type_subtree, drop)))
+      | (_, _) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+              Ite (some_diff_type_subtree_up, fwd_diff_type_subtree,
+                (* Scheme 2 *)
+                Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop))))
+      end
+    | Some pts ->
+        (* Going upwards. Do resilient ECMP, and don't send back on the
+           incoming port. If at scheme 2 re-routing second hop 'y', then fwd
+           to random child if exists. Else, perfrom default forwarding *)
+      let epts = List.filter pts ~f:(fun pv -> pv <> in_pt) in
+      let def_fwding = PNK.(
+        do_whl (neg (at_good_pt sw epts))  (
+          List.map epts ~f:(fun pt_val -> !!(pt, pt_val))
+          |> uniform
+        )) in
+      let rev_in_edge = Hashtbl.find_exn topo.hop_tbl (sw_val, in_pt) in
+      let (prev_sw, _) = Net.Topology.edge_dst rev_in_edge in
+      if not (Topology.is_switch topo.graph prev_sw) then def_fwding else
+      let prev_sw_val = Topology.sw_val topo.graph prev_sw in
+      if prev_sw_val < sw_val then def_fwding
+      else
+        let children_pts = Topology.vertex_to_ports topo.graph sw ~dst_filter:(fun neigh ->
+          Topology.(is_switch topo.graph neigh) && Topology.(sw_val topo.graph neigh) < sw_val)
+          |> List.map ~f:Topology.pt_val in
+        match children_pts with
+        | [] -> PNK.(!!(f10s2, 0) >> def_fwding)
+        | _ ->
+          let fwd_children = PNK.(
+            do_whl (neg (at_good_pt sw children_pts)) (
+              List.map children_pts ~f:(fun pt_val -> !!(pt, pt_val))
+              |> uniform)) in
+          PNK.(Ite (???(f10s2, 1), !!(f10s2, 0) >> fwd_children, def_fwding))
+
 
 
 let car topo base_name ~(style: [`Deterministic|`Probabilistic])
@@ -405,13 +412,15 @@ let get_all topo base_name : (string * scheme) list =
   let ecmp () = `Switchwise (ecmp topo base_name) in
   let resilient_ecmp () = `Switchwise (resilient_ecmp topo base_name) in
   let car () = `Portwise (car topo base_name ~style:`Deterministic) in
-  (* let f10 () = `Portwise (f10 topo base_name) in *)
+  let f10 () = `Portwise (f10 topo base_name) in
   (* SJS: for convenience, run fast-to-analyze before slow-to-analyze schemes *)
   [
     "shortest path",          shortest_path;
     "car",                    car;
     "ecmp",                   ecmp;
     "resilient ecmp",         resilient_ecmp;
+
+    "f10",                    f10;
 
     "random walk",            random_walk;
     "resilient random walk",  resilient_random_walk;
