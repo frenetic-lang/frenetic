@@ -109,14 +109,19 @@ let sandboxed ?timeout ~logfile ~f : [`Ok | `Tout | `Err | `Int ] =
       Unix.dup2 log Unix.stderr;
 
       (* then run closure *)
-      match f () with
-      | exception e ->
-        Format.printf "%a\n%!" Exn.pp e;
-        Out_channel.fprintf write_done "Err\n%!";
-        exit 1
-      | () ->
-        Out_channel.fprintf write_done "Ok\n%!";
-        exit 0
+      Backtrace.Exn.with_recording true ~f:(fun () ->
+        try
+          f ();
+          Out_channel.fprintf write_done "Ok\n%!";
+          exit 0;
+        with e -> begin
+          let backtrace = Backtrace.Exn.most_recent () in
+          Format.printf "%a\n%!" Exn.pp e;
+          Format.printf "%s\n%!" (Backtrace.to_string backtrace);
+          Out_channel.fprintf write_done "Err\n%!";
+          exit 1;
+        end
+      )
     )
   | `In_the_parent pid ->
     protect ~finally:(fun () ->
@@ -140,7 +145,7 @@ let sandboxed ?timeout ~logfile ~f : [`Ok | `Tout | `Err | `Int ] =
         | None -> `Tout
         | Some "Ok" -> `Ok
         | Some "Err" -> `Err
-        | Some _ -> failwith "unexpected message"
+        | Some _ -> assert false
         | exception Caml.Sys.Break -> `Int
     )
 

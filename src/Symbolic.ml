@@ -1502,13 +1502,17 @@ module Fdd = struct
   let fork f : Pid.t =
     match Unix.fork () with
     | `In_the_child ->
-      begin try
-        f (); exit 0
-      with e ->
-        printf "Uncaught exception in forked process:\n\t%s\n%!" (Exn.to_string e);
-        (* printf "%s\n%!" (Exn.backtrace ()); *)
-        exit 1
-      end
+      Backtrace.Exn.with_recording true ~f:(fun () ->
+        try
+          f (); exit 0
+        with e -> begin
+          let backtrace = Backtrace.Exn.most_recent () in
+          Format.printf "Uncaught exception in forked process:\n%a\n%!" Exn.pp e;
+          Format.printf "%s\n%!" (Backtrace.to_string backtrace);
+          (* printf "%s\n%!" (Exn.backtrace ()); *)
+          exit 1
+        end
+      )
     | `In_the_parent pid ->
       pid
 
