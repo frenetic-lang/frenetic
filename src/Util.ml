@@ -103,12 +103,15 @@ let sandboxed ?timeout ~logfile ~f : [`Ok | `Tout | `Err | `Int ] =
   match Unix.fork () with
   | `In_the_child ->
     Out_channel.with_file logfile ~append:true ~f:(fun log ->
-      let log = Unix.descr_of_out_channel log in
       (* redirect stderr and stdout to log  *)
+      let log = Unix.descr_of_out_channel log in
       Unix.dup2 log Unix.stdout;
       Unix.dup2 log Unix.stderr;
+
+      (* then run closure *)
       match f () with
-      | exception _ ->
+      | exception e ->
+        Format.printf "%a\n%!" Exn.pp e;
         Out_channel.fprintf write_done "Err\n%!";
         exit 1
       | () ->
