@@ -31,9 +31,9 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
 
   type d
     = Leaf of r
-    | Branch of { 
+    | Branch of {
         test : v;
-        tru : int; 
+        tru : int;
         fls : int;
         all_fls : int [@compare.ignore] (* implies [@hash.ignore] *);
       }
@@ -137,13 +137,14 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
       | _     , Leaf r ->
         if R.compare zero r = 0 then x
         else map_r (fun x -> f x r) x
-      | Branch {test=(vx, lx); tru=tx; fls=fx}, Branch{test=(vy, ly); tru=ty; fls=fy} ->
+      | Branch {test=(vx, lx); tru=tx; fls=fx; all_fls=all_fls_x},
+        Branch {test=(vy, ly); tru=ty; fls=fy; all_fls=all_fls_y} ->
         begin match V.compare vx vy with
         |  0 ->
           begin match L.compare lx ly with
           |  0 -> mk_branch (vx,lx) (sum tx ty) (sum fx fy)
-          | -1 -> mk_branch (vx,lx) (sum tx (restrict [(vx, lx)] y)) (sum fx y)
-          |  1 -> mk_branch (vy,ly) (sum (restrict [(vy, ly)] x) ty) (sum x fy)
+          | -1 -> mk_branch (vx,lx) (sum tx all_fls_y) (sum fx y)
+          |  1 -> mk_branch (vy,ly) (sum all_fls_x ty) (sum x fy)
           |  _ -> assert false
           end
         | -1 -> mk_branch (vx,lx) (sum tx y) (sum fx y)

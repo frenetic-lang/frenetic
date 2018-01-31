@@ -1327,13 +1327,14 @@ module Fdd = struct
         map_r (fun y -> f x y) y
       | _     , Leaf y ->
         map_r (fun x -> f x y) x
-      | Branch{test=(vx, lx); tru=tx; fls=fx}, Branch{test=(vy, ly); tru=ty; fls=fy} ->
+      | Branch {test=(vx, lx); tru=tx; fls=fx; all_fls=all_fls_x},
+        Branch {test=(vy, ly); tru=ty; fls=fy; all_fls=all_fls_y} ->
         begin match Field.compare vx vy with
         |  0 ->
           begin match Value.compare lx ly with
           |  0 -> unchecked_cond (vx,lx) (sum tx ty) (sum fx fy)
-          | -1 -> unchecked_cond (vx,lx) (sum tx (restrict [(vx, lx)] y)) (sum fx y)
-          |  1 -> unchecked_cond (vy,ly) (sum (restrict [(vy, ly)] x) ty) (sum x fy)
+          | -1 -> unchecked_cond (vx,lx) (sum tx all_fls_y) (sum fx y)
+          |  1 -> unchecked_cond (vy,ly) (sum all_fls_x ty) (sum x fy)
           |  _ -> assert false
           end
         | -1 -> unchecked_cond (vx,lx) (sum tx y) (sum fx y)
