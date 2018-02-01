@@ -1,11 +1,10 @@
 (jbuild_version 1)
 
-(executable
- ((name        dump)
-  (public_name probnetkat.dump)
+(executables
+ ((names        (main topo dump))
+  (public_names (probnetkat probnetkat.topo probnetkat.dump))
   (libraries (
     core
-    ;; owl
     zarith
     probnetkat
     yojson
@@ -14,5 +13,4 @@
   (preprocess (pps (ppx_deriving.std
                     ppx_deriving_yojson
                    )))
-  ;;(preprocess (action (run ppxfind -legacy ppx_deriving_yojson --as-pp ${<})))
 ))
