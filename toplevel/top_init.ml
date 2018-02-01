@@ -1,0 +1,2 @@
+#require "probnetkat";;
+open Probnetkat;;
