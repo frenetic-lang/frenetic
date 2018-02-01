@@ -2,6 +2,7 @@ open Core
 
 module type HashCmp = sig
   type t [@@deriving sexp, compare, eq, hash]
+  val pp : Format.formatter -> t -> unit
   val to_string : t -> string
 end
 
@@ -90,15 +91,22 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   let drop = mk_leaf (R.zero)
   let id = mk_leaf (R.one)
 
-  let rec to_string t =
-    if t = drop then "0" else
-    if t = id then "1" else
-    match T.unget t with
+  let rec pp fmt t =
+    Format.fprintf fmt "@[";
+    if t = drop then Format.fprintf fmt "0" else
+    if t = id then Format.fprintf fmt "1" else
+    begin match T.unget t with
     | Leaf r ->
-       Printf.sprintf "%s" (R.to_string r)
+      Format.fprintf fmt "%a" R.pp r
     | Branch { test = (v, l);  tru; fls } ->
-       Printf.sprintf "(%s = %s ? %s : %s)"
-   (V.to_string v) (L.to_string l) (to_string tru) (to_string fls)
+      Format.fprintf fmt "(%a = %a ? %a : %a)"
+      V.pp v L.pp l pp tru pp fls
+    end;
+    Format.fprintf fmt "@]"
+
+  let to_string t =
+    Format.asprintf "%a" pp t
+
 
   let rec fold ~f ~g t = match T.unget t with
     | Leaf r -> f r

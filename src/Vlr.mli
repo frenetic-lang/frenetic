@@ -3,6 +3,7 @@ open Core
 (** The signature for a type that can be compared and hashed *)
 module type HashCmp = sig
   type t [@@deriving sexp, compare, eq, hash]
+  val pp : Format.formatter -> t -> unit
   val to_string : t -> string
 end
 
@@ -84,9 +85,9 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   type d
     = private
     | Leaf of r
-    | Branch of { 
+    | Branch of {
         test : v;
-        tru : t; 
+        tru : t;
         fls : t;
         all_fls : t;
       }
@@ -201,6 +202,8 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
   val to_string : t -> string
   (** [to_string t] returns a string representation of the diagram. *)
+
+  val pp : Format.formatter -> t -> unit
 
   val clear_cache : preserve:Int.Set.t -> unit
   (** [clear_cache ()] clears the internal cache of diagrams. *)

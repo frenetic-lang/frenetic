@@ -76,6 +76,9 @@ module Field = struct
     | None -> sprintf "<%s>" @@ Sexp.to_string (sexp_of_t t)
     | Some s -> s
 
+  let pp fmt t =
+    Format.fprintf fmt "%s" (to_string t)
+
   let is_valid_order (lst : t list) : bool =
     Set.(equal (of_list lst) (of_list all))
 
@@ -300,10 +303,14 @@ module Action = struct
     | Drop -> None
     | Action a -> Some (PreAction.to_hvs a)
 
-  let to_string (t : t) : string =
+  let pp fmt (t : t) : unit =
     match t with
-    | Drop -> "drop"
-    | Action a -> PreAction.to_string a
+    | Drop -> Format.fprintf fmt "drop"
+    | Action a -> Format.fprintf fmt "%s"(PreAction.to_string a)
+
+
+  let to_string t =
+    Format.asprintf "%a" pp t
 end
 
 
@@ -319,6 +326,7 @@ module ActionDist : sig
   val negate : t -> t
   val convex_sum : t -> Prob.t -> t -> t
 
+  val pp : Format.formatter -> t -> unit
   val to_string : t -> string
   val to_alist : t -> (Action.t * Prob.t) list
   val of_alist_exn : (Action.t * Prob.t) list -> t
@@ -369,13 +377,16 @@ end = struct
        non-[zero] action will be mapped to [zero] by this function. *)
     if is_zero t then one else zero
 
-  let to_string t =
+  let pp fmt t =
     to_alist t
     |> List.map ~f:(fun (act, prob) ->
-        sprintf "%s @ %s" (Action.to_string act) (Prob.to_string prob)
+        Format.asprintf "%s @ %s" (Action.to_string act) (Prob.to_string prob)
       )
     |> String.concat ~sep:"; "
-    |> sprintf "{ %s }"
+    |> Format.fprintf fmt "{ %s }"
+
+  let to_string t =
+    Format.asprintf "%a" pp t
 
   (* sum = ampersand (and ampersand only!). It should ever only be used to
      implement disjunction. Thus, we must have x,y \in {0,1}  *)
@@ -430,6 +441,7 @@ module FactorizedActionDist : sig
   val negate : t -> t
   val convex_sum : t -> Prob.t -> t -> t
 
+  val pp : Format.formatter -> t -> unit
   val to_string : t -> string
   val to_alist : t -> (Action.t * Prob.t) list
 
@@ -513,6 +525,9 @@ end = struct
   let to_string t =
     List.map t ~f:ActionDist.to_string
     |> String.concat ~sep:" x "
+
+  let pp fmt t =
+    Format.fprintf fmt "%s" (to_string t)
 
   (* sum = ampersand (and ampersand only!). It should ever only be used to
    implement disjunction. Thus, we must have x,y \in {0,1}  *)
@@ -693,10 +708,13 @@ module Packet = struct
       | Pk of PrePacket.t
       [@@deriving compare, eq, sexp, hash]
 
-    let to_string t =
-      match t with
-      | Emptyset -> "∅"
-      | Pk pk -> PrePacket.to_string pk
+    let pp fmt (pk:t) : unit =
+      match pk with
+      | Emptyset -> Format.fprintf fmt "@[∅@]"
+      | Pk pk -> PrePacket.pp fmt pk
+
+    let to_string pk : string =
+      Format.asprintf "%a" pp pk
   end
   include T
 
@@ -732,14 +750,6 @@ module Packet = struct
     match a with
     | Action.Drop -> Emptyset
     | Action.Action a -> Pk (PrePacket.of_preaction a)
-
-  let pp fmt (pk:t) : unit =
-    match pk with
-    | Emptyset -> Format.fprintf fmt "@[∅]"
-    | Pk pk -> PrePacket.pp fmt pk
-
-  let to_string pk : string =
-    Format.asprintf "%a" pp pk
 
   let empty = Pk PrePacket.empty
 
@@ -1910,4 +1920,8 @@ module Fdd = struct
     printf "[fdd] setting order to %s\n%!" (List.to_string order ~f:Field.to_string);
     Field.set_order order
 
+
+  let pp ?(show=true) fmt t =
+    if show then render t;
+    pp fmt t
 end
