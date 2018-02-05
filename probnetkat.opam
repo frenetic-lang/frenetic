@@ -14,6 +14,7 @@ install: ["jbuilder" "install" "-p" name "-j" jobs]
 depends: [
   "jbuilder" {>="1.0+beta13"}
   "core"   {>= "v0.10.0"}
+  "zarith"
   "joyson"
   "ppx_deriving_yojson"
 ]
