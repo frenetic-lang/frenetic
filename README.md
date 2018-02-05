@@ -1,7 +1,9 @@
 # Probabilistic NetKAT
-This branch provides an implementation of (history-free) Probabilistic NetKAT based on Markov chains.
+This branch provides an implementation of (history-free) Probabilistic NetKAT based on Markov chains and forwarding decision diagrams (FDDs).
 
 ## Quick start
+Our code is tested under Ubuntu and MacOS and will likely not run under Windows.
+
 0) You need opam, the OCaml package manager.
 1) You need OCaml 4.06: `opam update && opam switch 4.06.0`.
 2) After switching to OCaml 4.06, make sure your environment variables are set correctly: `eval $(opam config env)`.
