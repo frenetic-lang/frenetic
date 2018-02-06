@@ -63,7 +63,7 @@ let () = begin
   (* erase final port and counter values *)
   (* SJS: we might want to look at the expected number of failures, actually *)
   let fdd' = Fdd.modulo fdd [Params.pt; Params.counter] in
-  printf "fdd mod final port & counter = %s\n" Fdd.(to_string fdd');
+  printf "fdd mod final port & counter =\n%s\n" Fdd.(to_string fdd');
 
   (* do we gurantee packet delivery? *)
   ignore (equivalent_to_teleport fdd');
