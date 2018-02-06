@@ -380,7 +380,7 @@ end = struct
   let pp fmt t =
     to_alist t
     |> List.map ~f:(fun (act, prob) ->
-        Format.asprintf "%s @ %s" (Action.to_string act) (Prob.to_string prob)
+        Format.asprintf "@[%s @@ %s@]" (Action.to_string act) (Prob.to_string prob)
       )
     |> String.concat ~sep:"; "
     |> Format.fprintf fmt "{ %s }"
