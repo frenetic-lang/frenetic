@@ -22,15 +22,13 @@ module FDD : sig
   val of_mod : Field.Env.t -> header_val -> t
 
   val union : t -> t -> t
+  val big_union : t list -> t
   val seq : t -> t -> t
   val star : t -> t
-
-  val big_union : t list -> t
 end
 
 type t = FDD.t
 (** The type of the intermediate compiler representation (FDD). *)
-
 val to_dot : t -> string
 
 type cache

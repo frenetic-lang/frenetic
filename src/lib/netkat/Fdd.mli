@@ -55,7 +55,7 @@ module Field : sig
     | TCPSrcPort
     | TCPDstPort
     | VFabric
-    [@@deriving sexp, enumerate]
+    [@@deriving sexp, enumerate, enum]
   type field = t
   include Vlr.HashCmp with type t := t
 
@@ -277,4 +277,13 @@ module FDD : sig
   val mk_cont : int64 -> t
   val conts : t -> Int64.Set.t
   val map_conts : t -> f:(int64 -> int64) -> t
+
+  (** fold over FDD in post-traversal order, applying [ftest] to branches and
+      [fmod] to modifications in leaves  *)
+  val deep_fold
+    :  init:'a
+    -> ftest:(init:'a -> v -> 'a)
+    -> fmod: (init:'a -> v -> 'a)
+    -> t
+    -> 'a
 end

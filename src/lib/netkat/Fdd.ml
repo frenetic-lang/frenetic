@@ -31,12 +31,10 @@ module Field = struct
     | TCPSrcPort
     | TCPDstPort
     | VFabric
-    [@@deriving sexp, enumerate, enum]
+    [@@deriving sexp, enumerate, enum, hash]
   type field = t
 
   let num_fields = max + 1
-
-  let hash = Hashtbl.hash
 
   let of_string s =
     Sexp.of_string s |> t_of_sexp
@@ -740,5 +738,15 @@ module FDD = struct
       | Some k -> Some (k |> Value.to_int64_exn |> f |> Value.of_int64)))
     in
     map_r f fdd
+
+  (** fold over FDD in post-traversal order, applying [ftest] to branches and
+      [fmod] to modifications in leaves  *)
+  let deep_fold ~init ~ftest ~fmod fdd =
+    fold' fdd ~init ~g:ftest ~f:(fun ~init par -> 
+      Action.Par.fold par ~init ~f:(fun init seq ->
+        Action.Seq.fold seq ~init ~f:(fun ~key:f ~data:v init ->
+          match f with
+          | Action.K -> init
+          | Action.F f -> fmod ~init (f,v))))
 
 end

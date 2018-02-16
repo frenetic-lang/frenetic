@@ -1,0 +1,9 @@
+(jbuild_version 1)
+
+(executable
+ ((name        nominal)
+  (public_name frenetic.nominal)
+  (libraries (core frenetic yojson ppx_deriving_yojson.runtime))
+  (flags (:standard -safe-string))
+  (preprocess (pps (ppx_deriving_yojson ppx_sexp_conv)))
+))

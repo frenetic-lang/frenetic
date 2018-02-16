@@ -5,9 +5,23 @@ module FDD : module type of Local_compiler.FDD
 
 (** Intermediate representation of global compiler: NetKAT Automata *)
 module Automaton : sig
-  type t
+  type t = private {
+    states : (int64, FDD.t * FDD.t) Hashtbl.t;
+    has_state : (FDD.t * FDD.t, int64) Hashtbl.t;
+    mutable source : int64;
+    mutable nextState : int64
+  }
 
-  val fold_reachable: ?order:[< `Post | `Pre > `Pre ]
+  val create_t : unit -> t
+
+  val add_to_t_with_id : t -> (FDD.t * FDD.t) -> int64 -> unit
+
+  val iter_reachable: ?order:[`Post | `Pre]
+    -> t
+    -> f:(int64 -> (FDD.t * FDD.t) -> unit)
+    -> unit
+
+  val fold_reachable: ?order:[`Post | `Pre]
     -> t
     -> init:'a
     -> f:('a -> int64 -> (FDD.t * FDD.t) -> 'a)

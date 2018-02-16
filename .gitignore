@@ -31,6 +31,12 @@ ppx/test/configure
 ppx/test/myocamlbuild.ml
 ppx/test/setup.ml
 
+# nominal
+nominal/_tags
+nominal/configure
+nominal/myocamlbuild.ml
+nominal/setup.ml
+
 # Emacs Temp Files
 [#]*
 *[#]
