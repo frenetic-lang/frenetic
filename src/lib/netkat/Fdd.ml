@@ -45,7 +45,14 @@ module Field = struct
     sexp_of_t t |> Sexp.to_string
 
   let is_valid_order (lst : t list) : bool =
-    Set.Poly.(equal (of_list lst) (of_list all))
+    let valid = Set.Poly.(equal (of_list lst) (of_list all)) in
+    if not valid then begin
+      let missing = Set.Poly.(diff (of_list all) (of_list lst)) in
+      Set.iter missing ~f:(fun field ->
+        Format.printf "!! missing field: %s\n" (to_string field)
+      )
+    end;
+    valid
 
   let order = Array.init num_fields ~f:ident
 

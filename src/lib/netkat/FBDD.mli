@@ -1,5 +1,6 @@
 type t
 
+val compile : ?options:Local_compiler.compiler_options -> Syntax.policy -> t
 val of_local_pol : ?env:Fdd.Field.Env.t -> Syntax.policy -> t
 val to_fdd : t -> Local_compiler.FDD.t
 

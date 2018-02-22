@@ -78,11 +78,11 @@ let compile compiler per_switch varorder tbl_opt debug filename =
     | "varorder-fattree" ->
       `Static [ EthType; Switch; Location; EthSrc; EthDst; Vlan;
                 VlanPcp; IPProto;IP4Src; IP4Dst; TCPSrcPort; TCPDstPort; VSwitch; VPort; VFabric;
-                Meta0; Meta1; Meta2; Meta3; Meta4; ]
+                Meta0; Meta1; Meta2; Meta3; Meta4; AbstractLoc; From ]
     | "varorder-zoo" ->
       `Static [ EthType; Switch; IP4Dst; Location; EthSrc; EthDst; Vlan;
                 VlanPcp; IPProto;IP4Src; TCPSrcPort; TCPDstPort; VSwitch; VPort; VFabric;
-                Meta0; Meta1; Meta2; Meta3; Meta4; ]
+                Meta0; Meta1; Meta2; Meta3; Meta4; AbstractLoc; From ]
     | _ -> assert false in
   let to_table sw fdd = match tbl_opt with
     | "tablegen-steffen" ->
@@ -95,17 +95,22 @@ let compile compiler per_switch varorder tbl_opt debug filename =
     | true -> print_table to_table sw fdd in
   let compiler_fun = match compiler with
     | "global" ->
-       (fun pol ->
-	let fdd = Netkat.Global_compiler.compile pol in
-        (if not is_debug then
-           Netkat.Local_compiler.to_dotfile fdd "fdk.dot");
-	fdd)
-    | "local" ->
-       let opts =
-	 {Netkat.Local_compiler.default_compiler_options with
-	   field_order=order;
-	   cache_prepare=`Empty} in
-       Netkat.Local_compiler.compile ~options:opts
+      fun pol ->
+        let fdd = Netkat.Global_compiler.compile pol in
+        if not is_debug then Netkat.Local_compiler.to_dotfile fdd "fdk.dot";
+        fdd
+    | "local" | "new-local" ->
+      let options = { Netkat.Local_compiler.default_compiler_options with
+         field_order = order;
+         cache_prepare = `Empty
+      } 
+      in
+      begin match compiler with
+      | "local" -> Netkat.Local_compiler.compile ~options
+      | "new-local" -> 
+        fun p -> Netkat.FBDD.(compile ~options p |> to_fdd)
+      | _ -> assert false
+      end
     | _ -> assert false in
   let f = match per_switch with
     | "big-fdd" -> big_fdd_compilation to_table compiler_fun

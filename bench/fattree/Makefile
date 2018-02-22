@@ -1,4 +1,4 @@
-BENCH="../../_build/bench/src/Main.native"
+BENCH="../../_build/default/bench/src/benchmark.exe"
 
 all: run
 

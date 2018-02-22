@@ -257,3 +257,21 @@ let to_fdd (t : t) : FDD.t =
   |> FDD.big_union
 
 
+(* interface *)
+let default_compiler_options = Local_compiler.default_compiler_options
+
+let prepare_compilation ~options pol = begin
+  let open Local_compiler in
+  (match options.cache_prepare with
+   | `Keep -> ()
+   | `Empty -> BDD.clear_cache ~preserve:Int.Set.empty
+   | `Preserve bdd -> assert false);
+  (match options.field_order with
+   | `Heuristic -> Field.auto_order pol
+   | `Default -> Field.set_order Field.all
+   | `Static flds -> Field.set_order flds)
+end
+
+let compile ?(options=default_compiler_options) pol =
+  Local_compiler.prepare_compilation ~options pol; of_local_pol pol
+
