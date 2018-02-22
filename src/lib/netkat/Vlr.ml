@@ -102,6 +102,13 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     | Branch((v, l), tru, fls) ->
       g (v, l) (fold ~f ~g tru) (fold ~f ~g fls)
 
+  let rec iter ~f ~g t = match T.unget t with
+    | Leaf r -> f r
+    | Branch(test, tru, fls) ->
+      iter ~f ~g tru;
+      iter ~f ~g fls;
+      g test tru fls
+
   let const r = mk_leaf r
   let atom (v,l) t f = mk_branch (v,l) (const t) (const f)
 

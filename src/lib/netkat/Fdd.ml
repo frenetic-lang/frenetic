@@ -529,6 +529,17 @@ module Action = struct
             sprintf "%s := %s" f (Value.to_string v))
         |> String.concat ~sep:", "
       in "[" ^ s ^ "]"
+
+    let to_policy seq =
+      fold_fields seq ~init:Syntax.id ~f:(fun ~key ~data acc ->
+        let hv = match Pattern.to_hv (key, data) with
+          | IP4Src(nwAddr, 32l) -> Syntax.IP4Src(nwAddr, 32l)
+          | IP4Dst(nwAddr, 32l) -> Syntax.IP4Dst(nwAddr, 32l)
+          | IP4Src _ | IP4Dst _ -> raise (FieldValue_mismatch(key, data))
+          | hv -> hv
+        in
+        Optimize.mk_seq (Syntax.Mod hv) acc
+      )
   end
 
   module Par = struct
@@ -669,18 +680,9 @@ module Action = struct
       sum acc (Par.singleton seq'))
 
   let to_policy t =
-    let open Syntax in
-    Par.fold t ~init:drop ~f:(fun acc seq ->
-      let seq' = Seq.fold_fields seq ~init:id ~f:(fun ~key ~data acc ->
-        let hv = match Pattern.to_hv (key, data) with
-          | IP4Src(nwAddr, 32l) -> IP4Src(nwAddr, 32l)
-          | IP4Dst(nwAddr, 32l) -> IP4Dst(nwAddr, 32l)
-          | IP4Src _ | IP4Dst _ -> raise (FieldValue_mismatch(key, data))
-          | hv -> hv
-        in
-        Optimize.mk_seq (Mod(hv)) acc)
-      in
-      Optimize.mk_union seq' acc)
+    Par.fold t ~init:Syntax.drop ~f:(fun acc seq ->
+      Optimize.mk_union (Seq.to_policy seq) acc
+    )
 
   let fold_fv t ~(init : 'a) ~(f : 'a -> field:Field.t -> value:Value.t -> 'a) : 'a =
     Par.fold t ~init ~f:(fun acc seq ->

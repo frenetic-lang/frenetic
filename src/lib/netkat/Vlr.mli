@@ -100,7 +100,7 @@ module IntPairTbl : Hashtbl.S with type key = (int * int)
     ordered. *)
 module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
-  type t = private int
+  type t = private int [@@deriving sexp]
   (** A decision diagram index.  All diagrams and subdiagrams within it are given an
   index.  You can convert this to a tree with [unget], and from a tree with [get]. *)
 
@@ -202,6 +202,13 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   (** [fold f g t] traverses the diagram, replacing leaf nodes with
       applications of [f] to the values that they hold, and branches on
       variables with applications of [g]. *)
+
+    val iter
+    :  f:(r -> unit)
+    -> g:(v -> t -> t -> unit)
+    -> t
+    -> unit
+
 
   val equal : t -> t -> bool
   (** [equal a b] returns whether or not the two diagrams are structurally

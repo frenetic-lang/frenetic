@@ -212,6 +212,8 @@ module Action : sig
     val to_hvs : Value.t t -> (Field.t * Value.t) list
 
     val to_string : Value.t t -> string
+
+    val to_policy : Value.t t -> Syntax.policy
   end
 
   module Par : sig
