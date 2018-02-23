@@ -1,5 +1,5 @@
 #!/bin/bash
-COMPILE="../../_build/bench/src/Main.native"
+COMPILE="../../_build/default/bench/src/benchmark.exe"
 if [ -z "$1" ]
   then 
     echo "Must specify input file!"
