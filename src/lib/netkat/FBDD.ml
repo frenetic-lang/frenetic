@@ -36,9 +36,7 @@ module Modification = struct
   let one = Seq.empty
   let is_one = Seq.is_empty
   let prod = 
-    Seq.merge ~f:(fun ~key m ->
-      match m with | `Both(_, v) | `Left v | `Right v -> Some(v)
-    )
+    Map.merge_skewed ~combine:(fun ~key:_ left right -> right)
   let sum m1 m2 : t option =
     if equal m1 m2 then Some m1 else None
 
@@ -174,12 +172,8 @@ let compose t u =
 
 let seq = compose
 
-(* FIXME: use more efficient `merge_skewed` once available *)
 let union t u = 
-  T.merge t u ~f:(fun ~key:_ -> function
-    | `Left b | `Right b -> Some b
-    | `Both (b1, b2) -> Some (BDD.sum b1 b2)
-  )
+  Map.merge_skewed t u ~combine:(fun ~key:_ x y -> BDD.sum x y)
 
 let big_union fdds = List.fold ~init:drop ~f:union fdds
 
