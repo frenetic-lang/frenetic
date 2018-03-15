@@ -77,9 +77,9 @@ let load base_name ~routing_scheme ~max_failures ~failure_prob
 
 let equivalent_to_teleport fdd ~topo =
   let teleport = Fdd.of_pol (Model.teleportation topo) in
-  Fdd.equivalent fdd teleport ~modulo:[Params.pt; Params.counter]
+  Fdd.equivalent fdd teleport ~modulo:[Params.pt; Params.counter; Params.f10s2]
 
-let hop_count_analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data =
+let hop_count_analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data ~routing_scheme =
   let open Params in
 
   (* model *)
@@ -111,7 +111,8 @@ let hop_count_analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data =
   data.hop_count_cdf <- List.map cdf ~f:Prob.to_float;
   data.hop_count_times <- time :: data.hop_count_times
 
-let basic_analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data =
+let basic_analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data
+    ~routing_scheme ~(dotfile:string) =
   let open Params in
 
   (* MODEL *)
@@ -124,6 +125,9 @@ let basic_analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data =
   Fdd.set_order [Params.sw; Params.pt; Params.counter; Params.ttl ];
   let time, fdd = Util.time Fdd.of_pol model in
   data.compilation_times <- time :: data.compilation_times;
+  let dir = Filename.dirname dotfile in
+  Unix.mkdir_p dir;
+  Fdd.to_dotfile fdd dotfile;
   printf "\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> COMPILATION DONE\n%!";
 
   (* EQUIVALENCE *)
@@ -156,27 +160,30 @@ let basic_analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data =
 
 
 let analyze_scheme base_name (routing_scheme, sw_pol)
-~failure_prob ~max_failures ~topo ~timeout ~hopcount =
+~failure_prob ~failure_locs ~max_failures ~topo ~timeout ~hopcount =
   (* load existing data *)
   let file, data, history =
     load base_name ~routing_scheme ~max_failures ~failure_prob
   in
+  let dotfile:string = Params.dot_file base_name ~routing_scheme ~max_failures ~failure_prob in
   begin match history with
   | `Fresh -> printf "\n%s (*):\n" routing_scheme
   | `Existed -> printf "\n%s:\n" routing_scheme
   end;
 
   (* prepare analysis *)
-  let failure_prob = fun _ _ -> failure_prob in
+  let failure_prob = fun s p ->
+    if List.exists failure_locs (fun x -> x = (s,p)) then failure_prob
+    else Prob.zero in
   let max_failures = if max_failures = -1 then None else Some max_failures in
   let descr = if hopcount then " - hopcount analysis" else " - basic analysis" in
   let logfile = Params.log_file base_name in
-  let analysis = if hopcount then hop_count_analysis else basic_analysis in
+  let analysis = if hopcount then hop_count_analysis else basic_analysis ~dotfile in
 
   (* run analysis & dump data *)
   Util.log_and_sandbox ~timeout ~logfile descr ~f:(fun () ->
     printf "\nScheme: %s\n%!" routing_scheme;
-    analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data;
+    analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data ~routing_scheme;
     dump data file
   )
 
@@ -187,8 +194,9 @@ let analyze_all base_name ~failure_prob ~max_failures ~timeout ~hopcount : unit 
     (Prob.to_string failure_prob) max_failures timeout;
   printf "=======================================================================\n";
   let topo = Topology.parse (Params.topo_file base_name) in
+  let failure_locs = Topology.core_agg_locs topo in
   Schemes.get_all topo base_name
-  |> List.iter ~f:(analyze_scheme base_name ~failure_prob ~max_failures ~topo
+  |> List.iter ~f:(analyze_scheme base_name ~failure_prob ~failure_locs ~max_failures ~topo
     ~timeout ~hopcount
   );
   printf "\n"

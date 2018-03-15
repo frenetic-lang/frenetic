@@ -63,6 +63,9 @@ let enrich_topo (topo : Net.Topology.t) : enriched_topo =
   { graph = topo; switch_tbl; edge_tbl; hop_tbl; }
 
 
+(*===========================================================================*)
+(* HELPERS                                                                   *)
+(*===========================================================================*)
 
 
 (*===========================================================================*)
@@ -265,7 +268,7 @@ let resilient_ecmp topo base_name : Net.Topology.vertex -> string policy =
       eprintf "switch %d cannot reach destination\n" sw_val;
       failwith "network disconnected!"
 
-let f10 topo base_name : Net.Topology.vertex -> int -> string policy =
+let f10 scheme1 scheme2 topo base_name : Net.Topology.vertex -> int -> string policy =
   let port_tbl = parse_nexthops topo (Params.ecmp_file base_name) in
   fun sw in_pt ->
     let sw_val = Topology.sw_val topo.graph sw in
@@ -324,17 +327,28 @@ let f10 topo base_name : Net.Topology.vertex -> int -> string policy =
             |> uniform
           )
         ) in
-      begin match (diff_type_dnwd_pts, same_type_dnwd_pts) with
-      | ([], []) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt), drop))
-      | ([], _ ) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
-                Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop)))
-      | (_, [] ) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
-              Ite (some_diff_type_subtree_up, fwd_diff_type_subtree, drop)))
-      | (_, _) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
-              Ite (some_diff_type_subtree_up, fwd_diff_type_subtree,
-                (* Scheme 2 *)
-                Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop))))
+
+      begin match (scheme1, scheme2) with
+        | (false, false) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt), drop))
+        | (true, false) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+                                    Ite (some_diff_type_subtree_up, fwd_diff_type_subtree, drop)))
+        | (false, true) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+                                    Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop)))
+        | (true, true) ->
+          begin match (diff_type_dnwd_pts, same_type_dnwd_pts) with
+            | ([], []) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt), drop))
+            | ([], _ ) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+                                    Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop)))
+            | (_, [] ) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+                                    Ite (some_diff_type_subtree_up, fwd_diff_type_subtree, drop)))
+            | (_, _) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+                                  Ite (some_diff_type_subtree_up, fwd_diff_type_subtree,
+                                       (* Scheme 2 *)
+                                       Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop))))
+          end
       end
+
+
     | Some pts ->
         (* Going upwards. Do resilient ECMP, and don't send back on the
            incoming port. If at scheme 2 re-routing second hop 'y', then fwd
@@ -412,18 +426,24 @@ let get_all topo base_name : (string * scheme) list =
   let ecmp () = `Switchwise (ecmp topo base_name) in
   let resilient_ecmp () = `Switchwise (resilient_ecmp topo base_name) in
   let car () = `Portwise (car topo base_name ~style:`Deterministic) in
-  let f10 () = `Portwise (f10 topo base_name) in
+  let f10_no_lr () = `Portwise (f10 false false topo base_name) in
+  let f10_s1_lr () = `Portwise (f10 true false topo base_name) in
+  let f10_s2_lr () = `Portwise (f10 false true topo base_name) in
+  let f10_s1_s2_lr () = `Portwise (f10 true true topo base_name) in
   (* SJS: for convenience, run fast-to-analyze before slow-to-analyze schemes *)
   [
     "shortest path",          shortest_path;
-    "car",                    car;
+    (* "car",                    car; *)
     "ecmp",                   ecmp;
     "resilient ecmp",         resilient_ecmp;
 
-    "f10",                    f10;
+    "f10_no_lr",              f10_no_lr;
+    "f10_s1_lr",              f10_s1_lr;
+    (* "f10_s2_lr",              f10_s2_lr; *)
+    "f10_s1_s2_lr",           f10_s1_s2_lr;
 
-    "random walk",            random_walk;
-    "resilient random walk",  resilient_random_walk;
+    (* "random walk",            random_walk; *)
+    (* "resilient random walk",  resilient_random_walk; *)
   ]
   |> List.filter_map ~f:(fun (name, make) ->
     match make () with

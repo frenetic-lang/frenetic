@@ -1858,7 +1858,7 @@ module Fdd = struct
     do_nodes t1 t2 PrePacket.empty
 
   let to_dotfile t filename =
-    Out_channel.with_file filename ~f:(fun chan ->
+    Out_channel.with_file ~append:false ~fail_if_exists:false filename ~f:(fun chan ->
       Out_channel.output_string chan (to_dot t)
     )
 
