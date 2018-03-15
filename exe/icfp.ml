@@ -16,6 +16,7 @@ type data = {
   mutable invariant : bool * bool;
   mutable fattree_comp : bool;
   mutable refinement : bool list;
+  mutable resilience : bool list;
 
 } [@@deriving yojson]
 
@@ -26,6 +27,7 @@ let empty ~max_failures ~failure_prob =
     invariant = (false, false);
     fattree_comp = false;
     refinement = [];
+    resilience = [];
   }
 
 let dump (data : data) ~file : unit =
@@ -73,7 +75,7 @@ let leq p1 p2 =
 (* CLI                                                                       *)
 (*===========================================================================*)
 let () =
-  let max_failures = [0;1;2;3;-1] in
+  let max_failures = [0;1;2;3;4;-1] in
   let failure_prob = Prob.(1//16) in
   let timeout = 3600 in
   let fattree = "./examples/output/fattree_4_sw_20" in
@@ -101,7 +103,7 @@ let () =
       let logfile = "./examples/output/results/icfp.log" in
 
       (* run analysis & dump data *)
-      Util.log_and_sandbox ~timeout ~logfile "invariant" ~f:(fun () ->
+      Util.log_and_sandbox ~timeout ~logfile "1. invariant" ~f:(fun () ->
           let file, data, history =
             load ~max_failures ~failure_prob
           in
@@ -118,7 +120,7 @@ let () =
         );
         (* run analysis & dump data *)
       printf "\n";
-      Util.log_and_sandbox ~timeout ~logfile "FT local rerouting" ~f:(fun () ->
+      Util.log_and_sandbox ~timeout ~logfile "2. FT local rerouting" ~f:(fun () ->
           let file, data, history =
             load ~max_failures ~failure_prob
           in
@@ -133,7 +135,7 @@ let () =
           dump data file
         );
       printf "\n";
-      Util.log_and_sandbox ~timeout ~logfile "refinement" ~f:(fun () ->
+      Util.log_and_sandbox ~timeout ~logfile "3. refinement" ~f:(fun () ->
           let file, data, history =
             load ~max_failures ~failure_prob
           in
@@ -147,6 +149,24 @@ let () =
           data.refinement <- [leq f10_no_abft f10_s1_abft;
                               leq f10_s1_abft f10_abft;
                               leq f10_abft (Model.teleportation abft)];
+          dump data file
+        );
+        (* run analysis & dump data *)
+      printf "\n";
+      Util.log_and_sandbox ~timeout ~logfile "4. k-resilience" ~f:(fun () ->
+          let file, data, history =
+            load ~max_failures ~failure_prob
+          in
+          let max_failures = if max_failures = -1 then None else Some max_failures in
+
+          let abft' = Schemes.enrich_topo abft in
+          let f10_no_abft = Model.make ~sw_pol:(`Portwise (Schemes.f10 false false abft' abfattree)) ~topo:abft ~max_failures ~failure_prob:failure_prob_abft () in
+          let f10_s1_abft = Model.make ~sw_pol:(`Portwise (Schemes.f10 true false abft' abfattree)) ~topo:abft ~max_failures ~failure_prob:failure_prob_abft () in
+          let f10_abft = Model.make ~sw_pol:(`Portwise (Schemes.f10 true true abft' abfattree)) ~topo:abft ~max_failures ~failure_prob:failure_prob_abft () in
+
+          data.resilience <- [equiv f10_no_abft (Model.teleportation abft);
+                              equiv f10_s1_abft (Model.teleportation abft);
+                              equiv f10_abft (Model.teleportation abft)];
           dump data file
         );
         (* run analysis & dump data *)
