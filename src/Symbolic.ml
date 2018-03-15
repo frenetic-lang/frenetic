@@ -1798,8 +1798,13 @@ module Fdd = struct
       )
     )
 
+  type ternary = True | False | Maybe
 
   let less_than ?(modulo=[]) t1 t2 =
+    let (&&) t1 t2 = match t1, t2 with
+      | Maybe, Maybe -> Maybe
+      | False, _  | _, False -> False
+      | _, True | True, _ -> True in
     let modulo =
       List.filter_map modulo ~f:(Hashtbl.find field_allocation_tbl)
       |> Field.Set.of_list
@@ -1839,11 +1844,15 @@ module Fdd = struct
       | Leaf d1, Leaf d2 ->
         do_leaves d1 d2 pk
     and do_leaves d1 d2 pk =
-      List.compare compare_weighted_pk (normalize d1 pk) (normalize d2 pk) = -1
+      match List.compare compare_weighted_pk (normalize d1 pk) (normalize d2 pk) with
+      | -1 -> True
+      | 0 -> Maybe
+      | _ -> False
     and normalize dist pk =
       modulo_mods dist
       |> FactorizedActionDist.to_alist
       |> Util.map_fst ~f:(Packet.(apply (Pk pk)))
+      |> List.filter ~f:(fun (pk,_) -> not Packet.(equal pk Emptyset))
       |> List.sort ~cmp:compare_weighted_pk
     and modulo_mods dist =
       FactorizedActionDist.pushforward dist ~f:(function
@@ -1855,7 +1864,9 @@ module Fdd = struct
         ))
       )
     in
-    do_nodes t1 t2 PrePacket.empty
+    match do_nodes t1 t2 PrePacket.empty with
+    | True -> true
+    | _ -> false
 
 
   let equivalent ?(modulo=[]) t1 t2 =

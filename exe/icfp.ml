@@ -65,7 +65,9 @@ let equiv p1 p2 =
   Fdd.(equivalent (of_pol p1) (of_pol p2) ~modulo:Params.modulo)
 
 let leq p1 p2 =
-  Fdd.(less_than (of_pol p1) (of_pol p2) ~modulo:Params.modulo)
+  let p1 = Fdd.of_pol p1 in
+  let p2 = Fdd.of_pol p2 in
+  Fdd.(less_than p1 p2 ~modulo:Params.modulo)
 
 (*===========================================================================*)
 (* CLI                                                                       *)
@@ -130,6 +132,7 @@ let () =
           data.fattree_comp <- equiv ecmp_ft f10_s1_ft;
           dump data file
         );
+      printf "\n";
       Util.log_and_sandbox ~timeout ~logfile "refinement" ~f:(fun () ->
           let file, data, history =
             load ~max_failures ~failure_prob
