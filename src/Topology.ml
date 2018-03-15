@@ -24,12 +24,20 @@ let is_host topo v =
   | Node.Host -> true
   | Node.Middlebox | Node.Switch -> false
 
-let is_core_agg topo v =
+let is_core topo v =
   if is_switch topo v then
   match Node.level (vertex_to_label topo v) with
-    | Node.Core | Node.Aggregation  -> true
+    | Node.Core -> true
     | _ -> false
   else false
+
+let is_agg topo v =
+  if is_switch topo v then
+  match Node.level (vertex_to_label topo v) with
+    | Node.Aggregation -> true
+    | _ -> false
+  else false
+
 
 let switches topo : vertex list =
   vertexes topo
@@ -59,8 +67,8 @@ let core_agg_locs topo : (int * int) list =
   fold_edges (fun edge acc ->
       let (src_vertex,src_pt) = edge_src edge in
       let (dst_vertex,dst_pt) = edge_dst edge in
-      if (is_core_agg topo src_vertex) && (is_core_agg topo dst_vertex) then
-        (sw_val topo src_vertex, pt_val src_pt) :: (sw_val topo dst_vertex, pt_val dst_pt) :: acc
+      if (is_core topo src_vertex) && (is_agg topo dst_vertex) then
+        (sw_val topo src_vertex, pt_val src_pt) :: acc
       else
         acc
     )

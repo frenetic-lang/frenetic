@@ -41,3 +41,5 @@ let dump_file ?(ext="json") base_name ~routing_scheme ~max_failures ~failure_pro
 
 let dot_file  =
  dump_file ~ext:"dot"
+
+let modulo =  [pt; counter; f10s2; ttl]

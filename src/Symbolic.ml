@@ -1799,6 +1799,65 @@ module Fdd = struct
     )
 
 
+  let less_than ?(modulo=[]) t1 t2 =
+    let modulo =
+      List.filter_map modulo ~f:(Hashtbl.find field_allocation_tbl)
+      |> Field.Set.of_list
+    in
+    let rec do_nodes t1 t2 pk =
+      match unget t1, unget t2 with
+      | Branch {test=(f1,v1); tru=l1; fls=r1; all_fls=all_fls_1},
+        Branch {test=(f2,v2); tru=l2; fls=r2; all_fls=all_fls_2} ->
+        begin match Field.compare f1 f2 with
+        | -1 ->
+          do_nodes l1 t2 (PrePacket.modify pk f1 (Const v1)) &&
+          do_nodes r1 t2 pk
+        | 1 ->
+          do_nodes t1 l2 (PrePacket.modify pk f2 (Const v2)) &&
+          do_nodes t1 r2 pk
+        | 0 ->
+          begin match Value.compare v1 v2 with
+          | 0 ->
+            do_nodes l1 l2 (PrePacket.modify pk f1 (Const v1)) &&
+            do_nodes r1 r2 pk
+          | -1 ->
+            do_nodes l1 all_fls_2 (PrePacket.modify pk f1 (Const v1)) &&
+            do_nodes r1 t2 pk
+          | 1 ->
+            do_nodes all_fls_1 l2 (PrePacket.modify pk f2 (Const v2)) &&
+            do_nodes t1 r2 pk
+          | _ -> assert false
+          end
+        | _ -> assert false
+        end
+      | Branch {test=(f1,v1); tru=l1; fls=r1}, Leaf _ ->
+        do_nodes l1 t2 (PrePacket.modify pk f1 (Const v1)) &&
+        do_nodes r1 t2 pk
+      | Leaf _, Branch {test=(f2,v2); tru=l2; fls=r2} ->
+        do_nodes t1 l2 (PrePacket.modify pk f2 (Const v2)) &&
+        do_nodes t1 r2 pk
+      | Leaf d1, Leaf d2 ->
+        do_leaves d1 d2 pk
+    and do_leaves d1 d2 pk =
+      List.compare compare_weighted_pk (normalize d1 pk) (normalize d2 pk) = -1
+    and normalize dist pk =
+      modulo_mods dist
+      |> FactorizedActionDist.to_alist
+      |> Util.map_fst ~f:(Packet.(apply (Pk pk)))
+      |> List.sort ~cmp:compare_weighted_pk
+    and modulo_mods dist =
+      FactorizedActionDist.pushforward dist ~f:(function
+      | Drop ->
+        Drop
+      | Action act ->
+        Action (Field.Map.filteri act ~f:(fun ~key:f ~data:_->
+          not (Set.mem modulo f)
+        ))
+      )
+    in
+    do_nodes t1 t2 PrePacket.empty
+
+
   let equivalent ?(modulo=[]) t1 t2 =
     let modulo =
       List.filter_map modulo ~f:(Hashtbl.find field_allocation_tbl)
