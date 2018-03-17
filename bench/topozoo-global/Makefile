@@ -1,11 +1,12 @@
 TOPOS=$(shell cat dot-files)
 POLS=$(TOPOS:.dot=.json)
-COMPILEKAT="../../_build/bench/src/Main.native"
+COMPILEKAT="../../_build/default/bench/src/benchmark.exe"
 
 all: run
 
 %.dot:
-	wget http://storage.googleapis.com/compilekat/dots/topozoo/$@
+        wget https://s3.amazonaws.com/compilekat/dots/topozoo/$@
+
 
 %.json: %.dot
 	$(COMPILEKAT) global-routing $^ $@
