@@ -20,19 +20,15 @@
   (deps    (Tokens.mly))
   (action  (run ${bin:menhir} --only-tokens --infer ${<}))))
 
-;; generate lexer -- temporary hack while ppx_sedlex and ppx_import are incompatible with jbuilder!!
+;; generate lexer -- temporary hack while ppx_import is incompatible with jbuilder!!
 (rule
- ((targets (Lexer.sedlex.ml))
-  (deps    (Lexer.cppo.sedlex.ml Tokens.ml))
+ ((targets (Lexer.ml))
+  (deps    (Lexer.cppo.ml Tokens.ml))
   (action  (run ${bin:cppo} ${<} -n -o ${@}))))
 (rule
  ((targets (Lexer.mli))
   (deps    (Lexer.cppo.mli Tokens.ml))
   (action  (run ${bin:cppo} ${<} -n -o ${@}))))
-(rule
- ((targets (Lexer.ml))
-  (deps    (Lexer.sedlex.ml))
-  (action  (run ${lib:sedlex:ppx_sedlex} ${<} -o ${@}))))
 
 ;; generate parser
 (menhir
@@ -70,6 +66,7 @@
                     ppx_fields_conv
                     ppx_sexp_conv
                     ppx_hash
+                    sedlex.ppx
                     ocaml-migrate-parsetree.driver-main -no-check
                    )))
   (flags (:standard -safe-string))
