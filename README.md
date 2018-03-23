@@ -35,7 +35,7 @@ You can build Frenetic-based network applications with:
     opam install ocamlgraph    
     ```
     
-    1. Build Frenetic
+1. Build Frenetic
     ```
     make && make install
     ```
