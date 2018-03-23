@@ -22,23 +22,23 @@ You can build Frenetic-based network applications with:
 1. Install [OPAM](https://opam.ocaml.org/)
 
 1. Switch to OCaml version 4.06.0 or greater:
-```
-opam switch 4.06.0    
-```        
+    ```
+    opam switch 4.06.0    
+    ```        
 
 1. Install required OCaml dependencies. Note that JBuilder can compute the list of dependencies, 
-```
-jbuilder external-lib-deps --missing @install
-```
-and you can install each using OPAM---for example:
-```
-opam install ocamlgraph    
-```
+    ```
+    jbuilder external-lib-deps --missing @install
+    ```
+    and you can install each using OPAM---for example:
+    ```
+    opam install ocamlgraph    
+    ```
     
-1. Build Frenetic
-```
-make && make install
-```
+    1. Build Frenetic
+    ```
+    make && make install
+    ```
     
 1. (Optional) install [Mininet](http://mininet.org/)
         
