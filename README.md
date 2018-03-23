@@ -2,11 +2,7 @@
 
 [![Build Status](https://travis-ci.org/frenetic-lang/frenetic.svg?branch=master)](https://travis-ci.org/frenetic-lang/frenetic)
 
-[Library Documentation](http://frenetic-lang.github.io/frenetic/)
-
-Frenetic is an open-source Software Defined Network (SDN) controller platform designed to make SDN programming easy, modular, and semantically correct.
-
-The languages used to program networks today lack modern features. Programming them is a complicated and error-prone task, and outages and infiltrations are frequent. Frenetic is a _network programming language_ with the following essential features:
+The languages used to program networks today lack modern features. Programming them is a complicated and error-prone task, and outages and infiltrations are frequent. Frenetic is an open-source Software Defined Network (SDN) controller platform designed to make SDN programming easy, modular, and semantically correct, based on _programming languages_ with the following essential features:
 
 * _High-level abstractions_ that give programmers direct control over the network, allowing them to specify what they want the network to do without worrying about how to implement it.
 * _Modular constructs_ that facilitate compositional reasoning about programs.
@@ -15,24 +11,43 @@ The languages used to program networks today lack modern features. Programming t
 
 You can build Frenetic-based network applications with:
 
-* Python
 * OCaml
-* REST and JSON (= any programming language!)
+* Python
+* REST and JSON (i.e., any programming language!)
 
 ## Getting Started
 
 ### Installation
 
-1. Install VirtualBox from https://www.virtualbox.org/wiki/Downloads. Use the latest
-version platform package appropriate for your system.
-2. From https://s3.amazonaws.com/plasma-umass/frenetic-tutorial-vm.ova download
-the latest Frentic User VM – this file is about 2.8 GB and may take about 10
-minutes or so to download.
-3. Import the .ova file into VirtualBox. This takes two minutes or so.
+1. Install [OPAM](https://opam.ocaml.org/)
 
-### Hello SDN World
+1. Switch to OCaml version 4.06.0 or greater:
+```
+opam switch 4.06.0    
+```        
 
-1.  Start up a terminal window - – two are provided in the VM under Accessories: Byobu Terminal (which integrates nicely with tmux) and LXTerminal (which has graphical tabs). Either one will do.
+1. Install required OCaml dependencies:
+
+Note that JBuilder can compute the list of dependencies, 
+```
+jbuilder external-lib-deps --missing @install
+```
+and you can install each using OPAM---for example:
+```
+opam install ocamlgraph    
+```             
+1. Build Frenetic
+```
+make && make install
+```
+1. (Optional) install [Mininet](http://mininet.org/)
+        
+### Hello World in SDN
+
+The following instructions assume a Linux host with Mininet installed. 
+    
+1.  Start up a terminal window.
+
 2.  Start up a Mininet sample network with a switch and 2 hosts:
 
     ```
