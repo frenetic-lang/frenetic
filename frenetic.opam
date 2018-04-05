@@ -16,12 +16,12 @@ depends: [
   "jbuilder" {>="1.0+beta13"}
   "odoc"
   #########################
-  "async"  {>= "0.10.0"}
-  "async_extended" {>= "0.10.0"}
+  "async"  {= "0.10.0"}
+  "async_extended" {= "0.10.0"}
   "base64" {>= "2.0.0"}
   "cohttp"
   "cohttp-async"
-  "core"   {>= "v0.10.0"}
+  "core"   {= "v0.10.0"}
   "cstruct" {>= "1.0.1"}
   "cstruct-async"
   "ipaddr" {>= "2.5.0"}
