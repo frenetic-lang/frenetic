@@ -1,0 +1,22 @@
+(jbuild_version 1)
+
+(library
+ ((name        frenetic_decision)
+  (public_name frenetic.decision)
+  (wrapped true)
+  (libraries 
+    (core
+     frenetic.netkat
+    )
+  )
+  (preprocess (pps (ppx_cstruct
+                    ppx_deriving.std
+                    ppx_enumerate
+                    ppx_compare
+                    ppx_fields_conv
+                    ppx_sexp_conv
+                    ocaml-migrate-parsetree.driver-main -no-check
+                   )))
+  (flags (:standard -safe-string))
+ )
+)
