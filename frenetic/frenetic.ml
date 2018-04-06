@@ -37,7 +37,7 @@ let table_fields : Frenetic_NetKAT_Compiler.flow_layout Command.Spec.Arg_type.t 
       (* Break each string of fields into a list of fields: [["ethsrc","ethdst"],["ipsrc","ipdst"]] *)
       let field_list_list = List.map ~f:(fun t_str -> Str.split (Str.regexp "[,]") t_str) table_list in
       (* This takes a field list [ ethsrc,ethdst ] and converts to Field.t definition *)
-      let table_to_fields = List.map ~f:(fun f_str -> List.Assoc.find_exn opts f_str) in
+      let table_to_fields = List.map ~f:(fun f_str -> List.Assoc.find_exn ~equal:String.equal opts f_str) in
       (* Applies the above to each table definition *)
       List.map ~f:table_to_fields field_list_list
     )

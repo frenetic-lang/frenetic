@@ -349,7 +349,7 @@ module UnionFind(Ord : Core.Std.Map.Key) = struct
     let rec crawl_up_tree f node = match node with
       | Leaf_node (l, r) -> f node; crawl_up_tree f !r
       | Root_node (l, d) -> f node in
-    FindMap.iter t.node_map ~f:(fun ~key:key ~data:data ->
+    FindMap.iteri t.node_map ~f:(fun ~key:key ~data:data ->
         crawl_up_tree (fun node -> match node with
             | Root_node(v,_)
             | Leaf_node(v,_) -> if FindMap.find_exn t.node_map v = node then () else raise Duplicate_node) data)

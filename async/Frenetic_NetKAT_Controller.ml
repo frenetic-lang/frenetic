@@ -27,23 +27,23 @@ module type CONTROLLER = sig
   val query : string -> (int64 * int64) Deferred.t
   val set_current_compiler_options : Frenetic_NetKAT_Compiler.compiler_options -> unit
 end
-                                     
+
 module Make (P:PLUGIN) : CONTROLLER = struct
   (* Global variables *)
   let (pol_reader, pol_writer) = Pipe.create ()
   let (event_reader, event_writer) =  Pipe.create ()
   let switch_hash : (switchId, portId list) Hashtbl.Poly.t = Hashtbl.Poly.create ()
   let current_compiler_options = ref (Frenetic_NetKAT_Compiler.default_compiler_options)
-  let fdd = ref (Frenetic_NetKAT_Compiler.compile_local Frenetic_NetKAT.drop) 
-                                                                               
+  let fdd = ref (Frenetic_NetKAT_Compiler.compile_local Frenetic_NetKAT.drop)
+
   let update (pol:policy) : unit Deferred.t =
-    fdd := Frenetic_NetKAT_Compiler.compile_local pol;    
+    fdd := Frenetic_NetKAT_Compiler.compile_local pol;
     P.update !fdd
 
   let handle_event (evt:event) : unit Deferred.t =
     Pipe.write_without_pushback event_writer evt;
     match evt with
-    | SwitchUp (sw,ports) -> 
+    | SwitchUp (sw,ports) ->
        let _ = Hashtbl.Poly.add switch_hash sw ports in
        P.update_switch sw !fdd
     | SwitchDown sw ->
@@ -51,7 +51,7 @@ module Make (P:PLUGIN) : CONTROLLER = struct
        return ()
     | _ ->
        Deferred.return ()
-        
+
   let start (openflow_port:int) : unit =
     P.start openflow_port;
     don't_wait_for (Pipe.iter P.events ~f:handle_event)
@@ -73,28 +73,28 @@ module Make (P:PLUGIN) : CONTROLLER = struct
   let get_table (sw_id : switchId) : (Frenetic_OpenFlow.flow * string list) list =
     Frenetic_NetKAT_Compiler.to_table' sw_id !fdd
 
-  let sum_stat_pairs stats = 
+  let sum_stat_pairs stats =
      List.fold stats ~init:(0L, 0L)
       ~f:(fun (pkts, bytes) (pkts', bytes') ->
         Int64.(pkts + pkts', bytes + bytes'))
 
-  (* TODO: The NetKAT Controller used to preserve statistics across queries, and 
+  (* TODO: The NetKAT Controller used to preserve statistics across queries, and
      add the accumulated stats in here.  This is no longer done - is that right? *)
 
   let query (name : string) : (Int64.t * Int64.t) Deferred.t =
     Deferred.List.map ~how:`Parallel
-      (Hashtbl.Poly.keys switch_hash) 
+      (Hashtbl.Poly.keys switch_hash)
       ~f:(fun sw_id ->
         let pats = List.filter_map (get_table sw_id) ~f:(fun (flow, names) ->
-          if List.mem names name then
+          if List.mem ~equal:String.equal names name then
             Some flow.pattern
           else
             None) in
-        Deferred.List.map ~how:`Parallel 
+        Deferred.List.map ~how:`Parallel
           pats
           ~f:(fun pat ->
             P.flow_stats sw_id pat
-            >>| fun(stats) -> (stats.flow_packet_count, stats.flow_byte_count) 
+            >>| fun(stats) -> (stats.flow_packet_count, stats.flow_byte_count)
           )
         >>| fun stats -> sum_stat_pairs stats
       )

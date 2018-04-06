@@ -75,6 +75,12 @@ let sexp_of_bytes s =
 
 type bytes = Cstruct.t
 
+let compare_int = Core.Int.compare
+let compare_int32 = Core.Int32.compare
+let compare_int64 = Core.Int64.compare
+let compare_option = Core.Option.compare
+let compare_bool = Core.Bool.compare
+
 type int8 = int [@@deriving sexp, compare]
 
 type int16 = int [@@deriving sexp, compare]
@@ -161,8 +167,8 @@ module Tcp = struct
 
   let format fmt v =
     let open Format in
-    fprintf fmt "@[tpSrc=%d;tpDst=%d;chksum=%d]" 
-      v.src v.dst v.chksum 
+    fprintf fmt "@[tpSrc=%d;tpDst=%d;chksum=%d]"
+      v.src v.dst v.chksum
 
   [%%cstruct
   type tcp ={

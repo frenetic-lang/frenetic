@@ -29,7 +29,7 @@ module Field = struct
     | TCPSrcPort
     | TCPDstPort
     | VFabric
-    [@@deriving sexp, enumerate, enum]
+    [@@deriving sexp, enumerate, enum, eq]
   type field = t
 
   let num_fields = max + 1
@@ -76,8 +76,8 @@ module Field = struct
 
   module Env : ENV = struct
 
-    type t = { 
-      alist : (string * (field * (Frenetic_NetKAT.meta_init * bool))) list; 
+    type t = {
+      alist : (string * (field * (Frenetic_NetKAT.meta_init * bool))) list;
       depth : int
     }
 
@@ -95,10 +95,10 @@ module Field = struct
         | 4 -> Meta4
         | _ -> raise Full
       in
-      { alist = List.Assoc.add env.alist name (field, (init, mut)); depth = env.depth + 1}
+      { alist = List.Assoc.add ~equal:String.equal env.alist name (field, (init, mut)); depth = env.depth + 1}
 
     let lookup env name =
-      List.Assoc.find_exn env.alist name
+      List.Assoc.find_exn ~equal:String.equal env.alist name
   end
 
   let of_hv ?(env=Env.empty) hv = match hv with
@@ -159,12 +159,12 @@ module Field = struct
       | Mod _ -> k (1, lst)
       | Filter a -> k (1, (env, a) :: lst)
       | Seq (p, q) ->
-        f_seq' p lst env (fun (m, lst) -> 
+        f_seq' p lst env (fun (m, lst) ->
           f_seq' q lst env (fun (n, lst) ->
             k (m * n, lst)))
       | Union _ -> k (f_union pol env, lst)
-      | Let (id, init, mut, p) -> 
-        let env = Env.add env id init mut in 
+      | Let (id, init, mut, p) ->
+        let env = Env.add env id init mut in
         f_seq' p lst env k
       | Star p -> k (f_union p env, lst)
       | Link (sw,pt,_,_) -> k (1, (env, Test (Switch sw)) :: (env, Test (Location (Physical pt))) :: lst)
@@ -177,12 +177,12 @@ module Field = struct
       | Mod _ -> (1, lst)
       | Filter a -> (1, (env, a) :: lst)
       | Union (p, q) ->
-        f_union' p lst env (fun (m, lst) -> 
+        f_union' p lst env (fun (m, lst) ->
           f_union' q lst env (fun (n, lst) ->
             k (m + n, lst)))
       | Seq _ -> k (f_seq pol env, lst)
-      | Let (id, init, mut, p) -> 
-        let env = Env.add env id init mut in 
+      | Let (id, init, mut, p) ->
+        let env = Env.add env id init mut in
         k (f_seq p env, lst)
       | Star p -> f_union' p lst env k
       | Link (sw,pt,_,_) -> k (1, (env, Test (Switch sw)) :: (env, Test (Location (Physical pt))) :: lst)

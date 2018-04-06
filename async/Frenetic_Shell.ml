@@ -229,7 +229,7 @@ let rec check_duplicates (fs : Field.t list) (acc : Field.t list) : bool =
   match fs with
   | [] -> false
   | (f::rest) ->
-     if List.mem acc f
+     if List.mem ~equal:Field.equal acc f
      then
        (printf "Invalid ordering: %s < %s" (Field.to_string f) (Field.to_string f);
   false)
@@ -254,7 +254,7 @@ let set_order (o : Comp.order) : unit =
       | `Default -> Field.all
       | `Static fields -> fields
      in
-     let removed = List.filter curr_order (compose not (List.mem ls)) in
+     let removed = List.filter curr_order (compose not (List.mem ~equal:Field.equal ls)) in
      (* Tags all specified Fields at the highest priority *)
      let new_order = List.append (List.rev ls) removed in
      set_field_order (`Static new_order);

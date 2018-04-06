@@ -53,7 +53,7 @@ module Field : sig
     | TCPSrcPort
     | TCPDstPort
     | VFabric
-    [@@deriving sexp, enumerate, enum]
+    [@@deriving sexp, enumerate, enum, eq]
   type field = t
   include Frenetic_Vlr.HashCmp with type t := t
 

@@ -34,15 +34,20 @@ Library frenetic
     cstruct,
     hashcons,
     ocamlgraph (>= 1.8.7),
-    ppx_jane,
     ppx_deriving.eq,
     ppx_deriving.enum,
+    ppx_sexp_conv,
+    ppx_enumerate,
+    ppx_compare,
+    ppx_fields_conv,
+    cstruct.ppx,
     str,
     tcpip,
     ulex,
     yojson,
     tdk,
-    threads
+    threads,
+    ipaddr
   Modules:
     Frenetic_Hashcons,
     Frenetic_Bits,
