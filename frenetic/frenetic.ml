@@ -145,6 +145,33 @@ let openflow13_fault_tolerant_controller : Command.t =
       run (Frenetic_OpenFlow0x04_Plugin.fault_tolerant_main
         openflow_port policy_file topology_file))
 
+
+
+let decide : Command.t =
+  Command.basic
+    ~summary:"Invokes decision procedure with provided file."
+    Command.Spec.(
+      empty
+      +> anon ("file" %: file)
+    )
+    (fun file () ->
+      In_channel.with_file file ~binary:false ~f:(fun in_ch ->
+        (* code copied from Frenetic_Shell and adapted to work with stream *)
+        let open Frenetic_Shell in
+        try
+          let lexbuf = Lexing.from_channel in_ch in
+          let formula = parse_exn DecideParser.formula_main lexbuf "" in
+          (* TODO(mwhittaker). This doesn't handle formulas with <= in them
+           * correctly. See test_lib/Test_Decide.ml for the correct behavior. *)
+          let lhs, rhs = DecideAst.Formula.terms formula in
+          ignore (DecideUtil.set_univ DecideAst.([Term.values lhs; Term.values rhs]));
+          printf "%b\n%!" (Frenetic_Decide_Bisimulation.check_equivalent lhs rhs)
+        with
+        | ParseError (filename, line, char, token) ->
+            printf "Parse error %s:%d%d: %s\n%!" filename line char token
+      )
+    )
+
 let main : Command.t =
   Command.group
     ~summary:"Invokes the specified Frenetic module."
@@ -153,7 +180,8 @@ let main : Command.t =
     ; ("http-controller", http_controller)
     ; ("openflow13", openflow13_controller)
     ; ("fault-tolerant", openflow13_fault_tolerant_controller)
-    ; ("dump", Dump.main)]
+    ; ("dump", Dump.main)
+    ; ("decide", decide)]
 
 let () =
   Command.run ~version: "5.0" ~build_info: "RWO" main
