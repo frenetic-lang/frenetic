@@ -13,6 +13,7 @@ module Node = Frenetic.Network.Node
 let parse : string -> Net.Topology.t =
   Net.Parse.from_dotfile
 
+
 let is_switch topo v =
   match Node.device (vertex_to_label topo v) with
   | Node.Switch -> true
@@ -22,6 +23,21 @@ let is_host topo v =
   match Node.device (vertex_to_label topo v) with
   | Node.Host -> true
   | Node.Middlebox | Node.Switch -> false
+
+let is_core topo v =
+  if is_switch topo v then
+  match Node.level (vertex_to_label topo v) with
+    | Node.Core -> true
+    | _ -> false
+  else false
+
+let is_agg topo v =
+  if is_switch topo v then
+  match Node.level (vertex_to_label topo v) with
+    | Node.Aggregation -> true
+    | _ -> false
+  else false
+
 
 let switches topo : vertex list =
   vertexes topo
@@ -45,6 +61,19 @@ let vertex_to_ports ~dst_filter topo vertex =
   |> List.map ~f:(fun neigb -> find_edge topo vertex neigb)
   |> List.map ~f:edge_src
   |> List.map ~f:(fun (_,src_pt) -> src_pt)
+
+
+let core_agg_locs topo : (int * int) list =
+  fold_edges (fun edge acc ->
+      let (src_vertex,src_pt) = edge_src edge in
+      let (dst_vertex,dst_pt) = edge_dst edge in
+      if (is_core topo src_vertex) && (is_agg topo dst_vertex) then
+        (sw_val topo src_vertex, pt_val src_pt) :: acc
+      else
+        acc
+    )
+   topo []
+
 
 let locs topo : (vertex * int list) list =
   List.map (switches topo) ~f:(fun sw ->

@@ -63,13 +63,10 @@ let () = begin
   (* erase final port and counter values *)
   (* SJS: we might want to look at the expected number of failures, actually *)
   let fdd' = Fdd.modulo fdd [Params.pt; Params.counter] in
-  printf "fdd mod final port & counter =\n%s\n" Fdd.(to_string fdd');
+  Format.printf "fdd mod final port & counter =\n%a\n" (Fdd.pp ~show:true) fdd';
 
   (* do we gurantee packet delivery? *)
   ignore (equivalent_to_teleport fdd');
-
-  (* show fdd *)
-  Fdd.render fdd' ~title:base_name ~format:"svg";
 
   (* FIXME: should really use hoare style reasoning instead of adhoc mechansim
      for this

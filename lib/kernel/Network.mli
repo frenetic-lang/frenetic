@@ -157,12 +157,14 @@ module Make : MAKE
 module Node : sig
   include VERTEX
   type device = Switch | Host | Middlebox [@@deriving sexp]
+  type level = Core | Aggregation | Edge | Undef [@@deriving sexp]
 
   val default : t
-  val create : string -> int64 -> device -> int32 -> int64 -> t
+  val create : string -> int64 -> device -> int32 -> level -> int64 -> t
   val name : t -> string
   val id : t -> int64
   val device : t -> device
+  val level : t -> level
   val mac : t -> int64
   val ip : t -> int32
 

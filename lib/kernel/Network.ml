@@ -877,15 +877,19 @@ module Node = struct
 
   type device = Switch | Host | Middlebox [@@deriving sexp, compare]
 
+  type level = Core | Aggregation | Edge | Undef [@@deriving sexp, compare]
+
   type t = { dev_type : device ;
              dev_id : int64 ;
              ip : int32 ;
+             level : level ;
              mac : int64 ;
              name : string } [@@deriving sexp, compare]
 
   type partial_t = { partial_dev_type : device option ;
                      partial_dev_id : int64 option ;
                      partial_ip : int32 option ;
+                     partial_level : level option ;
                      partial_mac : int64 option ;
                      partial_name : string option }
 
@@ -893,19 +897,22 @@ module Node = struct
                   dev_id = 0L ;
                   name   = "" ;
                   ip     = 0l ;
+                  level  = Undef ;
                   mac    = 0L }
 
   let partial_default = { partial_dev_type = None ;
                             partial_dev_id = None ;
                             partial_ip     = None ;
+                            partial_level  = None ;
                             partial_mac    = None ;
                             partial_name   = None }
 
 
-  let create (n:string) (i:int64) (d:device) (ip:int32) (mac:int64) : t =
+  let create (n:string) (i:int64) (d:device) (ip:int32) (l:level) (mac:int64) : t =
     { dev_type = d ;
       name = n ;
       ip = ip ;
+      level = l ;
       mac = mac ;
       dev_id = i }
 
@@ -914,6 +921,7 @@ module Node = struct
   let device (n:t) : device = n.dev_type
   let mac (n:t) : int64 = n.mac
   let ip (n:t) : int32 = n.ip
+  let level (n:t) : level = n.level
 
   let to_string n = n.name
 
@@ -922,12 +930,25 @@ module Node = struct
       | Switch -> "switch"
       | Host -> "host"
       | Middlebox -> "middlebox" in
-    Printf.sprintf "%s [type=%s, ip=\"%s\", mac=\"%s\", id=%Ld]"
-      n.name
-      devstr
-      (Packet.string_of_ip n.ip)
-      (Packet.string_of_mac n.mac)
-      (n.dev_id)
+    let levelstr = match n.level with
+      | Core -> "core"
+      | Aggregation -> "aggregation"
+      | Edge -> "edge"
+      | Undef -> "undef" in
+    match n.level with
+    | Undef -> Printf.sprintf "%s [type=%s, ip=\"%s\", mac=\"%s\", id=%Ld]"
+             n.name
+             devstr
+             (Packet.string_of_ip n.ip)
+             (Packet.string_of_mac n.mac)
+             (n.dev_id)
+    | _ -> Printf.sprintf "%s [type=%s, level=\"%s\", ip=\"%s\", mac=\"%s\", id=%Ld]"
+             n.name
+             devstr
+             levelstr
+             (Packet.string_of_ip n.ip)
+             (Packet.string_of_mac n.mac)
+             (n.dev_id)
 
   let to_mininet n = match n.dev_type with
     | Host ->
@@ -949,6 +970,13 @@ module Node = struct
       | "middlebox" -> Middlebox
       | s -> failwith (Printf.sprintf "Unknown node type: %s\n" s)
     in
+    let level_of vo = match string_of_id (maybe vo) with
+      | "core" -> Core
+      | "aggregation" -> Aggregation
+      | "edge" -> Edge
+      | "undef" -> Undef
+      | s -> failwith (Printf.sprintf "Unknown node level: %s\n" s)
+    in
     let ip_of vo = match maybe vo with
       | Dot_ast.String(s) -> Packet.ip_of_string s
       | _ -> failwith "IPs must be represented as a string (in quotes)\n" in
@@ -959,6 +987,7 @@ module Node = struct
       | Dot_ast.Ident("type") -> {n with partial_dev_type = Some (dev_type_of vo)}
       | Dot_ast.Ident("id") -> {n with partial_dev_id = Some (int64_of_id vo)}
       | Dot_ast.Ident("ip") -> {n with partial_ip = Some (ip_of vo)}
+      | Dot_ast.Ident("level") -> {n with partial_level = Some (level_of vo)}
       | Dot_ast.Ident("mac") -> {n with partial_mac = Some (mac_of vo)}
       | Dot_ast.Ident(s) -> (* eprintf "ignoring unknown node attribute: %s\n" s; *) n
       | _ -> failwith "Unknown node attribute\n"
@@ -979,7 +1008,7 @@ module Node = struct
       let id = match p.partial_dev_id with
         | Some i -> i
         | None -> m in
-      { dev_type = Host ; dev_id = id ; ip = i ; mac = m ; name = n} in
+      { dev_type = Host ; level = Undef; dev_id = id ; ip = i ; mac = m ; name = n} in
 
     let unbox_switch (p:partial_t) =
       let id = match p.partial_dev_id with
@@ -994,7 +1023,10 @@ module Node = struct
       let i = match p.partial_ip with
         | Some i -> i
         | None -> 0l in
-      { dev_type = Switch ; dev_id = id ; ip = i ; mac = m ; name = n} in
+      let l = match p.partial_level with
+        | Some i -> i
+        | None -> Undef in
+      { dev_type = Switch ; level = l; dev_id = id ; ip = i ; mac = m ; name = n} in
 
     match p.partial_dev_type with
     | Some Host -> unbox_host p
