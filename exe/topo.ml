@@ -7,20 +7,20 @@ open Frenetic.Network
 let base_name = Sys.argv.(1)
 
 (* link failure probabilities *)
-let failure_prob _sw _pt = Prob.(1//128)
+let failure_prob _sw _pt = Prob.zero
 
 (* Limit on maximum failures "encountered" by a packet. A packet encounters
    a failure if it occurs on a link that is incident to the current location
    of the packet, indepedently of whether the packet was planning to use that
    link or not. *)
-let max_failures = Some 1
+let max_failures = None
 
 (* topology *)
 let topo = Topology.parse (base_name ^ ".dot")
 let topo' = Schemes.enrich_topo topo
 
 (* the actual program to run on the switches *)
-let sw_pol = `Portwise (Schemes.f10 true true topo' base_name)
+let sw_pol = `Switchwise (Schemes.ecmp topo' base_name)
 
 
 (*===========================================================================*)
@@ -63,13 +63,10 @@ let () = begin
   (* erase final port and counter values *)
   (* SJS: we might want to look at the expected number of failures, actually *)
   let fdd' = Fdd.modulo fdd [Params.pt; Params.counter] in
-  printf "fdd mod final port & counter =\n%s\n" Fdd.(to_string fdd');
+  Format.printf "fdd mod final port & counter =\n%a\n" (Fdd.pp ~show:true) fdd';
 
   (* do we gurantee packet delivery? *)
   ignore (equivalent_to_teleport fdd');
-
-  (* show fdd *)
-  Fdd.render fdd' ~title:base_name ~format:"svg";
 
   (* FIXME: should really use hoare style reasoning instead of adhoc mechansim
      for this

@@ -21,8 +21,12 @@ let destination = 1
 let up sw pt = sprintf "up_%d" pt
 let is_up_field f = String.is_prefix ~prefix:"up_" f
 
-(** Extra bit needed for F10 scheme 2 re-routing **)
+(** Extra bit needed for F10 scheme 2 re-routing *)
 let f10s2 = "f10s2"
+
+(** equivalence should be modulo these fields *)
+let modulo =
+  [pt; counter; f10s2; ttl]
 
 (** various files *)
 let topo_file base_name = base_name ^ ".dot"
@@ -37,9 +41,6 @@ let dump_file ?(ext="json") base_name ~routing_scheme ~max_failures ~failure_pro
   let mf = if max_failures < 0 then "inf" else Int.to_string max_failures in
   let p_num, p_den = Prob.to_int_frac failure_prob in
   sprintf "%s/%s-%d-%d.%s" dir mf p_num p_den ext
-
-
 let dot_file  =
  dump_file ~ext:"dot"
 
-let modulo =  [pt; counter; f10s2; ttl]

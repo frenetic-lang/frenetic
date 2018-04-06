@@ -173,8 +173,9 @@ let analyze_scheme base_name (routing_scheme, sw_pol)
 
   (* prepare analysis *)
   let failure_prob = fun s p ->
-    if List.exists failure_locs (fun x -> x = (s,p)) then failure_prob
-    else Prob.zero in
+    if List.mem ~equal:(=) failure_locs (s,p) then failure_prob
+    else Prob.zero
+  in
   let max_failures = if max_failures = -1 then None else Some max_failures in
   let descr = if hopcount then " - hopcount analysis" else " - basic analysis" in
   let logfile = Params.log_file base_name in
