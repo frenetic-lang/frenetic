@@ -62,8 +62,6 @@ module Field = struct
 
   type field = t
 
-  let hash = Hashtbl.hash
-
   let of_string s =
     t_of_sexp (Sexp.of_string s)
 
