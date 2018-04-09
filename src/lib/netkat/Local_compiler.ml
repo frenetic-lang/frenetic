@@ -371,26 +371,10 @@ let erase_meta_fields fdd =
       | _, _ -> unchecked_cond v t f)
 
 
-(** returns the "all-false-branch" of an FDD with respect to a particular field,
-    i.e. the sub FDD obtained by, starting from the root, taking the false branch
-    until the top-most field is not equal to the given [field] *)
-let rec get_all_false field fdd =
-  match FDD.unget fdd with
-  | Leaf _ -> fdd
-  | Branch { test = (field',_); all_fls } ->
-    if Field.equal field field' then
-      all_fls
-    else
-      fdd
-
-let mk_branch_or_leaf ((field,_) as test) t f =
-  match t with
-  | None -> Some f
-  | Some t ->
-    if FDD.equal t (get_all_false field f) then
-      Some f
-    else
-      Some (FDD.unchecked_cond test t f)
+let mb_branch test mb_tru fls =
+  match mb_tru with
+  | None -> fls
+  | Some tru -> unchecked_cond test tru fls
 
 let opt_to_table ?group_tbl options sw_id t =
   let t =
@@ -405,7 +389,7 @@ let opt_to_table ?group_tbl options sw_id t =
       next_table_row true_tests all_tests ~mk_rest fls
     | Branch { test; tru; fls } ->
       next_table_row (test::true_tests) (test::all_tests) tru ~mk_rest:(fun t' all_tests ->
-        mk_rest (mk_branch_or_leaf test t' fls) (test::all_tests)
+        mk_rest (Some (mb_branch test t' fls)) (test::all_tests)
       )
     | Leaf actions ->
       let openflow_instruction = [to_action ?group_tbl (get_inport true_tests) actions true_tests] in
