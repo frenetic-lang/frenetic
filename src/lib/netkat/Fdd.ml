@@ -495,14 +495,18 @@ module Action = struct
       | K
     [@@deriving sexp, compare, hash, eq]
   end
-  open Field_or_cont
+  type field_or_cont = Field_or_cont.t =
+    | F of Field.t
+    | K
+    [@@deriving sexp, compare, hash, eq]
 
   module Seq = struct
     include Map.Make(Field_or_cont)
 
-    let equal = equal Value.equal
+    (* let equal = equal Value.equal *)
     let compare = compare_direct Value.compare
-    let hash_fold_t = Map.hash_fold_direct Value.hash_fold_t
+    let hash_fold_t (f : 'v Hash.folder) (s: Hash.state) (t : 'v t) =
+      Map.hash_fold_direct Field_or_cont.hash_fold_t f s t
 
     let fold_fields seq ~init ~f =
       fold seq ~init ~f:(fun ~key ~data acc -> match key with
@@ -510,7 +514,7 @@ module Action = struct
         | _ -> acc)
 
     let equal_mod_k s1 s2 =
-      equal (remove s1 K) (remove s2 K)
+      equal Value.equal (remove s1 K) (remove s2 K)
 
     let compare_mod_k s1 s2 =
       compare (remove s1 K) (remove s2 K)
@@ -532,9 +536,15 @@ module Action = struct
 
   module Par = struct
     include Set.Make(struct
-    type t = Value.t Seq.t [@@deriving sexp]
-    let compare = Seq.compare
+      type t = Value.t Seq.t [@@deriving sexp]
+      let compare = Seq.compare
     end)
+
+    let hash_fold_t (s : Hash.state) (t : t) =
+      Set.hash_fold_direct (Seq.hash_fold_t Value.hash_fold_t) s t
+    let hash (t : t) =
+      hash_fold_t (Hash.alloc ()) t
+      |> Hash.get_hash_value
 
     let to_hvs par =
       fold par ~init:[] ~f:(fun acc seq -> Seq.to_hvs seq @ acc)
@@ -553,8 +563,7 @@ module Action = struct
     let equal_mod_k p1 p2 =
       equal (mod_k p1) (mod_k p2)
   end
-
-  type t = Par.t [@@deriving sexp]
+  include Par
 
   let one = Par.singleton Seq.empty
   let zero = Par.empty
