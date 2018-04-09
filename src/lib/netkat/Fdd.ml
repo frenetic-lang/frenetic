@@ -489,17 +489,20 @@ end
 
 module Action = struct
 
-  type field_or_cont =
-    | F of Field.t
-    | K
-  [@@deriving sexp, compare]
+  module Field_or_cont = struct
+    type t =
+      | F of Field.t
+      | K
+    [@@deriving sexp, compare, hash, eq]
+  end
+  open Field_or_cont
 
   module Seq = struct
-    include Map.Make(struct
-      type t = field_or_cont [@@deriving sexp, compare]
-    end)
+    include Map.Make(Field_or_cont)
 
+    let equal = equal Value.equal
     let compare = compare_direct Value.compare
+    let hash_fold_t = Map.hash_fold_direct Value.hash_fold_t
 
     let fold_fields seq ~init ~f =
       fold seq ~init ~f:(fun ~key ~data acc -> match key with
@@ -507,7 +510,7 @@ module Action = struct
         | _ -> acc)
 
     let equal_mod_k s1 s2 =
-      equal (Value.equal) (remove s1 K) (remove s2 K)
+      equal (remove s1 K) (remove s2 K)
 
     let compare_mod_k s1 s2 =
       compare (remove s1 K) (remove s2 K)
@@ -696,11 +699,6 @@ module Action = struct
       | Field.Location, Value.Query q -> Set.add acc q
       | _, _ -> acc)
     |> Set.to_list
-
-  let hash t =
-    (* XXX(seliopou): Hashtbl.hash does not work because the same set can have
-     * multiple representations. Pick a better hash function. *)
-    Hashtbl.hash (List.map (Par.to_list t) ~f:(fun seq -> Seq.to_alist seq))
 
   let compare =
     Par.compare
