@@ -627,11 +627,11 @@ module Automaton = struct
 
     and do_node seen worklist fdd =
       match FDD.unget fdd with
-      | Branch((f, v), a, b) ->
+      | Branch { test = f, v; tru; fls } ->
         fprintf fmt "%a [label=\"%s = %s\"];\n" fdd_lbl fdd (Field.to_string f) (Value.to_string v);
-        fprintf fmt "%a -> %a;\n" fdd_lbl fdd fdd_lbl a;
-        fprintf fmt "%a -> %a [style=\"dashed\"];\n" fdd_lbl fdd fdd_lbl b;
-        do_fdds seen (a::b::worklist)
+        fprintf fmt "%a -> %a;\n" fdd_lbl fdd fdd_lbl tru;
+        fprintf fmt "%a -> %a [style=\"dashed\"];\n" fdd_lbl fdd fdd_lbl fls;
+        do_fdds seen (tru::fls::worklist)
       | Leaf par ->
         fprintf fmt "subgraph cluster_%a {@\n" fdd_lbl fdd;
         fprintf fmt "\trank=sink;@\n";
