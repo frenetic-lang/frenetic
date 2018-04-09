@@ -377,9 +377,9 @@ let erase_meta_fields fdd =
 let rec get_all_false field fdd =
   match FDD.unget fdd with
   | Leaf _ -> fdd
-  | Branch { test = (field',_); fls } ->
+  | Branch { test = (field',_); all_fls } ->
     if Field.equal field field' then
-      get_all_false field fls
+      all_fls
     else
       fdd
 
