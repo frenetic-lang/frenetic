@@ -31,12 +31,10 @@ module Field = struct
     | TCPSrcPort
     | TCPDstPort
     | VFabric
-    [@@deriving sexp, enumerate, enum]
+    [@@deriving sexp, enumerate, enum, hash]
   type field = t
 
   let num_fields = max + 1
-
-  let hash = Hashtbl.hash
 
   let of_string s =
     Sexp.of_string s |> t_of_sexp
@@ -221,7 +219,7 @@ module Value = struct
     (* TODO(grouptable): HACK, should only be able to fast fail on ports.
      * Put this somewhere else *)
     | FastFail of Int32.t list
-    [@@deriving sexp]
+    [@@deriving sexp, hash]
 
   (* subseq_eq, meet and join are defined to make this fit interface of Vlr.Lattice *)
   let subset_eq a b =
@@ -321,8 +319,6 @@ module Value = struct
     | _          , FastFail _ -> None
     | Mask(a, m) , Mask(b, n) -> join_mask a m  b n
     | Const a, Mask(b, n)     -> join_mask a 64 b n
-
-  let hash = Hashtbl.hash
 
   (* Value compare is used in Pattern below, but is not public *)
   let compare x y = match (x, y) with
@@ -720,7 +716,10 @@ end
 
 module FDD = struct
 
-  include Vlr.Make(Field)(Value)(Action)
+  include Vlr.Make
+    (Field)
+    (Value)
+    (Action)
 
   let mk_cont k = const Action.(Par.singleton (Seq.singleton K (Value.of_int64 k)))
 

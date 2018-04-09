@@ -55,7 +55,7 @@ module Field : sig
     | TCPSrcPort
     | TCPDstPort
     | VFabric
-    [@@deriving sexp, enumerate]
+    [@@deriving sexp, enumerate, hash]
   type field = t
   include Vlr.HashCmp with type t := t
 
@@ -80,8 +80,6 @@ module Field : sig
   val compare : t -> t -> int
 
   val equal : t -> t -> bool
-
-  val hash : t -> int
 
   (** [of_hv header_value] converts a NetKAT header_value pair to a field *)
   val of_hv : ?env:Env.t -> Syntax.header_val -> t
@@ -136,11 +134,9 @@ module Value : sig
     (* TODO(grouptable): HACK, should only be able to fast fail on ports.
      * Put this somewhere else *)
     | FastFail of Int32.t list
-    [@@deriving sexp]
+    [@@deriving sexp, eq, compare, hash]
 
   include Vlr.Lattice with type t := t
-  val compare : t -> t -> int
-  val equal : t -> t -> bool
 
   val to_string : t -> string
 

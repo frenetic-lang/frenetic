@@ -12,7 +12,7 @@ type vswitchId = int64 [@@deriving sexp, compare, eq]
 type vportId = int64 [@@deriving sexp, compare, eq]
 type vfabricId = int64 [@@deriving sexp, compare, eq]
 type metaId = string [@@deriving sexp, compare, eq]
-type abstract_location = string [@@deriving sexp, compare, eq]
+type abstract_location = string [@@deriving sexp, compare, eq, hash]
 
 let string_of_fastfail = Frenetic_kernel.OpenFlow.format_list ~to_string:Int32.to_string
 
