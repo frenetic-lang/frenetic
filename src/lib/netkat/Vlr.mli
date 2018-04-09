@@ -206,6 +206,12 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   val clear_cache : preserve:Int.Set.t -> unit
   (** [clear_cache ()] clears the internal cache of diagrams. *)
 
+  val compressed_size : t -> int
+  (** [compressed_size t] returns the number of nodes in the diagram, duplicates not counted *)
+
+  val uncompressed_size : t -> int
+  (** [uncompressed_size t] returns the number of nodes in the diagram, duplicates counted *)
+
   val to_dot : t -> string
   (** [to_dot t] returns a string representation of the diagram using the DOT
       graph description language. The result of this function can be rendered

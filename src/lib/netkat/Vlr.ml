@@ -218,6 +218,27 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
         | Branch { test=(v, l); tru; fls } -> g (v,l) (map tru) (map fls) in
     map t
 
+  let compressed_size (node : t) : int =
+    let rec f (node : t) (seen : Int.Set.t) =
+      if Int.Set.mem seen node then
+        (0, seen)
+      else
+        match T.unget node with
+        | Leaf _ -> (1, Int.Set.add seen node)
+        | Branch { tru; fls } ->
+          (* Due to variable-ordering, there is no need to add node.id to seen
+             in the recursive calls *)
+          let (tru_size, seen) = f tru seen in
+          let (fls_size, seen) = f fls seen in
+          (1 + tru_size + fls_size, Int.Set.add seen node)
+    in
+    f node Int.Set.empty
+    |> fst
+
+  let rec uncompressed_size (node : t) : int = match T.unget node with
+    | Leaf _ -> 1
+    | Branch { tru; fls } -> 1 + uncompressed_size tru + uncompressed_size fls
+
   let to_dot t =
     let open Format in
     let buf = Buffer.create 200 in
