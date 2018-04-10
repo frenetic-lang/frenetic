@@ -116,7 +116,7 @@ module Mininet = struct
       List.fold location_tuples ~init:[] ~f:(fun acc (x, y) -> 
         location_to_id x :: location_to_id y :: acc
       )
-      |> List.dedup_and_sort
+      |> List.dedup_and_sort ~compare:[%compare: Network.Node.device * int]
     in
 
     (* Get a topology with all vertices *)

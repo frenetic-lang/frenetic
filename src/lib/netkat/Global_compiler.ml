@@ -272,7 +272,7 @@ module Automaton = struct
     let determinize_action par =
       par
       |> Action.Par.to_list
-      |> List.sort ~cmp:Action.Seq.compare_mod_k
+      |> List.sort ~compare:Action.Seq.compare_mod_k
       |> List.group ~break:(fun s1 s2 -> not (Action.Seq.equal_mod_k s1 s2))
       |> List.map ~f:(function
         | [seq] -> seq

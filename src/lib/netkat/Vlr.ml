@@ -254,9 +254,10 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
         | Leaf r ->
           fprintf fmt "%d [shape=box label=\"%s\"];@\n" t (R.to_string r)
         | Branch { test=(v, l); tru=a; fls=b } ->
-          begin
+          (* FIXME: temporary hack to avoid Jane Street's annoying warnings. *)
+          begin[@warning "-3"]
             try Hash_set.add (Hashtbl.find_exn rank (v, l)) t
-            with Not_found ->
+            with Not_found | Not_found_s _ ->
               let s = Int.Hash_set.create ~size:10 () in
               Hash_set.add s t;
               Hashtbl.set rank (v, l) s
