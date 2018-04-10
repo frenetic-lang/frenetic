@@ -657,6 +657,9 @@ module Automaton = struct
       Buffer.contents buf
     end
 
+  let render ?(format="pdf") ?(title="FDD") t =
+    Frenetic_kernel.Util.show_dot ~format ~title (to_dot t)
+
 end
 (* END: module Automaton *)
 
