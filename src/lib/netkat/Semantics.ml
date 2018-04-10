@@ -297,4 +297,5 @@ let switches_of_policy (p:policy) =
     | Let {body; _} ->
       collect body acc
   in
-  collect p [] |> List.dedup_and_sort |> List.to_list
+  collect p []
+  |> List.dedup_and_sort ~compare:[%compare: switchId]

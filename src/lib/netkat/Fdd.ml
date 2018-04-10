@@ -201,7 +201,7 @@ module Field = struct
     in
     let _ = f_seq pol Env.empty in
     Array.foldi count_arr ~init:[] ~f:(fun i acc n -> ((Obj.magic i, n) :: acc))
-    |> List.stable_sort ~cmp:(fun (_, x) (_, y) -> Int.compare x y)
+    |> List.stable_sort ~compare:(fun (_, x) (_, y) -> Int.compare x y)
     |> List.rev (* SJS: do NOT remove & reverse order! Want stable sort *)
     |> List.map ~f:fst
     |> set_order

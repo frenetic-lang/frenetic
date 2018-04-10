@@ -157,7 +157,7 @@ module Make : MAKE
 
 module Node : sig
   include VERTEX
-  type device = Switch | Host | Middlebox [@@deriving sexp]
+  type device = Switch | Host | Middlebox [@@deriving sexp, compare]
 
   val default : t
   val create : string -> int64 -> device -> int32 -> int64 -> t
