@@ -277,6 +277,9 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     fprintf fmt "}@.";
     Buffer.contents buf
 
+  let render ?(format="pdf") ?(title="FDD") t =
+    Frenetic_kernel.Util.show_dot ~format ~title (to_dot t)
+
   let refs (t : t) : Int.Set.t =
     let rec f (node : t) (seen : Int.Set.t) =
       if Int.Set.mem seen node then

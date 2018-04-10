@@ -222,4 +222,8 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
   val serialize : t -> string
   val deserialize : string -> t
+
+  val render : ?format:string -> ?title:string -> t -> unit
+  (** Compiles the provided Fdd `t` using `graphviz`, and opens the resulting
+      file. *)
 end
