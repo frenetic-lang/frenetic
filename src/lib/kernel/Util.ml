@@ -43,3 +43,53 @@ let map_fst lst ~f =
 
 let map_snd lst ~f =
   List.map lst ~f:(fun (x,y) -> (x, f y))
+
+
+(*===========================================================================*)
+(* open files with default application                                       *)
+(*===========================================================================*)
+
+type os =
+  | MacOS
+  | Linux
+
+let detect_os () : os =
+  let open Caml in
+  let ic = Unix.open_process_in "uname" in
+  let uname = input_line ic in
+  close_in ic;
+  match uname with
+  | "Darwin" -> MacOS
+  | "Linux" -> Linux
+  | _ -> failwith "unknown operating system"
+
+let open_cmd =
+  match detect_os () with
+  | MacOS -> "open"
+  | Linux -> "xdg-open"
+
+let open_file f =
+  let silence = "&> /dev/null" in
+  Format.sprintf "%s %s % s" open_cmd f silence
+  |> Caml.Unix.system
+  |> ignore
+
+(*===========================================================================*)
+(* Graphviz                                                                  *)
+(*===========================================================================*)
+
+let compile_dot ?(format="pdf") ?(engine="dot") ?(title=engine) data : string =
+  let output_file = Filename.temp_file (title ^ "_") ("." ^ format) in
+  let to_dot = Unix.open_process_out (sprintf "dot -T%s -o %s" format output_file) in
+  Out_channel.output_string to_dot data;
+  Out_channel.close to_dot;
+  ignore (Unix.close_process_out to_dot);
+  output_file
+
+let show_dot ?format ?title ?engine data : unit =
+  compile_dot ?format ?title ?engine data
+  |> open_file
+
+let show_dot_file ?format ?title ?engine file : unit =
+  In_channel.read_all file
+  |> show_dot ?format ?title ?engine

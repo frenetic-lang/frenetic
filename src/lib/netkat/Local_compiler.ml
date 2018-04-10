@@ -371,26 +371,10 @@ let erase_meta_fields fdd =
       | _, _ -> unchecked_cond v t f)
 
 
-(** returns the "all-false-branch" of an FDD with respect to a particular field,
-    i.e. the sub FDD obtained by, starting from the root, taking the false branch
-    until the top-most field is not equal to the given [field] *)
-let rec get_all_false field fdd =
-  match FDD.unget fdd with
-  | Leaf _ -> fdd
-  | Branch ((field',_), _, fls) ->
-    if Field.equal field field' then
-      get_all_false field fls
-    else
-      fdd
-
-let mk_branch_or_leaf ((field,_) as test) t f =
-  match t with
-  | None -> Some f
-  | Some t ->
-    if FDD.equal t (get_all_false field f) then
-      Some f
-    else
-      Some (FDD.unchecked_cond test t f)
+let mb_branch test mb_tru fls =
+  match mb_tru with
+  | None -> fls
+  | Some tru -> unchecked_cond test tru fls
 
 let opt_to_table ?group_tbl options sw_id t =
   let t =
@@ -399,12 +383,14 @@ let opt_to_table ?group_tbl options sw_id t =
                 ;(Field.VFabric, Value.Const (Int64.of_int 1))]
     |> erase_meta_fields
   in
-  let rec next_table_row true_tests all_tests mk_rest t =
+  let rec next_table_row true_tests all_tests ~mk_rest t =
     match FDD.unget t with
-    | Branch ((Location, Pipe _), _, f) ->
-      next_table_row true_tests all_tests mk_rest f
-    | Branch (test, t, f) ->
-      next_table_row (test::true_tests) (test::all_tests) (fun t' all_tests -> mk_rest (mk_branch_or_leaf test t' f) (test::all_tests)) t
+    | Branch { test = Location, Pipe _; fls } ->
+      next_table_row true_tests all_tests ~mk_rest fls
+    | Branch { test; tru; fls } ->
+      next_table_row (test::true_tests) (test::all_tests) tru ~mk_rest:(fun t' all_tests ->
+        mk_rest (Some (mb_branch test t' fls)) (test::all_tests)
+      )
     | Leaf actions ->
       let openflow_instruction = [to_action ?group_tbl (get_inport true_tests) actions true_tests] in
       let queries = Action.get_queries actions in
@@ -412,24 +398,28 @@ let opt_to_table ?group_tbl options sw_id t =
       (row, mk_rest None all_tests)
   in
   let rec loop t all_tests acc =
-    match next_table_row [] all_tests (fun x all_tests -> (x, all_tests) ) t with
+    match next_table_row [] all_tests t ~mk_rest:(fun x all_tests -> (x, all_tests)) with
     | (row, (None, _)) -> List.rev (row::acc)
     | (row, (Some rest, all_tests)) -> loop rest all_tests (row::acc)
   in
-  (loop t [] []) |> List.concat
+  loop t [] []
+  |> List.concat
 
 let rec naive_to_table ?group_tbl options sw_id (t : FDD.t) =
   let t = FDD.(restrict [(Field.Switch, Value.Const sw_id)] t)
           |> erase_meta_fields in
-  let rec dfs true_tests all_tests t = match FDD.unget t with
-  | Leaf actions ->
-    let openflow_instruction = [to_action ?group_tbl (get_inport true_tests) actions true_tests] in
-    let queries = Action.get_queries actions in
-    [ mk_flows options true_tests all_tests openflow_instruction queries ]
-  | Branch ((Location, Pipe _), _, fls) -> dfs true_tests all_tests fls
-  | Branch (test, tru, fls) ->
-    dfs (test :: true_tests) (test :: all_tests) tru @ dfs true_tests (test :: all_tests) fls in
-  (dfs [] [] t) |> List.concat
+  let rec dfs true_tests all_tests t =
+    match FDD.unget t with
+    | Leaf actions ->
+      let openflow_instruction = [to_action ?group_tbl (get_inport true_tests) actions true_tests] in
+      let queries = Action.get_queries actions in
+      [ mk_flows options true_tests all_tests openflow_instruction queries ]
+    | Branch { test= Location, Pipe _; fls } -> dfs true_tests all_tests fls
+    | Branch { test; tru; fls } ->
+      dfs (test :: true_tests) (test :: all_tests) tru @ dfs true_tests (test :: all_tests) fls
+  in
+  dfs [] [] t
+  |> List.concat
 
 let remove_tail_drops fl =
   let rec remove_tail_drop fl =
@@ -437,9 +427,11 @@ let remove_tail_drops fl =
     | [] -> fl
     | h :: t ->
       let actions = (fst h).Frenetic_kernel.OpenFlow.action in
-      match (List.concat (List.concat actions)) with
+      begin match (List.concat (List.concat actions)) with
       | [] -> remove_tail_drop t
-      | _ -> h :: t in
+      | _ -> h :: t
+      end
+  in
   List.rev (remove_tail_drop (List.rev fl))
 
 let to_table' ?(options=default_compiler_options) ?group_tbl swId t =
@@ -599,7 +591,7 @@ let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
     match FDD.unget t with
     | Leaf _ ->
        t :: subtrees
-    | Branch ((field, _), tru, fls) ->
+    | Branch { test = field, _; tru; fls } ->
       if (List.mem ~equal:(=) table field) then
         t :: subtrees
       else
@@ -633,9 +625,9 @@ let subtree_to_table options (subtrees : flow_subtrees) (subtree : (t * flowId))
     | Leaf actions ->
       let insts = [to_action (get_inport tests) actions tests ~group_tbl] in
       [mk_multitable_flow options (to_pattern tests) (`Action insts) flowId]
-    | Branch ((Location, Pipe _), _, fls) ->
+    | Branch { test = Location, Pipe _; fls } ->
       failwith "1.3 compiler does not support pipes"
-    | Branch (test, tru, fls) ->
+    | Branch { test; tru; fls } ->
      (match Map.find subtrees t with
       | Some goto_id ->
         [mk_multitable_flow options (to_pattern tests) (`GotoTable goto_id) flowId]
@@ -644,7 +636,7 @@ let subtree_to_table options (subtrees : flow_subtrees) (subtree : (t * flowId))
   in
   let (t, flowId) = subtree in
   match FDD.unget t with
-  | Branch (test, tru, fls) ->
+  | Branch { test; tru; fls } ->
     List.filter_opt (List.append (dfs [test] subtrees tru flowId)
                                  (dfs [] subtrees fls flowId))
   | Leaf _  ->

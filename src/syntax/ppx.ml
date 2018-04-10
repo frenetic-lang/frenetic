@@ -1,4 +1,5 @@
-open Ppx_core
+open Ppxlib
+open Base
 
 (* open Parsetree *)
 module Lexer = Frenetic_netkat.Lexer
@@ -56,7 +57,7 @@ let nk_ext_expr pred =
     (expand_let_expr ~pred)
 ;;
 
-Ppx_driver.register_transformation "netkat"
+Driver.register_transformation "netkat"
   ~extensions:[ nk_ext_expr true ; nk_ext_struct true ;
                 nk_ext_expr false; nk_ext_struct false; ]
 ;;

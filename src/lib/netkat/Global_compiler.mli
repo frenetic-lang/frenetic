@@ -18,6 +18,10 @@ module Automaton : sig
 
   val to_dot: t -> string
 
+  val render : ?format:string -> ?title:string -> t -> unit
+  (** Compiles the provided automaton `t` using `graphviz`, and opens the resulting
+      file. *)
+
   val skip_topo_states : t
     -> ((int64, (int64 * int64)) Hashtbl.t * ((int64 * int64), Int64.Set.t) Hashtbl.t)
 end

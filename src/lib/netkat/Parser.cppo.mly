@@ -5,8 +5,8 @@
   #define PPX(arg) {let loc = LOC in [%expr arg]}
   #define PPX_(arg) let loc = LOC in [%expr arg]
   #define AQ | x=ANTIQ { parse_ocaml_expr x }
-  #define POLTY Ppx_core.Parsetree.expression
-  #define PREDTY Ppx_core.Parsetree.expression
+  #define POLTY Ppxlib.Parsetree.expression
+  #define PREDTY Ppxlib.Parsetree.expression
 #else
   #define AST(arg) {arg}
   #define PPX(arg)
@@ -20,7 +20,7 @@
 (* ignore warnings in parser, since it is auto-generated *)
 [@@@warning "-3-26"]
 #ifdef MAKE_PPX
-open Ppx_core
+open Ppxlib
 open Ast_builder.Default
 
 let parse_ocaml_expr (s,loc) =

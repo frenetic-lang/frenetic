@@ -99,7 +99,7 @@ let shortest_paths_global_policy ((topo, _, _, _) : topo) =
         let path = List.rev_map path ~f:(unwrap_edge topo) in
         let dst = Node.ip (vertex_to_label dst) in
         Some (dst, path))
-    |> List.sort ~cmp:(fun (ip,_) (ip',_) -> Int32.compare ip ip')
+    |> List.sort ~compare:(fun (ip,_) (ip',_) -> Int32.compare ip ip')
     |> List.group ~break:(fun (ip,_) (ip',_) -> not (Int32.equal ip ip'))
     |> List.map ~f:(function (ip,_)::_ as lst -> (ip, List.map lst ~f:snd))
     (* SJS: disable pattern not exhasutive warning *)
@@ -107,7 +107,7 @@ let shortest_paths_global_policy ((topo, _, _, _) : topo) =
   in
   let rec route paths =
     (* INVARIANT: all paths have same dst *)
-    List.sort paths ~cmp:(fun ((src,_)::_) ((src',_)::_) -> lcompare src src')
+    List.sort paths ~compare:(fun ((src,_)::_) ((src',_)::_) -> lcompare src src')
     |> List.group ~break:(fun ((src,_)::_) ((src',_)::_) -> lcompare src src' <> 0)
     |> List.map ~f:(function (hop::_)::_ as group -> (hop, List.map group ~f:List.tl_exn))
     |> List.map ~f:mk_hop
@@ -143,7 +143,7 @@ let shortest_paths_global_policy ((topo, _, _, _) : topo) =
     |> List.concat
     |> List.map ~f:List.last_exn
     |> List.map ~f:snd
-    |> List.dedup ~compare:lcompare
+    |> List.dedup_and_sort ~compare:lcompare
     |> List.map ~f:(fun (sw, pt) ->
         let sw = Node.id sw in
         let t1 = Test (Switch sw) in
