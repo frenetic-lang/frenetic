@@ -4,7 +4,7 @@ open Frenetic_netkat
 
 (* module type Queue = sig
   type 'a queue
-  val empty : 'a queue  
+  val empty : 'a queue
   val is_empty : 'a queue -> bool
   val push : 'a -> 'a queue -> 'a queue
   val peek : 'a queue -> 'a option
@@ -20,44 +20,24 @@ end *)
 end *)
 
 
-module rec State : sig
-  type t
-  val obs : t -> Obs.t
-  val trans : t -> Trans.t
-end = State
-and Obs : sig
-  type t
-  val equiv : t -> t -> bool
-end = Obs
-and Trans : sig
-  type t
-  val succs : t -> t -> (State.t * State.t) list
-end = Trans;;
+module type Params = sig
+  type state [@@deriving eq]
+  type obs
+  type trans
 
-
-(* type state = { epsilon : obs;
-               delta : trans;
-             }
-and trans =  *)
-
-module type AUTOMATON = sig
-  module Fdd : FDD
-  (* type state [@@deriving compare, sexp] *)
-  type state : State
-  type t = {
-    start : state;
-    states : state list;
-    (* epsilon : state -> Fdd.t;
-    delta : state -> Fdd.t; *)
-  }
+  val obs : state -> obs
+  val trans : state -> trans
+  val obs_equiv : obs -> obs -> bool
+  val succs : trans -> trans -> (state * state) list
 end
 
 
-module Decision(Automaton : AUTOMATON) = struct
+module Decision(Params : Params) = struct
+  open Params
 
-  let equiv (x : Automaton.t) (y : Automaton.t) : bool =
+  let equiv (x : state) (y : state) : bool =
     (*
-     * Basic idea: keep a worklist of all paris of states i.e. Q1 U Q2 X Q1 U Q2 
+     * Basic idea: keep a worklist of all paris of states i.e. Q1 U Q2 X Q1 U Q2
      * (1) Put (s1, s2) into the worklist and initialize emtpy relation R
      * (2) LOOP: while worklist nonemtpy
      *     (3) Pop (s,t)
@@ -66,19 +46,20 @@ module Decision(Automaton : AUTOMATON) = struct
      *     (6) do some merge of states to make (s,t) in R (want a\equiv b)
      *     (7) for all letters a push (d(s,a),d(t,a)) onto worklist
      *)
-    let R = [] in 
-    let todo = Queue.singleton (x.start y.start) in
-    let rec loop (R' : (Automaton.state * Automaton.state) list) : bool = 
-      let (s, t) = Queue.dequeue_exn todo in
-      if List.mem (s, t) R' then loop R'
-      else if not FDD.equiv (x.epsilon s) (y.epsilon t) then false
-      else
-        FDD.fold (fun i1 i2 -> Queue.enqueue todo (i1, i2))
-                 (x.delta s)
-                 (y.delta t)
-        loop ((s, t)::R')
+    let rel = [] in
+    let todo = Queue.singleton (x, y) in
+    let rec loop (rel : (state * state) list) : bool =
+      let x, y = Queue.dequeue_exn todo in
+      if List.mem rel (x, y) ~equal:[%eq: state * state] then
+        loop rel
+      else if not (obs_equiv (obs x) (obs y)) then
+        false
+      else begin
+        List.iter (succs (trans x) (trans y)) ~f:(Queue.enqueue todo);
+        loop rel
+      end
     in
-    loop R
+    loop rel
 
 
 (*===========================================================================*)
