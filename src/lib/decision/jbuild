@@ -9,8 +9,7 @@
      frenetic.netkat
     )
   )
-  (preprocess (pps (ppx_cstruct
-                    ppx_deriving.std
+  (preprocess (pps (ppx_deriving.std
                     ppx_enumerate
                     ppx_compare
                     ppx_fields_conv

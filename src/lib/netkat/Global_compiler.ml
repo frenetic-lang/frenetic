@@ -272,7 +272,7 @@ module Automaton = struct
     let determinize_action par =
       par
       |> Action.Par.to_list
-      |> List.sort ~cmp:Action.Seq.compare_mod_k
+      |> List.sort ~compare:Action.Seq.compare_mod_k
       |> List.group ~break:(fun s1 s2 -> not (Action.Seq.equal_mod_k s1 s2))
       |> List.map ~f:(function
         | [seq] -> seq
@@ -627,11 +627,11 @@ module Automaton = struct
 
     and do_node seen worklist fdd =
       match FDD.unget fdd with
-      | Branch((f, v), a, b) ->
+      | Branch { test = f, v; tru; fls } ->
         fprintf fmt "%a [label=\"%s = %s\"];\n" fdd_lbl fdd (Field.to_string f) (Value.to_string v);
-        fprintf fmt "%a -> %a;\n" fdd_lbl fdd fdd_lbl a;
-        fprintf fmt "%a -> %a [style=\"dashed\"];\n" fdd_lbl fdd fdd_lbl b;
-        do_fdds seen (a::b::worklist)
+        fprintf fmt "%a -> %a;\n" fdd_lbl fdd fdd_lbl tru;
+        fprintf fmt "%a -> %a [style=\"dashed\"];\n" fdd_lbl fdd fdd_lbl fls;
+        do_fdds seen (tru::fls::worklist)
       | Leaf par ->
         fprintf fmt "subgraph cluster_%a {@\n" fdd_lbl fdd;
         fprintf fmt "\trank=sink;@\n";
@@ -656,6 +656,9 @@ module Automaton = struct
       fprintf fmt "}@.";
       Buffer.contents buf
     end
+
+  let render ?(format="pdf") ?(title="FDD") t =
+    Frenetic_kernel.Util.show_dot ~format ~title (to_dot t)
 
 end
 (* END: module Automaton *)

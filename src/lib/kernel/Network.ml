@@ -1,6 +1,6 @@
 open Graph
 (* open Sexplib.Conv *)
-open Core_kernel.Std
+open Core_kernel
 
 module type VERTEX = sig
   type t [@@deriving sexp]
@@ -155,6 +155,8 @@ module Make : MAKE =
   functor (Vertex:VERTEX) ->
     functor (Edge:EDGE) ->
 struct
+  (* FIXME: temporary hack to avoid Jane Street's annoying warnings. *)
+  [@@@warning "-3"]
   module Topology = struct
     type port = int32 [@@deriving sexp]
     module PortSet = Set.Make(Int32)
@@ -247,7 +249,7 @@ struct
     let add_vertex (t:t) (l:Vertex.t) : t * vertex =
       let open VL in
       try (t, _node_vertex t l)
-      with Not_found ->
+      with Not_found | Not_found_s _ ->
         let id = t.next_node + 1 in
         let v = { id = id; label = l } in
         let g = P.add_vertex t.graph v in
@@ -281,7 +283,7 @@ struct
             P.remove_edge_e acc e) in
             let t' = {t with graph = graph'} in
             aux t'
-      with Not_found -> aux t
+      with Not_found | Not_found_s _ -> aux t
 
     (* Special Accessors *)
     let num_vertexes (t:t) : int =
@@ -469,7 +471,7 @@ struct
       try
         let pth,_ = Dijkstra.shortest_path t.graph v1 v2 in
         Some pth
-      with Not_found ->
+      with Not_found | Not_found_s _ ->
         None
 
     exception NegativeCycle of edge list
@@ -510,7 +512,7 @@ struct
               let dev2 = Weight.add dev1 (Weight.weight (Topology.edge_to_label t e)) in
               let improvement =
                 try Weight.compare dev2 (VertexHash.find_exn dist ev2) < 0
-                with Not_found -> true
+                with Not_found | Not_found_s _ -> true
               in
               if improvement then begin
                 VertexHash.set prev ev2 ev1;
@@ -518,7 +520,7 @@ struct
                 VertexHash.set admissible ev2 e;
                 Some ev2
               end else x
-            end with Not_found -> x) t.graph None in
+            end with Not_found | Not_found_s _ -> x) t.graph None in
         match update with
           | Some x ->
             if (phys_equal i (P.nb_vertex t.graph)) then raise (NegativeCycle (find_cycle x))
@@ -556,7 +558,7 @@ struct
                    let e = find_edge g nodes.(i) nodes.(j) in
                    let w = Weight.weight (Topology.edge_to_label g e) in
                    (Some w, lazy [e])
-                 with Not_found -> (None,lazy []))),
+                 with Not_found | Not_found_s _ -> (None,lazy []))),
          nodes)
       in
       let matrix,vxs = make_matrix topo in

@@ -19,10 +19,14 @@
 
 *)
 
-if vlanId=1 then 
+if vlanId=1 then begin
   if not (vlanPcp=1) then 
     id 
   else
     if port=1 then id else drop
-else
-  if not (vlanPcp=1) then id else drop
+end else begin
+  if not (vlanPcp=1) then
+    id
+  else
+    drop
+end
