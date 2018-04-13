@@ -1,27 +1,8 @@
 open Core
 open Frenetic_netkat
 
-
-(* module type Queue = sig
-  type 'a queue
-  val empty : 'a queue
-  val is_empty : 'a queue -> bool
-  val push : 'a -> 'a queue -> 'a queue
-  val peek : 'a queue -> 'a option
-  val pop : 'a queue -> 'a queue option
-end *)
-
-(* module type FDD : sig
-  type t
-  val equiv : t -> t -> t
-  val union : t -> t -> t
-  val fold : ('a -> 'a -> unit) -> t -> t -> unit
-  val succs: t -> t -> (state * state) list
-end *)
-
-
 module type Params = sig
-  type state [@@deriving eq]
+  type state [@@deriving hash, compare, sexp]
   type obs
   type trans
 
@@ -31,9 +12,26 @@ module type Params = sig
   val succs : trans -> trans -> (state * state) list
 end
 
+module DFA : Params = struct
+  type state = int [@@deriving hash, compare, sexp]
+  type obs = bool
+  type alphabet = bool
+  let alphabet = [true; false]
+  type trans = alphabet -> state
+
+  let obs q = failwith "todo"
+  let trans q s = failwith "todo"
+  let obs_equiv = Bool.equal
+  let succs t1 t2 = List.map alphabet ~f:(fun s -> (t1 s, t2 s))
+end
+
 
 module Decision(Params : Params) = struct
   open Params
+
+  module State_rel = Hash_set.Make(struct
+    type t = state * state [@@deriving hash, compare, sexp]
+  end)
 
   let equiv (x : state) (y : state) : bool =
     (*
@@ -46,21 +44,16 @@ module Decision(Params : Params) = struct
      *     (6) do some merge of states to make (s,t) in R (want a\equiv b)
      *     (7) for all letters a push (d(s,a),d(t,a)) onto worklist
      *)
-    let rel = [] in
-    let todo = Queue.singleton (x, y) in
-    let rec loop (rel : (state * state) list) : bool =
-      let x, y = Queue.dequeue_exn todo in
-      if List.mem rel (x, y) ~equal:[%eq: state * state] then
-        loop rel
-      else if not (obs_equiv (obs x) (obs y)) then
-        false
-      else begin
-        List.iter (succs (trans x) (trans y)) ~f:(Queue.enqueue todo);
-        loop rel
-      end
-    in
-    loop rel
+    let rel = State_rel.create () in
 
+    let rec loop todo =
+      match todo with
+      | [] -> true
+      | (x,y)::todo when Hash_set.mem rel (x, y) -> loop todo
+      | (x,y)::_ when not (obs_equiv (obs x) (obs y)) -> false
+      | (x,y)::todo -> loop (todo @ succs (trans x) (trans y))
+    in
+    loop [(x,y)]
 
 (*===========================================================================*)
 (* Worry about this later                                                    *)
