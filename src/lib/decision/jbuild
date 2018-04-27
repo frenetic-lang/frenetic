@@ -1,5 +1,9 @@
 (jbuild_version 1)
 
+(menhir (
+  (modules (Parser))
+))
+
 (library
  ((name        frenetic_decision)
   (public_name frenetic.decision)

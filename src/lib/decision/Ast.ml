@@ -1,19 +1,21 @@
 open Core
 
-type 'field pred =
-  | True
-  | False
-  | Test of 'field * int
-  | And of 'field pred * 'field pred
-  | Or of 'field pred * 'field pred
-  | Neg of 'field pred
-  [@@deriving sexp, compare, hash]
-
 type 'field  pol =
-  | Dup
-  | Filter of 'field pred
+  | Skip
+  | Drop
+  | TestEq of 'field * int
+  | TestNeq of 'field * int
   | Modify of 'field * int
+  | Dup
   | Seq of 'field pol * 'field pol
   | Union of 'field pol * 'field pol
   | Star of 'field pol
   [@@deriving sexp, compare, hash]
+
+type 'field formula =
+  | Equiv of 'field pol * 'field pol
+  | Nequiv of 'field pol * 'field pol
+  | Leq of 'field pol * 'field pol
+  | Geq of 'field pol * 'field pol
+
+  let negate (p : 'field pol) : 'field pol = failwith "Not implemented"
