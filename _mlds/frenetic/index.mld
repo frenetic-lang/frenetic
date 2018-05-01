@@ -1,0 +1,15 @@
+{1 Library frenetic}
+The entry point of this library is the module:
+{!module-Frenetic}.
+{1 Library frenetic.async}
+The entry point of this library is the module:
+{!module-Frenetic_async}.
+{1 Library frenetic.kernel}
+The entry point of this library is the module:
+{!module-Frenetic_kernel}.
+{1 Library frenetic.netkat}
+The entry point of this library is the module:
+{!module-Frenetic_netkat}.
+{1 Library frenetic.ppx}
+The entry point of this library is the module:
+{!module-Frenetic_ppx}.
