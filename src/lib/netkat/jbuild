@@ -67,7 +67,6 @@
                     ppx_sexp_conv
                     ppx_hash
                     sedlex.ppx
-                    ocaml-migrate-parsetree.driver-main -no-check
                    )))
   (flags (:standard -safe-string))
  )
