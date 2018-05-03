@@ -3,7 +3,7 @@ INSTALL_ARGS := $(if $(PREFIX),--prefix $(PREFIX),)
 build:
 	time -p jbuilder build @install
 
-install:
+install: build
 	jbuilder install $(INSTALL_ARGS)
 
 uninstall:
@@ -22,4 +22,7 @@ test:
 
 all: build test doc
 
-.PHONY: build install uninstall reinstall clean doc test all
+utop: install
+	utop-full -short-paths -init ocamlinit
+
+.PHONY: build install uninstall reinstall clean doc test all utop

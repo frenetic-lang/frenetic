@@ -1,0 +1,23 @@
+(******************************************************************************
+ Custom ocamlinit to make experimenting with Frenetic in the OCaml 
+ toplevel/REPL a joy.
+
+ Simply run `make utop`, or, if you prefer doing things by hand, run
+ ```
+   {ocaml/utop-full} -init ocamlinit
+ ```
+*******************************************************************************)
+
+(* load Frenetic, including syntax extension *)
+#use "topfind"
+#require "frenetic"
+#require "frenetic.ppx"
+open Frenetic;;
+
+(* install some pretty printers *)
+#install_printer Netkat.Pretty.format_policy
+#install_printer Netkat.Pretty.format_pred
+let print_auto fmt x = Netkat.Global_compiler.Automaton.render x;;
+let print_fdd fmt x = Netkat.Local_compiler.FDD.render x;;
+#install_printer print_auto
+#install_printer print_fdd

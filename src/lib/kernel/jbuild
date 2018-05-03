@@ -9,6 +9,7 @@
      base64
      cstruct
      ocamlgraph
+     open
      tcpip
      yojson
      ipaddr
