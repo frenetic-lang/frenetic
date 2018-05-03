@@ -10,8 +10,13 @@ let%nk loop = {| let `inport := port in while not {egress} do {q} + drop |}
 (* let expressions *)
 let letin =
   let%nk s = {| {p}; ({q} + {loop}) |} in
+  let s' = [%nk {| {p}; ({q} + {loop}) |}] in
   let open Frenetic.Netkat.Optimize in
-  mk_seq s s
+  mk_seq s s'
+
+(* constant string expressions *)
+let p = [%nk "drop"]
+let q = [%nk {| filter true; {q}; (port:=2 + port:=pipe("test") ) |}]
 
 (* can have open terms *)
 let%nk opent = {| `inport := 1 |}
