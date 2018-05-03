@@ -2,8 +2,11 @@ open Core
 
 (* let declaration *)
 let%nk p = {| drop |}
-let%nk q = {| filter true; {p}; (port:=2 + port:=pipe("test") ) |}
+let%nk q = {| true; {p}; (port:=2 + port:=pipe("test") ) |}
 let%nk_pred egress = {| switch=1 and port=1 |}
+(* the filter keywarod is necessary here, otherwise egress is expected to be a
+  policy
+*)
 let%nk egress' = {| filter {egress} |}
 let%nk loop = {| let `inport := port in while not {egress} do {q} + drop |}
 
@@ -16,13 +19,13 @@ let letin =
 
 (* constant string expressions *)
 let p = [%nk "drop"]
-let q = [%nk {| filter true; {q}; (port:=2 + port:=pipe("test") ) |}]
+let q = [%nk {| true; {q}; (port:=2 + port:=pipe("test") ) |}]
 
 (* can have open terms *)
 let%nk opent = {| `inport := 1 |}
 
 (* can use IP and MAC accresses with meta fields *)
-let%nk addresses = {| `aux := 192.168.2.1; filter `aux = 00:0a:95:9d:68:16 |}
+let%nk addresses = {| `aux := 192.168.2.1; `aux = 00:0a:95:9d:68:16 |}
 (* maximum addresses *)
 let%nk ip_and_mac = {| `ip := 255.255.255.0; `mac := ff:ff:ff:ff:ff:ff |}
 (* above maximum, but still accepted by parser currently *)
@@ -30,13 +33,13 @@ let%nk illegal = {| `ip := 255.255.255.255 |}
 
 (* iverson bracket's allow one to use OCaml predicates right in NetKAT *)
 let%nk iverson = {| [2 = 1+1]; port:=pipe("true") + [2=1]; port:=pipe("false")  |}
-let%nk iverson_pred = {| filter [2 > 1]; [2 < 1] |}
+let%nk iverson_pred = {| [2 > 1]; [2 < 1] |}
 
 (* advanced iverson examples *)
 let mk_link adj a b =
   let src,dst = Int32.(of_int_exn adj.(a).(b), of_int_exn adj.(b).(a)) in
   let a,b = Int64.(of_int a + 1L, of_int b + 1L) in
-  let%nk l = {| [src <> 0l]; filter (switch={a} and port={src}); switch:={b}; port:={dst} |} in
+  let%nk l = {| [src <> 0l]; (switch={a} and port={src}); switch:={b}; port:={dst} |} in
   l
 
 let mk_links adj =
@@ -54,11 +57,11 @@ let advanced_iverson = mk_links [|
 
 (* The declarations below should cause compile-time errors with approproate
    source locations. *)
-(* let%nk s = {| filter typo = 1 |} *)
+(* let%nk s = {| typo = 1 |} *)
 (* let%nk r = {| while not {egress'} do {q} |} *)
 (* let%nk r = {| `inport := port |} *)
-(* let%nk iverson_pred = {| filter [2 > 1]; [2 < ( 1] |} *)
-(* let%nk iverson_pred = {| filter [2 > 1]; |} *)
+(* let%nk iverson_pred = {| [2 > 1]; [2 < ( 1] |} *)
+(* let%nk iverson_pred = {| [2 > 1]; |} *)
 
 let () =
   let open Frenetic.Netkat.Pretty in
