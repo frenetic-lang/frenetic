@@ -1,7 +1,24 @@
 (jbuild_version 1)
 
+;; generate menhir tokens
+(rule
+ ((targets (Tokens.ml))
+  (deps    (Parser.mly))
+  (action  (run ${bin:menhir} --only-tokens ${<} --base Tokens))))
+
+;; generate lexer -- temporary hack while ppx_import is incompatible with jbuilder!!
+(rule
+ ((targets (Lexer.ml))
+  (deps    (Lexer.cppo.ml Tokens.ml))
+  (action  (run ${bin:cppo} ${<} -n -o ${@}))))
+(rule
+ ((targets (Lexer.mli))
+  (deps    (Lexer.cppo.mli Tokens.ml))
+  (action  (run ${bin:cppo} ${<} -n -o ${@}))))
+
 (menhir (
   (modules (Parser))
+  (flags (--external-tokens Lexer))
 ))
 
 (library
@@ -17,6 +34,7 @@
                     ppx_compare
                     ppx_hash
                     ppx_sexp_conv
+                    sedlex.ppx
                    )))
   (flags (:standard -safe-string))
  )
