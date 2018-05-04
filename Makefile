@@ -18,11 +18,14 @@ doc:
 	jbuilder build @doc
 
 test:
-	jbuilder build @runtest
+	jbuilder runtest
+
+updatetest:
+	jbuilder runtest --auto-promote
 
 all: build test doc
 
 utop: install
 	utop-full -short-paths -init ocamlinit
 
-.PHONY: build install uninstall reinstall clean doc test all utop
+.PHONY: build install uninstall reinstall clean doc test all utop updatetest
