@@ -4,5 +4,13 @@
  ((names        (main openflow))
   (public_names (frenetic frenetic.openflow))
   (libraries (core async async_extended frenetic))
+  (modules (main openflow dump))
   (flags (:standard -safe-string))
+))
+
+(executable (
+  (name decision)
+  (modules (decision))
+  (public_name frenetic.decision)
+  (libraries (core frenetic.decision frenetic.kernel))
 ))

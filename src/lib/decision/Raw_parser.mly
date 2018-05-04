@@ -30,7 +30,6 @@ open Ast
 %nonassoc TILDE (* ~p* == (~p)* *)
 
 %start <string Ast.formula> formula_eof
-
 %start <string Ast.pol> pol_eof
 
 %%

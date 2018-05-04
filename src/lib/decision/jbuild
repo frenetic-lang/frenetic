@@ -3,7 +3,7 @@
 ;; generate menhir tokens
 (rule
  ((targets (Tokens.ml))
-  (deps    (Parser.mly))
+  (deps    (Raw_parser.mly))
   (action  (run ${bin:menhir} --only-tokens ${<} --base Tokens))))
 
 ;; generate lexer -- temporary hack while ppx_import is incompatible with jbuilder!!
@@ -17,7 +17,7 @@
   (action  (run ${bin:cppo} ${<} -n -o ${@}))))
 
 (menhir (
-  (modules (Parser))
+  (modules (Raw_parser))
   (flags (--external-tokens Lexer))
 ))
 
