@@ -46,35 +46,6 @@ let map_snd lst ~f =
 
 
 (*===========================================================================*)
-(* open files with default application                                       *)
-(*===========================================================================*)
-
-type os =
-  | MacOS
-  | Linux
-
-let detect_os () : os =
-  let open Caml in
-  let ic = Unix.open_process_in "uname" in
-  let uname = input_line ic in
-  close_in ic;
-  match uname with
-  | "Darwin" -> MacOS
-  | "Linux" -> Linux
-  | _ -> failwith "unknown operating system"
-
-let open_cmd =
-  match detect_os () with
-  | MacOS -> "open"
-  | Linux -> "xdg-open"
-
-let open_file f =
-  let silence = "&> /dev/null" in
-  Format.sprintf "%s %s % s" open_cmd f silence
-  |> Caml.Unix.system
-  |> ignore
-
-(*===========================================================================*)
 (* Graphviz                                                                  *)
 (*===========================================================================*)
 
@@ -88,7 +59,8 @@ let compile_dot ?(format="pdf") ?(engine="dot") ?(title=engine) data : string =
 
 let show_dot ?format ?title ?engine data : unit =
   compile_dot ?format ?title ?engine data
-  |> open_file
+  |> Open.in_default_app
+  |> ignore
 
 let show_dot_file ?format ?title ?engine file : unit =
   In_channel.read_all file

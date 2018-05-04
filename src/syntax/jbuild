@@ -11,10 +11,21 @@
  ((flags (--external-tokens Frenetic_netkat.Lexer))
   (modules (Ppx_parser))))
 
-(library
- ((name frenetic_ppx)
+(library (
+  (name frenetic_ppx)
   (public_name frenetic.ppx)
+  (modules (ppx Ppx_parser))
   (kind ppx_rewriter)
   (libraries (ppxlib base frenetic.netkat))
   (ppx_runtime_libraries (frenetic.netkat))
-  (preprocess (pps (ppxlib.metaquot)))))
+  (preprocess (pps (ppxlib.metaquot)))
+))
+
+;; see https://blog.janestreet.com/repeatable-exploratory-programming/
+(library (
+  (name test)
+  (modules (test))
+  (libraries (core expect_test_helpers_kernel frenetic))
+  (inline_tests)
+  (preprocess (pps (ppx_jane frenetic.ppx)))
+))

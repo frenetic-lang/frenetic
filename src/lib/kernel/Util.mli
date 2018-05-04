@@ -11,10 +11,6 @@ val pp_exceptions : unit -> unit
 val map_fst : ('a * 'b) list -> f:('a -> 'c) -> ('c * 'b) list
 val map_snd : ('a * 'b) list -> f:( 'b -> 'c) -> ('a * 'c) list
 
-(** Opens file with associated default application.
-    This uses `open` on MacOS and `xdg-open` on Linux. *)
-val open_file : string -> unit
-
 (* Compiles provided dot-string using `graphviz` and dumps the output into a
    temporary file. The temporary file is returned.
    Requires graphviz to be installed and on the PATH.

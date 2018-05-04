@@ -36,25 +36,49 @@ let expand_let_decl ~loc ~path:_ ~pred bindings =
   B.(pstr_value Nonrecursive (List.map bindings ~f:(expand_binding ~pred)))
 
 (* expands `let%nk <bindings> in body` *)
-let expand_let_expr ~loc ~path:_ ~pred bindings body =
+let expand_let_expr ~loc ~pred bindings body =
   let module B = Ast_builder.Make(struct let loc = loc end) in
   B.(pexp_let Nonrecursive (List.map bindings ~f:(expand_binding ~pred)) body)
+
+module Match = struct
+  open Ast_pattern
+
+  let let_decl =
+    pstr (pstr_value nonrecursive __ ^:: nil)
+
+  let let_expr =
+    pexp_let nonrecursive __ __
+
+  let str_expr =
+    (* allow {| code |} and "code" *)
+    alt (some (string "")) none
+    |> pconst_string __
+    |> pexp_constant
+end
+
 
 (* declare `let%nk x = e` extension *)
 let nk_ext_struct pred =
   Extension.V2.declare
     (if pred then ext_keyw_pred else ext_keyw)
     Extension.Context.structure_item
-    Ast_pattern.(pstr (pstr_value nonrecursive __ ^:: nil))
+    Match.let_decl
     (expand_let_decl ~pred)
 
-(* declare `let%nk x = e in b` extension *)
 let nk_ext_expr pred =
   Extension.declare
     (if pred then ext_keyw_pred else ext_keyw)
     Extension.Context.expression
-    Ast_pattern.(single_expr_payload (pexp_let nonrecursive __ __))
-    (expand_let_expr ~pred)
+    Ast_pattern.(single_expr_payload (
+      begin
+        Match.let_expr
+        |> map' ~f:(fun loc _ -> expand_let_expr ~loc ~pred)
+      end ||| begin
+        Match.str_expr
+        |> map' ~f:(fun loc _ -> expand_nk_string ~loc ~pred)
+      end
+    ))
+    (fun ~loc ~path -> ())
 ;;
 
 Driver.register_transformation "netkat"
