@@ -4,8 +4,8 @@ open Core
 let%nk p = {| drop |}
 let%nk q = {| true; {p}; (port:=2 + port:=pipe("test") ) |}
 let%nk_pred egress = {| switch=1 and port=1 |}
-(* the filter keywarod is necessary here, otherwise egress is expected to be a
-  policy
+(* the `filter` keyword is necessary here to force the parser to interpret
+   {egress} as a predicate, not a policy.
 *)
 let%nk egress' = {| filter {egress} |}
 let%nk loop = {| let `inport := port in while not {egress} do {q} + drop |}
