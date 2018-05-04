@@ -29,16 +29,17 @@ open Ast
 %nonassoc STAR (* p;q* == p;(q* ) *)
 %nonassoc TILDE (* ~p* == (~p)* *)
 
-%start <string Ast.pol> pol
-
 %start <string Ast.formula> formula_eof
 
-%start <string Ast.formula> formula
+%start <string Ast.pol> pol_eof
 
 %%
 
 formula_eof:
   | f=formula; EOF { f }
+
+pol_eof:
+  | p=pol; EOF { p }
 
 
 pol:
@@ -51,6 +52,7 @@ pol:
   | f=FIELD; EQUALS; n=int { TestEq (f, n) }
   | f=FIELD; NEQUALS; n=int { TestNeq (f, n) }
   | f=FIELD; ASSIGN; n=int { TestEq (f, n) }
+/* TODO: Negation may fail. Error should include source location. */
   | TILDE; p=pol { Ast.negate p }
   | LPAR; p=pol; RPAR { p }
 
@@ -62,6 +64,5 @@ formula:
   | p=pol; NEQUIV; q=pol { Nequiv (p, q) }
   | p=pol; LEQ; q=pol { Leq (p, q) }
   | p=pol; GEQ; q=pol { Geq (p, q) }
-  (* | p=pol { Pol p } *)
 
 %%
