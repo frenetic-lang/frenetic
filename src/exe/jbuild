@@ -9,8 +9,8 @@
 ))
 
 (executable (
-  (name decision)
-  (modules (decision))
-  (public_name frenetic.decision)
+  (name decide)
+  (modules (decide))
+  (public_name frenetic.decide)
   (libraries (core frenetic.decision frenetic.kernel))
 ))
