@@ -67,15 +67,7 @@
                     ppx_sexp_conv
                     ppx_hash
                     sedlex.ppx
-                    ocaml-migrate-parsetree.driver-main -no-check
                    )))
   (flags (:standard -safe-string))
  )
 )
-
-;; TODO: toplevel
-;; (executable
-;;  ((name       mytoplevel)
-;;   (libraries  (compiler-libs.toplevel mylib))
-;;   (link_flags (-linkall))
-;;   (modes      (byte))))

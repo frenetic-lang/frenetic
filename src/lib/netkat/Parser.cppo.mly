@@ -68,6 +68,8 @@ open Core
 #endif
 
 (* precedence and associativity - from lowest to highest *)
+%nonassoc low
+%nonassoc RPAR END
 %nonassoc IN (* let meta := 1 in p + q == let meta := 1 in (p + q) *)
 %left PLUS
 %left SEMICOLON
@@ -104,7 +106,15 @@ pol:
       PPX( id )
   | DUP
       BOTH( Dup )
-  | FILTER; a=pred
+  | a=pred
+      AST( Filter a )
+      PPX( Filter [%e a] )
+      %prec low /* make predicates as big as possible */
+
+  /* the filter keyword is optional, but needed if one wants to use
+     antiquotations with predicates
+  */
+  | FILTER; a=pred_aq
       AST( Filter a )
       PPX( Filter [%e a] )
   | hv=header_val(ASSIGN)
@@ -131,31 +141,37 @@ pol:
   | sw1=int64; AT; pt1=int64; VLINK; sw2=int64; AT; pt2=int64
       AST( VLink (sw1, pt1, sw2, pt2) )
       PPX( VLink ([%e sw1], [%e pt1], [%e sw2], [%e pt2]) )
-  | IF; a=pred; THEN; p=pol; ELSE; q=pol 
+  | IF; a=pred_aq; THEN; p=pol; ELSE; q=pol 
       AST( Union (Seq (Filter a, p)          , Seq (Filter (Neg a)     , q)) )
       PPX( Union (Seq (Filter [%e a], [%e p]), Seq (Filter (Neg [%e a]), [%e q])) )
-  | WHILE; a=pred; DO; p=pol
+  | WHILE; a=pred_aq; DO; p=pol
       AST( Seq (Star (Seq (Filter a, p))          , Filter (Neg a)) )
       PPX( Seq (Star (Seq (Filter [%e a], [%e p])), Filter (Neg [%e a])) )
-  | LPAR; p=pol; RPAR
-      { p }
+  | LPAR; p=pol; RPAR 
   | BEGIN p=pol; END
       { p }
   AQ
-#ifdef MAKE_PPX
-  | code=IVERSON {
-    let phi = parse_ocaml_expr code in
-    PPX_( if [%e phi] then id else drop )
-  }
-#endif
   ;
 
 %inline
 letexp:
   | LET BOTH( false )
   | VAR BOTH( true )
+  ;
 
+
+
+/* predicates without antiquotations */
 pred:
+  | a=_pred_(pred) { a }
+
+/* predicates with antiquotations */
+pred_aq:
+  | a=_pred_(pred_aq) { a }
+  AQ
+
+%inline
+_pred_(pred):
   | FALSE
       AST( False )
       PPX( False )
@@ -175,17 +191,14 @@ pred:
       AST( And(a, b) )
       PPX( And([%e a], [%e b]) )
   | LPAR; a=pred; RPAR
-      { a }
   | BEGIN a=pred; END
       { a }
-  AQ
 #ifdef MAKE_PPX
   | code=IVERSON {
     let phi = parse_ocaml_expr code in
     PPX_( if [%e phi] then True else False )
   }
 #endif
-  ;
 
 
 (*********************** HEADER VALUES *************************)
