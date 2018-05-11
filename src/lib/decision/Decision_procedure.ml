@@ -1,6 +1,8 @@
 open Core
 open Frenetic_netkat
 
+
+
 module type Params = sig
   type state [@@deriving hash, compare, sexp]
   type obs
@@ -24,6 +26,35 @@ module DFA : Params = struct
   let obs_equiv = Bool.equal
   let succs t1 t2 = List.map alphabet ~f:(fun s -> (t1 s, t2 s))
 end
+
+(* module NkAutomaton : Params = struct
+  module FDD : sig
+    type t
+    val equiv : t -> t -> bool
+  end
+
+  (** "Symbolic" packet, i.e. a set of packets represented as a predicate *)
+  type packet = FDD.t
+  type stateId = int64
+
+  type state = stateId * packet (* state id plus current packet, represented as boolean predicate *)
+
+
+  type obs = FDD.t
+  let obs (id,_ : state) : obs = fst (get_state id)
+
+  let obs_equiv = FDD.equiv
+
+  type trans = FDD.t * packet
+  let trans (id,pk : state) : trans = (snd (get_state id), pk)
+
+  let succs (id1, pk1) (id2, pk2) =
+    let e1,d1 = get_state id1 in
+    let e2,ds =
+    FDD.fold2 t1 t2
+      ~f:(fun l1 l2 -> )
+
+end *)
 
 
 module Decision(Params : Params) = struct

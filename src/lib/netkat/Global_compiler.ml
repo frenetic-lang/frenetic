@@ -120,8 +120,8 @@ module Automaton = struct
 
   (* main data structure of symbolic NetKAT automaton *)
   type t =
-    { states : (FDD.t * FDD.t) Tbl.t;
-      has_state : int64 Untbl.t;
+    { states : (int64, FDD.t * FDD.t) Hashtbl.t;
+      has_state : (FDD.t * FDD.t, int64) Hashtbl.t;
       mutable source : int64;
       mutable nextState : int64 }
 

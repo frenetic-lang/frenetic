@@ -10,7 +10,9 @@ let pol_of_file (file : string) =
 let formula_of_file (file : string) =
   Lexer.parse_file ~file Raw_parser.formula_eof
 
-
+(*===========================================================================*)
+(* TESTS                                                                     *)
+(*===========================================================================*)
 
 open Core
 open! Expect_test_helpers_kernel
@@ -25,13 +27,13 @@ let%expect_test _ =
   [%expect {| (Equiv (Modify x1 12) Drop) |}]
 
 let%expect_test _ =
-  test_formula "x != 12; test_ := 031201; drop + skip* !== dup";
+  test_formula "x' != 12; test_ := 031201; drop + skip* !== dup";
   [%expect {|
     (Nequiv
       (Union
         (Seq
           (Seq
-            (TestNeq x     12)
+            (TestNeq x'    12)
             (Modify  test_ 31201))
           Drop)
         (Star Skip))
