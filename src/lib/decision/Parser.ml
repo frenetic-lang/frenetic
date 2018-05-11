@@ -23,3 +23,16 @@ let test_formula s =
 let%expect_test _ =
   test_formula "x1 := 12 == drop";
   [%expect {| (Equiv (Modify x1 12) Drop) |}]
+
+let%expect_test _ =
+  test_formula "x != 12; test_ := 031201; drop + skip* !== dup";
+  [%expect {|
+    (Nequiv
+      (Union
+        (Seq
+          (Seq
+            (TestNeq x     12)
+            (Modify  test_ 31201))
+          Drop)
+        (Star Skip))
+      Dup) |}]
