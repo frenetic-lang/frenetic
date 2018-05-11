@@ -82,6 +82,7 @@ let token ~loc_start buf =
   | "dup" -> DUP
   | "~" -> TILDE
   | '=' -> EQUALS
+  | "!=" -> NEQUALS
   (* policies *)
   | "skip" -> SKIP
   | "drop" -> DROP
@@ -94,6 +95,9 @@ let token ~loc_start buf =
   | ')' -> RPAR
   (* formulas *)
   | "==" -> EQUIV
+  | "!===" -> NEQUIV
+  | "<=" -> LEQ
+  | ">=" -> GEQ
   | _ -> illegal buf (Char.chr (next buf))
 
 (** wrapper around `token` that records start and end locations *)
