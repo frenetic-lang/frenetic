@@ -27,7 +27,7 @@ let%expect_test _ =
   [%expect {| (Equiv (Modify x1 12) Drop) |}]
 
 let%expect_test _ =
-  test_formula "x' != 12; test_ := 031201; drop + skip* !== dup";
+  test_formula "x' != 12; test_ := 031201; drop + skip* !== dup + drop'=1 + skip_:=02";
   [%expect {|
     (Nequiv
       (Union
@@ -37,4 +37,4 @@ let%expect_test _ =
             (Modify  test_ 31201))
           Drop)
         (Star Skip))
-      Dup) |}]
+      (Union (Union Dup (TestEq drop' 1)) (Modify skip_ 2))) |}]
