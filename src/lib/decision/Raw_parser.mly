@@ -50,7 +50,7 @@ pol:
   | p=pol; STAR { Star p }
   | f=FIELD; EQUALS; n=int { TestEq (f, n) }
   | f=FIELD; NEQUALS; n=int { TestNeq (f, n) }
-  | f=FIELD; ASSIGN; n=int { TestEq (f, n) }
+  | f=FIELD; ASSIGN; n=int { Modify (f, n) }
 /* TODO: Negation may fail. Error should include source location. */
   | TILDE; p=pol { Ast.negate p }
   | LPAR; p=pol; RPAR { p }

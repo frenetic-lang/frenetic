@@ -95,9 +95,12 @@ let token ~loc_start buf =
   | ')' -> RPAR
   (* formulas *)
   | "==" -> EQUIV
-  | "!===" -> NEQUIV
+  | "!==" -> NEQUIV
   | "<=" -> LEQ
   | ">=" -> GEQ
+  (* fields and values *)
+  | id -> FIELD (ascii buf)
+  | decnum -> VALUE (ascii buf)
   | _ -> illegal buf (Char.chr (next buf))
 
 (** wrapper around `token` that records start and end locations *)
