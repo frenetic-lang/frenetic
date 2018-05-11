@@ -9,3 +9,17 @@ let pol_of_file (file : string) =
 
 let formula_of_file (file : string) =
   Lexer.parse_file ~file Raw_parser.formula_eof
+
+
+
+open Core
+open! Expect_test_helpers_kernel
+
+let test_formula s =
+  formula_of_string s
+  |> [%sexp_of: string Ast.formula]
+  |> print_s
+
+let%expect_test _ =
+  test_formula "x1 := 12 == drop";
+  [%expect {| (Equiv (Modify x1 12) Drop) |}]
