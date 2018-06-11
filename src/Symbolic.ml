@@ -191,7 +191,10 @@ module Field = struct
         k (f_choice ps, lst)
       | Let { id; init; mut; body=p } ->
         f_seq' p lst k
-      | While (a,p) -> k (f_union a p PNK.skip, lst)
+      | While (a,p) ->
+        k (f_union a p PNK.skip, lst)
+      | ObserveUpon (p,a) ->
+        f_seq' (Seq (p, Filter a)) lst k
     and f_seq pol : int =
       let (size, preds) = f_seq' pol [] (fun x -> x) in
       List.iter preds ~f:(f_pred size);
@@ -218,6 +221,8 @@ module Field = struct
         f_union' p lst (fun (m, lst) ->
           k (m, a::lst)
         )
+      | ObserveUpon (p,a) ->
+        f_union' (Seq (p, Filter a)) lst k
     and f_union a p q : int =
       let (p_size, p_preds) = f_union' p [] (fun x -> x) in
       let (q_size, q_preds) = f_union' q [] (fun x -> x) in
@@ -481,6 +486,22 @@ end = struct
   let one = []
   let empty = [ActionDist.empty]
   let dirac x = canonicalize [ActionDist.dirac x]
+
+  type observe = ActionDist.t ->
+    [ `Irrelevant
+    | `UNSAT
+    | `TRUE of ActionDist.t
+    | `SAT of ActionDist.t * observe
+    ]
+
+  let observe ~f:observe t =
+    List.folding_map t ~init:observe ~f:(fun obs d ->
+      match obs d with
+      | `Irrelevant -> (obs, d)
+      | `Unsat -> failwith "observing event of probability zero"
+      | `True d -> ((fun d -> `True d), d)
+      | `SAT (d, obs) -> (obs, d)
+    )
 
 
   let is_zero t =
@@ -1236,6 +1257,8 @@ module Fdd = struct
         Ite (do_pred env a, do_pol env p, do_pol env q)
       | While (a, p) ->
         While (do_pred env a, do_pol env p)
+      | ObserveUpon (p, a) ->
+        ObserveUpon (do_pol env p, do_pred env a)
       | Choice dist ->
         Choice (Util.map_fst dist ~f:(do_pol env))
       | Let { id; init; mut; body; } ->
@@ -1275,6 +1298,8 @@ module Fdd = struct
         Ite (do_pred a, do_pol p, do_pol q)
       | While (a, p) ->
         While (do_pred a, do_pol p)
+      | ObserveUpon (p, a) ->
+        ObserveUpon (do_pol p, do_pred a)
       | Choice dist ->
         Choice (Util.map_fst dist ~f:(do_pol))
       | Let { id; init; mut; body; } ->
@@ -1653,14 +1678,34 @@ module Fdd = struct
     )
 
 
-  let repeat n p =
+(*   let repeat n p =
     let rec loop i p_2n acc =
       if i = 1 then
         List.fold acc ~init:p_2n ~f:seq
       else
         loop (i/2) (seq p_2n p_2n) (if i%2 = 0 then acc else p_2n :: acc)
     in
-    if n <= 0 then id else loop n p []
+    if n <= 0 then id else loop n p [] *)
+
+
+  let observe a p =
+    let not_a = negate a in
+    let rec do_node ctxt t =
+      match unget t with
+      | Leaf r ->
+        do_leaf ctxt r
+      | Branch {test; tru; fls; _ } ->
+        let one, zero = FactorizedActionDist.(one, zero) in
+        let tru_ctxt = prod ctxt (atom test one zero) in
+        let fls_ctxt = prod ctxt (atom test zero one) in
+        unchecked_cond test (do_node tru tru_ctxt) (do_node fls fls_ctxt)
+    and do_leaf ctxt dist =
+      do_dist ctxt dist
+      |> const
+    and do_dist dist =
+      failwith "todo"
+    in
+    do_node id p
 
 
 
@@ -1695,6 +1740,7 @@ module Fdd = struct
         | While _ -> "while a do p"
         | Choice _ -> "choice { q_1 @ p_1; ...; q_k @ p_k }"
         | Let _ -> "let x = n in p"
+        | ObserveUpon _ -> "observe upon p that a"
         (* | Repeat _ -> "do n times p" *)
       );
     match p with
@@ -1743,7 +1789,7 @@ module Fdd = struct
   and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
 
 
-  let rec of_pol_cps (k : t) (p : Field.t policy) : t =
+(*   let rec of_pol_cps (k : t) (p : Field.t policy) : t =
     if equal k drop then drop else
     match p with
     | Filter a ->
@@ -1770,6 +1816,9 @@ module Fdd = struct
       erase (of_pol_cps k p) field init
 (*     | Repeat (n, p) ->
       seq k (repeat n (of_pol_cps id p)) *)
+    | ObserveUpon (p,a) ->
+      of_pol_cps k p *)
+
 
   let of_pol (p : string policy) : t =
     allocate_fields p

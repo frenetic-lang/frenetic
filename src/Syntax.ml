@@ -37,6 +37,7 @@ type 'field  policy =
   | While of 'field pred * 'field policy
   | Choice of ('field policy * Prob.t) list
   | Let of { id : 'field; init : 'field meta_init; mut : bool; body : 'field policy }
+  | ObserveUpon of 'field policy * 'field pred (* exexcute policy, then observe pred *)
   (* | Repeat of int * 'field policy *)
   [@@deriving sexp, compare, hash]
 
@@ -47,7 +48,7 @@ let nr_of_loops p =
       acc
     | Seq(p,q) | Ite(_,p,q) ->
       do_pol p (do_pol q acc)
-    | While (_,body) ->
+    | While (_,body) | ObserveUpon (body,_)  ->
       do_pol body (acc + 1)
     | Let { body; _ } (* | Repeat (_,body) *) ->
       do_pol body acc
@@ -88,6 +89,9 @@ let pp_policy fmt (p : string policy) =
       List.iter ps ~f:(fun (p,q) ->
         fprintf fmt "@[%a@ %@@ %a;@;@]" (do_pol `CHOICE) p Prob.pp q);
       fprintf fmt "@;<1-0>}@]"
+    | ObserveUpon (p, a) ->
+      fprintf fmt "@[DO@ @[<2>%a@]@ THEN OBSERVE @ @[<2>%a@]@]"
+        (do_pol `While) p (do_pred `COND) a
   and do_pred ctxt fmt (p : string pred) =
     match p with
     | True -> fprintf fmt "@[1@]"
@@ -127,6 +131,7 @@ module Constructors = struct
     let test hv = Test hv
     let filter a = Filter a
     let modify hv = Modify hv
+    let observe p a = ObserveUpon (p,a)
     (* let repeat n p = Repeat (n,p) *)
 
     let neg a = match a with
@@ -202,6 +207,9 @@ module Constructors = struct
 
     let mk_big_seq pols =
       List.fold pols ~init:skip ~f:seq
+
+    let then_observe a p =
+      ObserveUpon (p, a)
 
     let choicei n ~f =
       Array.init n ~f
