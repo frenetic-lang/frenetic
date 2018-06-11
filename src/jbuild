@@ -7,10 +7,10 @@
   (wrapped true)
   (libraries (
     core
-    ;; owl
     zarith
     findlib
     frenetic
+    open
   ))
   (preprocess (pps (ppx_deriving.std
                     ppx_enumerate
