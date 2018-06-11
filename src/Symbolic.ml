@@ -235,7 +235,7 @@ module Field = struct
     in
     let _ = f_seq pol in
     Array.foldi count_arr ~init:[] ~f:(fun i acc n -> ((Obj.magic i, n) :: acc))
-    |> List.stable_sort ~cmp:(fun (_, x) (_, y) -> Int.compare x y)
+    |> List.stable_sort ~compare:(fun (_, x) (_, y) -> Int.compare x y)
     |> List.rev (* SJS: do NOT remove & reverse order! Want stable sort *)
     |> List.map ~f:fst
     |> set_order
@@ -1190,7 +1190,7 @@ module Fdd = struct
   let allocate_field env (f : string) : Field.t =
     match Field.Env.lookup env f with
     | (field, _) -> field
-    | exception Not_found ->
+    | exception Caml.Not_found ->
       String.Table.find_or_add field_allocation_tbl f ~default:(fun () ->
         let open Field in
         let field = match !next_field with
@@ -1851,7 +1851,7 @@ module Fdd = struct
       |> FactorizedActionDist.to_alist
       |> Util.map_fst ~f:(Packet.(apply (Pk pk)))
       |> List.filter ~f:(fun (pk,_) -> not Packet.(equal pk Emptyset))
-      |> List.sort ~cmp:compare_weighted_pk
+      |> List.sort ~compare:compare_weighted_pk
     and modulo_mods dist =
       FactorizedActionDist.pushforward dist ~f:(function
       | Drop ->
@@ -1912,7 +1912,7 @@ module Fdd = struct
       modulo_mods dist
       |> FactorizedActionDist.to_alist
       |> Util.map_fst ~f:(Packet.(apply (Pk pk)))
-      |> List.sort ~cmp:compare_weighted_pk
+      |> List.sort ~compare:compare_weighted_pk
     and modulo_mods dist =
       FactorizedActionDist.pushforward dist ~f:(function
       | Drop ->
