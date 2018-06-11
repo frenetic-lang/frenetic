@@ -69,6 +69,8 @@ let show_dot_file ?format ?title ?engine file : unit =
 (*===========================================================================*)
 
 let sandboxed ?timeout ~logfile ~f : [`Ok | `Tout | `Err | `Int ] =
+  let dir = Filename.dirname logfile in
+  Unix.mkdir_p dir;
   let read_done_fd, write_done_fd = Unix.pipe () in
   let read_done = Unix.in_channel_of_descr read_done_fd in
   let write_done = Unix.out_channel_of_descr write_done_fd in
