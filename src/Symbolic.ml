@@ -473,6 +473,17 @@ module FactorizedActionDist : sig
   val split_into_conditionals :
     t -> Field.t * Value.t -> ((t * Prob.t) * (t * Prob.t) * (t * Prob.t))
 
+
+  (* experimental *)
+  type observe = ActionDist.t ->
+    [ `Irrelevant
+    | `UNSAT
+    | `TRUE of ActionDist.t
+    | `SAT of ActionDist.t * observe
+    ]
+
+  val observe : f:observe -> t -> t
+
 end = struct
   type t = ActionDist.t list
   [@@deriving sexp, hash, compare, eq]
@@ -494,13 +505,17 @@ end = struct
     | `SAT of ActionDist.t * observe
     ]
 
-  let observe ~f:observe t =
-    List.folding_map t ~init:observe ~f:(fun obs d ->
-      match obs d with
-      | `Irrelevant -> (obs, d)
-      | `Unsat -> failwith "observing event of probability zero"
-      | `True d -> ((fun d -> `True d), d)
-      | `SAT (d, obs) -> (obs, d)
+  let observe ~f:observe (t : t) : t =
+    List.folding_map t ~init:(`SAT observe) ~f:(fun status d ->
+      match status with
+      | `Done -> (status, d)
+      | `SAT obs ->
+        begin match obs d with
+        | `Irrelevant -> (status, d)
+        | `UNSAT -> failwith "observing event of probability zero"
+        | `TRUE d -> (`Done, d)
+        | `SAT (d, obs) -> (`SAT obs, d)
+        end
     )
 
 
@@ -1689,13 +1704,17 @@ module Fdd = struct
 
 
   let observe a p =
-    let not_a = negate a in
+    let obs_fields =
+      fold a
+        ~f:(fun _ -> Field.Set.empty)
+        ~g:(fun (f,_) s1 s2 -> Field.Set.(add (union s1 s2) f))
+    in
     let rec do_node ctxt t =
       match unget t with
       | Leaf r ->
         do_leaf ctxt r
       | Branch {test; tru; fls; _ } ->
-        let one, zero = FactorizedActionDist.(one, zero) in
+        let one,zero = FactorizedActionDist.(one, zero)
         let tru_ctxt = prod ctxt (atom test one zero) in
         let fls_ctxt = prod ctxt (atom test zero one) in
         unchecked_cond test (do_node tru tru_ctxt) (do_node fls fls_ctxt)
@@ -1703,6 +1722,18 @@ module Fdd = struct
       do_dist ctxt dist
       |> const
     and do_dist dist =
+(*       FactorizedActionDist.observe dist ~f:(fun d ->
+        let d_fields =
+          ActionDist.support d
+          |> List.concat_map ~f:(function
+            | Drop -> []
+            | Action act -> PreAction.T.keys act
+          )
+          |> Field.Set.of_list
+          |> Field.Set.mem
+        in
+
+      ) *)
       failwith "todo"
     in
     do_node id p
