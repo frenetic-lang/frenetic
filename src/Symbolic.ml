@@ -1714,7 +1714,7 @@ module Fdd = struct
       | Leaf r ->
         do_leaf ctxt r
       | Branch {test; tru; fls; _ } ->
-        let one,zero = FactorizedActionDist.(one, zero)
+        let one,zero = FactorizedActionDist.(one, zero) in
         let tru_ctxt = prod ctxt (atom test one zero) in
         let fls_ctxt = prod ctxt (atom test zero one) in
         unchecked_cond test (do_node tru tru_ctxt) (do_node fls fls_ctxt)
@@ -1722,18 +1722,23 @@ module Fdd = struct
       do_dist ctxt dist
       |> const
     and do_dist dist =
-(*       FactorizedActionDist.observe dist ~f:(fun d ->
-        let d_fields =
+      FactorizedActionDist.observe dist ~f:(fun d ->
+        let relevant =
           ActionDist.support d
-          |> List.concat_map ~f:(function
-            | Drop -> []
-            | Action act -> PreAction.T.keys act
+          |> List.exists ~f:(function
+            | Drop -> false
+            | Action act ->
+              PreAction.T.keys act
+              |> List.exists ~f:(Field.Set.mem obs_fields)
           )
-          |> Field.Set.of_list
-          |> Field.Set.mem
         in
+        if not relevant then `Irrelevant else
+        ActionDist.observe ~f:(function
+          | Drop -> false
+          | Action act ->
+        )
 
-      ) *)
+      )
       failwith "todo"
     in
     do_node id p
