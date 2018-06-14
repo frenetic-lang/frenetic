@@ -1702,8 +1702,10 @@ module Fdd = struct
     in
     if n <= 0 then id else loop n p [] *)
 
+let observe_upon p a =
+  failwith "todo"
 
-  let observe a p =
+(*   let observe a p =
     let obs_fields =
       fold a
         ~f:(fun _ -> Field.Set.empty)
@@ -1741,7 +1743,7 @@ module Fdd = struct
       )
       failwith "todo"
     in
-    do_node id p
+    do_node id p *)
 
 
 
@@ -1819,6 +1821,11 @@ module Fdd = struct
       |> k
     | Let { id=field; init; mut; body=p } ->
       of_pol_k p (fun p' -> k (erase p' field init))
+    | ObserveUpon (p, a) ->
+      let a = of_pred a in
+      if equal a id then of_pol_k p k else
+      if equal a drop then failwith "illegal observation: false" else
+      of_pol_k p (fun p -> k (observe_upon p a))
 (*     | Repeat (n, p) ->
       of_pol_k p (fun p -> repeat n p) *)
 
