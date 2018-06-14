@@ -273,4 +273,5 @@ module FDD : sig
   val mk_cont : int64 -> t
   val conts : t -> Int64.Set.t
   val map_conts : t -> f:(int64 -> int64) -> t
+  val equivalent : t -> t -> bool
 end
