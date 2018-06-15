@@ -513,6 +513,13 @@ module Action = struct
         | F key -> f ~key ~data acc
         | _ -> acc)
 
+    let prod s1 s2 =
+      (* Favor modifications to the right *)
+      merge s1 s2 ~f:(fun ~key m ->
+        match m with
+        | `Both(_, v) | `Left v | `Right v -> Some(v)
+      )
+
     let equal_mod_k s1 s2 =
       equal Value.equal (remove s1 K) (remove s2 K)
 
@@ -588,10 +595,7 @@ module Action = struct
       Par.fold a ~init:zero ~f:(fun acc seq1 ->
         (* cannot implement sequential composition of this kind here *)
         let _ = assert (match Seq.find seq1 K with None -> true | _ -> false) in
-        let r = Par.map b ~f:(fun seq2 ->
-          (* Favor modifications to the right *)
-          Seq.merge seq1 seq2 ~f:(fun ~key m ->
-            match m with | `Both(_, v) | `Left v | `Right v -> Some(v)))
+        let r = Par.map b ~f:(Seq.prod seq1)
         in
         Par.union acc r)
 
@@ -721,6 +725,8 @@ module Action = struct
 
 end
 
+
+
 module FDD = struct
 
   include Vlr.Make
@@ -746,5 +752,53 @@ module FDD = struct
       | Some k -> Some (k |> Value.to_int64_exn |> f |> Value.of_int64)))
     in
     map_r f fdd
+
+
+  let equivalent t1 t2 =
+    (* A context represents the set of packets that can reach a certain node.
+       It is implemented simply as a partial map from fields to values.
+     *)
+    let module Ctxt = Action.Seq in
+    let rec do_nodes t1 t2 ctxt =
+      match unget t1, unget t2 with
+      | Branch {test=(f1,v1); tru=l1; fls=r1; all_fls=all_fls_1},
+        Branch {test=(f2,v2); tru=l2; fls=r2; all_fls=all_fls_2} ->
+        begin match Field.compare f1 f2 with
+        | -1 ->
+          do_nodes l1 t2 Ctxt.(set ctxt (F f1) v1) &&
+          do_nodes r1 t2 ctxt
+        | 1 ->
+          do_nodes t1 l2 Ctxt.(set ctxt (F f2) v2) &&
+          do_nodes t1 r2 ctxt
+        | 0 ->
+          begin match Value.compare v1 v2 with
+          | 0 ->
+            do_nodes l1 l2 Ctxt.(set ctxt (F f1) v1) &&
+            do_nodes r1 r2 ctxt
+          | -1 ->
+            do_nodes l1 all_fls_2 Ctxt.(set ctxt (F f1) v1) &&
+            do_nodes r1 t2 ctxt
+          | 1 ->
+            do_nodes all_fls_1 l2 Ctxt.(set ctxt (F f2) v2) &&
+            do_nodes t1 r2 ctxt
+          | _ -> assert false
+          end
+        | _ -> assert false
+        end
+      | Branch {test=(f1,v1); tru=l1; fls=r1}, Leaf _ ->
+        do_nodes l1 t2 Ctxt.(set ctxt (F f1) v1) &&
+        do_nodes r1 t2 ctxt
+      | Leaf _, Branch {test=(f2,v2); tru=l2; fls=r2} ->
+        do_nodes t1 l2 Ctxt.(set ctxt (F f2) v2) &&
+        do_nodes t1 r2 ctxt
+      | Leaf par1, Leaf par2 ->
+        Action.Par.equal (normalize par1 ctxt) (normalize par2 ctxt)
+    and normalize par ctxt =
+      (* actions are context dependent; here we canonicalize them by interpreting
+         them in the context.
+       *)
+      Action.Par.map par ~f:(Action.Seq.prod ctxt)
+    in
+    do_nodes t1 t2 Ctxt.empty
 
 end
