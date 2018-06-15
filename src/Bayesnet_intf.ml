@@ -66,11 +66,16 @@ module type S = sig
     (** {2} misc *)
 
     (** a [valuation] assigns values to all variables of a bayesian network *)
-    type valuation = Val.t Map.M(Var).t
+    module Valuation : sig
+      type t = Val.t Map.M(Var).t
+      include Comparable.S with type t := t
+    end
 
     (** fold over all possible valuations of the network.
         THIS OPERATION IS EXPONENTIAL! Avoid using this whenever possible. *)
-    val fold : t -> init:'accum -> f:('accum -> Prob.t -> valuation -> 'accum) -> 'accum
+    val fold : t -> init:'accum -> f:('accum -> Prob.t -> Valuation.t -> 'accum) -> 'accum
+
+    (* val to_dist : t ->  Dist.M(Valuation).t *)
 
   end
 end
