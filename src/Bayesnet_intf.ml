@@ -1,5 +1,7 @@
 (* Bayesian networks. Can represent joint distributions compactly, provided
    they have some structure that permits factorization.
+
+   DAG.
 *)
 
 open Core
@@ -33,7 +35,8 @@ module type S = sig
     val mass : t -> Prob.t
 
     (** {2} building bayesian networks *)
-    val empty : t
+    val zero : t (* the distribution of mass zero *)
+    val one : t (* the distribution of mass one over nothing *)
     val add : t -> var:Var.t -> dist:Dist.t -> t
     val remove : t -> var:Var.t -> [`Ok of t | `Not_present ]
     val remove_exn : t -> var:Var.t -> t
