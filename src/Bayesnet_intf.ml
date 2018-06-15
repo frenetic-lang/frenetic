@@ -24,8 +24,13 @@ module type S = sig
     module Dist : Dist_intf.S with module Dom = Val
     type t
 
+    (** [Missing_var x] is thrown by operations when an operation performed on
+        a net [t] requires [x], but [x] is not in [vars t]. *)
+    exception Missing_var of Var.t
+
     (** {2} basic properties *)
-    val dom : t -> Set.M(Var).t
+    val vars : t -> Set.M(Var).t
+    val mass : t -> Prob.t
 
     (** {2} building bayesian networks *)
     val empty : t
@@ -42,6 +47,27 @@ module type S = sig
 
     (** convex combination of two networks over the same domain *)
     val convex_sum : t -> t -> p:Prob.t -> t
+
+    (** [split_equal t (x,v)] splits [t] into two networks [(t_eq, t_neq)] in
+        the following way:
+          * t = t_eq + t_neq
+          * mass(t_eq) = Pr(x=v) in t = Pr(x=v) in t_eq
+          * mass(t_neq) = Pr(x!=v) in t = Pr(x!=v) in t_neq
+    *)
+    val split_equal : t -> Var.t * Val.t -> t * t
+
+    val normalize : t -> t option
+
+
+
+    (** {2} misc *)
+
+    (** a [valuation] assigns values to all variables of a bayesian network *)
+    type valuation = Val.t Map.M(Var).t
+
+    (** fold over all possible valuations of the network.
+        THIS OPERATION IS EXPONENTIAL! Avoid using this whenever possible. *)
+    val fold : t -> init:'accum -> f:('accum -> Prob.t -> valuation -> 'accum) -> 'accum
 
   end
 end
