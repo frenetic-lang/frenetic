@@ -75,7 +75,7 @@ let leq p1 p2 =
 (* CLI                                                                       *)
 (*===========================================================================*)
 let () =
-  let max_failures = [0;1;2;3;4;-1] in
+  let max_failures = [0; -1; ] in
   let failure_prob = Prob.(1//16) in
   let timeout = 3600 in (* in seconds *)
   let topos = [
@@ -88,7 +88,7 @@ let () =
 
   List.iter max_failures ~f:(fun max_failures ->
     List.iter topos ~f:(fun (k,topo_file) ->
-      printf "\nk = %d | Pr[failure] = %s | max failures = %d || (timeout = %d sec)\n"
+      printf "\nk = %d | Pr[failure] = %s | max failures = %d || timeout = %d sec\n"
         k (Prob.to_string failure_prob) max_failures timeout;
       printf "=======================================================================\n";
       
@@ -111,13 +111,13 @@ let () =
 
       let logfile = "./examples/output/results/bench.log" in
 
+      let model = Fdd.allocate_fields model in
       Fdd.clear_cache ~preserve:Int.Set.empty;
-      (* first allocated fields; then auto order; then compile *)
       Symbolic.Field.auto_order model;
 
       (* run analysis & dump data *)
-      Util.log_and_sandbox ~timeout ~logfile "fdd compilation" ~f:(fun () ->
-        let fdd = Fdd.of_pol model in
+      Util.log_and_sandbox ~timeout ~logfile topo_file ~f:(fun () ->
+        let fdd = Fdd.of_symbolic_pol model in
         ()
       );
     )
