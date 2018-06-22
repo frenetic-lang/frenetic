@@ -111,8 +111,8 @@ let () =
 
           let ft' = Schemes.enrich_topo ft in
           let abft' = Schemes.enrich_topo abft in
-          let f10_ft = Model.make ~sw_pol:(`Portwise (Schemes.f10 true true ft' fattree)) ~topo:ft ~max_failures ~failure_prob:failure_prob_ft () in
-          let f10_abft = Model.make ~sw_pol:(`Portwise (Schemes.f10 true true abft' abfattree)) ~topo:abft ~max_failures ~failure_prob:failure_prob_abft () in
+          let f10_ft = Model.make ~sw_pol:(`Portwise (Schemes.f10 ft' fattree ~s1:true ~s2:true)) ~topo:ft ~max_failures ~failure_prob:failure_prob_ft () in
+          let f10_abft = Model.make ~sw_pol:(`Portwise (Schemes.f10 abft' abfattree ~s1:true ~s2:true)) ~topo:abft ~max_failures ~failure_prob:failure_prob_abft () in
 
           data.invariant <- (equiv f10_ft PNK.(f10_ft >> ??(Params.f10s2, 0)),
                              equiv f10_abft PNK.(f10_abft >> ??(Params.f10s2, 0)) );
@@ -129,8 +129,8 @@ let () =
           let topo = ft in
           let ft = Schemes.enrich_topo ft in
           let failure_prob = failure_prob_ft in
-          let ecmp_ft = Model.make ~sw_pol:(`Portwise (Schemes.f10 false false ft fattree)) ~topo ~max_failures ~failure_prob () in
-          let f10_s1_ft = Model.make ~sw_pol:(`Portwise (Schemes.f10 true false ft fattree)) ~topo ~max_failures ~failure_prob () in
+          let ecmp_ft = Model.make ~sw_pol:(`Portwise (Schemes.f10 ft fattree ~s1:false ~s2:false)) ~topo ~max_failures ~failure_prob () in
+          let f10_s1_ft = Model.make ~sw_pol:(`Portwise (Schemes.f10 ft fattree ~s1:true ~s2:false)) ~topo ~max_failures ~failure_prob () in
           data.fattree_comp <- equiv ecmp_ft f10_s1_ft;
           dump data file
         );
@@ -142,9 +142,9 @@ let () =
           let max_failures = if max_failures = -1 then None else Some max_failures in
 
           let abft' = Schemes.enrich_topo abft in
-          let f10_no_abft = Model.make ~sw_pol:(`Portwise (Schemes.f10 false false abft' abfattree)) ~topo:abft ~max_failures ~failure_prob:failure_prob_abft () in
-          let f10_s1_abft = Model.make ~sw_pol:(`Portwise (Schemes.f10 true false abft' abfattree)) ~topo:abft ~max_failures ~failure_prob:failure_prob_abft () in
-          let f10_abft = Model.make ~sw_pol:(`Portwise (Schemes.f10 true true abft' abfattree)) ~topo:abft ~max_failures ~failure_prob:failure_prob_abft () in
+          let f10_no_abft = Model.make ~sw_pol:(`Portwise (Schemes.f10 abft' abfattree ~s1:false ~s2:false)) ~topo:abft ~max_failures ~failure_prob:failure_prob_abft () in
+          let f10_s1_abft = Model.make ~sw_pol:(`Portwise (Schemes.f10 abft' abfattree ~s1:true ~s2:false)) ~topo:abft ~max_failures ~failure_prob:failure_prob_abft () in
+          let f10_abft = Model.make ~sw_pol:(`Portwise (Schemes.f10 abft' abfattree ~s1:true ~s2:true)) ~topo:abft ~max_failures ~failure_prob:failure_prob_abft () in
 
           data.refinement <- [leq f10_no_abft f10_s1_abft;
                               leq f10_s1_abft f10_abft;
@@ -160,9 +160,9 @@ let () =
           let max_failures = if max_failures = -1 then None else Some max_failures in
 
           let abft' = Schemes.enrich_topo abft in
-          let f10_no_abft = Model.make ~sw_pol:(`Portwise (Schemes.f10 false false abft' abfattree)) ~topo:abft ~max_failures ~failure_prob:failure_prob_abft () in
-          let f10_s1_abft = Model.make ~sw_pol:(`Portwise (Schemes.f10 true false abft' abfattree)) ~topo:abft ~max_failures ~failure_prob:failure_prob_abft () in
-          let f10_abft = Model.make ~sw_pol:(`Portwise (Schemes.f10 true true abft' abfattree)) ~topo:abft ~max_failures ~failure_prob:failure_prob_abft () in
+          let f10_no_abft = Model.make ~sw_pol:(`Portwise (Schemes.f10 abft' abfattree ~s1:false ~s2:false)) ~topo:abft ~max_failures ~failure_prob:failure_prob_abft () in
+          let f10_s1_abft = Model.make ~sw_pol:(`Portwise (Schemes.f10 abft' abfattree ~s1:true ~s2:false)) ~topo:abft ~max_failures ~failure_prob:failure_prob_abft () in
+          let f10_abft = Model.make ~sw_pol:(`Portwise (Schemes.f10 abft' abfattree ~s1:true ~s2:true)) ~topo:abft ~max_failures ~failure_prob:failure_prob_abft () in
 
           data.resilience <- [equiv f10_no_abft (Model.teleportation abft);
                               equiv f10_s1_abft (Model.teleportation abft);

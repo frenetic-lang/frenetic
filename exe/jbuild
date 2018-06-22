@@ -1,8 +1,8 @@
 (jbuild_version 1)
 
 (executables
- ((names        (main topo dump icfp))
-  (public_names (probnetkat probnetkat.topo probnetkat.dump probnetkat.icfp))
+ ((names        (main topo dump icfp bench))
+  (public_names (probnetkat probnetkat.topo probnetkat.dump probnetkat.icfp probnetkat.bench))
   (libraries (
     core
     zarith
