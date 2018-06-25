@@ -1,84 +1,14 @@
 open! Core
 open Probnetkat
-open Probnetkat.Syntax
 open Probnetkat.Symbolic
-open Frenetic.Network
 
 
-(*===========================================================================*)
-(* Data from experiments                                                     *)
-(*===========================================================================*)
-
-(** raw data from experiment *)
-type data = {
-  max_failures : int; (* -1 means no limit *)
-  failure_prob : int * int;
-  mutable invariant : bool * bool;
-  mutable fattree_comp : bool;
-  mutable refinement : bool list;
-  mutable resilience : bool list;
-
-} [@@deriving yojson]
-
-let empty ~max_failures ~failure_prob =
-  {
-    max_failures;
-    failure_prob = Prob.to_int_frac failure_prob;
-    invariant = (false, false);
-    fattree_comp = false;
-    refinement = [];
-    resilience = [];
-  }
-
-let dump (data : data) ~file : unit =
-  let dir = Filename.dirname file in
-  Unix.mkdir_p dir;
-  let json = data_to_yojson data in
-  Out_channel.with_file file ~f:(fun chan ->
-    Yojson.Safe.pretty_to_channel chan json
-  )
-
-let load_file file : data =
-  Yojson.Safe.from_file file
-  |> data_of_yojson
-  |> Result.ok_or_failwith
-
-(* returns file, data read from file, and if the file is fresh or existed already *)
-let load ~max_failures ~failure_prob
-: string * data * [`Fresh | `Existed] =
-  let dir = sprintf "./examples/output/results/comparisons" in
-  let mf = if max_failures < 0 then "inf" else Int.to_string max_failures in
-  let p_num, p_den = Prob.to_int_frac failure_prob in
-  let file = sprintf "%s/%s-%d-%d.json" dir mf p_num p_den in
-  if is_ok (Unix.access file [`Exists]) then
-    let data = load_file file in
-    file, data, `Existed
-  else
-    let data = empty ~max_failures ~failure_prob in
-    file, data, `Fresh
-
-
-(*===========================================================================*)
-(* Analyses                                                                  *)
-(*===========================================================================*)
-
-
-let equiv p1 p2 =
-  Fdd.(equivalent (of_pol p1) (of_pol p2) ~modulo:Params.modulo)
-
-let leq p1 p2 =
-  let p1 = Fdd.of_pol p1 in
-  let p2 = Fdd.of_pol p2 in
-  Fdd.(less_than p1 p2 ~modulo:Params.modulo)
-
-(*===========================================================================*)
-(* CLI                                                                       *)
-(*===========================================================================*)
-let () =
+let () = begin
   let max_failures = [0; -1; ] in
   let failure_prob = Prob.(1//16) in
   let timeout = 3600 in (* in seconds *)
   let topos = [
+      (* TODO: generate 2-ary fattree *)
       (* 2, ""; *)
       4, "./examples/output/abfattree_4_sw_20";
       6, "./examples/output/abfattree_6_sw_45";
@@ -107,18 +37,19 @@ let () =
           else Prob.zero
         )
         ()
+        |> Fdd.allocate_fields
       in
 
       let logfile = "./examples/output/results/bench.log" in
 
-      let model = Fdd.allocate_fields model in
+      (* clear cache and set FDD order *)
       Fdd.clear_cache ~preserve:Int.Set.empty;
       Symbolic.Field.auto_order model;
 
-      (* run analysis & dump data *)
       Util.log_and_sandbox ~timeout ~logfile topo_file ~f:(fun () ->
-        let fdd = Fdd.of_symbolic_pol model in
-        ()
+        Fdd.of_symbolic_pol model
+        |> ignore
       );
     )
   )
+end
