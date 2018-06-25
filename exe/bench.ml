@@ -15,7 +15,7 @@ let () = begin
       8, "./examples/output/abfattree_8_sw_80";
       10, "./examples/output/abfattree_10_sw_125";
       12, "./examples/output/abfattree_12_sw_180";
-      14, "./examples/output/abfattree_12_sw_245";
+      14, "./examples/output/abfattree_14_sw_245";
     ]
   in
 
