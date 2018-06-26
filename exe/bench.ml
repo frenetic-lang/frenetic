@@ -8,8 +8,7 @@ let () = begin
   let failure_prob = Prob.(1//16) in
   let timeout = 3600 in (* in seconds *)
   let topos = [
-      (* TODO: generate 2-ary fattree *)
-      (* 2, ""; *)
+      2, "./examples/output/abfattree_2_sw_5";
       4, "./examples/output/abfattree_4_sw_20";
       6, "./examples/output/abfattree_6_sw_45";
       8, "./examples/output/abfattree_8_sw_80";
