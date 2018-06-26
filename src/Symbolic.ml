@@ -1685,7 +1685,7 @@ module Fdd = struct
       else if equal a drop then
         of_pol_k q k
       else
-        of_pol_k p (fun p -> of_pol_k q (fun q -> ite a p q))
+        of_pol_k p (fun p -> of_pol_k q (fun q -> k (ite a p q)))
     | While (a, p) ->
       let a = of_pred a in
       if equal a id then k drop else
@@ -1698,7 +1698,7 @@ module Fdd = struct
       |> n_ary_convex_sum
       |> k
     | Let { id=field; init; mut; body=p } ->
-      of_pol_k p (fun p' -> k (erase p' field init))
+      of_pol_k p (fun p -> k (erase p field init))
 
   and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
 
