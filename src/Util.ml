@@ -113,8 +113,13 @@ let sandboxed ?timeout ~logfile ~f : [`Ok | `Tout | `Err | `Int ] =
         in
         Unix.select ~restart:true ~read:[read_done_fd] ~write:[]
           ~except:[] ~timeout ()
-        |> ignore;
-        In_channel.input_line read_done
+        |> function
+          | sel when sel = Unix.Select_fds.empty ->
+          (* timeout *)
+          None
+          | _ ->
+          (* process terminates in time; read result *)
+          In_channel.input_line read_done
       with
         | None -> `Tout
         | Some "Ok" -> `Ok
