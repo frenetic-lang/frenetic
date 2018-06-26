@@ -147,3 +147,20 @@ let log_and_sandbox ?timeout ~logfile descr ~f : unit =
   | `Tout -> printf "%s" tout
   end;
   printf "\t(%.3f seconds)\n%!" t
+
+(* nicer fork command *)
+let fork (f : unit -> unit) : Pid.t =
+  match Unix.fork () with
+  | `In_the_child ->
+    Backtrace.Exn.with_recording true ~f:(fun () ->
+      try
+        f (); exit 0
+      with e -> begin
+        let backtrace = Backtrace.Exn.most_recent () in
+        Format.printf "Uncaught exception in forked process:\n%a\n%!" Exn.pp e;
+        Format.printf "%s\n%!" (Backtrace.to_string backtrace);
+        exit 1
+      end
+    )
+  | `In_the_parent pid ->
+    pid

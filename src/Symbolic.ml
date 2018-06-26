@@ -1390,31 +1390,24 @@ module Fdd = struct
   end
 
   (** sequence of FactorizedActionDist.t and t  *)
-  let rec seq' dist u =
+  let rec dist_seq dist u =
     let t = const dist in
-    let result =
-      if equal t drop then drop else
-      if equal t id  then u else
-      BinTbl.find_or_add seq_tbl (t,u) ~default:(fun () ->
-        match unget u with
-        | Leaf dist' ->
-          const (FactorizedActionDist.prod dist dist')
-        | Branch {test; tru; fls} ->
-          let ((yes,p_yes), (no, p_no), (maybe, p_maybe)) =
-            FactorizedActionDist.split_into_conditionals dist test
-          in
-          n_ary_convex_sum [
-            seq' yes tru, p_yes;
-            seq' no fls, p_no;
-            unchecked_cond test (seq' maybe tru) (seq' maybe fls), p_maybe;
-          ]
-      )
-    in
-(*     printf "Seq of\n  %s\nand\n  %s\nis\n  %s\n\n%!"
-      (FactorizedActionDist.to_string dist)
-      (to_string u)
-      (to_string result); *)
-    result
+    if equal t drop then drop else
+    if equal t id  then u else
+    BinTbl.find_or_add seq_tbl (t,u) ~default:(fun () ->
+      match unget u with
+      | Leaf dist' ->
+        const (FactorizedActionDist.prod dist dist')
+      | Branch {test; tru; fls} ->
+        let ((yes,p_yes), (no, p_no), (maybe, p_maybe)) =
+          FactorizedActionDist.split_into_conditionals dist test
+        in
+        n_ary_convex_sum [
+          dist_seq yes tru, p_yes;
+          dist_seq no fls, p_no;
+          unchecked_cond test (dist_seq maybe tru) (dist_seq maybe fls), p_maybe;
+        ]
+    )
 
   let seq t u =
     match unget u with
@@ -1425,25 +1418,11 @@ module Fdd = struct
                             removed because there are none. *)
     | Branch _ ->
       dp_map t
-        ~f:(fun dist ->
-            seq' dist u
-(*           ActionDist.to_alist dist
-          |> Util.map_fst ~f:(fun action ->
-            match action with
-            | Action.Drop -> drop
-            | Action.Action preact ->
-              restrict (PreAction.to_hvs preact) u
-              |> prod (const @@ ActionDist.dirac action)
-          )
-          |> n_ary_convex_sum *)
-        )
+        ~f:(fun dist -> dist_seq dist u)
         ~g:(fun v t f -> cond v t f)
         ~find_or_add:(fun t -> BinTbl.find_or_add seq_tbl (t,u))
 
-  (* SJS: the fragment of ProbNetKAT we are using does not have a union operator!
-     We only have boolean disjunction and disjoint union.
-   *)
-  (* let union t u = sum t u *)
+
 
   (* FIXME: this skeleton is very large, so this may become a bottleneck.
      I used to use a smaller skeleton computed from ap and not_a, but I am not
@@ -1508,22 +1487,7 @@ module Fdd = struct
     )
 
 
-  let fork f : Pid.t =
-    match Unix.fork () with
-    | `In_the_child ->
-      Backtrace.Exn.with_recording true ~f:(fun () ->
-        try
-          f (); exit 0
-        with e -> begin
-          let backtrace = Backtrace.Exn.most_recent () in
-          Format.printf "Uncaught exception in forked process:\n%a\n%!" Exn.pp e;
-          Format.printf "%s\n%!" (Backtrace.to_string backtrace);
-          (* printf "%s\n%!" (Exn.backtrace ()); *)
-          exit 1
-        end
-      )
-    | `In_the_parent pid ->
-      pid
+
 
   (*      X = (AP)*¬A
     Thus  X = ¬A + (AP)X
@@ -1570,8 +1534,8 @@ module Fdd = struct
 
 
     (* try computing naive fixed-point and analytical fixed-point in parallel *)
-    let py_pid = fork (fun () -> python_iterate ap not_a coding to_py) in
-    let caml_pid = fork (fun () ->
+    let py_pid = Util.fork (fun () -> python_iterate ap not_a coding to_py) in
+    let caml_pid = Util.fork (fun () ->
       let fixpoint = Util.timed "naive fixpoint" (fun () ->
         clear_cache ~preserve:(Int.Set.of_list ([ap; not_a] : t list :> int list));
         ocaml_iterate ap not_a
@@ -1653,14 +1617,14 @@ module Fdd = struct
     )
 
   (* buggy, for some reason *)
-  let repeat n p =
+(*   let repeat n p =
     let rec loop i p_2n acc =
       if i = 1 then
         List.fold acc ~init:p_2n ~f:seq
       else
         loop (i/2) (seq p_2n p_2n) (if i%2 = 0 then acc else p_2n :: acc)
     in
-    if n <= 0 then id else loop n p []
+    if n <= 0 then id else loop n p [] *)
 
 
 
@@ -1690,6 +1654,16 @@ module Fdd = struct
        this purpose. Either way, the implementation of sum currently
        enforces that nothing can go wrong here. *)
     sum (prod a p) (prod (negate a) q)
+
+
+  (* timed versions of the compilation functions *)
+  let of_pred_t a = of_pred a
+  let of_mod_t hv = of_mod
+  let ite_t a p q = ite a p q
+  let seq_t p q = seq p q
+  let whl_t a p = whl a p
+  let n_ary_convex_sum_t ps = n_ary_convex_sum ps
+  let erase_t p f init = erase p f init
 
   let rec of_pol_k (p : Field.t policy) k : t =
     printf "Cache size: %d\n%!" (cache_size ());
