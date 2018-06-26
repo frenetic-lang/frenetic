@@ -1656,28 +1656,61 @@ module Fdd = struct
     sum (prod a p) (prod (negate a) q)
 
 
-  (* timed versions of the compilation functions *)
-  let of_pred_t a = of_pred a
-  let of_mod_t hv = of_mod
-  let ite_t a p q = ite a p q
-  let seq_t p q = seq p q
-  let whl_t a p = whl a p
-  let n_ary_convex_sum_t ps = n_ary_convex_sum ps
-  let erase_t p f init = erase p f init
+
+  (** {2} timed versions of the compilation functions *)
+  let stats_tbl : (string, float list) Hashtbl.t = String.Table.create ()
+  let clear_stats () = Hashtbl.clear stats_tbl
+  let measure key f =
+    let t,x = Util.time' f in
+    Hashtbl.add_multi stats_tbl key t;
+    x
+
+  (* total number of measurements *)
+  let n_of_meas () =
+    Hashtbl.fold stats_tbl ~init:0 ~f:(fun ~key:_ ~data acc ->
+      acc + List.length data
+    )
+
+  (* total time measured *)
+  let t_of_meas () =
+    Hashtbl.fold stats_tbl ~init:0. ~f:(fun ~key:_ ~data init ->
+      List.fold data ~init ~f:(+.)
+    )
+
+  let print_stats () =
+    let n = n_of_meas () in
+    let t = t_of_meas () in
+    Hashtbl.iteri stats_tbl ~f:(fun ~key ~data ->
+      let ni = List.length data in
+      let ti = List.fold data ~init:0. ~f:(+.) in
+      printf "%s:\t" key;
+      printf "# = %d (%.1f%%)\t" ni Float.((of_int ni) / (of_int n) * 100.);
+      printf "t = %.0fs (%.1f%%)\t" ti (ti /. t *. 100.);
+      printf "\n%!";
+    )
+
+  let of_pred_t a = measure "pred" (fun () -> of_pred a)
+  let of_mod_t hv = measure "mod" (fun () -> of_mod hv)
+  let ite_t a p q = measure "ite" (fun () -> ite a p q)
+  let seq_t p q = measure "seq" (fun () -> seq p q)
+  let whl_t a p = measure "whl" (fun () -> whl a p)
+  let n_ary_convex_sum_t ps = measure "choice" (fun () -> n_ary_convex_sum ps)
+  let erase_t p f init = measure "erase" (fun () -> erase p f init)
+
 
   let rec of_pol_k (p : Field.t policy) k : t =
     printf "Cache size: %d\n%!" (cache_size ());
     match p with
     | Filter p ->
-      k (of_pred p)
+      k (of_pred_t p)
     | Modify m ->
-      k (of_mod  m)
+      k (of_mod_t m)
     | Seq (p, q) ->
       of_pol_k p (fun p' ->
         if equal p' Fdd0.drop then
           k drop
         else
-          of_pol_k q (fun q' -> k (seq p' q')))
+          of_pol_k q (fun q' -> k (seq_t p' q')))
     | Ite (a, p, q) ->
       let a = of_pred a in
       if equal a id then
@@ -1685,20 +1718,20 @@ module Fdd = struct
       else if equal a drop then
         of_pol_k q k
       else
-        of_pol_k p (fun p -> of_pol_k q (fun q -> k (ite a p q)))
+        of_pol_k p (fun p -> of_pol_k q (fun q -> k (ite_t a p q)))
     | While (a, p) ->
       let a = of_pred a in
       if equal a id then k drop else
       if equal a drop then k id else
       of_pol_k p (fun p ->
-        k (Util.timed "while loop" (fun () -> whl a p))
+        k (Util.timed "while loop" (fun () -> whl_t a p))
       )
     | Choice dist ->
       Util.map_fst dist ~f:of_symbolic_pol
-      |> n_ary_convex_sum
+      |> n_ary_convex_sum_t
       |> k
     | Let { id=field; init; mut; body=p } ->
-      of_pol_k p (fun p -> k (erase p field init))
+      of_pol_k p (fun p -> k (erase_t p field init))
 
   and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
 

@@ -46,11 +46,12 @@ let () = begin
 
       (* clear cache and set FDD order *)
       Fdd.clear_cache ~preserve:Int.Set.empty;
+      Fdd.clear_stats ();
       Symbolic.Field.auto_order model;
 
       Util.log_and_sandbox ~timeout ~logfile topo_file ~f:(fun () ->
-        Fdd.of_symbolic_pol model
-        |> ignore
+        ignore (Fdd.of_symbolic_pol model);
+        Fdd.print_stats ();
       );
     )
   )
