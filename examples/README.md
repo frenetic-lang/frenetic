@@ -1,3 +1,9 @@
+
+To install dependencies:
+```
+./install-dependencies.ubuntu.sh
+```
+
 To run:
     ```
     sage -python network.py --topo fattree,4 -r spf,allsp,disjointtrees -o output/ex1
