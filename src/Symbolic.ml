@@ -1530,7 +1530,7 @@ module Fdd = struct
      <=>  (I-AP)X = ¬A
      We are looking for X. We solve the linear (sparse) system to compute it.
   *)
-  let iterate a p =
+  let whl a p =
     (* printf "a = %s\n" (to_string a); *)
     (* transition matrix for transient states, i.e. those satisfying predicate [a] *)
     let ap = prod a p in
@@ -1652,7 +1652,7 @@ module Fdd = struct
         failwith "unexpected behavior"
     )
 
-
+  (* buggy, for some reason *)
   let repeat n p =
     let rec loop i p_2n acc =
       if i = 1 then
@@ -1685,18 +1685,14 @@ module Fdd = struct
             cond (field,v) tru fls
         )
 
+  let ite a p q =
+    (* SJS: Disjoint union. Ideally, we would have a safe primitive for
+       this purpose. Either way, the implementation of sum currently
+       enforces that nothing can go wrong here. *)
+    sum (prod a p) (prod (negate a) q)
+
   let rec of_pol_k (p : Field.t policy) k : t =
-    printf "Cache size: %d (before %s)\n%!" (cache_size ())
-      (match p with
-        | Filter _ -> "filter a"
-        | Modify _ -> "f<-n"
-        | Seq _ -> "p;q"
-        | Ite _ -> "if a then p else q"
-        | While _ -> "while a do p"
-        | Choice _ -> "choice { q_1 @ p_1; ...; q_k @ p_k }"
-        | Let _ -> "let x = n in p"
-        (* | Repeat _ -> "do n times p" *)
-      );
+    printf "Cache size: %d\n%!" (cache_size ());
     match p with
     | Filter p ->
       k (of_pred p)
@@ -1715,21 +1711,13 @@ module Fdd = struct
       else if equal a drop then
         of_pol_k q k
       else
-        of_pol_k p (fun p ->
-          of_pol_k q (fun q ->
-            (* SJS: Disjoint union. Ideally, we would have a safe primitive for
-               this purpose. Either way, the implementation of sum currently
-               enforces that nothing can go wrong here.
-             *)
-            k @@ sum (prod a p) (prod (negate a) q)
-          )
-        )
+        of_pol_k p (fun p -> of_pol_k q (fun q -> ite a p q))
     | While (a, p) ->
       let a = of_pred a in
       if equal a id then k drop else
       if equal a drop then k id else
       of_pol_k p (fun p ->
-        k @@ Util.timed "while loop" (fun () -> iterate a p)
+        k (Util.timed "while loop" (fun () -> whl a p))
       )
     | Choice dist ->
       Util.map_fst dist ~f:of_symbolic_pol
@@ -1737,13 +1725,11 @@ module Fdd = struct
       |> k
     | Let { id=field; init; mut; body=p } ->
       of_pol_k p (fun p' -> k (erase p' field init))
-(*     | Repeat (n, p) ->
-      of_pol_k p (fun p -> repeat n p) *)
 
   and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
 
 
-  let rec of_pol_cps (k : t) (p : Field.t policy) : t =
+(*   let rec of_pol_cps (k : t) (p : Field.t policy) : t =
     if equal k drop then drop else
     match p with
     | Filter a ->
@@ -1769,7 +1755,7 @@ module Fdd = struct
       (* SJS: this is safe, right? *)
       erase (of_pol_cps k p) field init
 (*     | Repeat (n, p) ->
-      seq k (repeat n (of_pol_cps id p)) *)
+      seq k (repeat n (of_pol_cps id p)) *) *)
 
   let of_pol (p : string policy) : t =
     allocate_fields p
