@@ -473,17 +473,6 @@ module FactorizedActionDist : sig
   val split_into_conditionals :
     t -> Field.t * Value.t -> ((t * Prob.t) * (t * Prob.t) * (t * Prob.t))
 
-
-  (* experimental *)
-  type observe = ActionDist.t ->
-    [ `Irrelevant
-    | `UNSAT
-    | `TRUE of ActionDist.t
-    | `SAT of ActionDist.t * observe
-    ]
-
-  val observe : f:observe -> t -> t
-
 end = struct
   type t = ActionDist.t list
   [@@deriving sexp, hash, compare, eq]
