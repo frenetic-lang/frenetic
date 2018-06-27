@@ -191,7 +191,10 @@ module Field = struct
         k (f_choice ps, lst)
       | Let { id; init; mut; body=p } ->
         f_seq' p lst k
-      | While (a,p) -> k (f_union a p PNK.skip, lst)
+      | While (a,p) ->
+        k (f_union a p PNK.skip, lst)
+      | ObserveUpon (p,a) ->
+        f_seq' (Seq (p, Filter a)) lst k
     and f_seq pol : int =
       let (size, preds) = f_seq' pol [] (fun x -> x) in
       List.iter preds ~f:(f_pred size);
@@ -218,6 +221,8 @@ module Field = struct
         f_union' p lst (fun (m, lst) ->
           k (m, a::lst)
         )
+      | ObserveUpon (p,a) ->
+        f_union' (Seq (p, Filter a)) lst k
     and f_union a p q : int =
       let (p_size, p_preds) = f_union' p [] (fun x -> x) in
       let (q_size, q_preds) = f_union' q [] (fun x -> x) in
@@ -481,7 +486,6 @@ end = struct
   let one = []
   let empty = [ActionDist.empty]
   let dirac x = canonicalize [ActionDist.dirac x]
-
 
   let is_zero t =
     match t with
@@ -1236,6 +1240,8 @@ module Fdd = struct
         Ite (do_pred env a, do_pol env p, do_pol env q)
       | While (a, p) ->
         While (do_pred env a, do_pol env p)
+      | ObserveUpon (p, a) ->
+        ObserveUpon (do_pol env p, do_pred env a)
       | Choice dist ->
         Choice (Util.map_fst dist ~f:(do_pol env))
       | Let { id; init; mut; body; } ->
@@ -1275,6 +1281,8 @@ module Fdd = struct
         Ite (do_pred a, do_pol p, do_pol q)
       | While (a, p) ->
         While (do_pred a, do_pol p)
+      | ObserveUpon (p, a) ->
+        ObserveUpon (do_pol p, do_pred a)
       | Choice dist ->
         Choice (Util.map_fst dist ~f:(do_pol))
       | Let { id; init; mut; body; } ->
@@ -1616,6 +1624,7 @@ module Fdd = struct
         failwith "unexpected behavior"
     )
 
+
   (* buggy, for some reason *)
 (*   let repeat n p =
     let rec loop i p_2n acc =
@@ -1625,8 +1634,6 @@ module Fdd = struct
         loop (i/2) (seq p_2n p_2n) (if i%2 = 0 then acc else p_2n :: acc)
     in
     if n <= 0 then id else loop n p [] *)
-
-
 
   (** Erases (all matches on) meta field, then all modifications. *)
   let erase t meta_field init =
@@ -1732,6 +1739,9 @@ module Fdd = struct
       |> k
     | Let { id=field; init; mut; body=p } ->
       of_pol_k p (fun p -> k (erase_t p field init))
+    | ObserveUpon (p, a) ->
+      (* FIXME / TODO *)
+      of_pol_k Syntax.PNK.(do_whl (neg a) p) k
 
   and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
 

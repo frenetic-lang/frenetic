@@ -228,7 +228,10 @@ let resilient_random_walk topo : Net.Topology.vertex -> string policy =
       |> List.map ~f:Topology.pt_val
     in
     let choose_port = random_walk topo sw in
-    PNK.( do_whl (neg (at_good_pt sw pts)) choose_port )
+    PNK.(
+      choose_port
+      |> then_observe (at_good_pt sw pts)
+    )
 
 let shortest_path topo base_name : Net.Topology.vertex -> string policy =
   let port_tbl = parse_trees topo (Params.spf_file base_name) in
@@ -259,10 +262,9 @@ let resilient_ecmp topo base_name : Net.Topology.vertex -> string policy =
     let sw_val = Topology.sw_val topo.graph sw in
     match Hashtbl.find port_tbl sw_val with
     | Some pts -> PNK.(
-        do_whl (neg (at_good_pt sw pts)) (
-          List.map pts ~f:(fun pt_val -> !!(pt, pt_val))
-          |> uniform
-        )
+        List.map pts ~f:(fun pt_val -> !!(pt, pt_val))
+        |> uniform
+        |> then_observe (at_good_pt sw pts)
       )
     | _ ->
       eprintf "switch %d cannot reach destination\n" sw_val;
@@ -314,17 +316,17 @@ let f10 ?(s1=true) ?(s2=true) topo base_name : Net.Topology.vertex -> int -> str
           ???(up sw_val pt_val, 1)) |> mk_big_disj) in
 
       let fwd_diff_type_subtree = PNK.(
-          do_whl (neg (at_good_pt sw diff_type_dnwd_pts)) (
-            List.map diff_type_dnwd_pts ~f:(fun pt_val -> !!(pt, pt_val))
-            |> uniform
-          )
-        ) in
+          List.map diff_type_dnwd_pts ~f:(fun pt_val -> !!(pt, pt_val))
+          |> uniform
+          |> then_observe (at_good_pt sw diff_type_dnwd_pts)
+        )
+      in
 
       let fwd_same_type_subtree = PNK.(
-          !!(f10s2, 1) >>
-          do_whl (neg (at_good_pt sw same_type_dnwd_pts)) (
+          !!(f10s2, 1) >> (
             List.map same_type_dnwd_pts ~f:(fun pt_val -> !!(pt, pt_val))
             |> uniform
+            |> then_observe (at_good_pt sw diff_type_dnwd_pts)
           )
         ) in
 
@@ -357,10 +359,11 @@ let f10 ?(s1=true) ?(s2=true) topo base_name : Net.Topology.vertex -> int -> str
            to random child if exists. Else, perfrom default forwarding *)
       let epts = List.filter pts ~f:(fun pv -> pv <> in_pt) in
       let def_fwding = PNK.(
-        do_whl (neg (at_good_pt sw epts))  (
           List.map epts ~f:(fun pt_val -> !!(pt, pt_val))
           |> uniform
-        )) in
+          |> then_observe (at_good_pt sw epts)
+        )
+      in
       let rev_in_edge = Hashtbl.find_exn topo.hop_tbl (sw_val, in_pt) in
       let (prev_sw, _) = Net.Topology.edge_dst rev_in_edge in
       if not (Topology.is_switch topo.graph prev_sw) then def_fwding else
@@ -374,9 +377,11 @@ let f10 ?(s1=true) ?(s2=true) topo base_name : Net.Topology.vertex -> int -> str
         | [] -> PNK.(!!(f10s2, 0) >> def_fwding)
         | _ ->
           let fwd_children = PNK.(
-            do_whl (neg (at_good_pt sw children_pts)) (
               List.map children_pts ~f:(fun pt_val -> !!(pt, pt_val))
-              |> uniform)) in
+              |> uniform
+              |> then_observe (at_good_pt sw children_pts)
+            )
+          in
           PNK.(Ite (???(f10s2, 1), !!(f10s2, 0) >> fwd_children, def_fwding))
 
 

@@ -43,6 +43,8 @@ let delete_up_bits p =
       choice (Util.map_fst choices ~f:do_pol)
     | Let { id; init; mut; body } ->
       Let { id; init; mut; body = do_pol body }
+    | ObserveUpon (p, a) ->
+      ObserveUpon (do_pol p, do_pred a)
 (*     | Repeat (n,p) ->
       Repeat (n, do_pol p) *)
   in
@@ -82,7 +84,7 @@ let make
       | Some bound ->
         !!(ttl, bound) >>
         whl (neg (???(sw, destination))) (
-          hop () >> 
+          hop () >>
           begin
             List.range 1 bound ~stop:`inclusive
             |> ite_cascade ~otherwise:drop ~f:(fun ttl_val ->
