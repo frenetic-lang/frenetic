@@ -182,8 +182,6 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
       applications of [f] to the values that they hold, and branches on
       variables with applications of [g]. *)
 
-  (* val ctxt_map_r : f:(ctxt:t -> r -> r) -> t -> t *)
-
   val equal : t -> t -> bool
   (** [equal a b] returns whether or not the two diagrams are structurally
       equal.
