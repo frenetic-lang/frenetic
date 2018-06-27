@@ -270,7 +270,7 @@ let resilient_ecmp topo base_name : Net.Topology.vertex -> string policy =
       eprintf "switch %d cannot reach destination\n" sw_val;
       failwith "network disconnected!"
 
-let f10 scheme1 scheme2 topo base_name : Net.Topology.vertex -> int -> string policy =
+let f10 ?(s1=true) ?(s2=true) topo base_name : Net.Topology.vertex -> int -> string policy =
   let port_tbl = parse_nexthops topo (Params.ecmp_file base_name) in
   fun sw in_pt ->
     let sw_val = Topology.sw_val topo.graph sw in
@@ -330,24 +330,26 @@ let f10 scheme1 scheme2 topo base_name : Net.Topology.vertex -> int -> string po
           )
         ) in
 
-      begin match (scheme1, scheme2) with
-        | (false, false) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt), drop))
-        | (true, false) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
-                                    Ite (some_diff_type_subtree_up, fwd_diff_type_subtree, drop)))
-        | (false, true) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
-                                    Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop)))
-        | (true, true) ->
-          begin match (diff_type_dnwd_pts, same_type_dnwd_pts) with
-            | ([], []) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt), drop))
-            | ([], _ ) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
-                                    Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop)))
-            | (_, [] ) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
-                                    Ite (some_diff_type_subtree_up, fwd_diff_type_subtree, drop)))
-            | (_, _) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
-                                  Ite (some_diff_type_subtree_up, fwd_diff_type_subtree,
-                                       (* Scheme 2 *)
-                                       Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop))))
-          end
+      begin match s1, s2 with
+      | (false, false) -> PNK.(
+        Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt), drop)
+      )
+      | (true, false) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+                                  Ite (some_diff_type_subtree_up, fwd_diff_type_subtree, drop)))
+      | (false, true) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+                                  Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop)))
+      | (true, true) ->
+        begin match (diff_type_dnwd_pts, same_type_dnwd_pts) with
+        | ([], []) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt), drop))
+        | ([], _ ) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+                                Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop)))
+        | (_, [] ) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+                                Ite (some_diff_type_subtree_up, fwd_diff_type_subtree, drop)))
+        | (_, _) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+                              Ite (some_diff_type_subtree_up, fwd_diff_type_subtree,
+                                   (* Scheme 2 *)
+                                   Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop))))
+        end
       end
 
 
@@ -431,10 +433,10 @@ let get_all topo base_name : (string * scheme) list =
   let ecmp () = `Switchwise (ecmp topo base_name) in
   let resilient_ecmp () = `Switchwise (resilient_ecmp topo base_name) in
   let car () = `Portwise (car topo base_name ~style:`Deterministic) in
-  let f10_no_lr () = `Portwise (f10 false false topo base_name) in
-  let f10_s1_lr () = `Portwise (f10 true false topo base_name) in
-  let f10_s2_lr () = `Portwise (f10 false true topo base_name) in
-  let f10_s1_s2_lr () = `Portwise (f10 true true topo base_name) in
+  let f10_no_lr () = `Portwise (f10 topo base_name ~s1:false ~s2:false) in
+  let f10_s1_lr () = `Portwise (f10 topo base_name ~s1:true ~s2:false) in
+  let f10_s2_lr () = `Portwise (f10 topo base_name ~s1:false ~s2:true) in
+  let f10_s1_s2_lr () = `Portwise (f10 topo base_name ~s1:true ~s2:true) in
   (* SJS: for convenience, run fast-to-analyze before slow-to-analyze schemes *)
   [
     "shortest path",          shortest_path;

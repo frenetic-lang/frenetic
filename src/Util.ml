@@ -113,8 +113,13 @@ let sandboxed ?timeout ~logfile ~f : [`Ok | `Tout | `Err | `Int ] =
         in
         Unix.select ~restart:true ~read:[read_done_fd] ~write:[]
           ~except:[] ~timeout ()
-        |> ignore;
-        In_channel.input_line read_done
+        |> function
+          | sel when sel = Unix.Select_fds.empty ->
+          (* timeout *)
+          None
+          | _ ->
+          (* process terminates in time; read result *)
+          In_channel.input_line read_done
       with
         | None -> `Tout
         | Some "Ok" -> `Ok
@@ -142,3 +147,20 @@ let log_and_sandbox ?timeout ~logfile descr ~f : unit =
   | `Tout -> printf "%s" tout
   end;
   printf "\t(%.3f seconds)\n%!" t
+
+(* nicer fork command *)
+let fork (f : unit -> unit) : Pid.t =
+  match Unix.fork () with
+  | `In_the_child ->
+    Backtrace.Exn.with_recording true ~f:(fun () ->
+      try
+        f (); exit 0
+      with e -> begin
+        let backtrace = Backtrace.Exn.most_recent () in
+        Format.printf "Uncaught exception in forked process:\n%a\n%!" Exn.pp e;
+        Format.printf "%s\n%!" (Backtrace.to_string backtrace);
+        exit 1
+      end
+    )
+  | `In_the_parent pid ->
+    pid

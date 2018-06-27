@@ -1419,31 +1419,24 @@ module Fdd = struct
   end
 
   (** sequence of FactorizedActionDist.t and t  *)
-  let rec seq' dist u =
+  let rec dist_seq dist u =
     let t = const dist in
-    let result =
-      if equal t drop then drop else
-      if equal t id  then u else
-      BinTbl.find_or_add seq_tbl (t,u) ~default:(fun () ->
-        match unget u with
-        | Leaf dist' ->
-          const (FactorizedActionDist.prod dist dist')
-        | Branch {test; tru; fls} ->
-          let ((yes,p_yes), (no, p_no), (maybe, p_maybe)) =
-            FactorizedActionDist.split_into_conditionals dist test
-          in
-          n_ary_convex_sum [
-            seq' yes tru, p_yes;
-            seq' no fls, p_no;
-            unchecked_cond test (seq' maybe tru) (seq' maybe fls), p_maybe;
-          ]
-      )
-    in
-(*     printf "Seq of\n  %s\nand\n  %s\nis\n  %s\n\n%!"
-      (FactorizedActionDist.to_string dist)
-      (to_string u)
-      (to_string result); *)
-    result
+    if equal t drop then drop else
+    if equal t id  then u else
+    BinTbl.find_or_add seq_tbl (t,u) ~default:(fun () ->
+      match unget u with
+      | Leaf dist' ->
+        const (FactorizedActionDist.prod dist dist')
+      | Branch {test; tru; fls} ->
+        let ((yes,p_yes), (no, p_no), (maybe, p_maybe)) =
+          FactorizedActionDist.split_into_conditionals dist test
+        in
+        n_ary_convex_sum [
+          dist_seq yes tru, p_yes;
+          dist_seq no fls, p_no;
+          unchecked_cond test (dist_seq maybe tru) (dist_seq maybe fls), p_maybe;
+        ]
+    )
 
   let seq t u =
     match unget u with
@@ -1454,25 +1447,11 @@ module Fdd = struct
                             removed because there are none. *)
     | Branch _ ->
       dp_map t
-        ~f:(fun dist ->
-            seq' dist u
-(*           ActionDist.to_alist dist
-          |> Util.map_fst ~f:(fun action ->
-            match action with
-            | Action.Drop -> drop
-            | Action.Action preact ->
-              restrict (PreAction.to_hvs preact) u
-              |> prod (const @@ ActionDist.dirac action)
-          )
-          |> n_ary_convex_sum *)
-        )
+        ~f:(fun dist -> dist_seq dist u)
         ~g:(fun v t f -> cond v t f)
         ~find_or_add:(fun t -> BinTbl.find_or_add seq_tbl (t,u))
 
-  (* SJS: the fragment of ProbNetKAT we are using does not have a union operator!
-     We only have boolean disjunction and disjoint union.
-   *)
-  (* let union t u = sum t u *)
+
 
   (* FIXME: this skeleton is very large, so this may become a bottleneck.
      I used to use a smaller skeleton computed from ap and not_a, but I am not
@@ -1537,29 +1516,14 @@ module Fdd = struct
     )
 
 
-  let fork f : Pid.t =
-    match Unix.fork () with
-    | `In_the_child ->
-      Backtrace.Exn.with_recording true ~f:(fun () ->
-        try
-          f (); exit 0
-        with e -> begin
-          let backtrace = Backtrace.Exn.most_recent () in
-          Format.printf "Uncaught exception in forked process:\n%a\n%!" Exn.pp e;
-          Format.printf "%s\n%!" (Backtrace.to_string backtrace);
-          (* printf "%s\n%!" (Exn.backtrace ()); *)
-          exit 1
-        end
-      )
-    | `In_the_parent pid ->
-      pid
+
 
   (*      X = (AP)*¬A
     Thus  X = ¬A + (AP)X
      <=>  (I-AP)X = ¬A
      We are looking for X. We solve the linear (sparse) system to compute it.
   *)
-  let iterate a p =
+  let whl a p =
     (* printf "a = %s\n" (to_string a); *)
     (* transition matrix for transient states, i.e. those satisfying predicate [a] *)
     let ap = prod a p in
@@ -1599,8 +1563,8 @@ module Fdd = struct
 
 
     (* try computing naive fixed-point and analytical fixed-point in parallel *)
-    let py_pid = fork (fun () -> python_iterate ap not_a coding to_py) in
-    let caml_pid = fork (fun () ->
+    let py_pid = Util.fork (fun () -> python_iterate ap not_a coding to_py) in
+    let caml_pid = Util.fork (fun () ->
       let fixpoint = Util.timed "naive fixpoint" (fun () ->
         clear_cache ~preserve:(Int.Set.of_list ([ap; not_a] : t list :> int list));
         ocaml_iterate ap not_a
@@ -1682,6 +1646,7 @@ module Fdd = struct
     )
 
 
+  (* buggy, for some reason *)
 (*   let repeat n p =
     let rec loop i p_2n acc =
       if i = 1 then
@@ -1693,48 +1658,6 @@ module Fdd = struct
 
 let observe_upon p a =
   failwith "todo"
-
-(*   let observe a p =
-    let obs_fields =
-      fold a
-        ~f:(fun _ -> Field.Set.empty)
-        ~g:(fun (f,_) s1 s2 -> Field.Set.(add (union s1 s2) f))
-    in
-    let rec do_node ctxt t =
-      match unget t with
-      | Leaf r ->
-        do_leaf ctxt r
-      | Branch {test; tru; fls; _ } ->
-        let one,zero = FactorizedActionDist.(one, zero) in
-        let tru_ctxt = prod ctxt (atom test one zero) in
-        let fls_ctxt = prod ctxt (atom test zero one) in
-        unchecked_cond test (do_node tru tru_ctxt) (do_node fls fls_ctxt)
-    and do_leaf ctxt dist =
-      do_dist ctxt dist
-      |> const
-    and do_dist dist =
-      FactorizedActionDist.observe dist ~f:(fun d ->
-        let relevant =
-          ActionDist.support d
-          |> List.exists ~f:(function
-            | Drop -> false
-            | Action act ->
-              PreAction.T.keys act
-              |> List.exists ~f:(Field.Set.mem obs_fields)
-          )
-        in
-        if not relevant then `Irrelevant else
-        ActionDist.observe ~f:(function
-          | Drop -> false
-          | Action act ->
-        )
-
-      )
-      failwith "todo"
-    in
-    do_node id p *)
-
-
 
   (** Erases (all matches on) meta field, then all modifications. *)
   let erase t meta_field init =
@@ -1757,30 +1680,68 @@ let observe_upon p a =
             cond (field,v) tru fls
         )
 
+  let ite a p q =
+    (* SJS: Disjoint union. Ideally, we would have a safe primitive for
+       this purpose. Either way, the implementation of sum currently
+       enforces that nothing can go wrong here. *)
+    sum (prod a p) (prod (negate a) q)
+
+
+
+  (** {2} timed versions of the compilation functions *)
+  let stats_tbl : (string, float list) Hashtbl.t = String.Table.create ()
+  let clear_stats () = Hashtbl.clear stats_tbl
+  let measure key f =
+    let t,x = Util.time' f in
+    Hashtbl.add_multi stats_tbl key t;
+    x
+
+  (* total number of measurements *)
+  let n_of_meas () =
+    Hashtbl.fold stats_tbl ~init:0 ~f:(fun ~key:_ ~data acc ->
+      acc + List.length data
+    )
+
+  (* total time measured *)
+  let t_of_meas () =
+    Hashtbl.fold stats_tbl ~init:0. ~f:(fun ~key:_ ~data init ->
+      List.fold data ~init ~f:(+.)
+    )
+
+  let print_stats () =
+    let n = n_of_meas () in
+    let t = t_of_meas () in
+    Hashtbl.iteri stats_tbl ~f:(fun ~key ~data ->
+      let ni = List.length data in
+      let ti = List.fold data ~init:0. ~f:(+.) in
+      printf "%s:\t" key;
+      printf "# = %d (%.1f%%)\t" ni Float.((of_int ni) / (of_int n) * 100.);
+      printf "t = %.0fs (%.1f%%)\t" ti (ti /. t *. 100.);
+      printf "\n%!";
+    )
+
+  let of_pred_t a = measure "pred" (fun () -> of_pred a)
+  let of_mod_t hv = measure "mod" (fun () -> of_mod hv)
+  let ite_t a p q = measure "ite" (fun () -> ite a p q)
+  let seq_t p q = measure "seq" (fun () -> seq p q)
+  let whl_t a p = measure "whl" (fun () -> whl a p)
+  let n_ary_convex_sum_t ps = measure "choice" (fun () -> n_ary_convex_sum ps)
+  let erase_t p f init = measure "erase" (fun () -> erase p f init)
+
+
   let rec of_pol_k (p : Field.t policy) k : t =
-    printf "Cache size: %d (before %s)\n%!" (cache_size ())
-      (match p with
-        | Filter _ -> "filter a"
-        | Modify _ -> "f<-n"
-        | Seq _ -> "p;q"
-        | Ite _ -> "if a then p else q"
-        | While _ -> "while a do p"
-        | Choice _ -> "choice { q_1 @ p_1; ...; q_k @ p_k }"
-        | Let _ -> "let x = n in p"
-        | ObserveUpon _ -> "observe upon p that a"
-        (* | Repeat _ -> "do n times p" *)
-      );
+    printf "Cache size: %d\n%!" (cache_size ());
     match p with
     | Filter p ->
-      k (of_pred p)
+      k (of_pred_t p)
     | Modify m ->
-      k (of_mod  m)
+      k (of_mod_t m)
     | Seq (p, q) ->
       of_pol_k p (fun p' ->
         if equal p' Fdd0.drop then
           k drop
         else
-          of_pol_k q (fun q' -> k (seq p' q')))
+          of_pol_k q (fun q' -> k (seq_t p' q')))
     | Ite (a, p, q) ->
       let a = of_pred a in
       if equal a id then
@@ -1788,35 +1749,25 @@ let observe_upon p a =
       else if equal a drop then
         of_pol_k q k
       else
-        of_pol_k p (fun p ->
-          of_pol_k q (fun q ->
-            (* SJS: Disjoint union. Ideally, we would have a safe primitive for
-               this purpose. Either way, the implementation of sum currently
-               enforces that nothing can go wrong here.
-             *)
-            k @@ sum (prod a p) (prod (negate a) q)
-          )
-        )
+        of_pol_k p (fun p -> of_pol_k q (fun q -> k (ite_t a p q)))
     | While (a, p) ->
       let a = of_pred a in
       if equal a id then k drop else
       if equal a drop then k id else
       of_pol_k p (fun p ->
-        k @@ Util.timed "while loop" (fun () -> iterate a p)
+        k (Util.timed "while loop" (fun () -> whl_t a p))
       )
     | Choice dist ->
       Util.map_fst dist ~f:of_symbolic_pol
-      |> n_ary_convex_sum
+      |> n_ary_convex_sum_t
       |> k
     | Let { id=field; init; mut; body=p } ->
-      of_pol_k p (fun p' -> k (erase p' field init))
+      of_pol_k p (fun p -> k (erase_t p field init))
     | ObserveUpon (p, a) ->
       let a = of_pred a in
       if equal a id then of_pol_k p k else
       if equal a drop then failwith "illegal observation: false" else
       of_pol_k p (fun p -> k (observe_upon p a))
-(*     | Repeat (n, p) ->
-      of_pol_k p (fun p -> repeat n p) *)
 
   and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
 
@@ -1847,10 +1798,7 @@ let observe_upon p a =
       (* SJS: this is safe, right? *)
       erase (of_pol_cps k p) field init
 (*     | Repeat (n, p) ->
-      seq k (repeat n (of_pol_cps id p)) *)
-    | ObserveUpon (p,a) ->
-      of_pol_cps k p *)
-
+      seq k (repeat n (of_pol_cps id p)) *) *)
 
   let of_pol (p : string policy) : t =
     allocate_fields p
