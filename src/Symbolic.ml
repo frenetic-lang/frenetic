@@ -1662,6 +1662,10 @@ module Fdd = struct
        enforces that nothing can go wrong here. *)
     sum (prod a p) (prod (negate a) q)
 
+  let observe_upon p a =
+    (* FIXME / TODO *)
+    seq p (whl (negate a) p)
+
 
 
   (** {2} timed versions of the compilation functions *)
@@ -1703,6 +1707,7 @@ module Fdd = struct
   let whl_t a p = measure "whl" (fun () -> whl a p)
   let n_ary_convex_sum_t ps = measure "choice" (fun () -> n_ary_convex_sum ps)
   let erase_t p f init = measure "erase" (fun () -> erase p f init)
+  let observe_upon_t p a = measure "obs" (fun () -> observe_upon p a)
 
 
   let rec of_pol_k (p : Field.t policy) k : t =
@@ -1740,8 +1745,10 @@ module Fdd = struct
     | Let { id=field; init; mut; body=p } ->
       of_pol_k p (fun p -> k (erase_t p field init))
     | ObserveUpon (p, a) ->
-      (* FIXME / TODO *)
-      of_pol_k Syntax.PNK.(do_whl (neg a) p) k
+      let a = of_pred a in
+      if equal a drop then k drop else
+      if equal a id then of_pol_k p k else
+      of_pol_k p (fun p -> k (observe_upon_t p a))
 
   and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
 
