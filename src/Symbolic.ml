@@ -487,27 +487,6 @@ end = struct
   let empty = [ActionDist.empty]
   let dirac x = canonicalize [ActionDist.dirac x]
 
-  type observe = ActionDist.t ->
-    [ `Irrelevant
-    | `UNSAT
-    | `TRUE of ActionDist.t
-    | `SAT of ActionDist.t * observe
-    ]
-
-  let observe ~f:observe (t : t) : t =
-    List.folding_map t ~init:(`SAT observe) ~f:(fun status d ->
-      match status with
-      | `Done -> (status, d)
-      | `SAT obs ->
-        begin match obs d with
-        | `Irrelevant -> (status, d)
-        | `UNSAT -> failwith "observing event of probability zero"
-        | `TRUE d -> (`Done, d)
-        | `SAT (d, obs) -> (`SAT obs, d)
-        end
-    )
-
-
   let is_zero t =
     match t with
     | [d] -> ActionDist.is_zero d
