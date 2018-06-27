@@ -1635,9 +1635,6 @@ module Fdd = struct
     in
     if n <= 0 then id else loop n p [] *)
 
-let observe_upon p a =
-  failwith "todo"
-
   (** Erases (all matches on) meta field, then all modifications. *)
   let erase t meta_field init =
     let erase_mods =
@@ -1743,10 +1740,8 @@ let observe_upon p a =
     | Let { id=field; init; mut; body=p } ->
       of_pol_k p (fun p -> k (erase_t p field init))
     | ObserveUpon (p, a) ->
-      let a = of_pred a in
-      if equal a id then of_pol_k p k else
-      if equal a drop then failwith "illegal observation: false" else
-      of_pol_k p (fun p -> k (observe_upon p a))
+      (* FIXME / TODO *)
+      of_pol_k Syntax.PNK.(do_whl (neg a) p) k
 
   and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
 
