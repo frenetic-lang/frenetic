@@ -212,9 +212,6 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
       | Branch { test=(v, l); tru; fls } -> g (v,l) (map tru) (map fls) in
     map t
 
-(*   let ctxt_map_r ~(f : ctxt:t -> R.t -> R.t) (t : t) : t =
-    let rec map ctxt  *)
-
   let dp_map ~(f : R.t -> t)
              ~(g : V.t * L.t -> t -> t -> t)
              (t : t)
