@@ -41,6 +41,8 @@ module Make(Dom: Vlr.HashCmp) : sig
   (** probability that predicate holds *)
   val prob : t -> f:(Dom.t -> bool) -> Prob.t
 
+  val prob_of : t -> Dom.t -> Prob.t
+
   (** expected value *)
   val expectation : t -> f:(Dom.t -> Q.t) -> Q.t
 
@@ -52,4 +54,5 @@ module Make(Dom: Vlr.HashCmp) : sig
   (** UNSAFE  *)
   val to_alist : t -> (Dom.t * Prob.t) list
   val of_alist_exn : (Dom.t * Prob.t) list -> t
+  val unchecked_of_alist_exn : (Dom.t * Prob.t) list -> t
 end

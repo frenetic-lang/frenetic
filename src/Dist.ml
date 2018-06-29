@@ -110,6 +110,11 @@ module Make (Dom : Vlr.HashCmp) = struct
       if f x then Prob.(p + acc) else acc
     )
 
+  let prob_of t x =
+    match T.find t x with
+    | None -> Prob.zero
+    | Some p -> p
+
   let expectation t ~(f : Dom.t -> Q.t) : Q.t =
     T.fold t ~init:Q.zero ~f:(fun ~key:x ~data:p acc ->
       Q.(acc + Prob.to_q p * f(x))
@@ -154,13 +159,12 @@ module Make (Dom : Vlr.HashCmp) = struct
   (* UNSAFE *)
   let to_alist = T.to_alist ~key_order:`Increasing
 
-  let of_alist_exn l =
-    let mass =
-      List.map l ~f:snd
-      |> List.fold ~init:Prob.zero ~f:Prob.(+)
-    in
-    assert Prob.(equal mass one);
+  let unchecked_of_alist_exn l =
     List.filter l ~f:(fun (x,p) -> Prob.(p > zero))
     |> T.of_alist_exn
+
+  let of_alist_exn l =
+    unchecked_of_alist_exn l
+    |> Util.tap ~f:(fun t -> assert Prob.(equal one (mass t )))
 
 end
