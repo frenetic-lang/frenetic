@@ -161,6 +161,31 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
         end
     in sum
 
+  let apply_non_comm ~f ~(cache: (t*t, t) Hashtbl.t) =
+    let rec sum x y =
+      BinTbl.find_or_add cache (x, y) ~default:(fun () -> sum' x y)
+    and sum' x y =
+      match T.unget x, T.unget y with
+      | Leaf r, _      ->
+        map_r (fun y -> f r y) y
+      | _     , Leaf r ->
+        map_r (fun x -> f x r) x
+      | Branch {test=(vx, lx); tru=tx; fls=fx; all_fls=all_fls_x},
+        Branch {test=(vy, ly); tru=ty; fls=fy; all_fls=all_fls_y} ->
+        begin match V.compare vx vy with
+        |  0 ->
+          begin match L.compare lx ly with
+          |  0 -> mk_branch (vx,lx) (sum tx ty) (sum fx fy)
+          | -1 -> mk_branch (vx,lx) (sum tx all_fls_y) (sum fx y)
+          |  1 -> mk_branch (vy,ly) (sum all_fls_x ty) (sum x fy)
+          |  _ -> assert false
+          end
+        | -1 -> mk_branch (vx,lx) (sum tx y) (sum fx y)
+        |  1 -> mk_branch (vy,ly) (sum x ty) (sum x fy)
+        |  _ -> assert false
+        end
+    in sum
+
   let sum_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
   let sum = apply R.sum R.zero ~cache:sum_tbl
 

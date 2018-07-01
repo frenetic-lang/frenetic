@@ -198,6 +198,8 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   (** [prod a b] returns the conjunction of the two diagrams. The [prod]
       operation on the [r] type is used to combine leaf nodes. *)
 
+  val apply_non_comm : f:(r -> r -> r) -> cache:((t*t, t) Hashtbl.t) -> t -> t -> t
+
   val compare : t -> t -> int
 
   val to_string : t -> string

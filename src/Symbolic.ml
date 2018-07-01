@@ -329,6 +329,8 @@ module ActionDist : sig
   val negate : t -> t
   val convex_sum : t -> Prob.t -> t -> t
 
+  val prob_of : t -> Action.t -> Prob.t
+
   val pp : Format.formatter -> t -> unit
   val to_string : t -> string
   val to_alist : t -> (Action.t * Prob.t) list
@@ -341,6 +343,8 @@ module ActionDist : sig
   val empty : t
   val unsafe_add : t -> Prob.t -> Action.t -> t
   val unsafe_normalize : t -> t
+
+  val observe_not_drop : t -> t
 
   (**
     The three events
@@ -432,6 +436,12 @@ end = struct
       (dist, mass)
     in
     (finish_conditional yes, finish_conditional no, finish_conditional mb)
+
+  let observe_not_drop t =
+    to_alist t
+    |> List.filter ~f:(function (Action.Drop,_) -> false | _ -> true)
+    |> unchecked_of_alist_exn
+    |> unsafe_normalize
 end
 
 (* hacky *)
@@ -447,6 +457,8 @@ module FactorizedActionDist : sig
   val pp : Format.formatter -> t -> unit
   val to_string : t -> string
   val to_alist : t -> (Action.t * Prob.t) list
+
+  val prob_of_drop : t -> Prob.t
 
   (* SJS: do not expose, since it will screw up factorization *)
   (* val of_alist_exn : (Action.t * Prob.t) list -> t *)
@@ -472,6 +484,8 @@ module FactorizedActionDist : sig
   *)
   val split_into_conditionals :
     t -> Field.t * Value.t -> ((t * Prob.t) * (t * Prob.t) * (t * Prob.t))
+
+  val observe_not_drop : t -> t
 
 end = struct
   type t = ActionDist.t list
@@ -630,6 +644,16 @@ end = struct
           (canonicalize @@ dist::f_independent_factors, mass)
       in
       finish_conditional yes, finish_conditional no, finish_conditional mb
+
+  let observe_not_drop t =
+    List.map t ~f:ActionDist.observe_not_drop
+
+  let prob_of_drop t =
+    List.fold t ~init:Prob.(one, zero) ~f:(fun (no_drop_yet, drop) d -> 
+      let p_drop = ActionDist.prob_of d Action.Drop in
+      Prob.(no_drop_yet * (one - p_drop), drop + p_drop)
+    )
+    |> snd
 
 end
 
@@ -1170,6 +1194,15 @@ module Fdd = struct
   include Fdd0
   open Syntax
 
+
+  let to_dotfile t filename =
+    Out_channel.with_file ~append:false ~fail_if_exists:false filename ~f:(fun chan ->
+      Out_channel.output_string chan (to_dot t)
+    )
+
+  let render ?(format="pdf") ?(title="FDD") t =
+    Util.show_dot ~format ~title (to_dot t)
+
   (** SJS: keep global string |-> Field.t map so that we can compare policies
       that are compiled to Fdds one after another
   *)
@@ -1662,10 +1695,31 @@ module Fdd = struct
        enforces that nothing can go wrong here. *)
     sum (prod a p) (prod (negate a) q)
 
-  let observe_upon p a =
-    (* FIXME / TODO *)
-    seq p (whl (negate a) p)
 
+  let use_fast_obs = ref false
+
+  let fast_observe_upon' p a =
+    seq p a
+    |> map_r ~f:FactorizedActionDist.observe_not_drop
+
+  let observe_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
+
+  let fast_observe_upon p a =
+    apply_non_comm p (seq p a) ~cache:observe_tbl ~f:(fun d d' ->
+      FactorizedActionDist.(prod d' (convex_sum zero (prob_of_drop d) one))
+    )
+
+  let observe_upon p a =
+    (* if !use_fast_obs then fast_observe_upon p a else *)
+    let slow = seq p (whl (negate a) p) in
+    let fast = fast_observe_upon p a in
+    if equal slow fast then fast else begin
+      render p ~title:"p";
+      render a ~title:"a";
+      render slow ~title:"slow";
+      render fast ~title:"fast";
+      assert false
+    end
 
 
   (** {2} timed versions of the compilation functions *)
@@ -1753,31 +1807,32 @@ module Fdd = struct
   and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
 
 
-(*   let rec of_pol_cps (k : t) (p : Field.t policy) : t =
-    if equal k drop then drop else
+(* let rec of_pol_cps (lctxt : t) (p : Field.t policy) : t =
+    if equal lctxt drop then drop else
     match p with
     | Filter a ->
-      seq k (of_pred a)
+      seq lctxt (of_pred a)
     | Modify m ->
-      prod k (of_mod m)
+      prod lctxt (of_mod m)
     | Seq (p, q) ->
-      of_pol_cps (of_pol_cps k p) q
+      of_pol_cps (of_pol_cps lctxt p) q
     | Ite (a, p, q) ->
       let a = of_pred a in
-      let tru = seq k a in
-      let fls = seq k (negate a) in
-      sum (of_pol_cps tru p) (of_pol_cps fls q)
+      let tru_ctxt = seq lctxt a in
+      let fls_ctxt = seq lctxt (negate a) in
+      sum (of_pol_cps tru_ctxt p) (of_pol_cps fls_ctxt q)
     | While (a, p) ->
       let a = of_pred a in
-      if equal drop (seq k a) then
-        seq k (negate a)
+      let 
+      if equal lctxt (seq lctxt (negate a)) then
+        lctxt
       else
         Util.timed "while loop" (fun () -> iterate a (of_pol_cps a p))
     | Choice dist ->
-      n_ary_convex_sum (Util.map_fst dist ~f:(of_pol_cps k))
+      n_ary_convex_sum (Util.map_fst dist ~f:(of_pol_cps lctxt))
     | Let { id=field; init; mut; body=p } ->
       (* SJS: this is safe, right? *)
-      erase (of_pol_cps k p) field init
+      erase (of_pol_cps lctxt p) field init
 (*     | Repeat (n, p) ->
       seq k (repeat n (of_pol_cps id p)) *) *)
 
@@ -1935,13 +1990,6 @@ module Fdd = struct
     in
     do_nodes t1 t2 PrePacket.empty
 
-  let to_dotfile t filename =
-    Out_channel.with_file ~append:false ~fail_if_exists:false filename ~f:(fun chan ->
-      Out_channel.output_string chan (to_dot t)
-    )
-
-  let render ?(format="pdf") ?(title="FDD") t =
-    Util.show_dot ~format ~title (to_dot t)
 
   let output_dist t ~(input_dist : Packet.Dist.t) =
     Packet.Dist.to_alist input_dist
