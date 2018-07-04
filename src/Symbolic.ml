@@ -344,6 +344,7 @@ module ActionDist : sig
   val unsafe_add : t -> Prob.t -> Action.t -> t
   val unsafe_normalize : t -> t
 
+  val unormalized_observe_not_drop : t -> t
   val observe_not_drop : t -> t
 
   (**
@@ -437,10 +438,13 @@ end = struct
     in
     (finish_conditional yes, finish_conditional no, finish_conditional mb)
 
-  let observe_not_drop t =
+  let unormalized_observe_not_drop t =
     to_alist t
     |> List.filter ~f:(function (Action.Drop,_) -> false | _ -> true)
     |> unchecked_of_alist_exn
+
+  let observe_not_drop t =
+    unormalized_observe_not_drop t
     |> unsafe_normalize
 end
 
@@ -468,7 +472,7 @@ module FactorizedActionDist : sig
   val pushforward : t -> f:(Action.t -> Action.t) -> t
 
   val empty : t
-  (* val unsafe_normalize : t -> t *)
+  val unsafe_normalize : t -> t
 
   val factorize : ActionDist.t -> t
   val to_joined : t -> ActionDist.t
@@ -485,6 +489,7 @@ module FactorizedActionDist : sig
   val split_into_conditionals :
     t -> Field.t * Value.t -> ((t * Prob.t) * (t * Prob.t) * (t * Prob.t))
 
+  val unormalized_observe_not_drop : t -> t
   val observe_not_drop : t -> t
 
 end = struct
@@ -644,6 +649,14 @@ end = struct
           (canonicalize @@ dist::f_independent_factors, mass)
       in
       finish_conditional yes, finish_conditional no, finish_conditional mb
+
+  let unsafe_normalize t =
+    to_joined t
+    |> ActionDist.unsafe_normalize
+    |> of_joined
+
+  let unormalized_observe_not_drop t =
+    List.map t ~f:ActionDist.unormalized_observe_not_drop
 
   let observe_not_drop t =
     List.map t ~f:ActionDist.observe_not_drop
@@ -1707,7 +1720,13 @@ module Fdd = struct
 
   let fast_observe_upon p a =
     apply_non_comm p (seq p a) ~cache:observe_tbl ~f:(fun d d' ->
-      FactorizedActionDist.(prod d' (convex_sum zero (prob_of_drop d) one))
+      let open FactorizedActionDist in
+      FactorizedActionDist.to_joined d'
+      |> ActionDist.unormalized_observe_not_drop
+      |> (fun d' -> ActionDist.unsafe_add d' (prob_of_drop d) Action.Drop)
+      |> ActionDist.unsafe_normalize
+      (* |> Util.tap ~f:(Format.printf "%a\n" ActionDist.pp) *)
+      |> FactorizedActionDist.factorize
     )
 
   let observe_upon p a =

@@ -32,8 +32,9 @@ module Fdd_ser_eq = struct
 end
 let fdd_ser_eq = (module Fdd_ser_eq : Alcotest.TESTABLE with type t = Fdd.t)
 
-let test kind name p q =
+let test ?(use_fast_obs=false) kind name p q =
   (name, `Quick, (fun () ->
+      Fdd.use_fast_obs := use_fast_obs;
       Alcotest.check kind "" (Fdd.of_pol p) (Fdd.of_pol q);
       Fdd.clear_cache ~preserve:Int.Set.empty
     )
@@ -379,6 +380,74 @@ let misc_tests = [
     ]);
 ]
 
+let observe_tests = [
+  (* observe true *)
+  test ~use_fast_obs:true fdd_equiv "observe true = skip"
+    PNK.(
+      ?@[
+        !!("a", 0) @ 3//6;
+        !!("a", 1) @ 2//6;
+        drop       @ 1//6;
+      ]
+    )
+    PNK.(
+      ?@[
+        !!("a", 0) @ 3//6;
+        !!("a", 1) @ 2//6;
+        drop       @ 1//6;
+      ]
+      |> then_observe True
+    );
+
+  (* observe false *)
+  test ~use_fast_obs:true fdd_equiv "observe false = drop"
+    PNK.(drop)
+    PNK.(
+      ?@[
+        !!("a", 0) @ 3//6;
+        !!("a", 1) @ 2//6;
+        drop       @ 1//6;
+      ]
+      |> then_observe False
+    );
+  
+  (* reweighting *)
+  test ~use_fast_obs:true fdd_equiv "observe reweighting"
+    PNK.(
+      ?@[
+        !!("a", 1) @ 2//3;
+        drop       @ 1//3;
+      ]
+    )
+    PNK.(
+      ?@[
+        !!("a", 0) @ 3//6;
+        !!("a", 1) @ 2//6;
+        drop       @ 1//6;
+      ]
+      |> then_observe ???("a",1)
+    );
+
+  (* observe disjunction *)
+  test ~use_fast_obs:true fdd_equiv "observe reweighting"
+    PNK.(
+      ?@[
+        !!("a", 1) @ 2//3;
+        drop       @ 1//3;
+      ]
+    )
+    PNK.(
+      ?@[
+        !!("a", 0) @ 3//6;
+        !!("a", 1) @ 2//6;
+        drop       @ 1//6;
+      ]
+      |> then_observe ???("a",1)
+    );
+
+
+]
+
 
 (* let qcheck_tests = [
   "round-trip", `Quick, fun () -> QCheck.Test.check_exn failing
@@ -391,5 +460,6 @@ let () =
     "fdd deterministic", basic_deterministic;
     "fdd probabilistic", basic_probabilistic;
     "fdd performance",   basic_performance;
+    "fdd observe", observe_tests;
     (* "qcheck", qcheck_tests; *)
   ]
