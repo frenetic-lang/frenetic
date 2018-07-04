@@ -252,8 +252,9 @@ module PNK = struct
 end
 
 
-(** useful auxilliary functions  *)
+(** {2} useful auxilliary functions  *)
 
+(* turn predicate into modification *)
 let rec positive_pred_to_mod pred =
   let open PNK in
   match pred with
@@ -262,3 +263,47 @@ let rec positive_pred_to_mod pred =
   | Test (f,v) -> Modify (f,v)
   | And (p, q) -> positive_pred_to_mod p >> positive_pred_to_mod q
   | Or _ | Neg _ -> failwith "not a positive predicate!"
+
+
+(* map a policy bottom up *)
+let map_pol 
+  ?(do_pred=fun a -> a)
+  ?(filter=fun pred -> Filter pred) 
+  ?(modify=fun hv -> Modify hv) 
+  ?(seq=fun p q -> Seq (p,q))
+  ?(ite=fun a p q -> Ite (a,p,q)) 
+  ?(whl=fun a p -> While (a,p))
+  ?(choice=fun ps -> Choice ps)
+  ?(letbind=fun id init mut body -> Let { id; init; mut; body})
+  ?(obs=fun p a -> ObserveUpon (p,a))
+  pol 
+  =
+  let rec do_pol pol =
+    match pol with
+    | Filter a -> filter (do_pred a)
+    | Modify hv -> modify hv
+    | Seq (p,q) -> seq (do_pol p) (do_pol q)
+    | Ite (a,p,q) -> ite (do_pred a) (do_pol p) (do_pol q)
+    | While (a,p) -> whl (do_pred a) (do_pol p)
+    | Choice ps -> choice (Util.map_fst ps ~f:do_pol)
+    | Let { id; init; mut; body} -> letbind id init mut (do_pol body)
+    | ObserveUpon (p,a) -> obs (do_pol p) (do_pred a)
+  in
+  do_pol pol
+
+(* hack to fix observe statements, by scoping them as far to the left as possible *)
+(* FIXME: what about observes inside of lets? *)
+(* let fix_observe pol =
+  let rec seq p q =
+    match p,q with
+    | _, ObserveUpon(q, a) ->
+      ObserveUpon (Seq (p,q), a)
+    | _, Seq (q, q') ->
+      Seq (seq p q, q')
+    | _,_ ->
+      Seq (p,q)
+  in
+  map_pol ~seq pol *)
+
+
+

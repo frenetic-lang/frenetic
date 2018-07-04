@@ -4,7 +4,7 @@ open Probnetkat.Symbolic
 
 
 let () = begin
-  let max_failures = [0; -1; ] in
+  let max_failures = [-1; ] in
   let failure_prob = Prob.(1//16) in
   let timeout = 3600 in (* in seconds *)
   let topos = [
@@ -50,6 +50,7 @@ let () = begin
       Symbolic.Field.auto_order model;
 
       Util.log_and_sandbox ~timeout ~logfile topo_file ~f:(fun () ->
+        Fdd.use_fast_obs := true;
         ignore (Fdd.of_symbolic_pol model);
         Fdd.print_stats ();
       );

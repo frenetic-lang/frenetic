@@ -4,13 +4,13 @@ open Probnetkat.Symbolic
 
 
 let () = begin
-  let max_failures = [-1; 3] in
+  let max_failures = [ -1 ] in
   let failure_prob = Prob.(1//16) in
   let timeout = 3600 in (* in seconds *)
   let topos = [
-      2, "./examples/output/abfattree_2_sw_5";
+      (* 2, "./examples/output/abfattree_2_sw_5"; *)
       4, "./examples/output/abfattree_4_sw_20";
-      6, "./examples/output/abfattree_6_sw_45";
+      (* 6, "./examples/output/abfattree_6_sw_45"; *)
     ]
   in
 
@@ -36,6 +36,7 @@ let () = begin
         )
         ()
         |> Fdd.allocate_fields
+        (* |> Syntax.fix_observe *)
       in
 
       let logfile = "./examples/output/results/bench.log" in
@@ -45,18 +46,26 @@ let () = begin
       Fdd.clear_stats ();
       Symbolic.Field.auto_order model;
 
-      Util.log_and_sandbox ~timeout ~logfile topo_file ~f:(fun () ->
+      (* Util.log_and_sandbox ~timeout ~logfile topo_file ~f:(fun () -> *)
         Fdd.use_fast_obs := true;
-        let fast = Fdd.of_symbolic_pol model in
+        let fast = Fdd.of_pol_cps Fdd.id model in
         Fdd.print_stats ();
         Fdd.clear_stats ();
+
         Fdd.use_fast_obs := false;
         Fdd.clear_cache ~preserve:(Int.Set.singleton (fast :> int));
         let slow = Fdd.of_symbolic_pol model in
+
         Fdd.print_stats ();
         Fdd.render fast ~title:"fast";
         Fdd.render slow ~title:"slow";
-      );
+(* 
+        Fdd.use_fast_obs := false;
+        let fdd = Fdd.of_symbolic_pol model in
+        let fdd' = Fdd.(of_pol_cps id model) in
+        assert Fdd.(equivalent fdd fdd');
+        printf "success!\n%!"; *)
+      (* ) *)
     )
   )
 end

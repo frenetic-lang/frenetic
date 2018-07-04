@@ -1700,6 +1700,7 @@ module Fdd = struct
 
   let fast_observe_upon' p a =
     seq p a
+    (* FIXME: map_r should use dynamic programming! *)
     |> map_r ~f:FactorizedActionDist.observe_not_drop
 
   let observe_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
@@ -1710,16 +1711,10 @@ module Fdd = struct
     )
 
   let observe_upon p a =
-    (* if !use_fast_obs then fast_observe_upon p a else *)
-    let slow = seq p (whl (negate a) p) in
-    let fast = fast_observe_upon p a in
-    if equal slow fast then fast else begin
-      render p ~title:"p";
-      render a ~title:"a";
-      render slow ~title:"slow";
-      render fast ~title:"fast";
-      assert false
-    end
+    if !use_fast_obs then
+      fast_observe_upon p a
+    else
+      seq p (whl (negate a) p)
 
 
   (** {2} timed versions of the compilation functions *)
@@ -1806,6 +1801,48 @@ module Fdd = struct
 
   and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
 
+  let rec of_pol_cps (lctxt : t) (p : Field.t policy) : t =
+    if equal drop lctxt then drop else
+    match p with
+    | Filter a ->
+      seq lctxt (of_pred a)
+    | Modify m ->
+      prod lctxt (of_mod m)
+    | Seq (p,q) ->
+      let lctxt = of_pol_cps lctxt p in
+      of_pol_cps lctxt q
+    | Ite (a, p, q) ->
+      let a = of_pred a in
+      ite_t a (of_pol_cps a p) (of_pol_cps (negate a) q)
+      |> seq lctxt
+    | While (a, p) ->
+      let a = of_pred a in
+      if equal a id then 
+        drop
+      else 
+        let skip_ctxt = seq lctxt (negate a) in
+        if equal lctxt skip_ctxt || equal a drop then
+          skip_ctxt
+        else
+          seq lctxt (whl_t a (of_pol_cps a p))
+    | Choice dist ->
+      n_ary_convex_sum (Util.map_fst dist ~f:(of_pol_cps lctxt))
+    | Let { id=field; init; mut; body=p } ->
+      begin match init with
+      | Const v ->
+        let lctxt = of_pol_cps lctxt (Modify (field, v)) in
+        let p = of_pol_cps lctxt p in
+        erase_t p field init
+      | Alias _ ->
+        let p = of_pol_cps lctxt p in
+        erase_t p field init
+      end
+    | ObserveUpon (p, a) ->
+      let a = of_pred a in
+      fast_observe_upon (of_pol_cps lctxt p) a
+    | _ ->
+      seq lctxt (of_symbolic_pol p)
+
 
 (* let rec of_pol_cps (lctxt : t) (p : Field.t policy) : t =
     if equal lctxt drop then drop else
@@ -1836,9 +1873,14 @@ module Fdd = struct
 (*     | Repeat (n, p) ->
       seq k (repeat n (of_pol_cps id p)) *) *)
 
+
   let of_pol (p : string policy) : t =
     allocate_fields p
     |> of_symbolic_pol
+
+  let of_pol' (p : string policy) : t =
+    allocate_fields p
+    |> of_pol_cps id
 
   type weighted_pk = Packet.t * Prob.t [@@deriving compare, eq]
 
