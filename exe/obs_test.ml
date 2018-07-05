@@ -2,6 +2,8 @@ open! Core
 open Probnetkat
 open Probnetkat.Symbolic
 
+let ( |- ) x f = Util.tap ~f x
+
 
 let () = begin
   let max_failures = [ -1 ] in
@@ -35,6 +37,7 @@ let () = begin
           else Prob.zero
         )
         ()
+        |- Format.printf "%a\n\n%!" Syntax.pp_policy
         |> Fdd.allocate_fields
         (* |> Syntax.fix_observe *)
       in
@@ -48,7 +51,7 @@ let () = begin
 
       (* Util.log_and_sandbox ~timeout ~logfile topo_file ~f:(fun () -> *)
         Fdd.use_fast_obs := true;
-        let fast = Fdd.of_pol_cps Fdd.id model in
+        let fast = Fdd.of_symbolic_pol model in
         Fdd.print_stats ();
         Fdd.clear_stats ();
 
