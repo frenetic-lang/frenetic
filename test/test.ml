@@ -3,7 +3,6 @@ open Probnetkat
 open Symbolic
 open Syntax
 
-
 module Fdd_eq = struct
   include Fdd
   let pp fmt fdd = Format.fprintf fmt "%s" (to_string fdd)
@@ -97,6 +96,8 @@ let serialization_tests = [
 let basic_deterministic = [
 
   test_not fdd_eq "skip ≠ drop" PNK.skip PNK.drop;
+
+  test_not fdd_equiv "skip ≢ drop" PNK.skip PNK.drop;
 
  (* predicate *)
   test fdd_equiv "predicate sequentially composed on right"
@@ -380,9 +381,16 @@ let misc_tests = [
     ]);
 ]
 
+
+(*===========================================================================*)
+(* OBSERVE TESTS                                                             *)
+(*===========================================================================*)
+
+let up i = sprintf "up_%d" i
+
 let observe_tests = [
   (* observe true *)
-  test ~use_fast_obs:true fdd_equiv "observe true = skip"
+  test ~use_fast_obs:true fdd_equiv "observe true filters out drop"
     PNK.(
       ?@[
         !!("a", 0) @ 3//6;
@@ -415,8 +423,8 @@ let observe_tests = [
   test ~use_fast_obs:true fdd_equiv "observe reweighting"
     PNK.(
       ?@[
-        !!("a", 1) @ 2//3;
-        drop       @ 1//3;
+        !!("a", 1) @ 3//3;
+        (* drop       @ 1//3; *)
       ]
     )
     PNK.(
@@ -428,22 +436,141 @@ let observe_tests = [
       |> then_observe ???("a",1)
     );
 
-  (* observe disjunction *)
-  test ~use_fast_obs:true fdd_equiv "observe reweighting"
+  (* reweighting *)
+  test ~use_fast_obs:true fdd_equiv "observe filter equiv"
     PNK.(
-      ?@[
-        !!("a", 1) @ 2//3;
-        drop       @ 1//3;
-      ]
-    )
-    PNK.(
-      ?@[
+      (?@[
         !!("a", 0) @ 3//6;
         !!("a", 1) @ 2//6;
         drop       @ 1//6;
       ]
-      |> then_observe ???("a",1)
+      |> then_observe ???("a", 1))
+    )
+    PNK.(
+      (?@[
+        !!("a", 0) @ 3//6;
+        !!("a", 1) @ 2//6;
+        drop       @ 1//6;
+      ]
+      >> filter (???("a", 1)))
+      |> then_observe True
     );
+
+  (* observe disjunction *)
+  test ~use_fast_obs:true fdd_equiv "observe disjunction"
+    PNK.(
+      ?@[
+        !!("a", 1) @ 2//9;
+        !!("a", 2) @ 3//9;
+        drop       @ 4//9;
+      ]
+    )
+    PNK.(
+      ?@[
+        !!("a", 0) @ 1//10;
+        !!("a", 1) @ 2//10;
+        !!("a", 2) @ 3//10;
+        drop       @ 4//10;
+      ]
+      |> then_observe (disj (???("a",1)) (???("a", 2)))
+    );
+
+  (* observe up fields *)
+(*   test ~use_fast_obs:true fdd_equiv "observe up fields"
+    PNK.(
+      ?@[
+        !!("pt", 0) @ 21//(4 * 4 * 4);
+        !!("pt", 1) @ 21//(4 * 4 * 4);
+        !!("pt", 2) @ 21//(4 * 4 * 4);
+      ]
+    )
+    PNK.(
+      seqi 3 ~f:(fun i -> ?@[
+        !!(up i, 0) @ 1//4;
+        !!(up i, 1) @ 3//4;
+      ]) >>
+      ?@[
+        !!("pt", 0) @ 1//3;
+        !!("pt", 1) @ 1//3;
+        !!("pt", 2) @ 1//3;
+      ]
+      |> then_observe (disji 3 ~f:(fun i ->
+        conj (???("pt", i)) (???(up i, 1))
+      ))
+      |> locals (List.init 3 ~f:(fun i ->
+        (up i, 0, true)
+      ))
+      |> Util.tap ~f:(Format.printf "\n%a\n" Syntax.pp_policy)
+    ); *)
+
+  (* observe up fields *)
+  (* test ~use_fast_obs:true fdd_equiv "observe up fields"
+    PNK.(
+      ?@[
+        !!("pt", 0) @ 21//(4 * 4 * 4);
+        !!("pt", 1) @ 21//(4 * 4 * 4);
+        !!("pt", 2) @ 21//(4 * 4 * 4);
+        drop        @ 1//(4 * 4 * 4);
+      ]
+    )
+
+    PNK.(
+      seqi 3 ~f:(fun i -> ?@[
+        !!(up i, 0) @ 1//4;
+        !!(up i, 1) @ 3//4;
+      ]) >>
+      ?@[
+        !!("pt", 0) @ 1//3;
+        !!("pt", 1) @ 1//3;
+        !!("pt", 2) @ 1//3;
+      ]
+      >> (filter (
+        disji 3 ~f:(fun i ->
+          conj (???("pt", i)) (???(up i, 1))
+        )
+        |> disj (conji 3 ~f:(fun i -> ???(up i, 0)))
+      ))
+      >> filter (disji 3 ~f:(fun i ->
+          conj (???("pt", i)) (???(up i, 1))
+      ))
+      |> Util.tap ~f:(fun p ->
+        Fdd.use_fast_obs := true;
+        Fdd.clear_cache ~preserve:Int.Set.empty;
+        Fdd.of_pol p
+        |> Format.printf "%a\n" (Fdd.pp ~show:false)
+      )
+      (* |> Util.tap ~f:(Format.printf "%a" Syntax.pp_policy) *)
+      |> locals (List.init 3 ~f:(fun i ->
+        (up i, 0, true)
+      ))
+      |> Util.tap ~f:(fun p ->
+        Fdd.use_fast_obs := true;
+        Fdd.clear_cache ~preserve:Int.Set.empty;
+        Fdd.of_pol p
+        |> Format.printf "%a\n" (Fdd.pp ~show:false)
+      )
+      |> Util.tap ~f:(Format.printf "%a" Syntax.pp_policy)
+    ); *)
+
+
+(*   test ~use_fast_obs:true fdd_equiv "observe up fields"
+    PNK.(
+      ?@[
+        skip @ 1//2;
+        drop @ 1//2;
+      ]
+      |> then_observe True
+    )
+    PNK.(
+      skip
+    ) *)
+(*     PNK.(
+      ?@[
+        skip @ 1//2;
+        drop @ 1//2;
+      ]
+    ) *)
+    (* drop |> then_observe True *)
 
 
 ]
@@ -451,7 +578,8 @@ let observe_tests = [
 
 (* let qcheck_tests = [
   "round-trip", `Quick, fun () -> QCheck.Test.check_exn failing
-] *)
+]
+*)
 
 let () =
   Alcotest.run "Probnetkat" [
