@@ -1780,7 +1780,6 @@ module Fdd = struct
 
 
   let rec of_pol_k (p : Field.t policy) k : t =
-    printf "Cache size: %d\n%!" (cache_size ());
     match p with
     | Filter p ->
       k (of_pred_t p)
@@ -1860,8 +1859,6 @@ module Fdd = struct
     | ObserveUpon (p, a) ->
       let a = of_pred a in
       fast_observe_upon (of_pol_cps lctxt p) a
-    | _ ->
-      seq lctxt (of_symbolic_pol p)
 
 
 (* let rec of_pol_cps (lctxt : t) (p : Field.t policy) : t =
