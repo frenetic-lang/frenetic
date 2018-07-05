@@ -1711,23 +1711,24 @@ module Fdd = struct
 
   let use_fast_obs = ref false
 
-  let fast_observe_upon' p a =
+  let fast_observe_upon p a =
     seq p a
     (* FIXME: map_r should use dynamic programming! *)
     |> map_r ~f:FactorizedActionDist.observe_not_drop
 
   let observe_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
 
-  let fast_observe_upon p a =
+(*   let fast_observe_upon p a =
     apply_non_comm p (seq p a) ~cache:observe_tbl ~f:(fun d d' ->
-      let open FactorizedActionDist in
+      let p_drop = FactorizedActionDist.prob_of_drop d in
       FactorizedActionDist.to_joined d'
       |> ActionDist.unormalized_observe_not_drop
-      |> (fun d' -> ActionDist.unsafe_add d' (prob_of_drop d) Action.Drop)
+      |> (if Prob.(equal zero p_drop) then ident else 
+         (fun d' -> ActionDist.unsafe_add d' p_drop Action.Drop))
       |> ActionDist.unsafe_normalize
       (* |> Util.tap ~f:(Format.printf "%a\n" ActionDist.pp) *)
       |> FactorizedActionDist.factorize
-    )
+    ) *)
 
   let observe_upon p a =
     if !use_fast_obs then
