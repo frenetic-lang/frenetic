@@ -371,7 +371,7 @@ let misc_tests = [
     end
   );
 
-  test (fdd_equiv_mod ["x"]) "fdd equivalence modulo"
+  test (fdd_equiv_mod ["x"]) "fdd seq homomorphism"
     PNK.(
       !!("y", 1)
     )
@@ -379,6 +379,19 @@ let misc_tests = [
       !!("x", 1) >> !!("y", 1) , 1//2;
       !!("x", 2) >> !!("y", 1) , 1//2;
     ]);
+
+  "fdd seq", `Quick, (fun () ->
+    let p = PNK.(?@[
+        !!("a", 0) @ 3//6;
+        !!("a", 1) @ 2//6;
+        drop       @ 1//6;
+      ])
+    in
+    let a = PNK.( filter (???("a",1)) )
+    in
+    Alcotest.check fdd_equiv ""
+      Fdd.(seq (of_pol p) (of_pol a)) Fdd.(of_pol PNK.(seq p a))
+  );
 ]
 
 
@@ -393,16 +406,15 @@ let observe_tests = [
   test ~use_fast_obs:true fdd_equiv "observe true filters out drop"
     PNK.(
       ?@[
-        !!("a", 0) @ 3//6;
-        !!("a", 1) @ 2//6;
-        drop       @ 1//6;
+        !!("a", 0) @ 2//6;
+        !!("a", 1) @ 4//6;
       ]
     )
     PNK.(
       ?@[
-        !!("a", 0) @ 3//6;
+        !!("a", 0) @ 1//6;
         !!("a", 1) @ 2//6;
-        drop       @ 1//6;
+        drop       @ 3//6;
       ]
       |> then_observe True
     );
@@ -460,9 +472,9 @@ let observe_tests = [
   test ~use_fast_obs:true fdd_equiv "observe disjunction"
     PNK.(
       ?@[
-        !!("a", 1) @ 2//9;
-        !!("a", 2) @ 3//9;
-        drop       @ 4//9;
+        !!("a", 1) @ 2//5;
+        !!("a", 2) @ 3//5;
+        (* drop       @ 4//9; *)
       ]
     )
     PNK.(
@@ -475,20 +487,9 @@ let observe_tests = [
       |> then_observe (disj (???("a",1)) (???("a", 2)))
     );
 
-  (* observe up fields *)
-(*   test ~use_fast_obs:true fdd_equiv "observe up fields"
+  (* observe up fields = big conditional *)
+  test ~use_fast_obs:true fdd_equiv "observe up fields = big conditional"
     PNK.(
-      ?@[
-        !!("pt", 0) @ 21//(4 * 4 * 4);
-        !!("pt", 1) @ 21//(4 * 4 * 4);
-        !!("pt", 2) @ 21//(4 * 4 * 4);
-      ]
-    )
-    PNK.(
-      seqi 3 ~f:(fun i -> ?@[
-        !!(up i, 0) @ 1//4;
-        !!(up i, 1) @ 3//4;
-      ]) >>
       ?@[
         !!("pt", 0) @ 1//3;
         !!("pt", 1) @ 1//3;
@@ -497,11 +498,66 @@ let observe_tests = [
       |> then_observe (disji 3 ~f:(fun i ->
         conj (???("pt", i)) (???(up i, 1))
       ))
-      |> locals (List.init 3 ~f:(fun i ->
+    )
+    PNK.(
+      ite (???(up 0, 1)) begin
+        ite (???(up 1, 1)) begin
+          ite (???(up 2, 1)) begin
+            uniform [ !!("pt", 0); !!("pt", 1); !!("pt", 2) ]
+          end (* else *) begin
+            uniform [ !!("pt", 0); !!("pt", 1) ]
+          end
+        end (* else *) begin
+          ite (???(up 2, 1)) begin
+            uniform [ !!("pt", 0); !!("pt", 2) ]
+          end begin
+            !!("pt", 0)
+          end
+        end
+      end (* else *) begin
+        ite (???(up 1, 1)) begin
+          ite (???(up 2, 1)) begin
+            uniform [ !!("pt", 1); !!("pt", 2) ]
+          end (* else *) begin
+            !!("pt", 1)
+          end
+        end (* else *) begin
+          ite (???(up 2, 1)) begin
+            !!("pt", 2)
+          end begin
+            drop
+          end
+        end
+      end
+    );
+
+  (* observe up fields *)
+  test ~use_fast_obs:true fdd_equiv "observe up fields"
+    PNK.(
+      ?@[
+        !!("pt", 0) @ 21//(4 * 4 * 4);
+        !!("pt", 1) @ 21//(4 * 4 * 4);
+        !!("pt", 2) @ 21//(4 * 4 * 4);
+      ]
+    )
+    PNK.(
+(*       seqi 3 ~f:(fun i -> ?@[
+        !!(up i, 0) @ 1//4;
+        !!(up i, 1) @ 3//4;
+      ]) >> *)
+      ?@[
+        !!("pt", 0) @ 1//3;
+        !!("pt", 1) @ 1//3;
+        !!("pt", 2) @ 1//3;
+      ]
+      |> then_observe (disji 3 ~f:(fun i ->
+        conj (???("pt", i)) (???(up i, 1))
+      ))
+(*       |> locals (List.init 3 ~f:(fun i ->
         (up i, 0, true)
       ))
-      |> Util.tap ~f:(Format.printf "\n%a\n" Syntax.pp_policy)
-    ); *)
+      |> Util.tap ~f:(Format.printf "\n%a\n" Syntax.pp_policy) *)
+    );
 
   (* observe up fields *)
   (* test ~use_fast_obs:true fdd_equiv "observe up fields"

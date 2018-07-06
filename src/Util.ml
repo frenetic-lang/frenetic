@@ -164,3 +164,17 @@ let fork (f : unit -> unit) : Pid.t =
     )
   | `In_the_parent pid ->
     pid
+
+
+(*===========================================================================*)
+(* Combinatorics                                                             *)
+(*===========================================================================*)
+let powerset xs =
+  let rec go acc xs =
+    match xs with
+    | [] -> [] :: acc
+    | x::xs -> go (acc @ List.map ~f:List.(cons x) acc) xs
+  in
+  go [] xs
+
+

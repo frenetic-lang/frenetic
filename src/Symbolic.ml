@@ -441,6 +441,7 @@ end = struct
   let unormalized_observe_not_drop t =
     to_alist t
     |> List.filter ~f:(function (Action.Drop,_) -> false | _ -> true)
+    |> (function [] -> [Action.Drop, Prob.one] | l -> l)
     |> unchecked_of_alist_exn
 
   let observe_not_drop t =
@@ -1815,7 +1816,8 @@ module Fdd = struct
     | ObserveUpon (p, a) ->
       let a = of_pred a in
       if equal a drop then k drop else
-      if equal a id then of_pol_k p k else
+      (* THIS OPTIMIZATION *IS NOT* WHAT WE WANt ANYMORE *)
+      (* if equal a id then of_pol_k p k else *)
       of_pol_k p (fun p -> k (observe_upon_t p a))
 
   and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
