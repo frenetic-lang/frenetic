@@ -133,6 +133,19 @@ let basic_deterministic = [
   test_not fdd_eq "equivalent but not equal fdds: not equal"
     PNK.( ite (???("x", 0)) skip         skip )
     PNK.( ite (???("x", 0)) (!!("x", 0)) skip );
+
+  (* regression test: bug in while loop implementation *)
+  test ~use_fast_obs:true fdd_equiv "observe f10 regression test"
+    PNK.(
+      !!("x", 1)
+      |> then_observe (conj (???("x", 1)) (???("y", 0)))
+    )
+    PNK.(
+      !!("x", 1)
+      |> do_whl (neg (conj (???("x", 1)) (???("y", 0))))
+    )
+
+
 ]
 
 
@@ -595,6 +608,17 @@ let observe_tests = [
         skip       @ 1//3;
       ]
       |> then_observe (???("a", 2))
+    );
+
+  test ~use_fast_obs:true fdd_equiv "observe f10 regression test"
+    PNK.(
+      ite (???("y", 0))
+        (!!("x", 1))
+        drop
+    )
+    PNK.(
+      !!("x", 1)
+      |> then_observe (conj (???("x", 1)) (???("y", 0)))
     );
 
 

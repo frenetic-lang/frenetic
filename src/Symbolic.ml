@@ -1314,8 +1314,22 @@ module Fdd = struct
     let pol = do_pol Field.Env.empty pol in
     pol
 
+  let deallocate_fields_pred (pred : Field.t pred) : string pred =
+    let do_field : Field.t -> string = Field.to_string in
+    let rec do_pred a =
+      match a with
+      | True -> True
+      | False -> False
+      | Test (f, v) -> Test (do_field f, v)
+      | And (p, q) -> And (do_pred p, do_pred q)
+      | Or (p, q) -> Or (do_pred p, do_pred q)
+      | Neg p -> Neg (do_pred p)
+    in
+    do_pred pred  
+
   let deallocate_fields (pol : Field.t policy) : string policy =
     let do_field : Field.t -> string = Field.to_string in
+    let do_pred = deallocate_fields_pred in
     let rec do_pol p =
       match p with
       | Filter pred ->
@@ -1340,17 +1354,169 @@ module Fdd = struct
         let id = "<N/A>" in
         let body = do_pol body in
         Let { id; init; mut; body; }
-    and do_pred a =
-      match a with
-      | True -> True
-      | False -> False
-      | Test (f, v) -> Test (do_field f, v)
-      | And (p, q) -> And (do_pred p, do_pred q)
-      | Or (p, q) -> Or (do_pred p, do_pred q)
-      | Neg p -> Neg (do_pred p)
     in
     do_pol pol
 
+
+(*===========================================================================*)
+(* EQUIVALENCE                                                               *)
+(*===========================================================================*)
+
+  type weighted_pk = Packet.t * Prob.t [@@deriving compare, eq]
+
+  (** removes all modifications of the provied list of fields  *)
+  let modulo t fields : t =
+    (* translate strings to Field.t's *)
+    let fields =
+      List.filter_map fields ~f:(Hashtbl.find field_allocation_tbl)
+      |> Field.Set.of_list
+    in
+    let open Action in
+    map_r t ~f:(fun dist ->
+      FactorizedActionDist.pushforward dist ~f:(function
+      | Drop ->
+        Drop
+      | Action act ->
+        Action (Field.Map.filteri act ~f:(fun ~key:f ~data:_->
+          not (Set.mem fields f)
+        ))
+      )
+    )
+
+  type ternary = TTrue | TFalse | TMaybe
+
+  let less_than ?(modulo=[]) t1 t2 =
+    let (&&) t1 t2 = match t1, t2 with
+      | TMaybe, TMaybe -> TMaybe
+      | TFalse, _  | _, TFalse -> TFalse
+      | _, TTrue | TTrue, _ -> TTrue in
+    let modulo =
+      List.filter_map modulo ~f:(Hashtbl.find field_allocation_tbl)
+      |> Field.Set.of_list
+    in
+    let rec do_nodes t1 t2 pk =
+      match unget t1, unget t2 with
+      | Branch {test=(f1,v1); tru=l1; fls=r1; all_fls=all_fls_1},
+        Branch {test=(f2,v2); tru=l2; fls=r2; all_fls=all_fls_2} ->
+        begin match Field.compare f1 f2 with
+        | -1 ->
+          do_nodes l1 t2 (PrePacket.modify pk f1 (Const v1)) &&
+          do_nodes r1 t2 pk
+        | 1 ->
+          do_nodes t1 l2 (PrePacket.modify pk f2 (Const v2)) &&
+          do_nodes t1 r2 pk
+        | 0 ->
+          begin match Value.compare v1 v2 with
+          | 0 ->
+            do_nodes l1 l2 (PrePacket.modify pk f1 (Const v1)) &&
+            do_nodes r1 r2 pk
+          | -1 ->
+            do_nodes l1 all_fls_2 (PrePacket.modify pk f1 (Const v1)) &&
+            do_nodes r1 t2 pk
+          | 1 ->
+            do_nodes all_fls_1 l2 (PrePacket.modify pk f2 (Const v2)) &&
+            do_nodes t1 r2 pk
+          | _ -> assert false
+          end
+        | _ -> assert false
+        end
+      | Branch {test=(f1,v1); tru=l1; fls=r1}, Leaf _ ->
+        do_nodes l1 t2 (PrePacket.modify pk f1 (Const v1)) &&
+        do_nodes r1 t2 pk
+      | Leaf _, Branch {test=(f2,v2); tru=l2; fls=r2} ->
+        do_nodes t1 l2 (PrePacket.modify pk f2 (Const v2)) &&
+        do_nodes t1 r2 pk
+      | Leaf d1, Leaf d2 ->
+        do_leaves d1 d2 pk
+    and do_leaves d1 d2 pk =
+      match List.compare compare_weighted_pk (normalize d1 pk) (normalize d2 pk) with
+      | -1 -> TTrue
+      | 0 -> TMaybe
+      | _ -> TFalse
+    and normalize dist pk =
+      modulo_mods dist
+      |> FactorizedActionDist.to_alist
+      |> Util.map_fst ~f:(Packet.(apply (Pk pk)))
+      |> List.filter ~f:(fun (pk,_) -> not Packet.(equal pk Emptyset))
+      |> List.sort ~compare:compare_weighted_pk
+    and modulo_mods dist =
+      FactorizedActionDist.pushforward dist ~f:(function
+      | Drop ->
+        Drop
+      | Action act ->
+        Action (Field.Map.filteri act ~f:(fun ~key:f ~data:_->
+          not (Set.mem modulo f)
+        ))
+      )
+    in
+    match do_nodes t1 t2 PrePacket.empty with
+    | TTrue -> true
+    | _ -> false
+
+
+  let equivalent ?(modulo=[]) t1 t2 =
+    let modulo =
+      List.filter_map modulo ~f:(Hashtbl.find field_allocation_tbl)
+      |> Field.Set.of_list
+    in
+    let rec do_nodes t1 t2 pk =
+      match unget t1, unget t2 with
+      | Branch {test=(f1,v1); tru=l1; fls=r1; all_fls=all_fls_1},
+        Branch {test=(f2,v2); tru=l2; fls=r2; all_fls=all_fls_2} ->
+        begin match Field.compare f1 f2 with
+        | -1 ->
+          do_nodes l1 t2 (PrePacket.modify pk f1 (Const v1)) &&
+          do_nodes r1 t2 pk
+        | 1 ->
+          do_nodes t1 l2 (PrePacket.modify pk f2 (Const v2)) &&
+          do_nodes t1 r2 pk
+        | 0 ->
+          begin match Value.compare v1 v2 with
+          | 0 ->
+            do_nodes l1 l2 (PrePacket.modify pk f1 (Const v1)) &&
+            do_nodes r1 r2 pk
+          | -1 ->
+            do_nodes l1 all_fls_2 (PrePacket.modify pk f1 (Const v1)) &&
+            do_nodes r1 t2 pk
+          | 1 ->
+            do_nodes all_fls_1 l2 (PrePacket.modify pk f2 (Const v2)) &&
+            do_nodes t1 r2 pk
+          | _ -> assert false
+          end
+        | _ -> assert false
+        end
+      | Branch {test=(f1,v1); tru=l1; fls=r1}, Leaf _ ->
+        do_nodes l1 t2 (PrePacket.modify pk f1 (Const v1)) &&
+        do_nodes r1 t2 pk
+      | Leaf _, Branch {test=(f2,v2); tru=l2; fls=r2} ->
+        do_nodes t1 l2 (PrePacket.modify pk f2 (Const v2)) &&
+        do_nodes t1 r2 pk
+      | Leaf d1, Leaf d2 ->
+        do_leaves d1 d2 pk
+    and do_leaves d1 d2 pk =
+      List.equal ~equal:equal_weighted_pk (normalize d1 pk) (normalize d2 pk)
+    and normalize dist pk =
+      modulo_mods dist
+      |> FactorizedActionDist.to_alist
+      |> Util.map_fst ~f:(Packet.(apply (Pk pk)))
+      |> List.sort ~compare:compare_weighted_pk
+    and modulo_mods dist =
+      FactorizedActionDist.pushforward dist ~f:(function
+      | Drop ->
+        Drop
+      | Action act ->
+        Action (Field.Map.filteri act ~f:(fun ~key:f ~data:_->
+          not (Set.mem modulo f)
+        ))
+      )
+    in
+    do_nodes t1 t2 PrePacket.empty
+
+
+
+(*===========================================================================*)
+(* COMPILATION                                                               *)
+(*===========================================================================*)
 
   let of_test hv =
     atom hv FactorizedActionDist.one FactorizedActionDist.zero
@@ -1814,11 +1980,29 @@ module Fdd = struct
     | Let { id=field; init; mut; body=p } ->
       of_pol_k p (fun p -> k (erase_t p field init))
     | ObserveUpon (p, a) ->
-      let a = of_pred a in
-      if equal a drop then k drop else
+      let a' = of_pred a in
+      if equal a' drop then k drop else
       (* THIS OPTIMIZATION *IS NOT* WHAT WE WANt ANYMORE *)
       (* if equal a id then of_pol_k p k else *)
-      of_pol_k p (fun p -> k (observe_upon_t p a))
+      of_pol_k p (fun p' -> k (observe_upon_t p' a'
+        (* use_fast_obs := false;
+        let slow = observe_upon_t p' a' in
+        let fast = fast_observe_upon p' a' in
+        let same = equivalent slow fast in
+        if not same then begin
+          Format.printf "\n\n";
+          Format.printf "%a" Syntax.pp_policy (p |> deallocate_fields);
+          Format.printf "\n\n";
+          Format.printf "%a" Syntax.pp_policy (Syntax.(Filter a) |> deallocate_fields);
+          Format.printf "\n\n";
+          Format.printf "%a" pp fast;
+          Format.printf "\n\n";
+          Format.printf "%a" pp slow;
+          Format.printf "\n\n%!";
+          failwith "BUG: fast and slow observe disagree"
+        end;
+        fast *)
+      ))
 
   and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
 
@@ -1901,155 +2085,7 @@ module Fdd = struct
     allocate_fields p
     |> of_pol_cps id
 
-  type weighted_pk = Packet.t * Prob.t [@@deriving compare, eq]
-
-  (** removes all modifications of the provied list of fields  *)
-  let modulo t fields : t =
-    (* translate strings to Field.t's *)
-    let fields =
-      List.filter_map fields ~f:(Hashtbl.find field_allocation_tbl)
-      |> Field.Set.of_list
-    in
-    let open Action in
-    map_r t ~f:(fun dist ->
-      FactorizedActionDist.pushforward dist ~f:(function
-      | Drop ->
-        Drop
-      | Action act ->
-        Action (Field.Map.filteri act ~f:(fun ~key:f ~data:_->
-          not (Set.mem fields f)
-        ))
-      )
-    )
-
-  type ternary = True | False | Maybe
-
-  let less_than ?(modulo=[]) t1 t2 =
-    let (&&) t1 t2 = match t1, t2 with
-      | Maybe, Maybe -> Maybe
-      | False, _  | _, False -> False
-      | _, True | True, _ -> True in
-    let modulo =
-      List.filter_map modulo ~f:(Hashtbl.find field_allocation_tbl)
-      |> Field.Set.of_list
-    in
-    let rec do_nodes t1 t2 pk =
-      match unget t1, unget t2 with
-      | Branch {test=(f1,v1); tru=l1; fls=r1; all_fls=all_fls_1},
-        Branch {test=(f2,v2); tru=l2; fls=r2; all_fls=all_fls_2} ->
-        begin match Field.compare f1 f2 with
-        | -1 ->
-          do_nodes l1 t2 (PrePacket.modify pk f1 (Const v1)) &&
-          do_nodes r1 t2 pk
-        | 1 ->
-          do_nodes t1 l2 (PrePacket.modify pk f2 (Const v2)) &&
-          do_nodes t1 r2 pk
-        | 0 ->
-          begin match Value.compare v1 v2 with
-          | 0 ->
-            do_nodes l1 l2 (PrePacket.modify pk f1 (Const v1)) &&
-            do_nodes r1 r2 pk
-          | -1 ->
-            do_nodes l1 all_fls_2 (PrePacket.modify pk f1 (Const v1)) &&
-            do_nodes r1 t2 pk
-          | 1 ->
-            do_nodes all_fls_1 l2 (PrePacket.modify pk f2 (Const v2)) &&
-            do_nodes t1 r2 pk
-          | _ -> assert false
-          end
-        | _ -> assert false
-        end
-      | Branch {test=(f1,v1); tru=l1; fls=r1}, Leaf _ ->
-        do_nodes l1 t2 (PrePacket.modify pk f1 (Const v1)) &&
-        do_nodes r1 t2 pk
-      | Leaf _, Branch {test=(f2,v2); tru=l2; fls=r2} ->
-        do_nodes t1 l2 (PrePacket.modify pk f2 (Const v2)) &&
-        do_nodes t1 r2 pk
-      | Leaf d1, Leaf d2 ->
-        do_leaves d1 d2 pk
-    and do_leaves d1 d2 pk =
-      match List.compare compare_weighted_pk (normalize d1 pk) (normalize d2 pk) with
-      | -1 -> True
-      | 0 -> Maybe
-      | _ -> False
-    and normalize dist pk =
-      modulo_mods dist
-      |> FactorizedActionDist.to_alist
-      |> Util.map_fst ~f:(Packet.(apply (Pk pk)))
-      |> List.filter ~f:(fun (pk,_) -> not Packet.(equal pk Emptyset))
-      |> List.sort ~compare:compare_weighted_pk
-    and modulo_mods dist =
-      FactorizedActionDist.pushforward dist ~f:(function
-      | Drop ->
-        Drop
-      | Action act ->
-        Action (Field.Map.filteri act ~f:(fun ~key:f ~data:_->
-          not (Set.mem modulo f)
-        ))
-      )
-    in
-    match do_nodes t1 t2 PrePacket.empty with
-    | True -> true
-    | _ -> false
-
-
-  let equivalent ?(modulo=[]) t1 t2 =
-    let modulo =
-      List.filter_map modulo ~f:(Hashtbl.find field_allocation_tbl)
-      |> Field.Set.of_list
-    in
-    let rec do_nodes t1 t2 pk =
-      match unget t1, unget t2 with
-      | Branch {test=(f1,v1); tru=l1; fls=r1; all_fls=all_fls_1},
-        Branch {test=(f2,v2); tru=l2; fls=r2; all_fls=all_fls_2} ->
-        begin match Field.compare f1 f2 with
-        | -1 ->
-          do_nodes l1 t2 (PrePacket.modify pk f1 (Const v1)) &&
-          do_nodes r1 t2 pk
-        | 1 ->
-          do_nodes t1 l2 (PrePacket.modify pk f2 (Const v2)) &&
-          do_nodes t1 r2 pk
-        | 0 ->
-          begin match Value.compare v1 v2 with
-          | 0 ->
-            do_nodes l1 l2 (PrePacket.modify pk f1 (Const v1)) &&
-            do_nodes r1 r2 pk
-          | -1 ->
-            do_nodes l1 all_fls_2 (PrePacket.modify pk f1 (Const v1)) &&
-            do_nodes r1 t2 pk
-          | 1 ->
-            do_nodes all_fls_1 l2 (PrePacket.modify pk f2 (Const v2)) &&
-            do_nodes t1 r2 pk
-          | _ -> assert false
-          end
-        | _ -> assert false
-        end
-      | Branch {test=(f1,v1); tru=l1; fls=r1}, Leaf _ ->
-        do_nodes l1 t2 (PrePacket.modify pk f1 (Const v1)) &&
-        do_nodes r1 t2 pk
-      | Leaf _, Branch {test=(f2,v2); tru=l2; fls=r2} ->
-        do_nodes t1 l2 (PrePacket.modify pk f2 (Const v2)) &&
-        do_nodes t1 r2 pk
-      | Leaf d1, Leaf d2 ->
-        do_leaves d1 d2 pk
-    and do_leaves d1 d2 pk =
-      List.equal ~equal:equal_weighted_pk (normalize d1 pk) (normalize d2 pk)
-    and normalize dist pk =
-      modulo_mods dist
-      |> FactorizedActionDist.to_alist
-      |> Util.map_fst ~f:(Packet.(apply (Pk pk)))
-      |> List.sort ~compare:compare_weighted_pk
-    and modulo_mods dist =
-      FactorizedActionDist.pushforward dist ~f:(function
-      | Drop ->
-        Drop
-      | Action act ->
-        Action (Field.Map.filteri act ~f:(fun ~key:f ~data:_->
-          not (Set.mem modulo f)
-        ))
-      )
-    in
-    do_nodes t1 t2 PrePacket.empty
+ 
 
 
   let output_dist t ~(input_dist : Packet.Dist.t) =
