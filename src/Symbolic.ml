@@ -1676,7 +1676,7 @@ module Fdd = struct
       let p2 = seq p p in
       if equal p p2 then p else loop p2
     in
-    loop (sum ap not_a)
+    seq (loop (sum ap not_a)) not_a
 
 
   let python_iterate ap not_a (coding : (module CODING)) to_py =
