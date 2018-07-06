@@ -60,8 +60,12 @@ let () = begin
         let slow = Fdd.of_symbolic_pol model in
 
         Fdd.print_stats ();
-        Fdd.render fast ~title:"fast";
-        Fdd.render slow ~title:"slow";
+        let equiv = Fdd.equivalent fast slow in
+        printf "equivalent: %b\n%!" equiv;
+        if not equiv then begin
+          Fdd.render fast ~title:"fast";
+          Fdd.render slow ~title:"slow";
+        end
 (* 
         Fdd.use_fast_obs := false;
         let fdd = Fdd.of_symbolic_pol model in

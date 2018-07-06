@@ -532,31 +532,34 @@ let observe_tests = [
     );
 
   (* observe up fields *)
-  test ~use_fast_obs:true fdd_equiv "observe up fields"
+  test ~use_fast_obs:true fdd_equiv "observe up fields + erasure"
     PNK.(
       ?@[
-        !!("pt", 0) @ 21//(4 * 4 * 4);
-        !!("pt", 1) @ 21//(4 * 4 * 4);
-        !!("pt", 2) @ 21//(4 * 4 * 4);
+        drop        @  1//64;
+        !!("pt", 0) @ 21//64;
+        !!("pt", 1) @ 21//64;
+        !!("pt", 2) @ 21//64;
       ]
     )
     PNK.(
-(*       seqi 3 ~f:(fun i -> ?@[
+      seqi 3 ~f:(fun i -> ?@[
         !!(up i, 0) @ 1//4;
         !!(up i, 1) @ 3//4;
-      ]) >> *)
-      ?@[
-        !!("pt", 0) @ 1//3;
-        !!("pt", 1) @ 1//3;
-        !!("pt", 2) @ 1//3;
-      ]
-      |> then_observe (disji 3 ~f:(fun i ->
-        conj (???("pt", i)) (???(up i, 1))
-      ))
-(*       |> locals (List.init 3 ~f:(fun i ->
+      ])
+      >> begin
+        ?@[
+          !!("pt", 0) @ 1//3;
+          !!("pt", 1) @ 1//3;
+          !!("pt", 2) @ 1//3;
+        ]
+        |> then_observe (disji 3 ~f:(fun i ->
+          conj (???("pt", i)) (???(up i, 1))
+        ))
+      end
+      |> locals (List.init 3 ~f:(fun i ->
         (up i, 0, true)
       ))
-      |> Util.tap ~f:(Format.printf "\n%a\n" Syntax.pp_policy) *)
+      |> Util.tap ~f:(Format.printf "\n%a\n" Syntax.pp_policy)
     );
 
   (* observe up fields *)
