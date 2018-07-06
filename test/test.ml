@@ -259,6 +259,11 @@ let basic_probabilistic = [
 
 ]
 
+
+(*===========================================================================*)
+(* PERFORMANCE TESTS                                                         *)
+(*===========================================================================*)
+
 let basic_performance = [
 
   (* joint distribution of n independent binary coins *)
@@ -357,6 +362,10 @@ let basic_performance = [
 
 ]
 
+
+(*===========================================================================*)
+(* MISC TESTS                                                                *)
+(*===========================================================================*)
 
 let misc_tests = [
   (* make sure we can change the order of fdd fields *)
