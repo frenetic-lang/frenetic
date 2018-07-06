@@ -562,74 +562,31 @@ let observe_tests = [
       |> Util.tap ~f:(Format.printf "\n%a\n" Syntax.pp_policy)
     );
 
-  (* observe up fields *)
-  (* test ~use_fast_obs:true fdd_equiv "observe up fields"
+
+  test ~use_fast_obs:true fdd_equiv "observe true"
     PNK.(
-      ?@[
-        !!("pt", 0) @ 21//(4 * 4 * 4);
-        !!("pt", 1) @ 21//(4 * 4 * 4);
-        !!("pt", 2) @ 21//(4 * 4 * 4);
-        drop        @ 1//(4 * 4 * 4);
-      ]
+      skip
     )
-
-    PNK.(
-      seqi 3 ~f:(fun i -> ?@[
-        !!(up i, 0) @ 1//4;
-        !!(up i, 1) @ 3//4;
-      ]) >>
-      ?@[
-        !!("pt", 0) @ 1//3;
-        !!("pt", 1) @ 1//3;
-        !!("pt", 2) @ 1//3;
-      ]
-      >> (filter (
-        disji 3 ~f:(fun i ->
-          conj (???("pt", i)) (???(up i, 1))
-        )
-        |> disj (conji 3 ~f:(fun i -> ???(up i, 0)))
-      ))
-      >> filter (disji 3 ~f:(fun i ->
-          conj (???("pt", i)) (???(up i, 1))
-      ))
-      |> Util.tap ~f:(fun p ->
-        Fdd.use_fast_obs := true;
-        Fdd.clear_cache ~preserve:Int.Set.empty;
-        Fdd.of_pol p
-        |> Format.printf "%a\n" (Fdd.pp ~show:false)
-      )
-      (* |> Util.tap ~f:(Format.printf "%a" Syntax.pp_policy) *)
-      |> locals (List.init 3 ~f:(fun i ->
-        (up i, 0, true)
-      ))
-      |> Util.tap ~f:(fun p ->
-        Fdd.use_fast_obs := true;
-        Fdd.clear_cache ~preserve:Int.Set.empty;
-        Fdd.of_pol p
-        |> Format.printf "%a\n" (Fdd.pp ~show:false)
-      )
-      |> Util.tap ~f:(Format.printf "%a" Syntax.pp_policy)
-    ); *)
-
-
-(*   test ~use_fast_obs:true fdd_equiv "observe up fields"
     PNK.(
       ?@[
         skip @ 1//2;
         drop @ 1//2;
       ]
       |> then_observe True
+    );
+
+  test ~use_fast_obs:true fdd_equiv "observe disguised false"
+    PNK.(
+      ite (???("a", 2)) skip drop
     )
     PNK.(
-      skip
-    ) *)
-(*     PNK.(
       ?@[
-        skip @ 1//2;
-        drop @ 1//2;
+        !!("a", 0) @ 1//3;
+        !!("a", 1) @ 1//3;
+        skip       @ 1//3;
       ]
-    ) *)
-    (* drop |> then_observe True *)
+      |> then_observe (???("a", 2))
+    );
 
 
 ]
