@@ -2034,15 +2034,15 @@ module Fdd = struct
 
   let use_cps = ref true
 
-  let of_symbolic_pol ?(bound=None) (p : Field.t policy) : t =
+  let of_symbolic_pol ?(lctxt=id) ?(bound=None) (p : Field.t policy) : t =
     if !use_cps then
-      of_pol_cps bound id p
+      of_pol_cps bound lctxt p
     else
-      of_pol_k bound p ident
+      of_pol_k bound p (seq lctxt)
 
-  let of_pol ?bound (p : string policy) : t =
+  let of_pol ?lctxt ?bound (p : string policy) : t =
     allocate_fields p
-    |> of_symbolic_pol ?bound
+    |> of_symbolic_pol ?lctxt ?bound
 
  
 

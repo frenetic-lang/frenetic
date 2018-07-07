@@ -152,3 +152,13 @@ let uniform_ingress (topo : Net.Topology.t) ~(dst: int) : Symbolic.Packet.Dist.t
     Packet.(modify (modify empty sw sw_v) pt pt_v)
   )
   |> Packet.Dist.uniform
+
+let uniform_ingress' (topo : Net.Topology.t) ~(dst: int) : Symbolic.Fdd.t =
+  let open Syntax in
+  ingress_locs topo ~dst
+  |> Util.map_fst ~f:(sw_val topo)
+  |> List.map ~f:(fun (sw_v, pt_v) ->
+    PNK.(!!(Params.sw, sw_v) >> !!(Params.pt, pt_v))
+  )
+  |> PNK.uniform
+  |> Symbolic.Fdd.of_pol
