@@ -64,22 +64,29 @@ let load ~max_failures ~failure_prob
 
 
 let equiv p1 p2 =
-  Fdd.(equivalent (of_pol p1) (of_pol p2) ~modulo:Params.modulo)
+  Fdd.clear_cache ~preserve:Int.Set.empty;
+  let p1, p2 = Fdd.(allocate_fields p1, allocate_fields p2) in
+  Field.auto_order PNK.(?@[ p1 @ 1//2; p2 @ 1//2 ]);
+  let p1, p2 = Fdd.(of_symbolic_pol p1, of_symbolic_pol p2) in
+  Fdd.equivalent p1 p2 ~modulo:Params.modulo
 
 let leq p1 p2 =
-  let p1 = Fdd.of_pol p1 in
-  let p2 = Fdd.of_pol p2 in
-  Fdd.(less_than p1 p2 ~modulo:Params.modulo)
+  Fdd.clear_cache ~preserve:Int.Set.empty;
+  let p1, p2 = Fdd.(allocate_fields p1, allocate_fields p2) in
+  Field.auto_order PNK.(?@[ p1 @ 1//2; p2 @ 1//2 ]);
+  let p1, p2 = Fdd.(of_symbolic_pol p1, of_symbolic_pol p2) in
+  Fdd.less_than p1 p2 ~modulo:Params.modulo
 
 (*===========================================================================*)
 (* CLI                                                                       *)
 (*===========================================================================*)
 let () =
+  Util.print_times := false; (* cleaner logs *)
   let max_failures = [0;1;2;3;4;-1] in
   let failure_prob = Prob.(1//16) in
   let timeout = 3600 in
-  let fattree = "./examples/output/fattree_4_sw_20" in
-  let abfattree = "./examples/output/abfattree_4_sw_20" in
+  let fattree = "./examples/output/fattree_8_sw_80" in
+  let abfattree = "./examples/output/abfattree_8_sw_80" in
   let ft = Topology.parse (Params.topo_file fattree) in
   let abft = Topology.parse (Params.topo_file abfattree) in
   let failure_locs_ft = Topology.core_agg_locs ft in
@@ -103,7 +110,7 @@ let () =
       let logfile = "./examples/output/results/icfp.log" in
 
       (* run analysis & dump data *)
-      Util.log_and_sandbox ~timeout ~logfile "1. invariant" ~f:(fun () ->
+      Util.log_and_sandbox ~timeout ~logfile "1. invariant\t" ~f:(fun () ->
           let file, data, history =
             load ~max_failures ~failure_prob
           in
@@ -135,7 +142,7 @@ let () =
           dump data file
         );
       printf "\n";
-      Util.log_and_sandbox ~timeout ~logfile "3. refinement" ~f:(fun () ->
+      Util.log_and_sandbox ~timeout ~logfile "3. refinement\t" ~f:(fun () ->
           let file, data, history =
             load ~max_failures ~failure_prob
           in
@@ -153,7 +160,7 @@ let () =
         );
         (* run analysis & dump data *)
       printf "\n";
-      Util.log_and_sandbox ~timeout ~logfile "4. k-resilience" ~f:(fun () ->
+      Util.log_and_sandbox ~timeout ~logfile "4. k-resilience\t" ~f:(fun () ->
           let file, data, history =
             load ~max_failures ~failure_prob
           in
