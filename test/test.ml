@@ -645,7 +645,19 @@ let cps_tests =
         let slow = Fdd.of_pol p in
         Fdd.use_cps := true;
         let fast = Fdd.of_pol p in
-        Alcotest.check fdd_equiv "" slow fast
+        Alcotest.check fdd_equiv "" slow fast;
+        (* with bounds *)
+        Fdd.use_cps := false;
+        let slow = Fdd.of_pol ~bound:(Some 4) p in
+        Fdd.use_cps := true;
+        let fast = Fdd.of_pol ~bound:(Some 4) p in
+        Alcotest.check fdd_equiv "" slow fast;
+        (* with bounds *)
+        Fdd.use_cps := false;
+        let slow = Fdd.of_pol ~bound:(Some 8) p in
+        Fdd.use_cps := true;
+        let fast = Fdd.of_pol ~bound:(Some 8) p in
+        Alcotest.check fdd_equiv "" slow fast;
       with Failure "too many fields! (may need to clear the cache?)" ->
         (* the CPS translation is less economical in the use of fields, but that
            should not be considered a bug *)
