@@ -1961,11 +1961,10 @@ module Fdd = struct
     | Let { id=field; init; mut; body=p } ->
       of_pol_k bound p (fun p -> k (erase_t p field init))
     | ObserveUpon (p, a) ->
-      let a' = of_pred a in
-      if equal a' drop then k drop else
-      of_pol_k bound p (fun p' -> k (observe_upon_t p' a'))
+      let a = of_pred a in
+      if equal a drop then k drop else
+      of_pol_k bound p (fun p -> k (observe_upon_t p a))
 
-  let of_symbolic_pol bound (p : Field.t policy) : t = of_pol_k bound p ident
 
   let rec of_pol_cps (lctxt : t) (p : Field.t policy) : t =
     if equal drop lctxt then drop else
@@ -1980,7 +1979,7 @@ module Fdd = struct
     | Ite (a, p, q) ->
       (* FIXME: could use more context! *)
       let a = of_pred a in
-      ite_t a (of_pol_cps a p) (of_pol_cps (negate a) q)
+      ite a (of_pol_cps a p) (of_pol_cps (negate a) q)
       |> seq lctxt
     | While (a, p) ->
       let a = of_pred a in
@@ -1999,61 +1998,28 @@ module Fdd = struct
       | Const v ->
         let lctxt = of_pol_cps lctxt (Modify (field, v)) in
         let p = of_pol_cps lctxt p in
-        erase_t p field init
+        erase p field init
       | Alias _ ->
         let p = of_pol_cps lctxt p in
-        erase_t p field init
+        erase p field init
       end
     | ObserveUpon (p, a) ->
       let a = of_pred a in
-      (* IS THIS SOUND??
+      if equal a drop then drop else
+      observe_upon (of_pol_cps id p) a
+      |> seq lctxt
 
-         (skip (+) drop); ObserveUpon(skip, True)
-      == (skip (+) drop)
-      != skip
-      == ObserveUpon(skip (+) drop, True)
+  let use_cps = ref false
 
-      *)
-      observe_upon (of_pol_cps lctxt p) a
-
-
-(* let rec of_pol_cps (lctxt : t) (p : Field.t policy) : t =
-    if equal lctxt drop then drop else
-    match p with
-    | Filter a ->
-      seq lctxt (of_pred a)
-    | Modify m ->
-      prod lctxt (of_mod m)
-    | Seq (p, q) ->
-      of_pol_cps (of_pol_cps lctxt p) q
-    | Ite (a, p, q) ->
-      let a = of_pred a in
-      let tru_ctxt = seq lctxt a in
-      let fls_ctxt = seq lctxt (negate a) in
-      sum (of_pol_cps tru_ctxt p) (of_pol_cps fls_ctxt q)
-    | While (a, p) ->
-      let a = of_pred a in
-      let 
-      if equal lctxt (seq lctxt (negate a)) then
-        lctxt
-      else
-        Util.timed "while loop" (fun () -> iterate a (of_pol_cps a p))
-    | Choice dist ->
-      n_ary_convex_sum (Util.map_fst dist ~f:(of_pol_cps lctxt))
-    | Let { id=field; init; mut; body=p } ->
-      (* SJS: this is safe, right? *)
-      erase (of_pol_cps lctxt p) field init
-(*     | Repeat (n, p) ->
-      seq k (repeat n (of_pol_cps id p)) *) *)
-
+  let of_symbolic_pol bound (p : Field.t policy) : t =
+    if !use_cps then
+      of_pol_cps id p
+    else
+      of_pol_k bound p ident
 
   let of_pol ?(bound=None) (p : string policy) : t =
     allocate_fields p
     |> of_symbolic_pol bound
-
-  let of_pol' (p : string policy) : t =
-    allocate_fields p
-    |> of_pol_cps id
 
  
 
