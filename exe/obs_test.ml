@@ -10,9 +10,9 @@ let () = begin
   let failure_prob = Prob.(1//16) in
   let timeout = 3600 in (* in seconds *)
   let topos = [
-      (* 2, "./examples/output/abfattree_2_sw_5"; *)
+      2, "./examples/output/abfattree_2_sw_5";
       4, "./examples/output/abfattree_4_sw_20";
-      (* 6, "./examples/output/abfattree_6_sw_45"; *)
+      6, "./examples/output/abfattree_6_sw_45";
     ]
   in
 
@@ -37,7 +37,7 @@ let () = begin
           else Prob.zero
         )
         ()
-        |- Format.printf "%a\n\n%!" Syntax.pp_policy
+        (* |- Format.printf "%a\n\n%!" Syntax.pp_policy *)
         |> Fdd.allocate_fields
         (* |> Syntax.fix_observe *)
       in
@@ -49,7 +49,7 @@ let () = begin
       Fdd.clear_stats ();
       Symbolic.Field.auto_order model;
 
-      (* Util.log_and_sandbox ~timeout ~logfile topo_file ~f:(fun () -> *)
+      Util.log_and_sandbox ~timeout ~logfile topo_file ~f:(fun () ->
         Fdd.use_fast_obs := true;
         let fast = Fdd.of_symbolic_pol model in
         Fdd.print_stats ();
@@ -65,14 +65,9 @@ let () = begin
         if not equiv then begin
           Fdd.render fast ~title:"fast";
           Fdd.render slow ~title:"slow";
+          failwith "fast and slow observe give different results"
         end
-(* 
-        Fdd.use_fast_obs := false;
-        let fdd = Fdd.of_symbolic_pol model in
-        let fdd' = Fdd.(of_pol_cps id model) in
-        assert Fdd.(equivalent fdd fdd');
-        printf "success!\n%!"; *)
-      (* ) *)
+      )
     )
   )
 end
