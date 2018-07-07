@@ -6,7 +6,7 @@ from scipy.sparse import linalg
 import fileinput
 import time
 
-verbosity = 0
+verbosity = -1
 
 def eprint(*args, verb=0, **kwargs):
     if verb <= verbosity:
