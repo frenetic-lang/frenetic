@@ -43,6 +43,10 @@ module Make(Dom: Vlr.HashCmp) : sig
 
   val prob_of : t -> Dom.t -> Prob.t
 
+  (** Filters out outcomes not satisfying [f], then renormalizes.
+      In case no events satisfy [f], returns [dirac bot]. *)
+  val observe : t -> bot : Dom.t -> f:(Dom.t -> bool) -> t
+
   (** expected value *)
   val expectation : t -> f:(Dom.t -> Q.t) -> Q.t
 

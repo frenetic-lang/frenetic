@@ -31,9 +31,14 @@ module Fdd_ser_eq = struct
 end
 let fdd_ser_eq = (module Fdd_ser_eq : Alcotest.TESTABLE with type t = Fdd.t)
 
-let test ?(use_fast_obs=false) kind name p q =
+(* remember all policies we're testing with; we can use them to check that
+   different compilation strategies give the same result *)
+let pols = ref []
+
+let test ?(use_slow_obs=false) kind name p q =
+  pols := p :: q :: !pols;
   (name, `Quick, (fun () ->
-      Fdd.use_fast_obs := use_fast_obs;
+      Fdd.use_slow_observe := use_slow_obs;
       Alcotest.check kind "" (Fdd.of_pol p) (Fdd.of_pol q);
       Fdd.clear_cache ~preserve:Int.Set.empty
     )
@@ -135,7 +140,7 @@ let basic_deterministic = [
     PNK.( ite (???("x", 0)) (!!("x", 0)) skip );
 
   (* regression test: bug in while loop implementation *)
-  test ~use_fast_obs:true fdd_equiv "observe f10 regression test"
+  test fdd_equiv "observe f10 regression test"
     PNK.(
       !!("x", 1)
       |> then_observe (conj (???("x", 1)) (???("y", 0)))
@@ -284,7 +289,7 @@ let basic_performance = [
     let n = 20 in
     let field i = sprintf "x%d" i in
     let local_field i = sprintf "y%d" i in
-    let p =PNK.(
+    let p = PNK.(
       seqi n ~f:(fun i -> ?@[
         !!(field i, 0) , 1//2;
         !!(field i, 1) , 1//2;
@@ -425,7 +430,7 @@ let up i = sprintf "up_%d" i
 
 let observe_tests = [
   (* observe true *)
-  test ~use_fast_obs:true fdd_equiv "observe true filters out drop"
+  test fdd_equiv "observe true filters out drop"
     PNK.(
       ?@[
         !!("a", 0) @ 2//6;
@@ -442,7 +447,7 @@ let observe_tests = [
     );
 
   (* observe false *)
-  test ~use_fast_obs:true fdd_equiv "observe false = drop"
+  test fdd_equiv "observe false = drop"
     PNK.(drop)
     PNK.(
       ?@[
@@ -454,7 +459,7 @@ let observe_tests = [
     );
   
   (* reweighting *)
-  test ~use_fast_obs:true fdd_equiv "observe reweighting"
+  test fdd_equiv "observe reweighting"
     PNK.(
       ?@[
         !!("a", 1) @ 3//3;
@@ -471,7 +476,7 @@ let observe_tests = [
     );
 
   (* reweighting *)
-  test ~use_fast_obs:true fdd_equiv "observe filter equiv"
+  test fdd_equiv "observe filter equiv"
     PNK.(
       (?@[
         !!("a", 0) @ 3//6;
@@ -491,7 +496,7 @@ let observe_tests = [
     );
 
   (* observe disjunction *)
-  test ~use_fast_obs:true fdd_equiv "observe disjunction"
+  test fdd_equiv "observe disjunction"
     PNK.(
       ?@[
         !!("a", 1) @ 2//5;
@@ -510,7 +515,7 @@ let observe_tests = [
     );
 
   (* observe up fields = big conditional *)
-  test ~use_fast_obs:true fdd_equiv "observe up fields = big conditional"
+  test fdd_equiv "observe up fields = big conditional"
     PNK.(
       ?@[
         !!("pt", 0) @ 1//3;
@@ -554,7 +559,7 @@ let observe_tests = [
     );
 
   (* observe up fields *)
-  test ~use_fast_obs:true fdd_equiv "observe up fields + erasure"
+  test fdd_equiv "observe up fields + erasure"
     PNK.(
       ?@[
         drop        @  1//64;
@@ -581,11 +586,11 @@ let observe_tests = [
       |> locals (List.init 3 ~f:(fun i ->
         (up i, 0, true)
       ))
-      |> Util.tap ~f:(Format.printf "\n%a\n" Syntax.pp_policy)
+      (* |> Util.tap ~f:(Format.printf "\n%a\n" Syntax.pp_policy) *)
     );
 
 
-  test ~use_fast_obs:true fdd_equiv "observe true"
+  test fdd_equiv "observe true"
     PNK.(
       skip
     )
@@ -597,7 +602,7 @@ let observe_tests = [
       |> then_observe True
     );
 
-  test ~use_fast_obs:true fdd_equiv "observe disguised false"
+  test fdd_equiv "observe disguised false"
     PNK.(
       ite (???("a", 2)) skip drop
     )
@@ -610,7 +615,7 @@ let observe_tests = [
       |> then_observe (???("a", 2))
     );
 
-  test ~use_fast_obs:true fdd_equiv "observe f10 regression test"
+  test fdd_equiv "observe f10 regression test"
     PNK.(
       ite (???("y", 0))
         (!!("x", 1))
@@ -621,8 +626,32 @@ let observe_tests = [
       |> then_observe (conj (???("x", 1)) (???("y", 0)))
     );
 
-
+  test_not fdd_equiv "observe and seq do not distribute"
+    PNK.(
+      seq (?@[ skip @ 1//2; drop @ 1//2 ]) skip
+      |> then_observe True
+    )
+    PNK.(
+      seq (?@[ skip @ 1//2; drop @ 1//2 ]) (then_observe True skip)
+    )
 ]
+
+
+let cps_tests =
+  List.map (!pols) ~f:(fun p ->
+    "", `Quick, (fun () ->
+      try[@warning "-52"]
+        Fdd.use_cps := false;
+        let slow = Fdd.of_pol p in
+        Fdd.use_cps := true;
+        let fast = Fdd.of_pol p in
+        Alcotest.check fdd_equiv "" slow fast
+      with Failure "too many fields! (may need to clear the cache?)" ->
+        (* the CPS translation is less economical in the use of fields, but that
+           should not be considered a bug *)
+        ()
+    )
+  )
 
 
 (* let qcheck_tests = [
@@ -638,5 +667,6 @@ let () =
     "fdd probabilistic", basic_probabilistic;
     "fdd performance",   basic_performance;
     "fdd observe", observe_tests;
+    "fdd cps compilation", cps_tests;
     (* "qcheck", qcheck_tests; *)
   ]

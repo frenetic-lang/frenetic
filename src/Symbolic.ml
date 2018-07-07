@@ -344,7 +344,6 @@ module ActionDist : sig
   val unsafe_add : t -> Prob.t -> Action.t -> t
   val unsafe_normalize : t -> t
 
-  val unormalized_observe_not_drop : t -> t
   val observe_not_drop : t -> t
 
   (**
@@ -438,15 +437,9 @@ end = struct
     in
     (finish_conditional yes, finish_conditional no, finish_conditional mb)
 
-  let unormalized_observe_not_drop t =
-    to_alist t
-    |> List.filter ~f:(function (Action.Drop,_) -> false | _ -> true)
-    |> (function [] -> [Action.Drop, Prob.one] | l -> l)
-    |> unchecked_of_alist_exn
-
   let observe_not_drop t =
-    unormalized_observe_not_drop t
-    |> unsafe_normalize
+    T.observe t ~bot:Action.Drop ~f:(function Action.Drop -> false | _ -> true)
+
 end
 
 (* hacky *)
@@ -473,7 +466,6 @@ module FactorizedActionDist : sig
   val pushforward : t -> f:(Action.t -> Action.t) -> t
 
   val empty : t
-  val unsafe_normalize : t -> t
 
   val factorize : ActionDist.t -> t
   val to_joined : t -> ActionDist.t
@@ -490,7 +482,6 @@ module FactorizedActionDist : sig
   val split_into_conditionals :
     t -> Field.t * Value.t -> ((t * Prob.t) * (t * Prob.t) * (t * Prob.t))
 
-  val unormalized_observe_not_drop : t -> t
   val observe_not_drop : t -> t
 
 end = struct
@@ -650,14 +641,6 @@ end = struct
           (canonicalize @@ dist::f_independent_factors, mass)
       in
       finish_conditional yes, finish_conditional no, finish_conditional mb
-
-  let unsafe_normalize t =
-    to_joined t
-    |> ActionDist.unsafe_normalize
-    |> of_joined
-
-  let unormalized_observe_not_drop t =
-    List.map t ~f:ActionDist.unormalized_observe_not_drop
 
   let observe_not_drop t =
     List.map t ~f:ActionDist.observe_not_drop
@@ -1144,6 +1127,14 @@ module Matrix = struct
           |> List.map ~f:(fun v -> Field.Map.set pk ~key:f ~data:v)
         )
     )
+  (* like pre_packet_variants, but only returns a singel variant *)
+  let pre_packet_variant (pk : PrePacket.t) (dom : Domain.t) : PrePacket.t =
+    Field.Map.fold2 pk dom ~init:pk ~f:(fun ~key:f ~data pk ->
+      match data with
+      | `Both _ -> pk
+      | `Right vs -> Field.Map.set pk ~key:f ~data:(Set.choose_exn vs)
+      | `Left _ -> assert false
+    )
 
   let packet_variants (pk : Packet.t) (dom : Domain.t) : Packet.t list =
     match pk with
@@ -1186,18 +1177,18 @@ module Matrix = struct
       let rowi = Sparse.row t.matrix i in
       row_to_action rowi
     in
-    (* FIXME: inefficient solution for now for safety! *)
+    (* Using faster, but less safe code. We're assuming here that all
+       pre_pact_variants give the same final result. But we're not checking that
+       this is true. *)
+    pre_packet_variant pk t.dom
+    |> total_pk_action
+(*     (* FIXME: inefficient solution for now for safety! *)
     pre_packet_variants pk t.dom
     |> List.map ~f:total_pk_action
     |> List.group ~break:(fun x y -> not (ActionDist.equal x y))
     |> function
       | [act::_] -> act
-      | ((act::_)::_) as actions->
-        eprintf "!!! WARNING: possibly unsounds matix -> Fdd conversion\n%!";
-        List.concat actions
-        |> List.iter ~f:(fun dist -> eprintf "  %s\n" (ActionDist.to_string dist));
-        act
-      | _ -> assert false
+      | _ -> assert false *)
 
 end
 
@@ -1794,7 +1785,7 @@ module Fdd = struct
           ~write:[] ~except:[] ~timeout:`Never ()
       with
       | { read = fd::_; _ } when Unix.File_descr.equal fd from_caml_fd ->
-        printf "*** ocaml won race!\n%!";
+        (* printf "*** ocaml won race!\n%!"; *)
 
         (* kill other process *)
         Signal.(send_i kill (`Pid py_pid));
@@ -1804,7 +1795,7 @@ module Fdd = struct
           |> deserialize
         )
       | { read = fd::_; _ } when Unix.File_descr.equal fd from_py_fd ->
-        printf "*** python won race!\n%!";
+        (* printf "*** python won race!\n%!"; *)
 
         (* kill other process *)
         Signal.(send_i kill (`Pid caml_pid));
@@ -1886,31 +1877,15 @@ module Fdd = struct
     sum (prod a p) (prod (negate a) q)
 
 
-  let use_fast_obs = ref false
-
-  let fast_observe_upon p a =
-    seq p a
-    |> dp_map_r ~f:FactorizedActionDist.observe_not_drop
-
-  let observe_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
-
-(*   let fast_observe_upon p a =
-    apply_non_comm p (seq p a) ~cache:observe_tbl ~f:(fun d d' ->
-      let p_drop = FactorizedActionDist.prob_of_drop d in
-      FactorizedActionDist.to_joined d'
-      |> ActionDist.unormalized_observe_not_drop
-      |> (if Prob.(equal zero p_drop) then ident else 
-         (fun d' -> ActionDist.unsafe_add d' p_drop Action.Drop))
-      |> ActionDist.unsafe_normalize
-      (* |> Util.tap ~f:(Format.printf "%a\n" ActionDist.pp) *)
-      |> FactorizedActionDist.factorize
-    ) *)
+  let use_slow_observe = ref false
 
   let observe_upon p a =
-    if !use_fast_obs then
-      fast_observe_upon p a
-    else
+    if !use_slow_observe then
       seq p (whl (negate a) p)
+    else begin
+      seq p a
+      |> dp_map_r ~f:FactorizedActionDist.observe_not_drop
+    end
 
 
   (** {2} timed versions of the compilation functions *)
@@ -1988,37 +1963,16 @@ module Fdd = struct
         ))
       )
     | Choice dist ->
-      Util.map_fst dist ~f:(of_symbolic_pol bound)
+      Util.map_fst dist ~f:(fun p -> of_pol_k bound p ident)
       |> n_ary_convex_sum_t
       |> k
     | Let { id=field; init; mut; body=p } ->
       of_pol_k bound p (fun p -> k (erase_t p field init))
     | ObserveUpon (p, a) ->
-      let a' = of_pred a in
-      if equal a' drop then k drop else
-      (* THIS OPTIMIZATION *IS NOT* WHAT WE WANt ANYMORE *)
-      (* if equal a id then of_pol_k bound p k else *)
-      of_pol_k bound p (fun p' -> k (observe_upon_t p' a'
-        (* use_fast_obs := false;
-        let slow = observe_upon_t p' a' in
-        let fast = fast_observe_upon p' a' in
-        let same = equivalent slow fast in
-        if not same then begin
-          Format.printf "\n\n";
-          Format.printf "%a" Syntax.pp_policy (p |> deallocate_fields);
-          Format.printf "\n\n";
-          Format.printf "%a" Syntax.pp_policy (Syntax.(Filter a) |> deallocate_fields);
-          Format.printf "\n\n";
-          Format.printf "%a" pp fast;
-          Format.printf "\n\n";
-          Format.printf "%a" pp slow;
-          Format.printf "\n\n%!";
-          failwith "BUG: fast and slow observe disagree"
-        end;
-        fast *)
-      ))
+      let a = of_pred a in
+      if equal a drop then k drop else
+      of_pol_k bound p (fun p -> k (observe_upon_t p a))
 
-  and of_symbolic_pol bound (p : Field.t policy) : t = of_pol_k bound p ident
 
   let rec of_pol_cps (lctxt : t) (p : Field.t policy) : t =
     if equal drop lctxt then drop else
@@ -2032,7 +1986,7 @@ module Fdd = struct
       of_pol_cps lctxt q
     | Ite (a, p, q) ->
       let a = of_pred a in
-      ite_t a (of_pol_cps a p) (of_pol_cps (negate a) q)
+      ite a (of_pol_cps a p) (of_pol_cps (negate a) q)
       |> seq lctxt
     | While (a, p) ->
       let a = of_pred a in
@@ -2045,59 +1999,37 @@ module Fdd = struct
         else
           seq lctxt (whl_t a (of_pol_cps a p))
     | Choice dist ->
-      n_ary_convex_sum (Util.map_fst dist ~f:(of_pol_cps lctxt))
+      (* SJS: In principle, we could compile all points of the distribution with
+         lctxt. But empirically, this leads to much worse performance. *)
+      n_ary_convex_sum (Util.map_fst dist ~f:(of_pol_cps id))
+      |> seq lctxt
     | Let { id=field; init; mut; body=p } ->
       begin match init with
       | Const v ->
         let lctxt = of_pol_cps lctxt (Modify (field, v)) in
         let p = of_pol_cps lctxt p in
-        erase_t p field init
+        erase p field init
       | Alias _ ->
         let p = of_pol_cps lctxt p in
-        erase_t p field init
+        erase p field init
       end
     | ObserveUpon (p, a) ->
       let a = of_pred a in
-      fast_observe_upon (of_pol_cps lctxt p) a
+      if equal a drop then drop else
+      observe_upon (of_pol_cps id p) a
+      |> seq lctxt
 
+  let use_cps = ref false
 
-(* let rec of_pol_cps (lctxt : t) (p : Field.t policy) : t =
-    if equal lctxt drop then drop else
-    match p with
-    | Filter a ->
-      seq lctxt (of_pred a)
-    | Modify m ->
-      prod lctxt (of_mod m)
-    | Seq (p, q) ->
-      of_pol_cps (of_pol_cps lctxt p) q
-    | Ite (a, p, q) ->
-      let a = of_pred a in
-      let tru_ctxt = seq lctxt a in
-      let fls_ctxt = seq lctxt (negate a) in
-      sum (of_pol_cps tru_ctxt p) (of_pol_cps fls_ctxt q)
-    | While (a, p) ->
-      let a = of_pred a in
-      let 
-      if equal lctxt (seq lctxt (negate a)) then
-        lctxt
-      else
-        Util.timed "while loop" (fun () -> iterate a (of_pol_cps a p))
-    | Choice dist ->
-      n_ary_convex_sum (Util.map_fst dist ~f:(of_pol_cps lctxt))
-    | Let { id=field; init; mut; body=p } ->
-      (* SJS: this is safe, right? *)
-      erase (of_pol_cps lctxt p) field init
-(*     | Repeat (n, p) ->
-      seq k (repeat n (of_pol_cps id p)) *) *)
-
+  let of_symbolic_pol bound (p : Field.t policy) : t =
+    if !use_cps then
+      of_pol_cps id p
+    else
+      of_pol_k bound p ident
 
   let of_pol ?(bound=None) (p : string policy) : t =
     allocate_fields p
     |> of_symbolic_pol bound
-
-  let of_pol' (p : string policy) : t =
-    allocate_fields p
-    |> of_pol_cps id
 
  
 

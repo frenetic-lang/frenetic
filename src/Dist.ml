@@ -115,6 +115,14 @@ module Make (Dom : Vlr.HashCmp) = struct
     | None -> Prob.zero
     | Some p -> p
 
+  let observe t ~(bot : Dom.t) ~(f: Dom.t -> bool) : t =
+    let t = T.filter_keys t ~f in
+    if T.is_empty t then
+      dirac bot
+    else
+      unsafe_normalize t
+
+
   let expectation t ~(f : Dom.t -> Q.t) : Q.t =
     T.fold t ~init:Q.zero ~f:(fun ~key:x ~data:p acc ->
       Q.(acc + Prob.to_q p * f(x))

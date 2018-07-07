@@ -50,16 +50,16 @@ let () = begin
       Symbolic.Field.auto_order model;
 
       Util.log_and_sandbox ~timeout ~logfile topo_file ~f:(fun () ->
-        Fdd.use_fast_obs := true;
-        let fast = Fdd.of_symbolic_pol None model in
+        Fdd.use_slow_observe := true;
+        let slow = Fdd.of_symbolic_pol None model in
         Fdd.print_stats ();
         Fdd.clear_stats ();
 
-        Fdd.use_fast_obs := false;
-        Fdd.clear_cache ~preserve:(Int.Set.singleton (fast :> int));
-        let slow = Fdd.of_symbolic_pol None model in
+        Fdd.use_slow_observe := false;
+        Fdd.clear_cache ~preserve:(Int.Set.singleton (slow :> int));
+        let fast = Fdd.of_pol_cps Fdd.id model in
 
-        Fdd.print_stats ();
+        (* Fdd.print_stats (); *)
         let equiv = Fdd.equivalent fast slow in
         printf "equivalent: %b\n%!" equiv;
         if not equiv then begin
