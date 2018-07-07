@@ -1794,7 +1794,7 @@ module Fdd = struct
           ~write:[] ~except:[] ~timeout:`Never ()
       with
       | { read = fd::_; _ } when Unix.File_descr.equal fd from_caml_fd ->
-        printf "*** ocaml won race!\n%!";
+        (* printf "*** ocaml won race!\n%!"; *)
 
         (* kill other process *)
         Signal.(send_i kill (`Pid py_pid));
@@ -1804,7 +1804,7 @@ module Fdd = struct
           |> deserialize
         )
       | { read = fd::_; _ } when Unix.File_descr.equal fd from_py_fd ->
-        printf "*** python won race!\n%!";
+        (* printf "*** python won race!\n%!"; *)
 
         (* kill other process *)
         Signal.(send_i kill (`Pid caml_pid));
