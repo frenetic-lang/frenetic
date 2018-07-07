@@ -1127,6 +1127,14 @@ module Matrix = struct
           |> List.map ~f:(fun v -> Field.Map.set pk ~key:f ~data:v)
         )
     )
+  (* like pre_packet_variants, but only returns a singel variant *)
+  let pre_packet_variant (pk : PrePacket.t) (dom : Domain.t) : PrePacket.t =
+    Field.Map.fold2 pk dom ~init:pk ~f:(fun ~key:f ~data pk ->
+      match data with
+      | `Both _ -> pk
+      | `Right vs -> Field.Map.set pk ~key:f ~data:(Set.choose_exn vs)
+      | `Left _ -> assert false
+    )
 
   let packet_variants (pk : Packet.t) (dom : Domain.t) : Packet.t list =
     match pk with
@@ -1169,18 +1177,18 @@ module Matrix = struct
       let rowi = Sparse.row t.matrix i in
       row_to_action rowi
     in
-    (* FIXME: inefficient solution for now for safety! *)
+    (* Using faster, but less safe code. We're assuming here that all
+       pre_pact_variants give the same final result. But we're not checking that
+       this is true. *)
+    pre_packet_variant pk t.dom
+    |> total_pk_action
+(*     (* FIXME: inefficient solution for now for safety! *)
     pre_packet_variants pk t.dom
     |> List.map ~f:total_pk_action
     |> List.group ~break:(fun x y -> not (ActionDist.equal x y))
     |> function
       | [act::_] -> act
-(*       | ((act::_)::_) as actions->
-        eprintf "!!! WARNING: possibly unsounds matix -> Fdd conversion\n%!";
-        List.concat actions
-        |> List.iter ~f:(fun dist -> eprintf "  %s\n" (ActionDist.to_string dist));
-        act *)
-      | _ -> assert false
+      | _ -> assert false *)
 
 end
 
