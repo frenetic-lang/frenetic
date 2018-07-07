@@ -1679,6 +1679,16 @@ module Fdd = struct
     in
     seq (loop k (sum ap not_a)) not_a
 
+  let bounded_whl_cps k lctxt a ap =
+    let not_a = negate a in
+    let q = sum ap not_a in
+    let rec loop k p =
+      if k <= 0 then p else
+      let p2 = seq p q in
+      if equal p p2 then p else loop (k - 1) p2
+    in
+    seq (loop k lctxt) not_a
+
 
   let python_iterate ap not_a (coding : (module CODING)) to_py =
     let module Coding = (val coding : CODING) in
@@ -1974,7 +1984,7 @@ module Fdd = struct
       of_pol_k bound p (fun p -> k (observe_upon_t p a))
 
 
-  let rec of_pol_cps (lctxt : t) (p : Field.t policy) : t =
+  let rec of_pol_cps bound (lctxt : t) (p : Field.t policy) : t =
     if equal drop lctxt then drop else
     match p with
     | Filter a ->
@@ -1982,11 +1992,11 @@ module Fdd = struct
     | Modify m ->
       prod lctxt (of_mod m)
     | Seq (p,q) ->
-      let lctxt = of_pol_cps lctxt p in
-      of_pol_cps lctxt q
+      let lctxt = of_pol_cps bound lctxt p in
+      of_pol_cps bound lctxt q
     | Ite (a, p, q) ->
       let a = of_pred a in
-      ite a (of_pol_cps a p) (of_pol_cps (negate a) q)
+      ite a (of_pol_cps bound a p) (of_pol_cps bound (negate a) q)
       |> seq lctxt
     | While (a, p) ->
       let a = of_pred a in
@@ -1997,39 +2007,42 @@ module Fdd = struct
         if equal lctxt skip_ctxt || equal a drop then
           skip_ctxt
         else
-          seq lctxt (whl_t a (of_pol_cps a p))
+          begin match bound with
+          | None -> seq lctxt (whl_t a (of_pol_cps bound a p))
+          | Some k -> bounded_whl_cps k lctxt a (of_pol_cps bound a p)
+          end
     | Choice dist ->
       (* SJS: In principle, we could compile all points of the distribution with
          lctxt. But empirically, this leads to much worse performance. *)
-      n_ary_convex_sum (Util.map_fst dist ~f:(of_pol_cps id))
+      n_ary_convex_sum (Util.map_fst dist ~f:(of_pol_cps bound id))
       |> seq lctxt
     | Let { id=field; init; mut; body=p } ->
       begin match init with
       | Const v ->
-        let lctxt = of_pol_cps lctxt (Modify (field, v)) in
-        let p = of_pol_cps lctxt p in
+        let lctxt = of_pol_cps bound lctxt (Modify (field, v)) in
+        let p = of_pol_cps bound lctxt p in
         erase p field init
       | Alias _ ->
-        let p = of_pol_cps lctxt p in
+        let p = of_pol_cps bound lctxt p in
         erase p field init
       end
     | ObserveUpon (p, a) ->
       let a = of_pred a in
       if equal a drop then drop else
-      observe_upon (of_pol_cps id p) a
+      observe_upon (of_pol_cps bound id p) a
       |> seq lctxt
 
   let use_cps = ref true
 
-  let of_symbolic_pol bound (p : Field.t policy) : t =
+  let of_symbolic_pol ?(bound=None) (p : Field.t policy) : t =
     if !use_cps then
-      of_pol_cps id p
+      of_pol_cps bound id p
     else
       of_pol_k bound p ident
 
-  let of_pol ?(bound=None) (p : string policy) : t =
+  let of_pol ?bound (p : string policy) : t =
     allocate_fields p
-    |> of_symbolic_pol bound
+    |> of_symbolic_pol ?bound
 
  
 
