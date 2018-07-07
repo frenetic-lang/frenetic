@@ -1175,11 +1175,11 @@ module Matrix = struct
     |> List.group ~break:(fun x y -> not (ActionDist.equal x y))
     |> function
       | [act::_] -> act
-      | ((act::_)::_) as actions->
+(*       | ((act::_)::_) as actions->
         eprintf "!!! WARNING: possibly unsounds matix -> Fdd conversion\n%!";
         List.concat actions
         |> List.iter ~f:(fun dist -> eprintf "  %s\n" (ActionDist.to_string dist));
-        act
+        act *)
       | _ -> assert false
 
 end
