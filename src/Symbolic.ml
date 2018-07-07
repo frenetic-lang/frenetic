@@ -1999,7 +1999,10 @@ module Fdd = struct
         else
           seq lctxt (whl_t a (of_pol_cps a p))
     | Choice dist ->
-      n_ary_convex_sum (Util.map_fst dist ~f:(of_pol_cps lctxt))
+      (* SJS: In principle, we could compile all points of the distribution with
+         lctxt. But empirically, this leads to much worse performance. *)
+      n_ary_convex_sum (Util.map_fst dist ~f:(of_pol_cps id))
+      |> seq lctxt
     | Let { id=field; init; mut; body=p } ->
       begin match init with
       | Const v ->

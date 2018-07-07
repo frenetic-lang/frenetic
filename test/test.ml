@@ -284,7 +284,7 @@ let basic_performance = [
     let n = 20 in
     let field i = sprintf "x%d" i in
     let local_field i = sprintf "y%d" i in
-    let p =PNK.(
+    let p = PNK.(
       seqi n ~f:(fun i -> ?@[
         !!(field i, 0) , 1//2;
         !!(field i, 1) , 1//2;
