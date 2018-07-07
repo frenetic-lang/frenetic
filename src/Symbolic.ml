@@ -1977,7 +1977,6 @@ module Fdd = struct
       let lctxt = of_pol_cps lctxt p in
       of_pol_cps lctxt q
     | Ite (a, p, q) ->
-      (* FIXME: could use more context! *)
       let a = of_pred a in
       ite a (of_pol_cps a p) (of_pol_cps (negate a) q)
       |> seq lctxt
