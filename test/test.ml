@@ -31,7 +31,12 @@ module Fdd_ser_eq = struct
 end
 let fdd_ser_eq = (module Fdd_ser_eq : Alcotest.TESTABLE with type t = Fdd.t)
 
+(* remember all policies we're testing with; we can use them to check that
+   different compilation strategies give the same result *)
+let pols = ref []
+
 let test ?(use_slow_obs=false) kind name p q =
+  pols := p :: q :: !pols;
   (name, `Quick, (fun () ->
       Fdd.use_slow_observe := use_slow_obs;
       Alcotest.check kind "" (Fdd.of_pol p) (Fdd.of_pol q);
@@ -632,6 +637,23 @@ let observe_tests = [
 ]
 
 
+let cps_tests =
+  List.map (!pols) ~f:(fun p ->
+    "", `Quick, (fun () ->
+      try[@warning "-52"]
+        Fdd.use_cps := false;
+        let slow = Fdd.of_pol p in
+        Fdd.use_cps := true;
+        let fast = Fdd.of_pol p in
+        Alcotest.check fdd_equiv "" slow fast
+      with Failure "too many fields! (may need to clear the cache?)" ->
+        (* the CPS translation is less economical in the use of fields, but that
+           should not be considered a bug *)
+        ()
+    )
+  )
+
+
 (* let qcheck_tests = [
   "round-trip", `Quick, fun () -> QCheck.Test.check_exn failing
 ]
@@ -645,5 +667,6 @@ let () =
     "fdd probabilistic", basic_probabilistic;
     "fdd performance",   basic_performance;
     "fdd observe", observe_tests;
+    "fdd cps compilation", cps_tests;
     (* "qcheck", qcheck_tests; *)
   ]
