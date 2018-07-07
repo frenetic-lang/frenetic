@@ -2019,7 +2019,7 @@ module Fdd = struct
       observe_upon (of_pol_cps id p) a
       |> seq lctxt
 
-  let use_cps = ref false
+  let use_cps = ref true
 
   let of_symbolic_pol bound (p : Field.t policy) : t =
     if !use_cps then

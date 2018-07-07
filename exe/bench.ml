@@ -15,6 +15,7 @@ let () = begin
       10, "./examples/output/abfattree_10_sw_125";
       12, "./examples/output/abfattree_12_sw_180";
       14, "./examples/output/abfattree_14_sw_245";
+      16, "./examples/output/abfattree_16_sw_320";
     ]
   in
 
@@ -51,7 +52,6 @@ let () = begin
         Fdd.clear_cache ~preserve:Int.Set.empty;
         Fdd.clear_stats ();
         Symbolic.Field.auto_order model;
-
 
         Util.log_and_sandbox ~timeout ~logfile topo_file ~f:(fun () ->
           ignore (Fdd.of_symbolic_pol bound model);
