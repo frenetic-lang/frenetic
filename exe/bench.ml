@@ -43,17 +43,22 @@ let () = begin
       in
 
       let logfile = "./examples/output/results/bench.log" in
+      Util.print_times := false;
 
-      (* clear cache and set FDD order *)
-      Fdd.clear_cache ~preserve:Int.Set.empty;
-      Fdd.clear_stats ();
-      Symbolic.Field.auto_order model;
+      List.iter [Some 16; None] ~f:(fun bound ->
+        printf "bound = %s\n" (Option.value_map bound ~f:Int.to_string ~default:"none");
+        (* clear cache and set FDD order *)
+        Fdd.clear_cache ~preserve:Int.Set.empty;
+        Fdd.clear_stats ();
+        Symbolic.Field.auto_order model;
 
-      Util.log_and_sandbox ~timeout ~logfile topo_file ~f:(fun () ->
-        Fdd.use_fast_obs := true;
-        ignore (Fdd.of_symbolic_pol model);
-        Fdd.print_stats ();
-      );
+
+        Util.log_and_sandbox ~timeout ~logfile topo_file ~f:(fun () ->
+          Fdd.use_fast_obs := true;
+          ignore (Fdd.of_symbolic_pol bound model);
+          Fdd.print_stats ();
+        );
+      )
     )
   )
 end

@@ -51,13 +51,13 @@ let () = begin
 
       Util.log_and_sandbox ~timeout ~logfile topo_file ~f:(fun () ->
         Fdd.use_fast_obs := true;
-        let fast = Fdd.of_symbolic_pol model in
+        let fast = Fdd.of_symbolic_pol None model in
         Fdd.print_stats ();
         Fdd.clear_stats ();
 
         Fdd.use_fast_obs := false;
         Fdd.clear_cache ~preserve:(Int.Set.singleton (fast :> int));
-        let slow = Fdd.of_symbolic_pol model in
+        let slow = Fdd.of_symbolic_pol None model in
 
         Fdd.print_stats ();
         let equiv = Fdd.equivalent fast slow in

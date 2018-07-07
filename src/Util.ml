@@ -9,10 +9,11 @@ let time f x =
 
 let time' f = time f ()
 
+let print_times = ref true 
 let timed descr f =
-  printf "start %s...\n%!" descr;
+  if !print_times then printf "start %s...\n%!" descr;
   let t, y = time f () in
-  printf "--> %s done! %f seconds\n%!" descr t;
+  if !print_times then printf "--> %s done! %f seconds\n%!" descr t;
   y
 
 let print_time time =

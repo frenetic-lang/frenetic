@@ -1372,7 +1372,7 @@ module Fdd = struct
       |> Field.Set.of_list
     in
     let open Action in
-    map_r t ~f:(fun dist ->
+    dp_map_r t ~f:(fun dist ->
       FactorizedActionDist.pushforward dist ~f:(function
       | Drop ->
         Drop
@@ -1525,7 +1525,7 @@ module Fdd = struct
     const (FactorizedActionDist.dirac (Action.Action (PreAction.T.singleton f v)))
 
   let negate fdd =
-    map_r fdd ~f:FactorizedActionDist.negate
+    dp_map_r fdd ~f:FactorizedActionDist.negate
 
   let rec of_pred p =
     match p with
@@ -1553,9 +1553,9 @@ module Fdd = struct
     and sum' x y =
       match unget x, unget y with
       | Leaf x, _      ->
-        map_r (fun y -> f x y) y
+        dp_map_r (fun y -> f x y) y
       | _     , Leaf y ->
-        map_r (fun x -> f x y) x
+        dp_map_r (fun x -> f x y) x
       | Branch {test=(vx, lx); tru=tx; fls=fx; all_fls=all_fls_x},
         Branch {test=(vy, ly); tru=ty; fls=fy; all_fls=all_fls_y} ->
         begin match Field.compare vx vy with
@@ -1677,6 +1677,16 @@ module Fdd = struct
       if equal p p2 then p else loop p2
     in
     seq (loop (sum ap not_a)) not_a
+
+  let bounded_whl k a p =
+    let ap = prod a p in
+    let not_a = negate a in
+    let rec loop k p =
+      if k <= 1 then p else
+      let p2 = seq p p in
+      if equal p p2 then p else loop (k/2) p2
+    in
+    seq (loop k (sum ap not_a)) not_a
 
 
   let python_iterate ap not_a (coding : (module CODING)) to_py =
@@ -1858,9 +1868,9 @@ module Fdd = struct
     match init with
     | Const v ->
       restrict [(meta_field,v)] t
-      |> map_r ~f:erase_mods
+      |> dp_map_r ~f:erase_mods
     | Alias alias ->
-      fold t
+      dp_fold t
         ~f:(fun dist -> const (erase_mods dist))
         ~g:(fun (field,v) tru fls ->
           if field = meta_field then
@@ -1880,8 +1890,7 @@ module Fdd = struct
 
   let fast_observe_upon p a =
     seq p a
-    (* FIXME: map_r should use dynamic programming! *)
-    |> map_r ~f:FactorizedActionDist.observe_not_drop
+    |> dp_map_r ~f:FactorizedActionDist.observe_not_drop
 
   let observe_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
 
@@ -1941,50 +1950,55 @@ module Fdd = struct
   let ite_t a p q = measure "ite" (fun () -> ite a p q)
   let seq_t p q = measure "seq" (fun () -> seq p q)
   let whl_t a p = measure "whl" (fun () -> whl a p)
+  let bounded_whl_t k a p = measure "k times" (fun () -> bounded_whl k a p)
   let n_ary_convex_sum_t ps = measure "choice" (fun () -> n_ary_convex_sum ps)
   let erase_t p f init = measure "erase" (fun () -> erase p f init)
   let observe_upon_t p a = measure "obs" (fun () -> observe_upon p a)
 
 
-  let rec of_pol_k (p : Field.t policy) k : t =
+  let rec of_pol_k bound (p : Field.t policy) k : t =
     match p with
     | Filter p ->
       k (of_pred_t p)
     | Modify m ->
       k (of_mod_t m)
     | Seq (p, q) ->
-      of_pol_k p (fun p' ->
+      of_pol_k bound p (fun p' ->
         if equal p' Fdd0.drop then
           k drop
         else
-          of_pol_k q (fun q' -> k (seq_t p' q')))
+          of_pol_k bound q (fun q' -> k (seq_t p' q')))
     | Ite (a, p, q) ->
       let a = of_pred a in
       if equal a id then
-        of_pol_k p k
+        of_pol_k bound p k
       else if equal a drop then
-        of_pol_k q k
+        of_pol_k bound q k
       else
-        of_pol_k p (fun p -> of_pol_k q (fun q -> k (ite_t a p q)))
+        of_pol_k bound p (fun p -> of_pol_k bound q (fun q -> k (ite_t a p q)))
     | While (a, p) ->
       let a = of_pred a in
       if equal a id then k drop else
       if equal a drop then k id else
-      of_pol_k p (fun p ->
-        k (Util.timed "while loop" (fun () -> whl_t a p))
+      of_pol_k bound p (fun p ->
+        k (Util.timed "while loop" (fun () ->
+          match bound with
+          | None -> whl_t a p
+          | Some k -> bounded_whl_t k a p
+        ))
       )
     | Choice dist ->
-      Util.map_fst dist ~f:of_symbolic_pol
+      Util.map_fst dist ~f:(of_symbolic_pol bound)
       |> n_ary_convex_sum_t
       |> k
     | Let { id=field; init; mut; body=p } ->
-      of_pol_k p (fun p -> k (erase_t p field init))
+      of_pol_k bound p (fun p -> k (erase_t p field init))
     | ObserveUpon (p, a) ->
       let a' = of_pred a in
       if equal a' drop then k drop else
       (* THIS OPTIMIZATION *IS NOT* WHAT WE WANt ANYMORE *)
-      (* if equal a id then of_pol_k p k else *)
-      of_pol_k p (fun p' -> k (observe_upon_t p' a'
+      (* if equal a id then of_pol_k bound p k else *)
+      of_pol_k bound p (fun p' -> k (observe_upon_t p' a'
         (* use_fast_obs := false;
         let slow = observe_upon_t p' a' in
         let fast = fast_observe_upon p' a' in
@@ -2004,7 +2018,7 @@ module Fdd = struct
         fast *)
       ))
 
-  and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
+  and of_symbolic_pol bound (p : Field.t policy) : t = of_pol_k bound p ident
 
   let rec of_pol_cps (lctxt : t) (p : Field.t policy) : t =
     if equal drop lctxt then drop else
@@ -2077,9 +2091,9 @@ module Fdd = struct
       seq k (repeat n (of_pol_cps id p)) *) *)
 
 
-  let of_pol (p : string policy) : t =
+  let of_pol ?(bound=None) (p : string policy) : t =
     allocate_fields p
-    |> of_symbolic_pol
+    |> of_symbolic_pol bound
 
   let of_pol' (p : string policy) : t =
     allocate_fields p

@@ -173,6 +173,9 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
           [let neg = map_r (fun r -> not r)] *)
 
+  val dp_map_r : f:(r -> r) -> t -> t
+
+
   val fold
     :  f:(r -> 'a)
     -> g:(v -> 'a -> 'a -> 'a)
@@ -181,6 +184,12 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   (** [fold f g t] traverses the diagram, replacing leaf nodes with
       applications of [f] to the values that they hold, and branches on
       variables with applications of [g]. *)
+
+  val dp_fold
+    :  f:(r -> t)
+    -> g:(v -> t -> t -> t)
+    -> t
+    -> t
 
   val equal : t -> t -> bool
   (** [equal a b] returns whether or not the two diagrams are structurally

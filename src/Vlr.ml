@@ -113,12 +113,27 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     | Branch { test = (v, l);  tru; fls } ->
       g (v, l) (fold ~f ~g tru) (fold ~f ~g fls)
 
-  let const r = mk_leaf r
-  let atom (v,l) t f = mk_branch (v,l) (const t) (const f)
+  let dp_fold ~(f: r -> t) ~(g: v -> t -> t -> t) (t : t) : t =
+    let cache : (t, 'a) Hashtbl.t = Int.Table.create ~size:1000 () in
+    let rec map t =
+      Hashtbl.find_or_add cache t ~default:(fun () -> map' t)
+    and map' t =
+      match unget t with
+      | Leaf r -> f r
+      | Branch { test=(v, l); tru; fls } -> g (v,l) (map tru) (map fls)
+    in
+    map t
 
   let rec map_r ~f t = fold t
-    ~f:(fun r -> const (f r))
+    ~f:(fun r -> mk_leaf (f r))
     ~g:(fun (v, l) tru fls -> mk_branch (v,l) tru fls)
+
+  let rec dp_map_r ~f t = dp_fold t
+    ~f:(fun r -> mk_leaf (f r))
+    ~g:(fun (v, l) tru fls -> mk_branch (v,l) tru fls)
+
+  let const r = mk_leaf r
+  let atom (v,l) t f = mk_branch (v,l) (const t) (const f)
 
   let restrict lst u =
     let rec loop xs u =
