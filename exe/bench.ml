@@ -54,8 +54,7 @@ let () = begin
 
 
         Util.log_and_sandbox ~timeout ~logfile topo_file ~f:(fun () ->
-          Fdd.use_fast_obs := true;
-          ignore (Fdd.of_pol_cps Fdd.id model);
+          ignore (Fdd.of_symbolic_pol bound model);
           Fdd.print_stats ();
         );
       )

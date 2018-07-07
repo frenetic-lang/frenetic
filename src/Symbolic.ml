@@ -344,7 +344,6 @@ module ActionDist : sig
   val unsafe_add : t -> Prob.t -> Action.t -> t
   val unsafe_normalize : t -> t
 
-  val unormalized_observe_not_drop : t -> t
   val observe_not_drop : t -> t
 
   (**
@@ -438,15 +437,9 @@ end = struct
     in
     (finish_conditional yes, finish_conditional no, finish_conditional mb)
 
-  let unormalized_observe_not_drop t =
-    to_alist t
-    |> List.filter ~f:(function (Action.Drop,_) -> false | _ -> true)
-    |> (function [] -> [Action.Drop, Prob.one] | l -> l)
-    |> unchecked_of_alist_exn
-
   let observe_not_drop t =
-    unormalized_observe_not_drop t
-    |> unsafe_normalize
+    T.observe t ~bot:Action.Drop ~f:(function Action.Drop -> false | _ -> true)
+
 end
 
 (* hacky *)
@@ -473,7 +466,6 @@ module FactorizedActionDist : sig
   val pushforward : t -> f:(Action.t -> Action.t) -> t
 
   val empty : t
-  val unsafe_normalize : t -> t
 
   val factorize : ActionDist.t -> t
   val to_joined : t -> ActionDist.t
@@ -490,7 +482,6 @@ module FactorizedActionDist : sig
   val split_into_conditionals :
     t -> Field.t * Value.t -> ((t * Prob.t) * (t * Prob.t) * (t * Prob.t))
 
-  val unormalized_observe_not_drop : t -> t
   val observe_not_drop : t -> t
 
 end = struct
@@ -650,14 +641,6 @@ end = struct
           (canonicalize @@ dist::f_independent_factors, mass)
       in
       finish_conditional yes, finish_conditional no, finish_conditional mb
-
-  let unsafe_normalize t =
-    to_joined t
-    |> ActionDist.unsafe_normalize
-    |> of_joined
-
-  let unormalized_observe_not_drop t =
-    List.map t ~f:ActionDist.unormalized_observe_not_drop
 
   let observe_not_drop t =
     List.map t ~f:ActionDist.observe_not_drop
@@ -1886,31 +1869,15 @@ module Fdd = struct
     sum (prod a p) (prod (negate a) q)
 
 
-  let use_fast_obs = ref false
-
-  let fast_observe_upon p a =
-    seq p a
-    |> dp_map_r ~f:FactorizedActionDist.observe_not_drop
-
-  let observe_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
-
-(*   let fast_observe_upon p a =
-    apply_non_comm p (seq p a) ~cache:observe_tbl ~f:(fun d d' ->
-      let p_drop = FactorizedActionDist.prob_of_drop d in
-      FactorizedActionDist.to_joined d'
-      |> ActionDist.unormalized_observe_not_drop
-      |> (if Prob.(equal zero p_drop) then ident else 
-         (fun d' -> ActionDist.unsafe_add d' p_drop Action.Drop))
-      |> ActionDist.unsafe_normalize
-      (* |> Util.tap ~f:(Format.printf "%a\n" ActionDist.pp) *)
-      |> FactorizedActionDist.factorize
-    ) *)
+  let use_slow_observe = ref false
 
   let observe_upon p a =
-    if !use_fast_obs then
-      fast_observe_upon p a
-    else
+    if !use_slow_observe then
       seq p (whl (negate a) p)
+    else begin
+      seq p a
+      |> dp_map_r ~f:FactorizedActionDist.observe_not_drop
+    end
 
 
   (** {2} timed versions of the compilation functions *)
@@ -1988,7 +1955,7 @@ module Fdd = struct
         ))
       )
     | Choice dist ->
-      Util.map_fst dist ~f:(of_symbolic_pol bound)
+      Util.map_fst dist ~f:(fun p -> of_pol_k bound p ident)
       |> n_ary_convex_sum_t
       |> k
     | Let { id=field; init; mut; body=p } ->
@@ -1996,29 +1963,9 @@ module Fdd = struct
     | ObserveUpon (p, a) ->
       let a' = of_pred a in
       if equal a' drop then k drop else
-      (* THIS OPTIMIZATION *IS NOT* WHAT WE WANt ANYMORE *)
-      (* if equal a id then of_pol_k bound p k else *)
-      of_pol_k bound p (fun p' -> k (observe_upon_t p' a'
-        (* use_fast_obs := false;
-        let slow = observe_upon_t p' a' in
-        let fast = fast_observe_upon p' a' in
-        let same = equivalent slow fast in
-        if not same then begin
-          Format.printf "\n\n";
-          Format.printf "%a" Syntax.pp_policy (p |> deallocate_fields);
-          Format.printf "\n\n";
-          Format.printf "%a" Syntax.pp_policy (Syntax.(Filter a) |> deallocate_fields);
-          Format.printf "\n\n";
-          Format.printf "%a" pp fast;
-          Format.printf "\n\n";
-          Format.printf "%a" pp slow;
-          Format.printf "\n\n%!";
-          failwith "BUG: fast and slow observe disagree"
-        end;
-        fast *)
-      ))
+      of_pol_k bound p (fun p' -> k (observe_upon_t p' a'))
 
-  and of_symbolic_pol bound (p : Field.t policy) : t = of_pol_k bound p ident
+  let of_symbolic_pol bound (p : Field.t policy) : t = of_pol_k bound p ident
 
   let rec of_pol_cps (lctxt : t) (p : Field.t policy) : t =
     if equal drop lctxt then drop else
@@ -2031,6 +1978,7 @@ module Fdd = struct
       let lctxt = of_pol_cps lctxt p in
       of_pol_cps lctxt q
     | Ite (a, p, q) ->
+      (* FIXME: could use more context! *)
       let a = of_pred a in
       ite_t a (of_pol_cps a p) (of_pol_cps (negate a) q)
       |> seq lctxt
@@ -2058,7 +2006,15 @@ module Fdd = struct
       end
     | ObserveUpon (p, a) ->
       let a = of_pred a in
-      fast_observe_upon (of_pol_cps lctxt p) a
+      (* IS THIS SOUND??
+
+         (skip (+) drop); ObserveUpon(skip, True)
+      == (skip (+) drop)
+      != skip
+      == ObserveUpon(skip (+) drop, True)
+
+      *)
+      observe_upon (of_pol_cps lctxt p) a
 
 
 (* let rec of_pol_cps (lctxt : t) (p : Field.t policy) : t =
