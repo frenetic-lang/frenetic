@@ -45,7 +45,7 @@ let () = begin
       let logfile = "./examples/output/results/bench.log" in
       Util.print_times := false;
 
-      List.iter [Some 8; Some 16; None] ~f:(fun bound ->
+      List.iter [None] ~f:(fun bound ->
         printf "bound = %s\n" (Option.value_map bound ~f:Int.to_string ~default:"none");
         (* clear cache and set FDD order *)
         Fdd.clear_cache ~preserve:Int.Set.empty;
@@ -55,7 +55,7 @@ let () = begin
 
         Util.log_and_sandbox ~timeout ~logfile topo_file ~f:(fun () ->
           Fdd.use_fast_obs := true;
-          ignore (Fdd.of_symbolic_pol bound model);
+          ignore (Fdd.of_pol_cps Fdd.id model);
           Fdd.print_stats ();
         );
       )
