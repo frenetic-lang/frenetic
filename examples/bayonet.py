@@ -151,8 +151,21 @@ def scheduler() state phase(0), cur_node(0){ // Phase 0: Execute RunSw, Phase 1:
 
 
 def make_dot(k, file):
-  topo = make_topo(k)
+  G = make_topo(k)
+  topo = nx.DiGraph()
+  for n, attrs in G.nodes.iteritems():
+    topo.add_node(n, **attrs)
+  for (s,d), attrs in G.edges.iteritems():
+    # all edges must be interpreted to go from node with lower id to node with higher id
+    s,d = sorted([s,d], key=lambda n: G.nodes[n]['id'])
+    topo.add_edge(s,d, **attrs)
+
+    # this is a bidirectional link
+    s,d = d,s
+    attrs['src_port'], attrs['dst_port'] = attrs['dst_port'], attrs['src_port']
+    topo.add_edge(s,d, **attrs)
   nx.drawing.nx_agraph.write_dot(topo, file)
+
 
 def parse_args():
     parser = argparse.ArgumentParser()

@@ -995,12 +995,8 @@ module Node = struct
      raise an error if it is not fully filled *)
   let unbox (p:partial_t) : t =
     let unbox_host (p:partial_t) =
-      let i = match p.partial_ip with
-        | Some i -> i
-        | None -> failwith "Host must have an IP address" in
-      let m = match p.partial_mac with
-        | Some m -> m
-        | None -> failwith "Host must have a MAC address" in
+      let i = Option.value p.partial_ip ~default:default.ip in
+      let m = Option.value p.partial_mac ~default:default.mac in
       let n = match p.partial_name with
         | Some n -> n
         | None -> failwith "Host must have a name" in
