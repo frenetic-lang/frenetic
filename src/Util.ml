@@ -75,6 +75,7 @@ let sandboxed ?timeout ~logfile ~f : [`Ok | `Tout | `Err | `Int ] =
   let read_done_fd, write_done_fd = Unix.pipe () in
   let read_done = Unix.in_channel_of_descr read_done_fd in
   let write_done = Unix.out_channel_of_descr write_done_fd in
+  Out_channel.(flush stdout; flush stderr);
   match Unix.fork () with
   | `In_the_child ->
     Out_channel.with_file logfile ~append:true ~f:(fun log ->
