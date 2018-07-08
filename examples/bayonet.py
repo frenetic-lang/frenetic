@@ -6,6 +6,7 @@ import argparse
 import glob
 import networkx as nx
 import sys
+import os
 import matplotlib.pyplot as plt
 from string import Template
 
@@ -13,23 +14,23 @@ from string import Template
 def make_topo(k):
   G = nx.Graph()
   # initial edge is special case
-  G.add_edge(-1, 0, spt = 1, dpt = 1)
+  G.add_edge(-1, 0, src_port = 1, dst_port = 1)
   for m in range(k):
     n0 = m*4
     n1 = m*4 + 1
     n2 = m*4 + 2
     n3 = m*4 + 3
     G.add_edges_from([
-      (n0, n1, {'spt': 2, 'dpt': 1}),
-      (n0, n2, {'spt': 3, 'dpt': 1}),
-      (n1, n3, {'spt': 2, 'dpt': 1}),
-      (n2, n3, {'spt': 2, 'dpt': 2}),
-      (n3, n3+1, {'spt':3, 'dpt': 1})
+      (n0, n1, {'src_port': 2, 'dst_port': 1}),
+      (n0, n2, {'src_port': 3, 'dst_port': 1}),
+      (n1, n3, {'src_port': 2, 'dst_port': 1}),
+      (n2, n3, {'src_port': 2, 'dst_port': 2}),
+      (n3, n3+1, {'src_port':3, 'dst_port': 1})
     ])
     for n in [n0, n1, n2, n3]:
-      G.nodes[n]['type'] = "S"
-  G.nodes[-1]['type'] = "H"
-  G.nodes[k*4]['type'] = "H"
+      G.nodes[n]['type'] = "switch"
+  G.nodes[-1]['type'] = "host"
+  G.nodes[k*4]['type'] = "host"
   # nx.draw(G)
   # plt.show()
   return G
@@ -58,7 +59,7 @@ def make_bayonett(k):
   links = []
   for (s,d), e in G.edges.iteritems():
     s,d = min(s,d), max(s,d)
-    links.append("(%s,pt%d) <-> (%s,pt%d)" % (l(s), e['spt'], l(d), e['dpt']))
+    links.append("(%s,pt%d) <-> (%s,pt%d)" % (l(s), e['src_port'], l(d), e['dst_port']))
   params['links'] = ',\n'.join(links)
 
   # programs
@@ -141,8 +142,14 @@ def scheduler() state phase(0), cur_node(0){ // Phase 0: Execute RunSw, Phase 1:
   return t.substitute(params)
 
 
+def make_dot(k, file):
+  topo = make_topo(k)
+  nx.drawing.nx_agraph.write_dot(topo, file)
+
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('-o', '--output',type=str,action='store',dest='dir', default=".",
+                        help='directory to write the output files to')
     parser.add_argument('-m','--multiplier',type=int,action='store',dest='multiplier',
                         default="1",
                         help='multiplier to scale the size of the topology')
@@ -150,5 +157,8 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    print make_bayonett(args.multiplier)
+    base_filename = "resilience-%d" % args.multiplier
+    dot_file = os.path.join(args.dir, base_filename + ".dot")
+    # print make_bayonett(args.multiplier)
     # make_topo(args.multiplier)
+    make_dot(args.multiplier, dot_file)
