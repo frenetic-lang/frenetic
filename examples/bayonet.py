@@ -10,39 +10,46 @@ import os
 import matplotlib.pyplot as plt
 from string import Template
 
-
 def make_topo(k):
+  # map node id to node
+  def node(id):
+    if id == -1:
+      return "H0"
+    if id == k*4:
+      return "H1"
+    return "S%d" % id
+
   G = nx.Graph()
   # initial edge is special case
-  G.add_edge(-1, 0, src_port = 1, dst_port = 1)
+  G.add_edge(node(-1), node(0), src_port = 1, dst_port = 1)
+
+  # all other edges are regular
   for m in range(k):
-    n0 = m*4
-    n1 = m*4 + 1
-    n2 = m*4 + 2
-    n3 = m*4 + 3
+    n0 = node(m*4 + 0)
+    n1 = node(m*4 + 1)
+    n2 = node(m*4 + 2)
+    n3 = node(m*4 + 3)
+    n4 = node(m*4 + 4)
     G.add_edges_from([
       (n0, n1, {'src_port': 2, 'dst_port': 1}),
       (n0, n2, {'src_port': 3, 'dst_port': 1}),
       (n1, n3, {'src_port': 2, 'dst_port': 1}),
       (n2, n3, {'src_port': 2, 'dst_port': 2}),
-      (n3, n3+1, {'src_port':3, 'dst_port': 1})
+      (n3, n4, {'src_port':3, 'dst_port': 1})
     ])
-    for n in [n0, n1, n2, n3]:
+    for k,n in enumerate([n0, n1, n2, n3]):
       G.nodes[n]['type'] = "switch"
-  G.nodes[-1]['type'] = "host"
-  G.nodes[k*4]['type'] = "host"
+      G.nodes[n]['id'] = m*4 + k
+  G.nodes[node(-1)]['type'] = "host"
+  G.nodes[node(-1)]['id'] = -1
+  G.nodes[node(k*4)]['type'] = "host"
+  G.nodes[node(k*4)]['id'] = k*4
   # nx.draw(G)
   # plt.show()
   return G
 
 
 def make_bayonett(k):
-  def l(i):
-    if i == -1:
-      return "H0"
-    if i == k*4:
-      return "H1"
-    return "S%d" % i
   G = make_topo(k)
   params = dict()
 
@@ -50,23 +57,24 @@ def make_bayonett(k):
   params['num_steps'] = k * 8 + 2
 
   # nodes
-  nodes = []
-  for n in G.nodes:
-    nodes.append(l(n))
-  params['nodes'] = ', '.join(nodes)
+  # nodes = []
+  # for n in G.nodes:
+  #   nodes.append(l(n))
+  params['nodes'] = ', '.join(G.nodes)
 
   # links
   links = []
   for (s,d), e in G.edges.iteritems():
-    s,d = min(s,d), max(s,d)
-    links.append("(%s,pt%d) <-> (%s,pt%d)" % (l(s), e['src_port'], l(d), e['dst_port']))
+    # all edges must be interpreted to go from node with lower id to node with higher id
+    s,d = sorted([s,d], key=lambda n: G.nodes[n]['id'])
+    links.append("(%s,pt%d) <-> (%s,pt%d)" % (s, e['src_port'], d, e['dst_port']))
   params['links'] = ',\n'.join(links)
 
   # programs
   programs = []
-  for n in G.nodes:
-    if n in range(k*4):
-      programs.append("%s -> s%d" % (l(n), n % 4))
+  for n,attr in G.nodes.iteritems():
+    if attr['id'] in range(k*4):
+      programs.append("%s -> s%d" % (n, attr['id'] % 4))
   params['programs'] = ', '.join(programs)
 
   t = Template("""
