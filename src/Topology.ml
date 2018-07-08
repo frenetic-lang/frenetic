@@ -116,21 +116,22 @@ let link_of_edge (topo : Net.Topology.t) edge ~(guard:bool) : (string pred * str
   in
   (guard, PNK.( !!(sw, dst_sw) >> !!(pt, dst_pt) ))
 
-let to_probnetkat (topo : Net.Topology.t) ~(guard_links:bool) : string policy =
-  fold_edges (fun edge t ->
-      let (guard, action) = link_of_edge topo edge ~guard:guard_links in
-      PNK.ite guard action t
-    )
-    topo
-    PNK.drop
-
-let links_from ?(dst_filter=fun _ -> true)
-(topo : Net.Topology.t) sw ~(guard_links: bool) : string policy =
+let raw_links_from ?(dst_filter=fun _ -> true)
+(topo : Net.Topology.t) sw ~(guard_links: bool) : (string pred * string policy) list =
   neighbors topo sw
   |> Set.filter ~f:dst_filter
   |> Set.to_list
   |> List.map ~f:(find_edge topo sw)
   |> List.map ~f:(link_of_edge topo ~guard:guard_links)
+
+let links_from ?(dst_filter=fun _ -> true)
+(topo : Net.Topology.t) sw ~(guard_links: bool) : string policy =
+  raw_links_from ~dst_filter topo sw ~guard_links
+  |> PNK.(mk_big_ite ~default:drop)
+
+let to_probnetkat (topo : Net.Topology.t) ~(guard_links:bool) : string policy =
+  switches topo
+  |> List.concat_map ~f:(raw_links_from topo ~guard_links ~dst_filter:(is_switch topo))
   |> PNK.(mk_big_ite ~default:drop)
 
 let ingress (topo : Net.Topology.t) ~(dst: int) : string pred =
