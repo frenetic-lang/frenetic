@@ -63,10 +63,6 @@ let enrich_topo (topo : Net.Topology.t) : enriched_topo =
   { graph = topo; switch_tbl; edge_tbl; hop_tbl; }
 
 
-(*===========================================================================*)
-(* HELPERS                                                                   *)
-(*===========================================================================*)
-
 
 (*===========================================================================*)
 (* ROUTING SCHEME PARSING & PROCESSING                                       *)
@@ -419,6 +415,15 @@ let car topo base_name ~(style: [`Deterministic|`Probabilistic])
       | `Probabilistic ->
         failwith "not implemented"
       end
+
+
+
+
+
+
+(*===========================================================================*)
+(* HELPERS                                                                   *)
+(*===========================================================================*)
 
 type scheme = [
   | `Switchwise of Net.Topology.vertex -> string policy

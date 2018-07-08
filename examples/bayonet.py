@@ -9,6 +9,17 @@ import sys
 import os
 import matplotlib.pyplot as plt
 from string import Template
+import struct
+import socket
+
+# helpers
+def int2ip(addr):
+    return socket.inet_ntoa(struct.pack("!I", addr))
+
+def int2mac(addr):
+    mac = "%012x" % addr
+    return ':'.join(mac[i:i+2] for i in range(0,12,2))
+
 
 def make_topo(k):
   # map node id to node
@@ -44,6 +55,12 @@ def make_topo(k):
   G.nodes[node(-1)]['id'] = -1
   G.nodes[node(k*4)]['type'] = "host"
   G.nodes[node(k*4)]['id'] = k*4
+
+  # add IP and mac addresses
+  for n, attrs in G.nodes.iteritems():
+    attrs['ip'] = int2ip(attrs['id'] % 2**24 + 10 * 2**24)
+    attrs['mac'] = int2mac(attrs['id'] % 2**24 + 10 * 2**24)
+
   # nx.draw(G)
   # plt.show()
   return G
