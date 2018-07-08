@@ -1,0 +1,79 @@
+
+num_steps 18;
+
+topology{
+  nodes{ H1, S3, S2, H0, S0, S7, S6, S5, S4, S1 }
+           
+  links{ (S7,pt3) <-> (H1,pt1),
+(S2,pt2) <-> (S3,pt2),
+(S1,pt2) <-> (S3,pt1),
+(S3,pt3) <-> (S4,pt1),
+(S0,pt3) <-> (S2,pt1),
+(H0,pt1) <-> (S0,pt1),
+(S0,pt2) <-> (S1,pt1),
+(S6,pt2) <-> (S7,pt2),
+(S5,pt2) <-> (S7,pt1),
+(S4,pt3) <-> (S6,pt1),
+(S4,pt2) <-> (S5,pt1) }
+}
+
+programs{ H0 -> h0, H1 -> h1,
+  S3 -> s3, S2 -> s2, S0 -> s0, S7 -> s3, S6 -> s2, S5 -> s1, S4 -> s0, S1 -> s1
+}
+
+query probability(arrived@H1);
+
+packet_fields{ }
+
+def h0(){
+  fwd(1);
+}
+def h1() state arrived(0){
+  arrived=1;
+  drop;
+}
+def s0(){
+  if flip(1/2){
+    fwd(2);
+  }else{
+    fwd(3);
+  }
+}
+def s1(){
+  fwd(2);
+}
+def s2()state failing(2){
+  if failing == 2 { failing = flip(1/1000); }
+  if failing == 1 { drop }
+  else{ fwd(2); }
+}
+def s3(){
+  fwd(3);
+}
+
+
+def scheduler() state phase(0), cur_node(0){ // Phase 0: Execute RunSw, Phase 1: Exectue FwdQ
+  for p in [0..2){
+    if phase == 0{
+      for i in [0..k){
+        if (Q_in@cur_node).size() > 0{
+          return (RunSw,cur_node);
+        }
+        cur_node = (cur_node + 1) % k;
+      }
+      phase = 1;
+      cur_node = 0;
+    }
+    if phase == 1{
+      for i in [0..k){
+        if (Q_out@cur_node).size() > 0{
+          return (FwdQ,cur_node);
+        }
+        cur_node = (cur_node + 1) % k;
+      }
+      phase = 0;
+      cur_node = 0;
+    }
+  }
+  assert(0);
+}

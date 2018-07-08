@@ -66,7 +66,7 @@ def make_topo(k):
   return G
 
 
-def make_bayonett(k):
+def make_bayonet(k):
   G = make_topo(k)
   params = dict()
 
@@ -188,15 +188,20 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-o', '--output',type=str,action='store',dest='dir', default=".",
                         help='directory to write the output files to')
-    parser.add_argument('-m','--multiplier',type=int,action='store',dest='multiplier',
-                        default="1",
-                        help='multiplier to scale the size of the topology')
+    # parser.add_argument('-m','--multiplier',type=int,action='store',dest='multiplier',
+    #                     default="1",
+    #                     help='multiplier to scale the size of the topology')
     return parser.parse_args()
+
+def write_to(file, s):
+  with open(file, 'w') as f:
+    f.write(s)
 
 if __name__ == '__main__':
     args = parse_args()
-    base_filename = "resilience-%d" % args.multiplier
-    dot_file = os.path.join(args.dir, base_filename + ".dot")
-    # print make_bayonett(args.multiplier)
-    # make_topo(args.multiplier)
-    make_dot(args.multiplier, dot_file)
+    for multiplier in range(1,21,1):
+      base_filename = "bayonet_resilience_sw_%d" % (multiplier * 4)
+      dot_file = os.path.join(args.dir, base_filename + ".dot")
+      bayonet_file = os.path.join(args.dir, base_filename + ".bayonet")
+      make_dot(multiplier, dot_file)
+      write_to(bayonet_file, make_bayonet(multiplier))
