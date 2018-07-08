@@ -2008,7 +2008,7 @@ module Fdd = struct
           skip_ctxt
         else
           begin match bound with
-          | None -> seq lctxt (whl_t a (of_pol_cps bound a p))
+          | None -> seq lctxt (whl a (of_pol_cps bound a p))
           | Some k -> bounded_whl_cps k lctxt a (of_pol_cps bound a p)
           end
     | Choice dist ->
@@ -2040,11 +2040,12 @@ module Fdd = struct
     else
       of_pol_k bound p (seq lctxt)
 
-  let of_pol ?lctxt ?bound (p : string policy) : t =
+  (* auto_order is set to false by default, so repeated invocations of this
+     function don't invalidate old FDDs. *)
+  let of_pol ?lctxt ?bound ?(auto_order=false) (p : string policy) : t =
     allocate_fields p
+    |> Util.tap ~f:(fun t -> if auto_order then Field.auto_order t)
     |> of_symbolic_pol ?lctxt ?bound
-
- 
 
 
   let output_dist t ~(input_dist : Packet.Dist.t) =
