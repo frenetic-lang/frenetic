@@ -75,9 +75,9 @@ def mk_topo(k, bw='1Gbps'):
                     assert((core[0], core_port) not in used_ports)
                     used_ports.add((agg[0], agg_port))
                     used_ports.add((core[0], core_port))
-                    g.add_edge(agg[0],core[0],
+                    g.add_edge(agg[0],core[0], abtype=0,
                            src_port=agg_port, dst_port=core_port, capacity=bw, cost=1)
-                    g.add_edge(core[0],agg[0],
+                    g.add_edge(core[0],agg[0], abtype=0,
                            src_port=core_port, dst_port=agg_port, capacity=bw, cost=1)
                     core_ports[core[0]] += 1
         else:
@@ -92,9 +92,9 @@ def mk_topo(k, bw='1Gbps'):
                     assert((core[0], core_port) not in used_ports)
                     used_ports.add((agg[0], agg_port))
                     used_ports.add((core[0], core_port))
-                    g.add_edge(agg[0],core[0],
+                    g.add_edge(agg[0],core[0], abtype=1,
                            src_port=agg_port, dst_port=core_port, capacity=bw, cost=1)
-                    g.add_edge(core[0],agg[0],
+                    g.add_edge(core[0],agg[0], abtype=1,
                            src_port=core_port, dst_port=agg_port, capacity=bw, cost=1)
                     core_ports[core[0]] += 1
 
