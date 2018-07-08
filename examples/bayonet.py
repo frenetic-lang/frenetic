@@ -58,8 +58,8 @@ def make_topo(k):
 
   # add IP and mac addresses
   for n, attrs in G.nodes.iteritems():
-    attrs['ip'] = int2ip(attrs['id'] % 2**24 + 10 * 2**24)
-    attrs['mac'] = int2mac(attrs['id'] % 2**24 + 10 * 2**24)
+    attrs['ip'] = int2ip(attrs['id'] % (2**24 - 2) + 10 * 2**24)
+    attrs['mac'] = int2mac(attrs['id'] % (2**24 - 2) + 10 * 2**24)
 
   # nx.draw(G)
   # plt.show()
