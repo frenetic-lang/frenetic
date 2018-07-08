@@ -45,12 +45,23 @@ let switches topo : vertex list =
   |> Set.to_list
   (* |> List.map ~f:(Topology.sw_val topo) *)
 
+let hosts topo : vertex list =
+  vertexes topo
+  |> Set.filter ~f:(is_host topo)
+  |> Set.to_list
+
 let pt_val pt : int =
   Int.of_int32_exn pt
 
 let sw_val topo sw : int =
   assert (is_switch topo sw);
   vertex_to_label topo sw
+  |> Node.id
+  |> Int.of_int64_exn
+
+let host_val topo host : int =
+  assert (is_host topo host);
+  vertex_to_label topo host
   |> Node.id
   |> Int.of_int64_exn
 
