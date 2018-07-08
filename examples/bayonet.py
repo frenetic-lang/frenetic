@@ -48,9 +48,9 @@ def make_topo(k):
       (n2, n3, {'src_port': 2, 'dst_port': 2}),
       (n3, n4, {'src_port':3, 'dst_port': 1})
     ])
-    for k,n in enumerate([n0, n1, n2, n3]):
+    for i,n in enumerate([n0, n1, n2, n3]):
       G.nodes[n]['type'] = "switch"
-      G.nodes[n]['id'] = m*4 + k
+      G.nodes[n]['id'] = m*4 + i
   G.nodes[node(-1)]['type'] = "host"
   G.nodes[node(-1)]['id'] = -1
   G.nodes[node(k*4)]['type'] = "host"
