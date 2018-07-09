@@ -3,7 +3,6 @@ num_steps 10;
 
 topology{
   nodes{ H0, H1, S0, S1, S2, S3 }
-           
   links{
     (H0,pt1) <-> (S0,pt1),
     (S0,pt2) <-> (S1,pt1),
