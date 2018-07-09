@@ -5,6 +5,7 @@ open Syntax
 (** parameters *)
 let failure_prob = Prob.(1//1000)
 let topo = Topology.parse (Sys.argv.(1))
+let timeout = 3600 (* in seconds *)
 
 
 module Model = struct
@@ -73,11 +74,13 @@ end
 
 open Symbolic
 let () = begin
-  Format.printf "%a" Syntax.pp_policy Model.model;
-  Util.timed "compilation" (fun () ->
-    let fdd = Fdd.of_pol ~auto_order:true Model.model in
-    Fdd.render fdd;
-    ()
+  (* Format.printf "%a\n%!" Syntax.pp_policy Model.model; *)
+  let logfile = "./examples/logs/bayonet.log" in
+  Util.print_times := false;
+  Util.log_and_sandbox ~timeout ~logfile Sys.argv.(1) ~f:(fun () ->
+    Fdd.of_pol ~auto_order:true Model.model
+    (* |> Fdd.render *)
+    |> ignore
   );
 end
 
