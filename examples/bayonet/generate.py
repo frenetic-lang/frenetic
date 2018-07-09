@@ -78,7 +78,7 @@ def make_bayonet(k):
   # nodes = []
   # for n in G.nodes:
   #   nodes.append(l(n))
-  params['nodes'] = ', '.join(G.nodes)
+  params['nodes'] = ', '.join(sorted(G.nodes))
 
   # links
   links = []
@@ -86,14 +86,14 @@ def make_bayonet(k):
     # all edges must be interpreted to go from node with lower id to node with higher id
     s,d = sorted([s,d], key=lambda n: G.nodes[n]['id'])
     links.append("(%s,pt%d) <-> (%s,pt%d)" % (s, e['src_port'], d, e['dst_port']))
-  params['links'] = ',\n'.join(links)
+  params['links'] = ',\n    '.join(sorted(links))
 
   # programs
   programs = []
   for n,attr in G.nodes.iteritems():
     if attr['id'] in range(k*4):
       programs.append("%s -> s%d" % (n, attr['id'] % 4))
-  params['programs'] = ', '.join(programs)
+  params['programs'] = ', '.join(sorted(programs))
 
   # scheduler
   params['scheduler'] = schedulers.uniform
@@ -103,8 +103,9 @@ num_steps $num_steps;
 
 topology{
   nodes{ $nodes }
-           
-  links{ $links }
+  links{
+    $links
+  }
 }
 
 programs{ H0 -> h0, H1 -> h1,
