@@ -1,0 +1,80 @@
+
+num_steps 42;
+
+topology{
+  nodes{ H0, H1, S0, S1, S10, S11, S12, S13, S14, S15, S16, S17, S18, S19, S2, S3, S4, S5, S6, S7, S8, S9 }
+           
+  links{
+    (H0,pt1) <-> (S0,pt1),
+    (S0,pt2) <-> (S1,pt1),
+    (S0,pt3) <-> (S2,pt1),
+    (S1,pt2) <-> (S3,pt1),
+    (S10,pt2) <-> (S11,pt2),
+    (S11,pt3) <-> (S12,pt1),
+    (S12,pt2) <-> (S13,pt1),
+    (S12,pt3) <-> (S14,pt1),
+    (S13,pt2) <-> (S15,pt1),
+    (S14,pt2) <-> (S15,pt2),
+    (S15,pt3) <-> (S16,pt1),
+    (S16,pt2) <-> (S17,pt1),
+    (S16,pt3) <-> (S18,pt1),
+    (S17,pt2) <-> (S19,pt1),
+    (S18,pt2) <-> (S19,pt2),
+    (S19,pt3) <-> (H1,pt1),
+    (S2,pt2) <-> (S3,pt2),
+    (S3,pt3) <-> (S4,pt1),
+    (S4,pt2) <-> (S5,pt1),
+    (S4,pt3) <-> (S6,pt1),
+    (S5,pt2) <-> (S7,pt1),
+    (S6,pt2) <-> (S7,pt2),
+    (S7,pt3) <-> (S8,pt1),
+    (S8,pt2) <-> (S9,pt1),
+    (S8,pt3) <-> (S10,pt1),
+    (S9,pt2) <-> (S11,pt1)
+  }
+}
+
+programs{ H0 -> h0, H1 -> h1,
+  S0 -> s0, S1 -> s1, S10 -> s2, S11 -> s3, S12 -> s0, S13 -> s1, S14 -> s2, S15 -> s3, S16 -> s0, S17 -> s1, S18 -> s2, S19 -> s3, S2 -> s2, S3 -> s3, S4 -> s0, S5 -> s1, S6 -> s2, S7 -> s3, S8 -> s0, S9 -> s1
+}
+
+query probability(arrived@H1);
+
+packet_fields{ }
+
+def h0(){
+  fwd(1);
+}
+def h1() state arrived(0){
+  arrived=1;
+  drop;
+}
+def s0(){
+  if flip(1/2){
+    fwd(2);
+  }else{
+    fwd(3);
+  }
+}
+def s1(){
+  fwd(2);
+}
+def s2()state failing(2){
+  if failing == 2 { failing = flip(1/1000); }
+  if failing == 1 { drop }
+  else{ fwd(2); }
+}
+def s3(){
+  fwd(3);
+}
+
+
+def scheduler(){
+  actions := ([]: (R x R)[]);
+  for i in [0..k){
+    if (Q_in@i).size() > 0 { actions ~= [(RunSw,i)]; }
+    if (Q_out@i).size() > 0 { actions ~= [(FwdQ,i)]; }
+  }
+  return actions[uniformInt(0,actions.length-1)];
+}
+

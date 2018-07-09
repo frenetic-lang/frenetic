@@ -1,0 +1,227 @@
+num_steps := 10;
+dat Queue{
+    data: (Packet × ℝ)[];
+    def Queue(){
+        data = ([]:(Packet × ℝ)[]);
+    }
+    def pushFront(x: Packet × ℝ){
+        data=[x]~data;
+    }
+    def pushBack(x: Packet × ℝ){
+        data=data~[x];
+    }
+    def takeFront(){
+        r:=front();
+        popFront();
+        return r;
+    }
+    def takeBack(){
+        r:=data[size()-1];
+        data=data[0..size()-1];
+        return r;
+    }
+    def size(){
+        return data.length;
+    }
+    def front(){
+        return data[0];
+    }
+    def dupFront(){
+        pushFront(front());
+    }
+    def popFront(){
+        data=data[1..size()];
+    }
+}
+k := 6, H0 := 0, H1 := 1, S0 := 2, S1 := 3, S2 := 4, S3 := 5;
+dat Packet{
+    def Packet(){
+    }
+}
+dat __h0_ty{
+    Q_in: Queue, Q_out: Queue;
+    def __h0_ty(){
+        Q_in = Queue();
+        Q_out = Queue();
+    }
+    def __run(){
+        Q_out.pushBack((Q_in.takeFront()[0],1));
+    }
+}
+dat __h1_ty{
+    Q_in: Queue, Q_out: Queue;
+    arrived: ℝ;
+    def __h1_ty(){
+        Q_in = Queue();
+        Q_out = Queue();
+        arrived = 0;
+    }
+    def __run(){
+        arrived = 1;
+        Q_in.popFront();
+    }
+}
+dat __s0_ty{
+    Q_in: Queue, Q_out: Queue;
+    def __s0_ty(){
+        Q_in = Queue();
+        Q_out = Queue();
+    }
+    def __run(){
+        if flip((1/2)){
+            Q_out.pushBack((Q_in.takeFront()[0],2));
+        } else {
+            Q_out.pushBack((Q_in.takeFront()[0],3));
+        }
+    }
+}
+dat __s1_ty{
+    Q_in: Queue, Q_out: Queue;
+    def __s1_ty(){
+        Q_in = Queue();
+        Q_out = Queue();
+    }
+    def __run(){
+        Q_out.pushBack((Q_in.takeFront()[0],2));
+    }
+}
+dat __s2_ty{
+    Q_in: Queue, Q_out: Queue;
+    failing: ℝ;
+    def __s2_ty(){
+        Q_in = Queue();
+        Q_out = Queue();
+        failing = 2;
+    }
+    def __run(){
+        if (failing==2){
+            failing = flip((1/1000));
+        }
+        if (failing==1){
+            Q_in.popFront();
+        } else {
+            Q_out.pushBack((Q_in.takeFront()[0],2));
+        }
+    }
+}
+dat __s3_ty{
+    Q_in: Queue, Q_out: Queue;
+    def __s3_ty(){
+        Q_in = Queue();
+        Q_out = Queue();
+    }
+    def __run(){
+        Q_out.pushBack((Q_in.takeFront()[0],3));
+    }
+}
+RunSw:=0, FwdQ:=1;
+dat __D{
+    __H0 : __h0_ty, __H1 : __h1_ty, __S0 : __s0_ty, __S1 : __s1_ty, __S2 : __s2_ty, __S3 : __s3_ty;
+    def __D(){
+        __H0 = __h0_ty(), __H1 = __h1_ty(), __S0 = __s0_ty(), __S1 = __s1_ty(), __S2 = __s2_ty(), __S3 = __s3_ty();
+    }
+    def scheduler(){
+        actions := ([]: (R x R)[]);
+        for i in [0..k){
+            if (if i == 0 { __H0.Q_in } else if i == 1 { __H1.Q_in } else if i == 2 { __S0.Q_in } else if i == 3 { __S1.Q_in } else if i == 4 { __S2.Q_in } else  { __S3.Q_in }).size() > 0 {
+                actions ~= [(RunSw,i)];
+            }
+            if (if i == 0 { __H0.Q_out } else if i == 1 { __H1.Q_out } else if i == 2 { __S0.Q_out } else if i == 3 { __S1.Q_out } else if i == 4 { __S2.Q_out } else  { __S3.Q_out }).size() > 0 {
+                actions ~= [(FwdQ,i)];
+            }
+        }
+        return actions[uniformInt(0,actions.length - 1)];
+    }
+    def __step(){
+        if __H0.Q_in.size() || __H0.Q_out.size() || __H1.Q_in.size() || __H1.Q_out.size() || __S0.Q_in.size() || __S0.Q_out.size() || __S1.Q_in.size() || __S1.Q_out.size() || __S2.Q_in.size() || __S2.Q_out.size() || __S3.Q_in.size() || __S3.Q_out.size() {
+            (action,node) := scheduler();
+            if action {
+                if node == 0 && __H0.Q_out.size() {
+                    (pkt,port) := __H0.Q_out.takeFront();
+                    if port == 1 {
+                        __S0.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 1 && __H1.Q_out.size() {
+                    (pkt,port) := __H1.Q_out.takeFront();
+                    if port == 1 {
+                        __S3.Q_in.pushBack((pkt, 3));
+                    }
+                }
+                if node == 2 && __S0.Q_out.size() {
+                    (pkt,port) := __S0.Q_out.takeFront();
+                    if port == 1 {
+                        __H0.Q_in.pushBack((pkt, 1));
+                    }
+                    if port == 2 {
+                        __S1.Q_in.pushBack((pkt, 1));
+                    }
+                    if port == 3 {
+                        __S2.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 3 && __S1.Q_out.size() {
+                    (pkt,port) := __S1.Q_out.takeFront();
+                    if port == 1 {
+                        __S0.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S3.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 4 && __S2.Q_out.size() {
+                    (pkt,port) := __S2.Q_out.takeFront();
+                    if port == 1 {
+                        __S0.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S3.Q_in.pushBack((pkt, 2));
+                    }
+                }
+                if node == 5 && __S3.Q_out.size() {
+                    (pkt,port) := __S3.Q_out.takeFront();
+                    if port == 1 {
+                        __S1.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S2.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 3 {
+                        __H1.Q_in.pushBack((pkt, 1));
+                    }
+                }
+            } else {
+                if node == 0 && __H0.Q_in.size() {
+                    __H0.__run();
+                }
+                if node == 1 && __H1.Q_in.size() {
+                    __H1.__run();
+                }
+                if node == 2 && __S0.Q_in.size() {
+                    __S0.__run();
+                }
+                if node == 3 && __S1.Q_in.size() {
+                    __S1.__run();
+                }
+                if node == 4 && __S2.Q_in.size() {
+                    __S2.__run();
+                }
+                if node == 5 && __S3.Q_in.size() {
+                    __S3.__run();
+                }
+            }
+        }
+    }
+}
+def main(){
+    __d := __D();
+    __d.__H0.Q_in.pushBack((Packet(),0));
+    __d.__H0.__run();
+    repeat num_steps {
+        __d.__step();
+    }
+    assert(!(__d.__H0.Q_in.size() || __d.__H0.Q_out.size() || __d.__H1.Q_in.size() || __d.__H1.Q_out.size() || __d.__S0.Q_in.size() || __d.__S0.Q_out.size() || __d.__S1.Q_in.size() || __d.__S1.Q_out.size() || __d.__S2.Q_in.size() || __d.__S2.Q_out.size() || __d.__S3.Q_in.size() || __d.__S3.Q_out.size()));
+    q₁ := Expectation(((if H1 == 1 { __d.__H1.arrived } else { assert(0) })) !=0);
+    return (q₁);
+}
+

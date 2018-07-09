@@ -2,26 +2,26 @@
 BAYONET="../../../bayonet/bayonet"
 PSI="../../../psi/psi --noboundscheck --trace --dp --expectation --mathematica"
 INPUT="$1"
-PSIFILE=${1%.bayonet}.psi
-RESFILE=${1%.bayonet}.log
+PSI_FILE=${1%.bayonet}.psi
+RESULT_FILE=${1%.bayonet}.log
 
 if [[ -z $1 ]]; then
   echo "usage: $0 <bayonet-file>"
   exit 1
 fi
 
-if [ ! -f $PSIFILE ]; then
-    echo compiling $INPUT to $PSIFILE
-    $BAYONET $INPUT &> $PSIFILE
+if [ ! -f $PSI_FILE ]; then
+    echo compiling $INPUT to $PSI_FILE
+    $BAYONET $INPUT &> $PSI_FILE
 else
-  echo "skipping $1; $PSIFILE already exists."
+  echo "skipping $1; $PSI_FILE already exists."
 fi
 
-if [ ! -f $RESFILE ]; then
-    echo "analyzing: $PSI $PSIFILE"
-    { { time $PSI $PSIFILE; } 2>&1; } > $RESFILE
-    tail $RESFILE
+if [ ! -f $RESULT_FILE ]; then
+    echo "analyzing: $PSI $PSI_FILE"
+    { { time $PSI $PSI_FILE; } 2>&1; } > $RESULT_FILE
+    tail $RESULT_FILE
 else
-    echo "skipping $PSIFILE; $RESFILE already exists."
-    tail $RESFILE
+    echo "skipping $PSI_FILE; $RESULT_FILE already exists."
+    tail $RESULT_FILE
 fi
