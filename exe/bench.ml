@@ -46,7 +46,7 @@ let () = begin
       let logfile = "./examples/logs/bench.log" in
       Util.print_times := true;
 
-      List.iter [None; Some 8;] ~f:(fun bound ->
+      List.iter [None; Some 4; Some 6; Some 8; Some 10; Some 12; Some 14; Some 16] ~f:(fun bound ->
         printf "bound = %s\n" (Option.value_map bound ~f:Int.to_string ~default:"none");
         (* clear cache and set FDD order *)
         Fdd.clear_cache ~preserve:Int.Set.empty;
