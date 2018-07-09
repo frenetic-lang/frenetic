@@ -66,7 +66,7 @@ module Model = struct
   let model = PNK.(
     filter ingress >>
     whl (neg egress) (
-      p >> t
+      p >> (ite egress skip t)
     )
   )
 end
