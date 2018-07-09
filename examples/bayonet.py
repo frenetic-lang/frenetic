@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from string import Template
 import struct
 import socket
+from bayonet_schedulers import *
 
 # helpers
 def int2ip(addr):
@@ -94,6 +95,9 @@ def make_bayonet(k):
       programs.append("%s -> s%d" % (n, attr['id'] % 4))
   params['programs'] = ', '.join(programs)
 
+  # scheduler
+  params['scheduler'] = original_scheduler
+
   t = Template("""
 num_steps $num_steps;
 
@@ -137,32 +141,7 @@ def s3(){
   fwd(3);
 }
 
-
-def scheduler() state phase(0), cur_node(0){ // Phase 0: Execute RunSw, Phase 1: Exectue FwdQ
-  for p in [0..2){
-    if phase == 0{
-      for i in [0..k){
-        if (Q_in@cur_node).size() > 0{
-          return (RunSw,cur_node);
-        }
-        cur_node = (cur_node + 1) % k;
-      }
-      phase = 1;
-      cur_node = 0;
-    }
-    if phase == 1{
-      for i in [0..k){
-        if (Q_out@cur_node).size() > 0{
-          return (FwdQ,cur_node);
-        }
-        cur_node = (cur_node + 1) % k;
-      }
-      phase = 0;
-      cur_node = 0;
-    }
-  }
-  assert(0);
-}
+$scheduler
 """)
   return t.substitute(params)
 
