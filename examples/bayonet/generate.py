@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from string import Template
 import struct
 import socket
-from bayonet_schedulers import *
+import schedulers
 
 # helpers
 def int2ip(addr):
@@ -96,7 +96,7 @@ def make_bayonet(k):
   params['programs'] = ', '.join(programs)
 
   # scheduler
-  params['scheduler'] = original_scheduler
+  params['scheduler'] = schedulers.uniform
 
   t = Template("""
 num_steps $num_steps;
