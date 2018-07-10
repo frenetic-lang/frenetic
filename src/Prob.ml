@@ -44,7 +44,7 @@ let ( ^ ) (x : t) (n : int) : t =
     if n = 0 then acc else
     loop Int.(n-1) (x*acc)
   in
-  loop Int.(abs n) x
+  loop Int.(abs n) one
   |> (if n<0 then inv else ident)
 
 
