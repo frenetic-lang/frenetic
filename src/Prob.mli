@@ -10,6 +10,7 @@ val ( * ) : t -> t -> t
 val (+) : t -> t -> t
 val (-) : t -> t -> t
 val (//) : int -> int -> t
+val ( ^ ) : t -> int -> t
 
 val pp : Format.formatter -> t -> unit
 val to_string : t -> string
