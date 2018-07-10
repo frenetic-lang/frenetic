@@ -152,6 +152,7 @@ let log_and_sandbox ?timeout ~logfile descr ~f : unit =
 
 (* nicer fork command *)
 let fork (f : unit -> unit) : Pid.t =
+  Out_channel.(flush stdout; flush stderr);
   match Unix.fork () with
   | `In_the_child ->
     Backtrace.Exn.with_recording true ~f:(fun () ->
