@@ -1,6 +1,10 @@
 (** Module with static parameters *)
 open! Core
 
+
+(** Evil. Use with care. *)
+let use_dexter_trick : Prob.t option ref = ref None
+
 (** switch field *)
 let sw = "sw"
 
