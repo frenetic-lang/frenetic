@@ -3,30 +3,6 @@ open Frenetic.Network
 open Syntax
 open Symbolic
 
-(* am I at a good port? *)
-let at_good_pt pts = PNK.(
-  let open Params in
-  List.map pts ~f:(fun pt_val -> ???(pt,pt_val) & ???(up pt_val, 1))
-  |> mk_big_disj
-)
-
-let uniformly_choose_up_port ports =
-  let open Syntax.PNK in
-  match !Params.use_dexter_trick with
-  | None ->
-    List.map ports ~f:(fun pt_val -> !!(Params.pt, pt_val))
-    |> uniform
-    |> then_observe (at_good_pt ports)
-  | Some failure_prob ->
-    let n = List.length ports in
-    let p_drop = Prob.(failure_prob ^ n) in
-    List.map ports ~f:(fun pt_val -> !!(Params.pt, pt_val))
-    |> uniform
-    |> seq (?@[ 
-      drop @ p_drop;
-      skip @ Prob.(one - p_drop); 
-    ])
-
 (*===========================================================================*)
 (* TOPOLOGY PARSING & PROCESSING                                             *)
 (*===========================================================================*)
@@ -196,6 +172,12 @@ let abtype_of_swpt topo sw pt =
   |> Link.abtype
 
 
+(* am I at a good port? *)
+let at_good_pt pts = PNK.(
+  List.map pts ~f:(fun pt_val -> ???(pt,pt_val) & ???(up pt_val, 1))
+  |> mk_big_disj
+)
+
 (* given a current switch and the inport, what tree are we on? *)
 let mk_current_tree_tbl topo (port_tbl : (int list) Int.Table.t)
         (shortest_tree_idx_tbl : int Int.Table.t) : int Int2.Table.t =
@@ -275,13 +257,23 @@ let resilient_ecmp topo base_name : Net.Topology.vertex -> string policy =
   fun sw ->
     let sw_val = Topology.sw_val topo.graph sw in
     match Hashtbl.find port_tbl sw_val with
-    | Some pts -> 
-      uniformly_choose_up_port pts
+    | Some pts -> PNK.(
+        List.map pts ~f:(fun pt_val -> !!(pt, pt_val))
+        |> uniform
+        |> then_observe (at_good_pt pts)
+      )
     | _ ->
       eprintf "switch %d cannot reach destination\n" sw_val;
       failwith "network disconnected!"
 
-let f10 ?(s1=true) ?(s2=true) topo base_name : Net.Topology.vertex -> int -> string policy =
+(* let uniformly_choose_up_port ?(dexter_trick=None) ports =
+  match dexter_trick with
+  | None ->
+    List.map ports ~f:(fun pt_val -> !!(pt, pt_val))
+    |> uniform
+    |> then_observe (at_good_pt ports) *)
+
+let f10 ?(dexter_trick=None) ?(s1=true) ?(s2=true) topo base_name : Net.Topology.vertex -> int -> string policy =
   let port_tbl = parse_nexthops topo (Params.ecmp_file base_name) in
   fun sw in_pt ->
     let sw_val = Topology.sw_val topo.graph sw in
@@ -326,15 +318,20 @@ let f10 ?(s1=true) ?(s2=true) topo base_name : Net.Topology.vertex -> int -> str
         List.map same_type_dnwd_pts ~f:(fun pt_val ->
           ???(up pt_val, 1)) |> mk_big_disj) in
 
-      let fwd_diff_type_subtree = 
-        uniformly_choose_up_port diff_type_dnwd_pts
+      let fwd_diff_type_subtree = PNK.(
+          List.map diff_type_dnwd_pts ~f:(fun pt_val -> !!(pt, pt_val))
+          |> uniform
+          |> then_observe (at_good_pt diff_type_dnwd_pts)
+        )
       in
 
       let fwd_same_type_subtree = PNK.(
-        !!(f10s2, 1) >>
-        uniformly_choose_up_port same_type_dnwd_pts
-      )
-      in
+          !!(f10s2, 1) >> (
+            List.map same_type_dnwd_pts ~f:(fun pt_val -> !!(pt, pt_val))
+            |> uniform
+            |> then_observe (at_good_pt diff_type_dnwd_pts)
+          )
+        ) in
 
       begin match s1, s2 with
       | (false, false) -> PNK.(
@@ -364,7 +361,12 @@ let f10 ?(s1=true) ?(s2=true) topo base_name : Net.Topology.vertex -> int -> str
            incoming port. If at scheme 2 re-routing second hop 'y', then fwd
            to random child if exists. Else, perfrom default forwarding *)
       let epts = List.filter pts ~f:(fun pv -> pv <> in_pt) in
-      let def_fwding = uniformly_choose_up_port epts in
+      let def_fwding = PNK.(
+          List.map epts ~f:(fun pt_val -> !!(pt, pt_val))
+          |> uniform
+          |> then_observe (at_good_pt epts)
+        )
+      in
       let rev_in_edge = Hashtbl.find_exn topo.hop_tbl (sw_val, in_pt) in
       let (prev_sw, _) = Net.Topology.edge_dst rev_in_edge in
       if not (Topology.is_switch topo.graph prev_sw) then def_fwding else
@@ -377,7 +379,12 @@ let f10 ?(s1=true) ?(s2=true) topo base_name : Net.Topology.vertex -> int -> str
         match children_pts with
         | [] -> PNK.(!!(f10s2, 0) >> def_fwding)
         | _ ->
-          let fwd_children = uniformly_choose_up_port children_pts in
+          let fwd_children = PNK.(
+              List.map children_pts ~f:(fun pt_val -> !!(pt, pt_val))
+              |> uniform
+              |> then_observe (at_good_pt children_pts)
+            )
+          in
           PNK.(Ite (???(f10s2, 1), !!(f10s2, 0) >> fwd_children, def_fwding))
 
 

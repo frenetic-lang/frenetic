@@ -59,19 +59,15 @@ let make
   ~(topo : Net.Topology.t)
   ()
   =
-  if Option.is_some !Params.use_dexter_trick && Option.is_some max_failures then
-    failwith "cannot use Dexter's trick with bounded failure model!";
 
   let open Params in
   let no_failures =
-    max_failures = Some 0 
-    || List.for_all (Topology.locs topo) ~f:(fun (sw,pts) ->
+    max_failures = Some 0 || List.for_all (Topology.locs topo) ~f:(fun (sw,pts) ->
       List.for_all pts ~f:(fun pt ->
         failure_prob (Topology.sw_val topo sw) pt
         |> Prob.(equal zero)
       )
     )
-    || Option.is_some !Params.use_dexter_trick
   in
 
   let rec make () : string policy =
