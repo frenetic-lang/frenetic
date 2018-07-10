@@ -18,7 +18,7 @@ let max_ttl = 32
 let destination = 1
 
 (** up bit associated with link *)
-let up pt = sprintf "up_%d" pt
+let up sw pt = sprintf "up_%d" pt
 let is_up_field f = String.is_prefix ~prefix:"up_" f
 
 (** Extra bit needed for F10 scheme 2 re-routing *)

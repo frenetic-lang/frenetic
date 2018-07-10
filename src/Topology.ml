@@ -122,7 +122,7 @@ let link_of_edge (topo : Net.Topology.t) edge ~(guard:bool) : (string pred * str
   let dst_pt = pt_val dst_pt in
   let guard = PNK.(
     ???(sw, src_sw) & ???(pt, src_pt) &
-    (if guard then ???(up src_pt, 1) else True)
+    (if guard then ???(up src_sw src_pt, 1) else True)
   )
   in
   (guard, PNK.( !!(sw, dst_sw) >> !!(pt, dst_pt) ))

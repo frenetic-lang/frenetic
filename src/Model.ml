@@ -133,7 +133,7 @@ let make
     if no_failures then
       body
     else
-      let up_bits = List.map pts ~f:(fun pt -> (up pt, 1, true)) in
+      let up_bits = List.map pts ~f:(fun pt -> (up sw pt, 1, true)) in
       PNK.locals up_bits PNK.(init_up_bits sw pts >> body)
 
   and init_up_bits sw pts =
@@ -142,7 +142,7 @@ let make
     | None ->
       List.map pts ~f:(fun pt ->
         let p = failure_prob sw pt in
-        ?@[ !!(up pt, 0) @ p; skip @ Prob.(one - p) ]
+        ?@[ !!(up sw pt, 0) @ p; skip @ Prob.(one - p) ]
       )
       |> mk_big_seq
     | Some bound ->
@@ -152,7 +152,7 @@ let make
           let p = failure_prob sw pt in
           let guard = ???(counter, f) in
           let body =
-            ?@[ !!(up pt, 0) >> !!(counter, f+1) , p;
+            ?@[ !!(up sw pt, 0) >> !!(counter, f+1) , p;
                 skip                                , Prob.(one - p);
               ]
           in
