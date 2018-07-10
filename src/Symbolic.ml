@@ -1719,7 +1719,7 @@ module Fdd = struct
     )
 
 
-
+  let try_naive_fixedpoint = ref true
 
   (*      X = (AP)*¬A
     Thus  X = ¬A + (AP)X
@@ -1767,14 +1767,16 @@ module Fdd = struct
 
     (* try computing naive fixed-point and analytical fixed-point in parallel *)
     let py_pid = Util.fork (fun () -> python_iterate ap not_a coding to_py) in
-    let caml_pid = Util.fork (fun () ->
-      let fixpoint = Util.timed "naive fixpoint" (fun () ->
-        clear_cache ~preserve:(Int.Set.of_list ([ap; not_a] : t list :> int list));
-        ocaml_iterate ap not_a
-      )
-      in
-      Util.timed "serializing & sending Fdd" (fun () ->
-        Out_channel.output_lines to_parent [serialize fixpoint]
+    let caml_pid = if not (!try_naive_fixedpoint) then None else Some (
+      Util.fork (fun () ->
+        let fixpoint = Util.timed "naive fixpoint" (fun () ->
+          clear_cache ~preserve:(Int.Set.of_list ([ap; not_a] : t list :> int list));
+          ocaml_iterate ap not_a
+        )
+        in
+        Util.timed "serializing & sending Fdd" (fun () ->
+          Out_channel.output_lines to_parent [serialize fixpoint]
+        )
       )
     )
     in
@@ -1782,12 +1784,18 @@ module Fdd = struct
     (* wait for first result to become available, Python or OCaml *)
     protect ~finally:(fun () ->
       Signal.(send_i kill (`Pid py_pid));
-      Signal.(send_i kill (`Pid caml_pid));
+      begin match caml_pid with
+      | Some pid -> Signal.(send_i kill (`Pid pid)) 
+      | None -> ()
+      end;
       ignore (Unix.close_process py);
       In_channel.close from_caml;
       Out_channel.close to_parent;
       ignore (Unix.waitpid py_pid);
-      ignore (Unix.waitpid caml_pid);
+      begin match caml_pid with
+      | Some pid -> ignore (Unix.waitpid pid) 
+      | None -> ()
+      end;
     ) ~f:(fun () ->
       let from_py_fd = Unix.descr_of_in_channel from_py in
       match
@@ -1795,7 +1803,7 @@ module Fdd = struct
           ~write:[] ~except:[] ~timeout:`Never ()
       with
       | { read = fd::_; _ } when Unix.File_descr.equal fd from_caml_fd ->
-        (* printf "*** ocaml won race!\n%!"; *)
+        printf "*** ocaml won race!\n%!";
 
         (* kill other process *)
         Signal.(send_i kill (`Pid py_pid));
@@ -1805,10 +1813,13 @@ module Fdd = struct
           |> deserialize
         )
       | { read = fd::_; _ } when Unix.File_descr.equal fd from_py_fd ->
-        (* printf "*** python won race!\n%!"; *)
+        printf "*** python won race!\n%!";
 
         (* kill other process *)
-        Signal.(send_i kill (`Pid caml_pid));
+        begin match caml_pid with
+        | Some pid -> Signal.(send_i kill (`Pid pid)) 
+        | None -> ()
+        end;
 
         (* wait for reply from Python *)
         let n = Domain.size dom in
