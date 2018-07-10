@@ -5,6 +5,7 @@ open Syntax
 (** parameters *)
 let failure_prob = Prob.(1//1000)
 let topo = Topology.parse (Sys.argv.(1))
+let use_cps = bool_of_string Sys.argv.(2)
 let timeout = 3600 (* in seconds *)
 
 
@@ -78,6 +79,7 @@ let () = begin
   let logfile = "./examples/logs/bayonet.log" in
   Util.print_times := false;
   Util.log_and_sandbox ~timeout ~logfile Sys.argv.(1) ~f:(fun () ->
+    Fdd.use_cps := use_cps;
     Fdd.of_pol ~auto_order:true Model.model
     (* |> Fdd.render *)
     |> ignore

@@ -2,9 +2,9 @@
 SCRIPT_DIR="$(dirname $(readlink -f $0))"
 ROOT_DIR="${SCRIPT_DIR}/../../"
 PROBNETKAT="jbuilder exec probnetkat.bayonet"
-CPS="true"
+CPS="false"
 INPUT="${SCRIPT_DIR}/$1"
-RESULT_FILE="${SCRIPT_DIR}/${1%.dot}.probnetkat.log"
+RESULT_FILE="${SCRIPT_DIR}/${1%.dot}.probnetkat_no_cps.log"
 TIMEOUT=3600
 
 if [[ -z $1 ]]; then
