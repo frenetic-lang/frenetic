@@ -1,0 +1,821 @@
+num_steps := 98;
+dat Queue{
+    data: (Packet × ℝ)[];
+    def Queue(){
+        data = ([]:(Packet × ℝ)[]);
+    }
+    def pushFront(x: Packet × ℝ){
+        data=[x]~data;
+    }
+    def pushBack(x: Packet × ℝ){
+        data=data~[x];
+    }
+    def takeFront(){
+        r:=front();
+        popFront();
+        return r;
+    }
+    def takeBack(){
+        r:=data[size()-1];
+        data=data[0..size()-1];
+        return r;
+    }
+    def size(){
+        return data.length;
+    }
+    def front(){
+        return data[0];
+    }
+    def dupFront(){
+        pushFront(front());
+    }
+    def popFront(){
+        data=data[1..size()];
+    }
+}
+k := 50, H0 := 0, H1 := 1, S0 := 2, S1 := 3, S10 := 4, S11 := 5, S12 := 6, S13 := 7, S14 := 8, S15 := 9, S16 := 10, S17 := 11, S18 := 12, S19 := 13, S2 := 14, S20 := 15, S21 := 16, S22 := 17, S23 := 18, S24 := 19, S25 := 20, S26 := 21, S27 := 22, S28 := 23, S29 := 24, S3 := 25, S30 := 26, S31 := 27, S32 := 28, S33 := 29, S34 := 30, S35 := 31, S36 := 32, S37 := 33, S38 := 34, S39 := 35, S4 := 36, S40 := 37, S41 := 38, S42 := 39, S43 := 40, S44 := 41, S45 := 42, S46 := 43, S47 := 44, S5 := 45, S6 := 46, S7 := 47, S8 := 48, S9 := 49;
+dat Packet{
+    def Packet(){
+    }
+}
+dat __h0_ty{
+    Q_in: Queue, Q_out: Queue;
+    def __h0_ty(){
+        Q_in = Queue();
+        Q_out = Queue();
+    }
+    def __run(){
+        Q_out.pushBack((Q_in.takeFront()[0],1));
+    }
+}
+dat __h1_ty{
+    Q_in: Queue, Q_out: Queue;
+    arrived: ℝ;
+    def __h1_ty(){
+        Q_in = Queue();
+        Q_out = Queue();
+        arrived = 0;
+    }
+    def __run(){
+        arrived = 1;
+        Q_in.popFront();
+    }
+}
+dat __s0_ty{
+    Q_in: Queue, Q_out: Queue;
+    def __s0_ty(){
+        Q_in = Queue();
+        Q_out = Queue();
+    }
+    def __run(){
+        if flip((1/2)){
+            Q_out.pushBack((Q_in.takeFront()[0],2));
+        } else {
+            Q_out.pushBack((Q_in.takeFront()[0],3));
+        }
+    }
+}
+dat __s1_ty{
+    Q_in: Queue, Q_out: Queue;
+    def __s1_ty(){
+        Q_in = Queue();
+        Q_out = Queue();
+    }
+    def __run(){
+        Q_out.pushBack((Q_in.takeFront()[0],2));
+    }
+}
+dat __s2_ty{
+    Q_in: Queue, Q_out: Queue;
+    failing: ℝ;
+    def __s2_ty(){
+        Q_in = Queue();
+        Q_out = Queue();
+        failing = 2;
+    }
+    def __run(){
+        if (failing==2){
+            failing = flip((1/1000));
+        }
+        if (failing==1){
+            Q_in.popFront();
+        } else {
+            Q_out.pushBack((Q_in.takeFront()[0],2));
+        }
+    }
+}
+dat __s3_ty{
+    Q_in: Queue, Q_out: Queue;
+    def __s3_ty(){
+        Q_in = Queue();
+        Q_out = Queue();
+    }
+    def __run(){
+        Q_out.pushBack((Q_in.takeFront()[0],3));
+    }
+}
+RunSw:=0, FwdQ:=1;
+dat __D{
+    __H0 : __h0_ty, __H1 : __h1_ty, __S0 : __s0_ty, __S1 : __s1_ty, __S10 : __s2_ty, __S11 : __s3_ty, __S12 : __s0_ty, __S13 : __s1_ty, __S14 : __s2_ty, __S15 : __s3_ty, __S16 : __s0_ty, __S17 : __s1_ty, __S18 : __s2_ty, __S19 : __s3_ty, __S2 : __s2_ty, __S20 : __s0_ty, __S21 : __s1_ty, __S22 : __s2_ty, __S23 : __s3_ty, __S24 : __s0_ty, __S25 : __s1_ty, __S26 : __s2_ty, __S27 : __s3_ty, __S28 : __s0_ty, __S29 : __s1_ty, __S3 : __s3_ty, __S30 : __s2_ty, __S31 : __s3_ty, __S32 : __s0_ty, __S33 : __s1_ty, __S34 : __s2_ty, __S35 : __s3_ty, __S36 : __s0_ty, __S37 : __s1_ty, __S38 : __s2_ty, __S39 : __s3_ty, __S4 : __s0_ty, __S40 : __s0_ty, __S41 : __s1_ty, __S42 : __s2_ty, __S43 : __s3_ty, __S44 : __s0_ty, __S45 : __s1_ty, __S46 : __s2_ty, __S47 : __s3_ty, __S5 : __s1_ty, __S6 : __s2_ty, __S7 : __s3_ty, __S8 : __s0_ty, __S9 : __s1_ty;
+    def __D(){
+        __H0 = __h0_ty(), __H1 = __h1_ty(), __S0 = __s0_ty(), __S1 = __s1_ty(), __S10 = __s2_ty(), __S11 = __s3_ty(), __S12 = __s0_ty(), __S13 = __s1_ty(), __S14 = __s2_ty(), __S15 = __s3_ty(), __S16 = __s0_ty(), __S17 = __s1_ty(), __S18 = __s2_ty(), __S19 = __s3_ty(), __S2 = __s2_ty(), __S20 = __s0_ty(), __S21 = __s1_ty(), __S22 = __s2_ty(), __S23 = __s3_ty(), __S24 = __s0_ty(), __S25 = __s1_ty(), __S26 = __s2_ty(), __S27 = __s3_ty(), __S28 = __s0_ty(), __S29 = __s1_ty(), __S3 = __s3_ty(), __S30 = __s2_ty(), __S31 = __s3_ty(), __S32 = __s0_ty(), __S33 = __s1_ty(), __S34 = __s2_ty(), __S35 = __s3_ty(), __S36 = __s0_ty(), __S37 = __s1_ty(), __S38 = __s2_ty(), __S39 = __s3_ty(), __S4 = __s0_ty(), __S40 = __s0_ty(), __S41 = __s1_ty(), __S42 = __s2_ty(), __S43 = __s3_ty(), __S44 = __s0_ty(), __S45 = __s1_ty(), __S46 = __s2_ty(), __S47 = __s3_ty(), __S5 = __s1_ty(), __S6 = __s2_ty(), __S7 = __s3_ty(), __S8 = __s0_ty(), __S9 = __s1_ty();
+    }
+    def scheduler(){
+        actions := ([]: (R x R)[]);
+        for i in [0..k){
+            if (if i == 0 { __H0.Q_in } else if i == 1 { __H1.Q_in } else if i == 2 { __S0.Q_in } else if i == 3 { __S1.Q_in } else if i == 4 { __S10.Q_in } else if i == 5 { __S11.Q_in } else if i == 6 { __S12.Q_in } else if i == 7 { __S13.Q_in } else if i == 8 { __S14.Q_in } else if i == 9 { __S15.Q_in } else if i == 10 { __S16.Q_in } else if i == 11 { __S17.Q_in } else if i == 12 { __S18.Q_in } else if i == 13 { __S19.Q_in } else if i == 14 { __S2.Q_in } else if i == 15 { __S20.Q_in } else if i == 16 { __S21.Q_in } else if i == 17 { __S22.Q_in } else if i == 18 { __S23.Q_in } else if i == 19 { __S24.Q_in } else if i == 20 { __S25.Q_in } else if i == 21 { __S26.Q_in } else if i == 22 { __S27.Q_in } else if i == 23 { __S28.Q_in } else if i == 24 { __S29.Q_in } else if i == 25 { __S3.Q_in } else if i == 26 { __S30.Q_in } else if i == 27 { __S31.Q_in } else if i == 28 { __S32.Q_in } else if i == 29 { __S33.Q_in } else if i == 30 { __S34.Q_in } else if i == 31 { __S35.Q_in } else if i == 32 { __S36.Q_in } else if i == 33 { __S37.Q_in } else if i == 34 { __S38.Q_in } else if i == 35 { __S39.Q_in } else if i == 36 { __S4.Q_in } else if i == 37 { __S40.Q_in } else if i == 38 { __S41.Q_in } else if i == 39 { __S42.Q_in } else if i == 40 { __S43.Q_in } else if i == 41 { __S44.Q_in } else if i == 42 { __S45.Q_in } else if i == 43 { __S46.Q_in } else if i == 44 { __S47.Q_in } else if i == 45 { __S5.Q_in } else if i == 46 { __S6.Q_in } else if i == 47 { __S7.Q_in } else if i == 48 { __S8.Q_in } else  { __S9.Q_in }).size() > 0 {
+                actions ~= [(RunSw,i)];
+            }
+            if (if i == 0 { __H0.Q_out } else if i == 1 { __H1.Q_out } else if i == 2 { __S0.Q_out } else if i == 3 { __S1.Q_out } else if i == 4 { __S10.Q_out } else if i == 5 { __S11.Q_out } else if i == 6 { __S12.Q_out } else if i == 7 { __S13.Q_out } else if i == 8 { __S14.Q_out } else if i == 9 { __S15.Q_out } else if i == 10 { __S16.Q_out } else if i == 11 { __S17.Q_out } else if i == 12 { __S18.Q_out } else if i == 13 { __S19.Q_out } else if i == 14 { __S2.Q_out } else if i == 15 { __S20.Q_out } else if i == 16 { __S21.Q_out } else if i == 17 { __S22.Q_out } else if i == 18 { __S23.Q_out } else if i == 19 { __S24.Q_out } else if i == 20 { __S25.Q_out } else if i == 21 { __S26.Q_out } else if i == 22 { __S27.Q_out } else if i == 23 { __S28.Q_out } else if i == 24 { __S29.Q_out } else if i == 25 { __S3.Q_out } else if i == 26 { __S30.Q_out } else if i == 27 { __S31.Q_out } else if i == 28 { __S32.Q_out } else if i == 29 { __S33.Q_out } else if i == 30 { __S34.Q_out } else if i == 31 { __S35.Q_out } else if i == 32 { __S36.Q_out } else if i == 33 { __S37.Q_out } else if i == 34 { __S38.Q_out } else if i == 35 { __S39.Q_out } else if i == 36 { __S4.Q_out } else if i == 37 { __S40.Q_out } else if i == 38 { __S41.Q_out } else if i == 39 { __S42.Q_out } else if i == 40 { __S43.Q_out } else if i == 41 { __S44.Q_out } else if i == 42 { __S45.Q_out } else if i == 43 { __S46.Q_out } else if i == 44 { __S47.Q_out } else if i == 45 { __S5.Q_out } else if i == 46 { __S6.Q_out } else if i == 47 { __S7.Q_out } else if i == 48 { __S8.Q_out } else  { __S9.Q_out }).size() > 0 {
+                actions ~= [(FwdQ,i)];
+            }
+        }
+        return actions[uniformInt(0,actions.length - 1)];
+    }
+    def __step(){
+        if __H0.Q_in.size() || __H0.Q_out.size() || __H1.Q_in.size() || __H1.Q_out.size() || __S0.Q_in.size() || __S0.Q_out.size() || __S1.Q_in.size() || __S1.Q_out.size() || __S10.Q_in.size() || __S10.Q_out.size() || __S11.Q_in.size() || __S11.Q_out.size() || __S12.Q_in.size() || __S12.Q_out.size() || __S13.Q_in.size() || __S13.Q_out.size() || __S14.Q_in.size() || __S14.Q_out.size() || __S15.Q_in.size() || __S15.Q_out.size() || __S16.Q_in.size() || __S16.Q_out.size() || __S17.Q_in.size() || __S17.Q_out.size() || __S18.Q_in.size() || __S18.Q_out.size() || __S19.Q_in.size() || __S19.Q_out.size() || __S2.Q_in.size() || __S2.Q_out.size() || __S20.Q_in.size() || __S20.Q_out.size() || __S21.Q_in.size() || __S21.Q_out.size() || __S22.Q_in.size() || __S22.Q_out.size() || __S23.Q_in.size() || __S23.Q_out.size() || __S24.Q_in.size() || __S24.Q_out.size() || __S25.Q_in.size() || __S25.Q_out.size() || __S26.Q_in.size() || __S26.Q_out.size() || __S27.Q_in.size() || __S27.Q_out.size() || __S28.Q_in.size() || __S28.Q_out.size() || __S29.Q_in.size() || __S29.Q_out.size() || __S3.Q_in.size() || __S3.Q_out.size() || __S30.Q_in.size() || __S30.Q_out.size() || __S31.Q_in.size() || __S31.Q_out.size() || __S32.Q_in.size() || __S32.Q_out.size() || __S33.Q_in.size() || __S33.Q_out.size() || __S34.Q_in.size() || __S34.Q_out.size() || __S35.Q_in.size() || __S35.Q_out.size() || __S36.Q_in.size() || __S36.Q_out.size() || __S37.Q_in.size() || __S37.Q_out.size() || __S38.Q_in.size() || __S38.Q_out.size() || __S39.Q_in.size() || __S39.Q_out.size() || __S4.Q_in.size() || __S4.Q_out.size() || __S40.Q_in.size() || __S40.Q_out.size() || __S41.Q_in.size() || __S41.Q_out.size() || __S42.Q_in.size() || __S42.Q_out.size() || __S43.Q_in.size() || __S43.Q_out.size() || __S44.Q_in.size() || __S44.Q_out.size() || __S45.Q_in.size() || __S45.Q_out.size() || __S46.Q_in.size() || __S46.Q_out.size() || __S47.Q_in.size() || __S47.Q_out.size() || __S5.Q_in.size() || __S5.Q_out.size() || __S6.Q_in.size() || __S6.Q_out.size() || __S7.Q_in.size() || __S7.Q_out.size() || __S8.Q_in.size() || __S8.Q_out.size() || __S9.Q_in.size() || __S9.Q_out.size() {
+            (action,node) := scheduler();
+            if action {
+                if node == 0 && __H0.Q_out.size() {
+                    (pkt,port) := __H0.Q_out.takeFront();
+                    if port == 1 {
+                        __S0.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 1 && __H1.Q_out.size() {
+                    (pkt,port) := __H1.Q_out.takeFront();
+                    if port == 1 {
+                        __S47.Q_in.pushBack((pkt, 3));
+                    }
+                }
+                if node == 2 && __S0.Q_out.size() {
+                    (pkt,port) := __S0.Q_out.takeFront();
+                    if port == 1 {
+                        __H0.Q_in.pushBack((pkt, 1));
+                    }
+                    if port == 2 {
+                        __S1.Q_in.pushBack((pkt, 1));
+                    }
+                    if port == 3 {
+                        __S2.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 3 && __S1.Q_out.size() {
+                    (pkt,port) := __S1.Q_out.takeFront();
+                    if port == 1 {
+                        __S0.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S3.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 4 && __S10.Q_out.size() {
+                    (pkt,port) := __S10.Q_out.takeFront();
+                    if port == 1 {
+                        __S8.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S11.Q_in.pushBack((pkt, 2));
+                    }
+                }
+                if node == 5 && __S11.Q_out.size() {
+                    (pkt,port) := __S11.Q_out.takeFront();
+                    if port == 1 {
+                        __S9.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S10.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 3 {
+                        __S12.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 6 && __S12.Q_out.size() {
+                    (pkt,port) := __S12.Q_out.takeFront();
+                    if port == 1 {
+                        __S11.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S13.Q_in.pushBack((pkt, 1));
+                    }
+                    if port == 3 {
+                        __S14.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 7 && __S13.Q_out.size() {
+                    (pkt,port) := __S13.Q_out.takeFront();
+                    if port == 1 {
+                        __S12.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S15.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 8 && __S14.Q_out.size() {
+                    (pkt,port) := __S14.Q_out.takeFront();
+                    if port == 1 {
+                        __S12.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S15.Q_in.pushBack((pkt, 2));
+                    }
+                }
+                if node == 9 && __S15.Q_out.size() {
+                    (pkt,port) := __S15.Q_out.takeFront();
+                    if port == 1 {
+                        __S13.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S14.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 3 {
+                        __S16.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 10 && __S16.Q_out.size() {
+                    (pkt,port) := __S16.Q_out.takeFront();
+                    if port == 1 {
+                        __S15.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S17.Q_in.pushBack((pkt, 1));
+                    }
+                    if port == 3 {
+                        __S18.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 11 && __S17.Q_out.size() {
+                    (pkt,port) := __S17.Q_out.takeFront();
+                    if port == 1 {
+                        __S16.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S19.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 12 && __S18.Q_out.size() {
+                    (pkt,port) := __S18.Q_out.takeFront();
+                    if port == 1 {
+                        __S16.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S19.Q_in.pushBack((pkt, 2));
+                    }
+                }
+                if node == 13 && __S19.Q_out.size() {
+                    (pkt,port) := __S19.Q_out.takeFront();
+                    if port == 1 {
+                        __S17.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S18.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 3 {
+                        __S20.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 14 && __S2.Q_out.size() {
+                    (pkt,port) := __S2.Q_out.takeFront();
+                    if port == 1 {
+                        __S0.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S3.Q_in.pushBack((pkt, 2));
+                    }
+                }
+                if node == 15 && __S20.Q_out.size() {
+                    (pkt,port) := __S20.Q_out.takeFront();
+                    if port == 1 {
+                        __S19.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S21.Q_in.pushBack((pkt, 1));
+                    }
+                    if port == 3 {
+                        __S22.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 16 && __S21.Q_out.size() {
+                    (pkt,port) := __S21.Q_out.takeFront();
+                    if port == 1 {
+                        __S20.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S23.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 17 && __S22.Q_out.size() {
+                    (pkt,port) := __S22.Q_out.takeFront();
+                    if port == 1 {
+                        __S20.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S23.Q_in.pushBack((pkt, 2));
+                    }
+                }
+                if node == 18 && __S23.Q_out.size() {
+                    (pkt,port) := __S23.Q_out.takeFront();
+                    if port == 1 {
+                        __S21.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S22.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 3 {
+                        __S24.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 19 && __S24.Q_out.size() {
+                    (pkt,port) := __S24.Q_out.takeFront();
+                    if port == 1 {
+                        __S23.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S25.Q_in.pushBack((pkt, 1));
+                    }
+                    if port == 3 {
+                        __S26.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 20 && __S25.Q_out.size() {
+                    (pkt,port) := __S25.Q_out.takeFront();
+                    if port == 1 {
+                        __S24.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S27.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 21 && __S26.Q_out.size() {
+                    (pkt,port) := __S26.Q_out.takeFront();
+                    if port == 1 {
+                        __S24.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S27.Q_in.pushBack((pkt, 2));
+                    }
+                }
+                if node == 22 && __S27.Q_out.size() {
+                    (pkt,port) := __S27.Q_out.takeFront();
+                    if port == 1 {
+                        __S25.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S26.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 3 {
+                        __S28.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 23 && __S28.Q_out.size() {
+                    (pkt,port) := __S28.Q_out.takeFront();
+                    if port == 1 {
+                        __S27.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S29.Q_in.pushBack((pkt, 1));
+                    }
+                    if port == 3 {
+                        __S30.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 24 && __S29.Q_out.size() {
+                    (pkt,port) := __S29.Q_out.takeFront();
+                    if port == 1 {
+                        __S28.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S31.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 25 && __S3.Q_out.size() {
+                    (pkt,port) := __S3.Q_out.takeFront();
+                    if port == 1 {
+                        __S1.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S2.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 3 {
+                        __S4.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 26 && __S30.Q_out.size() {
+                    (pkt,port) := __S30.Q_out.takeFront();
+                    if port == 1 {
+                        __S28.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S31.Q_in.pushBack((pkt, 2));
+                    }
+                }
+                if node == 27 && __S31.Q_out.size() {
+                    (pkt,port) := __S31.Q_out.takeFront();
+                    if port == 1 {
+                        __S29.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S30.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 3 {
+                        __S32.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 28 && __S32.Q_out.size() {
+                    (pkt,port) := __S32.Q_out.takeFront();
+                    if port == 1 {
+                        __S31.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S33.Q_in.pushBack((pkt, 1));
+                    }
+                    if port == 3 {
+                        __S34.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 29 && __S33.Q_out.size() {
+                    (pkt,port) := __S33.Q_out.takeFront();
+                    if port == 1 {
+                        __S32.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S35.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 30 && __S34.Q_out.size() {
+                    (pkt,port) := __S34.Q_out.takeFront();
+                    if port == 1 {
+                        __S32.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S35.Q_in.pushBack((pkt, 2));
+                    }
+                }
+                if node == 31 && __S35.Q_out.size() {
+                    (pkt,port) := __S35.Q_out.takeFront();
+                    if port == 1 {
+                        __S33.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S34.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 3 {
+                        __S36.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 32 && __S36.Q_out.size() {
+                    (pkt,port) := __S36.Q_out.takeFront();
+                    if port == 1 {
+                        __S35.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S37.Q_in.pushBack((pkt, 1));
+                    }
+                    if port == 3 {
+                        __S38.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 33 && __S37.Q_out.size() {
+                    (pkt,port) := __S37.Q_out.takeFront();
+                    if port == 1 {
+                        __S36.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S39.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 34 && __S38.Q_out.size() {
+                    (pkt,port) := __S38.Q_out.takeFront();
+                    if port == 1 {
+                        __S36.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S39.Q_in.pushBack((pkt, 2));
+                    }
+                }
+                if node == 35 && __S39.Q_out.size() {
+                    (pkt,port) := __S39.Q_out.takeFront();
+                    if port == 1 {
+                        __S37.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S38.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 3 {
+                        __S40.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 36 && __S4.Q_out.size() {
+                    (pkt,port) := __S4.Q_out.takeFront();
+                    if port == 1 {
+                        __S3.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S5.Q_in.pushBack((pkt, 1));
+                    }
+                    if port == 3 {
+                        __S6.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 37 && __S40.Q_out.size() {
+                    (pkt,port) := __S40.Q_out.takeFront();
+                    if port == 1 {
+                        __S39.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S41.Q_in.pushBack((pkt, 1));
+                    }
+                    if port == 3 {
+                        __S42.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 38 && __S41.Q_out.size() {
+                    (pkt,port) := __S41.Q_out.takeFront();
+                    if port == 1 {
+                        __S40.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S43.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 39 && __S42.Q_out.size() {
+                    (pkt,port) := __S42.Q_out.takeFront();
+                    if port == 1 {
+                        __S40.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S43.Q_in.pushBack((pkt, 2));
+                    }
+                }
+                if node == 40 && __S43.Q_out.size() {
+                    (pkt,port) := __S43.Q_out.takeFront();
+                    if port == 1 {
+                        __S41.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S42.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 3 {
+                        __S44.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 41 && __S44.Q_out.size() {
+                    (pkt,port) := __S44.Q_out.takeFront();
+                    if port == 1 {
+                        __S43.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S45.Q_in.pushBack((pkt, 1));
+                    }
+                    if port == 3 {
+                        __S46.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 42 && __S45.Q_out.size() {
+                    (pkt,port) := __S45.Q_out.takeFront();
+                    if port == 1 {
+                        __S44.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S47.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 43 && __S46.Q_out.size() {
+                    (pkt,port) := __S46.Q_out.takeFront();
+                    if port == 1 {
+                        __S44.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S47.Q_in.pushBack((pkt, 2));
+                    }
+                }
+                if node == 44 && __S47.Q_out.size() {
+                    (pkt,port) := __S47.Q_out.takeFront();
+                    if port == 1 {
+                        __S45.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S46.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 3 {
+                        __H1.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 45 && __S5.Q_out.size() {
+                    (pkt,port) := __S5.Q_out.takeFront();
+                    if port == 1 {
+                        __S4.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S7.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 46 && __S6.Q_out.size() {
+                    (pkt,port) := __S6.Q_out.takeFront();
+                    if port == 1 {
+                        __S4.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S7.Q_in.pushBack((pkt, 2));
+                    }
+                }
+                if node == 47 && __S7.Q_out.size() {
+                    (pkt,port) := __S7.Q_out.takeFront();
+                    if port == 1 {
+                        __S5.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S6.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 3 {
+                        __S8.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 48 && __S8.Q_out.size() {
+                    (pkt,port) := __S8.Q_out.takeFront();
+                    if port == 1 {
+                        __S7.Q_in.pushBack((pkt, 3));
+                    }
+                    if port == 2 {
+                        __S9.Q_in.pushBack((pkt, 1));
+                    }
+                    if port == 3 {
+                        __S10.Q_in.pushBack((pkt, 1));
+                    }
+                }
+                if node == 49 && __S9.Q_out.size() {
+                    (pkt,port) := __S9.Q_out.takeFront();
+                    if port == 1 {
+                        __S8.Q_in.pushBack((pkt, 2));
+                    }
+                    if port == 2 {
+                        __S11.Q_in.pushBack((pkt, 1));
+                    }
+                }
+            } else {
+                if node == 0 && __H0.Q_in.size() {
+                    __H0.__run();
+                }
+                if node == 1 && __H1.Q_in.size() {
+                    __H1.__run();
+                }
+                if node == 2 && __S0.Q_in.size() {
+                    __S0.__run();
+                }
+                if node == 3 && __S1.Q_in.size() {
+                    __S1.__run();
+                }
+                if node == 4 && __S10.Q_in.size() {
+                    __S10.__run();
+                }
+                if node == 5 && __S11.Q_in.size() {
+                    __S11.__run();
+                }
+                if node == 6 && __S12.Q_in.size() {
+                    __S12.__run();
+                }
+                if node == 7 && __S13.Q_in.size() {
+                    __S13.__run();
+                }
+                if node == 8 && __S14.Q_in.size() {
+                    __S14.__run();
+                }
+                if node == 9 && __S15.Q_in.size() {
+                    __S15.__run();
+                }
+                if node == 10 && __S16.Q_in.size() {
+                    __S16.__run();
+                }
+                if node == 11 && __S17.Q_in.size() {
+                    __S17.__run();
+                }
+                if node == 12 && __S18.Q_in.size() {
+                    __S18.__run();
+                }
+                if node == 13 && __S19.Q_in.size() {
+                    __S19.__run();
+                }
+                if node == 14 && __S2.Q_in.size() {
+                    __S2.__run();
+                }
+                if node == 15 && __S20.Q_in.size() {
+                    __S20.__run();
+                }
+                if node == 16 && __S21.Q_in.size() {
+                    __S21.__run();
+                }
+                if node == 17 && __S22.Q_in.size() {
+                    __S22.__run();
+                }
+                if node == 18 && __S23.Q_in.size() {
+                    __S23.__run();
+                }
+                if node == 19 && __S24.Q_in.size() {
+                    __S24.__run();
+                }
+                if node == 20 && __S25.Q_in.size() {
+                    __S25.__run();
+                }
+                if node == 21 && __S26.Q_in.size() {
+                    __S26.__run();
+                }
+                if node == 22 && __S27.Q_in.size() {
+                    __S27.__run();
+                }
+                if node == 23 && __S28.Q_in.size() {
+                    __S28.__run();
+                }
+                if node == 24 && __S29.Q_in.size() {
+                    __S29.__run();
+                }
+                if node == 25 && __S3.Q_in.size() {
+                    __S3.__run();
+                }
+                if node == 26 && __S30.Q_in.size() {
+                    __S30.__run();
+                }
+                if node == 27 && __S31.Q_in.size() {
+                    __S31.__run();
+                }
+                if node == 28 && __S32.Q_in.size() {
+                    __S32.__run();
+                }
+                if node == 29 && __S33.Q_in.size() {
+                    __S33.__run();
+                }
+                if node == 30 && __S34.Q_in.size() {
+                    __S34.__run();
+                }
+                if node == 31 && __S35.Q_in.size() {
+                    __S35.__run();
+                }
+                if node == 32 && __S36.Q_in.size() {
+                    __S36.__run();
+                }
+                if node == 33 && __S37.Q_in.size() {
+                    __S37.__run();
+                }
+                if node == 34 && __S38.Q_in.size() {
+                    __S38.__run();
+                }
+                if node == 35 && __S39.Q_in.size() {
+                    __S39.__run();
+                }
+                if node == 36 && __S4.Q_in.size() {
+                    __S4.__run();
+                }
+                if node == 37 && __S40.Q_in.size() {
+                    __S40.__run();
+                }
+                if node == 38 && __S41.Q_in.size() {
+                    __S41.__run();
+                }
+                if node == 39 && __S42.Q_in.size() {
+                    __S42.__run();
+                }
+                if node == 40 && __S43.Q_in.size() {
+                    __S43.__run();
+                }
+                if node == 41 && __S44.Q_in.size() {
+                    __S44.__run();
+                }
+                if node == 42 && __S45.Q_in.size() {
+                    __S45.__run();
+                }
+                if node == 43 && __S46.Q_in.size() {
+                    __S46.__run();
+                }
+                if node == 44 && __S47.Q_in.size() {
+                    __S47.__run();
+                }
+                if node == 45 && __S5.Q_in.size() {
+                    __S5.__run();
+                }
+                if node == 46 && __S6.Q_in.size() {
+                    __S6.__run();
+                }
+                if node == 47 && __S7.Q_in.size() {
+                    __S7.__run();
+                }
+                if node == 48 && __S8.Q_in.size() {
+                    __S8.__run();
+                }
+                if node == 49 && __S9.Q_in.size() {
+                    __S9.__run();
+                }
+            }
+        }
+    }
+}
+def main(){
+    __d := __D();
+    __d.__H0.Q_in.pushBack((Packet(),0));
+    __d.__H0.__run();
+    repeat num_steps {
+        __d.__step();
+    }
+    assert(!(__d.__H0.Q_in.size() || __d.__H0.Q_out.size() || __d.__H1.Q_in.size() || __d.__H1.Q_out.size() || __d.__S0.Q_in.size() || __d.__S0.Q_out.size() || __d.__S1.Q_in.size() || __d.__S1.Q_out.size() || __d.__S10.Q_in.size() || __d.__S10.Q_out.size() || __d.__S11.Q_in.size() || __d.__S11.Q_out.size() || __d.__S12.Q_in.size() || __d.__S12.Q_out.size() || __d.__S13.Q_in.size() || __d.__S13.Q_out.size() || __d.__S14.Q_in.size() || __d.__S14.Q_out.size() || __d.__S15.Q_in.size() || __d.__S15.Q_out.size() || __d.__S16.Q_in.size() || __d.__S16.Q_out.size() || __d.__S17.Q_in.size() || __d.__S17.Q_out.size() || __d.__S18.Q_in.size() || __d.__S18.Q_out.size() || __d.__S19.Q_in.size() || __d.__S19.Q_out.size() || __d.__S2.Q_in.size() || __d.__S2.Q_out.size() || __d.__S20.Q_in.size() || __d.__S20.Q_out.size() || __d.__S21.Q_in.size() || __d.__S21.Q_out.size() || __d.__S22.Q_in.size() || __d.__S22.Q_out.size() || __d.__S23.Q_in.size() || __d.__S23.Q_out.size() || __d.__S24.Q_in.size() || __d.__S24.Q_out.size() || __d.__S25.Q_in.size() || __d.__S25.Q_out.size() || __d.__S26.Q_in.size() || __d.__S26.Q_out.size() || __d.__S27.Q_in.size() || __d.__S27.Q_out.size() || __d.__S28.Q_in.size() || __d.__S28.Q_out.size() || __d.__S29.Q_in.size() || __d.__S29.Q_out.size() || __d.__S3.Q_in.size() || __d.__S3.Q_out.size() || __d.__S30.Q_in.size() || __d.__S30.Q_out.size() || __d.__S31.Q_in.size() || __d.__S31.Q_out.size() || __d.__S32.Q_in.size() || __d.__S32.Q_out.size() || __d.__S33.Q_in.size() || __d.__S33.Q_out.size() || __d.__S34.Q_in.size() || __d.__S34.Q_out.size() || __d.__S35.Q_in.size() || __d.__S35.Q_out.size() || __d.__S36.Q_in.size() || __d.__S36.Q_out.size() || __d.__S37.Q_in.size() || __d.__S37.Q_out.size() || __d.__S38.Q_in.size() || __d.__S38.Q_out.size() || __d.__S39.Q_in.size() || __d.__S39.Q_out.size() || __d.__S4.Q_in.size() || __d.__S4.Q_out.size() || __d.__S40.Q_in.size() || __d.__S40.Q_out.size() || __d.__S41.Q_in.size() || __d.__S41.Q_out.size() || __d.__S42.Q_in.size() || __d.__S42.Q_out.size() || __d.__S43.Q_in.size() || __d.__S43.Q_out.size() || __d.__S44.Q_in.size() || __d.__S44.Q_out.size() || __d.__S45.Q_in.size() || __d.__S45.Q_out.size() || __d.__S46.Q_in.size() || __d.__S46.Q_out.size() || __d.__S47.Q_in.size() || __d.__S47.Q_out.size() || __d.__S5.Q_in.size() || __d.__S5.Q_out.size() || __d.__S6.Q_in.size() || __d.__S6.Q_out.size() || __d.__S7.Q_in.size() || __d.__S7.Q_out.size() || __d.__S8.Q_in.size() || __d.__S8.Q_out.size() || __d.__S9.Q_in.size() || __d.__S9.Q_out.size()));
+    q₁ := Expectation(((if H1 == 1 { __d.__H1.arrived } else { assert(0) })) !=0);
+    return (q₁);
+}
+
