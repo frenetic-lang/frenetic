@@ -39,6 +39,14 @@ let to_q t = t
 let to_int_frac t =
    Z.(to_int t.num, to_int t.den)
 
+let ( ^ ) (x : t) (n : int) : t =
+  let rec loop n acc =
+    if n = 0 then acc else
+    loop Int.(n-1) (x*acc)
+  in
+  loop Int.(abs n) x
+  |> (if n<0 then inv else ident)
+
 
 (* open Core
 include Float

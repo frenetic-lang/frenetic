@@ -59,15 +59,19 @@ let make
   ~(topo : Net.Topology.t)
   ()
   =
+  if Option.is_some !Params.use_dexter_trick && Option.is_some max_failures then
+    failwith "cannot use Dexter's trick with bounded failure model!";
 
   let open Params in
   let no_failures =
-    max_failures = Some 0 || List.for_all (Topology.locs topo) ~f:(fun (sw,pts) ->
+    max_failures = Some 0 
+    || List.for_all (Topology.locs topo) ~f:(fun (sw,pts) ->
       List.for_all pts ~f:(fun pt ->
         failure_prob (Topology.sw_val topo sw) pt
         |> Prob.(equal zero)
       )
     )
+    || Option.is_some !Params.use_dexter_trick
   in
 
   let rec make () : string policy =
@@ -133,7 +137,7 @@ let make
     if no_failures then
       body
     else
-      let up_bits = List.map pts ~f:(fun pt -> (up sw pt, 1, true)) in
+      let up_bits = List.map pts ~f:(fun pt -> (up pt, 1, true)) in
       PNK.locals up_bits PNK.(init_up_bits sw pts >> body)
 
   and init_up_bits sw pts =
@@ -142,7 +146,7 @@ let make
     | None ->
       List.map pts ~f:(fun pt ->
         let p = failure_prob sw pt in
-        ?@[ !!(up sw pt, 0) @ p; skip @ Prob.(one - p) ]
+        ?@[ !!(up pt, 0) @ p; skip @ Prob.(one - p) ]
       )
       |> mk_big_seq
     | Some bound ->
@@ -152,7 +156,7 @@ let make
           let p = failure_prob sw pt in
           let guard = ???(counter, f) in
           let body =
-            ?@[ !!(up sw pt, 0) >> !!(counter, f+1) , p;
+            ?@[ !!(up pt, 0) >> !!(counter, f+1) , p;
                 skip                                , Prob.(one - p);
               ]
           in
