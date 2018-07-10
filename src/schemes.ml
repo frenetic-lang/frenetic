@@ -173,8 +173,8 @@ let abtype_of_swpt topo sw pt =
 
 
 (* am I at a good port? *)
-let at_good_pt sw pts = PNK.(
-  List.map pts ~f:(fun pt_val -> ???(pt,pt_val) & ???(up sw pt_val, 1))
+let at_good_pt pts = PNK.(
+  List.map pts ~f:(fun pt_val -> ???(pt,pt_val) & ???(up pt_val, 1))
   |> mk_big_disj
 )
 
@@ -226,7 +226,7 @@ let resilient_random_walk topo : Net.Topology.vertex -> string policy =
     let choose_port = random_walk topo sw in
     PNK.(
       choose_port
-      |> then_observe (at_good_pt sw pts)
+      |> then_observe (at_good_pt pts)
     )
 
 let shortest_path topo base_name : Net.Topology.vertex -> string policy =
@@ -260,13 +260,20 @@ let resilient_ecmp topo base_name : Net.Topology.vertex -> string policy =
     | Some pts -> PNK.(
         List.map pts ~f:(fun pt_val -> !!(pt, pt_val))
         |> uniform
-        |> then_observe (at_good_pt sw pts)
+        |> then_observe (at_good_pt pts)
       )
     | _ ->
       eprintf "switch %d cannot reach destination\n" sw_val;
       failwith "network disconnected!"
 
-let f10 ?(s1=true) ?(s2=true) topo base_name : Net.Topology.vertex -> int -> string policy =
+(* let uniformly_choose_up_port ?(dexter_trick=None) ports =
+  match dexter_trick with
+  | None ->
+    List.map ports ~f:(fun pt_val -> !!(pt, pt_val))
+    |> uniform
+    |> then_observe (at_good_pt ports) *)
+
+let f10 ?(dexter_trick=None) ?(s1=true) ?(s2=true) topo base_name : Net.Topology.vertex -> int -> string policy =
   let port_tbl = parse_nexthops topo (Params.ecmp_file base_name) in
   fun sw in_pt ->
     let sw_val = Topology.sw_val topo.graph sw in
@@ -306,15 +313,15 @@ let f10 ?(s1=true) ?(s2=true) topo base_name : Net.Topology.vertex -> int -> str
 
       let some_diff_type_subtree_up = PNK.(
         List.map diff_type_dnwd_pts ~f:(fun pt_val ->
-          ???(up sw_val pt_val, 1)) |> mk_big_disj) in
+          ???(up pt_val, 1)) |> mk_big_disj) in
       let some_same_type_subtree_up = PNK.(
         List.map same_type_dnwd_pts ~f:(fun pt_val ->
-          ???(up sw_val pt_val, 1)) |> mk_big_disj) in
+          ???(up pt_val, 1)) |> mk_big_disj) in
 
       let fwd_diff_type_subtree = PNK.(
           List.map diff_type_dnwd_pts ~f:(fun pt_val -> !!(pt, pt_val))
           |> uniform
-          |> then_observe (at_good_pt sw diff_type_dnwd_pts)
+          |> then_observe (at_good_pt diff_type_dnwd_pts)
         )
       in
 
@@ -322,26 +329,26 @@ let f10 ?(s1=true) ?(s2=true) topo base_name : Net.Topology.vertex -> int -> str
           !!(f10s2, 1) >> (
             List.map same_type_dnwd_pts ~f:(fun pt_val -> !!(pt, pt_val))
             |> uniform
-            |> then_observe (at_good_pt sw diff_type_dnwd_pts)
+            |> then_observe (at_good_pt diff_type_dnwd_pts)
           )
         ) in
 
       begin match s1, s2 with
       | (false, false) -> PNK.(
-        Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt), drop)
+        Ite (???(up dnwd_pt, 1), !!(pt, dnwd_pt), drop)
       )
-      | (true, false) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+      | (true, false) -> PNK.(Ite (???(up dnwd_pt, 1), !!(pt, dnwd_pt),
                                   Ite (some_diff_type_subtree_up, fwd_diff_type_subtree, drop)))
-      | (false, true) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+      | (false, true) -> PNK.(Ite (???(up dnwd_pt, 1), !!(pt, dnwd_pt),
                                   Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop)))
       | (true, true) ->
         begin match (diff_type_dnwd_pts, same_type_dnwd_pts) with
-        | ([], []) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt), drop))
-        | ([], _ ) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+        | ([], []) -> PNK.(Ite (???(up dnwd_pt, 1), !!(pt, dnwd_pt), drop))
+        | ([], _ ) -> PNK.(Ite (???(up dnwd_pt, 1), !!(pt, dnwd_pt),
                                 Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop)))
-        | (_, [] ) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+        | (_, [] ) -> PNK.(Ite (???(up dnwd_pt, 1), !!(pt, dnwd_pt),
                                 Ite (some_diff_type_subtree_up, fwd_diff_type_subtree, drop)))
-        | (_, _) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+        | (_, _) -> PNK.(Ite (???(up dnwd_pt, 1), !!(pt, dnwd_pt),
                               Ite (some_diff_type_subtree_up, fwd_diff_type_subtree,
                                    (* Scheme 2 *)
                                    Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop))))
@@ -357,7 +364,7 @@ let f10 ?(s1=true) ?(s2=true) topo base_name : Net.Topology.vertex -> int -> str
       let def_fwding = PNK.(
           List.map epts ~f:(fun pt_val -> !!(pt, pt_val))
           |> uniform
-          |> then_observe (at_good_pt sw epts)
+          |> then_observe (at_good_pt epts)
         )
       in
       let rev_in_edge = Hashtbl.find_exn topo.hop_tbl (sw_val, in_pt) in
@@ -375,7 +382,7 @@ let f10 ?(s1=true) ?(s2=true) topo base_name : Net.Topology.vertex -> int -> str
           let fwd_children = PNK.(
               List.map children_pts ~f:(fun pt_val -> !!(pt, pt_val))
               |> uniform
-              |> then_observe (at_good_pt sw children_pts)
+              |> then_observe (at_good_pt children_pts)
             )
           in
           PNK.(Ite (???(f10s2, 1), !!(f10s2, 0) >> fwd_children, def_fwding))
@@ -407,7 +414,7 @@ let car topo base_name ~(style: [`Deterministic|`Probabilistic])
         PNK.(
           Array.to_list pts
           |> ite_cascade ~otherwise:drop ~f:(fun pt_val ->
-              let guard = ???(up sw_val pt_val, 1) in
+              let guard = ???(up pt_val, 1) in
               let body = !!(pt, pt_val) in
               (guard, body)
             )
