@@ -51,10 +51,12 @@ def parse_output(folder):
   
 
 def plot(data, methods):
+  f = open("bayonet.txt", "w")
+
   times = defaultdict(lambda: defaultdict(list))
   time_mean = defaultdict(dict)
   time_std = defaultdict(dict)
-  plt.figure(figsize=(6,4))
+  plt.figure(figsize=(6,3))
   ax = plt.subplot(111)    
   ax.get_xaxis().tick_bottom()    
   ax.get_xaxis().set_ticks_position('both')
@@ -79,7 +81,20 @@ def plot(data, methods):
                  marker=markers[method], color=colors[method], zorder=10)
     plt.errorbar(xs[-2:], ys[-2:], yerr=errors[-2:],
                  marker=markers[method], color='gray', ls=':', zorder=1)
+    if method == 'bayonet':
+      text = 'OOM after\ntiming out'
+      ha = 'center'
+    else:
+      text = 'Timed out\nafter OOM'
+      ha = 'right'
+    ax.text(xs[-1], ys[-1], text, horizontalalignment=ha, verticalalignment='center', color=colors[method], bbox=dict(edgecolor='red', facecolor='white', alpha=0.8))
+
+    # Also dump data to a file
+    for idx in range(len(xs)):
+      f.write(method + "\t" + str(xs[idx]) + "\t" + str(ys[idx]) + "\n") 
    
+  ax.text(400, 500, 'Time limit = 3600s', horizontalalignment='center', verticalalignment='center', color='gray')
+  ax.annotate("", xy=(400, 3600), xytext=(400, 1000), arrowprops=dict(arrowstyle="->", color='gray'))
 
   # Customize plots
   ax.grid(alpha=0.2)
@@ -95,6 +110,7 @@ def plot(data, methods):
   plt.ylabel("Time (seconds)")
   leg = plt.legend(fancybox=True, loc='best')
   leg.get_frame().set_alpha(0.9)
+  f.close()
   plt.savefig('bayonet.pdf', bbox_inches='tight')
 
 
