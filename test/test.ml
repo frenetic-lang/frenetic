@@ -677,7 +677,7 @@ let () =
     "fdd misc",          misc_tests;
     "fdd deterministic", basic_deterministic;
     "fdd probabilistic", basic_probabilistic;
-    "fdd performance",   basic_performance;
+    (* "fdd performance",   basic_performance; *)
     "fdd observe", observe_tests;
     "fdd cps compilation", cps_tests;
     (* "qcheck", qcheck_tests; *)
