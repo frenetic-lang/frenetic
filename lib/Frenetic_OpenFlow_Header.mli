@@ -3,7 +3,7 @@
     because there needs to be some standard way to determine the version of
     each message.  So we define that here. *)
 
-open Core.Std
+open Core
 
 (** {6 Types and exceptions} *)
 

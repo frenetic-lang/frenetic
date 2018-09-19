@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_Decide_Ast
 open Frenetic_Decide_Util
 open Frenetic_Decide_Deriv.BDDDeriv

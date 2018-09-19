@@ -92,6 +92,7 @@ let term_of_header_val (h: Frenetic_NetKAT.header_val) : (string * string) =
   | VSwitch i        -> ("vswitch",    Int64.to_string i)
   | VPort i          -> ("vport",      Int64.to_string i)
   | VFabric i        -> ("vfabric",    Int64.to_string i)
+  | Meta _           -> failwith "Not implemented"
 
 let term_of_pred (p: Frenetic_NetKAT.pred) : Ast.Term.t =
   let open Ast in
@@ -146,6 +147,7 @@ let term_of_policy p =
         k (Term.star (p_term))
     | Link  (_s1, _p1, _s2, _p2) -> failwith "Link not yet implemented"
     | VLink (_s1, _p1, _s2, _p2) -> failwith "VLink not yet implemented"
+    | Let _ -> failwith "Not implemented"
   in
   help p (fun x -> x)
 

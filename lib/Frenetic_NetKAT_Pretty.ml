@@ -29,7 +29,7 @@ module Formatting = struct
     | VSwitch(n) -> fprintf fmt "@[vswitch %s %Lu@]" asgn n
     | VPort(n) -> fprintf fmt "@[vport %s %Lu@]" asgn n
     | VFabric(n) -> fprintf fmt "@[vfabric %s %Lu@]" asgn n
-
+    | Meta _ -> failwith "Not implemented"
 
   let rec pred (cxt : predicate_context) (fmt : formatter) (pr : pred) : unit =
     match pr with
@@ -102,6 +102,7 @@ module Formatting = struct
       | VLink (vsw,vpt,vsw',vpt') ->
         fprintf fmt "@[%Lu@@%Lu =>>@ %Lu@@%Lu@]"
           vsw vpt vsw' vpt'
+      | Let _ -> failwith "Not implemented"
 end
   
 let format_policy = Formatting.pol Formatting.PAREN
@@ -120,6 +121,7 @@ let rec pretty_assoc (p : policy) : policy = match p with
   | Union (p1, p2) -> pretty_assoc_par p
   | Seq (p1, p2) -> pretty_assoc_seq p
   | Star p' -> Star (pretty_assoc p')
+  | Let _ -> failwith "Not implemented"
 and pretty_assoc_par (p : policy) : policy = match p with
   | Union (p1, Union (p2, p3)) ->
     Union (pretty_assoc_par (Union (p1, p2)), pretty_assoc_par p3)

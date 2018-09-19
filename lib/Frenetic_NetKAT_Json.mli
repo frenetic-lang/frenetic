@@ -6,7 +6,7 @@
 
   This module also serializes/deserializes switch-to-controller OpenFlow messages for net apps.
 *)
-open Core.Std
+open Core
 open Frenetic_NetKAT
 open Frenetic_OpenFlow
 open Yojson.Basic

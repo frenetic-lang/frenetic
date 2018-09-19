@@ -234,8 +234,8 @@ let set_univ (tvallist : UnivMap.t list) : bool =
   all_values := (fun _ -> UnivDescr.all_values);
   List.exists (fun e -> not (UnivMap.is_empty e)) tvallist
 
-module UnionFind(Ord : Core.Std.Map.Key) = struct
-  open Core.Std
+module UnionFind(Ord : Core.Map.Key) = struct
+  open Core
   module FindMap = Map.Make(Ord)
   type union_find_ds =
     | Root_node of Ord.t * int ref (* maxdepth *)
@@ -259,9 +259,9 @@ module UnionFind(Ord : Core.Std.Map.Key) = struct
     match FindMap.find t.node_map e with
     | None ->
       let root = (Root_node (e, ref 0)) in
-      t.node_map <- FindMap.add t.node_map ~key:e ~data:root;
+      t.node_map <- FindMap.add_exn t.node_map ~key:e ~data:root;
       let r = ref root in
-      t.root_ref_map <- FindMap.add t.root_ref_map ~key:e ~data:r;
+      t.root_ref_map <- FindMap.add_exn t.root_ref_map ~key:e ~data:r;
       r
     | Some v -> get_parent t v
 
@@ -282,16 +282,16 @@ module UnionFind(Ord : Core.Std.Map.Key) = struct
       else if !d2 < !d1 then (*c1 is new root*)
         let leaf = Leaf_node (l2,c1_root) in
 	c2_root := leaf;
-        t.node_map <- FindMap.add t.node_map ~key:l2 ~data:leaf
+        t.node_map <- FindMap.add_exn t.node_map ~key:l2 ~data:leaf
       else if !d1 > !d2 then
         let leaf = Leaf_node (l1,c2_root) in
 	c1_root := leaf;
-        t.node_map <- FindMap.add t.node_map ~key:l1 ~data:leaf
+        t.node_map <- FindMap.add_exn t.node_map ~key:l1 ~data:leaf
       else
         let leaf = Leaf_node(l2,c1_root) in
 	d1 := !d1 + 1;
         c2_root := leaf;
-        t.node_map <- FindMap.add t.node_map ~key:l2 ~data:leaf
+        t.node_map <- FindMap.add_exn t.node_map ~key:l2 ~data:leaf
     | _ -> failwith "get_parent didn't return a Root node!"
 
   let sexp_of_t t =
@@ -338,7 +338,7 @@ module UnionFind(Ord : Core.Std.Map.Key) = struct
                 | true -> if not (phys_equal (NodeMap.find_exn node_map !root_ref) root_ref)
                   then raise Invalid_root_reference
                   else node_map
-                | false -> NodeMap.add node_map ~key:!root_ref ~data:root_ref
+                | false -> NodeMap.add_exn node_map ~key:!root_ref ~data:root_ref
               end
             | _ -> node_map) in
     ()

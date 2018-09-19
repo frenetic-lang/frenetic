@@ -1,7 +1,6 @@
-open Core.Std
+open Core
 
 module SDN = Frenetic_OpenFlow
-
 
 module Field = struct
 
@@ -194,7 +193,7 @@ module Field = struct
     in
     let _ = f_seq pol Env.empty in
     Array.foldi count_arr ~init:[] ~f:(fun i acc n -> ((Obj.magic i, n) :: acc))
-    |> List.stable_sort ~cmp:(fun (_, x) (_, y) -> Int.compare x y)
+    |> List.stable_sort ~compare:(fun (_, x) (_, y) -> Int.compare x y)
     |> List.rev (* SJS: do NOT remove & reverse order! Want stable sort *)
     |> List.map ~f:fst
     |> set_order
@@ -580,7 +579,7 @@ module Action = struct
        * into into one. *)
       match Seq.find seq (F Field.Location) with
       | Some(Value.Query _) -> None
-      | Some(Value.Pipe  _) -> Some(Seq.add seq (F Field.Location) (Value.Pipe ""))
+      | Some(Value.Pipe  _) -> Some(Seq.add_exn seq (F Field.Location) (Value.Pipe ""))
       | _                   -> Some(seq))
     in
     let to_port p = match in_port with

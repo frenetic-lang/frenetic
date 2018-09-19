@@ -1,0 +1,5 @@
+(executable
+  (name frenetic)
+  (public_name frenetic)
+  (libraries core async async_extended frenetic)
+)

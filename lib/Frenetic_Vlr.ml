@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 module type HashCmp = sig
   include Hashtbl.Key
@@ -233,7 +233,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
         | Branch((v, l), a, b) ->
           begin
             try Hash_set.add (Hashtbl.find_exn rank (v, l)) t
-            with Not_found ->
+            with _ ->
               let s = Int.Hash_set.create ~size:10 () in
               Hash_set.add s t;
               Hashtbl.set rank (v, l) s

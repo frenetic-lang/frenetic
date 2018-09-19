@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Sexplib
 open Sexplib.Std
 
@@ -368,7 +368,7 @@ let format_pseudoport (fmt:Format.formatter) (p:pseudoport) : unit =
   | Local -> Format.fprintf fmt "Local"
 
 let format_list (ls : 'a list) ~(to_string : 'a -> string) =
-  let open Core.Std in
+  let open Core in
   let str_ls = List.map ~f:to_string ls |> List.intersperse ~sep:"," in
   String.concat (["["] @ str_ls @ ["]"])
 
@@ -502,7 +502,7 @@ let pattern_list (p : Pattern.t) : string list =
  * contains the strings of the pattern and the second list contains
  * the strings of the actions associated with the pattern. *)
 let to_entry (f : flow) : (string list) * (string list) =
-  let open Core.Std in
+  let open Core in
   let open List in
   let pattern_list = pattern_list f.pattern in
   let pars : string list list = map ~f:(map ~f:string_of_action) (concat f.action) in
@@ -515,7 +515,7 @@ let to_entry (f : flow) : (string list) * (string list) =
 
 (* Pads a string with spaces so that it is atleast `len` characters. *)
 let pad (len : int) (e : string) : string =
-  let open Core.Std in
+  let open Core in
   let padding_size = max 0 (len - (String.length e)) in
   let padding = String.make padding_size ' ' in
   String.concat [e; padding]
@@ -529,7 +529,7 @@ let unwrap x =
 (* Given a list of entries to be displayed in the table, calculate a pair
  * containing the max characters in a pattern string and action string *)
 let table_size (label : string) (entries : ((string list) * (string list)) list) : int * int =
-  let open Core.Std in
+  let open Core in
   let open List in
   let patterns = map entries fst |> concat in
   let actions = map entries snd |> concat in
@@ -539,33 +539,33 @@ let table_size (label : string) (entries : ((string list) * (string list)) list)
 
 (* Create the top edge of the table *)
 let top max_p max_a : string =
-  let open Core.Std in
+  let open Core in
   let open Char in
   let fill = String.make (max_p + max_a + 5) '-' in
   Format.sprintf "+%s+\n" fill
 
 (* Create the bottom edge of the table *)
 let bottom max_p max_a : string=
-  let open Core.Std in
+  let open Core in
   let fill = String.make (max_p + max_a + 5) '-' in
   Format.sprintf "+%s+\n" fill
 
 (* Create a divider between entries *)
 let div max_p max_a : string =
-  let open Core.Std in
+  let open Core in
   let fill = String.make (max_p + max_a + 5) '-' in
   Format.sprintf "|%s|\n" fill
 
 (* Create the columns of the table *)
 let title label max_p max_a : string =
-  let open Core.Std in
+  let open Core in
   let pattern = pad max_p (Format.sprintf "%s | Pattern" label) in
   let action = pad max_a "Action" in
   Format.sprintf "| %s | %s |\n" pattern action
 
 (* Create a row in the table *)
 let string_of_entry (max_p : int) (max_a : int) (e : (string list) * (string list)) : string =
-  let open Core.Std in
+  let open Core in
   let open List in
   let padded_patterns = map (fst e) (pad max_p) in
   let padded_actions = map (snd e) (pad max_a) in
@@ -591,7 +591,7 @@ let string_of_entry (max_p : int) (max_a : int) (e : (string list) * (string lis
 
 (* Given a label and a flowTable, returns an ascii flowtable *)
 let string_of_flowTable ?(label="") (tbl : flowTable) : string =
-  let open Core.Std in
+  let open Core in
   let entries = List.map tbl to_entry in
   let (max_p, max_a) = table_size label entries in
   let t = (top max_p max_a) in

@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_Decide_Util
 
 module FieldMap : sig

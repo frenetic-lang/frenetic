@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 (** The signature for a type that can be compared and hashed *)
 module type HashCmp = sig

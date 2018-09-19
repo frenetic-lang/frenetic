@@ -62,7 +62,7 @@ val all_values : (unit -> (Field.t -> ValueSet.t)) ref
 (* returns true if universe is non-empty *)
 val set_univ : UnivMap.t list -> bool
 
-open Core.Std
+open Core
 
 module UnionFind(Ord: Map.Key) : sig
   type t [@@deriving sexp]

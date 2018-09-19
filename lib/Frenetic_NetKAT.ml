@@ -1,5 +1,5 @@
 open Sexplib.Conv
-open Core.Std
+open Core
 
 open Frenetic_Packet
 

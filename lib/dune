@@ -1,0 +1,13 @@
+(ocamllex
+  (modules Frenetic_Decide_Lexer)) 
+(ocamlyacc
+  (modules Frenetic_Decide_Parser)) 
+
+(library
+  (name frenetic)
+  (public_name frenetic)
+  (wrapped false)
+  (libraries camlp4 core base64 cstruct hashcons ocamlgraph tcpip yojson ipaddr sexplib str tdk)
+  (preprocess (pps ppx_cstruct ppx_deriving.std ppx_enumerate ppx_compare ppx_fields_conv ppx_sexp_conv ppx_hash))
+)
+

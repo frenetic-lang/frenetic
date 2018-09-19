@@ -1,6 +1,6 @@
 open Graph
 (* open Sexplib.Conv *)
-open Core_kernel.Std
+open Core_kernel
 
 module type VERTEX = sig
   type t [@@deriving sexp]
@@ -246,18 +246,19 @@ struct
 
     let add_vertex (t:t) (l:Vertex.t) : t * vertex =
       let open VL in
-      try (t, _node_vertex t l)
-      with Not_found ->
+      try 
+        (t, _node_vertex t l)
+      with _ ->
         let id = t.next_node + 1 in
         let v = { id = id; label = l } in
         let g = P.add_vertex t.graph v in
-        let nl = VertexMap.add t.node_info l (v, PortSet.empty) in
+        let nl = VertexMap.add_exn t.node_info l (v, PortSet.empty) in
         ({ t with graph=g; node_info=nl; next_node = id}, v)
 
     let add_port (t:t) (v:vertex) (p:port) : t =
       let l = v.VL.label in
       let v, ps = VertexMap.find_exn t.node_info l in
-      let node_info = VertexMap.add t.node_info l (v, PortSet.add ps p) in
+      let node_info = VertexMap.add_exn t.node_info l (v, PortSet.add ps p) in
       { t with node_info }
 
     let add_edge (t:t) (v1:vertex) (p1:port) (l:Edge.t) (v2:vertex) (p2:port) : t * edge =
@@ -281,7 +282,8 @@ struct
             P.remove_edge_e acc e) in
             let t' = {t with graph = graph'} in
             aux t'
-      with Not_found -> aux t
+      with _ -> 
+        aux t
 
     (* Special Accessors *)
     let num_vertexes (t:t) : int =
@@ -378,7 +380,7 @@ struct
     let remove_port (t:t) (v:vertex) (p:port) : t =
       let v, ps = VertexMap.find_exn t.node_info v.VL.label in
       let ps = PortSet.remove ps p in
-      let node_info = VertexMap.add t.node_info v.VL.label (v, ps) in
+      let node_info = VertexMap.add_exn t.node_info v.VL.label (v, ps) in
       { t with node_info }
 
     let remove_edge (t:t) (e:edge) : t =
@@ -394,7 +396,7 @@ struct
       let v, p = ep in
       let v, ps = VertexMap.find_exn t.node_info v.VL.label in
       let ps = PortSet.remove ps p in
-      let node_info = VertexMap.add t.node_info v.VL.label (v, ps) in
+      let node_info = VertexMap.add_exn t.node_info v.VL.label (v, ps) in
       { t with node_info }
 
    let remove_port (t:t) (v:vertex) (p:port) =
@@ -469,7 +471,7 @@ struct
       try
         let pth,_ = Dijkstra.shortest_path t.graph v1 v2 in
         Some pth
-      with Not_found ->
+      with _ ->
         None
 
     exception NegativeCycle of edge list
@@ -510,7 +512,7 @@ struct
               let dev2 = Weight.add dev1 (Weight.weight (Topology.edge_to_label t e)) in
               let improvement =
                 try Weight.compare dev2 (VertexHash.find_exn dist ev2) < 0
-                with Not_found -> true
+                with _ -> true
               in
               if improvement then begin
                 VertexHash.set prev ev2 ev1;
@@ -518,7 +520,7 @@ struct
                 VertexHash.set admissible ev2 e;
                 Some ev2
               end else x
-            end with Not_found -> x) t.graph None in
+            end with _ -> x) t.graph None in
         match update with
           | Some x ->
             if (phys_equal i (P.nb_vertex t.graph)) then raise (NegativeCycle (find_cycle x))
@@ -556,7 +558,7 @@ struct
                    let e = find_edge g nodes.(i) nodes.(j) in
                    let w = Weight.weight (Topology.edge_to_label g e) in
                    (Some w, lazy [e])
-                 with Not_found -> (None,lazy []))),
+                 with _ -> (None,lazy []))),
          nodes)
       in
       let matrix,vxs = make_matrix topo in
@@ -584,17 +586,15 @@ struct
         done
       done;
       let paths = ref [] in
-      Array.iteri (fun i array ->
-        Array.iteri (fun j elt ->
+      Array.iteri matrix ~f:(fun i array ->
+        Array.iteri array ~f:(fun j elt ->
           if (f (vxs.(i)) (vxs.(j))) then
             (match elt with
               | None, _ -> ()
               | Some w, p ->
                 paths := (w, vxs.(i), vxs.(j),Lazy.force p) :: !paths)
           else
-            ())
-          array;)
-        matrix;
+            ()));
       !paths
   end
 
@@ -623,7 +623,7 @@ struct
           { t with graph = P.remove_edge_e t.graph e }
         let add_vertex t v =
           { t with graph = P.add_vertex t.graph v ;
-            node_info = VertexMap.add t.node_info v.Topology.VL.label (v, PortSet.empty) ;
+            node_info = VertexMap.add_exn t.node_info v.Topology.VL.label (v, PortSet.empty) ;
             next_node = v.Topology.VL.id + 1}
         let add_edge t v1 v2 =
           { t with graph = P.add_edge t.graph v1 v2 ; next_edge = t.next_edge + 1}
@@ -753,9 +753,9 @@ struct
 
     let load_file f =
       let open In_channel in
-      let ic = open_in f in
+      let ic = create f in
       let n = Int64.to_int_exn (length ic) in
-      let s = String.create n in
+      let s = Bytes.create n in
       let _ = really_input ic s 0 n in
       close ic;
       (s)
@@ -834,7 +834,7 @@ struct
           acc ^ add
         )
         t "" in
-      prologue ^ add_hosts ^ links ^ epilogue
+      Bytes.to_string prologue ^ add_hosts ^ links ^ Bytes.to_string epilogue
 
   end
 end

@@ -1,46 +1,4 @@
-open Core.Std
-
-(*===========================================================================*)
-(* AUXILLIARY FUNCTIONS                                                      *)
-(*===========================================================================*)
-
-let verbosity_levels : Async.Std.Log.Level.t Command.Spec.Arg_type.t =
-  Command.Spec.Arg_type.create
-    (function
-      | "info" -> `Info
-      | "debug" -> `Debug
-      | "error" -> `Error
-      | verbosity_level ->
-        eprintf "'%s' is not a legal verbosity level.  Choose info (default), debug or error\n" verbosity_level;
-        exit 1)
-
-let default_log_device =
-  ("stderr", lazy (Async_extended.Extended_log.Console.output (Lazy.force Async.Std.Writer.stderr)))
-
-let log_outputs : (string * Async.Std.Log.Output.t Lazy.t) Command.Spec.Arg_type.t =
-  Command.Spec.Arg_type.create
-    (function
-      | "stderr" -> default_log_device
-      | "stdout" -> ("stdout", lazy (Async_extended.Extended_log.Console.output (Lazy.force Async.Std.Writer.stdout)))
-      | filename -> (filename, lazy (Async.Std.Log.Output.file `Text filename)) )
-
-let table_fields : Frenetic_NetKAT_Compiler.flow_layout Command.Spec.Arg_type.t =
-  let open Frenetic_Fdd.Field in
-  Command.Spec.Arg_type.create
-    (fun table_field_string ->
-      let opts = [ ("switch", Switch); ("vlan", Vlan); ("pcp", VlanPcp);
-        ("ethtype", EthType); ("ipproto", IPProto); ("ethsrc", EthSrc);
-        ("ethdst", EthDst); ("ip4src", IP4Src); ("ip4dst", IP4Dst);
-        ("tcpsrc", TCPSrcPort); ("tcpdst", TCPDstPort); ("location", Location) ] in
-      (* Break each table def into a string of fields ["ethsrc,ethdst", "ipsrc,ipdst"] *)
-      let table_list = Str.split (Str.regexp "[;]" ) table_field_string in
-      (* Break each string of fields into a list of fields: [["ethsrc","ethdst"],["ipsrc","ipdst"]] *)
-      let field_list_list = List.map ~f:(fun t_str -> Str.split (Str.regexp "[,]") t_str) table_list in
-      (* This takes a field list [ ethsrc,ethdst ] and converts to Field.t definition *)
-      let table_to_fields = List.map ~f:(fun f_str -> List.Assoc.find_exn ~equal:String.equal opts f_str) in
-      (* Applies the above to each table definition *)
-      List.map ~f:table_to_fields field_list_list
-    )
+open Core
 
 
 (*===========================================================================*)
@@ -50,33 +8,9 @@ let table_fields : Frenetic_NetKAT_Compiler.flow_layout Command.Spec.Arg_type.t 
 module Flag = struct
   open Command.Spec
 
-  let verbosity =
-    flag "--verbosity" (optional_with_default `Info verbosity_levels)
-      ~doc:"level verbosity level = {debug, error, info}"
-
-  let log =
-    flag "--log" (optional_with_default default_log_device log_outputs)
-      ~doc:"file path to write logs, 'stdout' or 'stderr'"
-
-  let http_port =
-    flag "--http-port" (optional_with_default 9000 int)
-      ~doc:"int HTTP port on which to listen for new policies. Defaults to 9000."
-
   let openflow_port =
     flag "--openflow-port" (optional_with_default 6633 int)
       ~doc:"int Port to listen on for OpenFlow switches. Defaults to 6633."
-
-  let table_fields =
-    flag "--table" (optional_with_default [Frenetic_Fdd.Field.get_order ()] table_fields)
-      ~doc:"Partition of fields into Openflow 1.3 tables, e.g. ethsrc,ethdst;ipsrc,ipdst"
-
-  let policy_file =
-    flag "--policy-file" (optional_with_default "policy.kat" file)
-    ~doc:"File containing NetKAT policy to apply to the network. Defaults to \"policy.kat\"."
-
-  let topology_file =
-    flag "--topology-file" (optional_with_default "topology.dot" file)
-      ~doc:"File containing .dot topology of network. Defaults to \"topology.kat\"."
 end
 
 
@@ -85,70 +19,28 @@ end
 (*===========================================================================*)
 
 let default_spec =
-  Command.Spec.(empty +> Flag.verbosity +> Flag.log)
+  Command.Spec.empty
 
-let run cmd verbosity log =
-  let (log_path, log_output) = log in
-  Frenetic_Log.set_level verbosity;
-  Frenetic_Log.set_output [Lazy.force log_output];
+let run cmd =
   ignore (cmd ());
-  never_returns (Async.Std.Scheduler.go ())
+  never_returns (Async.Scheduler.go ())
 
-let shell : Command.t =
-  Command.basic
-    ~summary:"Invokes frenetic shell."
-    Command.Spec.(empty
-      +> Flag.openflow_port
-      ++ default_spec)
-    (fun openflow_port ->
-      run (Frenetic_Shell.main openflow_port))
+exception ParseError of string * int * int * string
 
-let compile_server : Command.t =
-  Command.basic
-    ~summary:"Invokes compile server."
-    Command.Spec.(empty
-      +> Flag.http_port
-      ++ default_spec)
-    (fun http_port ->
-      run (Frenetic_Compile_Server.main http_port))
-
-let http_controller : Command.t =
-  Command.basic
-    ~summary:"Invokes http controler."
-    Command.Spec.(empty
-      +> Flag.http_port
-      +> Flag.openflow_port
-      ++ default_spec)
-    (fun http_port openflow_port ->
-      run (Frenetic_Http_Controller.main http_port openflow_port))
-
-let openflow13_controller : Command.t =
-  Command.basic
-    ~summary:"Invokes openflow 1.3 controler."
-    Command.Spec.(empty
-      +> Flag.openflow_port
-      +> Flag.policy_file
-      +> Flag.table_fields
-      ++ default_spec)
-    (fun openflow_port policy_file table_fields ->
-      run (Frenetic_OpenFlow0x04_Plugin.main openflow_port policy_file table_fields))
-
-let openflow13_fault_tolerant_controller : Command.t =
-  Command.basic
-    ~summary:"Invokes fault-tolerant openflow 1.3 controler."
-    Command.Spec.(empty
-      +> Flag.openflow_port
-      +> Flag.policy_file
-      +> Flag.topology_file
-      ++ default_spec)
-    (fun openflow_port policy_file topology_file ->
-      run (Frenetic_OpenFlow0x04_Plugin.fault_tolerant_main
-        openflow_port policy_file topology_file))
-
-
+let parse_exn parser_function lexbuf (filename: string) =
+  try
+    parser_function Frenetic_Decide_Lexer.token lexbuf
+  with
+    | Parsing.Parse_error -> begin
+      let curr = lexbuf.Lexing.lex_curr_p in
+      let line = curr.Lexing.pos_lnum in
+      let char = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
+      let token = Lexing.lexeme lexbuf in
+      raise (ParseError (filename, line, char, token))
+    end
 
 let decide : Command.t =
-  Command.basic
+  Command.basic_spec
     ~summary:"Invokes decision procedure with provided file."
     Command.Spec.(
       empty
@@ -156,15 +48,11 @@ let decide : Command.t =
     )
     (fun file () ->
       In_channel.with_file file ~binary:false ~f:(fun in_ch ->
-        (* code copied from Frenetic_Shell and adapted to work with stream *)
-        let open Frenetic_Shell in
         try
           let lexbuf = Lexing.from_channel in_ch in
-          let formula = parse_exn DecideParser.formula_main lexbuf "" in
-          (* TODO(mwhittaker). This doesn't handle formulas with <= in them
-           * correctly. See test_lib/Test_Decide.ml for the correct behavior. *)
-          let lhs, rhs = DecideAst.Formula.terms formula in
-          ignore (DecideUtil.set_univ DecideAst.([Term.values lhs; Term.values rhs]));
+          let formula = parse_exn Frenetic_Decide_Parser.formula_main lexbuf "" in
+          let lhs, rhs = Frenetic_Decide_Ast.Formula.terms formula in
+          ignore (Frenetic_Decide_Util.set_univ Frenetic_Decide_Ast.([Term.values lhs; Term.values rhs]));
           printf "%b\n%!" (Frenetic_Decide_Bisimulation.check_equivalent lhs rhs)
         with
         | ParseError (filename, line, char, token) ->
@@ -175,13 +63,7 @@ let decide : Command.t =
 let main : Command.t =
   Command.group
     ~summary:"Invokes the specified Frenetic module."
-    [ ("shell", shell)
-    ; ("compile-server", compile_server)
-    ; ("http-controller", http_controller)
-    ; ("openflow13", openflow13_controller)
-    ; ("fault-tolerant", openflow13_fault_tolerant_controller)
-    ; ("dump", Dump.main)
-    ; ("decide", decide)]
+    [("decide", decide)]
 
 let () =
   Command.run ~version: "5.0" ~build_info: "RWO" main

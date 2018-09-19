@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_Packet
 open Format
 
@@ -2176,7 +2176,7 @@ module StatsReply = struct
     let mkString bits size =
       let new_string = Bytes.create size in
       Cstruct.blit_to_string bits 0 new_string 0 size;
-      new_string
+      Bytes.to_string new_string
 
     let parse_description_stats bits =
       let mfr_desc = mkString (get_ofp_desc_stats_mfr_desc bits) desc_str_len in

@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 open Frenetic_NetKAT
 open Frenetic_Packet
@@ -109,7 +109,8 @@ let size (pol:policy) : int =
       | Seq(pol1, pol2) -> size pol1 (fun spol1 -> size pol2 (fun spol2 -> f (1 + spol1 + spol2)))
       | Star(pol) -> size pol (fun spol -> f (1 + spol))
       | Link(_,_,_,_) -> f 5
-      | VLink(_,_,_,_) -> f 5 in
+      | VLink(_,_,_,_) -> f 5 
+      | Let _ -> failwith "Not implemented" in
   size pol (fun spol -> spol)
 
 let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
@@ -134,6 +135,7 @@ let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
       | TCPSrcPort n -> pkt.headers.tcpSrcPort = n
       | TCPDstPort n -> pkt.headers.tcpDstPort = n
       | VSwitch n | VPort n | VFabric n -> true (* SJS *)
+      | Meta _ -> failwith "Not implemented"
     end
   | And (pr1, pr2) -> eval_pred pkt pr1 && eval_pred pkt pr2
   | Or (pr1, pr2) -> eval_pred pkt pr1 || eval_pred pkt pr2
@@ -166,7 +168,8 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
         { pkt with headers = { pkt.headers with tcpSrcPort = n }}
       | TCPDstPort n ->
         { pkt with headers = { pkt.headers with tcpDstPort = n }}
-      | VSwitch n | VPort n | VFabric n -> pkt (* SJS *) in
+      | VSwitch n | VPort n | VFabric n -> pkt (* SJS *) 
+      | Meta _ -> failwith "Not implemented" in
     PacketSet.singleton pkt'
   | Union (pol1, pol2) ->
     PacketSet.union (eval pkt pol1) (eval pkt pol2)
@@ -184,6 +187,7 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
     PacketSet.empty (* TODO(JNF): yeah no *)
   | VLink(vsw,vpt,vsw',vpt') ->
     PacketSet.empty (* SJS *)
+  | Let _ -> failwith "Not implemented"
 
 let eval_pipes (packet:packet) (pol:Frenetic_NetKAT.policy)
   : (string * packet) list *
@@ -226,7 +230,8 @@ let queries_of_policy (pol : policy) : string list =
       if List.mem ~equal:String.equal acc str then acc else str :: acc
     | Filter _ | Mod _ | Link _ | VLink _ -> acc
     | Union (p, q) | Seq (p, q) -> loop q (loop p acc)
-    | Star p -> loop p acc in
+    | Star p -> loop p acc 
+    | Let _ -> failwith "Not implemented" in
   loop pol []
 
 (* JNF: is this dead code? *)
@@ -258,4 +263,4 @@ let switches_of_policy (p:policy) =
     | Let(_,_,_,p) ->
       collect p acc
   in
-  collect p [] |> List.dedup |> List.to_list
+  collect p [] |> List.dedup_and_sort ~compare:Pervasives.compare |> List.to_list

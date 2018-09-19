@@ -1,35 +1,31 @@
-all: build
+INSTALL_ARGS := $(if $(PREFIX),--prefix $(PREFIX),)
 
-J=4
+build:
+	dune build --profile release @install
 
-setup.ml: _oasis
-	oasis setup
+install: build
+	dune install $(INSTALL_ARGS)
 
-setup.data: setup.ml
-	./configure
+uninstall:
+	dune uninstall $(INSTALL_ARGS)
 
-build: setup.data setup.ml
-	ocaml setup.ml -build -j $(J)
-
-install: setup.data setup.ml
-	ocaml setup.ml -install
-
-reinstall: setup.ml
-	ocaml setup.ml -reinstall
-
-uninstall: setup.ml
-	ocaml setup.ml -uninstall
-
-test: setup.ml build
-	ocaml setup.ml -test $(TESTFLAGS)
+reinstall: uninstall install
 
 clean:
-	ocamlbuild -clean
-	rm -f setup.data setup.log
-
-distclean:
-	ocaml setup.ml -distclean
-	rm -f setup.data setup.log
+	dune clean
 
 doc:
-	ocaml setup.ml -doc
+	dune build @doc
+
+test:
+	dune runtest
+
+updatetest:
+	dune runtest --auto-promote
+
+all: build test doc
+
+utop: install
+	utop-full -short-paths -init ocamlinit
+
+.PHONY: build install uninstall reinstall clean doc test all utop updatetest

@@ -5,7 +5,7 @@ let int_to_uint32 = Int32.of_int
 
 (* NOTE(arjun): Do not open Frenetic_OpenFlow in this module. If you need to serialize
    one of those types, it should probably go in Frentic_NetKAT_SDN_Json instead. *)
-open Core.Std
+open Core
 open Yojson.Basic
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Optimize
@@ -56,6 +56,7 @@ let to_json_value (h : header_val) : json = match h with
   | TCPDstPort n -> `Int n
   | IP4Src (addr, mask)
   | IP4Dst (addr, mask) -> to_json_ip (addr, mask)
+  | Meta _ -> failwith "Not implemented" 
 
 let to_json_header (h : header_val) : json =
   let str = match h with
@@ -73,7 +74,8 @@ let to_json_header (h : header_val) : json =
     | IP4Dst _ -> "ip4dst"
     | TCPSrcPort _ -> "tcpsrcport"
     | TCPDstPort _ -> "tcpdstport"
-    | VFabric _ -> "vfabric" in
+    | VFabric _ -> "vfabric" 
+    | Meta _ -> failwith "Not implemented" in
   `String str
 
 
@@ -116,6 +118,7 @@ let rec policy_to_json (pol : policy) : json = match pol with
             ("pt1", `Int (Int64.to_int_exn pt1));
             ("sw2", `Int (Int64.to_int_exn sw2));
             ("pt2", `Int (Int64.to_int_exn pt2))]
+  | Let _ -> failwith "Not implemented"
 
 
 (** From JSON **)

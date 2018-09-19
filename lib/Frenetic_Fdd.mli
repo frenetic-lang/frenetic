@@ -17,7 +17,7 @@
   using the full well-established theory of BDD's.
 *)
 
-open Core.Std
+open Core
 
 module Field : sig
 

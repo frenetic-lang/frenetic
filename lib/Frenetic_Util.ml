@@ -19,7 +19,7 @@
  * If after all that you're still without the function you need, have at it
  * below.
  *)
-open Core.Std
+open Core
 
 let make_string_of formatter x =
   let open Format in

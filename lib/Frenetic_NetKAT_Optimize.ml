@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_NetKAT
 
 let mk_and pr1 pr2 =
@@ -102,7 +102,7 @@ let specialize_policy sw pol =
         loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (mk_seq p1 p2)))
       | Star pol ->
         loop pol (fun p -> k (mk_star p))
-      | Link _ | VLink _ ->
+      | Link _ | VLink _ | Let _ ->
 	failwith "Not a local policy" in
   loop pol (fun x -> x)
 
@@ -155,6 +155,8 @@ let rec norm_policy (pol : policy) : policy = match pol with
   | Seq (p, q) ->
     let pol' = Seq (norm_policy p, norm_policy q) in
     mk_big_seq (list_of_seq pol')
+  | Let _ -> 
+     failwith "Unexpected let"
 
 (*
    TODO(car): flatten_union in Optimize outputs the unioned policies in reverse order.  While this is semantically equivalent,

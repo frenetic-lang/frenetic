@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Sexplib.Conv
 open Frenetic_Decide_Util
 
@@ -117,7 +117,7 @@ module Term = struct
   include TermBase
 
   let rec eval (t : TermBase.t) (pkt : packet) = match t.Hashcons.node with
-    | Assg (f,v) -> PacketSet.singleton (FieldMap.add pkt ~key:f ~data:v)
+    | Assg (f,v) -> PacketSet.singleton (FieldMap.add_exn pkt ~key:f ~data:v)
     | Test (f,v) -> begin match FieldMap.find pkt f with
         | Some v' -> if v' = v
           then PacketSet.singleton pkt

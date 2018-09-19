@@ -2,8 +2,8 @@ open Frenetic_NetKAT
 open Frenetic_NetKAT_Optimize
 open Frenetic_NetKAT_Pretty
 
-module Tbl = Core.Std.Hashtbl.Poly
-module Sexp = Core.Std.Sexp
+module Tbl = Core.Hashtbl.Poly
+module Sexp = Core.Sexp
 
 (* auxilliary list functions *)
 let inters xs ys = List.find_all (fun x -> List.mem x ys) xs
@@ -207,7 +207,7 @@ let parse_vrel (vrel : pred) =
 
 let get_vrel vrel =
   let vrel_tbl = parse_vrel vrel in
-  let vrel (vsw, vpt) = Tbl.find vrel_tbl (vsw, vpt) |> Core.Std.Option.value ~default:[] in
+  let vrel (vsw, vpt) = Tbl.find vrel_tbl (vsw, vpt) |> Core.Option.value ~default:[] in
   (fun vv -> match G.Virt.V.label vv with
     | InPort (vsw, vpt) ->
        vrel (vsw, vpt) |> List.map (fun (sw, pt) -> G.Phys.V.create (InPort (sw, pt)))
@@ -396,7 +396,7 @@ let fabric_atom_of_prod_edge ?record_paths path_oracle v1 v2 =
   | (InconsistentIn (vv, pv1) as l), ConsistentIn (vv', pv2) ->
     assert (vv = vv');
     let path = path_oracle pv1 pv2 in
-    let _ = Core.Std.Option.(record_paths >>| print_path path) in
+    let _ = Core.Option.(record_paths >>| print_path path) in
     let fabric =
       [match_vloc' vv; match_ploc' pv1; policy_of_path path; set_vloc' vv]
       |> mk_big_seq
@@ -412,14 +412,14 @@ let fabric_of_fabric_graph ?record_paths g ing path_oracle =
   if not (List.for_all (G.Prod.mem_vertex g) ing) then
     failwith "virtual compiler: specification allows for no valid fabric"
   else
-    let record_paths = Core.Std.Option.(record_paths >>| open_out) in
+    let record_paths = Core.Option.(record_paths >>| open_out) in
     let f v1 v2 ((fout, fin) as fs) =
       match fabric_atom_of_prod_edge ?record_paths path_oracle v1 v2 with
       | `None -> fs
       | `Out f -> (f::fout, fin)
       | `In f -> (fout, f::fin) in
     let fabric = G.Prod.fold_edges f g ([], []) in
-    let _ = Core.Std.Option.(record_paths >>| close_out) in
+    let _ = Core.Option.(record_paths >>| close_out) in
     fabric
 
 let generate_fabrics ?(log=true) ?record_paths vrel v_topo v_ing v_eg p_topo p_ing p_eg  =

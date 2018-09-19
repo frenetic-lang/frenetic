@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_Fdd
 open Frenetic_NetKAT
 
@@ -421,7 +421,6 @@ let field_order_from_string = function
    let ls = String.split_on_chars ~on:['<'] field_order_string
     |> List.map ~f:String.strip
     |> List.map ~f:Field.of_string in
-   let compose f g x = f (g x) in
    let curr_order = Field.all in
    let removed = List.filter curr_order ~f:(fun f -> not (List.mem ~equal:Field.equal ls f)) in
    (* Tags all specified Fields at the highest priority *)
@@ -535,7 +534,8 @@ module Pol = struct
             |> mk_filter
       in
       mk_big_seq [filter_loc s1 p1; Dup; post_link ]
-    | VLink _ -> assert false (* SJS / JNF *)
+    | VLink _ -> failwith "Not implemented"
+    | Let _ -> failwith "Not implemented"
 end
 
 
@@ -554,6 +554,8 @@ module NetKAT_Automaton = struct
     module S = struct
       include Set.Make(Int)
       let hash = Hashtbl.hash
+      let hash_fold_t _ = assert false
+
     end
     include Hashable.Make(S)
     include S
@@ -711,7 +713,7 @@ module NetKAT_Automaton = struct
     let determinize_action par =
       par
       |> Action.Par.to_list
-      |> List.sort ~cmp:Action.Seq.compare_mod_k
+      |> List.sort ~compare:Action.Seq.compare_mod_k
       |> List.group ~break:(fun s1 s2 -> not (Action.Seq.equal_mod_k s1 s2))
       |> List.map ~f:(function
         | [seq] -> seq
@@ -719,7 +721,7 @@ module NetKAT_Automaton = struct
           let ks = List.map group ~f:(fun s -> Action.Seq.find_exn s K |> Value.to_int_exn)
                    |> S.of_list in
           let k = merge ks in
-          List.hd_exn group |> Action.Seq.add ~key:K ~data:(Value.of_int k))
+          List.hd_exn group |> Action.Seq.add_exn ~key:K ~data:(Value.of_int k))
       |> Action.Par.of_list
     in
     let dedup_fdd = FDD.map_r determinize_action in
@@ -792,7 +794,7 @@ module NetKAT_Automaton = struct
         FDD.map_r
           (Par.map ~f:(fun seq -> match Seq.find seq K with
             | None -> failwith "transition function must specify next state!"
-            | Some data -> Seq.remove seq K |> Seq.add ~key:(F pc) ~data))
+            | Some data -> Seq.remove seq K |> Seq.add_exn ~key:(F pc) ~data))
           d
       in
       let guard =
@@ -935,7 +937,7 @@ let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
   |> List.filter ~f:(fun subtrees -> subtrees <> [])
   |> List.foldi ~init:Map.Poly.empty ~f:(fun tbl_id accum subtrees ->
       List.fold_right subtrees ~init:accum ~f:(fun t accum ->
-        Map.add accum ~key:t ~data:(tbl_id,(post meta_id))))
+        Map.add_exn accum ~key:t ~data:(tbl_id,(post meta_id))))
 
 (* make a flow struct that includes the table and meta id of the flow *)
 let mk_multitable_flow options (pattern : Frenetic_OpenFlow.Pattern.t)

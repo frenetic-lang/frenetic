@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Sexplib.Conv
 open Frenetic_Decide_Util
 open Tdk
@@ -57,14 +57,14 @@ module rec BDDDeriv : DerivTerm = struct
     (* pkt <= pkt' *)
     let partialPacketCompare pkt1 pkt2 = try (FieldMap.fold pkt1 ~init:true ~f:(fun ~key:k ~data:v acc ->
         acc && FieldMap.find_exn pkt2 k = v))
-      with Not_found -> false
+      with _ -> false
 
     let packetJoin pkt1 pkt2 = try Some (FieldMap.merge pkt1 pkt2 ~f:(fun ~key:k v ->
         match v with
         | `Right v -> Some v
         | `Left v -> Some v
-        | `Both (_,v) -> raise Not_found))
-      with Not_found -> None
+        | `Both (_,v) -> raise (Not_found_s (Sexp.of_string ""))))
+      with _ -> None
 
 
     (* let compare p1 p2 = *)
@@ -177,7 +177,7 @@ module rec BDDDeriv : DerivTerm = struct
         | Dup -> empty
         | Times ts -> List.fold ts ~init:one ~f:(fun acc x -> times acc (matrix_of_term x))
         | Star t -> star (matrix_of_term t)
-        | Assg (f,v) -> PacketDD.const (PartialPacketSet.singleton (FieldMap.add FieldMap.empty ~key:f ~data:v))
+        | Assg (f,v) -> PacketDD.const (PartialPacketSet.singleton (FieldMap.add_exn FieldMap.empty ~key:f ~data:v))
         | Test (f,v) -> PacketDD.atom (f, v) PartialPacketSet.one PartialPacketSet.zero
         (* Because t should *always* be a predicate, the leaves should only contain either an empty set, or {*} *)
         | Not t -> PacketDD.map_r (fun p -> match PartialPacketSet.equal PartialPacketSet.one p with
@@ -195,8 +195,8 @@ module rec BDDDeriv : DerivTerm = struct
         PacketDD.fold
           (fun r -> PartialPacketSet.fold r ~f:(fun acc pkt -> PointSet.add acc (FieldMap.empty, pkt)) ~init:PointSet.empty)
           (fun (h,v) t f ->
-             let extra_pkt = FieldMap.add FieldMap.empty ~key:h ~data:Value.extra_val in
-             PointSet.union (PointSet.map t (fun (pkt1,pkt2) -> FieldMap.add pkt1 ~key:h ~data:v, pkt2))
+            (* let extra_pkt = FieldMap.add FieldMap.empty ~key:h ~data:Value.extra_val in *)
+             PointSet.union (PointSet.map t (fun (pkt1,pkt2) -> FieldMap.add_exn pkt1 ~key:h ~data:v, pkt2))
                f)
           t
       in
@@ -205,9 +205,9 @@ module rec BDDDeriv : DerivTerm = struct
           begin
             match FieldMap.find a field, FieldMap.find b field with
             | Some _, Some _ -> PointSet.singleton (a,b)
-            | Some x, None -> PointSet.singleton (a, FieldMap.add b ~key:field ~data:x)
-            | None, Some _ -> Frenetic_Decide_Util.ValueSet.fold (fun v acc -> PointSet.add acc (FieldMap.add a ~key:field ~data:v, b)) (!Frenetic_Decide_Util.all_values () field) PointSet.empty
-            | None, None -> Frenetic_Decide_Util.ValueSet.fold (fun v acc -> PointSet.add acc (FieldMap.add a ~key:field ~data:v, FieldMap.add b ~key:field ~data:v))
+            | Some x, None -> PointSet.singleton (a, FieldMap.add_exn b ~key:field ~data:x)
+            | None, Some _ -> Frenetic_Decide_Util.ValueSet.fold (fun v acc -> PointSet.add acc (FieldMap.add_exn a ~key:field ~data:v, b)) (!Frenetic_Decide_Util.all_values () field) PointSet.empty
+            | None, None -> Frenetic_Decide_Util.ValueSet.fold (fun v acc -> PointSet.add acc (FieldMap.add_exn a ~key:field ~data:v, FieldMap.add_exn b ~key:field ~data:v))
                               (!Frenetic_Decide_Util.all_values () field) PointSet.empty
           end) ~init:PointSet.empty) (!Frenetic_Decide_Util.all_fields ()) (PointSet.singleton pt))) ~init:PointSet.empty
 
