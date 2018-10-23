@@ -256,11 +256,11 @@ header_val(BINOP):
       AST( EthDst n )
       PPX( EthDst [%e n] )
   | TCPSRCPORT; BINOP; n=int
-      AST( VlanPcp n )
-      PPX( VlanPcp [%e n] )
+      AST( TCPSrcPort n )
+      PPX( TCPSrcPort [%e n] )
   | TCPDSTPORT; BINOP; n=int
-      AST( VlanPcp n )
-      PPX( VlanPcp [%e n] )
+      AST( TCPDstPort n )
+      PPX( TCPDstPort [%e n] )
   | IPPROTO; BINOP; n=int
       AST( IPProto n )
       PPX( IPProto [%e n] )
