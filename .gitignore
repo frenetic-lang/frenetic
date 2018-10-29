@@ -24,4 +24,7 @@ setup.log
 *.install
 *.merlin
 *.pyc
+*.psi
+*.bayonet
+*.dot
 examples/output/results*

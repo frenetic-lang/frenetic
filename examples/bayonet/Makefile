@@ -1,7 +1,11 @@
 # just for easy cleaning...
 clean:
-	rm -f output/*.psi
-	rm -f output/*.log
+	rm -f **.psi
+	rm -f **.log
+	rm -f **.bayonet
+	rm -f **.dot
+	rm -f **.pyc
+	rm -fr __pycache__
 
 .PHONY: clean
 
