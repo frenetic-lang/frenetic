@@ -58,7 +58,7 @@ def make_topo(k):
   G.nodes[node(k*4)]['id'] = k*4
 
   # add IP and mac addresses
-  for n, attrs in G.nodes.iteritems():
+  for n, attrs in G.nodes.items():
     attrs['ip'] = int2ip(attrs['id'] % (2**24 - 2) + 10 * 2**24)
     attrs['mac'] = int2mac(attrs['id'] % (2**24 - 2) + 10 * 2**24)
 
@@ -82,7 +82,7 @@ def make_bayonet(k):
 
   # links
   links = []
-  for (s,d), e in G.edges.iteritems():
+  for (s,d), e in G.edges.items():
     # all edges must be interpreted to go from node with lower id to node with higher id
     s,d = sorted([s,d], key=lambda n: G.nodes[n]['id'])
     links.append("(%s,pt%d) <-> (%s,pt%d)" % (s, e['src_port'], d, e['dst_port']))
@@ -90,7 +90,7 @@ def make_bayonet(k):
 
   # programs
   programs = []
-  for n,attr in G.nodes.iteritems():
+  for n,attr in G.nodes.items():
     if attr['id'] in range(k*4):
       programs.append("%s -> s%d" % (n, attr['id'] % 4))
   params['programs'] = ', '.join(sorted(programs))
@@ -150,9 +150,9 @@ $scheduler
 def make_dot(k, file):
   G = make_topo(k)
   topo = nx.DiGraph()
-  for n, attrs in G.nodes.iteritems():
+  for n, attrs in G.nodes.items():
     topo.add_node(n, **attrs)
-  for (s,d), attrs in G.edges.iteritems():
+  for (s,d), attrs in G.edges.items():
     # all edges must be interpreted to go from node with lower id to node with higher id
     s,d = sorted([s,d], key=lambda n: G.nodes[n]['id'])
     topo.add_edge(s,d, **attrs)
