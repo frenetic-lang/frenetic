@@ -1,6 +1,6 @@
 #!/bin/bash
-sudo apt-get update
-sudo apt-get install libsuitesparse-dev python3-pip libcurl4-openssl-dev graphviz
+sudo apt update
+sudo apt install libsuitesparse-dev python3-pip libcurl4-openssl-dev graphviz swig
 
 # python 3, to solve linear systems
 sudo -H python3 -m pip install --upgrade pip

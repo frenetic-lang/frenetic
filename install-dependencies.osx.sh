@@ -1,5 +1,5 @@
 #!/bin/bash
-brew install suite-sparse graphviz
+brew install suite-sparse graphviz swig
 
 # python 3, to solve linear systems
 sudo -H python3 -m pip install --upgrade pip
