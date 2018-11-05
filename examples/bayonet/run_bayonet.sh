@@ -21,7 +21,9 @@ fi
 if [ ! -f $RESULT_FILE ]; then
     echo "analyzing: $PSI $PSI_FILE"
     { { time timeout $TIMEOUT $PSI $PSI_FILE; } 2>&1; } > $RESULT_FILE
+    RC="$?"
     tail $RESULT_FILE
+    exit $RC
 else
     echo "skipping $PSI_FILE; $RESULT_FILE already exists."
     tail $RESULT_FILE

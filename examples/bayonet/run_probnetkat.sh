@@ -14,10 +14,11 @@ fi
 
 if [ ! -f $RESULT_FILE ]; then
     echo "analyzing: $INPUT"
-    pushd ${ROOT_DIR}
+    cd ${ROOT_DIR}
     { { time timeout $TIMEOUT $PROBNETKAT $INPUT $CPS; } 2>&1; } > $RESULT_FILE
+    RC="$?"
     tail $RESULT_FILE
-    popd
+    exit $RC
 else
     echo "skipping $INPUT; $RESULT_FILE already exists."
     tail $RESULT_FILE
