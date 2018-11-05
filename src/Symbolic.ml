@@ -970,7 +970,7 @@ module type CODING = sig
   end
 end
 
-module Coding(D : DOM) : CODING = struct
+module Coding(D : DOM)() : CODING = struct
 
   let dom : Domain.t = D.domain
   let domain : (Field.t * PrePacket.nomval list) list =
@@ -1744,7 +1744,7 @@ module Fdd = struct
        representation and what does each index preresent?
     *)
     let dom = Domain.(merge (of_fdd ap) (of_fdd not_a)) in
-    let module Coding = Coding(struct let domain = dom end) in
+    let module Coding = Coding(struct let domain = dom end)() in
     let coding = (module Coding : CODING) in
 
     (* setup external python script to solve linear system, start in seperate process *)
