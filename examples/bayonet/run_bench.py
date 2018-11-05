@@ -4,11 +4,11 @@ from subprocess import call
 
 
 def bayonet(k):
-  return ['./run_bayonet.sh', 'bayonet_resilience_sw_%d.bayonet' % 4*k]
+  return ['./run_bayonet.sh', 'bayonet_resilience_sw_%d.bayonet' % (4*k)]
 
 
 def pnk(k):
-  return ['./run_probnetkat.sh', 'bayonet_resilience_sw_%d.dot' % 4*k]
+  return ['./run_probnetkat.sh', 'bayonet_resilience_sw_%d.dot' % (4*k)]
 
 
 def prism(k):
