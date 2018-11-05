@@ -179,7 +179,7 @@ def write_to(file, s):
 
 if __name__ == '__main__':
     args = parse_args()
-    for multiplier in range(1,21,1):
+    for multiplier in [2**n for n in range(12)]:
       base_filename = "bayonet_resilience_sw_%d" % (multiplier * 4)
       dot_file = os.path.join(args.dir, base_filename + ".dot")
       bayonet_file = os.path.join(args.dir, base_filename + ".bayonet")
