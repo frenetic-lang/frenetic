@@ -646,7 +646,7 @@ end = struct
     List.map t ~f:ActionDist.observe_not_drop
 
   let prob_of_drop t =
-    List.fold t ~init:Prob.(one, zero) ~f:(fun (no_drop_yet, drop) d -> 
+    List.fold t ~init:Prob.(one, zero) ~f:(fun (no_drop_yet, drop) d ->
       let p_drop = ActionDist.prob_of d Action.Drop in
       Prob.(no_drop_yet * (one - p_drop), drop + p_drop)
     )
@@ -1316,7 +1316,7 @@ module Fdd = struct
       | Or (p, q) -> Or (do_pred p, do_pred q)
       | Neg p -> Neg (do_pred p)
     in
-    do_pred pred  
+    do_pred pred
 
   let deallocate_fields (pol : Field.t policy) : string policy =
     let do_field : Field.t -> string = Field.to_string in
@@ -1785,7 +1785,7 @@ module Fdd = struct
     protect ~finally:(fun () ->
       Signal.(send_i kill (`Pid py_pid));
       begin match caml_pid with
-      | Some pid -> Signal.(send_i kill (`Pid pid)) 
+      | Some pid -> Signal.(send_i kill (`Pid pid))
       | None -> ()
       end;
       ignore (Unix.close_process py);
@@ -1793,7 +1793,7 @@ module Fdd = struct
       Out_channel.close to_parent;
       ignore (Unix.waitpid py_pid);
       begin match caml_pid with
-      | Some pid -> ignore (Unix.waitpid pid) 
+      | Some pid -> ignore (Unix.waitpid pid)
       | None -> ()
       end;
     ) ~f:(fun () ->
@@ -1817,7 +1817,7 @@ module Fdd = struct
 
         (* kill other process *)
         begin match caml_pid with
-        | Some pid -> Signal.(send_i kill (`Pid pid)) 
+        | Some pid -> Signal.(send_i kill (`Pid pid))
         | None -> ()
         end;
 
@@ -2011,9 +2011,9 @@ module Fdd = struct
       |> seq lctxt
     | While (a, p) ->
       let a = of_pred a in
-      if equal a id then 
+      if equal a id then
         drop
-      else 
+      else
         let skip_ctxt = seq lctxt (negate a) in
         if equal lctxt skip_ctxt || equal a drop then
           skip_ctxt
@@ -2095,6 +2095,25 @@ module Fdd = struct
         |> List.fold ~init:Prob.zero ~f:Prob.(+)
     )
     |> List.fold ~init:Prob.one ~f:Prob.min
+
+   (* minimum probability of not dropping packet *)
+  let min_nondrop_prob' t =
+    let rec go t acc =
+      match unget t with
+      | Leaf dist ->
+        FactorizedActionDist.to_alist dist
+        |> List.filter_map ~f:(function
+            | (Action.Drop,_) -> None
+            | (_,p) -> Some p
+        )
+        |> List.fold ~init:Prob.zero ~f:Prob.(+)
+        |> Prob.min acc
+      | Branch { tru; fls; _ } ->
+        go tru acc
+        |> go fls
+    in
+    go t Prob.one
+
 
   let set_order order =
     let meta_fields = Field.[

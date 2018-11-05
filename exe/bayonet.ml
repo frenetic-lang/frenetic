@@ -59,14 +59,14 @@ module Model = struct
 
   let ingress =
     let sw,pt = src in
-    PNK.(conj (???(Params.sw, sw)) (???(Params.pt, pt)))
+    PNK.((!!(Params.sw, sw)) >> (!!(Params.pt, pt)))
 
   let egress =
     let sw,pt = dst in
     PNK.(conj (???(Params.sw, sw)) (???(Params.pt, pt)))
 
   let model = PNK.(
-    filter ingress >>
+    ingress >>
     whl (neg egress) (
       p >> (ite egress skip t)
     )
@@ -78,12 +78,16 @@ let () = begin
   (* Format.printf "%a\n%!" Syntax.pp_policy Model.model; *)
   let logfile = "./examples/logs/bayonet.log" in
   Util.print_times := false;
-  Util.log_and_sandbox ~timeout ~logfile Sys.argv.(1) ~f:(fun () ->
+  (* Util.log_and_sandbox ~timeout ~logfile Sys.argv.(1) ~f:(fun () -> *)
     Fdd.use_cps := use_cps;
-    Fdd.of_pol ~auto_order:true Model.model
-    (* |> Fdd.render *)
-    |> ignore
-  );
+    let fdd = Fdd.of_pol ~auto_order:true Model.model in
+    let p = Fdd.min_nondrop_prob' fdd in
+    let q = Prob.to_q p in
+    Format.printf "probability of delivery (precise): %a/%a\n%!"
+      Z.pp_print (Q.num q) Z.pp_print (Q.den q);
+    Format.printf "probability of delivery (approx): %f\n%!" (Prob.to_float p);
+    (* Fdd.render fdd; *)
+  (* ); *)
 end
 
 
