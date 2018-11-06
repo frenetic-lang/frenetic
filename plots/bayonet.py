@@ -33,7 +33,7 @@ colors = {
   'bayonet' : 'darkgreen',
   'probnetkat' : 'navy',
   'probnetkat_no_cps' : 'orange',
-  'prism' : 'red'
+  'prism' : 'red',
   'prism_approx' : 'purple',
 }
 
