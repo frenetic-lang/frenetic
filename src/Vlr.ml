@@ -233,7 +233,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     )
 
   let sum x y =
-    (* Hashtbl.clear sum_tbl; *)
+    Hashtbl.clear sum_tbl;
     sum' x y
 
 
@@ -267,7 +267,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     )
 
   let prod x y =
-    (* Hashtbl.clear prod_tbl; *)
+    Hashtbl.clear prod_tbl;
     prod' x y
 
 
