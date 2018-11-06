@@ -7,12 +7,20 @@ def bayonet(k):
   return ['./run_bayonet.sh', 'bayonet_resilience_sw_%d.bayonet' % (4*k)]
 
 
-def pnk(k):
-  return ['./run_probnetkat.sh', 'bayonet_resilience_sw_%d.dot' % (4*k)]
+def pnk(k, cps=True):
+  if cps:
+    return ['./run_probnetkat.sh', 'bayonet_resilience_sw_%d.dot' % (4*k)]
+  else:
+    return ['./run_probnetkat_no_cps.sh', 'bayonet_resilience_sw_%d.dot' % (4*k)]
 
 
-def prism(k):
-  return ['./run_prism.sh', str(k)]
+
+def prism(k, approx=False):
+  if approx:
+    return ['./run_prism_approx.sh', str(k)]
+  else:
+    return ['./run_prism.sh', str(k)]
+
 
 
 def run():
