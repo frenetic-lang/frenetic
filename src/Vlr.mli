@@ -66,8 +66,6 @@ module type Result = sig
   val is_zero : t -> bool
 end
 
-module IntPairTbl : Hashtbl.S with type key = (int * int)
-
 (** Variable-Lattice-Result
 
     This module implements a variant of a binary decision diagrams. Rather than
