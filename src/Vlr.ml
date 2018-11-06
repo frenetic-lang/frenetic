@@ -115,12 +115,12 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     | Branch { test = (v, l);  tru; fls } ->
       g (v, l) (fold ~f ~g tru) (fold ~f ~g fls)
 
-  let dp_fold_cache : (t, t) Hashtbl.t = Int.Table.create ~size:1000 ()
+  let unary_cache : (t, t) Hashtbl.t = Int.Table.create ~size:1000 ()
 
   let dp_fold ~(f: r -> t) ~(g: v -> t -> t -> t) (t : t) : t =
-    let () = Hashtbl.clear dp_fold_cache in
+    let () = Hashtbl.clear unary_cache in
     let rec map t =
-      Hashtbl.find_or_add dp_fold_cache t ~default:(fun () -> map' t)
+      Hashtbl.find_or_add unary_cache t ~default:(fun () -> map' t)
     and map' t =
       match unget t with
       | Leaf r -> f r
@@ -139,76 +139,28 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   let const r = mk_leaf r
   let atom (v,l) t f = mk_branch (v,l) (const t) (const f)
 
-  let restrict lst u =
-    let rec loop xs u =
-      match xs, T.unget u with
-      | []          , _
-      | _           , Leaf _ -> u
-      | (v,l) :: xs', Branch { test = (v', l'); tru = t; fls = f } ->
-        match V.compare v v' with
-        |  0 -> if L.subset_eq l l' then loop xs' t else loop xs f
-        | -1 -> loop xs' u
-        |  1 -> mk_branch (v',l') (loop xs t) (loop xs f)
-        |  _ -> assert false
+  let restrict lst t =
+    let () = Hashtbl.clear unary_cache in
+    let rec loop xs t =
+      Hashtbl.find_or_add unary_cache t ~default:(fun () ->
+        match xs, T.unget t with
+        | []          , _
+        | _           , Leaf _ -> t
+        | (v,l) :: xs', Branch { test = (v', l'); tru = t; fls = f } ->
+          match V.compare v v' with
+          |  0 -> if L.subset_eq l l' then loop xs' t else loop xs f
+          | -1 -> loop xs' t
+          |  1 -> mk_branch (v',l') (loop xs t) (loop xs f)
+          |  _ -> assert false
+      )
     in
-    loop (List.sort (fun (u, _) (v, _) -> V.compare u v) lst) u
+    loop (List.sort (fun (u, _) (v, _) -> V.compare u v) lst) t
 
-  let apply f zero ~(cache: (t*t, t) Hashtbl.t) =
-    let rec sum x y =
-      BinTbl.find_or_add cache (x, y) ~default:(fun () -> sum' x y)
-    and sum' x y =
-      match T.unget x, T.unget y with
-      | Leaf r, _      ->
-        if R.compare r zero = 0 then y
-        else map_r (fun y -> f r y) y
-      | _     , Leaf r ->
-        if R.compare zero r = 0 then x
-        else map_r (fun x -> f x r) x
-      | Branch {test=(vx, lx); tru=tx; fls=fx; all_fls=all_fls_x},
-        Branch {test=(vy, ly); tru=ty; fls=fy; all_fls=all_fls_y} ->
-        begin match V.compare vx vy with
-        |  0 ->
-          begin match L.compare lx ly with
-          |  0 -> mk_branch (vx,lx) (sum tx ty) (sum fx fy)
-          | -1 -> mk_branch (vx,lx) (sum tx all_fls_y) (sum fx y)
-          |  1 -> mk_branch (vy,ly) (sum all_fls_x ty) (sum x fy)
-          |  _ -> assert false
-          end
-        | -1 -> mk_branch (vx,lx) (sum tx y) (sum fx y)
-        |  1 -> mk_branch (vy,ly) (sum x ty) (sum x fy)
-        |  _ -> assert false
-        end
-    in sum
+  let binary_cache : (t*t, t) Hashtbl.t = BinTbl.create ~size:10000 ()
 
-  let apply_non_comm ~f ~(cache: (t*t, t) Hashtbl.t) =
-    let rec sum x y =
-      BinTbl.find_or_add cache (x, y) ~default:(fun () -> sum' x y)
-    and sum' x y =
-      match T.unget x, T.unget y with
-      | Leaf r, _      ->
-        map_r (fun y -> f r y) y
-      | _     , Leaf r ->
-        map_r (fun x -> f x r) x
-      | Branch {test=(vx, lx); tru=tx; fls=fx; all_fls=all_fls_x},
-        Branch {test=(vy, ly); tru=ty; fls=fy; all_fls=all_fls_y} ->
-        begin match V.compare vx vy with
-        |  0 ->
-          begin match L.compare lx ly with
-          |  0 -> mk_branch (vx,lx) (sum tx ty) (sum fx fy)
-          | -1 -> mk_branch (vx,lx) (sum tx all_fls_y) (sum fx y)
-          |  1 -> mk_branch (vy,ly) (sum all_fls_x ty) (sum x fy)
-          |  _ -> assert false
-          end
-        | -1 -> mk_branch (vx,lx) (sum tx y) (sum fx y)
-        |  1 -> mk_branch (vy,ly) (sum x ty) (sum x fy)
-        |  _ -> assert false
-        end
-    in sum
-
-  let sum_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
   let rec sum' x y =
     let key = if x <= y then (x, y) else (y, x) in
-    BinTbl.find_or_add sum_tbl key ~default:(fun () ->
+    BinTbl.find_or_add binary_cache key ~default:(fun () ->
       match T.unget x, T.unget y with
       | Leaf r, _      ->
         if R.is_zero r then y
@@ -233,14 +185,13 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     )
 
   let sum x y =
-    Hashtbl.clear sum_tbl;
+    Hashtbl.clear binary_cache;
     sum' x y
 
 
-  let prod_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
   let rec prod' x y =
     let key = if x <= y then (x, y) else (y, x) in
-    BinTbl.find_or_add prod_tbl key ~default:(fun () ->
+    BinTbl.find_or_add binary_cache key ~default:(fun () ->
       match T.unget x, T.unget y with
       | Leaf r, _      ->
         if R.is_one r then y
@@ -267,7 +218,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     )
 
   let prod x y =
-    Hashtbl.clear prod_tbl;
+    Hashtbl.clear binary_cache;
     prod' x y
 
 
@@ -292,8 +243,8 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
       )
     in
     begin
-      BinTbl.clear sum_tbl;
-      BinTbl.clear prod_tbl;
+      Hashtbl.clear unary_cache;
+      Hashtbl.clear binary_cache;
       T.clear preserve;
     end
 
