@@ -1595,6 +1595,7 @@ module Fdd = struct
     (* assert Prob.(equal mass one); *)
     t
 
+
   (* SJS: cannot reuse binary_cache, since seq calls n_ary_convex sum *)
   let seq_cache = BinTbl.create ~size:10000 ()
 
