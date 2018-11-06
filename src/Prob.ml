@@ -52,4 +52,10 @@ let ( ^ ) (x : t) (n : int) : t =
 include Float
 
 let to_q = Q.of_float
-let ( // ) x y = Float.(of_int x / of_int y) *)
+let ( // ) x y = Float.(of_int x / of_int y)
+let ( ^ ) x y = x**(Float.of_int y)
+
+let to_int_frac t =
+  let q = to_q t in
+  Z.(to_int q.num, to_int q.den)
+ *)
