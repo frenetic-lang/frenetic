@@ -16,16 +16,19 @@ matplotlib.rcParams['ps.fonttype'] = 42
 label_of_method = {
   'bayonet' : 'Bayonet',
   'probnetkat' : 'ProbNetKAT',
+  'prism' : 'Prism',
 }
 
 markers = {
   'bayonet' : 'o',
   'probnetkat' : 's',
+  'prism': 'x',
 }
 
 colors = {
-  'bayonet' : 'navy',
-  'probnetkat' : 'darkgreen',
+  'bayonet' : 'darkgreen',
+  'probnetkat' : 'navy',
+  'prism' : 'red'
 }
 
 def parse_output(folder):
@@ -116,7 +119,7 @@ def plot(data, methods):
 
 def main(data_dir):
   data = parse_output(data_dir)
-  plot(data, ['bayonet', 'probnetkat'])
+  plot(data, ['bayonet', 'probnetkat', 'prism'])
 
 if __name__ == "__main__":
   if len(sys.argv) != 2:
