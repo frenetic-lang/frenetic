@@ -17,6 +17,8 @@ module type Result = sig
   val prod : t -> t -> t
   val one : t
   val zero : t
+  val is_one : t -> bool
+  val is_zero : t -> bool
 end
 
 module IntPair = struct
@@ -204,10 +206,70 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     in sum
 
   let sum_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
-  let sum = apply R.sum R.zero ~cache:sum_tbl
+  let rec sum' x y =
+    let key = if x <= y then (x, y) else (y, x) in
+    BinTbl.find_or_add sum_tbl key ~default:(fun () ->
+      match T.unget x, T.unget y with
+      | Leaf r, _      ->
+        if R.is_zero r then y
+        else map_r (fun y -> R.sum r y) y
+      | _     , Leaf r ->
+        if R.is_zero r then x
+        else map_r (fun x -> R.sum x r) x
+      | Branch {test=(vx, lx); tru=tx; fls=fx; all_fls=all_fls_x},
+        Branch {test=(vy, ly); tru=ty; fls=fy; all_fls=all_fls_y} ->
+        begin match V.compare vx vy with
+        |  0 ->
+          begin match L.compare lx ly with
+          |  0 -> mk_branch (vx,lx) (sum' tx ty) (sum' fx fy)
+          | -1 -> mk_branch (vx,lx) (sum' tx all_fls_y) (sum' fx y)
+          |  1 -> mk_branch (vy,ly) (sum' all_fls_x ty) (sum' x fy)
+          |  _ -> assert false
+          end
+        | -1 -> mk_branch (vx,lx) (sum' tx y) (sum' fx y)
+        |  1 -> mk_branch (vy,ly) (sum' x ty) (sum' x fy)
+        |  _ -> assert false
+        end
+    )
+
+  let sum x y =
+    (* Hashtbl.clear sum_tbl; *)
+    sum' x y
+
 
   let prod_tbl : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 ()
-  let prod = apply R.prod R.one ~cache:prod_tbl
+  let rec prod' x y =
+    let key = if x <= y then (x, y) else (y, x) in
+    BinTbl.find_or_add prod_tbl key ~default:(fun () ->
+      match T.unget x, T.unget y with
+      | Leaf r, _      ->
+        if R.is_one r then y
+        else if R.is_zero r then x
+        else map_r (fun y -> R.prod r y) y
+      | _     , Leaf r ->
+        if R.is_one r then x
+        else if R.is_zero r then y
+        else map_r (fun x -> R.prod x r) x
+      | Branch {test=(vx, lx); tru=tx; fls=fx; all_fls=all_fls_x},
+        Branch {test=(vy, ly); tru=ty; fls=fy; all_fls=all_fls_y} ->
+        begin match V.compare vx vy with
+        |  0 ->
+          begin match L.compare lx ly with
+          |  0 -> mk_branch (vx,lx) (prod' tx ty) (prod' fx fy)
+          | -1 -> mk_branch (vx,lx) (prod' tx all_fls_y) (prod' fx y)
+          |  1 -> mk_branch (vy,ly) (prod' all_fls_x ty) (prod' x fy)
+          |  _ -> assert false
+          end
+        | -1 -> mk_branch (vx,lx) (prod' tx y) (prod' fx y)
+        |  1 -> mk_branch (vy,ly) (prod' x ty) (prod' x fy)
+        |  _ -> assert false
+        end
+    )
+
+  let prod x y =
+    (* Hashtbl.clear prod_tbl; *)
+    prod' x y
+
 
   let childreen t =
     let rec loop t acc =

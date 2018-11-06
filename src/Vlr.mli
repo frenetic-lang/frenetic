@@ -59,6 +59,9 @@ module type Result = sig
 
       As an example, if [t] where the type [bool] and [prod] and [sum] were [&&]
       and [||], respectively, then [zero] should be the value [false]. *)
+
+  val is_one : t -> bool
+  val is_zero : t -> bool
 end
 
 module IntPairTbl : Hashtbl.S with type key = (int * int)
@@ -206,8 +209,6 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   val prod : t -> t -> t
   (** [prod a b] returns the conjunction of the two diagrams. The [prod]
       operation on the [r] type is used to combine leaf nodes. *)
-
-  val apply_non_comm : f:(r -> r -> r) -> cache:((t*t, t) Hashtbl.t) -> t -> t -> t
 
   val compare : t -> t -> int
 
