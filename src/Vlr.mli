@@ -230,6 +230,4 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
   val serialize : t -> string
   val deserialize : string -> t
-
-  val binary_cache : (t*t, t) Hashtbl.t
 end
