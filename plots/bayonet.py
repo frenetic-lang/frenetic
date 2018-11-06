@@ -16,16 +16,25 @@ matplotlib.rcParams['ps.fonttype'] = 42
 label_of_method = {
   'bayonet' : 'Bayonet',
   'probnetkat' : 'ProbNetKAT',
+  'probnetkat_no_cps' : 'ProbNetKAT (no CPS)',
+  'prism' : 'Prism',
+  'prism-approx' : 'Prism (approximate)',
 }
 
 markers = {
   'bayonet' : 'o',
   'probnetkat' : 's',
+  'probnetkat_no_cps' : '*',
+  'prism': 'X',
+  'prism-approx' : 'D',
 }
 
 colors = {
-  'bayonet' : 'navy',
-  'probnetkat' : 'darkgreen',
+  'bayonet' : 'darkgreen',
+  'probnetkat' : 'navy',
+  'probnetkat_no_cps' : 'orange',
+  'prism' : 'red',
+  'prism-approx' : 'purple',
 }
 
 def parse_output(folder):
@@ -116,7 +125,7 @@ def plot(data, methods):
 
 def main(data_dir):
   data = parse_output(data_dir)
-  plot(data, ['bayonet', 'probnetkat'])
+  plot(data, ['bayonet', 'probnetkat', 'probnetkat_no_cps', 'prism', 'prism-approx'])
 
 if __name__ == "__main__":
   if len(sys.argv) != 2:
