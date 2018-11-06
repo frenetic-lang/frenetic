@@ -113,10 +113,12 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     | Branch { test = (v, l);  tru; fls } ->
       g (v, l) (fold ~f ~g tru) (fold ~f ~g fls)
 
+  let dp_fold_cache : (t, t) Hashtbl.t = Int.Table.create ~size:1000 ()
+
   let dp_fold ~(f: r -> t) ~(g: v -> t -> t -> t) (t : t) : t =
-    let cache : (t, 'a) Hashtbl.t = Int.Table.create ~size:1000 () in
+    let () = Hashtbl.clear dp_fold_cache in
     let rec map t =
-      Hashtbl.find_or_add cache t ~default:(fun () -> map' t)
+      Hashtbl.find_or_add dp_fold_cache t ~default:(fun () -> map' t)
     and map' t =
       match unget t with
       | Leaf r -> f r
