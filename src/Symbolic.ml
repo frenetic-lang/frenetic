@@ -1596,7 +1596,7 @@ module Fdd = struct
     t
 
 
-  let seq_tbl = BinTbl.create ~size:1000 ()
+  let seq_tbl = BinTbl.create ~size:10000 ()
 
   let clear_cache ~preserve = begin
     BinTbl.clear seq_tbl;
@@ -1624,6 +1624,7 @@ module Fdd = struct
     )
 
   let seq t u =
+    let () = Hashtbl.clear seq_tbl in
     match unget u with
     | Leaf _ -> prod t u (* This is an optimization. If [u] is an
                             [Action.Par.t], then it will compose with [t]
