@@ -11,6 +11,7 @@
     findlib
     frenetic
     open
+    hashcons
   ))
   (preprocess (pps (ppx_deriving.std
                     ppx_jane

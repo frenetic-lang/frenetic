@@ -21,16 +21,16 @@ let () = begin
       printf "\nk = %d | Pr[failure] = %s | max failures = %d || timeout = %d sec\n"
         k (Prob.to_string failure_prob) max_failures timeout;
       printf "=======================================================================\n";
-      
+
       (* prepare topo *)
       let abft = Topology.parse (Params.topo_file topo_file) in
       let abft' = Schemes.enrich_topo abft in
       let failure_locs = Topology.core_agg_locs abft in
 
       (* build syntactic model *)
-      let model = Model.make 
-        ~sw_pol:(`Portwise (Schemes.f10 abft' topo_file)) 
-        ~topo:abft 
+      let model = Model.make
+        ~sw_pol:(`Portwise (Schemes.f10 abft' topo_file))
+        ~topo:abft
         ~max_failures:(if max_failures = -1 then None else Some max_failures)
         ~failure_prob:(fun s p ->
           if List.exists failure_locs (fun x -> x = (s,p)) then failure_prob
@@ -56,7 +56,7 @@ let () = begin
         Fdd.clear_stats ();
 
         Fdd.use_slow_observe := false;
-        Fdd.clear_cache ~preserve:(Int.Set.singleton (slow :> int));
+        Fdd.clear_cache ~preserve:(Int.Set.singleton slow.tag);
         let fast = Fdd.of_symbolic_pol model in
 
         (* Fdd.print_stats (); *)

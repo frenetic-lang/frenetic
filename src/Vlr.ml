@@ -28,46 +28,69 @@ end
 
 module IntPairTbl = Hashtbl.Make(IntPair)
 
+module Hashcons_ = struct
+  include Hashcons
+  let equal_hash_consed _ t1 t2 = Int.equal t1.tag t2.tag
+  let compare_hash_consed _ t1 t2 = Int.compare t1.tag t2.tag
+  let hash_hash_consed _ t = t.hkey
+  let hash_fold_hash_consed _ state t = [%hash_fold: int] state t.tag
+  let sexp_of_hash_consed _ t = failwith "not implemented"
+  let hash_consed_of_sexp _ t = failwith "not implemented"
+end
+open Hashcons_
+
 module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   type v = V.t * L.t [@@deriving sexp, compare, hash]
   type r = R.t [@@deriving sexp, compare, hash]
 
-  type d
-    = Leaf of r
-    | Branch of {
-        test : v;
-        tru : int;
-        fls : int;
-        all_fls : int [@compare.ignore] (* implies [@hash.ignore] *);
-      }
-    [@@deriving sexp, compare, hash]
-  (* A tree structure representing the decision diagram. The [Leaf] variant
-   * represents a constant function. The [Branch(v, l, t, f)] represents an
-   * if-then-else. When variable [v] takes on the value [l], then [t] should
-   * hold. Otherwise, [f] should hold.
-   *
-   * [Branch] nodes appear in an order determined first by the total order on
-   * the [V.t] value with with ties broken by the total order on [L.t]. The
-   * least such pair should appear at the root of the diagram, with each child
-   * nodes being strictly greater than their parent node. This invariant is
-   * important both for efficiency and correctness.
-   * *)
+  module T = struct
+    type t = d Hashcons_.hash_consed
+    and d
+      = Leaf of r
+      | Branch of {
+          test : v;
+          tru : t;
+          fls : t;
+          all_fls : t [@ignore];
+        }
+      [@@deriving compare, hash, sexp]
+    (* A tree structure representing the decision diagram. The [Leaf] variant
+     * represents a constant function. The [Branch(v, l, t, f)] represents an
+     * if-then-else. When variable [v] takes on the value [l], then [t] should
+     * hold. Otherwise, [f] should hold.
+     *
+     * [Branch] nodes appear in an order determined first by the total order on
+     * the [V.t] value with with ties broken by the total order on [L.t]. The
+     * least such pair should appear at the root of the diagram, with each child
+     * nodes being strictly greater than their parent node. This invariant is
+     * important both for efficiency and correctness.
+     * *)
+  end
+  include T
 
-  type t = int [@@deriving sexp, compare, eq]
-  module T = Hashcons.Make(struct
-    type t = d [@@deriving sexp, compare, hash]
+  module D = struct
+    type t = T.d [@@deriving compare, hash, sexp]
+    let equal = [%compare.equal: T.d]
+  end
+
+  module HC = Hashcons.Make(D)
+
+  (* let cache_size = T.cache_size *)
+  let cache = HC.create 10000
+  let get = HC.hashcons cache
+  let unget t = t.node
+  let get_uid (t:t) : int = t.tag
+  let equal t1 t2 = Int.equal t1.tag t2.tag
+
+  module Tbl = Hashtbl.Make(T)
+  module Set = Set.Make(T)
+  module Hashset = Hash_set.Make(T)
+
+  module BinTbl = Hashtbl.Make(struct
+    type t = T.t * T.t [@@deriving compare, hash, sexp]
   end)
 
-  let cache_size = T.cache_size
-  let get = T.get
-  let unget = T.unget
-  let get_uid (t:t) : int = t
-
-  module Tbl = Int.Table
-
-  module BinTbl = IntPairTbl
-
-  let mk_leaf r = T.get (Leaf r)
+  let mk_leaf r = get (Leaf r)
 
   let mk_branch ((v,l) as test) tru fls =
     (* When the ids of the diagrams are equal, then the diagram will take on the
@@ -84,9 +107,9 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
       if all_fls = tru then
         fls
       else
-        T.get (Branch { test; tru; fls; all_fls })
+        get (Branch { test; tru; fls; all_fls })
     | _ ->
-      T.get (Branch { test; tru; fls; all_fls = fls})
+      get (Branch { test; tru; fls; all_fls = fls})
 
   let unchecked_cond = mk_branch
 
@@ -97,7 +120,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     Format.fprintf fmt "@[";
     if t = drop then Format.fprintf fmt "0" else
     if t = id then Format.fprintf fmt "1" else
-    begin match T.unget t with
+    begin match t.node with
     | Leaf r ->
       Format.fprintf fmt "%a" R.pp r
     | Branch { test = (v, l);  tru; fls } ->
@@ -110,12 +133,12 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     Format.asprintf "%a" pp t
 
 
-  let rec fold ~f ~g t = match T.unget t with
+  let rec fold ~f ~g t = match t.node with
     | Leaf r -> f r
     | Branch { test = (v, l);  tru; fls } ->
       g (v, l) (fold ~f ~g tru) (fold ~f ~g fls)
 
-  let unary_cache : (t, t) Hashtbl.t = Int.Table.create ~size:1000 ()
+  let unary_cache : (t, t) Hashtbl.t = Tbl.create ~size:1000 ()
 
   let dp_fold ~(f: r -> t) ~(g: v -> t -> t -> t) (t : t) : t =
     let () = Hashtbl.clear unary_cache in
@@ -143,7 +166,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     let () = Hashtbl.clear unary_cache in
     let rec loop xs t =
       Hashtbl.find_or_add unary_cache t ~default:(fun () ->
-        match xs, T.unget t with
+        match xs, t.node with
         | []          , _
         | _           , Leaf _ -> t
         | (v,l) :: xs', Branch { test = (v', l'); tru = t; fls = f } ->
@@ -161,7 +184,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   let rec sum' x y =
     let key = if x <= y then (x, y) else (y, x) in
     BinTbl.find_or_add binary_cache key ~default:(fun () ->
-      match T.unget x, T.unget y with
+      match x.node, y.node with
       | Leaf r, _      ->
         if R.is_zero r then y
         else map_r (fun y -> R.sum r y) y
@@ -192,7 +215,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   let rec prod' x y =
     let key = if x <= y then (x, y) else (y, x) in
     BinTbl.find_or_add binary_cache key ~default:(fun () ->
-      match T.unget x, T.unget y with
+      match x.node, y.node with
       | Leaf r, _      ->
         if R.is_one r then y
         else if R.is_zero r then x
@@ -233,20 +256,8 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     in
     loop t []
 
-  let clear_cache ~(preserve : Int.Set.t) =
-    (* SJS: the interface exposes `id` and `drop` as constants,
-       so they must NEVER be cleared from the cache *)
-    let preserve =
-      Int.Set.(add (add preserve drop) id)
-      |> fun init -> Int.Set.fold init ~init ~f:(fun init root ->
-        List.fold (childreen root) ~init ~f:Int.Set.add
-      )
-    in
-    begin
-      Hashtbl.clear unary_cache;
-      Hashtbl.clear binary_cache;
-      T.clear preserve;
-    end
+  let clear_cache ~(preserve : Set.t) : unit =
+    failwith "deprecated"
 
   let cond v t f =
     let ok t =
@@ -284,28 +295,28 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     let open Format in
     let buf = Buffer.create 200 in
     let fmt = formatter_of_buffer buf in
-    let seen : Int.Hash_set.t = Int.Hash_set.create ~size:10 () in
-    let rank : ((V.t*L.t), Int.Hash_set.t) Hashtbl.t = Hashtbl.Poly.create ~size:20 () in
+    let seen : t Hash_set.t = Hashset.create () in
+    let rank : ((V.t*L.t), t Hash_set.t) Hashtbl.t = Hashtbl.Poly.create ~size:20 () in
     pp_set_margin fmt (1 lsl 29);
     fprintf fmt "digraph tdk {@\n";
     let rec loop t =
       if not (Hash_set.mem seen t) then begin
         Hash_set.add seen t;
-        match T.unget t with
+        match t.node with
         | Leaf r ->
-          fprintf fmt "%d [shape=box label=\"%s\"];@\n" t (R.to_string r)
+          fprintf fmt "%d [shape=box label=\"%s\"];@\n" t.tag (R.to_string r)
         | Branch { test=(v, l); tru=a; fls=b } ->
           begin
             try Hash_set.add (Hashtbl.find_exn rank (v, l)) t
             with Caml.Not_found ->
-              let s = Int.Hash_set.create ~size:10 () in
+              let s = Hashset.create () in
               Hash_set.add s t;
               Hashtbl.set rank (v, l) s
           end;
           fprintf fmt "%d [label=\"%s = %s\"];@\n"
-            t (V.to_string v) (L.to_string l);
-          fprintf fmt "%d -> %d;@\n" t a;
-          fprintf fmt "%d -> %d [style=\"dashed\"];@\n" t b;
+            t.tag (V.to_string v) (L.to_string l);
+          fprintf fmt "%d -> %d;@\n" t.tag a.tag;
+          fprintf fmt "%d -> %d [style=\"dashed\"];@\n" t.tag b.tag;
           loop a;
           loop b
       end
@@ -313,21 +324,21 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     loop t;
     Hashtbl.iteri rank ~f:(fun ~key:_ ~data:s ->
       fprintf fmt "{rank=same; ";
-      Hash_set.iter s ~f:(fun x -> fprintf fmt "%d " x);
+      Hash_set.iter s ~f:(fun x -> fprintf fmt "%d " x.tag);
       fprintf fmt ";}@\n");
     fprintf fmt "}@.";
     Buffer.contents buf
 
-  let refs (t : t) : Int.Set.t =
-    let rec f (node : t) (seen : Int.Set.t) =
-      if Int.Set.mem seen node then
+  let refs (t : t) : Set.t =
+    let rec f (node : t) (seen : Set.t) =
+      if Set.mem seen node then
         seen
       else
-        match T.unget node with
-        | Leaf _ -> Int.Set.add seen node
+        match node.node with
+        | Leaf _ -> Set.add seen node
         | Branch { tru=hi; fls=lo } ->
-          Int.Set.add (f lo (f hi seen)) node in
-    f t Int.Set.empty
+          Set.add (f lo (f hi seen)) node in
+    f t Set.empty
 
   let rec node_to_sexp node =
     let open Sexplib.Sexp in

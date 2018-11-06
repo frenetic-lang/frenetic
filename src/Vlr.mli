@@ -1,8 +1,10 @@
 open Core
+open Hashcons
 
 (** The signature for a type that can be compared and hashed *)
 module type HashCmp = sig
-  type t [@@deriving sexp, compare, eq, hash]
+  type t [@@deriving sexp, compare, hash]
+  val equal : t -> t -> bool
   val pp : Format.formatter -> t -> unit
   val to_string : t -> string
 end
@@ -75,17 +77,17 @@ module IntPairTbl : Hashtbl.S with type key = (int * int)
     ordered. *)
 module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
-  type t = private int
-  (** A decision diagram index.  All diagrams and subdiagrams within it are given an
-  index.  You can convert this to a tree with [unget], and from a tree with [get]. *)
-
   type v = V.t * L.t
   (** The type of a variable in the decision diagram. *)
 
   type r = R.t
   (** The type of the result of a decision diagram *)
 
-  type d
+  type t = d hash_consed
+  (** A decision diagram index.  All diagrams and subdiagrams within it are given an
+  index.  You can convert this to a tree with [unget], and from a tree with [get]. *)
+
+  and d
     = private
     | Leaf of r
     | Branch of {
@@ -106,10 +108,12 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
    * important both for efficiency and correctness.
    * *)
 
+
   module Tbl : Hashtbl.S with type key = t
   module BinTbl : Hashtbl.S with type key = (t * t)
+  module Set : Set.S with type Elt.t = t
 
-  val cache_size : unit -> int
+  (* val cache_size : unit -> int *)
 
   val get : d -> t
   (* Given a tree structure, return the cache index for it *)
@@ -217,7 +221,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
   val pp : Format.formatter -> t -> unit
 
-  val clear_cache : preserve:Int.Set.t -> unit
+  val clear_cache : preserve:Set.t -> unit
   (** [clear_cache ()] clears the internal cache of diagrams. *)
 
   val to_dot : t -> string
@@ -225,7 +229,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
       graph description language. The result of this function can be rendered
       using Graphviz or any other program that supports the DOT language. *)
 
-  val refs : t -> Int.Set.t
+  val refs : t -> Set.t
   (** [refs t] returns set of subdiagrams in this diagram. *)
 
   val serialize : t -> string
