@@ -16,19 +16,25 @@ matplotlib.rcParams['ps.fonttype'] = 42
 label_of_method = {
   'bayonet' : 'Bayonet',
   'probnetkat' : 'ProbNetKAT',
+  'probnetkat_no_cps' : 'ProbNetKAT (no CPS)',
   'prism' : 'Prism',
+  'prism_approx' : 'Prism (approximate)',
 }
 
 markers = {
   'bayonet' : 'o',
   'probnetkat' : 's',
-  'prism': 'x',
+  'probnetkat_no_cps' : 'star',
+  'prism': 'X',
+  'prism_approx' : 'D',
 }
 
 colors = {
   'bayonet' : 'darkgreen',
   'probnetkat' : 'navy',
+  'probnetkat_no_cps' : 'orange',
   'prism' : 'red'
+  'prism_approx' : 'purple',
 }
 
 def parse_output(folder):
