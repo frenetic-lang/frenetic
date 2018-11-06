@@ -1532,11 +1532,11 @@ module Fdd = struct
 
   (* SJS: copied and adopted apply algorithm from Vlr.ml *)
   let convex_sum t1 prob t2 : t =
+    Hashtbl.clear binary_cache;
     (* the function to apply at the leaves *)
     let f x y = FactorizedActionDist.convex_sum x prob y in
-    let cache : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 () in
     let rec sum x y =
-      let result = BinTbl.find_or_add cache (x, y) ~default:(fun () -> sum' x y) in
+      let result = BinTbl.find_or_add binary_cache (x, y) ~default:(fun () -> sum' x y) in
 (*       printf "%s-convex combination of\n  %s\nand\n  %s\nis\n  %s\n\n%!"
         (Prob.to_string prob)
         (to_string x)
@@ -1595,20 +1595,15 @@ module Fdd = struct
     (* assert Prob.(equal mass one); *)
     t
 
-
-  let seq_tbl = BinTbl.create ~size:1000 ()
-
-  let clear_cache ~preserve = begin
-    BinTbl.clear seq_tbl;
-    clear_cache preserve;
-  end
+  (* SJS: cannot reuse binary_cache, since seq calls n_ary_convex sum *)
+  let seq_cache = BinTbl.create ~size:10000 ()
 
   (** sequence of FactorizedActionDist.t and t  *)
   let rec dist_seq dist u =
     let t = const dist in
     if equal t drop then drop else
     if equal t id  then u else
-    BinTbl.find_or_add seq_tbl (t,u) ~default:(fun () ->
+    BinTbl.find_or_add seq_cache (t,u) ~default:(fun () ->
       match unget u with
       | Leaf dist' ->
         const (FactorizedActionDist.prod dist dist')
@@ -1624,6 +1619,7 @@ module Fdd = struct
     )
 
   let seq t u =
+    Hashtbl.clear seq_cache;
     match unget u with
     | Leaf _ -> prod t u (* This is an optimization. If [u] is an
                             [Action.Par.t], then it will compose with [t]
@@ -1634,7 +1630,7 @@ module Fdd = struct
       dp_map t
         ~f:(fun dist -> dist_seq dist u)
         ~g:(fun v t f -> cond v t f)
-        ~find_or_add:(fun t -> BinTbl.find_or_add seq_tbl (t,u))
+        ~find_or_add:(fun t -> BinTbl.find_or_add seq_cache (t,u))
 
 
 
