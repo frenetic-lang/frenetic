@@ -447,6 +447,8 @@ module FactorizedActionDist : sig
   type t [@@deriving sexp, hash, compare, eq]
   val zero : t
   val one : t
+  val is_zero : t -> bool
+  val is_one : t -> bool
   val prod : t -> t -> t
   val sum : t -> t -> t
   val negate : t -> t
