@@ -1097,7 +1097,7 @@ module Fdd0 = struct
         let tru_dom = Map.set dom ~key:f ~data:Domain.Valset.(singleton v) in
         let fls_dom = Map.update dom f ~f:(function
           | None -> assert false
-          | Some vs -> Core.Set.remove vs v)
+          | Some vs -> Set.remove vs v)
         in
         of_node tru tru_dom;
         of_node fls fls_dom
@@ -1223,8 +1223,8 @@ module Fdd = struct
 
   (* sound, but could be better *)
   let clear_cache ~(preserve:Int.Set.t) : unit =
-    (* clear_cache ~preserve; *)
-    if Core.Set.is_empty preserve then (
+    clear_cache ~preserve;
+    if Set.is_empty preserve then (
       Hashtbl.clear field_allocation_tbl;
       next_field := 0;
       Hashtbl.clear Field.field_to_str_map;
@@ -1371,7 +1371,7 @@ module Fdd = struct
         Drop
       | Action act ->
         Action (Field.Map.filteri act ~f:(fun ~key:f ~data:_->
-          not (Core.Set.mem fields f)
+          not (Set.mem fields f)
         ))
       )
     )
@@ -1438,7 +1438,7 @@ module Fdd = struct
         Drop
       | Action act ->
         Action (Field.Map.filteri act ~f:(fun ~key:f ~data:_->
-          not (Core.Set.mem modulo f)
+          not (Set.mem modulo f)
         ))
       )
     in
@@ -1499,7 +1499,7 @@ module Fdd = struct
         Drop
       | Action act ->
         Action (Field.Map.filteri act ~f:(fun ~key:f ~data:_->
-          not (Core.Set.mem modulo f)
+          not (Set.mem modulo f)
         ))
       )
     in
@@ -1641,7 +1641,7 @@ module Fdd = struct
      future. *)
   let mk_skeleton dom =
     Field.Map.fold dom ~init:id ~f:(fun ~key:field ~data:vs init ->
-      Core.Set.fold vs ~init ~f:(fun init v ->
+      Set.fold vs ~init ~f:(fun init v ->
         match v with
         | PrePacket.Atom -> init
         | PrePacket.Const v -> cond (field,v) init (negate init)
@@ -1769,7 +1769,7 @@ module Fdd = struct
     let caml_pid = if not (!try_naive_fixedpoint) then None else Some (
       Util.fork (fun () ->
         let fixpoint = Util.timed "naive fixpoint" (fun () ->
-          clear_cache ~preserve:(Int.Set.of_list ([ap.tag; not_a.tag]));
+          clear_cache ~preserve:(Int.Set.of_list ([ap; not_a] : t list :> int list));
           ocaml_iterate ap not_a
         )
         in
