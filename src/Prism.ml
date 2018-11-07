@@ -172,19 +172,42 @@ let thompson (p : string policy) : Automaton.t * int * int list =
   thompson p Automaton.empty
 
 
-(* let of_input_dist = *)
+type input_dist = ((string * int) list * Prob.t) list
 
-let of_pol p ~(input_dist : ((string * int) list * Prob.t) list) =
-  let (auto, start', final) = thompson p in
+let auto_of_pol p ~(input_dist : input_dist) : int * Automaton.t * int =
+  let (auto, start', final') = thompson p in
+  (* add start state *)
   let transitions =
     Util.map_fst input_dist ~f:(fun assignments ->
-      List.fold assignments ~init:(Transition.to_state start') ~f:(fun t (f,n) ->
-        Base.Map.add_exn t ~key:f ~data:(`Int n)
-      )
+      (state, start') :: assignments
+      |> Util.map_snd ~f:(fun n -> `Int n)
+      |> Base.Map.of_alist_exn (module String)
     )
     |> TransitionDist.of_alist_exn
   in
   let (start, auto) = Automaton.add_state auto [{ guard = True; transitions }] in
+  (* add final state *)
+  let (final, auto) = Automaton.(add_state auto dummy_state) in
+  let auto = List.fold final' ~init:auto ~f:(fun a s -> wire a s final) in
+  let auto = wire auto final final in
+  (start, auto, final)
+
+
+(* for each field, the set of values used with that field *)
+type domain = (Int.Set.t) String.Map.t
+
+let dom_of_pol (p : string policy) : domain =
+  let rec loop p ((dom : domain), (locals : (string * field meta_init) list)) =
+    failwith "todo"
+  in
+  let (dom, locals) = loop p (String.Map.empty, []) in
   failwith "todo"
 
+
+let of_pol p ~(input_dist : input_dist) : string =
+  let (start, auto, final) = auto_of_pol p ~input_dist in
+  let subst = Int.Table.create () in
+  (* conventions *)
+  Hashtbl.add_exn subst ~key:Automaton.drop_state ~data:0;
+  failwith "todo"
 
