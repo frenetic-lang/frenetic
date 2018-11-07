@@ -196,11 +196,26 @@ let auto_of_pol p ~(input_dist : input_dist) : int * Automaton.t * int =
 (* for each field, the set of values used with that field *)
 type domain = (Int.Set.t) String.Map.t
 
+let add_to_dom (d : domain) (f,v : string header_val) =
+  Map.update d f ~f:(function
+    | None -> Int.Set.singleton v
+    | Some s -> Set.add s v
+  )
+
 let dom_of_pol (p : string policy) : domain =
-  let rec loop p ((dom : domain), (locals : (string * field meta_init) list)) =
-    failwith "todo"
+  let rec do_pol p ((dom : domain), (locals : (string * field meta_init) list) as acc) =
+    match p with
+    | Filter pred -> do_pred pred acc
+    | Modify hv -> (add_to_dom dom hv, locals)
+    | Seq (p, q) -> acc |> do_pol p |> do_pol q
+    | Ite (a, p, q) -> acc |> do_pred a |> do_pol p |> do_pol q
+    | While (a, p)
+    | ObserveUpon (p, a) -> acc |> do_pred a |> do_pol p
+    | Choice ps -> List.fold ps ~init:acc ~f:(fun acc (p,_) -> do_pol p acc)
+  and do_pred a (dom, locals as acc) =
+    acc
   in
-  let (dom, locals) = loop p (String.Map.empty, []) in
+  let (dom, locals) = do_pol p (String.Map.empty, []) in
   failwith "todo"
 
 

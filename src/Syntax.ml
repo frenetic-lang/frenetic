@@ -266,17 +266,17 @@ let rec positive_pred_to_mod pred =
 
 
 (* map a policy bottom up *)
-let map_pol 
+let map_pol
   ?(do_pred=fun a -> a)
-  ?(filter=fun pred -> Filter pred) 
-  ?(modify=fun hv -> Modify hv) 
+  ?(filter=fun pred -> Filter pred)
+  ?(modify=fun hv -> Modify hv)
   ?(seq=fun p q -> Seq (p,q))
-  ?(ite=fun a p q -> Ite (a,p,q)) 
+  ?(ite=fun a p q -> Ite (a,p,q))
   ?(whl=fun a p -> While (a,p))
   ?(choice=fun ps -> Choice ps)
   ?(letbind=fun id init mut body -> Let { id; init; mut; body})
   ?(obs=fun p a -> ObserveUpon (p,a))
-  pol 
+  pol
   =
   let rec do_pol pol =
     match pol with
