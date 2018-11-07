@@ -3,7 +3,8 @@ open Hashcons
 
 (** The signature for a type that can be compared and hashed *)
 module type HashCmp = sig
-  type t [@@deriving sexp, compare, eq, hash]
+  type t [@@deriving sexp, compare, hash]
+  val equal : t -> t -> bool
   val pp : Format.formatter -> t -> unit
   val to_string : t -> string
 end
