@@ -33,8 +33,19 @@ module Automaton = struct
 
   type t = state Int.Map.t
 
+  let drop_state = 0
+  let empty = Int.Map.singleton drop_state [{
+    guard = True;
+    transitions = TransitionDist.dirac (Transition.to_state drop_state)
+  }]
+
   let add_state (t : t) (s : state) : (int * t) =
-    let key = Map.max_elt t |> Option.map ~f:fst |> Option.value ~default:0 in
+    let key =
+      Map.max_elt t
+      |> function
+        | None -> 0
+        | Some (key, _) -> key + 1
+    in
     (key, Map.add_exn t ~key ~data:s)
 end
 
@@ -48,7 +59,11 @@ let thompson (p : string policy) : Automaton.t * int * int list =
         List.map rules ~f:(fun rule ->
           let transitions =
             TransitionDist.pushforward rule.transitions ~f:(fun trans ->
-              Base.Map.add_exn trans ~key:state ~data:(`Int dst)
+              Base.Map.update trans state ~f:(function
+                | None -> `Int dst
+                | Some v -> v
+              )
+              (* Base.Map.add_exn trans ~key:state ~data:(`Int dst) *)
             )
           in
           { rule with transitions}
@@ -59,10 +74,12 @@ let thompson (p : string policy) : Automaton.t * int * int list =
     match p with
     | Filter pred ->
       let (state, auto) =
-        Automaton.add_state auto [{
-          guard = pred;
-          transitions = TransitionDist.none
-        }]
+        Automaton.add_state auto [
+          { guard = pred;
+            transitions = TransitionDist.none };
+          { guard = Neg pred;
+            transitions = TransitionDist.dirac (Transition.to_state Automaton.drop_state) };
+        ]
       in
       (auto, state, [state])
     | Modify hv ->
@@ -124,8 +141,8 @@ let thompson (p : string policy) : Automaton.t * int * int list =
       in
       (auto, start, List.concat finals)
     | Let { id; init; body; _ } ->
+      (* SJS/FIXME: ensure id is "fresh"! *)
       let (auto, start_body, final_body) = thompson body auto in
-
       (* initialize local field *)
       let (start, auto) = Automaton.add_state auto [{
           guard = True;
@@ -139,20 +156,20 @@ let thompson (p : string policy) : Automaton.t * int * int list =
             |> TransitionDist.dirac
         }]
       in
-
       (* set local field to zero when it goes out of scope *)
       let (final, auto) = Automaton.add_state auto [{
           guard = True;
           transitions = TransitionDist.dirac (Transition.of_mod (id, 0));
         }]
       in
-
       let auto = List.fold final_body ~init:auto ~f:(fun a s -> wire a s final) in
       (auto, start, [final])
+    | ObserveUpon (p, a) ->
+      (* SJS/FIXME: ensure that p is idempotent! *)
+      thompson PNK.(do_whl (Neg a) p) auto
 
-    (* | ObserveUpon of 'field policy * 'field pred (* exexcute policy, then observe pred *) *)
   in
-  thompson p Int.Map.empty
+  thompson p Automaton.empty
 
 
 
