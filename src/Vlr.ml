@@ -24,10 +24,10 @@ end
 
 module Hashcons_ = struct
   include Hashcons
-  let equal_hash_consed _ t1 t2 = Int.equal t1.tag t2.tag [@@inline]
-  let compare_hash_consed _ t1 t2 = Int.compare t1.tag t2.tag [@@inline]
-  let hash_hash_consed _ t = t.hkey [@@inline]
-  let hash_fold_hash_consed _ state t = [%hash_fold: int] state t.tag [@@inline]
+  let equal_hash_consed _ t1 t2 = Int.equal t1.tag t2.tag
+  let compare_hash_consed _ t1 t2 = Int.compare t1.tag t2.tag
+  let hash_hash_consed _ t = t.hkey
+  let hash_fold_hash_consed _ state t = [%hash_fold: int] state t.tag
   let sexp_of_hash_consed sexp_of_node _ = failwith "not implemented"
   let hash_consed_of_sexp node_of_sexp _ = failwith "not implemented"
 end
@@ -64,7 +64,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
 
   module D = struct
     type t = T.d [@@deriving compare, hash, sexp]
-    let equal = [%compare.equal: T.d] [@@inline]
+    let equal = [%compare.equal: T.d]
   end
 
   module HC = Hashcons.Make(D)
