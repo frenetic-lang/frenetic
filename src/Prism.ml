@@ -5,13 +5,14 @@ open Symbolic
 let state = "__state__"
 
 module Transition = struct
-  type t = int Base.Map.M(String).t [@@deriving hash, sexp, compare]
+  type value = [`Int of int | `Field of string] [@@deriving hash, sexp, compare]
+  type t = value Base.Map.M(String).t [@@deriving hash, sexp, compare]
   let equal x y = compare x y = 0
   let pp _ = failwith "not implemented"
   let to_string _ = failwith "not implemented"
   let skip : t = Base.Map.empty (module String)
-  let of_mod (f, v) : t = Base.Map.singleton (module String) f v
-  let to_state : int -> t = Base.Map.singleton (module String) state
+  let of_mod (f, v) : t = Base.Map.singleton (module String) f (`Int v)
+  let to_state s : t = Base.Map.singleton (module String) state (`Int s)
 end
 
 module TransitionDist = struct
@@ -38,7 +39,7 @@ module Automaton = struct
 end
 
 
-let tompson (p : string policy) : Automaton.t * int * int list =
+let thompson (p : string policy) : Automaton.t * int * int list =
   let wire (auto : Automaton.t) (src : int) (dst : int) : Automaton.t =
     Map.update auto src ~f:(function
       | None ->
@@ -47,14 +48,14 @@ let tompson (p : string policy) : Automaton.t * int * int list =
         List.map rules ~f:(fun rule ->
           let transitions =
             TransitionDist.pushforward rule.transitions ~f:(fun trans ->
-              Base.Map.add_exn trans ~key:state ~data:dst
+              Base.Map.add_exn trans ~key:state ~data:(`Int dst)
             )
           in
           { rule with transitions}
         )
       )
   in
-  let rec tompson p auto : Automaton.t * int * int list =
+  let rec thompson p auto : Automaton.t * int * int list =
     match p with
     | Filter pred ->
       let (state, auto) =
@@ -73,8 +74,8 @@ let tompson (p : string policy) : Automaton.t * int * int list =
       in
       (auto, state, [state])
     | Seq (p, q) ->
-      let (auto, start_p, final_p) = tompson p auto in
-      let (auto, start_q, final_q) = tompson q auto in
+      let (auto, start_p, final_p) = thompson p auto in
+      let (auto, start_q, final_q) = thompson q auto in
       let auto =
         List.fold final_p ~init:auto ~f:(fun auto state ->
           wire auto state start_q
@@ -82,8 +83,8 @@ let tompson (p : string policy) : Automaton.t * int * int list =
       in
       (auto, start_p, final_q)
     | Ite (a, p, q) ->
-      let (auto, start_p, final_p) = tompson p auto in
-      let (auto, start_q, final_q) = tompson q auto in
+      let (auto, start_p, final_p) = thompson p auto in
+      let (auto, start_q, final_q) = thompson q auto in
       let rules = Automaton.[
           { guard = a;
             transitions = TransitionDist.dirac (Transition.to_state start_p) };
@@ -94,7 +95,7 @@ let tompson (p : string policy) : Automaton.t * int * int list =
       let (state, auto) = Automaton.add_state auto rules in
       (auto, state, final_p @ final_q)
     | While (a, p) ->
-      let (auto, start_p, final_p) = tompson p auto in
+      let (auto, start_p, final_p) = thompson p auto in
       let (final, auto) = Automaton.(add_state auto dummy_state) in
       let (start, auto) = Automaton.add_state auto [
           { guard = a;
@@ -107,7 +108,7 @@ let tompson (p : string policy) : Automaton.t * int * int list =
     | Choice (dist : (string policy * Prob.t) list) ->
       let (pols, probs) = List.unzip dist in
       let auto, wires = List.fold_map pols ~init:auto ~f:(fun auto p ->
-          let (auto, start, final) = tompson p auto in
+          let (auto, start, final) = thompson p auto in
           (auto, (start, final))
         )
       in
@@ -122,10 +123,36 @@ let tompson (p : string policy) : Automaton.t * int * int list =
         }]
       in
       (auto, start, List.concat finals)
-    (* | Let of { id : 'field; init : 'field meta_init; mut : bool; body : 'field policy } *)
+    | Let { id; init; body; _ } ->
+      let (auto, start_body, final_body) = thompson body auto in
+
+      (* initialize local field *)
+      let (start, auto) = Automaton.add_state auto [{
+          guard = True;
+          transitions =
+            Transition.to_state start_body
+            |> Base.Map.add_exn ~key:id ~data:(
+              match init with
+              | Alias field -> `Field field
+              | Const n -> `Int n
+            )
+            |> TransitionDist.dirac
+        }]
+      in
+
+      (* set local field to zero when it goes out of scope *)
+      let (final, auto) = Automaton.add_state auto [{
+          guard = True;
+          transitions = TransitionDist.dirac (Transition.of_mod (id, 0));
+        }]
+      in
+
+      let auto = List.fold final_body ~init:auto ~f:(fun a s -> wire a s final) in
+      (auto, start, [final])
+
     (* | ObserveUpon of 'field policy * 'field pred (* exexcute policy, then observe pred *) *)
   in
-  tompson p Int.Map.empty
+  thompson p Int.Map.empty
 
 
 
