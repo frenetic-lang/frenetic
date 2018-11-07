@@ -194,29 +194,49 @@ let auto_of_pol p ~(input_dist : input_dist) : int * Automaton.t * int =
 
 
 (* for each field, the set of values used with that field *)
-type domain = (Int.Set.t) String.Map.t
+module Domain = struct
+  type t = (Int.Set.t) String.Map.t
 
-let add_to_dom (d : domain) (f,v : string header_val) =
-  Map.update d f ~f:(function
-    | None -> Int.Set.singleton v
-    | Some s -> Set.add s v
-  )
+  let add (t : t) (f,v : string header_val) =
+    Map.update t f ~f:(function
+      | None -> Int.Set.singleton v
+      | Some s -> Set.add s v
+    )
 
-let dom_of_pol (p : string policy) : domain =
-  let rec do_pol p ((dom : domain), (locals : (string * field meta_init) list) as acc) =
+  let merge : t -> t -> t =
+    Map.merge_skewed ~combine:(fun ~key -> Int.Set.union)
+end
+
+
+(* let dom_of_pol (p : string policy) : Domain.t =
+  let rec do_pol p (dom : Domain.t) =
     match p with
-    | Filter pred -> do_pred pred acc
-    | Modify hv -> (add_to_dom dom hv, locals)
-    | Seq (p, q) -> acc |> do_pol p |> do_pol q
-    | Ite (a, p, q) -> acc |> do_pred a |> do_pol p |> do_pol q
-    | While (a, p)
+    | Filter _ -> dom
+    | Modify hv -> Domain.add dom hv
+    | Seq (p, q) -> dom |> do_pol p |> do_pol q
+    | Ite (a, p, q) -> Domain.merge (do_pol p dom) (do_pol q dom)
+    | While (a, p) ->
+      (* SJS: needed so we don't underapproximate the domain of aliases *)
+      do_pol p dom |> do_pol p
     | ObserveUpon (p, a) -> acc |> do_pred a |> do_pol p
     | Choice ps -> List.fold ps ~init:acc ~f:(fun acc (p,_) -> do_pol p acc)
+    | Let { id; init; body; _ } ->
   and do_pred a (dom, locals as acc) =
     acc
   in
   let (dom, locals) = do_pol p (String.Map.empty, []) in
-  failwith "todo"
+  List.fold locals ~init:dom ~f:(fun dom (f, init) ->
+    match init with
+    | Const v ->
+      Domain.add dom (f, v)
+    | Alias g ->
+      begin match Map.find dom g with
+      | None -> dom
+      | Some vs -> Map.update dom v ~f:(function
+        | None -> vs
+        | Some vs' -> Set.union vs vs')
+      end
+  )
 
 
 let of_pol p ~(input_dist : input_dist) : string =
@@ -226,3 +246,4 @@ let of_pol p ~(input_dist : input_dist) : string =
   Hashtbl.add_exn subst ~key:Automaton.drop_state ~data:0;
   failwith "todo"
 
+ *)
