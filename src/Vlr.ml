@@ -21,6 +21,12 @@ module type Result = sig
   val is_zero : t -> bool
 end
 
+module IntPair = struct
+  type t = (int * int) [@@deriving sexp, compare]
+  let hash (t1, t2) = 617 * t1 +  619 * t2
+end
+
+module IntPairTbl = Hashtbl.Make(IntPair)
 
 module Hashcons_ = struct
   include Hashcons
@@ -28,8 +34,8 @@ module Hashcons_ = struct
   let compare_hash_consed _ t1 t2 = Int.compare t1.tag t2.tag
   let hash_hash_consed _ t = t.hkey
   let hash_fold_hash_consed _ state t = [%hash_fold: int] state t.tag
-  let sexp_of_hash_consed sexp_of_node _ = failwith "not implemented"
-  let hash_consed_of_sexp node_of_sexp _ = failwith "not implemented"
+  let sexp_of_hash_consed _ t = failwith "not implemented"
+  let hash_consed_of_sexp _ t = failwith "not implemented"
 end
 open Hashcons_
 
@@ -71,10 +77,10 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
 
   (* let cache_size = T.cache_size *)
   let cache = HC.create 10000
-  let get t = HC.hashcons cache t [@@inline]
-  let unget t = t.node [@@inline]
-  let get_uid (t:t) : int = t.tag [@@inline]
-  let equal t1 t2 = Int.equal t1.tag t2.tag [@@inline]
+  let get = HC.hashcons cache
+  let unget t = t.node
+  let get_uid (t:t) : int = t.tag
+  let equal t1 t2 = Int.equal t1.tag t2.tag
 
   module Tbl = Hashtbl.Make(T)
   module Set = Set.Make(T)
@@ -84,7 +90,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     type t = T.t * T.t [@@deriving compare, hash, sexp]
   end)
 
-  let mk_leaf r = get (Leaf r) [@@inline]
+  let mk_leaf r = get (Leaf r)
 
   let mk_branch ((v,l) as test) tru fls =
     (* When the ids of the diagrams are equal, then the diagram will take on the
@@ -97,8 +103,8 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     if equal tru fls then
       fls
     else match unget fls with
-    | Branch { test = (v',_); all_fls; _ } when V.equal v v' ->
-      if equal all_fls tru then
+    | Branch { test = (v',_); all_fls; _ } when v=v' ->
+      if all_fls = tru then
         fls
       else
         get (Branch { test; tru; fls; all_fls })
@@ -176,7 +182,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   let binary_cache : (t*t, t) Hashtbl.t = BinTbl.create ~size:10000 ()
 
   let rec sum' x y =
-    let key = if x.tag <= y.tag then (x, y) else (y, x) in
+    let key = if x <= y then (x, y) else (y, x) in
     BinTbl.find_or_add binary_cache key ~default:(fun () ->
       match x.node, y.node with
       | Leaf r, _      ->
@@ -207,7 +213,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
 
 
   let rec prod' x y =
-    let key = if x.tag <= y.tag then (x, y) else (y, x) in
+    let key = if x <= y then (x, y) else (y, x) in
     BinTbl.find_or_add binary_cache key ~default:(fun () ->
       match x.node, y.node with
       | Leaf r, _      ->
