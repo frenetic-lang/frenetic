@@ -2,6 +2,7 @@ open Core
 open Syntax
 open Symbolic
 
+(* SJS/FIXME: ensure this field is unused by user program. *)
 let state = "__state__"
 
 module Transition = struct
@@ -49,27 +50,26 @@ module Automaton = struct
     (key, Map.add_exn t ~key ~data:s)
 end
 
+let wire (auto : Automaton.t) (src : int) (dst : int) : Automaton.t =
+  Map.update auto src ~f:(function
+    | None ->
+      assert false
+    | Some rules ->
+      List.map rules ~f:(fun rule ->
+        let transitions =
+          TransitionDist.pushforward rule.transitions ~f:(fun trans ->
+            Base.Map.update trans state ~f:(function
+              | None -> `Int dst
+              | Some v -> v
+            )
+            (* Base.Map.add_exn trans ~key:state ~data:(`Int dst) *)
+          )
+        in
+        { rule with transitions}
+      )
+    )
 
 let thompson (p : string policy) : Automaton.t * int * int list =
-  let wire (auto : Automaton.t) (src : int) (dst : int) : Automaton.t =
-    Map.update auto src ~f:(function
-      | None ->
-        assert false
-      | Some rules ->
-        List.map rules ~f:(fun rule ->
-          let transitions =
-            TransitionDist.pushforward rule.transitions ~f:(fun trans ->
-              Base.Map.update trans state ~f:(function
-                | None -> `Int dst
-                | Some v -> v
-              )
-              (* Base.Map.add_exn trans ~key:state ~data:(`Int dst) *)
-            )
-          in
-          { rule with transitions}
-        )
-      )
-  in
   let rec thompson p auto : Automaton.t * int * int list =
     match p with
     | Filter pred ->
@@ -172,10 +172,19 @@ let thompson (p : string policy) : Automaton.t * int * int list =
   thompson p Automaton.empty
 
 
-
-let dopped = "dropped"
-
 (* let of_input_dist = *)
 
-let of_pol p ~(input_dist : Packet.Dist.t) =
-  failwith "not implemented"
+let of_pol p ~(input_dist : ((string * int) list * Prob.t) list) =
+  let (auto, start', final) = thompson p in
+  let transitions =
+    Util.map_fst input_dist ~f:(fun assignments ->
+      List.fold assignments ~init:(Transition.to_state start') ~f:(fun t (f,n) ->
+        Base.Map.add_exn t ~key:f ~data:(`Int n)
+      )
+    )
+    |> TransitionDist.of_alist_exn
+  in
+  let (start, auto) = Automaton.add_state auto [{ guard = True; transitions }] in
+  failwith "todo"
+
+
