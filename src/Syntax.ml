@@ -34,7 +34,7 @@ type 'field  policy =
   | Modify of 'field header_val
   | Seq of 'field policy * 'field policy
   | Ite of 'field pred * 'field policy * 'field policy
-  | Branch of ('field pred * field policy) list
+  | Branch of ('field pred * 'field policy) list
   | While of 'field pred * 'field policy
   | Choice of ('field policy * Prob.t) list
   | Let of { id : 'field; init : 'field meta_init; mut : bool; body : 'field policy }
@@ -252,18 +252,24 @@ module Constructors = struct
   let branch branches =
     List.filter branches ~f:(function
       | (False, _) -> false
+      | (_, Filter False) -> false
       | _ -> true)
     |> function
       | [] -> drop
       | [(True, p)] -> p
       | branches -> Branch branches
 
-  let ite_cascade (xs : 'a list) ~(otherwise: 'field policy)
+  let ite_cascade ?(disjoint=true) (xs : 'a list) ~(otherwise: 'field policy)
     ~(f : 'a -> 'field pred * 'field policy) : 'field policy =
-    List.fold_right xs ~init:otherwise ~f:(fun x acc ->
-      let guard, body = f x in
-      ite guard body acc
-    )
+    match disjoint with
+    | true ->
+      List.map xs ~f
+      |> branch
+    | false ->
+      List.fold_right xs ~init:otherwise ~f:(fun x acc ->
+        let guard, body = f x in
+        ite guard body acc
+      )
 
   let whl a p = match a with
     | True -> drop

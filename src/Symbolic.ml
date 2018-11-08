@@ -187,6 +187,11 @@ module Field = struct
         )
       | Ite (a,p,q) ->
         k (f_union a p q, lst)
+      | Branch branches ->
+        List.fold branches ~init:PNK.drop ~f:(fun p (a,q) ->
+          PNK.(ite a q p)
+        )
+        |> (fun p -> f_seq' p lst k)
       | Choice ps ->
         k (f_choice ps, lst)
       | Let { id; init; mut; body=p } ->
@@ -208,6 +213,11 @@ module Field = struct
         f_union' p lst (fun (m, lst) ->
           f_union' q lst (fun (n, lst) ->
             k (m + n, a::lst)))
+      | Branch branches ->
+        List.fold branches ~init:PNK.drop ~f:(fun p (a,q) ->
+          PNK.(ite a q p)
+        )
+        |> (fun p -> f_union' p lst k)
       | Choice ps ->
         List.map ps ~f:fst
         |> List.map ~f:(fun p -> f_union' p [] ident)
@@ -1275,6 +1285,8 @@ module Fdd = struct
         Seq (do_pol env p, do_pol env q)
       | Ite (a, p, q) ->
         Ite (do_pred env a, do_pol env p, do_pol env q)
+      | Branch ps ->
+        Branch (List.map ps ~f:(fun (a,p) -> (do_pred env a, do_pol env p)))
       | While (a, p) ->
         While (do_pred env a, do_pol env p)
       | ObserveUpon (p, a) ->
@@ -1330,6 +1342,8 @@ module Fdd = struct
         Seq (do_pol p, do_pol q)
       | Ite (a, p, q) ->
         Ite (do_pred a, do_pol p, do_pol q)
+      | Branch ps ->
+        Branch (List.map ps ~f:(fun (a,p) -> (do_pred a, do_pol p)))
       | While (a, p) ->
         While (do_pred a, do_pol p)
       | ObserveUpon (p, a) ->
@@ -1950,8 +1964,8 @@ module Fdd = struct
 
   let rec of_pol_k bound (p : Field.t policy) k : t =
     match p with
-    | Filter p ->
-      k (of_pred_t p)
+    | Filter a ->
+      k (of_pred_t a)
     | Modify m ->
       k (of_mod_t m)
     | Seq (p, q) ->
@@ -1961,13 +1975,23 @@ module Fdd = struct
         else
           of_pol_k bound q (fun q' -> k (seq_t p' q')))
     | Ite (a, p, q) ->
-      let a = of_pred a in
+      let a = of_pred_t a in
       if equal a id then
         of_pol_k bound p k
       else if equal a drop then
         of_pol_k bound q k
       else
         of_pol_k bound p (fun p -> of_pol_k bound q (fun q -> k (ite_t a p q)))
+    | Branch branches ->
+      List.filter_map branches ~f:(fun (a,p) ->
+        let a = of_pred_t a in
+        if equal a drop then
+          None
+        else
+          Some (of_pol_k bound p (fun p -> prod a p))
+      )
+      |> List.fold ~init:drop ~f:sum
+      |> k
     | While (a, p) ->
       let a = of_pred a in
       if equal a id then k drop else
@@ -2004,6 +2028,12 @@ module Fdd = struct
     | Ite (a, p, q) ->
       let a = of_pred a in
       sum (of_pol_cps bound a p) (of_pol_cps bound (negate a) q)
+      |> seq lctxt
+    | Branch branches ->
+      List.map branches ~f:(fun (a,p) ->
+        of_pol_cps bound (of_pred a) p
+      )
+      |> List.fold ~init:drop ~f:sum
       |> seq lctxt
     | While (a, p) ->
       let a = of_pred a in
