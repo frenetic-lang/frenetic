@@ -41,6 +41,45 @@ type 'field  policy =
   (* | Repeat of int * 'field policy *)
   [@@deriving sexp, compare, hash]
 
+(** negation normal form *)
+let nnf (a : 'field pred) : 'field pred =
+  let rec nnf a negate =
+    match a with
+    | True when negate -> False
+    | False when negate -> True
+    | Test _ when negate -> Neg a
+    | And (a, b) when negate -> Or (nnf a negate, nnf b negate)
+    | Or (a, b) when negate -> And (nnf a negate, nnf b negate)
+    | Neg a -> nnf a (not negate)
+    | True | False | Test _ -> a
+    | And (a, b) -> And (nnf a negate, nnf b negate)
+    | Or (a, b) -> Or (nnf a negate, nnf b negate)
+  in
+  nnf a false
+
+let dnf (a : 'field pred) : (('field header_val * [`Eq | `Neq]) list) list =
+  let rec nnf_to_dnf a =
+    match a with
+    | True ->
+      [[]]
+    | False ->
+      []
+    | Test hv ->
+      [[(hv, `Eq)]]
+    | Neg (Test hv) ->
+      [[(hv, `Neq)]]
+    | Neg _ ->
+      failwith "not in NNF"
+    | Or (a,b) ->
+      nnf_to_dnf a @ nnf_to_dnf b
+    | And (a,b) ->
+      List.cartesian_product (nnf_to_dnf a) (nnf_to_dnf b)
+      |> List.map ~f:(fun (ai, bi) -> ai @ bi)
+  in
+  nnf_to_dnf (nnf a)
+
+
+
 let nr_of_loops p =
   let rec do_pol p acc =
     match p with
