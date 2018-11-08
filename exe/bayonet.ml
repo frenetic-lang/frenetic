@@ -76,7 +76,7 @@ end
 open Symbolic
 let () = begin
   (* Format.printf "%a\n%!" Syntax.pp_policy Model.model; *)
-  let logfile = "./examples/logs/bayonet.log" in
+  (* let logfile = "./examples/logs/bayonet.log" in *)
   Util.print_times := false;
   (* Util.log_and_sandbox ~timeout ~logfile Sys.argv.(1) ~f:(fun () -> *)
     Fdd.use_cps := use_cps;

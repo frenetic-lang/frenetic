@@ -331,3 +331,62 @@ let prism_of_pol p ~(input_dist : input_dist) : prism_model =
   { decls; rules}
 
 
+(** {2 Code generation} *)
+module Code = struct
+
+  let preamble = "dtmc\n\nmodule ProbNetKAT\n"
+  let postamble = "endmodule"
+
+  let of_many ?(sep="\n") of_one many =
+    List.map many ~f:of_one
+    |> String.concat ~sep
+
+  let of_init = function
+    | None -> ""
+    | Some v -> Format.sprintf " %d" v
+
+  let of_decl { name; lower_bound; upper_bound; init } =
+    Format.sprintf "%s : [%d..%d]%s;"
+      name lower_bound upper_bound (of_init init)
+
+  let of_typ = function
+    | `Eq -> "="
+    | `Neq -> "<>"
+
+  let of_value = function
+    | `Int n -> Int.to_string n
+    | `Field f -> f
+
+  let of_trans_constr { field; value; typ } =
+    Format.sprintf "%s%s%d" field (of_typ typ) value
+
+  let of_prob prob =
+    let num, den = Prob.to_int_frac prob in
+    Format.sprintf "%d/%d" num den
+
+  let of_mod (field, value) =
+    Format.sprintf "%s'=%s" field (of_value value)
+
+  let of_transition (mods, prob) =
+    Format.sprintf "%s : %s"
+      (of_prob prob)
+      (of_many of_mod ~sep:" & " (Base.Map.to_alist mods))
+
+  let of_rule { guard; transitions } =
+    Format.sprintf "[] %s -> %s;"
+      (of_many of_trans_constr guard ~sep:" & ")
+      (of_many of_transition (TransitionDist.to_alist transitions) ~sep:" + ")
+
+  let of_model (model : prism_model) : string =
+    Format.sprintf "%s\n%s\n%s\n%s\n"
+      preamble
+      postamble
+      (of_many of_decl model.decls)
+      (of_many of_rule model.rules)
+
+  let of_pol p ~(input_dist : input_dist) : string =
+    prism_of_pol p ~input_dist
+    |> of_model
+
+end
+
