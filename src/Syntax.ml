@@ -79,7 +79,6 @@ let dnf (a : 'field pred) : (('field header_val * [`Eq | `Neq]) list) list =
   nnf_to_dnf (nnf a)
 
 
-
 let nr_of_loops p =
   let rec do_pol p acc =
     match p with

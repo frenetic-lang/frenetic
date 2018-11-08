@@ -208,7 +208,6 @@ module Domain = struct
 end
 
 
-
 let dom_of_pol (p : string policy) : Domain.t =
   let rec do_pol p ((dom : Domain.t), (locals : (string * field meta_init) list) as acc) =
     match p with
@@ -221,28 +220,114 @@ let dom_of_pol (p : string policy) : Domain.t =
     | Choice ps -> List.fold ps ~init:acc ~f:(fun acc (p,_) -> do_pol p acc)
     | Let { id; init; body; _ } -> (dom, (id,init)::locals) |> do_pol body
   and do_pred a (dom, locals as acc) =
-    (* FIXME *)
-    acc
+    match a with
+    | True
+    | False -> acc
+    | Test hv -> (Domain.add dom hv, locals)
+    | And (a, b)
+    | Or (a, b) -> acc |> do_pred a |> do_pred b
+    | Neg a -> do_pred a acc
   in
   let (dom, locals) = do_pol p (String.Map.empty, []) in
-  List.fold locals ~init:dom ~f:(fun dom (f, init) ->
+  List.fold locals ~init:dom ~f:(fun dom (field, init) ->
     match init with
     | Const v ->
-      Domain.add dom (f, v)
+      Domain.add dom (field, v)
     | Alias g ->
       begin match Map.find dom g with
       | None -> dom
-      | Some vs -> Map.update dom f ~f:(function
+      | Some vs -> Map.update dom field ~f:(function
         | None -> vs
         | Some vs' -> Set.union vs vs')
       end
   )
 
+type prism_field_decl = {
+  name : string;
+  lower_bound : int;
+  upper_bound : int;
+  init : int option;
+}
 
-let of_pol p ~(input_dist : input_dist) : string =
+type prism_trans_rule = {
+  guard : prism_trans_constr list;
+  transitions : TransitionDist.t;
+}
+and prism_trans_constr = {
+  field : string;
+  value : int;
+  typ : [`Eq | `Neq];
+}
+
+type prism_model = {
+  decls : prism_field_decl list;
+  rules : prism_trans_rule list;
+}
+
+let domain_to_decls (dom : Domain.t) : prism_field_decl list =
+  Map.to_alist dom
+  |> List.map ~f:(fun (field, vals) ->
+    { name = field;
+      lower_bound = Set.min_elt_exn vals;
+      upper_bound = Set.max_elt_exn vals;
+      init = None;
+    }
+  )
+
+let auto_rule_to_prism_rules ({ guard; transitions } : Automaton.rule)
+  (state_id : int) (subst : (int, int) Hashtbl.t) : prism_trans_rule list =
+  (* rename states *)
+  let state_id = Hashtbl.find_exn subst state_id in
+  let transitions =
+    TransitionDist.pushforward transitions ~f:(fun t ->
+      Base.Map.change t state ~f:(function 
+        | None -> None
+        | Some (`Int s) -> Some (`Int (Hashtbl.find_exn subst s))
+        | Some _ -> failwith "invalid transition"
+      )
+    )
+  in
+  (* then compile to rules *)
+  let clauses = dnf guard in
+  List.map clauses ~f:(fun conjunct ->
+    let state_guard = { field = state; value = state_id; typ = `Eq } in
+    let guard =
+      List.map conjunct ~f:(fun ((field, value), typ) ->
+        { field; value; typ }
+      )
+      |> List.cons state_guard
+    in
+    { guard; transitions }
+  )
+  
+let auto_to_rules (auto : Automaton.t) (subst : (int, int) Hashtbl.t) : prism_trans_rule list =
+  Map.to_alist auto
+  |> List.concat_map ~f:(fun (state_id, rules) -> 
+    List.concat_map rules ~f:(fun rule -> 
+      auto_rule_to_prism_rules rule state_id subst
+    )
+  )
+
+let prism_of_pol p ~(input_dist : input_dist) : prism_model =
   let (start, auto, final) = auto_of_pol p ~input_dist in
-  let subst = Int.Table.create () in
-  (* conventions *)
-  Hashtbl.add_exn subst ~key:Automaton.drop_state ~data:0;
-  failwith "todo"
+  let state_subst = Int.Table.create () in
+  (* rename states *)
+  Hashtbl.add_exn state_subst ~key:Automaton.drop_state ~data:0;
+  Hashtbl.add_exn state_subst ~key:final ~data:1;
+  Hashtbl.add_exn state_subst ~key:start ~data:2;
+  Map.keys auto
+  |> List.fold ~init:3 ~f:(fun new_id old_id ->
+    if List.exists [Automaton.drop_state; final; start] ~f:((=) old_id) then
+      new_id
+    else
+      (Hashtbl.add_exn state_subst ~key:old_id ~data:new_id; new_id + 1)
+  )
+  |> ignore;
+  let states = Hashtbl.data state_subst |> Int.Set.of_list in 
+  let domain = dom_of_pol p in
+
+  let decls = domain_to_decls domain in
+  let rules = auto_to_rules auto state_subst in
+  { decls; rules}
+
 
