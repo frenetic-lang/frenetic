@@ -1,8 +1,10 @@
 (jbuild_version 1)
 
 (executables
- ((names        (topo dump icfp bench obs_test bayonet))
-  (public_names (probnetkat.topo probnetkat.dump probnetkat.icfp probnetkat.bench probnetkat.obs_test probnetkat.bayonet))
+ ((names        (topo dump icfp bench obs_test bayonet prism))
+  (public_names (probnetkat.topo probnetkat.dump probnetkat.icfp
+                 probnetkat.bench probnetkat.obs_test probnetkat.bayonet
+                 probnetkat.prism))
   (libraries (
     core
     zarith
