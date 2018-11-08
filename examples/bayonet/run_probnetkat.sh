@@ -1,7 +1,7 @@
 #!/bin/bash
 SCRIPT_DIR="$(dirname $(readlink -f $0))"
 ROOT_DIR="${SCRIPT_DIR}/../../"
-PROBNETKAT="jbuilder exec probnetkat.bayonet"
+PROBNETKAT="dune exec probnetkat.bayonet --profile release"
 CPS="true"
 INPUT="${SCRIPT_DIR}/$1"
 RESULT_FILE="${SCRIPT_DIR}/${1%.dot}.probnetkat.log"
