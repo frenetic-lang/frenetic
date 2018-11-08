@@ -86,7 +86,13 @@ let conjuncts a =
     | And (a,b) -> acc |> go b |> go a
     | True -> acc
     | False -> raise IsFalse
-    | a -> a::acc
+    | a ->
+    begin match a, acc with
+    (* SJS: common in n-ary branches *)
+    | Neg (Test (f, v)), Test (f', v')::_ when f = f' && v<>v' ->
+      acc
+    | _ -> a::acc
+    end
   in
   try go a [] with IsFalse -> [False]
 
@@ -369,19 +375,13 @@ let map_pol
   in
   do_pol pol
 
-(* hack to fix observe statements, by scoping them as far to the left as possible *)
-(* FIXME: what about observes inside of lets? *)
-(* let fix_observe pol =
-  let rec seq p q =
-    match p,q with
-    | _, ObserveUpon(q, a) ->
-      ObserveUpon (Seq (p,q), a)
-    | _, Seq (q, q') ->
-      Seq (seq p q, q')
-    | _,_ ->
-      Seq (p,q)
+
+let branches (p : 'field policy) : ('field pred * 'field policy) list =
+  let rec go p guard acc =
+    match p with
+    | Ite (a, p, q) ->
+      acc |> go q PNK.(guard & neg a) |> go p PNK.(guard & a)
+    | p -> if guard = False then acc else (guard, p)::acc
   in
-  map_pol ~seq pol *)
-
-
+  go p True []
 

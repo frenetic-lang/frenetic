@@ -101,19 +101,23 @@ module Automaton = struct
         let (auto, start_q, final_q) = thompson q auto in
         let auto = wire_all auto final_p start_q in
         (auto, start_p, final_q)
-      | Ite (a, p, q) ->
+      | Ite _ ->
         let (start, auto) = add_state auto [] in
-        let (auto, start_p, final_p) = thompson p auto in
-        let (auto, start_q, final_q) = thompson q auto in
-        let rules = [
-            { guard = a;
-              transitions = TransitionDist.dirac (Transition.to_state start_p) };
-            { guard = PNK.neg a;
-              transitions = TransitionDist.dirac (Transition.to_state start_q) };
-          ]
+        let branches = Syntax.branches p in
+        let auto, branches =
+          List.fold_map branches ~init:auto ~f:(fun auto (guard, p) ->
+            let (auto, start, final) = thompson p auto in
+            (auto, (guard, start, final))
+          )
+        in
+        let rules = List.map branches ~f:(fun (guard, start, _) ->
+          let transitions = TransitionDist.dirac (Transition.to_state start) in
+          { guard; transitions }
+        )
         in
         let auto = Map.set auto ~key:start ~data:rules in
-        (auto, start, final_p @ final_q)
+        let final = List.concat_map branches ~f:(fun (_, _, final) -> final) in
+        (auto, start, final)
       | While (a, p) ->
         let (start, auto) = add_state auto [] in
         let (auto, start_p, final_p) = thompson p auto in
@@ -280,7 +284,7 @@ module Ast = struct
     (* rename states *)
     let transitions =
       TransitionDist.pushforward transitions ~f:(fun t ->
-        Base.Map.change t state ~f:(function 
+        Base.Map.change t state ~f:(function
           | None -> None
           | Some (`Int s) -> Some (`Int (Hashtbl.find_exn subst s))
           | Some _ -> failwith "invalid transition"
@@ -288,12 +292,12 @@ module Ast = struct
       )
     in
     { guard; transitions }
-    
+
   let rules_of_auto (auto : Automaton.t) (subst : (int, int) Hashtbl.t) : Automaton.rule list =
     Map.to_alist auto
     |> Util.map_fst ~f:(fun state_id -> Hashtbl.find_exn subst state_id)
     |> List.sort ~compare:(fun (s, _) (t, _) -> Int.compare s t)
-    |> List.concat_map ~f:(fun (state_id, rules) -> 
+    |> List.concat_map ~f:(fun (state_id, rules) ->
       List.map rules ~f:(fun rule ->
         rule_of_auto_rule rule state_id subst
       )
@@ -314,7 +318,7 @@ module Ast = struct
         Hashtbl.add_exn state_subst ~key:old_id ~data:(i + 2)
     );
 
-    let state_decl = 
+    let state_decl =
       { name = state;
         lower_bound = -1;
         upper_bound = Map.length auto - 2;
