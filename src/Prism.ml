@@ -208,20 +208,20 @@ module Domain = struct
 end
 
 
-(* let dom_of_pol (p : string policy) : Domain.t =
-  let rec do_pol p (dom : Domain.t) =
+
+let dom_of_pol (p : string policy) : Domain.t =
+  let rec do_pol p ((dom : Domain.t), (locals : (string * field meta_init) list) as acc) =
     match p with
-    | Filter _ -> dom
-    | Modify hv -> Domain.add dom hv
-    | Seq (p, q) -> dom |> do_pol p |> do_pol q
-    | Ite (a, p, q) -> Domain.merge (do_pol p dom) (do_pol q dom)
-    | While (a, p) ->
-      (* SJS: needed so we don't underapproximate the domain of aliases *)
-      do_pol p dom |> do_pol p
+    | Filter pred -> acc
+    | Modify hv -> (Domain.add dom hv, locals)
+    | Seq (p, q) -> acc |> do_pol p |> do_pol q
+    | Ite (a, p, q) -> acc |> do_pred a |> do_pol p |> do_pol q
+    | While (a, p)
     | ObserveUpon (p, a) -> acc |> do_pred a |> do_pol p
     | Choice ps -> List.fold ps ~init:acc ~f:(fun acc (p,_) -> do_pol p acc)
-    | Let { id; init; body; _ } ->
+    | Let { id; init; body; _ } -> (dom, (id,init)::locals) |> do_pol body
   and do_pred a (dom, locals as acc) =
+    (* FIXME *)
     acc
   in
   let (dom, locals) = do_pol p (String.Map.empty, []) in
@@ -232,7 +232,7 @@ end
     | Alias g ->
       begin match Map.find dom g with
       | None -> dom
-      | Some vs -> Map.update dom v ~f:(function
+      | Some vs -> Map.update dom f ~f:(function
         | None -> vs
         | Some vs' -> Set.union vs vs')
       end
@@ -246,4 +246,3 @@ let of_pol p ~(input_dist : input_dist) : string =
   Hashtbl.add_exn subst ~key:Automaton.drop_state ~data:0;
   failwith "todo"
 
- *)

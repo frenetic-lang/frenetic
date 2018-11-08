@@ -799,11 +799,8 @@ module Domain = struct
   module Valset = Set.Make(struct type t = PrePacket.nomval [@@deriving sexp, compare] end)
   type t = Valset.t Field.Map.t
 
-
-  let merge d1 d2 : t =
-    Map.merge d1 d2 ~f:(fun ~key -> function
-      | `Left s | `Right s -> Some s
-      | `Both (l,r) -> Some (Set.union l r))
+  let merge : t -> t -> t =
+    Map.merge_skewed ~combine:(fun ~key -> Set.union)
 
   let of_fdd (fdd : Fdd00.t) : t =
     let rec for_fdd dom fdd =
