@@ -70,6 +70,11 @@ module Automaton = struct
         )
       )
 
+  let wire_all (auto : t) (srcs : int list) (dst : int) : t =
+    List.fold srcs ~init:auto ~f:(fun auto state ->
+      wire auto state dst
+    )
+
   let thompson (p : string policy) : t * int * int list =
     let rec thompson p auto : t * int * int list =
       match p with
@@ -94,11 +99,7 @@ module Automaton = struct
       | Seq (p, q) ->
         let (auto, start_p, final_p) = thompson p auto in
         let (auto, start_q, final_q) = thompson q auto in
-        let auto =
-          List.fold final_p ~init:auto ~f:(fun auto state ->
-            wire auto state start_q
-          )
-        in
+        let auto = wire_all auto final_p start_q in
         (auto, start_p, final_q)
       | Ite (a, p, q) ->
         let (auto, start_p, final_p) = thompson p auto in
@@ -110,8 +111,8 @@ module Automaton = struct
               transitions = TransitionDist.dirac (Transition.to_state start_q) };
           ]
         in
-        let (state, auto) = add_state auto rules in
-        (auto, state, final_p @ final_q)
+        let (start, auto) = add_state auto rules in
+        (auto, start, final_p @ final_q)
       | While (a, p) ->
         let (auto, start_p, final_p) = thompson p auto in
         let (final, auto) = (add_state auto dummy_state) in
@@ -122,6 +123,7 @@ module Automaton = struct
               transitions = TransitionDist.dirac (Transition.to_state final) };
           ]
         in
+        let auto = wire_all auto final_p start in
         (auto, start, [final])
       | Choice (dist : (string policy * Prob.t) list) ->
         let (pols, probs) = List.unzip dist in
@@ -367,7 +369,7 @@ module Code = struct
 
   let of_typ = function
     | `Eq -> "="
-    | `Neq -> "<>"
+    | `Neq -> "!="
 
   let of_value = function
     | `Int n -> Int.to_string n
@@ -383,7 +385,7 @@ module Code = struct
     | num, den -> Format.sprintf "%d/%d" num den
 
   let of_mod (field, value) =
-    Format.sprintf "%s'=%s" field (of_value value)
+    Format.sprintf "(%s'=%s)" field (of_value value)
 
   let of_transition (mods, prob) =
     Format.sprintf "%s : %s"
