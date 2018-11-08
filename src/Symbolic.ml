@@ -2003,7 +2003,7 @@ module Fdd = struct
       of_pol_cps bound lctxt q
     | Ite (a, p, q) ->
       let a = of_pred a in
-      ite a (of_pol_cps bound a p) (of_pol_cps bound (negate a) q)
+      sum (of_pol_cps bound a p) (of_pol_cps bound (negate a) q)
       |> seq lctxt
     | While (a, p) ->
       let a = of_pred a in
