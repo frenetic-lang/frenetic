@@ -220,7 +220,7 @@ module Domain = struct
   let of_pol (p : string policy) : t =
     let rec do_pol p ((dom : t), (locals : (string * field meta_init) list) as acc) =
       match p with
-      | Filter pred -> acc
+      | Filter pred -> do_pred pred acc
       | Modify hv -> (add dom hv, locals)
       | Seq (p, q) -> acc |> do_pol p |> do_pol q
       | Ite (a, p, q) -> acc |> do_pred a |> do_pol p |> do_pol q
