@@ -102,8 +102,9 @@ module Automaton = struct
         let auto = wire_all auto final_p start_q in
         (auto, start_p, final_q)
       | Ite _ ->
+        thompson (Branch (Syntax.branches p)) auto
+      | Branch branches ->
         let (start, auto) = add_state auto [] in
-        let branches = Syntax.branches p in
         let auto, branches =
           List.fold_map branches ~init:auto ~f:(fun auto (guard, p) ->
             let (auto, start, final) = thompson p auto in
@@ -224,6 +225,8 @@ module Domain = struct
       | Modify hv -> (add dom hv, locals)
       | Seq (p, q) -> acc |> do_pol p |> do_pol q
       | Ite (a, p, q) -> acc |> do_pred a |> do_pol p |> do_pol q
+      | Branch ps -> List.fold ps ~init:acc ~f:(fun acc (a,p) ->
+        acc |> do_pred a |> do_pol p )
       | While (a, p)
       | ObserveUpon (p, a) -> acc |> do_pred a |> do_pol p
       | Choice ps -> List.fold ps ~init:acc ~f:(fun acc (p,_) -> do_pol p acc)

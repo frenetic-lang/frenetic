@@ -2063,7 +2063,7 @@ module Fdd = struct
     |> n_ary_convex_sum
     |> unget
     |> function
-      | Branch {test=(f,_)} as fdd ->
+      | Fdd0.Branch {test=(f,_)} as fdd ->
         sprintf "Underspecified input distribution. Branching on %s, but input distribution is %s.\n%s\n"
           (Field.to_string f)
           (Packet.Dist.to_string input_dist)
@@ -2080,7 +2080,7 @@ module Fdd = struct
       seq (const @@ FactorizedActionDist.dirac @@ Packet.to_action pk) t
       |> unget
       |> function
-      | Branch _ ->
+      | Fdd0.Branch _ ->
         failwith "underspecified input support"
       | Leaf dist ->
         FactorizedActionDist.to_alist dist
