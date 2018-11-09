@@ -12,9 +12,9 @@ module Transition = struct
   let equal x y = compare x y = 0
   let pp _ = failwith "not implemented"
   let to_string _ = failwith "not implemented"
-  let skip : t = Base.Map.empty (module String)
-  let of_mod (f, v) : t = Base.Map.singleton (module String) f (`Int v)
-  let to_state s : t = Base.Map.singleton (module String) next_state (`Int s)
+  let skip : t = Map.empty (module String)
+  let of_mod (f, v) : t = Map.singleton (module String) f (`Int v)
+  let to_state s : t = Map.singleton (module String) next_state (`Int s)
 end
 
 module TransitionDist = struct
@@ -59,11 +59,11 @@ module Automaton = struct
         List.map rules ~f:(fun rule ->
           let transitions =
             TransitionDist.pushforward rule.transitions ~f:(fun trans ->
-              Base.Map.update trans next_state ~f:(function
+              Map.update trans next_state ~f:(function
                 | None -> `Int dst
                 | Some v -> v
               )
-              (* Base.Map.add_exn trans ~key:state ~data:(`Int dst) *)
+              (* Map.add_exn trans ~key:state ~data:(`Int dst) *)
             )
           in
           { rule with transitions}
@@ -160,7 +160,7 @@ module Automaton = struct
             guard = True;
             transitions =
               Transition.to_state start_body
-              |> Base.Map.add_exn ~key:id ~data:(
+              |> Map.add_exn ~key:id ~data:(
                 match init with
                 | Alias field -> `Field field
                 | Const n -> `Int n
@@ -191,7 +191,7 @@ module Automaton = struct
       Util.map_fst input_dist ~f:(fun assignments ->
         (next_state, start') :: assignments
         |> Util.map_snd ~f:(fun n -> `Int n)
-        |> Base.Map.of_alist_exn (module String)
+        |> Map.of_alist_exn (module String)
       )
       |> TransitionDist.of_alist_exn
     in
@@ -226,12 +226,25 @@ module CFG = struct
     type t = (string pred) Int.Table.t
   end
 
-  module G = Graph.Imperative.Digraph.AbstractLabeled(V)(E)
+  module G = struct
+    include Graph.Imperative.Digraph.AbstractLabeled(V)(E)
+    let edge_attributes _ = []
+    let default_edge_attributes _ = []
+    let vertex_attributes _ = []
+    let default_vertex_attributes _ = []
+    let graph_attributes _ = []
+    let get_subgraph _ = None
+    let vertex_name _ = "TODO"
+  end
+
+  module Topo = Graph.Topological.Make_stable(G)
+  module Dot = Graph.Graphviz.Dot(G)
 
   type t = {
     graph : G.t;
     start : G.V.t;
     final : G.V.t list;
+    drop : G.V.t;
   }
 
   let of_automaton (auto, start, final : Automaton.t * int * int list) : t =
@@ -264,10 +277,27 @@ module CFG = struct
     { graph = g;
       start = Map.find_exn m start;
       final = List.map final ~f:(Map.find_exn m);
+      drop = Map.find_exn m Automaton.drop_state;
     }
 
   let to_automaton (t : t) : Automaton.t * int * int list =
-    failwith "todo"
+    let v_to_id : (G.V.t, int) Hashtbl.t = Hashtbl.Poly.create () in
+    Hashtbl.add_exn v_to_id ~key:t.drop ~data:Automaton.drop_state;
+    Topo.fold (fun v next_id ->
+        if G.V.equal v t.drop then next_id else
+        (Hashtbl.add_exn v_to_id ~key:v ~data:next_id; next_id + 1)
+      )
+      t.graph (Automaton.drop_state + 1)
+    |> ignore;
+    let auto =
+      Hashtbl.fold v_to_id ~init:Automaton.empty ~f:(fun ~key:v ~data:i auto ->
+        (* FIXME/TODO *)
+        auto
+      )
+    in
+    let start = Hashtbl.find_exn v_to_id t.start in
+    let final = List.map t.final ~f:(Hashtbl.find_exn v_to_id)in
+    (auto, start, final)
 
 end
 
@@ -356,7 +386,7 @@ module Ast = struct
     (* rename states *)
     let transitions =
       TransitionDist.pushforward transitions ~f:(fun t ->
-        Base.Map.change t next_state ~f:(function
+        Map.change t next_state ~f:(function
           | None -> None
           | Some (`Int s) -> Some (`Int (Hashtbl.find_exn subst s))
           | Some _ -> failwith "invalid transition"
@@ -457,7 +487,7 @@ module Code = struct
   let of_transition (mods, prob) =
     Format.sprintf "%s : %s"
       (of_prob prob)
-      (of_many of_mod ~sep:" & " (Base.Map.to_alist mods))
+      (of_many of_mod ~sep:" & " (Map.to_alist mods))
 
   let of_rule Automaton.{ guard; transitions } =
     Format.sprintf "[] %s -> %s;"
