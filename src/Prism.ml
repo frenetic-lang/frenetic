@@ -291,8 +291,22 @@ module CFG = struct
     |> ignore;
     let auto =
       Hashtbl.fold v_to_id ~init:Automaton.empty ~f:(fun ~key:v ~data:i auto ->
-        (* FIXME/TODO *)
-        auto
+        let preds = G.V.label v in
+        let rules =
+          G.succ_e t.graph v
+          |> List.map ~f:(fun e ->
+            let E.{pred; prob; action} = G.E.label e in
+            (pred, (action, prob))
+          )
+          |> Map.of_alist_multi (module Int)
+          |> Map.to_alist
+          |> List.map ~f:(fun (pred, transitions) ->
+            let guard = Hashtbl.find_exn preds pred in
+            let transitions = TransitionDist.of_alist_exn transitions in
+            Automaton.{ guard; transitions }
+          )
+        in
+        Map.add_exn auto ~key:i ~data:rules
       )
     in
     let start = Hashtbl.find_exn v_to_id t.start in
