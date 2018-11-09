@@ -138,7 +138,7 @@ let raw_links_from ?(dst_filter=fun _ -> true)
 let links_from ?(dst_filter=fun _ -> true)
 (topo : Net.Topology.t) sw ~(guard_links: bool) : string policy =
   raw_links_from ~dst_filter topo sw ~guard_links
-  |> PNK.(mk_big_ite ~default:drop)
+  |> PNK.(mk_big_ite ~disjoint:true ~default:drop)
 
 let to_probnetkat (topo : Net.Topology.t) ~(guard_links:bool) : string policy =
   switches topo

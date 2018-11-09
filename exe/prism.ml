@@ -28,7 +28,7 @@ module Model = struct
 
   let p =
     Topology.switches topo
-    |> PNK.ite_cascade ~otherwise:PNK.drop ~f:(fun sw ->
+    |> PNK.ite_cascade ~disjoint:true ~otherwise:PNK.drop ~f:(fun sw ->
       let sw = Topology.sw_val topo sw in
       PNK.(???(Params.sw, sw)), policy sw
     )
@@ -71,7 +71,7 @@ module Model = struct
 end
 
 
-let input_dist = 
+let input_dist =
   let sw, pt = Model.src in
   let init = [ (Params.sw, sw); (Params.pt, pt) ] in
   [ (init, Prob.one) ]
