@@ -240,6 +240,7 @@ module CFG = struct
   module Topo = Graph.Topological.Make_stable(G)
   module Dot = Graph.Graphviz.Dot(G)
   module Leaderlist = Graph.Leaderlist.Make(G)
+  module Dfs = Graph.Traverse.Dfs(G)
 
   type t = {
     graph : G.t;
@@ -247,6 +248,12 @@ module CFG = struct
     final : G.V.t;
     drop : G.V.t;
   }
+
+  let guard_of_e (e : G.E.t) : string pred =
+    let src = G.E.src e in
+    let preds = G.V.label src in
+    let E.{ pred; _ } = G.E.label e in
+    Hashtbl.find_exn preds pred
 
   let of_automaton (start, auto, final : int * Automaton.t * int) : t =
     let g = G.create ~size:(Map.length auto) () in
@@ -281,16 +288,28 @@ module CFG = struct
       drop = Map.find_exn m Automaton.drop_state;
     }
 
-  let to_automaton (t : t) : int * Automaton.t * int =
+  let ids (t : t) : (G.V.t, int) Hashtbl.t =
     let v_to_id : (G.V.t, int) Hashtbl.t = Hashtbl.Poly.create () in
     Hashtbl.add_exn v_to_id ~key:t.drop ~data:Automaton.drop_state;
-    Topo.fold (fun v next_id ->
-        if G.V.equal v t.drop then next_id else
-        (Hashtbl.add_exn v_to_id ~key:v ~data:next_id; next_id + 1)
+    let next = ref (Automaton.drop_state + 1) in
+    let allocate v =
+      Hashtbl.update v_to_id v ~f:(function
+        | None -> let id = !next in incr next; id
+        | Some id -> id
       )
-      t.graph (Automaton.drop_state + 1)
-    |> ignore;
-    (* SJS/FIXME: only keep reachable states. *)
+    in
+    Dfs.prefix allocate t.graph;
+    v_to_id
+
+  let prune (t : t) : unit =
+    G.Mark.clear t.graph;
+    Dfs.prefix_component (fun v -> G.Mark.set v 1) t.graph t.start;
+    G.iter_vertex (fun v -> if G.Mark.get v = 0 then G.remove_vertex t.graph v)
+      t.graph
+
+  let to_automaton (t : t) : int * Automaton.t * int =
+    prune t;
+    let v_to_id = ids t in
     let auto =
       Hashtbl.fold v_to_id ~init:Automaton.empty ~f:(fun ~key:v ~data:i auto ->
         if G.V.equal v t.drop then auto else
@@ -318,6 +337,53 @@ module CFG = struct
     let final = Hashtbl.find_exn v_to_id t.final in
     (start, auto, final)
 
+  let merge_basic_blocks' (t : t) : unit =
+    let rec do_node (v : G.V.t) =
+      if G.Mark.get v = 0 then begin
+        eprintf "node\n";
+        G.Mark.set v 1;
+        G.succ_e t.graph v |> List.iter ~f:do_succ;
+        G.succ t.graph v |> List.iter ~f:do_node;
+      end
+    and do_succ (e : G.E.t) : unit =
+      eprintf "-> succ\n";
+      let src = G.E.src e in
+      let paths = do_path src true (G.E.label e) e in
+      G.remove_edge_e t.graph e;
+      List.iter paths ~f:(fun (lbl, dst) ->
+        let e = G.E.create src lbl dst in
+        G.add_edge_e t.graph e
+      );
+      eprintf "<- succ\n";
+    and do_path src singular lbl e : (G.E.label * G.V.t) list =
+      eprintf "  -> path\n";
+      let dst = G.E.dst e in
+      if G.V.equal src dst then 
+        (eprintf "  <- path\n"; [(lbl, dst)])
+      else
+      (* is this the only path that leads to dst? *)
+      let singular = singular && G.in_degree t.graph dst = 1 in
+      begin match G.succ_e t.graph dst with
+      | [] ->
+        [(lbl, dst)]
+      | es ->
+        if not singular || (Hashtbl.data (G.V.label dst) <> [True]) then
+          [(lbl, dst)]
+        else
+          List.concat_map es ~f:(fun e' ->
+            (* if singular then G.remove_edge_e t.graph e'; *)
+            let lbl' = G.E.label e' in
+            assert (guard_of_e e' = True);
+            do_path src singular (merge_lbls lbl lbl') e'
+          )
+      end
+      |> Util.tap ~f:(fun _ -> eprintf "  <- path\n")
+    and merge_lbls E.{ pred; prob=p1; action=a1 } E.{ prob=p2; action=a2 } =
+      let action = Map.merge_skewed a1 a2 ~combine:(fun ~key l r -> r) in
+      E.{ pred; prob = Prob.(p1 * p2); action }
+    in
+    G.Mark.clear t.graph;
+    do_node t.start
 
   let merge_actions acts =
     let combine ~key left right = right in
