@@ -259,13 +259,12 @@ module Constructors = struct
       | [(True, p)] -> p
       | branches -> Branch branches
 
-  let ite_cascade ?(disjoint=true) (xs : 'a list) ~(otherwise: 'field policy)
+  let ite_cascade ?(disjoint=false) (xs : 'a list) ~(otherwise: 'field policy)
     ~(f : 'a -> 'field pred * 'field policy) : 'field policy =
-    match disjoint with
-    | true ->
+    if disjoint && otherwise = drop then
       List.map xs ~f
       |> branch
-    | false ->
+    else
       List.fold_right xs ~init:otherwise ~f:(fun x acc ->
         let guard, body = f x in
         ite guard body acc
@@ -334,8 +333,11 @@ module Constructors = struct
     let n = Array.length ps in
     uniformi n ~f:(fun i -> ps.(i))
 
-
-  let mk_big_ite ~default = List.fold ~init:default ~f:(fun q (a, p) -> ite a p q)
+  let mk_big_ite ?(disjoint=false) ~default branches =
+    if disjoint && default = drop then
+      branch branches
+    else
+      List.fold branches ~init:default ~f:(fun q (a, p) -> ite a p q)
 
   let alias (id, aliasee) ~(mut:bool) body =
     Let { id; init = Alias aliasee; mut; body }

@@ -143,7 +143,7 @@ let links_from ?(dst_filter=fun _ -> true)
 let to_probnetkat (topo : Net.Topology.t) ~(guard_links:bool) : string policy =
   switches topo
   |> List.concat_map ~f:(raw_links_from topo ~guard_links ~dst_filter:(is_switch topo))
-  |> PNK.(mk_big_ite ~default:drop)
+  |> PNK.(mk_big_ite ~disjoint:true ~default:drop)
 
 let ingress (topo : Net.Topology.t) ~(dst: int) : string pred =
   ingress_locs topo ~dst

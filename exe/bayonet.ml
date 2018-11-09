@@ -31,7 +31,7 @@ module Model = struct
 
   let p =
     Topology.switches topo
-    |> PNK.ite_cascade ~otherwise:PNK.drop ~f:(fun sw ->
+    |> PNK.ite_cascade ~disjoint:true ~otherwise:PNK.drop ~f:(fun sw ->
       let sw = Topology.sw_val topo sw in
       PNK.(???(Params.sw, sw)), policy sw
     )

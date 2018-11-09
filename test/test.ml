@@ -336,7 +336,7 @@ let basic_performance = [
         !!(up i, 0) , 1//2;
         !!(up i, 1) , 1//2;
       ])
-      >> ite_cascade (List.range 0 n) ~otherwise:drop ~f:(fun i ->
+      >> ite_cascade (List.range 0 n) ~otherwise:drop ~disjoint:false ~f:(fun i ->
         ???(up i, 1),
         !!("pt", i) >>
         (* erasing the up fields here is crucial to making this scale, at the moment *)
@@ -457,7 +457,7 @@ let observe_tests = [
       ]
       |> then_observe False
     );
-  
+
   (* reweighting *)
   test fdd_equiv "observe reweighting"
     PNK.(
