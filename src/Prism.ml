@@ -239,6 +239,7 @@ module CFG = struct
 
   module Topo = Graph.Topological.Make_stable(G)
   module Dot = Graph.Graphviz.Dot(G)
+  module Leaderlist = Graph.Leaderlist.Make(G)
 
   type t = {
     graph : G.t;
@@ -289,6 +290,7 @@ module CFG = struct
       )
       t.graph (Automaton.drop_state + 1)
     |> ignore;
+    (* SJS/FIXME: only keep reachable states. *)
     let auto =
       Hashtbl.fold v_to_id ~init:Automaton.empty ~f:(fun ~key:v ~data:i auto ->
         if G.V.equal v t.drop then auto else
@@ -315,6 +317,47 @@ module CFG = struct
     let start = Hashtbl.find_exn v_to_id t.start in
     let final = Hashtbl.find_exn v_to_id t.final in
     (start, auto, final)
+
+
+  let merge_actions acts =
+    let combine ~key left right = right in
+    List.fold acts ~init:Transition.skip ~f:(Map.merge_skewed ~combine)
+
+  let merge_basic_blocks (t : t) : unit =
+    let blocks = Leaderlist.leader_lists t.graph t.start in
+    List.iter blocks ~f:(fun block ->
+    match block with
+    | first::_ when G.out_degree t.graph first = 1 ->
+      let edges, actions = List.map block ~f:(fun v ->
+        match G.succ_e t.graph v with
+          | [e] ->
+            G.remove_edge_e t.graph e;
+            let E.{ pred; prob; action } = G.E.label e in
+            let guard = Hashtbl.find_exn G.(V.label (E.src e)) pred in
+            assert (guard = True && Prob.(equal prob one));
+            (e, action)
+          | _ -> failwith "invalid basic block"
+        )
+        |> List.unzip
+      in
+      let dst = G.E.dst (List.last_exn edges) in
+      if G.in_degree t.graph first = 0 || G.V.equal first dst then
+        let lbl = G.E.label (List.hd_exn edges) in
+        let action = merge_actions actions in
+        G.add_edge_e t.graph (G.E.create first E.{lbl with action} dst)
+      else
+        List.iter (G.pred_e t.graph first) ~f:(fun e ->
+          let src = G.E.src e in
+          let lbl = G.E.label e in
+          let action = merge_actions E.(lbl.action :: actions) in
+          G.remove_edge_e t.graph e;
+          G.add_edge_e t.graph (G.E.create src E.{lbl with action} dst)
+        )
+    | _ -> ()
+    );
+    G.iter_vertex
+      (fun v -> if G.out_degree t.graph v = 0 then G.remove_vertex t.graph v)
+      t.graph
 
 end
 
