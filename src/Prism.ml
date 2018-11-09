@@ -78,6 +78,20 @@ module Automaton = struct
   let thompson (p : string policy) : t * int * int list =
     let rec thompson p auto : t * int * int list =
       match p with
+      | Filter True ->
+        let (state, auto) = add_state auto [{
+            guard = True;
+            transitions = TransitionDist.none
+          }]
+        in
+        (auto, state, [state])
+      | Filter False ->
+        let (state, auto) = add_state auto [{
+            guard = True;
+            transitions = TransitionDist.dirac (Transition.to_state drop_state)
+          }]
+        in
+        (auto, state, [state])
       | Filter pred ->
         let (state, auto) =
           add_state auto [
@@ -226,19 +240,8 @@ module CFG = struct
     type t = (string pred) Int.Table.t
   end
 
-  module G = struct
-    include Graph.Imperative.Digraph.AbstractLabeled(V)(E)
-    let edge_attributes _ = []
-    let default_edge_attributes _ = []
-    let vertex_attributes _ = []
-    let default_vertex_attributes _ = []
-    let graph_attributes _ = []
-    let get_subgraph _ = None
-    let vertex_name _ = "TODO"
-  end
-
+  module G = Graph.Imperative.Digraph.AbstractLabeled(V)(E)
   module Topo = Graph.Topological.Make_stable(G)
-  module Dot = Graph.Graphviz.Dot(G)
   module Leaderlist = Graph.Leaderlist.Make(G)
   module Dfs = Graph.Traverse.Dfs(G)
 
@@ -254,6 +257,64 @@ module CFG = struct
     let preds = G.V.label src in
     let E.{ pred; _ } = G.E.label e in
     Hashtbl.find_exn preds pred
+
+
+  let ids ?(tbl) (t : t) : (G.V.t, int) Hashtbl.t =
+    let v_to_id : (G.V.t, int) Hashtbl.t = match tbl with
+      | None -> Hashtbl.Poly.create ()
+      | Some tbl -> tbl
+    in
+    Hashtbl.add_exn v_to_id ~key:t.drop ~data:Automaton.drop_state;
+    let next = ref (Automaton.drop_state + 1) in
+    let allocate v = Hashtbl.update v_to_id v ~f:(function
+        | None -> let id = !next in incr next; id
+        | Some id -> id
+      )
+    in
+    Dfs.prefix allocate t.graph;
+    v_to_id
+
+  let prune (t : t) : unit =
+    let prune_unmarked v = if G.Mark.get v = 0 then G.remove_vertex t.graph v in
+    G.Mark.clear t.graph;
+    Dfs.prefix_component (fun v -> G.Mark.set v 1) t.graph t.start;
+    G.iter_vertex prune_unmarked t.graph
+
+  module Dot = struct
+    let id_tbl : (G.V.t, int) Hashtbl.t = Hashtbl.Poly.create ()
+    let id = Hashtbl.find_exn id_tbl
+    let start = ref 0
+    let drop = ref 0
+    let final = ref 0
+    module T = Graph.Graphviz.Dot(struct
+      include G
+      let edge_attributes e =
+        let guard = guard_of_e e in
+        (* [] *)
+        [`Label (Format.asprintf "%a" Syntax.pp_policy (Filter guard))]
+      let default_edge_attributes _ = []
+      let vertex_attributes v = []
+      let default_vertex_attributes _ = []
+      let graph_attributes _ = []
+      let get_subgraph _ = None
+      let vertex_name v = Format.sprintf "%d" (id v)
+    end)
+
+    let prepare g =
+      Hashtbl.clear id_tbl;
+      ignore (ids ~tbl:id_tbl g);
+      start := id g.start;
+      drop := id g.drop;
+      final := id g.final
+
+    let fprint_graph fmt g =
+      prepare g;
+      T.fprint_graph fmt g.graph
+
+    let output_graph ch g =
+      prepare g;
+      T.fprint_graph ch g.graph
+  end
 
   let of_automaton (start, auto, final : int * Automaton.t * int) : t =
     let g = G.create ~size:(Map.length auto) () in
@@ -288,25 +349,6 @@ module CFG = struct
       drop = Map.find_exn m Automaton.drop_state;
     }
 
-  let ids (t : t) : (G.V.t, int) Hashtbl.t =
-    let v_to_id : (G.V.t, int) Hashtbl.t = Hashtbl.Poly.create () in
-    Hashtbl.add_exn v_to_id ~key:t.drop ~data:Automaton.drop_state;
-    let next = ref (Automaton.drop_state + 1) in
-    let allocate v =
-      Hashtbl.update v_to_id v ~f:(function
-        | None -> let id = !next in incr next; id
-        | Some id -> id
-      )
-    in
-    Dfs.prefix allocate t.graph;
-    v_to_id
-
-  let prune (t : t) : unit =
-    G.Mark.clear t.graph;
-    Dfs.prefix_component (fun v -> G.Mark.set v 1) t.graph t.start;
-    G.iter_vertex (fun v -> if G.Mark.get v = 0 then G.remove_vertex t.graph v)
-      t.graph
-
   let to_automaton (t : t) : int * Automaton.t * int =
     prune t;
     let v_to_id = ids t in
@@ -337,16 +379,14 @@ module CFG = struct
     let final = Hashtbl.find_exn v_to_id t.final in
     (start, auto, final)
 
-  let merge_basic_blocks' (t : t) : unit =
+  let merge_basic_blocks (t : t) : unit =
     let rec do_node (v : G.V.t) =
       if G.Mark.get v = 0 then begin
-        eprintf "node\n";
         G.Mark.set v 1;
         G.succ_e t.graph v |> List.iter ~f:do_succ;
         G.succ t.graph v |> List.iter ~f:do_node;
       end
     and do_succ (e : G.E.t) : unit =
-      eprintf "-> succ\n";
       let src = G.E.src e in
       let paths = do_path src true (G.E.label e) e in
       G.remove_edge_e t.graph e;
@@ -354,13 +394,9 @@ module CFG = struct
         let e = G.E.create src lbl dst in
         G.add_edge_e t.graph e
       );
-      eprintf "<- succ\n";
     and do_path src singular lbl e : (G.E.label * G.V.t) list =
-      eprintf "  -> path\n";
       let dst = G.E.dst e in
-      if G.V.equal src dst then 
-        (eprintf "  <- path\n"; [(lbl, dst)])
-      else
+      if G.V.equal src dst then [(lbl, dst)] else
       (* is this the only path that leads to dst? *)
       let singular = singular && G.in_degree t.graph dst = 1 in
       begin match G.succ_e t.graph dst with
@@ -371,59 +407,17 @@ module CFG = struct
           [(lbl, dst)]
         else
           List.concat_map es ~f:(fun e' ->
-            (* if singular then G.remove_edge_e t.graph e'; *)
             let lbl' = G.E.label e' in
             assert (guard_of_e e' = True);
             do_path src singular (merge_lbls lbl lbl') e'
           )
       end
-      |> Util.tap ~f:(fun _ -> eprintf "  <- path\n")
     and merge_lbls E.{ pred; prob=p1; action=a1 } E.{ prob=p2; action=a2 } =
       let action = Map.merge_skewed a1 a2 ~combine:(fun ~key l r -> r) in
       E.{ pred; prob = Prob.(p1 * p2); action }
     in
     G.Mark.clear t.graph;
     do_node t.start
-
-  let merge_actions acts =
-    let combine ~key left right = right in
-    List.fold acts ~init:Transition.skip ~f:(Map.merge_skewed ~combine)
-
-  let merge_basic_blocks (t : t) : unit =
-    let blocks = Leaderlist.leader_lists t.graph t.start in
-    List.iter blocks ~f:(fun block ->
-    match block with
-    | first::_ when G.out_degree t.graph first = 1 ->
-      let edges, actions = List.map block ~f:(fun v ->
-        match G.succ_e t.graph v with
-          | [e] ->
-            G.remove_edge_e t.graph e;
-            let E.{ pred; prob; action } = G.E.label e in
-            let guard = Hashtbl.find_exn G.(V.label (E.src e)) pred in
-            assert (guard = True && Prob.(equal prob one));
-            (e, action)
-          | _ -> failwith "invalid basic block"
-        )
-        |> List.unzip
-      in
-      let dst = G.E.dst (List.last_exn edges) in
-      if G.in_degree t.graph first = 0 || G.V.equal first dst then
-        let lbl = G.E.label (List.hd_exn edges) in
-        let action = merge_actions actions in
-        G.add_edge_e t.graph (G.E.create first E.{lbl with action} dst)
-      else
-        List.iter (G.pred_e t.graph first) ~f:(fun e ->
-          let src = G.E.src e in
-          let lbl = G.E.label e in
-          let action = merge_actions E.(lbl.action :: actions) in
-          G.remove_edge_e t.graph e;
-          G.add_edge_e t.graph (G.E.create src E.{lbl with action} dst)
-        )
-    | _ -> ()
-    );
-    G.iter_vertex
-      (fun v -> if G.out_degree t.graph v = 0 then G.remove_vertex t.graph v)
-      t.graph
 
 end
 
