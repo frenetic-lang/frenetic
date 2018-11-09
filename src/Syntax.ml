@@ -159,8 +159,11 @@ let pp_policy fmt (p : string policy) =
         fprintf fmt "@[%a@ %@@ %a;@;@]" (do_pol `CHOICE) p Prob.pp q);
       fprintf fmt "@;<1-0>}@]"
     | Branch ((a,p)::branches) ->
-      fprintf fmt "@[IF@ @[<2>%a@]@ THEN@ @[<2>%a@]@ ELSE@ @[<2>%a@]@]"
+      fprintf fmt "@[CASE@ @[<2>%a@]@ THEN@ @[<2>%a@]@ ELSE@ @[<2>%a@]@]"
         (do_pred `COND) a (do_pol `ITE_L) p (do_pol `ITE_R) (Branch branches)
+    | Branch [(a,p)] ->
+      fprintf fmt "@[CASE@ @[<2>%a@]@ THEN@ @[<2>%a@]@]"
+        (do_pred `COND) a (do_pol `ITE_L) p
     | Branch [] ->
       do_pred ctxt fmt False
     | ObserveUpon (p, a) ->
