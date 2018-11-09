@@ -77,6 +77,11 @@ let input_dist =
   [ (init, Prob.one) ]
 
 let () = begin
-  Prism.Code.of_pol Model.model ~input_dist
+  (* Prism.Code.of_pol Model.model ~input_dist *)
+  Prism.Automaton.of_pol Model.model ~input_dist
+  |> Prism.CFG.of_automaton
+  |> Prism.CFG.to_automaton
+  |> (fun auto -> Prism.(Ast.model_of_auto auto (Domain.of_pol Model.model)))
+  |> Prism.Code.of_model
   |> printf "%s"
 end

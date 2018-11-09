@@ -36,7 +36,7 @@ module Automaton = struct
 
   type t = state Int.Map.t
 
-  let drop_state = 0
+  let drop_state = -1
   let empty = Int.Map.singleton drop_state [{
     guard = True;
     transitions = TransitionDist.dirac (Transition.to_state drop_state)
@@ -243,11 +243,11 @@ module CFG = struct
   type t = {
     graph : G.t;
     start : G.V.t;
-    final : G.V.t list;
+    final : G.V.t;
     drop : G.V.t;
   }
 
-  let of_automaton (auto, start, final : Automaton.t * int * int list) : t =
+  let of_automaton (start, auto, final : int * Automaton.t * int) : t =
     let g = G.create ~size:(Map.length auto) () in
     let m = Map.map auto ~f:(fun state ->
       let v = G.V.create (Int.Table.create ()) in
@@ -264,7 +264,7 @@ module CFG = struct
         |> List.iter ~f:(fun (action, prob) ->
           match Map.find action next_state with
           | None ->
-            assert (List.mem final state ~equal:Int.equal && Map.is_empty action)
+            assert (Int.equal final state && Map.is_empty action)
           | Some (`Field _) ->
             assert false
           | Some (`Int succ) ->
@@ -276,11 +276,11 @@ module CFG = struct
     ); 
     { graph = g;
       start = Map.find_exn m start;
-      final = List.map final ~f:(Map.find_exn m);
+      final = Map.find_exn m final;
       drop = Map.find_exn m Automaton.drop_state;
     }
 
-  let to_automaton (t : t) : Automaton.t * int * int list =
+  let to_automaton (t : t) : int * Automaton.t * int =
     let v_to_id : (G.V.t, int) Hashtbl.t = Hashtbl.Poly.create () in
     Hashtbl.add_exn v_to_id ~key:t.drop ~data:Automaton.drop_state;
     Topo.fold (fun v next_id ->
@@ -291,11 +291,14 @@ module CFG = struct
     |> ignore;
     let auto =
       Hashtbl.fold v_to_id ~init:Automaton.empty ~f:(fun ~key:v ~data:i auto ->
+        if G.V.equal v t.drop then auto else
         let preds = G.V.label v in
         let rules =
           G.succ_e t.graph v
           |> List.map ~f:(fun e ->
             let E.{pred; prob; action} = G.E.label e in
+            let dst = Hashtbl.find_exn v_to_id (G.E.dst e) in
+            let action = Map.set action ~key:next_state ~data:(`Int dst) in
             (pred, (action, prob))
           )
           |> Map.of_alist_multi (module Int)
@@ -310,8 +313,8 @@ module CFG = struct
       )
     in
     let start = Hashtbl.find_exn v_to_id t.start in
-    let final = List.map t.final ~f:(Hashtbl.find_exn v_to_id)in
-    (auto, start, final)
+    let final = Hashtbl.find_exn v_to_id t.final in
+    (start, auto, final)
 
 end
 
@@ -420,11 +423,10 @@ module Ast = struct
     )
     |> List.filter ~f:(function { guard = False; _ } -> false | _ -> true)
 
-  let model_of_pol p ~(input_dist : input_dist) : model =
-    let (start, auto, final) = Automaton.of_pol p ~input_dist in
+  let model_of_auto (start, auto, final : int * Automaton.t * int) (dom : Domain.t) : model =
     let state_subst = Int.Table.create () in
     (* rename states *)
-    Hashtbl.add_exn state_subst ~key:Automaton.drop_state ~data:(-1);
+    Hashtbl.add_exn state_subst ~key:Automaton.drop_state ~data:(Automaton.drop_state);
     Hashtbl.add_exn state_subst ~key:final ~data:0;
     Hashtbl.add_exn state_subst ~key:start ~data:1;
     Map.keys auto
@@ -440,9 +442,13 @@ module Ast = struct
         upper_bound = Map.length auto - 2;
         init = Some (Hashtbl.find_exn state_subst start) }
     in
-    let decls = state_decl :: decls_of_domain (Domain.of_pol p) in
+    let decls = state_decl :: decls_of_domain dom in
     let rules = rules_of_auto auto state_subst in
     { decls; rules}
+
+  let model_of_pol p ~input_dist : model =
+    let domain = Domain.of_pol p in
+    model_of_auto (Automaton.of_pol p ~input_dist) domain
 end
 
 
