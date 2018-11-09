@@ -11,6 +11,7 @@
     findlib
     frenetic
     open
+    ocamlgraph
   ))
   (preprocess (pps (ppx_deriving.std
                     ppx_jane

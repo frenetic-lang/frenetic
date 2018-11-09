@@ -4,7 +4,7 @@ open Syntax
 type input_dist = ((string * int) list * Prob.t) list
 
 (* SJS/FIXME: ensure this field is unused by user program. *)
-let state = "__state__"
+let next_state = "__state__"
 
 module Transition = struct
   type value = [`Int of int | `Field of string] [@@deriving hash, sexp, compare]
@@ -14,7 +14,7 @@ module Transition = struct
   let to_string _ = failwith "not implemented"
   let skip : t = Base.Map.empty (module String)
   let of_mod (f, v) : t = Base.Map.singleton (module String) f (`Int v)
-  let to_state s : t = Base.Map.singleton (module String) state (`Int s)
+  let to_state s : t = Base.Map.singleton (module String) next_state (`Int s)
 end
 
 module TransitionDist = struct
@@ -59,7 +59,7 @@ module Automaton = struct
         List.map rules ~f:(fun rule ->
           let transitions =
             TransitionDist.pushforward rule.transitions ~f:(fun trans ->
-              Base.Map.update trans state ~f:(function
+              Base.Map.update trans next_state ~f:(function
                 | None -> `Int dst
                 | Some v -> v
               )
@@ -189,7 +189,7 @@ module Automaton = struct
     (* add start state *)
     let transitions =
       Util.map_fst input_dist ~f:(fun assignments ->
-        (state, start') :: assignments
+        (next_state, start') :: assignments
         |> Util.map_snd ~f:(fun n -> `Int n)
         |> Base.Map.of_alist_exn (module String)
       )
@@ -202,6 +202,75 @@ module Automaton = struct
     let auto = wire auto final final in
     (start, auto, final)
 end
+
+
+(** {2 Prism Control Flow Graph}  *)
+module CFG = struct
+  (* edge label: predicate, probability, action *)
+  module E = struct
+    type t = {
+      pred : int;
+      prob : Prob.t;
+      action : Transition.t;
+    } [@@deriving compare]
+
+    let default = {
+      pred = -1;
+      prob = Prob.zero;
+      action = Transition.skip;
+    }
+  end
+
+  (* vertex label:  *)
+  module V = struct
+    type t = (string pred) Int.Table.t
+  end
+
+  module G = Graph.Imperative.Digraph.AbstractLabeled(V)(E)
+
+  type t = {
+    graph : G.t;
+    start : G.V.t;
+    final : G.V.t list;
+  }
+
+  let of_automaton (auto, start, final : Automaton.t * int * int list) : t =
+    let g = G.create ~size:(Map.length auto) () in
+    let m = Map.map auto ~f:(fun state ->
+      let v = G.V.create (Int.Table.create ()) in
+      G.add_vertex g v;
+      v
+    )
+    in
+    Map.iteri auto ~f:(fun ~key:state ~data:rules ->
+      let open Automaton in
+      let v = Map.find_exn m state in
+      List.iteri rules ~f:(fun i rule ->
+        Hashtbl.add_exn (G.V.label v) ~key:i ~data:rule.guard;
+        TransitionDist.to_alist rule.transitions
+        |> List.iter ~f:(fun (action, prob) ->
+          match Map.find action next_state with
+          | None ->
+            assert (List.mem final state ~equal:Int.equal && Map.is_empty action)
+          | Some (`Field _) ->
+            assert false
+          | Some (`Int succ) ->
+            let v' = Map.find_exn m succ in
+            let e = E.{ pred = i; prob; action; } in
+            G.add_edge_e g (G.E.create v e v')
+        )
+      )
+    ); 
+    { graph = g;
+      start = Map.find_exn m start;
+      final = List.map final ~f:(Map.find_exn m);
+    }
+
+  let to_automaton (t : t) : Automaton.t * int * int list =
+    failwith "todo"
+
+end
+
 
 
 
@@ -283,11 +352,11 @@ module Ast = struct
 
   let rule_of_auto_rule ({ guard; transitions } : Automaton.rule)
     (state_id : int) (subst : (int, int) Hashtbl.t) : Automaton.rule =
-    let guard = PNK.(test (state, state_id) & guard) in
+    let guard = PNK.(test (next_state, state_id) & guard) in
     (* rename states *)
     let transitions =
       TransitionDist.pushforward transitions ~f:(fun t ->
-        Base.Map.change t state ~f:(function
+        Base.Map.change t next_state ~f:(function
           | None -> None
           | Some (`Int s) -> Some (`Int (Hashtbl.find_exn subst s))
           | Some _ -> failwith "invalid transition"
@@ -322,7 +391,7 @@ module Ast = struct
     );
 
     let state_decl =
-      { name = state;
+      { name = next_state;
         lower_bound = -1;
         upper_bound = Map.length auto - 2;
         init = Some (Hashtbl.find_exn state_subst start) }
