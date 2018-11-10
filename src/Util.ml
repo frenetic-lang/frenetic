@@ -12,9 +12,9 @@ let time' f = time f ()
 let print_times = ref true 
 
 let timed' (descr : string) (f : 'a  -> 'b) (x : 'a) : 'b =
-  if !print_times then printf "start %s...\n%!" descr;
+  if !print_times then eprintf "start %s...\n%!" descr;
   let t, y = time f x in
-  if !print_times then printf "--> %s done! %f seconds\n%!" descr t;
+  if !print_times then eprintf "--> %s done! %f seconds\n%!" descr t;
   y
 
 let timed (descr : string) (f : unit -> 'a) : 'a =

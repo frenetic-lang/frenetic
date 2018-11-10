@@ -85,6 +85,6 @@ let () = begin
   |> Util.timed' "cfg -> auto" Prism.CFG.to_automaton
   |> (fun auto -> Prism.(Ast.model_of_auto auto (Domain.of_pol Model.model)))
   |> Prism.Code.of_model
-  (* |> printf "%s" *)
+  |> printf "%s"
   |> ignore
 end

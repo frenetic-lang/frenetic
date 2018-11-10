@@ -241,6 +241,11 @@ module CFG = struct
   end
 
   module G = Graph.Imperative.Digraph.AbstractLabeled(V)(E)
+  module VTbl = Hashtbl.Make(struct
+    include G.V
+    let sexp_of_t _ = failwith "not implemented"
+    let t_of_sexp _ = failwith "not implemented"
+  end)
   module Topo = Graph.Topological.Make_stable(G)
   module Leaderlist = Graph.Leaderlist.Make(G)
   module Dfs = Graph.Traverse.Dfs(G)
@@ -261,7 +266,7 @@ module CFG = struct
 
   let ids ?(from_root) ?(tbl) (t : t) : (G.V.t, int) Hashtbl.t =
     let v_to_id : (G.V.t, int) Hashtbl.t = match tbl with
-      | None -> Hashtbl.Poly.create ()
+      | None -> VTbl.create ()
       | Some tbl -> tbl
     in
     let dfs = match from_root with
@@ -285,7 +290,7 @@ module CFG = struct
     G.iter_vertex prune_unmarked t.graph
 
   module Dot = struct
-    let id_tbl : (G.V.t, int) Hashtbl.t = Hashtbl.Poly.create ()
+    let id_tbl : (G.V.t, int) Hashtbl.t = VTbl.create ()
     let id = Hashtbl.find_exn id_tbl
     let start = ref 0
     let drop = ref 0
@@ -382,7 +387,18 @@ module CFG = struct
     let final = Hashtbl.find_exn v_to_id t.final in
     (start, auto, final)
 
+  let in_degree (t : t) : (G.V.t -> int) Staged.t =
+    let tbl = VTbl.create ~size:(G.nb_vertex t.graph) () in
+    let touch _ dst = Hashtbl.update tbl dst ~f:(function
+      | None -> 1
+      | Some n -> n + 1
+    )
+    in
+    G.iter_edges touch t.graph;
+    Staged.stage (Hashtbl.find_exn tbl)
+
   let merge_basic_blocks (t : t) : unit =
+    let in_degree = Staged.unstage (in_degree t) in
     let rec do_node (v : G.V.t) =
       if G.Mark.get v = 0 then begin
         G.Mark.set v 1;
@@ -401,7 +417,7 @@ module CFG = struct
       let dst = G.E.dst e in
       if G.V.equal src dst then [(lbl, dst)] else
       (* is this the only path that leads to dst? *)
-      let singular = singular && G.in_degree t.graph dst = 1 in
+      let singular = singular && in_degree dst = 1 in
       begin match G.succ_e t.graph dst with
       | [] ->
         [(lbl, dst)]
