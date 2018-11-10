@@ -259,10 +259,14 @@ module CFG = struct
     Hashtbl.find_exn preds pred
 
 
-  let ids ?(tbl) (t : t) : (G.V.t, int) Hashtbl.t =
+  let ids ?(from_root) ?(tbl) (t : t) : (G.V.t, int) Hashtbl.t =
     let v_to_id : (G.V.t, int) Hashtbl.t = match tbl with
       | None -> Hashtbl.Poly.create ()
       | Some tbl -> tbl
+    in
+    let dfs = match from_root with
+      | None -> Dfs.prefix
+      | Some v -> fun f g  -> Dfs.prefix_component f g v
     in
     Hashtbl.add_exn v_to_id ~key:t.drop ~data:Automaton.drop_state;
     let next = ref (Automaton.drop_state + 1) in
@@ -271,7 +275,7 @@ module CFG = struct
         | Some id -> id
       )
     in
-    Dfs.prefix allocate t.graph;
+    dfs allocate t.graph;
     v_to_id
 
   let prune (t : t) : unit =
@@ -350,8 +354,7 @@ module CFG = struct
     }
 
   let to_automaton (t : t) : int * Automaton.t * int =
-    prune t;
-    let v_to_id = ids t in
+    let v_to_id = ids t ~from_root:t.start in
     let auto =
       Hashtbl.fold v_to_id ~init:Automaton.empty ~f:(fun ~key:v ~data:i auto ->
         if G.V.equal v t.drop then auto else

@@ -78,12 +78,13 @@ let input_dist =
 
 let () = begin
   (* Prism.Code.of_pol Model.model ~input_dist *)
-  Prism.Automaton.of_pol Model.model ~input_dist
-  |> Prism.CFG.of_automaton
-  |> Util.tap ~f:Prism.CFG.merge_basic_blocks
-  |> Util.tap ~f:Prism.CFG.prune
-  |> Prism.CFG.to_automaton
+  Model.model
+  |> Util.timed' "pol -> auto" (Prism.Automaton.of_pol ~input_dist)
+  |> Util.timed' "auto -> cfg" Prism.CFG.of_automaton
+  |> Util.timed' "cfg: basic blocks" (Util.tap ~f:Prism.CFG.merge_basic_blocks)
+  |> Util.timed' "cfg -> auto" Prism.CFG.to_automaton
   |> (fun auto -> Prism.(Ast.model_of_auto auto (Domain.of_pol Model.model)))
   |> Prism.Code.of_model
-  |> printf "%s"
+  (* |> printf "%s" *)
+  |> ignore
 end

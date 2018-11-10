@@ -10,11 +10,15 @@ let time f x =
 let time' f = time f ()
 
 let print_times = ref true 
-let timed (descr : string) (f : unit -> 'a) : 'a =
+
+let timed' (descr : string) (f : 'a  -> 'b) (x : 'a) : 'b =
   if !print_times then printf "start %s...\n%!" descr;
-  let t, y = time f () in
+  let t, y = time f x in
   if !print_times then printf "--> %s done! %f seconds\n%!" descr t;
   y
+
+let timed (descr : string) (f : unit -> 'a) : 'a =
+  timed' descr f ()
 
 let print_time time =
   printf "time: %.4f\n" time
