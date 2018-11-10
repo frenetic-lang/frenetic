@@ -36,6 +36,7 @@ module Model = struct
       PNK.(???(Params.sw, sw)), policy sw
     )
 
+  (* SJS: equivalent, but more factored *)
   let p' =
     let sws = Topology.switches topo |> List.map ~f:(Topology.sw_val topo) in
     let sws0, sws = List.partition_tf sws ~f:(fun sw -> sw mod 4 = 0) in
@@ -85,7 +86,7 @@ module Model = struct
   let model = PNK.(
     ingress >>
     whl (neg egress) (
-      p' >> (ite egress skip t)
+      p >> (ite egress skip t)
     )
   )
 end
