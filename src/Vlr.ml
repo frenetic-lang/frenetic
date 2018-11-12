@@ -66,6 +66,45 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   module Tbl = Int.Table
 
   module BinTbl = IntPairTbl
+  module HSet = Hash_set.Make(Int)
+
+    (** {2} timed versions of the compilation functions *)
+  let stats_tbl : (string, float list) Hashtbl.t = String.Table.create ()
+  let clear_stats () = Hashtbl.clear stats_tbl
+  let measure key f =
+    let t,x = Util.time' f in
+    Hashtbl.add_multi stats_tbl key t;
+    x
+
+  (* total number of measurements *)
+  let n_of_meas () =
+    Hashtbl.fold stats_tbl ~init:0 ~f:(fun ~key:_ ~data acc ->
+      acc + List.length data
+    )
+
+  (* total time measured *)
+  let t_of_meas () =
+    Hashtbl.fold stats_tbl ~init:0. ~f:(fun ~key:_ ~data init ->
+      List.fold data ~init ~f:(+.)
+    )
+
+  let print_stats () =
+    let n = n_of_meas () in
+    let t = t_of_meas () in
+    Hashtbl.to_alist stats_tbl
+    |> List.map ~f:(fun (key, data) ->
+      let ni = List.length data in
+      let ti = List.fold data ~init:0. ~f:(+.) in
+      let k = PrintBox.sprintf "%s:" key in
+      let rel = PrintBox.sprintf "# = %d (%.1f%%)" ni Float.((of_int ni) / (of_int n) * 100.) in
+      let tot = PrintBox.sprintf "t = %.0fs (%.1f%%)" ti (ti /. t *. 100.) in
+      [| k; rel; tot; |]
+    )
+    |> Array.of_list
+    |> PrintBox.grid
+    |> PrintBox_text.output stdout;
+    printf "\n%!"
+
 
   let mk_leaf r = T.get (Leaf r)
 
@@ -189,6 +228,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     sum' x y
 
 
+
   let rec prod' x y =
     let key = if x <= y then (x, y) else (y, x) in
     BinTbl.find_or_add binary_cache key ~default:(fun () ->
@@ -232,6 +272,11 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
         |> loop r
     in
     loop t []
+
+  let size t : int =
+    childreen t
+    |> Int.Set.of_list
+    |> Set.length
 
   let clear_cache ~(preserve : Int.Set.t) =
     (* SJS: the interface exposes `id` and `drop` as constants,
@@ -361,4 +406,10 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   let deserialize (s : string) : t =
     Sexp.of_string s
     |> node_of_sexp
+
+  let restrict lst t = measure "restrict" (fun () -> restrict lst t)
+  let sum x y = measure "sum" (fun () -> sum x y)
+  let prod x y = measure "prod" (fun () -> prod x y)
+  let cond v t f = measure "cond" (fun () -> cond v t f)
+  let unchecked_cond v t f = measure "unchecked cond" (fun () -> cond v t f)
 end

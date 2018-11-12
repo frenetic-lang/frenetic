@@ -12,6 +12,7 @@
     frenetic
     open
     ocamlgraph
+    printbox
   ))
   (preprocess (pps (ppx_deriving.std
                     ppx_jane

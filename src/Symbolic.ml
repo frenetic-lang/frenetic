@@ -1525,8 +1525,12 @@ module Fdd = struct
   let of_test hv =
     atom hv FactorizedActionDist.one FactorizedActionDist.zero
 
+  let of_test hv = measure "of_test" (fun () -> of_test hv)
+
   let of_mod (f,v) =
     const (FactorizedActionDist.dirac (Action.Action (PreAction.T.singleton f v)))
+
+  let of_mod hv = measure "of_mod" (fun () -> of_mod hv)
 
   let negate fdd =
     dp_map_r fdd ~f:FactorizedActionDist.negate
@@ -1539,6 +1543,8 @@ module Fdd = struct
     | And(p, q) -> prod (of_pred p) (of_pred q)
     | Or (p, q) -> sum (of_pred p) (of_pred q)
     | Neg(q)    -> negate (of_pred q)
+
+  let of_pred a = measure "of_pred" (fun () -> of_pred a)
 
 
   (* SJS: copied and adopted apply algorithm from Vlr.ml *)
@@ -1579,6 +1585,8 @@ module Fdd = struct
     if Prob.(equal one prob) then t1 else
     sum t1 t2
 
+  let convex_sum t1 p t2 = measure "convex sum" (fun () -> convex_sum t1 p t2)
+
   let n_ary_convex_sum xs : t =
     let xs =
       List.filter xs ~f:(fun (_, p) -> Prob.(p>zero))
@@ -1606,6 +1614,7 @@ module Fdd = struct
     (* assert Prob.(equal mass one); *)
     t
 
+  let n_ary_convex_sum xs = measure "n-ary convex sum" (fun () -> n_ary_convex_sum xs)
 
   (* SJS: cannot reuse binary_cache, since seq calls n_ary_convex sum *)
   let seq_cache = BinTbl.create ~size:10000 ()
@@ -1630,20 +1639,75 @@ module Fdd = struct
         ]
     )
 
-  let seq t u =
-    Hashtbl.clear seq_cache;
-    match unget u with
-    | Leaf _ -> prod t u (* This is an optimization. If [u] is an
-                            [Action.Par.t], then it will compose with [t]
-                            regardless of however [t] modifies packets. None
-                            of the decision variables in [u] need to be
-                            removed because there are none. *)
-    | Branch _ ->
-      dp_map t
-        ~f:(fun dist -> dist_seq dist u)
-        ~g:(fun v t f -> cond v t f)
-        ~find_or_add:(fun t -> BinTbl.find_or_add seq_cache (t,u))
+  let dist_seq d u = measure "dist seq" (fun () -> dist_seq d u)
 
+
+
+  let seq t u =
+    let cond v t f = measure "seq cond" (fun () -> cond v t f) in
+    let time, x = Util.time' (fun () ->
+      Hashtbl.clear seq_cache;
+      match unget u with
+      | Leaf _ -> prod t u (* This is an optimization. If [u] is an
+                              [Action.Par.t], then it will compose with [t]
+                              regardless of however [t] modifies packets. None
+                              of the decision variables in [u] need to be
+                              removed because there are none. *)
+      | Branch _ ->
+        dp_map t
+          ~f:(fun dist -> dist_seq dist u)
+          ~g:(fun v t f -> cond v t f)
+          ~find_or_add:(fun t -> BinTbl.find_or_add seq_cache (t,u))
+    )
+    in
+(*     if time >= 0.1 then begin
+      printf "Slow sequence:\n";
+      printf "t = %f seconds\n" time;
+      printf "|t1| = %d\n" (size t);
+      printf "|t2| = %d\n" (size u);
+      printf "|t1;t2| = %d\n\n" (size x);
+      render t;
+      render u;
+      exit (-1);
+    end; *)
+    x
+
+  let seq p q = measure "seq" (fun () -> seq p q)
+
+
+(*   let leaves t : HSet.t =
+    let set = HSet.create () in
+    let rec do_node t =
+      match unget t with
+      | Leaf _ -> Hash_set.add set t
+      | Branch { tru; fls; _ } -> do_node tru; do_node fls
+    in
+    do_node t;
+    set
+
+  let dist_seq d t =
+    FactorizedActionDist.to_joined d
+    |> ActionDist.to_alist
+    |> Util.map_fst ~f:(function
+      | Drop -> drop
+      | Action act as a ->
+        restrict (Map.to_alist act) t
+        |> map_r ~f:(fun fad -> FactorizedActionDist.(prod (dirac a) fad))
+    )
+    |> n_ary_convex_sum_t
+
+  let seq (t : t) (u : t) =
+    leaves t
+    |> Hash_set.to_list
+    |> List.map ~f:(fun leaf ->
+      let t_leave = dp_fold t
+        ~f:(fun r -> if equal (const r) leaf then id else drop)
+        ~g:unchecked_cond
+      in
+      let Leaf dist = unget leaf in
+      prod t_leave (dist_seq dist u)
+    )
+    |> List.fold ~init:drop ~f:sum *)
 
 
   (* FIXME: this skeleton is very large, so this may become a bottleneck.
@@ -1869,6 +1933,8 @@ module Fdd = struct
         failwith "unexpected behavior"
     )
 
+  let whl a p = measure "whl" (fun () -> whl a p)
+
 
   (* buggy, for some reason *)
 (*   let repeat n p =
@@ -1918,73 +1984,34 @@ module Fdd = struct
       |> dp_map_r ~f:FactorizedActionDist.observe_not_drop
     end
 
-
-  (** {2} timed versions of the compilation functions *)
-  let stats_tbl : (string, float list) Hashtbl.t = String.Table.create ()
-  let clear_stats () = Hashtbl.clear stats_tbl
-  let measure key f =
-    let t,x = Util.time' f in
-    Hashtbl.add_multi stats_tbl key t;
-    x
-
-  (* total number of measurements *)
-  let n_of_meas () =
-    Hashtbl.fold stats_tbl ~init:0 ~f:(fun ~key:_ ~data acc ->
-      acc + List.length data
-    )
-
-  (* total time measured *)
-  let t_of_meas () =
-    Hashtbl.fold stats_tbl ~init:0. ~f:(fun ~key:_ ~data init ->
-      List.fold data ~init ~f:(+.)
-    )
-
-  let print_stats () =
-    let n = n_of_meas () in
-    let t = t_of_meas () in
-    Hashtbl.iteri stats_tbl ~f:(fun ~key ~data ->
-      let ni = List.length data in
-      let ti = List.fold data ~init:0. ~f:(+.) in
-      printf "%s:\t" key;
-      printf "# = %d (%.1f%%)\t" ni Float.((of_int ni) / (of_int n) * 100.);
-      printf "t = %.0fs (%.1f%%)\t" ti (ti /. t *. 100.);
-      printf "\n%!";
-    )
-
-  let of_pred_t a = measure "pred" (fun () -> of_pred a)
-  let of_mod_t hv = measure "mod" (fun () -> of_mod hv)
-  let ite_t a p q = measure "ite" (fun () -> ite a p q)
-  let seq_t p q = measure "seq" (fun () -> seq p q)
-  let whl_t a p = measure "whl" (fun () -> whl a p)
-  let bounded_whl_t k a p = measure "k times" (fun () -> bounded_whl k a p)
-  let n_ary_convex_sum_t ps = measure "choice" (fun () -> n_ary_convex_sum ps)
-  let erase_t p f init = measure "erase" (fun () -> erase p f init)
-  let observe_upon_t p a = measure "obs" (fun () -> observe_upon p a)
+  let observe_upon p a = measure "obs" (fun () -> observe_upon p a)
+  let ite a p q = measure "ite" (fun () -> ite a p q)
+  let erase p f init = measure "erase" (fun () -> erase p f init)
 
 
   let rec of_pol_k bound (p : Field.t policy) k : t =
     match p with
     | Filter a ->
-      k (of_pred_t a)
+      k (of_pred a)
     | Modify m ->
-      k (of_mod_t m)
+      k (of_mod m)
     | Seq (p, q) ->
       of_pol_k bound p (fun p' ->
         if equal p' Fdd0.drop then
           k drop
         else
-          of_pol_k bound q (fun q' -> k (seq_t p' q')))
+          of_pol_k bound q (fun q' -> k (seq p' q')))
     | Ite (a, p, q) ->
-      let a = of_pred_t a in
+      let a = of_pred a in
       if equal a id then
         of_pol_k bound p k
       else if equal a drop then
         of_pol_k bound q k
       else
-        of_pol_k bound p (fun p -> of_pol_k bound q (fun q -> k (ite_t a p q)))
+        of_pol_k bound p (fun p -> of_pol_k bound q (fun q -> k (ite a p q)))
     | Branch branches ->
       List.filter_map branches ~f:(fun (a,p) ->
-        let a = of_pred_t a in
+        let a = of_pred a in
         if equal a drop then
           None
         else
@@ -1999,20 +2026,20 @@ module Fdd = struct
       of_pol_k bound p (fun p ->
         k (Util.timed "while loop" (fun () ->
           match bound with
-          | None -> whl_t a p
-          | Some k -> bounded_whl_t k a p
+          | None -> whl a p
+          | Some k -> bounded_whl k a p
         ))
       )
     | Choice dist ->
       Util.map_fst dist ~f:(fun p -> of_pol_k bound p ident)
-      |> n_ary_convex_sum_t
+      |> n_ary_convex_sum
       |> k
     | Let { id=field; init; mut; body=p } ->
-      of_pol_k bound p (fun p -> k (erase_t p field init))
+      of_pol_k bound p (fun p -> k (erase p field init))
     | ObserveUpon (p, a) ->
       let a = of_pred a in
       if equal a drop then k drop else
-      of_pol_k bound p (fun p -> k (observe_upon_t p a))
+      of_pol_k bound p (fun p -> k (observe_upon p a))
 
 
   let rec of_pol_cps bound (lctxt : t) (p : Field.t policy) : t =

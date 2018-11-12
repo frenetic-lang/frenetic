@@ -108,6 +108,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
   module Tbl : Hashtbl.S with type key = t
   module BinTbl : Hashtbl.S with type key = (t * t)
+  module HSet : Hash_set.S with type elt = t
 
   val cache_size : unit -> int
 
@@ -156,6 +157,8 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   val prod : t -> t -> t
   (** [prod a b] returns the conjunction of the two diagrams. The [prod]
       operation on the [r] type is used to combine leaf nodes. *)
+
+  val size : t -> int
 
   val map : f:(r -> t) -> g:(v -> t -> t -> t) -> t -> t
   (** [map f h t] traverses t in post order and first maps the leaves using
@@ -232,4 +235,8 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   val deserialize : string -> t
 
   val binary_cache : (t*t, t) Hashtbl.t
+
+  val clear_stats : unit -> unit
+  val measure : string -> (unit -> 'a) -> 'a
+  val print_stats : unit -> unit
 end
