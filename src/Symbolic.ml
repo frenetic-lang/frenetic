@@ -411,9 +411,10 @@ end = struct
     if is_zero x then y else
     if is_zero y then x else
     if is_one x && is_one y then x else
-      failwith (sprintf "multicast not implemented! cannot add (in the sense of &) %s and %s"
-        (to_string x) (to_string y)
-      )
+      sum x y
+      (* failwith (sprintf "multicast not implemented! cannot add (in the sense of &) %s and %s"
+       *   (to_string x) (to_string y)
+       * ) *)
 
   let split_into_conditionals dist (f,n) =
     let (yes, no, mb) =
@@ -434,16 +435,17 @@ end = struct
       )
     in
     let finish_conditional dist =
-      if List.is_empty dist then (zero, Prob.zero) else
-      let mass =
-        List.map dist ~f:snd
-        |> List.fold ~init:Prob.zero ~f:Prob.(+)
-      in
-      let dist =
-        Util.map_snd dist ~f:(fun p -> Prob.(p/mass))
-        |> of_alist_exn
-      in
-      (dist, mass)
+      (unchecked_of_alist_exn dist, Prob.one)
+      (* if List.is_empty dist then (zero, Prob.zero) else
+       * let mass =
+       *   List.map dist ~f:snd
+       *   |> List.fold ~init:Prob.zero ~f:Prob.(+)
+       * in
+       * let dist =
+       *   Util.map_snd dist ~f:(fun p -> Prob.(p/mass))
+       *   |> of_alist_exn
+       * in
+       * (dist, mass) *)
     in
     (finish_conditional yes, finish_conditional no, finish_conditional mb)
 
@@ -560,6 +562,7 @@ end = struct
     if is_zero x then y else
     if is_zero y then x else
     if is_one x && is_one y then x else
+      (* of_joined (ActionDist.sum (to_joined x) (to_joined y)) *)
       failwith (sprintf "multicast not implemented! cannot add (in the sense of &) %s and %s"
         (to_string x) (to_string y)
       )
@@ -1623,11 +1626,10 @@ module Fdd = struct
         let ((yes,p_yes), (no, p_no), (maybe, p_maybe)) =
           FactorizedActionDist.split_into_conditionals dist test
         in
-        n_ary_convex_sum [
-          dist_seq yes tru, p_yes;
-          dist_seq no fls, p_no;
-          unchecked_cond test (dist_seq maybe tru) (dist_seq maybe fls), p_maybe;
-        ]
+        sum
+          (dist_seq yes tru)
+          (sum (dist_seq no fls)
+               (unchecked_cond test (dist_seq maybe tru) (dist_seq maybe fls)))
     )
 
   let seq t u =

@@ -48,7 +48,6 @@ let () = begin
     ()
   in
 
-  let logfile = "./examples/logs/bench.log" in
   Util.print_times := true;
 
   List.iter [None; (* Some 4; Some 6; Some 8; Some 10; Some 12; Some 14; Some 16 *)] ~f:(fun bound ->

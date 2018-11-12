@@ -21,7 +21,7 @@ module Make(Dom: Vlr.HashCmp) : sig
 
   (** pointwise sum *)
   (* SJS: do not expose *)
-  (* val sum : t -> t -> t *)
+  val sum : t -> t -> t
 
   (* this is safe to expose *)
   val convex_sum : t -> Prob.t -> t -> t
