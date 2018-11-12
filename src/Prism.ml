@@ -116,8 +116,8 @@ module Automaton = struct
         let auto = wire_all auto final_p start_q in
         (auto, start_p, final_q)
       | Ite _ ->
-        thompson (Branch (Syntax.branches p)) auto
-      | Branch branches ->
+        thompson (Branch { branches = (Syntax.branches p); parallelize = false }) auto
+      | Branch { branches } ->
         let (start, auto) = add_state auto [] in
         let auto, branches =
           List.fold_map branches ~init:auto ~f:(fun auto (guard, p) ->
@@ -351,7 +351,7 @@ module CFG = struct
             G.add_edge_e g (G.E.create v e v')
         )
       )
-    ); 
+    );
     { graph = g;
       start = Map.find_exn m start;
       final = Map.find_exn m final;
@@ -463,7 +463,7 @@ module Domain = struct
       | Modify hv -> (add dom hv, locals)
       | Seq (p, q) -> acc |> do_pol p |> do_pol q
       | Ite (a, p, q) -> acc |> do_pred a |> do_pol p |> do_pol q
-      | Branch ps -> List.fold ps ~init:acc ~f:(fun acc (a,p) ->
+      | Branch { branches=ps } -> List.fold ps ~init:acc ~f:(fun acc (a,p) ->
         acc |> do_pred a |> do_pol p )
       | While (a, p)
       | ObserveUpon (p, a) -> acc |> do_pred a |> do_pol p

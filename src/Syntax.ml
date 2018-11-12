@@ -34,7 +34,7 @@ type 'field  policy =
   | Modify of 'field header_val
   | Seq of 'field policy * 'field policy
   | Ite of 'field pred * 'field policy * 'field policy
-  | Branch of ('field pred * 'field policy) list
+  | Branch of { branches: ('field pred * 'field policy) list; parallelize : bool }
   | While of 'field pred * 'field policy
   | Choice of ('field policy * Prob.t) list
   | Let of { id : 'field; init : 'field meta_init; mut : bool; body : 'field policy }
@@ -117,11 +117,11 @@ let nr_of_loops p =
       do_pol p (do_pol q acc)
     | While (_,body) | ObserveUpon (body,_)  ->
       do_pol body (acc + 1)
-    | Let { body; _ } (* | Repeat (_,body) *) ->
+    | Let { body } (* | Repeat (_,body) *) ->
       do_pol body acc
     | Choice choices ->
       List.fold choices ~init:acc ~f:(fun acc (p,_) -> do_pol p acc)
-    | Branch branches ->
+    | Branch { branches } ->
       List.fold branches ~init:acc ~f:(fun acc (_,p) -> do_pol p acc)
   in
   do_pol p 0
@@ -158,14 +158,14 @@ let pp_policy fmt (p : string policy) =
       List.iter ps ~f:(fun (p,q) ->
         fprintf fmt "@[%a@ %@@ %a;@;@]" (do_pol `CHOICE) p Prob.pp q);
       fprintf fmt "@;<1-0>}@]"
-    | Branch [] ->
+    | Branch { branches = [] } ->
       do_pred ctxt fmt False
-    | Branch [(a,p)] ->
+    | Branch { branches = [(a,p)] } ->
       fprintf fmt "@[CASE@ @[<2>%a@]@ THEN@ @[<2>%a@]@]"
         (do_pred `COND) a (do_pol `ITE_L) p
-    | Branch ((a,p)::branches) ->
+    | Branch { branches = ((a,p)::branches); parallelize } ->
       fprintf fmt "@[CASE@ @[<2>%a@]@ THEN@ @[<2>%a@]@ ELSE@ @[<2>%a@]@]"
-        (do_pred `COND) a (do_pol `ITE_L) p (do_pol `ITE_R) (Branch branches)
+        (do_pred `COND) a (do_pol `ITE_L) p (do_pol `ITE_R) (Branch {branches; parallelize })
     | ObserveUpon (p, a) ->
       fprintf fmt "@[DO@ @[<2>%a@]@ THEN OBSERVE @ @[<2>%a@]@]"
         (do_pol `While) p (do_pred `COND) a
@@ -252,7 +252,7 @@ module Constructors = struct
     | False -> q
     | _ -> Ite (a, p, q)
 
-  let branch branches =
+  let branch ?(parallelize=false) branches =
     List.filter branches ~f:(function
       | (False, _) -> false
       | (_, Filter False) -> false
@@ -260,7 +260,7 @@ module Constructors = struct
     |> function
       | [] -> drop
       | [(True, p)] -> p
-      | branches -> Branch branches
+      | branches -> Branch { branches; parallelize }
 
   let ite_cascade ?(disjoint=false) (xs : 'a list) ~(otherwise: 'field policy)
     ~(f : 'a -> 'field pred * 'field policy) : 'field policy =
@@ -283,9 +283,9 @@ module Constructors = struct
     | Modify hv -> modify hv
     | Seq (p, q) -> seq (optimize p) (optimize q)
     | Ite (a, p, q) -> ite (optimize_pred a) (optimize p) (optimize q)
-    | Branch branches ->
+    | Branch { branches; parallelize } ->
       List.map branches ~f:(fun (a,p) -> (optimize_pred a, optimize p))
-      |> branch
+      |> branch ~parallelize
     | While (a, p) -> whl (optimize_pred a) (optimize p)
     | Choice ps -> choice (Util.map_fst ps ~f:optimize)
     | Let { id; init; mut; body } -> Let { id; init; mut; body = optimize body }
@@ -387,7 +387,7 @@ let map_pol
   ?(modify=fun hv -> Modify hv)
   ?(seq=fun p q -> Seq (p,q))
   ?(ite=fun a p q -> Ite (a,p,q))
-  ?(branch=fun ps -> Branch ps)
+  ?(branch=fun ~parallelize branches -> Branch { parallelize; branches })
   ?(whl=fun a p -> While (a,p))
   ?(choice=fun ps -> Choice ps)
   ?(letbind=fun id init mut body -> Let { id; init; mut; body})
@@ -400,7 +400,9 @@ let map_pol
     | Modify hv -> modify hv
     | Seq (p,q) -> seq (do_pol p) (do_pol q)
     | Ite (a,p,q) -> ite (do_pred a) (do_pol p) (do_pol q)
-    | Branch ps -> branch (List.map ps ~f:(fun (a,p) -> (do_pred a, do_pol p)))
+    | Branch { branches; parallelize } ->
+      List.map branches ~f:(fun (a,p) -> (do_pred a, do_pol p))
+      |> branch ~parallelize
     | While (a,p) -> whl (do_pred a) (do_pol p)
     | Choice ps -> choice (Util.map_fst ps ~f:do_pol)
     | Let { id; init; mut; body} -> letbind id init mut (do_pol body)

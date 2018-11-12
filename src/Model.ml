@@ -39,8 +39,8 @@ let delete_up_bits p =
       ite (do_pred a) (do_pol p) (do_pol q)
     | While (a,p) ->
       whl (do_pred a) (do_pol p)
-    | Branch branches ->
-      branch (Util.map_fst branches ~f:do_pred |> Util.map_snd ~f:do_pol)
+    | Branch {branches; parallelize} ->
+      branch ~parallelize (Util.map_fst branches ~f:do_pred |> Util.map_snd ~f:do_pol)
     | Choice choices ->
       choice (Util.map_fst choices ~f:do_pol)
     | Let { id; init; mut; body } ->

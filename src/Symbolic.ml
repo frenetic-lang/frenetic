@@ -187,7 +187,7 @@ module Field = struct
         )
       | Ite (a,p,q) ->
         k (f_union a p q, lst)
-      | Branch branches ->
+      | Branch {branches} ->
         List.fold branches ~init:PNK.drop ~f:(fun p (a,q) ->
           PNK.(ite a q p)
         )
@@ -213,7 +213,7 @@ module Field = struct
         f_union' p lst (fun (m, lst) ->
           f_union' q lst (fun (n, lst) ->
             k (m + n, a::lst)))
-      | Branch branches ->
+      | Branch {branches} ->
         List.fold branches ~init:PNK.drop ~f:(fun p (a,q) ->
           PNK.(ite a q p)
         )
@@ -1285,8 +1285,10 @@ module Fdd = struct
         Seq (do_pol env p, do_pol env q)
       | Ite (a, p, q) ->
         Ite (do_pred env a, do_pol env p, do_pol env q)
-      | Branch ps ->
-        Branch (List.map ps ~f:(fun (a,p) -> (do_pred env a, do_pol env p)))
+      | Branch {branches; parallelize} ->
+        let branches =
+          List.map branches ~f:(fun (a,p) -> (do_pred env a, do_pol env p)) in
+        Branch { branches; parallelize }
       | While (a, p) ->
         While (do_pred env a, do_pol env p)
       | ObserveUpon (p, a) ->
@@ -1342,8 +1344,10 @@ module Fdd = struct
         Seq (do_pol p, do_pol q)
       | Ite (a, p, q) ->
         Ite (do_pred a, do_pol p, do_pol q)
-      | Branch ps ->
-        Branch (List.map ps ~f:(fun (a,p) -> (do_pred a, do_pol p)))
+      | Branch {branches; parallelize} ->
+        let branches =
+          List.map branches ~f:(fun (a,p) -> (do_pred a, do_pol p)) in
+        Branch { branches; parallelize }
       | While (a, p) ->
         While (do_pred a, do_pol p)
       | ObserveUpon (p, a) ->
@@ -2009,7 +2013,7 @@ module Fdd = struct
         of_pol_k bound q k
       else
         of_pol_k bound p (fun p -> of_pol_k bound q (fun q -> k (ite a p q)))
-    | Branch branches ->
+    | Branch {branches} ->
       List.filter_map branches ~f:(fun (a,p) ->
         let a = of_pred a in
         if equal a drop then
@@ -2056,7 +2060,7 @@ module Fdd = struct
       let a = of_pred a in
       sum (of_pol_cps bound a p) (of_pol_cps bound (negate a) q)
       |> seq lctxt
-    | Branch branches ->
+    | Branch {branches} ->
       List.map branches ~f:(fun (a,p) ->
         of_pol_cps bound (of_pred a) p
       )
