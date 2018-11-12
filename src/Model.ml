@@ -89,7 +89,7 @@ let make
           hop () >>
           begin
             List.range 1 bound ~stop:`inclusive
-            |> ite_cascade ~otherwise:drop ~f:(fun ttl_val ->
+            |> ite_cascade ~disjoint:true ~otherwise:drop ~f:(fun ttl_val ->
               ???(ttl, ttl_val), !!(ttl, ttl_val - 1)
             )
           end
@@ -102,7 +102,7 @@ let make
     let open PNK in
     Topology.locs' topo
     |> List.filter ~f:(fun (sw,_,_) -> Topology.sw_val topo sw <> destination)
-    |> ite_cascade ~otherwise:drop ~f:(fun (sw, host_pts, sw_pts) ->
+    |> ite_cascade ~disjoint:true ~otherwise:drop ~f:(fun (sw, host_pts, sw_pts) ->
       let sw_id = Topology.sw_val topo sw in
       let guard = ???(Params.sw, sw_id) in
       let body =
@@ -115,7 +115,7 @@ let make
                to other switches
              *)
             List.append host_pts sw_pts
-            |> ite_cascade ~otherwise:drop ~f:(fun pt_id ->
+            |> ite_cascade ~disjoint:true ~otherwise:drop ~f:(fun pt_id ->
               (???(pt, pt_id), pol sw pt_id)
             )
           end
