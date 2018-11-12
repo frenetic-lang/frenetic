@@ -1,6 +1,9 @@
 (** Module with static parameters *)
 open! Core
 
+(** maximum number of jobs for parallelization *)
+let j = 16
+
 (** switch field *)
 let sw = "sw"
 
