@@ -1996,24 +1996,32 @@ module Fdd = struct
 let par_branch (bound : int option) branches =
   let pkg_name = "probnetkat" in
   let cmd_name = "compile" in
-  let cmd = match Findlib.package_directory pkg_name with
+  let prog = match Findlib.package_directory pkg_name with
     | dir ->
       Format.sprintf "%s/../../bin/%s.%s" dir pkg_name cmd_name
     | exception Findlib.No_such_package _ ->
       failwith ("missing ocamlfind dependency: " ^ pkg_name)
   in
   let order = Field.get_order () |> [%sexp_of: Field.t list] |> Sexp.to_string in
-  let cmd_line = Format.sprintf "%s -order %S %s" cmd order
-    (match bound with None -> "" | Some b -> "-bound " ^ Int.to_string b)
+  let args = 
+    ["-order"; Format.sprintf "%S" order] @
+    (match bound with None -> [] | Some b -> ["-bound"; Int.to_string b])
   in
-  let (in_ch, out_ch) as child = Unix.open_process cmd_line in
-  List.iter branches ~f:(fun (a,p) ->
-    PNK.(filter a >> p)
-    |> Bin_prot.Writer.to_string (Syntax.bin_writer_policy Field.bin_writer_t)
-    |> Out_channel.output_string out_ch
-  );
-  Out_channel.flush out_ch;
-  failwith "todo"
+  (* let (in_ch, out_ch) as child = Unix.open_process cmd_line in *)
+  let open Async in
+  Thread_safe.block_on_async_exn (fun () ->
+    let%bind proc = Process.create_exn ~prog ~args () in
+    let reader = Process.stdout proc in
+    let writer = Process.stdin proc in
+    List.iter branches ~f:(fun (a,p) ->
+      PNK.(filter a >> p)
+      |> Async_unix.Writer.write_bin_prot writer
+        (Syntax.bin_writer_policy Field.bin_writer_t)
+    );
+    Async_unix.Reader.read_bin_prot reader bin_reader_t
+    >>| function `Ok t -> t
+               | `Eof -> failwith "eof" 
+  )
 
     (* |> Core_extended.Bin_io_utils.to_line (Syntax.bin_writer_policy Field.bin_writer t) *)
     (* |> Out_channel.output_buffer ou_ch *)

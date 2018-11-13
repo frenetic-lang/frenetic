@@ -7,8 +7,8 @@
   (wrapped true)
   (libraries (
     core
-    ;; async
-    ;; async_unix
+    async
+    async_unix
     ;; rpc_parallel
     bin_prot
     zarith
