@@ -103,5 +103,7 @@ let cmd =
         Deferred.unit
     )
 
+let rpc_heartbeat_config = Rpc.Connection.Heartbeat_config.create
+  ~timeout:Time_ns.Span.hour ~send_every:Time_ns.Span.hour
 
-let () = Rpc_parallel.start_app cmd
+let () = Rpc_parallel.start_app cmd ~rpc_heartbeat_config
