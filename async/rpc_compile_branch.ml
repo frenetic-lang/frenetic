@@ -73,14 +73,16 @@ let cmd =
       in
       let stdin = Lazy.force (Async_unix.Reader.stdin) in
       let stdout = Lazy.force (Async_unix.Writer.stdout) in
+      let inp = ref 1 in
       let pols = Pipe.unfold ~init:() ~f:(fun () ->
-        eprintf "[compile server] attempt read...\n%!";
+        eprintf "[compile server] read: input %d ...\n%!" (!inp);
+        incr inp;
         Async_unix.Reader.read_bin_prot stdin ~max_len:1_000_000
           (Syntax.bin_reader_policy Symbolic.Field.bin_reader_t)
         >>| function
           | `Ok p -> Some (p, ())
           | `Eof ->
-            eprintf "[compile server] -> inputs received!\n%!";
+            eprintf "[compile server] -> all inputs received!\n%!";
             None
       )
       in
