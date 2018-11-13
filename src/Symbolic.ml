@@ -1995,7 +1995,7 @@ module Fdd = struct
 
 let par_branch ~(bound : int option) ~(cps : bool) branches =
   let pkg_name = "probnetkat" in
-  let cmd_name = "compile" in
+  let cmd_name = "rpc_compile_branch" in
   let prog = match Findlib.package_directory pkg_name with
     | dir ->
       Format.sprintf "%s/../../bin/%s.%s" dir pkg_name cmd_name
