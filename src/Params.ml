@@ -1,6 +1,9 @@
 (** Module with static parameters *)
 open! Core
 
+(** number of worker processes *)
+let j = 16
+
 (** switch field *)
 let sw = "sw"
 

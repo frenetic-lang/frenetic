@@ -6,10 +6,10 @@ let fprintf = Format.fprintf
 
 
 (** {2} fields and values *)
-type field = string [@@deriving sexp, show, compare, eq, hash]
-type value = int [@@deriving sexp, show, compare, eq, hash]
+type field = string [@@deriving sexp, show, compare, eq, hash, bin_io]
+type value = int [@@deriving sexp, show, compare, eq, hash, bin_io]
 
-type 'field header_val = 'field * value [@@deriving sexp, compare, eq, hash]
+type 'field header_val = 'field * value [@@deriving sexp, compare, eq, hash, bin_io]
 
 
 (** {2} predicates and policies *)
@@ -18,7 +18,7 @@ type 'field header_val = 'field * value [@@deriving sexp, compare, eq, hash]
 type 'field meta_init =
   | Alias of 'field
   | Const of value
-  [@@deriving sexp, compare, hash]
+  [@@deriving sexp, compare, hash, bin_io]
 
 type 'field pred =
   | True
@@ -27,7 +27,7 @@ type 'field pred =
   | And of 'field pred * 'field pred
   | Or of 'field pred * 'field pred
   | Neg of 'field pred
-  [@@deriving sexp, compare, hash]
+  [@@deriving sexp, compare, hash, bin_io]
 
 type 'field  policy =
   | Filter of 'field pred
@@ -40,7 +40,7 @@ type 'field  policy =
   | Let of { id : 'field; init : 'field meta_init; mut : bool; body : 'field policy }
   | ObserveUpon of 'field policy * 'field pred (* exexcute policy, then observe pred *)
   (* | Repeat of int * 'field policy *)
-  [@@deriving sexp, compare, hash]
+  [@@deriving sexp, compare, hash, bin_io]
 
 (** negation normal form *)
 let nnf (a : 'field pred) : 'field pred =

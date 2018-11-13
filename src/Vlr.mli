@@ -7,9 +7,16 @@ module type HashCmp = sig
   val to_string : t -> string
 end
 
+module type Value = sig
+  include HashCmp
+  include (sig
+    type t [@@deriving bin_io]
+  end with type t := t)
+end
+
 (** The signature for a type that has a lattice structure. *)
 module type Lattice = sig
-  include HashCmp
+  include Value
 
   val subset_eq : t -> t -> bool
   (** [subset_eq a b] returns [true] if [a] and [b] in the partial ordering of
@@ -73,7 +80,7 @@ module IntPairTbl : Hashtbl.S with type key = (int * int)
     structure represents functions that take on values in a semi-ring, and whose
     variables are assigned values from a lattice, i.e., that are partially
     ordered. *)
-module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
+module Make(V:Value)(L:Lattice)(R:Result) : sig
 
   type t = private int
   (** A decision diagram index.  All diagrams and subdiagrams within it are given an

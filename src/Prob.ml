@@ -12,12 +12,17 @@ module Z = struct
   let sexp_of_t t =
     to_string t
     |> String.sexp_of_t
+
+  let bin_shape_t = [%bin_shape: string]
+  let bin_size_t t = String.bin_size_t (to_string t)
+  let bin_write_t buf t = String.bin_write_t buf (to_string t)
+  let bin_read_t buf ~pos_ref = of_string (String.bin_read_t buf ~pos_ref)
 end
 
 type t = Q.t = {
     num: Z.t; (** Numerator. *)
     den: Z.t; (** * Denominator, >= 0 *)
-} [@@deriving hash, sexp]
+} [@@deriving hash, sexp, bin_io]
 
 include (Q : module type of Q with type t := t)
 

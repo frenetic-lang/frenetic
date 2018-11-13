@@ -6,8 +6,15 @@ module type HashCmp = sig
   val to_string : t -> string
 end
 
-module type Lattice = sig
+module type Value = sig
   include HashCmp
+  include (sig
+    type t [@@deriving bin_io]
+  end with type t := t)
+end
+
+module type Lattice = sig
+  include Value
   val subset_eq : t -> t -> bool
 end
 
@@ -28,7 +35,7 @@ end
 
 module IntPairTbl = Hashtbl.Make(IntPair)
 
-module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
+module Make(V:Value)(L:Lattice)(R:Result) = struct
   type v = V.t * L.t [@@deriving sexp, compare, hash]
   type r = R.t [@@deriving sexp, compare, hash]
 
