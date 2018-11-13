@@ -65,11 +65,16 @@ let cmd =
       in
       let stdin = Lazy.force (Async_unix.Reader.stdin) in
       let stdout = Lazy.force (Async_unix.Writer.stdout) in
-      let pols = Pipe.unfold ~init:() ~f:(fun () -> 
+    (*   let pols = Pipe.unfold ~init:() ~f:(fun () -> 
         Async_unix.Reader.read_bin_prot stdin
           (Syntax.bin_reader_policy Symbolic.Field.bin_reader_t)
         >>| function `Ok p -> Some (p, ()) | `Eof -> None
       )
+      in *)
+      let pols = 
+        Async_unix.Reader.lines stdin
+        |> Pipe.map ~f:Sexp.of_string
+        |> Pipe.map ~f:[%of_sexp: Symbolic.Field.t Syntax.policy]
       in
       let%bind result =
         Rpc_parallel.Map_reduce.map_reduce_commutative
@@ -81,6 +86,7 @@ let cmd =
       match result with
       | None -> Deferred.unit
       | Some fdd ->
+        eprintf "about to write...\n\n";
         Async_unix.Writer.write_bin_prot stdout Symbolic.Fdd.bin_writer_t fdd
         |> return
     )

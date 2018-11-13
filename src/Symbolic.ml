@@ -2005,10 +2005,20 @@ let par_branch (bound : int option) branches =
   let order = Field.get_order () |> [%sexp_of: Field.t list] |> Sexp.to_string in
   let args = 
     ["-order"; Format.sprintf "%S" order] @
-    (match bound with None -> [] | Some b -> ["-bound"; Int.to_string b])
+    (match bound with None -> [] | Some b -> ["-bound"; Int.to_string b]) @
+    ["-j"; "8"]
   in
-  (* let (in_ch, out_ch) as child = Unix.open_process cmd_line in *)
-  let open Async in
+  let cmd = Format.sprintf "%s %s" prog (String.concat args ~sep:" ") in
+  let (from_proc, to_proc) as proc = Unix.open_process cmd in
+  List.iter branches ~f:(fun (a,p) ->
+    PNK.(filter a >> p)
+    |> [%sexp_of: Field.t policy]
+    |> Sexp.to_string
+    |> Out_channel.fprintf to_proc "%s\n%!"
+    (* |> ignore *)
+  );
+  failwith "todo"
+(*   let open Async in
   Thread_safe.block_on_async_exn (fun () ->
     let%bind proc = Process.create_exn ~prog ~args () in
     let reader = Process.stdout proc in
@@ -2018,10 +2028,14 @@ let par_branch (bound : int option) branches =
       |> Async_unix.Writer.write_bin_prot writer
         (Syntax.bin_writer_policy Field.bin_writer_t)
     );
-    Async_unix.Reader.read_bin_prot reader bin_reader_t
+    Async_unix.Process.collect_output_and_wait proc
+    >>| fun Async_unix.Process.Output.{ stdout } ->
+      printf "%s" stdout;
+      failwith "ok" *)
+(*     Async_unix.Reader.read_bin_prot reader bin_reader_t
     >>| function `Ok t -> t
-               | `Eof -> failwith "eof - did not receive result of parallel par" 
-  )
+               | `Eof -> failwith "eof - did not receive result of parallel par"  *)
+  (* ) *)
 
     (* |> Core_extended.Bin_io_utils.to_line (Syntax.bin_writer_policy Field.bin_writer t) *)
     (* |> Out_channel.output_buffer ou_ch *)
