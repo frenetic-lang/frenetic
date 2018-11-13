@@ -44,7 +44,7 @@ module Field = struct
       | Meta17
       | Meta18
       | Meta19
-      [@@deriving sexp, enumerate, enum, eq, hash]
+      [@@deriving sexp, enumerate, enum, eq, hash, bin_io]
 
     let num_fields = max + 1
 
@@ -1993,7 +1993,58 @@ module Fdd = struct
   let erase p f init = measure "erase" (fun () -> erase p f init)
 
 
-  let rec of_pol_k bound (p : Field.t policy) k : t =
+let par_branch (bound : int option) branches =
+  let pkg_name = "probnetkat" in
+  let cmd_name = "compile" in
+  let prog = match Findlib.package_directory pkg_name with
+    | dir ->
+      Format.sprintf "%s/../../bin/%s.%s" dir pkg_name cmd_name
+    | exception Findlib.No_such_package _ ->
+      failwith ("missing ocamlfind dependency: " ^ pkg_name)
+  in
+  let order = Field.get_order () |> [%sexp_of: Field.t list] |> Sexp.to_string in
+  let args = 
+    ["-order"; Format.sprintf "%S" order] @
+    (match bound with None -> [] | Some b -> ["-bound"; Int.to_string b]) @
+    ["-j"; "8"]
+  in
+  let cmd = Format.sprintf "%s %s" prog (String.concat args ~sep:" ") in
+  let (from_proc, to_proc) as proc = Unix.open_process cmd in
+  List.iter branches ~f:(fun (a,p) ->
+    PNK.(filter a >> p)
+    |> [%sexp_of: Field.t policy]
+    |> Sexp.to_string
+    |> Out_channel.fprintf to_proc "%s\n%!"
+  );
+  In_channel.input_line_exn from_proc
+  |> deserialize
+  (* failwith "todo" *)
+(*   let open Async in
+  Thread_safe.block_on_async_exn (fun () ->
+    let%bind proc = Process.create_exn ~prog ~args () in
+    let reader = Process.stdout proc in
+    let writer = Process.stdin proc in
+    List.iter branches ~f:(fun (a,p) ->
+      PNK.(filter a >> p)
+      |> Async_unix.Writer.write_bin_prot writer
+        (Syntax.bin_writer_policy Field.bin_writer_t)
+    );
+    Async_unix.Process.collect_output_and_wait proc
+    >>| fun Async_unix.Process.Output.{ stdout } ->
+      printf "%s" stdout;
+      failwith "ok" *)
+(*     Async_unix.Reader.read_bin_prot reader bin_reader_t
+    >>| function `Ok t -> t
+               | `Eof -> failwith "eof - did not receive result of parallel par"  *)
+  (* ) *)
+
+    (* |> Core_extended.Bin_io_utils.to_line (Syntax.bin_writer_policy Field.bin_writer t) *)
+    (* |> Out_channel.output_buffer ou_ch *)
+  (* ); *)
+  (* Bigstring.read_bin_prot in_ch bin_reader_t
+  |> Result.ok_exn *)
+
+let rec of_pol_k bound (p : Field.t policy) k : t =
     match p with
     | Filter a ->
       k (of_pred a)
@@ -2013,6 +2064,8 @@ module Fdd = struct
         of_pol_k bound q k
       else
         of_pol_k bound p (fun p -> of_pol_k bound q (fun q -> k (ite a p q)))
+    | Branch { branches; parallelize = true} ->
+      par_branch bound branches
     | Branch {branches} ->
       List.filter_map branches ~f:(fun (a,p) ->
         let a = of_pred a in

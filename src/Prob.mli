@@ -1,4 +1,4 @@
-type t [@@deriving eq, sexp, compare, hash]
+type t [@@deriving eq, sexp, compare, hash, bin_io]
 
 val zero : t
 val one : t

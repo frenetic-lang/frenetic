@@ -6,8 +6,15 @@ module type HashCmp = sig
   val to_string : t -> string
 end
 
-module type Lattice = sig
+module type Value = sig
   include HashCmp
+  include (sig
+    type t [@@deriving bin_io]
+  end with type t := t)
+end
+
+module type Lattice = sig
+  include Value
   val subset_eq : t -> t -> bool
 end
 
@@ -28,7 +35,7 @@ end
 
 module IntPairTbl = Hashtbl.Make(IntPair)
 
-module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
+module Make(V:Value)(L:Lattice)(R:Result) = struct
   type v = V.t * L.t [@@deriving sexp, compare, hash]
   type r = R.t [@@deriving sexp, compare, hash]
 
@@ -406,6 +413,52 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   let deserialize (s : string) : t =
     Sexp.of_string s
     |> node_of_sexp
+
+
+  (* more sophisticated serialization *)
+  module Bin = struct
+    type t = {
+      root : d;
+      graph : d Int.Table.t;
+    }
+    and d =
+      | BLeaf of Sexp.t
+      | BBranch of {
+        test : V.t * L.t;
+        tru : int;
+        fls : int;
+      }
+    [@@deriving bin_io]
+  end
+
+  include Binable.Of_binable(Bin)(struct
+    type nonrec t = t
+
+    let to_binable (t : t) : Bin.t =
+      let graph = Int.Table.create () in
+      let rec convert (t : t) : Bin.d =
+        match unget t with
+        | Leaf r -> BLeaf (R.sexp_of_t r)
+        | Branch { test; tru=tru_t; fls=fls_t } ->
+          let tru = (tru_t :> int) in
+          let fls = (fls_t :> int) in
+          Hashtbl.add graph ~key:tru ~data:(convert tru_t) |> ignore;
+          Hashtbl.add graph ~key:fls ~data:(convert fls_t) |> ignore;
+          BBranch { test; tru; fls }
+      in
+      let root = convert t in
+      { root; graph }
+
+    let of_binable ({ root; graph } : Bin.t) : t =
+      let rec of_bin_d : Bin.d -> t = function
+        | BLeaf sexp -> const (R.t_of_sexp sexp)
+        | BBranch { test; tru; fls} ->
+          let tru = Hashtbl.find_exn graph tru |> of_bin_d in
+          let fls = Hashtbl.find_exn graph fls |> of_bin_d in
+          unchecked_cond test tru fls
+      in
+      of_bin_d root
+  end)
 
   let restrict lst t = measure "restrict" (fun () -> restrict lst t)
   let sum x y = measure "sum" (fun () -> sum x y)

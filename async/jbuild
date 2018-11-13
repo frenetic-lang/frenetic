@@ -1,0 +1,6 @@
+(executables
+ ((names        (compile))
+  (public_names (probnetkat.compile))
+  (libraries (async core rpc_parallel probnetkat))
+  (preprocess (pps (ppx_jane)))
+))
