@@ -2020,7 +2020,7 @@ let par_branch (bound : int option) branches =
     );
     Async_unix.Reader.read_bin_prot reader bin_reader_t
     >>| function `Ok t -> t
-               | `Eof -> failwith "eof" 
+               | `Eof -> failwith "eof - did not receive result of parallel par" 
   )
 
     (* |> Core_extended.Bin_io_utils.to_line (Syntax.bin_writer_policy Field.bin_writer t) *)
