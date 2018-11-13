@@ -82,7 +82,7 @@ module IntPairTbl : Hashtbl.S with type key = (int * int)
     ordered. *)
 module Make(V:Value)(L:Lattice)(R:Result) : sig
 
-  type t = private int
+  type t = private int [@@deriving bin_io]
   (** A decision diagram index.  All diagrams and subdiagrams within it are given an
   index.  You can convert this to a tree with [unget], and from a tree with [get]. *)
 
