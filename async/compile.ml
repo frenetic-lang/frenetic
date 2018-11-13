@@ -59,8 +59,8 @@ let cmd =
       let rpc_config =
         Rpc_parallel.Map_reduce.Config.create
           ?local
-          ~redirect_stderr:(`File_append "compile.err")
-          ~redirect_stdout:(`File_append "compile.log")
+          ~redirect_stderr:(`Dev_null)
+          ~redirect_stdout:(`Dev_null)
           ()
       in
       let stdin = Lazy.force (Async_unix.Reader.stdin) in
