@@ -800,7 +800,7 @@ module Packet = struct
 end
 
 
-module Fdd00 = Vlr_bin.Make(Field)(Value)(FactorizedActionDist)
+module Fdd00 = Vlr.Make(Field)(Value)(FactorizedActionDist)
 
 
 

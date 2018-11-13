@@ -46,17 +46,19 @@ let cmd_spec = Command.Spec.(
   empty
   +> flag "order" (required sexp) ~doc:" Fdd variable ordering, as s-expression."
   +> flag "bound" (optional int) ~doc:" bounded iteration"
+  +> flag "j" (optional int) ~doc:" number of processes to run in parallel"
 )
 
 let cmd =
   Command.async_spec
     ~summary:"Compiler given Probnetkat policy to FDD in parallel"
     cmd_spec
-    (fun order bound () ->
+    (fun order bound local () ->
       let order = [%of_sexp: Symbolic.Field.t list] order in
       let param = T.Param.{ bound; order } in
       let rpc_config =
         Rpc_parallel.Map_reduce.Config.create
+          ?local
           ~redirect_stderr:`Dev_null
           ~redirect_stdout:`Dev_null
           ()
