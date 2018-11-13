@@ -102,7 +102,7 @@ let make
     let open PNK in
     Topology.locs' topo
     |> List.filter ~f:(fun (sw,_,_) -> Topology.sw_val topo sw <> destination)
-    |> ite_cascade ~disjoint:true ~otherwise:drop ~f:(fun (sw, host_pts, sw_pts) ->
+    |> ite_cascade ~parallelize:true ~disjoint:true ~otherwise:drop ~f:(fun (sw, host_pts, sw_pts) ->
       let sw_id = Topology.sw_val topo sw in
       let guard = ???(Params.sw, sw_id) in
       let body =

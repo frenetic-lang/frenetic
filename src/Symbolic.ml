@@ -1993,6 +1993,34 @@ module Fdd = struct
   let erase p f init = measure "erase" (fun () -> erase p f init)
 
 
+let par_branch (bound : int option) branches =
+  let pkg_name = "probnetkat" in
+  let cmd_name = "compile" in
+  let cmd = match Findlib.package_directory pkg_name with
+    | dir ->
+      Format.sprintf "%s/../../bin/%s.%s" dir pkg_name cmd_name
+    | exception Findlib.No_such_package _ ->
+      failwith ("missing ocamlfind dependency: " ^ pkg_name)
+  in
+  let order = Field.get_order () |> [%sexp_of: Field.t list] |> Sexp.to_string in
+  let cmd_line = Format.sprintf "%s -order %S %s" cmd order
+    (match bound with None -> "" | Some b -> "-bound " ^ Int.to_string b)
+  in
+  let (in_ch, out_ch) as child = Unix.open_process cmd_line in
+  List.iter branches ~f:(fun (a,p) ->
+    PNK.(filter a >> p)
+    |> Bin_prot.Writer.to_string (Syntax.bin_writer_policy Field.bin_writer_t)
+    |> Out_channel.output_string out_ch
+  );
+  Out_channel.flush out_ch;
+  failwith "todo"
+
+    (* |> Core_extended.Bin_io_utils.to_line (Syntax.bin_writer_policy Field.bin_writer t) *)
+    (* |> Out_channel.output_buffer ou_ch *)
+  (* ); *)
+  (* Bigstring.read_bin_prot in_ch bin_reader_t
+  |> Result.ok_exn *)
+
 let rec of_pol_k bound (p : Field.t policy) k : t =
     match p with
     | Filter a ->
@@ -2013,6 +2041,8 @@ let rec of_pol_k bound (p : Field.t policy) k : t =
         of_pol_k bound q k
       else
         of_pol_k bound p (fun p -> of_pol_k bound q (fun q -> k (ite a p q)))
+    | Branch { branches; parallelize = true} ->
+      par_branch bound branches
     | Branch {branches} ->
       List.filter_map branches ~f:(fun (a,p) ->
         let a = of_pred a in
