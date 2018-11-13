@@ -2003,46 +2003,29 @@ let par_branch (bound : int option) branches =
       failwith ("missing ocamlfind dependency: " ^ pkg_name)
   in
   let order = Field.get_order () |> [%sexp_of: Field.t list] |> Sexp.to_string in
-  let args = 
+  let args =
     ["-order"; Format.sprintf "%S" order] @
-    (match bound with None -> [] | Some b -> ["-bound"; Int.to_string b]) @
-    ["-j"; "8"]
+    (match bound with None -> [] | Some b -> ["-bound"; Int.to_string b])
+    (* @ ["-j"; Int.to_string Params.j] *)
   in
   let cmd = Format.sprintf "%s %s" prog (String.concat args ~sep:" ") in
   let (from_proc, to_proc) as proc = Unix.open_process cmd in
   List.iter branches ~f:(fun (a,p) ->
     PNK.(filter a >> p)
+(*     |> Bin_prot.Utils.bin_dump ~header:true
+      (Syntax.bin_writer_policy Field.bin_writer_t)
+    |> Bigstring.really_write (Unix.descr_of_out_channel to_proc) *)
     |> [%sexp_of: Field.t policy]
     |> Sexp.to_string
     |> Out_channel.fprintf to_proc "%s\n%!"
   );
+  Out_channel.close to_proc;
+(*   Bin_prot.Utils.bin_read_stream bin_reader_t ~max_size:1_000_000
+    ~read:(fun buf ~pos ~len ->
+      Bigstring.really_read (Unix.descr_of_in_channel from_proc )buf ~pos ~len
+  ) *)
   In_channel.input_line_exn from_proc
   |> deserialize
-  (* failwith "todo" *)
-(*   let open Async in
-  Thread_safe.block_on_async_exn (fun () ->
-    let%bind proc = Process.create_exn ~prog ~args () in
-    let reader = Process.stdout proc in
-    let writer = Process.stdin proc in
-    List.iter branches ~f:(fun (a,p) ->
-      PNK.(filter a >> p)
-      |> Async_unix.Writer.write_bin_prot writer
-        (Syntax.bin_writer_policy Field.bin_writer_t)
-    );
-    Async_unix.Process.collect_output_and_wait proc
-    >>| fun Async_unix.Process.Output.{ stdout } ->
-      printf "%s" stdout;
-      failwith "ok" *)
-(*     Async_unix.Reader.read_bin_prot reader bin_reader_t
-    >>| function `Ok t -> t
-               | `Eof -> failwith "eof - did not receive result of parallel par"  *)
-  (* ) *)
-
-    (* |> Core_extended.Bin_io_utils.to_line (Syntax.bin_writer_policy Field.bin_writer t) *)
-    (* |> Out_channel.output_buffer ou_ch *)
-  (* ); *)
-  (* Bigstring.read_bin_prot in_ch bin_reader_t
-  |> Result.ok_exn *)
 
 let rec of_pol_k bound (p : Field.t policy) k : t =
     match p with

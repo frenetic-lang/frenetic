@@ -26,7 +26,7 @@ module T = struct
     Symbolic.Field.set_order order;
     return params
 
-  let map Param.{ bound; } p = 
+  let map Param.{ bound; } p =
     Symbolic.Fdd.of_pol_k bound p ident
     |> return
 
@@ -65,13 +65,18 @@ let cmd =
       in
       let stdin = Lazy.force (Async_unix.Reader.stdin) in
       let stdout = Lazy.force (Async_unix.Writer.stdout) in
-    (*   let pols = Pipe.unfold ~init:() ~f:(fun () -> 
-        Async_unix.Reader.read_bin_prot stdin
+(*       let pols = Pipe.unfold ~init:() ~f:(fun () ->
+        eprintf "[compile server] attempt read...\n%!";
+        Async_unix.Reader.read_bin_prot stdin ~max_len:1_000_000
           (Syntax.bin_reader_policy Symbolic.Field.bin_reader_t)
-        >>| function `Ok p -> Some (p, ()) | `Eof -> None
+        >>| function
+          | `Ok p -> Some (p, ())
+          | `Eof ->
+            eprintf "[compile server] -> inputs received!\n%!";
+            None
       )
       in *)
-      let pols = 
+      let pols =
         Async_unix.Reader.lines stdin
         |> Pipe.map ~f:Sexp.of_string
         |> Pipe.map ~f:[%of_sexp: Symbolic.Field.t Syntax.policy]
@@ -84,14 +89,18 @@ let cmd =
           ~param
       in
       match result with
-      | None -> Deferred.unit
+      | None ->
+        eprintf "Error - no result";
+        Deferred.unit
       | Some fdd ->
+        eprintf "[compile server] sending back result...\n%!";
+        (* Async_unix.Writer.write_bin_prot stdout Symbolic.Fdd.bin_writer_t fdd; *)
         Symbolic.Fdd.serialize fdd
-        |> Async_unix.Writer.write_line stdout
-        |> Async_unix.Writer.close
-        (* eprintf "about to write...\n\n"; *)
-        (* Async_unix.Writer.write_bin_prot stdout Symbolic.Fdd.bin_writer_t fdd *)
-        (* |> return *)
+        |> Async_unix.Writer.write_line stdout;
+        eprintf "[compile server] -> done.\n%!";
+        let%bind () = Async_unix.Writer.close stdout in
+        eprintf "[compile server] Shuttind down. Bye.\n%!";
+        Deferred.unit
     )
 
 
