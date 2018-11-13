@@ -2011,19 +2011,23 @@ let par_branch ~(bound : int option) ~(cps : bool) branches =
   in
   let cmd = Format.sprintf "%s %s" prog (String.concat args ~sep:" ") in
   let (from_proc, to_proc) as proc = Unix.open_process cmd in
-  List.iter branches ~f:(fun (a,p) ->
-    PNK.(filter a >> p)
-    |> Bin_prot.Utils.bin_dump ~header:true
-      (Syntax.bin_writer_policy Field.bin_writer_t)
-    |> Bigstring.really_write (Unix.descr_of_out_channel to_proc)
-(*     |> [%sexp_of: Field.t policy]
-    |> Sexp.to_string
-    |> Out_channel.fprintf to_proc "%s\n%!" *)
-  );
-  Out_channel.close to_proc;
-  Bin_prot.Utils.bin_read_stream bin_reader_t ~max_size:1_000_000
-    ~read:(fun buf ~pos ~len ->
-      Bigstring.really_read (Unix.descr_of_in_channel from_proc )buf ~pos ~len
+  protect ~f:(fun () ->
+    List.iter branches ~f:(fun (a,p) ->
+      PNK.(filter a >> p)
+      |> Bin_prot.Utils.bin_dump ~header:true
+        (Syntax.bin_writer_policy Field.bin_writer_t)
+      |> Bigstring.really_write (Unix.descr_of_out_channel to_proc)
+    (*     |> [%sexp_of: Field.t policy]
+      |> Sexp.to_string
+      |> Out_channel.fprintf to_proc "%s\n%!" *)
+    );
+    Out_channel.close to_proc;
+    Bin_prot.Utils.bin_read_stream bin_reader_t ~max_size:1_000_000
+      ~read:(fun buf ~pos ~len ->
+        Bigstring.really_read (Unix.descr_of_in_channel from_proc) buf ~pos ~len
+    )
+  ) ~finally:(fun () ->
+      ignore (Unix.close_process proc);
   )
 (*   In_channel.input_line_exn from_proc
   |> deserialize *)
