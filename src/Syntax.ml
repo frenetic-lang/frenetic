@@ -262,11 +262,12 @@ module Constructors = struct
       | [(True, p)] -> p
       | branches -> Branch { branches; parallelize }
 
-  let ite_cascade ?(disjoint=false) (xs : 'a list) ~(otherwise: 'field policy)
+  let ite_cascade ?(parallelize=false) ?(disjoint=false) (xs : 'a list)
+    ~(otherwise: 'field policy)
     ~(f : 'a -> 'field pred * 'field policy) : 'field policy =
     if disjoint && otherwise = drop then
       List.map xs ~f
-      |> branch
+      |> branch ~parallelize
     else
       List.fold_right xs ~init:otherwise ~f:(fun x acc ->
         let guard, body = f x in
