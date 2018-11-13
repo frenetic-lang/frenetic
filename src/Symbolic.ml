@@ -1993,13 +1993,7 @@ module Fdd = struct
   let erase p f init = measure "erase" (fun () -> erase p f init)
 
 
-  let config = Rpc_parallel.Map_reduce.Config.create 
-    ~local:Params.j
-    ~redirect_stderr:`Dev_null
-    ~redirect_stdout:`Dev_null ()
-
-  let rec of_pol_k bound (p : Field.t policy) (k : t -> t Async.Deferred.t) : t Async.Deferred.t =
-    let open Async in
+let rec of_pol_k bound (p : Field.t policy) k : t =
     match p with
     | Filter a ->
       k (of_pred a)
@@ -2019,20 +2013,16 @@ module Fdd = struct
         of_pol_k bound q k
       else
         of_pol_k bound p (fun p -> of_pol_k bound q (fun q -> k (ite a p q)))
-    | Branch {branches; parallelize=true} ->
-      par_branch bound branches
-      >>= k
     | Branch {branches} ->
       List.filter_map branches ~f:(fun (a,p) ->
         let a = of_pred a in
         if equal a drop then
           None
         else
-          Some (of_pol_k bound p (fun p -> prod a p |> return))
+          Some (of_pol_k bound p (fun p -> prod a p))
       )
-      |> Deferred.all
-      >>| List.fold ~init:drop ~f:sum
-      >>= k
+      |> List.fold ~init:drop ~f:sum
+      |> k
     | While (a, p) ->
       let a = of_pred a in
       if equal a id then k drop else
@@ -2045,47 +2035,15 @@ module Fdd = struct
         ))
       )
     | Choice dist ->
-      List.map dist ~f:(fun (p, prob) -> 
-        Deferred.both (of_pol_k bound p return) (return prob))
-      |> Deferred.all
-      >>| n_ary_convex_sum
-      >>= k
+      Util.map_fst dist ~f:(fun p -> of_pol_k bound p ident)
+      |> n_ary_convex_sum
+      |> k
     | Let { id=field; init; mut; body=p } ->
       of_pol_k bound p (fun p -> k (erase p field init))
     | ObserveUpon (p, a) ->
       let a = of_pred a in
       if equal a drop then k drop else
       of_pol_k bound p (fun p -> k (observe_upon p a))
-  and par_branch bound branches : t Async.Deferred.t =
-    let module Par = Rpc_parallel.Map_reduce.Make_map_reduce_function (struct
-      open Async
-
-      module Input = struct
-        type t = Field.t Syntax.policy [@@deriving bin_io]
-      end
-
-      module Accum = struct
-        type t = bin_t [@@deriving bin_io]
-      end
-
-      let map p = 
-        of_pol_k bound p return
-        >>| to_bin
-
-      let combine p q =
-        sum (of_bin p) (of_bin q)
-        |> to_bin
-        |> return
-
-    end)
-    in
-    List.map branches ~f:(fun (a,p) -> PNK.(filter a >> p))
-    |> Async.Pipe.of_list
-    |> Rpc_parallel.Map_reduce.map_reduce_commutative config ~m:(module Par) ~param:()
-    |> Async.Deferred.map ~f:(function
-      | None -> failwith "parallelization failed"
-      | Some b -> of_bin b
-    )
 
 
   let rec of_pol_cps bound (lctxt : t) (p : Field.t policy) : t =
@@ -2148,9 +2106,7 @@ module Fdd = struct
     if !use_cps then
       of_pol_cps bound lctxt p
     else
-      Async_unix.Thread_safe.block_on_async_exn (fun () ->
-        of_pol_k bound p (fun t -> seq lctxt t |> Async.return)
-      )
+      of_pol_k bound p (seq lctxt)
 
   (* auto_order is set to false by default, so repeated invocations of this
      function don't invalidate old FDDs. *)
