@@ -86,9 +86,12 @@ let cmd =
       match result with
       | None -> Deferred.unit
       | Some fdd ->
-        eprintf "about to write...\n\n";
-        Async_unix.Writer.write_bin_prot stdout Symbolic.Fdd.bin_writer_t fdd
+        Symbolic.Fdd.serialize fdd
+        |> Async_unix.Writer.write_line stdout
         |> return
+        (* eprintf "about to write...\n\n"; *)
+        (* Async_unix.Writer.write_bin_prot stdout Symbolic.Fdd.bin_writer_t fdd *)
+        (* |> return *)
     )
 
 

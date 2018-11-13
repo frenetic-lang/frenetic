@@ -2015,9 +2015,10 @@ let par_branch (bound : int option) branches =
     |> [%sexp_of: Field.t policy]
     |> Sexp.to_string
     |> Out_channel.fprintf to_proc "%s\n%!"
-    (* |> ignore *)
   );
-  failwith "todo"
+  In_channel.input_line_exn from_proc
+  |> deserialize
+  (* failwith "todo" *)
 (*   let open Async in
   Thread_safe.block_on_async_exn (fun () ->
     let%bind proc = Process.create_exn ~prog ~args () in
