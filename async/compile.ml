@@ -17,17 +17,22 @@ module T = struct
     type t = {
       bound : int option;
       order : Symbolic.Field.t list;
+      cps : bool;
+      parallelize : bool;
     } [@@deriving bin_io]
   end
 
   type state_type = Param.t
 
-  let init (Param.{ bound; order } as params) =
+  let init (Param.{ order } as params) =
     Symbolic.Field.set_order order;
     return params
 
-  let map Param.{ bound; } p =
-    Symbolic.Fdd.of_pol_k bound p ident
+  let map Param.{ bound; cps; parallelize } p =
+    (if cps then
+      Symbolic.Fdd.(of_pol_cps ~parallelize ?bound id p)
+    else
+      Symbolic.Fdd.of_pol_k ~parallelize ?bound p)
     |> return
 
   let combine _ p q =
@@ -45,6 +50,9 @@ module Compile = Rpc_parallel.Map_reduce.Make_map_reduce_function_with_init (T)
 let cmd_spec = Command.Spec.(
   empty
   +> flag "order" (required sexp) ~doc:" Fdd variable ordering, as s-expression."
+  +> flag "cps" (required bool) ~doc:" use CPS-style left-to-right compilation."
+  +> flag "parallelize" (optional_with_default false bool)
+    ~doc:" parallelize subcomputations further."
   +> flag "bound" (optional int) ~doc:" bounded iteration"
   +> flag "j" (optional int) ~doc:" number of processes to run in parallel"
 )
@@ -53,9 +61,9 @@ let cmd =
   Command.async_spec
     ~summary:"Compiler given Probnetkat policy to FDD in parallel"
     cmd_spec
-    (fun order bound local () ->
+    (fun order cps parallelize bound local () ->
       let order = [%of_sexp: Symbolic.Field.t list] order in
-      let param = T.Param.{ bound; order } in
+      let param = T.Param.{ bound; order; cps; parallelize } in
       let rpc_config =
         Rpc_parallel.Map_reduce.Config.create
           ?local

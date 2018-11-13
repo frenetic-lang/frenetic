@@ -1993,7 +1993,7 @@ module Fdd = struct
   let erase p f init = measure "erase" (fun () -> erase p f init)
 
 
-let par_branch (bound : int option) branches =
+let par_branch ~(bound : int option) ~(cps : bool) branches =
   let pkg_name = "probnetkat" in
   let cmd_name = "compile" in
   let prog = match Findlib.package_directory pkg_name with
@@ -2004,8 +2004,9 @@ let par_branch (bound : int option) branches =
   in
   let order = Field.get_order () |> [%sexp_of: Field.t list] |> Sexp.to_string in
   let args =
-    ["-order"; Format.sprintf "%S" order] @
-    (match bound with None -> [] | Some b -> ["-bound"; Int.to_string b])
+      ["-order"; Format.sprintf "%S" order]
+    @ ["-cps"; Bool.to_string cps]
+    @ (match bound with None -> [] | Some b -> ["-bound"; Int.to_string b])
     (* @ ["-j"; Int.to_string Params.j] *)
   in
   let cmd = Format.sprintf "%s %s" prog (String.concat args ~sep:" ") in
@@ -2027,35 +2028,36 @@ let par_branch (bound : int option) branches =
 (*   In_channel.input_line_exn from_proc
   |> deserialize *)
 
-let rec of_pol_k bound (p : Field.t policy) k : t =
+let of_pol_k ?(parallelize=true) ?(bound:int option) (p : Field.t policy) : t =
+  let rec of_pol_k p k =
     match p with
     | Filter a ->
       k (of_pred a)
     | Modify m ->
       k (of_mod m)
     | Seq (p, q) ->
-      of_pol_k bound p (fun p' ->
+      of_pol_k p (fun p' ->
         if equal p' Fdd0.drop then
           k drop
         else
-          of_pol_k bound q (fun q' -> k (seq p' q')))
+          of_pol_k q (fun q' -> k (seq p' q')))
     | Ite (a, p, q) ->
       let a = of_pred a in
       if equal a id then
-        of_pol_k bound p k
+        of_pol_k p k
       else if equal a drop then
-        of_pol_k bound q k
+        of_pol_k q k
       else
-        of_pol_k bound p (fun p -> of_pol_k bound q (fun q -> k (ite a p q)))
-    | Branch { branches; parallelize = true} ->
-      par_branch bound branches
+        of_pol_k p (fun p -> of_pol_k q (fun q -> k (ite a p q)))
+    | Branch { branches; parallelize = true} when parallelize ->
+      par_branch ~bound ~cps:false branches
     | Branch {branches} ->
       List.filter_map branches ~f:(fun (a,p) ->
         let a = of_pred a in
         if equal a drop then
           None
         else
-          Some (of_pol_k bound p (fun p -> prod a p))
+          Some (of_pol_k p (fun p -> prod a p))
       )
       |> List.fold ~init:drop ~f:sum
       |> k
@@ -2063,7 +2065,7 @@ let rec of_pol_k bound (p : Field.t policy) k : t =
       let a = of_pred a in
       if equal a id then k drop else
       if equal a drop then k id else
-      of_pol_k bound p (fun p ->
+      of_pol_k p (fun p ->
         k (Util.timed "while loop" (fun () ->
           match bound with
           | None -> whl a p
@@ -2071,78 +2073,87 @@ let rec of_pol_k bound (p : Field.t policy) k : t =
         ))
       )
     | Choice dist ->
-      Util.map_fst dist ~f:(fun p -> of_pol_k bound p ident)
+      Util.map_fst dist ~f:(fun p -> of_pol_k p ident)
       |> n_ary_convex_sum
       |> k
     | Let { id=field; init; mut; body=p } ->
-      of_pol_k bound p (fun p -> k (erase p field init))
+      of_pol_k p (fun p -> k (erase p field init))
     | ObserveUpon (p, a) ->
       let a = of_pred a in
       if equal a drop then k drop else
-      of_pol_k bound p (fun p -> k (observe_upon p a))
+      of_pol_k p (fun p -> k (observe_upon p a))
+  in
+  of_pol_k p ident
 
 
-  let rec of_pol_cps bound (lctxt : t) (p : Field.t policy) : t =
-    if equal drop lctxt then drop else
-    match p with
-    | Filter a ->
-      seq lctxt (of_pred a)
-    | Modify m ->
-      prod lctxt (of_mod m)
-    | Seq (p,q) ->
-      let lctxt = of_pol_cps bound lctxt p in
-      of_pol_cps bound lctxt q
-    | Ite (a, p, q) ->
-      let a = of_pred a in
-      sum (of_pol_cps bound a p) (of_pol_cps bound (negate a) q)
-      |> seq lctxt
-    | Branch {branches} ->
-      List.map branches ~f:(fun (a,p) ->
-        of_pol_cps bound (of_pred a) p
-      )
-      |> List.fold ~init:drop ~f:sum
-      |> seq lctxt
-    | While (a, p) ->
-      let a = of_pred a in
-      if equal a id then
-        drop
-      else
-        let skip_ctxt = seq lctxt (negate a) in
-        if equal lctxt skip_ctxt || equal a drop then
-          skip_ctxt
+  let rec of_pol_cps ?(parallelize=true) ?(bound:int option) lctxt (p : Field.t policy) : t =
+    let rec of_pol_cps lctxt p =
+      if equal drop lctxt then drop else
+      match p with
+      | Filter a ->
+        seq lctxt (of_pred a)
+      | Modify m ->
+        prod lctxt (of_mod m)
+      | Seq (p,q) ->
+        let lctxt = of_pol_cps lctxt p in
+        of_pol_cps lctxt q
+      | Ite (a, p, q) ->
+        let a = of_pred a in
+        sum (of_pol_cps a p) (of_pol_cps (negate a) q)
+        |> seq lctxt
+      | Branch { branches; parallelize = true} ->
+        par_branch ~bound ~cps:true branches
+        |> seq lctxt
+      | Branch {branches} ->
+        List.map branches ~f:(fun (a,p) ->
+          of_pol_cps (of_pred a) p
+        )
+        |> List.fold ~init:drop ~f:sum
+        |> seq lctxt
+      | While (a, p) ->
+        let a = of_pred a in
+        if equal a id then
+          drop
         else
-          begin match bound with
-          | None -> seq lctxt (whl a (of_pol_cps bound a p))
-          | Some k -> bounded_whl_cps k lctxt a (of_pol_cps bound a p)
-          end
-    | Choice dist ->
-      (* SJS: In principle, we could compile all points of the distribution with
-         lctxt. But empirically, this leads to much worse performance. *)
-      n_ary_convex_sum (Util.map_fst dist ~f:(of_pol_cps bound id))
-      |> seq lctxt
-    | Let { id=field; init; mut; body=p } ->
-      begin match init with
-      | Const v ->
-        let lctxt = of_pol_cps bound lctxt (Modify (field, v)) in
-        let p = of_pol_cps bound lctxt p in
-        erase p field init
-      | Alias _ ->
-        let p = of_pol_cps bound lctxt p in
-        erase p field init
-      end
-    | ObserveUpon (p, a) ->
-      let a = of_pred a in
-      if equal a drop then drop else
-      observe_upon (of_pol_cps bound id p) a
-      |> seq lctxt
+          let skip_ctxt = seq lctxt (negate a) in
+          if equal lctxt skip_ctxt || equal a drop then
+            skip_ctxt
+          else
+            begin match bound with
+            | None -> seq lctxt (whl a (of_pol_cps a p))
+            | Some k -> bounded_whl_cps k lctxt a (of_pol_cps a p)
+            end
+      | Choice dist ->
+        (* SJS: In principle, we could compile all points of the distribution with
+           lctxt. But empirically, this leads to much worse performance. *)
+        n_ary_convex_sum (Util.map_fst dist ~f:(of_pol_cps id))
+        |> seq lctxt
+      | Let { id=field; init; mut; body=p } ->
+        begin match init with
+        | Const v ->
+          let lctxt = of_pol_cps lctxt (Modify (field, v)) in
+          let p = of_pol_cps lctxt p in
+          erase p field init
+        | Alias _ ->
+          let p = of_pol_cps lctxt p in
+          erase p field init
+        end
+      | ObserveUpon (p, a) ->
+        let a = of_pred a in
+        if equal a drop then drop else
+        observe_upon (of_pol_cps id p) a
+        |> seq lctxt
+    in
+    of_pol_cps lctxt p
 
   let use_cps = ref true
 
-  let of_symbolic_pol ?(lctxt=id) ?(bound=None) (p : Field.t policy) : t =
+  let of_symbolic_pol ?(parallelize=true) ?(lctxt=id) ?(bound=None) (p : Field.t policy) : t =
     if !use_cps then
-      of_pol_cps bound lctxt p
+      of_pol_cps ?bound ~parallelize lctxt p
     else
-      of_pol_k bound p (seq lctxt)
+      of_pol_k ?bound ~parallelize p
+      |> seq lctxt
 
   (* auto_order is set to false by default, so repeated invocations of this
      function don't invalidate old FDDs. *)
