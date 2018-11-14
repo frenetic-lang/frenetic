@@ -24,6 +24,9 @@ let () = begin
       14, "./examples/output/abfattree_14_sw_245";
       16, "./examples/output/abfattree_16_sw_320";
       18, "./examples/output/abfattree_18_sw_405";
+      20, "./examples/output/abfattree_20_sw_500";
+      24, "./examples/output/abfattree_24_sw_720";
+      28, "./examples/output/abfattree_28_sw_980";
     ]
   in
 
