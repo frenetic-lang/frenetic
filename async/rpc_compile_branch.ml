@@ -57,18 +57,31 @@ let cmd_spec = Command.Spec.(
     ~doc:" parallelize subcomputations further."
   +> flag "bound" (optional int) ~doc:" bounded iteration"
   +> flag "j" (optional int) ~doc:" number of processes to run in parallel"
+  +> flag "remote" (listed string) ~doc: " remote host on which to spawn workers"
 )
 
 let cmd =
   Command.async_spec
     ~summary:"Compiler given Probnetkat policy to FDD in parallel"
     cmd_spec
-    (fun order cps parallelize bound local () ->
+    (fun order cps parallelize bound local remote () ->
       let order = [%of_sexp: Symbolic.Field.t list] order in
       let param = T.Param.{ bound; order; cps; parallelize } in
+      let remote_n = Option.value local ~default:16 in
+      let%bind remote =
+        List.map remote ~f:(fun h ->
+          Rpc_parallel.Remote_executable.copy_to_host h
+            ~executable_dir:"/tmp/"
+          >>| function
+          | Ok host -> (host, remote_n)
+          | Error _ -> failwith ("unable to connect to host: " ^ h)
+        )
+        |> Deferred.all
+      in
       let rpc_config =
         Rpc_parallel.Map_reduce.Config.create
           ?local
+          ~remote
           ~cd:"/tmp/"
           ~redirect_stderr:(`File_append "rpc_compile_branch.worker.err")
           ~redirect_stdout:(`File_append "rpc_compile_branch.worker.out")
