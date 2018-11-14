@@ -126,11 +126,12 @@ let nr_of_loops p =
   in
   do_pol p 0
 
-let pp_hv pp_field op fmt hv =
-  fprintf fmt "@[%a%s%d@]" pp_field (fst hv) op (snd hv)
+let pp_hv pp_field op fmt (f,v : 'field * value) =
+  fprintf fmt "@[%a%s%d@]" pp_field f op v
 
-let pp_policy pp_field fmt (p : 'field policy) =
-  let rec do_pol ctxt fmt (p : 'field policy) =
+let pp_policy (type field) (pp_field : Format.formatter -> field -> unit)
+  (fmt : Format.formatter) (p : field policy) : unit =
+  let rec do_pol ctxt fmt (p : field policy) =
     match p with
     | Filter pred -> do_pred ctxt fmt pred
     | Modify hv -> pp_hv pp_field "<-" fmt hv
@@ -169,7 +170,7 @@ let pp_policy pp_field fmt (p : 'field policy) =
     | ObserveUpon (p, a) ->
       fprintf fmt "@[DO@ @[<2>%a@]@ THEN OBSERVE @ @[<2>%a@]@]"
         (do_pol `While) p (do_pred `COND) a
-  and do_pred ctxt fmt (p : string pred) =
+  and do_pred ctxt fmt (p : field pred) =
     match p with
     | True -> fprintf fmt "@[1@]"
     | False -> fprintf fmt "@[0@]"
@@ -189,12 +190,11 @@ let pp_policy pp_field fmt (p : 'field policy) =
         | _ -> fprintf fmt "@[(@[%a;@ %a@])@]" (do_pred `SEQ_L) p1 (do_pred `SEQ_R) p2
       end
   and do_binding fmt (id, init, mut) =
-    fprintf fmt "%s@ %s@ :=@ %s"
-      (if mut then "var" else "let")
-      id
-      (match init with
-        | Alias f -> f
-        | Const v -> Int.to_string v)
+    fprintf fmt "%s@ %a@ :=@ " (if mut then "var" else "let") pp_field id;
+    match init with
+    | Alias f -> pp_field fmt f
+    | Const v -> Int.pp fmt v
+
 
   in
   do_pol `PAREN fmt p
