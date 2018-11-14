@@ -44,7 +44,7 @@ let () = begin
 
   (* TEST TOPOLOGY *)
   (* let topo_prog = Topology.to_probnetkat topo ~guard_links:true in *)
-  (* Format.printf "%a\n\n" Syntax.pp_policy topo_prog; *)
+  (* Format.printf "%a\n\n" (Syntax.pp_policy String.pp) topo_prog; *)
   (* Util.timed "topo to Fdd" (fun () -> ignore (Fdd.of_pol topo_prog)); *)
 
   (* TEST PARSING *)
@@ -57,7 +57,7 @@ let () = begin
   let model = Util.timed "building model"
     (Model.make ~topo ~max_failures ~failure_prob ~sw_pol)
   in
-  Format.printf "%a\n\n" Syntax.pp_policy model;
+  Format.printf "%a\n\n" (Syntax.pp_policy String.pp) model;
   let fdd = Util.timed "model to Fdd" (fun () -> Fdd.of_pol model) in
   printf ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> COMPILATION DONE\n%!";
 

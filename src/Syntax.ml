@@ -126,14 +126,14 @@ let nr_of_loops p =
   in
   do_pol p 0
 
-let pp_hv op fmt hv =
-  fprintf fmt "@[%s%s%d@]" (fst hv) op (snd hv)
+let pp_hv pp_field op fmt hv =
+  fprintf fmt "@[%a%s%d@]" pp_field (fst hv) op (snd hv)
 
-let pp_policy fmt (p : string policy) =
-  let rec do_pol ctxt fmt (p : string policy) =
+let pp_policy pp_field fmt (p : 'field policy) =
+  let rec do_pol ctxt fmt (p : 'field policy) =
     match p with
     | Filter pred -> do_pred ctxt fmt pred
-    | Modify hv -> pp_hv "<-" fmt hv
+    | Modify hv -> pp_hv pp_field "<-" fmt hv
     | Seq (p1, p2) ->
       begin match ctxt with
         | `PAREN
@@ -173,7 +173,7 @@ let pp_policy fmt (p : string policy) =
     match p with
     | True -> fprintf fmt "@[1@]"
     | False -> fprintf fmt "@[0@]"
-    | Test hv -> pp_hv "=" fmt hv
+    | Test hv -> pp_hv pp_field "=" fmt hv
     | Neg p -> fprintf fmt "@[¬%a@]" (do_pred `Neg) p
     | Or (a1, a2) ->
       begin match ctxt with

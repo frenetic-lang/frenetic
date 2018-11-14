@@ -300,7 +300,7 @@ module CFG = struct
       let edge_attributes e =
         let guard = guard_of_e e in
         (* [] *)
-        [`Label (Format.asprintf "%a" Syntax.pp_policy (Filter guard))]
+        [`Label (Format.asprintf "%a" (Syntax.pp_policy String.pp) (Filter guard))]
       let default_edge_attributes _ = []
       let vertex_attributes v = []
       let default_vertex_attributes _ = []
