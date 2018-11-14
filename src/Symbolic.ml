@@ -2019,9 +2019,8 @@ let par_branch ~(bound : int option) ~(cps : bool) branches =
       ["-order"; Format.sprintf "%S" order]
     @ ["-cps"; Bool.to_string cps]
     @ (match bound with None -> [] | Some b -> ["-bound"; Int.to_string b])
-    @ ["-remote"; "atlas-17"; "-remote"; "atlas-18"; "-remote"; "atlas-19"; "-remote"; "atlas-20";
-       "-remote"; "atlas-21"; "-remote"; "atlas-22"; "-remote"; "atlas-23"; "-remote"; "atlas-24"]
-    @ ["-j"; "12"]
+    @ ["-j"; Int.to_string Params.j]
+    @ (List.concat_map Params.cluster ~f:(fun h -> ["-remote"; h]))
   in
   let cmd = Format.sprintf "%s %s" prog (String.concat args ~sep:" ") in
   let (from_proc, to_proc) as proc = Unix.open_process cmd in
