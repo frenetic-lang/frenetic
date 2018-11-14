@@ -2,12 +2,13 @@ open! Core
 open Probnetkat
 open Probnetkat.Symbolic
 
-let () = if Array.length Sys.argv <> 3 then begin
-  printf "usage: %s [k: int] [cps: true/false]\n" Sys.argv.(0);
+let () = if Array.length Sys.argv <> 4 then begin
+  printf "usage: %s [k: int] [cps: true/false] [parallelize: true/false]\n" Sys.argv.(0);
   exit 1;
 end
 let k = Int.of_string Sys.argv.(1)
 let cps = Bool.of_string Sys.argv.(2)
+let parallelize = bool_of_string Sys.argv.(3)
 
 let () = begin
   let max_failures = -1 in
@@ -59,7 +60,7 @@ let () = begin
     Fdd.use_cps := cps;
 
     (* Util.log_and_sandbox ~timeout ~logfile topo_file ~f:(fun () -> *)
-    ignore (Fdd.of_pol ~bound ~auto_order:true model);
+    ignore (Fdd.of_pol ~parallelize ~bound ~auto_order:true model);
     Fdd.print_stats ();
     printf "Done.\n%!"
     (* ); *)
