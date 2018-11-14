@@ -3,7 +3,7 @@ INSTALL_ARGS := $(if $(PREFIX),--prefix $(PREFIX),)
 build:
 	time -p dune build @install @all --profile release
 
-install:
+install: build
 	dune install $(INSTALL_ARGS)
 
 uninstall:
@@ -17,7 +17,7 @@ clean:
 doc:
 	dune build @doc --profile release
 
-test:
+test: install
 	dune runtest --no-buffer --profile release
 
 all: build test doc
