@@ -18,7 +18,7 @@ doc:
 	dune build @doc --profile release
 
 test: install
-	dune runtest --no-buffer --profile release
+	dune runtest --no-buffer --profile release -f
 
 all: build test doc
 
