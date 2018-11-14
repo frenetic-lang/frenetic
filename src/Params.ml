@@ -2,7 +2,13 @@
 open! Core
 
 (** maximum number of jobs for parallelization *)
-let j = 16
+let j = Sys.getenv "J" |> function
+  | Some j -> Int.of_string j
+  | None -> Or_error.ok_exn Linux_ext.cores ()
+
+let cluster =
+  List.init 24 ~f:(fun i -> sprintf "atlas-%d" (i+1))
+  |> List.filter ~f:(fun s -> Unix.gethostname () |> String.equal s |> not)
 
 (** switch field *)
 let sw = "sw"
