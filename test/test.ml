@@ -38,6 +38,7 @@ let pols = ref []
 let test ?(use_slow_obs=false) kind name p q =
   pols := p :: q :: !pols;
   (name, `Quick, (fun () ->
+      Fdd.clear_cache ~preserve:Int.Set.empty;
       Fdd.use_slow_observe := use_slow_obs;
       Alcotest.check kind "" (Fdd.of_pol p) (Fdd.of_pol q);
       Fdd.clear_cache ~preserve:Int.Set.empty
@@ -274,109 +275,6 @@ let basic_probabilistic = [
       )
     )
     PNK.( skip );
-
-]
-
-
-(*===========================================================================*)
-(* PERFORMANCE TESTS                                                         *)
-(*===========================================================================*)
-
-let basic_performance = [
-
-  (* joint distribution of n independent binary coins *)
-  begin
-    let n = 20 in
-    let field i = sprintf "x%d" i in
-    let local_field i = sprintf "y%d" i in
-    let p = PNK.(
-      seqi n ~f:(fun i -> ?@[
-        !!(field i, 0) , 1//2;
-        !!(field i, 1) , 1//2;
-      ]) >>
-      seqi n ~f:(fun i -> ?@[
-        !!(local_field i, 0) , 1//2;
-        !!(local_field i, 1) , 1//2;
-      ])
-      |> locals (List.init n ~f:(fun i -> (local_field i, 0, true)))
-    )
-    in
-    test fdd_eq "joint distribution of independent binary variables" p p
-  end;
-
-  (* simplified up-bit example; we could do this efficiently with a better
-     FactorizedActionDist.convex_sum, but that slows other things down too much
-     and is currently not worth it.
-  *)
-  begin
-    (* works with n=20 with somewhat smart, hacky convex_sum enabled *)
-    let n = 2 in
-    let up i = sprintf "up_%d" i in
-    let p = PNK.(
-      seqi n ~f:(fun i -> ?@[
-        !!(up i, 0) , 1//2;
-        !!(up i, 1) , 1//2;
-      ])
-      >> uniformi n ~f:(fun i -> !!("pt",i))
-      >> ??("pt", 0)
-      |> locals (List.init n ~f:(fun i -> (up i, 0, true)))
-    )
-    in
-    test fdd_eq "simplified failure model with up bits should scale O(n), not O(2^n)" p p
-  end;
-
-  (* slightly harder up-bit example; this one works with smart FactorizedActionDist.convex_sum,
-     but we won't make that the default for now since it is expensive. *)
-  begin
-    (* works with n=20 with smart convex_sum enabled *)
-    let n = 2 in
-    let up i = sprintf "up_%d" i in
-    let p = PNK.(
-      seqi n ~f:(fun i -> ?@[
-        !!(up i, 0) , 1//2;
-        !!(up i, 1) , 1//2;
-      ])
-      >> ite_cascade (List.range 0 n) ~otherwise:drop ~disjoint:false ~f:(fun i ->
-        ???(up i, 1),
-        !!("pt", i) >>
-        (* erasing the up fields here is crucial to making this scale, at the moment *)
-        seqi n ~f:(fun i -> !!(up i, 1))
-      )
-      |> locals (List.init n ~f:(fun i -> (up i, 0, true)))
-    )
-    in
-    test fdd_eq "failure model with up bits should scale O(n), not O(2^n)" p p
-  end;
-
-  (* resilient up-bit example; this one is even harder and requires that factorization is mainted
-     during fdd -> matrix -> fdd conversion.
-  *)
-  begin
-    (* one day this should scale easily to n=20 ... *)
-    let n = 2 in
-    let up i = sprintf "up_%d" i in
-    let at_good_pt = PNK.(
-      disji n ~f:(fun i -> ???(up i, 1) & ???("pt", i))
-    )
-    in
-    let p = PNK.(
-      seqi n ~f:(fun i -> ?@[
-        !!(up i, 0) , 1//2;
-        !!(up i, 1) , 1//2;
-      ])
-      >> do_whl (neg at_good_pt) (
-        uniformi n ~f:(fun i -> !!("pt", i))
-      )
-(*       >> ite_cascade (List.range 0 n) ~otherwise:drop ~f:(fun i ->
-        ???(up i, 1),
-        !!("pt", i) >> seqi n ~f:(fun i -> !!(up i, 1))
-      ) *)
-      (* |> locals (List.init n ~f:(fun i -> (up i, 0, true))) *)
-    )
-    in
-    test fdd_eq "resilient failure model with up bits should scale O(n), not O(2^n)" p p
-  end;
-
 
 ]
 
@@ -637,33 +535,170 @@ let observe_tests = [
 ]
 
 
+(*===========================================================================*)
+(* PARALLELIZATION TESTS                                                     *)
+(*===========================================================================*)
+
+let parallelization =
+  let seed = 42 in
+  let () = Random.init seed in
+  let random_state = Random.State.default in
+  let fdd_of_pol = Fdd.of_pol ~parallelize:true in
+  List.init 10 ~f:(fun _ ->
+    let k = Random.int_incl 2 14 in
+    let branches = List.init k ~f:(fun i ->
+      PNK.(???("guard", i), List.random_element_exn ~random_state (!pols))
+    )
+    in
+    let par = Branch { branches; parallelize = true } in
+    let seq = Branch { branches; parallelize = false } in
+    (Format.sprintf "random (seed = %d)" seed), `Quick, (fun () ->
+      Fdd.clear_cache ~preserve:Int.Set.empty;
+      begin try[@warning "-52"]
+        Alcotest.check fdd_equiv "" (fdd_of_pol seq) (fdd_of_pol par);
+      with Failure "too many fields! (may need to clear the cache?)" ->
+        ()
+      end;
+      Fdd.clear_cache ~preserve:Int.Set.empty
+    )
+  )
+
+(*===========================================================================*)
+(* CPS STYLE COMPILATION                                                     *)
+(*===========================================================================*)
+
 let cps_tests =
   List.map (!pols) ~f:(fun p ->
     "", `Quick, (fun () ->
       try[@warning "-52"]
+        Fdd.clear_cache ~preserve:Int.Set.empty;
         Fdd.use_cps := false;
         let slow = Fdd.of_pol p in
         Fdd.use_cps := true;
         let fast = Fdd.of_pol p in
         Alcotest.check fdd_equiv "" slow fast;
         (* with bounds *)
+        Fdd.clear_cache ~preserve:Int.Set.empty;
         Fdd.use_cps := false;
         let slow = Fdd.of_pol ~bound:(Some 4) p in
         Fdd.use_cps := true;
         let fast = Fdd.of_pol ~bound:(Some 4) p in
         Alcotest.check fdd_equiv "" slow fast;
         (* with bounds *)
+        Fdd.clear_cache ~preserve:Int.Set.empty;
         Fdd.use_cps := false;
         let slow = Fdd.of_pol ~bound:(Some 8) p in
         Fdd.use_cps := true;
         let fast = Fdd.of_pol ~bound:(Some 8) p in
         Alcotest.check fdd_equiv "" slow fast;
+        Fdd.clear_cache ~preserve:Int.Set.empty;
       with Failure "too many fields! (may need to clear the cache?)" ->
         (* the CPS translation is less economical in the use of fields, but that
            should not be considered a bug *)
         ()
     )
   )
+
+(*===========================================================================*)
+(* PERFORMANCE TESTS                                                         *)
+(*===========================================================================*)
+let basic_performance = [
+
+  (* joint distribution of n independent binary coins *)
+  begin
+    let n = 20 in
+    let field i = sprintf "x%d" i in
+    let local_field i = sprintf "y%d" i in
+    let p = PNK.(
+      seqi n ~f:(fun i -> ?@[
+        !!(field i, 0) , 1//2;
+        !!(field i, 1) , 1//2;
+      ]) >>
+      seqi n ~f:(fun i -> ?@[
+        !!(local_field i, 0) , 1//2;
+        !!(local_field i, 1) , 1//2;
+      ])
+      |> locals (List.init n ~f:(fun i -> (local_field i, 0, true)))
+    )
+    in
+    Fdd.use_cps := false;
+    test fdd_eq "joint distribution of independent binary variables" p p
+  end;
+
+  (* simplified up-bit example; we could do this efficiently with a better
+     FactorizedActionDist.convex_sum, but that slows other things down too much
+     and is currently not worth it.
+  *)
+  begin
+    (* works with n=20 with somewhat smart, hacky convex_sum enabled *)
+    let n = 2 in
+    let up i = sprintf "up_%d" i in
+    let p = PNK.(
+      seqi n ~f:(fun i -> ?@[
+        !!(up i, 0) , 1//2;
+        !!(up i, 1) , 1//2;
+      ])
+      >> uniformi n ~f:(fun i -> !!("pt",i))
+      >> ??("pt", 0)
+      |> locals (List.init n ~f:(fun i -> (up i, 0, true)))
+    )
+    in
+    test fdd_eq "simplified failure model with up bits should scale O(n), not O(2^n)" p p
+  end;
+
+  (* slightly harder up-bit example; this one works with smart FactorizedActionDist.convex_sum,
+     but we won't make that the default for now since it is expensive. *)
+  begin
+    (* works with n=20 with smart convex_sum enabled *)
+    let n = 2 in
+    let up i = sprintf "up_%d" i in
+    let p = PNK.(
+      seqi n ~f:(fun i -> ?@[
+        !!(up i, 0) , 1//2;
+        !!(up i, 1) , 1//2;
+      ])
+      >> ite_cascade (List.range 0 n) ~otherwise:drop ~disjoint:false ~f:(fun i ->
+        ???(up i, 1),
+        !!("pt", i) >>
+        (* erasing the up fields here is crucial to making this scale, at the moment *)
+        seqi n ~f:(fun i -> !!(up i, 1))
+      )
+      |> locals (List.init n ~f:(fun i -> (up i, 0, true)))
+    )
+    in
+    test fdd_eq "failure model with up bits should scale O(n), not O(2^n)" p p
+  end;
+
+  (* resilient up-bit example; this one is even harder and requires that factorization is mainted
+     during fdd -> matrix -> fdd conversion.
+  *)
+  begin
+    (* one day this should scale easily to n=20 ... *)
+    let n = 2 in
+    let up i = sprintf "up_%d" i in
+    let at_good_pt = PNK.(
+      disji n ~f:(fun i -> ???(up i, 1) & ???("pt", i))
+    )
+    in
+    let p = PNK.(
+      seqi n ~f:(fun i -> ?@[
+        !!(up i, 0) , 1//2;
+        !!(up i, 1) , 1//2;
+      ])
+      >> do_whl (neg at_good_pt) (
+        uniformi n ~f:(fun i -> !!("pt", i))
+      )
+(*       >> ite_cascade (List.range 0 n) ~otherwise:drop ~f:(fun i ->
+        ???(up i, 1),
+        !!("pt", i) >> seqi n ~f:(fun i -> !!(up i, 1))
+      ) *)
+      (* |> locals (List.init n ~f:(fun i -> (up i, 0, true))) *)
+    )
+    in
+    test fdd_eq "resilient failure model with up bits should scale O(n), not O(2^n)" p p
+  end;
+
+]
 
 
 (* let qcheck_tests = [
@@ -677,8 +712,9 @@ let () =
     "fdd misc",          misc_tests;
     "fdd deterministic", basic_deterministic;
     "fdd probabilistic", basic_probabilistic;
-    (* "fdd performance",   basic_performance; *)
     "fdd observe", observe_tests;
+    "fdd parallelization", parallelization;
     "fdd cps compilation", cps_tests;
+    "fdd performance",   basic_performance;
     (* "qcheck", qcheck_tests; *)
   ]

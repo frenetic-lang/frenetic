@@ -2161,10 +2161,10 @@ let of_pol_k ?(parallelize=true) ?(bound:int option) (p : Field.t policy) : t =
 
   (* auto_order is set to false by default, so repeated invocations of this
      function don't invalidate old FDDs. *)
-  let of_pol ?lctxt ?bound ?(auto_order=false) (p : string policy) : t =
+  let of_pol ?(parallelize=true) ?lctxt ?bound ?(auto_order=false) (p : string policy) : t =
     allocate_fields p
     |> Util.tap ~f:(fun t -> if auto_order then Field.auto_order t)
-    |> of_symbolic_pol ?lctxt ?bound
+    |> of_symbolic_pol ~parallelize ?lctxt ?bound
 
 
   let output_dist t ~(input_dist : Packet.Dist.t) =
