@@ -1721,39 +1721,34 @@ module Fdd = struct
     |> List.fold ~init:drop ~f:sum *)
 
 
-  (* FIXME: this skeleton is very large, so this may become a bottleneck.
-     I used to use a smaller skeleton computed from ap and not_a, but I am not
-     sure this was sound. Reconsider should this become a bottleneck in the
-     future. *)
-  let mk_skeleton dom =
-    Field.Map.to_alist dom
-    |> List.sort ~compare:(fun (f1,_) (f2,_) -> Field.compare f2 f1)
-    |> List.fold ~init:(id, drop) ~f:(fun sk (f, vs) ->
-      Set.to_sequence vs ~order:`Decreasing
-      |> Sequence.fold ~init:sk ~f:(fun ((sk, neg_sk) as skeleton) v ->
-        match v with
-        | PrePacket.Atom ->
-          skeleton
-        | PrePacket.Const v ->
-          (unchecked_cond (f,v) sk neg_sk, unchecked_cond (f,v) neg_sk sk)
-      )
-    )
-    |> fst
-
   let of_mat (matrix : Matrix.t) : t =
-    let row = measure "mat: rows" (fun () -> Staged.unstage (Sparse.row matrix.matrix)) in
-    let skeleton = measure "mat: skeleton" (fun () -> mk_skeleton Matrix.(matrix.dom)) in
-    let rec do_node skeleton pk =
-      match unget skeleton with
-      | Leaf r ->
-        const (Matrix.get_pk_action matrix row pk |> FactorizedActionDist.factorize)
-      | Branch {test=(f,v); tru; fls} ->
-        let tru = do_node tru PrePacket.(modify pk f (Const v)) in
-        let fls = do_node fls PrePacket.(modify pk f Atom) in
-        unchecked_cond (f,v) tru fls
+    let row = Staged.unstage (Sparse.row matrix.matrix) in
+    let do_pk pk =
+      Matrix.get_pk_action matrix row pk
+      |> FactorizedActionDist.factorize
+      |> const
     in
-    let do_node skeleton pk = measure "mat: do_node" (fun () -> do_node skeleton pk) in
-    do_node skeleton PrePacket.empty
+    let do_node =
+      Field.Map.to_alist matrix.dom
+      |> List.sort ~compare:(fun (f1,_) (f2,_) -> Field.compare f2 f1)
+      |> List.fold ~init:do_pk ~f:(fun do_pk_true (f,vs) ->
+        Set.to_sequence vs ~order:`Decreasing
+        |> Sequence.fold
+          ~init:(fun pk -> PrePacket.(modify pk f Atom) |> do_pk_true)
+          ~f:(fun do_pk_fls v ->
+          match v with
+          | PrePacket.Atom ->
+            do_pk_fls
+          | PrePacket.Const v ->
+            fun pk ->
+              assert (not (Map.mem pk f));
+              let tru = PrePacket.(modify pk f (Const v)) in
+              unchecked_cond (f, v) (do_pk_true tru) (do_pk_fls pk)
+        )
+      )
+    in
+    let do_node pk = measure "mat: do_node" (fun () -> do_node pk) in
+    do_node PrePacket.empty
 
   let of_mat matrix = measure "mat->fdd" (fun () -> of_mat matrix)
 
