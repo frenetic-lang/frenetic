@@ -2015,12 +2015,14 @@ let par_branch ~(bound : int option) ~(cps : bool) branches =
       failwith ("missing ocamlfind dependency: " ^ pkg_name)
   in
   let order = Field.get_order () |> [%sexp_of: Field.t list] |> Sexp.to_string in
+  let remotes, _ = List.split_n Params.cluster Params.r in
   let args =
       ["-order"; Format.sprintf "%S" order]
     @ ["-cps"; Bool.to_string cps]
     @ (match bound with None -> [] | Some b -> ["-bound"; Int.to_string b])
     @ ["-j"; Int.to_string Params.j]
-    @ (List.concat_map Params.cluster ~f:(fun h -> ["-remote"; h]))
+    @ ["-rj"; Int.to_string Params.rj]
+    @ (List.concat_map remotes ~f:(fun h -> ["-remote"; h]))
   in
   let cmd = Format.sprintf "%s %s" prog (String.concat args ~sep:" ") in
   let (from_proc, to_proc) as proc = Unix.open_process cmd in

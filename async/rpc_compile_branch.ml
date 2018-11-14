@@ -56,7 +56,8 @@ let cmd_spec = Command.Spec.(
   +> flag "parallelize" (optional_with_default false bool)
     ~doc:" parallelize subcomputations further."
   +> flag "bound" (optional int) ~doc:" bounded iteration"
-  +> flag "j" (optional int) ~doc:" number of processes to run in parallel"
+  +> flag "j" (optional int) ~doc:" number of processes to run locally (default: # logical cores)"
+  +> flag "rj" (optional int) ~doc:" number of processes to run remotely per remote (default: j)"
   +> flag "remote" (listed string) ~doc: " remote host on which to spawn workers"
 )
 
@@ -64,25 +65,32 @@ let cmd =
   Command.async_spec
     ~summary:"Compiler given Probnetkat policy to FDD in parallel"
     cmd_spec
-    (fun order cps parallelize bound local remote () ->
+    (fun order cps parallelize bound j rj remote () ->
+      eprintf "[compile server] %s\n%!"
+        (Sys.argv |> Array.to_list |> String.concat ~sep:" ");
+      let wdir = "/tmp/" in
       let order = [%of_sexp: Symbolic.Field.t list] order in
       let param = T.Param.{ bound; order; cps; parallelize } in
-      let remote_n = Option.value local ~default:16 in
+      let local = match j with
+        | Some j -> j
+        | None -> Or_error.ok_exn Linux_ext.cores ()
+      in
+      let rj = Option.value rj ~default:local in
       let%bind remote =
         List.map remote ~f:(fun h ->
           Rpc_parallel.Remote_executable.copy_to_host h
-            ~executable_dir:"/tmp/"
+            ~executable_dir:wdir
           >>| function
-          | Ok host -> (host, remote_n)
+          | Ok host -> (host, rj)
           | Error _ -> failwith ("unable to connect to host: " ^ h)
         )
         |> Deferred.all
       in
       let rpc_config =
         Rpc_parallel.Map_reduce.Config.create
-          ?local
+          ~local
           ~remote
-          ~cd:"/tmp/"
+          ~cd:wdir
           ~redirect_stderr:(`File_append "rpc_compile_branch.worker.err")
           ~redirect_stdout:(`File_append "rpc_compile_branch.worker.out")
           ()
