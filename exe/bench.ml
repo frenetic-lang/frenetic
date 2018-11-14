@@ -3,7 +3,7 @@ open Probnetkat
 open Probnetkat.Symbolic
 
 let () = if Array.length Sys.argv <> 3 then begin
-  printf "usage: %s [k: int] [cps: true/false]" Sys.argv.(0);
+  printf "usage: %s [k: int] [cps: true/false]\n" Sys.argv.(0);
   exit 1;
 end
 let k = Int.of_string Sys.argv.(1)
