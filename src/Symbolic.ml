@@ -1171,7 +1171,7 @@ module Matrix = struct
     )
 
 
-  let get_pk_action t (pk : PrePacket.t) : ActionDist.t =
+  let get_pk_action t row (pk : PrePacket.t) : ActionDist.t =
     let module Coding = (val t.coding : CODING) in
     let row_to_action row : ActionDist.t =
       Sparse.foldi_nz row ~init:ActionDist.empty ~f:(fun _i j dist prob ->
@@ -1183,8 +1183,7 @@ module Matrix = struct
     in
     let total_pk_action pk : ActionDist.t =
       let i = (Coding.Index0.of_pk (Packet.Pk pk)).i in
-      let rowi = Sparse.row t.matrix i in
-      row_to_action rowi
+      row_to_action (row i)
     in
     (* Using faster, but less safe code. We're assuming here that all
        pre_pact_variants give the same final result. But we're not checking that
@@ -1732,11 +1731,12 @@ module Fdd = struct
     )
 
   let of_mat (matrix : Matrix.t) : t =
+    let row = Staged.unstage (Sparse.row matrix.matrix) in
     let skeleton = mk_skeleton Matrix.(matrix.dom) in
     let rec do_node skeleton pk =
       match unget skeleton with
       | Leaf r ->
-        const (Matrix.get_pk_action matrix pk |> FactorizedActionDist.factorize)
+        const (Matrix.get_pk_action matrix row pk |> FactorizedActionDist.factorize)
       | Branch {test=(f,v); tru; fls} ->
         let tru = do_node tru PrePacket.(modify pk f (Const v)) in
         let fls = do_node fls PrePacket.(modify pk f Atom) in
