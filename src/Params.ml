@@ -17,7 +17,7 @@ let rj = Sys.getenv "RJ" |> function
   | None -> j
 
 (** number of remote servers to use *)
-let r = Sys.getenv "R" |> function
+let r = Sys.getenv "RN" |> function
   | Some r -> Int.of_string r
   | None -> 0
 
