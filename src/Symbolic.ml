@@ -1728,14 +1728,17 @@ module Fdd = struct
   let mk_skeleton dom =
     Field.Map.to_alist dom
     |> List.sort ~compare:(fun (f1,_) (f2,_) -> Field.compare f2 f1)
-    |> List.fold ~init:id ~f:(fun sk (f, vs) ->
+    |> List.fold ~init:(id, drop) ~f:(fun sk (f, vs) ->
       Set.to_sequence vs ~order:`Decreasing
-      |> Sequence.fold ~init:sk ~f:(fun sk v ->
+      |> Sequence.fold ~init:sk ~f:(fun ((sk, neg_sk) as skeleton) v ->
         match v with
-        | PrePacket.Atom -> sk
-        | PrePacket.Const v -> unchecked_cond (f,v) sk (negate sk)
+        | PrePacket.Atom ->
+          skeleton
+        | PrePacket.Const v ->
+          (unchecked_cond (f,v) sk neg_sk, unchecked_cond (f,v) neg_sk sk)
       )
     )
+    |> fst
 
   let of_mat (matrix : Matrix.t) : t =
     let row = measure "mat: rows" (fun () -> Staged.unstage (Sparse.row matrix.matrix)) in

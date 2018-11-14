@@ -102,7 +102,7 @@ module Make(V:Value)(L:Lattice)(R:Result) = struct
     |> List.map ~f:(fun (key, data) ->
       let ni = List.length data in
       let ti = List.fold data ~init:0. ~f:(+.) in
-      let k = PrintBox.sprintf "%s:" key in
+      let k = PrintBox.sprintf "%s" key in
       let rel = PrintBox.sprintf "# = %d (%.1f%%)" ni Float.((of_int ni) / (of_int n) * 100.) in
       let tot = PrintBox.sprintf "t = %.0fs (%.1f%%)" ti (ti /. t *. 100.) in
       [| k; rel; tot; |]
