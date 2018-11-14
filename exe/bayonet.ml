@@ -104,13 +104,14 @@ let () = begin
   (* let logfile = "./examples/logs/bayonet.log" in *)
   Util.print_times := false;
   (* Util.log_and_sandbox ~timeout ~logfile Sys.argv.(1) ~f:(fun () -> *)
-    Fdd.use_cps := use_cps;
-    let fdd = Fdd.of_pol ~parallelize ~auto_order:true Model.model in
-    let p = Fdd.min_nondrop_prob' fdd in
-    let q = Prob.to_q p in
-    Format.printf "probability of delivery (precise): %a/%a\n%!"
-      Z.pp_print (Q.num q) Z.pp_print (Q.den q);
-    Format.printf "probability of delivery (approx): %f\n%!" (Prob.to_float p);
+  Fdd.use_cps := use_cps;
+  let fdd = Fdd.of_pol ~parallelize ~auto_order:true Model.model in
+  Fdd.print_stats ();
+  let p = Fdd.min_nondrop_prob' fdd in
+  let q = Prob.to_q p in
+  Format.printf "probability of delivery (precise): %a/%a\n%!"
+    Z.pp_print (Q.num q) Z.pp_print (Q.den q);
+  Format.printf "probability of delivery (approx): %f\n%!" (Prob.to_float p);
     (* Fdd.render fdd; *)
   (* ); *)
 end

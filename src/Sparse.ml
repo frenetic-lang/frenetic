@@ -26,4 +26,3 @@ let row mat =
     |> Int.Table.of_alist_multi
   in
   Staged.stage (fun i -> { mat with entries = Int.Table.find_multi tbl i })
-

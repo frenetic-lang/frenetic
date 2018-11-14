@@ -544,8 +544,8 @@ let parallelization =
   let () = Random.init seed in
   let random_state = Random.State.default in
   let fdd_of_pol = Fdd.of_pol ~parallelize:true in
-  List.init 10 ~f:(fun _ ->
-    let k = Random.int_incl 2 14 in
+  List.init 6 ~f:(fun _ ->
+    let k = Random.int_incl 2 7 in
     let branches = List.init k ~f:(fun i ->
       PNK.(???("guard", i), List.random_element_exn ~random_state (!pols))
     )

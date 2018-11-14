@@ -1198,6 +1198,10 @@ module Matrix = struct
       | [act::_] -> act
       | _ -> assert false *)
 
+  let get_pk_action t row pk = Fdd0.measure "mat: get pk action" (fun () ->
+    get_pk_action t row pk
+  )
+
 end
 
 
@@ -1722,17 +1726,20 @@ module Fdd = struct
      sure this was sound. Reconsider should this become a bottleneck in the
      future. *)
   let mk_skeleton dom =
-    Field.Map.fold dom ~init:id ~f:(fun ~key:field ~data:vs init ->
-      Set.fold vs ~init ~f:(fun init v ->
+    Field.Map.to_alist dom
+    |> List.sort ~compare:(fun (f1,_) (f2,_) -> Field.compare f2 f1)
+    |> List.fold ~init:id ~f:(fun sk (f, vs) ->
+      Set.to_sequence vs ~order:`Decreasing
+      |> Sequence.fold ~init:sk ~f:(fun sk v ->
         match v with
-        | PrePacket.Atom -> init
-        | PrePacket.Const v -> cond (field,v) init (negate init)
+        | PrePacket.Atom -> sk
+        | PrePacket.Const v -> unchecked_cond (f,v) sk (negate sk)
       )
     )
 
   let of_mat (matrix : Matrix.t) : t =
-    let row = Staged.unstage (Sparse.row matrix.matrix) in
-    let skeleton = mk_skeleton Matrix.(matrix.dom) in
+    let row = measure "mat: rows" (fun () -> Staged.unstage (Sparse.row matrix.matrix)) in
+    let skeleton = measure "mat: skeleton" (fun () -> mk_skeleton Matrix.(matrix.dom)) in
     let rec do_node skeleton pk =
       match unget skeleton with
       | Leaf r ->
@@ -1742,7 +1749,10 @@ module Fdd = struct
         let fls = do_node fls PrePacket.(modify pk f Atom) in
         unchecked_cond (f,v) tru fls
     in
+    let do_node skeleton pk = measure "mat: do_node" (fun () -> do_node skeleton pk) in
     do_node skeleton PrePacket.empty
+
+  let of_mat matrix = measure "mat->fdd" (fun () -> of_mat matrix)
 
   let ocaml_iterate ap not_a =
     let rec loop p =
@@ -1817,7 +1827,7 @@ module Fdd = struct
     let not_a = negate a in
 
     (* optimize special case where a single iteration suffices *)
-    if equal drop ap || equal drop (seq ap a) then sum ap not_a else
+    if equal drop ap (* || equal drop (seq ap a) *) then sum ap not_a else
 
     (* printf "ap = %s\n%!" (to_string ap); *)
     (* printf "not_a = %s\n%!" (to_string not_a); *)
