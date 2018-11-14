@@ -4,7 +4,7 @@ import networkx as nx
 import sys
 
 from topologies import abfattree,fattree,jellyfish,vl2,xpander
-from routing import allsp,spf,disjointtrees,routing_lib
+from routing import allsp,spf,routing_lib #,disjointtrees
 
 DESTINATION = 's1'
 
@@ -12,12 +12,12 @@ def generate_topology(topo_args, topo_name):
     topo = None
     is_new = False
     # Check if the topology already exists - reuse it
-    topo_files = glob.glob(topo_name+'_*.dot')
+    topo_files = glob.glob(topo_name+'*.dot')
     if len(topo_files) > 1:
         print "ERROR: Multiple topologies found.", str(topo_files)
     elif len(topo_files) == 1:
         print "Found topology:", topo_files[0]
-        topo = nx.read_dot(topo_files[0])
+        topo = nx.drawing.nx_pydot.read_dot(topo_files[0])
     else: 
       # Else generate new topology
       print "Creating new topology..."
@@ -78,7 +78,7 @@ def network(topo_args, routing_algs, topo_name):
             num_switches += 1
 
     # Export the topology
-    topo_name = topo_name + '_sw_' + str(num_switches)
+    #topo_name = topo_name + '_sw_' + str(num_switches)
     if is_new:
       nx.drawing.nx_agraph.write_dot(topo, topo_name + '.dot')
 

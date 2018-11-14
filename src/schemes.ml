@@ -445,17 +445,17 @@ let get_all topo base_name : (string * scheme) list =
   (* SJS: for convenience, run fast-to-analyze before slow-to-analyze schemes *)
   [
     "shortest path",          shortest_path;
-    "car",                    car;
+    (* "car",                    car; *)
     "ecmp",                   ecmp;
     "resilient ecmp",         resilient_ecmp;
 
-    "f10_no_lr",              f10_no_lr;
-    "f10_s1_lr",              f10_s1_lr;
-    "f10_s2_lr",              f10_s2_lr;
-    "f10_s1_s2_lr",           f10_s1_s2_lr;
+    (* "f10_no_lr",              f10_no_lr;
+     * "f10_s1_lr",              f10_s1_lr;
+     * "f10_s2_lr",              f10_s2_lr;
+     * "f10_s1_s2_lr",           f10_s1_s2_lr; *)
 
     "random walk",            random_walk;
-    "resilient random walk",  resilient_random_walk;
+    (* "resilient random walk",  resilient_random_walk; *)
   ]
   |> List.filter_map ~f:(fun (name, make) ->
     match make () with
