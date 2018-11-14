@@ -4,7 +4,8 @@ open Syntax
 
 
 let () = if Array.length Sys.argv <> 4 then begin
-  printf "usage: %s [dot file] [cps: true/false] [parallelize: true/false]" Sys.argv.(0);
+  printf "usage: %s [dot file] [cps: true/false] [parallelize: true/false]\n"
+    Sys.argv.(0);
   exit 1;
 end
 

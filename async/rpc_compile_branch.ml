@@ -75,15 +75,17 @@ let cmd =
       let stdout = Lazy.force (Async_unix.Writer.stdout) in
       let inp = ref 1 in
       let pols = Pipe.unfold ~init:() ~f:(fun () ->
-        eprintf "[compile server] read: input %d ...\n" (!inp);
+        eprintf "[compile server] read: input %d ..." (!inp);
         incr inp;
-        Async_unix.Reader.read_bin_prot stdin ~max_len:1_000_000
+        Async_unix.Reader.read_bin_prot stdin ~max_len:1_000_000_000
           (Syntax.bin_reader_policy Symbolic.Field.bin_reader_t)
         >>| function
           | `Ok p ->
-            eprintf "[compile server] -> received.\n%!";
+            eprintf " received.\n%!";
+            (* Format.eprintf "%a\n" (Syntax.pp_policy Symbolic.Field.pp) p; *)
             Some (p, ())
           | `Eof ->
+            eprintf " eof.\n";
             eprintf "[compile server] -> all inputs received!\n%!";
             None
       )
@@ -106,6 +108,7 @@ let cmd =
         Deferred.unit
       | Some fdd ->
         eprintf "[compile server] sending back result...\n%!";
+        (* Format.eprintf "%a\n" (Symbolic.Fdd.pp ~show:true) fdd; *)
         Async_unix.Writer.write_bin_prot stdout Symbolic.Fdd.bin_writer_t fdd;
 (*         Symbolic.Fdd.serialize fdd
         |> Async_unix.Writer.write_line stdout; *)

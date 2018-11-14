@@ -74,7 +74,7 @@ module Field = struct
     | None -> sprintf "<%s>" @@ Sexp.to_string (sexp_of_t t)
     | Some s -> s
 
-  let pp fmt t =
+  let pp (fmt : Format.formatter) (t : t) : unit =
     Format.fprintf fmt "%s" (to_string t)
 
   let is_valid_order (lst : t list) : bool =
@@ -1217,6 +1217,10 @@ module Fdd = struct
   let render ?(format="pdf") ?(title="FDD") t =
     Util.show_dot ~format ~title (to_dot t)
 
+  let pp ?(show=true) fmt t =
+    if show then render t;
+    pp fmt t
+
   (** SJS: keep global string |-> Field.t map so that we can compare policies
       that are compiled to Fdds one after another
   *)
@@ -2022,10 +2026,11 @@ let par_branch ~(bound : int option) ~(cps : bool) branches =
       |> Out_channel.fprintf to_proc "%s\n%!" *)
     );
     Out_channel.close to_proc;
-    Bin_prot.Utils.bin_read_stream bin_reader_t ~max_size:1_000_000
+    Bin_prot.Utils.bin_read_stream bin_reader_t ~max_size:1_000_000_000
       ~read:(fun buf ~pos ~len ->
         Bigstring.really_read (Unix.descr_of_in_channel from_proc) buf ~pos ~len
     )
+    (* |> Util.tap ~f:(Format.eprintf "%a\n" (pp ~show:true)) *)
   ) ~finally:(fun () ->
       ignore (Unix.close_process proc);
   )
@@ -2054,7 +2059,7 @@ let of_pol_k ?(parallelize=true) ?(bound:int option) (p : Field.t policy) : t =
       else
         of_pol_k p (fun p -> of_pol_k q (fun q -> k (ite a p q)))
     | Branch { branches; parallelize = true} when parallelize ->
-      par_branch ~bound ~cps:false branches
+      k (par_branch ~bound ~cps:false branches)
     | Branch {branches} ->
       List.filter_map branches ~f:(fun (a,p) ->
         let a = of_pred a in
@@ -2241,8 +2246,4 @@ let of_pol_k ?(parallelize=true) ?(bound:int option) (p : Field.t policy) : t =
     printf "[fdd] setting order to %s\n%!" (List.to_string order ~f:Field.to_string);
     Field.set_order order
 
-
-  let pp ?(show=true) fmt t =
-    if show then render t;
-    pp fmt t
 end
