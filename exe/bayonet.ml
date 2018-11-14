@@ -2,11 +2,19 @@ open! Core
 open Probnetkat
 open Syntax
 
+
+let () = if Array.length Sys.argv <> 4 then begin
+  printf "usage: %s [dot file] [cps: true/false] [parallelize: true/false]" Sys.argv.(0);
+  exit 1;
+end
+
 (** parameters *)
 let failure_prob = Prob.(1//1000)
 let topo = Topology.parse (Sys.argv.(1))
 let use_cps = bool_of_string Sys.argv.(2)
+let parallelize = bool_of_string Sys.argv.(3)
 let timeout = 3600 (* in seconds *)
+
 
 
 module Model = struct
@@ -29,13 +37,6 @@ module Model = struct
     | _ ->
       assert false
 
-  let p =
-    Topology.switches topo
-    |> PNK.ite_cascade ~disjoint:true ~otherwise:PNK.drop ~f:(fun sw ->
-      let sw = Topology.sw_val topo sw in
-      PNK.(???(Params.sw, sw)), policy sw
-    )
-
   (* SJS: equivalent, but more factored *)
   let p' =
     let sws = Topology.switches topo |> List.map ~f:(Topology.sw_val topo) in
@@ -54,7 +55,8 @@ module Model = struct
     )
     |> PNK.branch
 
-  let t = Topology.to_probnetkat topo ~guard_links:false
+  let t sw =
+    Topology.links_from topo sw ~guard_links:false ~dst_filter:(Topology.is_switch topo)
 
   let src,dst =
     Topology.hosts topo
@@ -86,7 +88,11 @@ module Model = struct
   let model = PNK.(
     ingress >>
     whl (neg egress) (
-      p >> (ite egress skip t)
+      Topology.switches topo
+      |> PNK.ite_cascade ~parallelize:true ~disjoint:true ~otherwise:PNK.drop ~f:(fun sw ->
+        let sw_val = Topology.sw_val topo sw in
+        PNK.(???(Params.sw, sw_val), policy sw_val >> (ite egress skip (t sw)))
+      )
     )
   )
 end
@@ -98,7 +104,7 @@ let () = begin
   Util.print_times := false;
   (* Util.log_and_sandbox ~timeout ~logfile Sys.argv.(1) ~f:(fun () -> *)
     Fdd.use_cps := use_cps;
-    let fdd = Fdd.of_pol ~auto_order:true Model.model in
+    let fdd = Fdd.of_pol ~parallelize ~auto_order:true Model.model in
     let p = Fdd.min_nondrop_prob' fdd in
     let q = Prob.to_q p in
     Format.printf "probability of delivery (precise): %a/%a\n%!"
