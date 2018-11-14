@@ -35,7 +35,9 @@ module T = struct
       Symbolic.Fdd.of_pol_k ~parallelize ?bound p)
     |> return
 
-  let combine _ p q =
+  let combine _ (p : Accum.t) (q : Accum.t) =
+    (* SJS: this line is key for keeping memory consumption under control. *)
+    Symbolic.Fdd.clear_cache ~preserve:(Int.Set.of_list [(p:>int); (q:>int)]);
     Symbolic.Fdd.(sum p q)
     |> return
 
