@@ -553,6 +553,8 @@ let parallelization =
     let par = Branch { branches; parallelize = true } in
     let seq = Branch { branches; parallelize = false } in
     (Format.sprintf "random (seed = %d)" seed), `Quick, (fun () ->
+      Format.printf "par:\n%a\n\n" (Syntax.pp_policy String.pp) par;
+      Format.printf "seq:\n%a\n\n" (Syntax.pp_policy String.pp) seq;
       Fdd.clear_cache ~preserve:Int.Set.empty;
       begin try[@warning "-52"]
         Alcotest.check fdd_equiv "" (fdd_of_pol seq) (fdd_of_pol par);
@@ -562,6 +564,22 @@ let parallelization =
       Fdd.clear_cache ~preserve:Int.Set.empty
     )
   )
+
+let branches = PNK.[
+  ???("guard", 1), !!("a", 1);
+  ???("guard", 2), whl (???("a", 0)) (?@[
+      !!("a", 0) @ 1//2;
+      !!("a", 1) @ 1//3;
+      drop       @ 1//6;
+    ]);
+]
+
+let bugs = [
+  test fdd_equiv "par branch bug"
+    PNK.(branch ~parallelize:true branches)
+    PNK.(branch ~parallelize:false branches);
+
+]
 
 (*===========================================================================*)
 (* CPS STYLE COMPILATION                                                     *)
@@ -714,6 +732,7 @@ let () =
     "fdd probabilistic", basic_probabilistic;
     "fdd observe", observe_tests;
     "fdd parallelization", parallelization;
+    "fdd bugs", bugs;
     "fdd cps compilation", cps_tests;
     "fdd performance",   basic_performance;
     (* "qcheck", qcheck_tests; *)
