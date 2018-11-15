@@ -1,0 +1,22 @@
+s0 : s4 s6
+s10 : s14 s7
+s11 : s14
+s12 : s7
+s13 : s4 s6
+s14 : s4 s6
+s15 : s4 s6
+s16 : s4 s6
+s17 : s4 s6
+s18 : s4 s6
+s19 : s4 s6
+s2 : s4 s6
+s20 : s4 s6
+s21 : s4 s6
+s22 : s4 s6
+s3 : s4 s6
+s4 : s1
+s5 : s7
+s6 : s1
+s7 : s4 s6
+s8 : s7
+s9 : s7
