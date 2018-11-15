@@ -101,7 +101,7 @@ let locs' topo : (vertex * int list * int list) list =
     (sw, List.map host_ports ~f:pt_val, List.map sw_ports ~f:pt_val)
   )
 
-let ingress_locs topo ?(dst: int option) : (vertex * int) list =
+let ingress_locs ?(dst: int option) topo : (vertex * int) list =
   fold_edges (fun edge acc ->
       let (src_vertex,src_pt) = edge_src edge in
       let (dst_sw,dst_pt) = edge_dst edge in
@@ -145,19 +145,19 @@ let to_probnetkat (topo : Net.Topology.t) ~(guard_links:bool) : string policy =
   |> List.concat_map ~f:(raw_links_from topo ~guard_links ~dst_filter:(is_switch topo))
   |> PNK.(mk_big_ite ~disjoint:true ~default:drop)
 
-let ingress (topo : Net.Topology.t) ~(dst: int) : string pred =
-  ingress_locs topo ~dst
+let ingress ?(dst: int option) (topo : Net.Topology.t) : string pred =
+  ingress_locs topo ?dst
   |> Util.map_fst ~f:(sw_val topo)
   |> List.map ~f:(fun (sw_id, pt_id) ->
       PNK.( ???(sw, sw_id) & ???(pt, pt_id))
     )
   |> PNK.mk_big_disj
 
-let uniform_ingress (topo : Net.Topology.t) ~(dst: int) : Symbolic.Packet.Dist.t =
+let uniform_ingress ?(dst: int option) (topo : Net.Topology.t) : Symbolic.Packet.Dist.t =
   let open Symbolic in
   let sw = Fdd.abstract_field Params.sw in
   let pt = Fdd.abstract_field Params.pt in
-  ingress_locs topo ~dst
+  ingress_locs topo ?dst
   |> Util.map_fst ~f:(sw_val topo)
   |> Util.map_both ~f:(fun v -> PrePacket.Const v)
   |> List.map ~f:(fun (sw_v, pt_v) ->

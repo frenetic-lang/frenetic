@@ -39,6 +39,8 @@ let delete_up_bits p =
       ite (do_pred a) (do_pol p) (do_pol q)
     | While (a,p) ->
       whl (do_pred a) (do_pol p)
+    | Do_while (p,a) ->
+      do_whl (do_pol p) (do_pred a)
     | Branch {branches; parallelize} ->
       branch ~parallelize (Util.map_fst branches ~f:do_pred |> Util.map_snd ~f:do_pol)
     | Choice choices ->
@@ -59,6 +61,8 @@ let make
   ~(max_failures : int option)
   ~(sw_pol : Schemes.scheme)
   ~(topo : Net.Topology.t)
+  (* by default, uses fixed destination Params.destination for legacy reasons. *)
+  ?(end_to_end=false)
   ()
   =
 
@@ -71,21 +75,25 @@ let make
       )
     )
   in
+  let dst = if end_to_end then None else Some (Params.destination) in
 
   let rec make () : string policy =
-    let ingress = Topology.ingress topo ~dst:destination in
+    let ingress = Topology.ingress topo ?dst in
+    let egress = if end_to_end then ingress else PNK.(???(sw, destination)) in
+    (* SJS: hack, for legacy reasons *)
+    let loop_whl a p = if end_to_end then PNK.do_whl p a else PNK.whl a p in
     PNK.(
       (if Option.is_none max_failures || no_failures then skip else !!(counter, 0)) >>
       (* in; (¬eg; p; t)*; eg *)
       filter ingress >>
       match bound with
       | None ->
-        whl (neg (???(sw, destination))) (
+        loop_whl (neg egress) (
           hop ()
         )
       | Some bound ->
         !!(ttl, bound) >>
-        whl (neg (???(sw, destination))) (
+        loop_whl (neg egress) (
           hop () >>
           begin
             List.range 1 bound ~stop:`inclusive
@@ -96,12 +104,10 @@ let make
         )
     )
 
-
-
   and hop () =
     let open PNK in
     Topology.locs' topo
-    |> List.filter ~f:(fun (sw,_,_) -> Topology.sw_val topo sw <> destination)
+    |> List.filter ~f:(fun (sw,_,_) -> Some (Topology.sw_val topo sw) <> dst)
     |> ite_cascade ~parallelize:true ~disjoint:true ~otherwise:drop ~f:(fun (sw, host_pts, sw_pts) ->
       let sw_id = Topology.sw_val topo sw in
       let guard = ???(Params.sw, sw_id) in
@@ -172,105 +178,3 @@ let teleportation topo =
     filter (Topology.ingress topo ~dst:Params.destination) >>
     !!(Params.sw, Params.destination)
   )
-
-
-(* SJS: temporary hack *)
-(* let make'
-  ~(failure_prob : int -> int -> Prob.t)
-  ~(max_failures : int option)
-  ~(sw_pol : Schemes.scheme)
-  ~(topo : Net.Topology.t)
-  ()
-  =
-
-  let open Params in
-  let no_failures =
-    max_failures = Some 0 || List.for_all (Topology.locs topo) ~f:(fun (sw,pts) ->
-      List.for_all pts ~f:(fun pt ->
-        failure_prob (Topology.sw_val topo sw) pt
-        |> Prob.(equal zero)
-      )
-    )
-  in
-
-  let rec make () : string policy =
-    let ingress = Topology.ingress topo ~dst:destination in
-    PNK.(
-      (if Option.is_none max_failures || no_failures then skip else !!(counter, 0)) >>
-      (* in; (¬eg; p; t)*; eg *)
-      filter ingress >>
-      | None ->
-        do_whl (neg (???(sw, destination))) (
-          hop ()
-        )
-    )
-
-
-
-  and hop () =
-    let open PNK in
-    Topology.locs' topo
-    |> List.filter ~f:(fun (sw,_,_) -> Topology.sw_val topo sw <> destination)
-    |> ite_cascade ~parallelize:true ~disjoint:true ~otherwise:drop ~f:(fun (sw, host_pts, sw_pts) ->
-      let sw_id = Topology.sw_val topo sw in
-      let guard = ???(Params.sw, sw_id) in
-      let body =
-        with_init_up_bits sw_id sw_pts @@ begin
-          begin match sw_pol with
-          | `Switchwise pol ->
-            pol sw
-          | `Portwise pol ->
-            (* want rules for both ports connecting to hosts and ports connecting
-               to other switches
-             *)
-            List.append host_pts sw_pts
-            |> ite_cascade ~disjoint:true ~otherwise:drop ~f:(fun pt_id ->
-              (???(pt, pt_id), pol sw pt_id)
-            )
-          end
-          |> (if no_failures then delete_up_bits else ident)
-          >>
-          (* SJS: a subtle point: we model only switch-to-switch links! *)
-          Topology.links_from topo sw
-            ~guard_links:(not no_failures)
-            ~dst_filter:(Topology.is_switch topo)
-        end
-
-      in
-      (guard, body)
-    )
-
-  and with_init_up_bits sw pts body =
-    if no_failures then
-      body
-    else
-      let up_bits = List.map pts ~f:(fun pt -> (up sw pt, 1, true)) in
-      PNK.locals up_bits PNK.(init_up_bits sw pts >> body)
-
-  and init_up_bits sw pts =
-    let open PNK in
-    match max_failures with
-    | None ->
-      List.map pts ~f:(fun pt ->
-        let p = failure_prob sw pt in
-        ?@[ !!(up sw pt, 0) @ p; skip @ Prob.(one - p) ]
-      )
-      |> mk_big_seq
-    | Some bound ->
-      List.map pts ~f:(fun pt ->
-        List.range 0 bound ~start:`inclusive ~stop:`exclusive
-        |> ite_cascade ~otherwise:skip ~f:(fun f ->
-          let p = failure_prob sw pt in
-          let guard = ???(counter, f) in
-          let body =
-            ?@[ !!(up sw pt, 0) >> !!(counter, f+1) , p;
-                skip                                , Prob.(one - p);
-              ]
-          in
-          (guard, body)
-        )
-      )
-      |> mk_big_seq
-
-  in
-  make () *)
