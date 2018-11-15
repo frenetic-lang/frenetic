@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import os.path
 import subprocess
 import time
 
@@ -10,12 +11,13 @@ FPROB = (1,100)  # probability of link failure
 SCHEMES = ["SPF", "ECMP", "RW"] # may add: RW/RWW
 PRISM_PCTL_FILE = "prism.pctl"
 SETTINGS = [
-  { 'cps' : cps, 
+  { 'cps' : False,  # seems faster
     'dont_iterate' : dont_iterate,
     'parallelize' : parallelize,
-    'prism' : prism,
-  } for cps, dont_iterate, parallelize in [(True, False, True), (False, False, True)] for prism in [True, False]
+    'prism' : False,
+  } for dont_iterate, parallelize in [(False, True), (False, False), (True, True)]
 ]
+SETTINGS.append({'prism':True, 'cps':False, 'dont_iterate':False, 'parallelize':True})
 
 
 def fattree(k):
@@ -93,11 +95,16 @@ def run_with_settings(settings):
   print('settings: %s' % str(settings))
   success = False
   msg = ""
-  with open(logfile(settings), 'w+') as log:
+  logfile = logfile(settings)
+  if os.path.isfile(logfile):
+    print("-> SKIPPING: %s already exists)" % logfile)
+    return True
+  with open(logfile, 'w+') as log:
     try:
       cmd = pnk_cmd(**settings)
       print(' '.join(cmd))
-      log.write(' '.join(cmd))
+      log.write("$ %s\n" % ' '.join(cmd))
+      log.flush()
       t0 = time.perf_counter()
       if settings['prism']:
         run_prism(settings, cmd, log)
@@ -111,7 +118,7 @@ def run_with_settings(settings):
     except subprocess.CalledProcessError as e:
       msg = "ERROR: %d.\n" % e.returncode
     finally:
-      log.write(msg)
+      log.write("\n%s\n" % msg)
       log.close()
   print("-> %s" % msg)
   return success
