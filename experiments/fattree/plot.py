@@ -27,44 +27,24 @@ PARAMS = [
   'parallelize',
 ]
 
-methods = [
-  'bayonet',
-  'probnetkat_false_true_24',
-  'probnetkat_false_true_0',
-  'prism_exact',
-  'prism_approx',
-  'prism_exact.compiled',
-  'prism_approx.compiled',
-]
-
-label_of_method = {
-  'bayonet' : 'Bayonet',
-  'probnetkat_false_true_24' : 'ProbNetKAT (cluster)',
-  'probnetkat_false_true_0' : 'ProbNetKAT',
-  'prism_exact' : 'Prism (exact)',
-  'prism_approx' : 'Prism (approx)',
-  'prism_exact.compiled' : 'PPNK (exact)',
-  'prism_approx.compiled' : 'PPNK (approx)',
+methods = {
+  'native' : {
+    'prism': 'False', 'dont_iterate': 'False',
+  },
+  'PRISM' : {
+    'prism': 'True'
+  }
 }
 
+
 markers = {
-  'bayonet' : 'o',
-  'probnetkat_false_true_24' : 's',
-  'probnetkat_false_true_0' : '*',
-  'prism_exact': 'X',
-  'prism_approx' : 'D',
-  'prism_exact.compiled' : 'o',
-  'prism_approx.compiled' : 'x',
+  'native' : 'o',
+  'PRISM' : 's',
 }
 
 colors = {
-  'bayonet' : 'darkgreen',
-  'probnetkat_false_true_24' : 'navy',
-  'probnetkat_false_true_0' : 'orange',
-  'prism_exact' : 'red',
-  'prism_approx' : 'purple',
-  'prism_exact.compiled' : 'green',
-  'prism_approx.compiled' : 'black',
+  'native' : 'navy',
+  'PRISM' : 'orange',
 }
 
 def parse_output(folder):
@@ -103,7 +83,7 @@ def parse_output(folder):
       else:
         assert False
     # add to results
-    print(result)
+    # print(result)
     results.append(result)
   return results
 
@@ -127,12 +107,7 @@ def dump(data):
     f.write(str(t))
   
 
-def plot(data, methods):
-  f = open("bayonet.txt", "w")
-
-  times = defaultdict(lambda: defaultdict(list))
-  time_mean = defaultdict(dict)
-  time_std = defaultdict(dict)
+def plot(data):
   plt.figure(figsize=(6,3))
   ax = plt.subplot(111)    
   ax.get_xaxis().tick_bottom()    
@@ -142,13 +117,28 @@ def plot(data, methods):
   ax.tick_params(axis='both', which='both', direction='in')
   ax.set_xscale("log", nonposx='clip')
   ax.set_yscale("log", nonposy='clip')
+
+  # only needs successful points
+  data = [pt for pt in data if 'time' in pt]
+
+  # label points with their method and num_switches
+  for pt in data:
+    pt['num_switches'] = (pt['k']**2 * 5)/4
+    for method, filtr in methods.items():
+      if all(pt[k] == v for k,v in filtr.items()):
+        pt['method'] = method
+        break
+
+  # compute times
+  times = defaultdict(lambda: defaultdict(list))
+  time_mean = defaultdict(dict)
+  time_std = defaultdict(dict)
   for pt in data:
     times[pt['method']][pt['num_switches']].append(pt['time'])
   for method, sw_times in times.items():
-    if method in methods:
-      for sw, time_vals in sw_times.items():
-        time_mean[method][sw] = np.mean(time_vals)
-        time_std[method][sw] = np.std(time_vals)
+    for sw, time_vals in sw_times.items():
+      time_mean[method][sw] = np.mean(time_vals)
+      time_std[method][sw] = np.std(time_vals)
 
   for method, sw_times in sorted(time_mean.items()):
     sorted_pts = sorted(sw_times.items())
@@ -157,14 +147,11 @@ def plot(data, methods):
       ys = ys[:-1]
       xs = xs[:-1]
     errors = [time_std[method][x] for x in xs]
-    plt.errorbar(xs, ys, yerr=errors, label = label_of_method[method],
-                 marker=markers[method], color=colors[method], zorder=10)
-    # Also dump data to a file
-    for idx in range(len(xs)):
-      f.write(method + "\t" + str(xs[idx]) + "\t" + str(ys[idx]) + "\n") 
+    plt.errorbar(xs, ys, yerr=errors, label=method, marker=markers[method],
+                 color=colors[method], zorder=10)
    
-  ax.text(400, 500, 'Time limit = 3600s', horizontalalignment='center', verticalalignment='center', color='gray')
-  ax.annotate("", xy=(400, 3600), xytext=(400, 1000), arrowprops=dict(arrowstyle="->", color='gray'))
+  # # ax.text(400, 500, 'Time limit = 3600s', horizontalalignment='center', verticalalignment='center', color='gray')
+  # # ax.annotate("", xy=(400, 3600), xytext=(400, 1000), arrowprops=dict(arrowstyle="->", color='gray'))
 
   # Customize plots
   ax.grid(alpha=0.2)
@@ -180,13 +167,13 @@ def plot(data, methods):
   plt.ylabel("Time (seconds)")
   leg = plt.legend(fancybox=True, loc='best')
   leg.get_frame().set_alpha(0.9)
-  f.close()
-  plt.savefig('bayonet.pdf', bbox_inches='tight')
+  plt.savefig('fattree.pdf', bbox_inches='tight')
 
 
 def main():
   data = parse_output(DATA_DIR)
   dump(data)
+  plot(data)
   # plot(data, methods)
 
 if __name__ == "__main__":
