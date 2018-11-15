@@ -1,6 +1,5 @@
 #!/bin/bash
 
-TIMEOUT=3600
 PRISM="prism/prism-4.4/prism/bin/prism"
 
 if [[ -z $1 ]]; then
@@ -8,17 +7,10 @@ if [[ -z $1 ]]; then
   exit 1
 fi
 
-K="$1"
-SW=$(expr 4 \* ${K})
-RESULT_FILE="bayonet_resilience_sw_${SW}.prism-approx.log"
-CMD="$PRISM prism/bayonet.pm prism/bayonet.pctl -const k=${K}"
+SW="$1"
+K=$(( $SW / 4 ))
+NAME="bayonet_resilience_sw_$SW.prism_approx"
+CMD="$PRISM prism/bayonet.pm prism/bayonet.pctl -const k=${K} -maxiters 1000000"
 
-if [ ! -f $RESULT_FILE ]; then
-  { { time timeout $TIMEOUT $CMD; } 2>&1; } > $RESULT_FILE
-  RC="$?"
-  tail $RESULT_FILE
-  exit $RC
-else
-  echo "skipping ${RESULT_FILE}; already exists."
-  tail $RESULT_FILE
-fi
+source bench.sh
+bench
