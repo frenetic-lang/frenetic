@@ -570,7 +570,11 @@ module Ast = struct
 
   let model_of_pol p ~input_dist : model =
     let domain = Domain.of_pol p in
-    model_of_auto (Automaton.of_pol p ~input_dist) domain
+    Automaton.of_pol p ~input_dist
+    |> CFG.of_automaton
+    |> Util.tap ~f:CFG.merge_basic_blocks
+    |> CFG.to_automaton
+    |> fun auto -> model_of_auto auto domain
 end
 
 

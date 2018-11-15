@@ -1,3 +1,5 @@
+(** Run Bayonet experiment using ProbNetKAT with native backend.  *)
+
 open! Core
 open Probnetkat
 open Syntax
