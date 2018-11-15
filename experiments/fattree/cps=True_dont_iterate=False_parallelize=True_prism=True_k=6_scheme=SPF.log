@@ -1,0 +1,71 @@
+PRISM
+=====
+
+Version: 4.4
+Date: Thu Nov 15 05:51:46 EST 2018
+Hostname: atlas-17
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism cps=True_dont_iterate=False_parallelize=True_prism=True_k=6_scheme=SPF.pm prism.pctl -maxiters 1000000
+
+Parsing model file "cps=True_dont_iterate=False_parallelize=True_prism=True_k=6_scheme=SPF.pm"...
+
+Parsing properties file "prism.pctl"...
+
+1 property:
+(1) P=? [ F (__state__=0) ]
+
+Type:        DTMC
+Modules:     ProbNetKAT 
+Variables:   __state__ pt sw up_0 up_1 up_2 up_3 up_4 up_5 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F (__state__=0) ]
+
+Building model...
+
+Computing reachable states...
+
+Reachability (BFS): 37 iterations in 0.02 seconds (average 0.000432, setup 0.00)
+
+Time for model construction: 1.012 seconds.
+
+Warning: Deadlocks detected and fixed in 292 states
+
+Type:        DTMC
+States:      4690 (1 initial)
+Transitions: 6546
+
+Transition matrix: 4584 nodes (5 terminal), 6546 minterms, vars: 24r/24c
+
+Prob0: 40 iterations in 0.01 seconds (average 0.000325, setup 0.00)
+
+Prob1: 16 iterations in 0.01 seconds (average 0.000625, setup 0.00)
+
+yes = 162, no = 1957, maybe = 2571
+
+Computing remaining probabilities...
+Engine: Hybrid
+
+Building hybrid MTBDD matrix... [levels=24, nodes=4632] [217.1 KB]
+Adding explicit sparse matrices... [levels=24, num=1, compact] [19.1 KB]
+Creating vector for diagonals... [dist=1, compact] [9.2 KB]
+Creating vector for RHS... [dist=2, compact] [9.2 KB]
+Allocating iteration vectors... [2 x 36.6 KB]
+TOTAL: [327.8 KB]
+
+Starting iterations...
+
+Jacobi: 37 iterations in 0.01 seconds (average 0.000054, setup 0.00)
+
+Value in the initial state: 0.9628905970588231
+
+Time for model checking: 0.035 seconds.
+
+Result: 0.9628905970588231 (value in the initial state)
+
+---------------------------------------------------------------------
+
+Note: There was 1 warning during computation.
+
+probnetkat.with_topo ../../examples/output/fattree_6_sw_45.dot -scheme SPF -fail-with 1/100 -cps -prismprism cps=True_dont_iterate=False_parallelize=True_prism=True_k=6_scheme=SPF.pm prism.pctl -maxiters 1000000TIME: 2.488007.

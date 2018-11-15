@@ -1,21 +1,23 @@
 #!/usr/bin/env python3
 
 import os
+import os.path
 import subprocess
 import time
 
 TIMEOUT = 10 * 60  # 10 minutes
 MAXITERS = 1_000_000
 FPROB = (1,100)  # probability of link failure
-SCHEMES = ["SPF", "ECMP"] # may add: RW/RWW
+SCHEMES = ["SPF", "ECMP", "RW"] # may add: RW/RWW
 PRISM_PCTL_FILE = "prism.pctl"
 SETTINGS = [
-  { 'cps' : cps, 
+  { 'cps' : False,  # seems faster
     'dont_iterate' : dont_iterate,
     'parallelize' : parallelize,
-    'prism' : prism,
-  } for cps, dont_iterate, parallelize in [(True, False, True)] for prism in [True, False]
+    'prism' : False,
+  } for dont_iterate, parallelize in [(False, True), (False, False), (True, True)]
 ]
+SETTINGS.append({'prism':True, 'cps':False, 'dont_iterate':False, 'parallelize':True})
 
 
 def fattree(k):
@@ -44,7 +46,7 @@ def pnk_cmd(k, scheme, cps, dont_iterate, parallelize, fbound=None, prism=False)
 
 
 def prism_cmd(prism_file):
-  return ["prism", prism_file, PRISM_PCTL_FILE, '-maxiters',  MAXITERS]
+  return ["prism", prism_file, PRISM_PCTL_FILE, '-maxiters', str(MAXITERS)]
 
 
 def identifier(settings):
@@ -93,11 +95,16 @@ def run_with_settings(settings):
   print('settings: %s' % str(settings))
   success = False
   msg = ""
-  with open(logfile(settings), 'w+') as log:
+  log = logfile(settings)
+  if os.path.isfile(log):
+    print("-> SKIPPING: %s already exists)\n" % log)
+    return True
+  with open(log, 'w+') as log:
     try:
       cmd = pnk_cmd(**settings)
       print(' '.join(cmd))
-      log.write(' '.join(cmd))
+      log.write("$ %s\n" % ' '.join(cmd))
+      log.flush()
       t0 = time.perf_counter()
       if settings['prism']:
         run_prism(settings, cmd, log)
@@ -111,7 +118,7 @@ def run_with_settings(settings):
     except subprocess.CalledProcessError as e:
       msg = "ERROR: %d.\n" % e.returncode
     finally:
-      log.write(msg)
+      log.write("\n%s\n" % msg)
       log.close()
   print("-> %s" % msg)
   return success
@@ -122,7 +129,7 @@ def main():
     print("scheme: %s" % scheme)
     print("=" * 80)
     errored = [False for _ in SETTINGS]
-    for k in range(2, 22, 2):
+    for k in range(2, 50, 2):
       if all(errored): break
       print("k = %d" % k)
       print("-" * 80)

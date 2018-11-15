@@ -1,0 +1,76 @@
+PRISM
+=====
+
+Version: 4.4
+Date: Thu Nov 15 08:29:39 EST 2018
+Hostname: atlas-17
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism cps=False_dont_iterate=False_parallelize=True_prism=True_k=8_scheme=RW.pm prism.pctl -maxiters 1000000
+
+Parsing model file "cps=False_dont_iterate=False_parallelize=True_prism=True_k=8_scheme=RW.pm"...
+
+Parsing properties file "prism.pctl"...
+
+1 property:
+(1) P=? [ F (__state__=0) ]
+
+Type:        DTMC
+Modules:     ProbNetKAT 
+Variables:   __state__ pt sw up_0 up_1 up_2 up_3 up_4 up_5 up_6 up_7 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F (__state__=0) ]
+
+Building model...
+
+Computing reachable states...
+
+Reachability (BFS): 44 iterations in 0.08 seconds (average 0.001818, setup 0.00)
+
+Time for model construction: 2.999 seconds.
+
+Warning: Deadlocks detected and fixed in 50144 states
+
+Type:        DTMC
+States:      353061 (1 initial)
+Transitions: 1146668
+
+Transition matrix: 25458 nodes (7 terminal), 1146668 minterms, vars: 28r/28c
+
+Prob0: 53 iterations in 0.11 seconds (average 0.002113, setup 0.00)
+
+Prob1: 13 iterations in 0.05 seconds (average 0.003923, setup 0.00)
+
+yes = 1032, no = 50772, maybe = 301257
+
+Computing remaining probabilities...
+Engine: Hybrid
+
+Building hybrid MTBDD matrix... [levels=28, nodes=22443] [1.0 MB]
+Adding explicit sparse matrices... [levels=16, num=1045, compact] [968.7 KB]
+Creating vector for diagonals... [dist=1, compact] [689.6 KB]
+Creating vector for RHS... [dist=2, compact] [689.6 KB]
+Allocating iteration vectors... [2 x 2.7 MB]
+TOTAL: [8.7 MB]
+
+Starting iterations...
+Iteration 1074: max relative diff=0.001640, 5.00 sec so far
+Iteration 2201: max relative diff=0.000250, 10.01 sec so far
+Iteration 3171: max relative diff=0.000057, 15.01 sec so far
+Iteration 4217: max relative diff=0.000012, 20.01 sec so far
+Iteration 5341: max relative diff=0.000002, 25.02 sec so far
+
+Jacobi: 5862 iterations in 28.07 seconds (average 0.004760, setup 0.17)
+
+Value in the initial state: 0.3852222232531067
+
+Time for model checking: 33.513 seconds.
+
+Result: 0.3852222232531067 (value in the initial state)
+
+---------------------------------------------------------------------
+
+Note: There was 1 warning during computation.
+
+probnetkat.with_topo ../../examples/output/fattree_8_sw_80.dot -scheme RW -fail-with 1/100 -prismprism cps=False_dont_iterate=False_parallelize=True_prism=True_k=8_scheme=RW.pm prism.pctl -maxiters 1000000TIME: 39.030324.

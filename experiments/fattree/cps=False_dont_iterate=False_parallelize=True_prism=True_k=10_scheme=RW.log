@@ -1,0 +1,138 @@
+PRISM
+=====
+
+Version: 4.4
+Date: Thu Nov 15 08:30:31 EST 2018
+Hostname: atlas-17
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism cps=False_dont_iterate=False_parallelize=True_prism=True_k=10_scheme=RW.pm prism.pctl -maxiters 1000000
+
+Parsing model file "cps=False_dont_iterate=False_parallelize=True_prism=True_k=10_scheme=RW.pm"...
+
+Parsing properties file "prism.pctl"...
+
+1 property:
+(1) P=? [ F (__state__=0) ]
+
+Type:        DTMC
+Modules:     ProbNetKAT 
+Variables:   __state__ pt sw up_0 up_1 up_2 up_3 up_4 up_5 up_6 up_7 up_8 up_9 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F (__state__=0) ]
+
+Building model...
+
+Computing reachable states...
+
+Reachability (BFS): 51 iterations in 0.18 seconds (average 0.003529, setup 0.00)
+
+Time for model construction: 12.4 seconds.
+
+Warning: Deadlocks detected and fixed in 387920 states
+
+Type:        DTMC
+States:      2721136 (1 initial)
+Transitions: 10427345
+
+Transition matrix: 59205 nodes (7 terminal), 10427345 minterms, vars: 32r/32c
+
+Prob0: 61 iterations in 0.29 seconds (average 0.004689, setup 0.00)
+
+Prob1: 15 iterations in 0.15 seconds (average 0.010067, setup 0.00)
+
+yes = 5130, no = 389155, maybe = 2326851
+
+Computing remaining probabilities...
+Engine: Hybrid
+
+Building hybrid MTBDD matrix... [levels=32, nodes=54204] [2.5 MB]
+Adding explicit sparse matrices... [levels=11, num=330, compact] [453.4 KB]
+Creating vector for diagonals... [dist=1, compact] [5.2 MB]
+Creating vector for RHS... [dist=2, compact] [5.2 MB]
+Allocating iteration vectors... [2 x 20.8 MB]
+TOTAL: [54.8 MB]
+
+Starting iterations...
+Iteration 99: max relative diff=0.198088, 5.04 sec so far
+Iteration 201: max relative diff=0.044147, 10.06 sec so far
+Iteration 292: max relative diff=0.020599, 15.10 sec so far
+Iteration 387: max relative diff=0.012835, 20.11 sec so far
+Iteration 487: max relative diff=0.008614, 25.12 sec so far
+Iteration 586: max relative diff=0.005922, 30.13 sec so far
+Iteration 682: max relative diff=0.004292, 35.16 sec so far
+Iteration 774: max relative diff=0.003281, 40.21 sec so far
+Iteration 871: max relative diff=0.002649, 45.24 sec so far
+Iteration 964: max relative diff=0.002083, 50.28 sec so far
+Iteration 1063: max relative diff=0.001665, 55.29 sec so far
+Iteration 1159: max relative diff=0.001360, 60.34 sec so far
+Iteration 1260: max relative diff=0.001121, 65.36 sec so far
+Iteration 1361: max relative diff=0.000934, 70.37 sec so far
+Iteration 1445: max relative diff=0.000797, 75.37 sec so far
+Iteration 1544: max relative diff=0.000668, 80.38 sec so far
+Iteration 1646: max relative diff=0.000563, 85.41 sec so far
+Iteration 1748: max relative diff=0.000477, 90.44 sec so far
+Iteration 1850: max relative diff=0.000406, 95.46 sec so far
+Iteration 1949: max relative diff=0.000349, 100.49 sec so far
+Iteration 2050: max relative diff=0.000300, 105.52 sec so far
+Iteration 2138: max relative diff=0.000266, 110.56 sec so far
+Iteration 2232: max relative diff=0.000229, 115.61 sec so far
+Iteration 2331: max relative diff=0.000200, 120.64 sec so far
+Iteration 2419: max relative diff=0.000177, 125.65 sec so far
+Iteration 2511: max relative diff=0.000155, 130.67 sec so far
+Iteration 2606: max relative diff=0.000138, 135.68 sec so far
+Iteration 2705: max relative diff=0.000120, 140.69 sec so far
+Iteration 2804: max relative diff=0.000105, 145.70 sec so far
+Iteration 2904: max relative diff=0.000091, 150.74 sec so far
+Iteration 2992: max relative diff=0.000082, 155.78 sec so far
+Iteration 3091: max relative diff=0.000072, 160.83 sec so far
+Iteration 3190: max relative diff=0.000063, 165.84 sec so far
+Iteration 3289: max relative diff=0.000055, 170.85 sec so far
+Iteration 3389: max relative diff=0.000048, 175.89 sec so far
+Iteration 3485: max relative diff=0.000042, 180.94 sec so far
+Iteration 3584: max relative diff=0.000037, 185.99 sec so far
+Iteration 3683: max relative diff=0.000033, 191.03 sec so far
+Iteration 3776: max relative diff=0.000029, 196.04 sec so far
+Iteration 3874: max relative diff=0.000026, 201.06 sec so far
+Iteration 3974: max relative diff=0.000023, 206.10 sec so far
+Iteration 4065: max relative diff=0.000020, 211.15 sec so far
+Iteration 4164: max relative diff=0.000018, 216.16 sec so far
+Iteration 4263: max relative diff=0.000016, 221.17 sec so far
+Iteration 4362: max relative diff=0.000014, 226.20 sec so far
+Iteration 4461: max relative diff=0.000012, 231.22 sec so far
+Iteration 4561: max relative diff=0.000011, 236.27 sec so far
+Iteration 4660: max relative diff=0.000010, 241.29 sec so far
+Iteration 4759: max relative diff=0.000008, 246.31 sec so far
+Iteration 4858: max relative diff=0.000008, 251.33 sec so far
+Iteration 4951: max relative diff=0.000007, 256.34 sec so far
+Iteration 5051: max relative diff=0.000006, 261.36 sec so far
+Iteration 5151: max relative diff=0.000005, 266.38 sec so far
+Iteration 5244: max relative diff=0.000005, 271.43 sec so far
+Iteration 5344: max relative diff=0.000004, 276.47 sec so far
+Iteration 5441: max relative diff=0.000004, 281.48 sec so far
+Iteration 5540: max relative diff=0.000003, 286.48 sec so far
+Iteration 5639: max relative diff=0.000003, 291.48 sec so far
+Iteration 5738: max relative diff=0.000003, 296.49 sec so far
+Iteration 5837: max relative diff=0.000002, 301.51 sec so far
+Iteration 5935: max relative diff=0.000002, 306.53 sec so far
+Iteration 6029: max relative diff=0.000002, 311.56 sec so far
+Iteration 6128: max relative diff=0.000002, 316.58 sec so far
+Iteration 6227: max relative diff=0.000001, 321.58 sec so far
+Iteration 6324: max relative diff=0.000001, 326.60 sec so far
+Iteration 6418: max relative diff=0.000001, 331.64 sec so far
+Iteration 6514: max relative diff=0.000001, 336.68 sec so far
+
+Jacobi: 6541 iterations in 339.07 seconds (average 0.051687, setup 0.98)
+
+Value in the initial state: 0.2934016475072459
+
+Time for model checking: 367.758 seconds.
+
+Result: 0.2934016475072459 (value in the initial state)
+
+---------------------------------------------------------------------
+
+Note: There was 1 warning during computation.
+
+probnetkat.with_topo ../../examples/output/fattree_10_sw_125.dot -scheme RW -fail-with 1/100 -prismprism cps=False_dont_iterate=False_parallelize=True_prism=True_k=10_scheme=RW.pm prism.pctl -maxiters 1000000TIME: 382.473048.
