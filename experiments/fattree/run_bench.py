@@ -7,14 +7,14 @@ import time
 TIMEOUT = 10 * 60  # 10 minutes
 MAXITERS = 1_000_000
 FPROB = (1,100)  # probability of link failure
-SCHEMES = ["SPF", "ECMP"] # may add: RW/RWW
+SCHEMES = ["SPF", "ECMP", "RW"] # may add: RW/RWW
 PRISM_PCTL_FILE = "prism.pctl"
 SETTINGS = [
   { 'cps' : cps, 
     'dont_iterate' : dont_iterate,
     'parallelize' : parallelize,
     'prism' : prism,
-  } for cps, dont_iterate, parallelize in [(True, False, True)] for prism in [True, False]
+  } for cps, dont_iterate, parallelize in [(True, False, True), (False, False, True)] for prism in [True, False]
 ]
 
 
@@ -44,7 +44,7 @@ def pnk_cmd(k, scheme, cps, dont_iterate, parallelize, fbound=None, prism=False)
 
 
 def prism_cmd(prism_file):
-  return ["prism", prism_file, PRISM_PCTL_FILE, '-maxiters',  MAXITERS]
+  return ["prism", prism_file, PRISM_PCTL_FILE, '-maxiters', str(MAXITERS)]
 
 
 def identifier(settings):
