@@ -3,19 +3,18 @@
 import os
 import subprocess
 
-
-# TODO:
-#  * PNK with Prism backend.
 tools = {
   'bayonet': {
-    'cmd': lambda k: ['./run_bayonet.sh', 'bayonet_resilience_sw_%d.bayonet' % (4*k)],
+    'cmd': lambda k:
+      ['./run_bayonet.sh', 'bayonet_resilience_sw_%d.bayonet' % (4*k)],
     'envs': [
       { 'EXACT': '' },
       { 'EXACT': 'true' },
     ],
   },
   'probnetkat': {
-    'cmd': lambda k: ['./run_probnetkat.sh', 'bayonet_resilience_sw_%d.dot' % (4*k)],
+    'cmd': lambda k:
+      ['./run_probnetkat.sh', 'bayonet_resilience_sw_%d.dot' % (4*k)],
     'envs': [
       { 'CPS': 'false', 'PAR': 'true', 'RN': '0' },
       { 'CPS': 'false', 'PAR': 'true', 'RN': '24' },
@@ -23,6 +22,14 @@ tools = {
   },
   'prism': {
     'cmd': lambda k: ['./run_prism.sh', str(4*k)],
+    'envs': [
+      { 'EXACT': '' },
+      { 'EXACT': 'true' },
+    ],
+  },
+  'prism.compiled': {
+    'cmd': lambda k:
+      ['./run_prism.compiled.sh', 'bayonet_resilience_sw_%d.dot' % (4*k)],
     'envs': [
       { 'EXACT': '' },
       { 'EXACT': 'true' },

@@ -6,6 +6,7 @@ clean:
 	rm -f **.dot
 	rm -f **.pyc
 	rm -fr __pycache__
+	rm -f *.pm
 
 .PHONY: clean
 
