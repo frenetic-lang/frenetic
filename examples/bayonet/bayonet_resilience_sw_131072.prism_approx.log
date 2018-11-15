@@ -1,0 +1,32 @@
+$ prism/prism-4.4/prism/bin/prism prism/bayonet.pm prism/bayonet.pctl -const k=32768 -maxiters 1000000
+PRISM
+=====
+
+Version: 4.4
+Date: Thu Nov 15 05:09:59 EST 2018
+Hostname: atlas-16
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism prism/bayonet.pm prism/bayonet.pctl -const k=32768 -maxiters 1000000
+
+Parsing model file "prism/bayonet.pm"...
+
+Parsing properties file "prism/bayonet.pctl"...
+
+1 property:
+(1) P=? [ F delivered=1 ]
+
+Type:        DTMC
+Modules:     Bayonet 
+Variables:   sw pt at_sw delivered 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F delivered=1 ]
+Model constants: k=32768
+
+Building model...
+Model constants: k=32768
+
+real	60m0.002s
+user	0m0.002s
+sys	0m0.002s

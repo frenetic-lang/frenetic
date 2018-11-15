@@ -1,0 +1,21 @@
+$ probnetkat.bayonet bayonet_resilience_sw_4.dot false true
+[compile server] /home/abilene/.opam/4.07.1/lib/probnetkat/../../bin/probnetkat.rpc_compile_branch -order (F1 F0 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 Meta0 Meta1 Meta2 Meta3 Meta4 Meta5 Meta6 Meta7 Meta8 Meta9 Meta10 Meta11 Meta12 Meta13 Meta14 Meta15 Meta16 Meta17 Meta18 Meta19) -cps false -j 32 -rj 32 -remote atlas-24 -remote atlas-23 -remote atlas-22 -remote atlas-21 -remote atlas-20 -remote atlas-19 -remote atlas-18 -remote atlas-17 -remote atlas-15 -remote atlas-14 -remote atlas-13 -remote atlas-12 -remote atlas-11 -remote atlas-10 -remote atlas-9 -remote atlas-8 -remote atlas-7 -remote atlas-6 -remote atlas-5 -remote atlas-4 -remote atlas-3 -remote atlas-2 -remote atlas-1
+[compile server] read: input 1 ... received.
+[compile server] read: input 2 ... received.
+[compile server] read: input 3 ... received.
+[compile server] read: input 4 ... received.
+[compile server] read: input 5 ... eof.
+[compile server] -> all inputs received!
+[compile server] sending back result...
+[compile server] -> done.
+[compile server] Shutting down. Bye.
+*** ocaml won race!
+Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='UTF-8'>
+BrokenPipeError: [Errno 32] Broken pipe
+
+probability of delivery (precise): 1999/2000
+probability of delivery (approx): 0.999500
+
+real	0m37.854s
+user	0m45.167s
+sys	0m17.736s

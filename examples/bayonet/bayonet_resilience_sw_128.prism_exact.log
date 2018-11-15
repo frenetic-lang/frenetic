@@ -1,0 +1,45 @@
+$ prism/prism-4.4/prism/bin/prism prism/bayonet.pm prism/bayonet.pctl -const k=32 -exact
+PRISM
+=====
+
+Version: 4.4
+Date: Wed Nov 14 22:51:26 EST 2018
+Hostname: atlas-16
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism prism/bayonet.pm prism/bayonet.pctl -const k=32 -exact
+
+Parsing model file "prism/bayonet.pm"...
+
+Parsing properties file "prism/bayonet.pctl"...
+
+1 property:
+(1) P=? [ F delivered=1 ]
+
+Type:        DTMC
+Modules:     Bayonet 
+Variables:   sw pt at_sw delivered 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F delivered=1 ]
+Model constants: k=32
+
+Building model (exact engine)...
+
+Computing reachable states...
+Reachable states exploration and model construction done in 0.194 secs.
+
+States:      353 (1 initial)
+Transitions: 417
+
+Time for model construction: 0.194 seconds.
+
+Time for model checking: 0.33 seconds.
+
+Result (probability): 4226777741954951949318804385186328513631735746091918718107150452096551135466654028421844543320321983936001/4294967296000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+ As floating point: ~0.9841233822412212
+
+
+real	0m2.342s
+user	0m6.006s
+sys	0m0.665s

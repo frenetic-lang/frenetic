@@ -1,0 +1,99 @@
+$ prism/prism-4.4/prism/bin/prism prism/bayonet.pm prism/bayonet.pctl -const k=16384 -maxiters 1000000
+PRISM
+=====
+
+Version: 4.4
+Date: Thu Nov 15 04:47:22 EST 2018
+Hostname: atlas-16
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism prism/bayonet.pm prism/bayonet.pctl -const k=16384 -maxiters 1000000
+
+Parsing model file "prism/bayonet.pm"...
+
+Parsing properties file "prism/bayonet.pctl"...
+
+1 property:
+(1) P=? [ F delivered=1 ]
+
+Type:        DTMC
+Modules:     Bayonet 
+Variables:   sw pt at_sw delivered 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F delivered=1 ]
+Model constants: k=16384
+
+Building model...
+Model constants: k=16384
+
+Computing reachable states...
+
+Reachability (BFS): 98305 iterations in 4.51 seconds (average 0.000046, setup 0.00)
+
+Time for model construction: 1206.747 seconds.
+
+Type:        DTMC
+States:      180225 (1 initial)
+Transitions: 212993
+
+Transition matrix: 382 nodes (5 terminal), 212993 minterms, vars: 20r/20c
+
+Prob0: 98305 iterations in 4.46 seconds (average 0.000045, setup 0.00)
+
+Prob1: 9 iterations in 0.00 seconds (average 0.000222, setup 0.00)
+
+yes = 8, no = 16384, maybe = 163833
+
+Computing remaining probabilities...
+Engine: Hybrid
+
+Building hybrid MTBDD matrix... [levels=20, nodes=519] [24.3 KB]
+Adding explicit sparse matrices... [levels=17, num=10, compact] [700.0 KB]
+Creating vector for diagonals... [dist=1, compact] [352.0 KB]
+Creating vector for RHS... [dist=2, compact] [352.0 KB]
+Allocating iteration vectors... [2 x 1.4 MB]
+TOTAL: [4.1 MB]
+
+Starting iterations...
+Iteration 3414: max relative diff=1.000000, 5.00 sec so far
+Iteration 6845: max relative diff=1.000000, 10.00 sec so far
+Iteration 10249: max relative diff=1.000000, 15.00 sec so far
+Iteration 13672: max relative diff=1.000000, 20.00 sec so far
+Iteration 17074: max relative diff=1.000000, 25.01 sec so far
+Iteration 20504: max relative diff=1.000000, 30.01 sec so far
+Iteration 23909: max relative diff=1.000000, 35.01 sec so far
+Iteration 27324: max relative diff=1.000000, 40.01 sec so far
+Iteration 30735: max relative diff=1.000000, 45.01 sec so far
+Iteration 34133: max relative diff=1.000000, 50.01 sec so far
+Iteration 37552: max relative diff=1.000000, 55.01 sec so far
+Iteration 40980: max relative diff=1.000000, 60.01 sec so far
+Iteration 44310: max relative diff=1.000000, 65.02 sec so far
+Iteration 47446: max relative diff=1.000000, 70.02 sec so far
+Iteration 50854: max relative diff=1.000000, 75.02 sec so far
+Iteration 54269: max relative diff=1.000000, 80.02 sec so far
+Iteration 57688: max relative diff=1.000000, 85.02 sec so far
+Iteration 61110: max relative diff=1.000000, 90.02 sec so far
+Iteration 64518: max relative diff=1.000000, 95.02 sec so far
+Iteration 67945: max relative diff=1.000000, 100.02 sec so far
+Iteration 71336: max relative diff=1.000000, 105.03 sec so far
+Iteration 74741: max relative diff=1.000000, 110.03 sec so far
+Iteration 78165: max relative diff=1.000000, 115.03 sec so far
+Iteration 81584: max relative diff=1.000000, 120.03 sec so far
+Iteration 84990: max relative diff=1.000000, 125.03 sec so far
+Iteration 88396: max relative diff=1.000000, 130.03 sec so far
+Iteration 91811: max relative diff=1.000000, 135.03 sec so far
+Iteration 95237: max relative diff=1.000000, 140.03 sec so far
+
+Jacobi: 98302 iterations in 144.55 seconds (average 0.001470, setup 0.02)
+
+Value in the initial state: 2.762929939807088E-4
+
+Time for model checking: 149.308 seconds.
+
+Result: 2.762929939807088E-4 (value in the initial state)
+
+
+real	22m37.462s
+user	22m38.401s
+sys	0m2.359s

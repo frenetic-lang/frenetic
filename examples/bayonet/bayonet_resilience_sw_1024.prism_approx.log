@@ -1,0 +1,71 @@
+$ prism/prism-4.4/prism/bin/prism prism/bayonet.pm prism/bayonet.pctl -const k=256 -maxiters 1000000
+PRISM
+=====
+
+Version: 4.4
+Date: Wed Nov 14 22:54:09 EST 2018
+Hostname: atlas-16
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism prism/bayonet.pm prism/bayonet.pctl -const k=256 -maxiters 1000000
+
+Parsing model file "prism/bayonet.pm"...
+
+Parsing properties file "prism/bayonet.pctl"...
+
+1 property:
+(1) P=? [ F delivered=1 ]
+
+Type:        DTMC
+Modules:     Bayonet 
+Variables:   sw pt at_sw delivered 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F delivered=1 ]
+Model constants: k=256
+
+Building model...
+Model constants: k=256
+
+Computing reachable states...
+
+Reachability (BFS): 1537 iterations in 0.12 seconds (average 0.000078, setup 0.00)
+
+Time for model construction: 0.583 seconds.
+
+Type:        DTMC
+States:      2817 (1 initial)
+Transitions: 3329
+
+Transition matrix: 268 nodes (5 terminal), 3329 minterms, vars: 14r/14c
+
+Prob0: 1537 iterations in 0.11 seconds (average 0.000070, setup 0.00)
+
+Prob1: 9 iterations in 0.00 seconds (average 0.000222, setup 0.00)
+
+yes = 8, no = 256, maybe = 2553
+
+Computing remaining probabilities...
+Engine: Hybrid
+
+Building hybrid MTBDD matrix... [levels=14, nodes=375] [17.6 KB]
+Adding explicit sparse matrices... [levels=14, num=1, compact] [14.8 KB]
+Creating vector for diagonals... [dist=1, compact] [5.5 KB]
+Creating vector for RHS... [dist=2, compact] [5.5 KB]
+Allocating iteration vectors... [2 x 22.0 KB]
+TOTAL: [87.4 KB]
+
+Starting iterations...
+
+Jacobi: 1534 iterations in 0.07 seconds (average 0.000047, setup 0.00)
+
+Value in the initial state: 0.8798252148986674
+
+Time for model checking: 0.195 seconds.
+
+Result: 0.8798252148986674 (value in the initial state)
+
+
+real	0m2.329s
+user	0m3.667s
+sys	0m0.423s

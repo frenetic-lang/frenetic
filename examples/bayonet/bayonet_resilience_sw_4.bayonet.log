@@ -1,0 +1,6404 @@
+$ ../../../psi/psi --noboundscheck --trace --dp --expectation --mathematica bayonet_resilience_sw_4.psi
+statement: __d := __D'()
+particle-size: 1
+particle-size: 1
+statement: this.__H0 ← __h0_ty'() , this.__H1 ← __h1_ty'() , this.__S0 ← __s0_ty'() , this.__S1 ← __s1_ty'() , this.__S2 ← __s2_ty'() , this.__S3 ← __s3_ty'()
+statement: this.__H0 ← __h0_ty'() , this.__H1 ← __h1_ty'() , this.__S0 ← __s0_ty'() , this.__S1 ← __s1_ty'() , this.__S2 ← __s2_ty'()
+statement: this.__H0 ← __h0_ty'() , this.__H1 ← __h1_ty'() , this.__S0 ← __s0_ty'() , this.__S1 ← __s1_ty'()
+statement: this.__H0 ← __h0_ty'() , this.__H1 ← __h1_ty'() , this.__S0 ← __s0_ty'()
+statement: this.__H0 ← __h0_ty'() , this.__H1 ← __h1_ty'()
+statement: this.__H0 ← __h0_ty'()
+particle-size: 1
+particle-size: 1
+statement: this.Q_in ← Queue'()
+particle-size: 1
+particle-size: 1
+statement: this.data ← ([]: (Packet × ℝ)[])
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this.Q_out ← Queue'()
+particle-size: 1
+particle-size: 1
+statement: this.data ← ([]: (Packet × ℝ)[])
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this.__H1 ← __h1_ty'()
+particle-size: 1
+particle-size: 1
+statement: this.Q_in ← Queue'()
+particle-size: 1
+particle-size: 1
+statement: this.data ← ([]: (Packet × ℝ)[])
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this.Q_out ← Queue'()
+particle-size: 1
+particle-size: 1
+statement: this.data ← ([]: (Packet × ℝ)[])
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this.arrived ← 0
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this.__S0 ← __s0_ty'()
+particle-size: 1
+particle-size: 1
+statement: this.Q_in ← Queue'()
+particle-size: 1
+particle-size: 1
+statement: this.data ← ([]: (Packet × ℝ)[])
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this.Q_out ← Queue'()
+particle-size: 1
+particle-size: 1
+statement: this.data ← ([]: (Packet × ℝ)[])
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this.__S1 ← __s1_ty'()
+particle-size: 1
+particle-size: 1
+statement: this.Q_in ← Queue'()
+particle-size: 1
+particle-size: 1
+statement: this.data ← ([]: (Packet × ℝ)[])
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this.Q_out ← Queue'()
+particle-size: 1
+particle-size: 1
+statement: this.data ← ([]: (Packet × ℝ)[])
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this.__S2 ← __s2_ty'()
+particle-size: 1
+particle-size: 1
+statement: this.Q_in ← Queue'()
+particle-size: 1
+particle-size: 1
+statement: this.data ← ([]: (Packet × ℝ)[])
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this.Q_out ← Queue'()
+particle-size: 1
+particle-size: 1
+statement: this.data ← ([]: (Packet × ℝ)[])
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this.failing ← 2
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this.__S3 ← __s3_ty'()
+particle-size: 1
+particle-size: 1
+statement: this.Q_in ← Queue'()
+particle-size: 1
+particle-size: 1
+statement: this.data ← ([]: (Packet × ℝ)[])
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this.Q_out ← Queue'()
+particle-size: 1
+particle-size: 1
+statement: this.data ← ([]: (Packet × ℝ)[])
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: __d.__H0.Q_in.pushBack((Packet'(),0))
+particle-size: 1
+particle-size: 1
+statement: return this
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data ~ [x]
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: __d.__H0.__run()
+particle-size: 1
+particle-size: 1
+statement: this'.Q_out.pushBack((this'.Q_in.takeFront()[0],1))
+particle-size: 1
+particle-size: 1
+statement: r := this'.front()
+particle-size: 1
+particle-size: 1
+statement: return this'.data[0]
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.popFront()
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data[1..this'.size()]
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return r
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data ~ [x]
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: repeat 10 {
+    __d.__step();
+}
+repetition: 1
+statement: __d.__step()
+particle-size: 1
+particle-size: 1
+statement: if this'.__H0.Q_in.size() || this'.__H0.Q_out.size() || this'.__H1.Q_in.size() || this'.__H1.Q_out.size() || this'.__S0.Q_in.size() || this'.__S0.Q_out.size() || this'.__S1.Q_in.size() || this'.__S1.Q_out.size() || this'.__S2.Q_in.size() || this'.__S2.Q_out.size() || this'.__S3.Q_in.size() || this'.__S3.Q_out.size() {
+    (action,node) := this'.scheduler();
+    if action {
+        if node = 0 && this'.__H0.Q_out.size() {
+            (pkt,port) := this'.__H0.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 1 && this'.__H1.Q_out.size() {
+            (pkt,port) := this'.__H1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S3.Q_in.pushBack((pkt,3));
+            }
+        }
+        if node = 2 && this'.__S0.Q_out.size() {
+            (pkt,port) := this'.__S0.Q_out.takeFront();
+            if port = 1 {
+                this'.__H0.Q_in.pushBack((pkt,1));
+            }
+            if port = 2 {
+                this'.__S1.Q_in.pushBack((pkt,1));
+            }
+            if port = 3 {
+                this'.__S2.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 3 && this'.__S1.Q_out.size() {
+            (pkt,port) := this'.__S1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 4 && this'.__S2.Q_out.size() {
+            (pkt,port) := this'.__S2.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,3));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,2));
+            }
+        }
+        if node = 5 && this'.__S3.Q_out.size() {
+            (pkt,port) := this'.__S3.Q_out.takeFront();
+            if port = 1 {
+                this'.__S1.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S2.Q_in.pushBack((pkt,2));
+            }
+            if port = 3 {
+                this'.__H1.Q_in.pushBack((pkt,1));
+            }
+        }
+    } else {
+        if node = 0 && this'.__H0.Q_in.size() {
+            this'.__H0.__run();
+        }
+        if node = 1 && this'.__H1.Q_in.size() {
+            this'.__H1.__run();
+        }
+        if node = 2 && this'.__S0.Q_in.size() {
+            this'.__S0.__run();
+        }
+        if node = 3 && this'.__S1.Q_in.size() {
+            this'.__S1.__run();
+        }
+        if node = 4 && this'.__S2.Q_in.size() {
+            this'.__S2.__run();
+        }
+        if node = 5 && this'.__S3.Q_in.size() {
+            this'.__S3.__run();
+        }
+    }
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: (action,node) := this'.scheduler()
+particle-size: 1
+particle-size: 1
+statement: actions := ([]: (R × R)[])
+particle-size: 1
+statement: for i in [0..6){
+    if (if i = 0 {
+        this'.__H0.Q_in;
+    } else if i = 1 {
+        this'.__H1.Q_in;
+    } else if i = 2 {
+        this'.__S0.Q_in;
+    } else if i = 3 {
+        this'.__S1.Q_in;
+    } else if i = 4 {
+        this'.__S2.Q_in;
+    } else {
+        this'.__S3.Q_in;
+    }).size() > 0 {
+        actions ~← [(0,i)];
+    }
+    if (if i = 0 {
+        this'.__H0.Q_out;
+    } else if i = 1 {
+        this'.__H1.Q_out;
+    } else if i = 2 {
+        this'.__S0.Q_out;
+    } else if i = 3 {
+        this'.__S1.Q_out;
+    } else if i = 4 {
+        this'.__S2.Q_out;
+    } else {
+        this'.__S3.Q_out;
+    }).size() > 0 {
+        actions ~← [(1,i)];
+    }
+}
+loop-index: 0
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: actions ~← [(1,i)]
+particle-size: 1
+loop-index: 1
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+loop-index: 2
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+loop-index: 3
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+loop-index: 4
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+loop-index: 5
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return actions[uniformInt(0,actions.length - 1)]
+particle-size: 1
+particle-size: 1
+statement: assert((sampleFrom("(r;a,b)=>δ(0)[-r+∑_i[a≤i]·[i≤b]]",a,b): ℝ) ≠ 0)
+statement: return sampleFrom("(x;a,b)=>(∑_i[a≤i]·[i≤b]·δ(0)[i-x])·⅟(∑_i[a≤i]·[i≤b])",a,b): ℝ
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if action {
+    if node = 0 && this'.__H0.Q_out.size() {
+        (pkt,port) := this'.__H0.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 1 && this'.__H1.Q_out.size() {
+        (pkt,port) := this'.__H1.Q_out.takeFront();
+        if port = 1 {
+            this'.__S3.Q_in.pushBack((pkt,3));
+        }
+    }
+    if node = 2 && this'.__S0.Q_out.size() {
+        (pkt,port) := this'.__S0.Q_out.takeFront();
+        if port = 1 {
+            this'.__H0.Q_in.pushBack((pkt,1));
+        }
+        if port = 2 {
+            this'.__S1.Q_in.pushBack((pkt,1));
+        }
+        if port = 3 {
+            this'.__S2.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 3 && this'.__S1.Q_out.size() {
+        (pkt,port) := this'.__S1.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,2));
+        }
+        if port = 2 {
+            this'.__S3.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 4 && this'.__S2.Q_out.size() {
+        (pkt,port) := this'.__S2.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,3));
+        }
+        if port = 2 {
+            this'.__S3.Q_in.pushBack((pkt,2));
+        }
+    }
+    if node = 5 && this'.__S3.Q_out.size() {
+        (pkt,port) := this'.__S3.Q_out.takeFront();
+        if port = 1 {
+            this'.__S1.Q_in.pushBack((pkt,2));
+        }
+        if port = 2 {
+            this'.__S2.Q_in.pushBack((pkt,2));
+        }
+        if port = 3 {
+            this'.__H1.Q_in.pushBack((pkt,1));
+        }
+    }
+} else {
+    if node = 0 && this'.__H0.Q_in.size() {
+        this'.__H0.__run();
+    }
+    if node = 1 && this'.__H1.Q_in.size() {
+        this'.__H1.__run();
+    }
+    if node = 2 && this'.__S0.Q_in.size() {
+        this'.__S0.__run();
+    }
+    if node = 3 && this'.__S1.Q_in.size() {
+        this'.__S1.__run();
+    }
+    if node = 4 && this'.__S2.Q_in.size() {
+        this'.__S2.__run();
+    }
+    if node = 5 && this'.__S3.Q_in.size() {
+        this'.__S3.__run();
+    }
+}
+statement: if node = 0 && this'.__H0.Q_out.size() {
+    (pkt,port) := this'.__H0.Q_out.takeFront();
+    if port = 1 {
+        this'.__S0.Q_in.pushBack((pkt,1));
+    }
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: (pkt,port) := this'.__H0.Q_out.takeFront()
+particle-size: 1
+particle-size: 1
+statement: r := this'.front()
+particle-size: 1
+particle-size: 1
+statement: return this'.data[0]
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.popFront()
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data[1..this'.size()]
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return r
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if port = 1 {
+    this'.__S0.Q_in.pushBack((pkt,1));
+}
+statement: this'.__S0.Q_in.pushBack((pkt,1))
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data ~ [x]
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if node = 1 && this'.__H1.Q_out.size() {
+    (pkt,port) := this'.__H1.Q_out.takeFront();
+    if port = 1 {
+        this'.__S3.Q_in.pushBack((pkt,3));
+    }
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if node = 2 && this'.__S0.Q_out.size() {
+    (pkt,port) := this'.__S0.Q_out.takeFront();
+    if port = 1 {
+        this'.__H0.Q_in.pushBack((pkt,1));
+    }
+    if port = 2 {
+        this'.__S1.Q_in.pushBack((pkt,1));
+    }
+    if port = 3 {
+        this'.__S2.Q_in.pushBack((pkt,1));
+    }
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if node = 3 && this'.__S1.Q_out.size() {
+    (pkt,port) := this'.__S1.Q_out.takeFront();
+    if port = 1 {
+        this'.__S0.Q_in.pushBack((pkt,2));
+    }
+    if port = 2 {
+        this'.__S3.Q_in.pushBack((pkt,1));
+    }
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if node = 4 && this'.__S2.Q_out.size() {
+    (pkt,port) := this'.__S2.Q_out.takeFront();
+    if port = 1 {
+        this'.__S0.Q_in.pushBack((pkt,3));
+    }
+    if port = 2 {
+        this'.__S3.Q_in.pushBack((pkt,2));
+    }
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if node = 5 && this'.__S3.Q_out.size() {
+    (pkt,port) := this'.__S3.Q_out.takeFront();
+    if port = 1 {
+        this'.__S1.Q_in.pushBack((pkt,2));
+    }
+    if port = 2 {
+        this'.__S2.Q_in.pushBack((pkt,2));
+    }
+    if port = 3 {
+        this'.__H1.Q_in.pushBack((pkt,1));
+    }
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+repetition: 2
+statement: __d.__step()
+particle-size: 1
+particle-size: 1
+statement: if this'.__H0.Q_in.size() || this'.__H0.Q_out.size() || this'.__H1.Q_in.size() || this'.__H1.Q_out.size() || this'.__S0.Q_in.size() || this'.__S0.Q_out.size() || this'.__S1.Q_in.size() || this'.__S1.Q_out.size() || this'.__S2.Q_in.size() || this'.__S2.Q_out.size() || this'.__S3.Q_in.size() || this'.__S3.Q_out.size() {
+    (action,node) := this'.scheduler();
+    if action {
+        if node = 0 && this'.__H0.Q_out.size() {
+            (pkt,port) := this'.__H0.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 1 && this'.__H1.Q_out.size() {
+            (pkt,port) := this'.__H1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S3.Q_in.pushBack((pkt,3));
+            }
+        }
+        if node = 2 && this'.__S0.Q_out.size() {
+            (pkt,port) := this'.__S0.Q_out.takeFront();
+            if port = 1 {
+                this'.__H0.Q_in.pushBack((pkt,1));
+            }
+            if port = 2 {
+                this'.__S1.Q_in.pushBack((pkt,1));
+            }
+            if port = 3 {
+                this'.__S2.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 3 && this'.__S1.Q_out.size() {
+            (pkt,port) := this'.__S1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 4 && this'.__S2.Q_out.size() {
+            (pkt,port) := this'.__S2.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,3));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,2));
+            }
+        }
+        if node = 5 && this'.__S3.Q_out.size() {
+            (pkt,port) := this'.__S3.Q_out.takeFront();
+            if port = 1 {
+                this'.__S1.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S2.Q_in.pushBack((pkt,2));
+            }
+            if port = 3 {
+                this'.__H1.Q_in.pushBack((pkt,1));
+            }
+        }
+    } else {
+        if node = 0 && this'.__H0.Q_in.size() {
+            this'.__H0.__run();
+        }
+        if node = 1 && this'.__H1.Q_in.size() {
+            this'.__H1.__run();
+        }
+        if node = 2 && this'.__S0.Q_in.size() {
+            this'.__S0.__run();
+        }
+        if node = 3 && this'.__S1.Q_in.size() {
+            this'.__S1.__run();
+        }
+        if node = 4 && this'.__S2.Q_in.size() {
+            this'.__S2.__run();
+        }
+        if node = 5 && this'.__S3.Q_in.size() {
+            this'.__S3.__run();
+        }
+    }
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: (action,node) := this'.scheduler()
+particle-size: 1
+particle-size: 1
+statement: actions := ([]: (R × R)[])
+particle-size: 1
+statement: for i in [0..6){
+    if (if i = 0 {
+        this'.__H0.Q_in;
+    } else if i = 1 {
+        this'.__H1.Q_in;
+    } else if i = 2 {
+        this'.__S0.Q_in;
+    } else if i = 3 {
+        this'.__S1.Q_in;
+    } else if i = 4 {
+        this'.__S2.Q_in;
+    } else {
+        this'.__S3.Q_in;
+    }).size() > 0 {
+        actions ~← [(0,i)];
+    }
+    if (if i = 0 {
+        this'.__H0.Q_out;
+    } else if i = 1 {
+        this'.__H1.Q_out;
+    } else if i = 2 {
+        this'.__S0.Q_out;
+    } else if i = 3 {
+        this'.__S1.Q_out;
+    } else if i = 4 {
+        this'.__S2.Q_out;
+    } else {
+        this'.__S3.Q_out;
+    }).size() > 0 {
+        actions ~← [(1,i)];
+    }
+}
+loop-index: 0
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+loop-index: 1
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+loop-index: 2
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: actions ~← [(0,i)]
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+loop-index: 3
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+loop-index: 4
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+loop-index: 5
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return actions[uniformInt(0,actions.length - 1)]
+particle-size: 1
+particle-size: 1
+statement: assert((sampleFrom("(r;a,b)=>δ(0)[-r+∑_i[a≤i]·[i≤b]]",a,b): ℝ) ≠ 0)
+statement: return sampleFrom("(x;a,b)=>(∑_i[a≤i]·[i≤b]·δ(0)[i-x])·⅟(∑_i[a≤i]·[i≤b])",a,b): ℝ
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if action {
+    if node = 0 && this'.__H0.Q_out.size() {
+        (pkt,port) := this'.__H0.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 1 && this'.__H1.Q_out.size() {
+        (pkt,port) := this'.__H1.Q_out.takeFront();
+        if port = 1 {
+            this'.__S3.Q_in.pushBack((pkt,3));
+        }
+    }
+    if node = 2 && this'.__S0.Q_out.size() {
+        (pkt,port) := this'.__S0.Q_out.takeFront();
+        if port = 1 {
+            this'.__H0.Q_in.pushBack((pkt,1));
+        }
+        if port = 2 {
+            this'.__S1.Q_in.pushBack((pkt,1));
+        }
+        if port = 3 {
+            this'.__S2.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 3 && this'.__S1.Q_out.size() {
+        (pkt,port) := this'.__S1.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,2));
+        }
+        if port = 2 {
+            this'.__S3.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 4 && this'.__S2.Q_out.size() {
+        (pkt,port) := this'.__S2.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,3));
+        }
+        if port = 2 {
+            this'.__S3.Q_in.pushBack((pkt,2));
+        }
+    }
+    if node = 5 && this'.__S3.Q_out.size() {
+        (pkt,port) := this'.__S3.Q_out.takeFront();
+        if port = 1 {
+            this'.__S1.Q_in.pushBack((pkt,2));
+        }
+        if port = 2 {
+            this'.__S2.Q_in.pushBack((pkt,2));
+        }
+        if port = 3 {
+            this'.__H1.Q_in.pushBack((pkt,1));
+        }
+    }
+} else {
+    if node = 0 && this'.__H0.Q_in.size() {
+        this'.__H0.__run();
+    }
+    if node = 1 && this'.__H1.Q_in.size() {
+        this'.__H1.__run();
+    }
+    if node = 2 && this'.__S0.Q_in.size() {
+        this'.__S0.__run();
+    }
+    if node = 3 && this'.__S1.Q_in.size() {
+        this'.__S1.__run();
+    }
+    if node = 4 && this'.__S2.Q_in.size() {
+        this'.__S2.__run();
+    }
+    if node = 5 && this'.__S3.Q_in.size() {
+        this'.__S3.__run();
+    }
+}
+statement: if node = 0 && this'.__H0.Q_in.size() {
+    this'.__H0.__run();
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if node = 1 && this'.__H1.Q_in.size() {
+    this'.__H1.__run();
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if node = 2 && this'.__S0.Q_in.size() {
+    this'.__S0.__run();
+}
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.__S0.__run()
+particle-size: 1
+particle-size: 1
+statement: if flip((1 / 2)) {
+    this'.Q_out.pushBack((this'.Q_in.takeFront()[0],2));
+} else {
+    this'.Q_out.pushBack((this'.Q_in.takeFront()[0],3));
+}
+particle-size: 1
+particle-size: 1
+statement: assert(0 ≤ p ∧ p ≤ 1)
+statement: return sampleFrom("(x;p)=>(1-p)·δ(0)[x]+p·δ(0)[1-x]",p): ℝ
+particle-size: 2
+particle-size: 2
+statement: this'.Q_out.pushBack((this'.Q_in.takeFront()[0],2))
+particle-size: 1
+particle-size: 1
+statement: r := this'.front()
+particle-size: 1
+particle-size: 1
+statement: return this'.data[0]
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.popFront()
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data[1..this'.size()]
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return r
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data ~ [x]
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.Q_out.pushBack((this'.Q_in.takeFront()[0],3))
+particle-size: 1
+particle-size: 1
+statement: r := this'.front()
+particle-size: 1
+particle-size: 1
+statement: return this'.data[0]
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.popFront()
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data[1..this'.size()]
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return r
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data ~ [x]
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return ()
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 3 && this'.__S1.Q_in.size() {
+    this'.__S1.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 4 && this'.__S2.Q_in.size() {
+    this'.__S2.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 5 && this'.__S3.Q_in.size() {
+    this'.__S3.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return ()
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+repetition: 3
+statement: __d.__step()
+particle-size: 2
+particle-size: 2
+statement: if this'.__H0.Q_in.size() || this'.__H0.Q_out.size() || this'.__H1.Q_in.size() || this'.__H1.Q_out.size() || this'.__S0.Q_in.size() || this'.__S0.Q_out.size() || this'.__S1.Q_in.size() || this'.__S1.Q_out.size() || this'.__S2.Q_in.size() || this'.__S2.Q_out.size() || this'.__S3.Q_in.size() || this'.__S3.Q_out.size() {
+    (action,node) := this'.scheduler();
+    if action {
+        if node = 0 && this'.__H0.Q_out.size() {
+            (pkt,port) := this'.__H0.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 1 && this'.__H1.Q_out.size() {
+            (pkt,port) := this'.__H1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S3.Q_in.pushBack((pkt,3));
+            }
+        }
+        if node = 2 && this'.__S0.Q_out.size() {
+            (pkt,port) := this'.__S0.Q_out.takeFront();
+            if port = 1 {
+                this'.__H0.Q_in.pushBack((pkt,1));
+            }
+            if port = 2 {
+                this'.__S1.Q_in.pushBack((pkt,1));
+            }
+            if port = 3 {
+                this'.__S2.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 3 && this'.__S1.Q_out.size() {
+            (pkt,port) := this'.__S1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 4 && this'.__S2.Q_out.size() {
+            (pkt,port) := this'.__S2.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,3));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,2));
+            }
+        }
+        if node = 5 && this'.__S3.Q_out.size() {
+            (pkt,port) := this'.__S3.Q_out.takeFront();
+            if port = 1 {
+                this'.__S1.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S2.Q_in.pushBack((pkt,2));
+            }
+            if port = 3 {
+                this'.__H1.Q_in.pushBack((pkt,1));
+            }
+        }
+    } else {
+        if node = 0 && this'.__H0.Q_in.size() {
+            this'.__H0.__run();
+        }
+        if node = 1 && this'.__H1.Q_in.size() {
+            this'.__H1.__run();
+        }
+        if node = 2 && this'.__S0.Q_in.size() {
+            this'.__S0.__run();
+        }
+        if node = 3 && this'.__S1.Q_in.size() {
+            this'.__S1.__run();
+        }
+        if node = 4 && this'.__S2.Q_in.size() {
+            this'.__S2.__run();
+        }
+        if node = 5 && this'.__S3.Q_in.size() {
+            this'.__S3.__run();
+        }
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: (action,node) := this'.scheduler()
+particle-size: 2
+particle-size: 2
+statement: actions := ([]: (R × R)[])
+particle-size: 2
+statement: for i in [0..6){
+    if (if i = 0 {
+        this'.__H0.Q_in;
+    } else if i = 1 {
+        this'.__H1.Q_in;
+    } else if i = 2 {
+        this'.__S0.Q_in;
+    } else if i = 3 {
+        this'.__S1.Q_in;
+    } else if i = 4 {
+        this'.__S2.Q_in;
+    } else {
+        this'.__S3.Q_in;
+    }).size() > 0 {
+        actions ~← [(0,i)];
+    }
+    if (if i = 0 {
+        this'.__H0.Q_out;
+    } else if i = 1 {
+        this'.__H1.Q_out;
+    } else if i = 2 {
+        this'.__S0.Q_out;
+    } else if i = 3 {
+        this'.__S1.Q_out;
+    } else if i = 4 {
+        this'.__S2.Q_out;
+    } else {
+        this'.__S3.Q_out;
+    }).size() > 0 {
+        actions ~← [(1,i)];
+    }
+}
+loop-index: 0
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 1
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: actions ~← [(1,i)]
+particle-size: 2
+loop-index: 3
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 4
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 5
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return actions[uniformInt(0,actions.length - 1)]
+particle-size: 2
+particle-size: 2
+statement: assert((sampleFrom("(r;a,b)=>δ(0)[-r+∑_i[a≤i]·[i≤b]]",a,b): ℝ) ≠ 0)
+statement: return sampleFrom("(x;a,b)=>(∑_i[a≤i]·[i≤b]·δ(0)[i-x])·⅟(∑_i[a≤i]·[i≤b])",a,b): ℝ
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if action {
+    if node = 0 && this'.__H0.Q_out.size() {
+        (pkt,port) := this'.__H0.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 1 && this'.__H1.Q_out.size() {
+        (pkt,port) := this'.__H1.Q_out.takeFront();
+        if port = 1 {
+            this'.__S3.Q_in.pushBack((pkt,3));
+        }
+    }
+    if node = 2 && this'.__S0.Q_out.size() {
+        (pkt,port) := this'.__S0.Q_out.takeFront();
+        if port = 1 {
+            this'.__H0.Q_in.pushBack((pkt,1));
+        }
+        if port = 2 {
+            this'.__S1.Q_in.pushBack((pkt,1));
+        }
+        if port = 3 {
+            this'.__S2.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 3 && this'.__S1.Q_out.size() {
+        (pkt,port) := this'.__S1.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,2));
+        }
+        if port = 2 {
+            this'.__S3.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 4 && this'.__S2.Q_out.size() {
+        (pkt,port) := this'.__S2.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,3));
+        }
+        if port = 2 {
+            this'.__S3.Q_in.pushBack((pkt,2));
+        }
+    }
+    if node = 5 && this'.__S3.Q_out.size() {
+        (pkt,port) := this'.__S3.Q_out.takeFront();
+        if port = 1 {
+            this'.__S1.Q_in.pushBack((pkt,2));
+        }
+        if port = 2 {
+            this'.__S2.Q_in.pushBack((pkt,2));
+        }
+        if port = 3 {
+            this'.__H1.Q_in.pushBack((pkt,1));
+        }
+    }
+} else {
+    if node = 0 && this'.__H0.Q_in.size() {
+        this'.__H0.__run();
+    }
+    if node = 1 && this'.__H1.Q_in.size() {
+        this'.__H1.__run();
+    }
+    if node = 2 && this'.__S0.Q_in.size() {
+        this'.__S0.__run();
+    }
+    if node = 3 && this'.__S1.Q_in.size() {
+        this'.__S1.__run();
+    }
+    if node = 4 && this'.__S2.Q_in.size() {
+        this'.__S2.__run();
+    }
+    if node = 5 && this'.__S3.Q_in.size() {
+        this'.__S3.__run();
+    }
+}
+statement: if node = 0 && this'.__H0.Q_out.size() {
+    (pkt,port) := this'.__H0.Q_out.takeFront();
+    if port = 1 {
+        this'.__S0.Q_in.pushBack((pkt,1));
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 1 && this'.__H1.Q_out.size() {
+    (pkt,port) := this'.__H1.Q_out.takeFront();
+    if port = 1 {
+        this'.__S3.Q_in.pushBack((pkt,3));
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 2 && this'.__S0.Q_out.size() {
+    (pkt,port) := this'.__S0.Q_out.takeFront();
+    if port = 1 {
+        this'.__H0.Q_in.pushBack((pkt,1));
+    }
+    if port = 2 {
+        this'.__S1.Q_in.pushBack((pkt,1));
+    }
+    if port = 3 {
+        this'.__S2.Q_in.pushBack((pkt,1));
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: (pkt,port) := this'.__S0.Q_out.takeFront()
+particle-size: 2
+particle-size: 2
+statement: r := this'.front()
+particle-size: 2
+particle-size: 2
+statement: return this'.data[0]
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: this'.popFront()
+particle-size: 2
+particle-size: 2
+statement: this'.data ← this'.data[1..this'.size()]
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return ()
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return r
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if port = 1 {
+    this'.__H0.Q_in.pushBack((pkt,1));
+}
+statement: if port = 2 {
+    this'.__S1.Q_in.pushBack((pkt,1));
+}
+statement: this'.__S1.Q_in.pushBack((pkt,1))
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data ~ [x]
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if port = 3 {
+    this'.__S2.Q_in.pushBack((pkt,1));
+}
+statement: this'.__S2.Q_in.pushBack((pkt,1))
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data ~ [x]
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if node = 3 && this'.__S1.Q_out.size() {
+    (pkt,port) := this'.__S1.Q_out.takeFront();
+    if port = 1 {
+        this'.__S0.Q_in.pushBack((pkt,2));
+    }
+    if port = 2 {
+        this'.__S3.Q_in.pushBack((pkt,1));
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 4 && this'.__S2.Q_out.size() {
+    (pkt,port) := this'.__S2.Q_out.takeFront();
+    if port = 1 {
+        this'.__S0.Q_in.pushBack((pkt,3));
+    }
+    if port = 2 {
+        this'.__S3.Q_in.pushBack((pkt,2));
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 5 && this'.__S3.Q_out.size() {
+    (pkt,port) := this'.__S3.Q_out.takeFront();
+    if port = 1 {
+        this'.__S1.Q_in.pushBack((pkt,2));
+    }
+    if port = 2 {
+        this'.__S2.Q_in.pushBack((pkt,2));
+    }
+    if port = 3 {
+        this'.__H1.Q_in.pushBack((pkt,1));
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return ()
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+repetition: 4
+statement: __d.__step()
+particle-size: 2
+particle-size: 2
+statement: if this'.__H0.Q_in.size() || this'.__H0.Q_out.size() || this'.__H1.Q_in.size() || this'.__H1.Q_out.size() || this'.__S0.Q_in.size() || this'.__S0.Q_out.size() || this'.__S1.Q_in.size() || this'.__S1.Q_out.size() || this'.__S2.Q_in.size() || this'.__S2.Q_out.size() || this'.__S3.Q_in.size() || this'.__S3.Q_out.size() {
+    (action,node) := this'.scheduler();
+    if action {
+        if node = 0 && this'.__H0.Q_out.size() {
+            (pkt,port) := this'.__H0.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 1 && this'.__H1.Q_out.size() {
+            (pkt,port) := this'.__H1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S3.Q_in.pushBack((pkt,3));
+            }
+        }
+        if node = 2 && this'.__S0.Q_out.size() {
+            (pkt,port) := this'.__S0.Q_out.takeFront();
+            if port = 1 {
+                this'.__H0.Q_in.pushBack((pkt,1));
+            }
+            if port = 2 {
+                this'.__S1.Q_in.pushBack((pkt,1));
+            }
+            if port = 3 {
+                this'.__S2.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 3 && this'.__S1.Q_out.size() {
+            (pkt,port) := this'.__S1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 4 && this'.__S2.Q_out.size() {
+            (pkt,port) := this'.__S2.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,3));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,2));
+            }
+        }
+        if node = 5 && this'.__S3.Q_out.size() {
+            (pkt,port) := this'.__S3.Q_out.takeFront();
+            if port = 1 {
+                this'.__S1.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S2.Q_in.pushBack((pkt,2));
+            }
+            if port = 3 {
+                this'.__H1.Q_in.pushBack((pkt,1));
+            }
+        }
+    } else {
+        if node = 0 && this'.__H0.Q_in.size() {
+            this'.__H0.__run();
+        }
+        if node = 1 && this'.__H1.Q_in.size() {
+            this'.__H1.__run();
+        }
+        if node = 2 && this'.__S0.Q_in.size() {
+            this'.__S0.__run();
+        }
+        if node = 3 && this'.__S1.Q_in.size() {
+            this'.__S1.__run();
+        }
+        if node = 4 && this'.__S2.Q_in.size() {
+            this'.__S2.__run();
+        }
+        if node = 5 && this'.__S3.Q_in.size() {
+            this'.__S3.__run();
+        }
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: (action,node) := this'.scheduler()
+particle-size: 2
+particle-size: 2
+statement: actions := ([]: (R × R)[])
+particle-size: 2
+statement: for i in [0..6){
+    if (if i = 0 {
+        this'.__H0.Q_in;
+    } else if i = 1 {
+        this'.__H1.Q_in;
+    } else if i = 2 {
+        this'.__S0.Q_in;
+    } else if i = 3 {
+        this'.__S1.Q_in;
+    } else if i = 4 {
+        this'.__S2.Q_in;
+    } else {
+        this'.__S3.Q_in;
+    }).size() > 0 {
+        actions ~← [(0,i)];
+    }
+    if (if i = 0 {
+        this'.__H0.Q_out;
+    } else if i = 1 {
+        this'.__H1.Q_out;
+    } else if i = 2 {
+        this'.__S0.Q_out;
+    } else if i = 3 {
+        this'.__S1.Q_out;
+    } else if i = 4 {
+        this'.__S2.Q_out;
+    } else {
+        this'.__S3.Q_out;
+    }).size() > 0 {
+        actions ~← [(1,i)];
+    }
+}
+loop-index: 0
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 1
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 3
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: actions ~← [(0,i)]
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 4
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: actions ~← [(0,i)]
+particle-size: 1
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 5
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return actions[uniformInt(0,actions.length - 1)]
+particle-size: 2
+particle-size: 2
+statement: assert((sampleFrom("(r;a,b)=>δ(0)[-r+∑_i[a≤i]·[i≤b]]",a,b): ℝ) ≠ 0)
+statement: return sampleFrom("(x;a,b)=>(∑_i[a≤i]·[i≤b]·δ(0)[i-x])·⅟(∑_i[a≤i]·[i≤b])",a,b): ℝ
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if action {
+    if node = 0 && this'.__H0.Q_out.size() {
+        (pkt,port) := this'.__H0.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 1 && this'.__H1.Q_out.size() {
+        (pkt,port) := this'.__H1.Q_out.takeFront();
+        if port = 1 {
+            this'.__S3.Q_in.pushBack((pkt,3));
+        }
+    }
+    if node = 2 && this'.__S0.Q_out.size() {
+        (pkt,port) := this'.__S0.Q_out.takeFront();
+        if port = 1 {
+            this'.__H0.Q_in.pushBack((pkt,1));
+        }
+        if port = 2 {
+            this'.__S1.Q_in.pushBack((pkt,1));
+        }
+        if port = 3 {
+            this'.__S2.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 3 && this'.__S1.Q_out.size() {
+        (pkt,port) := this'.__S1.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,2));
+        }
+        if port = 2 {
+            this'.__S3.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 4 && this'.__S2.Q_out.size() {
+        (pkt,port) := this'.__S2.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,3));
+        }
+        if port = 2 {
+            this'.__S3.Q_in.pushBack((pkt,2));
+        }
+    }
+    if node = 5 && this'.__S3.Q_out.size() {
+        (pkt,port) := this'.__S3.Q_out.takeFront();
+        if port = 1 {
+            this'.__S1.Q_in.pushBack((pkt,2));
+        }
+        if port = 2 {
+            this'.__S2.Q_in.pushBack((pkt,2));
+        }
+        if port = 3 {
+            this'.__H1.Q_in.pushBack((pkt,1));
+        }
+    }
+} else {
+    if node = 0 && this'.__H0.Q_in.size() {
+        this'.__H0.__run();
+    }
+    if node = 1 && this'.__H1.Q_in.size() {
+        this'.__H1.__run();
+    }
+    if node = 2 && this'.__S0.Q_in.size() {
+        this'.__S0.__run();
+    }
+    if node = 3 && this'.__S1.Q_in.size() {
+        this'.__S1.__run();
+    }
+    if node = 4 && this'.__S2.Q_in.size() {
+        this'.__S2.__run();
+    }
+    if node = 5 && this'.__S3.Q_in.size() {
+        this'.__S3.__run();
+    }
+}
+statement: if node = 0 && this'.__H0.Q_in.size() {
+    this'.__H0.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 1 && this'.__H1.Q_in.size() {
+    this'.__H1.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 2 && this'.__S0.Q_in.size() {
+    this'.__S0.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 3 && this'.__S1.Q_in.size() {
+    this'.__S1.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: this'.__S1.__run()
+particle-size: 1
+particle-size: 1
+statement: this'.Q_out.pushBack((this'.Q_in.takeFront()[0],2))
+particle-size: 1
+particle-size: 1
+statement: r := this'.front()
+particle-size: 1
+particle-size: 1
+statement: return this'.data[0]
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.popFront()
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data[1..this'.size()]
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return r
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data ~ [x]
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if node = 4 && this'.__S2.Q_in.size() {
+    this'.__S2.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: this'.__S2.__run()
+particle-size: 1
+particle-size: 1
+statement: if (this'.failing = 2) {
+    this'.failing ← flip((1 / 1000));
+}
+statement: this'.failing ← flip((1 / 1000))
+particle-size: 1
+particle-size: 1
+statement: assert(0 ≤ p ∧ p ≤ 1)
+statement: return sampleFrom("(x;p)=>(1-p)·δ(0)[x]+p·δ(0)[1-x]",p): ℝ
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (this'.failing = 1) {
+    this'.Q_in.popFront();
+} else {
+    this'.Q_out.pushBack((this'.Q_in.takeFront()[0],2));
+}
+statement: this'.Q_in.popFront()
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data[1..this'.size()]
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.Q_out.pushBack((this'.Q_in.takeFront()[0],2))
+particle-size: 1
+particle-size: 1
+statement: r := this'.front()
+particle-size: 1
+particle-size: 1
+statement: return this'.data[0]
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.popFront()
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data[1..this'.size()]
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return r
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data ~ [x]
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return ()
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 5 && this'.__S3.Q_in.size() {
+    this'.__S3.__run();
+}
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return ()
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+repetition: 5
+statement: __d.__step()
+particle-size: 3
+particle-size: 3
+statement: if this'.__H0.Q_in.size() || this'.__H0.Q_out.size() || this'.__H1.Q_in.size() || this'.__H1.Q_out.size() || this'.__S0.Q_in.size() || this'.__S0.Q_out.size() || this'.__S1.Q_in.size() || this'.__S1.Q_out.size() || this'.__S2.Q_in.size() || this'.__S2.Q_out.size() || this'.__S3.Q_in.size() || this'.__S3.Q_out.size() {
+    (action,node) := this'.scheduler();
+    if action {
+        if node = 0 && this'.__H0.Q_out.size() {
+            (pkt,port) := this'.__H0.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 1 && this'.__H1.Q_out.size() {
+            (pkt,port) := this'.__H1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S3.Q_in.pushBack((pkt,3));
+            }
+        }
+        if node = 2 && this'.__S0.Q_out.size() {
+            (pkt,port) := this'.__S0.Q_out.takeFront();
+            if port = 1 {
+                this'.__H0.Q_in.pushBack((pkt,1));
+            }
+            if port = 2 {
+                this'.__S1.Q_in.pushBack((pkt,1));
+            }
+            if port = 3 {
+                this'.__S2.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 3 && this'.__S1.Q_out.size() {
+            (pkt,port) := this'.__S1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 4 && this'.__S2.Q_out.size() {
+            (pkt,port) := this'.__S2.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,3));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,2));
+            }
+        }
+        if node = 5 && this'.__S3.Q_out.size() {
+            (pkt,port) := this'.__S3.Q_out.takeFront();
+            if port = 1 {
+                this'.__S1.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S2.Q_in.pushBack((pkt,2));
+            }
+            if port = 3 {
+                this'.__H1.Q_in.pushBack((pkt,1));
+            }
+        }
+    } else {
+        if node = 0 && this'.__H0.Q_in.size() {
+            this'.__H0.__run();
+        }
+        if node = 1 && this'.__H1.Q_in.size() {
+            this'.__H1.__run();
+        }
+        if node = 2 && this'.__S0.Q_in.size() {
+            this'.__S0.__run();
+        }
+        if node = 3 && this'.__S1.Q_in.size() {
+            this'.__S1.__run();
+        }
+        if node = 4 && this'.__S2.Q_in.size() {
+            this'.__S2.__run();
+        }
+        if node = 5 && this'.__S3.Q_in.size() {
+            this'.__S3.__run();
+        }
+    }
+}
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: (action,node) := this'.scheduler()
+particle-size: 2
+particle-size: 2
+statement: actions := ([]: (R × R)[])
+particle-size: 2
+statement: for i in [0..6){
+    if (if i = 0 {
+        this'.__H0.Q_in;
+    } else if i = 1 {
+        this'.__H1.Q_in;
+    } else if i = 2 {
+        this'.__S0.Q_in;
+    } else if i = 3 {
+        this'.__S1.Q_in;
+    } else if i = 4 {
+        this'.__S2.Q_in;
+    } else {
+        this'.__S3.Q_in;
+    }).size() > 0 {
+        actions ~← [(0,i)];
+    }
+    if (if i = 0 {
+        this'.__H0.Q_out;
+    } else if i = 1 {
+        this'.__H1.Q_out;
+    } else if i = 2 {
+        this'.__S0.Q_out;
+    } else if i = 3 {
+        this'.__S1.Q_out;
+    } else if i = 4 {
+        this'.__S2.Q_out;
+    } else {
+        this'.__S3.Q_out;
+    }).size() > 0 {
+        actions ~← [(1,i)];
+    }
+}
+loop-index: 0
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 1
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 3
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: actions ~← [(1,i)]
+particle-size: 1
+loop-index: 4
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: actions ~← [(1,i)]
+particle-size: 1
+loop-index: 5
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return actions[uniformInt(0,actions.length - 1)]
+particle-size: 2
+particle-size: 2
+statement: assert((sampleFrom("(r;a,b)=>δ(0)[-r+∑_i[a≤i]·[i≤b]]",a,b): ℝ) ≠ 0)
+statement: return sampleFrom("(x;a,b)=>(∑_i[a≤i]·[i≤b]·δ(0)[i-x])·⅟(∑_i[a≤i]·[i≤b])",a,b): ℝ
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if action {
+    if node = 0 && this'.__H0.Q_out.size() {
+        (pkt,port) := this'.__H0.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 1 && this'.__H1.Q_out.size() {
+        (pkt,port) := this'.__H1.Q_out.takeFront();
+        if port = 1 {
+            this'.__S3.Q_in.pushBack((pkt,3));
+        }
+    }
+    if node = 2 && this'.__S0.Q_out.size() {
+        (pkt,port) := this'.__S0.Q_out.takeFront();
+        if port = 1 {
+            this'.__H0.Q_in.pushBack((pkt,1));
+        }
+        if port = 2 {
+            this'.__S1.Q_in.pushBack((pkt,1));
+        }
+        if port = 3 {
+            this'.__S2.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 3 && this'.__S1.Q_out.size() {
+        (pkt,port) := this'.__S1.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,2));
+        }
+        if port = 2 {
+            this'.__S3.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 4 && this'.__S2.Q_out.size() {
+        (pkt,port) := this'.__S2.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,3));
+        }
+        if port = 2 {
+            this'.__S3.Q_in.pushBack((pkt,2));
+        }
+    }
+    if node = 5 && this'.__S3.Q_out.size() {
+        (pkt,port) := this'.__S3.Q_out.takeFront();
+        if port = 1 {
+            this'.__S1.Q_in.pushBack((pkt,2));
+        }
+        if port = 2 {
+            this'.__S2.Q_in.pushBack((pkt,2));
+        }
+        if port = 3 {
+            this'.__H1.Q_in.pushBack((pkt,1));
+        }
+    }
+} else {
+    if node = 0 && this'.__H0.Q_in.size() {
+        this'.__H0.__run();
+    }
+    if node = 1 && this'.__H1.Q_in.size() {
+        this'.__H1.__run();
+    }
+    if node = 2 && this'.__S0.Q_in.size() {
+        this'.__S0.__run();
+    }
+    if node = 3 && this'.__S1.Q_in.size() {
+        this'.__S1.__run();
+    }
+    if node = 4 && this'.__S2.Q_in.size() {
+        this'.__S2.__run();
+    }
+    if node = 5 && this'.__S3.Q_in.size() {
+        this'.__S3.__run();
+    }
+}
+statement: if node = 0 && this'.__H0.Q_out.size() {
+    (pkt,port) := this'.__H0.Q_out.takeFront();
+    if port = 1 {
+        this'.__S0.Q_in.pushBack((pkt,1));
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 1 && this'.__H1.Q_out.size() {
+    (pkt,port) := this'.__H1.Q_out.takeFront();
+    if port = 1 {
+        this'.__S3.Q_in.pushBack((pkt,3));
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 2 && this'.__S0.Q_out.size() {
+    (pkt,port) := this'.__S0.Q_out.takeFront();
+    if port = 1 {
+        this'.__H0.Q_in.pushBack((pkt,1));
+    }
+    if port = 2 {
+        this'.__S1.Q_in.pushBack((pkt,1));
+    }
+    if port = 3 {
+        this'.__S2.Q_in.pushBack((pkt,1));
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 3 && this'.__S1.Q_out.size() {
+    (pkt,port) := this'.__S1.Q_out.takeFront();
+    if port = 1 {
+        this'.__S0.Q_in.pushBack((pkt,2));
+    }
+    if port = 2 {
+        this'.__S3.Q_in.pushBack((pkt,1));
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: (pkt,port) := this'.__S1.Q_out.takeFront()
+particle-size: 1
+particle-size: 1
+statement: r := this'.front()
+particle-size: 1
+particle-size: 1
+statement: return this'.data[0]
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.popFront()
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data[1..this'.size()]
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return r
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if port = 1 {
+    this'.__S0.Q_in.pushBack((pkt,2));
+}
+statement: if port = 2 {
+    this'.__S3.Q_in.pushBack((pkt,1));
+}
+statement: this'.__S3.Q_in.pushBack((pkt,1))
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data ~ [x]
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if node = 4 && this'.__S2.Q_out.size() {
+    (pkt,port) := this'.__S2.Q_out.takeFront();
+    if port = 1 {
+        this'.__S0.Q_in.pushBack((pkt,3));
+    }
+    if port = 2 {
+        this'.__S3.Q_in.pushBack((pkt,2));
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: (pkt,port) := this'.__S2.Q_out.takeFront()
+particle-size: 1
+particle-size: 1
+statement: r := this'.front()
+particle-size: 1
+particle-size: 1
+statement: return this'.data[0]
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.popFront()
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data[1..this'.size()]
+particle-size: 1
+particle-size: 1
+statement: return this'.data.length
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: return r
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if port = 1 {
+    this'.__S0.Q_in.pushBack((pkt,3));
+}
+statement: if port = 2 {
+    this'.__S3.Q_in.pushBack((pkt,2));
+}
+statement: this'.__S3.Q_in.pushBack((pkt,2))
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: this'.data ← this'.data ~ [x]
+particle-size: 1
+statement: return ()
+particle-size: 1
+particle-size: 1
+particle-size: 1
+particle-size: 1
+statement: if node = 5 && this'.__S3.Q_out.size() {
+    (pkt,port) := this'.__S3.Q_out.takeFront();
+    if port = 1 {
+        this'.__S1.Q_in.pushBack((pkt,2));
+    }
+    if port = 2 {
+        this'.__S2.Q_in.pushBack((pkt,2));
+    }
+    if port = 3 {
+        this'.__H1.Q_in.pushBack((pkt,1));
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return ()
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+repetition: 6
+statement: __d.__step()
+particle-size: 3
+particle-size: 3
+statement: if this'.__H0.Q_in.size() || this'.__H0.Q_out.size() || this'.__H1.Q_in.size() || this'.__H1.Q_out.size() || this'.__S0.Q_in.size() || this'.__S0.Q_out.size() || this'.__S1.Q_in.size() || this'.__S1.Q_out.size() || this'.__S2.Q_in.size() || this'.__S2.Q_out.size() || this'.__S3.Q_in.size() || this'.__S3.Q_out.size() {
+    (action,node) := this'.scheduler();
+    if action {
+        if node = 0 && this'.__H0.Q_out.size() {
+            (pkt,port) := this'.__H0.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 1 && this'.__H1.Q_out.size() {
+            (pkt,port) := this'.__H1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S3.Q_in.pushBack((pkt,3));
+            }
+        }
+        if node = 2 && this'.__S0.Q_out.size() {
+            (pkt,port) := this'.__S0.Q_out.takeFront();
+            if port = 1 {
+                this'.__H0.Q_in.pushBack((pkt,1));
+            }
+            if port = 2 {
+                this'.__S1.Q_in.pushBack((pkt,1));
+            }
+            if port = 3 {
+                this'.__S2.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 3 && this'.__S1.Q_out.size() {
+            (pkt,port) := this'.__S1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 4 && this'.__S2.Q_out.size() {
+            (pkt,port) := this'.__S2.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,3));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,2));
+            }
+        }
+        if node = 5 && this'.__S3.Q_out.size() {
+            (pkt,port) := this'.__S3.Q_out.takeFront();
+            if port = 1 {
+                this'.__S1.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S2.Q_in.pushBack((pkt,2));
+            }
+            if port = 3 {
+                this'.__H1.Q_in.pushBack((pkt,1));
+            }
+        }
+    } else {
+        if node = 0 && this'.__H0.Q_in.size() {
+            this'.__H0.__run();
+        }
+        if node = 1 && this'.__H1.Q_in.size() {
+            this'.__H1.__run();
+        }
+        if node = 2 && this'.__S0.Q_in.size() {
+            this'.__S0.__run();
+        }
+        if node = 3 && this'.__S1.Q_in.size() {
+            this'.__S1.__run();
+        }
+        if node = 4 && this'.__S2.Q_in.size() {
+            this'.__S2.__run();
+        }
+        if node = 5 && this'.__S3.Q_in.size() {
+            this'.__S3.__run();
+        }
+    }
+}
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: (action,node) := this'.scheduler()
+particle-size: 2
+particle-size: 2
+statement: actions := ([]: (R × R)[])
+particle-size: 2
+statement: for i in [0..6){
+    if (if i = 0 {
+        this'.__H0.Q_in;
+    } else if i = 1 {
+        this'.__H1.Q_in;
+    } else if i = 2 {
+        this'.__S0.Q_in;
+    } else if i = 3 {
+        this'.__S1.Q_in;
+    } else if i = 4 {
+        this'.__S2.Q_in;
+    } else {
+        this'.__S3.Q_in;
+    }).size() > 0 {
+        actions ~← [(0,i)];
+    }
+    if (if i = 0 {
+        this'.__H0.Q_out;
+    } else if i = 1 {
+        this'.__H1.Q_out;
+    } else if i = 2 {
+        this'.__S0.Q_out;
+    } else if i = 3 {
+        this'.__S1.Q_out;
+    } else if i = 4 {
+        this'.__S2.Q_out;
+    } else {
+        this'.__S3.Q_out;
+    }).size() > 0 {
+        actions ~← [(1,i)];
+    }
+}
+loop-index: 0
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 1
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 3
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 4
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 5
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: actions ~← [(0,i)]
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return actions[uniformInt(0,actions.length - 1)]
+particle-size: 2
+particle-size: 2
+statement: assert((sampleFrom("(r;a,b)=>δ(0)[-r+∑_i[a≤i]·[i≤b]]",a,b): ℝ) ≠ 0)
+statement: return sampleFrom("(x;a,b)=>(∑_i[a≤i]·[i≤b]·δ(0)[i-x])·⅟(∑_i[a≤i]·[i≤b])",a,b): ℝ
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if action {
+    if node = 0 && this'.__H0.Q_out.size() {
+        (pkt,port) := this'.__H0.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 1 && this'.__H1.Q_out.size() {
+        (pkt,port) := this'.__H1.Q_out.takeFront();
+        if port = 1 {
+            this'.__S3.Q_in.pushBack((pkt,3));
+        }
+    }
+    if node = 2 && this'.__S0.Q_out.size() {
+        (pkt,port) := this'.__S0.Q_out.takeFront();
+        if port = 1 {
+            this'.__H0.Q_in.pushBack((pkt,1));
+        }
+        if port = 2 {
+            this'.__S1.Q_in.pushBack((pkt,1));
+        }
+        if port = 3 {
+            this'.__S2.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 3 && this'.__S1.Q_out.size() {
+        (pkt,port) := this'.__S1.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,2));
+        }
+        if port = 2 {
+            this'.__S3.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 4 && this'.__S2.Q_out.size() {
+        (pkt,port) := this'.__S2.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,3));
+        }
+        if port = 2 {
+            this'.__S3.Q_in.pushBack((pkt,2));
+        }
+    }
+    if node = 5 && this'.__S3.Q_out.size() {
+        (pkt,port) := this'.__S3.Q_out.takeFront();
+        if port = 1 {
+            this'.__S1.Q_in.pushBack((pkt,2));
+        }
+        if port = 2 {
+            this'.__S2.Q_in.pushBack((pkt,2));
+        }
+        if port = 3 {
+            this'.__H1.Q_in.pushBack((pkt,1));
+        }
+    }
+} else {
+    if node = 0 && this'.__H0.Q_in.size() {
+        this'.__H0.__run();
+    }
+    if node = 1 && this'.__H1.Q_in.size() {
+        this'.__H1.__run();
+    }
+    if node = 2 && this'.__S0.Q_in.size() {
+        this'.__S0.__run();
+    }
+    if node = 3 && this'.__S1.Q_in.size() {
+        this'.__S1.__run();
+    }
+    if node = 4 && this'.__S2.Q_in.size() {
+        this'.__S2.__run();
+    }
+    if node = 5 && this'.__S3.Q_in.size() {
+        this'.__S3.__run();
+    }
+}
+statement: if node = 0 && this'.__H0.Q_in.size() {
+    this'.__H0.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 1 && this'.__H1.Q_in.size() {
+    this'.__H1.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 2 && this'.__S0.Q_in.size() {
+    this'.__S0.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 3 && this'.__S1.Q_in.size() {
+    this'.__S1.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 4 && this'.__S2.Q_in.size() {
+    this'.__S2.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 5 && this'.__S3.Q_in.size() {
+    this'.__S3.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: this'.__S3.__run()
+particle-size: 2
+particle-size: 2
+statement: this'.Q_out.pushBack((this'.Q_in.takeFront()[0],3))
+particle-size: 2
+particle-size: 2
+statement: r := this'.front()
+particle-size: 2
+particle-size: 2
+statement: return this'.data[0]
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: this'.popFront()
+particle-size: 2
+particle-size: 2
+statement: this'.data ← this'.data[1..this'.size()]
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return ()
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return r
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: this'.data ← this'.data ~ [x]
+particle-size: 2
+statement: return ()
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return ()
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return ()
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+repetition: 7
+statement: __d.__step()
+particle-size: 3
+particle-size: 3
+statement: if this'.__H0.Q_in.size() || this'.__H0.Q_out.size() || this'.__H1.Q_in.size() || this'.__H1.Q_out.size() || this'.__S0.Q_in.size() || this'.__S0.Q_out.size() || this'.__S1.Q_in.size() || this'.__S1.Q_out.size() || this'.__S2.Q_in.size() || this'.__S2.Q_out.size() || this'.__S3.Q_in.size() || this'.__S3.Q_out.size() {
+    (action,node) := this'.scheduler();
+    if action {
+        if node = 0 && this'.__H0.Q_out.size() {
+            (pkt,port) := this'.__H0.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 1 && this'.__H1.Q_out.size() {
+            (pkt,port) := this'.__H1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S3.Q_in.pushBack((pkt,3));
+            }
+        }
+        if node = 2 && this'.__S0.Q_out.size() {
+            (pkt,port) := this'.__S0.Q_out.takeFront();
+            if port = 1 {
+                this'.__H0.Q_in.pushBack((pkt,1));
+            }
+            if port = 2 {
+                this'.__S1.Q_in.pushBack((pkt,1));
+            }
+            if port = 3 {
+                this'.__S2.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 3 && this'.__S1.Q_out.size() {
+            (pkt,port) := this'.__S1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 4 && this'.__S2.Q_out.size() {
+            (pkt,port) := this'.__S2.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,3));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,2));
+            }
+        }
+        if node = 5 && this'.__S3.Q_out.size() {
+            (pkt,port) := this'.__S3.Q_out.takeFront();
+            if port = 1 {
+                this'.__S1.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S2.Q_in.pushBack((pkt,2));
+            }
+            if port = 3 {
+                this'.__H1.Q_in.pushBack((pkt,1));
+            }
+        }
+    } else {
+        if node = 0 && this'.__H0.Q_in.size() {
+            this'.__H0.__run();
+        }
+        if node = 1 && this'.__H1.Q_in.size() {
+            this'.__H1.__run();
+        }
+        if node = 2 && this'.__S0.Q_in.size() {
+            this'.__S0.__run();
+        }
+        if node = 3 && this'.__S1.Q_in.size() {
+            this'.__S1.__run();
+        }
+        if node = 4 && this'.__S2.Q_in.size() {
+            this'.__S2.__run();
+        }
+        if node = 5 && this'.__S3.Q_in.size() {
+            this'.__S3.__run();
+        }
+    }
+}
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: (action,node) := this'.scheduler()
+particle-size: 2
+particle-size: 2
+statement: actions := ([]: (R × R)[])
+particle-size: 2
+statement: for i in [0..6){
+    if (if i = 0 {
+        this'.__H0.Q_in;
+    } else if i = 1 {
+        this'.__H1.Q_in;
+    } else if i = 2 {
+        this'.__S0.Q_in;
+    } else if i = 3 {
+        this'.__S1.Q_in;
+    } else if i = 4 {
+        this'.__S2.Q_in;
+    } else {
+        this'.__S3.Q_in;
+    }).size() > 0 {
+        actions ~← [(0,i)];
+    }
+    if (if i = 0 {
+        this'.__H0.Q_out;
+    } else if i = 1 {
+        this'.__H1.Q_out;
+    } else if i = 2 {
+        this'.__S0.Q_out;
+    } else if i = 3 {
+        this'.__S1.Q_out;
+    } else if i = 4 {
+        this'.__S2.Q_out;
+    } else {
+        this'.__S3.Q_out;
+    }).size() > 0 {
+        actions ~← [(1,i)];
+    }
+}
+loop-index: 0
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 1
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 3
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 4
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 5
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: actions ~← [(1,i)]
+particle-size: 2
+statement: return actions[uniformInt(0,actions.length - 1)]
+particle-size: 2
+particle-size: 2
+statement: assert((sampleFrom("(r;a,b)=>δ(0)[-r+∑_i[a≤i]·[i≤b]]",a,b): ℝ) ≠ 0)
+statement: return sampleFrom("(x;a,b)=>(∑_i[a≤i]·[i≤b]·δ(0)[i-x])·⅟(∑_i[a≤i]·[i≤b])",a,b): ℝ
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if action {
+    if node = 0 && this'.__H0.Q_out.size() {
+        (pkt,port) := this'.__H0.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 1 && this'.__H1.Q_out.size() {
+        (pkt,port) := this'.__H1.Q_out.takeFront();
+        if port = 1 {
+            this'.__S3.Q_in.pushBack((pkt,3));
+        }
+    }
+    if node = 2 && this'.__S0.Q_out.size() {
+        (pkt,port) := this'.__S0.Q_out.takeFront();
+        if port = 1 {
+            this'.__H0.Q_in.pushBack((pkt,1));
+        }
+        if port = 2 {
+            this'.__S1.Q_in.pushBack((pkt,1));
+        }
+        if port = 3 {
+            this'.__S2.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 3 && this'.__S1.Q_out.size() {
+        (pkt,port) := this'.__S1.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,2));
+        }
+        if port = 2 {
+            this'.__S3.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 4 && this'.__S2.Q_out.size() {
+        (pkt,port) := this'.__S2.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,3));
+        }
+        if port = 2 {
+            this'.__S3.Q_in.pushBack((pkt,2));
+        }
+    }
+    if node = 5 && this'.__S3.Q_out.size() {
+        (pkt,port) := this'.__S3.Q_out.takeFront();
+        if port = 1 {
+            this'.__S1.Q_in.pushBack((pkt,2));
+        }
+        if port = 2 {
+            this'.__S2.Q_in.pushBack((pkt,2));
+        }
+        if port = 3 {
+            this'.__H1.Q_in.pushBack((pkt,1));
+        }
+    }
+} else {
+    if node = 0 && this'.__H0.Q_in.size() {
+        this'.__H0.__run();
+    }
+    if node = 1 && this'.__H1.Q_in.size() {
+        this'.__H1.__run();
+    }
+    if node = 2 && this'.__S0.Q_in.size() {
+        this'.__S0.__run();
+    }
+    if node = 3 && this'.__S1.Q_in.size() {
+        this'.__S1.__run();
+    }
+    if node = 4 && this'.__S2.Q_in.size() {
+        this'.__S2.__run();
+    }
+    if node = 5 && this'.__S3.Q_in.size() {
+        this'.__S3.__run();
+    }
+}
+statement: if node = 0 && this'.__H0.Q_out.size() {
+    (pkt,port) := this'.__H0.Q_out.takeFront();
+    if port = 1 {
+        this'.__S0.Q_in.pushBack((pkt,1));
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 1 && this'.__H1.Q_out.size() {
+    (pkt,port) := this'.__H1.Q_out.takeFront();
+    if port = 1 {
+        this'.__S3.Q_in.pushBack((pkt,3));
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 2 && this'.__S0.Q_out.size() {
+    (pkt,port) := this'.__S0.Q_out.takeFront();
+    if port = 1 {
+        this'.__H0.Q_in.pushBack((pkt,1));
+    }
+    if port = 2 {
+        this'.__S1.Q_in.pushBack((pkt,1));
+    }
+    if port = 3 {
+        this'.__S2.Q_in.pushBack((pkt,1));
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 3 && this'.__S1.Q_out.size() {
+    (pkt,port) := this'.__S1.Q_out.takeFront();
+    if port = 1 {
+        this'.__S0.Q_in.pushBack((pkt,2));
+    }
+    if port = 2 {
+        this'.__S3.Q_in.pushBack((pkt,1));
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 4 && this'.__S2.Q_out.size() {
+    (pkt,port) := this'.__S2.Q_out.takeFront();
+    if port = 1 {
+        this'.__S0.Q_in.pushBack((pkt,3));
+    }
+    if port = 2 {
+        this'.__S3.Q_in.pushBack((pkt,2));
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 5 && this'.__S3.Q_out.size() {
+    (pkt,port) := this'.__S3.Q_out.takeFront();
+    if port = 1 {
+        this'.__S1.Q_in.pushBack((pkt,2));
+    }
+    if port = 2 {
+        this'.__S2.Q_in.pushBack((pkt,2));
+    }
+    if port = 3 {
+        this'.__H1.Q_in.pushBack((pkt,1));
+    }
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: (pkt,port) := this'.__S3.Q_out.takeFront()
+particle-size: 2
+particle-size: 2
+statement: r := this'.front()
+particle-size: 2
+particle-size: 2
+statement: return this'.data[0]
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: this'.popFront()
+particle-size: 2
+particle-size: 2
+statement: this'.data ← this'.data[1..this'.size()]
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return ()
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return r
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if port = 1 {
+    this'.__S1.Q_in.pushBack((pkt,2));
+}
+statement: if port = 2 {
+    this'.__S2.Q_in.pushBack((pkt,2));
+}
+statement: if port = 3 {
+    this'.__H1.Q_in.pushBack((pkt,1));
+}
+statement: this'.__H1.Q_in.pushBack((pkt,1))
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: this'.data ← this'.data ~ [x]
+particle-size: 2
+statement: return ()
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return ()
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+repetition: 8
+statement: __d.__step()
+particle-size: 3
+particle-size: 3
+statement: if this'.__H0.Q_in.size() || this'.__H0.Q_out.size() || this'.__H1.Q_in.size() || this'.__H1.Q_out.size() || this'.__S0.Q_in.size() || this'.__S0.Q_out.size() || this'.__S1.Q_in.size() || this'.__S1.Q_out.size() || this'.__S2.Q_in.size() || this'.__S2.Q_out.size() || this'.__S3.Q_in.size() || this'.__S3.Q_out.size() {
+    (action,node) := this'.scheduler();
+    if action {
+        if node = 0 && this'.__H0.Q_out.size() {
+            (pkt,port) := this'.__H0.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 1 && this'.__H1.Q_out.size() {
+            (pkt,port) := this'.__H1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S3.Q_in.pushBack((pkt,3));
+            }
+        }
+        if node = 2 && this'.__S0.Q_out.size() {
+            (pkt,port) := this'.__S0.Q_out.takeFront();
+            if port = 1 {
+                this'.__H0.Q_in.pushBack((pkt,1));
+            }
+            if port = 2 {
+                this'.__S1.Q_in.pushBack((pkt,1));
+            }
+            if port = 3 {
+                this'.__S2.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 3 && this'.__S1.Q_out.size() {
+            (pkt,port) := this'.__S1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 4 && this'.__S2.Q_out.size() {
+            (pkt,port) := this'.__S2.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,3));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,2));
+            }
+        }
+        if node = 5 && this'.__S3.Q_out.size() {
+            (pkt,port) := this'.__S3.Q_out.takeFront();
+            if port = 1 {
+                this'.__S1.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S2.Q_in.pushBack((pkt,2));
+            }
+            if port = 3 {
+                this'.__H1.Q_in.pushBack((pkt,1));
+            }
+        }
+    } else {
+        if node = 0 && this'.__H0.Q_in.size() {
+            this'.__H0.__run();
+        }
+        if node = 1 && this'.__H1.Q_in.size() {
+            this'.__H1.__run();
+        }
+        if node = 2 && this'.__S0.Q_in.size() {
+            this'.__S0.__run();
+        }
+        if node = 3 && this'.__S1.Q_in.size() {
+            this'.__S1.__run();
+        }
+        if node = 4 && this'.__S2.Q_in.size() {
+            this'.__S2.__run();
+        }
+        if node = 5 && this'.__S3.Q_in.size() {
+            this'.__S3.__run();
+        }
+    }
+}
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: (action,node) := this'.scheduler()
+particle-size: 2
+particle-size: 2
+statement: actions := ([]: (R × R)[])
+particle-size: 2
+statement: for i in [0..6){
+    if (if i = 0 {
+        this'.__H0.Q_in;
+    } else if i = 1 {
+        this'.__H1.Q_in;
+    } else if i = 2 {
+        this'.__S0.Q_in;
+    } else if i = 3 {
+        this'.__S1.Q_in;
+    } else if i = 4 {
+        this'.__S2.Q_in;
+    } else {
+        this'.__S3.Q_in;
+    }).size() > 0 {
+        actions ~← [(0,i)];
+    }
+    if (if i = 0 {
+        this'.__H0.Q_out;
+    } else if i = 1 {
+        this'.__H1.Q_out;
+    } else if i = 2 {
+        this'.__S0.Q_out;
+    } else if i = 3 {
+        this'.__S1.Q_out;
+    } else if i = 4 {
+        this'.__S2.Q_out;
+    } else {
+        this'.__S3.Q_out;
+    }).size() > 0 {
+        actions ~← [(1,i)];
+    }
+}
+loop-index: 0
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 1
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: actions ~← [(0,i)]
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 3
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 4
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+loop-index: 5
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_in;
+} else if i = 1 {
+    this'.__H1.Q_in;
+} else if i = 2 {
+    this'.__S0.Q_in;
+} else if i = 3 {
+    this'.__S1.Q_in;
+} else if i = 4 {
+    this'.__S2.Q_in;
+} else {
+    this'.__S3.Q_in;
+}).size() > 0 {
+    actions ~← [(0,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if (if i = 0 {
+    this'.__H0.Q_out;
+} else if i = 1 {
+    this'.__H1.Q_out;
+} else if i = 2 {
+    this'.__S0.Q_out;
+} else if i = 3 {
+    this'.__S1.Q_out;
+} else if i = 4 {
+    this'.__S2.Q_out;
+} else {
+    this'.__S3.Q_out;
+}).size() > 0 {
+    actions ~← [(1,i)];
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return actions[uniformInt(0,actions.length - 1)]
+particle-size: 2
+particle-size: 2
+statement: assert((sampleFrom("(r;a,b)=>δ(0)[-r+∑_i[a≤i]·[i≤b]]",a,b): ℝ) ≠ 0)
+statement: return sampleFrom("(x;a,b)=>(∑_i[a≤i]·[i≤b]·δ(0)[i-x])·⅟(∑_i[a≤i]·[i≤b])",a,b): ℝ
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if action {
+    if node = 0 && this'.__H0.Q_out.size() {
+        (pkt,port) := this'.__H0.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 1 && this'.__H1.Q_out.size() {
+        (pkt,port) := this'.__H1.Q_out.takeFront();
+        if port = 1 {
+            this'.__S3.Q_in.pushBack((pkt,3));
+        }
+    }
+    if node = 2 && this'.__S0.Q_out.size() {
+        (pkt,port) := this'.__S0.Q_out.takeFront();
+        if port = 1 {
+            this'.__H0.Q_in.pushBack((pkt,1));
+        }
+        if port = 2 {
+            this'.__S1.Q_in.pushBack((pkt,1));
+        }
+        if port = 3 {
+            this'.__S2.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 3 && this'.__S1.Q_out.size() {
+        (pkt,port) := this'.__S1.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,2));
+        }
+        if port = 2 {
+            this'.__S3.Q_in.pushBack((pkt,1));
+        }
+    }
+    if node = 4 && this'.__S2.Q_out.size() {
+        (pkt,port) := this'.__S2.Q_out.takeFront();
+        if port = 1 {
+            this'.__S0.Q_in.pushBack((pkt,3));
+        }
+        if port = 2 {
+            this'.__S3.Q_in.pushBack((pkt,2));
+        }
+    }
+    if node = 5 && this'.__S3.Q_out.size() {
+        (pkt,port) := this'.__S3.Q_out.takeFront();
+        if port = 1 {
+            this'.__S1.Q_in.pushBack((pkt,2));
+        }
+        if port = 2 {
+            this'.__S2.Q_in.pushBack((pkt,2));
+        }
+        if port = 3 {
+            this'.__H1.Q_in.pushBack((pkt,1));
+        }
+    }
+} else {
+    if node = 0 && this'.__H0.Q_in.size() {
+        this'.__H0.__run();
+    }
+    if node = 1 && this'.__H1.Q_in.size() {
+        this'.__H1.__run();
+    }
+    if node = 2 && this'.__S0.Q_in.size() {
+        this'.__S0.__run();
+    }
+    if node = 3 && this'.__S1.Q_in.size() {
+        this'.__S1.__run();
+    }
+    if node = 4 && this'.__S2.Q_in.size() {
+        this'.__S2.__run();
+    }
+    if node = 5 && this'.__S3.Q_in.size() {
+        this'.__S3.__run();
+    }
+}
+statement: if node = 0 && this'.__H0.Q_in.size() {
+    this'.__H0.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 1 && this'.__H1.Q_in.size() {
+    this'.__H1.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: this'.__H1.__run()
+particle-size: 2
+particle-size: 2
+statement: this'.arrived ← 1
+particle-size: 2
+statement: this'.Q_in.popFront()
+particle-size: 2
+particle-size: 2
+statement: this'.data ← this'.data[1..this'.size()]
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return ()
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return ()
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 2 && this'.__S0.Q_in.size() {
+    this'.__S0.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 3 && this'.__S1.Q_in.size() {
+    this'.__S1.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 4 && this'.__S2.Q_in.size() {
+    this'.__S2.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: if node = 5 && this'.__S3.Q_in.size() {
+    this'.__S3.__run();
+}
+particle-size: 2
+particle-size: 2
+statement: return this'.data.length
+particle-size: 2
+particle-size: 2
+particle-size: 2
+particle-size: 2
+statement: return ()
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+repetition: 9
+statement: __d.__step()
+particle-size: 3
+particle-size: 3
+statement: if this'.__H0.Q_in.size() || this'.__H0.Q_out.size() || this'.__H1.Q_in.size() || this'.__H1.Q_out.size() || this'.__S0.Q_in.size() || this'.__S0.Q_out.size() || this'.__S1.Q_in.size() || this'.__S1.Q_out.size() || this'.__S2.Q_in.size() || this'.__S2.Q_out.size() || this'.__S3.Q_in.size() || this'.__S3.Q_out.size() {
+    (action,node) := this'.scheduler();
+    if action {
+        if node = 0 && this'.__H0.Q_out.size() {
+            (pkt,port) := this'.__H0.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 1 && this'.__H1.Q_out.size() {
+            (pkt,port) := this'.__H1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S3.Q_in.pushBack((pkt,3));
+            }
+        }
+        if node = 2 && this'.__S0.Q_out.size() {
+            (pkt,port) := this'.__S0.Q_out.takeFront();
+            if port = 1 {
+                this'.__H0.Q_in.pushBack((pkt,1));
+            }
+            if port = 2 {
+                this'.__S1.Q_in.pushBack((pkt,1));
+            }
+            if port = 3 {
+                this'.__S2.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 3 && this'.__S1.Q_out.size() {
+            (pkt,port) := this'.__S1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 4 && this'.__S2.Q_out.size() {
+            (pkt,port) := this'.__S2.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,3));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,2));
+            }
+        }
+        if node = 5 && this'.__S3.Q_out.size() {
+            (pkt,port) := this'.__S3.Q_out.takeFront();
+            if port = 1 {
+                this'.__S1.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S2.Q_in.pushBack((pkt,2));
+            }
+            if port = 3 {
+                this'.__H1.Q_in.pushBack((pkt,1));
+            }
+        }
+    } else {
+        if node = 0 && this'.__H0.Q_in.size() {
+            this'.__H0.__run();
+        }
+        if node = 1 && this'.__H1.Q_in.size() {
+            this'.__H1.__run();
+        }
+        if node = 2 && this'.__S0.Q_in.size() {
+            this'.__S0.__run();
+        }
+        if node = 3 && this'.__S1.Q_in.size() {
+            this'.__S1.__run();
+        }
+        if node = 4 && this'.__S2.Q_in.size() {
+            this'.__S2.__run();
+        }
+        if node = 5 && this'.__S3.Q_in.size() {
+            this'.__S3.__run();
+        }
+    }
+}
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return ()
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+repetition: 10
+statement: __d.__step()
+particle-size: 3
+particle-size: 3
+statement: if this'.__H0.Q_in.size() || this'.__H0.Q_out.size() || this'.__H1.Q_in.size() || this'.__H1.Q_out.size() || this'.__S0.Q_in.size() || this'.__S0.Q_out.size() || this'.__S1.Q_in.size() || this'.__S1.Q_out.size() || this'.__S2.Q_in.size() || this'.__S2.Q_out.size() || this'.__S3.Q_in.size() || this'.__S3.Q_out.size() {
+    (action,node) := this'.scheduler();
+    if action {
+        if node = 0 && this'.__H0.Q_out.size() {
+            (pkt,port) := this'.__H0.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 1 && this'.__H1.Q_out.size() {
+            (pkt,port) := this'.__H1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S3.Q_in.pushBack((pkt,3));
+            }
+        }
+        if node = 2 && this'.__S0.Q_out.size() {
+            (pkt,port) := this'.__S0.Q_out.takeFront();
+            if port = 1 {
+                this'.__H0.Q_in.pushBack((pkt,1));
+            }
+            if port = 2 {
+                this'.__S1.Q_in.pushBack((pkt,1));
+            }
+            if port = 3 {
+                this'.__S2.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 3 && this'.__S1.Q_out.size() {
+            (pkt,port) := this'.__S1.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,1));
+            }
+        }
+        if node = 4 && this'.__S2.Q_out.size() {
+            (pkt,port) := this'.__S2.Q_out.takeFront();
+            if port = 1 {
+                this'.__S0.Q_in.pushBack((pkt,3));
+            }
+            if port = 2 {
+                this'.__S3.Q_in.pushBack((pkt,2));
+            }
+        }
+        if node = 5 && this'.__S3.Q_out.size() {
+            (pkt,port) := this'.__S3.Q_out.takeFront();
+            if port = 1 {
+                this'.__S1.Q_in.pushBack((pkt,2));
+            }
+            if port = 2 {
+                this'.__S2.Q_in.pushBack((pkt,2));
+            }
+            if port = 3 {
+                this'.__H1.Q_in.pushBack((pkt,1));
+            }
+        }
+    } else {
+        if node = 0 && this'.__H0.Q_in.size() {
+            this'.__H0.__run();
+        }
+        if node = 1 && this'.__H1.Q_in.size() {
+            this'.__H1.__run();
+        }
+        if node = 2 && this'.__S0.Q_in.size() {
+            this'.__S0.__run();
+        }
+        if node = 3 && this'.__S1.Q_in.size() {
+            this'.__S1.__run();
+        }
+        if node = 4 && this'.__S2.Q_in.size() {
+            this'.__S2.__run();
+        }
+        if node = 5 && this'.__S3.Q_in.size() {
+            this'.__S3.__run();
+        }
+    }
+}
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return ()
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: assert(¬(__d.__H0.Q_in.size() || __d.__H0.Q_out.size() || __d.__H1.Q_in.size() || __d.__H1.Q_out.size() || __d.__S0.Q_in.size() || __d.__S0.Q_out.size() || __d.__S1.Q_in.size() || __d.__S1.Q_out.size() || __d.__S2.Q_in.size() || __d.__S2.Q_out.size() || __d.__S3.Q_in.size() || __d.__S3.Q_out.size()))
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: return this'.data.length
+particle-size: 3
+particle-size: 3
+particle-size: 3
+particle-size: 3
+statement: q₁ := Expectation(((if 1 = 1 {
+    __d.__H1.arrived;
+} else {
+    assert(0);
+})) ≠ 0)
+particle-size: 3
+statement: return (q₁)
+particle-size: 3
+E[q1_] = 1999/2000
+
+real	0m0.816s
+user	0m0.795s
+sys	0m0.021s

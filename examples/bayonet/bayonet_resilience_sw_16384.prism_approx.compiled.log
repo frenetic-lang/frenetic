@@ -1,0 +1,74 @@
+$ prism/prism-4.4/prism/bin/prism bayonet_resilience_sw_16384.pm prism/bayonet.compiled.pctl -maxiters 1000000
+PRISM
+=====
+
+Version: 4.4
+Date: Thu Nov 15 01:04:37 EST 2018
+Hostname: atlas-16
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism bayonet_resilience_sw_16384.pm prism/bayonet.compiled.pctl -maxiters 1000000
+
+Parsing model file "bayonet_resilience_sw_16384.pm"...
+
+Parsing properties file "prism/bayonet.compiled.pctl"...
+
+1 property:
+(1) P=? [ F __state__=0 ]
+
+Type:        DTMC
+Modules:     ProbNetKAT 
+Variables:   __state__ pt sw 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F __state__=0 ]
+
+Building model...
+
+Computing reachable states...
+
+Reachability (BFS): 49154 iterations in 2.60 seconds (average 0.000053, setup 0.00)
+
+Time for model construction: 1662.369 seconds.
+
+Type:        DTMC
+States:      86018 (1 initial)
+Transitions: 94210
+
+Transition matrix: 602 nodes (5 terminal), 94210 minterms, vars: 19r/19c
+
+Prob0: 49154 iterations in 2.63 seconds (average 0.000053, setup 0.00)
+
+Prob1: 17 iterations in 0.00 seconds (average 0.000059, setup 0.00)
+
+yes = 15, no = 4096, maybe = 81907
+
+Computing remaining probabilities...
+Engine: Hybrid
+
+Building hybrid MTBDD matrix... [levels=19, nodes=793] [37.2 KB]
+Adding explicit sparse matrices... [levels=19, num=1, compact] [436.0 KB]
+Creating vector for diagonals... [dist=1, compact] [168.0 KB]
+Creating vector for RHS... [dist=2, compact] [168.0 KB]
+Allocating iteration vectors... [2 x 672.0 KB]
+TOTAL: [2.1 MB]
+
+Starting iterations...
+Iteration 8438: max relative diff=1.000000, 5.00 sec so far
+Iteration 16879: max relative diff=1.000000, 10.00 sec so far
+Iteration 25282: max relative diff=1.000000, 15.00 sec so far
+Iteration 33706: max relative diff=1.000000, 20.00 sec so far
+Iteration 42132: max relative diff=1.000000, 25.00 sec so far
+
+Jacobi: 49148 iterations in 29.20 seconds (average 0.000594, setup 0.01)
+
+Value in the initial state: 0.12892658170213872
+
+Time for model checking: 31.954 seconds.
+
+Result: 0.12892658170213872 (value in the initial state)
+
+
+real	28m20.210s
+user	29m59.238s
+sys	0m8.575s

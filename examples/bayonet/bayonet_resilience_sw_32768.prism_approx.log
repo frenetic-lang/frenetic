@@ -1,0 +1,77 @@
+$ prism/prism-4.4/prism/bin/prism prism/bayonet.pm prism/bayonet.pctl -const k=8192 -maxiters 1000000
+PRISM
+=====
+
+Version: 4.4
+Date: Thu Nov 15 02:48:40 EST 2018
+Hostname: atlas-16
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism prism/bayonet.pm prism/bayonet.pctl -const k=8192 -maxiters 1000000
+
+Parsing model file "prism/bayonet.pm"...
+
+Parsing properties file "prism/bayonet.pctl"...
+
+1 property:
+(1) P=? [ F delivered=1 ]
+
+Type:        DTMC
+Modules:     Bayonet 
+Variables:   sw pt at_sw delivered 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F delivered=1 ]
+Model constants: k=8192
+
+Building model...
+Model constants: k=8192
+
+Computing reachable states...
+
+Reachability (BFS): 49153 iterations in 2.08 seconds (average 0.000042, setup 0.00)
+
+Time for model construction: 248.215 seconds.
+
+Type:        DTMC
+States:      90113 (1 initial)
+Transitions: 106497
+
+Transition matrix: 363 nodes (5 terminal), 106497 minterms, vars: 19r/19c
+
+Prob0: 49153 iterations in 2.50 seconds (average 0.000051, setup 0.00)
+
+Prob1: 9 iterations in 0.00 seconds (average 0.000111, setup 0.00)
+
+yes = 8, no = 8192, maybe = 81913
+
+Computing remaining probabilities...
+Engine: Hybrid
+
+Building hybrid MTBDD matrix... [levels=19, nodes=495] [23.2 KB]
+Adding explicit sparse matrices... [levels=19, num=1, compact] [472.0 KB]
+Creating vector for diagonals... [dist=1, compact] [176.0 KB]
+Creating vector for RHS... [dist=2, compact] [176.0 KB]
+Allocating iteration vectors... [2 x 704.0 KB]
+TOTAL: [2.2 MB]
+
+Starting iterations...
+Iteration 7889: max relative diff=1.000000, 5.00 sec so far
+Iteration 15771: max relative diff=1.000000, 10.00 sec so far
+Iteration 23670: max relative diff=1.000000, 15.00 sec so far
+Iteration 31567: max relative diff=1.000000, 20.00 sec so far
+Iteration 39459: max relative diff=1.000000, 25.00 sec so far
+Iteration 46807: max relative diff=1.000000, 30.01 sec so far
+
+Jacobi: 49150 iterations in 31.50 seconds (average 0.000641, setup 0.01)
+
+Value in the initial state: 0.016622063469398273
+
+Time for model checking: 34.149 seconds.
+
+Result: 0.016622063469398273 (value in the initial state)
+
+
+real	4m43.721s
+user	4m44.897s
+sys	0m1.065s

@@ -1,0 +1,30 @@
+$ prism/prism-4.4/prism/bin/prism bayonet_resilience_sw_32768.pm prism/bayonet.compiled.pctl -maxiters 1000000
+PRISM
+=====
+
+Version: 4.4
+Date: Thu Nov 15 02:53:29 EST 2018
+Hostname: atlas-16
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism bayonet_resilience_sw_32768.pm prism/bayonet.compiled.pctl -maxiters 1000000
+
+Parsing model file "bayonet_resilience_sw_32768.pm"...
+
+Parsing properties file "prism/bayonet.compiled.pctl"...
+
+1 property:
+(1) P=? [ F __state__=0 ]
+
+Type:        DTMC
+Modules:     ProbNetKAT 
+Variables:   __state__ pt sw 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F __state__=0 ]
+
+Building model...
+
+real	60m0.002s
+user	0m0.003s
+sys	0m0.003s

@@ -1,0 +1,44 @@
+$ prism/prism-4.4/prism/bin/prism bayonet_resilience_sw_64.pm prism/bayonet.compiled.pctl -exact
+PRISM
+=====
+
+Version: 4.4
+Date: Wed Nov 14 22:50:39 EST 2018
+Hostname: atlas-16
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism bayonet_resilience_sw_64.pm prism/bayonet.compiled.pctl -exact
+
+Parsing model file "bayonet_resilience_sw_64.pm"...
+
+Parsing properties file "prism/bayonet.compiled.pctl"...
+
+1 property:
+(1) P=? [ F __state__=0 ]
+
+Type:        DTMC
+Modules:     ProbNetKAT 
+Variables:   __state__ pt sw 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F __state__=0 ]
+
+Building model (exact engine)...
+
+Computing reachable states...
+Reachable states exploration and model construction done in 0.211 secs.
+
+States:      338 (1 initial)
+Transitions: 370
+
+Time for model construction: 0.212 seconds.
+
+Time for model checking: 0.206 seconds.
+
+Result (probability): 65013673499925782530338013256192372253115520479968001/65536000000000000000000000000000000000000000000000000
+ As floating point: ~0.9920299301136136
+
+
+real	0m2.506s
+user	0m5.909s
+sys	0m0.721s
