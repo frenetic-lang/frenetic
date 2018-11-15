@@ -101,11 +101,11 @@ let locs' topo : (vertex * int list * int list) list =
     (sw, List.map host_ports ~f:pt_val, List.map sw_ports ~f:pt_val)
   )
 
-let ingress_locs topo ~(dst: int) : (vertex * int) list =
+let ingress_locs topo ?(dst: int option) : (vertex * int) list =
   fold_edges (fun edge acc ->
       let (src_vertex,src_pt) = edge_src edge in
       let (dst_sw,dst_pt) = edge_dst edge in
-      if not (is_host topo src_vertex) || sw_val topo dst_sw = dst then
+      if not (is_host topo src_vertex) || Some (sw_val topo dst_sw) = dst then
         acc
       else
         (dst_sw, pt_val dst_pt) :: acc
