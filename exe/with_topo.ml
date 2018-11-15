@@ -9,7 +9,12 @@ type scheme =
   [@@deriving sexp]
 
 
-let run topo_file scheme dont_iterate fprob fbound cps show_fdd parallelize =
+let uniform xs =
+  let p = Prob.(1 // List.length xs) in
+  List.map xs ~f:(fun x -> (x, p))
+
+
+let run topo_file scheme dont_iterate fprob fbound cps show_fdd parallelize prism =
   let topo_name = Filename.chop_extension topo_file in
   let topo = Topology.parse topo_file in
   let sw_pol =
@@ -29,21 +34,33 @@ let run topo_file scheme dont_iterate fprob fbound cps show_fdd parallelize =
       ~typ:`Legacy (* single destination: sw = Params.destination *)
       ()
   in
-
-  let open Symbolic in
-  Fdd.use_cps := cps;
-  let bound = if dont_iterate then Some 0 else None in
-  let fdd = Fdd.of_pol ~parallelize ~bound ~auto_order:true model in
-  if show_fdd then Fdd.render fdd;
-  let input_dist = Topology.uniform_ingress topo ~dst:Params.destination in
-  let output_dist = Fdd.output_dist fdd ~input_dist in
-  let avg_p = Packet.Dist.prob output_dist ~f:(fun pk ->
-    Packet.test pk (Fdd.abstract_field Params.sw) Params.destination)
-  in
-  let avg_p' = Prob.to_q avg_p in
-  Format.printf "E[delivered] = %a/%a\n%!"
-    Z.pp_print (Q.num avg_p') Z.pp_print (Q.den avg_p');
-  Format.printf "E[delivered] ≈ %f\n%!" (Prob.to_float avg_p)
+  if prism then
+    let input_dist =
+      Topology.ingress_locs ~dst:Params.destination topo
+      |> List.map ~f:(fun (sw,pt) ->
+        let sw = Topology.sw_val topo sw in
+        [(Params.sw, sw); (Params.pt, pt)]
+      )
+      |> uniform
+    in
+    Prism.Code.of_pol model ~input_dist
+    |> printf "%s\n%!";
+    exit 0
+  else
+    let open Symbolic in
+    Fdd.use_cps := cps;
+    let bound = if dont_iterate then Some 0 else None in
+    let fdd = Fdd.of_pol ~parallelize ~bound ~auto_order:true model in
+    if show_fdd then Fdd.render fdd;
+    let input_dist = Topology.uniform_ingress topo ~dst:Params.destination in
+    let output_dist = Fdd.output_dist fdd ~input_dist in
+    let avg_p = Packet.Dist.prob output_dist ~f:(fun pk ->
+      Packet.test pk (Fdd.abstract_field Params.sw) Params.destination)
+    in
+    let avg_p' = Prob.to_q avg_p in
+    Format.printf "E[delivered] = %a/%a\n%!"
+      Z.pp_print (Q.num avg_p') Z.pp_print (Q.den avg_p');
+    Format.printf "E[delivered] ≈ %f\n%!" (Prob.to_float avg_p)
 
 
 let cmd =
@@ -65,6 +82,8 @@ let cmd =
       ~doc:" render resulting FDD"
     and no_branch_par = flag "no-branch-par" no_arg
       ~doc:" don't parallelize disjoint branches"
+    and prism = flag "prism" no_arg
+      ~doc:" compile model to prism code"
     in
     fun () ->
       let fprob =
@@ -72,7 +91,7 @@ let cmd =
         | [n; d] -> Prob.(Int.of_string n // Int.of_string d)
         | _ -> failwith "Flag '-fail-with' must be fraction of the form 'n/d'."
       in
-      run topo scheme dont_iterate fprob fbound cps show_fdd (not no_branch_par)
+      run topo scheme dont_iterate fprob fbound cps show_fdd (not no_branch_par) prism
   ]
 
 
