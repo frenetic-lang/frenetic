@@ -13,28 +13,44 @@ from glob import glob
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
+methods = [
+  'bayonet',
+  'probnetkat_false_true_24',
+  'probnetkat_false_true_0',
+  'prism_exact',
+  'prism_approx',
+  'prism_exact.compiled',
+  'prism_approx.compiled',
+]
+
 label_of_method = {
   'bayonet' : 'Bayonet',
-  'probnetkat' : 'ProbNetKAT',
-  'probnetkat_no_cps' : 'ProbNetKAT (no CPS)',
-  'prism' : 'Prism',
-  'prism-approx' : 'Prism (approximate)',
+  'probnetkat_false_true_24' : 'ProbNetKAT (cluster)',
+  'probnetkat_false_true_0' : 'ProbNetKAT',
+  'prism_exact' : 'Prism (exact)',
+  'prism_approx' : 'Prism (approx)',
+  'prism_exact.compiled' : 'PPNK (exact)',
+  'prism_approx.compiled' : 'PPNK (approx)',
 }
 
 markers = {
   'bayonet' : 'o',
-  'probnetkat' : 's',
-  'probnetkat_no_cps' : '*',
-  'prism': 'X',
-  'prism-approx' : 'D',
+  'probnetkat_false_true_24' : 's',
+  'probnetkat_false_true_0' : '*',
+  'prism_exact': 'X',
+  'prism_approx' : 'D',
+  'prism_exact.compiled' : 'o',
+  'prism_approx.compiled' : 'x',
 }
 
 colors = {
   'bayonet' : 'darkgreen',
-  'probnetkat' : 'navy',
-  'probnetkat_no_cps' : 'orange',
-  'prism' : 'red',
-  'prism-approx' : 'purple',
+  'probnetkat_false_true_24' : 'navy',
+  'probnetkat_false_true_0' : 'orange',
+  'prism_exact' : 'red',
+  'prism_approx' : 'purple',
+  'prism_exact.compiled' : 'green',
+  'prism_approx.compiled' : 'black',
 }
 
 def parse_output(folder):
@@ -85,18 +101,21 @@ def plot(data, methods):
   for method, sw_times in sorted(time_mean.items()):
     sorted_pts = sorted(sw_times.items())
     xs, ys = zip(*sorted_pts)
+    if ys[-1] >= 3599:
+      ys = ys[:-1]
+      xs = xs[:-1]
     errors = [time_std[method][x] for x in xs]
-    plt.errorbar(xs[:-1], ys[:-1], yerr=errors[:-1], label = label_of_method[method],
+    plt.errorbar(xs, ys, yerr=errors, label = label_of_method[method],
                  marker=markers[method], color=colors[method], zorder=10)
-    plt.errorbar(xs[-2:], ys[-2:], yerr=errors[-2:],
-                 marker=markers[method], color='gray', ls=':', zorder=1)
-    if method == 'bayonet':
-      text = 'OOM after\ntiming out'
-      ha = 'center'
-    else:
-      text = 'Timed out\nafter OOM'
-      ha = 'right'
-    ax.text(xs[-1], ys[-1], text, horizontalalignment=ha, verticalalignment='center', color=colors[method], bbox=dict(edgecolor='red', facecolor='white', alpha=0.8))
+    # plt.errorbar(xs[-2:], ys[-2:], yerr=errors[-2:],
+    #              marker=markers[method], color='gray', ls=':', zorder=1)
+    # if method == 'bayonet':
+    #   text = 'OOM after\ntiming out'
+    #   ha = 'center'
+    # else:
+    #   text = 'Timed out\nafter OOM'
+    #   ha = 'right'
+    # ax.text(xs[-1], ys[-1], text, horizontalalignment=ha, verticalalignment='center', color=colors[method], bbox=dict(edgecolor='red', facecolor='white', alpha=0.8))
 
     # Also dump data to a file
     for idx in range(len(xs)):
@@ -107,9 +126,9 @@ def plot(data, methods):
 
   # Customize plots
   ax.grid(alpha=0.2)
-  plt.xlim(1, 10000)
+  plt.xlim(1, 100000)
   plt.ylim(0.5, 10000)
-  ax.fill_between([0,10000], 3600, ax.get_ylim()[1], facecolor='red', alpha=0.2)
+  ax.fill_between([0,100000], 3600, ax.get_ylim()[1], facecolor='red', alpha=0.2)
   ax.spines['bottom'].set_color('#999999')
   ax.spines['top'].set_color('#999999') 
   ax.spines['right'].set_color('#999999')
@@ -125,7 +144,7 @@ def plot(data, methods):
 
 def main(data_dir):
   data = parse_output(data_dir)
-  plot(data, ['bayonet', 'probnetkat', 'probnetkat_no_cps', 'prism', 'prism-approx'])
+  plot(data, methods)
 
 if __name__ == "__main__":
   if len(sys.argv) != 2:
