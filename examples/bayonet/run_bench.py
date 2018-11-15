@@ -8,8 +8,7 @@ tools = {
     'cmd': lambda k:
       ['./run_bayonet.sh', 'bayonet_resilience_sw_%d.bayonet' % (4*k)],
     'envs': [
-      { 'EXACT': '' },
-      { 'EXACT': 'true' },
+      { },
     ],
   },
   'probnetkat': {
@@ -38,7 +37,7 @@ tools = {
 }
 
 
-def run():
+def main():
   errored = { tool : [False for _ in range(len(data['envs']))] 
                     for (tool, data) in tools.items()}
   for i in range(16):
@@ -73,4 +72,4 @@ def run():
   
 
 if __name__ == "__main__":
-  run()
+  main()
