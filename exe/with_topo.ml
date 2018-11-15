@@ -8,7 +8,7 @@ type scheme =
   [@@deriving sexp]
 
 
-let run topo_file scheme dont_iterate fprob fbound cps show_fdd =
+let run topo_file scheme dont_iterate fprob fbound cps show_fdd parallelize =
   let topo_name = Filename.chop_extension topo_file in
   let topo = Topology.parse topo_file in
   let topo' = Schemes.enrich_topo topo in
@@ -27,7 +27,7 @@ let run topo_file scheme dont_iterate fprob fbound cps show_fdd =
 
   let open Symbolic in
   Fdd.use_cps := cps;
-  let fdd = Fdd.of_pol ~auto_order:true model in
+  let fdd = Fdd.of_pol ~parallelize ~auto_order:true model in
   if show_fdd then Fdd.render fdd;
   let input_dist = Topology.uniform_ingress topo ~dst:Params.destination in
   let output_dist = Fdd.output_dist fdd ~input_dist in
@@ -38,6 +38,7 @@ let run topo_file scheme dont_iterate fprob fbound cps show_fdd =
   Format.printf "E[delivered] = %a/%a\n%!"
     Z.pp_print (Q.num avg_p') Z.pp_print (Q.den avg_p');
   Format.printf "E[delivered] ≈ %f\n%!" (Prob.to_float avg_p)
+
 
 let cmd =
   let open Command.Let_syntax in
@@ -55,7 +56,9 @@ let cmd =
     and cps = flag "cps" no_arg
       ~doc:" use CPS-style compilation strategy"
     and show_fdd = flag "show-fdd" no_arg
-      ~doc:" render FDD"
+      ~doc:" render resulting FDD"
+    and no_branch_par = flag "no-branch-par" no_arg
+      ~doc:" don't parallelize disjoint branches"
     in
     fun () ->
       let fprob =
@@ -63,7 +66,7 @@ let cmd =
         | [n; d] -> Prob.(Int.of_string n // Int.of_string d)
         | _ -> failwith "Flag '-fail-with' must be fraction of the form 'n/d'."
       in
-      run topo scheme dont_iterate fprob fbound cps show_fdd
+      run topo scheme dont_iterate fprob fbound cps show_fdd (not no_branch_par)
   ]
 
 
