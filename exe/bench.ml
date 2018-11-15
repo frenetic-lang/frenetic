@@ -1,3 +1,5 @@
+(** Run F10 experiment on AB Fattrees.  *)
+
 open! Core
 open Probnetkat
 open Probnetkat.Symbolic

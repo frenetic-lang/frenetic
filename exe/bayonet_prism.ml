@@ -1,3 +1,5 @@
+(** Translates PNK code from Bayonet experiment to PRISM code. *)
+
 open! Core
 open Probnetkat
 open Syntax
@@ -32,24 +34,6 @@ module Model = struct
       let sw = Topology.sw_val topo sw in
       PNK.(???(Params.sw, sw)), policy sw
     )
-
-  (* SJS: equivalent, but more factored *)
-  let p' =
-    let sws = Topology.switches topo |> List.map ~f:(Topology.sw_val topo) in
-    let sws0, sws = List.partition_tf sws ~f:(fun sw -> sw mod 4 = 0) in
-    let sws1, sws = List.partition_tf sws ~f:(fun sw -> sw mod 4 = 1) in
-    let sws2, sws = List.partition_tf sws ~f:(fun sw -> sw mod 4 = 2) in
-    let sws3, sws = List.partition_tf sws ~f:(fun sw -> sw mod 4 = 3) in
-    assert (sws = []);
-    let sws = [| sws0; sws1; sws2; sws3 |] in
-    List.init 4 ~f:(fun i ->
-      let guard =
-        List.map sws.(i) ~f:(fun sw -> PNK.(???(Params.sw, sw)))
-        |> PNK.mk_big_disj
-      in
-      (guard, policy i)
-    )
-    |> PNK.branch
 
   let t = Topology.to_probnetkat topo ~guard_links:false
 

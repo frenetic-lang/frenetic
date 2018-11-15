@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """ Script for generating Bayonet/ProbNetKAT code for the reliability experiment from the Bayonet
     paper.
 """
@@ -47,7 +48,7 @@ def make_topo(k):
       (n0, n2, {'src_port': 3, 'dst_port': 1}),
       (n1, n3, {'src_port': 2, 'dst_port': 1}),
       (n2, n3, {'src_port': 2, 'dst_port': 2}),
-      (n3, n4, {'src_port':3, 'dst_port': 1})
+      (n3, n4, {'src_port': 3, 'dst_port': 1})
     ])
     for i,n in enumerate([n0, n1, n2, n3]):
       G.nodes[n]['type'] = "switch"
@@ -179,7 +180,7 @@ def write_to(file, s):
 
 if __name__ == '__main__':
     args = parse_args()
-    for multiplier in [2**n for n in range(12)]:
+    for multiplier in [2**n for n in range(15)]:
       base_filename = "bayonet_resilience_sw_%d" % (multiplier * 4)
       dot_file = os.path.join(args.dir, base_filename + ".dot")
       bayonet_file = os.path.join(args.dir, base_filename + ".bayonet")

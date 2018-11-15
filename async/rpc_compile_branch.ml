@@ -138,7 +138,7 @@ let cmd =
         |> Async_unix.Writer.write_line stdout; *)
         eprintf "[compile server] -> done.\n%!";
         let%bind () = Async_unix.Writer.close stdout in
-        eprintf "[compile server] Shuttind down. Bye.\n%!";
+        eprintf "[compile server] Shutting down. Bye.\n%!";
         Deferred.unit
     )
 

@@ -1,0 +1,3 @@
+// Use this for the compiled version of the Bayonet experiment.
+// State 0 is the unique accepting state, by convention.
+P=? [ F __state__=0 ]
