@@ -2,23 +2,28 @@ open! Core
 open Probnetkat
 
 type scheme =
-  | ECMP
-  | RECMP
-  | SPF
+  | SPF   (** no resilience *)
+  | ECMP  (** with fast failover *)
+  | RW    (** random walk *)
+  | RRW    (** resilient random walk *)
   [@@deriving sexp]
 
 
 let run topo_file scheme dont_iterate fprob fbound cps show_fdd parallelize =
   let topo_name = Filename.chop_extension topo_file in
   let topo = Topology.parse topo_file in
-  let topo' = Schemes.enrich_topo topo in
-  (* FIXME: todo *)
-  let sw_pol = `Switchwise (Schemes.ecmp topo' topo_name) in
+  let sw_pol =
+    let topo = Schemes.enrich_topo topo in
+    match scheme with
+    | SPF -> `Switchwise (Schemes.shortest_path topo topo_name)
+    | ECMP -> `Switchwise (Schemes.resilient_ecmp topo topo_name)
+    | RW -> `Switchwise (Schemes.random_walk topo)
+    | RRW -> `Switchwise (Schemes.resilient_random_walk topo)
+  in
   let model =
     Model.make
       ~topo
       ~sw_pol
-      ?bound:(if dont_iterate then Some 0 else None)
       ~failure_prob:(fun _ _ -> fprob)
       ~max_failures:fbound
       ~typ:`Legacy (* single destination: sw = Params.destination *)
@@ -27,7 +32,8 @@ let run topo_file scheme dont_iterate fprob fbound cps show_fdd parallelize =
 
   let open Symbolic in
   Fdd.use_cps := cps;
-  let fdd = Fdd.of_pol ~parallelize ~auto_order:true model in
+  let bound = if dont_iterate then Some 0 else None in
+  let fdd = Fdd.of_pol ~parallelize ~bound ~auto_order:true model in
   if show_fdd then Fdd.render fdd;
   let input_dist = Topology.uniform_ingress topo ~dst:Params.destination in
   let output_dist = Fdd.output_dist fdd ~input_dist in
