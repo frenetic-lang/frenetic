@@ -1,0 +1,71 @@
+PRISM
+=====
+
+Version: 4.4
+Date: Thu Nov 15 05:55:23 EST 2018
+Hostname: atlas-17
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism cps=False_dont_iterate=False_parallelize=True_prism=True_k=14_scheme=SPF.pm prism.pctl -maxiters 1000000
+
+Parsing model file "cps=False_dont_iterate=False_parallelize=True_prism=True_k=14_scheme=SPF.pm"...
+
+Parsing properties file "prism.pctl"...
+
+1 property:
+(1) P=? [ F (__state__=0) ]
+
+Type:        DTMC
+Modules:     ProbNetKAT 
+Variables:   __state__ pt sw up_0 up_1 up_10 up_11 up_12 up_13 up_2 up_3 up_4 up_5 up_6 up_7 up_8 up_9 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F (__state__=0) ]
+
+Building model...
+
+Computing reachable states...
+
+Reachability (BFS): 65 iterations in 0.28 seconds (average 0.004323, setup 0.00)
+
+Time for model construction: 70.216 seconds.
+
+Warning: Deadlocks detected and fixed in 129088 states
+
+Type:        DTMC
+States:      4199018 (1 initial)
+Transitions: 6104442
+
+Transition matrix: 37866 nodes (5 terminal), 6104442 minterms, vars: 38r/38c
+
+Prob0: 68 iterations in 0.18 seconds (average 0.002618, setup 0.00)
+
+Prob1: 30 iterations in 0.18 seconds (average 0.005867, setup 0.00)
+
+yes = 73730, no = 1976423, maybe = 2148865
+
+Computing remaining probabilities...
+Engine: Hybrid
+
+Building hybrid MTBDD matrix... [levels=38, nodes=39597] [1.8 MB]
+Adding explicit sparse matrices... [levels=13, num=169, compact] [806.1 KB]
+Creating vector for diagonals... [dist=1, compact] [8.0 MB]
+Creating vector for RHS... [dist=2, compact] [8.0 MB]
+Allocating iteration vectors... [2 x 32.0 MB]
+TOTAL: [82.7 MB]
+
+Starting iterations...
+
+Jacobi: 65 iterations in 2.66 seconds (average 0.033077, setup 0.51)
+
+Value in the initial state: 0.9618024423711362
+
+Time for model checking: 3.161 seconds.
+
+Result: 0.9618024423711362 (value in the initial state)
+
+---------------------------------------------------------------------
+
+Note: There was 1 warning during computation.
+
+probnetkat.with_topo ../../examples/output/fattree_14_sw_245.dot -scheme SPF -fail-with 1/100 -prismprism cps=False_dont_iterate=False_parallelize=True_prism=True_k=14_scheme=SPF.pm prism.pctl -maxiters 1000000TIME: 75.932593.

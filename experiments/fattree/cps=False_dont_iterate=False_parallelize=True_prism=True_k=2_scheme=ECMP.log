@@ -1,0 +1,65 @@
+PRISM
+=====
+
+Version: 4.4
+Date: Thu Nov 15 06:56:09 EST 2018
+Hostname: atlas-17
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism cps=False_dont_iterate=False_parallelize=True_prism=True_k=2_scheme=ECMP.pm prism.pctl -maxiters 1000000
+
+Parsing model file "cps=False_dont_iterate=False_parallelize=True_prism=True_k=2_scheme=ECMP.pm"...
+
+Parsing properties file "prism.pctl"...
+
+1 property:
+(1) P=? [ F (__state__=0) ]
+
+Type:        DTMC
+Modules:     ProbNetKAT 
+Variables:   __state__ pt sw up_0 up_1 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F (__state__=0) ]
+
+Building model...
+
+Computing reachable states...
+
+Reachability (BFS): 30 iterations in 0.01 seconds (average 0.000167, setup 0.00)
+
+Time for model construction: 0.045 seconds.
+
+Type:        DTMC
+States:      59 (1 initial)
+Transitions: 69
+
+Transition matrix: 390 nodes (4 terminal), 69 minterms, vars: 11r/11c
+
+Prob0: 30 iterations in 0.00 seconds (average 0.000100, setup 0.00)
+
+Prob1: 8 iterations in 0.00 seconds (average 0.000125, setup 0.00)
+
+yes = 11, no = 16, maybe = 32
+
+Computing remaining probabilities...
+Engine: Hybrid
+
+Building hybrid MTBDD matrix... [levels=11, nodes=323] [15.1 KB]
+Adding explicit sparse matrices... [levels=11, num=1, compact] [0.2 KB]
+Creating vector for diagonals... [dist=1, compact] [0.1 KB]
+Creating vector for RHS... [dist=2, compact] [0.1 KB]
+Allocating iteration vectors... [2 x 0.5 KB]
+TOTAL: [16.5 KB]
+
+Starting iterations...
+
+Jacobi: 24 iterations in 0.00 seconds (average 0.000000, setup 0.00)
+
+Value in the initial state: 0.96059601
+
+Time for model checking: 0.012 seconds.
+
+Result: 0.96059601 (value in the initial state)
+
+probnetkat.with_topo ../../examples/output/fattree_2_sw_5.dot -scheme ECMP -fail-with 1/100 -prismprism cps=False_dont_iterate=False_parallelize=True_prism=True_k=2_scheme=ECMP.pm prism.pctl -maxiters 1000000TIME: 1.786712.

@@ -1,0 +1,43 @@
+[compile server] /home/abilene/.opam/4.07.1+flambda/lib/probnetkat/../../bin/probnetkat.rpc_compile_branch -order (F1 F0 Meta1 Meta2 Meta0 Meta3 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 Meta4 Meta5 Meta6 Meta7 Meta8 Meta9 Meta10 Meta11 Meta12 Meta13 Meta14 Meta15 Meta16 Meta17 Meta18 Meta19) -cps false -j 32 -rj 32
+[compile server] read: input 1 ... received.
+[compile server] read: input 2 ... received.
+[compile server] read: input 3 ... received.
+[compile server] read: input 4 ... received.
+[compile server] read: input 5 ... received.
+[compile server] read: input 6 ... received.
+[compile server] read: input 7 ... received.
+[compile server] read: input 8 ... received.
+[compile server] read: input 9 ... received.
+[compile server] read: input 10 ... received.
+[compile server] read: input 11 ... received.
+[compile server] read: input 12 ... received.
+[compile server] read: input 13 ... received.
+[compile server] read: input 14 ... received.
+[compile server] read: input 15 ... received.
+[compile server] read: input 16 ... received.
+[compile server] read: input 17 ... received.
+[compile server] read: input 18 ... received.
+[compile server] read: input 19 ... received.
+[compile server] read: input 20 ... eof.
+[compile server] -> all inputs received!
+[compile server] sending back result...
+[compile server] -> done.
+[compile server] Shutting down. Bye.
+start while loop...
+start sending fdds as matrices to python...
+start sending ap...
+start naive fixpoint...
+--> sending ap done! 0.002175 seconds
+start sending not_a...
+--> sending not_a done! 0.000160 seconds
+--> sending fdds as matrices to python done! 0.002371 seconds
+--> naive fixpoint done! 0.063112 seconds
+start serializing & sending Fdd...
+--> serializing & sending Fdd done! 0.000333 seconds
+*** ocaml won race!
+start deserializing & receiving Fdd...
+--> deserializing & receiving Fdd done! 0.000544 seconds
+--> while loop done! 0.886692 seconds
+E[delivered] = 3434662469403/3500000000000
+E[delivered] ≈ 0.981332
+probnetkat.with_topo ../../examples/output/fattree_4_sw_20.dot -scheme ECMP -fail-with 1/100TIME: 3.627719.
