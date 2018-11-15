@@ -78,10 +78,12 @@ module Make(V:Value)(L:Lattice)(R:Result) = struct
     (** {2} timed versions of the compilation functions *)
   let stats_tbl : (string, float list) Hashtbl.t = String.Table.create ()
   let clear_stats () = Hashtbl.clear stats_tbl
-  let measure key f =
-    let t,x = Util.time' f in
+
+  (* SJS: benchmark time. Avoid this overhead. *)
+  let measure key f = f () [@@inline]
+(*     let t,x = Util.time' f in
     Hashtbl.add_multi stats_tbl key t;
-    x
+    x *)
 
   (* total number of measurements *)
   let n_of_meas () =
