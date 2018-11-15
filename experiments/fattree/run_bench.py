@@ -97,7 +97,7 @@ def run_with_settings(settings):
   msg = ""
   log = logfile(settings)
   if os.path.isfile(log):
-    print("-> SKIPPING: %s already exists)" % logfile)
+    print("-> SKIPPING: %s already exists)" % log)
     return True
   with open(log, 'w+') as log:
     try:
