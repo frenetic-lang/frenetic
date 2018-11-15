@@ -129,7 +129,7 @@ def main():
     print("scheme: %s" % scheme)
     print("=" * 80)
     errored = [False for _ in SETTINGS]
-    for k in range(2, 22, 2):
+    for k in range(2, 50, 2):
       if all(errored): break
       print("k = %d" % k)
       print("-" * 80)
