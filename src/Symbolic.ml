@@ -2142,7 +2142,7 @@ let of_pol_k ?(parallelize=true) ?(bound:int option) (p : Field.t policy) : t =
         let a = of_pred a in
         sum (of_pol_cps a p) (of_pol_cps (negate a) q)
         |> seq lctxt
-      | Branch { branches; parallelize = true} ->
+      | Branch { branches; parallelize = true} when parallelize ->
         par_branch ~bound ~cps:true branches
         |> seq lctxt
       | Branch {branches} ->
