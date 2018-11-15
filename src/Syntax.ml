@@ -36,6 +36,7 @@ type 'field  policy =
   | Ite of 'field pred * 'field policy * 'field policy
   | Branch of { branches: ('field pred * 'field policy) list; parallelize : bool }
   | While of 'field pred * 'field policy
+  | Do_while of 'field policy * 'field pred
   | Choice of ('field policy * Prob.t) list
   | Let of { id : 'field; init : 'field meta_init; mut : bool; body : 'field policy }
   | ObserveUpon of 'field policy * 'field pred (* exexcute policy, then observe pred *)
@@ -115,9 +116,9 @@ let nr_of_loops p =
       acc
     | Seq(p,q) | Ite(_,p,q) ->
       do_pol p (do_pol q acc)
-    | While (_,body) | ObserveUpon (body,_)  ->
+    | While (_,body) | Do_while (body,_)  ->
       do_pol body (acc + 1)
-    | Let { body } (* | Repeat (_,body) *) ->
+    | Let { body } | ObserveUpon (body,_) (* | Repeat (_,body) *) ->
       do_pol body acc
     | Choice choices ->
       List.fold choices ~init:acc ~f:(fun acc (p,_) -> do_pol p acc)
@@ -145,6 +146,9 @@ let pp_policy (type field) (pp_field : Format.formatter -> field -> unit)
     | While (a,p) ->
       fprintf fmt "@[WHILE@ @[<2>%a@]@ DO@ @[<2>%a@]@]"
         (do_pred `COND) a (do_pol `While) p
+    | Do_while (p,a) ->
+      fprintf fmt "@[DO@ @[<2>%a@]@ WHILE@ @[<2>%a@]@]"
+        (do_pol `While) p (do_pred `COND) a
 (*     | Repeat (n,p) ->
       fprintf fmt "@[REPEAT@ @[<2>%d@]@ TIMES@ @[<2>%a@]@]"
         n (do_pol `While) p *)
@@ -279,6 +283,17 @@ module Constructors = struct
     | False -> skip
     | _ -> While (a,p)
 
+  let do_whl p a =
+    match p, a with
+    | Filter False, _ | _, True ->
+      drop
+    | _, False ->
+      p
+    | Filter True, _ ->
+      Filter (Neg a)
+    | _ ->
+      Do_while (p, a)
+
   let rec optimize = function
     | Filter a -> filter (optimize_pred a)
     | Modify hv -> modify hv
@@ -288,6 +303,7 @@ module Constructors = struct
       List.map branches ~f:(fun (a,p) -> (optimize_pred a, optimize p))
       |> branch ~parallelize
     | While (a, p) -> whl (optimize_pred a) (optimize p)
+    | Do_while (p, a) -> do_whl (optimize p) (optimize_pred a)
     | Choice ps -> choice (Util.map_fst ps ~f:optimize)
     | Let { id; init; mut; body } -> Let { id; init; mut; body = optimize body }
     | ObserveUpon (p, a) -> observe (optimize p) (optimize_pred a)
@@ -303,8 +319,7 @@ module Constructors = struct
     | False -> skip
     | _ -> repeat bound (ite a p skip) *)
 
-  let do_whl a p =
-    seq p (whl a p)
+
 
   let conji n ~f =
     Array.init n ~f
@@ -390,6 +405,7 @@ let map_pol
   ?(ite=fun a p q -> Ite (a,p,q))
   ?(branch=fun ~parallelize branches -> Branch { parallelize; branches })
   ?(whl=fun a p -> While (a,p))
+  ?(do_whl=fun p a -> Do_while (p,a))
   ?(choice=fun ps -> Choice ps)
   ?(letbind=fun id init mut body -> Let { id; init; mut; body})
   ?(obs=fun p a -> ObserveUpon (p,a))
@@ -405,6 +421,7 @@ let map_pol
       List.map branches ~f:(fun (a,p) -> (do_pred a, do_pol p))
       |> branch ~parallelize
     | While (a,p) -> whl (do_pred a) (do_pol p)
+    | Do_while (p,a) -> do_whl (do_pol p) (do_pred a)
     | Choice ps -> choice (Util.map_fst ps ~f:do_pol)
     | Let { id; init; mut; body} -> letbind id init mut (do_pol body)
     | ObserveUpon (p,a) -> obs (do_pol p) (do_pred a)

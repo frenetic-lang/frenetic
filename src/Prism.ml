@@ -146,6 +146,8 @@ module Automaton = struct
         in
         let auto = wire_all auto final_p start in
         (auto, start, [final])
+      | Do_while (p, a) ->
+        thompson PNK.(p >> whl a p) auto
       | Choice (dist : (string policy * Prob.t) list) ->
         let (start, auto) = add_state auto [] in
         let (pols, probs) = List.unzip dist in
@@ -192,7 +194,7 @@ module Automaton = struct
         (auto, start, [final])
       | ObserveUpon (p, a) ->
         (* SJS/FIXME: ensure that p is idempotent! *)
-        thompson PNK.(do_whl (neg a) p) auto
+        thompson PNK.(do_whl p (neg a)) auto
 
     in
     thompson p empty
@@ -466,6 +468,7 @@ module Domain = struct
       | Branch { branches=ps } -> List.fold ps ~init:acc ~f:(fun acc (a,p) ->
         acc |> do_pred a |> do_pol p )
       | While (a, p)
+      | Do_while (p, a)
       | ObserveUpon (p, a) -> acc |> do_pred a |> do_pol p
       | Choice ps -> List.fold ps ~init:acc ~f:(fun acc (p,_) -> do_pol p acc)
       | Let { id; init; body; _ } -> (dom, (id,init)::locals) |> do_pol body

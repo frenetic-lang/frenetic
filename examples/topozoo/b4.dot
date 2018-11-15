@@ -1,0 +1,116 @@
+digraph topology {
+
+s1[type=switch,id=1,mac="20:00:00:00:00:01",ip="192.168.1.3"];
+s2[type=switch,id=2,mac="20:00:00:00:00:02",ip="192.168.1.3"];
+s3[type=switch,id=3,mac="20:00:00:00:00:03",ip="192.168.1.3"];
+s4[type=switch,id=4,mac="20:00:00:00:00:04",ip="192.168.1.3"];
+s5[type=switch,id=5,mac="20:00:00:00:00:05",ip="192.168.1.1"];
+s6[type=switch,id=6,mac="20:00:00:00:00:06",ip="192.168.1.1"];
+s7[type=switch,id=7,mac="20:00:00:00:00:07",ip="192.168.1.1"];
+s8[type=switch,id=8,mac="20:00:00:00:00:08",ip="192.168.1.1"];
+s9[type=switch,id=9,mac="20:00:00:00:00:09",ip="192.168.1.2"];
+s10[type=switch,id=10,mac="20:00:00:00:00:0a",ip="192.168.1.2"];
+s11[type=switch,id=11,mac="20:00:00:00:00:0b",ip="192.168.1.2"];
+s12[type=switch,id=12,mac="20:00:00:00:00:0c",ip="192.168.1.2"];
+
+h1[type=host,mac="00:00:00:00:00:01",ip="10.0.0.1"];
+h2[type=host,mac="00:00:00:00:00:02",ip="10.0.0.2"];
+h3[type=host,mac="00:00:00:00:00:03",ip="10.0.0.3"];
+h4[type=host,mac="00:00:00:00:00:04",ip="10.0.0.4"];
+h5[type=host,mac="00:00:00:00:00:05",ip="10.0.0.5"];
+h6[type=host,mac="00:00:00:00:00:06",ip="10.0.0.6"];
+h7[type=host,mac="00:00:00:00:00:07",ip="10.0.0.7"];
+h8[type=host,mac="00:00:00:00:00:08",ip="10.0.0.8"];
+h9[type=host,mac="00:00:00:00:00:09",ip="10.0.0.9"];
+h10[type=host,mac="00:00:00:00:00:0a",ip="10.0.0.10"];
+h11[type=host,mac="00:00:00:00:00:0b",ip="10.0.0.11"];
+h12[type=host,mac="00:00:00:00:00:0c",ip="10.0.0.12"];
+
+s1 -> s2 [src_port=2, dst_port=1, cost=0, capacity="1Gbps"];
+s1 -> s3 [src_port=3, dst_port=1, cost=0, capacity="1Gbps"];
+
+s2 -> s1 [src_port=1, dst_port=2, cost=0, capacity="1Gbps"];
+s2 -> s5 [src_port=5, dst_port=2, cost=0, capacity="1Gbps"];
+
+s3 -> s1 [src_port=1, dst_port=3, cost=0, capacity="1Gbps"];
+s3 -> s4 [src_port=4, dst_port=3, cost=0, capacity="1Gbps"];
+s3 -> s6 [src_port=6, dst_port=3, cost=0, capacity="1Gbps"];
+
+s4 -> s3 [src_port=3, dst_port=4, cost=0, capacity="1Gbps"];
+s4 -> s5 [src_port=5, dst_port=4, cost=0, capacity="1Gbps"];
+s4 -> s7 [src_port=7, dst_port=4, cost=0, capacity="1Gbps"];
+s4 -> s8 [src_port=8, dst_port=4, cost=0, capacity="1Gbps"];
+
+s5 -> s2 [src_port=2, dst_port=5, cost=0, capacity="1Gbps"];
+s5 -> s4 [src_port=4, dst_port=5, cost=0, capacity="1Gbps"];
+s5 -> s6 [src_port=6, dst_port=5, cost=0, capacity="1Gbps"];
+
+s6 -> s3 [src_port=3, dst_port=6, cost=0, capacity="1Gbps"];
+s6 -> s5 [src_port=5, dst_port=6, cost=0, capacity="1Gbps"];
+s6 -> s7 [src_port=7, dst_port=6, cost=0, capacity="1Gbps"];
+s6 -> s8 [src_port=8, dst_port=6, cost=0, capacity="1Gbps"];
+
+s7 -> s4 [src_port=4, dst_port=7, cost=0, capacity="1Gbps"];
+s7 -> s6 [src_port=6, dst_port=7, cost=0, capacity="1Gbps"];
+s7 -> s8 [src_port=8, dst_port=7, cost=0, capacity="1Gbps"];
+s7 -> s11 [src_port=11, dst_port=7, cost=0, capacity="1Gbps"];
+
+s8 -> s4 [src_port=4, dst_port=8, cost=0, capacity="1Gbps"];
+s8 -> s6 [src_port=6, dst_port=8, cost=0, capacity="1Gbps"];
+s8 -> s7 [src_port=7, dst_port=8, cost=0, capacity="1Gbps"];
+s8 -> s10 [src_port=10, dst_port=8, cost=0, capacity="1Gbps"];
+
+s9 -> s10 [src_port=10, dst_port=9, cost=0, capacity="1Gbps"];
+s9 -> s11 [src_port=11, dst_port=9, cost=0, capacity="1Gbps"];
+
+s10 -> s8 [src_port=8, dst_port=10, cost=0, capacity="1Gbps"];
+s10 -> s9 [src_port=9, dst_port=10, cost=0, capacity="1Gbps"];
+s10 -> s11 [src_port=11, dst_port=10, cost=0, capacity="1Gbps"];
+s10 -> s12 [src_port=12, dst_port=10, cost=0, capacity="1Gbps"];
+
+s11 -> s7 [src_port=7, dst_port=11, cost=0, capacity="1Gbps"];
+s11 -> s9 [src_port=9, dst_port=11, cost=0, capacity="1Gbps"];
+s11 -> s10 [src_port=10, dst_port=11, cost=0, capacity="1Gbps"];
+s11 -> s12 [src_port=12, dst_port=11, cost=0, capacity="1Gbps"];
+
+s12 -> s10 [src_port=10, dst_port=12, cost=0, capacity="1Gbps"];
+s12 -> s11 [src_port=11, dst_port=12, cost=0, capacity="1Gbps"];
+
+h1 -> s1 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+s1 -> h1 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+
+h2 -> s2 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+s2 -> h2 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+
+h3 -> s3 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+s3 -> h3 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+
+h4 -> s4 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+s4 -> h4 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+
+h5 -> s5 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+s5 -> h5 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+
+h6 -> s6 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+s6 -> h6 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+
+h7 -> s7 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+s7 -> h7 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+
+h8 -> s8 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+s8 -> h8 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+
+h9 -> s9 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+s9 -> h9 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+
+h10 -> s10 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+s10 -> h10 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+
+h11 -> s11 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+s11 -> h11 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+
+h12 -> s12 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+s12 -> h12 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+
+
+}

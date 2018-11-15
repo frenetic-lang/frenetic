@@ -198,6 +198,8 @@ module Field = struct
         f_seq' p lst k
       | While (a,p) ->
         k (f_union a p PNK.skip, lst)
+      | Do_while (p, a) ->
+        f_seq' PNK.(p >> whl a p) lst k
       | ObserveUpon (p,a) ->
         f_seq' (Seq (p, Filter a)) lst k
     and f_seq pol : int =
@@ -231,6 +233,8 @@ module Field = struct
         f_union' p lst (fun (m, lst) ->
           k (m, a::lst)
         )
+      | Do_while (p, a) ->
+        f_union' PNK.(p >> whl a p) lst k
       | ObserveUpon (p,a) ->
         f_union' (Seq (p, Filter a)) lst k
     and f_union a p q : int =
@@ -1298,6 +1302,8 @@ module Fdd = struct
         Branch { branches; parallelize }
       | While (a, p) ->
         While (do_pred env a, do_pol env p)
+      | Do_while (p, a) ->
+        Do_while (do_pol env p, do_pred env a)
       | ObserveUpon (p, a) ->
         ObserveUpon (do_pol env p, do_pred env a)
       | Choice dist ->
@@ -1357,6 +1363,8 @@ module Fdd = struct
         Branch { branches; parallelize }
       | While (a, p) ->
         While (do_pred a, do_pol p)
+      | Do_while (p, a) ->
+        Do_while (do_pol p, do_pred a)
       | ObserveUpon (p, a) ->
         ObserveUpon (do_pol p, do_pred a)
       | Choice dist ->
@@ -2089,8 +2097,21 @@ let of_pol_k ?(parallelize=true) ?(bound:int option) (p : Field.t policy) : t =
         k (Util.timed "while loop" (fun () ->
           match bound with
           | None -> whl a p
+          | Some 0 -> sum (seq a p) (negate a)
           | Some k -> bounded_whl k a p
         ))
+      )
+    | Do_while (p, a) ->
+      let a = of_pred a in
+      if equal a id then k drop else
+      of_pol_k p (fun p ->
+        if equal p drop then k drop else
+        if equal p id then k (negate a) else
+        if equal a drop then k p else
+        match bound with
+        | None -> k (seq p (whl a p))
+        | Some 0 -> k (seq p (negate a))
+        | Some k -> failwith "todo: bounded do_while"
       )
     | Choice dist ->
       Util.map_fst dist ~f:(fun p -> of_pol_k p ident)
@@ -2121,7 +2142,7 @@ let of_pol_k ?(parallelize=true) ?(bound:int option) (p : Field.t policy) : t =
         let a = of_pred a in
         sum (of_pol_cps a p) (of_pol_cps (negate a) q)
         |> seq lctxt
-      | Branch { branches; parallelize = true} ->
+      | Branch { branches; parallelize = true} when parallelize ->
         par_branch ~bound ~cps:true branches
         |> seq lctxt
       | Branch {branches} ->
@@ -2141,8 +2162,22 @@ let of_pol_k ?(parallelize=true) ?(bound:int option) (p : Field.t policy) : t =
           else
             begin match bound with
             | None -> seq lctxt (whl a (of_pol_cps a p))
+            | Some 0 -> sum skip_ctxt (seq lctxt (of_pol_cps a p))
             | Some k -> bounded_whl_cps k lctxt a (of_pol_cps a p)
             end
+      | Do_while (p, a) ->
+      let a = of_pred a in
+      if equal a id then
+        drop
+      else
+        let p = of_pol_cps id p in
+        if equal p drop then drop else
+        if equal p id then seq lctxt (negate a) else
+        begin match bound with
+        | Some 0 -> seq (seq lctxt p) (negate a)
+        | None -> seq (seq lctxt p) (whl a p)
+        | _ -> failwith "todo: bounded do_while"
+        end
       | Choice dist ->
         (* SJS: In principle, we could compile all points of the distribution with
            lctxt. But empirically, this leads to much worse performance. *)

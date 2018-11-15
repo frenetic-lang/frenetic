@@ -39,6 +39,8 @@ let delete_up_bits p =
       ite (do_pred a) (do_pol p) (do_pol q)
     | While (a,p) ->
       whl (do_pred a) (do_pol p)
+    | Do_while (p,a) ->
+      do_whl (do_pol p) (do_pred a)
     | Branch {branches; parallelize} ->
       branch ~parallelize (Util.map_fst branches ~f:do_pred |> Util.map_snd ~f:do_pol)
     | Choice choices ->
@@ -59,9 +61,11 @@ let make
   ~(max_failures : int option)
   ~(sw_pol : Schemes.scheme)
   ~(topo : Net.Topology.t)
-  ()
-  =
-
+  : ?typ:[ `Legacy | `End_to_end ]
+  -> unit
+  -> string policy =
+  (* by default, uses fixed destination Params.destination for legacy reasons. *)
+  fun ?(typ = `Legacy) () ->
   let open Params in
   let no_failures =
     max_failures = Some 0 || List.for_all (Topology.locs topo) ~f:(fun (sw,pts) ->
@@ -71,21 +75,27 @@ let make
       )
     )
   in
+  let dst = if typ = `End_to_end then None else Some (Params.destination) in
 
   let rec make () : string policy =
-    let ingress = Topology.ingress topo ~dst:destination in
+    let ingress = Topology.ingress topo ?dst in
+    let egress = if typ = `End_to_end then ingress else PNK.(???(sw, destination)) in
+    (* SJS: hack, for legacy reasons *)
+    let loop_whl a p =
+      if typ = `End_to_end then PNK.do_whl p a else PNK.whl a p
+    in
     PNK.(
       (if Option.is_none max_failures || no_failures then skip else !!(counter, 0)) >>
       (* in; (¬eg; p; t)*; eg *)
       filter ingress >>
       match bound with
       | None ->
-        whl (neg (???(sw, destination))) (
+        loop_whl (neg egress) (
           hop ()
         )
       | Some bound ->
         !!(ttl, bound) >>
-        whl (neg (???(sw, destination))) (
+        loop_whl (neg egress) (
           hop () >>
           begin
             List.range 1 bound ~stop:`inclusive
@@ -96,12 +106,10 @@ let make
         )
     )
 
-
-
   and hop () =
     let open PNK in
     Topology.locs' topo
-    |> List.filter ~f:(fun (sw,_,_) -> Topology.sw_val topo sw <> destination)
+    |> List.filter ~f:(fun (sw,_,_) -> Some (Topology.sw_val topo sw) <> dst)
     |> ite_cascade ~parallelize:true ~disjoint:true ~otherwise:drop ~f:(fun (sw, host_pts, sw_pts) ->
       let sw_id = Topology.sw_val topo sw in
       let guard = ???(Params.sw, sw_id) in

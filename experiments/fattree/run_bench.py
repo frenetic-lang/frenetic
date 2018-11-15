@@ -1,0 +1,139 @@
+#!/usr/bin/env python3
+
+import os
+import subprocess
+import time
+
+TIMEOUT = 10 * 60  # 10 minutes
+MAXITERS = 1_000_000
+FPROB = (1,100)  # probability of link failure
+SCHEMES = ["SPF", "ECMP"] # may add: RW/RWW
+PRISM_PCTL_FILE = "prism.pctl"
+SETTINGS = [
+  { 'cps' : cps, 
+    'dont_iterate' : dont_iterate,
+    'parallelize' : parallelize,
+    'prism' : prism,
+  } for cps, dont_iterate, parallelize in [(True, False, True)] for prism in [True, False]
+]
+
+
+def fattree(k):
+  return "../../examples/output/fattree_%d_sw_%d.dot" % (k, (5 * k**2)/4)
+
+
+def pnk_cmd(k, scheme, cps, dont_iterate, parallelize, fbound=None, prism=False):
+  num, den = FPROB
+  cmd = [
+    'probnetkat.with_topo', fattree(k),
+    '-scheme', scheme,
+    '-fail-with', "%d/%d" % (num, den),
+  ]
+  if cps:
+    cmd.append('-cps')
+  if dont_iterate:
+    cmd.append('-dont-iterate')
+  if not parallelize:
+    cmd.append('-no-branch-par')
+  if fbound is not None:
+    cmd.append('-fbound')
+    cmd.append(str(fbound))
+  if prism:
+    cmd.append('-prism')
+  return cmd
+
+
+def prism_cmd(prism_file):
+  return ["prism", prism_file, PRISM_PCTL_FILE, '-maxiters',  MAXITERS]
+
+
+def identifier(settings):
+  s = str(settings)
+  for char in "'}{ ":
+    s = s.replace(char, '')
+  s = s.replace(':', '=')
+  s = s.replace(',', '_')
+  return s
+
+
+def logfile(settings):
+  return "%s.log" % identifier(settings)
+
+
+def prismfile(settings):
+  return "%s.pm" % identifier(settings)
+
+def run_pnk(cmd, log):
+  subprocess.run(cmd,
+                 timeout=TIMEOUT,
+                 check=True,
+                 stdout=log, 
+                 stderr=log)
+
+
+def run_prism(settings, pnk_cmd, log):
+  prism_file = prismfile(settings)
+  with open(prism_file, 'w+') as f:
+    subprocess.run(pnk_cmd,
+                   timeout=TIMEOUT,
+                   check=True,
+                   stdout=f,
+                   stderr=log)
+  cmd = prism_cmd(prism_file)
+  print(' '.join(cmd))
+  log.write(' '.join(cmd))
+  subprocess.run(cmd,
+                 timeout=TIMEOUT,
+                 check=True,
+                 stdout=log,
+                 stderr=log)
+
+
+def run_with_settings(settings):
+  print('settings: %s' % str(settings))
+  success = False
+  msg = ""
+  with open(logfile(settings), 'w+') as log:
+    try:
+      cmd = pnk_cmd(**settings)
+      print(' '.join(cmd))
+      log.write(' '.join(cmd))
+      t0 = time.perf_counter()
+      if settings['prism']:
+        run_prism(settings, cmd, log)
+      else:
+        run_pnk(cmd, log)
+      t1 = time.perf_counter()
+      msg = "TIME: %f.\n" % (t1 - t0)
+      success = True
+    except subprocess.TimeoutExpired:
+      msg = "TIMEOUT: %d seconds.\n" % TIMEOUT
+    except subprocess.CalledProcessError as e:
+      msg = "ERROR: %d.\n" % e.returncode
+    finally:
+      log.write(msg)
+      log.close()
+  print("-> %s" % msg)
+  return success
+
+
+def main():
+  for scheme in SCHEMES:
+    print("scheme: %s" % scheme)
+    print("=" * 80)
+    errored = [False for _ in SETTINGS]
+    for k in range(2, 22, 2):
+      if all(errored): break
+      print("k = %d" % k)
+      print("-" * 80)
+      for i, settings in enumerate(SETTINGS):
+        if errored[i]: continue
+        mysettings = settings.copy()
+        mysettings['k'] = k
+        mysettings['scheme'] = scheme
+        errored[i] = not run_with_settings(mysettings)
+    print("\n")
+    
+
+if __name__ == "__main__":
+  main()
