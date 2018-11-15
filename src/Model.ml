@@ -61,11 +61,11 @@ let make
   ~(max_failures : int option)
   ~(sw_pol : Schemes.scheme)
   ~(topo : Net.Topology.t)
+  : ?typ:[ `Legacy | `End_to_end ]
+  -> unit
+  -> string policy =
   (* by default, uses fixed destination Params.destination for legacy reasons. *)
-  ?(end_to_end=false)
-  ()
-  =
-
+  fun ?(typ = `Legacy) () ->
   let open Params in
   let no_failures =
     max_failures = Some 0 || List.for_all (Topology.locs topo) ~f:(fun (sw,pts) ->
@@ -75,13 +75,15 @@ let make
       )
     )
   in
-  let dst = if end_to_end then None else Some (Params.destination) in
+  let dst = if typ = `End_to_end then None else Some (Params.destination) in
 
   let rec make () : string policy =
     let ingress = Topology.ingress topo ?dst in
-    let egress = if end_to_end then ingress else PNK.(???(sw, destination)) in
+    let egress = if typ = `End_to_end then ingress else PNK.(???(sw, destination)) in
     (* SJS: hack, for legacy reasons *)
-    let loop_whl a p = if end_to_end then PNK.do_whl p a else PNK.whl a p in
+    let loop_whl a p =
+      if typ = `End_to_end then PNK.do_whl p a else PNK.whl a p
+    in
     PNK.(
       (if Option.is_none max_failures || no_failures then skip else !!(counter, 0)) >>
       (* in; (¬eg; p; t)*; eg *)
