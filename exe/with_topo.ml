@@ -24,12 +24,29 @@ type scheme =
   [@@deriving sexp]
 
 
-let run topo_file scheme dont_iterate fprob fbound =
+let run topo_file scheme dont_iterate fprob fbound cps =
   let topo_name = Filename.chop_extension topo_file in
   let topo = Topology.parse topo_file in
   let topo' = Schemes.enrich_topo topo in
   let sw_pol = `Switchwise (Schemes.ecmp topo' topo_name) in
-  printf "Hello, World!"
+  let model =
+    Model.make
+      ~topo
+      ~sw_pol
+      ?bound:(if dont_iterate then Some 0 else None)
+      ~failure_prob:(fun _ _ -> fprob)
+      ~max_failures:fbound
+      ()
+  in
+
+  let module Fdd = Symbolic.Fdd in
+  Fdd.use_cps := cps;
+  let fdd = Fdd.of_pol ~auto_order:true model in
+  let p = Fdd.min_nondrop_prob' fdd in
+  let q = Prob.to_q p in
+  Format.printf "probability of delivery (precise): %a/%a\n%!"
+    Z.pp_print (Q.num q) Z.pp_print (Q.den q);
+  Format.printf "probability of delivery (approx): %f\n%!" (Prob.to_float p)
 
 let cmd =
   let open Command.Let_syntax in
@@ -44,6 +61,8 @@ let cmd =
       ~doc:" link failure probability (links fail iid)"
     and fbound = flag "fbound" (optional int)
       ~doc:" maximum number of link failures"
+    and cps = flag "cps" no_arg
+      ~doc:" use CPS-style compilation strategy"
     in
     fun () ->
       let fprob =
@@ -51,7 +70,7 @@ let cmd =
         | [n; d] -> Prob.(Int.of_string n // Int.of_string d)
         | _ -> failwith "Flag '-fail-with' must be fraction of the form 'n/d'."
       in
-      run topo scheme dont_iterate fprob fbound
+      run topo scheme dont_iterate fprob fbound cps
   ]
 
 
