@@ -95,11 +95,11 @@ def run_with_settings(settings):
   print('settings: %s' % str(settings))
   success = False
   msg = ""
-  logfile = logfile(settings)
-  if os.path.isfile(logfile):
+  log = logfile(settings)
+  if os.path.isfile(log):
     print("-> SKIPPING: %s already exists)" % logfile)
     return True
-  with open(logfile, 'w+') as log:
+  with open(log, 'w+') as log:
     try:
       cmd = pnk_cmd(**settings)
       print(' '.join(cmd))
