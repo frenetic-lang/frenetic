@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """ Script for generating Bayonet/ProbNetKAT code for the reliability experiment from the Bayonet
     paper.
 """
@@ -47,7 +48,7 @@ def make_topo(k):
       (n0, n2, {'src_port': 3, 'dst_port': 1}),
       (n1, n3, {'src_port': 2, 'dst_port': 1}),
       (n2, n3, {'src_port': 2, 'dst_port': 2}),
-      (n3, n4, {'src_port':3, 'dst_port': 1})
+      (n3, n4, {'src_port': 3, 'dst_port': 1})
     ])
     for i,n in enumerate([n0, n1, n2, n3]):
       G.nodes[n]['type'] = "switch"

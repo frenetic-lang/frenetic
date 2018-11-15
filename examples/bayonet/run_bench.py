@@ -1,57 +1,66 @@
 #!/usr/bin/env python3
 
-from subprocess import call
+import os
+import subprocess
 
 
-def bayonet(k):
-  return ['./run_bayonet.sh', 'bayonet_resilience_sw_%d.bayonet' % (4*k)]
-
-
-def pnk(k, cps=True):
-  if cps:
-    return ['./run_probnetkat.sh', 'bayonet_resilience_sw_%d.dot' % (4*k)]
-  else:
-    return ['./run_probnetkat_no_cps.sh', 'bayonet_resilience_sw_%d.dot' % (4*k)]
-
-
-def prism(k, approx=False):
-  if approx:
-    return ['./run_prism_approx.sh', str(k)]
-  else:
-    return ['./run_prism.sh', str(k)]
+# TODO:
+#  * PNK with Prism backend.
+tools = {
+  'bayonet': {
+    'cmd': lambda k: ['./run_bayonet.sh', 'bayonet_resilience_sw_%d.bayonet' % (4*k)],
+    'envs': [
+      { 'EXACT': '' },
+      { 'EXACT': 'true' },
+    ],
+  },
+  'probnetkat': {
+    'cmd': lambda k: ['./run_probnetkat.sh', 'bayonet_resilience_sw_%d.dot' % (4*k)],
+    'envs': [
+      { 'CPS': 'false', 'PAR': 'true', 'RN': '0' },
+      { 'CPS': 'false', 'PAR': 'true', 'RN': '24' },
+    ],
+  },
+  'prism': {
+    'cmd': lambda k: ['./run_prism.sh', str(4*k)],
+    'envs': [
+      { 'EXACT': '' },
+      { 'EXACT': 'true' },
+    ],
+  },
+}
 
 
 def run():
-  run_bayonet = run_pnk = run_pnk_no_cps = run_prism = run_prism_approx = True
-  for i in range(14):
+  errored = { tool : [False for _ in range(len(data['envs']))] 
+                    for (tool, data) in tools.items()}
+  for i in range(16):
     k = 2**i
     print("k = %d" % k)
     print("=" * 80)
 
-    if run_bayonet:
-      print("\nBAYONET")
+    for tool, data in tools.items():
+      if all(errored[tool]):
+        continue
+      print("\n%s" % tool.capitalize())
       print("-" * 80)
-      run_bayonet = call(bayonet(k)) == 0
-    
-    if run_pnk:
-      print("\n\nPROBNETKAT")
-      print("-" * 80)
-      run_pnk = call(pnk(k, cps=True)) == 0
-
-    if run_pnk_no_cps:
-      print("\n\nPROBNETKAT (no CPS)")
-      print("-" * 80)
-      run_pnk_no_cps = call(pnk(k, cps=False)) == 0
-    
-    if run_prism:
-      print("\n\nPRISM")
-      print("-" * 80)
-      run_prism = call(prism(k, approx=False)) == 0
-
-    if run_prism_approx:
-      print("\n\nPRISM (approximate)")
-      print("-" * 80)
-      run_prism_approx = call(prism(k, approx=True)) == 0
+      for i, env in enumerate(data['envs']):
+        if errored[tool][i]:
+          continue
+        my_env = os.environ.copy()
+        my_env.update(env)
+        print("running with environment %s..." % str(env))
+        run = subprocess.run(data['cmd'](k),
+                             stdout=subprocess.PIPE, 
+                             stderr=subprocess.PIPE,
+                             env=my_env
+                             )
+        print("return code: %d" % run.returncode)
+        if run.returncode != 0:
+          print("-> errored.")
+          errored[tool][i] = True
+        else:
+          print("-> ok.\n")
     
     print("\n\n")
   
