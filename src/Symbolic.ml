@@ -2089,6 +2089,7 @@ let of_pol_k ?(parallelize=true) ?(bound:int option) (p : Field.t policy) : t =
         k (Util.timed "while loop" (fun () ->
           match bound with
           | None -> whl a p
+          | Some 0 -> sum (seq a p) (negate a)
           | Some k -> bounded_whl k a p
         ))
       )
@@ -2141,6 +2142,7 @@ let of_pol_k ?(parallelize=true) ?(bound:int option) (p : Field.t policy) : t =
           else
             begin match bound with
             | None -> seq lctxt (whl a (of_pol_cps a p))
+            | Some 0 -> sum skip_ctxt (seq lctxt (of_pol_cps a p))
             | Some k -> bounded_whl_cps k lctxt a (of_pol_cps a p)
             end
       | Choice dist ->
