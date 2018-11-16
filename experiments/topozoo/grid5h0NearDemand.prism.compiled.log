@@ -1,0 +1,17 @@
+$ prism grid5h0NearDemand.pm prism.pctl -maxiters 1000000
+PRISM
+=====
+
+Version: 4.4
+Date: Fri Nov 16 08:51:41 EST 2018
+Hostname: atlas-18
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism grid5h0NearDemand.pm prism.pctl -maxiters 1000000
+
+Parsing model file "grid5h0NearDemand.pm"...
+
+Error: There must be at least one module.
+
+real	0m0.858s
+user	0m1.781s
+sys	0m0.275s

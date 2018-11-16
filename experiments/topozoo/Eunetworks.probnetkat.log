@@ -1,0 +1,19 @@
+$ probnetkat.with_topo -fail-with 1/1000 -scheme ECMP -cps ../../examples/topozoo/Eunetworks.dot
+switch 8 cannot reach destination
+Uncaught exception:
+  
+  (Failure "network disconnected!")
+
+Raised at file "stdlib.ml", line 33, characters 17-33
+Called from file "src/Model.ml", line 120, characters 12-18
+Called from file "src/list.ml", line 340, characters 13-17
+Called from file "src/list.ml" (inlined), line 350, characters 15-31
+Called from file "src/Syntax.ml", line 273, characters 6-20
+Called from file "src/Model.ml", line 93, characters 30-58
+Called from file "exe/with_topo.ml", line 36, characters 4-177
+Called from file "src/command.ml", line 2734, characters 6-97
+Called from file "src/exn.ml", line 113, characters 6-10
+
+real	0m0.022s
+user	0m0.009s
+sys	0m0.007s
