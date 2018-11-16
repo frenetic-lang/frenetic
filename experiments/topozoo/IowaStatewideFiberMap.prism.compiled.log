@@ -1,0 +1,69 @@
+$ prism IowaStatewideFiberMap.pm prism.pctl -maxiters 1000000
+PRISM
+=====
+
+Version: 4.4
+Date: Fri Nov 16 08:57:46 EST 2018
+Hostname: atlas-18
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism IowaStatewideFiberMap.pm prism.pctl -maxiters 1000000
+
+Parsing model file "IowaStatewideFiberMap.pm"...
+
+Parsing properties file "prism.pctl"...
+
+1 property:
+(1) P=? [ F (__state__=0) ]
+
+Type:        DTMC
+Modules:     ProbNetKAT 
+Variables:   __state__ pt sw up_2 up_3 up_4 up_5 up_6 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F (__state__=0) ]
+
+Building model...
+
+Computing reachable states...
+
+Reachability (BFS): 18 iterations in 0.04 seconds (average 0.002333, setup 0.00)
+
+Time for model construction: 0.407 seconds.
+
+Type:        DTMC
+States:      1833 (1 initial)
+Transitions: 2491
+
+Transition matrix: 5797 nodes (6 terminal), 2491 minterms, vars: 22r/22c
+
+Prob0: 61 iterations in 0.12 seconds (average 0.001918, setup 0.00)
+
+Prob1: 11 iterations in 0.04 seconds (average 0.003455, setup 0.00)
+
+yes = 141, no = 636, maybe = 1056
+
+Computing remaining probabilities...
+Engine: Hybrid
+
+Building hybrid MTBDD matrix... [levels=22, nodes=5647] [264.7 KB]
+Adding explicit sparse matrices... [levels=22, num=1, compact] [7.5 KB]
+Creating vector for diagonals... [dist=2, compact] [3.6 KB]
+Creating vector for RHS... [dist=2, compact] [3.6 KB]
+Allocating iteration vectors... [2 x 14.3 KB]
+TOTAL: [308.0 KB]
+
+Starting iterations...
+
+Jacobi: 58 iterations in 0.03 seconds (average 0.000069, setup 0.03)
+
+Value in the initial state: 0.9962095564094052
+
+Time for model checking: 0.11 seconds.
+
+Result: 0.9962095564094052 (value in the initial state)
+
+
+real	0m2.504s
+user	0m4.905s
+sys	0m0.544s

@@ -1,0 +1,17 @@
+$ prism cube5h1FarDemand.pm prism.pctl -maxiters 1000000
+PRISM
+=====
+
+Version: 4.4
+Date: Fri Nov 16 08:56:02 EST 2018
+Hostname: atlas-18
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism cube5h1FarDemand.pm prism.pctl -maxiters 1000000
+
+Parsing model file "cube5h1FarDemand.pm"...
+
+Error: There must be at least one module.
+
+real	0m1.220s
+user	0m2.434s
+sys	0m0.370s

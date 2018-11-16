@@ -1,0 +1,69 @@
+$ prism CrlNetworkServices.pm prism.pctl -maxiters 1000000
+PRISM
+=====
+
+Version: 4.4
+Date: Fri Nov 16 08:55:07 EST 2018
+Hostname: atlas-18
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism CrlNetworkServices.pm prism.pctl -maxiters 1000000
+
+Parsing model file "CrlNetworkServices.pm"...
+
+Parsing properties file "prism.pctl"...
+
+1 property:
+(1) P=? [ F (__state__=0) ]
+
+Type:        DTMC
+Modules:     ProbNetKAT 
+Variables:   __state__ pt sw up_2 up_3 up_4 up_5 up_6 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F (__state__=0) ]
+
+Building model...
+
+Computing reachable states...
+
+Reachability (BFS): 17 iterations in 0.07 seconds (average 0.003941, setup 0.00)
+
+Time for model construction: 0.436 seconds.
+
+Type:        DTMC
+States:      1420 (1 initial)
+Transitions: 1897
+
+Transition matrix: 5279 nodes (6 terminal), 1897 minterms, vars: 22r/22c
+
+Prob0: 58 iterations in 0.08 seconds (average 0.001310, setup 0.00)
+
+Prob1: 10 iterations in 0.01 seconds (average 0.001300, setup 0.00)
+
+yes = 212, no = 485, maybe = 723
+
+Computing remaining probabilities...
+Engine: Hybrid
+
+Building hybrid MTBDD matrix... [levels=22, nodes=5065] [237.4 KB]
+Adding explicit sparse matrices... [levels=22, num=1, compact] [5.2 KB]
+Creating vector for diagonals... [dist=2, compact] [2.8 KB]
+Creating vector for RHS... [dist=2, compact] [2.8 KB]
+Allocating iteration vectors... [2 x 11.1 KB]
+TOTAL: [270.4 KB]
+
+Starting iterations...
+
+Jacobi: 52 iterations in 0.01 seconds (average 0.000038, setup 0.01)
+
+Value in the initial state: 0.9959762729118418
+
+Time for model checking: 0.058 seconds.
+
+Result: 0.9959762729118418 (value in the initial state)
+
+
+real	0m2.485s
+user	0m4.588s
+sys	0m0.517s

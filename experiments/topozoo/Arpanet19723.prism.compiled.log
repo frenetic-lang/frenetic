@@ -1,0 +1,69 @@
+$ prism Arpanet19723.pm prism.pctl -maxiters 1000000
+PRISM
+=====
+
+Version: 4.4
+Date: Fri Nov 16 08:55:13 EST 2018
+Hostname: atlas-18
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism Arpanet19723.pm prism.pctl -maxiters 1000000
+
+Parsing model file "Arpanet19723.pm"...
+
+Parsing properties file "prism.pctl"...
+
+1 property:
+(1) P=? [ F (__state__=0) ]
+
+Type:        DTMC
+Modules:     ProbNetKAT 
+Variables:   __state__ pt sw up_2 up_3 up_4 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F (__state__=0) ]
+
+Building model...
+
+Computing reachable states...
+
+Reachability (BFS): 15 iterations in 0.01 seconds (average 0.001000, setup 0.00)
+
+Time for model construction: 0.266 seconds.
+
+Type:        DTMC
+States:      828 (1 initial)
+Transitions: 1101
+
+Transition matrix: 3192 nodes (6 terminal), 1101 minterms, vars: 18r/18c
+
+Prob0: 77 iterations in 0.05 seconds (average 0.000623, setup 0.00)
+
+Prob1: 10 iterations in 0.01 seconds (average 0.001300, setup 0.00)
+
+yes = 26, no = 226, maybe = 576
+
+Computing remaining probabilities...
+Engine: Hybrid
+
+Building hybrid MTBDD matrix... [levels=18, nodes=3275] [153.5 KB]
+Adding explicit sparse matrices... [levels=18, num=1, compact] [3.9 KB]
+Creating vector for diagonals... [dist=2, compact] [1.6 KB]
+Creating vector for RHS... [dist=2, compact] [1.6 KB]
+Allocating iteration vectors... [2 x 6.5 KB]
+TOTAL: [173.7 KB]
+
+Starting iterations...
+
+Jacobi: 74 iterations in 0.01 seconds (average 0.000014, setup 0.01)
+
+Value in the initial state: 0.9945364507629955
+
+Time for model checking: 0.089 seconds.
+
+Result: 0.9945364507629955 (value in the initial state)
+
+
+real	0m2.440s
+user	0m4.192s
+sys	0m0.518s

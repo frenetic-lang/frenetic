@@ -1,0 +1,69 @@
+$ prism VtlWavenet2008.pm prism.pctl -maxiters 1000000
+PRISM
+=====
+
+Version: 4.4
+Date: Fri Nov 16 08:57:26 EST 2018
+Hostname: atlas-18
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism VtlWavenet2008.pm prism.pctl -maxiters 1000000
+
+Parsing model file "VtlWavenet2008.pm"...
+
+Parsing properties file "prism.pctl"...
+
+1 property:
+(1) P=? [ F (__state__=0) ]
+
+Type:        DTMC
+Modules:     ProbNetKAT 
+Variables:   __state__ pt sw up_2 up_3 up_4 up_5 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F (__state__=0) ]
+
+Building model...
+
+Computing reachable states...
+
+Reachability (BFS): 15 iterations in 0.02 seconds (average 0.001400, setup 0.00)
+
+Time for model construction: 1.273 seconds.
+
+Type:        DTMC
+States:      2532 (1 initial)
+Transitions: 3294
+
+Transition matrix: 11999 nodes (6 terminal), 3294 minterms, vars: 23r/23c
+
+Prob0: 159 iterations in 0.12 seconds (average 0.000761, setup 0.00)
+
+Prob1: 11 iterations in 0.02 seconds (average 0.001636, setup 0.00)
+
+yes = 24, no = 731, maybe = 1777
+
+Computing remaining probabilities...
+Engine: Hybrid
+
+Building hybrid MTBDD matrix... [levels=23, nodes=12794] [599.7 KB]
+Adding explicit sparse matrices... [levels=23, num=1, compact] [11.8 KB]
+Creating vector for diagonals... [dist=2, compact] [5.0 KB]
+Creating vector for RHS... [dist=2, compact] [5.0 KB]
+Allocating iteration vectors... [2 x 19.8 KB]
+TOTAL: [661.0 KB]
+
+Starting iterations...
+
+Jacobi: 158 iterations in 0.05 seconds (average 0.000019, setup 0.04)
+
+Value in the initial state: 0.9870260959902984
+
+Time for model checking: 0.196 seconds.
+
+Result: 0.9870260959902984 (value in the initial state)
+
+
+real	0m3.094s
+user	0m6.657s
+sys	0m0.597s
