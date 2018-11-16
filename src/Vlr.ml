@@ -232,9 +232,59 @@ module Make(V:Value)(L:Lattice)(R:Result) = struct
         end
     )
 
+  let rec sum_k x y k =
+    let key = if x <= y then (x, y) else (y, x) in
+    BinTbl.find_or_add binary_cache key ~default:(fun () ->
+      match T.unget x, T.unget y with
+      | Leaf r, _      ->
+        k (
+          if R.is_zero r then y
+          else map_r (fun y -> R.sum r y) y
+        )
+      | _     , Leaf r ->
+        k (
+          if R.is_zero r then x
+          else map_r (fun x -> R.sum x r) x
+        )
+      | Branch {test=(vx, lx); tru=tx; fls=fx; all_fls=all_fls_x},
+        Branch {test=(vy, ly); tru=ty; fls=fy; all_fls=all_fls_y} ->
+        begin match V.compare vx vy with
+        |  0 ->
+          begin match L.compare lx ly with
+          | 0 -> sum_k tx ty (fun t ->
+                 sum_k fx fy (fun f ->
+                  mk_branch (vx,lx) t f
+                  |> k
+                ))
+          | -1 -> sum_k tx all_fls_y (fun t ->
+                   sum_k fx y (fun f ->
+                    mk_branch (vx,lx) t f
+                    |> k
+                  ))
+          |  1 -> sum_k all_fls_x ty (fun t ->
+                 sum_k x fy (fun f ->
+                  mk_branch (vy,ly) t f
+                  |> k
+                ))
+          |  _ -> assert false
+          end
+        | -1 -> sum_k tx y (fun t ->
+                 sum_k fx y (fun f ->
+                  mk_branch (vx,lx) t f
+                  |> k
+                ))
+        |  1 -> sum_k x ty (fun t ->
+                 sum_k x fy (fun f ->
+                  mk_branch (vy,ly) t f
+                  |> k
+                ))
+        |  _ -> assert false
+        end
+    )
+
   let sum x y =
     Hashtbl.clear binary_cache;
-    sum' x y
+    sum_k x y Fn.id
 
 
 
