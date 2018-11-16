@@ -27,12 +27,17 @@ let run topo_file scheme dont_iterate fprob fbound cps show_fdd parallelize pris
     | RRW -> `Switchwise (Schemes.resilient_random_walk topo)
     | F10 -> `Portwise (Schemes.f10 topo topo_name)
   in
+  let max_failures =
+    match fbound with
+    | Some n when n < 0 -> None
+    | _ -> fbound
+  in
   let model =
     Model.make
       ~topo
       ~sw_pol
       ~failure_prob:(fun _ _ -> fprob)
-      ~max_failures:fbound
+      ~max_failures
       ~typ:`Legacy (* single destination: sw = Params.destination *)
       ()
   in
