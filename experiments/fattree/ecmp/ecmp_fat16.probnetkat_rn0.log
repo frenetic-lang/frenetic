@@ -1,5 +1,5 @@
-$ probnetkat.with_topo -fail-with 1/1000 -scheme ECMP -cps ../../../examples/output/fattree_16_sw_320.dot
-[compile server] /home/abilene/.opam/4.07.1+flambda/lib/probnetkat/../../bin/probnetkat.rpc_compile_branch -order (F1 F0 Meta7 Meta5 Meta6 Meta4 Meta3 Meta2 Meta8 Meta9 Meta1 Meta0 Meta10 Meta11 Meta12 Meta14 Meta15 Meta13 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 Meta16 Meta17 Meta18 Meta19) -cps true -j 32 -rj 32
+$ probnetkat.with_topo -fail-with 1/1000 -scheme ECMP -cps -fbound -1 ../../../examples/output/fattree_16_sw_320.dot
+[compile server] /home/abilene/.opam/4.07.1+flambda/lib/probnetkat/../../bin/probnetkat.rpc_compile_branch -order (F1 F0 Meta7 Meta5 Meta6 Meta4 Meta3 Meta2 Meta8 Meta9 Meta1 Meta0 Meta10 Meta11 Meta12 Meta14 Meta15 Meta13 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 Meta16 Meta17 Meta18 Meta19) -cps true -j 20 -rj 20
 [compile server] read: input 1 ... received.
 [compile server] read: input 2 ... received.
 [compile server] read: input 3 ... received.
@@ -324,18 +324,18 @@ $ probnetkat.with_topo -fail-with 1/1000 -scheme ECMP -cps ../../../examples/out
 [compile server] sending back result...
 [compile server] -> done.
 [compile server] Shutting down. Bye.
-start naive fixpoint...
 start sending fdds as matrices to python...
 start sending ap...
---> naive fixpoint done! 5.351774 seconds
+start naive fixpoint...
+--> naive fixpoint done! 1.207150 seconds
 start serializing & sending Fdd...
 *** ocaml won race!
 start deserializing & receiving Fdd...
---> serializing & sending Fdd done! 0.053119 seconds
---> deserializing & receiving Fdd done! 0.211212 seconds
+--> serializing & sending Fdd done! 0.022984 seconds
+--> deserializing & receiving Fdd done! 0.010310 seconds
 E[delivered] = 3168827999999999999999993837169000000000000000002994003/3175000000000000000000000000000000000000000000000000000
 E[delivered] ≈ 0.998056
 
-real	23m42.261s
-user	0m9.448s
-sys	0m4.575s
+real	9m21.037s
+user	0m7.151s
+sys	0m3.605s
