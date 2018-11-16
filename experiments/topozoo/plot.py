@@ -99,6 +99,8 @@ def plot(data):
   prism_y = [ y for (x,y) in prism]
   plt.scatter(pnk_x,pnk_y,c='r', marker='x')
   plt.scatter(prism_x,prism_y,c='b', marker='s')
+  ax = plt.gca()
+  ax.set_yscale('log')
   plt.savefig('topozoo.pdf', bbox_inches='tight')
 
 def main():
