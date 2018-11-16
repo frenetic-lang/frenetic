@@ -69,6 +69,7 @@ let cmd =
       eprintf "[compile server] %s\n%!"
         (Sys.argv |> Array.to_list |> String.concat ~sep:" ");
       let wdir = "/tmp/" in
+      let exe = Filename.(concat wdir (basename [%here].Lexing.pos_fname)) in
       let order = [%of_sexp: Symbolic.Field.t list] order in
       let param = T.Param.{ bound; order; cps; parallelize } in
       let local = match j with
@@ -76,7 +77,7 @@ let cmd =
         | None -> Or_error.ok_exn Linux_ext.cores ()
       in
       let rj = Option.value rj ~default:local in
-      let%bind remote =
+(*       let%bind remote =
         List.map remote ~f:(fun h ->
           Rpc_parallel.Remote_executable.copy_to_host h
             ~executable_dir:wdir
@@ -85,6 +86,13 @@ let cmd =
           | Error _ -> failwith ("unable to connect to host: " ^ h)
         )
         |> Deferred.all
+      in *)
+      let remote =
+        List.map remote ~f:(fun h ->
+          Rpc_parallel.Remote_executable.existing_on_host h
+            ~executable_path:exe,
+          rj
+        )
       in
       let rpc_config =
         Rpc_parallel.Map_reduce.Config.create
