@@ -1,4 +1,5 @@
-[compile server] /home/abilene/.opam/4.07.1+flambda/lib/probnetkat/../../bin/probnetkat.rpc_compile_branch -order (F1 F0 Meta5 Meta0 Meta1 Meta2 Meta3 Meta4 Meta11 Meta6 Meta7 Meta8 Meta9 Meta10 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 Meta12 Meta13 Meta14 Meta15 Meta16 Meta17 Meta18 Meta19) -cps false -j 32 -rj 32
+$ probnetkat.with_topo ../../examples/output/fattree_12_sw_180.dot -scheme SPF -fail-with 1/100
+[compile server] /home/steffen/.opam/4.07.1/lib/probnetkat/../../bin/probnetkat.rpc_compile_branch -order (F1 F0 Meta5 Meta0 Meta1 Meta2 Meta3 Meta4 Meta11 Meta6 Meta7 Meta8 Meta9 Meta10 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 Meta12 Meta13 Meta14 Meta15 Meta16 Meta17 Meta18 Meta19) -cps false -j 8 -rj 8
 [compile server] read: input 1 ... received.
 [compile server] read: input 2 ... received.
 [compile server] read: input 3 ... received.
@@ -187,15 +188,17 @@ start while loop...
 start sending fdds as matrices to python...
 start sending ap...
 start naive fixpoint...
---> sending ap done! 0.016675 seconds
+--> sending ap done! 0.013780 seconds
 start sending not_a...
---> naive fixpoint done! 0.307236 seconds
+--> naive fixpoint done! 0.250836 seconds
 start serializing & sending Fdd...
---> serializing & sending Fdd done! 0.000725 seconds
+--> serializing & sending Fdd done! 0.000402 seconds
 *** ocaml won race!
 start deserializing & receiving Fdd...
---> deserializing & receiving Fdd done! 0.004496 seconds
---> while loop done! 0.629450 seconds
+--> deserializing & receiving Fdd done! 0.003184 seconds
+--> while loop done! 0.324129 seconds
 E[delivered] = 3414991833/3550000000
 E[delivered] ≈ 0.961970
-probnetkat.with_topo ../../examples/output/fattree_12_sw_180.dot -scheme SPF -fail-with 1/100TIME: 4.276920.
+
+TIME: 2.069073.
+

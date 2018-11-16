@@ -1,1 +1,0 @@
-probnetkat.with_topo ../../examples/output/fattree_16_sw_320.dot -scheme ECMP -fail-with 1/100 -cps -prismTIMEOUT: 600 seconds.

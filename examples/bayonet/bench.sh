@@ -23,7 +23,7 @@ function bench {
 
   if [[ ! -e $RESULT_FILE || -n $F ]]; then
     echo "$ $CMD" | tee $RESULT_FILE
-    { { time timeout $TIMEOUT $CMD; } 2>&1; } | tee -a $RESULT_FILE
+    { { time timeout -k 0 $TIMEOUT $CMD; } 2>&1; } | tee -a $RESULT_FILE
     RC="$?"
     tail $RESULT_FILE
     exit $RC

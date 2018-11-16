@@ -1,4 +1,5 @@
-[compile server] /home/abilene/.opam/4.07.1+flambda/lib/probnetkat/../../bin/probnetkat.rpc_compile_branch -order (F1 F0 Meta0 Meta1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 Meta2 Meta3 Meta4 Meta5 Meta6 Meta7 Meta8 Meta9 Meta10 Meta11 Meta12 Meta13 Meta14 Meta15 Meta16 Meta17 Meta18 Meta19) -cps false -j 32 -rj 32
+$ probnetkat.with_topo ../../examples/output/fattree_2_sw_5.dot -scheme ECMP -fail-with 1/100
+[compile server] /home/steffen/.opam/4.07.1/lib/probnetkat/../../bin/probnetkat.rpc_compile_branch -order (F1 F0 Meta0 Meta1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 Meta2 Meta3 Meta4 Meta5 Meta6 Meta7 Meta8 Meta9 Meta10 Meta11 Meta12 Meta13 Meta14 Meta15 Meta16 Meta17 Meta18 Meta19) -cps false -j 8 -rj 8
 [compile server] read: input 1 ... received.
 [compile server] read: input 2 ... received.
 [compile server] read: input 3 ... received.
@@ -12,19 +13,21 @@ start while loop...
 start sending fdds as matrices to python...
 start sending ap...
 start naive fixpoint...
---> sending ap done! 0.000535 seconds
+--> sending ap done! 0.000194 seconds
 start sending not_a...
---> sending not_a done! 0.000117 seconds
---> sending fdds as matrices to python done! 0.000719 seconds
---> naive fixpoint done! 0.013282 seconds
+--> sending not_a done! 0.000055 seconds
+--> sending fdds as matrices to python done! 0.000278 seconds
+--> naive fixpoint done! 0.006583 seconds
 start serializing & sending Fdd...
---> serializing & sending Fdd done! 0.000108 seconds
+--> serializing & sending Fdd done! 0.000045 seconds
 *** ocaml won race!
 start deserializing & receiving Fdd...
---> deserializing & receiving Fdd done! 0.000151 seconds
+--> deserializing & receiving Fdd done! 0.000068 seconds
 Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='UTF-8'>
 BrokenPipeError: [Errno 32] Broken pipe
---> while loop done! 0.432831 seconds
+--> while loop done! 0.315489 seconds
 E[delivered] = 96059601/100000000
 E[delivered] ≈ 0.960596
-probnetkat.with_topo ../../examples/output/fattree_2_sw_5.dot -scheme ECMP -fail-with 1/100TIME: 3.225399.
+
+TIME: 1.576072.
+
