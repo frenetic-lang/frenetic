@@ -105,31 +105,28 @@ tools = {
 
 
 def main():
-  for i in range(30):
-    k = 2*(i+2)
-    print("k = %d" % k)
-    print("=" * 80)
+  k = 14
+  print("k = %d" % k)
+  print("=" * 80)
 
-    for tool, data in tools.items():
-      print("\n%s" % tool.capitalize())
-      print("-" * 80)
-      # SJS: fastest first
-      for i, env in enumerate(data['envs'][::-1]):
-        my_env = os.environ.copy()
-        my_env.update(env)
-        print("running with environment %s..." % str(env))
-        run = subprocess.run(data['cmd'](k),
-                             stdout=subprocess.PIPE, 
-                             stderr=subprocess.PIPE,
-                             env=my_env
-                             )
-        print("return code: %d" % run.returncode)
-        if run.returncode != 0:
-          print("-> errored.")
-        else:
-          print("-> ok.\n")
-    
-    print("\n\n")
+  for tool, data in tools.items():
+    print("\n%s" % tool.capitalize())
+    print("-" * 80)
+    # SJS: fastest first
+    for i, env in enumerate(data['envs'][::-1]):
+      my_env = os.environ.copy()
+      my_env.update(env)
+      print("running with environment %s..." % str(env))
+      run = subprocess.run(data['cmd'](k),
+                           stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE,
+                           env=my_env
+                           )
+      print("return code: %d" % run.returncode)
+      if run.returncode != 0:
+        print("-> errored.")
+      else:
+        print("-> ok.\n")
   
 
 if __name__ == "__main__":
