@@ -1,0 +1,69 @@
+$ prism 10.pm prism.pctl -maxiters 1000000
+PRISM
+=====
+
+Version: 4.4
+Date: Thu Nov 15 23:46:11 EST 2018
+Hostname: atlas-17
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism 10.pm prism.pctl -maxiters 1000000
+
+Parsing model file "10.pm"...
+
+Parsing properties file "prism.pctl"...
+
+1 property:
+(1) P=? [ F (__state__=0) ]
+
+Type:        DTMC
+Modules:     ProbNetKAT 
+Variables:   __state__ pt sw up_0 up_1 up_2 up_3 up_4 up_5 up_6 up_7 up_8 up_9 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F (__state__=0) ]
+
+Building model...
+
+Computing reachable states...
+
+Reachability (BFS): 54 iterations in 0.57 seconds (average 0.010593, setup 0.00)
+
+Time for model construction: 14.015 seconds.
+
+Type:        DTMC
+States:      1567616 (1 initial)
+Transitions: 3511280
+
+Transition matrix: 57226 nodes (6 terminal), 3511280 minterms, vars: 32r/32c
+
+Prob0: 58 iterations in 0.28 seconds (average 0.004810, setup 0.00)
+
+Prob1: 23 iterations in 0.26 seconds (average 0.011391, setup 0.00)
+
+yes = 42250, no = 300230, maybe = 1225136
+
+Computing remaining probabilities...
+Engine: Hybrid
+
+Building hybrid MTBDD matrix... [levels=32, nodes=61163] [2.8 MB]
+Adding explicit sparse matrices... [levels=12, num=635, compact] [690.3 KB]
+Creating vector for diagonals... [dist=2, compact] [3.0 MB]
+Creating vector for RHS... [dist=2, compact] [3.0 MB]
+Allocating iteration vectors... [2 x 12.0 MB]
+TOTAL: [33.4 MB]
+
+Starting iterations...
+
+Jacobi: 89 iterations in 3.03 seconds (average 0.019292, setup 1.31)
+
+Value in the initial state: 0.9980825510204125
+
+Time for model checking: 3.695 seconds.
+
+Result: 0.9980825510204125 (value in the initial state)
+
+
+real	0m19.373s
+user	0m23.976s
+sys	0m0.789s

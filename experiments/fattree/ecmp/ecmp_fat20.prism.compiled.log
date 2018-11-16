@@ -1,0 +1,54 @@
+$ prism 20.pm prism.pctl -maxiters 1000000
+PRISM
+=====
+
+Version: 4.4
+Date: Fri Nov 16 01:17:18 EST 2018
+Hostname: atlas-17
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism 20.pm prism.pctl -maxiters 1000000
+
+Parsing model file "20.pm"...
+
+Parsing properties file "prism.pctl"...
+
+1 property:
+(1) P=? [ F (__state__=0) ]
+
+Type:        DTMC
+Modules:     ProbNetKAT 
+Variables:   __state__ pt sw up_0 up_1 up_10 up_11 up_12 up_13 up_14 up_15 up_16 up_17 up_18 up_19 up_2 up_3 up_4 up_5 up_6 up_7 up_8 up_9 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F (__state__=0) ]
+
+Building model...
+
+Computing reachable states...
+
+Reachability (BFS): 89 iterations in 5.01 seconds (average 0.056303, setup 0.00)
+
+Time for model construction: 971.668 seconds.
+
+Type:        DTMC
+States:      12591065051 (1 initial)
+Transitions: 43700401220
+
+Transition matrix: 455546 nodes (6 terminal), 43700401220 minterms, vars: 48r/48c
+
+Prob0: 93 iterations in 7.74 seconds (average 0.083204, setup 0.00)
+
+Prob1: 45 iterations in 5.39 seconds (average 0.119689, setup 0.00)
+
+yes = 190054420, no = 2109883260, maybe = 10291127371
+
+Computing remaining probabilities...
+Engine: Hybrid
+
+Error: The hybrid engine can currently only handle up to 2147483647 reachable states, model has 12591065051 states.
+
+
+real	16m28.547s
+user	16m41.133s
+sys	0m4.593s
