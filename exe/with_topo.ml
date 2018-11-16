@@ -5,7 +5,8 @@ type scheme =
   | SPF   (** no resilience *)
   | ECMP  (** with fast failover *)
   | RW    (** random walk *)
-  | RRW    (** resilient random walk *)
+  | RRW   (** resilient random walk *)
+  | F10
   [@@deriving sexp]
 
 
@@ -24,6 +25,7 @@ let run topo_file scheme dont_iterate fprob fbound cps show_fdd parallelize pris
     | ECMP -> `Switchwise (Schemes.resilient_ecmp topo topo_name)
     | RW -> `Switchwise (Schemes.random_walk topo)
     | RRW -> `Switchwise (Schemes.resilient_random_walk topo)
+    | F10 -> `Portwise (Schemes.f10 topo topo_name)
   in
   let model =
     Model.make
