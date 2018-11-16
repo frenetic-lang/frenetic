@@ -113,7 +113,8 @@ def main():
     for tool, data in tools.items():
       print("\n%s" % tool.capitalize())
       print("-" * 80)
-      for i, env in enumerate(data['envs']):
+      # SJS: fastest first
+      for i, env in enumerate(data['envs'][::-1]):
         my_env = os.environ.copy()
         my_env.update(env)
         print("running with environment %s..." % str(env))
