@@ -5,7 +5,7 @@
 make && make install
 for I in {24..1}; do
   ssh "abilene@atlas-$I" /bin/bash << 'EOF'
-sudo apt install memlockd
+sudo apt-get install memlockd
 memlockd
 if grep -q ulimit ~/.bash_profile; then
   true  # already set
