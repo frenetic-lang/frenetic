@@ -77,10 +77,7 @@ def parse_output(folder):
 def plot(data):
   f = open("speedup.txt", "w")
 
-  t0 = max(pt['time'] for pt in data)
-  for pt in data:
-    pt['speedup'] = t0/pt['time']
-
+  times = defaultdict(dict)
   speedups = defaultdict(dict)
   plt.figure(figsize=(5,3))
   ax = plt.subplot(111)    
@@ -92,7 +89,11 @@ def plot(data):
   ax.set_xscale("linear", nonposx='clip')
   ax.set_yscale("linear", nonposy='clip')
   for pt in data:
-    speedups[pt['method']][pt['num_cores']] = pt['speedup']
+    times[pt['method']][pt['num_cores']] = pt['time']
+  for method, ctimes in times.items():
+    t0 = max(ctimes.values())
+    speedups[method] = { cores: t0/t for cores,t in ctimes.items() }
+
 
   for method, sw_speedups in sorted(speedups.items()):
     sorted_pts = sorted(sw_speedups.items())
