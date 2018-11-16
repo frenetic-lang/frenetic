@@ -5,13 +5,14 @@ if [[ -z $1 ]]; then
   exit 1
 fi
 
-PNK="probnetkat.with_topo -fail-with 1/1000 -scheme ECMP -cps"
+source params.sh
+PNK="probnetkat.with_topo -fail-with ${FAILURE_PROB} -scheme ECMP -cps -fbound ${FAILURE_BOUND}"
 K=$1
 RN=${RN:-0} # remote workers - none by default
 SW=$(( ($K*$K*5)/4 ))
 TOPO_FILE="../../../examples/output/fattree_${K}_sw_${SW}.dot"
 
-NAME="ecmp_fat${K}.probnetkat_${RN}"
+NAME="ecmp_fat${K}.probnetkat_fb${FAILURE_BOUND}_rn${RN}"
 CMD="$PNK $TOPO_FILE"
 export RN
 

@@ -1,7 +1,5 @@
 #!/bin/bash
 
-PRISM="prism"
-PNK="probnetkat.with_topo -fail-with 1/1000 -scheme ECMP -prism"
 
 if [[ -z $1 ]]; then
   echo "usage: $0 <k>"
@@ -9,10 +7,14 @@ if [[ -z $1 ]]; then
 fi
 
 K=$1
+PRISM="prism"
+
+source params.sh
+PNK="probnetkat.with_topo -fail-with ${FAILURE_PROB} -scheme ECMP -cps -fbound ${FAILURE_BOUND} -prism"
 PRISM_FILE="$K.pm"
 SW=$(( ($K*$K*5)/4 ))
 TOPO_FILE="../../../examples/output/fattree_${K}_sw_${SW}.dot"
-NAME="ecmp_fat${K}.prism.compiled"
+NAME="ecmp_fat${K}_fb${FAILURE_BOUND}.prism.compiled"
 CMD="$PRISM $PRISM_FILE prism.pctl -maxiters 1000000"
 
 
