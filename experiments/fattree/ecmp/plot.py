@@ -18,7 +18,7 @@ DATA_DIR = "."
 methods = [
   'probnetkat_rn0',
   'probnetkat_rn0_fb0',
-  'probnetkat_rn0_fb2',
+  # 'probnetkat_rn0_fb2',
   'prism.compiled',
   'prism.compiled_fb0',
 ]
@@ -26,7 +26,7 @@ methods = [
 label_of_method = {
   'probnetkat_rn0': 'PNK' ,
   'probnetkat_rn0_fb0': 'PNK (#f=0)',
-  'probnetkat_rn0_fb2': 'PNK (#f≤2)',
+  # 'probnetkat_rn0_fb2': 'PNK (#f≤2)',
   'prism.compiled': 'PRISM',
   'prism.compiled_fb0': 'PRISM (#f=0)',
 }
@@ -34,7 +34,7 @@ label_of_method = {
 markers = {
   'probnetkat_rn0' : 'o',
   'probnetkat_rn0_fb0' : '*',
-  'probnetkat_rn0_fb2' : 'D',
+  # 'probnetkat_rn0_fb2' : 'D',
   'prism.compiled' : 's',
   'prism.compiled_fb0': 'X',
   # 'probnetkat_rn0_fb2' : 'D',
@@ -45,7 +45,7 @@ markers = {
 colors = {
   'probnetkat_rn0' : 'darkgreen',
   'probnetkat_rn0_fb0' : 'orange',
-  'probnetkat_rn0_fb2' : 'purple',
+  # 'probnetkat_rn0_fb2' : 'purple',
   'prism.compiled' : 'navy',
   'prism.compiled_fb0': 'red',
   # 'prism_exact.compiled' : 'green',
