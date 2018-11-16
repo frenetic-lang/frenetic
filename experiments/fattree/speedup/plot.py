@@ -17,21 +17,21 @@ DATA_DIR = "."
 
 methods = [
   'fattree14',
-  # 'fattree14_fb0',
+  'fattree16',
   # 'prism.compiled',
   # 'prism.compiled_fb0',
 ]
 
 label_of_method = {
   'fattree14': '245 switches' ,
-  # 'fattree14_fb0': 'PNK (#f=0)',
+  'fattree16': '320 switches',
   # 'prism.compiled': 'PRISM',
   # 'prism.compiled_fb0': 'PRISM (#f=0)',
 }
 
 markers = {
   'fattree14' : 'o',
-  # 'fattree14_fb0' : '*',
+  'fattree16' : '*',
   # 'prism.compiled' : 's',
   # 'prism.compiled_fb0': 'X',
   # 'prism_approx' : 'D',
@@ -41,7 +41,7 @@ markers = {
 
 colors = {
   'fattree14' : 'darkgreen',
-  # 'fattree14_fb0' : 'orange',
+  'fattree16' : 'orange',
   # 'prism.compiled' : 'navy',
   # 'prism.compiled_fb0': 'red',
   # 'prism_approx' : 'purple',
@@ -107,8 +107,9 @@ def plot(data):
   # Customize plots
   ax.grid(alpha=0.2)
   plt.xlim(0, 100)
-  plt.ylim(0, 100)
-  ax.plot(ax.get_xlim(), ax.get_ylim(), ls="--", c=".3")
+  plt.ylim(0, 50)
+  # identity function
+  add_identity(ax, c='.3', ls='--')
   ax.spines['bottom'].set_color('#999999')
   ax.spines['top'].set_color('#999999') 
   ax.spines['right'].set_color('#999999')
@@ -120,6 +121,21 @@ def plot(data):
   leg.get_frame().set_alpha(0.9)
   f.close()
   plt.savefig('speedup.pdf', bbox_inches='tight')
+
+
+# https://stackoverflow.com/questions/22104256/does-matplotlib-have-a-function-for-drawing-diagonal-lines-in-axis-coordinates
+def add_identity(axes, *line_args, **line_kwargs):
+    identity, = axes.plot([], [], *line_args, **line_kwargs)
+    def callback(axes):
+        low_x, high_x = axes.get_xlim()
+        low_y, high_y = axes.get_ylim()
+        low = max(low_x, low_y)
+        high = min(high_x, high_y)
+        identity.set_data([low, high], [low, high])
+    callback(axes)
+    axes.callbacks.connect('xlim_changed', callback)
+    axes.callbacks.connect('ylim_changed', callback)
+    return axes
 
 
 def main():
