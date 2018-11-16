@@ -14,7 +14,7 @@ let parallelize = bool_of_string Sys.argv.(3)
 
 let () = begin
   let max_failures = -1 in
-  let failure_prob = Prob.(1//16) in
+  let failure_prob = Prob.(1//1000) in
   let timeout = 3600 in (* in seconds *)
   let topos = Int.Table.of_alist_exn [
       2, "./examples/output/abfattree_2_sw_5";

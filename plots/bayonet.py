@@ -25,8 +25,8 @@ methods = [
 
 label_of_method = {
   'bayonet' : 'Bayonet',
-  'probnetkat_false_true_24' : 'ProbNetKAT (cluster)',
-  'probnetkat_false_true_0' : 'ProbNetKAT',
+  'probnetkat_false_true_24' : 'PNK (cluster)',
+  'probnetkat_false_true_0' : 'PNK',
   'prism_exact' : 'Prism (exact)',
   'prism_approx' : 'Prism (approx)',
   'prism_exact.compiled' : 'PPNK (exact)',
@@ -136,7 +136,7 @@ def plot(data, methods):
 
   plt.xlabel("Number of switches")
   plt.ylabel("Time (seconds)")
-  leg = plt.legend(fancybox=True, loc='best')
+  leg = plt.legend(fancybox=True, bbox_to_anchor=(1, 1))
   leg.get_frame().set_alpha(0.9)
   f.close()
   plt.savefig('bayonet.pdf', bbox_inches='tight')
