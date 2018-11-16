@@ -89,8 +89,8 @@ def plot(data):
   ax.get_yaxis().tick_left() 
   ax.get_yaxis().set_ticks_position('both')
   ax.tick_params(axis='both', which='both', direction='in')
-  ax.set_xscale("log")
-  ax.set_yscale("log")
+  ax.set_xscale("log", nonposx='clip')
+  ax.set_yscale("log", nonposy='clip')
   for pt in data:
     times[pt['method']][pt['num_switches']].append(pt['time'])
   for method, sw_times in times.items():
@@ -115,8 +115,8 @@ def plot(data):
    
   # Customize plots
   ax.grid(alpha=0.2)
-  plt.xlim(1, 1000)
-  plt.ylim(1, 1100)
+  plt.xlim(40, 4000)
+  plt.ylim(2, 1100)
   ax.fill_between([0, 500], 3600, ax.get_ylim()[1], facecolor='red', alpha=0.2)
   ax.spines['bottom'].set_color('#999999')
   ax.spines['top'].set_color('#999999') 
