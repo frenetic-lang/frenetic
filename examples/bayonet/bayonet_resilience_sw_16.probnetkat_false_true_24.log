@@ -28,6 +28,6 @@ BrokenPipeError: [Errno 32] Broken pipe
 probability of delivery (precise): 15968023992001/16000000000000
 probability of delivery (approx): 0.998001
 
-real	0m37.678s
-user	0m44.832s
-sys	0m17.091s
+real	0m32.117s
+user	0m39.931s
+sys	0m14.244s

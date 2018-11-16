@@ -32778,6 +32778,6 @@ $ probnetkat.bayonet bayonet_resilience_sw_32768.dot false true
 probability of delivery (precise): 4790983606201519/288230376151711407
 probability of delivery (approx): 0.016622
 
-real	2m3.516s
-user	2m8.804s
-sys	0m18.417s
+real	1m59.999s
+user	2m6.876s
+sys	0m15.619s
