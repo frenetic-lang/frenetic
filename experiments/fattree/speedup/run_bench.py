@@ -48,8 +48,6 @@ def main():
       my_env.update(env)
       print("running with environment %s..." % str(env))
       run = subprocess.run(data['cmd'](k),
-                           stdout=subprocess.PIPE,
-                           stderr=subprocess.PIPE,
                            env=my_env
                            )
       print("return code: %d" % run.returncode)
