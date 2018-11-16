@@ -19,7 +19,7 @@ def main():
    # topos = [(len(nx.drawing.nx_pydot.read_dot(topo)), topo)
    #           for topo in glob.glob("../../examples/topozoo/*.dot")]
    # topos.sort(key=lambda x: x[0])
-   print(len(topos))
+   # print(len(topos))
    samples = sample(topos, 30)
    d = { t : size(t) for t in samples }
    print('\n'.join(["%d\t%d\t%s" % (d[t][0], d[t][1], t) for t in d]))
