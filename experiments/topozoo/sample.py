@@ -20,7 +20,7 @@ def main():
    #           for topo in glob.glob("../../examples/topozoo/*.dot")]
    # topos.sort(key=lambda x: x[0])
    # print(len(topos))
-   samples = sample(topos, 30)
+   samples = sample(topos, 120)
    d = { t : size(t) for t in samples }
    print('\n'.join(["%d\t%d\t%s" % (d[t][0], d[t][1], t) for t in d]))
 
