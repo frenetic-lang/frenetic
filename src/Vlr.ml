@@ -233,8 +233,8 @@ module Make(V:Value)(L:Lattice)(R:Result) = struct
     )
 
   let rec sum_k x y k =
-    let key = if x <= y then (x, y) else (y, x) in
-    BinTbl.find_or_add binary_cache key ~default:(fun () ->
+    (* let key = if x <= y then (x, y) else (y, x) in *)
+    (* BinTbl.find_or_add binary_cache key ~default:(fun () -> *)
       match T.unget x, T.unget y with
       | Leaf r, _      ->
         k (
@@ -257,6 +257,7 @@ module Make(V:Value)(L:Lattice)(R:Result) = struct
                   |> k
                 ))
           | -1 -> sum_k tx all_fls_y (fun t ->
+
                    sum_k fx y (fun f ->
                     mk_branch (vx,lx) t f
                     |> k
@@ -280,7 +281,7 @@ module Make(V:Value)(L:Lattice)(R:Result) = struct
                 ))
         |  _ -> assert false
         end
-    )
+    (* ) *)
 
   let sum x y =
     Hashtbl.clear binary_cache;
@@ -316,9 +317,62 @@ module Make(V:Value)(L:Lattice)(R:Result) = struct
         end
     )
 
+    let rec prod_k x y k =
+    (* let key = if x <= y then (x, y) else (y, x) in *)
+    (* BinTbl.find_or_add binary_cache key ~default:(fun () -> *)
+      match T.unget x, T.unget y with
+      | Leaf r, _      ->
+        k (
+          if R.is_one r then y
+          else if R.is_zero r then x
+          else map_r (fun y -> R.prod r y) y
+        )
+      | _     , Leaf r ->
+        k (
+          if R.is_one r then x
+          else if R.is_zero r then y
+          else map_r (fun x -> R.prod x r) x
+        )
+      | Branch {test=(vx, lx); tru=tx; fls=fx; all_fls=all_fls_x},
+        Branch {test=(vy, ly); tru=ty; fls=fy; all_fls=all_fls_y} ->
+        begin match V.compare vx vy with
+        |  0 ->
+          begin match L.compare lx ly with
+          | 0 -> prod_k tx ty (fun t ->
+                 prod_k fx fy (fun f ->
+                  mk_branch (vx,lx) t f
+                  |> k
+                ))
+          | -1 -> prod_k tx all_fls_y (fun t ->
+
+                   prod_k fx y (fun f ->
+                    mk_branch (vx,lx) t f
+                    |> k
+                  ))
+          |  1 -> prod_k all_fls_x ty (fun t ->
+                 prod_k x fy (fun f ->
+                  mk_branch (vy,ly) t f
+                  |> k
+                ))
+          |  _ -> assert false
+          end
+        | -1 -> prod_k tx y (fun t ->
+                 prod_k fx y (fun f ->
+                  mk_branch (vx,lx) t f
+                  |> k
+                ))
+        |  1 -> prod_k x ty (fun t ->
+                 prod_k x fy (fun f ->
+                  mk_branch (vy,ly) t f
+                  |> k
+                ))
+        |  _ -> assert false
+        end
+    (* ) *)
+
   let prod x y =
     Hashtbl.clear binary_cache;
-    prod' x y
+    prod_k x y Fn.id
 
 
   let childreen t =
