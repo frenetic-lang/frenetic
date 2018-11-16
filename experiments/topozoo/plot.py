@@ -74,7 +74,7 @@ def parse_output(folder):
     if result['topo'] not in size:
       # this topo does not belong to our sample
       continue
-    # print(result)
+    print(file)
     with open(file) as f:
       for l in f.readlines():
         realtime_line = re.match(r'real\t(?P<minutes>\d+)m(?P<seconds>\d+(\.\d*))s', l)
@@ -97,26 +97,27 @@ def plot(data):
   prism = [ (d['num_switches'], d['topo'], d['time']) for d in data if d['method']=="prism.compiled"]
   prism.sort()
   prism_x, prism_z, prism_y = zip(*prism)
-  plt.scatter(pnk_x,pnk_y,c='r', marker='X')
-  plt.scatter(prism_x,prism_y,c='b', marker='D')
+  plt.scatter(pnk_x,pnk_y,c='r', marker='x', label="ProbNetKAT")
+  plt.scatter(prism_x,prism_y,c='b', marker='.', label="Prism")
   ax = plt.gca()
-  ax.get_xaxis().tick_bottom()    
-  ax.get_xaxis().set_ticks_position('both')
-  ax.get_yaxis().tick_left() 
-  ax.get_yaxis().set_ticks_position('both')
   ax.tick_params(axis='both', which='both', direction='in')
-  ax.set_xscale("linear", nonposx='clip')
+  ax.set_xscale("log", nonposx='clip')
   ax.set_yscale("log", nonposy='clip')
+  plt.xlabel("Number of switches")
+  plt.ylabel("Time (seconds)")
+  leg = plt.legend(fancybox=True)
+  leg.get_frame().set_alpha(0.9)
+
+  ax.grid(alpha=0.2)
+  plt.xlim(1, 10000)
+  plt.ylim(1, 150)
   plt.savefig('topozoo.pdf', bbox_inches='tight')
 
   # dump data to file
   with open("topozoo.txt", "w+") as f:
     for pnk_pt, prism_pt in zip(pnk, prism):
-      print(pnk_pt)
       f.write('{1:25} {method:10} {0:4} {2:8}\n'.format(*pnk_pt, method='NetKAT'))
       f.write('{1:25} {method:10} {0:4} {2:8}\n'.format(*prism_pt, method='Prism'))
-      # f.write("netkat\t%d\t%f\n" % pnk_pt)
-      # f.write("prism\t%d\t%f\n" % prism_pt)
 
 
 def main():
