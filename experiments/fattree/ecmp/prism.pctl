@@ -1,0 +1,2 @@
+// by convention, state 0 is the unique accepting state
+P=? [ F (__state__ = 0) ]
