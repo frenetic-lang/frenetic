@@ -108,7 +108,7 @@ def plot(data):
   # Customize plots
   ax.grid(alpha=0.2)
   plt.xlim(0, 100)
-  plt.ylim(0, 50)
+  plt.ylim(0, 60)
   # identity function
   add_identity(ax, c='.3', ls='--')
   ax.spines['bottom'].set_color('#999999')
