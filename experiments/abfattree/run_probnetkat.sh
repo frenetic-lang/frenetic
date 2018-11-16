@@ -11,7 +11,7 @@ RN=${RN:-0} # remote workers - none by default
 SW=$(( ($K*$K*5)/4 ))
 TOPO_FILE="../../examples/output/abfattree_${K}_sw_${SW}.dot"
 
-NAME="f10_ab${K}.probnetkat_${RN}"
+NAME="f10_ab${K}.probnetkat_rn${RN}"
 CMD="$PNK $TOPO_FILE"
 export RN
 
