@@ -46,8 +46,8 @@ colors = {
   'probnetkat_rn0' : 'darkgreen',
   'probnetkat_rn0_fb0' : 'orange',
   # 'probnetkat_rn0_fb2' : 'purple',
-  'prism.compiled' : 'navy',
-  'prism.compiled_fb0': 'red',
+  'prism.compiled' : 'magenta',
+  'prism.compiled_fb0': 'navy',
   # 'prism_exact.compiled' : 'green',
   # 'prism_approx.compiled' : 'black',
 }
@@ -108,6 +108,8 @@ def plot(data):
     if ys[-1] >= 3599:
       ys = ys[:-1]
       xs = xs[:-1]
+    # remove first data point - it's kind of useless
+    xs, ys = xs[1:], ys[1:]
     errors = [time_std[method][x] for x in xs]
     plt.errorbar(xs, ys, yerr=errors, label = label_of_method[method],
                  marker=markers[method], color=colors[method], zorder=10)
@@ -118,8 +120,8 @@ def plot(data):
    
   # Customize plots
   ax.grid(alpha=0.2)
-  plt.xlim(40, 6000)
-  plt.ylim(2, 1100)
+  plt.xlim(40, 10000)
+  plt.ylim(1, 1300)
   ax.fill_between([0, 500], 3600, ax.get_ylim()[1], facecolor='red', alpha=0.2)
   ax.spines['bottom'].set_color('#999999')
   ax.spines['top'].set_color('#999999') 
@@ -128,7 +130,7 @@ def plot(data):
 
   plt.xlabel("Number of switches")
   plt.ylabel("Time (seconds)")
-  leg = plt.legend(fancybox=True, bbox_to_anchor=(1, 1))
+  leg = plt.legend(fancybox=True)
   leg.get_frame().set_alpha(0.9)
   f.close()
   plt.savefig('ecmp.pdf', bbox_inches='tight')

@@ -40,7 +40,7 @@ markers = {
 }
 
 colors = {
-  'fattree14' : 'darkgreen',
+  'fattree14' : 'navy',
   'fattree16' : 'orange',
   # 'prism.compiled' : 'navy',
   # 'prism.compiled_fb0': 'red',
