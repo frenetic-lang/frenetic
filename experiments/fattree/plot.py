@@ -28,23 +28,38 @@ PARAMS = [
 ]
 
 methods = {
-  'native' : {
-    'prism': 'False', 'dont_iterate': 'False',
+  'native (SPF)' : {
+    'prism': 'False', 'dont_iterate': 'False', 'scheme': 'SPF',
   },
-  'PRISM' : {
-    'prism': 'True'
-  }
+  # 'native (ECMP)' : {
+  #   'prism': 'False', 'dont_iterate': 'False', 'scheme': 'ECMP',
+  # },
+  # 'native (RW)' : {
+  #   'prism': 'False', 'dont_iterate': 'False', 'scheme': 'RW',
+  # },
+  'PRISM (SPF)' : {
+    'prism': 'True', 'scheme': 'SPF',
+  },
+  # 'PRISM (ECMP)' : {
+  #   'prism': 'True', 'scheme': 'ECMP',
+  # },
 }
 
 
 markers = {
-  'native' : 'o',
-  'PRISM' : 's',
+  'native (SPF)' : 'o',
+  'native (ECMP)': 'x',
+  'native (RW)': 'x',
+  'PRISM (SPF)' : 's',
+  'PRISM (ECMP)' : '+',
 }
 
 colors = {
-  'native' : 'navy',
-  'PRISM' : 'orange',
+  'native (SPF)' : 'navy',
+  'native (ECMP)' : 'green',
+  'native (RW)' : 'purple',
+  'PRISM (SPF)' : 'orange',
+  'PRISM (ECMP)' : 'black',
 }
 
 def parse_output(folder):
@@ -128,6 +143,7 @@ def plot(data):
       if all(pt[k] == v for k,v in filtr.items()):
         pt['method'] = method
         break
+  data = [pt for pt in data if 'method' in pt]
 
   # compute times
   times = defaultdict(lambda: defaultdict(list))
