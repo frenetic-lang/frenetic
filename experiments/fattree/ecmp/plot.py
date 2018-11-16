@@ -60,16 +60,18 @@ def parse_output(folder):
           result['time'] = minutes * 60 + seconds
           result['k'] = int(result['k'])
           result['num_switches'] = (5 * result['k']**2)/4
-          if result.get('fb') == -1:
+          if result.get('fb') == 'fb-1':
             result['fb'] = None
+          if result['fb'] is not None:
+            result['method'] += result['fb']
           results.append(result)
-          print(result)
+          # print(result)
           break
   return results
   
 
 def plot(data):
-  f = open("bayonet.txt", "w")
+  f = open("ecmp.txt", "w")
 
   times = defaultdict(lambda: defaultdict(list))
   time_mean = defaultdict(dict)
@@ -81,8 +83,8 @@ def plot(data):
   ax.get_yaxis().tick_left() 
   ax.get_yaxis().set_ticks_position('both')
   ax.tick_params(axis='both', which='both', direction='in')
-  ax.set_xscale("log", nonposx='clip')
-  ax.set_yscale("log", nonposy='clip')
+  ax.set_xscale("linear")
+  ax.set_yscale("linear")
   for pt in data:
     times[pt['method']][pt['num_switches']].append(pt['time'])
   for method, sw_times in times.items():
@@ -105,14 +107,11 @@ def plot(data):
     for idx in range(len(xs)):
       f.write(method + "\t" + str(xs[idx]) + "\t" + str(ys[idx]) + "\n") 
    
-  ax.text(400, 500, 'Time limit = 3600s', horizontalalignment='center', verticalalignment='center', color='gray')
-  ax.annotate("", xy=(400, 3600), xytext=(400, 1000), arrowprops=dict(arrowstyle="->", color='gray'))
-
   # Customize plots
   ax.grid(alpha=0.2)
-  plt.xlim(1, 200000)
-  plt.ylim(0.5, 10000)
-  ax.fill_between([0, 200000], 3600, ax.get_ylim()[1], facecolor='red', alpha=0.2)
+  plt.xlim(1, 330)
+  plt.ylim(1, 600)
+  ax.fill_between([0, 500], 3600, ax.get_ylim()[1], facecolor='red', alpha=0.2)
   ax.spines['bottom'].set_color('#999999')
   ax.spines['top'].set_color('#999999') 
   ax.spines['right'].set_color('#999999')
@@ -128,7 +127,7 @@ def plot(data):
 
 def main():
   data = parse_output(DATA_DIR)
-  # plot(data)
+  plot(data)
 
 if __name__ == "__main__":
     main()
