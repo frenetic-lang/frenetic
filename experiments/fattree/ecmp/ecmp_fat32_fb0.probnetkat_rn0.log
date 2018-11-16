@@ -1,5 +1,5 @@
 $ probnetkat.with_topo -fail-with 1/1000 -scheme ECMP -cps -fbound 0 ../../../examples/output/fattree_32_sw_1280.dot
-[compile server] /home/abilene/.opam/4.07.1+spacetime/lib/probnetkat/../../bin/probnetkat.rpc_compile_branch -order (F1 F0 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 Meta0 Meta1 Meta2 Meta3 Meta4 Meta5 Meta6 Meta7 Meta8 Meta9 Meta10 Meta11 Meta12 Meta13 Meta14 Meta15 Meta16 Meta17 Meta18 Meta19) -cps true -j 32 -rj 32
+[compile server] /home/abilene/.opam/4.07.1+flambda/lib/probnetkat/../../bin/probnetkat.rpc_compile_branch -order (F1 F0 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 Meta0 Meta1 Meta2 Meta3 Meta4 Meta5 Meta6 Meta7 Meta8 Meta9 Meta10 Meta11 Meta12 Meta13 Meta14 Meta15 Meta16 Meta17 Meta18 Meta19) -cps true -j 32 -rj 32
 [compile server] read: input 1 ... received.
 [compile server] read: input 2 ... received.
 [compile server] read: input 3 ... received.
@@ -1287,18 +1287,18 @@ $ probnetkat.with_topo -fail-with 1/1000 -scheme ECMP -cps -fbound 0 ../../../ex
 start sending fdds as matrices to python...
 start sending ap...
 start naive fixpoint...
---> sending ap done! 2.476956 seconds
+--> sending ap done! 2.895254 seconds
 start sending not_a...
---> sending not_a done! 0.293237 seconds
---> sending fdds as matrices to python done! 2.770305 seconds
+--> sending not_a done! 0.276180 seconds
+--> sending fdds as matrices to python done! 3.171486 seconds
 *** python won race!
 start receive result from python...
---> receive result from python done! 0.764168 seconds
+--> receive result from python done! 0.719228 seconds
 start matrix -> fdd conversion...
---> matrix -> fdd conversion done! 2.595911 seconds
+--> matrix -> fdd conversion done! 1.009247 seconds
 E[delivered] = 1/1
 E[delivered] ≈ 1.000000
 
-real	0m48.190s
-user	0m49.898s
-sys	0m7.521s
+real	0m28.411s
+user	0m34.163s
+sys	0m4.451s
