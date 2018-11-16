@@ -77,10 +77,12 @@ def parse_output(folder):
 def plot(data):
   f = open("speedup.txt", "w")
 
-  times = defaultdict(lambda: defaultdict(list))
-  time_mean = defaultdict(dict)
-  time_std = defaultdict(dict)
-  plt.figure(figsize=(6,3))
+  t0 = max(pt['time'] for pt in data)
+  for pt in data:
+    pt['speedup'] = t0/pt['time']
+
+  speedups = defaultdict(dict)
+  plt.figure(figsize=(5,3))
   ax = plt.subplot(111)    
   ax.get_xaxis().tick_bottom()    
   ax.get_xaxis().set_ticks_position('both')
@@ -90,21 +92,12 @@ def plot(data):
   ax.set_xscale("linear", nonposx='clip')
   ax.set_yscale("linear", nonposy='clip')
   for pt in data:
-    times[pt['method']][pt['num_cores']].append(pt['time'])
-  for method, sw_times in times.items():
-    if method in methods:
-      for sw, time_vals in sw_times.items():
-        time_mean[method][sw] = np.mean(time_vals)
-        time_std[method][sw] = np.std(time_vals)
+    speedups[pt['method']][pt['num_cores']] = pt['speedup']
 
-  for method, sw_times in sorted(time_mean.items()):
-    sorted_pts = sorted(sw_times.items())
+  for method, sw_speedups in sorted(speedups.items()):
+    sorted_pts = sorted(sw_speedups.items())
     xs, ys = zip(*sorted_pts)
-    if ys[-1] >= 3599:
-      ys = ys[:-1]
-      xs = xs[:-1]
-    errors = [time_std[method][x] for x in xs]
-    plt.errorbar(xs, ys, yerr=errors, label = label_of_method[method],
+    plt.errorbar(xs, ys, label=label_of_method[method],
                  marker=markers[method], color=colors[method], zorder=10)
 
     # Also dump data to a file
@@ -114,15 +107,15 @@ def plot(data):
   # Customize plots
   ax.grid(alpha=0.2)
   plt.xlim(0, 100)
-  plt.ylim(0, 500)
-  ax.fill_between([0, 500], 3600, ax.get_ylim()[1], facecolor='red', alpha=0.2)
+  plt.ylim(0, 100)
+  ax.plot(ax.get_xlim(), ax.get_ylim(), ls="--", c=".3")
   ax.spines['bottom'].set_color('#999999')
   ax.spines['top'].set_color('#999999') 
   ax.spines['right'].set_color('#999999')
   ax.spines['left'].set_color('#999999')
 
   plt.xlabel("Number of cores")
-  plt.ylabel("Time (seconds)")
+  plt.ylabel("Speedup")
   leg = plt.legend(fancybox=True, bbox_to_anchor=(1, 1))
   leg.get_frame().set_alpha(0.9)
   f.close()
