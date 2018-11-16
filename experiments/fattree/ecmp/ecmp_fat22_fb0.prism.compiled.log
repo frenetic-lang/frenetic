@@ -1,0 +1,55 @@
+$ prism 22.pm prism.pctl -maxiters 1000000
+PRISM
+=====
+
+Version: 4.4
+Date: Fri Nov 16 02:16:22 EST 2018
+Hostname: atlas-18
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism 22.pm prism.pctl -maxiters 1000000
+
+Parsing model file "22.pm"...
+
+Parsing properties file "prism.pctl"...
+
+1 property:
+(1) P=? [ F (__state__=0) ]
+
+Type:        DTMC
+Modules:     ProbNetKAT 
+Variables:   __state__ pt sw 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F (__state__=0) ]
+
+Building model...
+
+Computing reachable states...
+
+Reachability (BFS): 16 iterations in 0.31 seconds (average 0.019500, setup 0.00)
+
+Time for model construction: 62.736 seconds.
+
+Type:        DTMC
+States:      29250 (1 initial)
+Transitions: 83820
+
+Transition matrix: 106831 nodes (4 terminal), 83820 minterms, vars: 26r/26c
+
+Prob0: 19 iterations in 0.10 seconds (average 0.005474, setup 0.00)
+
+Prob1: 1 iterations in 0.00 seconds (average 0.003000, setup 0.00)
+
+yes = 29250, no = 0, maybe = 0
+
+Value in the initial state: 1.0
+
+Time for model checking: 0.114 seconds.
+
+Result: 1.0 (value in the initial state)
+
+
+real	1m5.609s
+user	1m13.041s
+sys	0m2.206s
