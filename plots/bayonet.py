@@ -44,12 +44,12 @@ markers = {
 }
 
 colors = {
-  'bayonet' : 'darkgreen',
-  'probnetkat_false_true_24' : 'navy',
+  'bayonet' : 'c',
+  'probnetkat_false_true_24' : 'green',
   'probnetkat_false_true_0' : 'orange',
   'prism_exact' : 'red',
   'prism_approx' : 'purple',
-  'prism_exact.compiled' : 'green',
+  'prism_exact.compiled' : 'navy',
   'prism_approx.compiled' : 'black',
 }
 
@@ -127,7 +127,7 @@ def plot(data, methods):
   # Customize plots
   ax.grid(alpha=0.2)
   plt.xlim(1, 200000)
-  plt.ylim(0.5, 10000)
+  plt.ylim(0.5, 4500)
   ax.fill_between([0, 200000], 3600, ax.get_ylim()[1], facecolor='red', alpha=0.2)
   ax.spines['bottom'].set_color('#999999')
   ax.spines['top'].set_color('#999999') 
