@@ -4,10 +4,10 @@
 #
 make && make install
 for I in {24..1}; do
-  ssh "abilene@atlas-$I" /bin/bash << EOF
+  ssh "abilene@atlas-$I" /bin/bash << 'EOF'
 sudo apt install memlockd
 memlockd
-if grep -Fxy "ulimit" ~/.bash_profile; then
+if grep -q ulimit ~/.bash_profile; then
   true  # already set
 else
   echo -e "\n# increase stack size\nulimit -S -s 131072\n" >> ~/.bash_profile
