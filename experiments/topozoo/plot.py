@@ -67,7 +67,6 @@ def parse_output(folder):
 
   results = []
   for file in glob(os.path.join(folder, '*.log')):
-    print (file)
     params = re.match(r'^[^\w]*(?P<topo>[^.]+)\.(?P<method>.+)\.log$', file)
     if params is None:
       raise Exception ("Could not parse file name: " + file)
@@ -86,69 +85,25 @@ def parse_output(folder):
           result['num_switches'] = size[result['topo']][0]
           result['num_edges'] = size[result['topo']][1]
           results.append(result)
-          print(result)
           break
   return results
   
 
 def plot(data):
-  f = open("ecmp.txt", "w")
-
-  times = defaultdict(lambda: defaultdict(list))
-  time_mean = defaultdict(dict)
-  time_std = defaultdict(dict)
-  plt.figure(figsize=(6,3))
-  ax = plt.subplot(111)    
-  ax.get_xaxis().tick_bottom()    
-  ax.get_xaxis().set_ticks_position('both')
-  ax.get_yaxis().tick_left() 
-  ax.get_yaxis().set_ticks_position('both')
-  ax.tick_params(axis='both', which='both', direction='in')
-  ax.set_xscale("log", nonposx='clip')
-  ax.set_yscale("log", nonposy='clip')
-  for pt in data:
-    times[pt['method']][pt['num_switches']].append(pt['time'])
-  for method, sw_times in times.items():
-    if method in methods:
-      for sw, time_vals in sw_times.items():
-        time_mean[method][sw] = np.mean(time_vals)
-        time_std[method][sw] = np.std(time_vals)
-
-  for method, sw_times in sorted(time_mean.items()):
-    sorted_pts = sorted(sw_times.items())
-    xs, ys = zip(*sorted_pts)
-    if ys[-1] >= 3599:
-      ys = ys[:-1]
-      xs = xs[:-1]
-    errors = [time_std[method][x] for x in xs]
-    plt.errorbar(xs, ys, yerr=errors, label = label_of_method[method],
-                 marker=markers[method], color=colors[method], zorder=10)
-
-    # Also dump data to a file
-    for idx in range(len(xs)):
-      f.write(method + "\t" + str(xs[idx]) + "\t" + str(ys[idx]) + "\n") 
-   
-  # Customize plots
-  ax.grid(alpha=0.2)
-  plt.xlim(40, 6000)
-  plt.ylim(2, 1100)
-  ax.fill_between([0, 500], 3600, ax.get_ylim()[1], facecolor='red', alpha=0.2)
-  ax.spines['bottom'].set_color('#999999')
-  ax.spines['top'].set_color('#999999') 
-  ax.spines['right'].set_color('#999999')
-  ax.spines['left'].set_color('#999999')
-
-  plt.xlabel("Number of switches")
-  plt.ylabel("Time (seconds)")
-  leg = plt.legend(fancybox=True, bbox_to_anchor=(1, 1))
-  leg.get_frame().set_alpha(0.9)
-  f.close()
-  plt.savefig('ecmp.pdf', bbox_inches='tight')
-
+  plt.figure()
+  pnk = [ (d['num_switches'], d['time']) for d in data if d['method']=="probnetkat"]
+  pnk_x = [ x for (x,y) in pnk]
+  pnk_y = [ y for (x,y) in pnk]
+  prism = [ (d['num_switches'], d['time']) for d in data if d['method']=="prism.compiled"]
+  prism_x = [ x for (x,y) in prism]
+  prism_y = [ y for (x,y) in prism]
+  plt.scatter(pnk_x,pnk_y,c='r', marker='x')
+  plt.scatter(prism_x,prism_y,c='b', marker='s')
+  plt.savefig('topozoo.pdf', bbox_inches='tight')
 
 def main():
   data = parse_output(DATA_DIR)
-  # plot(data)
+  plot(data)
 
 if __name__ == "__main__":
     main()
