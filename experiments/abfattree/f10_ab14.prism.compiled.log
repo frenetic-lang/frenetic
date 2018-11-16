@@ -1,0 +1,97 @@
+$ prism 14.pm prism.pctl -maxiters 1000000
+PRISM
+=====
+
+Version: 4.4
+Date: Fri Nov 16 00:17:06 EST 2018
+Hostname: atlas-16
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism 14.pm prism.pctl -maxiters 1000000
+
+Parsing model file "14.pm"...
+
+Parsing properties file "prism.pctl"...
+
+1 property:
+(1) P=? [ F (__state__=0) ]
+
+Type:        DTMC
+Modules:     ProbNetKAT 
+Variables:   __state__ f10s2 pt sw up_0 up_1 up_10 up_11 up_12 up_13 up_2 up_3 up_4 up_5 up_6 up_7 up_8 up_9 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F (__state__=0) ]
+
+Building model...
+
+Computing reachable states...
+
+Reachability (BFS): 71 iterations in 1.80 seconds (average 0.025408, setup 0.00)
+
+Time for model construction: 1893.932 seconds.
+
+Type:        DTMC
+States:      232552965 (1 initial)
+Transitions: 797493249
+
+Transition matrix: 280332 nodes (7 terminal), 797493249 minterms, vars: 41r/41c
+
+Prob0: 73 iterations in 2.45 seconds (average 0.033562, setup 0.00)
+
+Prob1: 32 iterations in 3.64 seconds (average 0.113875, setup 0.00)
+
+yes = 1605646, no = 4087304, maybe = 226860015
+
+Computing remaining probabilities...
+Engine: Hybrid
+
+Building hybrid MTBDD matrix... [levels=41, nodes=349402] [16.0 MB]
+Adding explicit sparse matrices... [levels=10, num=932, compact] [989.0 KB]
+Creating vector for diagonals... [dist=3, compact] [443.6 MB]
+Creating vector for RHS... [dist=2, compact] [443.6 MB]
+Allocating iteration vectors... [2 x 1.7 GB]
+TOTAL: [4.3 GB]
+
+Starting iterations...
+Iteration 2: max relative diff=1.000000, 7.42 sec so far
+Iteration 4: max relative diff=1.000000, 14.90 sec so far
+Iteration 6: max relative diff=1.000000, 22.38 sec so far
+Iteration 8: max relative diff=1.000000, 29.87 sec so far
+Iteration 10: max relative diff=1.000000, 37.35 sec so far
+Iteration 12: max relative diff=1.000000, 44.83 sec so far
+Iteration 14: max relative diff=1.000000, 52.31 sec so far
+Iteration 16: max relative diff=1.000000, 59.79 sec so far
+Iteration 18: max relative diff=1.000000, 67.28 sec so far
+Iteration 20: max relative diff=1.000000, 74.78 sec so far
+Iteration 22: max relative diff=1.000000, 82.26 sec so far
+Iteration 24: max relative diff=1.000000, 89.74 sec so far
+Iteration 26: max relative diff=1.000000, 97.22 sec so far
+Iteration 28: max relative diff=1.000000, 104.70 sec so far
+Iteration 30: max relative diff=1.000000, 112.19 sec so far
+Iteration 32: max relative diff=1.000000, 119.67 sec so far
+Iteration 34: max relative diff=1.000000, 127.15 sec so far
+Iteration 36: max relative diff=1.000000, 134.65 sec so far
+Iteration 38: max relative diff=1.000000, 142.29 sec so far
+Iteration 40: max relative diff=1.000000, 150.00 sec so far
+Iteration 42: max relative diff=1.000000, 157.71 sec so far
+Iteration 44: max relative diff=1.000000, 165.43 sec so far
+Iteration 46: max relative diff=1.000000, 173.15 sec so far
+Iteration 48: max relative diff=1.000000, 180.87 sec so far
+Iteration 50: max relative diff=1.000000, 188.58 sec so far
+Iteration 52: max relative diff=1.000000, 196.30 sec so far
+Iteration 54: max relative diff=1.000000, 204.02 sec so far
+Iteration 56: max relative diff=1.000000, 211.74 sec so far
+Iteration 58: max relative diff=1.000000, 219.56 sec so far
+Iteration 60: max relative diff=1.000000, 227.41 sec so far
+Iteration 62: max relative diff=1.000000, 235.26 sec so far
+Iteration 64: max relative diff=1.000000, 243.11 sec so far
+Iteration 66: max relative diff=1.000000, 250.94 sec so far
+Iteration 68: max relative diff=0.105127, 258.78 sec so far
+Iteration 70: max relative diff=0.062902, 266.61 sec so far
+Iteration 72: max relative diff=0.039852, 274.43 sec so far
+Iteration 74: max relative diff=0.026087, 282.22 sec so far
+
+real	60m3.071s
+user	0m0.004s
+sys	0m0.005s

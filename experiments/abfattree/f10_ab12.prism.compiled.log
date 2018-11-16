@@ -1,0 +1,80 @@
+$ prism 12.pm prism.pctl -maxiters 1000000
+PRISM
+=====
+
+Version: 4.4
+Date: Thu Nov 15 23:19:19 EST 2018
+Hostname: atlas-16
+Memory limits: cudd=1g, java(heap)=964.5m
+Command line: prism 12.pm prism.pctl -maxiters 1000000
+
+Parsing model file "12.pm"...
+
+Parsing properties file "prism.pctl"...
+
+1 property:
+(1) P=? [ F (__state__=0) ]
+
+Type:        DTMC
+Modules:     ProbNetKAT 
+Variables:   __state__ f10s2 pt sw up_0 up_1 up_10 up_11 up_2 up_3 up_4 up_5 up_6 up_7 up_8 up_9 
+
+---------------------------------------------------------------------
+
+Model checking: P=? [ F (__state__=0) ]
+
+Building model...
+
+Computing reachable states...
+
+Reachability (BFS): 64 iterations in 0.85 seconds (average 0.013359, setup 0.00)
+
+Time for model construction: 596.511 seconds.
+
+Type:        DTMC
+States:      33200263 (1 initial)
+Transitions: 99068724
+
+Transition matrix: 168731 nodes (7 terminal), 99068724 minterms, vars: 38r/38c
+
+Prob0: 67 iterations in 1.22 seconds (average 0.018209, setup 0.00)
+
+Prob1: 29 iterations in 1.52 seconds (average 0.052345, setup 0.00)
+
+yes = 396300, no = 1012778, maybe = 31791185
+
+Computing remaining probabilities...
+Engine: Hybrid
+
+Building hybrid MTBDD matrix... [levels=38, nodes=196953] [9.0 MB]
+Adding explicit sparse matrices... [levels=10, num=494, compact] [745.4 KB]
+Creating vector for diagonals... [dist=3, compact] [63.3 MB]
+Creating vector for RHS... [dist=2, compact] [63.3 MB]
+Allocating iteration vectors... [2 x 253.3 MB]
+TOTAL: [643.0 MB]
+
+Starting iterations...
+Iteration 10: max relative diff=1.000000, 5.04 sec so far
+Iteration 20: max relative diff=1.000000, 10.09 sec so far
+Iteration 30: max relative diff=1.000000, 15.14 sec so far
+Iteration 40: max relative diff=1.000000, 20.32 sec so far
+Iteration 50: max relative diff=1.000000, 25.54 sec so far
+Iteration 60: max relative diff=0.286530, 30.83 sec so far
+Iteration 70: max relative diff=0.007553, 36.17 sec so far
+Iteration 80: max relative diff=0.000996, 41.64 sec so far
+Iteration 90: max relative diff=0.000996, 47.00 sec so far
+Iteration 100: max relative diff=0.000037, 52.26 sec so far
+Iteration 110: max relative diff=0.000004, 57.62 sec so far
+
+Jacobi: 117 iterations in 72.12 seconds (average 0.524154, setup 10.80)
+
+Value in the initial state: 0.9989990713521155
+
+Time for model checking: 75.619 seconds.
+
+Result: 0.9989990713521155 (value in the initial state)
+
+
+real	11m16.705s
+user	11m58.531s
+sys	0m5.114s

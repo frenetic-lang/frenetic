@@ -1,0 +1,69 @@
+$ probnetkat.with_topo -fail-with 1/1000 -scheme F10 -cps ../../examples/output/abfattree_6_sw_45.dot
+[compile server] /home/abilene/.opam/4.07.1/lib/probnetkat/../../bin/probnetkat.rpc_compile_branch -order (F1 F0 Meta0 Meta2 Meta4 Meta5 Meta1 Meta3 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 Meta6 Meta7 Meta8 Meta9 Meta10 Meta11 Meta12 Meta13 Meta14 Meta15 Meta16 Meta17 Meta18 Meta19) -cps true -j 32 -rj 32
+[compile server] read: input 1 ... received.
+[compile server] read: input 2 ... received.
+[compile server] read: input 3 ... received.
+[compile server] read: input 4 ... received.
+[compile server] read: input 5 ... received.
+[compile server] read: input 6 ... received.
+[compile server] read: input 7 ... received.
+[compile server] read: input 8 ... received.
+[compile server] read: input 9 ... received.
+[compile server] read: input 10 ... received.
+[compile server] read: input 11 ... received.
+[compile server] read: input 12 ... received.
+[compile server] read: input 13 ... received.
+[compile server] read: input 14 ... received.
+[compile server] read: input 15 ... received.
+[compile server] read: input 16 ... received.
+[compile server] read: input 17 ... received.
+[compile server] read: input 18 ... received.
+[compile server] read: input 19 ... received.
+[compile server] read: input 20 ... received.
+[compile server] read: input 21 ... received.
+[compile server] read: input 22 ... received.
+[compile server] read: input 23 ... received.
+[compile server] read: input 24 ... received.
+[compile server] read: input 25 ... received.
+[compile server] read: input 26 ... received.
+[compile server] read: input 27 ... received.
+[compile server] read: input 28 ... received.
+[compile server] read: input 29 ... received.
+[compile server] read: input 30 ... received.
+[compile server] read: input 31 ... received.
+[compile server] read: input 32 ... received.
+[compile server] read: input 33 ... received.
+[compile server] read: input 34 ... received.
+[compile server] read: input 35 ... received.
+[compile server] read: input 36 ... received.
+[compile server] read: input 37 ... received.
+[compile server] read: input 38 ... received.
+[compile server] read: input 39 ... received.
+[compile server] read: input 40 ... received.
+[compile server] read: input 41 ... received.
+[compile server] read: input 42 ... received.
+[compile server] read: input 43 ... received.
+[compile server] read: input 44 ... received.
+[compile server] read: input 45 ... eof.
+[compile server] -> all inputs received!
+[compile server] sending back result...
+[compile server] -> done.
+[compile server] Shutting down. Bye.
+start sending fdds as matrices to python...
+start sending ap...
+start naive fixpoint...
+--> sending ap done! 0.020156 seconds
+start sending not_a...
+--> sending not_a done! 0.002538 seconds
+--> sending fdds as matrices to python done! 0.022757 seconds
+*** python won race!
+start receive result from python...
+--> receive result from python done! 0.075577 seconds
+start matrix -> fdd conversion...
+--> matrix -> fdd conversion done! 0.153962 seconds
+E[delivered] = 1119587328360308638765329917049548629613088350907625842606005541613127165983383303954323183445557789515749056/1120708039499092845767144332885707397249973544262292771470625728533418702645344777650666995099942223260990695
+E[delivered] ≈ 0.999000
+
+real	0m4.343s
+user	0m4.257s
+sys	0m3.216s
