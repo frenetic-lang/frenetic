@@ -63,7 +63,7 @@ def parse_output(folder):
       n, m, topo = line.split()
       topo = os.path.basename(topo)
       topo = os.path.splitext(topo)[0]
-      size[topo] = (n,m)
+      size[topo] = (int(n),int(m))
 
   results = []
   for file in glob(os.path.join(folder, '*.log')):
@@ -91,20 +91,37 @@ def parse_output(folder):
 
 def plot(data):
   plt.figure()
-  pnk = [ (d['num_switches'], d['time']) for d in data if d['method']=="probnetkat"]
-  pnk_x = [ x for (x,y) in pnk]
-  pnk_y = [ y for (x,y) in pnk]
-  prism = [ (d['num_switches'], d['time']) for d in data if d['method']=="prism.compiled"]
-  prism_x = [ x for (x,y) in prism]
-  prism_y = [ y for (x,y) in prism]
-  plt.scatter(pnk_x,pnk_y,c='r', marker='x')
-  plt.scatter(prism_x,prism_y,c='b', marker='s')
+  pnk = [ (d['num_switches'], d['topo'], d['time']) for d in data if d['method']=="probnetkat"]
+  pnk.sort()
+  pnk_x, pnk_z, pnk_y = zip(*pnk)
+  prism = [ (d['num_switches'], d['topo'], d['time']) for d in data if d['method']=="prism.compiled"]
+  prism.sort()
+  prism_x, prism_z, prism_y = zip(*prism)
+  plt.scatter(pnk_x,pnk_y,c='r', marker='X')
+  plt.scatter(prism_x,prism_y,c='b', marker='D')
   ax = plt.gca()
-  ax.set_yscale('log')
+  ax.get_xaxis().tick_bottom()    
+  ax.get_xaxis().set_ticks_position('both')
+  ax.get_yaxis().tick_left() 
+  ax.get_yaxis().set_ticks_position('both')
+  ax.tick_params(axis='both', which='both', direction='in')
+  ax.set_xscale("linear", nonposx='clip')
+  ax.set_yscale("log", nonposy='clip')
   plt.savefig('topozoo.pdf', bbox_inches='tight')
+
+  # dump data to file
+  with open("topozoo.txt", "w+") as f:
+    for pnk_pt, prism_pt in zip(pnk, prism):
+      print(pnk_pt)
+      f.write('{1:25} {method:10} {0:4} {2:8}\n'.format(*pnk_pt, method='NetKAT'))
+      f.write('{1:25} {method:10} {0:4} {2:8}\n'.format(*prism_pt, method='Prism'))
+      # f.write("netkat\t%d\t%f\n" % pnk_pt)
+      # f.write("prism\t%d\t%f\n" % prism_pt)
+
 
 def main():
   data = parse_output(DATA_DIR)
+  # print(data)
   plot(data)
 
 if __name__ == "__main__":

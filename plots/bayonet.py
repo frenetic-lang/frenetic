@@ -81,7 +81,7 @@ def plot(data, methods):
   times = defaultdict(lambda: defaultdict(list))
   time_mean = defaultdict(dict)
   time_std = defaultdict(dict)
-  plt.figure(figsize=(6,3))
+  plt.figure(figsize=(4.5,3))
   ax = plt.subplot(111)    
   ax.get_xaxis().tick_bottom()    
   ax.get_xaxis().set_ticks_position('both')
