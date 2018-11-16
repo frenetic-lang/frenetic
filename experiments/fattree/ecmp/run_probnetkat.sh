@@ -12,7 +12,7 @@ RN=${RN:-0} # remote workers - none by default
 SW=$(( ($K*$K*5)/4 ))
 TOPO_FILE="../../../examples/output/fattree_${K}_sw_${SW}.dot"
 
-NAME="ecmp_fat${K}.probnetkat_fb${FAILURE_BOUND}_rn${RN}"
+NAME="ecmp_fat${K}_fb${FAILURE_BOUND}.probnetkat_rn${RN}"
 CMD="$PNK $TOPO_FILE"
 export RN
 
