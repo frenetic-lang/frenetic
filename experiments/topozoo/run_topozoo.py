@@ -67,9 +67,11 @@ def logfile(settings):
 def prismfile(settings):
   return "%s.pm" % identifier(settings)
 
+def wrap_cmd(cmd):
+  return ['timeout', '-k', '0', str(TIMEOUT)] + cmd
+
 def run_pnk(cmd, log):
-  subprocess.run(cmd,
-                 timeout=TIMEOUT,
+  subprocess.run(wrap_cmd(cmd),
                  check=True,
                  stdout=log, 
                  stderr=log)
@@ -78,16 +80,14 @@ def run_pnk(cmd, log):
 def run_prism(settings, pnk_cmd, log):
   prism_file = prismfile(settings)
   with open(prism_file, 'w+') as f:
-    subprocess.run(pnk_cmd,
-                   timeout=TIMEOUT,
+    subprocess.run(wrap_cmd(pnk_cmd),
                    check=True,
                    stdout=f,
                    stderr=log)
   cmd = prism_cmd(prism_file)
   print(' '.join(cmd))
   log.write(' '.join(cmd))
-  subprocess.run(cmd,
-                 timeout=TIMEOUT,
+  subprocess.run(wrap_cmd(cmd),
                  check=True,
                  stdout=log,
                  stderr=log)
@@ -116,9 +116,13 @@ def run_with_settings(settings):
       msg = "TIME: %f.\n" % (t1 - t0)
       success = True
     except subprocess.TimeoutExpired:
-      msg = "TIMEOUT: %d seconds.\n" % TIMEOUT
+      raise Exception("impossible - we didn't set a timeout")
     except subprocess.CalledProcessError as e:
-      msg = "ERROR: %d.\n" % e.returncode
+      # see https://www.gnu.org/software/coreutils/manual/html_node/timeout-invocation.html
+      if e.returncode == 124 or e.returncode == 137:
+        msg = "TIMEOUT: %d seconds.\n" % TIMEOUT
+      else:
+        msg = "ERROR: %d.\n" % e.returncode
     finally:
       log.write("\n%s\n" % msg)
       log.close()
