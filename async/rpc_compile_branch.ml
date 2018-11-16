@@ -69,7 +69,13 @@ let cmd =
       eprintf "[compile server] %s\n%!"
         (Sys.argv |> Array.to_list |> String.concat ~sep:" ");
       let wdir = "/tmp/" in
-      let exe = Filename.(concat wdir (basename [%here].Lexing.pos_fname)) in
+      let exe =
+        [%here].Lexing.pos_fname
+        |> Filename.basename
+        |> Filename.chop_extension
+        |> (^) "probnetkat."
+        |> Filename.concat wdir
+      in
       let order = [%of_sexp: Symbolic.Field.t list] order in
       let param = T.Param.{ bound; order; cps; parallelize } in
       let local = match j with
