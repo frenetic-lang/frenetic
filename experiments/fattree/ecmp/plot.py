@@ -17,15 +17,17 @@ DATA_DIR = "."
 
 methods = [
   'probnetkat_rn0',
+  'prism.compiled'
 ]
 
 label_of_method = {
   'probnetkat_rn0': 'PNK' ,
+  'prism.compiled': 'PRISM',
 }
 
 markers = {
   'probnetkat_rn0' : 'o',
-  # 'probnetkat_false_true_24' : 's',
+  'prism.compiled' : 's',
   # 'probnetkat_false_true_0' : '*',
   # 'prism_exact': 'X',
   # 'prism_approx' : 'D',
@@ -35,7 +37,7 @@ markers = {
 
 colors = {
   'probnetkat_rn0' : 'darkgreen',
-  # 'probnetkat_false_true_24' : 'navy',
+  'prism.compiled' : 'navy',
   # 'probnetkat_false_true_0' : 'orange',
   # 'prism_exact' : 'red',
   # 'prism_approx' : 'purple',
@@ -84,7 +86,7 @@ def plot(data):
   ax.get_yaxis().set_ticks_position('both')
   ax.tick_params(axis='both', which='both', direction='in')
   ax.set_xscale("linear")
-  ax.set_yscale("linear")
+  ax.set_yscale("log")
   for pt in data:
     times[pt['method']][pt['num_switches']].append(pt['time'])
   for method, sw_times in times.items():
@@ -110,7 +112,7 @@ def plot(data):
   # Customize plots
   ax.grid(alpha=0.2)
   plt.xlim(1, 330)
-  plt.ylim(1, 600)
+  plt.ylim(1, 1100)
   ax.fill_between([0, 500], 3600, ax.get_ylim()[1], facecolor='red', alpha=0.2)
   ax.spines['bottom'].set_color('#999999')
   ax.spines['top'].set_color('#999999') 
