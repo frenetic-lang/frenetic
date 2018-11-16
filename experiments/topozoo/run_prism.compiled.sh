@@ -17,6 +17,6 @@ CMD="$PRISM $PRISM_FILE prism.pctl -maxiters 1000000"
 
 
 # SJS: it would be better to make this part of the CMD, but that's tricky.
-$PNK $TOPO_FILE > $PRISM_FILE
+$PNK $DOT_FILE > $PRISM_FILE
 source bench.sh
 bench
