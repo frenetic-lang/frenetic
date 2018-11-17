@@ -89,16 +89,22 @@ def parse_output(folder):
   return results
   
 
+def lookup_prism(topo, data):
+  prism = [ d['time'] for d in data if d['topo'] == topo and d['method'] == 'prism.compiled']
+  print (topo + str(prism))
+  if len(prism) > 0:
+    return prism[0]
+  else:
+    return -1
+
 def plot(data):
   plt.figure()
-  pnk = [ (d['num_switches'], d['time']) for d in data if d['method']=="probnetkat"]
-  pnk_x = [ x for (x,y) in pnk]
-  pnk_y = [ y for (x,y) in pnk]
-  prism = [ (d['num_switches'], d['time']) for d in data if d['method']=="prism.compiled"]
-  prism_x = [ x for (x,y) in prism]
-  prism_y = [ y for (x,y) in prism]
-  plt.scatter(pnk_x,pnk_y,c='r', marker='x')
-  plt.scatter(prism_x,prism_y,c='b', marker='s')
+  pnk = [ (d['num_switches'], d['time'], d['topo']) for d in data if d['method']=="probnetkat"]
+  x = [ x for (x,_,_) in pnk]
+  y = [ lookup_prism(topo,data) / y for (_,y,topo) in pnk]
+  ax = plt.subplot(111)    
+  ax.set_yscale("log", nonposy='clip')
+  plt.scatter(x,y,c='r', marker='o')
   plt.savefig('topozoo.pdf', bbox_inches='tight')
 
 def main():

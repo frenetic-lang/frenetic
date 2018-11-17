@@ -136,7 +136,7 @@ def plot(data, methods):
 
   plt.xlabel("Number of switches")
   plt.ylabel("Time (seconds)")
-  leg = plt.legend(fancybox=True, bbox_to_anchor=(1, 1))
+  leg = plt.legend(fancybox=True, ncol=3,bbox_to_anchor=(1, -.2))
   leg.get_frame().set_alpha(0.9)
   f.close()
   plt.savefig('bayonet.pdf', bbox_inches='tight')
