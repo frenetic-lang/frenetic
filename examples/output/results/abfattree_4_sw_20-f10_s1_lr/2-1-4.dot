@@ -1,0 +1,47 @@
+digraph tdk {
+4345 [label="sw = 2"];
+4345 -> 4330;
+4345 -> 4343 [style="dashed"];
+4330 [label="pt = 0"];
+4330 -> 4246;
+4330 -> 4275 [style="dashed"];
+4246 [shape=box label="{ [sw := 1, pt := 2, f10s2 := 0] @ 1/2; [sw := 1, pt := 3, f10s2 := 0] @ 1/2 } x { [failures := 0] @ 1 }"];
+4275 [label="pt = 1"];
+4275 -> 4246;
+4275 -> 0 [style="dashed"];
+0 [shape=box label="{ drop @ 1 }"];
+4343 [label="sw = 3"];
+4343 -> 4323;
+4343 -> 4341 [style="dashed"];
+4323 [label="pt = 0"];
+4323 -> 4188;
+4323 -> 4268 [style="dashed"];
+4188 [shape=box label="{ [sw := 1, pt := 2, failures := 0, f10s2 := 0] @ 0.16; [sw := 1, pt := 2, failures := 1, f10s2 := 0] @ 0.17; [sw := 1, pt := 2, failures := 2, f10s2 := 0] @ 0.15; [sw := 1, pt := 3, failures := 0, f10s2 := 0] @ 0.16; [sw := 1, pt := 3, failures := 1, f10s2 := 0] @ 0.17; [sw := 1, pt := 3, failures := 2, f10s2 := 0] @ 0.18 }"];
+4268 [label="pt = 1"];
+4268 -> 4188;
+4268 -> 0 [style="dashed"];
+4341 [label="sw = 4"];
+4341 -> 4323;
+4341 -> 4339 [style="dashed"];
+4339 [label="sw = 5"];
+4339 -> 4323;
+4339 -> 4337 [style="dashed"];
+4337 [label="sw = 6"];
+4337 -> 4323;
+4337 -> 4335 [style="dashed"];
+4335 [label="sw = 7"];
+4335 -> 4323;
+4335 -> 4333 [style="dashed"];
+4333 [label="sw = 8"];
+4333 -> 4323;
+4333 -> 0 [style="dashed"];
+{rank=same; 4341 ;}
+{rank=same; 4268 4275 ;}
+{rank=same; 4339 ;}
+{rank=same; 4343 ;}
+{rank=same; 4345 ;}
+{rank=same; 4335 ;}
+{rank=same; 4333 ;}
+{rank=same; 4337 ;}
+{rank=same; 4330 4323 ;}
+}

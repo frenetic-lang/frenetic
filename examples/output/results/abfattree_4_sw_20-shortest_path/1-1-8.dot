@@ -1,0 +1,47 @@
+digraph tdk {
+1080 [label="sw = 2"];
+1080 -> 1058;
+1080 -> 1078 [style="dashed"];
+1058 [label="pt = 0"];
+1058 -> 983;
+1058 -> 1008 [style="dashed"];
+983 [shape=box label="{ [pt := 2] @ 1 } x { [sw := 1] @ 1 } x { [failures := 0] @ 1 }"];
+1008 [label="pt = 1"];
+1008 -> 983;
+1008 -> 0 [style="dashed"];
+0 [shape=box label="{ drop @ 1 }"];
+1078 [label="sw = 3"];
+1078 -> 1047;
+1078 -> 1076 [style="dashed"];
+1047 [label="pt = 0"];
+1047 -> 972;
+1047 -> 997 [style="dashed"];
+972 [shape=box label="{ drop @ 1/8; [sw := 1, pt := 2, failures := 0] @ 0.59; [sw := 1, pt := 2, failures := 1] @ 0.29 }"];
+997 [label="pt = 1"];
+997 -> 972;
+997 -> 0 [style="dashed"];
+1076 [label="sw = 4"];
+1076 -> 1047;
+1076 -> 1074 [style="dashed"];
+1074 [label="sw = 5"];
+1074 -> 1047;
+1074 -> 1072 [style="dashed"];
+1072 [label="sw = 6"];
+1072 -> 1047;
+1072 -> 1070 [style="dashed"];
+1070 [label="sw = 7"];
+1070 -> 1047;
+1070 -> 1068 [style="dashed"];
+1068 [label="sw = 8"];
+1068 -> 1047;
+1068 -> 0 [style="dashed"];
+{rank=same; 1076 ;}
+{rank=same; 997 1008 ;}
+{rank=same; 1074 ;}
+{rank=same; 1078 ;}
+{rank=same; 1080 ;}
+{rank=same; 1070 ;}
+{rank=same; 1068 ;}
+{rank=same; 1072 ;}
+{rank=same; 1047 1058 ;}
+}

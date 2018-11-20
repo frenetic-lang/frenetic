@@ -1,0 +1,40 @@
+digraph tdk {
+1249 [label="sw = 2"];
+1249 -> 1222;
+1249 -> 1247 [style="dashed"];
+1222 [label="pt = 0"];
+1222 -> 1121;
+1222 -> 1174 [style="dashed"];
+1121 [shape=box label="{ [sw := 1, pt := 2, f10s2 := 0] @ 1/2; [sw := 1, pt := 3, f10s2 := 0] @ 1/2 }"];
+1174 [label="pt = 1"];
+1174 -> 1121;
+1174 -> 0 [style="dashed"];
+0 [shape=box label="{ drop @ 1 }"];
+1247 [label="sw = 5"];
+1247 -> 1222;
+1247 -> 1245 [style="dashed"];
+1245 [label="sw = 6"];
+1245 -> 1222;
+1245 -> 1243 [style="dashed"];
+1243 [label="sw = 9"];
+1243 -> 1222;
+1243 -> 1241 [style="dashed"];
+1241 [label="sw = 10"];
+1241 -> 1222;
+1241 -> 1239 [style="dashed"];
+1239 [label="sw = 13"];
+1239 -> 1222;
+1239 -> 1237 [style="dashed"];
+1237 [label="sw = 14"];
+1237 -> 1222;
+1237 -> 0 [style="dashed"];
+{rank=same; 1241 ;}
+{rank=same; 1174 ;}
+{rank=same; 1247 ;}
+{rank=same; 1243 ;}
+{rank=same; 1249 ;}
+{rank=same; 1237 ;}
+{rank=same; 1239 ;}
+{rank=same; 1245 ;}
+{rank=same; 1222 ;}
+}

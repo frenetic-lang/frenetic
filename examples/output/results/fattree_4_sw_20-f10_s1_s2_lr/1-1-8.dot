@@ -1,0 +1,47 @@
+digraph tdk {
+4509 [label="sw = 2"];
+4509 -> 4494;
+4509 -> 4507 [style="dashed"];
+4494 [label="pt = 0"];
+4494 -> 4413;
+4494 -> 4441 [style="dashed"];
+4413 [shape=box label="{ [sw := 1, pt := 2, f10s2 := 0] @ 1/2; [sw := 1, pt := 3, f10s2 := 0] @ 1/2 } x { [failures := 0] @ 1 }"];
+4441 [label="pt = 1"];
+4441 -> 4413;
+4441 -> 0 [style="dashed"];
+0 [shape=box label="{ drop @ 1 }"];
+4507 [label="sw = 5"];
+4507 -> 4479;
+4507 -> 4505 [style="dashed"];
+4479 [label="pt = 0"];
+4479 -> 4384;
+4479 -> 4426 [style="dashed"];
+4384 [shape=box label="{ [sw := 1, pt := 2, failures := 0, f10s2 := 0] @ 0.29; [sw := 1, pt := 2, failures := 1, f10s2 := 0] @ 0.2; [sw := 1, pt := 3, failures := 0, f10s2 := 0] @ 0.29; [sw := 1, pt := 3, failures := 1, f10s2 := 0] @ 0.21 }"];
+4426 [label="pt = 1"];
+4426 -> 4384;
+4426 -> 0 [style="dashed"];
+4505 [label="sw = 6"];
+4505 -> 4479;
+4505 -> 4503 [style="dashed"];
+4503 [label="sw = 9"];
+4503 -> 4479;
+4503 -> 4501 [style="dashed"];
+4501 [label="sw = 10"];
+4501 -> 4479;
+4501 -> 4499 [style="dashed"];
+4499 [label="sw = 13"];
+4499 -> 4479;
+4499 -> 4497 [style="dashed"];
+4497 [label="sw = 14"];
+4497 -> 4479;
+4497 -> 0 [style="dashed"];
+{rank=same; 4501 ;}
+{rank=same; 4441 4426 ;}
+{rank=same; 4507 ;}
+{rank=same; 4503 ;}
+{rank=same; 4509 ;}
+{rank=same; 4497 ;}
+{rank=same; 4499 ;}
+{rank=same; 4505 ;}
+{rank=same; 4479 4494 ;}
+}

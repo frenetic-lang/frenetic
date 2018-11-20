@@ -1,0 +1,61 @@
+digraph tdk {
+4580 [label="sw = 2"];
+4580 -> 4564;
+4580 -> 4578 [style="dashed"];
+4564 [label="pt = 0"];
+4564 -> 4315;
+4564 -> 4490 [style="dashed"];
+4315 [shape=box label="{ [sw := 1, pt := 2, f10s2 := 0] @ 1/2; [sw := 1, pt := 3, f10s2 := 0] @ 1/2 }"];
+4490 [label="pt = 1"];
+4490 -> 4315;
+4490 -> 0 [style="dashed"];
+0 [shape=box label="{ drop @ 1 }"];
+4578 [label="sw = 3"];
+4578 -> 4561;
+4578 -> 4576 [style="dashed"];
+4561 [label="pt = 0"];
+4561 -> 4320;
+4561 -> 4487 [style="dashed"];
+4320 [shape=box label="{ drop @ 4.8e-07; [sw := 1, pt := 2, f10s2 := 0] @ 0.5; [sw := 1, pt := 3, f10s2 := 0] @ 0.5 }"];
+4487 [label="pt = 1"];
+4487 -> 4320;
+4487 -> 0 [style="dashed"];
+4576 [label="sw = 4"];
+4576 -> 4561;
+4576 -> 4574 [style="dashed"];
+4574 [label="sw = 5"];
+4574 -> 4558;
+4574 -> 4572 [style="dashed"];
+4558 [label="pt = 0"];
+4558 -> 4327;
+4558 -> 4484 [style="dashed"];
+4327 [shape=box label="{ drop @ 4.8e-07; [sw := 1, pt := 2, f10s2 := 0] @ 0.5; [sw := 1, pt := 3, f10s2 := 0] @ 0.5 }"];
+4484 [label="pt = 1"];
+4484 -> 4327;
+4484 -> 0 [style="dashed"];
+4572 [label="sw = 6"];
+4572 -> 4558;
+4572 -> 4570 [style="dashed"];
+4570 [label="sw = 7"];
+4570 -> 4555;
+4570 -> 4568 [style="dashed"];
+4555 [label="pt = 0"];
+4555 -> 4334;
+4555 -> 4481 [style="dashed"];
+4334 [shape=box label="{ drop @ 4.8e-07; [sw := 1, pt := 2, f10s2 := 0] @ 0.5; [sw := 1, pt := 3, f10s2 := 0] @ 0.5 }"];
+4481 [label="pt = 1"];
+4481 -> 4334;
+4481 -> 0 [style="dashed"];
+4568 [label="sw = 8"];
+4568 -> 4555;
+4568 -> 0 [style="dashed"];
+{rank=same; 4576 ;}
+{rank=same; 4484 4481 4487 4490 ;}
+{rank=same; 4574 ;}
+{rank=same; 4578 ;}
+{rank=same; 4580 ;}
+{rank=same; 4570 ;}
+{rank=same; 4568 ;}
+{rank=same; 4572 ;}
+{rank=same; 4561 4564 4558 4555 ;}
+}

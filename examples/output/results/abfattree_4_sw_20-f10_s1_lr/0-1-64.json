@@ -1,0 +1,17 @@
+{
+  "topology": "abfattree_4_sw_20",
+  "routing_scheme": "f10_s1_lr",
+  "max_failures": 0,
+  "failure_prob": [ 1, 64 ],
+  "equivalent_to_teleport": true,
+  "min_prob_of_delivery": 1.0,
+  "avg_prob_of_delivery": 1.0,
+  "hop_count_cdf": [
+    0.0, 0.14285714285714285, 0.14285714285714285, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
+  ],
+  "compilation_times": [ 0.28579187393188477 ],
+  "equivalence_times": [ 0.0011780261993408203 ],
+  "hop_count_times": [ 0.9886410236358643 ]
+}

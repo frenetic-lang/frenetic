@@ -1,0 +1,47 @@
+digraph tdk {
+2045 [label="sw = 2"];
+2045 -> 2030;
+2045 -> 2043 [style="dashed"];
+2030 [label="pt = 0"];
+2030 -> 1949;
+2030 -> 1976 [style="dashed"];
+1949 [shape=box label="{ [sw := 1, pt := 2] @ 1/2; [sw := 1, pt := 3] @ 1/2 } x { [failures := 0] @ 1 }"];
+1976 [label="pt = 1"];
+1976 -> 1949;
+1976 -> 0 [style="dashed"];
+0 [shape=box label="{ drop @ 1 }"];
+2043 [label="sw = 5"];
+2043 -> 2015;
+2043 -> 2041 [style="dashed"];
+2015 [label="pt = 0"];
+2015 -> 1934;
+2015 -> 1961 [style="dashed"];
+1934 [shape=box label="{ drop @ 1/16; [sw := 1, pt := 2, failures := 0] @ 0.39; [sw := 1, pt := 2, failures := 1] @ 0.077; [sw := 1, pt := 2, failures := 2] @ 0.0051; [sw := 1, pt := 2, failures := 3] @ 0.00011; [sw := 1, pt := 3, failures := 0] @ 0.39; [sw := 1, pt := 3, failures := 1] @ 0.077; [sw := 1, pt := 3, failures := 2] @ 0.0051; [sw := 1, pt := 3, failures := 3] @ 0.00011 }"];
+1961 [label="pt = 1"];
+1961 -> 1934;
+1961 -> 0 [style="dashed"];
+2041 [label="sw = 6"];
+2041 -> 2015;
+2041 -> 2039 [style="dashed"];
+2039 [label="sw = 9"];
+2039 -> 2015;
+2039 -> 2037 [style="dashed"];
+2037 [label="sw = 10"];
+2037 -> 2015;
+2037 -> 2035 [style="dashed"];
+2035 [label="sw = 13"];
+2035 -> 2015;
+2035 -> 2033 [style="dashed"];
+2033 [label="sw = 14"];
+2033 -> 2015;
+2033 -> 0 [style="dashed"];
+{rank=same; 2037 ;}
+{rank=same; 1961 1976 ;}
+{rank=same; 2043 ;}
+{rank=same; 2039 ;}
+{rank=same; 2045 ;}
+{rank=same; 2033 ;}
+{rank=same; 2035 ;}
+{rank=same; 2041 ;}
+{rank=same; 2030 2015 ;}
+}

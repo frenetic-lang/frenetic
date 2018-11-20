@@ -1,0 +1,47 @@
+digraph tdk {
+1849 [label="sw = 2"];
+1849 -> 1834;
+1849 -> 1847 [style="dashed"];
+1834 [label="pt = 0"];
+1834 -> 1753;
+1834 -> 1780 [style="dashed"];
+1753 [shape=box label="{ [sw := 1, pt := 2] @ 1/2; [sw := 1, pt := 3] @ 1/2 } x { [failures := 0] @ 1 }"];
+1780 [label="pt = 1"];
+1780 -> 1753;
+1780 -> 0 [style="dashed"];
+0 [shape=box label="{ drop @ 1 }"];
+1847 [label="sw = 5"];
+1847 -> 1819;
+1847 -> 1845 [style="dashed"];
+1819 [label="pt = 0"];
+1819 -> 1738;
+1819 -> 1765 [style="dashed"];
+1738 [shape=box label="{ drop @ 7/16; [sw := 1, pt := 2, failures := 0] @ 1/32; [sw := 1, pt := 2, failures := 1] @ 3/32; [sw := 1, pt := 2, failures := 2] @ 1/8; [sw := 1, pt := 3, failures := 0] @ 1/32; [sw := 1, pt := 3, failures := 1] @ 3/32; [sw := 1, pt := 3, failures := 2] @ 3/16 }"];
+1765 [label="pt = 1"];
+1765 -> 1738;
+1765 -> 0 [style="dashed"];
+1845 [label="sw = 6"];
+1845 -> 1819;
+1845 -> 1843 [style="dashed"];
+1843 [label="sw = 9"];
+1843 -> 1819;
+1843 -> 1841 [style="dashed"];
+1841 [label="sw = 10"];
+1841 -> 1819;
+1841 -> 1839 [style="dashed"];
+1839 [label="sw = 13"];
+1839 -> 1819;
+1839 -> 1837 [style="dashed"];
+1837 [label="sw = 14"];
+1837 -> 1819;
+1837 -> 0 [style="dashed"];
+{rank=same; 1841 ;}
+{rank=same; 1765 1780 ;}
+{rank=same; 1847 ;}
+{rank=same; 1843 ;}
+{rank=same; 1849 ;}
+{rank=same; 1837 ;}
+{rank=same; 1839 ;}
+{rank=same; 1845 ;}
+{rank=same; 1819 1834 ;}
+}

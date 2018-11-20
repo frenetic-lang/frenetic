@@ -1,0 +1,47 @@
+digraph tdk {
+5696 [label="sw = 2"];
+5696 -> 5681;
+5696 -> 5694 [style="dashed"];
+5681 [label="pt = 0"];
+5681 -> 5600;
+5681 -> 5628 [style="dashed"];
+5600 [shape=box label="{ [sw := 1, pt := 2, f10s2 := 0] @ 1/2; [sw := 1, pt := 3, f10s2 := 0] @ 1/2 } x { [failures := 0] @ 1 }"];
+5628 [label="pt = 1"];
+5628 -> 5600;
+5628 -> 0 [style="dashed"];
+0 [shape=box label="{ drop @ 1 }"];
+5694 [label="sw = 5"];
+5694 -> 5666;
+5694 -> 5692 [style="dashed"];
+5666 [label="pt = 0"];
+5666 -> 5571;
+5666 -> 5613 [style="dashed"];
+5571 [shape=box label="{ [sw := 1, pt := 2, failures := 0, f10s2 := 0] @ 0.44; [sw := 1, pt := 2, failures := 1, f10s2 := 0] @ 0.055; [sw := 1, pt := 2, failures := 2, f10s2 := 0] @ 0.0045; [sw := 1, pt := 3, failures := 0, f10s2 := 0] @ 0.44; [sw := 1, pt := 3, failures := 1, f10s2 := 0] @ 0.055; [sw := 1, pt := 3, failures := 2, f10s2 := 0] @ 0.0045 }"];
+5613 [label="pt = 1"];
+5613 -> 5571;
+5613 -> 0 [style="dashed"];
+5692 [label="sw = 6"];
+5692 -> 5666;
+5692 -> 5690 [style="dashed"];
+5690 [label="sw = 9"];
+5690 -> 5666;
+5690 -> 5688 [style="dashed"];
+5688 [label="sw = 10"];
+5688 -> 5666;
+5688 -> 5686 [style="dashed"];
+5686 [label="sw = 13"];
+5686 -> 5666;
+5686 -> 5684 [style="dashed"];
+5684 [label="sw = 14"];
+5684 -> 5666;
+5684 -> 0 [style="dashed"];
+{rank=same; 5688 ;}
+{rank=same; 5628 5613 ;}
+{rank=same; 5694 ;}
+{rank=same; 5690 ;}
+{rank=same; 5696 ;}
+{rank=same; 5684 ;}
+{rank=same; 5686 ;}
+{rank=same; 5692 ;}
+{rank=same; 5681 5666 ;}
+}

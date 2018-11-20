@@ -1,0 +1,47 @@
+digraph tdk {
+2260 [label="sw = 2"];
+2260 -> 2245;
+2260 -> 2258 [style="dashed"];
+2245 [label="pt = 0"];
+2245 -> 2164;
+2245 -> 2191 [style="dashed"];
+2164 [shape=box label="{ [sw := 1, pt := 2] @ 1/2; [sw := 1, pt := 3] @ 1/2 } x { [failures := 0] @ 1 }"];
+2191 [label="pt = 1"];
+2191 -> 2164;
+2191 -> 0 [style="dashed"];
+0 [shape=box label="{ drop @ 1 }"];
+2258 [label="sw = 5"];
+2258 -> 2230;
+2258 -> 2256 [style="dashed"];
+2230 [label="pt = 0"];
+2230 -> 2149;
+2230 -> 2176 [style="dashed"];
+2149 [shape=box label="{ drop @ 1/2; [sw := 1, pt := 2, failures := 0] @ 1/32; [sw := 1, pt := 2, failures := 1] @ 3/32; [sw := 1, pt := 2, failures := 2] @ 3/32; [sw := 1, pt := 2, failures := 3] @ 1/32; [sw := 1, pt := 3, failures := 0] @ 1/32; [sw := 1, pt := 3, failures := 1] @ 3/32; [sw := 1, pt := 3, failures := 2] @ 3/32; [sw := 1, pt := 3, failures := 3] @ 1/32 }"];
+2176 [label="pt = 1"];
+2176 -> 2149;
+2176 -> 0 [style="dashed"];
+2256 [label="sw = 6"];
+2256 -> 2230;
+2256 -> 2254 [style="dashed"];
+2254 [label="sw = 9"];
+2254 -> 2230;
+2254 -> 2252 [style="dashed"];
+2252 [label="sw = 10"];
+2252 -> 2230;
+2252 -> 2250 [style="dashed"];
+2250 [label="sw = 13"];
+2250 -> 2230;
+2250 -> 2248 [style="dashed"];
+2248 [label="sw = 14"];
+2248 -> 2230;
+2248 -> 0 [style="dashed"];
+{rank=same; 2252 ;}
+{rank=same; 2191 2176 ;}
+{rank=same; 2258 ;}
+{rank=same; 2254 ;}
+{rank=same; 2260 ;}
+{rank=same; 2248 ;}
+{rank=same; 2250 ;}
+{rank=same; 2256 ;}
+{rank=same; 2245 2230 ;}
+}

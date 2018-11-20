@@ -1,0 +1,47 @@
+digraph tdk {
+968 [label="sw = 2"];
+968 -> 952;
+968 -> 966 [style="dashed"];
+952 [label="pt = 0"];
+952 -> 439;
+952 -> 903 [style="dashed"];
+439 [shape=box label="{ [sw := 1] @ 1 } x { [pt := 2] @ 1 }"];
+903 [label="pt = 1"];
+903 -> 439;
+903 -> 0 [style="dashed"];
+0 [shape=box label="{ drop @ 1 }"];
+966 [label="sw = 5"];
+966 -> 935;
+966 -> 964 [style="dashed"];
+935 [label="pt = 0"];
+935 -> 860;
+935 -> 886 [style="dashed"];
+860 [shape=box label="{ drop @ 0.0078; [sw := 1, pt := 2] @ 0.99 }"];
+886 [label="pt = 1"];
+886 -> 860;
+886 -> 0 [style="dashed"];
+964 [label="sw = 6"];
+964 -> 935;
+964 -> 962 [style="dashed"];
+962 [label="sw = 9"];
+962 -> 935;
+962 -> 960 [style="dashed"];
+960 [label="sw = 10"];
+960 -> 935;
+960 -> 958 [style="dashed"];
+958 [label="sw = 13"];
+958 -> 935;
+958 -> 956 [style="dashed"];
+956 [label="sw = 14"];
+956 -> 935;
+956 -> 0 [style="dashed"];
+{rank=same; 960 ;}
+{rank=same; 886 903 ;}
+{rank=same; 966 ;}
+{rank=same; 962 ;}
+{rank=same; 968 ;}
+{rank=same; 956 ;}
+{rank=same; 958 ;}
+{rank=same; 964 ;}
+{rank=same; 952 935 ;}
+}

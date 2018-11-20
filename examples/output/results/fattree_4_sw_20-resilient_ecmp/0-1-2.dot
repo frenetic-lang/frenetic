@@ -1,0 +1,40 @@
+digraph tdk {
+802 [label="sw = 2"];
+802 -> 775;
+802 -> 800 [style="dashed"];
+775 [label="pt = 0"];
+775 -> 692;
+775 -> 725 [style="dashed"];
+692 [shape=box label="{ [sw := 1, pt := 2] @ 1/2; [sw := 1, pt := 3] @ 1/2 }"];
+725 [label="pt = 1"];
+725 -> 692;
+725 -> 0 [style="dashed"];
+0 [shape=box label="{ drop @ 1 }"];
+800 [label="sw = 5"];
+800 -> 775;
+800 -> 798 [style="dashed"];
+798 [label="sw = 6"];
+798 -> 775;
+798 -> 796 [style="dashed"];
+796 [label="sw = 9"];
+796 -> 775;
+796 -> 794 [style="dashed"];
+794 [label="sw = 10"];
+794 -> 775;
+794 -> 792 [style="dashed"];
+792 [label="sw = 13"];
+792 -> 775;
+792 -> 790 [style="dashed"];
+790 [label="sw = 14"];
+790 -> 775;
+790 -> 0 [style="dashed"];
+{rank=same; 794 ;}
+{rank=same; 725 ;}
+{rank=same; 800 ;}
+{rank=same; 796 ;}
+{rank=same; 802 ;}
+{rank=same; 790 ;}
+{rank=same; 792 ;}
+{rank=same; 798 ;}
+{rank=same; 775 ;}
+}

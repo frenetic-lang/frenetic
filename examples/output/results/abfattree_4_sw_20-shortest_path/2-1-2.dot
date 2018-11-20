@@ -1,0 +1,47 @@
+digraph tdk {
+1251 [label="sw = 2"];
+1251 -> 1229;
+1251 -> 1249 [style="dashed"];
+1229 [label="pt = 0"];
+1229 -> 1154;
+1229 -> 1179 [style="dashed"];
+1154 [shape=box label="{ [pt := 2] @ 1 } x { [sw := 1] @ 1 } x { [failures := 0] @ 1 }"];
+1179 [label="pt = 1"];
+1179 -> 1154;
+1179 -> 0 [style="dashed"];
+0 [shape=box label="{ drop @ 1 }"];
+1249 [label="sw = 3"];
+1249 -> 1218;
+1249 -> 1247 [style="dashed"];
+1218 [label="pt = 0"];
+1218 -> 1143;
+1218 -> 1168 [style="dashed"];
+1143 [shape=box label="{ drop @ 1/2; [sw := 1, pt := 2, failures := 0] @ 1/16; [sw := 1, pt := 2, failures := 1] @ 3/16; [sw := 1, pt := 2, failures := 2] @ 1/4 }"];
+1168 [label="pt = 1"];
+1168 -> 1143;
+1168 -> 0 [style="dashed"];
+1247 [label="sw = 4"];
+1247 -> 1218;
+1247 -> 1245 [style="dashed"];
+1245 [label="sw = 5"];
+1245 -> 1218;
+1245 -> 1243 [style="dashed"];
+1243 [label="sw = 6"];
+1243 -> 1218;
+1243 -> 1241 [style="dashed"];
+1241 [label="sw = 7"];
+1241 -> 1218;
+1241 -> 1239 [style="dashed"];
+1239 [label="sw = 8"];
+1239 -> 1218;
+1239 -> 0 [style="dashed"];
+{rank=same; 1247 ;}
+{rank=same; 1179 1168 ;}
+{rank=same; 1245 ;}
+{rank=same; 1249 ;}
+{rank=same; 1251 ;}
+{rank=same; 1241 ;}
+{rank=same; 1239 ;}
+{rank=same; 1243 ;}
+{rank=same; 1218 1229 ;}
+}

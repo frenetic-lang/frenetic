@@ -1,0 +1,47 @@
+digraph tdk {
+3091 [label="sw = 2"];
+3091 -> 3076;
+3091 -> 3089 [style="dashed"];
+3076 [label="pt = 0"];
+3076 -> 2995;
+3076 -> 3023 [style="dashed"];
+2995 [shape=box label="{ [sw := 1, pt := 2, f10s2 := 0] @ 1/2; [sw := 1, pt := 3, f10s2 := 0] @ 1/2 } x { [failures := 0] @ 1 }"];
+3023 [label="pt = 1"];
+3023 -> 2995;
+3023 -> 0 [style="dashed"];
+0 [shape=box label="{ drop @ 1 }"];
+3089 [label="sw = 5"];
+3089 -> 3061;
+3089 -> 3087 [style="dashed"];
+3061 [label="pt = 0"];
+3061 -> 2966;
+3061 -> 3008 [style="dashed"];
+2966 [shape=box label="{ drop @ 0.1; [sw := 1, pt := 2, failures := 0, f10s2 := 0] @ 0.29; [sw := 1, pt := 2, failures := 1, f10s2 := 0] @ 0.15; [sw := 1, pt := 3, failures := 0, f10s2 := 0] @ 0.29; [sw := 1, pt := 3, failures := 1, f10s2 := 0] @ 0.16 }"];
+3008 [label="pt = 1"];
+3008 -> 2966;
+3008 -> 0 [style="dashed"];
+3087 [label="sw = 6"];
+3087 -> 3061;
+3087 -> 3085 [style="dashed"];
+3085 [label="sw = 9"];
+3085 -> 3061;
+3085 -> 3083 [style="dashed"];
+3083 [label="sw = 10"];
+3083 -> 3061;
+3083 -> 3081 [style="dashed"];
+3081 [label="sw = 13"];
+3081 -> 3061;
+3081 -> 3079 [style="dashed"];
+3079 [label="sw = 14"];
+3079 -> 3061;
+3079 -> 0 [style="dashed"];
+{rank=same; 3083 ;}
+{rank=same; 3008 3023 ;}
+{rank=same; 3089 ;}
+{rank=same; 3085 ;}
+{rank=same; 3091 ;}
+{rank=same; 3079 ;}
+{rank=same; 3081 ;}
+{rank=same; 3087 ;}
+{rank=same; 3076 3061 ;}
+}
