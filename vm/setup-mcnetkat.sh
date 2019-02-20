@@ -5,4 +5,4 @@ set -ex
 git clone https://github.com/frenetic-lang/frenetic.git
 cd frenetic
 git checkout mc-decision
-opam pin add probnetkat . -y
+opam pin add probnetkat . -y --working-dir --inplace-build

@@ -18,9 +18,9 @@ depends: [
   "async"
   "async_unix"
   "bin_prot"
-  "compiler-libs"
   "core"
   "cstruct"
+  "ocaml-compiler-libs"
   "core" {>= "v0.11"}
   "cstruct"
   "findlib"
