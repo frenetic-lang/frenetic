@@ -1,6 +1,7 @@
 opam-version: "1.2"
 available: [ ocaml-version >= "4.05.0" ]
 version: "4.2.0"
+synopsis: "Frenetic SDN controller & runtime system"
 maintainer: "Arjun Guha <arjun@cs.umass.edu>"
 authors: "Arjun Guha <arjun@cs.umass.edu>, Nate Foster <jnfoster@cs.cornell.edu>"
 homepage: "http://frenetic-lang.org"
@@ -13,21 +14,17 @@ build-test: ["dune" "runtest" "-p" name "-j" jobs]
 install: ["dune" "install" "-p" name "-j" jobs]
 
 depends: [
-  "dune" {build & >= "1.0"}
+  "dune" {build}
   "base64" {>= "2.0.0"}
   "core"   {>= "v0.10.0"}
   "cstruct" {>= "1.0.1"}
   "ipaddr" {>= "2.5.0"}
   "ocamlgraph" {>= "1.8.7"}
-  "ppx_compare"
+  "ppx_jane"
   "ppx_core"
   "ppx_cstruct"
-  "ppx_deriving" {>= "4.2"}
-  "ppx_driver"
   "ppx_enumerate"
-  "ppx_fields_conv"
   "ppx_metaquot"
-  "ppx_sexp_conv"
   "sedlex"
   "sexplib"
   "yojson" {>= "1.2.0"}
