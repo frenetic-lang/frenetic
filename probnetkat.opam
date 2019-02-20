@@ -1,5 +1,6 @@
 opam-version: "2.0"
 version: "0.1"
+synopsis: "McNetKAT: Scalable Verification of Probabilistic Network Programs"
 maintainer: "Steffen Smolka <smolka@cs.cornell.edu>"
 authors: "see http://www.frenetic-lang.org/probnetkat/#members"
 homepage: "http://www.frenetic-lang.org/probnetkat/"
