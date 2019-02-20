@@ -23,7 +23,6 @@ depends: [
   "ocaml-compiler-libs"
   "core" {>= "v0.11"}
   "cstruct"
-  "findlib"
   "ipaddr"
   "ocaml-migrate-parsetree"
   "ocamlgraph"
@@ -37,7 +36,6 @@ depends: [
   "rpc_parallel"
   "sedlex"
   "sexplib"
-  "str"
   "yojson"
   "zarith"
 ]
