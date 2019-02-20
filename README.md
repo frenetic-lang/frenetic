@@ -14,7 +14,7 @@ will run the F10 experiment using the entire cluster (24 machines) and 32 proces
 ## Quick start
 Our code is tested under Ubuntu and MacOS and will likely not run under Windows.
 
-0) You need opam, the OCaml package manager.
+0) You need opam (v>=2.0), the OCaml package manager.
 1) You need OCaml 4.07: `opam update && opam switch create 4.07.1`.
 2) After switching to OCaml 4.07, make sure your environment variables are set correctly: `eval $(opam config env)`.
 3) Install various python and C dependencies by running the script `install-dependencies.osx.sh` on MacOS or `install-dependencies.ubuntu.sh` on Ubuntu.
