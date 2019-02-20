@@ -2,11 +2,11 @@
 set -ex
 
 sudo apt update
-sudo apt install python-dev graphviz libgraphviz-dev pkg-config 
-sudo apt install libsuitesparse-dev libgmp-dev
-sudo apt install python3-pip
-sudo apt install libcurl4-nss-dev
-sudo apt install swig
+sudo apt install -qq python-dev graphviz libgraphviz-dev pkg-config
+sudo apt install -qq libsuitesparse-dev libgmp-dev
+sudo apt install -qq python3-pip
+sudo apt install -qq libcurl4-nss-dev
+sudo apt install -qq swig
 
 # python 3, to solve linear systems using UMFPACK
 sudo -H python3 -m pip install --upgrade pip
