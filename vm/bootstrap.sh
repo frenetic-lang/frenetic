@@ -11,7 +11,7 @@ add-apt-repository ppa:avsm/ppa
 apt-get update
 apt-get install -y ocaml ocaml-native-compilers camlp4 camlp4-extra opam git libssl-dev aspcud
 
-cat > /etc/motd.tail <<'EOF'
+cat > /etc/motd <<'EOF'
                ,,__
      ..  ..   / o._)   ___   ____                _ 
     /--'/--\  \-'||   / _ \ / ___|__ _ _ __ ___ | |
