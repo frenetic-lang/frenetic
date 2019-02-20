@@ -1,10 +1,10 @@
 opam-version: "2.0"
-available: [ ocaml-version >= "4.05.0" ]
 version: "0.1"
 maintainer: "Steffen Smolka <smolka@cs.cornell.edu>"
-homepage: "http://frenetic-lang.org"
+authors: "see http://www.frenetic-lang.org/probnetkat/#members"
+homepage: "http://www.frenetic-lang.org/probnetkat/"
 bug-reports: "https://github.com/frenetic-lang/frenetic/issues"
-dev-repo: "https://github.com/frenetic-lang/frenetic.git"
+dev-repo: "git://github.com/frenetic-lang/frenetic.git"
 build: [
   ["dune" "subst"] {pinned}
   ["dune" "build" "-p" name "-j" jobs]
@@ -12,12 +12,12 @@ build: [
   ["dune" "build" "@doc" "-p" name "-j" jobs] {with-doc}
 ]
 depends: [
-  "ocaml" {>= "4.02.3"}
+  "ocaml" {>= "4.05.0"}
   "dune" {build}
   "async"
   "async_unix"
   "bin_prot"
-  "compiler-libs.common"
+  "compiler-libs"
   "core"
   "cstruct"
   "core" {>= "v0.11"}
