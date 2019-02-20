@@ -1,19 +1,19 @@
-opam-version: "1.2"
-available: [ ocaml-version >= "4.05.0" ]
+opam-version: "2.0"
 version: "4.2.0"
 synopsis: "Frenetic SDN controller & runtime system"
 maintainer: "Arjun Guha <arjun@cs.umass.edu>"
 authors: "Arjun Guha <arjun@cs.umass.edu>, Nate Foster <jnfoster@cs.cornell.edu>"
 homepage: "http://frenetic-lang.org"
 bug-reports: "https://github.com/frenetic-lang/frenetic/issues"
-dev-repo: "https://github.com/frenetic-lang/frenetic.git"
-
-build: ["dune" "build" "-p" name "-j" jobs]
-build-doc: ["dune" "build" "-p" name "-j" jobs]
-build-test: ["dune" "runtest" "-p" name "-j" jobs]
-install: ["dune" "install" "-p" name "-j" jobs]
-
+dev-repo: "git://github.com/frenetic-lang/frenetic.git"
+build: [
+  ["dune" "subst"] {pinned}
+  ["dune" "build" "-p" name "-j" jobs]
+  ["dune" "runtest" "-p" name "-j" jobs] {with-test}
+  ["dune" "build" "@doc" "-p" name "-j" jobs] {with-doc}
+]
 depends: [
+  "ocaml" {>= "4.05.0"}
   "dune" {build}
   "base64" {>= "2.0.0"}
   "core"   {>= "v0.10.0"}
