@@ -29,10 +29,10 @@ open Packet
   of OpenFlow, which is why they are abstract.
 *)
 
-type switchId = int64 [@@deriving sexp, compare, eq]
-type portId = int32 [@@deriving sexp, compare, eq]
-type queueId = int32 [@@deriving sexp, compare, eq]
-type bufferId = int32 [@@deriving sexp, compare, eq]
+type switchId = int64 [@@deriving sexp, compare]
+type portId = int32 [@@deriving sexp, compare]
+type queueId = int32 [@@deriving sexp, compare]
+type bufferId = int32 [@@deriving sexp, compare]
 
 exception Unsupported of string
 

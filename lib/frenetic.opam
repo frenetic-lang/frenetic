@@ -20,11 +20,9 @@ depends: [
   "cstruct" {>= "1.0.1"}
   "ipaddr" {>= "2.5.0"}
   "ocamlgraph" {>= "1.8.7"}
-  "ppx_deriving.std"
   "ppx_jane"
   "ppx_core"
   "ppx_cstruct"
-  "ppx_enumerate"
   "ppx_metaquot"
   "sedlex"
   "sexplib"

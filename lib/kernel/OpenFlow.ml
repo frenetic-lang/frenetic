@@ -8,10 +8,10 @@ open Packet
 
 exception Unsupported of string
 
-type switchId = int64 [@@deriving sexp, compare, eq]
-type portId = int32 [@@deriving sexp, compare, eq]
-type queueId = int32 [@@deriving sexp, compare, eq]
-type bufferId = int32 [@@deriving sexp, compare, eq]
+type switchId = int64 [@@deriving sexp, compare]
+type portId = int32 [@@deriving sexp, compare]
+type queueId = int32 [@@deriving sexp, compare]
+type bufferId = int32 [@@deriving sexp, compare]
 
 (* general formatters for numeric types *)
 let format_int (fmt : Format.formatter) (v:int) =

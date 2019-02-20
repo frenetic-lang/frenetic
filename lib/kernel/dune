@@ -5,5 +5,4 @@
  (libraries core base64 cstruct ocamlgraph yojson ipaddr sedlex sexplib str
    compiler-libs.common)
  (preprocess
-  (pps ppx_cstruct ppx_deriving.std ppx_enumerate ppx_compare ppx_fields_conv
-    ppx_sexp_conv)))
+  (pps ppx_cstruct ppx_jane)))
