@@ -1,20 +1,42 @@
-opam-version: "1.2"
+opam-version: "2.0"
 available: [ ocaml-version >= "4.05.0" ]
 version: "0.1"
 maintainer: "Steffen Smolka <smolka@cs.cornell.edu>"
 homepage: "http://frenetic-lang.org"
 bug-reports: "https://github.com/frenetic-lang/frenetic/issues"
 dev-repo: "https://github.com/frenetic-lang/frenetic.git"
-
-build: ["jbuilder" "build" "-p" name "-j" jobs]
-build-doc: ["jbuilder" "build" "@doc" "-p" name "-j" jobs]
-build-test: ["jbuilder" "runtest" "-p" name "-j" jobs]
-install: ["jbuilder" "install" "-p" name "-j" jobs]
-
+build: [
+  ["dune" "subst"] {pinned}
+  ["dune" "build" "-p" name "-j" jobs]
+  ["dune" "runtest" "-p" name "-j" jobs] {with-test}
+  ["dune" "build" "@doc" "-p" name "-j" jobs] {with-doc}
+]
 depends: [
-  "jbuilder" {>="1.0+beta13"}
-  "core"   {>= "v0.10.0"}
-  "zarith"
-  "joyson"
+  "ocaml" {>= "4.02.3"}
+  "dune" {build}
+  "async"
+  "async_unix"
+  "bin_prot"
+  "compiler-libs.common"
+  "core"
+  "cstruct"
+  "core" {>= "v0.11"}
+  "cstruct"
+  "findlib"
+  "ipaddr"
+  "ocaml-migrate-parsetree"
+  "ocamlgraph"
+  "open"
+  "ppx_cstruct"
+  "ppx_deriving"
   "ppx_deriving_yojson"
+  "ppx_enumerate"
+  "ppx_jane"
+  "printbox"
+  "rpc_parallel"
+  "sedlex"
+  "sexplib"
+  "str"
+  "yojson"
+  "zarith"
 ]
