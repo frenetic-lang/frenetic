@@ -7,7 +7,7 @@ sudo apt install -qq libsuitesparse-dev libgmp-dev
 sudo apt install -qq python3-pip
 sudo apt install -qq libcurl4-nss-dev
 sudo apt install -qq swig
-sudo apt install -qq libglib2.0-dev libcairo2-dev
+sudo apt install -qq libglib2.0-dev libcairo2-dev libgirepository1.0-dev
 
 # python 3, to solve linear systems using UMFPACK
 sudo -H python3 -m pip install --upgrade pip
