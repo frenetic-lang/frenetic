@@ -29,3 +29,4 @@ setup.log
 *.bayonet
 *.dot
 examples/output/results*
+.vagrant
