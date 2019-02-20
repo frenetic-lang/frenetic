@@ -1,0 +1,5 @@
+(library
+ (name frenetic)
+ (public_name frenetic)
+ (wrapped true)
+ (libraries frenetic.kernel))

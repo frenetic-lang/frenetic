@@ -83,7 +83,7 @@ let cmd =
         | None -> Or_error.ok_exn Linux_ext.cores ()
       in
       let rj = Option.value rj ~default:local in
-(*       let%bind remote =
+      let%bind remote =
         List.map remote ~f:(fun h ->
           Rpc_parallel.Remote_executable.copy_to_host h
             ~executable_dir:wdir
@@ -92,14 +92,14 @@ let cmd =
           | Error _ -> failwith ("unable to connect to host: " ^ h)
         )
         |> Deferred.all
-      in *)
-      let remote =
+      in
+(*       let remote =
         List.map remote ~f:(fun h ->
           Rpc_parallel.Remote_executable.existing_on_host h
             ~executable_path:exe,
           rj
         )
-      in
+      in *)
       let rpc_config =
         Rpc_parallel.Map_reduce.Config.create
           ~local

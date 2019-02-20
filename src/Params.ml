@@ -22,11 +22,17 @@ let r = Sys.getenv "RN" |> function
   | None -> 0
 
 (** cluster to use for parallelization  *)
-let cluster =
-  List.init 24 ~f:(fun i -> sprintf "atlas-%d" (i+1))
+let cluster = Sys.getenv "CLUSTER" |> function
+  | Some s ->
+    String.split_on_chars s ~on:[' '; '\n'; '\r'; '\t']
+    |> List.map ~f:String.strip
+    |> List.filter ~f:(fun s -> Unix.gethostname () |> String.equal s |> not)
+  | None -> []
+
+(*   List.init 24 ~f:(fun i -> sprintf "atlas-%d" (i+1))
   |> List.filter ~f:(fun s -> Unix.gethostname () |> String.equal s |> not)
   (* prefer atlas servers with higher index *)
-  |> List.rev
+  |> List.rev *)
 
 
 (** {2 PNK program parameters} *)

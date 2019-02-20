@@ -5,23 +5,25 @@ This branch provides an implementation of (history-free) Probabilistic NetKAT ba
 * **J**: number of processes on local machine (default: # of logical cores)
 * **RJ**: number of processes per remote machine (default: J)
 * **RN**: number of remote machines to use (default: 0)
+* **CLUSTER**: whitespace-separated list of remote machines  
+               (by hostname, default: [])
 For example,
 ```bash
-$ RN=24 J=32 probnetkat.bench 16 true true
+$ RN=2 J=32 CLUSTER="user@machine1 machine2 machine3" probnetkat.bench 16 true true
 ```
-will run the F10 experiment using the entire cluster (24 machines) and 32 processes per machine.
+will run the F10 experiment using 2 remote machines (+ the local machine) and 32 processes per machine.
 
 ## Quick start
 Our code is tested under Ubuntu and MacOS and will likely not run under Windows.
 
-0) You need opam (v>=2.0), the OCaml package manager.
-1) You need OCaml 4.07: `opam update && opam switch create 4.07.1`.
-2) After switching to OCaml 4.07, make sure your environment variables are set correctly: `eval $(opam config env)`.
-3) Install various python and C dependencies by running the script `install-dependencies.osx.sh` on MacOS or `install-dependencies.ubuntu.sh` on Ubuntu.
-4) Install dune, the OCaml build system: `opam install dune`.
-5) Run `make`. If dune complains about missing dependencies, follow its instructions, then run `make` again.
-6) Run `make install`.
-7) You can make sure things work correctly by running some tests: `make test`.
+0. You need opam (version >= 2.0), the OCaml package manager.
+1. You need OCaml >= 4.07: `opam update && opam switch create 4.07.1`.
+2. After switching to OCaml 4.07, make sure your environment variables are set correctly: `eval $(opam config env)`.
+3. Install various python and C dependencies by running the script `install-dependencies.osx.sh` on MacOS or `install-dependencies.ubuntu.sh` on Ubuntu.
+4. Install dune, the OCaml build system: `opam install dune`.
+5. Run `make`. If dune complains about missing dependencies, follow its instructions, then run `make` again.
+6. Run `make install`.
+7. You can make sure things work correctly by running some tests: `make test`.
 
 
 ## Resources

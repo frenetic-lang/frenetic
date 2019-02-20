@@ -7,13 +7,13 @@ homepage: "http://frenetic-lang.org"
 bug-reports: "https://github.com/frenetic-lang/frenetic/issues"
 dev-repo: "https://github.com/frenetic-lang/frenetic.git"
 
-build: ["jbuilder" "build" "-p" name "-j" jobs]
-build-doc: ["jbuilder" "build" "@doc" "-p" name "-j" jobs]
-build-test: ["jbuilder" "runtest" "-p" name "-j" jobs]
-install: ["jbuilder" "install" "-p" name "-j" jobs]
+build: ["dune" "build" "-p" name "-j" jobs]
+build-doc: ["dune" "build" "-p" name "-j" jobs]
+build-test: ["dune" "runtest" "-p" name "-j" jobs]
+install: ["dune" "install" "-p" name "-j" jobs]
 
 depends: [
-  "jbuilder" {>="1.0+beta13"}
+  "dune" {build & >= "1.0"}
   "base64" {>= "2.0.0"}
   "core"   {>= "v0.10.0"}
   "cstruct" {>= "1.0.1"}
