@@ -77,9 +77,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.provision :shell, :path => "bootstrap.sh"
   config.vm.provision :shell, privileged: false, :path => "setup-opam.sh"
   config.vm.provision :shell, privileged: false, :path => "setup-ocaml.sh"
-  config.vm.provision :shell, :path => "setup-third-party.sh"
+  config.vm.provision :shell, privileged: false, :path => "setup-third-party.sh"
   config.vm.provision :shell, privileged: false, :path => "setup-mcnetkat.sh"
-  config.vm.provision :shell, :path => "setup-prism-bayonet.sh"
+  config.vm.provision :shell, privileged: false, :path => "setup-prism-bayonet.sh"
 
   # Enable provisioning with chef solo, specifying a cookbooks path, roles
   # path, and data_bags path (all relative to this Vagrantfile), and adding
