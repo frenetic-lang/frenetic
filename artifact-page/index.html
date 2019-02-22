@@ -1,0 +1,245 @@
+<html>
+
+<head>
+<link href="https://fonts.googleapis.com/css?family=Merriweather+Sans" rel="stylesheet">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+<link href="prism.css" rel="stylesheet" />
+<style>
+@import url('https://fonts.googleapis.com/css?family=Droid+Sans+Mono');
+div.container {
+    width: 1024px;
+}
+head, body {
+    font-family: 'Merriweather Sans', sans-serif;
+    background-color: #eeeeee;
+}
+header, footer {
+    padding: 1em;
+    color: black;
+    background-color: #f1f3f5;
+    clear: left;
+    text-align: center;
+}
+nav {
+    float: left;
+    max-width: 200px;
+    min-width: 200px;
+    margin: 0;
+    padding: 1em;
+    background-color: #ffffff;
+    border-right: 1px solid gray;
+    position:fixed;
+}
+nav ul {
+    list-style-type: none;
+    padding: 0;
+}
+nav ul a {
+    text-decoration: none;
+}
+article {
+    margin-left: 200px;
+    border-left: 1px solid gray;
+    padding: 2em;
+    overflow: hidden;
+    background-color: #ffffff;
+}
+
+</style>
+</head>
+    <body>
+        <script src="prism.js"></script>
+        <div class="container">
+
+            <header>
+                <h1>Scalable Verification of Probabilistic Networks</h1>
+                <h3>PLDI 2019</h3>
+            </header>
+
+            <nav>
+                <ul>
+                    <li><a href="#downloads">Downloads</a></li>
+                    <li><a href="#platform">Experimental Platform</a></li>
+                    <li><a href="#installation">Installation</a>
+                        <ul>
+                            <li>&#8192;<a href="#vm">- VM image</a></li>
+                            <li>&#8192;<a href="#vagrant">- Vagrant</a></li>
+                            <li>&#8192;<a href="#source">- Source</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#results">Replicating results</a></li>
+                </ul>
+            </nav>
+
+            <article>
+            This webpage provides the instructions to build and install
+            McNetKAT and reproduce the results from the paper "Scalable
+            Verification of Probabilistic Networks" (to appear at PLDI 2019).
+                <div id="downloads">
+                    <h2>Downloads</h2>
+                    <ul>
+                        <li>Virtual Machine (VM) images: &nbsp <a
+                        href="https:// TODO ">64-bit (2.5GB)</a> (username:
+                        <code>mcnetkat</code>, password:
+                        <code>mcnetkat</code>)</li>
+                        <li> Source: <a href="https://github.com/frenetic-lang/frenetic/tree/mc-decision">GitHub</a></li>
+                    </ul>
+                </div>
+                <hr/>
+                <div id="platform">
+                    <h2>Experimental Platform</h2>
+                    We used a cluster of 24 Dell R620 servers, with each server
+                    having 2x Intel Xeon E5-2650 v2 processors and 64GB of RAM
+                    and running Ubuntu 16.04 (x86_64). While a cluster is
+                    needed for only a subset of the experiments, most of the
+                    experiments can be run with a single machine.
+                </div>
+                <hr/>
+                <div id="installation">
+                    <h2>Installation</h2>
+                    There are three options for installing and testing McNetKAT:
+                    <div id="vm">
+                        <h3><u>Pre-built virtual machine (recommended):</u></h3>
+                        <ol>
+                            <li>Download the pre-built VM image mentioned above.</li>
+                            <li>Start <a
+                            href="https://www.virtualbox.org/wiki/Downloads">VirtualBox</a>
+                            on your host machine.</li>
+                            <li>Import McNetKAT VM by selecting "File" ->
+                            "Import Appliance", and selecting the downloaded VM
+                            image.</li>
+
+                            <li>Allocate the VM as much RAM as possible (at
+                            least 4GB) and at least 2 processors.</li>
+
+                            <li>You may need to turn on virtualization
+                            extensions in your BIOS to enable 64-bit
+                            virtualization.</li>
+
+                            <li> When the VM starts up, the
+                            <code>mcnetkat</code> user should be automatically
+                            logged in. (username: <code>mcnetkat</code>,
+                            password: <code>mcnetkat</code>).</li>
+
+                            <li> The VM should have all the dependencies
+                            along with a version of McNetKAT pre-installed.
+                            Optionally, to get the latest version, perform:</li>
+
+<pre><code class="language-bash">cd frenetic
+git pull && make && make install</code></pre>
+
+                    </ol>
+                    </div>
+
+                    <div id="vagrant">
+                        <h3><u>Using vagrant:</u></h3>
+                        <ol>
+                        <li> Install <a
+                        href="https://www.vagrantup.com/docs/installation/">vagrant</a>.
+                        On Ubuntu, you can do this simply by <code>sudo apt
+                        install vagrant virtualbox</code>. This also installs
+                        Virtualbox.</li>
+
+                        <li>Get the source code with vagrant scripts:</li>
+<pre><code class="language-bash">git clone -b mc-decision https://github.com/frenetic-lang/frenetic.git
+cd frenetic/vm/ </code></pre>
+
+                        <li>Start the VM and ssh into it. This will
+                        automatically install all the dependicies and also
+                        compile and install McNetKAT.</li>
+
+<pre><code class="language-bash">vagrant up
+vagrant ssh
+cd frenetic</code></pre>
+                        </ol>
+                    </div>
+
+                    <div id="source">
+                        <h3><u>From source:</u></h3>
+                            <ol>
+                            <li>Install OCaml and OPAM:</li>
+<pre><code class="language-bash">sudo apt update
+sudo apt install -y python-software-properties build-essential m4
+sudo add-apt-repository ppa:avsm/ppa
+sudo apt update
+sudo apt install -y ocaml ocaml-native-compilers camlp4 camlp4-extra opam git libssl-dev aspcud
+</code></pre>
+
+                            <li>Follow the quick-start instructions at <a
+                            href="https://github.com/frenetic-lang/frenetic/tree/mc-decision#quick-start">github.com/frenetic-lang/frenetic/tree/mc-decision#quick-start</a>.
+                            We also list these instructions here in the
+                            following steps.</li>
+                            <li>Checkout code:</li>
+<pre><code class="language-bash">git clone -b mc-decision https://github.com/frenetic-lang/frenetic
+cd frenetic</code></pre>
+                            <li> Setup OCaml and OPAM:
+<pre><code class="language-bash">sh ./vm/setup-opam.sh
+sh ./vm/setup-ocaml.sh </code></pre>
+
+                            <li>Install dependencies:</li>
+<pre><code class="language-bash">sh ./install-dependencies.ubuntu.sh
+sh ./vm/setup-prism-bayonet.sh </code></pre>
+
+                            <li>Build and install McNetKAT:</li>
+<pre><code class="language-bash">opam pin add frenetic lib -y --working-dir --inplace-build
+opam install frenetic -y
+opam pin add probnetkat . -y --working-dir --inplace-build
+opam install probnetkat -y </code></pre>
+                            </ol>
+                     </dfrom>
+                </div>
+
+<hr/>
+                    <div id="results">
+                        <h2>Replicating results</h2>
+                        <h3>Case Study: Data Center Fault-Tolerance</h3>
+                        <h4>Comparing resilience of routing schemes (Figure 11)</h4>
+                        <ol>
+                            <li>To perform the analysis corresponding to the
+                                case study show in Figure 11 of the paper, run
+                                the following from the <code>frenetic</code>
+                                directory:</li>
+<pre><code class="language-bash">probnetkat.compare</code></pre>
+                            <li>This will generate json files in
+                                <code>./examples/output/results/comparisons</code>
+                                directory with data for the two tables. For the
+                                case with <code>k</code> failures, see the file
+                                <code>k-1-16.json</code>. The field
+                                <code>resilience</code> in each file
+                                corresponds to the equivalence test with
+                                teleportation in Figure 11 (b).</li>
+
+                            <li> To generate the table, run:</li>
+<pre><code class="language-bash">sh ./plots/f10-tables.sh</code></pre>
+                        </ol>
+
+
+                        <h4>Case study with unbounded failures (Figure 12)</h4>
+                        <ol>
+                            <li>To perform the analysis corresponding to the
+                            case study show in Figure 12 of the paper, run the
+                            following script from the <code>frenetic</code>
+                            directory:</li>
+<pre><code class="language-bash">sh ./experiments/f10/run-partial.sh</code></pre>
+
+                                <li>It may take up to 10 minutes to complete
+                                the experiments.</li>
+
+                                <li>To plot and visualize the results, perform
+                                the following:</li>
+
+<pre><code class="language-bash">sh ./plots/f10.sh
+evince experiments/f10/*.pdf
+</code></pre>
+                        </ol>
+                        </div>
+                    </article>
+
+                    <footer></footer>
+
+                </div>
+
+            </body>
+        </html>
+
+
