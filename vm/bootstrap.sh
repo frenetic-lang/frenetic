@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+mkdir -p $HOME/bin
+
 dd if=/dev/zero of=/swapfile bs=1024 count=1048576
 /sbin/mkswap /swapfile
 /sbin/swapon /swapfile
