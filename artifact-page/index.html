@@ -91,13 +91,14 @@ article {
                     We used a cluster of 24 Dell R620 servers, with each server
                     having 2x Intel Xeon E5-2650 v2 processors and 64GB of RAM
                     and running Ubuntu 16.04 (x86_64). While a cluster is
-                    needed for only a subset of the experiments, most of the
+                    needed for a few experiments, most of the
                     experiments can be run with a single machine.
                 </div>
                 <hr/>
                 <div id="installation">
                     <h2>Installation</h2>
-                    There are three options for installing and testing McNetKAT:
+                    There are three options for installing and testing McNetKAT,
+                    appearing in order from most convenient to most advanced:
                     <div id="vm">
                         <h3><u>Pre-built virtual machine (recommended):</u></h3>
                         <ol>
@@ -125,7 +126,7 @@ article {
                             along with a version of McNetKAT pre-installed.
                             Optionally, to get the latest version, perform:</li>
 
-<pre><code class="language-bash">cd frenetic
+<pre><code class="language-bash">cd ~/frenetic
 git pull && make && make install</code></pre>
 
                     </ol>
@@ -135,18 +136,20 @@ git pull && make && make install</code></pre>
                         <h3><u>Using vagrant:</u></h3>
                         <ol>
                         <li> Install <a
-                        href="https://www.vagrantup.com/docs/installation/">vagrant</a>.
-                        On Ubuntu, you can do this simply by <code>sudo apt
-                        install vagrant virtualbox</code>. This also installs
-                        Virtualbox.</li>
+                        href="https://www.vagrantup.com/docs/installation/">vagrant</a>
+                        and
+                        <a href="https://www.virtualbox.org/wiki/Downloads">VirtualBox</a>.
+                        On Ubuntu, you can do this by executing <code>sudo apt
+                        install vagrant virtualbox</code>. On macOS, you can do
+                        this by executing <code>brew cask install virtualbox virtualbox-extension-pack && brew install vagrant</code> provided you have <a href="https://brew.sh/">homebrew</a> installed.
 
                         <li>Get the source code with vagrant scripts:</li>
 <pre><code class="language-bash">git clone -b mc-decision https://github.com/frenetic-lang/frenetic.git
 cd frenetic/vm/ </code></pre>
 
                         <li>Start the VM and ssh into it. This will
-                        automatically install all the dependicies and also
-                        compile and install McNetKAT.</li>
+                        automatically install all the dependencies and also
+                        compile and install McNetKAT, so time for a coffee break...</li>
 
 <pre><code class="language-bash">vagrant up
 vagrant ssh
@@ -155,35 +158,30 @@ cd frenetic</code></pre>
                     </div>
 
                     <div id="source">
-                        <h3><u>From source:</u></h3>
+                        <h3><u>From source (requires Linux):</u></h3>
+                        <p>Installing from source requires Linux and has been tested
+                           only under Ubuntu 14.04 and 16.04.</p>
                             <ol>
+
                             <li>Install OCaml and OPAM:</li>
 <pre><code class="language-bash">sudo apt update
-sudo apt install -y python-software-properties build-essential m4
-sudo add-apt-repository ppa:avsm/ppa
-sudo apt update
-sudo apt install -y ocaml ocaml-native-compilers camlp4 camlp4-extra opam git libssl-dev aspcud
+apt-get update
+apt-get install -y python-software-properties build-essential m4
+add-apt-repository -u ppa:avsm/ppa
+apt-get install -y ocaml ocaml-native-compilers camlp4 camlp4-extra opam git libssl-dev aspcud
 </code></pre>
 
-                            <li>Follow the quick-start instructions at <a
-                            href="https://github.com/frenetic-lang/frenetic/tree/mc-decision#quick-start">github.com/frenetic-lang/frenetic/tree/mc-decision#quick-start</a>.
-                            We also list these instructions here in the
-                            following steps.</li>
-                            <li>Checkout code:</li>
-<pre><code class="language-bash">git clone -b mc-decision https://github.com/frenetic-lang/frenetic
-cd frenetic</code></pre>
-                            <li> Setup OCaml and OPAM:
-<pre><code class="language-bash">bash ./vm/setup-opam.sh
-bash ./vm/setup-ocaml.sh </code></pre>
+                            <li>Follow steps 1 and 2 from the <em>Using vagrant</em> instructions.</li>
 
-                            <li>Install dependencies:</li>
+                            <li>In the `frenetic/vm` folder, execute the following to automatically build McNetKAT after obtaining all the necessary independencies:</li>
+<pre><code class="language-bash">bash setup-opam.sh
+bash setup-ocaml.sh
+sudo bash setup-third-party.sh
+bash setup-mcnetkat.sh
+</code></pre>
+                            <li>From the frenetic root folder, execute the following to install
+                                PRISM, Bayonet, their dependencies, and libraries required for plotting:</li>
 <pre><code class="language-bash">bash ./install-dependencies.ubuntu.sh</code></pre>
-
-                            <li>Build and install McNetKAT:</li>
-<pre><code class="language-bash">opam pin add frenetic lib -y --working-dir --inplace-build
-opam install frenetic -y
-opam pin add probnetkat . -y --working-dir --inplace-build
-opam install probnetkat -y </code></pre>
                             </ol>
                      </dfrom>
                 </div>
