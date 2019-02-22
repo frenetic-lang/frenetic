@@ -173,12 +173,12 @@ sudo apt install -y ocaml ocaml-native-compilers camlp4 camlp4-extra opam git li
 <pre><code class="language-bash">git clone -b mc-decision https://github.com/frenetic-lang/frenetic
 cd frenetic</code></pre>
                             <li> Setup OCaml and OPAM:
-<pre><code class="language-bash">sh ./vm/setup-opam.sh
-sh ./vm/setup-ocaml.sh </code></pre>
+<pre><code class="language-bash">bash ./vm/setup-opam.sh
+bash ./vm/setup-ocaml.sh </code></pre>
 
                             <li>Install dependencies:</li>
-<pre><code class="language-bash">sh ./install-dependencies.ubuntu.sh
-sh ./vm/setup-prism-bayonet.sh </code></pre>
+<pre><code class="language-bash">bash ./install-dependencies.ubuntu.sh
+bash ./vm/setup-prism-bayonet.sh </code></pre>
 
                             <li>Build and install McNetKAT:</li>
 <pre><code class="language-bash">opam pin add frenetic lib -y --working-dir --inplace-build
