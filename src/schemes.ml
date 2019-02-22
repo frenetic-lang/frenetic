@@ -449,10 +449,10 @@ let get_all topo base_name : (string * scheme) list =
     "ecmp",                   ecmp;
     "resilient ecmp",         resilient_ecmp;
 
-    (* "f10_no_lr",              f10_no_lr;
-     * "f10_s1_lr",              f10_s1_lr;
-     * "f10_s2_lr",              f10_s2_lr;
-     * "f10_s1_s2_lr",           f10_s1_s2_lr; *)
+    "f10_no_lr",              f10_no_lr;
+    "f10_s1_lr",              f10_s1_lr;
+    (* "f10_s2_lr",              f10_s2_lr; *)
+    "f10_s1_s2_lr",           f10_s1_s2_lr;
 
     "random walk",            random_walk;
     (* "resilient random walk",  resilient_random_walk; *)

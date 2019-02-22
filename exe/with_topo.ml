@@ -41,6 +41,7 @@ let run topo_file scheme dont_iterate fprob fbound cps show_fdd parallelize pris
       ~typ:`Legacy (* single destination: sw = Params.destination *)
       ()
   in
+  Format.printf "size of model: %d\n" (Syntax.size model);
   if prism then
     let input_dist =
       Topology.ingress_locs ~dst:Params.destination topo

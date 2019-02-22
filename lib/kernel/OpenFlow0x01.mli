@@ -293,7 +293,7 @@ end
 module Action : sig
   type sequence = action list
 
-  (** [move_controller_last seq] produces a semantically-equivalent list of
+  (** [move_controller_last s] produces a semantically-equivalent list of
   actions with actions that send packets to the controller moved to the end.
   This works around a known bug in the OpenFlow reference switch where actions
   in an action sequence after a "send to controller" ([Output (Controller n)])

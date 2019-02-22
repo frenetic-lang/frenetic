@@ -127,6 +127,27 @@ let nr_of_loops p =
   in
   do_pol p 0
 
+let size p =
+  let rec do_pol_k p k =
+    match p with
+    | Filter _ | Modify _ ->
+      k 1
+    | Seq(p,q) ->
+      do_pol_k p (fun n -> do_pol_k q (fun m -> k (n+m)))
+    | Ite(_,p,q) ->
+      do_pol_k p (fun n -> do_pol_k q (fun m -> k (n+m+1)))
+    | While (_,body) | Do_while (body,_) | Let { body } | ObserveUpon (body,_)  ->
+      do_pol_k body (fun n -> k (n + 1))
+    | Choice choices ->
+      List.fold choices ~init:0 ~f:(fun acc (p,_) -> do_pol_k p (fun n -> acc + n))
+      |> k
+    | Branch { branches } ->
+      List.fold branches ~init:0 ~f:(fun acc (_,p) -> do_pol_k p (fun n -> acc + n))
+      |> k
+  in
+  do_pol_k p (fun n -> n)
+
+
 let pp_hv pp_field op fmt (f,v : 'field * value) =
   fprintf fmt "@[%a%s%d@]" pp_field f op v
 

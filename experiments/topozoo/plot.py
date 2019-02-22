@@ -63,7 +63,7 @@ def parse_output(folder):
       n, m, topo = line.split()
       topo = os.path.basename(topo)
       topo = os.path.splitext(topo)[0]
-      size[topo] = (n,m)
+      size[topo] = (int(n),int(m))
 
   results = []
   for file in glob(os.path.join(folder, '*.log')):
@@ -74,7 +74,7 @@ def parse_output(folder):
     if result['topo'] not in size:
       # this topo does not belong to our sample
       continue
-    # print(result)
+    print(file)
     with open(file) as f:
       for l in f.readlines():
         realtime_line = re.match(r'real\t(?P<minutes>\d+)m(?P<seconds>\d+(\.\d*))s', l)
@@ -99,16 +99,38 @@ def lookup_prism(topo, data):
 
 def plot(data):
   plt.figure()
-  pnk = [ (d['num_switches'], d['time'], d['topo']) for d in data if d['method']=="probnetkat"]
-  x = [ x for (x,_,_) in pnk]
-  y = [ lookup_prism(topo,data) / y for (_,y,topo) in pnk]
-  ax = plt.subplot(111)    
+  pnk = [ (d['num_switches'], d['topo'], d['time']) for d in data if d['method']=="probnetkat"]
+  pnk.sort()
+  pnk_x, pnk_z, pnk_y = zip(*pnk)
+  prism = [ (d['num_switches'], d['topo'], d['time']) for d in data if d['method']=="prism.compiled"]
+  prism.sort()
+  prism_x, prism_z, prism_y = zip(*prism)
+  plt.scatter(pnk_x,pnk_y,c='r', marker='x', label="ProbNetKAT")
+  plt.scatter(prism_x,prism_y,c='b', marker='.', label="Prism")
+  ax = plt.gca()
+  ax.tick_params(axis='both', which='both', direction='in')
+  ax.set_xscale("log", nonposx='clip')
   ax.set_yscale("log", nonposy='clip')
-  plt.scatter(x,y,c='r', marker='o')
+  plt.xlabel("Number of switches")
+  plt.ylabel("Time (seconds)")
+  leg = plt.legend(fancybox=True)
+  leg.get_frame().set_alpha(0.9)
+
+  ax.grid(alpha=0.2)
+  plt.xlim(1, 10000)
+  plt.ylim(1, 150)
   plt.savefig('topozoo.pdf', bbox_inches='tight')
+
+  # dump data to file
+  with open("topozoo.txt", "w+") as f:
+    for pnk_pt, prism_pt in zip(pnk, prism):
+      f.write('{1:25} {method:10} {0:4} {2:8}\n'.format(*pnk_pt, method='NetKAT'))
+      f.write('{1:25} {method:10} {0:4} {2:8}\n'.format(*prism_pt, method='Prism'))
+
 
 def main():
   data = parse_output(DATA_DIR)
+  # print(data)
   plot(data)
 
 if __name__ == "__main__":

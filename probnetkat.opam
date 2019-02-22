@@ -1,20 +1,42 @@
-opam-version: "1.2"
-available: [ ocaml-version >= "4.05.0" ]
+opam-version: "2.0"
 version: "0.1"
+synopsis: "McNetKAT: Scalable Verification of Probabilistic Network Programs"
 maintainer: "Steffen Smolka <smolka@cs.cornell.edu>"
-homepage: "http://frenetic-lang.org"
+authors: "see http://www.frenetic-lang.org/probnetkat/#members"
+homepage: "http://www.frenetic-lang.org/probnetkat/"
 bug-reports: "https://github.com/frenetic-lang/frenetic/issues"
-dev-repo: "https://github.com/frenetic-lang/frenetic.git"
-
-build: ["jbuilder" "build" "-p" name "-j" jobs]
-build-doc: ["jbuilder" "build" "@doc" "-p" name "-j" jobs]
-build-test: ["jbuilder" "runtest" "-p" name "-j" jobs]
-install: ["jbuilder" "install" "-p" name "-j" jobs]
-
+dev-repo: "git://github.com/frenetic-lang/frenetic.git"
+build: [
+  ["dune" "subst"] {pinned}
+  ["dune" "build" "-p" name "-j" jobs]
+  ["dune" "runtest" "-p" name "-j" jobs] {with-test}
+  ["dune" "build" "@doc" "-p" name "-j" jobs] {with-doc}
+]
 depends: [
-  "jbuilder" {>="1.0+beta13"}
-  "core"   {>= "v0.10.0"}
-  "zarith"
-  "joyson"
+  "ocaml" {>= "4.05.0"}
+  "dune" {build}
+  "async"
+  "async_unix"
+  "alcotest"
+  "bin_prot"
+  "core"
+  "cstruct"
+  "ocaml-compiler-libs"
+  "core" {>= "v0.11"}
+  "cstruct"
+  "ipaddr"
+  "ocaml-migrate-parsetree"
+  "ocamlgraph"
+  "open"
+  "ppx_cstruct"
+  "ppx_deriving"
   "ppx_deriving_yojson"
+  "ppx_enumerate"
+  "ppx_jane"
+  "printbox"
+  "rpc_parallel"
+  "sedlex"
+  "sexplib"
+  "yojson"
+  "zarith"
 ]

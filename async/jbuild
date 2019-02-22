@@ -1,6 +1,0 @@
-(executable
- ((name        rpc_compile_branch)
-  (public_name probnetkat.rpc_compile_branch)
-  (libraries (async core rpc_parallel probnetkat))
-  (preprocess (pps (ppx_jane)))
-))
