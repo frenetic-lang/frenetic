@@ -1,0 +1,6 @@
+(executables
+ (names main topo dump icfp)
+ (public_names probnetkat probnetkat.topo probnetkat.dump probnetkat.icfp)
+ (libraries core zarith probnetkat yojson ppx_deriving_yojson.runtime)
+ (preprocess
+  (pps ppx_deriving.std ppx_deriving_yojson)))

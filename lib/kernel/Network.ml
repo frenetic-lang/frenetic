@@ -1,6 +1,5 @@
 open Graph
-(* open Sexplib.Conv *)
-open Core_kernel.Std
+open Core
 
 module type VERTEX = sig
   type t [@@deriving sexp]
@@ -246,7 +245,7 @@ struct
     let add_vertex (t:t) (l:Vertex.t) : t * vertex =
       let open VL in
       try (t, _node_vertex t l)
-      with Not_found ->
+      with Caml.Not_found ->
         let id = t.next_node + 1 in
         let v = { id = id; label = l } in
         let g = P.add_vertex t.graph v in
@@ -280,7 +279,7 @@ struct
             P.remove_edge_e acc e) in
             let t' = {t with graph = graph'} in
             aux t'
-      with Not_found -> aux t
+      with Caml.Not_found -> aux t
 
     (* Special Accessors *)
     let num_vertexes (t:t) : int =
@@ -465,7 +464,7 @@ struct
       try
         let pth,_ = Dijkstra.shortest_path t.graph v1 v2 in
         Some pth
-      with Not_found ->
+      with Caml.Not_found ->
         None
 
     exception NegativeCycle of edge list
@@ -506,7 +505,7 @@ struct
               let dev2 = Weight.add dev1 (Weight.weight (Topology.edge_to_label t e)) in
               let improvement =
                 try Weight.compare dev2 (VertexHash.find_exn dist ev2) < 0
-                with Not_found -> true
+                with Caml.Not_found -> true
               in
               if improvement then begin
                 VertexHash.set prev ev2 ev1;
@@ -514,7 +513,7 @@ struct
                 VertexHash.set admissible ev2 e;
                 Some ev2
               end else x
-            end with Not_found -> x) t.graph None in
+            end with Caml.Not_found -> x) t.graph None in
         match update with
           | Some x ->
             if (phys_equal i (P.nb_vertex t.graph)) then raise (NegativeCycle (find_cycle x))
@@ -552,7 +551,7 @@ struct
                    let e = find_edge g nodes.(i) nodes.(j) in
                    let w = Weight.weight (Topology.edge_to_label g e) in
                    (Some w, lazy [e])
-                 with Not_found -> (None,lazy []))),
+                 with Caml.Not_found -> (None,lazy []))),
          nodes)
       in
       let matrix,vxs = make_matrix topo in
@@ -996,12 +995,8 @@ module Node = struct
      raise an error if it is not fully filled *)
   let unbox (p:partial_t) : t =
     let unbox_host (p:partial_t) =
-      let i = match p.partial_ip with
-        | Some i -> i
-        | None -> failwith "Host must have an IP address" in
-      let m = match p.partial_mac with
-        | Some m -> m
-        | None -> failwith "Host must have a MAC address" in
+      let i = Option.value p.partial_ip ~default:default.ip in
+      let m = Option.value p.partial_mac ~default:default.mac in
       let n = match p.partial_name with
         | Some n -> n
         | None -> failwith "Host must have a name" in
