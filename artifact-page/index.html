@@ -183,7 +183,15 @@ sudo apt-get install -y ocaml ocaml-native-compilers camlp4 camlp4-extra opam gi
 
             <li>Follow step 2 from the <em>Using vagrant</em> instructions to obtain the source code.</li>
 
-            <li>In the `frenetic/vm` folder, execute the following to automatically build McNetKAT,
+            <li>Copy the script from the `frenetic/vm` folder to the same folder containing the
+              `frenetic` folder:
+              <pre><code class="language-bash">$ ls
+frenetic
+$ cp frenetic/vm/*.sh .
+</code></pre>
+          </li>
+          <li>
+              Then execute the following to automatically build McNetKAT,
               PRISM, Bayonet, and various dependencies.
 <pre><code class="language-bash">bash setup-opam.sh
 bash setup-ocaml.sh
@@ -200,6 +208,37 @@ bash setup-plotlibs.sh
         <div id="results">
           <h2>Replicating results</h2>
 <h3 id="evaluation">Evaluation</h3>
+  <h4>General Tips & Tricks</h4>
+  <ol>
+    <li>
+      <strong>Log Files:</strong> The results of experiments are saved in
+      individual <code>*.log</code> files, using one file per "data point".
+      If a log file for a particular data point is already present, the experiment
+      is <strong>skipped</strong>. To force the regeneration of a data point,
+      either delete the corresponding log file or use the pattern
+      <pre><code class="language-bash">F=1 ./run_bench.py</code></pre>
+      When things go wrong, the log files can often give an indication why. 
+    </li>
+    <li>
+      <strong>Timeouts:</strong>
+      By default, the timeout for most experiments is set to 1 hour. You can
+      also overwrite this default by specifying a timeout in seconds using the
+      following pattern:
+      <pre><code class="language-bash">TIMEOUT=60 ./run_bench.py</code></pre>
+      This runs the benchmark with a timeout of 1 minute per data point.
+    </li>
+    <li>
+      <strong>Orphan Processes:</strong>
+      If you interrupt an experiment before it has completed, you may be left
+      with orphan processes running in the background and draining CPU and memory
+      resources. This could interfere with other experiments, so make sure to
+      kill these orphan processes!
+      
+      The script <code>kill_all.sh</code> in
+      the frenetic root folder can help with this, although you may have to
+      adjust the parameters to your cluster.
+    </li>
+  </ol>
 
   <h4>Scalability on FatTree (Figure 7)</h4>
   <p>This experiment is run on a single machine.</p>
@@ -212,11 +251,6 @@ rm *.log</code></pre>
     <li>
       Generate data points:
       <pre><code class="language-bash">./run_bench.py</code></pre>
-      <strong>WARNING:</strong> If you interrupt this process, you may be left
-      with orphan processes running in the background and draining CPU and memory
-      resources. Make sure to kill them. The script <code>kill_all.sh</code> in
-      the frenetic root folder can do this, although you may have to
-      adjust the parameters to your cluster.
     </li>
     <li>
       Plot result:
@@ -233,7 +267,7 @@ less ecmp.txt</code></pre>
   <h4>Parallel Speedup (Figure 8)</h4>
   <p>This experiment assumes a cluster of machines with 16 physical cores each.
     If no cluster is available, or the number of physical cores differs, the
-    experiment may be reproduced partially.
+    experiment may be reproduced partially, as detailed below.
   </p>
   <h5><strong>Setting up the Cluster:</strong></h5>
   <p>
@@ -260,7 +294,7 @@ rm *.log</code></pre>
       The relevant parameters are the following:
       <ul>
         <li><strong>J:</strong> The number of processes to use on the local machine. Set this to a value no larger than the number of physical cores.</li>
-        <li><strong>RN:</strong> The number of remote machines to use. (Set to 0 if you have no remote machines.)</li>
+        <li><strong>RN:</strong> The number of remote machines to use.</li>
         <li><strong>RJ:</strong> The number of processes per remote machine to use.
           As with <strong>J</strong>, ensure this number is no larger than the number of physical cores.</li>
       </ul>
@@ -269,13 +303,16 @@ rm *.log</code></pre>
       set to a value above 0 -- you can still evaluate the speedup on a single machine. 
     </li>
     <li>
+      Optionally, if you have a cluster: Given remote machines
+        <code>m1, m2, ..., mk</code>
+      with users
+        <code>u1, u2, ..., uk</code>,
+      export your setup as follow:
+      <pre><code class="language-bash">export CLUSTER="u1@m1 u2@m2 ... uk@mk"</code></pre>
+    </li>
+    <li>
       Generate data points:
       <pre><code class="language-bash">./run_bench.py</code></pre>
-      <strong>WARNING:</strong> If you interrupt this process, you may be left
-      with orphan processes running in the background and draining CPU and memory
-      resources. Make sure to kill them. The script <code>kill_all.sh</code> in
-      the frenetic root folder can do this, although you may have to
-      adjust the parameters to your cluster.
     </li>
     <li>
       Plot result:
@@ -283,10 +320,11 @@ rm *.log</code></pre>
     </li>
     <li>
       View result:
-      <pre><code class="language-bash">xpdf ecmp.pdf
-less ecmp.txt</code></pre>
+      <pre><code class="language-bash">xpdf speedup.pdf
+less speedup.txt</code></pre>
     </li>
   </ol>
+</div>
 
           <h3 id="case-study">Case Study: Data Center Fault-Tolerance</h3>
           <h4>Comparing resilience of routing schemes (Figure 11)</h4>
