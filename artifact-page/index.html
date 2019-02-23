@@ -200,12 +200,47 @@ bash setup-plotlibs.sh
         <div id="results">
           <h2>Replicating results</h2>
 <h3 id="evaluation">Evaluation</h3>
+
   <h4>Scalability on FatTree (Figure 7)</h4>
   <p>This experiment is run on a single machine.</p>
   <ol>
     <li>
-      Navigate to the fattree directory and delete old results:
+      Navigate to the fattree/ecmp directory and delete old results:
       <pre><code class="language-bash">cd frenetic/experiments/fattree/ecmp
+rm *.log</code></pre>
+    </li>
+    <li>
+      Generate data points:
+      <pre><code class="language-bash">./run_bench.py</code></pre>
+    </li>
+    <li>
+      Plot result:
+      <pre><code class="language-bash">./plot.py</code></pre>
+    </li>
+    <li>
+      View result:
+      <pre><code class="language-bash">xpdf ecmp.pdf
+less ecmp.txt</code></pre>
+    </li>
+  </ol>
+  <!--  -->
+
+  <h4>Parallel Speedup (Figure 8)</h4>
+  <p>This experiment requires a cluster of machines. The master machine
+    (from which the experiment is run) must have access to the other machines
+    using ssh via passwordless key authentication. 
+    In particular, if <code>foo</code> is the hostname of a remote
+    machine on the cluster, the following should succeed without the need to
+    enter a passphrase, where
+    <code>bar</code> is an appropriate user on the host <code>foo</code>:
+    <pre><code class="language-bash">ssh bar@foo</code></pre>
+    Instructions on how to achieve this can be found <a href="https://www.digitalocean.com/community/tutorials/how-to-set-up-ssh-keys-on-ubuntu-1604">here</a>.
+  </p>
+  <p>Once the cluster is set up as described above, follow the following steps:</p>
+  <ol>
+    <li>
+      Navigate to the fattree/speedup directory and delete old results:
+      <pre><code class="language-bash">cd frenetic/experiments/fattree/speedup
 rm *.log</code></pre>
     </li>
     <li>
