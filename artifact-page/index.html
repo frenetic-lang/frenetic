@@ -177,7 +177,7 @@ cd frenetic</code></pre>
             <li>Install OCaml and OPAM:</li>
 <pre><code class="language-bash">sudo apt-get update
 sudo apt-get install -y python-software-properties build-essential m4
-sudo add-apt-repository -u ppa:avsm/ppa
+sudo add-apt-repository -y -u ppa:avsm/ppa
 sudo apt-get install -y ocaml ocaml-native-compilers camlp4 camlp4-extra opam git libssl-dev aspcud
 </code></pre>
 
@@ -358,7 +358,7 @@ rm *.log</code></pre>
       <code>run_bench.py</code>.
       In particular, if you don't have a cluster, comment out the line with
       <code>'RN': '24'</code> -- it instructs McNetKAT to spread the workload
-      to 24 remote machines:
+      to 24 remote machines.
       <pre><code class="language-bash">nano +19 run_bench.py</code></pre>
       If you <strong>do</strong> have a cluster, follow the instructions on
       <a href="#cluster-setup">how to set up the cluster</a>.
@@ -370,16 +370,19 @@ rm *.log</code></pre>
     </li>
     <li>
       Plot result:
-      <pre><code class="language-bash">./plot.py</code></pre>
+      <pre><code class="language-bash">cd ~/frenetic/plots
+./bayonet.py ../examples/bayonet
+</code></pre>
     </li>
     <li>
       View result:
-      <pre><code class="language-bash">xpdf ecmp.pdf
-less ecmp.txt</code></pre>
+      <pre><code class="language-bash">xpdf bayonet.pdf
+less bayonet.txt</code></pre>
     </li>
   </ol>
 </div>
 <!--  -->
+<hr/>
 <!--  -->
 <div>
 <h3 id="case-study">Case Study: Data Center Fault-Tolerance</h3>
