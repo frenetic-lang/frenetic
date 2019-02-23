@@ -205,9 +205,13 @@ bash setup-plotlibs.sh
       </div>
 
 <hr/>
-        <div id="results">
-          <h2>Replicating results</h2>
-<h3 id="evaluation">Evaluation</h3>
+
+<div id="results">
+<h2>Replicating results</h2>
+
+<div id="evaluation">
+<h3>Evaluation</h3>
+<!--  -->
   <h4>General Tips & Tricks</h4>
   <ol>
     <li>
@@ -229,17 +233,21 @@ bash setup-plotlibs.sh
     </li>
     <li>
       <strong>Orphan Processes:</strong>
-      If you interrupt an experiment before it has completed, you may be left
+      If you interrupt an experiment before it has completed, or it crashes, you
+      may be left
       with orphan processes running in the background and draining CPU and memory
-      resources. This could interfere with other experiments, so make sure to
+      resources. This will interfere with other experiments, so make sure to
       kill these orphan processes!
       
       The script <code>kill_all.sh</code> in
       the frenetic root folder can help with this, although you may have to
-      adjust the parameters to your cluster.
+      adjust the parameters to your cluster (or comment out the cluster specific
+      part).
+
+      <strong>If your system appears unresponsive, this is likely the issue!</strong>
     </li>
   </ol>
-
+<!--  -->
   <h4>Scalability on FatTree (Figure 7)</h4>
   <p>This experiment is run on a single machine.</p>
   <ol>
@@ -262,8 +270,7 @@ rm *.log</code></pre>
 less ecmp.txt</code></pre>
     </li>
   </ol>
-  <!--  -->
-
+<!--  -->
   <h4>Parallel Speedup (Figure 8)</h4>
   <p>This experiment assumes a cluster of machines with 16 physical cores each.
     If no cluster is available, or the number of physical cores differs, the
@@ -311,6 +318,11 @@ rm *.log</code></pre>
       <pre><code class="language-bash">export CLUSTER="u1@m1 u2@m2 ... uk@mk"</code></pre>
     </li>
     <li>
+      Optionally, adjust the parameter <code>k</code> of the FatTrees to use:
+      <pre><code class="language-bash">nano +38 run_bench.py</code></pre>
+      By default, the experiment is run with k=14 and k=16.
+    </li>
+    <li>
       Generate data points:
       <pre><code class="language-bash">./run_bench.py</code></pre>
     </li>
@@ -324,54 +336,79 @@ rm *.log</code></pre>
 less speedup.txt</code></pre>
     </li>
   </ol>
+<!--  -->
+  <h4>Comparision with other tools (Figure 10)</h4>
+  <p>This experiment is run on a single machine.</p>
+<!--   <ol>
+    <li>
+      Navigate to the fattree/ecmp directory and delete old results:
+      <pre><code class="language-bash">cd frenetic/experiments/fattree/ecmp
+rm *.log</code></pre>
+    </li>
+    <li>
+      Generate data points:
+      <pre><code class="language-bash">./run_bench.py</code></pre>
+    </li>
+    <li>
+      Plot result:
+      <pre><code class="language-bash">./plot.py</code></pre>
+    </li>
+    <li>
+      View result:
+      <pre><code class="language-bash">xpdf ecmp.pdf
+less ecmp.txt</code></pre>
+    </li>
+  </ol> -->
+</div>
+<!--  -->
+<!--  -->
+<div>
+<h3 id="case-study">Case Study: Data Center Fault-Tolerance</h3>
+<!--  -->
+  <h4>Comparing resilience of routing schemes (Figure 11)</h4>
+  <ol>
+    <li>To perform the analysis corresponding to the
+      case study show in Figure 11 of the paper, run
+      the following from the <code>frenetic</code>
+      directory:</li>
+  <pre><code class="language-bash">probnetkat.compare</code></pre>
+    <li>This will generate json files in
+      <code>./examples/output/results/comparisons</code>
+      directory with data for the two tables. For the
+      case with <code>k</code> failures, see the file
+      <code>k-1-16.json</code>. The field
+      <code>resilience</code> in each file
+      corresponds to the equivalence test with
+      teleportation in Figure 11 (b).</li>
+
+    <li> To generate the table, run:</li>
+  <pre><code class="language-bash">sh ./plots/f10-tables.sh</code></pre>
+  </ol>
+<!--  -->
+  <h4>Case study with unbounded failures (Figure 12)</h4>
+  <ol>
+    <li>To perform the analysis corresponding to the
+    case study show in Figure 12 of the paper, run the
+    following script from the <code>frenetic</code>
+    directory:</li>
+  <pre><code class="language-bash">sh ./experiments/f10/run-partial.sh</code></pre>
+
+      <li>It may take up to 10 minutes to complete
+      the experiments.</li>
+
+      <li>To plot and visualize the results, perform
+      the following:</li>
+
+  <pre><code class="language-bash">sh ./plots/f10.sh
+  evince experiments/f10/*.pdf
+  </code></pre>
+  </ol>
 </div>
 
-          <h3 id="case-study">Case Study: Data Center Fault-Tolerance</h3>
-          <h4>Comparing resilience of routing schemes (Figure 11)</h4>
-          <ol>
-            <li>To perform the analysis corresponding to the
-              case study show in Figure 11 of the paper, run
-              the following from the <code>frenetic</code>
-              directory:</li>
-<pre><code class="language-bash">probnetkat.compare</code></pre>
-            <li>This will generate json files in
-              <code>./examples/output/results/comparisons</code>
-              directory with data for the two tables. For the
-              case with <code>k</code> failures, see the file
-              <code>k-1-16.json</code>. The field
-              <code>resilience</code> in each file
-              corresponds to the equivalence test with
-              teleportation in Figure 11 (b).</li>
-
-            <li> To generate the table, run:</li>
-<pre><code class="language-bash">sh ./plots/f10-tables.sh</code></pre>
-          </ol>
-
-
-          <h4>Case study with unbounded failures (Figure 12)</h4>
-          <ol>
-            <li>To perform the analysis corresponding to the
-            case study show in Figure 12 of the paper, run the
-            following script from the <code>frenetic</code>
-            directory:</li>
-<pre><code class="language-bash">sh ./experiments/f10/run-partial.sh</code></pre>
-
-              <li>It may take up to 10 minutes to complete
-              the experiments.</li>
-
-              <li>To plot and visualize the results, perform
-              the following:</li>
-
-<pre><code class="language-bash">sh ./plots/f10.sh
-evince experiments/f10/*.pdf
-</code></pre>
-          </ol>
-        </div>
-    </article>
-
-    </div>
-
-  </body>
+</div>
+</article>
+</div>
+</body>
 </html>
 
 
