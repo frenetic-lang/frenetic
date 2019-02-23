@@ -304,44 +304,44 @@ let f10 ?(s1=true) ?(s2=true) topo base_name : Net.Topology.vertex -> int -> str
         |> List.map ~f:Topology.pt_val
         |> List.filter ~f:(fun pv -> (abtype_of_swpt topo sw_val pv) = subtree_type && pv <> dnwd_pt) in
 
-      let some_diff_type_subtree_up = PNK.(
+      let some_diff_type_subtree_up = PNK.Old.(
         List.map diff_type_dnwd_pts ~f:(fun pt_val ->
           ???(up sw_val pt_val, 1)) |> mk_big_disj) in
-      let some_same_type_subtree_up = PNK.(
+      let some_same_type_subtree_up = PNK.Old.(
         List.map same_type_dnwd_pts ~f:(fun pt_val ->
           ???(up sw_val pt_val, 1)) |> mk_big_disj) in
 
-      let fwd_diff_type_subtree = PNK.(
-          List.map diff_type_dnwd_pts ~f:(fun pt_val -> !!(pt, pt_val))
-          |> uniform
-          |> then_observe (at_good_pt sw diff_type_dnwd_pts)
-        )
-      in
+      let fwd_diff_type_subtree = PNK.Old.(
+          do_whl (neg (at_good_pt sw diff_type_dnwd_pts)) (
+            List.map diff_type_dnwd_pts ~f:(fun pt_val -> !!(pt, pt_val))
+            |> uniform
+          )
+        ) in
 
-      let fwd_same_type_subtree = PNK.(
-          !!(f10s2, 1) >> (
+      let fwd_same_type_subtree = PNK.Old.(
+          !!(f10s2, 1) >>
+          do_whl (neg (at_good_pt sw same_type_dnwd_pts)) (
             List.map same_type_dnwd_pts ~f:(fun pt_val -> !!(pt, pt_val))
             |> uniform
-            |> then_observe (at_good_pt sw diff_type_dnwd_pts)
           )
         ) in
 
       begin match s1, s2 with
-      | (false, false) -> PNK.(
+      | (false, false) -> PNK.Old.(
         Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt), drop)
       )
-      | (true, false) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+      | (true, false) -> PNK.Old.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
                                   Ite (some_diff_type_subtree_up, fwd_diff_type_subtree, drop)))
-      | (false, true) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+      | (false, true) -> PNK.Old.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
                                   Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop)))
       | (true, true) ->
         begin match (diff_type_dnwd_pts, same_type_dnwd_pts) with
-        | ([], []) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt), drop))
-        | ([], _ ) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+        | ([], []) -> PNK.Old.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt), drop))
+        | ([], _ ) -> PNK.Old.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
                                 Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop)))
-        | (_, [] ) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+        | (_, [] ) -> PNK.Old.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
                                 Ite (some_diff_type_subtree_up, fwd_diff_type_subtree, drop)))
-        | (_, _) -> PNK.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
+        | (_, _) -> PNK.Old.(Ite (???(up sw_val dnwd_pt, 1), !!(pt, dnwd_pt),
                               Ite (some_diff_type_subtree_up, fwd_diff_type_subtree,
                                    (* Scheme 2 *)
                                    Ite (some_same_type_subtree_up, fwd_same_type_subtree, drop))))
@@ -354,12 +354,11 @@ let f10 ?(s1=true) ?(s2=true) topo base_name : Net.Topology.vertex -> int -> str
            incoming port. If at scheme 2 re-routing second hop 'y', then fwd
            to random child if exists. Else, perfrom default forwarding *)
       let epts = List.filter pts ~f:(fun pv -> pv <> in_pt) in
-      let def_fwding = PNK.(
+      let def_fwding = PNK.Old.(
+        do_whl (neg (at_good_pt sw epts))  (
           List.map epts ~f:(fun pt_val -> !!(pt, pt_val))
           |> uniform
-          |> then_observe (at_good_pt sw epts)
-        )
-      in
+        )) in
       let rev_in_edge = Hashtbl.find_exn topo.hop_tbl (sw_val, in_pt) in
       let (prev_sw, _) = Net.Topology.edge_dst rev_in_edge in
       if not (Topology.is_switch topo.graph prev_sw) then def_fwding else
@@ -370,15 +369,13 @@ let f10 ?(s1=true) ?(s2=true) topo base_name : Net.Topology.vertex -> int -> str
           Topology.(is_switch topo.graph neigh) && Topology.(sw_val topo.graph neigh) < sw_val)
           |> List.map ~f:Topology.pt_val in
         match children_pts with
-        | [] -> PNK.(!!(f10s2, 0) >> def_fwding)
+        | [] -> PNK.Old.(!!(f10s2, 0) >> def_fwding)
         | _ ->
-          let fwd_children = PNK.(
+          let fwd_children = PNK.Old.(
+            do_whl (neg (at_good_pt sw children_pts)) (
               List.map children_pts ~f:(fun pt_val -> !!(pt, pt_val))
-              |> uniform
-              |> then_observe (at_good_pt sw children_pts)
-            )
-          in
-          PNK.(Ite (???(f10s2, 1), !!(f10s2, 0) >> fwd_children, def_fwding))
+              |> uniform)) in
+          PNK.Old.(Ite (???(f10s2, 1), !!(f10s2, 0) >> fwd_children, def_fwding))
 
 
 
@@ -440,21 +437,21 @@ let get_all topo base_name : (string * scheme) list =
   let car () = `Portwise (car topo base_name ~style:`Deterministic) in
   let f10_no_lr () = `Portwise (f10 topo base_name ~s1:false ~s2:false) in
   let f10_s1_lr () = `Portwise (f10 topo base_name ~s1:true ~s2:false) in
-  let f10_s2_lr () = `Portwise (f10 topo base_name ~s1:false ~s2:true) in
+  (* let f10_s2_lr () = `Portwise (f10 topo base_name ~s1:false ~s2:true) in *)
   let f10_s1_s2_lr () = `Portwise (f10 topo base_name ~s1:true ~s2:true) in
   (* SJS: for convenience, run fast-to-analyze before slow-to-analyze schemes *)
   [
-    "shortest path",          shortest_path;
-    (* "car",                    car; *)
+(*     "shortest path",          shortest_path;
+    "car",                    car;
     "ecmp",                   ecmp;
-    "resilient ecmp",         resilient_ecmp;
+    "resilient ecmp",         resilient_ecmp; *)
 
     "f10_no_lr",              f10_no_lr;
     "f10_s1_lr",              f10_s1_lr;
     (* "f10_s2_lr",              f10_s2_lr; *)
     "f10_s1_s2_lr",           f10_s1_s2_lr;
 
-    "random walk",            random_walk;
+    (* "random walk",            random_walk; *)
     (* "resilient random walk",  resilient_random_walk; *)
   ]
   |> List.filter_map ~f:(fun (name, make) ->

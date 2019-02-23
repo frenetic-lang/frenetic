@@ -392,15 +392,23 @@ module Constructors = struct
 end
 
 module PNK = struct
-  include Constructors
-  let ( ?? ) hv = filter (test hv)
-  let ( ??? ) hv = test hv
-  let ( !! ) hv = modify hv
-  let ( >> ) p q = seq p q
-  let ( & ) a b = conj a b
-  let ( ?@ ) dist = choice dist (* ?@[p , 1//2; q , 1//2] *)
-  let ( // ) m n = Prob.(m // n)
-  let ( @ ) p r = (p,r)
+  module T = struct
+    include Constructors
+    let ( ?? ) hv = filter (test hv)
+    let ( ??? ) hv = test hv
+    let ( !! ) hv = modify hv
+    let ( >> ) p q = seq p q
+    let ( & ) a b = conj a b
+    let ( ?@ ) dist = choice dist (* ?@[p , 1//2; q , 1//2] *)
+    let ( // ) m n = Prob.(m // n)
+    let ( @ ) p r = (p,r)
+  end
+  include T
+
+  module Old = struct
+    include T
+    let do_whl a p = do_whl p a
+  end
 end
 
 
