@@ -13,4 +13,4 @@ else
 fi
 opam pin add frenetic lib -y --working-dir --inplace-build --no-action
 opam pin add probnetkat . -y --working-dir --inplace-build
-opam install probnetkat -y
+opam reinstall probnetkat -y
