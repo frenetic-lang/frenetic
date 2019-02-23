@@ -212,6 +212,11 @@ rm *.log</code></pre>
     <li>
       Generate data points:
       <pre><code class="language-bash">./run_bench.py</code></pre>
+      <strong>WARNING:</strong> If you interrupt this process, you may be left
+      with orphan processes running in the background and draining CPU and memory
+      resources. Make sure to kill them. The script <code>kill_all.sh</code> in
+      the frenetic root folder can do this, although you may have to
+      adjust the parameters to your cluster.
     </li>
     <li>
       Plot result:
@@ -226,7 +231,13 @@ less ecmp.txt</code></pre>
   <!--  -->
 
   <h4>Parallel Speedup (Figure 8)</h4>
-  <p>This experiment requires a cluster of machines. The master machine
+  <p>This experiment assumes a cluster of machines with 16 physical cores each.
+    If no cluster is available, or the number of physical cores differs, the
+    experiment may be reproduced partially.
+  </p>
+  <h5><strong>Setting up the Cluster:</strong></h5>
+  <p>
+    The master machine
     (from which the experiment is run) must have access to the other machines
     using ssh via passwordless key authentication. 
     In particular, if <code>foo</code> is the hostname of a remote
@@ -236,7 +247,7 @@ less ecmp.txt</code></pre>
     <pre><code class="language-bash">ssh bar@foo</code></pre>
     Instructions on how to achieve this can be found <a href="https://www.digitalocean.com/community/tutorials/how-to-set-up-ssh-keys-on-ubuntu-1604">here</a>.
   </p>
-  <p>Once the cluster is set up as described above, follow the following steps:</p>
+  <h5><strong>Running the experiment:</strong></h5>
   <ol>
     <li>
       Navigate to the fattree/speedup directory and delete old results:
@@ -244,8 +255,27 @@ less ecmp.txt</code></pre>
 rm *.log</code></pre>
     </li>
     <li>
+      Adjust parameters to fit your setup:
+      <pre><code class="language-bash">nano +11 ./run_bench.py</code></pre>
+      The relevant parameters are the following:
+      <ul>
+        <li><strong>J:</strong> The number of processes to use on the local machine. Set this to a value no larger than the number of physical cores.</li>
+        <li><strong>RN:</strong> The number of remote machines to use. (Set to 0 if you have no remote machines.)</li>
+        <li><strong>RJ:</strong> The number of processes per remote machine to use.
+          As with <strong>J</strong>, ensure this number is no larger than the number of physical cores.</li>
+      </ul>
+      If you don't have a cluster available, simply comment out the lines in
+      <code class="language-bash">run_bench.py</code> that have <strong>RN</strong>
+      set to a value above 0 -- you can still evaluate the speedup on a single machine. 
+    </li>
+    <li>
       Generate data points:
       <pre><code class="language-bash">./run_bench.py</code></pre>
+      <strong>WARNING:</strong> If you interrupt this process, you may be left
+      with orphan processes running in the background and draining CPU and memory
+      resources. Make sure to kill them. The script <code>kill_all.sh</code> in
+      the frenetic root folder can do this, although you may have to
+      adjust the parameters to your cluster.
     </li>
     <li>
       Plot result:
