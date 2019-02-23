@@ -4,5 +4,5 @@ PRISM_ROOT="prism-4.4/prism"
 
 wget "https://github.com/prismmodelchecker/prism/archive/$ARCHIVE"
 unzip $ARCHIVE
-cd $PRISM_ROOT && make
+(cd $PRISM_ROOT && make)
 ln -s $(realpath ${PRISM_ROOT}/bin/prism) $HOME/bin
