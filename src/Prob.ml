@@ -12,12 +12,17 @@ module Z = struct
   let sexp_of_t t =
     to_string t
     |> String.sexp_of_t
+
+  let bin_shape_t = [%bin_shape: string]
+  let bin_size_t t = String.bin_size_t (to_string t)
+  let bin_write_t buf t = String.bin_write_t buf (to_string t)
+  let bin_read_t buf ~pos_ref = of_string (String.bin_read_t buf ~pos_ref)
 end
 
 type t = Q.t = {
     num: Z.t; (** Numerator. *)
     den: Z.t; (** * Denominator, >= 0 *)
-} [@@deriving hash, sexp]
+} [@@deriving hash, sexp, bin_io]
 
 include (Q : module type of Q with type t := t)
 
@@ -39,9 +44,23 @@ let to_q t = t
 let to_int_frac t =
    Z.(to_int t.num, to_int t.den)
 
+let ( ^ ) (x : t) (n : int) : t =
+  let rec loop n acc =
+    if n = 0 then acc else
+    loop Int.(n-1) (x*acc)
+  in
+  loop Int.(abs n) one
+  |> (if n<0 then inv else ident)
+
 
 (* open Core
 include Float
 
 let to_q = Q.of_float
-let ( // ) x y = Float.(of_int x / of_int y) *)
+let ( // ) x y = Float.(of_int x / of_int y)
+let ( ^ ) x y = x**(Float.of_int y)
+
+let to_int_frac t =
+  let q = to_q t in
+  Z.(to_int q.num, to_int q.den)
+ *)

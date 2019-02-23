@@ -1,6 +1,42 @@
 (** Module with static parameters *)
 open! Core
 
+
+(** {2 Parallelization parameters} *)
+
+(** total number of jobs = J + RN * RJ *)
+
+(** number of local jobs *)
+let j = Sys.getenv "J" |> function
+  | Some j -> Int.of_string j
+  | None -> Or_error.ok_exn Linux_ext.cores ()
+
+(** number of remote jobs per remote machine *)
+let rj = Sys.getenv "RJ" |> function
+  | Some rj -> Int.of_string rj
+  | None -> j
+
+(** number of remote servers to use *)
+let r = Sys.getenv "RN" |> function
+  | Some r -> Int.of_string r
+  | None -> 0
+
+(** cluster to use for parallelization  *)
+let cluster = Sys.getenv "CLUSTER" |> function
+  | Some s ->
+    String.split_on_chars s ~on:[' '; '\n'; '\r'; '\t']
+    |> List.map ~f:String.strip
+    |> List.filter ~f:(fun s -> Unix.gethostname () |> String.equal s |> not)
+  | None -> []
+
+(*   List.init 24 ~f:(fun i -> sprintf "atlas-%d" (i+1))
+  |> List.filter ~f:(fun s -> Unix.gethostname () |> String.equal s |> not)
+  (* prefer atlas servers with higher index *)
+  |> List.rev *)
+
+
+(** {2 PNK program parameters} *)
+
 (** switch field *)
 let sw = "sw"
 

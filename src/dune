@@ -4,10 +4,15 @@
  (wrapped true)
  (libraries
   core
-  ;; owl
+  async
+  async_unix
+  ;; rpc_parallel
+  bin_prot
   zarith
   findlib
-  frenetic)
+  frenetic
+  open
+  ocamlgraph
+  printbox)
  (preprocess
-  (pps ppx_deriving.std ppx_enumerate ppx_compare ppx_fields_conv
-    ppx_sexp_conv ppx_hash)))
+  (pps ppx_deriving.std ppx_jane)))

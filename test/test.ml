@@ -339,9 +339,9 @@ let basic_performance = [
         !!(up i, 0) , 1//2;
         !!(up i, 1) , 1//2;
       ])
-      >> do_whl (neg at_good_pt) (
+      >> do_whl (
         uniformi n ~f:(fun i -> !!("pt", i))
-      )
+      ) (neg at_good_pt)
 (*       >> ite_cascade (List.range 0 n) ~otherwise:drop ~f:(fun i ->
         ???(up i, 1),
         !!("pt", i) >> seqi n ~f:(fun i -> !!(up i, 1))

@@ -7,9 +7,16 @@ module type HashCmp = sig
   val to_string : t -> string
 end
 
+module type Value = sig
+  include HashCmp
+  include (sig
+    type t [@@deriving bin_io]
+  end with type t := t)
+end
+
 (** The signature for a type that has a lattice structure. *)
 module type Lattice = sig
-  include HashCmp
+  include Value
 
   val subset_eq : t -> t -> bool
   (** [subset_eq a b] returns [true] if [a] and [b] in the partial ordering of
@@ -59,6 +66,9 @@ module type Result = sig
 
       As an example, if [t] where the type [bool] and [prod] and [sum] were [&&]
       and [||], respectively, then [zero] should be the value [false]. *)
+
+  val is_one : t -> bool
+  val is_zero : t -> bool
 end
 
 module IntPairTbl : Hashtbl.S with type key = (int * int)
@@ -70,9 +80,9 @@ module IntPairTbl : Hashtbl.S with type key = (int * int)
     structure represents functions that take on values in a semi-ring, and whose
     variables are assigned values from a lattice, i.e., that are partially
     ordered. *)
-module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
+module Make(V:Value)(L:Lattice)(R:Result) : sig
 
-  type t = private int
+  type t = private int [@@deriving bin_io]
   (** A decision diagram index.  All diagrams and subdiagrams within it are given an
   index.  You can convert this to a tree with [unget], and from a tree with [get]. *)
 
@@ -105,6 +115,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
   module Tbl : Hashtbl.S with type key = t
   module BinTbl : Hashtbl.S with type key = (t * t)
+  module HSet : Hash_set.S with type elt = t
 
   val cache_size : unit -> int
 
@@ -154,6 +165,8 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   (** [prod a b] returns the conjunction of the two diagrams. The [prod]
       operation on the [r] type is used to combine leaf nodes. *)
 
+  val size : t -> int
+
   val map : f:(r -> t) -> g:(v -> t -> t -> t) -> t -> t
   (** [map f h t] traverses t in post order and first maps the leaves using
       f, and then the internal nodes using h, producing a modified diagram. *)
@@ -173,6 +186,9 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
           [let neg = map_r (fun r -> not r)] *)
 
+  val dp_map_r : f:(r -> r) -> t -> t
+
+
   val fold
     :  f:(r -> 'a)
     -> g:(v -> 'a -> 'a -> 'a)
@@ -181,6 +197,12 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   (** [fold f g t] traverses the diagram, replacing leaf nodes with
       applications of [f] to the values that they hold, and branches on
       variables with applications of [g]. *)
+
+  val dp_fold
+    :  f:(r -> t)
+    -> g:(v -> t -> t -> t)
+    -> t
+    -> t
 
   val equal : t -> t -> bool
   (** [equal a b] returns whether or not the two diagrams are structurally
@@ -218,4 +240,10 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
 
   val serialize : t -> string
   val deserialize : string -> t
+
+  val binary_cache : (t*t, t) Hashtbl.t
+
+  val clear_stats : unit -> unit
+  val measure : string -> (unit -> 'a) -> 'a
+  val print_stats : unit -> unit
 end

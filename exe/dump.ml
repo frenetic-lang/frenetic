@@ -119,9 +119,9 @@ let basic_analysis ~sw_pol ~topo ~failure_prob ~max_failures ~data
   let model = Model.make ~sw_pol ~topo ~max_failures ~failure_prob () in
 
   (* COMPILATION *)
-  Format.printf "ProbNetKAT model:\n# while loops = %d\n%a\n%!"
+(*   Format.printf "ProbNetKAT model:\n# while loops = %d\n%a\n%!"
     (Syntax.nr_of_loops model)
-    Syntax.pp_policy model;
+    Syntax.pp_policy model; *)
   Fdd.set_order [Params.sw; Params.pt; Params.counter; Params.ttl ];
   let time, fdd = Util.time Fdd.of_pol model in
   data.compilation_times <- time :: data.compilation_times;

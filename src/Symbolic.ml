@@ -44,7 +44,7 @@ module Field = struct
       | Meta17
       | Meta18
       | Meta19
-      [@@deriving sexp, enumerate, enum, eq, hash]
+      [@@deriving sexp, enumerate, enum, eq, hash, bin_io]
 
     let num_fields = max + 1
 
@@ -62,8 +62,6 @@ module Field = struct
 
   type field = t
 
-  let hash = Hashtbl.hash
-
   let of_string s =
     t_of_sexp (Sexp.of_string s)
 
@@ -76,7 +74,7 @@ module Field = struct
     | None -> sprintf "<%s>" @@ Sexp.to_string (sexp_of_t t)
     | Some s -> s
 
-  let pp fmt t =
+  let pp (fmt : Format.formatter) (t : t) : unit =
     Format.fprintf fmt "%s" (to_string t)
 
   let is_valid_order (lst : t list) : bool =
@@ -189,11 +187,21 @@ module Field = struct
         )
       | Ite (a,p,q) ->
         k (f_union a p q, lst)
+      | Branch {branches} ->
+        List.fold branches ~init:PNK.drop ~f:(fun p (a,q) ->
+          PNK.(ite a q p)
+        )
+        |> (fun p -> f_seq' p lst k)
       | Choice ps ->
         k (f_choice ps, lst)
       | Let { id; init; mut; body=p } ->
         f_seq' p lst k
-      | While (a,p) -> k (f_union a p PNK.skip, lst)
+      | While (a,p) ->
+        k (f_union a p PNK.skip, lst)
+      | Do_while (p, a) ->
+        f_seq' PNK.(p >> whl a p) lst k
+      | ObserveUpon (p,a) ->
+        f_seq' (Seq (p, Filter a)) lst k
     and f_seq pol : int =
       let (size, preds) = f_seq' pol [] (fun x -> x) in
       List.iter preds ~f:(f_pred size);
@@ -207,6 +215,11 @@ module Field = struct
         f_union' p lst (fun (m, lst) ->
           f_union' q lst (fun (n, lst) ->
             k (m + n, a::lst)))
+      | Branch {branches} ->
+        List.fold branches ~init:PNK.drop ~f:(fun p (a,q) ->
+          PNK.(ite a q p)
+        )
+        |> (fun p -> f_union' p lst k)
       | Choice ps ->
         List.map ps ~f:fst
         |> List.map ~f:(fun p -> f_union' p [] ident)
@@ -220,6 +233,10 @@ module Field = struct
         f_union' p lst (fun (m, lst) ->
           k (m, a::lst)
         )
+      | Do_while (p, a) ->
+        f_union' PNK.(p >> whl a p) lst k
+      | ObserveUpon (p,a) ->
+        f_union' (Seq (p, Filter a)) lst k
     and f_union a p q : int =
       let (p_size, p_preds) = f_union' p [] (fun x -> x) in
       let (q_size, q_preds) = f_union' q [] (fun x -> x) in
@@ -237,7 +254,7 @@ module Field = struct
     in
     let _ = f_seq pol in
     Array.foldi count_arr ~init:[] ~f:(fun i acc n -> ((Obj.magic i, n) :: acc))
-    |> List.stable_sort ~cmp:(fun (_, x) (_, y) -> Int.compare x y)
+    |> List.stable_sort ~compare:(fun (_, x) (_, y) -> Int.compare x y)
     |> List.rev (* SJS: do NOT remove & reverse order! Want stable sort *)
     |> List.map ~f:fst
     |> set_order
@@ -326,6 +343,8 @@ module ActionDist : sig
   val negate : t -> t
   val convex_sum : t -> Prob.t -> t -> t
 
+  val prob_of : t -> Action.t -> Prob.t
+
   val pp : Format.formatter -> t -> unit
   val to_string : t -> string
   val to_alist : t -> (Action.t * Prob.t) list
@@ -338,6 +357,8 @@ module ActionDist : sig
   val empty : t
   val unsafe_add : t -> Prob.t -> Action.t -> t
   val unsafe_normalize : t -> t
+
+  val observe_not_drop : t -> t
 
   (**
     The three events
@@ -429,6 +450,10 @@ end = struct
       (dist, mass)
     in
     (finish_conditional yes, finish_conditional no, finish_conditional mb)
+
+  let observe_not_drop t =
+    T.observe t ~bot:Action.Drop ~f:(function Action.Drop -> false | _ -> true)
+
 end
 
 (* hacky *)
@@ -436,6 +461,8 @@ module FactorizedActionDist : sig
   type t [@@deriving sexp, hash, compare, eq]
   val zero : t
   val one : t
+  val is_zero : t -> bool
+  val is_one : t -> bool
   val prod : t -> t -> t
   val sum : t -> t -> t
   val negate : t -> t
@@ -445,6 +472,8 @@ module FactorizedActionDist : sig
   val to_string : t -> string
   val to_alist : t -> (Action.t * Prob.t) list
 
+  val prob_of_drop : t -> Prob.t
+
   (* SJS: do not expose, since it will screw up factorization *)
   (* val of_alist_exn : (Action.t * Prob.t) list -> t *)
 
@@ -453,7 +482,6 @@ module FactorizedActionDist : sig
   val pushforward : t -> f:(Action.t -> Action.t) -> t
 
   val empty : t
-  (* val unsafe_normalize : t -> t *)
 
   val factorize : ActionDist.t -> t
   val to_joined : t -> ActionDist.t
@@ -470,6 +498,8 @@ module FactorizedActionDist : sig
   val split_into_conditionals :
     t -> Field.t * Value.t -> ((t * Prob.t) * (t * Prob.t) * (t * Prob.t))
 
+  val observe_not_drop : t -> t
+
 end = struct
   type t = ActionDist.t list
   [@@deriving sexp, hash, compare, eq]
@@ -483,7 +513,6 @@ end = struct
   let one = []
   let empty = [ActionDist.empty]
   let dirac x = canonicalize [ActionDist.dirac x]
-
 
   let is_zero t =
     match t with
@@ -628,6 +657,16 @@ end = struct
           (canonicalize @@ dist::f_independent_factors, mass)
       in
       finish_conditional yes, finish_conditional no, finish_conditional mb
+
+  let observe_not_drop t =
+    List.map t ~f:ActionDist.observe_not_drop
+
+  let prob_of_drop t =
+    List.fold t ~init:Prob.(one, zero) ~f:(fun (no_drop_yet, drop) d ->
+      let p_drop = ActionDist.prob_of d Action.Drop in
+      Prob.(no_drop_yet * (one - p_drop), drop + p_drop)
+    )
+    |> snd
 
 end
 
@@ -774,11 +813,8 @@ module Domain = struct
   module Valset = Set.Make(struct type t = PrePacket.nomval [@@deriving sexp, compare] end)
   type t = Valset.t Field.Map.t
 
-
-  let merge d1 d2 : t =
-    Map.merge d1 d2 ~f:(fun ~key -> function
-      | `Left s | `Right s -> Some s
-      | `Both (l,r) -> Some (Set.union l r))
+  let merge : t -> t -> t =
+    Map.merge_skewed ~combine:(fun ~key -> Set.union)
 
   let of_fdd (fdd : Fdd00.t) : t =
     let rec for_fdd dom fdd =
@@ -947,7 +983,7 @@ module type CODING = sig
   end
 end
 
-module Coding(D : DOM) : CODING = struct
+module Coding(D : DOM)() : CODING = struct
 
   let dom : Domain.t = D.domain
   let domain : (Field.t * PrePacket.nomval list) list =
@@ -1104,6 +1140,14 @@ module Matrix = struct
           |> List.map ~f:(fun v -> Field.Map.set pk ~key:f ~data:v)
         )
     )
+  (* like pre_packet_variants, but only returns a singel variant *)
+  let pre_packet_variant (pk : PrePacket.t) (dom : Domain.t) : PrePacket.t =
+    Field.Map.fold2 pk dom ~init:pk ~f:(fun ~key:f ~data pk ->
+      match data with
+      | `Both _ -> pk
+      | `Right vs -> Field.Map.set pk ~key:f ~data:(Set.choose_exn vs)
+      | `Left _ -> assert false
+    )
 
   let packet_variants (pk : Packet.t) (dom : Domain.t) : Packet.t list =
     match pk with
@@ -1131,7 +1175,7 @@ module Matrix = struct
     )
 
 
-  let get_pk_action t (pk : PrePacket.t) : ActionDist.t =
+  let get_pk_action t row (pk : PrePacket.t) : ActionDist.t =
     let module Coding = (val t.coding : CODING) in
     let row_to_action row : ActionDist.t =
       Sparse.foldi_nz row ~init:ActionDist.empty ~f:(fun _i j dist prob ->
@@ -1143,21 +1187,24 @@ module Matrix = struct
     in
     let total_pk_action pk : ActionDist.t =
       let i = (Coding.Index0.of_pk (Packet.Pk pk)).i in
-      let rowi = Sparse.row t.matrix i in
-      row_to_action rowi
+      row_to_action (row i)
     in
-    (* FIXME: inefficient solution for now for safety! *)
+    (* Using faster, but less safe code. We're assuming here that all
+       pre_pact_variants give the same final result. But we're not checking that
+       this is true. *)
+    pre_packet_variant pk t.dom
+    |> total_pk_action
+(*     (* FIXME: inefficient solution for now for safety! *)
     pre_packet_variants pk t.dom
     |> List.map ~f:total_pk_action
     |> List.group ~break:(fun x y -> not (ActionDist.equal x y))
     |> function
       | [act::_] -> act
-      | ((act::_)::_) as actions->
-        eprintf "!!! WARNING: possibly unsounds matix -> Fdd conversion\n%!";
-        List.concat actions
-        |> List.iter ~f:(fun dist -> eprintf "  %s\n" (ActionDist.to_string dist));
-        act
-      | _ -> assert false
+      | _ -> assert false *)
+
+  let get_pk_action t row pk = Fdd0.measure "mat: get pk action" (fun () ->
+    get_pk_action t row pk
+  )
 
 end
 
@@ -1167,6 +1214,19 @@ module Fdd = struct
 
   include Fdd0
   open Syntax
+
+
+  let to_dotfile t filename =
+    Out_channel.with_file ~append:false ~fail_if_exists:false filename ~f:(fun chan ->
+      Out_channel.output_string chan (to_dot t)
+    )
+
+  let render ?(format="pdf") ?(title="FDD") t =
+    Util.show_dot ~format ~title (to_dot t)
+
+  let pp ?(show=true) fmt t =
+    if show then render t;
+    pp fmt t
 
   (** SJS: keep global string |-> Field.t map so that we can compare policies
       that are compiled to Fdds one after another
@@ -1192,7 +1252,7 @@ module Fdd = struct
   let allocate_field env (f : string) : Field.t =
     match Field.Env.lookup env f with
     | (field, _) -> field
-    | exception Not_found ->
+    | exception Caml.Not_found ->
       String.Table.find_or_add field_allocation_tbl f ~default:(fun () ->
         let open Field in
         let field = match !next_field with
@@ -1236,8 +1296,16 @@ module Fdd = struct
         Seq (do_pol env p, do_pol env q)
       | Ite (a, p, q) ->
         Ite (do_pred env a, do_pol env p, do_pol env q)
+      | Branch {branches; parallelize} ->
+        let branches =
+          List.map branches ~f:(fun (a,p) -> (do_pred env a, do_pol env p)) in
+        Branch { branches; parallelize }
       | While (a, p) ->
         While (do_pred env a, do_pol env p)
+      | Do_while (p, a) ->
+        Do_while (do_pol env p, do_pred env a)
+      | ObserveUpon (p, a) ->
+        ObserveUpon (do_pol env p, do_pred env a)
       | Choice dist ->
         Choice (Util.map_fst dist ~f:(do_pol env))
       | Let { id; init; mut; body; } ->
@@ -1263,8 +1331,22 @@ module Fdd = struct
     let pol = do_pol Field.Env.empty pol in
     pol
 
+  let deallocate_fields_pred (pred : Field.t pred) : string pred =
+    let do_field : Field.t -> string = Field.to_string in
+    let rec do_pred a =
+      match a with
+      | True -> True
+      | False -> False
+      | Test (f, v) -> Test (do_field f, v)
+      | And (p, q) -> And (do_pred p, do_pred q)
+      | Or (p, q) -> Or (do_pred p, do_pred q)
+      | Neg p -> Neg (do_pred p)
+    in
+    do_pred pred
+
   let deallocate_fields (pol : Field.t policy) : string policy =
     let do_field : Field.t -> string = Field.to_string in
+    let do_pred = deallocate_fields_pred in
     let rec do_pol p =
       match p with
       | Filter pred ->
@@ -1275,8 +1357,16 @@ module Fdd = struct
         Seq (do_pol p, do_pol q)
       | Ite (a, p, q) ->
         Ite (do_pred a, do_pol p, do_pol q)
+      | Branch {branches; parallelize} ->
+        let branches =
+          List.map branches ~f:(fun (a,p) -> (do_pred a, do_pol p)) in
+        Branch { branches; parallelize }
       | While (a, p) ->
         While (do_pred a, do_pol p)
+      | Do_while (p, a) ->
+        Do_while (do_pol p, do_pred a)
+      | ObserveUpon (p, a) ->
+        ObserveUpon (do_pol p, do_pred a)
       | Choice dist ->
         Choice (Util.map_fst dist ~f:(do_pol))
       | Let { id; init; mut; body; } ->
@@ -1287,495 +1377,13 @@ module Fdd = struct
         let id = "<N/A>" in
         let body = do_pol body in
         Let { id; init; mut; body; }
-    and do_pred a =
-      match a with
-      | True -> True
-      | False -> False
-      | Test (f, v) -> Test (do_field f, v)
-      | And (p, q) -> And (do_pred p, do_pred q)
-      | Or (p, q) -> Or (do_pred p, do_pred q)
-      | Neg p -> Neg (do_pred p)
     in
     do_pol pol
 
 
-  let of_test hv =
-    atom hv FactorizedActionDist.one FactorizedActionDist.zero
-
-  let of_mod (f,v) =
-    const (FactorizedActionDist.dirac (Action.Action (PreAction.T.singleton f v)))
-
-  let negate fdd =
-    map_r fdd ~f:FactorizedActionDist.negate
-
-  let rec of_pred p =
-    match p with
-    | True      -> id
-    | False     -> drop
-    | Test(hv)  -> of_test hv
-    | And(p, q) -> prod (of_pred p) (of_pred q)
-    | Or (p, q) -> sum (of_pred p) (of_pred q)
-    | Neg(q)    -> negate (of_pred q)
-
-
-  (* SJS: copied and adopted apply algorithm from Vlr.ml *)
-  let convex_sum t1 prob t2 : t =
-    (* the function to apply at the leaves *)
-    let f x y = FactorizedActionDist.convex_sum x prob y in
-    let cache : (t*t, t) Hashtbl.t = BinTbl.create ~size:1000 () in
-    let rec sum x y =
-      let result = BinTbl.find_or_add cache (x, y) ~default:(fun () -> sum' x y) in
-(*       printf "%s-convex combination of\n  %s\nand\n  %s\nis\n  %s\n\n%!"
-        (Prob.to_string prob)
-        (to_string x)
-        (to_string y)
-        (to_string result); *)
-      result
-    and sum' x y =
-      match unget x, unget y with
-      | Leaf x, _      ->
-        map_r (fun y -> f x y) y
-      | _     , Leaf y ->
-        map_r (fun x -> f x y) x
-      | Branch {test=(vx, lx); tru=tx; fls=fx; all_fls=all_fls_x},
-        Branch {test=(vy, ly); tru=ty; fls=fy; all_fls=all_fls_y} ->
-        begin match Field.compare vx vy with
-        |  0 ->
-          begin match Value.compare lx ly with
-          |  0 -> unchecked_cond (vx,lx) (sum tx ty) (sum fx fy)
-          | -1 -> unchecked_cond (vx,lx) (sum tx all_fls_y) (sum fx y)
-          |  1 -> unchecked_cond (vy,ly) (sum all_fls_x ty) (sum x fy)
-          |  _ -> assert false
-          end
-        | -1 -> unchecked_cond (vx,lx) (sum tx y) (sum fx y)
-        |  1 -> unchecked_cond (vy,ly) (sum x ty) (sum x fy)
-        |  _ -> assert false
-        end
-    in
-    if Prob.(equal zero prob) then t2 else
-    if Prob.(equal one prob) then t1 else
-    sum t1 t2
-
-  let n_ary_convex_sum xs : t =
-    let xs =
-      List.filter xs ~f:(fun (_, p) -> Prob.(p>zero))
-      |> Array.of_list
-    in
-    (* responsible for k with i <= k < j *)
-    let rec devide_and_conquer i j =
-      (* number of elements responible for *)
-      let n = j - i in
-      match n with
-      | 0 ->
-        (drop, Prob.zero)
-      | 1 ->
-        xs.(i)
-      | _ ->
-        assert (n >= 2);
-        let k = i + n/2 in
-        let (t1,p1) = devide_and_conquer i k in
-        let (t2,p2) = devide_and_conquer k j in
-        let mass = Prob.(p1 + p2) in
-        let p = Prob.(p1 / mass) in
-        (convex_sum t1 p t2, mass)
-    in
-    let (t, mass) = devide_and_conquer 0 (Array.length xs) in
-    (* assert Prob.(equal mass one); *)
-    t
-
-
-  let seq_tbl = BinTbl.create ~size:1000 ()
-
-  let clear_cache ~preserve = begin
-    BinTbl.clear seq_tbl;
-    clear_cache preserve;
-  end
-
-  (** sequence of FactorizedActionDist.t and t  *)
-  let rec seq' dist u =
-    let t = const dist in
-    let result =
-      if equal t drop then drop else
-      if equal t id  then u else
-      BinTbl.find_or_add seq_tbl (t,u) ~default:(fun () ->
-        match unget u with
-        | Leaf dist' ->
-          const (FactorizedActionDist.prod dist dist')
-        | Branch {test; tru; fls} ->
-          let ((yes,p_yes), (no, p_no), (maybe, p_maybe)) =
-            FactorizedActionDist.split_into_conditionals dist test
-          in
-          n_ary_convex_sum [
-            seq' yes tru, p_yes;
-            seq' no fls, p_no;
-            unchecked_cond test (seq' maybe tru) (seq' maybe fls), p_maybe;
-          ]
-      )
-    in
-(*     printf "Seq of\n  %s\nand\n  %s\nis\n  %s\n\n%!"
-      (FactorizedActionDist.to_string dist)
-      (to_string u)
-      (to_string result); *)
-    result
-
-  let seq t u =
-    match unget u with
-    | Leaf _ -> prod t u (* This is an optimization. If [u] is an
-                            [Action.Par.t], then it will compose with [t]
-                            regardless of however [t] modifies packets. None
-                            of the decision variables in [u] need to be
-                            removed because there are none. *)
-    | Branch _ ->
-      dp_map t
-        ~f:(fun dist ->
-            seq' dist u
-(*           ActionDist.to_alist dist
-          |> Util.map_fst ~f:(fun action ->
-            match action with
-            | Action.Drop -> drop
-            | Action.Action preact ->
-              restrict (PreAction.to_hvs preact) u
-              |> prod (const @@ ActionDist.dirac action)
-          )
-          |> n_ary_convex_sum *)
-        )
-        ~g:(fun v t f -> cond v t f)
-        ~find_or_add:(fun t -> BinTbl.find_or_add seq_tbl (t,u))
-
-  (* SJS: the fragment of ProbNetKAT we are using does not have a union operator!
-     We only have boolean disjunction and disjoint union.
-   *)
-  (* let union t u = sum t u *)
-
-  (* FIXME: this skeleton is very large, so this may become a bottleneck.
-     I used to use a smaller skeleton computed from ap and not_a, but I am not
-     sure this was sound. Reconsider should this become a bottleneck in the
-     future. *)
-  let mk_skeleton dom =
-    Field.Map.fold dom ~init:id ~f:(fun ~key:field ~data:vs init ->
-      Set.fold vs ~init ~f:(fun init v ->
-        match v with
-        | PrePacket.Atom -> init
-        | PrePacket.Const v -> cond (field,v) init (negate init)
-      )
-    )
-
-  let of_mat (matrix : Matrix.t) : t =
-    let skeleton = mk_skeleton Matrix.(matrix.dom) in
-    let rec do_node skeleton pk =
-      match unget skeleton with
-      | Leaf r ->
-        const (Matrix.get_pk_action matrix pk |> FactorizedActionDist.factorize)
-      | Branch {test=(f,v); tru; fls} ->
-        let tru = do_node tru PrePacket.(modify pk f (Const v)) in
-        let fls = do_node fls PrePacket.(modify pk f Atom) in
-        unchecked_cond (f,v) tru fls
-    in
-    do_node skeleton PrePacket.empty
-
-  let ocaml_iterate ap not_a =
-    let rec loop p =
-      let p2 = seq p p in
-      if equal p p2 then p else loop p2
-    in
-    loop (sum ap not_a)
-
-
-  let python_iterate ap not_a (coding : (module CODING)) to_py =
-    let module Coding = (val coding : CODING) in
-    let n = Domain.size Coding.dom in
-
-    let send_matrix_entry (i,j,p) : unit =
-      Prob.to_float p
-      |> Float.to_string
-      |> Out_channel.fprintf to_py "%d %d %s\n" i j
-    in
-
-    (* serialize matrices and send it to python process *)
-    let send_matrix fdd =
-      Out_channel.fprintf to_py "%d %d\n" n n;
-      Matrix.iter_fdd_entries fdd coding ~f:send_matrix_entry;
-      (* SJS: although it is implicit in the FDD, the emptyset transitions with
-         probability 1 to the emptyset
-      *)
-      let emptyset = Coding.Index0.emptyset in
-      send_matrix_entry (emptyset.i, emptyset.i, Prob.one);
-      Out_channel.fprintf to_py "\n%!";
-    in
-
-    Util.timed "sending fdds as matrices to python" (fun () ->
-      Util.timed "sending ap" (fun () -> send_matrix ap);
-      Util.timed "sending not_a" (fun () -> send_matrix not_a);
-      Out_channel.close to_py
-    )
-
-
-  let fork f : Pid.t =
-    match Unix.fork () with
-    | `In_the_child ->
-      Backtrace.Exn.with_recording true ~f:(fun () ->
-        try
-          f (); exit 0
-        with e -> begin
-          let backtrace = Backtrace.Exn.most_recent () in
-          Format.printf "Uncaught exception in forked process:\n%a\n%!" Exn.pp e;
-          Format.printf "%s\n%!" (Backtrace.to_string backtrace);
-          (* printf "%s\n%!" (Exn.backtrace ()); *)
-          exit 1
-        end
-      )
-    | `In_the_parent pid ->
-      pid
-
-  (*      X = (AP)*¬A
-    Thus  X = ¬A + (AP)X
-     <=>  (I-AP)X = ¬A
-     We are looking for X. We solve the linear (sparse) system to compute it.
-  *)
-  let iterate a p =
-    (* printf "a = %s\n" (to_string a); *)
-    (* transition matrix for transient states, i.e. those satisfying predicate [a] *)
-    let ap = prod a p in
-
-    (* transition matrix for absorbing states, i.e. those not satisfying [a] *)
-    let not_a = negate a in
-
-    (* optimize special case where a single iteration suffices *)
-    if equal drop ap || equal drop (seq ap a) then sum ap not_a else
-
-    (* printf "ap = %s\n%!" (to_string ap); *)
-    (* printf "not_a = %s\n%!" (to_string not_a); *)
-
-    (* compute domain of FDDs; i.e., how many indices do we need for the matrix
-       representation and what does each index preresent?
-    *)
-    let dom = Domain.(merge (of_fdd ap) (of_fdd not_a)) in
-    let module Coding = Coding(struct let domain = dom end) in
-    let coding = (module Coding : CODING) in
-
-    (* setup external python script to solve linear system, start in seperate process *)
-    let pkg_name = "probnetkat" in
-    let script_name = "absorption.pyc" in
-    let pyscript = match Findlib.package_directory pkg_name with
-      | dir ->
-        dir ^ "/" ^ script_name
-      | exception Findlib.No_such_package _ ->
-        failwith ("missing ocamlfind dependency: " ^ pkg_name)
-    in
-    let cmd = "python3 " ^ pyscript in
-    let (from_py, to_py) as py = Unix.open_process cmd in
-
-    (* pipe for communicating with OCaml child that will try to compute fixpoint *)
-    let (from_caml_fd, to_parent_fd) = Unix.pipe () in
-    let from_caml = Unix.in_channel_of_descr from_caml_fd in
-    let to_parent = Unix.out_channel_of_descr to_parent_fd in
-
-
-    (* try computing naive fixed-point and analytical fixed-point in parallel *)
-    let py_pid = fork (fun () -> python_iterate ap not_a coding to_py) in
-    let caml_pid = fork (fun () ->
-      let fixpoint = Util.timed "naive fixpoint" (fun () ->
-        clear_cache ~preserve:(Int.Set.of_list ([ap; not_a] : t list :> int list));
-        ocaml_iterate ap not_a
-      )
-      in
-      Util.timed "serializing & sending Fdd" (fun () ->
-        Out_channel.output_lines to_parent [serialize fixpoint]
-      )
-    )
-    in
-
-    (* wait for first result to become available, Python or OCaml *)
-    protect ~finally:(fun () ->
-      Signal.(send_i kill (`Pid py_pid));
-      Signal.(send_i kill (`Pid caml_pid));
-      ignore (Unix.close_process py);
-      In_channel.close from_caml;
-      Out_channel.close to_parent;
-      ignore (Unix.waitpid py_pid);
-      ignore (Unix.waitpid caml_pid);
-    ) ~f:(fun () ->
-      let from_py_fd = Unix.descr_of_in_channel from_py in
-      match
-        Unix.select ~restart:true ~read:[from_py_fd; from_caml_fd]
-          ~write:[] ~except:[] ~timeout:`Never ()
-      with
-      | { read = fd::_; _ } when Unix.File_descr.equal fd from_caml_fd ->
-        printf "*** ocaml won race!\n%!";
-
-        (* kill other process *)
-        Signal.(send_i kill (`Pid py_pid));
-
-        Util.timed "deserializing & receiving Fdd" (fun () ->
-          In_channel.input_line_exn from_caml
-          |> deserialize
-        )
-      | { read = fd::_; _ } when Unix.File_descr.equal fd from_py_fd ->
-        printf "*** python won race!\n%!";
-
-        (* kill other process *)
-        Signal.(send_i kill (`Pid caml_pid));
-
-        (* wait for reply from Python *)
-        let n = Domain.size dom in
-        let iterated = Sparse.zeros n n in
-        let line () = In_channel.input_line_exn from_py in
-
-        Util.timed "receive result from python" (fun () ->
-          begin try
-            let (m,n') = String.lsplit2_exn (line ()) ~on:' ' in
-            let (m,n') = Int.(of_string m, of_string n') in
-            if m <> n || n' <> n then failwith "no bueno"
-          with
-            | End_of_file -> failwith "python process closed prematurely."
-            | _ -> failwith "malformed first output line"
-          end;
-
-          begin try while true do
-            match String.split (line ()) ~on:' ' with
-            | [i; j; v] ->
-              let i,j = Int.(of_string i, of_string j) in
-              assert (0 <= i && i < n);
-              assert (0 <= j && j < n);
-              let v = Float.of_string v in
-              Sparse.set iterated i j v
-            | _ ->
-              failwith "malformed output line"
-          done with
-            | End_of_file -> ()
-            | _ -> failwith "malformed output line"
-          end;
-        );
-
-        (* convert matrix back to FDD *)
-        let iterated = Matrix.{ matrix = iterated; dom; coding } in
-        Util.timed "matrix -> fdd conversion" (fun () -> of_mat iterated)
-      | _ ->
-        failwith "unexpected behavior"
-    )
-
-
-  let repeat n p =
-    let rec loop i p_2n acc =
-      if i = 1 then
-        List.fold acc ~init:p_2n ~f:seq
-      else
-        loop (i/2) (seq p_2n p_2n) (if i%2 = 0 then acc else p_2n :: acc)
-    in
-    if n <= 0 then id else loop n p []
-
-
-
-  (** Erases (all matches on) meta field, then all modifications. *)
-  let erase t meta_field init =
-    let erase_mods =
-      FactorizedActionDist.pushforward ~f:(function
-        | Drop -> Drop
-        | Action act -> Action (PreAction.T.remove act meta_field))
-    in
-    match init with
-    | Const v ->
-      restrict [(meta_field,v)] t
-      |> map_r ~f:erase_mods
-    | Alias alias ->
-      fold t
-        ~f:(fun dist -> const (erase_mods dist))
-        ~g:(fun (field,v) tru fls ->
-          if field = meta_field then
-            cond (alias, v) tru fls
-          else
-            cond (field,v) tru fls
-        )
-
-  let rec of_pol_k (p : Field.t policy) k : t =
-    printf "Cache size: %d (before %s)\n%!" (cache_size ())
-      (match p with
-        | Filter _ -> "filter a"
-        | Modify _ -> "f<-n"
-        | Seq _ -> "p;q"
-        | Ite _ -> "if a then p else q"
-        | While _ -> "while a do p"
-        | Choice _ -> "choice { q_1 @ p_1; ...; q_k @ p_k }"
-        | Let _ -> "let x = n in p"
-        (* | Repeat _ -> "do n times p" *)
-      );
-    match p with
-    | Filter p ->
-      k (of_pred p)
-    | Modify m ->
-      k (of_mod  m)
-    | Seq (p, q) ->
-      of_pol_k p (fun p' ->
-        if equal p' Fdd0.drop then
-          k drop
-        else
-          of_pol_k q (fun q' -> k (seq p' q')))
-    | Ite (a, p, q) ->
-      let a = of_pred a in
-      if equal a id then
-        of_pol_k p k
-      else if equal a drop then
-        of_pol_k q k
-      else
-        of_pol_k p (fun p ->
-          of_pol_k q (fun q ->
-            (* SJS: Disjoint union. Ideally, we would have a safe primitive for
-               this purpose. Either way, the implementation of sum currently
-               enforces that nothing can go wrong here.
-             *)
-            k @@ sum (prod a p) (prod (negate a) q)
-          )
-        )
-    | While (a, p) ->
-      let a = of_pred a in
-      if equal a id then k drop else
-      if equal a drop then k id else
-      of_pol_k p (fun p ->
-        k @@ Util.timed "while loop" (fun () -> iterate a p)
-      )
-    | Choice dist ->
-      Util.map_fst dist ~f:of_symbolic_pol
-      |> n_ary_convex_sum
-      |> k
-    | Let { id=field; init; mut; body=p } ->
-      of_pol_k p (fun p' -> k (erase p' field init))
-(*     | Repeat (n, p) ->
-      of_pol_k p (fun p -> repeat n p) *)
-
-  and of_symbolic_pol (p : Field.t policy) : t = of_pol_k p ident
-
-
-  let rec of_pol_cps (k : t) (p : Field.t policy) : t =
-    if equal k drop then drop else
-    match p with
-    | Filter a ->
-      seq k (of_pred a)
-    | Modify m ->
-      prod k (of_mod m)
-    | Seq (p, q) ->
-      of_pol_cps (of_pol_cps k p) q
-    | Ite (a, p, q) ->
-      let a = of_pred a in
-      let tru = seq k a in
-      let fls = seq k (negate a) in
-      sum (of_pol_cps tru p) (of_pol_cps fls q)
-    | While (a, p) ->
-      let a = of_pred a in
-      if equal drop (seq k a) then
-        seq k (negate a)
-      else
-        Util.timed "while loop" (fun () -> iterate a (of_pol_cps a p))
-    | Choice dist ->
-      n_ary_convex_sum (Util.map_fst dist ~f:(of_pol_cps k))
-    | Let { id=field; init; mut; body=p } ->
-      (* SJS: this is safe, right? *)
-      erase (of_pol_cps k p) field init
-(*     | Repeat (n, p) ->
-      seq k (repeat n (of_pol_cps id p)) *)
-
-  let of_pol (p : string policy) : t =
-    allocate_fields p
-    |> of_symbolic_pol
+(*===========================================================================*)
+(* EQUIVALENCE                                                               *)
+(*===========================================================================*)
 
   type weighted_pk = Packet.t * Prob.t [@@deriving compare, eq]
 
@@ -1787,7 +1395,7 @@ module Fdd = struct
       |> Field.Set.of_list
     in
     let open Action in
-    map_r t ~f:(fun dist ->
+    dp_map_r t ~f:(fun dist ->
       FactorizedActionDist.pushforward dist ~f:(function
       | Drop ->
         Drop
@@ -1798,13 +1406,13 @@ module Fdd = struct
       )
     )
 
-  type ternary = True | False | Maybe
+  type ternary = TTrue | TFalse | TMaybe
 
   let less_than ?(modulo=[]) t1 t2 =
     let (&&) t1 t2 = match t1, t2 with
-      | Maybe, Maybe -> Maybe
-      | False, _  | _, False -> False
-      | _, True | True, _ -> True in
+      | TMaybe, TMaybe -> TMaybe
+      | TFalse, _  | _, TFalse -> TFalse
+      | _, TTrue | TTrue, _ -> TTrue in
     let modulo =
       List.filter_map modulo ~f:(Hashtbl.find field_allocation_tbl)
       |> Field.Set.of_list
@@ -1845,15 +1453,15 @@ module Fdd = struct
         do_leaves d1 d2 pk
     and do_leaves d1 d2 pk =
       match List.compare compare_weighted_pk (normalize d1 pk) (normalize d2 pk) with
-      | -1 -> True
-      | 0 -> Maybe
-      | _ -> False
+      | -1 -> TTrue
+      | 0 -> TMaybe
+      | _ -> TFalse
     and normalize dist pk =
       modulo_mods dist
       |> FactorizedActionDist.to_alist
       |> Util.map_fst ~f:(Packet.(apply (Pk pk)))
       |> List.filter ~f:(fun (pk,_) -> not Packet.(equal pk Emptyset))
-      |> List.sort ~cmp:compare_weighted_pk
+      |> List.sort ~compare:compare_weighted_pk
     and modulo_mods dist =
       FactorizedActionDist.pushforward dist ~f:(function
       | Drop ->
@@ -1865,7 +1473,7 @@ module Fdd = struct
       )
     in
     match do_nodes t1 t2 PrePacket.empty with
-    | True -> true
+    | TTrue -> true
     | _ -> false
 
 
@@ -1914,7 +1522,7 @@ module Fdd = struct
       modulo_mods dist
       |> FactorizedActionDist.to_alist
       |> Util.map_fst ~f:(Packet.(apply (Pk pk)))
-      |> List.sort ~cmp:compare_weighted_pk
+      |> List.sort ~compare:compare_weighted_pk
     and modulo_mods dist =
       FactorizedActionDist.pushforward dist ~f:(function
       | Drop ->
@@ -1927,13 +1535,688 @@ module Fdd = struct
     in
     do_nodes t1 t2 PrePacket.empty
 
-  let to_dotfile t filename =
-    Out_channel.with_file ~append:false ~fail_if_exists:false filename ~f:(fun chan ->
-      Out_channel.output_string chan (to_dot t)
+
+
+(*===========================================================================*)
+(* COMPILATION                                                               *)
+(*===========================================================================*)
+
+  let of_test hv =
+    atom hv FactorizedActionDist.one FactorizedActionDist.zero
+
+  let of_test hv = measure "of_test" (fun () -> of_test hv)
+
+  let of_mod (f,v) =
+    const (FactorizedActionDist.dirac (Action.Action (PreAction.T.singleton f v)))
+
+  let of_mod hv = measure "of_mod" (fun () -> of_mod hv)
+
+  let negate fdd =
+    dp_map_r fdd ~f:FactorizedActionDist.negate
+
+  let rec of_pred p =
+    match p with
+    | True      -> id
+    | False     -> drop
+    | Test(hv)  -> of_test hv
+    | And(p, q) -> prod (of_pred p) (of_pred q)
+    | Or (p, q) -> sum (of_pred p) (of_pred q)
+    | Neg(q)    -> negate (of_pred q)
+
+  let of_pred a = measure "of_pred" (fun () -> of_pred a)
+
+
+  (* SJS: copied and adopted apply algorithm from Vlr.ml *)
+  let convex_sum t1 prob t2 : t =
+    Hashtbl.clear binary_cache;
+    (* the function to apply at the leaves *)
+    let f x y = FactorizedActionDist.convex_sum x prob y in
+    let rec sum x y =
+      let result = BinTbl.find_or_add binary_cache (x, y) ~default:(fun () -> sum' x y) in
+(*       printf "%s-convex combination of\n  %s\nand\n  %s\nis\n  %s\n\n%!"
+        (Prob.to_string prob)
+        (to_string x)
+        (to_string y)
+        (to_string result); *)
+      result
+    and sum' x y =
+      match unget x, unget y with
+      | Leaf x, _      ->
+        dp_map_r (fun y -> f x y) y
+      | _     , Leaf y ->
+        dp_map_r (fun x -> f x y) x
+      | Branch {test=(vx, lx); tru=tx; fls=fx; all_fls=all_fls_x},
+        Branch {test=(vy, ly); tru=ty; fls=fy; all_fls=all_fls_y} ->
+        begin match Field.compare vx vy with
+        |  0 ->
+          begin match Value.compare lx ly with
+          |  0 -> unchecked_cond (vx,lx) (sum tx ty) (sum fx fy)
+          | -1 -> unchecked_cond (vx,lx) (sum tx all_fls_y) (sum fx y)
+          |  1 -> unchecked_cond (vy,ly) (sum all_fls_x ty) (sum x fy)
+          |  _ -> assert false
+          end
+        | -1 -> unchecked_cond (vx,lx) (sum tx y) (sum fx y)
+        |  1 -> unchecked_cond (vy,ly) (sum x ty) (sum x fy)
+        |  _ -> assert false
+        end
+    in
+    if Prob.(equal zero prob) then t2 else
+    if Prob.(equal one prob) then t1 else
+    sum t1 t2
+
+  let convex_sum t1 p t2 = measure "convex sum" (fun () -> convex_sum t1 p t2)
+
+  let n_ary_convex_sum xs : t =
+    let xs =
+      List.filter xs ~f:(fun (_, p) -> Prob.(p>zero))
+      |> Array.of_list
+    in
+    (* responsible for k with i <= k < j *)
+    let rec devide_and_conquer i j =
+      (* number of elements responible for *)
+      let n = j - i in
+      match n with
+      | 0 ->
+        (drop, Prob.zero)
+      | 1 ->
+        xs.(i)
+      | _ ->
+        assert (n >= 2);
+        let k = i + n/2 in
+        let (t1,p1) = devide_and_conquer i k in
+        let (t2,p2) = devide_and_conquer k j in
+        let mass = Prob.(p1 + p2) in
+        let p = Prob.(p1 / mass) in
+        (convex_sum t1 p t2, mass)
+    in
+    let (t, mass) = devide_and_conquer 0 (Array.length xs) in
+    (* assert Prob.(equal mass one); *)
+    t
+
+  let n_ary_convex_sum xs = measure "n-ary convex sum" (fun () -> n_ary_convex_sum xs)
+
+  (* SJS: cannot reuse binary_cache, since seq calls n_ary_convex sum *)
+  let seq_cache = BinTbl.create ~size:10000 ()
+
+  (** sequence of FactorizedActionDist.t and t  *)
+  let rec dist_seq dist u =
+    let t = const dist in
+    if equal t drop then drop else
+    if equal t id  then u else
+    BinTbl.find_or_add seq_cache (t,u) ~default:(fun () ->
+      match unget u with
+      | Leaf dist' ->
+        const (FactorizedActionDist.prod dist dist')
+      | Branch {test; tru; fls} ->
+        let ((yes,p_yes), (no, p_no), (maybe, p_maybe)) =
+          FactorizedActionDist.split_into_conditionals dist test
+        in
+        n_ary_convex_sum [
+          dist_seq yes tru, p_yes;
+          dist_seq no fls, p_no;
+          unchecked_cond test (dist_seq maybe tru) (dist_seq maybe fls), p_maybe;
+        ]
     )
 
-  let render ?(format="pdf") ?(title="FDD") t =
-    Util.show_dot ~format ~title (to_dot t)
+  let dist_seq d u = measure "dist seq" (fun () -> dist_seq d u)
+
+
+
+  let seq t u =
+    let cond v t f = measure "seq cond" (fun () -> cond v t f) in
+    let time, x = Util.time' (fun () ->
+      Hashtbl.clear seq_cache;
+      match unget u with
+      | Leaf _ -> prod t u (* This is an optimization. If [u] is an
+                              [Action.Par.t], then it will compose with [t]
+                              regardless of however [t] modifies packets. None
+                              of the decision variables in [u] need to be
+                              removed because there are none. *)
+      | Branch _ ->
+        dp_map t
+          ~f:(fun dist -> dist_seq dist u)
+          ~g:(fun v t f -> cond v t f)
+          ~find_or_add:(fun t -> BinTbl.find_or_add seq_cache (t,u))
+    )
+    in
+(*     if time >= 0.1 then begin
+      printf "Slow sequence:\n";
+      printf "t = %f seconds\n" time;
+      printf "|t1| = %d\n" (size t);
+      printf "|t2| = %d\n" (size u);
+      printf "|t1;t2| = %d\n\n" (size x);
+      render t;
+      render u;
+      exit (-1);
+    end; *)
+    x
+
+  let seq p q = measure "seq" (fun () -> seq p q)
+
+
+(*   let leaves t : HSet.t =
+    let set = HSet.create () in
+    let rec do_node t =
+      match unget t with
+      | Leaf _ -> Hash_set.add set t
+      | Branch { tru; fls; _ } -> do_node tru; do_node fls
+    in
+    do_node t;
+    set
+
+  let dist_seq d t =
+    FactorizedActionDist.to_joined d
+    |> ActionDist.to_alist
+    |> Util.map_fst ~f:(function
+      | Drop -> drop
+      | Action act as a ->
+        restrict (Map.to_alist act) t
+        |> map_r ~f:(fun fad -> FactorizedActionDist.(prod (dirac a) fad))
+    )
+    |> n_ary_convex_sum_t
+
+  let seq (t : t) (u : t) =
+    leaves t
+    |> Hash_set.to_list
+    |> List.map ~f:(fun leaf ->
+      let t_leave = dp_fold t
+        ~f:(fun r -> if equal (const r) leaf then id else drop)
+        ~g:unchecked_cond
+      in
+      let Leaf dist = unget leaf in
+      prod t_leave (dist_seq dist u)
+    )
+    |> List.fold ~init:drop ~f:sum *)
+
+
+  let of_mat (matrix : Matrix.t) : t =
+    let row = Staged.unstage (Sparse.row matrix.matrix) in
+    let do_pk pk =
+      Matrix.get_pk_action matrix row pk
+      |> FactorizedActionDist.factorize
+      |> const
+    in
+    let do_node =
+      Field.Map.to_alist matrix.dom
+      |> List.sort ~compare:(fun (f1,_) (f2,_) -> Field.compare f2 f1)
+      |> List.fold ~init:do_pk ~f:(fun do_pk_true (f,vs) ->
+        Set.to_sequence vs ~order:`Decreasing
+        |> Sequence.fold
+          ~init:(fun pk -> PrePacket.(modify pk f Atom) |> do_pk_true)
+          ~f:(fun do_pk_fls v ->
+          match v with
+          | PrePacket.Atom ->
+            do_pk_fls
+          | PrePacket.Const v ->
+            fun pk ->
+              assert (not (Map.mem pk f));
+              let tru = PrePacket.(modify pk f (Const v)) in
+              unchecked_cond (f, v) (do_pk_true tru) (do_pk_fls pk)
+        )
+      )
+    in
+    let do_node pk = measure "mat: do_node" (fun () -> do_node pk) in
+    do_node PrePacket.empty
+
+  let of_mat matrix = measure "mat->fdd" (fun () -> of_mat matrix)
+
+  let ocaml_iterate ap not_a =
+    let rec loop p =
+      let p2 = seq p p in
+      if equal p p2 then p else loop p2
+    in
+    seq (loop (sum ap not_a)) not_a
+
+  let bounded_whl k a p =
+    let ap = prod a p in
+    let not_a = negate a in
+    let rec loop k p =
+      if k <= 1 then p else
+      let p2 = seq p p in
+      if equal p p2 then p else loop (k/2) p2
+    in
+    seq (loop k (sum ap not_a)) not_a
+
+  let bounded_whl_cps k lctxt a ap =
+    let not_a = negate a in
+    let q = sum ap not_a in
+    let rec loop k p =
+      if k <= 0 then p else
+      let p2 = seq p q in
+      if equal p p2 then p else loop (k - 1) p2
+    in
+    seq (loop k lctxt) not_a
+
+
+  let python_iterate ap not_a (coding : (module CODING)) to_py =
+    let module Coding = (val coding : CODING) in
+    let n = Domain.size Coding.dom in
+
+    let send_matrix_entry (i,j,p) : unit =
+      Prob.to_float p
+      |> Float.to_string
+      |> Out_channel.fprintf to_py "%d %d %s\n" i j
+    in
+
+    (* serialize matrices and send it to python process *)
+    let send_matrix fdd =
+      Out_channel.fprintf to_py "%d %d\n" n n;
+      Matrix.iter_fdd_entries fdd coding ~f:send_matrix_entry;
+      (* SJS: although it is implicit in the FDD, the emptyset transitions with
+         probability 1 to the emptyset
+      *)
+      let emptyset = Coding.Index0.emptyset in
+      send_matrix_entry (emptyset.i, emptyset.i, Prob.one);
+      Out_channel.fprintf to_py "\n%!";
+    in
+
+    Util.timed "sending fdds as matrices to python" (fun () ->
+      Util.timed "sending ap" (fun () -> send_matrix ap);
+      Util.timed "sending not_a" (fun () -> send_matrix not_a);
+      Out_channel.close to_py
+    )
+
+
+  let try_naive_fixedpoint = ref true
+
+  (*      X = (AP)*¬A
+    Thus  X = ¬A + (AP)X
+     <=>  (I-AP)X = ¬A
+     We are looking for X. We solve the linear (sparse) system to compute it.
+  *)
+  let whl a p =
+    (* printf "a = %s\n" (to_string a); *)
+    (* transition matrix for transient states, i.e. those satisfying predicate [a] *)
+    let ap = prod a p in
+
+    (* transition matrix for absorbing states, i.e. those not satisfying [a] *)
+    let not_a = negate a in
+
+    (* optimize special case where a single iteration suffices *)
+    if equal drop ap (* || equal drop (seq ap a) *) then sum ap not_a else
+
+    (* printf "ap = %s\n%!" (to_string ap); *)
+    (* printf "not_a = %s\n%!" (to_string not_a); *)
+
+    (* compute domain of FDDs; i.e., how many indices do we need for the matrix
+       representation and what does each index preresent?
+    *)
+    let dom = Domain.(merge (of_fdd ap) (of_fdd not_a)) in
+    let module Coding = Coding(struct let domain = dom end)() in
+    let coding = (module Coding : CODING) in
+
+    (* setup external python script to solve linear system, start in seperate process *)
+    let pkg_name = "probnetkat" in
+    let script_name = "absorption.pyc" in
+    let pyscript = match Findlib.package_directory pkg_name with
+      | dir ->
+        dir ^ "/" ^ script_name
+      | exception Findlib.No_such_package _ ->
+        failwith ("missing ocamlfind dependency: " ^ pkg_name)
+    in
+    let cmd = "python3 " ^ pyscript in
+    let (from_py, to_py) as py = Unix.open_process cmd in
+
+    (* pipe for communicating with OCaml child that will try to compute fixpoint *)
+    let (from_caml_fd, to_parent_fd) = Unix.pipe () in
+    let from_caml = Unix.in_channel_of_descr from_caml_fd in
+    let to_parent = Unix.out_channel_of_descr to_parent_fd in
+
+
+    (* try computing naive fixed-point and analytical fixed-point in parallel *)
+    let py_pid = Util.fork (fun () -> python_iterate ap not_a coding to_py) in
+    let caml_pid = if not (!try_naive_fixedpoint) then None else Some (
+      Util.fork (fun () ->
+        let fixpoint = Util.timed "naive fixpoint" (fun () ->
+          clear_cache ~preserve:(Int.Set.of_list ([ap; not_a] : t list :> int list));
+          ocaml_iterate ap not_a
+        )
+        in
+        Util.timed "serializing & sending Fdd" (fun () ->
+          Out_channel.output_lines to_parent [serialize fixpoint]
+        )
+      )
+    )
+    in
+
+    (* wait for first result to become available, Python or OCaml *)
+    protect ~finally:(fun () ->
+      Signal.(send_i kill (`Pid py_pid));
+      begin match caml_pid with
+      | Some pid -> Signal.(send_i kill (`Pid pid))
+      | None -> ()
+      end;
+      ignore (Unix.close_process py);
+      In_channel.close from_caml;
+      Out_channel.close to_parent;
+      ignore (Unix.waitpid py_pid);
+      begin match caml_pid with
+      | Some pid -> ignore (Unix.waitpid pid)
+      | None -> ()
+      end;
+    ) ~f:(fun () ->
+      let from_py_fd = Unix.descr_of_in_channel from_py in
+      match
+        Unix.select ~restart:true ~read:[from_py_fd; from_caml_fd]
+          ~write:[] ~except:[] ~timeout:`Never ()
+      with
+      | { read = fd::_; _ } when Unix.File_descr.equal fd from_caml_fd ->
+        printf "*** ocaml won race!\n%!";
+
+        (* kill other process *)
+        Signal.(send_i kill (`Pid py_pid));
+
+        Util.timed "deserializing & receiving Fdd" (fun () ->
+          In_channel.input_line_exn from_caml
+          |> deserialize
+        )
+      | { read = fd::_; _ } when Unix.File_descr.equal fd from_py_fd ->
+        printf "*** python won race!\n%!";
+
+        (* kill other process *)
+        begin match caml_pid with
+        | Some pid -> Signal.(send_i kill (`Pid pid))
+        | None -> ()
+        end;
+
+        (* wait for reply from Python *)
+        let n = Domain.size dom in
+        let iterated = Sparse.zeros n n in
+        let line () = In_channel.input_line_exn from_py in
+
+        Util.timed "receive result from python" (fun () ->
+          begin try
+            let (m,n') = String.lsplit2_exn (line ()) ~on:' ' in
+            let (m,n') = Int.(of_string m, of_string n') in
+            if m <> n || n' <> n then failwith "no bueno"
+          with
+            | End_of_file -> failwith "python process closed prematurely."
+            | _ -> failwith "malformed first output line"
+          end;
+
+          begin try while true do
+            match String.split (line ()) ~on:' ' with
+            | [i; j; v] ->
+              let i,j = Int.(of_string i, of_string j) in
+              assert (0 <= i && i < n);
+              assert (0 <= j && j < n);
+              let v = Float.of_string v in
+              Sparse.set iterated i j v
+            | _ ->
+              failwith "malformed output line"
+          done with
+            | End_of_file -> ()
+            | _ -> failwith "malformed output line"
+          end;
+        );
+
+        (* convert matrix back to FDD *)
+        let iterated = Matrix.{ matrix = iterated; dom; coding } in
+        Util.timed "matrix -> fdd conversion" (fun () -> of_mat iterated)
+      | _ ->
+        failwith "unexpected behavior"
+    )
+
+  let whl a p = measure "whl" (fun () -> whl a p)
+
+
+  (* buggy, for some reason *)
+(*   let repeat n p =
+    let rec loop i p_2n acc =
+      if i = 1 then
+        List.fold acc ~init:p_2n ~f:seq
+      else
+        loop (i/2) (seq p_2n p_2n) (if i%2 = 0 then acc else p_2n :: acc)
+    in
+    if n <= 0 then id else loop n p [] *)
+
+  (** Erases (all matches on) meta field, then all modifications. *)
+  let erase t meta_field init =
+    let erase_mods =
+      FactorizedActionDist.pushforward ~f:(function
+        | Drop -> Drop
+        | Action act -> Action (PreAction.T.remove act meta_field))
+    in
+    match init with
+    | Const v ->
+      restrict [(meta_field,v)] t
+      |> dp_map_r ~f:erase_mods
+    | Alias alias ->
+      dp_fold t
+        ~f:(fun dist -> const (erase_mods dist))
+        ~g:(fun (field,v) tru fls ->
+          if field = meta_field then
+            cond (alias, v) tru fls
+          else
+            cond (field,v) tru fls
+        )
+
+  let ite a p q =
+    (* SJS: Disjoint union. Ideally, we would have a safe primitive for
+       this purpose. Either way, the implementation of sum currently
+       enforces that nothing can go wrong here. *)
+    sum (prod a p) (prod (negate a) q)
+
+
+  let use_slow_observe = ref false
+
+  let observe_upon p a =
+    if !use_slow_observe then
+      seq p (whl (negate a) p)
+    else begin
+      seq p a
+      |> dp_map_r ~f:FactorizedActionDist.observe_not_drop
+    end
+
+  let observe_upon p a = measure "obs" (fun () -> observe_upon p a)
+  let ite a p q = measure "ite" (fun () -> ite a p q)
+  let erase p f init = measure "erase" (fun () -> erase p f init)
+
+
+let par_branch ~(bound : int option) ~(cps : bool) branches =
+  let pkg_name = "probnetkat" in
+  let cmd_name = "rpc_compile_branch" in
+  let prog = match Findlib.package_directory pkg_name with
+    | dir ->
+      Format.sprintf "%s/../../bin/%s.%s" dir pkg_name cmd_name
+    | exception Findlib.No_such_package _ ->
+      failwith ("missing ocamlfind dependency: " ^ pkg_name)
+  in
+  let order = Field.get_order () |> [%sexp_of: Field.t list] |> Sexp.to_string in
+  let remotes, _ = List.split_n Params.cluster Params.r in
+  let args =
+      ["-order"; Format.sprintf "%S" order]
+    @ ["-cps"; Bool.to_string cps]
+    @ (match bound with None -> [] | Some b -> ["-bound"; Int.to_string b])
+    @ ["-j"; Int.to_string Params.j]
+    @ ["-rj"; Int.to_string Params.rj]
+    @ (List.concat_map remotes ~f:(fun h -> ["-remote"; h]))
+  in
+  let cmd = Format.sprintf "%s %s" prog (String.concat args ~sep:" ") in
+  let (from_proc, to_proc) as proc = Unix.open_process cmd in
+  protect ~f:(fun () ->
+    List.iter branches ~f:(fun (a,p) ->
+      PNK.(filter a >> p)
+      |> Bin_prot.Utils.bin_dump ~header:true
+        (Syntax.bin_writer_policy Field.bin_writer_t)
+      |> Bigstring.really_write (Unix.descr_of_out_channel to_proc)
+    (*     |> [%sexp_of: Field.t policy]
+      |> Sexp.to_string
+      |> Out_channel.fprintf to_proc "%s\n%!" *)
+    );
+    Out_channel.close to_proc;
+    Bin_prot.Utils.bin_read_stream bin_reader_t ~max_size:1_000_000_000
+      ~read:(fun buf ~pos ~len ->
+        Bigstring.really_read (Unix.descr_of_in_channel from_proc) buf ~pos ~len
+    )
+    (* |> Util.tap ~f:(Format.eprintf "%a\n" (pp ~show:true)) *)
+  ) ~finally:(fun () ->
+      ignore (Unix.close_process proc);
+  )
+(*   In_channel.input_line_exn from_proc
+  |> deserialize *)
+
+let of_pol_k ?(parallelize=true) ?(bound:int option) (p : Field.t policy) : t =
+  let rec of_pol_k p k =
+    match p with
+    | Filter a ->
+      k (of_pred a)
+    | Modify m ->
+      k (of_mod m)
+    | Seq (p, q) ->
+      of_pol_k p (fun p' ->
+        if equal p' Fdd0.drop then
+          k drop
+        else
+          of_pol_k q (fun q' -> k (seq p' q')))
+    | Ite (a, p, q) ->
+      let a = of_pred a in
+      if equal a id then
+        of_pol_k p k
+      else if equal a drop then
+        of_pol_k q k
+      else
+        of_pol_k p (fun p -> of_pol_k q (fun q -> k (ite a p q)))
+    | Branch { branches; parallelize = true} when parallelize ->
+      k (par_branch ~bound ~cps:false branches)
+    | Branch {branches} ->
+      List.filter_map branches ~f:(fun (a,p) ->
+        let a = of_pred a in
+        if equal a drop then
+          None
+        else
+          Some (of_pol_k p (fun p -> prod a p))
+      )
+      |> List.fold ~init:drop ~f:sum
+      |> k
+    | While (a, p) ->
+      let a = of_pred a in
+      if equal a id then k drop else
+      if equal a drop then k id else
+      of_pol_k p (fun p ->
+        k (Util.timed "while loop" (fun () ->
+          match bound with
+          | None -> whl a p
+          | Some 0 -> sum (seq a p) (negate a)
+          | Some k -> bounded_whl k a p
+        ))
+      )
+    | Do_while (p, a) ->
+      let a = of_pred a in
+      if equal a id then k drop else
+      of_pol_k p (fun p ->
+        if equal p drop then k drop else
+        if equal p id then k (negate a) else
+        if equal a drop then k p else
+        match bound with
+        | None -> k (seq p (whl a p))
+        | Some 0 -> k (seq p (negate a))
+        | Some k -> failwith "todo: bounded do_while"
+      )
+    | Choice dist ->
+      Util.map_fst dist ~f:(fun p -> of_pol_k p ident)
+      |> n_ary_convex_sum
+      |> k
+    | Let { id=field; init; mut; body=p } ->
+      of_pol_k p (fun p -> k (erase p field init))
+    | ObserveUpon (p, a) ->
+      let a = of_pred a in
+      if equal a drop then k drop else
+      of_pol_k p (fun p -> k (observe_upon p a))
+  in
+  of_pol_k p ident
+
+
+  let rec of_pol_cps ?(parallelize=true) ?(bound:int option) lctxt (p : Field.t policy) : t =
+    let rec of_pol_cps lctxt p =
+      if equal drop lctxt then drop else
+      match p with
+      | Filter a ->
+        seq lctxt (of_pred a)
+      | Modify m ->
+        prod lctxt (of_mod m)
+      | Seq (p,q) ->
+        let lctxt = of_pol_cps lctxt p in
+        of_pol_cps lctxt q
+      | Ite (a, p, q) ->
+        let a = of_pred a in
+        sum (of_pol_cps a p) (of_pol_cps (negate a) q)
+        |> seq lctxt
+      | Branch { branches; parallelize = true} when parallelize ->
+        par_branch ~bound ~cps:true branches
+        |> seq lctxt
+      | Branch {branches} ->
+        List.map branches ~f:(fun (a,p) ->
+          of_pol_cps (of_pred a) p
+        )
+        |> List.fold ~init:drop ~f:sum
+        |> seq lctxt
+      | While (a, p) ->
+        let a = of_pred a in
+        if equal a id then
+          drop
+        else
+          let skip_ctxt = seq lctxt (negate a) in
+          if equal lctxt skip_ctxt || equal a drop then
+            skip_ctxt
+          else
+            begin match bound with
+            | None -> seq lctxt (whl a (of_pol_cps a p))
+            | Some 0 -> sum skip_ctxt (seq lctxt (of_pol_cps a p))
+            | Some k -> bounded_whl_cps k lctxt a (of_pol_cps a p)
+            end
+      | Do_while (p, a) ->
+      let a = of_pred a in
+      if equal a id then
+        drop
+      else
+        let p = of_pol_cps id p in
+        if equal p drop then drop else
+        if equal p id then seq lctxt (negate a) else
+        begin match bound with
+        | Some 0 -> seq (seq lctxt p) (negate a)
+        | None -> seq (seq lctxt p) (whl a p)
+        | _ -> failwith "todo: bounded do_while"
+        end
+      | Choice dist ->
+        (* SJS: In principle, we could compile all points of the distribution with
+           lctxt. But empirically, this leads to much worse performance. *)
+        n_ary_convex_sum (Util.map_fst dist ~f:(of_pol_cps id))
+        |> seq lctxt
+      | Let { id=field; init; mut; body=p } ->
+        begin match init with
+        | Const v ->
+          let lctxt = of_pol_cps lctxt (Modify (field, v)) in
+          let p = of_pol_cps lctxt p in
+          erase p field init
+        | Alias _ ->
+          let p = of_pol_cps lctxt p in
+          erase p field init
+        end
+      | ObserveUpon (p, a) ->
+        let a = of_pred a in
+        if equal a drop then drop else
+        observe_upon (of_pol_cps id p) a
+        |> seq lctxt
+    in
+    of_pol_cps lctxt p
+
+  let use_cps = ref true
+
+  let of_symbolic_pol ?(parallelize=true) ?(lctxt=id) ?(bound=None) (p : Field.t policy) : t =
+    if !use_cps then
+      of_pol_cps ?bound ~parallelize lctxt p
+    else
+      of_pol_k ?bound ~parallelize p
+      |> seq lctxt
+
+  (* auto_order is set to false by default, so repeated invocations of this
+     function don't invalidate old FDDs. *)
+  let of_pol ?(parallelize=true) ?lctxt ?bound ?(auto_order=false) (p : string policy) : t =
+    allocate_fields p
+    |> Util.tap ~f:(fun t -> if auto_order then Field.auto_order t)
+    |> of_symbolic_pol ~parallelize ?lctxt ?bound
+
 
   let output_dist t ~(input_dist : Packet.Dist.t) =
     Packet.Dist.to_alist input_dist
@@ -1943,7 +2226,7 @@ module Fdd = struct
     |> n_ary_convex_sum
     |> unget
     |> function
-      | Branch {test=(f,_)} as fdd ->
+      | Fdd0.Branch {test=(f,_)} as fdd ->
         sprintf "Underspecified input distribution. Branching on %s, but input distribution is %s.\n%s\n"
           (Field.to_string f)
           (Packet.Dist.to_string input_dist)
@@ -1960,7 +2243,7 @@ module Fdd = struct
       seq (const @@ FactorizedActionDist.dirac @@ Packet.to_action pk) t
       |> unget
       |> function
-      | Branch _ ->
+      | Fdd0.Branch _ ->
         failwith "underspecified input support"
       | Leaf dist ->
         FactorizedActionDist.to_alist dist
@@ -1971,6 +2254,25 @@ module Fdd = struct
         |> List.fold ~init:Prob.zero ~f:Prob.(+)
     )
     |> List.fold ~init:Prob.one ~f:Prob.min
+
+   (* minimum probability of not dropping packet *)
+  let min_nondrop_prob' t =
+    let rec go t acc =
+      match unget t with
+      | Leaf dist ->
+        FactorizedActionDist.to_alist dist
+        |> List.filter_map ~f:(function
+            | (Action.Drop,_) -> None
+            | (_,p) -> Some p
+        )
+        |> List.fold ~init:Prob.zero ~f:Prob.(+)
+        |> Prob.min acc
+      | Branch { tru; fls; _ } ->
+        go tru acc
+        |> go fls
+    in
+    go t Prob.one
+
 
   let set_order order =
     let meta_fields = Field.[
@@ -1990,8 +2292,4 @@ module Fdd = struct
     printf "[fdd] setting order to %s\n%!" (List.to_string order ~f:Field.to_string);
     Field.set_order order
 
-
-  let pp ?(show=true) fmt t =
-    if show then render t;
-    pp fmt t
 end

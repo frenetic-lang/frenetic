@@ -6,10 +6,10 @@ let fprintf = Format.fprintf
 
 
 (** {2} fields and values *)
-type field = string [@@deriving sexp, show, compare, eq, hash]
-type value = int [@@deriving sexp, show, compare, eq, hash]
+type field = string [@@deriving sexp, show, compare, eq, hash, bin_io]
+type value = int [@@deriving sexp, show, compare, eq, hash, bin_io]
 
-type 'field header_val = 'field * value [@@deriving sexp, compare, eq, hash]
+type 'field header_val = 'field * value [@@deriving sexp, compare, eq, hash, bin_io]
 
 
 (** {2} predicates and policies *)
@@ -18,7 +18,7 @@ type 'field header_val = 'field * value [@@deriving sexp, compare, eq, hash]
 type 'field meta_init =
   | Alias of 'field
   | Const of value
-  [@@deriving sexp, compare, hash]
+  [@@deriving sexp, compare, hash, bin_io]
 
 type 'field pred =
   | True
@@ -27,18 +27,87 @@ type 'field pred =
   | And of 'field pred * 'field pred
   | Or of 'field pred * 'field pred
   | Neg of 'field pred
-  [@@deriving sexp, compare, hash]
+  [@@deriving sexp, compare, hash, bin_io]
 
 type 'field  policy =
   | Filter of 'field pred
   | Modify of 'field header_val
   | Seq of 'field policy * 'field policy
   | Ite of 'field pred * 'field policy * 'field policy
+  | Branch of { branches: ('field pred * 'field policy) list; parallelize : bool }
   | While of 'field pred * 'field policy
+  | Do_while of 'field policy * 'field pred
   | Choice of ('field policy * Prob.t) list
   | Let of { id : 'field; init : 'field meta_init; mut : bool; body : 'field policy }
+  | ObserveUpon of 'field policy * 'field pred (* exexcute policy, then observe pred *)
   (* | Repeat of int * 'field policy *)
-  [@@deriving sexp, compare, hash]
+  [@@deriving sexp, compare, hash, bin_io]
+
+(** negation normal form *)
+let nnf (a : 'field pred) : 'field pred =
+  let rec nnf a negate =
+    match a with
+    | True when negate -> False
+    | False when negate -> True
+    | Test _ when negate -> Neg a
+    | And (a, b) when negate -> Or (nnf a negate, nnf b negate)
+    | Or (a, b) when negate -> And (nnf a negate, nnf b negate)
+    | Neg a -> nnf a (not negate)
+    | True | False | Test _ -> a
+    | And (a, b) -> And (nnf a negate, nnf b negate)
+    | Or (a, b) -> Or (nnf a negate, nnf b negate)
+  in
+  nnf a false
+
+(** disjunctive normal form *)
+let dnf (a : 'field pred) : (('field header_val * [`Eq | `Neq]) list) list =
+  let rec nnf_to_dnf a =
+    match a with
+    | True ->
+      [[]]
+    | False ->
+      []
+    | Test hv ->
+      [[(hv, `Eq)]]
+    | Neg (Test hv) ->
+      [[(hv, `Neq)]]
+    | Neg _ ->
+      failwith "not in NNF"
+    | Or (a,b) ->
+      nnf_to_dnf a @ nnf_to_dnf b
+    | And (a,b) ->
+      List.cartesian_product (nnf_to_dnf a) (nnf_to_dnf b)
+      |> List.map ~f:(fun (ai, bi) -> ai @ bi)
+  in
+  nnf_to_dnf (nnf a)
+
+let conjuncts a =
+  let exception IsFalse in
+  let rec go a acc =
+    match a with
+    | And (a,b) -> acc |> go b |> go a
+    | True -> acc
+    | False -> raise IsFalse
+    | a ->
+    begin match a, acc with
+    (* SJS: common in n-ary branches *)
+    | Neg (Test (f, v)), Test (f', v')::_ when f = f' && v<>v' ->
+      acc
+    | _ -> a::acc
+    end
+  in
+  try go a [] with IsFalse -> [False]
+
+let disjuncts a =
+  let exception IsTrue in
+  let rec go a acc =
+    match a with
+    | Or (a,b) -> acc |> go b |> go a
+    | True -> raise IsTrue
+    | False -> acc
+    | a -> a::acc
+  in
+  try go a [] with IsTrue -> [True]
 
 let nr_of_loops p =
   let rec do_pol p acc =
@@ -47,23 +116,47 @@ let nr_of_loops p =
       acc
     | Seq(p,q) | Ite(_,p,q) ->
       do_pol p (do_pol q acc)
-    | While (_,body) ->
+    | While (_,body) | Do_while (body,_)  ->
       do_pol body (acc + 1)
-    | Let { body; _ } (* | Repeat (_,body) *) ->
+    | Let { body } | ObserveUpon (body,_) (* | Repeat (_,body) *) ->
       do_pol body acc
     | Choice choices ->
       List.fold choices ~init:acc ~f:(fun acc (p,_) -> do_pol p acc)
+    | Branch { branches } ->
+      List.fold branches ~init:acc ~f:(fun acc (_,p) -> do_pol p acc)
   in
   do_pol p 0
 
-let pp_hv op fmt hv =
-  fprintf fmt "@[%s%s%d@]" (fst hv) op (snd hv)
+let size p =
+  let rec do_pol_k p k =
+    match p with
+    | Filter _ | Modify _ ->
+      k 1
+    | Seq(p,q) ->
+      do_pol_k p (fun n -> do_pol_k q (fun m -> k (n+m)))
+    | Ite(_,p,q) ->
+      do_pol_k p (fun n -> do_pol_k q (fun m -> k (n+m+1)))
+    | While (_,body) | Do_while (body,_) | Let { body } | ObserveUpon (body,_)  ->
+      do_pol_k body (fun n -> k (n + 1))
+    | Choice choices ->
+      List.fold choices ~init:0 ~f:(fun acc (p,_) -> do_pol_k p (fun n -> acc + n))
+      |> k
+    | Branch { branches } ->
+      List.fold branches ~init:0 ~f:(fun acc (_,p) -> do_pol_k p (fun n -> acc + n))
+      |> k
+  in
+  do_pol_k p (fun n -> n)
 
-let pp_policy fmt (p : string policy) =
-  let rec do_pol ctxt fmt (p : string policy) =
+
+let pp_hv pp_field op fmt (f,v : 'field * value) =
+  fprintf fmt "@[%a%s%d@]" pp_field f op v
+
+let pp_policy (type field) (pp_field : Format.formatter -> field -> unit)
+  (fmt : Format.formatter) (p : field policy) : unit =
+  let rec do_pol ctxt fmt (p : field policy) =
     match p with
     | Filter pred -> do_pred ctxt fmt pred
-    | Modify hv -> pp_hv "<-" fmt hv
+    | Modify hv -> pp_hv pp_field "<-" fmt hv
     | Seq (p1, p2) ->
       begin match ctxt with
         | `PAREN
@@ -74,6 +167,9 @@ let pp_policy fmt (p : string policy) =
     | While (a,p) ->
       fprintf fmt "@[WHILE@ @[<2>%a@]@ DO@ @[<2>%a@]@]"
         (do_pred `COND) a (do_pol `While) p
+    | Do_while (p,a) ->
+      fprintf fmt "@[DO@ @[<2>%a@]@ WHILE@ @[<2>%a@]@]"
+        (do_pol `While) p (do_pred `COND) a
 (*     | Repeat (n,p) ->
       fprintf fmt "@[REPEAT@ @[<2>%d@]@ TIMES@ @[<2>%a@]@]"
         n (do_pol `While) p *)
@@ -88,11 +184,22 @@ let pp_policy fmt (p : string policy) =
       List.iter ps ~f:(fun (p,q) ->
         fprintf fmt "@[%a@ %@@ %a;@;@]" (do_pol `CHOICE) p Prob.pp q);
       fprintf fmt "@;<1-0>}@]"
-  and do_pred ctxt fmt (p : string pred) =
+    | Branch { branches = [] } ->
+      do_pred ctxt fmt False
+    | Branch { branches = [(a,p)] } ->
+      fprintf fmt "@[CASE@ @[<2>%a@]@ THEN@ @[<2>%a@]@]"
+        (do_pred `COND) a (do_pol `ITE_L) p
+    | Branch { branches = ((a,p)::branches); parallelize } ->
+      fprintf fmt "@[CASE@ @[<2>%a@]@ THEN@ @[<2>%a@]@ ELSE@ @[<2>%a@]@]"
+        (do_pred `COND) a (do_pol `ITE_L) p (do_pol `ITE_R) (Branch {branches; parallelize })
+    | ObserveUpon (p, a) ->
+      fprintf fmt "@[DO@ @[<2>%a@]@ THEN OBSERVE @ @[<2>%a@]@]"
+        (do_pol `While) p (do_pred `COND) a
+  and do_pred ctxt fmt (p : field pred) =
     match p with
     | True -> fprintf fmt "@[1@]"
     | False -> fprintf fmt "@[0@]"
-    | Test hv -> pp_hv "=" fmt hv
+    | Test hv -> pp_hv pp_field "=" fmt hv
     | Neg p -> fprintf fmt "@[¬%a@]" (do_pred `Neg) p
     | Or (a1, a2) ->
       begin match ctxt with
@@ -108,12 +215,11 @@ let pp_policy fmt (p : string policy) =
         | _ -> fprintf fmt "@[(@[%a;@ %a@])@]" (do_pred `SEQ_L) p1 (do_pred `SEQ_R) p2
       end
   and do_binding fmt (id, init, mut) =
-    fprintf fmt "%s@ %s@ :=@ %s"
-      (if mut then "var" else "let")
-      id
-      (match init with
-        | Alias f -> f
-        | Const v -> Int.to_string v)
+    fprintf fmt "%s@ %a@ :=@ " (if mut then "var" else "let") pp_field id;
+    match init with
+    | Alias f -> pp_field fmt f
+    | Const v -> Int.pp fmt v
+
 
   in
   do_pol `PAREN fmt p
@@ -121,113 +227,167 @@ let pp_policy fmt (p : string policy) =
 
 (** constructors *)
 module Constructors = struct
-  (* module Dumb = struct *)
-    let drop = Filter False
-    let skip = Filter True
-    let test hv = Test hv
-    let filter a = Filter a
-    let modify hv = Modify hv
-    (* let repeat n p = Repeat (n,p) *)
+  let drop = Filter False
+  let skip = Filter True
+  let test hv = Test hv
+  let filter a = Filter a
+  let modify hv = Modify hv
+  let observe p a = ObserveUpon (p,a)
+  (* let repeat n p = Repeat (n,p) *)
 
-    let neg a = match a with
-      | Neg a -> a
-      | _ -> Neg a
+  let neg = function
+    | True -> False
+    | False -> True
+    | Neg a -> a
+    | a -> Neg a
 
-    let disj a b = match a,b with
-      | True, _
-      | _, True -> True
-      | False, c
-      | c, False -> c
-      | _ -> Or (a, b)
+  let disj a b = match a,b with
+    | True, _
+    | _, True -> True
+    | False, c
+    | c, False -> c
+    | _ -> Or (a, b)
 
-    let mk_big_disj =
-      List.fold ~init:False ~f:disj
+  let mk_big_disj =
+    List.fold ~init:False ~f:disj
 
-    let conj a b = match a,b with
-      | False, _
-      | _, False -> False
-      | True, c
-      | c, True -> c
-      | _ -> And (a,b)
+  let conj a b = match a,b with
+    | False, _
+    | _, False -> False
+    | True, c
+    | c, True -> c
+    | _ -> And (a,b)
 
-    let seq p q = match p,q with
-      | Filter False, _
-      | _, Filter False -> Filter False
-      | Filter True, c
-      | c, Filter True -> c
-      | _ -> Seq (p, q)
+  let seq p q = match p,q with
+    | Filter False, _
+    | _, Filter False -> Filter False
+    | Filter True, c
+    | c, Filter True -> c
+    | Filter a, Filter b -> Filter (And (a,b))
+    | _ -> Seq (p, q)
 
-    let choice ps =
-      (* smash equal -> requires hashconsing *)
-      match List.filter ps ~f:(fun (p,r) -> not Prob.(equal r zero)) with
-      | [(p,r)] -> assert Prob.(equal r one); p
-      | ps -> Choice ps
+  let choice ps =
+    (* smash equal -> requires hashconsing *)
+    match List.filter ps ~f:(fun (p,r) -> not Prob.(equal r zero)) with
+    | [(p,r)] -> assert Prob.(equal r one); p
+    | ps -> Choice ps
 
-    let ite a p q = match a with
-      | True -> p
-      | False -> q
-      | _ -> Ite (a, p, q)
+  let ite a p q = match a with
+    | True -> p
+    | False -> q
+    | _ -> Ite (a, p, q)
 
-    let ite_cascade (xs : 'a list) ~(otherwise: 'field policy)
-      ~(f : 'a -> 'field pred * 'field policy) : 'field policy =
+  let branch ?(parallelize=false) branches =
+    List.filter branches ~f:(function
+      | (False, _) -> false
+      | (_, Filter False) -> false
+      | _ -> true)
+    |> function
+      | [] -> drop
+      | [(True, p)] -> p
+      | branches -> Branch { branches; parallelize }
+
+  let ite_cascade ?(parallelize=false) ?(disjoint=false) (xs : 'a list)
+    ~(otherwise: 'field policy)
+    ~(f : 'a -> 'field pred * 'field policy) : 'field policy =
+    if disjoint && otherwise = drop then
+      List.map xs ~f
+      |> branch ~parallelize
+    else
       List.fold_right xs ~init:otherwise ~f:(fun x acc ->
         let guard, body = f x in
         ite guard body acc
       )
 
-    let whl a p = match a with
-      | True -> drop
-      | False -> skip
-      | _ -> While (a,p)
+  let whl a p = match a with
+    | True -> drop
+    | False -> skip
+    | _ -> While (a,p)
+
+  let do_whl p a =
+    match p, a with
+    | Filter False, _ | _, True ->
+      drop
+    | _, False ->
+      p
+    | Filter True, _ ->
+      Filter (Neg a)
+    | _ ->
+      Do_while (p, a)
+
+  let rec optimize = function
+    | Filter a -> filter (optimize_pred a)
+    | Modify hv -> modify hv
+    | Seq (p, q) -> seq (optimize p) (optimize q)
+    | Ite (a, p, q) -> ite (optimize_pred a) (optimize p) (optimize q)
+    | Branch { branches; parallelize } ->
+      List.map branches ~f:(fun (a,p) -> (optimize_pred a, optimize p))
+      |> branch ~parallelize
+    | While (a, p) -> whl (optimize_pred a) (optimize p)
+    | Do_while (p, a) -> do_whl (optimize p) (optimize_pred a)
+    | Choice ps -> choice (Util.map_fst ps ~f:optimize)
+    | Let { id; init; mut; body } -> Let { id; init; mut; body = optimize body }
+    | ObserveUpon (p, a) -> observe (optimize p) (optimize_pred a)
+  and optimize_pred a =
+    match a with
+    | True | False | Test _ -> a
+    | Neg a -> neg (optimize_pred a)
+    | And (a, b) -> conj (optimize_pred a) (optimize_pred b)
+    | Or (a, b) -> disj (optimize_pred a) (optimize_pred b)
 
 (*     let bounded_whl a p ~bound = match a with
-      | True -> drop
-      | False -> skip
-      | _ -> repeat bound (ite a p skip) *)
-
-    let do_whl a p =
-      seq p (whl a p)
-
-    let conji n ~f =
-      Array.init n ~f
-      |> Array.fold ~init:True ~f:conj
-
-    let disji n ~f =
-      Array.init n ~f
-      |> Array.fold ~init:False ~f:disj
-
-    let seqi n ~f =
-      Array.init n ~f
-      |> Array.fold ~init:skip ~f:seq
-
-    let mk_big_seq pols =
-      List.fold pols ~init:skip ~f:seq
-
-    let choicei n ~f =
-      Array.init n ~f
-      |> Array.to_list
-      |> choice
-
-    let uniformi n ~f =
-      choicei n ~f:(fun i -> (f i, Prob.(1//n)))
-
-    let uniform ps =
-      let ps = Array.of_list ps in
-      let n = Array.length ps in
-      uniformi n ~f:(fun i -> ps.(i))
+    | True -> drop
+    | False -> skip
+    | _ -> repeat bound (ite a p skip) *)
 
 
-    let mk_big_ite ~default = List.fold ~init:default ~f:(fun q (a, p) -> ite a p q)
 
-    let alias (id, aliasee) ~(mut:bool) body =
-      Let { id; init = Alias aliasee; mut; body }
-    let local (id, value) ~(mut:bool) body =
-      Let { id; init = Const value; mut; body }
+  let conji n ~f =
+    Array.init n ~f
+    |> Array.fold ~init:True ~f:conj
 
-    let locals binds body =
-      List.fold_right binds ~init:body ~f:(fun (id, value, mut) body ->
-        local (id,value) ~mut body
-      )
+  let disji n ~f =
+    Array.init n ~f
+    |> Array.fold ~init:False ~f:disj
+
+  let seqi n ~f =
+    Array.init n ~f
+    |> Array.fold ~init:skip ~f:seq
+
+  let mk_big_seq pols =
+    List.fold pols ~init:skip ~f:seq
+
+  let then_observe a p =
+    ObserveUpon (p, a)
+
+  let choicei n ~f =
+    Array.init n ~f
+    |> Array.to_list
+    |> choice
+
+  let uniformi n ~f =
+    choicei n ~f:(fun i -> (f i, Prob.(1//n)))
+
+  let uniform ps =
+    let ps = Array.of_list ps in
+    let n = Array.length ps in
+    uniformi n ~f:(fun i -> ps.(i))
+
+  let mk_big_ite ?(disjoint=false) ~default branches =
+    if disjoint && default = drop then
+      branch branches
+    else
+      List.fold branches ~init:default ~f:(fun q (a, p) -> ite a p q)
+
+  let alias (id, aliasee) ~(mut:bool) body =
+    Let { id; init = Alias aliasee; mut; body }
+  let local (id, value) ~(mut:bool) body =
+    Let { id; init = Const value; mut; body }
+
+  let locals binds body =
+    List.fold_right binds ~init:body ~f:(fun (id, value, mut) body ->
+      local (id,value) ~mut body
+    )
 
 end
 
@@ -244,8 +404,9 @@ module PNK = struct
 end
 
 
-(** useful auxilliary functions  *)
+(** {2} useful auxilliary functions  *)
 
+(* turn predicate into modification *)
 let rec positive_pred_to_mod pred =
   let open PNK in
   match pred with
@@ -254,3 +415,47 @@ let rec positive_pred_to_mod pred =
   | Test (f,v) -> Modify (f,v)
   | And (p, q) -> positive_pred_to_mod p >> positive_pred_to_mod q
   | Or _ | Neg _ -> failwith "not a positive predicate!"
+
+
+(* map a policy bottom up *)
+let map_pol
+  ?(do_pred=fun a -> a)
+  ?(filter=fun pred -> Filter pred)
+  ?(modify=fun hv -> Modify hv)
+  ?(seq=fun p q -> Seq (p,q))
+  ?(ite=fun a p q -> Ite (a,p,q))
+  ?(branch=fun ~parallelize branches -> Branch { parallelize; branches })
+  ?(whl=fun a p -> While (a,p))
+  ?(do_whl=fun p a -> Do_while (p,a))
+  ?(choice=fun ps -> Choice ps)
+  ?(letbind=fun id init mut body -> Let { id; init; mut; body})
+  ?(obs=fun p a -> ObserveUpon (p,a))
+  pol
+  =
+  let rec do_pol pol =
+    match pol with
+    | Filter a -> filter (do_pred a)
+    | Modify hv -> modify hv
+    | Seq (p,q) -> seq (do_pol p) (do_pol q)
+    | Ite (a,p,q) -> ite (do_pred a) (do_pol p) (do_pol q)
+    | Branch { branches; parallelize } ->
+      List.map branches ~f:(fun (a,p) -> (do_pred a, do_pol p))
+      |> branch ~parallelize
+    | While (a,p) -> whl (do_pred a) (do_pol p)
+    | Do_while (p,a) -> do_whl (do_pol p) (do_pred a)
+    | Choice ps -> choice (Util.map_fst ps ~f:do_pol)
+    | Let { id; init; mut; body} -> letbind id init mut (do_pol body)
+    | ObserveUpon (p,a) -> obs (do_pol p) (do_pred a)
+  in
+  do_pol pol
+
+
+let branches (p : 'field policy) : ('field pred * 'field policy) list =
+  let rec go p guard acc =
+    match p with
+    | Ite (a, p, q) ->
+      acc |> go q PNK.(guard & neg a) |> go p PNK.(guard & a)
+    | p -> if guard = False then acc else (guard, p)::acc
+  in
+  go p True []
+
