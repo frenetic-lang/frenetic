@@ -24,6 +24,7 @@ depends: [
   "ocaml-compiler-libs"
   "core" {>= "v0.11"}
   "cstruct"
+  "frenetic"
   "ipaddr"
   "ocaml-migrate-parsetree"
   "ocamlgraph"
