@@ -183,17 +183,17 @@ sudo apt-get install -y ocaml ocaml-native-compilers camlp4 camlp4-extra opam gi
 
             <li>Follow step 2 from the <em>Using vagrant</em> instructions to obtain the source code.</li>
 
-            <li>In the `frenetic/vm` folder, execute the following to automatically build McNetKAT after obtaining all the necessary independencies:</li>
+            <li>In the `frenetic/vm` folder, execute the following to automatically build McNetKAT,
+              PRISM, Bayonet, and various dependencies.
 <pre><code class="language-bash">bash setup-opam.sh
 bash setup-ocaml.sh
 bash setup-third-party.sh
 bash setup-mcnetkat.sh
+bash setup-prism-bayonet.sh
+bash setup-plotlibs.sh
 </code></pre>
-            <li>From the frenetic root folder, execute the following to install
-              PRISM, Bayonet, their dependencies, and libraries required for plotting:</li>
-<pre><code class="language-bash">bash ./install-dependencies.ubuntu.sh</code></pre>
-            </ol>
-         </dfrom>
+          </li>
+          </ol>
       </div>
 
 <hr/>
@@ -211,6 +211,15 @@ rm *.log</code></pre>
     <li>
       Generate data points:
       <pre><code class="language-bash">./run_bench.py</code></pre>
+    </li>
+    <li>
+      Plot result:
+      <pre><code class="language-bash">./plot.py</code></pre>
+    </li>
+    <li>
+      View result:
+      <pre><code class="language-bash">xpdf ecmp.pdf
+less ecmp.txt</code></pre>
     </li>
   </ol>
 

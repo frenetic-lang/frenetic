@@ -12,6 +12,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # Every Vagrant virtual environment requires a box to build off of.
   config.vm.box = "ubuntu/xenial64"
 
+  # so we can look at PDFs
+  config.ssh.forward_x11 = true
+
   # Create a forwarded port mapping which allows access to a specific port
   # within the machine from a port on the host machine. In the example below,
   # accessing "localhost:8080" will access port 80 on the guest machine.
@@ -80,6 +83,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.provision :shell, privileged: false, :path => "setup-third-party.sh"
   config.vm.provision :shell, privileged: false, :path => "setup-mcnetkat.sh"
   config.vm.provision :shell, privileged: false, :path => "setup-prism-bayonet.sh"
+  config.vm.provision :shell, privileged: false, :path => "setup-plotlibs.sh"
 
   # Enable provisioning with chef solo, specifying a cookbooks path, roles
   # path, and data_bags path (all relative to this Vagrantfile), and adding
