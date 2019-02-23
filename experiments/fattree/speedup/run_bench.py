@@ -35,26 +35,26 @@ tools = {
 
 
 def main():
-  k = 14
-  print("k = %d" % k)
-  print("=" * 80)
+  for k in [14, 16]:
+    print("k = %d" % k)
+    print("=" * 80)
 
-  for tool, data in tools.items():
-    print("\n%s" % tool.capitalize())
-    print("-" * 80)
-    # SJS: fastest first
-    for i, env in enumerate(data['envs']):
-      my_env = os.environ.copy()
-      my_env.update(env)
-      print("running with environment %s..." % str(env))
-      run = subprocess.run(data['cmd'](k),
-                           env=my_env
-                           )
-      print("return code: %d" % run.returncode)
-      if run.returncode != 0:
-        print("-> errored.")
-      else:
-        print("-> ok.\n")
+    for tool, data in tools.items():
+      print("\n%s" % tool.capitalize())
+      print("-" * 80)
+      # SJS: fastest first
+      for i, env in enumerate(data['envs']):
+        my_env = os.environ.copy()
+        my_env.update(env)
+        print("running with environment %s..." % str(env))
+        run = subprocess.run(data['cmd'](k),
+                             env=my_env
+                             )
+        print("return code: %d" % run.returncode)
+        if run.returncode != 0:
+          print("-> errored.")
+        else:
+          print("-> ok.\n")
   
 
 if __name__ == "__main__":
