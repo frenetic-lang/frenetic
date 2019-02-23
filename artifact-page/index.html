@@ -276,7 +276,7 @@ less ecmp.txt</code></pre>
     If no cluster is available, or the number of physical cores differs, the
     experiment may be reproduced partially, as detailed below.
   </p>
-  <h5><strong>Setting up the Cluster:</strong></h5>
+  <h5 id="cluster-setup"><strong>Setting up the cluster:</strong></h5>
   <p>
     The master machine
     (from which the experiment is run) must have access to the other machines
@@ -338,12 +338,31 @@ less speedup.txt</code></pre>
   </ol>
 <!--  -->
   <h4>Comparision with other tools (Figure 10)</h4>
-  <p>This experiment is run on a single machine.</p>
-<!--   <ol>
+  <p>This experiment is mostly run on a single machine. A cluster is needed only
+    to generate the green <code>PNK (cluster)</code> line from Figure 10.
+  </p>
+  <ol>
     <li>
-      Navigate to the fattree/ecmp directory and delete old results:
-      <pre><code class="language-bash">cd frenetic/experiments/fattree/ecmp
+      Navigate to bayonet experiment directory and delete old results:
+      <pre><code class="language-bash">cd frenetic/examples/bayonet
 rm *.log</code></pre>
+    </li>
+    <li>
+      Generate input files for Bayonet and McNetKAT:
+      <pre><code class="language-bash">./generate.py</code></pre>
+      If this completes successfully, you should see various
+      <code>*.dot</code> and <code>*.bayonet</code> files in the directory.
+    </li>
+    <li>
+      Optionally, adjust the paramters with which to invoke the various tools in
+      <code>run_bench.py</code>.
+      In particular, if you don't have a cluster, comment out the line with
+      <code>'RN': '24'</code> -- it instructs McNetKAT to spread the workload
+      to 24 remote machines:
+      <pre><code class="language-bash">nano +19 run_bench.py</code></pre>
+      If you <strong>do</strong> have a cluster, follow the instructions on
+      <a href="#cluster-setup">how to set up the cluster</a>.
+
     </li>
     <li>
       Generate data points:
@@ -358,7 +377,7 @@ rm *.log</code></pre>
       <pre><code class="language-bash">xpdf ecmp.pdf
 less ecmp.txt</code></pre>
     </li>
-  </ol> -->
+  </ol>
 </div>
 <!--  -->
 <!--  -->
