@@ -64,7 +64,7 @@ article {
 
     <nav>
       <ul>
-        <li><a href="#downloads">Downloads</a></li>
+        <!-- <li><a href="#downloads">Downloads</a></li> -->
         <li><a href="#platform">Experimental Platform</a></li>
         <li><a href="#installation">Installation</a>
           <ul>
@@ -86,7 +86,7 @@ article {
     This webpage provides the instructions to build and install
     McNetKAT and reproduce the results from the paper "Scalable
     Verification of Probabilistic Networks" (to appear at PLDI 2019).
-      <div id="downloads">
+<!--       <div id="downloads">
         <h2>Downloads</h2>
         <ul>
           <li>Virtual Machine (VM) images: &nbsp <a
@@ -96,7 +96,7 @@ article {
           <li> Source: <a href="https://github.com/frenetic-lang/frenetic/tree/mc-decision">GitHub</a></li>
         </ul>
       </div>
-      <hr/>
+      <hr/> -->
       <div id="platform">
         <h2>Experimental Platform</h2>
         We used a cluster of 24 Dell R620 servers, with each server
@@ -108,9 +108,8 @@ article {
       <hr/>
       <div id="installation">
         <h2>Installation</h2>
-        There are three options for installing and testing McNetKAT,
-        appearing in order from most convenient to most advanced:
-        <div id="vm">
+        There are two options for installing and testing McNetKAT:
+<!--         <div id="vm">
           <h3><u>Pre-built virtual machine (recommended):</u></h3>
           <ol>
             <li>Download the pre-built VM image mentioned above.</li>
@@ -141,7 +140,7 @@ article {
 git pull && make && make install</code></pre>
 
           </ol>
-        </div>
+        </div> -->
 
         <div id="vagrant">
           <h3><u>Using vagrant:</u></h3>
@@ -181,14 +180,12 @@ sudo add-apt-repository -y -u ppa:avsm/ppa
 sudo apt-get install -y ocaml ocaml-native-compilers camlp4 camlp4-extra opam git libssl-dev aspcud
 </code></pre>
 
-            <li>Follow step 2 from the <em>Using vagrant</em> instructions to obtain the source code.</li>
+          <li>Get the source code with vagrant scripts:</li>
+<pre><code class="language-bash">git clone -b mc-decision https://github.com/frenetic-lang/frenetic.git</code></pre>
 
             <li>Copy the script from the `frenetic/vm` folder to the same folder containing the
               `frenetic` folder:
-              <pre><code class="language-bash">$ ls
-frenetic
-$ cp frenetic/vm/*.sh .
-</code></pre>
+              <pre><code class="language-bash">cp frenetic/vm/*.sh .</code></pre>
           </li>
           <li>
               Then execute the following to automatically build McNetKAT,
