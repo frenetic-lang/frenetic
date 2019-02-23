@@ -242,9 +242,16 @@ bash setup-plotlibs.sh
       The script <code>kill_all.sh</code> in
       the frenetic root folder can help with this, although you may have to
       adjust the parameters to your cluster (or comment out the cluster specific
-      part).
-
+      part, if you don't have a cluster).
       <strong>If your system appears unresponsive, this is likely the issue!</strong>
+    </li>
+    <li>
+      <strong>Performance:</strong>
+      One key feature of McNetKAT is that it parallelizes across all available
+      cores. This leads to significant performance improvements,
+      provided a large number of cores is available, and there is enough memory
+      to afford parallelization. On a VM with limited memory, McNetKAT may run
+      out of memory for larger experiments.
     </li>
   </ol>
 <!--  -->
