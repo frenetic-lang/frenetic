@@ -12,7 +12,7 @@ let run ?(print=true) ?(debug=false) ?(verbose=false) ?(order=[]) p =
   Fdd.clear_cache ~preserve:Int.Set.empty;
   Fdd.set_order order;
   printf "\n========================= Probnetkat ==========================\n%!";
-  (* fprintf fmt "policy = %a\n\n%!" pp_policy p; *)
+  fprintf fmt "policy = %a\n\n%!" pp_policy p;
   let fdd = Symbolic.Fdd.of_pol p in
   if print then fprintf fmt "fdd = %s\n\n%!" (Symbolic.Fdd.to_string fdd);
 (*   if print then begin

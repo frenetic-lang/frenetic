@@ -1,9 +1,9 @@
 open! Core
 
-type entry = {
+type entry = { 
   i : int;
   j : int;
-  mutable v : float
+  mutable v : float 
 }
 
 type mat = {
@@ -20,9 +20,5 @@ let set m i j v =
 let foldi_nz mat ~init ~f =
   List.fold mat.entries ~init ~f:(fun acc { i; j; v} -> f i j acc v)
 
-let row mat =
-  let tbl =
-    List.map mat.entries ~f:(fun e -> (e.i, e))
-    |> Int.Table.of_alist_multi
-  in
-  Staged.stage (fun i -> { mat with entries = Int.Table.find_multi tbl i })
+let row mat i =
+  { mat with entries = List.filter mat.entries ~f:(fun e -> e.i = i) }

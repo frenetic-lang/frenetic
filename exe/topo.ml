@@ -56,7 +56,7 @@ let () = begin
   let model = Util.timed "building model"
     (Model.make ~topo ~max_failures ~failure_prob ~sw_pol)
   in
- (*  Format.printf "%a\n\n" Syntax.pp_policy model; *)
+  Format.printf "%a\n\n" Syntax.pp_policy model;
   let fdd = Util.timed "model to Fdd" (fun () -> Fdd.of_pol model) in
   printf ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> COMPILATION DONE\n%!";
 
@@ -94,8 +94,8 @@ let () = begin
   Topology.ingress_locs topo ~dst:destination
   |> List.map ~f:fst
   |> List.map ~f:(Topology.sw_val topo)
-  |> List.sort ~compare:Int.compare
-  |> List.dedup_and_sort ~compare:Int.compare
+  |> List.sort ~cmp:Int.compare
+  |> List.dedup_and_sort
   |> List.map ~f:(sprintf "%d")
   |> String.concat ~sep:", "
   |> printf "ingress switches: %s.\n";

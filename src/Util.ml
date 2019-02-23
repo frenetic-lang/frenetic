@@ -9,16 +9,11 @@ let time f x =
 
 let time' f = time f ()
 
-let print_times = ref true 
-
-let timed' (descr : string) (f : 'a  -> 'b) (x : 'a) : 'b =
-  if !print_times then eprintf "start %s...\n%!" descr;
-  let t, y = time f x in
-  if !print_times then eprintf "--> %s done! %f seconds\n%!" descr t;
+let timed descr f =
+  printf "start %s...\n%!" descr;
+  let t, y = time f () in
+  printf "--> %s done! %f seconds\n%!" descr t;
   y
-
-let timed (descr : string) (f : unit -> 'a) : 'a =
-  timed' descr f ()
 
 let print_time time =
   printf "time: %.4f\n" time
@@ -47,6 +42,35 @@ let iter n ~f ~init =
 
 
 (*===========================================================================*)
+(* open files with default application                                       *)
+(*===========================================================================*)
+
+type os =
+  | MacOS
+  | Linux
+
+let detect_os () : os =
+  let open Caml in
+  let ic = Unix.open_process_in "uname" in
+  let uname = input_line ic in
+  close_in ic;
+  match uname with
+  | "Darwin" -> MacOS
+  | "Linux" -> Linux
+  | _ -> failwith "unknown operating system"
+
+let open_cmd =
+  match detect_os () with
+  | MacOS -> "open"
+  | Linux -> "xdg-open"
+
+let open_file f =
+  let silence = "&> /dev/null" in
+  Format.sprintf "%s %s % s" open_cmd f silence
+  |> Caml.Unix.system
+  |> ignore
+
+(*===========================================================================*)
 (* Graphviz                                                                  *)
 (*===========================================================================*)
 
@@ -60,8 +84,7 @@ let compile_dot ?(format="pdf") ?(engine="dot") ?(title=engine) data : string =
 
 let show_dot ?format ?title ?engine data : unit =
   compile_dot ?format ?title ?engine data
-  |> Open.in_default_app
-  |> ignore
+  |> open_file
 
 let show_dot_file ?format ?title ?engine file : unit =
   In_channel.read_all file
@@ -74,12 +97,9 @@ let show_dot_file ?format ?title ?engine file : unit =
 (*===========================================================================*)
 
 let sandboxed ?timeout ~logfile ~f : [`Ok | `Tout | `Err | `Int ] =
-  let dir = Filename.dirname logfile in
-  Unix.mkdir_p dir;
   let read_done_fd, write_done_fd = Unix.pipe () in
   let read_done = Unix.in_channel_of_descr read_done_fd in
   let write_done = Unix.out_channel_of_descr write_done_fd in
-  Out_channel.(flush stdout; flush stderr);
   match Unix.fork () with
   | `In_the_child ->
     Out_channel.with_file logfile ~append:true ~f:(fun log ->
@@ -119,13 +139,8 @@ let sandboxed ?timeout ~logfile ~f : [`Ok | `Tout | `Err | `Int ] =
         in
         Unix.select ~restart:true ~read:[read_done_fd] ~write:[]
           ~except:[] ~timeout ()
-        |> function
-          | sel when sel = Unix.Select_fds.empty ->
-          (* timeout *)
-          None
-          | _ ->
-          (* process terminates in time; read result *)
-          In_channel.input_line read_done
+        |> ignore;
+        In_channel.input_line read_done
       with
         | None -> `Tout
         | Some "Ok" -> `Ok
@@ -153,35 +168,3 @@ let log_and_sandbox ?timeout ~logfile descr ~f : unit =
   | `Tout -> printf "%s" tout
   end;
   printf "\t(%.3f seconds)\n%!" t
-
-(* nicer fork command *)
-let fork (f : unit -> unit) : Pid.t =
-  Out_channel.(flush stdout; flush stderr);
-  match Unix.fork () with
-  | `In_the_child ->
-    Backtrace.Exn.with_recording true ~f:(fun () ->
-      try
-        f (); exit 0
-      with e -> begin
-        let backtrace = Backtrace.Exn.most_recent () in
-        Format.printf "Uncaught exception in forked process:\n%a\n%!" Exn.pp e;
-        Format.printf "%s\n%!" (Backtrace.to_string backtrace);
-        exit 1
-      end
-    )
-  | `In_the_parent pid ->
-    pid
-
-
-(*===========================================================================*)
-(* Combinatorics                                                             *)
-(*===========================================================================*)
-let powerset xs =
-  let rec go acc xs =
-    match xs with
-    | [] -> [] :: acc
-    | x::xs -> go (acc @ List.map ~f:List.(cons x) acc) xs
-  in
-  go [] xs
-
-

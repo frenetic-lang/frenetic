@@ -1,4 +1,4 @@
-type t [@@deriving eq, sexp, compare, hash, bin_io]
+type t [@@deriving eq, sexp, compare, hash]
 
 val zero : t
 val one : t
@@ -10,7 +10,6 @@ val ( * ) : t -> t -> t
 val (+) : t -> t -> t
 val (-) : t -> t -> t
 val (//) : int -> int -> t
-val ( ^ ) : t -> int -> t
 
 val pp : Format.formatter -> t -> unit
 val to_string : t -> string
