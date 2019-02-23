@@ -1,8 +1,0 @@
-{
-  "max_failures": -1,
-  "failure_prob": [ 1, 16 ],
-  "invariant": [ true, true ],
-  "fattree_comp": true,
-  "refinement": [ true, true, true ],
-  "resilience": [ false, false, false ]
-}
