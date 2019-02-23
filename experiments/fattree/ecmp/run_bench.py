@@ -8,15 +8,16 @@ tools = {
     'cmd': lambda k:
       ['./run_probnetkat.sh', str(k)],
     'envs': [
-      { 'RN': '0' },
-      # { 'RN': '24' },
+      { 'FAILURE_BOUND' : '0' },
+      { 'FAILURE_BOUND' : '-1' },
     ],
   },
   'prism.compiled': {
     'cmd': lambda k:
       ['./run_prism.compiled.sh', str(k)],
     'envs': [
-      { },
+      { 'FAILURE_BOUND' : '0' },
+      { 'FAILURE_BOUND' : '-1' },
     ],
   },
 }
