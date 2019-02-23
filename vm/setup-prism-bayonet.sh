@@ -10,3 +10,7 @@ sudo apt-get install oracle-java8-set-default
 
 # install PRISM, Bayonet
 cd frenetic/examples/bayonet && source install_dependencies.sh
+
+# install python dependencies required to generate input files for Bayonet experiment
+python3 -m pip install --user --upgrade networkx pygraphviz
+sudo apt-get install -y python3-tk
