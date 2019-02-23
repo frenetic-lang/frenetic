@@ -1,8 +1,8 @@
 (executables
- (names topo dump compare bench obs_test bayonet bayonet_prism with_topo icfp)
+ (names topo dump compare bench obs_test bayonet bayonet_prism with_topo)
  (public_names probnetkat.topo probnetkat.dump probnetkat.compare
    probnetkat.bench probnetkat.obs_test probnetkat.bayonet
-   probnetkat.bayonet_prism probnetkat.with_topo probnetkat.icfp)
+   probnetkat.bayonet_prism probnetkat.with_topo)
  (libraries core zarith probnetkat yojson ppx_deriving_yojson.runtime)
  (preprocess
   (pps ppx_deriving.std ppx_deriving_yojson ppx_jane)))
