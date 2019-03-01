@@ -7,10 +7,10 @@
   (libraries
     (async
      cohttp
-     cohttp.async
+     cohttp-async
      core
      cstruct
-     cstruct.async
+     cstruct-async
      frenetic.kernel
      frenetic.netkat
      mparser

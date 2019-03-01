@@ -18,7 +18,7 @@ depends: [
   #########################
   "async"  {>= "v0.11.0" & < "v0.12.0"}
   "async_extended" {>= "v0.11.0" & < "v0.12.0"}
-  "base64" {>= "2.0.0"}
+  "base64" {>= "3.0.0"}
   "cohttp"
   "cohttp-async"
   "core"   {>= "v0.11.0" & < "v0.12.0"}
@@ -37,7 +37,7 @@ depends: [
   "ppx_enumerate"
   "ppx_fields_conv"
   "ppx_sexp_conv"
-  "sedlex" {>= "1.99.4"}
+  "sedlex" {>= "1.99.5"}
   "sexplib"
   "tcpip"
   "yojson" {>= "1.2.0"}
