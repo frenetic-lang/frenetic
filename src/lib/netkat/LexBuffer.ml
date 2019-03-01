@@ -54,21 +54,25 @@ let cr = Char.to_int '\r'
 
 (** next character *)
 let next lexbuf =
-  let c = Sedlexing.next lexbuf.buf in
-  let pos = next_loc lexbuf in
-  (match Char.of_int c with
-  | Some '\r' ->
-    lexbuf.pos <- { pos with 
-      pos_bol = pos.pos_cnum - 1;
-      pos_lnum = pos.pos_lnum + 1; }
-  | Some '\n' when not (lexbuf.last_char = Some cr) ->
-    lexbuf.pos <- { pos with 
-      pos_bol = pos.pos_cnum - 1;
-      pos_lnum = pos.pos_lnum + 1; }
-  | Some '\n' -> ()
-  | _ -> lexbuf.pos <- pos);
-  lexbuf.last_char <- Some c;
-  c
+  Option.map (Sedlexing.next lexbuf.buf) ~f:(fun c ->
+    let pos = next_loc lexbuf in
+    begin match Uchar.to_char c with
+    | '\r' ->
+      lexbuf.pos <- { pos with 
+        pos_bol = pos.pos_cnum - 1;
+        pos_lnum = pos.pos_lnum + 1; }
+    | '\n' when not (lexbuf.last_char = Some cr) ->
+      lexbuf.pos <- { pos with 
+        pos_bol = pos.pos_cnum - 1;
+        pos_lnum = pos.pos_lnum + 1; }
+    | '\n' -> ()
+    | _ -> lexbuf.pos <- pos
+    | exception _ -> lexbuf.pos <- pos
+    end;
+    let c = Uchar.to_int c in
+    lexbuf.last_char <- Some c;
+    c
+  )
 
 let raw lexbuf : int array =
   Sedlexing.lexeme lexbuf.buf
