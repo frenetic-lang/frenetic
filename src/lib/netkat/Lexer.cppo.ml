@@ -183,7 +183,7 @@ let token ~ppx ~loc_start buf =
   | "var" -> VAR
   | "in" -> IN
   | '`', id -> METAID (ascii buf ~skip:1)
-  | _ -> illegal buf (Char.chr (next buf))
+  | _ -> illegal buf (next buf |> Base.Option.value_exn |> Uchar.to_char)
 
 (** wrapper around `token` that records start and end locations *)
 let loc_token ~ppx buf =

@@ -30,13 +30,9 @@ depends: [
   "ocamlgraph" {>= "1.8.7"}
   "open"
   "ppxlib"
-  "ppx_compare"
+  "ppx_jane"
   "ppx_cstruct"
   "ppx_deriving" {>= "4.2"}
-  "ppx_driver"
-  "ppx_enumerate"
-  "ppx_fields_conv"
-  "ppx_sexp_conv"
   "sedlex" {>= "1.99.5"}
   "sexplib"
   "tcpip"

@@ -61,11 +61,7 @@
   (virtual_deps (cppo menhir))
   (preprocess (pps (ppx_cstruct
                     ppx_deriving.std
-                    ppx_enumerate
-                    ppx_compare
-                    ppx_fields_conv
-                    ppx_sexp_conv
-                    ppx_hash
+                    ppx_jane
                     sedlex.ppx
                    )))
   (flags (:standard -safe-string))
