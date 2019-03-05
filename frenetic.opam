@@ -35,7 +35,7 @@ depends: [
   "ppx_jane"
   "ppx_cstruct"
   "ppx_deriving" {>= "4.2"}
-  "sedlex" {>= "1.99.5"}
+  "sedlex" {>= "2.0"}
   "sexplib"
   "tcpip"
   "yojson" {>= "1.2.0"}
