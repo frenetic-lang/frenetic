@@ -3,7 +3,7 @@
 open Core
 
 (** Given a user-defined formatter and a type, make a string.  This is a lot like sprintf, and encourages sharing the formatting code. *)
-val make_string_of : (Format.formatter -> 'a -> 'b) -> 'a -> string
+val make_string_of : (Format.formatter -> 'a -> unit) -> 'a -> string
 
 (** register pretty printer for located exceptions Location.exception *)
 val pp_exceptions : unit -> unit

@@ -1,0 +1,4 @@
+(lang dune 1.1)
+(env
+ (dev (flags (:standard -warn-error "-6-9-27-32..34-37..39" -w -27-6-32-34-37-9-33-39)))
+)

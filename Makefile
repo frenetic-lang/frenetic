@@ -1,27 +1,27 @@
 INSTALL_ARGS := $(if $(PREFIX),--prefix $(PREFIX),)
 
 build:
-	time -p jbuilder build @install
+	time -p dune build @install
 
 install: build
-	jbuilder install $(INSTALL_ARGS)
+	dune install $(INSTALL_ARGS)
 
 uninstall:
-	jbuilder uninstall $(INSTALL_ARGS)
+	dune uninstall $(INSTALL_ARGS)
 
 reinstall: uninstall install
 
 clean:
-	jbuilder clean
+	dune clean
 
 doc:
-	jbuilder build @doc
+	dune build @doc
 
 test:
-	jbuilder runtest
+	dune runtest
 
 updatetest:
-	jbuilder runtest --auto-promote
+	dune runtest --auto-promote
 
 all: build test doc
 
