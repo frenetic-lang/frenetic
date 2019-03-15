@@ -30,6 +30,10 @@ def main():
     k = 2*(i+2)
     print("k = %d" % k)
     print("=" * 80)
+    file = "../../../examples/output/fattree_%d_sw_%d.dot" % (k, (5 * k**2)/4)
+    if not (os.path.isfile(file)):
+      print("file missing -> skipping.\n")
+      continue
 
     for tool, data in tools.items():
       if all(errored[tool]):
