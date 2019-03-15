@@ -26,7 +26,7 @@ tools = {
 def main():
   errored = { tool : [False for _ in range(len(data['envs']))] 
                     for (tool, data) in tools.items()}
-  for i in range(30):
+  for i in range(31):  # run up to k = 64
     k = 2*(i+2)
     print("k = %d" % k)
     print("=" * 80)
