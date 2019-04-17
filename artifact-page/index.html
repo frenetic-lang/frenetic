@@ -83,8 +83,10 @@ article {
 
     <article>
     This webpage provides the instructions to build and install
-    McNetKAT and reproduce the results from the paper "Scalable
-    Verification of Probabilistic Networks" (to appear at PLDI 2019).
+    <a href="https://github.com/frenetic-lang/frenetic/tree/mc-decision/">McNetKAT</a>
+    and reproduce the results from the paper
+    <a href="https://www.cs.cornell.edu/~smolka/papers/mcnetkat-full.pdf">
+      "Scalable Verification of Probabilistic Networks"</a>.
 <!--       <div id="downloads">
         <h2>Downloads</h2>
         <ul>
@@ -153,7 +155,7 @@ git pull && make && make install</code></pre>
           this by executing <code>brew cask install virtualbox virtualbox-extension-pack && brew install vagrant</code> provided you have <a href="https://brew.sh/">homebrew</a> installed.
 
           <li>Get the source code with vagrant scripts:</li>
-<pre><code class="language-bash">git clone -b mc-decision https://github.com/frenetic-lang/frenetic.git
+<pre><code class="language-bash">git clone --branch mcnetkat-pldi19 https://github.com/frenetic-lang/frenetic.git
 cd frenetic/vm/ </code></pre>
 
           <li>Start the VM and ssh into it. This will
@@ -180,7 +182,7 @@ sudo apt-get install -y ocaml ocaml-native-compilers camlp4 camlp4-extra opam gi
 </code></pre>
 
           <li>Get the source code with vagrant scripts:</li>
-<pre><code class="language-bash">git clone -b mc-decision https://github.com/frenetic-lang/frenetic.git</code></pre>
+<pre><code class="language-bash">git clone --branch mcnetkat-pldi19 https://github.com/frenetic-lang/frenetic.git</code></pre>
 
             <li>Copy the script from the `frenetic/vm` folder to the same folder containing the
               `frenetic` folder:
