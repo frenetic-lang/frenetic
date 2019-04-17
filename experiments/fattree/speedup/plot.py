@@ -23,8 +23,8 @@ methods = [
 ]
 
 label_of_method = {
-  'fattree14': 'FatTree k=14' ,
-  'fattree16': 'FatTree k=16',
+  'fattree14': 'FatTree p = 14' ,
+  'fattree16': 'FatTree p = 16',
   # 'prism.compiled': 'PRISM',
   # 'prism.compiled_fb0': 'PRISM (#f=0)',
 }
