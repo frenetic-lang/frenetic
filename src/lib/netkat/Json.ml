@@ -10,6 +10,7 @@ open Yojson.Basic
 open Syntax
 open Optimize
 
+type json = Yojson.Basic.t
 
 (** Optimize & MAC Addresses **)
 

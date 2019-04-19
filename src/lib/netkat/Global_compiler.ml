@@ -3,7 +3,6 @@ open Fdd
 open Syntax
 open Frenetic_kernel
 
-exception Non_local = Syntax.Non_local
 module FDD = Local_compiler.FDD
 module Par = Action.Par
 module Seq = Action.Seq
