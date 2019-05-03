@@ -100,12 +100,6 @@ end
 (** Symbolic NetKAT Automata (intermediate representation of global compiler) *)
 module Automaton = struct
 
-  (* state id tables: id |-> 'a *)
-  module Tbl = Int64.Table
-
-  (* untable (inverse table) *)
-  module Untbl = FDD.BinTbl
-
   (* (hashable) state id (= int64) sets *)
   module S = struct
     module S = struct
@@ -119,25 +113,25 @@ module Automaton = struct
 
   (* main data structure of symbolic NetKAT automaton *)
   type t =
-    { states : (FDD.t * FDD.t) Tbl.t;
-      has_state : int64 Untbl.t;
+    { states : (int64, FDD.t * FDD.t) Hashtbl.t;
+      has_state : (FDD.t * FDD.t, int64) Hashtbl.t;
       mutable source : int64;
       mutable nextState : int64 }
 
   (* lazy intermediate presentation to avoid compiling uncreachable automata states *)
   type t0 =
-    { states : (FDD.t * FDD.t) Lazy.t Tbl.t;
+    { states : (int64, (FDD.t * FDD.t) Lazy.t) Hashtbl.t;
       source : int64;
       mutable nextState : int64 }
 
   let create_t0 () : t0 =
-    let states = Tbl.create () ~size:100 in
+    let states = Hashtbl.create (module Int64) ~size:100 in
     let source = 0L in
     { states; source; nextState = Int64.(source + 1L) }
 
   let create_t () : t =
-    let states = Tbl.create () ~size:100 in
-    let has_state = Untbl.create () ~size:100 in
+    let states = Hashtbl.create (module Int64) ~size:100 in
+    let has_state = FDD.BinTbl.create () ~size:100 in
     let source = 0L in
     { states; has_state; source; nextState = Int64.(source + 1L) }
 
@@ -152,18 +146,18 @@ module Automaton = struct
     id
 
   let add_to_t (automaton : t) (state : (FDD.t * FDD.t)) : int64 =
-    match Untbl.find automaton.has_state state with
+    match Hashtbl.find automaton.has_state state with
     | Some k -> k
     | None ->
       let k = mk_state_t automaton in
-      Tbl.add_exn automaton.states ~key:k ~data:state;
-      Untbl.add_exn automaton.has_state ~key:state ~data:k;
+      Hashtbl.add_exn automaton.states ~key:k ~data:state;
+      Hashtbl.add_exn automaton.has_state ~key:state ~data:k;
       k
 
   let add_to_t_with_id (automaton : t) (state : (FDD.t * FDD.t)) (id : int64) : unit = begin
-      assert (not (Tbl.mem automaton.states id));
-      Tbl.add_exn automaton.states ~key:id ~data:state;
-      Untbl.set automaton.has_state ~key:state ~data:id;
+      assert (not (Hashtbl.mem automaton.states id));
+      Hashtbl.add_exn automaton.states ~key:id ~data:state;
+      Hashtbl.set automaton.has_state ~key:state ~data:id;
     end
 
   let map_reachable ?(order = `Pre) (automaton : t)
@@ -171,10 +165,10 @@ module Automaton = struct
     let rec loop seen (id : int64) =
       if S.mem seen id then seen else
         let seen = S.add seen id in
-        let state = Tbl.find_exn automaton.states id in
+        let state = Hashtbl.find_exn automaton.states id in
         let this seen =
           let state = f id state in
-          Tbl.set automaton.states ~key:id ~data:state; (seen, state) in
+          Hashtbl.set automaton.states ~key:id ~data:state; (seen, state) in
         let that (seen, (_,d)) = Set.fold (FDD.conts d) ~init:seen ~f:loop in
         match order with
         | `Pre -> seen |> this |> that
@@ -187,7 +181,7 @@ module Automaton = struct
     let rec loop (acc, seen) (id : int64) =
       if S.mem seen id then (acc, seen) else
         let seen = S.add seen id in
-        let (_,d) as state = Tbl.find_exn automaton.states id in
+        let (_,d) as state = Hashtbl.find_exn automaton.states id in
         let this (acc, seen) = (f acc id state, seen) in
         let that (acc, seen) = Set.fold (FDD.conts d) ~init:(acc, seen) ~f:loop in
         match order with
@@ -202,10 +196,10 @@ module Automaton = struct
   let t_of_t0' (automaton : t0) =
     let t = create_t () in
     let rec add id =
-      if not (Tbl.mem t.states id) then
+      if not (Hashtbl.mem t.states id) then
         let _ = t.nextState <- max t.nextState Int64.(id + 1L) in
-        let (_,d) as state = Lazy.force (Tbl.find_exn automaton.states id) in
-        Tbl.add_exn t.states ~key:id ~data:state;
+        let (_,d) as state = Lazy.force (Hashtbl.find_exn automaton.states id) in
+        Hashtbl.add_exn t.states ~key:id ~data:state;
         Set.iter (FDD.conts d) ~f:add
     in
     add automaton.source;
@@ -216,7 +210,7 @@ module Automaton = struct
     let rec loop acc stateId =
       if List.mem ~equal:(=) acc stateId then acc else
       let init = stateId :: acc in
-      let (_,d) = Lazy.force (Tbl.find_exn t0.states stateId) in
+      let (_,d) = Lazy.force (Hashtbl.find_exn t0.states stateId) in
       Set.fold (FDD.conts d) ~init ~f:loop
     in
     loop [] t0.source
@@ -228,19 +222,19 @@ module Automaton = struct
     let newId = Int64.Table.create () ~size:100 in
     lex_sort t0
     |> List.iter ~f:(fun id ->
-        let (e,d) = Lazy.force (Tbl.find_exn t0.states id) in
+        let (e,d) = Lazy.force (Hashtbl.find_exn t0.states id) in
         (* SJS: even though we are traversing the graph in reverse-lexiographic order,
            a node may be visited prior to one of its sucessors because there may be cylces *)
-        let d = FDD.map_conts d ~f:(Tbl.find_or_add newId ~default:(fun () -> mk_state_t t)) in
+        let d = FDD.map_conts d ~f:(Hashtbl.find_or_add newId ~default:(fun () -> mk_state_t t)) in
         (* check if new id was already assigned *)
-        match Tbl.find newId id with
+        match Hashtbl.find newId id with
         | None ->
           let new_id = add_to_t t (e,d) in
-          Tbl.add_exn newId ~key:id ~data:new_id
+          Hashtbl.add_exn newId ~key:id ~data:new_id
         | Some new_id ->
           add_to_t_with_id t (e,d) new_id
       );
-    t.source <- Tbl.find_exn newId t0.source;
+    t.source <- Hashtbl.find_exn newId t0.source;
     t
 
   (* classic powerset construction, performed on symbolic automaton *)
@@ -258,7 +252,7 @@ module Automaton = struct
       | None ->
         let (es, ds) =
           S.to_list ks
-          |> List.map ~f:(Tbl.find_exn automaton.states)
+          |> List.map ~f:(Hashtbl.find_exn automaton.states)
           |> List.unzip in
         let fdd = (FDD.big_union es, FDD.big_union ds) in
         let k = add_to_t automaton fdd in
@@ -331,7 +325,7 @@ module Automaton = struct
       List.iter k ~f:(add_policy automaton);
       (e, d)
     in
-    Tbl.add_exn automaton.states ~key:id ~data:(Lazy.from_fun f)
+    Hashtbl.add_exn automaton.states ~key:id ~data:(Lazy.from_fun f)
 
   let of_policy ?(dedup=true) ?ing ?(cheap_minimize=true) (pol : Syntax.policy) : t =
     let automaton = create_t0 () in
@@ -449,7 +443,7 @@ module Automaton = struct
     (* remove topology states and populate maps in the process *)
     map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) ->
       let d = FDD.map_conts d ~f:(fun k ->
-        match Tbl.find_exn automaton.states k |> snd |> FDD.unget with
+        match Hashtbl.find_exn automaton.states k |> snd |> FDD.unget with
         | Leaf par ->
           let seq = match Par.to_list par with
             | [seq] -> seq
