@@ -272,11 +272,11 @@ type flow = {
 type flowTable = flow list [@@deriving sexp]
 
 type payload =
-  | Buffered of bufferId * Cstruct.t
-  | NotBuffered of Cstruct.t
+  | Buffered of bufferId * Cstruct_sexp.t
+  | NotBuffered of Cstruct_sexp.t
 [@@deriving sexp]
 
-let payload_bytes (payload : payload) : Cstruct.t =
+let payload_bytes (payload : payload) : Cstruct_sexp.t =
   match payload with
   | Buffered(_, b)
   | NotBuffered(b) -> b

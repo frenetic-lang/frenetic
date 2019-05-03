@@ -24,7 +24,8 @@ depends: [
   "cohttp"
   "cohttp-async"
   "core"   {>= "v0.11.0" & < "v0.12.0"}
-  "cstruct" {>= "1.0.1" & < "4.0.0"}
+  "cstruct" {>= "1.0.1"}
+  "cstruct-sexp"
   "cstruct-async"
   "ipaddr" {>= "2.5.0"}
   "menhir"
@@ -38,5 +39,5 @@ depends: [
   "sedlex" {>= "2.0"}
   "sexplib"
   "tcpip"
-  "yojson" {>= "1.2.0"}
+  "yojson" {>= "1.7.0"}
 ]

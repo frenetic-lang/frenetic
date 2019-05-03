@@ -74,7 +74,7 @@ let sexp_of_bytes s =
   done;
   Sexp.Atom (Buffer.contents buf)
 
-type bytes = Cstruct.t
+type bytes = Cstruct_sexp.t
 
 type int8 = int [@@deriving sexp, compare]
 
@@ -158,7 +158,7 @@ module Tcp = struct
     ; window : int16
     ; chksum : int16
     ; urgent : int16
-    ; payload : Cstruct.t } [@@deriving sexp]
+    ; payload : Cstruct_sexp.t } [@@deriving sexp]
 
   let format fmt v =
     let open Format in
@@ -243,7 +243,7 @@ module Udp = struct
     { src : tpPort
     ; dst : tpPort
     ; chksum : int16
-    ; payload : Cstruct.t }
+    ; payload : Cstruct_sexp.t }
   [@@deriving sexp]
 
   let format fmt v =
@@ -289,7 +289,7 @@ module Icmp = struct
     typ : int8;
     code : int8;
     chksum : int16;
-    payload : Cstruct.t
+    payload : Cstruct_sexp.t
   } [@@deriving sexp]
 
   [%%cstruct
@@ -416,7 +416,7 @@ module Dns = struct
       typ : int16;
       class_ : int16;
       ttl : int; (* TTL is signed 32-bit int *)
-      rdata : Cstruct.t
+      rdata : Cstruct_sexp.t
     } [@@deriving sexp]
 
     [%%cstruct
@@ -694,7 +694,7 @@ module Igmp = struct
   type msg =
     | Igmp1and2 of Igmp1and2.t
     | Igmp3 of Igmp3.t
-    | Unparsable of (int8 * Cstruct.t)
+    | Unparsable of (int8 * Cstruct_sexp.t)
   [@@deriving sexp]
 
   type t = {
@@ -781,7 +781,7 @@ module Ip = struct
     | Udp of Udp.t
     | Icmp of Icmp.t
     | Igmp of Igmp.t
-    | Unparsable of (nwProto * Cstruct.t)
+    | Unparsable of (nwProto * Cstruct_sexp.t)
   [@@deriving sexp]
 
   module Flags = struct
@@ -815,7 +815,7 @@ module Ip = struct
     chksum : int16;
     src : nwAddr;
     dst : nwAddr;
-    options : Cstruct.t;
+    options : Cstruct_sexp.t;
     tp : tp
   } [@@deriving sexp]
 
@@ -1042,7 +1042,7 @@ end
 type nw =
   | Ip of Ip.t
   | Arp of Arp.t
-  | Unparsable of (dlTyp * Cstruct.t)
+  | Unparsable of (dlTyp * Cstruct_sexp.t)
   [@@deriving sexp]
 
 type packet = {
