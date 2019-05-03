@@ -7,7 +7,7 @@ module FDD = Fdd.FDD
 module Field = struct
   module T = struct
     include Fdd.Field
-    let compare x y = Int.compare (Obj.magic x) (Obj.magic y)
+    let compare (x : t) (y : t) = Int.compare (Obj.magic x) (Obj.magic y)
   end
   include T
   include Comparator.Make(T)
@@ -15,10 +15,8 @@ end
 
 type t = Set.M(Int64).t Map.M(Field).t
 
-
 let merge : t -> t -> t =
   Map.merge_skewed ~combine:(fun ~key -> Set.union)
-
 
 let of_fdd (fdd : FDD.t) : t =
   let rec for_fdd dom fdd =
@@ -26,26 +24,24 @@ let of_fdd (fdd : FDD.t) : t =
     | Leaf r ->
       for_leaf dom r
     | Branch {test=(field,_)} ->
-      let (vs, residuals, all_false) =
-        for_field field fdd (Set.empty (module Int64)) []
+      let vs, residuals =
+        for_field field fdd (Set.empty (module Int64)) (Set.empty (module FDD))
       in
       let dom = Map.update dom field ~f:(function
         | None -> vs
         | Some vs' -> Set.union vs vs')
       in
-      List.fold residuals ~init:dom ~f:for_fdd
-
+      Set.fold residuals ~init:dom ~f:for_fdd
 
   (** returns list of values appearing in tests with field [f] in [fdd], and
-      residual trees below f-tests, and the all-false branch with respect to
-      field f. *)
-  and for_field f fdd vs residual =
+      residual trees below f-tests. *)
+  and for_field f fdd vs residuals =
     match FDD.unget fdd with
     | Branch {test=(f',v); tru; fls} when f' = f ->
       let vs = match v with Const v -> Set.add vs v | _ -> vs in
-      for_field f fls vs (tru::residual)
+      for_field f fls vs (Set.add residuals tru)
     | Branch _ | Leaf _ ->
-      (vs, fdd::residual, fdd)
+      (vs, Set.add residuals fdd)
 
   and for_leaf dom act =
     Set.fold act ~init:dom ~f:for_seq

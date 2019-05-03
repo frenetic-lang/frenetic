@@ -51,20 +51,24 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
    * important both for efficiency and correctness.
    * *)
 
-  type t = int [@@deriving sexp, compare, eq]
-  module T = Frenetic_kernel.Hashcons.Make(struct
+  module T = struct
+    type t = int [@@deriving sexp, compare, eq]
+  end
+  include T
+  include Comparator.Make(T)
+
+  module D = Frenetic_kernel.Hashcons.Make(struct
     type t = d [@@deriving sexp, compare, hash]
   end)
 
-  let get = T.get
-  let unget = T.unget
+  let get = D.get
+  let unget = D.unget
   let get_uid (t:t) : int = t
 
   module Tbl = Int.Table
-
   module BinTbl = IntPairTbl
 
-  let mk_leaf r = T.get (Leaf r)
+  let mk_leaf r = D.get (Leaf r)
 
   let mk_branch ((v,l) as test) tru fls =
     (* When the ids of the diagrams are equal, then the diagram will take on the
@@ -81,9 +85,9 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
       if all_fls = tru then
         fls
       else
-        T.get (Branch { test; tru; fls; all_fls })
+        D.get (Branch { test; tru; fls; all_fls })
     | _ ->
-      T.get (Branch { test; tru; fls; all_fls = fls})
+      D.get (Branch { test; tru; fls; all_fls = fls})
 
   let unchecked_cond = mk_branch
 
@@ -93,7 +97,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
   let rec to_string t =
     if t = drop then "0" else
     if t = id then "1" else
-    match T.unget t with
+    match D.unget t with
     | Leaf r ->
       Printf.sprintf "%s" (R.to_string r)
     | Branch { test = (v, l); tru = t; fls = f } ->
@@ -101,7 +105,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
       (V.to_string v) (L.to_string l) (to_string t) (to_string f)
 
 
-  let rec fold ~f ~g t = match T.unget t with
+  let rec fold ~f ~g t = match D.unget t with
     | Leaf r -> f r
     | Branch { test = (v, l);  tru; fls } ->
       g (v, l) (fold ~f ~g tru) (fold ~f ~g fls)
@@ -115,7 +119,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
 
   let restrict lst u =
     let rec loop xs u =
-      match xs, T.unget u with
+      match xs, D.unget u with
       | []          , _
       | _           , Leaf _ -> u
       | (v,l) :: xs', Branch { test = (v', l'); tru = t; fls = f } ->
@@ -129,9 +133,9 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
 
   let apply f zero ~(cache: (t*t, t) Hashtbl.t) =
     let rec sum x y =
-      BinTbl.find_or_add cache (x, y) ~default:(fun () -> sum' x y)
+      Hashtbl.find_or_add cache (x, y) ~default:(fun () -> sum' x y)
     and sum' x y =
-      match T.unget x, T.unget y with
+      match D.unget x, D.unget y with
       | Leaf r, _      ->
         if R.compare r zero = 0 then y
         else map_r (fun y -> f r y) y
@@ -181,9 +185,9 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
       )
     in
     begin
-      BinTbl.clear sum_tbl;
-      BinTbl.clear prod_tbl;
-      T.clear preserve;
+      Hashtbl.clear sum_tbl;
+      Hashtbl.clear prod_tbl;
+      D.clear preserve;
     end
 
   let cond v t f =
@@ -223,7 +227,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
       if Int.Set.mem seen node then
         (0, seen)
       else
-        match T.unget node with
+        match D.unget node with
         | Leaf _ -> (1, Int.Set.add seen node)
         | Branch { tru; fls } ->
           (* Due to variable-ordering, there is no need to add node.id to seen
@@ -235,7 +239,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     f node Int.Set.empty
     |> fst
 
-  let rec uncompressed_size (node : t) : int = match T.unget node with
+  let rec uncompressed_size (node : t) : int = match D.unget node with
     | Leaf _ -> 1
     | Branch { tru; fls } -> 1 + uncompressed_size tru + uncompressed_size fls
 
@@ -250,7 +254,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     let rec loop t =
       if not (Hash_set.mem seen t) then begin
         Hash_set.add seen t;
-        match T.unget t with
+        match D.unget t with
         | Leaf r ->
           fprintf fmt "%d [shape=box label=\"%s\"];@\n" t (R.to_string r)
         | Branch { test=(v, l); tru=a; fls=b } ->
@@ -286,7 +290,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
       if Int.Set.mem seen node then
         seen
       else
-        match T.unget node with
+        match D.unget node with
         | Leaf _ -> Int.Set.add seen node
         | Branch { tru=hi; fls=lo } ->
           Int.Set.add (f lo (f hi seen)) node in
