@@ -15,5 +15,6 @@ end
 
 include T
 
-val apply_action_seq : t -> Fdd.Value.t Fdd.Action.Seq.t -> t
+val apply_fdd : t -> Fdd.FDD.t -> Fdd.Action.t
 val apply_action : t -> Fdd.Action.t -> Set.M(T).t
+val apply_action_seq : t -> Fdd.Value.t Fdd.Action.Seq.t -> t

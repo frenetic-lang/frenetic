@@ -32,3 +32,19 @@ let apply_action_seq (pk : t) (seq : Fdd.Value.t Fdd.Action.Seq.t) : t =
 let apply_action (pk : t) (act : Fdd.Action.t) : Set.M(T).t =
   Set.map (module T) act ~f:(apply_action_seq pk) 
 
+let rec apply_fdd (pk : t) (fdd : Fdd.FDD.t) : Fdd.Action.t =
+  let open Fdd in
+  match FDD.unget fdd with
+  | Leaf act -> act
+  | Branch { test=(f, Const v); tru; fls; _ } ->
+    begin match Map.find pk f with
+    | None ->
+      Field.to_string f
+      |> Format.sprintf "packet underspecified: missing value for field %s"
+      |> failwith
+    | Some v' ->
+      if Int64.equal v v' then apply_fdd pk tru else apply_fdd pk fls
+    end
+  | Branch _ ->
+    failwith "only constant tests supported"
+
