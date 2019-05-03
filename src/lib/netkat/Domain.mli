@@ -18,3 +18,5 @@ val merge : t -> t -> t
 val of_fdd : Fdd.FDD.t -> t
 
 val of_automaton : Global_compiler.Automaton.t -> t
+
+val representative_pks : t -> Packet.t list

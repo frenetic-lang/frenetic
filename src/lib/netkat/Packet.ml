@@ -21,7 +21,9 @@ end
 
 include T
 
-let apply_action_seq (pk : t) (seq : Fdd.Value.t Fdd.Action.Seq.t) : t =
+let empty = Map.empty (module Field)
+
+let apply_action_seq (seq : Fdd.Value.t Fdd.Action.Seq.t) (pk : t) : t =
   Map.to_alist seq
   |> List.fold ~init:pk ~f:(fun pk -> function 
     | F f, Const v -> Map.set pk ~key:f ~data:v
@@ -29,10 +31,10 @@ let apply_action_seq (pk : t) (seq : Fdd.Value.t Fdd.Action.Seq.t) : t =
     | K, _ -> pk
   )
 
-let apply_action (pk : t) (act : Fdd.Action.t) : Set.M(T).t =
-  Set.map (module T) act ~f:(apply_action_seq pk) 
+let apply_action (act : Fdd.Action.t) (pk : t) : Set.M(T).t =
+  Set.map (module T) act ~f:(fun seq -> apply_action_seq seq pk) 
 
-let rec apply_fdd (pk : t) (fdd : Fdd.FDD.t) : Fdd.Action.t =
+let rec apply_fdd (fdd : Fdd.FDD.t) (pk : t) : Fdd.Action.t =
   let open Fdd in
   match FDD.unget fdd with
   | Leaf act -> act
@@ -43,8 +45,22 @@ let rec apply_fdd (pk : t) (fdd : Fdd.FDD.t) : Fdd.Action.t =
       |> Format.sprintf "packet underspecified: missing value for field %s"
       |> failwith
     | Some v' ->
-      if Int64.equal v v' then apply_fdd pk tru else apply_fdd pk fls
+      if Int64.equal v v' then apply_fdd tru pk else apply_fdd fls pk
     end
   | Branch _ ->
     failwith "only constant tests supported"
+
+let eval_e_fdd (e : Fdd.FDD.t) (pk : t) : Set.M(T).t =
+  let act = apply_fdd e pk in
+  apply_action act pk
+
+let eval_d_fdd (d : Fdd.FDD.t) (pk : t) : int64 Map.M(T).t =
+  apply_fdd d pk
+  |> Set.to_list
+  |> List.map ~f:(fun seq ->
+    match Map.find seq Fdd.Action.K with
+    | Some (Const v) -> (apply_action_seq seq pk, v)
+    | _ -> failwith "malformed D-FDD; continuation missing or invalid"
+  )
+  |> Map.of_alist_exn (module T)
 

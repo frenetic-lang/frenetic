@@ -61,3 +61,13 @@ let of_automaton (auto : Auto.t) : t =
     for_fdd (for_fdd dom e) d
   )
 
+
+let representative_pks (t : t) : Packet.t list =
+  Map.fold t ~init:[Packet.empty] ~f:(fun ~key:field ~data:vs pks ->
+    Set.to_list vs
+    (* add fresh value, representing the case that all tests fails *)
+    |> List.cons Int64.(Set.min_elt_exn vs - 1L)
+    |> List.concat_map ~f:(fun v ->
+      List.map pks ~f:(Map.add_exn ~key:field ~data:v)
+    )
+  )
