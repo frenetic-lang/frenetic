@@ -83,8 +83,8 @@ type flowMod =
     } [@@deriving sexp]
 
 type payload =
-  | Buffered of int32 * Cstruct.t
-  | NotBuffered of Cstruct.t
+  | Buffered of int32 * Cstruct_sexp.t
+  | NotBuffered of Cstruct_sexp.t
 [@@deriving sexp]
 
 type packetInReason =
@@ -2766,7 +2766,7 @@ module Error = struct
   [@@deriving sexp]
 
   type t =
-    | Error of c * Cstruct.t sexp_opaque
+    | Error of c * Cstruct_sexp.t sexp_opaque
   [@@deriving sexp]
 
   let parse bits =
@@ -2840,7 +2840,7 @@ end
 
 module Vendor = struct
 
-  type t = int32 * Cstruct.t sexp_opaque
+  type t = int32 * Cstruct_sexp.t sexp_opaque
   [@@deriving sexp]
 
   [%%cstruct
@@ -2924,10 +2924,10 @@ module Message = struct
     | QUEUE_GET_CONFIG_RESP -> "QUEUE_GET_CONFIG_RESP"
 
   type t =
-    | Hello of Cstruct.t
+    | Hello of Cstruct_sexp.t
     | ErrorMsg of Error.t
-    | EchoRequest of Cstruct.t
-    | EchoReply of Cstruct.t
+    | EchoRequest of Cstruct_sexp.t
+    | EchoReply of Cstruct_sexp.t
     | VendorMsg of Vendor.t
     | SwitchFeaturesRequest
     | SwitchFeaturesReply of SwitchFeatures.t
@@ -3044,7 +3044,7 @@ module Message = struct
     | StatsReplyMsg msg -> StatsReply.size_of msg
     (**| code -> raise (Invalid_argument (Printf.sprintf "cannot marshal (controller should not send message this message (%s) to a switch)" (to_string msg)))*)
 
-  let blit_message (msg : t) (out : Cstruct.t) = match msg with
+  let blit_message (msg : t) (out : Cstruct_sexp.t) = match msg with
     | Hello buf
     | EchoRequest buf
     | EchoReply buf ->

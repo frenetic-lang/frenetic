@@ -76,6 +76,8 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) : sig
   (** A decision diagram index.  All diagrams and subdiagrams within it are given an
   index.  You can convert this to a tree with [unget], and from a tree with [get]. *)
 
+  include Comparator.S with type t := t
+
   type v = V.t * L.t
   (** The type of a variable in the decision diagram. *)
 

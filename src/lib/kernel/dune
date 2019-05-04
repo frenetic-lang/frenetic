@@ -2,7 +2,7 @@
  (name frenetic_kernel)
  (public_name frenetic.kernel)
  (wrapped true)
- (libraries core base64 cstruct ocamlgraph open tcpip yojson ipaddr sedlex
+ (libraries core base64 cstruct cstruct-sexp ocamlgraph open tcpip yojson ipaddr sedlex
    sexplib str menhirLib compiler-libs.common)
  (preprocess
   (pps ppx_cstruct ppx_deriving.std ppx_jane))
