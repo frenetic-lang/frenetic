@@ -385,12 +385,6 @@ module Pattern = struct
     match hv with
     | Switch sw_id -> (Field.Switch, Value.(Const sw_id))
     | Location(Physical p) -> (Field.Location, Value.of_int32 p)
-    | From loc -> (Field.From, Value.AbstractLocation loc)
-    | AbstractLoc loc -> (Field.AbstractLoc, Value.AbstractLocation loc)
-    (* TODO(grouptable): value hack *)
-    | Location(FastFail p_lst) -> (Field.Location, Value.(FastFail p_lst))
-    | Location(Pipe p)  -> (Field.Location, Value.(Pipe p))
-    | Location(Query p) -> (Field.Location, Value.(Query p))
     | EthSrc(dlAddr) -> (Field.EthSrc, Value.(Const dlAddr))
     | EthDst(dlAddr) -> (Field.EthDst, Value.(Const dlAddr))
     | Vlan(vlan) -> (Field.Vlan, Value.of_int vlan)
@@ -400,13 +394,21 @@ module Pattern = struct
     | EthType(dlTyp) -> (Field.EthType, Value.of_int dlTyp)
     | IPProto(nwProto) -> (Field.IPProto, Value.of_int nwProto)
     | IP4Src(nwAddr, mask) ->
-      (Field.IP4Src, Value.(Mask(Int64.of_int32 nwAddr, 32 + (Int32.to_int_exn mask))))
+      if not Int32.(equal mask 32l) then
+        failwith "IP masks not supported";
+      (Field.IP4Src, Value.Const (Int64.of_int32 nwAddr))
     | IP4Dst(nwAddr, mask) ->
-      (Field.IP4Dst, Value.(Mask(Int64.of_int32 nwAddr, 32 + (Int32.to_int_exn mask))))
+      if not Int32.(equal mask 32l) then
+        failwith "IP masks not supported";
+      (Field.IP4Dst, Value.Const (Int64.of_int32 nwAddr))
     | TCPSrcPort(tpPort) -> (Field.TCPSrcPort, Value.of_int tpPort)
     | TCPDstPort(tpPort) -> (Field.TCPDstPort, Value.of_int tpPort)
     | VFabric(vfab) -> (Field.VFabric, Value.(Const vfab))
     | Meta(name,v) -> (fst (Field.Env.lookup env name), Value.(Const v))
+    (* SJS: not supported for bisimulation *)
+    | From _
+    | AbstractLoc _
+    | Location _ -> failwith "trying to use unsupported field"
 
   let to_hv (f, v) =
     let open Field in
