@@ -11,6 +11,8 @@ module Automaton : sig
       mutable source : int64;
       mutable nextState : int64 }
 
+  val add_to_t : t -> (FDD.t * FDD.t) -> int64
+
   val fold_reachable: ?order:[< `Post | `Pre > `Pre ]
     -> t
     -> init:'a
@@ -28,6 +30,7 @@ module Automaton : sig
 
   val skip_topo_states : t
     -> ((int64, (int64 * int64)) Hashtbl.t * ((int64 * int64), Int64.Set.t) Hashtbl.t)
+
 end
 
 
