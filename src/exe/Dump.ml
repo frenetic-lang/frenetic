@@ -197,11 +197,15 @@ module Flag = struct
   let stdin =
     flag "--stdin" no_arg
       ~doc:"Read policy from stdin instead of from file."
+
+  let containment =
+    flag "--containment" no_arg
+      ~doc:"Check that the second policy is contained in the first using bisimulation."
 end
 
 
 (*===========================================================================*)
-(* COMMANDS: Local, Global, Virtual, Auto                                    *)
+(* COMMANDS: Local, Global, Virtual, Auto, Bisimulation                      *)
 (*===========================================================================*)
 
 module Local = struct
@@ -241,7 +245,6 @@ module Local = struct
       print_all_tables ~no_tables fdd switches;
       print_time t;
 end
-
 
 
 module Global = struct
@@ -382,10 +385,48 @@ module Auto = struct
 end
 
 
+module Bisim = struct
+  let spec = Command.Spec.(
+      empty
+      +> anon ("file1" %: file)
+      +> anon ("file2" %: file)
+      +> Flag.json
+      +> Flag.stdin
+      +> Flag.containment
+    )
+
+  let run file_or_pol1 file_or_pol2 json stdin containment () =
+    let pol1 =
+      (if stdin then `String file_or_pol1 else `File file_or_pol1)
+      |> parse_pol ~json
+    in
+    let pol2 =
+      (if stdin then `String file_or_pol2 else `File file_or_pol2)
+      |> parse_pol ~json
+      |> fun p -> if containment then Netkat.Syntax.Union (pol1, p) else p
+    in
+
+    let a1 = Automaton.of_policy ~dedup:true pol1 in
+    let a2 = Automaton.of_policy ~dedup:true pol2 in
+
+    if Netkat.Bisim.check a1 a2 then
+      printf "true\n"
+    else
+      printf "false\n";
+
+end
+
+
 
 (*===========================================================================*)
 (* BASIC SPECIFICATION OF COMMANDS                                           *)
 (*===========================================================================*)
+
+let bisim : Command.t =
+  Command.basic_spec
+    ~summary:"Runs a bisimulation"
+    Bisim.spec
+    Bisim.run
 
 let local : Command.t =
   Command.basic_spec
@@ -419,4 +460,4 @@ let main : Command.t =
   Command.group
     ~summary:"Runs (local/global/virtual) compiler and dumps resulting tables."
     (* ~readme: *)
-    [("local", local); ("global", global); ("virtual", virt); ("auto", auto)]
+    [("local", local); ("global", global); ("virtual", virt); ("auto", auto); ("bisim", bisim)]
