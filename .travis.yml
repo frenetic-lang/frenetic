@@ -1,4 +1,7 @@
 language: c
+cache:
+  directories:
+  - /home/travis/.opam/
 env:
   global:
   - PACKAGE=frenetic
