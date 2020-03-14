@@ -13,19 +13,17 @@ build: [
   ["dune" "build" "@doc" "-p" name "-j" jobs] {with-doc}
 ]
 depends: [
-  "ocaml" {>= "4.05.0"}
+  "ocaml" {>= "4.07.0"}
   "dune" {build}
   "async"
   "async_unix"
   "alcotest"
   "bin_prot"
-  "core"
-  "cstruct"
-  "ocaml-compiler-libs"
-  "core" {>= "v0.11"}
-  "cstruct"
+  "core" {>= "v0.11" & < "v0.12"}
+  "cstruct" {>= "3.0" & < "4.0"}
   "frenetic"
   "ipaddr"
+  "ocaml-compiler-libs"
   "ocaml-migrate-parsetree"
   "ocamlgraph"
   "open"
@@ -36,8 +34,8 @@ depends: [
   "ppx_jane"
   "printbox"
   "rpc_parallel"
-  "sedlex"
-  "sexplib"
+  "sedlex" {= "1.99.4"}
+  "sexplib" {>= "v0.11" & < "v0.12"}
   "yojson"
   "zarith"
 ]
