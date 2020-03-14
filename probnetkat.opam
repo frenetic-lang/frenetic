@@ -37,5 +37,5 @@ depends: [
   "sedlex" {= "1.99.4"}
   "sexplib" {>= "v0.11" & < "v0.12"}
   "yojson"
-  "zarith"
+  "zarith" {= "1.7"}
 ]
