@@ -19,7 +19,6 @@ depends: [
   "odoc"
   #########################
   "async"  {>= "v0.14.0" }
-  "async_extended" {>= "v0.14.0" }
   "base64" {>= "3.4.0"}
   "cohttp" {>= "2.5.4"}
   "cohttp-async" {>= "2.5.4" }
