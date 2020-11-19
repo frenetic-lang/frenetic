@@ -56,12 +56,12 @@ let cr = Uchar.of_char '\r'
 let next lexbuf =
   Option.map (Sedlexing.next lexbuf.buf) ~f:(fun c ->
     let pos = next_loc lexbuf in
-    begin match Uchar.to_char c with
+    begin match Uchar.to_char_exn c with
     | '\r' ->
       lexbuf.pos <- { pos with
         pos_bol = pos.pos_cnum - 1;
         pos_lnum = pos.pos_lnum + 1; }
-    | '\n' when not (lexbuf.last_char = Some cr) ->
+    | '\n' when not Poly.(lexbuf.last_char = Some cr) ->
       lexbuf.pos <- { pos with
         pos_bol = pos.pos_cnum - 1;
         pos_lnum = pos.pos_lnum + 1; }
@@ -75,7 +75,7 @@ let next lexbuf =
 
 let raw lexbuf : int array =
   Sedlexing.lexeme lexbuf.buf
-  |> Array.map ~f:Uchar.to_int
+  |> Array.map ~f:Uchar.to_scalar
 
 let ascii ?(skip=0) ?(drop=0) lexbuf : string =
   let len = Sedlexing.(lexeme_length lexbuf.buf - skip - drop) in

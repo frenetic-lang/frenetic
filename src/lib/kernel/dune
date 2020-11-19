@@ -5,5 +5,5 @@
  (libraries core base64 cstruct cstruct-sexp ocamlgraph open tcpip yojson ipaddr sedlex
    sexplib str menhirLib compiler-libs.common)
  (preprocess
-  (pps ppx_cstruct ppx_deriving.std ppx_jane))
+  (pps ppx_cstruct ppx_deriving.std ppx_jane -allow-unannotated-ignores))
 )

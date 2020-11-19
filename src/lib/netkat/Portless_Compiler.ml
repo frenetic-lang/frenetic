@@ -17,7 +17,7 @@ let connected_switches ~loc ~direction ~topo =
     let neighbors = Topology.neighbors network loc in
     Topology.VertexSet.fold neighbors ~init:[] ~f:(fun acc other ->
         let node = Topology.vertex_to_label network other in
-        if Network.Node.device node = Switch then
+        if Poly.(Network.Node.device node = Switch) then
           let edges = match direction with
             | Incoming -> Topology.find_all_edges network other loc
             | Outgoing -> Topology.find_all_edges network loc other in
@@ -35,7 +35,7 @@ let abs_loc_to_switch (topo: topo) loc =
   match vertex with
   | Some v ->
     let node = (Topology.vertex_to_label network v) in
-    if Network.Node.device node = Switch then
+    if Poly.(Network.Node.device node = Switch) then
       Network.Node.id node
     else
       failwith "the location is not a switch"
@@ -45,7 +45,7 @@ let is_loc_host (topo: topo) loc =
   let (name_to_vertex_table, network) = topo in
   let vertex = Hashtbl.find name_to_vertex_table loc in
   match vertex with
-  | Some v -> Network.Node.device (Topology.vertex_to_label network v) = Host
+  | Some v -> Poly.(Network.Node.device (Topology.vertex_to_label network v) = Host)
   | None -> failwith "no such location"
 
 

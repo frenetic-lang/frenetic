@@ -197,7 +197,7 @@ module Automaton = struct
     let t = create_t () in
     let rec add id =
       if not (Hashtbl.mem t.states id) then
-        let _ = t.nextState <- max t.nextState Int64.(id + 1L) in
+        let _ = t.nextState <- Int64.max t.nextState Int64.(id + 1L) in
         let (_,d) as state = Lazy.force (Hashtbl.find_exn automaton.states id) in
         Hashtbl.add_exn t.states ~key:id ~data:state;
         Set.iter (FDD.conts d) ~f:add
@@ -208,7 +208,7 @@ module Automaton = struct
 
   let lex_sort (t0 : t0) =
     let rec loop acc stateId =
-      if List.mem ~equal:(=) acc stateId then acc else
+      if List.mem ~equal:Poly.(=) acc stateId then acc else
       let init = stateId :: acc in
       let (_,d) = Lazy.force (Hashtbl.find_exn t0.states stateId) in
       Set.fold (FDD.conts d) ~init ~f:loop
@@ -369,7 +369,7 @@ module Automaton = struct
   *)
   let reach (automaton : t) : (int64, FDD.t) Hashtbl.t =
     let reach = Int64.Table.create () in
-    (** initialize reach to false *)
+    (* initialize reach to false *)
     List.iter (Hashtbl.keys automaton.states) ~f:(fun id ->
       Hashtbl.add_exn reach ~key:id ~data:FDD.drop);
     let rec go worklist =
@@ -420,7 +420,7 @@ module Automaton = struct
   let pc_unused pc fdd =
     FDD.fold fdd
       ~f:Action.(Par.for_all ~f:(fun seq -> not (Seq.mem seq (F pc))))
-      ~g:(fun (f,_) l r -> l && r && f<>pc)
+      ~g:(fun (f,_) l r -> l && r && Poly.(f<>pc))
 
   (** a physical location is a switch-port-pair *)
   type ploc = int64 * int64
@@ -507,7 +507,7 @@ module Automaton = struct
       G.iter_vertex (fun i ->
         G.iter_vertex (fun j ->
           let ii = G.V.label i and jj = G.V.label j in
-          if ii < jj && not (disjoint (Hashtbl.find_exn reach ii) (Hashtbl.find_exn reach jj)) then
+          if Poly.(ii < jj) && not (disjoint (Hashtbl.find_exn reach ii) (Hashtbl.find_exn reach jj)) then
             G.add_edge g i j
         ) g
       ) g;
@@ -535,7 +535,7 @@ module Automaton = struct
       |> List.mapi ~f:(fun i state -> (state, i))
       |> Int64.Map.of_alist_exn)
     in
-    (** maps state ids to their pc-value, using loc_map and state_map for
+    (* maps state ids to their pc-value, using loc_map and state_map for
         inspiration to allocate pc-values economically. Returns boolean indicating
         whether a state is unique to its location. *)
     let get_pc (id : int64) : (Value.t * bool) =
@@ -563,13 +563,13 @@ module Automaton = struct
       in
       let e =
         (* SJS: Vlan specific hack. Ideally, this should be more general *)
-        if pc = Field.Vlan then
+        if Poly.(pc = Field.Vlan) then
           FDD.seq e pop_vlan
         else
           e
       in
       let guard =
-        if id = automaton.source then FDD.id else
+        if Poly.(id = automaton.source) then FDD.id else
         let (pc_val, unique) = get_pc id in
         if unique then FDD.id else
         FDD.atom (pc, pc_val) Action.one Action.zero in

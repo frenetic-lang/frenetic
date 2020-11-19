@@ -32,7 +32,7 @@ and for_fdd dom fdd =
     residual trees below f-tests. *)
 and for_field f fdd vs residuals =
   match FDD.unget fdd with
-  | Branch {test=(f',v); tru; fls} when f' = f ->
+  | Branch {test=(f',v); tru; fls} when Poly.(f' = f) ->
     let vs = match v with Const v -> Set.add vs v | _ -> vs in
     for_field f fls vs (Set.add residuals tru)
   | Branch _ | Leaf _ ->

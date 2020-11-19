@@ -16,13 +16,13 @@ let verbosity_levels : Async.Log.Level.t Command.Spec.Arg_type.t =
         exit 1)
 
 let default_log_device =
-  ("stderr", lazy (Async_extended.Extended_log.Console.output (Lazy.force Async.Writer.stderr)))
+  ("stderr", lazy (Async.Log.Output.writer `Text (Lazy.force Async.Writer.stderr)))
 
 let log_outputs : (string * Async.Log.Output.t Lazy.t) Command.Spec.Arg_type.t =
   Command.Spec.Arg_type.create
     (function
       | "stderr" -> default_log_device
-      | "stdout" -> ("stdout", lazy (Async_extended.Extended_log.Console.output (Lazy.force Async.Writer.stdout)))
+      | "stdout" -> ("stdout", lazy (Async.Log.Output.writer `Text (Lazy.force Async.Writer.stdout)))
       | filename -> (filename, lazy (Async.Log.Output.file `Text filename)) )
 
 let table_fields : Netkat.Local_compiler.flow_layout Command.Spec.Arg_type.t =
@@ -92,11 +92,11 @@ module Flag = struct
       ~doc:"Partition of fields into Openflow 1.3 tables, e.g. ethsrc,ethdst;ipsrc,ipdst"
 
   let policy_file =
-    flag "--policy-file" (optional_with_default "policy.kat" file)
+    flag "--policy-file" (optional_with_default "policy.kat" string)
     ~doc:"File containing NetKAT policy to apply to the network. Defaults to \"policy.kat\"."
 
   let topology_file =
-    flag "--topology-file" (optional_with_default "topology.dot" file)
+    flag "--topology-file" (optional_with_default "topology.dot" string)
       ~doc:"File containing .dot topology of network. Defaults to \"topology.kat\"."
 
   let topology_name =

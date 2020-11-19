@@ -23,7 +23,7 @@ module FabricGen = struct
   type fabric = policy list * policy list
 
   (* auxilliary list functions *)
-  let inters xs ys = List.filter xs ~f:(List.mem ~equal:(=) ys)
+  let inters xs ys = List.filter xs ~f:(List.mem ~equal:Poly.(=) ys)
   let minimize xs obj =
     let f best x =
       let v = obj x in
@@ -31,7 +31,7 @@ module FabricGen = struct
       | None, None -> None
       | None, Some v -> Some (x, v)
       | Some (y, v'),None -> best
-      | Some (y, v'), Some v -> if v<v' then Some (x, v) else best
+      | Some (y, v'), Some v -> if Poly.(v < v') then Some (x, v) else best
     in
     List.fold xs ~init:None ~f
 
@@ -100,7 +100,7 @@ module FabricGen = struct
 
       let connect_switch_ports' v1 v2 g =
         match V.label v1, V.label v2 with
-        | InPort (sw, _), OutPort (sw', _) when sw=sw' -> add_edge g v1 v2
+        | InPort (sw, _), OutPort (sw', _) when Poly.(sw=sw') -> add_edge g v1 v2
         | _ -> g
 
       let connect_switch_ports g =
@@ -153,7 +153,7 @@ module FabricGen = struct
           match vtopo with
           | VLink (vsw1,vpt1,vsw2,vpt2) -> [(vsw1,vpt1,vsw2,vpt2)]
           | Union (t1, t2) -> links_from_topo t1 @ links_from_topo t2
-          | _ -> if vtopo = drop then [] else
+          | _ -> if Poly.(vtopo = drop) then [] else
               failwith ("Virtual Compiler: not a valid virtual topology")
       end) (VV)
 
@@ -169,7 +169,7 @@ module FabricGen = struct
           match topo with
           | Link (sw1,pt1,sw2,pt2) -> [(sw1, pt1, sw2, pt2)]
           | Union (t1, t2) -> links_from_topo t1 @ links_from_topo t2
-          | _ -> if topo = drop then [] else failwith "Virtual Compiler: not a valid physical topology"
+          | _ -> if Poly.(topo = drop) then [] else failwith "Virtual Compiler: not a valid physical topology"
       end) (PV)
 
     module Prod = struct
@@ -375,15 +375,15 @@ module FabricGen = struct
   let rec pol_of_path path =
     match path with
     | (OutPort (sw1, pt1), (InPort (sw2, pt2))) :: path' ->
-      if sw1 = sw2 then begin
-        assert (pt1 = pt2);
+      if Poly.(sw1 = sw2) then begin
+        assert Poly.(pt1 = pt2);
         pol_of_path path'
       end
       else
         mk_seq (Link (sw1, pt1, sw2, pt2)) (pol_of_path path')
     | (InPort (sw, pt), (OutPort (sw', pt'))) :: path' ->
-      assert (sw = sw');
-      if pt = pt' then
+      assert Poly.(sw = sw');
+      if Poly.(pt = pt') then
         pol_of_path path'
       else
         mk_seq (Mod (Location (Physical (pt')))) (pol_of_path path')
@@ -393,7 +393,7 @@ module FabricGen = struct
   let rec print_path path out_channel =
     match path with
     | (OutPort (sw1, _), (InPort (sw2, _))) :: path' ->
-      if sw1 = sw2 then
+      if Poly.(sw1 = sw2) then
         print_path path' out_channel
       else
         (Printf.fprintf out_channel "%Lu-%Lu" sw1 sw2;
@@ -409,7 +409,7 @@ module FabricGen = struct
     | ConsistentOut _, InconsistentIn _ | ConsistentIn _, InconsistentOut _ -> `None
     | (InconsistentOut (vv, pv1) as l), ConsistentOut (vv', pv2)
     | (InconsistentIn (vv, pv1) as l), ConsistentIn (vv', pv2) ->
-      assert (vv = vv');
+      assert Poly.(vv = vv');
       let path = path_oracle pv1 pv2 in
       let _ = Core.Option.(record_paths >>| print_path path) in
       let fabric =
@@ -480,7 +480,7 @@ module FabricGen = struct
 
     let is_loop pv1 pv2 =
       match pv1, pv2 with
-      | OutPort (sw, _), InPort (sw', _) -> sw = sw'
+      | OutPort (sw, _), InPort (sw', _) -> Poly.(sw = sw')
       | _ -> false
     in
 

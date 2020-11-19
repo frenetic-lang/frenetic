@@ -18,6 +18,9 @@ type event = Frenetic.OpenFlow.event
   that's transitional.
  *)
 
+let write_marshal writer ~flags:f rpc = 
+  Writer.write writer (Marshal.to_string rpc f)
+
 type rpc_ack = RpcOk | RpcEof
 
 (* Don't send this over RPC.  You'll be sorry! *)
@@ -93,7 +96,7 @@ let client_handler (a:Socket.Address.Inet.t) (r:Reader.t) (w:Writer.t) : unit De
     let buf = Cstruct.create header.length in
     Frenetic.OpenFlow_Header.marshal buf header;
     Message.marshal_body msg (Cstruct.shift buf Frenetic.OpenFlow_Header.size);
-    Async_cstruct.schedule_write w buf in
+    Writer.schedule_bigstring ~pos:buf.off ~len:buf.len w buf.buffer in
 
   let my_events = openflow_events r in
 
@@ -211,7 +214,7 @@ let rpc_handler (a:Socket.Address.Inet.t) (reader:Reader.t) (writer:Writer.t) : 
     | `Eof -> Logging.error "Upstream socket closed unexpectedly!";
       Finished ()
     | `Ok a -> a in
-  let write = Writer.write_marshal writer ~flags:[] in
+  let write = write_marshal writer ~flags:[] in
   Deferred.repeat_until_finished ()
     (fun () -> read () >>= function
      | Finished () -> return (`Finished ())
@@ -270,7 +273,7 @@ let spec =
   empty
   +> flag "-p" (optional_with_default 6633 int) ~doc:"int Port to listen on for OpenFlow switches"
   +> flag "-s" (optional_with_default 8984 int) ~doc:"file TCP port to serve on for communicating with higher-level controller"
-  +> flag "-l" (optional_with_default "./openflow.log" file) ~doc:"string log path"
+  +> flag "-l" (optional_with_default "./openflow.log" string) ~doc:"string log path"
   +> flag "-v" no_arg ~doc:" enable verbose logging (`Debug level)"
 
 let run =
@@ -278,7 +281,7 @@ let run =
     ~summary:"Run OpenFlow0x01 controller"
     spec
     (fun port rpc_port log_file verbose () ->
-       let log_output = lazy (Async_extended.Std.Log.Output.file `Text log_file) in
+       let log_output = lazy (Async.Log.Output.file `Text log_file) in
        Frenetic.Async.Logging.set_output [Lazy.force log_output];
        let log_level = match verbose with
          | true -> Logging.info "Setting log_level to Debug";

@@ -77,7 +77,7 @@ let specialize_pred sw pr =
       | Neg pr1 ->
         loop pr1 (fun pr -> k (mk_not pr))
       | Test (Switch v) ->
-        if v = sw then
+        if Poly.(v = sw) then
           k True
         else
           k False
