@@ -21,9 +21,9 @@ You can build Frenetic-based network applications with:
 
 1. Install [OPAM](https://opam.ocaml.org/), version 2.0 or higher.
 
-2. Switch to OCaml version 4.06.0 or greater:
+2. Switch to OCaml version 4.11.0 or greater:
     ```
-    opam switch 4.06.0    
+    opam switch 4.11.0    
     ```
 
 3. Install [dune](https://dune.build/):
