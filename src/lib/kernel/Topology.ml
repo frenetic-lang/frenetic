@@ -132,7 +132,7 @@ module Mininet = struct
             (topo, (loc, vertex) :: acc)) in
 
     (* Function to find a vertex from location *)
-    let find_vertex loc = List.Assoc.find_exn loc_tup_to_vertex_table ~equal:(=)
+    let find_vertex loc = List.Assoc.find_exn loc_tup_to_vertex_table ~equal:Poly.(=)
         (location_to_id loc) in
 
     (* Add all the edges to the topo *)

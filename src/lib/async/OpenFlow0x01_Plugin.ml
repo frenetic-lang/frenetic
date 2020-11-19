@@ -26,6 +26,9 @@ type rpc_command =
   | TrxReply of rpc_ack * OF10.Message.t list
   | Finished of unit  (* This is not sent by the client explicitly *)
 
+let write_marshal writer ~flags:f rpc = 
+  Writer.write writer (Marshal.to_string rpc f)
+
 let chan = Ivar.create ()
 
 let (events, events_writer) = Pipe.create ()
@@ -91,7 +94,8 @@ module LowLevel = struct
           Logging.info "Successfully connected to second OpenFlow server socket";
           let reader = Reader.create (Socket.fd sock) in
           let writer = Writer.create (Socket.fd sock) in
-          Writer.write_marshal writer ~flags:[] GetEvents;
+          (* TODO(jnfoster): replace with a different call *)
+          write_marshal writer ~flags:[] GetEvents;
           Deferred.repeat_until_finished ()
             (fun () ->
                Reader.read_marshal reader
@@ -128,7 +132,7 @@ module LowLevel = struct
       | `Eof -> Logging.error "OpenFlow server socket shutdown unexpectedly!";
         failwith "Can not reach OpenFlow server!"
       | `Ok a -> a in
-    let write = Writer.write_marshal writer ~flags:[] in
+    let write = write_marshal writer ~flags:[] in
     return (read, write)
 
   let send swid xid msg =
@@ -160,7 +164,7 @@ module LowLevel = struct
     >>= fun sock ->
     let reader = Reader.create (Socket.fd sock) in
     let writer = Writer.create (Socket.fd sock) in
-    Writer.write_marshal writer ~flags:[] (SendTrx (swid,msg));
+    write_marshal writer ~flags:[] (SendTrx (swid,msg));
     Reader.read_marshal reader >>| fun resp ->
       match resp with
       | `Eof ->

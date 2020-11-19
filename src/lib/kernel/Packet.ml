@@ -1317,7 +1317,7 @@ let parse (bits : Cstruct.t) =
 
 let len (pkt : packet) =
   let eth_len =
-    if pkt.dlVlan <> None then sizeof_vlan
+    if Poly.(pkt.dlVlan <> None) then sizeof_vlan
     else sizeof_eth in
   let nw_len = match pkt.nw with
     | Ip ip -> Ip.len ip

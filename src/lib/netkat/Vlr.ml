@@ -81,7 +81,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
     if equal tru fls then
       fls
     else match unget fls with
-    | Branch { test = (v',_); all_fls; _ } when v=v' ->
+    | Branch { test = (v',_); all_fls; _ } when Poly.(v=v') ->
       if all_fls = tru then
         fls
       else
@@ -129,7 +129,7 @@ module Make(V:HashCmp)(L:Lattice)(R:Result) = struct
         |  1 -> mk_branch (v',l') (loop xs t) (loop xs f)
         |  _ -> assert false
     in
-    loop (List.sort (fun (u, _) (v, _) -> V.compare u v) lst) u
+    loop (List.sort lst ~compare:(fun (u, _) (v, _) -> V.compare u v)) u
 
   let apply f zero ~(cache: (t*t, t) Hashtbl.t) =
     let rec sum x y =

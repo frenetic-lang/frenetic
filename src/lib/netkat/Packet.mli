@@ -13,7 +13,7 @@ module T : sig
   include Comparator.S with type t := t
 end
 
-include T with type t = int64 Map.M(Field).t
+include T with type t = int64 Map.M(Field).t [@deriving sexp, compare, hash]
 
 (** the packet with no fields *)
 val empty : t

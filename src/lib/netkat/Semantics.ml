@@ -7,7 +7,7 @@ open Frenetic_kernel.Packet
 module HeadersValues = struct
 
   type t =
-    { location : location sexp_opaque
+    { location : location [@sexp_opaque]
     ; from : abstract_location
     ; abstractLoc : abstract_location
     ; ethSrc : dlAddr
@@ -27,7 +27,7 @@ module HeadersValues = struct
   let to_string (x:t) : string =
     let g to_string acc f =
       Printf.sprintf "%s%s=%s"
-        (if acc = "" then "" else acc ^ "; ")
+        (if Poly.(acc = "") then "" else acc ^ "; ")
         (Field.name f) (to_string (Field.get f x))
     in
     Fields.fold
@@ -79,10 +79,12 @@ type packet = {
   switch : switchId;
   headers : HeadersValues.t;
   payload : payload
-}
+} 
+[@@deriving sexp]
 
 module PacketSet = Set.Make (struct
-  type t = packet sexp_opaque [@@deriving sexp]
+  type t = packet 
+  [@@deriving sexp]
 
   (* First compare by headers, then payload. The payload comparison is a
      little questionable. However, this is safe to use in eval, since
@@ -92,7 +94,7 @@ module PacketSet = Set.Make (struct
     if cmp <> 0 then
       cmp
     else
-      Pervasives.compare x.payload y.payload
+      Poly.compare x.payload y.payload
 end)
 
 (** {2 Semantics}
@@ -133,6 +135,7 @@ let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
   | Test hv ->
     begin
       let open HeadersValues in
+      let open Poly in
       match hv with
       | Switch n -> pkt.switch = n
       | Location l -> pkt.headers.location = l
@@ -209,7 +212,7 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
       loop (PacketSet.singleton pkt)
   | Link (from_sw, from_pt, to_sw, to_pt) ->
     let open HeadersValues in
-    if from_sw = pkt.switch && Physical(from_pt) = pkt.headers.location then
+    if Poly.(from_sw = pkt.switch && Physical(from_pt) = pkt.headers.location) then
       PacketSet.singleton { pkt with switch = to_sw; headers = { pkt.headers with location = Physical(to_pt) }}
     else
       PacketSet.empty
@@ -260,7 +263,7 @@ let eval_pipes (packet:packet) (pol:Syntax.policy)
 let queries_of_policy (pol : policy) : string list =
   let rec loop (pol : policy) (acc : string list) : string list = match pol with
     | Mod (Location (Query str)) ->
-      if List.mem ~equal:(=) acc str then acc else str :: acc
+      if List.mem ~equal:Poly.(=) acc str then acc else str :: acc
     | Filter _ | Mod _ | Link _ | VLink _ | Dup -> acc
     | Union (p, q) | Seq (p, q) -> loop q (loop p acc)
     | Star p -> loop p acc

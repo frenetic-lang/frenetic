@@ -32,7 +32,7 @@ let val_to_mask v =
   { m_value = v; m_mask = None }
 
 let ip_to_mask (p,m) =
-  if m = 32l then { m_value = p; m_mask = None }
+  if Poly.(m = 32l) then { m_value = p; m_mask = None }
   else
     let m = Int32.shift_left 0xffffffffl (Int32.to_int_exn (Int32.(32l - m))) in
     { m_value = p; m_mask = Some m }
@@ -1472,7 +1472,7 @@ type ofp_multipart_request = {
   typ: uint16_t ;   (* One of the OFPMP_* constants. *)
   flags: uint16_t ;  (* OFPMP_REQ_* flags (none yet defined). *)
   pad: uint8_t  [@len 4];
-  body: uint8_t  [@len 0] (* Body of the request. *)
+  body: uint8_t  [@len 1] (* Body of the request. *)
 } [@@big_endian]]
 
 [%%cenum
@@ -1492,7 +1492,7 @@ type ofp_multipart_reply = {
   typ: uint16_t ;   (* One of the OFPMP_* constants. *)
   flags: uint16_t ;  (* OFPMP_REPLY_* flags. *)
   pad: uint8_t  [@len 4];
-  body: uint8_t [@len 0]; (* Body of the reply. *)
+  body: uint8_t [@len 1]; (* Body of the reply. *)
 } [@@big_endian]]
 
 [%%cenum
@@ -1617,13 +1617,13 @@ let max_uint32 = 4294967296L (* = 2^32*)
 (* TODO(arjun): WTF *)
 let compare_uint32 a b =
   (* val compare_uint32 : uint32 -> uint32 -> bool ; return a < b, for a, b uint32  *)
-  let a' = if a < 0l then
+  let a' = if Poly.(a < 0l) then
       Int64.(max_uint32 - (of_int32_exn (Int32.abs a)))
     else Int64.of_int32 a in
-  let b' = if b < 0l then
+  let b' = if Poly.(b < 0l) then
       Int64.(max_uint32 - (of_int32_exn (Int32.abs b)))
     else Int64.of_int32 b in
-  a' <= b'
+  Poly.(a' <= b')
 
 let set_ofp_uint48_value (buf : Cstruct_sexp.t) (value : uint48) =
   let high = Int64.(to_int32_exn (shift_right_logical value 16)) in
@@ -1634,7 +1634,7 @@ let set_ofp_uint48_value (buf : Cstruct_sexp.t) (value : uint48) =
 let get_ofp_uint48_value (buf : Cstruct_sexp.t) : uint48 =
   let highBits = get_ofp_uint48_high buf in
   let high =
-    if highBits < 0l then
+    if Poly.(highBits < 0l) then
       Int64.(max_uint32 - of_int32 (Int32.abs highBits))
     else
       Int64.(of_int32 highBits) in
@@ -2763,30 +2763,30 @@ module Oxm = struct
 
   (* Take a generic pattern and produce an openflow 1.3 pattern *)
   let from_of_pattern (pat : OpenFlow.Pattern.t) : oxm list =
-    (if pat.dlSrc = None then []
+    (if Poly.(pat.dlSrc = None) then []
     else [OxmEthSrc (val_to_mask (Option.value_exn pat.dlSrc))])
-    |> (fun accum -> if pat.dlDst = None then accum
+    |> (fun accum -> if Poly.(pat.dlDst = None) then accum
        else (OxmEthDst (val_to_mask (Option.value_exn pat.dlDst))) :: accum)
-    |> (fun accum -> if pat.dlTyp = None then accum
+    |> (fun accum -> if Poly.(pat.dlTyp = None) then accum
        else (OxmEthType (Option.value_exn pat.dlTyp)) :: accum)
-    |> (fun accum -> if pat.dlVlan = None then accum
+    |> (fun accum -> if Poly.(pat.dlVlan = None) then accum
        else (OxmVlanVId (val_to_mask (Option.value_exn pat.dlVlan))) :: accum)
-    |> (fun accum -> if pat.dlVlanPcp = None then accum
+    |> (fun accum -> if Poly.(pat.dlVlanPcp = None) then accum
        else (OxmVlanPcp (Option.value_exn pat.dlVlanPcp)) :: accum)
-    |> (fun accum -> if pat.nwSrc = None then accum
+    |> (fun accum -> if Poly.(pat.nwSrc = None) then accum
        (* TODO(mulias): nwSrc is an int32*int32, the second int is proably the mask *)
        else let (src,_) = Option.value_exn pat.nwSrc in
          (OxmIP4Src (val_to_mask src)) :: accum)
-    |> (fun accum -> if pat.nwDst = None then accum
+    |> (fun accum -> if Poly.(pat.nwDst = None) then accum
        else let (dst,_) = Option.value_exn pat.nwDst in
          (OxmIP4Dst (val_to_mask dst)) :: accum)
-    |> (fun accum -> if pat.nwProto = None then accum
+    |> (fun accum -> if Poly.(pat.nwProto = None) then accum
        else (OxmIPProto (Option.value_exn pat.nwProto)) :: accum)
-    |> (fun accum -> if pat.tpSrc = None then accum
+    |> (fun accum -> if Poly.(pat.tpSrc = None) then accum
        else (OxmTCPSrc (Option.value_exn pat.tpSrc)) :: accum)
-    |> (fun accum -> if pat.tpDst = None then accum
+    |> (fun accum -> if Poly.(pat.tpDst = None) then accum
        else (OxmTCPDst (Option.value_exn pat.tpDst)) :: accum)
-    |> (fun accum -> if pat.inPort = None then accum
+    |> (fun accum -> if Poly.(pat.inPort = None) then accum
        else (OxmInPort (Option.value_exn pat.inPort)) :: accum)
 
 end
@@ -3880,7 +3880,7 @@ module Instruction = struct
     | Some OFPIT_WRITE_METADATA ->
       let value = get_ofp_instruction_write_metadata_metadata bits in
       let mask = get_ofp_instruction_write_metadata_metadata_mask bits in
-      if mask <> 0L then
+      if Poly.(mask <> 0L) then
         WriteMetadata ({m_value = value; m_mask = Some mask})
       else
         WriteMetadata ({m_value = value; m_mask = None})
@@ -4012,7 +4012,7 @@ module FlowMod = struct
   let parse (bits : Cstruct_sexp.t) : t =
     let mfMask = get_ofp_flow_mod_cookie_mask bits in
     let mfCookie =
-      if mfMask <> 0L then
+      if Poly.(mfMask <> 0L) then
         {m_value = get_ofp_flow_mod_cookie bits;
          m_mask = (Some (get_ofp_flow_mod_cookie_mask bits))}
       else {m_value = get_ofp_flow_mod_cookie bits;

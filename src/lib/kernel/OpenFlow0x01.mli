@@ -88,8 +88,8 @@ type flowMod =
 [@@deriving sexp]
 
 type payload =
-  | Buffered of int32 * Cstruct.t sexp_opaque
-  | NotBuffered of Cstruct.t sexp_opaque
+  | Buffered of int32 * Cstruct.t [@sexp_opaque]
+  | NotBuffered of Cstruct.t [@sexp_opaque]
 [@@deriving sexp]
 
 type packetInReason =
@@ -609,7 +609,7 @@ module Error : sig
   [@@deriving sexp]
 
   type t =
-    | Error of c * Cstruct.t sexp_opaque
+    | Error of c * Cstruct.t [@sexp_opaque]
   [@@deriving sexp]
 
   (** [to_string v] pretty-prints [v]. *)
@@ -620,7 +620,7 @@ end
 (** A VENDOR message.  See Section 5.5.4 of the OpenFlow 1.0 specification. *)
 module Vendor : sig
 
-  type t = int32 * Cstruct.t sexp_opaque
+  type t = int32 * Cstruct.t [@sexp_opaque]
   [@@deriving sexp]
 
   val parse : Cstruct.t -> t

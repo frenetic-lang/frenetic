@@ -32,6 +32,7 @@ module Field = struct
     | TCPDstPort
     | VFabric
     [@@deriving sexp, enumerate, enum, hash]
+
   type field = t
 
   let num_fields = max + 1
@@ -97,11 +98,11 @@ module Field = struct
         | 4 -> Meta4
         | _ -> raise Full
       in
-      { alist = List.Assoc.add ~equal:(=) env.alist name (field, (init, mut));
+      { alist = List.Assoc.add ~equal:Poly.(=) env.alist name (field, (init, mut));
         depth = env.depth + 1}
 
     let lookup env name =
-      List.Assoc.find_exn ~equal:(=) env.alist name
+      List.Assoc.find_exn ~equal:Poly.(=) env.alist name
   end
 
   let of_hv ?(env=Env.empty) hv = match hv with
@@ -225,18 +226,18 @@ module Value = struct
   let subset_eq a b =
     (* Note that Mask checking is a lot like OpenFlow.Pattern.Ip, but the int's are different sizes *)
     let subset_eq_mask a m b n =
-      if m < n
+      if Poly.(m < n)
         then false
         else
-          Int64.shift_right_logical a (64-n) = Int64.shift_right_logical b (64-n)
+          Poly.(Int64.shift_right_logical a (64-n) = Int64.shift_right_logical b (64-n))
     in
     match a, b with
     | Const  a           , Const b
     (* Note that comparing a mask to a constant requires the mask to be all 64 bits, otherwise they fail the lesser mask test *)
-    | Mask(a, 64)        , Const b -> a = b
-    | AbstractLocation a , AbstractLocation b -> a = b
+    | Mask(a, 64)        , Const b -> Poly.(a = b)
+    | AbstractLocation a , AbstractLocation b -> Poly.(a = b)
     | Pipe   a           , Pipe  b
-    | Query  a           , Query b -> a = b
+    | Query  a           , Query b -> Poly.(a = b)
     | Mask             _ , Const            _
     | AbstractLocation _ ,                  _
     | Pipe             _ ,                  _
@@ -268,9 +269,9 @@ module Value = struct
     | AbstractLocation _ , _
     | _ , AbstractLocation _ -> None
     | Const  a   , Const b
-    | Mask(a, 64), Const b -> if a = b then Some(Const a) else None
-    | Pipe   a   , Pipe  b -> if a = b then Some(Pipe a) else None
-    | Query  a   , Query b -> if a = b then Some(Query a) else None
+    | Mask(a, 64), Const b -> if Poly.(a = b) then Some(Const a) else None
+    | Pipe   a   , Pipe  b -> if Poly.(a = b) then Some(Pipe a) else None
+    | Query  a   , Query b -> if Poly.(a = b) then Some(Query a) else None
     | Mask     _ , Const _
     | Pipe     _ ,       _
     | Query    _ ,       _
@@ -307,9 +308,9 @@ module Value = struct
     | AbstractLocation _ , _
     | _ , AbstractLocation _ -> None
     | Const  a   , Const b
-    | Mask(a, 64), Const b -> if a = b then Some(Const a) else None
-    | Pipe   a   , Pipe  b -> if a = b then Some(Pipe a) else None
-    | Query  a   , Query b -> if a = b then Some(Query a) else None
+    | Mask(a, 64), Const b -> if Poly.(a = b) then Some(Const a) else None
+    | Pipe   a   , Pipe  b -> if Poly.(a = b) then Some(Pipe a) else None
+    | Query  a   , Query b -> if Poly.(a = b) then Some(Query a) else None
     | Mask     _ , Const _
     | Pipe     _ ,       _
     | Query    _ ,       _
@@ -498,10 +499,11 @@ module Action = struct
   type field_or_cont = Field_or_cont.t =
     | F of Field.t
     | K
-    [@@deriving sexp, compare, hash, eq]
+  [@@deriving sexp, compare, hash, eq]
 
   module Seq = struct
-    include Map.Make(Field_or_cont)
+    module M = Map.Make(Field_or_cont)
+    include M
 
     (* let equal = equal Value.equal *)
     let compare = compare_direct Value.compare
@@ -627,7 +629,7 @@ module Action = struct
       | _                   -> Some(seq))
     in
     let to_port p = match in_port with
-      | Some(p') when p = p' -> SDN.InPort
+      | Some(p') when Poly.(p = p') -> SDN.InPort
       | _                    -> SDN.(Physical(to_int32 p))
     in
     Par.fold t ~init:[] ~f:(fun acc seq ->

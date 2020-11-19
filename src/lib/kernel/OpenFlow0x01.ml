@@ -1516,10 +1516,10 @@ module PortDescription = struct
 
       let of_int d =
         let d_masked = Int32.bit_and d mask in
-        if d_masked = to_int Listen then Listen
-        else if d_masked = to_int Learn then Learn
-        else if d_masked = to_int Forward then Forward
-        else if d_masked = to_int Block then Block
+        if Poly.(d_masked = to_int Listen) then Listen
+        else if Poly.(d_masked = to_int Learn) then Learn
+        else if Poly.(d_masked = to_int Forward) then Forward
+        else if Poly.(d_masked = to_int Block) then Block
         else raise (Unparsable
           (Printf.sprintf "Unexpected ofp_port_state for STP: %ld" d_masked))
     end
@@ -2410,7 +2410,7 @@ module StatsReply = struct
               set_ofp_flow_stats_packet_count out (head.packet_count);
               set_ofp_flow_stats_byte_count out (head.byte_count)
         end;
-        (** TODO: Support the marshaling of multiple action and multiple flows *)
+        (* TODO: Support the marshaling of multiple action and multiple flows *)
         sizeof_ofp_stats_reply + sizeof_ofp_flow_stats
       | PortRep rep ->
         set_ofp_stats_reply_stats_type out (ofp_stats_types_to_int OFPST_PORT);
@@ -2433,7 +2433,7 @@ module StatsReply = struct
             set_ofp_port_stats_rx_crc_err out (head.rx_crc_err);
             set_ofp_port_stats_collisions out (head.collisions);
         end;
-        (** TODO: Support the marshaling of multiple action and multiple flows *)
+        (* TODO: Support the marshaling of multiple action and multiple flows *)
         sizeof_ofp_stats_reply + sizeof_ofp_port_stats
     end
 
@@ -2766,7 +2766,7 @@ module Error = struct
   [@@deriving sexp]
 
   type t =
-    | Error of c * Cstruct_sexp.t sexp_opaque
+    | Error of c * Cstruct_sexp.t [@sexp_opaque]
   [@@deriving sexp]
 
   let parse bits =
@@ -2840,7 +2840,7 @@ end
 
 module Vendor = struct
 
-  type t = int32 * Cstruct_sexp.t sexp_opaque
+  type t = int32 * Cstruct_sexp.t [@sexp_opaque]
   [@@deriving sexp]
 
   [%%cstruct
