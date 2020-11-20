@@ -1,0 +1,70 @@
+;; preprocessing using cppo
+
+(rule
+ (targets Generated_Parser.mly)
+ (deps
+  (:< Parser.cppo.mly))
+ (action
+  (run %{bin:cppo} %{<} -U MAKE_PPX -U PORTLESS -n -o %{targets})))
+
+(rule
+ (targets Portless_Generated_Parser.mly)
+ (deps
+  (:< Parser.cppo.mly))
+ (action
+  (run %{bin:cppo} %{<} -U MAKE_PPX -D PORTLESS -n -o %{targets})))
+
+(rule
+ (targets Tokens.mly)
+ (deps
+  (:< Parser.cppo.mly))
+ (action
+  (run %{bin:cppo} %{<} -D MAKE_PPX -D PORTLESS -n -o %{targets})))
+
+;; generate menhir tokens
+
+(rule
+ (targets Tokens.ml)
+ (deps
+  (:< Tokens.mly))
+ (action
+  (run %{bin:menhir} --only-tokens --infer %{<})))
+
+;; generate lexer -- temporary hack while ppx_import is incompatible with jbuilder!!
+
+(rule
+ (targets Lexer.ml)
+ (deps
+  (:< Lexer.cppo.ml)
+  Tokens.ml)
+ (action
+  (run %{bin:cppo} %{<} -n -o %{targets})))
+
+(rule
+ (targets Lexer.mli)
+ (deps
+  (:< Lexer.cppo.mli)
+  Tokens.ml)
+ (action
+  (run %{bin:cppo} %{<} -n -o %{targets})))
+
+;; generate parser
+
+(menhir
+ (flags --external-tokens Lexer)
+ (modules Generated_Parser))
+
+(menhir
+ (flags --external-tokens Lexer)
+ (modules Portless_Generated_Parser))
+
+(library
+ (name frenetic_netkat)
+ (public_name frenetic.netkat)
+ (wrapped true)
+ (libraries frenetic.kernel core base64 cstruct ocamlgraph tcpip yojson
+   ipaddr sedlex sexplib str menhirLib compiler-libs.common)
+ (virtual_deps cppo menhir)
+ (preprocess
+  (pps ppx_cstruct ppx_deriving.std ppx_jane -allow-unannotated-ignores sedlex.ppx))
+ (flags :standard -safe-string))

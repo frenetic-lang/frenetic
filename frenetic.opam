@@ -1,44 +1,41 @@
-opam-version: "1.2"
-available: [ ocaml-version >= "4.05.0" ]
-version: "5.0.3"
+opam-version: "2.0"
+version: "5.0.4"
+synopsis: "The Frenetic Programming Language and Runtime System"
 maintainer: "Steffen Smolka <smolka@cs.cornell.edu>"
 authors: "Arjun Guha <arjun@cs.umass.edu>, Nate Foster <jnfoster@cs.cornell.edu>, Steffen Smolka <smolka@cs.cornell.edu>"
 homepage: "http://frenetic-lang.org"
 bug-reports: "https://github.com/frenetic-lang/frenetic/issues"
-dev-repo: "https://github.com/frenetic-lang/frenetic.git"
-
-build: ["jbuilder" "build" "-p" name "-j" jobs]
-build-doc: ["jbuilder" "build" "@doc" "-p" name "-j" jobs]
-build-test: ["jbuilder" "runtest" "-p" name "-j" jobs]
-
+dev-repo: "git+https://github.com/frenetic-lang/frenetic.git"
+build: [
+  ["dune" "subst"] {pinned}
+  ["dune" "build" "-p" name "-j" jobs]
+  ["dune" "runtest" "-p" name "-j" jobs] {with-test}
+  ["dune" "build" "@doc" "-p" name "-j" jobs] {with-doc}
+]
 depends: [
-  "cppo"
-  "jbuilder" {>="1.0+beta13"}
+  "ocaml" {build & >= "4.11.0"}
+  "cppo" {>= "1.6.6" }
+  "dune" {build & >= "2.0"}
   "odoc"
   #########################
-  "async"  {>= "v0.11.0" & < "v0.12.0"}
-  "async_extended" {>= "v0.11.0" & < "v0.12.0"}
-  "base64" {>= "2.0.0"}
-  "cohttp"
-  "cohttp-async"
-  "core"   {>= "v0.11.0" & < "v0.12.0"}
-  "cstruct" {>= "1.0.1"}
-  "cstruct-async"
-  "ipaddr" {>= "2.5.0"}
-  "menhir"
-  "mparser"
-  "ocamlgraph" {>= "1.8.7"}
-  "open"
-  "ppxlib"
-  "ppx_compare"
-  "ppx_cstruct"
-  "ppx_deriving" {>= "4.2"}
-  "ppx_driver"
-  "ppx_enumerate"
-  "ppx_fields_conv"
-  "ppx_sexp_conv"
-  "sedlex" {>= "1.99.4"}
-  "sexplib"
-  "tcpip"
-  "yojson" {>= "1.2.0"}
+  "async"  {>= "v0.14.0" }
+  "base64" {>= "3.4.0"}
+  "cohttp" {>= "2.5.4"}
+  "cohttp-async" {>= "2.5.4" }
+  "core"   {>= "v0.14.0" }
+  "cstruct" {>= "5.2.0"}
+  "cstruct-sexp" {>= "5.2.0"}
+  "ipaddr" {>= "5.0.1"}
+  "menhir" {>= "20200624"}
+  "mparser" {>= "1.2.3"}
+  "ocamlgraph" {>= "2.0.0"}
+  "open" {>= "0.2.1"}
+  "ppxlib" {>= "0.15.0"}
+  "ppx_jane" {>= "0.14.0"}
+  "ppx_cstruct" {>= "5.2.0"}
+  "ppx_deriving" {>= "5.1"}
+  "sedlex" {>= "2.2"}
+  "sexplib" {>= "0.14.0"}
+  "tcpip" {>= "5.0.1"}
+  "yojson" {>= "1.7.0"}
 ]

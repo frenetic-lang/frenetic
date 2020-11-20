@@ -134,48 +134,48 @@ module Flag = struct
       ~doc: " Print FDD field order used by the compiler."
 
   let vpol =
-    flag "--vpol" (optional_with_default "vpol.dot" file)
+    flag "--vpol" (optional_with_default "vpol.dot" string)
       ~doc: "file Virtual policy. Must not contain links. \
              If not specified, defaults to vpol.dot"
 
   let vrel =
-    flag "--vrel" (optional_with_default "vrel.kat" file)
+    flag "--vrel" (optional_with_default "vrel.kat" string)
       ~doc: "file Virtual-physical relation. If not specified, defaults to vrel.kat"
 
   let vtopo =
-    flag "--vtopo" (optional_with_default "vtopo.kat" file)
+    flag "--vtopo" (optional_with_default "vtopo.kat" string)
       ~doc: "file Virtual topology. If not specified, defaults to vtopo.kat"
 
   let ving_pol =
-    flag "--ving-pol" (optional_with_default "ving_pol.kat" file)
+    flag "--ving-pol" (optional_with_default "ving_pol.kat" string)
       ~doc: "file Virtual ingress policy. If not specified, defaults to ving_pol.kat"
 
   let ving =
-    flag "--ving" (optional_with_default "ving.kat" file)
+    flag "--ving" (optional_with_default "ving.kat" string)
       ~doc: "file Virtual ingress predicate. If not specified, defaults to ving.kat"
 
   let veg =
-    flag "--veg" (optional_with_default "veg.kat" file)
+    flag "--veg" (optional_with_default "veg.kat" string)
       ~doc: "file Virtual egress predicate. If not specified, defaults to veg.kat"
 
   let ptopo =
-    flag "--ptopo" (optional_with_default "ptopo.kat" file)
+    flag "--ptopo" (optional_with_default "ptopo.kat" string)
       ~doc: "file Physical topology. If not specified, defaults to ptopo.kat"
 
   let ping =
-    flag "--ping" (optional_with_default "ping.kat" file)
+    flag "--ping" (optional_with_default "ping.kat" string)
       ~doc: "file Physical ingress predicate. If not specified, defaults to ping.kat"
 
   let peg =
-    flag "--peg" (optional_with_default "peg.kat" file)
+    flag "--peg" (optional_with_default "peg.kat" string)
       ~doc: "file Physical egress predicate. If not specified, defaults to peg.kat"
 
   let dump_local =
-    flag "--dump-local" (optional file)
+    flag "--dump-local" (optional string)
       ~doc: "file Translate compiler output to local program and dump it to file"
 
   let dump_global =
-    flag "--dump-global" (optional file)
+    flag "--dump-global" (optional string)
       ~doc: "file Translate compiler output to global program and dump it to file"
 
   let determinize =
@@ -197,17 +197,21 @@ module Flag = struct
   let stdin =
     flag "--stdin" no_arg
       ~doc:"Read policy from stdin instead of from file."
+
+  let containment =
+    flag "--containment" no_arg
+      ~doc:"Check that the second policy is contained in the first using bisimulation."
 end
 
 
 (*===========================================================================*)
-(* COMMANDS: Local, Global, Virtual, Auto                                    *)
+(* COMMANDS: Local, Global, Virtual, Auto, Bisimulation                      *)
 (*===========================================================================*)
 
 module Local = struct
   let spec = Command.Spec.(
     empty
-    +> anon ("file" %: file)
+    +> anon ("file" %: string)
     +> Flag.switches
     +> Flag.print_fdd
     +> Flag.dump_fdd
@@ -243,11 +247,10 @@ module Local = struct
 end
 
 
-
 module Global = struct
   let spec = Command.Spec.(
     empty
-    +> anon ("file" %: file)
+    +> anon ("file" %: string)
     +> Flag.print_fdd
     +> Flag.dump_fdd
     +> Flag.render_fdd
@@ -288,7 +291,7 @@ end
 module Virtual = struct
   let spec = Command.Spec.(
     empty
-    +> anon ("file" %: file)
+    +> anon ("file" %: string)
     +> Flag.vrel
     +> Flag.vtopo
     +> Flag.ving_pol
@@ -359,7 +362,7 @@ end
 module Auto = struct
   let spec = Command.Spec.(
     empty
-    +> anon ("file" %: file)
+    +> anon ("file" %: string)
     +> Flag.json
     +> Flag.print_order
     +> Flag.determinize
@@ -382,10 +385,48 @@ module Auto = struct
 end
 
 
+module Bisim = struct
+  let spec = Command.Spec.(
+      empty
+      +> anon ("file1" %: string)
+      +> anon ("file2" %: string)
+      +> Flag.json
+      +> Flag.stdin
+      +> Flag.containment
+    )
+
+  let run file_or_pol1 file_or_pol2 json stdin containment () =
+    let pol1 =
+      (if stdin then `String file_or_pol1 else `File file_or_pol1)
+      |> parse_pol ~json
+    in
+    let pol2 =
+      (if stdin then `String file_or_pol2 else `File file_or_pol2)
+      |> parse_pol ~json
+      |> fun p -> if containment then Netkat.Syntax.Union (pol1, p) else p
+    in
+
+    let a1 = Automaton.of_policy ~dedup:true pol1 in
+    let a2 = Automaton.of_policy ~dedup:true pol2 in
+
+    if Netkat.Bisim.check a1 a2 then
+      printf "true\n"
+    else
+      printf "false\n";
+
+end
+
+
 
 (*===========================================================================*)
 (* BASIC SPECIFICATION OF COMMANDS                                           *)
 (*===========================================================================*)
+
+let bisim : Command.t =
+  Command.basic_spec
+    ~summary:"Runs a bisimulation"
+    Bisim.spec
+    Bisim.run
 
 let local : Command.t =
   Command.basic_spec
@@ -419,4 +460,4 @@ let main : Command.t =
   Command.group
     ~summary:"Runs (local/global/virtual) compiler and dumps resulting tables."
     (* ~readme: *)
-    [("local", local); ("global", global); ("virtual", virt); ("auto", auto)]
+    [("local", local); ("global", global); ("virtual", virt); ("auto", auto); ("bisim", bisim)]

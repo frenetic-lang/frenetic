@@ -32,6 +32,7 @@ module Field = struct
     | TCPDstPort
     | VFabric
     [@@deriving sexp, enumerate, enum, hash]
+
   type field = t
 
   let num_fields = max + 1
@@ -66,7 +67,7 @@ module Field = struct
     (* using Obj.magic instead of to_enum for bettter performance *)
     Int.compare order.(Obj.magic x) order.(Obj.magic y)
 
-  let equal x y = x = y
+  let equal x y = Poly.(x = y)
 
   module type ENV = sig
     type t
@@ -97,11 +98,11 @@ module Field = struct
         | 4 -> Meta4
         | _ -> raise Full
       in
-      { alist = List.Assoc.add ~equal:(=) env.alist name (field, (init, mut));
+      { alist = List.Assoc.add ~equal:Poly.(=) env.alist name (field, (init, mut));
         depth = env.depth + 1}
 
     let lookup env name =
-      List.Assoc.find_exn ~equal:(=) env.alist name
+      List.Assoc.find_exn ~equal:Poly.(=) env.alist name
   end
 
   let of_hv ?(env=Env.empty) hv = match hv with
@@ -225,18 +226,18 @@ module Value = struct
   let subset_eq a b =
     (* Note that Mask checking is a lot like OpenFlow.Pattern.Ip, but the int's are different sizes *)
     let subset_eq_mask a m b n =
-      if m < n
+      if Poly.(m < n)
         then false
         else
-          Int64.shift_right_logical a (64-n) = Int64.shift_right_logical b (64-n)
+          Poly.(Int64.shift_right_logical a (64-n) = Int64.shift_right_logical b (64-n))
     in
     match a, b with
     | Const  a           , Const b
     (* Note that comparing a mask to a constant requires the mask to be all 64 bits, otherwise they fail the lesser mask test *)
-    | Mask(a, 64)        , Const b -> a = b
-    | AbstractLocation a , AbstractLocation b -> a = b
+    | Mask(a, 64)        , Const b -> Poly.(a = b)
+    | AbstractLocation a , AbstractLocation b -> Poly.(a = b)
     | Pipe   a           , Pipe  b
-    | Query  a           , Query b -> a = b
+    | Query  a           , Query b -> Poly.(a = b)
     | Mask             _ , Const            _
     | AbstractLocation _ ,                  _
     | Pipe             _ ,                  _
@@ -268,9 +269,9 @@ module Value = struct
     | AbstractLocation _ , _
     | _ , AbstractLocation _ -> None
     | Const  a   , Const b
-    | Mask(a, 64), Const b -> if a = b then Some(Const a) else None
-    | Pipe   a   , Pipe  b -> if a = b then Some(Pipe a) else None
-    | Query  a   , Query b -> if a = b then Some(Query a) else None
+    | Mask(a, 64), Const b -> if Poly.(a = b) then Some(Const a) else None
+    | Pipe   a   , Pipe  b -> if Poly.(a = b) then Some(Pipe a) else None
+    | Query  a   , Query b -> if Poly.(a = b) then Some(Query a) else None
     | Mask     _ , Const _
     | Pipe     _ ,       _
     | Query    _ ,       _
@@ -307,9 +308,9 @@ module Value = struct
     | AbstractLocation _ , _
     | _ , AbstractLocation _ -> None
     | Const  a   , Const b
-    | Mask(a, 64), Const b -> if a = b then Some(Const a) else None
-    | Pipe   a   , Pipe  b -> if a = b then Some(Pipe a) else None
-    | Query  a   , Query b -> if a = b then Some(Query a) else None
+    | Mask(a, 64), Const b -> if Poly.(a = b) then Some(Const a) else None
+    | Pipe   a   , Pipe  b -> if Poly.(a = b) then Some(Pipe a) else None
+    | Query  a   , Query b -> if Poly.(a = b) then Some(Query a) else None
     | Mask     _ , Const _
     | Pipe     _ ,       _
     | Query    _ ,       _
@@ -498,10 +499,11 @@ module Action = struct
   type field_or_cont = Field_or_cont.t =
     | F of Field.t
     | K
-    [@@deriving sexp, compare, hash, eq]
+  [@@deriving sexp, compare, hash, eq]
 
   module Seq = struct
-    include Map.Make(Field_or_cont)
+    module M = Map.Make(Field_or_cont)
+    include M
 
     (* let equal = equal Value.equal *)
     let compare = compare_direct Value.compare
@@ -512,6 +514,13 @@ module Action = struct
       fold seq ~init ~f:(fun ~key ~data acc -> match key with
         | F key -> f ~key ~data acc
         | _ -> acc)
+
+    let prod s1 s2 =
+      (* Favor modifications to the right *)
+      merge s1 s2 ~f:(fun ~key m ->
+        match m with
+        | `Both(_, v) | `Left v | `Right v -> Some(v)
+      )
 
     let equal_mod_k s1 s2 =
       equal Value.equal (remove s1 K) (remove s2 K)
@@ -588,10 +597,7 @@ module Action = struct
       Par.fold a ~init:zero ~f:(fun acc seq1 ->
         (* cannot implement sequential composition of this kind here *)
         let _ = assert (match Seq.find seq1 K with None -> true | _ -> false) in
-        let r = Par.map b ~f:(fun seq2 ->
-          (* Favor modifications to the right *)
-          Seq.merge seq1 seq2 ~f:(fun ~key m ->
-            match m with | `Both(_, v) | `Left v | `Right v -> Some(v)))
+        let r = Par.map b ~f:(Seq.prod seq1)
         in
         Par.union acc r)
 
@@ -623,7 +629,7 @@ module Action = struct
       | _                   -> Some(seq))
     in
     let to_port p = match in_port with
-      | Some(p') when p = p' -> SDN.InPort
+      | Some(p') when Poly.(p = p') -> SDN.InPort
       | _                    -> SDN.(Physical(to_int32 p))
     in
     Par.fold t ~init:[] ~f:(fun acc seq ->
@@ -721,6 +727,8 @@ module Action = struct
 
 end
 
+
+
 module FDD = struct
 
   include Vlr.Make
@@ -746,5 +754,53 @@ module FDD = struct
       | Some k -> Some (k |> Value.to_int64_exn |> f |> Value.of_int64)))
     in
     map_r f fdd
+
+
+  let equivalent t1 t2 =
+    (* A context represents the set of packets that can reach a certain node.
+       It is implemented simply as a partial map from fields to values.
+     *)
+    let module Ctxt = Action.Seq in
+    let rec do_nodes t1 t2 ctxt =
+      match unget t1, unget t2 with
+      | Branch {test=(f1,v1); tru=l1; fls=r1; all_fls=all_fls_1},
+        Branch {test=(f2,v2); tru=l2; fls=r2; all_fls=all_fls_2} ->
+        begin match Field.compare f1 f2 with
+        | -1 ->
+          do_nodes l1 t2 Ctxt.(set ctxt (F f1) v1) &&
+          do_nodes r1 t2 ctxt
+        | 1 ->
+          do_nodes t1 l2 Ctxt.(set ctxt (F f2) v2) &&
+          do_nodes t1 r2 ctxt
+        | 0 ->
+          begin match Value.compare v1 v2 with
+          | 0 ->
+            do_nodes l1 l2 Ctxt.(set ctxt (F f1) v1) &&
+            do_nodes r1 r2 ctxt
+          | -1 ->
+            do_nodes l1 all_fls_2 Ctxt.(set ctxt (F f1) v1) &&
+            do_nodes r1 t2 ctxt
+          | 1 ->
+            do_nodes all_fls_1 l2 Ctxt.(set ctxt (F f2) v2) &&
+            do_nodes t1 r2 ctxt
+          | _ -> assert false
+          end
+        | _ -> assert false
+        end
+      | Branch {test=(f1,v1); tru=l1; fls=r1}, Leaf _ ->
+        do_nodes l1 t2 Ctxt.(set ctxt (F f1) v1) &&
+        do_nodes r1 t2 ctxt
+      | Leaf _, Branch {test=(f2,v2); tru=l2; fls=r2} ->
+        do_nodes t1 l2 Ctxt.(set ctxt (F f2) v2) &&
+        do_nodes t1 r2 ctxt
+      | Leaf par1, Leaf par2 ->
+        Action.Par.equal (normalize par1 ctxt) (normalize par2 ctxt)
+    and normalize par ctxt =
+      (* actions are context dependent; here we canonicalize them by interpreting
+         them in the context.
+       *)
+      Action.Par.map par ~f:(Action.Seq.prod ctxt)
+    in
+    do_nodes t1 t2 Ctxt.empty
 
 end

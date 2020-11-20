@@ -118,12 +118,12 @@ let shortest_paths_global_policy ((topo, _, _, _) : topo) =
     match Node.device src with
     | Node.Middlebox -> assert false (* SJS *)
     | Node.Host -> (* first hop from host to switch *)
-      let () = assert (Node.device dst = Node.Switch) in
-      let () = assert (List.for_all rest ~f:((=) [])) in
+      let () = assert Poly.(Node.device dst = Node.Switch) in
+      let () = assert (List.for_all rest ~f:(Poly.(=) [])) in
       let dst_sw = Node.id dst in
       match_loc dst_sw dst_pt
     | Node.Switch ->
-      let () = assert (List.for_all rest ~f:((<>) [])) in
+      let () = assert (List.for_all rest ~f:(Poly.(<>) [])) in
       begin match Node.device dst with
       | Node.Middlebox -> assert false (* SJS *)
       | Node.Host -> (* last hop from switch to host *)

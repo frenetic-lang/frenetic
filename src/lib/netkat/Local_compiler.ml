@@ -97,7 +97,7 @@ module FDD = struct
       let alias = Field.of_hv ~env hv in
       let meta,_ = Field.Env.lookup env meta_field in
       fold t ~f:const ~g:(fun (field,v) tru fls ->
-        if field = meta then
+        if Poly.(field = meta) then
           cond (alias, v) tru fls
         else
           cond (field,v) tru fls)
@@ -501,7 +501,7 @@ let field_order_from_string = function
     |> List.map ~f:Field.of_string in
    let compose f g x = f (g x) in
    let curr_order = Field.all in
-   let removed = List.filter curr_order ~f:(compose not (List.mem ~equal:(=) ls)) in
+   let removed = List.filter curr_order ~f:(compose not (List.mem ~equal:Poly.(=) ls)) in
    (* Tags all specified Fields at the highest priority *)
    let new_order = List.append (List.rev ls) removed in
    (`Static new_order)
@@ -531,7 +531,7 @@ let field_order_to_string fo =
 let options_to_json_string opt =
   let open Yojson.Basic in
   `Assoc [
-    ("cache_prepare", `String (if opt.cache_prepare = `Keep then "keep" else "empty"));
+    ("cache_prepare", `String (if Poly.(opt.cache_prepare = `Keep) then "keep" else "empty"));
     ("field_order", `String (field_order_to_string opt.field_order));
     ("remove_tail_drops", `Bool opt.remove_tail_drops);
     ("dedup_flows", `Bool opt.dedup_flows);
@@ -592,14 +592,14 @@ let flow_table_subtrees (layout : flow_layout) (t : t) : flow_subtrees =
     | Leaf _ ->
        t :: subtrees
     | Branch { test = field, _; tru; fls } ->
-      if (List.mem ~equal:(=) table field) then
+      if (List.mem ~equal:Poly.(=) table field) then
         t :: subtrees
       else
         subtrees_for_table table tru subtrees
         |> subtrees_for_table table fls in
   let meta_id = ref 0 in
     List.map layout ~f:(fun table -> subtrees_for_table table t [])
-    |> List.filter ~f:(fun subtrees -> subtrees <> [])
+    |> List.filter ~f:(fun subtrees -> Poly.(subtrees <> []))
     |> List.foldi ~init:Map.Poly.empty ~f:(fun tbl_id accum subtrees ->
       List.fold_right subtrees ~init:accum ~f:(fun t accum ->
         Map.set accum ~key:t ~data:(tbl_id,(post meta_id))))

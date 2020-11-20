@@ -38,7 +38,7 @@ let format_ip (fmt : Format.formatter) (v:int32) =
 let format_ip_mask (fmt : Format.formatter) ((p,m) : nwAddr * int32) =
   Format.fprintf fmt "%a%s"
     format_ip p
-    (if m = 32l then "" else Printf.sprintf "/%ld" m)
+    (if Poly.(m = 32l) then "" else Printf.sprintf "/%ld" m)
 
 module Pattern = struct
 
@@ -53,7 +53,7 @@ module Pattern = struct
       | i  -> Int32.shift_right_logical p i
 
     let check_mask m =
-      if m < 0l || m > 32l then
+      if Poly.(m < 0l || m > 32l) then
         failwith "Pattern.Ip: invalid mask"
 
     let shift (p, m) =
@@ -61,27 +61,27 @@ module Pattern = struct
       unsafe_shift (p, m)
 
     let less_eq (p1, m1) (p2, m2) =
-      m1 >= m2 && begin
+      Poly.(m1 >= m2) && begin
         check_mask m2;
-        unsafe_shift (p1, m2) = unsafe_shift (p2, m2)
+        Poly.(unsafe_shift (p1, m2) = unsafe_shift (p2, m2))
       end
 
     let eq (p1, m1) (p2, m2) =
-      m1 = m2 && (m1 = 0l || begin
+      Poly.(m1 = m2) && (Poly.(m1 = 0l) || begin
         check_mask m1;
-        unsafe_shift (p1, m1) = unsafe_shift (p2, m2)
+        Poly.(unsafe_shift (p1, m1) = unsafe_shift (p2, m2))
       end)
 
     let join (p1, m1) (p2, m2) =
       let rec loop m =
-        if m = 0l then
+        if Poly.(m = 0l) then
           (0l, 0l)
-        else if unsafe_shift (p1, m) = unsafe_shift (p2, m) then
+        else if Poly.(unsafe_shift (p1, m) = unsafe_shift (p2, m)) then
           (p1, m)
         else
           loop Int32.(m - 1l)
       in
-      let m = min m1 m2 in
+      let m = Poly.min m1 m2 in
       check_mask m;
       loop m
 
@@ -139,17 +139,17 @@ module Pattern = struct
             | None -> false
             | Some(v1) -> f v1 v2
           end in
-    check (=) p1.dlSrc p2.dlSrc
-    && check (=) p1.dlDst p2.dlDst
-    && check (=) p1.dlTyp p2.dlTyp
-    && check (=) p1.dlVlan p2.dlVlan
-    && check (=) p1.dlVlanPcp p2.dlVlanPcp
+    check Poly.(=) p1.dlSrc p2.dlSrc
+    && check Poly.(=) p1.dlDst p2.dlDst
+    && check Poly.(=) p1.dlTyp p2.dlTyp
+    && check Poly.(=) p1.dlVlan p2.dlVlan
+    && check Poly.(=) p1.dlVlanPcp p2.dlVlanPcp
     && check Ip.less_eq p1.nwSrc p2.nwSrc
     && check Ip.less_eq p1.nwDst p2.nwDst
-    && check (=) p1.nwProto p2.nwProto
-    && check (=) p1.tpSrc p2.tpSrc
-    && check (=) p1.tpDst p2.tpDst
-    && check (=) p1.inPort p2.inPort
+    && check Poly.(=) p1.nwProto p2.nwProto
+    && check Poly.(=) p1.tpSrc p2.tpSrc
+    && check Poly.(=) p1.tpDst p2.tpDst
+    && check Poly.(=) p1.inPort p2.inPort
 
   let eq p1 p2 =
     let check f m1 m2 =
@@ -157,20 +157,20 @@ module Pattern = struct
         | None   , None    -> true
         | Some v1, Some v2 -> f v1 v2
         | _      , _       -> false in
-    check (=) p1.dlSrc p2.dlSrc
-    && check (=) p1.dlDst p2.dlDst
-    && check (=) p1.dlTyp p2.dlTyp
-    && check (=) p1.dlVlan p2.dlVlan
-    && check (=) p1.dlVlanPcp p2.dlVlanPcp
+    check Poly.(=) p1.dlSrc p2.dlSrc
+    && check Poly.(=) p1.dlDst p2.dlDst
+    && check Poly.(=) p1.dlTyp p2.dlTyp
+    && check Poly.(=) p1.dlVlan p2.dlVlan
+    && check Poly.(=) p1.dlVlanPcp p2.dlVlanPcp
     && check Ip.eq p1.nwSrc p2.nwSrc
     && check Ip.eq p1.nwDst p2.nwDst
-    && check (=) p1.nwProto p2.nwProto
-    && check (=) p1.tpSrc p2.tpSrc
-    && check (=) p1.tpDst p2.tpDst
-    && check (=) p1.inPort p2.inPort
+    && check Poly.(=) p1.nwProto p2.nwProto
+    && check Poly.(=) p1.tpSrc p2.tpSrc
+    && check Poly.(=) p1.tpDst p2.tpDst
+    && check Poly.(=) p1.inPort p2.inPort
 
   let eq_join x1 x2 =
-    if x1 = x2 then Some x1 else None
+    if Poly.(x1 = x2) then Some x1 else None
 
   let join p1 p2 =
     let joiner m m1 m2 =
@@ -272,11 +272,11 @@ type flow = {
 type flowTable = flow list [@@deriving sexp]
 
 type payload =
-  | Buffered of bufferId * Cstruct.t
-  | NotBuffered of Cstruct.t
+  | Buffered of bufferId * Cstruct_sexp.t
+  | NotBuffered of Cstruct_sexp.t
 [@@deriving sexp]
 
-let payload_bytes (payload : payload) : Cstruct.t =
+let payload_bytes (payload : payload) : Cstruct_sexp.t =
   match payload with
   | Buffered(_, b)
   | NotBuffered(b) -> b
@@ -614,7 +614,7 @@ module To0x01 = struct
   exception Invalid_port of int32
 
   let from_portId (pport_id : portId) : OF10.portId =
-    if pport_id > 0xff00l then (* pport_id <= OFPP_MAX *)
+    if Poly.(pport_id > 0xff00l) then (* pport_id <= OFPP_MAX *)
       raise (Invalid_port pport_id)
     else
       Int32.to_int_exn pport_id
@@ -628,7 +628,7 @@ module To0x01 = struct
       | All -> Output AllPorts
       | Physical pport_id ->
         let pport_id = from_portId pport_id in
-        if Some pport_id = inPort then
+        if Poly.(Some pport_id = inPort) then
           Output InPort
         else
           Output (PhysicalPort pport_id)
@@ -643,7 +643,7 @@ module To0x01 = struct
         from_output inPort pseudoport
       | Enqueue (pport_id, queue_id) ->
         let pport_id = from_portId pport_id in
-        if Some pport_id = inPort then
+        if Poly.(Some pport_id = inPort) then
           Enqueue(InPort, queue_id)
         else
           Enqueue (PhysicalPort pport_id, queue_id)
@@ -708,7 +708,7 @@ module To0x01 = struct
       | None -> None
       | Some (p,m) ->
          let mo =
-           if m = 32l then
+           if Poly.(m = 32l) then
              None
            else
              Some (Int32.(32l - m)) in
@@ -717,7 +717,7 @@ module To0x01 = struct
       | None -> None
       | Some (p,m) ->
          let mo =
-           if m = 32l then
+           if Poly.(m = 32l) then
              None
            else
              Some (Int32.(32l - m)) in

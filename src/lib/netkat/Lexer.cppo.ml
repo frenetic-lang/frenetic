@@ -1,6 +1,6 @@
 module Location = struct
   include Location
-  let pp = print
+  let pp = print_loc
 end
 
 (* FIXME: while ppx_import is not compatible with jbuilder, simply copy and paste
@@ -21,17 +21,20 @@ exception ParseError of (token * Lexing.position * Lexing.position)
 
 (** Register exceptions for pretty printing *)
 let _ =
-  let open Location in
-  register_error_of_exn (function
+  Location.register_error_of_exn (function
     | LexError (pos, msg) ->
-      let loc = { loc_start = pos; loc_end = pos; loc_ghost = false} in
-      Some { loc; msg; sub=[]; if_highlight=""; }
+      let loc = Location.{ loc_start = pos; loc_end = pos; loc_ghost = false} in
+      let main = Location.mkloc (fun fmt -> Format.fprintf fmt "%s" msg) loc in
+      let err = Location.{ kind = Report_error; main = main; sub=[] } in
+      Some err
     | ParseError (token, loc_start, loc_end) ->
       let loc = Location.{ loc_start; loc_end; loc_ghost = false} in
       let msg =
         show_token token
         |> Printf.sprintf "parse error while reading token '%s'" in
-      Some { loc; msg; sub=[]; if_highlight=""; }
+      let main = Location.mkloc (fun fmt -> Format.fprintf fmt "%s" msg) loc in
+      let err = Location.{ kind = Report_error; main = main; sub=[] } in
+      Some err
     | _ -> None)
 
 let failwith buf s = raise (LexError (buf.pos, s))
@@ -183,7 +186,7 @@ let token ~ppx ~loc_start buf =
   | "var" -> VAR
   | "in" -> IN
   | '`', id -> METAID (ascii buf ~skip:1)
-  | _ -> illegal buf (Char.chr (next buf))
+  | _ -> illegal buf (next buf |> Base.Option.value_exn |> Uchar.to_char)
 
 (** wrapper around `token` that records start and end locations *)
 let loc_token ~ppx buf =

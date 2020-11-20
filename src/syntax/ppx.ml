@@ -10,14 +10,14 @@ let ext_keyw = "nk"
 let ext_keyw_pred = ext_keyw ^ "_pred"
 
 (* expands `s` in `let%nk x = {| s |}` *)
-let expand_nk_string ~loc ~pred s =
+let expand_nk_string ~loc ~pred s : expression =
   let pos = Location.(loc.loc_start) in
   (* string starts after '{' and '|' *)
   let pos = Lexing.{ pos with pos_cnum = pos.pos_cnum + 2 } in
   Lexer.parse_string ~ppx:true ~pos s Parser.(if pred then pred_eof else pol_eof)
 
 (* expands `e` in `let%nk x = e` *)
-let expand_bound_expr ~pred expr =
+let expand_bound_expr ~pred expr : expression =
   let loc = expr.pexp_loc in
   match expr.pexp_desc with
   (* only expand e if e = {| s |} *)
@@ -27,16 +27,16 @@ let expand_bound_expr ~pred expr =
     Location.raise_errorf ~loc "'let%%%s' may only bind quoted NetKAT" ext_keyw
 
 (* expands `x=e` in `let%nk x = e` *)
-let expand_binding ~pred binding =
+let expand_binding ~pred binding : value_binding =
   { binding with pvb_expr = expand_bound_expr ~pred binding.pvb_expr }
 
 (* expands `let%nk <bindings>` *)
-let expand_let_decl ~loc ~path:_ ~pred bindings =
+let expand_let_decl ~loc ~path:_ ~pred bindings : structure_item =
   let module B = Ast_builder.Make(struct let loc = loc end) in
   B.(pstr_value Nonrecursive (List.map bindings ~f:(expand_binding ~pred)))
 
 (* expands `let%nk <bindings> in body` *)
-let expand_let_expr ~loc ~pred bindings body =
+let expand_let_expr ~loc ~pred bindings body : expression =
   let module B = Ast_builder.Make(struct let loc = loc end) in
   B.(pexp_let Nonrecursive (List.map bindings ~f:(expand_binding ~pred)) body)
 
@@ -58,14 +58,14 @@ end
 
 
 (* declare `let%nk x = e` extension *)
-let nk_ext_struct pred =
+let nk_ext_struct pred : Extension.t =
   Extension.V2.declare
     (if pred then ext_keyw_pred else ext_keyw)
     Extension.Context.structure_item
     Match.let_decl
     (expand_let_decl ~pred)
 
-let nk_ext_expr pred =
+let nk_ext_expr pred : Extension.t =
   Extension.declare
     (if pred then ext_keyw_pred else ext_keyw)
     Extension.Context.expression

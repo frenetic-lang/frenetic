@@ -1,0 +1,34 @@
+;; preprocessing using cppo
+
+(rule
+ (targets Ppx_parser.mly)
+ (deps
+  (:< ../lib/netkat/Parser.cppo.mly))
+ (action
+  (run %{bin:cppo} %{<} -D MAKE_PPX -n -o %{targets})))
+
+;; generate parser
+
+(menhir
+ (flags --external-tokens Frenetic_netkat.Lexer)
+ (modules Ppx_parser))
+
+(library
+ (name frenetic_ppx)
+ (public_name frenetic.ppx)
+ (modules ppx Ppx_parser)
+ (kind ppx_rewriter)
+ (libraries ppxlib base frenetic.netkat)
+ (ppx_runtime_libraries frenetic.netkat)
+ (preprocess
+  (pps ppxlib.metaquot)))
+
+;; see https://blog.janestreet.com/repeatable-exploratory-programming/
+
+(library
+ (name test)
+ (modules test)
+ (libraries core frenetic)
+ (inline_tests)
+ (preprocess
+  (pps ppx_jane frenetic.ppx)))

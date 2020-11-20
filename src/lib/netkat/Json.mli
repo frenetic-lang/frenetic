@@ -12,6 +12,8 @@ open Yojson.Basic
 open Frenetic_kernel.OpenFlow
 open Syntax
 
+type json = Yojson.Basic.t
+
 (* {1 Json Serialization/Deserialization} *)
 
 (** Deserialize a Yojson repesentation of a NetKAT policy *)

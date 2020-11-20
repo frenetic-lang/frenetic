@@ -207,7 +207,7 @@ header_val(BINOP):
 #ifdef PORTLESS
   | SWITCH; BINOP; n=int64
       BOTH( raise (Failure "cannot access switch field in portless mode") )
-  | PORT; BINOP; _=portval
+  | PORT; BINOP; portval
       BOTH( raise (Failure "cannot access port field in portless mode") )
   | FROM; BINOP; s=STRING
       BOTH( From s )
@@ -220,9 +220,9 @@ header_val(BINOP):
   | PORT; BINOP; p=portval
       AST( Location p )
       PPX( Location [%e p] )
-  | FROM; BINOP; _=STRING
+  | FROM; BINOP; STRING
       BOTH( raise (Failure "from field only available in portless mode") )
-  | ABSTRACTLOC; BINOP; _=STRING
+  | ABSTRACTLOC; BINOP; STRING
       BOTH( raise (Failure "loc field only available in portless mode") )
 #endif
   | VSWITCH; BINOP; n=int64
@@ -256,11 +256,11 @@ header_val(BINOP):
       AST( EthDst n )
       PPX( EthDst [%e n] )
   | TCPSRCPORT; BINOP; n=int
-      AST( VlanPcp n )
-      PPX( VlanPcp [%e n] )
+      AST( TCPSrcPort n )
+      PPX( TCPSrcPort [%e n] )
   | TCPDSTPORT; BINOP; n=int
-      AST( VlanPcp n )
-      PPX( VlanPcp [%e n] )
+      AST( TCPDstPort n )
+      PPX( TCPDstPort [%e n] )
   | IPPROTO; BINOP; n=int
       AST( IPProto n )
       PPX( IPProto [%e n] )

@@ -1,0 +1,5 @@
+(executables
+ (names main openflow)
+ (public_names frenetic frenetic.openflow)
+ (libraries core async frenetic)
+ (flags :standard -safe-string))

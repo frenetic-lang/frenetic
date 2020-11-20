@@ -1,16 +1,21 @@
 language: c
+cache:
+  directories:
+  - /home/travis/.opam/
 env:
   global:
   - PACKAGE=frenetic
   - secure: S2gNgyfUoFT0UZp0AFh34Rh6teIQ2dC8qjrsN+Lr7IWsjglre0HnSfzpFwpCES810LcZanHT3V7BKwbOUse/1pjqW2bXYPqbbdplwaY+PK6gkc9JDEOgXOyoPHbtmBAT2n20OAvz7Ih0CUMlLwBJyBlpi6LA+Zk2uYUhjUY32us=
   matrix:
-  - OCAML=4.05.0
-  - OCAML=4.06.0
+  - OCAML=4.11.0
 script:
 - echo "yes" | sudo add-apt-repository ppa:avsm/ppa
 - sudo apt-get update -qq
 - sudo apt-get install -qq opam
+- export OPAMYES=1
 - opam init --auto-setup --compiler=$OCAML
+# since we're caching .opam, packets may be outdated
+- opam upgrade --yes --all
 - eval `opam config env`
 - opam pin add --no-action $PACKAGE .
 - opam install --yes --deps-only $PACKAGE

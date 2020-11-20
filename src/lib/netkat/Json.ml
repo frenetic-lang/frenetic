@@ -10,6 +10,7 @@ open Yojson.Basic
 open Syntax
 open Optimize
 
+type json = Yojson.Basic.t
 
 (** Optimize & MAC Addresses **)
 
@@ -232,8 +233,8 @@ let payload_from_json (json : json) : payload =
   let open Yojson.Basic.Util in
   match json |> member "type" |> to_string with
   | "notbuffered" ->
-     let base64 = json |> member "data" |> to_string in
-     NotBuffered (Cstruct.of_string (B64.decode base64))
+     let base64 = json |> member "data" |> to_string  in
+     NotBuffered (Cstruct.of_string (Base64.decode_exn base64))
   | "buffered" ->
     let bufferId = Int32.of_int_exn (json |> member "bufferid" |> to_int) in
     (* TODO(arjun): Why does Buffered take a second argument. Won't it be ignored
@@ -369,7 +370,8 @@ let event_to_json (event : event) : json =
   | PacketIn (pipe, sw_id, pt_id, payload, len, reason) ->
     let buffer = Frenetic_kernel.OpenFlow.payload_bytes payload |>
       Cstruct.to_string |>
-      B64.encode in
+      Base64.encode_exn
+    in
     `Assoc [
         ("type", `String "packet_in");
         ("pipe", `String pipe);

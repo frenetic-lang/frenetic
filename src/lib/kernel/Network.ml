@@ -275,7 +275,7 @@ struct
       try
         let es = P.find_all_edges t.graph v1 v2 in
         let es' = List.filter es ( fun (s,l,d) ->
-          l.src = p1 && l.dst = p2 ) in
+          Poly.(l.src = p1 && l.dst = p2) ) in
         match es' with
           | [] -> aux t
           | es ->
@@ -338,7 +338,7 @@ struct
       let dst_vertex, dst_port = edge_dst e in
       try
         let inv_e = find_edge t dst_vertex src_vertex in
-        if dst_port = snd (edge_src inv_e) && src_port = snd (edge_dst inv_e)
+        if Poly.(dst_port = snd (edge_src inv_e) && src_port = snd (edge_dst inv_e))
         then Some(inv_e)
         else None
       with _ -> None
@@ -347,7 +347,7 @@ struct
       let rec loop es = match es with
         | [] -> None
         | ((_,l,v2) as e)::es' ->
-          if l.EL.src = p
+          if Poly.(l.EL.src = p)
             then Some e
             else (loop es') in
       loop (P.succ_e t.graph v1)
@@ -388,7 +388,7 @@ struct
 
     let remove_endpoint (t:t) (ep : vertex * port) : t =
       let t = fold_edges (fun e acc ->
-        if edge_src e = ep || edge_dst e = ep
+        if Poly.(edge_src e = ep || edge_dst e = ep)
           then remove_edge acc e
           else acc)
         t t
@@ -488,7 +488,7 @@ struct
         let rec traverse_parent x ret =
           let e = VertexHash.find_exn admissible x in
           let s,_ = edge_src e in
-          if s = x0 then e :: ret else traverse_parent s (e :: ret) in
+          if Poly.(s = x0) then e :: ret else traverse_parent s (e :: ret) in
         traverse_parent x0 [] in
       let find_cycle x0 =
         let rec visit x visited =
@@ -759,7 +759,7 @@ struct
         let _,dst_port = edge_dst (s,l,d) in
         Printf.sprintf "%s%s%s -> %s {src_port=%lu; dst_port=%lu; %s};"
           acc
-          (if acc = "" then "" else "\n")
+          (if Poly.(acc = "") then "" else "\n")
           (Vertex.to_string s.VL.label)
           (Vertex.to_string d.VL.label)
           src_port
@@ -768,7 +768,7 @@ struct
       let vs = (VertexSet.fold (vertexes t) ~init:"" ~f:(fun acc v ->
         Printf.sprintf "%s%s\n%s;"
           acc
-          (if acc = "" then "" else "\n")
+          (if Poly.(acc = "") then "" else "\n")
           (Vertex.to_dot v.VL.label)
       )) in
       Printf.sprintf "digraph G {\n%s\n%s\n}\n" vs es
@@ -792,7 +792,7 @@ struct
         let inverse = match inverse_edge t e with
           | None -> false
           | Some e -> EdgeSet.mem !seen e in
-        src = dst ||
+        Poly.(src = dst) ||
         EdgeSet.mem !seen e ||
         inverse
       in
@@ -1088,7 +1088,7 @@ module Weight = struct
   let weight l =
     let open Link in
     l.weight
-  let compare = compare
+  let compare = Poly.compare
   let add = (+.)
   let zero = 0.
 end

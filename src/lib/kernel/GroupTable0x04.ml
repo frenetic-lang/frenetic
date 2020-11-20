@@ -39,7 +39,7 @@ let to_string t =
 let next_group_id (tbl : t) =
   let id = tbl.next_group_id in
   tbl.next_group_id <- Int32.succ id;
-  if tbl.next_group_id = 0l then
+  if Poly.(tbl.next_group_id = 0l) then
     failwith "out of group IDs"
   else
     id
