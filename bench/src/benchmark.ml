@@ -127,7 +127,7 @@ let sdx filename =
   let json = In_channel.with_file filename ~f:Yojson.Basic.from_channel in
   let pols =
     let open Yojson.Basic.Util in
-    assert (json |> member "type" |> to_string = "disjoint");
+    assert Poly.(json |> member "type" |> to_string = "disjoint");
     json |> member "pols" |> to_list
       |> List.map ~f:Netkat.Json.pol_of_json in
   let open Netkat.Pretty in
@@ -162,7 +162,7 @@ let dot_to_virtual ~in_file =
     ~f:(fun (file, pred) -> write_all (file ^ ".kat") ~data:(string_of_pred pred))
 
 
-let _  = match Array.to_list Sys.argv with
+let _  = match Sys.get_argv () |> Array.to_list with
   (* Run and benchmark the compiler.
 
      The debug flag is not implemented, but it is intended to dump flow tables
