@@ -1,4 +1,4 @@
-(* The barbell-topology example from the ICFP paper.
+(* The barbell-topology example.
 
    Two classes of packets enter switch 3:
    * Packets originiating from port 1 at switch 1.

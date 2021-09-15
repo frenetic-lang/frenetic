@@ -3,7 +3,7 @@
  (public_name frenetic.async)
  (wrapped true)
  (libraries async cohttp cohttp-async core cstruct
-   frenetic.kernel frenetic.netkat mparser mparser.re str)
+   frenetic.kernel frenetic.netkat mparser mparser-re str)
  (preprocess
   (pps ppx_sexp_conv))
  (flags :standard -safe-string))
