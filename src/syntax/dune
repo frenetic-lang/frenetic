@@ -28,7 +28,7 @@
 (library
  (name test)
  (modules test)
- (libraries core expect_test_helpers_kernel frenetic)
+ (libraries core frenetic)
  (inline_tests)
  (preprocess
   (pps ppx_jane frenetic.ppx)))

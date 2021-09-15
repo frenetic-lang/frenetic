@@ -1,6 +1,4 @@
 open! Core
-open! Expect_test_helpers_kernel
-
 
 (* let declaration *)
 let%nk p = {| drop |}
@@ -38,7 +36,8 @@ let%nk iverson = {| [2 = 1+1]; port:=pipe("true") + [2=1]; port:=pipe("false")  
 let%nk iverson_pred = {| [2 > 1]; [2 < 1] |}
 
 (* advanced iverson examples *)
-let mk_link adj a b =
+let mk_link (adj: int array array) (a:int) (b:int) =
+  let (<>) = Poly.(<>) in
   let src,dst = Int32.(of_int_exn adj.(a).(b), of_int_exn adj.(b).(a)) in
   let a,b = Int64.(of_int a + 1L, of_int b + 1L) in
   let%nk l = {| [src <> 0l]; (switch={a} and port={src}); switch:={b}; port:={dst} |} in

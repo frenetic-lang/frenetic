@@ -34,14 +34,16 @@ let implement_flow (writer : Writer.t) (fdd : Frenetic_netkat.Local_compiler.t)
     (* do not include meta value for table start, else everything drops *)
     let pat = if m_id = 0 then (Oxm.from_of_pattern row.pattern)
       else (OxmMetadata (mask_meta m_id))::(Oxm.from_of_pattern row.pattern) in
+    (* Must order prereq  *)
+    let pat_reversed = List.rev pat in
     let insts = match row.instruction with
       | `Action action_group -> Instructions.from_of_group action_group
       | `GotoTable (goto_t, goto_m) ->
         [WriteMetadata (mask_meta goto_m); GotoTable goto_t]
     in
-    let message = Message.FlowModMsg (add_flow ~tbl ~prio ~pat ~insts) in
+    let message = Message.FlowModMsg (add_flow ~tbl ~prio ~pat:pat_reversed ~insts) in
     Logging.info "Sending flow to switch %Ld\n\ttable:%d\n\tpriority:%d\n\tpattern:%s\n\tinstructions:%s"
-      sw_id tbl prio (Oxm.match_to_string pat) (Instructions.to_string insts);
+      sw_id tbl prio (Oxm.match_to_string pat_reversed) (Instructions.to_string insts);
     send_message writer xid message)
 
 (* Send FlowMod messages to switch to implement the policy, use topology to
@@ -56,10 +58,12 @@ let implement_tolerant_flow (writer : Writer.t) (fdd : Frenetic_netkat.Local_com
     let xid= Int32.of_int_exn i in
     let prio = 1000 - i in
     let pat = Oxm.from_of_pattern row.pattern in
+    (* Must order prereq  *)
+    let pat_reversed = List.rev pat in
     let insts = Instructions.from_of_group row.action in
-    let message = Message.FlowModMsg (add_flow ~tbl ~prio ~pat ~insts) in
+    let message = Message.FlowModMsg (add_flow ~tbl ~prio ~pat:pat_reversed ~insts) in
     Logging.info "Sending flow to switch %Ld\n\ttable:%d\n\tpriority:%d\n\tpattern:%s\n\tinstructions:%s"
-      sw_id tbl prio (Oxm.match_to_string pat) (Instructions.to_string insts);
+      sw_id tbl prio (Oxm.match_to_string pat_reversed) (Instructions.to_string insts);
     send_message writer xid message)
 
 (* Respond to message from switch *)
