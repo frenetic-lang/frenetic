@@ -1001,7 +1001,7 @@ module Action = struct
   let parse bits = snd (_parse bits)
 
   let rec parse_sequence bits : sequence =
-    if Cstruct.len bits = 0 then
+    if Cstruct.length bits = 0 then
       []
     else
       let bits', act = _parse bits in
@@ -1187,7 +1187,7 @@ module Payload = struct
   let size_of p = match p with
     | Buffered(_,bytes)
     | NotBuffered bytes ->
-      Cstruct.len bytes
+      Cstruct.length bytes
 
   let to_string p =
     match p with
@@ -1203,7 +1203,7 @@ module Payload = struct
      let _ = match p with
        | Buffered(_,bytes)
        | NotBuffered bytes ->
-         Cstruct.blit bytes 0 out 0 (Cstruct.len bytes) in
+         Cstruct.blit bytes 0 out 0 (Cstruct.length bytes) in
      size_of p
 end
 
@@ -2269,7 +2269,7 @@ module StatsReply = struct
     let parse_individual_stats bits = fst (_parse_individual_stats bits)
 
     let rec parse_sequence_individual_stats bits =
-      if Cstruct.len bits <= 0 then
+      if Cstruct.length bits <= 0 then
         []
       else
         let (v, bits') = _parse_individual_stats bits in
@@ -2342,7 +2342,7 @@ module StatsReply = struct
     }, bits_after_port_stats)
 
   let rec parse_sequence_port_stats bits =
-    if Cstruct.len bits <= 0 then
+    if Cstruct.length bits <= 0 then
       []
     else
       let (v, bits') = _parse_port_stats bits in
@@ -2815,13 +2815,13 @@ module Error = struct
         set_ofp_error_msg_error_code out (ofp_queue_op_failed_code_to_int (QueueOpFailed.type_code error_code))
     end;
     let out = Cstruct.shift out sizeof_ofp_error_msg in
-    let _ = Cstruct.blit body 0 out 0 (Cstruct.len body) in
-      sizeof_ofp_error_msg + Cstruct.len body
+    let _ = Cstruct.blit body 0 out 0 (Cstruct.length body) in
+      sizeof_ofp_error_msg + Cstruct.length body
 
 
 
   let to_string (Error(code, body)) =
-    let len = Cstruct.len body in
+    let len = Cstruct.length body in
     let t, c = match code with
       | HelloFailed code ->
         ("HELLO_FAILED", HelloFailed.to_string code)
@@ -2857,13 +2857,13 @@ module Vendor = struct
     let (vendor, body) = msg in
     set_ofp_vendor_header_vendor out (vendor);
     let out = Cstruct.shift out sizeof_ofp_vendor_header in
-    let _ = Cstruct.blit (body) 0 out 0 (Cstruct.len (body)) in
+    let _ = Cstruct.blit (body) 0 out 0 (Cstruct.length (body)) in
     12
 
   let size_of _ = 12
 
   let to_string (id, bytes) =
-    Printf.sprintf "{ vendor = %lu; data = <bytes:%d> }" id (Cstruct.len bytes)
+    Printf.sprintf "{ vendor = %lu; data = <bytes:%d> }" id (Cstruct.length bytes)
 
 end
 
@@ -2998,10 +2998,10 @@ module Message = struct
     | ConfigReplyMsg _ -> GET_CONFIG_RESP
 
   let to_string (msg : t) : string = match msg with
-    | Hello       b -> Printf.sprintf "HELLO { body = <bytes:%d> }" (Cstruct.len b)
+    | Hello       b -> Printf.sprintf "HELLO { body = <bytes:%d> }" (Cstruct.length b)
     | ErrorMsg    e -> Printf.sprintf "ERROR %s" (Error.to_string e)
-    | EchoRequest b -> Printf.sprintf "ECHO_REQUEST { body = <bytes:%d> }" (Cstruct.len b)
-    | EchoReply   b -> Printf.sprintf "ECHO_REPLY { body = <bytes:%d> }" (Cstruct.len b)
+    | EchoRequest b -> Printf.sprintf "ECHO_REQUEST { body = <bytes:%d> }" (Cstruct.length b)
+    | EchoReply   b -> Printf.sprintf "ECHO_REPLY { body = <bytes:%d> }" (Cstruct.length b)
     | VendorMsg   v -> Printf.sprintf "VENDOR %s" (Vendor.to_string v)
     | SwitchFeaturesRequest -> "FEATURES_REQUEST"
     | SwitchFeaturesReply f -> Printf.sprintf "FEATURES_REPLY %s"
@@ -3023,9 +3023,9 @@ module Message = struct
 
   (** Size of the message body, without the header *)
   let sizeof_body (msg : t) : int = match msg with
-    | Hello buf -> Cstruct.len buf
-    | EchoRequest buf -> Cstruct.len buf
-    | EchoReply buf -> Cstruct.len buf
+    | Hello buf -> Cstruct.length buf
+    | EchoRequest buf -> Cstruct.length buf
+    | EchoReply buf -> Cstruct.length buf
     | VendorMsg buf -> Vendor.size_of msg
     | SwitchFeaturesRequest -> 0
     | SwitchFeaturesReply rep -> SwitchFeatures.size_of rep
@@ -3048,7 +3048,7 @@ module Message = struct
     | Hello buf
     | EchoRequest buf
     | EchoReply buf ->
-      Cstruct.blit buf 0 out 0 (Cstruct.len buf)
+      Cstruct.blit buf 0 out 0 (Cstruct.length buf)
     | VendorMsg msg ->
       let _ = Vendor.marshal msg out in
       ()

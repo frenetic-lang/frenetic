@@ -16,6 +16,7 @@ module type FABRIC_GEN = sig
     -> ptopo:policy
     -> ping:pred
     -> peg:pred
+    -> unit
     -> fabric
 end
 

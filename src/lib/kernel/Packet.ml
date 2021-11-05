@@ -67,7 +67,7 @@ let bytes_of_sexp s =
     failwith "bytes_of_sexp: expected Atom"
 
 let sexp_of_bytes s =
-  let n = Cstruct.len s in
+  let n = Cstruct.length s in
   let buf = Buffer.create n in
   for i = 0 to n - 1 do
     Buffer.add_char buf (Cstruct.get_char s i)
@@ -178,7 +178,7 @@ module Tcp = struct
   } [@@big_endian]]
 
   let parse (bits : Cstruct.t) =
-    if Cstruct.len bits < sizeof_tcp then
+    if Cstruct.length bits < sizeof_tcp then
       raise (UnparsablePacket "not enough bytes for TCP header");
     let src = get_tcp_src bits in
     let dst = get_tcp_dst bits in
@@ -204,7 +204,7 @@ module Tcp = struct
       urgent = urgent;
       payload = payload }
 
-  let len (pkt : t) = sizeof_tcp + Cstruct.len pkt.payload
+  let len (pkt : t) = sizeof_tcp + Cstruct.length pkt.payload
 
   (* Assumes that bits has enough room *)
   let marshal (bits : Cstruct.t) (pkt : t) =
@@ -218,7 +218,7 @@ module Tcp = struct
     set_tcp_chksum bits pkt.chksum;
     set_tcp_urgent bits pkt.urgent;
     let bits = Cstruct.shift bits sizeof_tcp in
-    Cstruct.blit pkt.payload 0 bits 0 (Cstruct.len pkt.payload)
+    Cstruct.blit pkt.payload 0 bits 0 (Cstruct.length pkt.payload)
 
   let checksum (bits : Cstruct.t) (src : nwAddr) (dst : nwAddr) (pkt : t) =
     let length = len pkt in
@@ -259,7 +259,7 @@ module Udp = struct
   } [@@big_endian]]
 
   let parse (bits : Cstruct.t) =
-    if Cstruct.len bits < sizeof_udp then
+    if Cstruct.length bits < sizeof_udp then
       raise (UnparsablePacket "not enough bytes for UDP header");
     let src = get_udp_src bits in
     let dst = get_udp_dst bits in
@@ -270,16 +270,16 @@ module Udp = struct
       chksum = chksum;
       payload = payload }
 
-  let len (pkt : t) = sizeof_udp + Cstruct.len pkt.payload
+  let len (pkt : t) = sizeof_udp + Cstruct.length pkt.payload
 
   (* Assumes that bits has enough room *)
   let marshal (bits : Cstruct.t) (pkt : t) =
     set_udp_src bits pkt.src;
     set_udp_dst bits pkt.dst;
-    set_udp_len bits (sizeof_udp + (Cstruct.len pkt.payload));
+    set_udp_len bits (sizeof_udp + (Cstruct.length pkt.payload));
     set_udp_chksum bits 0; (* UDP checksum is optional in IPv4 *)
     let bits = Cstruct.shift bits sizeof_udp in
-    Cstruct.blit pkt.payload 0 bits 0 (Cstruct.len pkt.payload)
+    Cstruct.blit pkt.payload 0 bits 0 (Cstruct.length pkt.payload)
 
 end
 
@@ -307,7 +307,7 @@ module Icmp = struct
       | n -> fprintf fmt "ICMP type=%d,code=%d" n v.code
 
   let parse (bits : Cstruct.t) =
-    if Cstruct.len bits < sizeof_icmp then
+    if Cstruct.length bits < sizeof_icmp then
       raise (UnparsablePacket "not enough bytes for ICMP header");
     let typ = get_icmp_typ bits in
     let code = get_icmp_code bits in
@@ -315,7 +315,7 @@ module Icmp = struct
     let payload = Cstruct.shift bits sizeof_icmp in
     { typ = typ; code = code; chksum = chksum; payload = payload }
 
-  let len (pkt: t) = sizeof_icmp + Cstruct.len pkt.payload
+  let len (pkt: t) = sizeof_icmp + Cstruct.length pkt.payload
 
   (* Assumes that bits has enough room. *)
   let marshal (bits : Cstruct.t) (pkt : t) =
@@ -323,7 +323,7 @@ module Icmp = struct
     set_icmp_code bits pkt.code;
     set_icmp_chksum bits pkt.chksum;
     let bits = Cstruct.shift bits sizeof_icmp in
-    Cstruct.blit pkt.payload 0 bits 0 (Cstruct.len pkt.payload)
+    Cstruct.blit pkt.payload 0 bits 0 (Cstruct.length pkt.payload)
 
 end
 
@@ -392,7 +392,7 @@ module Dns = struct
     let parse (bits : Cstruct.t) =
       let name = get_dns_name bits in
       let bits = Cstruct.shift bits (dns_name_len name) in
-      if Cstruct.len bits < sizeof_qd then
+      if Cstruct.length bits < sizeof_qd then
         raise (UnparsablePacket "not enough bytes for QD record");
       let typ = get_qd_typ bits in
       let class_ = get_qd_class_ bits in
@@ -437,7 +437,7 @@ module Dns = struct
     let parse (bits : Cstruct.t) =
       let name = get_dns_name bits in
       let bits = Cstruct.shift bits (dns_name_len name) in
-      if Cstruct.len bits < sizeof_rr then
+      if Cstruct.length bits < sizeof_rr then
         raise (UnparsablePacket "not enough bytes for RR record");
       let typ = get_rr_typ bits in
       let class_ = get_rr_class_ bits in
@@ -448,14 +448,14 @@ module Dns = struct
         ttl = ttl; rdata = rdata }
 
     let len (rr : t) =
-       (dns_name_len rr.name) + sizeof_rr + (Cstruct.len rr.rdata)
+       (dns_name_len rr.name) + sizeof_rr + (Cstruct.length rr.rdata)
 
     let marshal (bits : Cstruct.t) (rr : t) =
       let bits = set_dns_name bits rr.name in
       set_rr_typ bits rr.typ;
       set_rr_class_ bits rr.class_;
       set_rr_ttl bits (Int32.of_int_exn rr.ttl);
-      let rdlen = Cstruct.len rr.rdata in
+      let rdlen = Cstruct.length rr.rdata in
       set_rr_rdlen bits rdlen;
       Cstruct.blit rr.rdata 0 bits sizeof_rr rdlen;
       Cstruct.shift bits (sizeof_rr + rdlen)
@@ -503,7 +503,7 @@ module Dns = struct
     (List.map ~f:get_x indices, !offset)
 
   let parse (bits : Cstruct.t) =
-    if Cstruct.len bits < sizeof_dns then
+    if Cstruct.length bits < sizeof_dns then
       raise (UnparsablePacket "not enough bytes for DNS header");
     let id = get_dns_id bits in
     let flags = get_dns_flags bits in
@@ -565,7 +565,7 @@ module Igmp1and2 = struct
     fprintf fmt "@[mrt=%x;addr=%s@]" v.mrt (string_of_ip v.addr)
 
   let parse (bits : Cstruct.t) =
-    if Cstruct.len bits < sizeof_igmp1and2 then
+    if Cstruct.length bits < sizeof_igmp1and2 then
       raise (UnparsablePacket "not enough bytes for IGMPv1/2 header");
     let mrt = get_igmp1and2_mrt bits in
     let chksum = get_igmp1and2_chksum bits in
@@ -615,7 +615,7 @@ module Igmp3 = struct
         (String.concat ~sep:"," (List.map ~f:string_of_ip v.sources))
 
     let parse (bits : Cstruct.t) =
-      if Cstruct.len bits < sizeof_grouprec then
+      if Cstruct.length bits < sizeof_grouprec then
         raise (UnparsablePacket "not enough bytes for IGMPv3 group record");
       let typ = get_grouprec_typ bits in
       let num_sources = get_grouprec_num_sources bits in
@@ -659,7 +659,7 @@ module Igmp3 = struct
     List.iter ~f:(GroupRec.format fmt) v.grs
 
   let parse (bits : Cstruct.t) =
-    if Cstruct.len bits < sizeof_igmp3 then
+    if Cstruct.length bits < sizeof_igmp3 then
       raise (UnparsablePacket "not enough bytes for IGMPv3 header");
     let chksum = get_igmp3_chksum bits in
     let num_records = get_igmp3_num_records bits in
@@ -720,7 +720,7 @@ module Igmp = struct
   let format_msg fmt = function
     | Igmp1and2 igmp1and2 -> Igmp1and2.format fmt igmp1and2
     | Igmp3 igmp3 -> Igmp3.format fmt igmp3
-    | Unparsable (_, b) -> Format.fprintf fmt "msg_len=%d" (Cstruct.len b)
+    | Unparsable (_, b) -> Format.fprintf fmt "msg_len=%d" (Cstruct.length b)
 
   let format_ver_and_typ fmt v =
     let open Format in
@@ -739,7 +739,7 @@ module Igmp = struct
       format_msg v.msg
 
   let parse (bits : Cstruct.t) =
-    if Cstruct.len bits < sizeof_igmp then
+    if Cstruct.length bits < sizeof_igmp then
       raise (UnparsablePacket "not enough bytes for IGMP header");
     let ver_and_typ = get_igmp_ver_and_typ bits in
     let bits = Cstruct.shift bits sizeof_igmp in
@@ -758,7 +758,7 @@ module Igmp = struct
     let msg_len = match pkt.msg with
       | Igmp1and2 igmp1and2 -> Igmp1and2.len igmp1and2
       | Igmp3 igmp3 -> Igmp3.len igmp3
-      | Unparsable (_, data) -> Cstruct.len data in
+      | Unparsable (_, data) -> Cstruct.length data in
     sizeof_igmp + msg_len
 
   (* Assumes that bits has enough room. *)
@@ -771,7 +771,7 @@ module Igmp = struct
       | Igmp3 igmp3 ->
         Igmp3.marshal bits igmp3
       | Unparsable (_, data) ->
-        Cstruct.blit data 0 bits 0 (Cstruct.len data)
+        Cstruct.blit data 0 bits 0 (Cstruct.length data)
 end
 
 module Ip = struct
@@ -857,7 +857,7 @@ module Ip = struct
   } [@@big_endian]]
 
   let parse (bits : Cstruct.t) =
-    if Cstruct.len bits < sizeof_ip then
+    if Cstruct.length bits < sizeof_ip then
       raise (UnparsablePacket "not enough bytes for IP header");
     let vhl = get_ip_vhl bits in
     if vhl lsr 4 <> 4 then
@@ -896,18 +896,18 @@ module Ip = struct
       tp = tp }
 
   let len (pkt : t) =
-    let options_len = Cstruct.len pkt.options in
+    let options_len = Cstruct.length pkt.options in
     let tp_len = match pkt.tp with
       | Tcp tcp -> Tcp.len tcp
       | Udp udp -> Udp.len udp
       | Icmp icmp -> Icmp.len icmp
       | Igmp igmp -> Igmp.len igmp
-      | Unparsable (_, data) -> Cstruct.len data in
+      | Unparsable (_, data) -> Cstruct.length data in
     sizeof_ip + options_len + tp_len
 
   (* Assumes there is enough space *)
   let marshal (bits : Cstruct.t) (pkt:t) =
-    let header_len = sizeof_ip + (Cstruct.len pkt.options) in
+    let header_len = sizeof_ip + (Cstruct.length pkt.options) in
     let v = 4 in (* IP version 4. *)
     let ihl = header_len / 4 in
     let vhl = (v lsl 4) lor ihl in
@@ -926,7 +926,7 @@ module Ip = struct
     set_ip_proto bits proto;
     set_ip_src bits pkt.src;
     set_ip_dst bits pkt.dst;
-    Cstruct.blit pkt.options 0 bits sizeof_ip (Cstruct.len pkt.options);
+    Cstruct.blit pkt.options 0 bits sizeof_ip (Cstruct.length pkt.options);
     set_ip_chksum bits 0;
     let chksum = Tcpip_checksum.ones_complement (Cstruct.sub bits 0 header_len) in
     set_ip_chksum bits chksum;
@@ -942,7 +942,7 @@ module Ip = struct
       | Igmp igmp ->
         Igmp.marshal bits igmp
       | Unparsable (protocol, data) ->
-        Cstruct.blit data 0 bits 0 (Cstruct.len data)
+        Cstruct.blit data 0 bits 0 (Cstruct.length data)
 
 end
 
@@ -998,7 +998,7 @@ module Arp = struct
   ]
 
   let parse (bits : Cstruct.t) =
-    if Cstruct.len bits < sizeof_arp then
+    if Cstruct.length bits < sizeof_arp then
       raise (UnparsablePacket "not enough bytes for ARP header");
     let oper = get_arp_oper bits in
     let sha = mac_of_bytes (Cstruct.to_string (get_arp_sha bits)) in
@@ -1322,7 +1322,7 @@ let len (pkt : packet) =
   let nw_len = match pkt.nw with
     | Ip ip -> Ip.len ip
     | Arp arp -> Arp.len arp
-    | Unparsable (_, data) -> Cstruct.len data in
+    | Unparsable (_, data) -> Cstruct.length data in
   eth_len + nw_len
 
 let string_of_mk formatter x =
@@ -1355,7 +1355,7 @@ let marshal_helper (bits : Cstruct.t) (pkt : packet) =
   match pkt.nw with
     | Ip ip -> Ip.marshal bits ip
     | Arp arp -> Arp.marshal bits arp
-    | Unparsable (_, data) -> Cstruct.blit data 0 bits 0 (Cstruct.len data)
+    | Unparsable (_, data) -> Cstruct.blit data 0 bits 0 (Cstruct.length data)
 
 let marshal (pkt:packet) : Cstruct.t =
   (* Allocating (len pkt) ensures the other marshalers have enough room *)

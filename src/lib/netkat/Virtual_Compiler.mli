@@ -15,6 +15,7 @@ module Make(FG:FABRIC_GEN) : sig
     -> ptopo:policy
     -> ping:pred
     -> peg:pred
+    -> unit
     -> FG.fabric
 
   (** Compile virtual policy reusing precomputed fabric *)

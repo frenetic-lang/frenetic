@@ -4,6 +4,7 @@ synopsis: "The Frenetic Programming Language and Runtime System"
 maintainer: "Steffen Smolka <smolka@cs.cornell.edu>"
 authors: "Arjun Guha <arjun@cs.umass.edu>, Nate Foster <jnfoster@cs.cornell.edu>, Steffen Smolka <smolka@cs.cornell.edu>"
 homepage: "http://frenetic-lang.org"
+license: "LGPL-3.0-or-later"
 bug-reports: "https://github.com/frenetic-lang/frenetic/issues"
 dev-repo: "git+https://github.com/frenetic-lang/frenetic.git"
 build: [

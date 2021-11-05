@@ -16,6 +16,7 @@ module type FABRIC_GEN = sig
     -> ptopo:policy
     -> ping:pred
     -> peg:pred
+    -> unit
     -> fabric
 end
 
@@ -454,7 +455,7 @@ module FabricGen = struct
     with
     | Failure _ -> None
 
-  let generate_fabric ?(log=true) ?record_paths ~vrel ~vtopo ~ving ~veg ~ptopo ~ping ~peg  =
+  let generate_fabric ?(log=true) ?record_paths ~vrel ~vtopo ~ving ~veg ~ptopo ~ping ~peg () =
     let vgraph = G.Virt.make ving veg vtopo in
     let pgraph = G.Phys.make ping peg ptopo in
     let prod_ing, prod_graph = make_product_graph vgraph pgraph ving vrel in

@@ -2756,7 +2756,7 @@ module Oxm = struct
         (OxmIPv6ExtHdr {m_value = nul; m_mask = None}, bits2)
 
   let rec parse_headers (bits : Cstruct_sexp.t) : oxmMatch*Cstruct_sexp.t =
-    if Cstruct.len bits < sizeof_ofp_oxm then ([], bits)
+    if Cstruct.length bits < sizeof_ofp_oxm then ([], bits)
     else let field, bits2 = parse_header bits in
       let fields, bits3 = parse_headers bits2 in
       (List.append [field] fields, bits3)
@@ -2943,7 +2943,7 @@ module QueueDesc = struct
           id
 
     let length_func (buf : Cstruct_sexp.t) : int option =
-      if Cstruct.len buf < sizeof_ofp_queue_prop_header then None
+      if Cstruct.length buf < sizeof_ofp_queue_prop_header then None
       else Some (get_ofp_queue_prop_header_len buf)
 
     let marshal (buf : Cstruct_sexp.t) (qp : t) : int =
@@ -3006,7 +3006,7 @@ module QueueDesc = struct
       ("[ " ^ (String.concat ~sep:"; " (List.map ~f:QueueProp.to_string qd.properties)) ^ " ]")
 
   let length_func (buf : Cstruct_sexp.t) : int option =
-    if Cstruct.len buf < sizeof_ofp_packet_queue then None
+    if Cstruct.length buf < sizeof_ofp_packet_queue then None
     else Some (get_ofp_packet_queue_len buf)
 
   let marshal (buf : Cstruct_sexp.t) (qd : t) : int =
@@ -3106,7 +3106,7 @@ module OfpMatch = struct
     else size
 
   let rec parse_fields (bits : Cstruct_sexp.t) : t * Cstruct_sexp.t =
-    if Cstruct.len bits <= sizeof_ofp_oxm then ([], bits)
+    if Cstruct.length bits <= sizeof_ofp_oxm then ([], bits)
     else let field, bits2 = Oxm.parse bits in
       let fields, bits3 = parse_fields bits2 in
       (List.append [field] fields, bits3)
@@ -3304,7 +3304,7 @@ module Action = struct
     | None -> failwith "None type"
 
   let rec parse_fields (bits : Cstruct_sexp.t) : sequence * Cstruct_sexp.t =
-    if Cstruct.len bits < sizeof_ofp_action_header then ([], bits)
+    if Cstruct.length bits < sizeof_ofp_action_header then ([], bits)
     else let field = parse bits in
       let bits2 = Cstruct.shift bits (sizeof field) in
       let fields, bits3 = parse_fields bits2 in
@@ -3391,7 +3391,7 @@ module Bucket = struct
       ("[ " ^ (String.concat ~sep:"; " (List.map ~f:Action.to_string bucket.bu_actions)) ^ " ]")
 
   let length_func (buf : Cstruct_sexp.t) : int option =
-    if Cstruct.len buf < sizeof_ofp_bucket then None
+    if Cstruct.length buf < sizeof_ofp_bucket then None
     else Some (pad_to_64bits (get_ofp_bucket_len buf))
 
   let marshal (buf : Cstruct_sexp.t) (bucket : bucket) : int =
@@ -3631,7 +3631,7 @@ module MeterBand = struct
     | ExpMeter _ ->  sizeof_ofp_meter_band_experimenter
 
   let length_fun (buf : Cstruct_sexp.t) : int option =
-    if Cstruct.len buf < sizeof_ofp_meter_band_header then None
+    if Cstruct.length buf < sizeof_ofp_meter_band_header then None
     else Some (get_ofp_meter_band_header_len buf)
 
   let to_string (mb : meterBand) : string =
@@ -3909,7 +3909,7 @@ module Instructions = struct
     else 0
 
   let rec parse_field (bits : Cstruct_sexp.t) : t * Cstruct_sexp.t =
-    if Cstruct.len bits < sizeof_ofp_instruction then [],bits
+    if Cstruct.length bits < sizeof_ofp_instruction then [],bits
     else let field = Instruction.parse bits in
       let bits2 = Cstruct.shift bits (Instruction.sizeof field) in
       let fields, bits3 = parse_field bits2 in
@@ -4326,8 +4326,8 @@ module PacketIn = struct
       pi.pi_cookie
       (OfpMatch.to_string pi.pi_ofp_match)
       (match pi.pi_payload with
-       | Buffered (n,bytes) -> Format.sprintf "Buffered<id=%lu>= %s; len = %u" n (Packet.to_string (Packet.parse bytes)) (Cstruct.len bytes)
-       | NotBuffered bytes -> Format.sprintf "NotBuffered = %s; len = %u"  (Packet.to_string (Packet.parse bytes)) (Cstruct.len bytes))
+       | Buffered (n,bytes) -> Format.sprintf "Buffered<id=%lu>= %s; len = %u" n (Packet.to_string (Packet.parse bytes)) (Cstruct.length bytes)
+       | NotBuffered bytes -> Format.sprintf "NotBuffered = %s; len = %u"  (Packet.to_string (Packet.parse bytes)) (Cstruct.length bytes))
 
   let marshal (buf : Cstruct_sexp.t) (pi : t) : int =
     let bufMatch = Cstruct.shift buf sizeof_ofp_packet_in in
@@ -4365,7 +4365,7 @@ module PacketIn = struct
     let final_bits = Cstruct.create total_len in
     (* create a new [cstruct type to set the offset to 0 *)
     Cstruct.blit pkt_bits 0 final_bits 0 total_len;
-    (* printf "len = %d\n" (Cstruct.len pkt_bits); *)
+    (* printf "len = %d\n" (Cstruct.length pkt_bits); *)
     let pkt = match bufId with
       | None -> NotBuffered final_bits
       | Some n -> Buffered (n,final_bits)
@@ -4405,13 +4405,13 @@ module PacketOut = struct
     sizeof_ofp_packet_out + sum (List.map ~f:Action.sizeof po.po_actions) +
     (match po.po_payload with
      | Buffered _ -> 0
-     | NotBuffered bytes -> Cstruct.len bytes)
+     | NotBuffered bytes -> Cstruct.length bytes)
 
   let to_string (po : t) =
     Format.sprintf "{ payload = %s; port_id = %s; actions = %s }"
       (match po.po_payload with
        | Buffered (n,_) -> Format.sprintf "Buffered<id=%lu>" n
-       | NotBuffered bytes -> Format.sprintf "NotBuffered = %s; len = %u" (Packet.to_string (Packet.parse bytes)) (Cstruct.len bytes))
+       | NotBuffered bytes -> Format.sprintf "NotBuffered = %s; len = %u" (Packet.to_string (Packet.parse bytes)) (Cstruct.length bytes))
       (match po.po_port_id with
        | Some n -> Int32.to_string n
        | None -> "No Port")
@@ -4439,7 +4439,7 @@ module PacketOut = struct
     match po.po_payload with
     | Buffered _ -> size
     | NotBuffered pkt_buf ->
-      Cstruct.blit pkt_buf 0 buf act_size (Cstruct.len pkt_buf);
+      Cstruct.blit pkt_buf 0 buf act_size (Cstruct.length pkt_buf);
       size
 
   let parse (bits : Cstruct_sexp.t) : t =
@@ -4455,8 +4455,8 @@ module PacketOut = struct
     let po_payload = match bufId with
       | None ->
         let data_bits = Cstruct.shift bits actions_size in
-        let final_bits = Cstruct.create (Cstruct.len data_bits) in
-        Cstruct.blit data_bits 0 final_bits 0 (Cstruct.len data_bits);
+        let final_bits = Cstruct.create (Cstruct.length data_bits) in
+        Cstruct.blit data_bits 0 final_bits 0 (Cstruct.length data_bits);
         NotBuffered final_bits
       | Some n ->
         let final_bits = Cstruct.create 0 in
@@ -4734,7 +4734,7 @@ module InstructionHdr = struct
     | None -> raise (Unparsable (sprintf "malfomed typ"))
 
   let length_func (buf : Cstruct_sexp.t) : int option =
-    if Cstruct.len buf < sizeof_ofp_instruction then None
+    if Cstruct.length buf < sizeof_ofp_instruction then None
     else Some (get_ofp_instruction_len buf)
 
 end
@@ -4881,7 +4881,7 @@ module ActionHdr = struct
     | None -> failwith "None type"
 
   let length_func (buf : Cstruct_sexp.t) : int option =
-    if Cstruct.len buf < 4 (* ofp_action_header without padding *) then None
+    if Cstruct.length buf < 4 (* ofp_action_header without padding *) then None
     else Some (get_ofp_action_header_len buf)
 
 end
@@ -4899,7 +4899,7 @@ module TableFeatureProp = struct
   type t = tableFeatureProp
 
   let length_func (buf : Cstruct_sexp.t) : int option =
-    if Cstruct.len buf < sizeof_ofp_table_feature_prop_header then None
+    if Cstruct.length buf < sizeof_ofp_table_feature_prop_header then None
     else Some (pad_to_64bits (get_ofp_table_feature_prop_header_length buf))
 
   let sizeof tfp : int =
@@ -4933,9 +4933,9 @@ module TableFeatureProp = struct
         | TfpApplySetFieldMiss ox ->
           sum (List.map ~f:Oxm.sizeof_header ox)
         | TfpExperimenter (_,by) ->
-          Cstruct.len by
+          Cstruct.length by
         | TfpExperimenterMiss (_,by) ->
-          Cstruct.len by
+          Cstruct.length by
       ) in
     pad_to_64bits size
 
@@ -4993,17 +4993,17 @@ module TableFeatureProp = struct
                   marshal_fields buf_payload ox Oxm.marshal_header
                 | TfpExperimenter (ex,by) ->
                   set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_EXPERIMENTER);
-                  Cstruct.blit by 0 buf_payload 0 (Cstruct.len by);
-                  Cstruct.len by
+                  Cstruct.blit by 0 buf_payload 0 (Cstruct.length by);
+                  Cstruct.length by
                 | TfpExperimenterMiss (ex,by) ->
                   set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_EXPERIMENTER_MISS);
-                  Cstruct.blit by 0 buf_payload 0 (Cstruct.len by);
-                  Cstruct.len by) in
+                  Cstruct.blit by 0 buf_payload 0 (Cstruct.length by);
+                  Cstruct.length by) in
     set_ofp_table_feature_prop_header_length buf size;
     pad_to_64bits size
 
   let rec parse_tables (bits : Cstruct_sexp.t) len =
-    if Cstruct.len bits < 1 then ([], bits)
+    if Cstruct.length bits < 1 then ([], bits)
     else let field, bits2 = get_uint8 bits 0, Cstruct.shift bits 1 in
       let fields, bits3 = parse_tables bits2 (len -1) in
       (List.append [field] fields, bits3)
@@ -5186,7 +5186,7 @@ module TableFeature = struct
       ("[ " ^ (String.concat ~sep:"; " (List.map ~f:TableFeatureProp.to_string tf.feature_prop)) ^ " ]")
 
   let length_func (buf : Cstruct_sexp.t) : int option =
-    if Cstruct.len buf < sizeof_ofp_table_features then None
+    if Cstruct.length buf < sizeof_ofp_table_features then None
     else Some (get_ofp_table_features_length buf)
 end
 
@@ -5341,7 +5341,7 @@ module MultipartReq = struct
           get_ofp_meter_multipart_request_meter_id (Cstruct.shift bits sizeof_ofp_multipart_request))
       | Some OFPMP_METER_FEATURES -> MeterFeatReq
       | Some OFPMP_TABLE_FEATURES -> TableFeatReq (
-          if Cstruct.len bits <= sizeof_ofp_multipart_request then None
+          if Cstruct.length bits <= sizeof_ofp_multipart_request then None
           else Some (
               parse_fields (Cstruct.shift bits sizeof_ofp_multipart_request) TableFeature.parse TableFeature.length_func
             ))
@@ -5498,7 +5498,7 @@ module FlowStats = struct
     ; instructions}
 
   let length_func (buf :  Cstruct_sexp.t) : int option =
-    if Cstruct.len buf < sizeof_ofp_flow_stats then None
+    if Cstruct.length buf < sizeof_ofp_flow_stats then None
     else Some (get_ofp_flow_stats_length buf)
 
 end
@@ -5787,7 +5787,7 @@ module GroupStats = struct
     }
 
   let length_func (buf :  Cstruct_sexp.t) : int option =
-    if Cstruct.len buf < sizeof_ofp_group_stats then None
+    if Cstruct.length buf < sizeof_ofp_group_stats then None
     else Some (get_ofp_group_stats_length buf)
 
 end
@@ -5834,7 +5834,7 @@ module GroupDesc = struct
     ; bucket = bucket}
 
   let length_func buf =
-    if Cstruct.len buf < sizeof_ofp_group_desc  then None
+    if Cstruct.length buf < sizeof_ofp_group_desc  then None
     else Some (get_ofp_group_desc_length buf)
 
 end
@@ -6101,7 +6101,7 @@ module MeterStats = struct
     { meter_id; len; flow_count; packet_in_count; byte_in_count; duration_sec; duration_nsec; band }
 
   let length_func buf =
-    if Cstruct.len buf < sizeof_ofp_meter_stats  then None
+    if Cstruct.length buf < sizeof_ofp_meter_stats  then None
     else Some (get_ofp_meter_stats_len buf)
 
 end
@@ -6146,7 +6146,7 @@ module MeterConfig = struct
     }
 
   let length_func (buf : Cstruct_sexp.t) : int option =
-    if Cstruct.len buf < sizeof_ofp_meter_config then None
+    if Cstruct.length buf < sizeof_ofp_meter_config then None
     else Some (get_ofp_meter_config_length buf)
 
 end
@@ -7299,8 +7299,8 @@ module Error = struct
 
   let sizeof (t : t) : int =
     match t.err with
-    | ExperimenterFailed _ -> sizeof_ofp_error_experimenter_msg + (Cstruct.len t.data)
-    | _ -> sizeof_ofp_error_msg + (Cstruct.len t.data)
+    | ExperimenterFailed _ -> sizeof_ofp_error_experimenter_msg + (Cstruct.length t.data)
+    | _ -> sizeof_ofp_error_msg + (Cstruct.length t.data)
 
   let marshal (buf : Cstruct_sexp.t) (t : t) : int =
     match t.err with
@@ -7308,93 +7308,93 @@ module Error = struct
       set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_HELLO_FAILED);
       set_ofp_error_msg_code buf (HelloFailed.marshal h);
       let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
-      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
-      sizeof_ofp_error_msg + (Cstruct.len t.data)
+      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.length t.data);
+      sizeof_ofp_error_msg + (Cstruct.length t.data)
     | BadRequest br ->
       set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_BAD_REQUEST);
       set_ofp_error_msg_code buf (BadRequest.marshal br);
       let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
-      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
-      sizeof_ofp_error_msg + (Cstruct.len t.data)
+      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.length t.data);
+      sizeof_ofp_error_msg + (Cstruct.length t.data)
     | BadAction ba ->
       set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_BAD_ACTION);
       set_ofp_error_msg_code buf (BadAction.marshal ba);
       let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
-      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
-      sizeof_ofp_error_msg + (Cstruct.len t.data)
+      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.length t.data);
+      sizeof_ofp_error_msg + (Cstruct.length t.data)
     | BadInstruction bi ->
       set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_BAD_INSTRUCTION);
       set_ofp_error_msg_code buf (BadInstruction.marshal bi);
       let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
-      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
-      sizeof_ofp_error_msg + (Cstruct.len t.data)
+      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.length t.data);
+      sizeof_ofp_error_msg + (Cstruct.length t.data)
     | BadMatch bm ->
       set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_BAD_MATCH);
       set_ofp_error_msg_code buf (BadMatch.marshal bm);
       let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
-      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
-      sizeof_ofp_error_msg + (Cstruct.len t.data)
+      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.length t.data);
+      sizeof_ofp_error_msg + (Cstruct.length t.data)
     | FlowModFailed fm ->
       set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_FLOW_MOD_FAILED);
       set_ofp_error_msg_code buf (FlowModFailed.marshal fm);
       let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
-      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
-      sizeof_ofp_error_msg + (Cstruct.len t.data)
+      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.length t.data);
+      sizeof_ofp_error_msg + (Cstruct.length t.data)
     | GroupModFailed gm ->
       set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_GROUP_MOD_FAILED);
       set_ofp_error_msg_code buf (GroupModFailed.marshal gm);
       let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
-      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
-      sizeof_ofp_error_msg + (Cstruct.len t.data)
+      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.length t.data);
+      sizeof_ofp_error_msg + (Cstruct.length t.data)
     | PortModFailed pm ->
       set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_PORT_MOD_FAILED);
       set_ofp_error_msg_code buf (PortModFailed.marshal pm);
       let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
-      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
-      sizeof_ofp_error_msg + (Cstruct.len t.data)
+      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.length t.data);
+      sizeof_ofp_error_msg + (Cstruct.length t.data)
     | TableModFailed tm ->
       set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_TABLE_MOD_FAILED);
       set_ofp_error_msg_code buf (TableModFailed.marshal tm);
       let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
-      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
-      sizeof_ofp_error_msg + (Cstruct.len t.data)
+      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.length t.data);
+      sizeof_ofp_error_msg + (Cstruct.length t.data)
     | QueueOpFailed qo ->
       set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_QUEUE_OP_FAILED);
       set_ofp_error_msg_code buf (QueueOpFailed.marshal qo);
       let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
-      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
-      sizeof_ofp_error_msg + (Cstruct.len t.data)
+      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.length t.data);
+      sizeof_ofp_error_msg + (Cstruct.length t.data)
     | SwitchConfigFailed sc ->
       set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_SWITCH_CONFIG_FAILED);
       set_ofp_error_msg_code buf (SwitchConfigFailed.marshal sc);
       let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
-      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
-      sizeof_ofp_error_msg + (Cstruct.len t.data)
+      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.length t.data);
+      sizeof_ofp_error_msg + (Cstruct.length t.data)
     | RoleReqFailed rr ->
       set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_ROLE_REQUEST_FAILED);
       set_ofp_error_msg_code buf (RoleReqFailed.marshal rr);
       let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
-      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
-      sizeof_ofp_error_msg + (Cstruct.len t.data)
+      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.length t.data);
+      sizeof_ofp_error_msg + (Cstruct.length t.data)
     | MeterModFailed mm ->
       set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_METER_MOD_FAILED);
       set_ofp_error_msg_code buf (MeterModFailed.marshal mm);
       let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
-      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
-      sizeof_ofp_error_msg + (Cstruct.len t.data)
+      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.length t.data);
+      sizeof_ofp_error_msg + (Cstruct.length t.data)
     | TableFeatFailed tf ->
       set_ofp_error_msg_typ buf (ofp_error_type_to_int OFPET_TABLE_FEATURES_FAILED);
       set_ofp_error_msg_code buf (TableFeatFailed.marshal tf);
       let dataBuf = Cstruct.shift buf sizeof_ofp_error_msg in
-      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
-      sizeof_ofp_error_msg + (Cstruct.len t.data)
+      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.length t.data);
+      sizeof_ofp_error_msg + (Cstruct.length t.data)
     | ExperimenterFailed e ->
       set_ofp_error_experimenter_msg_typ buf (ofp_error_type_to_int OFPET_EXPERIMENTER);
       set_ofp_error_experimenter_msg_exp_type buf e.exp_typ;
       set_ofp_error_experimenter_msg_experimenter buf e.exp_id;
       let dataBuf = Cstruct.shift buf sizeof_ofp_error_experimenter_msg in
-      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.len t.data);
-      sizeof_ofp_error_experimenter_msg + (Cstruct.len t.data)
+      Cstruct.blit t.data 0 dataBuf 0 (Cstruct.length t.data);
+      sizeof_ofp_error_experimenter_msg + (Cstruct.length t.data)
 
   let parse (bits : Cstruct_sexp.t) : t =
     let typ = get_ofp_error_msg_typ bits in
@@ -7422,9 +7422,9 @@ module Error = struct
     let err_bits = match err with
       | ExperimenterFailed _ -> Cstruct.shift bits sizeof_ofp_error_experimenter_msg
       | _ -> Cstruct.shift bits sizeof_ofp_error_msg in
-    let data = Cstruct.create (Cstruct.len err_bits) in
+    let data = Cstruct.create (Cstruct.length err_bits) in
     (* create a new cstruct type to set the offset to 0 *)
-    Cstruct.blit err_bits 0 data 0 (Cstruct.len err_bits);
+    Cstruct.blit err_bits 0 data 0 (Cstruct.length err_bits);
     { err; data }
 
 end
@@ -7482,7 +7482,7 @@ module Hello = struct
 
       let parse (bits : Cstruct_sexp.t) : supportedList =
         let rec parse_uint32 (bits : Cstruct_sexp.t) index curr (acc : supportedList) : supportedList =
-          if Cstruct.len bits < sizeof_ofp_uint32 then acc
+          if Cstruct.length bits < sizeof_ofp_uint32 then acc
           else (
             let acc = if Bits.test_bit index (get_ofp_uint32_value bits) then
                 (index+(curr*32))::acc
@@ -7509,7 +7509,7 @@ module Hello = struct
         Format.sprintf "version bitmap: %s" (VersionBitMap.to_string v)
 
     let length_func (buf : Cstruct_sexp.t) : int option =
-      if Cstruct.len buf < sizeof_ofp_hello_elem_header then None
+      if Cstruct.length buf < sizeof_ofp_hello_elem_header then None
       else Some (pad_to_64bits (get_ofp_hello_elem_header_len buf))
 
     let marshal (buf : Cstruct_sexp.t) (t : element) : int =

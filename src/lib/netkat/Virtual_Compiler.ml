@@ -79,6 +79,6 @@ struct
       ~(vrel : pred) ~(vtopo : policy) ~(ving_pol : policy) ~(ving : pred) ~(veg : pred)
       ~(ptopo : policy)                                     ~(ping : pred) ~(peg : pred)
       (vpol : policy) : policy =
-    generate_fabric ~log ?record_paths ~vrel ~vtopo ~ving ~veg ~ptopo ~ping ~peg
+    generate_fabric ~log ?record_paths ~vrel ~vtopo ~ving ~veg ~ptopo ~ping ~peg ()
     |> compile_with_fabric ~vtopo ~ving_pol ~ving ~veg ~ping ~peg ~vpol
 end

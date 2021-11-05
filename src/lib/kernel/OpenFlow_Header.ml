@@ -20,7 +20,7 @@ type ofp_header = {
 let size = sizeof_ofp_header
 
 let parse (buf : Cstruct.t) : t =
-  assert (Cstruct.len buf >= size);
+  assert (Cstruct.length buf >= size);
   {
     version = get_ofp_header_version buf;
     type_code = get_ofp_header_typ buf;
@@ -29,7 +29,7 @@ let parse (buf : Cstruct.t) : t =
   }
 
 let marshal (buf : Cstruct.t) (t : t) : unit =
-  assert (Cstruct.len buf >= size);  
+  assert (Cstruct.length buf >= size);  
   set_ofp_header_version buf t.version;
   set_ofp_header_typ buf t.type_code;
   set_ofp_header_length buf t.length;
