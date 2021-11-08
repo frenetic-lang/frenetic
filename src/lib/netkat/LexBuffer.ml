@@ -46,6 +46,7 @@ let start lexbuf =
   lexbuf.last_char_mark <- lexbuf.last_char;
   Sedlexing.start lexbuf.buf
 
+
 (** location of next character *)
 let next_loc lexbuf =
   { lexbuf.pos with pos_cnum = lexbuf.pos.pos_cnum + 1 }
@@ -72,6 +73,11 @@ let next lexbuf =
     lexbuf.last_char <- Some c;
     c
   )
+
+let __private__next_int b = 
+  match next b with 
+  | Some c -> Stdlib.Uchar.to_int c
+  | None -> -1
 
 let raw lexbuf : int array =
   Sedlexing.lexeme lexbuf.buf
