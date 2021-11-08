@@ -1,5 +1,4 @@
 opam-version: "2.0"
-version: "5.0.5"
 synopsis: "The Frenetic Programming Language and Runtime System"
 maintainer: "Nate Foster <jnfoster@cs.cornell.edu>"
 authors: "Arjun Guha <arjun@cs.umass.edu>, Nate Foster <jnfoster@cs.cornell.edu>, Steffen Smolka <smolka@cs.cornell.edu>"
@@ -16,13 +15,13 @@ build: [
 depends: [
   "ocaml" { >= "4.11.0"}
   "dune" { >= "2.0"}
-  "odoc"
+  "odoc" {with-doc}
   #########################
-  "async"  {>= "vv0.14.0" }
+  "async"  {>= "v0.14.0" }
   "base64" {>= "3.5.0"}
   "cohttp" {>= "4.0.0"}
   "cohttp-async" {>= "4.0.0" }
-  "core"   {>= "vv0.14.0" }
+  "core"   {>= "v0.14.0" }
   "cstruct" {>= "6.0.1"}
   "cstruct-sexp" {>= "6.0.1"}
   "ipaddr" {>= "5.2.0"}
@@ -39,3 +38,10 @@ depends: [
   "tcpip" {>= "6.3.0"}
   "yojson" {>= "1.7.0"}
 ]
+url {
+  src: "https://github.com/frenetic-lang/frenetic/archive/5.0.5.tar.gz"
+  checksum: [
+    "md5=e74a7fe1f1fc4f5112a2648fc6cc09d9"
+    "sha512=2abed7a37c9b38831bc8256360dfbf4768c4b37cc44d15d6c42f4a251a4a324676bc5a4d422bfc42e9298b00a8cf79d2d45e4b4c1d08efb84969a86c9c35f766"
+  ]
+}
