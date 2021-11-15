@@ -41,7 +41,7 @@ depends: [
 url {
   src: "https://github.com/frenetic-lang/frenetic/archive/5.0.5.tar.gz"
   checksum: [
-    "md5=78c82500acf0dc23a6e3198dbb95ce38"
-    "sha512=3e02dc7f8793a00b4040e7edc16117fdedce1650519250ce6ce4be2cd87cb5fe06cb2116b7db1eaed0d68cb82d5114ec18287327b663cd8cb472c4617f538213"
+    "md5=baf754df13a759c32f2c86a1b6f328da"
+    "sha512=80140900e7009ccab14b25e244fe7edab87d858676f8a4b3799b4fea16825013cf68363fe5faec71dd54ba825bb4ea2f812c2c666390948ab217ffa75d9cbd29"
   ]
 }
