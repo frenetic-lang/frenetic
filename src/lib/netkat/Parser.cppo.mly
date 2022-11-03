@@ -1,39 +1,14 @@
-(* if MAKE_PPX is set, produce OCaml (PPX) AST; otherwise, produce normal NetKAT AST *)
-#ifdef MAKE_PPX
-  #define AST(arg)
-  #define LOC Location.{ loc_start = $symbolstartpos; loc_end = $endpos; loc_ghost = false}
-  #define PPX(arg) {let loc = LOC in [%expr arg]}
-  #define PPX_(arg) let loc = LOC in [%expr arg]
-  #define AQ | x=ANTIQ { parse_ocaml_expr x }
-  #define POLTY Ppxlib.Parsetree.expression
-  #define PREDTY Ppxlib.Parsetree.expression
-#else
-  #define AST(arg) {arg}
-  #define PPX(arg)
-  #define AQ
-  #define POLTY Syntax.policy
-  #define PREDTY Syntax.pred
-#endif
+#define AST(arg) {arg}
+#define PPX(arg)
+#define AQ
+#define POLTY Syntax.policy
+#define PREDTY Syntax.pred
 #define BOTH(arg) AST(arg) PPX(arg)
 
 %{
 (* ignore warnings in parser, since it is auto-generated *)
 [@@@warning "-3-26"]
-#ifdef MAKE_PPX
-open Ppxlib
-open Ast_builder.Default
-
-let parse_ocaml_expr (s,loc) =
-  let buf = Lexing.from_string s in
-  buf.lex_start_p <- Location.(loc.loc_start);
-  buf.lex_curr_p <- Location.(loc.loc_start);
-  Parse.expression buf
-
-open Frenetic_netkat.Syntax
-#else
 open Syntax
-#endif
-
 open Core
 %}
 
@@ -61,11 +36,6 @@ open Core
 %token FROM ABSTRACTLOC
 
 (* antiquotations (for ppx syntax extension ) *)
-#ifdef MAKE_PPX
-  %token <string * Location.t> ANTIQ
-  (* iverson brackets *)
-  %token <string * Location.t> IVERSON
-#endif
 
 (* precedence and associativity - from lowest to highest *)
 %nonassoc low
@@ -193,13 +163,6 @@ _pred_(pred):
   | LPAR; a=pred; RPAR
   | BEGIN a=pred; END
       { a }
-#ifdef MAKE_PPX
-  | code=IVERSON {
-    let phi = parse_ocaml_expr code in
-    PPX_( if [%e phi] then True else False )
-  }
-#endif
-
 
 (*********************** HEADER VALUES *************************)
 

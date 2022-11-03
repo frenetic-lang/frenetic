@@ -76,34 +76,6 @@ and comment depth buf =
   | any -> comment depth buf
   | _ -> assert false
 
-(** anitquotation brackets  *)
-let antiq ~loc_start buf =
-  match%sedlex buf with
-  | Star (Compl '}') ->
-    let code = ascii buf in
-    begin match%sedlex buf with
-    | '}' -> ()
-    | _ -> failwith buf "unterminated anitquotation brace"
-    end;
-    let loc_end = next_loc buf in
-    let loc = Location.{ loc_start; loc_end; loc_ghost = false } in
-    ANTIQ (code, loc)
-  | _ -> assert false
-
-(** iverson brackets  *)
-let iverson ~loc_start buf =
-  match%sedlex buf with
-  | Star (Compl ']') ->
-    let code = ascii buf in
-    begin match%sedlex buf with
-    | ']' -> ()
-    | _ -> failwith buf "unterminated iverson bracket"
-    end;
-    let loc_end = next_loc buf in
-    let loc = Location.{ loc_start; loc_end; loc_ghost = false } in
-    IVERSON (code, loc)
-  | _ -> assert false
-
 (** returns the next token *)
 let token ~ppx ~loc_start buf =
   garbage buf;
@@ -121,17 +93,6 @@ let token ~ppx ~loc_start buf =
   | "query" -> QUERY
   | '"', Star (Compl '"'), '"' -> STRING (ascii ~skip:1 ~drop:1 buf)
   | "dup" -> DUP
-  (* antiquotations *)
-  | '{' ->
-    if not ppx then
-      illegal buf '{'
-    else
-      antiq ~loc_start buf
-  | '[' ->
-    if not ppx then
-      illegal buf '['
-    else
-      iverson ~loc_start buf
   (* predicates *)
   | "true" -> TRUE
   | "false" -> FALSE
