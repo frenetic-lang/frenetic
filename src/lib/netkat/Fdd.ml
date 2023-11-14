@@ -46,7 +46,7 @@ module Field = struct
   let is_valid_order (lst : t list) : bool =
     Set.Poly.(equal (of_list lst) (of_list all))
 
-  let order = Array.init num_fields ~f:ident
+  let order = Array.init num_fields ~f:Fn.id
 
   let set_order (lst : t list) : unit =
     assert (is_valid_order lst);
@@ -54,7 +54,7 @@ module Field = struct
 
   (* Not a clean way to invert a permutation, but fast *)
   let invert arr =
-    let inverted = Array.init num_fields ~f:ident in
+    let inverted = Array.init num_fields ~f:Fn.id in
     Array.iteri arr ~f:(fun i elt -> inverted.(elt) <- i );
     inverted
 
@@ -755,7 +755,27 @@ module FDD = struct
     in
     map_r f fdd
 
+  let mods fdd =
+    fold fdd
+      ~f:(fun par ->
+        Action.Par.fold par ~init:[] ~f:(fun acc seq ->
+            Action.Seq.fold_fields seq ~init:acc ~f:(fun ~key ~data acc -> (key,data)::acc)))
+      ~g:(fun _ t f -> t @ f)
 
+  let remove_mod fdd f v =
+    let open Action in 
+    let x = F f in 
+    let g seq = match Seq.find seq x with
+      | Some v' -> if Value.equal v v' then Seq.remove seq x else seq
+      | None -> seq in
+    let h par = Par.map par ~f:g in
+    map_r h fdd
+
+  let mk_guarded fdd =
+    List.fold_left (mods fdd)
+      ~init:fdd
+      ~f:(fun d (f,v) -> cond (f,v) (remove_mod d f v) d)
+    
   let equivalent t1 t2 =
     (* A context represents the set of packets that can reach a certain node.
        It is implemented simply as a partial map from fields to values.

@@ -172,4 +172,4 @@ let rec flatten_union_k (pol : policy)
     flatten_union_k q acc k)
   | _ -> k (pol :: acc)
 
-let flatten_union (pol : policy) : policy list = flatten_union_k pol [] ident
+let flatten_union (pol : policy) : policy list = flatten_union_k pol [] Fn.id

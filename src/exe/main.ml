@@ -210,4 +210,4 @@ let main : Command.t =
 
 let () =
   Frenetic.Util.pp_exceptions ();
-  Command.run ~version: "5.0" ~build_info: "RWO" main
+  Command_unix.run ~version: "5.0" ~build_info: "RWO" main

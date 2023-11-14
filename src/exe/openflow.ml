@@ -304,4 +304,4 @@ let run =
        ignore (main ());
        Core.never_returns (Async.Scheduler.go ()))
 
-let _ = Command.run ~version:"1.0" ~build_info:"RWO" run
+let _ = Command_unix.run ~version:"1.0" ~build_info:"RWO" run

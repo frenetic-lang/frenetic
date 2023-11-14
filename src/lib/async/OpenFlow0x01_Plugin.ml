@@ -64,7 +64,7 @@ module LowLevel = struct
         Process.create ~prog ~args ()
         >>= function
         | Error err -> Logging.error "Failed to launch openflow server %s!" prog;
-          raise (Core_kernel.Error.to_exn err)
+          raise (Core.Error.to_exn err)
         | Ok proc ->
           Logging.info "Successfully launched OpenFlow controller with pid %s" (Pid.to_string (Process.pid proc));
           (* Redirect stdout of the child proc to out stdout for logging *)

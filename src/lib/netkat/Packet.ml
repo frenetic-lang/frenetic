@@ -54,6 +54,17 @@ let eval_e_fdd (e : Fdd.FDD.t) (pk : t) : Set.M(T).t =
   let act = apply_fdd e pk in
   apply_action act pk
 
+let print_pkt pk =
+  let buf = Buffer.create 101 in 
+  Printf.bprintf buf "{ ";
+  ignore (List.fold_left ~init:true ~f:(fun b (f,v) ->
+              if b then () else Printf.bprintf buf ", ";
+              Printf.bprintf buf "%s = %s" (Field.to_string f) (Int64.to_string v);
+              false)
+    (Map.to_alist pk));
+  Printf.bprintf buf "} ";
+  Buffer.contents buf
+
 let eval_d_fdd (d : Fdd.FDD.t) (pk : t) : int64 Map.M(T).t =
   apply_fdd d pk
   |> Set.to_list
@@ -61,6 +72,5 @@ let eval_d_fdd (d : Fdd.FDD.t) (pk : t) : int64 Map.M(T).t =
     match Map.find seq Fdd.Action.K with
     | Some (Const v) -> (apply_action_seq seq pk, v)
     | _ -> failwith "malformed D-FDD; continuation missing or invalid"
-  )
+    )
   |> Map.of_alist_exn (module T)
-

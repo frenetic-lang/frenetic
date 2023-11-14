@@ -58,9 +58,9 @@ let print_all_tables ?(no_tables=false) fdd switches =
   if not no_tables then List.iter switches ~f:(print_table fdd)
 
 let time f =
-  let t1 = Unix.gettimeofday () in
+  let t1 = Core_unix.gettimeofday () in
   let r = f () in
-  let t2 = Unix.gettimeofday () in
+  let t2 = Core_unix.gettimeofday () in
   (t2 -. t1, r)
 
 let print_time ?(prefix="") time =
@@ -238,7 +238,7 @@ module Local = struct
     else
       if printorder then print_order ();
       if printfdd then print_fdd fdd;
-      let file = if stdin then Sys.getcwd () ^ "stdin" else file_or_pol in
+      let file = if stdin then Sys_unix.getcwd () ^ "stdin" else file_or_pol in
       if dumpfdd then dump_fdd fdd ~file:(file ^ ".dot");
       if renderfdd then Fdd.render fdd;
       if updatecontroller then update_controller fdd;
@@ -273,7 +273,7 @@ module Global = struct
     let switches = Netkat.Semantics.switches_of_policy pol in
     if printorder then print_order ();
     if printfdd then print_fdd fdd;
-    let file = if stdin then Sys.getcwd () ^ "stdin" else file_or_pol in
+    let file = if stdin then Sys_unix.getcwd () ^ "stdin" else file_or_pol in
     if dumpfdd then dump_fdd fdd ~file:(file ^ ".dot");
     if renderfdd then Fdd.render fdd;
     begin match dumplocal with
@@ -345,7 +345,7 @@ module Virtual = struct
     end;
     if printorder then print_order ();
     if printfdd then print_fdd fdd;
-    let file = if stdin then Sys.getcwd () ^ "stdin" else vpol_file_or_str in
+    let file = if stdin then Sys_unix.getcwd () ^ "stdin" else vpol_file_or_str in
     if dumpfdd then dump_fdd fdd ~file:(file ^ ".dot");
     if renderfdd then Fdd.render fdd;
     begin match dumplocal with

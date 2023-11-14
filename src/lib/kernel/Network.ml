@@ -1,6 +1,6 @@
 open Graph
 (* open Sexplib.Conv *)
-open Core_kernel
+open Core
 
 module type VERTEX = sig
   type t [@@deriving sexp]

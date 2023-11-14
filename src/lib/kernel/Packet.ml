@@ -338,17 +338,18 @@ module Dns = struct
 
   (* Helper to get the RLE-encoded, NULL-terminated names in DNS records *)
   let get_dns_name bits =
-    let get_piece = (fun bits ->
-                      let len = Cstruct.get_uint8 bits 0 in
-                      Cstruct.copy bits 1 len) in
-    let rec get_pieces = (fun bits acc ->
-                            let piece = get_piece bits in
-                            let acc = acc @ [piece] in
-                            let len = String.length piece in
-                            let bits = Cstruct.shift bits (len + 1) in
-                            if len > 0 then get_pieces bits acc
-                            else acc) in
-    String.concat ~sep:"." (get_pieces bits []);;
+    failwith "unimplemented"
+    (* let get_piece = (fun bits ->
+     *                   let len = Cstruct.get_uint8 bits 0 in
+     *                   Cstruct.sub_copy bits 1 len) in
+     * let rec get_pieces = (fun bits acc ->
+     *                         let piece = get_piece bits in
+     *                         let acc = acc @ [piece] in
+     *                         let len = Cstruct.length piece in
+     *                         let bits = Cstruct.shift bits (len + 1) in
+     *                         if len > 0 then get_pieces bits acc
+     *                         else acc) in
+     * Stdlib.Bytes.concat (Bytes.make 1 '.') (get_pieces bits []);; *)
 
   (* DNS string encoding requires 1 byte per '.' separated piece; since the
      '.' is not included, we gain 1 for the first piece, plus NULL term *)

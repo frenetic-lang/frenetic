@@ -1948,7 +1948,7 @@ module SwitchFeatures = struct
 
   let size_of feats =
     sizeof_ofp_switch_features
-    + List.sum (module Int) ~f:ident (List.map ~f:PortDescription.size_of feats.ports)
+    + List.sum (module Int) ~f:Fn.id (List.map ~f:PortDescription.size_of feats.ports)
 
   let marshal feats out =
     set_ofp_switch_features_datapath_id out feats.switch_id;

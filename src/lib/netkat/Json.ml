@@ -277,14 +277,14 @@ let pattern_to_json (p:Pattern.t) : json =
   `Assoc [
      ("dlSrc", str_field Frenetic_kernel.Packet.string_of_mac p.dlSrc);
      ("dlDst", str_field Frenetic_kernel.Packet.string_of_mac p.dlDst);
-     ("dlTyp", int_field ident p.dlTyp);
-     ("dlVlan", int_field ident p.dlVlan);
-     ("dlVlanPcp", int_field ident p.dlVlanPcp);
+     ("dlTyp", int_field Fn.id p.dlTyp);
+     ("dlVlan", int_field Fn.id p.dlVlan);
+     ("dlVlanPcp", int_field Fn.id p.dlVlanPcp);
      ("nwSrc", str_field Pattern.Ip.string_of p.nwSrc);
      ("nwDst", str_field Pattern.Ip.string_of p.nwDst);
-     ("nwProto", int_field ident p.nwProto);
-     ("tpSrc", int_field ident p.tpSrc);
-     ("tpDst", int_field ident p.tpDst);
+     ("nwProto", int_field Fn.id p.nwProto);
+     ("tpSrc", int_field Fn.id p.tpSrc);
+     ("tpDst", int_field Fn.id p.tpDst);
      ("inPort", int_field Int32.to_int_exn p.inPort) ]
 
 let modify_to_json (m : modify) : json = match m with

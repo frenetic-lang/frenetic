@@ -23,7 +23,7 @@
 (* prevent core from overwriting this *)
 module Printexn = Printexc
 open Core
-
+   
 let make_string_of formatter x =
   let open Format in
   let buf = Buffer.create 100 in
@@ -50,11 +50,11 @@ let map_snd lst ~f =
 (*===========================================================================*)
 
 let compile_dot ?(format="pdf") ?(engine="dot") ?(title=engine) data : string =
-  let output_file = Filename.temp_file (title ^ "_") ("." ^ format) in
-  let to_dot = Unix.open_process_out (sprintf "dot -T%s -o %s" format output_file) in
+  let output_file = Filename_unix.temp_file (title ^ "_") ("." ^ format) in
+  let to_dot = Core_unix.open_process_out (sprintf "dot -T%s -o %s" format output_file) in
   Out_channel.output_string to_dot data;
   Out_channel.close to_dot;
-  ignore (Unix.close_process_out to_dot);
+  ignore (Core_unix.close_process_out to_dot);
   output_file
 
 let show_dot ?format ?title ?engine data : unit =

@@ -270,6 +270,7 @@ module FDD : sig
     with type r = Action.t
     and  type v = Field.t * Value.t
 
+  val mk_guarded : t -> t
   val mk_cont : int64 -> t
   val conts : t -> Int64.Set.t
   val map_conts : t -> f:(int64 -> int64) -> t

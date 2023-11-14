@@ -510,7 +510,7 @@ let to_entry (f : flow) : (string list) * (string list) =
     | [] -> assert false
     | h::tl -> ("+ " ^ h)::tl
   in
-  let action_list = concat_mapi pars ~f:(function 0 -> ident | _ -> add_sep) in
+  let action_list = concat_mapi pars ~f:(function 0 -> Fn.id | _ -> add_sep) in
   (pattern_list, action_list)
 
 (* Pads a string with spaces so that it is atleast `len` characters. *)
@@ -726,7 +726,7 @@ module To0x01 = struct
     ; nwTos = None
     ; tpSrc = pat.tpSrc
     ; tpDst = pat.tpDst
-    ; inPort = Core_kernel.Option.map pat.inPort from_portId
+    ; inPort = Core.Option.map pat.inPort from_portId
     }
 
   let from_flow (priority : int) (flow : flow) : OF10.flowMod =
@@ -794,7 +794,7 @@ module To0x01 = struct
   let from_packetOut (pktOut : pktOut) : OF10.packetOut =
     let output_payload, port_id, apply_actions = pktOut in
     let output_payload = from_payload output_payload in
-    let port_id = Core_kernel.Option.map port_id from_portId in
+    let port_id = Core.Option.map port_id from_portId in
     let apply_actions = from_par port_id [apply_actions] in
     { output_payload; port_id; apply_actions }
 

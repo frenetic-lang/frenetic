@@ -279,7 +279,7 @@ module Automaton = struct
       |> Action.Par.of_list
     in
     let dedup_fdd = FDD.map_r ~f:determinize_action in
-    map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) -> (e, dedup_fdd d))
+    map_reachable automaton ~order:`Pre ~f:(fun _ (e,d) -> (e, FDD.mk_guarded d |> dedup_fdd))
 
   (** symbolic antimirov derivatives *)
   let rec split_pol (automaton : t0) (pol: Pol.t) : FDD.t * FDD.t * ((int64 * Pol.t) list) =

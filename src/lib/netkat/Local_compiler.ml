@@ -122,7 +122,7 @@ module FDD = struct
       of_local_pol_k env p (fun p' -> k (erase env p' field init))
     | Link _ | VLink _ | Dup -> raise Non_local
 
-  let rec of_local_pol ?(env=Field.Env.empty) p = of_local_pol_k env p ident
+  let rec of_local_pol ?(env=Field.Env.empty) p = of_local_pol_k env p Fn.id
 
   let to_local_pol t =
     fold t ~f:Action.to_policy ~g:(fun v t f ->

@@ -66,5 +66,5 @@
    ipaddr sedlex sexplib str menhirLib compiler-libs.common)
  (virtual_deps cppo menhir)
  (preprocess
-  (pps ppx_cstruct ppx_deriving.std ppx_jane -allow-unannotated-ignores sedlex.ppx))
+  (pps ppx_cstruct ppx_deriving.std ppx_jane sedlex.ppx))
  (flags :standard -safe-string))
